@@ -141,6 +141,7 @@ namespace ChaosTest {
 		Box->X() = TVector<T, 3>(0, 1, 0);
 		Box->R() = TRotation<T, 3>(FQuat::Identity);
 		Box->V() = TVector<T, 3>(0, 0, -1);
+		Box->PreV() = Box->V();
 		Box->P() = Box->X();
 		Box->Q() = Box->R();
 		Box->AuxilaryValue(PhysicsMaterials) = MakeSerializable(PhysicsMaterial);
@@ -213,6 +214,7 @@ namespace ChaosTest {
 		Box->X() = TVector<T, 3>(0, 0, 49);
 		Box->R() = TRotation<T, 3>(FQuat::Identity);
 		Box->V() = TVector<T, 3>(0, 0, -1);
+		Box->PreV() = Box->V();
 		Box->P() = Box->X();
 		Box->Q() = Box->R();
 		Box->AuxilaryValue(PhysicsMaterials) = MakeSerializable(PhysicsMaterial);
@@ -285,6 +287,7 @@ namespace ChaosTest {
 		Box->X() = TVector<T, 3>(0, 1, 0);
 		Box->R() = TRotation<T, 3>(FQuat::Identity);
 		Box->V() = TVector<T, 3>(0, 0, -1);
+		Box->PreV() = Box->V();
 		Box->P() = Box->X();
 		Box->Q() = Box->R();
 		Box->AuxilaryValue(PhysicsMaterials) = MakeSerializable(PhysicsMaterial);
@@ -355,6 +358,7 @@ namespace ChaosTest {
 		Box->X() = TVector<T, 3>(0, 0, 0);
 		Box->R() = TRotation<T, 3>(FQuat::Identity);
 		Box->V() = TVector<T, 3>(0, 0, -100);
+		Box->PreV() = Box->V();
 		Box->P() = Box->X();
 		Box->Q() = Box->R();
 		Box->AuxilaryValue(PhysicsMaterials) = MakeSerializable(PhysicsMaterial);
@@ -429,6 +433,7 @@ namespace ChaosTest {
 		DynamicCube->X() = TVector<T, 3>(0, 0, 80); // Penetrating by about 5cm
 		DynamicCube->R() = TRotation<T, 3>::FromElements( 0.27059805f, 0.27059805f, 0.0f, 0.923879532f ); // Rotate so that vertex collide
 		DynamicCube->V() = TVector<T, 3>(0, 0, -100);
+		DynamicCube->PreV() = DynamicCube->V();
 		DynamicCube->P() = DynamicCube->X();
 		DynamicCube->Q() = DynamicCube->R();
 		DynamicCube->AuxilaryValue(PhysicsMaterials) = MakeSerializable(PhysicsMaterial);
@@ -493,6 +498,7 @@ namespace ChaosTest {
 		Box2->P() = Box2->X();
 		Box2->Q() = Box2->R();
 		Box2->V() = TVector<T, 3>(0, 0, -1);
+		Box2->PreV() = Box2->V();
 		Box2->AuxilaryValue(PhysicsMaterials) = MakeSerializable(PhysicsMaterial);
 
 		FBox Region(FVector(.2), FVector(.5));

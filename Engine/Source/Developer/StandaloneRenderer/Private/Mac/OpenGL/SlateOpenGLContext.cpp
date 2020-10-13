@@ -191,7 +191,9 @@ void FSlateOpenGLContext::Initialize(void* InWindow, const FSlateOpenGLContext* 
 		[View setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
 		if (FPlatformApplicationMisc::IsHighDPIModeEnabled())
 		{
-			[View setWantsBestResolutionOpenGLSurface:YES];
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
+				[View setWantsBestResolutionOpenGLSurface : YES];
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 
 		MainThreadCall(^{

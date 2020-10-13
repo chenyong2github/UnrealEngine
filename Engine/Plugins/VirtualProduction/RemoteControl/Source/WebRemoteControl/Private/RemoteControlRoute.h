@@ -9,11 +9,26 @@
 
 #include "RemoteControlRoute.generated.h"
 
+struct FRemoteControlWebSocketMessage
+{
+	FString MessageName;
+	int32 MessageId = -1;
+	FGuid ClientId;
+	TArrayView<uint8> RequestPayload;
+};
+
 DECLARE_DELEGATE_RetVal_TwoParams(bool, FRequestHandlerDelegate, const FHttpServerRequest&, const FHttpResultCallback&);
-DECLARE_DELEGATE_TwoParams(FWebSocketMessageDelegate, int32 /*MessageId*/, TConstArrayView<uint8> /* Payload */);
+DECLARE_DELEGATE_OneParam(FWebSocketMessageDelegate, const FRemoteControlWebSocketMessage& /** Message */);
 
 struct FRemoteControlRoute
 {
+	FRemoteControlRoute(FString InRouteDescription, FHttpPath InPath, EHttpServerRequestVerbs InVerb, FRequestHandlerDelegate InHandler)
+		: RouteDescription(MoveTemp(InRouteDescription))
+		, Path(MoveTemp(InPath))
+		, Verb(InVerb)
+		, Handler(MoveTemp(InHandler))
+	{
+	}
 	/** A description of how the route should be used. */
 	FString RouteDescription;
 	/** Relative path (ie. /remote/object) */
@@ -29,6 +44,12 @@ struct FRemoteControlRoute
 
 struct FRemoteControlWebsocketRoute
 {
+	FRemoteControlWebsocketRoute(const FString& InRouteDescription, const FString& InMessageName, const FWebSocketMessageDelegate& InDelegate)
+		: RouteDescription(InRouteDescription)
+		, MessageName(InMessageName)
+		, Delegate(InDelegate)
+	{}
+	
 	/** A description of how the route should be used. */
 	FString RouteDescription;
 	/**  The message handled by this route. */

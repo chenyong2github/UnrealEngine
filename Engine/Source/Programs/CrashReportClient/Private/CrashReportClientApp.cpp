@@ -25,6 +25,7 @@
 #include "IAnalyticsProviderET.h"
 #include "XmlParser.h"
 #include "Containers/Map.h"
+#include "DiagnosticLogger.h"
 
 #if !CRASH_REPORT_UNATTENDED_ONLY
 	#include "SCrashReportClient.h"
@@ -82,320 +83,6 @@ static bool AnalyticsEnabledFromCmd = true;
 /** If in monitor mode, watch this pid. */
 static uint64 MonitorPid = 0;
 
-/**
- * Write a mini log of important events such as the crash GUID(s) to attach to the editor summary analytic event. This is to diagnose abnormal terminations
- * of the Editor or crash in CRC itself. Each log entry is expected to be small and concise. Each instance creates a single log file identified by the CRC
- * process ID. When CRC (compiled with MTBF support) is about to exit, it reloads the existing log files and pass them to EditorSessionSummarySender. When
- * the summary sender is about to send a session, it check the session status, if an error occurred, it tries to match a mini-log and if the corresponding
- * log is found, it is attached to the session summary.
- */
-class FDiagnosticLogger : public FOutputDevice
-{
-public:
-	static constexpr int32 MaxLogLen = 8 * 1024;
-
-	static FDiagnosticLogger& Get()
-	{
-		static FDiagnosticLogger Instance;
-		return Instance;
-	}
-
-	virtual void Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const FName& Category) override
-	{
-		// Log the errors, especially the failed 'check()' with the callstack/message.
-		if (Verbosity == ELogVerbosity::Error)
-		{
-			// Log but don't forward to UE logging system. The log is already originate from the logging system.
-			LogEvent(TEXT("CRC/Error"), /*bForwardToUELog*/false);
-			LogEvent(V, /*bForwardToUELog*/false);
-		}
-	}
-
-	virtual void Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const FName& Category, const double Time) override
-	{
-		Serialize(V, Verbosity, Category);
-	}
-
-	/** Log a small events to help diagnose abnormal shutdown or bugs in CRC itself. The event text is expected to be short and concise. */
-	void LogEvent(const TCHAR* Event, bool bForwardToUELog = true)
-	{
-		if (IsEnabled())
-		{
-			FScopeLock ScopedLock(&LoggerLock);
-			TGuardValue<bool> ReentrantGuard(bReentrantGuard, true);
-			if (*ReentrantGuard) // Read the old value.
-			{
-				return; // Prevent renentrant logging.
-			}
-
-			AppendLog(Event);
-
-			// Prevent error logs coming from the logging system to be duplicated.
-			if (bForwardToUELog)
-			{
-				UE_LOG(CrashReportClientLog, Log, TEXT("%s"), Event);
-			}
-		}
-	}
-
-	void LogEvent(const FString& Event)
-	{
-		LogEvent(*Event);
-	}
-
-	/**
-	 * Tick the logger to update CRC timestamp. The goal is to ensure CRC is ticking and record the last time it ticked (the estimated time of death of CRC).
-	 * @note When CRCEditor fails to report the Editor exit code in the analytics, the attached CRC diagnostic logs shows that it entered the main loop but
-	 *       never exited it without any crash (monitorexceptcode - windows only). So we want to capture the last time CRC ticked to compare with Editor death time.
-	 */
-	void Tick()
-	{
-		if (IsEnabled())
-		{
-			FScopeLock ScopedLock(&LoggerLock);
-
-			// To prevent LogEvent() executing if WriteToFile() below ends up firing an error log (like a disk is full error message logged).
-			TGuardValue<bool> ReentrantGuard(bReentrantGuard, true);
-
-			// Timestamp the log file every n seconds.
-			constexpr double TimestampingPeriodSecs = 5;
-
-			const double CurrTimeSecs = FPlatformTime::Seconds();
-			if (CurrTimeSecs >= NextTickLogSeconds)
-			{
-				// Append the current time to log at few point in times as a proof that CRC ticked at the expected beat. 
-				AppendLog(*FDateTime::UtcNow().ToString());
-
-				// Log after 5s, 20s, 1.3min, 5.3min, 21.3min, up to every 2 hours.
-				TickLogPeriodSeconds = FMath::Min(TickLogPeriodSeconds * 4, 2.0 * 3600);
-				NextTickLogSeconds = CurrTimeSecs + TickLogPeriodSeconds;
-
-				// Appending a log updated the timestamp too, schedule the next one later.
-				NextTimestampUpdateTimeSeconds = CurrTimeSecs + TimestampingPeriodSecs;
-			}
-			else if (CurrTimeSecs >= NextTimestampUpdateTimeSeconds)
-			{
-				// Update the timestamp every n seconds.
-				NextTimestampUpdateTimeSeconds = CurrTimeSecs + TimestampingPeriodSecs;
-
-				// Timestamp the log.
-				WriteToFile(FDateTime::UtcNow(), nullptr);
-			}
-		}
-	}
-
-	/** Close the file used by the diagnostic logger. */
-	void Close()
-	{
-		if (LogFileAr)
-		{
-			LogFileAr->Close();
-			LogFileAr.Reset();
-		}
-	}
-
-	static TMap<uint32, TTuple<FString, FDateTime>> LoadAllLogs()
-	{
-		TMap<uint32, TTuple<FString, FDateTime>> Logs;
-
-		IFileManager::Get().IterateDirectory(*GetLogDir(), [&Logs](const TCHAR* Pathname, bool bIsDir)
-		{
-			if (!bIsDir)
-			{
-				FString Filename = FPaths::GetCleanFilename(Pathname);
-				if (Filename.StartsWith(GetBaseFilename()) && Filename.EndsWith(TEXT(".log")))
-				{
-					uint32 ProcessID = GetLogProcessId(Filename);
-					if (ProcessID == FPlatformProcess::GetCurrentProcessId() || !FPlatformProcess::IsApplicationRunning(ProcessID)) // Don't load the log of another running CrashReportClient.
-					{
-						int64 UtcUnixTimestamp = 0;
-						FString MonitorLog;
-						TUniquePtr<FArchive> Ar(IFileManager::Get().CreateFileReader(Pathname));
-						if (Ar)
-						{
-							*Ar << UtcUnixTimestamp;
-							*Ar << MonitorLog;
-							Logs.Emplace(ProcessID, MakeTuple(MoveTemp(MonitorLog), FDateTime::FromUnixTimestamp(UtcUnixTimestamp)));
-						}
-					}
-				}
-			}
-			return true; // Continue iterating the directory.
-		});
-
-		return Logs;
-	}
-
-	static void ClearAllLogs()
-	{
-		IFileManager::Get().IterateDirectory(*GetLogDir(), [](const TCHAR* Pathname, bool bIsDir)
-		{
-			if (!bIsDir)
-			{
-				FString Filename = FPaths::GetCleanFilename(Pathname);
-				if (Filename.StartsWith(GetBaseFilename()) && Filename.EndsWith(TEXT(".log")))
-				{
-					uint32 ProcessID = GetLogProcessId(Filename);
-					if (ProcessID == FPlatformProcess::GetCurrentProcessId() || !FPlatformProcess::IsApplicationRunning(ProcessID)) // Don't delete the log of another running CrashReportClient.
-					{
-						IFileManager::Get().Delete(Pathname);
-					}
-				}
-			}
-			return true; // Continue iterating the directory.
-		});
-	}
-
-private:
-	FDiagnosticLogger()
-		: NextTimestampUpdateTimeSeconds(FPlatformTime::Seconds())
-		, TickLogPeriodSeconds(5)
-		, NextTickLogSeconds(NextTimestampUpdateTimeSeconds + TickLogPeriodSeconds)
-	{
-		if (IsEnabled())
-		{
-			// Ensure the Log directory exists.
-			IFileManager::Get().MakeDirectory(*GetLogDir(), /*Tree*/true);
-
-			// Delete the previous file (if any was left).
-			IFileManager::Get().Delete(*GetLogPathname(), /*bRequireExits*/false);
-
-			// Reserve the memory for the log string.
-			DiagnosticInfo.Reset(MaxLogLen);
-
-			// Open the file.
-			LogFileAr.Reset(IFileManager::Get().CreateFileWriter(*GetLogPathname(), FILEWRITE_AllowRead));
-		}
-	}
-
-	static bool IsEnabled()
-	{
-		// Only log if MTBF is enabled. In this mode, the mini-log created is attached to the Editor session summary to diagnose problems in CRC or help
-		// figure out Editor abnormal terminations.
-		return CRASH_REPORT_WITH_MTBF != 0;
-	}
-
-	static const FString& GetLogDir()
-	{
-		static FString LogDir(FPlatformProcess::UserTempDir()); // This folder (and API) doesn't rely on the engine being initialized and can be use very early.
-		return LogDir;
-	}
-
-	static const TCHAR* GetBaseFilename()
-	{
-		return TEXT("UnrealCrcMiniLogV2");
-	}
-
-	static const FString& GetLogPathname()
-	{
-		static FString LogPathname(GetLogDir() / FString::Printf(TEXT("%s_%s.log"), GetBaseFilename(), *LexToString(FPlatformProcess::GetCurrentProcessId())));
-		return LogPathname;
-	}
-
-	static uint32 GetLogProcessId(const FString& Filename)
-	{
-		// Parse the PID from a filename like: UnrealCrcMiniLogV2_939399.log
-		int Start;
-		int End;
-		if (!Filename.FindChar(TEXT('_'), Start))
-		{
-			return 0;
-		}
-		else if (!Filename.FindChar(TEXT('.'), End))
-		{
-			return 0;
-		}
-
-		FString ProcessIdStr = Filename.Mid(Start + 1, End - Start);
-		return FCString::Atoi(*ProcessIdStr);
-	}
-
-	void AppendLog(const TCHAR* Event)
-	{
-		// Add the separator if some text is already logged.
-		if (DiagnosticInfo.Len())
-		{
-			DiagnosticInfo.Append(TEXT("|"));
-		}
-
-		// Rotate the log if it gets too long.
-		int32 FreeLen = MaxLogLen - DiagnosticInfo.Len();
-		int32 EventLen = FCString::Strlen(Event);
-		if (EventLen > FreeLen)
-		{
-			if (EventLen > MaxLogLen)
-			{
-				DiagnosticInfo.Reset(MaxLogLen);
-				EventLen = MaxLogLen;
-			}
-			else
-			{
-				DiagnosticInfo.RemoveAt(0, EventLen - FreeLen, /*bAllowShrinking*/false); // Free space, remove the chars from the oldest events (in front).
-			}
-		}
-
-		// Append the log entry and dump the log to the file.
-		DiagnosticInfo.AppendChars(Event, EventLen);
-		WriteToFile(FDateTime::UtcNow(), &DiagnosticInfo);
-	}
-
-	/**
-	 * Write the diagnostic info into the file.
-	 * @param Timestamp The CRC timestamp, written at the beginning of the file.
-	 * @param Info The diagnostic info to write in the file. If null only update the timestamp.
-	 */
-	void WriteToFile(const FDateTime& Timestamp, const FString* Info)
-	{
-		if (!LogFileAr)
-		{
-			return;
-		}
-
-		// Write the timestamp at the very beginning of the file.
-		LogFileAr->Seek(0);
-		int64 UnixTimestamp = Timestamp.ToUnixTimestamp();
-		(*LogFileAr) << UnixTimestamp;
-
-		// If the diagnostic information is supplied, write it all over previous data. (The diagnostic info never shrinks, so it always overwrite existing data).
-		if (Info)
-		{
-			(*LogFileAr) << const_cast<FString&>(*Info);
-		}
-
-		// Flush to disk.
-		LogFileAr->Flush();
-	}
-
-private:
-	/** Serialize write access in the file */
-	FCriticalSection LoggerLock;
-
-	/** This is the string containing all the logged informations. */
-	FString DiagnosticInfo;
-
-	/** File used to write the diagnostic */
-	TUniquePtr<FArchive> LogFileAr;
-
-	/** The period at which the log timestamp is updated. During the first minute, timestamp every 5 seconds, then after the first minute, every minutes. */
-	double NextTimestampUpdateTimeSeconds;
-
-	/** The current period to wait between 'tick' logs. */
-	double TickLogPeriodSeconds;
-
-	/** The next time a 'tick' should be logged. */
-	double NextTickLogSeconds;
-
-	/** Prevent a reentrency in the logger. */
-	bool bReentrantGuard = false;
-};
-
-// This extra function can be declared external in the platform specific code. (This avoid creating an extra file for just one function).
-// It also prevent logging before the engine loop is fully initialized.
-void LogCrcEvent(const TCHAR* Event)
-{
-	FDiagnosticLogger::Get().LogEvent(Event);
-}
-
 /** If in monitor mode, pipe to read data from game. */
 static void* MonitorReadPipe = nullptr;
 
@@ -407,7 +94,8 @@ enum SubmitCrashReportResult {
 	Failed,				// Failed to send report
 	SuccessClosed,		// Succeeded sending report, user has not elected to relaunch
 	SuccessRestarted,	// Succeeded sending report, user has elected to restart process
-	SuccessContinue		// Succeeded sending report, continue running (if monitor mode).
+	SuccessContinue,	// Succeeded sending report, continue running (if monitor mode).
+	SuccessDiscarded,	// User declined sending the report.
 };
 
 /**
@@ -665,8 +353,17 @@ SubmitCrashReportResult RunWithUI(FPlatformErrorReport ErrorReport)
 	// Close down the Slate application
 	FSlateApplication::Shutdown();
 
-	// Detect if ensure, if user has selected to restart or close.	
-	return CrashReportClient->GetIsSuccesfullRestart() ? SuccessRestarted : (FPrimaryCrashProperties::Get()->bIsEnsure ? SuccessContinue : SuccessClosed);
+	// Detect if ensure, if user has selected to restart or close.
+	if (CrashReportClient->WasClosedWithoutSending())
+	{
+		return SuccessDiscarded;
+	}
+	else if (CrashReportClient->IsUploadComplete())
+	{
+		return CrashReportClient->GetIsSuccesfullRestart() ? SuccessRestarted : (FPrimaryCrashProperties::Get()->bIsEnsure ? SuccessContinue : SuccessClosed);
+	}
+	
+	return Failed;
 }
 #endif // !CRASH_REPORT_UNATTENDED_ONLY
 
@@ -1075,7 +772,7 @@ static void HandleAbnormalShutdown(FSharedCrashContext& CrashContext, uint64 Pro
 		FDiagnosticLogger::Get().LogEvent(TEXT("SyntheticCrash"));
 
 		FPlatformErrorReport ErrorReport = CollectErrorReport(RecoveryService.Get(), ProcessID, CrashContext, WritePipe);
-		SubmitCrashReportResult Result = SendErrorReport(ErrorReport, /*bNoDialog*/ true);
+		SendErrorReport(ErrorReport, /*bNoDialog*/ true);
 
 		// delete the temporary directory
 		PlatformFile.DeleteDirectoryRecursively(*TempCrashDirectory);
@@ -1154,8 +851,7 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 
 		// Load error report generated by the process from disk
 		FPlatformErrorReport ErrorReport = LoadErrorReport();
-		const SubmitCrashReportResult Result = SendErrorReport(ErrorReport, FApp::IsUnattended(), bImplicitSendFromCmd);
-		// We are not interested in the result of this
+		SendErrorReport(ErrorReport, FApp::IsUnattended(), bImplicitSendFromCmd);
 
 		if (AnalyticsEnabledFromCmd)
 		{
@@ -1235,7 +931,7 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 			return MakeTuple(bRunning, ProcessReturnCodeOpt);
 		};
 
-		// Loop until the Editor exits.
+		// Loop until the monitored process dies.
 		TTuple<bool/*bRunning*/, TOptional<int32>/*ExitCode*/> ProcessStatus = GetProcessStatus(MonitoredProcess);
 		while (ProcessStatus.Get<0>())
 		{
@@ -1269,12 +965,14 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 						RecoveryServicePtr.Reset();
 					}
 #endif
-					FDiagnosticLogger::Get().LogEvent(TEXT("Report/Send"));
+					FDiagnosticLogger::Get().LogEvent(TEXT("Report/Sending"));
 
 					const bool bNoDialog = (CrashContext.UserSettings.bNoDialog || CrashContext.UserSettings.bImplicitSend) && CrashContext.UserSettings.bSendUnattendedBugReports;
 					const SubmitCrashReportResult Result = SendErrorReport(ErrorReport, bNoDialog, CrashContext.UserSettings.bImplicitSend);
 
-					FDiagnosticLogger::Get().LogEvent(TEXT("Report/Analytic"));
+					FDiagnosticLogger::Get().LogEvent(Result == SubmitCrashReportResult::SuccessDiscarded ? TEXT("Report/Discarded") :
+					                                 (Result == SubmitCrashReportResult::Failed ? TEXT("Report/Failed") : TEXT("Report/Sent")));
+
 					if (bReportCrashAnalyticInfo)
 					{
 						if (FCrashReportAnalytics::IsAvailable())
@@ -1313,7 +1011,7 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 			ProcessStatus = GetProcessStatus(MonitoredProcess);
 
 			PrevLoopStartTime = CurrLoopStartTime;
-			
+
 			// Tick the logger so that it periodically timestamp the mini-log file to detect approximatively when CRC exited (or hang).
 			FDiagnosticLogger::Get().Tick();
 		}
@@ -1322,24 +1020,14 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 		{
 			FDiagnosticLogger::Get().LogEvent(FString::Printf(TEXT("MTBF/Start:%s"), *FDateTime::UtcNow().ToString()));
 
-			// The loop above can exit before the Editor (monitored process) exits (because of IsEngineExitRequested()) if the user clicks 'Close Without Sending' very quickly, but for MTBF,
-			// it is desirable to have the Editor process return code. Give some extra time to the Editor to exit. If it doesn't exit within x seconds the next CRC instance will sent the
-			// current analytic report delayed, not ideal, but supported.
-			FDateTime WaitEndTime = FDateTime::UtcNow() + FTimespan::FromMinutes(3);
-			while (ProcessStatus.Get<0>() && FDateTime::UtcNow() <= WaitEndTime)
-			{
-				FPlatformProcess::Sleep(0.1f); // In seconds
-				ProcessStatus = GetProcessStatus(MonitoredProcess);
-			}
-
-			// Check the status of the Editor process after waiting n seconds.
+			// Get the status of the Editor process.
 			TOptional<int32> MonitoredProcessExitCode = ProcessStatus.Get<1>();
 			bool bMonitoredProcessExited = !ProcessStatus.Get<0>();
 			bool bMonitoredSessionLoaded = false;
 
 			FDiagnosticLogger::Get().LogEvent(TEXT("MTBF/LoadSession"));
 
-			// Try to persist an exit code in session summary (even if the Editor is still running)
+			// Try to persist an exit code in session summary.
 			FEditorAnalyticsSession MonitoredSession;
 			FTimespan Timeout = FTimespan::FromMinutes(2);
 			if (FEditorAnalyticsSession::Lock(Timeout))

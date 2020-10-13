@@ -75,12 +75,12 @@ public:
 	virtual FString GetInfo() const = 0;
 
 	/**
-	 * Get the name of this player.
+	 * Get the GUID for this player plugin.
 	 *
-	 * @return Media player name, i.e. 'AndroidMedia' or 'WmfMedia'.
-	 * @see GetMediaName
+	 * @return Media player GUID (usually corresponds to a player name)
+	 * @see GetPlayerName
 	 */
-	virtual FName GetPlayerName() const = 0;
+	virtual FGuid GetPlayerPluginGUID() const = 0;
 
 	/**
 	 * Get the player's sample queue.

@@ -19,12 +19,8 @@
 #define LOCTEXT_NAMESPACE "UDrawAndRevolveTool"
 
 
-const FText InitializationModeMessage = LOCTEXT("CurveInitialization", "Draw and a profile curve and it will be revolved around the purple draw plane axis. "
-	"Ctrl+click repositions draw plane and axis. The curve is ended by clicking the end again or connecting to its start. Holding shift toggles snapping to "
-	"be opposite the EnableSnapping setting.");
-const FText EditModeMessage = LOCTEXT("CurveEditing", "Click points to select them, Shift+click to add/remove points to selection. Ctrl+click a segment "
-	"to add a point, or select an endpoint and Ctrl+click somewhere on the plane to add to the ends. Backspace deletes selected points. Holding Shift "
-	"toggles snapping to be opposite the EnableSnapping setting.");
+const FText InitializationModeMessage = LOCTEXT("CurveInitialization", "Draw and a profile curve and it will be revolved around the purple draw plane axis. Ctrl+click repositions draw plane and axis. The curve is ended by clicking the end again or connecting to its start. Holding shift toggles snapping to be opposite the EnableSnapping setting.");
+const FText EditModeMessage = LOCTEXT("CurveEditing", "Click points to select them, Shift+click to add/remove points to selection. Ctrl+click a segment to add a point, or select an endpoint and Ctrl+click somewhere on the plane to add to the ends. Backspace deletes selected points. Holding Shift toggles snapping to be opposite the EnableSnapping setting.");
 
 
 // Tool builder
@@ -152,11 +148,11 @@ void UDrawAndRevolveTool::Setup()
 		});
 	ControlPointsMechanic->SetSnappingEnabled(Settings->bEnableSnapping);
 
-	UpdateRevolutionAxis(Settings->DrawPlaneAndAxis);
+	UpdateRevolutionAxis();
 
 	// The plane mechanic lets us update the plane in which we draw the profile curve, as long as we haven't
 	// started adding points to it already.
-	FFrame3d ProfileDrawPlane(Settings->DrawPlaneAndAxis);
+	FFrame3d ProfileDrawPlane(Settings->DrawPlaneOrigin, Settings->DrawPlaneOrientation.Quaternion());
 	PlaneMechanic = NewObject<UConstructionPlaneMechanic>(this);
 	PlaneMechanic->Setup(this);
 	PlaneMechanic->Initialize(TargetWorld, ProfileDrawPlane);
@@ -166,12 +162,13 @@ void UDrawAndRevolveTool::Setup()
 		return ControlPointsMechanic->GetNumPoints() == 0;
 	};
 	PlaneMechanic->OnPlaneChanged.AddLambda([this]() {
-		Settings->DrawPlaneAndAxis = PlaneMechanic->Plane.ToFTransform();
+		Settings->DrawPlaneOrigin = (FVector)PlaneMechanic->Plane.Origin;
+		Settings->DrawPlaneOrientation = ((FQuat)PlaneMechanic->Plane.Rotation).Rotator();
 		if (ControlPointsMechanic)
 		{
 			ControlPointsMechanic->SetPlane(PlaneMechanic->Plane);
 		}
-		UpdateRevolutionAxis(Settings->DrawPlaneAndAxis);
+		UpdateRevolutionAxis();
 		});
 	PlaneMechanic->SetEnableGridSnaping(Settings->bSnapToWorldGrid);
 
@@ -187,10 +184,11 @@ void UDrawAndRevolveTool::Setup()
 	ControlPointsMechanic->SetMinPointsToLeaveInteractiveInitialization(3, 2);
 }
 
-void UDrawAndRevolveTool::UpdateRevolutionAxis(const FTransform& PlaneTransform)
+/** Uses the settings currently stored in the properties object to update the revolution axis. */
+void UDrawAndRevolveTool::UpdateRevolutionAxis()
 {
-	RevolutionAxisOrigin = PlaneTransform.GetLocation();
-	RevolutionAxisDirection = PlaneTransform.GetRotation().GetAxisX();
+	RevolutionAxisOrigin = Settings->DrawPlaneOrigin;
+	RevolutionAxisDirection = Settings->DrawPlaneOrientation.RotateVector(FVector(1,0,0));
 
 	const int32 AXIS_SNAP_TARGET_ID = 1;
 	ControlPointsMechanic->RemoveSnapLine(AXIS_SNAP_TARGET_ID);
@@ -222,8 +220,9 @@ void UDrawAndRevolveTool::GenerateAsset(const FDynamicMeshOpResult& Result)
 {
 	GetToolManager()->BeginUndoTransaction(LOCTEXT("RevolveToolTransactionName", "Revolve Tool"));
 
+
 	AActor* NewActor = AssetGenerationUtil::GenerateStaticMeshActor(
-		AssetAPI, TargetWorld, Result.Mesh.Get(), Result.Transform, TEXT("RevolveResult"), MaterialProperties->Material);
+		AssetAPI, TargetWorld, Result.Mesh.Get(), Result.Transform, TEXT("RevolveResult"), MaterialProperties->Material.Get());
 
 	if (NewActor != nullptr)
 	{
@@ -245,7 +244,7 @@ void UDrawAndRevolveTool::StartPreview()
 	Preview->Setup(TargetWorld, RevolveOpCreator);
 	Preview->PreviewMesh->SetTangentsMode(EDynamicMeshTangentCalcType::AutoCalculated);
 
-	Preview->ConfigureMaterials(MaterialProperties->Material,
+	Preview->ConfigureMaterials(MaterialProperties->Material.Get(),
 		ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager()));
 	Preview->PreviewMesh->EnableWireframe(MaterialProperties->bWireframe);
 
@@ -255,13 +254,10 @@ void UDrawAndRevolveTool::StartPreview()
 
 void UDrawAndRevolveTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
-	if (Property && (Property->GetFName() == GET_MEMBER_NAME_CHECKED(URevolveToolProperties, DrawPlaneAndAxis)))
-	{
-		FFrame3d ProfileDrawPlane(Settings->DrawPlaneAndAxis); // Casting to FFrame3d
-		ControlPointsMechanic->SetPlane(PlaneMechanic->Plane);
-		PlaneMechanic->SetPlaneWithoutBroadcast(ProfileDrawPlane);
-		UpdateRevolutionAxis(Settings->DrawPlaneAndAxis);
-	}
+	FFrame3d ProfileDrawPlane(Settings->DrawPlaneOrigin, Settings->DrawPlaneOrientation.Quaternion());
+	ControlPointsMechanic->SetPlane(ProfileDrawPlane);
+	PlaneMechanic->SetPlaneWithoutBroadcast(ProfileDrawPlane);
+	UpdateRevolutionAxis();
 
 	PlaneMechanic->SetEnableGridSnaping(Settings->bSnapToWorldGrid);
 	ControlPointsMechanic->SetSnappingEnabled(Settings->bEnableSnapping);
@@ -270,7 +266,7 @@ void UDrawAndRevolveTool::OnPropertyModified(UObject* PropertySet, FProperty* Pr
 	{
 		if (Property && (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UNewMeshMaterialProperties, Material)))
 		{
-			Preview->ConfigureMaterials(MaterialProperties->Material,
+			Preview->ConfigureMaterials(MaterialProperties->Material.Get(),
 				ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager()));
 		}
 

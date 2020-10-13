@@ -9,6 +9,7 @@
 #include "Render/Synchronization/DisplayClusterRenderSyncPolicyNone.h"
 
 #include "Misc/DisplayClusterStrings.h"
+#include "DisplayClusterConfigurationStrings.h"
 
 
 FDisplayClusterRenderSyncPolicyFactoryInternal::FDisplayClusterRenderSyncPolicyFactoryInternal()
@@ -19,32 +20,32 @@ FDisplayClusterRenderSyncPolicyFactoryInternal::~FDisplayClusterRenderSyncPolicy
 {
 }
 
-TSharedPtr<IDisplayClusterRenderSyncPolicy> FDisplayClusterRenderSyncPolicyFactoryInternal::Create(const FString& InPolicyType, const FString& InRHIName)
+TSharedPtr<IDisplayClusterRenderSyncPolicy> FDisplayClusterRenderSyncPolicyFactoryInternal::Create(const FString& InPolicyType, const FString& InRHIName, const TMap<FString, FString>& Parameters)
 {
-	if (InPolicyType.Compare(TEXT("0"), ESearchCase::IgnoreCase) == 0)
+	if (InPolicyType.Equals(DisplayClusterConfigurationStrings::config::cluster::render_sync::None, ESearchCase::IgnoreCase))
 	{
-		return MakeShareable(new FDisplayClusterRenderSyncPolicyNone);
+		return MakeShared<FDisplayClusterRenderSyncPolicyNone>(Parameters);
 	}
-	else if (InPolicyType.Compare(TEXT("1"), ESearchCase::IgnoreCase) == 0)
+	else if (InPolicyType.Equals(DisplayClusterConfigurationStrings::config::cluster::render_sync::Ethernet, ESearchCase::IgnoreCase))
 	{
-		if (InRHIName.Compare(DisplayClusterStrings::rhi::D3D11, ESearchCase::IgnoreCase) == 0)
+		if (InRHIName.Equals(DisplayClusterStrings::rhi::D3D11, ESearchCase::IgnoreCase))
 		{
-			return MakeShareable(new FDisplayClusterRenderSyncPolicySoftwareDX11);
+			return MakeShared<FDisplayClusterRenderSyncPolicySoftwareDX11>(Parameters);
 		}
-		else if (InRHIName.Compare(DisplayClusterStrings::rhi::D3D12, ESearchCase::IgnoreCase) == 0)
+		else if (InRHIName.Equals(DisplayClusterStrings::rhi::D3D12, ESearchCase::IgnoreCase))
 		{
-			return MakeShareable(new FDisplayClusterRenderSyncPolicySoftwareDX12);
+			return MakeShared<FDisplayClusterRenderSyncPolicySoftwareDX12>(Parameters);
 		}
 	}
-	else if (InPolicyType.Compare(TEXT("2"), ESearchCase::IgnoreCase) == 0)
+	else if (InPolicyType.Equals(DisplayClusterConfigurationStrings::config::cluster::render_sync::Nvidia, ESearchCase::IgnoreCase))
 	{
-		if (InRHIName.Compare(DisplayClusterStrings::rhi::D3D11, ESearchCase::IgnoreCase) == 0)
+		if (InRHIName.Equals(DisplayClusterStrings::rhi::D3D11, ESearchCase::IgnoreCase))
 		{
-			return MakeShareable(new FDisplayClusterRenderSyncPolicyNvidiaDX11);
+			return MakeShared<FDisplayClusterRenderSyncPolicyNvidiaDX11>(Parameters);
 		}
-		else if (InRHIName.Compare(DisplayClusterStrings::rhi::D3D12, ESearchCase::IgnoreCase) == 0)
+		else if (InRHIName.Equals(DisplayClusterStrings::rhi::D3D12, ESearchCase::IgnoreCase))
 		{
-			return MakeShareable(new FDisplayClusterRenderSyncPolicyNvidiaDX12);
+			return MakeShared<FDisplayClusterRenderSyncPolicyNvidiaDX12>(Parameters);
 		}
 	}
 

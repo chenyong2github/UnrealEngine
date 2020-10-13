@@ -37,6 +37,8 @@ enum EMaterialExposedViewProperty
 	MEVP_RuntimeVirtualTextureOutputDerivative UMETA(DisplayName = "Virtual Texture Output Derivative"),
 	/** Pre Exposure */
 	MEVP_PreExposure UMETA(DisplayName = "Pre-Exposure"),
+	/** Maximum mip level of Runtime Virtual Texture that Runtime Virtual Texture Output is rendering to. */
+	MEVP_RuntimeVirtualTextureMaxLevel UMETA(DisplayName = "Virtual Texture Max Level"),
 
 	MEVP_MAX,
 };

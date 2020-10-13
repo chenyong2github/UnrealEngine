@@ -2683,7 +2683,7 @@ void FNativeClassHeaderGenerator::ExportFunction(FOutputDevice& Out, FReferenceG
 	}
 	else
 	{
-		FString FunctionName = FNativeClassHeaderGenerator::GetOverriddenNameForLiteral(Function);
+		FString FunctionName = FNativeClassHeaderGenerator::GetUTF8OverriddenNameForLiteral(Function);
 		CurrentFunctionText.Logf(TEXT("\t\tUObject* Outer = %s();\r\n"), *OuterFunc);
 		CurrentFunctionText.Logf(TEXT("\t\tUFunction* ReturnFunction = static_cast<UFunction*>(StaticFindObjectFast( UFunction::StaticClass(), Outer, %s ));\r\n"), *FunctionName);
 	}
@@ -3724,8 +3724,15 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 			{
 				FString VariableType = Parameter.TypeVariableRef(true);
 				FString ExtractedType = Parameter.TypeOriginal();
-				
 				FString ParameterCast = FString::Printf(TEXT("*(%s*)"), *ExtractedType);
+
+				// if the parameter is a const enum we need to cast it slightly differently,
+				// we'll get the reference of the stored uint8 and cast it by value.
+				if (Parameter.bIsEnum && !Parameter.bOutput)
+				{
+					VariableType = Parameter.TypeOriginal();
+					ParameterCast = FString::Printf(TEXT("(%s)*(uint8*)"), *ExtractedType);
+				}
 
 				RigVMStubProlog.Add(FString::Printf(TEXT("%s %s = %sRigVMMemoryHandles[%d].GetData();"),
 				*VariableType,
@@ -3821,6 +3828,15 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 
 		const FString Macroized = Macroize(*MacroName, MoveTemp(CombinedLine));
 		OutGeneratedHeaderText.Log(Macroized);
+
+		// Inject static assert to verify that we do not add vtable
+		if (BaseStruct)
+		{
+			FString BaseStructNameCPP = *FNameLookupCPP::GetNameCPP(BaseStruct);
+
+			FString VerifyPolymorphicStructString = FString::Printf(TEXT("\r\nstatic_assert(std::is_polymorphic<%s>() == std::is_polymorphic<%s>(), \"USTRUCT %s cannot be polymorphic unless super %s is polymorphic\");\r\n\r\n"), *StructNameCPP, *BaseStructNameCPP, *StructNameCPP, *BaseStructNameCPP);			
+			Out.Log(VerifyPolymorphicStructString);
+		}
 
 		FString GetHashName = FString::Printf(TEXT("Get_%s_Hash"), *ChoppedSingletonName);
 
@@ -6670,7 +6686,7 @@ ECompilationResult::Type PreparseModules(const FString& ModuleInfoPath, int32& N
 		UPackage* Package = Cast<UPackage>(StaticFindObjectFast(UPackage::StaticClass(), NULL, FName(*Module.LongPackageName), false, false));
 		if (Package == NULL)
 		{
-			Package = CreatePackage(NULL, *Module.LongPackageName);
+			Package = CreatePackage(*Module.LongPackageName);
 		}
 		// Set some package flags for indicating that this package contains script
 		// NOTE: We do this even if we didn't have to create the package, because CoreUObject is compiled into UnrealHeaderTool and we still

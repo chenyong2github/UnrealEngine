@@ -11,6 +11,10 @@
 #include "DeviceProfiles/DeviceProfile.h"
 #include "DeviceProfiles/DeviceProfileManager.h"
 #include "Containers/ResourceArray.h"
+#include "Rendering/Texture2DArrayResource.h"
+
+// Master switch to control whether streaming is enabled for texture2darray. 
+bool GSupportsTexture2DArrayStreaming = false;
 
 static TAutoConsoleVariable<int32> CVarAllowTexture2DArrayAssetCreation(
 	TEXT("r.AllowTexture2DArrayCreation"),
@@ -29,11 +33,19 @@ UTexture2DArray::UTexture2DArray(const FObjectInitializer& ObjectInitializer) : 
 
 FTextureResource* UTexture2DArray::CreateResource()
 {
-	if (GetNumMips() > 0) 
+	const FPixelFormatInfo& FormatInfo = GPixelFormats[GetPixelFormat()];
+	if (GetNumMips() > 0 && FormatInfo.Supported)
 	{
-		return new FTexture2DArrayResource(this);
+		return new FTexture2DArrayResource(this, GetResourcePostInitState(PlatformData, GSupportsTexture2DArrayStreaming));
 	}
-	
+	else if (GetNumMips() == 0)
+	{
+		UE_LOG(LogTexture, Warning, TEXT("%s contains no miplevels! Please delete."), *GetFullName());
+	}
+	else if (!FormatInfo.Supported)
+	{
+		UE_LOG(LogTexture, Warning, TEXT("%s cannot be created, rhi does not support format %s."), *GetFullName(), FormatInfo.Name);
+	}
 	return nullptr;
 }
 
@@ -49,16 +61,24 @@ void UTexture2DArray::UpdateResource()
 
 uint32 UTexture2DArray::CalcTextureMemorySize(int32 MipCount) const
 {
+	const FPixelFormatInfo& FormatInfo = GPixelFormats[GetPixelFormat()];
+
 	uint32 Size = 0;
-
-	if (PlatformData && GetNumMips())
+	if (FormatInfo.Supported && PlatformData)
 	{
-		uint32 TextureAlign = 0;
-		// @todo: We should be using a "calc texture 2D" function here. Using 3D and passing numslices as the Z size is wrong, as 3D texture can have different tiling/padding vs 2D arrays.
-		uint64 TextureSize = RHICalcTexture3DPlatformSize(GetSizeX(), GetSizeY(), GetNumSlices(), GetPixelFormat(), FMath::Max(1, MipCount), TexCreate_None, FRHIResourceCreateInfo(PlatformData->GetExtData()), TextureAlign);
-		Size = TextureSize;
-	}
+		const EPixelFormat Format = GetPixelFormat();
+		if (Format != PF_Unknown)
+		{
+			const ETextureCreateFlags Flags = (SRGB ? TexCreate_SRGB : TexCreate_None)  | (bNotOfflineProcessed ? TexCreate_None : TexCreate_OfflineProcessed) | (bNoTiling ? TexCreate_NoTiling : TexCreate_None);
+			const int32 NumMips = GetNumMips();
+			const int32 FirstMip = FMath::Max(0, NumMips - MipCount);
 
+			// Must be consistent with the logic in FTexture2DResource::InitRHI
+			const FIntPoint MipExtents = CalcMipMapExtent(GetSizeX(), GetSizeY(), Format, FirstMip);
+			uint32 TextureAlign = 0;
+			Size = (uint32)(GetNumSlices() * RHICalcTexture2DPlatformSize(MipExtents.X, MipExtents.Y, Format, FMath::Max(1, MipCount), 1, Flags, FRHIResourceCreateInfo(PlatformData->GetExtData()), TextureAlign));
+		}
+	}
 	return Size;
 }
 
@@ -70,33 +90,6 @@ uint32 UTexture2DArray::CalcTextureMemorySizeEnum(ETextureMipCount Enum) const
 	}
 
 	return CalcTextureMemorySize(GetNumMips());
-}
-
-ENGINE_API int32 UTexture2DArray::CalculateMipZSize(int32 Mip)
-{
-	int32 Size = 0;
-	if (PlatformData) 
-	{
-		// Make sure mip level exists.
-		if (PlatformData->Mips.Num() > Mip) 
-		{
-			int32 NumBlocksX = PlatformData->Mips[Mip].SizeX / GPixelFormats[PlatformData->PixelFormat].BlockSizeX;
-			int32 NumBlocksY = PlatformData->Mips[Mip].SizeY / GPixelFormats[PlatformData->PixelFormat].BlockSizeY;
-			
-			if (NumBlocksX == 0)
-			{
-				NumBlocksX = 1;
-			}
-
-			if (NumBlocksY == 0)
-			{
-				NumBlocksY = 1;
-			}
-
-			return NumBlocksX * NumBlocksY * GPixelFormats[PlatformData->PixelFormat].BlockBytes;
-		}
-	}
-	return Size;
 }
 
 #if WITH_EDITOR
@@ -304,22 +297,6 @@ void UTexture2DArray::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
 	CumulativeResourceSize.AddUnknownMemoryBytes(CalcTextureMemorySizeEnum(TMC_ResidentMips));
 }
 
-bool UTexture2DArray::ShaderPlatformSupportsCompression(EShaderPlatform ShaderPlatform)
-{
-	switch (ShaderPlatform)
-	{
-	case SP_PCD3D_SM5:
-	case SP_PS4:
-	case SP_XBOXONE_D3D12:
-	case SP_VULKAN_SM5:
-	case SP_VULKAN_SM5_LUMIN:
-		return true;
-
-	default:
-		return false;
-	}
-}
-
 #if WITH_EDITOR
 uint32 UTexture2DArray::GetMaximumDimension() const
 {
@@ -389,4 +366,14 @@ ENGINE_API void UTexture2DArray::PostEditChangeProperty(FPropertyChangedEvent & 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 
-#endif
+#endif // #if WITH_EDITOR
+
+bool UTexture2DArray::StreamOut(int32 NewMipCount)
+{
+	return false;
+}
+
+bool UTexture2DArray::StreamIn(int32 NewMipCount, bool bHighPrio)
+{
+	return false;
+}

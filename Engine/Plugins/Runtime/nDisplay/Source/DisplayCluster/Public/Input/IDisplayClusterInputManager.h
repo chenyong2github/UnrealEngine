@@ -47,26 +47,27 @@ public:
 
 	//////////////////////////////////////////////////////////////////////////
 	// Axes data access
-	virtual bool GetAxis(const FString& DeviceID, const uint8 axis, float& value) const = 0;
+	virtual bool GetAxis(const FString& DeviceID, const int32 axis, float& value) const = 0;
 
 	//////////////////////////////////////////////////////////////////////////
 	// Button data access
-	virtual bool GetButtonState    (const FString& DeviceID, const uint8 Button, bool& CurrentState)    const = 0;
-	virtual bool IsButtonPressed   (const FString& DeviceID, const uint8 Button, bool& IsPressedCurrently)  const = 0;
-	virtual bool IsButtonReleased  (const FString& DeviceID, const uint8 Button, bool& IsReleasedCurrently) const = 0;
-	virtual bool WasButtonPressed  (const FString& DeviceID, const uint8 Button, bool& WasPressed)  const = 0;
-	virtual bool WasButtonReleased (const FString& DeviceID, const uint8 Button, bool& WasReleased) const = 0;
+	virtual bool GetButtonState    (const FString& DeviceID, const int32 Button, bool& CurrentState)    const = 0;
+	virtual bool IsButtonPressed   (const FString& DeviceID, const int32 Button, bool& IsPressedCurrently)  const = 0;
+	virtual bool IsButtonReleased  (const FString& DeviceID, const int32 Button, bool& IsReleasedCurrently) const = 0;
+	virtual bool WasButtonPressed  (const FString& DeviceID, const int32 Button, bool& WasPressed)  const = 0;
+	virtual bool WasButtonReleased (const FString& DeviceID, const int32 Button, bool& WasReleased) const = 0;
 
 	//////////////////////////////////////////////////////////////////////////
 	// Keyboard data access
-	virtual bool GetKeyboardState   (const FString& DeviceID, const uint8 Button, bool& CurrentState)    const = 0;
-	virtual bool IsKeyboardPressed  (const FString& DeviceID, const uint8 Button, bool& IsPressedCurrently)  const = 0;
-	virtual bool IsKeyboardReleased (const FString& DeviceID, const uint8 Button, bool& IsReleasedCurrently) const = 0;
-	virtual bool WasKeyboardPressed (const FString& DeviceID, const uint8 Button, bool& WasPressed)  const = 0;
-	virtual bool WasKeyboardReleased(const FString& DeviceID, const uint8 Button, bool& WasReleased) const = 0;
+	virtual bool GetKeyboardState   (const FString& DeviceID, const int32 Button, bool& CurrentState)    const = 0;
+	virtual bool IsKeyboardPressed  (const FString& DeviceID, const int32 Button, bool& IsPressedCurrently)  const = 0;
+	virtual bool IsKeyboardReleased (const FString& DeviceID, const int32 Button, bool& IsReleasedCurrently) const = 0;
+	virtual bool WasKeyboardPressed (const FString& DeviceID, const int32 Button, bool& WasPressed)  const = 0;
+	virtual bool WasKeyboardReleased(const FString& DeviceID, const int32 Button, bool& WasReleased) const = 0;
 
 	//////////////////////////////////////////////////////////////////////////
 	// Tracking data access
-	virtual bool GetTrackerLocation(const FString& DeviceID, const uint8 Tracker, FVector& Location) const = 0;
-	virtual bool GetTrackerQuat(const FString& DeviceID, const uint8 Tracker, FQuat& Rotation) const = 0;
+	virtual bool GetTrackerLocation(const FString& DeviceID, const int32 Tracker, FVector& Location) const = 0;
+	virtual bool GetTrackerQuat(const FString& DeviceID, const int32
+ Tracker, FQuat& Rotation) const = 0;
 };

@@ -138,9 +138,9 @@ void UBaseCreateFromSelectedTool::SetTransformGizmos()
 		TUniquePtr<FPrimitiveComponentTarget>& Target = ComponentTargets[ComponentIdx];
 		UTransformProxy* Proxy = TransformProxies.Add_GetRef(NewObject<UTransformProxy>(this));
 		UTransformGizmo* Gizmo = TransformGizmos.Add_GetRef(GizmoManager->Create3AxisTransformGizmo(this));
-		Gizmo->SetActiveTarget(Proxy);
+		Gizmo->SetActiveTarget(Proxy, GetToolManager());
 		FTransform InitialTransform = Target->GetWorldTransform();
-		Gizmo->SetNewGizmoTransform(InitialTransform);
+		Gizmo->ReinitializeGizmoTransform(InitialTransform);
 		Proxy->OnTransformChanged.AddUObject(this, &UBaseCreateFromSelectedTool::TransformChanged);
 	}
 	UpdateGizmoVisibility();
@@ -205,7 +205,8 @@ FString UBaseCreateFromSelectedTool::PrefixWithSourceNameIfSingleSelection(const
 {
 	if (ComponentTargets.Num() == 1)
 	{
-		return FString::Printf(TEXT("%s_%s"), *ComponentTargets[0]->GetOwnerActor()->GetName(), *AssetName);
+		FString CurName = AssetGenerationUtil::GetComponentAssetBaseName(ComponentTargets[0]->GetOwnerComponent());
+		return FString::Printf(TEXT("%s_%s"), *CurName, *AssetName);
 	}
 	else
 	{

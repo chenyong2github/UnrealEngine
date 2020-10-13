@@ -33,11 +33,6 @@
 
 #define LOCTEXT_NAMESPACE "MoviePipeline"
 
-TArray<UMoviePipelineRenderPass*> UMoviePipeline::GetAllRenderPasses(const UMoviePipelineExecutorShot* InShot)
-{
-	return FindSettings<UMoviePipelineRenderPass>(InShot);
-}
-
 void UMoviePipeline::SetupRenderingPipelineForShot(UMoviePipelineExecutorShot* InShot)
 {
 	/*
@@ -53,8 +48,8 @@ void UMoviePipeline::SetupRenderingPipelineForShot(UMoviePipelineExecutorShot* I
 	* LeftOffset = floor((1925-1920)/2) = 2
 	* RightOffset = (1925-1920-LeftOffset)
 	*/
-	UMoviePipelineAntiAliasingSetting* AccumulationSettings = FindOrAddSetting<UMoviePipelineAntiAliasingSetting>(InShot);
-	UMoviePipelineHighResSetting* HighResSettings = FindOrAddSetting<UMoviePipelineHighResSetting>(InShot);
+	UMoviePipelineAntiAliasingSetting* AccumulationSettings = FindOrAddSettingForShot<UMoviePipelineAntiAliasingSetting>(InShot);
+	UMoviePipelineHighResSetting* HighResSettings = FindOrAddSettingForShot<UMoviePipelineHighResSetting>(InShot);
 	UMoviePipelineOutputSetting* OutputSettings = GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>();
 	check(OutputSettings);
 
@@ -82,7 +77,7 @@ void UMoviePipeline::SetupRenderingPipelineForShot(UMoviePipelineExecutorShot* I
 
 	// Initialize out output passes
 	int32 NumOutputPasses = 0;
-	for (UMoviePipelineRenderPass* RenderPass : GetAllRenderPasses(InShot))
+	for (UMoviePipelineRenderPass* RenderPass : FindSettingsForShot<UMoviePipelineRenderPass>(InShot))
 	{
 		RenderPass->Setup(RenderPassInitSettings);
 		NumOutputPasses++;
@@ -93,9 +88,14 @@ void UMoviePipeline::SetupRenderingPipelineForShot(UMoviePipelineExecutorShot* I
 
 void UMoviePipeline::TeardownRenderingPipelineForShot(UMoviePipelineExecutorShot* InShot)
 {
-	for (UMoviePipelineRenderPass* RenderPass : GetAllRenderPasses(InShot))
+	for (UMoviePipelineRenderPass* RenderPass : FindSettingsForShot<UMoviePipelineRenderPass>(InShot))
 	{
 		RenderPass->Teardown();
+	}
+
+	if (OutputBuilder->IsWorkOutstanding())
+	{
+		UE_LOG(LogMovieRenderPipeline, Error, TEXT("Not all frames were fully submitted by the time rendering was torn down! Frames will be missing from output!"));
 	}
 }
 
@@ -135,9 +135,9 @@ void UMoviePipeline::RenderFrame()
 	// 
 	// In short, for each output frame, for each accumulation frame, for each tile X/Y, for each jitter, we render a pass. This setup is
 	// designed to maximize the likely hood of deterministic rendering and that different passes line up with each other.
-	UMoviePipelineAntiAliasingSetting* AntiAliasingSettings = FindOrAddSetting<UMoviePipelineAntiAliasingSetting>(ActiveShotList[CurrentShotIndex]);
-	UMoviePipelineCameraSetting* CameraSettings = FindOrAddSetting<UMoviePipelineCameraSetting>(ActiveShotList[CurrentShotIndex]);
-	UMoviePipelineHighResSetting* HighResSettings = FindOrAddSetting<UMoviePipelineHighResSetting>(ActiveShotList[CurrentShotIndex]);
+	UMoviePipelineAntiAliasingSetting* AntiAliasingSettings = FindOrAddSettingForShot<UMoviePipelineAntiAliasingSetting>(ActiveShotList[CurrentShotIndex]);
+	UMoviePipelineCameraSetting* CameraSettings = FindOrAddSettingForShot<UMoviePipelineCameraSetting>(ActiveShotList[CurrentShotIndex]);
+	UMoviePipelineHighResSetting* HighResSettings = FindOrAddSettingForShot<UMoviePipelineHighResSetting>(ActiveShotList[CurrentShotIndex]);
 	UMoviePipelineOutputSetting* OutputSettings = GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>();
 	
 	// Color settings are optional, so we don't need to do any assertion checks.
@@ -185,6 +185,8 @@ void UMoviePipeline::RenderFrame()
 		CachedOutputState.FileMetadata.Add(TEXT("unreal/camera/prevRot/pitch"), FrameInfo.PrevViewRotation.Pitch);
 		CachedOutputState.FileMetadata.Add(TEXT("unreal/camera/prevRot/yaw"), FrameInfo.PrevViewRotation.Yaw);
 		CachedOutputState.FileMetadata.Add(TEXT("unreal/camera/prevRot/roll"), FrameInfo.PrevViewRotation.Roll);
+
+		CachedOutputState.FileMetadata.Add(TEXT("unreal/camera/shutterAngle"), CachedOutputState.TimeData.MotionBlurFraction * 360.0f);
 	}
 
 	if (CurrentCameraCut.State != EMovieRenderShotState::Rendering)
@@ -209,7 +211,7 @@ void UMoviePipeline::RenderFrame()
 		NumWarmupSamples = AntiAliasingSettings->RenderWarmUpCount;
 	}
 
-	TArray<UMoviePipelineRenderPass*> InputBuffers = GetAllRenderPasses(ActiveShotList[CurrentShotIndex]);
+	TArray<UMoviePipelineRenderPass*> InputBuffers = FindSettingsForShot<UMoviePipelineRenderPass>(ActiveShotList[CurrentShotIndex]);
 
 	// If this is the first sample for a new frame, we want to notify the output builder that it should expect data to accumulate for this frame.
 	if (CachedOutputState.IsFirstTemporalSample())
@@ -325,12 +327,6 @@ void UMoviePipeline::RenderFrame()
 				SampleState.AntiAliasingMethod = AntiAliasingMethod;
 				SampleState.SceneCaptureSource = (ColorSettings && ColorSettings->bDisableToneCurve) ? ESceneCaptureSource::SCS_FinalColorHDR : ESceneCaptureSource::SCS_FinalToneCurveHDR;
 				SampleState.OutputState = CachedOutputState;
-				if (CameraSettings->CameraShutterAngle == 0)
-				{
-					// If they're using a zero degree shutter angle we lie about how long a frame is to prevent divide by zeros earlier,
-					// so now we correct for that so that we don't end up with motion blur when the user doesn't want it.
-					SampleState.OutputState.TimeData.MotionBlurFraction = 0.f;
-				}
 				SampleState.ProjectionMatrixJitterAmount = FVector2D((float)(SpatialShiftX) * 2.0f / BackbufferResolution.X, (float)SpatialShiftY * -2.0f / BackbufferResolution.Y);
 				SampleState.TileIndexes = FIntPoint(TileX, TileY);
 				SampleState.TileCounts = TileCount;
@@ -344,7 +340,6 @@ void UMoviePipeline::RenderFrame()
 				SampleState.TileSize = TileResolution;
 				SampleState.FrameInfo = FrameInfo;
 				SampleState.bWriteSampleToDisk = HighResSettings->bWriteAllSamples;
-				SampleState.ExposureCompensation = CameraSettings->bManualExposure ? CameraSettings->ExposureCompensation : TOptional<float>();
 				SampleState.TextureSharpnessBias = HighResSettings->TextureSharpnessBias;
 				SampleState.OCIOConfiguration = ColorSettings ? &ColorSettings->OCIOConfiguration : nullptr;
 				SampleState.GlobalScreenPercentageFraction = FLegacyScreenPercentageDriver::GetCVarResolutionFraction();

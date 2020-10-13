@@ -19,6 +19,10 @@ class MOVIERENDERPIPELINEEDITOR_API UMoviePipelineNewProcessExecutor : public UM
 	// UMoviePipelineExecutorBase Interface
 	virtual void Execute_Implementation(UMoviePipelineQueue* InPipelineQueue) override;
 	virtual bool IsRendering_Implementation() const override { return ProcessHandle.IsValid(); }
+
+	// Canceling current job is equivalent to canceling all jobs for this executor
+	virtual void CancelCurrentJob_Implementation() override { CancelAllJobs_Implementation(); }
+	virtual void CancelAllJobs_Implementation() override;
 	// ~UMoviePipelineExecutorBase Interface
 
 protected:

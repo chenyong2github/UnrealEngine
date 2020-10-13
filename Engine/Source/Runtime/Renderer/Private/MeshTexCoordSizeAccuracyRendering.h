@@ -30,8 +30,7 @@ public:
 
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
-		// See FDebugViewModeMaterialProxy::GetFriendlyName()
-		return AllowDebugViewShaderMode(DVSM_MeshUVDensityAccuracy, Parameters.Platform, Parameters.MaterialParameters.FeatureLevel) && Parameters.MaterialParameters.bIsMaterialMeshTexCoordSizeAccuracy;
+		return ShouldCompileDebugViewModeShader(DVSM_MeshUVDensityAccuracy, Parameters);
 	}
 
 	FMeshTexCoordSizeAccuracyPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer):
@@ -58,7 +57,14 @@ class FMeshTexCoordSizeAccuracyInterface : public FDebugViewModeInterface
 {
 public:
 	FMeshTexCoordSizeAccuracyInterface() : FDebugViewModeInterface(TEXT("MeshTexCoordSizeAccuracy"), false, false, false) {}
-	virtual TShaderRef<FDebugViewModePS> GetPixelShader(const FMaterial* InMaterial, FVertexFactoryType* VertexFactoryType) const override { return InMaterial->GetShader<FMeshTexCoordSizeAccuracyPS>(VertexFactoryType); }
+	virtual void AddShaderTypes(ERHIFeatureLevel::Type InFeatureLevel,
+		EMaterialTessellationMode InMaterialTessellationMode,
+		const FVertexFactoryType* InVertexFactoryType,
+		FMaterialShaderTypes& OutShaderTypes) const override
+	{
+		AddDebugViewModeShaderTypes(InFeatureLevel, InMaterialTessellationMode, InVertexFactoryType, OutShaderTypes);
+		OutShaderTypes.AddShaderType<FMeshTexCoordSizeAccuracyPS>();
+	}
 
 	virtual void GetDebugViewModeShaderBindings(
 		const FDebugViewModePS& BaseShader,

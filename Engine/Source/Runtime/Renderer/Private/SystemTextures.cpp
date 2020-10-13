@@ -258,6 +258,14 @@ void FSystemTextures::InitializeFeatureLevelDependentTextures(FRHICommandListImm
 			BlackBytes);
 	}
 
+	if (CurrentFeatureLevel < ERHIFeatureLevel::SM5 && InFeatureLevel >= ERHIFeatureLevel::SM5)
+	{
+		// Init with dummy textures. The texture will be initialize with real values if needed
+		HairLUT0 = VolumetricBlackDummy;
+		HairLUT1 = VolumetricBlackDummy;
+		HairLUT2 = VolumetricBlackDummy;
+	}
+
 	// The PreintegratedGF maybe used on forward shading inluding mobile platorm, intialize it anyway.
 	{
 		// for testing, with 128x128 R8G8 we are very close to the reference (if lower res is needed we might have to add an offset to counter the 0.5f texel shift)
@@ -744,6 +752,7 @@ void FSystemTextures::ReleaseDynamicRHI()
 	PreintegratedGF.SafeRelease();
 	HairLUT0.SafeRelease();
 	HairLUT1.SafeRelease();
+	HairLUT2.SafeRelease();
 	LTCMat.SafeRelease();
 	LTCAmp.SafeRelease();
 	MaxFP16Depth.SafeRelease();

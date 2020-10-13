@@ -4,6 +4,18 @@
 
 using namespace Audio;
 
+namespace EarlyReflectionsPrivate
+{
+	float NormalizedLinearToLog(float InLinear)
+	{
+		check(InLinear >= 0.f);
+		check(InLinear <= 1.f);
+
+		static const float InvLn2 = 1.f / FMath::Loge(2.f);
+		return FMath::Loge(1.f + InLinear) * InvLn2;
+	}
+}
+
 FEarlyReflectionsFastSettings::FEarlyReflectionsFastSettings()
 	: Gain(1.0f)
 	, PreDelayMsec(0.0f)
@@ -94,12 +106,17 @@ void FEarlyReflectionsFast::SetSettings(const FEarlyReflectionsFastSettings& InS
 
 void FEarlyReflectionsFast::ApplySettings()
 {
+	using namespace EarlyReflectionsPrivate;
+
 	int32 DelaySamples = (int32)SampleRate * Settings.PreDelayMsec / 1000.0f;
 	LeftPreDelay.SetDelayLengthSamples(DelaySamples);
 	RightPreDelay.SetDelayLengthSamples(DelaySamples);
 
-	LeftInputLPF.SetG(Settings.Bandwidth);
-	RightInputLPF.SetG(Settings.Bandwidth);
+	// Convert from linear 0-1 scale to logarithmic 0-1 scale. 
+	const float LPFG = NormalizedLinearToLog(Settings.Bandwidth);
+
+	LeftInputLPF.SetG(LPFG);
+	RightInputLPF.SetG(LPFG);
 
 	LeftCoefficients.LPFB[0] = FMath::Min(Settings.Absorption + 0.1f, 0.9999f);
 	LeftCoefficients.LPFB[1] = FMath::Min(Settings.Absorption - 0.12f, 0.9999f);
@@ -201,5 +218,20 @@ void FEarlyReflectionsFast::ProcessAudio(const AlignedFloatBuffer& InSamples, co
 	// Apply Gain
 	MultiplyBufferByConstantInPlace(OutLeftSamples, Settings.Gain);
 	MultiplyBufferByConstantInPlace(OutRightSamples, Settings.Gain);
+}
+
+void FEarlyReflectionsFast::FlushAudio()
+{
+	// predelay
+	LeftPreDelay.Reset();
+	RightPreDelay.Reset();
+
+	// lpf
+	LeftInputLPF.FlushAudio();
+	RightInputLPF.FlushAudio();
+
+	// feedback delay network
+	LeftFDN.FlushAudio();
+	RightFDN.FlushAudio();
 }
 

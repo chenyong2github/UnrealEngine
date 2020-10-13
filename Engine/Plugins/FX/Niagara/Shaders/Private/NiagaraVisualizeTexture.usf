@@ -1,0 +1,111 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+/*=============================================================================
+	NiagaraVisualizeTexture.usf
+=============================================================================*/
+
+#include "/Engine/Private/Common.ush"
+
+Texture2D		Texture2DObject;
+Texture2DArray	Texture2DArrayObject;
+Texture3D		Texture3DObject;
+SamplerState	TextureSampler;
+
+int2			NumTextureAttributes;		// Number of attributes the texture holds in each dimension
+int				NumAttributesToVisualize;	// Number of valid attributes to visualize, up to 4
+int4			AttributesToVisualize;		// Indicies of each attribute to visualize
+uint3			TextureDimensions;			// Dimensions of the texture
+uint			DebugFlags;
+uint			TickCounter;
+uint			TextureSlice;
+
+float4 ContainsNaNInf(float4 Color)
+{
+#if FEATURE_LEVEL >= FEATURE_LEVEL_SM4
+	if ( DebugFlags & 0x1 )
+	{
+		if (isfinite(Color.rgb).x == false)
+		{
+			Color = ((TickCounter >> 3) & 1) == 0 ? float4(1,0,0,1) : float4(1,1,1,1);
+		}
+	}
+#endif
+	return Color;
+}
+
+float2 GetAttributeUV(float2 UV, int AttributeIndex)
+{
+	AttributeIndex = min(AttributeIndex, (NumTextureAttributes.x * NumTextureAttributes.y) - 1);
+
+	UV = UV / float2(NumTextureAttributes);
+
+	int UIndex = AttributeIndex % NumTextureAttributes.x;
+	int VIndex = AttributeIndex / NumTextureAttributes.x;
+
+	return UV + float2(UIndex, VIndex) * 1.0f / NumTextureAttributes;
+}
+
+float ReadAttribute2D(float2 UV, int AttributeIndex)
+{
+	return Texture2DSample(Texture2DObject, TextureSampler, GetAttributeUV(UV, AttributeIndex)).r;
+}
+
+//////////////////////////////////////////////////////////////////////////
+
+void Main(
+	FScreenVertexOutput Input,
+	out float4 OutColor : SV_Target0
+)
+{
+// Texture 2D
+#if TEXTURE_TYPE == 0
+	float4 Color = float4(0,0,0,1);
+	if ( NumAttributesToVisualize > 0 )
+	{
+		float2 AttributeUV = Input.UV / float2(NumTextureAttributes);
+
+		switch ( NumAttributesToVisualize )
+		{
+			case 1:
+				Color.rgb = ReadAttribute2D(Input.UV, AttributesToVisualize.x);
+				break;
+			case 2:
+				Color.r = ReadAttribute2D(Input.UV, AttributesToVisualize.x).r;
+				Color.g = ReadAttribute2D(Input.UV, AttributesToVisualize.y).r;
+				break;
+			case 3:
+				Color.r = ReadAttribute2D(Input.UV, AttributesToVisualize.x).r;
+				Color.g = ReadAttribute2D(Input.UV, AttributesToVisualize.y).r;
+				Color.b = ReadAttribute2D(Input.UV, AttributesToVisualize.z).r;
+				break;
+			case 4:
+				Color.r = ReadAttribute2D(Input.UV, AttributesToVisualize.x).r;
+				Color.g = ReadAttribute2D(Input.UV, AttributesToVisualize.y).r;
+				Color.b = ReadAttribute2D(Input.UV, AttributesToVisualize.z).r;
+				Color.a = ReadAttribute2D(Input.UV, AttributesToVisualize.w).r;
+				break;
+			default:
+				Color = float4(1,0,0,1);
+				break;
+		}
+	}
+	else
+	{
+		Color = Texture2DSample(Texture2DObject, TextureSampler, Input.UV);
+	}
+// Texture 2D Array
+#elif TEXTURE_TYPE == 1
+	float4 Color = float4(0,0,0,1);
+	{
+		Color = Texture2DArraySample(Texture2DArrayObject, TextureSampler, float3(Input.UV, TextureSlice));
+	}
+// Texture 3D
+#elif TEXTURE_TYPE == 2
+	float4 Color = float4(0,0,0,1);
+	{
+		float W = (float(TextureSlice) + 0.5f) / float(TextureDimensions.z);
+		Color = Texture3DSample(Texture3DObject, TextureSampler, float3(Input.UV, W));
+	}
+#endif
+	OutColor = ContainsNaNInf(Color);
+}

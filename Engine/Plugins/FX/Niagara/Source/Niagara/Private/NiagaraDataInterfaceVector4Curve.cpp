@@ -18,6 +18,8 @@ const FName UNiagaraDataInterfaceVector4Curve::SampleCurveName(TEXT("SampleColor
 UNiagaraDataInterfaceVector4Curve::UNiagaraDataInterfaceVector4Curve(FObjectInitializer const& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	ExposedName = TEXT("Vector4 Curve");
+
 	SetDefaultLUT();
 }
 

@@ -4,9 +4,10 @@
 
 
 
-void UMultiTransformer::Setup(UInteractiveGizmoManager* GizmoManagerIn)
+void UMultiTransformer::Setup(UInteractiveGizmoManager* GizmoManagerIn, IToolContextTransactionProvider* TransactionProviderIn)
 {
 	GizmoManager = GizmoManagerIn;
+	TransactionProvider = TransactionProviderIn;
 
 	ActiveGizmoFrame = FFrame3d();
 	ActiveGizmoScale = FVector3d::One();
@@ -105,8 +106,7 @@ void UMultiTransformer::Tick(float DeltaTime)
 }
 
 
-
-void UMultiTransformer::SetGizmoPositionFromWorldFrame(const FFrame3d& Frame, bool bResetScale)
+void UMultiTransformer::InitializeGizmoPositionFromWorldFrame(const FFrame3d& Frame, bool bResetScale)
 {
 	ActiveGizmoFrame = Frame;
 	if (bResetScale)
@@ -117,15 +117,15 @@ void UMultiTransformer::SetGizmoPositionFromWorldFrame(const FFrame3d& Frame, bo
 	if (TransformGizmo != nullptr)
 	{
 		// this resets the child scale to one
-		TransformGizmo->SetNewGizmoTransform(ActiveGizmoFrame.ToFTransform());
+		TransformGizmo->ReinitializeGizmoTransform(ActiveGizmoFrame.ToFTransform());
 	}
 }
 
-void UMultiTransformer::SetGizmoPositionFromWorldPos(const FVector& Position, const FVector& Normal, bool bResetScale)
+
+
+void UMultiTransformer::UpdateGizmoPositionFromWorldFrame(const FFrame3d& Frame, bool bResetScale)
 {
-	ActiveGizmoFrame.Origin = FVector3d(Position);
-	ActiveGizmoFrame.AlignAxis(2, FVector3d(Normal));
-	ActiveGizmoFrame.ConstrainedAlignPerpAxes();
+	ActiveGizmoFrame = Frame;
 	if (bResetScale)
 	{
 		ActiveGizmoScale = FVector3d::One();
@@ -187,8 +187,8 @@ void UMultiTransformer::UpdateShowGizmoState(bool bNewVisibility)
 			TransformGizmo->bUseContextCoordinateSystem = false;
 			TransformGizmo->CurrentCoordinateSystem = GizmoCoordSystem;
 		}
-		TransformGizmo->SetActiveTarget(TransformProxy, GizmoManager);
-		TransformGizmo->SetNewGizmoTransform(ActiveGizmoFrame.ToFTransform());
+		TransformGizmo->SetActiveTarget(TransformProxy, TransactionProvider);
+		TransformGizmo->ReinitializeGizmoTransform(ActiveGizmoFrame.ToFTransform());
 		TransformGizmo->SetVisibility(bShouldBeVisible);
 	}
 }

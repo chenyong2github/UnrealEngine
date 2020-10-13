@@ -553,7 +553,7 @@ FFFTBloomIntermediates GetFFTBloomIntermediates(
 	Intermediates.KernelSupportScaleClamp = KernelSupportScaleClamp;
 
 	// The pre-filter boost parameters for bright pixels. Because the Convolution PP work in pre-exposure space, the min and max needs adjustment.
-	Intermediates.PreFilter = FVector(PPSettings.BloomConvolutionPreFilterMin * View.PreExposure, PPSettings.BloomConvolutionPreFilterMax * View.PreExposure, PPSettings.BloomConvolutionPreFilterMult);
+	Intermediates.PreFilter = FVector(PPSettings.BloomConvolutionPreFilterMin, PPSettings.BloomConvolutionPreFilterMax, PPSettings.BloomConvolutionPreFilterMult);
 
 	// Capture the region of interest
 	const FIntPoint ImageSize = Intermediates.ImageRect.Size();

@@ -5,8 +5,8 @@
 #include "DisplayClusterProjectionStrings.h"
 
 
-FDisplayClusterProjectionMeshPolicy::FDisplayClusterProjectionMeshPolicy(const FString& ViewportId)
-	: FDisplayClusterProjectionMPCDIPolicy(ViewportId)
+FDisplayClusterProjectionMeshPolicy::FDisplayClusterProjectionMeshPolicy(const FString& ViewportId, const TMap<FString, FString>& Parameters)
+	: FDisplayClusterProjectionMPCDIPolicy(ViewportId, Parameters)
 {
 }
 
@@ -37,7 +37,7 @@ bool FDisplayClusterProjectionMeshPolicy::AssignWarpMesh(UStaticMeshComponent* M
 
 	IMPCDI& MpcdiModule = IMPCDI::Get();
 
-	if (MpcdiModule.CreateCustomRegion(DisplayClusterStrings::cfg::data::projection::mesh::FileID, DisplayClusterStrings::cfg::data::projection::mesh::BufferID, GetViewportId(), WarpRef))
+	if (MpcdiModule.CreateCustomRegion(DisplayClusterProjectionStrings::cfg::mesh::FileID, DisplayClusterProjectionStrings::cfg::mesh::BufferID, GetViewportId(), WarpRef))
 	{
 		// Always use advanced 3d profile from ext mesh as warp source
 		MpcdiModule.SetMPCDIProfileType(WarpRef, IMPCDI::EMPCDIProfileType::mpcdi_A3D);

@@ -39,6 +39,14 @@ void URuntimeVirtualTextureComponent::OnUnregister()
 
 #endif
 
+void URuntimeVirtualTextureComponent::GetHidePrimitiveSettings(bool& OutHidePrimitiveEditor, bool& OutHidePrimitiveGame) const
+{
+	OutHidePrimitiveEditor = bHidePrimitives;
+	OutHidePrimitiveGame = bHidePrimitives;
+	// Evaluate the bound delegates (who we expect to OR in their settings).
+	HidePrimitivesDelegate.Broadcast(OutHidePrimitiveEditor, OutHidePrimitiveGame);
+}
+
 bool URuntimeVirtualTextureComponent::IsVisible() const
 {
 	return Super::IsVisible() && UseVirtualTexturing(GetScene()->GetFeatureLevel());

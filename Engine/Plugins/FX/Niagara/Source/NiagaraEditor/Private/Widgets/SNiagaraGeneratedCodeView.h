@@ -27,7 +27,8 @@ public:
 
 	SLATE_END_ARGS();
 
-	void Construct(const FArguments& InArgs, TSharedRef<FNiagaraSystemViewModel> InSystemViewModel);
+	void Construct(const FArguments& InArgs, TSharedRef<FNiagaraSystemViewModel> InSystemViewModel, TSharedPtr<SDockTab> InOwnerTab);
+	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime);
 	virtual ~SNiagaraGeneratedCodeView();
 
 	void OnCodeCompiled();
@@ -35,6 +36,9 @@ public:
 protected:
 
 	void UpdateUI();
+	void UpdateUI_Internal();
+
+	TSharedPtr<SDockTab> OwnerTab;
 
 	struct TabInfo
 	{
@@ -82,6 +86,8 @@ protected:
 	TSharedPtr<FNiagaraSystemViewModel> SystemViewModel;
 
 	UEnum* ScriptEnum;
+
+	bool bUIUpdatePending = false;
 };
 
 

@@ -99,7 +99,7 @@ public:
 	EDrawPolygonOutputMode OutputMode = EDrawPolygonOutputMode::ExtrudedInteractive;
 
 	/** Feature size as fraction of overall shape size, for shapes with secondary features like the rounded corners of a Rounded Rectangle */
-	UPROPERTY(EditAnywhere, NonTransactional, Category = Polygon, meta = (UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "1", 
+	UPROPERTY(EditAnywhere, NonTransactional, Category = Polygon, meta = (UIMin = "0.01", UIMax = "0.99", ClampMin = "0.01", ClampMax = "0.99",
 									EditCondition = "PolygonType == EDrawPolygonDrawMode::RoundedRectangle || PolygonType == EDrawPolygonDrawMode::HoleyCircle"))
 	float FeatureSizeRatio = .25;
 
@@ -108,11 +108,12 @@ public:
 									EditCondition = "OutputMode == EDrawPolygonOutputMode::ExtrudedConstant"))
 	float ExtrudeHeight = 100.0f;
 
-	/** Extrusion Distance in non-interactive mode */
-	UPROPERTY(EditAnywhere, NonTransactional, Category = Polygon, meta = (UIMin = "3", UIMax = "100", ClampMin = "3", ClampMax = "10000"))
+	/** Number of sections in round features */
+	UPROPERTY(EditAnywhere, NonTransactional, Category = Polygon, meta = (UIMin = "3", UIMax = "100", ClampMin = "3", ClampMax = "10000",
+				  EditCondition = "PolygonType == EDrawPolygonDrawMode::Circle || PolygonType == EDrawPolygonDrawMode::RoundedRectangle || PolygonType == EDrawPolygonDrawMode::HoleyCircle"))
 	int Steps = 16;
 
-	UPROPERTY(EditAnywhere, NonTransactional, Category = Polygon)
+	UPROPERTY(EditAnywhere, NonTransactional, Category = Polygon, meta = (EditCondition = "PolygonType == EDrawPolygonDrawMode::Freehand"))
 	bool bAllowSelfIntersections = false;
 
 	UPROPERTY(EditAnywhere, NonTransactional, Category = Polygon)
@@ -206,7 +207,7 @@ public:
 
 
 public:
-	virtual void PopLastVertexAction();
+	virtual void ApplyUndoPoints(const TArray<FVector3d>& ClickPointsIn, const TArray<FVector3d>& PolygonVerticesIn);
 
 
 protected:
@@ -323,7 +324,7 @@ protected:
 
 	friend class FDrawPolygonStateChange;
 	int32 CurrentCurveTimestamp = 1;
-	void UndoCurrentOperation();
+	void UndoCurrentOperation(const TArray<FVector3d>& ClickPointsIn, const TArray<FVector3d>& PolygonVerticesIn);
 	bool CheckInCurve(int32 Timestamp) const { return CurrentCurveTimestamp == Timestamp; }
 };
 
@@ -334,11 +335,19 @@ protected:
 class MESHMODELINGTOOLS_API FDrawPolygonStateChange : public FToolCommandChange
 {
 public:
+	using Points = TArray<FVector3d>;
 	bool bHaveDoneUndo = false;
 	int32 CurveTimestamp = 0;
-	FDrawPolygonStateChange(int32 CurveTimestampIn)
+	const Points FixedVertexPoints;
+	const Points PolyPoints;
+
+	FDrawPolygonStateChange(int32 CurveTimestampIn,
+							const Points& FixedVertexPointsIn,
+							const Points& PolyPointsIn)
+		: CurveTimestamp(CurveTimestampIn),
+		FixedVertexPoints(FixedVertexPointsIn),
+		PolyPoints(PolyPointsIn)
 	{
-		CurveTimestamp = CurveTimestampIn;
 	}
 	virtual void Apply(UObject* Object) override {}
 	virtual void Revert(UObject* Object) override;

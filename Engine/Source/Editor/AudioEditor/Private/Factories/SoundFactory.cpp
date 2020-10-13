@@ -215,7 +215,7 @@ UObject* USoundFactory::CreateObject
 		}
 
 		// if we are creating the cue move it when necessary
-		UPackage* CuePackage = bMoveCue ? CreatePackage(nullptr, *CuePackageName) : nullptr;
+		UPackage* CuePackage = bMoveCue ? CreatePackage( *CuePackageName) : nullptr;
 
 		// if the sound already exists, remember the user settings
 		USoundWave* ExistingSound = FindObject<USoundWave>(InParent, *Name.ToString());

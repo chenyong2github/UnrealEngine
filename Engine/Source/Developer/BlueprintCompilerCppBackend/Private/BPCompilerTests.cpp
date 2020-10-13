@@ -109,7 +109,7 @@ static UClass* GetNativeClass(const TCHAR* TestFolder, const TCHAR* ClassName, F
 	CollectGarbage(RF_NoFlags);
 
 	FString FullName = FString::Printf(TEXT("/RuntimeTests/CompilerTests/%s/%s"), TestFolder, ClassName);
-	UPackage* NativePackage = CreatePackage(nullptr, *FullName);
+	UPackage* NativePackage = CreatePackage( *FullName);
 	check(NativePackage);
 
 	const FString FStringFullPathName = FString::Printf(TEXT("%s.%s_C"), *FullName, ClassName);

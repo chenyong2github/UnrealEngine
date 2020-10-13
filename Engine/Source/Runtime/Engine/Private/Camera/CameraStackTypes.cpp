@@ -132,8 +132,6 @@ void FMinimalViewInfo::CalculateProjectionMatrixGivenView(const FMinimalViewInfo
 	}
 	else
 	{
-		// Avoid divide by zero in the projection matrix calculation by clamping FOV
-		float MatrixFOV = FMath::Max(0.001f, ViewInfo.FOV) * (float)PI / 360.0f;
 		float XAxisMultiplier;
 		float YAxisMultiplier;
 
@@ -141,18 +139,39 @@ void FMinimalViewInfo::CalculateProjectionMatrixGivenView(const FMinimalViewInfo
 		const int32 SizeX = ViewRect.Width();
 		const int32 SizeY = ViewRect.Height();
 
-		// if x is bigger, and we're respecting x or major axis, AND mobile isn't forcing us to be Y axis aligned
-		if (((SizeX > SizeY) && (AspectRatioAxisConstraint == AspectRatio_MajorAxisFOV)) || (AspectRatioAxisConstraint == AspectRatio_MaintainXFOV) || (ViewInfo.ProjectionMode == ECameraProjectionMode::Orthographic))
+		// If x is bigger, and we're respecting x or major axis, AND mobile isn't forcing us to be Y axis aligned
+		const bool bMaintainXFOV = 
+			((SizeX > SizeY) && (AspectRatioAxisConstraint == AspectRatio_MajorAxisFOV)) || 
+			(AspectRatioAxisConstraint == AspectRatio_MaintainXFOV) || 
+			(ViewInfo.ProjectionMode == ECameraProjectionMode::Orthographic);
+		if (bMaintainXFOV)
 		{
-			//if the viewport is wider than it is tall
+			// If the viewport is wider than it is tall
 			XAxisMultiplier = 1.0f;
 			YAxisMultiplier = SizeX / (float)SizeY;
 		}
 		else
 		{
-			//if the viewport is taller than it is wide
+			// If the viewport is taller than it is wide
 			XAxisMultiplier = SizeY / (float)SizeX;
 			YAxisMultiplier = 1.0f;
+		}
+		
+		float MatrixHalfFOV;
+		if (!bMaintainXFOV && ViewInfo.AspectRatio != 0.f)
+		{
+			// The view-info FOV is horizontal. But if we have a different aspect ratio constraint, we need to
+			// adjust this FOV value using the aspect ratio it was computed with, so we that we can compute the
+			// complementary FOV value (with the *effective* aspect ratio) correctly.
+			const float HalfXFOV = FMath::DegreesToRadians(FMath::Max(0.001f, ViewInfo.FOV) / 2.f);
+			const float HalfYFOV = FMath::Atan(FMath::Tan(HalfXFOV) / ViewInfo.AspectRatio);
+			MatrixHalfFOV = HalfYFOV;
+		}
+		else
+		{
+			// Avoid divide by zero in the projection matrix calculation by clamping FOV.
+			// Note the division by 360 instead of 180 because we want the half-FOV.
+			MatrixHalfFOV = FMath::Max(0.001f, ViewInfo.FOV) * (float)PI / 360.0f;
 		}
 	
 		if (ViewInfo.ProjectionMode == ECameraProjectionMode::Orthographic)
@@ -176,8 +195,8 @@ void FMinimalViewInfo::CalculateProjectionMatrixGivenView(const FMinimalViewInfo
 		else
 		{
 			InOutProjectionData.ProjectionMatrix = FReversedZPerspectiveMatrix(
-				MatrixFOV,
-				MatrixFOV,
+				MatrixHalfFOV,
+				MatrixHalfFOV,
 				XAxisMultiplier,
 				YAxisMultiplier,
 				GNearClippingPlane,

@@ -323,7 +323,7 @@ namespace DatasmithNavisworks
 
 		private const string HOST_NAME = "Navisworks";
 		private const string VENDOR_NAME = "Autodesk Inc.";
-		private const string PRODUCT_NAME = "Navisworks Manage"; // TODO: identify?
+
 		private StreamWriter LogStream;
 
 		public override CommandState CanExecute()
@@ -624,10 +624,9 @@ namespace DatasmithNavisworks
 				InstanceList = new List<GeometryInstance>();
 			}
 
-			public GeometryInstance CreateInstance(Node Node)
+			public GeometryInstance CreateInstance(SceneItem Item)
 			{
-				GeometryInstance Instance = new GeometryInstance(this, Node.SceneItem, InstancedGeometry.FragmentGeometryCount);
-				Node.Instance = Instance;
+				GeometryInstance Instance = new GeometryInstance(this, Item, InstancedGeometry.FragmentGeometryCount);
 				// TODO: remove comment - instances added to Instance's List when they are collected for export(if not merged)
 				// InstanceList.Add(Instance); 
 				return Instance;
@@ -738,9 +737,9 @@ namespace DatasmithNavisworks
 					try
 					{
 
-						string ProductVersion = "1.0"; // TODO:
+						string ProductVersion = Autodesk.Navisworks.Api.Application.Version.ApiMajor + "." + Autodesk.Navisworks.Api.Application.Version.ApiMinor;
 						FDatasmithFacadeScene DatasmithScene =
-							new FDatasmithFacadeScene(HOST_NAME, VENDOR_NAME, PRODUCT_NAME, ProductVersion);
+							new FDatasmithFacadeScene(HOST_NAME, VENDOR_NAME, Autodesk.Navisworks.Api.Application.Version.Runtime, ProductVersion);
 						DatasmithScene.PreExport();
 
 						SceneContext SceneContext = new SceneContext
@@ -871,6 +870,8 @@ namespace DatasmithNavisworks
 							LogStream?.Flush();
 						}
 
+						PrintAllocationStats(SceneContext);
+
 						{
 							EventInfo("Preparing Merged Meshes");
 							MergeMeshesForNodeTree(SceneContext, ProgressBar);
@@ -880,6 +881,8 @@ namespace DatasmithNavisworks
 							}
 							EventInfo("Done - Preparing Merged Meshes");
 						}
+
+						PrintAllocationStats(SceneContext);
 
 						{
 							EventInfo("Optimizing Intermediate scene");
@@ -910,6 +913,7 @@ namespace DatasmithNavisworks
 
 							EventInfo("Done - Creating Meshes");
 						}
+						PrintAllocationStats(SceneContext);
 
 						{
 							EventInfo("Creating Actors");
@@ -996,6 +1000,42 @@ namespace DatasmithNavisworks
 			}
 
 			return 0;
+		}
+
+		private void PrintAllocationStats(SceneContext SceneContext)
+		{
+			TriangleReader TriangleReader = SceneContext.TriangleReader;
+			EventInfo("Geometry Allocation Stats:");
+
+			Info($"  GeometryCount={TriangleReader.GetGeometryCount()}");
+			Info($"  TriangleCount={TriangleReader.GetTriangleCount()}");
+			Info($"  VertexCount={TriangleReader.GetVertexCount()}");
+
+			Info($"  CoordBytesUsed={TriangleReader.GetCoordBytesUsed()}");
+			Info($"  NormalBytesUsed={TriangleReader.GetNormalBytesUsed()}");
+			Info($"  UvBytesUsed={TriangleReader.GetUvBytesUsed()}");
+			Info($"  IndexBytesUsed={TriangleReader.GetIndexBytesUsed()}");
+
+			Info($"  CoordBytesReserved={TriangleReader.GetCoordBytesReserved()}");
+			Info($"  NormalBytesReserved={TriangleReader.GetNormalBytesReserved()}");
+			Info($"  UvBytesReserved={TriangleReader.GetUvBytesReserved()}");
+			Info($"  IndexBytesReserved={TriangleReader.GetIndexBytesReserved()}");
+
+			ulong TotalMemoryReserved = TriangleReader.GetCoordBytesReserved() +
+			                                  TriangleReader.GetNormalBytesReserved() +
+			                                  TriangleReader.GetUvBytesReserved() +
+			                                  TriangleReader.GetIndexBytesReserved();
+			Info($"  *TotalMemoryReserved={TotalMemoryReserved}");
+
+			ulong TotalMemoryUsed = TriangleReader.GetCoordBytesUsed() +
+			                                  TriangleReader.GetNormalBytesUsed() +
+			                                  TriangleReader.GetUvBytesUsed() +
+			                                  TriangleReader.GetIndexBytesUsed();
+			Info($"  *TotalMemoryUsed={TotalMemoryUsed}");
+
+			ulong ExpectedMemoryUsed = TriangleReader.GetTriangleCount() * 4 * 3 +
+			                                      TriangleReader.GetVertexCount() * (8 * 3 + 4 * 5);
+			Info($"  *ExpectedMemoryUsed={ExpectedMemoryUsed}");
 		}
 
 		private void ExportCameras(SceneContext SceneContext)
@@ -1210,7 +1250,7 @@ namespace DatasmithNavisworks
 				// Geometry nodes will be added as MeshActors
 				if ((CurrentNode.Children.Count > 0) || CurrentNode.HasMetadata() || (Item.Parent == null))
 				{
-					Item.CreateDatasmithActor(SceneContext);
+					CurrentNode.CreateDatasmithActor(SceneContext);
 				}
 			}
 		}
@@ -1336,7 +1376,7 @@ namespace DatasmithNavisworks
 					return true;
 				}
 
-				GeometryInstance Instance = Instanced.CreateInstance(InNode);
+				GeometryInstance Instance = Instanced.CreateInstance(InNode.SceneItem);
 				foreach (TransformMatrix Transform in Transforms)
 				{
 					Instance.AddTransform(Transform);
@@ -1345,7 +1385,6 @@ namespace DatasmithNavisworks
 				{
 					Instance.AddAppearance(Appearance);
 				}
-
 				// Replace node geometry and remove children
 				InNode.Instance = Instance;
 				InNode.Children.Clear();
@@ -1612,14 +1651,16 @@ namespace DatasmithNavisworks
 					// Merge meshes that have same transform
 					if (Instances.WithSameTransform.Count > 0)
 					{
-						foreach (var AppearanceListAndInstances in Instances.WithSameTransform)
+						foreach (var AppearanceListAndInstances in Instances.WithSameTransform.Select((Value, Index) =>
+							new {Index, AppearanceList = Value.Key, GeometryInstances = Value.Value}))
 						{
 							MultiFragmentsGeometryInstances.AppearanceList AppearanceList =
-								AppearanceListAndInstances.Key;
+								AppearanceListAndInstances.AppearanceList;
+							List<GeometryInstance> GeometryInstances = AppearanceListAndInstances.GeometryInstances;
 
 							// TODO: Potential optimization - same mesh might have different set of appearances
 							// Right now we are creating separate mesh for each appearance list, might want to make override materials on mesh actor
-							FDatasmithFacadeMesh MergedDatasmithMesh = CreateDatasmithMeshForItem(SceneContext, InstancedGeometry.Item, 0);
+							FDatasmithFacadeMesh MergedDatasmithMesh = CreateDatasmithMeshForItem(SceneContext, InstancedGeometry.Item, AppearanceListAndInstances.Index); // Instantiate mesh with different name for each appearance
 							TotalMergedMeshes++;
 
 							int SlotCount = AssignAppearancesListToDatasmithMesh(SceneContext, MergedDatasmithMesh, AppearanceList.Appearances, out List<int> SlotRemap);
@@ -1635,7 +1676,7 @@ namespace DatasmithNavisworks
 								}
 							}
 
-							foreach (GeometryInstance Instance in AppearanceListAndInstances.Value)
+							foreach (GeometryInstance Instance in GeometryInstances)
 							{
 								if (ProgressBar.IsCanceled)
 								{
@@ -1839,6 +1880,12 @@ namespace DatasmithNavisworks
 			{
 				return Instance?.Metadata != null;
 			}
+
+			public void CreateDatasmithActor(SceneContext SceneContext)
+			{
+				Debug.Assert(SceneItem.DatasmithActor == null);
+				SceneItem.DatasmithActor = CreateDatasmithActorForSceneItem(SceneContext, SceneItem);
+			}
 		};
 
 		[MethodImpl(MethodImplOptions.NoInlining)]
@@ -1919,7 +1966,6 @@ namespace DatasmithNavisworks
 				case 1:
 				{
 					// Remove empty intermediate actor with single child, keeping the child
-
 					SceneItem NodeSceneItem = InOutNode.SceneItem;
 					InOutNode = InOutNode.Children[0];
 					// Use ancestor node SceneItem for optimized node
@@ -1941,20 +1987,47 @@ namespace DatasmithNavisworks
 					return;
 				}
 
-				SceneItem Item = Node.SceneItem;
+				FDatasmithFacadeActor DatasmithActor = Node.SceneItem.DatasmithActor;
 
-				if (GetSceneItemComPath(SceneContext, Item, out InwOaPath ComPath))
+				if (DatasmithActor != null)
 				{
-					GuiProperties GuiProperties = new GuiProperties();
-					ExtractProperties(SceneContext, ComPath, GuiProperties);
+					AddMetadataForSceneItemToDatasmithActor(SceneContext, Node.SceneItem, DatasmithActor);
+				}
 
-					FDatasmithFacadeActor DatasmithActor = Item.DatasmithActor??Node.Instance.MeshActor;
-					FDatasmithFacadeMetaData DatasmithMetaData = CreateDatasmithMetadata(DatasmithActor, GuiProperties);
-					if(DatasmithMetaData != null)
+				FDatasmithFacadeActor DatasmithMeshActor = Node.Instance?.MeshActor;
+				if (DatasmithMeshActor != null)
+				{
+					// Add metadata to MeshActor, if it was built for different SceneItem(this happens when scene was optimized so that single child geometry instance was moved to parent)
+					// or Node's DatasmithActor is not present(it's omitted when there's nothing else in the hierarchy except maybe a single MeshActor)
+					SceneItem InstanceSceneItem = Node.Instance.SceneItem;
+					if (((InstanceSceneItem != Node.SceneItem) || DatasmithActor == null))
 					{
-						SceneContext.DatasmithScene.AddMetaData(DatasmithMetaData);
+						AddMetadataForSceneItemToDatasmithActor(SceneContext, InstanceSceneItem, DatasmithMeshActor);
 					}
 				}
+			}
+		}
+
+		private static void AddMetadataForSceneItemToDatasmithActor(SceneContext SceneContext, SceneItem Item,
+			FDatasmithFacadeActor DatasmithActor)
+		{
+			if (!GetSceneItemComPath(SceneContext, Item, out InwOaPath ComPath))
+			{
+				return;
+			}
+
+			GuiProperties GuiProperties = new GuiProperties();
+			ExtractProperties(SceneContext, ComPath, GuiProperties);
+
+			if (DatasmithActor == null)
+			{
+				return;
+			}
+
+			FDatasmithFacadeMetaData DatasmithMetaData = CreateDatasmithMetadata(DatasmithActor, GuiProperties);
+			if (DatasmithMetaData != null)
+			{
+				SceneContext.DatasmithScene.AddMetaData(DatasmithMetaData);
 			}
 		}
 
@@ -2029,7 +2102,8 @@ namespace DatasmithNavisworks
 			}
 
 			// Create Instance for Instanced geometry, setting up Transform and Appearance for each fragment
-			GeometryInstance Instance = NodeInstances.SharedInstancedRef.CreateInstance(Node);
+			GeometryInstance Instance = NodeInstances.SharedInstancedRef.CreateInstance(Node.SceneItem);
+			Node.Instance = Instance;
 			foreach (NavisworksFragmentInstance NavisworksFragmentInstance in NodeInstances.GetFragmentInstances(Item.Path))
 			{
 				Instance.AddTransform(NavisworksFragmentInstance.FragmentTransform);
@@ -2153,7 +2227,7 @@ namespace DatasmithNavisworks
 				ReadParams.SetNormalThreshold(SceneContext.NormalThreshold);
 
 				// SceneContext.TriangleSizeThreshold, SceneContext.PositionThreshold, SceneContext.NormalThreshold
-				Geometry SourceGeometry = DatasmithNavisworksUtil.TriangleReader.ReadGeometry(Fragment, ReadParams);
+				Geometry SourceGeometry = SceneContext.TriangleReader.ReadGeometry(Fragment, ReadParams);
 				if (!GeometryUtil.HasNonDegenerateTriangles(SourceGeometry, SceneContext.PositionThreshold))
 				{
 					// Store empty object for convenience(we can't drop fragments - need to preserve count and order of fragments so that other instances match)
@@ -2236,7 +2310,7 @@ namespace DatasmithNavisworks
 
 					string PropertyName = Property.UserName;
 					string PropertyValue = null;
-					try 
+					try
 					{
 						PropertyValue = Property.value?.ToString();
 					}
@@ -2619,15 +2693,6 @@ namespace DatasmithNavisworks
 				BoundingBox.Max.Z = (float)Box3F.max_pos.data3;
 			}
 
-			public void CreateDatasmithActor(SceneContext SceneContext)
-			{
-				if (DatasmithActor == null)
-				{
-					DatasmithActor = CreateDatasmithActorForSceneItem(SceneContext, this);
-				}
-
-			}
-
 			public int Index;
 			public SceneItem Parent;
 			public InwOaNode ComNode;
@@ -2780,6 +2845,7 @@ namespace DatasmithNavisworks
 		class SceneContext
 		{
 			public InwOpState10 State;
+			public DatasmithNavisworksUtil.TriangleReader TriangleReader = new TriangleReader();
 
 			public int ModelItemCount; // Total item count, as read using Navisworks api
 			public List<SceneItem> SceneItemList = new List<SceneItem>(); // All scene items acquired from the Navisworks scene
@@ -2835,8 +2901,8 @@ namespace DatasmithNavisworks
 			public int SceneItemCount => SceneItemList.Count;
 			public double CentimetersPerUnit;
 
-			public double TriangleSizeThreshold => 1e-8 * (CentimetersPerUnit * CentimetersPerUnit);
-			public double PositionThreshold => 0.00002 * CentimetersPerUnit;
+			public double TriangleSizeThreshold => 1e-8 / (CentimetersPerUnit * CentimetersPerUnit);
+			public double PositionThreshold => 0.00002 / CentimetersPerUnit;
 			public double NormalThreshold => 1e-4;
 
 			public int MultipleFragmentGeometryWithDistinctTransform;
@@ -3077,6 +3143,8 @@ namespace DatasmithNavisworks
 		private Vector3d PickedPoint;
 		public ExporterDockPanePlugin.DockPaneControlPresenter DockPanePresenter;
 
+		private TriangleReader LocalTriangleReader = new TriangleReader();
+
 		public override bool MouseDown(View View,
 			KeyModifiers Modifiers,
 			ushort Button,
@@ -3137,7 +3205,7 @@ namespace DatasmithNavisworks
 			return false;
 		}
 
-		private static Vector3d SnapIntersectionPointToGeometryVertex(View View, ModelItem Item, int X, int Y, Vector3d Point)
+		private Vector3d SnapIntersectionPointToGeometryVertex(View View, ModelItem Item, int X, int Y, Vector3d Point)
 		{
 			InwOaPath Path = Autodesk.Navisworks.Api.ComApi.ComApiBridge.ToInwOaPath(Item);
 			InwNodeFragsColl Fragments = Path.Fragments();
@@ -3194,7 +3262,7 @@ namespace DatasmithNavisworks
 					break;
 				}
 
-				Geometry Geometry = DatasmithNavisworksUtil.TriangleReader.ReadGeometry(Fragment, new GeometrySettings());
+				Geometry Geometry = LocalTriangleReader.ReadGeometry(Fragment, new GeometrySettings());
 				TransformMatrix LocalToWorldTransform = Converters.ConvertMatrix(Fragment.GetLocalToWorldMatrix());
 				foreach (GeometryVertex Vertex in GeometryUtil.EnumerateVertices(Geometry))
 				{

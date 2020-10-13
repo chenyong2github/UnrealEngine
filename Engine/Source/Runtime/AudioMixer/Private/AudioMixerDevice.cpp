@@ -13,8 +13,6 @@
 #include "Sound/AudioSettings.h"
 #include "Sound/SoundSubmix.h"
 #include "Sound/SoundSubmixSend.h"
-#include "SubmixEffects/AudioMixerSubmixEffectReverb.h"
-#include "SubmixEffects/AudioMixerSubmixEffectReverbFast.h"
 #include "SubmixEffects/AudioMixerSubmixEffectEQ.h"
 #include "SubmixEffects/AudioMixerSubmixEffectDynamicsProcessor.h"
 #include "UObject/UObjectHash.h"
@@ -605,6 +603,7 @@ namespace Audio
 		FMixerSubmixWeakPtr MasterSubmix = GetMasterSubmix();
 		{
 			CSV_SCOPED_TIMING_STAT(Audio, Submixes);
+			SCOPE_CYCLE_COUNTER(STAT_AudioMixerSubmixes);
 
 			FMixerSubmixPtr MasterSubmixPtr = MasterSubmix.Pin();
 			if (MasterSubmixPtr.IsValid())
@@ -616,6 +615,8 @@ namespace Audio
 
 		{
 			CSV_SCOPED_TIMING_STAT(Audio, EndpointSubmixes);
+			SCOPE_CYCLE_COUNTER(STAT_AudioMixerEndpointSubmixes);
+
 			FScopeLock ScopeLock(&EndpointSubmixesMutationLock);
 			for (FMixerSubmixPtr& Submix : DefaultEndpointSubmixes)
 			{

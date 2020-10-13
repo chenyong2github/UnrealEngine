@@ -215,6 +215,8 @@ bool URigVMCompiler::Compile(URigVMGraph* InGraph, URigVMController* InControlle
 		WorkData.VM->GetByteCode().AddExitOp();
 	}
 
+	WorkData.VM->GetByteCode().AlignByteCode();
+
 	// loop over all nodes once more and setup the instruction index for reroute nodes
 	if (Settings.SetupNodeInstructionIndex)
 	{
@@ -231,6 +233,8 @@ bool URigVMCompiler::Compile(URigVMGraph* InGraph, URigVMController* InControlle
 				{
 					return *InstructionIndexPtr;
 				}
+
+				InOutKnownInstructionIndex.Add(InNode, INDEX_NONE);
 
 				if (URigVMRerouteNode* RerouteNode = Cast<URigVMRerouteNode>(InNode))
 				{
@@ -269,7 +273,6 @@ bool URigVMCompiler::Compile(URigVMGraph* InGraph, URigVMController* InControlle
 					}
 				}
 
-				InOutKnownInstructionIndex.FindOrAdd(InNode) = INDEX_NONE;
 				return INDEX_NONE;
 			}
 		};
@@ -453,9 +456,11 @@ void URigVMCompiler::TraverseEntry(const FRigVMEntryExprAST* InExpr, FRigVMCompi
 	}
 }
 
-void URigVMCompiler::TraverseCallExtern(const FRigVMCallExternExprAST* InExpr, FRigVMCompilerWorkData& WorkData)
+int32 URigVMCompiler::TraverseCallExtern(const FRigVMCallExternExprAST* InExpr, FRigVMCompilerWorkData& WorkData)
 {
 	URigVMStructNode* StructNode = Cast<URigVMStructNode>(InExpr->GetNode());
+
+	int32 InstructionIndex = INDEX_NONE;
 
 	if (WorkData.bSetupMemory)
 	{
@@ -471,6 +476,7 @@ void URigVMCompiler::TraverseCallExtern(const FRigVMCallExternExprAST* InExpr, F
 				if (Pin->RequiresWatch())
 				{
 					FRigVMVarExprAST TempVarExpr(FRigVMExprAST::EType::Var, Pin);
+					TempVarExpr.ParserPtr = InExpr->GetParser();
 					FindOrAddRegister(&TempVarExpr, WorkData, true);
 				}
 			}
@@ -522,9 +528,10 @@ void URigVMCompiler::TraverseCallExtern(const FRigVMCallExternExprAST* InExpr, F
 		// setup the instruction
 		int32 FunctionIndex = WorkData.VM->AddRigVMFunction(StructNode->GetScriptStruct(), StructNode->GetMethodName());
 		WorkData.VM->GetByteCode().AddExecuteOp(FunctionIndex, Operands);
+		InstructionIndex = WorkData.VM->GetByteCode().GetNumInstructions() - 1;
 		if (Settings.SetupNodeInstructionIndex)
 		{
-			StructNode->InstructionIndex = WorkData.VM->GetByteCode().GetNumInstructions() - 1;
+			StructNode->InstructionIndex = InstructionIndex;
 		}
 
 		ensure(InExpr->NumChildren() == StructNode->Pins.Num());
@@ -550,6 +557,8 @@ void URigVMCompiler::TraverseCallExtern(const FRigVMCallExternExprAST* InExpr, F
 			}
 		}
 	}
+
+	return InstructionIndex;
 }
 
 void URigVMCompiler::TraverseForLoop(const FRigVMCallExternExprAST* InExpr, FRigVMCompilerWorkData& WorkData)
@@ -576,8 +585,7 @@ void URigVMCompiler::TraverseForLoop(const FRigVMCallExternExprAST* InExpr, FRig
 	WorkData.VM->GetByteCode().AddZeroOp(IndexOperand);
 
 	// call the for loop compute
-	TraverseCallExtern(InExpr, WorkData);
-	int32 ForLoopInstructionIndex = WorkData.VM->GetByteCode().GetNumInstructions() - 1;
+	int32 ForLoopInstructionIndex = TraverseCallExtern(InExpr, WorkData);
 
 	// set up the jump forward (jump out of the loop)
 	const FRigVMVarExprAST* ContinueLoopExpr = InExpr->FindVarWithPinName(FRigVMStruct::ForLoopContinuePinName);
@@ -716,7 +724,6 @@ void URigVMCompiler::TraverseAssign(const FRigVMAssignExprAST* InExpr, FRigVMCom
 						}
 					}
 
-					FRigVMMemoryContainer& Memory = Operand.GetMemoryType() == ERigVMMemoryType::Literal ? VM->GetLiteralMemory() : VM->GetWorkMemory();
 					FString SegmentPath = Pin->GetSegmentPath();
 
 					int32 ArrayIndex = INDEX_NONE;
@@ -736,7 +743,18 @@ void URigVMCompiler::TraverseAssign(const FRigVMAssignExprAST* InExpr, FRigVMCom
 						ArrayIndex = FCString::Atoi(*SegmentArrayIndex);
 					}
 
-					Operand = Memory.GetOperand(Operand.GetRegisterIndex(), SegmentPath, ArrayIndex);
+					if (Operand.GetMemoryType() == ERigVMMemoryType::External)
+					{
+						const FRigVMExternalVariable& ExternalVariable = VM->GetExternalVariables()[Operand.GetRegisterIndex()];
+						UScriptStruct* ScriptStruct = CastChecked<UScriptStruct>(ExternalVariable.TypeObject);
+						int32 RegisterOffset = VM->GetWorkMemory().GetOrAddRegisterOffset(Operand.GetRegisterIndex(), ScriptStruct, SegmentPath, ArrayIndex == INDEX_NONE ? 0 : ArrayIndex);
+						Operand = FRigVMOperand(ERigVMMemoryType::External, Operand.GetRegisterIndex(), RegisterOffset);
+					}
+					else
+					{
+						FRigVMMemoryContainer& Memory = Operand.GetMemoryType() == ERigVMMemoryType::Literal ? VM->GetLiteralMemory() : VM->GetWorkMemory();
+						Operand = Memory.GetOperand(Operand.GetRegisterIndex(), SegmentPath, ArrayIndex);
+					}
 				}
 			};
 
@@ -745,6 +763,31 @@ void URigVMCompiler::TraverseAssign(const FRigVMAssignExprAST* InExpr, FRigVMCom
 		}
 
 		WorkData.VM->GetByteCode().AddCopyOp(Source, Target);
+		int32 InstructionIndex = WorkData.VM->GetByteCode().GetNumInstructions() - 1;
+
+		if (Settings.SetupNodeInstructionIndex)
+		{
+			if (Source.GetMemoryType() == ERigVMMemoryType::External)
+			{
+				if (URigVMPin* SourcePin = InExpr->GetSourcePin())
+				{
+					if (URigVMVariableNode* VariableNode = Cast<URigVMVariableNode>(SourcePin->GetNode()))
+					{
+						VariableNode->InstructionIndex = InstructionIndex;
+					}
+				}
+			}
+			if (Target.GetMemoryType() == ERigVMMemoryType::External)
+			{
+				if (URigVMPin* TargetPin = InExpr->GetTargetPin())
+				{
+					if (URigVMVariableNode* VariableNode = Cast<URigVMVariableNode>(TargetPin->GetNode()))
+					{
+						VariableNode->InstructionIndex = InstructionIndex;
+					}
+				}
+			}
+		}
 	}
 }
 
@@ -1165,6 +1208,7 @@ FRigVMOperand URigVMCompiler::FindOrAddRegister(const FRigVMVarExprAST* InVarExp
 		}
 	}
 
+	const URigVMPin::FDefaultValueOverride& DefaultValueOverride = InVarExpr->GetParser()->GetPinDefaultOverrides();
 	URigVMPin* Pin = InVarExpr->GetPin();
 	FString BaseCPPType = Pin->IsArray() ? Pin->GetArrayElementCppType() : Pin->GetCPPType();
 	FString Hash = GetPinHash(Pin, InVarExpr, bIsDebugValue);
@@ -1201,14 +1245,14 @@ FRigVMOperand URigVMCompiler::FindOrAddRegister(const FRigVMVarExprAST* InVarExp
 
 				int32 DesiredArraySize = VMStruct->GetArraySize(Pin->GetFName(), WorkData.RigVMUserData);
 
-				DefaultValues = URigVMController::SplitDefaultValue(Pin->GetDefaultValue());
+				DefaultValues = URigVMController::SplitDefaultValue(Pin->GetDefaultValue(DefaultValueOverride));
 
 				if (DefaultValues.Num() != DesiredArraySize)
 				{
 					FString DefaultValue;
 					if (Pin->GetArraySize() > 0)
 					{
-						DefaultValue = Pin->GetSubPins()[0]->GetDefaultValue();
+						DefaultValue = Pin->GetSubPins()[0]->GetDefaultValue(DefaultValueOverride);
 					}
 
 					DefaultValues.Reset();
@@ -1220,7 +1264,7 @@ FRigVMOperand URigVMCompiler::FindOrAddRegister(const FRigVMVarExprAST* InVarExp
 			}
 			else
 			{
-				DefaultValues = URigVMController::SplitDefaultValue(Pin->GetDefaultValue());
+				DefaultValues = URigVMController::SplitDefaultValue(Pin->GetDefaultValue(DefaultValueOverride));
 			}
 
 			while (DefaultValues.Num() < Pin->GetSubPins().Num())
@@ -1230,7 +1274,7 @@ FRigVMOperand URigVMCompiler::FindOrAddRegister(const FRigVMVarExprAST* InVarExp
 		}
 		else if (URigVMEnumNode* EnumNode = Cast<URigVMEnumNode>(Pin->GetNode()))
 		{
-			FString EnumValueStr = EnumNode->GetDefaultValue();
+			FString EnumValueStr = EnumNode->GetDefaultValue(DefaultValueOverride);
 			if (UEnum* Enum = EnumNode->GetEnum())
 			{
 				DefaultValues.Add(FString::FromInt((int32)Enum->GetValueByNameString(EnumValueStr)));
@@ -1242,7 +1286,7 @@ FRigVMOperand URigVMCompiler::FindOrAddRegister(const FRigVMVarExprAST* InVarExp
 		}
 		else
 		{
-			DefaultValues.Add(Pin->GetDefaultValue());
+			DefaultValues.Add(Pin->GetDefaultValue(DefaultValueOverride));
 		}
 
 		UScriptStruct* ScriptStruct = Pin->GetScriptStruct();

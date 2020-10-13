@@ -313,40 +313,24 @@ namespace UnrealBuildTool
 			{
 				switch (MinVersion)
 				{
-				case "IOS_61":
-					Log.TraceWarning("IOS 6 is no longer supported in UE4 as of 4.11");
-					MinVersion = "7.0";
-					break;
-				case "IOS_7":
-					Log.TraceWarning("IOS 7 is no longer supported in UE4 as of 4.15");
-					MinVersion = "7.0";
-					break;
-				case "IOS_8":
-					Log.TraceWarning("IOS 8 is no longer supported in UE4 as of 4.18");
-					MinVersion = "8.0";
-					break;
-				case "IOS_9":
-					Log.TraceWarning("IOS 9 is no longer supported in UE4 as of 4.21");
-					MinVersion = "9.0";
-					break;
-				case "IOS_10":
-					Log.TraceWarning("IOS 10 is no longer supported in UE4 as of 4.23");
-					MinVersion = "10.0";
-					break;
-				case "IOS_11":
-					MinVersion = "11.0";
-					break;
 				case "IOS_12":
 					MinVersion = "12.0";
 					break;
 				case "IOS_13":
 					MinVersion = "13.0";
 					break;
+				case "IOS_14":
+					MinVersion = "14.0";
+					break;
+				default:
+					Log.TraceWarning("MinimumiOSVersion {0} specified in ini file is no longer supported, defaulting to 12.0", MinVersion);
+					MinVersion = "12.0";
+					break;
 				}
 			}
 			else
 			{
-				MinVersion = "11.0";
+				MinVersion = "12.0";
 			}
 
 			// Get Facebook Support details
@@ -886,6 +870,55 @@ namespace UnrealBuildTool
 			return PrepForUATPackageOrDeploy(Config, ProjectFile, InProjectName, InProjectDirectory, InExecutablePath, InEngineDir, bForDistribution, CookFlavor, bIsDataDeploy, bCreateStubIPA, UPLScripts, SdkVersion, "", bBuildAsFramework);
 		}
 
+		void CopyAllProvisions(string ProvisionDir)
+		{
+			try
+			{
+				FileInfo DestFileInfo;
+				if(!Directory.Exists(ProvisionDir))
+				{
+					throw new DirectoryNotFoundException(string.Format("Provision Directory {0} not found.", ProvisionDir), null);
+				}
+
+				string LocalProvisionFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Personal), "Library/MobileDevice/Provisioning Profiles");
+				if (!Directory.Exists(LocalProvisionFolder))
+				{
+					Log.TraceLog("Local Provision Folder {0} not found, attempting to create...", LocalProvisionFolder);
+					Directory.CreateDirectory(LocalProvisionFolder);
+					if(Directory.Exists(LocalProvisionFolder))
+					{
+						Log.TraceLog("Local Provision Folder {0} created successfully.", LocalProvisionFolder);
+					}
+					else
+					{
+						throw new DirectoryNotFoundException(string.Format("Local Provision Folder {0} could not be created.", LocalProvisionFolder), null);
+					}
+				}
+
+				foreach(string Provision in Directory.EnumerateFiles(ProvisionDir, "*.mobileprovision", SearchOption.AllDirectories))
+				{
+					string LocalProvisionFile = Path.Combine(LocalProvisionFolder, Path.GetFileName(Provision));
+					bool LocalFileExists = File.Exists(LocalProvisionFile);
+					if(!LocalFileExists || File.GetLastWriteTime(LocalProvisionFile) < File.GetLastWriteTime(Provision))
+					{
+						if(LocalFileExists)
+						{
+							DestFileInfo = new FileInfo(LocalProvisionFile);
+							DestFileInfo.Attributes = DestFileInfo.Attributes & ~FileAttributes.ReadOnly;
+						}
+						File.Copy(Provision, LocalProvisionFile, true);
+						DestFileInfo = new FileInfo(LocalProvisionFile);
+						DestFileInfo.Attributes = DestFileInfo.Attributes & ~FileAttributes.ReadOnly;
+					}
+				}
+			}
+			catch (Exception Ex)
+			{
+				Log.TraceError(Ex.ToString());
+				throw;
+			}
+		}
+
 		public bool PrepForUATPackageOrDeploy(UnrealTargetConfiguration Config, FileReference ProjectFile, string InProjectName, string InProjectDirectory, string InExecutablePath, string InEngineDir, bool bForDistribution, string CookFlavor, bool bIsDataDeploy, bool bCreateStubIPA, List<string> UPLScripts, VersionNumber SdkVersion, string BundleID, bool bBuildAsFramework)
 		{
 			if (BuildHostPlatform.Current.Platform != UnrealTargetPlatform.Mac)
@@ -973,48 +1006,13 @@ namespace UnrealBuildTool
 			}
 			if (!File.Exists(ProvisionWithPrefix) || Environment.GetEnvironmentVariable("IsBuildMachine") == "1")
 			{
-				// copy all provisions from the game directory, the engine directory, and the notforlicensees directory
-				// copy all of the provisions from the game directory to the library
+				// copy all provisions from the game directory, the engine directory, notforlicensees directory, and, if defined, the ProvisionDirectory.
+				CopyAllProvisions(BuildDirectory);
+				CopyAllProvisions(InEngineDir + "/Build/IOS");
+				string ProvisionDirectory = Environment.GetEnvironmentVariable("ProvisionDirectory");
+				if (!string.IsNullOrWhiteSpace(ProvisionDirectory))
 				{
-					if (Directory.Exists(BuildDirectory))
-					{
-						foreach(string Provision in Directory.EnumerateFiles(BuildDirectory, "*.mobileprovision", SearchOption.AllDirectories))
-						{
-							if (!File.Exists(Environment.GetEnvironmentVariable("HOME") + "/Library/MobileDevice/Provisioning Profiles/" + Path.GetFileName(Provision)) || File.GetLastWriteTime(Environment.GetEnvironmentVariable("HOME") + "/Library/MobileDevice/Provisioning Profiles/" + Path.GetFileName(Provision)) < File.GetLastWriteTime(Provision))
-							{
-								if (File.Exists(Environment.GetEnvironmentVariable("HOME") + "/Library/MobileDevice/Provisioning Profiles/" + Path.GetFileName(Provision)))
-								{
-									DestFileInfo = new FileInfo(Environment.GetEnvironmentVariable("HOME") + "/Library/MobileDevice/Provisioning Profiles/" + Path.GetFileName(Provision));
-									DestFileInfo.Attributes = DestFileInfo.Attributes & ~FileAttributes.ReadOnly;
-								}
-								File.Copy(Provision, Environment.GetEnvironmentVariable("HOME") + "/Library/MobileDevice/Provisioning Profiles/" + Path.GetFileName(Provision), true);
-								DestFileInfo = new FileInfo(Environment.GetEnvironmentVariable("HOME") + "/Library/MobileDevice/Provisioning Profiles/" + Path.GetFileName(Provision));
-								DestFileInfo.Attributes = DestFileInfo.Attributes & ~FileAttributes.ReadOnly;
-							}
-						}
-					}
-				}
-
-				// copy all of the provisions from the engine directory to the library
-				{
-					// always look for provisions in the IOS dir, even for TVOS
-					if (Directory.Exists(InEngineDir + "/Build/IOS"))
-					{
-						foreach(string Provision in Directory.EnumerateFiles(InEngineDir + "/Build/IOS", "*.mobileprovision", SearchOption.AllDirectories))
-						{
-							if (!File.Exists(Environment.GetEnvironmentVariable("HOME") + "/Library/MobileDevice/Provisioning Profiles/" + Path.GetFileName(Provision)) || File.GetLastWriteTime(Environment.GetEnvironmentVariable("HOME") + "/Library/MobileDevice/Provisioning Profiles/" + Path.GetFileName(Provision)) < File.GetLastWriteTime(Provision))
-							{
-								if (File.Exists(Environment.GetEnvironmentVariable("HOME") + "/Library/MobileDevice/Provisioning Profiles/" + Path.GetFileName(Provision)))
-								{
-									DestFileInfo = new FileInfo(Environment.GetEnvironmentVariable("HOME") + "/Library/MobileDevice/Provisioning Profiles/" + Path.GetFileName(Provision));
-									DestFileInfo.Attributes = DestFileInfo.Attributes & ~FileAttributes.ReadOnly;
-								}
-								File.Copy(Provision, Environment.GetEnvironmentVariable("HOME") + "/Library/MobileDevice/Provisioning Profiles/" + Path.GetFileName(Provision), true);
-								DestFileInfo = new FileInfo(Environment.GetEnvironmentVariable("HOME") + "/Library/MobileDevice/Provisioning Profiles/" + Path.GetFileName(Provision));
-								DestFileInfo.Attributes = DestFileInfo.Attributes & ~FileAttributes.ReadOnly;
-							}
-						}
-					}
+					CopyAllProvisions(ProvisionDirectory);
 				}
 			}
 

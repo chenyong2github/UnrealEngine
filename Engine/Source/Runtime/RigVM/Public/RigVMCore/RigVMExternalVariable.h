@@ -77,6 +77,14 @@ struct RIGVM_API FRigVMExternalVariable
 			ExternalVariable.TypeName = EnumProperty->GetEnum()->GetFName();
 			ExternalVariable.TypeObject = EnumProperty->GetEnum();
 		}
+		else if (FByteProperty* ByteProperty = CastField<FByteProperty>(Property))
+		{
+			if (UEnum* BytePropertyEnum = ByteProperty->Enum)
+			{
+				ExternalVariable.TypeName = BytePropertyEnum->GetFName();
+				ExternalVariable.TypeObject = BytePropertyEnum;
+			}
+		}
 		else if (FStructProperty* StructProperty = CastField<FStructProperty>(Property))
 		{
 			ExternalVariable.TypeName = *StructProperty->Struct->GetStructCPPName();

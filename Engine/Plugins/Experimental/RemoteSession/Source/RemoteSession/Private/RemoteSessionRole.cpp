@@ -61,7 +61,6 @@ void FRemoteSessionRole::Close()
 {
 	// order is specific since OSC uses the connection, and
 	// dispatches to channels
-	StopBackgroundThread();
 	OSCConnection = nullptr;
 	Connection = nullptr;
 	ClearChannels();
@@ -115,9 +114,9 @@ void FRemoteSessionRole::Tick(float DeltaTime)
 		}
 		else
 		{
-			if (ThreadRunning == false && OSCConnection->IsThreaded() == false)
+			if (OSCConnection->IsThreaded() == false)
 			{
-				OSCConnection->ReceivePackets();
+				OSCConnection->ReceiveAndDispatchMessages();
 			}
 
 			if (GetCurrentState() == ConnectionState::Connected)
@@ -134,29 +133,6 @@ void FRemoteSessionRole::Tick(float DeltaTime)
 		UE_LOG(LogRemoteSession, Warning, TEXT("Connection %s has disconnected."), *OSCConnection->GetDescription());
 		OSCConnection = nullptr;
 	}
-}
-
-void FRemoteSessionRole::SetReceiveInBackground(bool bValue)
-{
-	if (bValue && !ThreadRunning)
-	{
-		StartBackgroundThread();
-	}
-	else if (!bValue && ThreadRunning)
-	{
-		StopBackgroundThread();
-	}
-}
-
-void FRemoteSessionRole::StartBackgroundThread()
-{
-	check(ThreadRunning == false);
-	ThreadExitRequested = false;
-	ThreadRunning = true;
-
-	FRunnableThread* Thread = FRunnableThread::Create(this, TEXT("RemoteSessionClientThread"), 
-		1024 * 1024, 
-		TPri_AboveNormal);
 }
 
 bool FRemoteSessionRole::IsConnected() const
@@ -178,53 +154,15 @@ FString FRemoteSessionRole::GetErrorMessage() const
 	return ErrorMessage;
 }
 
-uint32 FRemoteSessionRole::Run()
-{
-	/* Not used and likely to be removed! */
-	double LastTick = FPlatformTime::Seconds();
-	
-	while (ThreadExitRequested == false)
-	{
-		const double DeltaTime = FPlatformTime::Seconds() - LastTick;
-
-		if (OSCConnection.IsValid() == false || OSCConnection->IsConnected() == false)
-		{
-			FPlatformProcess::SleepNoStats(0);
-			continue;
-		}
-
-		OSCConnection->ReceivePackets(1);
-		LastTick = FPlatformTime::Seconds();
-	}
-
-	ThreadRunning = false;
-	return 0;
-}
-
-void FRemoteSessionRole::StopBackgroundThread()
-{
-	if (ThreadRunning == false)
-	{
-		return;
-	}
-
-	ThreadExitRequested = true;
-
-	while (ThreadRunning)
-	{
-		FPlatformProcess::SleepNoStats(0);
-	}
-}
 
 void FRemoteSessionRole::CreateOSCConnection(TSharedRef<IBackChannelSocketConnection> InConnection)
 {
 	OSCConnection = MakeShareable(new FBackChannelOSCConnection(InConnection));
 
 	SetPendingState(ConnectionState::UnversionedConnection);
-	
-	//BindEndpoints(OSCConnection);
-	
-	//SendVersionCheck();
+
+	const URemoteSessionSettings* Settings = GetDefault<URemoteSessionSettings>();
+	OSCConnection->SetConnectionTimeout(Settings->ConnectionTimeout, Settings->ConnectionTimeoutWhenDebugging);
 }
 
 bool FRemoteSessionRole::IsLegacyConnection() const
@@ -359,6 +297,18 @@ void FRemoteSessionRole::OnReceiveHello(IBackChannelPacket& Message)
 	}
 }
 
+void FRemoteSessionRole::RegisterChannelChangeDelegate(FOnRemoteSessionChannelChange InDelegate)
+{
+	ChangeDelegates.Add(InDelegate);
+}
+
+void FRemoteSessionRole::UnregisterChannelChangeDelegate(void* UserObject)
+{
+	ChangeDelegates.RemoveAll([UserObject](FOnRemoteSessionChannelChange& Delegate) {
+		return Delegate.IsBoundToObject(UserObject);
+	});
+}
+
 
 void FRemoteSessionRole::CreateChannel(const FRemoteSessionChannelInfo& InChannel)
 {
@@ -371,7 +321,11 @@ void FRemoteSessionRole::CreateChannel(const FRemoteSessionChannelInfo& InChanne
 	{
 		UE_LOG(LogRemoteSession, Log, TEXT("Created Channel %s with mode %d"), *InChannel.Type, (int32)InChannel.Mode);
 		Channels.Add(NewChannel);
-		InChannel.OnCreated.ExecuteIfBound(NewChannel, InChannel.Type, InChannel.Mode);
+
+		for (auto& Delegate : ChangeDelegates)
+		{
+			Delegate.ExecuteIfBound(this, NewChannel, ERemoteSessionChannelChange::Created);
+		}
 	}
 	else
 	{

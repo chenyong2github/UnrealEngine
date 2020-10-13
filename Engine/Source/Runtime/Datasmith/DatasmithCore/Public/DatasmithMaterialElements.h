@@ -226,6 +226,9 @@ public:
 	/** If a parent material is generated from this material, this will be its label. If none, the instance and the parent will have the same label. */
 	virtual void SetParentLabel( const TCHAR* InParentLabel ) = 0;
 	virtual const TCHAR* GetParentLabel() const = 0;
+
+	virtual void SetShadingModel( const EDatasmithShadingModel InShadingModel ) = 0;
+	virtual EDatasmithShadingModel GetShadingModel() const = 0;
 };
 
 template<>

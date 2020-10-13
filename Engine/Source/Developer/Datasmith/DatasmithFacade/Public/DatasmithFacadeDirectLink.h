@@ -13,6 +13,7 @@ class DATASMITHFACADE_API FDatasmithFacadeDirectLink
 {
 public:
 	static bool Init();
+	static bool Init(bool bUseDatasmithExporterUI, const TCHAR* RemoteEngineDirPath);
 	static int ValidateCommunicationSetup() { return FDatasmithDirectLink::ValidateCommunicationSetup(); }
 	static bool Shutdown();
 

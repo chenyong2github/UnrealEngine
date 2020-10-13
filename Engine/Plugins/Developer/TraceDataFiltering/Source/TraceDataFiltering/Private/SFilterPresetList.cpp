@@ -34,7 +34,7 @@
 
 void SFilterPresetList::Construct( const FArguments& InArgs )
 {
-	OnPresetsChanged = InArgs._OnPresetsChanged;
+	OnPresetChanged = InArgs._OnPresetChanged;
 	OnSavePreset = InArgs._OnSavePreset;
 	OnHighlightPreset = InArgs._OnHighlightPreset;
 
@@ -107,11 +107,6 @@ void SFilterPresetList::RefreshFilterPresets()
 				Filter->SetEnabled(true);
 			}
 		}
-	}
-
-	if (HasAnyPresets())
-	{
-		OnPresetsChanged.ExecuteIfBound();
 	}
 
 	ActiveFilterNames.Empty();
@@ -203,26 +198,17 @@ void SFilterPresetList::DisableAllPresets()
 {
 	for ( auto FilterIt = Presets.CreateConstIterator(); FilterIt; ++FilterIt )
 	{
-		(*FilterIt)->SetEnabled(false, false);
+		(*FilterIt)->SetEnabled(false);
 	}
-
-	OnPresetsChanged.ExecuteIfBound();
 }
 
 void SFilterPresetList::RemoveAllPresets()
 {
 	if ( HasAnyPresets() )
 	{
-		for ( auto FilterIt = Presets.CreateConstIterator(); FilterIt; ++FilterIt )
-		{
-			const TSharedRef<SFilterPreset>& FilterToRemove = *FilterIt;		
-		}
-
+		DisableAllPresets();
 		FilterBox->ClearChildren();
 		Presets.Empty();
-
-		// Notify that a filter has changed
-		OnPresetsChanged.ExecuteIfBound();
 	}
 }
 
@@ -489,7 +475,7 @@ TSharedRef<SFilterPreset> SFilterPresetList::AddFilterPreset(const TSharedPtr<IF
 {
 	TSharedRef<SFilterPreset> NewFilter = SNew(SFilterPreset)
 		.FilterPreset(FilterPreset)
-		.OnPresetsChanged(OnPresetsChanged)
+		.OnPresetChanged(OnPresetChanged)
 		.OnRequestRemove(this, &SFilterPresetList::RemoveFilterPresetAndUpdate)
 		.OnRequestEnableAll(this, &SFilterPresetList::EnableAllPresets)
 		.OnRequestEnableOnly(this, &SFilterPresetList::EnableOnlyThisPreset)
@@ -516,22 +502,15 @@ void SFilterPresetList::EnableOnlyThisPreset(const TSharedRef<SFilterPreset>& Pr
 	for (TSharedRef<SFilterPreset>& PresetWidget : Presets )
 	{
 		const bool bEnable = (PresetWidget == PresetWidgetToEnable);
-		PresetWidget->SetEnabled(bEnable, false);
+		PresetWidget->SetEnabled(bEnable);
 	}
-
-	OnPresetsChanged.ExecuteIfBound();
 }
 
 void SFilterPresetList::RemoveFilterPresetAndUpdate(const TSharedRef<SFilterPreset>& PresetToRemove)
 {
 	FilterBox->RemoveSlot(PresetToRemove);
 	Presets.RemoveSingleSwap(PresetToRemove);
-
-	if (PresetToRemove->IsEnabled())
-	{
-		// Notify that a filter has changed
-		OnPresetsChanged.ExecuteIfBound();
-	}
+	PresetToRemove->SetEnabled(false);
 }
 
 void SFilterPresetList::DeletePreset(const TSharedRef<SFilterPreset>& PresetToDelete)

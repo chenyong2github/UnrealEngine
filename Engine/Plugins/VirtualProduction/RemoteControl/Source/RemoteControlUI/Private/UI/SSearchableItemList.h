@@ -99,10 +99,6 @@ private:
 		{
 			ConstructRow(Object);
 		}
-		if (FilteredItems.Num() > 0)
-		{
-			ListView->SetSelection(FilteredItems[0]);
-		}
 		ListView->RequestListRefresh();
 	}
 

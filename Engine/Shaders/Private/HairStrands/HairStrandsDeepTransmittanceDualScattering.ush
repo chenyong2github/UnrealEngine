@@ -10,25 +10,20 @@
 
 float Hair_g2(float B,float Theta)
 {
-	#if 0
-	return Hair_g(B,Theta);
-	#else
-	// Unnormalized Gaussian
-	return exp( -0.5 * Pow2( Theta ) / (B*B) );
-	#endif
+	// Unnormalized Gaussian to get more uniform look accross roughness range
+	return exp(-0.5 * Pow2(Theta) / (B * B));
 }
 
 // Dual scattering computation are done here for faster iteration (i.e., does not invalidate tons of shaders)
-void ComputeDualScatteringTerms(
-	const FHairTransmittanceData TransmittanceData,
-	const float Roughness,
+FHairTransmittanceData ComputeDualScatteringTerms(
+	const FHairTransmittanceMask TransmittanceMask,
+	const FHairAverageScattering AverageScattering,
+	float Roughness,
 	const float Backlit,
 	const float3 V,
 	const float3 L,
 	const float3 T,
-	const uint HairComponents,
-	inout float3 OutGlobalScattering,
-	inout float3 OutLocalScattering)
+	const uint HairComponents)
 {
 	const float SinThetaL = clamp(dot(T, L), -1, 1);
 	const float SinThetaV = clamp(dot(T, V), -1, 1);
@@ -36,17 +31,18 @@ void ComputeDualScatteringTerms(
 	const float MaxAverageScatteringValue = 0.99f;
 
 	// Straight implementation of the dual scattering paper 
-    const float3 af	 = min(MaxAverageScatteringValue.xxx, TransmittanceData.A_front);
+	const float3 af	 = min(MaxAverageScatteringValue.xxx, AverageScattering.A_front);
 	const float3 af2 = Pow2(af);
-	const float3 ab  = min(MaxAverageScatteringValue.xxx, TransmittanceData.A_back);
+	const float3 ab  = min(MaxAverageScatteringValue.xxx, AverageScattering.A_back);
 	const float3 ab2 = Pow2(ab);
-    const float3 OneMinusAf2 = 1 - af2;
+	const float3 OneMinusAf2 = 1 - af2;
 
 	const float3 A1 = ab * af2 / OneMinusAf2;
 	const float3 A3 = ab * ab2 * af2 / (OneMinusAf2*Pow2(OneMinusAf2));
 	const float3 Ab = A1 + A3;
 
-	// todo_hair: Should use the average roughness after k scattering event instead of the BSDF roughness
+	// Add a min roughness for dual scattering based on adhoc value. This reduce scattering noise
+	Roughness = max(Roughness, 0.20f);
 	const float Beta_R	 = Pow2( Roughness );
 	const float Beta_TT	 = Pow2( Roughness / 2 ); 
 	const float Beta_TRT = Pow2( Roughness * 2 ); 
@@ -65,7 +61,7 @@ void ComputeDualScatteringTerms(
 	const float3 af_weights = af / (af.r + af.g + af.b);
     const float3 Beta_f  = dot(float3(Beta_R, Beta_TT, Beta_TRT), af_weights);
 	const float3 Beta_f2 = Beta_f*Beta_f;
-    const float3 sigma_f = Beta_f * max(1, TransmittanceData.HairCount);
+	const float3 sigma_f = Beta_f * max(1, TransmittanceMask.HairCount);
 
     const float Theta_h = (asin(SinThetaL) + asin(SinThetaV)) * 0.5f;
 
@@ -78,10 +74,10 @@ void ComputeDualScatteringTerms(
 	// normalized Gaussian
 	// const float3 Sf = 1;
 	// const float3 Sf = Hair_g_unnormalized(sigma_f, Theta_h) / PI; 
-    float3 Sf = float3(	Hair_g2(sigma_f.r, Theta_h), 
-						Hair_g2(sigma_f.g, Theta_h), 
-						Hair_g2(sigma_f.b, Theta_h)) / PI;
-	const float3 Tf = TransmittanceData.Transmittance;
+    float3 Sf = float3(	Hair_g2(Pow2(sigma_f.r), Theta_h), 
+						Hair_g2(Pow2(sigma_f.g), Theta_h), 
+						Hair_g2(Pow2(sigma_f.b), Theta_h)) / PI;
+	const float3 Tf = TransmittanceMask.Transmittance;
 
 	// Overall shift due to the various local scatteing event (all shift & roughnesss should vary with color)
 	//const float3 shift_f = 0.33f * (Shift_R + Shift_TT + Shift_TRT);
@@ -100,29 +96,21 @@ void ComputeDualScatteringTerms(
 						Hair_g2(Pow2(sigma_b.g), Theta_h - delta_b.g),
 						Hair_g2(Pow2(sigma_b.b), Theta_h - delta_b.b))  / PI;
 
-	// Override the spread function to cancel them
-	//Sf = 1;
-	//Sb = 1;
 
-    // Different variant for managing sefl-occlusion issue for global scattering
-	const bool bIsOccluded = TransmittanceData.HairCount > 0;
-	const float3 GlobalScattering = bIsOccluded ? Tf * Sf * df : 1;
-	//const float3 GlobalScattering = TransmittanceData.HairCount >= 1 ? Tf * Sf * df : 1;
-    //const float3 GlobalScattering = lerp(1, Tf * Sf * df, saturate(TransmittanceData.HairCount));
-	//const float3 GlobalScattering = Tf * Sf * df;
-
-	const float Attenuation = lerp(1, Backlit, saturate(-dot(V,L)));
-
-	const float3 LocalScattering  = 2 * Ab * Sb * db * Attenuation;
+	// Different variant for managing sefl-occlusion issue for global scattering
+	const bool bIsOccluded = TransmittanceMask.HairCount > 0;
+	const float3 GlobalScattering = bIsOccluded ? Tf * Sf * df : 1;	
+	const float3 LocalScattering  = 2 * Ab * Sb * db;
 	
 	// Decode if the Local/Global component should be enabled or not (for debug purpose)
-	const float LocalWeights  = (HairComponents & HAIR_COMPONENT_LS) > 0 ? 1 : 0;
-
-	OutGlobalScattering = (HairComponents & HAIR_COMPONENT_GS) > 0 ? GlobalScattering : 1;
-	OutLocalScattering  = LocalScattering * LocalWeights;
-
+	FHairTransmittanceData Out = InitHairStrandsTransmittanceData();
+	Out.ScatteringComponent = HairComponents | HAIR_COMPONENT_MULTISCATTER;
+	Out.GlobalScattering = (HairComponents & HAIR_COMPONENT_GS) > 0 ? GlobalScattering : 1;
+	Out.LocalScattering  = (HairComponents & HAIR_COMPONENT_LS) > 0 ? LocalScattering : 0;
+	Out.OpaqueVisibility = TransmittanceMask.Visibility;
+	return Out;
 	// Final computation is done in ShadingModels.ush with the following formula
-	// GlobalScattering * (Fs + LocalScattering) * TransmittanceData.OpaqueVisibility;
+	// GlobalScattering * (Fs + LocalScattering) * TransmittanceMask.OpaqueVisibility;
 }
 	
 FHairTransmittanceData GetHairTransmittance(
@@ -134,40 +122,26 @@ FHairTransmittanceData GetHairTransmittance(
 	SamplerState HairLUTSampler,
 	const uint HairComponents)
 {
-	FHairTransmittanceData TransmittanceData = InitHairTransmittanceData();
-	TransmittanceData.Transmittance = TransmittanceMask.Transmittance;
-	TransmittanceData.HairCount = TransmittanceMask.HairCount;
-	TransmittanceData.GlobalScattering = 1;
-	TransmittanceData.LocalScattering = 0;
-	TransmittanceData.ScatteringComponent = HairComponents | HAIR_COMPONENT_MULTISCATTER;
-	TransmittanceData.OpaqueVisibility = TransmittanceMask.Visibility;
-
 	// Hack: Override the actual roughness, with a different value to achieve a specific look
 	const float Roughness = GBuffer.CustomData.x > 0 ? GBuffer.CustomData.x : GBuffer.Roughness;
 	const float Backlit = GBuffer.CustomData.z;
 
+	// Compute the transmittance based on precompute Hair transmittance LUT
 	const float3 T = GBuffer.WorldNormal;
-	{
-		const float SinLightAngle = dot(L, T);
+	const float SinLightAngle = dot(L, T);
+	const FHairAverageScattering AverageScattering = SampleHairLUT(HairLUTTexture, HairLUTSampler, GBuffer.BaseColor, Roughness, SinLightAngle);
 
-		// Compute the transmittance based on precompute Hair transmittance LUT
-		HairAverageScattering AverageScattering = SampleHairLUT(HairLUTTexture, HairLUTSampler, GBuffer.BaseColor, Roughness, SinLightAngle);
-		TransmittanceData.A_front = AverageScattering.A_front;
-		TransmittanceData.A_back = AverageScattering.A_back;
-	}
-
-	ComputeDualScatteringTerms(
-		TransmittanceData,
+	FHairTransmittanceData Out = ComputeDualScatteringTerms(
+		TransmittanceMask,
+		AverageScattering,
 		Roughness,
 		Backlit,
 		V,
 		L,
 		T,
-		HairComponents,
-		TransmittanceData.GlobalScattering,
-		TransmittanceData.LocalScattering);
+		HairComponents);
 
-	return TransmittanceData;
+	return Out;
 }
 
 FHairTransmittanceData GetHairTransmittance(
@@ -195,4 +169,35 @@ FHairTransmittanceData GetHairTransmittance(
 		HairLUTTexture,
 		HairLUTSampler,
 		HairComponents);
+}
+
+// Evaluate local scattering scattering
+FHairTransmittanceData EvaluateDualScattering(FGBufferData GBuffer, float3 V, float3 L)
+{
+	FHairTransmittanceData Out = InitHairStrandsTransmittanceData();
+	if (GBuffer.ShadingModelID == SHADINGMODELID_HAIR)
+	{
+		// Compute the transmittance based on precompute Hair transmittance LUT
+		const float SinLightAngle = dot(L, GBuffer.WorldNormal);
+
+		FHairTransmittanceMask TransmittanceMask = InitHairTransmittanceMask();
+		const FHairAverageScattering AverageScattering = SampleHairLUT(View.HairScatteringLUTTexture, View.HairScatteringLUTSampler, GBuffer.BaseColor, GBuffer.Roughness, SinLightAngle);
+		Out = ComputeDualScatteringTerms(
+			TransmittanceMask,
+			AverageScattering,
+			GBuffer.Roughness,
+			1, // Backlit / GBuffer.CustomData.z;
+			V,
+			L,
+			GBuffer.WorldNormal,
+			View.HairComponents);
+		Out.bUseLegacyAbsorption = false;
+	}
+
+	return Out;
+}
+
+bool ShouldUseHairComplexTransmittance(FGBufferData GBuffer)
+{
+	return GBuffer.CustomData.a > 0;
 }

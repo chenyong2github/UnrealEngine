@@ -19,6 +19,8 @@ DEFINE_LOG_CATEGORY_STATIC(LogUHeadMountedDisplay, Log, All);
 
 FXRDeviceOnDisconnectDelegate UHeadMountedDisplayFunctionLibrary::OnXRDeviceOnDisconnectDelegate;
 
+TMap<FName, FXRTimedInputActionDelegate> UHeadMountedDisplayFunctionLibrary::OnXRTimedInputActionDelegateMap;
+
 UHeadMountedDisplayFunctionLibrary::UHeadMountedDisplayFunctionLibrary(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -513,4 +515,52 @@ void UHeadMountedDisplayFunctionLibrary::DisconnectRemoteXRDevice()
 void UHeadMountedDisplayFunctionLibrary::SetXRDisconnectDelegate(const FXRDeviceOnDisconnectDelegate& InDisconnectedDelegate)
 {
 	OnXRDeviceOnDisconnectDelegate = InDisconnectedDelegate;
+}
+
+void UHeadMountedDisplayFunctionLibrary::SetXRTimedInputActionDelegate(const FName& ActionName, const FXRTimedInputActionDelegate& InDelegate)
+{
+	OnXRTimedInputActionDelegateMap.Add(ActionName, InDelegate);
+}
+
+void UHeadMountedDisplayFunctionLibrary::ClearXRTimedInputActionDelegate(const FName& ActionName)
+{
+	OnXRTimedInputActionDelegateMap.Remove(ActionName);
+}
+
+bool UHeadMountedDisplayFunctionLibrary::GetControllerTransformForTime(UObject* WorldContext, const int32 ControllerIndex, const FName MotionSource, FTimespan Time, bool& bTimeWasUsed, FRotator& Orientation, FVector& Position, bool& bProvidedLinearVelocity, FVector& LinearVelocity, bool& bProvidedAngularVelocity, FVector& AngularVelocityRadPerSec)
+{
+	TArray<IMotionController*> MotionControllers = IModularFeatures::Get().GetModularFeatureImplementations<IMotionController>(IMotionController::GetModularFeatureName());
+	for (auto MotionController : MotionControllers)
+	{
+		if (MotionController == nullptr)
+		{
+			continue;
+		}
+
+		const float WorldToMetersScale = WorldContext ? WorldContext->GetWorld()->GetWorldSettings()->WorldToMeters : 100.0f;
+
+		const bool bGotTransform = MotionController->GetControllerOrientationAndPositionForTime(ControllerIndex, MotionSource, Time, bTimeWasUsed, Orientation, Position, bProvidedLinearVelocity, LinearVelocity, bProvidedAngularVelocity, AngularVelocityRadPerSec, WorldToMetersScale);
+		
+		if (bGotTransform)
+		{
+			// transform to world space
+			const FTransform TrackingToWorld = GetTrackingToWorldTransform(WorldContext);
+
+			Position = TrackingToWorld.TransformPosition(Position);
+			Orientation = TrackingToWorld.TransformRotation(FQuat(Orientation)).Rotator();
+
+			if (bProvidedLinearVelocity)
+			{
+				LinearVelocity = TrackingToWorld.TransformVector(LinearVelocity);
+			}
+			
+			if (bProvidedAngularVelocity)
+			{
+				AngularVelocityRadPerSec = TrackingToWorld.TransformVector(AngularVelocityRadPerSec);
+			}
+
+			return true;
+		}
+	}
+	return false;
 }

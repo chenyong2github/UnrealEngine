@@ -4,7 +4,7 @@
 #include "AssetRegistryModule.h"
 #include "AssetTypeActions/AssetTypeActions_SoundControlBus.h"
 #include "AssetTypeActions/AssetTypeActions_SoundControlBusMix.h"
-#include "AssetTypeActions/AssetTypeActions_SoundModulationGeneratorLFO.h"
+#include "AssetTypeActions/AssetTypeActions_SoundModulationGenerator.h"
 #include "AssetTypeActions/AssetTypeActions_SoundModulationParameter.h"
 #include "AssetTypeActions/AssetTypeActions_SoundModulationPatch.h"
 #include "Editors/ModulationPatchCurveEditorViewStacked.h"
@@ -42,6 +42,7 @@ namespace AudioModulationEditor
 		AssetArray.Add(AssetActionBase);
 	}
 } // namespace AudioModulationEditor
+
 
 FAudioModulationEditorModule::FAudioModulationEditorModule()
 {
@@ -84,13 +85,13 @@ void FAudioModulationEditorModule::StartupModule()
 
 	AudioModulationEditor::AddAssetAction<FAssetTypeActions_SoundControlBus>(AssetTools, AssetActions);
 	AudioModulationEditor::AddAssetAction<FAssetTypeActions_SoundControlBusMix>(AssetTools, AssetActions);
-	AudioModulationEditor::AddAssetAction<FAssetTypeActions_SoundModulationGeneratorLFO>(AssetTools, AssetActions);
+	AudioModulationEditor::AddAssetAction<FAssetTypeActions_SoundModulationGenerator>(AssetTools, AssetActions);
 	AudioModulationEditor::AddAssetAction<FAssetTypeActions_SoundModulationParameter>(AssetTools, AssetActions);
 	AudioModulationEditor::AddAssetAction<FAssetTypeActions_SoundModulationPatch>(AssetTools, AssetActions);
 
 	SetIcon(TEXT("SoundControlBus"));
 	SetIcon(TEXT("SoundControlBusMix"));
-	SetIcon(TEXT("SoundModulationGeneratorLFO"));
+	SetIcon(TEXT("SoundModulationGenerator"));
 	SetIcon(TEXT("SoundModulationPatch"));
 	SetIcon(TEXT("SoundModulationParameter"));
 

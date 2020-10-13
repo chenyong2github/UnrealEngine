@@ -42,7 +42,7 @@ void UShotgunEngine::OnEngineInitialized() const
 void UShotgunEngine::SetSelection(const TArray<FAssetData>* InSelectedAssets, const TArray<AActor*>* InSelectedActors)
 {
 	SelectedAssets.Reset();
-	SelectedActors.Reset();
+	WeakSelectedActors.Reset();
 
 	if (InSelectedAssets)
 	{
@@ -50,13 +50,13 @@ void UShotgunEngine::SetSelection(const TArray<FAssetData>* InSelectedAssets, co
 	}
 	if (InSelectedActors)
 	{
-		SelectedActors = *InSelectedActors;
-
 		// Also set the assets referenced by the selected actors as selected assets
 		IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry").Get();
 		TArray<FAssetData> AllReferencedAssets;
-		for (const AActor* Actor : SelectedActors)
+		for (const AActor* Actor : *InSelectedActors)
 		{
+			WeakSelectedActors.Add(Actor);
+
 			TArray<UObject*> ActorAssets = GetReferencedAssets(Actor);
 			for (UObject* Asset : ActorAssets)
 			{
@@ -69,6 +69,19 @@ void UShotgunEngine::SetSelection(const TArray<FAssetData>* InSelectedAssets, co
 		}
 		SelectedAssets = MoveTemp(AllReferencedAssets);
 	}
+}
+
+TArray<AActor*> UShotgunEngine::GetSelectedActors()
+{
+	TArray<AActor*> Actors;
+	for (const FWeakObjectPtr& ObjPtr : WeakSelectedActors)
+	{
+		if (AActor* Actor = Cast<AActor>(ObjPtr.Get()))
+		{
+			Actors.Add(Actor);
+		}
+	}
+	return Actors;
 }
 
 TArray<UObject*> UShotgunEngine::GetReferencedAssets(const AActor* Actor) const

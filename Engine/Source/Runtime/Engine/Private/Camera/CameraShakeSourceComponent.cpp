@@ -2,7 +2,7 @@
 
 #include "Camera/CameraShakeSourceComponent.h"
 #include "Camera/CameraModifier_CameraShake.h"
-#include "Camera/CameraShake.h"
+#include "Camera/CameraShakeBase.h"
 #include "CinematicCameraModule.h"
 #include "Components/BillboardComponent.h"
 #include "Engine/Engine.h"
@@ -23,7 +23,7 @@ UCameraShakeSourceComponent::UCameraShakeSourceComponent(const FObjectInitialize
 	, Attenuation(ECameraShakeAttenuation::Quadratic)
 	, InnerAttenuationRadius(100.f)
 	, OuterAttenuationRadius(1000.f)
-	, bAutoPlay(false)
+	, bAutoStart(false)
 {
 #if WITH_EDITORONLY_DATA
 	bVisualizeComponent = true;
@@ -59,9 +59,9 @@ void UCameraShakeSourceComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
-	if (bAutoPlay)
+	if (bAutoStart)
 	{
-		Play();
+		Start();
 	}
 }
 
@@ -72,27 +72,27 @@ void UCameraShakeSourceComponent::EndPlay(const EEndPlayReason::Type EndPlayReas
 	Super::EndPlay(EndPlayReason);
 }
 
-void UCameraShakeSourceComponent::Play()
+void UCameraShakeSourceComponent::Start()
 {
 	if (ensureMsgf(CameraShake.Get() != nullptr, TEXT("No camera shake was specified on this source!")))
 	{
-		PlayCameraShake(CameraShake);
+		StartCameraShake(CameraShake);
 	}
 }
 
-void UCameraShakeSourceComponent::PlayCameraShake(TSubclassOf<UCameraShake> InCameraShake, float Scale, enum ECameraAnimPlaySpace::Type PlaySpace, FRotator UserPlaySpaceRot)
+void UCameraShakeSourceComponent::StartCameraShake(TSubclassOf<UCameraShakeBase> InCameraShake, float Scale, ECameraShakePlaySpace PlaySpace, FRotator UserPlaySpaceRot)
 {
 	for (FConstPlayerControllerIterator Iterator = GetWorld()->GetPlayerControllerIterator(); Iterator; ++Iterator)
 	{
 		APlayerController* PlayerController = Iterator->Get();
 		if (PlayerController != nullptr && PlayerController->PlayerCameraManager != nullptr)
 		{
-			PlayerController->PlayerCameraManager->PlayCameraShakeFromSource(InCameraShake, this, Scale, PlaySpace, UserPlaySpaceRot);
+			PlayerController->PlayerCameraManager->StartCameraShakeFromSource(InCameraShake, this, Scale, PlaySpace, UserPlaySpaceRot);
 		}
 	}
 }
 
-void UCameraShakeSourceComponent::StopAllCameraShakesOfType(TSubclassOf<UCameraShake> InCameraShake, bool bImmediately)
+void UCameraShakeSourceComponent::StopAllCameraShakesOfType(TSubclassOf<UCameraShakeBase> InCameraShake, bool bImmediately)
 {
 	for (FConstPlayerControllerIterator Iterator = GetWorld()->GetPlayerControllerIterator(); Iterator; ++Iterator)
 	{
@@ -167,7 +167,7 @@ void UCameraShakeSourceComponent::PostEditChangeProperty( struct FPropertyChange
         {
             // Single instance shakes can't be localized since they're automatically recycled and merged.
             // If the user is trying to set it, let's notify them and revert to the previous value.
-            const UCameraShake* const CameraShakeCDO = GetDefault<UCameraShake>(CameraShake);
+            const UCameraShakeBase* const CameraShakeCDO = GetDefault<UCameraShakeBase>(CameraShake);
             if (CameraShakeCDO != nullptr && CameraShakeCDO->bSingleInstance)
             {
                 FText NotificationText = FText::Format(

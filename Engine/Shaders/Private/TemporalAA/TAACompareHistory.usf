@@ -45,7 +45,7 @@ void MainCS(
 		ZOrder2D(GroupThreadIndex, log2(TILE_SIZE)) +
 		GroupId * uint2(TILE_SIZE, TILE_SIZE));
 
-	uint2 InputPixelPos = DispatchThreadId;
+	uint2 InputPixelPos = InputInfo_ViewportMin + DispatchThreadId;
 
 	float2 InputBufferUV = (InputPixelPos + 0.5) * InputInfo_ExtentInverse;
 	InputBufferUV = clamp(InputBufferUV, InputInfo_UVViewportBilinearMin, InputInfo_UVViewportBilinearMax);
@@ -115,24 +115,24 @@ void MainCS(
 		}
 
 		
-		if (all(InputPixelPos < InputInfo_ViewportSize) && all((InputPixelPos % 2) == 0))
+		if (all(InputPixelPos < InputInfo_ViewportMax) && all(((InputPixelPos - InputInfo_ViewportMin) % 2) == 0))
 		{
-			HistoryRejectionOutput[InputPixelPos / 2] = Rejection;
+			HistoryRejectionOutput[(InputPixelPos - InputInfo_ViewportMin) / 2] = Rejection;
 		}
 	}
 	#endif
 
-	if (all(InputPixelPos < InputInfo_ViewportSize))
+	if (all(InputPixelPos < InputInfo_ViewportMax))
 	{
 		#if !CONFIG_OUTPUT_HALF_RES
 		{
-			HistoryRejectionOutput[InputPixelPos] = Rejection;
+			HistoryRejectionOutput[(InputPixelPos - InputInfo_ViewportMin)] = Rejection;
 		}
 		#endif
 
 		#if DEBUG_OUTPUT
 		{
-			DebugOutput[InputPixelPos] = Debug;
+			DebugOutput[InputPixelPos - InputInfo_ViewportMin] = Debug;
 		}
 		#endif
 	}

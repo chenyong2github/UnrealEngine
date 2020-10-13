@@ -15,6 +15,7 @@
     #pragma warning(disable : 4365 4987)
 #endif
 #include <cstdint>
+#include <limits>
 #include <string>
 #include <vector>
 #ifdef _MSC_VER
@@ -199,46 +200,142 @@ TEST(BinaryInputArchiveTest, StringDeserialization) {
     ASSERT_EQ(dest, "abcdefgh");
 }
 
-TEST(BinaryInputArchiveTest, VectorOfIntegerTypeDeserialization) {
+TEST(BinaryInputArchiveTest, VectorOfInt8TypeDeserialization) {
     tersetests::FakeStream stream;
-    unsigned char size[] = {0x00, 0x00, 0x00, 0x04};  // 4
+    unsigned char size[] = {0x00, 0x00, 0x00, 0x05};  // 5
     unsigned char bytes[] = {
-        0x00, 0x00, 0x00, 0x10,  // 16
-        0x00, 0x00, 0x01, 0x00,  // 256
-        0x00, 0x00, 0x10, 0x00,  // 4096
-        0x00, 0x01, 0x00, 0x00  // 65536
+        0x80,  // -128
+        0x9c,  // -100
+        0xff,  // -1
+        0x0f,  // 15
+        0x7f  // 127
     };
     stream.write(reinterpret_cast<char*>(size), 4ul);
-    stream.write(reinterpret_cast<char*>(bytes), 16ul);
+    stream.write(reinterpret_cast<char*>(bytes), 5ul);
+    stream.seek(0ul);
+
+    terse::BinaryInputArchive<tersetests::FakeStream> archive(&stream);
+    std::vector<std::int8_t> dest;
+    archive(dest);
+
+    std::vector<std::int8_t> expected{-128, -100, -1, 15, 127};
+    ASSERT_EQ(dest, expected);
+}
+
+TEST(BinaryInputArchiveTest, VectorOfInt16TypeDeserialization) {
+    tersetests::FakeStream stream;
+    unsigned char size[] = {0x00, 0x00, 0x00, 0x05};  // 5
+    unsigned char bytes[] = {
+        0x80, 0x00,  // -32768
+        0xff, 0xf9,  // -7
+        0x00, 0x0f,  // 15
+        0x00, 0xff,  // 255
+        0x7f, 0xff  // 32767
+    };
+    stream.write(reinterpret_cast<char*>(size), 4ul);
+    stream.write(reinterpret_cast<char*>(bytes), 10ul);
+    stream.seek(0ul);
+
+    terse::BinaryInputArchive<tersetests::FakeStream> archive(&stream);
+    std::vector<std::int16_t> dest;
+    archive(dest);
+
+    std::vector<std::int16_t> expected{std::numeric_limits<std::int16_t>::min(), -7, 15, 255,
+                                       std::numeric_limits<std::int16_t>::max()};
+    ASSERT_EQ(dest, expected);
+}
+
+TEST(BinaryInputArchiveTest, VectorOfInt32TypeDeserialization) {
+    tersetests::FakeStream stream;
+    unsigned char size[] = {0x00, 0x00, 0x00, 0x08};  // 8
+    unsigned char bytes[] = {
+        0x80, 0x00, 0x00, 0x00,  // -2147483648
+        0xff, 0xff, 0xff, 0xf0,  // -16
+        0x00, 0x00, 0x00, 0x80,  // 128
+        0x00, 0x00, 0x01, 0x00,  // 256
+        0x00, 0x00, 0x10, 0x00,  // 4096
+        0x00, 0x01, 0x00, 0x00,  // 65536
+        0x00, 0x02, 0x00, 0x00,  // 131072
+        0x7f, 0xff, 0xff, 0xff  // 2147483647
+    };
+    stream.write(reinterpret_cast<char*>(size), 4ul);
+    stream.write(reinterpret_cast<char*>(bytes), 32ul);
     stream.seek(0ul);
 
     terse::BinaryInputArchive<tersetests::FakeStream> archive(&stream);
     std::vector<std::int32_t> dest;
     archive(dest);
 
-    std::vector<std::int32_t> expected{16, 256, 4096, 65536};
+    std::vector<std::int32_t> expected{std::numeric_limits<std::int32_t>::min(), -16, 128, 256, 4096, 65536, 131072,
+                                       std::numeric_limits<std::int32_t>::max()};
+    ASSERT_EQ(dest, expected);
+}
+
+TEST(BinaryInputArchiveTest, VectorOfInt64TypeDeserialization) {
+    tersetests::FakeStream stream;
+    unsigned char size[] = {0x00, 0x00, 0x00, 0x05};  // 5
+    unsigned char bytes[] = {
+        0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  // -9223372036854775808
+        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00,  // -256
+        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,  // -1
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff,  // 255
+        0x7f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff  // 9223372036854775807
+    };
+    stream.write(reinterpret_cast<char*>(size), 4ul);
+    stream.write(reinterpret_cast<char*>(bytes), 40ul);
+    stream.seek(0ul);
+
+    terse::BinaryInputArchive<tersetests::FakeStream> archive(&stream);
+    std::vector<std::int64_t> dest;
+    archive(dest);
+
+    std::vector<std::int64_t> expected{std::numeric_limits<std::int64_t>::min(), -256, -1, 255,
+                                       std::numeric_limits<std::int64_t>::max()};
     ASSERT_EQ(dest, expected);
 }
 
 TEST(BinaryInputArchiveTest, VectorOfFloatTypeDeserialization) {
     tersetests::FakeStream stream;
-    unsigned char size[] = {0x00, 0x00, 0x00, 0x04};  // 4
+    unsigned char size[] = {0x00, 0x00, 0x00, 0x05};  // 5
     unsigned char bytes[] = {
         0x3f, 0x99, 0x99, 0x9a,  // 1.2f
         0x40, 0x48, 0xf5, 0xc3,  // 3.14f
         0x3d, 0x4c, 0xcc, 0xcd,  // 0.05f
-        0x3f, 0x3d, 0x70, 0xa4  // 0.74f
+        0x3f, 0x3d, 0x70, 0xa4,  // 0.74f
+        0x43, 0x2, 0xe6, 0x66,  // 130.9f
     };
     stream.write(reinterpret_cast<char*>(size), 4ul);
-    stream.write(reinterpret_cast<char*>(bytes), 16ul);
+    stream.write(reinterpret_cast<char*>(bytes), 24ul);
     stream.seek(0ul);
 
     terse::BinaryInputArchive<tersetests::FakeStream> archive(&stream);
     std::vector<float> dest;
     archive(dest);
 
-    std::vector<float> expected{1.2f, 3.14f, 0.05f, 0.74f};
-    ASSERT_EQ(dest, expected);
+    std::vector<float> expected{1.2f, 3.14f, 0.05f, 0.74f, 130.9f};
+    ASSERT_ELEMENTS_NEAR(dest, expected, expected.size(), 0.001f);
+}
+
+TEST(BinaryInputArchiveTest, VectorOfDoubleTypeDeserialization) {
+    tersetests::FakeStream stream;
+    unsigned char size[] = {0x00, 0x00, 0x00, 0x05};  // 5
+    unsigned char bytes[] = {
+        0xc0, 0x24, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x40, 0x09, 0x1e, 0xb8, 0x51, 0xeb, 0x85, 0x1f,
+        0x3f, 0xa9, 0x99, 0x99, 0x99, 0x99, 0x99, 0x9a,
+        0x3f, 0xe7, 0xae, 0x14, 0x7a, 0xe1, 0x47, 0xae,
+        0x40, 0x60, 0x5c, 0xcc, 0xcc, 0xcc, 0xcc, 0xcd
+    };
+    stream.write(reinterpret_cast<char*>(size), 4ul);
+    stream.write(reinterpret_cast<char*>(bytes), 40ul);
+    stream.seek(0ul);
+
+    terse::BinaryInputArchive<tersetests::FakeStream> archive(&stream);
+    std::vector<double> dest;
+    archive(dest);
+
+    std::vector<double> expected{-10.0, 3.14, 0.05, 0.74, 130.9};
+    ASSERT_ELEMENTS_NEAR(dest, expected, expected.size(), 0.001);
 }
 
 TEST(BinaryInputArchiveTest, VectorOfComplexTypeDeserialization) {

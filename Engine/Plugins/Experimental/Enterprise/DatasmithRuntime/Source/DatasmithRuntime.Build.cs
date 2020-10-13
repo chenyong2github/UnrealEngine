@@ -25,6 +25,7 @@ public class DatasmithRuntime : ModuleRules
 				"CinematicCamera",
 				"Core",
 				"CoreUObject",
+				"DirectLink",
 				"Engine",
 				"FreeImage",
 				"Landscape",

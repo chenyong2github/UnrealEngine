@@ -89,6 +89,7 @@ UParticleSystemComponent* FPSCPool::Acquire(UWorld* World, UParticleSystem* Temp
 
 		//Reset visibility in case the component was reclaimed by the pool while invisible.
 		RetElem.PSC->SetVisibility(true);
+		RetElem.PSC->SetHiddenInGame(false);
 
 		if (RetElem.PSC->GetWorld() != World)
 		{

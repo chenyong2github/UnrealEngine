@@ -933,6 +933,8 @@ public:
 	 */
 	static const TCHAR* GamePersistentDownloadDir();
 
+	static const TCHAR* GeneratedConfigDir();
+
 	static const TCHAR* GetUBTPlatform();
 
 	static const TCHAR* GetUBTTarget();
@@ -1420,6 +1422,13 @@ public:
 	static void PumpMessagesForSlowTask()
 	{
 	}
+	/**
+	 *  Pumps app messages only if there are essential keep-alive messages pending. This function called from time-sensitive 
+	 *  parts of the code and should take minimal time if there are no essential messages waiting
+	 */
+	static void PumpEssentialAppMessages()
+	{
+	}
 
 	static void HidePlatformStartupScreen()
 	{
@@ -1467,6 +1476,11 @@ public:
 		return 60;
 	}
 	
+	/**
+	 * Returns true if PGO is currently enabled
+	 */
+	static bool IsPGOEnabled();
+
 #if !UE_BUILD_SHIPPING
 	/**
 	 * Returns any platform specific warning messages we want printed on screen

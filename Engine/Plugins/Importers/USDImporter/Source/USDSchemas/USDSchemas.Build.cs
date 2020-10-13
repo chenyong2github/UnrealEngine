@@ -27,6 +27,8 @@ namespace UnrealBuildTool.Rules
 					"MessageLog",
 					"PropertyEditor",
 					"RenderCore",
+					"Slate",
+					"SlateCore",
 					"StaticMeshDescription",
 					"UnrealUSDWrapper",
 					"USDClasses",

@@ -22,9 +22,6 @@
 #include "ContentStreaming.h"
 #include "MeshBatch.h"
 
-// Required temporarily for UMaterialInterface::SortTextureStreamingData()
-#include "Materials/MaterialInstance.h"
-
 /**
  * This is used to deprecate data that has been built with older versions.
  * To regenerate the data, commands like "BUILDMATERIALTEXTURESTREAMINGDATA" can be used in the editor.
@@ -35,6 +32,35 @@
 //////////////////////////////////////////////////////////////////////////
 
 UEnum* UMaterialInterface::SamplerTypeEnum = nullptr;
+
+//////////////////////////////////////////////////////////////////////////
+
+bool IsHairStrandsGeometrySupported(const EShaderPlatform Platform)
+{
+	check(Platform != SP_NumPlatforms);
+	return
+		(
+			((IsD3DPlatform(Platform, false) || IsVulkanSM5Platform(Platform)) && IsPCPlatform(Platform) && !IsMobilePlatform(Platform)) || (IsConsolePlatform(Platform) && !IsSwitchPlatform(Platform))
+		)
+		&&
+		GetMaxSupportedFeatureLevel(Platform) == ERHIFeatureLevel::SM5;
+}
+
+bool IsCompatibleWithHairStrands(const FMaterial* Material, const ERHIFeatureLevel::Type FeatureLevel)
+{
+	return
+		ERHIFeatureLevel::SM5 == FeatureLevel &&
+		Material && Material->IsUsedWithHairStrands() && Material->GetShadingModels().HasShadingModel(MSM_Hair) &&
+		(Material->GetBlendMode() == BLEND_Opaque || Material->GetBlendMode() == BLEND_Masked);
+}
+
+bool IsCompatibleWithHairStrands(EShaderPlatform Platform, const FMaterialShaderParameters& Parameters)
+{
+	return
+		IsHairStrandsGeometrySupported(Platform) &&
+		Parameters.bIsUsedWithHairStrands && Parameters.ShadingModels.HasShadingModel(MSM_Hair) &&
+		(Parameters.BlendMode == BLEND_Opaque || Parameters.BlendMode == BLEND_Masked);
+}
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -309,11 +335,6 @@ bool UMaterialInterface::IsReadyForFinishDestroy()
 void UMaterialInterface::BeginDestroy()
 {
 	ParentRefFence.BeginFence();
-
-	// If the material changes, then the debug view material must reset to prevent parameters mismatch
-	void ClearDebugViewMaterials(UMaterialInterface*);
-	ClearDebugViewMaterials(this);
-
 	Super::BeginDestroy();
 }
 
@@ -631,36 +652,23 @@ bool FMaterialTextureInfo::IsValid(bool bCheckTextureIndex) const
 
 void UMaterialInterface::SortTextureStreamingData(bool bForceSort, bool bFinalSort)
 {
-#if WITH_EDITORONLY_DATA
+#if WITH_EDITOR
 	// In cook that was already done in the save.
 	if (!bTextureStreamingDataSorted || bForceSort)
 	{
-		TArray<UObject*> UsedTextures;
+		TSet<const UTexture*> UsedTextures;
 		if (bFinalSort)
 		{
-			UsedTextures = GetReferencedTextures();
-		
-			// Add the instance texture overrides since the texture streaming data reference them.
-			if (UMaterialInstance* MaterialInstance = Cast<UMaterialInstance>(this))
-			{
-				for (const FTextureParameterValue& TextureParam : MaterialInstance->TextureParameterValues)
-				{
-					if (TextureParam.ParameterValue)
-					{
-						UsedTextures.AddUnique(TextureParam.ParameterValue);
-					}
-				}
-			}
+			TSet<const UTexture*> UnfilteredUsedTextures;
+			GetReferencedTexturesAndOverrides(UnfilteredUsedTextures);
 
-			for (int32 TextureIndex = 0; TextureIndex < UsedTextures.Num(); ++TextureIndex)
+			// Sort some of the conditions that could make the texture unstreamable, to make the data leaner.
+			// Note that because we are cooking, UStreamableRenderAsset::bIsStreamable is not reliable here.
+			for (const UTexture* UnfilteredTexture : UnfilteredUsedTextures)
 			{
-				UTexture* UsedTexture = Cast<UTexture>(UsedTextures[TextureIndex]);
-				// Sort some of the conditions that could make the texture unstreamable, to make the data leaner.
-				// Note that because we are cooking, UStreamableRenderAsset::bIsStreamable is not reliable here.
-				if (!UsedTexture || UsedTexture->NeverStream || UsedTexture->LODGroup == TEXTUREGROUP_UI || UsedTexture->MipGenSettings == TMGS_NoMipmaps)
+				if (UnfilteredTexture && !UnfilteredTexture->NeverStream && UnfilteredTexture->LODGroup != TEXTUREGROUP_UI && UnfilteredTexture->MipGenSettings != TMGS_NoMipmaps)
 				{
-					UsedTextures.RemoveAtSwap(TextureIndex);
-					--TextureIndex;
+					UsedTextures.Add(UnfilteredTexture);
 				}
 			}
 		}
@@ -690,19 +698,17 @@ void UMaterialInterface::SortTextureStreamingData(bool bForceSort, bool bFinalSo
 		// Sort by name to be compatible with FindTextureStreamingDataIndexRange
 		TextureStreamingData.Sort([](const FMaterialTextureInfo& Lhs, const FMaterialTextureInfo& Rhs) 
 		{ 
-#if WITH_EDITORONLY_DATA
 			// Sort by register indices when the name are the same, as when initially added in the streaming data.
 			if (Lhs.TextureName == Rhs.TextureName)
 			{
 				return Lhs.TextureIndex < Rhs.TextureIndex;
 
 			}
-#endif
 			return Lhs.TextureName.LexicalLess(Rhs.TextureName); 
 		});
 		bTextureStreamingDataSorted = true;
 	}
-#endif
+#endif // WITH_EDITOR
 }
 
 extern 	TAutoConsoleVariable<int32> CVarStreamingUseMaterialData;

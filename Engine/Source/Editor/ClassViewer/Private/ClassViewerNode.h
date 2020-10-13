@@ -10,7 +10,7 @@ class IPropertyHandle;
 class IUnloadedBlueprintData;
 class UBlueprint;
 
-class FClassViewerNode
+class FClassViewerNode : public TSharedFromThis<FClassViewerNode>
 {
 public:
 	FClassViewerNode(UClass* Class);

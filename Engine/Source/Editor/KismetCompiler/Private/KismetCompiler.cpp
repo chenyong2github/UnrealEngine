@@ -286,7 +286,7 @@ void FKismetCompilerContext::CleanAndSanitizeClass(UBlueprintGeneratedClass* Cla
 		}
 
 		FName NewSubobjectName = MakeUniqueObjectName(TransientClass, CurrSubObj->GetClass(), CurrSubObj->GetFName());
-		CurrSubObj->Rename(*NewSubobjectName.ToString(), TransientClass, RenFlags);
+		CurrSubObj->Rename(*NewSubobjectName.ToString(), TransientClass, RenFlags | REN_ForceNoResetLoaders);
 		FLinkerLoad::InvalidateExport(CurrSubObj);
 	}
 

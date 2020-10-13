@@ -1,14 +1,21 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DMXProtocolSettings.h"
-#include "Interfaces/IDMXProtocol.h"
+
+#include "DMXProtocolBlueprintLibrary.h"
 #include "DMXProtocolConstants.h"
+#include "Interfaces/IDMXProtocol.h"
+
+
 UDMXProtocolSettings::UDMXProtocolSettings()
 	: InterfaceIPAddress(TEXT("0.0.0.0"))
 	, SendingRefreshRate(DMX_MAX_REFRESH_RATE)
-	, bDefaultReceiveDMXEnabled(true)
 	, ReceivingRefreshRate(DMX_MAX_REFRESH_RATE)
 	, bUseSeparateReceivingThread(true)
+	, bDefaultReceiveDMXEnabled(true)
+	, bDefaultSendDMXEnabled(true)
+	, bOverrideReceiveDMXEnabled(true)
+	, bOverrideSendDMXEnabled(true)	
 {
 	FixtureCategories =
 	{
@@ -23,6 +30,8 @@ UDMXProtocolSettings::UDMXProtocolSettings()
 	// Default Attributes
 	Attributes =
 	{
+		/* Fixture related */
+
 		// Label					Keywords
 		{ TEXT("Color"),			TEXT("ColorWheel, Color1") },
 		{ TEXT("Red"),				TEXT("ColorAdd_R") },
@@ -47,12 +56,42 @@ UDMXProtocolSettings::UDMXProtocolSettings()
 		{ TEXT("Shaper Rotation"),	TEXT("ShaperRot") },
 		{ TEXT("Effects"),			TEXT("Effect, Macro, Effects") },
 		{ TEXT("Frost"),			TEXT("") },
-		{ TEXT("Reset"),			TEXT("FixtureReset, FixtureGlobalReset, GlobalReset") }
+		{ TEXT("Reset"),			TEXT("FixtureReset, FixtureGlobalReset, GlobalReset") },
+
+
+		/* Firework, Fountain related */
+
+		// Label					Keywords
+		{ TEXT("ModeStartStop"),	TEXT("") },
+		{ TEXT("Burst"),			TEXT("") },
+		{ TEXT("Launch"),			TEXT("") },
+		{ TEXT("Velocity"),			TEXT("") },
+		{ TEXT("Angle"),			TEXT("") },
+		{ TEXT("NumBeams"),			TEXT("") }
 	};
 }
 
 #if WITH_EDITOR
+void UDMXProtocolSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
 
+	const FName PropertyName = PropertyChangedEvent.GetPropertyName();
+
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXProtocolSettings, bDefaultReceiveDMXEnabled))
+	{
+		bOverrideReceiveDMXEnabled = bDefaultReceiveDMXEnabled;
+		UDMXProtocolBlueprintLibrary::SetReceiveDMXEnabled(bDefaultReceiveDMXEnabled);
+	}
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXProtocolSettings, bDefaultSendDMXEnabled))
+	{
+		bOverrideSendDMXEnabled = bDefaultSendDMXEnabled;
+		UDMXProtocolBlueprintLibrary::SetSendDMXEnabled(bDefaultSendDMXEnabled);
+	}
+}
+#endif // WITH_EDITOR
+
+#if WITH_EDITOR
 void UDMXProtocolSettings::PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent)
 {
 	const FName PropertyName = PropertyChangedEvent.GetPropertyName();
@@ -62,8 +101,7 @@ void UDMXProtocolSettings::PostEditChangeChainProperty(FPropertyChangedChainEven
 		IDMXProtocol::OnNetworkInterfaceChanged.Broadcast(InterfaceIPAddress);
 	}
 	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXProtocolSettings, bUseSeparateReceivingThread) ||
-			PropertyName == GET_MEMBER_NAME_CHECKED(UDMXProtocolSettings, ReceivingRefreshRate)
-		)
+			PropertyName == GET_MEMBER_NAME_CHECKED(UDMXProtocolSettings, ReceivingRefreshRate))
 	{
 		IDMXProtocol::OnReceivingThreadChanged.Broadcast(ReceivingRefreshRate, bUseSeparateReceivingThread);
 	}
@@ -76,9 +114,9 @@ void UDMXProtocolSettings::PostEditChangeChainProperty(FPropertyChangedChainEven
 
 		FDMXFixtureCategory::OnValuesChanged.Broadcast();
 	}
-	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXProtocolSettings, Attributes)
-		|| PropertyName == GET_MEMBER_NAME_CHECKED(FDMXAttribute, Name)
-		|| PropertyName == GET_MEMBER_NAME_CHECKED(FDMXAttribute, Keywords))
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXProtocolSettings, Attributes) || 
+		PropertyName == GET_MEMBER_NAME_CHECKED(FDMXAttribute, Name) || 
+		PropertyName == GET_MEMBER_NAME_CHECKED(FDMXAttribute, Keywords))
 	{
 		if (Attributes.Num() == 0)
 		{
@@ -91,10 +129,6 @@ void UDMXProtocolSettings::PostEditChangeChainProperty(FPropertyChangedChainEven
 		}
 
 		FDMXAttributeName::OnValuesChanged.Broadcast();
-	}
-	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXProtocolSettings, bDefaultReceiveDMXEnabled))
-	{
-		GlobalSetReceiveDMXEnabled(bDefaultReceiveDMXEnabled);
 	}
 
 	Super::PostEditChangeChainProperty(PropertyChangedEvent);
@@ -112,17 +146,7 @@ void UDMXProtocolSettings::PostInitProperties()
 	{
 		Attribute.CleanupKeywords();
 	}
-}
 
-void UDMXProtocolSettings::GlobalSetReceiveDMXEnabled(bool bReceiveDMXEnabled)
-{
-	TMap<FName, IDMXProtocolPtr> AllProtocols = FDMXProtocolModule::Get().GetProtocols();
-
-	for (const TPair<FName, IDMXProtocolPtr>& ProtocolKvp : AllProtocols)
-	{
-		IDMXProtocolPtr Protocol = ProtocolKvp.Value;
-		check(Protocol.IsValid());
-
-		ProtocolKvp.Value->SetReceiveDMXEnabled(bReceiveDMXEnabled);
-	}
+	bOverrideSendDMXEnabled = bDefaultSendDMXEnabled;
+	bOverrideReceiveDMXEnabled = bDefaultReceiveDMXEnabled;
 }

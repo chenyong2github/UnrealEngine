@@ -20,7 +20,7 @@ UNiagaraDataInterfaceVolumeTexture::UNiagaraDataInterfaceVolumeTexture(FObjectIn
 	, Texture(nullptr)
 {
 	Proxy.Reset(new FNiagaraDataInterfaceProxyVolumeTexture());
-	PushToRenderThread();
+	MarkRenderDataDirty();
 }
 
 void UNiagaraDataInterfaceVolumeTexture::PostInitProperties()
@@ -32,7 +32,7 @@ void UNiagaraDataInterfaceVolumeTexture::PostInitProperties()
 		FNiagaraTypeRegistry::Register(FNiagaraTypeDefinition(GetClass()), true, false, false);
 	}
 
-	PushToRenderThread();
+	MarkRenderDataDirty();
 }
 
 void UNiagaraDataInterfaceVolumeTexture::PostLoad()
@@ -41,7 +41,7 @@ void UNiagaraDataInterfaceVolumeTexture::PostLoad()
 
 	// Not safe since the UTexture might not have yet PostLoad() called and so UpdateResource() called.
 	// This will affect whether the SamplerStateRHI will be available or not.
-	PushToRenderThread();
+	MarkRenderDataDirty();
 }
 
 #if WITH_EDITOR
@@ -49,7 +49,7 @@ void UNiagaraDataInterfaceVolumeTexture::PostLoad()
 void UNiagaraDataInterfaceVolumeTexture::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
-	PushToRenderThread();
+	MarkRenderDataDirty();
 }
 
 #endif
@@ -62,7 +62,7 @@ bool UNiagaraDataInterfaceVolumeTexture::CopyToInternal(UNiagaraDataInterface* D
 	}
 	UNiagaraDataInterfaceVolumeTexture* DestinationTexture = CastChecked<UNiagaraDataInterfaceVolumeTexture>(Destination);
 	DestinationTexture->Texture = Texture;
-	DestinationTexture->PushToRenderThread();
+	DestinationTexture->MarkRenderDataDirty();
 
 	return true;
 }
@@ -249,7 +249,7 @@ public:
 			if (!SamplerStateRHI)
 			{
 				// Fallback required because PostLoad() order affects whether RHI resources 
-				// are initalized in UNiagaraDataInterfaceVolumeTexture::PushToRenderThread().
+				// are initalized in UNiagaraDataInterfaceVolumeTexture::PushToRenderThreadImpl().
 				SamplerStateRHI = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 			}
 			SetTextureParameter(
@@ -283,7 +283,7 @@ private:
 
 IMPLEMENT_NIAGARA_DI_PARAMETER(UNiagaraDataInterfaceVolumeTexture, FNiagaraDataInterfaceParametersCS_VolumeTexture);
 
-void UNiagaraDataInterfaceVolumeTexture::PushToRenderThread()
+void UNiagaraDataInterfaceVolumeTexture::PushToRenderThreadImpl()
 {
 	FNiagaraDataInterfaceProxyVolumeTexture* RT_Proxy = GetProxyAs<FNiagaraDataInterfaceProxyVolumeTexture>();
 
@@ -311,7 +311,7 @@ void UNiagaraDataInterfaceVolumeTexture::SetTexture(UVolumeTexture* InTexture)
 	if (InTexture)
 	{
 		Texture = InTexture;
-		PushToRenderThread();
+		MarkRenderDataDirty();
 	}
 }
 

@@ -1238,7 +1238,6 @@ struct FVectorKernelRandom : public TUnaryVectorKernel<FVectorKernelRandom>
 {
 	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst, VectorRegister Src0)
 	{
-		const float rm = RAND_MAX;
 		//EEK!. Improve this. Implement GPU style seeded rand instead of this.
 		VectorRegister Result = MakeVectorRegister(Context.RandStream.GetFraction(),
 			Context.RandStream.GetFraction(),
@@ -1253,7 +1252,6 @@ struct FVectorKernelRandomGauss : public TBinaryVectorKernel<FVectorKernelRandom
 {
 	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst, VectorRegister Src0, VectorRegister Src1)
 	{
-		const float rm = RAND_MAX;
 		VectorRegister Result = MakeVectorRegister(Context.RandStream.GetFraction(),
 			Context.RandStream.GetFraction(),
 			Context.RandStream.GetFraction(),
@@ -2168,7 +2166,6 @@ struct FScalarIntKernelRandom : public TUnaryScalarIntKernel<FScalarIntKernelRan
 {
 	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, int32* RESTRICT Dst, int32 Src0)
 	{
-		const float rm = RAND_MAX;
 		//EEK!. Improve this. Implement GPU style seeded rand instead of this.
 		*Dst = static_cast<int32>(Context.RandStream.GetFraction() * Src0);
 	}
@@ -2494,23 +2491,7 @@ void VectorVM::Init()
 	}
 }
 
-void VectorVM::Exec(
-	uint8 const* ByteCode,
-	uint8 const* OptimizedByteCode,
-	int32 NumTempRegisters,
-	int32 ConstantTableCount,
-	const uint8* const* ConstantTable,
-	const int32* ConstantTableSizes,
-	TArrayView<FDataSetMeta> DataSetMetaTable,
-	const FVMExternalFunction* const* ExternalFunctionTable,
-	void** UserPtrTable,
-	int32 NumInstances
-#if STATS
-	, TArrayView<FStatScopeData> StatScopes
-#elif ENABLE_STATNAMEDEVENTS
-	, TArrayView<const FString> StatNamedEventsScopes
-#endif
-	)
+void VectorVM::Exec(FVectorVMExecArgs& Args)
 {
 	//TRACE_CPUPROFILER_EVENT_SCOPE("VMExec");
 	SCOPE_CYCLE_COUNTER(STAT_VVMExec);
@@ -2519,35 +2500,35 @@ void VectorVM::Exec(
 	const bool bNumInstancesEvent = GbDetailedVMScriptStats != 0;
 	if (bNumInstancesEvent)
 	{
-		FPlatformMisc::BeginNamedEvent(FColor::Red, *FString::Printf(TEXT("STAT_VVMExec - %d"), NumInstances));
+		FPlatformMisc::BeginNamedEvent(FColor::Red, *FString::Printf(TEXT("STAT_VVMExec - %d"), Args.NumInstances));
 	}
 #endif
 
-	const int32 MaxInstances = FMath::Min(GParallelVVMInstancesPerChunk, NumInstances);
-	const int32 NumChunks = (NumInstances / GParallelVVMInstancesPerChunk) + 1;
+	const int32 MaxInstances = FMath::Min(GParallelVVMInstancesPerChunk, Args.NumInstances);
+	const int32 NumChunks = (Args.NumInstances / GParallelVVMInstancesPerChunk) + 1;
 	const int32 ChunksPerBatch = (GbParallelVVM != 0 && FApp::ShouldUseThreadingForPerformance()) ? GParallelVVMChunksPerBatch : NumChunks;
 	const int32 NumBatches = FMath::DivideAndRoundUp(NumChunks, ChunksPerBatch);
-	const bool bParallel = NumBatches > 1;
-	const bool bUseOptimizedByteCode = (OptimizedByteCode != nullptr) && GbUseOptimizedVMByteCode;
+	const bool bParallel = NumBatches > 1 && Args.bAllowParallel;
+	const bool bUseOptimizedByteCode = (Args.OptimizedByteCode != nullptr) && GbUseOptimizedVMByteCode;
 
-	const FVectorVMExecFunction* OptimizedJumpTable = bUseOptimizedByteCode ? FVectorVMCodeOptimizerContext::DecodeJumpTable(OptimizedByteCode) : nullptr;
+	const FVectorVMExecFunction* OptimizedJumpTable = bUseOptimizedByteCode ? FVectorVMCodeOptimizerContext::DecodeJumpTable(Args.OptimizedByteCode) : nullptr;
 
 	auto ExecChunkBatch = [&](int32 BatchIdx)
 	{
 		//SCOPE_CYCLE_COUNTER(STAT_VVMExecChunk);
 
 		FVectorVMContext& Context = FVectorVMContext::Get();
-		Context.PrepareForExec(NumTempRegisters, ConstantTableCount, ConstantTable, ConstantTableSizes, ExternalFunctionTable, UserPtrTable, DataSetMetaTable, MaxInstances, bParallel);
+		Context.PrepareForExec(Args.NumTempRegisters, Args.ConstantTableCount, Args.ConstantTable, Args.ConstantTableSizes, Args.ExternalFunctionTable, Args.UserPtrTable, Args.DataSetMetaTable, MaxInstances, bParallel);
 #if STATS
-		Context.SetStatScopes(StatScopes);
+		Context.SetStatScopes(Args.StatScopes);
 #elif ENABLE_STATNAMEDEVENTS
-		Context.SetStatNamedEventScopes(StatNamedEventsScopes);
+		Context.SetStatNamedEventScopes(Args.StatNamedEventsScopes);
 #endif
 
 		// Process one chunk at a time.
 		int32 ChunkIdx = BatchIdx * ChunksPerBatch;
 		const int32 FirstInstance = ChunkIdx * GParallelVVMInstancesPerChunk;
-		const int32 FinalInstance = FMath::Min(NumInstances, FirstInstance + (ChunksPerBatch * GParallelVVMInstancesPerChunk));
+		const int32 FinalInstance = FMath::Min(Args.NumInstances, FirstInstance + (ChunksPerBatch * GParallelVVMInstancesPerChunk));
 		int32 InstancesLeft = FinalInstance - FirstInstance;
 		while (InstancesLeft > 0)
 		{
@@ -2558,7 +2539,7 @@ void VectorVM::Exec(
 			if ( bUseOptimizedByteCode )
 			{
 				// Setup execution context.
-				Context.PrepareForChunk(OptimizedByteCode, NumInstancesThisChunk, StartInstance);
+				Context.PrepareForChunk(Args.OptimizedByteCode, NumInstancesThisChunk, StartInstance);
 
 				while (true)
 				{
@@ -2573,7 +2554,7 @@ void VectorVM::Exec(
 			else
 			{
 				// Setup execution context.
-				Context.PrepareForChunk(ByteCode, NumInstancesThisChunk, StartInstance);
+				Context.PrepareForChunk(Args.ByteCode, NumInstancesThisChunk, StartInstance);
 
 				// Execute VM on all vectors in this chunk.
 				EVectorVMOp Op = EVectorVMOp::done;

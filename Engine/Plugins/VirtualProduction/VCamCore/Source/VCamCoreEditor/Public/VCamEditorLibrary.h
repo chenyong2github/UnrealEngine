@@ -20,6 +20,6 @@ public:
 	 * Find all loaded VCam Components own by an actor in the world editor. Exclude actor that are pending kill, in PIE, PreviewEditor, ...
 	 * @param VCamComponents Output List of found VCamComponents
 	 */
-    UFUNCTION(BlueprintCallable, Category = "VCam")
+    UFUNCTION(BlueprintCallable, Category = "VirtualCamera")
     static void GetAllVCamComponentsInLevel(TArray<UVCamComponent*>& VCamComponents);
 };

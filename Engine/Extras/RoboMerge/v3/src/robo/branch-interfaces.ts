@@ -150,6 +150,7 @@ export interface Branch extends BranchBase {
 	convertIntegratesToEdits: boolean
 	visibility: string[] | string
 	blockAssetTargets: Set<string>
+	allowDeadend: boolean
 
 	edgeProperties: Map<string, EdgeOptions>
 

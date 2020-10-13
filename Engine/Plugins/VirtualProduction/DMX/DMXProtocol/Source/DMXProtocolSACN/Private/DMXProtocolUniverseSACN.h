@@ -84,6 +84,7 @@ private:
 	void OnDataReceived(const FArrayReaderPtr& Buffer);
 
 	FSocket* GetOrCreateListeningSocket();
+
 private:
 	IDMXProtocolPtrWeak WeakDMXProtocol;
 	FDMXBufferPtr OutputDMXBuffer;
@@ -95,6 +96,12 @@ private:
 
 	/** Defines if DMX should be received */
 	bool bShouldReceiveDMX;
+
+	/** 
+	 * The highest priority of a packet received in this universe. Packets with lower priority will be ignored.  
+	 * This is to support certain hard- and software such as the ETC series, that send 'alive' signals at a lower prio (see UE-100002).
+	 */
+	uint8 HighestReceivedPriority;
 
 	/** The universe listening socket */
 	FSocket* ListeningSocket;

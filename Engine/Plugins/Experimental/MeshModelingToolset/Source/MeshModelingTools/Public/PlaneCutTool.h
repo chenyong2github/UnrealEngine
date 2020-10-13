@@ -205,7 +205,7 @@ protected:
 
 	IClickBehaviorTarget* SetPointInWorldConnector = nullptr;
 
-	virtual void SetCutPlaneFromWorldPos(const FVector& Position, const FVector& Normal);
+	virtual void SetCutPlaneFromWorldPos(const FVector& Position, const FVector& Normal, bool bIsInitializing);
 
 	void GenerateAsset(const TArray<FDynamicMeshOpResult>& Results);
 };

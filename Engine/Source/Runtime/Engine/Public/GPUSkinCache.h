@@ -35,6 +35,7 @@
 #include "Stats/Stats.h"
 #include "HAL/IConsoleManager.h"
 #include "RHI.h"
+#include "RenderGraphDefinitions.h"
 #include "RenderResource.h"
 #include "ShaderParameters.h"
 #include "UniformBuffer.h"
@@ -92,7 +93,8 @@ struct FCachedGeometry
 {
 	struct Section
 	{
-		FRHIShaderResourceView* PositionBuffer = nullptr;
+		FRDGBufferSRVRef RDGPositionBuffer = nullptr;		// Valid when the input comes from a manual skin cache (i.e. skinned run into compute on demand)
+		FRHIShaderResourceView* PositionBuffer = nullptr;	// Valid when the input comes from the skin cached (since it is not convert yet to RDG)
 		FRHIShaderResourceView* UVsBuffer = nullptr;
 		FRHIShaderResourceView* IndexBuffer = nullptr;
 		uint32 UVsChannelOffset = 0;
@@ -108,8 +110,7 @@ struct FCachedGeometry
 
 	int32 LODIndex = 0;
 	TArray<Section> Sections;
-	TRefCountPtr<FRDGPooledBuffer> DeformedPositionBuffer;
-	FShaderResourceViewRHIRef DeformedPositionsSRV;
+	FRDGBufferRef DeformedPositionBuffer = nullptr;
 };
 
 class FGPUSkinCache
@@ -398,6 +399,7 @@ protected:
 	TSet<FRHIUnorderedAccessView*> BuffersToTransition;
 #if RHI_RAYTRACING
 	TSet<FRayTracingGeometry*> RayTracingGeometriesToUpdate;
+	uint64 RayTracingGeometryMemoryPendingRelease = 0;
 #endif // RHI_RAYTRACING
 
 	TArray<FRWBuffersAllocation*> Allocations;
@@ -408,7 +410,20 @@ protected:
 	void DoDispatch(FRHICommandListImmediate& RHICmdList);
 	void DoDispatch(FRHICommandListImmediate& RHICmdList, FGPUSkinCacheEntry* SkinCacheEntry, int32 Section, int32 RevisionNumber);
 	void DispatchUpdateSkinTangents(FRHICommandListImmediate& RHICmdList, FGPUSkinCacheEntry* Entry, int32 SectionIndex);
-	void DispatchUpdateSkinning(FRHICommandListImmediate& RHICmdList, FGPUSkinCacheEntry* Entry, int32 Section, uint32 RevisionNumber);
+
+	void PrepareUpdateSkinning(
+		FGPUSkinCacheEntry* Entry, 
+		int32 Section, 
+		uint32 RevisionNumber, 
+		TArray<FRHIUnorderedAccessView*>* OverlappedUAVs
+		);
+
+	void DispatchUpdateSkinning(
+		FRHICommandListImmediate& RHICmdList, 
+		FGPUSkinCacheEntry* Entry, 
+		int32 Section, 
+		uint32 RevisionNumber
+		);
 
 	void Cleanup();
 	static void ReleaseSkinCacheEntry(FGPUSkinCacheEntry* SkinCacheEntry);

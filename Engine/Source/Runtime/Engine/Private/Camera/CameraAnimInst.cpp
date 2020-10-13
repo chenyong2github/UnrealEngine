@@ -21,7 +21,7 @@ UCameraAnimInst::UCameraAnimInst(const FObjectInitializer& ObjectInitializer)
 	bStopAutomatically = true;
 	PlayRate = 1.0f;
 	TransientScaleModifier = 1.0f;
-	PlaySpace = ECameraAnimPlaySpace::CameraLocal;
+	PlaySpace = ECameraShakePlaySpace::CameraLocal;
 
 	InterpGroupInst = CreateDefaultSubobject<UInterpGroupInst>(TEXT("InterpGroupInst0"));
 }
@@ -298,10 +298,10 @@ void UCameraAnimInst::ApplyTransientScaling(float Scalar)
 	TransientScaleModifier *= Scalar;
 }
 
-void UCameraAnimInst::SetPlaySpace(ECameraAnimPlaySpace::Type NewSpace, FRotator UserPlaySpace)
+void UCameraAnimInst::SetPlaySpace(ECameraShakePlaySpace NewSpace, FRotator UserPlaySpace)
 {
 	PlaySpace = NewSpace;
-	UserPlaySpaceMatrix = (PlaySpace == ECameraAnimPlaySpace::UserDefined) ? FRotationMatrix(UserPlaySpace) : FMatrix::Identity;
+	UserPlaySpaceMatrix = (PlaySpace == ECameraShakePlaySpace::UserDefined) ? FRotationMatrix(UserPlaySpace) : FMatrix::Identity;
 }
 
 
@@ -325,7 +325,7 @@ void UCameraAnimInst::ApplyToView(FMinimalViewInfo& InOutPOV) const
 			float const Scale = CurrentBlendWeight;
 			FRotationMatrix const CameraToWorld(InOutPOV.Rotation);
 
-			if (PlaySpace == ECameraAnimPlaySpace::CameraLocal)
+			if (PlaySpace == ECameraShakePlaySpace::CameraLocal)
 			{
 				// the code in the else block will handle this just fine, but this path provides efficiency and simplicity for the most common case
 
@@ -342,7 +342,7 @@ void UCameraAnimInst::ApplyToView(FMinimalViewInfo& InOutPOV) const
 				// handle playing the anim in an arbitrary space relative to the camera
 
 				// find desired space
-				FMatrix const PlaySpaceToWorld = (PlaySpace == ECameraAnimPlaySpace::UserDefined) ? UserPlaySpaceMatrix : FMatrix::Identity;
+				FMatrix const PlaySpaceToWorld = (PlaySpace == ECameraShakePlaySpace::UserDefined) ? UserPlaySpaceMatrix : FMatrix::Identity;
 
 				// loc
 				FVector const LocalOffset = PlaySpaceToWorld.TransformVector(AnimatedCamActor->GetActorLocation()*Scale);

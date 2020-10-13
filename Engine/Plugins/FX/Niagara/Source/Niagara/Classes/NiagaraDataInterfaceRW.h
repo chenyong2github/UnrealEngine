@@ -7,12 +7,10 @@
 class FNiagaraSystemInstance;
 
 // Global HLSL variable base names, used by HLSL.
+extern NIAGARA_API const FString NumAttributesName;
 extern NIAGARA_API const FString NumCellsName;
 extern NIAGARA_API const FString CellSizeName;
 extern NIAGARA_API const FString WorldBBoxSizeName;
-
-extern NIAGARA_API const FString NumCellsName;
-extern NIAGARA_API const FString CellSizeName;
 
 // Global VM function names, also used by the shaders code generation methods.
 extern NIAGARA_API const FName NumCellsFunctionName;
@@ -64,10 +62,10 @@ class NIAGARA_API UNiagaraDataInterfaceRWBase : public UNiagaraDataInterface
 	GENERATED_UCLASS_BODY()
 
 public:
-	UPROPERTY(EditAnywhere, Category = "RW")
+	UPROPERTY(EditAnywhere, Category = "Deprecated", AdvancedDisplay)
 	TSet<int> OutputShaderStages;
 
-	UPROPERTY(EditAnywhere, Category = "RW")
+	UPROPERTY(EditAnywhere, Category = "Deprecated", AdvancedDisplay)
 	TSet<int> IterationShaderStages;
 
 public:
@@ -114,9 +112,6 @@ public:
 		return Errors;
 	}
 #endif
-
-	void EmptyVMFunction(FVectorVMContext& Context) {}
-
 
 protected:
 	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;	
@@ -199,15 +194,15 @@ class NIAGARA_API UNiagaraDataInterfaceGrid2D : public UNiagaraDataInterfaceRWBa
 
 public:
 	// Number of cells in X
-	UPROPERTY(EditAnywhere, Category = "Grid", meta = (EditCondition = "!SetGridFromMaxAxis"))
+	UPROPERTY(EditAnywhere, Category = "Grid")
 	int32 NumCellsX;
 
 	// Number of cells in Y
-	UPROPERTY(EditAnywhere, Category = "Grid", meta = (EditCondition = "!SetGridFromMaxAxis"))
+	UPROPERTY(EditAnywhere, Category = "Grid")
 	int32 NumCellsY;
 	
 	// Number of cells on the longest axis
-	UPROPERTY(EditAnywhere, Category = "Grid", meta = (EditCondition = "SetGridFromMaxAxis"))
+	UPROPERTY(EditAnywhere, Category = "Deprecated", AdvancedDisplay)
 	int32 NumCellsMaxAxis;
 
 	// Number of Attributes
@@ -215,11 +210,11 @@ public:
 	int32 NumAttributes;
 
 	// Set grid resolution according to longest axis
-	UPROPERTY(EditAnywhere, Category = "Grid")
+	UPROPERTY(EditAnywhere, Category = "Deprecated", AdvancedDisplay)
 	bool SetGridFromMaxAxis;	
 
 	// World size of the grid
-	UPROPERTY(EditAnywhere, Category = "Grid")
+	UPROPERTY(EditAnywhere, Category = "Deprecated", AdvancedDisplay)
 	FVector2D WorldBBoxSize;
 
 
@@ -234,6 +229,10 @@ public:
 	// GPU sim functionality
 	virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
 	virtual bool GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL) override;
+
+#if WITH_EDITOR		
+	virtual void ValidateFunction(const FNiagaraFunctionSignature& Function, TArray<FText>& OutValidationErrors) override;
+#endif
 	//~ UNiagaraDataInterface interface END
 
 

@@ -5,13 +5,13 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Subsystems/WorldSubsystem.h"
-#include "Engine/EngineBaseTypes.h"
+#include "Tickable.h"
 #include "LandscapeSubsystem.generated.h"
 
 class ALandscapeProxy;
 
 UCLASS(MinimalAPI)
-class ULandscapeSubsystem : public UWorldSubsystem, public FTickFunction
+class ULandscapeSubsystem : public UWorldSubsystem, public FTickableGameObject
 {
 	GENERATED_BODY()
 
@@ -21,6 +21,13 @@ public:
 
 	void RegisterActor(ALandscapeProxy* Proxy);
 	void UnregisterActor(ALandscapeProxy* Proxy);
+
+	// Begin FTickableGameObject overrides
+	virtual void Tick(float DeltaTime) override;
+	virtual bool IsTickableInEditor() const override { return true; }
+	virtual ETickableTickType GetTickableTickType() const override;
+	virtual TStatId GetStatId() const override;
+	// End FTickableGameObject overrides
 
 #if WITH_EDITOR
 	LANDSCAPE_API void BuildGrassMaps();
@@ -32,12 +39,6 @@ private:
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
 	// End USubsystem
-
-	// Begin FTickFunction overrides
-	virtual void ExecuteTick(float DeltaTime, ELevelTick TickType, ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent) override;
-	virtual FString DiagnosticMessage() override;
-	virtual FName DiagnosticContext(bool bDetailed) override;
-	// End FTickFunction overrides
 
 	TArray<ALandscapeProxy*> Proxies;
 

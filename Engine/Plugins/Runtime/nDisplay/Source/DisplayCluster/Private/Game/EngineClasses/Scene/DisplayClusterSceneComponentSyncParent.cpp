@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "DisplayClusterSceneComponentSyncParent.h"
+#include "Components/DisplayClusterSceneComponentSyncParent.h"
 #include "GameFramework/Actor.h"
 
 #include "Misc/DisplayClusterHelpers.h"
@@ -12,17 +12,6 @@ UDisplayClusterSceneComponentSyncParent::UDisplayClusterSceneComponentSyncParent
 {
 	// Children of UDisplayClusterSceneComponent must always Tick to be able to process VRPN tracking
 	PrimaryComponentTick.bCanEverTick = true;
-}
-
-void UDisplayClusterSceneComponentSyncParent::BeginPlay()
-{
-	Super::BeginPlay();
-}
-
-
-void UDisplayClusterSceneComponentSyncParent::TickComponent( float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction )
-{
-	Super::TickComponent( DeltaTime, TickType, ThisTickFunction );
 }
 
 

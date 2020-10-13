@@ -43,6 +43,7 @@ public:
 
 #if WITH_EDITOR
 	void Cache(const ITargetPlatform* TargetPlatform, USkeletalMesh* Owner);
+	FString GetDerivedDataKey(const ITargetPlatform* TargetPlatform, USkeletalMesh* Owner);
 
 	void SyncUVChannelData(const TArray<FSkeletalMaterial>& ObjectData);
 #endif
@@ -99,6 +100,11 @@ public:
 	{
 		const int32 PendingFirstIdx = GetPendingFirstLODIdx(MinLODIdx);
 		return PendingFirstIdx == INDEX_NONE ? nullptr : &LODRenderData[PendingFirstIdx];
+	}
+
+	bool IsInitialized() const
+	{
+		return bInitialized;
 	}
 
 private:

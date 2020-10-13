@@ -57,6 +57,11 @@ bool UCameraModifier_CameraShake::ModifyCamera(float DeltaTime, FMinimalViewInfo
 			FActiveCameraShakeInfo ShakeInfo = ActiveShakes[i]; // Copy struct, we're going to maybe delete it.
 			if (ShakeInfo.ShakeInstance == nullptr || ShakeInfo.ShakeInstance->IsFinished() || ShakeInfo.ShakeSource.IsStale())
 			{
+				if (ShakeInfo.ShakeInstance != nullptr)
+				{
+					ShakeInfo.ShakeInstance->TeardownShake();
+				}
+
 				ActiveShakes.RemoveAt(i, 1);
 
 				if (ShakeInfo.ShakeInstance != nullptr)
@@ -75,7 +80,7 @@ bool UCameraModifier_CameraShake::ModifyCamera(float DeltaTime, FMinimalViewInfo
 	return false;
 }
 
-UCameraShake* UCameraModifier_CameraShake::AddCameraShake(TSubclassOf<UCameraShake> ShakeClass, const FAddCameraShakeParams& Params)
+UCameraShakeBase* UCameraModifier_CameraShake::AddCameraShake(TSubclassOf<UCameraShakeBase> ShakeClass, const FAddCameraShakeParams& Params)
 {
 	SCOPE_CYCLE_COUNTER(STAT_AddCameraShake);
 
@@ -90,39 +95,39 @@ UCameraShake* UCameraModifier_CameraShake::AddCameraShake(TSubclassOf<UCameraSha
 			Scale *= SplitScreenShakeScale;
 		}
 
-		UCameraShake const* const ShakeCDO = GetDefault<UCameraShake>(ShakeClass);
+		UCameraShakeBase const* const ShakeCDO = GetDefault<UCameraShakeBase>(ShakeClass);
 		const bool bIsSingleInstance = ShakeCDO && ShakeCDO->bSingleInstance;
 		if (bIsSingleInstance)
 		{
 			// Look for existing instance of same class
 			for (FActiveCameraShakeInfo& ShakeInfo : ActiveShakes)
 			{
-				UCameraShake* ShakeInst = ShakeInfo.ShakeInstance;
+				UCameraShakeBase* ShakeInst = ShakeInfo.ShakeInstance;
 				if (ShakeInst && (ShakeClass == ShakeInst->GetClass()))
 				{
 					// Just restart the existing shake, possibly at the new location.
 					// Warning: if the shake source changes, this would "teleport" the shake, which might create a visual
 					// artifact, if the user didn't intend to do this.
 					ShakeInfo.ShakeSource = SourceComponent;
-					ShakeInst->PlayShake(CameraOwner, Scale, Params.PlaySpace, Params.UserPlaySpaceRot);
+					ShakeInst->StartShake(CameraOwner, Scale, Params.PlaySpace, Params.UserPlaySpaceRot);
 					return ShakeInst;
 				}
 			}
 		}
 
 		// Try to find a shake in the expired pool
-		UCameraShake* NewInst = ReclaimShakeFromExpiredPool(ShakeClass);
+		UCameraShakeBase* NewInst = ReclaimShakeFromExpiredPool(ShakeClass);
 
 		// No old shakes, create a new one
 		if (NewInst == nullptr)
 		{
-			NewInst = NewObject<UCameraShake>(this, ShakeClass);
+			NewInst = NewObject<UCameraShakeBase>(this, ShakeClass);
 		}
 
 		if (NewInst)
 		{
 			// Initialize new shake and add it to the list of active shakes
-			NewInst->PlayShake(CameraOwner, Scale, Params.PlaySpace, Params.UserPlaySpaceRot);
+			NewInst->StartShake(CameraOwner, Scale, Params.PlaySpace, Params.UserPlaySpaceRot);
 
 			// Look for nulls in the array to replace first -- keeps the array compact
 			bool bReplacedNull = false;
@@ -153,7 +158,7 @@ UCameraShake* UCameraModifier_CameraShake::AddCameraShake(TSubclassOf<UCameraSha
 	return nullptr;
 }
 
-void UCameraModifier_CameraShake::SaveShakeInExpiredPool(UCameraShake* ShakeInst)
+void UCameraModifier_CameraShake::SaveShakeInExpiredPool(UCameraShakeBase* ShakeInst)
 {
 	FPooledCameraShakes& PooledCameraShakes = ExpiredPooledShakesMap.FindOrAdd(ShakeInst->GetClass());
 	if (PooledCameraShakes.PooledShakes.Num() < 5)
@@ -162,15 +167,15 @@ void UCameraModifier_CameraShake::SaveShakeInExpiredPool(UCameraShake* ShakeInst
 	}
 }
 
-UCameraShake* UCameraModifier_CameraShake::ReclaimShakeFromExpiredPool(TSubclassOf<UCameraShake> CameraShakeClass)
+UCameraShakeBase* UCameraModifier_CameraShake::ReclaimShakeFromExpiredPool(TSubclassOf<UCameraShakeBase> CameraShakeClass)
 {
 	if (FPooledCameraShakes* PooledCameraShakes = ExpiredPooledShakesMap.Find(CameraShakeClass))
 	{
 		if (PooledCameraShakes->PooledShakes.Num() > 0)
 		{
-			UCameraShake* OldShake = PooledCameraShakes->PooledShakes.Pop();
+			UCameraShakeBase* OldShake = PooledCameraShakes->PooledShakes.Pop();
 			// Calling new object with the exact same name will re-initialize the uobject in place
-			OldShake = NewObject<UCameraShake>(this, CameraShakeClass, OldShake->GetFName());
+			OldShake = NewObject<UCameraShakeBase>(this, CameraShakeClass, OldShake->GetFName());
 			return OldShake;
 		}
 	}
@@ -182,7 +187,7 @@ void UCameraModifier_CameraShake::GetActiveCameraShakes(TArray<FActiveCameraShak
 	ActiveCameraShakes.Append(ActiveShakes);
 }
 
-void UCameraModifier_CameraShake::RemoveCameraShake(UCameraShake* ShakeInst, bool bImmediately)
+void UCameraModifier_CameraShake::RemoveCameraShake(UCameraShakeBase* ShakeInst, bool bImmediately)
 {
 	for (int32 i = 0; i < ActiveShakes.Num(); ++i)
 	{
@@ -201,11 +206,11 @@ void UCameraModifier_CameraShake::RemoveCameraShake(UCameraShake* ShakeInst, boo
 	}
 }
 
-void UCameraModifier_CameraShake::RemoveAllCameraShakesOfClass(TSubclassOf<UCameraShake> ShakeClass, bool bImmediately)
+void UCameraModifier_CameraShake::RemoveAllCameraShakesOfClass(TSubclassOf<UCameraShakeBase> ShakeClass, bool bImmediately)
 {
 	for (int32 i = ActiveShakes.Num()- 1; i >= 0; --i)
 	{
-		UCameraShake* ShakeInst = ActiveShakes[i].ShakeInstance;
+		UCameraShakeBase* ShakeInst = ActiveShakes[i].ShakeInstance;
 		if (ShakeInst != nullptr && (ShakeInst->GetClass()->IsChildOf(ShakeClass)))
 		{
 			ShakeInst->StopShake(bImmediately);
@@ -235,7 +240,7 @@ void UCameraModifier_CameraShake::RemoveAllCameraShakesFromSource(const UCameraS
 	}
 }
 
-void UCameraModifier_CameraShake::RemoveAllCameraShakesOfClassFromSource(TSubclassOf<UCameraShake> ShakeClass, const UCameraShakeSourceComponent* SourceComponent, bool bImmediately)
+void UCameraModifier_CameraShake::RemoveAllCameraShakesOfClassFromSource(TSubclassOf<UCameraShakeBase> ShakeClass, const UCameraShakeSourceComponent* SourceComponent, bool bImmediately)
 {
 	for (int32 i = ActiveShakes.Num() - 1; i >= 0; --i)
 	{

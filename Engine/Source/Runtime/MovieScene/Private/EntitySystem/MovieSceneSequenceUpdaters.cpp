@@ -186,7 +186,7 @@ void FSequenceUpdater_Flat::DissectContext(UMovieSceneEntitySystemLinker* Linker
 	if (!CachedDeterminismFences.IsSet())
 	{
 		UMovieSceneCompiledDataManager* CompiledDataManager = InPlayer->GetEvaluationTemplate().GetCompiledDataManager();
-		TArrayView<const FFrameTime>    DeterminismFences   = CompiledDataManager->GetEntry(CompiledDataID).DeterminismFences;
+		TArrayView<const FFrameTime>    DeterminismFences   = CompiledDataManager->GetEntryRef(CompiledDataID).DeterminismFences;
 
 		if (DeterminismFences.Num() != 0)
 		{
@@ -300,8 +300,8 @@ void FSequenceUpdater_Hierarchical::DissectContext(UMovieSceneEntitySystemLinker
 	TArray<FFrameTime>   RootDissectionTimes;
 
 	{
-		TArrayView<const FFrameTime> RootDeterminismFences = CompiledDataManager->GetEntry(CompiledDataID).DeterminismFences;
-		TArrayView<const FFrameTime> TraversedFences       = GetFencesWithinRange(RootDeterminismFences, Context.GetFrameNumberRange());
+		const FMovieSceneCompiledDataEntry& DataEntry       = CompiledDataManager->GetEntryRef(CompiledDataID);
+		TArrayView<const FFrameTime>        TraversedFences = GetFencesWithinRange(DataEntry.DeterminismFences, Context.GetFrameNumberRange());
 
 		UE::MovieScene::DissectRange(TraversedFences, Context.GetRange(), OutDissections);
 	}
@@ -334,7 +334,7 @@ void FSequenceUpdater_Hierarchical::DissectContext(UMovieSceneEntitySystemLinker
 					continue;
 				}
 
-				TArrayView<const FFrameTime> SubDeterminismFences = CompiledDataManager->GetEntry(SubDataID).DeterminismFences;
+				TArrayView<const FFrameTime> SubDeterminismFences = CompiledDataManager->GetEntryRef(SubDataID).DeterminismFences;
 				if (SubDeterminismFences.Num() > 0)
 				{
 					TRange<FFrameTime>   InnerRange           = SubData->RootToSequenceTransform.TransformRangeUnwarped(RootClampRange);
@@ -398,7 +398,7 @@ void FSequenceUpdater_Hierarchical::Update(UMovieSceneEntitySystemLinker* Linker
 		RootInstance.SetContext(Context);
 
 		const FMovieSceneEntityComponentField* RootComponentField = CompiledDataManager->FindEntityComponentField(CompiledDataID);
-		UMovieSceneSequence* RootSequence = InPlayer->GetEvaluationTemplate().GetSequence(MovieSceneSequenceID::Root);
+		UMovieSceneSequence* RootSequence = CompiledDataManager->GetEntryRef(CompiledDataID).GetSequence();
 
 		if (RootSequence == nullptr)
 		{
@@ -482,7 +482,7 @@ void FSequenceUpdater_Hierarchical::Update(UMovieSceneEntitySystemLinker* Linker
 				SubContext.ReportOuterSectionRanges(SubData->PreRollRange.Value, SubData->PostRollRange.Value);
 				SubContext.SetHierarchicalBias(SubData->HierarchicalBias);
 
-
+				// Handle crossing a pre/postroll boundary
 				const bool bWasPreRoll  = SubSequenceInstance.GetContext().IsPreRoll();
 				const bool bWasPostRoll = SubSequenceInstance.GetContext().IsPostRoll();
 				const bool bIsPreRoll   = SubContext.IsPreRoll();
@@ -490,7 +490,14 @@ void FSequenceUpdater_Hierarchical::Update(UMovieSceneEntitySystemLinker* Linker
 
 				if (bWasPreRoll != bIsPreRoll || bWasPostRoll != bIsPostRoll)
 				{
-					SubSequenceInstance.Ledger.UnlinkEverything(Linker);
+					// When crossing a pre/postroll boundary, we invalidate all entities currently imported, which results in them being re-imported 
+					// with the same EntityID. This ensures that the state is maintained for such entities across prerolls (ie entities with a
+					// spawnable binding component on them will not cause the spawnable to be destroyed and recreated again).
+					// The one edge case that this could open up is where a preroll entity has meaningfully different components from its 'normal' entity,
+					// and there are systems that track the link/unlink lifetime for such components. Under this circumstance, the unlink for the entity
+					// will not be seen until the whole entity goes away, not just the preroll region. This is a very nuanced edge-case however, and can
+					// be solved by giving the entities unique IDs (FMovieSceneEvaluationFieldEntityKey::EntityID) in the evaluation field.
+					SubSequenceInstance.Ledger.Invalidate();
 				}
 
 				SubSequenceInstance.SetContext(SubContext);

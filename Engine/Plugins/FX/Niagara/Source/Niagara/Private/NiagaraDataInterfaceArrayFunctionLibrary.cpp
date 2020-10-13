@@ -11,7 +11,7 @@ void UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayFloat(UNiagaraCom
 	{
 		FRWScopeLock WriteLock(ArrayDI->ArrayRWGuard, SLT_Write);
 		ArrayDI->FloatData = ArrayData;
-		ArrayDI->UpdateGPU();
+		ArrayDI->MarkRenderDataDirty();
 	}
 }
 
@@ -21,7 +21,7 @@ void UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayVector2D(UNiagara
 	{
 		FRWScopeLock WriteLock(ArrayDI->ArrayRWGuard, SLT_Write);
 		ArrayDI->FloatData = ArrayData;
-		ArrayDI->UpdateGPU();
+		ArrayDI->MarkRenderDataDirty();
 	}
 }
 
@@ -31,7 +31,7 @@ void UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayVector(UNiagaraCo
 	{
 		FRWScopeLock WriteLock(ArrayDI->ArrayRWGuard, SLT_Write);
 		ArrayDI->FloatData = ArrayData;
-		ArrayDI->UpdateGPU();
+		ArrayDI->MarkRenderDataDirty();
 	}
 }
 
@@ -41,7 +41,7 @@ void UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayVector4(UNiagaraC
 	{
 		FRWScopeLock WriteLock(ArrayDI->ArrayRWGuard, SLT_Write);
 		ArrayDI->FloatData = ArrayData;
-		ArrayDI->UpdateGPU();
+		ArrayDI->MarkRenderDataDirty();
 	}
 }
 
@@ -51,7 +51,7 @@ void UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayColor(UNiagaraCom
 	{
 		FRWScopeLock WriteLock(ArrayDI->ArrayRWGuard, SLT_Write);
 		ArrayDI->ColorData = ArrayData;
-		ArrayDI->UpdateGPU();
+		ArrayDI->MarkRenderDataDirty();
 	}
 }
 
@@ -61,7 +61,7 @@ void UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayQuat(UNiagaraComp
 	{
 		FRWScopeLock WriteLock(ArrayDI->ArrayRWGuard, SLT_Write);
 		ArrayDI->QuatData = ArrayData;
-		ArrayDI->UpdateGPU();
+		ArrayDI->MarkRenderDataDirty();
 	}
 }
 
@@ -71,7 +71,7 @@ void UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayInt32(UNiagaraCom
 	{
 		FRWScopeLock WriteLock(ArrayDI->ArrayRWGuard, SLT_Write);
 		ArrayDI->IntData = ArrayData;
-		ArrayDI->UpdateGPU();
+		ArrayDI->MarkRenderDataDirty();
 	}
 }
 
@@ -81,7 +81,7 @@ void UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayBool(UNiagaraComp
 	{
 		FRWScopeLock WriteLock(ArrayDI->ArrayRWGuard, SLT_Write);
 		ArrayDI->BoolData = ArrayData;
-		ArrayDI->UpdateGPU();
+		ArrayDI->MarkRenderDataDirty();
 	}
 }
 

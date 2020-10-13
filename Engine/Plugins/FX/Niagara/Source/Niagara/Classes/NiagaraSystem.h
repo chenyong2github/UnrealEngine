@@ -175,6 +175,16 @@ struct FNiagaraSystemCompileRequest
 	bool bForced = false;
 };
 
+struct FNiagaraEmitterExecutionIndex
+{
+	FNiagaraEmitterExecutionIndex() { bStartNewOverlapGroup = false; EmitterIndex = 0; }
+
+	/** Flag to denote if the batcher should start a new overlap group, i.e. when we have a dependency ensure we don't overlap with the emitter we depend on. */
+	uint32 bStartNewOverlapGroup : 1;
+	/** Emitter index to use */
+	uint32 EmitterIndex : 31;
+};
+
 /** Container for multiple emitters that combine together to create a particle system effect.*/
 UCLASS(BlueprintType)
 class NIAGARA_API UNiagaraSystem : public UFXSystemAsset
@@ -200,6 +210,11 @@ public:
 	virtual void PreEditChange(FProperty* PropertyThatWillChange)override;
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override; 
 	virtual void BeginCacheForCookedPlatformData(const ITargetPlatform *TargetPlatform) override;
+
+	/** Helper method to handle when an internal variable has been renamed. Renames any downstream dependencies in the emitters or exposed variables.*/
+	void HandleVariableRenamed(const FNiagaraVariable& InOldVariable, const FNiagaraVariable& InNewVariable, bool bUpdateContexts);
+	/** Helper method to handle when an internal variable has been removed. Resets any downstream dependencies in the emitters or exposed variables.*/
+	void HandleVariableRemoved(const FNiagaraVariable& InOldVariable, bool bUpdateContexts);
 #endif
 
 	/** Gets an array of the emitter handles. */
@@ -226,6 +241,7 @@ public:
 
 	/** Removes the emitter handles which have an Id in the supplied set. */
 	void RemoveEmitterHandlesById(const TSet<FGuid>& HandlesToRemove);
+
 #endif
 
 
@@ -258,6 +274,10 @@ public:
 	const FNiagaraDataSetAccessor<ENiagaraExecutionState>& GetSystemExecutionStateAccessor() const { return SystemExecutionStateAccessor; }
 	TConstArrayView<FNiagaraDataSetAccessor<ENiagaraExecutionState>> GetEmitterExecutionStateAccessors() const { return MakeArrayView(EmitterExecutionStateAccessors); }
 	TConstArrayView<FNiagaraDataSetAccessor<FNiagaraSpawnInfo>> GetEmitterSpawnInfoAccessors(int32 EmitterIndex) const { return MakeArrayView(EmitterSpawnInfoAccessors[EmitterIndex]);  }
+	
+	/** Performs the passed action for all scripts in this system. */
+	template<typename TAction>
+	void ForEachScript(TAction Func) const;
 
 private:
 	bool IsReadyToRunInternal() const;
@@ -401,7 +421,7 @@ public:
 	/** Cache data & accessors from the compiled data, allows us to avoid per instance. */
 	void CacheFromCompiledData();
 
-	FORCEINLINE TConstArrayView<int32> GetEmitterExecutionOrder() const { return MakeArrayView(EmitterExecutionOrder); }
+	FORCEINLINE TConstArrayView<FNiagaraEmitterExecutionIndex> GetEmitterExecutionOrder() const { return MakeArrayView(EmitterExecutionOrder); }
 
 	FORCEINLINE TConstArrayView<int32> GetRendererDrawOrder() const { return MakeArrayView(RendererDrawOrder); }
 
@@ -451,7 +471,7 @@ public:
 	FORCEINLINE const FNiagaraSystemScalabilitySettings& GetScalabilitySettings() { return CurrentScalabilitySettings; }
 	FORCEINLINE bool NeedsSortedSignificanceCull()const{ return bNeedsSortedSignificanceCull; }
 	
-	void OnQualityLevelChanged();
+	void OnScalabilityCVarChanged();
 
 	/** Whether or not fixed bounds are enabled. */
 	UPROPERTY(EditAnywhere, Category = "System", meta = (InlineEditConditionToggle))
@@ -603,7 +623,7 @@ protected:
 	/** Array of emitter indices sorted by execution priority. The emitters will be ticked in this order. Please note that some indices may have the top bit set (kStartNewOverlapGroupBit)
 	* to indicate synchronization points in parallel execution, so mask it out before using the values as indices in the emitters array.
 	*/
-	TArray<int32> EmitterExecutionOrder;
+	TArray<FNiagaraEmitterExecutionIndex> EmitterExecutionOrder;
 
 	/** Precomputed emitter renderer draw order, since emitters & renderers are not dynamic we can do this. */
 	TArray<int32> RendererDrawOrder;
@@ -672,4 +692,19 @@ FORCEINLINE void UNiagaraSystem::RegisterActiveInstance()
 FORCEINLINE void UNiagaraSystem::UnregisterActiveInstance()
 {
 	--ActiveInstances;
+}
+
+template<typename TAction>
+void UNiagaraSystem::ForEachScript(TAction Func) const
+{	
+	Func(SystemSpawnScript);
+	Func(SystemUpdateScript);
+			
+	for (const FNiagaraEmitterHandle& Handle : EmitterHandles)
+	{
+		if (UNiagaraEmitter* Emitter = Handle.GetInstance())
+		{
+			Emitter->ForEachScript(Func);
+		}
+	}
 }

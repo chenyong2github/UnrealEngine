@@ -84,13 +84,6 @@ static TAutoConsoleVariable<int32> CVarRayTracingShadowsLODTransitionEnd(
 	ECVF_RenderThreadSafe
 );
 
-static TAutoConsoleVariable<float> CVarRayTracingShadowsHairOcclusionThreshold(
-	TEXT("r.RayTracing.Shadows.HairOcclusionThreshold"),
-	1,
-	TEXT("Define the number of hair that need to be crossed, before casting occlusion (default = 1)"),
-	ECVF_RenderThreadSafe
-);
-
 bool EnableRayTracingShadowTwoSidedGeometry()
 {
 	return CVarRayTracingShadowsEnableTwoSidedGeometry.GetValueOnRenderThread() != 0;
@@ -146,7 +139,6 @@ class FOcclusionRGS : public FGlobalShader
 		SHADER_PARAMETER(float, TraceDistance)
 		SHADER_PARAMETER(float, LODTransitionStart)
 		SHADER_PARAMETER(float, LODTransitionEnd)
-		SHADER_PARAMETER(float, HairOcclusionThreshold)
 		SHADER_PARAMETER(uint32, bTransmissionSamplingDistanceCulling)
 		SHADER_PARAMETER(uint32, TransmissionSamplingTechnique)
 		SHADER_PARAMETER(uint32, RejectionSamplingTrials)
@@ -177,6 +169,14 @@ float GetRaytracingMaxNormalBias()
 void FDeferredShadingSceneRenderer::PrepareRayTracingShadows(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
 {
 	// Declare all RayGen shaders that require material closest hit shaders to be bound
+
+	static auto CVarRayTracingShadows = IConsoleManager::Get().FindConsoleVariable(TEXT("r.RayTracing.Shadows"));
+	const bool bRayTracingShadows = CVarRayTracingShadows != nullptr && CVarRayTracingShadows->GetInt() > 0;
+
+	if (!bRayTracingShadows)
+	{
+		return;
+	}
 
 	const IScreenSpaceDenoiser::EShadowRequirements DenoiserRequirements[] =
 	{
@@ -287,8 +287,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingShadows(
 		if (bUseHairLighting)
 		{
 			const bool bUseHairVoxel = CVarRayTracingShadowsEnableHairVoxel.GetValueOnRenderThread() > 0;
-			PassParameters->bUseHairVoxel = (HairResources->bUseHairVoxel && bUseHairVoxel && !IsHairRayTracingEnabled()) ? 1 : 0;
-			PassParameters->HairOcclusionThreshold = FMath::Max(0.f, CVarRayTracingShadowsHairOcclusionThreshold.GetValueOnRenderThread());
+			PassParameters->bUseHairVoxel = (HairResources->bUseHairVoxel && bUseHairVoxel) ? 1 : 0;
 			PassParameters->HairCategorizationTexture = HairResources->CategorizationTexture;
 			PassParameters->HairLightChannelMaskTexture = HairResources->LightChannelMaskTexture;
 			PassParameters->VirtualVoxel = HairResources->VoxelResources->UniformBuffer;

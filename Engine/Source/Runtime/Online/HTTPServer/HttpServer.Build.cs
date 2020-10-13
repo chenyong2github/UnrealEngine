@@ -21,7 +21,8 @@ public class HTTPServer : ModuleRules
         PrivateDependencyModuleNames.AddRange(
             new string[] {
                 "Core",
-                "Sockets",
+				"HTTP",
+				"Sockets",
             }
         );
     }

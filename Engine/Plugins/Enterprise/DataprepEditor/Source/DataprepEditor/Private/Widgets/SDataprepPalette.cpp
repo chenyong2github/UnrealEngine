@@ -21,8 +21,10 @@
 #include "EditorStyleSet.h"
 #include "EditorWidgetsModule.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Kismet2/KismetEditorUtilities.h"
 #include "Modules/ModuleManager.h"
 #include "Widgets/Input/STextComboBox.h"
+#include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/SBoxPanel.h"
@@ -44,6 +46,9 @@ void SDataprepPalette::Construct(const FArguments& InArgs)
 	SelectorsCategory = FDataprepFilterMenuActionCollector::FilterCategory;
 	OperationsCategory = FDataprepOperationMenuActionCollector::OperationCategory;
 
+	SAssignNew(FilterBox, SSearchBox)
+		.OnTextChanged(this, &SDataprepPalette::OnFilterTextChanged);
+
 	this->ChildSlot
 	[
 		SNew(SVerticalBox)
@@ -64,7 +69,7 @@ void SDataprepPalette::Construct(const FArguments& InArgs)
 				SNew( SHorizontalBox )
 
 				+ SHorizontalBox::Slot()
-				.FillWidth(1.0f)
+				.AutoWidth()
 				[
 					SNew( SBorder )
 					.Padding( FMargin( 3 ) )
@@ -96,7 +101,7 @@ void SDataprepPalette::Construct(const FArguments& InArgs)
 								[
 									SNew(STextBlock)
 									.TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
-									.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
+									.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
 									.Text(FEditorFontGlyphs::File)
 								]
 
@@ -125,6 +130,14 @@ void SDataprepPalette::Construct(const FArguments& InArgs)
 							]
 						]
 					]
+				]
+
+				+ SHorizontalBox::Slot()
+				.FillWidth(1.0f)
+				.VAlign(VAlign_Center)
+				.Padding(2, 0, 2, 0)
+				[
+					FilterBox.ToSharedRef()
 				]
 			]
 		]
@@ -159,13 +172,15 @@ void SDataprepPalette::Construct(const FArguments& InArgs)
 					.VAlign(VAlign_Fill)
 					[
 						SAssignNew(GraphActionMenu, SGraphActionMenu)
+						.OnGetFilterText(this, &SDataprepPalette::GetFilterText)
 						.OnActionDragged( this, &SDataprepPalette::OnActionDragged )
 						.OnCreateCustomRowExpander( this, &SDataprepPalette::OnCreateCustomRowExpander )
 						.OnCreateWidgetForAction( this, &SDataprepPalette::OnCreateWidgetForAction )
 						.OnCollectAllActions( this, &SDataprepPalette::CollectAllActions )
+						.OnContextMenuOpening(this, &SDataprepPalette::OnContextMenuOpening)
 						.AutoExpandActionMenu( true )
 					]
-					
+			
 					+ SOverlay::Slot()
 					.HAlign( HAlign_Fill )
 					.VAlign( VAlign_Bottom )
@@ -177,6 +192,7 @@ void SDataprepPalette::Construct(const FArguments& InArgs)
 				]
 			]
 		]
+
 	];
 
 	// Register with the Asset Registry to be informed when it is done loading up files and when a file changed (Added/Removed/Renamed).
@@ -187,23 +203,78 @@ void SDataprepPalette::Construct(const FArguments& InArgs)
 	AssetRegistryModule.Get().OnAssetRenamed().AddSP( this, &SDataprepPalette::RenameAssetFromRegistry );
 }
 
-TSharedRef<SWidget> SDataprepPalette::ConstructAddActionMenu() const
+FText SDataprepPalette::GetFilterText() const
+{
+	return FilterBox->GetText();
+}
+
+void SDataprepPalette::OnFilterTextChanged(const FText& InFilterText)
+{
+	GraphActionMenu->GenerateFilteredItems(false);
+}
+
+TSharedRef<SWidget> SDataprepPalette::ConstructAddActionMenu()
 {
 	FMenuBuilder MenuBuilder(/*bInShouldCloseWindowAfterMenuSelection=*/true, nullptr, nullptr, /*bCloseSelfOnly=*/true);
 
 	MenuBuilder.BeginSection(NAME_None, LOCTEXT("DataprepPaletteLabel", "Dataprep Palette"));
 	{
 		MenuBuilder.AddMenuEntry(LOCTEXT("CreateNewFilterLabel", "Create New Filter"), LOCTEXT("CreateNewFilterTooltip", "Create new user-defined filter"), FSlateIcon(), 
-			FUIAction(FExecuteAction::CreateStatic(&FDataprepEditorUtils::CreateUserDefinedFilter),
-				FCanExecuteAction(),
-				FGetActionCheckState()
-			)
+			FUIAction(FExecuteAction::CreateLambda([this]()
+			{
+				if (FDataprepEditorUtils::CreateUserDefinedFilter())
+				{
+					RefreshActionsList(true);
+				}
+			}))
 		);
 		MenuBuilder.AddMenuEntry(LOCTEXT("CreateNewOperatorLabel", "Create New Operator"), LOCTEXT("CreateNewOperatorTooltip", "Create new user-defined operator"), FSlateIcon(), 
-			FUIAction(FExecuteAction::CreateLambda(&FDataprepEditorUtils::CreateUserDefinedOperation),
-				FCanExecuteAction(),
-				FGetActionCheckState()
-			)
+			FUIAction(FExecuteAction::CreateLambda([this]()
+			{
+				if (FDataprepEditorUtils::CreateUserDefinedOperation())
+				{
+					RefreshActionsList(true);
+				}
+			}))
+		);
+	}
+	MenuBuilder.EndSection();
+
+	return MenuBuilder.MakeWidget();
+}
+
+TSharedPtr<SWidget> SDataprepPalette::OnContextMenuOpening()
+{
+	TArray<TSharedPtr<FEdGraphSchemaAction> > SelectedActions;
+	GraphActionMenu->GetSelectedActions( SelectedActions );
+	if ( SelectedActions.Num() != 1 )
+	{
+		return TSharedPtr<SWidget>();
+	}
+
+	TSharedPtr<FDataprepSchemaAction> DataprepSchemaAction = StaticCastSharedPtr<FDataprepSchemaAction>( SelectedActions[0] );
+	
+	if ( !DataprepSchemaAction || DataprepSchemaAction->GeneratedClassObjectPath.IsEmpty() )
+	{
+		return TSharedPtr<SWidget>();
+	}
+
+	const bool bShouldCloseWindowAfterMenuSelection = true;
+	FMenuBuilder MenuBuilder( bShouldCloseWindowAfterMenuSelection, nullptr );
+
+	MenuBuilder.BeginSection("BasicOperations");
+	{
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("OpenInBP", "Open in Blueprint Editor"),
+			FText(),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateLambda([ObjectPath = DataprepSchemaAction->GeneratedClassObjectPath]()
+			{
+				if ( UObject* Obj = StaticLoadObject( UObject::StaticClass(), nullptr, *ObjectPath ) )
+				{
+					FKismetEditorUtilities::BringKismetToFocusAttentionOnObject( Obj );
+				}
+			}))
 		);
 	}
 	MenuBuilder.EndSection();

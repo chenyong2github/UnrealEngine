@@ -398,7 +398,7 @@ void FLinuxApplication::ProcessDeferredMessage( SDL_Event Event )
 					if (CurrentlyActiveWindow != CurrentEventWindow)
 					{
 						ActivateWindow(CurrentEventWindow);
-						
+
 						if(NotificationWindows.Num() > 0)
 						{
 							RaiseNotificationWindows(CurrentEventWindow);
@@ -731,7 +731,7 @@ void FLinuxApplication::ProcessDeferredMessage( SDL_Event Event )
 
 						// Check if this window is different then the currently active one. If it is another one
 						// activate that window and if necessary deactivate the one which was active.
-						if (CurrentlyActiveWindow != CurrentEventWindow && CurrentEventWindow->GetActivationPolicy() != EWindowActivationPolicy::Never)
+						if (CurrentlyActiveWindow != CurrentEventWindow)
 						{
 							ActivateWindow(CurrentEventWindow);
 						}
@@ -1492,6 +1492,7 @@ void FDisplayMetrics::RebuildDisplayMetrics(FDisplayMetrics& OutDisplayMetrics)
 			Display.ID = TEXT("fakedisplay");
 			Display.NativeWidth = Width;
 			Display.NativeHeight = Height;
+			Display.MaxResolution = FIntPoint(Width, Height);
 			Display.DisplayRect = FPlatformRect(0, 0, Width, Height);
 			Display.WorkArea = FPlatformRect(0, 0, Width, Height);
 
@@ -1514,6 +1515,7 @@ void FDisplayMetrics::RebuildDisplayMetrics(FDisplayMetrics& OutDisplayMetrics)
 		Display.ID = FString::Printf(TEXT("display%d"), DisplayIdx);
 		Display.NativeWidth = DisplayBounds.w;
 		Display.NativeHeight = DisplayBounds.h;
+		Display.MaxResolution = FIntPoint(DisplayBounds.w, DisplayBounds.h);
 		Display.DisplayRect = FPlatformRect(DisplayBounds.x, DisplayBounds.y, DisplayBounds.x + DisplayBounds.w, DisplayBounds.y + DisplayBounds.h);
 		Display.WorkArea = FPlatformRect(UsableBounds.x, UsableBounds.y, UsableBounds.x + UsableBounds.w, UsableBounds.y + UsableBounds.h);
 		Display.bIsPrimary = DisplayIdx == 0;
@@ -1654,8 +1656,13 @@ void FLinuxApplication::DeactivateApplication()
 	UE_LOG(LogLinuxWindowEvent, Verbose, TEXT("WM_ACTIVATEAPP, wParam = 0"));
 }
 
-void FLinuxApplication::ActivateWindow(const TSharedPtr< FLinuxWindow >& Window) 
+void FLinuxApplication::ActivateWindow(const TSharedPtr< FLinuxWindow >& Window)
 {
+	if (Window->GetActivationPolicy() == EWindowActivationPolicy::Never)
+	{
+		return;
+	}
+
 	PreviousActiveWindow = CurrentlyActiveWindow;
 	CurrentlyActiveWindow = Window;
 	if(PreviousActiveWindow.IsValid())

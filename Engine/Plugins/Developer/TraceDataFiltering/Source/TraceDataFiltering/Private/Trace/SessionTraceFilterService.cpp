@@ -20,7 +20,7 @@ FSessionTraceFilterService::FSessionTraceFilterService(Trace::FSessionHandle InH
 
 void FSessionTraceFilterService::OnApplyChannelChanges()
 {
-	auto GenerateConcatenatedChannels = [](TSet<FString>& InChannels, FString& OutConcatenation)
+	auto GenerateConcatenatedChannels = [](TArray<FString>& InChannels, FString& OutConcatenation)
 	{
 		for (const FString& ChannelName : InChannels)
 		{

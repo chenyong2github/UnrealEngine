@@ -24,6 +24,7 @@
 #include "Misc/Guid.h"
 #include "Math/Vector.h"
 #include "Math/Color.h"
+#include "Math/Rotator.h"
 #include "HAL/PlatformProcess.h"
 #include "Misc/AutomationEvent.h"
 #include "Internationalization/Regex.h"
@@ -1351,6 +1352,7 @@ public:
 	bool TestEqual(const TCHAR* What, float Actual, float Expected, float Tolerance = KINDA_SMALL_NUMBER);
 	bool TestEqual(const TCHAR* What, double Actual, double Expected, double Tolerance = KINDA_SMALL_NUMBER);
 	bool TestEqual(const TCHAR* What, FVector Actual, FVector Expected, float Tolerance = KINDA_SMALL_NUMBER);
+	bool TestEqual(const TCHAR* What, FRotator Actual, FRotator Expected, float Tolerance = KINDA_SMALL_NUMBER);
 	bool TestEqual(const TCHAR* What, FColor Actual, FColor Expected);
 	bool TestEqual(const TCHAR* What, const TCHAR* Actual, const TCHAR* Expected);
 	bool TestEqualInsensitive(const TCHAR* What, const TCHAR* Actual, const TCHAR* Expected);
@@ -1371,6 +1373,11 @@ public:
 	}
 
 	bool TestEqual(const FString& What, FVector Actual, FVector Expected, float Tolerance = KINDA_SMALL_NUMBER)
+	{
+		return TestEqual(*What, Actual, Expected, Tolerance);
+	}
+
+	bool TestEqual(const FString& What, FRotator Actual, FRotator Expected, float Tolerance = KINDA_SMALL_NUMBER)
 	{
 		return TestEqual(*What, Actual, Expected, Tolerance);
 	}

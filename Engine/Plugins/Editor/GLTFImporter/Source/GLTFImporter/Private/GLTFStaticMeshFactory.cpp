@@ -70,7 +70,7 @@ namespace GLTF
 		check(!Mesh.Name.IsEmpty());
 
 		const FString PackageName  = UPackageTools::SanitizePackageName(FPaths::Combine(ParentPackage->GetName(), Mesh.Name));
-		UPackage*     AssetPackage = CreatePackage(nullptr, *PackageName);
+		UPackage*     AssetPackage = CreatePackage(*PackageName);
 		UStaticMesh*  StaticMesh   = NewObject<UStaticMesh>(AssetPackage, *FPaths::GetBaseFilename(PackageName), Flags);
 
 		FStaticMeshSourceModel& SourceModel = StaticMesh->AddSourceModel();

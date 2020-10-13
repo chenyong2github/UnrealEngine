@@ -77,6 +77,9 @@ class RIGVMDEVELOPER_API URigVMPin : public UObject
 
 public:
 
+	// A map used to override pin default values
+	typedef TMap<URigVMPin*, FString> FDefaultValueOverride;
+
 	// Splits a PinPath at the start, so for example "Node.Color.R" becomes "Node" and "Color.R"
 	static bool SplitPinPathAtStart(const FString& InPinPath, FString& LeftMost, FString& Right);
 
@@ -180,6 +183,9 @@ public:
 	// default values of the X, Y and Z SubPins.
 	UFUNCTION(BlueprintCallable, Category = RigVMPin)
 	FString GetDefaultValue() const;
+
+	// Returns the default value with an additional override ma
+	FString GetDefaultValue(const FDefaultValueOverride& InDefaultValueOverride) const;
 
 	// Returns the name of a custom widget to be used
 	// for editing the Pin.

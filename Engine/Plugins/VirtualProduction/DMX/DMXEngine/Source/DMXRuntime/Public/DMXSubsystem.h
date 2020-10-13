@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "UObject/NoExportTypes.h"
 #include "DMXProtocolTypes.h"
 #include "DMXTypes.h"
 #include "Library/DMXEntityReference.h"
@@ -39,8 +40,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "DMX", meta = (AutoCreateRefTerm = "FixtureType"))
 	void GetAllFixturesOfType(const FDMXEntityFixtureTypeRef& FixtureType, TArray<UDMXEntityFixturePatch*>& OutResult);
 	
-	/** Load all referenced Objects in the given library. The DMX library should be Loaded at least one in any part of the Unreal Engine */
-	UFUNCTION(BlueprintCallable, Category = "DMX", meta = (DisplayName = "Load DMX Library"))
+	UE_DEPRECATED(4.26, "This function is deprecated. The node can simply be removed. Libraries are now accessible at all times, everywhere, without explicit loading.")
 	void LoadDMXLibrary(UDMXLibrary* DMXLibrary) {} // It could be empty. It automatically pre-loads all Objects if we have a reference in the blueprint.
 
 	/**  Return reference to array of Fixture Patch objects of a given category. */
@@ -93,7 +93,7 @@ public:
 
 	/**  Return reference to array of DMX Library objects. */
 	UFUNCTION(BlueprintCallable, Category = "DMX")
-	TArray<UDMXLibrary*> GetAllDMXLibraries();
+	const TArray<UDMXLibrary*>& GetAllDMXLibraries();
 
 	/**
 	 * Return integer given an array of bytes. Up to the first 4 bytes in the array will be used for the conversion.
@@ -193,7 +193,6 @@ public:
 	UFUNCTION(BlueprintCallable, meta = (BlueprintInternalUseOnly = "TRUE"), Category = "DMX")
 	bool PatchIsOfSelectedType(UDMXEntityFixturePatch* InFixturePatch, FString RefTypeValue);
 
-
 	/** Get a DMX Subsystem, pure version */
 	UFUNCTION(BlueprintPure, Category = "DMX Subsystem", meta = (BlueprintInternalUseOnly = "true"))
 	static UDMXSubsystem* GetDMXSubsystem_Pure();
@@ -213,37 +212,41 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "DMX")
 	FProtocolReceivedDelegate OnProtocolReceived;
 
-	/**  Set DMX Pixel value using matrix coordinates. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set Matrix Pixel Value"), Category = "DMX")
-	bool SetMatrixPixel(UDMXEntityFixturePatch* FixturePatch, FIntPoint Coordinate /* Pixel X/Y */, FDMXAttributeName Attribute, int32 Value);
-
-	/**  Get DMX Pixel value using matrix coordinates. */
+	/**  Set DMX Cell value using matrix coordinates. */
 	UFUNCTION(BlueprintCallable, Category = "DMX")
-	bool GetMatrixPixelValue(UDMXEntityFixturePatch* FixturePatch, FIntPoint Coordinate /* Pixel X/Y */, TMap<FDMXAttributeName, int32>& AttributeValueMap);
+	bool SetMatrixCellValue(UDMXEntityFixturePatch* FixturePatch, FIntPoint Coordinate /* Cell coordinate X/Y */, FDMXAttributeName Attribute, int32 Value);
 
-	/**  Get DMX Pixel Channel using matrix coordinates. */
+	/**  Get DMX Cell value using matrix coordinates. */
 	UFUNCTION(BlueprintCallable, Category = "DMX")
-	bool GetMatrixPixelChannels(UDMXEntityFixturePatch* FixturePatch, FIntPoint Coordinate /* Pixel X/Y */, TMap<FDMXAttributeName, int32>& AttributeChannelMap);
+	bool GetMatrixCellValue(UDMXEntityFixturePatch* FixturePatch, FIntPoint Coordinate /* Cell coordinate X/Y */, TMap<FDMXAttributeName, int32>& AttributeValueMap);
+
+	/**  Gets the starting channel of each cell attribute at given coordinate, relative to the Starting Channel of the patch. */
+	UFUNCTION(BlueprintCallable, Category = "DMX")
+	bool GetMatrixCellChannelsRelative(UDMXEntityFixturePatch* FixturePatch, FIntPoint Coordinate /* Cell coordinate X/Y */, TMap<FDMXAttributeName, int32>& AttributeChannelMap);
 	
-	/**  Get Matrix Fixture properties. */
+	/**  Gets the absolute starting channel of each cell attribute at given coordinate */
+	UFUNCTION(BlueprintCallable, Category = "DMX")
+	bool GetMatrixCellChannelsAbsolute(UDMXEntityFixturePatch* FixturePatch, FIntPoint Coordinate /* Cell coordinate X/Y */, TMap<FDMXAttributeName, int32>& AttributeChannelMap);
+
+	/**  Get Matrix Fixture properties */
 	UFUNCTION(BlueprintPure, Category = "DMX")
-	bool GetMatrixProperties(UDMXEntityFixturePatch* FixturePatch, FDMXPixelMatrix& MatrixProperties);
+	bool GetMatrixProperties(UDMXEntityFixturePatch* FixturePatch, FDMXFixtureMatrix& MatrixProperties);
 
-	/**  Get all atttributes for the matrix pixel. */
+	/**  Get all attributes for the fixture patch. */
 	UFUNCTION(BlueprintCallable, Category = "DMX")
-	bool GetPixelAttributes(UDMXEntityFixturePatch* FixturePatch, TArray<FDMXAttributeName>& PixelAtributes);
+	bool GetCellAttributes(UDMXEntityFixturePatch* FixturePatch, TArray<FDMXAttributeName>& CellAttributes);
 
-	/**  Get data for single pixel. */
+	/**  Get data for single cell. */
 	UFUNCTION(BlueprintCallable, Category = "DMX")
-	bool GetMatrixPixel(UDMXEntityFixturePatch* FixturePatch, FIntPoint Coordinate /* Pixel X/Y */, FDMXPixel& Pixel);
+	bool GetMatrixCell(UDMXEntityFixturePatch* FixturePatch, FIntPoint Coordinate /* Cell coordinate X/Y */, FDMXCell& Cell);
 
-	/**  Get array of all pixels and associated data. */
+	/**  Get array of all cells and associated data. */
 	UFUNCTION(BlueprintCallable, Category = "DMX")
-	bool GetAllMatrixPixels(UDMXEntityFixturePatch* FixturePatch, TArray<FDMXPixel>& Pixels);
+	bool GetAllMatrixCells(UDMXEntityFixturePatch* FixturePatch, TArray<FDMXCell>& Cells);
 
 	/**  Sort an array according to the selected distribution pattern. */
 	UFUNCTION(BlueprintCallable, Category = "DMX")
-	void PixelDistributionSort(EDMXPixelsDistribution InDistribution, int32 InNumXPanels, int32 InNumYPanels, const TArray<int32>& InUnorderedList, TArray<int32>& OutSortedList);
+	void PixelMappingDistributionSort(EDMXPixelMappingDistribution InDistribution, int32 InNumXPanels, int32 InNumYPanels, const TArray<int32>& InUnorderedList, TArray<int32>& OutSortedList);
 
 public:
 	//~ USubsystem interface begin
@@ -257,4 +260,21 @@ private:
 	 * That way we can unbind them when this subsystem is being destroyed and prevent crashes.
 	 */
 	TMap<FName, FDelegateHandle> UniverseInputBufferUpdatedHandles;
+
+private:
+	/** Called when asset registry finished loading files */
+	UFUNCTION()
+	void OnAssetRegistryFinishedLoadingFiles();
+
+	/** Called when asset registry added an asset */
+	UFUNCTION()
+	void OnAssetRegistryAddedAsset(const FAssetData& Asset);
+
+	/** Called when asset registry removed an asset */
+	UFUNCTION()
+	void OnAssetRegistryRemovedAsset(const FAssetData& Asset);
+
+	/** Strongly references all libraries at all times */
+	UPROPERTY()
+	TArray<UDMXLibrary*> LoadedDMXLibraries;
 };

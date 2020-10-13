@@ -102,7 +102,7 @@ typedef FHoloLensTypes FPlatformTypes;
 
 #pragma warning(disable : 4481) // nonstandard extension used: override specifier 'override'
 #define ABSTRACT abstract
-#define CONSTEXPR
+#define CONSTEXPR constexpr
 
 // Strings.
 #define LINE_TERMINATOR		TEXT("\r\n")

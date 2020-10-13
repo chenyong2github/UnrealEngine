@@ -646,10 +646,7 @@ TSharedRef<SWidget> FBehaviorTreeEditor::SpawnProperties()
 				.Padding(FMargin(5.0f))
 				[
 					SNew(STextBlock)
-					.Text(LOCTEXT("RootLevelNode", "\
-Root-level decorators are only valid and will be executed if this BT is be used\n\
-as static a sub-tree (via \"Run Behavior\"). These decorators will be ignored if\n\
-dynamically injected with \"Run Dynamic Behavior\"."))
+					.Text(LOCTEXT("RootLevelNode", "Root-level decorators are only valid and will be executed if this BT is be used\nas static a sub-tree (via \"Run Behavior\"). These decorators will be ignored if\ndynamically injected with \"Run Dynamic Behavior\"."))
 				]
 			]
 			+SVerticalBox::Slot()
@@ -1743,7 +1740,7 @@ void FBehaviorTreeEditor::HandleNewNodeClassPicked(UClass* InClass) const
 		FAssetToolsModule& AssetToolsModule = FModuleManager::GetModuleChecked<FAssetToolsModule>("AssetTools");
 		AssetToolsModule.Get().CreateUniqueAssetName(PathName, TEXT("_New"), PackageName, Name);
 
-		UPackage* Package = CreatePackage(NULL, *PackageName);
+		UPackage* Package = CreatePackage( *PackageName);
 		if (ensure(Package))
 		{
 			// Create and init a new Blueprint

@@ -5,12 +5,13 @@
 #include "ScenePrivate.h"
 #include "VolumetricLightmap.h"
 #include "GPULightmassModule.h"
+#include "GPULightmassSettings.h"
 #include "Scene/Scene.h"
 
 class FGPULightmass : public IStaticLightingSystem
 {
 public:
-	FGPULightmass(UWorld* InWorld, FGPULightmassModule* GPULightmassModule);
+	FGPULightmass(UWorld* InWorld, FGPULightmassModule* GPULightmassModule, UGPULightmassSettings* InSettings = nullptr);
 	virtual ~FGPULightmass();
 	void GameThreadDestroy();
 
@@ -20,6 +21,8 @@ public:
 
 	UWorld* World;
 	FGPULightmassModule* GPULightmassModule;
+	UGPULightmassSettings* Settings;
+	TUniquePtr<FGCObjectScopeGuard> SettingsGuard;
 
 	GPULightmass::FScene Scene;
 
@@ -30,8 +33,6 @@ public:
 	int32 LightBuildPercentage;
 	
 	double StartTime = 0;
-
-	bool bOnlyBakeWhatYouSee = false;
 
 	void EditorTick();
 

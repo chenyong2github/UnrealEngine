@@ -11,9 +11,13 @@ FHairCardsClusterSettings::FHairCardsClusterSettings()
 
 FHairCardsGeometrySettings::FHairCardsGeometrySettings()
 {
-	CardsPerCluster = 1;
+	GenerationType = EHairCardsGenerationType::UseGuides;
+	CardsCount = 5000;
+	ClusterType = EHairCardsClusterType::High;
 	MinSegmentLength = 1;
-	UseCurveOrientation = 1;
+	AngularThreshold = 5;
+	MinCardsLength = 0;
+	MaxCardsLength = 0;
 };
 
 FHairCardsTextureSettings::FHairCardsTextureSettings()
@@ -29,12 +33,14 @@ FHairGroupsProceduralCards::FHairGroupsProceduralCards()
 	ClusterSettings	= FHairCardsClusterSettings();
 	GeometrySettings= FHairCardsGeometrySettings();
 	TextureSettings	= FHairCardsTextureSettings();
+	Version = 0;
 }
 
 FHairGroupsCardsSourceDescription::FHairGroupsCardsSourceDescription()
 {
-	Material = nullptr;
+	MaterialSlotName = NAME_None;
 	SourceType = EHairCardsSourceType::Procedural;
+	ProceduralMeshKey.Empty();
 	ProceduralSettings = FHairGroupsProceduralCards();
 	GroupIndex = 0;
 	LODIndex = -1;
@@ -51,9 +57,13 @@ bool FHairCardsClusterSettings::operator==(const FHairCardsClusterSettings& A) c
 bool FHairCardsGeometrySettings::operator==(const FHairCardsGeometrySettings& A) const
 {
 	return
-		CardsPerCluster == A.CardsPerCluster &&
 		MinSegmentLength == A.MinSegmentLength &&
-		UseCurveOrientation == A.UseCurveOrientation;
+		AngularThreshold == A.AngularThreshold &&
+		MinCardsLength == A.MinCardsLength &&
+		MaxCardsLength == A.MaxCardsLength &&
+		GenerationType == A.GenerationType &&
+		CardsCount == A.CardsCount &&
+		ClusterType == A.ClusterType;
 }
 
 bool FHairCardsTextureSettings::operator==(const FHairCardsTextureSettings& A) const
@@ -70,16 +80,36 @@ bool FHairGroupsProceduralCards::operator==(const FHairGroupsProceduralCards& A)
 	return
 		ClusterSettings == A.ClusterSettings &&
 		GeometrySettings == A.GeometrySettings &&
-		TextureSettings == A.TextureSettings;
+		TextureSettings == A.TextureSettings &&
+		Version == A.Version;
 }
 
+void FHairGroupsProceduralCards::BuildDDCKey(FArchive& Ar)
+{
+	Ar << GeometrySettings.GenerationType;
+	if (GeometrySettings.GenerationType == EHairCardsGenerationType::CardsCount)
+	{
+		Ar << GeometrySettings.CardsCount;
+	}
+	Ar << GeometrySettings.ClusterType;
+	Ar << GeometrySettings.MinSegmentLength;
+	Ar << GeometrySettings.AngularThreshold;
+	Ar << GeometrySettings.MinCardsLength;
+	Ar << GeometrySettings.MaxCardsLength;
+
+	Ar << TextureSettings.AtlasMaxResolution;
+	Ar << TextureSettings.PixelPerCentimeters;
+	Ar << TextureSettings.LengthTextureCount;
+	Ar << Version;
+}
 
 bool FHairGroupsCardsSourceDescription::operator==(const FHairGroupsCardsSourceDescription& A) const
 {
 	return
-		Material == A.Material &&
+		MaterialSlotName == A.MaterialSlotName &&
 		SourceType == A.SourceType &&
 		ProceduralSettings == A.ProceduralSettings &&
 		GroupIndex == A.GroupIndex &&
-		LODIndex == A.LODIndex;
+		LODIndex == A.LODIndex &&
+		ImportedMesh == A.ImportedMesh;
 }

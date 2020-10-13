@@ -862,7 +862,7 @@ namespace BlueprintEditorPromotionTestHelper
 			Factory->ParentClass = AActor::StaticClass();
 
 			const FString PackageName = FEditorPromotionTestUtilities::GetGamePath() + TEXT("/") + BlueprintEditorPromotionUtils::BlueprintNameString;
-			BlueprintPackage = CreatePackage(NULL, *PackageName);
+			BlueprintPackage = CreatePackage( *PackageName);
 			EObjectFlags Flags = RF_Public | RF_Standalone;
 
 			UObject* ExistingBlueprint = FindObject<UBlueprint>(BlueprintPackage, *BlueprintEditorPromotionUtils::BlueprintNameString);

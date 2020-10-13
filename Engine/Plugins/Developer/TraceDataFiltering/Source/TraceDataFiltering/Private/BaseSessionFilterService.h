@@ -26,7 +26,7 @@ public:
 	virtual void GetChildObjects(uint32 InObjectHash, TArray<FTraceObjectInfo>& OutChildObjects) const override;
 	virtual const FDateTime& GetTimestamp() override;
 	virtual void SetObjectFilterState(const FString& InObjectName, const bool bFilterState) override;
-	virtual void UpdateFilterPresets(const TArray<TSharedPtr<IFilterPreset>>& InPresets) override;
+	virtual void UpdateFilterPreset(const TSharedPtr<IFilterPreset> InPreset, bool IsEnabled) override;
 	/** End ISessionTraceFilterService overrides */
 
 protected:
@@ -44,11 +44,9 @@ protected:
 	Trace::FSessionHandle Handle;
 
 	/** Names of channels that were either enabled or disabled during the duration of this frame */
-	TSet<FString> FrameEnabledChannels;
-	TSet<FString> FrameDisabledChannels;
+	TArray<FString> FrameEnabledChannels;
+	TArray<FString> FrameDisabledChannels;
 
-	TSet<FString> FrameZeroEnabledChannels;
-	
 	/** Timestamp at which contained data (including provider) was last updated */
 	FDateTime TimeStamp;	
 };

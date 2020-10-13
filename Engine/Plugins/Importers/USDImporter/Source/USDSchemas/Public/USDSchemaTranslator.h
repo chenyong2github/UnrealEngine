@@ -102,6 +102,7 @@ struct USDSCHEMAS_API FUsdSchemaTranslationContext : public TSharedFromThis< FUs
 		, AssetsCache( InAssetsCache )
 		, BlendShapesByPath( InBlendShapesByPath )
 	{
+		MaterialToPrimvarToUVIndex = nullptr;
 	}
 
 	/** pxr::UsdStage we're translating from */
@@ -127,6 +128,9 @@ struct USDSCHEMAS_API FUsdSchemaTranslationContext : public TSharedFromThis< FUs
 
 	TMap< FString, UObject* >& AssetsCache;
 
+	/** Subset of AssetsCache with assets that were created for/reused by the current translation context. Useful as AssetsCache may contain older/other things */
+	TSet<UObject*> CurrentlyUsedAssets;
+
 	/** Where we place imported blend shapes, if available */
 	UsdUtils::FBlendShapeMap* BlendShapesByPath;
 
@@ -134,7 +138,7 @@ struct USDSCHEMAS_API FUsdSchemaTranslationContext : public TSharedFromThis< FUs
 	 * When parsing materials, we keep track of which primvar we mapped to which UV channel.
 	 * When parsing meshes later, we use this data to place the correct primvar values in each UV channel.
 	 */
-	TMap< FString, TMap< FString, int32 > > MaterialToPrimvarToUVIndex;
+	TMap< FString, TMap< FString, int32 > >* MaterialToPrimvarToUVIndex;
 
 	FCriticalSection CriticalSection;
 

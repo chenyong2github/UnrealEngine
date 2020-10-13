@@ -31,6 +31,7 @@
 #include "Matinee/MatineeActor.h"
 #include "ComponentRecreateRenderStateContext.h"
 #include "PostProcess/PostProcessSubsurface.h"
+#include "PhysicsField/PhysicsFieldComponent.h"
 #include "HdrCustomResolveShaders.h"
 #include "WideCustomResolveShaders.h"
 #include "PipelineStateCache.h"
@@ -58,6 +59,7 @@
 #include "DiaphragmDOF.h" 
 #include "SingleLayerWaterRendering.h"
 #include "HairStrands/HairStrandsVisibility.h"
+#include "SystemTextures.h"
 #if WITH_EDITOR
 #include "Rendering/StaticLightingSystemInterface.h"
 #endif
@@ -1085,6 +1087,43 @@ void SetupPrecomputedVolumetricLightmapUniformBufferParameters(const FScene* Sce
 	}
 }
 
+void SetupPhysicsFieldUniformBufferParameters(const FScene* Scene, FEngineShowFlags EngineShowFlags, FViewUniformShaderParameters& ViewUniformShaderParameters)
+{
+	if (Scene && Scene->PhysicsField && Scene->PhysicsField->FieldResource)
+	{
+		FPhysicsFieldResource* FieldResource = Scene->PhysicsField->FieldResource;
+		ViewUniformShaderParameters.PhysicsFieldClipmapTexture = OrBlack3DIfNull(FieldResource->FieldClipmap.Buffer);
+		ViewUniformShaderParameters.PhysicsFieldClipmapSampler = TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+		ViewUniformShaderParameters.PhysicsFieldClipmapCenter = FieldResource->FieldInfos.ClipmapCenter;
+		ViewUniformShaderParameters.PhysicsFieldClipmapDistance = FieldResource->FieldInfos.ClipmapDistance;
+		ViewUniformShaderParameters.PhysicsFieldClipmapResolution = FieldResource->FieldInfos.ClipmapResolution;
+		ViewUniformShaderParameters.PhysicsFieldClipmapExponent = FieldResource->FieldInfos.ClipmapExponent;
+		ViewUniformShaderParameters.PhysicsFieldClipmapCount = FieldResource->FieldInfos.ClipmapCount;
+		ViewUniformShaderParameters.PhysicsFieldTargetCount = FieldResource->FieldInfos.TargetCount;
+		ViewUniformShaderParameters.PhysicsFieldVectorTargets = FieldResource->FieldInfos.VectorTargets;
+		ViewUniformShaderParameters.PhysicsFieldScalarTargets = FieldResource->FieldInfos.ScalarTargets;
+		ViewUniformShaderParameters.PhysicsFieldIntegerTargets = FieldResource->FieldInfos.IntegerTargets;
+	}
+	else
+	{
+		FRHITexture* BlackVolume = (GBlackVolumeTexture && GBlackVolumeTexture->TextureRHI) ? GBlackVolumeTexture->TextureRHI : GBlackTexture->TextureRHI;
+		TStaticArray<int32, MAX_TARGETS_ARRAY, MAX_TARGETS_ARRAY> EmptyTargets;
+
+		ViewUniformShaderParameters.PhysicsFieldClipmapTexture = BlackVolume;
+		ViewUniformShaderParameters.PhysicsFieldClipmapSampler = TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+		ViewUniformShaderParameters.PhysicsFieldClipmapCenter = FVector::ZeroVector;
+		ViewUniformShaderParameters.PhysicsFieldClipmapDistance = 1.0;
+		ViewUniformShaderParameters.PhysicsFieldClipmapResolution = 2;
+		ViewUniformShaderParameters.PhysicsFieldClipmapExponent = 1;
+		ViewUniformShaderParameters.PhysicsFieldClipmapCount = 1;
+		ViewUniformShaderParameters.PhysicsFieldTargetCount = 0;
+		ViewUniformShaderParameters.PhysicsFieldVectorTargets = EmptyTargets;
+		ViewUniformShaderParameters.PhysicsFieldScalarTargets = EmptyTargets;
+		ViewUniformShaderParameters.PhysicsFieldIntegerTargets = EmptyTargets;
+	}
+}
+
+
 FIntPoint FViewInfo::GetSecondaryViewRectSize() const
 {
 	return FIntPoint(
@@ -1396,6 +1435,8 @@ void FViewInfo::SetupUniformBufferParameters(
 	SetupVolumetricFogUniformBufferParameters(ViewUniformShaderParameters);
 
 	SetupPrecomputedVolumetricLightmapUniformBufferParameters(Scene, Family->EngineShowFlags, ViewUniformShaderParameters);
+
+	SetupPhysicsFieldUniformBufferParameters(Scene, Family->EngineShowFlags, ViewUniformShaderParameters);
 
 	// Setup view's shared sampler for material texture sampling.
 	{
@@ -1734,8 +1775,24 @@ void FViewInfo::SetupUniformBufferParameters(
 		}
 	}
 
-	// Default values
-	SetUpViewHairRenderInfo(*this, ViewUniformShaderParameters.HairRenderInfo, ViewUniformShaderParameters.HairRenderInfoBits);
+	// Hair global resources 
+	SetUpViewHairRenderInfo(*this, ViewUniformShaderParameters.HairRenderInfo, ViewUniformShaderParameters.HairRenderInfoBits, ViewUniformShaderParameters.HairComponents);
+	ViewUniformShaderParameters.HairScatteringLUTTexture = nullptr;
+	if (GSystemTextures.HairLUT0.IsValid() && GSystemTextures.HairLUT0->GetRenderTargetItem().ShaderResourceTexture)
+	{
+		ViewUniformShaderParameters.HairScatteringLUTTexture = GSystemTextures.HairLUT0->GetRenderTargetItem().ShaderResourceTexture;
+	}
+	ViewUniformShaderParameters.HairScatteringLUTTexture = OrBlack3DIfNull(ViewUniformShaderParameters.HairScatteringLUTTexture);
+	ViewUniformShaderParameters.HairScatteringLUTSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+
+	if (WaterDataBuffer.IsValid())
+	{
+		ViewUniformShaderParameters.WaterData = WaterDataBuffer.GetReference();
+	}
+	else
+	{
+		ViewUniformShaderParameters.WaterData = GIdentityPrimitiveBuffer.PrimitiveSceneDataBufferSRV;
+	}
 
 	ViewUniformShaderParameters.VTFeedbackBuffer = SceneContext.GetVirtualTextureFeedbackUAV();
 	ViewUniformShaderParameters.QuadOverdraw = SceneContext.GetQuadOverdrawBufferUAV();
@@ -1955,13 +2012,13 @@ const FExposureBufferData* FViewInfo::GetLastEyeAdaptationBuffer(FRHICommandList
 	return nullptr;
 }
 
-void FViewInfo::SwapEyeAdaptationBuffers(FRDGBuilder& GraphBuilder) const
+void FViewInfo::SwapEyeAdaptationBuffers() const
 {
 	checkf(FeatureLevel == ERHIFeatureLevel::ES3_1, TEXT("ES3_1 use RWBuffer for read back"));
 
 	if (FSceneViewState* EffectiveViewState = GetEyeAdaptationViewState())
 	{
-		EffectiveViewState->SwapEyeAdaptationBuffers(GraphBuilder);
+		EffectiveViewState->SwapEyeAdaptationBuffers();
 	}
 }
 
@@ -2775,10 +2832,13 @@ void FSceneRenderer::RenderFinish(FRDGBuilder& GraphBuilder, FRDGTextureRef View
 		}
 
 		const bool bSingleLayerWaterWarning = ShouldRenderSingleLayerWaterSkippedRenderEditorNotification(Views);
-		
+
+		FFXSystemInterface* FXInterface = Scene->GetFXSystem();
+		const bool bFxDebugDraw = FXInterface && FXInterface->ShouldDebugDraw_RenderThread();
+
 		const bool bAnyWarning = bShowPrecomputedVisibilityWarning || bShowGlobalClipPlaneWarning || bShowAtmosphericFogWarning || bShowSkylightWarning || bShowPointLightWarning 
 			|| bShowDFAODisabledWarning || bShowShadowedLightOverflowWarning || bShowMobileDynamicCSMWarning || bShowMobileLowQualityLightmapWarning || bShowMobileMovableDirectionalLightWarning
-			|| bMobileShowVertexFogWarning || bShowSkinCacheOOM || bSingleLayerWaterWarning || bShowDFDisabledWarning || bShowNoSkyAtmosphereComponentWarning;
+			|| bMobileShowVertexFogWarning || bShowSkinCacheOOM || bSingleLayerWaterWarning || bShowDFDisabledWarning || bShowNoSkyAtmosphereComponentWarning || bFxDebugDraw;
 
 		for(int32 ViewIndex = 0;ViewIndex < Views.Num();ViewIndex++)
 		{	
@@ -2800,7 +2860,7 @@ void FSceneRenderer::RenderFinish(FRDGBuilder& GraphBuilder, FRDGTextureRef View
 						bLocked, bShowPrecomputedVisibilityWarning, bShowGlobalClipPlaneWarning, bShowDFAODisabledWarning, bShowDFDisabledWarning,
 						bShowAtmosphericFogWarning, bViewParentOrFrozen, bShowSkylightWarning, bShowPointLightWarning, bShowShadowedLightOverflowWarning,
 						bShowMobileLowQualityLightmapWarning, bShowMobileMovableDirectionalLightWarning, bShowMobileDynamicCSMWarning, bMobileShowVertexFogWarning,
-						bShowSkinCacheOOM, bSingleLayerWaterWarning, bShowNoSkyAtmosphereComponentWarning]
+						bShowSkinCacheOOM, bSingleLayerWaterWarning, bShowNoSkyAtmosphereComponentWarning, bFxDebugDraw, FXInterface]
 						(FCanvas& Canvas)
 					{
 						// so it can get the screen size
@@ -2930,6 +2990,11 @@ void FSceneRenderer::RenderFinish(FRDGBuilder& GraphBuilder, FRDGTextureRef View
 							static const FText Message = NSLOCTEXT("Renderer", "SingleLayerWater", "r.Water.SingleLayer rendering is disabled with a view containing meshe(s) using water material. Meshes are not visible.");
 							Canvas.DrawShadowedText(10, Y, Message, GetStatsFont(), FLinearColor(1.0, 0.05, 0.05, 1.0));
 							Y += 14;
+						}
+
+						if (bFxDebugDraw)
+						{
+							//-TODO: Fix for RDG: FXInterface->DrawDebug_RenderThread(RHICmdList, &Canvas);
 						}
 					});
 				}
@@ -3904,6 +3969,7 @@ void FRendererModule::RenderPostOpaqueExtensions(FRDGBuilder& GraphBuilder, TArr
 				RenderParameters.ProjMatrix = View.ViewMatrices.GetProjectionMatrix();
 				RenderParameters.DepthTexture = SceneContext.GetSceneDepthSurface()->GetTexture2D();
 				RenderParameters.NormalTexture = SceneContext.GBufferA.IsValid() ? SceneContext.GetGBufferATexture() : nullptr;
+				RenderParameters.VelocityTexture = SceneContext.SceneVelocity.IsValid() ? SceneContext.SceneVelocity->GetRenderTargetItem().ShaderResourceTexture->GetTexture2D() : nullptr;
 				RenderParameters.SmallDepthTexture = SceneContext.GetSmallDepthSurface()->GetTexture2D();
 				RenderParameters.ViewUniformBuffer = View.ViewUniformBuffer;
 				RenderParameters.SceneTexturesUniformParams = CreateSceneTextureUniformBuffer(RHICmdList, View.FeatureLevel, ESceneTextureSetupMode::SceneColor | ESceneTextureSetupMode::SceneDepth | ESceneTextureSetupMode::SceneVelocity | ESceneTextureSetupMode::GBuffers);
@@ -3983,6 +4049,11 @@ FVirtualTextureProducerHandle FRendererModule::RegisterVirtualTextureProducer(co
 void FRendererModule::ReleaseVirtualTextureProducer(const FVirtualTextureProducerHandle& Handle)
 {
 	FVirtualTextureSystem::Get().ReleaseProducer(Handle);
+}
+
+void FRendererModule::ReleaseVirtualTexturePendingResources()
+{
+	FVirtualTextureSystem::Get().ReleasePendingResources();
 }
 
 void FRendererModule::AddVirtualTextureProducerDestroyedCallback(const FVirtualTextureProducerHandle& Handle, FVTProducerDestroyedFunction* Function, void* Baton)
@@ -4486,7 +4557,7 @@ void AddResolveSceneDepthPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, 
 				break;
 			}
 
-			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GScreenVertexDeclaration.VertexDeclarationRHI;
+			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GEmptyVertexDeclaration.VertexDeclarationRHI;
 			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = ResolveVertexShader.GetVertexShader();
 			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = ResolvePixelShader;
 			GraphicsPSOInit.PrimitiveType = PT_TriangleStrip;
@@ -4497,6 +4568,7 @@ void AddResolveSceneDepthPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, 
 
 			ResolveVertexShader->SetParameters(RHICmdList, ResolveRect, ResolveRect, DepthExtent.X, DepthExtent.Y);
 
+			RHICmdList.SetStreamSource(0, nullptr, 0);
 			RHICmdList.DrawPrimitive(0, 2, 1);
 		});
 	}
@@ -4580,7 +4652,7 @@ void RunGPUSkinCacheTransition(FRHICommandList& RHICmdList, FScene* Scene, EGPUS
 	//   during the deferred render pass
 	// * When hair strands is enabled, the skin cache sync point is run earlier, during 
 	//   the init views pass, as the output of the skin cached is used by Niagara
-	const bool bHairStrandsEnabled = IsHairStrandsEnable(Scene->GetShaderPlatform());
+	const bool bHairStrandsEnabled = IsHairStrandsEnabled(EHairStrandsShaderType::All, Scene->GetShaderPlatform());
 	const bool bRun = 
 		(bHairStrandsEnabled && EGPUSkinCacheTransition::FrameSetup == Type) || 
 		(!bHairStrandsEnabled && EGPUSkinCacheTransition::FrameSetup != Type);

@@ -93,6 +93,15 @@ protected:
 	void RefreshAssetList();
 	void RefreshMaskList();
 
+	TOptional<float> GetCurrentKernelRadius() const;
+	void OnCurrentKernelRadiusChanged(float InValue);
+	void OnCurrentKernelRadiusCommitted(float InValue, ETextCommit::Type CommitType);
+	bool CurrentKernelRadiusIsEnabled() const;
+
+	ECheckBoxState GetCurrentUseMultipleInfluences() const;
+	void OnCurrentUseMultipleInfluencesChanged(ECheckBoxState InValue);
+	bool CurrentUseMultipleInfluencesIsEnabled() const;
+
 	void OnClothingLodSelected(int32 InNewLod);
 
 	// Setters for the list selections so we can handle list selections changing properly

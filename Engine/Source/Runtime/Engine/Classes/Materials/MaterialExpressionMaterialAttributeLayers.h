@@ -63,11 +63,6 @@ class UMaterialExpressionMaterialAttributeLayers : public UMaterialExpression
 	{
 		return ParamLayers ? ParamLayers->LayerGuids : DefaultLayers.LayerGuids;
 	}
-
-	const TArray<FGuid>& GetParentLayerGuids() const
-	{
-		return ParamLayers ? ParamLayers->ParentLayerGuids : DefaultLayers.ParentLayerGuids;
-	}
 #endif // WITH_EDITOR
 
 	const TArray<bool>& GetLayerStates() const

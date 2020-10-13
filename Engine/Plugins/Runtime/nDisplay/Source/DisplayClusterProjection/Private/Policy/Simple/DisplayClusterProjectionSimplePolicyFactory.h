@@ -12,12 +12,8 @@ class FDisplayClusterProjectionSimplePolicyFactory
 	: public IDisplayClusterProjectionPolicyFactory
 {
 public:
-	FDisplayClusterProjectionSimplePolicyFactory();
-	virtual ~FDisplayClusterProjectionSimplePolicyFactory();
-
-public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// IDisplayClusterProjectionPolicyFactory
 	//////////////////////////////////////////////////////////////////////////////////////////////
-	virtual TSharedPtr<IDisplayClusterProjectionPolicy> Create(const FString& PolicyType, const FString& RHIName, const FString& ViewportId) override;
+	virtual TSharedPtr<IDisplayClusterProjectionPolicy> Create(const FString& PolicyType, const FString& RHIName, const FString& ViewportId, const TMap<FString, FString>& Parameters) override;
 };

@@ -137,14 +137,14 @@ FPyConversionResult NativizeReal(PyObject* PyObj, T& OutVal, const ESetErrorStat
 #if PY_MAJOR_VERSION < 3
 		if (PyInt_Check(PyObj))
 		{
-			OutVal = PyInt_AsSsize_t(PyObj);
+			OutVal = PyInt_AsLong(PyObj);
 			return FPyConversionResult::SuccessWithCoercion();
 		}
 #endif	// PY_MAJOR_VERSION < 3
 
 		if (PyLong_Check(PyObj))
 		{
-			OutVal = PyLong_AsUnsignedLongLong(PyObj);
+			OutVal = PyLong_AsDouble(PyObj);
 			return FPyConversionResult::SuccessWithCoercion();
 		}
 

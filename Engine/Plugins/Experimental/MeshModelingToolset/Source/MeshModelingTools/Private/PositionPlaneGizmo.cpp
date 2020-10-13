@@ -5,7 +5,7 @@
 #include "Generators/MinimalBoxMeshGenerator.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Engine/Engine.h"  // for GEngine - @todo remove this?
-
+#include "ToolSceneQueriesUtil.h"
 
 
 
@@ -146,11 +146,8 @@ void UPositionPlaneGizmo::OnUpdateDrag(const FRay& Ray)
 	}
 	else
 	{
-		FVector RayStart = Ray.Origin;
-		FVector RayEnd = Ray.PointAt(999999);
-		FCollisionObjectQueryParams QueryParams(FCollisionObjectQueryParams::AllObjects);
 		FHitResult Result;
-		bool bHitWorld = TargetWorld->LineTraceSingleByObjectType(Result, RayStart, RayEnd, QueryParams);
+		bool bHitWorld = ToolSceneQueriesUtil::FindNearestVisibleObjectHit(TargetWorld, Result, Ray);
 		if (bHitWorld)
 		{
 			FFrame3f UpdatedFrame(CenterBallShape->GetTransform());

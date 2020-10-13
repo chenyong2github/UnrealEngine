@@ -18,6 +18,8 @@ namespace UnrealBuildTool.Rules
 
 			PrivateDependencyModuleNames.AddRange(new string[] {
 				"Composure",
+				"Layers",
+				"EditorWidgets",
 				"MovieScene",
 				"MovieSceneTracks",
 				"MovieSceneTools",

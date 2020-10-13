@@ -241,14 +241,15 @@ void UControlRigBlueprint::PostLoad()
 	if (!IsInAsyncLoadingThread() || IsRunningCommandlet())
 	{
 		Controller->DetachLinksFromPinObjects();
-		for (URigVMNode* Node : Model->GetNodes())
+		TArray<URigVMNode*> Nodes = Model->GetNodes();
+		for (URigVMNode* Node : Nodes)
 		{
 			Controller->RepopulatePinsOnNode(Node);
 		}
 		SetupPinRedirectorsForBackwardsCompatibility();
 	}
 
-	Controller->ReattachLinksToPinObjects();
+	Controller->ReattachLinksToPinObjects(true /* follow redirectors */);
 
 	RecompileVM();
 	RequestControlRigInit();

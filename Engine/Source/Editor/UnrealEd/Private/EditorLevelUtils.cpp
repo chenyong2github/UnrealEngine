@@ -492,6 +492,7 @@ ULevelStreaming* UEditorLevelUtils::SetStreamingClassForLevel(ULevelStreaming* I
 		NewStreamingLevel->MinTimeBetweenVolumeUnloadRequests = InLevel->MinTimeBetweenVolumeUnloadRequests;
 		NewStreamingLevel->LevelColor = InLevel->LevelColor;
 		NewStreamingLevel->Keywords = InLevel->Keywords;
+		NewStreamingLevel->SetFolderPath(InLevel->GetFolderPath());
 	}
 
 	return NewStreamingLevel;
@@ -649,7 +650,7 @@ ULevelStreaming* UEditorLevelUtils::CreateNewStreamingLevelForWorld(UWorld& InWo
 		// Create a new world
 		UWorldFactory* Factory = NewObject<UWorldFactory>();
 		Factory->WorldType = EWorldType::Inactive;
-		UPackage* Pkg = CreatePackage(NULL, NULL);
+		UPackage* Pkg = CreatePackage( NULL);
 		FName WorldName(TEXT("Untitled"));
 		EObjectFlags Flags = RF_Public | RF_Standalone;
 		NewLevelWorld = CastChecked<UWorld>(Factory->FactoryCreateNew(UWorld::StaticClass(), Pkg, WorldName, Flags, NULL, GWarn));

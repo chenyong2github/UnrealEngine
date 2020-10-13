@@ -1444,7 +1444,7 @@ void UOnlineHotfixManager::PatchAssetsFromIniFiles()
 						bool bAddAssetToHotfixedList = false;
 
 						// Find or load the asset
-						UObject* Asset = StaticLoadObject(AssetClass, nullptr, *AssetPath);
+						UObject* Asset = FPackageName::IsValidLongPackageName(AssetPath, true) ? StaticLoadObject(AssetClass, nullptr, *AssetPath) : nullptr;
 						if (Asset != nullptr)
 						{
 							const FString RowUpdate(TEXT("RowUpdate"));

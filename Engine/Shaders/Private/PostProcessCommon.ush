@@ -161,7 +161,7 @@ float2 VignetteSpace(float2 Pos, float AspectRatio)
 
 float2 VignetteSpace(float2 Pos)
 {
-	return VignetteSpace(Pos, ViewportSize.x * ViewportSize.w);
+	return VignetteSpace(Pos, ViewportSize.y * ViewportSize.z);
 }
 
 half4 UnwrappedTexture3DSample( Texture2D Texture, SamplerState Sampler, float3 UVW, float Size )

@@ -151,15 +151,6 @@ struct FScriptExecutionConstantBufferTable
 	}
 };
 
-#if STATS
-struct FStatExecutionTimer
-{
-	TSimpleRingBuffer<uint64> AccumulatedCycles = TSimpleRingBuffer<uint64>(120);
-
-	FStatExecutionTimer();
-};
-#endif
-
 struct FNiagaraScriptExecutionContextBase
 {
 	UNiagaraScript* Script;
@@ -182,9 +173,10 @@ struct FNiagaraScriptExecutionContextBase
 	static uint32 TickCounter;
 
 	int32 HasInterpolationParameters : 1;
+	int32 bAllowParallel : 1;
 #if STATS
 	TArray<FStatScopeData> StatScopeData;
-	TMap<TStatIdData const*, FStatExecutionTimer> ExecutionTimings;
+	TMap<TStatIdData const*, float> ExecutionTimings;
 	void CreateStatScopeData();
 	TMap<TStatIdData const*, float> ReportStats();
 #endif
@@ -287,6 +279,22 @@ struct FNiagaraGpuSpawnInfo
 	uint32 MaxParticleCount = 0;
 	int32 SpawnInfoStartOffsets[NIAGARA_MAX_GPU_SPAWN_INFOS];
 	FNiagaraGpuSpawnInfoParams SpawnInfoParams[NIAGARA_MAX_GPU_SPAWN_INFOS];
+
+	void Reset()
+	{
+		EventSpawnTotal = 0;
+		SpawnRateInstances = 0;
+		MaxParticleCount = 0;
+		for (int32 i = 0; i < NIAGARA_MAX_GPU_SPAWN_INFOS; ++i)
+		{
+			SpawnInfoStartOffsets[i] = 0;
+
+			SpawnInfoParams[i].IntervalDt = 0;
+			SpawnInfoParams[i].InterpStartDt = 0;
+			SpawnInfoParams[i].SpawnGroup = 0;
+			SpawnInfoParams[i].GroupSpawnStartIndex = 0;
+		}		
+	}
 };
 
 class FNiagaraRHIUniformBufferLayout : public FRHIResource
@@ -322,7 +330,6 @@ struct FNiagaraComputeExecutionContext
 	void Reset(NiagaraEmitterInstanceBatcher* Batcher);
 
 	void InitParams(UNiagaraScript* InGPUComputeScript, ENiagaraSimTarget InSimTarget, const uint32 InDefaultSimulationStageIndex, int32 InMaxUpdateIterations, const TSet<uint32> InSpawnStages);
-	void BakeVariableNamesForIterationLookup();
 	void DirtyDataInterfaces();
 	bool Tick(FNiagaraSystemInstance* ParentSystemInstance);
 
@@ -356,6 +363,9 @@ public:
 
 #if !UE_BUILD_SHIPPING
 	FString DebugSimName;
+#endif
+#if STATS
+	TWeakObjectPtr<UNiagaraEmitter> EmitterPtr; // emitter pointer used to report captured gpu stats
 #endif
 
 	const TArray<UNiagaraDataInterface*>& GetDataInterfaces()const { return CombinedParamStore.GetDataInterfaces(); }
@@ -395,7 +405,7 @@ public:
 	mutable uint32 ScratchNumInstances = 0;
 	mutable uint32 ScratchMaxInstances = 0;
 
-	TArray < FSimulationStageMetaData> SimStageInfo;
+	TArray<FSimulationStageMetaData> SimStageInfo;
 
 	bool IsOutputStage(FNiagaraDataInterfaceProxy* DIProxy, uint32 CurrentStage) const;
 	bool IsIterationStage(FNiagaraDataInterfaceProxy* DIProxy, uint32 CurrentStage) const;

@@ -5,12 +5,10 @@
 #include "Cluster/IDisplayClusterClusterManager.h"
 #include "IPDisplayClusterManager.h"
 
-#include "Network/DisplayClusterMessage.h"
-
 #include "Misc/Timecode.h"
 #include "Misc/FrameRate.h"
 
-class IPDisplayClusterNodeController;
+class IDisplayClusterNodeController;
 class FJsonObject;
 
 
@@ -25,17 +23,17 @@ public:
 	virtual ~IPDisplayClusterClusterManager()
 	{ }
 
-	virtual IPDisplayClusterNodeController* GetController() const = 0;
+	virtual IDisplayClusterNodeController* GetController() const = 0;
 
-	virtual void ExportSyncData(FDisplayClusterMessage::DataType& SyncData, EDisplayClusterSyncGroup SyncGroup) const = 0;
-	virtual void ImportSyncData(const FDisplayClusterMessage::DataType& SyncData, EDisplayClusterSyncGroup SyncGroup) = 0;
+	virtual void ExportSyncData(TMap<FString, FString>& SyncData, EDisplayClusterSyncGroup SyncGroup) const = 0;
+	virtual void ImportSyncData(const TMap<FString, FString>& SyncData, EDisplayClusterSyncGroup SyncGroup) = 0;
 
-	virtual void ExportEventsData(FDisplayClusterMessage::DataType& EventsData) const = 0;
-	virtual void ImportEventsData(const FDisplayClusterMessage::DataType& EventsData) = 0;
+	virtual void ExportEventsData(TArray<TSharedPtr<FDisplayClusterClusterEventJson>>& JsonEvents, TArray<TSharedPtr<FDisplayClusterClusterEventBinary>>& BinaryEvents) = 0;
+	virtual void ImportEventsData(const TArray<TSharedPtr<FDisplayClusterClusterEventJson>>& JsonEvents, const TArray<TSharedPtr<FDisplayClusterClusterEventBinary>>& BinaryEvents) = 0;
 
 	virtual void SyncObjects(EDisplayClusterSyncGroup SyncGroup) = 0;
-	virtual void SyncInput()   = 0;
-	virtual void SyncEvents()  = 0;
+	virtual void SyncInput()  = 0;
+	virtual void SyncEvents() = 0;
 	
 	virtual void ProvideNativeInputData(const TMap<FString, FString>& NativeInputData) = 0;
 	virtual void SyncNativeInput(TMap<FString, FString>& NativeInputData) = 0;

@@ -74,7 +74,7 @@ public:
 		TArray<FWidgetAndPointer> ArrangedWidgets;
 		if (TSharedPtr<SVirtualWindow> SlateWindowPin = SlateWindow.Pin())
 		{
-			FVector2D LocalMouseCoordinate = InGeometry.AbsoluteToLocal(DesktopSpaceCoordinate) * InGeometry.Scale;
+			FVector2D LocalMouseCoordinate = InGeometry.AbsoluteToLocal(DesktopSpaceCoordinate);
 			float CursorRadius = 0.f;
 			ArrangedWidgets = SlateWindowPin->GetHittestGrid().GetBubblePath(LocalMouseCoordinate, CursorRadius, bIgnoreEnabledStatus);
 

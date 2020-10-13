@@ -3,9 +3,6 @@
 #include "AudioMixerEffectsManager.h"
 #include "AudioMixerDevice.h"
 #include "AudioMixerSubmix.h"
-#include "SubmixEffects/AudioMixerSubmixEffectReverb.h"
-#include "SubmixEffects/AudioMixerSubmixEffectReverbFast.h"
-#include "SubmixEffects/AudioMixerSubmixEffectEQ.h"
 
 namespace Audio
 {

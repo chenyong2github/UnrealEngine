@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Containers/ArrayView.h"
+#include "Templates/SubclassOf.h"
 
 class UObject;
 class UClass;

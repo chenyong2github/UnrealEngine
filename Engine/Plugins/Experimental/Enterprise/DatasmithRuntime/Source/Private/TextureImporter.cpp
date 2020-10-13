@@ -2,6 +2,8 @@
 
 #include "SceneImporter.h"
 
+#include "DatasmithRuntimeAuxiliaryData.h"
+
 #include "IESLoader.h"
 #include "DatasmithRuntimeUtils.h"
 #include "LogCategory.h"
@@ -58,7 +60,7 @@ namespace DatasmithRuntime
 		return false;
 	}
 
-	bool CreateImageTexture(FTextureData& TextureData, IDatasmithTextureElement* TextureElement, FDataCleanupFunc& DataCleanupFunc)
+	EActionResult::Type CreateImageTexture(FTextureData& TextureData, IDatasmithTextureElement* TextureElement, FDataCleanupFunc& DataCleanupFunc)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FSceneImporter::CreateImageTexture);
 
@@ -68,13 +70,16 @@ namespace DatasmithRuntime
 		if (Texture2D == nullptr)
 		{
 			Texture2D = UTexture2D::CreateTransient(TextureData.Width, TextureData.Height, (EPixelFormat)TextureData.Requirements);
-			check(Texture2D);
+			if (!Texture2D)
+			{
+				return EActionResult::Failed;
+			}
 
 #ifdef ASSET_DEBUG
 			FString BaseName = FPaths::GetBaseFilename(TextureElement->GetFile());
 			FString TextureName = BaseName + TEXT("_LU_") + FString::FromInt(TextureData.ElementId);
 			TextureName = FDatasmithUtils::SanitizeObjectName(TextureName);
-			UPackage* Package = CreatePackage(nullptr, *FPaths::Combine( TEXT("/Engine/Transient/LU"), TextureName));
+			UPackage* Package = CreatePackage(*FPaths::Combine( TEXT("/Engine/Transient/LU"), TextureName));
 			Texture2D->Rename(*TextureName, Package, REN_DontCreateRedirectors | REN_NonTransactional);
 			Texture2D->SetFlags(RF_Public);
 #endif
@@ -110,12 +115,12 @@ namespace DatasmithRuntime
 			Texture2D->UpdateTextureRegions(0, 1, &TextureData.Region, TextureData.Pitch, TextureData.BytesPerPixel, TextureData.ImageData, DataCleanupFunc );
 		}
 
-		TextureData.bCompleted = true;
+		TextureData.AddState(EDatasmithRuntimeAssetState::Completed);
 
-		return true;
+		return EActionResult::Succeeded;
 	}
 
-	bool CreateIESTexture(FTextureData& TextureData, IDatasmithTextureElement* TextureElement, FDataCleanupFunc& DataCleanupFunc)
+	EActionResult::Type CreateIESTexture(FTextureData& TextureData, IDatasmithTextureElement* TextureElement, FDataCleanupFunc& DataCleanupFunc)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FSceneImporter::CreateIESTexture);
 
@@ -124,13 +129,16 @@ namespace DatasmithRuntime
 		if (Texture == nullptr)
 		{
 			Texture = NewObject<UTextureLightProfile>();
-			check (Texture);
+			if (!Texture)
+			{
+				return EActionResult::Failed;
+			}
 
 #ifdef ASSET_DEBUG
 			FString BaseName = FPaths::GetBaseFilename(TextureElement->GetFile());
 			FString TextureName = BaseName + TEXT("_LU_") + FString::FromInt(TextureData.ElementId);
 			TextureName = FDatasmithUtils::SanitizeObjectName(TextureName);
-			UPackage* Package = CreatePackage(nullptr, *FPaths::Combine( TEXT("/Engine/Transient/LU"), TextureName));
+			UPackage* Package = CreatePackage(*FPaths::Combine( TEXT("/Engine/Transient/LU"), TextureName));
 			Texture->Rename(*TextureName, Package, REN_DontCreateRedirectors | REN_NonTransactional);
 			Texture->SetFlags(RF_Public);
 #endif
@@ -179,7 +187,7 @@ namespace DatasmithRuntime
 		Texture->UpdateTextureRegions(0, 1, &TextureData.Region, TextureData.Pitch, TextureData.BytesPerPixel, TextureData.ImageData, DataCleanupFunc );
 #endif
 
-		return true;
+		return EActionResult::Succeeded;
 	}
 
 	EActionResult::Type FSceneImporter::CreateTexture(FSceneGraphId ElementId)
@@ -188,10 +196,27 @@ namespace DatasmithRuntime
 
 		FTextureData& TextureData = TextureDataList[ElementId];
 
-		//#ue_liveupdate: We should not come to this point
+		// If the load of the image has failed, cleanup the TextureData and return
 		if (TextureData.Width == 0 || TextureData.Height == 0 || TextureData.ImageData == nullptr)
 		{
-			ensure(false);
+			if (UObject* THelper = TextureData.GetObject<>())
+			{
+				TSet<FAssetData*> RegisteredAssets = GetRegisteredAssetData(THelper);
+
+				for (FAssetData* AssetData : RegisteredAssets)
+				{
+					UnregisterAssetData(THelper, AssetData);
+
+					AssetData->AddState(EDatasmithRuntimeAssetState::Completed);
+					AssetData->Object.Reset();
+				}
+
+				THelper->ClearFlags(RF_AllFlags);
+				THelper->SetFlags(RF_Transient);
+				THelper->Rename(nullptr, nullptr, REN_NonTransactional | REN_DontCreateRedirectors);
+				THelper->MarkPendingKill();
+			}
+
 			return EActionResult::Failed;
 		}
 
@@ -208,16 +233,55 @@ namespace DatasmithRuntime
 
 		EActionResult::Type Result = EActionResult::Unknown;
 
+		UObject* THelper = FindObjectFromHash(TextureData.Hash);
+		ensure(THelper);
+
 		if (TextureElement->GetTextureMode() == EDatasmithTextureMode::Ies)
 		{
-			Result = CreateIESTexture(TextureData, TextureElement, DataCleanupFunc) ? EActionResult::Succeeded : EActionResult::Failed;
+			Result = CreateIESTexture(TextureData, TextureElement, DataCleanupFunc);
 		}
 		else
 		{
-			Result = CreateImageTexture(TextureData, TextureElement, DataCleanupFunc) ? EActionResult::Succeeded : EActionResult::Failed;
+			Result = CreateImageTexture(TextureData, TextureElement, DataCleanupFunc);
 		}
 
-		TextureData.bCompleted = true;
+		TSet<FAssetData*> RegisteredAssets = GetRegisteredAssetData(THelper);
+
+		for (FAssetData* AssetData : RegisteredAssets)
+		{
+			UnregisterAssetData(THelper, AssetData);
+		}
+
+		THelper->ClearFlags(RF_AllFlags);
+		THelper->SetFlags(RF_Transient);
+		THelper->Rename(nullptr, nullptr, REN_NonTransactional | REN_DontCreateRedirectors);
+		THelper->MarkPendingKill();
+
+		if (Result == EActionResult::Succeeded)
+		{
+			UTexture* Texture = TextureData.GetObject<UTexture>();
+			check(Texture);
+
+			for (FAssetData* AssetData : RegisteredAssets)
+			{
+				if (AssetData != &TextureData)
+				{
+					AssetData->Object = TextureData.Object;
+				}
+
+				RegisterAssetData(Texture, AssetData);
+			}
+
+			SetObjectCompletion(Texture, true);
+		}
+		else
+		{
+			for (FAssetData* AssetData : RegisteredAssets)
+			{
+				AssetData->AddState(EDatasmithRuntimeAssetState::Completed);
+				AssetData->Object.Reset();
+			}
+		}
 
 		ActionCounter.Increment();
 
@@ -236,12 +300,6 @@ namespace DatasmithRuntime
 		if (!FPaths::FileExists(TextureElement->GetFile()) && FPaths::DirectoryExists(SceneElement->GetResourcePath()))
 		{
 			TextureElement->SetFile( *FPaths::Combine(SceneElement->GetResourcePath(), TextureElement->GetFile()) );
-		}
-
-		TextureData.Hash = TextureElement->GetFileHash();
-		if (!TextureData.Hash.IsValid())
-		{
-			TextureData.Hash = FMD5Hash::HashFile(TextureElement->GetFile());
 		}
 
 		bool bSuccessfulLoad = false;
@@ -263,20 +321,23 @@ namespace DatasmithRuntime
 			{
 				FMemory::Free(TextureData.ImageData);
 			}
+
+			TextureData.Width = 0;
+			TextureData.Height = 0;
 			TextureData.ImageData = nullptr;
+
 			UE_LOG(LogDatasmithRuntime, Warning, TEXT("Cannot load image file %s for texture %s"), TextureElement->GetFile(), TextureElement->GetLabel());
-
-			TextureData.bCompleted = true;
-			TextureData.Object.Reset();
 		}
-		else
-		{
-			FActionTaskFunction CreateTaskFunc = [this](UObject* Object, const FReferencer& Referencer) -> EActionResult::Type
-			{
-				return this->CreateTexture(Referencer.GetId());
-			};
 
-			AddToQueue(NONASYNC_QUEUE, { CreateTaskFunc, {EDataType::Texture, ElementId, 0 } });
+		FActionTaskFunction CreateTaskFunc = [this](UObject* Object, const FReferencer& Referencer) -> EActionResult::Type
+		{
+			return this->CreateTexture(Referencer.GetId());
+		};
+
+		AddToQueue(NONASYNC_QUEUE, { CreateTaskFunc, {EDataType::Texture, ElementId, 0 } });
+
+		if (bSuccessfulLoad)
+		{
 			TasksToComplete |= EDatasmithRuntimeWorkerTask::TextureAssign;
 		}
 
@@ -295,29 +356,49 @@ namespace DatasmithRuntime
 
 		FTextureData& TextureData = TextureDataList[TextureId];
 
-		if (TextureData.bProcessed)
+		if (TextureData.HasState(EDatasmithRuntimeAssetState::Processed))
 		{
+			return;
+		}
+
+		IDatasmithTextureElement* TextureElement = static_cast<IDatasmithTextureElement*>(Elements[ TextureId ].Get());
+
+		//TextureData.Hash = TextureElement->GetStore().Snapshot().Hash();
+		TextureData.Hash = GetTypeHash(TextureElement->CalculateElementHash(true));
+
+		if (UObject* Asset = FindObjectFromHash(TextureData.Hash))
+		{
+			TextureData.SetState(EDatasmithRuntimeAssetState::Processed);
+
+			// If texture not loaded just mark it as processed
+			if (IsObjectCompleted(Asset))
+			{
+				TextureData.AddState(EDatasmithRuntimeAssetState::Completed);
+			}
+
+			TextureData.Object = TStrongObjectPtr<UObject>(Asset);
+			RegisterAssetData(Asset, &TextureData);
+
 			return;
 		}
 
 		FActionTaskFunction LoadTaskFunc = [this](UObject* Object, const FReferencer& Referencer) -> EActionResult::Type
 		{
-			Async(
+			OnGoingTasks.Emplace( Async(
 #if WITH_EDITOR
 				EAsyncExecution::LargeThreadPool,
 #else
 				EAsyncExecution::ThreadPool,
 #endif
-				// #ue_liveupdate: LightmapWeights, what about incremental addition of meshes?
 				[this, ElementId = Referencer.GetId()]()->bool
-			{
-				return this->LoadTexture(ElementId);
-			},
+				{
+					return this->LoadTexture(ElementId);
+				},
 				[this]()->void
-			{
-				this->ActionCounter.Increment();
-			}
-			);
+				{
+					this->ActionCounter.Increment();
+				}
+			));
 
 			return EActionResult::Succeeded;
 		};
@@ -325,7 +406,14 @@ namespace DatasmithRuntime
 		AddToQueue(TEXTURE_QUEUE, { LoadTaskFunc, {EDataType::Texture, TextureId, 0 } });
 		TasksToComplete |= EDatasmithRuntimeWorkerTask::TextureLoad;
 
-		TextureData.bProcessed = true;
+		// Create texture helper to leverage registration mechanism
+		UDatasmithRuntimeTHelper* TextureHelper = NewObject< UDatasmithRuntimeTHelper >();
+
+		TextureData.Object = TStrongObjectPtr<UObject>(TextureHelper);
+
+		TextureData.SetState(EDatasmithRuntimeAssetState::Processed);
+
+		RegisterAssetData(TextureHelper, &TextureData);
 
 		TextureElementSet.Add(TextureId);
 	}

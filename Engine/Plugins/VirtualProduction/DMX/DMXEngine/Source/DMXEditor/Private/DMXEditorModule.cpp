@@ -5,8 +5,9 @@
 #include "DMXAttribute.h"
 #include "DMXEditor.h"
 #include "DMXEditorStyle.h"
+#include "DMXPIEManager.h"
 #include "DMXProtocolTypes.h"
-#include "DMXRuntimeBlueprintLibrary.h"
+#include "DMXProtocolBlueprintLibrary.h"
 #include "Library/DMXLibrary.h"
 #include "Library/DMXEntityReference.h"
 #include "Library/DMXEntity.h"
@@ -31,7 +32,11 @@
 #include "Framework/Commands/UICommandList.h"
 #include "Framework/Docking/TabManager.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/SOverlay.h"
 #include "Widgets/Docking/SDockTab.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Layout/SGridPanel.h"
 
 
 #define LOCTEXT_NAMESPACE "DMXEditorModule"
@@ -78,32 +83,37 @@ void FDMXEditorModule::StartupModule()
 	// Set up the Level Editor DMX button menu
 	FDMXEditorCommands::Register();
 
-	DMXMonitorCommands = MakeShared<FUICommandList>();
-	DMXMonitorCommands->MapAction(
+	DMXLevelEditorMenuCommands = MakeShared<FUICommandList>();
+	DMXLevelEditorMenuCommands->MapAction(
 		FDMXEditorCommands::Get().OpenChannelsMonitor,
 		FExecuteAction::CreateRaw(this, &FDMXEditorModule::OnOpenChannelsMonitor),
 		FCanExecuteAction()
 		);
-	DMXMonitorCommands->MapAction(
+	DMXLevelEditorMenuCommands->MapAction(
 		FDMXEditorCommands::Get().OpenActivityMonitor,
 		FExecuteAction::CreateRaw(this, &FDMXEditorModule::OnOpenActivityMonitor),
 		FCanExecuteAction()
 	);
-	DMXMonitorCommands->MapAction(
+	DMXLevelEditorMenuCommands->MapAction(
 		FDMXEditorCommands::Get().OpenOutputConsole,
 		FExecuteAction::CreateRaw(this, &FDMXEditorModule::OnOpenOutputConsole),
 		FCanExecuteAction()
 	);
-	DMXMonitorCommands->MapAction(
+	DMXLevelEditorMenuCommands->MapAction(
 		FDMXEditorCommands::Get().ToggleReceiveDMX,
 		FExecuteAction::CreateRaw(this, &FDMXEditorModule::OnToggleReceiveDMX),
+		FCanExecuteAction()
+	);
+	DMXLevelEditorMenuCommands->MapAction(
+		FDMXEditorCommands::Get().ToggleReceiveDMX,
+		FExecuteAction::CreateRaw(this, &FDMXEditorModule::OnToggleSendDMX),
 		FCanExecuteAction()
 	);
 	FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>(LevelEditorName);
 
 	TSharedPtr<FExtender> ToolbarExtender = MakeShared<FExtender>();
 	ToolbarExtender->AddToolBarExtension("Settings", EExtensionHook::After, 
-		DMXMonitorCommands,
+		DMXLevelEditorMenuCommands,
 		FToolBarExtensionDelegate::CreateRaw(this, &FDMXEditorModule::AddToolbarExtension));
 	
 	LevelEditorModule.GetToolBarExtensibilityManager()->AddExtender(ToolbarExtender);
@@ -122,6 +132,8 @@ void FDMXEditorModule::StartupModule()
 		FOnSpawnTab::CreateRaw(this, &FDMXEditorModule::OnSpawnOutputConsoleTab))
 		.SetDisplayName(LOCTEXT("OutputConsoleTabTitle", "DMX Output Console"))
 		.SetMenuType(ETabSpawnerMenuType::Hidden);
+
+	PIEManager = MakeShared<FDMXPIEManager>();
 }
 
 void FDMXEditorModule::ShutdownModule()
@@ -204,7 +216,7 @@ void FDMXEditorModule::RegisterPropertyTypeCustomizations()
 	RegisterCustomPropertyTypeLayout(FDMXProtocolName::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDMXCustomizationFactory::MakeInstance<FNameListCustomization<FDMXProtocolName>>));
 	RegisterCustomPropertyTypeLayout(FDMXFixtureCategory::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDMXCustomizationFactory::MakeInstance<FNameListCustomization<FDMXFixtureCategory>>));
 	RegisterCustomPropertyTypeLayout(FDMXAttributeName::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDMXCustomizationFactory::MakeInstance<FNameListCustomization<FDMXAttributeName>>));
-	RegisterCustomPropertyTypeLayout("EDMXPixelsDistribution", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDMXCustomizationFactory::MakeInstance<FDMXPixelsDistributionCustomization>));
+	RegisterCustomPropertyTypeLayout("EDMXPixelMappingDistribution", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDMXCustomizationFactory::MakeInstance<FDMXPixelMappingDistributionCustomization>));
 
 	// Customizations for the Entity Reference types
 	RegisterCustomPropertyTypeLayout(FDMXEntityControllerRef::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDMXCustomizationFactory::MakeInstance<FDMXEntityReferenceCustomization>));
@@ -240,13 +252,34 @@ TSharedRef<FDMXEditor> FDMXEditorModule::CreateEditor(const EToolkitMode::Type M
 
 void FDMXEditorModule::AddToolbarExtension(FToolBarBuilder& InOutBuilder)
 {
+	auto OnGetToolbarButtonBrushLambda = [this]() -> const FSlateIcon
+	{
+		bool bSendEnabled = UDMXProtocolBlueprintLibrary::IsSendDMXEnabled();
+		bool bReceiveEnabled = UDMXProtocolBlueprintLibrary::IsReceiveDMXEnabled();
+
+		if (bSendEnabled && bReceiveEnabled)
+		{
+			return FSlateIcon(FDMXEditorStyle::GetStyleSetName(), "DMXEditor.LevelEditor.MenuIcon_snd-rcv");
+		}
+		else if (bSendEnabled)
+		{
+			return FSlateIcon(FDMXEditorStyle::GetStyleSetName(), "DMXEditor.LevelEditor.MenuIcon_snd");
+		}
+		else if (bReceiveEnabled)
+		{
+			return FSlateIcon(FDMXEditorStyle::GetStyleSetName(), "DMXEditor.LevelEditor.MenuIcon_rcv");
+		}
+
+		return FSlateIcon(FDMXEditorStyle::GetStyleSetName(), "DMXEditor.LevelEditor.MenuIcon_none");
+	};
+
 	InOutBuilder.AddComboButton(
 		FUIAction(),
 		FOnGetContent::CreateRaw(this, &FDMXEditorModule::GenerateMonitorsMenu, SharedDMXEditorCommands),
 		LOCTEXT("InputInfo_Label", "DMX"),
 		LOCTEXT("InputInfo_ToolTip", "DMX Tools"),
-		FSlateIcon(FDMXEditorStyle::GetStyleSetName(), "DMXEditor.LevelEditor")
-		);
+		TAttribute<FSlateIcon>::Create(OnGetToolbarButtonBrushLambda)
+	);
 }
 
 TSharedRef<SWidget> FDMXEditorModule::GenerateMonitorsMenu(TSharedPtr<FUICommandList> InCommands)
@@ -256,6 +289,7 @@ TSharedRef<SWidget> FDMXEditorModule::GenerateMonitorsMenu(TSharedPtr<FUICommand
 	FUIAction OpenActivityMonitor(FExecuteAction::CreateRaw(this, &FDMXEditorModule::OnOpenActivityMonitor));
 	FUIAction OpenOutputConsole(FExecuteAction::CreateRaw(this, &FDMXEditorModule::OnOpenOutputConsole));
 	FUIAction ToggleReceiveDMX(FExecuteAction::CreateRaw(this, &FDMXEditorModule::OnToggleReceiveDMX));
+	FUIAction ToggleSendDMX(FExecuteAction::CreateRaw(this, &FDMXEditorModule::OnToggleSendDMX));
 
 	MenuBuilder.BeginSection("CustomMenu", TAttribute<FText>(FText::FromString("DMX")));
 
@@ -273,11 +307,16 @@ TSharedRef<SWidget> FDMXEditorModule::GenerateMonitorsMenu(TSharedPtr<FUICommand
 			LOCTEXT("LevelEditorMenu_OpenOutputChannels", "Open DMX Output Console"), 
 			LOCTEXT("LevelEditorMenu_OutputConsoleTooltip", "Console to generate and output DMX Signals"),
 			FSlateIcon(), OpenOutputConsole);
-
+		
 		MenuBuilder.AddMenuEntry(
 			TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateRaw(this, &FDMXEditorModule::GetToggleReceiveDMXText)),
 			TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateRaw(this, &FDMXEditorModule::GetToggleReceiveDMXTooltip)),
 			FSlateIcon(), ToggleReceiveDMX);
+
+		MenuBuilder.AddMenuEntry(
+			TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateRaw(this, &FDMXEditorModule::GetToggleSendDMXText)),
+			TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateRaw(this, &FDMXEditorModule::GetToggleSendDMXTooltip)),
+			FSlateIcon(), ToggleSendDMX);
 
 	MenuBuilder.EndSection();
 
@@ -338,41 +377,79 @@ void FDMXEditorModule::OnOpenOutputConsole()
 	OutputConsoleTab->RestoreConsole();	
 }
 
+void FDMXEditorModule::OnToggleSendDMX()
+{
+	bool bAffectEditor = true;
+
+	if (UDMXProtocolBlueprintLibrary::IsSendDMXEnabled())
+	{
+		UDMXProtocolBlueprintLibrary::SetSendDMXEnabled(false, bAffectEditor);
+	}
+	else
+	{
+		UDMXProtocolBlueprintLibrary::SetSendDMXEnabled(true, bAffectEditor);
+	}
+}
+
+FText FDMXEditorModule::GetToggleSendDMXText() const
+{
+	if (UDMXProtocolBlueprintLibrary::IsSendDMXEnabled())
+	{
+		return LOCTEXT("MenuButtonText_PauseSendDMX", "Pause Send DMX");
+	}
+	else
+	{
+		return LOCTEXT("MenuButtonText_ResumeSendDMX", "Resume Send DMX");
+	}
+}
+
+FText FDMXEditorModule::GetToggleSendDMXTooltip() const
+{
+	if (UDMXProtocolBlueprintLibrary::IsReceiveDMXEnabled())
+	{
+		return LOCTEXT("MenuButtonText_DisableOutboundDMXPackets", "Disables outbound DMX packets in editor.");
+	}
+	else
+	{
+		return LOCTEXT("MenuButtonText_EnableOutboundDMXPackets", "Enables outbound DMX packets in editor.");
+	}
+}
+
 void FDMXEditorModule::OnToggleReceiveDMX()
 {
 	bool bAffectEditor = true;
 
-	if (UDMXRuntimeBlueprintLibrary::IsReceiveDMXEnabled())
+	if (UDMXProtocolBlueprintLibrary::IsReceiveDMXEnabled())
 	{
-		UDMXRuntimeBlueprintLibrary::SetReceiveDMXEnabled(false, bAffectEditor);
+		UDMXProtocolBlueprintLibrary::SetReceiveDMXEnabled(false, bAffectEditor);
 	}
 	else
 	{
-		UDMXRuntimeBlueprintLibrary::SetReceiveDMXEnabled(true, bAffectEditor);
+		UDMXProtocolBlueprintLibrary::SetReceiveDMXEnabled(true, bAffectEditor);
 	}
 }
 
 FText FDMXEditorModule::GetToggleReceiveDMXText() const
 {
-	if (UDMXRuntimeBlueprintLibrary::IsReceiveDMXEnabled())
+	if (UDMXProtocolBlueprintLibrary::IsReceiveDMXEnabled())
 	{
-		return LOCTEXT("ReceiveDMXEnabledDMXMenuButtonText", "Pause Receive DMX");
+		return LOCTEXT("MenuButtonText_PauseReceiveDMX", "Pause Receive DMX");
 	}
 	else
 	{
-		return LOCTEXT("ReceiveDMXDisabledDMXMenuButtonText", "Resume Receive DMX");
+		return LOCTEXT("MenuButtonText_ResumeReceiveDMX", "Resume Receive DMX");
 	}
 }
 
 FText FDMXEditorModule::GetToggleReceiveDMXTooltip() const
 {
-	if (UDMXRuntimeBlueprintLibrary::IsReceiveDMXEnabled())
+	if (UDMXProtocolBlueprintLibrary::IsReceiveDMXEnabled())
 	{
-		return LOCTEXT("ReceiveDMXEnabledDMXMenuButtonText", "Disables inbound DMX packets in editor. Overrides DMX project settings during editor time.");
+		return LOCTEXT("MenuButtonText_DisableInboundDMXPackets", "Disables inbound DMX packets in editor.");
 	}
 	else
 	{
-		return LOCTEXT("ReceiveDMXDisabledDMXMenuButtonText", "Enables inbound DMX packets editor. Overrides DMX project settings during editor time.");
+		return LOCTEXT("MenuButtonText_EnableInboundDMXPackets", "Enables inbound DMX packets editor.");
 	}
 }
 

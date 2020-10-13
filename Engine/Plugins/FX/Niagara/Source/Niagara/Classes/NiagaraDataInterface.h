@@ -225,9 +225,17 @@ struct FNiagaraDataInterfaceProxy : TSharedFromThis<FNiagaraDataInterfaceProxy, 
 	TSet<int> IterationSimulationStages_DEPRECATED;
 	
 	// number of elements to output to
-	uint32 ElementCount;
+	FIntVector ElementCount;
 
-	void SetElementCount(uint32 Count) { ElementCount = Count;  }
+	// Offset into instance count buffer to use as the 'real' element count
+	// it's execpted that ElementCount will be >= to this value, could be replaced by DispatchIndirect in the future
+	uint32 GPUInstanceCountOffset = INDEX_NONE;
+
+	void SetElementCount(uint32 Count) { ElementCount = FIntVector(Count, 1, 1); }
+	void SetElementCount(const FIntPoint& Count) { ElementCount = FIntVector(Count.X, Count.Y, 1); }
+	void SetElementCount(const FIntVector& Count) { ElementCount = Count; }
+	void SetGPUInstanceCountOffset(uint32 InstanceCountOffset) { GPUInstanceCountOffset = InstanceCountOffset; }
+	
 	virtual bool IsOutputStage_DEPRECATED(uint32 CurrentStage) const { return OutputSimulationStages_DEPRECATED.Contains(CurrentStage); }
 	virtual bool IsIterationStage_DEPRECATED(uint32 CurrentStage) const { return IterationSimulationStages_DEPRECATED.Contains(CurrentStage); }
 
@@ -263,9 +271,9 @@ public:
 	/** Can this data interface be used as a StackContext parameter map replacement when being used as a sim stage iteration source? */
 	virtual bool SupportsIterationSourceNamespaceAttributesHLSL() const { return false; }
 	/** Generate the necessary plumbing HLSL at the beginning of the stage where this is used as a sim stage iteration source. Note that this should inject other internal calls using the CustomHLSL node syntax. See GridCollection2D for an example.*/
-	virtual bool GenerateIterationSourceNamespaceReadAttributesHLSL(FNiagaraDataInterfaceGPUParamInfo& DIInstanceInfo, TConstArrayView<FNiagaraVariable> InArguments, TConstArrayView<FNiagaraVariable> InAttributes, TConstArrayView<FString> InAttributeHLSLNames, bool bInSetToDefaults, bool bPartialWrites, TArray<FText>& OutErrors, FString& OutHLSL) const { return false; };
+	virtual bool GenerateIterationSourceNamespaceReadAttributesHLSL(FNiagaraDataInterfaceGPUParamInfo& DIInstanceInfo, const FNiagaraVariable& InIterationSourceVariable, TConstArrayView<FNiagaraVariable> InArguments, TConstArrayView<FNiagaraVariable> InAttributes, TConstArrayView<FString> InAttributeHLSLNames, bool bInSetToDefaults, bool bPartialWrites, TArray<FText>& OutErrors, FString& OutHLSL) const { return false; };
 	/** Generate the necessary plumbing HLSL at the end of the stage where this is used as a sim stage iteration source. Note that this should inject other internal calls using the CustomHLSL node syntax. See GridCollection2D for an example.*/
-	virtual bool GenerateIterationSourceNamespaceWriteAttributesHLSL(FNiagaraDataInterfaceGPUParamInfo& DIInstanceInfo, TConstArrayView<FNiagaraVariable> InArguments, TConstArrayView<FNiagaraVariable> InAttributes, TConstArrayView<FString> InAttributeHLSLNames, bool bPartialWrites, TArray<FText>& OutErrors, FString& OutHLSL) const { return false; };
+	virtual bool GenerateIterationSourceNamespaceWriteAttributesHLSL(FNiagaraDataInterfaceGPUParamInfo& DIInstanceInfo, const FNiagaraVariable& InIterationSourceVariable, TConstArrayView<FNiagaraVariable> InArguments, TConstArrayView<FNiagaraVariable> InAttributes, TConstArrayView<FString> InAttributeHLSLNames, bool bPartialWrites, TArray<FText>& OutErrors, FString& OutHLSL) const { return false; };
 #endif
 	// UObject Interface END
 
@@ -342,6 +350,9 @@ public:
 	virtual bool HasTickGroupPrereqs() const { return false; }
 	virtual ETickingGroup CalculateTickGroup(const void* PerInstanceData) const { return NiagaraFirstTickGroup; }
 
+	/** Used to determine if we need to create GPU resources for the emitter. */
+	bool IsUsedWithGPUEmitter(class FNiagaraSystemInstance* SystemInstance) const;
+
 	/** Determines if this type definition matches to a known data interface type.*/
 	static bool IsDataInterfaceType(const FNiagaraTypeDefinition& TypeDef);
 
@@ -413,6 +424,32 @@ public:
 	virtual bool ReadsEmitterParticleData(const FString& EmitterName) const { return false; }
 
 protected:
+	virtual void PushToRenderThreadImpl() {}
+
+public:
+	void PushToRenderThread()
+	{
+		if (bUsedByGPUEmitter && bRenderDataDirty)
+		{
+			PushToRenderThreadImpl();
+			bRenderDataDirty = false;
+		}
+	}
+
+	void MarkRenderDataDirty()
+	{
+		bRenderDataDirty = true;
+		PushToRenderThread();
+	}
+
+	void SetUsedByGPUEmitter(bool bUsed = true)
+	{
+		check(IsInGameThread());
+		bUsedByGPUEmitter = bUsed;
+		PushToRenderThread();
+	}
+
+protected:
 	template<typename T>
 	T* GetProxyAs()
 	{
@@ -424,6 +461,9 @@ protected:
 	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const;
 
 	TUniquePtr<FNiagaraDataInterfaceProxy> Proxy;
+
+	uint32 bRenderDataDirty : 1;
+	uint32 bUsedByGPUEmitter : 1;
 
 private:
 #if WITH_EDITOR

@@ -12,10 +12,7 @@ class MOVIERENDERPIPELINECORE_API UMoviePipelineCameraSetting : public UMoviePip
 	GENERATED_BODY()
 public:
 	UMoviePipelineCameraSetting()
-		: CameraShutterAngle(180)
-		, ShutterTiming(EMoviePipelineShutterTiming::FrameCenter)
-		, bManualExposure(false)
-		, ExposureCompensation(8.0)
+		: ShutterTiming(EMoviePipelineShutterTiming::FrameCenter)
 	{}
 
 public:
@@ -30,27 +27,10 @@ protected:
 	{
 		Super::GetFormatArguments(InOutFormatArgs);
 
-		InOutFormatArgs.FilenameArguments.Add(TEXT("shutter_angle"), CameraShutterAngle);
 		InOutFormatArgs.FilenameArguments.Add(TEXT("shutter_timing"), StaticEnum<EMoviePipelineShutterTiming>()->GetNameStringByValue((int64)ShutterTiming));
-
-
-		InOutFormatArgs.FileMetadata.Add(TEXT("unreal/camera/shutterAngle"), CameraShutterAngle);
 		InOutFormatArgs.FileMetadata.Add(TEXT("unreal/camera/shutterTiming"), StaticEnum<EMoviePipelineShutterTiming>()->GetNameStringByValue((int64)ShutterTiming));
 	}
 public:	
-	/** 
-	* The camera shutter angle determines how much of a given frame the accumulation frames span.
-	* For example, a 24fps film with a shutter angle of 180 will spread the accumulation frames
-	* out over (180/360) percent of the frame (1/24th of a second). With 2 accumulation frames,
-	* the first one will be at the very start of the frame and the second accumulation frame will
-	* be land on the half way point between the start of this frame and the start of the next.
-	*
-	* A shutter angle of 360 means continuous movement, while a shutter angle of zero means no
-	* motion blur.
-	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (UIMin = "0", UIMax = "360", ClampMin = "0", ClampMax = "360"), Category = "Camera Settings")
-	int32 CameraShutterAngle;
-	
 	/**
 	* Shutter Timing allows you to bias the timing of your shutter angle to either be before, during, or after
 	* a frame. When set to FrameClose, it means that the motion gathered up to produce frame N comes from 
@@ -61,17 +41,4 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (UIMin = "0", UIMax = "360", ClampMin = "0", ClampMax = "360"), Category = "Camera Settings")
 	EMoviePipelineShutterTiming ShutterTiming;
 	
-	/**
-	* Should we override the exposure on the camera to use a fixed value? This is required for high res screenshots to use consistent
-	* exposure between the different tiles of the image. Leaving this off lets the camera determine based on the previous frame rendered,
-	* which can require long warm up times between shots to allow the exposure to settle.
-	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (UIMin = "0", UIMax = "360", ClampMin = "0", ClampMax = "360"), Category = "Camera Settings")
-	bool bManualExposure;
-	
-	/**
-	* What exposure should we use when using Manual Exposure? Same behavior as the Post Processing volume.
-	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (UIMin = "-10", UIMax = "10", EditCondition="bManualExposure"), Category = "Camera Settings")
-	float ExposureCompensation;
 };

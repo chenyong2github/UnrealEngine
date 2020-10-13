@@ -9,7 +9,7 @@
 #include "DSP/BufferVectorOperations.h"
 #include "Engine/World.h"
 #include "SoundControlBusProxy.h"
-#include "SoundModulationGeneratorLFO.h"
+
 
 USoundControlBus::USoundControlBus(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -41,7 +41,33 @@ void USoundControlBus::PostEditChangeProperty(FPropertyChangedEvent& InPropertyC
 			Address = GetName();
 		}
 
-		AudioModulation::IterateModSystems([this](AudioModulation::FAudioModulationSystem & OutModSystem)
+		if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(USoundControlBus, Parameter))
+		{
+			for (TObjectIterator<USoundControlBusMix> Iter; Iter; ++Iter)
+			{
+				if (USoundControlBusMix* Mix = *Iter)
+				{
+					for (FSoundControlBusMixStage& Stage : Mix->MixStages)
+					{
+						if (Stage.Bus == this)
+						{
+							float UnitValue = Stage.Value.TargetValue;
+							if (Parameter)
+							{
+								UnitValue = Parameter->ConvertNormalizedToUnit(Stage.Value.TargetValue);
+							}
+
+							if (!FMath::IsNearlyEqual(Stage.Value.TargetUnitValue, UnitValue, KINDA_SMALL_NUMBER))
+							{
+								Stage.Value.TargetUnitValue = UnitValue;
+							}
+						}
+					}
+				}
+			}
+		}
+
+		AudioModulation::IterateModulationImpl([this](AudioModulation::FAudioModulation& OutModSystem)
 		{
 			OutModSystem.UpdateModulator(*this);
 		});
@@ -71,6 +97,8 @@ void USoundControlBus::PostRename(UObject* OldOuter, const FName OldName)
 
 void USoundControlBus::BeginDestroy()
 {
+	using namespace AudioModulation;
+
 	Super::BeginDestroy();
 
 	if (UWorld* World = GetWorld())
@@ -80,15 +108,20 @@ void USoundControlBus::BeginDestroy()
 			check(AudioDevice->IsModulationPluginEnabled());
 			if (IAudioModulation* ModulationInterface = AudioDevice->ModulationInterface.Get())
 			{
-				auto ModSystem = static_cast<AudioModulation::FAudioModulation*>(ModulationInterface)->GetModulationSystem();
-				check(ModSystem);
-				ModSystem->DeactivateBus(*this);
+				FAudioModulation* Modulation = static_cast<FAudioModulation*>(ModulationInterface);
+				check(Modulation);
+				Modulation->DeactivateBus(*this);
 			}
 		}
 	}
 }
 
-const Audio::FModulationMixFunction& USoundControlBus::GetMixFunction() const
+const Audio::FModulationMixFunction USoundControlBus::GetMixFunction() const
 {
+	if (Parameter)
+	{
+		return Parameter->GetMixFunction();
+	}
+
 	return Audio::FModulationParameter::GetDefaultMixFunction();
 }

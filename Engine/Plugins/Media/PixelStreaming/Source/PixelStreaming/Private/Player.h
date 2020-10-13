@@ -62,7 +62,7 @@ public:
 		return GetUrl();
 	}
 	
-	FName GetPlayerName() const override;
+	FGuid GetPlayerPluginGUID() const override;
 
 	IMediaSamples& GetSamples() override;
 			

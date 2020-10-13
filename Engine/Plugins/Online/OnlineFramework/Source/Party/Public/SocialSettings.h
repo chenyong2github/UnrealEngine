@@ -8,6 +8,41 @@
 
 enum class ESocialSubsystem : uint8;
 
+USTRUCT()
+struct FSocialPlatformDescription
+{
+	GENERATED_BODY()
+
+	FSocialPlatformDescription() { };
+
+	/**
+	 * The name of this platform
+	 * @see IOnlineSubsystem::GetLocalPlatformName
+	 */
+	UPROPERTY()
+	FString Name;
+
+	/** The type of this platform.  For example DESKTOP or MOBILE */
+	UPROPERTY()
+	FString PlatformType;
+
+	/** The online subsystem this platform uses */
+	UPROPERTY()
+	FName OnlineSubsystem;
+
+	/** The session type this platform uses */
+	UPROPERTY()
+	FString SessionType;
+
+	/** The external association type for this platform */
+	UPROPERTY()
+	FString ExternalAccountType;
+
+	/** The crossplay pool this platform belongs to */
+	UPROPERTY()
+	FString CrossplayPool;
+};
+
 /**
  * Config-driven settings object for the social framework.
  * Only the CDO is ever expected to be used, no instance is ever expected to be created.
@@ -29,6 +64,7 @@ public:
 	static float GetUserListAutoUpdateRate();
 	static int32 GetMinNicknameLength();
 	static int32 GetMaxNicknameLength();
+	static const TArray<FSocialPlatformDescription>& GetSocialPlatformDescriptions();
 
 private:
 	/**
@@ -71,4 +107,7 @@ private:
 	/** Longest possible player nickname */
 	UPROPERTY(Config)
 	int32 MaxNicknameLength = 16;
+
+	UPROPERTY(Config)
+	TArray<FSocialPlatformDescription> SocialPlatformDescriptions;
 };

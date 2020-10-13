@@ -32,7 +32,10 @@ public class AVEncoder : ModuleRules
 			PublicSystemLibraries.Add("d3d11.lib");
 			PublicSystemLibraries.Add("DXGI.lib");
 		}
-
+		else if (Target.Platform == UnrealTargetPlatform.XboxOne)
+		{
+			PublicDefinitions.Add("AVENCODER_SUPPORTED_MICROSOFT_PLATFORM=1");
+		}
 	}
 }
 

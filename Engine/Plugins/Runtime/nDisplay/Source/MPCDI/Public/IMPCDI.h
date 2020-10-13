@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 
+#include "Blueprints/MPCDIContainers.h"
+
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 
@@ -36,7 +38,7 @@ public:
 
 	struct ConfigParser
 	{
-		FString  ConfigLineStr;// Saved viewport config line string
+		TMap<FString, FString> ConfigParameters;// Saved viewport config parameters
 		FString  MPCDIFileName; // Single mpcdi file name
 
 		FString  BufferId;
@@ -344,12 +346,12 @@ public:
 	/**
 	* Helper. Load config data from string
 	*
-	* @param InConfigLineStr - config string
-	* @param OutCfgData - result condig data 
+	* @param InConfigParameters - config parameters map
+	* @param OutCfgData - result condig data
 	*
 	* @return - true if success
 	*/
-	virtual bool LoadConfig(const FString& InConfigLineStr, ConfigParser& OutCfgData) = 0;
+	virtual bool LoadConfig(const TMap<FString, FString>& InConfigParameters, ConfigParser& OutCfgData) = 0;
 
 	/**
 	* Helper. Load or create mpcdi data
@@ -367,4 +369,16 @@ public:
 	*/
 	virtual void ReloadAll() = 0;
 	virtual void ReloadAll_RenderThread() = 0;
+
+	/**
+	* Exports mesh data of a specified file#buffer#region
+	*
+	* @param MPCDIFile - .mpcdi file path
+	* @param BufferName - Buffer ID
+	* @param RegionName - Region ID
+	* @param MeshData - (out) Requested mesh data
+	*
+	* @return - true if success
+	*/
+	virtual bool GetMPCDIMeshData(const FString& MPCDIFile, const FString& BufferName, const FString& RegionName, FMPCDIGeometryExportData& MeshData) = 0;
 };

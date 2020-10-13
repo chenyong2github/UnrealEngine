@@ -1,88 +1,117 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "DisplayClusterSceneComponent.h"
+#include "Components/DisplayClusterSceneComponent.h"
 
-#include "DisplayClusterRootComponent.h"
-
-#include "Config/DisplayClusterConfigTypes.h"
+#include "Config/IPDisplayClusterConfigManager.h"
 #include "Input/IPDisplayClusterInputManager.h"
 
+#include "DisplayClusterRootActor.h"
+#include "DisplayClusterConfigurationTypes.h"
+
 #include "Misc/DisplayClusterGlobals.h"
+#include "Misc/DisplayClusterHelpers.h"
 #include "Misc/DisplayClusterLog.h"
+#include "Misc/DisplayClusterStrings.h"
+#include "Misc/DisplayClusterTypesConverter.h"
+
+#if WITH_EDITOR
+#include "Interfaces/IDisplayClusterConfiguratorToolkit.h"
+#endif
 
 
 UDisplayClusterSceneComponent::UDisplayClusterSceneComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
+	, TrackerChannel(-1)
 {
 	// Children of UDisplayClusterSceneComponent must always Tick to be able to process VRPN tracking
 	PrimaryComponentTick.bCanEverTick = true;
 }
 
-void UDisplayClusterSceneComponent::BeginPlay()
-{
-	Super::BeginPlay();
-}
-
-void UDisplayClusterSceneComponent::BeginDestroy()
-{
-	Super::BeginDestroy();
-}
-
 void UDisplayClusterSceneComponent::TickComponent( float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction )
 {
-	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
-
 	// Update transform if attached to a tracker
-	if (!Config.TrackerId.IsEmpty())
+	if (!TrackerId.IsEmpty())
 	{
 		const IPDisplayClusterInputManager* const InputMgr = GDisplayCluster->GetPrivateInputMgr();
 		if (InputMgr)
 		{
-			FVector loc;
-			FQuat rot;
-			const bool bLocAvail = InputMgr->GetTrackerLocation(Config.TrackerId, Config.TrackerCh, loc);
-			const bool bRotAvail = InputMgr->GetTrackerQuat(Config.TrackerId, Config.TrackerCh, rot);
+			FVector Location;
+			FQuat Rotation;
+			const bool bLocAvail = InputMgr->GetTrackerLocation(TrackerId, TrackerChannel, Location);
+			const bool bRotAvail = InputMgr->GetTrackerQuat(TrackerId, TrackerChannel, Rotation);
 
 			if (bLocAvail && bRotAvail)
 			{
-				UE_LOG(LogDisplayClusterGame, Verbose, TEXT("%s[%s] update from tracker %s:%d - {loc %s} {quat %s}"),
-					*GetName(), *GetId(), *Config.TrackerId, Config.TrackerCh, *loc.ToString(), *rot.ToString());
+				UE_LOG(LogDisplayClusterGame, Verbose, TEXT("%s update from tracker %s:%d - {loc %s} {quat %s}"),
+					*GetName(), *TrackerId, TrackerChannel, *Location.ToString(), *Rotation.ToString());
 
 				// Update transform
-				this->SetRelativeLocationAndRotation(loc, rot);
+				this->SetRelativeLocationAndRotation(Location, Rotation);
 				// Force child transforms update
 				UpdateChildTransforms(EUpdateTransformFlags::PropagateFromParent);
 			}
 		}
 	}
+
+	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 }
 
-void UDisplayClusterSceneComponent::SetSettings(const FDisplayClusterConfigSceneNode* pConfig)
+void UDisplayClusterSceneComponent::ApplyConfigurationData()
 {
-	check(pConfig);
-
-	Config = *pConfig;
-
-	// Convert m to cm
-	Config.Loc *= 100.f;
-}
-
-bool UDisplayClusterSceneComponent::ApplySettings()
-{
-	// Take place in hierarchy
-	if (!GetParentId().IsEmpty())
+	if (ConfigData)
 	{
-		UDisplayClusterRootComponent* const RootComp = Cast<UDisplayClusterRootComponent>(GetAttachParent());
-		if (RootComp)
+		TrackerId = ConfigData->TrackerId;
+		TrackerChannel = ConfigData->TrackerChannel;
+
+		// Take place in hierarchy
+		if (!ConfigData->ParentId.IsEmpty())
 		{
-			UE_LOG(LogDisplayClusterGame, Log, TEXT("Attaching %s to %s"), *GetId(), *GetParentId());
-			UDisplayClusterSceneComponent* const pComp = RootComp->GetNodeById(GetParentId());
-			AttachToComponent(pComp, FAttachmentTransformRules(EAttachmentRule::KeepRelative, false));
+			ADisplayClusterRootActor* const RootActor = Cast<ADisplayClusterRootActor>(GetOwner());
+			if (RootActor)
+			{
+				UDisplayClusterSceneComponent* const ParentComp = RootActor->GetComponentById(ConfigData->ParentId);
+				if (ParentComp)
+				{
+					UE_LOG(LogDisplayClusterGame, Log, TEXT("Attaching %s to %s"), *GetName(), *ParentComp->GetName());
+					AttachToComponent(ParentComp, FAttachmentTransformRules(EAttachmentRule::KeepRelative, false));
+				}
+				else
+				{
+					UE_LOG(LogDisplayClusterGame, Warning, TEXT("Couldn't attach %s to %s"), *GetName(), *ConfigData->ParentId);
+				}
+			}
+		}
+
+		// Set up location and rotation
+		SetRelativeLocationAndRotation(ConfigData->Location, ConfigData->Rotation);
+	}
+}
+
+#if WITH_EDITOR
+UObject* UDisplayClusterSceneComponent::GetObject() const
+{
+	return ConfigData;
+}
+
+bool UDisplayClusterSceneComponent::IsSelected()
+{
+	ADisplayClusterRootActor* RootActor = Cast<ADisplayClusterRootActor>(GetOwner());
+	if (RootActor)
+	{
+		TSharedPtr<IDisplayClusterConfiguratorToolkit> Toolkit = RootActor->GetToolkit().Pin();
+		if (Toolkit.IsValid())
+		{
+			const TArray<UObject*>& SelectedObjects = Toolkit->GetSelectedObjects();
+
+			UObject* const* SelectedObject = SelectedObjects.FindByPredicate([this](const UObject* InObject)
+			{
+				return InObject == GetObject();
+			});
+
+			return SelectedObject != nullptr;
 		}
 	}
 
-	// Set up location and rotation
-	this->SetRelativeLocationAndRotation(Config.Loc, Config.Rot);
-
-	return true;
+	return false;
 }
+#endif

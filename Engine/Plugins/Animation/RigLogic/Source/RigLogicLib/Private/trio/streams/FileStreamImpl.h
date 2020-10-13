@@ -15,7 +15,6 @@
 #include <cstddef>
 #include <fstream>
 #include <ios>
-#include <string>
 #ifdef _MSC_VER
     #pragma warning(pop)
 #endif

@@ -36,7 +36,6 @@ extern mtlpp::LanguageVersion ValidateVersion(uint8 Version);
 
 #pragma mark - Metal RHI Base Shader Class Template
 
-
 template<typename BaseResourceType, int32 ShaderType>
 class TMetalBaseShader : public BaseResourceType, public IRefCountedObject
 {
@@ -227,52 +226,6 @@ void TMetalBaseShader<BaseResourceType, ShaderType>::Init(TArrayView<const uint8
 	Bindings = Header.Bindings;
 	if (bNeedsCompiling || !Library)
 	{
-		if (bOfflineCompile && bHasShaderSource)
-		{
-			// For debug/dev/test builds we can use the stored code for debugging - but shipping builds shouldn't have this as it is inappropriate.
-#if METAL_DEBUG_OPTIONS
-			// For iOS/tvOS we must use runtime compilation to make the shaders debuggable, but
-			bool bSavedSource = false;
-
-#if PLATFORM_MAC
-			const ANSICHAR* ShaderPath = ShaderCode.FindOptionalData('p');
-			bool const bHasShaderPath = (ShaderPath && FCStringAnsi::Strlen(ShaderPath) > 0);
-
-			// on Mac if we have a path for the shader we can access the shader code
-			if (bHasShaderPath && !bForceTextShaders && (GetSourceCode() != nil))
-			{
-				FString ShaderPathString(ShaderPath);
-
-				if (IFileManager::Get().MakeDirectory(*FPaths::GetPath(ShaderPathString), true))
-				{
-					FString Source(GetSourceCode());
-					bSavedSource = FFileHelper::SaveStringToFile(Source, *ShaderPathString);
-				}
-
-				static bool bAttemptedAuth = false;
-				if (!bSavedSource && !bAttemptedAuth)
-				{
-					bAttemptedAuth = true;
-
-					if (IFileManager::Get().MakeDirectory(*FPaths::GetPath(ShaderPathString), true))
-					{
-						bSavedSource = FFileHelper::SaveStringToFile(FString(GlslCodeNSString), *ShaderPathString);
-					}
-
-					if (!bSavedSource)
-					{
-						FPlatformMisc::MessageBoxExt(EAppMsgType::Ok,
-													 *NSLOCTEXT("MetalRHI", "ShaderDebugAuthFail", "Could not access directory required for debugging optimised Metal shaders. Falling back to slower runtime compilation of shaders for debugging.").ToString(), TEXT("Error"));
-					}
-				}
-			}
-#endif
-			// Switch the compile mode so we get debuggable shaders even if we failed to save - if we didn't want
-			// shader debugging we wouldn't have included the code...
-			bOfflineCompile = bSavedSource || (bOfflineCompile && !bForceTextShaders);
-#endif
-		}
-
 		if (bOfflineCompile METAL_DEBUG_OPTION(&& !(bHasShaderSource && bForceTextShaders)))
 		{
 			if (InLibrary)

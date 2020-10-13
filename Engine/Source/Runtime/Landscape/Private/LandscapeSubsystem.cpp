@@ -39,14 +39,6 @@ void ULandscapeSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
 
-	// Register Tick 
-	bCanEverTick = true;
-	bTickEvenWhenPaused = true;
-	bStartWithTickEnabled = true;
-	TickGroup = TG_DuringPhysics;
-	bAllowTickOnDedicatedServer = false;
-	RegisterTickFunction(GetWorld()->PersistentLevel);
-
 #if WITH_EDITOR
 	GrassMapsBuilder = new FLandscapeGrassMapsBuilder(GetWorld());
 #endif
@@ -60,13 +52,22 @@ void ULandscapeSubsystem::Deinitialize()
 		delete GrassMapsBuilder;
 	}
 #endif
-	UnRegisterTickFunction();
 	Proxies.Empty();
 
 	Super::Deinitialize();
 }
 
-void ULandscapeSubsystem::ExecuteTick(float DeltaTime, ELevelTick TickType, ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
+TStatId ULandscapeSubsystem::GetStatId() const
+{
+	RETURN_QUICK_DECLARE_CYCLE_STAT(ULandscapeSubsystem, STATGROUP_Tickables);
+}
+
+ETickableTickType ULandscapeSubsystem::GetTickableTickType() const
+{
+	return HasAnyFlags(RF_ClassDefaultObject) || !GetWorld() || GetWorld()->IsNetMode(NM_DedicatedServer) ? ETickableTickType::Never : ETickableTickType::Always;
+}
+
+void ULandscapeSubsystem::Tick(float DeltaTime)
 {
 	SCOPE_CYCLE_COUNTER(STAT_LandscapeSubsystemTick);
 	TRACE_CPUPROFILER_EVENT_SCOPE(ULandscapeSubsystem::Tick);
@@ -137,18 +138,6 @@ void ULandscapeSubsystem::ExecuteTick(float DeltaTime, ELevelTick TickType, ENam
 		LandscapePhysicalMaterial::GarbageCollectTasks();
 	}
 #endif
-}
-
-FString ULandscapeSubsystem::DiagnosticMessage()
-{
-	static const FString Message(TEXT("ULandscapeSubsystem"));
-	return Message;
-}
-
-FName ULandscapeSubsystem::DiagnosticContext(bool bDetailed)
-{
-	static const FName Context(TEXT("ULandscapeSubsystem"));
-	return Context;
 }
 
 #if WITH_EDITOR

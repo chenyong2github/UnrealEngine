@@ -7,10 +7,11 @@
 #include "CoreMinimal.h"
 #include "SlateFwd.h"
 #include "Styling/SlateColor.h"
+#include "Styling/SlateTypes.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 
 
-
+class IStageMonitorSession;
 class SDataProviderListView;
 class SDataProviderActivities;
 class FWorkspaceItem;
@@ -43,11 +44,26 @@ private:
 	/** Make the toolbar widgets */
 	TSharedRef<SWidget> MakeToolbarWidget();
 
-	/** HAndles clear entries button clicked */
-	FReply OnClearEntriesClicked();
+	/** Handles clear everything button clicked */
+	FReply OnClearClicked();
 	
+	/** Clears all entries from the current session */
+	void OnClearEntriesClicked();
+
+	/** Clears all unresponsive providers */
+	void OnClearUnresponsiveProvidersClicked();
+
+	/** Builds a menu for specific clearing option */
+	TSharedRef<SWidget> OnClearBuildMenu();
+
 	/** Handles StageMonitor settings button clicked */
 	FReply OnShowProjectSettingsClicked();
+
+	/** Handles load session button clicked */
+	FReply OnLoadSessionClicked();
+
+	/** Handles save session button clicked */
+	FReply OnSaveSessionClicked();
 
 	/** Get the stage status */
 	FSlateColor GetStageStatus() const;
@@ -58,6 +74,30 @@ private:
 	/** Returns the monitor status whether it's actively listening for data providers or not */
 	FText GetMonitorStatus() const;
 
+	/** Returns information about the displayed session */
+	FText GetCurrentSessionInfo() const;
+
+	/** Callback when a requested session was loaded */
+	void OnStageMonitorSessionLoaded();
+
+	/** Callback when a save session request was completed */
+	void OnStageMonitorSessionSaved();
+
+	/** Returns whether we're displaying live session or loaded one*/
+	ECheckBoxState GetViewMode() const;
+
+	/** Called when view mode switch is clicked */
+	void OnViewModeChanged(ECheckBoxState NewState);
+
+	/** Updates UI when a new session was loaded or live mode is activated */
+	void RefreshDisplayedSession();
+
+	/** When waiting for loading/saving session display the throbber */
+	EVisibility GetThrobberVisibility() const;
+
+	/** Used to cancel loading or saving that is in progress */
+	FReply OnCancelRequest();
+
 private:
 
 	/** Used to show all providers with their frame data */
@@ -65,4 +105,13 @@ private:
 
 	/** Used to show every activities received by the monitor */
 	TSharedPtr<SDataProviderActivities> DataProviderActivities;
+
+	/** Session shown by the monitor editor */
+	TSharedPtr<IStageMonitorSession> CurrentSession;
+
+	/** Driven by the toggle switch from the UI. Keeps wheter we are showing live data or imported */
+	bool bIsShowingLiveSession = true;
+
+	/** When we request saving or loading, this will be true to show update UI */
+	bool bIsWaitingForAsyncResult = false;
 };

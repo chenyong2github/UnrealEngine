@@ -258,6 +258,7 @@ private:
 	TArray<FRigVMExprAST*> Children;
 
 	friend class FRigVMParserAST;
+	friend class URigVMCompiler;
 };
 
 // specialized cast for type checkiFRigVMAssignExprASTng
@@ -1147,6 +1148,9 @@ public:
 	FRigVMBlockExprAST* GetObsoleteBlock();
 	const FRigVMBlockExprAST* GetObsoleteBlock() const;
 
+	// returns the AST's override table for pin defaults
+	const URigVMPin::FDefaultValueOverride& GetPinDefaultOverrides() const { return PinDefaultValueOverrides; }
+
 private:
 
 	// private constructor for a partial build
@@ -1268,6 +1272,8 @@ private:
 	TArray<FRigVMExprAST*> Expressions;
 	TArray<FRigVMExprAST*> RootExpressions;
 	FRigVMBlockExprAST* ObsoleteBlock;
+
+	URigVMPin::FDefaultValueOverride PinDefaultValueOverrides;
 
 	enum ETraverseRelationShip
 	{

@@ -23,9 +23,12 @@ struct FChaosSolverConfiguration
 	GENERATED_BODY();
 
 	FChaosSolverConfiguration()
-		: CollisionIterations(FEvolution::DefaultNumIterations)
+		: Iterations(FEvolution::DefaultNumIterations)
+		, CollisionPairIterations(FEvolution::DefaultNumCollisionPairIterations)
 		, PushOutIterations(FEvolution::DefaultNumPushOutIterations)
-		, PushOutPairIterations(FEvolution::DefaultNumPushOutPairIterations)
+		, CollisionPushOutPairIterations(FEvolution::DefaultNumCollisionPushOutPairIterations)
+		, CollisionMargin(FEvolution::DefaultCollisionMargin)
+		, CollisionCullDistance(FEvolution::DefaultCollisionCullDistance)
 		, ClusterConnectionFactor(1.0f)
 		, ClusterUnionConnectionType(EClusterUnionMethod::DelaunayTriangulation)
 		, bGenerateCollisionData(false)
@@ -33,19 +36,37 @@ struct FChaosSolverConfiguration
 		, bGenerateTrailingData(false)
 		, bGenerateContactGraph(true)
 	{
-		// Take CVar overrides from the solver
-		CollisionIterations = ChaosSolverCollisionDefaultIterationsCVar;
-		PushOutIterations = ChaosSolverCollisionDefaultPushoutIterationsCVar;
 	}
 
+	// The number of iterations to run during the constraint solver step
 	UPROPERTY(EditAnywhere, Category = "SolverConfiguration|Iterations")
-	int32 CollisionIterations;
+	int32 Iterations;
 
+	// During solver iterations we solve each constraint in turn. For each constraint
+	// we run the solve step CollisionPairIterations times in a row.
+	UPROPERTY(EditAnywhere, Category = "SolverConfiguration|Iterations")
+	int32 CollisionPairIterations;
+
+	// The number of iterations to run during the constraint fixup step. This applies a post-solve
+	// correction that can address errors left behind during the mainm solver iterations.
 	UPROPERTY(EditAnywhere, Category = "SolverConfiguration|Iterations")
 	int32 PushOutIterations;
 
+	// During pushout iterations we pushout each constraint in turn. For each constraint
+	// we run the pushout step CollisionPairIterations times in a row.
 	UPROPERTY(EditAnywhere, Category = "SolverConfiguration|Iterations")
-	int32 PushOutPairIterations;
+	int32 CollisionPushOutPairIterations;
+
+	// A collision margin used by some boxes and convex shapes to improve collision detection results.
+	// The core geomsteyr of shapes of these types are reduced in size by CollisionMargin, and the CollisionMargin
+	// is added back on during collision detection. The net result is a shape of the same size but with rounded corners.
+	UPROPERTY(EditAnywhere, Category = "SolverConfiguration|Collision")
+	float CollisionMargin;
+
+	// During collision detection, if tweo shapes are at least this far apart we do not calculate their nearest features
+	// during the collision detection step.
+	UPROPERTY(EditAnywhere, Category = "SolverConfiguration|Collision")
+	float CollisionCullDistance;
 
 	UPROPERTY(EditAnywhere, Category = "SolverConfiguration|Clustering")
 	float ClusterConnectionFactor;

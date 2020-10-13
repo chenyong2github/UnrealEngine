@@ -10,12 +10,13 @@
 #include "MovieRenderPipelineCoreModule.h"
 #include "Misc/PackageName.h"
 #include "Engine/GameEngine.h"
+#include "MoviePipelineUtils.h"
 
 #define LOCTEXT_NAMESPACE "MoviePipelineInProcessExecutor"
 
 void UMoviePipelineInProcessExecutor::Start(const UMoviePipelineExecutorJob* InJob)
 {
-	UWorld* World = FindCurrentWorld();
+	UWorld* World = MoviePipeline::FindCurrentWorld();
 
 	if (bUseCurrentLevel)
 	{		
@@ -181,37 +182,13 @@ void UMoviePipelineInProcessExecutor::OnMoviePipelineFinished(UMoviePipeline* In
 	OnIndividualPipelineFinished(MoviePipeline);
 }
 
-UWorld* UMoviePipelineInProcessExecutor::FindCurrentWorld()
-{
-	UWorld* World = nullptr;
-	for (const FWorldContext& WorldContext : GEngine->GetWorldContexts())
-	{
-		if (WorldContext.WorldType == EWorldType::Game)
-		{
-			World = WorldContext.World();
-		}
-#if WITH_EDITOR
-		else if (GIsEditor && WorldContext.WorldType == EWorldType::PIE)
-		{
-			World = WorldContext.World();
-			if (World)
-			{
-				return World;
-			}
-		}
-#endif
-	}
-
-	return World;
-}
-
 void UMoviePipelineInProcessExecutor::BackupState()
 {
 	SavedState.bBackedUp = true;
 	SavedState.bUseFixedTimeStep = FApp::UseFixedTimeStep();
 	SavedState.FixedDeltaTime = FApp::GetFixedDeltaTime();
 
-	UWorld* World = FindCurrentWorld();
+	UWorld* World = MoviePipeline::FindCurrentWorld();
 	if (World && World->GetGameInstance())
 	{
 		if (APlayerController* PlayerController = World->GetGameInstance()->GetFirstLocalPlayerController())
@@ -234,7 +211,7 @@ void UMoviePipelineInProcessExecutor::BackupState()
 
 void UMoviePipelineInProcessExecutor::ModifyState(const UMoviePipelineExecutorJob* InJob)
 {
-	UWorld* World = FindCurrentWorld();
+	UWorld* World = MoviePipeline::FindCurrentWorld();
 	if (World && World->GetGameInstance())
 	{
 		if (APlayerController* PlayerController = World->GetGameInstance()->GetFirstLocalPlayerController())
@@ -265,7 +242,7 @@ void UMoviePipelineInProcessExecutor::RestoreState()
 		FApp::SetUseFixedTimeStep(SavedState.bUseFixedTimeStep);
 		FApp::SetFixedDeltaTime(SavedState.FixedDeltaTime);
 
-		UWorld* World = FindCurrentWorld();
+		UWorld* World = MoviePipeline::FindCurrentWorld();
 		if (World && World->GetGameInstance())
 		{
 			if (APlayerController* PlayerController = World->GetGameInstance()->GetFirstLocalPlayerController())

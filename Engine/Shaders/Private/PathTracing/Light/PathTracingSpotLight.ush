@@ -8,6 +8,24 @@
 
 #include "PathTracingLightCommon.ush"
 
+// #dxr_todo: These are stolen from DynamicLightingCommon.ush but I was having trouble getting that header to include cleanly
+/** 
+ * Calculates attenuation for a spot light.
+ * L normalize vector to light. 
+ * SpotDirection is the direction of the spot light.
+ * SpotAngles.x is CosOuterCone, SpotAngles.y is InvCosConeDifference. 
+ */
+float SpotAttenuationMask(float3 L, float3 SpotDirection, float2 SpotAngles)
+{
+	return saturate((dot(L, -SpotDirection) - SpotAngles.x) * SpotAngles.y);
+}
+float SpotAttenuation(float3 L, float3 SpotDirection, float2 SpotAngles)
+{
+	float ConeAngleFalloff = Square(SpotAttenuationMask(L, SpotDirection, SpotAngles));
+	return ConeAngleFalloff;
+}
+
+
 void SpotLight_GenerateLightRay(
 	RayDesc Ray,
 	int LightId,
@@ -15,21 +33,24 @@ void SpotLight_GenerateLightRay(
 	out RayDesc OutLightRay
 )
 {
+	float3 LightDirection = GetPosition(LightId) - Ray.Origin;
+
 	OutLightRay.Origin = Ray.Origin;
 	OutLightRay.TMin = 0.001;
+	OutLightRay.Direction = TangentToWorld(LightUV, normalize(LightDirection));
+
+	// Compute distance to sphere edge
 	float Radius = GetRadius(LightId);
-	Radius = 0.0;
-	float3 DeltaPosition = 0.0;
-	if (Radius > 0.0)
-	{
-		// Transform UV into normal-aligned direction
-		float3 LightNormal = GetNormal(LightId);
-		DeltaPosition = TangentToWorld(LightUV, LightNormal) * Radius;
-	}
-	float3 LightDir = GetPosition(LightId) + DeltaPosition - Ray.Origin;
-	float Length = length(LightDir);
-	OutLightRay.Direction = LightDir / Length;
-	OutLightRay.TMax = Length;
+	float Radius2 = Pow2(Radius);
+
+	float RayLength2 = dot(LightDirection, LightDirection);
+	float RayLength = sqrt(RayLength2);
+	float SinThetaMax2 = Radius2 / RayLength2;
+
+	float CosTheta = LightUV.z;
+	float SinTheta2 = 1.0 - CosTheta * CosTheta;
+
+	OutLightRay.TMax = RayLength * (CosTheta - sqrt(max(SinThetaMax2 - SinTheta2, 0.0)));
 }
 
 void SpotLight_PdfLight(
@@ -49,52 +70,21 @@ void SpotLight_EvalLight(
 	out float3 OutRadiance
 )
 {
-	OutRadiance = 0.0;
+	float3 LightDirection = GetPosition(LightId) - Ray.Origin;
+	float LightDistanceSquared = dot(LightDirection, LightDirection);
 
-	float3 LightPosition = GetPosition(LightId);
-	float3 LightNormal = GetNormal(LightId);
 	float3 Color = GetColor(LightId);
 	float Radius = GetRadius(LightId);
-	Radius = 0.0;
-	float CosConeAngle = GetCosConeAngle(LightId);
+	float Falloff = ComputeAttenuationFalloff(Ray.TMax, GetAttenuation(LightId));
+	OutRadiance = Color * Falloff;
 
-	// Check for spherical definition
-	float3 ClosestPoint = LightPosition;
-	if (Radius > 0.0)
-	{
-		float SphericalCapArea = 2.0 * PI * Radius * Radius * (1.0 - CosConeAngle);
-		Color /= SphericalCapArea;
+	// #dxr-todo: See math in point lights - ideally spot light would share that logic somehow
+	OutRadiance *= 1.0 / LightDistanceSquared;
 
-		// Create plane equation
-		float3 DiskOrigin = LightPosition + LightNormal * Radius * CosConeAngle;
-		float d = -dot(LightNormal, DiskOrigin);
-		float SignedDistance = dot(LightNormal, Ray.Origin) + d;
-
-		// Project ray origin to find closest point on disk
-		ClosestPoint = Ray.Origin - LightNormal * SignedDistance;
-		float3 DeltaFromOrigin = ClosestPoint - DiskOrigin;
-		float DistanceToDiskOrigin = length(DeltaFromOrigin);
-		if (DistanceToDiskOrigin > Radius)
-		{
-			ClosestPoint = DiskOrigin + DeltaFromOrigin * (Radius / DistanceToDiskOrigin);
-		}
-	}
-
-	// Perform culling based on closest point
-	float3 LightDirection = ClosestPoint - Ray.Origin;
-	float LightDistanceSquared = dot(LightDirection, LightDirection);
-	LightDirection = normalize(LightDirection);
-
-	// Apply culling
-	float NoL = dot(-LightDirection, LightNormal);
-	if (NoL >= CosConeAngle)
-	{
-		float Falloff = NoL - CosConeAngle;
-		Falloff *= Falloff;
-		Falloff *= ComputeAttenuationFalloff(Ray.TMax, GetAttenuation(LightId));
-		OutRadiance = Color * Falloff / LightDistanceSquared;
-		// dxr_todo: apply inner core
-	}
+	// This appears to be the only difference between point and spot lights
+	float3 LightNormal = GetNormal(LightId);
+	float2 CosConeAngles = GetCosConeAngles(LightId);
+	OutRadiance *= SpotAttenuation(normalize(LightDirection), LightNormal, CosConeAngles);
 }
 
 void SpotLight_EstimateLight(
@@ -108,53 +98,29 @@ void SpotLight_EstimateLight(
 	float3 LightNormal = GetNormal(LightId);
 	float LightPower = Luminance(GetColor(LightId));
 	float Radius = GetRadius(LightId);
-	Radius = 0.0;
-	float CosConeAngle = GetCosConeAngle(LightId);
-
-	// Check for spherical definition
-	float3 ClosestPoint = LightPosition;
-	if (Radius > 0.0)
-	{
-		float SphericalCapArea = 2.0 * PI * Radius * Radius * (1.0 - CosConeAngle);
-		LightPower /= SphericalCapArea;
-
-		// Create plane equation
-		float3 DiskOrigin = LightPosition + LightNormal * Radius * CosConeAngle;
-		float d = -dot(LightNormal, DiskOrigin);
-		float SignedDistance = dot(LightNormal, Ray.Origin) + d;
-
-		// Project ray origin to find closest point on disk
-		ClosestPoint = Ray.Origin - LightNormal * SignedDistance;
-		float3 DeltaFromOrigin = ClosestPoint - DiskOrigin;
-		float DistanceToDiskOrigin = length(DeltaFromOrigin);
-		if (DistanceToDiskOrigin > Radius)
-		{
-			ClosestPoint = DiskOrigin + DeltaFromOrigin * (Radius / DistanceToDiskOrigin);
-		}
-	}
-
-	// Perform culling based on closest point
-	float3 LightDirection = ClosestPoint - Payload.WorldPos;
+	
+	// Distance
+	float3 LightDirection = GetPosition(LightId) - Payload.WorldPos;
 	float LightDistanceSquared = dot(LightDirection, LightDirection);
 	LightDirection = normalize(LightDirection);
 
-	float NoL = dot(LightNormal, -LightDirection);
-	if (NoL >= CosConeAngle)
-	{
-		float Falloff = NoL - CosConeAngle;
-		Falloff *= Falloff;
-		Falloff *= ComputeAttenuationFalloff(sqrt(LightDistanceSquared), GetAttenuation(LightId));
-		float CosTheta = dot(Payload.WorldNormal, LightDirection);
-		CosTheta = ENABLE_TRANSMISSION && HasTransmission(LightId) ? abs(CosTheta) : saturate(CosTheta);
-		OutIrradiance = LightPower * CosTheta * Falloff / LightDistanceSquared;
-		// #dxr_todo: UE-72534 apply inner core
-	}
-	else
-	{
-		OutIrradiance = 0.0f;
-	}
-}
+	// Geometric term
+	float3 SurfaceNormal = Payload.WorldNormal;
 
+	float NoL = 1.0;
+	if (GetRadius(LightId) == 0.0)
+	{
+		float NoL = dot(SurfaceNormal, LightDirection);
+		NoL = ENABLE_TRANSMISSION && HasTransmission(LightId) ? abs(NoL) : saturate(NoL);
+	}
+
+	float Falloff = ComputeAttenuationFalloff(sqrt(LightDistanceSquared), GetAttenuation(LightId));
+	OutIrradiance = LightPower * Falloff * NoL / LightDistanceSquared;
+	
+	float2 CosConeAngles = GetCosConeAngles(LightId);
+	OutIrradiance *= SpotAttenuation(LightDirection, LightNormal, CosConeAngles);
+}
+	
 void SpotLight_SampleLight(
 	RayDesc Ray,
 	FMaterialClosestHitPayload Payload,
@@ -165,23 +131,33 @@ void SpotLight_SampleLight(
 )
 {
 	float Radius = GetRadius(LightId);
-	Radius = 0.0;
 	if (Radius > 0.0)
 	{
-		// Sample a disk that cuts the spherical cap corresponding to the cone angle
-		float CosConeAngle = GetCosConeAngle(LightId);
-		float2 DiskPosition = UniformSampleDiskConcentric(RandSample.yz);
+		// Soft case - sample the solid angle subtended by the sphere
+		float3 LightDirection = GetPosition(LightId) - Payload.WorldPos;
+		float LightDistanceSquared = dot(LightDirection, LightDirection);
+		float Radius2 = Pow2(Radius);
+		
+		// outside the light
+		float SinThetaMax2 = Radius2 / LightDistanceSquared;
+		// #dxr_todo: find a better way of handling the region inside the light
+		float CosThetaMax = sqrt(max(1.0 - SinThetaMax2, 0.0));
+		float4 DirAndPdf = UniformSampleCone(RandSample.yz, CosThetaMax);
 
-		// Project disk to cutting slice of bounding sphere
-		float SinConeAngle = sqrtFast(1 - CosConeAngle * CosConeAngle);
-		OutLightUV = normalize(float3(SinConeAngle * DiskPosition, CosConeAngle));
-		float SphericalCapArea = 2.0 * PI * Radius * Radius * (1.0 - CosConeAngle);
-		// #dxr_todo: UE-72535 apply the correct Jacobian
-		OutPdf = 1.0 / SphericalCapArea;
+		OutLightUV = DirAndPdf.xyz;
+#if 0
+		OutPdf = DirAndPdf.w;
+#else
+		// doing the "right" thing leads to unstable math for small radius lights
+		// #dxr_todo: Revisit this when implementing MIS for all lights
+		OutPdf = 1.0;
+#endif
 	}
 	else
 	{
-		OutLightUV = 0.0;
+		// Singular case
+		OutLightUV = float3(0, 0, 1);
+		// #dxr_todo: this isn't really part of the pdf, the pdf should be +inf for the singular case
 		OutPdf = 1.0;
 	}
 }

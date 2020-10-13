@@ -1479,8 +1479,6 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& V
 			
 		bool bUseBloom = View.FinalPostProcessSettings.BloomIntensity > 0.0f;
 
-		bool bUseVignette = View.FinalPostProcessSettings.VignetteIntensity > 0.0f;
-
 		bool bUseBasicEyeAdaptation = bUseEyeAdaptation && (AutoExposureMethod == EAutoExposureMethod::AEM_Basic) &&
 			// Skip if we don't have any exposure range to generate (eye adaptation will clamp).
 			View.FinalPostProcessSettings.AutoExposureMinBrightness < View.FinalPostProcessSettings.AutoExposureMaxBrightness;
@@ -1503,7 +1501,7 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& V
 		PassSequence.SetEnabled(EPass::DepthOfField, bUseDof);
 		PassSequence.SetEnabled(EPass::Bloom, bUseBloom);
 		PassSequence.SetEnabled(EPass::EyeAdaptation, bUseEyeAdaptation);
-		PassSequence.SetEnabled(EPass::SunMerge, bUseBloom || bUseSun || bUseVignette);
+		PassSequence.SetEnabled(EPass::SunMerge, bUseBloom || bUseSun);
 		PassSequence.SetEnabled(EPass::SeparateTranslucency, bUseSeparateTranslucency);
 		PassSequence.SetEnabled(EPass::PostProcessMaterialAfterTonemapping, PostProcessMaterialAfterTonemappingChain.Num() != 0);
 		PassSequence.SetEnabled(EPass::TAA, bUseAa);

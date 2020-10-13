@@ -184,7 +184,7 @@ static UObject* InternalCreateNewBindAsset(FName InAssetName, UObject* InParent,
 	if (InParent == nullptr && !PackageName.IsEmpty())
 	{
 		// Then find/create it.
-		Package = CreatePackage(nullptr, *PackageName);
+		Package = CreatePackage(*PackageName);
 		if (!ensure(Package))
 		{
 			// There was a problem creating the package

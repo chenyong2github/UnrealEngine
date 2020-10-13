@@ -15,7 +15,7 @@ public:
 	virtual GLTF::FMaterialElement* CreateMaterial(const TCHAR* Name, UObject* ParentPackage, EObjectFlags Flags) override
 	{
 		const FString PackageName  = UPackageTools::SanitizePackageName(FPaths::Combine(ParentPackage->GetName(), TEXT("Materials"), Name));
-		UPackage*     AssetPackage = CreatePackage(nullptr, *PackageName);
+		UPackage*     AssetPackage = CreatePackage(*PackageName);
 		UMaterial*    Material     = NewObject<UMaterial>(AssetPackage, UMaterial::StaticClass(), *FPaths::GetBaseFilename(PackageName), Flags);
 
 		return new FGLTFMaterialElement(Material);

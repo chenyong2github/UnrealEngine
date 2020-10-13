@@ -427,6 +427,11 @@ void FDeferredShadingSceneRenderer::VisualizeRectLightMipTree(
 
 void FDeferredShadingSceneRenderer::PrepareRayTracingRectLight(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
 {
+	if (!GRayTracingStochasticRectLight)
+	{
+		return;
+	}
+
 	// Declare all RayGen shaders that require material closest hit shaders to be bound
 
 	TShaderMapRef<FRectLightRGS<0>> Shader0(GetGlobalShaderMap(View.FeatureLevel));

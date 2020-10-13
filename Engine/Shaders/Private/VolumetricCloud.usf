@@ -1422,7 +1422,6 @@ void MainShadowFilterCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 		float DepthKm = 0.0f;
 		float MeanExtinction = 0.0f;
 		float MaxOpticalDepth = 0.0f;
-		float MinTransmittance = 0.0f;
 		float SampleCount = 0.0f;
 
 		// SkyAO filter is not a 2d bluer of the volumetric cloud top/bottom shadow map but an integration over the hemisphere at the ground level.
@@ -1432,9 +1431,9 @@ void MainShadowFilterCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 		float MaxTransmittance = 0.0f;
 
 		// Hardcoded 64 samples over the hemisphere
-		float SampleMaxU = 8.0f;
+		float SampleMaxU = 4.0f;
 		float SampleIncU = 1.0f / SampleMaxU;
-		float SampleMaxV = 8.0f;
+		float SampleMaxV = 4.0f;
 		float SampleIncV = 1.0f / SampleMaxV;
 		//UNROLL
 		for (float U = 0.5 * SampleIncU; U < SampleMaxU; U += 1.0f)
@@ -1442,7 +1441,7 @@ void MainShadowFilterCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 			for (float V = 0.5 * SampleIncV; V < SampleMaxV; V += 1.0f)
 			{
 				const float ZetaU = U / SampleMaxU;
-				const float ZetaV = CloudSkyAOApertureScaleAdd + CloudSkyAOApertureScaleMul * (V / SampleMaxV); // User bias to only sample a solid angle smaller than the hemisphere.
+				const float ZetaV = CloudSkyAOApertureScaleAdd + CloudSkyAOApertureScaleMul * (V / SampleMaxV); // User sample scale to only sample a solid angle smaller than the hemisphere.
 				float4 SampleDir  = UniformSampleHemisphere(float2(U / SampleMaxU, ZetaV));
 				float2 WorldOffset = SampleDir.xy * CloudLayerStartHeight / max(0.0000001f, SampleDir.z);
 				float2 TexelOffset = WorldOffset * CloudTextureTexelWorldSizeInvSize.zw;
@@ -1461,7 +1460,7 @@ void MainShadowFilterCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 		CloudShadowData OutputCloudData;
 		OutputCloudData.DepthKm = DepthKm / SampleCount;
 		OutputCloudData.MeanExtinction	= MeanExtinction / SampleCount;
-		OutputCloudData.MaxOpticalDepth	= MinTransmittance > 0.0f ? -log(MaxTransmittance / SampleCount) : 100.0f;
+		OutputCloudData.MaxOpticalDepth	= MaxTransmittance > 0.0f ? -log(MaxTransmittance / SampleCount) : 100.0f;
 
 		CloudShadowData_WriteDst(OutputCloudData, CenterCoord);
 

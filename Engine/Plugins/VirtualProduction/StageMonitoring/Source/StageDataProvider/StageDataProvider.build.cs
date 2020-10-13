@@ -19,10 +19,13 @@ public class StageDataProvider : ModuleRules
 			new string[]
 			{
 				"CoreUObject",
+				"DeveloperSettings",
 				"Engine",
 				"GameplayTags",
 				"RenderCore",
 				"StageDataCore",
+				"StageMonitorCommon",
+				"TimeManagement",
 				"VPUtilities"
 			}
 		);

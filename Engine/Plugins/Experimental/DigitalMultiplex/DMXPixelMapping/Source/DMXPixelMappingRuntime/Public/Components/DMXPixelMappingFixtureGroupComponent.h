@@ -7,6 +7,7 @@
 #include "DMXPixelMappingFixtureGroupComponent.generated.h"
 
 class UDMXLibrary;
+class STextBlock;
 class SUniformGridPanel;
 
 /**
@@ -36,6 +37,10 @@ public:
 	virtual void Render() override;
 	virtual void RenderAndSendDMX() override;
 	virtual void PostParentAssigned() override;
+
+#if WITH_EDITOR
+	virtual FString GetUserFriendlyName() const override;
+#endif
 	//~ End UDMXPixelMappingBaseComponent implementation
 
 	//~ Begin UDMXPixelMappingOutputComponent implementation
@@ -50,10 +55,14 @@ public:
 #endif // WITH_EDITOR
 
 	virtual UTextureRenderTarget2D* GetOutputTexture() override;
-	virtual FVector2D GetSize() override;
+	virtual FVector2D GetSize() const override;
 	virtual FVector2D GetPosition() override;
 	virtual void SetPosition(const FVector2D& InPosition) override;
 	virtual void SetSize(const FVector2D& InSize) override;
+
+#if WITH_EDITOR
+	virtual void SetZOrder(int32 NewZOrder) override;
+#endif // WITH_EDITOR
 	//~ End UDMXPixelMappingOutputComponent implementation
 
 	/** Check if a Component can be moved under another one (used for copy/move/duplicate) */
@@ -81,6 +90,8 @@ private:
 	TSharedPtr<SUniformGridPanel> GridPanel;
 
 	FSlateBrush Brush;
+
+	TSharedPtr<STextBlock> LibraryNameWidget;
 #endif
 
 	float PositionXCached;

@@ -137,7 +137,7 @@ bool FAnimationRecorder::TriggerRecordAnimation(USkeletalMeshComponent* Componen
 	FString ValidatedAssetPath = InAssetPath;
 	FString ValidatedAssetName = InAssetName;
 
-	UObject* Parent = bValidPackageName ? CreatePackage(nullptr, *ValidatedAssetPath) : nullptr;
+	UObject* Parent = bValidPackageName ? CreatePackage( *ValidatedAssetPath) : nullptr;
 	if (Parent == nullptr)
 	{
 		// bad or no path passed in, do the popup
@@ -146,7 +146,7 @@ bool FAnimationRecorder::TriggerRecordAnimation(USkeletalMeshComponent* Componen
 			return false;
 		}
 		
-		Parent = CreatePackage(nullptr, *ValidatedAssetPath);
+		Parent = CreatePackage( *ValidatedAssetPath);
 	}
 
 	UObject* const Object = LoadObject<UObject>(Parent, *ValidatedAssetName, nullptr, LOAD_Quiet, nullptr);
@@ -506,13 +506,13 @@ void FAnimationRecorder::ProcessRecordedTimes(UAnimSequence* AnimSequence, USkel
 			// add tracks for the bone existing
 			FName BoneTreeName = AnimSkeleton->GetReferenceSkeleton().GetBoneName(BoneTreeIndex);
 			
-			AnimSequence->Stub_AddBoneIntegerCustomAttribute(BoneTreeName, FName(*HoursName), Times, Hours);
-			AnimSequence->Stub_AddBoneIntegerCustomAttribute(BoneTreeName, FName(*MinutesName), Times, Minutes);
-			AnimSequence->Stub_AddBoneIntegerCustomAttribute(BoneTreeName, FName(*SecondsName), Times, Seconds);
-			AnimSequence->Stub_AddBoneIntegerCustomAttribute(BoneTreeName, FName(*FramesName), Times, Frames);
-			AnimSequence->Stub_AddBoneFloatCustomAttribute(BoneTreeName, FName(*SubFramesName), Times, SubFrames);
+			AnimSequence->AddBoneIntegerCustomAttribute(BoneTreeName, FName(*HoursName), Times, Hours);
+			AnimSequence->AddBoneIntegerCustomAttribute(BoneTreeName, FName(*MinutesName), Times, Minutes);
+			AnimSequence->AddBoneIntegerCustomAttribute(BoneTreeName, FName(*SecondsName), Times, Seconds);
+			AnimSequence->AddBoneIntegerCustomAttribute(BoneTreeName, FName(*FramesName), Times, Frames);
+			AnimSequence->AddBoneFloatCustomAttribute(BoneTreeName, FName(*SubFramesName), Times, SubFrames);
 
-			AnimSequence->Stub_AddBoneStringCustomAttribute(BoneTreeName, FName(*SlateName), SlateTimes, Slates);
+			AnimSequence->AddBoneStringCustomAttribute(BoneTreeName, FName(*SlateName), SlateTimes, Slates);
 		}
 	}
 }

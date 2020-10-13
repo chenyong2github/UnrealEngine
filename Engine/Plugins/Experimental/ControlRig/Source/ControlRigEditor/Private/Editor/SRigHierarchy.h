@@ -123,6 +123,31 @@ public:
 	}
 
 	uint32 LastClickCycles = 0;
+
+	/** Save a snapshot of the internal map that tracks item expansion before tree reconstruction */
+	void SaveAndClearSparseItemInfos()
+	{
+		OldSparseItemInfos = SparseItemInfos;
+		ClearExpandedItems();
+	}
+
+	/** Restore the expansion infos map from the saved snapshot after tree reconstruction */
+	void RestoreSparseItemInfos(TSharedPtr<FRigTreeElement> ItemPtr)
+	{
+		for (const auto& Pair : OldSparseItemInfos)
+		{
+			if (Pair.Key->Key == ItemPtr->Key)
+			{
+				// the SparseItemInfos now reference the new element, but keep the same expansion state
+				SparseItemInfos.Add(ItemPtr, Pair.Value);
+				break;
+			}
+		}
+	}
+
+private:
+	/** A temporary snapshot of the SparseItemInfos in STreeView, used during SRigHierarchy::RefreshTreeView() */
+	TSparseItemMap OldSparseItemInfos;
 };
 
 /** Widget allowing editing of a control rig's structure */
@@ -189,6 +214,7 @@ private:
 	TSharedPtr< SWidget > CreateContextMenu();
 	void OnItemClicked(TSharedPtr<FRigTreeElement> InItem);
 	void OnItemDoubleClicked(TSharedPtr<FRigTreeElement> InItem);
+	void OnSetExpansionRecursive(TSharedPtr<FRigTreeElement> InItem, bool bShouldBeExpanded);
 
 	// FEditorUndoClient
 	virtual void PostUndo(bool bSuccess) override;
@@ -261,7 +287,7 @@ private:
 
 	FName CreateUniqueName(const FName& InBaseName, ERigElementType InElementType) const;
 
-	void SetExpansionRecursive(TSharedPtr<FRigTreeElement> InElements, bool bTowardsParent);
+	void SetExpansionRecursive(TSharedPtr<FRigTreeElement> InElement, bool bTowardsParent, bool bShouldBeExpanded);
 
 	void ClearDetailPanel() const;
 

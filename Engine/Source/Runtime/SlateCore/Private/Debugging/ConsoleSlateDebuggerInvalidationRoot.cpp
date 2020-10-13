@@ -143,20 +143,6 @@ void FConsoleSlateDebuggerInvalidationRoot::ToggleWidgetNameList()
 	SaveConfig();
 }
 
-FConsoleSlateDebuggerInvalidationRoot::TSWindowId FConsoleSlateDebuggerInvalidationRoot::GetWidgetWindowId(const SWidget* Widget) const
-{
-	while(Widget)
-	{
-		if (Widget->Advanced_IsWindow())
-		{
-			return reinterpret_cast<TSWindowId>(Widget);
-		}
-		Widget = Widget->GetParentWidget().Get();
-	}
-	
-	return FConsoleSlateDebuggerInvalidationRoot::InvalidWindowId;
-}
-
 const FLinearColor& FConsoleSlateDebuggerInvalidationRoot::GetColor(ESlateInvalidationPaintType PaintType) const
 {
 	switch (PaintType)
@@ -177,7 +163,7 @@ void FConsoleSlateDebuggerInvalidationRoot::HandlePaintDebugInfo(const FPaintArg
 	++InOutLayerId;
 	
 	const TMap<int32, FSlateInvalidationRoot*>& AllInvalidationRootInstance = GSlateInvalidationRootListInstance.GetInvalidationRoots();
-	const TSWindowId PaintWindow = reinterpret_cast<TSWindowId>(InOutDrawElements.GetPaintWindow());
+	const FConsoleSlateDebuggerUtility::TSWindowId PaintWindow = FConsoleSlateDebuggerUtility::GetId(InOutDrawElements.GetPaintWindow());
 	const FSlateBrush* QuadBrush = FCoreStyle::Get().GetBrush(TEXT("FocusRectangle"));
 	FSlateFontInfo FontInfo = FCoreStyle::Get().GetFontStyle("SmallFont");
 	FontInfo.OutlineSettings.OutlineSize = 1;
@@ -231,7 +217,7 @@ void FConsoleSlateDebuggerInvalidationRoot::HandlePaintDebugInfo(const FPaintArg
 		}
 
 		const ESlateInvalidationPaintType LastPaintType = Itt.Value->GetLastPaintType();
-		TSWindowId WindowId = InvalidWindowId;
+		FConsoleSlateDebuggerUtility::TSWindowId WindowId = FConsoleSlateDebuggerUtility::InvalidWindowId;
 		{
 			FInvalidatedInfo* FoundInvalidationInfo = InvaliadatedRoots.Find(Itt.Key);
 			if (FoundInvalidationInfo)
@@ -241,8 +227,8 @@ void FConsoleSlateDebuggerInvalidationRoot::HandlePaintDebugInfo(const FPaintArg
 			else
 			{
 				// Fetch and cache the window id for the invalidation root
-				WindowId = GetWidgetWindowId(Itt.Value->GetInvalidationRootWidget());
-				if (WindowId != InvalidWindowId)
+				WindowId = FConsoleSlateDebuggerUtility::FindWindowId(Itt.Value->GetInvalidationRootWidget());
+				if (WindowId != FConsoleSlateDebuggerUtility::InvalidWindowId)
 				{
 					FInvalidatedInfo Info;
 					Info.WindowId = WindowId;

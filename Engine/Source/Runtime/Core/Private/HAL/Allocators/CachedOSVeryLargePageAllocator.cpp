@@ -9,25 +9,42 @@
 #if UE_USE_VERYLARGEPAGEALLOCATOR
 
 CORE_API bool GEnableVeryLargePageAllocator = true;
-
 void FCachedOSVeryLargePageAllocator::Init()
 {
 	Block = FPlatformMemory::FPlatformVirtualMemoryBlock::AllocateVirtual(AddressSpaceToReserve);
 	AddressSpaceReserved = (uintptr_t)Block.GetVirtualPointer();
+	AddressSpaceReservedEnd = AddressSpaceReserved + AddressSpaceToReserve;
+#if UE_VERYLARGEPAGEALLOCATOR_TAKEONALL64KBALLOCATIONS
+	AddressSpaceReservedEndSmallPool = AddressSpaceReserved + (AddressSpaceToReserve / 2);
+#else
+	AddressSpaceReservedEndSmallPool = AddressSpaceReservedEnd;
+#endif
 
 
-	FreeLargePagesHead = nullptr;
-	for (int i = 0; i < NumberOfLargePages; i++)
-	{
-		LargePagesArray[i].Init((void*)((uintptr_t)AddressSpaceReserved + (i*SizeOfLargePage)));
-		LargePagesArray[i].LinkHead(FreeLargePagesHead);
-	}
-
-	UsedLargePagesHead = nullptr;
 	for (int i = 0; i < FMemory::AllocationHints::Max; i++)
 	{
+		FreeLargePagesHead[i] = nullptr;
 		UsedLargePagesWithSpaceHead[i] = nullptr;
+		UsedLargePagesHead[i] = nullptr;
 	}
+#if UE_VERYLARGEPAGEALLOCATOR_TAKEONALL64KBALLOCATIONS
+	for (int i = 0; i < NumberOfLargePages/2; i++)
+#else
+	for (int i = 0; i < NumberOfLargePages; i++)
+#endif
+	{
+		LargePagesArray[i].Init((void*)((uintptr_t)AddressSpaceReserved + (i*SizeOfLargePage)));
+		LargePagesArray[i].LinkHead(FreeLargePagesHead[FMemory::AllocationHints::SmallPool]);
+	}
+
+#if UE_VERYLARGEPAGEALLOCATOR_TAKEONALL64KBALLOCATIONS
+	for (int i = NumberOfLargePages / 2; i < NumberOfLargePages; i++)
+	{
+		LargePagesArray[i].Init((void*)((uintptr_t)AddressSpaceReserved + (i * SizeOfLargePage)));
+		LargePagesArray[i].LinkHead(FreeLargePagesHead[FMemory::AllocationHints::Default]);
+	}
+#endif
+
 	if (!GEnableVeryLargePageAllocator)
 	{
 		bEnabled = false;
@@ -40,33 +57,37 @@ void* FCachedOSVeryLargePageAllocator::Allocate(SIZE_T Size, uint32 AllocationHi
 
 	void* ret = nullptr;
 
-	if (bEnabled && Size == SizeOfSubPage && AllocationHint == FMemory::AllocationHints::SmallPool)
+	if (bEnabled && Size == SizeOfSubPage)
 	{
-
-		if (UsedLargePagesWithSpaceHead[AllocationHint] == nullptr)
+#if !UE_VERYLARGEPAGEALLOCATOR_TAKEONALL64KBALLOCATIONS
+		if (AllocationHint == FMemory::AllocationHints::SmallPool)
+#endif
 		{
-			FLargePage* LargePage = FreeLargePagesHead;
-			if (LargePage)
+			FLargePage* LargePage = UsedLargePagesWithSpaceHead[AllocationHint];
+			if (LargePage == nullptr)
 			{
-				Block.Commit(LargePage->BaseAddress - AddressSpaceReserved, SizeOfLargePage);
-				LargePage->AllocationHint = AllocationHint;
-				LargePage->Unlink();
-				LargePage->LinkHead(UsedLargePagesWithSpaceHead[AllocationHint]);
-				CachedFree += SizeOfLargePage;
-			}
-		}
-		FLargePage* LargePage = UsedLargePagesWithSpaceHead[AllocationHint];
-		if (LargePage != nullptr)
-		{
-			ret = LargePage->Allocate();
-			if (ret)
-			{
-				if (LargePage->NumberOfFreeSubPages == 0)
+				LargePage = FreeLargePagesHead[AllocationHint];
+				if (LargePage)
 				{
+					Block.Commit(LargePage->BaseAddress - AddressSpaceReserved, SizeOfLargePage);
+					LargePage->AllocationHint = AllocationHint;
 					LargePage->Unlink();
-					LargePage->LinkHead(UsedLargePagesHead);
+					LargePage->LinkHead(UsedLargePagesWithSpaceHead[AllocationHint]);
+					CachedFree += SizeOfLargePage;
 				}
-				CachedFree -= SizeOfSubPage;
+			}
+			if (LargePage != nullptr)
+			{
+				ret = LargePage->Allocate();
+				if (ret)
+				{
+					if (LargePage->NumberOfFreeSubPages == 0)
+					{
+						LargePage->Unlink();
+						LargePage->LinkHead(UsedLargePagesHead[AllocationHint]);
+					}
+					CachedFree -= SizeOfSubPage;
+				}
 			}
 		}
 	}
@@ -95,7 +116,7 @@ void FCachedOSVeryLargePageAllocator::Free(void* Ptr, SIZE_T Size)
 		{
 			// totally free, need to move which list we are in and remove the backing store
 			LargePage->Unlink();
-			LargePage->LinkHead(FreeLargePagesHead);
+			LargePage->LinkHead(FreeLargePagesHead[LargePage->AllocationHint]);
 			Block.Decommit(LargePage->BaseAddress - AddressSpaceReserved, SizeOfLargePage);
 			CachedFree -= SizeOfLargePage;
 		}

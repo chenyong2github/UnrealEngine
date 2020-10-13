@@ -430,10 +430,10 @@ void FBlackmagicMediaPlayer::Close()
 	Super::Close();
 }
 
-FName FBlackmagicMediaPlayer::GetPlayerName() const
+FGuid FBlackmagicMediaPlayer::GetPlayerPluginGUID() const
 {
-	static FName PlayerName(TEXT("BlackmagicMedia"));
-	return PlayerName;
+	static FGuid PlayerPluginGUID(0x62a47ff5, 0xf61243a1, 0x9b377536, 0xc906c883);
+	return PlayerPluginGUID;
 }
 
 bool FBlackmagicMediaPlayer::Open(const FString& Url, const IMediaOptions* Options)

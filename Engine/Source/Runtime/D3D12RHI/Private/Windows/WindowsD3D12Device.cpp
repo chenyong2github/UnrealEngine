@@ -60,6 +60,22 @@ static FAutoConsoleVariableRef CVarDX12NVAfterMathTrackResources(
 int32 GDX12NVAfterMathMarkers = 0;
 #endif
 
+int32 GMinimumWindowsBuildVersionForRayTracing = 0;
+static FAutoConsoleVariableRef CVarMinBuildVersionForRayTracing(
+	TEXT("r.D3D12.DXR.MinimumWindowsBuildVersion"),
+	GMinimumWindowsBuildVersionForRayTracing,
+	TEXT("Sets the minimum Windows build version required to enable ray tracing."),
+	ECVF_ReadOnly | ECVF_RenderThreadSafe
+);
+
+int32 GMinimumDriverVersionForRayTracingNVIDIA = 0;
+static FAutoConsoleVariableRef CVarMinDriverVersionForRayTracingNVIDIA(
+	TEXT("r.D3D12.DXR.MinimumDriverVersionNVIDIA"),
+	GMinimumDriverVersionForRayTracingNVIDIA,
+	TEXT("Sets the minimum driver version required to enable ray tracing."),
+	ECVF_ReadOnly | ECVF_RenderThreadSafe
+);
+
 static inline int D3D12RHI_PreferAdapterVendor()
 {
 	if (FParse::Param(FCommandLine::Get(), TEXT("preferAMD")))
@@ -613,6 +629,18 @@ void FD3D12DynamicRHI::Init()
 	}
 #endif
 
+#if !PLATFORM_HOLOLENS
+	// Disable ray tracing for Windows build versions
+	if (GRHISupportsRayTracing
+		&& GMinimumWindowsBuildVersionForRayTracing > 0
+		&& !FPlatformMisc::VerifyWindowsVersion(10, 0, GMinimumWindowsBuildVersionForRayTracing))
+	{
+		GRHISupportsRayTracing = false;
+
+		UE_LOG(LogD3D12RHI, Warning, TEXT("Ray tracing is disabled because it requires Windows 10 version %u"), (uint32)GMinimumWindowsBuildVersionForRayTracing);
+	}
+#endif
+
 #if NV_API_ENABLE
 	if (IsRHIDeviceNVIDIA() && bAllowVendorDevice)
 	{
@@ -629,6 +657,24 @@ void FD3D12DynamicRHI::Init()
 		else
 		{
 			UE_LOG(LogD3D12RHI, Warning, TEXT("Failed to initialize NVAPI"));
+		}
+
+		// Disable ray tracing for old Nvidia drivers
+		if (GRHISupportsRayTracing
+			&& GMinimumDriverVersionForRayTracingNVIDIA > 0
+			&& NvStatus == NVAPI_OK)
+		{
+			NvU32 DriverVersion = UINT32_MAX;
+			NvAPI_ShortString BranchString("");
+			if (NvAPI_SYS_GetDriverAndBranchVersion(&DriverVersion, BranchString) == NVAPI_OK)
+			{
+				if (DriverVersion < (uint32)GMinimumDriverVersionForRayTracingNVIDIA)
+				{
+					GRHISupportsRayTracing = false;
+
+					UE_LOG(LogD3D12RHI, Warning, TEXT("Ray tracing is disabled because the driver is too old"));
+				}
+			}
 		}
 	}
 #endif
@@ -762,6 +808,26 @@ void FD3D12DynamicRHI::Init()
 	// - Suballocated ones are defer-deleted by their allocators
 	// - Standalones are added to the deferred deletion queue of its parent FD3D12Adapter
 	GRHIForceNoDeletionLatencyForStreamingTextures = !!PLATFORM_WINDOWS;
+
+#if 0//D3D12_RHI_RAYTRACING
+	GRHISupportsRayTracing = GetAdapter().GetD3DRayTracingDevice() != nullptr;
+	GRHISupportsRayTracingMissShaderBindings = true;
+#endif
+
+	D3D12_FEATURE_DATA_D3D12_OPTIONS6 options = {};
+	HRESULT hr = GetAdapter().GetD3DDevice()->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS6, &options, sizeof(options));
+	if(hr == S_OK)
+	{
+		GVariableRateShadingTier 			= options.VariableShadingRateTier;
+		GRHISupportsVariableRateShading 	= GVariableRateShadingTier != D3D12_VARIABLE_SHADING_RATE_TIER_NOT_SUPPORTED;
+		GVariableRateShadingImageTileSize 	= options.ShadingRateImageTileSize;
+	}
+	else
+	{
+		GVariableRateShadingTier 			= D3D12_VARIABLE_SHADING_RATE_TIER_NOT_SUPPORTED;
+		GRHISupportsVariableRateShading 	= false;
+		GVariableRateShadingImageTileSize 	= 1;
+	}
 
 	// Command lists need the validation RHI context if enabled, so call the global scope version of RHIGetDefaultContext() and RHIGetDefaultAsyncComputeContext().
 	GRHICommandList.GetImmediateCommandList().SetContext(::RHIGetDefaultContext());

@@ -1431,7 +1431,8 @@ bool IsScriptExposedEnum(const UEnum* InEnum)
 
 bool IsScriptExposedEnumEntry(const UEnum* InEnum, int32 InEnumEntryIndex)
 {
-	return !InEnum->HasMetaData(HiddenMetaDataKey, InEnumEntryIndex);
+	return InEnumEntryIndex != INDEX_NONE
+		&& !InEnum->HasMetaData(HiddenMetaDataKey, InEnumEntryIndex);
 }
 
 bool IsScriptExposedProperty(const FProperty* InProp)
@@ -1636,6 +1637,7 @@ FString PythonizeName(const FString& InName, const EPythonizeNameCase InNameCase
 		TEXT("and"),
 		TEXT("as"),
 		TEXT("assert"),
+		TEXT("async"),
 		TEXT("break"),
 		TEXT("class"),
 		TEXT("continue"),
@@ -2138,7 +2140,8 @@ void PythonizeValueImpl(const FProperty* InProp, const void* InPropValue, const 
 			if (ByteProp->Enum)
 			{
 				const uint8 EnumVal = ByteProp->GetPropertyValue(PropArrValue);
-				const FString EnumValStr = ByteProp->Enum->GetNameStringByValue(EnumVal);
+				const int32 EnumIndex = ByteProp->Enum->GetIndexByValue(EnumVal);
+				const FString EnumValStr = IsScriptExposedEnumEntry(ByteProp->Enum, EnumIndex) ? ByteProp->Enum->GetNameStringByIndex(EnumIndex) : FString();
 				OutPythonDefaultValue += EnumValStr.IsEmpty() ? TEXT("0") : *FString::Printf(TEXT("%s%s.%s"), UnrealNamespace, *GetEnumPythonName(ByteProp->Enum), *PythonizeName(EnumValStr, EPythonizeNameCase::Upper));
 			}
 			else
@@ -2150,7 +2153,8 @@ void PythonizeValueImpl(const FProperty* InProp, const void* InPropValue, const 
 		{
 			FNumericProperty* EnumInternalProp = EnumProp->GetUnderlyingProperty();
 			const int64 EnumVal = EnumInternalProp->GetSignedIntPropertyValue(PropArrValue);
-			const FString EnumValStr = EnumProp->GetEnum()->GetNameStringByValue(EnumVal);
+			const int32 EnumIndex = EnumProp->GetEnum()->GetIndexByValue(EnumVal);
+			const FString EnumValStr = IsScriptExposedEnumEntry(EnumProp->GetEnum(), EnumIndex) ? EnumProp->GetEnum()->GetNameStringByIndex(EnumIndex) : FString();
 			OutPythonDefaultValue += EnumValStr.IsEmpty() ? TEXT("0") : *FString::Printf(TEXT("%s%s.%s"), UnrealNamespace, *GetEnumPythonName(EnumProp->GetEnum()), *PythonizeName(EnumValStr, EPythonizeNameCase::Upper));
 		}
 		else if (const FBoolProperty* BoolProp = CastField<const FBoolProperty>(InProp))
@@ -2383,7 +2387,7 @@ FString PythonizeDefaultValue(const FProperty* InProp, const FString& InDefaultV
 	return PythonizeValue(InProp, PropValue.GetValue(), InFlags);
 }
 
-const UObject* GetTypeRegistryType(const UObject* InObj)
+const UObject* GetAssetTypeRegistryType(const UObject* InObj)
 {
 	if (const UBlueprintCore* BlueprintAsset = Cast<const UBlueprintCore>(InObj))
 	{
@@ -2393,24 +2397,30 @@ const UObject* GetTypeRegistryType(const UObject* InObj)
 	return InObj;
 }
 
+FName GetAssetTypeRegistryName(const UObject* InObj)
+{
+	// Note: If this changes then the functions in FPythonScriptPlugin that deal with FAssetData also need updating!
+	return InObj->GetOutermost()->GetFName();
+}
+
 FName GetTypeRegistryName(const UClass* InClass)
 {
 	return IsBlueprintGeneratedClass(InClass)
-		? InClass->GetOutermost()->GetFName()
+		? GetAssetTypeRegistryName(InClass)
 		: InClass->GetFName();
 }
 
 FName GetTypeRegistryName(const UScriptStruct* InStruct)
 {
 	return IsBlueprintGeneratedStruct(InStruct)
-		? InStruct->GetOutermost()->GetFName()
+		? GetAssetTypeRegistryName(InStruct)
 		: InStruct->GetFName();
 }
 
 FName GetTypeRegistryName(const UEnum* InEnum)
 {
 	return IsBlueprintGeneratedEnum(InEnum)
-		? InEnum->GetOutermost()->GetFName()
+		? GetAssetTypeRegistryName(InEnum)
 		: InEnum->GetFName();
 }
 

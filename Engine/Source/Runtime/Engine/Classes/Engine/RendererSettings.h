@@ -436,6 +436,7 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 		ToolTip = "Default Value for auto exposure bias."))
 	float DefaultFeatureAutoExposureBias;
 
+	UE_DEPRECATED(4.26, "Extend Default Luminance Range is deprecated, and will be forced to ON at all times in future revisions.")
 	UPROPERTY(config, EditAnywhere, Category = DefaultSettings, meta = (
 		ConsoleVariable = "r.DefaultFeature.AutoExposure.ExtendDefaultLuminanceRange", DisplayName = "Extend default luminance range in Auto Exposure settings",
 		ToolTip = "Whether the default values for AutoExposure should support an extended range of scene luminance. Also changes the exposure settings to be expressed in EV100.",

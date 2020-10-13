@@ -10,7 +10,6 @@ class AActor;
 class ADisplayClusterRootActor;
 class USceneComponent;
 class UDisplayClusterCameraComponent;
-class UDisplayClusterRootComponent;
 class UDisplayClusterSceneComponent;
 class UDisplayClusterScreenComponent;
 
@@ -40,21 +39,7 @@ public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// IDisplayClusterGameManager
 	//////////////////////////////////////////////////////////////////////////////////////////////
-	virtual ADisplayClusterRootActor*               GetRootActor() const override;
-	virtual UDisplayClusterRootComponent*           GetRootComponent() const override;
-
-	virtual TArray<UDisplayClusterScreenComponent*> GetAllScreens() const override;
-	virtual UDisplayClusterScreenComponent*         GetScreenById(const FString& ScreenID) const override;
-	virtual int32                                   GetScreensAmount() const override;
-
-	virtual TArray<UDisplayClusterCameraComponent*> GetAllCameras() const override;
-	virtual UDisplayClusterCameraComponent*         GetCameraById(const FString& CameraID) const override;
-	virtual int32                                   GetCamerasAmount() const override;
-	virtual UDisplayClusterCameraComponent*         GetDefaultCamera() const override;
-	virtual void                                    SetDefaultCamera(const FString& iCameraIDd) override;
-
-	virtual TArray<UDisplayClusterSceneComponent*>  GetAllNodes() const override;
-	virtual UDisplayClusterSceneComponent*          GetNodeById(const FString& NodeID) const override;
+	virtual ADisplayClusterRootActor*     GetRootActor() const override;
 
 	virtual UWorld* GetWorld() const override
 	{ return CurrentWorld; }

@@ -22,6 +22,16 @@ static FAutoConsoleVariableRef CVarVulkanSubmitOnTextureUnlock(
 	ECVF_Default
 );
 
+int32 GVulkanDepthStencilForceStorageBit = 0;
+static FAutoConsoleVariableRef CVarVulkanDepthStencilForceStorageBit(
+	TEXT("r.Vulkan.DepthStencilForceStorageBit"),
+	GVulkanDepthStencilForceStorageBit,
+	TEXT("Whether to force Image Usage Storage on Depth (can disable framebuffer compression).\n")
+	TEXT(" 0: Not enabled\n")
+	TEXT(" 1: Enables override for IMAGE_USAGE_STORAGE"),
+	ECVF_Default
+);
+
 static FCriticalSection GTextureMapLock;
 
 struct FTextureLock
@@ -437,6 +447,11 @@ void FVulkanSurface::GenerateImageCreateInfo(
 		}
 	}
 #endif
+
+	if ((UEFlags & TexCreate_DepthStencilTargetable) && GVulkanDepthStencilForceStorageBit)
+	{
+		ImageCreateInfo.usage |= VK_IMAGE_USAGE_STORAGE_BIT;
+	}
 }
 
 struct FRHICommandSetInitialImageState final : public FRHICommand<FRHICommandSetInitialImageState>

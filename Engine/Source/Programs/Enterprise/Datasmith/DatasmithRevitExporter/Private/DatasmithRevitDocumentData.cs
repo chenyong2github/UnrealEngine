@@ -18,17 +18,17 @@ namespace DatasmithRevitExporter
 	{
 		public class FBaseElementData
 		{
-			public ElementType BaseElementType;
-			public FDatasmithFacadeMesh ElementMesh = null;
-			public FDatasmithFacadeActor ElementActor = null;
-			public FDatasmithFacadeMetaData ElementMetaData = null;
-			public FDocumentData DocumentData = null;
-			public bool bOptimizeHierarchy = true;
-			public bool bIsModified = true;
+			public ElementType				BaseElementType;
+			public FDatasmithFacadeMesh		ElementMesh = null;
+			public FDatasmithFacadeActor	ElementActor = null;
+			public FDatasmithFacadeMetaData	ElementMetaData = null;
+			public FDocumentData			DocumentData = null;
+			public bool						bOptimizeHierarchy = true;
+			public bool						bIsModified = true;
 
-			public List<FBaseElementData> ChildElements = new List<FBaseElementData>();
+			public List<FBaseElementData>	ChildElements = new List<FBaseElementData>();
 
-			public FBaseElementData Parent = null;
+			public FBaseElementData			Parent = null;
 
 			public FBaseElementData(
 				ElementType InElementType, FDocumentData InDocumentData
@@ -87,14 +87,24 @@ namespace DatasmithRevitExporter
 				return !(ElementActor is FDatasmithFacadeActorMesh || ElementActor is FDatasmithFacadeActorLight || ElementActor is FDatasmithFacadeActorCamera);
 			}
 
-			public void AddToScene(FDatasmithFacadeScene InScene, FBaseElementData InParent)
+			public void AddToScene(FDatasmithFacadeScene InScene, FBaseElementData InParent, bool bInSkipChildren, bool bInForceAdd = false)
 			{
-				foreach (FBaseElementData CurrentChild in ChildElements)
+				Element ThisElement = (this as FElementData)?.CurrentElement;
+
+				if (!bInSkipChildren)
 				{
-					CurrentChild.AddToScene(InScene, this);
+					foreach (FBaseElementData CurrentChild in ChildElements)
+					{
+						CurrentChild.AddToScene(InScene, this, false, (ThisElement == null) && bIsModified);
+					}
 				}
 
-				if (!DocumentData.IsActorCached(this) && bIsModified)
+				bool bIsCached = 
+					ThisElement != null && 
+					ThisElement.IsValidObject && 
+					(DocumentData.DirectLink?.IsElementCached(ThisElement) ?? false);
+
+				if ((!bIsCached && bIsModified) || bInForceAdd)
 				{
 					if (InParent == null)
 					{
@@ -110,7 +120,10 @@ namespace DatasmithRevitExporter
 						InScene.AddMetaData(ElementMetaData);
 					}
 
-					DocumentData.CacheElement(this);
+					if (ThisElement != null)
+					{
+						DocumentData.DirectLink?.CacheElement(DocumentData.CurrentDocument, ThisElement, this);
+					}
 				}
 
 				bIsModified = false;
@@ -148,8 +161,8 @@ namespace DatasmithRevitExporter
 
 		private class FElementData : FBaseElementData
 		{
-			public Element CurrentElement;
-			public Transform MeshPointsTransform = null;
+			public Element		CurrentElement = null;
+			public Transform	MeshPointsTransform = null;
 
 			private Stack<FBaseElementData> InstanceDataStack = new Stack<FBaseElementData>();
 
@@ -185,7 +198,8 @@ namespace DatasmithRevitExporter
 
 					if (CurrentElement.GetType() == typeof(Wall)
 						|| CurrentElement.GetType() == typeof(ModelText)
-						|| CurrentElement.GetType().IsSubclassOf(typeof(MEPCurve)))
+						|| CurrentElement.GetType().IsSubclassOf(typeof(MEPCurve))
+						|| CurrentElement.GetType() == typeof(StructuralConnectionHandler))
 					{
 						MeshPointsTransform = PivotTransform.Inverse;
 					}
@@ -243,6 +257,10 @@ namespace DatasmithRevitExporter
 					{
 						Translation = Paths[0].GetEndPoint(0);
 					}
+				}
+				else if (InElement.GetType() == typeof(StructuralConnectionHandler))
+				{
+					Translation = (InElement as StructuralConnectionHandler).GetOrigin();
 				}
 
 				if (Translation == null)
@@ -309,6 +327,12 @@ namespace DatasmithRevitExporter
 							BasisZ = Derivatives.BasisZ.Normalize();
 						}
 					}
+				}
+				else if (InElement.GetType() == typeof(StructuralConnectionHandler))
+				{
+					BasisX = XYZ.BasisX;
+					BasisY = XYZ.BasisY;
+					BasisZ = XYZ.BasisZ;
 				}
 				else if (InElement.GetType() == typeof(ModelText))
 				{
@@ -787,75 +811,30 @@ namespace DatasmithRevitExporter
 			}
 		}
 
-		private FExportData						CachedExportData = null;
-		private FExportData						CurrentExportData = new FExportData();
+		public Dictionary<string, FDatasmithFacadeMesh>	MeshMap = new Dictionary<string, FDatasmithFacadeMesh>();
+		public Dictionary<ElementId, FBaseElementData>	ActorMap = new Dictionary<ElementId, FDocumentData.FBaseElementData>();
+		public Dictionary<string, FMaterialData>		MaterialDataMap = new Dictionary<string, FMaterialData>();
 
-		private Document						CurrentDocument;
-		private Stack<FElementData>				ElementDataStack = new Stack<FElementData>();
-		private string							CurrentMaterialDataKey = null;
-		private int								LatestMaterialIndex = 0;
-		private List<string>					MessageList = null;
+		private Stack<FElementData>						ElementDataStack = new Stack<FElementData>();
+		private string									CurrentMaterialDataKey = null;
+		private int										LatestMaterialIndex = 0;
+		private List<string>							MessageList = null;
 
-		public FDatasmithFacadeScene			DatasmithScene = null;
-
-		public bool								bSkipMetadataExport = false;
+		public bool										bSkipMetadataExport { get; private set; } = false;
+		public Document									CurrentDocument { get; private set; } = null;
+		public FDirectLink								DirectLink { get; private set; } = null;
 
 		public FDocumentData(
 			Document InDocument,
-			FDatasmithFacadeScene InScene,
 			ref List<string> InMessageList,
-			FExportData Cache = null
+			FDirectLink InDirectLink
 		)
 		{
-			CachedExportData = Cache;
+			DirectLink = InDirectLink;
 			CurrentDocument = InDocument;
 			MessageList = InMessageList;
-			DatasmithScene = InScene;
-		}
-
-		private bool IsActorCached(ElementId InElemId)
-		{
-			if (CachedExportData != null)
-			{
-				return CachedExportData.ActorMap.ContainsKey(InElemId);
-			}
-			return false;
-		}
-
-		private bool IsActorCached(FBaseElementData InBaseElemData)
-		{
-			FElementData ElemData = InBaseElemData as FElementData;
-			if (CachedExportData != null && ElemData != null)
-			{
-				if (ElemData.CurrentElement != null && ElemData.CurrentElement.IsValidObject)
-				{
-					return CachedExportData.ActorMap.ContainsKey(ElemData.CurrentElement.Id);
-				}
-			}
-			return false;
-		}
-
-		public void CacheElement(FBaseElementData InBaseElementData)
-		{
-			FElementData ElemData = InBaseElementData as FElementData;
-			if (ElemData != null && CachedExportData != null)
-			{
-				CachedExportData.ActorMap[ElemData.CurrentElement.Id] = InBaseElementData;
-			}
-		}
-
-		private bool IsActorModified(ElementId ElemId)
-		{
-			if (CachedExportData != null)
-			{
-				return CachedExportData.ModifiedActorSet.Contains(ElemId);
-			}
-			return false;
-		}
-
-		public Document GetDocument()
-		{
-			return CurrentDocument;
+			// With DirectLink, we delay export of metadata for a faster initial export.
+			bSkipMetadataExport = (DirectLink != null);
 		}
 
 		public Element GetElement(
@@ -867,7 +846,7 @@ namespace DatasmithRevitExporter
 
 		public bool ContainsMesh(string MeshName)
 		{
-			return CurrentExportData.MeshMap.ContainsKey(MeshName);
+			return MeshMap.ContainsKey(MeshName);
 		}
 
 		public bool PushElement(
@@ -875,52 +854,66 @@ namespace DatasmithRevitExporter
 			Transform InWorldTransform
 		)
 		{
+			DirectLink?.MarkForExport(InElement);
+
 			FElementData ElementData = null;
 
-			if (IsActorCached(InElement.Id))
+			if (ActorMap.ContainsKey(InElement.Id))
 			{
-				if (IsActorModified(InElement.Id))
+				ElementData = ActorMap[InElement.Id] as FElementData;
+			}
+			
+			if (ElementData == null)
+			{
+				if (DirectLink?.IsElementCached(InElement) ?? false)
 				{
-					ElementData = (FElementData)CachedExportData.ActorMap[InElement.Id];
-					FDatasmithFacadeActor ExistingActor = ElementData.ElementActor;
+					ElementData = (FElementData)DirectLink.GetCachedElement(InElement);
 
-					// Remove children that are instances: they will be re-created;
-					// The reason is that we cannot uniquely identify family instances (no id) and when element changes,
-					// we need to export all of its child instances anew.
-					if (ExistingActor != null && ElementData.ChildElements.Count > 0)
+					if (DirectLink.IsElementModified(InElement))
 					{
-						List<FBaseElementData> ChildrenToRemove = new List<FBaseElementData>();
-						
-						for(int ChildIndex = 0; ChildIndex < ElementData.ChildElements.Count; ++ChildIndex)
+						FDatasmithFacadeActor ExistingActor = ElementData.ElementActor;
+
+						// Remove children that are instances: they will be re-created;
+						// The reason is that we cannot uniquely identify family instances (no id) and when element changes,
+						// we need to export all of its child instances anew.
+						if (ExistingActor != null && ElementData.ChildElements.Count > 0)
 						{
-							FBaseElementData ChildElement = ElementData.ChildElements[ChildIndex];
-
-							bool bIsFamilyIntance = ((ChildElement as FElementData) == null) && ChildElement.ElementActor.IsComponent();
-
-							if (bIsFamilyIntance)
+							List<FBaseElementData> ChildrenToRemove = new List<FBaseElementData>();
+					
+							for(int ChildIndex = 0; ChildIndex < ElementData.ChildElements.Count; ++ChildIndex)
 							{
-								ChildrenToRemove.Add(ChildElement);
+								FBaseElementData ChildElement = ElementData.ChildElements[ChildIndex];
+
+								bool bIsFamilyIntance = 
+									((ChildElement as FElementData) == null) && 
+									ChildElement.ElementActor.IsComponent();
+
+								if (bIsFamilyIntance)
+								{
+									ChildrenToRemove.Add(ChildElement);
+								}
+							}
+
+							foreach (FBaseElementData Child in ChildrenToRemove)
+							{
+								ExistingActor.RemoveChild(Child.ElementActor);
+								ElementData.ChildElements.Remove(Child);
 							}
 						}
 
-						foreach (FBaseElementData Child in ChildrenToRemove)
-						{
-							ExistingActor.RemoveChild(Child.ElementActor);
-							ElementData.ChildElements.Remove(Child);
-						}
+						ElementData.InitializePivotPlacement(ref InWorldTransform);
+						ElementData.InitializeElement(InWorldTransform, ElementData);
 					}
-
-					ElementData.InitializePivotPlacement(ref InWorldTransform);
-					ElementData.InitializeElement(InWorldTransform, ElementData);
+					else
+					{
+						ActorMap[InElement.Id] = ElementData;
+						return false; // We have up to date cache for this element.
+					}
 				}
 				else
 				{
-					return false; // We have up to date cache for this element.
+					ElementData = new FElementData(InElement, InWorldTransform, this);
 				}
-			}
-			else
-			{
-				ElementData = new FElementData(InElement, InWorldTransform, this);
 			}
 
 			ElementDataStack.Push(ElementData);
@@ -942,27 +935,25 @@ namespace DatasmithRevitExporter
 
 			CollectMesh(ElementMesh);
 
-			// Direct link related: clear from modified set since we might get another element with same id and we 
-			// dont want to 
-			CachedExportData?.ModifiedActorSet.Remove(ElementData.CurrentElement.Id);
-		
+			DirectLink?.ClearModified(ElementData.CurrentElement);
+
 			ElementData.bIsModified = true;
 
 			if (ElementDataStack.Count == 0)
 			{
 				ElementId ElemId = ElementData.CurrentElement.Id;
 
-				if (CurrentExportData.ActorMap.ContainsKey(ElemId) && CurrentExportData.ActorMap[ElemId] != ElementData)
+				if (ActorMap.ContainsKey(ElemId) && ActorMap[ElemId] != ElementData)
 				{
 					// Handle the spurious case of Revit Custom Exporter calling back more than once for the same element.
 					// These extra empty actors will be cleaned up later by the Datasmith actor hierarchy optimization.
-					CurrentExportData.ActorMap[ElemId].ChildElements.Add(ElementData);
-					ElementData.Parent = CurrentExportData.ActorMap[ElemId];
+					ActorMap[ElemId].ChildElements.Add(ElementData);
+					ElementData.Parent = ActorMap[ElemId];
 				}
 				else
 				{
 					// Collect the element mesh actor into the Datasmith actor dictionary.
-					CurrentExportData.ActorMap[ElemId] = ElementData;
+					ActorMap[ElemId] = ElementData;
 				}
 			}
 			else
@@ -1061,16 +1052,16 @@ namespace DatasmithRevitExporter
 			bool isRPCPlant = !string.IsNullOrEmpty(RPCCategoryName) && RPCCategoryName == Category.GetCategory(CurrentDocument, BuiltInCategory.OST_Planting)?.Name;
 			string RPCMaterialName = isRPCPlant ? "RPC_Plant" : "RPC_Material";
 
-			if (!CurrentExportData.MaterialDataMap.ContainsKey(RPCMaterialName))
+			if (!MaterialDataMap.ContainsKey(RPCMaterialName))
 			{
 				// Color reference: https://www.color-hex.com/color-palette/70002
 				Color RPCColor = isRPCPlant ? /* green */ new Color(88, 126, 96) : /* gray */ new Color(128, 128, 128);
 
 				// Keep track of a new RPC master material.
-				CurrentExportData.MaterialDataMap[RPCMaterialName] = new FMaterialData(RPCMaterialName, RPCColor, ++LatestMaterialIndex);
+				MaterialDataMap[RPCMaterialName] = new FMaterialData(RPCMaterialName, RPCColor, ++LatestMaterialIndex);
 			}
 
-			FMaterialData RPCMaterialData = CurrentExportData.MaterialDataMap[RPCMaterialName];
+			FMaterialData RPCMaterialData = MaterialDataMap[RPCMaterialName];
 
 			FDatasmithFacadeMesh RPCMesh = ElementDataStack.Peek().AddRPCActor(InWorldTransform, InRPCAsset, RPCMaterialData.MaterialIndex);
 
@@ -1090,10 +1081,10 @@ namespace DatasmithRevitExporter
 
 			CurrentMaterialDataKey = FMaterialData.GetMaterialName(InMaterialNode, CurrentMaterial);
 
-			if (!CurrentExportData.MaterialDataMap.ContainsKey(CurrentMaterialDataKey))
+			if (!MaterialDataMap.ContainsKey(CurrentMaterialDataKey))
 			{
 				// Keep track of a new Datasmith master material.
-				CurrentExportData.MaterialDataMap[CurrentMaterialDataKey] = new FMaterialData(InMaterialNode, CurrentMaterial, ++LatestMaterialIndex, InExtraTexturePaths);
+				MaterialDataMap[CurrentMaterialDataKey] = new FMaterialData(InMaterialNode, CurrentMaterial, ++LatestMaterialIndex, InExtraTexturePaths);
 
 				// A new Datasmith master material was created.
 				return true;
@@ -1113,7 +1104,7 @@ namespace DatasmithRevitExporter
 				FDatasmithFacadeMesh Mesh = ElementDataStack.Peek().PeekInstancedMesh();
 				if (Mesh != null)
 				{
-					bIgnore = CurrentExportData.MeshMap.ContainsKey(Mesh.GetName());
+					bIgnore = MeshMap.ContainsKey(Mesh.GetName());
 				}
 			}
 
@@ -1132,9 +1123,9 @@ namespace DatasmithRevitExporter
 
 		public int GetCurrentMaterialIndex()
 		{
-			if (CurrentExportData.MaterialDataMap.ContainsKey(CurrentMaterialDataKey))
+			if (MaterialDataMap.ContainsKey(CurrentMaterialDataKey))
 			{
-				FMaterialData MaterialData = CurrentExportData.MaterialDataMap[CurrentMaterialDataKey];
+				FMaterialData MaterialData = MaterialDataMap[CurrentMaterialDataKey];
 
 				// Add the current Datasmith master material name to the dictionary of material names utilized by the Datasmith mesh being processed.
 				GetCurrentMesh().AddMaterial(MaterialData.MaterialIndex, MaterialData.MasterMaterial.GetName());
@@ -1157,8 +1148,6 @@ namespace DatasmithRevitExporter
 			HashSet<string> UniqueTextureNameSet
 		)
 		{
-			// TODO Cache collected actors!!!
-
 			// Add the collected meshes from the Datasmith mesh dictionary to the Datasmith scene.
 			AddCollectedMeshes(InDatasmithScene);
 
@@ -1168,13 +1157,13 @@ namespace DatasmithRevitExporter
 			// Factor in the Datasmith actor hierarchy the Revit document level hierarchy.
 			AddLevelHierarchy();
 
-			if (CurrentExportData.ActorMap.Count > 0)
+			if (ActorMap.Count > 0)
 			{
 				// Prevent the Datasmith link actor from being removed by optimization.
 				InLinkActor.bOptimizeHierarchy = false;
 
 				// Add the collected actors from the Datasmith actor dictionary as children of the Datasmith link actor.
-				foreach (var Actor in CurrentExportData.ActorMap.Values)
+				foreach (var Actor in ActorMap.Values)
 				{
 					InLinkActor.ChildElements.Add(Actor);
 					Actor.Parent = InLinkActor;
@@ -1187,7 +1176,6 @@ namespace DatasmithRevitExporter
 
 		public void WrapupScene(
 			FDatasmithFacadeScene InDatasmithScene,
-			bool bOptimizeHierarchy,
 			HashSet<string> UniqueTextureNameSet
 		)
 		{
@@ -1202,7 +1190,7 @@ namespace DatasmithRevitExporter
 
 			List<ElementId> OptimizedAwayElements = new List<ElementId>();
 
-			foreach (var CollectedActor in CurrentExportData.ActorMap)
+			foreach (var CollectedActor in ActorMap)
 			{
 				if (CollectedActor.Value.Optimize())
 				{
@@ -1212,13 +1200,28 @@ namespace DatasmithRevitExporter
 
 			foreach (ElementId Element in  OptimizedAwayElements)
 			{
-				CurrentExportData.ActorMap.Remove(Element);
+				ActorMap.Remove(Element);
 			}
 
 			// Add the collected actors from the Datasmith actor dictionary to the Datasmith scene.
-			foreach (FBaseElementData CollectedActor in CurrentExportData.ActorMap.Values)
+			foreach (var ActorEntry in ActorMap)
 			{
-				CollectedActor.AddToScene(InDatasmithScene, null);
+				Element CollectedElement = CurrentDocument.GetElement(ActorEntry.Key);
+
+				if (DirectLink != null && CollectedElement.GetType() == typeof(RevitLinkInstance))
+				{
+					DirectLink.OnBeginLinkedDocument((CollectedElement as RevitLinkInstance).GetLinkDocument());
+					foreach (FBaseElementData CurrentChild in ActorEntry.Value.ChildElements)
+					{
+						CurrentChild.AddToScene(InDatasmithScene, ActorEntry.Value, false);
+					}
+					DirectLink.OnEndLinkedDocument();
+					ActorEntry.Value.AddToScene(InDatasmithScene, null, true);
+				}
+				else
+				{
+					ActorEntry.Value.AddToScene(InDatasmithScene, null, false);
+				}
 			}
 
 			// Add the collected master materials from the material data dictionary to the Datasmith scene.
@@ -1240,9 +1243,9 @@ namespace DatasmithRevitExporter
 			string InLinePrefix
 		)
 		{
-			if (CurrentExportData.MaterialDataMap.ContainsKey(CurrentMaterialDataKey))
+			if (MaterialDataMap.ContainsKey(CurrentMaterialDataKey))
 			{
-				CurrentExportData.MaterialDataMap[CurrentMaterialDataKey].Log(InMaterialNode, InDebugLog, InLinePrefix);
+				MaterialDataMap[CurrentMaterialDataKey].Log(InMaterialNode, InDebugLog, InLinePrefix);
 			}
 		}
 
@@ -1250,16 +1253,35 @@ namespace DatasmithRevitExporter
 			SiteLocation InSiteLocation
 		)
 		{
-			if (InSiteLocation == null || !InSiteLocation.IsValidObject || IsActorCached(InSiteLocation.Id))
+			if (InSiteLocation == null || !InSiteLocation.IsValidObject)
 			{
 				return;
 			}
 
-			// Create a new Datasmith placeholder actor for the site location.
-			// Hash the Datasmith placeholder actor name to shorten it.
-			string NameHash = FDatasmithFacadeElement.GetStringHash("SiteLocation");
-			FDatasmithFacadeActor SiteLocationActor = new FDatasmithFacadeActor(NameHash);
-			SiteLocationActor.SetLabel("Site Location");
+			FDatasmithFacadeActor SiteLocationActor = null;
+			FBaseElementData ElementData = null;
+
+			DirectLink?.MarkForExport(InSiteLocation);
+
+			if (DirectLink?.IsElementCached(InSiteLocation) ?? false)
+			{
+				if (!DirectLink.IsElementModified(InSiteLocation))
+				{
+					return;
+				}
+
+				ElementData = DirectLink.GetCachedElement(InSiteLocation);
+				SiteLocationActor = ElementData.ElementActor;
+				SiteLocationActor.ResetTags();
+			}
+			else
+			{
+				// Create a new Datasmith placeholder actor for the site location.
+				// Hash the Datasmith placeholder actor name to shorten it.
+				string NameHash = FDatasmithFacadeElement.GetStringHash("SiteLocation");
+				SiteLocationActor = new FDatasmithFacadeActor(NameHash);
+				SiteLocationActor.SetLabel("Site Location");
+			}
 
 			// Set the Datasmith placeholder actor layer to the site location category name.
 			SiteLocationActor.SetLayer(InSiteLocation.Category.Name);
@@ -1284,10 +1306,20 @@ namespace DatasmithRevitExporter
 			SiteLocationMetaData.AddPropertyString("SiteLocation*Place", InSiteLocation.PlaceName);
 
 			// Collect the site location placeholder actor into the Datasmith actor dictionary.
-			FBaseElementData ElementData = new FBaseElementData(SiteLocationActor, SiteLocationMetaData, this);
-			// Prevent the Datasmith placeholder actor from being removed by optimization.
-			ElementData.bOptimizeHierarchy = false;
-			CurrentExportData.ActorMap[InSiteLocation.Id] = ElementData;
+			if (ElementData == null)
+			{
+				ElementData = new FBaseElementData(SiteLocationActor, null, this);
+				// Prevent the Datasmith placeholder actor from being removed by optimization.
+				ElementData.bOptimizeHierarchy = false; 
+			}
+			else
+			{
+				ElementData.ElementMetaData = SiteLocationMetaData;
+			}
+			
+			ActorMap[InSiteLocation.Id] = ElementData;
+
+			DirectLink?.CacheElement(CurrentDocument, InSiteLocation, ElementData);
 		}
 
 		private void AddPointLocations(
@@ -1303,11 +1335,6 @@ namespace DatasmithRevitExporter
 
 				if (BasePointLocation != null)
 				{
-					if (IsActorCached(BasePointLocation.Id))
-					{
-						continue;
-					}
-
 					// Since BasePoint.Location is not a location point we cannot get a position from it; so we use a bounding box approach.
 					// Note that, as of Revit 2020, BasePoint has 2 new properties: Position for base point and SharedPosition for survey point.
 					BoundingBoxXYZ BasePointBoundingBox = BasePointLocation.get_BoundingBox(CurrentDocument.ActiveView);
@@ -1316,13 +1343,33 @@ namespace DatasmithRevitExporter
 						continue;
 					}
 
-					// Create a new Datasmith placeholder actor for the base point.
-					// Hash the Datasmith placeholder actor name to shorten it.
 					string ActorName = BasePointLocation.IsShared ? "SurveyPoint" : "BasePoint";
 					string ActorLabel = BasePointLocation.IsShared ? "Survey Point" : "Base Point";
-					string HashedActorName = FDatasmithFacadeElement.GetStringHash(ActorName);
-					FDatasmithFacadeActor BasePointActor = new FDatasmithFacadeActor(HashedActorName);
-					BasePointActor.SetLabel(ActorLabel);
+
+					FDatasmithFacadeActor BasePointActor = null;
+					FBaseElementData BasePointElement = null;
+
+					DirectLink?.MarkForExport(PointLocation);
+
+					if (DirectLink?.IsElementCached(PointLocation) ?? false)
+					{
+						if (!DirectLink.IsElementModified(PointLocation))
+						{
+							continue;
+						}
+
+						BasePointElement = DirectLink.GetCachedElement(PointLocation);
+						BasePointActor = BasePointElement.ElementActor;
+						BasePointActor.ResetTags();
+					}
+					else
+					{
+						// Create a new Datasmith placeholder actor for the base point.
+						// Hash the Datasmith placeholder actor name to shorten it.
+						string HashedActorName = FDatasmithFacadeElement.GetStringHash(ActorName);
+						BasePointActor = new FDatasmithFacadeActor(HashedActorName);
+						BasePointActor.SetLabel(ActorLabel);
+					}
 
 					// Set the world transform of the Datasmith placeholder actor.
 					XYZ BasePointPosition = BasePointBoundingBox.Min;
@@ -1350,10 +1397,20 @@ namespace DatasmithRevitExporter
 					BasePointMetaData.AddPropertyVector(MetadataPrefix + "Location", $"{BasePointPosition.X} {BasePointPosition.Y} {BasePointPosition.Z}");
 					FDocumentData.AddActorMetadata(BasePointLocation, MetadataPrefix, BasePointMetaData);
 
-					// Collect the base point placeholder actor into the Datasmith actor dictionary.
-					FBaseElementData BasePointElement = new FBaseElementData(BasePointActor, BasePointMetaData, this);
-					BasePointElement.bOptimizeHierarchy = false;
-					CurrentExportData.ActorMap[BasePointLocation.Id] = BasePointElement;
+					if (BasePointElement == null)
+					{
+						// Collect the base point placeholder actor into the Datasmith actor dictionary.
+						BasePointElement = new FBaseElementData(BasePointActor, BasePointMetaData, this);
+						BasePointElement.bOptimizeHierarchy = false;
+					}
+					else
+					{
+						BasePointElement.ElementMetaData = BasePointMetaData;
+					}
+
+					ActorMap[BasePointLocation.Id] = BasePointElement;
+
+					DirectLink?.CacheElement(CurrentDocument, PointLocation, BasePointElement);
 				}
 			}
 		}
@@ -1366,10 +1423,10 @@ namespace DatasmithRevitExporter
 			{
 				string MeshName = InMesh.GetName();
 
-				if (!CurrentExportData.MeshMap.ContainsKey(MeshName))
+				if (!MeshMap.ContainsKey(MeshName))
 				{
 					// Keep track of the Datasmith mesh.
-					CurrentExportData.MeshMap[MeshName] = InMesh;
+					MeshMap[MeshName] = InMesh;
 				}
 			}
 		}
@@ -1379,7 +1436,7 @@ namespace DatasmithRevitExporter
 		)
 		{
 			// Add the collected meshes from the Datasmith mesh dictionary to the Datasmith scene.
-			foreach (FDatasmithFacadeMesh CollectedMesh in CurrentExportData.MeshMap.Values)
+			foreach (FDatasmithFacadeMesh CollectedMesh in MeshMap.Values)
 			{
 				InDatasmithScene.AddMesh(CollectedMesh);
 			}
@@ -1401,7 +1458,7 @@ namespace DatasmithRevitExporter
 		)
 		{
 			// Add the collected master materials from the material data dictionary to the Datasmith scene.
-			foreach (FMaterialData CollectedMaterialData in CurrentExportData.MaterialDataMap.Values)
+			foreach (FMaterialData CollectedMaterialData in MaterialDataMap.Values)
 			{
 				InDatasmithScene.AddMaterial(CollectedMaterialData.MasterMaterial);
 
@@ -1427,25 +1484,35 @@ namespace DatasmithRevitExporter
 		)
 		{
 			Element SourceElement = CurrentDocument.GetElement(InElementId);
+			Element HostElement = null;
 
 			if (SourceElement as FamilyInstance != null)
 			{
-				return (SourceElement as FamilyInstance).Host;
+				HostElement = (SourceElement as FamilyInstance).Host;
 			}
 			else if (SourceElement as Wall != null)
 			{
-				return CurrentDocument.GetElement((SourceElement as Wall).StackedWallOwnerId);
+				HostElement = CurrentDocument.GetElement((SourceElement as Wall).StackedWallOwnerId);
 			}
 			else if (SourceElement as ContinuousRail != null)
 			{
-				return CurrentDocument.GetElement((SourceElement as ContinuousRail).HostRailingId);
+				HostElement = CurrentDocument.GetElement((SourceElement as ContinuousRail).HostRailingId);
 			}
 			else if (SourceElement.GetType().IsSubclassOf(typeof(InsulationLiningBase)))
 			{
-				return CurrentDocument.GetElement((SourceElement as InsulationLiningBase).HostElementId);
+				HostElement = CurrentDocument.GetElement((SourceElement as InsulationLiningBase).HostElementId);
 			}
 
-			return null;
+			// DirectLink: if host is hidden, go up the hierarchy (NOTE this does not apply for linked documents)
+			if (DirectLink != null && 
+				HostElement != null && 
+				CurrentDocument.ActiveView != null && 
+				HostElement.IsHidden(CurrentDocument.ActiveView))
+			{
+				return GetHostElement(HostElement.Id);
+			}
+
+			return HostElement;
 		}
 
 		private Element GetLevelElement(
@@ -1461,7 +1528,7 @@ namespace DatasmithRevitExporter
 			Func<ElementId, Element> InGetParentElement
 		)
 		{
-			Queue<ElementId> ElementIdQueue = new Queue<ElementId>(CurrentExportData.ActorMap.Keys);
+			Queue<ElementId> ElementIdQueue = new Queue<ElementId>(ActorMap.Keys);
 
 			// Make sure the Datasmith actor dictionary contains actors for all the Revit parent elements.
 			while (ElementIdQueue.Count > 0)
@@ -1475,15 +1542,16 @@ namespace DatasmithRevitExporter
 
 				ElementId ParentElementId = ParentElement.Id;
 
-				if (CurrentExportData.ActorMap.ContainsKey(ParentElementId))
+				if (ActorMap.ContainsKey(ParentElementId))
 				{
 					continue;
 				}
 
-				if (IsActorCached(ParentElement.Id))
+				if (DirectLink?.IsElementCached(ParentElement) ?? false)
 				{
 					// Move parent actor out of cache.
-					CurrentExportData.ActorMap[ParentElementId] = CachedExportData.ActorMap[ParentElementId];
+					DirectLink.MarkForExport(ParentElement);
+					ActorMap[ParentElementId] =  DirectLink.GetCachedElement(ParentElement);
 				}
 				else
 				{
@@ -1495,7 +1563,7 @@ namespace DatasmithRevitExporter
 			}
 
 			// Add the parented actors as children of the parent Datasmith actors.
-			foreach (ElementId ElemId in new List<ElementId>(CurrentExportData.ActorMap.Keys))
+			foreach (ElementId ElemId in new List<ElementId>(ActorMap.Keys))
 			{
 				Element ParentElement = InGetParentElement(ElemId);
 
@@ -1512,15 +1580,15 @@ namespace DatasmithRevitExporter
 					(SourceElement as ContinuousRail != null))
 				{
 					// The Datasmith actor is a component in the hierarchy.
-					CurrentExportData.ActorMap[ElemId].ElementActor.SetIsComponent(true);
+					ActorMap[ElemId].ElementActor.SetIsComponent(true);
 				}
 
 				ElementId ParentElementId = ParentElement.Id;
 
 				// Add the parented actor as child of the parent Datasmith actor.
 
-				FBaseElementData ElementData = CurrentExportData.ActorMap[ElemId];
-				FBaseElementData ParentElementData = CurrentExportData.ActorMap[ParentElementId];
+				FBaseElementData ElementData = ActorMap[ElemId];
+				FBaseElementData ParentElementData = ActorMap[ParentElementId];
 				
 				if (!ParentElementData.ChildElements.Contains(ElementData))
 				{
@@ -1533,7 +1601,7 @@ namespace DatasmithRevitExporter
 			}
 
 			// Remove the parented child actors from the Datasmith actor dictionary.
-			foreach (ElementId ElemId in new List<ElementId>(CurrentExportData.ActorMap.Keys))
+			foreach (ElementId ElemId in new List<ElementId>(ActorMap.Keys))
 			{
 				Element ParentElement = InGetParentElement(ElemId);
 
@@ -1543,7 +1611,7 @@ namespace DatasmithRevitExporter
 				}
 
 				// Remove the parented child actor from the Datasmith actor dictionary.
-				CurrentExportData.ActorMap.Remove(ElemId);
+				ActorMap.Remove(ElemId);
 			}
 		}
 

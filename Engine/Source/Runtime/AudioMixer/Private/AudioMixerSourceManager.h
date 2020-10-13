@@ -17,7 +17,22 @@
 #include "IAudioExtensionPlugin.h"
 #include "ISoundfieldFormat.h"
 #include "Sound/SoundModulationDestination.h"
+#include "Stats/Stats.h"
 
+// Tracks the time it takes to up the source manager (computes source buffers, source effects, sample rate conversion)
+DECLARE_CYCLE_STAT_EXTERN(TEXT("Source Manager Update"), STAT_AudioMixerSourceManagerUpdate, STATGROUP_AudioMixer, AUDIOMIXER_API);
+
+// The time it takes to compute the source buffers (handle decoding tasks, resampling)
+DECLARE_CYCLE_STAT_EXTERN(TEXT("Source Buffers"), STAT_AudioMixerSourceBuffers, STATGROUP_AudioMixer, AUDIOMIXER_API);
+
+// The time it takes to process the source buffers through their source effects
+DECLARE_CYCLE_STAT_EXTERN(TEXT("Source Effect Buffers"), STAT_AudioMixerSourceEffectBuffers, STATGROUP_AudioMixer, AUDIOMIXER_API);
+
+// The time it takes to apply channel maps and get final pre-submix source buffers
+DECLARE_CYCLE_STAT_EXTERN(TEXT("Source Output Buffers"), STAT_AudioMixerSourceOutputBuffers, STATGROUP_AudioMixer, AUDIOMIXER_API);
+
+// The time it takes to process the HRTF effect.
+DECLARE_CYCLE_STAT_EXTERN(TEXT("HRTF"), STAT_AudioMixerHRTF, STATGROUP_AudioMixer, AUDIOMIXER_API);
 
 namespace Audio
 {
@@ -105,10 +120,7 @@ namespace Audio
 		UOcclusionPluginSourceSettingsBase* OcclusionPluginSettings = nullptr;
 		UReverbPluginSourceSettingsBase* ReverbPluginSettings = nullptr;
 
-		FSoundModulationDestinationSettings VolumeModulationSettings;
-		FSoundModulationDestinationSettings PitchModulationSettings;
-		FSoundModulationDestinationSettings LowpassModulationSettings;
-		FSoundModulationDestinationSettings HighpassModulationSettings;
+		FSoundModulationDefaultSettings ModulationSettings;
 
 		FName AudioComponentUserID;
 		uint64 AudioComponentID = 0;
@@ -217,7 +229,7 @@ namespace Audio
 		void FlushCommandQueue(bool bPumpCommandQueue = false);
 	private:
 		void ReleaseSource(const int32 SourceId);
-		void BuildSourceEffectChain(const int32 SourceId, FSoundEffectSourceInitData& InitData, const TArray<FSourceEffectChainEntry>& SourceEffectChain);
+		void BuildSourceEffectChain(const int32 SourceId, FSoundEffectSourceInitData& InitData, const TArray<FSourceEffectChainEntry>& SourceEffectChain, TArray<TSoundEffectSourcePtr>& OutSourceEffects);
 		void ResetSourceEffectChain(const int32 SourceId);
 		void ReadSourceFrame(const int32 SourceId);
 

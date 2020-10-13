@@ -103,7 +103,7 @@ GLTF::ITextureElement* FGLTFTextureFactory::CreateTexture(const GLTF::FTexture& 
 	Factory->SuppressImportOverwriteDialog();
 
 	const FString PackageName  = UPackageTools::SanitizePackageName(FPaths::Combine(ParentPackage->GetName(), TEXT("Textures"), TextureName));
-	UPackage*     AssetPackage = CreatePackage(nullptr, *PackageName);
+	UPackage*     AssetPackage = CreatePackage(*PackageName);
 
 	UTexture2D* Texture = nullptr;
 	if (!FPaths::GetExtension(GltfTexture.Source.FilePath).IsEmpty())

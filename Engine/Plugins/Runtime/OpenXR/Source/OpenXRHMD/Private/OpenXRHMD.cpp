@@ -27,6 +27,7 @@
 #include "Engine/GameEngine.h"
 #include "BuildSettings.h"
 #include "ARSystem.h"
+#include "IHandTracker.h"
 
 #if PLATFORM_ANDROID
 #include <android_native_app_glue.h>
@@ -395,7 +396,7 @@ bool FOpenXRHMDPlugin::EnableExtensions(const TArray<const ANSICHAR*>& RequiredE
 		}
 		else
 		{
-			UE_LOG(LogHMD, Error, TEXT("Required extension %s is not available"), ANSI_TO_TCHAR(Ext));
+			UE_LOG(LogHMD, Warning, TEXT("Required extension %s is not available"), ANSI_TO_TCHAR(Ext));
 			ExtensionMissing = true;
 		}
 	}
@@ -527,6 +528,11 @@ bool FOpenXRHMDPlugin::PreInit()
 		ExtensionSet.Append(Extensions);
 	}
 
+	if (AvailableExtensions.Contains(XR_EPIC_VIEW_CONFIGURATION_FOV_EXTENSION_NAME))
+	{
+		ExtensionSet.Add(XR_EPIC_VIEW_CONFIGURATION_FOV_EXTENSION_NAME);
+	}
+
 	for (IOpenXRExtensionPlugin* Plugin : ExtModules)
 	{
 		TArray<const ANSICHAR*> RequiredExtensions, OptionalExtensions, Extensions;
@@ -550,6 +556,7 @@ bool FOpenXRHMDPlugin::PreInit()
 		if (!EnableExtensions(RequiredExtensions, OptionalExtensions, Extensions))
 		{
 			// Ignore the plugin if the required extension could not be enabled
+			UE_LOG(LogHMD, Warning, TEXT("Could not enable all required OpenXR extensions for OpenXRExtensionPlugin.  This plugin will be ignored."));
 			continue;
 		}
 		ExtensionSet.Append(Extensions);
@@ -655,6 +662,10 @@ bool FOpenXRHMDPlugin::PreInit()
 		UE_LOG(LogHMD, Log, TEXT("Failed to get an OpenXR system, result is %s. Please check that your runtime supports VR headsets."), OpenXRResultToString(rs));
 		return false;
 	}
+	for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
+	{
+		Module->PostGetSystem(Instance, System);
+	}
 
 	return true;
 }
@@ -757,6 +768,78 @@ bool FOpenXRHMD::FVulkanExtensions::GetVulkanDeviceExtensionsRequired(VkPhysical
 	return true;
 }
 
+void FOpenXRHMD::GetMotionControllerData(UObject* WorldContext, const EControllerHand Hand, FXRMotionControllerData& MotionControllerData)
+{
+	MotionControllerData.DeviceName = GetSystemName();
+	MotionControllerData.ApplicationInstanceID = FApp::GetInstanceId();
+	MotionControllerData.DeviceVisualType = EXRVisualType::Controller;
+	MotionControllerData.TrackingStatus = ETrackingStatus::NotTracked;
+
+	FName HandTrackerName("OpenXRHandTracking");
+	TArray<IHandTracker*> HandTrackers = IModularFeatures::Get().GetModularFeatureImplementations<IHandTracker>(IHandTracker::GetModularFeatureName());
+	IHandTracker* HandTracker = nullptr;
+	for (auto Itr : HandTrackers)
+	{
+		if (Itr->GetHandTrackerDeviceTypeName() == HandTrackerName)
+		{
+			HandTracker = Itr;
+			break;
+		}
+	}
+
+	FName MotionControllerName("OpenXR");
+	TArray<IMotionController*> MotionControllers = IModularFeatures::Get().GetModularFeatureImplementations<IMotionController>(IMotionController::GetModularFeatureName());
+	IMotionController* MotionController = nullptr;
+	for (auto Itr : MotionControllers)
+	{
+		if (Itr->GetMotionControllerDeviceTypeName() == MotionControllerName)
+		{
+			MotionController = Itr;
+			break;
+		}
+	}
+
+	if (MotionController)
+	{
+		const float WorldToMeters = GetWorldToMetersScale();
+
+		bool bSuccess = false;
+		FVector Position = FVector::ZeroVector;
+		FRotator Rotation = FRotator::ZeroRotator;
+		FTransform trackingToWorld = GetTrackingToWorldTransform();
+		FName AimSource = Hand == EControllerHand::Left ? FName("LeftAim") : FName("RightAim");
+		bSuccess = MotionController->GetControllerOrientationAndPosition(0, AimSource, Rotation, Position, WorldToMeters);
+		if (bSuccess)
+		{
+			MotionControllerData.AimPosition = trackingToWorld.TransformPosition(Position);
+			MotionControllerData.AimRotation = trackingToWorld.TransformRotation(FQuat(Rotation));
+		}
+		MotionControllerData.bValid |= bSuccess;
+
+		FName GripSource = Hand == EControllerHand::Left ? FName("LeftGrip") : FName("RightGrip");
+		bSuccess = MotionController->GetControllerOrientationAndPosition(0, GripSource, Rotation, Position, WorldToMeters);
+		if (bSuccess)
+		{
+			MotionControllerData.GripPosition = trackingToWorld.TransformPosition(Position);
+			MotionControllerData.GripRotation = trackingToWorld.TransformRotation(FQuat(Rotation));
+		}
+		MotionControllerData.bValid |= bSuccess;
+
+		MotionControllerData.TrackingStatus = MotionController->GetControllerTrackingStatus(0, GripSource);
+	}
+
+	if (HandTracker && HandTracker->IsHandTrackingStateValid())
+	{
+		MotionControllerData.DeviceVisualType = EXRVisualType::Hand;
+
+		MotionControllerData.bValid = HandTracker->GetAllKeypointStates(Hand, MotionControllerData.HandKeyPositions, MotionControllerData.HandKeyRotations, MotionControllerData.HandKeyRadii);
+		check(!MotionControllerData.bValid || (MotionControllerData.HandKeyPositions.Num() == EHandKeypointCount && MotionControllerData.HandKeyRotations.Num() == EHandKeypointCount && MotionControllerData.HandKeyRadii.Num() == EHandKeypointCount));
+	}
+
+	//TODO: this is reportedly a wmr specific convenience function for rapid prototyping.  Not sure it is useful for openxr.
+	MotionControllerData.bIsGrasped = false;
+}
+
 float FOpenXRHMD::GetWorldToMetersScale() const
 {
 	return WorldToMetersScale;
@@ -852,6 +935,47 @@ bool FOpenXRHMD::GetCurrentPose(int32 DeviceId, FQuat& CurrentOrientation, FVect
 	return false;
 }
 
+bool FOpenXRHMD::GetPoseForTime(int32 DeviceId, FTimespan Timespan, FQuat& Orientation, FVector& Position, bool& bProvidedLinearVelocity, FVector& LinearVelocity, bool& bProvidedAngularVelocity, FVector& AngularVelocityRadPerSec)
+{
+	FPipelinedFrameState& PipelineState = GetPipelinedFrameStateForThread();
+
+	if (!DeviceSpaces.IsValidIndex(DeviceId))
+	{
+		return false;
+	}
+
+	XrTime TargetTime = ToXrTime(Timespan);
+
+	const FDeviceSpace& DeviceSpace = DeviceSpaces[DeviceId];
+
+	XrSpaceVelocity DeviceVelocity { XR_TYPE_SPACE_VELOCITY };
+	XrSpaceLocation DeviceLocation { XR_TYPE_SPACE_LOCATION, &DeviceVelocity };
+
+	XR_ENSURE(xrLocateSpace(DeviceSpace.Space, PipelineState.TrackingSpace, TargetTime, &DeviceLocation));
+
+	if (DeviceLocation.locationFlags & XR_SPACE_LOCATION_ORIENTATION_VALID_BIT &&
+		DeviceLocation.locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT)
+	{
+		Orientation = ToFQuat(DeviceLocation.pose.orientation);
+		Position = ToFVector(DeviceLocation.pose.position, GetWorldToMetersScale());
+
+		if (DeviceVelocity.velocityFlags & XR_SPACE_VELOCITY_LINEAR_VALID_BIT)
+		{
+			bProvidedLinearVelocity = true;
+			LinearVelocity = ToFVector(DeviceVelocity.linearVelocity, GetWorldToMetersScale());
+		}
+		if (DeviceVelocity.velocityFlags & XR_SPACE_VELOCITY_ANGULAR_VALID_BIT)
+		{
+			bProvidedAngularVelocity = true;
+			AngularVelocityRadPerSec = ToFVector(DeviceVelocity.angularVelocity);
+		}
+
+		return true;
+	}
+
+	return false;
+}
+
 bool FOpenXRHMD::IsChromaAbCorrectionEnabled() const
 {
 	return false;
@@ -918,13 +1042,14 @@ void FOpenXRHMD::AdjustViewRect(EStereoscopicPass StereoPass, int32& X, int32& Y
 {
 	const uint32 ViewIndex = GetViewIndexForPass(StereoPass);
 
-	const XrViewConfigurationView& Config = Configs[ViewIndex];
+	const FPipelinedFrameState& PipelineState = GetPipelinedFrameStateForThread();
+	const XrViewConfigurationView& Config = PipelineState.ViewConfigs[ViewIndex];
 	FIntPoint ViewRectMin(EForceInit::ForceInitToZero);
 	if (!bIsMobileMultiViewEnabled)
 	{
 		for (uint32 i = 0; i < ViewIndex; ++i)
 		{
-			ViewRectMin.X += Configs[i].recommendedImageRectWidth;
+			ViewRectMin.X += PipelineState.ViewConfigs[i].recommendedImageRectWidth;
 		}
 	}
 	QuantizeSceneBufferSize(ViewRectMin, ViewRectMin);
@@ -937,29 +1062,50 @@ void FOpenXRHMD::AdjustViewRect(EStereoscopicPass StereoPass, int32& X, int32& Y
 
 void FOpenXRHMD::SetFinalViewRect(const enum EStereoscopicPass StereoPass, const FIntRect& FinalViewRect)
 {
-	int32 ViewIndex = GetViewIndexForPass(StereoPass);
+	if (StereoPass == eSSP_FULL)
+	{
+		return;
+	}
 
+	int32 ViewIndex = GetViewIndexForPass(StereoPass);
 	float NearZ = GNearClippingPlane / GetWorldToMetersScale();
 
-	XrCompositionLayerProjectionView& Projection = ProjectionViewsRHI[ViewIndex];
-	XrCompositionLayerDepthInfoKHR& DepthLayer = DepthLayersRHI[ViewIndex];
+	FPipelinedFrameState& PipelineState = GetPipelinedFrameStateForThread();
 
-	Projection.type = XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW;
-	Projection.next = nullptr;
-	Projection.subImage.swapchain = Swapchain.IsValid() ? static_cast<FOpenXRSwapchain*>(GetSwapchain())->GetHandle() : XR_NULL_HANDLE;
-	Projection.subImage.imageArrayIndex = bIsMobileMultiViewEnabled ? ViewIndex : 0;
-	Projection.subImage.imageRect = {
+	XrSwapchainSubImage& ColorImage = PipelineState.ColorImages[ViewIndex];
+	ColorImage.swapchain = Swapchain.IsValid() ? static_cast<FOpenXRSwapchain*>(GetSwapchain())->GetHandle() : XR_NULL_HANDLE;
+	ColorImage.imageArrayIndex = bIsMobileMultiViewEnabled ? ViewIndex : 0;
+	ColorImage.imageRect = {
 		{ FinalViewRect.Min.X, FinalViewRect.Min.Y },
 		{ FinalViewRect.Width(), FinalViewRect.Height() }
 	};
 
-	if (bDepthExtensionSupported && !bNeedReAllocatedDepth)
+	XrSwapchainSubImage& DepthImage = PipelineState.DepthImages[ViewIndex];
+	if (bDepthExtensionSupported)
+	{
+		DepthImage.swapchain = DepthSwapchain.IsValid() ? static_cast<FOpenXRSwapchain*>(GetDepthSwapchain())->GetHandle() : XR_NULL_HANDLE;
+		DepthImage.imageArrayIndex = bIsMobileMultiViewEnabled ? ViewIndex : 0;
+		DepthImage.imageRect = ColorImage.imageRect;
+	}
+
+	if (PipelineState.PluginViews[ViewIndex])
+	{
+		// Defer to the plugin to handle submission
+		return;
+	}
+
+	XrCompositionLayerProjectionView& Projection = PipelineState.ProjectionLayers[ViewIndex];
+	XrCompositionLayerDepthInfoKHR& DepthLayer = PipelineState.DepthLayers[ViewIndex];
+
+	Projection.type = XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW;
+	Projection.next = nullptr;
+	Projection.subImage = ColorImage;
+
+	if (bDepthExtensionSupported)
 	{
 		DepthLayer.type = XR_TYPE_COMPOSITION_LAYER_DEPTH_INFO_KHR;
 		DepthLayer.next = nullptr;
-		DepthLayer.subImage.swapchain = DepthSwapchain.IsValid() ? static_cast<FOpenXRSwapchain*>(GetDepthSwapchain())->GetHandle() : XR_NULL_HANDLE;
-		DepthLayer.subImage.imageArrayIndex = bIsMobileMultiViewEnabled ? ViewIndex : 0;
-		DepthLayer.subImage.imageRect = bIsMobileMultiViewEnabled ? ProjectionViewsRHI[0].subImage.imageRect : Projection.subImage.imageRect;
+		DepthLayer.subImage = DepthImage;
 		DepthLayer.minDepth = 0.0f;
 		DepthLayer.maxDepth = 1.0f;
 		DepthLayer.nearZ = FLT_MAX;
@@ -1013,7 +1159,10 @@ uint32 FOpenXRHMD::DeviceGetLODViewIndex() const
 
 int32 FOpenXRHMD::GetDesiredNumberOfViews(bool bStereoRequested) const
 {
-	return bStereoRequested ? Configs.Num() : 1; // FIXME: Monoscopic actually needs 2 views for quad vr
+	const FPipelinedFrameState& FrameState = GetPipelinedFrameStateForThread();
+
+	// FIXME: Monoscopic actually needs 2 views for quad vr
+	return bStereoRequested ? FrameState.ViewConfigs.Num() : 1;
 }
 
 bool FOpenXRHMD::GetRelativeEyePose(int32 InDeviceId, EStereoscopicPass InEye, FQuat& OutOrientation, FVector& OutPosition)
@@ -1083,7 +1232,8 @@ void FOpenXRHMD::SetupViewFamily(FSceneViewFamily& InViewFamily)
 	// can take advantage of the extra resolution in the distortion process.
 	InViewFamily.EngineShowFlags.ScreenPercentage = 0;
 
-	if (Configs.Num() > 2)
+	const FPipelinedFrameState& FrameState = GetPipelinedFrameStateForThread();
+	if (FrameState.Views.Num() > 2)
 	{
 		InViewFamily.EngineShowFlags.Vignette = 0;
 		InViewFamily.EngineShowFlags.Bloom = 0;
@@ -1145,7 +1295,7 @@ FOpenXRHMD::FOpenXRHMD(const FAutoRegister& AutoRegister, XrInstance InInstance,
 	, LastRequestedDepthSwapchainFormat(0)
 {
 #if PLATFORM_HOLOLENS
-	bDepthExtensionSupported = bHiddenAreaMaskSupported = false;
+	bDepthExtensionSupported = bHiddenAreaMaskSupported = bViewConfigurationFovSupported = false;
 
 	static const auto CVarMobileMultiView = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("vr.MobileMultiView"));
 	static const auto CVarMobileHDR = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MobileHDR"));
@@ -1154,60 +1304,38 @@ FOpenXRHMD::FOpenXRHMD(const FAutoRegister& AutoRegister, XrInstance InInstance,
 #else
 	bDepthExtensionSupported = IsExtensionEnabled(XR_KHR_COMPOSITION_LAYER_DEPTH_EXTENSION_NAME);
 	bHiddenAreaMaskSupported = IsExtensionEnabled(XR_KHR_VISIBILITY_MASK_EXTENSION_NAME);
+	bViewConfigurationFovSupported = IsExtensionEnabled(XR_EPIC_VIEW_CONFIGURATION_FOV_EXTENSION_NAME);
 	bIsMobileMultiViewEnabled = false;
 #endif
+	// Enumerate the viewport configurations
+	uint32 ConfigurationCount;
+	TArray<XrViewConfigurationType> ViewConfigTypes;
+	XR_ENSURE(xrEnumerateViewConfigurations(Instance, System, 0, &ConfigurationCount, nullptr));
+	ViewConfigTypes.SetNum(ConfigurationCount);
+	// Fill the initial array with valid enum types (this will fail in the validation layer otherwise).
+	for (auto & TypeIter : ViewConfigTypes)
+		TypeIter = XR_VIEW_CONFIGURATION_TYPE_PRIMARY_MONO;
+	XR_ENSURE(xrEnumerateViewConfigurations(Instance, System, ConfigurationCount, &ConfigurationCount, ViewConfigTypes.GetData()));
+
+	// Select the first view configuration returned by the runtime that is supported.
+	// This is the view configuration preferred by the runtime.
+	for (XrViewConfigurationType ViewConfigType : ViewConfigTypes)
 	{
-		// Enumerate the viewport configurations
-		uint32 ConfigurationCount;
-		TArray<XrViewConfigurationType> ViewConfigTypes;
-		XR_ENSURE(xrEnumerateViewConfigurations(Instance, System, 0, &ConfigurationCount, nullptr));
-		ViewConfigTypes.SetNum(ConfigurationCount);
-		// Fill the initial array with valid enum types (this will fail in the validation layer otherwise).
-		for (auto & TypeIter : ViewConfigTypes)
-			TypeIter = XR_VIEW_CONFIGURATION_TYPE_PRIMARY_MONO;
-		XR_ENSURE(xrEnumerateViewConfigurations(Instance, System, ConfigurationCount, &ConfigurationCount, ViewConfigTypes.GetData()));
-
-		// Select the first view configuration returned by the runtime that is supported.
-		// This is the view configuration preferred by the runtime.
-		for (XrViewConfigurationType ViewConfigType : ViewConfigTypes)
+		if (SupportedViewConfigurations.Contains(ViewConfigType))
 		{
-			if (SupportedViewConfigurations.Contains(ViewConfigType))
-			{
-				SelectedViewConfigurationType = ViewConfigType;
-				break;
-			}
+			SelectedViewConfigurationType = ViewConfigType;
+			break;
 		}
-
-		// If there is no supported view configuration type, use the first option as a last resort.
-		if (!ensure(SelectedViewConfigurationType != XR_VIEW_CONFIGURATION_TYPE_MAX_ENUM))
-		{
-			SelectedViewConfigurationType = ViewConfigTypes[0];
-		}
-
-		// Enumerate the viewport configuration views
-		uint32 ViewCount;
-		XR_ENSURE(xrEnumerateViewConfigurationViews(Instance, System, SelectedViewConfigurationType, 0, &ViewCount, nullptr));
-		Configs.SetNum(ViewCount);
-		for (XrViewConfigurationView& View : Configs)
-		{
-			View.type = XR_TYPE_VIEW_CONFIGURATION_VIEW;
-			View.next = nullptr;
-		}
-		XR_ENSURE(xrEnumerateViewConfigurationViews(Instance, System, SelectedViewConfigurationType, ViewCount, &ViewCount, Configs.GetData()));
-
-		ProjectionViewsRHI.SetNum(ViewCount);
-		DepthLayersRHI.SetNum(ViewCount);
 	}
 
-	// Ensure the views have sane values before we locate them
-	PipelinedFrameStateGame.Views.SetNum(Configs.Num());
-	for (XrView& View : PipelinedFrameStateGame.Views)
+	// If there is no supported view configuration type, use the first option as a last resort.
+	if (!ensure(SelectedViewConfigurationType != XR_VIEW_CONFIGURATION_TYPE_MAX_ENUM))
 	{
-		View.type = XR_TYPE_VIEW;
-		View.next = nullptr;
-		View.fov = XrFovf{ -PI / 4.0f, PI / 4.0f, PI / 4.0f, -PI / 4.0f };
-		View.pose = ToXrPose(FTransform::Identity);
+		UE_LOG(LogHMD, Error, TEXT("No compatible view configuration type found, falling back to runtime preferred type."));
+		SelectedViewConfigurationType = ViewConfigTypes[0];
 	}
+
+	EnumerateViews(PipelinedFrameStateGame);
 
 	// Enumerate environment blend modes and select the best one.
 	{
@@ -1300,15 +1428,110 @@ void FOpenXRHMD::UpdateDeviceLocations()
 	}
 }
 
+void FOpenXRHMD::EnumerateViews(FPipelinedFrameState& PipelineState)
+{
+	// Enumerate the viewport configuration views
+	uint32 ViewConfigCount = 0;
+	TArray<XrViewConfigurationViewFovEPIC> ViewFov;
+	XR_ENSURE(xrEnumerateViewConfigurationViews(Instance, System, SelectedViewConfigurationType, 0, &ViewConfigCount, nullptr));
+	ViewFov.SetNum(ViewConfigCount);
+	PipelineState.ViewConfigs.Empty(ViewConfigCount);
+	PipelineState.PluginViews.Empty(ViewConfigCount);
+	for (uint32 ViewIndex = 0; ViewIndex < ViewConfigCount; ViewIndex++)
+	{
+		XrViewConfigurationView View;
+		View.type = XR_TYPE_VIEW_CONFIGURATION_VIEW;
+
+		ViewFov[ViewIndex].type = XR_TYPE_VIEW_CONFIGURATION_VIEW_FOV_EPIC;
+		ViewFov[ViewIndex].next = nullptr;
+		View.next = bViewConfigurationFovSupported ? &ViewFov[ViewIndex] : nullptr;
+
+		// These are core views that don't have an associated plugin
+		PipelineState.PluginViews.Add(nullptr);
+		PipelineState.ViewConfigs.Add(View);
+	}
+	XR_ENSURE(xrEnumerateViewConfigurationViews(Instance, System, SelectedViewConfigurationType, ViewConfigCount, &ViewConfigCount, PipelinedFrameStateGame.ViewConfigs.GetData()));
+
+	for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
+	{
+		TArray<XrViewConfigurationView> ViewConfigs;
+		Module->GetViewConfigurations(System, ViewConfigs);
+		for (int32 i = 0; i < ViewConfigs.Num(); i++)
+		{
+			PipelineState.PluginViews.Add(Module);
+		}
+		PipelineState.ViewConfigs.Append(ViewConfigs);
+	}
+	
+	if (Session)
+	{
+		uint32_t ViewCount = 0;
+		XrViewLocateInfo ViewInfo;
+		ViewInfo.type = XR_TYPE_VIEW_LOCATE_INFO;
+		ViewInfo.next = nullptr;
+		ViewInfo.viewConfigurationType = SelectedViewConfigurationType;
+		ViewInfo.space = DeviceSpaces[HMDDeviceId].Space;
+		ViewInfo.displayTime = PipelineState.FrameState.predictedDisplayTime;
+		XR_ENSURE(xrLocateViews(Session, &ViewInfo, &PipelineState.ViewState, 0, &ViewCount, nullptr));
+		PipelineState.Views.SetNum(ViewCount, false);
+		XR_ENSURE(xrLocateViews(Session, &ViewInfo, &PipelineState.ViewState, PipelineState.Views.Num(), &ViewCount, PipelineState.Views.GetData()));
+
+		for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
+		{
+			if (PipelineState.PluginViews.Contains(Module))
+			{
+				TArray<XrView> Views;
+				Module->GetViewLocations(Session, PipelineState.FrameState.predictedDisplayTime, DeviceSpaces[HMDDeviceId].Space, Views);
+				check(Views.Num() > 0);
+				PipelineState.Views.Append(Views);
+			}
+		}
+	}
+	else if (bViewConfigurationFovSupported)
+	{
+		// We can't locate the views yet, but we can already retrieve their field-of-views
+		PipelineState.Views.SetNum(PipelineState.ViewConfigs.Num());
+		for (int ViewIndex = 0; ViewIndex < PipelineState.Views.Num(); ViewIndex++)
+		{
+			XrView& View = PipelineState.Views[ViewIndex];
+			View.type = XR_TYPE_VIEW;
+			View.next = nullptr;
+			// FIXME: should be recommendedFov
+			View.fov = ViewFov[ViewIndex].recommendedMutableFov;
+			View.pose = ToXrPose(FTransform::Identity);
+		}
+	}
+	else
+	{
+		// Ensure the views have sane values before we locate them
+		PipelineState.Views.SetNum(PipelineState.ViewConfigs.Num());
+		for (XrView& View : PipelineState.Views)
+		{
+			View.type = XR_TYPE_VIEW;
+			View.next = nullptr;
+			View.fov = XrFovf{ -PI / 4.0f, PI / 4.0f, PI / 4.0f, -PI / 4.0f };
+			View.pose = ToXrPose(FTransform::Identity);
+		}
+	}
+
+	PipelineState.ProjectionLayers.SetNum(ViewConfigCount);
+	PipelineState.DepthLayers.SetNum(ViewConfigCount);
+
+	PipelineState.ColorImages.SetNum(PipelineState.ViewConfigs.Num());
+	PipelineState.DepthImages.SetNum(PipelineState.ViewConfigs.Num());
+}
+
 #if !PLATFORM_HOLOLENS
 void FOpenXRHMD::BuildOcclusionMeshes()
 {
-	HiddenAreaMeshes.SetNum(Configs.Num());
-	VisibleAreaMeshes.SetNum(Configs.Num());
+	uint32_t ViewCount = 0;
+	XR_ENSURE(xrEnumerateViewConfigurationViews(Instance, System, SelectedViewConfigurationType, 0, &ViewCount, nullptr));
+	HiddenAreaMeshes.SetNum(ViewCount);
+	VisibleAreaMeshes.SetNum(ViewCount);
 
 	bool bSucceeded = true;
 
-	for (int View = 0; View < Configs.Num(); ++View)
+	for (uint32_t View = 0; View < ViewCount; ++View)
 	{
 		if (!BuildOcclusionMesh(XR_VISIBILITY_MASK_TYPE_VISIBLE_TRIANGLE_MESH_KHR, View, VisibleAreaMeshes[View]) ||
 			!BuildOcclusionMesh(XR_VISIBILITY_MASK_TYPE_HIDDEN_TRIANGLE_MESH_KHR, View, HiddenAreaMeshes[View]))
@@ -1335,6 +1558,13 @@ bool FOpenXRHMD::BuildOcclusionMesh(XrVisibilityMaskTypeKHR Type, int View, FHMD
 	XrVisibilityMaskKHR VisibilityMask = { XR_TYPE_VISIBILITY_MASK_KHR };
 	XR_ENSURE(GetVisibilityMaskKHR(Session, SelectedViewConfigurationType, View, Type, &VisibilityMask));
 
+	if (VisibilityMask.indexCountOutput == 0)
+	{
+		UE_LOG(LogHMD, Warning, TEXT("Runtime does not currently have a visibility mask.  Another attempt will be made to build the occlusion mesh on an XR_TYPE_EVENT_DATA_VISIBILITY_MASK_CHANGED_KHR event."));
+		// Disallow future BuildOcclusionMesh attempts until this flag is reset in the XR_TYPE_EVENT_DATA_VISIBILITY_MASK_CHANGED_KHR handler.
+		bHiddenAreaMaskSupported = false;
+		return false;
+	}
 	if (!VisibilityMask.indexCountOutput || (VisibilityMask.indexCountOutput % 3) != 0 || VisibilityMask.vertexCountOutput == 0)
 	{
 		UE_LOG(LogHMD, Error, TEXT("Visibility Mask Mesh returned from runtime is invalid."));
@@ -1623,7 +1853,7 @@ bool FOpenXRHMD::AllocateRenderTargetTexture(uint32 Index, uint32 SizeX, uint32 
 bool FOpenXRHMD::AllocateDepthTexture(uint32 Index, uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, ETextureCreateFlags TargetableTextureFlags, FTexture2DRHIRef& OutTargetableTexture, FTexture2DRHIRef& OutShaderResourceTexture, uint32 NumSamples)
 {
 	// FIXME: UE4 constantly calls this function even when there is no reason to reallocate the depth texture
-	if (!bDepthExtensionSupported || !bNeedReAllocatedDepth)
+	if (!bDepthExtensionSupported)
 	{
 		return false;
 	}
@@ -1665,48 +1895,13 @@ void FOpenXRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdL
 	const FTransform BaseTransform = FTransform(MainView->BaseHmdOrientation, MainView->BaseHmdLocation);
 
 	// Set the base pose and fov for each view
-	for (int32 ViewIndex = 0; ViewIndex < PipelineState.Views.Num(); ViewIndex++)
+	for (int32 ViewIndex = 0; ViewIndex < PipelineState.ProjectionLayers.Num(); ViewIndex++)
 	{
 		const XrView& View = PipelineState.Views[ViewIndex];
-		XrCompositionLayerProjectionView& Projection = ProjectionViewsRHI[ViewIndex];
+		XrCompositionLayerProjectionView& Projection = PipelineState.ProjectionLayers[ViewIndex];
 		FTransform ViewTransform = ToFTransform(View.pose, GetWorldToMetersScale());
 		Projection.pose = ToXrPose(ViewTransform * BaseTransform, GetWorldToMetersScale());
 		Projection.fov = View.fov;
-	}
-
-	// xrBeginFrame is called _AFTER_ data the above data is cloned for RHI because xrBeginFrame will unblock xrWaitFrame in the game thread
-	// and that could otherwise lead to data races.
-	if (bIsReady)
-	{
-		XrFrameBeginInfo BeginInfo;
-		BeginInfo.type = XR_TYPE_FRAME_BEGIN_INFO;
-		BeginInfo.next = nullptr;
-		XrTime DisplayTime = PipelinedFrameStateRHI.FrameState.predictedDisplayTime;
-		for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
-		{
-			BeginInfo.next = Module->OnBeginFrame(Session, DisplayTime, BeginInfo.next);
-		}
-		XrResult Result = xrBeginFrame(Session, &BeginInfo);
-		if (XR_SUCCEEDED(Result))
-		{
-			bIsRendering = true;
-
-			Swapchain->IncrementSwapChainIndex_RHIThread(PipelineState.FrameState.predictedDisplayPeriod);
-			if (bDepthExtensionSupported && !bNeedReAllocatedDepth)
-			{
-				ensure(DepthSwapchain != nullptr);
-				DepthSwapchain->IncrementSwapChainIndex_RHIThread(PipelineState.FrameState.predictedDisplayPeriod);
-			}
-		}
-		else
-		{
-			static bool bLoggedBeginFrameFailure = false;
-			if (!bLoggedBeginFrameFailure)
-			{
-				UE_LOG(LogHMD, Error, TEXT("Unexpected error on xrBeginFrame. Error code was %s."), OpenXRResultToString(Result));
-				bLoggedBeginFrameFailure = true;
-			}
-		}
 	}
 
 	// Snapshot new poses for late update.
@@ -1718,12 +1913,12 @@ void FOpenXRHMD::OnLateUpdateApplied_RenderThread(const FTransform& NewRelativeT
 	FHeadMountedDisplayBase::OnLateUpdateApplied_RenderThread(NewRelativeTransform);
 
 	ensure(IsInRenderingThread());
-	const FPipelinedFrameState& PipelineState = GetPipelinedFrameStateForThread();
+	FPipelinedFrameState& PipelineState = GetPipelinedFrameStateForThread();
 
-	for (int32 ViewIndex = 0; ViewIndex < PipelineState.Views.Num(); ViewIndex++)
+	for (int32 ViewIndex = 0; ViewIndex < PipelineState.ProjectionLayers.Num(); ViewIndex++)
 	{
 		const XrView& View = PipelineState.Views[ViewIndex];
-		XrCompositionLayerProjectionView& Projection = ProjectionViewsRHI[ViewIndex];
+		XrCompositionLayerProjectionView& Projection = PipelineState.ProjectionLayers[ViewIndex];
 
 		FTransform ViewTransform = ToFTransform(View.pose, GetWorldToMetersScale());
 		Projection.pose = ToXrPose(ViewTransform * NewRelativeTransform, GetWorldToMetersScale());
@@ -1743,6 +1938,10 @@ void FOpenXRHMD::OnBeginRendering_GameThread()
 	XrFrameWaitInfo WaitInfo;
 	WaitInfo.type = XR_TYPE_FRAME_WAIT_INFO;
 	WaitInfo.next = nullptr;
+	for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
+	{
+		WaitInfo.next = Module->OnWaitFrame(Session, WaitInfo.next);
+	}
 
 	XrFrameState FrameState{XR_TYPE_FRAME_STATE};
 	XR_ENSURE(xrWaitFrame(Session, &WaitInfo, &FrameState));
@@ -1755,17 +1954,7 @@ void FOpenXRHMD::OnBeginRendering_GameThread()
 	PipelineState.TrackingSpace = GetTrackingSpace();
 	PipelineState.WorldToMetersScale = WorldToMetersScale;
 
-	uint32_t ViewCount = 0;
-	XrViewLocateInfo ViewInfo;
-	ViewInfo.type = XR_TYPE_VIEW_LOCATE_INFO;
-	ViewInfo.next = nullptr;
-	ViewInfo.viewConfigurationType = SelectedViewConfigurationType;
-	ViewInfo.space = DeviceSpaces[HMDDeviceId].Space;
-	ViewInfo.displayTime = PipelineState.FrameState.predictedDisplayTime;
-	XR_ENSURE(xrLocateViews(Session, &ViewInfo, &PipelineState.ViewState, 0, &ViewCount, nullptr));
-	PipelineState.Views.SetNum(ViewCount);
-	XR_ENSURE(xrLocateViews(Session, &ViewInfo, &PipelineState.ViewState, PipelineState.Views.Num(), &ViewCount, PipelineState.Views.GetData()));
-
+	EnumerateViews(PipelineState);
 	UpdateDeviceLocations();
 }
 
@@ -1841,7 +2030,7 @@ bool FOpenXRHMD::OnStartGameFrame(FWorldContext& WorldContext)
 				break;
 			}
 
-			if (SessionState.state != XR_SESSION_STATE_STOPPING && SessionState.state != XR_SESSION_STATE_EXITING)
+			if (SessionState.state != XR_SESSION_STATE_STOPPING && SessionState.state != XR_SESSION_STATE_EXITING && SessionState.state != XR_SESSION_STATE_LOSS_PENDING)
 			{
 				break;
 			}
@@ -1882,6 +2071,7 @@ bool FOpenXRHMD::OnStartGameFrame(FWorldContext& WorldContext)
 		}
 		case XR_TYPE_EVENT_DATA_VISIBILITY_MASK_CHANGED_KHR:
 		{
+			bHiddenAreaMaskSupported = ensure(IsExtensionEnabled(XR_KHR_VISIBILITY_MASK_EXTENSION_NAME));  // Ensure fail indicates a non-conformant openxr implementation.
 			bNeedReBuildOcclusionMesh = true;
 		}
 		}
@@ -1892,7 +2082,44 @@ bool FOpenXRHMD::OnStartGameFrame(FWorldContext& WorldContext)
 	return true;
 }
 
-void FOpenXRHMD::FinishRendering()
+void FOpenXRHMD::OnBeginRendering_RHIThread()
+{
+	ensure(IsInRenderingThread() || IsInRHIThread());
+	if (bIsReady)
+	{
+		XrFrameBeginInfo BeginInfo;
+		BeginInfo.type = XR_TYPE_FRAME_BEGIN_INFO;
+		BeginInfo.next = nullptr;
+		XrTime DisplayTime = PipelinedFrameStateRHI.FrameState.predictedDisplayTime;
+		for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
+		{
+			BeginInfo.next = Module->OnBeginFrame(Session, DisplayTime, BeginInfo.next);
+		}
+		XrResult Result = xrBeginFrame(Session, &BeginInfo);
+		if (XR_SUCCEEDED(Result))
+		{
+			bIsRendering = true;
+
+			Swapchain->IncrementSwapChainIndex_RHIThread(PipelinedFrameStateRHI.FrameState.predictedDisplayPeriod);
+			if (bDepthExtensionSupported && !bNeedReAllocatedDepth)
+			{
+				ensure(DepthSwapchain != nullptr);
+				DepthSwapchain->IncrementSwapChainIndex_RHIThread(PipelinedFrameStateRHI.FrameState.predictedDisplayPeriod);
+			}
+		}
+		else
+		{
+			static bool bLoggedBeginFrameFailure = false;
+			if (!bLoggedBeginFrameFailure)
+			{
+				UE_LOG(LogHMD, Error, TEXT("Unexpected error on xrBeginFrame. Error code was %s."), OpenXRResultToString(Result));
+				bLoggedBeginFrameFailure = true;
+			}
+		}
+	}
+}
+
+void FOpenXRHMD::OnFinishRendering_RHIThread()
 {
 	ensure(IsInRenderingThread() || IsInRHIThread());
 	if (!Swapchain)
@@ -1906,8 +2133,8 @@ void FOpenXRHMD::FinishRendering()
 	Layer.type = XR_TYPE_COMPOSITION_LAYER_PROJECTION;
 	Layer.next = nullptr;
 	Layer.space = PipelineState.TrackingSpace;
-	Layer.viewCount = ProjectionViewsRHI.Num();
-	Layer.views = ProjectionViewsRHI.GetData();
+	Layer.viewCount = PipelineState.ProjectionLayers.Num();
+	Layer.views = PipelineState.ProjectionLayers.GetData();
 	for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
 	{
 		Layer.next = Module->OnEndProjectionLayer(Session, 0, Layer.next);
@@ -1930,9 +2157,24 @@ void FOpenXRHMD::FinishRendering()
 		EndInfo.environmentBlendMode = SelectedEnvironmentBlendMode;
 		EndInfo.layerCount = 1;
 		EndInfo.layers = reinterpret_cast<XrCompositionLayerBaseHeader**>(Headers);
+
+		// Make callback to plugin including any extra view subimages they've requested
 		for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
 		{
-			EndInfo.next = Module->OnEndFrame(Session, EndInfo.displayTime, EndInfo.next);
+			TArray<XrSwapchainSubImage> ColorImages;
+			TArray<XrSwapchainSubImage> DepthImages;
+			for (int32 i = 0; i < PipelineState.PluginViews.Num(); i++)
+			{
+				if (PipelineState.PluginViews[i] == Module)
+				{
+					ColorImages.Add(PipelineState.ColorImages[i]);
+					if (bDepthExtensionSupported)
+					{
+						DepthImages.Add(PipelineState.DepthImages[i]);
+					}
+				}
+			}
+			EndInfo.next = Module->OnEndFrame(Session, EndInfo.displayTime, ColorImages, DepthImages, EndInfo.next);
 		}
 		XrResult Result = xrEndFrame(Session, &EndInfo);
 
@@ -1950,8 +2192,10 @@ FXRRenderBridge* FOpenXRHMD::GetActiveRenderBridge_GameThread(bool /* bUseSepara
 
 FIntPoint FOpenXRHMD::GetIdealRenderTargetSize() const
 {
+	const FPipelinedFrameState& PipelineState = GetPipelinedFrameStateForThread();
+
 	FIntPoint Size(EForceInit::ForceInitToZero);
-	for (XrViewConfigurationView Config : Configs)
+	for (const XrViewConfigurationView& Config : PipelineState.ViewConfigs)
 	{
 		Size.X = bIsMobileMultiViewEnabled ? FMath::Max(Size.X, (int)Config.recommendedImageRectWidth)
 			: Size.X + (int)Config.recommendedImageRectWidth;
@@ -1969,7 +2213,7 @@ FIntRect FOpenXRHMD::GetFullFlatEyeRect_RenderThread(FTexture2DRHIRef EyeTexture
 {
 	FVector2D SrcNormRectMin(0.05f, 0.2f);
 	FVector2D SrcNormRectMax(0.45f, 0.8f);
-	if (Configs.Num() > 2)
+	if (GetDesiredNumberOfViews(bStereoEnabled) > 2)
 	{
 		SrcNormRectMin.X /= 2;
 		SrcNormRectMax.X /= 2;
@@ -2079,12 +2323,14 @@ void FOpenXRHMD::DrawHiddenAreaMesh_RenderThread(class FRHICommandList& RHICmdLi
 	check(StereoPass != eSSP_FULL);
 
 	const uint32 ViewIndex = GetViewIndexForPass(StereoPass);
-	check(ViewIndex < (uint32)HiddenAreaMeshes.Num());
-	const FHMDViewMesh& Mesh = HiddenAreaMeshes[ViewIndex];
-	check(Mesh.IsValid());
+	if (ViewIndex < (uint32)HiddenAreaMeshes.Num())
+	{
+		const FHMDViewMesh& Mesh = HiddenAreaMeshes[ViewIndex];
+		check(Mesh.IsValid());
 
-	RHICmdList.SetStreamSource(0, Mesh.VertexBufferRHI, 0);
-	RHICmdList.DrawIndexedPrimitive(Mesh.IndexBufferRHI, 0, 0, Mesh.NumVertices, 0, Mesh.NumTriangles, 1);
+		RHICmdList.SetStreamSource(0, Mesh.VertexBufferRHI, 0);
+		RHICmdList.DrawIndexedPrimitive(Mesh.IndexBufferRHI, 0, 0, Mesh.NumVertices, 0, Mesh.NumTriangles, 1);
+	}
 }
 
 void FOpenXRHMD::DrawVisibleAreaMesh_RenderThread(class FRHICommandList& RHICmdList, EStereoscopicPass StereoPass) const

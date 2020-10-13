@@ -105,8 +105,18 @@ void UAnimGraphNode_BlendSpacePlayer::ValidateAnimNodeDuringCompilation(class US
 
 	if (BlendSpaceToCheck == nullptr)
 	{
-		// we may have a connected node
-		if (BlendSpacePin == nullptr || BlendSpacePin->LinkedTo.Num() == 0)
+		// Check for bindings
+		bool bHasBinding = false;
+		if(BlendSpacePin != nullptr)
+		{
+			if (FAnimGraphNodePropertyBinding* BindingPtr = PropertyBindings.Find(BlendSpacePin->GetFName()))
+			{
+				bHasBinding = true;
+			}
+		}
+
+		// we may have a connected node or binding
+		if (BlendSpacePin == nullptr || (BlendSpacePin->LinkedTo.Num() == 0 && !bHasBinding))
 		{
 			MessageLog.Error(TEXT("@@ references an unknown blend space"), this);
 		}		

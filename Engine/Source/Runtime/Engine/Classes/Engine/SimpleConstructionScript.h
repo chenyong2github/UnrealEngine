@@ -66,6 +66,9 @@ class USimpleConstructionScript : public UObject
 	{
 		return GetSceneRootComponentTemplate(false, OutSCSNode);
 	}
+
+	/** Saves the current state of SimpleConstructionScript and its nodes to the transaction buffer. */
+	ENGINE_API void SaveToTransactionBuffer();
 #endif
 
 	/** Return the Blueprint associated with this SCS instance */

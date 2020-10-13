@@ -2,10 +2,12 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
+
 #include "Input/Devices/DisplayClusterInputDeviceTraits.h"
 #include "Input/Devices/DisplayClusterInputDeviceBase.h"
 
-#include "CoreMinimal.h"
+class UDisplayClusterConfigurationInputDeviceButton;
 
 
 /**
@@ -15,7 +17,7 @@ class FDisplayClusterVrpnButtonInputDataHolder
 	: public FDisplayClusterInputDeviceBase<EDisplayClusterInputDeviceType::VrpnButton>
 {
 public:
-	FDisplayClusterVrpnButtonInputDataHolder(const FDisplayClusterConfigInput& Config);
+	FDisplayClusterVrpnButtonInputDataHolder(const FString& DeviceId, const UDisplayClusterConfigurationInputDeviceButton* CfgDevice);
 	virtual ~FDisplayClusterVrpnButtonInputDataHolder();
 
 public:
@@ -23,6 +25,9 @@ public:
 	// IDisplayClusterInputDevice
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	virtual bool Initialize() override;
+
+	virtual FString GetType() const override
+	{ return FString("button"); }
 
 public:
 	//////////////////////////////////////////////////////////////////////////////////////////////

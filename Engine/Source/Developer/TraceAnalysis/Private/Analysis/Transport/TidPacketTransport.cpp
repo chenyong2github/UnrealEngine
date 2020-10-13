@@ -3,6 +3,7 @@
 #include "TidPacketTransport.h"
 #include "Algo/BinarySearch.h"
 #include "HAL/UnrealMemory.h"
+#include "Trace/Detail/Protocol.h"
 
 namespace Trace
 {
@@ -62,19 +63,28 @@ bool FTidPacketTransport::ReadPacket()
 ////////////////////////////////////////////////////////////////////////////////
 FTidPacketTransport::FThreadStream& FTidPacketTransport::FindOrAddThread(uint32 ThreadId)
 {
-	uint32 Index = Algo::LowerBoundBy(Threads, ThreadId, [] (const FThreadStream& Rhs) { return Rhs.ThreadId; });
-	if (Index < uint32(Threads.Num()))
+	uint32 ThreadCount = Threads.Num();
+	for (uint32 i = 0; i < ThreadCount; ++i)
 	{
-		if (Threads[Index].ThreadId == ThreadId)
+		if (Threads[i].ThreadId == ThreadId)
 		{
-			return Threads[Index];
+			return Threads[i];
 		}
 	}
 
 	FThreadStream Thread;
 	Thread.ThreadId = ThreadId;
-	Threads.Insert(Thread, Index);
-	return Threads[Index];
+
+	// Internal events are sent over tid 0 and they should be processed first. We
+	// don't care about the order otherwise.
+	if (Thread.ThreadId == ETransportTid::Internal)
+	{
+		Threads.Insert(Thread, 0);
+		return Threads[0];
+	}
+
+	Threads.Add(Thread);
+	return Threads[ThreadCount];
 }
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -62,14 +62,14 @@ class FAutoDeleteAsyncTask
 	/** User job embedded in this task */
 	TTask Task;
 	/** optional LLM tag */
-	LLM(ELLMTag InheritedLLMTag);
+	LLM(const UE::LLMPrivate::FTagData* InheritedLLMTag);
 
 	/* Generic start function, not called directly
 	 * @param bForceSynchronous if true, this job will be started synchronously, now, on this thread
 	 **/
 	void Start(bool bForceSynchronous, FQueuedThreadPool* InQueuedPool)
 	{
-		LLM(InheritedLLMTag = FLowLevelMemTracker::bIsDisabled ? ELLMTag::Untagged : (ELLMTag)FLowLevelMemTracker::Get().GetActiveTag(ELLMTracker::Default));
+		LLM(InheritedLLMTag = FLowLevelMemTracker::bIsDisabled ? nullptr : FLowLevelMemTracker::Get().GetActiveTagData(ELLMTracker::Default));
 
 		FPlatformMisc::MemoryBarrier();
 		FQueuedThreadPool* QueuedPool = InQueuedPool;
@@ -216,7 +216,7 @@ class FAsyncTask
 	/** Pool we are queued into, maintained by the calling thread */
 	FQueuedThreadPool*	QueuedPool;
 	/** optional LLM tag */
-	LLM(ELLMTag InheritedLLMTag);
+	LLM(const UE::LLMPrivate::FTagData* InheritedLLMTag);
 
 	/* Internal function to destroy the completion event
 	**/
@@ -233,7 +233,7 @@ class FAsyncTask
 	{
 		FScopeCycleCounter Scope( Task.GetStatId(), true );
 		DECLARE_SCOPE_CYCLE_COUNTER( TEXT( "FAsyncTask::Start" ), STAT_FAsyncTask_Start, STATGROUP_ThreadPoolAsyncTasks );
-		LLM(InheritedLLMTag = FLowLevelMemTracker::bIsDisabled ? ELLMTag::Untagged : (ELLMTag)FLowLevelMemTracker::Get().GetActiveTag(ELLMTracker::Default));
+		LLM(InheritedLLMTag = FLowLevelMemTracker::bIsDisabled ? nullptr : FLowLevelMemTracker::Get().GetActiveTagData(ELLMTracker::Default));
 
 		FPlatformMisc::MemoryBarrier();
 		CheckIdle();  // can't start a job twice without it being completed first

@@ -27,6 +27,7 @@ public class VirtualCamera : ModuleRules
 				"VPUtilities",
 				"VPUtilitiesEditor",
 				"TakesCore",
+				"AssetRegistry",
 			}
 		);
 

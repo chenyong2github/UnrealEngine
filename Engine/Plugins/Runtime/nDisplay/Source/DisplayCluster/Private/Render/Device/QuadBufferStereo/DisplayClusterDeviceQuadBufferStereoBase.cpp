@@ -45,17 +45,17 @@ void FDisplayClusterDeviceQuadBufferStereoBase::AdjustViewRect(enum EStereoscopi
 	FDisplayClusterRenderViewport& RenderViewport = RenderViewports[ViewportIndex];
 
 	// Provide the Engine with a viewport rectangle
-	const FIntRect& ViewportArea = RenderViewports[ViewportIndex].GetArea();
-	X = ViewportArea.Min.X;
-	Y = ViewportArea.Min.Y;
+	const FIntRect& ViewportRect = RenderViewports[ViewportIndex].GetRect();
+	X = ViewportRect.Min.X;
+	Y = ViewportRect.Min.Y;
 
 	if (EyeType == EDisplayClusterEyeType::StereoRight)
 	{
 		X += SizeX;
 	}
 
-	SizeX = ViewportArea.Width();
-	SizeY = ViewportArea.Height();
+	SizeX = ViewportRect.Width();
+	SizeY = ViewportRect.Height();
 
 	// Update view context
 	FDisplayClusterRenderViewContext& ViewContext = RenderViewport.GetContext(ViewIdx);

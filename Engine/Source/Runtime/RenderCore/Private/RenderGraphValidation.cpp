@@ -735,7 +735,7 @@ void FRDGBarrierValidation::ValidateBarrierBatchBegin(const FRDGPass* Pass, cons
 		}
 	};
 
-	for (const auto Pair : ResourceMap.Textures)
+	for (const auto& Pair : ResourceMap.Textures)
 	{
 		FRDGTextureRef Texture = Pair.Key;
 		

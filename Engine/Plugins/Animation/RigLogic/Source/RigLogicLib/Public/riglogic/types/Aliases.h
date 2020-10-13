@@ -10,16 +10,21 @@
 #include <pma/MemoryResource.h>
 #include <pma/ScopedPtr.h>
 #include <pma/resources/AlignedMemoryResource.h>
+#include <pma/resources/ArenaMemoryResource.h>
 #include <pma/resources/DefaultMemoryResource.h>
 #include <status/Status.h>
 #include <trio/Stream.h>
 #include <trio/streams/FileStream.h>
+#include <trio/streams/MemoryMappedFileStream.h>
+#include <trio/streams/MemoryStream.h>
 
 namespace rl4 {
 
 using sc::Status;
 using trio::BoundedIOStream;
 using trio::FileStream;
+using trio::MemoryMappedFileStream;
+using trio::MemoryStream;
 using dna::DataLayer;
 using dna::StreamReader;
 using dna::StreamWriter;

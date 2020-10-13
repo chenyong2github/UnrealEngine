@@ -170,6 +170,10 @@
 #if WITH_AUTOMATION_WORKER
 	#include "IAutomationWorkerModule.h"
 #endif
+
+#if WITH_ODSC
+	#include "ODSC/ODSCManager.h"
+#endif
 #endif  //WITH_ENGINE
 
 #include "Misc/EmbeddedCommunication.h"
@@ -2585,22 +2589,29 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 	}
 
+#if WITH_ODSC
+	check(!GODSCManager);
+	GODSCManager = new FODSCManager();
+#endif
 
 	bool bEnableShaderCompile = !FParse::Param(FCommandLine::Get(), TEXT("NoShaderCompile"));
 
-	if (bEnableShaderCompile && !FPlatformProperties::RequiresCookedData())
+	if (!FPlatformProperties::RequiresCookedData())
 	{
-		check(!GShaderCompilerStats);
-		GShaderCompilerStats = new FShaderCompilerStats();
-
-		check(!GShaderCompilingManager);
-		GShaderCompilingManager = new FShaderCompilingManager();
-
 		check(!GDistanceFieldAsyncQueue);
 		GDistanceFieldAsyncQueue = new FDistanceFieldAsyncQueue();
 
-		// Shader hash cache is required only for shader compilation.
-		InitializeShaderHashCache();
+		if (bEnableShaderCompile)
+		{
+			check(!GShaderCompilerStats);
+			GShaderCompilerStats = new FShaderCompilerStats();
+
+			check(!GShaderCompilingManager);
+			GShaderCompilingManager = new FShaderCompilingManager();
+
+			// Shader hash cache is required only for shader compilation.
+			InitializeShaderHashCache();
+		}
 	}
 
 	{
@@ -4104,6 +4115,9 @@ void FEngineLoop::Exit()
 
 	// Make sure we're not in the middle of loading something.
 	{
+		// From now on it's not allowed to request new async loads
+		SetAsyncLoadingAllowed(false);
+
 		bool bFlushOnExit = true;
 		if (GConfig)
 		{
@@ -4112,7 +4126,7 @@ void FEngineLoop::Exit()
 		}
 		if (bFlushOnExit)
 		{
-	FlushAsyncLoading();
+			FlushAsyncLoading();
 		}
 		else
 		{
@@ -5749,6 +5763,15 @@ void FEngineLoop::AppPreExit( )
 		delete GShaderCompilerStats;
 		GShaderCompilerStats = nullptr;
 	}
+
+#if WITH_ODSC
+	if (GODSCManager)
+	{
+		delete GODSCManager;
+		GODSCManager = nullptr;
+	}
+#endif
+
 #endif
 
 #if !(IS_PROGRAM || WITH_EDITOR)

@@ -15,6 +15,7 @@
 #include "Features/IModularFeatures.h"
 #include "Modules/ModuleManager.h"
 #include "Misc/CoreDelegates.h"
+#include "Serialization/MemoryWriter.h"
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -164,6 +165,7 @@ struct FIoStoreWriteQueueEntry
 	FIoChunkHash ChunkHash;
 	FIoBuffer ChunkBuffer;
 	uint64 ChunkSize = 0;
+	TArray<FFileRegion> Regions;
 	TArray<FChunkBlock> ChunkBlocks;
 	FIoWriteOptions Options;
 	FGraphEventRef CreateChunkBlocksTask = FGraphEventRef();
@@ -439,6 +441,11 @@ public:
 		return Toc;
 	}
 
+	const int32* GetTocEntryIndex(const FIoChunkId& ChunkId) const
+	{
+		return ChunkIdToIndex.Find(ChunkId);
+	}
+
 	const FIoOffsetAndLength* GetOffsetAndLength(const FIoChunkId& ChunkId) const
 	{
 		if (const int32* Index = ChunkIdToIndex.Find(ChunkId))
@@ -492,6 +499,16 @@ public:
 			return FIoStatusBuilder(EIoErrorCode::FileOpenFailed) << TEXT("Failed to open IoStore container file '") << *ContainerFilePath << TEXT("'");
 		}
 
+		if (InContext.GetSettings().bEnableFileRegions)
+		{
+			FString RegionsFilePath = ContainerFilePath + FFileRegion::RegionsFileExtension;
+			RegionsArchive.Reset(IFileManager::Get().CreateFileWriter(*RegionsFilePath));
+			if (!RegionsArchive)
+			{
+				return FIoStatusBuilder(EIoErrorCode::FileOpenFailed) << TEXT("Failed to open IoStore regions file '") << *RegionsFilePath << TEXT("'");
+			}
+		}
+
 		FIoStatus Status = FIoStatus::Ok;
 		if (InContext.GetSettings().bEnableCsvOutput)
 		{
@@ -517,12 +534,12 @@ public:
 		return FIoStatus::Ok;
 	}
 
-	UE_NODISCARD FIoStatus Append(const FIoChunkId& ChunkId, FIoBuffer Chunk, const FIoWriteOptions& WriteOptions)
+	UE_NODISCARD FIoStatus Append(const FIoChunkId& ChunkId, FIoBuffer Chunk, const FIoWriteOptions& WriteOptions, TArrayView<const FFileRegion> Regions)
 	{
-		return Append(ChunkId, FIoChunkHash::HashBuffer(Chunk.Data(), Chunk.DataSize()), Chunk, WriteOptions);
+		return Append(ChunkId, FIoChunkHash::HashBuffer(Chunk.Data(), Chunk.DataSize()), Chunk, WriteOptions, Regions);
 	}
 
-	UE_NODISCARD FIoStatus Append(const FIoChunkId& ChunkId, const FIoChunkHash& ChunkHash, FIoBuffer Chunk, const FIoWriteOptions& WriteOptions)
+	UE_NODISCARD FIoStatus Append(const FIoChunkId& ChunkId, const FIoChunkHash& ChunkHash, FIoBuffer Chunk, const FIoWriteOptions& WriteOptions, TArrayView<const FFileRegion> InRegions)
 	{
 		if (!ChunkId.IsValid())
 		{
@@ -532,7 +549,7 @@ public:
 		IsMetadataDirty = true;
 
 		FIoStoreWriteQueueEntry* Entry = WriterContext->AllocQueueEntry(ChunkId, ChunkHash, Chunk, WriteOptions);
-
+		Entry->Regions = InRegions;
 		Entry->CreateChunkBlocksTask = FFunctionGraphTask::CreateAndDispatchWhenReady([this, Entry]()
 		{ 
 			CreateChunkBlocks(Entry, ContainerSettings, WriterContext->GetSettings());
@@ -590,6 +607,11 @@ public:
 			return TocSize.Status();
 		}
 
+		if (RegionsArchive.IsValid())
+		{
+			RegionsArchive->Flush();
+		}
+
 		Result.ContainerId = ContainerSettings.ContainerId;
 		Result.ContainerName = FPaths::GetBaseFilename(TocFilePath);
 		Result.ContainerFlags = ContainerSettings.ContainerFlags;
@@ -629,6 +651,8 @@ private:
 			}
 			return Padding;
 		};
+
+		TArray<FFileRegion> AllFileRegions;
 		
 		for (;;)
 		{
@@ -702,6 +726,11 @@ private:
 				ContainerFileHandle->Write(Entry->ChunkBuffer.Data(), Entry->ChunkBuffer.DataSize());
 				UncompressedFileOffset += Align(Entry->ChunkSize, Settings.CompressionBlockSize);
 
+				if (Settings.bEnableFileRegions)
+				{
+					FFileRegion::AccumulateFileRegions(AllFileRegions, FileOffset, FileOffset, ContainerFileHandle->Tell(), Entry->Regions);
+				}
+
 				FIoStoreWriteQueueEntry* Free = Entry;
 				Entry = Entry->Next;
 				WriterContext->FreeQueueEntry(Free);
@@ -712,6 +741,11 @@ private:
 		CompressedContainerSize = ContainerFileHandle->Tell();
 
 		check(WriteQueue.IsEmpty());
+
+		if (Settings.bEnableFileRegions)
+		{
+			FFileRegion::SerializeFileRegions(*RegionsArchive.Get(), AllFileRegions);
+		}
 	}
 
 	static void CreateChunkBlocks(
@@ -854,6 +888,7 @@ private:
 	FString						TocFilePath;
 	FIoStoreToc					Toc;
 	TUniquePtr<IFileHandle>		ContainerFileHandle;
+	TUniquePtr<FArchive>		RegionsArchive;
 	TUniquePtr<FArchive>		CsvArchive;
 	FIoStoreWriterResult		Result;
 	TFuture<void>				WriterThread;
@@ -879,14 +914,14 @@ FIoStatus FIoStoreWriter::Initialize(const FIoStoreWriterContext& Context, const
 	return Impl->Initialize(*Context.Impl, ContainerSettings);
 }
 
-FIoStatus FIoStoreWriter::Append(const FIoChunkId& ChunkId, FIoBuffer Chunk, const FIoWriteOptions& WriteOptions)
+FIoStatus FIoStoreWriter::Append(const FIoChunkId& ChunkId, FIoBuffer Chunk, const FIoWriteOptions& WriteOptions, TArrayView<const FFileRegion> Regions)
 {
-	return Impl->Append(ChunkId, Chunk, WriteOptions);
+	return Impl->Append(ChunkId, Chunk, WriteOptions, Regions);
 }
 
-FIoStatus FIoStoreWriter::Append(const FIoChunkId& ChunkId, const FIoChunkHash& ChunkHash, FIoBuffer Chunk, const FIoWriteOptions& WriteOptions)
+FIoStatus FIoStoreWriter::Append(const FIoChunkId& ChunkId, const FIoChunkHash& ChunkHash, FIoBuffer Chunk, const FIoWriteOptions& WriteOptions, TArrayView<const FFileRegion> Regions)
 {
-	return Impl->Append(ChunkId, ChunkHash, Chunk, WriteOptions);
+	return Impl->Append(ChunkId, ChunkHash, Chunk, WriteOptions, Regions);
 }
 
 TIoStatusOr<FIoStoreWriterResult> FIoStoreWriter::Flush()
@@ -974,6 +1009,19 @@ public:
 			{
 				break;
 			}
+		}
+	}
+
+	TIoStatusOr<FIoStoreTocChunkInfo> GetChunkInfo(const FIoChunkId& ChunkId) const
+	{
+		const int32* TocEntryIndex = Toc.GetTocEntryIndex(ChunkId);
+		if (TocEntryIndex)
+		{
+			return GetTocChunkInfo(*TocEntryIndex);
+		}
+		else
+		{
+			return FIoStatus(EIoErrorCode::NotFound, TEXT("Not found"));
 		}
 	}
 
@@ -1118,6 +1166,11 @@ FGuid FIoStoreReader::GetEncryptionKeyGuid() const
 void FIoStoreReader::EnumerateChunks(TFunction<bool(const FIoStoreTocChunkInfo&)>&& Callback) const
 {
 	Impl->EnumerateChunks(MoveTemp(Callback));
+}
+
+TIoStatusOr<FIoStoreTocChunkInfo> FIoStoreReader::GetChunkInfo(const FIoChunkId& Chunk) const
+{
+	return Impl->GetChunkInfo(Chunk);
 }
 
 TIoStatusOr<FIoStoreTocChunkInfo> FIoStoreReader::GetChunkInfo(const uint32 TocEntryIndex) const

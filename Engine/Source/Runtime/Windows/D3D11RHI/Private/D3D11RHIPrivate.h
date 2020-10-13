@@ -776,6 +776,8 @@ public:
 		HDRDetectedDisplayIHVIndex = IHVIndex;
 	}
 
+	EPixelFormat GetDisplayFormat(EPixelFormat InPixelFormat) const;
+
 protected:
 	/** The global D3D interface. */
 	TRefCountPtr<IDXGIFactory1> DXGIFactory1;

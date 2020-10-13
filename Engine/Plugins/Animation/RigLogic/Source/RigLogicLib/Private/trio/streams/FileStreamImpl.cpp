@@ -36,6 +36,11 @@ sc::StatusProvider FileStreamImpl::status{OpenError, ReadError, WriteError, Alre
     #pragma clang diagnostic pop
 #endif
 
+static std::size_t getFileSizeStd(const char* path) {
+    std::streamoff fileSize = std::ifstream(path, std::ios_base::ate | std::ios_base::binary).tellg();
+    return (fileSize > 0 ? static_cast<std::size_t>(fileSize) : 0ul);
+}
+
 FileStream::~FileStream() = default;
 
 FileStream* FileStream::create(const char* path, AccessMode accessMode, OpenMode openMode, MemoryResource* memRes) {
@@ -45,16 +50,16 @@ FileStream* FileStream::create(const char* path, AccessMode accessMode, OpenMode
 
 void FileStream::destroy(FileStream* instance) {
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-static-cast-downcast)
-    auto fileStream = static_cast<FileStreamImpl*>(instance);
-    pma::PolyAllocator<FileStreamImpl> alloc{fileStream->getMemoryResource()};
-    alloc.deleteObject(fileStream);
+    auto stream = static_cast<FileStreamImpl*>(instance);
+    pma::PolyAllocator<FileStreamImpl> alloc{stream->getMemoryResource()};
+    alloc.deleteObject(stream);
 }
 
 FileStreamImpl::FileStreamImpl(const char* path_, AccessMode accessMode_, OpenMode openMode_, MemoryResource* memRes_) :
     path{path_, memRes_},
     accessMode{accessMode_},
     openMode{openMode_},
-    fileSize{},
+    fileSize{getFileSizeStd(path_)},
     memRes{memRes_} {
 }
 
@@ -93,7 +98,6 @@ void FileStreamImpl::seek(std::size_t position) {
 }
 
 void FileStreamImpl::read(char* buffer, std::size_t size) {
-    status.reset();
     file.read(buffer, static_cast<std::streamsize>(size));
     if (!file.good() && !file.eof()) {
         status.set(ReadError, path.c_str());
@@ -101,7 +105,6 @@ void FileStreamImpl::read(char* buffer, std::size_t size) {
 }
 
 void FileStreamImpl::write(const char* buffer, std::size_t size) {
-    status.reset();
     file.write(buffer, static_cast<std::streamsize>(size));
     if (!file.good()) {
         status.set(WriteError, path.c_str());

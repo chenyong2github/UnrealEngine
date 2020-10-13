@@ -1,11 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Reflection;
 using System.Windows.Media.Imaging;
+using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Events;
 using Autodesk.Revit.UI;
+using Autodesk.Revit.UI.Events;
+using Microsoft.Win32;
 
 namespace DatasmithRevitExporter
 {
@@ -17,14 +21,13 @@ namespace DatasmithRevitExporter
 		private static string ExportMessages;
 
 		private EventHandler<DocumentClosingEventArgs> DocumentClosingHandler;
-	
+		private EventHandler<ViewActivatedEventArgs> ViewActivatedHandler;
+
 		// Implement the interface to execute some tasks when Revit starts.
 		public Result OnStartup(
 			UIControlledApplication InApplication // handle to the application being started
 		)
 		{
-			FDatasmithFacadeDirectLink.Init();
-
 			// Create a custom ribbon tab
 			string TabName = "Datasmith";
 			InApplication.CreateRibbonTab(TabName);
@@ -68,24 +71,63 @@ namespace DatasmithRevitExporter
 			DocumentClosingHandler = new EventHandler<DocumentClosingEventArgs>(OnDocumentClosing);
 			InApplication.ControlledApplication.DocumentClosing += DocumentClosingHandler;
 
+			ViewActivatedHandler = new EventHandler<ViewActivatedEventArgs>(OnViewActivated);
+			InApplication.ViewActivated += ViewActivatedHandler;
+			
+			// Setup Direct Link
+
+			string RevitEngineDir = null;
+
+			try
+			{
+				using (RegistryKey Key = Registry.LocalMachine.OpenSubKey("Software\\Wow6432Node\\EpicGames\\Unreal Engine"))
+				{
+					RevitEngineDir = Key?.GetValue("RevitEngineDir") as string;
+				}
+			}
+			finally
+			{
+				if (RevitEngineDir == null)
+				{
+					// If we could not read the registry, fallback to hardcoded engine dir
+					RevitEngineDir = "C:\\ProgramData\\Epic\\Exporter\\RevitEngine\\";
+				}
+			}
+
+			bool bDirectLinkInitOk = FDatasmithFacadeDirectLink.Init(true, RevitEngineDir);
+
+			Debug.Assert(bDirectLinkInitOk);
+
 			return Result.Succeeded;
 		}
 
 		static void OnDocumentClosing(object sender, DocumentClosingEventArgs e)
 		{
-			// Make sure direct link is destroyed, if it was valid.
-			if (FDirectLink.Get() != null)
+			// Destroy current Direct Link instance.
+			FDirectLink.DestroyInstance(FDirectLink.Get(), e.Document.Application);
+		}
+
+		static void OnViewActivated(object sender, ViewActivatedEventArgs e)
+		{
+			View Previous = e.PreviousActiveView;
+			View Current = e.CurrentActiveView;
+
+			if (Previous == null || !Previous.Document.Equals(Current.Document))
 			{
-				FDirectLink.DestroyInstance(e.Document.Application);
+				FDirectLink.ActivateInstance(Current.Document);
 			}
 		}
 
 		// Implement the interface to execute some tasks when Revit shuts down.
 		public Result OnShutdown(
-		UIControlledApplication InApplication // handle to the application being shut down
+			UIControlledApplication InApplication // handle to the application being shut down
 		)
 		{
 			InApplication.ControlledApplication.DocumentClosing -= DocumentClosingHandler;
+			InApplication.ViewActivated -= ViewActivatedHandler;
+
+			DocumentClosingHandler = null;
+			ViewActivatedHandler = null;
 
 			if (ExportMessagesDialog != null && !ExportMessagesDialog.IsDisposed)
 			{

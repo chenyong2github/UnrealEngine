@@ -168,7 +168,7 @@ static void AddOrDuplicateMaterial(UMaterialInterface* InMaterialInterface, cons
 		FString MaterialName;
 		FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
 		AssetToolsModule.Get().CreateUniqueAssetName(MaterialPath, TEXT(""), MaterialPath, MaterialName);
-		UPackage* MaterialPackage = CreatePackage(NULL, *MaterialPath);
+		UPackage* MaterialPackage = CreatePackage( *MaterialPath);
 
 		// Duplicate the object into the new package
 		UMaterialInterface* NewMaterialInterface = DuplicateObject<UMaterialInterface>(InMaterialInterface, MaterialPackage, *MaterialName);
@@ -533,7 +533,7 @@ UStaticMesh* FMeshUtilities::ConvertMeshesToStaticMesh(const TArray<UMeshCompone
 		if (bValidData)
 		{
 			// Then find/create it.
-			UPackage* Package = CreatePackage(NULL, *PackageName);
+			UPackage* Package = CreatePackage( *PackageName);
 			check(Package);
 
 			// Create StaticMesh object

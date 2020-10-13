@@ -226,7 +226,7 @@ void FGameplayTagCustomization::BuildEditableContainerList()
 		if (RawStructData.Num() > 0)
 		{
 			FGameplayTag* Tag = (FGameplayTag*)(RawStructData[0]);
-			if (Tag->IsValid())
+			if (Tag && Tag->IsValid())
 			{
 				TagName = Tag->ToString();
 				TagContainer->AddTag(*Tag);

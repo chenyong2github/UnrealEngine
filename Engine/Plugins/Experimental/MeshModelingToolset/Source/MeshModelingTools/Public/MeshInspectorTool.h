@@ -76,11 +76,13 @@ public:
 	bool bTangentVectors = false;
 
 	/** Length of line segments representing normal vectors */
-	UPROPERTY(EditAnywhere, Category = Options, meta = (EditCondition = "bNormalVectors"))
+	UPROPERTY(EditAnywhere, Category = Options, meta = (EditCondition = "bNormalVectors", 
+		UIMin="0", UIMax="400", ClampMin = "0", ClampMax = "1000000000.0"))
 	float NormalLength = 5.0f;
 
 	/** Length of line segments representing tangent vectors */
-	UPROPERTY(EditAnywhere, Category = Options, meta = (EditCondition = "bTangentVectors"))
+	UPROPERTY(EditAnywhere, Category = Options, meta = (EditCondition = "bTangentVectors", 
+		UIMin = "0", UIMax = "400", ClampMin = "0", ClampMax = "1000000000.0"))
 	float TangentLength = 5.0f;
 };
 

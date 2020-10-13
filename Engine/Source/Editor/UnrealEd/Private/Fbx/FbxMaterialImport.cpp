@@ -46,9 +46,16 @@ UTexture* UnFbx::FFbxImporter::ImportTexture(FbxFileTexture* FbxTexture, bool bS
 	FString AbsoluteFilename = UTF8_TO_TCHAR(FbxTexture->GetFileName());
 	FString Extension = FPaths::GetExtension(AbsoluteFilename).ToLower();
 	// name the texture with file name
-	FString TextureName = FPaths::GetBaseFilename(AbsoluteFilename);
-
-	TextureName = ObjectTools::SanitizeObjectName(TextureName);
+	FString TextureName;
+	if (FString* UniqueName = FbxTextureToUniqueNameMap.Find(FbxTexture))
+	{
+		TextureName = *UniqueName;
+	}
+	else
+	{
+		TextureName = FPaths::GetBaseFilename(AbsoluteFilename);
+		TextureName = ObjectTools::SanitizeObjectName(TextureName);
+	}
 
 	// set where to place the textures
 	FString BasePackageName = FPackageName::GetLongPackagePath(Parent->GetOutermost()->GetName()) / TextureName;
@@ -71,7 +78,7 @@ UTexture* UnFbx::FFbxImporter::ImportTexture(FbxFileTexture* FbxTexture, bool bS
 		FString FinalPackageName;
 		AssetToolsModule.Get().CreateUniqueAssetName(BasePackageName, Suffix, FinalPackageName, TextureName);
 
-		TexturePackage = CreatePackage(NULL, *FinalPackageName);
+		TexturePackage = CreatePackage( *FinalPackageName);
 	}
 	else
 	{
@@ -406,9 +413,9 @@ void UnFbx::FFbxImporter::FixupMaterial( const FbxSurfaceMaterial& FbxMaterial, 
 		else
 		{
 			// use random color because there may be multiple materials, then they can be different 
-			MyColorExpression->DefaultValue.R = 0.5f+(0.5f*FMath::Rand())/RAND_MAX;
-			MyColorExpression->DefaultValue.G = 0.5f+(0.5f*FMath::Rand())/RAND_MAX;
-			MyColorExpression->DefaultValue.B = 0.5f+(0.5f*FMath::Rand())/RAND_MAX;
+			MyColorExpression->DefaultValue.R = 0.5f+(0.5f*FMath::Rand()) / static_cast<float>(RAND_MAX);
+			MyColorExpression->DefaultValue.G = 0.5f+(0.5f*FMath::Rand()) / static_cast<float>(RAND_MAX);
+			MyColorExpression->DefaultValue.B = 0.5f+(0.5f*FMath::Rand()) / static_cast<float>(RAND_MAX);
 		}
 
 		TArray<FExpressionOutput> Outputs = UnrealMaterial->BaseColor.Expression->GetOutputs();
@@ -618,7 +625,7 @@ UMaterialInterface* UnFbx::FFbxImporter::CreateUnrealMaterial(const FbxSurfaceMa
 	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
 	AssetToolsModule.Get().CreateUniqueAssetName(BasePackageName, Suffix, FinalPackageName, FinalMaterialName);
 
-	UPackage* Package = CreatePackage(nullptr, *FinalPackageName);
+	UPackage* Package = CreatePackage( *FinalPackageName);
 	
 	// Check if we can use the specified base material to instance from it
 	FBXImportOptions* FbxImportOptions = GetImportOptions();

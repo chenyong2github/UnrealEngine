@@ -34,6 +34,9 @@ FAudioReverbEffect::FAudioReverbEffect()
 	LateDelay = 0.011f;
 	AirAbsorptionGainHF = 0.994f;
 	RoomRolloffFactor = 0.0f;
+
+	bBypassEarlyReflections = true;
+	bBypassLateReflections = false;
 }
 
 /** 
@@ -51,7 +54,9 @@ FAudioReverbEffect::FAudioReverbEffect(
 	float InReverbDelay,
 	float InDiffusion,
 	float InDensity,
-	float InAirAbsorption
+	float InAirAbsorption,
+	bool bInBypassEarlyReflections,
+	bool bInBypassLateReflections
 )
 {
 	Time = 0.0;
@@ -69,6 +74,9 @@ FAudioReverbEffect::FAudioReverbEffect(
 	LateDelay = InReverbDelay;
 	RoomRolloffFactor = InRoomRolloffFactor;
 	AirAbsorptionGainHF = InAirAbsorption;
+
+	bBypassEarlyReflections = bInBypassEarlyReflections;
+	bBypassLateReflections = bInBypassLateReflections;
 }
 
 FAudioReverbEffect& FAudioReverbEffect::operator=(class UReverbEffect* InReverbEffect)
@@ -86,7 +94,9 @@ FAudioReverbEffect& FAudioReverbEffect::operator=(class UReverbEffect* InReverbE
 		LateGain = InReverbEffect->LateGain;
 		LateDelay = InReverbEffect->LateDelay;
 		AirAbsorptionGainHF = InReverbEffect->AirAbsorptionGainHF;
-		RoomRolloffFactor = InReverbEffect->RoomRolloffFactor;
+
+		bBypassEarlyReflections = InReverbEffect->bBypassEarlyReflections;
+		bBypassLateReflections = InReverbEffect->bBypassLateReflections;
 	}
 
 	return *this;
@@ -161,19 +171,42 @@ bool FAudioReverbEffect::Interpolate(const FAudioEffectParameters& InStart, cons
 
 	float InvInterpValue = 1.0f - InterpValue;
 	Time = FApp::GetCurrentTime();
+
+	auto InterpolateWithBypass = [&](bool bInStartBypass, float InStartValue, bool bInEndBypass, float InEndValue, float InBypassValue)
+	{
+		if (bInStartBypass)
+		{
+			InStartValue = InBypassValue;
+		}
+		if (bInEndBypass)
+		{
+			InEndValue = InBypassValue;
+		}
+
+		return (InStartValue * InvInterpValue) + (InEndValue * InterpValue);
+	};
+
 	Volume = (Start.Volume * InvInterpValue) + (End.Volume * InterpValue);
-	Density = (Start.Density * InvInterpValue) + (End.Density * InterpValue);
-	Diffusion = (Start.Diffusion * InvInterpValue) + (End.Diffusion * InterpValue);
-	Gain = (Start.Gain * InvInterpValue) + (End.Gain * InterpValue);
-	GainHF = (Start.GainHF * InvInterpValue) + (End.GainHF * InterpValue);
-	DecayTime = (Start.DecayTime * InvInterpValue) + (End.DecayTime * InterpValue);
-	DecayHFRatio = (Start.DecayHFRatio * InvInterpValue) + (End.DecayHFRatio * InterpValue);
-	ReflectionsGain = (Start.ReflectionsGain * InvInterpValue) + (End.ReflectionsGain * InterpValue);
-	ReflectionsDelay = (Start.ReflectionsDelay * InvInterpValue) + (End.ReflectionsDelay * InterpValue);
-	LateGain = (Start.LateGain * InvInterpValue) + (End.LateGain * InterpValue);
-	LateDelay = (Start.LateDelay * InvInterpValue) + (End.LateDelay * InterpValue);
-	AirAbsorptionGainHF = (Start.AirAbsorptionGainHF * InvInterpValue) + (End.AirAbsorptionGainHF * InterpValue);
-	RoomRolloffFactor = (Start.RoomRolloffFactor * InvInterpValue) + (End.RoomRolloffFactor * InterpValue);
+
+	// Early Reflections
+	GainHF = InterpolateWithBypass(Start.bBypassEarlyReflections, Start.GainHF, End.bBypassEarlyReflections, End.GainHF, 0.f);
+	ReflectionsGain = InterpolateWithBypass(Start.bBypassEarlyReflections, Start.ReflectionsGain, End.bBypassEarlyReflections, End.ReflectionsGain, 0.f);
+	ReflectionsDelay = InterpolateWithBypass(Start.bBypassEarlyReflections, Start.ReflectionsDelay, End.bBypassEarlyReflections, End.ReflectionsDelay, 0.f);
+	
+	// Late Reflections
+	Density = InterpolateWithBypass(Start.bBypassLateReflections, Start.Density, End.bBypassLateReflections, End.Density, 0.f);
+	Diffusion = InterpolateWithBypass(Start.bBypassLateReflections, Start.Diffusion, End.bBypassLateReflections, End.Diffusion, 0.f);
+	Gain = InterpolateWithBypass(Start.bBypassLateReflections, Start.Gain, End.bBypassLateReflections, End.Gain, 0.f);
+	DecayTime = InterpolateWithBypass(Start.bBypassLateReflections, Start.DecayTime, End.bBypassLateReflections, End.DecayTime, 0.f);
+	DecayHFRatio = InterpolateWithBypass(Start.bBypassLateReflections, Start.DecayHFRatio, End.bBypassLateReflections, End.DecayHFRatio, 0.f);
+	LateGain = InterpolateWithBypass(Start.bBypassLateReflections, Start.LateGain, End.bBypassLateReflections, End.LateGain, 0.f);
+	LateDelay = InterpolateWithBypass(Start.bBypassLateReflections, Start.LateDelay, End.bBypassLateReflections, End.LateDelay, 0.f);
+	AirAbsorptionGainHF = InterpolateWithBypass(Start.bBypassLateReflections, Start.AirAbsorptionGainHF, End.bBypassLateReflections, End.AirAbsorptionGainHF, 0.f);
+	RoomRolloffFactor = InterpolateWithBypass(Start.bBypassLateReflections, Start.RoomRolloffFactor, End.bBypassLateReflections, End.RoomRolloffFactor, 0.f);
+
+	// Bypass only if both are bypassed. 
+	bBypassEarlyReflections = Start.bBypassEarlyReflections && End.bBypassEarlyReflections;
+	bBypassLateReflections = Start.bBypassLateReflections && End.bBypassLateReflections;
 
 	return false;
 }
@@ -330,7 +363,6 @@ FAudioEffectsManager::FAudioEffectsManager( FAudioDevice* InDevice )
 	, bEQActive(false)
 	, bReverbChanged(true) // Initially true to update from default reverb setting
 	, bEQChanged(false)
-	, bUseLegacyReverb(false)
 {
 	InitAudioEffects();
 }
@@ -370,9 +402,13 @@ void FAudioEffectsManager::AddReferencedObjects( FReferenceCollector& Collector 
  */
 void FAudioEffectsManager::SetReverbSettings( const FReverbSettings& ReverbSettings, bool bForce)
 {
-	/** Update the settings if the reverb type has changed */
-	if( ReverbSettings.bApplyReverb && (ReverbSettings.ReverbEffect != CurrentReverbAsset || bForce || 
-		!FMath::IsNearlyEqual(ReverbSettings.Volume, CurrentReverbSettings.Volume)))
+	/** Update the settings if the reverb has changed */
+	const bool bSetNewReverb = (ReverbSettings.bApplyReverb != CurrentReverbSettings.bApplyReverb) || 
+		(ReverbSettings.ReverbEffect != CurrentReverbAsset) || 
+		bForce || 
+		!FMath::IsNearlyEqual(ReverbSettings.Volume, CurrentReverbSettings.Volume);
+
+	if(bSetNewReverb)
 	{
 		FString CurrentReverbName = CurrentReverbAsset ? CurrentReverbAsset->GetName() : TEXT("None");
 		FString NextReverbName = ReverbSettings.ReverbEffect ? ReverbSettings.ReverbEffect->GetName() : TEXT("None");
@@ -400,8 +436,10 @@ void FAudioEffectsManager::SetReverbSettings( const FReverbSettings& ReverbSetti
 		{
 			DestinationReverbEffect.Time = FApp::GetCurrentTime() + ReverbSettings.FadeTime;
 		}
+
 		DestinationReverbEffect.Volume = ReverbSettings.Volume;
-		if( !ReverbSettings.ReverbEffect )
+
+		if((nullptr == ReverbSettings.ReverbEffect) || !ReverbSettings.bApplyReverb)
 		{
 			DestinationReverbEffect.Volume = 0.0f;
 		}

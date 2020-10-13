@@ -701,9 +701,9 @@ void FD3D12CommandContext::RHIEndScene()
 }
 
 #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
-void FD3D12CommandContext::RHIBackBufferWaitTrackingBeginFrame(uint64 FrameToken)
+void FD3D12CommandContext::RHIBackBufferWaitTrackingBeginFrame(uint64 FrameToken, bool bDeferred)
 {
-	GetParentDevice()->GetBackBufferWriteBarrierTracker()->BeginBatch(FrameToken);
+	GetParentDevice()->GetBackBufferWriteBarrierTracker()->BeginBatch(FrameToken, bDeferred);
 }
 #endif // #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
 

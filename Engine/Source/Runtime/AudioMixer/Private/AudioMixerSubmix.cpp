@@ -12,7 +12,6 @@
 #include "Misc/ScopeTryLock.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 
-
 // Link to "Audio" profiling category
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(AUDIOMIXERCORE_API, Audio);
 
@@ -31,6 +30,17 @@ FAutoConsoleVariableRef CVarBypassAllSubmixEffects(
 	TEXT("When set to 1, all submix effects will be bypassed.\n")
 	TEXT("1: Submix Effects are disabled."),
 	ECVF_Default);
+
+// Define profiling categories for submixes. 
+DEFINE_STAT(STAT_AudioMixerSubmixes);
+DEFINE_STAT(STAT_AudioMixerEndpointSubmixes);
+DEFINE_STAT(STAT_AudioMixerSubmixChildren);
+DEFINE_STAT(STAT_AudioMixerSubmixSource);
+DEFINE_STAT(STAT_AudioMixerSubmixEffectProcessing);
+DEFINE_STAT(STAT_AudioMixerSubmixBufferListeners);
+DEFINE_STAT(STAT_AudioMixerSubmixSoundfieldChildren);
+DEFINE_STAT(STAT_AudioMixerSubmixSoundfieldSources);
+DEFINE_STAT(STAT_AudioMixerSubmixSoundfieldProcessors);
 
 namespace Audio
 {
@@ -937,6 +947,7 @@ namespace Audio
 		// Mix all submix audio into this submix's input scratch buffer
 		{
 			CSV_SCOPED_TIMING_STAT(Audio, SubmixChildren);
+			SCOPE_CYCLE_COUNTER(STAT_AudioMixerSubmixChildren);
 
 			// First loop this submix's child submixes mixing in their output into this submix's dry/wet buffers.
 			TArray<uint32> ToRemove;
@@ -961,6 +972,7 @@ namespace Audio
 
 		{
 			CSV_SCOPED_TIMING_STAT(Audio, SubmixSource);
+			SCOPE_CYCLE_COUNTER(STAT_AudioMixerSubmixSource);
 
 			// Loop through this submix's sound sources
 			for (const auto& MixerSourceVoiceIter : MixerSourceVoices)
@@ -999,6 +1011,7 @@ namespace Audio
 			if (!BypassAllSubmixEffectsCVar && EffectSubmixChain.Num() > 0)
 			{
 				CSV_SCOPED_TIMING_STAT(Audio, SubmixEffectProcessing);
+				SCOPE_CYCLE_COUNTER(STAT_AudioMixerSubmixEffectProcessing);
 
 				// Setup the input data buffer
 				FSoundEffectSubmixInputData InputData;
@@ -1144,6 +1157,8 @@ namespace Audio
 		if(const USoundSubmix* SoundSubmix = Cast<const USoundSubmix>(OwningSubmixObject))
 		{
 			CSV_SCOPED_TIMING_STAT(Audio, SubmixBufferListeners);
+			SCOPE_CYCLE_COUNTER(STAT_AudioMixerSubmixBufferListeners);
+
 			double AudioClock = MixerDevice->GetAudioTime();
 			float SampleRate = MixerDevice->GetSampleRate();
 			FScopeLock Lock(&BufferListenerCriticalSection);
@@ -1163,6 +1178,7 @@ namespace Audio
 		// Mix all submix audio into OutputAudio.
 		{
 			CSV_SCOPED_TIMING_STAT(Audio, SubmixSoundfieldChildren);
+			SCOPE_CYCLE_COUNTER(STAT_AudioMixerSubmixSoundfieldChildren);
 
 			// If we are mixing down all non-soundfield child submixes,
 			// Set up the scratch buffer so that we can sum all non-soundfield child submixes to it.
@@ -1198,6 +1214,7 @@ namespace Audio
 		// Mix all source sends into OutputAudio.
 		{
 			CSV_SCOPED_TIMING_STAT(Audio, SubmixSoundfieldSources);
+			SCOPE_CYCLE_COUNTER(STAT_AudioMixerSubmixSoundfieldSources);
 
 			check(SoundfieldStreams.Mixer.IsValid());
 
@@ -1228,6 +1245,7 @@ namespace Audio
 		// Run soundfield processors.
 		{
 			CSV_SCOPED_TIMING_STAT(Audio, SubmixSoundfieldProcessors);
+			SCOPE_CYCLE_COUNTER(STAT_AudioMixerSubmixSoundfieldProcessors);
 
 			for (auto& EffectData : SoundfieldStreams.EffectProcessors)
 			{
@@ -1612,7 +1630,7 @@ namespace Audio
 
 	void FMixerSubmix::AddSpectralAnalysisDelegate(const FSoundSpectrumAnalyzerDelegateSettings& InDelegateSettings, const FOnSubmixSpectralAnalysisBP& OnSubmixSpectralAnalysisBP)
 	{
-		FSpectrumAnalysisDelegateInfo& NewDelegateInfo = SpectralAnalysisDelegates.AddDefaulted_GetRef();
+		FSpectrumAnalysisDelegateInfo NewDelegateInfo;
 	
 		NewDelegateInfo.LastUpdateTime = -1.0f;
 		NewDelegateInfo.DelegateSettings = InDelegateSettings;
@@ -1620,10 +1638,18 @@ namespace Audio
 		NewDelegateInfo.UpdateDelta = 1.0f / NewDelegateInfo.DelegateSettings.UpdateRate;
 
 		NewDelegateInfo.OnSubmixSpectralAnalysis.AddUnique(OnSubmixSpectralAnalysisBP);
+
+		{
+			FScopeLock SpectrumAnalyzerLock(&SpectrumAnalyzerCriticalSection);
+
+			SpectralAnalysisDelegates.Add(MoveTemp(NewDelegateInfo));
+		}
 	}
 
 	void FMixerSubmix::RemoveSpectralAnalysisDelegate(const FOnSubmixSpectralAnalysisBP& OnSubmixSpectralAnalysisBP)
 	{
+		FScopeLock SpectrumAnalyzerLock(&SpectrumAnalyzerCriticalSection);
+
 		for (FSpectrumAnalysisDelegateInfo& Info : SpectralAnalysisDelegates)
 		{
 			if (Info.OnSubmixSpectralAnalysis.Contains(OnSubmixSpectralAnalysisBP))
@@ -1655,44 +1681,45 @@ namespace Audio
 		AudioSpectrumAnalyzerSettings.WindowType = GetWindowType(SpectrumAnalyzerSettings.WindowType);
 		AudioSpectrumAnalyzerSettings.HopSize = SpectrumAnalyzerSettings.HopSize;
 
-		{
-			FScopeLock SpectrumAnalyzerLock(&SpectrumAnalyzerCriticalSection);
-			SpectrumAnalyzer.Reset(new FSpectrumAnalyzer(AudioSpectrumAnalyzerSettings, MixerDevice->GetSampleRate()));
-		}
-
 		EMetric Metric = GetExtractorMetric(SpectrumAnalyzerSettings.SpectrumType);
 		EBandType BandType = GetExtractorBandType(SpectrumAnalyzerSettings.InterpolationMethod);
 
-		for (FSpectrumAnalysisDelegateInfo& DelegateInfo : SpectralAnalysisDelegates)
 		{
-			FSpectrumBandExtractorSettings ExtractorSettings;
+			FScopeLock SpectrumAnalyzerLock(&SpectrumAnalyzerCriticalSection);
+			SpectrumAnalyzer.Reset(new FSpectrumAnalyzer(AudioSpectrumAnalyzerSettings, MixerDevice->GetSampleRate()));
 
-			ExtractorSettings.Metric = Metric;
-			ExtractorSettings.DecibelNoiseFloor = DelegateInfo.DelegateSettings.DecibelNoiseFloor;
-			ExtractorSettings.bDoNormalize = DelegateInfo.DelegateSettings.bDoNormalize;
-			ExtractorSettings.bDoAutoRange = DelegateInfo.DelegateSettings.bDoAutoRange;
-			ExtractorSettings.AutoRangeReleaseTimeInSeconds = DelegateInfo.DelegateSettings.AutoRangeReleaseTime;
-			ExtractorSettings.AutoRangeAttackTimeInSeconds = DelegateInfo.DelegateSettings.AutoRangeAttackTime;
 
-			DelegateInfo.SpectrumBandExtractor = ISpectrumBandExtractor::CreateSpectrumBandExtractor(ExtractorSettings);
-
-			if (DelegateInfo.SpectrumBandExtractor.IsValid())
+			for (FSpectrumAnalysisDelegateInfo& DelegateInfo : SpectralAnalysisDelegates)
 			{
-				for (const FSoundSubmixSpectralAnalysisBandSettings& BandSettings : DelegateInfo.DelegateSettings.BandSettings)
+				FSpectrumBandExtractorSettings ExtractorSettings;
+
+				ExtractorSettings.Metric = Metric;
+				ExtractorSettings.DecibelNoiseFloor = DelegateInfo.DelegateSettings.DecibelNoiseFloor;
+				ExtractorSettings.bDoNormalize = DelegateInfo.DelegateSettings.bDoNormalize;
+				ExtractorSettings.bDoAutoRange = DelegateInfo.DelegateSettings.bDoAutoRange;
+				ExtractorSettings.AutoRangeReleaseTimeInSeconds = DelegateInfo.DelegateSettings.AutoRangeReleaseTime;
+				ExtractorSettings.AutoRangeAttackTimeInSeconds = DelegateInfo.DelegateSettings.AutoRangeAttackTime;
+
+				DelegateInfo.SpectrumBandExtractor = ISpectrumBandExtractor::CreateSpectrumBandExtractor(ExtractorSettings);
+
+				if (DelegateInfo.SpectrumBandExtractor.IsValid())
 				{
-					ISpectrumBandExtractor::FBandSettings NewExtractorBandSettings;
-					NewExtractorBandSettings.Type = BandType;
-					NewExtractorBandSettings.CenterFrequency = BandSettings.BandFrequency;
-					NewExtractorBandSettings.QFactor = BandSettings.QFactor;
+					for (const FSoundSubmixSpectralAnalysisBandSettings& BandSettings : DelegateInfo.DelegateSettings.BandSettings)
+					{
+						ISpectrumBandExtractor::FBandSettings NewExtractorBandSettings;
+						NewExtractorBandSettings.Type = BandType;
+						NewExtractorBandSettings.CenterFrequency = BandSettings.BandFrequency;
+						NewExtractorBandSettings.QFactor = BandSettings.QFactor;
 
-					DelegateInfo.SpectrumBandExtractor->AddBand(NewExtractorBandSettings);
+						DelegateInfo.SpectrumBandExtractor->AddBand(NewExtractorBandSettings);
 
-					FSpectralAnalysisBandInfo NewBand;
-					NewBand.EnvelopeFollower.Init(DelegateInfo.DelegateSettings.UpdateRate, BandSettings.AttackTimeMsec, BandSettings.ReleaseTimeMsec);
-				
-					DelegateInfo.SpectralBands.Add(NewBand);
-				}
-			} 
+						FSpectralAnalysisBandInfo NewBand;
+						NewBand.EnvelopeFollower.Init(DelegateInfo.DelegateSettings.UpdateRate, BandSettings.AttackTimeMsec, BandSettings.ReleaseTimeMsec);
+					
+						DelegateInfo.SpectralBands.Add(NewBand);
+					}
+				} 
+			}
 		}
 	}
 
@@ -1837,54 +1864,59 @@ namespace Audio
 		}
 		
 		// If we're analyzing spectra and if we've got delegates setup
-		if (bIsSpectrumAnalyzing && SpectralAnalysisDelegates.Num() > 0)
+		if (bIsSpectrumAnalyzing) 
 		{
-			FScopeLock SpectrumAnalyzerLock(&SpectrumAnalyzerCriticalSection);
+			FScopeLock SpectrumLock(&SpectrumAnalyzerCriticalSection);
 
-			if (ensureMsgf(SpectrumAnalyzer.IsValid(), TEXT("Analyzing spectrum with invalid spectrum analyzer")))
+			if (SpectralAnalysisDelegates.Num() > 0)
 			{
-				// New results array
-				TArray<float> SpectralResults;
-
-				//const TArray<float>& InFrequencies, TArray<float>& OutMagnitudes
-				for (FSpectrumAnalysisDelegateInfo& DelegateInfo : SpectralAnalysisDelegates)
+				if (ensureMsgf(SpectrumAnalyzer.IsValid(), TEXT("Analyzing spectrum with invalid spectrum analyzer")))
 				{
-					const float CurrentTime = FPlatformTime::ToSeconds64(FPlatformTime::Cycles64());
+					// New results array
+					TArray<float> SpectralResults;
 
-					// Don't update the spectral band until it's time since the last tick.
-					if (DelegateInfo.LastUpdateTime > 0.0f && ((CurrentTime - DelegateInfo.LastUpdateTime) < DelegateInfo.UpdateDelta))
+					//const TArray<float>& InFrequencies, TArray<float>& OutMagnitudes
+					for (FSpectrumAnalysisDelegateInfo& DelegateInfo : SpectralAnalysisDelegates)
 					{
-						continue;
-					}
+						const float CurrentTime = FPlatformTime::ToSeconds64(FPlatformTime::Cycles64());
 
-					DelegateInfo.LastUpdateTime = CurrentTime;
-
-					SpectralResults.Reset();
-
-					{
-						Audio::FSpectrumAnalyzerScopeLock AnalyzerLock(SpectrumAnalyzer.Get());
-
-						if (ensure(DelegateInfo.SpectrumBandExtractor.IsValid()))
+						// Don't update the spectral band until it's time since the last tick.
+						if (DelegateInfo.LastUpdateTime > 0.0f && ((CurrentTime - DelegateInfo.LastUpdateTime) < DelegateInfo.UpdateDelta))
 						{
-							ISpectrumBandExtractor* Extractor = DelegateInfo.SpectrumBandExtractor.Get();
-
-							SpectrumAnalyzer->GetBands(*Extractor, SpectralResults);
+							continue;
 						}
-					}
 
-					// Feed the results through the band envelope followers
-					for (int32 ResultIndex = 0; ResultIndex < SpectralResults.Num(); ++ResultIndex)
-					{
-						if (ensure(ResultIndex < DelegateInfo.SpectralBands.Num()))
+						DelegateInfo.LastUpdateTime = CurrentTime;
+
+						SpectralResults.Reset();
+
 						{
-							FSpectralAnalysisBandInfo& BandInfo = DelegateInfo.SpectralBands[ResultIndex];
-							SpectralResults[ResultIndex] = BandInfo.EnvelopeFollower.ProcessAudioNonClamped(SpectralResults[ResultIndex]);
-						}
-					}
+							// This lock ensures that the spectrum analyzer's analysis buffer doesn't
+							// change in this scope. 
+							Audio::FSpectrumAnalyzerScopeLock AnalyzerLock(SpectrumAnalyzer.Get());
 
-					if (DelegateInfo.OnSubmixSpectralAnalysis.IsBound())
-					{
-						DelegateInfo.OnSubmixSpectralAnalysis.Broadcast(SpectralResults);
+							if (ensure(DelegateInfo.SpectrumBandExtractor.IsValid()))
+							{
+								ISpectrumBandExtractor* Extractor = DelegateInfo.SpectrumBandExtractor.Get();
+
+								SpectrumAnalyzer->GetBands(*Extractor, SpectralResults);
+							}
+						}
+
+						// Feed the results through the band envelope followers
+						for (int32 ResultIndex = 0; ResultIndex < SpectralResults.Num(); ++ResultIndex)
+						{
+							if (ensure(ResultIndex < DelegateInfo.SpectralBands.Num()))
+							{
+								FSpectralAnalysisBandInfo& BandInfo = DelegateInfo.SpectralBands[ResultIndex];
+								SpectralResults[ResultIndex] = BandInfo.EnvelopeFollower.ProcessAudioNonClamped(SpectralResults[ResultIndex]);
+							}
+						}
+
+						if (DelegateInfo.OnSubmixSpectralAnalysis.IsBound())
+						{
+							DelegateInfo.OnSubmixSpectralAnalysis.Broadcast(SpectralResults);
+						}
 					}
 				}
 			}

@@ -471,6 +471,33 @@ bool FDataTableImporterJSON::ReadRow(const TSharedRef<FJsonObject>& InParsedTabl
 		return false;
 	}
 
+	// Detect any extra fields within the data for this row
+	if (!DataTable->bIgnoreExtraFields)
+	{
+		TArray<FString> TempPropertyImportNames;
+		for (const TPair<FString, TSharedPtr<FJsonValue>>& ParsedPropertyKeyValuePair : InParsedTableRowObject->Values)
+		{
+			if (ParsedPropertyKeyValuePair.Key == RowKey)
+			{
+				// Skip the row name, as that doesn't match a property
+				continue;
+			}
+
+			FName PropName = DataTableUtils::MakeValidName(ParsedPropertyKeyValuePair.Key);
+			FProperty* ColumnProp = FindFProperty<FProperty>(DataTable->RowStruct, PropName);
+			for (TFieldIterator<FProperty> It(DataTable->RowStruct); It && !ColumnProp; ++It)
+			{
+				DataTableUtils::GetPropertyImportNames(*It, TempPropertyImportNames);
+				ColumnProp = TempPropertyImportNames.Contains(ParsedPropertyKeyValuePair.Key) ? *It : nullptr;
+			}
+
+			if (!ColumnProp)
+			{
+				ImportProblems.Add(FString::Printf(TEXT("Property '%s' on row '%s' cannot be found in struct '%s'."), *PropName.ToString(), *RowName.ToString(), *DataTable->RowStruct->GetName()));
+			}
+		}
+	}
+
 	// Allocate data to store information, using UScriptStruct to know its size
 	uint8* RowData = (uint8*)FMemory::Malloc(DataTable->RowStruct->GetStructureSize());
 	DataTable->RowStruct->InitializeStruct(RowData);
@@ -485,6 +512,7 @@ bool FDataTableImporterJSON::ReadRow(const TSharedRef<FJsonObject>& InParsedTabl
 bool FDataTableImporterJSON::ReadStruct(const TSharedRef<FJsonObject>& InParsedObject, UScriptStruct* InStruct, const FName InRowName, void* InStructData)
 {
 	// Now read in each property
+	TArray<FString> TempPropertyImportNames;
 	for (TFieldIterator<FProperty> It(InStruct); It; ++It)
 	{
 		FProperty* BaseProp = *It;
@@ -493,7 +521,8 @@ bool FDataTableImporterJSON::ReadStruct(const TSharedRef<FJsonObject>& InParsedO
 		const FString ColumnName = DataTableUtils::GetPropertyExportName(BaseProp);
 
 		TSharedPtr<FJsonValue> ParsedPropertyValue;
-		for (const FString& PropertyName : DataTableUtils::GetPropertyImportNames(BaseProp))
+		DataTableUtils::GetPropertyImportNames(BaseProp, TempPropertyImportNames);
+		for (const FString& PropertyName : TempPropertyImportNames)
 		{
 			ParsedPropertyValue = InParsedObject->TryGetField(PropertyName);
 			if (ParsedPropertyValue.IsValid())

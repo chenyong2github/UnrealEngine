@@ -268,7 +268,7 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 			// Russian roulette
 			float PathEnergy = max(max(RayThroughput.x, RayThroughput.y), RayThroughput.z);
 			float EnergyThreshold = 1.0; 
-			if (PathEnergy < EnergyThreshold && Bounces > 4)
+			if (PathEnergy < EnergyThreshold && Bounces >= PathTracingData.RussianRouletteStartingBounce)
 			{
 				float Q = 1.0 - PathEnergy;
 				if (RandomSequence_GenerateSample1D(RandSequence, SampleIndex) < Q)
@@ -282,7 +282,7 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 			// Firefly rejection
 			PathEnergy = max(max(RayThroughput.x, RayThroughput.y), RayThroughput.z);
 			float FireflyThreshold = 5.0;
-			if (PathEnergy / RayPdf > FireflyThreshold)
+			if (PathEnergy / RayPdf > PathTracingData.FireFlyRejectionThreshold)
 			{
 				break;
 			}

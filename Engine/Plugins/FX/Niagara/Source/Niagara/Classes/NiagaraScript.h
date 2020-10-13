@@ -354,6 +354,9 @@ public:
 	TArray<FNiagaraCompileEvent> LastCompileEvents;
 #endif
 
+	UPROPERTY()
+	uint32 bReadsSignificanceIndex : 1;
+
 	void SerializeData(FArchive& Ar, bool bDDCData);
 	
 	bool IsValid() const;
@@ -471,12 +474,16 @@ public:
 #endif
 
 	NIAGARA_API void ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id) const;
+	NIAGARA_API const FNiagaraVMExecutableDataId& GetComputedVMCompilationId() const
+	{
 #if WITH_EDITORONLY_DATA
-	NIAGARA_API const FNiagaraVMExecutableDataId& GetComputedVMCompilationId() const { return LastGeneratedVMId; }
-#else
-	NIAGARA_API const FNiagaraVMExecutableDataId& GetComputedVMCompilationId() const { return CachedScriptVMId; }
+		if (!IsCooked)
+		{
+			return LastGeneratedVMId;
+		}
 #endif
-
+		return CachedScriptVMId;
+	}
 
 	void SetUsage(ENiagaraScriptUsage InUsage) { Usage = InUsage; }
 	ENiagaraScriptUsage GetUsage() const { return Usage; }
@@ -546,7 +553,7 @@ public:
 
 	NIAGARA_API bool CanBeRunOnGpu() const;
 	NIAGARA_API bool IsReadyToRun(ENiagaraSimTarget SimTarget) const;
-	NIAGARA_API bool ShouldCacheShadersForCooking() const;
+	NIAGARA_API bool ShouldCacheShadersForCooking(const ITargetPlatform* TargetPlatform) const;
 
 #if WITH_EDITORONLY_DATA
 	class UNiagaraScriptSourceBase *GetSource() { return Source; }
@@ -611,10 +618,10 @@ public:
 	/** Helper to convert the struct from its binary data out of the DDC to it's actual in-memory version.
 		Do not call this on anything other than the game thread as it depends on the FObjectAndNameAsStringProxyArchive,
 		which calls FindStaticObject which can fail when used in any other thread!*/
-	static bool BinaryToExecData(const TArray<uint8>& InBinaryData, FNiagaraVMExecutableData& OutExecData);
+	static bool BinaryToExecData(const UNiagaraScript* Script, const TArray<uint8>& InBinaryData, FNiagaraVMExecutableData& OutExecData);
 
 	/** Reverse of the BinaryToExecData() function */
-	static bool ExecToBinaryData(TArray<uint8>& OutBinaryData, FNiagaraVMExecutableData& InExecData);
+	static bool ExecToBinaryData(const UNiagaraScript* Script, TArray<uint8>& OutBinaryData, FNiagaraVMExecutableData& InExecData);
 
 	/** Makes a deep copy of any script dependencies, including itself.*/
 	NIAGARA_API virtual UNiagaraScript* MakeRecursiveDeepCopy(UObject* DestOuter, TMap<const UObject*, UObject*>& ExistingConversions) const;
@@ -683,6 +690,15 @@ public:
 
 	const FNiagaraScriptExecutionParameterStore* GetExecutionReadyParameterStore(ENiagaraSimTarget SimTarget);
 	void InvalidateExecutionReadyParameterStores();
+
+	bool IsScriptCooked() const
+	{
+#if WITH_EDITORONLY_DATA
+		return IsCooked;
+#else
+		return true;
+#endif
+	}
 
 private:
 	bool OwnerCanBeRunOnGpu() const;
@@ -770,6 +786,9 @@ private:
 
 	UPROPERTY(Transient)
 	TArray<UObject*> ActiveCompileRoots;
+
+	/* Flag set on load based on whether the serialized data includes editor only data */
+	bool IsCooked;
 #endif
 
 	/** Compiled VM bytecode and data necessary to run this script.*/

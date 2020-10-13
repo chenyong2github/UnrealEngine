@@ -11,9 +11,10 @@
 
 #include "EditorDirectories.h"
 #include "EditorStyleSet.h"
-#include "Widgets/SBoxPanel.h"
+#include "ScopedTransaction.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Input/STextComboBox.h"
+#include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
 
 #if USE_USD_SDK
@@ -24,6 +25,15 @@
 void SUsdStageInfo::Construct( const FArguments& InArgs, AUsdStageActor* InUsdStageActor )
 {
 	RefreshStageInfos( InUsdStageActor );
+
+	if ( InUsdStageActor )
+	{
+		// Just adapt the event signature as we don't use the ChangedFields yet
+		InUsdStageActor->GetUsdListener().GetOnStageInfoChanged().AddLambda( [ this, InUsdStageActor ]( const TArray<FString>& ChangedFields )
+		{
+			this->RefreshStageInfos( InUsdStageActor );
+		});
+	}
 
 	ChildSlot
 	[
@@ -60,6 +70,14 @@ void SUsdStageInfo::Construct( const FArguments& InArgs, AUsdStageActor* InUsdSt
 				SNew( SEditableTextBox )
 				.HintText( LOCTEXT( "Unset", "Unset" ) )
 				.Text( this, &SUsdStageInfo::GetMetersPerUnit )
+				.IsReadOnly_Lambda([this]()
+				{
+					if ( AUsdStageActor* StageActor = UsdStageActor.Get() )
+					{
+						return !( bool ) UsdStageActor->GetUsdStage();
+					}
+					return true;
+				})
 				.OnTextCommitted( this, &SUsdStageInfo::OnMetersPerUnitCommitted )
 			]
 		]
@@ -69,17 +87,26 @@ void SUsdStageInfo::Construct( const FArguments& InArgs, AUsdStageActor* InUsdSt
 void SUsdStageInfo::RefreshStageInfos( AUsdStageActor* InUsdStageActor )
 {
 	UsdStageActor = InUsdStageActor;
-	StageInfos.RootLayerDisplayName = LOCTEXT( "NoUsdStage", "No Stage Available" );
 
-	if ( !InUsdStageActor )
+	if ( InUsdStageActor )
 	{
-		return;
+		if ( const UE::FUsdStage& UsdStage = UsdStageActor->GetUsdStage() )
+		{
+			StageInfos.RootLayerDisplayName = FText::FromString( UsdStage.GetRootLayer().GetDisplayName() );
+			StageInfos.MetersPerUnit = UsdUtils::GetUsdStageMetersPerUnit( UsdStage );
+			return;
+		}
 	}
 
-	if ( const UE::FUsdStage& UsdStage = UsdStageActor->GetUsdStage() )
+	StageInfos.RootLayerDisplayName = LOCTEXT( "NoUsdStage", "No Stage Available" );
+	StageInfos.MetersPerUnit.Reset();
+}
+
+SUsdStageInfo::~SUsdStageInfo()
+{
+	if ( AUsdStageActor* StageActor = UsdStageActor.Get() )
 	{
-		StageInfos.RootLayerDisplayName = FText::FromString( UsdStage.GetRootLayer().GetDisplayName() );
-		StageInfos.MetersPerUnit = UsdUtils::GetUsdStageMetersPerUnit( UsdStage );
+		StageActor->GetUsdListener().GetOnStageInfoChanged().RemoveAll( this );
 	}
 }
 
@@ -97,16 +124,26 @@ FText SUsdStageInfo::GetMetersPerUnit() const
 
 void SUsdStageInfo::OnMetersPerUnitCommitted( const FText& InUnitsPerMeterText, ETextCommit::Type InCommitInfo )
 {
-	if ( UsdStageActor.IsValid() )
+	if ( !UsdStageActor.IsValid() )
 	{
-		float MetersPerUnit = 0.01f;
-		LexFromString( MetersPerUnit, *InUnitsPerMeterText.ToString() );
-
-		MetersPerUnit = FMath::Clamp( MetersPerUnit, 0.001f, 1000.f );
-
-		UsdUtils::SetUsdStageMetersPerUnit( UsdStageActor->GetUsdStage(), MetersPerUnit );
-		RefreshStageInfos( UsdStageActor.Get() );
+		return;
 	}
+
+	float MetersPerUnit = 0.01f;
+	LexFromString( MetersPerUnit, *InUnitsPerMeterText.ToString() );
+
+	MetersPerUnit = FMath::Clamp( MetersPerUnit, 0.001f, 1000.f );
+
+	// Need a transaction here as this change may trigger actor/component spawning, which need to be in the undo buffer
+	// Sadly undoing these transactions won't undo the actual stage changes yet though, so the metersPerUnit display and the
+	// state of the stage will be desynced...
+	FScopedTransaction Transaction( FText::Format(
+		LOCTEXT( "SetMetersPerUnitTransaction", "Set USD stage metersPerUnit to '{0}'" ),
+		MetersPerUnit
+	) );
+
+	UsdUtils::SetUsdStageMetersPerUnit( UsdStageActor->GetUsdStage(), MetersPerUnit );
+	RefreshStageInfos( UsdStageActor.Get() );
 }
 
 #undef LOCTEXT_NAMESPACE

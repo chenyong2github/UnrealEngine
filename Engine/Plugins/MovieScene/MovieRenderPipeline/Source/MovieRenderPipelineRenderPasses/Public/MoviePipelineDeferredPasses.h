@@ -1,20 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "MoviePipelineRenderPass.h"
-#include "MovieRenderPipelineDataTypes.h"
-#include "SceneTypes.h"
-#include "SceneView.h"
-#include "MoviePipelineSurfaceReader.h"
-#include "UObject/GCObject.h"
-#include "Async/AsyncWork.h"
-#include "Async/TaskGraphInterfaces.h"
-#include "Templates/Function.h"
-#include "Stats/Stats.h"
-#include "CanvasTypes.h"
-#include "Stats/Stats2.h"
-#include "MovieRenderPipelineCoreModule.h"
-
+#include "MoviePipelineImagePassBase.h"
+#include "ActorLayerUtilities.h"
 #include "OpenColorIODisplayExtension.h"
 #include "MoviePipelineDeferredPasses.generated.h"
 
@@ -24,100 +12,22 @@ class FSceneViewFamily;
 class FSceneView;
 struct FAccumulatorPool;
 
-class FMoviePipelineBackgroundAccumulateTask
-{
-public:
-	FGraphEventRef LastCompletionEvent;
-
-public:
-	FGraphEventRef Execute(TUniqueFunction<void()> InFunctor)
-	{
-		if (LastCompletionEvent)
-		{
-			LastCompletionEvent = FFunctionGraphTask::CreateAndDispatchWhenReady(MoveTemp(InFunctor), GetStatId(), LastCompletionEvent);
-		}
-		else
-		{
-			LastCompletionEvent = FFunctionGraphTask::CreateAndDispatchWhenReady(MoveTemp(InFunctor), GetStatId());
-		}
-		return LastCompletionEvent;
-	}
-
-	FORCEINLINE TStatId GetStatId() const
-	{
-		RETURN_QUICK_DECLARE_CYCLE_STAT(FMoviePipelineBackgroundAccumulateTask, STATGROUP_ThreadPoolAsyncTasks);
-	}
-};
-
-namespace MoviePipeline
-{
-	struct FImageSampleAccumulationArgs
-	{
-	public:
-		TSharedPtr<FImageOverlappedAccumulator, ESPMode::ThreadSafe> ImageAccumulator;
-		TSharedPtr<FMoviePipelineOutputMerger, ESPMode::ThreadSafe> OutputMerger;
-		bool bAccumulateAlpha;
-	};
-}
-
-UCLASS(BlueprintType, Abstract)
-class MOVIERENDERPIPELINERENDERPASSES_API UMoviePipelineImagePassBase : public UMoviePipelineRenderPass
+USTRUCT(BlueprintType)
+struct MOVIERENDERPIPELINERENDERPASSES_API FMoviePipelinePostProcessPass
 {
 	GENERATED_BODY()
 
 public:
-	UMoviePipelineImagePassBase()
-		: UMoviePipelineRenderPass()
-	{
-		PassIdentifier = FMoviePipelinePassIdentifier("ImagePassBase");
-	}
+	/** Additional passes add a significant amount of render time. May produce multiple output files if using Screen Percentage. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings")
+	bool bEnabled;
 
-protected:
-
-	// UMoviePipelineRenderPass API
-	virtual void GatherOutputPassesImpl(TArray<FMoviePipelinePassIdentifier>& ExpectedRenderPasses) override;
-	virtual void RenderSample_GameThreadImpl(const FMoviePipelineRenderPassMetrics& InSampleState) override;
-	virtual void SetupImpl(const MoviePipeline::FMoviePipelineRenderPassInitSettings& InPassInitSettings) override;
-	virtual void TeardownImpl() override;
-	// ~UMovieRenderPassAPI
-
-	// FGCObject Interface
-	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
-	// ~FGCObject Interface
-
-	FSceneView* GetSceneViewForSampleState(FSceneViewFamily* ViewFamily, FMoviePipelineRenderPassMetrics& InOutSampleState);
-
-
-protected:
-	virtual void GetViewShowFlags(FEngineShowFlags& OutShowFlag, EViewModeIndex& OutViewModeIndex) const;
-	virtual void BlendPostProcessSettings(FSceneView* InView);
-	virtual void SetupViewForViewModeOverride(FSceneView* View);
-	virtual void MoviePipelineRenderShowFlagOverride(FEngineShowFlags& OutShowFlag) {}
-	virtual void RendererSubmission_GameThread(const FMoviePipelineRenderPassMetrics& InSampleState, FCanvas& InCanvas, FSceneViewFamilyContext& InViewFamily);
-	virtual void PostRendererSubmission(const FMoviePipelineRenderPassMetrics& InSampleState, FCanvas& InCanvas) {}
-	virtual bool IsScreenPercentageSupported() const { return true; }	
-	virtual bool IsAntiAliasingSupported() const { return true; }
-	virtual int32 GetOutputFileSortingOrder() const { return -1; }
-
-protected:
-	/** A temporary render target that we render the view to. */
-	TWeakObjectPtr<UTextureRenderTarget2D> TileRenderTarget;
-
-	/** The history for the view */
-	FSceneViewStateReference ViewState;
-
-	/** A queue of surfaces that the render targets can be copied to. If no surface is available the game thread should hold off on submitting more samples. */
-	TSharedPtr<FMoviePipelineSurfaceQueue> SurfaceQueue;
-
-	FMoviePipelinePassIdentifier PassIdentifier;
-
-	/** Accessed by the Render Thread when starting up a new task. */
-	FGraphEventArray OutstandingTasks;
-
-	FGraphEventRef TaskPrereq;
-
-	/** The lifetime of this SceneViewExtension is only during the rendering process. It is destroyed as part of TearDown. */
-	TSharedPtr<FOpenColorIODisplayExtension, ESPMode::ThreadSafe> OCIOSceneViewExtension;
+	/** 
+	* Material should be set to Post Process domain, and Blendable Location = After Tonemapping. 
+	* This will need bDisableMultisampleEffects enabled for pixels to line up(ie : no DoF, MotionBlur, TAA)
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings")
+	TSoftObjectPtr<UMaterialInterface> Material;
 };
 
 UCLASS(BlueprintType)
@@ -126,39 +36,42 @@ class MOVIERENDERPIPELINERENDERPASSES_API UMoviePipelineDeferredPassBase : publi
 	GENERATED_BODY()
 
 public:
-	UMoviePipelineDeferredPassBase() : UMoviePipelineImagePassBase()
-	{
-		PassIdentifier = FMoviePipelinePassIdentifier("FinalImage");
-	}
+	UMoviePipelineDeferredPassBase();
 	
 protected:
 	// UMoviePipelineRenderPass API
 	virtual void SetupImpl(const MoviePipeline::FMoviePipelineRenderPassInitSettings& InPassInitSettings) override;
+	virtual void RenderSample_GameThreadImpl(const FMoviePipelineRenderPassMetrics& InSampleState) override;
 	virtual void TeardownImpl() override;
 #if WITH_EDITOR
 	virtual FText GetDisplayText() const override { return NSLOCTEXT("MovieRenderPipeline", "DeferredBasePassSetting_DisplayName_Lit", "Deferred Rendering"); }
 #endif
-	virtual void PostRendererSubmission(const FMoviePipelineRenderPassMetrics& InSampleState, FCanvas& InCanvas) override;
 	virtual void MoviePipelineRenderShowFlagOverride(FEngineShowFlags& OutShowFlag) override;
-	virtual void RendererSubmission_GameThread(const FMoviePipelineRenderPassMetrics& InSampleState, FCanvas& InCanvas, FSceneViewFamilyContext& InViewFamily) override;
 	virtual void GatherOutputPassesImpl(TArray<FMoviePipelinePassIdentifier>& ExpectedRenderPasses) override;
 	virtual bool IsAntiAliasingSupported() const { return !bDisableMultisampleEffects; }
 	virtual int32 GetOutputFileSortingOrder() const override { return 0; }
-	virtual bool IsAlphaInTonemapperRequiredImpl() const override { return bAccumulateMultisampleAlpha; }
+	virtual bool IsAlphaInTonemapperRequiredImpl() const override { return bAccumulatorIncludesAlpha; }
+	virtual FSceneViewStateInterface* GetSceneViewStateInterface() override;
+	virtual UTextureRenderTarget2D* GetViewRenderTarget() const override;
+	virtual void AddViewExtensions(FSceneViewFamilyContext& InContext, FMoviePipelineRenderPassMetrics& InOutSampleState) override;
 	// ~UMoviePipelineRenderPass
 
+	// FGCObject Interface
+	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
+	// ~FGCObject Interface
+
 	TFunction<void(TUniquePtr<FImagePixelData>&&)> MakeForwardingEndpoint(const FMoviePipelinePassIdentifier InPassIdentifier, const FMoviePipelineRenderPassMetrics& InSampleState);
-	TArray<FString> GetCompositionGraphPasses() const;
+	void PostRendererSubmission(const FMoviePipelineRenderPassMetrics& InSampleState, const FMoviePipelinePassIdentifier InPassIdentifier, FCanvas& InCanvas);
 
 public:
 	/**
-	* Should we accumulate the alpha channel when using temporal/spatial sampling? This requires r.PostProcessing.PropagateAlpha
+	* Should multiple temporal/spatial samples accumulate the alpha channel? This requires r.PostProcessing.PropagateAlpha
 	* to be set to 1 or 2 (see "Enable Alpha Channel Support in Post Processing" under Project Settings > Rendering). This adds
 	* ~30% cost to the accumulation so you should not enable it unless necessary. You must delete both the sky and fog to ensure
 	* that they do not make all pixels opaque.
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings")
-	bool bAccumulateMultisampleAlpha;
+	bool bAccumulatorIncludesAlpha;
 
 	/**
 	* Certain passes don't support post-processing effects that blend pixels together. These include effects like
@@ -171,36 +84,49 @@ public:
 	bool bDisableMultisampleEffects;
 
 	/**
-	* Should we write a depth pass (in world units) when we render the image? This will need bDisableMultisampleEffects enabled for pixels to line up (ie: no DoF, MotionBlur, TAA)
-	* Adds significant render time.
+	* An array of additional post-processing materials to run after the frame is rendered. Using this feature may add a notable amount of render time.
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Deferred Renderer Data")
-	bool bWriteWorldDepth;
-	
-	/**
-	* Should we write the motion vectors? Combined object + camera motion blur in screenspace. This will need bDisableMultisampleEffects enabled for pixels to line up (ie: no DoF, MotionBlur, TAA)
-	* Adds significant render time.
-	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Deferred Renderer Data")
-	bool bWriteMotionVectors;
+	TArray<FMoviePipelinePostProcessPass> AdditionalPostProcessMaterials;
 
 	/**
-	* Should we write the ambient occlusion data used during rendering when we render the image? This will need bDisableMultisampleEffects enabled for pixels to line up (ie: no DoF, MotionBlur, TAA)
-	* Adds significant render time.
+	* If true, an additional stencil layer will be rendered which contains all objects which do not belong to layers
+	* specified in the Stencil Layers. This is useful for wanting to isolate one or two layers but still have everything
+	* else to composite them over without having to remember to add all objects to a default layer.
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Deferred Renderer Data")
-	bool bWriteAmbientOcclusion;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stencil Clip Layers")
+	bool bAddDefaultLayer;
 
-	/**
-	* An array of additional post-processing materials to run. Material should be set to Post Process domain, and Blendable Location = Before Tonemapping. This will need bDisableMultisampleEffects enabled for pixels to line up (ie: no DoF, MotionBlur, TAA)
-	* Adds significant render time.
+	/** 
+	* For each layer in the array, the world will be rendered and then a stencil mask will clip all pixels not affected
+	* by the objects on that layer. This is NOT a true layer system, as translucent objects will show opaque objects from
+	* another layer behind them. Does not write out additional post-process materials per-layer as they will match the
+	* base layer. Only works with materials that can write to custom depth.
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Deferred Renderer Data")
-	TArray<UMaterialInterface*> AdditionalPostProcessMaterials;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stencil Clip Layers")
+	TArray<FActorLayer> StencilLayers;
 
 protected:
+	/** While rendering, store an array of the non-null valid materials loaded from AdditionalPostProcessMaterials. Cleared on teardown. */
+	UPROPERTY(Transient, DuplicateTransient)
+	TArray<UMaterialInterface*> ActivePostProcessMaterials;
+
+	UPROPERTY(Transient, DuplicateTransient)
+	UMaterialInterface* StencilLayerMaterial;
+
+	UPROPERTY(Transient, DuplicateTransient)
+	TArray<UTextureRenderTarget2D*> TileRenderTargets;
+
+
 	TSharedPtr<FAccumulatorPool, ESPMode::ThreadSafe> AccumulatorPool;
+
+	int32 CurrentLayerIndex;
+	TArray<FSceneViewStateReference> StencilLayerViewStates;
+
+	/** The lifetime of this SceneViewExtension is only during the rendering process. It is destroyed as part of TearDown. */
+	TSharedPtr<FOpenColorIODisplayExtension, ESPMode::ThreadSafe> OCIOSceneViewExtension;
 };
+
 
 
 UCLASS(BlueprintType)
@@ -335,6 +261,7 @@ struct MOVIERENDERPIPELINERENDERPASSES_API FAccumulatorPool : public TSharedFrom
 		int32 ActiveFrameNumber;
 		FMoviePipelinePassIdentifier ActivePassIdentifier;
 		FThreadSafeBool bIsActive;
+		FGraphEventRef TaskPrereq;
 	};
 
 	TArray<TSharedPtr<FAccumulatorInstance, ESPMode::ThreadSafe>> Accumulators;
@@ -360,5 +287,3 @@ struct TAccumulatorPool : FAccumulatorPool
 	}
 };
 
-DECLARE_CYCLE_STAT(TEXT("STAT_MoviePipeline_WaitForAvailableAccumulator"), STAT_MoviePipeline_WaitForAvailableAccumulator, STATGROUP_MoviePipeline);
-DECLARE_CYCLE_STAT(TEXT("STAT_MoviePipeline_WaitForAvailableSurface"), STAT_MoviePipeline_WaitForAvailableSurface, STATGROUP_MoviePipeline);

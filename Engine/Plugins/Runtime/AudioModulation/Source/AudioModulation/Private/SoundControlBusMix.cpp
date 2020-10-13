@@ -7,7 +7,6 @@
 #include "AudioModulationLogging.h"
 #include "AudioModulationProfileSerializer.h"
 #include "AudioModulationStatics.h"
-#include "AudioModulationSystem.h"
 #include "Engine/World.h"
 #include "SoundControlBus.h"
 
@@ -38,6 +37,8 @@ USoundControlBusMix::USoundControlBusMix(const FObjectInitializer& ObjectInitial
 
 void USoundControlBusMix::BeginDestroy()
 {
+	using namespace AudioModulation;
+
 	Super::BeginDestroy();
 
 	if (UWorld* World = GetWorld())
@@ -48,9 +49,9 @@ void USoundControlBusMix::BeginDestroy()
 			{
 				if (IAudioModulation* ModulationInterface = AudioDevice->ModulationInterface.Get())
 				{
-					auto ModSystem = static_cast<AudioModulation::FAudioModulation*>(ModulationInterface)->GetModulationSystem();
-					check(ModSystem);
-					ModSystem->DeactivateBusMix(*this);
+					FAudioModulation* Modulation = static_cast<FAudioModulation*>(ModulationInterface);
+					check(Modulation);
+					Modulation->DeactivateBusMix(*this);
 				}
 			}
 		}
@@ -59,25 +60,25 @@ void USoundControlBusMix::BeginDestroy()
 
 void USoundControlBusMix::ActivateMix()
 {
-	AudioModulation::IterateModSystems([this](AudioModulation::FAudioModulationSystem& OutModSystem)
+	AudioModulation::IterateModulationImpl([this](AudioModulation::FAudioModulation& OutModulation)
 	{
-		OutModSystem.ActivateBusMix(*this);
+		OutModulation.ActivateBusMix(*this);
 	});
 }
 
 void USoundControlBusMix::DeactivateMix()
 {
-	AudioModulation::IterateModSystems([this](AudioModulation::FAudioModulationSystem& OutModSystem)
+	AudioModulation::IterateModulationImpl([this](AudioModulation::FAudioModulation& OutModulation)
 	{
-		OutModSystem.DeactivateBusMix(*this);
+		OutModulation.DeactivateBusMix(*this);
 	});
 }
 
 void USoundControlBusMix::DeactivateAllMixes()
 {
-	AudioModulation::IterateModSystems([this](AudioModulation::FAudioModulationSystem& OutModSystem)
+	AudioModulation::IterateModulationImpl([this](AudioModulation::FAudioModulation& OutModulation)
 	{
-		OutModSystem.DeactivateAllBusMixes();
+		OutModulation.DeactivateAllBusMixes();
 	});
 }
 
@@ -98,6 +99,8 @@ void USoundControlBusMix::LoadMixFromProfile()
 		FSlateNotificationManager::Get().AddNotification(Info);
 	}
 #endif // WITH_EDITOR
+
+	ActivateMix();
 }
 
 #if WITH_EDITOR
@@ -119,22 +122,33 @@ void USoundControlBusMix::OnPropertyChanged(FProperty* Property, EPropertyChange
 	{
 		if (InChangeType == EPropertyChangeType::Interactive || InChangeType == EPropertyChangeType::ValueSet)
 		{
-			if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(FSoundModulationMixValue, TargetValue))
+			if ((Property->GetFName() == GET_MEMBER_NAME_CHECKED(FSoundModulationMixValue, TargetValue))
+				|| (Property->GetFName() == GET_MEMBER_NAME_CHECKED(FSoundControlBusMixStage, Bus)))
 			{
 				for (FSoundControlBusMixStage& Stage : MixStages)
 				{
 					if (Stage.Bus)
 					{
 						Stage.Value.TargetValue = FMath::Clamp(Stage.Value.TargetValue, 0.0f, 1.0f);
+						float UnitValue = Stage.Value.TargetValue;
+						if (USoundModulationParameter* Parameter = Stage.Bus->Parameter)
+						{
+							UnitValue = Parameter->ConvertNormalizedToUnit(Stage.Value.TargetValue);
+						}
+
+						if (!FMath::IsNearlyEqual(Stage.Value.TargetUnitValue, UnitValue, KINDA_SMALL_NUMBER))
+						{
+							Stage.Value.TargetUnitValue = UnitValue;
+						}
 					}
 				}
 			}
 		}
 	}
 
-	AudioModulation::IterateModSystems([this](AudioModulation::FAudioModulationSystem& OutModSystem)
+	AudioModulation::IterateModulationImpl([this](AudioModulation::FAudioModulation& OutModulation)
 	{
-		OutModSystem.UpdateMix(*this);
+		OutModulation.UpdateMix(*this);
 	});
 }
 #endif // WITH_EDITOR
@@ -160,9 +174,9 @@ void USoundControlBusMix::SaveMixToProfile()
 
 void USoundControlBusMix::SoloMix()
 {
-	AudioModulation::IterateModSystems([this](AudioModulation::FAudioModulationSystem& OutModSystem)
+	AudioModulation::IterateModulationImpl([this](AudioModulation::FAudioModulation& OutModulation)
 	{
-		OutModSystem.SoloBusMix(*this);
+		OutModulation.SoloBusMix(*this);
 	});
 }
 

@@ -1227,11 +1227,22 @@ namespace UnrealBuildTool
 					VersionNumber Version;
 					if (IsValidToolChainDir2017or2019(ToolChainDir, out Version))
 					{
+						
 						Log.TraceLog("Found Visual Studio toolchain: {0} (Version={1})", ToolChainDir, Version);
 						if (!ToolChainInstallations.ContainsKey(Version))
 						{
+							//Add VS installation based on cl.exe internal Product Version
 							ToolChainInstallations[Version] = new ToolChainInstallation(ToolChainDir, bPreview);
 						}
+
+						VersionNumber VersionFolder;
+						if ( (VersionNumber.TryParse(ToolChainDir.GetDirectoryName(), out VersionFolder)) && (VersionFolder != Version) && (!ToolChainInstallations.ContainsKey(VersionFolder)))
+						{
+							//Add VS installation based on the version number in the installation path
+							Log.TraceLog("Found Visual Studio toolchain: {0} (Version={1})", ToolChainDir, VersionFolder);
+							ToolChainInstallations[VersionFolder] = new ToolChainInstallation(ToolChainDir, bPreview);
+						}
+
 					}
 				}
 			}

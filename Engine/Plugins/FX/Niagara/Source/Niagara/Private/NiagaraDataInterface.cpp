@@ -13,6 +13,8 @@
 
 UNiagaraDataInterface::UNiagaraDataInterface(FObjectInitializer const& ObjectInitializer)
 {
+	bRenderDataDirty = false;
+	bUsedByGPUEmitter = false;
 }
 
 UNiagaraDataInterface::~UNiagaraDataInterface()
@@ -66,6 +68,11 @@ bool UNiagaraDataInterface::Equals(const UNiagaraDataInterface* Other) const
 		return false;
 	}
 	return true;
+}
+
+bool UNiagaraDataInterface::IsUsedWithGPUEmitter(FNiagaraSystemInstance* SystemInstance) const
+{
+	return bUsedByGPUEmitter;
 }
 
 bool UNiagaraDataInterface::IsDataInterfaceType(const FNiagaraTypeDefinition& TypeDef)

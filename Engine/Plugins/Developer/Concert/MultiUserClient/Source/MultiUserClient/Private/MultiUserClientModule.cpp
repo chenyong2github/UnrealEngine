@@ -354,7 +354,9 @@ public:
 			SharedState->Result = GetValidationModeResultOnFailure(ClientConfig);
 			SharedState->PromptText = LOCTEXT("ValidatingWorkspace_DiscardChanges", "Discard");
 			SharedState->Error.ErrorCode = MultiUserClientUtil::DirtyPackageValidationErrorCode;
-			SharedState->Error.ErrorText = LOCTEXT("ValidatingWorkspace_InMemoryChanges", "This workspace has in-memory changes. Continue will discard changes.");
+			SharedState->Error.ErrorText = SharedState->Result == EConcertResponseCode::Failed ? 
+				LOCTEXT("ValidatingWorkspace_InMemoryChanges_Fail", "This workspace has in-memory changes. Connection aborted.") : 
+				LOCTEXT("ValidatingWorkspace_InMemoryChanges_Prompt", "This workspace has in-memory changes. Continue will discard changes.");
 		}
 		else
 		{
@@ -545,7 +547,7 @@ public:
 
 	virtual void RegisterCommands() override
 	{
-		UI_COMMAND(TriggerToolbarButtonCmd, "Join/Browse", "Join/Browse Multi-User sessions", EUserInterfaceActionType::Button, FInputChord());
+		UI_COMMAND(TriggerToolbarButtonCmd, "Browse/Join/Leave", "Browse/Join/Leave Multi-User sessions depending on current state", EUserInterfaceActionType::Button, FInputChord());
 		UI_COMMAND(OpenBrowser, "Session Browser...", "Open the Multi-User session browser", EUserInterfaceActionType::Button, FInputChord());
 		UI_COMMAND(OpenSettings, "Multi-User Settings...", "Open the Multi-User settings", EUserInterfaceActionType::Button, FInputChord());
 		UI_COMMAND(LaunchServer, "Launch Multi-User Server", "Launch a local Multi-User server", EUserInterfaceActionType::Button, FInputChord());

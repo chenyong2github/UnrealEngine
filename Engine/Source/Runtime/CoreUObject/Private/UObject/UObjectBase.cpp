@@ -144,7 +144,7 @@ void UObjectBase::DeferredRegister(UClass *UClassStaticClass,const TCHAR* Packag
 {
 	check(UObjectInitialized());
 	// Set object properties.
-	UPackage* Package = CreatePackage(nullptr, PackageName);
+	UPackage* Package = CreatePackage(PackageName);
 	check(Package);
 	Package->SetPackageFlags(PKG_CompiledIn);
 	OuterPrivate = Package;
@@ -943,12 +943,12 @@ static void UObjectLoadAllCompiledInStructs()
 		for (const FPendingEnumRegistrant& EnumRegistrant : PendingEnumRegistrants)
 		{
 			// Make sure the package exists in case it does not contain any UObjects
-			CreatePackage(nullptr, EnumRegistrant.PackageName);
+			CreatePackage(EnumRegistrant.PackageName);
 		}
 		for (const FPendingStructRegistrant& StructRegistrant : PendingStructRegistrants)
 		{
 			// Make sure the package exists in case it does not contain any UObjects or UEnums
-			CreatePackage(nullptr, StructRegistrant.PackageName);
+			CreatePackage(StructRegistrant.PackageName);
 		}
 	}
 
@@ -1402,7 +1402,7 @@ UPackage* FindOrConstructDynamicTypePackage(const TCHAR* PackageName)
 	UPackage* Package = Cast<UPackage>(StaticFindObjectFast(UPackage::StaticClass(), nullptr, PackageName));
 	if (!Package)
 	{
-		Package = CreatePackage(nullptr, PackageName);
+		Package = CreatePackage(PackageName);
 		if (!GEventDrivenLoaderEnabled)
 		{
 			Package->SetPackageFlags(PKG_CompiledIn);

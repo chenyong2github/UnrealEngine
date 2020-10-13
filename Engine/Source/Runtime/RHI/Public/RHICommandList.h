@@ -1309,15 +1309,15 @@ FRHICOMMAND_MACRO(FRHICommandEndUAVOverlap)
 
 FRHICOMMAND_MACRO(FRHICommandBeginSpecificUAVOverlap)
 {
-	TArrayView<FRHIUnorderedAccessView*> UAVs;
-	FORCEINLINE_DEBUGGABLE FRHICommandBeginSpecificUAVOverlap(TArrayView<FRHIUnorderedAccessView*> InUAVs) : UAVs(InUAVs) {}
+	TArrayView<FRHIUnorderedAccessView* const> UAVs;
+	FORCEINLINE_DEBUGGABLE FRHICommandBeginSpecificUAVOverlap(TArrayView<FRHIUnorderedAccessView* const> InUAVs) : UAVs(InUAVs) {}
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
 FRHICOMMAND_MACRO(FRHICommandEndSpecificUAVOverlap)
 {
-	TArrayView<FRHIUnorderedAccessView*> UAVs;
-	FORCEINLINE_DEBUGGABLE FRHICommandEndSpecificUAVOverlap(TArrayView<FRHIUnorderedAccessView*> InUAVs) : UAVs(InUAVs) {}
+	TArrayView<FRHIUnorderedAccessView* const> UAVs;
+	FORCEINLINE_DEBUGGABLE FRHICommandEndSpecificUAVOverlap(TArrayView<FRHIUnorderedAccessView* const> InUAVs) : UAVs(InUAVs) {}
 	RHI_API void Execute(FRHICommandListBase & CmdList);
 };
 
@@ -2012,12 +2012,13 @@ FRHICOMMAND_MACRO(FRHICommandUpdateRHIResources)
 #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
 FRHICOMMAND_MACRO(FRHICommandBackBufferWaitTrackingBeginFrame)
 {
-	uint64 FrameToken;
+	uint64	FrameToken;
+	bool	bDeferred;
 
-	FORCEINLINE_DEBUGGABLE FRHICommandBackBufferWaitTrackingBeginFrame(uint64 FrameTokenIn)
-		: FrameToken(FrameTokenIn)
-	{
-	}
+	FORCEINLINE_DEBUGGABLE FRHICommandBackBufferWaitTrackingBeginFrame(uint64 FrameTokenIn, bool bDeferredIn)
+		:	FrameToken(FrameTokenIn),
+			bDeferred(bDeferredIn)
+	{}
 	
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
@@ -2633,7 +2634,7 @@ public:
 		EndUAVOverlap(MakeArrayView(UAVs, 1));
 	}
 
-	FORCEINLINE_DEBUGGABLE void BeginUAVOverlap(TArrayView<FRHIUnorderedAccessView*> UAVs)
+	FORCEINLINE_DEBUGGABLE void BeginUAVOverlap(TArrayView<FRHIUnorderedAccessView* const> UAVs)
 	{
 		if (Bypass())
 		{
@@ -2647,7 +2648,7 @@ public:
 		ALLOC_COMMAND(FRHICommandBeginSpecificUAVOverlap)(MakeArrayView(InlineUAVs, UAVs.Num()));
 	}
 
-	FORCEINLINE_DEBUGGABLE void EndUAVOverlap(TArrayView<FRHIUnorderedAccessView*> UAVs)
+	FORCEINLINE_DEBUGGABLE void EndUAVOverlap(TArrayView<FRHIUnorderedAccessView* const> UAVs)
 	{
 		if (Bypass())
 		{
@@ -3490,14 +3491,14 @@ public:
 	}
 
 #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
-	FORCEINLINE_DEBUGGABLE void RHIBackBufferWaitTrackingBeginFrame(uint64 FrameToken)
+	FORCEINLINE_DEBUGGABLE void RHIBackBufferWaitTrackingBeginFrame(uint64 FrameToken, bool bDeferred)
 	{
 		if (Bypass())
 		{
-			GetContext().RHIBackBufferWaitTrackingBeginFrame(FrameToken);
+			GetContext().RHIBackBufferWaitTrackingBeginFrame(FrameToken, bDeferred);
 			return;
 		}
-		ALLOC_COMMAND(FRHICommandBackBufferWaitTrackingBeginFrame)(FrameToken);
+		ALLOC_COMMAND(FRHICommandBackBufferWaitTrackingBeginFrame)(FrameToken, bDeferred);
 	}
 #endif // #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
 	
@@ -4410,12 +4411,18 @@ public:
 		GDynamicRHI->RHIReadSurfaceFloatData_RenderThread(*this, Texture,Rect,OutData,CubeFace,ArrayIndex,MipIndex);
 	}
 
-	FORCEINLINE void Read3DSurfaceFloatData(FRHITexture* Texture,FIntRect Rect,FIntPoint ZMinMax,TArray<FFloat16Color>& OutData)
+	FORCEINLINE void ReadSurfaceFloatData(FRHITexture* Texture,FIntRect Rect,TArray<FFloat16Color>& OutData,FReadSurfaceDataFlags Flags)
+	{
+		LLM_SCOPE(ELLMTag::Textures);
+		GDynamicRHI->RHIReadSurfaceFloatData_RenderThread(*this, Texture,Rect,OutData,Flags);
+	}
+
+	FORCEINLINE void Read3DSurfaceFloatData(FRHITexture* Texture,FIntRect Rect,FIntPoint ZMinMax,TArray<FFloat16Color>& OutData, FReadSurfaceDataFlags Flags = FReadSurfaceDataFlags())
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_Read3DSurfaceFloatData_Flush);
 		LLM_SCOPE(ELLMTag::Textures);
 		ImmediateFlush(EImmediateFlushType::FlushRHIThread);  
-		GDynamicRHI->RHIRead3DSurfaceFloatData(Texture,Rect,ZMinMax,OutData);
+		GDynamicRHI->RHIRead3DSurfaceFloatData(Texture,Rect,ZMinMax,OutData,Flags);
 	}
 	
 	UE_DEPRECATED(4.23, "CreateRenderQuery API is deprecated; use RHICreateRenderQueryPool and suballocate queries there")

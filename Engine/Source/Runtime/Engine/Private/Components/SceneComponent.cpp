@@ -3300,7 +3300,7 @@ void USceneComponent::PostRepNotifies()
 
 	if (bNetUpdateTransform)
 	{
-		UpdateComponentToWorld(EUpdateTransformFlags::SkipPhysicsUpdate);
+		UpdateComponentToWorld();
 		bNetUpdateTransform = false;
 	}
 }

@@ -9,6 +9,31 @@
 #include "GroomBindingAsset.h"
 #include "HairStrandsInterface.h"
 
+// @hair_todo: pack card ID + card UV in 32Bits alpha channel's of the position buffer:
+//  * 10/10 bits for UV -> max 1024/1024 rect resolution
+//  * 12 bits for cards count -> 4000 cards for a hair group
+BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FHairCardsVertexFactoryUniformShaderParameters, HAIRSTRANDSCORE_API)
+	SHADER_PARAMETER(uint32, bInvertUV)
+	SHADER_PARAMETER_SRV(Buffer<float4>, PositionBuffer)
+	SHADER_PARAMETER_SRV(Buffer<float4>, PreviousPositionBuffer)
+	SHADER_PARAMETER_SRV(Buffer<float4>, NormalsBuffer)
+	SHADER_PARAMETER_SRV(Buffer<float4>, UVsBuffer)
+
+	//SHADER_PARAMETER_SRV(Buffer, CardsAtlasRectBuffer)
+	//SHADER_PARAMETER_SRV(Buffer, CardsDimensionBuffer)
+
+	SHADER_PARAMETER_TEXTURE(Texture2D<float4>, DepthTexture)
+	SHADER_PARAMETER_SAMPLER(SamplerState, DepthSampler)
+	SHADER_PARAMETER_TEXTURE(Texture2D<float4>, TangentTexture)
+	SHADER_PARAMETER_SAMPLER(SamplerState, TangentSampler)
+	SHADER_PARAMETER_TEXTURE(Texture2D<float4>, CoverageTexture)
+	SHADER_PARAMETER_SAMPLER(SamplerState, CoverageSampler)
+	SHADER_PARAMETER_TEXTURE(Texture2D<float4>, AttributeTexture)
+	SHADER_PARAMETER_SAMPLER(SamplerState, AttributeSampler)
+END_GLOBAL_SHADER_PARAMETER_STRUCT()
+
+typedef TUniformBufferRef<FHairCardsVertexFactoryUniformShaderParameters> FHairCardsUniformBuffer;
+
 // Represent/Describe data & resources of a hair group belonging to a groom
 struct HAIRSTRANDSCORE_API FHairGroupInstance
 {
@@ -17,7 +42,7 @@ struct HAIRSTRANDSCORE_API FHairGroupInstance
 
 	struct FStrandsBase
 	{
-		bool IsValid() const { return RestResource && RestResource->GetVertexCount() > 0; }
+		bool IsValid() const { return DeformedResource != nullptr; }
 
 		// Data - Render & sim (rest) data
 		FHairStrandsDatas* Data = nullptr;
@@ -67,27 +92,36 @@ struct HAIRSTRANDSCORE_API FHairGroupInstance
 		FRWBuffer DebugAttributeBuffer;
 		FHairGroupInstanceModifer Modifier;
 
+		UMaterialInterface* Material = nullptr;
 	} Strands;
 
 	//////////////////////////////////////////////////////////////////////////////////////////
 	// Cards
 	struct FCards
 	{
-		bool IsValid(int32 LODIndex) const { return LODIndex >= 0 && LODIndex < LODs.Num() && LODs[LODIndex].RestResource != nullptr; }
+		bool IsValid(int32 LODIndex) const { return LODIndex >= 0 && LODIndex < LODs.Num() && LODs[LODIndex].DeformedResource != nullptr; }
 		struct FLOD
 		{
+			bool IsValid() const { return DeformedResource != nullptr; }
+
 			// Data
 			FHairCardsDatas* Data = nullptr;
 
 			// Resources
 			FHairCardsRestResource* RestResource = nullptr;
 			FHairCardsDeformedResource* DeformedResource = nullptr;
+			#if RHI_RAYTRACING
+			FHairStrandsRaytracingResource* RaytracingResource = nullptr;
+			#endif
 
 			// Interpolation data/resources
 			FHairCardsInterpolationDatas* InterpolationData = nullptr;
 			FHairCardsInterpolationResource* InterpolationResource = nullptr;
 
 			FStrandsBaseWithInterpolation Guides;
+
+			UMaterialInterface* Material = nullptr;
+			FHairCardsUniformBuffer UniformBuffer[2];
 		};
 		TArray<FLOD> LODs;
 	} Cards;
@@ -96,14 +130,23 @@ struct HAIRSTRANDSCORE_API FHairGroupInstance
 	// Meshes
 	struct FMeshes
 	{
-		bool IsValid(int32 LODIndex) const { return LODIndex >= 0 && LODIndex < LODs.Num() && LODs[LODIndex].RestResource != nullptr; }
+		bool IsValid(int32 LODIndex) const { return LODIndex >= 0 && LODIndex < LODs.Num() && LODs[LODIndex].DeformedResource != nullptr; }
 		struct FLOD
 		{
+			bool IsValid() const { return DeformedResource != nullptr; }
+
 			// Data
 			FHairMeshesDatas* Data = nullptr;
 
 			// Resources
-			FHairMeshesResource* RestResource = nullptr;
+			FHairMeshesRestResource* RestResource = nullptr;
+			FHairMeshesDeformedResource* DeformedResource = nullptr;
+			#if RHI_RAYTRACING
+			FHairStrandsRaytracingResource* RaytracingResource = nullptr;
+			#endif
+
+			UMaterialInterface* Material = nullptr;
+			FHairCardsUniformBuffer UniformBuffer[2];
 		};
 		TArray<FLOD> LODs;
 	} Meshes;
@@ -123,6 +166,7 @@ struct HAIRSTRANDSCORE_API FHairGroupInstance
 		USkeletalMeshComponent*	SkeletalComponent = nullptr;
 		FString					SkeletalComponentName;
 		FTransform				SkeletalLocalToWorld = FTransform::Identity;
+		bool					bDrawCardsGuides = false;
 
 		// Transfer
 		TArray<FRWBuffer> TransferredPositions;

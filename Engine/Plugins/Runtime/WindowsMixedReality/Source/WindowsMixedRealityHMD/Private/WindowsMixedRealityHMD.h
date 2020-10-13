@@ -123,7 +123,6 @@ namespace WindowsMixedReality
 		/** IHeadMountedDisplay interface */
 		virtual bool IsHeadTrackingAllowed() const override;
 		virtual bool IsHMDConnected() override;
-		bool IsHMDConnectedInternal() const;
 		virtual bool IsHMDEnabled() const override;
 		virtual EHMDWornState::Type GetHMDWornState() override;
 		virtual void EnableHMD(bool allow = true) override { }
@@ -430,5 +429,8 @@ namespace WindowsMixedReality
 
 	private:
 		void CreateSpectatorScreenController();
+
+		//At runtime, EnableStereo can call FWindowsMixedRealityStatics::ConnectToRemoteHoloLens, but in the editor FWindowsMixedRealityStatics::ConnectToRemoteHoloLens calls EnableStereo.  This is to prevent a stack overflow
+		static bool bEnableStereoReentranceGuard;
 	};
 }

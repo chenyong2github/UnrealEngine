@@ -72,7 +72,7 @@ public:
 	UAssetManagerSettings() : bOnlyCookProductionAssets(false), bShouldGuessTypeAndNameInEditor(true), bShouldAcquireMissingChunksOnLoad(false) {}
 
 	/** List of asset types to scan at startup */
-	UPROPERTY(config, EditAnywhere, Category = "Asset Manager")
+	UPROPERTY(config, EditAnywhere, Category = "Asset Manager", meta = (TitleProperty = "PrimaryAssetType"))
 	TArray<FPrimaryAssetTypeInfo> PrimaryAssetTypesToScan;
 
 	/** List of directories to exclude from scanning for Primary Assets, useful to exclude test assets */

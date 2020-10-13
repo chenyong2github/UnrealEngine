@@ -4,11 +4,9 @@
 
 #include "EditorFontGlyphs.h"
 #include "EditorStyleSet.h"
-#include "IStageDataCollection.h"
-#include "IStageMonitor.h"
-#include "IStageMonitorModule.h"
+#include "IStageMonitorSession.h"
 #include "Misc/App.h"
-#include "StageMessages.h"
+#include "StageMonitorUtils.h"
 #include "StageMonitorEditorSettings.h"
 
 #define LOCTEXT_NAMESPACE "SDataProviderListView"
@@ -16,15 +14,17 @@
 
 namespace DataProviderListView
 {
-	const FName HeaderIdName_State = "State";
-	const FName HeaderIdName_MachineName = "MachineName";
-	const FName HeaderIdName_ProcessId = "ProcessId";
-	const FName HeaderIdName_StageName = "StageName";
-	const FName HeaderIdName_Roles = "Roles";
-	const FName HeaderIdName_AverageFPS = "AverageFPS";
-	const FName HeaderIdName_GameThreadTiming = "GameThreadTiming";
-	const FName HeaderIdName_RenderThreadTiming = "RenderThreadTiming";
-	const FName HeaderIdName_GPUTiming = "GPUTiming";
+	const FName HeaderIdName_State = TEXT("State");
+	const FName HeaderIdName_Timecode = TEXT("Timecode");
+	const FName HeaderIdName_MachineName = TEXT("MachineName");
+	const FName HeaderIdName_ProcessId = TEXT("ProcessId");
+	const FName HeaderIdName_StageName = TEXT("StageName");
+	const FName HeaderIdName_Roles = TEXT("Roles");
+	const FName HeaderIdName_AverageFPS = TEXT("AverageFPS");
+	const FName HeaderIdName_IdleTime = TEXT("IdleTime");
+	const FName HeaderIdName_GameThreadTiming = TEXT("GameThreadTiming");
+	const FName HeaderIdName_RenderThreadTiming = TEXT("RenderThreadTiming");
+	const FName HeaderIdName_GPUTiming = TEXT("GPUTiming");
 }
 
 /**
@@ -32,21 +32,21 @@ namespace DataProviderListView
  */
 struct FDataProviderTableRowData : TSharedFromThis<FDataProviderTableRowData>
 {
-	FDataProviderTableRowData(const FGuid& InIdentifier, const FStageInstanceDescriptor& InDescriptor, TWeakPtr<IStageDataCollection> InCollection)
+	FDataProviderTableRowData(const FGuid& InIdentifier, const FStageInstanceDescriptor& InDescriptor, TWeakPtr<IStageMonitorSession> InSession)
 		: Identifier(InIdentifier)
 		, Descriptor(InDescriptor)
-		, Collection(InCollection)
+		, Session(InSession)
 	{
 	}
 
 	/** Fetch latest information for the associated data provider */
 	void UpdateCachedValues()
 	{
-		if (TSharedPtr<IStageDataCollection> CollectionPtr = Collection.Pin())
+		if (TSharedPtr<IStageMonitorSession> SessionPtr = Session.Pin())
 		{
-			CachedState = CollectionPtr->GetProviderState(Identifier);
+			CachedState = SessionPtr->GetProviderState(Identifier);
 
-			TSharedPtr<FStageDataEntry> LatestData = CollectionPtr->GetLatest(Identifier, FFramePerformanceProviderMessage::StaticStruct());
+			TSharedPtr<FStageDataEntry> LatestData = SessionPtr->GetLatest(Identifier, FFramePerformanceProviderMessage::StaticStruct());
 			if (LatestData.IsValid() && LatestData->Data.IsValid())
 			{
 				//Copy over this message data
@@ -64,8 +64,8 @@ public:
 	FStageInstanceDescriptor Descriptor;
 
 
-	/** Weak pointer to the collection of data */
-	TWeakPtr<IStageDataCollection> Collection;
+	/** Weak pointer to the session data */
+	TWeakPtr<IStageMonitorSession> Session;
 
 	/** Cached data for the frame performance of this provider */
 	FFramePerformanceProviderMessage CachedPerformanceData;
@@ -95,6 +95,18 @@ TSharedRef<SWidget> SDataProviderTableRow::GenerateWidgetForColumn(const FName& 
 			.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
 			.Text(this, &SDataProviderTableRow::GetStateGlyphs)
 			.ColorAndOpacity(this, &SDataProviderTableRow::GetStateColorAndOpacity);
+	}
+	if (DataProviderListView::HeaderIdName_Timecode == ColumnName)
+	{
+		return SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.HAlign(HAlign_Left)
+			.VAlign(VAlign_Center)
+			.AutoWidth()
+			[
+				SNew(STextBlock)
+				.Text(this, &SDataProviderTableRow::GetTimecode)
+			];
 	}
 	if (DataProviderListView::HeaderIdName_MachineName == ColumnName)
 	{
@@ -154,6 +166,18 @@ TSharedRef<SWidget> SDataProviderTableRow::GenerateWidgetForColumn(const FName& 
 			[
 				SNew(STextBlock)
 				.Text(MakeAttributeSP(this, &SDataProviderTableRow::GetAverageFPS))
+			];
+	}
+	if (DataProviderListView::HeaderIdName_IdleTime == ColumnName)
+	{
+		return SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.HAlign(HAlign_Left)
+			.VAlign(VAlign_Center)
+			.AutoWidth()
+			[
+				SNew(STextBlock)
+				.Text(MakeAttributeSP(this, &SDataProviderTableRow::GetIdleTime))
 			];
 	}
 	if (DataProviderListView::HeaderIdName_GameThreadTiming == ColumnName)
@@ -221,6 +245,12 @@ FSlateColor SDataProviderTableRow::GetStateColorAndOpacity() const
 	}
 }
 
+FText SDataProviderTableRow::GetTimecode() const
+{
+	const FTimecode CachedTimecode = FTimecode::FromFrameNumber(Item->CachedPerformanceData.FrameTime.Time.FrameNumber, Item->CachedPerformanceData.FrameTime.Rate);
+	return FText::FromString(CachedTimecode.ToString());
+}
+
 FText SDataProviderTableRow::GetMachineName() const
 {
 	return FText::FromString(Item->Descriptor.MachineName);
@@ -246,6 +276,11 @@ FText SDataProviderTableRow::GetAverageFPS() const
 	return FText::AsNumber(Item->CachedPerformanceData.AverageFPS);
 }
 
+FText SDataProviderTableRow::GetIdleTime() const
+{
+	return FText::AsNumber(Item->CachedPerformanceData.IdleTimeMS);
+}
+
 FText SDataProviderTableRow::GetGameThreadTiming() const
 {
 	return FText::AsNumber(Item->CachedPerformanceData.GameThreadMS);
@@ -264,13 +299,9 @@ FText SDataProviderTableRow::GetGPUTiming() const
 /**
  * SDataProviderListView
  */
-void SDataProviderListView::Construct(const FArguments& InArgs, TWeakPtr<IStageDataCollection> InCollection)
+void SDataProviderListView::Construct(const FArguments& InArgs, const TWeakPtr<IStageMonitorSession>& InSession)
 {
-	Collection = InCollection;
-	if (TSharedPtr<IStageDataCollection> CollectionPtr = InCollection.Pin())
-	{
-		CollectionPtr->OnStageDataProviderListChanged().AddSP(this, &SDataProviderListView::OnStageMonitoringMachineListChanged);
-	}
+	AttachToMonitorSession(InSession);
 
 	Super::Construct
 	(
@@ -283,53 +314,67 @@ void SDataProviderListView::Construct(const FArguments& InArgs, TWeakPtr<IStageD
 			SNew(SHeaderRow)
 
 			+ SHeaderRow::Column(DataProviderListView::HeaderIdName_State)
-			.FixedWidth(45)
+			.FixedWidth(45.f)
 			.HAlignHeader(HAlign_Center)
 			.HAlignCell(HAlign_Center)
 			.DefaultLabel(LOCTEXT("HeaderName_State", "State"))
 
+			+ SHeaderRow::Column(DataProviderListView::HeaderIdName_Timecode)
+			.FillWidth(.2f)
+			.DefaultLabel(LOCTEXT("HeaderName_Timecode", "Timecode"))
+
 			+ SHeaderRow::Column(DataProviderListView::HeaderIdName_MachineName)
-			.FillWidth(.2)
+			.FillWidth(.2f)
 			.DefaultLabel(LOCTEXT("HeaderName_MachineName", "Machine"))
 
 			+ SHeaderRow::Column(DataProviderListView::HeaderIdName_ProcessId)
-			.FillWidth(.15)
+			.FillWidth(.15f)
 			.DefaultLabel(LOCTEXT("HeaderName_ProcessId", "Process Id"))
 
 			+ SHeaderRow::Column(DataProviderListView::HeaderIdName_StageName)
-			.FillWidth(.2)
+			.FillWidth(.2f)
 			.DefaultLabel(LOCTEXT("HeaderName_StageName", "Stage Name"))
 
 			+ SHeaderRow::Column(DataProviderListView::HeaderIdName_Roles)
-			.FillWidth(.2)
+			.FillWidth(.2f)
 			.DefaultLabel(LOCTEXT("HeaderName_Roles", "Roles"))
 
 			+ SHeaderRow::Column(DataProviderListView::HeaderIdName_AverageFPS)
-			.FillWidth(.2)
+			.FillWidth(.2f)
 			.DefaultLabel(LOCTEXT("HeaderName_AverageFPS", "Average FPS"))
 
+			+ SHeaderRow::Column(DataProviderListView::HeaderIdName_IdleTime)
+			.FillWidth(.2f)
+			.DefaultLabel(LOCTEXT("HeaderName_IdleTime", "Idle Time (ms)"))
+
 			+ SHeaderRow::Column(DataProviderListView::HeaderIdName_GameThreadTiming)
-			.FillWidth(.2)
-			.DefaultLabel(LOCTEXT("HeaderName_GameThread", "Game Thread"))
+			.FillWidth(.2f)
+			.DefaultLabel(LOCTEXT("HeaderName_GameThread", "Game Thread (ms)"))
 
 			+ SHeaderRow::Column(DataProviderListView::HeaderIdName_RenderThreadTiming)
-			.FillWidth(.2)
-			.DefaultLabel(LOCTEXT("HeaderName_RenderThread", "Render Thread"))
+			.FillWidth(.2f)
+			.DefaultLabel(LOCTEXT("HeaderName_RenderThread", "Render Thread (ms)"))
 
 			+ SHeaderRow::Column(DataProviderListView::HeaderIdName_GPUTiming)
-			.FillWidth(.2)
-			.DefaultLabel(LOCTEXT("HeaderName_GPU", "GPU"))
+			.FillWidth(.2f)
+			.DefaultLabel(LOCTEXT("HeaderName_GPU", "GPU (ms)"))
 		)
 	);
 
 	RebuildDataProviderList();
 }
 
+void SDataProviderListView::RefreshMonitorSession(TWeakPtr<IStageMonitorSession> NewSession)
+{
+	AttachToMonitorSession(NewSession);
+	bRebuildListRequested = true;
+}
+
 SDataProviderListView::~SDataProviderListView()
 {
-	if (TSharedPtr<IStageDataCollection> CollectionPtr = Collection.Pin())
+	if (TSharedPtr<IStageMonitorSession> SessionPtr = Session.Pin())
 	{
-		CollectionPtr->OnStageDataProviderListChanged().RemoveAll(this);
+		SessionPtr->OnStageDataProviderListChanged().RemoveAll(this);
 	}
 }
 
@@ -375,13 +420,12 @@ void SDataProviderListView::RebuildDataProviderList()
 {
 	ListItemsSource.Reset();
 
-	if (TSharedPtr<IStageDataCollection> CollectionPtr = Collection.Pin())
+	if (TSharedPtr<IStageMonitorSession> SessionPtr = Session.Pin())
 	{
-		const TArray<FCollectionProviderEntry> Providers = CollectionPtr->GetProviders();
-
-		for (const FCollectionProviderEntry& Provider : Providers)
+		const TConstArrayView<FStageSessionProviderEntry> Providers = SessionPtr->GetProviders();
+		for (const FStageSessionProviderEntry& Provider : Providers)
 		{
-			TSharedRef<FDataProviderTableRowData> RowData = MakeShared<FDataProviderTableRowData>(Provider.Identifier, Provider.Descriptor, Collection);
+			TSharedRef<FDataProviderTableRowData> RowData = MakeShared<FDataProviderTableRowData>(Provider.Identifier, Provider.Descriptor, Session);
 			ListItemsSource.Add(RowData);
 		}
 
@@ -392,6 +436,24 @@ void SDataProviderListView::RebuildDataProviderList()
 	}
 
 	RequestListRefresh();
+}
+
+void SDataProviderListView::AttachToMonitorSession(const TWeakPtr<IStageMonitorSession>& NewSession)
+{
+	if (NewSession != Session)
+	{
+		if (TSharedPtr<IStageMonitorSession> SessionPtr = Session.Pin())
+		{
+			SessionPtr->OnStageDataProviderListChanged().RemoveAll(this);
+		}
+
+		Session = NewSession;
+
+		if (TSharedPtr<IStageMonitorSession> SessionPtr = Session.Pin())
+		{
+			SessionPtr->OnStageDataProviderListChanged().AddSP(this, &SDataProviderListView::OnStageMonitoringMachineListChanged);
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

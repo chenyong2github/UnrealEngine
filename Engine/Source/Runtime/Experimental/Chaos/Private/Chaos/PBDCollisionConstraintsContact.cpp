@@ -1,17 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Chaos/PBDCollisionConstraintsContact.h"
+#include "Chaos/Collision/CollisionSolver.h"
 #include "Chaos/CollisionResolution.h"
 #include "Chaos/CollisionResolutionUtil.h"
 #include "Chaos/Defines.h"
 #include "Chaos/Particle/ParticleUtilities.h"
 #include "Chaos/Utilities.h"
 
-//PRAGMA_DISABLE_OPTIMIZATION
-
 #if INTEL_ISPC
 #include "PBDCollisionConstraints.ispc.generated.h"
 #endif
+
+//PRAGMA_DISABLE_OPTIMIZATION
 
 namespace Chaos
 {
@@ -19,12 +20,16 @@ namespace Chaos
 	extern bool bChaos_Collision_ISPC_Enabled;
 #endif
 
-	extern int32 Chaos_Collision_UseAccumulatedImpulseClipSolve;
-
 	namespace Collisions
 	{
 		int32 Chaos_Collision_EnergyClampEnabled = 1;
 		FAutoConsoleVariableRef CVarChaosCollisionEnergyClampEnabled(TEXT("p.Chaos.Collision.EnergyClampEnabled"), Chaos_Collision_EnergyClampEnabled, TEXT("Whether to use energy clamping in collision apply step"));
+
+		int32 Chaos_Collision_RelaxationEnabled = 0; // TODO remove this feature soon
+		FAutoConsoleVariableRef CVarChaosCollisionRelaxationEnabled(TEXT("p.Chaos.Collision.RelaxationEnabled"), Chaos_Collision_RelaxationEnabled, TEXT("Whether to reduce applied impulses during iterations for improved solver stability but reduced convergence"));
+
+		int32 Chaos_Collision_PrevVelocityRestitutionEnabled = 0;
+		FAutoConsoleVariableRef CVarChaosCollisionPrevVelocityRestitutionEnabled(TEXT("p.Chaos.Collision.PrevVelocityRestitutionEnabled"), Chaos_Collision_PrevVelocityRestitutionEnabled, TEXT("If enabled restitution will be calculated on previous frame velocities instead of current frame velocities"));
 
 		int32 Chaos_Collision_ForceApplyType = 0;
 		FAutoConsoleVariableRef CVarChaosCollisionAlternativeApply(TEXT("p.Chaos.Collision.ForceApplyType"), Chaos_Collision_ForceApplyType, TEXT("Force Apply step to use Velocity(1) or Position(2) modes"));
@@ -32,6 +37,18 @@ namespace Chaos
 		float Chaos_Collision_ContactMovementAllowance = 0.05f;
 		FAutoConsoleVariableRef CVarChaosCollisionContactMovementAllowance(TEXT("p.Chaos.Collision.AntiJitterContactMovementAllowance"), Chaos_Collision_ContactMovementAllowance, 
 			TEXT("If a contact is close to where it was during a previous iteration, we will assume it is the same contact that moved (to reduce jitter). Expressed as the fraction of movement distance and Centre of Mass distance to the contact point"));
+
+		int32 Chaos_Collision_UseAccumulatedImpulseClipSolve = 0; // This requires multiple contact points per iteration per pair and contact points that don't move too much (in body space) to have an effect
+		FAutoConsoleVariableRef CVarChaosCollisionImpulseClipSolve(TEXT("p.Chaos.Collision.UseAccumulatedImpulseClipSolve"), Chaos_Collision_UseAccumulatedImpulseClipSolve, TEXT("Use experimental Accumulated impulse clipped contact solve"));
+
+		int32 Chaos_Collision_UseShockPropagation = 1;
+		FAutoConsoleVariableRef CVarChaosCollisionUseShockPropagation(TEXT("p.Chaos.Collision.UseShockPropagation"), Chaos_Collision_UseShockPropagation, TEXT(""));
+
+		FReal Chaos_Collision_CollisionClipTolerance = 0.1f;
+		FAutoConsoleVariableRef CVarChaosCollisionClipTolerance(TEXT("p.Chaos.Collision.ClipTolerance"), Chaos_Collision_CollisionClipTolerance, TEXT(""));
+
+		bool Chaos_Collision_CheckManifoldComplete = false;
+		FAutoConsoleVariableRef CVarChaosCollisionCheckManifoldComplete(TEXT("p.Chaos.Collision.CheckManifoldComplete"), Chaos_Collision_CheckManifoldComplete, TEXT(""));
 
 		extern void UpdateManifold(FRigidBodyMultiPointContactConstraint& Constraint, const FReal CullDistance)
 		{
@@ -77,8 +94,8 @@ namespace Chaos
 			, const FVec3& VectorToPoint2
 			, const TPBDRigidParticleHandle<FReal, 3>* PBDRigid0
 			, const TPBDRigidParticleHandle<FReal, 3>* PBDRigid1
-			, bool bIsRigidDynamic0
-			, bool bIsRigidDynamic1
+			, bool bIsInfiniteMass0
+			, bool bIsInfiniteMass1
 			, const FRotation3& Q0
 			, const FRotation3& Q1
 			, const FMatrix33& WorldSpaceInvI1
@@ -90,21 +107,21 @@ namespace Chaos
 			FReal NormalVelocityChange = FVec3::DotProduct(ContactVelocityChange, ContactNormal);
 			FVec3 FinalAngularVelocity = FMath::Sign(AngularNormal) * FMath::Max((FReal)0, FMath::Abs(AngularNormal) - AngularFriction * NormalVelocityChange) * ContactNormal + FMath::Max((FReal)0, AngularTangent.Size() - AngularFriction * NormalVelocityChange) * AngularTangent.GetSafeNormal();
 			FVec3 Delta = FinalAngularVelocity - RelativeAngularVelocity;
-			if (!bIsRigidDynamic0 && bIsRigidDynamic1)
+			if (bIsInfiniteMass0 && !bIsInfiniteMass1)
 			{
 				FMatrix33 WorldSpaceI2 = Utilities::ComputeWorldSpaceInertia(Q1, PBDRigid1->I());
 				FVec3 ImpulseDelta = PBDRigid1->M() * FVec3::CrossProduct(VectorToPoint2, Delta);
 				Impulse += ImpulseDelta;
 				AngularImpulse += WorldSpaceI2 * Delta - FVec3::CrossProduct(VectorToPoint2, ImpulseDelta);
 			}
-			else if (bIsRigidDynamic0 && !bIsRigidDynamic1)
+			else if (!bIsInfiniteMass0 && bIsInfiniteMass1)
 			{
 				FMatrix33 WorldSpaceI1 = Utilities::ComputeWorldSpaceInertia(Q0, PBDRigid0->I());
 				FVec3 ImpulseDelta = PBDRigid0->M() * FVec3::CrossProduct(VectorToPoint1, Delta);
 				Impulse += ImpulseDelta;
 				AngularImpulse += WorldSpaceI1 * Delta - FVec3::CrossProduct(VectorToPoint1, ImpulseDelta);
 			}
-			else if (bIsRigidDynamic0 && bIsRigidDynamic1)
+			else if (!bIsInfiniteMass0 && !bIsInfiniteMass1)
 			{
 				FMatrix33 Cross1(0, VectorToPoint1.Z, -VectorToPoint1.Y, -VectorToPoint1.Z, 0, VectorToPoint1.X, VectorToPoint1.Y, -VectorToPoint1.X, 0);
 				FMatrix33 Cross2(0, VectorToPoint2.Z, -VectorToPoint2.Y, -VectorToPoint2.Z, 0, VectorToPoint2.X, VectorToPoint2.Y, -VectorToPoint2.X, 0);
@@ -134,6 +151,34 @@ namespace Chaos
 			return RelaxationFactor;
 		}
 
+		FReal CalculateRelativeNormalVelocityForRestitution(
+			const TGenericParticleHandle<FReal, 3> Particle0,
+			const TGenericParticleHandle<FReal, 3> Particle1,
+			const FRotation3& Q0,
+			const FRotation3& Q1,
+			const FVec3& ContactNormal,
+			const FVec3& VectorToPoint1,
+			const FVec3& VectorToPoint2,
+			FReal &outVelocitySize)
+		{
+			// Get previous world space position of the contact points relative the CoM
+			// Note: These particular points might not even have been in contact at the start of the frame
+			// VectorToContact point is transformed to local space, and then back to world space at the previous frame orientation
+			FRotation3 R0 = FParticleUtilitiesXR::GetCoMWorldRotation(Particle0); // Previous Rotation
+			FRotation3 R1 = FParticleUtilitiesXR::GetCoMWorldRotation(Particle1); // Previous Rotation
+
+			const FVec3 VectorToPoint1Prev = R0 * FRotation3::Conjugate(Q0) * VectorToPoint1;
+			const FVec3 VectorToPoint2Prev = R1 * FRotation3::Conjugate(Q1) * VectorToPoint2;
+			// 
+			const FVec3 ContactBody1VelocityPrev = FParticleUtilities::GetPreviousVelocityAtCoMRelativePosition(Particle0, VectorToPoint1Prev);
+			const FVec3 ContactBody2VelocityPrev = FParticleUtilities::GetPreviousVelocityAtCoMRelativePosition(Particle1, VectorToPoint2Prev);
+			const FVec3 RelativeVelocityPrev = ContactBody1VelocityPrev - ContactBody2VelocityPrev;
+			const FReal RelativeNormalVelocityForRestitution = FVec3::DotProduct(RelativeVelocityPrev, ContactNormal); // Note: using the current contact normal
+			outVelocitySize = RelativeVelocityPrev.Size();
+			
+			return RelativeNormalVelocityForRestitution;
+		}
+
 		// Calculate velocity corrections due to the given contact
 		// This function uses AccumulatedImpulse Clipping, so 
 		// AccumulatedImpulse is both an input and an output
@@ -143,6 +188,8 @@ namespace Chaos
 			const TGenericParticleHandle<FReal, 3> Particle1,
 			const FContactIterationParameters& IterationParameters,
 			const FContactParticleParameters& ParticleParameters,
+			const bool bIsRigidDynamic0,
+			const bool bIsRigidDynamic1,
 			const FVec3& P0, // Centre of Mass Positions and Rotations
 			const FRotation3& Q0,
 			const FVec3& P1,
@@ -160,8 +207,10 @@ namespace Chaos
 			TPBDRigidParticleHandle<FReal, 3>* PBDRigid0 = Particle0->CastToRigidParticle();
 			TPBDRigidParticleHandle<FReal, 3>* PBDRigid1 = Particle1->CastToRigidParticle();
 
-			const bool bIsRigidDynamic0 = PBDRigid0 && PBDRigid0->ObjectState() == EObjectStateType::Dynamic;
-			const bool bIsRigidDynamic1 = PBDRigid1 && PBDRigid1->ObjectState() == EObjectStateType::Dynamic;
+			const bool bOneWayInteraction0 = bIsRigidDynamic0 && PBDRigid0->OneWayInteraction();
+			const bool bOneWayInteraction1 = bIsRigidDynamic1 && PBDRigid1->OneWayInteraction();
+			const bool bInfiniteMass0 = !bIsRigidDynamic0 || (!bOneWayInteraction0 && bOneWayInteraction1);
+			const bool bInfiniteMass1 = !bIsRigidDynamic1 || (bOneWayInteraction0 && !bOneWayInteraction1);
 
 			const FVec3 ZeroVector = FVec3(0);
 
@@ -172,25 +221,35 @@ namespace Chaos
 			const FVec3 RelativeVelocity = Body1Velocity - Body2Velocity;  // Do not early out on negative normal velocity since there can still be an accumulated impulse
 			*IterationParameters.NeedsAnotherIteration = true;
 
-			const FMatrix33 WorldSpaceInvI1 = bIsRigidDynamic0 ? Utilities::ComputeWorldSpaceInertia(Q0, PBDRigid0->InvI()) * Contact.InvInertiaScale0 : FMatrix33(0);
-			const FMatrix33 WorldSpaceInvI2 = bIsRigidDynamic1 ? Utilities::ComputeWorldSpaceInertia(Q1, PBDRigid1->InvI()) * Contact.InvInertiaScale1 : FMatrix33(0);
+			const FMatrix33 WorldSpaceInvI1 = !bInfiniteMass0 ? Utilities::ComputeWorldSpaceInertia(Q0, PBDRigid0->InvI()) * Contact.InvInertiaScale0 : FMatrix33(0);
+			const FMatrix33 WorldSpaceInvI2 = !bInfiniteMass1 ? Utilities::ComputeWorldSpaceInertia(Q1, PBDRigid1->InvI()) * Contact.InvInertiaScale1 : FMatrix33(0);
+			const FReal InvM1 = !bInfiniteMass0 ? PBDRigid0->InvM() : 0.f;
+			const FReal InvM2 = !bInfiniteMass1 ? PBDRigid1->InvM() : 0.f;
 			const FMatrix33 Factor =
-				(bIsRigidDynamic0 ? ComputeFactorMatrix3(VectorToPoint1, WorldSpaceInvI1, PBDRigid0->InvM()) : FMatrix33(0)) +
-				(bIsRigidDynamic1 ? ComputeFactorMatrix3(VectorToPoint2, WorldSpaceInvI2, PBDRigid1->InvM()) : FMatrix33(0));
+			    (!bInfiniteMass0 ? ComputeFactorMatrix3(VectorToPoint1, WorldSpaceInvI1, InvM1) : FMatrix33(0)) +
+			    (!bInfiniteMass1 ? ComputeFactorMatrix3(VectorToPoint2, WorldSpaceInvI2, InvM2) : FMatrix33(0));
 			FVec3 AngularImpulse(0);
 
+			FReal RelativeNormalVelocityForRestitution = FVec3::DotProduct(RelativeVelocity, Contact.Normal); // Relative velocity in direction of the normal as used by restitution
+			FReal RelativeVelocityForRestitutionSize = RelativeVelocity.Size();
+			// Use the previous contact velocities to calculate the restitution response
+			if (Chaos_Collision_PrevVelocityRestitutionEnabled && bInApplyRestitution && Contact.Restitution > (FReal)0.0f)
+			{
+				RelativeNormalVelocityForRestitution = CalculateRelativeNormalVelocityForRestitution(Particle0, Particle1, Q0, Q1, Contact.Normal, VectorToPoint1, VectorToPoint2, RelativeVelocityForRestitutionSize);
+			}
+
 			// Resting contact if very close to the surface
-			const bool bApplyRestitution = bInApplyRestitution && (RelativeVelocity.Size() > ParticleParameters.RestitutionVelocityThreshold);
+			const bool bApplyRestitution = bInApplyRestitution && (RelativeVelocityForRestitutionSize > ParticleParameters.RestitutionVelocityThreshold);
 			const FReal Restitution = (bApplyRestitution) ? Contact.Restitution : (FReal)0;
 			const FReal Friction = bInApplyFriction ? Contact.Friction : (FReal)0; // Add friction even when pushing out
-			const FReal AngularFriction = bInApplyAngularFriction ? Contact.AngularFriction : (FReal)0; // Don't add angular friction in pushout since we don't have accumelated angular impulse clipping, todo: experiment with this later
+			const FReal AngularFriction = bInApplyAngularFriction ? Contact.AngularFriction : (FReal)0; // Don't add angular friction in pushout since we don't have accumulated angular impulse clipping, todo: experiment with this later
 
-			const FVec3 VelocityTarget = (-Restitution * FVec3::DotProduct(RelativeVelocity, Contact.Normal)) * Contact.Normal;
+			const FVec3 VelocityTarget = (-Restitution * RelativeNormalVelocityForRestitution) * Contact.Normal;
 			const FVec3 VelocityChange = VelocityTarget - RelativeVelocity;
 			const FMatrix33 FactorInverse = Factor.Inverse();
 			FVec3 Impulse = FactorInverse * VelocityChange;  // Delta Impulse = (J.M^(-1).J^(T))^(-1).(ContactVelocityError)
 
-			if (bInApplyRelaxation)
+			if (bInApplyRelaxation && Chaos_Collision_RelaxationEnabled)
 			{
 				Impulse *= CalculateRelaxationFactor(IterationParameters);
 			}
@@ -205,6 +264,7 @@ namespace Chaos
 				RelativeScale = bIsRigidDynamic0 ? VectorToPoint1.SizeSquared() : VectorToPoint2.SizeSquared();
 			}
 
+		
 			bool bUseAccumalatedImpulseInSolve = Contact.bUseAccumalatedImpulseInSolve &&
 				((Contact.ContactMoveSQRDistance == (FReal)0) || (RelativeScale > (FReal)0 && Contact.ContactMoveSQRDistance / RelativeScale < Chaos_Collision_ContactMovementAllowance* Chaos_Collision_ContactMovementAllowance));
 			Contact.bUseAccumalatedImpulseInSolve = bUseAccumalatedImpulseInSolve; // Once disabled, disabled until the end of the frame
@@ -216,43 +276,46 @@ namespace Chaos
 			const FVec3 NewUnclippedAccumulatedImpulse = AccImp + Impulse;
 			FVec3 ClippedAccumulatedImpulse(0.0f);  // To be calculated
 			{
-				//Project to normal
+				// Project to normal
 				const FReal NewAccImpNormalSize = FVec3::DotProduct(NewUnclippedAccumulatedImpulse, Contact.Normal);
+
 				// Clipping impulses to be positive and contacts to be penetrating or touching
 				// non zero PenetrationBuffer avoids a small amount of jitter added by the ApplypushOut function.
-				const FReal PenetrationBuffer = 0;
-				if (NewAccImpNormalSize > 0 && (Contact.Phi <= PenetrationBuffer + ParticleParameters.ShapePadding))
+				const FReal PenetrationBuffer = Chaos_Collision_CollisionClipTolerance;
+				const bool bProcessContact = ((NewAccImpNormalSize > 0) && (Contact.Phi <= PenetrationBuffer));// || !AccImp.IsNearlyZero();
+
+				if (bProcessContact)
 				{					
-						const FVec3 ImpulseTangential = NewUnclippedAccumulatedImpulse - NewAccImpNormalSize * Contact.Normal;
-						const FReal ImpulseTangentialSize = ImpulseTangential.Size();
-						const FReal MaximumImpulseTangential = Friction * NewAccImpNormalSize;
-						if (ImpulseTangentialSize <= MaximumImpulseTangential)
+					const FVec3 ImpulseTangential = NewUnclippedAccumulatedImpulse - NewAccImpNormalSize * Contact.Normal;
+					const FReal ImpulseTangentialSize = ImpulseTangential.Size();
+					const FReal MaximumImpulseTangential = Friction * NewAccImpNormalSize;
+					if (ImpulseTangentialSize <= MaximumImpulseTangential)
+					{
+						//Static friction case.
+						if (AngularFriction)
 						{
-							//Static friction case.
-							if (AngularFriction)
-							{
-								ApplyAngularFriction(
-									Impulse, // In and out
-									AngularImpulse, // In and out
-									AngularFriction,
-									Particle0->W() - Particle1->W(),
-									VelocityChange,
-									Contact.Normal,
-									VectorToPoint1,
-									VectorToPoint2,
-									PBDRigid0,
-									PBDRigid1,
-									bIsRigidDynamic0,
-									bIsRigidDynamic1,
-									Q0,
-									Q1,
-									WorldSpaceInvI1,
-									WorldSpaceInvI2);
-							}
-							ClippedAccumulatedImpulse = Impulse + AccImp;
+							ApplyAngularFriction(
+								Impulse, // In and out
+								AngularImpulse, // In and out
+								AngularFriction,
+								Particle0->W() - Particle1->W(),
+								VelocityChange,
+								Contact.Normal,
+								VectorToPoint1,
+								VectorToPoint2,
+								PBDRigid0,
+								PBDRigid1,
+								bInfiniteMass0,
+								bInfiniteMass1,
+								Q0,
+								Q1,
+								WorldSpaceInvI1,
+								WorldSpaceInvI2);
 						}
-						else
-						{
+						ClippedAccumulatedImpulse = Impulse + AccImp;
+					}
+					else
+					{
 						// Projecting the impulse, like in the following commented out line, is a simplification that fails with fast sliding contacts:
 						// Because: The Factor matrix will change the direction of the vectors
 						// ClippedAccumulatedImpulse = (MaximumImpulseTangential / ImpulseTangentialSize) * ImpulseTangential + NewAccImpNormalSize * Contact.Normal;
@@ -274,7 +337,9 @@ namespace Chaos
 						ClippedAccumulatedImpulse = ImpulseMag * (Contact.Normal + Friction * Tangent) + AccImp;
 						// Clip to zero
 						if (FVec3::DotProduct(ClippedAccumulatedImpulse, Contact.Normal) <= (FReal)0)
+						{
 							ClippedAccumulatedImpulse = FVec3(0);
+						}
 					}
 				}
 				else
@@ -295,27 +360,28 @@ namespace Chaos
 			DV0 = FVec3(0);
 			DW0 = FVec3(0);
 
-			if (bIsRigidDynamic0)
+			if (!bInfiniteMass0)
 			{
 				// Velocity update for next step
 				const FVec3 NetAngularImpulse = FVec3::CrossProduct(VectorToPoint1, OutDeltaImpulse) + AngularImpulse;
-				DV0 = PBDRigid0->InvM() * OutDeltaImpulse;
+				DV0 = InvM1 * OutDeltaImpulse;
 				DW0 = WorldSpaceInvI1 * NetAngularImpulse;
 			}
 
 			DV1 = FVec3(0);
 			DW1 = FVec3(0);
 
-			if (bIsRigidDynamic1)
+			if (!bInfiniteMass1)
 			{
 				// Velocity update for next step
 				const FVec3 NetAngularImpulse = FVec3::CrossProduct(VectorToPoint2, -OutDeltaImpulse) - AngularImpulse;
-				DV1 = -PBDRigid1->InvM() * OutDeltaImpulse;
+				DV1 = -InvM2 * OutDeltaImpulse;
 				DW1 = WorldSpaceInvI2 * NetAngularImpulse;
 			}
 
 			AccumulatedImpulse += OutDeltaImpulse; // Now update the accumulated Impulse (we need to keep track of this even if it is not used by the contact solver)
 		}
+
 
 		void ApplyContactAccImpulse(FCollisionContact& Contact,
 			TGenericParticleHandle<FReal, 3> Particle0,
@@ -324,16 +390,30 @@ namespace Chaos
 			const FContactParticleParameters& ParticleParameters,
 			FVec3& AccumulatedImpulse)  // InOut
 		{
+			TPBDRigidParticleHandle<FReal, 3>* PBDRigid0 = Particle0->CastToRigidParticle();
+			TPBDRigidParticleHandle<FReal, 3>* PBDRigid1 = Particle1->CastToRigidParticle();
+			const bool bIsRigidDynamic0 = PBDRigid0 && PBDRigid0->ObjectState() == EObjectStateType::Dynamic;
+			const bool bIsRigidDynamic1 = PBDRigid1 && PBDRigid1->ObjectState() == EObjectStateType::Dynamic;
+
 			FVec3 P0 = FParticleUtilities::GetCoMWorldPosition(Particle0);
 			FRotation3 Q0 = FParticleUtilities::GetCoMWorldRotation(Particle0);
 			FVec3 P1 = FParticleUtilities::GetCoMWorldPosition(Particle1);
 			FRotation3 Q1 = FParticleUtilities::GetCoMWorldRotation(Particle1);
 
 			FVec3 DV0, DW0, DV1, DW1;
-			CalculateContactVelocityCorrections(Contact, Particle0, Particle1, IterationParameters, ParticleParameters, P0, Q0, P1, Q1,true, true, true, true, AccumulatedImpulse, DV0, DW0, DV1, DW1);
+			CalculateContactVelocityCorrections(
+				Contact, 
+				Particle0, 
+				Particle1, 
+				IterationParameters, 
+				ParticleParameters, 
+				bIsRigidDynamic0,
+				bIsRigidDynamic1,
+				P0, Q0, P1, Q1,
+				true, true, true, true, 
+				AccumulatedImpulse, 
+				DV0, DW0, DV1, DW1);
 
-			TPBDRigidParticleHandle<FReal, 3>* PBDRigid0 = Particle0->CastToRigidParticle();
-			const bool bIsRigidDynamic0 = PBDRigid0 && PBDRigid0->ObjectState() == EObjectStateType::Dynamic;
 
 			if (bIsRigidDynamic0)
 			{
@@ -346,8 +426,6 @@ namespace Chaos
 				FParticleUtilities::SetCoMWorldTransform(PBDRigid0, P0, Q0);
 			}
 
-			TPBDRigidParticleHandle<FReal, 3>* PBDRigid1 = Particle1->CastToRigidParticle();
-			const bool bIsRigidDynamic1 = PBDRigid1 && PBDRigid1->ObjectState() == EObjectStateType::Dynamic;
 			if (bIsRigidDynamic1)
 			{
 				PBDRigid1->V() += DV1;
@@ -360,7 +438,8 @@ namespace Chaos
 			}
 		}
 
-		// Apply contacts, impulse clipping is done on delta impulses as apposed to Accumulated impulses
+
+		// Apply contacts, impulse clipping is done on delta impulses as opposed to Accumulated impulses
 		FVec3 ApplyContact(FCollisionContact& Contact,
 			TGenericParticleHandle<FReal, 3> Particle0, 
 			TGenericParticleHandle<FReal, 3> Particle1,
@@ -374,6 +453,10 @@ namespace Chaos
 
 			bool bIsRigidDynamic0 = PBDRigid0 && PBDRigid0->ObjectState() == EObjectStateType::Dynamic;
 			bool bIsRigidDynamic1 = PBDRigid1 && PBDRigid1->ObjectState() == EObjectStateType::Dynamic;
+			const bool bOneWayInteraction0 = bIsRigidDynamic0 && PBDRigid0->OneWayInteraction();
+			const bool bOneWayInteraction1 = bIsRigidDynamic1 && PBDRigid1->OneWayInteraction();
+			const bool bInfiniteMass0 = !bIsRigidDynamic0 || (!bOneWayInteraction0 && bOneWayInteraction1);
+			const bool bInfiniteMass1 = !bIsRigidDynamic1 || (bOneWayInteraction0 && !bOneWayInteraction1);
 
 			const FVec3 ZeroVector = FVec3(0);
 			FVec3 P0 = FParticleUtilities::GetCoMWorldPosition(Particle0);
@@ -381,34 +464,46 @@ namespace Chaos
 			FRotation3 Q0 = FParticleUtilities::GetCoMWorldRotation(Particle0);
 			FRotation3 Q1 = FParticleUtilities::GetCoMWorldRotation(Particle1);
 
-			FVec3 VectorToPoint1 = Contact.Location - P0;
-			FVec3 VectorToPoint2 = Contact.Location - P1;
-			FVec3 Body1Velocity = FParticleUtilities::GetVelocityAtCoMRelativePosition(Particle0, VectorToPoint1);
-			FVec3 Body2Velocity = FParticleUtilities::GetVelocityAtCoMRelativePosition(Particle1, VectorToPoint2);
-			FVec3 RelativeVelocity = Body1Velocity - Body2Velocity;
-			FReal RelativeNormalVelocity = FVec3::DotProduct(RelativeVelocity, Contact.Normal);
+			const FVec3 VectorToPoint1 = Contact.Location - P0;
+			const FVec3 VectorToPoint2 = Contact.Location - P1;
+			const FVec3 Body1Velocity = FParticleUtilities::GetVelocityAtCoMRelativePosition(Particle0, VectorToPoint1);
+			const FVec3 Body2Velocity = FParticleUtilities::GetVelocityAtCoMRelativePosition(Particle1, VectorToPoint2);
+			const FVec3 RelativeVelocity = Body1Velocity - Body2Velocity;
+			const FReal RelativeNormalVelocity = FVec3::DotProduct(RelativeVelocity, Contact.Normal);
+			
+
+			FReal RelativeNormalVelocityForRestitution = RelativeNormalVelocity; // Relative velocity in direction of the normal as used by restitution
+			FReal RelativeVelocityForRestitutionSize = RelativeVelocity.Size();
+			// Use the previous contact velocities to calculate the restitution response
+			if (Chaos_Collision_PrevVelocityRestitutionEnabled && Contact.Restitution > (FReal)0.0f)
+			{
+				RelativeNormalVelocityForRestitution = CalculateRelativeNormalVelocityForRestitution(Particle0, Particle1, Q0, Q1, Contact.Normal, VectorToPoint1, VectorToPoint2, RelativeVelocityForRestitutionSize);
+			}
+
+			// Resting contact if very close to the surface
+			bool bApplyRestitution = (RelativeVelocityForRestitutionSize > ParticleParameters.RestitutionVelocityThreshold);
+			FReal Restitution = (bApplyRestitution) ? Contact.Restitution : (FReal)0;
 
 			if (RelativeNormalVelocity < 0) // ignore separating constraints
 			{
 				*IterationParameters.NeedsAnotherIteration = true;
 
-				FMatrix33 WorldSpaceInvI1 = bIsRigidDynamic0 ? Utilities::ComputeWorldSpaceInertia(Q0, PBDRigid0->InvI()) * Contact.InvInertiaScale0 : FMatrix33(0);
-				FMatrix33 WorldSpaceInvI2 = bIsRigidDynamic1 ? Utilities::ComputeWorldSpaceInertia(Q1, PBDRigid1->InvI()) * Contact.InvInertiaScale1 : FMatrix33(0);
+				FMatrix33 WorldSpaceInvI1 = !bInfiniteMass0 ? Utilities::ComputeWorldSpaceInertia(Q0, PBDRigid0->InvI()) * Contact.InvInertiaScale0 : FMatrix33(0);
+				FMatrix33 WorldSpaceInvI2 = !bInfiniteMass1 ? Utilities::ComputeWorldSpaceInertia(Q1, PBDRigid1->InvI()) * Contact.InvInertiaScale1 : FMatrix33(0);
+				FReal InvM1 = !bInfiniteMass0 ? PBDRigid0->InvM() : 0.f;
+				FReal InvM2 = !bInfiniteMass1 ? PBDRigid1->InvM() : 0.f;
 				FMatrix33 Factor =
-					(bIsRigidDynamic0 ? ComputeFactorMatrix3(VectorToPoint1, WorldSpaceInvI1, PBDRigid0->InvM()) : FMatrix33(0)) +
-					(bIsRigidDynamic1 ? ComputeFactorMatrix3(VectorToPoint2, WorldSpaceInvI2, PBDRigid1->InvM()) : FMatrix33(0));
+				    (!bInfiniteMass0 ? ComputeFactorMatrix3(VectorToPoint1, WorldSpaceInvI1, InvM1) : FMatrix33(0)) +
+				    (!bInfiniteMass1 ? ComputeFactorMatrix3(VectorToPoint2, WorldSpaceInvI2, InvM2) : FMatrix33(0));
 				FVec3 Impulse;
 				FVec3 AngularImpulse(0);
-
-				// Resting contact if very close to the surface
-				bool bApplyRestitution = (RelativeVelocity.Size() > ParticleParameters.RestitutionVelocityThreshold);
-				FReal Restitution = (bApplyRestitution) ? Contact.Restitution : (FReal)0;
+				
 				FReal Friction = Contact.Friction;
 				FReal AngularFriction = Contact.AngularFriction;
 
 				if (Friction > 0)
 				{
-					FVec3 VelocityChange = -(Restitution * RelativeNormalVelocity * Contact.Normal + RelativeVelocity);
+					FVec3 VelocityChange = -(Restitution * RelativeNormalVelocityForRestitution * Contact.Normal + RelativeVelocity);
 					FReal NormalVelocityChange = FVec3::DotProduct(VelocityChange, Contact.Normal);
 					FMatrix33 FactorInverse = Factor.Inverse();
 					FVec3 MinimalImpulse = FactorInverse * VelocityChange;
@@ -430,8 +525,8 @@ namespace Chaos
 								VectorToPoint2,
 								PBDRigid0,
 								PBDRigid1,
-								bIsRigidDynamic0,
-								bIsRigidDynamic1,
+								bInfiniteMass0,
+								bInfiniteMass1,
 								Q0,
 								Q1,
 								WorldSpaceInvI1,
@@ -453,14 +548,14 @@ namespace Chaos
 							ImpulseDenominator = (FReal)1;
 						}
 
-						const FReal ImpulseMag = -(1 + Restitution) * RelativeNormalVelocity / ImpulseDenominator;
+						const FReal ImpulseMag = -(RelativeNormalVelocity + Restitution * RelativeNormalVelocityForRestitution) / ImpulseDenominator;
 						Impulse = ImpulseMag * (Contact.Normal - Friction * Tangent);
 					}
 				}
 				else
 				{
 					FReal ImpulseDenominator = FVec3::DotProduct(Contact.Normal, Factor * Contact.Normal);
-					FVec3 ImpulseNumerator = -(1 + Restitution) * FVec3::DotProduct(RelativeVelocity, Contact.Normal)* Contact.Normal;
+					FVec3 ImpulseNumerator = -(RelativeNormalVelocity + Restitution * RelativeNormalVelocityForRestitution) * Contact.Normal;
 					if (!ensureMsgf(FMath::Abs(ImpulseDenominator) > SMALL_NUMBER, TEXT("Contact:%s\n\nParticle:%s\n\nLevelset:%s\n\nFactor*Constraint.Normal:%s, ImpulseDenominator:%f"),
 						*Contact.ToString(),
 						*Particle0->ToString(),
@@ -477,14 +572,18 @@ namespace Chaos
 					Impulse = GetEnergyClampedImpulse(Particle0->CastToRigidParticle(), Particle1->CastToRigidParticle(), Impulse, VectorToPoint1, VectorToPoint2, Body1Velocity, Body2Velocity);
 				}
 
-				Impulse *= CalculateRelaxationFactor(IterationParameters);
+				if (Chaos_Collision_RelaxationEnabled)
+				{
+					Impulse *= CalculateRelaxationFactor(IterationParameters);
+				}
+				
 				AccumulatedImpulse += Impulse;
 
 				if (bIsRigidDynamic0)
 				{
 					// Velocity update for next step
 					FVec3 NetAngularImpulse = FVec3::CrossProduct(VectorToPoint1, Impulse) + AngularImpulse;
-					FVec3 DV = PBDRigid0->InvM() * Impulse;
+					FVec3 DV = InvM1 * Impulse;
 					FVec3 DW = WorldSpaceInvI1 * NetAngularImpulse;
 					PBDRigid0->V() += DV;
 					PBDRigid0->W() += DW;
@@ -498,7 +597,7 @@ namespace Chaos
 				{
 					// Velocity update for next step
 					FVec3 NetAngularImpulse = FVec3::CrossProduct(VectorToPoint2, -Impulse) - AngularImpulse;
-					FVec3 DV = -PBDRigid1->InvM() * Impulse;
+					FVec3 DV = -InvM2 * Impulse;
 					FVec3 DW = WorldSpaceInvI2 * NetAngularImpulse;
 					PBDRigid1->V() += DV;
 					PBDRigid1->W() += DW;
@@ -524,6 +623,10 @@ namespace Chaos
 			TPBDRigidParticleHandle<FReal, 3>* PBDRigid1 = Particle1->CastToRigidParticle();
 			bool bIsRigidDynamic0 = PBDRigid0 && PBDRigid0->ObjectState() == EObjectStateType::Dynamic;
 			bool bIsRigidDynamic1 = PBDRigid1 && PBDRigid1->ObjectState() == EObjectStateType::Dynamic;
+			const bool bOneWayInteraction0 = bIsRigidDynamic0 && PBDRigid0->OneWayInteraction();
+			const bool bOneWayInteraction1 = bIsRigidDynamic1 && PBDRigid1->OneWayInteraction();
+			const bool bInfiniteMass0 = !bIsRigidDynamic0 || (!bOneWayInteraction0 && bOneWayInteraction1);
+			const bool bInfiniteMass1 = !bIsRigidDynamic1 || (bOneWayInteraction0 && !bOneWayInteraction1);
 
 //#if INTEL_ISPC
 //			if (bChaos_Collision_ISPC_Enabled)
@@ -584,7 +687,7 @@ namespace Chaos
 
 				bool bApplyResitution = (Contact.Restitution > 0.0f);
 				bool bHaveRestitutionPadding = (Contact.RestitutionPadding > 0.0f);
-				bool bApplyFriction = (Contact.Friction > 0);
+				bool bApplyFriction = (Contact.Friction > 0) && (IterationParameters.Dt > SMALL_NUMBER);
 
 				// If we have restitution, padd the constraint by an amount that enforces the outgoing velocity constraint
 				// Really this should be per contact point, not per constraint.
@@ -610,13 +713,13 @@ namespace Chaos
 					}
 				}
 			
-				FReal InvM0 = bIsRigidDynamic0 ? PBDRigid0->InvM() : 0.0f;
-				FReal InvM1 = bIsRigidDynamic1 ? PBDRigid1->InvM() : 0.0f;
-				FMatrix33 InvI0 = bIsRigidDynamic0 ? Utilities::ComputeWorldSpaceInertia(Q0, PBDRigid0->InvI()) * Contact.InvInertiaScale0 : FMatrix33(0);
-				FMatrix33 InvI1 = bIsRigidDynamic1 ? Utilities::ComputeWorldSpaceInertia(Q1, PBDRigid1->InvI()) * Contact.InvInertiaScale1 : FMatrix33(0);
+				FReal InvM0 = !bInfiniteMass0 ? PBDRigid0->InvM() : 0.0f;
+				FReal InvM1 = !bInfiniteMass1 ? PBDRigid1->InvM() : 0.0f;
+				FMatrix33 InvI0 = !bInfiniteMass0 ? Utilities::ComputeWorldSpaceInertia(Q0, PBDRigid0->InvI()) * Contact.InvInertiaScale0 : FMatrix33(0);
+				FMatrix33 InvI1 = !bInfiniteMass1 ? Utilities::ComputeWorldSpaceInertia(Q1, PBDRigid1->InvI()) * Contact.InvInertiaScale1 : FMatrix33(0);
 				FMatrix33 ContactInvI =
-					(bIsRigidDynamic0 ? ComputeFactorMatrix3(VectorToPoint0, InvI0, InvM0) : FMatrix33(0)) +
-					(bIsRigidDynamic1 ? ComputeFactorMatrix3(VectorToPoint1, InvI1, InvM1) : FMatrix33(0));
+				    (!bInfiniteMass0 ? ComputeFactorMatrix3(VectorToPoint0, InvI0, InvM0) : FMatrix33(0)) +
+				    (!bInfiniteMass1 ? ComputeFactorMatrix3(VectorToPoint1, InvI1, InvM1) : FMatrix33(0));
 
 				// Calculate the normal correction
 				FVec3 NormalError = Contact.Phi * Contact.Normal;
@@ -696,7 +799,11 @@ namespace Chaos
 			for (int32 PairIt = 0; PairIt < IterationParameters.NumPairIterations; ++PairIt)
 			{
 				// Update the contact information based on current particles' positions
-				Collisions::Update(Constraint, ParticleParameters.CullDistance);
+				bool bRequiresCollisionUpdate = true;
+				if (bRequiresCollisionUpdate)
+				{
+					Collisions::Update(Constraint, ParticleParameters.CullDistance);
+				}
 
 				// Permanently disable a constraint that is beyond the cull distance
 				if (Constraint.GetPhi() >= ParticleParameters.CullDistance)
@@ -709,22 +816,19 @@ namespace Chaos
 				}
 
 				// Do not early out here in the case of Accumulated impulse solve
-				if (Constraint.GetPhi() >= ParticleParameters.ShapePadding && !Chaos_Collision_UseAccumulatedImpulseClipSolve)
+				// @todo(chaos): remove this early out when we settle on manifolds
+				const bool bIsAccumulatingImpulses = Constraint.UseIncrementalManifold() || Chaos_Collision_UseAccumulatedImpulseClipSolve;
+				if (Constraint.GetPhi() >= 0.0f && !bIsAccumulatingImpulses)
 				{
 					return;
 				}
 
+				// @todo(chaos): fix the collided flag - it will sometimes be set if clipping is enabled, even if there was no contact...
 				if (ParticleParameters.Collided)
 				{
 					Particle0->AuxilaryValue(*ParticleParameters.Collided) = true;
 					Particle1->AuxilaryValue(*ParticleParameters.Collided) = true;
 				}
-
-				//
-				// @todo(chaos) : Collision Constraints
-				//   Consider applying all constraints in ::Apply at each iteration, right now it just takes the deepest.
-				//   For example, and iterative constraint might have 4 penetrating points that need to be resolved. 
-				//
 
 				// What Apply algorithm should we use? Controlled by the solver, with forcable cvar override for now...
 				bool bUseVelocityMode = (IterationParameters.ApplyType == ECollisionApplyType::Velocity);
@@ -735,7 +839,11 @@ namespace Chaos
 
 				if (bUseVelocityMode)
 				{
-					if (Chaos_Collision_UseAccumulatedImpulseClipSolve)
+					if (Constraint.UseIncrementalManifold())
+					{
+						ApplyContactManifold(Constraint, Particle0, Particle1, IterationParameters, ParticleParameters);
+					}
+					else if (Chaos_Collision_UseAccumulatedImpulseClipSolve)
 					{
 						// This version of Apply contact is different from the original in that it clips accumulated impulses instead of delta impulses
 						// Todo: we need multiple contact points per pair for this to be effective
@@ -774,7 +882,7 @@ namespace Chaos
 			const int32 PartialPairIterations = FMath::Max(IterationParameters.NumPairIterations, 2); // Do at least 2 pair iterations
 			const FContactIterationParameters IterationParametersPartialDT{ PartialDT, FakeIteration, IterationParameters.NumIterations, PartialPairIterations, IterationParameters.ApplyType, IterationParameters.NeedsAnotherIteration };
 			const FContactIterationParameters IterationParametersRemainingDT{ RemainingDT, FakeIteration, IterationParameters.NumIterations, IterationParameters.NumPairIterations, IterationParameters.ApplyType, IterationParameters.NeedsAnotherIteration };
-			const FContactParticleParameters CCDParticleParamaters{ ParticleParameters.CullDistance + TimeOfImpactErrorMargin, ParticleParameters.ShapePadding + TimeOfImpactErrorMargin, ParticleParameters.RestitutionVelocityThreshold, ParticleParameters.bCanDisableContacts, ParticleParameters.Collided };
+			const FContactParticleParameters CCDParticleParamaters{ ParticleParameters.CullDistance + TimeOfImpactErrorMargin, ParticleParameters.RestitutionVelocityThreshold, ParticleParameters.bCanDisableContacts, ParticleParameters.Collided };
 
 			// Rewind P to TOI and Apply
 			Particle0->P() = FMath::Lerp(Particle0->X(), Particle0->P(), Constraint.TimeOfImpact);
@@ -821,24 +929,29 @@ namespace Chaos
 			const FContactIterationParameters & IterationParameters, const FContactParticleParameters & ParticleParameters,
 			FVec3& AccumulatedImpulse)
 		{
-			
 			TPBDRigidParticleHandle<FReal, 3>* PBDRigid0 = Particle0->CastToRigidParticle();
 			TPBDRigidParticleHandle<FReal, 3>* PBDRigid1 = Particle1->CastToRigidParticle();
 			const bool bIsRigidDynamic0 = PBDRigid0 && PBDRigid0->ObjectState() == EObjectStateType::Dynamic;
 			const bool bIsRigidDynamic1 = PBDRigid1 && PBDRigid1->ObjectState() == EObjectStateType::Dynamic;
+
+			const bool bOneWayInteraction0 = bIsRigidDynamic0 && PBDRigid0->OneWayInteraction();
+			const bool bOneWayInteraction1 = bIsRigidDynamic1 && PBDRigid1->OneWayInteraction();
+			const bool bInfiniteMass0 = !bIsRigidDynamic0 || (!bOneWayInteraction0 && bOneWayInteraction1);
+			const bool bInfiniteMass1 = !bIsRigidDynamic1 || (bOneWayInteraction0 && !bOneWayInteraction1);
+
 			bool IsTemporarilyStatic0 = IsTemporarilyStatic.Contains(Particle0->GeometryParticleHandle());
 			bool IsTemporarilyStatic1 = IsTemporarilyStatic.Contains(Particle1->GeometryParticleHandle());
 			// In the case of two objects which are at the same level in shock propagation which end
 			// up in contact with each other, treat each object as not temporarily static. This can
 			// happen, for example, at the center of an arch, or between objects which are sliding into
 			// each other on a static surface.
-			if (IsTemporarilyStatic0 && IsTemporarilyStatic1)
+			if ((IsTemporarilyStatic0 && IsTemporarilyStatic1) || !Chaos_Collision_UseShockPropagation)
 			{
 				IsTemporarilyStatic0 = false;
 				IsTemporarilyStatic1 = false;
 			}
 
-			if ((!bIsRigidDynamic0 || IsTemporarilyStatic0) && (!bIsRigidDynamic1 || IsTemporarilyStatic1))
+			if ((bInfiniteMass0 || IsTemporarilyStatic0) && (bInfiniteMass1 || IsTemporarilyStatic1))
 			{
 				return;
 			}
@@ -854,29 +967,41 @@ namespace Chaos
 			// but also update the contact location if this is done
 			{
 				FVec3 DV0, DW0, DV1, DW1;
-				CalculateContactVelocityCorrections(Contact, Particle0, Particle1, IterationParameters, ParticleParameters, P0, Q0, P1, Q1, false, true, false, false, AccumulatedImpulse, DV0, DW0, DV1, DW1);
-				if (bIsRigidDynamic0)
+				CalculateContactVelocityCorrections(
+					Contact,
+					Particle0,
+					Particle1,
+					IterationParameters,
+					ParticleParameters,
+					bIsRigidDynamic0,
+					bIsRigidDynamic1,
+					P0, Q0, P1, Q1,
+					false, false, false, false,
+					AccumulatedImpulse,
+					DV0, DW0, DV1, DW1);
+
+				if (!bInfiniteMass0)
 				{
 					PBDRigid0->V() += DV0;
 					PBDRigid0->W() += DW0;
 				}
-				if (bIsRigidDynamic1)
+				if (!bInfiniteMass1)
 				{
 					PBDRigid1->V() += DV1;
 					PBDRigid1->W() += DW1;
 				}
 			}
 
-			FMatrix33 WorldSpaceInvI1 = bIsRigidDynamic0 ? Utilities::ComputeWorldSpaceInertia(Q0, PBDRigid0->InvI()) * Contact.InvInertiaScale0 : FMatrix33(0);
-			FMatrix33 WorldSpaceInvI2 = bIsRigidDynamic1 ? Utilities::ComputeWorldSpaceInertia(Q1, PBDRigid1->InvI()) * Contact.InvInertiaScale1 : FMatrix33(0);
+			FMatrix33 WorldSpaceInvI1 = !bInfiniteMass0 ? Utilities::ComputeWorldSpaceInertia(Q0, PBDRigid0->InvI()) * Contact.InvInertiaScale0 : FMatrix33(0);
+			FMatrix33 WorldSpaceInvI2 = !bInfiniteMass1 ? Utilities::ComputeWorldSpaceInertia(Q1, PBDRigid1->InvI()) * Contact.InvInertiaScale1 : FMatrix33(0);
 			
 			FVec3 VectorToPoint1 = Contact.Location - P0;
 			FVec3 VectorToPoint2 = Contact.Location - P1;
 			FMatrix33 Factor =
-				(bIsRigidDynamic0 ? ComputeFactorMatrix3(VectorToPoint1, WorldSpaceInvI1, PBDRigid0->InvM()) : FMatrix33(0)) +
-				(bIsRigidDynamic1 ? ComputeFactorMatrix3(VectorToPoint2, WorldSpaceInvI2, PBDRigid1->InvM()) : FMatrix33(0));
+				(!bInfiniteMass0 ? ComputeFactorMatrix3(VectorToPoint1, WorldSpaceInvI1, PBDRigid0->InvM()) : FMatrix33(0)) +
+				(!bInfiniteMass1 ? ComputeFactorMatrix3(VectorToPoint2, WorldSpaceInvI2, PBDRigid1->InvM()) : FMatrix33(0));
 			
-			const FVec3  Error = -(Contact.Phi - ParticleParameters.ShapePadding) * Contact.Normal;
+			const FVec3  Error = -Contact.Phi * Contact.Normal;
 			const FVec3 DeltaImpulseDt = FMatrix33(Factor.Inverse()) * Error;
 			const FVec3 UnclippedImpulseDt = DeltaImpulseDt + (Contact.bUseAccumalatedImpulseInSolve ? AccumulatedImpulse * IterationParameters.Dt : FVec3(0));
 
@@ -888,7 +1013,7 @@ namespace Chaos
 
 			FVec3 AngularImpulse1 = FVec3::CrossProduct(VectorToPoint1, ClippedDeltaImpulseDt);
 			FVec3 AngularImpulse2 = FVec3::CrossProduct(VectorToPoint2, -ClippedDeltaImpulseDt);
-			if (!IsTemporarilyStatic0 && bIsRigidDynamic0)
+			if (!IsTemporarilyStatic0 && !bInfiniteMass0)
 			{
 				const FVec3 Correction = PBDRigid0->InvM() * ClippedDeltaImpulseDt;
 				P0 += Correction;
@@ -896,7 +1021,7 @@ namespace Chaos
 				Q0.Normalize();
 				FParticleUtilities::SetCoMWorldTransform(Particle0, P0, Q0);
 			}
-			if (!IsTemporarilyStatic1 && bIsRigidDynamic1)
+			if (!IsTemporarilyStatic1 && !bInfiniteMass1)
 			{
 				P1 -= PBDRigid1->InvM() * ClippedDeltaImpulseDt;
 				Q1 = FRotation3::FromVector(WorldSpaceInvI2 * AngularImpulse2) * Q1;
@@ -912,47 +1037,54 @@ namespace Chaos
 			const TSet<const TGeometryParticleHandle<FReal, 3>*>& IsTemporarilyStatic,
 			const FContactIterationParameters & IterationParameters, const FContactParticleParameters & ParticleParameters)
 		{
-			FVec3 AccumulatedImpulse(0);
-
-			TPBDRigidParticleHandle<FReal, 3>* PBDRigid0 = Particle0->CastToRigidParticle();
-			TPBDRigidParticleHandle<FReal, 3>* PBDRigid1 = Particle1->CastToRigidParticle();
-			const bool bIsRigidDynamic0 = PBDRigid0 && PBDRigid0->ObjectState() == EObjectStateType::Dynamic;
-			const bool bIsRigidDynamic1 = PBDRigid1 && PBDRigid1->ObjectState() == EObjectStateType::Dynamic;
-
-			const FVec3 ZeroVector = FVec3(0);
-			FVec3 P0 = FParticleUtilities::GetCoMWorldPosition(Particle0);
-			FVec3 P1 = FParticleUtilities::GetCoMWorldPosition(Particle1);
-			FRotation3 Q0 = FParticleUtilities::GetCoMWorldRotation(Particle0);
-			FRotation3 Q1 = FParticleUtilities::GetCoMWorldRotation(Particle1);
 			bool IsTemporarilyStatic0 = IsTemporarilyStatic.Contains(Particle0->GeometryParticleHandle());
 			bool IsTemporarilyStatic1 = IsTemporarilyStatic.Contains(Particle1->GeometryParticleHandle());
 			// In the case of two objects which are at the same level in shock propagation which end
 			// up in contact with each other, treat each object as not temporarily static. This can
 			// happen, for example, at the center of an arch, or between objects which are sliding into
 			// each other on a static surface.
-			if (IsTemporarilyStatic0 && IsTemporarilyStatic1)
+			if ((IsTemporarilyStatic0 && IsTemporarilyStatic1) || !Chaos_Collision_UseShockPropagation)
 			{
 				IsTemporarilyStatic0 = false;
 				IsTemporarilyStatic1 = false;
 			}
 
-			if (Contact.Phi >= ParticleParameters.ShapePadding)
+			FVec3 AccumulatedImpulse(0);
+
+			TPBDRigidParticleHandle<FReal, 3>* PBDRigid0 = Particle0->CastToRigidParticle();
+			TPBDRigidParticleHandle<FReal, 3>* PBDRigid1 = Particle1->CastToRigidParticle();
+			const bool bIsRigidDynamic0 = PBDRigid0 && (PBDRigid0->ObjectState() == EObjectStateType::Dynamic) && !IsTemporarilyStatic0;
+			const bool bIsRigidDynamic1 = PBDRigid1 && (PBDRigid1->ObjectState() == EObjectStateType::Dynamic) && !IsTemporarilyStatic1;
+			const bool bOneWayInteraction0 = bIsRigidDynamic0 && PBDRigid0->OneWayInteraction();
+			const bool bOneWayInteraction1 = bIsRigidDynamic1 && PBDRigid1->OneWayInteraction();
+			const bool bInfiniteMass0 = !bIsRigidDynamic0 || (!bOneWayInteraction0 && bOneWayInteraction1);
+			const bool bInfiniteMass1 = !bIsRigidDynamic1 || (bOneWayInteraction0 && !bOneWayInteraction1);
+
+			const FVec3 ZeroVector = FVec3(0);
+			FVec3 P0 = FParticleUtilities::GetCoMWorldPosition(Particle0);
+			FVec3 P1 = FParticleUtilities::GetCoMWorldPosition(Particle1);
+			FRotation3 Q0 = FParticleUtilities::GetCoMWorldRotation(Particle0);
+			FRotation3 Q1 = FParticleUtilities::GetCoMWorldRotation(Particle1);
+
+			if (Contact.Phi >= 0.0f)
 			{
 				return AccumulatedImpulse;
 			}
 
-			if ((!bIsRigidDynamic0 || IsTemporarilyStatic0) && (!bIsRigidDynamic1 || IsTemporarilyStatic1))
+			if (!bIsRigidDynamic0 && !bIsRigidDynamic1)
 			{
 				return AccumulatedImpulse;
 			}
 
-			FMatrix33 WorldSpaceInvI1 = bIsRigidDynamic0 ? Utilities::ComputeWorldSpaceInertia(Q0, PBDRigid0->InvI()) * Contact.InvInertiaScale0 : FMatrix33(0);
-			FMatrix33 WorldSpaceInvI2 = bIsRigidDynamic1 ? Utilities::ComputeWorldSpaceInertia(Q1, PBDRigid1->InvI()) * Contact.InvInertiaScale1 : FMatrix33(0);
+			FMatrix33 WorldSpaceInvI1 = !bInfiniteMass0 ? Utilities::ComputeWorldSpaceInertia(Q0, PBDRigid0->InvI()) * Contact.InvInertiaScale0 : FMatrix33(0);
+			FMatrix33 WorldSpaceInvI2 = !bInfiniteMass1 ? Utilities::ComputeWorldSpaceInertia(Q1, PBDRigid1->InvI()) * Contact.InvInertiaScale1 : FMatrix33(0);
+			FReal InvM1 = !bInfiniteMass0 ? PBDRigid0->InvM() : 0.f;
+			FReal InvM2 = !bInfiniteMass1 ? PBDRigid1->InvM() : 0.f;
 			FVec3 VectorToPoint1 = Contact.Location - P0;
 			FVec3 VectorToPoint2 = Contact.Location - P1;
 			FMatrix33 Factor =
-				(bIsRigidDynamic0 ? ComputeFactorMatrix3(VectorToPoint1, WorldSpaceInvI1, PBDRigid0->InvM()) : FMatrix33(0)) +
-				(bIsRigidDynamic1 ? ComputeFactorMatrix3(VectorToPoint2, WorldSpaceInvI2, PBDRigid1->InvM()) : FMatrix33(0));
+			    (!bInfiniteMass0 ? ComputeFactorMatrix3(VectorToPoint1, WorldSpaceInvI1, InvM1) : FMatrix33(0)) +
+			    (!bInfiniteMass1 ? ComputeFactorMatrix3(VectorToPoint2, WorldSpaceInvI2, InvM2) : FMatrix33(0));
 			FReal Numerator = FMath::Min((FReal)(IterationParameters.Iteration + 2), (FReal)IterationParameters.NumIterations);
 			FReal ScalingFactor = Numerator / (FReal)IterationParameters.NumIterations;
 
@@ -984,37 +1116,37 @@ namespace Chaos
 					VelocityFixImpulse = GetEnergyClampedImpulse(Particle0->CastToRigidParticle(), Particle1->CastToRigidParticle(), VelocityFixImpulse, VectorToPoint1, VectorToPoint2, Body1Velocity, Body2Velocity);
 				}
 				AccumulatedImpulse += VelocityFixImpulse;	//question: should we track this?
-				if (!IsTemporarilyStatic0 && bIsRigidDynamic0)
+				if (bIsRigidDynamic0)
 				{
 					FVec3 AngularImpulse = FVec3::CrossProduct(VectorToPoint1, VelocityFixImpulse);
-					PBDRigid0->V() += PBDRigid0->InvM() * VelocityFixImpulse;
+					PBDRigid0->V() += InvM1 * VelocityFixImpulse;
 					PBDRigid0->W() += WorldSpaceInvI1 * AngularImpulse;
 
 				}
 
-				if (!IsTemporarilyStatic1 && bIsRigidDynamic1)
+				if (bIsRigidDynamic1)
 				{
 					FVec3 AngularImpulse = FVec3::CrossProduct(VectorToPoint2, -VelocityFixImpulse);
-					PBDRigid1->V() -= PBDRigid1->InvM() * VelocityFixImpulse;
+					PBDRigid1->V() -= InvM2 * VelocityFixImpulse;
 					PBDRigid1->W() += WorldSpaceInvI2 * AngularImpulse;
 				}
 
 			}
 
 
-			FVec3 Impulse = FMatrix33(Factor.Inverse()) * ((-Contact.Phi + ParticleParameters.ShapePadding) * ScalingFactor * Contact.Normal);
+			FVec3 Impulse = FMatrix33(Factor.Inverse()) * (-Contact.Phi * ScalingFactor * Contact.Normal);
 			FVec3 AngularImpulse1 = FVec3::CrossProduct(VectorToPoint1, Impulse);
 			FVec3 AngularImpulse2 = FVec3::CrossProduct(VectorToPoint2, -Impulse);
-			if (!IsTemporarilyStatic0 && bIsRigidDynamic0)
+			if (bIsRigidDynamic0)
 			{
-				P0 += PBDRigid0->InvM() * Impulse;
+				P0 += InvM1 * Impulse;
 				Q0 = FRotation3::FromVector(WorldSpaceInvI1 * AngularImpulse1) * Q0;
 				Q0.Normalize();
 				FParticleUtilities::SetCoMWorldTransform(Particle0, P0, Q0);
 			}
-			if (!IsTemporarilyStatic1 && bIsRigidDynamic1)
+			if (bIsRigidDynamic1)
 			{
-				P1 -= PBDRigid1->InvM() * Impulse;
+				P1 -= InvM2 * Impulse;
 				Q1 = FRotation3::FromVector(WorldSpaceInvI2 * AngularImpulse2) * Q1;
 				Q1.Normalize();
 				FParticleUtilities::SetCoMWorldTransform(Particle1, P1, Q1);
@@ -1033,7 +1165,11 @@ namespace Chaos
 
 			for (int32 PairIt = 0; PairIt < IterationParameters.NumPairIterations; ++PairIt)
 			{
-				Update(Constraint, ParticleParameters.CullDistance);
+				bool bRequiresCollisionUpdate = true;
+				if (bRequiresCollisionUpdate)
+				{
+					Update(Constraint, ParticleParameters.CullDistance);
+				}
 
 				// Permanently disable a constraint that is beyond the cull distance
 				if (Constraint.GetPhi() >= ParticleParameters.CullDistance)
@@ -1045,12 +1181,22 @@ namespace Chaos
 					return;
 				}
 
-				if (Constraint.GetPhi() >= ParticleParameters.ShapePadding && !Chaos_Collision_UseAccumulatedImpulseClipSolve)
+				// Note: Cannot early-out here if using impulse clipping (which supports negative incremental corrections as long as net correction is positive)
+				// @todo(chaos): remove this early out when we settle on manifolds
+				const bool bIsAccumulatingImpulses = Constraint.UseIncrementalManifold() || (Chaos_Collision_UseAccumulatedImpulseClipSolve != 0);
+				if (Constraint.GetPhi() >= 0.0f && !bIsAccumulatingImpulses)
 				{
 					return;
 				}
 
-				if (Chaos_Collision_UseAccumulatedImpulseClipSolve)
+				if (Constraint.UseIncrementalManifold())
+				{
+					if (FRigidBodyPointContactConstraint* PointConstraint = Constraint.template As<FRigidBodyPointContactConstraint>())
+					{
+						ApplyPushOutManifold(*PointConstraint, IsTemporarilyStatic, IterationParameters, ParticleParameters);
+					}
+				}
+				else if (Chaos_Collision_UseAccumulatedImpulseClipSolve != 0)
 				{
 					ApplyPushOutContactAccImpulse(Constraint.Manifold, Particle0, Particle1, IsTemporarilyStatic, IterationParameters, ParticleParameters, Constraint.AccumulatedImpulse);
 				}

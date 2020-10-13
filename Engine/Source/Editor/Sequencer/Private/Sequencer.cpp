@@ -515,7 +515,10 @@ void FSequencer::InitSequencer(const FSequencerInitParams& InitParams, const TSh
 		UBlueprint* Blueprint = SequenceEditor->FindDirectorBlueprint(InitParams.RootSequence);
 		if (Blueprint)
 		{
-			FBlueprintActionDatabase::Get().RefreshAssetActions(Blueprint);
+			if (FBlueprintActionDatabase* Database = FBlueprintActionDatabase::TryGet())
+			{
+				Database->RefreshAssetActions(Blueprint);
+			}
 		}
 	}
 
@@ -886,7 +889,10 @@ void FSequencer::ResetToNewRootSequence(UMovieSceneSequence& NewSequence)
 		UBlueprint* Blueprint = SequenceEditor->FindDirectorBlueprint(&NewSequence);
 		if (Blueprint)
 		{
-			FBlueprintActionDatabase::Get().RefreshAssetActions(Blueprint);
+			if (FBlueprintActionDatabase* Database = FBlueprintActionDatabase::TryGet())
+			{
+				Database->RefreshAssetActions(Blueprint);
+			}
 		}
 	}
 
@@ -1028,7 +1034,10 @@ void FSequencer::FocusSequenceInstance(UMovieSceneSubSection& InSubSection)
 		UBlueprint* Blueprint = SequenceEditor->FindDirectorBlueprint(FocusedSequence);
 		if (Blueprint)
 		{
-			FBlueprintActionDatabase::Get().RefreshAssetActions(Blueprint);
+			if (FBlueprintActionDatabase* Database = FBlueprintActionDatabase::TryGet())
+			{
+				Database->RefreshAssetActions(Blueprint);
+			}
 		}
 	}
 
@@ -1185,18 +1194,6 @@ void FSequencer::PopToSequenceInstance(FMovieSceneSequenceIDRef SequenceID)
 
 		check( ActiveTemplateIDs.Num() > 0 );
 		UpdateSubSequenceData();
-
-		// Pop out of any potentially locked cameras from the shot and toggle on camera cuts
-		for (FLevelEditorViewportClient* LevelVC : GEditor->GetLevelViewportClients())
-		{		
-			if (LevelVC && LevelVC->AllowsCinematicControl() && LevelVC->GetViewMode() != VMI_Unknown)
-			{
-				LevelVC->SetActorLock(nullptr);
-				LevelVC->bLockedCameraView = false;
-				LevelVC->UpdateViewForLockedActor();
-				LevelVC->Invalidate();
-			}
-		}
 
 		ResetPerMovieSceneData();
 
@@ -5792,7 +5789,6 @@ void FSequencer::UpdatePreviewLevelViewportClientFromCameraCut(FLevelEditorViewp
 		else
 		{
 			// Blending from a shot back to editor camera.
-			const float InverseBlendFactor = FMath::Clamp(1.0f - BlendFactor, 0.f, 1.f);
 
 			const FVector PreviousViewLocation = PreviousCameraComponent ? 
 				PreviousCameraComponent->GetComponentLocation() : 
@@ -5801,8 +5797,8 @@ void FSequencer::UpdatePreviewLevelViewportClientFromCameraCut(FLevelEditorViewp
 				PreviousCameraComponent->GetComponentRotation() :
 				PreviousCameraActor->GetActorRotation();
 
-			const FVector BlendedLocation = FMath::Lerp(PreviousViewLocation, PreAnimatedViewportLocation, InverseBlendFactor);
-			const FRotator BlendedRotation = FMath::Lerp(PreviousViewRotation, PreAnimatedViewportRotation, InverseBlendFactor);
+			const FVector BlendedLocation = FMath::Lerp(PreviousViewLocation, PreAnimatedViewportLocation, BlendFactor);
+			const FRotator BlendedRotation = FMath::Lerp(PreviousViewRotation, PreAnimatedViewportRotation, BlendFactor);
 
 			InViewportClient.SetViewLocation(BlendedLocation);
 			InViewportClient.SetViewRotation(BlendedRotation);
@@ -6296,7 +6292,7 @@ void FSequencer::AddNodesToExistingNodeGroup(const TArray<TSharedRef<FSequencerD
 
 void FSequencer::SynchronizeExternalSelectionWithSequencerSelection()
 {
-	if ( bUpdatingSequencerSelection || !IsLevelEditorSequencer() || ExactCast<ULevelSequence>(GetFocusedMovieSceneSequence()) == nullptr )
+	if ( bUpdatingSequencerSelection || !IsLevelEditorSequencer() )
 	{
 		return;
 	}
@@ -6495,7 +6491,7 @@ void FSequencer::SynchronizeSequencerSelectionWithExternalSelection()
 	}
 
 	UMovieSceneSequence* Sequence = GetFocusedMovieSceneSequence();
-	if( !IsLevelEditorSequencer() || ExactCast<ULevelSequence>(Sequence) == nullptr )
+	if( !IsLevelEditorSequencer() )
 	{
 		// Only level sequences have a full update here, but we still want filters to update for UMG animations
 		NodeTree->RequestFilterUpdate();
@@ -7063,6 +7059,11 @@ void FSequencer::SelectByChannels(UMovieSceneSection* Section, const TArray<FNam
 		TrackNode->GetChildKeyAreaNodesRecursively(KeyAreaNodes);
 		for (TSharedRef<FSequencerSectionKeyAreaNode> KeyAreaNode : KeyAreaNodes)
 		{
+			if (KeyAreaNode->GetParent().IsValid() && InChannelNames.Contains(*KeyAreaNode->GetParent()->AsShared()->GetDisplayName().ToString()))
+			{
+				Nodes.Add(KeyAreaNode->GetParent()->AsShared());
+			}
+
 			for (TSharedPtr<IKeyArea> KeyArea : KeyAreaNode->GetAllKeyAreas())
 			{
 				FMovieSceneChannelHandle ThisChannel = KeyArea->GetChannel();

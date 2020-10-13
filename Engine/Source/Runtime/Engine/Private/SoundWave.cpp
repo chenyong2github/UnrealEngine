@@ -147,7 +147,7 @@ void FStreamedAudioChunk::Serialize(FArchive& Ar, UObject* Owner, int32 ChunkInd
 	const ITargetPlatform* CookingTarget = Ar.CookingTarget();
 	if (CookingTarget != nullptr)
 	{
-		const FPlatformAudioCookOverrides* Overrides = FPlatformCompressionUtilities::GetCookOverrides(*CookingTarget->PlatformName());
+		const FPlatformAudioCookOverrides* Overrides = FPlatformCompressionUtilities::GetCookOverrides(*CookingTarget->IniPlatformName());
 		check(Overrides);
 		bShouldInlineAudioChunk = Overrides->bInlineStreamedAudioChunks;
 	}

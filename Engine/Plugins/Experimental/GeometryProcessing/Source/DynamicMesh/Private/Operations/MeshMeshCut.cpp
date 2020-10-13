@@ -345,7 +345,7 @@ namespace MeshCut
 				{
 					bool bWalkSuccess = SurfacePath.AddViaPlanarWalk(StartTID,
 						Mesh->GetVertex(PtA.ElemID), -1, PtB.ElemID,
-						Mesh->GetVertex(PtB.ElemID), WalkPlaneNormal, nullptr /*TODO: transform fn goes here?*/, false, FMathd::ZeroTolerance, FMathf::ZeroTolerance*100, .001);
+						Mesh->GetVertex(PtB.ElemID), WalkPlaneNormal, nullptr /*TODO: transform fn goes here?*/, false, FMathd::ZeroTolerance, SnapToleranceSq, .001);
 					if (!bWalkSuccess)
 					{
 						bSuccess = false;
@@ -546,14 +546,14 @@ bool FMeshMeshCut::Cut(const MeshIntersection::FIntersectionsQueryResult& Inters
 	int MeshesToProcess = bMutuallyCut ? 2 : 1;
 	for (int MeshIdx = 0; MeshIdx < MeshesToProcess; MeshIdx++)
 	{
-		MeshCut::FCutWorkingInfo WWorkingInfo(Mesh[MeshIdx], SnapTolerance);
+		MeshCut::FCutWorkingInfo WorkingInfo(Mesh[MeshIdx], SnapTolerance);
 		TMap<FVector3d, int> SegVtxMap;
-		WWorkingInfo.AddSegments(Intersections, SegVtxMap, MeshIdx); // add intersection segments
-		WWorkingInfo.InsertFaceVertices(); // insert vertices for intersection segments w/ endpoints on faces
-		WWorkingInfo.InsertEdgeVertices(); // insert vertices for intersection segments w/ endpoints on edges
+		WorkingInfo.AddSegments(Intersections, SegVtxMap, MeshIdx); // add intersection segments
+		WorkingInfo.InsertFaceVertices(); // insert vertices for intersection segments w/ endpoints on faces
+		WorkingInfo.InsertEdgeVertices(); // insert vertices for intersection segments w/ endpoints on edges
 
 		// ensure that intersection segment endpoints are connected by direct edge paths
-		bool bConnected = WWorkingInfo.ConnectEdges(
+		bool bConnected = WorkingInfo.ConnectEdges(
 			bTrackInsertedVertices ? &VertexChains[MeshIdx] : nullptr,
 			bTrackInsertedVertices ? &SegmentToChain[MeshIdx] : nullptr
 		);

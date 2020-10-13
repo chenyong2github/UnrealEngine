@@ -474,6 +474,7 @@ namespace RHIValidation
 		CreateTransitionBacktrace = CreateTrace;
 		BeginTransitionBacktrace = BeginTrace;
 		bUsedWithAllUAVsOverlap = false;
+		bUsedWithExplicitUAVsOverlap = false;
 
 		bTransitioning = true;
 	}
@@ -515,21 +516,37 @@ namespace RHIValidation
 		ensureMsgf(!bTransitioning, TEXT("%s"), *GetReasonString_AccessDuringTransition(Resource, SubresourceIndex, CurrentState, RequiredState, CreateTransitionBacktrace, BeginTransitionBacktrace));
 
 		// If UAV overlaps are now disabled, ensure the resource has been transitioned if it was previously used in UAV overlap state.
-		ensureMsgf(bAllowAllUAVsOverlap || !bUsedWithAllUAVsOverlap, TEXT("%s"), *GetReasonString_UAVOverlap(Resource, SubresourceIndex, CurrentState, RequiredState));
+		ensureMsgf((bAllowAllUAVsOverlap || !bUsedWithAllUAVsOverlap) && (bExplicitAllowUAVOverlap || !bUsedWithExplicitUAVsOverlap), TEXT("%s"), *GetReasonString_UAVOverlap(Resource, SubresourceIndex, CurrentState, RequiredState));
 
 		// Ensure the resource is in the required state for this operation
 		ensureMsgf(EnumHasAllFlags(CurrentState.Access, RequiredState.Access) && EnumHasAllFlags(CurrentState.Pipelines, RequiredState.Pipelines), TEXT("%s"), *GetReasonString_MissingBarrier(Resource, SubresourceIndex, CurrentState, RequiredState));
 
 		PreviousState = CurrentState;
 
-		if (bAllowAllUAVsOverlap && EnumHasAnyFlags(RequiredState.Access, ERHIAccess::UAVMask))
+		if (EnumHasAnyFlags(RequiredState.Access, ERHIAccess::UAVMask))
 		{
-			bUsedWithAllUAVsOverlap = true;
+			if (bAllowAllUAVsOverlap) { bUsedWithAllUAVsOverlap = true; }
+			if (bExplicitAllowUAVOverlap) { bUsedWithExplicitUAVsOverlap = true; }
 		}
 
 		// Disable all non-compatible access types
 		CurrentState.Access = RHIDecayResourceAccess(CurrentState.Access, RequiredState.Access, bAllowAllUAVsOverlap || bExplicitAllowUAVOverlap);
 		CurrentState.Pipelines = CurrentState.Pipelines & RequiredState.Pipelines;
+	}
+
+	void FSubresourceState::SpecificUAVOverlap(FResource* Resource, FSubresourceIndex const& SubresourceIndex, bool bAllow)
+	{
+		if (Resource->LoggingMode != ELoggingMode::None
+#if LOG_UNNAMED_RESOURCES
+			|| Resource->GetDebugName() == nullptr
+#endif
+			)
+		{
+			Log(Resource, SubresourceIndex, nullptr, TEXT("UAVOverlap"), *FString::Printf(TEXT("Allow: %s"), bAllow ? TEXT("True") : TEXT("False")));
+		}
+
+		ensureMsgf(bExplicitAllowUAVOverlap != bAllow, TEXT("%s"), *GetReasonString_MismatchedExplicitUAVOverlapCall(bAllow));
+		bExplicitAllowUAVOverlap = bAllow;
 	}
 
 	inline void FResource::EnumerateSubresources(FSubresourceRange const& SubresourceRange, TFunctionRef<void(FSubresourceState&, FSubresourceIndex const&)> Callback, bool bBeginTransition)
@@ -651,8 +668,10 @@ namespace RHIValidation
 		case EOpType::SpecificUAVOverlap:
 			Data_SpecificUAVOverlap.Identity.Resource->EnumerateSubresources(Data_SpecificUAVOverlap.Identity.SubresourceRange, [this](FSubresourceState& State, FSubresourceIndex const& SubresourceIndex)
 			{
-				ensureMsgf(State.bExplicitAllowUAVOverlap != Data_SpecificUAVOverlap.bAllow, TEXT("%s"), *GetReasonString_MismatchedExplicitUAVOverlapCall(Data_SpecificUAVOverlap.bAllow));
-				State.bExplicitAllowUAVOverlap = Data_SpecificUAVOverlap.bAllow;
+				State.SpecificUAVOverlap(
+					Data_SpecificUAVOverlap.Identity.Resource, 
+					SubresourceIndex,
+					Data_SpecificUAVOverlap.bAllow);
 			});
 			Data_SpecificUAVOverlap.Identity.Resource->ReleaseOpRef();
 			break;

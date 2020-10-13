@@ -328,8 +328,15 @@ public:
 			return true;
 		}
 
-		// otherwise only allow if explicitly desired
-		return FParse::Param(FCommandLine::Get(), TEXT("Messaging"));
+		// otherwise allow if explicitly desired
+		if (FParse::Param(FCommandLine::Get(), TEXT("Messaging")))
+		{
+			return true;
+		}
+
+		// check the project setting
+		const UUdpMessagingSettings& Settings = *GetDefault<UUdpMessagingSettings>();
+		return Settings.EnabledByDefault;
 #endif
 	}
 

@@ -35,6 +35,7 @@ PXR_NAMESPACE_CLOSE_SCOPE
 
 #endif // #if USE_USD_SDK
 
+class UUsdAssetImportData;
 namespace UE
 {
 	class FUsdPrim;
@@ -138,5 +139,7 @@ namespace UsdUtils
 
 	/** Returns the time code for non-timesampled values. Usually a quiet NaN. */
 	USDUTILITIES_API double GetDefaultTimeCode();
+
+	USDUTILITIES_API UUsdAssetImportData* GetAssetImportData( UObject* Asset );
 }
 

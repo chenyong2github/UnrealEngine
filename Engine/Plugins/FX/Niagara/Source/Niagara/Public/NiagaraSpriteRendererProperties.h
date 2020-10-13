@@ -80,7 +80,10 @@ public:
 	virtual void PostInitProperties() override;
 	virtual void Serialize(FStructuredArchive::FRecord Record) override;
 #if WITH_EDITORONLY_DATA
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;	
+	virtual void RenameVariable(const FNiagaraVariableBase& OldVariable, const FNiagaraVariableBase& NewVariable, const UNiagaraEmitter* InEmitter) override;
+	virtual void RemoveVariable(const FNiagaraVariableBase& OldVariable, const UNiagaraEmitter* InEmitter) override;
+
 #endif // WITH_EDITORONLY_DATA
 	//UObject Interface END
 
@@ -93,7 +96,6 @@ public:
 	virtual bool IsSimTargetSupported(ENiagaraSimTarget InSimTarget) const override { return true; };	
 	virtual bool PopulateRequiredBindings(FNiagaraParameterStore& InParameterStore)  override;
 #if WITH_EDITOR
-	virtual void RenameEmitter(const FName& InOldName, const UNiagaraEmitter* InRenamedEmitter) override;
 	virtual bool IsMaterialValidForRenderer(UMaterial* Material, FText& InvalidMessage) override;
 	virtual void FixMaterial(UMaterial* Material) override;
 	virtual const TArray<FNiagaraVariable>& GetOptionalAttributes() override;
@@ -169,6 +171,20 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Sprite Rendering", meta = (UIMin = "0"))
 	float MaxFacingCameraBlendDistance;
 
+	/** Enables frustum culling of individual sprites */
+	UPROPERTY(EditAnywhere, Category = "Visibility")
+	uint32 bEnableCameraDistanceCulling : 1;
+
+	UPROPERTY(EditAnywhere, Category = "Visibility", meta = (EditCondition = "bEnableCameraDistanceCulling", UIMin = 0.0f))
+	float MinCameraDistance;
+
+	UPROPERTY(EditAnywhere, Category = "Visibility", meta = (EditCondition = "bEnableCameraDistanceCulling", UIMin = 0.0f))
+	float MaxCameraDistance = 1000.0f;
+
+	/** If a render visibility tag is present, particles whose tag matches this value will be visible in this renderer. */
+	UPROPERTY(EditAnywhere, Category = "Visibility")
+	uint32 RendererVisibility = 0;
+
 	/** Which attribute should we use for position when generating sprites?*/
 	UPROPERTY(EditAnywhere, Category = "Bindings")
 	FNiagaraVariableAttributeBinding PositionBinding;
@@ -237,6 +253,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Bindings")
 	FNiagaraVariableAttributeBinding NormalizedAgeBinding;
 
+	/** Which attribute should we use for RendererVisibilityTag? */
+	UPROPERTY(EditAnywhere, Category = "Bindings")
+	FNiagaraVariableAttributeBinding RendererVisibilityTagBinding;
+
 	/** If this array has entries, we will create a MaterialInstanceDynamic per Emitter instance from Material and set the Material parameters using the Niagara simulation variables listed.*/
 	UPROPERTY(EditAnywhere, Category = "Bindings")
 	TArray< FNiagaraMaterialAttributeBinding > MaterialParameterBindings;
@@ -285,6 +305,9 @@ public:
 	FNiagaraRendererLayout RendererLayoutWithoutCustomSort;
 	uint32 MaterialParamValidMask = 0;
 	
+protected:
+	void UpdateSourceModeDerivates(ENiagaraRendererSourceDataMode InSourceMode, bool bFromPropertyEdit = false) override;
+
 private:
 	/** Derived data for this asset, generated off of SubUVTexture. */
 	FSubUVDerivedData DerivedData;

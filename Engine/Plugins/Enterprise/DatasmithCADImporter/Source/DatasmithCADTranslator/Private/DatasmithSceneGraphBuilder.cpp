@@ -335,6 +335,8 @@ void FDatasmithSceneGraphBuilder::FillAnchorActor(const TSharedRef<IDatasmithAct
 	GetMainMaterial(Component.MetaData, ComponentData, bMaterialPropagationIsTopDown);
 
 	AddChildren(ActorElement, Component, ComponentData);
+
+	ActorElement->SetLabel(*ActorLabel);
 }
 
 TSharedPtr< IDatasmithActorElement >  FDatasmithSceneGraphBuilder::CreateActor(const TCHAR* InEUUID, const TCHAR* InLabel)

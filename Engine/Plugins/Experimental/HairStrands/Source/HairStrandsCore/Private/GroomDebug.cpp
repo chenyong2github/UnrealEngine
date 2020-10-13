@@ -178,7 +178,7 @@ class FHairProjectionMeshDebug : public FGlobalShader
 public:
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return IsHairStrandsSupported(Parameters.Platform);
+		return IsHairStrandsSupported(EHairStrandsShaderType::Tool, Parameters.Platform);
 	}
 
 
@@ -329,7 +329,7 @@ class FHairProjectionHairDebug : public FGlobalShader
 public:
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return IsHairStrandsSupported(Parameters.Platform);
+		return IsHairStrandsSupported(EHairStrandsShaderType::Tool, Parameters.Platform);
 	}
 
 	FHairProjectionHairDebug() = default;
@@ -505,7 +505,7 @@ class FVoxelPlainRaymarchingCS : public FGlobalShader
 		END_SHADER_PARAMETER_STRUCT()
 
 public:
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(Parameters.Platform); }
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(EHairStrandsShaderType::Strands, Parameters.Platform); }
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
@@ -575,7 +575,7 @@ class FDrawDebugCardAtlasCS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, AtlasTexture)
+		SHADER_PARAMETER_TEXTURE(Texture2D, AtlasTexture)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, OutputTexture)
 		SHADER_PARAMETER(FIntPoint, OutputResolution)
 		SHADER_PARAMETER(FIntPoint, AtlasResolution)
@@ -585,7 +585,7 @@ class FDrawDebugCardAtlasCS : public FGlobalShader
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(Parameters.Platform); }
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(EHairStrandsShaderType::Tool, Parameters.Platform); }
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
@@ -616,15 +616,17 @@ static void AddDrawDebugCardsAtlasPass(
 	}
 
 	FRDGTextureRef SceneColorTexture = GraphBuilder.RegisterExternalTexture(InOutputTexture, TEXT("SceneColorTexture"));
-	FRDGTextureRef AtlasTexture = nullptr;
+	FTextureReferenceRHIRef AtlasTexture = nullptr;
 
-	const int32 DebugMode = FMath::Clamp(GHairCardsAtlasDebug, 1, 4);
+	const int32 DebugMode = FMath::Clamp(GHairCardsAtlasDebug, 1, 6);
 	switch (DebugMode)
 	{
-	case 1: AtlasTexture = GraphBuilder.RegisterExternalTexture(Instance->Cards.LODs[LODIndex].RestResource->CardsDepthTextureRT); break;
-	case 2: AtlasTexture = GraphBuilder.RegisterExternalTexture(Instance->Cards.LODs[LODIndex].RestResource->CardsCoverageTextureRT); break;
-	case 3: AtlasTexture = GraphBuilder.RegisterExternalTexture(Instance->Cards.LODs[LODIndex].RestResource->CardsTangentTextureRT); break;
-	case 4: AtlasTexture = GraphBuilder.RegisterExternalTexture(Instance->Cards.LODs[LODIndex].RestResource->CardsAttributeTextureRT); break;
+	case 1: AtlasTexture = Instance->Cards.LODs[LODIndex].RestResource->DepthTexture; break;
+	case 2: AtlasTexture = Instance->Cards.LODs[LODIndex].RestResource->CoverageTexture; break;
+	case 3: AtlasTexture = Instance->Cards.LODs[LODIndex].RestResource->TangentTexture; break;
+	case 4:
+	case 5:
+	case 6: AtlasTexture = Instance->Cards.LODs[LODIndex].RestResource->AttributeTexture; break;
 	}
 
 	if (AtlasTexture != nullptr)
@@ -634,7 +636,7 @@ static void AddDrawDebugCardsAtlasPass(
 		FDrawDebugCardAtlasCS::FParameters* Parameters = GraphBuilder.AllocParameters<FDrawDebugCardAtlasCS::FParameters>();
 		Parameters->ViewUniformBuffer = View.ViewUniformBuffer;
 		Parameters->OutputResolution = SceneColorTexture->Desc.Extent;
-		Parameters->AtlasResolution = AtlasTexture->Desc.Extent;
+		Parameters->AtlasResolution = FIntPoint(AtlasTexture->GetSizeXYZ().X, AtlasTexture->GetSizeXYZ().Y);
 		Parameters->AtlasTexture = AtlasTexture;
 		Parameters->DebugMode = DebugMode;
 		Parameters->LinearSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
@@ -658,6 +660,7 @@ class FDrawDebugCardGuidesCS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 		SHADER_PARAMETER(uint32,  DebugMode)
+		SHADER_PARAMETER(FMatrix, LocalToWorld)
 		
 		SHADER_PARAMETER(uint32,  RenVertexCount)
 		SHADER_PARAMETER(FVector, RenRestOffset)
@@ -677,7 +680,7 @@ class FDrawDebugCardGuidesCS : public FGlobalShader
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(Parameters.Platform); }
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(EHairStrandsShaderType::Tool, Parameters.Platform); }
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
@@ -695,6 +698,18 @@ static void AddDrawDebugCardsGuidesPass(
 	const bool bDeformed, 
 	const bool bRen)
 {
+	// Force shader debug to be enabled
+	if (!ShaderDrawDebug::IsShaderDrawDebugEnabled())
+	{
+		ShaderDrawDebug::SetEnabled(true);
+	}
+
+	const uint32 MaxCount = 128000;
+	if (ShaderDrawDebug::GetMaxElementCount() < MaxCount)
+	{
+		ShaderDrawDebug::SetMaxElementCount(MaxCount);
+	}
+
 	FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(ERHIFeatureLevel::SM5);
 
 	if (Instance->HairGroupPublicData->VFInput.GeometryType != EHairGeometryType::Cards || ShaderDrawData == nullptr)
@@ -728,6 +743,7 @@ static void AddDrawDebugCardsGuidesPass(
 
 	Parameters->SimDeformedOffset = Instance->Guides.DeformedResource->GetPositionOffset(FHairStrandsDeformedResource::Current);
 	Parameters->SimDeformedPosition = Instance->Guides.DeformedResource->GetBuffer(FHairStrandsDeformedResource::Current).SRV;
+	Parameters->LocalToWorld = Instance->LocalToWorld.ToMatrixWithScale();
 
 	if (!bDeformed &&  bRen) Parameters->DebugMode = 1;
 	if ( bDeformed &&  bRen) Parameters->DebugMode = 2;
@@ -777,7 +793,7 @@ void RunHairStrandsDebug(
 			[LocalView, Viewport, WorldType, Instances, SceneColorRT](FRHICommandListImmediate& RHICmdList)
 		{
 			const float YStep = 14;
-			float ClusterY = 38;
+			float ClusterY = 68;
 
 			// Component part of the clusters
 			GroomDebug::FRenderTargetTemp TempRenderTarget(Viewport, (const FTexture2DRHIRef&)SceneColorRT->GetRenderTargetItem().TargetableTexture);
@@ -812,17 +828,17 @@ void RunHairStrandsDebug(
 					*Instance->Debug.SkeletalComponentName);
 				Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), bIsActive ? DebugColor : InactiveColor);
 
-				Line = FString::Printf(TEXT("        |> CurveCount : %d | VertexCount : %d | MaxRadius : %f | MaxLength : %f | Skinned: %s | Binding: %s | Simulation: %s| LOD count : %d"),
-					Instance->Strands.Data->GetNumCurves(),
-					Instance->Strands.Data->GetNumPoints(),
-					Instance->HairGroupPublicData->VFInput.Strands.HairRadius,
-					Instance->HairGroupPublicData->VFInput.Strands.HairLength,
-					bHasSkinInterpolation ? TEXT("True") : TEXT("False"),
-					bHasBindingAsset ? TEXT("True") : TEXT("False"),
-					Instance->Guides.bIsSimulationEnable ? TEXT("True") : TEXT("False"),
-					Instance->Strands.ClusterCullingResource->ClusterLODInfos.Num());
-				Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), bIsActive ? DebugGroupColor : InactiveColor);
-			}
+			Line = FString::Printf(TEXT("        |> CurveCount : %d | VertexCount : %d | MaxRadius : %f | MaxLength : %f | Skinned: %s | Binding: %s | Simulation: %s| LOD count : %d"),
+				Instance->Strands.Data->GetNumCurves(),
+				Instance->Strands.Data->GetNumPoints(),
+				Instance->HairGroupPublicData->VFInput.Strands.HairRadius,
+				Instance->HairGroupPublicData->VFInput.Strands.HairLength,
+				bHasSkinInterpolation ? TEXT("True") : TEXT("False"),
+				bHasBindingAsset ? TEXT("True") : TEXT("False"),
+				Instance->Guides.bIsSimulationEnable ? TEXT("True") : TEXT("False"),
+				Instance->Strands.ClusterCullingResource->Data.ClusterLODInfos.Num());
+			Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), bIsActive ? DebugGroupColor : InactiveColor);
+		}
 
 			const bool bFlush = false;
 			const bool bInsideRenderPass = true;
@@ -839,14 +855,7 @@ void RunHairStrandsDebug(
 			bool bClearDepth = true;
 			FRDGTextureRef DepthTexture;
 			{
-				FRDGTextureDesc Desc;
-				Desc.Extent = SceneColorTexture->Desc.Extent;
-				Desc.Depth = 0;
-				Desc.Format = PF_DepthStencil;
-				Desc.NumMips = 1;
-				Desc.NumSamples = 1;
-				Desc.Flags = TexCreate_None;
-				Desc.ClearValue = FClearValueBinding::DepthFar;
+				const FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(SceneColorTexture->Desc.Extent, PF_DepthStencil, FClearValueBinding::DepthFar, TexCreate_DepthStencilTargetable | TexCreate_ShaderResource);
 				DepthTexture = GraphBuilder.CreateTexture(Desc, TEXT("HairInterpolationDepthTexture"));
 			}
 
@@ -874,12 +883,13 @@ void RunHairStrandsDebug(
 				TArray<int32> HairLODIndices;
 				for (FHairGroupInstance* Instance : Instances)
 				{
-					if (!Instance->HairGroupPublicData)
+					if (!Instance->HairGroupPublicData || Instance->Guides.RestRootResource == nullptr || Instance->Guides.DeformedRootResource == nullptr)
 						continue;
 
 					const int32 MeshLODIndex = Instance->Debug.MeshLODIndex;
-					FHairStrandsRestRootResource* RestRootResource = Instance->Guides.RestRootResource;
-					FHairStrandsDeformedRootResource* DeformedRootResource = Instance->Guides.DeformedRootResource;
+					const bool bRenderStrands = StrandType == EHairStrandsInterpolationType::RenderStrands;
+					FHairStrandsRestRootResource* RestRootResource = bRenderStrands ? Instance->Strands.RestRootResource : Instance->Guides.RestRootResource;
+					FHairStrandsDeformedRootResource* DeformedRootResource = bRenderStrands ? Instance->Strands.DeformedRootResource : Instance->Guides.DeformedRootResource;
 
 					if (bRestTriangle)
 					{
@@ -1000,14 +1010,11 @@ void RunHairStrandsDebug(
 		}
 	}
 
-	if (GHairCardsGuidesDebug_Ren > 0 || GHairCardsGuidesDebug_Sim > 0)
+	for (FHairGroupInstance* Instance : Instances)
 	{
-		for (FHairGroupInstance* Instance : Instances)
-		{
-			if (GHairCardsGuidesDebug_Ren > 0)
-				AddDrawDebugCardsGuidesPass(GraphBuilder, View, Instance, ShaderDrawData, GHairCardsGuidesDebug_Ren == 1, true);
-			if (GHairCardsGuidesDebug_Sim > 0)
-				AddDrawDebugCardsGuidesPass(GraphBuilder, View, Instance, ShaderDrawData, GHairCardsGuidesDebug_Sim == 1, false);
-		}
+		if (GHairCardsGuidesDebug_Ren > 0 || Instance->Debug.bDrawCardsGuides)
+			AddDrawDebugCardsGuidesPass(GraphBuilder, View, Instance, ShaderDrawData, Instance->Debug.bDrawCardsGuides ? false : GHairCardsGuidesDebug_Ren == 1, true);
+		if (GHairCardsGuidesDebug_Sim > 0)
+			AddDrawDebugCardsGuidesPass(GraphBuilder, View, Instance, ShaderDrawData, GHairCardsGuidesDebug_Sim == 1, false);
 	}
 }

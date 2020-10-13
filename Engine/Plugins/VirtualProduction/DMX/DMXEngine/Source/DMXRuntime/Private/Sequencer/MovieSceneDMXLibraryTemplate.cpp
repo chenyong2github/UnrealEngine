@@ -25,8 +25,7 @@ struct FPreAnimatedDMXLibraryToken : IMovieScenePreAnimatedToken
 		: EntityID(InEntityID)
 	{}
 
-	// Restore the animated Fixture Patch to the default values of the Functions
-	// from its default Active Mode
+	// Sends the default value for the patch, to reset changes in the buffers that happened during playback
 	virtual void RestoreState(UObject& Object, IMovieScenePlayer& Player) override
 	{
 		UDMXLibrary* DMXLibrary = CastChecked<UDMXLibrary>(&Object);
@@ -83,7 +82,7 @@ struct FPreAnimatedDMXLibraryToken : IMovieScenePreAnimatedToken
 			// Get each individual channel value from the Function
 			uint8 FunctionValue[4] = { 0 };
 			UDMXEntityFixtureType::FunctionValueToBytes(Function, Function.DefaultValue, FunctionValue);
-
+			
 			// Write each channel (byte) to the fragment map
 			const int32 FunctionEndChannel = UDMXEntityFixtureType::GetFunctionLastChannel(Function) + PatchChannelOffset;
 
@@ -95,28 +94,28 @@ struct FPreAnimatedDMXLibraryToken : IMovieScenePreAnimatedToken
 			}
 		}
 
-		const FDMXPixelMatrix& PixelMatrix = Mode.PixelMatrixConfig;
-		if (UDMXEntityFixtureType::IsFixtureMatrixInModeRange(PixelMatrix, Mode, PatchChannelOffset))
+		const FDMXFixtureMatrix& FixtureMatrix = Mode.FixtureMatrixConfig;
+		if (UDMXEntityFixtureType::IsFixtureMatrixInModeRange(FixtureMatrix, Mode, PatchChannelOffset))
 		{
 			UDMXSubsystem* DMXSubsystem = UDMXSubsystem::GetDMXSubsystem_Pure();
 			check(DMXSubsystem);
 
-			TArray<FDMXPixel> Pixels;
-			DMXSubsystem->GetAllMatrixPixels(FixturePatch, Pixels);
+			TArray<FDMXCell> Cells;
+			DMXSubsystem->GetAllMatrixCells(FixturePatch, Cells);
 
-			for (const FDMXPixel& Pixel : Pixels)
+			for (const FDMXCell& Cell : Cells)
 			{
 				TMap<FDMXAttributeName, int32> AttributeNameChannelMap;
-				DMXSubsystem->GetMatrixPixelChannels(FixturePatch, Pixel.Coordinate, AttributeNameChannelMap);
+				DMXSubsystem->GetMatrixCellChannelsAbsolute(FixturePatch, Cell.Coordinate, AttributeNameChannelMap);
 				
 				bool bLoggedMissingAttribute = false;
 				for (const TPair<FDMXAttributeName, int32>& AttributeNameChannelKvp : AttributeNameChannelMap)
 				{
-					const FDMXFixturePixelFunction* PixelFunctionPtr = PixelMatrix.PixelFunctions.FindByPredicate([&AttributeNameChannelKvp](const FDMXFixturePixelFunction& TestedPixelFunction){
-							return TestedPixelFunction.Attribute == AttributeNameChannelKvp.Key;
+					const FDMXFixtureCellAttribute* CellAttributePtr = FixtureMatrix.CellAttributes.FindByPredicate([&AttributeNameChannelKvp](const FDMXFixtureCellAttribute& TestedCellAttribute){
+							return TestedCellAttribute.Attribute == AttributeNameChannelKvp.Key;
 						});
 
-					if (!PixelFunctionPtr)
+					if (!CellAttributePtr)
 					{
 						if (!bLoggedMissingAttribute)
 						{
@@ -128,14 +127,14 @@ struct FPreAnimatedDMXLibraryToken : IMovieScenePreAnimatedToken
 						continue;
 					}
 
-					const FDMXFixturePixelFunction& PixelFunction = *PixelFunctionPtr;
+					const FDMXFixtureCellAttribute& CellAttribute = *CellAttributePtr;
 					int32 FirstChannelAddress = AttributeNameChannelKvp.Value;
-					int32 LastChannelAddress = AttributeNameChannelKvp.Value + UDMXEntityFixtureType::NumChannelsToOccupy(PixelFunction.DataType) - 1;
+					int32 LastChannelAddress = AttributeNameChannelKvp.Value + UDMXEntityFixtureType::NumChannelsToOccupy(CellAttribute.DataType) - 1;
 
-					int32 DefaultValue = PixelFunction.DefaultValue;
+					int32 DefaultValue = CellAttribute.DefaultValue;
 
 					uint8 ValueBytes[4] = { 0 };
-					UDMXEntityFixtureType::IntToBytes(PixelFunction.DataType, PixelFunction.bUseLSBMode, DefaultValue, ValueBytes);
+					UDMXEntityFixtureType::IntToBytes(CellAttribute.DataType, CellAttribute.bUseLSBMode, DefaultValue, ValueBytes);
 
 					int32 ByteIndex = 0;
 					for (int32 ChannelIndex = FirstChannelAddress; ChannelIndex <= LastChannelAddress && ByteIndex < 4; ++ChannelIndex, ++ByteIndex)
@@ -149,11 +148,23 @@ struct FPreAnimatedDMXLibraryToken : IMovieScenePreAnimatedToken
 		// Send the fragment map through each Controller that affects this Patch
 		for (const UDMXEntityController* Controller : Controllers)
 		{
-			if (Controller != nullptr && Controller->DeviceProtocol.IsValid())
+			if (Controller == nullptr || !Controller->IsValidLowLevelFast() || !Controller->DeviceProtocol.IsValid())
 			{
-				IDMXProtocolPtr Protocol = Controller->DeviceProtocol;
+				continue;
+			}
+
+			IDMXProtocolPtr Protocol = Controller->DeviceProtocol;
+
+			// If sent DMX will not be received via network, input it directly
+			bool bCanLoopback = Protocol->IsSendDMXEnabled() && Protocol->IsReceiveDMXEnabled();
+
+			// If sent DMX will not be received via network, input it directly
+			if (!bCanLoopback)
+			{
 				Protocol->InputDMXFragment(FixturePatch->UniverseID + Controller->RemoteOffset, FragmentMap);
 			}
+
+			Protocol->SendDMXFragment(FixturePatch->UniverseID + Controller->RemoteOffset, FragmentMap);
 		}
 	}
 };
@@ -190,8 +201,6 @@ struct FDMXLibraryExecutionToken : IMovieSceneExecutionToken
 		{
 			return;
 		}
-
-		//UE_LOG(MovieSceneDMXLibraryTemplateLog, Warning, TEXT("Execute: %d"), __threadid());
 		
 		// Keeps record of the animated Patches GUIDs
 		static TMovieSceneAnimTypeIDContainer<FGuid> AnimTypeIDsByGUID;
@@ -199,6 +208,9 @@ struct FDMXLibraryExecutionToken : IMovieSceneExecutionToken
 		// Store channels evaluated values
 		TArray<float> ChannelsValues;
 		const FFrameTime Time = Context.GetTime();
+
+		// Reset previous fragments
+		DMXFragmentMaps.Reset();
 
 		// Add the Patches' function channels values to the Fragment Maps so that we can send
 		// them later all at once for each affected universe on each protocol
@@ -248,8 +260,8 @@ struct FDMXLibraryExecutionToken : IMovieSceneExecutionToken
 			check(DMXSubsystem);
 
 			const FDMXFixtureMode& Mode = FixtureType->Modes[PatchChannel.ActiveMode];
-			const FDMXPixelMatrix& MatrixConfig = Mode.PixelMatrixConfig;
-			const TArray<FDMXFixturePixelFunction>& PixelFunctions = MatrixConfig.PixelFunctions;
+			const FDMXFixtureMatrix& MatrixConfig = Mode.FixtureMatrixConfig;
+			const TArray<FDMXFixtureCellAttribute>& CellAttributes = MatrixConfig.CellAttributes;
 
 			// Channel offset for the Patch
 			const int32 PatchChannelOffset = FixturePatch->GetStartingChannel() - 1;
@@ -267,14 +279,14 @@ struct FDMXLibraryExecutionToken : IMovieSceneExecutionToken
 				if (FunctionChannel.IsCellFunction())
 				{
 					TMap<FDMXAttributeName, int32> AttributeNameChannelMap;
-					DMXSubsystem->GetMatrixPixelChannels(FixturePatch, FunctionChannel.CellCoordinate, AttributeNameChannelMap);
+					DMXSubsystem->GetMatrixCellChannelsAbsolute(FixturePatch, FunctionChannel.CellCoordinate, AttributeNameChannelMap);
 
-					const FDMXFixturePixelFunction* PixelFunctionPtr = PixelFunctions.FindByPredicate([&FunctionChannel](const FDMXFixturePixelFunction& PixelFunction) {
-						return PixelFunction.Attribute == FunctionChannel.AttributeName;
+					const FDMXFixtureCellAttribute* CellAttributePtr = CellAttributes.FindByPredicate([&FunctionChannel](const FDMXFixtureCellAttribute& CellAttribute) {
+						return CellAttribute.Attribute == FunctionChannel.AttributeName;
 						});
 
-					bool bMissingFunction = !AttributeNameChannelMap.Contains(FunctionChannel.AttributeName) || !PixelFunctionPtr;
-					if (!PixelFunctionPtr)
+					bool bMissingFunction = !AttributeNameChannelMap.Contains(FunctionChannel.AttributeName) || !CellAttributePtr;
+					if (!CellAttributePtr)
 					{
 						if (bMissingFunction && !bLoggedMissingFunction)
 						{
@@ -286,9 +298,9 @@ struct FDMXLibraryExecutionToken : IMovieSceneExecutionToken
 						continue;
 					}
 
-					const FDMXFixturePixelFunction& PixelFunction = *PixelFunctionPtr;
+					const FDMXFixtureCellAttribute& CellAttribute = *CellAttributePtr;
 					int32 FirstChannelAddress = AttributeNameChannelMap[FunctionChannel.AttributeName];
-					int32 LastChannelAddress = AttributeNameChannelMap[FunctionChannel.AttributeName] + UDMXEntityFixtureType::NumChannelsToOccupy(PixelFunction.DataType) - 1;
+					int32 LastChannelAddress = AttributeNameChannelMap[FunctionChannel.AttributeName] + UDMXEntityFixtureType::NumChannelsToOccupy(CellAttribute.DataType) - 1;
 
 					float ChannelValue = 0.0f;
 					if (FunctionChannel.Channel.Evaluate(Time, ChannelValue))
@@ -296,14 +308,11 @@ struct FDMXLibraryExecutionToken : IMovieSceneExecutionToken
 						// Round to int so if the user draws into the tracks, values are assigned to int accurately
 						const uint32 FunctionValue = FMath::RoundToInt(ChannelValue);
 
-						if (FirstChannelAddress < 20)
-						{
-							UE_LOG(LogTemp, Warning, TEXT("chan: %i val: %i"), FirstChannelAddress, (int32)FunctionValue);
-						}
+						// Round to int so if the user draws into the tracks, values are assigned to int accurately
+						TArray<uint8> ByteArr;
+						DMXSubsystem->IntValueToBytes(FunctionValue, CellAttribute.DataType, ByteArr, CellAttribute.bUseLSBMode);
 
-						UDMXEntityFixtureType::IntToBytes(PixelFunction.DataType, PixelFunction.bUseLSBMode, FunctionValue, FunctionChannelsValues);
-
-						WriteDMXFragment(FixturePatch, FirstChannelAddress, LastChannelAddress, TArray<uint8>({ FunctionChannelsValues[0], FunctionChannelsValues[1], FunctionChannelsValues[2], FunctionChannelsValues[3] }));
+						WriteDMXFragment(FixturePatch, FirstChannelAddress, ByteArr);
 					}					
 				}
 				else
@@ -327,13 +336,14 @@ struct FDMXLibraryExecutionToken : IMovieSceneExecutionToken
 					float ChannelValue = 0.0f;
 					if (FunctionChannel.Channel.Evaluate(Time, ChannelValue))
 					{
-
 						// Round to int so if the user draws into the tracks, values are assigned to int accurately
 						const uint32 FunctionValue = FMath::RoundToInt(ChannelValue);
 
-						UDMXEntityFixtureType::FunctionValueToBytes(Function, FunctionValue, FunctionChannelsValues);
+						// Round to int so if the user draws into the tracks, values are assigned to int accurately
+						TArray<uint8> ByteArr;
+						DMXSubsystem->IntValueToBytes(FunctionValue, Function.DataType, ByteArr, Function.bUseLSBMode);
 
-						WriteDMXFragment(FixturePatch, FirstChannelAddress, LastChannelAddress, TArray<uint8>({ FunctionChannelsValues[0], FunctionChannelsValues[1], FunctionChannelsValues[2], FunctionChannelsValues[3] }));
+						WriteDMXFragment(FixturePatch, FirstChannelAddress, ByteArr);
 					}
 				}
 			}
@@ -344,12 +354,22 @@ struct FDMXLibraryExecutionToken : IMovieSceneExecutionToken
 		{
 			for (const TPair<uint16, IDMXFragmentMap>& Universe_FragmentMaps : Protocol_Universes.Value)
 			{
-				Protocol_Universes.Key->InputDMXFragment(Universe_FragmentMaps.Key, Universe_FragmentMaps.Value);
+				IDMXProtocolPtr Protocol = Protocol_Universes.Key;
+				bool bCanLoopback = Protocol->IsReceiveDMXEnabled() && Protocol->IsSendDMXEnabled();
+
+				// If sent DMX will not be looped back via network, input it directly
+				if (!bCanLoopback)
+				{
+					Protocol->InputDMXFragment(Universe_FragmentMaps.Key, Universe_FragmentMaps.Value);
+				}
+
+				Protocol->SendDMXFragment(Universe_FragmentMaps.Key, Universe_FragmentMaps.Value);
 			}
 		}
 	}
 	
-	void WriteDMXFragment(UDMXEntityFixturePatch* Patch, int32 FirstChannelAddress, int32 LastChannelAddress, const TArray<uint8>& Bytes)
+	/** Helper that writes the Bytes array to DMXFragmentMaps member */
+	void WriteDMXFragment(UDMXEntityFixturePatch* Patch, int32 FirstChannelAddress, const TArray<uint8>& Bytes)
 	{
 		check(Bytes.Num() < 5);
 
@@ -369,30 +389,22 @@ struct FDMXLibraryExecutionToken : IMovieSceneExecutionToken
 				continue;
 			}
 
-			TMap<uint16, IDMXFragmentMap>* ProtocolPtr = DMXFragmentMaps.Find(ControllerProtocol);
-			if (ProtocolPtr == nullptr)
-			{
-				ProtocolPtr = &DMXFragmentMaps.Add(ControllerProtocol);
-			}
+			TMap<uint16, IDMXFragmentMap>& UniverseFragmentMapKvp = DMXFragmentMaps.FindOrAdd(ControllerProtocol);
 
 			const uint16 UniverseID = Patch->UniverseID + Controller->RemoteOffset;
-			IDMXFragmentMap* UniverseFragmentsPtr = ProtocolPtr->Find(UniverseID);
-			if (UniverseFragmentsPtr == nullptr)
-			{
-				UniverseFragmentsPtr = &ProtocolPtr->Add(UniverseID);
-			}
+			IDMXFragmentMap& FragmentMap = UniverseFragmentMapKvp.FindOrAdd(UniverseID);
 
-			uint8 ByteIndex = 0;
-			for (int32 ByteAddress = FirstChannelAddress; ByteAddress <= LastChannelAddress; ++ByteAddress)
+			for (int32 ByteIdx = 0; ByteIdx < Bytes.Num(); ByteIdx++)
 			{
-				UniverseFragmentsPtr->Add(ByteAddress, Bytes[ByteIndex++]);
+				uint8& Value = FragmentMap.FindOrAdd(FirstChannelAddress + ByteIdx);
+				Value = Bytes[ByteIdx];
 			}
 		}
 	}
 
 	// Keeps all values from Fixture Functions that will be sent using the controllers.
 	// A Protocol points to Universe IDs. Each Universe ID points to a FragmentMap.
-	TMap<IDMXProtocolPtr, TMap<uint16, IDMXFragmentMap>> DMXFragmentMaps;
+	TMap<IDMXProtocolPtr, TMap<uint16 /** Universe */, IDMXFragmentMap /** ChannelValueKvp */>> DMXFragmentMaps;
 
 	const UMovieSceneDMXLibrarySection* Section;
 };

@@ -50,6 +50,7 @@ public:
 private:
 
 	TSharedRef<FSimulationData>& FindOrAdd(int32 TraceID);
+	TSharedRef<FSimulationData>& FindChecked(int32 TraceID);
 
 	// Array that stores all of our traced simulation data
 	TArray<TSharedRef<FSimulationData>> ProviderData;

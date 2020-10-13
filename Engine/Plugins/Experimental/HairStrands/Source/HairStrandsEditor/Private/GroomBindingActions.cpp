@@ -92,7 +92,7 @@ void FGroomBindingActions::ExecuteRebuildBindingAsset(TArray<TWeakObjectPtr<UGro
 			{
 				BindingAsset->SourceSkeletalMesh->ConditionalPostLoad();
 			}
-			FGroomBindingBuilder::BuildBinding(BindingAsset.Get(), true, true);
+			FGroomBindingBuilder::BuildBinding(BindingAsset.Get(), false, true);
 			BindingAsset->GetOutermost()->MarkPackageDirty();
 		}
 	}

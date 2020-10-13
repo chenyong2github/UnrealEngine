@@ -59,7 +59,7 @@ UPackage* FEditorToolAssetAPI::MakeNewAssetPackage(const FString& FolderPath, co
 	AssetToolsModule.Get().CreateUniqueAssetName(
 		FolderPath + TEXT("/") + AssetBaseName, TEXT(""), UniquePackageName, UniqueAssetName);
 
-	UPackage* AssetPackage = CreatePackage(nullptr, *UniquePackageName);
+	UPackage* AssetPackage = CreatePackage( *UniquePackageName);
 	return AssetPackage;
 }
 

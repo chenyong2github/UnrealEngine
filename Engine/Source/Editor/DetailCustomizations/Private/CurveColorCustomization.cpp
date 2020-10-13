@@ -310,10 +310,9 @@ FReply FCurveColorCustomization::OnCreateButtonClicked()
 		{
 			FString Package(NewCurveDlg->GetFullAssetPath().ToString());
 			FString Name(NewCurveDlg->GetAssetName().ToString());
-			FString Group(TEXT(""));
 
 			// Find (or create!) the desired package for this object
-			UPackage* Pkg = CreatePackage(NULL, *Package);
+			UPackage* Pkg = CreatePackage( *Package);
 			UPackage* OutermostPkg = Pkg->GetOutermost();
 
 			TArray<UPackage*> TopLevelPackages;
@@ -324,7 +323,7 @@ FReply FCurveColorCustomization::OnCreateButtonClicked()
 				return FReply::Handled();
 			}
 
-			if (!PromptUserIfExistingObject(Name, Package, Group, Pkg))
+			if (!PromptUserIfExistingObject(Name, Package, Pkg))
 			{
 				return FReply::Handled();
 			}

@@ -551,14 +551,15 @@ public:
 	FIntRect ViewportRect;
 	FMatrix ViewMatrix;
 	FMatrix ProjMatrix;
-	FRHITexture2D* DepthTexture;
-	FRHITexture2D* NormalTexture;
-	FRHITexture2D* SmallDepthTexture;
-	FRHICommandListImmediate* RHICmdList;
-	FRHIUniformBuffer* ViewUniformBuffer;
+	FRHITexture2D* DepthTexture = nullptr;
+	FRHITexture2D* NormalTexture = nullptr;
+	FRHITexture2D* VelocityTexture = nullptr;
+	FRHITexture2D* SmallDepthTexture = nullptr;
+	FRHICommandListImmediate* RHICmdList = nullptr;
+	FRHIUniformBuffer* ViewUniformBuffer = nullptr;
 	TUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformParams;
-	const FGlobalDistanceFieldParameterData* GlobalDistanceFieldParams;
-	void* Uid; // A unique identifier for the view.
+	const FGlobalDistanceFieldParameterData* GlobalDistanceFieldParams = nullptr;
+	void* Uid = nullptr; // A unique identifier for the view.
 };
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnPostOpaqueRender, class FPostOpaqueRenderParameters&);
 typedef FOnPostOpaqueRender::FDelegate FPostOpaqueRenderDelegate;
@@ -769,6 +770,7 @@ public:
 	virtual void ReleaseVirtualTextureProducer(const FVirtualTextureProducerHandle& Handle) = 0;
 	virtual void AddVirtualTextureProducerDestroyedCallback(const FVirtualTextureProducerHandle& Handle, FVTProducerDestroyedFunction* Function, void* Baton) = 0;
 	virtual uint32 RemoveAllVirtualTextureProducerDestroyedCallbacks(const void* Baton) = 0;
+	virtual void ReleaseVirtualTexturePendingResources() = 0;
 
 	/**	Provided a list of packed virtual texture tile ids, let the VT system request them. Note this should be called as long as the tiles are needed.*/
 	virtual void RequestVirtualTextureTiles(const FVector2D& InScreenSpaceSize, int32 InMipLevel) = 0;

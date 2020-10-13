@@ -837,6 +837,8 @@ FSceneView* FEditorViewportClient::CalcSceneView(FSceneViewFamily* ViewFamily, c
 	const float ModifiedViewFOV = ModifiedViewInfo.FOV;
 	if (bUseControllingActorViewInfo)
 	{
+		ControllingActorViewInfo.Location = ModifiedViewInfo.Location;
+		ControllingActorViewInfo.Rotation = ModifiedViewInfo.Rotation;
 		ControllingActorViewInfo.FOV = ModifiedViewInfo.FOV;
 	}
 
@@ -1587,7 +1589,8 @@ EMouseCursor::Type FEditorViewportClient::GetCursor(FViewport* InViewport,int32 
 	}
 
 	// Allow the viewport interaction to override any previously set mouse cursor
-	UViewportWorldInteraction* WorldInteraction = Cast<UViewportWorldInteraction>(GEditor->GetEditorWorldExtensionsManager()->GetEditorWorldExtensions(GetWorld())->FindExtension(UViewportWorldInteraction::StaticClass()));
+	UWorld* World = GetWorld();
+	UViewportWorldInteraction* WorldInteraction = (World ? Cast<UViewportWorldInteraction>(GEditor->GetEditorWorldExtensionsManager()->GetEditorWorldExtensions(World)->FindExtension(UViewportWorldInteraction::StaticClass())) : nullptr);
 	if (WorldInteraction != nullptr)
 	{
 		if (WorldInteraction->ShouldForceCursor())
@@ -2156,7 +2159,7 @@ void FEditorViewportClient::HandleViewportStatDisableAll(const bool bInAnyViewpo
 	{
 		SetShowStats(false);
 		SetStatEnabled(NULL, false, true);
-		RemoveRealtimeOverride(LOCTEXT("RealtimeOverrideMessage_Stats", "Stats Display"));
+		RemoveRealtimeOverride(LOCTEXT("RealtimeOverrideMessage_Stats", "Stats Display"), /*bCheckMissingOverride*/false);
 	}
 }
 
@@ -2898,33 +2901,9 @@ void FEditorViewportClient::StopTracking()
 
 		// Force an immediate redraw of the viewport and hit proxy.
 		// The results are required straight away, so it is not sufficient to defer the redraw until the next tick.
-		if (Viewport)
-		{
-			Viewport->InvalidateHitProxy();
-			Viewport->Draw();
-
-			// If there are child viewports, force a redraw on those too
-			FSceneViewStateInterface* ParentView = ViewState.GetReference();
-			if (ParentView->IsViewParent())
-			{
-				for (FEditorViewportClient* ViewportClient : GEditor->GetAllViewportClients())
-				{
-					if (ViewportClient != nullptr)
-					{
-						FSceneViewStateInterface* ViewportParentView = ViewportClient->ViewState.GetReference();
-
-						if (ViewportParentView != nullptr &&
-							ViewportParentView->HasViewParent() &&
-							ViewportParentView->GetViewParent() == ParentView &&
-							!ViewportParentView->IsViewParent())
-						{
-							ViewportClient->Viewport->InvalidateHitProxy();
-							ViewportClient->Viewport->Draw();
-						}
-					}
-				}
-			}
-		}
+		constexpr bool bForceChildViewportRedraw = true;
+		constexpr bool bInvalidateHitProxies = true;
+		Invalidate(bForceChildViewportRedraw, bInvalidateHitProxies);
 
 		SetRequiredCursorOverride( false );
 
@@ -3808,8 +3787,6 @@ void FEditorViewportClient::Draw(FViewport* InViewport, FCanvas* Canvas)
 	ViewFamily.EngineShowFlags = UseEngineShowFlags;
 
 	ViewFamily.bIsHDR = Viewport->IsHDRViewport();
-
-	UpdateDebugViewModeShaders();
 
 	if( ModeTools->GetActiveMode( FBuiltinEditorModes::EM_InterpEdit ) == 0 || !AllowsCinematicControl() )
 	{

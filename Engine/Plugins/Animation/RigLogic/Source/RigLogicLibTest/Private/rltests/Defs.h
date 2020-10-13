@@ -36,13 +36,30 @@
     #define INSTANTIATE_TYPED_TEST_SUITE_P INSTANTIATE_TYPED_TEST_CASE_P
 #endif
 
-#define ASSERT_ELEMENTS_EQ(result, expected, count)   \
+#ifndef ASSERT_ELEMENTS_EQ
+#define ASSERT_ELEMENTS_EQ(result, expected, count)     \
     for (std::size_t i = 0ul; i < count; ++i) {         \
         ASSERT_EQ(result[i], expected[i]);              \
     }
+#endif
 
-#define ASSERT_ELEMENTS_NEAR(lhs, rhs, threshold)       \
-    ASSERT_EQ(lhs.size(), rhs.size());                  \
-    for (std::size_t i = 0ul; i < lhs.size(); ++i) {    \
-        ASSERT_NEAR(lhs[i], rhs[i], threshold);         \
+#ifndef EXPECT_ELEMENTS_EQ
+#define EXPECT_ELEMENTS_EQ(result, expected, count)     \
+    for (std::size_t i = 0ul; i < count; ++i) {         \
+        EXPECT_EQ(result[i], expected[i]);              \
     }
+#endif
+
+#ifndef ASSERT_ELEMENTS_NEAR
+#define ASSERT_ELEMENTS_NEAR(result, expected, count, threshold)    \
+    for (std::size_t i = 0ul; i < count; ++i) {                     \
+        ASSERT_NEAR(result[i], expected[i], threshold);             \
+    }
+#endif
+
+#ifndef EXPECT_ELEMENTS_NEAR
+#define EXPECT_ELEMENTS_NEAR(result, expected, count, threshold)    \
+    for (std::size_t i = 0ul; i < count; ++i) {                     \
+        EXPECT_NEAR(result[i], expected[i], threshold);             \
+    }
+#endif

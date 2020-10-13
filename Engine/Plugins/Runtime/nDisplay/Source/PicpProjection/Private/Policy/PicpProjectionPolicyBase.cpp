@@ -8,12 +8,13 @@
 #include "Config/IDisplayClusterConfigManager.h"
 #include "Game/IDisplayClusterGameManager.h"
 
-#include "DisplayClusterRootComponent.h"
-#include "DisplayClusterSceneComponent.h"
+#include "DisplayClusterRootActor.h"
+#include "Components/DisplayClusterSceneComponent.h"
 
 
-FPicpProjectionPolicyBase::FPicpProjectionPolicyBase(const FString& InViewportId)
+FPicpProjectionPolicyBase::FPicpProjectionPolicyBase(const FString& InViewportId, const TMap<FString, FString>& InParameters)
 	: PolicyViewportId(InViewportId)
+	, Parameters(InParameters)
 {
 }
 
@@ -33,21 +34,30 @@ void FPicpProjectionPolicyBase::InitializeOriginComponent(const FString& OriginC
 		return;
 	}
 
-	if (!OriginCompId.IsEmpty())
+	USceneComponent* PolicyOriginComp = nullptr;
+	ADisplayClusterRootActor* const RootActor = GameMgr->GetRootActor();
+	if (RootActor)
 	{
 		// Try to get a node specified in the config file
-		PolicyOriginComp = GameMgr->GetNodeById(OriginCompId);
-	}
+		if (!OriginCompId.IsEmpty())
+		{
+			PolicyOriginComp = RootActor->GetComponentById(OriginCompId);
+		}
 
-	if(PolicyOriginComp == nullptr)
-	{
-		UE_LOG(LogPicpProjectionMPCDI, Log, TEXT("No custom origin set or component '%s' not found for viewport '%s'. VR root will be used."), *OriginCompId, *PolicyViewportId);
-		PolicyOriginComp = GameMgr->GetRootComponent();
+		// If no origin component found, use the root component as the origin
+		if (PolicyOriginComp == nullptr)
+		{
+			UE_LOG(LogPicpProjectionMPCDI, Log, TEXT("No custom origin set or component '%s' not found for viewport '%s'. VR root will be used."), *OriginCompId, *PolicyViewportId);
+			PolicyOriginComp = RootActor->GetRootComponent();
+		}
 	}
 
 	if (!PolicyOriginComp)
 	{
+		PolicyOriginComponentRef.ResetSceneComponent();
 		UE_LOG(LogPicpProjectionMPCDI, Error, TEXT("Couldn't set origin component"));
 		return;
 	}
+
+	PolicyOriginComponentRef.SetSceneComponent(PolicyOriginComp);
 }

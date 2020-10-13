@@ -33,6 +33,20 @@ namespace UnrealBuildTool.Rules
 			{
 				DynamicallyLoadedModuleNames.Add("MfMedia");
 			}
+
+			if (DoAllowHTTPSPlayback())
+			{
+				PrivateDefinitions.Add("MFMEDIAFACTORY_ALLOW_HTTPS=1");
+			}
+			else
+			{
+				PrivateDefinitions.Add("MFMEDIAFACTORY_ALLOW_HTTPS=0");
+			}
+		}
+
+		protected virtual bool DoAllowHTTPSPlayback()
+		{
+			return Target.Platform.IsInGroup(UnrealPlatformGroup.Windows);
 		}
 	}
 }

@@ -35,9 +35,9 @@ USoundModulationPatch::USoundModulationPatch(const FObjectInitializer& ObjectIni
 #if WITH_EDITOR
 void USoundModulationPatch::PostEditChangeProperty(FPropertyChangedEvent& InPropertyChangedEvent)
 {
-	AudioModulation::IterateModSystems([this](AudioModulation::FAudioModulationSystem& OutModSystem)
+	AudioModulation::IterateModulationImpl([this](AudioModulation::FAudioModulation& OutModulation)
 	{
-		OutModSystem.UpdateModulator(*this);
+		OutModulation.UpdateModulator(*this);
 	});
 
 	Super::PostEditChangeProperty(InPropertyChangedEvent);
@@ -45,9 +45,9 @@ void USoundModulationPatch::PostEditChangeProperty(FPropertyChangedEvent& InProp
 
 void USoundModulationPatch::PostEditChangeChainProperty(FPropertyChangedChainEvent& InPropertyChangedEvent)
 {
-	AudioModulation::IterateModSystems([this](AudioModulation::FAudioModulationSystem& OutModSystem)
+	AudioModulation::IterateModulationImpl([this](AudioModulation::FAudioModulation& OutModulation)
 	{
-		OutModSystem.UpdateModulator(*this);
+		OutModulation.UpdateModulator(*this);
 	});
 
 	Super::PostEditChangeChainProperty(InPropertyChangedEvent);

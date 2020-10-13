@@ -60,6 +60,9 @@ public:
 	void OnViewMode(EHairStrandsDebugMode Mode);
 	bool CanViewMode() const;
 
+	void OnCardsGuides();
+	bool CanCardsGuides() const;
+
 protected:
 
 	/** SEditorViewport interface */

@@ -76,7 +76,7 @@ void FMovieSceneMediaPlayerSectionRecorder::FinalizeSection(float CurrentTime)
 			FString PackageName;
 			AssetToolsModule.Get().CreateUniqueAssetName(MediaSourceBasePackageName, DefaultSuffix, /*out*/ PackageName, /*out*/ AssetName);
 
-			UPackage* MediaSourcePackage = CreatePackage(nullptr, *PackageName);
+			UPackage* MediaSourcePackage = CreatePackage(*PackageName);
 
 			UImgMediaSource* ImgMediaSource = NewObject<UImgMediaSource>(MediaSourcePackage, *AssetName, RF_Public | RF_Standalone | RF_Transactional);
 			ImgMediaSource->SetSequencePath(TrackInfo.RecordingFrameFolder + TEXT("/"));

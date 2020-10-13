@@ -20,6 +20,7 @@
 #include "GeometryCollection/GeometryCollectionClusteringUtility.h"
 #include "GeometryCollection/GeometryCollectionUtility.h"
 #include "Logging/LogMacros.h"
+#include "Materials/Material.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 
 
@@ -186,15 +187,21 @@ void FGeometryCollectionConversion::AppendStaticMesh(const UStaticMesh * StaticM
 		}
 
 		// for each material, add a reference in our GeometryCollectionObject
-		int CurrIdx = 0;
-		UMaterialInterface *CurrMaterial = StaticMeshComponent ? StaticMeshComponent->GetMaterial(CurrIdx) : StaticMesh->GetMaterial(CurrIdx);
-	
-
-		int MaterialStart = GeometryCollectionObject->Materials.Num();
-		while (CurrMaterial)
+		const int32 MaterialStart = GeometryCollectionObject->Materials.Num();
+		const int32 NumMeshMaterials = StaticMesh->StaticMaterials.Num();
+		GeometryCollectionObject->Materials.Reserve(MaterialStart + NumMeshMaterials);
+		
+		for(int32 Index = 0; Index < NumMeshMaterials; ++Index)
 		{
+			UMaterialInterface* CurrMaterial = StaticMeshComponent ?  StaticMeshComponent->GetMaterial(Index) : StaticMesh->GetMaterial(Index);
+			
+			// Possible we have a null entry - replace with default
+			if(CurrMaterial == nullptr)
+			{
+				CurrMaterial = UMaterial::GetDefaultMaterial(MD_Surface);
+			}
+
 			GeometryCollectionObject->Materials.Add(CurrMaterial);
-			CurrMaterial = StaticMeshComponent ?  StaticMeshComponent->GetMaterial(++CurrIdx) : StaticMesh->GetMaterial(++CurrIdx);
 		}
 
 		TManagedArray<FGeometryCollectionSection> & Sections = GeometryCollection->Sections;
@@ -432,7 +439,7 @@ void FGeometryCollectionConversion::AppendSkeletalMesh(const USkeletalMesh* Skel
 
 void FGeometryCollectionConversion::CreateGeometryCollectionCommand(UWorld * World)
 {
-	UPackage* Package = CreatePackage(NULL, TEXT("/Game/GeometryCollectionAsset"));
+	UPackage* Package = CreatePackage(TEXT("/Game/GeometryCollectionAsset"));
 	auto GeometryCollectionFactory = NewObject<UGeometryCollectionFactory>();
 	UGeometryCollection* GeometryCollection = static_cast<UGeometryCollection*>(
 		GeometryCollectionFactory->FactoryCreateNew(UGeometryCollection::StaticClass(), Package,
@@ -466,7 +473,7 @@ void FGeometryCollectionConversion::CreateFromSelectedActorsCommand(UWorld * Wor
 					{
 						if (!Package || !GeometryCollection)
 						{
-							Package = CreatePackage(NULL, TEXT("/Game/GeometryCollectionAsset"));
+							Package = CreatePackage(TEXT("/Game/GeometryCollectionAsset"));
 							auto GeometryCollectionFactory = NewObject<UGeometryCollectionFactory>();
 							GeometryCollection = static_cast<UGeometryCollection*>(
 								GeometryCollectionFactory->FactoryCreateNew(
@@ -496,7 +503,7 @@ void FGeometryCollectionConversion::CreateFromSelectedActorsCommand(UWorld * Wor
 					{
 						if (!Package || !GeometryCollection)
 						{
-							Package = CreatePackage(NULL, TEXT("/Game/GeometryCollectionAsset"));
+							Package = CreatePackage(TEXT("/Game/GeometryCollectionAsset"));
 							auto GeometryCollectionFactory = NewObject<UGeometryCollectionFactory>();
 							GeometryCollection = static_cast<UGeometryCollection*>(
 								GeometryCollectionFactory->FactoryCreateNew(
@@ -543,7 +550,7 @@ void FGeometryCollectionConversion::CreateFromSelectedAssetsCommand(UWorld * Wor
 			UE_LOG(UGeometryCollectionConversionLogging, Log, TEXT("Static Mesh Content Browser : %s"), *AssetData.GetClass()->GetName());
 			if (!Package || !GeometryCollection)
 			{
-				Package = CreatePackage(NULL, TEXT("/Game/GeometryCollectionAsset"));
+				Package = CreatePackage(TEXT("/Game/GeometryCollectionAsset"));
 				auto GeometryCollectionFactory = NewObject<UGeometryCollectionFactory>();
 				GeometryCollection = static_cast<UGeometryCollection*>(
 					GeometryCollectionFactory->FactoryCreateNew(
@@ -565,7 +572,7 @@ void FGeometryCollectionConversion::CreateFromSelectedAssetsCommand(UWorld * Wor
 			UE_LOG(UGeometryCollectionConversionLogging, Log, TEXT("Skeletal Mesh Content Browser : %s"), *AssetData.GetClass()->GetName());
 			if (!Package || !GeometryCollection)
 			{
-				Package = CreatePackage(NULL, TEXT("/Game/GeometryCollectionAsset"));
+				Package = CreatePackage(TEXT("/Game/GeometryCollectionAsset"));
 				auto GeometryCollectionFactory = NewObject<UGeometryCollectionFactory>();
 				GeometryCollection = static_cast<UGeometryCollection*>(
 					GeometryCollectionFactory->FactoryCreateNew(

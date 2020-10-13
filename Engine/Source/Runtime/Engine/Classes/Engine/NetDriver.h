@@ -365,6 +365,12 @@ extern ENGINE_API int32 GNumClientUpdateLevelVisibility;
  */
 DECLARE_DELEGATE_SevenParams(FOnSendRPC, AActor* /*Actor*/, UFunction* /*Function*/, void* /*Parameters*/,
 									FOutParmRec* /*OutParms*/, FFrame* /*Stack*/, UObject* /*SubObject*/, bool& /*bBlockSendRPC*/);
+
+/**
+ * Delegate for hooking ShouldSkipRepNotifies
+ */
+DECLARE_DELEGATE_RetVal(bool, FShouldSkipRepNotifies);
+
 #endif
 
 //
@@ -1098,6 +1104,9 @@ public:
 #if !UE_BUILD_SHIPPING
 	/** Delegate for hooking ProcessRemoteFunction */
 	FOnSendRPC	SendRPCDel;
+
+	/** Delegate for hooking ShouldSkipRepNotifies */
+	FShouldSkipRepNotifies SkipRepNotifiesDel;
 #endif
 
 	/** Tracks the amount of time spent during the current frame processing queued bunches. */
@@ -1498,7 +1507,7 @@ public:
 	virtual bool ShouldClientDestroyTearOffActors() const { return false; }
 
 	/** Returns whether or not properties that are replicating using this driver should not call RepNotify functions. */
-	virtual bool ShouldSkipRepNotifies() const { return false; }
+	ENGINE_API virtual bool ShouldSkipRepNotifies() const;
 
 	/** Returns true if actor channels with InGUID should queue up bunches, even if they wouldn't otherwise be queued. */
 	virtual bool ShouldQueueBunchesForActorGUID(FNetworkGUID InGUID) const { return false; }

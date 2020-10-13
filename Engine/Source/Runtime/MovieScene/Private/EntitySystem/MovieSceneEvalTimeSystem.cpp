@@ -30,6 +30,11 @@ UMovieSceneEvalTimeSystem::UMovieSceneEvalTimeSystem(const FObjectInitializer& O
 	: Super(ObjInit)
 {
 	RelevantComponent = UE::MovieScene::FBuiltInComponentTypes::Get()->EvalTime;
+
+	if (HasAnyFlags(RF_ClassDefaultObject))
+	{
+		DefineComponentProducer(GetClass(), UE::MovieScene::FBuiltInComponentTypes::Get()->EvalTime);
+	}
 }
 
 void UMovieSceneEvalTimeSystem::OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents)

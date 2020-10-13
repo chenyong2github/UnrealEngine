@@ -438,6 +438,12 @@ void FContentBrowserSingleton::SetPrimaryContentBrowser(const TSharedRef<SConten
 		return;
 	}
 
+	if ( !NewPrimaryBrowser->CanSetAsPrimaryContentBrowser() )
+	{
+		// This browser can not be set as primary
+		return;
+	}
+
 	if ( PrimaryContentBrowser.IsValid() )
 	{
 		PrimaryContentBrowser.Pin()->SetIsPrimaryContentBrowser(false);

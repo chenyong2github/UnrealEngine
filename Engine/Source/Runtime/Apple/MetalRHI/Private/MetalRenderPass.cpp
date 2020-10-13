@@ -1304,7 +1304,7 @@ void FMetalRenderPass::InsertTextureBarrier()
 	
 	id <MTLRenderCommandEncoder> RenderEncoder = CurrentEncoder.GetRenderCommandEncoder().GetPtr();
 	check(RenderEncoder);
-	[RenderEncoder textureBarrier];
+	[RenderEncoder memoryBarrierWithScope:MTLBarrierScopeRenderTargets afterStages:MTLRenderStageFragment beforeStages:MTLRenderStageVertex];
 #endif
 }
 

@@ -21,26 +21,43 @@
 // Global UOject delegates
 #include "UObject/UObjectGlobals.h"
 
+// Thumbnails
+#include "AssetRegistry/AssetRegistryModule.h"
+#include "AssetRegistry/IAssetRegistry.h"
+#include "Misc/ObjectThumbnail.h"
+#include "ObjectTools.h"
+
 void FWebRemoteControlEditorRoutes::RegisterRoutes(FWebRemoteControlModule* WebRemoteControl)
 {
 	if (FConsoleManager::Get().FindConsoleVariable(TEXT("WebControl.EnableExperimentalRoutes"))->GetBool())
 	{
 		static const FName ModuleName = "WebRemoteControl";
-		EventRoute = FRemoteControlRoute{
+		// Events
+		WebRemoteControl->RegisterRoute(Routes.Emplace_GetRef(
 			TEXT("Create a connection until an event is triggered."),
 			FHttpPath(TEXT("/remote/object/event")),
 			EHttpServerRequestVerbs::VERB_PUT,
 			FRequestHandlerDelegate::CreateRaw(this, &FWebRemoteControlEditorRoutes::HandleObjectEventRoute)
-		};
+		));
 
-		WebRemoteControl->RegisterRoute(EventRoute);
 		EventDispatchers.AddDefaulted((int32)ERemoteControlEvent::EventCount);
 	}
+
+	// Thumbnails
+	WebRemoteControl->RegisterRoute(Routes.Emplace_GetRef(
+		TEXT("Get an object's thumbnail"),
+		FHttpPath(TEXT("/remote/object/thumbnail")),
+		EHttpServerRequestVerbs::VERB_PUT,
+		FRequestHandlerDelegate::CreateRaw(this, &FWebRemoteControlEditorRoutes::HandleGetThumbnailRoute)
+	));
 }
 
 void FWebRemoteControlEditorRoutes::UnregisterRoutes(FWebRemoteControlModule* WebRemoteControl)
 {
-	WebRemoteControl->UnregisterRoute(EventRoute);
+	for (const FRemoteControlRoute& Route : Routes)
+	{
+		WebRemoteControl->UnregisterRoute(Route);
+	}
 }
 
 bool FWebRemoteControlEditorRoutes::HandleObjectEventRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
@@ -60,6 +77,53 @@ bool FWebRemoteControlEditorRoutes::HandleObjectEventRoute(const FHttpServerRequ
 	AddPendingEvent(MoveTemp(EventRequest), WebRemoteControlUtils::CreateHttpResponse(), OnComplete);
 	return true;
 };
+
+bool FWebRemoteControlEditorRoutes::HandleGetThumbnailRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
+{
+	TUniquePtr<FHttpServerResponse> Response = WebRemoteControlUtils::CreateHttpResponse();
+	FGetObjectThumbnailRequest GetThumbnailRequest;
+	if (!WebRemoteControlUtils::DeserializeRequest(Request, &OnComplete, GetThumbnailRequest))
+	{
+		return true;
+	}
+
+	FAssetRegistryModule& AssetRegistryModule = FModuleManager::Get().LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+	FARFilter Filter;
+	Filter.ObjectPaths.Add(FName(*GetThumbnailRequest.ObjectPath));
+
+	TArray<FAssetData> Assets;
+	AssetRegistryModule.Get().GetAssets(Filter, Assets);
+
+	if (Assets.Num())
+	{
+		const FAssetData& AssetData = Assets[0];
+		FName ObjectFullName = FName(*AssetData.GetFullName());
+		FThumbnailMap ThumbnailMap;
+
+		if (ThumbnailTools::ConditionallyLoadThumbnailsForObjects({ ObjectFullName }, ThumbnailMap))
+		{
+			if (FObjectThumbnail* Thumbnail = ThumbnailMap.Find(ObjectFullName))
+			{
+				WebRemoteControlUtils::AddContentTypeHeaders(Response.Get(), TEXT("image/png"));
+				Response->Body = Thumbnail->AccessCompressedImageData();
+				Response->Code = EHttpServerResponseCodes::Ok;
+			}
+		}
+		else
+		{
+			WebRemoteControlUtils::CreateUTF8ErrorMessage(FString::Printf(TEXT("Could not load thumbnail for object %s"), *GetThumbnailRequest.ObjectPath), Response->Body);
+			Response->Code = EHttpServerResponseCodes::NotFound;
+		}
+	}
+	else
+	{
+		WebRemoteControlUtils::CreateUTF8ErrorMessage(FString::Printf(TEXT("Could not resolve object %s"), *GetThumbnailRequest.ObjectPath), Response->Body);
+		Response->Code = EHttpServerResponseCodes::NotFound;
+	}
+
+	OnComplete(MoveTemp(Response));
+	return true;
+}
 
 void FWebRemoteControlEditorRoutes::AddPendingEvent(FRemoteControlObjectEventHookRequest InRequest, TUniquePtr<FHttpServerResponse> InResponse, FHttpResultCallback OnComplete)
 {

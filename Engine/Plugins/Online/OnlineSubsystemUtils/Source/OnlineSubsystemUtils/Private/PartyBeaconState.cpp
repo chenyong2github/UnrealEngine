@@ -480,7 +480,7 @@ bool UPartyBeaconState::HasCrossplayOptOutReservation() const
 	return false;
 }
 
-int32 UPartyBeaconState::GetReservationPlatformCount(const FString& InPlatform) const
+int32 UPartyBeaconState::GetReservationPlatformCount(const FString& InPlatform, bool bIncludeMappedPlatforms) const
 {
 	int32 PlayerCount = 0;
 	for (const FPartyReservation& ExistingReservation : Reservations)
@@ -490,6 +490,14 @@ int32 UPartyBeaconState::GetReservationPlatformCount(const FString& InPlatform) 
 			if (ExistingPlayer.Platform == InPlatform)
 			{
 				PlayerCount++;
+			}
+			else if (bIncludeMappedPlatforms)
+			{
+				const FPartyBeaconCrossplayPlatformMapping* const PlatformType = PlatformTypeMapping.FindByKey(ExistingPlayer.Platform);
+				if (PlatformType && PlatformType->PlatformType == InPlatform)
+				{
+					PlayerCount++;
+				}
 			}
 		}
 	}
@@ -508,22 +516,8 @@ bool UPartyBeaconState::CrossPlayAllowed(const FPartyReservation& ReservationReq
 		for (const FPlayerReservation& ExistingPlayer : ExistingReservation.PartyMembers)
 		{
 			bEveryoneAllowsCrossplay &= ExistingPlayer.bAllowCrossplay;
-			if (ExistingPlayer.Platform == OSS_PLATFORM_NAME_PS4)
-			{
-				ExistingPlatforms.Add(OSS_PLATFORM_NAME_PS4);
-			}
-			else if (ExistingPlayer.Platform == OSS_PLATFORM_NAME_XBOX)
-			{
-				ExistingPlatforms.Add(OSS_PLATFORM_NAME_XBOX);
-			}
-			else if (ExistingPlayer.Platform == OSS_PLATFORM_NAME_SWITCH)
-			{
-				ExistingPlatforms.Add(OSS_PLATFORM_NAME_SWITCH);
-			}
-			else
-			{
-				ExistingPlatforms.Add(OSS_PLATFORM_NAME_OTHER);
-			}
+			const FPartyBeaconCrossplayPlatformMapping* const PlatformType = PlatformTypeMapping.FindByKey(ExistingPlayer.Platform);
+			ExistingPlatforms.Add(PlatformType ? PlatformType->PlatformType : OSS_PLATFORM_NAME_OTHER);
 		}
 	}
 
@@ -534,29 +528,51 @@ bool UPartyBeaconState::CrossPlayAllowed(const FPartyReservation& ReservationReq
 		for (const FPlayerReservation& Player : ReservationRequest.PartyMembers)
 		{
 			bPartyAllowsCrossplay &= Player.bAllowCrossplay;
-			if (Player.Platform == OSS_PLATFORM_NAME_XBOX)
-			{
-				PartyPlatforms.Add(OSS_PLATFORM_NAME_XBOX);
-			}
-			else if (Player.Platform == OSS_PLATFORM_NAME_PS4)
-			{
-				PartyPlatforms.Add(OSS_PLATFORM_NAME_PS4);
-			}
-			else if (Player.Platform == OSS_PLATFORM_NAME_SWITCH)
-			{
-				PartyPlatforms.Add(OSS_PLATFORM_NAME_SWITCH);
-			}
-			else
-			{
-				PartyPlatforms.Add(OSS_PLATFORM_NAME_OTHER);
-			}
+			const FPartyBeaconCrossplayPlatformMapping* const PlatformType = PlatformTypeMapping.FindByKey(Player.Platform);
+			PartyPlatforms.Add(PlatformType ? PlatformType->PlatformType : OSS_PLATFORM_NAME_OTHER);
 		}
 
-		const bool bPS4SeenOtherConsole = (
-			((PartyPlatforms.Contains(OSS_PLATFORM_NAME_XBOX) || PartyPlatforms.Contains(OSS_PLATFORM_NAME_SWITCH)) && ExistingPlatforms.Contains(OSS_PLATFORM_NAME_PS4)) ||
-			(PartyPlatforms.Contains(OSS_PLATFORM_NAME_PS4) && (ExistingPlatforms.Contains(OSS_PLATFORM_NAME_XBOX) || ExistingPlatforms.Contains(OSS_PLATFORM_NAME_SWITCH)))
-		);
-
+		bool bHasIncompatibleCrossplay = false;
+		TMap<FString, FString> PlatformCrossplayRestrictionsMap;
+		PlatformCrossplayRestrictionsMap.Reserve(PlatformCrossplayRestrictions.Num());
+		for (const FString& PlatformCrossplayRestriction : PlatformCrossplayRestrictions)
+		{
+			FString PlatformWithRestriction;
+			FString RestrictedPlatformsAgainst;
+			if (PlatformCrossplayRestriction.Split(TEXT("="), &PlatformWithRestriction, &RestrictedPlatformsAgainst))
+			{
+				PlatformCrossplayRestrictionsMap.Emplace(MoveTemp(PlatformWithRestriction), MoveTemp(RestrictedPlatformsAgainst));
+			}
+		}
+		for (const TPair<FString, FString>& PlatformCrossplayRestriction : PlatformCrossplayRestrictionsMap)
+		{
+			if (ExistingPlatforms.Contains(PlatformCrossplayRestriction.Key))
+			{
+				for (const FString& PartyPlatform : PartyPlatforms)
+				{
+					if (PlatformCrossplayRestriction.Value.Contains(PartyPlatform))
+					{
+						bHasIncompatibleCrossplay = true;
+						break;
+					}
+				}
+			}
+			else if (PartyPlatforms.Contains(PlatformCrossplayRestriction.Key))
+			{
+				for (const FString& ExistingPlatform : ExistingPlatforms)
+				{
+					if (PlatformCrossplayRestriction.Value.Contains(ExistingPlatform))
+					{
+						bHasIncompatibleCrossplay = true;
+						break;
+					}
+				}
+			}
+			if (bHasIncompatibleCrossplay)
+			{
+				break;
+			}
+		}
 
 		TSet<FString> Delta = PartyPlatforms.Intersect(ExistingPlatforms);
 
@@ -568,7 +584,7 @@ bool UPartyBeaconState::CrossPlayAllowed(const FPartyReservation& ReservationReq
 		const bool bNewPartyIsStrictSuperset = (Delta.Num() == ExistingPlatforms.Num());
 
 		// Don't cross mingle consoles if restriction is set
-		const bool bCrossConsoleAllowed = (!bPS4SeenOtherConsole) || (bPS4SeenOtherConsole && !bRestrictCrossConsole);
+		const bool bCrossConsoleAllowed = (!bHasIncompatibleCrossplay) || (bHasIncompatibleCrossplay && !bRestrictCrossConsole);
 		// All the existing players must be ok with cross play for the new party to join or incoming party is subset of existing platforms
 		const bool bExistingPlayersOk = (!bPartyAddsNewPlatform || (bPartyAddsNewPlatform && bEveryoneAllowsCrossplay));
 		// All the incoming players must be ok with cross play for the new party to join or existing platforms are subset of incoming party

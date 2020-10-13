@@ -51,12 +51,21 @@ static_assert((uint32)ERuntimeVirtualTextureMaterialType::Count <= (1 << (uint32
 UENUM()
 enum class ERuntimeVirtualTextureMainPassType : uint8
 {
-	/** If there is no valid virtual texture target we will not render at all. Use this for items that we don't mind removing if there is no virtual texture support. */
-	Never UMETA(DisplayName = "Virtual Texture Only"),
-	/** If and only if there is no valid virtual texture target we will render to the main pass. Use this for items that we must have whether virtual texture is supported or not. */
-	Exclusive UMETA(DisplayName = "Virtual Texture OR Main Pass"),
-	/** We will render to any valid virtual texture target AND the main pass. Use this for items that need to both read and write the virtual texture. For example, some landscape setups need this. */
-	Always UMETA(DisplayName = "Virtual Texture AND Main Pass"),
+	/** 
+	 * Never render to the main pass. 
+	 * Use this for primitives that only render to Runtime Virtual Texture and can be missing if there is no virtual texture support. 
+	 */
+	Never UMETA(DisplayName = "Never"),
+	/** 
+	 * Render to the main pass if no associated Runtime Virtual Texture Volumes are set to 'Hide Primitives'.
+	 * This will render to the main pass if there is no matching Runtime Virtual Texture Volume placed in the scene. 
+	 */
+	Exclusive UMETA(DisplayName = "From Virtual Texture"),
+	/** 
+	 * Always render to the main pass. 
+	 * Use this for items that both read from and write to a Runtime Virtual Texture.
+	 */
+	Always UMETA(DisplayName = "Always"),
 };
 
 /** Enumeration of runtime virtual texture shader uniforms. */

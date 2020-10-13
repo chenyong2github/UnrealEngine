@@ -2,6 +2,7 @@
 
 #include "SUSDReferencesList.h"
 
+#include "SUSDStageEditorStyle.h"
 #include "USDStageActor.h"
 #include "USDStageModule.h"
 #include "USDTypesConversion.h"
@@ -29,7 +30,7 @@ void SUsdReferenceRow::Construct( const FArguments& InArgs, TSharedPtr< FUsdRefe
 }
 
 TSharedRef< SWidget > SUsdReferenceRow::GenerateWidgetForColumn( const FName& ColumnName )
-{	
+{
 	TSharedRef< SWidget > ColumnWidget = SNullWidget::NullWidget;
 
 	if ( ColumnName == TEXT("AssetPath") )
@@ -39,14 +40,18 @@ TSharedRef< SWidget > SUsdReferenceRow::GenerateWidgetForColumn( const FName& Co
 		.Font( FEditorStyle::GetFontStyle( UsdReferencesListConstants::NormalFont ) );
 	}
 
-	return SNew( SHorizontalBox )
-		+SHorizontalBox::Slot()
-		.HAlign( HAlign_Left )
-		.VAlign( VAlign_Center )
-		.Padding( UsdReferencesListConstants::RowPadding )
-		.AutoWidth()
+	return SNew( SBox )
+		.HeightOverride( FUsdStageEditorStyle::Get()->GetFloat( "UsdStageEditor.ListItemHeight" ) )
 		[
-			ColumnWidget
+			SNew( SHorizontalBox )
+			+SHorizontalBox::Slot()
+			.HAlign( HAlign_Left )
+			.VAlign( VAlign_Center )
+			.Padding( UsdReferencesListConstants::RowPadding )
+			.AutoWidth()
+			[
+				ColumnWidget
+			]
 		];
 }
 
@@ -55,9 +60,9 @@ void SUsdReferencesList::Construct( const FArguments& InArgs, const UE::FUsdStag
 	ViewModel.UpdateReferences( UsdStage, PrimPath );
 
 	SAssignNew( HeaderRowWidget, SHeaderRow )
-	.Visibility( EVisibility::Collapsed )
 
 	+SHeaderRow::Column( FName( TEXT("AssetPath") ) )
+	.DefaultLabel( NSLOCTEXT( "USDReferencesList", "References", "References" ) )
 	.FillWidth( 100.f );
 
 	SListView::Construct

@@ -55,10 +55,10 @@ namespace
 			{
 				const int32 SizeX = FMath::Max(NumTilesX >> MipLevel, 1);
 				const int32 SizeY = FMath::Max(NumTilesY >> MipLevel, 1);
-				StagingTextures.Add(RHICmdList.CreateTexture2D(SizeX, SizeY, PF_R8G8B8A8, 1, 1, TexCreate_CPUReadback, CreateInfo));
+				StagingTextures.Add(RHICreateTexture2D(SizeX, SizeY, PF_R8G8B8A8, 1, 1, TexCreate_CPUReadback, CreateInfo));
 			}
 			
-			Fence = RHICmdList.CreateGPUFence(TEXT("Runtime Virtual Texture Build"));
+			Fence = RHICreateGPUFence(TEXT("Runtime Virtual Texture Build"));
 		}
 
 		virtual void ReleaseRHI() override
@@ -245,7 +245,7 @@ namespace VirtualHeightfieldMesh
 
 				GraphBuilder.Execute();
 
-				RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, RenderTileResources.GetFinalRenderTarget()->GetRenderTargetItem().ShaderResourceTexture);
+				RHICmdList.Transition(FRHITransitionInfo(RenderTileResources.GetFinalRenderTarget()->GetRenderTargetItem().ShaderResourceTexture, ERHIAccess::WritableMask, ERHIAccess::CopySrc));
 
 				for (int32 MipLevel = 0; MipLevel < NumMips; MipLevel++)
 				{
@@ -254,6 +254,7 @@ namespace VirtualHeightfieldMesh
 					CopyInfo.SourceMipIndex = MipLevel;
 					CopyInfo.DestMipIndex = 0;
 
+					RHICmdList.Transition(FRHITransitionInfo(RenderTileResources.GetStagingTexture(MipLevel), ERHIAccess::Unknown, ERHIAccess::CopyDest));
 					RHICmdList.CopyTexture(RenderTileResources.GetFinalRenderTarget()->GetRenderTargetItem().ShaderResourceTexture, RenderTileResources.GetStagingTexture(MipLevel), CopyInfo);
 				}
 

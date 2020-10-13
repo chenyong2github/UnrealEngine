@@ -11,8 +11,8 @@ class CORE_API FDevVersionRegistration :  public FCustomVersionRegistration
 public:
 	/** @param InFriendlyName must be a string literal */
 	template<int N>
-	FDevVersionRegistration(FGuid InKey, int32 Version, const TCHAR(&InFriendlyName)[N])
-		: FCustomVersionRegistration(InKey, Version, InFriendlyName)
+	FDevVersionRegistration(FGuid InKey, int32 Version, const TCHAR(&InFriendlyName)[N], CustomVersionValidatorFunc InValidatorFunc = nullptr)
+		: FCustomVersionRegistration(InKey, Version, InFriendlyName, InValidatorFunc)
 	{
 		RecordDevVersion(InKey);
 	}

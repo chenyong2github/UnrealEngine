@@ -8,6 +8,7 @@
 #include "Scene/Landscape.h"
 #include "MeshPassProcessor.h"
 #include "IrradianceCaching.h"
+#include "GPULightmassSettings.h"
 
 class FGPULightmass;
 
@@ -76,6 +77,8 @@ struct FCachedRayTracingSceneData
 class FSceneRenderState
 {
 public:
+	UGPULightmassSettings* Settings;
+
 	void RenderThreadInit();
 	void BackgroundTick();
 
@@ -125,6 +128,7 @@ public:
 	FScene(FGPULightmass* InGPULightmass);
 
 	FGPULightmass* GPULightmass;
+	UGPULightmassSettings* Settings;
 
 	const FMeshMapBuildData* GetComponentLightmapData(const UPrimitiveComponent* InComponent, int32 LODIndex);
 	const FLightComponentMapBuildData* GetComponentLightmapData(const ULightComponent* InComponent);

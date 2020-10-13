@@ -50,6 +50,7 @@ namespace Chaos
 			float InAngularVelocityScale,
 			float InDragCoefficient,
 			float InLiftCoefficient,
+			bool bInUseLegacyWind,
 			float InDampingCoefficient,
 			float InCollisionThickness,
 			float InFrictionCoefficient,
@@ -147,6 +148,8 @@ namespace Chaos
 			void Add(FClothingSimulationSolver* Solver, FClothingSimulationCloth* Cloth, int32 LODIndex);
 			void Remove(FClothingSimulationSolver* Solver);
 
+			void Update(FClothingSimulationSolver* Solver, FClothingSimulationCloth* Cloth);
+
 			void Enable(FClothingSimulationSolver* Solver, bool bEnable) const;
 
 			void ResetStartPose(FClothingSimulationSolver* Solver) const;
@@ -181,6 +184,7 @@ namespace Chaos
 		float AngularVelocityScale;  // Angular ratio factor applied to the reference bone transforms
 		float DragCoefficient;
 		float LiftCoefficient;
+		bool bUseLegacyWind;
 		float DampingCoefficient;
 		float CollisionThickness;
 		float FrictionCoefficient;

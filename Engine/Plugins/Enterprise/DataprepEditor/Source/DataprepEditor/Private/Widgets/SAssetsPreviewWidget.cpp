@@ -268,6 +268,34 @@ namespace AssetPreviewWidget
 		return MoveTemp(Selection);
 	}
 
+	void SAssetsPreviewWidget::SetSelectedAssets(TSet<UObject*> InSelectionSet, ESelectInfo::Type SelectionInfo)
+	{
+		TreeView->ClearSelection();
+
+		TMap<const UObject*,FAssetTreeAssetItemPtr> AssetToItem;
+		AssetToItem.Reserve( UnFilteredAssets.Num() );
+		for ( const FAssetTreeAssetItemPtr& AssetItem : UnFilteredAssets )
+		{
+			if ( UObject* Asset = AssetItem->AssetPtr.Get() )
+			{
+				AssetToItem.Add( Asset, AssetItem );
+			}
+		}
+
+	
+		TArray<IAssetTreeItemPtr> ItemsToSelect;
+		ItemsToSelect.Reserve( InSelectionSet.Num() );
+		for ( const UObject* Asset : InSelectionSet )
+		{
+			if ( FAssetTreeAssetItemPtr* Item = AssetToItem.Find( Asset ) )
+			{
+				ItemsToSelect.Add( *Item );
+			}
+		}
+
+		TreeView->SetItemSelection( ItemsToSelect, true, SelectionInfo );
+	}
+
 	void SAssetsPreviewWidget::SetAssetsList(const TArray< TWeakObjectPtr< UObject > >& InAssetsList, const FString& InPathToReplace, const FString& InSubstitutePath)
 	{
 		PathPrefixToRemove = InPathToReplace;
@@ -508,11 +536,14 @@ namespace AssetPreviewWidget
 
 	void SAssetsPreviewWidget::OnSelectionChangedInternal(IAssetTreeItemPtr ItemSelected, ESelectInfo::Type SelectionType)
 	{
-		TSet< UObject* > Selection = GetSelectedAssets();
-
-		if (Selection.Num() > 0)
+		if ( SelectionType != ESelectInfo::Direct )
 		{
-			OnSelectionChanged().Broadcast( Selection );
+			TSet< UObject* > Selection = GetSelectedAssets();
+
+			if ( Selection.Num() > 0 )
+			{
+				OnSelectionChanged().Broadcast( Selection );
+			}
 		}
 	}
 

@@ -19,7 +19,7 @@
 
 #define LOCTEXT_NAMESPACE "SDependencyRow"
 
-void SDependencyRow::Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView, FDependenciesColumnSizeData& InDependenciesColumnData, FVariantDependencyModelPtr InDependencyModel, bool bInteractionEnabled)
+void SDependencyRow::Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView, FColumnSizeData& InDependenciesColumnData, FVariantDependencyModelPtr InDependencyModel, bool bInteractionEnabled)
 {
 	STableRow<FVariantDependencyModelPtr>::ConstructInternal(STableRow::FArguments(), InOwnerTableView);
 
@@ -48,7 +48,7 @@ void SDependencyRow::Construct(const FArguments& InArgs, const TSharedRef<STable
 			.Orientation(Orient_Horizontal)
 
 			+ SSplitter::Slot()
-			.Value(InDependenciesColumnData.VariantSetColumnWidth)
+			.Value( InDependenciesColumnData.LeftColumnWidth )
 			.OnSlotResized(SSplitter::FOnSlotResized::CreateLambda([](float InNewWidth)
 			{
 				//This has to be bound or the splitter will take it upon itself to determine the size
@@ -77,8 +77,8 @@ void SDependencyRow::Construct(const FArguments& InArgs, const TSharedRef<STable
 			]
 
 			+ SSplitter::Slot()
-			.Value(InDependenciesColumnData.VariantColumnWidth)
-			.OnSlotResized(InDependenciesColumnData.OnVariantWidthChanged)
+			.Value( InDependenciesColumnData.MiddleColumnWidth )
+			.OnSlotResized( InDependenciesColumnData.OnFirstSplitterChanged )
 			[
 				SNew(SBox)
 				.VAlign(VAlign_Center)
@@ -102,8 +102,8 @@ void SDependencyRow::Construct(const FArguments& InArgs, const TSharedRef<STable
 			]
 
 			+ SSplitter::Slot()
-			.Value(InDependenciesColumnData.ControlColumnWidth)
-			.OnSlotResized(InDependenciesColumnData.OnControlWidthChanged)
+			.Value( InDependenciesColumnData.RightColumnWidth )
+			.OnSlotResized( InDependenciesColumnData.OnSecondSplitterChanged )
 			[
 				SNew(SHorizontalBox)
 				+ SHorizontalBox::Slot()

@@ -533,13 +533,11 @@ void GetSSRTGIShaderOptionsForQuality(int32 Quality, FIntPoint* OutGroupSize, in
 FRDGTextureUAV* CreateScreenSpaceRayTracingDebugUAV(FRDGBuilder& GraphBuilder, const FRDGTextureDesc& Desc, const TCHAR* Name, bool bClear = false)
 #if 0
 {
-	FRDGTextureDesc DebugDesc = FRDGTextureDesc::Create2DDesc(
+	FRDGTextureDesc DebugDesc = FRDGTextureDesc::Create2D(
 		Desc.Extent,
 		PF_FloatRGBA,
 		FClearValueBinding::None,
-		/* InFlags = */ TexCreate_None,
-		/* InTargetableFlags = */ TexCreate_ShaderResource | TexCreate_UAV,
-		/* bInForceSeparateTargetAndShaderResource = */ false);
+		/* InFlags = */ TexCreate_ShaderResource | TexCreate_UAV);
 	FRDGTexture* DebugTexture = GraphBuilder.CreateTexture(DebugDesc, Name);
 	FRDGTextureUAVRef DebugOutput = GraphBuilder.CreateUAV(DebugTexture);
 	if (bClear)
@@ -889,13 +887,7 @@ void RenderScreenSpaceDiffuseIndirect(
 
 			FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
 				FIntPoint(QuantizeMultiple * QuantizedSize.X, QuantizeMultiple * QuantizedSize.Y),
-				// HACK: This is a workaround to fix UE-84870.
-				// Ideally this would be fixed in MetalRHI but there's no 3 component 16f texture + swizzles aren't allowed on writable textures.
-#if PLATFORM_MAC
-				PF_FloatRGBA,
-#else
 				PF_FloatR11G11B10,
-#endif
 				FClearValueBinding::None,
 				TexCreate_ShaderResource | TexCreate_UAV);
 			Desc.NumMips = kNumMips;

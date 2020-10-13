@@ -67,6 +67,7 @@ void FDatasmithSceneExporterImpl::UpdateTextureElements( TSharedRef< IDatasmithS
 
 	IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
 	TSet<FString> ExportedTextures;
+	FDatasmithUniqueNameProvider TextureFileNameProvider;
 
 	for (int32 i = 0; i < DatasmithScene->GetTexturesCount(); i++)
 	{
@@ -80,7 +81,10 @@ void FDatasmithSceneExporterImpl::UpdateTextureElements( TSharedRef< IDatasmithS
 			ProgressManager->ProgressEvent(RatioDone, *FPaths::GetBaseFilename( TextureFileName ));
 		}
 
-		FString NewFilename = FPaths::Combine( AssetsOutputPath, FPaths::GetCleanFilename( TextureFileName ) );
+		FString UniqueFileName = TextureFileNameProvider.GenerateUniqueName( FPaths::GetBaseFilename( TextureFileName ) );
+		TextureFileNameProvider.AddExistingName( UniqueFileName );
+		FString FileExtension = FPaths::GetExtension( TextureFileName, /*bIncludeDot=*/true );
+		FString NewFilename = FPaths::Combine( AssetsOutputPath, UniqueFileName + FileExtension );
 
 		// Update texture element and copy image file to new location if applicable
 		if (TextureFileName != NewFilename)

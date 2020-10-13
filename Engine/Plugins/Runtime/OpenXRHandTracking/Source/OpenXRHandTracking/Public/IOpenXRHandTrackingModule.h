@@ -6,7 +6,7 @@
 #include "Modules/ModuleManager.h"
 #include "IInputDeviceModule.h"
 
-enum class EOpenXRHandKeypoint : uint8;
+enum class EHandKeypoint : uint8;
 enum class EControllerHand : uint8;
 
 /**
@@ -62,6 +62,4 @@ public:
 
 	virtual void AddLiveLinkSource() = 0;
 	virtual void RemoveLiveLinkSource() = 0;
-
-	virtual bool GetHandJointTransform(EControllerHand Hand, EOpenXRHandKeypoint Keypoint, FTransform& Transform, float& OutRadius) = 0;
 };

@@ -4,9 +4,7 @@
 
 #include "Render/Projection/IDisplayClusterProjectionPolicy.h"
 #include "IPicpProjection.h"
-
-class USceneComponent;
-
+#include "Misc/DisplayClusterObjectRef.h"
 
 /**
  * Base class for nDisplay projection policies
@@ -15,12 +13,18 @@ class FPicpProjectionPolicyBase
 	: public IDisplayClusterProjectionPolicy
 {
 public:
-	FPicpProjectionPolicyBase(const FString& ViewportId);
+	FPicpProjectionPolicyBase(const FString& ViewportId, const TMap<FString, FString>& InParameters);
 	virtual ~FPicpProjectionPolicyBase() = 0;
 
+public:
 	const FString& GetViewportId() const
 	{
 		return PolicyViewportId;
+	}
+
+	const TMap<FString, FString>& GetParameters() const
+	{
+		return Parameters;
 	}
 
 protected:
@@ -29,12 +33,13 @@ protected:
 
 	const USceneComponent* const GetOriginComp() const
 	{
-		return PolicyOriginComp;
+		return PolicyOriginComponentRef.GetOrFindSceneComponent();
 	}
 
 private:
 	// Added 'Policy' prefix to avoid "... hides class name ..." warnings in child classes
 	FString PolicyViewportId;
 	FString PolicyOriginCompId;
-	USceneComponent* PolicyOriginComp = nullptr;
+	TMap<FString, FString> Parameters;
+	FDisplayClusterSceneComponentRef PolicyOriginComponentRef;
 };

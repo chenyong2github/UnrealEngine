@@ -67,6 +67,8 @@ bool UAjaCustomTimeStep::Initialize(UEngine* InEngine)
 
 	State = ECustomTimeStepSynchronizationState::Closed;
 
+	bLastDetectedVideoFormatInitialized = false;
+
 	if (!FAja::IsInitialized())
 	{
 		State = ECustomTimeStepSynchronizationState::Error;
@@ -331,7 +333,7 @@ FFrameRate UAjaCustomTimeStep::GetSyncRate() const
 
 	if (MediaConfiguration.MediaMode.Standard == EMediaIOStandardType::ProgressiveSegmentedFrame)
 	{
-		// If pSF and waiting for full frame, you should get 2 field interrupts.
+		// If pSF you should get 2 field interrupts.
 		SyncRate.Numerator *= 2;
 	}
 
@@ -390,8 +392,7 @@ bool UAjaCustomTimeStep::WaitForSync()
 	uint32 NewSyncCount = 0;
 	const bool bIsNewSyncCountValid = SyncChannel->GetSyncCount(NewSyncCount);
 
-	const int32 ExpectedSyncCountsPerWait = 
-		MediaConfiguration.MediaMode.Standard == EMediaIOStandardType::ProgressiveSegmentedFrame ? 2 : 1;
+	const int32 ExpectedSyncCountsPerWait = GetExpectedSyncCountDelta();
 
 	if (bEnableOverrunDetection 
 		&& bIsNewSyncCountValid 

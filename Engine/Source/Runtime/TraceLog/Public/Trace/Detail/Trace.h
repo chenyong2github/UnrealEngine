@@ -22,7 +22,7 @@ namespace Trace
 	{ \
 		F##ChannelName##Registrator() \
 		{ \
-			ChannelName##Object.Initialize(#ChannelName, { __VA_ARGS__ } ); \
+			ChannelName##Object.Setup(#ChannelName, { __VA_ARGS__ } ); \
 		} \
 	}; \
 	static F##ChannelName##Registrator ChannelName##Reg = F##ChannelName##Registrator();

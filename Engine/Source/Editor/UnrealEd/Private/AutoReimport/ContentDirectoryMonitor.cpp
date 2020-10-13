@@ -302,7 +302,7 @@ void FContentDirectoryMonitor::ProcessAdditions(const DirectoryWatcher::FTimeLim
 		}
 		else
 		{
-			UPackage* NewPackage = CreatePackage(nullptr, *PackagePath);
+			UPackage* NewPackage = CreatePackage( *PackagePath);
 			if ( !ensure(NewPackage) )
 			{
 				Context.AddMessage(EMessageSeverity::Error, FText::Format(LOCTEXT("Error_FailedToCreateAsset", "Failed to create new asset ({0}) for file ({1})."), FText::FromString(NewAssetName), FText::FromString(FullFilename)));

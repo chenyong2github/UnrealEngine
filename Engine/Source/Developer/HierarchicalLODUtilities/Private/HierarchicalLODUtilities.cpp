@@ -177,7 +177,7 @@ UPackage* FHierarchicalLODUtilities::CreateOrRetrieveLevelHLODPackage(const ULev
 
 	// Find existing package
 	bool bCreatedNewPackage = false;
-	UPackage* HLODPackage = CreatePackage(nullptr, *HLODLevelPackageName);
+	UPackage* HLODPackage = CreatePackage( *HLODLevelPackageName);
 	HLODPackage->FullyLoad();
 	HLODPackage->SetPackageFlags(PKG_ContainsMapData);		// PKG_ContainsMapData required so FEditorFileUtils::GetDirtyContentPackages can treat this as a map package
 
@@ -220,7 +220,7 @@ UPackage* FHierarchicalLODUtilities::CreateOrRetrieveLevelHLODPackage(const ULev
 	const FString BaseName = FPackageName::GetShortName(LevelOuterMost->GetPathName());
 	const FString HLODLevelPackageName = FString::Printf(TEXT("%s/HLOD/%s_HLOD"), *PathName, *BaseName);
 
-	HLODPackage = CreatePackage(NULL, *HLODLevelPackageName);
+	HLODPackage = CreatePackage( *HLODLevelPackageName);
 	HLODPackage->FullyLoad();
 	HLODPackage->Modify();
 	HLODPackage->SetPackageFlags(PKG_ContainsMapData);		// PKG_ContainsMapData required so FEditorFileUtils::GetDirtyContentPackages can treat this as a map package
@@ -269,7 +269,7 @@ UPackage* CreateOrRetrieveImposterMeshPackage(const UMaterialInterface* InImpost
 
 	const FString MeshPackageName = GetImposterMeshPackageName(InImposterMaterial);
 
-	UPackage* MeshPackage = CreatePackage(NULL, *MeshPackageName);
+	UPackage* MeshPackage = CreatePackage( *MeshPackageName);
 	MeshPackage->FullyLoad();
 
 	// Target filename
@@ -1053,7 +1053,12 @@ AHierarchicalLODVolume* FHierarchicalLODUtilities::CreateVolumeForLODActor(ALODA
 {
 	FBox BoundingBox = InLODActor->GetComponentsBoundingBox(true);
 
-	AHierarchicalLODVolume* Volume = InWorld->SpawnActor<AHierarchicalLODVolume>(AHierarchicalLODVolume::StaticClass(), FTransform(BoundingBox.GetCenter()));
+	// If no world is provided, spawn the volume in the same level as InLODActor
+	UWorld* WorldToSpawnIn = InWorld ? InWorld : InLODActor->GetWorld();
+	FActorSpawnParameters ActorSpawnParameters;
+	ActorSpawnParameters.OverrideLevel = InWorld == nullptr ? InLODActor->GetLevel() : nullptr;
+
+	AHierarchicalLODVolume* Volume = WorldToSpawnIn->SpawnActor<AHierarchicalLODVolume>(AHierarchicalLODVolume::StaticClass(), FTransform(BoundingBox.GetCenter()), ActorSpawnParameters);
 
 	// this code builds a brush for the new actor
 	Volume->PreEditChange(NULL);
@@ -1071,7 +1076,7 @@ AHierarchicalLODVolume* FHierarchicalLODUtilities::CreateVolumeForLODActor(ALODA
 	CubeBuilder->Y = BoundingBox.GetSize().Y * 1.5f;
 	CubeBuilder->Z = BoundingBox.GetSize().Z * 1.5f;
 
-	Volume->BrushBuilder->Build(InWorld, Volume);
+	Volume->BrushBuilder->Build(WorldToSpawnIn, Volume);
 
 	FBSPOps::csgPrepMovingBrush(Volume);
 

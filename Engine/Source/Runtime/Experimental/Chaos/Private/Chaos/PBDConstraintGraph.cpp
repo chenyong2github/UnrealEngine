@@ -13,6 +13,9 @@
 
 using namespace Chaos;
 
+bool ChaosSolverSleepEnabled = true;
+FAutoConsoleVariableRef CVarChaosSolverSleepEnabled(TEXT("p.Chaos.Solver.SleepEnabled"), ChaosSolverSleepEnabled, TEXT(""));
+
 bool ChaosSolverCollisionDefaultUseMaterialSleepThresholdsCVar = true;
 FAutoConsoleVariableRef CVarChaosSolverCollisionDefaultUseMaterialSleepThresholds(TEXT("p.ChaosSolverCollisionDefaultUseMaterialSleepThresholds"), ChaosSolverCollisionDefaultUseMaterialSleepThresholdsCVar, TEXT("Enable material support for sleeping thresholds[def:true]"));
 
@@ -621,6 +624,11 @@ bool FPBDConstraintGraph::ComputeIsland(const int32 InNode, const int32 Island, 
 
 bool FPBDConstraintGraph::SleepInactive(const int32 Island, const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>& PerParticleMaterialAttributes, const THandleArray<FChaosPhysicsMaterial>& SolverPhysicsMaterials)
 {
+	if (!ChaosSolverSleepEnabled)
+	{
+		return false;
+	}
+
 	FReal LinearSleepingThreshold = FLT_MAX;
 	FReal AngularSleepingThreshold = FLT_MAX;
 	int32 SleepCounterThreshold = 0;
@@ -647,10 +655,10 @@ bool FPBDConstraintGraph::SleepInactive(const int32 Island, const TArrayCollecti
 			{
 				NumDynamicParticles++;
 
-				const FReal LinearSpeed2 = PBDRigid->V().SizeSquared();
+				const FReal LinearSpeed2 = PBDRigid->VSmooth().SizeSquared();
 				MaxLinearSpeed2 = FMath::Max(LinearSpeed2,MaxLinearSpeed2);
 
-				const FReal AngularSpeed2 = PBDRigid->W().SizeSquared();
+				const FReal AngularSpeed2 = PBDRigid->WSmooth().SizeSquared();
 				MaxAngularSpeed2 = FMath::Max(AngularSpeed2,MaxAngularSpeed2);
 
 				bool bThresholdsSet = false;

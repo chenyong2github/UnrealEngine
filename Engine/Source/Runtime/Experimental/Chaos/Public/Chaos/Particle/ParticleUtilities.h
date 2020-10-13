@@ -122,6 +122,12 @@ namespace Chaos
 		}
 
 		template<typename T_PARTICLEHANDLE>
+		static inline FVec3 GetPreviousVelocityAtCoMRelativePosition(T_PARTICLEHANDLE Particle, const FVec3& RelPos)
+		{
+			return Particle->PreV() + FVec3::CrossProduct(Particle->PreW(), RelPos);
+		}
+
+		template<typename T_PARTICLEHANDLE>
 		static inline FVec3 GetCoMWorldPosition(T_PARTICLEHANDLE Particle)
 		{
 			return TSpatialAccessor::GetPosition(Particle) + TSpatialAccessor::GetRotation(Particle).RotateVector(Particle->CenterOfMass());
@@ -245,6 +251,12 @@ namespace Chaos
 		static inline FVec3 GetVelocityAtCoMRelativePosition(T_PARTICLEHANDLE Particle, const FVec3& RelPos)
 		{
 			return Particle->V() + FVec3::CrossProduct(Particle->W(), RelPos);
+		}
+
+		template<typename T_PARTICLEHANDLE>
+		static inline FVec3 GetPreviousVelocityAtCoMRelativePosition(T_PARTICLEHANDLE Particle, const FVec3& RelPos)
+		{
+			return Particle->PreV() + FVec3::CrossProduct(Particle->PreW(), RelPos);
 		}
 
 		template<typename T_PARTICLEHANDLE>

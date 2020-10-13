@@ -26,8 +26,7 @@ public:
 
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
-		// See FDebugViewModeMaterialProxy::GetFriendlyName()
-		return AllowDebugViewShaderMode(DVSM_RequiredTextureResolution, Parameters.Platform, Parameters.MaterialParameters.FeatureLevel) && Parameters.MaterialParameters.bMaterialIsRequiredTextureResolution;
+		return ShouldCompileDebugViewModeShader(DVSM_RequiredTextureResolution, Parameters);
 	}
 
 	FRequiredTextureResolutionPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer):
@@ -56,9 +55,13 @@ class FRequiredTextureResolutionInterface: public FDebugViewModeInterface
 public:
 
 	FRequiredTextureResolutionInterface() : FDebugViewModeInterface(TEXT("RequiredTextureResolution"), false, true, false) {}
-	virtual TShaderRef<FDebugViewModePS> GetPixelShader(const FMaterial* InMaterial, FVertexFactoryType* VertexFactoryType) const override
+	virtual void AddShaderTypes(ERHIFeatureLevel::Type InFeatureLevel,
+		EMaterialTessellationMode InMaterialTessellationMode,
+		const FVertexFactoryType* InVertexFactoryType,
+		FMaterialShaderTypes& OutShaderTypes) const override
 	{
-		return InMaterial->GetShader<FRequiredTextureResolutionPS>(VertexFactoryType);
+		AddDebugViewModeShaderTypes(InFeatureLevel, InMaterialTessellationMode, InVertexFactoryType, OutShaderTypes);
+		OutShaderTypes.AddShaderType<FRequiredTextureResolutionPS>();
 	}
 
 	virtual void GetDebugViewModeShaderBindings(

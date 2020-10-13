@@ -55,7 +55,6 @@ namespace
 
 		FCustomVersion ToCustomVersion() const
 		{
-			// We'll invent a GUID from three zeroes and the original tag
 			return FCustomVersion(Key, Version, *FriendlyName);
 		}
 	};
@@ -82,6 +81,7 @@ struct FStaticCustomVersionRegistry
 	{
 		int32 Version;
 		const TCHAR* FriendlyName;
+		CustomVersionValidatorFunc ValidatorFunc;
 	};
 	typedef TMap<FGuid, FPendingRegistration, TInlineSetAllocator<64>> RegistrationQueue;
 
@@ -104,7 +104,7 @@ struct FStaticCustomVersionRegistry
 
 		if (const FPendingRegistration* Pending = Queue.Find(Guid))
 		{
-			return FCustomVersion(Guid, Pending->Version, Pending->FriendlyName);
+			return FCustomVersion(Guid, Pending->Version, Pending->FriendlyName, Pending->ValidatorFunc);
 		}
 
 		return TOptional<FCustomVersion>();
@@ -137,7 +137,7 @@ struct FStaticCustomVersionRegistry
 				}
 				else
 				{
-					Registered.Versions.Add(FCustomVersion(Queued.Key, Queued.Value.Version, Queued.Value.FriendlyName));
+					Registered.Versions.Add(FCustomVersion(Queued.Key, Queued.Value.Version, Queued.Value.FriendlyName, Queued.Value.ValidatorFunc));
 				}
 			}
 
@@ -205,7 +205,11 @@ TArray<FCustomVersionDifference> FCurrentCustomVersions::Compare(const FCustomVe
 		{
 			if (TOptional<FCustomVersion> CurrentVersion = Registry.Find(CompareVersion.Key))
 			{
-				if (int Delta = CurrentVersion.GetValue().Version - CompareVersion.Version)
+				if (CurrentVersion.GetValue().Validator && !CurrentVersion.GetValue().Validator(CompareVersion, CompareVersions))
+				{
+					Result.Add({ ECustomVersionDifference::Invalid, &CompareVersion });
+				}
+				else if (int Delta = CurrentVersion.GetValue().Version - CompareVersion.Version)
 				{
 					Result.Add({ Delta < 0	? ECustomVersionDifference::Newer 
 											: ECustomVersionDifference::Older, &CompareVersion });
@@ -221,13 +225,13 @@ TArray<FCustomVersionDifference> FCurrentCustomVersions::Compare(const FCustomVe
 	return Result;
 }
 
-void FCurrentCustomVersions::Register(const FGuid& Key, int32 Version, const TCHAR* Name)
+void FCurrentCustomVersions::Register(const FGuid& Key, int32 Version, const TCHAR* Name, CustomVersionValidatorFunc ValidatorFunc)
 {
 	FStaticCustomVersionRegistry& Registry = FStaticCustomVersionRegistry::Get();
 
 	FWriteScopeLock Scope(Registry.Lock);
 	check(Registry.Queue.Find(Key) == nullptr);
-	Registry.Queue.Add(Key, { Version, Name });
+	Registry.Queue.Add(Key, { Version, Name, ValidatorFunc });
 }
 
 void FCurrentCustomVersions::Unregister(const FGuid& Key)

@@ -38,6 +38,10 @@ struct FHttpRequestHandlerIterator final
 		 */
 		FORCEINLINE bool HasNext() const;
 
+		/**
+		 * Holds the tokens that were removed from the end of the path.
+		 */
+		TArray<FString> ParsedTokens;
 	private:
 		FString NextPath;
 		bool bFirstIteration = true;
@@ -50,7 +54,7 @@ public:
 	/**
 	 * Constructor
 	 */
-	FHttpRequestHandlerIterator(const TSharedPtr<FHttpServerRequest>& InRequest, const FHttpRequestHandlerRegistrar& InRequestHandlerRegistrar);
+	FHttpRequestHandlerIterator(TSharedPtr<FHttpServerRequest> InRequest, const FHttpRequestHandlerRegistrar& InRequestHandlerRegistrar);
 
 	/** 
 	* Determines the next registered request handler
@@ -60,13 +64,12 @@ public:
 
 private:
 
+	/** Utility to iterate FHttpRoutes in-place */
+	FHttpPathIterator HttpPathIterator;
+
 	/** The basis request */
 	const TSharedPtr<FHttpServerRequest> Request;
 
 	/** The associative route/handler registration  */
-	const FHttpRequestHandlerRegistrar RequestHandlerRegistrar;
-
-	/** Utility to iterate FHttpRoutes in-place */
-	FHttpPathIterator HttpPathIterator;
-
+	const FHttpRequestHandlerRegistrar& RequestHandlerRegistrar;
 };

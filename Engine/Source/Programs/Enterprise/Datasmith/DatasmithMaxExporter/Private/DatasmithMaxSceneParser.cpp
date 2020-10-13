@@ -468,7 +468,7 @@ void FDatasmithMaxSceneParser::MaterialEnum(Mtl* Material, bool bAddMaterial)
 			Materials.Add(Material);
 		}
 
-		bool bAddRecursively = Material->ClassID() == THEARANDOMCLASS || Material->ClassID() == VRAYBLENDMATCLASS;
+		bool bAddRecursively = Material->ClassID() == THEARANDOMCLASS || Material->ClassID() == VRAYBLENDMATCLASS || Material->ClassID() == CORONALAYERMATCLASS;
 		for (int i = 0; i < Material->NumSubMtls(); i++)
 		{
 			MaterialEnum(Material->GetSubMtl(i), bAddRecursively);

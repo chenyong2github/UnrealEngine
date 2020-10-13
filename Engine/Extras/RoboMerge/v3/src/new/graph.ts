@@ -238,14 +238,14 @@ export class Graph {
 				const routePlus = [...routeSoFar, edge]
 				if (edge.target === target) {
 					completeRoutes.push(routePlus)
-					return
 				}
-
-				seen.add(edge.target)
-				this.findAllRoutesBetweenImpl(completeRoutes, routePlus, edge.target, seen, target, flags)
+				else {
+					seen.add(edge.target)
+					this.findAllRoutesBetweenImpl(completeRoutes, routePlus, edge.target, seen, target, flags)
+					seen.delete(edge.target)
+				}
 			}
 		}
-		return null
 	}
 
 	// function called this to match NodeBot function

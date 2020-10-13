@@ -83,26 +83,18 @@ void UDisplayClusterEditorEngine::StartPlayInEditorSession(FRequestPlaySessionPa
 		{
 			// Also search inside streamed levels
 			const TArray<ULevelStreaming*>& StreamingLevels = EditorWorldPreDup->GetStreamingLevels();
-			for (ULevelStreaming* StreamingLevel : StreamingLevels)
+			for (const ULevelStreaming* const StreamingLevel : StreamingLevels)
 			{
-				if (StreamingLevel)
+				if (StreamingLevel && StreamingLevel->GetCurrentState() == ULevelStreaming::ECurrentState::LoadedVisible)
 				{
-					switch (StreamingLevel->GetCurrentState())
-					{
-					case ULevelStreaming::ECurrentState::LoadedVisible:
-					{
-						// Look for the actor in those sub-levels that have been loaded already
-						const TSoftObjectPtr<UWorld>& SubWorldAsset = StreamingLevel->GetWorldAsset();
-						RootActor = FindDisplayClusterRootActor(SubWorldAsset.Get());
-						if (RootActor)
-						{
-							break;
-						}
-					}
+					// Look for the actor in those sub-levels that have been loaded already
+					const TSoftObjectPtr<UWorld>& SubWorldAsset = StreamingLevel->GetWorldAsset();
+					RootActor = FindDisplayClusterRootActor(SubWorldAsset.Get());
+				}
 
-					default:
-						break;
-					}
+				if (RootActor)
+				{
+					break;
 				}
 			}
 		}
@@ -112,7 +104,7 @@ void UDisplayClusterEditorEngine::StartPlayInEditorSession(FRequestPlaySessionPa
 		{
 			bIsNDisplayPIE = true;
 
-			if (!DisplayClusterModule->StartSession(RootActor->GetEditorConfigPath(), RootActor->GetEditorNodeId()))
+			if (!DisplayClusterModule->StartSession(RootActor->GetPreviewConfigPath(), RootActor->GetPreviewNodeId()))
 			{
 				UE_LOG(LogDisplayClusterEditorEngine, Error, TEXT("An error occurred during DisplayCluster session start"));
 			}
@@ -138,7 +130,6 @@ void UDisplayClusterEditorEngine::StartPlayInEditorSession(FRequestPlaySessionPa
 
 bool UDisplayClusterEditorEngine::LoadMap(FWorldContext& WorldContext, FURL URL, class UPendingNetGame* Pending, FString& Error)
 {
-	 
 	if (bIsNDisplayPIE)
 	{
 		// Finish previous scene

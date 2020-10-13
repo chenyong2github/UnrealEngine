@@ -209,7 +209,11 @@ private:
 	TWeakPtr< SWindow > MyWindow;
 };
 
+UE_DEPRECATED(4.26, "Creating groups (nested packages) is no longer supported. Use PromptUserIfExistingObject overload that does not take the Group paramater.")
 UNREALED_API bool PromptUserIfExistingObject(const FString& Name, const FString& Package, const FString& Group, class UPackage* &Pkg );
+
+UNREALED_API bool PromptUserIfExistingObject(const FString& Name, const FString& Package, class UPackage*& Pkg);
+
 /**
 * Helper method for popping up a directory dialog for the user.  OutDirectory will be 
 * set to the empty string if the user did not select the OK button.

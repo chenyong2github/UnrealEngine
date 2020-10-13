@@ -18,6 +18,7 @@
 const FName FStatsViewColumns::NameColumnID(TEXT("Name"));
 const FName FStatsViewColumns::MetaGroupNameColumnID(TEXT("MetaGroupName"));
 const FName FStatsViewColumns::TypeColumnID(TEXT("Type"));
+const FName FStatsViewColumns::DataTypeColumnID(TEXT("DataType"));
 const FName FStatsViewColumns::CountColumnID(TEXT("Count"));
 const FName FStatsViewColumns::SumColumnID(TEXT("Sum"));
 const FName FStatsViewColumns::MaxColumnID(TEXT("Max"));
@@ -36,6 +37,7 @@ void FStatsViewColumnFactory::CreateStatsViewColumns(TArray<TSharedRef<Insights:
 	Columns.Add(CreateNameColumn());
 	Columns.Add(CreateMetaGroupNameColumn());
 	Columns.Add(CreateTypeColumn());
+	Columns.Add(CreateDataTypeColumn());
 	Columns.Add(CreateCountColumn());
 	Columns.Add(CreateSumColumn());
 	Columns.Add(CreateMaxColumn());
@@ -172,6 +174,51 @@ TSharedRef<Insights::FTableColumn> FStatsViewColumnFactory::CreateTypeColumn()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+TSharedRef<Insights::FTableColumn> FStatsViewColumnFactory::CreateDataTypeColumn()
+{
+	using namespace Insights;
+
+	TSharedRef<FTableColumn> ColumnRef = MakeShared<FTableColumn>(FStatsViewColumns::DataTypeColumnID);
+	FTableColumn& Column = *ColumnRef;
+
+	Column.SetShortName(LOCTEXT("DataType_ColumnName", "DataType"));
+	Column.SetTitleName(LOCTEXT("DataType_ColumnTitle", "Data Type"));
+	Column.SetDescription(LOCTEXT("DataType_ColumnDesc", "Data type of counter values"));
+
+	Column.SetFlags(ETableColumnFlags::CanBeHidden |
+		//ETableColumnFlags::ShouldBeVisible |
+		ETableColumnFlags::CanBeFiltered);
+
+	Column.SetHorizontalAlignment(HAlign_Left);
+	Column.SetInitialWidth(60.0f);
+
+	Column.SetDataType(ETableCellDataType::Text);
+
+	class FStatsTypeValueGetter : public FTableCellValueGetter
+	{
+	public:
+		virtual const TOptional<FTableCellValue> GetValue(const FTableColumn& Column, const FBaseTreeNode& Node) const
+		{
+			ensure(Column.GetId() == FStatsViewColumns::DataTypeColumnID);
+			const FStatsNode& StatsNode = static_cast<const FStatsNode&>(Node);
+			return TOptional<FTableCellValue>(FTableCellValue(StatsNodeDataTypeHelper::ToText(StatsNode.GetDataType())));
+		}
+	};
+	TSharedRef<ITableCellValueGetter> Getter = MakeShared<FStatsTypeValueGetter>();
+	Column.SetValueGetter(Getter);
+
+	TSharedRef<ITableCellValueFormatter> Formatter = MakeShared<FTextValueFormatter>();
+	Column.SetValueFormatter(Formatter);
+
+	//TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByTextValue>(ColumnRef);
+	TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FStatsNodeSortingByDataType>(ColumnRef);
+	Column.SetValueSorter(Sorter);
+
+	return ColumnRef;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 TSharedRef<Insights::FTableColumn> FStatsViewColumnFactory::CreateCountColumn()
 {
 	using namespace Insights;
@@ -246,7 +293,7 @@ TSharedRef<Insights::FTableColumn> FStatsViewColumnFactory::CreateSumColumn()
 		{
 			ensure(Column.GetId() == FStatsViewColumns::SumColumnID);
 			const FStatsNode& StatsNode = static_cast<const FStatsNode&>(Node);
-			return TOptional<FTableCellValue>(FTableCellValue(StatsNode.GetAggregatedStats().Sum));
+			return TOptional<FTableCellValue>(FTableCellValue(StatsNode.GetAggregatedStats().DoubleStats.Sum));
 		}
 	};
 	TSharedRef<ITableCellValueGetter> Getter = MakeShared<FSumValueGetter>();
@@ -303,7 +350,7 @@ TSharedRef<Insights::FTableColumn> FStatsViewColumnFactory::CreateMaxColumn()
 		{
 			ensure(Column.GetId() == FStatsViewColumns::MaxColumnID);
 			const FStatsNode& StatsNode = static_cast<const FStatsNode&>(Node);
-			return TOptional<FTableCellValue>(FTableCellValue(StatsNode.GetAggregatedStats().Max));
+			return TOptional<FTableCellValue>(FTableCellValue(StatsNode.GetAggregatedStats().DoubleStats.Max));
 		}
 	};
 	TSharedRef<ITableCellValueGetter> Getter = MakeShared<FMaxValueGetter>();
@@ -360,7 +407,7 @@ TSharedRef<Insights::FTableColumn> FStatsViewColumnFactory::CreateUpperQuartileC
 		{
 			ensure(Column.GetId() == FStatsViewColumns::UpperQuartileColumnID);
 			const FStatsNode& StatsNode = static_cast<const FStatsNode&>(Node);
-			return TOptional<FTableCellValue>(FTableCellValue(StatsNode.GetAggregatedStats().UpperQuartile));
+			return TOptional<FTableCellValue>(FTableCellValue(StatsNode.GetAggregatedStats().DoubleStats.UpperQuartile));
 		}
 	};
 	TSharedRef<ITableCellValueGetter> Getter = MakeShared<FUpperQuartileValueGetter>();
@@ -416,7 +463,7 @@ TSharedRef<Insights::FTableColumn> FStatsViewColumnFactory::CreateAverageColumn(
 		{
 			ensure(Column.GetId() == FStatsViewColumns::AverageColumnID);
 			const FStatsNode& StatsNode = static_cast<const FStatsNode&>(Node);
-			return TOptional<FTableCellValue>(FTableCellValue(StatsNode.GetAggregatedStats().Average));
+			return TOptional<FTableCellValue>(FTableCellValue(StatsNode.GetAggregatedStats().DoubleStats.Average));
 		}
 	};
 	TSharedRef<ITableCellValueGetter> Getter = MakeShared<FAverageValueGetter>();
@@ -472,7 +519,7 @@ TSharedRef<Insights::FTableColumn> FStatsViewColumnFactory::CreateMedianColumn()
 		{
 			ensure(Column.GetId() == FStatsViewColumns::MedianColumnID);
 			const FStatsNode& StatsNode = static_cast<const FStatsNode&>(Node);
-			return TOptional<FTableCellValue>(FTableCellValue(StatsNode.GetAggregatedStats().Median));
+			return TOptional<FTableCellValue>(FTableCellValue(StatsNode.GetAggregatedStats().DoubleStats.Median));
 		}
 	};
 	TSharedRef<ITableCellValueGetter> Getter = MakeShared<FMedianValueGetter>();
@@ -529,7 +576,7 @@ TSharedRef<Insights::FTableColumn> FStatsViewColumnFactory::CreateLowerQuartileC
 		{
 			ensure(Column.GetId() == FStatsViewColumns::LowerQuartileColumnID);
 			const FStatsNode& StatsNode = static_cast<const FStatsNode&>(Node);
-			return TOptional<FTableCellValue>(FTableCellValue(StatsNode.GetAggregatedStats().LowerQuartile));
+			return TOptional<FTableCellValue>(FTableCellValue(StatsNode.GetAggregatedStats().DoubleStats.LowerQuartile));
 		}
 	};
 	TSharedRef<ITableCellValueGetter> Getter = MakeShared<FLowerQuartileValueGetter>();
@@ -586,7 +633,7 @@ TSharedRef<Insights::FTableColumn> FStatsViewColumnFactory::CreateMinColumn()
 		{
 			ensure(Column.GetId() == FStatsViewColumns::MinColumnID);
 			const FStatsNode& StatsNode = static_cast<const FStatsNode&>(Node);
-			return TOptional<FTableCellValue>(FTableCellValue(StatsNode.GetAggregatedStats().Min));
+			return TOptional<FTableCellValue>(FTableCellValue(StatsNode.GetAggregatedStats().DoubleStats.Min));
 		}
 	};
 	TSharedRef<ITableCellValueGetter> Getter = MakeShared<FMinValueGetter>();

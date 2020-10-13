@@ -39,6 +39,11 @@ public:
 	/** Pointer to linked URuntimeVirtualTexture. Not for dereferencing, just for pointer comparison. */
 	URuntimeVirtualTexture* VirtualTexture;
 
+	/** Hide primitives in the main pass in editor mode. */
+	bool bHidePrimitivesInEditor;
+	/** Hide primitives in the main pass in game mode. */
+	bool bHidePrimitivesInGame;
+
 private:
 	/** UVToWorld transform for the URuntimeVirtualTexture object. */
 	FTransform Transform;

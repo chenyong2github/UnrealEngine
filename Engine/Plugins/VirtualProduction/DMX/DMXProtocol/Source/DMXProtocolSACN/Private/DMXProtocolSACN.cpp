@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DMXProtocolSACN.h"
+
+#include "DMXProtocolBlueprintLibrary.h"
 #include "DMXProtocolTransportSACN.h"
 #include "Common/UdpSocketBuilder.h"
 #include "Misc/CoreDelegates.h"
@@ -19,8 +21,9 @@
 DECLARE_CYCLE_STAT(TEXT("SACN Packages Enqueue To Send"), STAT_SACNPackagesEnqueueToSend, STATGROUP_DMX);
 
 FDMXProtocolSACN::FDMXProtocolSACN(const FName& InProtocolName, FJsonObject& InSettings)
-	: ProtocolName(InProtocolName)
+	: bShouldSendDMX(false)
 	, bShouldReceiveDMX(false)
+	, ProtocolName(InProtocolName)
 	, SenderSocket(nullptr)
 {
 	NetworkErrorMessagePrefix = TEXT("NETWORK ERROR SACN:");
@@ -40,7 +43,8 @@ bool FDMXProtocolSACN::Init()
 	const UDMXProtocolSettings* ProtocolSettings = GetDefault<UDMXProtocolSettings>();
 
 	InterfaceIPAddress = ProtocolSettings->InterfaceIPAddress;
-	bShouldReceiveDMX = ProtocolSettings->bDefaultReceiveDMXEnabled;
+	bShouldSendDMX = ProtocolSettings->IsSendDMXEnabled();
+	bShouldReceiveDMX = ProtocolSettings->IsReceiveDMXEnabled();
 
 	// Set Delegates
 	NetworkInterfaceChangedDelegate = FOnNetworkInterfaceChangedDelegate::CreateRaw(this, &FDMXProtocolSACN::OnNetworkInterfaceChanged);
@@ -80,6 +84,16 @@ bool FDMXProtocolSACN::IsEnabled() const
 	return true;
 }
 
+void FDMXProtocolSACN::SetSendDMXEnabled(bool bEnabled)
+{
+	bShouldSendDMX = true;
+}
+
+bool FDMXProtocolSACN::IsSendDMXEnabled() const
+{
+	return bShouldSendDMX;
+}
+
 void FDMXProtocolSACN::SetReceiveDMXEnabled(bool bEnabled)
 {
 	bShouldReceiveDMX = bEnabled;
@@ -112,6 +126,12 @@ TSharedPtr<IDMXProtocolUniverse, ESPMode::ThreadSafe> FDMXProtocolSACN::AddUnive
 
 	Universe = MakeShared<FDMXProtocolUniverseSACN, ESPMode::ThreadSafe>(SharedThis(this), InSettings);
 
+	// Start listening instantly if we should receive DMX
+	if (bShouldReceiveDMX)
+	{
+		Universe->CreateDMXListener();
+	}
+
 	// Lock the universe if we use separate thread
 	if (SACNReceiver.IsValid())
 	{
@@ -121,12 +141,6 @@ TSharedPtr<IDMXProtocolUniverse, ESPMode::ThreadSafe> FDMXProtocolSACN::AddUnive
 	else
 	{
 		return UniverseManager->AddUniverse(Universe->GetUniverseID(), Universe);
-	}
-
-	// Start listening instantly if we should receive DMX
-	if (bShouldReceiveDMX)
-	{
-		Universe->CreateDMXListener();
 	}
 }
 
@@ -204,6 +218,21 @@ void FDMXProtocolSACN::GetDefaultUniverseSettings(uint16 InUniverseID, FJsonObje
 	OutSettings.SetArrayField(DMXJsonFieldNames::DMXIpAddresses, IpAddresses); // Broadcast IP address
 }
 
+void FDMXProtocolSACN::ZeroInputBuffers()
+{
+	for (const TPair<uint32, TSharedPtr<FDMXProtocolUniverseSACN, ESPMode::ThreadSafe>>& UniverseIDUniverseKvP : UniverseManager->GetAllUniverses())
+	{
+		UniverseIDUniverseKvP.Value->ZeroInputDMXBuffer();
+	}
+}
+
+void FDMXProtocolSACN::ZeroOutputBuffers()
+{
+	for (const TPair<uint32, TSharedPtr<FDMXProtocolUniverseSACN, ESPMode::ThreadSafe>>& UniverseIDUniverseKvP : UniverseManager->GetAllUniverses())
+	{
+		UniverseIDUniverseKvP.Value->ZeroOutputDMXBuffer();
+	}
+}
 
 const FName& FDMXProtocolSACN::GetProtocolName() const
 {
@@ -319,6 +348,12 @@ EDMXSendResult FDMXProtocolSACN::InputDMXFragment(uint16 UniverseID, const IDMXF
 
 EDMXSendResult FDMXProtocolSACN::SendDMXFragment(uint16 InUniverseID, const IDMXFragmentMap& DMXFragment)
 {
+	if (!bShouldSendDMX)
+	{
+		// We successfully completed the send command by not sending, when globally dmx shouldn't be sent
+		return EDMXSendResult::Success;
+	}
+
 	uint16 FinalSendUniverseID = GetFinalSendUniverseID(InUniverseID);
 
 	TSharedPtr<IDMXProtocolUniverse, ESPMode::ThreadSafe> Universe = UniverseManager->GetUniverseById(FinalSendUniverseID);
@@ -340,7 +375,7 @@ EDMXSendResult FDMXProtocolSACN::SendDMXFragment(uint16 InUniverseID, const IDMX
 		check(OutputBuffer.IsValid());
 
 		OutputBuffer->AccessDMXData([this, FinalSendUniverseID](TArray<uint8>& Buffer) {
-				OnUniverseOutputBufferUpdated.Broadcast(ProtocolName, FinalSendUniverseID, Buffer);
+			OnUniverseOutputBufferUpdated.Broadcast(ProtocolName, FinalSendUniverseID, Buffer);
 			});
 	}
 
@@ -349,6 +384,12 @@ EDMXSendResult FDMXProtocolSACN::SendDMXFragment(uint16 InUniverseID, const IDMX
 
 EDMXSendResult FDMXProtocolSACN::SendDMXFragmentCreate(uint16 InUniverseID, const IDMXFragmentMap& DMXFragment)
 {
+	if (!bShouldSendDMX)
+	{
+		// We successfully completed the send command by not sending, when globally dmx shouldn't be sent
+		return EDMXSendResult::Success;
+	}
+
 	uint16 FinalSendUniverseID = GetFinalSendUniverseID(InUniverseID);
 
 	// Lock the universe if we use separate thread
@@ -380,6 +421,12 @@ EDMXSendResult FDMXProtocolSACN::SendDMXFragmentCreate(uint16 InUniverseID, cons
 
 EDMXSendResult FDMXProtocolSACN::SendDMXZeroUniverse(uint16 InUniverseID, bool bForceSendDMX /** = false */)
 {
+	if (!bShouldSendDMX)
+	{
+		// We successfully completed the send command by not sending, when globally dmx shouldn't be sent
+		return EDMXSendResult::Success;
+	}
+
 	uint16 FinalSendUniverseID = GetFinalSendUniverseID(InUniverseID);
 
 	TSharedPtr<IDMXProtocolUniverse, ESPMode::ThreadSafe> Universe = UniverseManager->GetUniverseById(FinalSendUniverseID);
@@ -421,6 +468,8 @@ uint16 FDMXProtocolSACN::GetMaxUniverses() const
 
 EDMXSendResult FDMXProtocolSACN::SendDMXInternal(uint16 InUniverseID, const FDMXBufferPtr& DMXBuffer) const
 {
+	check(bShouldSendDMX);
+
 	// Init Packager
 	FDMXProtocolPackager Packager;
 

@@ -93,9 +93,13 @@ public:
 		{
 			// The external mappings will always be checked on the primary OSS, so we use the passed-in OSS as the target we want to map to
 			IOnlineSubsystem* OSS = GetOSS();
-			IOnlineIdentityPtr IdentityInterface = OSS ? OSS->GetIdentityInterface() : nullptr;
+			auto FindPlatformDescriptionByOssName = [OSS](const FSocialPlatformDescription& TestPlatformDescription)
+			{
+				return TestPlatformDescription.OnlineSubsystem == OSS->GetSubsystemName();
+			};
+			const FSocialPlatformDescription* PlatformDescription = OSS ? USocialSettings::GetSocialPlatformDescriptions().FindByPredicate(FindPlatformDescriptionByOssName) : nullptr;
 			IOnlineUserPtr PrimaryUserInterface = Toolkit->GetSocialOss(ESocialSubsystem::Primary)->GetUserInterface();
-			if (ensure(IdentityInterface && PrimaryUserInterface))
+			if (ensure(PlatformDescription && PrimaryUserInterface))
 			{
 				bHasExecuted = true;
 				
@@ -103,8 +107,7 @@ public:
 				CompletionCallbacksByUserId.GenerateKeyArray(ExternalUserIds);
 				UE_LOG(LogParty, Log, TEXT("FSocialQuery_MapExternalIds executing for [%d] users on subsystem [%s]"), ExternalUserIds.Num(), ToString(SubsystemType));
 
-				const FString AuthType = IdentityInterface->GetAuthType().ToLower();
-				FExternalIdQueryOptions QueryOptions(AuthType, false);
+				FExternalIdQueryOptions QueryOptions(PlatformDescription->ExternalAccountType.ToLower(), false);
 				PrimaryUserInterface->QueryExternalIdMappings(*LocalUserPrimaryId, QueryOptions, ExternalUserIds, IOnlineUser::FOnQueryExternalIdMappingsComplete::CreateSP(this, &FSocialQuery_MapExternalIds::HandleQueryExternalIdMappingsComplete));
 			}
 		}
@@ -360,13 +363,13 @@ bool USocialToolkit::GetAuthAttribute(ESocialSubsystem SubsystemType, const FStr
 	return false;
 }
 
-#if PLATFORM_PS4
+#if PARTY_PLATFORM_SESSIONS_PSN
 void USocialToolkit::NotifyPSNFriendsListRebuilt()
 {
 	UE_LOG(LogParty, Log, TEXT("SocialToolkit [%d] quietly refreshing PSN FriendInfo on existing users due to an external requery of the friends list."), GetLocalUserNum());
 
 	TArray<TSharedRef<FOnlineFriend>> PSNFriendsList;
-	IOnlineFriendsPtr FriendsInterfacePSN = Online::GetFriendsInterfaceChecked(GetWorld(), PS4_SUBSYSTEM);
+	IOnlineFriendsPtr FriendsInterfacePSN = Online::GetFriendsInterfaceChecked(GetWorld(), USocialManager::GetSocialOssName(ESocialSubsystem::Platform));
 	FriendsInterfacePSN->GetFriendsList(GetLocalUserNum(), FriendListToQuery, PSNFriendsList);
 
 	// This is a stealth update just to prevent the WeakPtr references to friend info on a given user disappearing out from under the user, so we don't actually want it to fire a real event
@@ -415,8 +418,15 @@ void USocialToolkit::QueueUserDependentActionInternal(const FUniqueNetIdRepl& Su
 			// Check to see if this external Id has already been mapped
 			IOnlineUserPtr UserInterface = Online::GetUserInterfaceChecked(GetWorld(), USocialManager::GetSocialOssName(ESocialSubsystem::Primary));
 
+			IOnlineSubsystem* OSS = GetSocialOss(SubsystemType);
+			auto FindPlatformDescriptionByOssName = [OSS](const FSocialPlatformDescription& TestPlatformDescription)
+			{
+				return TestPlatformDescription.OnlineSubsystem == OSS->GetSubsystemName();
+			};
+			const FSocialPlatformDescription* PlatformDescription = OSS ? USocialSettings::GetSocialPlatformDescriptions().FindByPredicate(FindPlatformDescriptionByOssName) : nullptr;
+			
 			FExternalIdQueryOptions QueryOptions;
-			QueryOptions.AuthType = GetSocialOss(SubsystemType)->GetIdentityInterface()->GetAuthType();
+			QueryOptions.AuthType = PlatformDescription ? PlatformDescription->ExternalAccountType : FString();
 			FUniqueNetIdRepl MappedPrimaryId = UserInterface->GetExternalIdMapping(QueryOptions, SubsystemId.ToString());
 			if (MappedPrimaryId.IsValid())
 			{
@@ -1004,11 +1014,44 @@ void USocialToolkit::HandlePartyInviteReceived(const FUniqueNetId& LocalUserId, 
 	{
 		// We really should know about the sender of the invite already, but queue it up in case we receive it during initial setup
 		QueueUserDependentActionInternal(SenderId.AsShared(), ESocialSubsystem::Primary,
-			[this] (USocialUser& User)
+			[this, PartyId = PartyId.AsShared(), SenderId = SenderId.AsShared()] (USocialUser& User)
 			{
 				if (User.IsFriend(ESocialSubsystem::Primary))
 				{
+#if PARTY_PLATFORM_INVITE_PERMISSIONS
+					if (IOnlineSubsystem* Oss = GetSocialOss(ESocialSubsystem::Primary))
+					{
+						if (IOnlinePartyPtr PartyInterface = Oss->GetPartyInterface())
+						{
+							TArray<IOnlinePartyJoinInfoConstRef> PendingInvites;
+							PartyInterface->GetPendingInvites(*GetLocalUserNetId(ESocialSubsystem::Primary), PendingInvites);
+							for (const IOnlinePartyJoinInfoConstRef& PendingInvite : PendingInvites)
+							{
+								if (*PendingInvite->GetPartyId() == *PartyId &&
+									*PendingInvite->GetSourceUserId() == *SenderId)
+								{
+									CanReceiveInviteFrom(User, PendingInvite, [this, PendingInvite, UserId = User.GetUserId(ESocialSubsystem::Primary)](const bool bResult)
+									{
+										if (bResult)
+										{
+											QueueUserDependentActionInternal(UserId, ESocialSubsystem::Primary,
+												[this](USocialUser& User)
+											{
+												OnPartyInviteReceived().Broadcast(User);
+											});
+										}
+										else
+										{
+											UE_LOG(LogParty, Log, TEXT("USocialToolkit::HandlePartyInviteReceived LocalUser=[%s] Inviter=[%s] ignoring invite due to platform invite permissions"), *GetLocalUserNetId(ESocialSubsystem::Primary).ToDebugString(), *UserId.ToDebugString());
+										}
+									});
+								}
+							}
+						}
+					}
+#else
 					OnPartyInviteReceived().Broadcast(User);
+#endif
 				}
 			});
 	}

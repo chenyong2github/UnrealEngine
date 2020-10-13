@@ -43,8 +43,6 @@ private:
 	void ModifyState(const UMoviePipelineExecutorJob* InJob);
 	void RestoreState();
 
-	static UWorld* FindCurrentWorld();
-
 private:
 	/** If using delayed initialization, how many frames are left before we call Initialize. Will be -1 if not actively counting down. */
 	int32 RemainingInitializationFrames;

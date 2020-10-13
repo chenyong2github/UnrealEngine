@@ -1,8 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MPCDIWarp.h"
-#include "MPCDIHelpers.h"
 #include "MPCDIWarpHelpers.h"
+
+#include "Misc/DisplayClusterHelpers.h"
 
 
 // Select mpcdi frustum calc method

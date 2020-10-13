@@ -18,7 +18,13 @@
 
 #if SHADER_HAIRINTERPOLATION
 
-#if PERMUTATION_DEBUG == 1
+#if COMPILER_METAL || COMPILER_VULKAN
+#define ALLOW_DEBUG_RENDERING 0
+#else
+#define ALLOW_DEBUG_RENDERING 1
+#endif
+
+#if PERMUTATION_DEBUG == 1 && ALLOW_DEBUG_RENDERING
 #include "../ShaderDrawDebug.ush" 
 #endif
 
@@ -303,7 +309,7 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 			const bool bIsValid = ScaleAndClip(VertexIndex, PackedRestPosition.w);
 			WorldVertexPosition = bIsValid ? ControlPoint : float3(POSITIVE_INFINITY, POSITIVE_INFINITY, POSITIVE_INFINITY);
 
-			#if PERMUTATION_DEBUG == 1
+			#if PERMUTATION_DEBUG == 1 && ALLOW_DEBUG_RENDERING
 			{
 				const bool bDebugEnabled = HairDebugMode == 4;
 				const float4 RestColor = float4(0, 1, 0, 1);

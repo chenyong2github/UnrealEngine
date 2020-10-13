@@ -11,6 +11,7 @@ class ISequencer;
 struct FAssetData;
 class FTrackEditorThumbnailPool;
 class UMovieSceneImagePlateTrack;
+class UMovieSceneSequence;
 
 class FImagePlateTrackEditor : public FMovieSceneTrackEditor
 {
@@ -27,6 +28,7 @@ public:
 	}
 
 	virtual TSharedRef<ISequencerSection> MakeSectionInterface(UMovieSceneSection& SectionObject, UMovieSceneTrack& Track, FGuid ObjectBinding) override;
+	virtual bool SupportsSequence(UMovieSceneSequence* InSequence) const override;
 	virtual bool SupportsType(TSubclassOf<UMovieSceneTrack> TrackClass) const override;
 	virtual void Tick(float DeltaTime) override;
 	virtual void BuildObjectBindingTrackMenu(FMenuBuilder& MenuBuilder, const TArray<FGuid>& ObjectBindings, const UClass* ObjectClass) override;

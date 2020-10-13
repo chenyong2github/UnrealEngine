@@ -47,7 +47,7 @@ public:
 protected:
 	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
 
-	void PushToRenderThread();
+	virtual void PushToRenderThreadImpl() override;
 };
 
 struct FNiagaraDataInterfaceProxyCurlNoise : public FNiagaraDataInterfaceProxy

@@ -22,6 +22,7 @@ class FMeshDrawSingleShaderBindings;
 class FPrimitiveSceneProxy;
 class FVertexFactoryType;
 struct FMeshPassProcessorRenderState;
+struct FMaterialShaderTypes;
 
 class ENGINE_API FDebugViewModeInterface
 {
@@ -51,7 +52,11 @@ public:
 
 	virtual ~FDebugViewModeInterface() {}
 
-	virtual TShaderRef<FDebugViewModePS> GetPixelShader(const FMaterial* InMaterial, FVertexFactoryType* VertexFactoryType) const = 0;
+	virtual void AddShaderTypes(ERHIFeatureLevel::Type InFeatureLevel,
+		EMaterialTessellationMode InMaterialTessellationMode,
+		const FVertexFactoryType* InVertexFactoryType,
+		FMaterialShaderTypes& OutShaderTypes) const = 0;
+
 	virtual void SetDrawRenderState(EBlendMode BlendMode, FRenderState& DrawRenderState, bool bHasDepthPrepassForMaskedMaterial) const;
 
 	virtual void GetDebugViewModeShaderBindings(

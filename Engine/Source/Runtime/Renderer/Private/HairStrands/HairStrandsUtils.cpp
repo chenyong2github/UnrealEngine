@@ -244,11 +244,6 @@ bool IsHairStrandsViewRectOptimEnable()
 	return GHairVisibilityRectOptimEnable > 0;
 }
 
-bool IsHairStrandsSupported(const EShaderPlatform Platform)
-{
-	return IsD3DPlatform(Platform, false) && IsPCPlatform(Platform) && GetMaxSupportedFeatureLevel(Platform) == ERHIFeatureLevel::SM5;
-}
-
 EHairVisibilityVendor GetVendor()
 {
 	return IsRHIDeviceAMD() ? HairVisibilityVendor_AMD : (IsRHIDeviceNVIDIA() ? HairVisibilityVendor_NVIDIA : HairVisibilityVendor_INTEL);

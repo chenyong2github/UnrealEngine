@@ -493,7 +493,8 @@ export class PerforceContext {
 	}
 
 	async latestChange(path: string): Promise<Change> {
-		const args = ['-v1', 'changes', '-l', '-ssubmitted', '-m1', path]
+		// wait no longer than 5 seconds, retry up to 3 times
+		const args = ['-vnet.maxwait=5', '-r3', 'changes', '-l', '-ssubmitted', '-m1', path]
 		const result = await this.execAndParse(null, args, {quiet: true, trace: true}, changeResultExpectedShape)
 		if (!result || result.length !== 1) {
 			throw new Error("Expected exactly one change")
@@ -616,7 +617,7 @@ export class PerforceContext {
 
 	// Create a new workspace for Robomerge GraphBot
 	async newGraphBotWorkspace(name: string, extraParams: any) {
-		return this.newWorkspace(name, {'AltRoots': '/src/' + name, ...extraParams});
+		return this.newWorkspace(name, {Root: '/src/' + name, ...extraParams});
 	}
 
 	// Create a new workspace for Robomerge to read branchspecs from

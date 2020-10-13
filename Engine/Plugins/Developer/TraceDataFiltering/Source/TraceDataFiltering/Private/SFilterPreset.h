@@ -9,7 +9,7 @@
 
 struct IFilterPreset;
 
-DECLARE_DELEGATE(FOnPresetsChanged);
+DECLARE_DELEGATE_OneParam(FOnPresetChanged, const class SFilterPreset&);
 
 /** A class for check boxes in the preset list. If you double click the checkbox, you will enable it and disable all others */
 class SFilterPresetCheckBox : public SCheckBox
@@ -98,7 +98,7 @@ public:
 		SLATE_ARGUMENT(TSharedPtr<IFilterPreset>, FilterPreset)
 
 		/** Invoked when the preset toggled */
-		SLATE_EVENT(FOnPresetsChanged, OnPresetsChanged)
+		SLATE_EVENT(FOnPresetChanged, OnPresetChanged)
 
 		/** Invoked when a request to remove this preset originated from within this widget */
 		SLATE_EVENT(FOnRequestRemove, OnRequestRemove)
@@ -136,7 +136,7 @@ public:
 	/** End SCompoundWidget overrides */
 
 	/** Sets whether or not this preset is applied to the combined filtering state */
-	void SetEnabled(bool InEnabled, bool InExecuteOnPresetsChanged = true);
+	void SetEnabled(bool InEnabled);
 
 	/** Returns true if this preset contributes to the combined filtering state */
 	bool IsEnabled() const;
@@ -203,7 +203,7 @@ private:
 private:
 	TSharedPtr<IFilterPreset> FilterPreset;
 
-	FOnPresetsChanged OnPresetsChanged;
+	FOnPresetChanged OnPresetChanged;
 	FOnRequestRemove OnRequestRemove;
 	FOnRequestDelete OnRequestDelete;
 	FOnRequestSave OnRequestSave;

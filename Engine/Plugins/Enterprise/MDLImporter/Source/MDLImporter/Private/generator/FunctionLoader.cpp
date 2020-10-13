@@ -259,7 +259,7 @@ namespace Generator
 		}
 
 		FString   FunctionPackageName = UPackageTools::SanitizePackageName(*(AssetPath / FunctionName));
-		UPackage* Package             = CreatePackage(nullptr, *FunctionPackageName);
+		UPackage* Package             = CreatePackage(*FunctionPackageName);
 
 		UMaterialFunction* Function = Function = dynamic_cast<UMaterialFunction*>(
 		    FunctionFactory->FactoryCreateNew(UMaterialFunction::StaticClass(), Package, *FunctionName, RF_Public | RF_Standalone, nullptr, GWarn));

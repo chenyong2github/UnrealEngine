@@ -18,6 +18,7 @@
 #include "Camera/CameraModifier.h"
 #include "Camera/CameraModifier_CameraShake.h"
 #include "Camera/CameraPhotography.h"
+#include "Camera/CameraShake.h"
 #include "GameFramework/PlayerState.h"
 #include "IXRTrackingSystem.h" // for IsHeadTrackingAllowed()
 #include "GameFramework/GameNetworkManager.h"
@@ -405,7 +406,7 @@ UCameraAnimInst* APlayerCameraManager::FindInstanceOfCameraAnim(UCameraAnim cons
 	return NULL;
 }
 
-UCameraAnimInst* APlayerCameraManager::PlayCameraAnim(UCameraAnim* Anim, float Rate, float Scale, float BlendInTime, float BlendOutTime, bool bLoop, bool bRandomStartTime, float Duration, ECameraAnimPlaySpace::Type PlaySpace, FRotator UserPlaySpaceRot)
+UCameraAnimInst* APlayerCameraManager::PlayCameraAnim(UCameraAnim* Anim, float Rate, float Scale, float BlendInTime, float BlendOutTime, bool bLoop, bool bRandomStartTime, float Duration, ECameraShakePlaySpace PlaySpace, FRotator UserPlaySpaceRot)
 {
 	// get a new instance and play it
 	if (AnimCameraActor != NULL)
@@ -1029,6 +1030,9 @@ void APlayerCameraManager::DoUpdateCamera(float DeltaTime)
 			case VTBlend_EaseInOut:
 				BlendPct = FMath::InterpEaseInOut(0.f, 1.f, DurationPct, BlendParams.BlendExp);
 				break;
+			case VTBlend_PreBlended:
+				BlendPct = 1.0f;
+				break;
 			default:
 				break;
 			}
@@ -1162,7 +1166,10 @@ void APlayerCameraManager::ProcessViewRotation(float DeltaTime, FRotator& OutVie
 	OutViewRotation += OutDeltaRot;
 	OutDeltaRot = FRotator::ZeroRotator;
 
-	if(GEngine->XRSystem.IsValid() && GEngine->XRSystem->IsHeadTrackingAllowed())
+	const bool bIsHeadTrackingAllowed =
+		GEngine->XRSystem.IsValid() &&
+		(GetWorld() != nullptr ? GEngine->XRSystem->IsHeadTrackingAllowedForWorld(*GetWorld()) : GEngine->XRSystem->IsHeadTrackingAllowed());
+	if(bIsHeadTrackingAllowed)
 	{
 		// With the HMD devices, we can't limit the view pitch, because it's bound to the player's head.  A simple normalization will suffice
 		OutViewRotation.Normalize();
@@ -1203,6 +1210,10 @@ void APlayerCameraManager::DisplayDebug(class UCanvas* Canvas, const FDebugDispl
 	FDisplayDebugManager& DisplayDebugManager = Canvas->DisplayDebugManager;
 	DisplayDebugManager.SetDrawColor(FColor(255, 255, 255));
 	DisplayDebugManager.DrawString(FString::Printf(TEXT("   Camera Style:%s main ViewTarget:%s"), *CameraStyle.ToString(), *ViewTarget.Target->GetName()));
+	if (PendingViewTarget.Target)
+	{
+		DisplayDebugManager.DrawString(FString::Printf(TEXT("   PendingViewTarget:%s"), *CameraStyle.ToString(), *PendingViewTarget.Target->GetName()));
+	}
 	DisplayDebugManager.DrawString(FString::Printf(TEXT("   CamLoc:%s CamRot:%s FOV:%f"), *CurrentPOV.Location.ToCompactString(), *CurrentPOV.Rotation.ToCompactString(), CurrentPOV.FOV));
 	DisplayDebugManager.DrawString(FString::Printf(TEXT("   AspectRatio: %1.3f"), CurrentPOV.AspectRatio));
 }
@@ -1313,7 +1324,7 @@ void APlayerCameraManager::ClearCameraLensEffects()
  *  Camera Shakes
  *  ------------------------------------------------------------ */
 
-UCameraShake* APlayerCameraManager::PlayCameraShake(TSubclassOf<UCameraShake> ShakeClass, float Scale, ECameraAnimPlaySpace::Type PlaySpace, FRotator UserPlaySpaceRot)
+UCameraShakeBase* APlayerCameraManager::StartCameraShake(TSubclassOf<UCameraShakeBase> ShakeClass, float Scale, ECameraShakePlaySpace PlaySpace, FRotator UserPlaySpaceRot)
 {
 	if (ShakeClass && CachedCameraShakeMod && (Scale > 0.0f) )
 	{
@@ -1323,7 +1334,12 @@ UCameraShake* APlayerCameraManager::PlayCameraShake(TSubclassOf<UCameraShake> Sh
 	return nullptr;
 }
 
-UCameraShake* APlayerCameraManager::PlayCameraShakeFromSource(TSubclassOf<class UCameraShake> ShakeClass, class UCameraShakeSourceComponent* SourceComponent, float Scale, enum ECameraAnimPlaySpace::Type PlaySpace, FRotator UserPlaySpaceRot)
+UMatineeCameraShake* APlayerCameraManager::StartMatineeCameraShake(TSubclassOf<UMatineeCameraShake> ShakeClass, float Scale, ECameraShakePlaySpace PlaySpace, FRotator UserPlaySpaceRot)
+{
+	return Cast<UMatineeCameraShake>(StartCameraShake(ShakeClass, Scale, PlaySpace, UserPlaySpaceRot));
+}
+
+UCameraShakeBase* APlayerCameraManager::StartCameraShakeFromSource(TSubclassOf<UCameraShakeBase> ShakeClass, UCameraShakeSourceComponent* SourceComponent, float Scale, ECameraShakePlaySpace PlaySpace, FRotator UserPlaySpaceRot)
 {
 	if (ShakeClass && CachedCameraShakeMod)
 	{
@@ -1333,7 +1349,12 @@ UCameraShake* APlayerCameraManager::PlayCameraShakeFromSource(TSubclassOf<class 
 	return nullptr;
 }
 
-void APlayerCameraManager::StopCameraShake(UCameraShake* ShakeInst, bool bImmediately)
+UMatineeCameraShake* APlayerCameraManager::StartMatineeCameraShakeFromSource(TSubclassOf<UMatineeCameraShake> ShakeClass, UCameraShakeSourceComponent* SourceComponent, float Scale, ECameraShakePlaySpace PlaySpace, FRotator UserPlaySpaceRot)
+{
+	return Cast<UMatineeCameraShake>(StartCameraShakeFromSource(ShakeClass, SourceComponent, Scale, PlaySpace, UserPlaySpaceRot));
+}
+
+void APlayerCameraManager::StopCameraShake(UCameraShakeBase* ShakeInst, bool bImmediately)
 {
 	if (ShakeInst && CachedCameraShakeMod)
 	{
@@ -1341,7 +1362,7 @@ void APlayerCameraManager::StopCameraShake(UCameraShake* ShakeInst, bool bImmedi
 	}
 }
 
-void APlayerCameraManager::StopAllInstancesOfCameraShake(TSubclassOf<class UCameraShake> ShakeClass, bool bImmediately)
+void APlayerCameraManager::StopAllInstancesOfCameraShake(TSubclassOf<UCameraShakeBase> ShakeClass, bool bImmediately)
 {
 	if (ShakeClass && CachedCameraShakeMod)
 	{
@@ -1357,7 +1378,7 @@ void APlayerCameraManager::StopAllCameraShakes(bool bImmediately)
 	}
 }
 
-void APlayerCameraManager::StopAllInstancesOfCameraShakeFromSource(TSubclassOf<UCameraShake> ShakeClass, class UCameraShakeSourceComponent* SourceComponent, bool bImmediately)
+void APlayerCameraManager::StopAllInstancesOfCameraShakeFromSource(TSubclassOf<UCameraShakeBase> ShakeClass, UCameraShakeSourceComponent* SourceComponent, bool bImmediately)
 {
 	if (ShakeClass && SourceComponent && CachedCameraShakeMod)
 	{
@@ -1365,7 +1386,7 @@ void APlayerCameraManager::StopAllInstancesOfCameraShakeFromSource(TSubclassOf<U
 	}
 }
 
-void APlayerCameraManager::StopAllCameraShakesFromSource(class UCameraShakeSourceComponent* SourceComponent, bool bImmediately)
+void APlayerCameraManager::StopAllCameraShakesFromSource(UCameraShakeSourceComponent* SourceComponent, bool bImmediately)
 {
 	if (SourceComponent && CachedCameraShakeMod)
 	{
@@ -1393,7 +1414,7 @@ float APlayerCameraManager::CalcRadialShakeScale(APlayerCameraManager* Camera, F
 }
 
 
-void APlayerCameraManager::PlayWorldCameraShake(UWorld* InWorld, TSubclassOf<class UCameraShake> Shake, FVector Epicenter, float InnerRadius, float OuterRadius, float Falloff, bool bOrientShakeTowardsEpicenter )
+void APlayerCameraManager::PlayWorldCameraShake(UWorld* InWorld, TSubclassOf<class UCameraShakeBase> Shake, FVector Epicenter, float InnerRadius, float OuterRadius, float Falloff, bool bOrientShakeTowardsEpicenter )
 {
 	for( FConstPlayerControllerIterator Iterator = InWorld->GetPlayerControllerIterator(); Iterator; ++Iterator )
 	{
@@ -1405,11 +1426,11 @@ void APlayerCameraManager::PlayWorldCameraShake(UWorld* InWorld, TSubclassOf<cla
 			if (bOrientShakeTowardsEpicenter && PlayerController->GetPawn() != NULL)
 			{
 				const FVector CamLoc = PlayerController->PlayerCameraManager->GetCameraLocation();
-				PlayerController->ClientPlayCameraShake(Shake, ShakeScale, ECameraAnimPlaySpace::UserDefined, (Epicenter - CamLoc).Rotation());
+				PlayerController->ClientStartCameraShake(Shake, ShakeScale, ECameraShakePlaySpace::UserDefined, (Epicenter - CamLoc).Rotation());
 			}
 			else
 			{
-				PlayerController->ClientPlayCameraShake(Shake, ShakeScale);
+				PlayerController->ClientStartCameraShake(Shake, ShakeScale);
 			}
 		}
 	}

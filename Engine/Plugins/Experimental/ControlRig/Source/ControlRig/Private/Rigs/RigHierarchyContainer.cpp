@@ -689,37 +689,32 @@ void FRigHierarchyContainer::UpdateDepthIndexIfRequired() const
 
 	struct Local
 	{
-		static void VisitKey(const FRigElementKey& Key, const FRigHierarchyContainer* Hierarchy, TMap<FRigElementKey, int32>& IndexByKey)
+		static void CollectChildren(const FRigElementKey& Child, const FRigHierarchyContainer* Hierarchy, TMap<FRigElementKey, TArray<FRigElementKey>>& ChildMap)
 		{
-			if (!Key.IsValid() || IndexByKey.Contains(Key))
+			if (!Child.IsValid())
 			{
 				return;
 			}
 
-			if (Hierarchy->GetIndex(Key) == INDEX_NONE)
-			{
-				return;
-			}
-
-			switch (Key.Type)
+			switch (Child.Type)
 			{
 				case ERigElementType::Bone:
 				{
-					const FRigBone& Bone = Hierarchy->BoneHierarchy[Key.Name];
-					VisitKey(Bone.GetParentElementKey(), Hierarchy, IndexByKey);
+					const FRigBone& Bone = Hierarchy->BoneHierarchy[Child.Name];
+					CollectChildren(Child, Bone.GetParentElementKey(true), Hierarchy, ChildMap);
 					break;
 				}
 				case ERigElementType::Space:
 				{
-					const FRigSpace& Space = Hierarchy->SpaceHierarchy[Key.Name];
-					VisitKey(Space.GetParentElementKey(), Hierarchy, IndexByKey);
+					const FRigSpace& Space = Hierarchy->SpaceHierarchy[Child.Name];
+					CollectChildren(Child, Space.GetParentElementKey(true), Hierarchy, ChildMap);
 					break;
 				}
 				case ERigElementType::Control:
 				{
-					const FRigControl& Control = Hierarchy->ControlHierarchy[Key.Name];
-					VisitKey(Control.GetSpaceElementKey(), Hierarchy, IndexByKey);
-					VisitKey(Control.GetParentElementKey(), Hierarchy, IndexByKey);
+					const FRigControl& Control = Hierarchy->ControlHierarchy[Child.Name];
+					CollectChildren(Child, Control.GetSpaceElementKey(true), Hierarchy, ChildMap);
+					CollectChildren(Child, Control.GetParentElementKey(true), Hierarchy, ChildMap);
 					break;
 				}
 				default:
@@ -727,17 +722,62 @@ void FRigHierarchyContainer::UpdateDepthIndexIfRequired() const
 					break;
 				}
 			}
+		}
+
+
+		static void CollectChildren(const FRigElementKey& Child, const FRigElementKey& Parent, const FRigHierarchyContainer* Hierarchy, TMap<FRigElementKey, TArray<FRigElementKey>>& ChildMap)
+		{
+			if (!Child.IsValid() || !Parent.IsValid())
+			{
+				return;
+			}
+			ChildMap.FindOrAdd(Parent).Add(Child);
+		}
+
+		static void VisitKey(const FRigElementKey& Key, const FRigHierarchyContainer* Hierarchy, const TMap<FRigElementKey, TArray<FRigElementKey>>& ChildMap, TMap<FRigElementKey, int32>& IndexByKey)
+		{
+			if (!Key.IsValid() || IndexByKey.Contains(Key))
+			{
+				return;
+			}
 
 			IndexByKey.Add(Key, IndexByKey.Num());
+
+			const TArray<FRigElementKey>* ChildrenPtr = ChildMap.Find(Key);
+			if (ChildrenPtr)
+			{
+				const TArray<FRigElementKey>& Children = *ChildrenPtr;
+				for (const FRigElementKey& Child : Children)
+				{
+					VisitKey(Child, Hierarchy, ChildMap, IndexByKey);
+				}
+			}
 		}
 	};
 
 	DepthIndexByKey.Reset();
 
 	TArray<FRigElementKey> AllKeys = GetAllItems(false);
+	TMap<FRigElementKey, TArray<FRigElementKey>> ChildMap;
+
 	for (const FRigElementKey& Key : AllKeys)
 	{
-		Local::VisitKey(Key, this, DepthIndexByKey);
+		Local::CollectChildren(Key, this, ChildMap);
+	}
+
+	for (TPair<FRigElementKey, TArray<FRigElementKey>> Pair : ChildMap)
+	{
+		TArray<FRigElementKey>& Children = Pair.Value;
+
+		Algo::SortBy(Children, [&Children](int32 Index) -> int32
+		{
+			return GetTypeHash(Children[Index].Name);
+		});
+	}
+
+	for (const FRigElementKey& Key : AllKeys)
+	{
+		Local::VisitKey(Key, this, ChildMap, DepthIndexByKey);
 	}
 }
 

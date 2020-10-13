@@ -11,40 +11,26 @@
 #include "StageDataProviderModule.h"
 #include "StageMessages.h"
 #include "StageMonitoringSettings.h"
+#include "StageMonitorUtils.h"
 #include "Stats/StatsData.h"
 #include "VPSettings.h"
 
 FFramePerformanceProvider::FFramePerformanceProvider()
 {
 	//Verify if conditions are met to enable frame performance messages
-	const UStageMonitoringSettings* Settings = GetDefault<UStageMonitoringSettings>();
-	if (!Settings->ProviderSettings.FramePerformanceSettings.bUseRoleFiltering || GetDefault<UVPSettings>()->GetRoles().HasAny(Settings->ProviderSettings.FramePerformanceSettings.SupportedRoles))
-	{
-		FCoreDelegates::OnEndFrame.AddRaw(this, &FFramePerformanceProvider::OnEndFrame);
-	}
+	FCoreDelegates::OnEndFrame.AddRaw(this, &FFramePerformanceProvider::OnEndFrame);
 
-#if STATS
-	//Verify if conditions are met to enable sending hitch messages
-	if (!Settings->ProviderSettings.HitchDetectionSettings.bUseRoleFiltering || GetDefault<UVPSettings>()->GetRoles().HasAny(Settings->ProviderSettings.HitchDetectionSettings.SupportedRoles))
-	{
-		// Subscribe to Stats provider to verify hitches
-		StatsMasterEnableAdd();
-		FStatsThreadState& Stats = FStatsThreadState::GetLocalState();
-		Stats.NewFrameDelegate.AddRaw(this, &FFramePerformanceProvider::CheckHitches);
-	}
-#endif //STATS
+#if WITH_EDITOR
+	GetMutableDefault<UStageMonitoringSettings>()->OnSettingChanged().AddRaw(this, &FFramePerformanceProvider::OnStageSettingsChanged);
+#endif //WITH_EDITOR
+	EnableHitchDetection(GetDefault<UStageMonitoringSettings>()->ProviderSettings.HitchDetectionSettings.bEnableHitchDetection);
 }
 
 FFramePerformanceProvider::~FFramePerformanceProvider()
 {
 	//Cleanup what could have been registered
 	FCoreDelegates::OnEndFrame.RemoveAll(this);
-
-#if STATS
-	StatsMasterEnableSubtract();
-	FStatsThreadState& Stats = FStatsThreadState::GetLocalState();
-	Stats.NewFrameDelegate.RemoveAll(this);
-#endif //STATS
+	EnableHitchDetection(false);
 }
 
 void FFramePerformanceProvider::OnEndFrame()
@@ -62,7 +48,7 @@ void FFramePerformanceProvider::CheckHitches(int64 Frame)
 	const float FullFrameTime = FMath::Max(GameThreadTimeWithWaits, RenderThreadTimeWithWaits);
 
 	// check for hitch (if application not backgrounded)
-	const float TimeThreshold = GetDefault<UStageMonitoringSettings>()->ProviderSettings.HitchDetectionSettings.TargetFrameRate.AsInterval() * 1000.0f;
+	const float TimeThreshold = CachedHitchSettings.TargetFrameRate.AsInterval() * 1000.0f;
 	if (FullFrameTime > TimeThreshold)
 	{
 		const float GameThreadTime = FPlatformTime::ToMilliseconds(GGameThreadTime);
@@ -86,6 +72,45 @@ void FFramePerformanceProvider::UpdateFramePerformance()
 		const float GameThreadTime = FPlatformTime::ToMilliseconds(GGameThreadTime);
 		const float RenderThreadTime = FPlatformTime::ToMilliseconds(GRenderThreadTime);
 		const float GPUTime = FPlatformTime::ToMilliseconds(GGPUFrameTime);
-		IStageDataProvider::SendMessage<FFramePerformanceProviderMessage>(EStageMessageFlags::None, GameThreadTime, RenderThreadTime, GPUTime);
+		const float IdleTimeMilli = (FApp::GetIdleTime() * 1000.0);
+		IStageDataProvider::SendMessage<FFramePerformanceProviderMessage>(EStageMessageFlags::None, GameThreadTime, RenderThreadTime, GPUTime, IdleTimeMilli);
 	}
+}
+
+#if WITH_EDITOR
+void FFramePerformanceProvider::OnStageSettingsChanged(UObject* Object, struct FPropertyChangedEvent& PropertyChangedEvent)
+{
+	const FName PropertyName = (PropertyChangedEvent.Property != nullptr) ? PropertyChangedEvent.Property->GetFName() : NAME_None;
+
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(FStageHitchDetectionSettings, bEnableHitchDetection))
+	{
+		EnableHitchDetection(GetDefault<UStageMonitoringSettings>()->ProviderSettings.HitchDetectionSettings.bEnableHitchDetection);
+	}
+}
+#endif //WITH_EDITOR
+
+void FFramePerformanceProvider::EnableHitchDetection(bool bShouldEnable)
+{
+#if STATS
+	if (bShouldEnable != bIsHitchDetectionEnabled)
+	{
+		if (bShouldEnable)
+		{
+			CachedHitchSettings = GetDefault<UStageMonitoringSettings>()->ProviderSettings.HitchDetectionSettings;
+
+			// Subscribe to Stats provider to verify hitches
+			StatsMasterEnableAdd();
+			FStatsThreadState& Stats = FStatsThreadState::GetLocalState();
+			Stats.NewFrameDelegate.AddRaw(this, &FFramePerformanceProvider::CheckHitches);
+		}
+		else
+		{
+			StatsMasterEnableSubtract();
+			FStatsThreadState& Stats = FStatsThreadState::GetLocalState();
+			Stats.NewFrameDelegate.RemoveAll(this);
+		}
+	}
+
+	bIsHitchDetectionEnabled = bShouldEnable;
+#endif //STATS
 }

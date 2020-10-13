@@ -76,8 +76,8 @@
 		NSRect ShowLogRect = [ShowLogButton frame];
 		{
 			[ShowLogButton setIdentifier:@"ShowLogButton"];
-			[ShowLogButton setButtonType:NSMomentaryPushInButton];
-			[ShowLogButton setBezelStyle:NSRoundedBezelStyle];
+			[ShowLogButton setButtonType:NSButtonTypeMomentaryPushIn];
+			[ShowLogButton setBezelStyle:NSBezelStyleRounded];
 			[ShowLogButton setTitle:@"Show Log"];
 			[ShowLogButton sizeToFit];
 			ShowLogRect = [ShowLogButton frame];
@@ -95,8 +95,8 @@
 		{
 			[CancelButton setIdentifier:@"CancelButton"];
 			[CancelButton setTitle:@"Cancel"];
-			[CancelButton setButtonType:NSMomentaryPushInButton];
-			[CancelButton setBezelStyle:NSRoundedBezelStyle];
+			[CancelButton setButtonType:NSButtonTypeMomentaryPushIn];
+			[CancelButton setBezelStyle:NSBezelStyleRounded];
 			[CancelButton sizeToFit];
 			CancelRect = [CancelButton frame];
 			CancelRect.origin.x = ShowLogRect.origin.x - CancelRect.size.width - 4;
@@ -132,7 +132,7 @@
 		ProgressIndicator = [[NSProgressIndicator new] autorelease];
 		NSRect ProgressRect = [ProgressIndicator frame];
 		{
-			[ProgressIndicator setStyle:NSProgressIndicatorBarStyle];
+			[ProgressIndicator setStyle:NSProgressIndicatorStyleBar];
 			[ProgressIndicator sizeToFit];
 			ProgressRect = [ProgressIndicator frame];
 			ProgressRect.size.width = WindowRect.size.width - 16;

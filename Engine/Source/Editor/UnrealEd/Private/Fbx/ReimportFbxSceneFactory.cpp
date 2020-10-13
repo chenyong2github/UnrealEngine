@@ -1220,6 +1220,7 @@ EReimportResult::Type UReimportFbxSceneFactory::ImportStaticMesh(void* VoidFbxIm
 	{
 		if (Pkg != nullptr)
 		{
+			Pkg->SetDirtyFlag(false);
 			Pkg->RemoveFromRoot();
 			Pkg->ConditionalBeginDestroy();
 		}
@@ -1419,7 +1420,7 @@ EReimportResult::Type UReimportFbxSceneFactory::ReimportSkeletalMesh(void* VoidF
 						if (DestSeq == nullptr)
 						{
 							//Import a new sequence
-							ParentPackage = CreatePackage(NULL, *ParentPath);
+							ParentPackage = CreatePackage( *ParentPath);
 							Object = LoadObject<UObject>(ParentPackage, *SequenceName, NULL, LOAD_None, NULL);
 							DestSeq = Cast<UAnimSequence>(Object);
 							if (Object && !DestSeq)

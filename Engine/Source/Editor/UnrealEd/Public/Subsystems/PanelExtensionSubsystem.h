@@ -88,6 +88,7 @@ public:
 
 	void RegisterPanelFactory(FName ExtensionPanelID, const FPanelExtensionFactory& InPanelExtensionFactory);
 	void UnregisterPanelFactory(FName Identifier, FName ExtensionPanelID = NAME_None);
+	bool IsPanelFactoryRegistered(FName Identifier, FName ExtensionPanelID = NAME_None) const;
 
 protected:
 	friend class SExtensionPanel;

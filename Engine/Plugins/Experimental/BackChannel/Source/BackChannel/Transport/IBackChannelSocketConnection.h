@@ -52,6 +52,9 @@ public:
 	/* Todo - Proper stats */
 	virtual uint32	GetPacketsReceived() const = 0;
 
+	/* Set the specified send and receive buffer sizes, if supported */
+	virtual void SetBufferSizes(int32 DesiredSendSize, int32 DesiredReceiveSize) = 0;
+
 protected:
 
 	IBackChannelSocketConnection() {}

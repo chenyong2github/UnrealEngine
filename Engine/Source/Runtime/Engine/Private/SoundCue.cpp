@@ -25,13 +25,16 @@
 #include "DSP/Dsp.h"
 #if WITH_EDITOR
 #include "Kismet2/BlueprintEditorUtils.h"
-#include "Sound/AudioSettings.h"
 #include "SoundCueGraph/SoundCueGraphNode.h"
 #include "SoundCueGraph/SoundCueGraph.h"
 #include "SoundCueGraph/SoundCueGraphNode_Root.h"
 #include "SoundCueGraph/SoundCueGraphSchema.h"
 #include "Audio.h"
 #endif // WITH_EDITOR
+
+#include "Interfaces/ITargetPlatform.h"
+#include "AudioCompressionSettings.h"
+#include "Sound/AudioSettings.h"
 
 /*-----------------------------------------------------------------------------
 	USoundCue implementation.
@@ -49,7 +52,7 @@ USoundCue::USoundCue(const FObjectInitializer& ObjectInitializer)
 	VolumeMultiplier = 0.75f;
 	PitchMultiplier = 1.0f;
 	SubtitlePriority = DEFAULT_SUBTITLE_PRIORITY;
-
+	CookedQualityIndex = INDEX_NONE;
 	bIsRetainingAudio = false;
 }
 
@@ -91,11 +94,12 @@ void USoundCue::CacheAggregateValues()
 			}
 #endif // #if WITH_EDITOR
 			Duration = NewDuration;
-			MaxDistance = FindMaxDistanceInternal();
-			bHasDelayNode = FirstNode->HasDelayNode();
-			bHasConcatenatorNode = FirstNode->HasConcatenatorNode();
-			bHasPlayWhenSilent = FirstNode->IsPlayWhenSilent();
 		}
+
+		MaxDistance = FindMaxDistanceInternal();
+		bHasDelayNode = FirstNode->HasDelayNode();
+		bHasConcatenatorNode = FirstNode->HasConcatenatorNode();
+		bHasPlayWhenSilent = FirstNode->IsPlayWhenSilent();
 	}
 }
 
@@ -145,7 +149,23 @@ void USoundCue::Serialize(FStructuredArchive::FRecord Record)
 		CacheAggregateValues();
 	}
 
-	Super::Serialize(Record);
+#if WITH_EDITOR
+	// If we are cooking, record our cooked quality before serialize and then undo it.
+	if (UnderlyingArchive.IsCooking() && UnderlyingArchive.IsSaving() && UnderlyingArchive.CookingTarget())
+	{		
+		if (const FPlatformAudioCookOverrides* Overrides = FPlatformCompressionUtilities::GetCookOverrides(*UnderlyingArchive.CookingTarget()->IniPlatformName()))
+		{
+			FScopeLock Lock(&EditorOnlyCs);
+			CookedQualityIndex = Overrides->SoundCueCookQualityIndex;
+			Super::Serialize(Record);
+			CookedQualityIndex = INDEX_NONE;
+		}
+	}
+	else
+#endif //WITH_EDITOR
+	{
+		Super::Serialize(Record);
+	}
 
 	if (UnderlyingArchive.UE4Ver() >= VER_UE4_COOKED_ASSETS_IN_EDITOR_SUPPORT)
 	{
@@ -190,6 +210,17 @@ void USoundCue::PostLoad()
 	}
 	else
 #endif // WITH_EDITOR
+
+	// Warn if the Quality index is set to something that we can't support.
+	UE_CLOG(USoundCue::GetCachedQualityLevel() != CookedQualityIndex && CookedQualityIndex != INDEX_NONE, LogAudio, Warning,
+		TEXT("'%s' is ingoring Quality Setting '%s'(%d) as it was cooked with '%s'(%d)"),
+		*GetFullNameSafe(this),
+		*GetDefault<UAudioSettings>()->FindQualityNameByIndex(USoundCue::GetCachedQualityLevel()),
+		USoundCue::GetCachedQualityLevel(),
+		*GetDefault<UAudioSettings>()->FindQualityNameByIndex(CookedQualityIndex),
+		CookedQualityIndex
+	);
+
 	if (GEngine && *GEngine->GameUserSettingsClass)
 	{
 		EvaluateNodes(false);
@@ -258,6 +289,11 @@ void USoundCue::EvaluateNodes(bool bAddToRoot)
 
 	TFunction<void(USoundNode*)> EvaluateNodes_Internal = [&](USoundNode* SoundNode)
 	{
+		if (SoundNode == nullptr)
+		{
+			return;
+		}
+
 		if (USoundNodeAssetReferencer* AssetReferencerNode = Cast<USoundNodeAssetReferencer>(SoundNode))
 		{
 			AssetReferencerNode->ConditionalPostLoad();
@@ -265,24 +301,28 @@ void USoundCue::EvaluateNodes(bool bAddToRoot)
 		}
 		else if (USoundNodeQualityLevel* QualityLevelNode = Cast<USoundNodeQualityLevel>(SoundNode))
 		{
-			if (CachedQualityLevel < QualityLevelNode->ChildNodes.Num())
+			if (QualityLevelNode->ChildNodes.IsValidIndex(CachedQualityLevel))
 			{
 				EvaluateNodes_Internal(QualityLevelNode->ChildNodes[CachedQualityLevel]);
 			}
 		}
-		else if (SoundNode)
+		else
 		{
 			for (USoundNode* ChildNode : SoundNode->ChildNodes)
 			{
-				if (ChildNode)
-				{
-					EvaluateNodes_Internal(ChildNode);
-				}
+				EvaluateNodes_Internal(ChildNode);
 			}
 		}
 	};
 
-	EvaluateNodes_Internal(FirstNode);
+	// Only Evaluate nodes if we haven't been cooked, as cooked builds will hard-ref all SoundAssetReferences.	
+	UE_CLOG(CookedQualityIndex == INDEX_NONE, LogAudio, Verbose, TEXT("'%s', DOING EvaluateNodes as we are *NOT* cooked"), *GetName());
+	UE_CLOG(CookedQualityIndex != INDEX_NONE, LogAudio, Verbose, TEXT("'%s', SKIPPING EvaluateNodes as we *ARE* cooked"), *GetName());
+
+	if (CookedQualityIndex == INDEX_NONE)
+	{		
+		EvaluateNodes_Internal(FirstNode);
+	}
 }
 
 void USoundCue::CacheQualityLevel()

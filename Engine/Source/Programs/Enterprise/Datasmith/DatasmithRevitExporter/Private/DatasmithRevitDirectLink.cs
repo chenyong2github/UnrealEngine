@@ -6,242 +6,171 @@ using System.Diagnostics;
 using System.IO;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.ApplicationServices;
-using Autodesk.Revit.DB.Architecture;
-using Autodesk.Revit.DB.Mechanical;
-using Autodesk.Revit.DB.Plumbing;
-using Autodesk.Revit.DB.Structure;
-using Autodesk.Revit.DB.Visual;
-using System.Linq;
-using System.Threading;
 using Autodesk.Revit.DB.Events;
+using System.Threading.Tasks;
+using System.Threading;
 
 namespace DatasmithRevitExporter
 {
-	public class FExportData
-	{
-		public Dictionary<string, FDatasmithFacadeMesh>					MeshMap = new Dictionary<string, FDatasmithFacadeMesh>();
-		public Dictionary<ElementId, FDocumentData.FBaseElementData>	ActorMap = new Dictionary<ElementId, FDocumentData.FBaseElementData>();
-		public HashSet<ElementId>										ModifiedActorSet = new HashSet<ElementId>();
-		public Dictionary<string, FMaterialData>						MaterialDataMap = new Dictionary<string, FMaterialData>();
-	};
-
 	public class FDirectLink
 	{
-		private static FDirectLink Instance;
-
-		private FExportData CachedExportData = new FExportData();
-
-		private FDatasmithFacadeDirectLink DatasmithDirectLink;
-
-		public FDatasmithFacadeScene DatasmithScene { get; private set; }
-		public Document RootDocument { get; private set; }
-
-		private HashSet<ElementId> DeletedElements = new HashSet<ElementId>();
-		private HashSet<ElementId> ModifiedElements = new HashSet<ElementId>();
-
-		private EventHandler<DocumentChangedEventArgs> DocumentChangedHandler;
-
-		private System.Timers.Timer MetadataExportTimer;
-
-		private bool bInitialMetadataExport = false;
-
-		private readonly CancellationTokenSource CTS = new CancellationTokenSource();
-
-		public static void InitInstance()
+		private class FCachedDocumentData
 		{
-			Debug.Assert(Instance == null);
-			Instance = new FDirectLink();
-		}
-
-		public static void DestroyInstance(Application InApp)
-		{
-			if (Instance == null)
+			public Document															SourceDocument;
+			public Dictionary<ElementId, FDocumentData.FBaseElementData>			CachedElements = new Dictionary<ElementId, FDocumentData.FBaseElementData>();
+			public Queue<KeyValuePair<ElementId, FDocumentData.FBaseElementData>>	ElementsWithoutMetadata = new Queue<KeyValuePair<ElementId, FDocumentData.FBaseElementData>>();
+			public HashSet<ElementId>												ExportedElements = new HashSet<ElementId>();
+			public HashSet<ElementId>												ModifiedElements = new HashSet<ElementId>();
+			public Dictionary<string, FCachedDocumentData>							LinkedDocumentsCache = new Dictionary<string, FCachedDocumentData>();
+		
+			public FCachedDocumentData(Document InDocument)
 			{
-				return;
-			}
-			Instance.Destroy(InApp);
-			Instance = null;
-		}
-
-		private void Destroy(Application InApp)
-		{
-			if (DocumentChangedHandler != null)
-			{
-				InApp.DocumentChanged -= DocumentChangedHandler;
-				DocumentChangedHandler = null;
+				SourceDocument = InDocument;
 			}
 
-			CachedExportData.MeshMap.Clear();
-			CachedExportData.ActorMap.Clear();
-			CachedExportData.MaterialDataMap.Clear();
-			CachedExportData.ModifiedActorSet.Clear();
+			public void SetAllElementsModified()
+			{
+				foreach (var Link in LinkedDocumentsCache.Values)
+				{
+					Link.SetAllElementsModified();
+				}
 
-			// Make sure timer wont be running after DirectLink gets destroyed
-			// (and thus referencing null refs)
- 			if (MetadataExportTimer != null)
- 			{
- 				CTS.Cancel();
- 				while (MetadataExportTimer.Enabled)
- 				{
- 					Thread.Sleep(10);
- 				}
- 				MetadataExportTimer = null;
- 			}
+				ModifiedElements.Clear();
+				foreach (var ElemId in CachedElements.Keys)
+				{
+					ModifiedElements.Add(ElemId);
+				}
+			}
 
-			DatasmithDirectLink = null;
-			DatasmithScene = null;
-			RootDocument = null;
-			DeletedElements = null;
-		}
+			public void ClearModified()
+			{
+				foreach (var Link in LinkedDocumentsCache.Values)
+				{
+					Link.ClearModified();
+				}
+				ModifiedElements.Clear();
+			}
+
+			// Intersect elements exported in this sync with cached elements.
+			// Those out of the intersection set are either deleted or hidden 
+			// and need to be removed from cache.
+			public void Purge(FDatasmithFacadeScene DatasmithScene, bool bInRecursive)
+			{
+				if (bInRecursive)
+				{
+					// Call purge on linked docs first.
+					foreach (var Link in LinkedDocumentsCache.Values)
+					{
+						Link.Purge(DatasmithScene, true);
+					}
+				}
+
+				List<ElementId> ElementsToRemove = new List<ElementId>();
+				foreach (var ElemId in CachedElements.Keys)
+				{
+					if (!ExportedElements.Contains(ElemId))
+					{
+						ElementsToRemove.Add(ElemId);
+					}
+				}
+
+				// Apply deletions according to the accumulated sets of elements.
+				foreach (var ElemId in ElementsToRemove)
+				{
+					if (!CachedElements.ContainsKey(ElemId))
+					{
+						continue;
+					}
+					FDocumentData.FBaseElementData ElementData = CachedElements[ElemId];
+					CachedElements.Remove(ElemId);
+					ElementData.Parent?.ChildElements.Remove(ElementData);
+					DatasmithScene.RemoveActor(ElementData.ElementActor);
+				}
+			}
+		};
+
+		public FDatasmithFacadeScene									DatasmithScene { get; private set; }
+
+		private FCachedDocumentData										RootCache = null;
+		private FCachedDocumentData										CurrentCache = null;
+		
+		private HashSet<Document>										ModifiedLinkedDocuments = new HashSet<Document>();
+		private Dictionary<string, RevitLinkInstance>					ExportedLinkedDocuments = new Dictionary<string, RevitLinkInstance>();
+		private Stack<FCachedDocumentData>								CacheStack = new Stack<FCachedDocumentData>();
+
+		// Sets of elements related to current sync.
+		private HashSet<ElementId>										DeletedElements = new HashSet<ElementId>();
+		
+	
+		private FDatasmithFacadeDirectLink								DatasmithDirectLink;
+		private string													SceneName;
+
+		// The number of times this document was synced (sent to receiver)
+		public int														SyncCount { get; private set; } = 0;
+
+		private EventHandler<DocumentChangedEventArgs>					DocumentChangedHandler;
+
+		// Metadata related
+		private EventWaitHandle											MetadataEvent = new ManualResetEvent(false);
+		private CancellationTokenSource									MetadataCancelToken = null;
+		private Task													MetadataTask = null;
+
+		private static FDirectLink										ActiveInstance = null;
+		private static List<FDirectLink>								Instances = new List<FDirectLink>();
 
 		public static FDirectLink Get()
 		{
-			return Instance;
+			return ActiveInstance;
 		}
 
-		// Apply accumulated modifications of revit document to the datasmith scene.
-		public void SyncRevitDocument()
+		public static void ActivateInstance(Document InDocument)
 		{
-			if (DatasmithScene == null)
-			{
-				return;
-			}
+			// Disable existing instance, if there's active one.
+			ActiveInstance?.MakeActive(false);
+			ActiveInstance = null;
 
-			foreach(var ElemId in DeletedElements)
+			// Find out if we already have instance for this document and 
+			// activate it if we do. Otherwise, create new one.
+
+			FDirectLink InstanceToActivate = null;
+
+			foreach (FDirectLink DL in Instances)
 			{
-				if (!CachedExportData.ActorMap.ContainsKey(ElemId))
+				if (DL.RootCache.SourceDocument.Equals(InDocument))
 				{
-					continue;
+					InstanceToActivate = DL;
+					break;
 				}
-				FDocumentData.FBaseElementData ElementData = CachedExportData.ActorMap[ElemId];
-				CachedExportData.ActorMap.Remove(ElemId);
-				ElementData.Parent?.ChildElements.Remove(ElementData);
-				DatasmithScene.RemoveActor(ElementData.ElementActor);
 			}
 
-			DeletedElements.Clear();
-		}
-
-		public FExportData GetOrAddCache(Document InDocument)
-		{
-			// TODO add support for linked documents!
-			Debug.Assert(InDocument.Equals(RootDocument));
-			return CachedExportData;
-		}
-
-		public bool IsActorCached(ElementId ElemId)
-		{
-			if (CachedExportData != null)
+			if (InstanceToActivate == null)
 			{
-				return CachedExportData.ActorMap.ContainsKey(ElemId);
+				InstanceToActivate = new FDirectLink(InDocument);
+				Instances.Add(InstanceToActivate);
 			}
-			return false;
+
+			InstanceToActivate.MakeActive(true);
+			ActiveInstance = InstanceToActivate;
 		}
 
-		public void CacheActor(Document InDocument, ElementId ElemId, FDocumentData.FBaseElementData InActor)
+		public static void DestroyInstance(FDirectLink Instance, Application InApp)
 		{
-			FExportData Cache = GetOrAddCache(InDocument);
-			Cache.ActorMap[ElemId] = InActor;
+			if (ActiveInstance == Instance)
+			{
+				ActiveInstance = null;
+			}
+			Instances.Remove(Instance);
+			Instance?.Destroy(InApp);
 		}
 
-		public void OnBeginExport(Document InDocument)
+		public static void DestroyAllInstances(Application InApp) 
 		{
-			if (RootDocument == null)
+			foreach (FDirectLink DL in Instances)
 			{
-				RootDocument = InDocument;
-
-				DatasmithScene = new FDatasmithFacadeScene(
-					FDatasmithRevitExportContext.HOST_NAME,
-					FDatasmithRevitExportContext.VENDOR_NAME,
-					FDatasmithRevitExportContext.PRODUCT_NAME,
-					InDocument.Application.VersionNumber);
-
-				string SceneLabel = Path.GetFileNameWithoutExtension(RootDocument.PathName);
-				DatasmithScene.SetLabel(SceneLabel);
-
-				DatasmithDirectLink = new FDatasmithFacadeDirectLink();
-				bool bInitOk = DatasmithDirectLink.InitializeForScene(DatasmithScene);
-
-				DocumentChangedHandler = new EventHandler<DocumentChangedEventArgs>(OnDocumentChanged);
-				InDocument.Application.DocumentChanged += DocumentChangedHandler;
+				DestroyInstance(DL, InApp);
 			}
 
-			foreach (var Elem in ModifiedElements)
-			{
-				if (!CachedExportData.ActorMap.ContainsKey(Elem))
-				{
-					continue;
-				}
-				CachedExportData.ModifiedActorSet.Add(Elem);
-			}
-
-			// In case of existing direct link instance: make sure it is matching the current document.
-			Debug.Assert(InDocument.Equals(RootDocument));
-
-			ModifiedElements.Clear();
-		}
-
-		public void OnEndExport()
-		{
-			CachedExportData.ModifiedActorSet.Clear();
-
-			string SceneName = Path.GetFileNameWithoutExtension(RootDocument.PathName);
-
-			string OutputPath = Path.Combine(Path.GetTempPath(), SceneName);
-			Directory.CreateDirectory(OutputPath);
-
-			DatasmithScene.ExportAssets(OutputPath);
-			DatasmithScene.BuildScene(SceneName);
-
-			bool bUpdateOk = DatasmithDirectLink.UpdateScene(DatasmithScene);
-
-			// Schedule metadata export.
-			int MetadataExportDelay = 3000;
-			int MetadataExportBatchSize = 1000;
-			int MetadataExportedSize = 0;
-
-			if (bInitialMetadataExport)
-			{
-				MetadataExportTimer = new System.Timers.Timer(MetadataExportDelay);
-				MetadataExportTimer.Elapsed += (s, e) => 
-				{
-					for (int i = 0;  i < MetadataExportBatchSize && MetadataExportedSize < CachedExportData.ActorMap.Count; ++i, ++MetadataExportedSize)
-					{
-						if (CTS.IsCancellationRequested) return;
-
-						KeyValuePair<ElementId, FDocumentData.FBaseElementData> Entry = CachedExportData.ActorMap.ElementAt(MetadataExportedSize);
-						Element RevitElement = RootDocument.GetElement(Entry.Key);
-						FDatasmithFacadeActor Actor = Entry.Value.ElementActor;
-
-						FDocumentData.FBaseElementData ElementData = Entry.Value;
-
-						ElementData.ElementMetaData = new FDatasmithFacadeMetaData(Actor.GetName() + "_DATA");
-						ElementData.ElementMetaData.SetLabel(Actor.GetLabel());
-						ElementData.ElementMetaData.SetAssociatedElement(Actor);
-
-						FDocumentData.AddActorMetadata(RevitElement, ElementData.ElementMetaData);
-					}
-
-					if (CTS.IsCancellationRequested) return;
-
-					// Send metadata to DirectLink.
-					DatasmithScene.BuildScene(SceneName);
-
-					if (CTS.IsCancellationRequested) return;
-
-					DatasmithDirectLink.UpdateScene(DatasmithScene);
-
-					if (!CTS.IsCancellationRequested && MetadataExportedSize < CachedExportData.ActorMap.Count)
-					{
-						MetadataExportTimer.Start();
-					}
-				};
-
-				MetadataExportTimer.AutoReset = false;
-				MetadataExportTimer.Start();
-			}
-
-			bInitialMetadataExport = false;
+			Instances.Clear();
 		}
 
 		public static void OnDocumentChanged(
@@ -255,24 +184,334 @@ namespace DatasmithRevitExporter
 			// Handle modified elements
 			foreach (ElementId ElemId in InArgs.GetModifiedElementIds())
 			{
-				DirectLink.ModifiedElements.Add(ElemId);
-			}
+				Element ModifiedElement = DirectLink.RootCache.SourceDocument.GetElement(ElemId);
 
-			// Handle deleted elements
-			foreach (ElementId ElemId in InArgs.GetDeletedElementIds())
-			{
-				DirectLink.DeletedElements.Add(ElemId);
-			}
-
-			// Handle new elements
-			foreach (ElementId ElemId in InArgs.GetAddedElementIds())
-			{
-				if (DirectLink.DeletedElements.Contains(ElemId))
+				if (ModifiedElement.GetType() == typeof(RevitLinkInstance))
 				{
-					// Undo command
-					DirectLink.DeletedElements.Remove(ElemId);
+					DirectLink.ModifiedLinkedDocuments.Add((ModifiedElement as RevitLinkInstance).GetLinkDocument());
+				}
+
+				DirectLink.RootCache.ModifiedElements.Add(ElemId);
+			}
+		}
+
+		private FDirectLink(Document InDocument)
+		{
+			RootCache = new FCachedDocumentData(InDocument);
+			CurrentCache = RootCache;
+
+			DatasmithScene = new FDatasmithFacadeScene(
+				FDatasmithRevitExportContext.HOST_NAME,
+				FDatasmithRevitExportContext.VENDOR_NAME,
+				FDatasmithRevitExportContext.PRODUCT_NAME,
+				InDocument.Application.VersionNumber);
+
+			SceneName = Path.GetFileNameWithoutExtension(RootCache.SourceDocument.PathName);
+
+			string SceneLabel = Path.GetFileNameWithoutExtension(InDocument.PathName);
+			DatasmithScene.SetLabel(SceneLabel);
+
+			DocumentChangedHandler = new EventHandler<DocumentChangedEventArgs>(OnDocumentChanged);
+			InDocument.Application.DocumentChanged += DocumentChangedHandler;
+		}
+
+		private void StopMetadataExport()
+		{
+			if (MetadataTask != null)
+			{
+				MetadataCancelToken.Cancel();
+				MetadataEvent.Set();
+				MetadataTask.Wait();
+				MetadataEvent.Reset();
+			}
+
+			MetadataCancelToken?.Dispose();
+			MetadataCancelToken = null;
+			MetadataTask = null;
+		}
+
+		private void MakeActive(bool bInActive)
+		{
+			if (!bInActive)
+			{
+				DatasmithDirectLink = null;
+			}
+			else if (DatasmithDirectLink == null)
+			{
+				DatasmithDirectLink = new FDatasmithFacadeDirectLink();
+
+				if (!DatasmithDirectLink.InitializeForScene(DatasmithScene))
+				{
+					throw new Exception("DirectLink: failed to initialize");
 				}
 			}
+		}
+
+		private void Destroy(Application InApp)
+		{
+			StopMetadataExport();
+
+			InApp.DocumentChanged -= DocumentChangedHandler;
+			DocumentChangedHandler = null;
+
+			DatasmithDirectLink = null;
+			DatasmithScene = null;
+			RootCache = null;
+			ModifiedLinkedDocuments.Clear();
+		}
+
+		public void MarkForExport(Element InElement)
+		{
+			if (InElement.GetType() == typeof(RevitLinkInstance))
+			{
+				// We want to track which links are exported and later removed the ones that 
+				// were deleted from root document.
+				RevitLinkInstance LinkInstance = InElement as RevitLinkInstance;
+				string LinkedDocPath = LinkInstance.GetLinkDocument()?.PathName;
+				if (LinkedDocPath != null && !ExportedLinkedDocuments.ContainsKey(LinkedDocPath))
+				{
+					ExportedLinkedDocuments.Add(LinkedDocPath, LinkInstance);
+				}
+			}
+
+			CurrentCache.ExportedElements.Add(InElement.Id);
+		}
+
+		public void ClearModified(Element InElement)
+		{
+			// Clear from modified set since we might get another element with same id and we dont want to skip it.
+			CurrentCache.ModifiedElements.Remove(InElement.Id);
+		}
+
+		public void CacheElement(Document InDocument, Element InElement, FDocumentData.FBaseElementData InElementData)
+		{
+			if (!CurrentCache.CachedElements.ContainsKey(InElement.Id))
+			{
+				CurrentCache.CachedElements[InElement.Id] = InElementData;
+				CurrentCache.ElementsWithoutMetadata.Enqueue(new KeyValuePair<ElementId, FDocumentData.FBaseElementData>(InElement.Id, InElementData));
+			}
+		}
+
+		public FDocumentData.FBaseElementData GetCachedElement(Element InElement)
+		{
+			FDocumentData.FBaseElementData Result = null;
+			CurrentCache.CachedElements.TryGetValue(InElement.Id, out Result);
+			return Result;
+		}
+
+		public bool IsElementCached(Element InElement)
+		{
+			return CurrentCache.CachedElements.ContainsKey(InElement.Id);
+		}
+
+		public bool IsElementModified(Element InElement)
+		{
+			return CurrentCache.ModifiedElements.Contains(InElement.Id);
+		}
+
+		public void OnBeginLinkedDocument(Document InDocument)
+		{
+			if (!CurrentCache.LinkedDocumentsCache.ContainsKey(InDocument.PathName))
+			{
+				CurrentCache.LinkedDocumentsCache[InDocument.PathName] = new FCachedDocumentData(InDocument);
+			}
+			CacheStack.Push(CurrentCache.LinkedDocumentsCache[InDocument.PathName]);
+			CurrentCache = CurrentCache.LinkedDocumentsCache[InDocument.PathName];
+		}
+
+		public void OnEndLinkedDocument()
+		{
+			CacheStack.Pop();
+			CurrentCache = CacheStack.Count > 0 ? CacheStack.Peek() : RootCache;
+		}
+
+		public void OnBeginExport()
+		{
+			StopMetadataExport();
+
+			foreach (var Link in RootCache.LinkedDocumentsCache.Values)
+			{
+				if (ModifiedLinkedDocuments.Contains(Link.SourceDocument))
+				{
+					Link.SetAllElementsModified();
+				}
+			}
+		}
+
+		void ProcessLinkedDocuments()
+		{
+			List<string> LinkedDocumentsToRemove = new List<string>();
+
+			// Check for modified linked documents.
+			foreach (var LinkedDocEntry in RootCache.LinkedDocumentsCache)
+			{
+				// Check if the link was removed.
+				string LinkedDocPath = LinkedDocEntry.Key;
+				if (!ExportedLinkedDocuments.ContainsKey(LinkedDocPath))
+				{
+					LinkedDocumentsToRemove.Add(LinkedDocPath);
+					continue;
+				}
+
+				// Check if the link was modified.
+				FCachedDocumentData LinkedDocCache = LinkedDocEntry.Value;
+				if (ModifiedLinkedDocuments.Contains(LinkedDocCache.SourceDocument))
+				{
+					LinkedDocCache.Purge(DatasmithScene, true);
+				}
+				LinkedDocCache.ExportedElements.Clear();
+			}
+
+			foreach (var LinkedDoc in LinkedDocumentsToRemove)
+			{
+				RootCache.LinkedDocumentsCache[LinkedDoc].Purge(DatasmithScene, true);
+				RootCache.LinkedDocumentsCache.Remove(LinkedDoc);
+			}
+		}
+
+		public void OnEndExport()
+		{
+			if (RootCache.LinkedDocumentsCache.Count > 0)
+			{
+				ProcessLinkedDocuments();
+			}
+
+			RootCache.Purge(DatasmithScene, false);
+
+			ModifiedLinkedDocuments.Clear();
+			ExportedLinkedDocuments.Clear();
+			RootCache.ClearModified();
+			RootCache.ExportedElements.Clear();
+
+			string OutputPath = null;
+
+			IDirectLinkUI DirectLinkUI = IDatasmithExporterUIModule.Get()?.GetDirectLinkExporterUI();
+			if (DirectLinkUI != null)
+			{
+				OutputPath = DirectLinkUI.GetDirectLinkCacheDirectory();
+			}
+			else
+			{
+				OutputPath = Path.Combine(Path.GetTempPath(), SceneName);
+			}
+
+			Directory.CreateDirectory(OutputPath);
+
+			DatasmithScene.ExportAssets(OutputPath);
+			DatasmithScene.BuildScene(SceneName);
+
+			bool bUpdateOk = DatasmithDirectLink.UpdateScene(DatasmithScene);
+
+			SyncCount++;
+
+			// Control metadata export via env var REVIT_DIRECTLINK_WITH_METADATA.
+			// We are not interested of its value, just if it was set.
+			if (null != Environment.GetEnvironmentVariable("REVIT_DIRECTLINK_WITH_METADATA"))
+			{
+				Debug.Assert(MetadataTask == null); // We cannot have metadata export running at this point (must be stopped in OnBeginExport)
+				MetadataCancelToken = new CancellationTokenSource();
+				MetadataTask = Task.Run(() => ExportMetadata());
+			}
+		}
+
+		void ExportMetadata()
+		{
+			int DelayExport = 2000;		// milliseconds
+			int ExportBatchSize = 1000;	// After each batch is exported, the process will wait for DelayExport and resume (unless cancelled)
+			int CurrentBatchSize = 0;
+
+			Func<FCachedDocumentData, bool> AddElements = (FCachedDocumentData CacheData) => 
+			{
+				while (CacheData.ElementsWithoutMetadata.Count > 0)
+				{
+					if (CurrentBatchSize == ExportBatchSize)
+					{
+						// Add some delay before exporting next batch.
+						CurrentBatchSize = 0;
+
+						// Send metadata to DirectLink.
+						DatasmithScene.BuildScene(SceneName);
+						DatasmithDirectLink.UpdateScene(DatasmithScene);
+
+						MetadataEvent.WaitOne(DelayExport);
+					}
+
+					if (MetadataCancelToken.IsCancellationRequested)
+					{
+						return false;
+					}
+
+					var Entry = CacheData.ElementsWithoutMetadata.Dequeue();
+
+					// Handle the case where element might be deleted in the main export path.
+					if (!CacheData.CachedElements.ContainsKey(Entry.Key))
+					{
+						continue;
+					}
+
+					Element RevitElement = CacheData.SourceDocument.GetElement(Entry.Key);
+
+					if (RevitElement == null)
+					{
+						continue;
+					}
+
+					FDocumentData.FBaseElementData ElementData = Entry.Value;
+					FDatasmithFacadeActor Actor = ElementData.ElementActor;
+
+					ElementData.ElementMetaData = new FDatasmithFacadeMetaData(Actor.GetName() + "_DATA");
+					ElementData.ElementMetaData.SetLabel(Actor.GetLabel());
+					ElementData.ElementMetaData.SetAssociatedElement(Actor);
+
+					FDocumentData.AddActorMetadata(RevitElement, ElementData.ElementMetaData);
+
+					++CurrentBatchSize;
+
+#if DEBUG
+					Debug.WriteLine($"metadata batch element {CurrentBatchSize}, remain in Q {CacheData.ElementsWithoutMetadata.Count}");
+#endif
+				}
+
+				return true;
+			};
+
+			List<FCachedDocumentData> CachesToExport = new List<FCachedDocumentData>();
+
+			Action<FCachedDocumentData> GetLinkedDocuments = null;
+
+			GetLinkedDocuments = (FCachedDocumentData InParent) =>
+			{
+				CachesToExport.Add(InParent);
+				foreach (var Cache in InParent.LinkedDocumentsCache.Values) 
+				{
+					GetLinkedDocuments(Cache);
+				}
+			};
+
+			GetLinkedDocuments(RootCache);
+
+			foreach (var Cache in CachesToExport)
+			{
+				bool Success = AddElements(Cache);
+				if (!Success)
+				{
+#if DEBUG
+					Debug.WriteLine("metadata cancelled");
+#endif
+					return; // Metadata export was cancelled.
+				}
+			}
+
+			if (CurrentBatchSize > 0)
+			{
+				// Send remaining chunk of metadata.
+				DatasmithScene.BuildScene(SceneName);
+				DatasmithDirectLink.UpdateScene(DatasmithScene);
+			}
+
+#if DEBUG
+			Debug.WriteLine("metadata exported");
+#endif
 		}
 	}
 }

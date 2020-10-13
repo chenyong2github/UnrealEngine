@@ -7,10 +7,12 @@
 #include "Logging/LogMacros.h"
 #include "Templates/UniquePtr.h"
 
+class FAutoConsoleCommand;
 class FFramePerformanceProvider;
+class FGenlockWatchdog;
 class FStageDataProvider;
 class FTakeRecorderStateProvider;
-class FAutoConsoleCommand;
+class FTimecodeProviderWatchdog;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogStageDataProvider, Log, All);
 
@@ -48,6 +50,12 @@ private:
 	
 	/** Frame performance provider instance sending information about hitch and performance */
 	TUniquePtr<FFramePerformanceProvider> FramePerformanceProvider;
+
+	/** Monitors the genlock custom timestep, if available, to notify of hitches */
+	TUniquePtr<FGenlockWatchdog> GenlockWatchdog;
+
+	/** Monitors the TimecodeProvider, if available, to notify of state change or missed frames */
+	TUniquePtr<FTimecodeProviderWatchdog> TimecodeWatchdog;
 
 #if WITH_EDITOR
 	/** TakeRecorder provider instance sends information about stage critical state */

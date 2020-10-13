@@ -23,6 +23,7 @@
 #include "Serialization/LargeMemoryReader.h"
 #include "Misc/ScopeExit.h"
 #include "HAL/ThreadHeartBeat.h"
+#include "HAL/PlatformMisc.h"
 #include "AssetRegistryConsoleCommands.h"
 
 #if WITH_EDITOR
@@ -114,6 +115,17 @@ UAssetRegistryImpl::UAssetRegistryImpl(const FObjectInitializer& ObjectInitializ
 	// The initial value doesn't matter since caching has not yet been computed
 	TempCachingRegisteredClassesVersionNumber = 0;
 	ClassGeneratorNamesRegisteredClassesVersionNumber = 0;
+
+	// By default do not double check mount points are still valid when gathering new assets
+	bVerifyMountPointAfterGather = false;
+
+#if WITH_EDITOR
+	if (GIsEditor)
+	{
+		// Double check mount point is still valid because it could have been umounted
+		bVerifyMountPointAfterGather = true;
+	}
+#endif // WITH_EDITOR
 
 	// Collect all code generator classes (currently BlueprintCore-derived ones)
 	CollectCodeGeneratorClasses();
@@ -887,6 +899,8 @@ bool UAssetRegistryImpl::EnumerateAssets(const FARCompiledFilter& InFilter, TFun
 				{
 					return true;
 				}
+
+				FPlatformMisc::PumpEssentialAppMessages();
 			}
 		}
 	}
@@ -2104,12 +2118,45 @@ void UAssetRegistryImpl::ScanPathsAndFilesSynchronous(const TArray<FString>& InP
 	}
 }
 
+bool UAssetRegistryImpl::IsPathMounted(const FString& Path, const TSet<FString>& MountPointsNoTrailingSlashes, FString& StringBuffer) const
+{
+	const int32 SecondSlash = Path.Len() > 1 ? Path.Find(TEXT("/"), ESearchCase::CaseSensitive, ESearchDir::FromStart, 1) : INDEX_NONE;
+	if (SecondSlash != INDEX_NONE)
+	{
+		StringBuffer.Reset(SecondSlash);
+		StringBuffer.Append(*Path, SecondSlash);
+		if (MountPointsNoTrailingSlashes.Contains(StringBuffer))
+		{
+			return true;
+		}
+	}
+	else
+	{
+		if (MountPointsNoTrailingSlashes.Contains(Path))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
 void UAssetRegistryImpl::AssetSearchDataGathered(const double TickStartTime, TBackgroundGatherResults<FAssetData*>& AssetResults)
 {
 	const bool bFlushFullBuffer = TickStartTime < 0;
 
 	// Refreshes ClassGeneratorNames if out of date due to module load
 	CollectCodeGeneratorClasses();
+
+	TSet<FString> MountPoints;
+	FString PackagePathString;
+	FString PackageRoot;
+	if (AssetResults.Num() > 0 && bVerifyMountPointAfterGather)
+	{
+		TArray<FString> MountPointsArray;
+		FPackageName::QueryRootContentPaths(MountPointsArray, /*bIncludeReadOnlyRoots=*/ true, /*bWithoutLeadingSlashes*/ false, /*WithoutTrailingSlashes=*/ true);
+		MountPoints.Append(MoveTemp(MountPointsArray));
+	}
 
 	// Add the found assets
 	while (AssetResults.Num() > 0)
@@ -2122,6 +2169,18 @@ void UAssetRegistryImpl::AssetSearchDataGathered(const double TickStartTime, TBa
 		FAssetData* AssetData = State.CachedAssetsByObjectPath.FindRef(BackgroundResult->ObjectPath);
 
 		const FName PackagePath = BackgroundResult->PackagePath;
+
+		// Skip stale results caused by mount then unmount of a path within short period.
+		bool bPathIsMounted = true;
+		if (bVerifyMountPointAfterGather)
+		{
+			PackagePath.ToString(PackagePathString);
+			if (!IsPathMounted(PackagePathString, MountPoints, PackageRoot))
+			{
+				bPathIsMounted = false;
+			}
+		}
+
 		if (AssetData)
 		{
 			// If this ensure fires then we've somehow processed the same result more than once, and that should never happen
@@ -2138,11 +2197,17 @@ void UAssetRegistryImpl::AssetSearchDataGathered(const double TickStartTime, TBa
 		else
 		{
 			// The asset isn't in the cache yet, add it and notify subscribers
-			AddAssetData(BackgroundResult);
+			if (bPathIsMounted)
+			{
+				AddAssetData(BackgroundResult);
+			}
 		}
 
-		// Populate the path tree
-		AddAssetPath(PackagePath);
+		if (bPathIsMounted)
+		{
+			// Populate the path tree
+			AddAssetPath(PackagePath);
+		}
 
 		// Check to see if we have run out of time in this tick
 		if (!bFlushFullBuffer && (FPlatformTime::Seconds() - TickStartTime) > MaxSecondsPerFrame)
@@ -2159,10 +2224,24 @@ void UAssetRegistryImpl::PathDataGathered(const double TickStartTime, TBackgroun
 {
 	const bool bFlushFullBuffer = TickStartTime < 0;
 
+	TSet<FString> MountPoints;
+	FString PackageRoot;
+	if (PathResults.Num() > 0 && bVerifyMountPointAfterGather)
+	{
+		TArray<FString> MountPointsArray;
+		FPackageName::QueryRootContentPaths(MountPointsArray, /*bIncludeReadOnlyRoots=*/ true, /*bWithoutLeadingSlashes*/ false, /*WithoutTrailingSlashes=*/ true);
+		MountPoints.Append(MoveTemp(MountPointsArray));
+	}
+
 	while (PathResults.Num() > 0)
 	{
 		const FString& Path = PathResults.Pop();
-		AddAssetPath(FName(*Path));
+
+		// Skip stale results caused by mount then unmount of a path within short period.
+		if (!bVerifyMountPointAfterGather || IsPathMounted(Path, MountPoints, PackageRoot))
+		{
+			AddAssetPath(FName(*Path));
+		}
 
 		// Check to see if we have run out of time in this tick
 		if (!bFlushFullBuffer && (FPlatformTime::Seconds() - TickStartTime) > MaxSecondsPerFrame)

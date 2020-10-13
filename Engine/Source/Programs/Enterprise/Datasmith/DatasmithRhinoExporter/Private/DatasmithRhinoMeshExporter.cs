@@ -77,7 +77,7 @@ namespace DatasmithRhino
 				if (MaterialIndex == -1)
 				{
 					MaterialIndex = UniqueMaterialInfo.Count;
-					DatasmithMesh.AddMaterial(MaterialIndex, MaterialInfos[MeshIndex].Name);
+					DatasmithMesh.AddMaterial(MaterialIndex, MaterialInfos[MeshIndex]?.Name);
 					UniqueMaterialInfo.Add(MaterialInfos[MeshIndex]);
 				}
 

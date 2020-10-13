@@ -9,6 +9,8 @@
 // Link to "Audio" profiling category
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(AUDIOMIXERCORE_API, Audio);
 
+DEFINE_STAT(STAT_AudioMixerSubmixEQ);
+
 static bool IsEqual(const FSubmixEffectSubmixEQSettings& Left, const FSubmixEffectSubmixEQSettings& Right)
 {
 	// return false if the number of bands changed
@@ -93,6 +95,7 @@ void FSubmixEffectSubmixEQ::OnProcessAudio(const FSoundEffectSubmixInputData& In
 	LLM_SCOPE(ELLMTag::AudioMixer);
 
 	CSV_SCOPED_TIMING_STAT(Audio, SubmixEQ);
+	SCOPE_CYCLE_COUNTER(STAT_AudioMixerSubmixEQ);
 
 	// Update parameters that may have been set from game thread
 	UpdateParameters(InData.NumChannels);

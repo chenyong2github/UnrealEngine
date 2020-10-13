@@ -50,7 +50,7 @@ TUniquePtr<FDynamicMeshOperator> URevolveBoundaryOperatorFactory::MakeNewOperato
 	const FGroupTopologySelection& ActiveSelection = RevolveBoundaryTool->SelectionMechanic->GetActiveSelection();
 	if (ActiveSelection.SelectedEdgeIDs.Num() == 1)
 	{
-		int32 EdgeID = ActiveSelection.SelectedEdgeIDs[0];
+		int32 EdgeID = ActiveSelection.GetASelectedEdgeID();
 		if (RevolveBoundaryTool->Topology->IsBoundaryEdge(EdgeID))
 		{
 			const TArray<int32>& VertexIndices = RevolveBoundaryTool->Topology->GetGroupEdgeVertices(EdgeID);
@@ -89,17 +89,21 @@ void URevolveBoundaryTool::Setup()
 	AddToolPropertySource(MaterialProperties);
 	MaterialProperties->RestoreProperties(this);
 
-	UpdateRevolutionAxis(Settings->RevolutionAxis);
+	UpdateRevolutionAxis();
 
 	// The plane mechanic is used for the revolution axis
 	PlaneMechanic = NewObject<UConstructionPlaneMechanic>(this);
 	PlaneMechanic->Setup(this);
-	PlaneMechanic->Initialize(TargetWorld, FFrame3d(Settings->RevolutionAxis));
+	PlaneMechanic->Initialize(TargetWorld, FFrame3d(Settings->AxisOrigin, 
+		FRotator(Settings->AxisPitch, Settings->AxisYaw, 0).Quaternion()));
 	PlaneMechanic->UpdateClickPriority(LoopSelectClickBehavior->GetPriority().MakeLower());
 	PlaneMechanic->bShowGrid = false;
 	PlaneMechanic->OnPlaneChanged.AddLambda([this]() {
-		Settings->RevolutionAxis = PlaneMechanic->Plane.ToFTransform();
-		UpdateRevolutionAxis(Settings->RevolutionAxis);
+		Settings->AxisOrigin = (FVector)PlaneMechanic->Plane.Origin;
+		FRotator AxisOrientation = ((FQuat)PlaneMechanic->Plane.Rotation).Rotator();
+		Settings->AxisPitch = AxisOrientation.Pitch;
+		Settings->AxisYaw = AxisOrientation.Yaw;
+		UpdateRevolutionAxis();
 		});
 
 	PlaneMechanic->SetEnableGridSnaping(Settings->bSnapToWorldGrid);
@@ -109,9 +113,7 @@ void URevolveBoundaryTool::Setup()
 	ComponentTarget->SetOwnerVisibility(Settings->bDisplayOriginalMesh);
 
 	GetToolManager()->DisplayMessage(
-		LOCTEXT("OnStartRevolveBoundaryTool", 
-			"This tool revolves the mesh boundary around the axis to create a new mesh. Ctrl+click will reposition "
-			"the revolution axis, potentially aligning it with an edge."),
+		LOCTEXT("OnStartRevolveBoundaryTool", "This tool revolves the mesh boundary around the axis to create a new mesh. Ctrl+click will reposition the revolution axis, potentially aligning it with an edge."),
 		EToolMessageLevel::UserNotification);
 	if (Topology->Edges.Num() == 1)
 	{
@@ -123,15 +125,13 @@ void URevolveBoundaryTool::Setup()
 	else if (Topology->Edges.Num() == 0)
 	{
 		GetToolManager()->DisplayMessage(
-			LOCTEXT("NoBoundaryLoops", "This mesh does not have any boundary loops to display "
-				"and revolve. Delete some faces or use a different mesh."),
+			LOCTEXT("NoBoundaryLoops", "This mesh does not have any boundary loops to display and revolve. Delete some faces or use a different mesh."),
 			EToolMessageLevel::UserWarning);
 	}
 	else
 	{
 		GetToolManager()->DisplayMessage(
-			LOCTEXT("OnStartRevolveBoundaryToolMultipleBoundaries", "Your mesh has multiple "
-				"boundaries- Click the one you wish to use"),
+			LOCTEXT("OnStartRevolveBoundaryToolMultipleBoundaries", "Your mesh has multiple boundaries- Click the one you wish to use"),
 			EToolMessageLevel::UserWarning);
 	}
 }
@@ -161,7 +161,7 @@ void URevolveBoundaryTool::OnClicked(const FInputDeviceRay& ClickPos)
 		if (bAlignAxisOnClick)
 		{
 			const FGroupTopologySelection& Selection = SelectionMechanic->GetActiveSelection();
-			int32 ClickedEid = Topology->GetGroupEdgeEdges(Selection.SelectedEdgeIDs[0])[HitResult.Item];
+			int32 ClickedEid = Topology->GetGroupEdgeEdges(Selection.GetASelectedEdgeID())[HitResult.Item];
 			
 			FVector3d VertexA, VertexB;
 			OriginalMesh->GetEdgeV(ClickedEid, VertexA, VertexB);
@@ -169,12 +169,17 @@ void URevolveBoundaryTool::OnClicked(const FInputDeviceRay& ClickPos)
 			FLine3d EdgeLine = FLine3d::FromPoints(ToWorldTranform.TransformPosition((FVector)VertexA), 
 				ToWorldTranform.TransformPosition((FVector)VertexB));
 			
-			FFrame3d RotationAxisFrame(Settings->RevolutionAxis);
-			RotationAxisFrame.Origin = EdgeLine.NearestPoint(HitResult.ImpactPoint);
-			RotationAxisFrame.AlignAxis(0, EdgeLine.Direction);
+			FFrame3d RevolutionAxisFrame;
+			RevolutionAxisFrame.Origin = EdgeLine.NearestPoint(HitResult.ImpactPoint);
+			RevolutionAxisFrame.AlignAxis(0, EdgeLine.Direction);
 
-			PlaneMechanic->SetPlaneWithoutBroadcast(RotationAxisFrame);
-			UpdateRevolutionAxis(RotationAxisFrame.ToFTransform());
+			PlaneMechanic->SetPlaneWithoutBroadcast(RevolutionAxisFrame);
+
+			Settings->AxisOrigin = (FVector)RevolutionAxisFrame.Origin;
+			FRotator AxisOrientation = ((FQuat)RevolutionAxisFrame.Rotation).Rotator();
+			Settings->AxisPitch = AxisOrientation.Pitch;
+			Settings->AxisYaw = AxisOrientation.Yaw;
+			UpdateRevolutionAxis();
 		}
 
 		// Update the preview
@@ -194,10 +199,13 @@ bool URevolveBoundaryTool::CanAccept() const
 	return Preview != nullptr && Preview->HaveValidResult();
 }
 
-void URevolveBoundaryTool::UpdateRevolutionAxis(const FTransform& PlaneTransform)
+/** 
+ * Uses the settings stored in the properties object to update the revolution axis
+ */
+void URevolveBoundaryTool::UpdateRevolutionAxis()
 {
-	RevolutionAxisOrigin = PlaneTransform.GetLocation();
-	RevolutionAxisDirection = PlaneTransform.GetRotation().GetAxisX();
+	RevolutionAxisOrigin = Settings->AxisOrigin;
+	RevolutionAxisDirection = FRotator(Settings->AxisPitch, Settings->AxisYaw, 0).RotateVector(FVector(1, 0, 0));
 	if (Preview)
 	{
 		Preview->InvalidateResult();
@@ -213,7 +221,7 @@ void URevolveBoundaryTool::StartPreview()
 	Preview->Setup(TargetWorld, RevolveBoundaryOpCreator);
 	Preview->PreviewMesh->SetTangentsMode(EDynamicMeshTangentCalcType::AutoCalculated);
 
-	Preview->ConfigureMaterials(MaterialProperties->Material,
+	Preview->ConfigureMaterials(MaterialProperties->Material.Get(),
 		ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager()));
 	Preview->PreviewMesh->EnableWireframe(MaterialProperties->bWireframe);
 
@@ -250,7 +258,7 @@ void URevolveBoundaryTool::GenerateAsset(const FDynamicMeshOpResult& Result)
 	GetToolManager()->BeginUndoTransaction(LOCTEXT("RevolveBoundaryToolTransactionName", "Revolve Boundary Tool"));
 
 	AActor* NewActor = AssetGenerationUtil::GenerateStaticMeshActor(
-		AssetAPI, TargetWorld, Result.Mesh.Get(), Result.Transform, TEXT("RevolveBoundaryResult"), MaterialProperties->Material);
+		AssetAPI, TargetWorld, Result.Mesh.Get(), Result.Transform, TEXT("RevolveBoundaryResult"), MaterialProperties->Material.Get());
 
 	if (NewActor != nullptr)
 	{
@@ -302,11 +310,9 @@ void URevolveBoundaryTool::Render(IToolsContextRenderAPI* RenderAPI)
 
 void URevolveBoundaryTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
-	if (Property && (Property->GetFName() == GET_MEMBER_NAME_CHECKED(URevolveBoundaryToolProperties, RevolutionAxis)))
-	{
-		PlaneMechanic->SetPlaneWithoutBroadcast((FFrame3d)Settings->RevolutionAxis);
-		UpdateRevolutionAxis(Settings->RevolutionAxis);
-	}
+	PlaneMechanic->SetPlaneWithoutBroadcast(FFrame3d(Settings->AxisOrigin, 
+		FRotator(Settings->AxisPitch, Settings->AxisYaw, 0).Quaternion()));
+	UpdateRevolutionAxis();
 
 	ComponentTarget->SetOwnerVisibility(Settings->bDisplayOriginalMesh);
 	PlaneMechanic->SetEnableGridSnaping(Settings->bSnapToWorldGrid);
@@ -315,7 +321,7 @@ void URevolveBoundaryTool::OnPropertyModified(UObject* PropertySet, FProperty* P
 	{
 		if (Property && (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UNewMeshMaterialProperties, Material)))
 		{
-			Preview->ConfigureMaterials(MaterialProperties->Material,
+			Preview->ConfigureMaterials(MaterialProperties->Material.Get(),
 				ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager()));
 		}
 

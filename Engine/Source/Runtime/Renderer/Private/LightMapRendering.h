@@ -518,7 +518,7 @@ struct FMobileDirectionalLightAndSHIndirectPolicy
 {
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
-		if (IsMobileDeferredShading() && !UsePermutationWithMobileDeferred(Parameters))
+		if (IsMobileDeferredShadingEnabled(Parameters.Platform) && !UsePermutationWithMobileDeferred(Parameters))
 		{
 			return false;
 		}
@@ -547,7 +547,7 @@ struct FMobileMovableDirectionalLightAndSHIndirectPolicy : public FMobileDirecti
 {
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
-		if (IsMobileDeferredShading() && !UsePermutationWithMobileDeferred(Parameters))
+		if (IsMobileDeferredShadingEnabled(Parameters.Platform) && !UsePermutationWithMobileDeferred(Parameters))
 		{
 			return false;
 		}
@@ -575,7 +575,7 @@ struct FMobileMovableDirectionalLightLightingPolicy
 {
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
-		if (IsMobileDeferredShading() && !UsePermutationWithMobileDeferred(Parameters))
+		if (IsMobileDeferredShadingEnabled(Parameters.Platform) && !UsePermutationWithMobileDeferred(Parameters))
 		{
 			return false;
 		}
@@ -605,7 +605,7 @@ struct FMobileMovableDirectionalLightWithLightmapPolicy : public TLightMapPolicy
 
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
-		if (IsMobileDeferredShading() && !UsePermutationWithMobileDeferred(Parameters))
+		if (IsMobileDeferredShadingEnabled(Parameters.Platform) && !UsePermutationWithMobileDeferred(Parameters))
 		{
 			return false;
 		}

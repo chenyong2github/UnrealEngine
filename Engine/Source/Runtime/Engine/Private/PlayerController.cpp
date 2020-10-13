@@ -668,7 +668,7 @@ void APlayerController::InitInputSystem()
 {
 	if (PlayerInput == NULL)
 	{
-		PlayerInput = NewObject<UPlayerInput>(this);
+		PlayerInput = NewObject<UPlayerInput>(this, UInputSettings::GetDefaultPlayerInputClass());
 	}
 
 	SetupInputComponent();
@@ -949,7 +949,7 @@ void APlayerController::UpdateRotation( float DeltaTime )
 	AActor* ViewTarget = GetViewTarget();
 	if (!PlayerCameraManager || !ViewTarget || !ViewTarget->HasActiveCameraComponent() || ViewTarget->HasActivePawnControlCameraComponent())
 	{
-		if (IsLocalPlayerController() && GEngine->XRSystem.IsValid() && GEngine->XRSystem->IsHeadTrackingAllowed())
+		if (IsLocalPlayerController() && GEngine->XRSystem.IsValid() && GetWorld() != nullptr && GEngine->XRSystem->IsHeadTrackingAllowedForWorld(*GetWorld()))
 		{
 			auto XRCamera = GEngine->XRSystem->GetXRCamera();
 			if (XRCamera.IsValid())
@@ -2455,7 +2455,7 @@ void APlayerController::SetupInputComponent()
 	// A subclass could create a different InputComponent class but still want the default bindings
 	if (InputComponent == NULL)
 	{
-		InputComponent = NewObject<UInputComponent>(this, TEXT("PC_InputComponent0"));
+		InputComponent = NewObject<UInputComponent>(this, UInputSettings::GetDefaultInputComponentClass(), TEXT("PC_InputComponent0"));
 		InputComponent->RegisterComponent();
 	}
 
@@ -4307,15 +4307,15 @@ void APlayerController::UpdateForceFeedback(IInputInterface* InputInterface, con
 
 /// @cond DOXYGEN_WARNINGS
 
-void APlayerController::ClientPlayCameraShake_Implementation( TSubclassOf<class UCameraShake> Shake, float Scale, ECameraAnimPlaySpace::Type PlaySpace, FRotator UserPlaySpaceRot )
+void APlayerController::ClientStartCameraShake_Implementation( TSubclassOf<class UCameraShakeBase> Shake, float Scale, ECameraShakePlaySpace PlaySpace, FRotator UserPlaySpaceRot )
 {
 	if (PlayerCameraManager != NULL)
 	{
-		PlayerCameraManager->PlayCameraShake(Shake, Scale, PlaySpace, UserPlaySpaceRot);
+		PlayerCameraManager->StartCameraShake(Shake, Scale, PlaySpace, UserPlaySpaceRot);
 	}
 }
 
-void APlayerController::ClientStopCameraShake_Implementation( TSubclassOf<class UCameraShake> Shake, bool bImmediately )
+void APlayerController::ClientStopCameraShake_Implementation( TSubclassOf<class UCameraShakeBase> Shake, bool bImmediately )
 {
 	if (PlayerCameraManager != NULL)
 	{
@@ -4323,11 +4323,11 @@ void APlayerController::ClientStopCameraShake_Implementation( TSubclassOf<class 
 	}
 }
 
-void APlayerController::ClientPlayCameraShakeFromSource(TSubclassOf<class UCameraShake> Shake, class UCameraShakeSourceComponent* SourceComponent)
+void APlayerController::ClientStartCameraShakeFromSource(TSubclassOf<class UCameraShakeBase> Shake, class UCameraShakeSourceComponent* SourceComponent)
 {
 	if (PlayerCameraManager != NULL)
 	{
-		PlayerCameraManager->PlayCameraShakeFromSource(Shake, SourceComponent);
+		PlayerCameraManager->StartCameraShakeFromSource(Shake, SourceComponent);
 	}
 }
 
@@ -4341,7 +4341,7 @@ void APlayerController::ClientStopCameraShakesFromSource(class UCameraShakeSourc
 
 void APlayerController::ClientPlayCameraAnim_Implementation( UCameraAnim* AnimToPlay, float Scale, float Rate,
 						float BlendInTime, float BlendOutTime, bool bLoop,
-						bool bRandomStartTime, ECameraAnimPlaySpace::Type Space, FRotator CustomPlaySpace )
+						bool bRandomStartTime, ECameraShakePlaySpace Space, FRotator CustomPlaySpace )
 {
 	if (PlayerCameraManager != NULL)
 	{
@@ -4972,7 +4972,7 @@ void APlayerController::UpdateStateInputComponents()
 		if (InactiveStateInputComponent == NULL)
 		{
 			static const FName InactiveStateInputComponentName(TEXT("PC_InactiveStateInputComponent0"));
-			InactiveStateInputComponent = NewObject<UInputComponent>(this, InactiveStateInputComponentName);
+			InactiveStateInputComponent = NewObject<UInputComponent>(this, UInputSettings::GetDefaultInputComponentClass(), InactiveStateInputComponentName);
 			SetupInactiveStateInputComponent(InactiveStateInputComponent);
 			InactiveStateInputComponent->RegisterComponent();
 			PushInputComponent(InactiveStateInputComponent);

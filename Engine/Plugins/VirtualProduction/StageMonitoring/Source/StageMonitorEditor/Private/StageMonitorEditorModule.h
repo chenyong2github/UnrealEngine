@@ -17,4 +17,11 @@ public:
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
 	//~End IModuleInterface
+
+private:
+	/** Registers detail customization for stage monitoring types */
+	void RegisterCustomizations();
+	
+	/** Unregisters registered customizations */
+	void UnregisterCustomizations();
 };

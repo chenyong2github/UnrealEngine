@@ -113,7 +113,7 @@ TWeakObjectPtr<ACompositingElement> FCompElementManager::CreateElement(const FNa
 
 		if (SpawnedActor)
 		{
-			SpawnedActor->SetCompIdName(ElementName);
+			SpawnedActor->SetElementName(ElementName);
 		}
 	}
 
@@ -139,20 +139,47 @@ bool FCompElementManager::TryGetElement(const FName& ElementName, TWeakObjectPtr
 	return OutElement != nullptr;
 }
 
+TArray<FName> FCompElementManager::FindNamesOfAllChildElements(FName ElementName) const
+{
+	TArray<FName> Output;
+	TWeakObjectPtr<ACompositingElement> Root = GetElement(ElementName);
+
+	if (Root.IsValid())
+	{
+		for (ACompositingElement* Child: Root->GetChildElements())
+		{
+			if (Child)
+			{
+				Output.Append(FindNamesOfAllChildElements(Child->GetCompElementName()));
+				Output.Add(Child->GetCompElementName());
+			}
+		}
+	}
+	return Output;
+}
+
 void FCompElementManager::AddAllCompElementsTo(TArray< TWeakObjectPtr<ACompositingElement> >& OutElements) const
 {
 	OutElements = *ElementsContainer;
 }
 
-void FCompElementManager::DeleteElement(const FName& ElementToDelete)
+void FCompElementManager::DeleteElementAndChildren(const FName& ElementToDelete, bool bIsCalledFromEditor)
 {
-	DeleteElements(TArray<FName>(&ElementToDelete, 1));
+	TArray<FName> NameCollection = FindNamesOfAllChildElements(ElementToDelete);
+	NameCollection.Add(ElementToDelete);
+	DeleteElements(NameCollection,bIsCalledFromEditor);
 }
 
-void FCompElementManager::DeleteElements(const TArray<FName>& ElementsToDelete)
+void FCompElementManager::DeleteElements(const TArray<FName>& ElementsToDelete, bool bIsCalledFromEditor)
 {
 	ensure(PendingDeletion.Num() == 0);
 
+	//If called from BP/C++, deselect all the actors first to avoid accidentally delete any actor.
+	if (!bIsCalledFromEditor)
+	{
+		Editor->SelectNone(/*bNoteSelectionChange=*/false,/*bDeselectBSPSurfs=*/false,/*WarnAboutManyActors=*/false);
+	}
+	
 	TArray< TWeakObjectPtr<ACompositingElement> > ValidElementsToDelete;
 	ValidElementsToDelete.Reserve(ElementsToDelete.Num());
 	for (const FName& ElementName : ElementsToDelete)
@@ -174,8 +201,13 @@ void FCompElementManager::DeleteElements(const TArray<FName>& ElementsToDelete)
 			ExcessSelectedObjs.Add(*SelectionIt);
 		}
 	}
-	ensure(ExcessSelectedObjs.Num() == 0);
 
+	//No need to ensure excess selected objects if this function is not called from editor
+	if (bIsCalledFromEditor)
+	{
+		ensure(ExcessSelectedObjs.Num() == 0);
+	}
+	
 	TArray< TWeakObjectPtr<ACompositingElement> > OldParents;
 	OldParents.Reserve(ValidElementsToDelete.Num());
 	PendingDeletion.Reserve(ValidElementsToDelete.Num());
@@ -213,7 +245,8 @@ void FCompElementManager::DeleteElements(const TArray<FName>& ElementsToDelete)
 
 	if (UWorld* World = GetWorld())
 	{
-		Editor->edactDeleteSelected(World, /*bVerifyDeletionCanHappen =*/true);
+		//Disable prompt window if this function is called directly from BP/C++
+		Editor->edactDeleteSelected(World, /*bVerifyDeletionCanHappen =*/true,/*bWarnAboutReferences=*/bIsCalledFromEditor,/*bWarnAboutSoftReferences=*/bIsCalledFromEditor);
 	}
 
 	for (const TWeakObjectPtr<ACompositingElement>& Element : PendingDeletion)
@@ -256,7 +289,7 @@ bool FCompElementManager::RenameElement(const FName OriginalElementName, const F
 	}
 
 	Element->Modify();
-	Element->SetCompIdName(NewElementName);
+	Element->SetElementName(NewElementName);
 
 	CompsChanged.Broadcast(ECompElementEdActions::Rename, Element, "CompShotIdName");
 
@@ -402,10 +435,10 @@ void FCompElementManager::ToggleMediaCapture(const FName& ElementName)
 		}
 		else
 		{
-			const bool bRequestRedraw = !MediaOutputPass->bEnabled;
+			const bool bRequestRedraw = !MediaOutputPass->IsPassEnabled();
 
 			MediaOutputPass->Modify();
-			MediaOutputPass->SetPassEnabled(!MediaOutputPass->bEnabled);
+			MediaOutputPass->SetPassEnabled(!MediaOutputPass->IsPassEnabled());
 
 			if (bRequestRedraw)
 			{
@@ -628,5 +661,19 @@ void FCompElementManager::OnLevelActorsListChange()
 {
 	RefreshElementsList();
 }
+
+void FCompElementManager::OnCreateNewElement(AActor* NewElement)
+{
+	OnLevelActorAdded(NewElement);
+	RefreshElementsList();
+}
+
+void FCompElementManager::OnDeleteElement(AActor* ElementToDelete)
+{
+	OnLevelActorRemoved(ElementToDelete);
+	RefreshElementsList();
+}
+
+
 
 #undef LOCTEXT_NAMESPACE

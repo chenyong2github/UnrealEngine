@@ -8,22 +8,26 @@ public class Party : ModuleRules
 	{
 		PrivateDefinitions.Add("PARTY_PACKAGE=1");
 
+		PublicDefinitions.Add("PARTY_PLATFORM_SESSIONS_PSN=" + (bUsesPSNSessions ? "1" : "0"));
+		PublicDefinitions.Add("PARTY_PLATFORM_SESSIONS_XBL=" + (bUsesXBLSessions ? "1" : "0"));
+		PublicDefinitions.Add("PARTY_PLATFORM_INVITE_PERMISSIONS=" + (bUsesPlatformInvitePermissions? "1" : "0"));
+
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 
-        PublicDependencyModuleNames.AddRange(
-            new string[] {
-                "OnlineSubsystem",
-                "OnlineSubsystemUtils",
-            }
-            );
+		PublicDependencyModuleNames.AddRange(
+			new string[] {
+				"OnlineSubsystem",
+				"OnlineSubsystemUtils",
+			}
+			);
 
-        PrivateIncludePaths.AddRange(
+		PrivateIncludePaths.AddRange(
 			new string[] {
 			}
 			);
 
 		PrivateDependencyModuleNames.AddRange(
-			new string[] { 
+			new string[] {
 				"Core",
 				"CoreUObject",
 				"Engine",
@@ -38,4 +42,8 @@ public class Party : ModuleRules
 		{
 		}
 	}
+
+	protected virtual bool bUsesPSNSessions { get { return false; } }
+	protected virtual bool bUsesXBLSessions { get { return false; } }
+	protected virtual bool bUsesPlatformInvitePermissions { get { return false; } }
 }

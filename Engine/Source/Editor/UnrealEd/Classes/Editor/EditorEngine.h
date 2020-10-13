@@ -55,6 +55,7 @@ class UAnimSequence;
 class UAudioComponent;
 class UBrushBuilder;
 class UFoliageType;
+class UFbxImportUI;
 class UGameViewportClient;
 class ULocalPlayer;
 class UNetDriver;
@@ -1628,10 +1629,15 @@ public:
 	/**
 	 * Reimport animation using SourceFilePath and SourceFileStamp 
 	 *
-	 * @param Skeleton	The skeleton that animation is import into
-	 * @param Filename	The FBX filename
+	 * @param Skeleton				The skeleton that animation is import into
+	 * @oaram AnimSequence			The existing AnimSequence.
+	 * @param ImportData			The import data of the existing AnimSequence
+	 * @param InFilename			The FBX filename
+	 * @param bOutImportAll			
+	 * @param bFactoryShowOptions	When true, create a UI popup asking the user for the reimport options.
+	 * @param ReimportUI			Optional parameter used to pass reimport options.
 	 */
-	static bool ReimportFbxAnimation( USkeleton* Skeleton, UAnimSequence* AnimSequence, class UFbxAnimSequenceImportData* ImportData, const TCHAR* InFilename, bool& bOutImportAll, const bool bFactoryShowOptions);
+	static bool ReimportFbxAnimation( USkeleton* Skeleton, UAnimSequence* AnimSequence, class UFbxAnimSequenceImportData* ImportData, const TCHAR* InFilename, bool& bOutImportAll, const bool bFactoryShowOptions, UFbxImportUI* ReimportUI = nullptr);
 
 
 	// Object management.
@@ -3092,8 +3098,8 @@ protected:
 	/** Called when all PIE instances have been successfully logged in */
 	virtual void OnAllPIEInstancesStarted();
 	
-	/** Transfers the current Editor Selection to their SIE counterparts. */
-	void TransferEditorSelectionToSIEInstances();
+	/** Backs up the current editor selection and then clears it. Optionally reselects the instances in the Play world. */
+	void TransferEditorSelectionToPlayInstances(const bool bInSelectInstances);
 	
 	/** Create a new GameInstance for PIE with the specified parameters. */
 	virtual UGameInstance* CreateInnerProcessPIEGameInstance(FRequestPlaySessionParams& InParams, const FGameInstancePIEParameters& InPIEParameters, int32 InPIEInstanceIndex);

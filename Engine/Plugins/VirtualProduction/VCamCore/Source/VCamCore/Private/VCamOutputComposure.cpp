@@ -2,29 +2,6 @@
 
 #include "VCamOutputComposure.h"
 
-#if WITH_EDITOR
-#endif
-
-void UVCamOutputComposure::InitializeSafe()
-{
-	Super::InitializeSafe();
-}
-
-void UVCamOutputComposure::Destroy()
-{
-	Super::Destroy();
-}
-
-void UVCamOutputComposure::Tick(const float DeltaTime)
-{
-	Super::Tick(DeltaTime);
-}
-
-void UVCamOutputComposure::SetActive(const bool InActive)
-{
-	Super::SetActive(InActive);
-}
-
 void UVCamOutputComposure::CreateUMG()
 {
 	DisplayType = EVPWidgetDisplayType::Composure;
@@ -46,7 +23,7 @@ void UVCamOutputComposure::CreateUMG()
 	}
 	else
 	{
-		UE_LOG(LogVCamOutputProvider, Error, TEXT("Composure mode - Super::CreateUMG must be called first!"));
+		UE_LOG(LogVCamOutputProvider, Error, TEXT("Composure mode - Either UMG Class is None or Super::CreateUMG isn't being called first!"));
 	}
 }
 
@@ -58,10 +35,8 @@ void UVCamOutputComposure::PostEditChangeProperty(FPropertyChangedEvent& Propert
 	if (Property && PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
 	{
 		static FName NAME_LayerTargets = GET_MEMBER_NAME_CHECKED(UVCamOutputComposure, LayerTargets);
-		static FName NAME_RenderTarget = GET_MEMBER_NAME_CHECKED(UVCamOutputComposure, RenderTarget);
 
-		if (Property->GetFName() == NAME_LayerTargets ||
-			Property->GetFName() == NAME_RenderTarget)
+		if (Property->GetFName() == NAME_LayerTargets)
 		{
 			if (bIsActive)
 			{

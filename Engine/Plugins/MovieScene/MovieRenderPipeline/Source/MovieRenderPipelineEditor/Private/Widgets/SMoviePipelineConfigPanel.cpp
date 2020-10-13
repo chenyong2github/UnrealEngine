@@ -292,13 +292,13 @@ FReply SMoviePipelineConfigPanel::OnCancelChanges()
 FText SMoviePipelineConfigPanel::GetValidationWarningText() const
 {
 	EMoviePipelineValidationState ValidationResult = EMoviePipelineValidationState::Valid;
-	for (const UMoviePipelineSetting* Setting : TransientPreset->GetUserSettings())
+	for (const UMoviePipelineSetting* Setting : TransientPreset->FindSettings<UMoviePipelineSetting>())
 	{
 		int32 CurResult = (int32)ValidationResult;
 		int32 NewResult = (int32)Setting->GetValidationState();
 		if (NewResult > CurResult)
 		{
-			ValidationResult = Setting->GetValidationState();
+			ValidationResult = (EMoviePipelineValidationState)NewResult;
 		}
 	}
 
@@ -325,7 +325,7 @@ UMoviePipelineConfigBase* SMoviePipelineConfigPanel::AllocateTransientPreset()
 		return ExistingPreset;
 	}
 
-	UPackage* NewPackage = CreatePackage(nullptr, PackageName);
+	UPackage* NewPackage = CreatePackage(PackageName);
 	NewPackage->SetFlags(RF_Transient);
 	NewPackage->AddToRoot();
 
@@ -470,7 +470,7 @@ void SMoviePipelineConfigPanel::OnSaveAsPreset()
 
 	// Saving into a new package
 	const FString NewAssetName = FPackageName::GetLongPackageAssetName(PackageName);
-	UPackage*     NewPackage = CreatePackage(nullptr, *PackageName);
+	UPackage*     NewPackage = CreatePackage(*PackageName);
 	UMoviePipelineConfigBase*  NewPreset = NewObject<UMoviePipelineConfigBase>(NewPackage, ConfigAssetType, *NewAssetName, RF_Public | RF_Standalone | RF_Transactional);
 	
 	if (NewPreset)

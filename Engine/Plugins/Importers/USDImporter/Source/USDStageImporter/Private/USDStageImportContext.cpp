@@ -24,16 +24,19 @@ FUsdStageImportContext::FUsdStageImportContext()
 	OriginalMetersPerUnit = 0.01f;
 }
 
-bool FUsdStageImportContext::Init(const FString& InName, const FString& InFilePath, EObjectFlags InFlags, bool bInIsAutomated, bool bIsReimport, bool bAllowActorImport)
+bool FUsdStageImportContext::Init(const FString& InName, const FString& InFilePath, const FString& InInitialPackagePath, EObjectFlags InFlags, bool bInIsAutomated, bool bIsReimport, bool bAllowActorImport)
 {
 	ObjectName = InName;
 	FilePath = InFilePath;
 	bIsAutomated = bInIsAutomated;
 	ImportObjectFlags = InFlags | RF_Public | RF_Standalone | RF_Transactional;
 	World = GEditor->GetEditorWorldContext().World();
-	PackagePath = "/Game/"; // Trailing '/' is needed to set the default path
+	PackagePath = TEXT("/Game/"); // Trailing '/' is needed to set the default path
 
 	FPaths::NormalizeFilename(FilePath);
+
+	AssetsCache.Empty();
+	PrimPathsToAssets.Empty();
 
 	if(!bIsAutomated)
 	{
@@ -43,7 +46,7 @@ bool FUsdStageImportContext::Init(const FString& InName, const FString& InFilePa
 			TSharedRef<SDlgPickPath> PickContentPathDlg =
 				SNew(SDlgPickPath)
 				.Title(NSLOCTEXT("USDStageImportContext", "ChooseImportRootContentPath", "Choose where to place the imported USD assets"))
-				.DefaultPath(FText::FromString(PackagePath));
+				.DefaultPath(FText::FromString( InInitialPackagePath ));
 
 			if (PickContentPathDlg->ShowModal() == EAppReturnType::Cancel)
 			{
@@ -64,41 +67,3 @@ bool FUsdStageImportContext::Init(const FString& InName, const FString& InFilePa
 
 	return true;
 }
-
-void FUsdStageImportContext::AddErrorMessage(EMessageSeverity::Type MessageSeverity, FText ErrorMessage)
-{
-	TokenizedErrorMessages.Add(FTokenizedMessage::Create(MessageSeverity, ErrorMessage));
-	UE_LOG(LogUsd, Error, TEXT("%s"), *ErrorMessage.ToString());
-}
-
-void FUsdStageImportContext::DisplayErrorMessages(bool bAutomated)
-{
-	if(!bAutomated)
-	{
-		//Always clear the old message after an import or re-import
-		const TCHAR* LogTitle = TEXT("USDStageImport");
-		FMessageLogModule& MessageLogModule = FModuleManager::LoadModuleChecked<FMessageLogModule>("MessageLog");
-		TSharedPtr<class IMessageLogListing> LogListing = MessageLogModule.GetLogListing(LogTitle);
-		LogListing->SetLabel(FText::FromString("USD Stage Import"));
-		LogListing->ClearMessages();
-
-		if (TokenizedErrorMessages.Num() > 0)
-		{
-			LogListing->AddMessages(TokenizedErrorMessages);
-			MessageLogModule.OpenMessageLog(LogTitle);
-		}
-	}
-	else
-	{
-		for (const TSharedRef<FTokenizedMessage>& Message : TokenizedErrorMessages)
-		{
-			UE_LOG(LogUsd, Error, TEXT("%s"), *Message->ToText().ToString());
-		}
-	}
-}
-
-void FUsdStageImportContext::ClearErrorMessages()
-{
-	TokenizedErrorMessages.Empty();
-}
-

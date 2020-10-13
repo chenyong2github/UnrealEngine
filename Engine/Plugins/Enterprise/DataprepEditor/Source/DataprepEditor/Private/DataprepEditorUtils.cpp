@@ -20,6 +20,8 @@
 #include "EdGraphSchema_K2_Actions.h"
 #include "EditorStyleSet.h"
 #include "Engine/Blueprint.h"
+#include "EngineUtils.h"
+#include "Engine/StaticMesh.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Interfaces/IMainFrameModule.h"
 #include "Kismet2/BlueprintEditorUtils.h"
@@ -172,7 +174,7 @@ namespace DataprepEditorUtils
 		}
 	};
 
-	void CreateEditorUtilityBlueprint(UClass* ParentClass)
+	bool CreateEditorUtilityBlueprint(UClass* ParentClass)
 	{
 		TSharedRef<SDlgPickPath> PickContentPathDlg =
 			SNew(SDlgPickPath)
@@ -198,8 +200,10 @@ namespace DataprepEditorUtils
 			if (AssetClass)
 			{
 				AssetTools.CreateAsset(AssetName, PackageName, AssetClass, NewFactory, FName("ContentBrowserNewAsset"));
+				return true;
 			}
 		}
+		return false;
 	}
 
 	void OnNewUserFilterCreated(UBlueprint* InBlueprint)
@@ -346,7 +350,7 @@ void FDataprepEditorUtils::RegisterBlueprintCallbacks(void* InModule)
 	FKismetEditorUtilities::RegisterOnBlueprintCreatedCallback(InModule, UDataprepOperation::StaticClass(), FKismetEditorUtilities::FOnBlueprintCreated::CreateStatic(&DataprepEditorUtils::OnNewUserOperationCreated));
 }
 
-void FDataprepEditorUtils::CreateUserDefinedFilter()
+bool FDataprepEditorUtils::CreateUserDefinedFilter()
 {
 	// Get available categories
 	TArray<TSharedPtr<DataprepEditorUtils::FFilterCategory>> FilterCategories;
@@ -396,17 +400,204 @@ void FDataprepEditorUtils::CreateUserDefinedFilter()
 
 	if ( !FetcherPickDialog->IsDialogConfirmed() )
 	{
-		return;
+		return false;
 	}
 
 	UClass* SelectedFetcherClass = FilterCategories[FetcherPickDialog->GetSelectedCategoryIndex()]->FetcherClass;
 
-	DataprepEditorUtils::CreateEditorUtilityBlueprint( SelectedFetcherClass );
+	return DataprepEditorUtils::CreateEditorUtilityBlueprint( SelectedFetcherClass );
 }
 
-void FDataprepEditorUtils::CreateUserDefinedOperation()
+bool FDataprepEditorUtils::CreateUserDefinedOperation()
 {
-	DataprepEditorUtils::CreateEditorUtilityBlueprint( UDataprepEditingOperation::StaticClass() );
+	return DataprepEditorUtils::CreateEditorUtilityBlueprint( UDataprepEditingOperation::StaticClass() );
+}
+
+TSet<UObject*> FDataprepEditorUtils::GetReferencedAssets(const TSet<AActor*>& InActors)
+{
+	auto GetReferencedMeshesAndMaterials = [](const AActor* Actor, TSet<UObject*>& ActorMeshes, TSet<UObject*>& ActorMaterials)
+	{
+		TInlineComponentArray<UStaticMeshComponent*> StaticMeshComponents(Actor);
+		for (UStaticMeshComponent* StaticMeshComponent : StaticMeshComponents)
+		{
+			UStaticMesh* Mesh = StaticMeshComponent->GetStaticMesh();
+
+			if (Mesh)
+			{
+				ActorMeshes.Add(Mesh);
+
+				for (FStaticMaterial& StaticMaterial : Mesh->StaticMaterials)
+				{
+					if (StaticMaterial.MaterialInterface)
+					{
+						ActorMaterials.Add(StaticMaterial.MaterialInterface);
+					}
+				}
+			}
+
+			for (UMaterialInterface* MeshComponentMaterialInterface : StaticMeshComponent->OverrideMaterials)
+			{
+				if (MeshComponentMaterialInterface)
+				{
+					ActorMaterials.Add(MeshComponentMaterialInterface);
+				}
+			}
+		}
+	};
+
+	TSet<UObject*> StaticMeshes;
+	TSet<UObject*> Materials;
+	TSet<UObject*> Textures;
+
+	for (AActor* Actor : InActors)
+	{
+		GetReferencedMeshesAndMaterials(Actor, StaticMeshes, Materials);
+	}
+
+	for (UObject* Material : Materials)
+	{
+		TArray<UTexture*> MaterialTextures;
+		Cast<UMaterialInterface>(Material)->GetUsedTextures(MaterialTextures, EMaterialQualityLevel::Num, true, ERHIFeatureLevel::Num, true);
+		for (UTexture* Texture : MaterialTextures)
+		{
+			if (Texture)
+			{
+				Textures.Add(Texture);
+			}
+		}
+	}
+
+	TSet<UObject*> Assets;
+	
+	Assets.Append(StaticMeshes);
+	Assets.Append(Materials);
+	Assets.Append(Textures);
+
+	return MoveTemp(Assets);
+}
+
+TSet<TWeakObjectPtr<UObject>> FDataprepEditorUtils::GetActorsReferencingAssets(UWorld* InWorld, const TSet<UObject*>& InAssets)
+{
+	TSet<UMaterialInterface*> Materials;
+	TSet<UStaticMesh*> StaticMeshes;
+	TSet<UTexture*> Textures;
+
+	for (UObject* Asset : InAssets)
+	{
+		if (!ensure(Asset) || Asset->IsPendingKill())
+		{
+			continue;
+		}
+
+		if (UStaticMesh* StaticMesh = Cast< UStaticMesh >(Asset))
+		{
+			StaticMeshes.Add(StaticMesh);
+		}
+		else if (UTexture* Texture = Cast< UTexture >(Asset))
+		{
+			Textures.Add(Texture);
+		}
+		else if (UMaterialInterface* MaterialInterface = Cast< UMaterialInterface >(Asset))
+		{
+			Materials.Add(MaterialInterface);
+		}
+	}
+
+	auto DoesMaterialUseTexture = [](const UMaterialInterface* Material, const UTexture* CheckTexture)
+	{
+		TArray<UTexture*> Textures;
+		Material->GetUsedTextures(Textures, EMaterialQualityLevel::Num, true, ERHIFeatureLevel::Num, true);
+		for (int32 i = 0; i < Textures.Num(); i++)
+		{
+			if (Textures[i] == CheckTexture)
+			{
+				return true;
+			}
+		}
+		return false;
+	};
+
+	auto GetReferencedMeshesAndMaterials = [](const AActor* Actor, TSet<UStaticMesh*>& ActorMeshes, TSet<UMaterialInterface*>& ActorMaterials)
+	{
+		TInlineComponentArray<UStaticMeshComponent*> StaticMeshComponents(Actor);
+		for (UStaticMeshComponent* StaticMeshComponent : StaticMeshComponents)
+		{
+			UStaticMesh* Mesh = StaticMeshComponent->GetStaticMesh();
+
+			if (Mesh)
+			{
+				ActorMeshes.Add(Mesh);
+
+				for (FStaticMaterial& StaticMaterial : Mesh->StaticMaterials)
+				{
+					ActorMaterials.Add(StaticMaterial.MaterialInterface);
+				}
+			}
+
+			for (UMaterialInterface* MeshComponentMaterialInterface : StaticMeshComponent->OverrideMaterials)
+			{
+				ActorMaterials.Add(MeshComponentMaterialInterface);
+			}
+		}
+	};
+
+	// Iterate world actors and check their assets
+	TSet<TWeakObjectPtr<UObject>> ResultActorSet;
+
+	const EActorIteratorFlags Flags = EActorIteratorFlags::SkipPendingKill;
+	for (TActorIterator<AActor> It(InWorld, AActor::StaticClass(), Flags); It; ++It)
+	{
+		AActor* Actor = *It;
+		if (!Actor || Actor->IsPendingKill())
+		{
+			continue;
+		}
+
+		TSet<UMaterialInterface*> ActorMaterials;
+		TSet<UStaticMesh*> ActorMeshes;
+
+		GetReferencedMeshesAndMaterials(Actor, ActorMeshes, ActorMaterials);
+
+		// Check for referencing the different asset types.
+
+		for (UStaticMesh* StaticMesh : ActorMeshes)
+		{
+			if (StaticMeshes.Contains(StaticMesh))
+			{
+				ResultActorSet.Add(Actor);
+				break;
+			}
+		}
+		if (!ResultActorSet.Contains(Actor))
+		{
+			// Check materials
+			for (UMaterialInterface* ActorMaterial : ActorMaterials)
+			{
+				if (Materials.Contains(ActorMaterial))
+				{
+					ResultActorSet.Add(Actor);
+					break;
+				}
+			}
+		}
+		if (!ResultActorSet.Contains(Actor))
+		{
+			// Check the textures
+			for (UMaterialInterface* ActorMaterial : ActorMaterials)
+			{
+				for (UTexture* Texture : Textures)
+				{
+					if (DoesMaterialUseTexture(ActorMaterial, Texture))
+					{
+						ResultActorSet.Add(Actor);
+						break;
+					}
+				}
+			}
+		}
+	}
+
+	return MoveTemp(ResultActorSet);
 }
 
 #undef LOCTEXT_NAMESPACE

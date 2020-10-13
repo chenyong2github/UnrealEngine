@@ -87,7 +87,9 @@ public:
 			RawTexture2D->SRGB = false;
 			RawTexture2D->LODGroup = TEXTUREGROUP_WorldNormalMap;
 			//RawTexture2D->bFlipGreenChannel = true;
+#if WITH_EDITOR
 			RawTexture2D->MipGenSettings = TMGS_NoMipmaps;
+#endif
 			RawTexture2D->UpdateResource();
 		}
 
@@ -185,6 +187,8 @@ public:
 	 */
 	void UpdateSourceData()
 	{
+		// source data only exists in Editor
+#if WITH_EDITOR
 		check(RawTexture2D);
 
 		bool bIsEditable = IsEditable();
@@ -210,6 +214,7 @@ public:
 		{
 			RawTexture2D->PlatformData->Mips[0].BulkData.Unlock();
 		}
+#endif
 	}
 
 

@@ -4,6 +4,7 @@
 
 #include "EditorStyleSet.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "HAL/PlatformApplicationMisc.h"
 #include "SlateOptMacros.h"
 #include "TraceServices/AnalysisService.h"
 #include "Widgets/Input/SCheckBox.h"
@@ -33,6 +34,8 @@
 #include "Insights/Widgets/STimingProfilerWindow.h"
 #include "Insights/Widgets/STimingView.h"
 
+#include <limits>
+
 #define LOCTEXT_NAMESPACE "STimersView"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -51,6 +54,39 @@ STimersView::STimersView()
 	FMemory::Memset(bTimerTypeIsVisible, 1);
 }
 
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+class FTimersViewCommands : public TCommands<FTimersViewCommands>
+{
+public:
+	FTimersViewCommands()
+		: TCommands<FTimersViewCommands>(TEXT("STimersViewCommands"), NSLOCTEXT("STimersViewCommands", "Timer View Commands", "Timer View Commands"), NAME_None, FEditorStyle::Get().GetStyleSetName())
+	{
+	}
+
+	virtual ~FTimersViewCommands()
+	{
+	}
+
+	// UI_COMMAND takes long for the compiler to optimize
+	PRAGMA_DISABLE_OPTIMIZATION
+	virtual void RegisterCommands() override
+	{
+		UI_COMMAND(Command_CopyToClipboard, "Copy To Clipboard", "Copies selection to clipboard", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::C));
+	}
+	PRAGMA_ENABLE_OPTIMIZATION
+
+	TSharedPtr<FUICommandInfo> Command_CopyToClipboard;
+};
+
+void STimersView::InitCommandList()
+{
+	FTimersViewCommands::Register();
+	CommandList = MakeShared<FUICommandList>();
+	CommandList->MapAction(FTimersViewCommands::Get().Command_CopyToClipboard, FExecuteAction::CreateSP(this, &STimersView::ContextMenu_CopySelectedToClipboard_Execute), FCanExecuteAction::CreateSP(this, &STimersView::ContextMenu_CopySelectedToClipboard_CanExecute));
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 STimersView::~STimersView()
@@ -60,6 +96,8 @@ STimersView::~STimersView()
 	{
 		FInsightsManager::Get()->GetSessionChangedEvent().RemoveAll(this);
 	}
+
+	FTimersViewCommands::Unregister();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -268,6 +306,8 @@ void STimersView::Construct(const FArguments& InArgs)
 	CreateGroupByOptionsSources();
 	CreateSortings();
 
+	InitCommandList();
+
 	// Register ourselves with the Insights manager.
 	FInsightsManager::Get()->GetSessionChangedEvent().AddSP(this, &STimersView::InsightsManager_OnSessionChanged);
 
@@ -315,7 +355,7 @@ TSharedPtr<SWidget> STimersView::TreeView_GetMenuContent()
 	}
 
 	const bool bShouldCloseWindowAfterMenuSelection = true;
-	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, NULL);
+	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, CommandList.ToSharedRef());
 
 	// Selection menu
 	MenuBuilder.BeginSection("Selection", LOCTEXT("ContextMenu_Header_Selection", "Selection"));
@@ -339,21 +379,83 @@ TSharedPtr<SWidget> STimersView::TreeView_GetMenuContent()
 	}
 	MenuBuilder.EndSection();
 
+	// Timer options section
+	MenuBuilder.BeginSection("TimerOptions", LOCTEXT("ContextMenu_Header_TimerOptions", "Timer Options"));
+	{
+		auto CanExecute = [NumSelectedNodes, SelectedNode]()
+		{
+			TSharedPtr<STimingProfilerWindow> Wnd = FTimingProfilerManager::Get()->GetProfilerWindow();
+			TSharedPtr<STimingView> TimingView = Wnd.IsValid() ? Wnd->GetTimingView() : nullptr;
+			return TimingView.IsValid() && NumSelectedNodes == 1 && SelectedNode.IsValid() && !SelectedNode->IsGroup();
+		};
+
+		/*Highlight event*/
+		{
+			FUIAction Action_ToggleHighlight;
+			Action_ToggleHighlight.CanExecuteAction = FCanExecuteAction::CreateLambda(CanExecute);
+			Action_ToggleHighlight.ExecuteAction = FExecuteAction::CreateSP(this, &STimersView::ToggleTimingViewEventFilter, SelectedNode);
+
+			TSharedPtr<STimingProfilerWindow> Wnd = FTimingProfilerManager::Get()->GetProfilerWindow();
+			TSharedPtr<STimingView> TimingView = Wnd.IsValid() ? Wnd->GetTimingView() : nullptr;
+
+			if (SelectedNode.IsValid() && !SelectedNode->IsGroup() && TimingView.IsValid() && TimingView->IsFilterByEventType(SelectedNode->GetTimerId()))
+			{
+				MenuBuilder.AddMenuEntry
+				(
+					LOCTEXT("ContextMenu_Header_TimerOptions_StopHighlightEvent", "Stop Highlighting Event"),
+					LOCTEXT("ContextMenu_Header_TimerOptions_StopHighlightEvent_Desc", "Stops highlighting timing event instances of this timer."),
+					FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.EventGraph.FilteredEvent"), Action_ToggleHighlight, NAME_None, EUserInterfaceActionType::Button
+				);
+			}
+			else
+			{
+				MenuBuilder.AddMenuEntry
+				(
+					LOCTEXT("ContextMenu_Header_TimerOptions_HighlightEvent", "Highlight Event"),
+					LOCTEXT("ContextMenu_Header_TimerOptions_HighlightEvent_Desc", "Highlights all timing event instances of this timer."),
+					FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.EventGraph.FilteredEvent"), Action_ToggleHighlight, NAME_None, EUserInterfaceActionType::Button
+				);
+			}
+		}
+
+		/*Add series to timing view graph track*/
+		{
+			FUIAction Action_ToggleTimerInGraphTrack;
+			Action_ToggleTimerInGraphTrack.CanExecuteAction = FCanExecuteAction::CreateLambda(CanExecute);
+			Action_ToggleTimerInGraphTrack.ExecuteAction = FExecuteAction::CreateSP(this, &STimersView::ToggleTimingViewMainGraphEventSeries, SelectedNode);
+
+			if (SelectedNode.IsValid() && !SelectedNode->IsGroup() && IsSeriesInTimingViewMainGraph(SelectedNode))
+			{
+				MenuBuilder.AddMenuEntry
+				(
+					LOCTEXT("ContextMenu_Header_TimerOptions_RemoveFromGraphTrack", "Remove series from graph track"),
+					LOCTEXT("ContextMenu_Header_TimerOptions_RemoveFromGraphTrack_Desc", "Remove the series containing event instances of this timer from the timing graph track."),
+					FSlateIcon(FEditorStyle::GetStyleSetName(), "ProfilerCommand.ToggleShowDataGraph"), Action_ToggleTimerInGraphTrack, NAME_None, EUserInterfaceActionType::Button
+				);
+			}
+			else
+			{
+				MenuBuilder.AddMenuEntry
+				(
+					LOCTEXT("ContextMenu_Header_TimerOptions_AddToGraphTrack", "Add series to graph track"),
+					LOCTEXT("ContextMenu_Header_TimerOptions_AddToGraphTrack_Desc", "Add a series containing event instances of this timer to the timing graph track."),
+					FSlateIcon(FEditorStyle::GetStyleSetName(), "ProfilerCommand.ToggleShowDataGraph"), Action_ToggleTimerInGraphTrack, NAME_None, EUserInterfaceActionType::Button
+				);
+			}
+		}
+	}
+	MenuBuilder.EndSection();
+
 	MenuBuilder.BeginSection("Misc", LOCTEXT("ContextMenu_Header_Misc", "Miscellaneous"));
 	{
-		/*TODO
-		FUIAction Action_CopySelectedToClipboard
-		(
-			FExecuteAction::CreateSP(this, &STimersView::ContextMenu_CopySelectedToClipboard_Execute),
-			FCanExecuteAction::CreateSP(this, &STimersView::ContextMenu_CopySelectedToClipboard_CanExecute)
-		);
 		MenuBuilder.AddMenuEntry
 		(
-			LOCTEXT("ContextMenu_Header_Misc_CopySelectedToClipboard", "Copy To Clipboard"),
-			LOCTEXT("ContextMenu_Header_Misc_CopySelectedToClipboard_Desc", "Copies selection to clipboard"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.CopyToClipboard"), Action_CopySelectedToClipboard, NAME_None, EUserInterfaceActionType::Button
+			FTimersViewCommands::Get().Command_CopyToClipboard,
+			NAME_None,
+			TAttribute<FText>(),
+			TAttribute<FText>(),
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.CopyToClipboard")
 		);
-		*/
 
 		MenuBuilder.AddSubMenu
 		(
@@ -371,7 +473,7 @@ TSharedPtr<SWidget> STimersView::TreeView_GetMenuContent()
 		MenuBuilder.AddSubMenu
 		(
 			LOCTEXT("ContextMenu_Header_Columns_View", "View Column"),
-			LOCTEXT("ContextMenu_Header_Columns_View_Desc", "Hides or shows columns"),
+			LOCTEXT("ContextMenu_Header_Columns_View_Desc", "Hides or shows columns."),
 			FNewMenuDelegate::CreateSP(this, &STimersView::TreeView_BuildViewColumnMenu),
 			false,
 			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.EventGraph.ViewColumn")
@@ -385,7 +487,7 @@ TSharedPtr<SWidget> STimersView::TreeView_GetMenuContent()
 		MenuBuilder.AddMenuEntry
 		(
 			LOCTEXT("ContextMenu_Header_Columns_ShowAllColumns", "Show All Columns"),
-			LOCTEXT("ContextMenu_Header_Columns_ShowAllColumns_Desc", "Resets tree view to show all columns"),
+			LOCTEXT("ContextMenu_Header_Columns_ShowAllColumns_Desc", "Resets tree view to show all columns."),
 			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.EventGraph.ResetColumn"), Action_ShowAllColumns, NAME_None, EUserInterfaceActionType::Button
 		);
 
@@ -397,7 +499,7 @@ TSharedPtr<SWidget> STimersView::TreeView_GetMenuContent()
 		MenuBuilder.AddMenuEntry
 		(
 			LOCTEXT("ContextMenu_Header_Columns_ShowMinMaxMedColumns", "Reset Columns to Min/Max/Median Preset"),
-			LOCTEXT("ContextMenu_Header_Columns_ShowMinMaxMedColumns_Desc", "Resets columns to Min/Max/Median preset"),
+			LOCTEXT("ContextMenu_Header_Columns_ShowMinMaxMedColumns_Desc", "Resets columns to Min/Max/Median preset."),
 			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.EventGraph.ResetColumn"), Action_ShowMinMaxMedColumns, NAME_None, EUserInterfaceActionType::Button
 		);
 
@@ -409,7 +511,7 @@ TSharedPtr<SWidget> STimersView::TreeView_GetMenuContent()
 		MenuBuilder.AddMenuEntry
 		(
 			LOCTEXT("ContextMenu_Header_Columns_ResetColumns", "Reset Columns to Default"),
-			LOCTEXT("ContextMenu_Header_Columns_ResetColumns_Desc", "Resets columns to default"),
+			LOCTEXT("ContextMenu_Header_Columns_ResetColumns_Desc", "Resets columns to default."),
 			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.EventGraph.ResetColumn"), Action_ResetColumns, NAME_None, EUserInterfaceActionType::Button
 		);
 	}
@@ -679,17 +781,17 @@ void STimersView::ApplyFiltering()
 		const bool bIsGroupVisible = Filters->PassesAllFilters(GroupPtr);
 
 		const TArray<Insights::FBaseTreeNodePtr>& GroupChildren = GroupPtr->GetChildren();
-		const int32 NumChildren = GroupChildren.Num();
 		int32 NumVisibleChildren = 0;
-		for (int32 Cx = 0; Cx < NumChildren; ++Cx)
+		for (const Insights::FBaseTreeNodePtr& ChildPtr : GroupChildren)
 		{
-			// Add a child.
-			const FTimerNodePtr& NodePtr = StaticCastSharedPtr<FTimerNode, Insights::FBaseTreeNode>(GroupChildren[Cx]);
+			const FTimerNodePtr& NodePtr = StaticCastSharedPtr<FTimerNode, Insights::FBaseTreeNode>(ChildPtr);
+
 			const bool bIsChildVisible = (!bFilterOutZeroCountTimers || NodePtr->GetAggregatedStats().InstanceCount > 0)
 									  && bTimerTypeIsVisible[static_cast<int>(NodePtr->GetType())]
 									  && Filters->PassesAllFilters(NodePtr);
 			if (bIsChildVisible)
 			{
+				// Add a child.
 				GroupPtr->AddFilteredChild(NodePtr);
 				NumVisibleChildren++;
 			}
@@ -718,9 +820,8 @@ void STimersView::ApplyFiltering()
 			bExpansionSaved = true;
 		}
 
-		for (int32 Fx = 0; Fx < FilteredGroupNodes.Num(); Fx++)
+		for (const FTimerNodePtr& GroupPtr : FilteredGroupNodes)
 		{
-			const FTimerNodePtr& GroupPtr = FilteredGroupNodes[Fx];
 			TreeView->SetItemExpansion(GroupPtr, GroupPtr->IsExpanded());
 		}
 	}
@@ -735,6 +836,38 @@ void STimersView::ApplyFiltering()
 				TreeView->SetItemExpansion(*It, true);
 			}
 			bExpansionSaved = false;
+		}
+	}
+
+	// Update aggregations for groups.
+	for (FTimerNodePtr& GroupPtr : FilteredGroupNodes)
+	{
+		Trace::FTimingProfilerAggregatedStats& AggregatedStats = GroupPtr->GetAggregatedStats();
+
+		GroupPtr->ResetAggregatedStats();
+
+		constexpr double NanTimeValue = std::numeric_limits<double>::quiet_NaN();
+		AggregatedStats.AverageInclusiveTime = NanTimeValue;
+		AggregatedStats.MedianInclusiveTime = NanTimeValue;
+		AggregatedStats.AverageExclusiveTime = NanTimeValue;
+		AggregatedStats.MedianExclusiveTime = NanTimeValue;
+
+		const TArray<Insights::FBaseTreeNodePtr>& GroupChildren = GroupPtr->GetFilteredChildren();
+		for (const Insights::FBaseTreeNodePtr& ChildPtr : GroupChildren)
+		{
+			const FTimerNodePtr& NodePtr = StaticCastSharedPtr<FTimerNode, Insights::FBaseTreeNode>(ChildPtr);
+			Trace::FTimingProfilerAggregatedStats& NodeAggregatedStats = NodePtr->GetAggregatedStats();
+
+			if (NodeAggregatedStats.InstanceCount > 0)
+			{
+				AggregatedStats.InstanceCount += NodeAggregatedStats.InstanceCount;
+				AggregatedStats.TotalInclusiveTime += NodeAggregatedStats.TotalInclusiveTime;
+				AggregatedStats.MinInclusiveTime = FMath::Min(AggregatedStats.MinInclusiveTime, NodeAggregatedStats.MinInclusiveTime);
+				AggregatedStats.MaxInclusiveTime = FMath::Max(AggregatedStats.MaxInclusiveTime, NodeAggregatedStats.MaxInclusiveTime);
+				AggregatedStats.TotalExclusiveTime += NodeAggregatedStats.TotalExclusiveTime;
+				AggregatedStats.MinExclusiveTime = FMath::Min(AggregatedStats.MinExclusiveTime, NodeAggregatedStats.MinExclusiveTime);
+				AggregatedStats.MaxExclusiveTime = FMath::Max(AggregatedStats.MaxExclusiveTime, NodeAggregatedStats.MaxExclusiveTime);
+			}
 		}
 	}
 
@@ -861,46 +994,14 @@ void STimersView::TreeView_OnMouseButtonDoubleClick(FTimerNodePtr NodePtr)
 	}
 	else
 	{
-		TSharedPtr<STimingProfilerWindow> Wnd = FTimingProfilerManager::Get()->GetProfilerWindow();
-		TSharedPtr<STimingView> TimingView = Wnd.IsValid() ? Wnd->GetTimingView() : nullptr;
-		if (TimingView.IsValid())
+		if (FSlateApplication::Get().GetModifierKeys().IsControlDown())
 		{
-			if (FSlateApplication::Get().GetModifierKeys().IsControlDown())
-			{
-				const uint64 EventType = static_cast<uint64>(NodePtr->GetTimerId());
-				TimingView->ToggleEventFilterByEventType(EventType);
-			}
-			else
-			{
-				TSharedPtr<FTimingGraphTrack> GraphTrack = TimingView->GetMainTimingGraphTrack();
-				if (GraphTrack.IsValid())
-				{
-					ToggleGraphSeries(GraphTrack.ToSharedRef(), NodePtr.ToSharedRef());
-				}
-			}
+			ToggleTimingViewEventFilter(NodePtr);
 		}
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void STimersView::ToggleGraphSeries(TSharedRef<FTimingGraphTrack> GraphTrack, FTimerNodeRef NodePtr)
-{
-	const uint32 TimerId = NodePtr->GetTimerId();
-	TSharedPtr<FTimingGraphSeries> Series = GraphTrack->GetTimerSeries(TimerId);
-	if (Series.IsValid())
-	{
-		GraphTrack->RemoveTimerSeries(TimerId);
-		GraphTrack->SetDirtyFlag();
-		NodePtr->SetAddedToGraphFlag(false);
-	}
-	else
-	{
-		GraphTrack->Show();
-		Series = GraphTrack->AddTimerSeries(TimerId, NodePtr->GetColor());
-		Series->SetName(FText::FromName(NodePtr->GetName()));
-		GraphTrack->SetDirtyFlag();
-		NodePtr->SetAddedToGraphFlag(true);
+		else
+		{
+			ToggleTimingViewMainGraphEventSeries(NodePtr);
+		}
 	}
 }
 
@@ -1749,7 +1850,7 @@ void STimersView::FinishAggregation()
 	Aggregator->ResetResults();
 
 	// Invalidate all tree table rows.
-	for (const FTimerNodePtr NodePtr : TimerNodes)
+	for (const FTimerNodePtr& NodePtr : TimerNodes)
 	{
 		TSharedPtr<ITableRow> TableRowPtr = TreeView->WidgetFromItem(NodePtr);
 		if (TableRowPtr.IsValid())
@@ -1806,6 +1907,161 @@ void STimersView::SelectTimerNode(uint32 TimerId)
 		TreeView->SetSelection(NodePtr);
 		TreeView->RequestScrollIntoView(NodePtr);
 	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimersView::ToggleTimingViewEventFilter(FTimerNodePtr TimerNode) const
+{
+	TSharedPtr<STimingProfilerWindow> Wnd = FTimingProfilerManager::Get()->GetProfilerWindow();
+	TSharedPtr<STimingView> TimingView = Wnd.IsValid() ? Wnd->GetTimingView() : nullptr;
+
+	if (TimingView.IsValid())
+	{
+		const uint64 EventType = static_cast<uint64>(TimerNode->GetTimerId());
+		TimingView->ToggleEventFilterByEventType(EventType);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedPtr<FTimingGraphTrack> STimersView::GetTimingViewMainGraphTrack() const
+{
+	TSharedPtr<STimingProfilerWindow> Wnd = FTimingProfilerManager::Get()->GetProfilerWindow();
+	TSharedPtr<STimingView> TimingView = Wnd.IsValid() ? Wnd->GetTimingView() : nullptr;
+
+	return TimingView.IsValid() ? TimingView->GetMainTimingGraphTrack() : nullptr;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimersView::ToggleGraphSeries(TSharedRef<FTimingGraphTrack> GraphTrack, FTimerNodeRef NodePtr) const
+{
+	const uint32 TimerId = NodePtr->GetTimerId();
+	TSharedPtr<FTimingGraphSeries> Series = GraphTrack->GetTimerSeries(TimerId);
+	if (Series.IsValid())
+	{
+		GraphTrack->RemoveTimerSeries(TimerId);
+		GraphTrack->SetDirtyFlag();
+		NodePtr->SetAddedToGraphFlag(false);
+	}
+	else
+	{
+		GraphTrack->Show();
+		Series = GraphTrack->AddTimerSeries(TimerId, NodePtr->GetColor());
+		Series->SetName(FText::FromName(NodePtr->GetName()));
+		GraphTrack->SetDirtyFlag();
+		NodePtr->SetAddedToGraphFlag(true);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool STimersView::IsSeriesInTimingViewMainGraph(FTimerNodePtr TimerNode) const
+{
+	TSharedPtr<FTimingGraphTrack> GraphTrack = GetTimingViewMainGraphTrack();
+
+	if (GraphTrack.IsValid())
+	{
+		const uint32 TimerId = TimerNode->GetTimerId();
+		TSharedPtr<FTimingGraphSeries> Series = GraphTrack->GetTimerSeries(TimerId);
+
+		return Series.IsValid();
+	}
+
+	return false;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimersView::ToggleTimingViewMainGraphEventSeries(FTimerNodePtr TimerNode) const
+{
+	TSharedPtr<FTimingGraphTrack> GraphTrack = GetTimingViewMainGraphTrack();
+	if (GraphTrack.IsValid())
+	{
+		ToggleGraphSeries(GraphTrack.ToSharedRef(), TimerNode.ToSharedRef());
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool STimersView::ContextMenu_CopySelectedToClipboard_CanExecute() const
+{
+	const TArray<FTimerNodePtr> SelectedNodes = TreeView->GetSelectedItems();
+
+	return SelectedNodes.Num() > 0;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimersView::ContextMenu_CopySelectedToClipboard_Execute()
+{
+	if (!Table->IsValid())
+	{
+		return;
+	}
+
+	TArray<Insights::FBaseTreeNodePtr> SelectedNodes;
+	for (FTimerNodePtr TimerPtr : TreeView->GetSelectedItems())
+	{
+		SelectedNodes.Add(TimerPtr);
+	}
+
+	if (SelectedNodes.Num() == 0)
+	{
+		return;
+	}
+
+	constexpr TCHAR Separator = TEXT('\t');
+	FString ClipboardText;
+
+	TArray<TSharedRef<Insights::FTableColumn>> VisibleColumns;
+	Table->GetVisibleColumns(VisibleColumns);
+
+	// Table headers
+	for (const TSharedRef<Insights::FTableColumn>& ColumnRef : VisibleColumns)
+	{
+		ClipboardText += ColumnRef->GetShortName().ToString().ReplaceCharWithEscapedChar() + Separator;
+	}
+
+	if (ClipboardText.Len() > 0)
+	{
+		ClipboardText.RemoveAt(ClipboardText.Len() - 1, 1, false);
+		ClipboardText.AppendChar(TEXT('\n'));
+	}
+
+	if (CurrentSorter.IsValid())
+	{
+		CurrentSorter->Sort(SelectedNodes, ColumnSortMode == EColumnSortMode::Ascending ? Insights::ESortMode::Ascending : Insights::ESortMode::Descending);
+	}
+
+	// Selected items
+	for (Insights::FBaseTreeNodePtr Node : SelectedNodes)
+	{
+		for (const TSharedRef<Insights::FTableColumn>& ColumnRef : VisibleColumns)
+		{
+			FText NodeText = ColumnRef->GetValueAsText(*Node);
+			ClipboardText += NodeText.ToString().ReplaceCharWithEscapedChar() + Separator;
+		}
+
+		if (ClipboardText.Len() > 0)
+		{
+			ClipboardText.RemoveAt(ClipboardText.Len() - 1, 1, false);
+			ClipboardText.AppendChar(TEXT('\n'));
+		}
+	}
+
+	if (ClipboardText.Len() > 0)
+	{
+		FPlatformApplicationMisc::ClipboardCopy(*ClipboardText);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FReply STimersView::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
+{
+	return CommandList->ProcessCommandBindings(InKeyEvent) == true ? FReply::Handled() : FReply::Unhandled();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

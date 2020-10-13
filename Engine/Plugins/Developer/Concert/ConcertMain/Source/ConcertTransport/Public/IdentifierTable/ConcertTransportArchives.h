@@ -18,6 +18,7 @@ public:
 
 	//~ Begin FArchive Interface
 	virtual FArchive& operator<<(FName& Name) override;
+	virtual FArchive& operator<<(FSoftObjectPath& AssetPtr) override;
 	virtual FString GetArchiveName() const override;
 	//~ End FArchive Interface
 
@@ -35,6 +36,7 @@ public:
 
 	//~ Begin FArchive Interface
 	virtual FArchive& operator<<(FName& Name) override;
+	FArchive& operator<<(FSoftObjectPath& AssetPtr) override;
 	virtual FString GetArchiveName() const override;
 	//~ End FArchive Interface
 

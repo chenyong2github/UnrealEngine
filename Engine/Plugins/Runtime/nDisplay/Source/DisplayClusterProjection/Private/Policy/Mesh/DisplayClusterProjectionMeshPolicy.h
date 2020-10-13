@@ -13,7 +13,7 @@ class FDisplayClusterProjectionMeshPolicy
 	: public FDisplayClusterProjectionMPCDIPolicy
 {
 public:
-	FDisplayClusterProjectionMeshPolicy(const FString& ViewportId);
+	FDisplayClusterProjectionMeshPolicy(const FString& ViewportId, const TMap<FString, FString>& Parameters);
 	virtual ~FDisplayClusterProjectionMeshPolicy();
 
 	//////////////////////////////////////////////////////////////////////////////////////////////

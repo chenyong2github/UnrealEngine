@@ -244,6 +244,7 @@ struct FLidarPointCloudFileIO_LAS_PointDataRecordFormat0
 struct FLidarPointCloudFileIO_LAS_PointDataRecordFormat2 : FLidarPointCloudFileIO_LAS_PointDataRecordFormat0, FLidarPointCloudFileIO_LAS_PointDataRecordFormatCommonRGB { };
 #pragma pack(pop)
 
+#if LASZIPSUPPORTED
 struct FLASZipPoint
 {
 	FIntVector Location;
@@ -339,19 +340,18 @@ public:
 
 	bool OpenFile(const FString& Filename, OpenFileMode InMode)
 	{
-		const char* file_name = TCHAR_TO_ANSI(*Filename.Replace(TEXT("\\"), TEXT("/")));
+		FString ConvertedPath = Filename.Replace(TEXT("\\"), TEXT("/"));
 		Mode = InMode;
-
 		if (Mode == Reader)
 		{
 			static laszip_open_reader_def laszip_open_reader = (laszip_open_reader_def)FPlatformProcess::GetDllExport(GetDLLHandle(), TEXT("laszip_open_reader"));
 			int32 is_compressed = 1;
-			return !laszip_open_reader(laszip_ptr, file_name, &is_compressed);
+			return !laszip_open_reader(laszip_ptr, TCHAR_TO_ANSI(*ConvertedPath), &is_compressed);
 		}
 		else
 		{
 			static laszip_open_writer_def laszip_open_writer = (laszip_open_writer_def)FPlatformProcess::GetDllExport(GetDLLHandle(), TEXT("laszip_open_writer"));
-			return !laszip_open_writer(laszip_ptr, file_name, 1);
+			return !laszip_open_writer(laszip_ptr, TCHAR_TO_ANSI(*ConvertedPath), 1);
 		}
 	}
 
@@ -460,32 +460,18 @@ private:
 
 		if (!v_dllHandle)
 		{
-			FString dllDirectory = FPaths::Combine(IPluginManager::Get().FindPlugin("LidarPointCloud")->GetBaseDir(), TEXT("Source/ThirdParty/LasZip"));
-
-#if PLATFORM_LINUX
-			dllDirectory = FPaths::Combine(dllDirectory, TEXT("Linux"));
-#elif PLATFORM_MAC
-			dllDirectory = FPaths::Combine(dllDirectory, TEXT("Mac"));
+			FString DllDirectory = FPaths::Combine(IPluginManager::Get().FindPlugin("LidarPointCloud")->GetBaseDir(), TEXT("Source/ThirdParty/LasZip"));
+#if PLATFORM_MAC
+			v_dllHandle = FPlatformProcess::GetDllHandle(*FPaths::Combine(DllDirectory, TEXT("Mac/laszip.dylib")));
 #elif PLATFORM_WINDOWS
-			dllDirectory = FPaths::Combine(dllDirectory, TEXT("Win64"));
+			v_dllHandle = FPlatformProcess::GetDllHandle(*FPaths::Combine(DllDirectory, TEXT("Win64/laszip.dll")));
 #endif
-
-			FPlatformProcess::PushDllDirectory(*dllDirectory);
-			{
-#if PLATFORM_LINUX
-				
-#elif PLATFORM_MAC
-				
-#elif PLATFORM_WINDOWS
-				v_dllHandle = FPlatformProcess::GetDllHandle(TEXT("laszip.dll"));
-#endif
-			}
-			FPlatformProcess::PopDllDirectory(*dllDirectory);
 		}
 
 		return v_dllHandle;
 	}
 };
+#endif
 
 bool ULidarPointCloudFileIO_LAS::HandleImport(const FString& Filename, TSharedPtr<FLidarPointCloudImportSettings> ImportSettings, FLidarPointCloudImportResults& OutImportResults)
 {
@@ -495,10 +481,12 @@ bool ULidarPointCloudFileIO_LAS::HandleImport(const FString& Filename, TSharedPt
 	{
 		return HandleImportLAS(Filename, OutImportResults);
 	}
+#if LASZIPSUPPORTED
 	else if (Extension.Equals("laz"))
 	{
 		return HandleImportLAZ(Filename, OutImportResults);
 	}
+#endif
 	else
 	{
 		return false;
@@ -725,7 +713,8 @@ bool ULidarPointCloudFileIO_LAS::HandleImportLAS(const FString& Filename, FLidar
 	return !OutImportResults.IsCancelled();
 }
 
-bool ULidarPointCloudFileIO_LAS::HandleImportLAZ(const FString& Filename, FLidarPointCloudImportResults &OutImportResults)
+#if LASZIPSUPPORTED
+bool ULidarPointCloudFileIO_LAS::HandleImportLAZ(const FString& Filename, FLidarPointCloudImportResults& OutImportResults)
 {
 	TArray<FLASZipWrapper> LASZipWrappers;
 	LASZipWrappers.AddDefaulted(1);
@@ -921,6 +910,7 @@ bool ULidarPointCloudFileIO_LAS::HandleImportLAZ(const FString& Filename, FLidar
 
 	return !OutImportResults.IsCancelled();
 }
+#endif
 
 bool ULidarPointCloudFileIO_LAS::HandleExport(const FString& Filename, ULidarPointCloud* PointCloud)
 {
@@ -930,10 +920,12 @@ bool ULidarPointCloudFileIO_LAS::HandleExport(const FString& Filename, ULidarPoi
 	{
 		return HandleExportLAS(Filename, PointCloud);
 	}
+#if LASZIPSUPPORTED
 	else if (Extension.Equals("laz"))
 	{
 		return HandleExportLAZ(Filename, PointCloud);
 	}
+#endif
 	else
 	{
 		return false;
@@ -1002,6 +994,7 @@ bool ULidarPointCloudFileIO_LAS::HandleExportLAS(const FString& Filename, ULidar
 	return false;
 }
 
+#if LASZIPSUPPORTED
 bool ULidarPointCloudFileIO_LAS::HandleExportLAZ(const FString& Filename, ULidarPointCloud* PointCloud)
 {
 	FLASZipWrapper LASZipWrapper;
@@ -1051,6 +1044,37 @@ bool ULidarPointCloudFileIO_LAS::HandleExportLAZ(const FString& Filename, ULidar
 
 	return true;
 }
+#endif
+
+bool ULidarPointCloudFileIO_LAS::SupportsConcurrentInsertion(const FString& Filename) const
+{
+	const FString Extension = FPaths::GetExtension(Filename).ToLower();
+
+	if (Extension.Equals("las"))
+	{
+		TUniquePtr<FArchive> Reader(IFileManager::Get().CreateFileReader(*Filename));
+		if (Reader)
+		{
+			FLidarPointCloudFileIO_LAS_PublicHeaderBlock Header;
+			(*Reader) << Header;
+			return Header.HasValidBounds();
+		}
+	}
+#if LASZIPSUPPORTED
+	else if (Extension.Equals("laz"))
+	{
+		FLASZipWrapper LASZipWrapper;
+		if (LASZipWrapper.OpenFile(Filename, FLASZipWrapper::Reader))
+		{
+			FLidarPointCloudFileIO_LAS_PublicHeaderBlock Header;
+			LASZipWrapper.ReadHeader(Header);
+			return Header.HasValidBounds();
+		}
+	}
+#endif
+
+	return false;
+}
 
 //----------------------------------------------------------------
 
@@ -1072,32 +1096,4 @@ void FLidarPointCloudImportSettings_LAS::Serialize(FArchive& Ar)
 	{
 		Ar << Dummy32 << Dummy32 << Dummy;
 	}
-}
-
-bool ULidarPointCloudFileIO_LAS::SupportsConcurrentInsertion(const FString& Filename) const
-{
-	const FString Extension = FPaths::GetExtension(Filename).ToLower();
-
-	if (Extension.Equals("las"))
-	{
-		TUniquePtr<FArchive> Reader(IFileManager::Get().CreateFileReader(*Filename));
-		if (Reader)
-		{
-			FLidarPointCloudFileIO_LAS_PublicHeaderBlock Header;
-			(*Reader) << Header;
-			return Header.HasValidBounds();
-		}
-	}
-	else if (Extension.Equals("laz"))
-	{
-		FLASZipWrapper LASZipWrapper;
-		if (LASZipWrapper.OpenFile(Filename, FLASZipWrapper::Reader))
-		{
-			FLidarPointCloudFileIO_LAS_PublicHeaderBlock Header;
-			LASZipWrapper.ReadHeader(Header);
-			return Header.HasValidBounds();
-		}
-	}
-
-	return false;
 }

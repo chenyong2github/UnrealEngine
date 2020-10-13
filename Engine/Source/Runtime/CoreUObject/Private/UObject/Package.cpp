@@ -113,6 +113,22 @@ void UPackage::Serialize( FArchive& Ar )
 	}
 }
 
+UObject* UPackage::FindAssetInPackage() const
+{
+	UObject* Asset = nullptr;
+	ForEachObjectWithPackage(this, [&Asset](UObject* Object)
+		{
+			if (Object->IsAsset())
+			{
+				ensure(Asset == nullptr);
+				Asset = Object;
+				return false;
+			}
+			return true;
+		}, false);
+	return Asset;
+}
+
 TArray<UPackage*> UPackage::GetExternalPackages() const
 {
 	TArray<UPackage*> Result;

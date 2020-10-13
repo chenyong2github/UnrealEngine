@@ -41,6 +41,9 @@ public:
 	/* Remove a delegate handle */
 	void RemoveRouteDelegate(FStringView Path, FDelegateHandle& InHandle) override;
 
+	/* Sets the send and receive buffer sizes*/
+	void SetBufferSizes(int32 DesiredSendSize, int32 DesiredReceiveSize) override;
+
 public:
 
 	bool StartReceiveThread();
@@ -55,7 +58,11 @@ public:
 	/* Returns true if running in the background */
 	bool IsThreaded() const;
 
-	void ReceivePackets(const float MaxTime = 0);
+    /*
+        Checks for and dispatches any incoming messages. MaxTime is how long to wait if no data is ready to be read.
+        This function is thread-safe and be called from a backfround thread manually or by calling StartReceiveThread()
+    */
+	void ReceiveAndDispatchMessages(const float MaxTime = 0);
 
 	/* Send the provided OSC packet */
 	bool SendPacket(FBackChannelOSCPacket& Packet);
@@ -64,6 +71,13 @@ public:
 	void SetMessageOptions(const TCHAR* Path, int32 MaxQueuedMessages);
 
 	FString GetDescription();
+
+	/* Sets the timeout for the connection, and optionally when debugging*/
+	void SetConnectionTimeout(const int TimeOut, const int TimeoutWhenDebugging = 30)
+	{
+		ConnectionTimeout = TimeOut;
+		ConnectionTImeoutWhenDebugging = TimeoutWhenDebugging;
+	}
 
 protected:
 	// Begin protected FRunnable overrides
@@ -78,7 +92,7 @@ protected:
 
 	void RemoveMessagesWithPath(const TCHAR* Path, const int32 Num = 0);
 
-	void ReceiveData(const float MaxTime = 0);
+	void ReceiveMessages(const float MaxTime = 0);
 
 	/* Dispatch all queued messages */
 	void DispatchMessages();
@@ -100,14 +114,30 @@ protected:
 	FCriticalSection	ReceiveMutex;
 	FCriticalSection	SendMutex;
 	FCriticalSection	PacketMutex;
-
-	double				LastReceiveTime;
-	double				LastSendTime;
-	double				PingTime;
-	bool				HasErrorState;
-
-	int32				ReceivedDataSize;
-	int32				ExpectedSizeOfNextPacket;
 	TArray<uint8>		ReceiveBuffer;
+
+	/* Time we last received a packet. Will be set to the current time on initialization*/
+	double				LastReceiveTime = 0;
+
+	/* Time we last received a paket */
+	double				LastSendTime = 0;
+
+	/* Time where we'll send a ping if no packets arrive to check the connection is alive*/
+	double				PingTime = 2;
+
+	/* Is the connection in an error state */
+	bool				HasErrorState = false;
+
+	/* How much data has been received this check? */
+	int32				ReceivedDataSize = 0;
+
+	/* How much data do we expect to receive next time? This is for OSC over TCP where the size of a packet is sent, then the packet*/
+	int32				ExpectedSizeOfNextPacket = 4;
+
+	/* Time until the connection will timeout if no packets are received */
+	int32				ConnectionTimeout = 5;
+
+	/* Time until the connection will tineout when debugging */
+	int32				ConnectionTImeoutWhenDebugging = 30;
 
 };

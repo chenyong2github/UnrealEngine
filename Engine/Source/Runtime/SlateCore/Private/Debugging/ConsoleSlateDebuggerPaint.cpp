@@ -176,8 +176,8 @@ void FConsoleSlateDebuggerPaint::HandleEndWidgetPaint(const SWidget* Widget, con
 	// Use the Widget pointer for the id.
 	//That may introduce bug when a widget is destroyed and the same memory is reused for another widget. We do not care for this debug tool.
 	//We do not keep the widget alive or reuse it later, cache all the info that we need.
-	const TSWidgetId WidgetId = reinterpret_cast<TSWidgetId>(Widget);
-	const TSWindowId WindowId = reinterpret_cast<TSWindowId>(OutDrawElements.GetPaintWindow());
+	const FConsoleSlateDebuggerUtility::TSWidgetId WidgetId = FConsoleSlateDebuggerUtility::GetId(Widget);
+	const FConsoleSlateDebuggerUtility::TSWindowId WindowId = FConsoleSlateDebuggerUtility::GetId(OutDrawElements.GetPaintWindow());
 
 	FPaintInfo* FoundItem = PaintedWidgets.Find(WidgetId);
 	if (FoundItem == nullptr)
@@ -210,7 +210,7 @@ void FConsoleSlateDebuggerPaint::HandlePaintDebugInfo(const FPaintArgs& InArgs, 
 {
 	++InOutLayerId;
 
-	TSWindowId PaintWindow = reinterpret_cast<TSWindowId>(InOutDrawElements.GetPaintWindow());
+	FConsoleSlateDebuggerUtility::TSWindowId PaintWindow = FConsoleSlateDebuggerUtility::GetId(InOutDrawElements.GetPaintWindow());
 
 	int32 NumberOfWidget = 0;
 	const float TextElementY = 36.f;

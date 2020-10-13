@@ -6,7 +6,9 @@
 
 namespace Audio {
 	FPlateReverbFastSettings::FPlateReverbFastSettings()
-		: QuadBehavior(EQuadBehavior::StereoOnly)
+		: bEnableEarlyReflections(true)
+		, bEnableLateReflections(true)
+		, QuadBehavior(EQuadBehavior::StereoOnly)
 	{}
 
 	bool FPlateReverbFastSettings::operator==(const FPlateReverbFastSettings& Other) const
@@ -14,6 +16,8 @@ namespace Audio {
 		bool bIsEqual = (
 			(Other.EarlyReflections == EarlyReflections) &&
 			(Other.LateReflections == LateReflections) &&
+			(Other.bEnableEarlyReflections == bEnableEarlyReflections) &&
+			(Other.bEnableLateReflections == bEnableLateReflections) &&
 			(Other.QuadBehavior == QuadBehavior));
 		
 		return bIsEqual;
@@ -30,8 +34,6 @@ namespace Audio {
 		: SampleRate(InSampleRate)
 		, EarlyReflections(InSampleRate, InMaxInternalBufferSamples)
 		, LateReflections(InSampleRate, InMaxInternalBufferSamples, InSettings.LateReflections)
-		, bEnableEarlyReflections(true)
-		, bEnableLateReflections(true)
 	{
 		SetSettings(InSettings);
 	}
@@ -41,6 +43,20 @@ namespace Audio {
 
 	void FPlateReverbFast::SetSettings(const FPlateReverbFastSettings& InSettings)
 	{
+		// If the early reflections are getting disabled, need to flush the audio.
+		// So that the audio history is empty when they are re-enabled.
+		if (Settings.bEnableEarlyReflections && !InSettings.bEnableEarlyReflections)
+		{
+			EarlyReflections.FlushAudio();
+		}
+
+		// If the late reflections are getting disabled, need to flush the audio.
+		// So that the audio history is empty when they are re-enabled.
+		if (Settings.bEnableLateReflections && !InSettings.bEnableLateReflections)
+		{
+			LateReflections.FlushAudio();
+		}
+
 		Settings = InSettings;
 		ClampSettings(Settings);
 		ApplySettings();
@@ -50,19 +66,6 @@ namespace Audio {
 	{
 		return Settings;
 	}
-
-	// Whether or not to enable late reflections
-	void FPlateReverbFast::EnableLateReflections(const bool bInEnableLateReflections)
-	{
-		bEnableLateReflections = bInEnableLateReflections;
-	}
-
-	// Whether or not to enable late reflections
-	void FPlateReverbFast::EnableEarlyReflections(const bool bInEnableEarlyReflections)
-	{
-		bEnableEarlyReflections = bInEnableEarlyReflections;
-	}
-
 	// Process a buffer of input audio samples.
 	void FPlateReverbFast::ProcessAudio(const AlignedFloatBuffer& InSamples, const int32 InNumChannels, AlignedFloatBuffer& OutSamples, const int32 OutNumChannels)
 	{
@@ -92,7 +95,7 @@ namespace Audio {
 			return;
 		}
 
-		if (!bEnableEarlyReflections && !bEnableLateReflections)
+		if (!Settings.bEnableEarlyReflections && !Settings.bEnableLateReflections)
 		{
 			// Zero output buffers if all reverb is disabled. 
 			const int32 OutNum = InNumFrames * OutNumChannels;
@@ -109,17 +112,17 @@ namespace Audio {
 		FrontLeftReverbSamples.AddUninitialized(InNumFrames);
 		FrontRightReverbSamples.AddUninitialized(InNumFrames);
 
-		if (bEnableEarlyReflections && !bEnableLateReflections)
+		if (Settings.bEnableEarlyReflections && !Settings.bEnableLateReflections)
 		{
 			// Only generate early reflections.
 			EarlyReflections.ProcessAudio(ScaledInputBuffer, InNumChannels, FrontLeftReverbSamples, FrontRightReverbSamples);
 		}
-		else if (!bEnableEarlyReflections && bEnableLateReflections)
+		else if (!Settings.bEnableEarlyReflections && Settings.bEnableLateReflections)
 		{
 			// Only generate late reflections.
 			LateReflections.ProcessAudio(ScaledInputBuffer, InNumChannels, FrontLeftReverbSamples, FrontRightReverbSamples);
 		}
-		else if (bEnableEarlyReflections && bEnableLateReflections)
+		else if (Settings.bEnableEarlyReflections && Settings.bEnableLateReflections)
 		{
 			// Resize internal buffers
 			FrontLeftLateReflectionsSamples.Reset(InNumFrames);

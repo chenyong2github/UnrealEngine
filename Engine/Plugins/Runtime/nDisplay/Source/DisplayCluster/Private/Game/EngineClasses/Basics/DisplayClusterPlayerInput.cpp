@@ -5,10 +5,10 @@
 
 #include "Cluster/IPDisplayClusterClusterManager.h"
 
-#include "Misc/DisplayClusterCommonTypesConverter.h"
 #include "Misc/DisplayClusterGlobals.h"
 #include "Misc/DisplayClusterHelpers.h"
 #include "Misc/DisplayClusterLog.h"
+#include "Misc/DisplayClusterTypesConverter.h"
 
 #include "Engine/World.h"
 
@@ -24,7 +24,7 @@ void UDisplayClusterPlayerInput::ProcessInputStack(const TArray<UInputComponent*
 
 	static IPDisplayClusterClusterManager* const ClusterMgr = GDisplayCluster->GetPrivateClusterMgr();
 
-	if (ClusterMgr && ClusterMgr->IsCluster())
+	if (ClusterMgr)
 	{
 		TMap<FString, FString> KeyStates;
 
@@ -59,24 +59,24 @@ bool UDisplayClusterPlayerInput::SerializeKeyStateMap(TMap<FString, FString>& Ou
 		check(SendValue > 0.f);
 
 		StrKeyState = FString::Printf(TEXT("%s;%s;%s;%s;%s;%s;%s;%s;%s;"),
-			*FDisplayClusterTypesConverter::template ToHexString(it->Value.RawValue),
-			*FDisplayClusterTypesConverter::template ToHexString(it->Value.Value),
-			*FDisplayClusterTypesConverter::template ToHexString(it->Value.LastUpDownTransitionTime),
+			*DisplayClusterTypesConverter::template ToHexString(it->Value.RawValue),
+			*DisplayClusterTypesConverter::template ToHexString(it->Value.Value),
+			*DisplayClusterTypesConverter::template ToHexString(it->Value.LastUpDownTransitionTime),
 			*DisplayClusterHelpers::str::BoolToStr(it->Value.bDown ? true : false, false),
 			*DisplayClusterHelpers::str::BoolToStr(it->Value.bDownPrevious ? true : false, false),
 			*DisplayClusterHelpers::str::BoolToStr(it->Value.bConsumed ? true : false, false),
-			*FDisplayClusterTypesConverter::template ToString(it->Value.PairSampledAxes),
-			*FDisplayClusterTypesConverter::template ToString(it->Value.SampleCountAccumulator),
-			*FDisplayClusterTypesConverter::template ToHexString(it->Value.RawValueAccumulator));
+			*DisplayClusterTypesConverter::template ToString(it->Value.PairSampledAxes),
+			*DisplayClusterTypesConverter::template ToString(it->Value.SampleCountAccumulator),
+			*DisplayClusterTypesConverter::template ToHexString(it->Value.RawValueAccumulator));
 
 		for (int i = 0; i < IE_MAX; ++i)
 		{
-			StrKeyState += FString::Printf(TEXT("%s;"), *DisplayClusterHelpers::str::ArrayToStr(it->Value.EventCounts[i], FString(","), false));
+			StrKeyState += FString::Printf(TEXT("%s;"), *DisplayClusterHelpers::str::template ArrayToStr(it->Value.EventCounts[i], FString(","), false));
 		}
 
 		for (int i = 0; i < IE_MAX; ++i)
 		{
-			StrKeyState += FString::Printf(TEXT("%s;"), *DisplayClusterHelpers::str::ArrayToStr(it->Value.EventAccumulator[i], FString(","), false));
+			StrKeyState += FString::Printf(TEXT("%s;"), *DisplayClusterHelpers::str::template ArrayToStr(it->Value.EventAccumulator[i], FString(","), false));
 		}
 
 		OutKeyStateMap.Emplace(KeyName, StrKeyState);
@@ -101,30 +101,31 @@ bool UDisplayClusterPlayerInput::DeserializeKeyStateMap(const TMap<FString, FStr
 		FKey Key(*it->Key);
 		FKeyState KeyState;
 
-		TArray<FString> Fields = DisplayClusterHelpers::str::StrToArray<FString>(it->Value, FString(";"), false);
+		TArray<FString> Fields;
+		DisplayClusterHelpers::str::template StrToArray<FString>(it->Value, FString(";"), Fields, false);
 
-		KeyState.RawValue                 = FDisplayClusterTypesConverter::template FromHexString<FVector>(Fields[0]);
-		KeyState.Value                    = FDisplayClusterTypesConverter::template FromHexString<FVector>(Fields[1]);
-		KeyState.LastUpDownTransitionTime = FDisplayClusterTypesConverter::template FromHexString<float>(Fields[2]);
-		KeyState.bDown                    = FDisplayClusterTypesConverter::template FromString<bool>(Fields[3]) ? 1 : 0;
-		KeyState.bDownPrevious            = FDisplayClusterTypesConverter::template FromString<bool>(Fields[4]) ? 1 : 0;
-		KeyState.bConsumed                = FDisplayClusterTypesConverter::template FromString<bool>(Fields[5]) ? 1 : 0;
-		KeyState.PairSampledAxes		  = FDisplayClusterTypesConverter::template FromString<uint8>(Fields[6]);
-		KeyState.SampleCountAccumulator	  = FDisplayClusterTypesConverter::template FromString<uint8>(Fields[7]);
-		KeyState.RawValueAccumulator      = FDisplayClusterTypesConverter::template FromHexString<FVector>(Fields[8]);
+		KeyState.RawValue                 = DisplayClusterTypesConverter::template FromHexString<FVector>(Fields[0]);
+		KeyState.Value                    = DisplayClusterTypesConverter::template FromHexString<FVector>(Fields[1]);
+		KeyState.LastUpDownTransitionTime = DisplayClusterTypesConverter::template FromHexString<float>(Fields[2]);
+		KeyState.bDown                    = DisplayClusterTypesConverter::template FromString<bool>(Fields[3]) ? 1 : 0;
+		KeyState.bDownPrevious            = DisplayClusterTypesConverter::template FromString<bool>(Fields[4]) ? 1 : 0;
+		KeyState.bConsumed                = DisplayClusterTypesConverter::template FromString<bool>(Fields[5]) ? 1 : 0;
+		KeyState.PairSampledAxes          = DisplayClusterTypesConverter::template FromString<uint8>(Fields[6]);
+		KeyState.SampleCountAccumulator   = DisplayClusterTypesConverter::template FromString<uint8>(Fields[7]);
+		KeyState.RawValueAccumulator      = DisplayClusterTypesConverter::template FromHexString<FVector>(Fields[8]);
 
 		for (int i = 0; i < IE_MAX; ++i)
 		{
 			const FString& EventCountsStr = Fields[9 + i];
 			if (!EventCountsStr.IsEmpty())
 			{
-				KeyState.EventCounts[i] = DisplayClusterHelpers::str::StrToArray<uint32>(EventCountsStr, FString(","));
+				DisplayClusterHelpers::str::template StrToArray<uint32>(EventCountsStr, FString(","), KeyState.EventCounts[i]);
 			}
 
 			const FString& EventAccumulatorStr = Fields[9 + IE_MAX + i];
 			if (!EventAccumulatorStr.IsEmpty())
 			{
-				KeyState.EventAccumulator[i] = DisplayClusterHelpers::str::StrToArray<uint32>(Fields[9 + IE_MAX + i], FString(","));
+				DisplayClusterHelpers::str::template StrToArray<uint32>(Fields[9 + IE_MAX + i], FString(","), KeyState.EventAccumulator[i]);
 			}
 		}
 

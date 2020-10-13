@@ -2,12 +2,13 @@
 
 #include "SUSDPrimPropertiesList.h"
 
+#include "SUSDStageEditorStyle.h"
+#include "UnrealUSDWrapper.h"
 #include "USDLog.h"
 #include "USDMemory.h"
 #include "USDStageActor.h"
 #include "USDStageModule.h"
 #include "USDTypesConversion.h"
-#include "UnrealUSDWrapper.h"
 
 #include "EditorStyleSet.h"
 #include "Engine/World.h"
@@ -131,10 +132,15 @@ TSharedRef< SWidget > SUsdPrimPropertyRow::GenerateWidgetForColumn( const FName&
 	return SNew( SHorizontalBox )
 		+SHorizontalBox::Slot()
 		.HAlign( HAlign_Left )
-		.VAlign( VAlign_Center )
+		.VAlign( VAlign_Fill )
 		.AutoWidth()
 		[
-			ColumnWidget
+			SNew(SBox)
+			.HeightOverride( FUsdStageEditorStyle::Get()->GetFloat( "UsdStageEditor.ListItemHeight" ) )
+			.VAlign(VAlign_Center)
+			[
+				ColumnWidget
+			]
 		];
 }
 
@@ -145,10 +151,15 @@ void SUsdPrimPropertyRow::SetUsdPrimProperty( const TSharedPtr< FUsdPrimAttribut
 
 TSharedRef< SWidget > SUsdPrimPropertyRow::GenerateTextWidget(const TAttribute<FText>& Attribute)
 {
-	return SNew( STextBlock )
-	.Text( Attribute )
-	.Font( FEditorStyle::GetFontStyle( UsdPrimPropertiesListConstants::NormalFont ) )
-	.Margin( UsdPrimPropertiesListConstants::RightRowPadding );
+	return SNew( SBox )
+		.HeightOverride( FUsdStageEditorStyle::Get()->GetFloat( "UsdStageEditor.ListItemHeight" ) )
+		.VAlign( VAlign_Center )
+		[
+			SNew( STextBlock )
+			.Text( Attribute )
+			.Font( FEditorStyle::GetFontStyle( UsdPrimPropertiesListConstants::NormalFont ) )
+			.Margin( UsdPrimPropertiesListConstants::RightRowPadding )
+		];
 }
 
 void SUsdPrimPropertiesList::Construct( const FArguments& InArgs, const TCHAR* InPrimPath )
@@ -166,7 +177,7 @@ void SUsdPrimPropertiesList::Construct( const FArguments& InArgs, const TCHAR* I
 
 	+SHeaderRow::Column( FName( TEXT("PropertyValue") ) )
 	.DefaultLabel( LOCTEXT( "PropertyValue", "Value" ) )
-	.FillWidth( 80.f );
+	.FillWidth( 75.f );
 
 	SListView::Construct
 	(

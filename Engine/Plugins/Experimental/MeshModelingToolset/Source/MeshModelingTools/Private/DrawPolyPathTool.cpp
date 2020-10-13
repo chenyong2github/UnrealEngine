@@ -642,8 +642,7 @@ void UDrawPolyPathTool::BeginInteractiveExtrudeHeight()
 
 	ExtrudeHeightMechanic->WorldHitQueryFunc = [this](const FRay& WorldRay, FHitResult& HitResult)
 	{
-		FCollisionObjectQueryParams QueryParams(FCollisionObjectQueryParams::AllObjects);
-		return TargetWorld->LineTraceSingleByObjectType(HitResult, WorldRay.Origin, WorldRay.PointAt(999999), QueryParams);
+		return ToolSceneQueriesUtil::FindNearestVisibleObjectHit(TargetWorld, HitResult, WorldRay);
 	};
 	ExtrudeHeightMechanic->WorldPointSnapFunc = [this](const FVector3d& WorldPos, FVector3d& SnapPos)
 	{
@@ -693,7 +692,7 @@ void UDrawPolyPathTool::InitializePreviewMesh()
 		}
 		else
 		{
-			EditPreview->SetMaterial(MaterialProperties->Material);
+			EditPreview->SetMaterial(MaterialProperties->Material.Get());
 		}
 	}
 }
@@ -775,7 +774,7 @@ void UDrawPolyPathTool::EmitNewObject(EDrawPolyPathOutputMode OutputMode)
 
 	AActor* NewActor = AssetGenerationUtil::GenerateStaticMeshActor(
 		AssetAPI, TargetWorld,
-		&PathMesh, MeshTransform.ToTransform(), TEXT("Path"), MaterialProperties->Material);
+		&PathMesh, MeshTransform.ToTransform(), TEXT("Path"), MaterialProperties->Material.Get());
 	if (NewActor != nullptr)
 	{
 		ToolSelectionUtil::SetNewActorSelection(GetToolManager(), NewActor);

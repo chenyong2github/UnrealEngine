@@ -12,6 +12,7 @@ UIOSRuntimeSettings::UIOSRuntimeSettings(const FObjectInitializer& ObjectInitial
 {
 	bEnableGameCenterSupport = true;
 	bEnableCloudKitSupport = false;
+    bRunAsCurrentUser = false;
 	bSupportsPortraitOrientation = true;
 	bSupportsITunesFileSharing = false;
 	bSupportsFilesApp = false;
@@ -23,7 +24,7 @@ UIOSRuntimeSettings::UIOSRuntimeSettings(const FObjectInitializer& ObjectInitial
 	bEnableDynamicMaxFPS = false;
 	bSupportsIPad = true;
 	bSupportsIPhone = true;
-	MinimumiOSVersion = EIOSVersion::IOS_11;
+	MinimumiOSVersion = EIOSVersion::IOS_12;
     bBuildAsFramework = true;
 	bGeneratedSYMFile = false;
 	bGeneratedSYMBundle = false;
@@ -34,9 +35,9 @@ UIOSRuntimeSettings::UIOSRuntimeSettings(const FObjectInitializer& ObjectInitial
 	AdditionalPlistData = TEXT("");
 	AdditionalLinkerFlags = TEXT("");
 	AdditionalShippingLinkerFlags = TEXT("");
-	bTreatRemoteAsSeparateController = false;
+    bGameSupportsMultipleActiveControllers = false;
 	bAllowRemoteRotation = true;
-	bUseRemoteAsVirtualJoystick = true;
+    bUseRemoteAsVirtualJoystick_DEPRECATED = true;
 	bUseRemoteAbsoluteDpadValues = false;
 	bDisableMotionData = false;
     bEnableRemoteNotificationsSupport = false;
@@ -114,10 +115,9 @@ void UIOSRuntimeSettings::PostInitProperties()
 		}
 	}
 
-	// switch IOS_6.1, IOS_7, IOS_8, IOS_9 and IOS_10 to IOS_11
-	if (MinimumiOSVersion < EIOSVersion::IOS_11)
+	if (MinimumiOSVersion < EIOSVersion::IOS_12)
 	{
-		MinimumiOSVersion = EIOSVersion::IOS_11;
+		MinimumiOSVersion = EIOSVersion::IOS_12;
 		UpdateSinglePropertyInConfigFile(GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UIOSRuntimeSettings, MinimumiOSVersion)), GetDefaultConfigFilename());
 	}
 	if (!bSupportsMetal && !bSupportsMetalMRT)

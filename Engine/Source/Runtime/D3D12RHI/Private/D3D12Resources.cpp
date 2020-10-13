@@ -75,17 +75,20 @@ bool FD3D12DeferredDeletionQueue::ReleaseResources(bool bDeleteImmediately, bool
 	{
 		if (bDeleteImmediately)
 		{
+			// Wait for all deferred delete tasks to finish
 			FAsyncTask<FD3D12AsyncDeletionWorker>* DeleteTask = nullptr;
-			// Call back all threads
 			while (DeleteTasks.Peek(DeleteTask))
 			{
 				DeleteTasks.Dequeue(DeleteTask);
 				DeleteTask->EnsureCompletion(true);
 				delete(DeleteTask);
 			}
+
+			// current deferred release queue will be freed via non async deferred deletion code path below
 		}
 		else
 		{
+			// Clean up all previously finished delete tasks
 			FAsyncTask<FD3D12AsyncDeletionWorker>* DeleteTask = nullptr;
 			while (DeleteTasks.Peek(DeleteTask) && DeleteTask->IsDone())
 			{
@@ -93,11 +96,13 @@ bool FD3D12DeferredDeletionQueue::ReleaseResources(bool bDeleteImmediately, bool
 				delete(DeleteTask);
 			}
 
+			// Create new delete task, which will only collect resources in the constructor for which the fence is complete, not the whole list!
 			DeleteTask = new FAsyncTask<FD3D12AsyncDeletionWorker>(Adapter, &DeferredReleaseQueue);
 
 			DeleteTask->StartBackgroundTask();
 			DeleteTasks.Enqueue(DeleteTask);
 
+			// Deferred release queue is not empty yet
 			return false;
 		}
 	}

@@ -8,6 +8,7 @@
 #include "DatasmithMaterialElements.h"
 #include "DatasmithMaxWriter.h"
 #include "MaxMaterialsToUEPbr/DatasmithMaxTexmapToUEPbr.h"
+#include "MaxMaterialsToUEPbr/DatasmithMaxCoronaMaterialsToUEPbr.h"
 #include "MaxMaterialsToUEPbr/DatasmithMaxScanlineMaterialsToUEPbr.h"
 #include "MaxMaterialsToUEPbr/DatasmithMaxVrayMaterialsToUEPbr.h"
 
@@ -47,6 +48,21 @@ FDatasmithMaxMaterialsToUEPbr* FDatasmithMaxMaterialsToUEPbrManager::GetMaterial
 		static FDatasmithMaxScanlineMaterialsToUEPbr ScanlineConverter = FDatasmithMaxScanlineMaterialsToUEPbr();
 		MaterialConverter = &ScanlineConverter;
 	}
+	else if ( MaterialClassID == BLENDMATCLASS )
+	{
+		static FDatasmithMaxBlendMaterialsToUEPbr BlendConverter = FDatasmithMaxBlendMaterialsToUEPbr();
+		MaterialConverter = &BlendConverter;
+	}
+	else if ( MaterialClassID == CORONAMATCLASS )
+	{
+		static FDatasmithMaxCoronaMaterialsToUEPbr CoronaConverter = FDatasmithMaxCoronaMaterialsToUEPbr();
+		MaterialConverter = &CoronaConverter;
+	}
+	else if ( MaterialClassID == CORONALAYERMATCLASS )
+	{
+		static FDatasmithMaxCoronaBlendMaterialToUEPbr CoronaConverter = FDatasmithMaxCoronaBlendMaterialToUEPbr();
+		MaterialConverter = &CoronaConverter;
+	}
 
 	if ( MaterialConverter && MaterialConverter->IsSupported( Material ) )
 	{
@@ -71,6 +87,7 @@ FDatasmithMaxMaterialsToUEPbr::FDatasmithMaxMaterialsToUEPbr()
 	TexmapConverters.Add( new FDatasmithMaxFalloffToUEPbr() );
 	TexmapConverters.Add( new FDatasmithMaxNoiseToUEPbr() );
 	TexmapConverters.Add( new FDatasmithMaxCompositeToUEPbr() );
+	TexmapConverters.Add( new FDatasmithMaxColorCorrectionToUEPbr() );
 
 	// Pass-through converters
 	TexmapConverters.Add( new FDatasmithMaxPassthroughToUEPbr() );

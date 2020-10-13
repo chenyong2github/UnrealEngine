@@ -13,16 +13,23 @@ public class SwitchboardListener : ModuleRules
 				"CoreUObject",
 				"Json",
 				"Networking",
-				"PerforceSourceControl",
 				"Projects", // for LaunchEngineLoop.cpp dependency
-				"SourceControl",
+				"JsonUtilities",
 			}
 		);
+
+		if (Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64)
+        {
+			PrivateDependencyModuleNames.AddRange(
+				new string[] {
+					"NVAPI",
+				}
+			);
+		}
 
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {
 				"Launch",
-				"SourceControl",
 			}
 		);
 

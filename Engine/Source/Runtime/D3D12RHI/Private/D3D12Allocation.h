@@ -633,7 +633,7 @@ private:
 		check(!!HeapSize);
 		for (const auto& Heap : FreeHeaps)
 		{
-			check(Heap->GetRefCount() == 1);
+			ensure(Heap->GetRefCount() == 1);
 		}
 	}
 

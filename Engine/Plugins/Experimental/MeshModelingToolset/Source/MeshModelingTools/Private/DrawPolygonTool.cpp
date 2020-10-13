@@ -139,7 +139,14 @@ void UDrawPolygonTool::Setup()
 	PreviewMesh = NewObject<UPreviewMesh>(this, TEXT("DrawPolygonPreviewMesh"));
 	PreviewMesh->CreateInWorld(this->TargetWorld, FTransform::Identity);
 	PreviewMesh->SetVisible(false);
-	PreviewMesh->SetMaterial(MaterialProperties->Material);
+	{
+		UMaterialInterface* Material = nullptr;
+		if ( MaterialProperties->Material.IsValid() )
+		{
+			Material = MaterialProperties->Material.Get();
+		}
+		PreviewMesh->SetMaterial(Material);
+	}
 	bPreviewUpdatePending = false;
 
 	// initialize snapping engine and properties
@@ -190,7 +197,7 @@ void UDrawPolygonTool::RegisterActions(FInteractiveToolActionSet& ActionSet)
 
 
 
-void UDrawPolygonTool::PopLastVertexAction()
+void UDrawPolygonTool::ApplyUndoPoints(const TArray<FVector3d>& ClickPointsIn, const TArray<FVector3d>& PolygonVerticesIn)
 {
 	if (bInInteractiveExtrude || PolygonVertices.Num() == 0)
 	{
@@ -201,28 +208,18 @@ void UDrawPolygonTool::PopLastVertexAction()
 
 	if (bInFixedPolygonMode == false)
 	{
-		int NumVertices = PolygonVertices.Num();
-		if (NumVertices > 1)
+		PolygonVertices = PolygonVerticesIn;
+		if ( PolygonVertices.Num() == 0 )
 		{
-			PolygonVertices.RemoveAt(NumVertices-1);
-		}
-		else
-		{
-			PolygonVertices.RemoveAt(0);
 			bAbortActivePolygonDraw = true;
 			CurrentCurveTimestamp++;
 		}
 	}
 	else
 	{
-		int NumVertices = FixedPolygonClickPoints.Num();
-		if (NumVertices > 1)
+		FixedPolygonClickPoints = ClickPointsIn;
+		if ( FixedPolygonClickPoints.Num() == 0 )
 		{
-			FixedPolygonClickPoints.RemoveAt(NumVertices - 1);
-		}
-		else
-		{
-			FixedPolygonClickPoints.RemoveAt(0);
 			bAbortActivePolygonDraw = true;
 			CurrentCurveTimestamp++;
 		}
@@ -295,29 +292,35 @@ void UDrawPolygonTool::Render(IToolsContextRenderAPI* RenderAPI)
 	bool bIsClosed = bInInteractiveExtrude 
 		|| (SnapEngine.HaveActiveSnap() && SnapEngine.GetActiveSnapTargetID() == StartPointSnapID);
 
+	//
+	// Draw the grid
+	//
 	if (bInInteractiveExtrude == false)
 	{
 		FFrame3f DrawFrame((FVector3f)DrawPlaneOrigin, (FQuaternionf)DrawPlaneOrientation);
 		MeshDebugDraw::DrawSimpleFixedScreenAreaGrid(RenderCameraState, DrawFrame, NumGridLines, 45.0, GridThickness, GridColor, false, PDI, FTransform::Identity);
 	}
 
-	if (bInFixedPolygonMode)
+	//
+	// Generate the fixed polygon contour
+	//
+	if ((bInFixedPolygonMode) && (FixedPolygonClickPoints.Num() > 0))
 	{
-		if (FixedPolygonClickPoints.Num() > 0 && bInInteractiveExtrude == false)		// once we are in extrude, polygon is done
-		{
-			FixedPolygonClickPoints.Add(PreviewVertex);
-			GenerateFixedPolygon(FixedPolygonClickPoints, PolygonVertices, PolygonHolesVertices);
-			FixedPolygonClickPoints.Pop(false);
-		}
-		bIsClosed = true;
+		TArray<FVector3d> PreviewClickPoints = FixedPolygonClickPoints;
+		if ( !bInInteractiveExtrude ){ PreviewClickPoints.Add(PreviewVertex); }
+		GenerateFixedPolygon(PreviewClickPoints, PolygonVertices, PolygonHolesVertices);
 	}
+	bIsClosed |= bInFixedPolygonMode;
 
 	int NumVerts = PolygonVertices.Num();
 
+	//
+	// Render snap indicators
+	//
 	if (SnapEngine.HaveActiveSnap())
 	{
 		PDI->DrawPoint((FVector)SnapEngine.GetActiveSnapToPoint(), ClosedPolygonColor, 10.0f*PDIScale, SDPG_Foreground);
-		
+
 		PDI->DrawPoint((FVector)SnapEngine.GetActiveSnapFromPoint(), SnapHighlightColor, 15.0f*PDIScale, SDPG_Foreground);
 		PDI->DrawLine((FVector)SnapEngine.GetActiveSnapToPoint(), (FVector)SnapEngine.GetActiveSnapFromPoint(),
 			ClosedPolygonColor, SDPG_Foreground, 0.5f*PDIScale, 0.0f, true);
@@ -326,7 +329,7 @@ void UDrawPolygonTool::Render(IToolsContextRenderAPI* RenderAPI)
 			if (LastSnapGeometry.PointCount == 1) {
 				DrawCircle(PDI, (FVector)LastSnapGeometry.Points[0], RenderCameraState.Right(), RenderCameraState.Up(),
 					SnapHighlightColor, ElementSize, 32, SDPG_Foreground, 1.0f*PDIScale, 0.0f, true);
-			} 
+			}
 			else
 			{
 				PDI->DrawLine((FVector)LastSnapGeometry.Points[0], (FVector)LastSnapGeometry.Points[1],
@@ -341,9 +344,16 @@ void UDrawPolygonTool::Render(IToolsContextRenderAPI* RenderAPI)
 
 		if (SnapEngine.HaveActiveSnapLine())
 		{
-			FLine3d SnapLine = SnapEngine.GetActiveSnapLine();
-			PDI->DrawLine((FVector)SnapLine.PointAt(-9999), (FVector)SnapLine.PointAt(9999),
-				SnapLineColor, SDPG_Foreground, 0.5*PDIScale, 0.0f, true);
+			// clip this line to the view plane because if it goes through the view plane the pixel-line-thickness
+			// calculation appears to fail
+			FLine3d DrawSnapLine = SnapEngine.GetActiveSnapLine();
+			FVector3d P0(DrawSnapLine.PointAt(-9999)), P1(DrawSnapLine.PointAt(9999));		// should be smarter here...
+			if (RenderCameraState.bIsOrthographic == false)
+			{
+				FPlane3d CameraPlane(RenderCameraState.Forward(), RenderCameraState.Position + 1.0*RenderCameraState.Forward());
+				CameraPlane.ClipSegment(P0, P1);
+			}
+			PDI->DrawLine((FVector)P0, (FVector)P1, SnapLineColor, SDPG_Foreground, 0.5 * PDIScale, 0.0f, true);
 
 			if (SnapEngine.HaveActiveSnapDistance())
 			{
@@ -361,6 +371,9 @@ void UDrawPolygonTool::Render(IToolsContextRenderAPI* RenderAPI)
 		}
 	}
 
+	//
+	// Draw Surface Hit Indicator
+	//
 	if (bHaveSurfaceHit)
 	{
 		PDI->DrawPoint((FVector)SurfaceHitPoint, ClosedPolygonColor, 10*PDIScale, SDPG_Foreground);
@@ -375,6 +388,9 @@ void UDrawPolygonTool::Render(IToolsContextRenderAPI* RenderAPI)
 	}
 
 
+	//
+	// Draw the polygon contour preview
+	//
 	if (PolygonVertices.Num() > 0)
 	{
 		FColor UseColor = bIsClosed ? ClosedPolygonColor 
@@ -393,7 +409,7 @@ void UDrawPolygonTool::Render(IToolsContextRenderAPI* RenderAPI)
 			}
 		};
 
-		// draw thin no-depth
+		// draw thin no-depth (x-ray draw)
 		//DrawVertices(PolygonVertices, SDPG_Foreground, HiddenLineThickness);
 		for (int i = 0; i < NumVerts - 1; ++i)
 		{
@@ -535,9 +551,8 @@ bool UDrawPolygonTool::FindDrawPlaneHitPoint(const FInputDeviceRay& ClickPos, FV
 	// if not snap and we want to hit objects, do that
 	if (SnapProperties->bHitSceneObjects)
 	{
-		FCollisionObjectQueryParams QueryParams(FCollisionObjectQueryParams::AllObjects);
 		FHitResult Result;
-		bool bWorldHit = TargetWorld->LineTraceSingleByObjectType(Result, ClickPos.WorldRay.Origin, ClickPos.WorldRay.PointAt(9999), QueryParams);
+		bool bWorldHit = ToolSceneQueriesUtil::FindNearestVisibleObjectHit(TargetWorld, Result, ClickPos.WorldRay);
 		if (bWorldHit)
 		{
 			bHaveSurfaceHit = true;
@@ -589,6 +604,12 @@ void UDrawPolygonTool::OnBeginClickSequence(const FInputDeviceRay& ClickPos)
 
 	bInFixedPolygonMode = (PolygonProperties->PolygonType != EDrawPolygonDrawMode::Freehand);
 	FixedPolygonClickPoints.Reset();
+
+	// Actually process the click.
+	// TODO: This slightly awkward organization is a reflection of an earlier time when
+	// MultiClickSequenceInputBehavior issued a duplicate OnNextSequenceClick() call 
+	// immediately after OnBeginClickSequence(). The code could be cleaned up.
+	OnNextSequenceClick(ClickPos);
 }
 
 void UDrawPolygonTool::OnNextSequencePreview(const FInputDeviceRay& ClickPos)
@@ -638,6 +659,11 @@ bool UDrawPolygonTool::OnNextSequenceClick(const FInputDeviceRay& ClickPos)
 		return true;  // ignore click but continue accepting clicks
 	}
 
+	// Construct the change now for the undo queue so it reflects the current state.  We might not do anything, in which
+	// case we will not emit the change
+	TUniquePtr<FDrawPolygonStateChange> Change =
+		MakeUnique<FDrawPolygonStateChange>(CurrentCurveTimestamp, FixedPolygonClickPoints, PolygonVertices);
+
 	bool bDonePolygon = false;
 	if (bInFixedPolygonMode)
 	{
@@ -654,7 +680,7 @@ bool UDrawPolygonTool::OnNextSequenceClick(const FInputDeviceRay& ClickPos)
 		{
 			GenerateFixedPolygon(FixedPolygonClickPoints, PolygonVertices, PolygonHolesVertices);
 		}
-	} 
+	}
 	else
 	{
 		// ignore very close click points
@@ -679,7 +705,9 @@ bool UDrawPolygonTool::OnNextSequenceClick(const FInputDeviceRay& ClickPos)
 		}
 	}
 
-	
+	// emit change event
+	GetToolManager()->EmitObjectChange(this, MoveTemp(Change), LOCTEXT("DrawPolyAddPoint", "Add Point"));
+
 	if (bDonePolygon)
 	{
 		//SnapEngine.Reset();
@@ -705,9 +733,6 @@ bool UDrawPolygonTool::OnNextSequenceClick(const FInputDeviceRay& ClickPos)
 	}
 
 	AppendVertex(HitPos);
-
-	// emit change event
-	GetToolManager()->EmitObjectChange(this, MakeUnique<FDrawPolygonStateChange>(CurrentCurveTimestamp), LOCTEXT("DrawPolyAddPoint", "Add Point"));
 
 	// if we are starting a freehand poly, add start point as snap target, but then ignore it until we get 3 verts
 	if (bInFixedPolygonMode == false && PolygonVertices.Num() == 1)
@@ -872,7 +897,6 @@ void UDrawPolygonTool::GenerateFixedPolygon(const TArray<FVector3d>& FixedPoints
 }
 
 
-
 void UDrawPolygonTool::BeginInteractiveExtrude()
 {
 	bInInteractiveExtrude = true;
@@ -883,8 +907,11 @@ void UDrawPolygonTool::BeginInteractiveExtrude()
 
 	HeightMechanic->WorldHitQueryFunc = [this](const FRay& WorldRay, FHitResult& HitResult)
 	{
-		FCollisionObjectQueryParams QueryParams(FCollisionObjectQueryParams::AllObjects);
-		return TargetWorld->LineTraceSingleByObjectType(HitResult, WorldRay.Origin, WorldRay.PointAt(999999), QueryParams);
+		if (this->bIgnoreSnappingToggle == false)
+		{
+			return ToolSceneQueriesUtil::FindNearestVisibleObjectHit(TargetWorld, HitResult, WorldRay);
+		}
+		return false;
 	};
 	HeightMechanic->WorldPointSnapFunc = [this](const FVector3d& WorldPos, FVector3d& SnapPos)
 	{
@@ -961,7 +988,7 @@ void UDrawPolygonTool::UpdateShowGizmoState(bool bNewVisibility)
 				ETransformGizmoSubElements::StandardTranslateRotate, this);
 		}
 		PlaneTransformGizmo->SetActiveTarget(PlaneTransformProxy, GetToolManager());
-		PlaneTransformGizmo->SetNewGizmoTransform(FTransform((FQuat)DrawPlaneOrientation, (FVector)DrawPlaneOrigin));
+		PlaneTransformGizmo->ReinitializeGizmoTransform(FTransform((FQuat)DrawPlaneOrientation, (FVector)DrawPlaneOrigin));
 	}
 }
 
@@ -988,7 +1015,7 @@ void UDrawPolygonTool::EmitCurrentPolygon()
 
 	AActor* NewActor = AssetGenerationUtil::GenerateStaticMeshActor(
 		AssetAPI, TargetWorld,
-		&Mesh, PlaneFrameOut.ToTransform(), BaseName, MaterialProperties->Material);
+		&Mesh, PlaneFrameOut.ToTransform(), BaseName, MaterialProperties->Material.Get());
 	if (NewActor != nullptr)
 	{
 		ToolSelectionUtil::SetNewActorSelection(GetToolManager(), NewActor);
@@ -1016,7 +1043,7 @@ void UDrawPolygonTool::UpdateLivePreview()
 	if (GeneratePolygonMesh(PolygonVertices, PolygonHolesVertices, &Mesh, PlaneFrame, false, ExtrudeDist, false))
 	{
 		PreviewMesh->SetTransform(PlaneFrame.ToFTransform());
-		PreviewMesh->SetMaterial(MaterialProperties->Material);
+		PreviewMesh->SetMaterial(MaterialProperties->Material.Get());
 		PreviewMesh->EnableWireframe(MaterialProperties->bWireframe);
 		PreviewMesh->UpdatePreview(&Mesh);
 	}
@@ -1227,32 +1254,28 @@ void UDrawPolygonTool::ShowStartupMessage()
 void UDrawPolygonTool::ShowExtrudeMessage()
 {
 	GetToolManager()->DisplayMessage(
-		LOCTEXT("OnStartExtrude", "Set the height of the Extrusion by positioning the mouse over the extrusion volume, or over the scene to snap to relative heights."),
+		LOCTEXT("OnStartExtrude", "Set the height of the Extrusion by positioning the mouse over the extrusion volume, or over the scene to snap to relative heights. Hold Shift to ignore Snapping."),
 		EToolMessageLevel::UserNotification);
 }
 
 
 
 
-void UDrawPolygonTool::UndoCurrentOperation()
+void UDrawPolygonTool::UndoCurrentOperation(const TArray<FVector3d>& ClickPointsIn, const TArray<FVector3d>& PolygonVerticesIn)
 {
 	if (bInInteractiveExtrude)
 	{
 		PreviewMesh->ClearPreview();
 		PreviewMesh->SetVisible(false);
 		bInInteractiveExtrude = false;
-		PopLastVertexAction();
 	}
-	else
-	{
-		PopLastVertexAction();
-	}
+	ApplyUndoPoints(ClickPointsIn, PolygonVerticesIn);
 }
 
 
 void FDrawPolygonStateChange::Revert(UObject* Object)
 {
-	Cast<UDrawPolygonTool>(Object)->UndoCurrentOperation();
+	Cast<UDrawPolygonTool>(Object)->UndoCurrentOperation( FixedVertexPoints, PolyPoints );
 	bHaveDoneUndo = true;
 }
 bool FDrawPolygonStateChange::HasExpired(UObject* Object) const

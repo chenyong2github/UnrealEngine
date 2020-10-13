@@ -70,6 +70,7 @@ private:
 	void HandleGetChildrenForTree(URigVMPin* InItem, TArray<URigVMPin*>& OutChildren);
 
 	void HandleExpansionChanged(URigVMPin* InItem, bool bExpanded);
+	void HandleExpandRecursively(URigVMPin* InItem, bool bExpanded, TSharedPtr<STreeView<URigVMPin*>>* TreeWidgetPtr);
 
 	FText GetPinLabel(TWeakPtr<SGraphPin> GraphPin) const;
 

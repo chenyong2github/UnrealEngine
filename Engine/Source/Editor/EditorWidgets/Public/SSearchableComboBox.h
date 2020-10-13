@@ -102,6 +102,10 @@ public:
 	 */
 	void RefreshOptions();
 
+protected:
+	/** Set ths source data for this combo box */
+	void SetOptionsSource(const TArray< TSharedPtr<FString> >* InOptionsSource);
+
 private:
 
 	/** Generate a row for the InItem in the combo box's list (passed in as OwnerTable). Do this by calling the user-specified OnGenerateWidget */

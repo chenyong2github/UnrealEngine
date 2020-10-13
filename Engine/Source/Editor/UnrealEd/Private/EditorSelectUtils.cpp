@@ -477,7 +477,7 @@ void UUnrealEdEngine::SelectGroup(AGroupActor* InGroupActor, bool bForceSelectio
 bool UUnrealEdEngine::CanSelectActor(AActor* Actor, bool bInSelected, bool bSelectEvenIfHidden, bool bWarnIfLevelLocked ) const
 {
 	// If selections are globally locked, leave.
-	if( !Actor || GEdSelectionLock || !Actor->IsEditable() )
+	if( !Actor || !Actor->GetLevel() || GEdSelectionLock || !Actor->IsEditable() )
 	{
 		return false;
 	}

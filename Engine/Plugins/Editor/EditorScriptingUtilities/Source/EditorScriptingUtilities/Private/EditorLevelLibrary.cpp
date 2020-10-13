@@ -82,7 +82,7 @@ namespace InternalEditorLevelLibrary
 	{
 		TArray<T*> Result;
 
-		if(!EditorScriptingUtils::CheckIfInEditorAndPIE())
+		if(!EditorScriptingUtils::IsInEditorAndNotPlaying())
 		{
 			return Result;
 		}
@@ -106,7 +106,7 @@ TArray<AActor*> UEditorLevelLibrary::GetAllLevelActors()
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 	TArray<AActor*> Result;
 
-	if (EditorScriptingUtils::CheckIfInEditorAndPIE())
+	if (EditorScriptingUtils::IsInEditorAndNotPlaying())
 	{
 		//Default iterator only iterates over active levels.
 		const EActorIteratorFlags Flags = EActorIteratorFlags::SkipPendingKill;
@@ -132,7 +132,7 @@ TArray<UActorComponent*> UEditorLevelLibrary::GetAllLevelActorsComponents()
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
+	if (!EditorScriptingUtils::IsInEditorAndNotPlaying())
 	{
 		return TArray<UActorComponent*>();
 	}
@@ -145,7 +145,7 @@ TArray<AActor*> UEditorLevelLibrary::GetSelectedLevelActors()
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
 	TArray<AActor*> Result;
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
+	if (!EditorScriptingUtils::IsInEditorAndNotPlaying())
 	{
 		return Result;
 	}
@@ -167,7 +167,7 @@ void UEditorLevelLibrary::SetSelectedLevelActors(const TArray<class AActor*>& Ac
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
 	TArray<AActor*> Result;
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
+	if (!EditorScriptingUtils::IsInEditorAndNotPlaying())
 	{
 		return;
 	}
@@ -356,7 +356,7 @@ namespace InternalEditorLevelLibrary
 {
 	AActor* SpawnActor(const TCHAR* MessageName, UObject* ObjToUse, FVector Location, FRotator Rotation, bool bTransient = false)
 	{
-		if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
+		if (!EditorScriptingUtils::IsInEditorAndNotPlaying())
 		{
 			return nullptr;
 		}
@@ -416,7 +416,7 @@ AActor* UEditorLevelLibrary::SpawnActorFromObject(UObject* ObjToUse, FVector Loc
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
+	if (!EditorScriptingUtils::IsInEditorAndNotPlaying())
 	{
 		return nullptr;
 	}
@@ -434,7 +434,7 @@ AActor* UEditorLevelLibrary::SpawnActorFromClass(TSubclassOf<class AActor> Actor
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
+	if (!EditorScriptingUtils::IsInEditorAndNotPlaying())
 	{
 		return nullptr;
 	}
@@ -452,7 +452,7 @@ bool UEditorLevelLibrary::DestroyActor(class AActor* ToDestroyActor)
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
+	if (!EditorScriptingUtils::IsInEditorAndNotPlaying())
 	{
 		return false;
 	}
@@ -491,13 +491,15 @@ UWorld* UEditorLevelLibrary::GetEditorWorld()
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
+	if (!EditorScriptingUtils::IsInEditorAndNotPlaying())
 	{
 		return nullptr;
 	}
 
 	return InternalEditorLevelLibrary::GetEditorWorld();
 }
+
+#if WITH_EDITOR
 
 UWorld* UEditorLevelLibrary::GetGameWorld()
 {
@@ -529,6 +531,8 @@ TArray<UWorld*> UEditorLevelLibrary::GetPIEWorlds(bool bIncludeDedicatedServer)
 	return PIEWorlds;
 }
 
+#endif
+
 /**
  *
  * Editor Scripting | Level
@@ -539,7 +543,7 @@ bool UEditorLevelLibrary::NewLevel(const FString& AssetPath)
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
+	if (!EditorScriptingUtils::IsInEditorAndNotPlaying())
 	{
 		return false;
 	}
@@ -585,7 +589,7 @@ bool UEditorLevelLibrary::NewLevelFromTemplate(const FString& AssetPath, const F
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
+	if (!EditorScriptingUtils::IsInEditorAndNotPlaying())
 	{
 		return false;
 	}
@@ -648,7 +652,7 @@ bool UEditorLevelLibrary::LoadLevel(const FString& AssetPath)
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
+	if (!EditorScriptingUtils::IsInEditorAndNotPlaying())
 	{
 		return false;
 	}
@@ -668,7 +672,7 @@ bool UEditorLevelLibrary::SaveCurrentLevel()
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
+	if (!EditorScriptingUtils::IsInEditorAndNotPlaying())
 	{
 		return false;
 	}
@@ -714,7 +718,7 @@ bool UEditorLevelLibrary::SaveAllDirtyLevels()
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
+	if (!EditorScriptingUtils::IsInEditorAndNotPlaying())
 	{
 		return false;
 	}
@@ -787,7 +791,7 @@ bool UEditorLevelLibrary::SetCurrentLevelByName(FName LevelName)
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
+	if (!EditorScriptingUtils::IsInEditorAndNotPlaying())
 	{
 		return false;
 	}
@@ -881,7 +885,7 @@ void UEditorLevelLibrary::ReplaceMeshComponentsMaterials(const TArray<UMeshCompo
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
+	if (!EditorScriptingUtils::IsInEditorAndNotPlaying())
 	{
 		return;
 	}
@@ -903,7 +907,7 @@ void UEditorLevelLibrary::ReplaceMeshComponentsMaterialsOnActors(const TArray<AA
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
+	if (!EditorScriptingUtils::IsInEditorAndNotPlaying())
 	{
 		return;
 	}
@@ -977,7 +981,7 @@ void UEditorLevelLibrary::ReplaceMeshComponentsMeshes(const TArray<UStaticMeshCo
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
+	if (!EditorScriptingUtils::IsInEditorAndNotPlaying())
 	{
 		return;
 	}
@@ -999,7 +1003,7 @@ void UEditorLevelLibrary::ReplaceMeshComponentsMeshesOnActors(const TArray<AActo
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
+	if (!EditorScriptingUtils::IsInEditorAndNotPlaying())
 	{
 		return;
 	}
@@ -1032,7 +1036,7 @@ TArray<class AActor*> UEditorLevelLibrary::ConvertActors(const TArray<class AAct
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
 	TArray<class AActor*> Result;
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
+	if (!EditorScriptingUtils::IsInEditorAndNotPlaying())
 	{
 		return Result;
 	}
@@ -1222,7 +1226,7 @@ AActor* UEditorLevelLibrary::JoinStaticMeshActors(const TArray<AStaticMeshActor*
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
+	if (!EditorScriptingUtils::IsInEditorAndNotPlaying())
 	{
 		return nullptr;
 	}
@@ -1304,7 +1308,7 @@ bool UEditorLevelLibrary::MergeStaticMeshActors(const TArray<AStaticMeshActor*>&
 
 	OutMergedActor = nullptr;
 
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
+	if (!EditorScriptingUtils::IsInEditorAndNotPlaying())
 	{
 		return false;
 	}
@@ -1401,7 +1405,7 @@ bool UEditorLevelLibrary::CreateProxyMeshActor(const TArray<class AStaticMeshAct
 
 	OutMergedActor = nullptr;
 
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
+	if (!EditorScriptingUtils::IsInEditorAndNotPlaying())
 	{
 		return false;
 	}

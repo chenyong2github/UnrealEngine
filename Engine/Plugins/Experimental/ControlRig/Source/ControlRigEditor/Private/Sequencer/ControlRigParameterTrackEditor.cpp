@@ -162,7 +162,7 @@ static USkeleton* AcquireSkeletonFromObjectGuid(const FGuid& Guid, UObject** Obj
 }
 
 FControlRigParameterTrackEditor::FControlRigParameterTrackEditor(TSharedRef<ISequencer> InSequencer)
-	: FKeyframeTrackEditor<UMovieSceneControlRigParameterTrack>(InSequencer), bIsDoingSelection(false), bWeSetSequencerSelection(false), bFilterAssetBySkeleton(true)
+	: FKeyframeTrackEditor<UMovieSceneControlRigParameterTrack>(InSequencer), bIsDoingSelection(false),  bFilterAssetBySkeleton(true)
 {
 	SelectionChangedHandle = InSequencer->GetSelectionChangedTracks().AddRaw(this, &FControlRigParameterTrackEditor::OnSelectionChanged);
 	SequencerChangedHandle = InSequencer->OnMovieSceneDataChanged().AddRaw(this, &FControlRigParameterTrackEditor::OnSequencerDataChanged);
@@ -1219,11 +1219,7 @@ void FControlRigParameterTrackEditor::OnSelectionChanged(TArray<UMovieSceneTrack
 	{
 		return;
 	}
-	if (bWeSetSequencerSelection)
-	{
-		bWeSetSequencerSelection = false;
-		return;
-	}
+	
 	TGuardValue<bool> Guard(bIsDoingSelection, true);
 
 	TArray<FString> StringArray;
@@ -1250,24 +1246,27 @@ void FControlRigParameterTrackEditor::OnSelectionChanged(TArray<UMovieSceneTrack
 			if (CRTrack)
 			{
 				UControlRig* TrackControlRig = CRTrack->GetControlRig();
-				if (ControlRigEditMode)
+				if (TrackControlRig)
 				{
-					ControlRig = ControlRigEditMode->GetControlRig(false);
-					if (ControlRig != TrackControlRig)
+					if (ControlRigEditMode)
 					{
-						ControlRigEditMode->SetObjects(TrackControlRig, nullptr, GetSequencer());
-					}
-					break;
-				}
-				else
-				{
-					GLevelEditorModeTools().ActivateMode(FControlRigEditMode::ModeName);
-					ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName));
-					if (TSharedPtr<IControlRigObjectBinding> ObjectBinding = TrackControlRig->GetObjectBinding())
-					{
-						if (ControlRigEditMode)
+						ControlRig = ControlRigEditMode->GetControlRig(false);
+						if (ControlRig != TrackControlRig)
 						{
 							ControlRigEditMode->SetObjects(TrackControlRig, nullptr, GetSequencer());
+						}
+						break;
+					}
+					else
+					{
+						GLevelEditorModeTools().ActivateMode(FControlRigEditMode::ModeName);
+						ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName));
+						if (TSharedPtr<IControlRigObjectBinding> ObjectBinding = TrackControlRig->GetObjectBinding())
+						{
+							if (ControlRigEditMode)
+							{
+								ControlRigEditMode->SetObjects(TrackControlRig, nullptr, GetSequencer());
+							}
 						}
 					}
 				}
@@ -1408,17 +1407,6 @@ void FControlRigParameterTrackEditor::HandleControlSelected(UControlRig* Subject
 			return;
 		}
 		ActorObject = Component->GetOwner();
-		if (bSelected)
-		{
-			//make sure the actor is selected, otherwise we really can't select the proxies.
-			if (AActor* SkelMeshActor = Cast<AActor>(ActorObject))
-			{
-				if (SkelMeshActor->IsSelected() == false)
-				{
-					GEditor->SelectActor(SkelMeshActor, true, true, false);
-				}
-			}
-		}
 		bool bCreateTrack = false;
 		FFindOrCreateHandleResult HandleResult = FindOrCreateHandleToSceneCompOrOwner(Component);
 		FGuid ObjectHandle = HandleResult.Handle;
@@ -1474,7 +1462,6 @@ void FControlRigParameterTrackEditor::HandleControlSelected(UControlRig* Subject
 			//Force refresh now, not later
 			GetSequencer()->RefreshTree();
 
-			bWeSetSequencerSelection = true;
 		}
 	}
 }
@@ -1514,10 +1501,43 @@ void FControlRigParameterTrackEditor::OnPropagateObjectChanges(UObject* InChange
 
 void FControlRigParameterTrackEditor::HandleOnInitialized(UControlRig* ControlRig, const EControlRigState InState, const FName& InEventName)
 {
-	if (GetSequencer().IsValid() && !GetSequencer()->IsAllowedToChange())
+	if (GetSequencer().IsValid())
 	{
 		return;
 	}
+	//also reconstruct channels if we have changed...
+	FName ControlRigName(*ControlRig->GetName());
+	if (TSharedPtr<IControlRigObjectBinding> ObjectBinding = ControlRig->GetObjectBinding())
+	{
+		USceneComponent* Component = Cast<USceneComponent>(ObjectBinding->GetBoundObject());
+		if (!Component)
+		{
+			return;
+		}
+		bool bCreateTrack = false;
+		FFindOrCreateHandleResult HandleResult = FindOrCreateHandleToSceneCompOrOwner(Component);
+		FGuid ObjectHandle = HandleResult.Handle;
+		if (!ObjectHandle.IsValid())
+		{
+			return;
+		}
+
+		FFindOrCreateTrackResult TrackResult = FindOrCreateTrackForObject(ObjectHandle, UMovieSceneControlRigParameterTrack::StaticClass(), ControlRigName, bCreateTrack);
+		UMovieSceneControlRigParameterTrack* Track = CastChecked<UMovieSceneControlRigParameterTrack>(TrackResult.Track, ECastCheckedType::NullAllowed);
+		if (Track)
+		{
+			TArray<UMovieSceneSection*> Sections = Track->GetAllSections();
+			for (UMovieSceneSection* IterSection : Sections)
+			{
+				UMovieSceneControlRigParameterSection* Section = Cast< UMovieSceneControlRigParameterSection>(IterSection);
+				if (Section)
+				{
+					Section->ReconstructChannelProxy(true);
+				}
+			}
+		}
+	}
+	
 	//if we are in an init force the sequence to run so we also reset and redraw.
 	if (InState == EControlRigState::Init)
 	{

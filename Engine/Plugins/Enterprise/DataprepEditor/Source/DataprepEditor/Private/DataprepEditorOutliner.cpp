@@ -507,7 +507,7 @@ void FDataprepEditor::CreateScenePreviewTab()
 	FSceneOutlinerModule& SceneOutlinerModule = FModuleManager::Get().LoadModuleChecked<FSceneOutlinerModule>("SceneOutliner");
 
 	SceneOutliner::FInitializationOptions SceneOutlinerOptions;
-	SceneOutlinerOptions.SpecifiedWorldToDisplay = PreviewWorld.Get();
+	SceneOutlinerOptions.SpecifiedWorldToDisplay = PreviewWorld;
 	SceneOutlinerOptions.ContextMenuOverride.BindRaw(this, &FDataprepEditor::OnSceneOutlinerContextMenuOpening);
 
 	SceneOutliner = SceneOutlinerModule.CreateCustomSceneOutliner(SceneOutlinerOptions);
@@ -612,7 +612,7 @@ void FDataprepEditor::OnSceneOutlinerSelectionChanged(SceneOutliner::FTreeItemPt
 	SetWorldObjectsSelection(MoveTemp(Visitor.Selection), EWorldSelectionFrom::SceneOutliner);
 }
 
-void FDataprepEditor::SetWorldObjectsSelection(TSet<TWeakObjectPtr<UObject>>&& NewSelection, EWorldSelectionFrom SelectionFrom /* = EWorldSelectionFrom::Unknow */)
+void FDataprepEditor::SetWorldObjectsSelection(TSet<TWeakObjectPtr<UObject>>&& NewSelection, EWorldSelectionFrom SelectionFrom /* = EWorldSelectionFrom::Unknow */,  bool bSetAsDetailsObject /* = true */)
 {
 	WorldItemsSelection.Empty(NewSelection.Num());
 	WorldItemsSelection.Append(MoveTemp(NewSelection));
@@ -639,6 +639,7 @@ void FDataprepEditor::SetWorldObjectsSelection(TSet<TWeakObjectPtr<UObject>>&& N
 		SceneViewportView->SelectActors(Actors);
 	}
 
+	if ( bSetAsDetailsObject )
 	{
 		TSet<UObject*> Objects;
 		Objects.Reserve(WorldItemsSelection.Num());

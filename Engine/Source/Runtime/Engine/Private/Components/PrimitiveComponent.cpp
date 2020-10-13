@@ -1463,6 +1463,15 @@ void UPrimitiveComponent::SetCastShadow(bool NewCastShadow)
 	}
 }
 
+void UPrimitiveComponent::SetCastHiddenShadow(bool NewCastHiddenShadow)
+{
+	if (NewCastHiddenShadow != bCastHiddenShadow)
+	{
+		bCastHiddenShadow = NewCastHiddenShadow;
+		MarkRenderStateDirty();
+	}
+}
+
 void UPrimitiveComponent::SetCastInsetShadow(bool bInCastInsetShadow)
 {
 	if(bInCastInsetShadow != bCastInsetShadow)
@@ -3330,6 +3339,7 @@ void UPrimitiveComponent::SetLightingChannels(bool bChannel0, bool bChannel1, bo
 		{
 			SceneProxy->SetLightingChannels_GameThread(LightingChannels);
 		}
+		MarkRenderStateDirty();
 	}
 }
 

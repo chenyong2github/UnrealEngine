@@ -64,8 +64,10 @@ CSV_DECLARE_CATEGORY_MODULE_EXTERN(CORE_API, Basic);
 
 TAutoConsoleVariable<int32> CVarEnableClothPhysics(TEXT("p.ClothPhysics"), 1, TEXT("If 1, physics cloth will be used for simulation."));
 TAutoConsoleVariable<int32> CVarEnableClothPhysicsUseTaskThread(TEXT("p.ClothPhysics.UseTaskThread"), 1, TEXT("If 1, run cloth on the task thread. If 0, run on game thread."));
-TAutoConsoleVariable<int32> CVarClothPhysicsTickWaitForParallelClothTask(TEXT("p.ClothPhysics.WaitForParallelClothTask"), 1, TEXT(""));
+TAutoConsoleVariable<int32> CVarClothPhysicsTickWaitForParallelClothTask(TEXT("p.ClothPhysics.WaitForParallelClothTask"), 0, TEXT("If 1, always wait for cloth task completion in the Cloth Tick function. If 0, wait at end-of-frame updates instead if allowed by component settings"));
 TAutoConsoleVariable<int32> CVarEnableKinematicDeferralPrePhysicsCondition(TEXT("p.EnableKinematicDeferralPrePhysicsCondition"), 1, TEXT("If is 1, and deferral would've been disallowed due to EUpdateTransformFlags, allow if in PrePhysics tick. If 0, condition is unchanged."));
+
+TAutoConsoleVariable<int32> CVarDisableSkeletalMeshCollisionFiltering(TEXT("p.DisableSkeletalMeshCollisionFiltering"), 1, TEXT("If is 1, we are not using skeletal mesh collision filtering system. If 0, it is on."));
 
 //This is the total cloth time split up among multiple computation (updating gpu, updating sim, etc...)
 DECLARE_CYCLE_STAT(TEXT("Cloth Total"), STAT_ClothTotalTime, STATGROUP_Physics);
@@ -533,6 +535,11 @@ void USkeletalMeshComponent::OnConstraintBrokenWrapper(int32 ConstraintIndex)
 
 void USkeletalMeshComponent::InitCollisionRelationships()
 {
+	if (CVarDisableSkeletalMeshCollisionFiltering.GetValueOnGameThread() == 1)
+	{
+		return;
+	}
+
 #if WITH_CHAOS
 	if (UPhysicsAsset* const PhysicsAsset = GetPhysicsAsset())
 	{
@@ -586,6 +593,11 @@ void USkeletalMeshComponent::InitCollisionRelationships()
 
 void USkeletalMeshComponent::TermCollisionRelationships()
 {
+	if (CVarDisableSkeletalMeshCollisionFiltering.GetValueOnGameThread() == 1)
+	{
+		return;
+	}
+
 #if WITH_CHAOS
 	if (UPhysicsAsset* const PhysicsAsset = GetPhysicsAsset())
 	{
@@ -2734,7 +2746,7 @@ void USkeletalMeshComponent::ExtractCollisionsForCloth(
 		{
 			FClothCollisionPrim_Sphere& OutSphere = OutCollisions.Spheres.Add_GetRef(CachedSphere);
 
-			const FTransform& BoneTransform = SourceComponent->GetBoneTransform(OutSphere.BoneIndex, FTransform::Identity) * ComponentToComponentTransform;
+			const FTransform BoneTransform = SourceComponent->GetBoneTransform(OutSphere.BoneIndex, FTransform::Identity) * ComponentToComponentTransform;
 			OutSphere.LocalPosition = BoneTransform.TransformPosition(OutSphere.LocalPosition);
 			OutSphere.BoneIndex = INDEX_NONE;
 		}
@@ -2897,7 +2909,7 @@ void USkeletalMeshComponent::ProcessClothCollisionWithEnvironment()
 						FMatrix ShapeLocalPose = FPhysicsInterface::GetLocalTransform(Shape).ToMatrixWithScale();
 
 #if WITH_CHAOS
-                        check(false);
+						// TODO: Add missing Chaos Cloth collision with environment
 #else
 						switch(GeoType)
 						{
@@ -3137,7 +3149,7 @@ void USkeletalMeshComponent::EndPhysicsTickComponent(FSkeletalMeshComponentEndPh
 	{
 		if (IsRegistered())
 		{
-			BlendInPhysics(ThisTickFunction);
+			BlendInPhysicsInternal(ThisTickFunction);
 		}
 	}
 }

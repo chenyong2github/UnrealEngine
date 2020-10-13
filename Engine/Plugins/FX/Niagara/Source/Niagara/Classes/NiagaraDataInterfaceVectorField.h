@@ -70,7 +70,7 @@ protected:
 	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
 	//~ UNiagaraDataInterface interface END
 
-	void PushToRenderThread();
+	virtual void PushToRenderThreadImpl() override;
 };
 
 struct FNiagaraDataInterfaceProxyVectorField : public FNiagaraDataInterfaceProxy

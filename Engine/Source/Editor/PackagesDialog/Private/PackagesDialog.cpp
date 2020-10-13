@@ -9,6 +9,8 @@
 #include "SPackagesDialog.h"
 #include "Widgets/Views/SListView.h"
 #include "AssetRegistryModule.h"
+#include "IAssetTools.h"
+#include "AssetToolsModule.h"
 
 IMPLEMENT_MODULE( FPackagesDialogModule, PackagesDialog );
 
@@ -196,13 +198,27 @@ void FPackagesDialogModule::AddPackageItem(UPackage* InPackage, ECheckBoxState I
 	bool InDisabled/*=false*/, FString InIconName/*=TEXT("SavePackages.SCC_DlgNoIcon")*/, FString InIconToolTip/*=TEXT("")*/)
 {
 	FName AssetName;
+	FName OwnerName;
+
+	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools"));
 
 	// Lookup for the first asset in the package
-	ForEachObjectWithPackage(InPackage, [&AssetName](UObject* InnerObject)
+	ForEachObjectWithPackage(InPackage, [&AssetName, &OwnerName, &AssetToolsModule](UObject* InnerObject)
 	{
 		if (InnerObject->IsAsset())
 		{
-			AssetName = InnerObject->GetFName();
+			TWeakPtr<IAssetTypeActions> AssetTypeActions = AssetToolsModule.Get().GetAssetTypeActionsForClass(InnerObject->GetClass());
+
+			if (AssetTypeActions.IsValid())
+			{
+				AssetName = *AssetTypeActions.Pin()->GetObjectDisplayName(InnerObject);
+			}
+			else
+			{
+				AssetName = InnerObject->GetFName();
+			}
+
+			OwnerName = InnerObject->GetOutermostObject()->GetFName();
 			return false;
 		}
 		return true;
@@ -215,7 +231,7 @@ void FPackagesDialogModule::AddPackageItem(UPackage* InPackage, ECheckBoxState I
 	}
 
 	FString FileName = FPaths::ConvertRelativePathToFull(FPackageName::LongPackageNameToFilename(InPackage->GetName()));
-	PackagesDialogWidget.Get()->Add(MakeShareable(new FPackageItem(InPackage, AssetName.ToString(), FileName, InChecked, InDisabled, InIconName, InIconToolTip)));
+	PackagesDialogWidget.Get()->Add(MakeShareable(new FPackageItem(InPackage, AssetName.ToString(), FileName, OwnerName.ToString(), InChecked, InDisabled, InIconName, InIconToolTip)));
 }
 
 /**

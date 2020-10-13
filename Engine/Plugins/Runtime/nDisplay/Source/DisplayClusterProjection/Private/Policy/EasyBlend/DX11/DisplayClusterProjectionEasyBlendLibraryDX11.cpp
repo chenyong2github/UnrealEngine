@@ -11,7 +11,9 @@
 #include "Misc/Paths.h"
 
 #if PLATFORM_WINDOWS
+THIRD_PARTY_INCLUDES_START
 #include "EasyBlendSDKDXApi.h"
+THIRD_PARTY_INCLUDES_END
 #endif
 
 
@@ -70,48 +72,48 @@ bool DisplayClusterProjectionEasyBlendLibraryDX11::Initialize()
 
 			if (DllHandle)
 			{
-				static constexpr auto StrOk   = TEXT("ok");
-				static constexpr auto StrFail = TEXT("NOT FOUND!");
+				const FString StrOk(TEXT("ok"));
+				const FString StrFail(TEXT("NOT FOUND!"));
 
 				// EasyBlendInitialize
 				EasyBlendInitializeFunc = (EasyBlendInitializeProc)FPlatformProcess::GetDllExport((HMODULE)DllHandle, TEXT("EasyBlendInitialize"));
 				check(EasyBlendInitializeFunc);
-				UE_LOG(LogDisplayClusterProjectionEasyBlend, Log, TEXT("EasyBlend API: %s - %s."), TEXT("EasyBlendInitialize"), EasyBlendInitializeFunc ? StrOk : StrFail);
+				UE_LOG(LogDisplayClusterProjectionEasyBlend, Log, TEXT("EasyBlend API: %s - %s."), TEXT("EasyBlendInitialize"), EasyBlendInitializeFunc ? *StrOk : *StrFail);
 
 				// EasyBlendUninitialize
 				EasyBlendUninitializeFunc = (EasyBlendUninitializeProc)FPlatformProcess::GetDllExport((HMODULE)DllHandle, TEXT("EasyBlendUninitialize"));
 				check(EasyBlendUninitializeFunc);
-				UE_LOG(LogDisplayClusterProjectionEasyBlend, Log, TEXT("EasyBlend API: %s - %s."), TEXT("EasyBlendUninitialize"), EasyBlendUninitializeFunc ? StrOk : StrFail);
+				UE_LOG(LogDisplayClusterProjectionEasyBlend, Log, TEXT("EasyBlend API: %s - %s."), TEXT("EasyBlendUninitialize"), EasyBlendUninitializeFunc ? *StrOk : *StrFail);
 
 				// EasyBlendInitDeviceObjects
 				EasyBlendInitDeviceObjectsFunc = (EasyBlendInitDeviceObjectsProc)FPlatformProcess::GetDllExport((HMODULE)DllHandle, TEXT("EasyBlendInitDeviceObjects"));
 				check(EasyBlendInitDeviceObjectsFunc);
-				UE_LOG(LogDisplayClusterProjectionEasyBlend, Log, TEXT("EasyBlend API: %s - %s."), TEXT("EasyBlendInitDeviceObjects"), EasyBlendInitDeviceObjectsFunc ? StrOk : StrFail);
+				UE_LOG(LogDisplayClusterProjectionEasyBlend, Log, TEXT("EasyBlend API: %s - %s."), TEXT("EasyBlendInitDeviceObjects"), EasyBlendInitDeviceObjectsFunc ? *StrOk : *StrFail);
 
 				// EasyBlendDXRender
 				EasyBlendDXRenderFunc = (EasyBlendDXRenderProc)FPlatformProcess::GetDllExport((HMODULE)DllHandle, TEXT("EasyBlendDXRender"));
 				check(EasyBlendDXRenderFunc);
-				UE_LOG(LogDisplayClusterProjectionEasyBlend, Log, TEXT("EasyBlend API: %s - %s."), TEXT("EasyBlendDXRender"), EasyBlendDXRenderFunc ? StrOk : StrFail);
+				UE_LOG(LogDisplayClusterProjectionEasyBlend, Log, TEXT("EasyBlend API: %s - %s."), TEXT("EasyBlendDXRender"), EasyBlendDXRenderFunc ? *StrOk : *StrFail);
 
 				// EasyBlendSetEyepoint
 				EasyBlendSetEyepointFunc = (EasyBlendSetEyepointProc)FPlatformProcess::GetDllExport((HMODULE)DllHandle, TEXT("EasyBlendSetEyepoint"));
 				check(EasyBlendSetEyepointFunc);
-				UE_LOG(LogDisplayClusterProjectionEasyBlend, Log, TEXT("EasyBlend API: %s - %s."), TEXT("EasyBlendSetEyepoint"), EasyBlendSetEyepointFunc ? StrOk : StrFail);
+				UE_LOG(LogDisplayClusterProjectionEasyBlend, Log, TEXT("EasyBlend API: %s - %s."), TEXT("EasyBlendSetEyepoint"), EasyBlendSetEyepointFunc ? *StrOk : *StrFail);
 
 				// EasyBlendSetInputTexture2D
 				EasyBlendSetInputTexture2DFunc = (EasyBlendSetInputTexture2DProc)FPlatformProcess::GetDllExport((HMODULE)DllHandle, TEXT("EasyBlendSetInputTexture2D"));
 				check(EasyBlendSetInputTexture2DFunc);
-				UE_LOG(LogDisplayClusterProjectionEasyBlend, Log, TEXT("EasyBlend API: %s - %s."), TEXT("EasyBlendSetInputTexture2D"), EasyBlendSetInputTexture2DFunc ? StrOk : StrFail);
+				UE_LOG(LogDisplayClusterProjectionEasyBlend, Log, TEXT("EasyBlend API: %s - %s."), TEXT("EasyBlendSetInputTexture2D"), EasyBlendSetInputTexture2DFunc ? *StrOk : *StrFail);
 
 				// EasyBlendSetOutputTexture2D
 				EasyBlendSetOutputTexture2DFunc = (EasyBlendSetOutputTexture2DProc)FPlatformProcess::GetDllExport((HMODULE)DllHandle, TEXT("EasyBlendSetOutputTexture2D"));
 				check(EasyBlendSetOutputTexture2DFunc);
-				UE_LOG(LogDisplayClusterProjectionEasyBlend, Log, TEXT("EasyBlend API: %s - %s."), TEXT("EasyBlendSetOutputTexture2D"), EasyBlendSetOutputTexture2DFunc ? StrOk : StrFail);
+				UE_LOG(LogDisplayClusterProjectionEasyBlend, Log, TEXT("EasyBlend API: %s - %s."), TEXT("EasyBlendSetOutputTexture2D"), EasyBlendSetOutputTexture2DFunc ? *StrOk : *StrFail);
 
 				// EasyBlendSDK_GetHeadingPitchRoll
 				EasyBlendSDK_GetHeadingPitchRollFunc = (EasyBlendSDK_GetHeadingPitchRollProc)FPlatformProcess::GetDllExport((HMODULE)DllHandle, TEXT("EasyBlendSDK_GetHeadingPitchRoll"));
 				check(EasyBlendSDK_GetHeadingPitchRollFunc);
-				UE_LOG(LogDisplayClusterProjectionEasyBlend, Log, TEXT("EasyBlend API: %s - %s."), TEXT("EasyBlendSDK_GetHeadingPitchRoll"), EasyBlendSDK_GetHeadingPitchRollFunc ? StrOk : StrFail);
+				UE_LOG(LogDisplayClusterProjectionEasyBlend, Log, TEXT("EasyBlend API: %s - %s."), TEXT("EasyBlendSDK_GetHeadingPitchRoll"), EasyBlendSDK_GetHeadingPitchRollFunc ? *StrOk : *StrFail);
 			}
 			else
 			{

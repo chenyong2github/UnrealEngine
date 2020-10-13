@@ -28,25 +28,6 @@ public:
 	/** Removes any track associated with this prim */
 	void RemovePrim(const UUsdPrimTwin& PrimTwin);
 
-	/** Prevents the FUsdLevelSequenceHelper from updating the level sequences on object transactions for a given scope */
-	struct FBlockMonitoring
-	{
-		FBlockMonitoring( FUsdLevelSequenceHelper& InLevelSequenceHelper )
-			: LevelSequenceHelper( InLevelSequenceHelper )
-		{
-			LevelSequenceHelper.StopMonitoringChanges();
-		}
-
-		~FBlockMonitoring()
-		{
-			LevelSequenceHelper.StartMonitoringChanges();
-		}
-
-	private:
-		FUsdLevelSequenceHelper& LevelSequenceHelper;
-	};
-
-protected:
 	void StartMonitoringChanges();
 	void StopMonitoringChanges();
 

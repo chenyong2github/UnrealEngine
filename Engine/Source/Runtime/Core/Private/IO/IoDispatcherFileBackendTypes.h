@@ -77,6 +77,7 @@ struct FFileIoStoreCompressedBlock
 	uint8* CompressedDataBuffer = nullptr;
 	FAES::FAESKey EncryptionKey;
 	const FSHAHash* SignatureHash = nullptr;
+	bool bFailed = false;
 };
 
 struct FFileIoStoreReadRequest
@@ -92,6 +93,7 @@ struct FFileIoStoreReadRequest
 	FFileIoStoreBlockScatter ImmediateScatter;
 	EIoDispatcherPriority Priority = IoDispatcherPriority_Count;
 	bool bIsCacheable = false;
+	bool bFailed = false;
 };
 
 class FFileIoStoreReadRequestList

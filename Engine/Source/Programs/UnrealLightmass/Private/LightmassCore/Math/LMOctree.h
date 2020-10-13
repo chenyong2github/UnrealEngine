@@ -6,6 +6,7 @@
 #include "LMMath.h"
 #include "LMMathSSE.h"
 #include "UnrealLightmass.h"
+#include "Misc/MemStack.h"
 
 namespace Lightmass
 {
@@ -279,7 +280,10 @@ public:
 		{
 			FOREACH_OCTREE_CHILD_NODE(ChildRef)
 			{
-				delete Children[ChildRef.Index];
+				if (HasChild(ChildRef.Index))
+				{
+					Children[ChildRef.Index]->~FNode();
+				}
 			}
 		}
 
@@ -612,6 +616,8 @@ public:
 	}
 
 private:
+	/** Lightmass octree is grow-only. Use a stack allocator to coalesce allocations for better allocation performance. */
+	FMemStackBase NodeAllocator;
 
 	/** The octree's root node. */
 	FNode RootNode;
@@ -765,7 +771,8 @@ void TOctree<ElementType,OctreeSemantics>::AddElementToNode(
 				// Create the child node if it hasn't been created yet.
 				if(!Node.Children[ChildRef.Index])
 				{
-					Node.Children[ChildRef.Index] = new typename TOctree<ElementType,OctreeSemantics>::FNode(&Node);
+					uint8* NodeAddr = NodeAllocator.PushBytes(sizeof(typename TOctree<ElementType, OctreeSemantics>::FNode), alignof(typename TOctree<ElementType, OctreeSemantics>::FNode));
+					Node.Children[ChildRef.Index] = new (NodeAddr) typename TOctree<ElementType,OctreeSemantics>::FNode(&Node);
 				}
 
 				// Push the node onto the stack to visit.

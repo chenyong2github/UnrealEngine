@@ -225,8 +225,7 @@ void UHoleFillTool::Setup()
 	else
 	{
 		GetToolManager()->DisplayMessage(
-			LOCTEXT("HoleFillToolDescription", 
-				"Holes in the mesh are highlighted. Select individual holes to fill or use the Select All or Clear buttons."),
+			LOCTEXT("HoleFillToolHighlighted", "Holes in the mesh are highlighted. Select individual holes to fill or use the Select All or Clear buttons."),
 			EToolMessageLevel::UserNotification);
 
 		// Hide all meshes except the Preview
@@ -234,8 +233,7 @@ void UHoleFillTool::Setup()
 	}
 
 	GetToolManager()->DisplayMessage(
-		LOCTEXT("HoleFillToolDescription",
-			"Fill Holes in the selected Mesh by adding triangles. Click on individual holes to fill them, or use the Select All button to fill all holes."),
+		LOCTEXT("HoleFillToolDescription", "Fill Holes in the selected Mesh by adding triangles. Click on individual holes to fill them, or use the Select All button to fill all holes."),
 		EToolMessageLevel::UserNotification);
 }
 
@@ -469,9 +467,8 @@ void UHoleFillTool::UpdateActiveBoundaryLoopSelection()
 	}
 
 	ActiveBoundaryLoopSelection.Reserve(NumEdges);
-	for (int32 k = 0; k < NumEdges; ++k)
+	for (int32 EdgeID : ActiveSelection.SelectedEdgeIDs)
 	{
-		int32 EdgeID = ActiveSelection.SelectedEdgeIDs[k];
 		if (Topology->IsBoundaryEdge(EdgeID))
 		{
 			FSelectedBoundaryLoop& Loop = ActiveBoundaryLoopSelection.Emplace_GetRef();

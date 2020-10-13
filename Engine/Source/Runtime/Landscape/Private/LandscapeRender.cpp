@@ -54,11 +54,24 @@ FAutoConsoleVariableRef CVarLandscapeMeshLODBias(
 	ECVF_Scalability
 );
 
+#if !UE_BUILD_SHIPPING
+static void OnLODDistributionScaleChanged(IConsoleVariable* CVar)
+{
+	for (auto* LandscapeComponent : TObjectRange<ULandscapeComponent>(RF_ClassDefaultObject | RF_ArchetypeObject, true, EInternalObjectFlags::PendingKill))
+	{
+		LandscapeComponent->MarkRenderStateDirty();
+	}
+}
+#endif
+
 float GLandscapeLOD0DistributionScale = 1.f;
 FAutoConsoleVariableRef CVarLandscapeLOD0DistributionScale(
 	TEXT("r.LandscapeLOD0DistributionScale"),
 	GLandscapeLOD0DistributionScale,
 	TEXT("Multiplier for the landscape LOD0DistributionSetting property"),
+#if !UE_BUILD_SHIPPING
+	FConsoleVariableDelegate::CreateStatic(&OnLODDistributionScaleChanged),
+#endif
 	ECVF_Scalability
 );
 
@@ -67,6 +80,9 @@ FAutoConsoleVariableRef CVarLandscapeLODDistributionScale(
 	TEXT("r.LandscapeLODDistributionScale"),
 	GLandscapeLODDistributionScale,
 	TEXT("Multiplier for the landscape LODDistributionSetting property"),
+#if !UE_BUILD_SHIPPING
+	FConsoleVariableDelegate::CreateStatic(&OnLODDistributionScaleChanged),
+#endif
 	ECVF_Scalability
 );
 
@@ -89,14 +105,6 @@ extern TAutoConsoleVariable<int32> CVarLandscapeShowDirty;
 #endif
 
 #if !UE_BUILD_SHIPPING
-static void OnLODDistributionScaleChanged(IConsoleVariable* CVar)
-{
-	for (auto* LandscapeComponent : TObjectRange<ULandscapeComponent>(RF_ClassDefaultObject | RF_ArchetypeObject, true, EInternalObjectFlags::PendingKill))
-	{
-		LandscapeComponent->MarkRenderStateDirty();
-	}
-}
-
 int32 GVarDumpLandscapeLODsCurrentFrame = 0;
 bool GVarDumpLandscapeLODs = false;
 
@@ -1128,8 +1136,8 @@ FLandscapeRenderSystem::FComputeSectionPerViewParametersTask::FComputeSectionPer
 	, ViewLODDistanceFactor(InView->LODDistanceFactor)
 	, ViewEngineShowFlagCollisionPawn(InView->Family->EngineShowFlags.CollisionPawn)
 	, ViewEngineShowFlagCollisionVisibility(InView->Family->EngineShowFlags.CollisionVisibility)
-	, ViewOrigin(InView->ViewMatrices.GetViewOrigin())
-	, ViewProjectionMatrix(InView->ViewMatrices.GetProjectionMatrix())
+	, ViewOrigin(GetLODView(*InView).ViewMatrices.GetViewOrigin())
+	, ViewProjectionMatrix(GetLODView(*InView).ViewMatrices.GetProjectionMatrix())
 {
 }
 
@@ -1231,18 +1239,6 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 	, LightMapResolution(InComponent->GetStaticLightMapResolution())
 #endif
 {
-#if !UE_BUILD_SHIPPING
-	{
-		static bool bStaticInit = false;
-		if (!bStaticInit)
-		{
-			bStaticInit = true;
-			CVarLandscapeLODDistributionScale->SetOnChangedCallback(FConsoleVariableDelegate::CreateStatic(&OnLODDistributionScaleChanged));
-			CVarLandscapeLOD0DistributionScale->SetOnChangedCallback(FConsoleVariableDelegate::CreateStatic(&OnLODDistributionScaleChanged));
-		}
-	}
-#endif
-
 	const auto FeatureLevel = GetScene().GetFeatureLevel();
 
 	if (FeatureLevel >= ERHIFeatureLevel::SM5)
@@ -1420,7 +1416,9 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 
 			if (FeatureLevel >= ERHIFeatureLevel::SM5)
 			{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 				HasTessellationEnabled = LandscapeMaterial->D3D11TessellationMode != EMaterialTessellationMode::MTM_NoTessellation;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			}
 
 			MaterialHasTessellationEnabled.Add(HasTessellationEnabled);
@@ -2392,7 +2390,7 @@ void FLandscapeComponentSceneProxy::GetDynamicMeshElements(const TArray<const FS
 			case ELandscapeViewMode::LOD:
 			{
 
-				const bool bMaterialModifiesMeshPosition = Mesh.MaterialRenderProxy->GetMaterial(View->GetFeatureLevel())->MaterialModifiesMeshPosition_RenderThread();
+				const bool bMaterialModifiesMeshPosition = Mesh.MaterialRenderProxy->GetIncompleteMaterialWithFallback(View->GetFeatureLevel()).MaterialModifiesMeshPosition_RenderThread();
 
 				auto& TemplateMesh = bIsWireframe ? Mesh : MeshTools;
 				for (int32 i = 0; i < TemplateMesh.Elements.Num(); i++)

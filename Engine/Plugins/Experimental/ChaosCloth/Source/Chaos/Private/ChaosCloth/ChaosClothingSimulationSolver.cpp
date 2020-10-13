@@ -47,6 +47,7 @@ FClothingSimulationSolver::FClothingSimulationSolver()
 	, CollisionParticlesSize(0)
 	, Gravity(ChaosClothingSimulationSolverDefault::Gravity)
 	, WindVelocity(ChaosClothingSimulationSolverDefault::WindVelocity)
+	, LegacyWindAdaption(0.f)
 	, WindFluidDensity(ChaosClothingSimulationSolverDefault::WindFluidDensity)
 	, bIsClothGravityOverrideEnabled(false)
 {
@@ -108,6 +109,15 @@ FClothingSimulationSolver::FClothingSimulationSolver()
 
 FClothingSimulationSolver::~FClothingSimulationSolver()
 {
+}
+
+void FClothingSimulationSolver::SetLocalSpaceLocation(const TVector<float, 3>& InLocalSpaceLocation, bool bReset)
+{
+	LocalSpaceLocation = InLocalSpaceLocation;
+	if (bReset)
+	{
+		OldLocalSpaceLocation = InLocalSpaceLocation;
+	}
 }
 
 void FClothingSimulationSolver::SetCloths(TArray<FClothingSimulationCloth*>&& InCloths)
@@ -553,9 +563,10 @@ void FClothingSimulationSolver::SetGravity(uint32 GroupId, const TVector<float, 
 	Evolution->GetGravityForces(GroupId).SetAcceleration(InGravity);
 }
 
-void FClothingSimulationSolver::SetWindVelocity(const TVector<float, 3>& InWindVelocity)
+void FClothingSimulationSolver::SetWindVelocity(const TVector<float, 3>& InWindVelocity, float InLegacyWindAdaption)
 {
 	WindVelocity = InWindVelocity * ChaosClothingSimulationSolverConstant::WorldScale;
+	LegacyWindAdaption = InLegacyWindAdaption;
 }
 
 void FClothingSimulationSolver::SetWindVelocityField(uint32 GroupId, float DragCoefficient, float LiftCoefficient, const TTriangleMesh<float>* TriangleMesh)
@@ -568,6 +579,36 @@ void FClothingSimulationSolver::SetWindVelocityField(uint32 GroupId, float DragC
 const TVelocityField<float, 3>& FClothingSimulationSolver::GetWindVelocityField(uint32 GroupId)
 {
 	return Evolution->GetVelocityField(GroupId);
+}
+
+void FClothingSimulationSolver::SetLegacyWind(uint32 GroupId, bool bUseLegacyWind)
+{
+	if (!bUseLegacyWind)
+	{
+		// Clear force function
+		// NOTE: This assumes that the force function is only used for the legacy wind effect
+		Evolution->GetForceFunction(GroupId) = TFunction<void(TPBDParticles<float, 3>&, const float, const int32)>();
+	}
+	else
+	{
+		// Add legacy wind function
+		Evolution->GetForceFunction(GroupId) = 
+			[this](TPBDParticles<float, 3>& Particles, const float /*Dt*/, const int32 Index)
+			{
+				if (Particles.InvM(Index) != 0.f)
+				{
+					// Calculate wind velocity delta
+					static const float LegacyWindMultiplier = 25.f;
+					const TVector<float, 3> VelocityDelta = WindVelocity * LegacyWindMultiplier - Particles.V(Index);
+
+					// Scale by angle
+					const float DirectionDot = TVector<float, 3>::DotProduct(VelocityDelta.GetUnsafeNormal(), Normals[Index]);
+					const float ScaleFactor = FMath::Min(1.f, FMath::Abs(DirectionDot) * LegacyWindAdaption);
+					
+					Particles.F(Index) += VelocityDelta * ScaleFactor * Particles.M(Index);
+				}
+			};
+	}
 }
 
 void FClothingSimulationSolver::SetSelfCollisions(uint32 GroupId, float SelfCollisionThickness, const TTriangleMesh<float>* TriangleMesh)

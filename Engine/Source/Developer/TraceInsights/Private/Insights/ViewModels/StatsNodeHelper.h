@@ -36,7 +36,36 @@ struct StatsNodeTypeHelper
 	static FName ToBrushName(const EStatsNodeType Type);
 
 	static const FSlateBrush* GetIconForGroup();
-	static const FSlateBrush* GetIconForStatsNodeType(const EStatsNodeType Type);
+	static const FSlateBrush* GetIcon(const EStatsNodeType Type);
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/** Helper struct that contains helper functions and classes for EStatsNodeDataType enum. */
+struct StatsNodeDataTypeHelper
+{
+	/**
+	 * @param Type - The value to get the text for.
+	 *
+	 * @return text representation of the specified EStatsNodeDataType value.
+	 */
+	static FText ToText(const EStatsNodeDataType Type);
+
+	/**
+	 * @param Type - The value to get the text for.
+	 *
+	 * @return text representation with more detailed explanation of the specified EStatsNodeDataType value.
+	 */
+	static FText ToDescription(const EStatsNodeDataType Type);
+
+	/**
+	 * @param Type - The value to get the brush name for.
+	 *
+	 * @return brush name of the specified EStatsNodeDataType value.
+	 */
+	static FName ToBrushName(const EStatsNodeDataType Type);
+
+	static const FSlateBrush* GetIcon(const EStatsNodeDataType Type);
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

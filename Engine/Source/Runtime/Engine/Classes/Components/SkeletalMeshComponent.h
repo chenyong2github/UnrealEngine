@@ -1923,14 +1923,16 @@ public:
 	 *
 	 * @param	RequiredBones	List of bones to be blend
 	 */
+	UE_DEPRECATED(4.26, "This function is deprecated and should not be called directly. Please use the mechanism provided in USkeletalMeshComponent::EndPhysicsTickComponent")
 	void BlendPhysicsBones( TArray<FBoneIndexType>& Bones )
 	{
-		PerformBlendPhysicsBones(Bones, AnimEvaluationContext.BoneSpaceTransforms);
+		PerformBlendPhysicsBones(Bones, AnimEvaluationContext.BoneSpaceTransforms, AnimEvaluationContext.BoneSpaceTransforms);
 	}
 
 
 	/** Take the results of the physics and blend them with the animation state (based on the PhysicsWeight parameter), and update the SpaceBases array. */
-	void BlendInPhysics(FTickFunction& ThisTickFunction);	
+	UE_DEPRECATED(4.26, "Public access to this function is deprecated. Please use the mechanism provided in USkeletalMeshComponent::EndPhysicsTickComponent")
+	void BlendInPhysics(FTickFunction& ThisTickFunction) { BlendInPhysicsInternal(ThisTickFunction); }
 
 	/** 
 	 * Initialize PhysicsAssetInstance for the physicsAsset 
@@ -2319,10 +2321,12 @@ private:
 
 	friend class FParallelBlendPhysicsTask;
 	
-	//wrapper for parallel blend physics
-	void ParallelBlendPhysics() { PerformBlendPhysicsBones(RequiredBones, AnimEvaluationContext.BoneSpaceTransforms); }
+	void BlendInPhysicsInternal(FTickFunction& ThisTickFunction);
 
-	void PerformBlendPhysicsBones(const TArray<FBoneIndexType>& InRequiredBones, TArray<FTransform>& InBoneSpaceTransforms);
+	//wrapper for parallel blend physics
+	void ParallelBlendPhysics() { PerformBlendPhysicsBones(RequiredBones, AnimEvaluationContext.ComponentSpaceTransforms, AnimEvaluationContext.BoneSpaceTransforms); }
+
+	void PerformBlendPhysicsBones(const TArray<FBoneIndexType>& InRequiredBones, TArray<FTransform>& InOutComponentSpaceTransforms, TArray<FTransform>& InOutBoneSpaceTransforms);
 
 	friend class FParallelClothTask;
 	// This is the parallel function that updates the cloth data and runs the simulation. This is safe to call from worker threads.

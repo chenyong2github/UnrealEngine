@@ -4,11 +4,13 @@
 
 #include "Features/IModularFeatures.h"
 #include "FramePerformanceProvider.h"
+#include "GenlockWatchdog.h"
 #include "HAL/IConsoleManager.h"
 #include "Misc/CoreDelegates.h"
 #include "StageDataProvider.h"
 #include "StageMonitoringSettings.h"
 #include "TakeRecorderStateProvider.h"
+#include "TimecodeProviderWatchdog.h"
 #include "VPSettings.h"
 
 
@@ -20,6 +22,8 @@ DEFINE_LOG_CATEGORY(LogStageDataProvider);
 FStageDataProviderModule::FStageDataProviderModule()
 	: DataProvider(MakeUnique<FStageDataProvider>())
 	, FramePerformanceProvider(MakeUnique<FFramePerformanceProvider>())
+	, GenlockWatchdog(MakeUnique<FGenlockWatchdog>())
+	, TimecodeWatchdog(MakeUnique<FTimecodeProviderWatchdog>())
 #if WITH_EDITOR
 	, TakeRecorderStateProvider(MakeUnique<FTakeRecorderStateProvider>())
 #endif //WITH_EDITOR

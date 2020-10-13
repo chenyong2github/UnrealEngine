@@ -424,7 +424,7 @@ public abstract class BaseWinPlatform : Platform
 			LogInformation("Took {0}s to compress the symbol files", (CompressDone - Start).TotalSeconds);
 
 			// Take each new compressed file made and try and copy it to the real symstore.  Exclude any symstore admin files
-			foreach(FileReference File in DirectoryReference.EnumerateFiles(TempSymStoreDir, "*.*", SearchOption.AllDirectories).Where(File => File.HasExtension(".dl_") || File.HasExtension(".ex_") || File.HasExtension(".pd_")))
+			foreach(FileReference File in DirectoryReference.EnumerateFiles(TempSymStoreDir, "*.*", SearchOption.AllDirectories).Where(File => IsSymbolFile(File)))
 			{
 				string RelativePath = File.MakeRelativeTo(DirectoryReference.Combine(TempSymStoreDir));
 				FileReference ActualDestinationFile = FileReference.Combine(SymbolStoreDirectory, RelativePath);
@@ -493,7 +493,20 @@ public abstract class BaseWinPlatform : Platform
 		return true;
     }
 
-    public override string[] SymbolServerDirectoryStructure
+	bool IsSymbolFile(FileReference File)
+	{
+		if (File.HasExtension(".dll") || File.HasExtension(".exe") || File.HasExtension(".pdb"))
+		{
+			return true;
+		}
+		if (File.HasExtension(".dl_") || File.HasExtension(".ex_") || File.HasExtension(".pd_"))
+		{
+			return true;
+		}
+		return false;
+	}
+
+	public override string[] SymbolServerDirectoryStructure
     {
         get
         {

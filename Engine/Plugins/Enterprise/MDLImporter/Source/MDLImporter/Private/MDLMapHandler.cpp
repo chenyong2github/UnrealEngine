@@ -67,7 +67,7 @@ void FMDLMapHandler::SetupNormalExpression(const FString& MapName)
 	}
 	else
 	{
-		if (CurrentNormalExpression != FirstNormalExpression)
+		if ((CurrentNormalExpression != FirstNormalExpression) && FirstNormalExpression)
 		{
 			// from now on, the normal expression is what we've got out of the Geometry field
 			CurrentNormalExpression = FirstNormalExpression;

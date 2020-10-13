@@ -548,10 +548,11 @@ public class AndroidPlatform : Platform
 				FilesToObb = new List<FileReference>();
 
 				// Collect the filesize and place into Obb or Patch list
-				Int64 MainObbSize = 22 + 10 + 4096;			// EOCD wit comment (store version) + padding
-				Int64 PatchObbSize = 22 + 10 + 4096;		// EOCD wit comment (store version) + padding
-				Int64 Overflow1ObbSize = 22 + 10 + 4096;	// EOCD wit comment (store version) + padding
-				Int64 Overflow2ObbSize = 22 + 10 + 4096;	// EOCD wit comment (store version) + padding
+				Int64 PaddingSize = 16384;
+				Int64 MainObbSize = 22 + 10 + PaddingSize;			// EOCD wit comment (store version) + padding
+				Int64 PatchObbSize = 22 + 10 + PaddingSize;		// EOCD wit comment (store version) + padding
+				Int64 Overflow1ObbSize = 22 + 10 + PaddingSize;	// EOCD wit comment (store version) + padding
+				Int64 Overflow2ObbSize = 22 + 10 + PaddingSize;	// EOCD wit comment (store version) + padding
 				foreach (FileReference FileRef in FilesForObb)
 				{
 					FileInfo LocalFileInfo = new FileInfo(FileRef.FullName);

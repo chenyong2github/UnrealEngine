@@ -93,6 +93,20 @@ TAutoConsoleVariable<int32> CVarPathTracingWiperMode(
 	ECVF_RenderThreadSafe 
 );
 
+TAutoConsoleVariable<int32> CVarPathTracingRussianRouletteStartingBounce(
+	TEXT("r.PathTracing.RussianRouletteStartingBounce"),
+	5,
+	TEXT("Determines the starting bounce condition for Russian Roulette"),
+	ECVF_RenderThreadSafe
+);
+
+TAutoConsoleVariable<float> CVarPathTracingFireFlyRejectionTreshold(
+	TEXT("r.PathTracing.FireFlyRejectionThreshold"),
+	1024.0,
+	TEXT("Defines the maximum energy off a sample, after which it is categorized as a firefly"),
+	ECVF_RenderThreadSafe
+);
+
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FPathTracingData, "PathTracingData");
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FPathTracingLightData, "SceneLightsData");
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FPathTracingAdaptiveSamplingData, "AdaptiveSamplingData");
@@ -170,7 +184,8 @@ public:
 				Scene->bPathTracingNeedsInvalidation = true;
 				PrevMaxBounces = PathTracingData.MaxBounces;
 			}
-
+			PathTracingData.RussianRouletteStartingBounce = CVarPathTracingRussianRouletteStartingBounce.GetValueOnRenderThread();
+			PathTracingData.FireFlyRejectionThreshold = CVarPathTracingFireFlyRejectionTreshold.GetValueOnRenderThread();
 			PathTracingData.TileOffset = TileOffset;
 
 			FUniformBufferRHIRef PathTracingDataUniformBuffer = RHICreateUniformBuffer(&PathTracingData, FPathTracingData::StaticStructMetadata.GetLayout(), EUniformBufferUsage::UniformBuffer_SingleDraw);
@@ -247,7 +262,7 @@ public:
 						LightData.Position[LightData.Count] = LightParameters.Position;
 						LightData.Normal[LightData.Count] = -LightParameters.Direction;
 						// #dxr_todo: UE-72556  define these differences from Lit..
-						LightData.Color[LightData.Count] = 4.0 * PI * LightParameters.Color;
+						LightData.Color[LightData.Count] = LightParameters.Color;
 						LightData.Dimensions[LightData.Count] = FVector(LightParameters.SpotAngles, LightParameters.SourceRadius);
 						LightData.Attenuation[LightData.Count] = 1.0 / LightParameters.InvRadius;
 						break;
@@ -258,7 +273,7 @@ public:
 						LightData.Type[LightData.Count] = 1;
 						LightData.Position[LightData.Count] = LightParameters.Position;
 						// #dxr_todo: UE-72556  define these differences from Lit..
-						LightData.Color[LightData.Count] = LightParameters.Color / (4.0 * PI);
+						LightData.Color[LightData.Count] = LightParameters.Color;
 						LightData.Dimensions[LightData.Count] = FVector(0.0, 0.0, LightParameters.SourceRadius);
 						LightData.Attenuation[LightData.Count] = 1.0 / LightParameters.InvRadius;
 						break;
@@ -430,9 +445,12 @@ IMPLEMENT_SHADER_TYPE(, FPathTracingCompositorPS, TEXT("/Engine/Private/PathTrac
 
 void FDeferredShadingSceneRenderer::PreparePathTracing(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
 {
-	// Declare all RayGen shaders that require material closest hit shaders to be bound
-	auto RayGenShader = View.ShaderMap->GetShader<FPathTracingRG>();
-	OutRayGenShaders.Add(RayGenShader.GetRayTracingShader());
+	if (View.RayTracingRenderMode == ERayTracingRenderMode::PathTracing)
+	{
+		// Declare all RayGen shaders that require material closest hit shaders to be bound
+		auto RayGenShader = View.ShaderMap->GetShader<FPathTracingRG>();
+		OutRayGenShaders.Add(RayGenShader.GetRayTracingShader());
+	}
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FPathTracingPassParameters, )

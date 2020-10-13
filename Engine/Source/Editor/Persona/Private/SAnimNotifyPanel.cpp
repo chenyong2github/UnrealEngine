@@ -3359,7 +3359,6 @@ void SAnimNotifyTrack::Update()
 
 			NodeSlots->AddSlot()
 			.Padding(TAttribute<FMargin>::Create(TAttribute<FMargin>::FGetter::CreateSP(this, &SAnimNotifyTrack::GetNotifyTrackPadding, NotifyIndex)))
-			.VAlign(VAlign_Center)
 			[
 				NotifyPair->AsShared()
 			];
@@ -3389,7 +3388,6 @@ void SAnimNotifyTrack::Update()
 
 		NodeSlots->AddSlot()
 			.Padding(TAttribute<FMargin>::Create(TAttribute<FMargin>::FGetter::CreateSP(this, &SAnimNotifyTrack::GetSyncMarkerTrackPadding, NodeIndex)))
-			.VAlign(VAlign_Center)
 			[
 				AnimSyncMarkerNode->AsShared()
 			];

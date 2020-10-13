@@ -2,12 +2,16 @@
 
 #include "USDConversionUtils.h"
 
+#include "USDAssetImportData.h"
+#include "USDErrorUtils.h"
 #include "USDLog.h"
 #include "USDTypesConversion.h"
 
 #include "UsdWrappers/UsdPrim.h"
 
 #include "Algo/Copy.h"
+#include "Animation/AnimSequence.h"
+#include "Animation/Skeleton.h"
 #include "CineCameraActor.h"
 #include "CineCameraComponent.h"
 #include "Components/DirectionalLightComponent.h"
@@ -19,7 +23,11 @@
 #include "Engine/DirectionalLight.h"
 #include "Engine/PointLight.h"
 #include "Engine/RectLight.h"
+#include "Engine/SkeletalMesh.h"
 #include "Engine/SkyLight.h"
+#include "Engine/StaticMesh.h"
+#include "Engine/Texture.h"
+#include "GeometryCache.h"
 #include "ObjectTools.h"
 
 #if USE_USD_SDK
@@ -50,6 +58,8 @@
 #include "USDIncludesEnd.h"
 
 #include <string>
+
+#define LOCTEXT_NAMESPACE "USDConversionUtils"
 
 namespace USDConversionUtilsImpl
 {
@@ -86,18 +96,88 @@ namespace USDConversionUtilsImpl
 		if ( IgnoredPrimvarNames.Num() > 0 )
 		{
 			FString PrimvarNames = FString::Join( IgnoredPrimvarNames, TEXT( ", " ) );
-			UE_LOG( LogUsd, Warning, TEXT( "Mesh '%s' has some valid UV set primvars (%s) that will be ignored because they target an UV index larger than the supported maximum (%d)" ),
-				*MeshPath, *PrimvarNames, MAX_STATIC_TEXCOORDS - 1 );
+			FUsdLogManager::LogMessage(
+				EMessageSeverity::Warning,
+				FText::Format(
+					LOCTEXT( "TooHighUVIndex", "Mesh '{0}' has some valid UV set primvars ({1}) that will be ignored because they target an UV index larger than the highest supported ({2})" ),
+					FText::FromString( MeshPath ),
+					FText::FromString( PrimvarNames ),
+					MAX_STATIC_TEXCOORDS - 1
+				)
+			);
+		}
+
+		// Show a warning if the mesh does not contain the exact primvars the material wants
+		for ( const TPair< int32, TArray<pxr::UsdGeomPrimvar> >& UVAndPrimvars : UsedPrimvars )
+		{
+			const int32 UVIndex = UVAndPrimvars.Key;
+			const TArray<pxr::UsdGeomPrimvar>& UsedPrimvarsForIndex = UVAndPrimvars.Value;
+			if ( UsedPrimvarsForIndex.Num() < 1 )
+			{
+				continue;
+			}
+
+			// If we have multiple, we'll pick the first one and show a warning about this later
+			const pxr::UsdGeomPrimvar& UsedPrimvar = UsedPrimvarsForIndex[0];
+
+			bool bFoundUsablePrimvar = false;
+			if ( const TArray<pxr::UsdGeomPrimvar>* FoundUsablePrimvars = UsablePrimvars.Find( UVIndex ) )
+			{
+				// We will only ever use the first one, but will show more warnings in case there are multiple
+				if ( FoundUsablePrimvars->Contains( UsedPrimvar ) )
+				{
+					bFoundUsablePrimvar = true;
+				}
+			}
+
+			if ( !bFoundUsablePrimvar )
+			{
+				FUsdLogManager::LogMessage(
+					EMessageSeverity::Warning,
+					FText::Format(
+						LOCTEXT( "DidNotFindPrimvar", "Could not find primvar '{0}' on mesh '{1}', used by its bound material" ),
+						FText::FromString( UsdToUnreal::ConvertString( UsedPrimvar.GetBaseName() ) ),
+						FText::FromString( MeshPath )
+					)
+				);
+			}
 		}
 
 		// Show a warning if the mesh has multiple primvars that want to write to the same UV set (e.g. 'st', 'st_0' and 'st0' at the same time)
-		for ( const TPair< int32, TArray<pxr::UsdGeomPrimvar> >& UVAndPrimvars : UsedPrimvars )
+		for ( const TPair< int32, TArray<pxr::UsdGeomPrimvar> >& UVAndPrimvars : UsablePrimvars )
 		{
+			const int32 UVIndex = UVAndPrimvars.Key;
 			const TArray<pxr::UsdGeomPrimvar>& Primvars = UVAndPrimvars.Value;
 			if ( Primvars.Num() > 1 )
 			{
-				UE_LOG( LogUsd, Warning, TEXT( "Mesh '%s' has more than one primvar used as UV set with index '%d'. The UV set will use the values from primvar '%s'" ),
-					*MeshPath, UVAndPrimvars.Key, *UsdToUnreal::ConvertToken( Primvars[ 0 ].GetBaseName() ) );
+				// Find out what primvar we'll actually end up using, as UsedPrimvars will take precedence. Note that in the best case scenario,
+				// UsablePrimvars will *contain* UsedPrimvars, so that really we're just picking which of the UsedPrimvars we'll choose. If we're not in that scenario,
+				// then we will show another warning about it
+				const pxr::UsdGeomPrimvar* UsedPrimvar = nullptr;
+				bool bUsedByMaterial = false;
+				if ( const TArray<pxr::UsdGeomPrimvar>* FoundUsedPrimvars = UsedPrimvars.Find( UVIndex ) )
+				{
+					if ( FoundUsedPrimvars->Num() > 0 )
+					{
+						UsedPrimvar = &(*FoundUsedPrimvars)[0];
+						bUsedByMaterial = true;
+					}
+				}
+				else
+				{
+					UsedPrimvar = &Primvars[0];
+				}
+
+				FUsdLogManager::LogMessage(
+					EMessageSeverity::Warning,
+					FText::Format(
+						LOCTEXT( "MoreThanOnePrimvarForIndex", "Mesh '{0}' has more than one primvar used as UV set with index '{1}'. The UV set will use the values from primvar '{2}'{3}" ),
+						FText::FromString( MeshPath ),
+						UVAndPrimvars.Key,
+						FText::FromString( UsdToUnreal::ConvertString( UsedPrimvar->GetBaseName() ) ),
+						bUsedByMaterial ? FText::FromString( TEXT( ", as its used by its bound material" ) ) : FText::GetEmpty()
+					)
+				);
 			}
 		}
 	}
@@ -279,7 +359,7 @@ TArray< TUsdStore< pxr::UsdGeomPrimvar > > UsdUtils::GetUVSetPrimvars( const pxr
 	TMap<FString, pxr::UsdGeomPrimvar> PrimvarsByName;
 	TMap<int32, TArray<pxr::UsdGeomPrimvar>> UsablePrimvarsByUVIndex;
 	pxr::UsdGeomPrimvarsAPI PrimvarsAPI{ UsdMesh };
-	for ( const pxr::UsdGeomPrimvar Primvar : PrimvarsAPI.GetPrimvars() )
+	for (const pxr::UsdGeomPrimvar& Primvar : PrimvarsAPI.GetPrimvars() )
 	{
 		if ( !Primvar || !Primvar.HasValue() )
 		{
@@ -336,7 +416,7 @@ TArray< TUsdStore< pxr::UsdGeomPrimvar > > UsdUtils::GetUVSetPrimvars( const pxr
 	}
 
 	// A lot of things can go wrong, so show some feedback in case they do
-	FString MeshPath = UsdToUnreal::ConvertString( UsdMesh.GetPrim().GetName() );
+	FString MeshPath = UsdToUnreal::ConvertPath( UsdMesh.GetPrim().GetPath() );
 	USDConversionUtilsImpl::CheckUVSetPrimvars( UsablePrimvarsByUVIndex, PrimvarsUsedByAssignedMaterialsPerUVIndex, MeshPath );
 
 	// Assemble our final results by picking the best primvar we can find for each UV index.
@@ -593,3 +673,46 @@ double UsdUtils::GetDefaultTimeCode()
 	return 0.0;
 #endif
 }
+
+UUsdAssetImportData* UsdUtils::GetAssetImportData( UObject* Asset )
+{
+	UUsdAssetImportData* ImportData = nullptr;
+#if WITH_EDITORONLY_DATA
+	if ( UStaticMesh* Mesh = Cast<UStaticMesh>( Asset ) )
+	{
+		ImportData = Cast<UUsdAssetImportData>( Mesh->AssetImportData );
+	}
+	else if ( USkeleton* Skeleton = Cast<USkeleton>( Asset ) )
+	{
+		if ( USkeletalMesh* SkMesh = Skeleton->GetPreviewMesh() )
+		{
+			ImportData = Cast<UUsdAssetImportData>( SkMesh->AssetImportData );
+		}
+	}
+	else if ( USkeletalMesh* SkMesh = Cast<USkeletalMesh>( Asset ) )
+	{
+		ImportData = Cast<UUsdAssetImportData>( SkMesh->AssetImportData );
+	}
+	else if ( UAnimSequence* SkelAnim = Cast<UAnimSequence>( Asset ) )
+	{
+		ImportData = Cast<UUsdAssetImportData>( SkelAnim->AssetImportData );
+	}
+	else if ( UMaterialInterface* Material = Cast<UMaterialInterface>( Asset ) )
+	{
+		ImportData = Cast<UUsdAssetImportData>( Material->AssetImportData );
+	}
+	else if ( UTexture* Texture = Cast<UTexture>( Asset ) )
+	{
+		ImportData = Cast<UUsdAssetImportData>( Texture->AssetImportData );
+	}
+	else if ( UGeometryCache* GeometryCache = Cast<UGeometryCache>( Asset ) )
+	{
+		ImportData = Cast<UUsdAssetImportData>( GeometryCache->AssetImportData );
+	}
+#endif
+	return ImportData;
+}
+
+#if USE_USD_SDK
+#undef LOCTEXT_NAMESPACE
+#endif

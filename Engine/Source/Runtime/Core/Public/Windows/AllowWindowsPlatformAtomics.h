@@ -8,7 +8,9 @@
 
 #define InterlockedIncrement _InterlockedIncrement
 #define InterlockedDecrement _InterlockedDecrement
-#define InterlockedAdd _InterlockedAdd
+#if !defined(InterlockedAdd)
+	#define InterlockedAdd _InterlockedAdd
+#endif
 #define InterlockedExchange _InterlockedExchange
 #define InterlockedExchangeAdd _InterlockedExchangeAdd
 #define InterlockedCompareExchange _InterlockedCompareExchange

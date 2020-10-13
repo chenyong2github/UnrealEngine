@@ -14,6 +14,7 @@ UEditorPerformanceSettings::UEditorPerformanceSettings(const FObjectInitializer&
 	: Super(ObjectInitializer)
 	, bShowFrameRateAndMemory(false)
 	, bThrottleCPUWhenNotForeground(true)
+	, bDisableRealtimeViewportsInRemoteSessions(true)
 	, bMonitorEditorPerformance(false)
 	, bOverrideDPIBasedEditorViewportScaling(false)
 	, bEnableSharedDDCPerformanceNotifications(true)

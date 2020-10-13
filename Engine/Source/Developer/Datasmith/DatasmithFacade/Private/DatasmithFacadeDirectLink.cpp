@@ -10,12 +10,18 @@
 
 #include "DatasmithDirectLink.h"
 
-
 bool FDatasmithFacadeDirectLink::Init()
+{
+	return Init(false, nullptr);
+}
+
+bool FDatasmithFacadeDirectLink::Init(bool bUseDatasmithExporterUI, const TCHAR* RemoteEngineDirPath)
 {
 	FDatasmithExporterManager::FInitOptions Options;
 	Options.bEnableMessaging = true; // DirectLink requires the Messaging service.
 	Options.bSuppressLogs = false;   // Log are useful, don't suppress them
+	Options.bUseDatasmithExporterUI = bUseDatasmithExporterUI;
+	Options.RemoteEngineDirPath = RemoteEngineDirPath;
 
 	// #ue_directlink_cleanup it's not our role to init exporter manager here
 	if (!FDatasmithExporterManager::Initialize(Options))

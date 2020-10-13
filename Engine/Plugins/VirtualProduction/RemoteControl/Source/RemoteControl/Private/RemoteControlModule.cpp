@@ -7,6 +7,7 @@
 #include "StructSerializer.h"
 #include "StructDeserializer.h"
 #include "IStructSerializerBackend.h"
+#include "RemoteControlPreset.h"
 
 #if WITH_EDITOR
 	#include "ScopedTransaction.h"
@@ -62,7 +63,6 @@ namespace RemoteControlUtil
 
 	bool IsPropertyAllowed(const FProperty* InProperty, ERCAccess InAccessType, bool bObjectInGamePackage)
 	{
-
 		// The property is allowed to be accessed if it exists...
 		return InProperty && 
 			// it doesn't have exposed getter/setter that should be used instead
@@ -93,6 +93,38 @@ public:
 
 	virtual void ShutdownModule() override
 	{
+	}
+
+	virtual FOnPresetRegistered& OnPresetRegistered() override
+	{
+		return OnPresetRegisteredDelegate;
+	}
+
+	virtual FOnPresetUnregistered& OnPresetUnregistered() override
+	{
+		return OnPresetUnregisteredDelegate;
+	}
+
+	/** Register the preset with the module, enabling using the preset remotely using its name. */
+	bool RegisterPreset(FName Name, URemoteControlPreset* Preset)
+	{
+		check(Preset);
+		if (RegisteredPresetMap.Contains(Name))
+		{
+			UE_LOG(LogRemoteControl, Warning, TEXT("Could not register preset %s"), *Preset->GetPathName());
+			return false;
+		}
+
+		RegisteredPresetMap.Add(Name, Preset);
+		OnPresetRegistered().Broadcast(Name);
+		return true;
+	}
+
+	/** Unregister the preset */
+	void UnregisterPreset(FName Name)
+	{
+		OnPresetUnregistered().Broadcast(Name);
+		RegisteredPresetMap.Remove(Name);
 	}
 
 	virtual bool ResolveCall(const FString& ObjectPath, const FString& FunctionName, FRCCallReference& OutCallRef, FString* OutErrorText) override
@@ -131,7 +163,7 @@ public:
 			}
 			else
 			{
-				ErrorText = FString::Printf(TEXT("Object: %s does not exists."), *ObjectPath);
+				ErrorText = FString::Printf(TEXT("Object: %s does not exist."), *ObjectPath);
 				bSuccess = false;
 			}
 		}
@@ -177,31 +209,11 @@ public:
 			UObject* Object = StaticFindObject(UObject::StaticClass(), nullptr, *ObjectPath);
 			if (Object)
 			{
-				bool bObjectInGame = !GIsEditor || Object->GetOutermost()->HasAnyPackageFlags(PKG_PlayInEditor);
-				if (!PropertyName.IsEmpty())
-				{
-					FProperty* Property = Object->GetClass()->FindPropertyByName(*PropertyName);
-					if (Property && RemoteControlUtil::IsPropertyAllowed(Property, AccessType, bObjectInGame))
-					{
-						OutObjectRef.Object = Object;
-						OutObjectRef.Property = Property;
-						OutObjectRef.Access = AccessType;
-					}
-					else
-					{
-						ErrorText = FString::Printf(TEXT("Object property: %s is unavailable remotely on object: %s"), *PropertyName, *ObjectPath);
-						bSuccess = false;
-					}
-				}
-				else
-				{
-					OutObjectRef.Object = Object;
-					OutObjectRef.Access = AccessType;
-				}
+				bSuccess = ResolveObjectProperty(AccessType, Object, PropertyName, OutObjectRef, OutErrorText);
 			}
 			else
 			{
-				ErrorText = FString::Printf(TEXT("Object: %s does not exists when trying to resolve property: %s"), *ObjectPath, *PropertyName);
+				ErrorText = FString::Printf(TEXT("Object: %s does not exist when trying to resolve property: %s"), *ObjectPath, *PropertyName);
 				bSuccess = false;
 			}
 		}
@@ -219,18 +231,94 @@ public:
 		return bSuccess;
 	}
 
+	virtual bool ResolveObjectProperty(ERCAccess AccessType, UObject* Object, const FString& PropertyName, FRCObjectReference& OutObjectRef, FString* OutErrorText = nullptr) override
+	{
+		bool bSuccess = true;
+		FString ErrorText;
+		if (!GIsSavingPackage && !IsGarbageCollecting())
+		{
+			if (Object)
+			{
+				const bool bObjectInGame = !GIsEditor || Object->GetOutermost()->HasAnyPackageFlags(PKG_PlayInEditor);
+				if (!PropertyName.IsEmpty())
+				{
+					//Build a FieldPathInfo using property name to facilitate resolving
+					FRCFieldPathInfo PathInfo(PropertyName);
+					if (PathInfo.Resolve(Object))
+					{
+						FProperty* ResolvedProperty = PathInfo.GetResolvedData().Field;
+						if (RemoteControlUtil::IsPropertyAllowed(ResolvedProperty, AccessType, bObjectInGame))
+						{
+							OutObjectRef.Object = Object;
+							OutObjectRef.Property = ResolvedProperty;
+							OutObjectRef.Access = AccessType;
+							OutObjectRef.ContainerAdress = PathInfo.GetResolvedData().ContainerAddress;
+							OutObjectRef.ContainerType = PathInfo.GetResolvedData().Struct;
+							OutObjectRef.PropertyPathInfo = MoveTemp(PathInfo);
+						}
+						else
+						{
+							ErrorText = FString::Printf(TEXT("Object property: %s is unavailable remotely on object: %s"), *PropertyName, *Object->GetPathName());
+							bSuccess = false;
+						}
+					}
+					else
+					{
+						ErrorText = FString::Printf(TEXT("Object property: %s could not be resolved on object: %s"), *PropertyName, *Object->GetPathName());
+						bSuccess = false;
+					}
+				}
+				else
+				{
+					OutObjectRef.Object = Object;
+					OutObjectRef.Access = AccessType;
+					OutObjectRef.ContainerAdress = static_cast<void*>(Object);
+					OutObjectRef.ContainerType = Object->GetClass();
+				}
+			}
+			else
+			{
+				ErrorText = FString::Printf(TEXT("Invalid object to resolve property '%s'"), *PropertyName);
+				bSuccess = false;
+			}
+		}
+		else
+		{
+			ErrorText = FString::Printf(TEXT("Can't resolve object '%s' properties '%s' : %s while saving or garbage collecting."), *Object->GetPathName(), *PropertyName);
+			bSuccess = false;
+		}
+
+		if (OutErrorText && !ErrorText.IsEmpty())
+		{
+			*OutErrorText = MoveTemp(ErrorText);
+		}
+
+		return bSuccess;
+	}
+
 	virtual bool GetObjectProperties(const FRCObjectReference& ObjectAccess, IStructSerializerBackend& Backend) override
 	{
 		if (ObjectAccess.IsValid() && ObjectAccess.Access == ERCAccess::READ_ACCESS)
 		{
+			bool bCanSerialize = true;
 			UObject* Object = ObjectAccess.Object.Get();
+			UStruct* ContainerType = ObjectAccess.ContainerType.Get();
+
 			FStructSerializerPolicies Policies;
+			Policies.MapSerialization = EStructSerializerMapPolicies::Array;
 			if (ObjectAccess.Property.IsValid())
 			{
-				Policies.PropertyFilter = [&ObjectAccess](const FProperty* CurrentProp, const FProperty* ParentProp)
+				if (ObjectAccess.PropertyPathInfo.IsResolved())
 				{
-					return CurrentProp == ObjectAccess.Property || ParentProp != nullptr;
-				};
+					Policies.PropertyFilter = [&ObjectAccess](const FProperty* CurrentProp, const FProperty* ParentProp)
+					{
+						return CurrentProp == ObjectAccess.Property || ParentProp != nullptr;
+					};
+				}
+				else
+				{
+					bCanSerialize = false;
+				}
 			}
 			else
 			{
@@ -241,17 +329,33 @@ public:
 				};
 			}
 
-			FStructSerializer::Serialize((const void*)Object, *Object->GetClass(), Backend, Policies);
-			return true;
+			if (bCanSerialize)
+			{
+				//Serialize the element if we're looking for a member or serialize the full object if not
+				if (ObjectAccess.PropertyPathInfo.IsResolved())
+				{
+					FStructSerializer::SerializeElement(ObjectAccess.ContainerAdress, ObjectAccess.PropertyPathInfo.GetResolvedData().Field, ObjectAccess.PropertyPathInfo.GetFieldSegment(ObjectAccess.PropertyPathInfo.GetSegmentCount()-1).ArrayIndex, Backend, Policies);
+				}
+				else
+				{
+					FStructSerializer::Serialize(ObjectAccess.ContainerAdress, *ObjectAccess.ContainerType, Backend, Policies);
+				}
+				return true;
+			}
 		}
 		return false;
 	}
 
 	virtual bool SetObjectProperties(const FRCObjectReference& ObjectAccess, IStructDeserializerBackend& Backend) override
 	{
-		if (ObjectAccess.IsValid() && (ObjectAccess.Access == ERCAccess::WRITE_ACCESS || ObjectAccess.Access == ERCAccess::WRITE_TRANSACTION_ACCESS))
+		//Setting object properties require a property and can't be done at the object level. Property must be valid to move forward
+		if (ObjectAccess.IsValid() 
+			&& (ObjectAccess.Access == ERCAccess::WRITE_ACCESS || ObjectAccess.Access == ERCAccess::WRITE_TRANSACTION_ACCESS)
+			&& ObjectAccess.Property.IsValid()
+			&& ObjectAccess.PropertyPathInfo.IsResolved())
 		{
 			UObject* Object = ObjectAccess.Object.Get();
+			UStruct* ContainerType = ObjectAccess.ContainerType.Get();
 
 #if WITH_EDITOR
 			bool bGenerateTransaction = ObjectAccess.Access == ERCAccess::WRITE_TRANSACTION_ACCESS;
@@ -260,7 +364,10 @@ public:
 			if (bGenerateTransaction)
 			{
 				Object->Modify();
-				Object->PreEditChange(ObjectAccess.Property.Get());
+
+				FEditPropertyChain PreEditChain;
+				ObjectAccess.PropertyPathInfo.ToEditPropertyChain(PreEditChain);
+				Object->PreEditChange(PreEditChain);
 			}
 #endif
 
@@ -280,14 +387,24 @@ public:
 					return RemoteControlUtil::IsPropertyAllowed(CurrentProp, ObjectAccess.Access, bObjectInGame) || ParentProp != nullptr;
 				};
 			}
-			bool bSuccess = FStructDeserializer::Deserialize((void*)Object, *Object->GetClass(), Backend, Policies);
+
+			//Serialize the element if we're looking for a member or serialize the full object if not
+			bool bSuccess = false;
+			if (ObjectAccess.PropertyPathInfo.IsResolved())
+			{
+				bSuccess = FStructDeserializer::DeserializeElement(ObjectAccess.ContainerAdress, *ObjectAccess.PropertyPathInfo.GetResolvedData().Struct, ObjectAccess.PropertyPathInfo.GetFieldSegment(ObjectAccess.PropertyPathInfo.GetSegmentCount() - 1).ArrayIndex, Backend, Policies);
+			}
+			else
+			{
+				bSuccess = FStructDeserializer::Deserialize(ObjectAccess.ContainerAdress, *ContainerType, Backend, Policies);
+			}
 
 			// if we are generating a transaction, also generate post edit property event, event if the change ended up unsuccessful
 			// this is to match the pre edit change call that can unregister components for example
 #if WITH_EDITOR
 			if (bGenerateTransaction)
 			{
-				FPropertyChangedEvent PropertyEvent(ObjectAccess.Property.Get());
+				FPropertyChangedEvent PropertyEvent = ObjectAccess.PropertyPathInfo.ToPropertyChangedEvent();
 				Object->PostEditChangeProperty(PropertyEvent);
 			}
 #endif
@@ -301,6 +418,7 @@ public:
 		if (ObjectAccess.IsValid() && (ObjectAccess.Access == ERCAccess::WRITE_ACCESS || ObjectAccess.Access == ERCAccess::WRITE_TRANSACTION_ACCESS))
 		{
 			UObject* Object = ObjectAccess.Object.Get();
+			UStruct* ContainerType = ObjectAccess.ContainerType.Get();
 
 #if WITH_EDITOR
 			bool bGenerateTransaction = ObjectAccess.Access == ERCAccess::WRITE_TRANSACTION_ACCESS;
@@ -312,7 +430,7 @@ public:
 			}
 #endif
 					
-			ObjectAccess.Property->InitializeValue(ObjectAccess.Property->template ContainerPtrToValuePtr<void>(ObjectAccess.Object.Get()));
+			ObjectAccess.Property->InitializeValue(ObjectAccess.Property->template ContainerPtrToValuePtr<void>(ObjectAccess.ContainerAdress));
 
 			// if we are generating a transaction, also generate post edit property event, event if the change ended up unsuccessful
 			// this is to match the pre edit change call that can unregister components for example
@@ -327,8 +445,75 @@ public:
 		}
 		return false;
 	}
+
+	virtual TOptional<FExposedFunction> ResolvePresetFunction(const FResolvePresetFieldArgs& Args) const override
+	{
+		TOptional<FExposedFunction> ExposedFunction;
+
+		if (URemoteControlPreset* Preset = ResolvePreset(FName(*Args.PresetName)))
+		{
+			ExposedFunction = Preset->ResolveExposedFunction(FName(*Args.FieldLabel));
+		}
+
+		return ExposedFunction;
+	}
+
+	virtual TOptional<FExposedProperty> ResolvePresetProperty(const FResolvePresetFieldArgs& Args) const override
+	{
+		TOptional<FExposedProperty> ExposedProperty;
+
+		if (URemoteControlPreset* Preset = ResolvePreset(FName(*Args.PresetName)))
+		{
+			ExposedProperty = Preset->ResolveExposedProperty(FName(*Args.FieldLabel));
+		}
+
+		return ExposedProperty;
+	}
+
+	virtual URemoteControlPreset* ResolvePreset(FName PresetName) const override
+	{
+		if (const TWeakObjectPtr<URemoteControlPreset>* Preset = RegisteredPresetMap.Find(PresetName))
+		{
+			return Preset->Get();
+		}
+
+		return nullptr;
+	}
+
+	virtual TArray<URemoteControlPreset*> GetPresets() override
+	{
+		TArray<URemoteControlPreset*> Presets;
+		Presets.Reserve(RegisteredPresetMap.Num());
+
+		for (auto It = RegisteredPresetMap.CreateIterator(); It; ++It)
+		{
+			if (It.Value().IsValid())
+			{
+
+				Presets.Add(It.Value().Get());
+			}
+			else
+			{
+				It.RemoveCurrent();
+			}
+		}
+
+		return Presets;
+	}
+
+private:
+	
+	/** Map of all preset assets registed with the module and available for remote access */
+	TMap<FName, TWeakObjectPtr<URemoteControlPreset>> RegisteredPresetMap;
+
+	/** Delegate for preset registration */
+	FOnPresetRegistered OnPresetRegisteredDelegate;
+
+	/** Delegate for preset unregistration */
+	FOnPresetUnregistered OnPresetUnregisteredDelegate;
 };
 
 #undef LOCTEXT_NAMESPACE
 
 IMPLEMENT_MODULE(FRemoteControlModule, RemoteControl);
+

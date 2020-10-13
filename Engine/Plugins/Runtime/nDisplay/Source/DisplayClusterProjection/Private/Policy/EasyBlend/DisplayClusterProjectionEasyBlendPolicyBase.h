@@ -5,9 +5,6 @@
 #include "Policy/DisplayClusterProjectionPolicyBase.h"
 #include "Policy/EasyBlend/DisplayClusterProjectionEasyBlendViewAdapterBase.h"
 
-class USceneComponent;
-class FDisplayClusterProjectionEasyBlendViewportBase;
-
 
 /**
  * EasyBlend projection policy
@@ -16,8 +13,7 @@ class FDisplayClusterProjectionEasyBlendPolicyBase
 	: public FDisplayClusterProjectionPolicyBase
 {
 public:
-	FDisplayClusterProjectionEasyBlendPolicyBase(const FString& ViewportId);
-	virtual ~FDisplayClusterProjectionEasyBlendPolicyBase();
+	FDisplayClusterProjectionEasyBlendPolicyBase(const FString& ViewportId, const TMap<FString, FString>& Parameters);
 
 public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
@@ -36,7 +32,7 @@ public:
 
 protected:
 	// Delegate view adapter instantiation to the RHI specific children
-	virtual TSharedPtr<FDisplayClusterProjectionEasyBlendViewAdapterBase> CreateViewAdapter(const FDisplayClusterProjectionEasyBlendViewAdapterBase::FInitParams& InitParams) = 0;
+	virtual TUniquePtr<FDisplayClusterProjectionEasyBlendViewAdapterBase> CreateViewAdapter(const FDisplayClusterProjectionEasyBlendViewAdapterBase::FInitParams& InitParams) = 0;
 
 private:
 	// Parse EasyBlend related data from the nDisplay config file
@@ -47,5 +43,5 @@ private:
 	float EasyBlendScale = 1.f;
 
 	// RHI depended view adapter (different RHI require different DLL/API etc.)
-	TSharedPtr<FDisplayClusterProjectionEasyBlendViewAdapterBase> ViewAdapter;
+	TUniquePtr<FDisplayClusterProjectionEasyBlendViewAdapterBase> ViewAdapter;
 };

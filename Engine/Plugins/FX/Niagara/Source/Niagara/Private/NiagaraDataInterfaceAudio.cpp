@@ -73,10 +73,9 @@ void FNiagaraSubmixListener::UnregisterFromSubmix()
 	if (bIsRegistered)
 	{
 		FAudioDeviceHandle DeviceHandle = FAudioDeviceManager::Get()->GetAudioDevice(AudioDeviceId);
-		USoundSubmix* RawSubmixPtr = Submix;
-
 		check(DeviceHandle);
 		DeviceHandle->UnregisterSubmixBufferListener(this, Submix);
+
 		bIsRegistered = false;
 
 		// UnregisterSubmixBufferListener lazily enqueues the unregistration on the audio thread,

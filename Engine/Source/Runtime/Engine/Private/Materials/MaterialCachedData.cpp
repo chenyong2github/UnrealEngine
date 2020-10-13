@@ -276,8 +276,8 @@ static bool GetLocalLayerParameterInfo(const FMaterialLayersFunctions& MaterialL
 	// Guid of the layer
 	const FGuid& LayerGuid = MaterialLayers.LayerGuids[SrcLayerIndex];
 	// Find local layer index that's parented to that guid
-	int32 LocalLayerIndex = LocalMaterialLayers.ParentLayerGuids.Find(LayerGuid);
-	if (LocalLayerIndex != INDEX_NONE)
+	int32 LocalLayerIndex = LocalMaterialLayers.LayerGuids.Find(LayerGuid);
+	if (LocalLayerIndex != INDEX_NONE && LocalMaterialLayers.LayerLinkStates[LocalLayerIndex] == EMaterialLayerLinkState::LinkedToParent)
 	{
 		if (ParameterInfo.Association == BlendParameter)
 		{
@@ -413,10 +413,10 @@ bool FMaterialCachedExpressionData::UpdateForExpressions(const FMaterialCachedEx
 			const int32 Index = TryAddParameter(Parameters, EMaterialParameterType::Scalar, ParameterInfo, ExpressionScalarParameter->ExpressionGUID);
 			if (Index != INDEX_NONE)
 			{
-				float Value = ExpressionScalarParameter->DefaultValue;
-				if (Context.Parent)
+				float Value = 0.0f;
+				if (!Context.Parent || !Context.Parent->GetScalarParameterDefaultValue(ParameterInfo, Value, false, true))
 				{
-					Context.Parent->GetScalarParameterDefaultValue(ParameterInfo, Value, false, true);
+					Value = ExpressionScalarParameter->DefaultValue;
 				}
 				Parameters.ScalarValues.Insert(Value, Index);
 				Parameters.ScalarMinMaxValues.Insert(FVector2D(ExpressionScalarParameter->SliderMin, ExpressionScalarParameter->SliderMax), Index);
@@ -439,10 +439,10 @@ bool FMaterialCachedExpressionData::UpdateForExpressions(const FMaterialCachedEx
 			const int32 Index = TryAddParameter(Parameters, EMaterialParameterType::Vector, ParameterInfo, ExpressionVectorParameter->ExpressionGUID);
 			if (Index != INDEX_NONE)
 			{
-				FLinearColor Value = ExpressionVectorParameter->DefaultValue;
-				if (Context.Parent)
+				FLinearColor Value;
+				if (!Context.Parent || !Context.Parent->GetVectorParameterDefaultValue(ParameterInfo, Value, false, true))
 				{
-					Context.Parent->GetVectorParameterDefaultValue(ParameterInfo, Value, false, true);
+					Value = ExpressionVectorParameter->DefaultValue;
 				}
 				Parameters.VectorValues.Insert(Value, Index);
 				Parameters.VectorChannelNameValues.Insert(ExpressionVectorParameter->ChannelNames, Index);
@@ -455,10 +455,10 @@ bool FMaterialCachedExpressionData::UpdateForExpressions(const FMaterialCachedEx
 			const int32 Index = TryAddParameter(Parameters, EMaterialParameterType::Texture, ParameterInfo, ExpressionTextureParameter->ExpressionGUID);
 			if (Index != INDEX_NONE)
 			{
-				UTexture* Value = ExpressionTextureParameter->Texture;
-				if (Context.Parent)
+				UTexture* Value = nullptr;
+				if (!Context.Parent || !Context.Parent->GetTextureParameterDefaultValue(ParameterInfo, Value, true))
 				{
-					Context.Parent->GetTextureParameterDefaultValue(ParameterInfo, Value, true);
+					Value = ExpressionTextureParameter->Texture;
 				}
 				Parameters.TextureValues.Insert(Value, Index);
 				Parameters.TextureChannelNameValues.Insert(ExpressionTextureParameter->ChannelNames, Index);
@@ -470,11 +470,12 @@ bool FMaterialCachedExpressionData::UpdateForExpressions(const FMaterialCachedEx
 			const int32 Index = TryAddParameter(Parameters, EMaterialParameterType::Font, ParameterInfo, ExpressionFontParameter->ExpressionGUID);
 			if (Index != INDEX_NONE)
 			{
-				UFont* Font = ExpressionFontParameter->Font;
-				int32 FontTexturePage = ExpressionFontParameter->FontTexturePage;
-				if (Context.Parent)
+				UFont* Font = nullptr;
+				int32 FontTexturePage = INDEX_NONE;
+				if (!Context.Parent || !Context.Parent->GetFontParameterDefaultValue(ParameterInfo, Font, FontTexturePage, true))
 				{
-					Context.Parent->GetFontParameterDefaultValue(ParameterInfo, Font, FontTexturePage, true);
+					Font = ExpressionFontParameter->Font;
+					FontTexturePage = ExpressionFontParameter->FontTexturePage;
 				}
 				Parameters.FontValues.Insert(Font, Index);
 				Parameters.FontPageValues.Insert(FontTexturePage, Index);
@@ -486,10 +487,10 @@ bool FMaterialCachedExpressionData::UpdateForExpressions(const FMaterialCachedEx
 			const int32 Index = TryAddParameter(Parameters, EMaterialParameterType::RuntimeVirtualTexture, ParameterInfo, ExpressionRTVParameter->ExpressionGUID);
 			if (Index != INDEX_NONE)
 			{
-				URuntimeVirtualTexture* Value = ExpressionRTVParameter->VirtualTexture;
-				if (Context.Parent)
+				URuntimeVirtualTexture* Value = nullptr;
+				if (!Context.Parent || !Context.Parent->GetRuntimeVirtualTextureParameterDefaultValue(ParameterInfo, Value, true))
 				{
-					Context.Parent->GetRuntimeVirtualTextureParameterDefaultValue(ParameterInfo, Value, true);
+					Value = ExpressionRTVParameter->VirtualTexture;
 				}
 				Parameters.RuntimeVirtualTextureValues.Insert(Value, Index);
 			}
@@ -504,7 +505,11 @@ bool FMaterialCachedExpressionData::UpdateForExpressions(const FMaterialCachedEx
 				if (Context.Parent)
 				{
 					FMaterialCachedParameterEntry& CachedEntry = Parameters.EditorOnlyEntries[static_cast<int32>(EMaterialParameterType::StaticSwitch) - static_cast<int32>(EMaterialParameterType::RuntimeCount)];
-					Context.Parent->GetStaticSwitchParameterDefaultValue(ParameterInfo, Value, CachedEntry.ExpressionGuids[Index], true);
+					bool ParentValue = false;
+					if (Context.Parent->GetStaticSwitchParameterDefaultValue(ParameterInfo, ParentValue, CachedEntry.ExpressionGuids[Index], true))
+					{
+						Value = ParentValue;
+					}
 				}
 				Parameters.StaticSwitchValues.Insert(Value, Index);
 			}
@@ -519,7 +524,12 @@ bool FMaterialCachedExpressionData::UpdateForExpressions(const FMaterialCachedEx
 				if (Context.Parent)
 				{
 					FMaterialCachedParameterEntry& CachedEntry = Parameters.EditorOnlyEntries[static_cast<int32>(EMaterialParameterType::StaticSwitch) - static_cast<int32>(EMaterialParameterType::RuntimeCount)];
-					Context.Parent->GetStaticComponentMaskParameterDefaultValue(ParameterInfo, Value.R, Value.G, Value.B, Value.A, CachedEntry.ExpressionGuids[Index], true);
+					FStaticComponentMaskValue ParentValue;
+					if (Context.Parent->GetStaticComponentMaskParameterDefaultValue(ParameterInfo, ParentValue.R, ParentValue.G, ParentValue.B, ParentValue.A, CachedEntry.ExpressionGuids[Index], true))
+					{
+						Value = ParentValue;
+					}
+
 				}
 				Parameters.StaticComponentMaskValues.Insert(Value, Index);
 			}

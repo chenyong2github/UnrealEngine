@@ -39,6 +39,7 @@ UE_TRACE_EVENT_END()
 ///////////////////////////////////////////////////////////////////////////////
 static FChannel* volatile	GHeadChannel;			// = nullptr;
 static FChannel* volatile	GNewChannelList;		// = nullptr;
+static bool 				GInitialized;
 
 ////////////////////////////////////////////////////////////////////////////////
 static uint32 GetChannelHash(const ANSICHAR* Input, int32 Length)
@@ -134,7 +135,7 @@ FChannel::Iter FChannel::ReadNew()
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-void FChannel::Initialize(const ANSICHAR* InChannelName, const InitArgs& InArgs)
+void FChannel::Setup(const ANSICHAR* InChannelName, const InitArgs& InArgs)
 {
 	using namespace Private;
 
@@ -153,6 +154,13 @@ void FChannel::Initialize(const ANSICHAR* InChannelName, const InitArgs& InArgs)
 			break;
 		}
 	}
+
+	// If channel is initialized after the all channels are disabled (post static init) 
+	// this channel needs to be disabled.
+	if (GInitialized)
+	{
+		Enabled = -1;
+	}
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -163,6 +171,15 @@ void FChannel::Announce() const
 		<< ChannelAnnounce.IsEnabled(IsEnabled())
 		<< ChannelAnnounce.ReadOnly(Args.bReadOnly)
 		<< ChannelAnnounce.Name(Name.Ptr, Name.Len);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+void FChannel::Initialize()
+{
+	// All channels are initialized as enabled (zero), and act like so during
+	// from process start until this method is called (i.e. when Trace is initalized).
+	ToggleAll(false);
+	GInitialized = true;
 }
 
 ///////////////////////////////////////////////////////////////////////////////

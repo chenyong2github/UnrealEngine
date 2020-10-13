@@ -82,6 +82,7 @@ FNiagaraRendererMeshes::FNiagaraRendererMeshes(ERHIFeatureLevel::Type FeatureLev
 
 	MeshRenderData = Mesh->RenderData.Get();
 	FacingMode = Properties->FacingMode;
+	PivotOffset = Properties->PivotOffset;
 	bLockedAxisEnable = Properties->bLockedAxisEnable;
 	LockedAxis = Properties->LockedAxis;
 	LockedAxisSpace = Properties->LockedAxisSpace;
@@ -95,6 +96,9 @@ FNiagaraRendererMeshes::FNiagaraRendererMeshes(ERHIFeatureLevel::Type FeatureLev
 	DistanceCullRange = FVector2D(0, FLT_MAX);
 	RendererVisibility = Properties->RendererVisibility;	
 	LocalCullingSphere = Mesh->ExtendedBounds.GetSphere();
+
+	// Apply the PivotOffset to the local bounding sphere for culling, too
+	LocalCullingSphere.Center += PivotOffset;
 
 	if (Properties->bEnableCameraDistanceCulling)
 	{
@@ -252,7 +256,7 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 	for (FMaterialRenderProxy* MaterialProxy : DynamicDataMesh->Materials)
 	{
 		check(MaterialProxy);
-		EBlendMode BlendMode = MaterialProxy->GetMaterial(FeatureLevel)->GetBlendMode();
+		EBlendMode BlendMode = MaterialProxy->GetIncompleteMaterialWithFallback(FeatureLevel).GetBlendMode();
 		bHasTranslucentMaterials |= IsTranslucentBlendMode(BlendMode);
 	}
 
@@ -393,6 +397,7 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 				PerViewUniformParameters.MaterialParamValidMask = MaterialParamValidMask;
 				PerViewUniformParameters.SizeDataOffset = INDEX_NONE;
 				PerViewUniformParameters.DefaultPos = bLocalSpace ? FVector4(0.0f, 0.0f, 0.0f, 1.0f) : FVector4(SceneProxy->GetLocalToWorld().GetOrigin());
+				PerViewUniformParameters.PivotOffset = PivotOffset;
 				PerViewUniformParameters.SubImageSize = FVector4(SubImageSize.X, SubImageSize.Y, 1.0f / SubImageSize.X, 1.0f / SubImageSize.Y);
 				PerViewUniformParameters.SubImageBlendMode = bSubImageBlend;
 				PerViewUniformParameters.FacingMode = (uint32)FacingMode;

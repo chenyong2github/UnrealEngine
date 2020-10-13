@@ -9,7 +9,7 @@
 
 
 class IStageMonitor;
-
+class IStageMonitorSessionManager;
 
 class STAGEMONITOR_API IStageMonitorModule : public IModuleInterface
 {
@@ -39,6 +39,11 @@ public:
 	 * Returns the stage monitor instance
 	 */
 	virtual IStageMonitor& GetStageMonitor() = 0;
+
+	/**
+	 * Returns the stage monitor session manager
+	 */
+	virtual IStageMonitorSessionManager& GetStageMonitorSessionManager() = 0;
 
 private:
 	

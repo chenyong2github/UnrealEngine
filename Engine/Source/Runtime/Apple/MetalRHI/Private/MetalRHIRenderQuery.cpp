@@ -168,6 +168,7 @@ FMetalRHIRenderQuery::FMetalRHIRenderQuery(ERenderQueryType InQueryType)
 	, Buffer{}
 	, Result{0}
 	, bAvailable{false}
+	, QueryWrittenEvent(nullptr)
 {
 	// void
 }
@@ -176,6 +177,12 @@ FMetalRHIRenderQuery::~FMetalRHIRenderQuery()
 {
 	Buffer.SourceBuffer.SafeRelease();
 	Buffer.Offset = 0;
+	
+	if(QueryWrittenEvent != nullptr)
+	{
+		FPlatformProcess::ReturnSynchEventToPool(QueryWrittenEvent);
+		QueryWrittenEvent = nullptr;
+	}
 }
 
 void FMetalRHIRenderQuery::Begin(FMetalContext* Context, TSharedPtr<FMetalCommandBufferFence, ESPMode::ThreadSafe> const& BatchFence)
@@ -259,8 +266,15 @@ void FMetalRHIRenderQuery::End(FMetalContext* Context)
 			Result = 0;
 			bAvailable = false;
 
-			QueryWrittenEvent = MakeShareable(new FPThreadEvent());
-			QueryWrittenEvent->Create(true);
+			if(QueryWrittenEvent == nullptr)
+			{
+				QueryWrittenEvent = FPlatformProcess::GetSynchEventFromPool(true);
+				check(QueryWrittenEvent != nullptr);
+			}
+			else
+			{
+				QueryWrittenEvent->Reset();
+			}
 
 			// Insert the fence to wait on the current command buffer
 			Context->InsertCommandBufferFence(*(Buffer.CommandBufferFence), [this](mtlpp::CommandBuffer const& CmdBuffer)
@@ -282,7 +296,11 @@ void FMetalRHIRenderQuery::End(FMetalContext* Context)
 					Result = (FPlatformTime::ToMilliseconds64(mach_absolute_time()) * 1000.0);
 				}
 
-				QueryWrittenEvent->Trigger();
+				if(QueryWrittenEvent != nullptr)
+				{
+					QueryWrittenEvent->Trigger();
+				}
+				
 				this->Release();
 			});
 
@@ -329,7 +347,7 @@ bool FMetalRHIRenderQuery::GetResult(uint64& OutNumPixels, bool bWait, uint32 GP
 			// Result is written in one of potentially many command buffer completion handlers
 			// But the command buffer wait above may return before the query completion handler fires
 			// We need to wait here until that has happenned, also make sure the command buffer actually completed due to timeout
-			if (bOK && (Type == RQT_AbsoluteTime) && QueryWrittenEvent.IsValid())
+			if (bOK && (Type == RQT_AbsoluteTime) && QueryWrittenEvent != nullptr)
 			{
 				QueryWrittenEvent->Wait();
 			}

@@ -66,6 +66,9 @@ namespace Audio
 		// Process the single audio frame
 		void ProcessAudio(const AlignedFloatBuffer& InSamples, const int32 InNumChannels, AlignedFloatBuffer& OutLeftSamples, AlignedFloatBuffer& OutRightSamples);
 
+		// Silence internal audio.
+		void FlushAudio();
+
 		// Clamps settings to acceptable values. 
 		static void ClampSettings(FEarlyReflectionsFastSettings& InOutSettings);
 

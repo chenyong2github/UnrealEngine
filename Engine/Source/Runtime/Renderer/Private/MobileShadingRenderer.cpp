@@ -110,6 +110,8 @@ FGlobalDynamicIndexBuffer FMobileSceneRenderer::DynamicIndexBuffer;
 FGlobalDynamicVertexBuffer FMobileSceneRenderer::DynamicVertexBuffer;
 TGlobalResource<FGlobalDynamicReadBuffer> FMobileSceneRenderer::DynamicReadBuffer;
 
+extern bool IsMobileEyeAdaptationEnabled(const FViewInfo& View);
+
 static bool UsesCustomDepthStencilLookup(const FViewInfo& View)
 {
 	bool bUsesCustomDepthStencil = false;
@@ -132,15 +134,14 @@ static bool UsesCustomDepthStencilLookup(const FViewInfo& View)
 				FMaterialRenderProxy* Proxy = DataPtr->GetMaterialInterface()->GetRenderProxy();
 				check(Proxy);
 
-				const FMaterial* Material = Proxy->GetMaterial(View.GetFeatureLevel());
-				check(Material);
-				if (Material->IsStencilTestEnabled())
+				const FMaterial& Material = Proxy->GetIncompleteMaterialWithFallback(View.GetFeatureLevel());
+				if (Material.IsStencilTestEnabled())
 				{
 					bUsesCustomDepthStencil = true;
 					break;
 				}
 
-				const FMaterialShaderMap* MaterialShaderMap = Material->GetRenderingThreadShaderMap();
+				const FMaterialShaderMap* MaterialShaderMap = Material.GetRenderingThreadShaderMap();
 				if (MaterialShaderMap->UsesSceneTexture(PPI_CustomDepth) || MaterialShaderMap->UsesSceneTexture(PPI_CustomStencil))
 				{
 					bUsesCustomDepthStencil = true;
@@ -328,13 +329,13 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 		Scene->IndirectLightingCache.FinalizeCacheUpdates(Scene, *this, ILCTaskData);
 	}
 
-	const bool bMobileDeferredShading = IsMobileDeferredShading();
+	const bool bDeferredShading = IsMobileDeferredShadingEnabled(ShaderPlatform);
 	// initialize per-view uniform buffer.  Pass in shadow info as necessary.
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
 		FViewInfo& View = Views[ViewIndex];
 		
-		if (bMobileDeferredShading)
+		if (bDeferredShading)
 		{
 			if (View.ViewState)
 			{
@@ -362,6 +363,12 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 		// TODO: remove when old path is removed
 		// Create the directional light uniform buffers
 		CreateDirectionalLightUniformBuffers(View);
+
+		// Get the custom 1x1 target used to store exposure value and Toggle the two render targets used to store new and old.
+		if (IsMobileEyeAdaptationEnabled(View))
+		{
+			View.SwapEyeAdaptationBuffers();
+		}
 	}
 
 	UpdateGPUScene(RHICmdList, *Scene);
@@ -394,7 +401,7 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 		UpdateTranslucentBasePassUniformBuffer(RHICmdList, View);
 		UpdateDirectionalLightUniformBuffers(RHICmdList, View);
 	}
-	if (bMobileDeferredShading)
+	if (bDeferredShading)
 	{
 		SetupSceneReflectionCaptureBuffer(RHICmdList);
 	}
@@ -458,7 +465,7 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	FViewInfo& View = Views[0];
 
 	const bool bGammaSpace = !IsMobileHDR();
-	const bool bDeferredShading = IsMobileDeferredShading();
+	const bool bDeferredShading = IsMobileDeferredShadingEnabled(ShaderPlatform);
 
 	const FIntPoint RenderTargetSize = (ViewFamily.RenderTarget->GetRenderTargetTexture().IsValid()) ? ViewFamily.RenderTarget->GetRenderTargetTexture()->GetSizeXY() : ViewFamily.RenderTarget->GetSizeXY();
 	const bool bRequiresUpscale = ((int32)RenderTargetSize.X > FamilySize.X || (int32)RenderTargetSize.Y > FamilySize.Y);
@@ -1225,7 +1232,7 @@ bool FMobileSceneRenderer::RequiresMultiPass(FRHICommandListImmediate& RHICmdLis
 		return false;
 	}
 
-	if (IsMobileDeferredShading())
+	if (IsMobileDeferredShadingEnabled(ShaderPlatform))
 	{
 		// TODO: add GL support
 		return true;

@@ -142,7 +142,9 @@ namespace Mat
 		// displacement
 		if (Parameters.Contains(EMaterialParameter::DisplacementMap))
 		{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			check(Material.D3D11TessellationMode != EMaterialTessellationMode::MTM_NoTessellation);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 			UMaterialExpression* UV = Generator::NewMaterialExpressionTextureCoordinate(&Material, 0);
 			UV                      = Generator::NewMaterialExpressionMultiply(&Material, {UV, Tiling});

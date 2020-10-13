@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "AudioDeviceManager.h"
 #include "IAudioModulation.h"
 #include "SoundControlBusProxy.h"
 #include "SoundModulationProxy.h"
 #include "SoundModulationValue.h"
-#include "SoundModulationGeneratorLFOProxy.h"
 
 
 // Forward Declarations
@@ -24,7 +24,7 @@ namespace AudioModulation
 	class FModulatorBusMixStageSettings : public TModulatorBase<FBusId>
 	{
 	public:
-		FModulatorBusMixStageSettings(const FSoundControlBusMixStage& InStage);
+		FModulatorBusMixStageSettings(const FSoundControlBusMixStage& InStage, Audio::FDeviceId InDeviceId);
 
 		FString Address;
 		uint32 ParamClassId = INDEX_NONE;
@@ -36,7 +36,7 @@ namespace AudioModulation
 	class FModulatorBusMixSettings : public TModulatorBase<FBusMixId>
 	{
 	public:
-		FModulatorBusMixSettings(const USoundControlBusMix& InBusMix);
+		FModulatorBusMixSettings(const USoundControlBusMix& InBusMix, Audio::FDeviceId InDeviceId);
 
 		TArray<FModulatorBusMixStageSettings> Stages;
 	};

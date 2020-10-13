@@ -78,7 +78,7 @@ UTexture* UVPUtilitiesEditorBlueprintLibrary::ImportSnapshotTexture(FString File
 
 	FString PackageName = TEXT("/Game/Snapshots/" + SubFolderName + "/");
 	PackageName += TextureName;
-	UPackage* Package = CreatePackage(NULL, *PackageName);
+	UPackage* Package = CreatePackage(*PackageName);
 	Package->FullyLoad();
 
 	// try opening from absolute path

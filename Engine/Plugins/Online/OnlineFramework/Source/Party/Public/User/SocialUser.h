@@ -61,6 +61,7 @@ public:
 
 	FString GetPlatformIconMarkupTag(EPlatformIconDisplayRule DisplayRule) const;
 	virtual FString GetPlatformIconMarkupTag(EPlatformIconDisplayRule DisplayRule, FString& OutLegacyString) const;
+	virtual FString GetMarkupTagForPlatform(const FUserPlatform& RemoteUserPlatform) const { return RemoteUserPlatform; }
 
 	virtual void GetRichPresenceText(FText& OutRichPresence) const;
 

@@ -2,6 +2,7 @@
 
 using Rhino;
 using System;
+using System.Diagnostics;
 
 namespace DatasmithRhino
 {
@@ -9,7 +10,10 @@ namespace DatasmithRhino
 	{
 		private const int ProgressGranularity = 1000;
 		private const string ExportMainMessage = "Datasmith Export";
+		private const float EscapeKeyCheckDelaySeconds = 0.2f;
 
+		private bool bEscapedKeyPressed = false;
+		private Stopwatch EscapeKeyStopwatch = new Stopwatch();
 
 		private static FDatasmithRhinoProgressManager SingeletonInstance;
 		/**
@@ -58,6 +62,15 @@ namespace DatasmithRhino
 			Rhino.UI.StatusBar.UpdateProgressMeter(ProgressFrameEnd, true);
 			ProgressFrameStart = ProgressFrameEnd;
 			ProgressFrameEnd = ProgressValue;
+
+			if (EscapeKeyStopwatch.IsRunning)
+			{
+				CancelIfEscapePressed();
+			}
+			else
+			{
+				StartListeningEscapeKey();
+			}
 		}
 
 		/**
@@ -69,6 +82,7 @@ namespace DatasmithRhino
 		{
 			int ProgressDelta = (int)((ProgressFrameEnd - ProgressFrameStart) * PercentProgressFrame);
 			Rhino.UI.StatusBar.UpdateProgressMeter(ProgressFrameStart + ProgressDelta, true);
+			CancelIfEscapePressed();
 		}
 
 		public void StopProgress()
@@ -76,6 +90,40 @@ namespace DatasmithRhino
 			Rhino.UI.StatusBar.HideProgressMeter();
 			ProgressFrameStart = 0;
 			ProgressFrameEnd = 0;
+			StopListeningEscapeKey();
+		}
+
+		private void StartListeningEscapeKey()
+		{
+			RhinoApp.EscapeKeyPressed += OnEscapePressed;
+			bEscapedKeyPressed = false;
+			EscapeKeyStopwatch.Restart();
+		}
+
+		private void StopListeningEscapeKey()
+		{
+			RhinoApp.EscapeKeyPressed -= OnEscapePressed;
+			EscapeKeyStopwatch.Stop();
+		}
+
+		private void OnEscapePressed(object sender, EventArgs e)
+		{
+			bEscapedKeyPressed = true;
+		}
+
+		private void CancelIfEscapePressed()
+		{
+			if (EscapeKeyCheckDelaySeconds <= EscapeKeyStopwatch.Elapsed.TotalSeconds)
+			{
+				EscapeKeyStopwatch.Restart();
+
+				// We need to call Wait() in order to allow the OnEscapePressed event to fire.
+				RhinoApp.Wait();
+				if (bEscapedKeyPressed)
+				{
+					throw new DatasmithExportCancelledException();
+				}
+			}
 		}
 
 		private int ProgressFrameStart = 0;

@@ -136,6 +136,9 @@ void UEditMeshPolygonsTool::Setup()
 								  {
 									  LockedTransfomerFrame = LastTransformerFrame; UpdateMultiTransformerFrame();
 								  });
+	// We are going to SilentUpdate here because otherwise the Watches above will immediately fire (why??)
+	// and cause UpdateMultiTransformerFrame() to be called for each, emitting two spurious Transform changes. 
+	CommonProps->SilentUpdateWatched();
 
 	// set up SelectionMechanic
 	SelectionMechanic = NewObject<UPolygonSelectionMechanic>(this);
@@ -165,7 +168,7 @@ void UEditMeshPolygonsTool::Setup()
 	bInDrag = false;
 
 	MultiTransformer = NewObject<UMultiTransformer>(this);
-	MultiTransformer->Setup(GetToolManager()->GetPairedGizmoManager());
+	MultiTransformer->Setup(GetToolManager()->GetPairedGizmoManager(), GetToolManager());
 	MultiTransformer->OnTransformStarted.AddUObject(this, &UEditMeshPolygonsTool::OnMultiTransformerTransformBegin);
 	MultiTransformer->OnTransformUpdated.AddUObject(this, &UEditMeshPolygonsTool::OnMultiTransformerTransformUpdate);
 	MultiTransformer->OnTransformCompleted.AddUObject(this, &UEditMeshPolygonsTool::OnMultiTransformerTransformEnd);
@@ -449,7 +452,8 @@ void UEditMeshPolygonsTool::UpdateMultiTransformerFrame(const FFrame3d* UseFrame
 	}
 
 	LastTransformerFrame = SetFrame;
-	MultiTransformer->SetGizmoPositionFromWorldFrame(SetFrame, true);
+	//MultiTransformer->UpdateGizmoPositionFromWorldFrame(SetFrame, true);
+	MultiTransformer->InitializeGizmoPositionFromWorldFrame(SetFrame, true);
 }
 
 
@@ -573,16 +577,16 @@ void UEditMeshPolygonsTool::UpdateDeformerFromSelection(const FGroupTopologySele
 	if (Selection.SelectedCornerIDs.Num() > 0)
 	{
 		//Add all the the Corner's adjacent poly-groups (NbrGroups) to the ongoing array of groups.
-		LinearDeformer.SetActiveHandleCorners(Selection.SelectedCornerIDs);
+		LinearDeformer.SetActiveHandleCorners(Selection.SelectedCornerIDs.Array());
 	}
 	else if (Selection.SelectedEdgeIDs.Num() > 0)
 	{
 		//Add all the the edge's adjacent poly-groups (NbrGroups) to the ongoing array of groups.
-		LinearDeformer.SetActiveHandleEdges(Selection.SelectedEdgeIDs);
+		LinearDeformer.SetActiveHandleEdges(Selection.SelectedEdgeIDs.Array());
 	}
 	else if (Selection.SelectedGroupIDs.Num() > 0)
 	{
-		LinearDeformer.SetActiveHandleFaces(Selection.SelectedGroupIDs);
+		LinearDeformer.SetActiveHandleFaces(Selection.SelectedGroupIDs.Array());
 	}
 }
 
@@ -653,6 +657,10 @@ void UEditMeshPolygonsTool::OnTick(float DeltaTime)
 		if (SelectionMechanic->HasSelection())
 		{
 			MultiTransformer->SetGizmoVisibility(true);
+
+			// update frame because we might be here due to an undo event/etc, rather than an explicit selection change
+			LastGeometryFrame = SelectionMechanic->GetSelectionFrame(true, &LastGeometryFrame);
+			UpdateMultiTransformerFrame();
 		}
 		else
 		{
@@ -807,7 +815,6 @@ void UEditMeshPolygonsTool::PrecomputeTopology()
 		[this]() { return &GetSpatial(); },
 		[this]() { return GetShiftToggle(); }
 		);
-	SelectionMechanic->SetShouldSelectEdgeLoopsFunc([this]() { return CommonProps->bSelectEdgeLoops; });
 
 	LinearDeformer.Initialize(Mesh, Topology.Get());
 }
@@ -958,8 +965,7 @@ void UEditMeshPolygonsTool::BeginExtrude(bool bIsNormalOffset)
 
 	ExtrudeHeightMechanic->WorldHitQueryFunc = [this](const FRay& WorldRay, FHitResult& HitResult)
 	{
-		FCollisionObjectQueryParams QueryParams(FCollisionObjectQueryParams::AllObjects);
-		return DynamicMeshComponent->GetWorld()->LineTraceSingleByObjectType(HitResult, WorldRay.Origin, WorldRay.PointAt(999999), QueryParams);
+		return ToolSceneQueriesUtil::FindNearestVisibleObjectHit(DynamicMeshComponent->GetWorld(), HitResult, WorldRay);
 	};
 	ExtrudeHeightMechanic->WorldPointSnapFunc = [this](const FVector3d& WorldPos, FVector3d& SnapPos)
 	{
@@ -974,6 +980,7 @@ void UEditMeshPolygonsTool::BeginExtrude(bool bIsNormalOffset)
 	{
 		SetToolPropertySourceEnabled(ExtrudeProperties, true);
 	}
+	SetActionButtonPanelsVisible(false);
 }
 
 
@@ -993,22 +1000,34 @@ void UEditMeshPolygonsTool::ApplyExtrude(bool bIsOffset)
 	Extruder.OffsetPositionFunc = [&](const FVector3d& Pos, const FVector3f& Normal, int32 VertexID) {
 		return Pos + ExtrudeDist * (bIsOffset ? (FVector3d)Normal : ExtrudeDir);
 	};
+	Extruder.bIsPositiveOffset = (ExtrudeDist > 0);
+	Extruder.bOffsetFullComponentsAsSolids = ExtrudeProperties->bShellsToSolids;
 	Extruder.ChangeTracker = MakeUnique<FDynamicMeshChangeTracker>(Mesh);
 	Extruder.ChangeTracker->BeginChange();
 	Extruder.Apply();
 
 	FMeshNormals::QuickComputeVertexNormalsForTriangles(*Mesh, Extruder.AllModifiedTriangles);
 
+	// construct new selection
+	FGroupTopologySelection NewSelection;
+	for (const FOffsetMeshRegion::FOffsetInfo& Info : Extruder.OffsetRegions)
+	{
+		for (int32 gid : Info.OffsetGroups)
+		{
+			NewSelection.SelectedGroupIDs.Add(gid);
+		}
+	}
+
 	// emit undo
-	FGroupTopologySelection CurSelection = SelectionMechanic->GetActiveSelection();
 	TUniquePtr<FMeshChange> MeshChange = MakeUnique<FMeshChange>(Extruder.ChangeTracker->EndChange());
 	CompleteMeshEditChange( (bIsOffset) ? LOCTEXT("PolyMeshOffsetChange", "Offset") : LOCTEXT("PolyMeshExtrudeChange", "Extrude"),
-		MoveTemp(MeshChange), CurSelection);
+		MoveTemp(MeshChange), NewSelection);
 
 	ExtrudeHeightMechanic = nullptr;
 	CurrentToolMode = ECurrentToolMode::TransformSelection;
 
 	SetToolPropertySourceEnabled(ExtrudeProperties, false);
+	SetActionButtonPanelsVisible(true);
 }
 
 
@@ -1078,6 +1097,7 @@ void UEditMeshPolygonsTool::BeginInset(bool bOutset)
 
 	SetToolPropertySourceEnabled((bOutset) ? 
 		(UInteractiveToolPropertySet*)OutsetProperties : (UInteractiveToolPropertySet*)InsetProperties, true);
+	SetActionButtonPanelsVisible(false);
 }
 
 
@@ -1113,6 +1133,7 @@ void UEditMeshPolygonsTool::ApplyInset(bool bOutset)
 
 	SetToolPropertySourceEnabled((bOutset) ?
 		(UInteractiveToolPropertySet*)OutsetProperties : (UInteractiveToolPropertySet*)InsetProperties, false);
+	SetActionButtonPanelsVisible(true);
 }
 
 
@@ -1151,6 +1172,7 @@ void UEditMeshPolygonsTool::BeginCutFaces()
 
 	CurrentToolMode = ECurrentToolMode::CutSelection;
 	SetToolPropertySourceEnabled(CutProperties, true);
+	SetActionButtonPanelsVisible(false);
 }
 
 void UEditMeshPolygonsTool::ApplyCutFaces()
@@ -1208,6 +1230,7 @@ void UEditMeshPolygonsTool::ApplyCutFaces()
 	SurfacePathMechanic = nullptr;
 	CurrentToolMode = ECurrentToolMode::TransformSelection;
 	SetToolPropertySourceEnabled(CutProperties, false);
+	SetActionButtonPanelsVisible(true);
 }
 
 
@@ -1243,6 +1266,7 @@ void UEditMeshPolygonsTool::BeginSetUVs()
 
 	CurrentToolMode = ECurrentToolMode::SetUVs;
 	SetToolPropertySourceEnabled(SetUVProperties, true);
+	SetActionButtonPanelsVisible(false);
 }
 
 void UEditMeshPolygonsTool::UpdateSetUVS()
@@ -1309,6 +1333,7 @@ void UEditMeshPolygonsTool::ApplySetUVs()
 	SurfacePathMechanic = nullptr;
 	CurrentToolMode = ECurrentToolMode::TransformSelection;
 	SetToolPropertySourceEnabled(SetUVProperties, false);
+	SetActionButtonPanelsVisible(true);
 }
 
 
@@ -2029,9 +2054,8 @@ bool UEditMeshPolygonsTool::BeginMeshEdgeEditChange(TFunctionRef<bool(int32)> Gr
 		return false;
 	}
 	ActiveEdgeSelection.Reserve(NumEdges);
-	for (int32 k = 0; k < NumEdges; ++k)
+	for (int32 EdgeID : ActiveSelection.SelectedEdgeIDs)
 	{
-		int32 EdgeID = ActiveSelection.SelectedEdgeIDs[k];
 		if (GroupEdgeIDFilterFunc(EdgeID))
 		{
 			FSelectedEdge& Edge = ActiveEdgeSelection.Emplace_GetRef();
@@ -2065,7 +2089,7 @@ void UEditMeshPolygonsTool::CancelMeshEditChange()
 	SetToolPropertySourceEnabled(OutsetProperties, false);
 	SetToolPropertySourceEnabled(CutProperties, false);
 	SetToolPropertySourceEnabled(SetUVProperties, false);
-
+	SetActionButtonPanelsVisible(true);
 
 	CurrentToolMode = ECurrentToolMode::TransformSelection;
 }
@@ -2103,6 +2127,39 @@ void UEditMeshPolygonsTool::UpdateEditPreviewMaterials(EPreviewMaterialType Mate
 	}
 }
 
+
+
+
+
+void UEditMeshPolygonsTool::SetActionButtonPanelsVisible(bool bVisible)
+{
+	if (bTriangleMode == false)
+	{
+		if (EditActions)
+		{
+			SetToolPropertySourceEnabled(EditActions, bVisible);
+		}
+		if (EditEdgeActions)
+		{
+			SetToolPropertySourceEnabled(EditEdgeActions, bVisible);
+		}
+		if (EditUVActions)
+		{
+			SetToolPropertySourceEnabled(EditUVActions, bVisible);
+		}
+	}
+	else
+	{
+		if (EditActions_Triangles)
+		{
+			SetToolPropertySourceEnabled(EditActions_Triangles, bVisible);
+		}
+		if (EditEdgeActions_Triangles)
+		{
+			SetToolPropertySourceEnabled(EditEdgeActions_Triangles, bVisible);
+		}
+	}
+}
 
 
 

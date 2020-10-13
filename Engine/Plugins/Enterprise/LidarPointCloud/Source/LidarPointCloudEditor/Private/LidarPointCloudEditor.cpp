@@ -862,7 +862,7 @@ ULidarPointCloud* FLidarPointCloudEditor::CreateNewAsset()
 			const FString PackageName = FPackageName::ObjectPathToPackageName(SaveObjectPath);
 			const FString ObjectName = FPackageName::ObjectPathToObjectName(SaveObjectPath);
 
-			NewPointCloud = NewObject<ULidarPointCloud>(CreatePackage(nullptr, *PackageName), ULidarPointCloud::StaticClass(), FName(*ObjectName), EObjectFlags::RF_Public | EObjectFlags::RF_Standalone);
+			NewPointCloud = NewObject<ULidarPointCloud>(CreatePackage(*PackageName), ULidarPointCloud::StaticClass(), FName(*ObjectName), EObjectFlags::RF_Public | EObjectFlags::RF_Standalone);
 
 			FAssetRegistryModule::AssetCreated(NewPointCloud);
 			NewPointCloud->MarkPackageDirty();

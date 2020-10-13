@@ -7,6 +7,7 @@
 #include "GameFramework/OnlineReplStructs.h"
 #include "Templates/SubclassOf.h"
 #include "Interactions/SocialInteractionHandle.h"
+#include "SocialSettings.h"
 
 #include "SocialTypes.generated.h"
 
@@ -99,14 +100,13 @@ struct PARTY_API FUserPlatform
 	GENERATED_BODY()
 
 public:
-	FUserPlatform() {}
-	FUserPlatform(const FString& InPlatform)
-		: PlatformStr(InPlatform)
-	{}
+	FUserPlatform();
+	FUserPlatform(const FString& InPlatform);
 
-	operator const FString&() const { return PlatformStr; }
-	const FString& ToString() const { return PlatformStr; }
-	const FString GetTypeName() const;
+	operator const FString&() const { return PlatformDescription.Name; }
+	const FString& ToString() const { return PlatformDescription.Name; }
+	const FString& GetTypeName() const { return PlatformDescription.PlatformType; }
+	const FSocialPlatformDescription& GetPlatformDescription() const { return PlatformDescription; }
 
 	bool operator==(const FString& OtherStr) const;
 	bool operator!=(const FString& OtherStr) const { return !operator==(OtherStr); }
@@ -117,14 +117,13 @@ public:
 	bool IsDesktop() const;
 	bool IsMobile() const;
 	bool IsConsole() const;
-	bool RequiresCrossplayOptIn() const;
 	bool IsCrossplayWith(const FString& OtherPlatformStr) const;
 	bool IsCrossplayWith(const FUserPlatform& OtherPlatform) const;
 	bool IsCrossplayWithLocalPlatform() const;
 
 private:
 	UPROPERTY()
-	FString PlatformStr;
+	FSocialPlatformDescription PlatformDescription;
 };
 
 inline bool OptedOutOfCrossplay(ECrossplayPreference InPreference)

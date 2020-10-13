@@ -1343,6 +1343,45 @@ void FStaticMeshEditorViewportClient::SetAdvancedShowFlagsForScene(const bool bA
 	}
 }
 
+void FStaticMeshEditorViewportClient::UpdateSimpleCollisionDisplay()
+{
+	if (StaticMeshComponent != nullptr)
+	{
+		// Have to set this flag in case we are using 'use complex as simple'
+		StaticMeshComponent->bDrawMeshCollisionIfSimple = bShowSimpleCollision;
+		StaticMeshComponent->MarkRenderStateDirty();
+	}
+
+	Invalidate();
+}
+
+void FStaticMeshEditorViewportClient::UpdateComplexCollisionDisplay()
+{
+	if (StaticMesh)
+	{
+		if (UObject* CDPObj = StaticMesh->ComplexCollisionMesh)
+		{
+			if (IInterface_CollisionDataProvider* CDP = Cast<IInterface_CollisionDataProvider>(CDPObj))
+			{
+				CollisionMeshData = FTriMeshCollisionData();
+				CDP->GetPhysicsTriMeshData(&CollisionMeshData, true);
+			}
+			if (StaticMeshComponent != nullptr)
+			{
+				StaticMeshComponent->bDrawMeshCollisionIfComplex = false;
+				StaticMeshComponent->MarkRenderStateDirty();
+			}
+		}
+		else if (StaticMeshComponent != nullptr)
+		{
+			StaticMeshComponent->bDrawMeshCollisionIfComplex = bShowComplexCollision;
+			StaticMeshComponent->MarkRenderStateDirty();
+		}
+	}
+
+	Invalidate();
+}
+
 void FStaticMeshEditorViewportClient::SetFloorAndEnvironmentVisibility(const bool bVisible)
 {
 	AdvancedPreviewScene->SetFloorVisibility(bVisible, true);
@@ -1354,12 +1393,8 @@ void FStaticMeshEditorViewportClient::SetPreviewMesh(UStaticMesh* InStaticMesh, 
 	StaticMesh = InStaticMesh;
 	StaticMeshComponent = InStaticMeshComponent;
 
-	if(StaticMeshComponent != nullptr)
-	{
-		StaticMeshComponent->bDrawMeshCollisionIfSimple = bShowSimpleCollision;
-		StaticMeshComponent->bDrawMeshCollisionIfComplex = bShowComplexCollision;
-		StaticMeshComponent->MarkRenderStateDirty();
-	}
+	UpdateSimpleCollisionDisplay();
+	UpdateComplexCollisionDisplay();
 	
 	if (bResetCamera)
 	{
@@ -1597,20 +1632,13 @@ bool FStaticMeshEditorViewportClient::IsDrawVerticesChecked() const
 void FStaticMeshEditorViewportClient::ToggleShowSimpleCollision()
 {
 	bShowSimpleCollision = !bShowSimpleCollision;
-
-	if (StaticMeshComponent != nullptr)
-	{
-		// Have to set this flag in case we are using 'use complex as simple'
-		StaticMeshComponent->bDrawMeshCollisionIfSimple = bShowSimpleCollision;
-		StaticMeshComponent->MarkRenderStateDirty();
-	}
+	StaticMeshEditorPtr.Pin()->ClearSelectedPrims();
+	UpdateSimpleCollisionDisplay();
 
 	if (FEngineAnalytics::IsAvailable())
 	{
 		FEngineAnalytics::GetProvider().RecordEvent(TEXT("Editor.Usage.StaticMesh.Toolbar"), TEXT("bShowCollision"), (bShowSimpleCollision || bShowComplexCollision) ? TEXT("True") : TEXT("False"));
 	}
-	StaticMeshEditorPtr.Pin()->ClearSelectedPrims();
-	Invalidate();
 }
 
 bool FStaticMeshEditorViewportClient::IsShowSimpleCollisionChecked() const
@@ -1621,34 +1649,12 @@ bool FStaticMeshEditorViewportClient::IsShowSimpleCollisionChecked() const
 void FStaticMeshEditorViewportClient::ToggleShowComplexCollision()
 {
 	bShowComplexCollision = !bShowComplexCollision;
-
-	if (StaticMesh)
-	{
-		if (UObject* CDPObj = StaticMesh->ComplexCollisionMesh)
-		{
-			if (IInterface_CollisionDataProvider* CDP = Cast<IInterface_CollisionDataProvider>(CDPObj))
-			{
-				CollisionMeshData = FTriMeshCollisionData();
-				CDP->GetPhysicsTriMeshData(&CollisionMeshData, true);
-			}
-			if (StaticMeshComponent != nullptr)
-			{
-				StaticMeshComponent->bDrawMeshCollisionIfComplex = false;
-				StaticMeshComponent->MarkRenderStateDirty();
-			}
-		}
-		else if (StaticMeshComponent != nullptr)
-		{
-			StaticMeshComponent->bDrawMeshCollisionIfComplex = bShowComplexCollision;
-			StaticMeshComponent->MarkRenderStateDirty();
-		}
-	}
-
+	UpdateComplexCollisionDisplay();
+	
 	if (FEngineAnalytics::IsAvailable())
 	{
 		FEngineAnalytics::GetProvider().RecordEvent(TEXT("Editor.Usage.StaticMesh.Toolbar"), TEXT("bShowCollision"), (bShowSimpleCollision || bShowComplexCollision) ? TEXT("True") : TEXT("False"));
 	}
-	Invalidate();
 }
 
 bool FStaticMeshEditorViewportClient::IsShowComplexCollisionChecked() const
@@ -1703,6 +1709,11 @@ bool FStaticMeshEditorViewportClient::IsDrawAdditionalDataChecked() const
 TSet< int32 >& FStaticMeshEditorViewportClient::GetSelectedEdges()
 { 
 	return SelectedEdgeIndices;
+}
+
+void FStaticMeshEditorViewportClient::OnMeshChanged()
+{
+	UpdateComplexCollisionDisplay();
 }
 
 void FStaticMeshEditorViewportClient::OnSocketSelectionChanged( UStaticMeshSocket* SelectedSocket )

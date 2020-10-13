@@ -10,9 +10,6 @@
 #include "DatasmithVariantElements.h"
 #include "IDatasmithSceneElements.h"
 
-#include "DirectLink/SceneSnapshot.h"
-#include "DirectLink/SceneGraphNode.h"
-
 #include "HAL/FileManager.h"
 #include "HAL/PlatformFilemanager.h"
 #include "Math/UnrealMath.h"

@@ -476,7 +476,7 @@ namespace
 /**
  * Pool for storing physical material render task data.
  */
-class FLandscapePhysicalMaterialRenderTaskPool
+class FLandscapePhysicalMaterialRenderTaskPool : public FRenderResource
 {
 public:
 	/** Pool uses chunked array to avoid task data being moved by a realloc. */
@@ -519,7 +519,7 @@ public:
 		InTask.PoolHandle = -1;
 
 		// Submit render thread command to mark pooled task as free.
-		ENQUEUE_RENDER_COMMAND(FLandscapePhysicalMaterialUpdaterTick)(
+		ENQUEUE_RENDER_COMMAND(FLandscapePhysicalMaterialClear)(
 			[Task](FRHICommandListImmediate& RHICmdList)
 			{
 				Task->LandscapeComponent = nullptr;
@@ -548,7 +548,7 @@ public:
 					Task->ResultIds.Empty();
 
 					// Free the render resources (which may already be free)
-					ENQUEUE_RENDER_COMMAND(FLandscapePhysicalMaterialUpdaterTick)(
+					ENQUEUE_RENDER_COMMAND(FLandscapePhysicalMaterialFree)(
 						[Task](FRHICommandListImmediate& RHICmdList)
 						{
 							Task->ReadbackTexture.SafeRelease();
@@ -560,10 +560,15 @@ public:
 
 		FrameCount++;
 	}
+
+	void ReleaseRHI() override
+	{
+		Pool.Empty();
+	}
 };
 
 /** Static global pool object. */
-static FLandscapePhysicalMaterialRenderTaskPool GTaskPool;
+static TGlobalResource< FLandscapePhysicalMaterialRenderTaskPool > GTaskPool;
 
 
 void FLandscapePhysicalMaterialRenderTask::Init(ULandscapeComponent const* LandscapeComponent)
@@ -624,7 +629,7 @@ void FLandscapePhysicalMaterialRenderTask::Flush()
 	{
 		FLandscapePhysicalMaterialRenderTaskImpl* Task = &GTaskPool.Pool[PoolHandle];
 
-		ENQUEUE_RENDER_COMMAND(FLandscapePhysicalMaterialUpdaterTick)(
+		ENQUEUE_RENDER_COMMAND(FLandscapePhysicalMaterialFlush)(
 			[Task](FRHICommandListImmediate& RHICmdList)
 			{
 				UpdateTask_RenderThread(RHICmdList, *Task, true);

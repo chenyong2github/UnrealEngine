@@ -2,21 +2,21 @@
 
 #include "Policy/Simple/DisplayClusterProjectionSimplePolicy.h"
 
+#include "IDisplayCluster.h"
+#include "Game/IDisplayClusterGameManager.h"
+#include "Misc/DisplayClusterHelpers.h"
+
+#include "DisplayClusterRootActor.h"
+#include "Components/DisplayClusterCameraComponent.h"
+#include "Components/DisplayClusterScreenComponent.h"
+#include "Components/MeshComponent.h"
+
 #include "DisplayClusterProjectionLog.h"
 #include "DisplayClusterProjectionStrings.h"
 
-#include "Misc/DisplayClusterCommonHelpers.h"
 
-#include "IDisplayCluster.h"
-#include "Config/IDisplayClusterConfigManager.h"
-#include "Game/IDisplayClusterGameManager.h"
-
-#include "DisplayClusterRootComponent.h"
-#include "DisplayClusterScreenComponent.h"
-
-
-FDisplayClusterProjectionSimplePolicy::FDisplayClusterProjectionSimplePolicy(const FString& ViewportId)
-	: FDisplayClusterProjectionPolicyBase(ViewportId)
+FDisplayClusterProjectionSimplePolicy::FDisplayClusterProjectionSimplePolicy(const FString& ViewportId, const TMap<FString, FString>& Parameters)
+	: FDisplayClusterProjectionPolicyBase(ViewportId, Parameters)
 {
 }
 
@@ -32,8 +32,6 @@ void FDisplayClusterProjectionSimplePolicy::StartScene(UWorld* World)
 {
 	check(IsInGameThread());
 
-	// The game side of the nDisplay has been initialized by the nDisplay Game Manager already
-	// so we can extend it by our projection related functionality/components/etc.
 	InitializeMeshData();
 }
 
@@ -51,40 +49,15 @@ bool FDisplayClusterProjectionSimplePolicy::HandleAddViewport(const FIntPoint& V
 
 	UE_LOG(LogDisplayClusterProjectionSimple, Log, TEXT("Initializing internals for the viewport '%s'"), *GetViewportId());
 
-	// Get projection settings of the specified viewport
-	FDisplayClusterConfigProjection CfgProjection;
-	if (!DisplayClusterHelpers::config::GetViewportProjection(GetViewportId(), CfgProjection))
-	{
-		UE_LOG(LogDisplayClusterProjectionSimple, Error, TEXT("No projection ID found for viewport '%s'"), *GetViewportId());
-		return false;
-	}
-
 	// Get assigned screen ID
-	FString ScreenId;
-	if (!DisplayClusterHelpers::str::ExtractValue(CfgProjection.Params, DisplayClusterStrings::cfg::data::projection::simple::Screen, ScreenId))
+	if (!DisplayClusterHelpers::map::template ExtractValue(GetParameters(), DisplayClusterProjectionStrings::cfg::simple::Screen, ScreenId))
 	{
-		UE_LOG(LogDisplayClusterProjectionSimple, Error, TEXT("No screen ID specified for projection '%s'"), *CfgProjection.Id);
+		UE_LOG(LogDisplayClusterProjectionSimple, Error, TEXT("No screen ID specified for projection policy of viewport '%s'"), *GetViewportId());
 		return false;
 	}
 
-	// Get config manager interface
-	IDisplayClusterConfigManager* const ConfigMgr = IDisplayCluster::Get().GetConfigMgr();
-	if (!ConfigMgr)
-	{
-		UE_LOG(LogDisplayClusterProjectionSimple, Error, TEXT("Couldn't get ConfigManager"));
-		return false;
-	}
-
-	if (!ConfigMgr->GetScreen(ScreenId, CfgScreen))
-	{
-		UE_LOG(LogDisplayClusterProjectionSimple, Error, TEXT("Screen '%s' not found in the config file"), *ScreenId);
-		return false;
-	}
-
-	UE_LOG(LogDisplayClusterProjectionSimple, Log, TEXT("Screen '%s' was mapped to the viewport '%s'"), *ScreenId, *GetViewportId());
-	
 	ViewData.Empty();
-	ViewData.AddUninitialized(ViewsAmount);
+	ViewData.AddDefaulted(ViewsAmount);
 	
 	return true;
 }
@@ -132,8 +105,8 @@ bool FDisplayClusterProjectionSimplePolicy::GetProjectionMatrix(const uint32 Vie
 	const float f = ViewData[ViewIdx].FCP;
 
 	// Half-size
-	const float hw = ScreenComp->GetScreenSize().X / 2.f * ViewData[ViewIdx].WorldToMeters;
-	const float hh = ScreenComp->GetScreenSize().Y / 2.f * ViewData[ViewIdx].WorldToMeters;
+	const float hw = ScreenComp->GetScreenSize().X / 2.f / 100.f * ViewData[ViewIdx].WorldToMeters;
+	const float hh = ScreenComp->GetScreenSize().Y / 2.f / 100.f * ViewData[ViewIdx].WorldToMeters;
 
 	// Screen data
 	const FVector  ScreenLoc = ScreenComp->GetComponentLocation();
@@ -192,51 +165,22 @@ void FDisplayClusterProjectionSimplePolicy::InitializeMeshData()
 	}
 
 	// Get our VR root
-	UDisplayClusterRootComponent* Root = GameMgr->GetRootComponent();
+	ADisplayClusterRootActor* const Root = GameMgr->GetRootActor();
 	if (!Root)
 	{
 		UE_LOG(LogDisplayClusterProjectionSimple, Error, TEXT("Couldn't get a VR root object"));
 		return;
 	}
 
-	// Find a parent component for our new screen
-	USceneComponent* ParentComp = nullptr;
-	if (CfgScreen.ParentId.IsEmpty())
+	// Get screen component
+	ScreenComp = Root->GetScreenById(ScreenId);
+	if (!ScreenComp)
 	{
-		ParentComp = Root;
+		UE_LOG(LogDisplayClusterProjectionSimple, Warning, TEXT("Couldn't initialize screen component"));
+		return;
 	}
-	else
-	{
-		ParentComp = GameMgr->GetNodeById(CfgScreen.ParentId);
-	}
-
-	if (!ParentComp)
-	{
-		UE_LOG(LogDisplayClusterProjectionSimple, Warning, TEXT("Couldn't find parent component <%s>. Default root will be used."), *CfgScreen.ParentId);
-		ParentComp = Root;
-	}
-
-	// Finally, create the component
-	ScreenComp = NewObject<UDisplayClusterScreenComponent>(Root->GetOwner(), FName(*CfgScreen.Id), RF_Transient);
-	check(ScreenComp);
-
-	// Initialize it
-	ScreenComp->AttachToComponent(ParentComp, FAttachmentTransformRules(EAttachmentRule::KeepRelative, false));
-	ScreenComp->RegisterComponent();
-	ScreenComp->SetSettings(&CfgScreen);
-	ScreenComp->ApplySettings();
-
-	UE_LOG(LogDisplayClusterProjectionSimple, Log, TEXT("Screen component '%s' has been attached to the component '%s'"), *ScreenComp->GetName(), *ParentComp->GetName());
 }
 
 void FDisplayClusterProjectionSimplePolicy::ReleaseMeshData()
 {
-	if (ScreenComp)
-	{
-		UE_LOG(LogDisplayClusterProjectionSimple, Log, TEXT("Removing screen component '%s'..."), *ScreenComp->GetName());
-		
-		// Destroy the component
-		ScreenComp->DestroyComponent(true);
-		ScreenComp = nullptr;
-	}
 }

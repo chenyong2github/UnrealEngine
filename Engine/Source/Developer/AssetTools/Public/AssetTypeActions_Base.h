@@ -26,6 +26,10 @@ class FAssetTypeActions_Base : public IAssetTypeActions
 public:
 
 	// IAssetTypeActions interface
+	virtual FString GetObjectDisplayName(UObject* Object) const override
+	{
+		return Object->GetName();
+	}
 
 	virtual bool HasActions( const TArray<UObject*>& InObjects ) const override
 	{
@@ -70,9 +74,9 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		return false;
 	}
 
-	virtual bool CanLoadAssetForPreviewOrEdit(const FAssetData& InAssetData) override
+	virtual TArray<FAssetData> GetValidAssetsForPreviewOrEdit(TArrayView<const FAssetData> InAssetDatas, bool bIsPreview) override
 	{
-		return true;
+		return TArray<FAssetData>(InAssetDatas);
 	}
 
 	virtual bool CanFilter() override

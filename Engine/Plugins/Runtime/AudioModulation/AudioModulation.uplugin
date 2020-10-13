@@ -3,7 +3,7 @@
 	"Version": 1,
 	"VersionName": "2.0",
 	"FriendlyName": "Audio Modulation",
-	"Description": "Enables modulation of control parameters in the Unreal Audio Engine.",
+	"Description": "Default implementation of Audio Modulation in the Unreal Audio Engine.",
 	"Category": "Audio",
 	"CreatedBy": "Epic Games, Inc.",
 	"CreatedByURL": "http://epicgames.com",

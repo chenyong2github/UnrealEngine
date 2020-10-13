@@ -38,7 +38,7 @@ public:
 	virtual void RefreshAdditionalMeshes(bool bAllowOverrideBaseMesh) override;
 	virtual void ShowReferencePose(bool bShowRefPose, bool bResetBoneTransforms = false) override;
 	virtual bool IsShowReferencePoseEnabled() const override;
-	virtual void SetSelectedBone(const FName& BoneName) override;
+	virtual void SetSelectedBone(const FName& BoneName, ESelectInfo::Type InSelectInfo) override;
 	virtual void ClearSelectedBone() override;
 	virtual void SetSelectedSocket(const FSelectedSocketInfo& SocketInfo) override;
 	virtual void ClearSelectedSocket() override;

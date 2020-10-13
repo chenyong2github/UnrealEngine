@@ -12,7 +12,7 @@
 
 #define LOCTEXT_NAMESPACE "MovieSceneCameraShakeTrack"
 
-UMovieSceneSection* UMovieSceneCameraShakeTrack::AddNewCameraShake(FFrameNumber KeyTime, TSubclassOf<UCameraShake> ShakeClass)
+UMovieSceneSection* UMovieSceneCameraShakeTrack::AddNewCameraShake(FFrameNumber KeyTime, TSubclassOf<UCameraShakeBase> ShakeClass)
 {
 	Modify();
 

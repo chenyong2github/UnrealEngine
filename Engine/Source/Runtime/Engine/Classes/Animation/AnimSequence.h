@@ -559,12 +559,6 @@ public:
 
 	// End Transform related functions 
 
-	// Begin Bone custom attribute function
-	void Stub_AddBoneFloatCustomAttribute(const FName& BoneName, const FName& AttributeName, const TArrayView<const float> TimeKeys, const TArrayView<const float> ValueKeys) {}
-	void Stub_AddBoneIntegerCustomAttribute(const FName& BoneName, const FName& AttributeName, const TArrayView<const float> TimeKeys, const TArrayView<const int32> ValueKeys) {}
-	void Stub_AddBoneStringCustomAttribute(const FName& BoneName, const FName& AttributeName, const TArrayView<const float> TimeKeys, const TArrayView<const FString> ValueKeys) {}
-	// End Bone custom attribute function
-
 	// Begin Memory related functions
 
 	/** @return	estimate uncompressed raw size. This is *not* the real raw size. 
@@ -880,6 +874,11 @@ private:
 	 */
 	int32 InsertTrack(const FName& BoneName);
 
+private:
+	/** Internal insert function to be used by BakeTrackCurvesToRawAnimation*/ 
+	int32 InsertTrackInternal(const FName& BoneName);
+
+public:
 	/**
 	 * Utility function to resize the sequence
 	 * It rearranges curve data + notifies

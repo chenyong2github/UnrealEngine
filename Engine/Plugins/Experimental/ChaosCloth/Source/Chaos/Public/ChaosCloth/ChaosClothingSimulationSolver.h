@@ -27,7 +27,7 @@ namespace Chaos
 		~FClothingSimulationSolver();
 
 		// ---- Animatable property setters ----
-		void SetLocalSpaceLocation(const TVector<float, 3>& InLocalSpaceLocation) { LocalSpaceLocation = InLocalSpaceLocation; }
+		void SetLocalSpaceLocation(const TVector<float, 3>& InLocalSpaceLocation, bool bReset = false);
 		const TVector<float, 3>& GetLocalSpaceLocation() const { return LocalSpaceLocation; }
 
 		// Disables all Cloths gravity override mechanism
@@ -36,7 +36,7 @@ namespace Chaos
 		void SetGravity(const TVector<float, 3>& InGravity) { Gravity = InGravity; }
 		const TVector<float, 3>& GetGravity() const { return Gravity; }
 
-		void SetWindVelocity(const TVector<float, 3>& InWindVelocity);
+		void SetWindVelocity(const TVector<float, 3>& InWindVelocity, float InLegacyWindAdaption = 0.f);
 		void SetWindFluidDensity(float InWindFluidDensity) { WindFluidDensity = InWindFluidDensity; }
 
 		void SetNumIterations(int32 InNumIterations) { NumIterations = InNumIterations; }
@@ -86,6 +86,9 @@ namespace Chaos
 		// Set the geometry affected by wind, or disable if TriangleMesh is null.
 		void SetWindVelocityField(uint32 GroupId, float DragCoefficient, float LiftCoefficient, const TTriangleMesh<float>* TriangleMesh = nullptr);
 		const TVelocityField<float, 3>&  GetWindVelocityField(uint32 GroupId);
+
+		// Set legacy noise wind.
+		void SetLegacyWind(uint32 GroupId, bool bUseLegacyWind);
 
 		// Enable self collision, or disable if TriangleMesh is null.
 		void SetSelfCollisions(uint32 GroupId, float SelfCollisionThickness, const TTriangleMesh<float>* TriangleMesh = nullptr);
@@ -178,6 +181,7 @@ namespace Chaos
 		// Solver parameters
 		TVector<float, 3> Gravity;
 		TVector<float, 3> WindVelocity;
+		float LegacyWindAdaption;
 		float WindFluidDensity;
 		bool bIsClothGravityOverrideEnabled;
 	};

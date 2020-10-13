@@ -1,0 +1,42 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+struct FNDIExportContext
+{
+	uint			WriteBufferSize;
+	RWBuffer<uint>	WriteBuffer;
+};
+
+void NDIExport_StoreData(in FNDIExportContext DIContext, in bool bStoreData, in float3 Position, in float Size, in float3 Velocity, out bool bSuccess)
+{
+	bSuccess = false;
+	if ( bStoreData && (DIContext.WriteBufferSize > 0) )
+	{
+		uint StoreIndex;
+		InterlockedAdd(DIContext.WriteBuffer[0], 1u, StoreIndex);
+		if ( StoreIndex < DIContext.WriteBufferSize)
+		{
+			uint StoreOffset = 1 + (StoreIndex * 7);
+			DIContext.WriteBuffer[StoreOffset + 0] = asuint(Position.x);
+			DIContext.WriteBuffer[StoreOffset + 1] = asuint(Position.y);
+			DIContext.WriteBuffer[StoreOffset + 2] = asuint(Position.z);
+			DIContext.WriteBuffer[StoreOffset + 3] = asuint(Size);
+			DIContext.WriteBuffer[StoreOffset + 4] = asuint(Velocity.x);
+			DIContext.WriteBuffer[StoreOffset + 5] = asuint(Velocity.y);
+			DIContext.WriteBuffer[StoreOffset + 6] = asuint(Velocity.z);
+			bSuccess = true;
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+#define NDIEXPORT_DECLARE_CONSTANTS(NAME) \
+	uint			WriteBufferSize_ ## NAME; \
+	RWBuffer<uint>	RWWriteBuffer_ ## NAME; \
+
+#define NDIEXPORT_MAKE_CONTEXT(NAME) \
+	FNDIExportContext	DIContext; \
+	DIContext.WriteBufferSize = WriteBufferSize_ ## NAME; \
+	DIContext.WriteBuffer = RWWriteBuffer_ ## NAME; \

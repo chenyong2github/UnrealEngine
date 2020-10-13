@@ -117,7 +117,6 @@ bool FGenericFileIoStoreImpl::StartRequests(FFileIoStoreRequestQueue& RequestQue
 				TRACE_COUNTER_INCREMENT(IoDispatcherForwardSeeks);
 			}
 			TRACE_COUNTER_ADD(IoDispatcherTotalSeekDistance, FMath::Abs(FileHandle->Tell() - int64(NextRequest->Offset)));
-			FileHandle->Seek(NextRequest->Offset);
 		}
 		else
 		{
@@ -125,10 +124,25 @@ bool FGenericFileIoStoreImpl::StartRequests(FFileIoStoreRequestQueue& RequestQue
 		}
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(ReadBlockFromFile);
-			FileHandle->Seek(NextRequest->Offset);
-			FileHandle->Read(Dest, NextRequest->Size);
+			NextRequest->bFailed = true;
+			int32 RetryCount = 0;
+			while (RetryCount++ < 10)
+			{
+				if (!FileHandle->Seek(NextRequest->Offset))
+				{
+					UE_LOG(LogIoDispatcher, Warning, TEXT("Failed seeking to offset %lld (Retries: %d)"), NextRequest->Offset, (RetryCount - 1));
+					continue;
+				}
+				if (!FileHandle->Read(Dest, NextRequest->Size))
+				{
+					UE_LOG(LogIoDispatcher, Warning, TEXT("Failed reading %lld bytes at offset %lld (Retries: %d)"), NextRequest->Size, NextRequest->Offset, (RetryCount - 1));
+					continue;
+				}
+				NextRequest->bFailed = false;
+				BlockCache.Store(NextRequest);
+				break;
+			}
 		}
-		BlockCache.Store(NextRequest);
 	}
 	{
 		FScopeLock _(&CompletedRequestsCritical);

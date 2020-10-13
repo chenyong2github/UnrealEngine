@@ -2,6 +2,7 @@
 
 #include "SUSDVariantSetsList.h"
 
+#include "SUSDStageEditorStyle.h"
 #include "USDStageActor.h"
 #include "USDStageModule.h"
 #include "USDTypesConversion.h"
@@ -17,8 +18,8 @@
 
 namespace UsdVariantSetsListConstants
 {
-	const FMargin LeftRowPadding( 6.0f, 2.5f, 2.0f, 2.5f );
-	const FMargin RightRowPadding( 3.0f, 2.5f, 2.0f, 2.5f );
+	const FMargin LeftRowPadding( 6.0f, 0.0f, 2.0f, 0.0f );
+	const FMargin RightRowPadding( 3.0f, 0.0f, 2.0f, 0.0f );
 
 	const TCHAR* NormalFont = TEXT("PropertyWindow.NormalFont");
 }
@@ -63,14 +64,18 @@ TSharedRef< SWidget > SUsdVariantRow::GenerateWidgetForColumn( const FName& Colu
 				.Font( FEditorStyle::GetFontStyle( UsdVariantSetsListConstants::NormalFont ) );
 	}
 
-	return SNew( SHorizontalBox )
-		+SHorizontalBox::Slot()
-		.HAlign( HAlign_Left )
-		.VAlign( VAlign_Center )
-		.Padding( bIsLeftRow ? UsdVariantSetsListConstants::LeftRowPadding : UsdVariantSetsListConstants::RightRowPadding )
-		.AutoWidth()
+	return SNew(SBox)
+		.HeightOverride( FUsdStageEditorStyle::Get()->GetFloat( "UsdStageEditor.ListItemHeight" ) )
 		[
-			ColumnWidget
+			SNew( SHorizontalBox )
+			+ SHorizontalBox::Slot()
+			.HAlign( HAlign_Left )
+			.VAlign( VAlign_Center )
+			.Padding( bIsLeftRow ? UsdVariantSetsListConstants::LeftRowPadding : UsdVariantSetsListConstants::RightRowPadding )
+			.AutoWidth()
+			[
+				ColumnWidget
+			]
 		];
 }
 
@@ -86,13 +91,14 @@ void SVariantsList::Construct( const FArguments& InArgs, const UE::FUsdStage& Us
 	ViewModel.UpdateVariantSets( UsdStage, InPrimPath );
 
 	SAssignNew( HeaderRowWidget, SHeaderRow )
-	.Visibility( EVisibility::Collapsed )
 
 	+SHeaderRow::Column( FName( TEXT("VariantSetName") ) )
-	.FillWidth( 20.f )
+	.DefaultLabel( NSLOCTEXT( "USDVariantSetsList", "VariantSetName", "Variants" ) )
+	.FillWidth( 25.f )
 
 	+SHeaderRow::Column( FName( TEXT("VariantSetSelection") ) )
-	.FillWidth( 80.f );
+	.DefaultLabel( FText::GetEmpty() )
+	.FillWidth( 75.f );
 
 	SListView::Construct
 	(

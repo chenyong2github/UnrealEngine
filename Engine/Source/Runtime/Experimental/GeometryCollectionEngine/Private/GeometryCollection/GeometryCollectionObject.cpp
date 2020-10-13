@@ -24,7 +24,7 @@
 #include "Chaos/ChaosArchive.h"
 #include "GeometryCollectionProxyData.h"
 
-DEFINE_LOG_CATEGORY_STATIC(UGeometryCollectionLogging, NoLogging, All);
+DEFINE_LOG_CATEGORY_STATIC(LogGeometryCollectionInternal, Log, All);
 
 #if ENABLE_COOK_STATS
 namespace GeometryCollectionCookStats
@@ -39,7 +39,7 @@ namespace GeometryCollectionCookStats
 
 UGeometryCollection::UGeometryCollection(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-	, CollisionType(ECollisionTypeEnum::Chaos_Surface_Volumetric)
+	, CollisionType(ECollisionTypeEnum::Chaos_Volumetric)
 	, ImplicitType(EImplicitTypeEnum::Chaos_Implicit_Box)
 	, MinLevelSetResolution(10)
 	, MaxLevelSetResolution(10)
@@ -60,7 +60,7 @@ UGeometryCollection::UGeometryCollection(const FObjectInitializer& ObjectInitial
 
 FGeometryCollectionSizeSpecificData::FGeometryCollectionSizeSpecificData()
 	: MaxSize(0.0f)
-	, CollisionType(ECollisionTypeEnum::Chaos_Surface_Volumetric)
+	, CollisionType(ECollisionTypeEnum::Chaos_Volumetric)
 	, ImplicitType(EImplicitTypeEnum::Chaos_Implicit_Box)
 	, MinLevelSetResolution(5)
 	, MaxLevelSetResolution(10)
@@ -104,9 +104,17 @@ void UGeometryCollection::GetSharedSimulationParams(FSharedSimulationParameters&
 	OutParams.MinimumMassClamp = MinimumMassClamp;
 	OutParams.MaximumCollisionParticleCount = MaximumCollisionParticles;
 
+	ECollisionTypeEnum SelectedCollisionType = CollisionType;
+
+	if(SelectedCollisionType == ECollisionTypeEnum::Chaos_Volumetric && ImplicitType == EImplicitTypeEnum::Chaos_Implicit_LevelSet)
+	{
+		UE_LOG(LogGeometryCollectionInternal, Warning, TEXT("LevelSet geometry selected but non-particle collisions selected. Forcing particle-implicit collisions for %s"), *GetPathName());
+		SelectedCollisionType = ECollisionTypeEnum::Chaos_Surface_Volumetric;
+	}
+
 	FGeometryCollectionSizeSpecificData InfSize;
 	InfSize.MaxSize = FLT_MAX;
-	InfSize.CollisionType = CollisionType;
+	InfSize.CollisionType = SelectedCollisionType;
 	InfSize.ImplicitType = ImplicitType;
 	InfSize.MinLevelSetResolution = MinLevelSetResolution;
 	InfSize.MaxLevelSetResolution = MaxLevelSetResolution;

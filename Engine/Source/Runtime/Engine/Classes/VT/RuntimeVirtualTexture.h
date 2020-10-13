@@ -25,10 +25,6 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Layout, meta = (DisplayName = "Enable BC texture compression"))
 	bool bCompressTextures = true;
 
-	/** Enable usage of the virtual texture. When disabled there is no rendering into the virtual texture, and sampling will return zero values. */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Layout, meta = (DisplayName = "Enable virtual texture"))
-	bool bEnable = true;
-
 	/** Enable clear before rendering a page of the virtual texture. Disabling this can be an optimization if you know that the texture will always be fully covered by rendering.  */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Layout, meta = (DisplayName = "Enable clear before render"))
 	bool bClearTextures = true;
@@ -78,9 +74,6 @@ protected:
 	class URuntimeVirtualTextureStreamingProxy* StreamingTexture_DEPRECATED = nullptr;
 
 public:
-	/** Public getter for enabled status */
-	bool GetEnabled() { return bEnable; }
-
 	/** Get the material set that this virtual texture stores. */
 	ERuntimeVirtualTextureMaterialType GetMaterialType() const { return MaterialType; }
 

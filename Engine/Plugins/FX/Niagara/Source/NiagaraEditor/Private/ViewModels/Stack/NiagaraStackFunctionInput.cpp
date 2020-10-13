@@ -444,9 +444,17 @@ FText UNiagaraStackFunctionInput::GetValueToolTip() const
 			}
 			break;
 		case EValueMode::Dynamic:
-			if (InputValues.DynamicNode->FunctionScript != nullptr)
+			if (UNiagaraScript* FunctionScript = InputValues.DynamicNode->FunctionScript)
 			{
-				ValueToolTipCache = InputValues.DynamicNode->FunctionScript->Description;
+				FText FunctionName = FText::FromString(FName::NameToDisplayString(InputValues.DynamicNode->GetFunctionName(), false));
+				if (FunctionScript->Description.IsEmptyOrWhitespace())
+				{
+					ValueToolTipCache = FText::Format(FText::FromString("Compiled Name: {0}"), FunctionName);
+				}
+				else
+				{
+					ValueToolTipCache = FText::Format(FText::FromString("{0}\n\nCompiled Name: {1}"), FunctionScript->Description, FunctionName);
+				}
 			}
 			break;
 		case EValueMode::InvalidOverride:
@@ -954,7 +962,7 @@ void UNiagaraStackFunctionInput::SetLinkedValueHandle(const FNiagaraParameterHan
 	RefreshValues();
 }
 
-bool UsageRunsBefore(ENiagaraScriptUsage UsageA, ENiagaraScriptUsage UsageB, bool bCheckInterpSpawn = false)
+bool UsageRunsBefore(ENiagaraScriptUsage UsageA, ENiagaraScriptUsage UsageB, bool bCheckInterpSpawn , UNiagaraEmitter* InEmitter, FGuid UsageAID, FGuid UsageBID)
 {
 	static TArray<ENiagaraScriptUsage> UsagesOrderedByExecution
 	{
@@ -980,6 +988,23 @@ bool UsageRunsBefore(ENiagaraScriptUsage UsageA, ENiagaraScriptUsage UsageB, boo
 	{
 		UsagesOrderedByExecution.Find(UsageA, IndexA);
 		UsagesOrderedByExecution.Find(UsageB, IndexB);
+	}
+
+	if (IndexA == IndexB && UsageA == ENiagaraScriptUsage::ParticleSimulationStageScript && InEmitter)
+	{
+		const TArray<UNiagaraSimulationStageBase*> SimStages = InEmitter->GetSimulationStages();
+		UNiagaraSimulationStageBase* StageA = InEmitter->GetSimulationStageById(UsageAID);
+		UNiagaraSimulationStageBase* StageB = InEmitter->GetSimulationStageById(UsageBID);
+
+		int32 SimIndexA = SimStages.IndexOfByKey(StageA);
+		int32 SimIndexB = SimStages.IndexOfByKey(StageB);
+
+		if (SimIndexA < SimIndexB)
+			return true;
+		else if (SimIndexA == INDEX_NONE && SimIndexB != INDEX_NONE)
+			return true;
+		else
+			return false;
 	}
 	return IndexA < IndexB;
 }
@@ -1024,16 +1049,20 @@ void UNiagaraStackFunctionInput::GetAvailableParameterHandles(TArray<FNiagaraPar
 	}
 
 	UNiagaraNodeOutput* CurrentOutputNode = FNiagaraStackGraphUtilities::GetEmitterOutputNodeForStackNode(*OwningModuleNode);
+	UNiagaraEmitter* Emitter = nullptr;
 
 	TArray<UNiagaraNodeOutput*> AllOutputNodes;
 	if (GetEmitterViewModel().IsValid())
 	{
 		GetEmitterViewModel()->GetSharedScriptViewModel()->GetGraphViewModel()->GetGraph()->GetNodesOfClass<UNiagaraNodeOutput>(AllOutputNodes);
+		Emitter = GetEmitterViewModel()->GetEmitter();
 	}
 	if (GetSystemViewModel()->GetEditMode() == ENiagaraSystemViewModelEditMode::SystemAsset)
 	{
 		GetSystemViewModel()->GetSystemScriptViewModel()->GetGraphViewModel()->GetGraph()->GetNodesOfClass<UNiagaraNodeOutput>(AllOutputNodes);
 	}
+	
+	TArray<FName> StackContextRoots = FNiagaraStackGraphUtilities::StackContextResolution(Emitter, CurrentOutputNode);
 
 	TArray<FNiagaraVariable> ExposedVars;
 	GetSystemViewModel()->GetSystem().GetExposedParameters().GetParameters(ExposedVars);
@@ -1063,7 +1092,7 @@ void UNiagaraStackFunctionInput::GetAvailableParameterHandles(TArray<FNiagaraPar
 		}
 		bool bInterpolatedSpawn = GetEmitterViewModel().IsValid() && GetEmitterViewModel()->GetEmitter()->bInterpolatedSpawning;
 		bool bCheckInterpSpawn = bInterpolatedSpawn || !bSpawnScript;
-		if (OutputNode == CurrentOutputNode || (CurrentOutputNode != nullptr && UsageRunsBefore(OutputNode->GetUsage(), CurrentOutputNode->GetUsage(), bCheckInterpSpawn)) || (CurrentOutputNode != nullptr && IsSpawnUsage(CurrentOutputNode->GetUsage())))
+		if (OutputNode == CurrentOutputNode || (CurrentOutputNode != nullptr && UsageRunsBefore(OutputNode->GetUsage(), CurrentOutputNode->GetUsage(), bCheckInterpSpawn, Emitter, OutputNode->GetUsageId(), CurrentOutputNode->GetUsageId())) || (CurrentOutputNode != nullptr && IsSpawnUsage(CurrentOutputNode->GetUsage())))
 		{
 			TArray<FNiagaraParameterHandle> AvailableParameterHandlesForThisOutput;
 			TArray<FNiagaraStackGraphUtilities::FStackNodeGroup> StackGroups;
@@ -1078,14 +1107,14 @@ void UNiagaraStackFunctionInput::GetAvailableParameterHandles(TArray<FNiagaraPar
 			{
 				UNiagaraNodeFunctionCall* ModuleToCheck = Cast<UNiagaraNodeFunctionCall>(StackGroups[i].EndNode);
 				FNiagaraParameterMapHistoryBuilder Builder;
-				FNiagaraStackGraphUtilities::BuildParameterMapHistoryWithStackContextResolution(GetEmitterViewModel()->GetEmitter(), OutputNode, ModuleToCheck, Builder, false);
-
+				FNiagaraStackGraphUtilities::BuildParameterMapHistoryWithStackContextResolution(Emitter, OutputNode, ModuleToCheck, Builder, false);
 
 				if (Builder.Histories.Num() == 1)
 				{
 					for (int32 j = 0; j < Builder.Histories[0].Variables.Num(); j++)
 					{
 						FNiagaraVariable& HistoryVariable = Builder.Histories[0].Variables[j];
+						FNiagaraVariable& AliasedHistoryVariable = Builder.Histories[0].VariablesWithOriginalAliasesIntact[j];
 						FNiagaraParameterHandle AvailableHandle = FNiagaraParameterHandle(HistoryVariable.GetName());
 						if (HistoryVariable.GetType() == InputType)
 						{
@@ -1096,6 +1125,20 @@ void UNiagaraStackFunctionInput::GetAvailableParameterHandles(TArray<FNiagaraPar
 								{
 									AvailableParameterHandles.AddUnique(AvailableHandle);
 									AvailableParameterHandlesForThisOutput.AddUnique(AvailableHandle);
+
+									// Check to see if any variables can be converted to StackContext. This may be more portable for people to setup.
+									for (int32 StackRootIdx = 0; StackRootIdx < StackContextRoots.Num(); StackRootIdx++)
+									{
+										if (HistoryVariable.IsInNameSpace(StackContextRoots[StackRootIdx]))
+										{
+											// We do a replace here so that we can leave modifiers and other parts intact that might also be aliased.
+											FString NewName = HistoryVariable.GetName().ToString().Replace(*StackContextRoots[StackRootIdx].ToString(), *FNiagaraConstants::StackContextNamespace.ToString());
+
+											FNiagaraParameterHandle AvailableAliasedHandle = FNiagaraParameterHandle(*NewName);
+											AvailableParameterHandles.AddUnique(AvailableAliasedHandle);
+											AvailableParameterHandlesForThisOutput.AddUnique(AvailableAliasedHandle);
+										}
+									}
 									break;
 								}
 							}
@@ -1617,17 +1660,27 @@ bool UNiagaraStackFunctionInput::SupportsRename() const
 void UNiagaraStackFunctionInput::OnRenamed(FText NewNameText)
 {
 	FName NewName(*NewNameText.ToString());
+	FNiagaraVariable OldVar = FNiagaraVariable(InputType, InputParameterHandle.GetName());
+	FNiagaraVariable NewVar = FNiagaraVariable(InputType, NewName);
 	if (InputParameterHandle.GetName() != NewName && OwningAssignmentNode.IsValid() && SourceScript.IsValid())
 	{
+		TSharedRef<FNiagaraSystemViewModel> CachedSysViewModel = GetSystemViewModel();
+		TSharedPtr<FNiagaraEmitterViewModel> CachedEmitterViewModel = GetEmitterViewModel();
+		UNiagaraSystem& System = GetSystemViewModel()->GetSystem();
+		UNiagaraEmitter* Emitter = GetEmitterViewModel().IsValid() ? GetEmitterViewModel()->GetEmitter() : nullptr;
+
 		FScopedTransaction ScopedTransaction(LOCTEXT("RenameInput", "Rename this function's input."));
 		FNiagaraStackGraphUtilities::RenameAssignmentTarget(
-			GetSystemViewModel()->GetSystem(),
-			GetEmitterViewModel().IsValid() ? GetEmitterViewModel()->GetEmitter() : nullptr,
+			System,
+			Emitter,
 			*SourceScript.Get(),
 			*OwningAssignmentNode.Get(),
-			FNiagaraVariable(InputType, InputParameterHandle.GetName()),
+			OldVar,
 			NewName);
 		ensureMsgf(IsFinalized(), TEXT("Input not finalized when renamed."));
+
+		CachedSysViewModel->NotifyParameterRenamedExternally(OldVar, NewVar, Emitter);
+
 	}
 }
 
@@ -1641,14 +1694,18 @@ void UNiagaraStackFunctionInput::DeleteInput()
 	if (UNiagaraNodeAssignment* NodeAssignment = Cast<UNiagaraNodeAssignment>(OwningFunctionCallNode.Get()))
 	{
 		FScopedTransaction ScopedTransaction(LOCTEXT("RemoveInputTransaction", "Remove Input"));
-		
+		TSharedRef<FNiagaraSystemViewModel> CachedSysViewModel = GetSystemViewModel();
+		UNiagaraEmitter* Emitter = GetEmitterViewModel().IsValid() ? GetEmitterViewModel()->GetEmitter() : nullptr;
+
 		// If there is an override pin and connected nodes, remove them before removing the input since removing
 		// the input will prevent us from finding the override pin.
 		RemoveOverridePin();
-
 		FNiagaraVariable Var = FNiagaraVariable(GetInputType(), GetInputParameterHandle().GetName());
 		NodeAssignment->Modify();
 		NodeAssignment->RemoveParameter(Var);
+
+		CachedSysViewModel->NotifyParameterRemovedExternally(Var, Emitter);
+
 	}
 }
 

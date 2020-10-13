@@ -26,9 +26,6 @@
 
 namespace dna {
 
-template<typename T>
-using AlignedVector = Vector<T, PolyAllocator<T, 64ul, AlignedMemoryResource> >;
-
 template<typename TFrom, typename TTo = TFrom>
 struct RawSurjectiveMapping : public SurjectiveMapping<TFrom, TTo> {
     using SurjectiveMapping<TFrom, TTo>::SurjectiveMapping;
@@ -203,9 +200,9 @@ struct RawDescriptor {
 };
 
 struct RawVector3Vector {
-    AlignedVector<float> xs;
-    AlignedVector<float> ys;
-    AlignedVector<float> zs;
+    AlignedDynArray<float> xs;
+    AlignedDynArray<float> ys;
+    AlignedDynArray<float> zs;
 
     explicit RawVector3Vector(MemoryResource* memRes) :
         xs{memRes},
@@ -236,9 +233,9 @@ struct RawVector3Vector {
     }
 
     void reserve(std::size_t count) {
-        xs.reserve(count);
-        ys.reserve(count);
-        zs.reserve(count);
+        xs.resize_uninitialized(count);
+        ys.resize_uninitialized(count);
+        zs.resize_uninitialized(count);
     }
 
     void resize(std::size_t count) {
@@ -261,12 +258,12 @@ struct RawVector3Vector {
 
     template<typename Iterator>
     void assign(Iterator start, Iterator end) {
-        clear();
         reserve(static_cast<std::size_t>(std::distance(start, end)));
-        for (auto it = start; it != end; ++it) {
-            xs.push_back(it->x);
-            ys.push_back(it->y);
-            zs.push_back(it->z);
+        std::size_t i{};
+        for (auto it = start; it != end; ++it, ++i) {
+            xs[i] = it->x;
+            ys[i] = it->y;
+            zs[i] = it->z;
         }
     }
 
@@ -285,7 +282,7 @@ struct RawDefinition {
     Vector<String<char> > animatedMapNames;
     Vector<String<char> > meshNames;
     RawSurjectiveMapping<std::uint16_t> meshBlendShapeChannelMapping;
-    Vector<std::uint16_t> jointHierarchy;
+    DynArray<std::uint16_t> jointHierarchy;
     RawVector3Vector neutralJointTranslations;
     RawVector3Vector neutralJointRotations;
 
@@ -329,12 +326,12 @@ struct RawDefinition {
 };
 
 struct RawConditionalTable {
-    Vector<std::uint16_t> inputIndices;
-    Vector<std::uint16_t> outputIndices;
-    Vector<float> fromValues;
-    Vector<float> toValues;
-    Vector<float> slopeValues;
-    Vector<float> cutValues;
+    DynArray<std::uint16_t> inputIndices;
+    DynArray<std::uint16_t> outputIndices;
+    DynArray<float> fromValues;
+    DynArray<float> toValues;
+    DynArray<float> slopeValues;
+    DynArray<float> cutValues;
 
     explicit RawConditionalTable(MemoryResource* memRes) :
         inputIndices{memRes},
@@ -358,9 +355,9 @@ struct RawConditionalTable {
 };
 
 struct RawPSDMatrix {
-    Vector<std::uint16_t> rows;
-    Vector<std::uint16_t> columns;
-    Vector<float> values;
+    DynArray<std::uint16_t> rows;
+    DynArray<std::uint16_t> columns;
+    DynArray<float> values;
 
     explicit RawPSDMatrix(MemoryResource* memRes) :
         rows{memRes},
@@ -399,15 +396,15 @@ struct RawJointGroup {
     // |  |  + LOD-2 contains first 3 rows
     // |  + LOD-1 contains first 9 rows
     // + LOD-0 contains first 12 rows
-    Vector<std::uint16_t> lods;
+    DynArray<std::uint16_t> lods;
     // Sub-matrix col -> input vector
-    Vector<std::uint16_t> inputIndices;
+    DynArray<std::uint16_t> inputIndices;
     // Sub-matrix row -> output vector
-    Vector<std::uint16_t> outputIndices;
+    DynArray<std::uint16_t> outputIndices;
     // Non-zero values of all sub-matrices
-    AlignedVector<float> values;
+    AlignedDynArray<float> values;
 
-    Vector<std::uint16_t> jointIndices;
+    DynArray<std::uint16_t> jointIndices;
 
     explicit RawJointGroup(MemoryResource* memRes) :
         lods{memRes},
@@ -443,9 +440,9 @@ struct RawJoints {
 };
 
 struct RawBlendShapeChannels {
-    Vector<std::uint16_t> lods;
-    Vector<std::uint16_t> inputIndices;
-    Vector<std::uint16_t> outputIndices;
+    DynArray<std::uint16_t> lods;
+    DynArray<std::uint16_t> inputIndices;
+    DynArray<std::uint16_t> outputIndices;
 
     explicit RawBlendShapeChannels(MemoryResource* memRes) :
         lods{memRes},
@@ -461,7 +458,7 @@ struct RawBlendShapeChannels {
 };
 
 struct RawAnimatedMaps {
-    Vector<std::uint16_t> lods;
+    DynArray<std::uint16_t> lods;
     RawConditionalTable conditionals;
 
     explicit RawAnimatedMaps(MemoryResource* memRes) :
@@ -524,8 +521,8 @@ struct RawBehavior {
 };
 
 struct RawTextureCoordinateVector {
-    Vector<float> us;
-    Vector<float> vs;
+    DynArray<float> us;
+    DynArray<float> vs;
 
     explicit RawTextureCoordinateVector(MemoryResource* memRes) :
         us{memRes},
@@ -550,9 +547,9 @@ struct RawTextureCoordinateVector {
 };
 
 struct RawVertexLayoutVector {
-    Vector<std::uint32_t> positions;
-    Vector<std::uint32_t> textureCoordinates;
-    Vector<std::uint32_t> normals;
+    DynArray<std::uint32_t> positions;
+    DynArray<std::uint32_t> textureCoordinates;
+    DynArray<std::uint32_t> normals;
 
     explicit RawVertexLayoutVector(MemoryResource* memRes) :
         positions{memRes},
@@ -579,7 +576,7 @@ struct RawVertexLayoutVector {
 };
 
 struct RawFace {
-    Vector<std::uint32_t> layoutIndices;
+    DynArray<std::uint32_t> layoutIndices;
 
     explicit RawFace(MemoryResource* memRes) :
         layoutIndices{memRes} {
@@ -593,8 +590,8 @@ struct RawFace {
 };
 
 struct RawVertexSkinWeights {
-    AlignedVector<float> weights;
-    Vector<std::uint16_t> jointIndices;
+    AlignedDynArray<float> weights;
+    DynArray<std::uint16_t> jointIndices;
 
     explicit RawVertexSkinWeights(MemoryResource* memRes) :
         weights{memRes},
@@ -610,7 +607,7 @@ struct RawVertexSkinWeights {
 
 struct RawBlendShapeTarget {
     RawVector3Vector deltas;
-    Vector<std::uint32_t> vertexIndices;
+    DynArray<std::uint32_t> vertexIndices;
     std::uint16_t blendShapeChannelIndex;
 
     explicit RawBlendShapeTarget(MemoryResource* memRes) :

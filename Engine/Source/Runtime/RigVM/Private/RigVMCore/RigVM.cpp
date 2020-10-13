@@ -516,7 +516,30 @@ void URigVM::CacheMemoryHandlesIfRequired(FRigVMMemoryContainerPtrArray InMemory
 					NumBytes = TargetRegister.GetNumBytesPerSlice();
 
 					TargetType = TargetRegister.Type;
-					if (Op.Target.GetRegisterOffset() != INDEX_NONE)
+
+					if (Op.Target.GetRegisterOffset() == INDEX_NONE)
+					{
+						if (TargetRegister.IsArray())
+						{
+							const FRigVMRegister& SourceRegister = CachedMemory[Op.Source.GetContainerIndex()]->Registers[Op.Source.GetRegisterIndex()];
+							if (!SourceRegister.IsArray())
+							{
+								if (Op.Source.GetRegisterOffset() == INDEX_NONE)
+								{
+									NumBytes = TargetRegister.ElementSize;
+								}
+								else
+								{
+									const FRigVMRegisterOffset& SourceOffset = CachedMemory[Op.Source.GetContainerIndex()]->RegisterOffsets[Op.Source.GetRegisterOffset()];
+									if (SourceOffset.GetCPPType() != TEXT("TArray"))
+									{
+										NumBytes = SourceOffset.GetElementSize();
+									}
+								}
+							}
+						}
+					}
+					else
 					{
 						TargetType = CachedMemory[Op.Target.GetContainerIndex()]->RegisterOffsets[Op.Target.GetRegisterOffset()].GetType();
 						NumBytes = CachedMemory[Op.Target.GetContainerIndex()]->RegisterOffsets[Op.Target.GetRegisterOffset()].GetElementSize();
@@ -827,7 +850,10 @@ bool URigVM::Initialize(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<v
 					{
 						UScriptStruct* ScriptStruct = (UScriptStruct*)CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex] + 4].GetData();
 						int32 NumStructs = NumBytes / ScriptStruct->GetStructureSize();
-						ScriptStruct->CopyScriptStruct(TargetPtr, SourcePtr, NumStructs);
+						if (NumStructs > 0 && TargetPtr)
+						{
+							ScriptStruct->CopyScriptStruct(TargetPtr, SourcePtr, NumStructs);
+						}
 						break;
 					}
 					default:
@@ -1089,7 +1115,10 @@ bool URigVM::Execute(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<void
 					{
 						UScriptStruct* ScriptStruct = (UScriptStruct*)CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex] + 4].GetData();
 						int32 NumStructs = NumBytes / ScriptStruct->GetStructureSize();
-						ScriptStruct->CopyScriptStruct(TargetPtr, SourcePtr, NumStructs);
+						if (NumStructs > 0 && TargetPtr)
+						{
+							ScriptStruct->CopyScriptStruct(TargetPtr, SourcePtr, NumStructs);
+						}
 						break;
 					}
 					default:
@@ -1588,15 +1617,26 @@ FString URigVM::GetOperandLabel(const FRigVMOperand& InOperand) const
 	}
 
 	const FRigVMMemoryContainer& Memory = *MemoryPtr;
-	FRigVMRegister Register = Memory[InOperand];
+
+	FString OperandLabel;
+	if (InOperand.GetMemoryType() == ERigVMMemoryType::External)
+	{
+		const FRigVMExternalVariable& ExternalVariable = ExternalVariables[InOperand.GetRegisterIndex()];
+		OperandLabel = FString::Printf(TEXT("Variable::%s"), *ExternalVariable.Name.ToString());
+	}
+	else
+	{
+		FRigVMRegister Register = Memory[InOperand];
+		OperandLabel = Register.Name.ToString();
+	}
 
 	if (InOperand.GetRegisterOffset() != INDEX_NONE)
 	{
-		return FString::Printf(TEXT("%s.%s"), *Register.Name.ToString(), *Memory.RegisterOffsets[InOperand.GetRegisterOffset()].CachedSegmentPath);
+		return FString::Printf(TEXT("%s.%s"), *OperandLabel, *Memory.RegisterOffsets[InOperand.GetRegisterOffset()].CachedSegmentPath);
 	}
 
-	return Register.Name.ToString();
-	}
+	return OperandLabel;
+}
 
 #endif
 

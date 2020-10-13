@@ -6,6 +6,7 @@
 #include "BaseBehaviors/MouseHoverBehavior.h"
 #include "Selection/ToolSelectionUtil.h"
 #include "AssetGenerationUtil.h"
+#include "ToolSceneQueriesUtil.h"
 
 #include "MeshDescriptionBuilder.h"
 #include "Generators/RectangleMeshGenerator.h"
@@ -78,8 +79,7 @@ void UAddPatchTool::Setup()
 	PreviewMesh = NewObject<UPreviewMesh>(this, TEXT("PreviewMesh"));
 	PreviewMesh->CreateInWorld(TargetWorld, FTransform::Identity);
 	PreviewMesh->SetVisible(false);
-	PreviewMesh->SetMaterial(MaterialProperties->Material);
-
+	PreviewMesh->SetMaterial(MaterialProperties->Material.Get());
 	GeneratePreviewBaseMesh();
 
 	WorldBounds = FBox(ForceInit);
@@ -129,7 +129,7 @@ void UAddPatchTool::Render(IToolsContextRenderAPI* RenderAPI)
 void UAddPatchTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
 	PreviewMesh->EnableWireframe(MaterialProperties->bWireframe);
-	PreviewMesh->SetMaterial(MaterialProperties->Material);
+	PreviewMesh->SetMaterial(MaterialProperties->Material.Get());
 	GeneratePreviewBaseMesh();
 }
 
@@ -175,11 +175,8 @@ void UAddPatchTool::UpdatePreviewPosition(const FInputDeviceRay& DeviceClickPos)
 	FRay ClickPosWorldRay = DeviceClickPos.WorldRay;
 
 	// cast ray into scene
-	FVector RayStart = ClickPosWorldRay.Origin;
-	FVector RayEnd = ClickPosWorldRay.PointAt(999999);
-	FCollisionObjectQueryParams QueryParams(FCollisionObjectQueryParams::AllObjects);
 	FHitResult Result;
-	bool bHit = TargetWorld->LineTraceSingleByObjectType(Result, RayStart, RayEnd, QueryParams);
+	bool bHit = ToolSceneQueriesUtil::FindNearestVisibleObjectHit(TargetWorld, Result, ClickPosWorldRay);
 	if (bHit)
 	{
 		ShapeFrame = FFrame3f(Result.ImpactPoint, Result.ImpactNormal);
@@ -232,9 +229,8 @@ void UAddPatchTool::UpdatePreviewMesh()
 		FVector RayStart = (FVector)Pos;
 		FVector RayEnd = RayStart; RayEnd.Z = WorldMinHeight;
 
-		FCollisionObjectQueryParams QueryParams(FCollisionObjectQueryParams::AllObjects);
 		FHitResult Result;
-		bool bHit = TargetWorld->LineTraceSingleByObjectType(Result, RayStart, RayEnd, QueryParams);
+		bool bHit = ToolSceneQueriesUtil::FindNearestVisibleObjectHit(TargetWorld, Result, RayStart, RayEnd);
 		if (bHit)
 		{
 			FVector3d HitPoint = Result.ImpactPoint + ShapeSettings->Shift * Direction;

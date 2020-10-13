@@ -234,6 +234,14 @@ void UInteractiveGizmoManager::Render(IToolsContextRenderAPI* RenderAPI)
 
 }
 
+void UInteractiveGizmoManager::DrawHUD( FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI )
+{
+	for (FActiveGizmo& ActiveGizmo : ActiveGizmos)
+	{
+		ActiveGizmo.Gizmo->DrawHUD(Canvas, RenderAPI);
+	}
+}
+
 void UInteractiveGizmoManager::DisplayMessage(const FText& Message, EToolMessageLevel Level)
 {
 	TransactionsAPI->DisplayMessage(Message, Level);

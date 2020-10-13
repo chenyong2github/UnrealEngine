@@ -19,7 +19,6 @@ class IDisplayClusterPostProcess;
 class FDisplayClusterPresentationBase;
 class FSceneView;
 
-struct DISPLAYCLUSTER_API FDisplayClusterConfigViewport;
 
 /**
  * Abstract render device
@@ -49,18 +48,24 @@ public:
 	virtual bool GetViewportRect(const FString& InViewportID, FIntRect& Rect) override;
 	virtual bool SetBufferRatio(const FString& InViewportID, float  InBufferRatio) override;
 	virtual bool GetBufferRatio(const FString& InViewportID, float& OutBufferRatio) const override;
-
-	virtual const FDisplayClusterRenderViewport* GetRenderViewport(int32 ViewIdx) const override;
+	virtual bool SetBufferRatio(int32 ViewportIdx, float InBufferRatio) override;
+	virtual bool GetBufferRatio(int32 ViewportIdx, float& OutBufferRatio) const override;
+	
+	virtual const FDisplayClusterRenderViewport* GetRenderViewport(const FString& ViewportId) const override;
+	virtual const FDisplayClusterRenderViewport* GetRenderViewport(int32 ViewportIdx) const override;
+	virtual const void GetRenderViewports(TArray<FDisplayClusterRenderViewport>& OutViewports) const override;
 
 	virtual bool GetViewportProjectionPolicy(const FString& InViewportID, TSharedPtr<IDisplayClusterProjectionPolicy>& OutProjectionPolicy) override;
 	virtual bool GetViewportContext(const FString& InViewportID, int ViewIndex, FDisplayClusterRenderViewContext& OutViewContext) override;
+	virtual uint32 GetViewsAmountPerViewport() const override;
+
 public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// IStereoRendering
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	virtual bool IsStereoEnabled() const override;
 	virtual bool IsStereoEnabledOnNextFrame() const override;
-	virtual bool EnableStereo(bool stereo = true) override;
+	virtual bool EnableStereo(bool bStereoEnabled = true) override;
 	virtual void InitCanvasFromView(class FSceneView* InView, class UCanvas* Canvas) override;
 	virtual void AdjustViewRect(enum EStereoscopicPass StereoPassType, int32& X, int32& Y, uint32& SizeX, uint32& SizeY) const;
 	virtual void CalculateStereoViewOffset(const enum EStereoscopicPass StereoPassType, FRotator& ViewRotation, const float WorldToMeters, FVector& ViewLocation) override;
@@ -139,7 +144,10 @@ protected:
 	uint32 DecodeViewIndex(const enum EStereoscopicPass StereoPassType) const;
 
 	// Adds a new viewport with specified parameters and projection policy object
-	void AddViewport(const FDisplayClusterConfigViewport& CfgViewport, TSharedPtr<IDisplayClusterProjectionPolicy> InProjPolicy);
+	void AddViewport(const FString& InViewportId, const FIntPoint& InViewportLocation, const FIntPoint& InViewportSize, 
+		TSharedPtr<IDisplayClusterProjectionPolicy> InProjPolicy, const FString& InCameraId, float InBufferRatio = 1.f,
+		int GPUIndex = INDEX_NONE, bool bAllowCrossGPUTransfer = true, bool bIsShared = false);
+
 	// Performs copying of render target data to the back buffer
 	virtual void CopyTextureToBackBuffer_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* BackBuffer, FRHITexture2D* SrcTexture, FVector2D WindowSize) const;
 	// Factory method to instantiate an output presentation class implementation

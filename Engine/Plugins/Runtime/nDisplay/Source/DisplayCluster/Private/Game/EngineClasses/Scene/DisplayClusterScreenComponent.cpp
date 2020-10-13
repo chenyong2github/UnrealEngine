@@ -1,18 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "DisplayClusterScreenComponent.h"
+#include "Components/DisplayClusterScreenComponent.h"
 #include "Components/StaticMeshComponent.h"
-#include "Engine/GameEngine.h"
+
 #include "Engine/StaticMesh.h"
 #include "Materials/MaterialInterface.h"
 #include "Materials/Material.h"
 #include "UObject/ConstructorHelpers.h"
 
 #include "DisplayClusterRootActor.h"
+#include "DisplayClusterConfigurationTypes.h"
 
 #include "Game/IPDisplayClusterGameManager.h"
 #include "Misc/DisplayClusterGlobals.h"
-#include "EngineDefines.h"
 
 
 UDisplayClusterScreenComponent::UDisplayClusterScreenComponent(const FObjectInitializer& ObjectInitializer)
@@ -21,68 +21,62 @@ UDisplayClusterScreenComponent::UDisplayClusterScreenComponent(const FObjectInit
 	// Children of UDisplayClusterSceneComponent must always Tick to be able to process VRPN tracking
 	PrimaryComponentTick.bCanEverTick = true;
 
-	ScreenGeometryComponent = CreateDefaultSubobject<UStaticMeshComponent>(FName(*(GetName() + FString("_impl"))));
-	check(ScreenGeometryComponent);
-
-	if (ScreenGeometryComponent)
+#if WITH_EDITOR
+	// Create visual mesh component as a child
+	VisScreenComponent = CreateDefaultSubobject<UStaticMeshComponent>(FName(*(GetName() + FString("_impl"))));
+	if (VisScreenComponent)
 	{
-		static ConstructorHelpers::FObjectFinder<UStaticMesh> ScreenMesh(TEXT("StaticMesh'/Engine/BasicShapes/Cube.Cube'"));
+		static ConstructorHelpers::FObjectFinder<UStaticMesh> ScreenMesh(TEXT("/nDisplay/Meshes/plane_1x1"));
 
-		ScreenGeometryComponent->AttachToComponent(this, FAttachmentTransformRules(EAttachmentRule::KeepRelative, false));
-		ScreenGeometryComponent->SetRelativeLocationAndRotation(FVector::ZeroVector, FRotator::ZeroRotator, false);
-		ScreenGeometryComponent->SetStaticMesh(ScreenMesh.Object);
-		ScreenGeometryComponent->SetMobility(EComponentMobility::Movable);
-		ScreenGeometryComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-		ScreenGeometryComponent->SetVisibility(false);
+		VisScreenComponent->SetFlags(EObjectFlags::RF_DuplicateTransient | RF_Transient | RF_TextExportTransient);
+		VisScreenComponent->AttachToComponent(this, FAttachmentTransformRules(EAttachmentRule::KeepRelative, false));
+		VisScreenComponent->RegisterComponentWithWorld(GetWorld());
+
+		VisScreenComponent->SetRelativeLocationAndRotation(FVector::ZeroVector, FRotator::ZeroRotator);
+		VisScreenComponent->SetRelativeScale3D(FVector::OneVector);
+		VisScreenComponent->SetStaticMesh(ScreenMesh.Object);
+		VisScreenComponent->SetMobility(EComponentMobility::Movable);
+		VisScreenComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		VisScreenComponent->SetVisibility(true);
+	}
+#endif
+}
+
+void UDisplayClusterScreenComponent::ApplyConfigurationData()
+{
+	Super::ApplyConfigurationData();
+
+	const UDisplayClusterConfigurationSceneComponentScreen* CfgScreen = Cast<UDisplayClusterConfigurationSceneComponentScreen>(GetConfigParameters());
+	if (CfgScreen)
+	{
+		SetScreenSize(CfgScreen->Size);
 	}
 }
 
-
-void UDisplayClusterScreenComponent::BeginPlay()
+FVector2D UDisplayClusterScreenComponent::GetScreenSize() const
 {
-	Super::BeginPlay();
+	return Size;
 }
 
-
-void UDisplayClusterScreenComponent::TickComponent( float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction )
+void UDisplayClusterScreenComponent::SetScreenSize(const FVector2D& InSize)
 {
-	static const IPDisplayClusterGameManager* const GameMgr = GDisplayCluster->GetPrivateGameMgr();
-	if (GameMgr)
+	Size = InSize;
+
+#if WITH_EDITOR
+	if (VisScreenComponent)
 	{
-		ADisplayClusterRootActor* const RootActor = GameMgr->GetRootActor();
-		if (RootActor)
-		{
-			if (RootActor->GetProjectionScreenMaterial())
-			{
-				ScreenGeometryComponent->SetMaterial(0, RootActor->GetProjectionScreenMaterial());
-			}
-
-			const bool bScreenVisible = RootActor->GetShowProjectionScreens();
-			ScreenGeometryComponent->SetVisibility(bScreenVisible);
-		}
+		VisScreenComponent->SetRelativeScale3D(FVector(1.f, Size.X, Size.Y));
 	}
-
-	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+#endif
 }
 
-void UDisplayClusterScreenComponent::SetSettings(const FDisplayClusterConfigSceneNode* pConfig)
+#if WITH_EDITOR
+void UDisplayClusterScreenComponent::SetNodeSelection(bool bSelect)
 {
-	const FDisplayClusterConfigScreen* pScreenCfg = static_cast<const FDisplayClusterConfigScreen*>(pConfig);
-	Size = pScreenCfg->Size;
-
-	Super::SetSettings(pConfig);
-}
-
-bool UDisplayClusterScreenComponent::ApplySettings()
-{
-	Super::ApplySettings();
-
-	SetRelativeScale3D(FVector(0.005f, Size.X, Size.Y));
-
-	if (ScreenGeometryComponent)
+	if (VisScreenComponent)
 	{
-		ScreenGeometryComponent->RegisterComponent();
+		VisScreenComponent->bDisplayVertexColors = bSelect;
+		VisScreenComponent->PushSelectionToProxy();
 	}
-
-	return true;
 }
+#endif

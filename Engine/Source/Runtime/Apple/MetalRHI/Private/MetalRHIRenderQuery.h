@@ -130,5 +130,6 @@ private:
 	// Result availability - if not set the first call to acquire it will read the buffer & cache
 	volatile bool bAvailable;
 
-	TSharedPtr<class FPThreadEvent, ESPMode::ThreadSafe> QueryWrittenEvent;
+	// Timer event completion signal
+	FEvent* QueryWrittenEvent;
 };

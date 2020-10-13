@@ -102,9 +102,10 @@ private:
 	// Context used to build fast-path copy records
 	struct FCopyRecordGraphCheckContext
 	{
-		FCopyRecordGraphCheckContext(FPropertyCopyRecord& InCopyRecord, TArray<FPropertyCopyRecord>& InAdditionalCopyRecords)
+		FCopyRecordGraphCheckContext(FPropertyCopyRecord& InCopyRecord, TArray<FPropertyCopyRecord>& InAdditionalCopyRecords, FCompilerResultsLog& InMessageLog)
 			: CopyRecord(&InCopyRecord)
 			, AdditionalCopyRecords(InAdditionalCopyRecords)
+			, MessageLog(InMessageLog)
 		{}
 
 		// Copy record we are operating on
@@ -112,6 +113,9 @@ private:
 
 		// Things like split input pins can add additional copy records
 		TArray<FPropertyCopyRecord>& AdditionalCopyRecords;
+
+		// Message log used to recover original nodes
+		FCompilerResultsLog& MessageLog;
 	};
 
 	// Wireup record for a single anim node property (which might be an array)
@@ -233,7 +237,7 @@ private:
 
 		FStructProperty* GetHandlerNodeProperty() const { return NodeVariableProperty; }
 
-		void BuildFastPathCopyRecords(FAnimBlueprintCompilerHandler_Base& InHandler);
+		void BuildFastPathCopyRecords(FAnimBlueprintCompilerHandler_Base& InHandler, IAnimBlueprintPostExpansionStepContext& InCompilationContext);
 
 	private:
 
@@ -245,7 +249,7 @@ private:
 
 		bool CheckForMemberOnlyAccess(FPropertyCopyRecord& Context, UEdGraphPin* DestPin);
 
-		bool CheckForMakeStructAccess(FCopyRecordGraphCheckContext& Context, UEdGraphPin* DestPin);
+		bool CheckForSplitPinAccess(FCopyRecordGraphCheckContext& Context, UEdGraphPin* DestPin);
 
 		bool CheckForArrayAccess(FCopyRecordGraphCheckContext& Context, UEdGraphPin* DestPin);
 	};

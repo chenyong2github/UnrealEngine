@@ -95,6 +95,7 @@ public:
 	float AdjustMaxAlpha;
 
 #if WITH_EDITORONLY_DATA
+	UE_DEPRECATED(4.26, "OnUpdateGradient is deprecated. Please use UCurveBase::OnUpdateCurve instead")
 	FOnUpdateGradient OnUpdateGradient;
 #endif
 protected:

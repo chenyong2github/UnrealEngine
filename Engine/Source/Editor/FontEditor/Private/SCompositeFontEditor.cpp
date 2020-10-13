@@ -1101,7 +1101,7 @@ UFontFace* STypefaceEntryEditor::SaveFontFaceAsAsset(const UFontFace* InFontFace
 	if (bFilenameValid)
 	{
 		const FString NewFaceAssetName = FPackageName::GetLongPackageAssetName(NewPackageName);
-		UPackage* NewFaceAssetPackage = CreatePackage(nullptr, *NewPackageName);
+		UPackage* NewFaceAssetPackage = CreatePackage( *NewPackageName);
 
 		GEditor->GetEditorSubsystem<UImportSubsystem>()->BroadcastAssetPreImport(GetMutableDefault<UFontFileImportFactory>(), UFontFace::StaticClass(), NewFaceAssetPackage, *NewFaceAssetName, *FPaths::GetExtension(InFontFace->GetFontFilename()));
 

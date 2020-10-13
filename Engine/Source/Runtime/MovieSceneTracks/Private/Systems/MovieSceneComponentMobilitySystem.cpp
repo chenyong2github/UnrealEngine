@@ -30,23 +30,29 @@ struct FMobilityCacheHandler
 
 	void InitializeOutput(UObject* Object, TArrayView<const FMovieSceneEntityID> Inputs, EComponentMobility::Type* OutMobility, FEntityOutputAggregate Aggregate)
 	{
-		USceneComponent* SceneComponent = CastChecked<USceneComponent>(Object);
-
-		*OutMobility = SceneComponent->Mobility;
-		SceneComponent->SetMobility(EComponentMobility::Movable);
+		if (USceneComponent* SceneComponent = Cast<USceneComponent>(Object))
+		{
+			*OutMobility = SceneComponent->Mobility;
+			SceneComponent->SetMobility(EComponentMobility::Movable);
+		}
 	}
 
 	static void UpdateOutput(UObject* Object, TArrayView<const FMovieSceneEntityID> Inputs, EComponentMobility::Type* OutMobility, FEntityOutputAggregate Aggregate)
 	{
-		CastChecked<USceneComponent>(Object)->SetMobility(EComponentMobility::Movable);
+		if (USceneComponent* SceneComponent = Cast<USceneComponent>(Object))
+		{
+			SceneComponent->SetMobility(EComponentMobility::Movable);
+		}
 	}
 
 	void DestroyOutput(UObject* Object, EComponentMobility::Type* Output, FEntityOutputAggregate Aggregate)
 	{
 		if (Aggregate.bNeedsRestoration)
 		{
-			USceneComponent* SceneComponent = CastChecked<USceneComponent>(Object);
-			System->AddPendingRestore(SceneComponent, *Output);
+			if (USceneComponent* SceneComponent = Cast<USceneComponent>(Object))
+			{
+				System->AddPendingRestore(SceneComponent, *Output);
+			}
 		}
 	}
 };

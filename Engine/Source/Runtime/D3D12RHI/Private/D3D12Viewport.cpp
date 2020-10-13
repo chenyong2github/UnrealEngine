@@ -516,6 +516,10 @@ void FD3D12Viewport::Resize(uint32 InSizeX, uint32 InSizeY, bool bInIsFullscreen
 		PreferredPixelFormat = PixelFormat;
 	}
 
+	// Reset the full screen lost because we are resizing and handling fullscreen state change and full recreation of back buffers already
+	// We don't want to call resize again, which could happen during ConditionalResetSwapChain otherwise
+	bFullscreenLost = false;
+
 	if (SizeX != InSizeX || SizeY != InSizeY || PixelFormat != PreferredPixelFormat)
 	{
 		SizeX = InSizeX;
@@ -980,6 +984,12 @@ void FD3D12CommandContextBase::RHIBeginDrawingViewport(FRHIViewport* ViewportRHI
 	// Set the render target.
 	const FRHIRenderTargetView RTView(RenderTargetRHI, ERenderTargetLoadAction::ELoad);
 	SetRenderTargets(1, &RTView, nullptr);
+
+	FRHICustomPresent* CustomPresent = Viewport->GetCustomPresent();
+	if (CustomPresent)
+	{
+		CustomPresent->BeginDrawing();
+	}
 }
 
 void FD3D12CommandContextBase::RHIEndDrawingViewport(FRHIViewport* ViewportRHI, bool bPresent, bool bLockToVsync)
@@ -1005,7 +1015,11 @@ void FD3D12CommandContextBase::RHIEndDrawingViewport(FRHIViewport* ViewportRHI, 
 	ParentAdapter->SubmissionGapRecorder.SetPresentSlotIdx(CurrentSlotIdx);
 #endif
 
-	const bool bNativelyPresented = Viewport->Present(bLockToVsync);
+	bool bNativelyPresented = false; 
+	if (!RHI.RHIIsRenderingSuspended())
+	{
+		bNativelyPresented = Viewport->Present(bLockToVsync);
+	}
 
 	// Multi-GPU support : here each GPU wait's for it's own frame completion. Note that even in AFR, each GPU renders an (empty) frame.
 	if (bNativelyPresented)

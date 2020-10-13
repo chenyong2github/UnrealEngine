@@ -378,9 +378,17 @@ void UGameEngine::DetermineGameWindowResolution( int32& ResolutionX, int32& Reso
 		{
 			if (MonitorInfo.bIsPrimary)
 			{
-				// This is the primary monitor. Use this monitor's native width/height
-				MaxResolutionX = MonitorInfo.NativeWidth;
-				MaxResolutionY = MonitorInfo.NativeHeight;
+				// This is the primary monitor. Use this monitor's max width/height.
+				MaxResolutionX = MonitorInfo.MaxResolution.X;
+				MaxResolutionY = MonitorInfo.MaxResolution.Y;
+
+				// Fall back to the monitor's native width/height if there was no max width/height found.
+				if (MaxResolutionX == 0 || MaxResolutionY == 0)
+				{
+					MaxResolutionX = MonitorInfo.NativeWidth;
+					MaxResolutionY = MonitorInfo.NativeHeight;
+				}
+
 				break;
 			}
 		}

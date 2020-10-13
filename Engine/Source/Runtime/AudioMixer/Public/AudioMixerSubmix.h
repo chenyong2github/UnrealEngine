@@ -11,12 +11,39 @@
 #include "DSP/SpectrumAnalyzer.h"
 #include "Templates/SharedPointer.h"
 #include "AudioDynamicParameter.h"
+#include "Stats/Stats.h"
+
+// The time it takes to process the submix graph. Process submix effects, mix into the submix buffer, etc.
+DECLARE_CYCLE_STAT_EXTERN(TEXT("Submix Graph"), STAT_AudioMixerSubmixes, STATGROUP_AudioMixer, AUDIOMIXER_API);
+
+// The time it takes to process the endpoint submixes.
+DECLARE_CYCLE_STAT_EXTERN(TEXT("Submix Graph Endpoint"), STAT_AudioMixerEndpointSubmixes, STATGROUP_AudioMixer, AUDIOMIXER_API);
+
+// The time it takes to process the submix graph. Process submix effects, mix into the submix buffer, etc.
+DECLARE_CYCLE_STAT_EXTERN(TEXT("Submix Graph Child Processing"), STAT_AudioMixerSubmixChildren, STATGROUP_AudioMixer, AUDIOMIXER_API);
+
+// The time it takes to process the submix graph. Process submix effects, mix into the submix buffer, etc.
+DECLARE_CYCLE_STAT_EXTERN(TEXT("Submix Graph Source Mixing"), STAT_AudioMixerSubmixSource, STATGROUP_AudioMixer, AUDIOMIXER_API);
+
+// The time it takes to process the submix graph. Process submix effects, mix into the submix buffer, etc.
+DECLARE_CYCLE_STAT_EXTERN(TEXT("Submix Graph Effect Processing"), STAT_AudioMixerSubmixEffectProcessing, STATGROUP_AudioMixer, AUDIOMIXER_API);
+
+// The time it takes to process the submix buffer listeners. 
+DECLARE_CYCLE_STAT_EXTERN(TEXT("Submix Buffer Listeners"), STAT_AudioMixerSubmixBufferListeners, STATGROUP_AudioMixer, AUDIOMIXER_API);
+
+// The time it takes to process the submix soundfield child submixes. 
+DECLARE_CYCLE_STAT_EXTERN(TEXT("Submix Soundfield Children"), STAT_AudioMixerSubmixSoundfieldChildren, STATGROUP_AudioMixer, AUDIOMIXER_API);
+
+// The time it takes to process the submix soundfield sources. 
+DECLARE_CYCLE_STAT_EXTERN(TEXT("Submix Soundfield Sources"), STAT_AudioMixerSubmixSoundfieldSources, STATGROUP_AudioMixer, AUDIOMIXER_API);
+
+// The time it takes to process the submix soundfield processors.. 
+DECLARE_CYCLE_STAT_EXTERN(TEXT("Submix Soundfield Processors"), STAT_AudioMixerSubmixSoundfieldProcessors, STATGROUP_AudioMixer, AUDIOMIXER_API);
 
 // Forward Declarations
 class FOnSubmixEnvelopeBP;
 class USoundEffectSubmix;
 class USoundSubmix;
-
 
 namespace Audio
 {
@@ -521,7 +548,7 @@ namespace Audio
 			{
 			}
 
-			FSpectrumAnalysisDelegateInfo(FSpectrumAnalysisDelegateInfo& Other)
+			FSpectrumAnalysisDelegateInfo(FSpectrumAnalysisDelegateInfo&& Other)
 			{
 				OnSubmixSpectralAnalysis = Other.OnSubmixSpectralAnalysis;
 				SpectrumBandExtractor.Reset(Other.SpectrumBandExtractor.Release());

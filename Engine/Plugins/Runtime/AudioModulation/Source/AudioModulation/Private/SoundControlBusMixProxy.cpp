@@ -3,6 +3,7 @@
 
 #include "Audio/AudioAddressPattern.h"
 #include "AudioDevice.h"
+#include "AudioDeviceManager.h"
 #include "AudioModulation.h"
 #include "AudioModulationLogging.h"
 #include "AudioModulationProfileSerializer.h"
@@ -18,14 +19,24 @@ namespace AudioModulation
 {
 	const FBusMixId InvalidBusMixId = INDEX_NONE;
 
-	FModulatorBusMixStageSettings::FModulatorBusMixStageSettings(const FSoundControlBusMixStage& InStage)
+	FModulatorBusMixStageSettings::FModulatorBusMixStageSettings(const FSoundControlBusMixStage& InStage, Audio::FDeviceId InDeviceId)
 		: TModulatorBase<FBusId>(InStage.Bus->GetName(), InStage.Bus->GetUniqueID())
 		, Address(InStage.Bus->Address)
-		, ParamClassId(InStage.Bus->Parameter->GetClass()->GetUniqueID())
-		, ParamId(InStage.Bus->Parameter->GetUniqueID())
+		, ParamClassId(INDEX_NONE)
+		, ParamId(INDEX_NONE)
 		, Value(InStage.Value)
-		, BusSettings(FControlBusSettings(*InStage.Bus))
+		, BusSettings(FControlBusSettings(*InStage.Bus, InDeviceId))
 	{
+		if (USoundModulationParameter* Parameter = InStage.Bus->Parameter)
+		{
+			ParamId = Parameter->GetUniqueID();
+
+			UClass* Class = Parameter->GetClass();
+			check(Class);
+			ParamClassId = Class->GetUniqueID();
+
+			Value.SetCurrentValue(Parameter->Settings.ValueNormalized);
+		}
 	}
 
 	FModulatorBusMixStageProxy::FModulatorBusMixStageProxy(const FModulatorBusMixStageSettings& InSettings, FAudioModulationSystem& OutModSystem)
@@ -38,14 +49,14 @@ namespace AudioModulation
 	{
 	}
 
-	FModulatorBusMixSettings::FModulatorBusMixSettings(const USoundControlBusMix& InBusMix)
+	FModulatorBusMixSettings::FModulatorBusMixSettings(const USoundControlBusMix& InBusMix, Audio::FDeviceId InDeviceId)
 		: TModulatorBase<FBusMixId>(InBusMix.GetName(), InBusMix.GetUniqueID())
 	{
 		for (const FSoundControlBusMixStage& Stage : InBusMix.MixStages)
 		{
 			if (Stage.Bus)
 			{
-				Stages.Add(FModulatorBusMixStageSettings(Stage));
+				Stages.Add(FModulatorBusMixStageSettings(Stage, InDeviceId));
 			}
 			else
 			{

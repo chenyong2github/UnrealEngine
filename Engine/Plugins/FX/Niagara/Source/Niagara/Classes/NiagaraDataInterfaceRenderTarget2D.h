@@ -2,6 +2,7 @@
 #pragma once
 
 #include "NiagaraDataInterface.h"
+#include "NiagaraDataInterfaceRW.h"
 #include "ClearQuad.h"
 #include "NiagaraComponent.h"
 #include "NiagaraDataInterfaceRenderTarget2D.generated.h"
@@ -12,20 +13,38 @@ class UTextureRenderTarget2D;
 
 struct FRenderTarget2DRWInstanceData_GameThread
 {
+	FRenderTarget2DRWInstanceData_GameThread()
+	{
+#if WITH_EDITORONLY_DATA
+		bPreviewTexture = false;
+#endif
+	}
+
 	FIntPoint Size = FIntPoint(EForceInit::ForceInitToZero);
 	
 	UTextureRenderTarget2D* TargetTexture = nullptr;
-
+#if WITH_EDITORONLY_DATA
+	uint32 bPreviewTexture : 1;
+#endif
+	FNiagaraParameterDirectBinding<UObject*> RTUserParamBinding;
 };
 
 struct FRenderTarget2DRWInstanceData_RenderThread
 {
+	FRenderTarget2DRWInstanceData_RenderThread()
+	{
+#if WITH_EDITORONLY_DATA
+		bPreviewTexture = false;
+#endif
+	}
+
 	FIntPoint Size = FIntPoint(EForceInit::ForceInitToZero);
 	
-	FTextureRHIRef RenderTargetToCopyTo;
+	FTextureReferenceRHIRef TextureReferenceRHI;
 	FUnorderedAccessViewRHIRef UAV;
-
-	void* DebugTargetTexture = nullptr;
+#if WITH_EDITORONLY_DATA
+	uint32 bPreviewTexture : 1;
+#endif
 };
 
 struct FNiagaraDataInterfaceProxyRenderTarget2DProxy : public FNiagaraDataInterfaceProxy
@@ -50,12 +69,11 @@ struct FNiagaraDataInterfaceProxyRenderTarget2DProxy : public FNiagaraDataInterf
 };
 
 UCLASS(EditInlineNew, Category = "Grid", meta = (DisplayName = "Render Target 2D", Experimental), Blueprintable, BlueprintType)
-class NIAGARA_API UNiagaraDataInterfaceRenderTarget2D : public UNiagaraDataInterface
+class NIAGARA_API UNiagaraDataInterfaceRenderTarget2D : public UNiagaraDataInterfaceRWBase
 {
 	GENERATED_UCLASS_BODY()
 
 public:
-
 	DECLARE_NIAGARA_DI_PARAMETER();	
 		
 	virtual void PostInitProperties() override;
@@ -67,6 +85,7 @@ public:
 	virtual void GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc) override;
 
 	virtual bool Equals(const UNiagaraDataInterface* Other) const override;
+	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
 
 	// GPU sim functionality
 	virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
@@ -90,22 +109,28 @@ public:
 	void SetSize(FVectorVMContext& Context);
 
 	static const FName SetValueFunctionName;
-	static const FName GetValueFunctionName;
 	static const FName SetSizeFunctionName;
 	static const FName GetSizeFunctionName;
-	
+	static const FName LinearToIndexName;
+
 	static const FString SizeName;
+	static const FString RWOutputName;
 	static const FString OutputName;
 
+	UPROPERTY(EditAnywhere, Category = "Render Target")
+	FIntPoint Size;
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(Transient, EditAnywhere, Category = "Render Target")
+	uint8 bPreviewRenderTarget : 1;
+#endif
+
+	UPROPERTY(EditAnywhere, Category = "Render Target", meta = (ToolTip = "When valid the user parameter is used as the render target rather than creating one internal, note that the input render target will be adjusted by the Niagara simulation"))
+	FNiagaraUserParameterBinding RenderTargetUserParameter;
+
 protected:
-	//~ UNiagaraDataInterface interface
-	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
-
-	//~ UNiagaraDataInterface interface END
-
 	static FNiagaraVariableBase ExposedRTVar;
 	
 	UPROPERTY(Transient)
 	TMap< uint64, UTextureRenderTarget2D*> ManagedRenderTargets;
-	
 };

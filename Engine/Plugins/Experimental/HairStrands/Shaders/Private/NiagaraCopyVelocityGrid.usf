@@ -1,0 +1,31 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "/Engine/Private/Common.ush"
+
+static const int NUM_ATTRIBUTES = 6;
+
+
+int3 GridSize;
+
+Texture3D<int>		GridCurrentBuffer;
+RWTexture3D<int>	GridDestinationBuffer;
+
+[numthreads(THREAD_COUNT, 1, 1)]
+void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
+{
+	const uint GridHash = DispatchThreadId.x;
+	if (GridHash < (GridSize.x+1)*(GridSize.y+1)*(GridSize.z+1))
+	{
+		const int GridSizeYZ = (GridSize.y+1) * (GridSize.z+1);
+		const int GridHashYZ = GridHash % GridSizeYZ;
+
+		const int3 GridIndex = int3(GridHash / GridSizeYZ, GridHashYZ / (GridSize.z+1), GridHashYZ % (GridSize.z+1));
+
+		[unroll]
+		for(int i = 0; i < NUM_ATTRIBUTES; ++i)
+		{
+			const int3 AttrIndex = int3(GridIndex.x+i*(GridSize.x+1),GridIndex.yz);
+			GridDestinationBuffer[AttrIndex] = GridCurrentBuffer[AttrIndex];
+		}
+	}
+}

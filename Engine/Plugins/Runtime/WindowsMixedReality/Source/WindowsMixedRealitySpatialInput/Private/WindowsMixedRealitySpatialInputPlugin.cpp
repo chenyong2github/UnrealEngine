@@ -3,6 +3,8 @@
 #include "WindowsMixedRealitySpatialInput.h"
 #include "IWindowsMixedRealitySpatialInputPlugin.h"
 #include "Framework/Application/SlateApplication.h"
+#include "WindowsMixedRealitySpatialInputFunctionLibrary.h"
+#include "WindowsMixedRealityStatics.h"
 
 //---------------------------------------------------
 // Microsoft Windows MixedReality SpatialInput plugin
@@ -21,6 +23,8 @@ public:
 		IInputDeviceModule::StartupModule();
 		
 		WindowsMixedReality::FWindowsMixedRealitySpatialInput::RegisterKeys();
+
+		WindowsMixedReality::FWindowsMixedRealityStatics::ConfigureGesturesHandle = WindowsMixedReality::FWindowsMixedRealityStatics::OnConfigureGesturesDelegate.AddRaw(this, &FWindowsMixedRealitySpatialInputPlugin::OnConfigureGestures);
 	}
 
 	virtual TSharedPtr<class IInputDevice> CreateInputDevice(const TSharedRef<FGenericApplicationMessageHandler>& InMessageHandler) override
@@ -48,9 +52,21 @@ public:
 		return InputDevice;
 	}
 
+	void OnConfigureGestures(const FXRGestureConfig& InGestureConfig, bool& bSuccess) override
+	{
+		bSuccess = UWindowsMixedRealitySpatialInputFunctionLibrary::CaptureGestures(
+			InGestureConfig.bTap,
+			InGestureConfig.bHold,
+			(ESpatialInputAxisGestureType)InGestureConfig.AxisGesture,
+			InGestureConfig.bNavigationAxisX,
+			InGestureConfig.bNavigationAxisY,
+			InGestureConfig.bNavigationAxisZ);
+	}
+
 private:
 	TSharedPtr<IInputDevice> InputDevice;
 
 };
+
 
 IMPLEMENT_MODULE(FWindowsMixedRealitySpatialInputPlugin, WindowsMixedRealitySpatialInput)

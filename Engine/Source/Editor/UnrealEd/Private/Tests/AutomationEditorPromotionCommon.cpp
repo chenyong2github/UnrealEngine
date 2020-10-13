@@ -72,7 +72,7 @@ UMaterial* FEditorPromotionTestUtilities::CreateMaterialFromTexture(UTexture* In
 
 	const FString AssetName = FString::Printf(TEXT("%s_Mat"), *InTexture->GetName());
 	const FString PackageName = FEditorPromotionTestUtilities::GetGamePath() + TEXT("/") + AssetName;
-	UPackage* AssetPackage = CreatePackage(NULL, *PackageName);
+	UPackage* AssetPackage = CreatePackage( *PackageName);
 	EObjectFlags Flags = RF_Public | RF_Standalone;
 
 	UObject* CreatedAsset = Factory->FactoryCreateNew(UMaterial::StaticClass(), AssetPackage, FName(*AssetName), Flags, NULL, GWarn);

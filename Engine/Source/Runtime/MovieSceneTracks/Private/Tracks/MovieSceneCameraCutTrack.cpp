@@ -220,4 +220,15 @@ FFrameNumber UMovieSceneCameraCutTrack::FindEndTimeForCameraCut( FFrameNumber St
 	return ExclusiveEndTime;
 }
 
+void UMovieSceneCameraCutTrack::PreCompileImpl()
+{
+	for (UMovieSceneSection* Section : Sections)
+	{
+		if (UMovieSceneCameraCutSection* CameraCutSection = CastChecked<UMovieSceneCameraCutSection>(Section))
+		{
+			CameraCutSection->ComputeInitialCameraCutTransform();
+		}
+	}
+}
+
 #undef LOCTEXT_NAMESPACE

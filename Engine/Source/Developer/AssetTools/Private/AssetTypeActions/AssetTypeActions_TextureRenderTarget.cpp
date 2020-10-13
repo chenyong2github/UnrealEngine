@@ -2,11 +2,13 @@
 
 #include "AssetTypeActions/AssetTypeActions_TextureRenderTarget.h"
 #include "ToolMenus.h"
-#include "Engine/Texture2D.h"
 #include "EditorStyleSet.h"
+#include "Engine/Texture2D.h"
+#include "Engine/Texture2DArray.h"
 #include "Engine/TextureCube.h"
 #include "Engine/VolumeTexture.h"
 #include "Engine/TextureRenderTarget2D.h"
+#include "Engine/TextureRenderTarget2DArray.h"
 #include "Engine/TextureRenderTargetCube.h"
 #include "Engine/TextureRenderTargetVolume.h"
 #include "AssetRegistryModule.h"
@@ -44,21 +46,26 @@ void FAssetTypeActions_TextureRenderTarget::ExecuteCreateStatic(TArray<TWeakObje
 
 			UObject* NewObj = NULL;
 			UTextureRenderTarget2D* TexRT = Cast<UTextureRenderTarget2D>(Object);
+			UTextureRenderTarget2DArray* TexRT2DArray = Cast<UTextureRenderTarget2DArray>(Object);
 			UTextureRenderTargetCube* TexRTCube = Cast<UTextureRenderTargetCube>(Object);
 			UTextureRenderTargetVolume* TexRTVolume = Cast<UTextureRenderTargetVolume>(Object);
 			if( TexRTCube )
 			{
 				// create a static cube texture as well as its 6 faces
-				NewObj = TexRTCube->ConstructTextureCube( CreatePackage(NULL,*PackageName), Name, Object->GetMaskedFlags() );
+				NewObj = TexRTCube->ConstructTextureCube( CreatePackage(*PackageName), Name, Object->GetMaskedFlags() );
 			}
 			else if (TexRTVolume)
 			{
-				NewObj = TexRTVolume->ConstructTextureVolume(CreatePackage(NULL, *PackageName), Name, Object->GetMaskedFlags());
+				NewObj = TexRTVolume->ConstructTextureVolume(CreatePackage( *PackageName), Name, Object->GetMaskedFlags());
+			}
+			else if (TexRT2DArray)
+			{
+				NewObj = TexRT2DArray->ConstructTexture2DArray(CreatePackage(*PackageName), Name, Object->GetMaskedFlags());
 			}
 			else if( TexRT )
 			{
 				// create a static 2d texture
-				NewObj = TexRT->ConstructTexture2D( CreatePackage(NULL,*PackageName), Name, Object->GetMaskedFlags(), CTF_Default, NULL );
+				NewObj = TexRT->ConstructTexture2D( CreatePackage(*PackageName), Name, Object->GetMaskedFlags(), CTF_Default, NULL );
 			}
 
 			if( NewObj )

@@ -17,13 +17,13 @@
 	"Modules": [
 		{
 			"Name": "ModelingComponents",
-			"Type": "Editor",
+			"Type": "Runtime",
 			"LoadingPhase": "Default",
 			"WhitelistPlatforms": [ "Win64" ]
 		},
 		{
 			"Name": "ModelingOperators",
-			"Type": "Editor",
+			"Type": "Runtime",
 			"LoadingPhase": "Default",
 			"WhitelistPlatforms": [ "Win64" ]
 		},
@@ -35,7 +35,7 @@
 		},
 		{
 			"Name": "MeshModelingTools",
-			"Type": "Editor",
+			"Type": "Runtime",
 			"LoadingPhase": "Default",
 			"WhitelistPlatforms": [ "Win64" ]
 		},

@@ -104,4 +104,10 @@ FString USoundCueTemplateFactory::GetDefaultNewAssetName() const
 	return Super::GetDefaultNewAssetName();
 }
 
+USoundCueTemplateClassTemplate::USoundCueTemplateClassTemplate(const FObjectInitializer& ObjectInitializer)
+	: UPluginClassTemplate(ObjectInitializer)
+{
+	PluginName = TEXT("SoundCueTemplates");
+	SetGeneratedBaseClass(USoundCueTemplate::StaticClass());
+}
 #undef LOCTEXT_NAMESPACE // "SoundCueTemplatesEditor"

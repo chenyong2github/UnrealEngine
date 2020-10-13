@@ -2,7 +2,7 @@
 
 #include "OpenXRHandTrackingLiveLinkRemapAsset.h"
 #include "OpenXRHandTracking.h"
-#include "OpenXRHandTrackingTypes.h"
+#include "HeadMountedDisplayTypes.h"
 
 #include "BonePose.h"
 
@@ -21,10 +21,10 @@ void UOpenXRHandTrackingLiveLinkRemapAsset::PostInitProperties()
 	if (HandTrackingBoneNameMap.Num() == 0)
 	{
 		// Fill the first time use of the bone name map
-		const UEnum* EnumPtr = FindObject<UEnum>(ANY_PACKAGE, TEXT("EOpenXRHandKeypoint"), true);
+		const UEnum* EnumPtr = FindObject<UEnum>(ANY_PACKAGE, TEXT("EHandKeypoint"), true);
 		check(EnumPtr != nullptr);
 		// Iterate through all of the Keypoints building the skeleton info for it
-		for (int32 Keypoint = 0; Keypoint < EOpenXRHandKeypointCount; Keypoint++)
+		for (int32 Keypoint = 0; Keypoint < EHandKeypointCount; Keypoint++)
 		{
 			FName BoneName = FOpenXRHandTracking::ParseEOpenXRHandKeypointEnumName(EnumPtr->GetNameByValue(Keypoint));
 			HandTrackingBoneNameMap.Add(BoneName, BoneName);
@@ -114,11 +114,11 @@ FTransform UOpenXRHandTrackingLiveLinkRemapAsset::GetRetargetedTransform(const F
 	FTransform OutTransform = InFrameData->Transforms[TransformIndex];
 
 	if (!bHasMetacarpals && (
-		TransformIndex == static_cast<int>(EOpenXRHandKeypoint::ThumbProximal)		|| 
-		TransformIndex == static_cast<int>(EOpenXRHandKeypoint::IndexProximal)		||
-		TransformIndex == static_cast<int>(EOpenXRHandKeypoint::MiddleProximal)	|| 
-		TransformIndex == static_cast<int>(EOpenXRHandKeypoint::RingProximal)		|| 
-		TransformIndex == static_cast<int>(EOpenXRHandKeypoint::LittleProximal)	))
+		TransformIndex == static_cast<int>(EHandKeypoint::ThumbProximal)		|| 
+		TransformIndex == static_cast<int>(EHandKeypoint::IndexProximal)		||
+		TransformIndex == static_cast<int>(EHandKeypoint::MiddleProximal)	|| 
+		TransformIndex == static_cast<int>(EHandKeypoint::RingProximal)		|| 
+		TransformIndex == static_cast<int>(EHandKeypoint::LittleProximal)	))
 	{
 		// Metacarpal is always one entry before the Proximal
 		OutTransform = InFrameData->Transforms[TransformIndex - 1] * OutTransform;

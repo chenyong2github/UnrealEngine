@@ -29,6 +29,8 @@ namespace UnrealBuildTool.Rules
 					"AdvancedPreviewScene",
 					"InputCore",
 					"Renderer",
+					"PropertyEditor",
+					"RHI"
 				});
 			AddEngineThirdPartyPrivateStaticDependencies(Target,
 			 "FBX"

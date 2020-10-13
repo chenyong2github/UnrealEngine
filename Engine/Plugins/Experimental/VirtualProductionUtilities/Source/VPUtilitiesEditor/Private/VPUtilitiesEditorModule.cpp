@@ -8,6 +8,7 @@
 #include "EditorUtilitySubsystem.h"
 #include "HAL/IConsoleManager.h"
 #include "LevelEditor.h"
+#include "IPlacementModeModule.h"
 #include "ISettingsModule.h"
 #include "ISettingsSection.h"
 #include "Modules/ModuleInterface.h"
@@ -28,6 +29,7 @@
 DEFINE_LOG_CATEGORY(LogVPUtilitiesEditor);
 
 const FName FVPUtilitiesEditorModule::VPRoleNotificationBarIdentifier = TEXT("VPRoles");
+const FName FVPUtilitiesEditorModule::PlacementModeCategoryHandle = TEXT("VirtualProduction");
 
 void FVPUtilitiesEditorModule::StartupModule()
 {
@@ -72,6 +74,36 @@ void FVPUtilitiesEditorModule::ShutdownModule()
 UOSCServer* FVPUtilitiesEditorModule::GetOSCServer() const
 {
 	return OSCServer.Get();
+}
+
+const FPlacementCategoryInfo* FVPUtilitiesEditorModule::GetVirtualProductionPlacementCategoryInfo() const
+{
+	if (GEditor)
+	{
+		IPlacementModeModule& PlacmentModeModule = IPlacementModeModule::Get();
+
+		if (const FPlacementCategoryInfo* RegisteredInfo = PlacmentModeModule.GetRegisteredPlacementCategory(PlacementModeCategoryHandle))
+		{
+			return RegisteredInfo;
+		}
+		else
+		{
+			FPlacementCategoryInfo Info(
+				LOCTEXT("VirtualProductionCategoryName", "Virtual Production"),
+				PlacementModeCategoryHandle,
+				TEXT("PMVirtualProduction"),
+				25
+			);
+
+			IPlacementModeModule::Get().RegisterPlacementCategory(Info);
+
+			// This will return nullptr if the Register above failed so we don't need to explicitly check
+			// RegisterPlacementCategory's return value.
+			return PlacmentModeModule.GetRegisteredPlacementCategory(PlacementModeCategoryHandle);
+		}
+	}
+
+	return nullptr;
 }
 
 void FVPUtilitiesEditorModule::RegisterSettings()

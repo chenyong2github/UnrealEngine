@@ -15,6 +15,7 @@
 #include "Serialization/JsonWriter.h"
 #include "Serialization/JsonSerializer.h"
 #include "MoviePipelineHashUtils.h"
+#include "EngineModule.h"
 
 DECLARE_CYCLE_STAT(TEXT("STAT_MoviePipeline_AccumulateMaskSample_TT"), STAT_AccumulateMaskSample_TaskThread, STATGROUP_MoviePipeline);
 
@@ -56,6 +57,7 @@ void UMoviePipelineObjectIdRenderPass::SetupImpl(const MoviePipeline::FMoviePipe
 {
 	Super::SetupImpl(InPassInitSettings);
 
+	// Re-initialize the render target with the correct bit depth.
 	TileRenderTarget = NewObject<UTextureRenderTarget2D>(GetTransientPackage());
 	TileRenderTarget->ClearColor = FLinearColor(0.0f, 0.0f, 0.0f, 0.0f);
 	TileRenderTarget->InitCustomFormat(InPassInitSettings.BackbufferResolution.X, InPassInitSettings.BackbufferResolution.Y, EPixelFormat::PF_B8G8R8A8, false);
@@ -77,6 +79,7 @@ void UMoviePipelineObjectIdRenderPass::TeardownImpl()
 	Super::TeardownImpl();
 }
 
+
 void UMoviePipelineObjectIdRenderPass::GetViewShowFlags(FEngineShowFlags& OutShowFlag, EViewModeIndex& OutViewModeIndex) const 
 {
 	OutShowFlag = FEngineShowFlags(EShowFlagInitMode::ESFIM_Game);
@@ -90,7 +93,34 @@ void UMoviePipelineObjectIdRenderPass::GetViewShowFlags(FEngineShowFlags& OutSho
 	OutViewModeIndex = EViewModeIndex::VMI_Unlit;
 }
 
-void UMoviePipelineObjectIdRenderPass::PostRendererSubmission(const FMoviePipelineRenderPassMetrics& InSampleState, FCanvas& InCanvas)
+void UMoviePipelineObjectIdRenderPass::RenderSample_GameThreadImpl(const FMoviePipelineRenderPassMetrics& InSampleState)
+{
+	Super::RenderSample_GameThreadImpl(InSampleState);
+
+	// Wait for a surface to be available to write to. This will stall the game thread while the RHI/Render Thread catch up.
+	{
+		SCOPE_CYCLE_COUNTER(STAT_MoviePipeline_WaitForAvailableSurface);
+		SurfaceQueue->BlockUntilAnyAvailable();
+	}
+
+
+	// Main Render Pass
+	{
+		FMoviePipelineRenderPassMetrics InOutSampleState = InSampleState;
+
+		TSharedPtr<FSceneViewFamilyContext> ViewFamily = CalculateViewFamily(InOutSampleState);
+
+		// Submit to be rendered. Main render pass always uses target 0.
+		FRenderTarget* RenderTarget = GetViewRenderTarget()->GameThread_GetRenderTargetResource();
+		FCanvas Canvas = FCanvas(RenderTarget, nullptr, GetPipeline()->GetWorld(), ERHIFeatureLevel::SM5, FCanvas::CDM_DeferDrawing, 1.0f);
+		GetRendererModule().BeginRenderingViewFamily(&Canvas, ViewFamily.Get());
+
+		// Readback + Accumulate.
+		PostRendererSubmission(InOutSampleState);
+	}
+}
+
+void UMoviePipelineObjectIdRenderPass::PostRendererSubmission(const FMoviePipelineRenderPassMetrics& InSampleState)
 {
 	// If this was just to contribute to the history buffer, no need to go any further.
 	if (InSampleState.bDiscardResult)
@@ -120,23 +150,10 @@ void UMoviePipelineObjectIdRenderPass::PostRendererSubmission(const FMoviePipeli
 	{
 		bool bFinalSample = FramePayload->IsLastTile() && FramePayload->IsLastTemporalSample();
 		bool bFirstSample = FramePayload->IsFirstTile() && FramePayload->IsFirstTemporalSample();
-		if (bFirstSample)
-		{
-			// Each frame can be processed independently, so we can start processing the second frame's tasks
-			// even if the accumulation for the first frame is still happening.
-			this->TaskPrereq = nullptr;
-		}
-		FGraphEventRef* LastTask = nullptr;
-		if (this->TaskPrereq)
-		{
-			LastTask = &this->TaskPrereq;
-		}
-
+	
 		FMoviePipelineBackgroundAccumulateTask Task;
-		if (LastTask)
-		{
-			Task.LastCompletionEvent = *LastTask;
-		}
+		Task.LastCompletionEvent = SampleAccumulator->TaskPrereq;
+
 		FGraphEventRef Event = Task.Execute([PixelData = MoveTemp(InPixelData), AccumulationArgs, bFinalSample, SampleAccumulator]() mutable
 		{
 			// Enqueue a encode for this frame onto our worker thread.
@@ -144,15 +161,15 @@ void UMoviePipelineObjectIdRenderPass::PostRendererSubmission(const FMoviePipeli
 			if (bFinalSample)
 			{
 				SampleAccumulator->bIsActive = false;
+				SampleAccumulator->TaskPrereq = nullptr;
 			}
 		});
 
 		this->OutstandingTasks.Add(Event);
-		this->TaskPrereq = Event;
 	};
 	
 	TSharedPtr<FMoviePipelineSurfaceQueue> LocalSurfaceQueue = SurfaceQueue;
-	FRenderTarget* RenderTarget = TileRenderTarget->GameThread_GetRenderTargetResource();
+	FRenderTarget* RenderTarget = GetViewRenderTarget()->GameThread_GetRenderTargetResource();
 
 	ENQUEUE_RENDER_COMMAND(CanvasRenderTargetResolveCommand)(
 		[LocalSurfaceQueue, FramePayload, Callback, RenderTarget](FRHICommandListImmediate& RHICmdList) mutable
@@ -161,8 +178,6 @@ void UMoviePipelineObjectIdRenderPass::PostRendererSubmission(const FMoviePipeli
 			LocalSurfaceQueue->OnRenderTargetReady_RenderThread(RenderTarget->GetRenderTargetTexture(), FramePayload, MoveTemp(Callback));
 		});
 }
-
-
 
 namespace MoviePipeline
 {

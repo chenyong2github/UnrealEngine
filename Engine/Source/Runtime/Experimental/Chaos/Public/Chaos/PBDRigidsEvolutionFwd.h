@@ -25,7 +25,4 @@ namespace Chaos
 	using FEventManager = TEventManager<FDefaultTraits>;
 }
 
-template <typename Traits>
-class TGeometryCollectionPhysicsProxy;
-
-using FGeometryCollectionPhysicsProxy = TGeometryCollectionPhysicsProxy<Chaos::FDefaultTraits>;
+class FGeometryCollectionPhysicsProxy;

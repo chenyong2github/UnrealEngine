@@ -299,7 +299,7 @@ FArchive& operator<<(FArchive& Ar, FReflectionCaptureMapBuildData& ReflectionCap
 		Ar.CookingTarget()->GetReflectionCaptureFormats(Formats);
 	}
 
-	if (Formats.Num() == 0 || Formats.Contains(FullHDR) || IsMobileDeferredShading())
+	if (Formats.Num() == 0 || Formats.Contains(FullHDR))
 	{
 		Ar << ReflectionCaptureMapBuildData.FullHDRCapturedData;
 	}
@@ -311,10 +311,10 @@ FArchive& operator<<(FArchive& Ar, FReflectionCaptureMapBuildData& ReflectionCap
 
 	if (Ar.CustomVer(FMobileObjectVersion::GUID) >= FMobileObjectVersion::StoreReflectionCaptureCompressedMobile)
 	{
-		if (Ar.IsCooking() && (!Ar.CookingTarget()->SupportsFeature(ETargetPlatformFeatures::MobileRendering) || IsMobileDeferredShading()))
+		if (Ar.IsCooking() && !Formats.Contains(EncodedHDR))
 		{
-			UTextureCube* Dummy = NULL;
-			Ar << Dummy;
+			UTextureCube* StrippedData = NULL;
+			Ar << StrippedData;
 		}
 		else
 		{
@@ -405,8 +405,9 @@ void UMapBuildDataRegistry::Serialize(FArchive& Ar)
 void UMapBuildDataRegistry::PostLoad()
 {
 	Super::PostLoad();
-	bool bFullDataRequired = GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM5 || IsMobileDeferredShading();
-	bool bEncodedDataRequired = (GIsEditor || GMaxRHIFeatureLevel == ERHIFeatureLevel::ES3_1) && !IsMobileDeferredShading();
+	bool bUsesMobileDeferredShading = IsMobileDeferredShadingEnabled(GMaxRHIShaderPlatform);
+	bool bFullDataRequired = GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM5 || bUsesMobileDeferredShading;
+	bool bEncodedDataRequired = (GIsEditor || (GMaxRHIFeatureLevel == ERHIFeatureLevel::ES3_1 && !bUsesMobileDeferredShading));
 
 #if WITH_EDITOR
 	if (ReflectionCaptureBuildData.Num() > 0 && bEncodedDataRequired)
@@ -428,7 +429,9 @@ void UMapBuildDataRegistry::PostLoad()
 		// Only strip in PostLoad for cooked platforms.  Uncooked may need to generate encoded HDR data in UReflectionCaptureComponent::OnRegister().
 		&& FPlatformProperties::RequiresCookedData())
 	{
-
+		// We expect to use only one type of data at cooked runtime
+		check(bFullDataRequired != bEncodedDataRequired);
+		
 		for (TMap<FGuid, FReflectionCaptureMapBuildData>::TIterator It(ReflectionCaptureBuildData); It; ++It)
 		{
 			FReflectionCaptureMapBuildData& CaptureBuildData = It.Value();
@@ -436,6 +439,11 @@ void UMapBuildDataRegistry::PostLoad()
 			if (!bFullDataRequired)
 			{
 				CaptureBuildData.FullHDRCapturedData.Empty();
+			}
+			
+			if (!bEncodedDataRequired)
+			{
+				CaptureBuildData.EncodedCaptureData = nullptr;
 			}
 
 			check(CaptureBuildData.EncodedCaptureData != nullptr || CaptureBuildData.FullHDRCapturedData.Num() > 0  || FApp::CanEverRender() == false);

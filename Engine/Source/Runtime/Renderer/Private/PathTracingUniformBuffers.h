@@ -11,6 +11,8 @@
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FPathTracingData, )
 	SHADER_PARAMETER(uint32, MaxBounces)
+	SHADER_PARAMETER(uint32, RussianRouletteStartingBounce)
+	SHADER_PARAMETER(float, FireFlyRejectionThreshold)
 	SHADER_PARAMETER(FIntVector, TileOffset)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 

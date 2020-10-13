@@ -150,8 +150,8 @@ public:
 	virtual void RHIBeginUAVOverlap() {}
 	virtual void RHIEndUAVOverlap() {}
 
-	virtual void RHIBeginUAVOverlap(TArrayView<FRHIUnorderedAccessView*> UAVs) {}
-	virtual void RHIEndUAVOverlap(TArrayView<FRHIUnorderedAccessView*> UAVs) {}
+	virtual void RHIBeginUAVOverlap(TArrayView<FRHIUnorderedAccessView* const> UAVs) {}
+	virtual void RHIEndUAVOverlap(TArrayView<FRHIUnorderedAccessView* const> UAVs) {}
 
 	/** Set the shader resource view of a surface.  This is used for binding TextureMS parameter types that need a multi sampled view. */
 	virtual void RHISetShaderTexture(FRHIComputeShader* PixelShader, uint32 TextureIndex, FRHITexture* NewTexture) = 0;
@@ -677,7 +677,7 @@ public:
 	}
 
 #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
-	virtual void RHIBackBufferWaitTrackingBeginFrame(uint64 FrameToken)
+	virtual void RHIBackBufferWaitTrackingBeginFrame(uint64 FrameToken, bool bDeferred)
 	{
 		checkNoEntry();
 	}

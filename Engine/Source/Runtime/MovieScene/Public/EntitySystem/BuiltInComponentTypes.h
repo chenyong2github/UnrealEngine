@@ -7,6 +7,7 @@
 #include "EntitySystem/MovieSceneEntityIDs.h"
 #include "EntitySystem/MovieSceneSequenceInstanceHandle.h"
 #include "Evaluation/Blending/MovieSceneBlendType.h"
+#include "Evaluation/IMovieSceneEvaluationHook.h"
 #include "Templates/SubclassOf.h"
 
 #include "EntitySystem/MovieScenePropertyRegistry.h"
@@ -93,6 +94,21 @@ struct FMovieSceneTrackInstanceComponent
 };
 
 
+/**
+ * A component that defines a hook for direct evaluation
+ */
+USTRUCT()
+struct FMovieSceneEvaluationHookComponent
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	TScriptInterface<IMovieSceneEvaluationHook> Interface;
+
+	FGuid ObjectBindingID;
+};
+
+
 
 USTRUCT()
 struct FTrackInstanceInputComponent
@@ -133,6 +149,11 @@ struct FSourceFloatChannel
 struct FSourceFloatChannelFlags
 {
 	bool bNeedsEvaluate = true;
+};
+
+struct FEvaluationHookFlags
+{
+	bool bHasBegun = false;
 };
 
 /**
@@ -222,6 +243,11 @@ public:
 
 	// An FTrackInstanceInputComponent that defines an input for a track instance
 	TComponentTypeID<FTrackInstanceInputComponent> TrackInstanceInput;
+
+	// An FMovieSceneEvaluationHookComponent that defines a stateless hook interface that doesn't need any overlap handling (track instances should be preferred there)
+	TComponentTypeID<FMovieSceneEvaluationHookComponent> EvaluationHook;
+
+	TComponentTypeID<FEvaluationHookFlags> EvaluationHookFlags;
 
 public:
 

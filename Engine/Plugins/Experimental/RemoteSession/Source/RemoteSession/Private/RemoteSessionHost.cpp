@@ -161,7 +161,7 @@ void FRemoteSessionHost::SendChannelListToConnection()
 			Packet->Write(TEXT("ChannelMode"), ::LexToString(ClientMode));
 		}
 
-		UE_LOG(LogRemoteSession, Log, TEXT("Enabling channel %s with mode %d"), *Channel.Type, ClientMode);
+		UE_LOG(LogRemoteSession, Log, TEXT("Offering channel %s with mode %d"), *Channel.Type, ClientMode);
 	}
 	
 	OSCConnection->SendPacket(Packet);
@@ -192,17 +192,26 @@ void FRemoteSessionHost::OnChangeChannel(IBackChannelPacket& Message)
 	}
 	else
 	{		
-		// Need to create channels on the main thread
-		AsyncTask(ENamedThreads::GameThread, [this, ChannelName, ChannelMode, Mode] {
+		if (SupportedChannels.ContainsByPredicate([&ChannelName](FRemoteSessionChannelInfo& Elem) {
+				return Elem.Type == ChannelName;
+			}))
+		{
+			// Need to create channels on the main thread
+			AsyncTask(ENamedThreads::GameThread, [this, ChannelName, ChannelMode, Mode] {
 
-			FRemoteSessionChannelInfo Info;
-			Info.Type = ChannelName;
-			// flip our mode to opposite the ask from the client
-			Info.Mode = Mode == ERemoteSessionChannelMode::Read ? ERemoteSessionChannelMode::Write : ERemoteSessionChannelMode::Read;
+				FRemoteSessionChannelInfo Info;
+				Info.Type = ChannelName;
+				// flip our mode to opposite the ask from the client
+				Info.Mode = Mode == ERemoteSessionChannelMode::Read ? ERemoteSessionChannelMode::Write : ERemoteSessionChannelMode::Read;
 
-			UE_LOG(LogRemoteSession, Log, TEXT("OnChangeChannel: Creating channel Name=%s, Mode=%s"), *ChannelName, *ChannelMode);
-			CreateChannel(Info);
-		});
+				UE_LOG(LogRemoteSession, Log, TEXT("OnChangeChannel: Creating channel Name=%s, Mode=%s"), *ChannelName, *ChannelMode);
+				CreateChannel(Info);
+			});
+		}
+		else
+		{
+			UE_LOG(LogRemoteSession, Warning, TEXT("OnChangeChannel: Client requested known but unavailable channel %s, Mode=%s"), *ChannelName, *ChannelMode);
+		}
 	}
 
 }

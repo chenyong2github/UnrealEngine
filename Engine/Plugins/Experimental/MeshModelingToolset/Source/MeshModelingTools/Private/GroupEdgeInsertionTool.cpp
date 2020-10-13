@@ -85,8 +85,7 @@ void UGroupEdgeInsertionTool::Setup()
 	}
 
 	GetToolManager()->DisplayMessage(
-		LOCTEXT("GroupEdgeInsertionToolDescription",
-			"Click two points on the boundary of a face to insert a new edge between the points and split the face."),
+		LOCTEXT("GroupEdgeInsertionToolDescription", "Click two points on the boundary of a face to insert a new edge between the points and split the face."),
 		EToolMessageLevel::UserNotification);
 
 	// Initialize the mesh that we'll be operating on
@@ -585,7 +584,7 @@ bool UGroupEdgeInsertionTool::GetHoveredItem(const FRay& WorldRay,
 	else if (Selection.SelectedCornerIDs.Num() > 0)
 	{
 		// Point is a corner
-		TopologyElementIDOut = Selection.SelectedCornerIDs[0];
+		TopologyElementIDOut = Selection.GetASelectedCornerID();
 		bIsCornerOut = true;
 		PointOut.bIsVertex = true;
 		PointOut.ElementID = CurrentTopology->GetCornerVertexID(TopologyElementIDOut);
@@ -599,7 +598,7 @@ bool UGroupEdgeInsertionTool::GetHoveredItem(const FRay& WorldRay,
 		// Point is an edge. We'll need to calculate the t value and some other things.
 		check(Selection.SelectedEdgeIDs.Num() > 0);
 
-		TopologyElementIDOut = Selection.SelectedEdgeIDs[0];
+		TopologyElementIDOut = Selection.GetASelectedEdgeID();
 		bIsCornerOut = false;
 
 		const FGroupTopology::FGroupEdge& GroupEdge = CurrentTopology->Edges[TopologyElementIDOut];

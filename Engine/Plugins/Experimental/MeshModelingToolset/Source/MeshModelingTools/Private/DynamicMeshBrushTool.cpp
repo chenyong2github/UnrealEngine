@@ -35,6 +35,8 @@ void UDynamicMeshBrushTool::Setup()
 
 	// call this here so that base tool can estimate target dimension
 	InputMeshBoundsLocal = PreviewMesh->GetPreviewDynamicMesh()->GetBounds();
+	double ScaledDim = ComponentTarget->GetWorldTransform().TransformVector(FVector::OneVector).Size();
+	this->WorldToLocalScale = FMathd::Sqrt3 / FMathd::Max(FMathf::ZeroTolerance, ScaledDim);
 	UBaseBrushTool::Setup();
 
 	// hide input StaticMeshComponent

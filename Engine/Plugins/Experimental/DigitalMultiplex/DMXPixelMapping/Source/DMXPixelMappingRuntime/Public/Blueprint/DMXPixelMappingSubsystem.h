@@ -26,14 +26,14 @@ public:
 	UDMXPixelMapping* GetDMXPixelMapping(UDMXPixelMapping* InPixelMapping);
 
 	/** 
-	 * Get Renderer component. Only for K2 blueprint nodes
+	 * Get Renderer component. Only for K2 blueprint nodes 
 	 *
 	 * @param			InDMXPixelMapping Pixel Mapping UObject Asset
 	 * @param			InComponentName Name of looking renderer component
 	 *
 	 * @return Pointer to the component or nullptr
 	 */
-	UFUNCTION(BlueprintPure, meta = (BlueprintInternalUseOnly = "TRUE", AutoCreateRefTerm = "InComponentName"), Category = "DMX|PixelMapping")
+	UFUNCTION(BlueprintPure, meta = (BlueprintInternalUseOnly = "true", AutoCreateRefTerm = "InComponentName"), Category = "DMX|PixelMapping")
 	UDMXPixelMappingRendererComponent* GetRendererComponent(UDMXPixelMapping* InDMXPixelMapping, const FName& InComponentName);
 
 	/**
@@ -44,7 +44,7 @@ public:
 	 *
 	 * @return Pointer to the component or nullptr
 	 */
-	UFUNCTION(BlueprintPure, meta = (BlueprintInternalUseOnly = "TRUE", AutoCreateRefTerm = "InComponentName"), Category = "DMX|PixelMapping")
+	UFUNCTION(BlueprintPure, meta = (BlueprintInternalUseOnly = "true", AutoCreateRefTerm = "InComponentName"), Category = "DMX|PixelMapping")
 	UDMXPixelMappingOutputDMXComponent* GetOutputDMXComponent(UDMXPixelMapping* InDMXPixelMapping, const FName& InComponentName);
 
 	/**
@@ -55,7 +55,7 @@ public:
 	 *
 	 * @return Pointer to the component or nullptr
 	 */
-	UFUNCTION(BlueprintPure, meta = (BlueprintInternalUseOnly = "TRUE", AutoCreateRefTerm = "InComponentName"), Category = "DMX|PixelMapping")
+	UFUNCTION(BlueprintPure, meta = (BlueprintInternalUseOnly = "true", AutoCreateRefTerm = "InComponentName"), Category = "DMX|PixelMapping")
 	UDMXPixelMappingFixtureGroupComponent* GetFixtureGroupComponent(UDMXPixelMapping* InDMXPixelMapping, const FName& InComponentName);
 
 	/**
@@ -66,6 +66,6 @@ public:
 	 *
 	 * @return Pointer to the component or nullptr
 	 */
-	UFUNCTION(BlueprintPure, meta = (BlueprintInternalUseOnly = "TRUE", AutoCreateRefTerm = "InComponentName"), Category = "DMX|PixelMapping")
+	UFUNCTION(BlueprintPure, meta = (BlueprintInternalUseOnly = "true", AutoCreateRefTerm = "InComponentName"), Category = "DMX|PixelMapping")
 	UDMXPixelMappingMatrixComponent* GetMatrixComponent(UDMXPixelMapping* InDMXPixelMapping, const FName& InComponentName);
 };

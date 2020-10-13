@@ -40,11 +40,13 @@ public:
 	virtual bool LoadAlphaMap(const IMPCDI::FRegionLocator& InRegionLocator, const FString& PNGFile, float GammaValue) override;
 	virtual bool LoadBetaMap(const IMPCDI::FRegionLocator& InRegionLocator, const FString& PNGFile) override;
 
-	virtual bool LoadConfig(const FString& InConfigLineStr, ConfigParser& OutCfgData) override;
+	virtual bool LoadConfig(const TMap<FString, FString>& InConfigParameters, ConfigParser& OutCfgData) override;
 	virtual bool Load(const ConfigParser& CfgData, IMPCDI::FRegionLocator& OutRegionLocator) override;
 
 	virtual void ReloadAll() override;
 	virtual void ReloadAll_RenderThread()override;
+
+	virtual bool GetMPCDIMeshData(const FString& MPCDIFile, const FString& BufferName, const FString& RegionName, FMPCDIGeometryExportData& MeshData) override;
 
 private:
 	void ReleaseMPCDIData();

@@ -7,9 +7,12 @@
 #include "Config/IPDisplayClusterConfigManager.h"
 #include "Input/IPDisplayClusterInputManager.h"
 
+#include "DisplayClusterConfigurationTypes.h"
+
 #include "Network/Service/ClusterSync/DisplayClusterClusterSyncService.h"
-#include "Network/Service/SwapSync/DisplayClusterSwapSyncService.h"
-#include "Network/Service/ClusterEvents/DisplayClusterClusterEventsService.h"
+#include "Network/Service/RenderSync/DisplayClusterRenderSyncService.h"
+#include "Network/Service/ClusterEventsJson/DisplayClusterClusterEventsJsonService.h"
+#include "Network/Service/ClusterEventsBinary/DisplayClusterClusterEventsBinaryService.h"
 
 #include "Engine/World.h"
 #include "HAL/Event.h"
@@ -54,7 +57,7 @@ FDisplayClusterClusterNodeCtrlMaster::~FDisplayClusterClusterNodeCtrlMaster()
 
 
 //////////////////////////////////////////////////////////////////////////////////////////////
-// IPDisplayClusterClusterSyncProtocol
+// IDisplayClusterProtocolClusterSync
 //////////////////////////////////////////////////////////////////////////////////////////////
 void FDisplayClusterClusterNodeCtrlMaster::GetDeltaTime(float& DeltaSeconds)
 {
@@ -98,14 +101,14 @@ void FDisplayClusterClusterNodeCtrlMaster::GetFrameTime(TOptional<FQualifiedFram
 	FrameTime = CachedFrameTime;
 }
 
-void FDisplayClusterClusterNodeCtrlMaster::GetSyncData(FDisplayClusterMessage::DataType& SyncData, EDisplayClusterSyncGroup SyncGroup)
+void FDisplayClusterClusterNodeCtrlMaster::GetSyncData(TMap<FString, FString>& SyncData, EDisplayClusterSyncGroup SyncGroup)
 {
 	static IPDisplayClusterClusterManager* const ClusterMgr = GDisplayCluster->GetPrivateClusterMgr();
 
 	if (IsInGameThread())
 	{
 		// Cache data so it will be the same for all requests within current frame
-		FDisplayClusterMessage::DataType SyncDataToCache;
+		TMap<FString, FString> SyncDataToCache;
 		ClusterMgr->ExportSyncData(SyncDataToCache, SyncGroup);
 		CachedSyncData.Emplace(SyncGroup, SyncDataToCache);
 
@@ -130,7 +133,7 @@ void FDisplayClusterClusterNodeCtrlMaster::GetSyncData(FDisplayClusterMessage::D
 	SyncData = CachedSyncData[SyncGroup];
 }
 
-void FDisplayClusterClusterNodeCtrlMaster::GetInputData(FDisplayClusterMessage::DataType& InputData)
+void FDisplayClusterClusterNodeCtrlMaster::GetInputData(TMap<FString, FString>& InputData)
 {
 	static IPDisplayClusterInputManager* const InputMgr = GDisplayCluster->GetPrivateInputMgr();
 
@@ -160,24 +163,16 @@ void FDisplayClusterClusterNodeCtrlMaster::GetInputData(FDisplayClusterMessage::
 	InputData = CachedInputData;
 }
 
-void FDisplayClusterClusterNodeCtrlMaster::GetEventsData(FDisplayClusterMessage::DataType& EventsData)
+void FDisplayClusterClusterNodeCtrlMaster::GetEventsData(TArray<TSharedPtr<FDisplayClusterClusterEventJson>>& JsonEvents, TArray<TSharedPtr<FDisplayClusterClusterEventBinary>>& BinaryEvents)
 {
 	static IPDisplayClusterClusterManager* const ClusterMgr = GDisplayCluster->GetPrivateClusterMgr();
 
 	if (IsInGameThread())
 	{
 		// Cache data so it will be the same for all requests within current frame
-		ClusterMgr->ExportEventsData(CachedEventsData);
+		ClusterMgr->ExportEventsData(CachedJsonEvents, CachedBinaryEvents);
 
-		UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("GetEventsData cached values amount: %d"), CachedEventsData.Num());
-
-		int i = 0;
-		for (auto it = CachedEventsData.CreateConstIterator(); it; ++it)
-		{
-			UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("GetEventsData cached value %d: %s - %s"), i++, *it->Key, *it->Value);
-		}
-
-		UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("EventsData has %d records"), CachedEventsData.Num());
+		UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("GetEventsData cached values amount: json=%d, binary=%d"), CachedJsonEvents.Num(), CachedBinaryEvents.Num());
 
 		// Notify data is available
 		CachedEventsDataEvent->Trigger();
@@ -187,10 +182,11 @@ void FDisplayClusterClusterNodeCtrlMaster::GetEventsData(FDisplayClusterMessage:
 	CachedEventsDataEvent->Wait();
 
 	// Return cached value
-	EventsData = CachedEventsData;
+	JsonEvents   = CachedJsonEvents;
+	BinaryEvents = CachedBinaryEvents;
 }
 
-void FDisplayClusterClusterNodeCtrlMaster::GetNativeInputData(FDisplayClusterMessage::DataType& NativeInputData)
+void FDisplayClusterClusterNodeCtrlMaster::GetNativeInputData(TMap<FString, FString>& NativeInputData)
 {
 	static IPDisplayClusterClusterManager* const ClusterMgr = GDisplayCluster->GetPrivateClusterMgr();
 	ClusterMgr->SyncNativeInput(NativeInputData);
@@ -198,11 +194,11 @@ void FDisplayClusterClusterNodeCtrlMaster::GetNativeInputData(FDisplayClusterMes
 
 
 //////////////////////////////////////////////////////////////////////////////////////////////
-// IPDisplayClusterNodeController
+// IDisplayClusterNodeController
 //////////////////////////////////////////////////////////////////////////////////////////////
 void FDisplayClusterClusterNodeCtrlMaster::ClearCache()
 {
-	FScopeLock lock(&InternalsSyncScope);
+	FScopeLock Lock(&InternalsSyncScope);
 
 	// Reset all cache events
 	CachedDeltaTimeEvent->Reset();
@@ -212,7 +208,8 @@ void FDisplayClusterClusterNodeCtrlMaster::ClearCache()
 
 	// Reset cache containers
 	CachedInputData.Reset();
-	CachedEventsData.Reset();
+	CachedJsonEvents.Reset();
+	CachedBinaryEvents.Reset();
 
 	for (auto& it : CachedSyncDataEvents)
 	{
@@ -245,24 +242,13 @@ bool FDisplayClusterClusterNodeCtrlMaster::InitializeServers()
 
 	UE_LOG(LogDisplayClusterCluster, Log, TEXT("%s - initializing master servers..."), *GetControllerName());
 
-	// Get config data
-	FDisplayClusterConfigClusterNode masterCfg;
-	if (GDisplayCluster->GetPrivateConfigMgr()->GetMasterClusterNode(masterCfg) == false)
-	{
-		UE_LOG(LogDisplayClusterCluster, Error, TEXT("No master node configuration data found"));
-		return false;
-	}
-
-	// Allow children to override master's address
-	OverrideMasterAddr(masterCfg.Addr);
-
 	// Instantiate node servers
-	UE_LOG(LogDisplayClusterCluster, Log, TEXT("Servers: addr %s, port_cs %d, port_ss %d, port_ce %d"), *masterCfg.Addr, masterCfg.Port_CS, masterCfg.Port_SS, masterCfg.Port_CE);
-	ClusterSyncServer.Reset(new FDisplayClusterClusterSyncService(masterCfg.Addr, masterCfg.Port_CS));
-	SwapSyncServer.Reset(new FDisplayClusterSwapSyncService(masterCfg.Addr, masterCfg.Port_SS));
-	ClusterEventsServer.Reset(new FDisplayClusterClusterEventsService(masterCfg.Addr, masterCfg.Port_CE));
+	ClusterSyncServer         = MakeUnique<FDisplayClusterClusterSyncService>       ();
+	RenderSyncServer          = MakeUnique<FDisplayClusterRenderSyncService>        ();
+	ClusterEventsJsonServer   = MakeUnique<FDisplayClusterClusterEventsJsonService> ();
+	ClusterEventsBinaryServer = MakeUnique<FDisplayClusterClusterEventsBinaryService>();
 
-	return ClusterSyncServer.IsValid() && SwapSyncServer.IsValid() && ClusterEventsServer.IsValid();
+	return ClusterSyncServer && RenderSyncServer && ClusterEventsJsonServer && ClusterEventsBinaryServer;
 }
 
 bool FDisplayClusterClusterNodeCtrlMaster::StartServers()
@@ -274,8 +260,34 @@ bool FDisplayClusterClusterNodeCtrlMaster::StartServers()
 
 	UE_LOG(LogDisplayClusterCluster, Log, TEXT("%s - starting master servers..."), *GetControllerName());
 
+	// Get config data
+	const UDisplayClusterConfigurationData* ConfigData = GDisplayCluster->GetPrivateConfigMgr()->GetConfig();
+	if (!ConfigData)
+	{
+		UE_LOG(LogDisplayClusterCluster, Error, TEXT("Couldn't get configuration data"));
+		return false;
+	}
+
+	// Get master config data
+	const UDisplayClusterConfigurationClusterNode* CfgMaster = GDisplayCluster->GetPrivateConfigMgr()->GetMasterNode();
+	if (!CfgMaster)
+	{
+		UE_LOG(LogDisplayClusterCluster, Error, TEXT("No master node configuration data found"));
+		return false;
+	}
+
+	// Allow children to override master's address
+	FString HostToUse = CfgMaster->Host;
+	OverrideMasterAddr(HostToUse);
+
+	FDisplayClusterConfigurationMasterNodePorts Ports = ConfigData->Cluster->MasterNode.Ports;
+	UE_LOG(LogDisplayClusterCluster, Log, TEXT("Servers: addr %s, port_cs %d, port_ss %d, port_ce %d, port_ceb %d"), *HostToUse, Ports.ClusterSync, Ports.RenderSync, Ports.ClusterEventsJson, Ports.ClusterEventsBinary);
+
 	// Start the servers
-	return StartServerWithLogs(ClusterSyncServer.Get()) && StartServerWithLogs(SwapSyncServer.Get()) && StartServerWithLogs(ClusterEventsServer.Get());
+	return StartServerWithLogs(ClusterSyncServer.Get(),         HostToUse, Ports.ClusterSync)
+		&& StartServerWithLogs(RenderSyncServer.Get(),          HostToUse, Ports.RenderSync)
+		&& StartServerWithLogs(ClusterEventsJsonServer.Get(),   HostToUse, Ports.ClusterEventsJson)
+		&& StartServerWithLogs(ClusterEventsBinaryServer.Get(), HostToUse, Ports.ClusterEventsBinary);
 }
 
 void FDisplayClusterClusterNodeCtrlMaster::StopServers()
@@ -283,8 +295,9 @@ void FDisplayClusterClusterNodeCtrlMaster::StopServers()
 	FDisplayClusterClusterNodeCtrlSlave::StopServers();
 
 	ClusterSyncServer->Shutdown();
-	SwapSyncServer->Shutdown();
-	ClusterEventsServer->Shutdown();
+	RenderSyncServer->Shutdown();
+	ClusterEventsJsonServer->Shutdown();
+	ClusterEventsBinaryServer->Shutdown();
 }
 
 bool FDisplayClusterClusterNodeCtrlMaster::InitializeClients()

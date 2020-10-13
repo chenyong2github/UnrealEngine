@@ -47,6 +47,7 @@
 #include "ShaderPrint.h"
 #include "GpuDebugRendering.h"
 #include "HairStrands/HairStrandsRendering.h"
+#include "PhysicsField/PhysicsFieldComponent.h"
 #include "GPUSortManager.h"
 
 static TAutoConsoleVariable<int32> CVarStencilForLODDither(
@@ -335,11 +336,7 @@ bool FDeferredShadingSceneRenderer::RenderHzb(
 {
 	RDG_GPU_STAT_SCOPE(GraphBuilder, HZB);
 
-	auto HzbRequested = [&]()
-	{
-		static const IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("HairStrands.Cluster.CullingUsesHzb"));
-		return CVar && CVar->GetInt() > 0;
-	};
+	
 	static const auto ICVarHZBOcc = IConsoleManager::Get().FindConsoleVariable(TEXT("r.HZBOcclusion"));
 	bool bHZBOcclusion = ICVarHZBOcc->GetInt() != 0;
 
@@ -356,7 +353,7 @@ bool FDeferredShadingSceneRenderer::RenderHzb(
 		const bool bSSR  = ShouldRenderScreenSpaceReflections(View);
 		const bool bSSAO = ShouldRenderScreenSpaceAmbientOcclusion(View);
 		const bool bSSGI = ShouldRenderScreenSpaceDiffuseIndirect(View);
-		const bool bHair = CreateHairStrandsBookmarkParameters(View).bHasElements && HzbRequested();
+		const bool bHair = CreateHairStrandsBookmarkParameters(View).bHzbRequest;
 
 		if (bSSAO || bHZBOcclusion || bSSR || bSSGI || bHair)
 		{
@@ -982,6 +979,11 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 				continue; // skip dynamic primitives and other 
 			}
 
+			if (GRayTracingExcludeDecals && RelevantPrimitive.bAnySegmentsDecal)
+			{
+				continue;
+			}
+
 			const int NewInstanceIndex = View.RayTracingGeometryInstances.Num();
 
 
@@ -1001,11 +1003,6 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 					// CommandIndex == -1 indicates that the mesh batch has been filtered by FRayTracingMeshProcessor (like the shadow depth pass batch)
 					// Do nothing in this case
 				}
-			}
-
-			if (GRayTracingExcludeDecals && RelevantPrimitive.bAnySegmentsDecal)
-			{
-				continue;
 			}
 
 			FRayTracingGeometryInstance& RayTracingInstance = View.RayTracingGeometryInstances.Emplace_GetRef();
@@ -1505,6 +1502,12 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 			PrepareDistanceFieldScene(RHICmdList, bSplitDispatch);
 		}
 
+		if (Views.Num() > 0)
+		{
+			FViewInfo& View = Views[0];
+			Scene->UpdatePhysicsField(RHICmdList, View);
+		}
+
 		if (!GDoPrepareDistanceFieldSceneAfterRHIFlush && (GRHINeedsExtraDeletionLatency || !GRHICommandList.Bypass()))
 		{
 			// we will probably stall on occlusion queries, so might as well have the RHI thread and GPU work while we wait.
@@ -1679,7 +1682,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	FHairStrandsBookmarkParameters HairStrandsBookmarkParameters;
 	{
 		FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("HairStrandsCullingAndInterpolation(ViewFamily=%s)", ViewFamily.bResolveScene ? TEXT("Primary") : TEXT("Auxiliary")));
-		if (IsHairStrandsEnable(Scene->GetShaderPlatform()))
+		if (IsHairStrandsEnabled(EHairStrandsShaderType::All, Scene->GetShaderPlatform()))
 		{
 			HairStrandsBookmarkParameters = CreateHairStrandsBookmarkParameters(Views[0]);
 			RunHairStrandsBookmark(GraphBuilder, EHairStrandsBookmark::ProcessTasks, HairStrandsBookmarkParameters);
@@ -1690,12 +1693,15 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		const bool bRunHairStrands = HairStrandsBookmarkParameters.bHasElements && (Views.Num() > 0) && !ViewFamily.bWorldIsPaused;
 		if (bRunHairStrands)
 		{
-			RunHairStrandsBookmark(GraphBuilder, EHairStrandsBookmark::ProcessGatherCluster, HairStrandsBookmarkParameters);
+			if (HairStrandsBookmarkParameters.bStrandsGeometryEnabled)
+			{
+				RunHairStrandsBookmark(GraphBuilder, EHairStrandsBookmark::ProcessGatherCluster, HairStrandsBookmarkParameters);
 
-			FHairCullingParams CullingParams;
-			CullingParams.bCullingProcessSkipped = false;
-			CullingParams.bShadowViewMode = false;
-			ComputeHairStrandsClustersCulling(GraphBuilder, *HairStrandsBookmarkParameters.ShaderMap, Views, CullingParams, HairStrandsBookmarkParameters.HairClusterData);
+				FHairCullingParams CullingParams;
+				CullingParams.bCullingProcessSkipped = false;
+				CullingParams.bShadowViewMode = false;
+				ComputeHairStrandsClustersCulling(GraphBuilder, *HairStrandsBookmarkParameters.ShaderMap, Views, CullingParams, HairStrandsBookmarkParameters.HairClusterData);
+			}
 
 			RunHairStrandsBookmark(GraphBuilder, EHairStrandsBookmark::ProcessStrandsInterpolation, HairStrandsBookmarkParameters);
 		}
@@ -1841,8 +1847,8 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 	FHairStrandsRenderingData* HairDatas = nullptr;
 	FHairStrandsRenderingData HairDatasStorage;
-	const bool bIsViewCompatible = Views.Num() > 0 && Views[0].Family->ViewMode == VMI_Lit;
-	const bool bHairEnable = HairStrandsBookmarkParameters.bHasElements && bIsViewCompatible;
+	const bool bIsViewCompatible = Views.Num() > 0;
+	const bool bHairEnable = HairStrandsBookmarkParameters.bHasElements && bIsViewCompatible && IsHairStrandsEnabled(EHairStrandsShaderType::Strands, Views[0].GetShaderPlatform());
 
 	FRDGTextureRef ForwardScreenSpaceShadowMaskTexture = nullptr;
 	FRDGTextureRef ForwardScreenSpaceShadowMaskHairTexture = nullptr;
@@ -2017,7 +2023,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	{
 		// Render the velocities of movable objects
 		AddSetCurrentStatPass(GraphBuilder, GET_STATID(STAT_CLM_Velocity));
-		RenderVelocities(GraphBuilder, SceneDepthTexture.Resolve, VelocityTexture, nullptr, EVelocityPass::Opaque);
+		RenderVelocities(GraphBuilder, SceneDepthTexture.Resolve, VelocityTexture, nullptr, EVelocityPass::Opaque, bHairEnable);
 		AddSetCurrentStatPass(GraphBuilder, GET_STATID(STAT_CLM_AfterVelocity));
 		AddServiceLocalQueuePass(GraphBuilder);
 	}
@@ -2077,6 +2083,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 			RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
 			GCompositionLighting.ProcessAfterBasePass(GraphBuilder, Scene->UniformBuffers, View, SceneTextures);
 		}
+		SceneContext.ScreenSpaceGTAOHorizons.SafeRelease();
 		AddServiceLocalQueuePass(GraphBuilder);
 	}
 
@@ -2182,7 +2189,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		// Render diffuse sky lighting and reflections that only operate on opaque pixels
 		RenderDeferredReflectionsAndSkyLighting(GraphBuilder, SceneTextures, SceneColorTexture, DynamicBentNormalAOTexture, VelocityTexture, HairDatas);
 
-		AddSubsurfacePass(GraphBuilder, SceneTextures, Views, SceneColorTexture.Target);
+		SceneColorTexture = FRDGTextureMSAA(AddSubsurfacePass(GraphBuilder, SceneTextures, Views, SceneColorTexture.Target));
 
 		if (HairDatas)
 		{
@@ -2367,7 +2374,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 			const bool bRecreateSceneTextures = !VelocityTexture;
 
 			AddSetCurrentStatPass(GraphBuilder, GET_STATID(STAT_CLM_TranslucentVelocity));
-			RenderVelocities(GraphBuilder, SceneDepthTexture.Resolve, VelocityTexture, SceneTextures, EVelocityPass::Translucent);
+			RenderVelocities(GraphBuilder, SceneDepthTexture.Resolve, VelocityTexture, SceneTextures, EVelocityPass::Translucent, false);
 			AddServiceLocalQueuePass(GraphBuilder);
 
 			if (bRecreateSceneTextures)
@@ -2496,6 +2503,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		FPostProcessingInputs PostProcessingInputs;
 		PostProcessingInputs.ViewFamilyTexture = ViewFamilyTexture;
 		PostProcessingInputs.SeparateTranslucencyTextures = &SeparateTranslucencyTextures;
+		PostProcessingInputs.SceneTextures = SceneTextures;
 
 		if (ViewFamily.UseDebugViewPS())
 		{
@@ -2504,7 +2512,6 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 				const FViewInfo& View = Views[ViewIndex];
 				RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
 				RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
-				PostProcessingInputs.SceneTextures = SceneTextures;
 				AddDebugViewPostProcessingPasses(GraphBuilder, View, PostProcessingInputs);
 			}
 		}
@@ -2524,7 +2531,6 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 				const FViewInfo& View = Views[ViewIndex];
 				RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
 				RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
-				PostProcessingInputs.SceneTextures = SceneTextures;
 
 #if !(UE_BUILD_SHIPPING)
 				if (IsPostProcessVisualizeCalibrationMaterialEnabled(View))

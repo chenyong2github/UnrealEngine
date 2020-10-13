@@ -491,7 +491,6 @@ public:
 	// for AmbientOcclusion, only valid for a short time during the frame to allow reuse
 	TRefCountPtr<IPooledRenderTarget> ScreenSpaceAO;
 	TRefCountPtr<IPooledRenderTarget> ScreenSpaceGTAOHorizons;
-	TRefCountPtr<IPooledRenderTarget> ScreenSpaceGTAODepths;
 	// for shader/quad complexity, the temporary quad descriptors and complexity.
 	TRefCountPtr<IPooledRenderTarget> QuadOverdrawBuffer;
 	// used by the CustomDepth material feature, is allocated on demand or if r.CustomDepth is 2

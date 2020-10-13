@@ -44,24 +44,33 @@ public:
 	URevolveBoundaryTool* RevolveBoundaryTool;
 };
 
-
 UCLASS()
 class MESHMODELINGTOOLS_API URevolveBoundaryToolProperties : public URevolveProperties
 {
 	GENERATED_BODY()
 
 public:
-
-	UPROPERTY(EditAnywhere, Category = RevolutionAxis)
-	FTransform RevolutionAxis = FTransform(FRotator(90, 0, 0));
-
-	UPROPERTY(EditAnywhere, Category = RevolutionAxis)
-	bool bSnapToWorldGrid = false;
-
+	
 	UPROPERTY(EditAnywhere, Category = RevolveSettings, AdvancedDisplay)
 	bool bDisplayOriginalMesh = false;
-};
 
+	UPROPERTY(EditAnywhere, Category = RevolutionAxis)
+	FVector AxisOrigin = FVector(0, 0, 0);
+
+	//~ We don't use a rotator for axis orientation because one of the components (roll) 
+	//~ will never do anything in the case of our axis.
+	UPROPERTY(EditAnywhere, Category = RevolutionAxis, meta = (
+		UIMin = -180, UIMax = 180, ClampMin = -180000, ClampMax = 18000))
+	float AxisYaw = 0;
+
+	UPROPERTY(EditAnywhere, Category = RevolutionAxis, meta = (
+		UIMin = -180, UIMax = 180, ClampMin = -180000, ClampMax = 18000))
+	float AxisPitch = 0;
+
+	/** Determines whether the axis control widget snaps to world grid (only relevant if world coordinate mode is active in viewport) .*/
+	UPROPERTY(EditAnywhere, Category = RevolutionAxis)
+	bool bSnapToWorldGrid = false;
+};
 
 /** 
  * Tool that revolves the boundary of a mesh around an axis to create a new mesh. Mainly useful for
@@ -112,7 +121,7 @@ protected:
 	virtual bool ShouldSelectionAppend() const override { return false; }
 
 	void GenerateAsset(const FDynamicMeshOpResult& Result);
-	void UpdateRevolutionAxis(const FTransform& PlaneTransform);
+	void UpdateRevolutionAxis();
 	void StartPreview();
 
 	friend class URevolveBoundaryOperatorFactory;

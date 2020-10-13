@@ -63,6 +63,8 @@ namespace ChaosTest {
 		TPBDRigidsSOAs<FReal, 3> Particles;
 		THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
 		TEvolution Evolution(Particles, PhysicalMaterials);
+		InitEvolutionSettings(Evolution);
+
 		auto Static = Evolution.CreateStaticParticles(1)[0];
 		auto Dynamic = Evolution.CreateDynamicParticles(1)[0];
 
@@ -102,6 +104,8 @@ namespace ChaosTest {
 		TPBDRigidsSOAs<FReal, 3> Particles;
 		THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
 		TEvolution Evolution(Particles, PhysicalMaterials);
+		InitEvolutionSettings(Evolution);
+
 		auto Static = Evolution.CreateStaticParticles(1)[0];
 		auto Dynamic = Evolution.CreateDynamicParticles(1)[0];
 
@@ -142,6 +146,8 @@ namespace ChaosTest {
 		TPBDRigidsSOAs<FReal, 3> Particles;
 		THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
 		TEvolution Evolution(Particles, PhysicalMaterials);
+		InitEvolutionSettings(Evolution);
+
 		auto Static = Evolution.CreateStaticParticles(1)[0];
 		auto Dynamic = Evolution.CreateDynamicParticles(1)[0];
 
@@ -172,6 +178,8 @@ namespace ChaosTest {
 		TPBDRigidsSOAs<FReal, 3> Particles;
 		THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
 		TEvolution Evolution(Particles, PhysicalMaterials);
+		InitEvolutionSettings(Evolution);
+
 		auto Static = Evolution.CreateStaticParticles(1)[0];
 		auto Dynamic1 = Evolution.CreateDynamicParticles(1)[0];
 		auto Dynamic2 = Evolution.CreateDynamicParticles(1)[0];
@@ -183,7 +191,7 @@ namespace ChaosTest {
 		TUniquePtr<FChaosPhysicsMaterial> PhysicsMaterial = MakeUnique<FChaosPhysicsMaterial>();
 		PhysicsMaterial->SleepingLinearThreshold = 20;
 		PhysicsMaterial->SleepingAngularThreshold = 20;
-		PhysicsMaterial->SleepCounterThreshold = 1;
+		PhysicsMaterial->SleepCounterThreshold = 5;
 
 		Static->X() = FVec3(10, 10, 10);
 		Dynamic1->X() = FVec3(10, 10, 120);

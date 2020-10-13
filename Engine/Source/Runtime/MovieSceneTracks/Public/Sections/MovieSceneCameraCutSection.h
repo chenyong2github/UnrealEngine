@@ -72,11 +72,21 @@ public:
 	MOVIESCENETRACKS_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 
+	/**
+	 * Computes the transform of the bound camera at the section's start time.
+	 * This is for internal use by UMovieSceneCameraCutTrack during pre-compilation.
+	 */
+	void ComputeInitialCameraCutTransform();
+
 private:
 	virtual void ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity) override;
 
-private:
+public:
+	/** When blending, lock the previous camera (camera cut or gameplay camera). */
+	UPROPERTY(EditAnywhere, Category="Section")
+	bool bLockPreviousCamera = false;
 
+private:
 	/** The camera possessable or spawnable that this movie CameraCut uses */
 	UPROPERTY()
 	FGuid CameraGuid_DEPRECATED;
@@ -84,6 +94,12 @@ private:
 	/** The camera binding that this movie CameraCut uses */
 	UPROPERTY(EditAnywhere, Category="Section")
 	FMovieSceneObjectBindingID CameraBindingID;
+
+	/** Camera transform at the start of the cut, computed at compile time */
+	UPROPERTY()
+	FTransform InitialCameraCutTransform;
+	UPROPERTY()
+	bool bHasInitialCameraCutTransform = false;
 
 #if WITH_EDITORONLY_DATA
 public:
@@ -106,4 +122,6 @@ private:
 	UPROPERTY()
 	float ThumbnailReferenceOffset;
 #endif
+
+	friend class UMovieSceneCameraCutTrackInstance;
 };

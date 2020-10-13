@@ -31,17 +31,24 @@ public:
 	virtual void PostParentAssigned() {}
 
 	/**
+	 * Should log properties that were changed in underlying fixture patch or fixture type
+	 *
+	 * @return		Returns true if properties are valid.
+	 */
+	virtual bool ValidateProperties() { return true; }
+
+	/**
 	* Helper function for generating UObject name, the child should implement their own logic for Prefix name generation.
 	*/
 	virtual const FName& GetNamePrefix();
 
-	// FTickableGameObject begin
+	// ~Begin FTickableGameObject interface
 	virtual void Tick(float DeltaTime) override {}
 	virtual TStatId GetStatId() const override;
 	virtual bool IsTickableInEditor() const { return true; }
 	virtual bool IsTickableWhenPaused() const { return true; }
 	virtual bool IsTickable() const { return false; }
-	// FTickableGameObject end
+	// ~End FTickableGameObject interface
 
 	/*----------------------------------------------------------
 		Non virtual functions, not intended to be overridden
@@ -183,8 +190,10 @@ public:
 		return false;
 	}
 
-	/** Displayed on the hierarchy view */
-	virtual FString GetWidgetName() const;
+#if WITH_EDITOR
+	/** Returns the name of the component used across all widgets that draw it */
+	virtual FString GetUserFriendlyName() const;
+#endif // WITH_EDITOR
 
 private:
 	/** Set array index of this componet. It should be called if component belong to some parent */

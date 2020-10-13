@@ -12,11 +12,10 @@
 #include "Engine/Texture2D.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Modules/ModuleManager.h"
+#include "ImageProviders/RemoteSessionFrameBufferImageProvider.h"
+#include "RemoteSessionUtils.h"
 
 
-DECLARE_CYCLE_STAT(TEXT("RSTextureUpdate"), STAT_TextureUpdate, STATGROUP_Game);
-DECLARE_CYCLE_STAT(TEXT("RSNumTicks"), STAT_RSNumTicks, STATGROUP_Game);
-DECLARE_CYCLE_STAT(TEXT("RSReadyFrameCount"), STAT_RSNumFrames, STATGROUP_Game);
 
 static int32 QualityMasterSetting = 0;
 static FAutoConsoleVariableRef CVarQualityOverride(
@@ -103,6 +102,7 @@ FRemoteSessionImageChannel::FRemoteSessionImageChannel(ERemoteSessionChannelMode
 	BackgroundThread = nullptr;
 	ScreenshotEvent = nullptr;
 	ExitRequested = false;
+	HaveConfiguredImageProvider = false;
 
 	
 	if (Role == ERemoteSessionChannelMode::Read)
@@ -114,9 +114,14 @@ FRemoteSessionImageChannel::FRemoteSessionImageChannel(ERemoteSessionChannelMode
 		// InConnection->SetMessageOptions(TEXT("/Screen"), 1);
 
 		StartBackgroundThread();
+
+		// Make sure this is something sensible
+		InConnection->SetBufferSizes(0, 2 * 1024 * 1024);
 	}
 	else
 	{
+        // Make sure this is something sensible
+		InConnection->SetBufferSizes(2 * 1024 * 1024, 0);
 		ImageSender = MakeShared<FRemoteSessionImageChannel::FImageSender, ESPMode::ThreadSafe>(InConnection);
 	}
 }
@@ -167,10 +172,16 @@ UTexture2D* FRemoteSessionImageChannel::GetHostScreen() const
 
 void FRemoteSessionImageChannel::Tick(const float InDeltaTime)
 {
-	INC_DWORD_STAT(STAT_RSNumTicks);
+	INC_DWORD_STAT(STAT_RSTickRate);
 
 	if (Role == ERemoteSessionChannelMode::Write)
 	{
+		// If an image provider hasn't been configured yet then set a default
+		if (!HaveConfiguredImageProvider && ImageProvider == nullptr)
+		{
+			SetFramebufferAsImageProvider();
+		}
+
 		if (ImageProvider)
 		{
 			ImageProvider->Tick(InDeltaTime);
@@ -179,7 +190,7 @@ void FRemoteSessionImageChannel::Tick(const float InDeltaTime)
 
 	if (Role == ERemoteSessionChannelMode::Read)
 	{
-		SCOPE_CYCLE_COUNTER(STAT_TextureUpdate);
+		SCOPE_CYCLE_COUNTER(STAT_RSTextureUpdate);
 
 		TUniquePtr<FImageData> QueuedImage;
 
@@ -187,8 +198,7 @@ void FRemoteSessionImageChannel::Tick(const float InDeltaTime)
 			// Check to see if there are any queued images. We just care about the last
 			FScopeLock ImageLock(&DecodedImageMutex);
 			if (IncomingDecodedImages.Num())
-			{
-				INC_DWORD_STAT(STAT_RSNumFrames);
+			{				
 				QueuedImage = MoveTemp(IncomingDecodedImages.Last());
 				LastDecodedImageIndex = QueuedImage->ImageIndex;
 
@@ -229,10 +239,24 @@ void FRemoteSessionImageChannel::Tick(const float InDeltaTime)
 			};
 
 			DecodedTextures[NextImage]->UpdateTextureRegions(0, 1, Region, 4 * QueuedImage->Width, sizeof(FColor), TextureData->GetData(), DataCleanupFunc);
+            
+            const double ProcessTime = FPlatformTime::Seconds() - QueuedImage->TimeCreated;
+            ReceiveStats.MaxImageProcessTime = FMath::Max(ReceiveStats.MaxImageProcessTime, ProcessTime);
 
 			UE_LOG(LogRemoteSession, VeryVerbose, TEXT("GT: Uploaded image %d"),
 				QueuedImage->ImageIndex);
 		} //-V773
+
+		const double TimeNow = FPlatformTime::Seconds();
+		if (TimeNow - ReceiveStats.LastUpdateTime >= 1.0)
+		{
+			SET_DWORD_STAT(STAT_RSWaitingFrames, ReceiveStats.FramesWaiting);
+			SET_DWORD_STAT(STAT_RSDiscardedFrames, ReceiveStats.FramesSkipped);
+            SET_DWORD_STAT(STAT_RSMaxImageProcessTime, int32(ReceiveStats.MaxImageProcessTime * 1000));
+
+			ReceiveStats = FRemoteSessionImageReceiveStats();
+			ReceiveStats.LastUpdateTime = TimeNow;
+		}
 	}
 }
 
@@ -242,7 +266,37 @@ void FRemoteSessionImageChannel::SetImageProvider(TSharedPtr<IRemoteSessionImage
 	{
 		ImageProvider = InImageProvider;
 	}
+
+	HaveConfiguredImageProvider = true;
 }
+
+/** Sets up an image provider that mirrors the games framebuffer. Will be the default if no ImageProvider is set. */
+void FRemoteSessionImageChannel::SetFramebufferAsImageProvider()
+{
+	TSharedPtr<FRemoteSessionFrameBufferImageProvider> NewImageProvider = MakeShared<FRemoteSessionFrameBufferImageProvider>(GetImageSender());
+
+	{
+		const URemoteSessionSettings* Settings = URemoteSessionSettings::StaticClass()->GetDefaultObject<URemoteSessionSettings>();
+
+		NewImageProvider->SetCaptureFrameRate(Settings->ImageQuality);
+		SetCompressQuality(Settings->FrameRate);
+	}
+
+	{
+		TWeakPtr<SWindow> InputWindow;
+		TWeakPtr<FSceneViewport> SceneViewport;
+		FRemoteSessionUtils::FindSceneViewport(InputWindow, SceneViewport);
+
+		if (TSharedPtr<FSceneViewport> SceneViewPortPinned = SceneViewport.Pin())
+		{
+			NewImageProvider->SetCaptureViewport(SceneViewPortPinned.ToSharedRef());
+		}
+	}
+
+	SetImageProvider(NewImageProvider);
+}
+
+
 
 void FRemoteSessionImageChannel::SetCompressQuality(int32 InQuality)
 {
@@ -254,16 +308,24 @@ void FRemoteSessionImageChannel::SetCompressQuality(int32 InQuality)
 
 void FRemoteSessionImageChannel::ReceiveHostImage(IBackChannelPacket& Message)
 {
-	int32 ImageIndex(0);
+    SCOPE_CYCLE_COUNTER(STAT_RSReceiveTime);
 
+    const double TimeNow = FPlatformTime::Seconds();
+
+    static double LastReceipt = TimeNow;
+    
+    const double Delta = TimeNow - LastReceipt;
+    LastReceipt = TimeNow;
+    
 	TUniquePtr<FImageData> ReceivedImage = MakeUnique<FImageData>();
 
 	Message.Read(TEXT("Width"), ReceivedImage->Width);
 	Message.Read(TEXT("Height"), ReceivedImage->Height);
 	Message.Read(TEXT("Data"), ReceivedImage->ImageData);
-	Message.Read(TEXT("ImageCount"), ImageIndex);
-
-	ReceivedImage->ImageIndex = ImageIndex;
+	Message.Read(TEXT("ImageCount"), ReceivedImage->ImageIndex);
+    ReceivedImage->TimeCreated = TimeNow;
+    
+    int32 Index = ReceivedImage->ImageIndex;
 
 	if (ReceivedImage->Width == 0 ||
 		ReceivedImage->Height == 0)
@@ -272,26 +334,27 @@ void FRemoteSessionImageChannel::ReceiveHostImage(IBackChannelPacket& Message)
 		return;
 	}
 
-	FScopeLock Lock(&IncomingImageMutex);
-	if (LastIncomingImageIndex > 0 && IncomingEncodedImages.Num() > 1 && IncomingEncodedImages.Last()->ImageIndex > LastIncomingImageIndex)
 	{
-		IncomingEncodedImages.RemoveSingle(IncomingEncodedImages.Last());
+		FScopeLock Lock(&IncomingImageMutex);
+		IncomingEncodedImages.Add(MoveTemp(ReceivedImage));
 	}
-
-	IncomingEncodedImages.Add(MoveTemp(ReceivedImage));
+    
 
 	if (ScreenshotEvent)
 	{
+        SCOPE_CYCLE_COUNTER(STAT_RSWakeupWait);
+        
 		// wake up the background thread.
 		ScreenshotEvent->Trigger();
 	}
 
-	UE_LOG(LogRemoteSession, VeryVerbose, TEXT("Received Image %d, %d pending"),
-		ImageIndex, IncomingEncodedImages.Num());
+	UE_LOG(LogRemoteSession, VeryVerbose, TEXT("Received Next Image %d after %.03f secs. %d pending."),  Index, Delta, IncomingEncodedImages.Num());
 }
 
 void FRemoteSessionImageChannel::ProcessIncomingTextures()
 {
+	SCOPE_CYCLE_COUNTER(STAT_RSDecompressTime);
+
 	TUniquePtr<FImageData> Image;
 	const double StartTime = FPlatformTime::Seconds();
 	{
@@ -303,14 +366,17 @@ void FRemoteSessionImageChannel::ProcessIncomingTextures()
 			return;
 		}
 
+		ReceiveStats.FramesWaiting += IncomingEncodedImages.Num();
+		ReceiveStats.FramesSkipped += IncomingEncodedImages.Num() - 1;
+
 		// take the last image we don't care about the rest
 		Image = MoveTemp(IncomingEncodedImages.Last());
 		LastIncomingImageIndex = Image->ImageIndex;
 
+		IncomingEncodedImages.Reset();
+
 		UE_LOG(LogRemoteSession, VeryVerbose, TEXT("Processing Image %d, discarding %d other pending images"),
 			Image->ImageIndex, IncomingEncodedImages.Num() - 1);
-
-		IncomingEncodedImages.Reset();
 	}
 
 	IImageWrapperModule* ImageWrapperModule = FModuleManager::GetModulePtr<IImageWrapperModule>(FName("ImageWrapper"));
@@ -329,6 +395,7 @@ void FRemoteSessionImageChannel::ProcessIncomingTextures()
 			QueuedImage->Height = Image->Height;
 			QueuedImage->ImageData = MoveTemp(RawData);
 			QueuedImage->ImageIndex = Image->ImageIndex;
+            QueuedImage->TimeCreated = Image->TimeCreated;
 
 			{
 				FScopeLock ImageLock(&DecodedImageMutex);

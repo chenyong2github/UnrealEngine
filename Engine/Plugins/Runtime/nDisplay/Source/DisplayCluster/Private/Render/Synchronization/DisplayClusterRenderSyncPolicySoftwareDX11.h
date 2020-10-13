@@ -14,7 +14,7 @@ class FDisplayClusterRenderSyncPolicySoftwareDX11
 	: public FDisplayClusterRenderSyncPolicySoftwareBase
 {
 public:
-	FDisplayClusterRenderSyncPolicySoftwareDX11();
+	FDisplayClusterRenderSyncPolicySoftwareDX11(const TMap<FString, FString>& Parameters);
 	virtual ~FDisplayClusterRenderSyncPolicySoftwareDX11();
 
 public:

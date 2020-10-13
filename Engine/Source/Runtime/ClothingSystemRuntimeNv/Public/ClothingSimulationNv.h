@@ -40,14 +40,7 @@ public:
 	virtual void Fill(const USkeletalMeshComponent* InComponent, float InDeltaSeconds, float InMaxPhysicsDelta) override;
 
 	// Set the world gravity in the parent class while preserving the Nv legacy code behavior
-	void virtual FillWorldGravity(const USkeletalMeshComponent* InComponent) override;
-
-	// Set WindVelocity in the parent class and Nv specific WindAdaption
-	virtual void FillWindVelocity(const USkeletalMeshComponent* InComponent) override;
-
-	// Wind adaption, a measure of how quickly to adapt to the wind speed
-	// when using the legacy wind calculation mode
-	float WindAdaption;
+	virtual void FillWorldGravity(const USkeletalMeshComponent* InComponent) override;
 };
 
 // Scratch data for simulation to avoid allocations while processing, per actor data

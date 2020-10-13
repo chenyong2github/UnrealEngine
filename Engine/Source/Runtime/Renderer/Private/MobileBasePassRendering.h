@@ -330,10 +330,11 @@ namespace MobileBasePass
 		const FLightSceneInfo* MobileDirectionalLight, 
 		FMaterialShadingModelField ShadingModels, 
 		bool bPrimReceivesCSM, 
+		bool bUsedDeferredShading,
 		ERHIFeatureLevel::Type FeatureLevel,
 		EBlendMode BlendMode);
 
-	void GetShaders(
+	bool GetShaders(
 		ELightMapPolicyType LightMapPolicyType,
 		int32 NumMovablePointLights, 
 		const FMaterial& MaterialResource,
@@ -347,7 +348,7 @@ namespace MobileBasePass
 
 	bool StaticCanReceiveCSM(const FLightSceneInfo* LightSceneInfo, const FPrimitiveSceneProxy* PrimitiveSceneProxy);
 
-	void SetOpaqueRenderState(FMeshPassProcessorRenderState& DrawRenderState, const FPrimitiveSceneProxy* PrimitiveSceneProxy, const FMaterial& Material, bool bEnableReceiveDecalOutput);
+	void SetOpaqueRenderState(FMeshPassProcessorRenderState& DrawRenderState, const FPrimitiveSceneProxy* PrimitiveSceneProxy, const FMaterial& Material, bool bEnableReceiveDecalOutput, bool bUsesDeferredShading);
 	void SetTranslucentRenderState(FMeshPassProcessorRenderState& DrawRenderState, const FMaterial& Material);
 };
 
@@ -462,7 +463,9 @@ public:
 	FMeshPassProcessorRenderState PassDrawRenderState;
 
 private:
-	void Process(
+	bool TryAddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId, const FMaterialRenderProxy& MaterialRenderProxy, const FMaterial& Material);
+
+	bool Process(
 		const FMeshBatch& RESTRICT MeshBatch,
 		uint64 BatchElementMask,
 		int32 StaticMeshId,
@@ -477,6 +480,7 @@ private:
 	const ETranslucencyPass::Type TranslucencyPassType;
 	const EFlags Flags;
 	const bool bTranslucentBasePass;
+	const bool bUsesDeferredShading;
 };
 
 ENUM_CLASS_FLAGS(FMobileBasePassMeshProcessor::EFlags);

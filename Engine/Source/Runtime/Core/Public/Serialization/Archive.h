@@ -32,6 +32,7 @@ template<class TEnum> class TEnumAsByte;
 typedef TFunction<bool (double RemainingTime)> FExternalReadCallback;
 struct FUObjectSerializeContext;
 class FField;
+enum class EDataShufflePattern : uint8;
 
 // Temporary while we shake out the EDL at boot
 #define USE_EVENT_DRIVEN_ASYNC_LOAD_AT_BOOT_TIME (1)
@@ -2020,7 +2021,11 @@ public:
 			Ar.PopDebugDataString();
 		}
 	};
-#endif	
+#endif
+
+	/** Called whilst cooking to provide data shuffle hints to the cooker. */
+	virtual void PushShufflePattern(EDataShufflePattern Pattern) { }
+	virtual void PopShufflePattern() { }
 
 private:
 	/** Holds the cooking target platform. */

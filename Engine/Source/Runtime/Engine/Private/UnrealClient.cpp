@@ -16,7 +16,6 @@
 #include "UnrealEngine.h"
 #include "Components/PostProcessComponent.h"
 #include "Matinee/MatineeActor.h"
-#include "EditorSupportDelegates.h"
 #include "HighResScreenshot.h"
 #include "GameFramework/GameUserSettings.h"
 #include "HModel.h"
@@ -1611,6 +1610,12 @@ void FViewport::InvalidateHitProxy()
 {
 	bHitProxiesCached = false;
 	HitProxyMap.Invalidate();
+	
+	FCanvas* DebugCanvas = GetDebugCanvas();
+	if (DebugCanvas)
+	{
+		DebugCanvas->SetHitProxy(nullptr);
+	}
 }
 
 
@@ -1999,18 +2004,12 @@ ENGINE_API bool IsAltDown(FViewport* Viewport) { return (Viewport->KeyState(EKey
 /** Constructor */
 FViewport::FHitProxyMap::FHitProxyMap()
 {
-#if WITH_EDITOR
-	FEditorSupportDelegates::CleanseEditor.AddRaw(this, &FViewport::FHitProxyMap::Invalidate);
-#endif // WITH_EDITOR
 }
 
 
 /** Destructor */
 FViewport::FHitProxyMap::~FHitProxyMap()
 {
-#if WITH_EDITOR
-	FEditorSupportDelegates::CleanseEditor.RemoveAll(this);
-#endif // WITH_EDITOR
 }
 
 

@@ -87,4 +87,59 @@ namespace DatasmithMaxTexmapParser
 	};
 
 	FAutodeskBitmapParameters ParseAutodeskBitmap(Texmap* InTexmap);
+
+	struct FCoronaBitmapParameters
+	{
+		FString Path;
+		float TileU = 1.0f;
+		float TileV = 1.0f;
+		float OffsetU = 1.0f;
+		float OffsetV = 1.0f;
+		float RotW = 0.f;
+		int UVCoordinate = 0;
+		int MirrorU = 0;
+		int MirrorV = 0;
+		float Gamma = 1.0f;
+	};
+
+	FCoronaBitmapParameters ParseCoronaBitmap(Texmap* InTexmap);
+
+	struct FCoronaColorParameters
+	{
+		FLinearColor RgbColor = FLinearColor::Black;
+		FVector ColorHdr = FVector::ZeroVector;
+		float Multiplier = 1.f;
+		float Temperature = 6500.f;
+		int Method = 0;
+		FString HexColor;
+		bool bInputIsLinear = false;
+	};
+
+	FCoronaColorParameters ParseCoronaColor(Texmap* InTexmap);
+
+	struct FColorCorrectionParameters
+	{
+		Texmap* TextureSlot1 = nullptr;
+		FLinearColor Color1;
+		FLinearColor Tint;
+
+		float HueShift = 0.f;
+		float Saturation = 0.f;
+		float LiftRGB = 0.f;
+		float Brightness = 0.f;
+		float GammaRGB = 0.f;
+		float Contrast = 0.f;
+		float TintStrength = 0.f;
+
+		int RewireR = 0;
+		int RewireG = 0;
+		int RewireB = 0;
+		bool bAdvancedLightnessMode = false;
+
+		bool bEnableR = false;
+		bool bEnableG = false;
+		bool bEnableB = false;
+	};
+
+	FColorCorrectionParameters ParseColorCorrection(Texmap* InTexmap);
 }

@@ -83,6 +83,7 @@ namespace Chaos
 				FClothingSimulationSolver* Solver,
 				FClothingSimulationCloth* Cloth,
 				const FClothCollisionData& InClothCollisionData,
+				const float InScale = 1.f,
 				const TArray<int32>& UsedBoneIndices = TArray<int32>());
 			void Remove(FClothingSimulationSolver* Solver, FClothingSimulationCloth* Cloth);
 
@@ -107,5 +108,8 @@ namespace Chaos
 		// Collision primitives
 		TArray<FLODData> LODData;  // Actual LODs start at LODStart
 		TMap<FSolverClothPair, int32> LODIndices;
+
+		// Initial scale
+		float Scale;
 	};
 } // namespace Chaos

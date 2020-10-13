@@ -39,7 +39,16 @@ FReply SDMXChannelConnector::OnMouseButtonDown(const FGeometry& MyGeometry, cons
 		{
 			SelectFixturePatch(Patch);
 
-			return FReply::Handled().DetectDrag(SharedThis(this), EKeys::LeftMouseButton);
+			FReply Reply = FReply::Handled();
+
+			// SelectFixturePatch calls SetKeyboardFocus at some point; the call to SetKeyboardFocus is not enough for Slate: 
+			// We must also return the widget using FReply.
+			TSharedPtr<SWidget> WidgetThatWasFocusedBy_SelectFixturePatch = FSlateApplication::Get().GetKeyboardFocusedWidget();
+			if(WidgetThatWasFocusedBy_SelectFixturePatch.IsValid())
+			{
+				Reply.SetUserFocus(WidgetThatWasFocusedBy_SelectFixturePatch.ToSharedRef());
+			}
+			return Reply.DetectDrag(SharedThis(this), EKeys::LeftMouseButton);
 		}
 	}
 	return FReply::Unhandled();

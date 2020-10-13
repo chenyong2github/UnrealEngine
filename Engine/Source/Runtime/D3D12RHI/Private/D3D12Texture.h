@@ -5,6 +5,10 @@ D3D12Texture.h: Implementation of D3D12 Texture
 =============================================================================*/
 #pragma once
 
+/** If true, guard texture creates with SEH to log more information about a driver crash we are seeing during texture streaming. */
+#define GUARDED_TEXTURE_CREATES (PLATFORM_WINDOWS && !(UE_BUILD_SHIPPING || UE_BUILD_TEST))
+
+
 void SafeCreateTexture2D(FD3D12Device* pDevice, 
 	FD3D12Adapter* Adapter,
 	const D3D12_RESOURCE_DESC& TextureDesc,
@@ -524,7 +528,7 @@ public:
 		uint32 InSizeX,
 		uint32 InSizeY,
 		EPixelFormat InFormat) :
-		FD3D12Texture2D(InDevice, InSizeX, InSizeY, 1, 1, 1, InFormat, false, TexCreate_Presentable, FClearValueBinding()),
+		FD3D12Texture2D(InDevice, InSizeX, InSizeY, 1, 1, 1, InFormat, false, TexCreate_RenderTargetable | TexCreate_Presentable, FClearValueBinding()),
 		Viewport(InViewPort), bIsSDR(bInIsSDR)
 	{
 	}
@@ -559,6 +563,21 @@ FORCEINLINE FD3D12TextureBase* GetD3D12TextureFromRHITexture(FRHITexture* Textur
 	FD3D12TextureBase* Result((FD3D12TextureBase*)RHITexture->GetTextureBaseRHI());
 	check(Result);
 	return Result;
+}
+
+FORCEINLINE FD3D12TextureBase* GetD3D12TextureFromRHITexture(FRHITexture* Texture, uint32 GPUIndex)
+{
+	FD3D12TextureBase* Result = GetD3D12TextureFromRHITexture(Texture);
+	if (Result != nullptr)
+	{
+		Result = Result->GetLinkedObject(GPUIndex);
+		check(Result);
+		return Result;
+	}
+	else
+	{
+		return Result;
+	}
 }
 
 class FD3D12TextureStats

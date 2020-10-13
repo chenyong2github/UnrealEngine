@@ -180,6 +180,8 @@ protected:
 	void OnHierarchyChanged();
 	void OnControlsSettingsChanged();
 
+	void SynchronizeViewportBoneSelection();
+
 	// FBlueprintEditor Interface
 	virtual void CreateDefaultCommands() override;
 	virtual void OnCreateGraphEditorCommands(TSharedPtr<FUICommandList> GraphEditorCommandsList);
@@ -243,6 +245,7 @@ private:
 	/** Handle preview scene setup */
 	void HandlePreviewSceneCreated(const TSharedRef<IPersonaPreviewScene>& InPersonaPreviewScene);
 	void HandleViewportCreated(const TSharedRef<class IPersonaViewport>& InViewport);
+	bool IsToolbarDrawSpacesEnabled() const;
 	ECheckBoxState GetToolbarDrawSpaces() const;
 	void OnToolbarDrawSpacesChanged(ECheckBoxState InNewValue);
 	ECheckBoxState GetToolbarDrawAxesOnSelection() const;

@@ -7,7 +7,7 @@
 	"Category": "Scripting",
 	"CreatedBy": "Epic Games, Inc.",
 	"CreatedByURL": "http://epicgames.com",
-	"DocsURL": "https://docs.unrealengine.com/en-us/Studio/Python",
+	"DocsURL": "https://docs.unrealengine.com/en-US/Engine/Editor/ScriptingAndAutomation/Python/index.html",
 	"MarketplaceURL": "",
 	"SupportURL": "https://forums.unrealengine.com/",
 	"EnabledByDefault": false,

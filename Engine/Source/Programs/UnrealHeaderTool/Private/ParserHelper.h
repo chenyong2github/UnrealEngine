@@ -281,6 +281,21 @@ public:
 			Property = CastFieldChecked<FArrayProperty>(Property)->Inner;
 			ClassOfProperty = Property->GetClass();
 		}
+		else if (ClassOfProperty == FSetProperty::StaticClass())
+		{
+			ArrType = EArrayType::Set;
+
+			PropagateFlags = Property->PropertyFlags & CPF_ParmFlags;
+			Property = CastFieldChecked<FSetProperty>(Property)->ElementProp;
+			ClassOfProperty = Property->GetClass();
+		}
+		else if (ClassOfProperty == FMapProperty::StaticClass())
+		{
+			PropagateFlags = Property->PropertyFlags & CPF_ParmFlags;
+			MapKeyProp = MakeShared<FPropertyBase>(CastFieldChecked<FMapProperty>(Property)->KeyProp);
+			Property = CastFieldChecked<FMapProperty>(Property)->ValueProp;
+			ClassOfProperty = Property->GetClass();
+		}
 
 		if( ClassOfProperty==FByteProperty::StaticClass() )
 		{

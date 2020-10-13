@@ -1,13 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Components/DMXPixelMappingFixtureGroupComponent.h"
+
+#include "IDMXPixelMappingRenderer.h"
 #include "Components/DMXPixelMappingRendererComponent.h"
 #include "Components/DMXPixelMappingFixtureGroupItemComponent.h"
-#include "IDMXPixelMappingRenderer.h"
+#include "Library/DMXLibrary.h"
 
 #include "Engine/TextureRenderTarget2D.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SBox.h"
+#include "Widgets/Layout/SScaleBox.h"
 
 #define LOCTEXT_NAMESPACE "DMXPixelMappingFixtureGroupComponent"
 
@@ -36,29 +39,17 @@ void UDMXPixelMappingFixtureGroupComponent::PostLoad()
 }
 
 #if WITH_EDITOR
-
 void UDMXPixelMappingFixtureGroupComponent::PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedChainEvent)
 {
 	// Call the parent at the first place
 	Super::PostEditChangeChainProperty(PropertyChangedChainEvent);
 
-	if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupComponent, PositionX) ||
-		PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupComponent, PositionY))
+	if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupComponent, DMXLibrary))
 	{
-		SetPositionWithChildren();
-
-		// Cache positions
-		PositionXCached = PositionX;
-		PositionYCached = PositionY;
+		check(LibraryNameWidget.IsValid());
+		LibraryNameWidget->SetText(FText::FromString(GetUserFriendlyName()));
 	}
-
-	if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupComponent, SizeX) ||
-		PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupComponent, SizeY))
-	{
-		SetSizeWithinMinBoundaryBox();
-	}
-
-	if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupComponent, bVisibleInDesigner))
+	else if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupComponent, bVisibleInDesigner))
 	{
 		UpdateWidget();
 
@@ -68,22 +59,38 @@ void UDMXPixelMappingFixtureGroupComponent::PostEditChangeChainProperty(FPropert
 			InComponent->UpdateWidget();
 		}, false);
 	}
-
-	if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupItemComponent, PixelBlendingQuality))
+	else if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupItemComponent, CellBlendingQuality))
 	{
 		// Update all children
 		ForEachComponentOfClass<UDMXPixelMappingFixtureGroupItemComponent>([&](UDMXPixelMappingFixtureGroupItemComponent* InComponent)
 		{
-			InComponent->PixelBlendingQuality = PixelBlendingQuality;
+			InComponent->CellBlendingQuality = CellBlendingQuality;
 		}, false);
 	}
-
-	if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, EditorColor))
+	else if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, EditorColor))
 	{
 		Brush.TintColor = EditorColor;
 	}
-}
 
+	if (PropertyChangedChainEvent.ChangeType != EPropertyChangeType::Interactive)
+	{
+		if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupComponent, PositionX) ||
+			PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupComponent, PositionY))
+		{
+			SetPositionWithChildren();
+
+			// Cache positions
+			PositionXCached = PositionX;
+			PositionYCached = PositionY;
+		}
+
+		if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupComponent, SizeX) ||
+			PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupComponent, SizeY))
+		{
+			SetSizeWithinMinBoundaryBox();
+		}
+	}
+}
 #endif // WITH_EDITOR
 
 const FName& UDMXPixelMappingFixtureGroupComponent::GetNamePrefix()
@@ -130,6 +137,18 @@ void UDMXPixelMappingFixtureGroupComponent::PostParentAssigned()
 	ResizeOutputTarget(SizeX, SizeY);
 }
 
+#if WITH_EDITOR
+FString UDMXPixelMappingFixtureGroupComponent::GetUserFriendlyName() const
+{
+	if (DMXLibrary)
+	{
+		return FString::Printf(TEXT("Fixture Group: %s"), *DMXLibrary->GetName());
+	}
+
+	return FString("Fixture Group: No Library");
+}
+#endif // WITH_EDITOR
+
 void UDMXPixelMappingFixtureGroupComponent::RenderAndSendDMX()
 {
 	Render();
@@ -137,12 +156,13 @@ void UDMXPixelMappingFixtureGroupComponent::RenderAndSendDMX()
 }
 
 #if WITH_EDITOR
-
 const FText UDMXPixelMappingFixtureGroupComponent::GetPaletteCategory()
 {
 	return LOCTEXT("Common", "Common");
 }
+#endif // WITH_EDITOR
 
+#if WITH_EDITOR
 TSharedRef<SWidget> UDMXPixelMappingFixtureGroupComponent::BuildSlot(TSharedRef<SConstraintCanvas> InCanvas)
 {
 	CachedWidget = 
@@ -150,19 +170,34 @@ TSharedRef<SWidget> UDMXPixelMappingFixtureGroupComponent::BuildSlot(TSharedRef<
 		.HeightOverride(SizeX)
 		.WidthOverride(SizeY);
 
+	CachedLabelBox =
+		SNew(SBox)
+		.WidthOverride(SizeY)
+		.HAlign(HAlign_Left)
+		.VAlign(VAlign_Top)
+		[
+			SNew(SScaleBox)
+			.Stretch(EStretch::ScaleToFit)
+			.StretchDirection(EStretchDirection::DownOnly)
+			[
+				SAssignNew(LibraryNameWidget, STextBlock)
+				.Text(FText::FromString(GetUserFriendlyName()))
+			]
+		];
+
 	Slot =
 		&InCanvas->AddSlot()
 		.AutoSize(true)
 		.Alignment(FVector2D::ZeroVector)
+		.ZOrder(ZOrder)
 		[
 			SNew(SOverlay)
 			+ SOverlay::Slot()
-			.Padding(FMargin(0.0f, -20.0f))
+			.Padding(FMargin(0.0f, -16.0f))
 			.HAlign(HAlign_Fill)
 			.VAlign(VAlign_Fill)
 			[
-				SNew(STextBlock)
-				.Text(FText::FromString(GetName()))
+				CachedLabelBox.ToSharedRef()
 			]
 			+ SOverlay::Slot()
 			.HAlign(HAlign_Fill)
@@ -180,12 +215,15 @@ TSharedRef<SWidget> UDMXPixelMappingFixtureGroupComponent::BuildSlot(TSharedRef<
 	Slot->Offset(FMargin(PositionX, PositionY, 0.f, 0.f));
 	CachedWidget->SetWidthOverride(SizeX);
 	CachedWidget->SetHeightOverride(SizeY);
+	CachedLabelBox->SetWidthOverride(SizeX);
 
 	UpdateWidget();
 
 	return CachedWidget.ToSharedRef();
 }
+#endif // WITH_EDITOR
 
+#if WITH_EDITOR
 void UDMXPixelMappingFixtureGroupComponent::RenderEditorPreviewTexture()
 {
 	UTextureRenderTarget2D* OutTarget = GetOutputTexture();
@@ -214,7 +252,9 @@ void UDMXPixelMappingFixtureGroupComponent::RenderEditorPreviewTexture()
 		}
 	}
 }
+#endif // WITH_EDITOR
 
+#if WITH_EDITOR
 void UDMXPixelMappingFixtureGroupComponent::ToggleHighlightSelection(bool bIsSelected)
 {
 	if (bIsSelected)
@@ -231,7 +271,9 @@ void UDMXPixelMappingFixtureGroupComponent::ToggleHighlightSelection(bool bIsSel
 		Brush.TintColor = FLinearColor::Blue;
 	}
 }
+#endif // WITH_EDITOR
 
+#if WITH_EDITOR
 void UDMXPixelMappingFixtureGroupComponent::UpdateWidget()
 {
 	// Hide in designer view
@@ -244,8 +286,7 @@ void UDMXPixelMappingFixtureGroupComponent::UpdateWidget()
 		CachedWidget->SetContent(SNew(SImage).Image(&Brush));
 	}
 }
-
-#endif
+#endif // WITH_EDITOR
 
 UTextureRenderTarget2D* UDMXPixelMappingFixtureGroupComponent::GetOutputTexture()
 {
@@ -260,7 +301,7 @@ UTextureRenderTarget2D* UDMXPixelMappingFixtureGroupComponent::GetOutputTexture(
 	return OutputTarget;
 }
 
-FVector2D UDMXPixelMappingFixtureGroupComponent::GetSize()
+FVector2D UDMXPixelMappingFixtureGroupComponent::GetSize() const
 {
 	return FVector2D(SizeX, SizeY);
 }
@@ -284,6 +325,24 @@ void UDMXPixelMappingFixtureGroupComponent::SetSize(const FVector2D& InSize)
 	Super::SetSize(InSize);
 	SetSizeWithinMinBoundaryBox();
 }
+
+#if WITH_EDITOR
+void UDMXPixelMappingFixtureGroupComponent::SetZOrder(int32 NewZOrder)
+{
+	// Adjust ZOrder on childs relatively. Alike childs always remain ordered above their parent
+	int32 DeltaZOrder = NewZOrder - ZOrder;
+	for (UDMXPixelMappingBaseComponent* BaseComponent : GetChildren())
+	{
+		UDMXPixelMappingFixtureGroupItemComponent* PixelComponent = CastChecked<UDMXPixelMappingFixtureGroupItemComponent>(BaseComponent);
+
+		int32 NewChildZOrder = PixelComponent->GetZOrder() + DeltaZOrder;
+		PixelComponent->SetZOrder(NewChildZOrder);
+	}
+
+	// Adjust ZOrder on self
+	ZOrder = NewZOrder;
+}
+#endif //WITH_EDITOR
 
 void UDMXPixelMappingFixtureGroupComponent::ResizeOutputTarget(uint32 InSizeX, uint32 InSizeY)
 {
@@ -370,6 +429,7 @@ void UDMXPixelMappingFixtureGroupComponent::SetSizeWithinMinBoundaryBox()
 #if WITH_EDITOR
 	CachedWidget->SetWidthOverride(SizeX);
 	CachedWidget->SetHeightOverride(SizeY);
+	CachedLabelBox->SetWidthOverride(SizeX);
 #endif // WITH_EDITOR
 
 	ResizeOutputTarget(SizeX, SizeY);

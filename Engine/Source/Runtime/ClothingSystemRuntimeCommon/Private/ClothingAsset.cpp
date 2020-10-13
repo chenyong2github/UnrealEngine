@@ -315,7 +315,8 @@ bool UClothingAssetCommon::BindToSkeletalMesh(
 		ClothLodData.PhysicalMeshData.Normals, 
 		ClothLodData.PhysicalMeshData.Indices);
 
-	ClothingMeshUtils::GenerateMeshToMeshSkinningData(MeshToMeshData, TargetMesh, &RenderTangents, SourceMesh);
+	ClothingMeshUtils::GenerateMeshToMeshSkinningData(MeshToMeshData, TargetMesh, &RenderTangents, SourceMesh, 
+		ClothLodData.bUseMultipleInfluences, ClothLodData.SkinningKernelRadius);
 
 	if(MeshToMeshData.Num() == 0)
 	{
@@ -328,10 +329,10 @@ bool UClothingAssetCommon::BindToSkeletalMesh(
 	const FPointWeightMap& MaxDistances = ClothLodData.PhysicalMeshData.GetWeightMap(EWeightMapTargetCommon::MaxDistance);
 	for(FMeshToMeshVertData& VertData : MeshToMeshData)
 	{
-		VertData.SourceMeshVertIndices[3] = MaxDistances.AreAllBelowThreshold(
-			VertData.SourceMeshVertIndices[0],
-			VertData.SourceMeshVertIndices[1],
-			VertData.SourceMeshVertIndices[2]) ? 0xFFFF : 0;
+		if (MaxDistances.AreAllBelowThreshold(VertData.SourceMeshVertIndices[0], VertData.SourceMeshVertIndices[1], VertData.SourceMeshVertIndices[2]))
+		{
+			VertData.SourceMeshVertIndices[3] = 0xFFFF;
+		}
 	}
 
 	// We have to copy the bone map to verify we don't exceed the maximum while adding the clothing bones
@@ -557,14 +558,16 @@ void UClothingAssetCommon::BuildLodTransitionData()
 			FClothPhysicalMeshData& PrevPhysMesh = PrevLod->PhysicalMeshData;
 			CurrentLod.TransitionUpSkinData.Empty(CurrentLodNumVerts);
 			ClothingMeshUtils::ClothMeshDesc PrevMeshDesc(PrevPhysMesh.Vertices, PrevPhysMesh.Normals, PrevPhysMesh.Indices);
-			ClothingMeshUtils::GenerateMeshToMeshSkinningData(CurrentLod.TransitionUpSkinData, CurrentMeshDesc, nullptr, PrevMeshDesc);
+			ClothingMeshUtils::GenerateMeshToMeshSkinningData(CurrentLod.TransitionUpSkinData, CurrentMeshDesc, nullptr, 
+				PrevMeshDesc, CurrentLod.bUseMultipleInfluences, CurrentLod.SkinningKernelRadius);
 		}
 		if(NextLod)
 		{
 			FClothPhysicalMeshData& NextPhysMesh = NextLod->PhysicalMeshData;
 			CurrentLod.TransitionDownSkinData.Empty(CurrentLodNumVerts);
 			ClothingMeshUtils::ClothMeshDesc NextMeshDesc(NextPhysMesh.Vertices, NextPhysMesh.Normals, NextPhysMesh.Indices);
-			ClothingMeshUtils::GenerateMeshToMeshSkinningData(CurrentLod.TransitionDownSkinData, CurrentMeshDesc, nullptr, NextMeshDesc);
+			ClothingMeshUtils::GenerateMeshToMeshSkinningData(CurrentLod.TransitionDownSkinData, CurrentMeshDesc, 
+				nullptr, NextMeshDesc, CurrentLod.bUseMultipleInfluences, CurrentLod.SkinningKernelRadius);
 		}
 	}
 }

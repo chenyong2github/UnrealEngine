@@ -661,7 +661,8 @@ public:
 				TMap<ULandscapeLayerInfoObject*, int32> NeighbourLayerInfoObjectCount;
 
 				{
-					FScopedSetLandscapeEditingLayer Scope(Landscape, Landscape ? Landscape->GetLayer(0)->Guid : FGuid(), [=] { });
+					FLandscapeLayer* LandscapeLayer = Landscape ? Landscape->GetLayer(0) : nullptr;
+					FScopedSetLandscapeEditingLayer Scope(Landscape, LandscapeLayer ? LandscapeLayer->Guid : FGuid(), [=] { });
 
 					// Cover 9 tiles around us to determine which object should we use by default
 					for (int32 ComponentIndexX = ComponentIndexX1 - 1; ComponentIndexX <= ComponentIndexX2 + 1; ++ComponentIndexX)

@@ -768,7 +768,7 @@ FLinkerLoad* GetPackageLinker
 		FPackageName::FixPackageNameCase(PackageNameToCreate, FPathViews::GetExtension(NewFilename));
 #endif
 			// Create the package with the provided long package name.
-			CreatedPackage = CreatePackage(nullptr, *PackageNameToCreate);
+			CreatedPackage = CreatePackage(*PackageNameToCreate);
 			FilenamePkg = CreatedPackage;
 		}
 

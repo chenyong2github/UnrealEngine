@@ -5,6 +5,7 @@
 #include "Engine/Engine.h"
 #include "Engine/TimecodeProvider.h"
 #include "Engine/World.h"
+#include "IStageDataProvider.h"
 #include "ITimeManagementModule.h"
 #include "LatentActions.h"
 #include "Misc/App.h"
@@ -45,6 +46,17 @@ TAutoConsoleVariable<float> CVarTimedDataStatisticsWeight(
 
 
 #define LOCTEXT_NAMESPACE "TimedDataMonitorSubsystem"
+
+
+FString FTimedDataMonitorChannelConnectionStateEvent::ToString() const
+{
+	return FString::Printf(TEXT("Channel '%s.%s' is now '%s'."), *InputName, *ChannelName, *StaticEnum<ETimedDataInputState>()->GetNameStringByValue((int64)NewState));
+}
+
+FString FTimedDataMonitorChannelEvaluationStateEvent::ToString() const
+{
+	return FString::Printf(TEXT("Channel '%s.%s' is now '%s'."), *InputName, *ChannelName, *StaticEnum<ETimedDataMonitorEvaluationState>()->GetNameStringByValue((int64)NewState));
+}
 
 /**
  *
@@ -142,6 +154,10 @@ void UTimedDataMonitorSubsystem::EndFrameCallback()
 		UpdateStatFileLoggingState();
 		UpdateEvaluationStatistics();
 	}
+	
+	BuildSourcesListIfNeeded();
+	CacheConnectionState();
+	CacheEvaluationState();
 }
 
 ITimedDataInput* UTimedDataMonitorSubsystem::GetTimedDataInput(const FTimedDataMonitorInputIdentifier& Identifier)
@@ -331,21 +347,7 @@ void UTimedDataMonitorSubsystem::ResetAllBufferStats()
 
 ETimedDataMonitorEvaluationState UTimedDataMonitorSubsystem::GetEvaluationState()
 {
-	BuildSourcesListIfNeeded();
-
-	ETimedDataMonitorEvaluationState WorstState = ETimedDataMonitorEvaluationState::NoSample;
-	if (InputMap.Num() > 0)
-	{
-		WorstState = ETimedDataMonitorEvaluationState::Disabled;
-		for (const auto& InputItt : InputMap)
-		{
-			const ETimedDataMonitorEvaluationState InputState = GetInputEvaluationState(InputItt.Key);
-			uint8 InputValue = FMath::Min((uint8)InputState, (uint8)WorstState);
-			WorstState = (ETimedDataMonitorEvaluationState)InputValue;
-		}
-	}
-
-	return WorstState;
+	return CachedEvaluationState;
 }
 
 
@@ -586,54 +588,21 @@ void UTimedDataMonitorSubsystem::SetInputDataBufferSize(const FTimedDataMonitorI
 
 ETimedDataInputState UTimedDataMonitorSubsystem::GetInputConnectionState(const FTimedDataMonitorInputIdentifier& Identifier)
 {
-	BuildSourcesListIfNeeded();
-
-	ETimedDataInputState WorstState = ETimedDataInputState::Connected;
-	bool bHasAtLeastOneItem = false;
 	if (const FTimeDataInputItem* InputItem = InputMap.Find(Identifier))
 	{
-		for (const FTimedDataMonitorChannelIdentifier& ChannelIdentifier : InputItem->ChannelIdentifiers)
-		{
-			const FTimeDataChannelItem& ChannelItem = ChannelMap[ChannelIdentifier];
-			if (ChannelItem.bEnabled)
-			{
-				bHasAtLeastOneItem = true;
-				ETimedDataInputState InputState = ChannelItem.Channel->GetState();
-				if (InputState == ETimedDataInputState::Disconnected)
-				{
-					WorstState = ETimedDataInputState::Disconnected;
-					break;
-				}
-				else if (InputState == ETimedDataInputState::Unresponsive)
-				{
-					WorstState = ETimedDataInputState::Unresponsive;
-				}
-			}
-		}
+		return InputItem->CachedConnectionState;
 	}
 
-	return bHasAtLeastOneItem ? WorstState : ETimedDataInputState::Disconnected;
+	return ETimedDataInputState::Disconnected;
 }
 
 
 ETimedDataMonitorEvaluationState UTimedDataMonitorSubsystem::GetInputEvaluationState(const FTimedDataMonitorInputIdentifier& Identifier)
 {
-	BuildSourcesListIfNeeded();
-
 	ETimedDataMonitorEvaluationState WorstState = ETimedDataMonitorEvaluationState::Disabled;
 	if (const FTimeDataInputItem* InputItem = InputMap.Find(Identifier))
 	{
-		// Only consider inputs with a synchronizable evaluation type
-		if (InputItem->ChannelIdentifiers.Num() > 0 && GetInputEvaluationType(Identifier) != ETimedDataInputEvaluationType::None)
-		{
-			for (const FTimedDataMonitorChannelIdentifier& ChannelIdentifier : InputItem->ChannelIdentifiers)
-			{
-				const ETimedDataMonitorEvaluationState ChannelState = GetChannelEvaluationState(ChannelIdentifier);
-				uint8 ChannelValue = FMath::Min((uint8)ChannelState, (uint8)WorstState);
-				WorstState = (ETimedDataMonitorEvaluationState)ChannelValue;
-			}
-		}
-
+		return InputItem->CachedEvaluationState;
 	}
 
 	return WorstState;
@@ -770,11 +739,9 @@ FText UTimedDataMonitorSubsystem::GetChannelDisplayName(const FTimedDataMonitorC
 
 ETimedDataInputState UTimedDataMonitorSubsystem::GetChannelConnectionState(const FTimedDataMonitorChannelIdentifier& Identifier)
 {
-	BuildSourcesListIfNeeded();
-
-	if (const FTimeDataChannelItem* SourceItem = ChannelMap.Find(Identifier))
+	if (const FTimeDataChannelItem* ChannelItem = ChannelMap.Find(Identifier))
 	{
-		return SourceItem->Channel->GetState();
+		return ChannelItem->CachedConnectionState;
 	}
 
 	return ETimedDataInputState::Disconnected;
@@ -783,29 +750,9 @@ ETimedDataInputState UTimedDataMonitorSubsystem::GetChannelConnectionState(const
 
 ETimedDataMonitorEvaluationState UTimedDataMonitorSubsystem::GetChannelEvaluationState(const FTimedDataMonitorChannelIdentifier& Identifier)
 {
-	BuildSourcesListIfNeeded();
-
 	if (const FTimeDataChannelItem* SourceItem = ChannelMap.Find(Identifier))
 	{
-		if (SourceItem->Channel->GetState() != ETimedDataInputState::Connected || !SourceItem->bEnabled)
-		{
-			return ETimedDataMonitorEvaluationState::Disabled;
-		}
-		if (SourceItem->Channel->GetNumberOfSamples() <= 0)
-		{
-			return ETimedDataMonitorEvaluationState::NoSample;
-		}
-
-		const ITimedDataInput* Input = InputMap[SourceItem->InputIdentifier].Input;
-		check(Input);
-		const ETimedDataInputEvaluationType EvaluationType = Input->GetEvaluationType();
-		const double EvaluationOffset = Input->GetEvaluationOffsetInSeconds();
-		const double OldestSampleTime = SourceItem->Channel->GetOldestDataTime().AsSeconds(EvaluationType);
-		const double NewstedSampleTime = SourceItem->Channel->GetNewestDataTime().AsSeconds(EvaluationType);
-		const double EvaluationTime = GetEvaluationTime(EvaluationType);
-		const double OffsettedEvaluationTime = EvaluationTime - EvaluationOffset;
-		const bool bIsInRange = (FMath::IsNearlyEqual(OffsettedEvaluationTime, OldestSampleTime) || OffsettedEvaluationTime >= OldestSampleTime) && (FMath::IsNearlyEqual(OffsettedEvaluationTime, NewstedSampleTime) ||  OffsettedEvaluationTime <= NewstedSampleTime);
-		return bIsInRange ? ETimedDataMonitorEvaluationState::InsideRange : ETimedDataMonitorEvaluationState::OutsideRange;
+		return SourceItem->CachedEvaluationState;
 	}
 
 	return ETimedDataMonitorEvaluationState::Disabled;
@@ -1142,6 +1089,140 @@ void UTimedDataMonitorSubsystem::OnTimedDataSourceCollectionChanged()
 	OnIdentifierListChanged_Dynamic.Broadcast();
 }
 
+void UTimedDataMonitorSubsystem::CacheEvaluationState()
+{
+	//Start with best state
+	ETimedDataMonitorEvaluationState SystemWorstState = ETimedDataMonitorEvaluationState::Disabled;
+
+	//Go over each inputs and each channel and cache their evaluation state
+	//Subsystem connection state will be the worst of them all
+	for (auto& InputItt : InputMap)
+	{
+		bool bHasAtLeastOneItem = false;
+		FTimeDataInputItem& InputItem = InputItt.Value;
+
+		//Default to a disabled state. Might have no channels or an eval type that don't need to be aligned
+		ETimedDataMonitorEvaluationState InputWorstState = ETimedDataMonitorEvaluationState::Disabled;
+
+		if (InputItem.ChannelIdentifiers.Num() > 0 && InputItem.Input->GetEvaluationType() != ETimedDataInputEvaluationType::None)
+		{
+			for (FTimedDataMonitorChannelIdentifier& ChannelIdentifier : InputItem.ChannelIdentifiers)
+			{
+				FTimeDataChannelItem& ChannelItem = ChannelMap[ChannelIdentifier];
+				CacheChannelEvaluationState(ChannelItem);
+
+				//if channel is enabled, use it to update the input's state
+				if ((uint8)ChannelItem.CachedEvaluationState < (uint8)InputWorstState)
+				{
+					InputWorstState = ChannelItem.CachedEvaluationState;
+				}
+			}
+		}
+
+		InputItem.CachedEvaluationState = InputWorstState;
+
+		//Update system worst state based on this input
+		if ((uint8)InputWorstState < (uint8)SystemWorstState)
+		{
+			SystemWorstState = InputWorstState;
+		}
+	}
+
+	//Update cached system value
+	if (SystemWorstState != CachedEvaluationState)
+	{
+		CachedEvaluationState = SystemWorstState;
+	}
+}
+
+void UTimedDataMonitorSubsystem::CacheConnectionState()
+{
+	//Start with best state
+	ETimedDataInputState SystemWorstState = ETimedDataInputState::Connected;
+
+	//Go over each inputs and each channel and cache their connection state
+	//Subsystem connection state will be the worst of them all
+	if (InputMap.Num() > 0)
+	{
+		for (auto& InputItt : InputMap)
+		{
+			bool bHasAtLeastOneItem = false;
+			FTimeDataInputItem& InputItem = InputItt.Value;
+			ETimedDataInputState InputWorstState = ETimedDataInputState::Connected;
+
+			for (FTimedDataMonitorChannelIdentifier& ChannelIdentifier : InputItem.ChannelIdentifiers)
+			{
+				FTimeDataChannelItem& ChannelItem = ChannelMap[ChannelIdentifier];
+				
+				const ETimedDataInputState NewChannelState = ChannelItem.Channel->GetState();
+				
+				//if channel is enabled, use it to update the input's state
+				if (ChannelItem.bEnabled)
+				{
+					bHasAtLeastOneItem = true;
+
+					if ((uint8)NewChannelState < (uint8)InputWorstState)
+					{
+						InputWorstState = NewChannelState;
+					}
+
+					//When Channel is enabled for timed tracking and its state change, let the stage know about it
+					if (NewChannelState != ChannelItem.CachedConnectionState)
+					{
+						IStageDataProvider::SendMessage<FTimedDataMonitorChannelConnectionStateEvent>(EStageMessageFlags::Reliable, NewChannelState, InputItem.Input->GetDisplayName().ToString(), ChannelItem.Channel->GetDisplayName().ToString());
+					}
+				}
+
+				ChannelItem.CachedConnectionState = NewChannelState;
+			}
+		
+			InputItem.CachedConnectionState = InputWorstState;
+			
+			//Update system worst state based on this input
+			if (bHasAtLeastOneItem && (uint8)InputWorstState < (uint8)SystemWorstState)
+			{
+				SystemWorstState = InputWorstState;
+			}
+		}
+	}
+	
+	CachedConnectionState = SystemWorstState;
+}
+
+void UTimedDataMonitorSubsystem::CacheChannelEvaluationState(FTimeDataChannelItem& ChannelItem)
+{
+	ETimedDataMonitorEvaluationState NewState;
+	const ITimedDataInput* Input = InputMap[ChannelItem.InputIdentifier].Input;
+	check(Input);
+
+	if (ChannelItem.Channel->GetState() != ETimedDataInputState::Connected || !ChannelItem.bEnabled)
+	{
+		NewState = ETimedDataMonitorEvaluationState::Disabled;
+	}
+	else if (ChannelItem.Channel->GetNumberOfSamples() <= 0)
+	{
+		NewState = ETimedDataMonitorEvaluationState::NoSample;
+	}
+	else
+	{
+		const ETimedDataInputEvaluationType EvaluationType = Input->GetEvaluationType();
+		const double EvaluationOffset = Input->GetEvaluationOffsetInSeconds();
+		const double OldestSampleTime = ChannelItem.Channel->GetOldestDataTime().AsSeconds(EvaluationType);
+		const double NewstedSampleTime = ChannelItem.Channel->GetNewestDataTime().AsSeconds(EvaluationType);
+		const double EvaluationTime = GetEvaluationTime(EvaluationType);
+		const double OffsettedEvaluationTime = EvaluationTime - EvaluationOffset;
+		const bool bIsInRange = (FMath::IsNearlyEqual(OffsettedEvaluationTime, OldestSampleTime) || OffsettedEvaluationTime >= OldestSampleTime) && (FMath::IsNearlyEqual(OffsettedEvaluationTime, NewstedSampleTime) || OffsettedEvaluationTime <= NewstedSampleTime);
+		
+		NewState = bIsInRange ? ETimedDataMonitorEvaluationState::InsideRange : ETimedDataMonitorEvaluationState::OutsideRange;
+	}
+	
+	if (NewState != ChannelItem.CachedEvaluationState)
+	{
+		IStageDataProvider::SendMessage<FTimedDataMonitorChannelEvaluationStateEvent>(EStageMessageFlags::Reliable, NewState, Input->GetDisplayName().ToString(), ChannelItem.Channel->GetDisplayName().ToString());
+	}
+
+	ChannelItem.CachedEvaluationState = NewState;
+}
 
 void UTimedDataMonitorSubsystem::UpdateEvaluationStatistics()
 {
@@ -1310,4 +1391,5 @@ void FExponentialMeanVarianceTracker::Update(float NewValue, float MeanOffset)
 
 
 #undef LOCTEXT_NAMESPACE
+
 

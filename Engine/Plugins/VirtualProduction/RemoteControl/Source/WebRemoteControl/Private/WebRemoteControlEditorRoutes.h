@@ -75,14 +75,15 @@ private:
 	/** Create an event dispatcher that waits until a desired event occurs before returning an http response. */
 	void AddPendingEvent(FRemoteControlObjectEventHookRequest InRequest, TUniquePtr<FHttpServerResponse> InResponse, FHttpResultCallback OnComplete);
 
-	/** Route handler for subcribing to events. */
+	// Route handlers 
 	bool HandleObjectEventRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete);
+	bool HandleGetThumbnailRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete);
 
 private:
 	/** Remote event mechanism delegate handles. */
 	TArray<FRemoteEventDispatcher> EventDispatchers;
-	/** Holds information about the event route. */
-	FRemoteControlRoute EventRoute;
+	/** Holds all the editor routes. */
+	TArray<FRemoteControlRoute> Routes;
 };
 #else
 class FWebRemoteControlEditorRoutes

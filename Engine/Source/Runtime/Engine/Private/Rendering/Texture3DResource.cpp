@@ -6,8 +6,6 @@
 
 #include "Rendering/Texture3DResource.h"
 #include "Engine/VolumeTexture.h"
-#include "DeviceProfiles/DeviceProfile.h"
-#include "DeviceProfiles/DeviceProfileManager.h"
 #include "RenderUtils.h"
 
 //*****************************************************************************
@@ -70,8 +68,6 @@ FTexture3DResource::FTexture3DResource(UVolumeTexture* InOwner, const FStreamabl
 : FStreamableTextureResource(InOwner, InOwner->PlatformData, InState, false)
 , InitialData(InState.RequestedFirstLODIdx())
 {
-	Filter = (ESamplerFilter)UDeviceProfileManager::Get().GetActiveProfile()->GetTextureLODSettings()->GetSamplerFilter(InOwner);
-
 	const int32 FirstLODIdx = InState.RequestedFirstLODIdx();
 	if (PlatformData && const_cast<FTexturePlatformData*>(PlatformData)->TryLoadMips(FirstLODIdx + InState.AssetLODBias, InitialData.GetMipData() + FirstLODIdx, InOwner))
 	{

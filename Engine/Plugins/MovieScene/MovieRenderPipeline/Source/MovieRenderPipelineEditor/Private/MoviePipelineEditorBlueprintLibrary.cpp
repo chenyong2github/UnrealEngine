@@ -32,7 +32,7 @@ bool UMoviePipelineEditorBlueprintLibrary::ExportConfigToAsset(const UMoviePipel
 		return false;
 	}
 
-	UPackage* NewPackage = CreatePackage(nullptr, *NewPackageName);
+	UPackage* NewPackage = CreatePackage(*NewPackageName);
 	NewPackage->AddToRoot();
 	
 	// Duplicate the provided config into this package.
@@ -91,7 +91,7 @@ UMoviePipelineQueue* UMoviePipelineEditorBlueprintLibrary::SaveQueueToManifestFi
 		OldPackage->SetFlags(RF_Transient);
 	}
 
-	UPackage* NewPackage = CreatePackage(nullptr, *NewPackageName);
+	UPackage* NewPackage = CreatePackage(*NewPackageName);
 
 	// Duplicate the Queue into this package as we don't want to just rename the existing that belongs to the editor subsystem.
 	UMoviePipelineQueue* DuplicatedQueue = CastChecked<UMoviePipelineQueue>(StaticDuplicateObject(InPipelineQueue, NewPackage));

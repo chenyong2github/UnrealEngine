@@ -217,6 +217,36 @@ const FGuid FOverlappingVerticesCustomVersion::GUID(0x612FBE52, 0xDA53400B, 0x91
 // Register the custom version with core
 FCustomVersionRegistration GRegisterOverlappingVerticesCustomVersion(FOverlappingVerticesCustomVersion::GUID, FOverlappingVerticesCustomVersion::LatestVersion, TEXT("OverlappingVerticeDetectionVer"));
 
+
+FArchive& operator<<(FArchive& Ar, FMeshToMeshVertData& V)
+{
+	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
+
+	Ar << V.PositionBaryCoordsAndDist
+		<< V.NormalBaryCoordsAndDist
+		<< V.TangentBaryCoordsAndDist
+		<< V.SourceMeshVertIndices[0]
+		<< V.SourceMeshVertIndices[1]
+		<< V.SourceMeshVertIndices[2]
+		<< V.SourceMeshVertIndices[3];
+
+	if (Ar.IsLoading() && 
+		Ar.CustomVer(FReleaseObjectVersion::GUID) < FReleaseObjectVersion::WeightFMeshToMeshVertData)
+	{
+		// Old version had "uint32 Padding[2]"
+		uint32 Discard;
+		Ar << Discard << V.Padding;
+	}
+	else
+	{
+		// New version has "float Weight and "uint32 Padding"
+		Ar << V.Weight << V.Padding;
+	}
+
+	return Ar;
+}
+
+
 /*-----------------------------------------------------------------------------
 FreeSkeletalMeshBuffersSinkCallback
 -----------------------------------------------------------------------------*/
@@ -740,7 +770,7 @@ bool USkeletalMesh::NeedCPUData(int32 LODIndex)const
 
 void USkeletalMesh::InitResources()
 {
-	LLM_SCOPE(ELLMTag::SkeletalMesh);
+	LLM_SCOPE_BYNAME(TEXT("SkeletalMesh/InitResources")); // This is an important test case for SCOPE_BYNAME without a matching LLM_DEFINE_TAG
 
 	UpdateUVChannelData(false);
 	CachedSRRState.Clear();
@@ -837,7 +867,7 @@ void USkeletalMesh::InitResources()
 void USkeletalMesh::ReleaseResources()
 {
 	FSkeletalMeshRenderData* SkelMeshRenderData = GetResourceForRendering();
-	if (SkelMeshRenderData)
+	if (SkelMeshRenderData && SkelMeshRenderData->IsInitialized())
 	{
 
 		if(GIsEditor && !GIsPlayInEditorWorld)
@@ -847,10 +877,10 @@ void USkeletalMesh::ReleaseResources()
 		}
 
 		SkelMeshRenderData->ReleaseResources();
-	}
 
-	// insert a fence to signal when these commands completed
-	ReleaseResourcesFence.BeginFence();
+		// insert a fence to signal when these commands completed
+		ReleaseResourcesFence.BeginFence();
+	}
 }
 
 #if WITH_EDITORONLY_DATA
@@ -1365,8 +1395,11 @@ void USkeletalMesh::BeginDestroy()
 #endif // #if WITH_APEX_CLOTHING
 #endif // WITH_EDITORONLY_DATA
 
-	// Release the mesh's render resources.
-	ReleaseResources();
+	// Release the mesh's render resources now if no pending streaming op.
+	if (!HasPendingInitOrStreaming())
+	{
+		ReleaseResources();
+	}
 }
 
 bool USkeletalMesh::IsReadyForFinishDestroy()
@@ -1376,13 +1409,17 @@ bool USkeletalMesh::IsReadyForFinishDestroy()
 		return false;
 	}
 
+	ReleaseResources();
+
 	// see if we have hit the resource flush fence
 	return ReleaseResourcesFence.IsFenceComplete();
 }
 
+LLM_DEFINE_TAG(SkeletalMesh_Serialize); // This is an important test case for LLM_DEFINE_TAG
+
 void USkeletalMesh::Serialize( FArchive& Ar )
 {
-	LLM_SCOPE(ELLMTag::SkeletalMesh);
+	LLM_SCOPE_BYNAME(TEXT("SkeletalMesh/Serialize")); // This is an important test case for SCOPE_BYNAME with a matching LLM_DEFINE_TAG
 	DECLARE_SCOPE_CYCLE_COUNTER( TEXT("USkeletalMesh::Serialize"), STAT_SkeletalMesh_Serialize, STATGROUP_LoadTime );
 
 	Super::Serialize(Ar);
@@ -3524,6 +3561,16 @@ void USkeletalMesh::CacheDerivedData()
 	PostMeshCached.Broadcast(this);
 }
 
+FString USkeletalMesh::GetDerivedDataKey()
+{
+	// Cache derived data for the running platform.
+	ITargetPlatformManagerModule& TargetPlatformManager = GetTargetPlatformManagerRef();
+	ITargetPlatform* RunningPlatform = TargetPlatformManager.GetRunningTargetPlatform();
+	check(RunningPlatform);
+
+	return SkeletalMeshRenderData->GetDerivedDataKey(RunningPlatform, this);
+}
+
 int32 USkeletalMesh::ValidatePreviewAttachedObjects()
 {
 	int32 NumBrokenAssets = PreviewAttachedAssetContainer.ValidatePreviewAttachedObjects();
@@ -4781,6 +4828,21 @@ FSkeletalMeshSceneProxy::FSkeletalMeshSceneProxy(const USkinnedMeshComponent* Co
 
 	// Skip primitive uniform buffer if we will be using local vertex factory which gets it's data from GPUScene.
 	bVFRequiresPrimitiveUniformBuffer = !((bIsCPUSkinned || bRenderStatic) && UseGPUScene(GMaxRHIShaderPlatform, FeatureLevel));
+
+#if RHI_RAYTRACING
+	if (IsRayTracingEnabled())
+	{
+		if (bRenderStatic)
+		{
+			RayTracingGeometries.AddDefaulted(SkeletalMeshRenderData->LODRenderData.Num());
+			for (int32 LODIndex = 0; LODIndex < SkeletalMeshRenderData->LODRenderData.Num(); LODIndex++)
+			{
+				ensure(SkeletalMeshRenderData->LODRenderData[LODIndex].NumReferencingStaticSkeletalMeshObjects > 0);
+				RayTracingGeometries[LODIndex] = &SkeletalMeshRenderData->LODRenderData[LODIndex].StaticRayTracingGeometry;
+			}
+		}
+	}
+#endif
 }
 
 
@@ -4983,6 +5045,7 @@ void FSkeletalMeshSceneProxy::DrawStaticElements(FStaticPrimitiveDrawInterface* 
 				#endif
 					MeshElement.Type = PT_TriangleList;
 					MeshElement.LODIndex = LODIndex;
+					MeshElement.SegmentIndex = SectionIndex;
 						
 					BatchElement.FirstIndex = Section.BaseIndex;
 					BatchElement.MinVertexIndex = Section.BaseVertexIndex;
@@ -5252,8 +5315,7 @@ void FSkeletalMeshSceneProxy::GetDynamicElementsSection(const TArray<const FScen
 			Mesh.VisualizeLODIndex = LODIndex;
 		#endif
 
-			if ( ensureMsgf(Mesh.MaterialRenderProxy, TEXT("GetDynamicElementsSection with invalid MaterialRenderProxy. Owner:%s LODIndex:%d UseMaterialIndex:%d"), *GetOwnerName().ToString(), LODIndex, SectionElementInfo.UseMaterialIndex) &&
-				 ensureMsgf(Mesh.MaterialRenderProxy->GetMaterial(FeatureLevel), TEXT("GetDynamicElementsSection with invalid FMaterial. Owner:%s LODIndex:%d UseMaterialIndex:%d"), *GetOwnerName().ToString(), LODIndex, SectionElementInfo.UseMaterialIndex) )
+			if (ensureMsgf(Mesh.MaterialRenderProxy, TEXT("GetDynamicElementsSection with invalid MaterialRenderProxy. Owner:%s LODIndex:%d UseMaterialIndex:%d"), *GetOwnerName().ToString(), LODIndex, SectionElementInfo.UseMaterialIndex))
 			{
 				Collector.AddMesh(ViewIndex, Mesh);
 			}

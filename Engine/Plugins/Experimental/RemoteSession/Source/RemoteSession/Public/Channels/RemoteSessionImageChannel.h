@@ -23,6 +23,42 @@ public:
 	virtual void Tick(const float InDeltaTime) = 0;
 };
 
+
+DECLARE_STATS_GROUP(TEXT("RemoteSession"), STATGROUP_RemoteSession, STATCAT_Advanced);
+DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("RS.CapturedFrames/s"), STAT_RSCaptureCount, STATGROUP_RemoteSession);
+DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("RS.SkippedFrames/s"), STAT_RSSkippedFrames, STATGROUP_RemoteSession);
+DECLARE_CYCLE_STAT(TEXT("RS.ImageCaptureTime"), STAT_RSCaptureTime, STATGROUP_RemoteSession);
+DECLARE_CYCLE_STAT(TEXT("RS.ImageCompressTime"), STAT_RSCompressTime, STATGROUP_RemoteSession);
+
+// Receiving counters and stats
+DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("RS.WaitingFrames/s"), STAT_RSWaitingFrames, STATGROUP_RemoteSession);
+DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("RS.DiscardedFrames/s"), STAT_RSDiscardedFrames, STATGROUP_RemoteSession);
+DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("RS.MaxImageProcessTime"), STAT_RSMaxImageProcessTime, STATGROUP_RemoteSession);
+DECLARE_CYCLE_STAT(TEXT("RS.ReceiveTime"), STAT_RSReceiveTime, STATGROUP_RemoteSession);
+DECLARE_CYCLE_STAT(TEXT("RS.WakeupWait"), STAT_RSWakeupWait, STATGROUP_RemoteSession);
+DECLARE_CYCLE_STAT(TEXT("RS.ImageDecompressTime"), STAT_RSDecompressTime, STATGROUP_RemoteSession);
+DECLARE_CYCLE_STAT(TEXT("RS.TextureUpdate"), STAT_RSTextureUpdate, STATGROUP_RemoteSession);
+DECLARE_CYCLE_STAT(TEXT("RS.TickRate"), STAT_RSTickRate, STATGROUP_RemoteSession);
+DECLARE_CYCLE_STAT(TEXT("RSReadyFrameCount"), STAT_RSNumFrames, STATGROUP_RemoteSession);
+
+
+struct FRemoteSesstionImageCaptureStats
+{
+	int32	FramesCaptured = 0;
+	int32	FramesSkipped = 0;
+	double	LastUpdateTime = 0;
+};
+
+
+struct FRemoteSessionImageReceiveStats
+{
+	int32	FramesWaiting = 0;
+	int32	FramesSkipped = 0;
+    double  MaxImageProcessTime = 0;
+	double	LastUpdateTime = 0;
+};
+
+
 /**
  *	A channel that takes an image (created by an IRemoteSessionImageProvider), then sends it to the client (with a FRemoteSessionImageSender).
  *	On the client images are decoded into a double-buffered texture that can be accessed via GetHostScreen.
@@ -75,6 +111,9 @@ public:
 	/** Set the ImageProvider that will produce the images that will be sent to the client */
 	void SetImageProvider(TSharedPtr<IRemoteSessionImageProvider> ImageProvider);
 
+	/** Sets up an image provider that mirrors the games framebuffer. WIll be the default if no ImageProvider is set. */
+	void SetFramebufferAsImageProvider();
+
 	/** Set the jpg compression quality */
 	void SetCompressQuality(int32 InQuality);
 
@@ -105,16 +144,11 @@ protected:
 	
 	struct FImageData
 	{
-		FImageData() :
-			Width(0)
-			, Height(0)
-			, ImageIndex(0)
-		{
-		}
-		int32				Width;
-		int32				Height;
-		TArray<uint8>		ImageData;
-		int32				ImageIndex;
+        int32				Width = 0;
+        int32				Height = 0;
+        int32				ImageIndex = 0;
+        double              TimeCreated = 0;
+        TArray<uint8>       ImageData;
 	};
 
 	FCriticalSection										IncomingImageMutex;
@@ -152,4 +186,8 @@ protected:
 	FEvent *			ScreenshotEvent;
 
 	FThreadSafeBool		ExitRequested;
+
+	bool				HaveConfiguredImageProvider;
+
+	FRemoteSessionImageReceiveStats	ReceiveStats;
 };

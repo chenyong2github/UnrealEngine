@@ -245,7 +245,12 @@ FTransform FRigSpaceHierarchy::GetGlobalTransform(int32 InIndex) const
 #if WITH_EDITOR
 		// this is not threadsafe,
 		// but currently only one thread is run per character.
-		if (RecursionGuard.Num() == Spaces.Num() && RecursionGuard[InIndex])
+		if (RecursionGuard.Num() < Spaces.Num())
+		{
+			RecursionGuard.AddZeroed(Spaces.Num() - RecursionGuard.Num());
+		}
+
+		if (RecursionGuard[InIndex])
 		{
 			TArray<FString> SpacesHitElements;
 			TArray<FString> SpaceParentsElements;

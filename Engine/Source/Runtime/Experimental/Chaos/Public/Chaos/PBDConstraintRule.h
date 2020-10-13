@@ -156,6 +156,9 @@ namespace Chaos
 		// @todo(ccaulfield): remove uint version
 		virtual void RemoveConstraints(const TSet<TGeometryParticleHandle<FReal, 3>*>& RemovedParticles) { }
 
+		/** Remove all constraints */
+		virtual void ResetConstraints() {}
+
 		/** The number of constraints in the collection */
 		virtual int32 NumConstraints() const { return 0; }
 	};
@@ -339,6 +342,11 @@ namespace Chaos
 		virtual void RemoveConstraints(const TSet<TGeometryParticleHandle<FReal, 3>*>& InConstraints)
 		{
 			Constraints.RemoveConstraints(InConstraints);
+		}
+
+		virtual void ResetConstraints()
+		{
+			Constraints.Reset();
 		}
 
 		virtual bool ApplyPushOut(const FReal Dt, int32 Island, const int32 It, const int32 NumIts) override

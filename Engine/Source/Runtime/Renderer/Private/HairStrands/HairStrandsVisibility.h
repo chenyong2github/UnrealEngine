@@ -71,11 +71,15 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 	FRDGBuilder& GraphBuilder,
 	const class FScene* Scene,
 	const TArray<FViewInfo>& Views,
-	TRefCountPtr<IPooledRenderTarget> GBufferBTexture,
+	TRefCountPtr<IPooledRenderTarget> InSceneGBufferATexture,
+	TRefCountPtr<IPooledRenderTarget> InSceneGBufferBTexture,
+	TRefCountPtr<IPooledRenderTarget> InSceneGBufferCTexture,
+	TRefCountPtr<IPooledRenderTarget> InSceneGBufferDTexture,
+	TRefCountPtr<IPooledRenderTarget> InSceneGBufferETexture,
 	TRefCountPtr<IPooledRenderTarget> ColorTexture,
 	TRefCountPtr<IPooledRenderTarget> DepthTexture,
 	TRefCountPtr<IPooledRenderTarget> VelocityTexture,
 	const struct FHairStrandsMacroGroupViews& MacroGroupViews);
 
-void SetUpViewHairRenderInfo(const FViewInfo& ViewInfo, FVector4& OutHairRenderInfo, uint32& OutHairRenderInfoBits);
+void SetUpViewHairRenderInfo(const FViewInfo& ViewInfo, FVector4& OutHairRenderInfo, uint32& OutHairRenderInfoBits, uint32& OutHairComponents);
 

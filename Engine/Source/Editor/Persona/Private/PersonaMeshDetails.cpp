@@ -3220,7 +3220,7 @@ FReply FPersonaMeshDetails::OnSaveLODSettings()
 			const FString SaveAssetName = FPaths::GetBaseFilename(SavePackageName);
 
 			// create package and create object
-			UPackage* Package = CreatePackage(nullptr, *SavePackageName);
+			UPackage* Package = CreatePackage( *SavePackageName);
 			USkeletalMeshLODSettings* NewLODSettingAsset = NewObject<USkeletalMeshLODSettings>(Package, *SaveAssetName, RF_Public | RF_Standalone);
 			if (NewLODSettingAsset && SkelMesh->GetLODNum() > 0)
 			{
@@ -3572,8 +3572,7 @@ FReply FPersonaMeshDetails::RemoveOneLOD(int32 LODIndex)
 			if (SkelMesh->IsValidLODIndex(LODIndex + 1) && SkelMesh->LODSettings->GetNumberOfSettings() > LODIndex)
 			{
 				// now the information will get copied over after removing this LOD
-				ConfirmRemoveLODText = FText::Format(LOCTEXT("PersonaRemoveLODOverriding_Confirmation", 
-					"You're currently using LOD Setting Asset \'{2}\' that will override the next LODs with current setting. This will require to regenerate the next LODs after removing this LOD. If you do not want this, clear the LOD Setting Asset before removing LODs. \n\n Are you sure you want to remove LOD {0} from {1}?"), LODIndex, FText::FromString(SkelMesh->GetName()), FText::FromString(SkelMesh->LODSettings->GetName()));
+				ConfirmRemoveLODText = FText::Format(LOCTEXT("PersonaRemoveLODOverriding_Confirmation", "You're currently using LOD Setting Asset \'{2}\' that will override the next LODs with current setting. This will require to regenerate the next LODs after removing this LOD. If you do not want this, clear the LOD Setting Asset before removing LODs. \n\n Are you sure you want to remove LOD {0} from {1}?"), LODIndex, FText::FromString(SkelMesh->GetName()), FText::FromString(SkelMesh->LODSettings->GetName()));
 			}
 		}
 

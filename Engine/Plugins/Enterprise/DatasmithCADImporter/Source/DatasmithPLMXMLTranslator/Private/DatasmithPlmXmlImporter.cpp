@@ -271,7 +271,7 @@ namespace PlmXml
 		TSharedPtr<IDatasmithActorElement> InstantiateMesh(FString DatasmithName, int32 Id)
 		{
 			TSharedRef<IDatasmithActorElement> ActorElement = FDatasmithSceneFactory::CreateActor(*DatasmithName);
-			ActorElement->SetLabel(TEXT("Mesh")); // TODO: instantiated mesh label
+			ActorElement->SetLabel(TEXT("Invalid")); // Label is set in FillAnchorActor
 			
 			if(FilePaths.IsValidIndex(Id))
 			{
@@ -279,9 +279,6 @@ namespace PlmXml
 
 				// Make sure file was loaded
 				SceneGraphBuilder->FillAnchorActor(ActorElement, Filename);
-
-				FString DatasmithLabel = FDatasmithUtils::SanitizeObjectName(Filename);
-				ActorElement->SetLabel(*DatasmithLabel);
 			}
 
 			return ActorElement;
@@ -1042,12 +1039,12 @@ namespace PlmXml
 		// Variants 
 		TSharedRef<IDatasmithLevelVariantSetsElement> LVS = ImportContext.LVS;
 
-		// Make a variant set to contain a variant per existing ProductView
-		TSharedPtr<IDatasmithVariantSetElement> ProductViewVarSet = FDatasmithSceneFactory::CreateVariantSet(TEXT("ProductView"));
-		LVS->AddVariantSet(ProductViewVarSet.ToSharedRef());
-
 		if (ImportContext.ParsedPlmXml.ProductViewNodes.Num() > 0)
 		{
+			// Make a variant set to contain a variant per existing ProductView
+			TSharedPtr<IDatasmithVariantSetElement> ProductViewVarSet = FDatasmithSceneFactory::CreateVariantSet(TEXT("ProductView"));
+			LVS->AddVariantSet(ProductViewVarSet.ToSharedRef());
+
 			const TSharedRef<IDatasmithActorElement> RootActorElementForProductViews = FDatasmithSceneFactory::CreateActor(TEXT("ProductViews"));
 			RootActorElementForProductViews->SetLabel(TEXT("ProductViews"));
 			ImportContext.DatasmithScene->AddActor(RootActorElementForProductViews);

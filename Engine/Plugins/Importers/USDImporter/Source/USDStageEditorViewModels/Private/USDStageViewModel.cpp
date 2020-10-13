@@ -163,7 +163,6 @@ void FUsdStageViewModel::ImportStage()
 	}
 
 	// Import directly from stage
-	bool bCanceled = false;
 	{
 		FUsdStageImportContext ImportContext;
 
@@ -177,7 +176,7 @@ void FUsdStageViewModel::ImportStage()
 		const FString StageName = FPaths::GetBaseFilename( RootPath );
 
 		const bool bIsAutomated = false;
-		if ( ImportContext.Init( StageName, RootPath, RF_Public | RF_Transactional, bIsAutomated ) )
+		if ( ImportContext.Init( StageName, RootPath, TEXT("/Game/"), RF_Public | RF_Transactional, bIsAutomated ) )
 		{
 			FScopedTransaction Transaction( FText::Format(LOCTEXT("ImportTransaction", "Import USD stage '{0}'"), FText::FromString(StageName)));
 
@@ -196,11 +195,6 @@ void FUsdStageViewModel::ImportStage()
 		}
 	}
 
-	// Clear USD Stage Actor
-	if ( !bCanceled )
-	{
-		OpenStage( TEXT("") );
-	}
 #endif // #if USE_USD_SDK
 }
 

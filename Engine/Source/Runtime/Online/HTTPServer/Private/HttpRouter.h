@@ -13,12 +13,8 @@ class FHttpRouter final : public IHttpRouter
 {
 public:
 
-	/**
-	 * Constructor
-	 */
-	FHttpRouter();
-
 	// IHttpRouter Overrides
+	bool Query(const TSharedPtr<FHttpServerRequest>& Request, const FHttpResultCallback& OnProcessingComplete) override;
 	FHttpRouteHandle BindRoute(const FHttpPath& HttpPath, const EHttpServerRequestVerbs& RequestVerbs, const FHttpRequestHandler& Handler) override;
 	void UnbindRoute(const FHttpRouteHandle& RouteHandle) override;
 

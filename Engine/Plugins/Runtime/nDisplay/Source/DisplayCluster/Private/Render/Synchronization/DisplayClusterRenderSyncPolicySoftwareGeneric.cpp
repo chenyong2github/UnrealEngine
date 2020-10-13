@@ -3,7 +3,12 @@
 #include "Render/Synchronization/DisplayClusterRenderSyncPolicySoftwareGeneric.h"
 
 
-FDisplayClusterRenderSyncPolicySoftwareGeneric::FDisplayClusterRenderSyncPolicySoftwareGeneric()
+// Empty by default. Use initialization list to add some params. Used by FDisplayClusterRenderManager
+TMap<FString, FString> FDisplayClusterRenderSyncPolicySoftwareGeneric::DefaultParameters;
+
+
+FDisplayClusterRenderSyncPolicySoftwareGeneric::FDisplayClusterRenderSyncPolicySoftwareGeneric(const TMap<FString, FString>& Parameters)
+	: FDisplayClusterRenderSyncPolicySoftwareBase(Parameters)
 {
 }
 

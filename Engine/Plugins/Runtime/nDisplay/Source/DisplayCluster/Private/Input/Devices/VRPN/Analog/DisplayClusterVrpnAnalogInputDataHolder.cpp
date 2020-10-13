@@ -2,12 +2,14 @@
 
 #include "Input/Devices/VRPN/Analog/DisplayClusterVrpnAnalogInputDataHolder.h"
 
-#include "Misc/DisplayClusterCommonTypesConverter.h"
+#include "DisplayClusterConfigurationTypes.h"
+
+#include "Misc/DisplayClusterTypesConverter.h"
 #include "Misc/DisplayClusterLog.h"
 
 
-FDisplayClusterVrpnAnalogInputDataHolder::FDisplayClusterVrpnAnalogInputDataHolder(const FDisplayClusterConfigInput& config) :
-	FDisplayClusterInputDeviceBase<EDisplayClusterInputDeviceType::VrpnAnalog>(config)
+FDisplayClusterVrpnAnalogInputDataHolder::FDisplayClusterVrpnAnalogInputDataHolder(const FString& DeviceId, const UDisplayClusterConfigurationInputDeviceAnalog* CfgDevice)
+	: FDisplayClusterInputDeviceBase<EDisplayClusterInputDeviceType::VrpnAnalog>(DeviceId, CfgDevice)
 {
 }
 
@@ -33,9 +35,9 @@ FString FDisplayClusterVrpnAnalogInputDataHolder::SerializeToString() const
 	FString Result;
 	Result.Reserve(128);
 
-	for (auto it = DeviceData.CreateConstIterator(); it; ++it)
+	for (auto it : DeviceData) 
 	{
-		Result += FString::Printf(TEXT("%d%s%s%s"), it->Key, SerializationDelimiter, *FDisplayClusterTypesConverter::template ToHexString(it->Value.AxisValue), SerializationDelimiter);
+		Result += FString::Printf(TEXT("%d%s%s%s"), it.Key, SerializationDelimiter, *DisplayClusterTypesConverter::template ToHexString(it.Value.AxisValue), SerializationDelimiter);
 	}
 
 	return Result;
@@ -55,7 +57,7 @@ bool FDisplayClusterVrpnAnalogInputDataHolder::DeserializeFromString(const FStri
 	for (int i = 0; i < Parsed.Num(); i += SerializationItems)
 	{
 		const int   Ch  = FCString::Atoi(*Parsed[i]);
-		const float Val = FDisplayClusterTypesConverter::template FromHexString<float>(*Parsed[i + 1]);
+		const float Val = DisplayClusterTypesConverter::template FromHexString<float>(*Parsed[i + 1]); // SerializationItems == 2 so [i + 1] is safe
 		DeviceData.Add(Ch, FDisplayClusterVrpnAnalogChannelData{ Val });
 	}
 

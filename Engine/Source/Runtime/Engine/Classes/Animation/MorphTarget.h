@@ -76,19 +76,22 @@ struct FMorphTargetLODModel
 		Ar.UsingCustomVersion(FEditorObjectVersion::GUID);
 		Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
 
-		if (Ar.IsLoading() && Ar.CustomVer(FEditorObjectVersion::GUID) < FEditorObjectVersion::AddedMorphTargetSectionIndices)
+		if (!Ar.IsObjectReferenceCollector())
 		{
-			Ar << M.Vertices << M.NumBaseMeshVerts;
-			M.bGeneratedByEngine = false;
-		}
-		else if (Ar.IsLoading() && Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::SaveGeneratedMorphTargetByEngine)
-		{
-			Ar << M.Vertices << M.NumBaseMeshVerts << M.SectionIndices; 
-			M.bGeneratedByEngine = false;
-		}
-		else
-		{
-			Ar << M.Vertices << M.NumBaseMeshVerts << M.SectionIndices << M.bGeneratedByEngine;
+			if (Ar.IsLoading() && Ar.CustomVer(FEditorObjectVersion::GUID) < FEditorObjectVersion::AddedMorphTargetSectionIndices)
+			{
+				Ar << M.Vertices << M.NumBaseMeshVerts;
+				M.bGeneratedByEngine = false;
+			}
+			else if (Ar.IsLoading() && Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::SaveGeneratedMorphTargetByEngine)
+			{
+				Ar << M.Vertices << M.NumBaseMeshVerts << M.SectionIndices;
+				M.bGeneratedByEngine = false;
+			}
+			else
+			{
+				Ar << M.Vertices << M.NumBaseMeshVerts << M.SectionIndices << M.bGeneratedByEngine;
+			}
 		}
 
 		return Ar;

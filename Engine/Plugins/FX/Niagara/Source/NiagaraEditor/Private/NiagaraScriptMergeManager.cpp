@@ -2029,8 +2029,8 @@ TOptional<bool> FNiagaraScriptMergeManager::DoFunctionInputOverridesMatch(TShare
 			int32 BaseScratchPadScriptIndex = BaseDynamicValueFunction->GetScratchPadScriptIndex();
 			int32 OtherScratchPadScriptIndex = OtherDynamicValueFunction->GetScratchPadScriptIndex();
 
-			if ((BaseScratchPadScriptIndex != INDEX_NONE && OtherScratchPadScriptIndex == INDEX_NONE) ||
-				(BaseScratchPadScriptIndex == INDEX_NONE && OtherScratchPadScriptIndex != INDEX_NONE))
+			if (((BaseScratchPadScriptIndex != INDEX_NONE) && (OtherScratchPadScriptIndex == INDEX_NONE)) ||
+				((BaseScratchPadScriptIndex == INDEX_NONE) && (OtherScratchPadScriptIndex != INDEX_NONE)))
 			{
 				return false;
 			}

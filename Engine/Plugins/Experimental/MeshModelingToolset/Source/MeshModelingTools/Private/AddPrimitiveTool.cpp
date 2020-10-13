@@ -6,6 +6,7 @@
 #include "BaseBehaviors/MouseHoverBehavior.h"
 #include "Selection/ToolSelectionUtil.h"
 #include "AssetGenerationUtil.h"
+#include "ToolSceneQueriesUtil.h"
 
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
@@ -140,7 +141,7 @@ void UAddPrimitiveTool::Setup()
 	PreviewMesh = NewObject<UPreviewMesh>(this, TEXT("PreviewMesh"));
 	PreviewMesh->CreateInWorld(TargetWorld, FTransform::Identity);
 	PreviewMesh->SetVisible(false);
-	PreviewMesh->SetMaterial(MaterialProperties->Material);
+	PreviewMesh->SetMaterial(MaterialProperties->Material.Get());
 	PreviewMesh->EnableWireframe(MaterialProperties->bWireframe);
 
 	UpdatePreviewMesh();
@@ -171,7 +172,7 @@ void UAddPrimitiveTool::Render(IToolsContextRenderAPI* RenderAPI)
 void UAddPrimitiveTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
 	PreviewMesh->EnableWireframe(MaterialProperties->bWireframe);
-	PreviewMesh->SetMaterial(MaterialProperties->Material);
+	PreviewMesh->SetMaterial(MaterialProperties->Material.Get());
 	UpdatePreviewMesh();
 }
 
@@ -208,9 +209,9 @@ void UAddPrimitiveTool::UpdatePreviewPosition(const FInputDeviceRay& DeviceClick
 	// hit position (temp)
 	bool bHit = false;
 
+	FPlane DrawPlane(FVector::ZeroVector, FVector(0, 0, 1));
 	if (ShapeSettings->PlaceMode == EMakeMeshPlacementType::GroundPlane)
 	{
-		FPlane DrawPlane(FVector::ZeroVector, FVector(0, 0, 1));
 		FVector DrawPlanePos = FMath::RayPlaneIntersection(ClickPosWorldRay.Origin, ClickPosWorldRay.Direction, DrawPlane);
 		bHit = true;
 		ShapeFrame = FFrame3f(DrawPlanePos);
@@ -218,11 +219,8 @@ void UAddPrimitiveTool::UpdatePreviewPosition(const FInputDeviceRay& DeviceClick
 	else
 	{
 		// cast ray into scene
-		FVector RayStart = ClickPosWorldRay.Origin;
-		FVector RayEnd = ClickPosWorldRay.PointAt(999999);
-		FCollisionObjectQueryParams QueryParams(FCollisionObjectQueryParams::AllObjects);
 		FHitResult Result;
-		bHit = TargetWorld->LineTraceSingleByObjectType(Result, RayStart, RayEnd, QueryParams);
+		bHit = ToolSceneQueriesUtil::FindNearestVisibleObjectHit(TargetWorld, Result, ClickPosWorldRay);
 		if (bHit)
 		{
 			FVector3f Normal = Result.ImpactNormal;
@@ -232,6 +230,13 @@ void UAddPrimitiveTool::UpdatePreviewPosition(const FInputDeviceRay& DeviceClick
 			}
 			ShapeFrame = FFrame3f(Result.ImpactPoint, Normal);
 			ShapeFrame.ConstrainedAlignPerpAxes();
+		}
+		else
+		{
+			// fall back to ground plane if we don't have a scene hit
+			FVector DrawPlanePos = FMath::RayPlaneIntersection(ClickPosWorldRay.Origin, ClickPosWorldRay.Direction, DrawPlane);
+			bHit = true;
+			ShapeFrame = FFrame3f(DrawPlanePos);
 		}
 	}
 
@@ -361,9 +366,9 @@ void UAddBoxPrimitiveTool::GenerateMesh(FDynamicMesh3* OutMesh) const
 {
 	FGridBoxMeshGenerator BoxGen;
 	auto* BoxSettings = Cast<UProceduralBoxToolProperties>(ShapeSettings);
-	BoxGen.Box = FOrientedBox3d(FVector3d::Zero(), 0.5*FVector3d(BoxSettings->Width, BoxSettings->Height, BoxSettings->Depth));
-	BoxGen.EdgeVertices = FIndex3i(BoxSettings->WidthSubdivisions + 1,
-								   BoxSettings->DepthSubdivisions + 1,
+	BoxGen.Box = FOrientedBox3d(FVector3d::Zero(), 0.5*FVector3d(BoxSettings->Depth, BoxSettings->Width, BoxSettings->Height));
+	BoxGen.EdgeVertices = FIndex3i(BoxSettings->DepthSubdivisions + 1,
+								   BoxSettings->WidthSubdivisions + 1,
 								   BoxSettings->HeightSubdivisions + 1);
 	if (ShapeSettings->PolygroupMode == EMakeMeshPolygroupMode::PerQuad)
 	{
@@ -377,10 +382,10 @@ void UAddRectanglePrimitiveTool::GenerateMesh(FDynamicMesh3* OutMesh) const
 {
 	FRectangleMeshGenerator RectGen;
 	auto* RectangleSettings = Cast<UProceduralRectangleToolProperties>(ShapeSettings);
-	RectGen.Width = RectangleSettings->Width;
-	RectGen.Height = RectangleSettings->Depth;
-	RectGen.WidthVertexCount = RectangleSettings->WidthSubdivisions + 1;
-	RectGen.HeightVertexCount = RectangleSettings->DepthSubdivisions + 1;
+	RectGen.Width = RectangleSettings->Depth;
+	RectGen.Height = RectangleSettings->Width;
+	RectGen.WidthVertexCount = RectangleSettings->DepthSubdivisions + 1;
+	RectGen.HeightVertexCount = RectangleSettings->WidthSubdivisions + 1;
 	if (ShapeSettings->PolygroupMode != EMakeMeshPolygroupMode::PerQuad)
 	{
 		RectGen.bSinglePolygroup = true;
@@ -393,10 +398,10 @@ void UAddRoundedRectanglePrimitiveTool::GenerateMesh(FDynamicMesh3* OutMesh) con
 {
 	FRoundedRectangleMeshGenerator RectGen;
 	auto* RectangleSettings = Cast<UProceduralRoundedRectangleToolProperties>(ShapeSettings);
-	RectGen.Width = RectangleSettings->Width;
-	RectGen.Height = RectangleSettings->Depth;
-	RectGen.WidthVertexCount = RectangleSettings->WidthSubdivisions + 1;
-	RectGen.HeightVertexCount = RectangleSettings->DepthSubdivisions + 1;
+	RectGen.Width = RectangleSettings->Depth;
+	RectGen.Height = RectangleSettings->Width;
+	RectGen.WidthVertexCount = RectangleSettings->DepthSubdivisions + 1;
+	RectGen.HeightVertexCount = RectangleSettings->WidthSubdivisions + 1;
 	if (ShapeSettings->PolygroupMode != EMakeMeshPolygroupMode::PerQuad)
 	{
 		RectGen.bSinglePolygroup = true;

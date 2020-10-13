@@ -187,8 +187,13 @@ void FFrameTimingTrack::BuildDrawState(ITimingEventsTrackDrawStateBuilder& Build
 		const Trace::IFrameProvider& FramesProvider = Trace::ReadFrameProvider(*Session.Get());
 		const FTimingTrackViewport& Viewport = Context.GetViewport();
 
-		uint64 StartIndex = 0;
-		uint64 EndIndex = FramesProvider.GetFrameCount(static_cast<ETraceFrameType>(FrameType));
+		const TArray64<double>& FrameStartTimes = FramesProvider.GetFrameStartTimes(static_cast<ETraceFrameType>(FrameType));
+
+		const int64 StartLowerBound = Algo::LowerBound(FrameStartTimes, Viewport.GetStartTime());
+		const uint64 StartIndex = (StartLowerBound > 0) ? StartLowerBound - 1 : 0;
+
+		const int64 EndLowerBound = Algo::LowerBound(FrameStartTimes, Viewport.GetEndTime());
+		const uint64 EndIndex = EndLowerBound;
 
 		const uint32 Color = FFrameTrackDrawHelper::GetColor32ByFrameType(FrameType);
 
@@ -216,8 +221,13 @@ void FFrameTimingTrack::BuildFilteredDrawState(ITimingEventsTrackDrawStateBuilde
 			const Trace::IFrameProvider& FramesProvider = Trace::ReadFrameProvider(*Session.Get());
 			const FTimingTrackViewport& Viewport = Context.GetViewport();
 
-			uint64 StartIndex = 0;
-			uint64 EndIndex = FramesProvider.GetFrameCount(static_cast<ETraceFrameType>(FrameType));
+			const TArray64<double>& FrameStartTimes = FramesProvider.GetFrameStartTimes(static_cast<ETraceFrameType>(FrameType));
+
+			const int64 StartLowerBound = Algo::LowerBound(FrameStartTimes, Viewport.GetStartTime());
+			const uint64 StartIndex = (StartLowerBound > 0) ? StartLowerBound - 1 : 0;
+
+			const int64 EndLowerBound = Algo::LowerBound(FrameStartTimes, Viewport.GetEndTime());
+			const uint64 EndIndex = EndLowerBound;
 
 			const uint32 Color = FFrameTrackDrawHelper::GetColor32ByFrameType(FrameType);
 
@@ -456,8 +466,13 @@ bool FFrameTimingTrack::FindFrame(const FTimingEventSearchParameters& InParamete
 				Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 				const Trace::IFrameProvider& FramesProvider = Trace::ReadFrameProvider(*Session.Get());
 
-				uint64 StartIndex = 0;
-				uint64 EndIndex = FramesProvider.GetFrameCount(static_cast<ETraceFrameType>(FrameType));
+				const TArray64<double>& FrameStartTimes = FramesProvider.GetFrameStartTimes(static_cast<ETraceFrameType>(FrameType));
+
+				const int64 StartLowerBound = Algo::LowerBound(FrameStartTimes, InContext.GetParameters().StartTime);
+				const uint64 StartIndex = (StartLowerBound > 0) ? StartLowerBound - 1 : 0;
+
+				const int64 EndLowerBound = Algo::LowerBound(FrameStartTimes, InContext.GetParameters().EndTime);
+				const uint64 EndIndex = EndLowerBound;
 
 				FramesProvider.EnumerateFrames(static_cast<ETraceFrameType>(FrameType), StartIndex, EndIndex, [&InContext](const Trace::FFrame& Frame)
 				{

@@ -674,6 +674,8 @@ void FObjectPropertyNode::InternalInitChildNodes( FName SinglePropertyName )
 	}
 	else
 	{
+		TArray<FProperty*> SortedProperties;
+
 		// Iterate over all fields, creating items.
 		for( TFieldIterator<FProperty> It(BaseClass.Get()); It; ++It )
 		{
@@ -682,20 +684,7 @@ void FObjectPropertyNode::InternalInitChildNodes( FName SinglePropertyName )
 				FProperty* CurProp = *It;
 				if( SinglePropertyName == NAME_None || CurProp->GetFName() == SinglePropertyName )
 				{
-					TSharedPtr<FItemPropertyNode> NewItemNode( new FItemPropertyNode );
-
-					FPropertyNodeInitParams InitParams;
-					InitParams.ParentNode = SharedThis(this);
-					InitParams.Property = CurProp;
-					InitParams.ArrayOffset =  0;
-					InitParams.ArrayIndex = INDEX_NONE;
-					InitParams.bAllowChildren = SinglePropertyName == NAME_None;
-					InitParams.bForceHiddenPropertyVisibility = bShouldShowHiddenProperties;
-					InitParams.bCreateDisableEditOnInstanceNodes = bShouldShowDisableEditOnInstance;
-
-					NewItemNode->InitNode( InitParams );
-
-					AddChildNode(NewItemNode);
+					SortedProperties.Add(CurProp);
 
 					if( SinglePropertyName != NAME_None )
 					{
@@ -704,6 +693,31 @@ void FObjectPropertyNode::InternalInitChildNodes( FName SinglePropertyName )
 					}
 				}
 			}
+		}
+
+		// Sort the properties if needed.
+		if (SortedProperties.Num() > 1)
+		{
+			PropertyEditorHelpers::OrderPropertiesFromMetadata(SortedProperties);
+		}
+
+		// Add nodes for the properties.
+		for (FProperty* CurProp : SortedProperties)
+		{
+			TSharedPtr<FItemPropertyNode> NewItemNode( new FItemPropertyNode );
+
+			FPropertyNodeInitParams InitParams;
+			InitParams.ParentNode = SharedThis(this);
+			InitParams.Property = CurProp;
+			InitParams.ArrayOffset =  0;
+			InitParams.ArrayIndex = INDEX_NONE;
+			InitParams.bAllowChildren = SinglePropertyName == NAME_None;
+			InitParams.bForceHiddenPropertyVisibility = bShouldShowHiddenProperties;
+			InitParams.bCreateDisableEditOnInstanceNodes = bShouldShowDisableEditOnInstance;
+
+			NewItemNode->InitNode( InitParams );
+
+			AddChildNode(NewItemNode);
 		}
 	}
 

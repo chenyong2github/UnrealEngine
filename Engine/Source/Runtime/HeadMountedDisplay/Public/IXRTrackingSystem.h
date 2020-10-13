@@ -7,13 +7,14 @@
 #include "IIdentifiableXRDevice.h"
 #include "UObject/ObjectMacros.h"
 #include "Features/IModularFeature.h"
-#include "Engine/GameViewportClient.h"
 #include "IXRInput.h"
 #include "XRGestureConfig.h"
-#include "Kismet/GameplayStatics.h"
+#include "StereoRendering.h"
 
 class IXRCamera;
 class UARPin;
+class FSceneViewFamily;
+struct FWorldContext;
 
 /**
  * Struct representing the properties of an external tracking sensor.
@@ -345,6 +346,11 @@ public:
 	*/
 	virtual bool IsHeadTrackingAllowed() const = 0;
 
+	/**
+	 * Same as IsHeadTrackingAllowed, but returns false if the World is not using VR (such as with the non-VR PIE instances when using VR Preview)
+	 **/
+	virtual bool IsHeadTrackingAllowedForWorld(UWorld & World) const;
+
 	/** 
 	* Can be used to enforce tracking even when stereo rendering is disabled. 
 	* The default implementation does not allow enforcing tracking and always returns false.
@@ -401,23 +407,7 @@ public:
 	/**
 	 * Platform Agnostic Query about HMD details
 	 */
-	virtual void GetHMDData(UObject* WorldContext, FXRHMDData& HMDData)
-	{
-		HMDData.bValid = true;
-		HMDData.DeviceName = GetSystemName();
-		HMDData.ApplicationInstanceID = FApp::GetInstanceId();
-
-		bool bIsTracking = IsTracking(IXRTrackingSystem::HMDDeviceId);
-		HMDData.TrackingStatus = bIsTracking ? ETrackingStatus::Tracked : ETrackingStatus::NotTracked;
-
-		APlayerCameraManager* CameraManager = UGameplayStatics::GetPlayerCameraManager(WorldContext, 0);
-		if (CameraManager)
-		{
-			HMDData.Rotation = CameraManager->GetCameraRotation().Quaternion();
-			HMDData.Position = CameraManager->GetCameraLocation();
-		}
-		//GetCurrentPose(0, HMDVisualizationData.Rotation, HMDVisualizationData.Position);
-	}
+	virtual void GetHMDData(UObject* WorldContext, FXRHMDData& HMDData);
 
 	/**
 	 * Platform Agnostic Query about MotionControllers details

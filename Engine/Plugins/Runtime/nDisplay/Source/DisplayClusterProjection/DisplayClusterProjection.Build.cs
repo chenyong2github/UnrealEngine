@@ -8,42 +8,39 @@ public class DisplayClusterProjection : ModuleRules
 	public DisplayClusterProjection(ReadOnlyTargetRules ROTargetRules) : base(ROTargetRules)
 	{
 		PrivateIncludePaths.AddRange(
-			new string[]
-			{
-				"DisplayClusterProjection/Private",
+			new string[] {
 				"../../../../../Engine/Source/Runtime/Windows/D3D11RHI/Private",
 				"../../../../../Engine/Source/Runtime/Windows/D3D11RHI/Private/Windows",
-			}
-		);
+			});
+
+		PublicIncludePathModuleNames.AddRange(
+			new string[] {
+				"DisplayClusterConfiguration"
+			});
 
 		PublicDependencyModuleNames.AddRange(
-			new string[]
-			{
+			new string[] {
 				"Core",
 				"CoreUObject",
-				"Engine",
+				"DisplayCluster",
+				"Engine"
 			});
 
 		PrivateDependencyModuleNames.AddRange(
-			new string[]
-			{
-				"ApplicationCore",
-				"Core",
-				"Composure",
-				"CoreUObject",
+			new string[] {
 				"D3D11RHI",
+				"Composure",
 				"DisplayCluster",
-				"Engine",
-				"HeadMountedDisplay",
 				"MPCDI",
 				"Projects",
 				"RenderCore",
-				"RHI",
-			}
-		);
+				"RHI"
+			});
 
 		if (Target.bBuildEditor == true)
 		{
+			PrivateDependencyModuleNames.Add("DisplayClusterRendering");
+			PrivateDependencyModuleNames.Add("ProceduralMeshComponent");
 			PrivateDependencyModuleNames.Add("UnrealEd");
 		}
 
@@ -51,27 +48,23 @@ public class DisplayClusterProjection : ModuleRules
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAftermath");
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelMetricsDiscovery");
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelExtensionsFramework");
-
 		AddThirdPartyDependencies(ROTargetRules);
 	}
-
 
 	public void AddThirdPartyDependencies(ReadOnlyTargetRules ROTargetRules)
 	{
 		string ThirdPartyPath = Path.GetFullPath(Path.Combine(ModuleDirectory, "../../ThirdParty/"));
 
-		string PathInc = string.Empty;
-		string PathDll = string.Empty;
-
-		// EasyBlend
-		PathInc = Path.Combine(ThirdPartyPath, "EasyBlend", "Include");
-		PathDll = Path.Combine(ThirdPartyPath, "EasyBlend", "DLL");
-		
-		PublicIncludePaths.Add(PathInc);
-
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
-			RuntimeDependencies.Add(Path.Combine(PathDll, "mplEasyBlendSDKDX1164.dll"));
+			// EasyBlend
+			PrivateIncludePaths.Add(Path.Combine(ThirdPartyPath, "EasyBlend", "Include"));
+			RuntimeDependencies.Add(Path.Combine(ThirdPartyPath, "EasyBlend", "DLL", "mplEasyBlendSDKDX1164.dll"));
+
+			// Domeprojection
+			PrivateIncludePaths.Add(Path.Combine(ThirdPartyPath, "Domeprojection", "Include"));
+			RuntimeDependencies.Add(Path.Combine(ThirdPartyPath, "Domeprojection", "DLL", "dpLib.dll"));
+			RuntimeDependencies.Add(Path.Combine(ThirdPartyPath, "Domeprojection", "DLL", "WibuCm64.dll"));
 		}
 	}
 }

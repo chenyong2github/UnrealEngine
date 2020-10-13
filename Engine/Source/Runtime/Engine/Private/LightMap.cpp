@@ -2334,7 +2334,7 @@ struct FCompareLightmaps
  * @param	bLightingSuccessful	Whether the lighting build was successful or not.
  * @param	bMultithreadedEncode encode textures on different threads ;)
  */
-void FLightMap2D::EncodeTextures( UWorld* InWorld, bool bLightingSuccessful, bool bMultithreadedEncode)
+void FLightMap2D::EncodeTextures( UWorld* InWorld, ULevel* LightingScenario, bool bLightingSuccessful, bool bMultithreadedEncode)
 {
 #if WITH_EDITOR
 	if (bLightingSuccessful)
@@ -2476,7 +2476,7 @@ void FLightMap2D::EncodeTextures( UWorld* InWorld, bool bLightingSuccessful, boo
 				// precreate the UObjects then give them to some threads to process
 				// need to precreate Uobjects 
 				Texture->CreateUObjects();
-				auto AsyncEncodeTask = new (AsyncEncodeTasks)FAsyncEncode<FLightMapPendingTexture>(Texture,nullptr,Counter,nullptr);
+				auto AsyncEncodeTask = new (AsyncEncodeTasks)FAsyncEncode<FLightMapPendingTexture>(Texture, LightingScenario, Counter, nullptr);
 				GLargeThreadPool->AddQueuedWork(AsyncEncodeTask);
 			}
 

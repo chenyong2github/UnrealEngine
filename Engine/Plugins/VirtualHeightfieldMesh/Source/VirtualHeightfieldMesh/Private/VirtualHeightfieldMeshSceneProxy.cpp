@@ -29,6 +29,19 @@ static TAutoConsoleVariable<float> CVarVHMLodScale(
 	ECVF_RenderThreadSafe
 );
 
+// We disable View.LODDistanceFactor by default.
+// When it is set according to GCalcLocalPlayerCachedLODDistanceFactor in ULocalPlayer we end up with double couting of the FOV scale.
+// Ideally we would remove the calculation in ULocalPlayer and View.LODDistanceFactor would be only for view specific adjustments (screen captures etc.)
+// However the removal of the code in ULocalPlayer could have a big impact on any preexisting data in any project.
+static TAutoConsoleVariable<int32> CVarVHMEnableViewLodFactor(
+	TEXT("r.VHM.EnableViewLodFactor"),
+	0,
+	TEXT("Enable the View.LODDistanceFactor.")
+	TEXT("This is disabled by default to avoid an issue where FOV is double counted when calculating Lods.")
+	TEXT("See comment in code for more information."),
+	ECVF_RenderThreadSafe
+);
+
 static TAutoConsoleVariable<int32> CVarVHMOcclusion(
 	TEXT("r.VHM.Occlusion"),
 	1,
@@ -132,7 +145,8 @@ namespace VirtualHeightfieldMesh
 		const float Lod0WorldRadius = Lod0WorldSize.Size();
 		const float ScreenMultiple = FMath::Max(0.5f * InView->ViewMatrices.GetProjectionMatrix().M[0][0], 0.5f * InView->ViewMatrices.GetProjectionMatrix().M[1][1]);
 		const float Lod0Distance = Lod0WorldRadius * ScreenMultiple / InProxy->Lod0ScreenSize;
-		const float LodScale = InView->LODDistanceFactor * CVarVHMLodScale.GetValueOnRenderThread();
+		const float ViewLodDistanceFactor = CVarVHMEnableViewLodFactor.GetValueOnRenderThread() == 0 ? 1.f : InView->LODDistanceFactor;
+		const float LodScale = ViewLodDistanceFactor * CVarVHMLodScale.GetValueOnRenderThread();
 		
 		return FVector4(Lod0Distance, InProxy->Lod0Distribution, InProxy->LodDistribution, LodScale);
 	}
@@ -333,6 +347,7 @@ const static FName NAME_VirtualHeightfieldMesh(TEXT("VirtualHeightfieldMesh"));
 
 FVirtualHeightfieldMeshSceneProxy::FVirtualHeightfieldMeshSceneProxy(UVirtualHeightfieldMeshComponent* InComponent)
 	: FPrimitiveSceneProxy(InComponent, NAME_VirtualHeightfieldMesh)
+	, bHiddenInEditor(InComponent->GetHiddenInEditor())
 	, RuntimeVirtualTexture(InComponent->GetVirtualTexture())
 	, MinMaxTexture(nullptr)
 	, AllocatedVirtualTexture(nullptr)
@@ -349,8 +364,9 @@ FVirtualHeightfieldMeshSceneProxy::FVirtualHeightfieldMeshSceneProxy(UVirtualHei
 {
 	GVirtualHeightfieldMeshViewRendererExtension.RegisterExtension();
 
-	const bool bValidMaterial = InComponent->GetMaterial(0) != nullptr && InComponent->GetMaterial(0)->CheckMaterialUsage_Concurrent(MATUSAGE_VirtualHeightfieldMesh);
-	Material = bValidMaterial ? InComponent->GetMaterial(0)->GetRenderProxy() : UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
+	UMaterialInterface* ComponentMaterial = InComponent->GetMaterial();
+	const bool bValidMaterial = ComponentMaterial != nullptr && ComponentMaterial->CheckMaterialUsage_Concurrent(MATUSAGE_VirtualHeightfieldMesh);
+	Material = bValidMaterial ? ComponentMaterial->GetRenderProxy() : UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
 
 	const FTransform VirtualTextureTransform = InComponent->GetVirtualTextureTransform();
 
@@ -438,10 +454,11 @@ void FVirtualHeightfieldMeshSceneProxy::OnVirtualTextureDestroyedCB(const FVirtu
 FPrimitiveViewRelevance FVirtualHeightfieldMeshSceneProxy::GetViewRelevance(const FSceneView* View) const
 {
 	const bool bValid = AllocatedVirtualTexture != nullptr;
+	const bool bIsHiddenInEditor = bHiddenInEditor && View->Family->EngineShowFlags.Editor;
 
 	FPrimitiveViewRelevance Result;
-	Result.bDrawRelevance = IsShown(View) && bValid;
-	Result.bShadowRelevance = IsShadowCast(View) && bValid && ShouldRenderInMainPass();
+	Result.bDrawRelevance = bValid && IsShown(View) && !bIsHiddenInEditor;
+	Result.bShadowRelevance = bValid && IsShadowCast(View) && ShouldRenderInMainPass() &&!bIsHiddenInEditor;
 	Result.bDynamicRelevance = true;
 	Result.bStaticRelevance = false;
 	Result.bRenderInMainPass = ShouldRenderInMainPass();

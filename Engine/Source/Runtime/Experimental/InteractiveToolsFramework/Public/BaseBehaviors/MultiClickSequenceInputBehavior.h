@@ -46,7 +46,7 @@ public:
 
 
 	/**
-	 * WantsCapture() will only return capture request if this function returns true (or is null)
+	 * The first click will only be accepted if this function returns true (or is null)
 	 */
 	TFunction<bool(const FInputDeviceState&)> ModifierCheckFunc = nullptr;
 
@@ -68,9 +68,14 @@ public:
 public:
 
 protected:
+	enum class ESequenceState
+	{
+		NotStarted,
+		WaitingForNextClick,
+	};
+
 	/** Click Target object */
 	IClickSequenceBehaviorTarget* Target;
 
-	bool bInActiveSequence;
+	ESequenceState State = ESequenceState::NotStarted;
 };
-

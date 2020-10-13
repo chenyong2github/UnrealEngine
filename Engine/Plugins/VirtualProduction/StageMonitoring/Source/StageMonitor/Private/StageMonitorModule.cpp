@@ -6,7 +6,7 @@
 #include "Misc/CoreDelegates.h"
 #include "StageMonitor.h"
 #include "StageMonitoringSettings.h"
-
+#include "StageMonitorSessionManager.h"
 
 const FName IStageMonitorModule::ModuleName = TEXT("StageMonitor");
 
@@ -37,6 +37,7 @@ void FStageMonitorModule::ShutdownModule()
 
 void FStageMonitorModule::OnEngineLoopInitComplete()
 {
+	SessionManager = MakeUnique<FStageMonitorSessionManager>();
 	StageMonitor = MakeUnique<FStageMonitor>();
 	StageMonitor->Initialize();
 	const UStageMonitoringSettings* Settings = GetDefault<UStageMonitoringSettings>();
@@ -59,6 +60,11 @@ void FStageMonitorModule::StopMonitor()
 IStageMonitor& FStageMonitorModule::GetStageMonitor()
 {
 	return *StageMonitor;
+}
+
+IStageMonitorSessionManager& FStageMonitorModule::GetStageMonitorSessionManager()
+{
+	return *SessionManager;
 }
 
 IMPLEMENT_MODULE(FStageMonitorModule, StageMonitor)

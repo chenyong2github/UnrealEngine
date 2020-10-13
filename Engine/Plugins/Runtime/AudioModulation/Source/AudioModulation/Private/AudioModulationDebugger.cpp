@@ -5,35 +5,166 @@
 #if !UE_BUILD_SHIPPING
 #include "CoreMinimal.h"
 #include "Async/TaskGraphInterfaces.h"
+#include "AudioModulation.h"
 #include "AudioModulationLogging.h"
 #include "AudioModulationSystem.h"
 #include "AudioThread.h"
 #include "Engine/Canvas.h"
 #include "Engine/Engine.h"
+#include "HAL/IConsoleManager.h"
 #include "IAudioModulation.h"
 #include "Misc/CoreDelegates.h"
 #include "SoundControlBusProxy.h"
 #include "SoundModulationPatch.h"
 #include "SoundModulationProxy.h"
 #include "SoundModulationValue.h"
-#include "HAL/IConsoleManager.h"
 
 
+namespace AudioModulation
+{
+	namespace Debug
+	{
+		using FDebugViewUpdateFunction = TUniqueFunction<void(FAudioModulation& /*InModulation*/, const FString* /*InFilter*/)>;
+		void UpdateObjectFilter(const TArray<FString>& Args, UWorld* World, FDebugViewUpdateFunction InUpdateViewFunc)
+		{
+			if (!World)
+			{
+				return;
+			}
 
-static float AudioModulationDebugUpdateRateCVar = 0.25f;
+			const FString* FilterString = nullptr;
+			if (Args.Num() > 0)
+			{
+				FilterString = &Args[0];
+			}
+
+			FAudioDeviceHandle DeviceHandle = World->GetAudioDevice();
+			if (DeviceHandle.IsValid())
+			{
+				if (GEngine)
+				{
+					GEngine->Exec(World, TEXT("au.Debug.SoundModulators 1"));
+				}
+
+				if (IAudioModulation* Modulation = DeviceHandle->ModulationInterface.Get())
+				{
+					FAudioModulation& ModulationImpl = *static_cast<FAudioModulation*>(Modulation);
+					InUpdateViewFunc(ModulationImpl, FilterString);
+				}
+			}
+		}
+	}
+}
+
+static float AudioModulationDebugUpdateRateCVar = 0.1f;
 FAutoConsoleVariableRef CVarAudioModulationDebugUpdateRate(
 	TEXT("au.Debug.SoundModulators.UpdateRate"),
 	AudioModulationDebugUpdateRateCVar,
 	TEXT("Sets update rate for modulation debug statistics (in seconds).\n")
-	TEXT("Default: 0.25f"),
+	TEXT("Default: 0.1f"),
 	ECVF_Default);
+
+static FAutoConsoleCommandWithWorldAndArgs CVarAudioModulationDebugBuses(
+	TEXT("au.Debug.SoundModulators.Filter.Buses"),
+	TEXT("Sets substring by which to filter mixes in matrix view. Arguments:\n"
+		"Enabled (Optional, ex. True, False. Default: True) - Whether or not to enable showing buses.\n"
+		"Filter (Optional, Default: null) - Whether or not to filter buses by name using the provided substring.\n"),
+	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+	{
+		using namespace AudioModulation;
+		Debug::UpdateObjectFilter(Args, World, [](FAudioModulation& InModulation, const FString* InFilter)
+		{
+			InModulation.SetDebugBusFilter(InFilter);
+		});
+	}));
+
+static FAutoConsoleCommandWithWorldAndArgs CVarAudioModulationDebugMixes(
+	TEXT("au.Debug.SoundModulators.Filter.Mixes"),
+	TEXT("Sets substring by which to filter mixes in matrix view. Arguments:\n"
+		"Filter - Filter bus mixes by name using the provided substring.\n"),
+	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+	{
+		using namespace AudioModulation;
+		Debug::UpdateObjectFilter(Args, World, [](FAudioModulation& InModulation, const FString* InFilter)
+		{
+			InModulation.SetDebugMixFilter(InFilter);
+		});
+	}));
+
+static FAutoConsoleCommandWithWorldAndArgs CVarAudioModulationDebugMatrix(
+	TEXT("au.Debug.SoundModulators.Enable.Matrix"),
+	TEXT("Whether or not to enable mix matrix. Arguments:\n"
+		"Enabled (Default: 1/True) - Whether or not to have matrix view enabled.\n"),
+	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+	{
+		using namespace AudioModulation;
+		Debug::UpdateObjectFilter(Args, World, [](FAudioModulation& InModulation, const FString* InFilter)
+		{
+			if (InFilter)
+			{
+				const bool bEnabled = InFilter->ToBool();
+				InModulation.SetDebugMatrixEnabled(bEnabled);
+			}
+		});
+	}));
+
+static FAutoConsoleCommandWithWorldAndArgs CVarAudioModulationSetDebugGeneratorFilter(
+	TEXT("au.Debug.SoundModulators.Filter.Generators"),
+	TEXT("Sets substring by which to filter generators. Arguments:\n"
+		"Name - Filter generators by name using the provided substring.\n"),
+	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+	{
+		using namespace AudioModulation;
+
+		Debug::UpdateObjectFilter(Args, World, [](FAudioModulation& InModulation, const FString* InFilter)
+		{
+			InModulation.SetDebugGeneratorFilter(InFilter);
+		});
+	}));
+
+static FAutoConsoleCommandWithWorldAndArgs CVarAudioModulationSetDebugGeneratorFilterType(
+	TEXT("au.Debug.SoundModulators.Filter.Generators.Type"),
+	TEXT("Whether to display or hide Generator type provided (defaults to show if enablement boolean not provided). Arguments:\n"
+		"Name (Optional, Default: null) - Filter generators type to display/hide (Empty/null clears any currently set filter).\n"
+		"Enabled (Optional, Default: True) - True to show, false to hide.\n"),
+	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+	{
+		using namespace AudioModulation;
+
+		bool bEnabled = true;
+		if (Args.Num() > 1)
+		{
+			bEnabled = Args[1].ToBool();
+		}
+		Debug::UpdateObjectFilter(Args, World, [bEnabled](FAudioModulation& InModulation, const FString* InFilter)
+		{
+			InModulation.SetDebugGeneratorTypeFilter(InFilter, bEnabled);
+		});
+	}));
+
+static FAutoConsoleCommandWithWorldAndArgs CVarAudioModulationDebugEnableGenerators(
+	TEXT("au.Debug.SoundModulators.Enable.Generators"),
+	TEXT("Whether or not to enable displaying generators. Arguments:\n"
+		"Enabled (Default: 1/True) - Whether or not to have generators view enabled.\n"),
+	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+	{
+		using namespace AudioModulation;
+		Debug::UpdateObjectFilter(Args, World, [](FAudioModulation& InModulation, const FString* InFilter)
+		{
+			if (InFilter)
+			{
+				const bool bEnabled = InFilter->ToBool();
+				InModulation.SetDebugGeneratorsEnabled(bEnabled);
+			}
+		});
+	}));
 
 namespace AudioModulation
 {
 	namespace Debug
 	{
 		const int32 MaxNameLength = 40;
-		const int32 XIndent       = 36;
+		const int32 XIndent = 36;
 
 		FColor GetUnitRenderColor(const float Value)
 		{
@@ -42,95 +173,52 @@ namespace AudioModulation
 				: FColor::Green;
 		}
 
-		int32 RenderStatLFO(const TArray<FLFODebugInfo>& FilteredLFOs, FCanvas& Canvas, int32 X, int32 Y, const UFont& Font)
+		int32 RenderStatGenerators(const FString& Name, const FGeneratorDebugInfo& GeneratorDebugInfo, int32 CellWidth, FCanvas& Canvas, int32 X, int32 Y, const UFont& Font)
 		{
 			int32 Height = 12;
 			int32 Width = 12;
 			Font.GetStringHeightAndWidth(TEXT("@"), Height, Width);
 
-			// Determine minimum width of cells
-			static const FString NameHeader      = TEXT("Name");
-			static const FString ValueHeader     = TEXT("Value");
-			static const FString AmplitudeHeader = TEXT("Amplitude");
-			static const FString FrequencyHeader = TEXT("Frequency");
-			static const FString OffsetHeader    = TEXT("Offset");
-			static const FString TypeHeader		= TEXT("Type");
-			static const TArray<int32> StaticCellWidths =
-			{
-				NameHeader.Len(),
-				ValueHeader.Len(),
-				AmplitudeHeader.Len(),
-				FrequencyHeader.Len(),
-				OffsetHeader.Len(),
-				TypeHeader.Len()
-			};
-
-			int32 CellWidth = FMath::Max(StaticCellWidths);
-			for (const FLFODebugInfo& LFODebugInfo : FilteredLFOs)
-			{
-				CellWidth = FMath::Max(CellWidth, LFODebugInfo.Name.Len());
-			}
-
-			Canvas.DrawShadowedString(X + XIndent, Y, TEXT("Active LFOs:"), &Font, FColor::Red);
 			Y += Height;
 			X += XIndent;
 
-			int32 RowX = X;
-			Canvas.DrawShadowedString(RowX, Y, *NameHeader, &Font, FColor::White);
-			RowX += Width * CellWidth;
-
-			Canvas.DrawShadowedString(RowX, Y, *ValueHeader, &Font, FColor::White);
-			RowX += Width * CellWidth;
-
-			Canvas.DrawShadowedString(RowX, Y, *AmplitudeHeader, &Font, FColor::White);
-			RowX += Width * CellWidth;
-
-			Canvas.DrawShadowedString(RowX, Y, *FrequencyHeader, &Font, FColor::White);
-			RowX += Width * CellWidth;
-
-			Canvas.DrawShadowedString(RowX, Y, *OffsetHeader, &Font, FColor::White);
-			RowX += Width * CellWidth;
-
-			Canvas.DrawShadowedString(RowX, Y, *TypeHeader, &Font, FColor::White);
-			RowX += Width * CellWidth;
-
+			Canvas.DrawShadowedString(X, Y, *(Name + TEXT(":")), &Font, FColor::Red);
 			Y += Height;
-			for (const FLFODebugInfo& LFODebugInfo : FilteredLFOs)
+
+			// Print Category Titles
 			{
-				RowX = X;
-
-				FString Name = LFODebugInfo.Name.Left(MaxNameLength);
-				Name += FString::Printf(TEXT(" (%u)"), LFODebugInfo.RefCount);
-
-				if (Name.Len() < MaxNameLength)
+				int32 RowX = X;
+				for (const FString& Category : GeneratorDebugInfo.Categories)
 				{
-					Name = Name.RightPad(MaxNameLength - Name.Len());
+					Canvas.DrawShadowedString(RowX, Y, *Category, &Font, FColor::White);
+					RowX += Width * CellWidth;
 				}
-
-				Canvas.DrawShadowedString(RowX, Y, *Name, &Font, FColor::Green);
-				RowX += Width * CellWidth;
-
-				const FString ValueString = FString::Printf(TEXT("%.6f"), LFODebugInfo.Value);
-				Canvas.DrawShadowedString(RowX, Y, *ValueString, &Font, FColor::Green);
-				RowX += Width * CellWidth;
-
-				const FString AmpString = FString::Printf(TEXT("%.3f"), LFODebugInfo.Amplitude);
-				Canvas.DrawShadowedString(RowX, Y, *AmpString, &Font, FColor::Green);
-				RowX += Width * CellWidth;
-
-				const FString FreqString = FString::Printf(TEXT("%.4f"), LFODebugInfo.Frequency);
-				Canvas.DrawShadowedString(RowX, Y, *FreqString, &Font, FColor::Green);
-				RowX += Width * CellWidth;
-
-				const FString OffsetString = FString::Printf(TEXT("%.4f"), LFODebugInfo.Offset);
-				Canvas.DrawShadowedString(RowX, Y, *OffsetString, &Font, FColor::Green);
-				RowX += Width * CellWidth;
-
-				Canvas.DrawShadowedString(RowX, Y, *LFODebugInfo.Type, &Font, FColor::Green);
-				RowX += Width * CellWidth;
-
 				Y += Height;
 			}
+
+			// Print Instance Info
+			for (const FGeneratorDebugInfo::FInstanceValues& InstanceValues : GeneratorDebugInfo.FilteredInstances)
+			{
+				int32 RowX = X;
+
+				// Validate that all instances have the same number of values as there are registered categories.
+				ensure(InstanceValues.Num() == GeneratorDebugInfo.Categories.Num());
+
+				for (const FString& Value : InstanceValues)
+				{
+					FString DisplayValue = Value.Left(MaxNameLength);
+					if (DisplayValue.Len() < MaxNameLength)
+					{
+						DisplayValue = DisplayValue.RightPad(MaxNameLength - DisplayValue.Len());
+					}
+
+					Canvas.DrawShadowedString(RowX, Y, *DisplayValue, &Font, FColor::Green);
+					RowX += Width * CellWidth;
+				}
+			}
+
+			// Add space after, so twice the height
+			Y += Height * 2;
 
 			return Y;
 		}
@@ -147,11 +235,11 @@ namespace AudioModulation
 
 			// Determine minimum width of cells
 			static const FString MixSubTotalHeader = TEXT("Mix");
-			static const FString LFOSubTotalHeader = TEXT("LFO");
-			static const FString TotalHeader       = TEXT("Final");
+			static const FString GeneratorsSubTotalHeader = TEXT("Generators");
+			static const FString TotalHeader = TEXT("Final");
 			static const TArray<int32> StaticCellWidths =
 			{
-				LFOSubTotalHeader.Len(),
+				GeneratorsSubTotalHeader.Len(),
 				MixSubTotalHeader.Len(),
 				TotalHeader.Len(),
 				14 /* Minimum width due to value strings X.XXXX(X.XXXX) */
@@ -252,12 +340,12 @@ namespace AudioModulation
 			}
 			Y += Height;
 
-			Canvas.DrawShadowedString(X, Y, *LFOSubTotalHeader, &Font, FColor::Yellow);
+			Canvas.DrawShadowedString(X, Y, *GeneratorsSubTotalHeader, &Font, FColor::Yellow);
 			RowX = X;
 			for (const FControlBusDebugInfo& Bus : FilteredBuses)
 			{
 				RowX += Width * CellWidth; // Add before to leave space for row headers
-				const float Value = Bus.LFOValue;
+				const float Value = Bus.GeneratorValue;
 				const FColor Color = Debug::GetUnitRenderColor(Value);
 				Canvas.DrawShadowedString(RowX, Y, *FString::Printf(TEXT("%.4f"), Value), &Font, Color);
 			}
@@ -305,8 +393,9 @@ namespace AudioModulation
 
 	FAudioModulationDebugger::FAudioModulationDebugger()
 		: bActive(0)
-		, bShowRenderStatLFO(1)
 		, bShowRenderStatMix(1)
+		, bShowGenerators(0)
+		, bEnableAllGenerators(0)
 		, ElapsedSinceLastUpdate(0.0f)
 	{
 	}
@@ -335,7 +424,7 @@ namespace AudioModulation
 			FControlBusDebugInfo DebugInfo;
 			DebugInfo.DefaultValue = Proxy->GetDefaultValue();
 			DebugInfo.Id = Proxy->GetId();
-			DebugInfo.LFOValue = Proxy->GetLFOValue();
+			DebugInfo.GeneratorValue = Proxy->GetGeneratorValue();
 			DebugInfo.MixValue = Proxy->GetMixValue();
 			DebugInfo.Name = Proxy->GetName();
 			DebugInfo.RefCount = Proxy->GetRefCount();
@@ -362,60 +451,20 @@ namespace AudioModulation
 			RefreshedFilteredMixes.Add(DebugInfo);
 		}
 
-		static const int32 MaxFilteredLFOs = 8;
-		TArray<const FModulatorLFOProxy*> FilteredLFOProxies;
-		Debug::FilterDebugArray<FLFOProxyMap, FModulatorLFOProxy>(InRefProxies.LFOs, LFOStringFilter, MaxFilteredLFOs, FilteredLFOProxies);
+		static const int32 MaxFilteredGenerators = 8;
+		TArray<const FModulatorGeneratorProxy*> FilteredGeneratorProxies;
+		Debug::FilterDebugArray<FGeneratorProxyMap, FModulatorGeneratorProxy>(InRefProxies.Generators, GeneratorStringFilter, MaxFilteredGenerators, FilteredGeneratorProxies);
 
-		TArray<FLFODebugInfo> RefreshedFilteredLFOs;
-		for (const FModulatorLFOProxy* Proxy : FilteredLFOProxies)
+		FGeneratorSortMap RefreshedFilteredGenerators;
+		for (const FModulatorGeneratorProxy* Proxy : FilteredGeneratorProxies)
 		{
-			FLFODebugInfo DebugInfo;
-			DebugInfo.Name = Proxy->GetName();
-			DebugInfo.RefCount = Proxy->GetRefCount();
-			DebugInfo.Value = Proxy->GetValue();
-			DebugInfo.Amplitude = Proxy->GetLFO().GetGain();
-			DebugInfo.Frequency = Proxy->GetLFO().GetFrequency();
-			DebugInfo.Offset = Proxy->GetOffset();
-
-			switch (Proxy->GetLFO().GetType())
-			{
-				case Audio::ELFO::DownSaw:
-				DebugInfo.Type = TEXT("DownSaw");
-				break;
-
-				case Audio::ELFO::Exponential:
-				DebugInfo.Type = TEXT("Exponential");
-				break;
-
-				case Audio::ELFO::RandomSampleHold:
-				DebugInfo.Type = TEXT("Random (Sample & Hold)");
-				break;
-
-				case Audio::ELFO::Sine:
-				DebugInfo.Type = TEXT("Sine");
-				break;
-
-				case Audio::ELFO::Square:
-				DebugInfo.Type = TEXT("Square");
-				break;
-
-				case Audio::ELFO::Triangle:
-				DebugInfo.Type = TEXT("Triangle");
-				break;
-
-				case Audio::ELFO::UpSaw:
-				DebugInfo.Type = TEXT("Up Saw");
-				break;
-
-				default:
-				static_assert(static_cast<int32>(Audio::ELFO::NumLFOTypes) == 7, "Missing LFO type case coverage");
-				break;
-			}
-
-			RefreshedFilteredLFOs.Add(DebugInfo);
+			FGeneratorDebugInfo::FInstanceValues Values = Proxy->GetDebugValues();
+			FGeneratorDebugInfo& DebugInfo = RefreshedFilteredGenerators.FindOrAdd(Proxy->GetDebugName());
+			DebugInfo.FilteredInstances.Emplace(MoveTemp(Values));
+			DebugInfo.Categories = Proxy->GetDebugCategories();
 		}
 
-		FFunctionGraphTask::CreateAndDispatchWhenReady([this, RefreshedFilteredBuses, RefreshedFilteredMixes, RefreshedFilteredLFOs]()
+		FFunctionGraphTask::CreateAndDispatchWhenReady([this, RefreshedFilteredBuses, RefreshedFilteredMixes, RefreshedFilteredGenerators]()
 		{
 			FilteredBuses = RefreshedFilteredBuses;
 			FilteredBuses.Sort(&Debug::CompareNames<FControlBusDebugInfo>);
@@ -423,8 +472,31 @@ namespace AudioModulation
 			FilteredMixes = RefreshedFilteredMixes;
 			FilteredMixes.Sort(&Debug::CompareNames<FControlBusMixDebugInfo>);
 
-			FilteredLFOs = RefreshedFilteredLFOs;
-			FilteredLFOs.Sort(&Debug::CompareNames<FLFODebugInfo>);
+			FGeneratorSortMap NewFilteredMap;
+			if (bShowGenerators)
+			{
+				NewFilteredMap = RefreshedFilteredGenerators;
+				for (TPair<FString, FGeneratorDebugInfo>& NewInfoPair : NewFilteredMap)
+				{
+					FGeneratorDebugInfo* LastDebugInfo = FilteredGeneratorsMap.Find(NewInfoPair.Key);
+					NewInfoPair.Value.bEnabled = bEnableAllGenerators
+						|| (LastDebugInfo && LastDebugInfo->bEnabled);
+
+					if (bool* Value = RequestedGeneratorUpdate.Find(NewInfoPair.Key))
+					{
+						NewInfoPair.Value.bEnabled = *Value;
+					}
+
+					if (!NewInfoPair.Value.bEnabled)
+					{
+						NewInfoPair.Value.FilteredInstances.Reset();
+					}
+				}
+				bEnableAllGenerators = 0;
+				RequestedGeneratorUpdate.Reset();
+			}
+
+			FilteredGeneratorsMap = MoveTemp(NewFilteredMap);
 		}, TStatId(), nullptr, ENamedThreads::GameThread);
 	}
 
@@ -436,12 +508,87 @@ namespace AudioModulation
 			GEngine->AddOnScreenDebugMessage(-1, TimeShowHelp, FColor::Yellow, TEXT("-MixFilter: Substring that filters mixes shown in matrix view"));
 			GEngine->AddOnScreenDebugMessage(-1, TimeShowHelp, FColor::Yellow, TEXT("-BusFilter: Substring that filters buses shown in matrix view"));
 			GEngine->AddOnScreenDebugMessage(-1, TimeShowHelp, FColor::Yellow, TEXT("-Matrix: Show bus matrix"));
-			GEngine->AddOnScreenDebugMessage(-1, TimeShowHelp, FColor::Yellow, TEXT("-LFOFilter: Substring that filters LFOs listed"));
-			GEngine->AddOnScreenDebugMessage(-1, TimeShowHelp, FColor::Yellow, TEXT("-LFO: Show LFO debug data"));
+			GEngine->AddOnScreenDebugMessage(-1, TimeShowHelp, FColor::Yellow, TEXT("-GeneratorFilter: Substring that filters Generator types listed"));
+			GEngine->AddOnScreenDebugMessage(-1, TimeShowHelp, FColor::Yellow, TEXT("-Generator: Show Generator debug data"));
 			GEngine->AddOnScreenDebugMessage(-1, TimeShowHelp, FColor::Yellow, TEXT("stat SoundModulators:"));
 		}
 
 		return true;
+	}
+
+	void FAudioModulationDebugger::SetDebugBusFilter(const FString* InNameFilter)
+	{
+		check(IsInGameThread());
+
+		if (InNameFilter)
+		{
+			BusStringFilter = *InNameFilter;
+		}
+		else
+		{
+			BusStringFilter.Reset();
+		}
+	}
+
+	void FAudioModulationDebugger::SetDebugMatrixEnabled(bool bInIsEnabled)
+	{
+		bShowRenderStatMix = bInIsEnabled;
+	}
+
+	void FAudioModulationDebugger::SetDebugMixFilter(const FString* InNameFilter)
+	{
+		check(IsInGameThread());
+
+		if (InNameFilter)
+		{
+			MixStringFilter = *InNameFilter;
+		}
+		else
+		{
+			MixStringFilter.Reset();
+		}
+	}
+
+	void FAudioModulationDebugger::SetDebugGeneratorsEnabled(bool bInIsEnabled)
+	{
+		check(IsInGameThread());
+
+		bShowGenerators = bInIsEnabled;
+		bEnableAllGenerators = 1;
+	}
+
+	void FAudioModulationDebugger::SetDebugGeneratorFilter(const FString* InFilter)
+	{
+		check(IsInGameThread());
+
+		if (InFilter)
+		{
+			bShowGenerators = 1;
+			GeneratorStringFilter = *InFilter;
+		}
+		else
+		{
+			GeneratorStringFilter.Reset();
+		}
+	}
+
+	void FAudioModulationDebugger::SetDebugGeneratorTypeFilter(const FString* InFilter, bool bInIsEnabled)
+	{
+		check(IsInGameThread());
+
+		if (InFilter)
+		{
+			bShowGenerators |= bInIsEnabled;
+			RequestedGeneratorUpdate.Add(*InFilter, bInIsEnabled);
+		}
+		else
+		{
+			bShowGenerators = bInIsEnabled;
+			if (bInIsEnabled)
+			{
+				bEnableAllGenerators = 1;
+			}
+		}
 	}
 
 	int32 FAudioModulationDebugger::OnRenderStat(FCanvas& Canvas, int32 X, int32 Y, const UFont& Font)
@@ -460,9 +607,32 @@ namespace AudioModulation
 			Y = Debug::RenderStatMixMatrix(FilteredMixes, FilteredBuses, Canvas, X, Y, Font);
 		}
 
-		if (bShowRenderStatLFO)
+		int32 CellWidth = 0;
+		for (const TPair<FString, FGeneratorDebugInfo>& GeneratorStatPair : FilteredGeneratorsMap)
 		{
-			Y = Debug::RenderStatLFO(FilteredLFOs, Canvas, X, Y, Font);
+			for (const FString& Category : GeneratorStatPair.Value.Categories)
+			{
+				CellWidth = FMath::Max(CellWidth, Category.Len());
+			}
+
+			for (const FGeneratorDebugInfo::FInstanceValues& InstanceInfo : GeneratorStatPair.Value.FilteredInstances)
+			{
+				for (const FString& Value : InstanceInfo)
+				{
+					CellWidth = FMath::Max(CellWidth, Value.Len());
+				}
+			}
+		}
+
+		if (bShowGenerators)
+		{
+			for (const TPair<FString, FGeneratorDebugInfo>& GeneratorStatPair : FilteredGeneratorsMap)
+			{
+				if (GeneratorStatPair.Value.bEnabled)
+				{
+					Y = Debug::RenderStatGenerators(GeneratorStatPair.Key, GeneratorStatPair.Value, CellWidth, Canvas, X, Y, Font);
+				}
+			}
 		}
 
 		return Y;
@@ -481,31 +651,46 @@ namespace AudioModulation
 		{
 			if (Stream && Stream[0] != '\0')
 			{
-				const bool bUpdateLFO = FParse::Param(Stream, TEXT("LFO"));
-				const bool bUpdateMix = FParse::Param(Stream, TEXT("Matrix"));
-
-				if (bUpdateLFO || bUpdateMix)
+				bool bGeneratorsUpdated = false;
+				for (TPair<FString, FGeneratorDebugInfo>& GeneratorStatPair : FilteredGeneratorsMap)
 				{
-					bShowRenderStatLFO = bUpdateLFO;
+					const bool bGeneratorEnabled = FParse::Param(Stream, *GeneratorStatPair.Key);
+					if (bGeneratorEnabled)
+					{
+						bGeneratorsUpdated = true;
+						GeneratorStatPair.Value.bEnabled = bGeneratorEnabled;
+					}
+					else
+					{
+						GeneratorStatPair.Value.bEnabled = false;
+					}
+				}
+
+				const bool bUpdateMix = FParse::Param(Stream, TEXT("Matrix"));
+				if (bGeneratorsUpdated || bUpdateMix)
+				{
 					bShowRenderStatMix = bUpdateMix;
 				}
 				else
 				{
-					bShowRenderStatLFO = 1;
+					// Off by default as there may be many of these
+					ResetGeneratorStats();
 					bShowRenderStatMix = 1;
 				}
 
 				FParse::Value(Stream, TEXT("BusFilter"), BusStringFilter);
-				FParse::Value(Stream, TEXT("LFOFilter"), LFOStringFilter);
+				FParse::Value(Stream, TEXT("GeneratorFilter"), GeneratorStringFilter);
 				FParse::Value(Stream, TEXT("MixFilter"), MixStringFilter);
 			}
 			else
 			{
-				bShowRenderStatLFO = 1;
 				bShowRenderStatMix = 1;
 
+				// Off by default as there may be many of these
+				ResetGeneratorStats();
+
 				BusStringFilter.Reset();
-				LFOStringFilter.Reset();
+				GeneratorStringFilter.Reset();
 				MixStringFilter.Reset();
 			}
 		}
@@ -513,6 +698,15 @@ namespace AudioModulation
 		bActive = !bActive;
 		return true;
 	}
+
+	void FAudioModulationDebugger::ResetGeneratorStats()
+	{
+		for (TPair<FString, FGeneratorDebugInfo>& GeneratorStatPair : FilteredGeneratorsMap)
+		{
+			GeneratorStatPair.Value.bEnabled = false;
+		}
+	}
+
 } // namespace AudioModulation
 #endif // !UE_BUILD_SHIPPING
 #endif // WITH_AUDIOMODULATION

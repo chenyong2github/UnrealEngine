@@ -1029,8 +1029,7 @@ bool FOodleDictionaryGenerator::GenerateAndWriteDictionary()
 			// Important warning for unusually small dictionary files - if they compress down this much, something is usually wrong.
 			if (bSuccess && OutputFile.TotalSize() < 65536)
 			{
-				FText Msg = LOCTEXT("BadOodleDictionaryGen",
-					"The generated dictionary is less than 64KB. This is unusually small, indicating a problem - do NOT use for production! Delete the file?");
+				FText Msg = LOCTEXT("BadOodleDictionaryGen", "The generated dictionary is less than 64KB. This is unusually small, indicating a problem - do NOT use for production! Delete the file?");
 
 				EAppReturnType::Type Result = FMessageDialog::Open(EAppMsgType::YesNo, Msg);
 

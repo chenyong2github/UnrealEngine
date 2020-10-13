@@ -15,7 +15,6 @@ TextureStreamingBuild.cpp : Contains definitions to build texture streaming data
 #include "Components/StaticMeshComponent.h"
 #include "Misc/FeedbackContext.h"
 #include "Engine/Texture2D.h"
-#include "DebugViewModeMaterialProxy.h"
 #include "ShaderCompiler.h"
 #include "Engine/StaticMesh.h"
 #include "Streaming/TextureStreamingHelpers.h"

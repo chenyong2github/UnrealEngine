@@ -40,6 +40,12 @@ class COMPONENTVISUALIZERS_API USplineComponentVisualizerSelectionState : public
 
 public:
 
+	/** Checks LastKeyIndexSelected is valid given the number of splint points and returns its value. */
+	int32 GetVerifiedLastKeyIndexSelected(const int32 InNumSplinePoints) const;
+
+	/** Checks TangentHandle and TangentHandleType are valid and sets relevant output parameters. */
+	void GetVerifiedSelectedTangentHandle(const int32 InNumSplinePoints, int32& OutSelectedTangentHandle, ESelectedTangentHandle& OutSelectedTangentHandleType) const;
+
 	const FComponentPropertyPath GetSplinePropertyPath() const { return SplinePropertyPath; }
 	void SetSplinePropertyPath(const FComponentPropertyPath& InSplinePropertyPath) { SplinePropertyPath = InSplinePropertyPath; }
 
@@ -63,6 +69,12 @@ public:
 
 	FQuat GetCachedRotation() const { return CachedRotation; }
 	void SetCachedRotation(const FQuat& InCachedRotation) { CachedRotation = InCachedRotation; }
+
+	void Reset();
+	void ClearSelectedSegmentIndex();
+	void ClearSelectedTangentHandle();
+
+	bool IsSplinePointSelected(const int32 InIndex) const;
 
 protected:
 	/** Property path from the parent actor to the component */
@@ -170,15 +182,12 @@ struct HSplineTangentHandleProxy : public HSplineVisProxy
 };
 
 /** Accepted modes for snapping points. */
-namespace ESplineComponentSnapMode 
+enum class ESplineComponentSnapMode
 {
-	enum Type
-	{
-		Snap,
-		AlignToTangent,
-		AlignPerpendicularToTangent
-	};
-}
+	Snap,
+	AlignToTangent,
+	AlignPerpendicularToTangent
+};
 
 /** SplineComponent visualizer/edit functionality */
 class COMPONENTVISUALIZERS_API FSplineComponentVisualizer : public FComponentVisualizer, public FGCObject
@@ -222,6 +231,15 @@ public:
 
 	const TSet<int32>& GetSelectedKeys() const { check(SelectionState); return SelectionState->GetSelectedKeys(); }
 
+	/** Select first or last spline point, returns true if the spline component being edited has changed */
+	bool HandleSelectFirstLastSplinePoint(USplineComponent* InSplineComponent, bool bFirstPoint);
+
+	/** Select all spline points, , returns true if the spline component being edited has changed */
+	bool HandleSelectAllSplinePoints(USplineComponent* InSplineComponent);
+
+	/** Select next or prev spline point, loops when last point is currently selected */
+	void OnSelectPrevNextSplinePoint(bool bNextPoint, bool bAddToSelection);
+
 protected:
 
 	/** Determine if any selected key index is out of range (perhaps because something external has modified the spline) */
@@ -232,6 +250,12 @@ protected:
 	
 	/** Whether a multiple spline keys are currently selected */
 	bool AreMultipleKeysSelected() const;
+
+	/** Whether any keys are currently selected */
+	bool AreKeysSelected() const;
+
+	/** Select spline point at specified index */
+	void SelectSplinePoint(int32 SelectIndex, bool bAddToSelection);
 
 	/** Transforms selected tangent by given translation */
 	bool TransformSelectedTangent(const FVector& DeltaTranslate);
@@ -270,10 +294,10 @@ protected:
 	virtual void SnapKeysToLastSelectedAxisPosition(const EAxis::Type InAxis, TArray<int32> InSnapKeys);
 
 	/** Snapping: snap key to selected actor */
-	virtual void SnapKeyToActor(const AActor* InActor, const ESplineComponentSnapMode::Type SnapMode);
+	virtual void SnapKeyToActor(const AActor* InActor, const ESplineComponentSnapMode SnapMode);
 
 	/** Snapping: generic method for snapping selected keys to given transform */
-	virtual void SnapKeyToTransform(const ESplineComponentSnapMode::Type InSnapMode,
+	virtual void SnapKeyToTransform(const ESplineComponentSnapMode InSnapMode,
 		const FVector& InWorldPos,
 		const FVector& InWorldUpVector,
 		const FVector& InWorldForwardVector,
@@ -282,10 +306,10 @@ protected:
 		const int32 InCopySplineMetadataKey = 0);
 
 	/** Snapping: set snap to actor temporary mode */
-	virtual void SetSnapToActorMode(const bool bInIsSnappingToActor, const ESplineComponentSnapMode::Type InSnapMode = ESplineComponentSnapMode::Snap);
+	virtual void SetSnapToActorMode(const bool bInIsSnappingToActor, const ESplineComponentSnapMode InSnapMode = ESplineComponentSnapMode::Snap);
 
 	/** Snapping: get snap to actor temporary mode */
-	virtual bool GetSnapToActorMode(ESplineComponentSnapMode::Type& OutSnapMode) const;
+	virtual bool GetSnapToActorMode(ESplineComponentSnapMode& OutSnapMode) const;
 
 	/** Reset temporary modes after inputs are handled. */
 	virtual void ResetTempModes();
@@ -303,9 +327,9 @@ protected:
 	void OnAddKeyToSegment();
 	bool CanAddKeyToSegment() const;
 
-	void OnSnapKeyToNearestSplinePoint(ESplineComponentSnapMode::Type InSnapMode);
+	void OnSnapKeyToNearestSplinePoint(ESplineComponentSnapMode InSnapMode);
 
-	void OnSnapKeyToActor(const ESplineComponentSnapMode::Type InSnapMode);
+	void OnSnapKeyToActor(const ESplineComponentSnapMode InSnapMode);
 
 	void OnSnapAllToAxis(EAxis::Type InAxis);
 
@@ -329,8 +353,16 @@ protected:
 	void OnResetToDefault();
 	bool CanResetToDefault() const;
 
+	/** Select first or last spline point */
+	void OnSelectFirstLastSplinePoint(bool bFirstPoint);
+
+	/** Select all spline points, if no spline points selected yet the currently edited spline component will be set as well */
 	void OnSelectAllSplinePoints();
-	bool CanSelectAllSplinePoints() const;
+
+	bool CanSelectSplinePoints() const;
+
+	/** Generate the submenu containing available selection actions */
+	void GenerateSelectSplinePointsSubMenu(FMenuBuilder& MenuBuilder) const;
 
 	/** Generate the submenu containing the available point types */
 	void GenerateSplinePointTypeSubMenu(FMenuBuilder& MenuBuilder) const;
@@ -343,6 +375,9 @@ protected:
 	
 	/** Generate the submenu containing the lock axis types */
 	void GenerateLockAxisSubMenu(FMenuBuilder& MenuBuilder) const;
+
+	/** Helper function to set edited component we are currently editing */
+	void SetEditedSplineComponent(const USplineComponent* InSplineComponent);
 
 	void CreateSplineGeneratorPanel();
 
@@ -382,7 +417,7 @@ protected:
 	bool bIsSnappingToActor;
 
 	/** Snap: Snap to actor mode. */
-	ESplineComponentSnapMode::Type SnapToActorMode;
+	ESplineComponentSnapMode SnapToActorMode;
 
 	FProperty* SplineCurvesProperty;
 

@@ -58,16 +58,14 @@ public:
 	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const;
 	virtual bool Equals(const UNiagaraDataInterface* Other) const;
 
+	virtual void PushToRenderThreadImpl() override;
+
 	virtual FNiagaraDataInterfaceParametersCS* CreateComputeParameters() const override { return Impl ? Impl->CreateComputeParameters() : nullptr; }
 	virtual const FTypeLayoutDesc* GetComputeParametersTypeDesc() const override { return Impl ? Impl->GetComputeParametersTypeDesc() : nullptr; }
 	virtual void BindParameters(FNiagaraDataInterfaceParametersCS* Base, const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap) override { if (Impl) { return Impl->BindParameters(Base, ParameterInfo, ParameterMap); } }
 	virtual void SetParameters(const FNiagaraDataInterfaceParametersCS* Base, FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const override { if (Impl) { return Impl->SetParameters(Base, RHICmdList, Context); } }
 	virtual void UnsetParameters(const FNiagaraDataInterfaceParametersCS* Base, FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const override { if (Impl) { return Impl->UnsetParameters(Base, RHICmdList, Context); } }
 	//UNiagaraDataInterface Interface
-
-	/** Updates the GPU side copy of the data after Blueprints have modified it. */
-	UFUNCTION(BlueprintCallable, Category=Niagara)
-	void UpdateGPU();
 
 	/** ReadWrite lock to ensure safe access to the underlying array. */
 	FRWLock ArrayRWGuard;

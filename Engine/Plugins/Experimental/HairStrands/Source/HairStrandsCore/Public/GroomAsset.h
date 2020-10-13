@@ -48,6 +48,19 @@ struct HAIRSTRANDSCORE_API FHairGroupInfo
 	int32 NumGuideVertices = 0;
 };
 
+USTRUCT(BlueprintType)
+struct HAIRSTRANDSCORE_API FHairGroupsMaterial
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, Category = "Material")
+	UMaterialInterface* Material = nullptr;
+
+	UPROPERTY(EditAnywhere, Category = "Material")
+	FName SlotName = NAME_None;
+};
+
+
 /** Describe all data & resource for a groom asset's hair group */
 struct HAIRSTRANDSCORE_API FHairGroupData
 {
@@ -56,6 +69,8 @@ struct HAIRSTRANDSCORE_API FHairGroupData
 
 	struct FBase
 	{
+		bool HasDataValid() const	{ return Data.GetNumPoints() > 0;}
+		bool IsValid() const		{ return RestResource != nullptr; }
 		FHairStrandsDatas					Data;
 		FHairStrandsRestResource*			RestResource = nullptr;
 	};
@@ -71,17 +86,25 @@ struct HAIRSTRANDSCORE_API FHairGroupData
 
 	struct FSim : FBase
 	{
-		FHairStrandsDatas					Data;
-		FHairStrandsRestResource*			RestResource = nullptr;
 	} Guides;
 
 	struct FStrands : FBaseWithInterpolation
 	{
+		FHairStrandsClusterCullingData		ClusterCullingData;
 		FHairStrandsClusterCullingResource* ClusterCullingResource = nullptr;
 	} Strands;
 
 	struct FCards
 	{
+		bool IsValid(uint32 LODIt) const { return LODIt < uint32(LODs.Num()) && LODs[LODIt].IsValid(); }
+		FBox GetBounds() const
+		{
+			for (const FLOD& LOD : LODs)
+			{
+				if (LOD.IsValid()) return LOD.Data.Cards.BoundingBox;
+			}
+			return FBox();
+		}
 		struct FLOD
 		{
 			bool IsValid() const { return RestResource != nullptr; }
@@ -104,11 +127,20 @@ struct HAIRSTRANDSCORE_API FHairGroupData
 
 	struct FMeshes
 	{
+		bool IsValid(uint32 LODIt) const { return LODIt < uint32(LODs.Num()) && LODs[LODIt].IsValid(); }
+		FBox GetBounds() const
+		{
+			for (const FLOD& LOD : LODs)
+			{
+				if (LOD.IsValid()) return LOD.Data.Meshes.BoundingBox;
+			}
+			return FBox();
+		}
 		struct FLOD
 		{
 			bool IsValid() const { return RestResource != nullptr; }
 			FHairMeshesDatas Data;
-			FHairMeshesResource* RestResource = nullptr;
+			FHairMeshesRestResource* RestResource = nullptr;
 		};
 		TArray<FLOD> LODs;
 	} Meshes;
@@ -179,6 +211,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HairMeshes", meta = (DisplayName = "Group"))
 	TArray<FHairGroupsMeshesSourceDescription> HairGroupsMeshes;
 
+	/** Meshes - Source description data */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HairMaterials", meta = (DisplayName = "Group"))
+	TArray<FHairGroupsMaterial> HairGroupsMaterials;
+
 	/** Store strands/cards/meshes data */
 	TArray<FHairGroupData> HairGroupsData;
 
@@ -226,9 +262,20 @@ public:
 
 	bool IsValid() const { return bIsInitialized; }
 
+	// Helper functions for setting options on all hair groups
+	void SetStableRasterization(bool bEnable);
+	void SetScatterSceneLighting(bool Enable);
+	void SetHairWidth(float Width);
+
 	/** Initialize/Update/Release resources. */
-	void InitResource();
+	void InitResources(bool bForceRebuildClusterData);
+	void InitGuideResources();
+	void InitStrandsResources(bool bForceRebuildClusterData);
+	void InitCardsResources();
+	void InitMeshesResources();
+#if WITH_EDITOR
 	void UpdateResource();
+#endif
 	void ReleaseResource();
 
 	void SetNumGroup(uint32 InGroupCount, bool bResetGroupData=true);
@@ -263,18 +310,43 @@ public:
 #if WITH_EDITOR
 	FOnGroomAssetChanged OnGroomAssetChanged;
 	FOnGroomAssetResourcesChanged OnGroomAssetResourcesChanged;
+
+	void MarkMaterialsHasChanged();
+
+	// Save out a static mesh based on generated cards
+	void SaveProceduralCards(uint32 CardsGroupIndex);
 #endif
 
 	/** Array of user data stored with the asset */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Instanced, Category = Hidden)
 	TArray<UAssetUserData*> AssetUserData;
 
+	/* Return the material slot index corresponding to the material name */
+	int32 GetMaterialIndex(FName MaterialSlotName) const;
+	bool IsMaterialSlotNameValid(FName MaterialSlotName) const;
+	bool IsMaterialUsed(int32 MaterialIndex) const;
+	TArray<FName> GetMaterialSlotNames() const;
+
+private:
+	enum EClassDataStripFlag : uint8
+	{
+		CDSF_ImportedStrands = 1,
+		CDSF_MinLodData = 2,
+		CDSF_StrandsStripped = 4,
+		CDSF_CardsStripped = 8,
+		CDSF_MeshesStripped = 16
+	};
+
+	uint8 GenerateClassStripFlags(FArchive& Ar);
+
 #if WITH_EDITORONLY_DATA
+	bool HasImportedStrandsData() const;
+
 	bool BuildCardsGeometry();
 	bool BuildCardsGeometry(uint32 GroupIndex);
 	bool BuildMeshesGeometry();
+	bool BuildMeshesGeometry(uint32 GroupIndex);
 
-	void InitCardsResources();
 public:
 	/** Commits a HairDescription to buffer for serialization */
 	void CommitHairDescription(FHairDescription&& HairDescription);
@@ -285,14 +357,26 @@ public:
 	 */
 	bool CacheDerivedData(uint32 GroupIndex, FProcessedHairDescription& ProcessedHairDescription);
 	bool CacheDerivedDatas();
+	bool CacheStrandsData(uint32 GroupIndex, FProcessedHairDescription& ProcessedHairDescription, FString& OutDerivedDataKey);
+	bool CacheCardsGeometry(uint32 GroupIndex, const FString& StrandsKey);
+	bool CacheMeshesGeometry(uint32 GroupIndex);
+
+	FString GetDerivedDataKey();
+	FString GetDerivedDataKeyForCards(uint32 GroupIt, const FString& StrandsKey);
+	FString GetDerivedDataKeyForStrands(uint32 GroupIndex);
+	FString GetDerivedDataKeyForMeshes(uint32 GroupIndex);
 
 private:
-	FString BuildDerivedDataKeySuffix(uint32 GroupIndex, const FHairGroupsInterpolation& BuildSettings);
+	FString BuildDerivedDataKeySuffix(uint32 GroupIndex, const FHairGroupsInterpolation& InterpolationSettings, const FHairGroupsLOD& LODSettings) const;
 	TUniquePtr<FHairDescription> HairDescription;
 	TUniquePtr<FHairDescriptionBulkData> HairDescriptionBulkData;
 
 	// Transient property for visualizing the groom in a certain debug mode. This is used by the groom editor
 	EHairStrandsDebugMode DebugMode = EHairStrandsDebugMode::NoneDebug;
+
+	TArray<FString> StrandsDerivedDataKey;
+	TArray<FString> CardsDerivedDataKey;
+	TArray<FString> MeshesDerivedDataKey;
 
 	UPROPERTY()
 	bool bIsCacheable = true;
@@ -300,8 +384,10 @@ private:
 	bool bIsInitialized = false;
 
 #if WITH_EDITOR
+public:
 	void UpdateCachedSettings();
 
+private:
 	// Cached groom settings to know if we need to recompute interpolation data or 
 	// decimation when the asset is saved
 	TArray<FHairGroupsRendering>				CachedHairGroupsRendering;

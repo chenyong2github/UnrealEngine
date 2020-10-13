@@ -62,9 +62,6 @@ public:
 	UPROPERTY(EditAnywhere, Category = Options)
 	bool bShowWireframe = false;
 
-	UPROPERTY(EditAnywhere, Category = Options)
-	bool bSelectEdgeLoops = false;
-
 	UPROPERTY(EditAnywhere, Category = Gizmo)
 	ELocalFrameMode LocalFrameMode = ELocalFrameMode::FromGeometry;
 
@@ -320,6 +317,10 @@ class MESHMODELINGTOOLS_API UPolyEditExtrudeProperties : public UInteractiveTool
 public:
 	UPROPERTY(EditAnywhere, Category = Extrude)
 	EPolyEditExtrudeDirection Direction = EPolyEditExtrudeDirection::SelectionNormal;
+
+	/** Controls whether extruding an entire patch should create a solid or an open shell */
+	UPROPERTY(EditAnywhere, Category = Extrude)
+	bool bShellsToSolids = true;
 };
 
 
@@ -653,6 +654,8 @@ protected:
 	void AfterTopologyEdit();
 	int32 ModifiedTopologyCounter = 0;
 	bool bWasTopologyEdited = false;
+
+	void SetActionButtonPanelsVisible(bool bVisible);
 
 	friend class FEditPolygonsTopologyPreEditChange;
 	friend class FEditPolygonsTopologyPostEditChange;

@@ -54,6 +54,12 @@ class USoundEffectPreset;
 			SettingsCopy = InSettings; \
 			Update(); \
 		} \
+		void UpdateSettings(TUniqueFunction<void(F##EFFECT_NAME##Settings&)> InCommand) \
+		{ \
+			FScopeLock ScopeLock(&SettingsCritSect); \
+			InCommand(SettingsCopy); \
+			Update(); \
+		} \
 		F##EFFECT_NAME##Settings GetSettings() \
 		{ \
 			FScopeLock ScopeLock(&SettingsCritSect); \
@@ -98,6 +104,7 @@ protected:
 
 	FThreadSafeBool bChanged;
 	TWeakObjectPtr<USoundEffectPreset> Preset;
+	uint32 ParentPresetUniqueId = INDEX_NONE;
 
 	FThreadSafeBool bIsRunning;
 	FThreadSafeBool bIsActive;

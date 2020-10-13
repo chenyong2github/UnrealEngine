@@ -70,9 +70,8 @@ public:
 class FFeedbackGPUFencePool
 {
 public:
-	FRenderQueryPoolRHIRef FenceQueryPool;
 	FGPUFenceRHIRef DummyFence;
-	TArray<FRHIPooledRenderQuery> Fences;
+	TArray<FRenderQueryRHIRef> Fences;
 	bool bDummyFenceWritten = false;
 
 	FFeedbackGPUFencePool(int32 InSize)
@@ -82,11 +81,6 @@ public:
 
 	void InitRHI()
 	{
-		if (!FenceQueryPool.IsValid())
-		{
-			FenceQueryPool = RHICreateRenderQueryPool(RQT_AbsoluteTime, Fences.Num());
-		}
-
 		if (!DummyFence.IsValid())
 		{
 			DummyFence = RHICreateGPUFence(FName());
@@ -100,22 +94,21 @@ public:
 		{
 			if (Fences[i].IsValid())
 			{
-				Fences[i].ReleaseQuery();
+				Fences[i].SafeRelease();
 			}
 		}
 
 		DummyFence.SafeRelease();
 		bDummyFenceWritten = false;
-
-		FenceQueryPool.SafeRelease();
 	}
 
 	void Allocate(FRHICommandListImmediate& RHICmdList, int32 Index)
 	{
-		if (!Fences[Index].IsValid())
+		if (Fences[Index].IsValid())
 		{
-			Fences[Index] = FenceQueryPool->AllocateQuery();
+			Fences[Index].SafeRelease();
 		}
+		Fences[Index] = GDynamicRHI->RHICreateRenderQuery(RQT_AbsoluteTime);
 
 		if (!bDummyFenceWritten && DummyFence.IsValid())
 		{
@@ -128,13 +121,13 @@ public:
 	
 	void Write(FRHICommandListImmediate& RHICmdList, int32 Index)
 	{
-		RHICmdList.EndRenderQuery(Fences[Index].GetQuery());
+		RHICmdList.EndRenderQuery(Fences[Index]);
 	}
 
 	bool Poll(FRHICommandListImmediate& RHICmdList, int32 Index)
 	{
 		uint64 Dummy;
-		return RHICmdList.GetRenderQueryResult(Fences[Index].GetQuery(), Dummy, false, RHICmdList.GetGPUMask().ToIndex());
+		return RHICmdList.GetRenderQueryResult(Fences[Index], Dummy, false, RHICmdList.GetGPUMask().ToIndex());
 	}
 
 	FGPUFenceRHIRef GetMapFence(int32 Index)
@@ -144,7 +137,7 @@ public:
 
 	void Release(int32 Index)
 	{
-		Fences[Index].ReleaseQuery();
+		Fences[Index].SafeRelease();
 	}
 };
 

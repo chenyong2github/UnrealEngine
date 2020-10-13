@@ -61,9 +61,7 @@ static EAppReturnType::Type PromptUserIfUndoBufferToBeCleared(UBlueprint* MergeT
 	{
 		FText TargetName = FText::FromName(MergeTarget->GetFName());
 
-		const FText WarnMessage = FText::Format(LOCTEXT("WarnOfUndoClear",
-			"{0} has undo actions associated with it. The undo buffer must be cleared to complete this merge. \n\n\
-			You will not be able to undo previous actions after this. Would you like to continue?"), TargetName);
+		const FText WarnMessage = FText::Format(LOCTEXT("WarnOfUndoClear", "{0} has undo actions associated with it. The undo buffer must be cleared to complete this merge. \n\nYou will not be able to undo previous actions after this. Would you like to continue?"), TargetName);
 		OkToMerge = FMessageDialog::Open(EAppMsgType::YesNo, WarnMessage);
 	}
 	return OkToMerge;

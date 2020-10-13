@@ -681,8 +681,6 @@ void UMaterialEditingLibrary::RecompileMaterial(UMaterial* Material)
 		}
 
 		UMaterialEditingLibrary::RebuildMaterialInstanceEditors(Material);
-
-		ClearDebugViewMaterials(Material);
 		FMaterialEditorUtilities::BuildTextureStreamingData(Material);
 	}
 }

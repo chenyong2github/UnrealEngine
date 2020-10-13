@@ -21,6 +21,8 @@
 #include "IPlatformFilePak.h"
 #include "Stats/StatsMisc.h"
 #include "Internationalization/PackageLocalizationManager.h"
+#include "HAL/PlatformMisc.h"
+#include "HAL/PlatformApplicationMisc.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 
 #if WITH_EDITOR
@@ -717,11 +719,12 @@ void UAssetManager::UpdateCachedAssetData(const FPrimaryAssetId& PrimaryAssetId,
 		NameData.AssetPtr = FSoftObjectPtr(NewAssetPath); // This will have _C
 
 		// If the types don't match, update the registry
+		IAssetRegistry& LocalAssetRegistry = GetAssetRegistry();
 		FPrimaryAssetId SavedId = NewAssetData.GetPrimaryAssetId();
-
-		if (SavedId != PrimaryAssetId)
+		FPrimaryAssetId ObjectPathId = LocalAssetRegistry.GetAssetByObjectPath(NameData.AssetDataPath, true).GetPrimaryAssetId();
+		if (SavedId != PrimaryAssetId || (ObjectPathId.IsValid() && SavedId != ObjectPathId))
 		{
-			GetAssetRegistry().SetPrimaryAssetIdForObjectPath(NameData.AssetDataPath, PrimaryAssetId);
+			LocalAssetRegistry.SetPrimaryAssetIdForObjectPath(NameData.AssetDataPath, PrimaryAssetId);
 		}
 
 		if (bIsBulkScanning)
@@ -1219,6 +1222,8 @@ TSharedPtr<FStreamableHandle> UAssetManager::ChangeBundleStateForPrimaryAssets(c
 
 		if (NameData)
 		{
+			FPlatformMisc::PumpEssentialAppMessages();
+
 			// Iterate list of changes, compute new bundle set
 			bool bLoadIfNeeded = false;
 			
@@ -1463,7 +1468,7 @@ TSharedPtr<FStreamableHandle> UAssetManager::PreloadPrimaryAssets(const TArray<F
 
 	ReturnHandle = LoadAssetList(PathsToLoad.Array(), MoveTemp(DelegateToCall), Priority, DebugName);
 
-	if (!ensureMsgf(ReturnHandle.IsValid(), TEXT("Requested preload of Primary Asset with no referenced assets!")))
+	if (!ensureMsgf(ReturnHandle.IsValid(), TEXT("Requested preload of Primary Asset with no referenced assets! DebugName:%s"), *DebugName))
 	{
 		return nullptr;
 	}
@@ -2740,6 +2745,8 @@ void UAssetManager::ScanPrimaryAssetTypesFromConfig()
 		ScanPathsForPrimaryAssets(TypeInfo.PrimaryAssetType, TypeInfo.AssetScanPaths, TypeInfo.AssetBaseClassLoaded, TypeInfo.bHasBlueprintClasses, TypeInfo.bIsEditorOnly, false);
 
 		SetPrimaryAssetTypeRules(TypeInfo.PrimaryAssetType, TypeInfo.Rules);
+
+		FPlatformApplicationMisc::PumpMessages(IsInGameThread());
 	}
 
 	StopBulkScanning();

@@ -13,7 +13,7 @@ ULidarPointCloudFileIO* ULidarPointCloudFileIO::Instance = nullptr;
 void FLidarPointCloudImportSettings::Serialize(FArchive& Ar)
 {
 	int32 Dummy;
-	bool bDummy;
+	bool bDummy = false;
 
 	if (Ar.CustomVer(ULidarPointCloud::PointCloudFileGUID) >= 12)
 	{

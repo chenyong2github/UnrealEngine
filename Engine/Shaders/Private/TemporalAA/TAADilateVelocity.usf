@@ -34,9 +34,9 @@ void MainCS(
 		ZOrder2D(GroupThreadIndex, log2(TILE_SIZE)) +
 		GroupId * uint2(TILE_SIZE, TILE_SIZE));
 
-	uint2 InputPixelPos = DispatchThreadId;
+	uint2 InputPixelPos = InputInfo_ViewportMin + DispatchThreadId;
 	
-	float2 ViewportUV = (float2(InputPixelPos) + 0.5f) * InputInfo_ViewportSizeInverse;
+	float2 ViewportUV = (float2(DispatchThreadId) + 0.5f) * InputInfo_ViewportSizeInverse;
 	float2 ScreenPos = ViewportUVToScreenPos(ViewportUV);
 	float2 InputBufferUV = (InputPixelPos + 0.5) * InputInfo_ExtentInverse;
 
@@ -72,7 +72,7 @@ void MainCS(
 
 	// Scatter parallax rejection
 	#if 1
-	if (all(InputPixelPos < uint2(InputInfo_ViewportSize)))
+	if (all(InputPixelPos < InputInfo_ViewportMax))
 	{
 		float2 PrevScreenPos = ScreenPos - FinalScreenVelocity;
 		float2 PrevInputBufferUV = (InputInfo_ScreenPosToViewportScale * PrevScreenPos + InputInfo_ScreenPosToViewportBias) * InputInfo_ExtentInverse;
@@ -87,7 +87,7 @@ void MainCS(
 
 			uint FinalAdd = uint(round(Weight * 256));
 			
-			if (all(PixelPos < uint2(InputInfo_ViewportSize)))
+			if (all(PixelPos >= InputInfo_ViewportMin && PixelPos < InputInfo_ViewportMax))
 			{
 				InterlockedAdd(PrevUseCountOutput[PixelPos], FinalAdd);
 
@@ -102,7 +102,7 @@ void MainCS(
 
 	Debug.rg = VelocityPixelOffset * 0.5 + 0.5;
 
-	if (all(InputPixelPos < InputInfo_ViewportSize))
+	if (all(InputPixelPos < InputInfo_ViewportMax))
 	{
 		DilatedVelocityOutput[InputPixelPos] = EncodeVelocityToTexture(float3(FinalScreenVelocity, 0.0)).xy;
 		ClosestDepthOutput[InputPixelPos] = ClosestDeviceZ;

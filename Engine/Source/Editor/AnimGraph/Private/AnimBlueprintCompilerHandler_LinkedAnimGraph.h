@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "IAnimBlueprintCompilerHandler.h"
+#include "AnimGraphNode_Base.h"
 
 class IAnimBlueprintCompilerCreationContext;
 class IAnimBlueprintCompilationContext;

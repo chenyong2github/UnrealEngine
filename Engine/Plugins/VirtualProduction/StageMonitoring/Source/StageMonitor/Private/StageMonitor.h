@@ -13,7 +13,7 @@
 class FMessageEndpoint;
 struct FStageDataBaseMessage;
 class IMessageContext;
-class FStageDataCollection;
+class FStageMonitorSession;
 
 /**
  * Implementation of the stage monitor
@@ -30,13 +30,7 @@ public:
 	virtual ~FStageMonitor();
 
 	//~Begin IStageMonitor interface
-	virtual TSharedPtr<IStageDataCollection> GetDataCollection() const override;
-	virtual bool IsStageInCriticalState() const override;
-	virtual bool IsTimePartOfCriticalState(double TimeInSeconds) const override;
-	virtual FName GetCurrentCriticalStateSource() const override;
 	virtual bool IsActive() const override { return bIsActive; }
-	virtual TArray<FName> GetCriticalStateHistorySources() const override;
-	virtual TArray<FName> GetCriticalStateSources(double TimeInSeconds) const override;
 	//~End IStageMonitor
 
 
@@ -104,11 +98,8 @@ private:
 	/** List of providers we received discovery response from that we not usable (wrong version, session id...) */
 	TArray<FGuid> InvalidDataProviders;
 
-	/** Collection holding received data */
-	TSharedPtr<FStageDataCollection> Collection;
-
-	/** Stage critical state handler */
-	TSharedPtr<FStageCriticalEventHandler> CriticalEventHandler;
+	/** Current active session where we dispatch new data */
+	TSharedPtr<IStageMonitorSession> Session;
 
 	/** Timestamp when we last sent a discovery message */
 	double LastSentDiscoveryMessage = 0.0;
@@ -121,4 +112,7 @@ private:
 
 	/** This monitor identifier */
 	FGuid Identifier;
+
+	/** DiscoveryMessage built once and broadcasted periodically */
+	FStageProviderDiscoveryMessage CachedDiscoveryMessage;
 };

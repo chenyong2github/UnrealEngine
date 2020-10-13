@@ -13,6 +13,9 @@
 #define DEBUG_MODE_DEPTH 1
 #define DEBUG_MODE_COVERAGE 2
 #define DEBUG_MODE_TANGENT 3
+#define DEBUG_MODE_ROOTUV 4
+#define DEBUG_MODE_U 5
+#define DEBUG_MODE_SEED 6
 
 int2 OutputResolution;
 int2 AtlasResolution;
@@ -37,10 +40,14 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 #if 1
 	if (all(LocalUV >= 0) && all(LocalUV <= 1))
 	{
-		float3 Data = AtlasTexture.SampleLevel(LinearSampler, float2(LocalUV.x,1-LocalUV.y), 0).xyz;
-		if (DebugMode == DEBUG_MODE_DEPTH) 		{ Data = Data.xxx; }
-		if (DebugMode == DEBUG_MODE_COVERAGE)	{ Data = Data.xxx; }
-		if (DebugMode == DEBUG_MODE_TANGENT)	{  }
+		float4 InData = AtlasTexture.SampleLevel(LinearSampler, float2(LocalUV.x,1-LocalUV.y), 0);
+		float3 Data = 0;
+		if (DebugMode == DEBUG_MODE_DEPTH) 		{ Data = InData.xxx; }
+		if (DebugMode == DEBUG_MODE_COVERAGE)	{ Data = InData.xxx; }
+		if (DebugMode == DEBUG_MODE_TANGENT)	{ Data = InData.xyz; }
+		if (DebugMode == DEBUG_MODE_ROOTUV)		{ Data = float3(InData.xy,0); }
+		if (DebugMode == DEBUG_MODE_U)			{ Data = InData.zzz; }
+		if (DebugMode == DEBUG_MODE_SEED)		{ Data = InData.www; }
 		OutputTexture[PixelCoord] = float4(Data, 1);
 	}
 #else
@@ -92,6 +99,8 @@ float3 RenDeformedOffset;
 uint SimVertexCount;
 float3 SimRestOffset;
 float3 SimDeformedOffset;
+
+float4x4 LocalToWorld;
 
 Buffer<uint4> RenRestPosition;
 Buffer<uint4> RenDeformedPosition;
@@ -153,7 +162,7 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 
 	if (P1.Type != HAIR_CONTROLPOINT_START)
 	{
-		AddLine(P0.Position, P1.Position, Color, Color);
+		AddLine(mul(float4(P0.Position, 1), LocalToWorld), mul(float4(P1.Position,1), LocalToWorld), Color, Color);
 	}
 }
 

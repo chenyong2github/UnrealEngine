@@ -2,8 +2,9 @@
 
 #include "SUSDLayersTreeView.h"
 
-#include "USDLayerUtils.h"
+#include "SUSDStageEditorStyle.h"
 #include "USDLayersViewModel.h"
+#include "USDLayerUtils.h"
 #include "USDMemory.h"
 #include "USDStageActor.h"
 #include "USDStageModule.h"
@@ -31,13 +32,14 @@ public:
 	{
 		FUsdLayerViewModelRef TreeItem = StaticCastSharedRef< FUsdLayerViewModel >( InTreeItem.ToSharedRef() );
 
-		TSharedRef< STextBlock > Item =
-			SNew(STextBlock)
+		return SNew( SBox )
+			.VAlign( VAlign_Center )
+			[
+				SNew(STextBlock)
 				.TextStyle( FEditorStyle::Get(), "LargeText" )
 				.Text( TreeItem->LayerModel, &FUsdLayerModel::GetDisplayName )
-				.Font( FEditorStyle::GetFontStyle( "ContentBrowser.SourceTreeItemFont" ) );
-
-		return Item;
+				.Font( FEditorStyle::GetFontStyle( "ContentBrowser.SourceTreeItemFont" ) )
+			];
 	}
 };
 
@@ -89,7 +91,16 @@ public:
 				.Image( this, &FUsdLayerMutedColumn::GetBrush, TreeItem )
 			];
 
-		return Item;
+		float ItemSize = FUsdStageEditorStyle::Get()->GetFloat( "UsdStageEditor.ListItemHeight" );
+
+		return SNew( SBox )
+			.HeightOverride( ItemSize )
+			.WidthOverride( ItemSize )
+			.HAlign( HAlign_Center )
+			.VAlign( VAlign_Center )
+			[
+				Item
+			];
 	}
 
 protected:
@@ -133,7 +144,16 @@ public:
 				.Image( this, &FUsdLayerEditColumn::GetCheckedImage, TreeItem )
 				.ColorAndOpacity( FEditorStyle::Get().GetWidgetStyle< FCheckBoxStyle >( "Checkbox" ).ForegroundColor );
 
-		return Item;
+		float ItemSize = FUsdStageEditorStyle::Get()->GetFloat( "UsdStageEditor.ListItemHeight" );
+
+		return SNew( SBox )
+			.HeightOverride( ItemSize )
+			.WidthOverride( ItemSize )
+			.HAlign( HAlign_Center )
+			.VAlign( VAlign_Center )
+			[
+				Item
+			];
 	}
 };
 

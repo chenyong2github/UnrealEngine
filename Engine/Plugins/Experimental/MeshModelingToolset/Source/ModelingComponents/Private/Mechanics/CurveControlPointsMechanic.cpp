@@ -118,7 +118,7 @@ void UCurveControlPointsMechanic::Setup(UInteractiveTool* ParentToolIn)
 	PointTransformProxy->OnTransformChanged.AddUObject(this, &UCurveControlPointsMechanic::GizmoTransformChanged);
 	PointTransformProxy->OnBeginTransformEdit.AddUObject(this, &UCurveControlPointsMechanic::GizmoTransformStarted);
 	PointTransformProxy->OnEndTransformEdit.AddUObject(this, &UCurveControlPointsMechanic::GizmoTransformEnded);
-	PointTransformGizmo->SetActiveTarget(PointTransformProxy);
+	PointTransformGizmo->SetActiveTarget(PointTransformProxy, GetParentTool()->GetToolManager());
 	PointTransformGizmo->SetVisibility(false);
 
 	// We force the coordinate system to be local so that the gizmo only moves in the plane we specify
@@ -544,6 +544,7 @@ void UCurveControlPointsMechanic::UpdatePointLocation(int32 PointID, const FVect
 
 bool UCurveControlPointsMechanic::HitTest(const FInputDeviceRay& ClickPos, FInputRayHit& ResultOut)
 {
+	ResultOut = FInputRayHit();
 	FGeometrySet3::FNearest Nearest;
 
 	// See if we are adding a new point (either in interactive initialization, or by adding a point on the end)
@@ -553,7 +554,10 @@ bool UCurveControlPointsMechanic::HitTest(const FInputDeviceRay& ClickPos, FInpu
 	{
 		FVector3d HitPoint;
 		bool bHit = DrawPlane.RayPlaneIntersection(ClickPos.WorldRay.Origin, ClickPos.WorldRay.Direction, 2, HitPoint);
-		ResultOut = FInputRayHit(ClickPos.WorldRay.GetParameter((FVector)HitPoint));
+		if (bHit)
+		{
+			ResultOut = FInputRayHit(ClickPos.WorldRay.GetParameter((FVector)HitPoint));
+		}
 		return bHit;
 	}
 	// Otherwise, see if we are in insert mode and hitting a segment
@@ -754,6 +758,14 @@ void UCurveControlPointsMechanic::ChangeSelection(int32 NewPointID, bool bAddToS
 	UpdateGizmoLocation();
 }
 
+void UCurveControlPointsMechanic::UpdateGizmoVisibility()
+{
+	if (PointTransformGizmo)
+	{
+		PointTransformGizmo->SetVisibility( (SelectedPointIDs.Num() > 0) && (!bInsertPointToggle) );
+	}
+}
+
 void UCurveControlPointsMechanic::UpdateGizmoLocation()
 {
 	if (!PointTransformGizmo)
@@ -761,11 +773,7 @@ void UCurveControlPointsMechanic::UpdateGizmoLocation()
 		return;
 	}
 
-	if (SelectedPointIDs.Num() == 0)
-	{
-		PointTransformGizmo->SetVisibility(false);
-	}
-	else
+	if (SelectedPointIDs.Num() > 0)
 	{
 		FVector3d NewGizmoLocation;
 		for (int32 PointID : SelectedPointIDs)
@@ -775,8 +783,9 @@ void UCurveControlPointsMechanic::UpdateGizmoLocation()
 		NewGizmoLocation /= SelectedPointIDs.Num();
 
 		PointTransformGizmo->ReinitializeGizmoTransform(FTransform((FQuat)DrawPlane.Rotation, (FVector)NewGizmoLocation));
-		PointTransformGizmo->SetVisibility(true);
 	}
+
+	UpdateGizmoVisibility();
 }
 
 void UCurveControlPointsMechanic::SetPlane(const FFrame3d& DrawPlaneIn)
@@ -996,6 +1005,7 @@ void UCurveControlPointsMechanic::OnUpdateModifierState(int ModifierID, bool bIs
 	else if (ModifierID == CtrlModifierId)
 	{
 		bInsertPointToggle = bIsOn;
+		UpdateGizmoVisibility();
 	}
 }
 

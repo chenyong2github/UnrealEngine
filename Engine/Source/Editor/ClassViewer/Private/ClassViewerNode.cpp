@@ -72,6 +72,7 @@ FClassViewerNode::FClassViewerNode( const FClassViewerNode& InCopyObject)
 void FClassViewerNode::AddChild( TSharedPtr<FClassViewerNode> Child )
 {
 	check(Child.IsValid());
+	Child->ParentNode = AsShared();
 	ChildrenList.Add(Child);
 }
 

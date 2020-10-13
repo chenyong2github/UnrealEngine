@@ -153,21 +153,17 @@ namespace AutomationTool
 		public override bool IsScriptModuleSupported(string ModuleName)
 		{
 			// @todo: add more unsupported modules here
-			if (ModuleName.StartsWith("GauntletExtras", StringComparison.OrdinalIgnoreCase))
+			List<string> UnsupportedModules = new List<string>()
 			{
-				return false;
-			}
-			if (ModuleName.StartsWith("Anvil", StringComparison.OrdinalIgnoreCase))
+				"GauntletExtras", "Anvil", "WinAnvil", "XboxCommonAnvil", "XboxOneAnvil", "MPX",
+				"FortniteGame",
+			};
+			foreach (string UnsupportedModule in UnsupportedModules)
 			{
-				return false;
-			}
-			if (ModuleName.StartsWith("FortniteGame", StringComparison.OrdinalIgnoreCase))
-			{
-				return false;
-			}
-			if (ModuleName.StartsWith("AWSSDK.Core", StringComparison.OrdinalIgnoreCase))
-			{
-				return false;
+				if (ModuleName.StartsWith(UnsupportedModule, StringComparison.OrdinalIgnoreCase))
+				{
+					return false;
+				}
 			}
 			return true;
 		}

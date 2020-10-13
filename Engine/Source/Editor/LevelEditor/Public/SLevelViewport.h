@@ -728,6 +728,9 @@ private:
 	/** Get the SViewport size */
 	FVector2D GetSViewportSize() const;
 
+	/** Updates the real-time overrride applied to the viewport */
+	void OnPerformanceSettingsChanged(UObject* Obj, struct FPropertyChangedEvent& ChangeEvent);
+
 private:
 	/** Tab which this viewport is located in */
 	TWeakPtr<class FLevelViewportLayout> ParentLayout;

@@ -16,9 +16,14 @@ FRuntimeVirtualTextureSceneProxy::FRuntimeVirtualTextureSceneProxy(URuntimeVirtu
 	: SceneIndex(0)
 	, ProducerId(0)
 	, VirtualTexture(nullptr)
+	, bHidePrimitivesInEditor(false)
+	, bHidePrimitivesInGame(false)
 	, CombinedDirtyRect(0, 0, 0, 0)
 {
-	if (InComponent->GetVirtualTexture() != nullptr && InComponent->GetVirtualTexture()->GetEnabled())
+	// Evaluate the flags used to hide primitives writing to this virtual texture.
+	InComponent->GetHidePrimitiveSettings(bHidePrimitivesInEditor, bHidePrimitivesInGame);
+
+	if (InComponent->GetVirtualTexture() != nullptr)
 	{
 		// We store a ProducerId here so that we will be able to find our SceneIndex from the Producer during rendering.
 		// We will need the SceneIndex to determine which primitives should render to this Producer.

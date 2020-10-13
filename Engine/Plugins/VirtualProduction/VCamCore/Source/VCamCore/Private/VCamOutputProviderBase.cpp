@@ -4,40 +4,68 @@
 
 #include "VCamModifierInterface.h"
 #include "VCamComponent.h"
-
+#include "UObject/UObjectBaseUtility.h"
 #include "Blueprint/UserWidget.h"
+
+#if WITH_EDITOR
+#include "Editor.h"
+#endif
 
 DEFINE_LOG_CATEGORY(LogVCamOutputProvider);
 
 UVCamOutputProviderBase::UVCamOutputProviderBase()
+	: bIsActive(false)
+	, bInitialized(false)
 {
-	bIsActive = false;
-	bIsPaused = false;
-	bInitialized = false;
+
 }
 
 UVCamOutputProviderBase::~UVCamOutputProviderBase()
 {
-	Destroy();
+	Deinitialize();
 }
 
-void UVCamOutputProviderBase::InitializeSafe()
+void UVCamOutputProviderBase::Initialize()
 {
-	if (!bInitialized)
+	bool bWasInitialized = bInitialized;
+	bInitialized = true;
+	
+	// Reactivate the provider if it was previously set to active
+	if (!bWasInitialized && bIsActive)
 	{
-		bInitialized = true;
+#if WITH_EDITOR
+		// If the editor viewports aren't fully initialized, then delay initialization for the entire Output Provider
+		if (GEditor && GEditor->GetActiveViewport() && (GEditor->GetActiveViewport()->GetSizeXY().X < 1))
+		{
+			bInitialized = false;
+		}
+		else
+#endif
+		{
+			Activate();
+		}
 	}
 }
 
-void UVCamOutputProviderBase::Destroy()
+void UVCamOutputProviderBase::Deinitialize()
 {
 	if (bIsActive)
 	{
-		SetPause(false);
-		SetActive(false);
+		Deactivate();
 	}
-
+	
 	bInitialized = false;
+}
+
+void UVCamOutputProviderBase::Activate()
+{
+	CreateUMG();
+	DisplayUMG();
+}
+
+void UVCamOutputProviderBase::Deactivate()
+{
+	DestroyUMG();
 }
 
 void UVCamOutputProviderBase::Tick(const float DeltaTime)
@@ -48,32 +76,17 @@ void UVCamOutputProviderBase::Tick(const float DeltaTime)
 	}
 }
 
-void UVCamOutputProviderBase::SetActive(const bool InActive)
+void UVCamOutputProviderBase::SetActive(const bool bInActive)
 {
-	bIsActive = InActive;
+	bIsActive = bInActive;
 
-	if (InActive)
+	if (bIsActive)
 	{
-		CreateUMG();
-		DisplayUMG();
+		Activate();
 	}
 	else
 	{
-		DestroyUMG();
-	}
-}
-
-void UVCamOutputProviderBase::SetPause(const bool InPause)
-{
-	if (InPause && bIsActive)
-	{
-		SetActive(false);
-		bIsPaused = true;
-	}
-	else if (!InPause && !bIsActive && bIsPaused)
-	{
-		SetActive(true);
-		bIsPaused = false;
+		Deactivate();
 	}
 }
 
@@ -102,7 +115,7 @@ void UVCamOutputProviderBase::CreateUMG()
 		return;
 	}
 
-	UMGWidget = NewObject<UVPFullScreenUserWidget>(GetTransientPackage(), UVPFullScreenUserWidget::StaticClass());
+	UMGWidget = NewObject<UVPFullScreenUserWidget>(this, UVPFullScreenUserWidget::StaticClass());
 	UMGWidget->SetDisplayTypes(DisplayType, DisplayType, DisplayType);
 	UMGWidget->PostProcessDisplayType.bReceiveHardwareInput = true;
 
@@ -178,7 +191,43 @@ void UVCamOutputProviderBase::NotifyWidgetOfComponentChange() const
 	}
 }
 
+TSharedPtr<FSceneViewport> UVCamOutputProviderBase::GetTargetSceneViewport() const
+{
+	TSharedPtr<FSceneViewport> SceneViewport;
+
+	if (UVCamComponent* OuterComponent = GetTypedOuter<UVCamComponent>())
+	{
+		SceneViewport = OuterComponent->GetTargetSceneViewport();
+	}
+
+	return SceneViewport;
+}
+
+TWeakPtr<SWindow> UVCamOutputProviderBase::GetTargetInputWindow() const
+{
+	TWeakPtr<SWindow> InputWindow;
+
+	if (UVCamComponent* OuterComponent = GetTypedOuter<UVCamComponent>())
+	{
+		InputWindow = OuterComponent->GetTargetInputWindow();
+	}
+
+	return InputWindow;
+}
+
 #if WITH_EDITOR
+FLevelEditorViewportClient* UVCamOutputProviderBase::GetTargetLevelViewportClient() const
+{
+	FLevelEditorViewportClient* ViewportClient = nullptr;
+
+	if (UVCamComponent* OuterComponent = GetTypedOuter<UVCamComponent>())
+	{
+		ViewportClient = OuterComponent->GetTargetLevelViewportClient();
+	}
+
+	return ViewportClient;
+}
+
 void UVCamOutputProviderBase::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	FProperty* Property = PropertyChangedEvent.MemberProperty;

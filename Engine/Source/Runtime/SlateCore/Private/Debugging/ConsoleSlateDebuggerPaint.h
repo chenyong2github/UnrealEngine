@@ -8,6 +8,7 @@
 #if WITH_SLATE_DEBUGGING
 
 #include "CoreMinimal.h"
+#include "Debugging/ConsoleSlateDebuggerUtility.h"
 #include "Delegates/Delegate.h"
 #include "Input/Reply.h"
 #include "HAL/IConsoleManager.h"
@@ -73,12 +74,9 @@ private:
 	FAutoConsoleVariableRef MaxNumberOfWidgetInListtRefCVar;
 	FAutoConsoleVariableRef LogWarningIfWidgetIsPaintedMoreThanOnceRefCVar;
 
-	using TSWidgetId = UPTRINT;
-	using TSWindowId = UPTRINT;
-
 	struct FPaintInfo 
 	{
-		TSWindowId Window;
+		FConsoleSlateDebuggerUtility::TSWindowId Window;
 		FVector2D PaintLocation;
 		FVector2D PaintSize;
 		FString WidgetName;
@@ -86,7 +84,7 @@ private:
 		int32 PaintCount;
 	};
 
-	using TPaintedWidgetMap = TMap<TSWidgetId, FPaintInfo>;
+	using TPaintedWidgetMap = TMap<FConsoleSlateDebuggerUtility::TSWidgetId, FPaintInfo>;
 	TPaintedWidgetMap PaintedWidgets;
 };
 

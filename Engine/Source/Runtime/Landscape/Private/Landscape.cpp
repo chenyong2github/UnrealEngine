@@ -123,7 +123,7 @@ namespace LandscapeCookStats
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
 // and set this new GUID as the version.                                       
-#define LANDSCAPE_MOBILE_COOK_VERSION TEXT("F96002C1787F44878795B534CEE2F902")
+#define LANDSCAPE_MOBILE_COOK_VERSION TEXT("683FD12EE0464A82A4536724447A1A89")
 
 #define LOCTEXT_NAMESPACE "Landscape"
 
@@ -302,14 +302,15 @@ void ULandscapeComponent::CheckGenerateLandscapePlatformData(bool bIsCooking, co
 			// The DDC is only useful when cooking (see else).
 
 			COOK_STAT(auto Timer = LandscapeCookStats::UsageStats.TimeSyncWork());
-			if (PlatformData.LoadFromDDC(NewSourceHash, this))
-			{
-				COOK_STAT(Timer.AddHit(PlatformData.GetPlatformDataSize()));
-			}
-			else
+// Temporarily disabling DDC use. See FORT-317076.
+// 			if (PlatformData.LoadFromDDC(NewSourceHash, this))
+// 			{
+// 				COOK_STAT(Timer.AddHit(PlatformData.GetPlatformDataSize()));
+// 			}
+// 			else
 			{
 				GeneratePlatformVertexData(TargetPlatform);
-				PlatformData.SaveToDDC(NewSourceHash, this);
+// 				PlatformData.SaveToDDC(NewSourceHash, this);
 				COOK_STAT(Timer.AddMiss(PlatformData.GetPlatformDataSize()));
 			}
 		}
@@ -676,13 +677,6 @@ void ULandscapeComponent::GetLayerDebugColorKey(int32& R, int32& G, int32& B) co
 }
 #endif	//WITH_EDITOR
 
-ULandscapeMeshCollisionComponent::ULandscapeMeshCollisionComponent(const FObjectInitializer& ObjectInitializer)
-: Super(ObjectInitializer)
-{
-	// make landscape always create? 
-	bAlwaysCreatePhysicsState = true;
-}
-
 ULandscapeInfo::ULandscapeInfo(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)
 {
@@ -719,8 +713,9 @@ void ULandscapeComponent::UpdatedSharedPropertiesFromActor()
 	bCastShadowAsTwoSided = LandscapeProxy->bCastShadowAsTwoSided;
 	bAffectDistanceFieldLighting = LandscapeProxy->bAffectDistanceFieldLighting;
 	bRenderCustomDepth = LandscapeProxy->bRenderCustomDepth;
-	SetCullDistance(LandscapeProxy->LDMaxDrawDistance);
+	CustomDepthStencilWriteMask = LandscapeProxy->CustomDepthStencilWriteMask;
 	CustomDepthStencilValue = LandscapeProxy->CustomDepthStencilValue;
+	SetCullDistance(LandscapeProxy->LDMaxDrawDistance);
 	LightingChannels = LandscapeProxy->LightingChannels;
 }
 
@@ -905,7 +900,9 @@ void ULandscapeComponent::PostLoad()
 		bool FoundMatchingDisablingMaterial = false;
 
 		// If we have tessellation, find the equivalent with disable tessellation set
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		if (Material->D3D11TessellationMode != EMaterialTessellationMode::MTM_NoTessellation)
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		{
 			for (int32 j = i + 1; j < MaterialInstances.Num(); ++j)
 			{
@@ -1042,7 +1039,7 @@ ALandscapeProxy::ALandscapeProxy(const FObjectInitializer& ObjectInitializer)
 #if !WITH_EDITORONLY_DATA
 	, LandscapeMaterialCached(nullptr)
 	, LandscapeGrassTypes()
-	, GrassMaxSquareDiscardDistance(0.0f)
+	, GrassMaxDiscardDistance(0.0f)
 #endif
 	, bHasLandscapeGrass(true)
 {
@@ -1374,11 +1371,7 @@ TArray<URuntimeVirtualTexture*> const& ULandscapeComponent::GetRuntimeVirtualTex
 
 ERuntimeVirtualTextureMainPassType ULandscapeComponent::GetVirtualTextureRenderPassType() const
 {
-	//hack[vhm]: Don't draw landscape with VirtualHeightfieldMesh enabled. Remove when VHM can control this directly.
-	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VHM.Enable"));
-	bool bVHMEnable = CVar != nullptr && CVar->GetValueOnAnyThread() != 0;
-
-	return bVHMEnable ? ERuntimeVirtualTextureMainPassType::Exclusive : GetLandscapeProxy()->VirtualTextureRenderPassType;
+	return GetLandscapeProxy()->VirtualTextureRenderPassType;
 }
 
 ULandscapeInfo* ULandscapeComponent::GetLandscapeInfo() const
@@ -2590,8 +2583,9 @@ void ALandscapeProxy::GetSharedProperties(ALandscapeProxy* Landscape)
 		bAffectDistanceFieldLighting = Landscape->bAffectDistanceFieldLighting;
 		LightingChannels = Landscape->LightingChannels;
 		bRenderCustomDepth = Landscape->bRenderCustomDepth;
-		LDMaxDrawDistance = Landscape->LDMaxDrawDistance;		
+		CustomDepthStencilWriteMask = Landscape->CustomDepthStencilWriteMask;
 		CustomDepthStencilValue = Landscape->CustomDepthStencilValue;
+		LDMaxDrawDistance = Landscape->LDMaxDrawDistance;
 		ComponentSizeQuads = Landscape->ComponentSizeQuads;
 		NumSubsections = Landscape->NumSubsections;
 		SubsectionSizeQuads = Landscape->SubsectionSizeQuads;

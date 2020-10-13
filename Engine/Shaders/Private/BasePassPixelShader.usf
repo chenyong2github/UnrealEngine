@@ -25,12 +25,13 @@
 
 // Material setting to allow forward shading (including mobile) to use preintegrated GF lut for simple IBL.
 #if MATERIAL_SHADINGMODEL_SINGLELAYERWATER || (FORWARD_SHADING && MATERIAL_USE_PREINTEGRATED_GF)
-#define PreIntegratedGF			OpaqueBasePass.PreIntegratedGFTexture
-#if SUPPORTS_INDEPENDENT_SAMPLERS
-#define PreIntegratedGFSampler	View.SharedBilinearClampedSampler
-#else
-#define PreIntegratedGFSampler	OpaqueBasePass.PreIntegratedGFSampler
-#endif
+	#define PreIntegratedGF			OpaqueBasePass.PreIntegratedGFTexture
+
+	#if SUPPORTS_INDEPENDENT_SAMPLERS
+		#define PreIntegratedGFSampler	View.SharedBilinearClampedSampler
+	#else
+		#define PreIntegratedGFSampler	OpaqueBasePass.PreIntegratedGFSampler
+	#endif
 #endif
 
 #include "SHCommon.ush"
@@ -82,6 +83,12 @@ float NormalCurvatureToRoughness(float3 WorldNormal)
 #include "ShadingModels.ush"
 #endif
 
+#if MATERIAL_SHADINGMODEL_HAIR
+#ifndef USE_HAIR_COMPLEX_TRANSMITTANCE
+#define USE_HAIR_COMPLEX_TRANSMITTANCE 0
+#endif
+#endif
+
 #ifndef COMPILER_GLSL
 	#define COMPILER_GLSL 0
 #endif
@@ -109,7 +116,7 @@ float NormalCurvatureToRoughness(float3 WorldNormal)
 
 #endif
 
-#include "SingleLayerWaterCommon.ush"
+#include "SingleLayerWaterShading.ush"
 
 #endif // MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 
@@ -352,15 +359,9 @@ void GetSkyLighting(FMaterialPixelParameters MaterialParameters, VTPageTableResu
 #if SUPPORTS_INDEPENDENT_SAMPLERS
 	#define ILCSharedSampler1 View.SharedBilinearClampedSampler
 	#define ILCSharedSampler2 View.SharedBilinearClampedSampler
-
-	#define SingleLayerWaterSceneColorSampler View.SharedBilinearClampedSampler
-	#define SingleLayerWaterSceneDepthSampler View.SharedPointClampedSampler
 #else
 	#define ILCSharedSampler1 IndirectLightingCache.IndirectLightingCacheTextureSampler1
 	#define ILCSharedSampler2 IndirectLightingCache.IndirectLightingCacheTextureSampler2
-
-	#define SingleLayerWaterSceneColorSampler OpaqueBasePass.SceneColorWithoutSingleLayerWaterSampler
-	#define SingleLayerWaterSceneDepthSampler OpaqueBasePass.SceneDepthWithoutSingleLayerWaterSampler
 #endif
 
 /** Calculates indirect lighting contribution on this object from precomputed data. */
@@ -1101,13 +1102,16 @@ void FPixelShaderInOut_MainPS(
 		#if MATERIAL_SHADINGMODEL_HAIR
 		if (GBuffer.ShadingModelID == SHADINGMODELID_HAIR)
 		{
-			FHairTransmittanceData TransmittanceData = InitHairTransmittanceData();
+			FHairTransmittanceData TransmittanceData = InitHairTransmittanceData(true);
 			float3 N = MaterialParameters.WorldNormal;
 			float3 V = MaterialParameters.CameraVector;
 			float3 L = normalize( V - N * dot(V,N) );
 			DiffuseDir = L;
-			bool bEvalMultiScatter = true;
-			DiffuseColorForIndirect = 2*PI * HairShading( GBuffer, L, V, N, 1, TransmittanceData, 0, 0.2, uint2(0,0), bEvalMultiScatter);
+			DiffuseColorForIndirect = 2*PI * HairShading( GBuffer, L, V, N, 1, TransmittanceData, 0, 0.2, uint2(0,0));
+
+			#if USE_HAIR_COMPLEX_TRANSMITTANCE
+			GBuffer.CustomData.a = 1.f / 255.f;
+			#endif
 		}
 		#endif
 

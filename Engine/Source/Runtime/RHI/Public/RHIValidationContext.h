@@ -295,7 +295,7 @@ public:
 		RHIContext->RHIEndUAVOverlap();
 	}
 
-	virtual void RHIBeginUAVOverlap(TArrayView<FRHIUnorderedAccessView*> UAVs) final override
+	virtual void RHIBeginUAVOverlap(TArrayView<FRHIUnorderedAccessView* const> UAVs) final override
 	{
 		for (FRHIUnorderedAccessView* UAV : UAVs)
 		{
@@ -304,7 +304,7 @@ public:
 		RHIContext->RHIBeginUAVOverlap(UAVs);
 	}
 
-	virtual void RHIEndUAVOverlap(TArrayView<FRHIUnorderedAccessView*> UAVs) final override
+	virtual void RHIEndUAVOverlap(TArrayView<FRHIUnorderedAccessView* const> UAVs) final override
 	{
 		for (FRHIUnorderedAccessView* UAV : UAVs)
 		{

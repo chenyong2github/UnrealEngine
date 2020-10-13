@@ -39,7 +39,7 @@ namespace UnrealBuildTool.Rules
 				PublicDependencyModuleNames.Add("MessageLog");
 			}
 
-            PrivateDependencyModuleNames.AddRange(
+			PrivateDependencyModuleNames.AddRange(
                 new string[]
                 {
                     "AnimationCore"

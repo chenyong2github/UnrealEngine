@@ -126,6 +126,7 @@ struct MOVIESCENETRACKS_API FMovieSceneTracksComponentTypes
 	struct
 	{
 		TCustomPropertyRegistration<float> Float;
+		TCustomPropertyRegistration<FIntermediate3DTransform> ComponentTransform;
 	} Accessors;
 
 	TComponentTypeID<FLevelVisibilityComponentData> LevelVisibility;

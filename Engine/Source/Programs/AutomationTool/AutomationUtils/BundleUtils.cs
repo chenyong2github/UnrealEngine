@@ -13,36 +13,29 @@ namespace AutomationUtils.Automation
 {
 	public class BundleUtils
 	{
-		public interface IReadOnlyBundleSettings
-		{
-			string Name { get; }
-			List<string> Tags { get; }
-			bool bContainsShaderLibrary { get; }
-		}
-
-		public class BundleSettings : IReadOnlyBundleSettings
+		public class BundleSettings
 		{
 			public string Name { get; set; }
 			public List<string> Tags { get; set; }
-			public List<BundleSettings> Children { get; set; }
+			public List<string> Dependencies { get; set; }
 			public List<string> FileRegex { get; set; }
 			public bool bFoundParent { get; set; }
 			public bool bContainsShaderLibrary { get; set; }
 			public int Order { get; set; }
-			public string ExecFileName { get; set; }
+			public string ExecFileName { get; set; } // TODO: We never used this.  Clean this up.
 		}
 
-		public static void LoadBundleConfig(DirectoryReference ProjectDir, UnrealTargetPlatform Platform, out List<BundleSettings> Bundles)
+		public static void LoadBundleConfig(DirectoryReference ProjectDir, UnrealTargetPlatform Platform, out IReadOnlyDictionary<string, BundleSettings> Bundles)
 		{
 			LoadBundleConfig<BundleSettings>(ProjectDir, Platform, out Bundles, delegate (BundleSettings Settings, ConfigHierarchy BundleConfig, string Section) { });
 		}
 
 		public static void LoadBundleConfig<TPlatformBundleSettings>(DirectoryReference ProjectDir, UnrealTargetPlatform Platform, 
-			out List<TPlatformBundleSettings> Bundles, 
+			out IReadOnlyDictionary<string, TPlatformBundleSettings> Bundles, 
 			Action<TPlatformBundleSettings, ConfigHierarchy, string> GetPlatformSettings) 
 			where TPlatformBundleSettings : BundleSettings, new()
 		{
-			Bundles = new List<TPlatformBundleSettings>();
+			var Results = new List<TPlatformBundleSettings>();
 
 			ConfigHierarchy BundleConfig = ConfigCache.ReadHierarchy(ConfigHierarchyType.InstallBundle, ProjectDir, Platform);
 
@@ -67,44 +60,64 @@ namespace AutomationUtils.Automation
 					}
 				}
 				{
-					string ExecFileName;
-					BundleConfig.GetString(SectionName, "ExecFileName", out ExecFileName);
-					Bundle.ExecFileName = ExecFileName;
+					List<string> Tags;
+					if (BundleConfig.GetArray(SectionName, "Tags", out Tags))
+					{
+						Bundle.Tags = Tags;
+					}
+					else 
+					{
+						Bundle.Tags = new List<string>(); 
+					}
 				}
 				{
-					List<string> Tags;
-					BundleConfig.GetArray(SectionName, "Tags", out Tags);
-					Bundle.Tags = Tags;
+					List<string> Dependencies;
+					if (BundleConfig.GetArray(SectionName, "Dependencies", out Dependencies))
+					{
+						Bundle.Dependencies = Dependencies;
+					}
+					else
+					{
+						Bundle.Dependencies = new List<string>();
+					}
 				}
 				{
 					List<string> FileRegex;
-					BundleConfig.GetArray(SectionName, "FileRegex", out FileRegex);
-					Bundle.FileRegex = FileRegex;
+					if (BundleConfig.GetArray(SectionName, "FileRegex", out FileRegex))
+					{
+						Bundle.FileRegex = FileRegex;
+					}
+					else
+					{
+						Bundle.FileRegex = new List<string>();
+					}
 				}
 				{
 					bool bContainsShaderLibrary;
-					BundleConfig.GetBool(SectionName, "ContainsShaderLibrary", out bContainsShaderLibrary);
-					Bundle.bContainsShaderLibrary = bContainsShaderLibrary;
-				}
-				if (Bundle.Tags == null)
-				{
-					Bundle.Tags = new List<string>();
+					if (BundleConfig.GetBool(SectionName, "ContainsShaderLibrary", out bContainsShaderLibrary))
+					{
+						Bundle.bContainsShaderLibrary = bContainsShaderLibrary;
+					}
+					else 
+					{
+						Bundle.bContainsShaderLibrary = false;
+					}
 				}
 
 				GetPlatformSettings(Bundle, BundleConfig, BundleDefinitionPrefix + Bundle.Name);
 
-				Bundles.Add(Bundle);
+				Results.Add(Bundle);
 			}
 
 			// Use OrderBy and not Sort because OrderBy is stable
-			Bundles = Bundles.OrderBy(Bundle => Bundle.Order).ToList();
+			Bundles = Results.OrderBy(b => b.Order).ToDictionary(b => b.Name, b => b);
 		}
 
 		public static TPlatformBundleSettings MatchBundleSettings<TPlatformBundleSettings>(
-		String FileName, List<TPlatformBundleSettings> InstallBundles) where TPlatformBundleSettings : BundleSettings
+			string FileName, IReadOnlyDictionary<string, TPlatformBundleSettings> InstallBundles) where TPlatformBundleSettings : BundleSettings
 		{
 			// Try to find a matching chunk regex
-			foreach (var Bundle in InstallBundles)
+			foreach (var Bundle in InstallBundles.Values)
 			{
 				foreach (string RegexString in Bundle.FileRegex)
 				{
@@ -116,6 +129,46 @@ namespace AutomationUtils.Automation
 			}
 
 			return null;
+		}
+
+		public static IEnumerable<TPlatformBundleSettings> GetBundleDependencies<TPlatformBundleSettings>(
+			TPlatformBundleSettings Bundle, IReadOnlyDictionary<string, TPlatformBundleSettings> InstallBundles) where TPlatformBundleSettings : BundleSettings
+		{
+			var FoundDependencies = new Dictionary<string, TPlatformBundleSettings>();
+
+			var CurrentDependencies = new List<TPlatformBundleSettings>();
+			CurrentDependencies.Add(Bundle);
+
+			while(CurrentDependencies.Count > 0)
+			{
+				var NextDependencies = new List<TPlatformBundleSettings>();
+				foreach(var Dep in CurrentDependencies)
+				{
+					if (FoundDependencies.ContainsKey(Dep.Name))
+						continue;
+					
+					FoundDependencies.Add(Dep.Name, Dep);					
+
+					foreach (var NextDepName in Dep.Dependencies)
+					{
+						if (InstallBundles.TryGetValue(NextDepName, out TPlatformBundleSettings NextDep))
+						{
+							NextDependencies.Add(NextDep);
+						}
+					}
+				}
+				CurrentDependencies = NextDependencies;
+			}
+
+			return FoundDependencies.Values;
+		}
+
+		public static bool HasPlatformBundleSource(DirectoryReference ProjectDir, UnrealTargetPlatform Platform)
+		{
+			ConfigHierarchy BundleConfig = ConfigCache.ReadHierarchy(ConfigHierarchyType.InstallBundle, ProjectDir, Platform);
+			return 
+				BundleConfig.GetArray("InstallBundleManager.BundleSources", "DefaultBundleSources", out List<string> InstallBundleSources) && 
+				InstallBundleSources.Contains("Platform");
 		}
 	}
 }

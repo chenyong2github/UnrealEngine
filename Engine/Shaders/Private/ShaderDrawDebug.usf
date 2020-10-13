@@ -8,9 +8,9 @@
 // The shader used to render the debug element on view
 
 #if PERMUTATION_INPUT_TYPE == 0 
-StructuredBuffer<PackedShaderDrawElement>	ShaderDrawDebugPrimitive;
+StructuredBuffer<FPackedShaderDrawElement>	ShaderDrawDebugPrimitive;
 #else
-StructuredBuffer<PackedShaderDrawElement>	LockedShaderDrawDebugPrimitive;
+StructuredBuffer<FPackedShaderDrawElement>	LockedShaderDrawDebugPrimitive;
 #endif
 
 Texture2D<float> DepthTexture;
@@ -26,11 +26,11 @@ void ShaderDrawDebugVS(
 	out float4 ColorAlpha : TEXCOORD0)
 {
 #if PERMUTATION_INPUT_TYPE == 0
-	PackedShaderDrawElement PackedLine = ShaderDrawDebugPrimitive[InstanceId];
+	FPackedShaderDrawElement PackedLine = ShaderDrawDebugPrimitive[InstanceId];
 #else
-	PackedShaderDrawElement PackedLine = LockedShaderDrawDebugPrimitive[InstanceId];
+	FPackedShaderDrawElement PackedLine = LockedShaderDrawDebugPrimitive[InstanceId];
 #endif
-	ShaderDrawElement Line = UnpackShaderElement(PackedLine);
+	FShaderDrawElement Line = UnpackShaderElement(PackedLine);
 
 	float4 VertexPosition = float4(VertexId == 0 ? Line.Pos0 : Line.Pos1, 1.0f);
 	float4 VertexColor = VertexId == 0 ? Line.Color0 : Line.Color1;
@@ -61,7 +61,7 @@ void ShaderDrawDebugPS(
 
 #if GPU_DEBUG_RENDERING_CLEAR_CS
 
-RWStructuredBuffer<PackedShaderDrawElement>	DataBuffer;
+RWStructuredBuffer<FPackedShaderDrawElement>	DataBuffer;
 RWBuffer<uint> IndirectBuffer;
 
 [numthreads(1, 1, 1)]
@@ -78,8 +78,8 @@ void ShaderDrawDebugClearCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 
 	#if PERMUTATION_BUFFER_TYPE == 0
 	uint NumElements;
-	StructuredBuffer<PackedShaderDrawElement>	InStructuredBuffer;
-	RWStructuredBuffer<PackedShaderDrawElement>	OutStructuredBuffer;
+	StructuredBuffer<FPackedShaderDrawElement>	InStructuredBuffer;
+	RWStructuredBuffer<FPackedShaderDrawElement>	OutStructuredBuffer;
 	[numthreads(1024, 1, 1)]
 	void ShaderDrawDebugCopyCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 	{

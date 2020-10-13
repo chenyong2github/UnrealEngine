@@ -20,9 +20,7 @@ public:
 		Vector
 	};
 
-	FDatasmithFacadeKeyValueProperty( const TCHAR* InName )
-		: FDatasmithFacadeElement( FDatasmithSceneFactory::CreateKeyValueProperty( InName ) )
-	{}
+	FDatasmithFacadeKeyValueProperty( const TCHAR* InName );
 
 	virtual ~FDatasmithFacadeKeyValueProperty() {}
 
@@ -54,9 +52,7 @@ public:
 protected:
 #endif
 
-	FDatasmithFacadeKeyValueProperty( const TSharedRef<IDatasmithKeyValueProperty>& InKeyValueProperty )
-		: FDatasmithFacadeElement( InKeyValueProperty )
-	{}
+	FDatasmithFacadeKeyValueProperty( const TSharedRef<IDatasmithKeyValueProperty>& InKeyValueProperty );
 
 	virtual void BuildScene(FDatasmithFacadeScene& SceneRef) override {}
 

@@ -7,6 +7,7 @@
 #pragma once
 
 #include "Clang/ClangPlatform.h"
+#include "Availability.h"
 
 /**
 * iOS specific types
@@ -134,3 +135,22 @@ typedef FIOSPlatformTypes FPlatformTypes;
 #define DLLIMPORT
 
 #define IOS_MAX_PATH 1024
+
+#define UE4_HAS_IOS121 (__IPHONE_12_1 && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_12_1)
+#define UE4_HAS_TVOS121 (__TVOS_12_1)
+#define UE4_HAS_MACOS1401 (__MAC_10_14_1)
+#define UE4_HAS_TVOS13 (__TVOS_13_0)
+#define UE4_HAS_IOS13 (__IPHONE_13_0 && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_13_0)
+#define UE4_HAS_MACOS15 (__MAC_10_15)
+
+#if defined(__TVOS_14_0)
+	#define UE4_HAS_TVOS14 1
+#else
+	#define UE4_HAS_TVOS14 0
+#endif
+
+#if defined(__IPHONE_14_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_14_0
+	#define UE4_HAS_IOS14 1
+#else
+	#define UE4_HAS_IOS14 0
+#endif

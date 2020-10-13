@@ -74,6 +74,8 @@ const FName FNiagaraSystemToolkit::GeneratedCodeTabID(TEXT("NiagaraSystemEditor_
 const FName FNiagaraSystemToolkit::MessageLogTabID(TEXT("NiagaraSystemEditor_MessageLog"));
 const FName FNiagaraSystemToolkit::SystemOverviewTabID(TEXT("NiagaraSystemEditor_SystemOverview"));
 const FName FNiagaraSystemToolkit::ScratchPadTabID(TEXT("NiagaraSystemEditor_ScratchPad"));
+IConsoleVariable* FNiagaraSystemToolkit::VmStatEnabledVar = IConsoleManager::Get().FindConsoleVariable(TEXT("vm.DetailedVMScriptStats"));
+IConsoleVariable* FNiagaraSystemToolkit::GpuStatEnabledVar = IConsoleManager::Get().FindConsoleVariable(TEXT("fx.NiagaraGpuProfilingEnabled"));
 
 static int32 GbLogNiagaraSystemChanges = 0;
 static FAutoConsoleVariableRef CVarSuppressNiagaraSystems(
@@ -710,12 +712,8 @@ TSharedRef<SDockTab> FNiagaraSystemToolkit::SpawnTab_GeneratedCode(const FSpawnT
 {
 	check(Args.GetTabId().TabType == GeneratedCodeTabID);
 
-	TSharedRef<SDockTab> SpawnedTab =
-		SNew(SDockTab)
-		[
-			SNew(SNiagaraGeneratedCodeView, SystemViewModel.ToSharedRef())
-		];
-
+	TSharedRef<SDockTab> SpawnedTab = SNew(SDockTab);
+	SpawnedTab->SetContent(SNew(SNiagaraGeneratedCodeView, SystemViewModel.ToSharedRef(), SpawnedTab));
 	return SpawnedTab;
 }
 
@@ -777,6 +775,11 @@ void FNiagaraSystemToolkit::SetupCommands()
         FNiagaraEditorCommands::Get().ClearStatPerformance,
         FExecuteAction::CreateSP(this, &FNiagaraSystemToolkit::ClearStatPerformance));
 	GetToolkitCommands()->MapAction(
+        FNiagaraEditorCommands::Get().ToggleStatPerformanceGPU,
+        FExecuteAction::CreateSP(this, &FNiagaraSystemToolkit::ToggleStatPerformanceGPU),
+        FCanExecuteAction(),
+        FIsActionChecked::CreateSP(this, &FNiagaraSystemToolkit::IsStatPerformanceGPUChecked));
+	GetToolkitCommands()->MapAction(
 		FNiagaraEditorCommands::Get().ToggleStatPerformanceTypeAvg,
 		FExecuteAction::CreateSP(this, &FNiagaraSystemToolkit::ToggleStatPerformanceTypeAvg),
 		FCanExecuteAction(),
@@ -786,6 +789,16 @@ void FNiagaraSystemToolkit::SetupCommands()
         FExecuteAction::CreateSP(this, &FNiagaraSystemToolkit::ToggleStatPerformanceTypeMax),
         FCanExecuteAction(),
         FIsActionChecked::CreateSP(this, &FNiagaraSystemToolkit::IsStatPerformanceTypeMax));
+	GetToolkitCommands()->MapAction(
+        FNiagaraEditorCommands::Get().ToggleStatPerformanceModeAbsolute,
+        FExecuteAction::CreateSP(this, &FNiagaraSystemToolkit::ToggleStatPerformanceModeAbsolute),
+        FCanExecuteAction(),
+        FIsActionChecked::CreateSP(this, &FNiagaraSystemToolkit::IsStatPerformanceModeAbsolute));
+	GetToolkitCommands()->MapAction(
+        FNiagaraEditorCommands::Get().ToggleStatPerformanceModePercent,
+        FExecuteAction::CreateSP(this, &FNiagaraSystemToolkit::ToggleStatPerformanceModePercent),
+        FCanExecuteAction(),
+        FIsActionChecked::CreateSP(this, &FNiagaraSystemToolkit::IsStatPerformanceModePercent));
 
 	GetToolkitCommands()->MapAction(
 		FNiagaraEditorCommands::Get().ToggleBounds,
@@ -959,7 +972,7 @@ void FNiagaraSystemToolkit::ExtendToolbar()
 			{
 				ToolbarBuilder.AddToolBarButton(FNiagaraEditorCommands::Get().ToggleStatPerformance, NAME_None,
                     LOCTEXT("NiagaraShowPerformance", "Performance"),
-                    LOCTEXT("ShowBoundsTooltip", "Show runtime performance for cpu scripts."),
+                    LOCTEXT("NiagaraShowPerformanceTooltip", "Show runtime performance for particle scripts."),
                     FSlateIcon(FEditorStyle::GetStyleSetName(), "MaterialEditor.ToggleMaterialStats"));
 				ToolbarBuilder.AddComboButton(
                     FUIAction(),
@@ -1018,8 +1031,13 @@ TSharedRef<SWidget> FNiagaraSystemToolkit::GenerateStatConfigMenuContent(TShared
 
 	MenuBuilder.AddMenuEntry(FNiagaraEditorCommands::Get().ClearStatPerformance);
 	MenuBuilder.AddMenuSeparator();
+	MenuBuilder.AddMenuEntry(FNiagaraEditorCommands::Get().ToggleStatPerformanceGPU);
+	MenuBuilder.AddMenuSeparator();
 	MenuBuilder.AddMenuEntry(FNiagaraEditorCommands::Get().ToggleStatPerformanceTypeAvg);
 	MenuBuilder.AddMenuEntry(FNiagaraEditorCommands::Get().ToggleStatPerformanceTypeMax);
+	MenuBuilder.AddMenuSeparator();
+	MenuBuilder.AddMenuEntry(FNiagaraEditorCommands::Get().ToggleStatPerformanceModePercent);
+	MenuBuilder.AddMenuEntry(FNiagaraEditorCommands::Get().ToggleStatPerformanceModeAbsolute);
 
 	return MenuBuilder.MakeWidget();
 }
@@ -1276,10 +1294,14 @@ void FNiagaraSystemToolkit::ClearStatPerformance()
 
 void FNiagaraSystemToolkit::ToggleStatPerformance()
 {
-	IConsoleVariable* StatVar = IConsoleManager::Get().FindConsoleVariable(TEXT("vm.DetailedVMScriptStats"));
-	if (StatVar)
+	bool IsEnabled = IsStatPerformanceChecked();
+	if (VmStatEnabledVar)
 	{
-		StatVar->Set(!StatVar->GetBool());
+		VmStatEnabledVar->Set(!IsEnabled);
+	}
+	if (IsStatPerformanceGPUChecked() == IsEnabled)
+	{
+		ToggleStatPerformanceGPU();
 	}
 }
 
@@ -1303,10 +1325,42 @@ bool FNiagaraSystemToolkit::IsStatPerformanceTypeMax()
 	return SystemViewModel->StatEvaluationType == ENiagaraStatEvaluationType::Maximum;
 }
 
+void FNiagaraSystemToolkit::ToggleStatPerformanceModePercent()
+{
+	SystemViewModel->StatDisplayMode = ENiagaraStatDisplayMode::Percent;
+}
+
+void FNiagaraSystemToolkit::ToggleStatPerformanceModeAbsolute()
+{
+	SystemViewModel->StatDisplayMode = ENiagaraStatDisplayMode::Absolute;
+}
+
+bool FNiagaraSystemToolkit::IsStatPerformanceModePercent()
+{
+	return SystemViewModel->StatDisplayMode == ENiagaraStatDisplayMode::Percent;
+}
+
+bool FNiagaraSystemToolkit::IsStatPerformanceModeAbsolute()
+{
+	return SystemViewModel->StatDisplayMode == ENiagaraStatDisplayMode::Absolute;
+}
+
 bool FNiagaraSystemToolkit::IsStatPerformanceChecked()
 {
-	IConsoleVariable* StatVar = IConsoleManager::Get().FindConsoleVariable(TEXT("vm.DetailedVMScriptStats"));
-	return StatVar ? StatVar->GetBool() : false;
+	return VmStatEnabledVar ? VmStatEnabledVar->GetBool() : false;
+}
+
+void FNiagaraSystemToolkit::ToggleStatPerformanceGPU()
+{
+	if (GpuStatEnabledVar)
+	{
+		GpuStatEnabledVar->Set(!IsStatPerformanceGPUChecked());
+	}
+}
+
+bool FNiagaraSystemToolkit::IsStatPerformanceGPUChecked()
+{
+	return GpuStatEnabledVar ? GpuStatEnabledVar->GetBool() : false;
 }
 
 void FNiagaraSystemToolkit::UpdateOriginalEmitter()

@@ -36,9 +36,11 @@
 #define USE_PIX
 #endif
 
-#if defined(USE_PIX) && !defined(_AMD64_)
-#pragma message("Warning: Pix markers are only supported on AMD64")
-#endif
+// This warning no longer applies, since PIX is supported on native HL2. Commenting out this warning until we 
+// get an updated header from Microsoft.
+//#if defined(USE_PIX) && !defined(_AMD64_)
+//#pragma message("Warning: Pix markers are only supported on AMD64")
+//#endif
 
 // These flags are used by both PIXBeginCapture and PIXGetCaptureState
 #define PIX_CAPTURE_TIMING                  (1 << 0)

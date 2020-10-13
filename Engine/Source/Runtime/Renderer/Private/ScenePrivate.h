@@ -834,11 +834,10 @@ private:
 
 		const FExposureBufferData* GetLastBuffer(FRHICommandListImmediate& RHICmdList)
 		{
-			return GetOrCreateBuffer(RHICmdList, GetPreviousPreviousIndex());
+			return GetOrCreateBuffer(RHICmdList, 1 - CurrentBuffer);
 		}
 
-		void SwapBuffers(FRDGBuilder& GraphBuilder, bool bUpdateLastExposure);
-
+		void SwapBuffers(bool bUpdateLastExposure);
 	private:
 		const TRefCountPtr<IPooledRenderTarget>& GetTexture(uint32 TextureIndex) const;
 		const TRefCountPtr<IPooledRenderTarget>& GetOrCreateTexture(FRHICommandList& RHICmdList, uint32 TextureIndex);
@@ -857,8 +856,9 @@ private:
 		TRefCountPtr<IPooledRenderTarget> PooledRenderTarget[3];
 		TUniquePtr<FRHIGPUTextureReadback> ExposureTextureReadback[3];
 
-		FExposureBufferData ExposureBufferData[3];
-		TUniquePtr<FRHIGPUBufferReadback> ExposureBufferReadback[3];
+		// ES3.1 feature level. For efficent readback use buffers instead of textures
+		FExposureBufferData ExposureBufferData[2];
+		TUniquePtr<FRHIGPUBufferReadback> ExposureBufferReadback;
 
 	} EyeAdaptationManager;
 
@@ -1244,9 +1244,9 @@ public:
 		return EyeAdaptationManager.GetLastBuffer(RHICmdList);
 	}
 
-	void SwapEyeAdaptationBuffers(FRDGBuilder& GraphBuilder)
+	void SwapEyeAdaptationBuffers()
 	{
-		EyeAdaptationManager.SwapBuffers(GraphBuilder, bUpdateLastExposure && bValidEyeAdaptationBuffer);
+		EyeAdaptationManager.SwapBuffers(bUpdateLastExposure && bValidEyeAdaptationBuffer);
 	}
 
 #if WITH_MGPU
@@ -1334,6 +1334,9 @@ public:
 	virtual void ReleaseDynamicRHI() override
 	{
 		HZBOcclusionTests.ReleaseDynamicRHI();
+		EyeAdaptationManager.SafeRelease();
+		bValidEyeAdaptationTexture = false;
+		bValidEyeAdaptationBuffer = false;
 	}
 
 	// FSceneViewStateInterface
@@ -2636,6 +2639,9 @@ public:
 	/** Used to track the order that skylights were enabled in. */
 	TArray<FVolumetricCloudSceneProxy*> VolumetricCloudStack;
 
+	/** Global Field Manager */
+	class FPhysicsFieldSceneProxy* PhysicsField = nullptr;
+
 	/** The wind sources in the scene. */
 	TArray<class FWindSourceSceneProxy*> WindSources;
 
@@ -2691,6 +2697,10 @@ public:
 
 	/** The runtime virtual textures in the scene. */
 	TSparseArray<FRuntimeVirtualTextureSceneProxy*> RuntimeVirtualTextures;
+
+	/** Mask used to determine whether primitives that draw to a runtime virtual texture should also be drawn in the main pass. */
+	uint8 RuntimeVirtualTexturePrimitiveHideMaskEditor;
+	uint8 RuntimeVirtualTexturePrimitiveHideMaskGame;
 
 	float DefaultMaxDistanceFieldOcclusionDistance;
 
@@ -2750,7 +2760,7 @@ public:
 	virtual void UpdateSceneCaptureContents(class USceneCaptureComponent2D* CaptureComponent) override;
 	virtual void UpdateSceneCaptureContents(class USceneCaptureComponentCube* CaptureComponent) override;
 	virtual void UpdatePlanarReflectionContents(UPlanarReflectionComponent* CaptureComponent, FSceneRenderer& MainSceneRenderer) override;
-	virtual void AllocateReflectionCaptures(const TArray<UReflectionCaptureComponent*>& NewCaptures, const TCHAR* CaptureReason, bool bVerifyOnlyCapturing) override;
+	virtual void AllocateReflectionCaptures(const TArray<UReflectionCaptureComponent*>& NewCaptures, const TCHAR* CaptureReason, bool bVerifyOnlyCapturing, bool bCapturingForMobile) override;
 	virtual void UpdateSkyCaptureContents(const USkyLightComponent* CaptureComponent, bool bCaptureEmissiveOnly, UTextureCube* SourceCubemap, FTexture* OutProcessedTexture, float& OutAverageBrightness, FSHVectorRGB3& OutIrradianceEnvironmentMap, TArray<FFloat16Color>* OutRadianceMap) override; 
 	virtual void AllocateAndCaptureFrameSkyEnvMap(FRDGBuilder& GraphBuilder, FSceneRenderer& SceneRenderer, FViewInfo& MainView, bool bShouldRenderSkyAtmosphere, bool bShouldRenderVolumetricCloud) override;
 	virtual void ValidateSkyLightRealTimeCapture(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGTextureRef SceneColorTexture) override;
@@ -2761,6 +2771,7 @@ public:
 	virtual void RemovePrecomputedVolumetricLightmap(const class FPrecomputedVolumetricLightmap* Volume) override;
 	virtual void AddRuntimeVirtualTexture(class URuntimeVirtualTextureComponent* Component) override;
 	virtual void RemoveRuntimeVirtualTexture(class URuntimeVirtualTextureComponent* Component) override;
+	virtual void GetRuntimeVirtualTextureHidePrimitiveMask(uint8& bHideMaskEditor, uint8& bHideMaskGame) const override;
 	virtual void InvalidateRuntimeVirtualTexture(class URuntimeVirtualTextureComponent* Component, FBoxSphereBounds const& WorldBounds) override;
 	virtual void GetPrimitiveUniformShaderParameters_RenderThread(const FPrimitiveSceneInfo* PrimitiveSceneInfo, bool& bHasPrecomputedVolumetricLightmap, FMatrix& PreviousLocalToWorld, int32& SingleCaptureIndex, bool& bOutputVelocity) const override;
 	virtual void UpdateLightTransform(ULightComponent* Light) override;
@@ -2773,6 +2784,10 @@ public:
 	virtual void RemoveSkyAtmosphere(FSkyAtmosphereSceneProxy* SkyAtmosphereSceneProxy) override;
 	virtual FSkyAtmosphereRenderSceneInfo* GetSkyAtmosphereSceneInfo() override { return SkyAtmosphere; }
 	virtual const FSkyAtmosphereRenderSceneInfo* GetSkyAtmosphereSceneInfo() const override { return SkyAtmosphere; }
+
+	virtual void SetPhysicsField(class FPhysicsFieldSceneProxy* PhysicsFieldSceneProxy) override;
+	virtual void ResetPhysicsField() override;
+	virtual void UpdatePhysicsField(FRHICommandListImmediate& RHICmdList, FViewInfo& View) override;
 
 	virtual void AddVolumetricCloud(FVolumetricCloudSceneProxy* VolumetricCloudSceneProxy) override;
 	virtual void RemoveVolumetricCloud(FVolumetricCloudSceneProxy* VolumetricCloudSceneProxy) override;
@@ -3067,10 +3082,10 @@ private:
 	* Updates the contents of the given reflection capture by rendering the scene. 
 	* This must be called on the game thread.
 	*/
-	void CaptureOrUploadReflectionCapture(UReflectionCaptureComponent* CaptureComponent, bool bVerifyOnlyCapturing);
+	void CaptureOrUploadReflectionCapture(UReflectionCaptureComponent* CaptureComponent, bool bVerifyOnlyCapturing, bool bCapturingForMobile);
 
 	/** Updates the contents of all reflection captures in the scene.  Must be called from the game thread. */
-	void UpdateAllReflectionCaptures(const TCHAR* CaptureReason, bool bVerifyOnlyCapturing);
+	void UpdateAllReflectionCaptures(const TCHAR* CaptureReason, bool bVerifyOnlyCapturing, bool bCapturingForMobile);
 
 	/** Updates all static draw lists. */
 	void UpdateStaticDrawLists_RenderThread(FRHICommandListImmediate& RHICmdList);

@@ -99,6 +99,161 @@ void FNiagaraSystemToolkitParameterPanelViewModel::InitBindings()
 		SystemViewModel->OnEmitterHandleViewModelsChanged().AddSP(this, &FNiagaraSystemToolkitParameterPanelViewModel::RefreshSelectedEmitterScriptGraphs);
 	}
 	SystemViewModel->OnSystemCompiled().AddSP(this, &FNiagaraSystemToolkitParameterPanelViewModel::Refresh);
+	SystemViewModel->OnParameterRemovedExternally().AddSP(this, &FNiagaraSystemToolkitParameterPanelViewModel::OnParameterRemovedExternally);
+	SystemViewModel->OnParameterRenamedExternally().AddSP(this, &FNiagaraSystemToolkitParameterPanelViewModel::OnParameterRenamedExternally);
+}
+
+
+void FNiagaraSystemToolkitParameterPanelViewModel::OnParameterRenamedExternally(const FNiagaraVariableBase& InOldVar, const FNiagaraVariableBase& InNewVar, UNiagaraEmitter* InOptionalEmitter)
+{
+	// See if this was the last reference to that parameter being renamed, if so, we need to update to a full rename and rename all locations where it was used that are downstream, like renderer bindings.
+
+	// Emitter & Particle namespaces are just for the ones actively being worked on.
+	if (InOldVar.IsInNameSpace(FNiagaraConstants::EmitterNamespace) ||
+		InOldVar.IsInNameSpace(FNiagaraConstants::ParticleAttributeNamespace))
+	{
+		const TArray<FGuid>& SelectedEmitterHandleIds = OverviewSelectionViewModel->GetSelectedEmitterHandleIds();
+
+		// Note that we might have multiple selections and don't know explicitly which one changed, so we have to go through all independently and examine them.
+		if (SelectedEmitterHandleIds.Num() > 0)
+		{
+			const TArray<TSharedRef<FNiagaraEmitterHandleViewModel>>& EmitterHandleViewModels = SystemViewModel->GetEmitterHandleViewModels();
+			for (const TSharedRef<FNiagaraEmitterHandleViewModel>& EmitterHandleViewModel : EmitterHandleViewModels)
+			{
+				if (SelectedEmitterHandleIds.Contains(EmitterHandleViewModel->GetId()))
+				{
+					bool bFound = false;
+					UNiagaraGraph* Graph = static_cast<UNiagaraScriptSource*>(EmitterHandleViewModel->GetEmitterHandle()->GetInstance()->GraphSource)->NodeGraph;
+					if (Graph)
+					{
+						const TMap<FNiagaraVariable, FNiagaraGraphParameterReferenceCollection>& RefMap = Graph->GetParameterReferenceMap();
+						const FNiagaraGraphParameterReferenceCollection* Coll = RefMap.Find(InOldVar);
+						if (Coll)
+						{
+							bFound = true;
+							break;
+						}
+					}
+
+					if (!bFound)
+					{
+						EmitterHandleViewModel->GetEmitterHandle()->GetInstance()->HandleVariableRenamed(InOldVar, InNewVar, true);
+					}
+				}
+			}
+		}		
+	}
+	// User and System need to be checked for all graphs as they could be used anywhere.
+	else if (InOldVar.IsInNameSpace(FNiagaraConstants::UserNamespace) ||
+			 InOldVar.IsInNameSpace(FNiagaraConstants::SystemNamespace))
+	{
+		TArray<UNiagaraGraph*> Graphs;
+		Graphs.Add(SystemScriptGraph.Get());
+
+		const TArray<TSharedRef<FNiagaraEmitterHandleViewModel>>& EmitterHandleViewModels = SystemViewModel->GetEmitterHandleViewModels();
+		for (const TSharedRef<FNiagaraEmitterHandleViewModel>& EmitterHandleViewModel : EmitterHandleViewModels)
+		{
+			UNiagaraGraph* Graph = static_cast<UNiagaraScriptSource*>(EmitterHandleViewModel->GetEmitterHandle()->GetInstance()->GraphSource)->NodeGraph;
+			if (Graph)
+				Graphs.Add(Graph);
+			
+		}
+
+		bool bFound = false;
+		for (UNiagaraGraph* Graph : Graphs)
+		{
+			const TMap<FNiagaraVariable, FNiagaraGraphParameterReferenceCollection>& RefMap = Graph->GetParameterReferenceMap();
+			const FNiagaraGraphParameterReferenceCollection* Coll = RefMap.Find(InOldVar);
+			if (Coll)
+			{
+				bFound = true;
+				break;
+			}
+		}
+
+		if (!bFound)
+		{
+			SystemViewModel->GetSystem().HandleVariableRenamed(InOldVar, InNewVar, true);
+		}
+	}
+
+	Refresh();
+}
+void FNiagaraSystemToolkitParameterPanelViewModel::OnParameterRemovedExternally(const FNiagaraVariableBase& InOldVar,  UNiagaraEmitter* InOptionalEmitter)
+{
+
+	// See if this was the last reference to that parameter being renamed, if so, we need to update to a full rename and rename all locations where it was used that are downstream, like renderer bindings.
+
+	// Emitter & Particle namespaces are just for the ones actively being worked on.
+	if (InOldVar.IsInNameSpace(FNiagaraConstants::EmitterNamespace) ||
+		InOldVar.IsInNameSpace(FNiagaraConstants::ParticleAttributeNamespace))
+	{
+		const TArray<FGuid>& SelectedEmitterHandleIds = OverviewSelectionViewModel->GetSelectedEmitterHandleIds();
+
+		// Note that we might have multiple selections and don't know explicitly which one changed, so we have to go through all independently and examine them.
+		if (SelectedEmitterHandleIds.Num() > 0)
+		{
+			const TArray<TSharedRef<FNiagaraEmitterHandleViewModel>>& EmitterHandleViewModels = SystemViewModel->GetEmitterHandleViewModels();
+			for (const TSharedRef<FNiagaraEmitterHandleViewModel>& EmitterHandleViewModel : EmitterHandleViewModels)
+			{
+				if (SelectedEmitterHandleIds.Contains(EmitterHandleViewModel->GetId()))
+				{
+					bool bFound = false;
+					UNiagaraGraph* Graph = static_cast<UNiagaraScriptSource*>(EmitterHandleViewModel->GetEmitterHandle()->GetInstance()->GraphSource)->NodeGraph;
+					if (Graph)
+					{
+						const TMap<FNiagaraVariable, FNiagaraGraphParameterReferenceCollection>& RefMap = Graph->GetParameterReferenceMap();
+						const FNiagaraGraphParameterReferenceCollection* Coll = RefMap.Find(InOldVar);
+						if (Coll)
+						{
+							bFound = true;
+							break;
+						}
+					}
+
+					if (!bFound)
+					{
+						EmitterHandleViewModel->GetEmitterHandle()->GetInstance()->HandleVariableRemoved(InOldVar, true);
+					}
+				}
+			}
+		}
+	}
+	// User and System need to be checked for all graphs as they could be used anywhere.
+	else if (InOldVar.IsInNameSpace(FNiagaraConstants::UserNamespace) ||
+		InOldVar.IsInNameSpace(FNiagaraConstants::SystemNamespace))
+	{
+		TArray<UNiagaraGraph*> Graphs;
+		Graphs.Add(SystemScriptGraph.Get());
+
+		const TArray<TSharedRef<FNiagaraEmitterHandleViewModel>>& EmitterHandleViewModels = SystemViewModel->GetEmitterHandleViewModels();
+		for (const TSharedRef<FNiagaraEmitterHandleViewModel>& EmitterHandleViewModel : EmitterHandleViewModels)
+		{
+			UNiagaraGraph* Graph = static_cast<UNiagaraScriptSource*>(EmitterHandleViewModel->GetEmitterHandle()->GetInstance()->GraphSource)->NodeGraph;
+			if (Graph)
+				Graphs.Add(Graph);
+
+		}
+
+		bool bFound = false;
+		for (UNiagaraGraph* Graph : Graphs)
+		{
+			const TMap<FNiagaraVariable, FNiagaraGraphParameterReferenceCollection>& RefMap = Graph->GetParameterReferenceMap();
+			const FNiagaraGraphParameterReferenceCollection* Coll = RefMap.Find(InOldVar);
+			if (Coll)
+			{
+				bFound = true;
+				break;
+			}
+		}
+
+		if (!bFound)
+		{
+			SystemViewModel->GetSystem().HandleVariableRemoved(InOldVar, true);
+		}
+	}
+
+	Refresh();
 }
 
 void FNiagaraSystemToolkitParameterPanelViewModel::Refresh() const
@@ -168,7 +323,7 @@ void FNiagaraSystemToolkitParameterPanelViewModel::DeleteParameter(const FNiagar
 	if (TargetVariableMetaData.IsInputUsage() && TargetVariableScope == ENiagaraParameterScope::User)
 	{
 		SystemViewModel->GetSystem().Modify();
-		SystemViewModel->GetSystem().GetExposedParameters().RemoveParameter(TargetVariableToRemove);
+		SystemViewModel->GetSystem().HandleVariableRemoved(TargetVariableToRemove, true);
 	}
 
 	
@@ -217,7 +372,7 @@ void FNiagaraSystemToolkitParameterPanelViewModel::RenameParameter(const FNiagar
 	{
 		UNiagaraSystem& System = SystemViewModel->GetSystem();
 		System.Modify();
-		System.GetExposedParameters().RenameParameter(TargetVariableToRename, NewVariableName);
+		System.HandleVariableRenamed(TargetVariableToRename, FNiagaraVariable(TargetVariableToRename.GetType(), NewVariableName), true);
 	}
 	else if (NewScope == ENiagaraParameterScope::System)
 	{

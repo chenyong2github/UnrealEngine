@@ -68,6 +68,12 @@ void UPhysicsSettings::PostInitProperties()
 	{
 		ChaosSettings.DefaultThreadingModel = EChaosThreadingMode::TaskGraph;
 	}
+
+	// Override the core Chaos default settings with this one if its the CDO (the one edited in Project Settings)
+	if (UPhysicsSettings::Get() == this)
+	{
+		UPhysicsSettingsCore::SetDefaultSettings(this);
+	}
 }
 
 #if WITH_EDITOR

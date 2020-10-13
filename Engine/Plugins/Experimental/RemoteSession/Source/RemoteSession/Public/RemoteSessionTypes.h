@@ -18,10 +18,19 @@ enum class ERemoteSessionChannelMode : int32
 	MaxValue,
 };
 
+UENUM()
+enum class ERemoteSessionChannelChange : int32
+{
+	Created,
+	Destroyed
+};
+
+
 const TCHAR* LexToString(ERemoteSessionChannelMode InMode);
 void LexFromString(ERemoteSessionChannelMode& Value, const TCHAR* String);
 
-DECLARE_DELEGATE_ThreeParams(FOnRemoteSessionChannelCreated, TWeakPtr<IRemoteSessionChannel> /*Instance*/, const FString& /*Type*/, ERemoteSessionChannelMode /*Mode*/);
+DECLARE_DELEGATE_ThreeParams(FOnRemoteSessionChannelChange, IRemoteSessionRole* /*Role*/, TWeakPtr<IRemoteSessionChannel> /*Instance*/, ERemoteSessionChannelChange /*Mode*/);
+
 
 USTRUCT()
 struct REMOTESESSION_API FRemoteSessionChannelInfo
@@ -34,11 +43,9 @@ struct REMOTESESSION_API FRemoteSessionChannelInfo
 	UPROPERTY(config)
 	ERemoteSessionChannelMode Mode = ERemoteSessionChannelMode::Unknown;
 
-	FOnRemoteSessionChannelCreated OnCreated;
-
 	FRemoteSessionChannelInfo() = default;
-	FRemoteSessionChannelInfo(FString InType, ERemoteSessionChannelMode InMode, FOnRemoteSessionChannelCreated InOnCreated=FOnRemoteSessionChannelCreated())
-		: Type(InType), Mode(InMode), OnCreated(InOnCreated)
+	FRemoteSessionChannelInfo(FString InType, ERemoteSessionChannelMode InMode)
+		: Type(InType), Mode(InMode)
 	{ }
 };
 
@@ -53,6 +60,14 @@ public:
 	/* Port that the host will listen on */
 	UPROPERTY(config)
 	int32 HostPort = 2049;
+
+	/* Time until a connection will timeout  */
+	UPROPERTY(config)
+	int32 ConnectionTimeout = 5;
+
+	/* Time until a connection will timeout when a debugger is attached  */
+	UPROPERTY(config)
+	int32 ConnectionTimeoutWhenDebugging = 30;
 
 	/* Whether RemoteSession is functional in a shipping build */
 	UPROPERTY(config)

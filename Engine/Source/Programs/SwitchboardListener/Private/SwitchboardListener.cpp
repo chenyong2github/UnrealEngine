@@ -3,18 +3,39 @@
 #include "SwitchboardListener.h"
 
 #include "SwitchboardListenerApp.h"
+#include "SwitchboardMessageFuture.h"
+#include "SwitchboardPacket.h"
 #include "SwitchboardProtocol.h"
-#include "SwitchboardSourceControl.h"
 #include "SwitchboardTasks.h"
+#include "SyncStatus.h"
 
+#include "Async/Async.h"
+#include "Async/AsyncWork.h"
 #include "Common/TcpListener.h"
 #include "GenericPlatform/GenericPlatformMisc.h"
 #include "GenericPlatform/GenericPlatformProcess.h"
+#include "HAL/FileManager.h"
 #include "Interfaces/IPv4/IPv4Endpoint.h"
 #include "IPAddress.h"
 #include "Misc/Base64.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
+
+#if PLATFORM_WINDOWS
+
+#pragma warning(push)
+#pragma warning(disable : 4005)	// Disable macro redefinition warning for compatibility with Windows SDK 8+
+
+#include "Windows/AllowWindowsPlatformTypes.h"
+#include <Windows.h>
+#include <shellapi.h>
+#include "nvapi.h"
+#include "Windows/HideWindowsPlatformTypes.h"
+
+#pragma warning(pop)
+
+#endif // PLATFORM_WINDOWS
+
 
 namespace
 {
@@ -66,13 +87,25 @@ struct FRunningProcess
 	TArray<uint8> Output;
 
 	FIPv4Endpoint Recipient;
+	FString Path;
+	FString Name;
+	FString Caller;
 };
 
 FSwitchboardListener::FSwitchboardListener(const FIPv4Endpoint& InEndpoint)
 	: Endpoint(MakeUnique<FIPv4Endpoint>(InEndpoint))
 	, SocketListener(nullptr)
-	, SourceControl(MakeUnique<FSwitchboardSourceControl>())
 {
+#if PLATFORM_WINDOWS
+	// initialize NvAPI
+	{
+		const NvAPI_Status Result = NvAPI_Initialize();
+		if (Result != NVAPI_OK)
+		{
+			UE_LOG(LogSwitchboard, Fatal, TEXT("NvAPI_Initialize failed. Error code: %d"), Result);
+		}
+	}
+#endif // PLATFORM_WINDOWS
 }
 
 FSwitchboardListener::~FSwitchboardListener()
@@ -82,14 +115,21 @@ FSwitchboardListener::~FSwitchboardListener()
 
 bool FSwitchboardListener::Init()
 {
-	SocketListener = MakeUnique<FTcpListener>(*Endpoint);
-	SocketListener->OnConnectionAccepted().BindRaw(this, &FSwitchboardListener::OnIncomingConnection);
-	UE_LOG(LogSwitchboard, Display, TEXT("Started listening on %s:%d"), *SocketListener->GetLocalEndpoint().Address.ToString(), SocketListener->GetLocalEndpoint().Port);
-	return true;
+	SocketListener = MakeUnique<FTcpListener>(*Endpoint, FTimespan::FromSeconds(1), false);
+	if (SocketListener->IsActive())
+	{
+		SocketListener->OnConnectionAccepted().BindRaw(this, &FSwitchboardListener::OnIncomingConnection);
+		UE_LOG(LogSwitchboard, Display, TEXT("Started listening on %s:%d"), *SocketListener->GetLocalEndpoint().Address.ToString(), SocketListener->GetLocalEndpoint().Port);
+		return true;
+	}
+
+	UE_LOG(LogSwitchboard, Error, TEXT("Could not create Tcp Listener!"));
+	return false;
 }
 
 bool FSwitchboardListener::Tick()
 {
+	// Dequeue pending connections
 	{
 		TPair<FIPv4Endpoint, TSharedPtr<FSocket>> Connection;
 		while (PendingConnections.Dequeue(Connection))
@@ -99,21 +139,28 @@ bool FSwitchboardListener::Tick()
 			FIPv4Endpoint ClientEndpoint = Connection.Key;
 			LastActivityTime.FindOrAdd(ClientEndpoint, FPlatformTime::Seconds());
 
-			SourceControl->ConnectCompleteDelegate.BindLambda([this, ClientEndpoint](bool bInSuccess, FString InErrorMessage)
+			// Send current state upon connection
 			{
-				OnSourceControlConnectFinished(bInSuccess, InErrorMessage, ClientEndpoint);
-			});
-			SourceControl->ReportRevisionCompleteDelegate.BindLambda([this, ClientEndpoint](bool bInSuccess, FString InRevision, FString InErrorMessage)
-			{
-				OnSourceControlReportRevisionFinished(bInSuccess, InRevision, InErrorMessage, ClientEndpoint);
-			});
-			SourceControl->SyncCompleteDelegate.BindLambda([this, ClientEndpoint](bool bInSuccess, FString InRevision, FString InErrorMessage)
-			{
-				OnSourceControlSyncFinished(bInSuccess, InRevision, InErrorMessage, ClientEndpoint);
-			});
+				FSwitchboardStatePacket StatePacket;
+
+				for (const FRunningProcess& RunningProcess : RunningProcesses)
+				{
+					FSwitchboardStateRunningProcess StateRunningProcess;
+
+					StateRunningProcess.Uuid = RunningProcess.UUID.ToString();
+					StateRunningProcess.Name = RunningProcess.Name;
+					StateRunningProcess.Path = RunningProcess.Path;
+					StateRunningProcess.Caller = RunningProcess.Caller;
+
+					StatePacket.RunningProcesses.Add(MoveTemp(StateRunningProcess));
+				}
+
+				SendMessage(CreateMessage(StatePacket), ClientEndpoint);
+			}
 		}
 	}
 
+	// Parse incoming data from remote connections
 	for (const TPair<FIPv4Endpoint, TSharedPtr<FSocket>>& Connection: Connections)
 	{
 		const FIPv4Endpoint& ClientEndpoint = Connection.Key;
@@ -144,18 +191,20 @@ bool FSwitchboardListener::Tick()
 				}
 			}
 		}
+	}
 
-		if (!ScheduledTasks.IsEmpty())
-		{
-			TUniquePtr<FSwitchboardTask> Task;
-			ScheduledTasks.Dequeue(Task);
-
-			RunScheduledTask(*Task);
-		}
+	// Run the next queued task
+	if (!ScheduledTasks.IsEmpty())
+	{
+		TUniquePtr<FSwitchboardTask> Task;
+		ScheduledTasks.Dequeue(Task);
+		RunScheduledTask(*Task);
 	}
 
 	CleanUpDisconnectedSockets();
-	HandleRunningProcesses();
+	HandleRunningProcesses(RunningProcesses, true);
+	HandleRunningProcesses(FlipModeMonitors, false);
+	SendMessageFutures();
 
 	return true;
 }
@@ -217,6 +266,7 @@ bool FSwitchboardListener::RunScheduledTask(const FSwitchboardTask& InTask)
 			{
 				return Process.UUID == KillTask.ProgramID;
 			});
+
 			if (!KillProcess(Process))
 			{
 				const FString ProgramID = KillTask.ProgramID.ToString();
@@ -225,10 +275,13 @@ bool FSwitchboardListener::RunScheduledTask(const FSwitchboardTask& InTask)
 				UE_LOG(LogSwitchboard, Error, TEXT("%s"), *KillError);
 				return false;
 			}
+
 			return true;
 		}
 		case ESwitchboardTaskType::KillAll:
+		{
 			return KillAllProcesses();
+		}
 		case ESwitchboardTaskType::ReceiveFileFromClient:
 		{
 			const FSwitchboardReceiveFileFromClientTask& ReceiveFileFromClientTask = static_cast<const FSwitchboardReceiveFileFromClientTask&>(InTask);
@@ -239,24 +292,14 @@ bool FSwitchboardListener::RunScheduledTask(const FSwitchboardTask& InTask)
 			const FSwitchboardSendFileToClientTask& SendFileToClientTask = static_cast<const FSwitchboardSendFileToClientTask&>(InTask);
 			return SendFileToClient(SendFileToClientTask);
 		}
-		case ESwitchboardTaskType::VcsInit:
-		{
-			const FSwitchboardVcsInitTask& VcsInitTask = static_cast<const FSwitchboardVcsInitTask&>(InTask);
-			return InitVersionControlSystem(VcsInitTask);
-		}
-		case ESwitchboardTaskType::VcsReportRevision:
-		{
-			const FSwitchboardVcsReportRevisionTask& VcsRevisionTask = static_cast<const FSwitchboardVcsReportRevisionTask&>(InTask);
-			return ReportVersionControlRevision(VcsRevisionTask);
-		}
-		case ESwitchboardTaskType::VcsSync:
-		{
-			const FSwitchboardVcsSyncTask& VcsSyncTask = static_cast<const FSwitchboardVcsSyncTask&>(InTask);
-			return SyncVersionControl(VcsSyncTask);
-		}
 		case ESwitchboardTaskType::KeepAlive:
 		{
 			return true;
+		}
+		case ESwitchboardTaskType::GetSyncStatus:
+		{
+			const FSwitchboardGetSyncStatusTask& GetSyncStatusTask = static_cast<const FSwitchboardGetSyncStatusTask&>(InTask);
+			return GetSyncStatus(GetSyncStatusTask);
 		}
 		default:
 		{
@@ -272,6 +315,10 @@ bool FSwitchboardListener::StartProcess(const FSwitchboardStartTask& InRunTask)
 {
 	FRunningProcess NewProcess = {};
 	NewProcess.Recipient = InRunTask.Recipient;
+	NewProcess.Path = InRunTask.Command;
+	NewProcess.Name = InRunTask.Name;
+	NewProcess.Caller = InRunTask.Caller;
+
 	if (!FPlatformProcess::CreatePipe(NewProcess.ReadPipe, NewProcess.WritePipe))
 	{
 		UE_LOG(LogSwitchboard, Error, TEXT("Could not create pipe to read process output!"));
@@ -283,25 +330,46 @@ bool FSwitchboardListener::StartProcess(const FSwitchboardStartTask& InRunTask)
 	const bool bLaunchReallyHidden = false;
 	const int32 PriorityModifier = 0;
 	TCHAR* WorkingDirectory = nullptr;
-	NewProcess.Handle = FPlatformProcess::CreateProc(*InRunTask.Command, *InRunTask.Arguments, bLaunchDetached, bLaunchHidden, bLaunchReallyHidden, &NewProcess.PID, PriorityModifier, WorkingDirectory, NewProcess.WritePipe, NewProcess.ReadPipe);
 
-	if (NewProcess.Handle.IsValid() && FPlatformProcess::IsProcRunning(NewProcess.Handle))
+	NewProcess.Handle = FPlatformProcess::CreateProc(
+		*InRunTask.Command, 
+		*InRunTask.Arguments, 
+		bLaunchDetached, 
+		bLaunchHidden, 
+		bLaunchReallyHidden, 
+		&NewProcess.PID, 
+		PriorityModifier, 
+		WorkingDirectory, 
+		NewProcess.WritePipe, 
+		NewProcess.ReadPipe
+	);
+
+	if (!NewProcess.Handle.IsValid() || !FPlatformProcess::IsProcRunning(NewProcess.Handle))
 	{
-		UE_LOG(LogSwitchboard, Display, TEXT("Started process %d: %s %s"), NewProcess.PID, *InRunTask.Command, *InRunTask.Arguments);
+		// Close process in case it just didn't run
+		FPlatformProcess::CloseProc(NewProcess.Handle);
 
-		FGenericPlatformMisc::CreateGuid(NewProcess.UUID);
-		RunningProcesses.Add(NewProcess);
+		// close pipes
+		FPlatformProcess::ClosePipe(NewProcess.ReadPipe, NewProcess.WritePipe);
 
-		SendMessage(CreateProgramStartedMessage(NewProcess.UUID.ToString(), InRunTask.TaskID.ToString()), InRunTask.Recipient);
-		return true;
-	}
-	else
-	{
+		// log error
 		const FString ErrorMsg = FString::Printf(TEXT("Could not start program %s"), *InRunTask.Command);
 		UE_LOG(LogSwitchboard, Error, TEXT("%s"), *ErrorMsg);
+
+		// notify Switchboard
 		SendMessage(CreateProgramStartFailedMessage(ErrorMsg, InRunTask.TaskID.ToString()), InRunTask.Recipient);
+
 		return false;
 	}
+
+	UE_LOG(LogSwitchboard, Display, TEXT("Started process %d: %s %s"), NewProcess.PID, *InRunTask.Command, *InRunTask.Arguments);
+
+	FGenericPlatformMisc::CreateGuid(NewProcess.UUID);
+	RunningProcesses.Add(NewProcess);
+
+	SendMessage(CreateProgramStartedMessage(NewProcess.UUID.ToString(), InRunTask.TaskID.ToString()), InRunTask.Recipient);
+	return true;
+
 }
 
 bool FSwitchboardListener::KillProcess(FRunningProcess* InProcess)
@@ -310,6 +378,8 @@ bool FSwitchboardListener::KillProcess(FRunningProcess* InProcess)
 	{
 		UE_LOG(LogSwitchboard, Display, TEXT("Killing app with PID %d"), InProcess->PID);
 		FPlatformProcess::TerminateProc(InProcess->Handle);
+
+		// Pipes will be closed in HandleRunningProcesses
 
 		SendMessage(CreateProgramKilledMessage(InProcess->UUID.ToString()), InProcess->Recipient);
 		return true;
@@ -396,38 +466,594 @@ bool FSwitchboardListener::SendFileToClient(const FSwitchboardSendFileToClientTa
 	return SendMessage(CreateSendFileToClientCompletedMessage(InSendFileToClientTask.Source, EncodedFileContent), InSendFileToClientTask.Recipient);
 }
 
-bool FSwitchboardListener::InitVersionControlSystem(const FSwitchboardVcsInitTask& InVcsInitTask)
+#if PLATFORM_WINDOWS
+static FCriticalSection SwitchboardListenerMutexNvapi;
+#endif // PLATFORM_WINDOWS
+
+#if PLATFORM_WINDOWS
+static void FillOutSyncTopologies(FSyncStatus& SyncStatus)
 {
-	if (!SourceControl->Connect(InVcsInitTask.ProviderName, InVcsInitTask.VcsSettings))
+	FScopeLock LockNvapi(&SwitchboardListenerMutexNvapi);
+
+	// Normally there is a single sync card. BUT an RTX Server could have more, and we need to account for that.
+
+	// Detect sync cards
+
+	NvU32 GSyncCount = 0;
+	NvGSyncDeviceHandle GSyncHandles[NVAPI_MAX_GSYNC_DEVICES];
+	NvAPI_GSync_EnumSyncDevices(GSyncHandles, &GSyncCount); // GSyncCount will be zero if error, so no need to check error.
+
+	for (NvU32 GSyncIdx = 0; GSyncIdx < GSyncCount; GSyncIdx++)
 	{
-		UE_LOG(LogSwitchboard, Error, TEXT("%s"), *SourceControl->GetLastError());
-		SendMessage(CreateVcsInitFailedMessage(SourceControl->GetLastError()), InVcsInitTask.Recipient);
-		return false;
+		NvU32 GSyncGPUCount = 0;
+		NvU32 GSyncDisplayCount = 0;
+
+		// gather info first with null data pointers, just to get the count and subsequently allocate necessary memory.
+		{
+			const NvAPI_Status Result = NvAPI_GSync_GetTopology(GSyncHandles[GSyncIdx], &GSyncGPUCount, nullptr, &GSyncDisplayCount, nullptr);
+
+			if (Result != NVAPI_OK)
+			{
+				UE_LOG(LogSwitchboard, Warning, TEXT("NvAPI_GSync_GetTopology failed. Error code: %d"), Result);
+				continue;
+			}
+		}
+
+		// allocate memory for data
+		TArray<NV_GSYNC_GPU> GSyncGPUs;
+		TArray<NV_GSYNC_DISPLAY> GSyncDisplays;
+		{
+			GSyncGPUs.SetNumUninitialized(GSyncGPUCount, false);
+
+			for (NvU32 GSyncGPUIdx = 0; GSyncGPUIdx < GSyncGPUCount; GSyncGPUIdx++)
+			{
+				GSyncGPUs[GSyncGPUIdx].version = NV_GSYNC_GPU_VER;
+			}
+
+			GSyncDisplays.SetNumUninitialized(GSyncDisplayCount, false);
+
+			for (NvU32 GSyncDisplayIdx = 0; GSyncDisplayIdx < GSyncDisplayCount; GSyncDisplayIdx++)
+			{
+				GSyncDisplays[GSyncDisplayIdx].version = NV_GSYNC_DISPLAY_VER;
+			}
+		}
+
+		// get real info
+		{
+			const NvAPI_Status Result = NvAPI_GSync_GetTopology(GSyncHandles[GSyncIdx], &GSyncGPUCount, GSyncGPUs.GetData(), &GSyncDisplayCount, GSyncDisplays.GetData());
+
+			if (Result != NVAPI_OK)
+			{
+				UE_LOG(LogSwitchboard, Warning, TEXT("NvAPI_GSync_GetTopology failed. Error code: %d"), Result);
+				continue;
+			}
+		}
+
+		// Build outbound structure
+
+		FSyncTopo SyncTopo;
+
+		for (NvU32 GpuIdx = 0; GpuIdx < GSyncGPUCount; GpuIdx++)
+		{
+			FSyncGpu SyncGpu;
+
+			SyncGpu.bIsSynced = GSyncGPUs[GpuIdx].isSynced;
+			SyncGpu.Connector = int32(GSyncGPUs[GpuIdx].connector);
+
+			SyncTopo.SyncGpus.Emplace(SyncGpu);
+		}
+
+		for (NvU32 DisplayIdx = 0; DisplayIdx < GSyncDisplayCount; DisplayIdx++)
+		{
+			FSyncDisplay SyncDisplay;
+
+			switch (GSyncDisplays[DisplayIdx].syncState)
+			{
+			case NVAPI_GSYNC_DISPLAY_SYNC_STATE_UNSYNCED:
+				SyncDisplay.SyncState = TEXT("Unsynced");
+				break;
+			case NVAPI_GSYNC_DISPLAY_SYNC_STATE_SLAVE:
+				SyncDisplay.SyncState = TEXT("Slave");
+				break;
+			case NVAPI_GSYNC_DISPLAY_SYNC_STATE_MASTER:
+				SyncDisplay.SyncState = TEXT("Master");
+				break;
+			default:
+				SyncDisplay.SyncState = TEXT("Unknown");
+				break;
+			}
+
+			// get color information for each display
+			{
+				NV_COLOR_DATA ColorData;
+
+				ColorData.version = NV_COLOR_DATA_VER;
+				ColorData.cmd = NV_COLOR_CMD_GET;
+				ColorData.size = sizeof(NV_COLOR_DATA);
+
+				const NvAPI_Status Result = NvAPI_Disp_ColorControl(GSyncDisplays[DisplayIdx].displayId, &ColorData);
+
+				if (Result == NVAPI_OK)
+				{
+					SyncDisplay.Bpc = ColorData.data.bpc;
+					SyncDisplay.Depth = ColorData.data.depth;
+					SyncDisplay.ColorFormat = ColorData.data.colorFormat;
+				}
+			}
+
+			SyncTopo.SyncDisplays.Emplace(SyncDisplay);
+		}
+
+		// Sync Status Parameters
+		{
+			NV_GSYNC_STATUS_PARAMS GSyncStatusParams;
+			GSyncStatusParams.version = NV_GSYNC_STATUS_PARAMS_VER;
+
+			const NvAPI_Status Result = NvAPI_GSync_GetStatusParameters(GSyncHandles[GSyncIdx], &GSyncStatusParams);
+
+			if (Result != NVAPI_OK)
+			{
+				UE_LOG(LogSwitchboard, Warning, TEXT("NvAPI_GSync_GetStatusParameters failed. Error code: %d"), Result);
+				continue;
+			}
+
+			SyncTopo.SyncStatusParams.RefreshRate = GSyncStatusParams.refreshRate;
+			SyncTopo.SyncStatusParams.HouseSyncIncoming = GSyncStatusParams.houseSyncIncoming;
+			SyncTopo.SyncStatusParams.bHouseSync = !!GSyncStatusParams.bHouseSync;
+			SyncTopo.SyncStatusParams.bInternalSlave = GSyncStatusParams.bInternalSlave;
+		}
+
+		// Sync Control Parameters
+		{
+			NV_GSYNC_CONTROL_PARAMS GSyncControlParams;
+			GSyncControlParams.version = NV_GSYNC_CONTROL_PARAMS_VER;
+
+			const NvAPI_Status Result = NvAPI_GSync_GetControlParameters(GSyncHandles[GSyncIdx], &GSyncControlParams);
+
+			if (Result != NVAPI_OK)
+			{
+				UE_LOG(LogSwitchboard, Warning, TEXT("NvAPI_GSync_GetControlParameters failed. Error code: %d"), Result);
+				continue;
+			}
+
+			SyncTopo.SyncControlParams.bInterlaced = !!GSyncControlParams.interlaceMode;
+			SyncTopo.SyncControlParams.bSyncSourceIsOutput = !!GSyncControlParams.syncSourceIsOutput;
+			SyncTopo.SyncControlParams.Interval = GSyncControlParams.interval;
+			SyncTopo.SyncControlParams.Polarity = GSyncControlParams.polarity;
+			SyncTopo.SyncControlParams.Source = GSyncControlParams.source;
+			SyncTopo.SyncControlParams.VMode = GSyncControlParams.vmode;
+
+			SyncTopo.SyncControlParams.SyncSkew.MaxLines = GSyncControlParams.syncSkew.maxLines;
+			SyncTopo.SyncControlParams.SyncSkew.MinPixels = GSyncControlParams.syncSkew.minPixels;
+			SyncTopo.SyncControlParams.SyncSkew.NumLines = GSyncControlParams.syncSkew.numLines;
+			SyncTopo.SyncControlParams.SyncSkew.NumPixels = GSyncControlParams.syncSkew.numPixels;
+
+			SyncTopo.SyncControlParams.StartupDelay.MaxLines = GSyncControlParams.startupDelay.maxLines;
+			SyncTopo.SyncControlParams.StartupDelay.MinPixels = GSyncControlParams.startupDelay.minPixels;
+			SyncTopo.SyncControlParams.StartupDelay.NumLines = GSyncControlParams.startupDelay.numLines;
+			SyncTopo.SyncControlParams.StartupDelay.NumPixels = GSyncControlParams.startupDelay.numPixels;
+		}
+
+		SyncStatus.SyncTopos.Emplace(SyncTopo);
 	}
-	return true;
+}
+#endif // PLATFORM_WINDOWS
+
+#if PLATFORM_WINDOWS
+static void FillOutDriverVersion(FSyncStatus& SyncStatus)
+{
+	NvU32 DriverVersion;
+	NvAPI_ShortString BuildBranchString;
+
+	const NvAPI_Status Result = NvAPI_SYS_GetDriverAndBranchVersion(&DriverVersion, BuildBranchString);
+
+	if (Result != NVAPI_OK)
+	{
+		UE_LOG(LogSwitchboard, Warning, TEXT("NvAPI_SYS_GetDriverAndBranchVersion failed. Error code: %d"), Result);
+		return;
+	}
+
+	SyncStatus.DriverVersion = DriverVersion;
+	SyncStatus.DriverBranch = UTF8_TO_TCHAR(BuildBranchString);
+}
+#endif // PLATFORM_WINDOWS
+
+#if PLATFORM_WINDOWS
+static void FillOutTaskbarAutoHide(FSyncStatus& SyncStatus)
+{
+	APPBARDATA AppBarData;
+
+	AppBarData.cbSize = sizeof(APPBARDATA);
+	AppBarData.hWnd = nullptr;
+	
+	const UINT Result = UINT(SHAppBarMessage(ABM_GETSTATE, &AppBarData));
+	
+	if (Result == ABS_AUTOHIDE)
+	{
+		SyncStatus.Taskbar = TEXT("AutoHide");
+	}
+	else
+	{
+		SyncStatus.Taskbar = TEXT("OnTop");
+	}
+}
+#endif // PLATFORM_WINDOWS
+
+
+#if PLATFORM_WINDOWS
+static void FillOutMosaicTopologies(FSyncStatus& SyncStatus)
+{
+	FScopeLock LockNvapi(&SwitchboardListenerMutexNvapi);
+
+	NvU32 GridCount = 0;
+	TArray<NV_MOSAIC_GRID_TOPO> GridTopologies;
+
+	// count how many grids
+	{
+		const NvAPI_Status Result = NvAPI_Mosaic_EnumDisplayGrids(nullptr, &GridCount);
+
+		if (Result != NVAPI_OK)
+		{
+			UE_LOG(LogSwitchboard, Warning, TEXT("NvAPI_Mosaic_EnumDisplayGrids failed. Error code: %d"), Result);
+			return;
+		}
+	}
+
+	// get the grids
+	{
+		GridTopologies.SetNumUninitialized(GridCount, false);
+
+		for (NvU32 TopoIdx = 0; TopoIdx < GridCount; TopoIdx++)
+		{
+			GridTopologies[TopoIdx].version = NV_MOSAIC_GRID_TOPO_VER;
+		}
+
+		const NvAPI_Status Result = NvAPI_Mosaic_EnumDisplayGrids(GridTopologies.GetData(), &GridCount);
+
+		if (Result != NVAPI_OK)
+		{
+			UE_LOG(LogSwitchboard, Warning, TEXT("NvAPI_Mosaic_EnumDisplayGrids failed. Error code: %d"), Result);
+			return;
+		}
+
+		for (NvU32 TopoIdx = 0; TopoIdx < GridCount; TopoIdx++)
+		{
+			FMosaicTopo MosaicTopo;
+			NV_MOSAIC_GRID_TOPO& GridTopo = GridTopologies[TopoIdx];
+
+			MosaicTopo.Columns = GridTopo.columns;
+			MosaicTopo.Rows = GridTopo.rows;
+			MosaicTopo.DisplayCount = GridTopo.displayCount;
+
+			MosaicTopo.DisplaySettings.Bpp = GridTopo.displaySettings.bpp;
+			MosaicTopo.DisplaySettings.Freq = GridTopo.displaySettings.freq;
+			MosaicTopo.DisplaySettings.Height = GridTopo.displaySettings.height;
+			MosaicTopo.DisplaySettings.Width = GridTopo.displaySettings.width;
+
+			SyncStatus.MosaicTopos.Emplace(MosaicTopo);
+		}
+	}
+}
+#endif // PLATFORM_WINDOWS
+
+FRunningProcess* FSwitchboardListener::FindOrStartFlipModeMonitorForUUID(const FGuid& UUID)
+{
+	// See if the associated FlipModeMonitor is running
+	{
+		FRunningProcess* FlipModeMonitor = FlipModeMonitors.FindByPredicate([&](const FRunningProcess& Process)
+		{
+			return Process.UUID == UUID;
+		});
+
+		if (FlipModeMonitor)
+		{
+			return FlipModeMonitor;
+		}
+	}
+
+	// It wasn't in there, so let's find our target process
+
+	const FRunningProcess* Process = RunningProcesses.FindByPredicate([&](const FRunningProcess& Process)
+	{
+		return Process.UUID == UUID;
+	});
+
+	// If the target process does not exist, no point in continuing
+	if (!Process)
+	{
+		return nullptr;
+	}
+
+	// Ok, we need to create our monitor.
+
+	FRunningProcess MonitorProcess = {};
+
+	if (!FPlatformProcess::CreatePipe(MonitorProcess.ReadPipe, MonitorProcess.WritePipe))
+	{
+		UE_LOG(LogSwitchboard, Error, TEXT("Could not create pipe to read MonitorProcess output!"));
+		return nullptr;
+	}
+
+	const bool bLaunchDetached = true;
+	const bool bLaunchHidden = false;
+	const bool bLaunchReallyHidden = false;
+	const int32 PriorityModifier = 0;
+	const TCHAR* WorkingDirectory = nullptr;
+
+	MonitorProcess.Path = FPaths::EngineSourceDir() / TEXT("Programs") / TEXT("SwitchboardListener") / TEXT("ThirdParty") / TEXT("PresentMon") / TEXT("PresentMon64-1.5.2.exe");
+
+	FString Arguments = 
+		FString::Printf(TEXT("-session_name session_%d -output_stdout -dont_restart_as_admin -terminate_on_proc_exit -stop_existing_session -process_id %d"), 
+		Process->PID, Process->PID);
+
+	MonitorProcess.Handle = FPlatformProcess::CreateProc(
+		*MonitorProcess.Path,
+		*Arguments,
+		bLaunchDetached,
+		bLaunchHidden,
+		bLaunchReallyHidden,
+		&MonitorProcess.PID,
+		PriorityModifier,
+		WorkingDirectory,
+		MonitorProcess.WritePipe,
+		MonitorProcess.ReadPipe
+	);
+
+	if (!MonitorProcess.Handle.IsValid() || !FPlatformProcess::IsProcRunning(MonitorProcess.Handle))
+	{
+		// Close process in case it just didn't run
+		FPlatformProcess::CloseProc(MonitorProcess.Handle);
+
+		// Close unused pipes
+		FPlatformProcess::ClosePipe(MonitorProcess.ReadPipe, MonitorProcess.WritePipe);
+
+		// Log error
+		const FString ErrorMsg = FString::Printf(TEXT("Could not start FlipMode monitor  %s"), *MonitorProcess.Path);
+		UE_LOG(LogSwitchboard, Error, TEXT("%s"), *ErrorMsg);
+
+		return nullptr;
+	}
+
+	// Log success
+	UE_LOG(LogSwitchboard, Display, TEXT("Started FlipMode monitor %d: %s %s"), MonitorProcess.PID, *MonitorProcess.Path, *Arguments);
+
+	// The UUID corresponds to the program being monitored. This will be used when looking for the Monitor of a given process.
+	// The monitor auto-closes when monitored program closes.
+	MonitorProcess.UUID = Process->UUID;
+
+	FlipModeMonitors.Add(MoveTemp(MonitorProcess));
+
+	return &FlipModeMonitors.Last();
 }
 
-bool FSwitchboardListener::ReportVersionControlRevision(const FSwitchboardVcsReportRevisionTask& InVcsRevisionTask)
+#if PLATFORM_WINDOWS
+static void FillOutFlipMode(FSyncStatus& SyncStatus, FRunningProcess* FlipModeMonitor)
 {
-	if (!SourceControl->ReportRevision(InVcsRevisionTask.Path))
+	// See if the flip monitor is still there.
+	if (!FlipModeMonitor || !FlipModeMonitor->Handle.IsValid())
 	{
-		UE_LOG(LogSwitchboard, Error, TEXT("%s"), *SourceControl->GetLastError());
-		SendMessage(CreateVcsReportRevisionFailedMessage(SourceControl->GetLastError()), InVcsRevisionTask.Recipient);
-		return false;
+		SyncStatus.FlipModeHistory.Add(TEXT("n/a")); // this informs Switchboard that data is not valid
+		return;
 	}
-	return true;
+
+	// Get stdout.
+	const FString StdOut(UTF8_TO_TCHAR(FlipModeMonitor->Output.GetData()));
+
+	// Clear out the StdOut array.
+	FlipModeMonitor->Output.Empty();
+
+	// Split into lines
+
+	TArray<FString> Lines;
+	StdOut.ParseIntoArrayLines(Lines, false);
+
+	// Interpret the output as follows:
+	//
+	// Application,ProcessID,SwapChainAddress,Runtime,SyncInterval,PresentFlags,AllowsTearing,PresentMode,Dropped,
+	// TimeInSeconds,MsBetweenPresents,MsBetweenDisplayChange,MsInPresentAPI,MsUntilRenderComplete,MsUntilDisplayed
+	//
+	// e.g.
+	//   "UE4Editor.exe,10916,0x0000022096A0F830,DXGI,0,512,0,Composed: Flip,1,3.753577,22.845,0.000,0.880,0.946,0.000"
+
+	TArray<FString> Fields;
+
+	for (const FString& Line : Lines)
+	{
+		Line.ParseIntoArray(Fields, TEXT(","), false);
+		
+		if (Fields.Num() != 15)
+		{
+			continue;
+		}
+
+		const int32 PresentMonIdx = 7;
+
+		SyncStatus.FlipModeHistory.Add(Fields[PresentMonIdx]); // The first one will be "PresentMode". This is ok. 
+	}
+}
+#endif // PLATFORM_WINDOWS
+
+#if PLATFORM_WINDOWS
+static TArray<FString> RegistryGetSubkeys(const HKEY Key)
+{
+	TArray<FString> Subkeys;
+	const uint32 MaxKeyLength = 1024;
+	TCHAR SubkeyName[MaxKeyLength];
+	DWORD KeyLength = MaxKeyLength;
+
+	while (!RegEnumKeyEx(Key, Subkeys.Num(), SubkeyName, &KeyLength, nullptr, nullptr, nullptr, nullptr))
+	{
+		Subkeys.Add(SubkeyName);
+		KeyLength = MaxKeyLength;
+	}
+
+	return Subkeys;
+}
+#endif // PLATFORM_WINDOWS
+
+#if PLATFORM_WINDOWS
+static TArray<FString> RegistryGetValueNames(const HKEY Key)
+{
+	TArray<FString> Names;
+	const uint32 MaxLength = 1024;
+	TCHAR ValueName[MaxLength];
+	DWORD ValueLength = MaxLength;
+
+	while (!RegEnumValue(Key, Names.Num(), ValueName, &ValueLength, nullptr, nullptr, nullptr, nullptr))
+	{
+		Names.Add(ValueName);
+		ValueLength = MaxLength;
+	}
+
+	return Names;
+}
+#endif // PLATFORM_WINDOWS
+
+#if PLATFORM_WINDOWS
+static FString RegistryGetStringValueData(const HKEY Key, const FString& ValueName)
+{
+	const uint32 MaxLength = 4096;
+	TCHAR ValueData[MaxLength];
+	DWORD ValueLength = MaxLength;
+
+	if (RegQueryValueEx(Key, *ValueName, 0, 0, LPBYTE(ValueData), &ValueLength))
+	{
+		return TEXT("");
+	}
+
+	ValueData[MaxLength - 1] = '\0';
+
+	return FString(ValueData);
+}
+#endif // PLATFORM_WINDOWS
+
+#if PLATFORM_WINDOWS
+static void FillOutDisableFullscreenOptimizationForProcess(FSyncStatus& SyncStatus, const FRunningProcess* Process)
+{
+	// Reset output array just in case
+	SyncStatus.ProgramLayers.Reset();
+
+	// No point in continuing if there is no process to get the flags for.
+	if (!Process)
+	{
+		return;
+	}
+
+	// This is the absolute path of the program we'll be looking for in the registry
+	const FString ProcessAbsolutePath = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*Process->Path);
+
+	// We expect program layers to be in a location like the following:
+	//   Computer\HKEY_USERS\S-1-5-21-4092791292-903758629-2457117007-1001\Software\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers
+	// But the guid looking number above may vary.
+
+	// So we try all the keys immediately under HKEY_USERS
+	TArray<FString> KeyPaths = RegistryGetSubkeys(HKEY_USERS);
+
+	for (const FString& KeyPath : KeyPaths)
+	{
+		const FString LayersKeyPath = KeyPath + TEXT("\\Software\\Microsoft\\Windows NT\\CurrentVersion\\AppCompatFlags\\Layers");
+
+		HKEY LayersKey;
+		
+		// Check if the key exists
+		if (RegOpenKeyExW(HKEY_USERS, *LayersKeyPath, 0, KEY_READ, &LayersKey))
+		{
+			continue;
+		}
+
+		// If the key exists, the Value Names are the paths to the programs
+
+		const TArray<FString> ProgramPaths = RegistryGetValueNames(LayersKey);
+
+		for (const FString& ProgramPath : ProgramPaths)
+		{
+			const FString ProgramAbsPath = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*ProgramPath);
+		
+			// Check if this is the program we're looking for
+			if (ProcessAbsolutePath != ProgramAbsPath)
+			{
+				continue;
+			}
+
+			// If so, get the layers from the Value Data.
+
+			const FString ProgramLayers = RegistryGetStringValueData(LayersKey, ProgramPath);
+			ProgramLayers.ParseIntoArray(SyncStatus.ProgramLayers, TEXT(" "));
+
+			// No need to look further.
+			break;
+		}
+
+		RegCloseKey(LayersKey);
+
+		// If the already have the data we need, we can break.
+		if (SyncStatus.ProgramLayers.Num())
+		{
+			break;
+		}
+	}
+}
+#endif // PLATFORM_WINDOWS
+
+bool FSwitchboardListener::EquivalentTaskFutureExists(uint32 TaskEquivalenceHash) const
+{
+	return !!MessagesFutures.FindByPredicate([=](const FSwitchboardMessageFuture& MessageFuture)
+	{
+		return MessageFuture.EquivalenceHash == TaskEquivalenceHash;
+	});
 }
 
-bool FSwitchboardListener::SyncVersionControl(const FSwitchboardVcsSyncTask& InSyncTask)
+bool FSwitchboardListener::GetSyncStatus(const FSwitchboardGetSyncStatusTask& InGetSyncStatusTask)
 {
-	if (!SourceControl->Sync(InSyncTask.Path, InSyncTask.Revision))
+#if PLATFORM_WINDOWS
+	// Reject request if an equivalent one is already in our future
+	if (EquivalentTaskFutureExists(InGetSyncStatusTask.GetEquivalenceHash()))
 	{
-		UE_LOG(LogSwitchboard, Error, TEXT("%s"), *SourceControl->GetLastError());
-		SendMessage(CreateVcsSyncFailedMessage(SourceControl->GetLastError()), InSyncTask.Recipient);
+		SendMessage(CreateTaskDeclinedMessage(InGetSyncStatusTask, "Duplicate"), InGetSyncStatusTask.Recipient);
 		return false;
 	}
+
+	TSharedRef<FSyncStatus, ESPMode::ThreadSafe> SyncStatus = MakeShared<FSyncStatus, ESPMode::ThreadSafe>(); // Smart pointer to avoid potentially bigger copy to lambda below.
+
+	// We need to run these on this thread to avoid threading issues.
+	FillOutFlipMode(SyncStatus.Get(), FindOrStartFlipModeMonitorForUUID(InGetSyncStatusTask.ProgramID));
+
+	// Fill out fullscreen optimization setting
+	{
+		FRunningProcess* Process = RunningProcesses.FindByPredicate([&](const FRunningProcess& Process)
+		{
+			return Process.UUID == InGetSyncStatusTask.ProgramID;
+		});
+
+		FillOutDisableFullscreenOptimizationForProcess(SyncStatus.Get(), Process);
+	}
+
+	// Create our future message
+
+	FSwitchboardMessageFuture MessageFuture;
+
+	MessageFuture.TaskType = InGetSyncStatusTask.Type;
+	MessageFuture.InEndpoint = InGetSyncStatusTask.Recipient;
+	MessageFuture.EquivalenceHash = InGetSyncStatusTask.GetEquivalenceHash();
+
+	MessageFuture.Future = Async(EAsyncExecution::Thread, [=]() {
+		FillOutDriverVersion(SyncStatus.Get());
+		FillOutTaskbarAutoHide(SyncStatus.Get());
+		FillOutSyncTopologies(SyncStatus.Get());
+		FillOutMosaicTopologies(SyncStatus.Get());
+		return CreateSyncStatusMessage(SyncStatus.Get());
+	});
+
+	// Queue it to be sent when ready
+	MessagesFutures.Emplace(MoveTemp(MessageFuture));
+
 	return true;
+#else
+	SendMessage(CreateTaskDeclinedMessage(InGetSyncStatusTask, "Platform not supported"), InGetSyncStatusTask.Recipient);
+	return false;
+#endif // PLATFORM_WINDOWS
 }
+
 
 void FSwitchboardListener::CleanUpDisconnectedSockets()
 {
@@ -461,9 +1087,10 @@ void FSwitchboardListener::DisconnectClient(const FIPv4Endpoint& InClientEndpoin
 	ReceiveBuffer.Remove(InClientEndpoint);
 }
 
-bool FSwitchboardListener::HandleRunningProcesses()
+void FSwitchboardListener::HandleRunningProcesses(TArray<FRunningProcess>& Processes, bool bNotifyThatProgramEnded)
 {
-	for (auto Iter = RunningProcesses.CreateIterator(); Iter; ++Iter)
+	// Reads pipe and cleans up dead processes from the array.
+	for (auto Iter = Processes.CreateIterator(); Iter; ++Iter)
 	{
 		FRunningProcess& Process = *Iter;
 		if (Process.Handle.IsValid())
@@ -488,7 +1115,15 @@ bool FSwitchboardListener::HandleRunningProcesses()
 				UE_LOG(LogSwitchboard, Display, TEXT("Process exited with returncode: %d"), ReturnCode);
 
 				const FString ProcessOutput(UTF8_TO_TCHAR(Process.Output.GetData()));
-				SendMessage(CreateProgramEndedMessage(Process.UUID.ToString(), ReturnCode, ProcessOutput), Process.Recipient);
+				if (ReturnCode != 0)
+				{
+					UE_LOG(LogSwitchboard, Display, TEXT("Output:\n%s"), *ProcessOutput);
+				}
+
+				if (bNotifyThatProgramEnded)
+				{
+					SendMessage(CreateProgramEndedMessage(Process.UUID.ToString(), ReturnCode, ProcessOutput), Process.Recipient);
+				}
 
 				FPlatformProcess::CloseProc(Process.Handle);
 				FPlatformProcess::ClosePipe(Process.ReadPipe, Process.WritePipe);
@@ -497,8 +1132,6 @@ bool FSwitchboardListener::HandleRunningProcesses()
 			}
 		}
 	}
-
-	return true;
 }
 
 bool FSwitchboardListener::OnIncomingConnection(FSocket* InSocket, const FIPv4Endpoint& InEndpoint)
@@ -531,38 +1164,20 @@ bool FSwitchboardListener::SendMessage(const FString& InMessage, const FIPv4Endp
 	return false;
 }
 
-void FSwitchboardListener::OnSourceControlConnectFinished(bool bInSuccess, FString InErrorMessage, const FIPv4Endpoint& InEndpoint)
+void FSwitchboardListener::SendMessageFutures()
 {
-	if (bInSuccess)
+	for (auto Iter = MessagesFutures.CreateIterator(); Iter; ++Iter)
 	{
-		SendMessage(CreateVcsInitCompletedMessage(), InEndpoint);
-	}
-	else
-	{
-		SendMessage(CreateVcsInitFailedMessage(InErrorMessage), InEndpoint);
-	}
-}
+		FSwitchboardMessageFuture& MessageFuture = *Iter;
 
-void FSwitchboardListener::OnSourceControlReportRevisionFinished(bool bInSuccess, FString InRevision, FString InErrorMessage, const FIPv4Endpoint& InEndpoint)
-{
-	if (bInSuccess)
-	{
-		SendMessage(CreateVcsReportRevisionCompletedMessage(InRevision), InEndpoint);
-	}
-	else
-	{
-		SendMessage(CreateVcsReportRevisionFailedMessage(InErrorMessage), InEndpoint);
-	}
-}
+		if (!MessageFuture.Future.IsReady())
+		{
+			continue;
+		}
 
-void FSwitchboardListener::OnSourceControlSyncFinished(bool bInSuccess, FString InRevision, FString InErrorMessage, const FIPv4Endpoint& InEndpoint)
-{
-	if (bInSuccess)
-	{
-		SendMessage(CreateVcsSyncCompletedMessage(InRevision), InEndpoint);
-	}
-	else
-	{
-		SendMessage(CreateVcsSyncFailedMessage(InErrorMessage), InEndpoint);
+		FString Message = MessageFuture.Future.Get();
+		SendMessage(Message, MessageFuture.InEndpoint);
+
+		Iter.RemoveCurrent();
 	}
 }

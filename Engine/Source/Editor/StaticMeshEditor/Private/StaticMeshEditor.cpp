@@ -133,6 +133,11 @@ void FStaticMeshEditor::UnregisterTabSpawners(const TSharedRef<class FTabManager
 
 FStaticMeshEditor::~FStaticMeshEditor()
 {
+	if (StaticMesh)
+	{
+		StaticMesh->GetOnMeshChanged().RemoveAll(this);
+	}
+
  	if (ViewportTabContent.IsValid())
  	{
  		ViewportTabContent->OnViewportTabContentLayoutChanged().RemoveAll(this);
@@ -1892,6 +1897,11 @@ void FStaticMeshEditor::SetEditorMesh(UStaticMesh* InStaticMesh, bool bResetCame
 {
 	ClearSelectedPrims();
 
+	if (StaticMesh)
+	{
+		StaticMesh->GetOnMeshChanged().RemoveAll(this);
+	}
+
 	StaticMesh = InStaticMesh;
 
 	//Init stat arrays.
@@ -1905,6 +1915,8 @@ void FStaticMeshEditor::SetEditorMesh(UStaticMesh* InStaticMesh, bool bResetCame
 
 	if(StaticMesh)
 	{
+		StaticMesh->GetOnMeshChanged().AddRaw(this, &FStaticMeshEditor::OnMeshChanged);
+
 		int32 NumLODs = StaticMesh->GetNumLODs();
 		for (int32 LODIndex = 0; LODIndex < NumLODs; ++LODIndex)
 		{
@@ -2356,6 +2368,11 @@ void FStaticMeshEditor::PostRedo( bool bSuccess )
 	RefreshTool();
 
 	OnPostUndo.Broadcast();
+}
+
+void FStaticMeshEditor::OnMeshChanged()
+{
+	GetStaticMeshViewport()->GetViewportClient().OnMeshChanged();
 }
 
 void FStaticMeshEditor::OnSocketSelectionChanged()

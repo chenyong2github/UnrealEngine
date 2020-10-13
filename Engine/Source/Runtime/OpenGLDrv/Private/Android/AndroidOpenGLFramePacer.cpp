@@ -13,9 +13,9 @@
 #if USE_ANDROID_OPENGL_SWAPPY
 #include "Android/AndroidJNI.h"
 #include "Android/AndroidApplication.h"
-#include "swappyGL.h"
-#include "swappyGL_extra.h"
-#include "swappy_common.h"
+#include "swappy/swappyGL.h"
+#include "swappy/swappyGL_extra.h"
+#include "swappy/swappy_common.h"
 #endif
 
 #include "AndroidEGL.h"
@@ -53,7 +53,7 @@ void FAndroidOpenGLFramePacer::InitSwappy()
 		JNIEnv* Env = FAndroidApplication::GetJavaEnv();
 		if (ensure(Env))
 		{
-			FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Init Swappy"));
+			FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Init Swappy: version %d"), Swappy_version());
 			SwappyGL_init(Env, FJavaWrapper::GameActivityThis);
 		}
 		bSwappyInit = true;
@@ -113,23 +113,14 @@ bool FAndroidOpenGLFramePacer::SupportsFramePaceInternal(int32 QueryFramePace, i
 #if USE_ANDROID_OPENGL_SWAPPY
 	if (FAndroidPlatformRHIFramePacer::CVarUseSwappyForFramePacing.GetValueOnAnyThread() == 1)
 	{
-		int NumRates = Swappy_getSupportedRefreshRates(nullptr, 0);
-		TArray<uint64> RefreshRatesNs;
-		RefreshRatesNs.AddZeroed(NumRates);
-		Swappy_getSupportedRefreshRates((uint64_t*)RefreshRatesNs.GetData(), NumRates);
-		TArray<int32> RefreshRates;
-		RefreshRates.Empty(NumRates);
-		FString DebugString = TEXT("Supported Refresh Rates:");
-		for (uint64 RateNs : RefreshRatesNs)
+		TArray<int32> RefreshRates = FAndroidMisc::GetSupportedNativeDisplayRefreshRates();
+		RefreshRates.Sort();
+		FString RefreshRatesString;
+		for (int32 Rate : RefreshRates)
 		{
-			if (RateNs > 0)
-			{
-				int32 RefreshRate = FMath::DivideAndRoundNearest(1000000000ull, RateNs);
-				RefreshRates.Add(RefreshRate);
-				DebugString += FString::Printf(TEXT(" %d (%ld ns)"), RefreshRate, RateNs);
-			}
+			RefreshRatesString += FString::Printf(TEXT(" %d"), Rate);
 		}
-		UE_LOG(LogRHI, Log, TEXT("%s"), *DebugString);
+		UE_LOG(LogRHI, Log, TEXT("Supported Refresh Rates:%s"), *RefreshRatesString);
 
 		for (int32 Rate : RefreshRates)
 		{
@@ -145,7 +136,6 @@ bool FAndroidOpenGLFramePacer::SupportsFramePaceInternal(int32 QueryFramePace, i
 		// check if we want to use naive frame pacing at less than a multiple of supported refresh rate
 		if (FAndroidPlatformRHIFramePacer::CVarSupportNonVSyncMultipleFrameRates.GetValueOnAnyThread() == 1)
 		{
-			RefreshRates.Sort();
 			for (int32 Rate : RefreshRates)
 			{
 				if (Rate > QueryFramePace)
@@ -199,10 +189,19 @@ bool FAndroidOpenGLFramePacer::SwapBuffers(bool bLockToVsync)
 			SupportsFramePaceInternal(CurrentFramePace, CachedRefreshRate, CachedSyncInterval);
 		}
 
+		ANativeWindow* CurrentNativeWindow = AndroidEGL::GetInstance()->GetNativeWindow();
+		if (CurrentNativeWindow != CachedNativeWindow)
+		{
+			CachedNativeWindow = CurrentNativeWindow;
+			UE_LOG(LogRHI, Verbose, TEXT("Swappy - setting native window %p"), CachedNativeWindow);
+			SwappyGL_setWindow(CurrentNativeWindow);
+		}
+
 		SwappyGL_setAutoSwapInterval(false);
 		if (CachedSyncInterval != 0)
 		{
 			// Multiple of sync interval, use swappy directly
+			UE_LOG(LogRHI, Verbose, TEXT("Setting swappy to interval of %" PRId64 " (%d fps)"), (int64)(1000000000L) / (int64)CurrentFramePace, CurrentFramePace);
 			SwappyGL_setSwapIntervalNS((1000000000L) / (int64)CurrentFramePace);
 		}
 		else

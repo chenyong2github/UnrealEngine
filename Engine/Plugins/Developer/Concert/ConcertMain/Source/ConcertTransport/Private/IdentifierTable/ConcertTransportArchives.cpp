@@ -59,6 +59,13 @@ FArchive& FConcertIdentifierWriter::operator<<(FName& Name)
 	return *this;
 }
 
+FArchive& FConcertIdentifierWriter::operator<<(FSoftObjectPath& AssetPtr)
+{
+	FName ObjPath = *AssetPtr.ToString();
+	*this << ObjPath;
+	return *this;
+}
+
 FString FConcertIdentifierWriter::GetArchiveName() const
 {
 	return TEXT("FConcertIdentifierWriter");
@@ -127,7 +134,15 @@ FArchive& FConcertIdentifierReader::operator<<(FName& Name)
 	return *this;
 }
 
+FArchive& FConcertIdentifierReader::operator<<(FSoftObjectPath& AssetPtr)
+{
+	FName ObjPath = *AssetPtr.ToString();
+	*this << ObjPath;
+	return *this;
+}
+
 FString FConcertIdentifierReader::GetArchiveName() const
 {
 	return TEXT("FConcertIdentifierReader");
 }
+

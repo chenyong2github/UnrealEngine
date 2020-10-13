@@ -45,6 +45,11 @@ namespace TextureShareItem
 
 		bool Tick()
 		{
+			if (ShareItem.CheckRemoteConnectionLost())
+			{
+				return false;
+			}
+
 			// If timeout is defined, checking elasped waiting time
 			double TotalWaitTime = FPlatformTime::Seconds() - Time0;
 			bool isTimeOut = (TimeOut>0) && (TotalWaitTime > TimeOut);
@@ -58,9 +63,9 @@ namespace TextureShareItem
 			switch (FailAction)
 			{
 			case ESyncProcessFailAction::ConnectionLost:
-				if (isTimeOut || !ShareItem.IsConnectionValid())
+				if (isTimeOut)
 				{
-					ShareItem.ConnectionLost();
+					ShareItem.RemoteConnectionLost();
 					return false;
 				}
 				break;
@@ -395,6 +400,11 @@ namespace TextureShareItem
 
 	bool FTextureShareItemBase::TryTextureSync(FSharedResourceTexture& LocalTextureData, int& RemoteTextureIndex)
 	{
+		if (!LocalTextureData.IsUsed())
+		{
+			return false;
+		}
+
 		// Update remote process data
 		ReadRemoteProcessData();
 		RemoteTextureIndex = FindRemoteTextureIndex(LocalTextureData);
@@ -431,6 +441,17 @@ namespace TextureShareItem
 				/** Read operation wait for remote process write */
 				case ETextureShareSurfaceOp::Read:
 				{
+#if TEXTURESHARECORE_RHI
+					if(!IsClient() && !LocalTextureData.SharingData.IsValid())
+					{
+						// Server must create shared resource for client, before read op
+						bool bIsTextureChanged;
+						if(!LockServerRHITexture(LocalTextureData, bIsTextureChanged, RemoteTextureIndex))
+						{
+							return false;
+						}
+					}
+#endif
 					FSyncProcess SyncProcess(*this, SyncSettings.TimeOut.TextureSync, ESyncProcessFailAction::ConnectionLost);
 					FSharedResourceProcessData& LocalData = GetLocalProcessData();
 					FSharedResourceProcessData& RemoteData = GetRemoteProcessData();
@@ -517,34 +538,45 @@ namespace TextureShareItem
 		// Update remote process data
 		ReadRemoteProcessData();
 
+		if (CheckRemoteConnectionLost())
+		{
+			return false;
+		}
+
 		const FTextureShareSyncPolicySettings& SyncSettings = GetSyncSettings();
 
-		// check _ConnectionSync_ (TextureShare objects begin sessions)
-		switch (GetConnectionSyncMode())
+		if (!bRemoteConnectionValid)
 		{
-		case ETextureShareSyncConnect::SyncSession:
-		{
-			// Wait for other process
-			FSyncProcess SyncProcess(*this, SyncSettings.TimeOut.ConnectionSync, ESyncProcessFailAction::ConnectionLost);
-			while (!IsConnectionValid())
+			// check _ConnectionSync_ (TextureShare objects begin sessions)
+			switch (GetConnectionSyncMode())
 			{
-				if (!SyncProcess.Tick())
+			case ETextureShareSyncConnect::SyncSession:
+			{
+				// Wait for other process
+				FSyncProcess SyncProcess(*this, SyncSettings.TimeOut.ConnectionSync, ESyncProcessFailAction::ConnectionLost);
+				while (!IsConnectionValid())
 				{
+					if (!SyncProcess.Tick())
+					{
+						return false;
+					}
+				}
+				// processes connected now
+				break;
+			}
+			default:
+				if (!IsConnectionValid())
+				{
+					// Reset connection for local
+					RemoteConnectionLost();
 					return false;
 				}
+				// processes connected now
+				break;
 			}
-			// processes connected now
-			break;
-		}
-		default:
-			if (!IsConnectionValid())
-			{
-				// Reset connection for local
-				ConnectionLost();
-				return false;
-			}
-			// processes connected now
-			break;
+
+			// Remote side found, begin connection
+			BeginRemoteConnection();
 		}
 
 		// Synchronize _SyncFrame_ (Frame numbers is equal)
@@ -761,7 +793,7 @@ namespace TextureShareItem
 				// Reset connection
 				if (!IsConnectionValid())
 				{
-					ConnectionLost();
+					RemoteConnectionLost();
 				}
 
 				// begin frame
@@ -837,14 +869,8 @@ namespace TextureShareItem
 	{
 		if (bIsSessionStarted)
 		{
-			// Unlock frame
-			EndFrame_RenderThread();
-
-			// Release all textures
-			DeviceReleaseTextures();
-
-			// Stop session
-			bIsSessionStarted = false;
+			// Stop current connection
+			EndRemoteConnection();
 		}
 
 		//Release texture mutex
@@ -857,6 +883,9 @@ namespace TextureShareItem
 		// Clear local process data
 		ResourceData = FSharedResourceSessionData();
 		WriteLocalProcessData();
+
+		// Stop session, and disable access to local IPC data
+		bIsSessionStarted = false;
 	}
 
 	bool FTextureShareItemBase::TryFrameSyncLost()
@@ -869,10 +898,46 @@ namespace TextureShareItem
 		return false;
 	}
 
-	void FTextureShareItemBase::ConnectionLost()
+	void FTextureShareItemBase::BeginRemoteConnection()
 	{
-		// Break current frame
-		EndFrame_RenderThread();
+		bRemoteConnectionValid = true;
+	}
+
+	void FTextureShareItemBase::EndRemoteConnection()
+	{
+		if (bRemoteConnectionValid)
+		{
+			// Break current frame
+			EndFrame_RenderThread();
+
+			// Release device shared resources
+			DeviceReleaseTextures();
+
+			// Reset frame sync
+			GetLocalProcessData().ResetSyncFrame();
+
+			WriteLocalProcessData();
+
+			bRemoteConnectionValid = false;
+		}
+	}
+
+	void FTextureShareItemBase::RemoteConnectionLost()
+	{
+		//@todo: handle error
+
+		// Stop current connection
+		EndRemoteConnection();
+	}
+
+	bool FTextureShareItemBase::CheckRemoteConnectionLost()
+	{
+		if (bRemoteConnectionValid && !IsConnectionValid())
+		{
+			RemoteConnectionLost();
+			return true;
+		}
+		return false;
 	}
 
 	// Helpers:

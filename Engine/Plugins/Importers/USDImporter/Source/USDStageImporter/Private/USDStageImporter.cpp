@@ -2,9 +2,10 @@
 
 #include "USDStageImporter.h"
 
+#include "USDAssetImportData.h"
 #include "USDConversionUtils.h"
 #include "USDErrorUtils.h"
-#include "USDAssetImportData.h"
+#include "USDGeomMeshConversion.h"
 #include "USDLog.h"
 #include "USDSchemasModule.h"
 #include "USDSchemaTranslator.h"
@@ -62,25 +63,14 @@ namespace UsdStageImporterImpl
 			}
 		}
 
-		UE::FUsdStage Stage;
-		if (ImportContext.bReadFromStageCache)
-		{
-			// Attempt to open the stage from the static stage cache before reading file
-			Stage = UnrealUSDWrapper::OpenStage(*FilePath, EUsdInitialLoadSet::LoadAll);
-		}
-		else
-		{
-			// Always re-read file, ignoring stage cache
-			const bool bReadFromCache = false;
-			Stage = UnrealUSDWrapper::OpenStage(*FilePath, EUsdInitialLoadSet::LoadAll, bReadFromCache);
-		}
+		UE::FUsdStage Stage = UnrealUSDWrapper::OpenStage( *FilePath, EUsdInitialLoadSet::LoadAll, ImportContext.bReadFromStageCache );
 
 		TArray<FString> ErrorStrings = UsdUtils::GetErrorsAndStopMonitoring();
 		FString Error = FString::Join(ErrorStrings, TEXT("\n"));
 
 		if (!Error.IsEmpty())
 		{
-			ImportContext.AddErrorMessage(EMessageSeverity::Error, FText::Format(LOCTEXT("CouldNotImportUSDFile", "Could not import USD file {0}\n {1}"), FText::FromString(FilePath), FText::FromString(Error)));
+			FUsdLogManager::LogMessage( EMessageSeverity::Error, FText::Format( LOCTEXT( "CouldNotImportUSDFile", "Could not import USD file {0}\n {1}" ), FText::FromString( FilePath ), FText::FromString( Error ) ) );
 		}
 		return Stage;
 	}
@@ -252,6 +242,7 @@ namespace UsdStageImporterImpl
 
 	void ImportMeshes(FUsdStageImportContext& ImportContext, FUsdSchemaTranslationContext& TranslationContext)
 	{
+#if USE_USD_SDK
 		if (!ImportContext.ImportOptions->bImportGeometry)
 		{
 			return;
@@ -269,9 +260,92 @@ namespace UsdStageImporterImpl
 			return false;
 		};
 
-		TArray< UE::FUsdPrim > MeshPrims = UsdUtils::GetAllPrimsOfType( ImportContext.Stage.GetPseudoRoot(), TEXT("UsdGeomXformable"), PruneCollapsedMeshes );
+		// If we're going to interpret LODs and have meshes in the cache that were parsed without interpreting LODs,
+		// manually discard them or else we will end up with both versions in the content folder, as they will have different hashes
+		if ( ImportContext.ImportOptions->bInterpretLODs && TranslationContext.bAllowInterpretingLODs && ImportContext.AssetsCache.Num() > 0 )
+		{
+			TMap<UObject*, FString> AssetsCacheInverted;
+			for ( const TPair<FString, UObject*>& AssetsCachePair : ImportContext.AssetsCache )
+			{
+				AssetsCacheInverted.Add( AssetsCachePair.Value, AssetsCachePair.Key );
+			}
 
+			// Disable this flag before we search because whether we interpret LODs or not affects our collapsing rules,
+			// and we want to find out the exact assets/prims that were parsed without interpreting LODs
+			TranslationContext.bAllowInterpretingLODs = false;
+
+			// We do meshes and skelroots separately here instead of just UsdGeomXformable because while SkelRoot and Mesh prims are both UsdGeomXformable,
+			// SkelRoots contain the LOD variant set, while the Mesh prims are inside the actual variants, so we need to handle them differently. Plus we have to mind the skeleton anyway
+			TArray< UE::FUsdPrim > MeshPrims = UsdUtils::GetAllPrimsOfType( ImportContext.Stage.GetPseudoRoot(), TEXT( "UsdGeomMesh" ), PruneCollapsedMeshes );
+			TArray< UE::FUsdPrim > SkelRootPrims = UsdUtils::GetAllPrimsOfType( ImportContext.Stage.GetPseudoRoot(), TEXT( "UsdSkelRoot" ), PruneCollapsedMeshes );
+
+			TranslationContext.bAllowInterpretingLODs = true;
+
+			TArray<UObject*> AssetsToDiscard;
+			for ( const UE::FUsdPrim& MeshPrim : MeshPrims )
+			{
+				if ( !UsdUtils::IsGeomMeshALOD( MeshPrim ) )
+				{
+					continue;
+				}
+
+				int32 NumUsdLODs = UsdUtils::GetNumberOfLODVariants( MeshPrim.GetParent() );
+				if ( NumUsdLODs < 2 )
+				{
+					continue;
+				}
+
+				const FString& MeshPrimPath = MeshPrim.GetPrimPath().GetString();
+
+				if ( UObject** FoundAsset = ImportContext.PrimPathsToAssets.Find( MeshPrimPath ) )
+				{
+					if ( UStaticMesh* OldStaticMesh = Cast<UStaticMesh>( *FoundAsset ) )
+					{
+						if ( OldStaticMesh->GetNumLODs() != NumUsdLODs )
+						{
+							AssetsToDiscard.Add(OldStaticMesh);
+							ImportContext.PrimPathsToAssets.Remove( MeshPrimPath );
+						}
+					}
+				}
+			}
+
+			for ( const UE::FUsdPrim& SkelRootPrim : SkelRootPrims )
+			{
+				int32 NumUsdLODs = UsdUtils::GetNumberOfLODVariants( SkelRootPrim );
+				if ( NumUsdLODs < 2 )
+				{
+					continue;
+				}
+
+				const FString& SkelRootPrimPath = SkelRootPrim.GetPrimPath().GetString();
+
+				if ( UObject** FoundAsset = ImportContext.PrimPathsToAssets.Find( SkelRootPrimPath ) )
+				{
+					if ( USkeletalMesh* OldSkeletalMesh = Cast<USkeletalMesh>( *FoundAsset ) )
+					{
+						if ( OldSkeletalMesh->GetLODNum() != NumUsdLODs )
+						{
+							AssetsToDiscard.Add( OldSkeletalMesh );
+							AssetsToDiscard.Add( OldSkeletalMesh->Skeleton );
+							ImportContext.PrimPathsToAssets.Remove( SkelRootPrimPath );
+						}
+					}
+				}
+			}
+
+			for ( UObject* AssetToDiscard : AssetsToDiscard )
+			{
+				if ( FString* AssetsCacheKey = AssetsCacheInverted.Find( AssetToDiscard ) )
+				{
+					ImportContext.AssetsCache.Remove( *AssetsCacheKey );
+				}
+			}
+		}
+
+		TArray< UE::FUsdPrim > MeshPrims = UsdUtils::GetAllPrimsOfType( ImportContext.Stage.GetPseudoRoot(), TEXT("UsdGeomXformable"), PruneCollapsedMeshes );
 		CreateAssetsForPrims(MeshPrims, TranslationContext);
+#endif // #if USE_USD_SDK
 	}
 
 	void ImportActor(UE::FUsdPrim& Prim, FUsdSchemaTranslationContext& TranslationContext)
@@ -364,9 +438,11 @@ namespace UsdStageImporterImpl
 		{
 			AssetSuffix = TEXT("_Skeleton");
 
-			if (USkeletalMesh* CompatMesh = Skeleton->FindCompatibleMesh())
+			// We always set the corresponding mesh as preview mesh on import. Fetching the name here is really important
+			// as it can determine the destination path and how the asset conflicts are resolved
+			if (USkeletalMesh* SkeletalMesh = Skeleton->GetPreviewMesh())
 			{
-				if (UUsdAssetImportData* AssetImportData = Cast<UUsdAssetImportData>(CompatMesh->AssetImportData))
+				if (UUsdAssetImportData* AssetImportData = Cast<UUsdAssetImportData>(SkeletalMesh->AssetImportData))
 				{
 					AssetPath = AssetImportData->PrimPath;
 				}
@@ -420,6 +496,23 @@ namespace UsdStageImporterImpl
 		return FinalName;
 	}
 
+	/** Used to discard assets from the cache that are not directly used by this translation context (e.g. old/other things) */
+	void DiscardOldAssets( TMap<FString, UObject*>& AssetsCache, const TSet<UObject*> CurrentAssets )
+	{
+		TArray<FString> KeysToRemove;
+		for ( TPair<FString, UObject*>& Pair : AssetsCache )
+		{
+			if ( !CurrentAssets.Contains( Pair.Value ) )
+			{
+				KeysToRemove.Add( Pair.Key );
+			}
+		}
+		for ( const FString& KeyToRemove : KeysToRemove )
+		{
+			AssetsCache.Remove( KeyToRemove );
+		}
+	}
+
 	void UpdateAssetImportData(const TMap<FString, UObject*>& AssetsCache, const FString& MainFilePath, UUsdStageImportOptions* ImportOptions)
 	{
 		for (const TPair<FString, UObject*>& AssetPair : AssetsCache)
@@ -430,7 +523,7 @@ namespace UsdStageImporterImpl
 				continue;
 			}
 
-			UUsdAssetImportData* ImportData = UUsdStageImporter::GetAssetImportData(Asset);
+			UUsdAssetImportData* ImportData = UsdUtils::GetAssetImportData(Asset);
 			if (!ImportData)
 			{
 				continue;
@@ -502,10 +595,10 @@ namespace UsdStageImporterImpl
 			bAssetWasOpen = true;
 		}
 
-		UPackage* Package = ExistingPackage ? ExistingPackage : CreatePackage(nullptr, *TargetPackagePath);
+		UPackage* Package = ExistingPackage ? ExistingPackage : CreatePackage(*TargetPackagePath);
 		if (!Package)
 		{
-			ImportContext.AddErrorMessage(EMessageSeverity::Error, FText::Format(LOCTEXT("PublishFailure", "Failed to get destination package at '{0}' for imported asset '{1}'!"), FText::FromString(TargetPackagePath), FText::FromName(Asset->GetFName())));
+			FUsdLogManager::LogMessage( EMessageSeverity::Error, FText::Format( LOCTEXT( "PublishFailure", "Failed to get destination package at '{0}' for imported asset '{1}'!" ), FText::FromString( TargetPackagePath ), FText::FromName( Asset->GetFName() ) ) );
 			return nullptr;
 		}
 		Package->FullyLoad();
@@ -536,7 +629,8 @@ namespace UsdStageImporterImpl
 			// If mesh's label has changed, update its name
 			if (ExistingAsset->GetFName() != Asset->GetFName())
 			{
-				MovedAsset->Rename(*TargetAssetName, Package, REN_DontCreateRedirectors | REN_NonTransactional);
+				// We can't dirty the package here. Read the comment around MarkPackageDirty, below
+				MovedAsset->Rename(*TargetAssetName, Package, REN_DontCreateRedirectors | REN_NonTransactional | REN_DoNotDirty);
 			}
 
 			if (UStaticMesh* DestinationMesh = Cast< UStaticMesh >(MovedAsset))
@@ -554,7 +648,8 @@ namespace UsdStageImporterImpl
 		}
 		else
 		{
-			Asset->Rename(*TargetAssetName, Package, REN_DontCreateRedirectors | REN_NonTransactional);
+			// We can't dirty the package here. Read the comment around MarkPackageDirty, below
+			Asset->Rename(*TargetAssetName, Package, REN_DontCreateRedirectors | REN_NonTransactional | REN_DoNotDirty );
 			MovedAsset = Asset;
 		}
 
@@ -563,11 +658,28 @@ namespace UsdStageImporterImpl
 			ObjectsToRemap.Add(Asset, MovedAsset);
 		}
 
+		// Soft object ptrs won't update, so we need to do it manually as we use PreviewMesh when fetching AssetImportData
+		// Note that we need to do this even if we never replaced/overwrote assets, as we will at least move from transient to the published folder
+		if ( USkeletalMesh* MovedMeshAsset = Cast<USkeletalMesh>( MovedAsset ) )
+		{
+			if ( USkeleton* Skeleton = MovedMeshAsset->Skeleton )
+			{
+				Skeleton->SetPreviewMesh( MovedMeshAsset );
+			}
+		}
+
 		// Important as some assets (e.g. material instances) are created with no flags
 		MovedAsset->SetFlags(ImportContext.ImportObjectFlags);
 		MovedAsset->ClearFlags(EObjectFlags::RF_Transient | EObjectFlags::RF_DuplicateTransient | EObjectFlags::RF_NonPIEDuplicateTransient);
 
-		Package->MarkPackageDirty();
+		// We need to make sure that "dirtying the final package" is not added to the transaction, because if we undo this transaction
+		// the assets should remain on their final destination, so we still want the packages to remain marked as dirty (as they're really not on the disk yet).
+		// If we didn't suppress, the package would become transactional by this call. When undoing, the assets would still remain on the final package,
+		// but the "dirtying" would be undone, so the engine would think the assets weren't dirty (i.e. were already saved), which is not true
+		{
+			TGuardValue< ITransaction* > SuppressTransaction{ GUndo, nullptr };
+			Package->MarkPackageDirty();
+		}
 
 		if (!ExistingAsset)
 		{
@@ -595,7 +707,7 @@ namespace UsdStageImporterImpl
 		for (TPair<FString, UObject*>& AssetPair : ImportContext.AssetsCache)
 		{
 			UObject* Asset = AssetPair.Value;
-			if (!Asset)
+			if ( !Asset )
 			{
 				continue;
 			}
@@ -603,7 +715,7 @@ namespace UsdStageImporterImpl
 			FString AssetTypeFolder;
 			if ( ImportContext.ImportOptions->bPrimPathFolderStructure )
 			{
-				UUsdAssetImportData* ImportData = UUsdStageImporter::GetAssetImportData( Asset );
+				UUsdAssetImportData* ImportData = UsdUtils::GetAssetImportData( Asset );
 
 				// For skeletal stuff, the primpaths point to the SkelRoot, so it is useful to place the assets in there,
 				// as we'll always have at least the skeletal mesh and the skeleton
@@ -838,7 +950,7 @@ namespace UsdStageImporterImpl
 
 		if (!ImportContext.SceneActor)
 		{
-			ImportContext.AddErrorMessage(EMessageSeverity::Error, LOCTEXT("NoSceneActor", "Failed to publish actors as there was no scene actor available!"));
+			FUsdLogManager::LogMessage( EMessageSeverity::Error, LOCTEXT( "NoSceneActor", "Failed to publish actors as there was no scene actor available!" ) );
 			return;
 		}
 
@@ -891,68 +1003,85 @@ namespace UsdStageImporterImpl
 		}
 	}
 
-	void CopySkeletonAssignment(FUsdStageImportContext& ImportContext, UObject* ExistingAsset, UObject* NewAsset)
+	void CopySkeletonAssignment( FUsdStageImportContext& ImportContext, UObject* ExistingAsset, UObject* NewAsset )
 	{
-		USkeletalMesh* ExistingSkeletalMesh = Cast<USkeletalMesh>(ExistingAsset);
-		USkeletalMesh* NewSkeletalMesh = Cast<USkeletalMesh>(NewAsset);
-
-		if (!ExistingSkeletalMesh || !NewSkeletalMesh)
+		USkeletalMesh* ExistingSkeletalMesh = Cast<USkeletalMesh>( ExistingAsset );
+		USkeletalMesh* NewSkeletalMesh = Cast<USkeletalMesh>( NewAsset );
+		if ( ExistingSkeletalMesh && NewSkeletalMesh )
 		{
-			return;
+			// Never assign a transient skeleton
+			if ( ExistingSkeletalMesh->Skeleton && ExistingSkeletalMesh->Skeleton->GetOutermost() == GetTransientPackage() )
+			{
+				return;
+			}
+
+			// Assign even if ExistingSkeletalMesh has nullptr skeleton because we must be able to cleanup the
+			// abandoned Skeleton in the transient package
+			NewSkeletalMesh->Skeleton = ExistingSkeletalMesh->Skeleton;
 		}
 
-		// Assign even if ExistingSkeletalMesh has nullptr skeleton because we must be able to cleanup the
-		// abandoned Skeleton in the transient package
-		NewSkeletalMesh->Skeleton = ExistingSkeletalMesh->Skeleton;
+		UAnimSequence* ExistingAnimSequence = Cast<UAnimSequence>( ExistingAsset );
+		UAnimSequence* NewAnimSequence = Cast<UAnimSequence>( NewAsset );
+		if ( ExistingAnimSequence && NewAnimSequence )
+		{
+			// Never assign a transient skeleton
+			USkeleton* ExistingSkeleton = ExistingAnimSequence->GetSkeleton();
+			if ( ExistingSkeleton && ExistingSkeleton->GetOutermost() == GetTransientPackage() )
+			{
+				return;
+			}
+
+			NewAnimSequence->SetSkeleton( ExistingSkeleton );
+		}
 	}
 
 	// Adapted from FDatasmithImporterImpl::FixReferencesForObject
 	void RemapReferences(FUsdStageImportContext& ImportContext, const TMap< UObject*, UObject* >& ObjectsToRemap)
 	{
-		if (ObjectsToRemap.Num() <= 0)
+		if (ObjectsToRemap.Num() == 0)
 		{
 			return;
 		}
 
-		TSet<UObject*> RemappedOuters;
-		constexpr bool bNullPrivateRefs = false;
-		constexpr bool bIgnoreOuterRef = true;
-		constexpr bool bIgnoreArchetypeRef = true;
-
-		if (AActor* SceneActor = ImportContext.SceneActor)
+		TSet<UObject*> Referencers;
+		if ( AActor* SceneActor = ImportContext.SceneActor )
 		{
-			ULevel* CurrentLevel = ImportContext.SceneActor->GetWorld()->GetCurrentLevel();
-			FArchiveReplaceObjectRef< UObject > ArchiveReplaceObjectRef(
-				CurrentLevel,
-				ObjectsToRemap,
-				bNullPrivateRefs,
-				bIgnoreOuterRef,
-				bIgnoreArchetypeRef);
-			RemappedOuters.Add(CurrentLevel);
+			// Remap references to spawned actors
+			Referencers.Add( ImportContext.SceneActor->GetWorld()->GetCurrentLevel() );
+		}
+		for ( const TPair<FString, UObject*>& Pair : ImportContext.AssetsCache )
+		{
+			// Remap references held by assets that were moved directly to the destination package, and won't be in ObjectsToRemap
+			Referencers.Add( Pair.Value );
+		}
+		for ( const TPair<UObject*, UObject*>& Pair : ObjectsToRemap )
+		{
+			// Remap internal references between the remapped objects
+			Referencers.Add( Pair.Value );
 		}
 
 		// Fix references between actors and assets (e.g. mesh in final package referencing material in transient package)
 		// Note we don't care if transient assets reference each other, as we'll delete them all at once anyway
-		for (const TPair<UObject*, UObject*>& Pair : ObjectsToRemap)
+		for ( UObject* Referencer : Referencers )
 		{
-			UObject* FinalAsset = Pair.Value;
-			if (!FinalAsset || RemappedOuters.Contains(FinalAsset))
+			if ( !Referencer || Referencer->GetOutermost() == GetTransientPackage() )
 			{
 				continue;
 			}
 
+			constexpr bool bNullPrivateRefs = false;
+			constexpr bool bIgnoreOuterRef = true;
+			constexpr bool bIgnoreArchetypeRef = true;
 			FArchiveReplaceObjectRef< UObject > ArchiveReplaceObjectRefInner(
-				FinalAsset,
+				Referencer,
 				ObjectsToRemap,
 				bNullPrivateRefs,
 				bIgnoreOuterRef,
 				bIgnoreArchetypeRef);
-
-			RemappedOuters.Add(FinalAsset);
 		}
 	}
 
-	void Cleanup(TMap<FString, UObject*>& AssetsToCleanup, AActor* NewSceneActor, AActor* ExistingSceneActor, EReplaceActorPolicy ReplacePolicy)
+	void Cleanup(AActor* NewSceneActor, AActor* ExistingSceneActor, EReplaceActorPolicy ReplacePolicy)
 	{
 		if ( !NewSceneActor )
 		{
@@ -965,23 +1094,6 @@ namespace UsdStageImporterImpl
 		{
 			RecursiveDestroyActor(ExistingSceneActor);
 		}
-
-		TArray<UObject*> AssetsArray;
-		AssetsArray.Reserve(AssetsToCleanup.Num());
-
-		for (TPair<FString, UObject*>& Pair : AssetsToCleanup)
-		{
-			UObject* Asset = Pair.Value;
-			if (Asset && Asset->GetOutermost() == GetTransientPackage())
-			{
-				AssetsArray.Add(Asset);
-			}
-		}
-
-		// Delete any transient assets we left behind.
-		// We can't compare how many assets it deleted because some of our AssetsToCleanup may be unclaimed, and so
-		// will be purged by the garbage collector before DeleteObjects actively deletes them
-		ObjectTools::DeleteObjects(AssetsArray, false);
 	}
 
 	void CloseStageIfNeeded(FUsdStageImportContext& ImportContext)
@@ -1001,43 +1113,24 @@ namespace UsdStageImporterImpl
 #endif // #if USE_USD_SDK
 	}
 
-	void FetchMainImportedPackage(FUsdStageImportContext& ImportContext)
+	/** This returns the outer imported folder so that we can return it from the factories and have the content browser navigate to it */
+	void FetchMainImportedPackage( FUsdStageImportContext& ImportContext )
 	{
-		ImportContext.ImportedPackage = FindPackage( nullptr, *FPaths::Combine(ImportContext.PackagePath, ImportContext.ObjectName) );
-	}
-}
+		FString PackagePath = UPackageTools::SanitizePackageName( FPaths::Combine( ImportContext.PackagePath, ImportContext.ObjectName ) );
 
-UUsdAssetImportData* UUsdStageImporter::GetAssetImportData(UObject* Asset)
-{
-	UUsdAssetImportData* ImportData = nullptr;
-	if (UStaticMesh* Mesh = Cast<UStaticMesh>(Asset))
-	{
-		ImportData = Cast<UUsdAssetImportData>(Mesh->AssetImportData);
-	}
-	else if (USkeleton* Skeleton = Cast<USkeleton>( Asset ) )
-	{
-		if ( USkeletalMesh* SkMesh = Skeleton->GetPreviewMesh() )
+		UPackage* ImportedPackage = FindPackage( nullptr, *PackagePath );
+		if ( !ImportedPackage && FPackageName::DoesPackageExist( PackagePath ) )
 		{
-			ImportData = Cast<UUsdAssetImportData>( SkMesh->AssetImportData );
+			ImportedPackage = LoadPackage( nullptr, *PackagePath, LOAD_None );
 		}
+
+		if ( !ImportedPackage )
+		{
+			ImportedPackage = CreatePackage( *PackagePath );
+		}
+
+		ImportContext.ImportedPackage = ImportedPackage;
 	}
-	else if (USkeletalMesh* SkMesh = Cast<USkeletalMesh>(Asset))
-	{
-		ImportData = Cast<UUsdAssetImportData>(SkMesh->AssetImportData);
-	}
-	else if (UAnimSequence* SkelAnim = Cast<UAnimSequence>( Asset ) )
-	{
-		ImportData = Cast<UUsdAssetImportData>(SkelAnim->AssetImportData);
-	}
-	else if (UMaterialInterface* Material = Cast<UMaterialInterface>(Asset))
-	{
-		ImportData = Cast<UUsdAssetImportData>(Material->AssetImportData);
-	}
-	else if (UTexture* Texture = Cast<UTexture>(Asset))
-	{
-		ImportData = Cast<UUsdAssetImportData>(Texture->AssetImportData);
-	}
-	return ImportData;
 }
 
 void UUsdStageImporter::ImportFromFile(FUsdStageImportContext& ImportContext)
@@ -1045,14 +1138,14 @@ void UUsdStageImporter::ImportFromFile(FUsdStageImportContext& ImportContext)
 #if USE_USD_SDK
 	if (!ImportContext.World)
 	{
-		ImportContext.AddErrorMessage(EMessageSeverity::Error, LOCTEXT("NoWorldError", "Failed to import USD Stage because the target UWorld is invalid!"));
+		FUsdLogManager::LogMessage( EMessageSeverity::Error, LOCTEXT( "NoWorldError", "Failed to import USD Stage because the target UWorld is invalid!" ) );
 		return;
 	}
 
 	ImportContext.Stage = UsdStageImporterImpl::ReadUsdFile(ImportContext);
 	if (!ImportContext.Stage)
 	{
-		ImportContext.AddErrorMessage(EMessageSeverity::Error, LOCTEXT("NoStageError", "Failed to open the USD Stage!"));
+		FUsdLogManager::LogMessage( EMessageSeverity::Error, LOCTEXT( "NoStageError", "Failed to open the USD Stage!" ) );
 		return;
 	}
 
@@ -1088,11 +1181,12 @@ void UUsdStageImporter::ImportFromFile(FUsdStageImportContext& ImportContext)
 	}
 	TranslationContext->CompleteTasks();
 
+	UsdStageImporterImpl::DiscardOldAssets(ImportContext.AssetsCache, TranslationContext->CurrentlyUsedAssets);
 	UsdStageImporterImpl::UpdateAssetImportData(ImportContext.AssetsCache, ImportContext.FilePath, ImportContext.ImportOptions);
 	UsdStageImporterImpl::PublishAssets(ImportContext, ObjectsToRemap);
 	UsdStageImporterImpl::ResolveActorConflicts(ImportContext, ExistingSceneActor, ObjectsToRemap);
 	UsdStageImporterImpl::RemapReferences(ImportContext, ObjectsToRemap);
-	UsdStageImporterImpl::Cleanup(ImportContext.AssetsCache, ImportContext.SceneActor, ExistingSceneActor, ImportContext.ImportOptions->ExistingActorPolicy);
+	UsdStageImporterImpl::Cleanup(ImportContext.SceneActor, ExistingSceneActor, ImportContext.ImportOptions->ExistingActorPolicy);
 	UsdStageImporterImpl::CloseStageIfNeeded(ImportContext);
 	UsdStageImporterImpl::FetchMainImportedPackage(ImportContext);
 
@@ -1109,7 +1203,7 @@ bool UUsdStageImporter::ReimportSingleAsset(FUsdStageImportContext& ImportContex
 	ImportContext.Stage = UsdStageImporterImpl::ReadUsdFile(ImportContext);
 	if (!ImportContext.Stage)
 	{
-		ImportContext.AddErrorMessage(EMessageSeverity::Error, LOCTEXT("NoStageError", "Failed to open the USD Stage!"));
+		FUsdLogManager::LogMessage( EMessageSeverity::Error, LOCTEXT( "NoStageError", "Failed to open the USD Stage!" ) );
 		return bSuccess;
 	}
 
@@ -1141,22 +1235,39 @@ bool UUsdStageImporter::ReimportSingleAsset(FUsdStageImportContext& ImportContex
 	}
 	TranslationContext->CompleteTasks();
 
-	if (UObject** FoundImportedObject = ImportContext.PrimPathsToAssets.Find(OriginalImportData->PrimPath))
+	// Look for our reimported asset in the assets cache as we may have multiple assets with the same prim path
+	UObject* ReimportedObject = nullptr;
+	for ( TPair<FString, UObject*> AssetPair : ImportContext.AssetsCache )
+	{
+		UObject* Asset = AssetPair.Value;
+		UUsdAssetImportData* NewAssetImportData = UsdUtils::GetAssetImportData( Asset );
+
+		if ( Asset &&
+			 NewAssetImportData &&
+			 Asset->GetClass() == OriginalAsset->GetClass() &&
+			 NewAssetImportData->PrimPath.Equals( OriginalImportData->PrimPath, ESearchCase::CaseSensitive ) )
+		{
+			ReimportedObject = Asset;
+			break;
+		}
+	}
+
+	if ( ReimportedObject )
 	{
 		UsdStageImporterImpl::UpdateAssetImportData( ImportContext.AssetsCache, ImportContext.FilePath, ImportContext.ImportOptions);
 
 		// Assign things from the original assets before we publish the reimported asset, overwriting it
-		UsdStageImporterImpl::CopyOriginalMaterialAssignment(ImportContext, OriginalAsset, *FoundImportedObject);
-		UsdStageImporterImpl::CopySkeletonAssignment(ImportContext, OriginalAsset, *FoundImportedObject);
+		UsdStageImporterImpl::CopyOriginalMaterialAssignment(ImportContext, OriginalAsset, ReimportedObject );
+		UsdStageImporterImpl::CopySkeletonAssignment(ImportContext, OriginalAsset, ReimportedObject );
 
 		// Just publish the one asset we wanted to reimport. Note that we may have other assets here too, but we'll ignore those e.g. a displayColor material or a skeleton
-		OutReimportedAsset = UsdStageImporterImpl::PublishAsset(ImportContext, *FoundImportedObject, OriginalAsset->GetOutermost()->GetPathName(), ObjectsToRemap);
+		OutReimportedAsset = UsdStageImporterImpl::PublishAsset(ImportContext, ReimportedObject, OriginalAsset->GetOutermost()->GetPathName(), ObjectsToRemap);
 		UsdStageImporterImpl::RemapReferences( ImportContext, ObjectsToRemap );
 
-		bSuccess = OutReimportedAsset != nullptr;
+		bSuccess = OutReimportedAsset != nullptr && TranslationContext->CurrentlyUsedAssets.Contains( ReimportedObject );
 	}
 
-	UsdStageImporterImpl::Cleanup( ImportContext.AssetsCache, ImportContext.SceneActor, nullptr, ImportContext.ImportOptions->ExistingActorPolicy );
+	UsdStageImporterImpl::Cleanup( ImportContext.SceneActor, nullptr, ImportContext.ImportOptions->ExistingActorPolicy );
 	UsdStageImporterImpl::CloseStageIfNeeded( ImportContext );
 	UsdStageImporterImpl::FetchMainImportedPackage( ImportContext );
 

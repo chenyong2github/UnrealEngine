@@ -35,7 +35,7 @@ public:
 private:
 	// Shake section members
 	FKeyPropertyResult AddCameraShakeSectionKeyInternal(FFrameNumber KeyTime, const TArray<TWeakObjectPtr<UObject>> Objects, bool bSelect);
-	FKeyPropertyResult AddCameraShakeSectionKeyInternal(FFrameNumber KeyTime, const TArray<TWeakObjectPtr<UObject>> Objects, TSubclassOf<UCameraShake> CameraShake, bool bSelect);
+	FKeyPropertyResult AddCameraShakeSectionKeyInternal(FFrameNumber KeyTime, const TArray<TWeakObjectPtr<UObject>> Objects, TSubclassOf<UCameraShakeBase> CameraShake, bool bSelect);
 
 	void AddCameraShakeSection(TArray<FGuid> ObjectHandles);
 
@@ -48,7 +48,7 @@ private:
 	bool OnShouldFilterCameraShake(const FAssetData& AssetData);
 
 	// Shake trigger members
-	FKeyPropertyResult AddCameraShakeTriggerTrackInternal(FFrameNumber Time, const TArray<TWeakObjectPtr<UObject>> Objects, TSubclassOf<UCameraShake> CameraShake);
+	FKeyPropertyResult AddCameraShakeTriggerTrackInternal(FFrameNumber Time, const TArray<TWeakObjectPtr<UObject>> Objects, TSubclassOf<UCameraShakeBase> CameraShake);
 
 	void AddCameraShakeTriggerTrack(const TArray<FGuid> ObjectBindings);
 	

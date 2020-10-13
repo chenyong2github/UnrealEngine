@@ -53,7 +53,5 @@ public class SteamVRInput : ModuleRules
         {
             PrivateDependencyModuleNames.Add("UnrealEd");
         }
-
-        RuntimeDependencies.Add("$(ProjectDir)/Config/SteamVRBindings/...");
     }
 }

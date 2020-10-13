@@ -130,8 +130,6 @@ void FEmbedPolygonsOp::CalculateResult(FProgressCancel* Progress)
 
 	FPolygon2d Polygon = GetPolygon();
 	double Perimeter = Polygon.Perimeter();
-
-	TArray<int> PathVertIDs1, PathVertCorrespond1;
 	
 	TArray<TPair<float, int>> SortedHitTriangles;
 	TMeshQueries<FDynamicMesh3>::FindHitTriangles_LinearSearch(*ResultMesh, FRay3d(Frame.FromPlaneUV(Polygon[0]), -Frame.Z()), SortedHitTriangles);
@@ -163,18 +161,30 @@ void FEmbedPolygonsOp::CalculateResult(FProgressCancel* Progress)
 		DeleteOutside
 	};
 
-	auto CutHole = [](FDynamicMesh3& Mesh, const FFrame3d& F, int TriStart, const FPolygon2d& PolygonArg, EDeleteMethod DeleteMethod, TArray<int>& PathVertIDs, TArray<int>& PathVertCorrespond, bool bCollapseDegenerateEdges)
+	auto CutAllHoles = [](FDynamicMesh3& Mesh, const FFrame3d& F, const TArray<int>& TriStarts, const FPolygon2d& Polygon, EDeleteMethod DeleteMethod, TArray<TArray<int>>& AllPathVertIDs, TArray<TArray<int>>& AllPathVertCorrespond, bool bCollapseDegenerateEdges)
 	{
-		if (!Mesh.IsTriangle(TriStart))
+		for (int TriStart : TriStarts)
 		{
-			return false;
+			if (!Mesh.IsTriangle(TriStart))
+			{
+				return false;
+			}
 		}
 		FMeshFaceSelection Selection(&Mesh);
-		bool bDidEmbed = EmbedProjectedPath(&Mesh, TriStart, F, PolygonArg.GetVertices(), PathVertIDs, PathVertCorrespond, true, &Selection);
+
+		TArray<TArray<FVector2d>> PolygonPaths;
+		for (int PathIdx = 0; PathIdx < TriStarts.Num(); PathIdx++)
+		{
+			PolygonPaths.Add(Polygon.GetVertices());
+		}
+		bool bDidEmbed = EmbedProjectedPaths(&Mesh, TriStarts, F, PolygonPaths, AllPathVertIDs, AllPathVertCorrespond, true, &Selection);
 		if (!bDidEmbed)
 		{
 			return false;
 		}
+
+		check(PolygonPaths.Num() == AllPathVertIDs.Num());
+		check(AllPathVertIDs.Num() == AllPathVertCorrespond.Num());
 
 		FDynamicMeshEditor MeshEditor(&Mesh);
 		if (DeleteMethod != EDeleteMethod::DeleteNone)
@@ -182,6 +192,10 @@ void FEmbedPolygonsOp::CalculateResult(FProgressCancel* Progress)
 			bool bDidRemove = false;
 			if (DeleteMethod == EDeleteMethod::DeleteOutside)
 			{
+				if (Selection.Num() == 0)
+				{
+					return false; // refuse to delete the entire mesh w/ a hole cut
+				}
 				TArray<int> InvSelection;
 				InvSelection.Reserve(Mesh.TriangleCount() - Selection.Num());
 				for (int TID : Mesh.TriangleIndicesItr())
@@ -195,6 +209,10 @@ void FEmbedPolygonsOp::CalculateResult(FProgressCancel* Progress)
 			}
 			else
 			{
+				if (Selection.Num() == Mesh.TriangleCount())
+				{
+					return false; // refuse to delete the entire mesh w/ a hole cut
+				}
 				bDidRemove = MeshEditor.RemoveTriangles(Selection.AsArray(), true);
 			}
 			if (!bDidRemove)
@@ -212,38 +230,61 @@ void FEmbedPolygonsOp::CalculateResult(FProgressCancel* Progress)
 		}
 
 		// remove triangles could have removed a path vertex entirely in weird cases; just consider that a failure
-		for (int VID : PathVertIDs)
+		for (const TArray<int>& PathVertIDs : AllPathVertIDs)
 		{
-			if (!Mesh.IsVertex(VID))
+			for (int VID : PathVertIDs)
 			{
-				return false;
+				if (!Mesh.IsVertex(VID))
+				{
+					return false;
+				}
 			}
 		}
 
 		// collapse degenerate edges if we got em
 		if (bCollapseDegenerateEdges)
 		{
-			CollapseDegenerateEdgesOnVertexPath(Mesh, PathVertIDs, PathVertCorrespond);
+			for (int PathIdx = 0; PathIdx < AllPathVertIDs.Num(); PathIdx++)
+			{
+				CollapseDegenerateEdgesOnVertexPath(Mesh, AllPathVertIDs[PathIdx], AllPathVertCorrespond[PathIdx]);
+			}
 		}
 
 		// For hole cut to be counted as success, hole cut vertices must be valid, unique, and correspond to valid boundary edges
-		TSet<int> SeenVIDs;
-		for (int LastIdx = PathVertIDs.Num() - 1, Idx = 0; Idx < PathVertIDs.Num(); LastIdx=Idx++)
+		for (const TArray<int>& PathVertIDs : AllPathVertIDs)
 		{
-			check(Mesh.IsVertex(PathVertIDs[Idx])); // collapse shouldn't leave invalid verts in, and we check + fail out on invalid verts above that, so seeing them here should be impossible
-			int EID = Mesh.FindEdge(PathVertIDs[LastIdx], PathVertIDs[Idx]);
-			if (!Mesh.IsEdge(EID) || (!Mesh.IsBoundaryEdge(EID) && DeleteMethod != EDeleteMethod::DeleteNone))
+			TSet<int> SeenVIDs;
+			for (int LastIdx = PathVertIDs.Num() - 1, Idx = 0; Idx < PathVertIDs.Num(); LastIdx = Idx++)
 			{
-				return false;
+				check(Mesh.IsVertex(PathVertIDs[Idx])); // collapse shouldn't leave invalid verts in, and we check + fail out on invalid verts above that, so seeing them here should be impossible
+				int EID = Mesh.FindEdge(PathVertIDs[LastIdx], PathVertIDs[Idx]);
+				if (!Mesh.IsEdge(EID) || (!Mesh.IsBoundaryEdge(EID) && DeleteMethod != EDeleteMethod::DeleteNone))
+				{
+					return false;
+				}
+				if (SeenVIDs.Contains(PathVertIDs[Idx]))
+				{
+					return false;
+				}
+				SeenVIDs.Add(PathVertIDs[Idx]);
 			}
-			if (SeenVIDs.Contains(PathVertIDs[Idx]))
-			{
-				return false;
-			}
-			SeenVIDs.Add(PathVertIDs[Idx]);
 		}
 
 		return true;
+	};
+
+	auto CutHole = [CutAllHoles](FDynamicMesh3& Mesh, const FFrame3d& F, int TriStart, const FPolygon2d& PolygonArg, EDeleteMethod DeleteMethod, TArray<int>& PathVertIDs, TArray<int>& PathVertCorrespond, bool bCollapseDegenerateEdges)
+	{
+		TArray<int> TriStarts;
+		TriStarts.Add(TriStart);
+		TArray<TArray<int>> AllPathVertIDs, AllPathVertCorrespond;
+		bool bResult = CutAllHoles(Mesh, F, TriStarts, PolygonArg, DeleteMethod, AllPathVertIDs, AllPathVertCorrespond, bCollapseDegenerateEdges);
+		if (bResult && ensure(AllPathVertIDs.Num() == 1 && AllPathVertCorrespond.Num() ==1))
+		{
+			PathVertIDs = AllPathVertIDs[0];
+			PathVertCorrespond = AllPathVertCorrespond[0];
+		}
+		return bResult;
 	};
 
 	EDeleteMethod DeleteMethod = EDeleteMethod::DeleteInside;
@@ -256,35 +297,36 @@ void FEmbedPolygonsOp::CalculateResult(FProgressCancel* Progress)
 		DeleteMethod = EDeleteMethod::DeleteOutside;
 	}
 
-	bool bCutSide1 = CutHole(*ResultMesh, Frame, SortedHitTriangles[0].Value, Polygon, DeleteMethod, PathVertIDs1, PathVertCorrespond1, bCollapseDegenerateEdges);
-	RecordEmbeddedEdges(PathVertIDs1);
-	if (!bCutSide1 || PathVertIDs1.Num() < 2)
+	if (Operation != EEmbeddedPolygonOpMethod::CutThrough || SecondHit == -1)
 	{
-		return;
-	}
-
-	if (Operation == EEmbeddedPolygonOpMethod::CutThrough)
-	{
-		if (SecondHit == -1)
+		TArray<int> PathVertIDs, PathVertCorrespond;
+		bool bCutSide1 = CutHole(*ResultMesh, Frame, SortedHitTriangles[0].Value, Polygon, DeleteMethod, PathVertIDs, PathVertCorrespond, bCollapseDegenerateEdges);
+		RecordEmbeddedEdges(PathVertIDs);
+		if (!bCutSide1 || PathVertIDs.Num() < 2)
 		{
 			return;
 		}
-
-		TArray<int> PathVertIDs2, PathVertCorrespond2;
-		bool bCutSide2 = CutHole(*ResultMesh, Frame, SortedHitTriangles[SecondHit].Value, Polygon, DeleteMethod, PathVertIDs2, PathVertCorrespond2, bCollapseDegenerateEdges);
-		EmbeddedEdges.SetNum(Algo::RemoveIf(EmbeddedEdges, [this](int EID) {return !ResultMesh->IsEdge(EID);})); // remove any now-deleted recorded edges from the first hole
-		RecordEmbeddedEdges(PathVertIDs2); // record the edges of the second hole
-		if (!bCutSide2 || PathVertIDs2.Num() < 2)
+	}
+	else //Operation == EEmbeddedPolygonOpMethod::CutThrough
+	{
+		TArray<int> HitTris;
+		HitTris.Add(SortedHitTriangles[0].Value);
+		HitTris.Add(SortedHitTriangles[SecondHit].Value);
+		TArray<TArray<int>> AllPathVertIDs, AllPathVertCorrespond;
+		bool bCutSide2 = CutAllHoles(*ResultMesh, Frame, HitTris, Polygon, DeleteMethod, AllPathVertIDs, AllPathVertCorrespond, bCollapseDegenerateEdges);
+		RecordEmbeddedEdges(AllPathVertIDs[0]);
+		RecordEmbeddedEdges(AllPathVertIDs[1]);
+		if (!bCutSide2 || AllPathVertIDs[0].Num() < 2 || AllPathVertIDs[1].Num() < 2)
 		{
 			return;
 		}
 		FDynamicMeshEditor MeshEditor(ResultMesh.Get());
 		FDynamicMeshEditResult ResultOut;
-		bool bStitched = MeshEditor.StitchSparselyCorrespondedVertexLoops(PathVertIDs1, PathVertCorrespond1, PathVertIDs2, PathVertCorrespond2, ResultOut);
+		bool bStitched = MeshEditor.StitchSparselyCorrespondedVertexLoops(AllPathVertIDs[0], AllPathVertCorrespond[0], AllPathVertIDs[1], AllPathVertCorrespond[1], ResultOut);
 		if (bStitched && ResultMesh->HasAttributes())
 		{
-			MeshEditor.SetTubeNormals(ResultOut.NewTriangles, PathVertIDs1, PathVertCorrespond1, PathVertIDs2, PathVertCorrespond2);
-			TArray<float> UValues; UValues.SetNumUninitialized(PathVertCorrespond2.Num() + 1);
+			MeshEditor.SetTubeNormals(ResultOut.NewTriangles, AllPathVertIDs[0], AllPathVertCorrespond[0], AllPathVertIDs[1], AllPathVertCorrespond[1]);
+			TArray<float> UValues; UValues.SetNumUninitialized(AllPathVertCorrespond[1].Num() + 1);
 			FVector3f ZVec = -(FVector3f)Frame.Z();
 			float Along = 0;
 			for (int UIdx = 0; UIdx < UValues.Num(); UIdx++)
@@ -296,7 +338,7 @@ void FEmbedPolygonsOp::CalculateResult(FProgressCancel* Progress)
 			for (int UVIdx = 0, NumUVLayers = ResultMesh->Attributes()->NumUVLayers(); UVIdx < NumUVLayers; UVIdx++)
 			{
 				MeshEditor.SetGeneralTubeUVs(ResultOut.NewTriangles,
-					PathVertIDs2, PathVertCorrespond2, PathVertIDs1, PathVertCorrespond1,
+					AllPathVertIDs[0], AllPathVertCorrespond[0], AllPathVertIDs[1], AllPathVertCorrespond[1],
 					UValues, ZVec,
 					UVScaleFactor, FVector2f::Zero(), UVIdx
 				);
@@ -335,10 +377,15 @@ void FEmbedPolygonsOp::RecordEmbeddedEdges(TArray<int>& PathVertIDs)
 {
 	for (int LastIdx = PathVertIDs.Num() - 1, Idx = 0; Idx < PathVertIDs.Num(); LastIdx = Idx++)
 	{
-		int EID = ResultMesh->FindEdge(PathVertIDs[LastIdx], PathVertIDs[Idx]);
-		if (ResultMesh->IsEdge(EID))
+		int A = PathVertIDs[LastIdx];
+		int B = PathVertIDs[Idx];
+		if (ResultMesh->IsVertex(A) && ResultMesh->IsVertex(B))
 		{
-			EmbeddedEdges.Add(EID);
+			int EID = ResultMesh->FindEdge(A, B);
+			if (ResultMesh->IsEdge(EID))
+			{
+				EmbeddedEdges.Add(EID);
+			}
 		}
 	}
 }

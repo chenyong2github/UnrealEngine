@@ -67,8 +67,10 @@ namespace MDLImporterImpl
 		}
 		if (MdlMaterial.Displacement.WasProcessed())
 		{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			Material.bEnableAdaptiveTessellation = true;
 			Material.D3D11TessellationMode       = EMaterialTessellationMode::MTM_FlatTessellation;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 
 		if (Material.GetShadingModels().HasShadingModel(EMaterialShadingModel::MSM_ClearCoat))
@@ -186,7 +188,7 @@ bool FMDLMaterialFactory::CreateMaterials(const FString& Filename, UObject* Pare
 	CleanUp();
 
 	FString  MaterialPackageName = UPackageTools::SanitizePackageName(*(ParentPackage->GetName() / Materials.Name));
-	UObject* MaterialPackage     = CreatePackage(nullptr, *MaterialPackageName);
+	UObject* MaterialPackage     = CreatePackage(*MaterialPackageName);
 
 	for (const Mdl::FMaterial& MdlMaterial : Materials)
 	{

@@ -85,7 +85,7 @@ struct FPixelDataRectangle
 		// Copy the data a scan line at a time
 
 		uint8 *DstScanline = Data + DestX * PixelSize + DestY * DstScanlineSize;
-		const uint8 *SrcScanline = Source.Data + SourceX * PixelSize + SourceY * SrcScanlineSize;
+		const uint8 *SrcScanline = Source.Data + SourceX * PixelSize + (SIZE_T)SourceY * (SIZE_T)SrcScanlineSize;
 
 		for (int Y = 0; Y < ClampedHeight; Y++)
 		{

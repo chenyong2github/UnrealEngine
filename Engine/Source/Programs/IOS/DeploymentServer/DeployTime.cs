@@ -458,10 +458,23 @@ namespace DeploymentServer
                 string UDID = Device.DeviceId;
                 string DeviceType = Device.ProductType;
 
-				Console.WriteLine("Device '{0}' with id {1} of type {3} is being checked against {2}.", Device.DeviceName, Device.DeviceId, DeviceId, Device.ProductType);
-				if (String.IsNullOrEmpty(DeviceId) || Device.DeviceId == DeviceId ||
-                    (DeviceId.Contains("All_tvOS_On") && DeviceType.Contains("TV")) ||
-                    (DeviceId.Contains("All_iOS_On") && !DeviceType.Contains("TV")))
+                if (!string.IsNullOrEmpty(DeviceId))
+                {
+                    Console.WriteLine("Checking '{0}' with id {1} of type {2} against -device '{3}'.", DeviceName, UDID, DeviceType, DeviceId);
+                }
+
+                bool IsIOS = DeviceType.Contains("iPhone") || DeviceType.Contains("iPad");
+                bool IsTV = DeviceType.Contains("TV");
+
+                // Match anything if no device was specifie
+                bool IsMatch = string.IsNullOrEmpty(DeviceId)
+                            || (DeviceId.IndexOf("All_tvOS", StringComparison.CurrentCultureIgnoreCase) >= 0 && IsTV)
+                            || (DeviceId.IndexOf("All_iOS", StringComparison.CurrentCultureIgnoreCase) >= 0 && IsIOS)
+                            || Device.DeviceId.IndexOf(DeviceId, StringComparison.CurrentCultureIgnoreCase) >= 0
+                            || Device.DeviceName.IndexOf(DeviceId, StringComparison.CurrentCultureIgnoreCase) >= 0
+                            ;
+
+                if (IsMatch)
 				{
 					ReportIF.Log(String.Format("Transferring IPA to device '{0}' ... ", DeviceName));
 					Device.CopyFileToPublicStaging(IPAPath);
@@ -478,6 +491,10 @@ namespace DeploymentServer
 
 					return bResult;
 				}
+                else
+				{
+                    Console.WriteLine(String.Format("Ignoring device '{0}' ... ", DeviceName));
+                }
 
 				return true;
             });

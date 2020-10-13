@@ -34,13 +34,12 @@ public:
 	UObject* GetCPPTypeObject() const;
 
 	// Returns the default value of the parameter as a string
-	UFUNCTION(BlueprintCallable, Category = RigVMEnumNode)
-	FString GetDefaultValue() const;
+	FString GetDefaultValue(const URigVMPin::FDefaultValueOverride& InDefaultValueOverride = URigVMPin::FDefaultValueOverride()) const;
 
 	// Override of node title
 	virtual FLinearColor GetNodeColor() const override { return FLinearColor::Blue; }
 
-	virtual bool IsDefinedAsConstant() const override { return true; }
+	virtual bool IsDefinedAsVarying() const override { return true; }
 
 private:
 

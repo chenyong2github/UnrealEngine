@@ -74,13 +74,18 @@ public:
 	UPROPERTY(EditAnywhere, Category = Shape, meta = (UIMin = "0.0001", UIMax = "1000", ClampMin = "0", ClampMax = "999999"))
 	float Width = 10.0f;
 
-	UPROPERTY(EditAnywhere, Category = Shape)
+	UPROPERTY(EditAnywhere, Category = Shape, meta = (
+		EditCondition = "OutputType != EDrawPolyPathOutputMode::Ribbon", EditConditionHides))
 	EDrawPolyPathHeightMode HeightMode = EDrawPolyPathHeightMode::Interactive;
 
-	UPROPERTY(EditAnywhere, Category = Shape, meta = (UIMin = "-1000", UIMax = "1000", ClampMin = "-10000", ClampMax = "10000"))
+	UPROPERTY(EditAnywhere, Category = Shape, meta = (
+		EditCondition = "OutputType != EDrawPolyPathOutputMode::Ribbon", 
+		EditConditionHides, UIMin = "-1000", UIMax = "1000", ClampMin = "-10000", ClampMax = "10000"))
 	float Height = 10.0f;
 
-	UPROPERTY(EditAnywhere, Category = Shape, meta = (UIMin = "0.01", UIMax = "1.0", ClampMin = "0", ClampMax = "100.0"))
+	UPROPERTY(EditAnywhere, Category = Shape, meta = (
+		EditCondition = "OutputType == EDrawPolyPathOutputMode::Ramp", EditConditionHides,
+		UIMin = "0.01", UIMax = "1.0", ClampMin = "0", ClampMax = "100.0"))
 	float RampStartRatio = 0.05f;
 
 

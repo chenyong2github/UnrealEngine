@@ -12,7 +12,7 @@ class FDisplayClusterRenderSyncPolicyNone
 	: public FDisplayClusterRenderSyncPolicyBase
 {
 public:
-	FDisplayClusterRenderSyncPolicyNone();
+	FDisplayClusterRenderSyncPolicyNone(const TMap<FString, FString>& Parameters);
 	virtual ~FDisplayClusterRenderSyncPolicyNone();
 
 public:

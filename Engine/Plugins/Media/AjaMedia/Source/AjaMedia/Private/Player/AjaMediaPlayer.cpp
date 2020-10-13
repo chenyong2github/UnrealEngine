@@ -257,10 +257,10 @@ void FAjaMediaPlayer::Close()
 }
 
 
-FName FAjaMediaPlayer::GetPlayerName() const
+FGuid FAjaMediaPlayer::GetPlayerPluginGUID() const
 {
-	static FName PlayerName(TEXT("AJAMedia"));
-	return PlayerName;
+	static FGuid PlayerPluginGUID(0xfde28f0a, 0xf72c4cb9, 0x9c1358fb, 0x1ae552d9);
+	return PlayerPluginGUID;
 }
 
 

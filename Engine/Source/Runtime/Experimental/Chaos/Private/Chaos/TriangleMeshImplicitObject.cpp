@@ -970,6 +970,8 @@ void FTriangleMeshImplicitObject::RebuildBVImp(const TArray<TVec3<IdxType>>& Ele
 	BVH.Reinitialize(BVEntries);
 }
 
+FTriangleMeshImplicitObject::~FTriangleMeshImplicitObject() = default;
+
 void Chaos::FTriangleMeshImplicitObject::RebuildBV()
 {
 	if (MElements.RequiresLargeIndices())

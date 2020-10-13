@@ -146,7 +146,7 @@ UObject* UMDLImporterFactory::FactoryCreateFile(UClass*           InClass,
 	const FString PackagePath = InParent->GetPathName();
 
 	
-	if (!(IsRunningCommandlet() || GIsRunningUnattendedScript || FApp::IsUnattended()))
+	if (!(IsRunningCommandlet() || GIsRunningUnattendedScript || FApp::IsUnattended() || IsAutomatedImport()))
 	{
 		if (!MDLImporterImpl::ShowOptionsWindow(Filepath, PackagePath, *ImporterOptions))
 		{

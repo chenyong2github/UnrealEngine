@@ -57,7 +57,7 @@ public:
 		UDMXPixelMappingOutputComponent interface
 	----------------------------------*/
 #if WITH_EDITOR
-	/** Whether component should be part of palatte view */
+	/** Whether component should be part of Palette view */
 	virtual bool IsExposedToTemplate() { return false; }
 
 	/** Returns the text of palette category*/
@@ -84,7 +84,7 @@ public:
 #endif // WITH_EDITOR
 
 	/** Get rendering size of component */
-	virtual FVector2D GetSize();
+	virtual FVector2D GetSize() const;
 
 	/** Get rendering position of the component. Using for determining UV map input rendering offset */
 	virtual FVector2D GetPosition() { return FVector2D(0.f); }
@@ -112,7 +112,7 @@ public:
 	TSharedPtr<SWidget> GetCachedWidget() const;
 
 	/** Sets the ZOrder in the UI */
-	void SetZOrder(int32 NewZOrder);
+	virtual void SetZOrder(int32 NewZOrder);
 
 	/** Returns the UI ZOrder */
 	int32 GetZOrder() const { return ZOrder; }
@@ -164,7 +164,7 @@ public:
 
     /** The quality level to use when averaging colors during downsampling. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Pixel Settings")
-	EDMXPixelBlendingQuality PixelBlendingQuality;
+	EDMXPixelBlendingQuality CellBlendingQuality;
 
 public:
 #if WITH_EDITORONLY_DATA
@@ -184,6 +184,9 @@ protected:
 
 	/** Cached designer widget */
 	TSharedPtr<SBox> CachedWidget;
+
+	/** Cached label box */
+	TSharedPtr<SBox> CachedLabelBox;
 #endif
 
 private:
@@ -203,7 +206,7 @@ public:
 
 #if WITH_EDITORONLY_DATA
 	/** The color displayed in editor */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Editor Settings", Meta = (EditCondition = "bEditableEditorColor"))
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Editor Settings")
 	FLinearColor EditorColor = FLinearColor::Blue;
 
 	/** If true, the editor color is editable */

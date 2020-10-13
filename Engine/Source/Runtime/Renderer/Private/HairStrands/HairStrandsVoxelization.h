@@ -49,7 +49,10 @@ BEGIN_SHADER_PARAMETER_STRUCT(FVirtualVoxelCommonParameters, )
 	SHADER_PARAMETER(float, DepthBiasScale_Environment)
 	SHADER_PARAMETER(float, SteppingScale)
 	SHADER_PARAMETER(float, HairCoveragePixelRadiusAtDepth1) 
+	SHADER_PARAMETER(float, Raytracing_ShadowOcclusionThreshold)
+	SHADER_PARAMETER(float, Raytracing_SkyOcclusionThreshold)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, PageIndexBuffer)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint2>, PageIndexOccupancyBuffer)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, PageIndexCoordBuffer)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FPackedVirtualVoxelNodeDesc>, NodeDescBuffer) // Packed into 2 x uint4
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, HairCoverageLUT)
@@ -67,13 +70,14 @@ struct FVirtualVoxelResources
 	TRDGUniformBufferRef<FVirtualVoxelParameters> UniformBuffer;
 	FRDGTextureRef PageTexture = nullptr;
 	FRDGBufferRef PageIndexBuffer = nullptr;
+	FRDGBufferRef PageIndexOccupancyBuffer = nullptr;
 	FRDGBufferRef NodeDescBuffer = nullptr;
 	FRDGBufferRef PageIndexCoordBuffer = nullptr;
 	FRDGBufferRef IndirectArgsBuffer = nullptr;
 	FRDGBufferRef PageIndexGlobalCounter = nullptr;
 	FRDGBufferRef VoxelizationViewInfoBuffer = nullptr;
 
-	const bool IsValid() const { return UniformBuffer != nullptr; }
+	const bool IsValid() const { return UniformBuffer != nullptr && PageTexture != nullptr && NodeDescBuffer != nullptr; }
 };
 
 /// Global enable/disable for hair voxelization

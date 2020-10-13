@@ -3931,7 +3931,7 @@ void GetVersionFormatNumbersForIniVersionStrings(TMap<FString, FString>& IniVers
 void GetAdditionalCurrentIniVersionStrings( const ITargetPlatform* TargetPlatform, TMap<FString, FString>& IniVersionMap )
 {
 	FConfigFile EngineSettings;
-	FConfigCacheIni::LoadLocalIniFile(EngineSettings, TEXT("Engine"), true, *TargetPlatform->PlatformName());
+	FConfigCacheIni::LoadLocalIniFile(EngineSettings, TEXT("Engine"), true, *TargetPlatform->IniPlatformName());
 
 	TArray<FString> VersionedRValues;
 	EngineSettings.GetArray(TEXT("/Script/UnrealEd.CookerSettings"), TEXT("VersionedIntRValues"), VersionedRValues);
@@ -5519,6 +5519,7 @@ void UCookOnTheFlyServer::SaveGlobalShaderMapFiles(const TArrayView<const ITarge
 			RecompileData.ShaderPlatform == -1 ? SP_NumPlatforms : (EShaderPlatform)RecompileData.ShaderPlatform, //-V547
 			OutputDir, 
 			RecompileData.MaterialsToLoad, 
+			RecompileData.ShadersToRecompile,
 			RecompileData.MeshMaterialMaps, 
 			RecompileData.ModifiedFiles);
 	}
@@ -5895,12 +5896,15 @@ void UCookOnTheFlyServer::CookByTheBookFinished()
 		{
 			// Save shader code map
 			FString LibraryName = !IsCookingDLC() ? FApp::GetProjectName() : CookByTheBookOptions->DlcName;
-			SaveShaderCodeLibrary(LibraryName);
-			
-			// Don't clean Saved/Shaders/<LibraryPlatform(s)>/ at the end as we might iterate next time - Next cook at startup will decide if clean on iterate flag
-            // /*CleanShaderCodeLibraries();*/
-			ProcessShaderCodeLibraries(LibraryName);
-            
+			if (LibraryName.Len() > 0)
+			{
+				SaveShaderCodeLibrary(LibraryName);
+
+				// Don't clean Saved/Shaders/<LibraryPlatform(s)>/ at the end as we might iterate next time - Next cook at startup will decide if clean on iterate flag
+				// /*CleanShaderCodeLibraries();*/
+				ProcessShaderCodeLibraries(LibraryName);
+			}
+
 			FShaderCodeLibrary::Shutdown();
 		}				
 		
@@ -5984,14 +5988,20 @@ void UCookOnTheFlyServer::CookByTheBookFinished()
 				{
 					UE_SCOPED_HIERARCHICAL_COOKTIMER(SaveManifests);
 					// Always try to save the manifests, this is required to make the asset registry work, but doesn't necessarily write a file
-					Generator.SaveManifests(SandboxFile.Get());
+					if (!Generator.SaveManifests(SandboxFile.Get()))
+					{
+						UE_LOG(LogCook, Warning, TEXT("Failed to save chunk manifest"));
+					}
 
 					int64 ExtraFlavorChunkSize;
 					if (FParse::Value(FCommandLine::Get(), TEXT("ExtraFlavorChunkSize="), ExtraFlavorChunkSize))
 					{
 						if (ExtraFlavorChunkSize > 0)
 						{
-							Generator.SaveManifests(SandboxFile.Get(), ExtraFlavorChunkSize);
+							if (!Generator.SaveManifests(SandboxFile.Get(), ExtraFlavorChunkSize))
+							{
+								UE_LOG(LogCook, Warning, TEXT("Failed to save chunk manifest"));
+							}
 						}
 					}
 				}
@@ -6006,7 +6016,7 @@ void UCookOnTheFlyServer::CookByTheBookFinished()
 					UE_SCOPED_HIERARCHICAL_COOKTIMER(WriteCookerOpenOrder);
 					if (!IsCookFlagSet(ECookInitializationFlags::Iterative))
 					{
-						Generator.WriteCookerOpenOrder();
+						Generator.WriteCookerOpenOrder(SandboxFile.Get());
 					}
 				}
 				{
@@ -6892,7 +6902,10 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 	// Open the shader code library for the current project or the current DLC pack, depending on which we are cooking
     {
 		FString LibraryName = !IsCookingDLC() ? FApp::GetProjectName() : CookByTheBookOptions->DlcName;
-		OpenShaderCodeLibrary(LibraryName);
+		if (LibraryName.Len() > 0)
+		{
+			OpenShaderCodeLibrary(LibraryName);
+		}
 	}
 
 	TArray<FName> FilesInPath;
@@ -7360,6 +7373,7 @@ void UCookOnTheFlyServer::HandleNetworkFileServerRecompileShaders(const FShaderR
 		RecompileData.ShaderPlatform == -1 ? SP_NumPlatforms : (EShaderPlatform)RecompileData.ShaderPlatform,
 		OutputDir, 
 		RecompileData.MaterialsToLoad, 
+		RecompileData.ShadersToRecompile,
 		RecompileData.MeshMaterialMaps, 
 		RecompileData.ModifiedFiles,
 		RecompileData.bCompileChangedShaders);

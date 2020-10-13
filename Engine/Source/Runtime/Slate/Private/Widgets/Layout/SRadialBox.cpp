@@ -40,6 +40,7 @@ void SRadialBox::Construct( const FArguments& InArgs )
 	bUseAllottedWidth = InArgs._UseAllottedWidth;
 	StartingAngle = InArgs._StartingAngle;
 	bDistributeItemsEvenly = InArgs._bDistributeItemsEvenly;
+	SectorCentralAngle = NormalizeAngle(InArgs._SectorCentralAngle);
 	AngleBetweenItems = InArgs._AngleBetweenItems;
 
 	for ( int32 ChildIndex=0; ChildIndex < InArgs.Slots.Num(); ++ChildIndex )
@@ -93,7 +94,13 @@ void SRadialBox::FChildArranger::Arrange()
 {
 	const int32 NumItems = RadialBox.Slots.Num();
 	const float Radius = RadialBox.PreferredWidth.Get() / 2.f;
-	const float DegreeIncrements = RadialBox.bDistributeItemsEvenly? 360.f / NumItems : RadialBox.AngleBetweenItems;
+
+	// If are working with less-than-full-circumference, we want the last item to land exactly on the angle
+	const bool bHasExtraItemAtTheEnd = RadialBox.SectorCentralAngle < 360.f;
+	const int32 ItemCountDifference = bHasExtraItemAtTheEnd ? 1 : 0;
+
+	int32 TargetNumItems = FMath::Max(1, NumItems - ItemCountDifference);
+	const float DegreeIncrements = RadialBox.bDistributeItemsEvenly? RadialBox.SectorCentralAngle / TargetNumItems : RadialBox.AngleBetweenItems;
 	float DegreeOffset = RadialBox.StartingAngle * (-1.f) ;
 
 	//Offset to create the elements based on the middle of the widget as starting point
@@ -165,4 +172,10 @@ FChildren* SRadialBox::GetChildren()
 void SRadialBox::SetUseAllottedWidth(bool bInUseAllottedWidth)
 {
 	bUseAllottedWidth = bInUseAllottedWidth;
+}
+
+int32 SRadialBox::NormalizeAngle(int32 Angle) const
+{
+	int32 NormalizedAngle = Angle % 360;
+	return NormalizedAngle < 0 ? NormalizedAngle + 360 : NormalizedAngle;
 }

@@ -32,7 +32,7 @@ public:
 
 	virtual ~FConstraintBase() {}
 
-	typedef TVector<TGeometryParticle<FReal, 3>*, 2> FParticlePair;
+	typedef TVector<IPhysicsProxyBase*, 2> FProxyBasePair;
 	typedef TVector<TGeometryParticleHandle<FReal, 3>*, 2> FParticleHandlePair;
 
 	FConstraintBase(EConstraintType InType);
@@ -48,16 +48,23 @@ public:
 
 	void SetProxy(IPhysicsProxyBase* InProxy);
 
-	void SetParticles(const Chaos::FConstraintBase::FParticlePair& InJointParticles);
-	const FParticlePair GetParticles() const;
-	FParticlePair GetParticles();			
+	void SetParticleProxies(const FProxyBasePair& InJointParticles)
+	{
+		ConnectedParticleProxy[0] = InJointParticles[0];
+		ConnectedParticleProxy[1] = InJointParticles[1];
+	}
+
+
+	const FProxyBasePair& GetParticleProxies() const { return  ConnectedParticleProxy; }
+	FProxyBasePair& GetParticleProxies() { return  ConnectedParticleProxy; }
 
 protected:
 	EConstraintType Type;
 	class IPhysicsProxyBase* Proxy;
 
-	FParticlePair Particles;
+	FProxyBasePair ConnectedParticleProxy;
 
 };
 
 } // Chaos
+

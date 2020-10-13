@@ -46,7 +46,12 @@ public class FDatasmithFacadeDirectLink : global::System.IDisposable {
   }
 
   public static bool Init() {
-    bool ret = DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeDirectLink_Init();
+    bool ret = DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeDirectLink_Init__SWIG_0();
+    return ret;
+  }
+
+  public static bool Init(bool bUseDatasmithExporterUI, string RemoteEngineDirPath) {
+    bool ret = DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeDirectLink_Init__SWIG_1(bUseDatasmithExporterUI, RemoteEngineDirPath);
     return ret;
   }
 

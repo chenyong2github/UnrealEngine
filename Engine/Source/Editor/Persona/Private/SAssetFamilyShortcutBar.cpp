@@ -212,14 +212,17 @@ public:
 
 	ECheckBoxState GetCheckState() const
 	{
-		const TArray<UObject*>* Objects = HostingApp.Pin()->GetObjectsCurrentlyBeingEdited();
-		if (Objects != nullptr)
+		if(HostingApp.IsValid())
 		{
-			for (UObject* Object : *Objects)
+			const TArray<UObject*>* Objects = HostingApp.Pin()->GetObjectsCurrentlyBeingEdited();
+			if (Objects != nullptr)
 			{
-				if (FAssetData(Object) == AssetData)
+				for (UObject* Object : *Objects)
 				{
-					return ECheckBoxState::Checked;
+					if (FAssetData(Object) == AssetData)
+					{
+						return ECheckBoxState::Checked;
+					}
 				}
 			}
 		}
@@ -391,28 +394,31 @@ public:
 
 	void RefreshAsset()
 	{
-		// if this is the asset being edited by our hosting asset editor, don't switch it
-		bool bAssetBeingEdited = false;
-		const TArray<UObject*>* Objects = HostingApp.Pin()->GetObjectsCurrentlyBeingEdited();
-		if (Objects != nullptr)
+		if(HostingApp.IsValid())
 		{
-			for (UObject* Object : *Objects)
+			// if this is the asset being edited by our hosting asset editor, don't switch it
+			bool bAssetBeingEdited = false;
+			const TArray<UObject*>* Objects = HostingApp.Pin()->GetObjectsCurrentlyBeingEdited();
+			if (Objects != nullptr)
 			{
-				if (FAssetData(Object) == AssetData)
+				for (UObject* Object : *Objects)
 				{
-					bAssetBeingEdited = true;
-					break;
+					if (FAssetData(Object) == AssetData)
+					{
+						bAssetBeingEdited = true;
+						break;
+					}
 				}
 			}
-		}
 
-		// switch to new asset if needed
-		FAssetData NewAssetData = AssetFamily->FindAssetOfType(AssetData.GetClass());
-		if (!bAssetBeingEdited && NewAssetData.IsValid() && NewAssetData != AssetData)
-		{
-			AssetData = NewAssetData;
+			// switch to new asset if needed
+			FAssetData NewAssetData = AssetFamily->FindAssetOfType(AssetData.GetClass());
+			if (!bAssetBeingEdited && NewAssetData.IsValid() && NewAssetData != AssetData)
+			{
+				AssetData = NewAssetData;
 
-			RegenerateThumbnail();
+				RegenerateThumbnail();
+			}
 		}
 	}
 

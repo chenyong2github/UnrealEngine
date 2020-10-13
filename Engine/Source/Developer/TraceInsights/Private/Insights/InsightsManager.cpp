@@ -37,6 +37,50 @@ const FName FInsightsManagerTabs::MemoryProfilerTabId(TEXT("MemoryProfiler"));
 const FName FInsightsManagerTabs::InsightsMessageLogTabId(TEXT("MessageLog"));
 const FName FInsightsManagerTabs::AutomationWindowTabId(TEXT("AutomationWindow"));
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// FAvailabilityCheck
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool FAvailabilityCheck::Tick()
+{
+	if (NextTimestamp != (uint64)-1)
+	{
+		const uint64 Time = FPlatformTime::Cycles64();
+		if (Time > NextTimestamp)
+		{
+			// Increase wait time with 0.1s, but at no more than 3s.
+			WaitTime = FMath::Min(WaitTime + 0.1, 3.0);
+			const uint64 WaitTimeCycles64 = static_cast<uint64>(WaitTime / FPlatformTime::GetSecondsPerCycle64());
+			NextTimestamp = Time + WaitTimeCycles64;
+
+			return true; // yes, manager can check for (slow) availability conditions
+		}
+	}
+
+	return false; // no, manager should not check for (slow) availability conditions during this tick
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FAvailabilityCheck::Disable()
+{
+	WaitTime = 0.0;
+	NextTimestamp = (uint64)-1;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FAvailabilityCheck::Enable(double InWaitTime)
+{
+	WaitTime = InWaitTime;
+	const uint64 WaitTimeCycles64 = static_cast<uint64>(WaitTime / FPlatformTime::GetSecondsPerCycle64());
+	NextTimestamp = FPlatformTime::Cycles64() + WaitTimeCycles64;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// FInsightsManager
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 const TCHAR* FInsightsManager::AutoQuitMsgOnFail = TEXT("Application is closing because it was started with the AutoQuit parameter and session analysis failed to start.");
 
 TSharedPtr<FInsightsManager> FInsightsManager::Instance = nullptr;
@@ -107,7 +151,7 @@ void FInsightsManager::Initialize(IUnrealInsightsModule& InsightsModule)
 
 	// Register tick functions.
 	OnTick = FTickerDelegate::CreateSP(this, &FInsightsManager::Tick);
-	OnTickHandle = FTicker::GetCoreTicker().AddTicker(OnTick, 1.0f);
+	OnTickHandle = FTicker::GetCoreTicker().AddTicker(OnTick, 0.0f);
 
 	FInsightsCommands::Register();
 	BindCommands();
@@ -409,24 +453,6 @@ void FInsightsManager::ResetSession(bool bNotify)
 
 void FInsightsManager::OnSessionChanged()
 {
-	if (TSharedPtr<FTimingProfilerManager> TimingProfilerManager = FTimingProfilerManager::Get())
-	{
-		// FIXME: make TimingProfilerManager to register to SessionChangedEvent instead
-		TimingProfilerManager->OnSessionChanged();
-	}
-
-	if (TSharedPtr<FLoadingProfilerManager> LoadingProfilerManager = FLoadingProfilerManager::Get())
-	{
-		// FIXME: make LoadingProfilerManager to register to SessionChangedEvent instead
-		LoadingProfilerManager->OnSessionChanged();
-	}
-
-	if (TSharedPtr<FNetworkingProfilerManager> NetworkingProfilerManager = FNetworkingProfilerManager::Get())
-	{
-		// FIXME: make NetworkingProfilerManager to register to SessionChangedEvent instead
-		NetworkingProfilerManager->OnSessionChanged();
-	}
-
 	SessionChangedEvent.Broadcast();
 }
 

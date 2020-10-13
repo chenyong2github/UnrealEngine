@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "IConcertSyncClientModule.h"
+#include "IConcertClient.h"
 #include "ConcertSyncClient.h"
 #include "ConcertSettings.h"
 #include "ConcertLogGlobal.h"
@@ -120,6 +121,24 @@ public:
 		}
 
 		return ActiveClients;
+	}
+
+	virtual TSharedPtr<IConcertSyncClient> GetClient(const FString& InRole) const override
+	{
+		TSharedPtr<IConcertSyncClient> Client;
+
+		for (const TWeakPtr<IConcertSyncClient>& WeakClient : Clients)
+		{
+			if (TSharedPtr<IConcertSyncClient> ClientPtr = WeakClient.Pin())
+			{
+				if (ClientPtr->GetConcertClient()->GetRole() == InRole)
+				{
+					Client = ClientPtr;
+				}
+			}
+		}
+
+		return Client;
 	}
 
 	virtual FOnConcertClientCreated& OnClientCreated() override

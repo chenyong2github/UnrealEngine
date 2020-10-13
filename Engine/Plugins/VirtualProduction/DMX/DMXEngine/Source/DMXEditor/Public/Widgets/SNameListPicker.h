@@ -102,7 +102,9 @@ private:
 	/** Create an option widget for the combo box */
 	TSharedRef<ITableRow> GenerateNameItemWidget(TSharedPtr<FName> InItem, const TSharedRef<STableViewBase>& OwnerTable) const;
 	/** Handles a selection change from the combo box */
-	void HandleSelectionChanged(const TSharedPtr<FName> Item, ESelectInfo::Type SelectInfo);
+	void OnSelectionChanged(const TSharedPtr<FName> Item, ESelectInfo::Type SelectInfo);
+	void OnClickItem(const TSharedPtr<FName> Item);
+	void OnUserSelectedItem(const TSharedPtr<FName> Item);
 
 	TSharedPtr<FName> GetSelectedItemFromCurrentValue() const;
 

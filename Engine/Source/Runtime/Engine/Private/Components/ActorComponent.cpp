@@ -94,12 +94,22 @@ int32 GEnableDeferredPhysicsCreation = 0;
 void FRegisterComponentContext::Process()
 {
 	FSceneInterface* Scene = World->Scene;
+	const bool bAppCanEverRender = FApp::CanEverRender();
+
 	ParallelFor(AddPrimitiveBatches.Num(),
 		[&](int32 Index)
 		{
-			if (!AddPrimitiveBatches[Index]->IsPendingKill())
+			UPrimitiveComponent* Component = AddPrimitiveBatches[Index];
+			if (!Component->IsPendingKill())
 			{
-				Scene->AddPrimitive(AddPrimitiveBatches[Index]);
+				if (Component->IsRenderStateCreated() || !bAppCanEverRender)
+				{
+					Scene->AddPrimitive(Component);
+				}
+				else // Fallback for some edge case where the component renderstate are missing
+				{
+					Component->CreateRenderState_Concurrent(nullptr);
+				}
 			}
 		},
 		!FApp::ShouldUseThreadingForPerformance()
@@ -1402,6 +1412,13 @@ void UActorComponent::DestroyRenderState_Concurrent()
 {
 	check(bRenderStateCreated);
 	bRenderStateCreated = false;
+
+	// Also reset other dirty states
+	// There is a path in the engine that immediately unregisters the component after registration (AActor::RerunConstructionScripts())
+	// so that the component can be left in a state where its transform is marked for update while render state destroyed
+	bRenderStateDirty = false;
+	bRenderTransformDirty = false;
+	bRenderDynamicDataDirty = false;
 
 #if LOG_RENDER_STATE
 	UE_LOG(LogActorComponent, Log, TEXT("DestroyRenderState_Concurrent: %s"), *GetPathName());

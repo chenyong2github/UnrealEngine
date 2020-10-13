@@ -125,6 +125,10 @@ void UTextureRenderTarget2D::ResizeTarget(uint32 InSizeX, uint32 InSizeY)
 	{
 		SizeX = InSizeX;
 		SizeY = InSizeY;
+		if (bAutoGenerateMips)
+		{
+			NumMips = FGenericPlatformMath::CeilToInt(FGenericPlatformMath::Log2(FGenericPlatformMath::Max(SizeX, SizeY)));
+		}
 
 		if (Resource)
 		{

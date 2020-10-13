@@ -255,7 +255,7 @@ FReply FAssetImportDataCustomization::OnChangePathClicked(int32 Index) const
 
 	TArray<FString> OpenFilenames;
 	FReimportManager::Instance()->GetNewReimportPath(Obj, OpenFilenames);
-	if (OpenFilenames.Num() == 1)
+	if (OpenFilenames.Num() == 1 && !OpenFilenames[0].IsEmpty())
 	{
 		FImportDataSourceFileTransactionScope TransactionScope(LOCTEXT("SourceReimportChangePath", "Change source file path"), ImportData);
 		if (!Info || !Info->SourceFiles.IsValidIndex(Index))

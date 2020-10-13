@@ -368,7 +368,8 @@ private:
 		FRDGTextureRef SceneDepthTexture,
 		FRDGTextureRef& VelocityTexture,
 		TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
-		EVelocityPass VelocityPass);
+		EVelocityPass VelocityPass,
+		bool bForceVelocity);
 
 	bool ShouldRenderDistortion() const;
 	void RenderDistortion(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneColorTexture, FRDGTextureRef SceneDepthTexture);

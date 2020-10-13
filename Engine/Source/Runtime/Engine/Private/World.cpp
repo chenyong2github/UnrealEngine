@@ -104,7 +104,7 @@
 
 
 #include "Particles/ParticleEventManager.h"
-
+#include "PhysicsField/PhysicsFieldComponent.h"
 #include "EngineModule.h"
 #include "Streaming/TextureStreamingHelpers.h"
 #include "Net/DataChannel.h"
@@ -453,7 +453,8 @@ void UWorld::Serialize( FArchive& Ar )
 		
 		Ar << LineBatcher;
 		Ar << PersistentLineBatcher;
-		Ar << ForegroundLineBatcher;
+		Ar << ForegroundLineBatcher;  
+		Ar << PhysicsField;
 
 		Ar << MyParticleEventManager;
 		Ar << GameState;
@@ -505,6 +506,7 @@ void UWorld::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collecto
 		Collector.AddReferencedObject( This->LineBatcher, This );
 		Collector.AddReferencedObject( This->PersistentLineBatcher, This );
 		Collector.AddReferencedObject( This->ForegroundLineBatcher, This );
+		Collector.AddReferencedObject( This->PhysicsField, This);
 		Collector.AddReferencedObject( This->MyParticleEventManager, This );
 		Collector.AddReferencedObject( This->GameState, This );
 		Collector.AddReferencedObject( This->AuthorityGameMode, This );
@@ -880,6 +882,13 @@ void UWorld::BeginDestroy()
 		}
 	}
 
+	if (PhysicsScene != nullptr)
+	{
+		// Tell PhysicsScene to stop kicking off async work so we can cleanup after pending work is complete.
+		PhysicsScene->BeginDestroy();
+	}
+
+
 	if (Scene)
 	{
 		Scene->UpdateParameterCollections(TArray<FMaterialParameterCollectionInstanceResource*>());
@@ -985,6 +994,28 @@ void UWorld::FinishDestroy()
 	}
 
 	Super::FinishDestroy();
+}
+
+bool UWorld::IsReadyForFinishDestroy()
+{
+#if WITH_CHAOS
+
+	// In single threaded, task will never complete unless we wait on it, allow FinishDestroy so we can wait on task, otherwise this will hang GC.
+	// In multi threaded, we cannot wait in FinishDestroy, as this may schedule another task that is unsafe during GC.
+	const bool bIsSingleThreadEnvironment = FPlatformProcess::SupportsMultithreading() == false;
+	if (bIsSingleThreadEnvironment == false)
+	{
+		if (PhysicsScene != nullptr)
+		{
+			if (PhysicsScene->AreAnyTasksPending())
+			{
+				return false;
+			}
+		}
+	}
+#endif
+
+	return Super::IsReadyForFinishDestroy();
 }
 
 void UWorld::PostLoad()
@@ -1476,7 +1507,6 @@ void UWorld::InitWorld(const InitializationValues IVS)
 		AvoidanceManager = NewObject<UAvoidanceManager>(this, GEngine->AvoidanceManagerClass);
 	}
 
-
 	SetupParameterCollectionInstances();
 
 	if (PersistentLevel->GetOuter() != this)
@@ -1488,10 +1518,18 @@ void UWorld::InitWorld(const InitializationValues IVS)
 
 	Levels.Empty(1);
 	Levels.Add( PersistentLevel );
-	if (FLevelCollection* Collection = PersistentLevel->GetCachedLevelCollection())
+	
+	// If we are not Seamless Traveling remove PersistentLevel from LevelCollection if it is in a collection
+	// The Level Collections will be filled already during Seamless Travel in 
+	// UWorld::AsyncLoadAlwaysLoadedLevelsForSeamlessTravel()
+	if (GEngine->GetWorldContextFromWorld(this) && !IsInSeamlessTravel())  
 	{
-		Collection->RemoveLevel(PersistentLevel);
+		if (FLevelCollection* Collection = PersistentLevel->GetCachedLevelCollection())
+		{
+			Collection->RemoveLevel(PersistentLevel);
+		}
 	}
+	
 	PersistentLevel->OwningWorld = this;
 	PersistentLevel->bIsVisible = true;
 
@@ -1539,11 +1577,6 @@ void UWorld::InitWorld(const InitializationValues IVS)
 #endif
 
 	bAllowAudioPlayback = IVS.bAllowAudioPlayback;
-#if WITH_EDITOR
-	// Disable audio playback on PIE dedicated server
-	bAllowAudioPlayback = bAllowAudioPlayback && (GetNetMode() != NM_DedicatedServer);
-#endif // WITH_EDITOR
-
 	bDoDelayedUpdateCullDistanceVolumes = false;
 
 #if WITH_EDITOR
@@ -1799,7 +1832,7 @@ UWorld* UWorld::CreateWorld(const EWorldType::Type InWorldType, bool bInformEngi
 	UPackage* WorldPackage = InWorldPackage;
 	if ( !WorldPackage )
 	{
-		WorldPackage = CreatePackage( NULL, NULL );
+		WorldPackage = CreatePackage(nullptr);
 	}
 
 	if (InWorldType == EWorldType::PIE)
@@ -1904,6 +1937,11 @@ void UWorld::ClearWorldComponents()
 	{
 		ForegroundLineBatcher->UnregisterComponent();
 	}
+
+	if (PhysicsField && PhysicsField->IsRegistered())
+	{
+		PhysicsField->UnregisterComponent();
+	}
 }
 
 
@@ -1942,6 +1980,20 @@ void UWorld::UpdateWorldComponents(bool bRerunConstructionScripts, bool bCurrent
 		if(!ForegroundLineBatcher->IsRegistered())	
 		{
 			ForegroundLineBatcher->RegisterComponentWithWorld(this, Context);
+		}
+
+		static IConsoleVariable* PhysicsFieldEnableClipmapCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.PhysicsField.EnableField"));
+		if (PhysicsFieldEnableClipmapCVar && PhysicsFieldEnableClipmapCVar->GetInt() == 1)
+		{
+			if (!PhysicsField)
+			{
+				PhysicsField = NewObject<UPhysicsFieldComponent>();
+			}
+
+			if (!PhysicsField->IsRegistered())
+			{
+				PhysicsField->RegisterComponentWithWorld(this, Context);
+			}
 		}
 	}
 
@@ -3150,7 +3202,7 @@ UWorld* UWorld::DuplicateWorldForPIE(const FString& PackageName, UWorld* OwningW
 	FSoftObjectPath::AddPIEPackageName(PrefixedLevelFName);
 
 	UWorld::WorldTypePreLoadMap.FindOrAdd(PrefixedLevelFName) = EWorldType::PIE;
-	UPackage* PIELevelPackage = CreatePackage(nullptr,*PrefixedLevelName);
+	UPackage* PIELevelPackage = CreatePackage(*PrefixedLevelName);
 	PIELevelPackage->SetPackageFlags(PKG_PlayInEditor);
 	PIELevelPackage->PIEInstanceID = PIEInstanceID;
 	PIELevelPackage->FileName = PackageFName;
@@ -4717,6 +4769,16 @@ void UWorld::RemoveOnActorSpawnedHandler( FDelegateHandle InHandle )
 	OnActorSpawned.Remove(InHandle);
 }
 
+FDelegateHandle UWorld::AddOnActorPreSpawnInitialization(const FOnActorSpawned::FDelegate& InHandler)
+{
+	return OnActorPreSpawnInitialization.Add(InHandler);
+}
+
+void UWorld::RemoveOnActorPreSpawnInitialization(FDelegateHandle InHandle)
+{
+	OnActorPreSpawnInitialization.Remove(InHandle);
+}
+
 FDelegateHandle UWorld::AddMovieSceneSequenceTickHandler(const FOnMovieSceneSequenceTick::FDelegate& InHandler)
 {
 	return MovieSceneSequenceTick.Add(InHandler);
@@ -5757,6 +5819,11 @@ bool UWorld::SetNewWorldOrigin(FIntVector InNewOriginLocation)
 	if (ForegroundLineBatcher)
 	{
 		ForegroundLineBatcher->ApplyWorldOffset(Offset, true);
+	}
+
+	if (PhysicsField)
+	{
+		PhysicsField->ApplyWorldOffset(Offset, true);
 	}
 
 	FIntVector PreviosWorldOriginLocation = OriginLocation;
@@ -7417,7 +7484,7 @@ static ULevel* DuplicateLevelWithPrefix(ULevel* InLevel, int32 InstanceID )
 	const FString PrefixedPackageName = UWorld::ConvertToPIEPackageName( OriginalPackageName, InstanceID );
 
 	// Create a package for duplicated level
-	UPackage* NewPackage = CreatePackage( nullptr, *PrefixedPackageName );
+	UPackage* NewPackage = CreatePackage( *PrefixedPackageName );
 	NewPackage->SetPackageFlags( PKG_PlayInEditor );
 	NewPackage->PIEInstanceID = InstanceID;
 	NewPackage->FileName = OriginalPackage->FileName;

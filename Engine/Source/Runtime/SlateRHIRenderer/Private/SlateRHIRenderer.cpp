@@ -191,6 +191,7 @@ FSlateRHIRenderer::FSlateRHIRenderer(TSharedRef<FSlateFontServices> InSlateFontS
 
 	bTakingAScreenShot = false;
 	OutScreenshotData = NULL;
+	ScreenshotViewportInfo = nullptr;
 }
 
 FSlateRHIRenderer::~FSlateRHIRenderer()
@@ -466,7 +467,8 @@ void FSlateRHIRenderer::UpdateFullscreenState(const TSharedRef<SWindow> Window, 
 		uint32 ResX = OverrideResX ? OverrideResX : GSystemResolution.ResX;
 		uint32 ResY = OverrideResY ? OverrideResY : GSystemResolution.ResY;
 
-		if ((GIsEditor && Window->IsViewportSizeDrivenByWindow()) || (Window->GetWindowMode() == EWindowMode::WindowedFullscreen))
+		bool bIsRenderingStereo = GEngine && GEngine->XRSystem.IsValid() && GEngine->StereoRenderingDevice.IsValid() && GEngine->StereoRenderingDevice->IsStereoEnabled();
+		if ((GIsEditor && Window->IsViewportSizeDrivenByWindow()) || (Window->GetWindowMode() == EWindowMode::WindowedFullscreen) || bIsRenderingStereo)
 		{
 			ResX = ViewInfo->DesiredWidth;
 			ResY = ViewInfo->DesiredHeight;
@@ -1102,7 +1104,7 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 		}
 	}
 
-	if (bTakingAScreenShot)
+	if (bTakingAScreenShot && ScreenshotViewportInfo != nullptr && ScreenshotViewportInfo == &ViewportInfo)
 	{
 		// take screenshot before swapbuffer
 		FTexture2DRHIRef BackBuffer = RHICmdList.GetViewportBackBuffer(ViewportInfo.ViewportRHI);
@@ -1126,9 +1128,9 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 		{
 			UE_LOG(LogSlate, Warning, TEXT("Slate: Screenshot rect was empty! Skipping readback of back buffer."));
 		}
-
 		bTakingAScreenShot = false;
-		OutScreenshotData = NULL;
+		OutScreenshotData = nullptr;
+		ScreenshotViewportInfo = nullptr;
 	}
 
 	// Calculate renderthread time (excluding idle time).	
@@ -1189,13 +1191,14 @@ void FSlateRHIRenderer::DrawWindows(FSlateDrawBuffer& WindowDrawBuffer)
 }
 
 
-void FSlateRHIRenderer::PrepareToTakeScreenshot(const FIntRect& Rect, TArray<FColor>* OutColorData)
+void FSlateRHIRenderer::PrepareToTakeScreenshot(const FIntRect& Rect, TArray<FColor>* OutColorData, SWindow* InScreenshotWindow)
 {
 	check(OutColorData);
 
 	bTakingAScreenShot = true;
 	ScreenshotRect = Rect;
 	OutScreenshotData = OutColorData;
+	ScreenshotViewportInfo = *WindowToViewportInfo.Find(InScreenshotWindow);
 }
 
 /**

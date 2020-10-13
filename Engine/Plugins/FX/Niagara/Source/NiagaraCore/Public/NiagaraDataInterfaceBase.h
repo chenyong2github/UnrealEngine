@@ -41,14 +41,16 @@ struct FNiagaraDataInterfaceArgs
 
 struct FNiagaraDataInterfaceStageArgs : public FNiagaraDataInterfaceArgs
 {
-	FNiagaraDataInterfaceStageArgs(FNiagaraDataInterfaceProxy* InDataInterface, FNiagaraSystemInstanceID InSystemInstanceID, const NiagaraEmitterInstanceBatcher* InBatcher, uint32 InSimulationStageIndex, bool InIsOutputStage, bool InIsIterationStage)
+	FNiagaraDataInterfaceStageArgs(FNiagaraDataInterfaceProxy* InDataInterface, FNiagaraSystemInstanceID InSystemInstanceID, const NiagaraEmitterInstanceBatcher* InBatcher, const FNiagaraComputeInstanceData* InComputeInstanceData, uint32 InSimulationStageIndex, bool InIsOutputStage, bool InIsIterationStage)
 		: FNiagaraDataInterfaceArgs(InDataInterface, InSystemInstanceID, InBatcher)
+		, ComputeInstanceData(InComputeInstanceData)
 		, SimulationStageIndex(InSimulationStageIndex)
 		, IsOutputStage(InIsOutputStage)
 		, IsIterationStage(InIsIterationStage)
 	{
 	}
 
+	const FNiagaraComputeInstanceData* ComputeInstanceData;
 	uint32 SimulationStageIndex;
 	bool IsOutputStage;
 	bool IsIterationStage;

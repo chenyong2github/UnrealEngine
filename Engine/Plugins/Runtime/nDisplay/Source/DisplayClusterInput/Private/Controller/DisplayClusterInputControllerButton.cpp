@@ -10,14 +10,14 @@
 
 #include "IDisplayClusterInputModule.h"
 
+#include "DisplayClusterConfigurationTypes.h"
+
 #define LOCTEXT_NAMESPACE "DisplayClusterInput"
 
 
 // Add vrpn buttons to UE4 global name-space
 void FButtonController::Initialize()
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterInputButton);
-
 	static const FName nDisplayClusterInputCategoryName(TEXT("nDisplayButtons"));
 	EKeys::AddMenuCategoryDisplayInfo(nDisplayClusterInputCategoryName, LOCTEXT("nDisplayInputSubCateogry", "nDisplay"), TEXT("GraphEditor.KeyEvent_16x"));
 
@@ -32,12 +32,16 @@ void FButtonController::Initialize()
 
 void FButtonController::ProcessStartSession()
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterInputButton);
-
 	ResetAllBindings();
 
 	IDisplayClusterInputManager&  InputMgr  = *IDisplayCluster::Get().GetInputMgr();
 	IDisplayClusterConfigManager& ConfigMgr = *IDisplayCluster::Get().GetConfigMgr();
+
+	const UDisplayClusterConfigurationData* ConfigData = ConfigMgr.GetConfig();
+	if (!ConfigData)
+	{
+		return;
+	}
 
 	TArray<FString> DeviceNames;
 	InputMgr.GetButtonDeviceIds(DeviceNames);
@@ -45,13 +49,12 @@ void FButtonController::ProcessStartSession()
 	{
 		AddDevice(DeviceName);
 
-		TArray<FDisplayClusterConfigInputSetup> Records = ConfigMgr.GetInputSetupRecords();
-		for (const FDisplayClusterConfigInputSetup& Record : Records)
+		for (auto& it : ConfigData->Input->InputBinding)
 		{
-			if (DeviceName.Compare(Record.Id, ESearchCase::IgnoreCase) == 0)
+			if (DeviceName.Equals(it.DeviceId, ESearchCase::IgnoreCase))
 			{
-				UE_LOG(LogDisplayClusterInputButton, Verbose, TEXT("Binding %s%d to %s..."), *DeviceName, Record.Channel, *Record.BindName);
-				BindChannel(DeviceName, Record.Channel, Record.BindName);
+				UE_LOG(LogDisplayClusterInputButton, Verbose, TEXT("Binding %s:%d to %s..."), *DeviceName, it.Channel, *it.BindTo);
+				BindChannel(DeviceName, it.Channel, it.BindTo);
 			}
 		}
 	}
@@ -59,8 +62,6 @@ void FButtonController::ProcessStartSession()
 
 void FButtonController::ProcessEndSession()
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterInputButton);
-
 	UE_LOG(LogDisplayClusterInputButton, Verbose, TEXT("Removing all button bindings..."));
 
 	ResetAllBindings();
@@ -68,10 +69,9 @@ void FButtonController::ProcessEndSession()
 
 void FButtonController::ProcessPreTick()
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterInputButton);
+	IDisplayClusterInputManager& InputMgr = *IDisplayCluster::Get().GetInputMgr();
 
 	// Get data from VRPN devices
-	IDisplayClusterInputManager& InputMgr = *IDisplayCluster::Get().GetInputMgr();
 	for (auto& DeviceIt : BindMap)
 	{
 		// Update all binded vrpn channels:
@@ -85,7 +85,6 @@ void FButtonController::ProcessPreTick()
 			}
 		}
 	}
-
 }
 
 #undef LOCTEXT_NAMESPACE

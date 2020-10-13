@@ -3,12 +3,20 @@
 #pragma once
 
 #include "Components/DMXPixelMappingExtraAttribute.h"
+
 #include "Components/DMXPixelMappingOutputDMXComponent.h"
+#include "Components/DMXPixelMappingFixtureGroupComponent.h"
+#include "Components/DMXPixelMappingMatrixCellComponent.h"
 #include "Library/DMXEntityReference.h"
+
+#include "Misc/Attribute.h"
+
 #include "DMXPixelMappingFixtureGroupItemComponent.generated.h"
 
 class UTextureRenderTarget2D;
 enum class EDMXColorMode : uint8;
+
+class STextBlock;
 
 /**
  * Fixture Item pixel component
@@ -22,6 +30,7 @@ public:
 	/** Default Constructor */
 	UDMXPixelMappingFixtureGroupItemComponent();
 
+protected:
 	//~ Begin UObject implementation
 	virtual void PostLoad() override;
 
@@ -30,6 +39,7 @@ public:
 #endif // WITH_EDITOR
 	//~ End UObject implementation
 
+public:
 	//~ Begin UDMXPixelMappingBaseComponent implementation
 	virtual const FName& GetNamePrefix() override;
 	virtual void ResetDMX() override;
@@ -37,6 +47,10 @@ public:
 	virtual void Render() override;
 	virtual void RenderAndSendDMX() override;
 	virtual void PostParentAssigned() override;
+
+#if WITH_EDITOR
+	virtual FString GetUserFriendlyName() const override;
+#endif
 	//~ End UDMXPixelMappingBaseComponent implementation
 
 	//~ Begin UDMXPixelMappingOutputComponent implementation
@@ -44,10 +58,12 @@ public:
 	virtual TSharedRef<SWidget> BuildSlot(TSharedRef<SConstraintCanvas> InCanvas) override;
 	virtual void ToggleHighlightSelection(bool bIsSelected) override;
 	virtual bool IsVisibleInDesigner() const override;
+
 	virtual void UpdateWidget() override;
 #endif // WITH_EDITOR	
+
 	virtual UTextureRenderTarget2D* GetOutputTexture() override;
-	virtual FVector2D GetSize() override;
+	virtual FVector2D GetSize() const override;
 	virtual FVector2D GetPosition() override;
 	virtual void SetPosition(const FVector2D& InPosition) override;
 	virtual void SetSize(const FVector2D& InSize) override;
@@ -70,14 +86,15 @@ private:
 	/** Set size of Fixture Pixel inside Fixture Group Boundary Box */
 	void SetSizeWithinBoundaryBox(const FVector2D& InSize);
 
+#if WITH_EDITOR
+	FMargin GetLabelPadding() const;
+#endif
+
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Selected Patch")
 	FDMXEntityFixturePatchRef FixturePatchRef;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Output Setting")
-	TArray<FDMXPixelMappingExtraAttribute> ExtraAttributes;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Output Setting")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Output Settings")
 	EDMXColorMode ColorMode;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Output Settings", meta = (DisplayName = "R"))
@@ -90,7 +107,7 @@ public:
 	bool AttributeBExpose;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Output Settings", meta = (DisplayName = "Expose"))
-	bool MonochromeExpose;
+	bool bMonochromeExpose;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Output Settings", meta = (DisplayName = "Invert R"))
 	bool AttributeRInvert;
@@ -102,7 +119,7 @@ public:
 	bool AttributeBInvert;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Output Settings", meta = (DisplayName = "Invert"))
-	bool MonochromeInvert;
+	bool bMonochromeInvert;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Output Settings", meta = (DisplayName = "R Attribute"))
 	FDMXAttributeName AttributeR;
@@ -116,13 +133,33 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Output Settings", meta = (DisplayName = "Intensity Attribute"))
 	FDMXAttributeName MonochromeIntensity;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Output Settings", meta = (DisplayAfter = "MonochromeIntensity"))
+	TArray<FDMXPixelMappingExtraAttribute> ExtraAttributes;
+
+#if WITH_EDITORONLY_DATA
+	/** The X position relative to the parent group */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Common Settings")
+	float RelativePositionX;
+
+	/** The Y position relative to the parent group */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Common Settings")
+	float RelativePositionY;
+#endif // WITH_EDITORONLY_DATA
+
 private:
+#if WITH_EDITOR
+	/** Maps attributes that exist in the patch to the attributes of the group items. Clears those that don't exist. */
+	void AutoMapAttributes();
+#endif // WITH_EDITOR
+
 	UPROPERTY(Transient)
 	UTextureRenderTarget2D* OutputTarget;
 
 #if WITH_EDITORONLY_DATA
 	FSlateBrush Brush;
-#endif
+
+	TSharedPtr<STextBlock> PatchNameWidget;
+#endif // WITH_EDITORONLY_DATA
 
 private:
 	static const FVector2D MixPixelSize;

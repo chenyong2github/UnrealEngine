@@ -89,13 +89,13 @@ FHairAABB ReadHairAABB(uint Index, Buffer<int> InBuffer, float PrecisionScale = 
 void WriteHairAABB(uint Index, FHairAABB In, RWBuffer<int> OutBuffer, float PrecisionScale = HAIR_AABB_PRECISION_SCALE)
 {
 	const uint Index6 = Index * 6;
-	OutBuffer[Index6 + 0] = In.Min.x * PrecisionScale;
-	OutBuffer[Index6 + 1] = In.Min.y * PrecisionScale;
-	OutBuffer[Index6 + 2] = In.Min.z * PrecisionScale;
+	OutBuffer[Index6 + 0] = int(In.Min.x * PrecisionScale);
+	OutBuffer[Index6 + 1] = int(In.Min.y * PrecisionScale);
+	OutBuffer[Index6 + 2] = int(In.Min.z * PrecisionScale);
 
-	OutBuffer[Index6 + 3] = In.Max.x * PrecisionScale;
-	OutBuffer[Index6 + 4] = In.Max.y * PrecisionScale;
-	OutBuffer[Index6 + 5] = In.Max.z * PrecisionScale;
+	OutBuffer[Index6 + 3] = int(In.Max.x * PrecisionScale);
+	OutBuffer[Index6 + 4] = int(In.Max.y * PrecisionScale);
+	OutBuffer[Index6 + 5] = int(In.Max.z * PrecisionScale);
 }
 
 FHairAABB UnionHairAABB(FHairAABB A, FHairAABB B)

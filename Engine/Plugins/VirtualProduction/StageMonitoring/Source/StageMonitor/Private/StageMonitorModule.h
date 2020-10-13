@@ -10,6 +10,7 @@
 
 class FAutoConsoleCommand;
 class FStageMonitor;
+class FStageMonitorSessionManager;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogStageMonitor, Log, All);
 
@@ -26,6 +27,7 @@ public:
 
 	//~Begin IStageMonitorModule interface
 	virtual IStageMonitor& GetStageMonitor() override;
+	virtual IStageMonitorSessionManager& GetStageMonitorSessionManager() override;
 	//~End IStageMonitorModule interface
 
 private:
@@ -43,6 +45,9 @@ protected:
 	
 	/** Single instance of the StageMonitor */
 	TUniquePtr<FStageMonitor> StageMonitor;
+
+	/** Stage monitor session manager responsible to create/load/save sessions */
+	TUniquePtr<FStageMonitorSessionManager> SessionManager;
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	TUniquePtr<FAutoConsoleCommand> CommandStart;

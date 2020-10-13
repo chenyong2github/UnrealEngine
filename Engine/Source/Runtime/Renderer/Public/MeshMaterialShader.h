@@ -34,8 +34,8 @@ struct FMeshMaterialShaderPermutationParameters : public FMaterialShaderPermutat
 	// Type of vertex factory to compile.
 	const FVertexFactoryType* VertexFactoryType;
 
-	FMeshMaterialShaderPermutationParameters(EShaderPlatform InPlatform, const FMaterialShaderParameters& InMaterialParameters, const FVertexFactoryType* InVertexFactoryType, const int32 InPermutationId)
-		: FMaterialShaderPermutationParameters(InPlatform, InMaterialParameters, InPermutationId)
+	FMeshMaterialShaderPermutationParameters(EShaderPlatform InPlatform, const FMaterialShaderParameters& InMaterialParameters, const FVertexFactoryType* InVertexFactoryType, int32 InPermutationId, EShaderPermutationFlags InFlags)
+		: FMaterialShaderPermutationParameters(InPlatform, InMaterialParameters, InPermutationId, InFlags)
 		, VertexFactoryType(InVertexFactoryType)
 	{}
 };
@@ -43,11 +43,13 @@ struct FMeshMaterialShaderPermutationParameters : public FMaterialShaderPermutat
 struct FVertexFactoryShaderPermutationParameters
 {
 	EShaderPlatform Platform;
+	EShaderPermutationFlags Flags;
 	FMaterialShaderParameters MaterialParameters;
 	const FVertexFactoryType* VertexFactoryType;
 
-	FVertexFactoryShaderPermutationParameters(EShaderPlatform InPlatform, const FMaterialShaderParameters& InMaterialParameters, const FVertexFactoryType* InVertexFactoryType)
+	FVertexFactoryShaderPermutationParameters(EShaderPlatform InPlatform, const FMaterialShaderParameters& InMaterialParameters, const FVertexFactoryType* InVertexFactoryType, EShaderPermutationFlags InFlags)
 		: Platform(InPlatform)
+		, Flags(InFlags)
 		, MaterialParameters(InMaterialParameters)
 		, VertexFactoryType(InVertexFactoryType)
 	{}
@@ -113,3 +115,4 @@ private:
 protected:
 	LAYOUT_FIELD(FShaderUniformBufferParameter, PassUniformBuffer);
 };
+

@@ -272,6 +272,9 @@ void FD3D11Viewport::Resize(uint32 InSizeX, uint32 InSizeY, bool bInIsFullscreen
 	}
 	BackBuffer.SafeRelease();
 
+	// Make sure we use a format the current device supports.
+	PreferredPixelFormat = D3DRHI->GetDisplayFormat(PreferredPixelFormat);
+
 	const FD3D11ResizeViewportState OldState{ SizeX, SizeY, GetRenderTargetFormat(PixelFormat), bIsFullscreen };
 	const FD3D11ResizeViewportState NewState{ InSizeX, InSizeY, GetRenderTargetFormat(PreferredPixelFormat), bInIsFullscreen };
 
@@ -365,6 +368,17 @@ bool FD3D11Viewport::PresentChecked(int32 SyncInterval)
 	{
 		if (SwapChain.IsValid())
 		{
+			// Check if the viewport's swap chain has been invalidated by DXGI.
+			BOOL bSwapChainFullscreenState;
+			TRefCountPtr<IDXGIOutput> SwapChainOutput;
+			SwapChain->GetFullscreenState(&bSwapChainFullscreenState, SwapChainOutput.GetInitReference());
+			// Can't compare BOOL with bool...
+			if ((!!bSwapChainFullscreenState) != bIsFullscreen)
+			{
+				ValidState = (VIEWPORT_INVALID | VIEWPORT_FULLSCREEN_LOST);
+			}
+			else
+			{
 			// Present the back buffer to the viewport window.
 			uint32 Flags = 0;
 			if( (GetSwapChainFlags() & DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING) != 0 && !SyncInterval && !bIsFullscreen )
@@ -390,6 +404,7 @@ bool FD3D11Viewport::PresentChecked(int32 SyncInterval)
 				}
 			}
 #endif
+		}
 		}
 
 		if (IsValidRef(CustomPresent))
@@ -711,6 +726,12 @@ void FD3D11DynamicRHI::RHIBeginDrawingViewport(FRHIViewport* ViewportRHI, FRHITe
 
 	// Set an initially disabled scissor rect.
 	RHISetScissorRect(false,0,0,0,0);
+
+	FRHICustomPresent* CustomPresent = Viewport->GetCustomPresent();
+	if (CustomPresent)
+	{
+		CustomPresent->BeginDrawing();
+	}
 }
 
 void FD3D11DynamicRHI::RHIEndDrawingViewport(FRHIViewport* ViewportRHI,bool bPresent,bool bLockToVsync)

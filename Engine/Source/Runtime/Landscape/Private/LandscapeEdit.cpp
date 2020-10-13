@@ -409,7 +409,9 @@ void ULandscapeComponent::UpdateMaterialInstances_Internal(FMaterialUpdateContex
 			MaterialInstance->PostEditChange();
 
 			// Setup material instance with disabled tessellation
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			if (CombinationMaterialInstance->GetMaterial()->D3D11TessellationMode != EMaterialTessellationMode::MTM_NoTessellation)
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			{
 				ULandscapeMaterialInstanceConstant* TessellationMaterialInstance = NewObject<ULandscapeMaterialInstanceConstant>(this);
 				int32 TessellatedMaterialIndex = MaterialPerLOD.Num() + TessellatedMaterialCount++;
@@ -417,8 +419,8 @@ void ULandscapeComponent::UpdateMaterialInstances_Internal(FMaterialUpdateContex
 				MaterialIndexToDisabledTessellationMaterial[MaterialIndex] = TessellatedMaterialIndex;
 
 				TessellationMaterialInstance->SetParentEditorOnly(MaterialInstance);
-				Context.AddMaterialInstance(TessellationMaterialInstance); // must be done after SetParent
 				TessellationMaterialInstance->bDisableTessellation = true;
+				TessellationMaterialInstance->UpdateStaticPermutation(&Context); // must be done after SetParent
 				TessellationMaterialInstance->PostEditChange();
 			}
 		}
@@ -2302,7 +2304,7 @@ ULandscapeLayerInfoObject* ALandscapeProxy::CreateLayerInfo(const TCHAR* LayerNa
 		PackageName = Path + LayerObjectName.ToString();
 		Suffix++;
 	}
-	UPackage* Package = CreatePackage(nullptr, *PackageName);
+	UPackage* Package = CreatePackage( *PackageName);
 	ULandscapeLayerInfoObject* LayerInfo = NewObject<ULandscapeLayerInfoObject>(Package, LayerObjectName, RF_Public | RF_Standalone | RF_Transactional);
 	LayerInfo->LayerName = LayerName;
 
@@ -4537,6 +4539,11 @@ bool ALandscapeProxy::CanEditChange(const FProperty* InProperty) const
 		return false;
 	}
 
+	if (IsTemplate())
+	{
+		return true;
+	}
+
 	// Don't allow edition of properties that are shared with the parent landscape properties
 	// See  ALandscapeProxy::FixupSharedData(ALandscape* Landscape)
 	if (GetLandscapeActor() != this)
@@ -4696,6 +4703,7 @@ void ALandscapeProxy::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 		PropertyName == FName(TEXT("bCastShadowAsTwoSided")) ||
 		PropertyName == FName(TEXT("bAffectDistanceFieldLighting")) ||
 		PropertyName == FName(TEXT("bRenderCustomDepth")) ||
+		PropertyName == FName(TEXT("CustomDepthStencilWriteMask")) ||
 		PropertyName == FName(TEXT("CustomDepthStencilValue")) ||
 		PropertyName == FName(TEXT("LightingChannels")) ||
 		PropertyName == FName(TEXT("LDMaxDrawDistance")))

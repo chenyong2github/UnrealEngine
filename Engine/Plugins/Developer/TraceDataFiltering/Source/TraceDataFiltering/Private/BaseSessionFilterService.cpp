@@ -16,8 +16,6 @@
 FBaseSessionFilterService::FBaseSessionFilterService(Trace::FSessionHandle InHandle, TSharedPtr<const Trace::IAnalysisSession> InSession) : Session(InSession), Handle(InHandle)
 {
 	FCoreDelegates::OnEndFrame.AddRaw(this, &FBaseSessionFilterService::OnApplyChannelChanges);
-	// Retrieve the channels currently enabled on the provider, this'll be the ones specified on the commandline (-trace=ChannelX)
-	RetrieveAndStoreStartupChannels();
 }
 
 FBaseSessionFilterService::~FBaseSessionFilterService()
@@ -74,20 +72,18 @@ void FBaseSessionFilterService::SetObjectFilterState(const FString& InObjectName
 	}
 }
 
-void FBaseSessionFilterService::UpdateFilterPresets(const TArray<TSharedPtr<IFilterPreset>>& InPresets)
+void FBaseSessionFilterService::UpdateFilterPreset(const TSharedPtr<IFilterPreset> Preset, bool IsEnabled)
 {
-	TSet<FString> UniqueNames;
-
-	for (const TSharedPtr<IFilterPreset>& Preset : InPresets)
+	TArray<FString> Names;
+	Preset->GetWhitelistedNames(Names);
+	if (IsEnabled)
 	{
-		TArray<FString> Names;
-		Preset->GetWhitelistedNames(Names);
-
-		// We are only interested in the unique channels names, as a result of combining multiple presets
-		Algo::Transform(Names, UniqueNames, [](FString InName) { return InName; });
+		FrameEnabledChannels.Append(Names);
 	}
-	// Commandline channels are only applied once when changing presets
-	FrameZeroEnabledChannels.Empty();
+	else
+	{
+		FrameDisabledChannels.Append(Names);
+	}
 }
 
 void FBaseSessionFilterService::DisableAllChannels()
@@ -100,23 +96,6 @@ void FBaseSessionFilterService::DisableAllChannels()
 		for (uint64 ChannelIndex = 0; ChannelIndex < Channels.Num(); ++ChannelIndex)
 		{
 			SetObjectFilterState(Channels[ChannelIndex].Name, false);
-		}
-	}
-}
-
-void FBaseSessionFilterService::RetrieveAndStoreStartupChannels()
-{
-	const Trace::IChannelProvider* ChannelProvider = Session->ReadProvider<Trace::IChannelProvider>("ChannelProvider");	
-	if (ChannelProvider)
-	{
-		const uint64 ChannelCount = ChannelProvider->GetChannelCount();
-		const TArray<Trace::FChannelEntry>& Channels = ChannelProvider->GetChannels();
-		for (uint64 ChannelIndex = 0; ChannelIndex < Channels.Num(); ++ChannelIndex)
-		{
-			if (Channels[ChannelIndex].bIsEnabled)
-			{
-				FrameZeroEnabledChannels.Add(Channels[ChannelIndex].Name);
-			}
 		}
 	}
 }

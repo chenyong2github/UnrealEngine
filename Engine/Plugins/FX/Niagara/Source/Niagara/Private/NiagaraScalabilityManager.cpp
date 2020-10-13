@@ -106,7 +106,7 @@ void FNiagaraScalabilityManager::UnregisterAt(int32 IndexToRemove)
 	}
 }
 
-void FNiagaraScalabilityManager::Update(FNiagaraWorldManager* WorldMan)
+void FNiagaraScalabilityManager::Update(FNiagaraWorldManager* WorldMan, bool bNewOnly)
 {
 	//Paranoia code in case the EffectType is GCd from under us.
 	if (EffectType == nullptr)
@@ -117,14 +117,23 @@ void FNiagaraScalabilityManager::Update(FNiagaraWorldManager* WorldMan)
 	}
 
 	float WorldTime = WorldMan->GetWorld()->GetTimeSeconds();
+
+	UNiagaraSignificanceHandler* SignificanceHandler = EffectType->GetSignificanceHandler();
 	bool bShouldUpdateScalabilityStates = false;
-	switch (EffectType->UpdateFrequency)
+	if (bNewOnly)
 	{
-	case ENiagaraScalabilityUpdateFrequency::Continuous: bShouldUpdateScalabilityStates = true; break;
-	case ENiagaraScalabilityUpdateFrequency::High: bShouldUpdateScalabilityStates = WorldTime >= LastUpdateTime + GScalabilityUpdateTime_High; break;
-	case ENiagaraScalabilityUpdateFrequency::Medium: bShouldUpdateScalabilityStates = WorldTime >= LastUpdateTime + GScalabilityUpdateTime_Medium; break;
-	case ENiagaraScalabilityUpdateFrequency::Low: bShouldUpdateScalabilityStates = WorldTime >= LastUpdateTime + GScalabilityUpdateTime_Low; break;
-	};
+		bShouldUpdateScalabilityStates = EffectType->bNewSystemsSinceLastScalabilityUpdate;
+	}
+	else
+	{
+		switch (EffectType->UpdateFrequency)
+		{
+		case ENiagaraScalabilityUpdateFrequency::Continuous: bShouldUpdateScalabilityStates = true; break;
+		case ENiagaraScalabilityUpdateFrequency::High: bShouldUpdateScalabilityStates = WorldTime >= LastUpdateTime + GScalabilityUpdateTime_High; break;
+		case ENiagaraScalabilityUpdateFrequency::Medium: bShouldUpdateScalabilityStates = WorldTime >= LastUpdateTime + GScalabilityUpdateTime_Medium; break;
+		case ENiagaraScalabilityUpdateFrequency::Low: bShouldUpdateScalabilityStates = WorldTime >= LastUpdateTime + GScalabilityUpdateTime_Low; break;
+		};
+	}
 
 	if (!bShouldUpdateScalabilityStates)
 	{
@@ -132,6 +141,7 @@ void FNiagaraScalabilityManager::Update(FNiagaraWorldManager* WorldMan)
 	}
 
 	LastUpdateTime = WorldTime;
+	EffectType->bNewSystemsSinceLastScalabilityUpdate = false;
 
 	//Belt and braces paranoia code to ensure we're safe if a component or System is GCd but the component isn't unregistered for whatever reason.
 	int32 CompIdx = 0;
@@ -162,7 +172,12 @@ void FNiagaraScalabilityManager::Update(FNiagaraWorldManager* WorldMan)
 	}
 
 	bool bNeedSortedSignificanceCull = false;
-	SignificanceSortedIndices.Reset(ManagedComponents.Num());
+	SignificanceSortedIndices.Reset();
+
+	if (SignificanceHandler)
+	{
+		SignificanceSortedIndices.Reserve(ManagedComponents.Num());
+	}
 
 	//TODO parallelize if we exceed GScalabilityManParallelThreshold instances.
 	CompIdx = 0;
@@ -178,27 +193,40 @@ void FNiagaraScalabilityManager::Update(FNiagaraWorldManager* WorldMan)
 		}
 
 		FNiagaraScalabilityState& CompState = State[i];
-#if DEBUG_SCALABILITY_STATE
-		CompState.bCulledByInstanceCount = false;
-		CompState.bCulledBySignificance = false;
-		CompState.bCulledByVisibility = false;
-#endif
 
 		UNiagaraSystem* System = Component->GetAsset();
 		System->GetActiveInstancesTempCount() = 0;
 
-		const FNiagaraSystemScalabilitySettings& ScalabilitySettings = System->GetScalabilitySettings();
+		if (System->NeedsSortedSignificanceCull() && SignificanceHandler)
+		{
+			SignificanceSortedIndices.Add(i);
+			bNeedSortedSignificanceCull = true;
+		}
+		
+		//Don't update if we're doing new systems only and this is not new.
+		//Saves the potential cost of reavaluating every effect in every tick group something new is added.
+		//Though this does mean the sorted significance values will be using out of date distances etc.
+		//I'm somewhat on the fence currently as to whether it's better to pay this cost for correctness.
+		if(!bNewOnly || Component->GetSystemInstance()->IsPendingSpawn())
+		{
+			const FNiagaraSystemScalabilitySettings& ScalabilitySettings = System->GetScalabilitySettings();
 
-		SignificanceSortedIndices.Add(i);
-		bNeedSortedSignificanceCull |= System->NeedsSortedSignificanceCull();
+	#if DEBUG_SCALABILITY_STATE
+			CompState.bCulledByInstanceCount = false;
+			CompState.bCulledByDistance = false;
+			CompState.bCulledByVisibility = false;
+	#endif
+			WorldMan->CalculateScalabilityState(System, ScalabilitySettings, EffectType, Component, false, CompState);
 
-		WorldMan->CalculateScalabilityState(System, ScalabilitySettings, EffectType, Component, false, CompState);
-
-		bAnyDirty |= CompState.bDirty;
+			bAnyDirty |= CompState.bDirty;
+		}
 	}
 
 	if (bNeedSortedSignificanceCull)
 	{
+		check(SignificanceHandler);
+		SignificanceHandler->CalculateSignificance(ManagedComponents, State);
+
 		SignificanceSortedIndices.Sort([&](int32 A, int32 B) { return State[A].Significance > State[B].Significance; });
 
 		int32 EffectTypeActiveInstances = 0;
@@ -213,6 +241,11 @@ void FNiagaraScalabilityManager::Update(FNiagaraWorldManager* WorldMan)
 
 			const FNiagaraSystemScalabilitySettings& ScalabilitySettings = System->GetScalabilitySettings();
 			WorldMan->SortedSignificanceCull(EffectType, ScalabilitySettings, CompState.Significance, EffectTypeActiveInstances, System->GetActiveInstancesTempCount(), CompState);
+
+			//Inform the component how significant it is so emitters internally can scale based on that information.
+			//e.g. expensive emitters can turn off for all but the N most significant systems.
+			int32 SignificanceIndex = CompState.bCulled ? INDEX_NONE : System->GetActiveInstancesTempCount() - 1;
+			Component->SetSystemSignificanceIndex(SignificanceIndex);
 
 			CompState.bDirty |= CompState.bCulled != bOldCulled;
 			bAnyDirty |= CompState.bDirty;
@@ -273,13 +306,13 @@ void FNiagaraScalabilityManager::Dump()
 	{
 		FSummary()
 			: NumCulled(0)
-			, NumCulledBySignificance(0)
+			, NumCulledByDistance(0)
 			, NumCulledByInstanceCount(0)
 			, NumCulledByVisibility(0)
 		{}
 
 		int32 NumCulled;
-		int32 NumCulledBySignificance;
+		int32 NumCulledByDistance;
 		int32 NumCulledByInstanceCount;
 		int32 NumCulledByVisibility;
 	}Summary;
@@ -295,10 +328,10 @@ void FNiagaraScalabilityManager::Dump()
 			CulledStr = TEXT("Culled:");
 			++Summary.NumCulled;
 		}
-		if (CompState.bCulledBySignificance)
+		if (CompState.bCulledByDistance)
 		{
-			CulledStr += TEXT("-Significance-");
-			++Summary.NumCulledBySignificance;
+			CulledStr += TEXT("-Distance-");
+			++Summary.NumCulledByDistance;
 		}
 		if (CompState.bCulledByInstanceCount)
 		{
@@ -321,7 +354,7 @@ void FNiagaraScalabilityManager::Dump()
 	UE_LOG(LogNiagara, Display, TEXT("| Num Managed Components: %d |"), ManagedComponents.Num());
 	UE_LOG(LogNiagara, Display, TEXT("| Num Active: %d |"), ManagedComponents.Num() - Summary.NumCulled);
 	UE_LOG(LogNiagara, Display, TEXT("| Num Culled: %d |"), Summary.NumCulled);
-	UE_LOG(LogNiagara, Display, TEXT("| Num Culled By Significance: %d |"), Summary.NumCulledBySignificance);
+	UE_LOG(LogNiagara, Display, TEXT("| Num Culled By Distance: %d |"), Summary.NumCulledByDistance);
 	UE_LOG(LogNiagara, Display, TEXT("| Num Culled By Instance Count: %d |"), Summary.NumCulledByInstanceCount);
 	UE_LOG(LogNiagara, Display, TEXT("| Num Culled By Visibility: %d |"), Summary.NumCulledByVisibility);
 	UE_LOG(LogNiagara, Display, TEXT("| Avg Frame GT: %d |"), EffectType->GetAverageFrameTime_GT());

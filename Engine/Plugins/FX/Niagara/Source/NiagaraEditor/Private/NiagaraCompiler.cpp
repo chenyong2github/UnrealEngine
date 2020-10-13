@@ -27,6 +27,7 @@
 #include "NiagaraScript.h"
 #include "NiagaraRendererProperties.h"
 #include "NiagaraSimulationStageBase.h"
+#include "NiagaraTrace.h"
 #include "Serialization/MemoryReader.h"
 #include "../../Niagara/Private/NiagaraPrecompileContainer.h"
 
@@ -477,54 +478,73 @@ void FNiagaraCompileRequestData::FinishPrecompile(UNiagaraScriptSource* ScriptSo
 		int32 NumSimStageNodes = 0;
 		for (UNiagaraNodeOutput* FoundOutputNode : OutputNodes)
 		{
-			// Map all for this output node
-			FNiagaraParameterMapHistoryWithMetaDataBuilder Builder;
-			Builder.ConstantResolver = ConstantResolver;
-			Builder.AddGraphToCallingGraphContextStack(NodeGraphDeepCopy);
-			Builder.RegisterEncounterableVariables(EncounterableVariables);
-
-			FString TranslationName = TEXT("Emitter");
-			Builder.BeginTranslation(TranslationName);
 			FName SimStageName;
-			if (FoundOutputNode->GetUsage() == ENiagaraScriptUsage::ParticleSimulationStageScript && SimStages && SimStages->IsValidIndex(NumSimStageNodes))
+			bool bStageEnabled = true;
+			if (FoundOutputNode->GetUsage() == ENiagaraScriptUsage::ParticleSimulationStageScript && SimStages)
 			{
-				UNiagaraSimulationStageBase* SimStage = (*SimStages)[NumSimStageNodes];
-				if (SimStage == nullptr || !SimStage->bEnabled)
-				{
-					// Do nothing
-				}
-				else if (UNiagaraSimulationStageGeneric* GenericStage = Cast<UNiagaraSimulationStageGeneric>(SimStage))
-				{
-					SimStageName = GenericStage->IterationSource == ENiagaraIterationSource::DataInterface ? GenericStage->DataInterface.BoundVariable.GetName() : FName();
-				}
-			}
+				const FGuid& UsageId = FoundOutputNode->GetUsageId();
 
-			Builder.BeginUsage(FoundOutputNode->GetUsage(), SimStageName);
-			Builder.EnableScriptWhitelist(true, FoundOutputNode->GetUsage());
-			Builder.BuildParameterMaps(FoundOutputNode, true);
-			Builder.EndUsage();
-			
-			ensure(Builder.Histories.Num() <= 1);
-
-			for (FNiagaraParameterMapHistory& History : Builder.Histories)
-			{
-				History.OriginatingScriptUsage = FoundOutputNode->GetUsage();
-				for (FNiagaraVariable& Var : History.Variables)
+				// Find the matching simstage to the output node
+				for (UNiagaraSimulationStageBase* SimStage : *SimStages)
 				{
-					if (Var.GetType() == FNiagaraTypeDefinition::GetGenericNumericDef())
+					if (SimStage && SimStage->Script)
 					{
-						UE_LOG(LogNiagaraEditor, Log, TEXT("Invalid numeric parameter found! %s"), *Var.GetName().ToString())
+						if (SimStage->Script->GetUsageId() == UsageId)
+						{
+							bStageEnabled = SimStage->bEnabled;
+							UNiagaraSimulationStageGeneric* GenericStage = Cast<UNiagaraSimulationStageGeneric>(SimStage);
+							if (GenericStage && SimStage->bEnabled)
+							{
+								SimStageName = (GenericStage->IterationSource == ENiagaraIterationSource::DataInterface) ? GenericStage->DataInterface.BoundVariable.GetName() : FName();
+								break;
+							}
+						}
 					}
 				}
 			}
 
-			if (FoundOutputNode->GetUsage() == ENiagaraScriptUsage::ParticleSimulationStageScript)
+			if (bStageEnabled)
 			{
-				NumSimStageNodes++;
-			}
+				// Map all for this output node
+				FNiagaraParameterMapHistoryWithMetaDataBuilder Builder;
+				Builder.ConstantResolver = ConstantResolver;
+				Builder.AddGraphToCallingGraphContextStack(NodeGraphDeepCopy);
+				Builder.RegisterEncounterableVariables(EncounterableVariables);
 
-			PrecompiledHistories.Append(Builder.Histories);
-			Builder.EndTranslation(TranslationName);
+				FString TranslationName = TEXT("Emitter");
+				Builder.BeginTranslation(TranslationName);
+				Builder.BeginUsage(FoundOutputNode->GetUsage(), SimStageName);
+				Builder.EnableScriptWhitelist(true, FoundOutputNode->GetUsage());
+				Builder.BuildParameterMaps(FoundOutputNode, true);
+				Builder.EndUsage();
+
+				ensure(Builder.Histories.Num() <= 1);
+
+				for (FNiagaraParameterMapHistory& History : Builder.Histories)
+				{
+					History.OriginatingScriptUsage = FoundOutputNode->GetUsage();
+					for (FNiagaraVariable& Var : History.Variables)
+					{
+						if (Var.GetType() == FNiagaraTypeDefinition::GetGenericNumericDef())
+						{
+							UE_LOG(LogNiagaraEditor, Log, TEXT("Invalid numeric parameter found! %s"), *Var.GetName().ToString())
+						}
+					}
+				}
+
+				if (FoundOutputNode->GetUsage() == ENiagaraScriptUsage::ParticleSimulationStageScript)
+				{
+					NumSimStageNodes++;
+				}
+
+				PrecompiledHistories.Append(Builder.Histories);
+				Builder.EndTranslation(TranslationName);
+			}
+			else
+			{
+				// Add in a blank spot
+				PrecompiledHistories.Emplace();
+			}
 		}
 
 		if (SimStages && NumSimStageNodes)
@@ -643,6 +663,9 @@ TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> FNiagaraEditorMo
 		TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> InvalidPtr;
 		return InvalidPtr;
 	}
+
+	TRACE_CPUPROFILER_EVENT_SCOPE(NiagaraPrecompile);
+	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT_ON_CHANNEL(LogPackage ? *LogPackage->GetName() : *InObj->GetName(), NiagaraChannel);
 
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraEditor_ScriptSource_PreCompile);
 	double StartTime = FPlatformTime::Seconds();
@@ -1141,7 +1164,7 @@ int32 FHlslNiagaraCompiler::CompileScript(const FNiagaraCompileRequestData* InCo
 	}
 	CompileResults.DumpDebugInfoPath = Input.DumpDebugInfoPath;
 
-	int32 JobID = FShaderCommonCompileJob::GetNextJobId();
+	uint32 JobID = FShaderCommonCompileJob::GetNextJobId();
 	CompilationJob = MakeUnique<FNiagaraCompilerJob>();
 	CompilationJob->TranslatorOutput = TranslatorOutput ? *TranslatorOutput : FNiagaraTranslatorOutput();
 
@@ -1180,17 +1203,21 @@ int32 FHlslNiagaraCompiler::CompileScript(const FNiagaraCompileRequestData* InCo
 		}
 		if (NiagaraShaderType)
 		{
-			TArray<TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>> NewJobs;
-			CompilationJob->ShaderCompileJob = MakeShared<FShaderCompileJob, ESPMode::ThreadSafe>(JobID, nullptr, NiagaraShaderType, 0);
-			Input.ShaderFormat = FName(TEXT("VVM_1_0"));
-			if (GNiagaraSkipVectorVMBackendOptimizations != 0)
+			TRefCountPtr<FShaderCompileJob> Job = GShaderCompilingManager->PrepareShaderCompileJob(JobID, FShaderCompileJobKey(NiagaraShaderType), EShaderCompileJobPriority::Normal);
+			if (Job)
 			{
-				Input.Environment.CompilerFlags.Add(CFLAG_SkipOptimizations);
-			}
-			CompilationJob->ShaderCompileJob->Input = Input;
-			NewJobs.Add(StaticCastSharedPtr<FShaderCommonCompileJob>(CompilationJob->ShaderCompileJob).ToSharedRef());
+				TArray<FShaderCommonCompileJobPtr> NewJobs;
+				CompilationJob->ShaderCompileJob = Job;
+				Input.ShaderFormat = FName(TEXT("VVM_1_0"));
+				if (GNiagaraSkipVectorVMBackendOptimizations != 0)
+				{
+					Input.Environment.CompilerFlags.Add(CFLAG_SkipOptimizations);
+				}
+				Job->Input = Input;
+				NewJobs.Add(FShaderCommonCompileJobPtr(Job));
 
-			GShaderCompilingManager->AddJobs(NewJobs, true, false, FString(), FString(), true);
+				GShaderCompilingManager->SubmitJobs(NewJobs, FString(), FString());
+			}
 			bJobScheduled = true;
 		}
 	}

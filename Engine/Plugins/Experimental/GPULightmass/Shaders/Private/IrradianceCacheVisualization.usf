@@ -1,0 +1,99 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+/*=============================================================================
+	IrradianceCacheVisualization.usf
+=============================================================================*/
+
+// Needs to be defined before the uniform buffer struct header is included, very unfortunately
+struct FIrradianceCacheRecord
+{
+	float4 WorldPosition;
+	float4 WorldNormal;
+	uint4 Irradiance;
+};
+
+#include "/Engine/Private/Common.ush"
+#include "/Engine/Private/DeferredShadingCommon.ush"
+#include "IrradianceCachingCommon.ush"
+
+void VisualizeIrradianceCachePS(
+	in float4 UVAndScreenPos : TEXCOORD0, 
+	in float4 SVPos : SV_POSITION,
+	out float4 OutColor : SV_Target0)
+{
+	float2 ScreenUV = SvPositionToBufferUV(SVPos);
+	float2 ScreenPosition = (ScreenUV.xy - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
+	float SceneDepth = CalcSceneDepth(ScreenUV);
+	float3 WorldPosition = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), View.ScreenToWorld).xyz;
+	float3 ShadingNormal = GetGBufferData(ScreenUV).WorldNormal;
+	
+	bool bIrradianceQuerySuccessful = false;
+	bool bGeometryQuerySuccessful = false;
+			
+	uint NearestRecordIndex = 0;
+	float3 RecordIrradiance;
+	float3 RecordWorldNormal;
+			
+	uint CoarseLevelSpacing = IrradianceCachingParameters.Spacing;
+	uint DetailLevelSpacing = IrradianceCachingParameters.Spacing;
+		
+	uint3 Key = EncodeVoxelKey(floor(WorldPosition / DetailLevelSpacing));		
+	uint NormalDirectionBits = EncodeNormalBits(ShadingNormal);				
+	uint HashKey = 0;
+	HashKey = MurmurAdd( HashKey, NormalDirectionBits );
+	HashKey = MurmurAdd( HashKey, Key.x );
+	HashKey = MurmurAdd( HashKey, Key.y );
+	HashKey = MurmurAdd( HashKey, Key.z );
+	HashKey = MurmurAdd( HashKey, DetailLevelSpacing);
+	uint Index;
+	if (ICHashTableFind(HashKey, Index))
+	{
+		uint RecordIndex = IrradianceCachingParameters.RWHashToIndex[Index];
+		FIrradianceCacheRecord Record = IrradianceCachingParameters.IrradianceCacheRecords[RecordIndex];
+		if (Record.Irradiance.w > IrradianceCachingParameters.Quality)
+		{
+			bIrradianceQuerySuccessful = true;
+			
+			RecordIrradiance = asfloat(Record.Irradiance.xyz) / Record.Irradiance.w;
+		}
+		
+		bGeometryQuerySuccessful = true;
+		RecordWorldNormal = Record.WorldNormal.xyz;
+		NearestRecordIndex = RecordIndex;
+	}
+	else
+	{
+		Key = EncodeVoxelKey(floor(WorldPosition / CoarseLevelSpacing));	
+		HashKey = 0;
+		HashKey = MurmurAdd( HashKey, Key.x );
+		HashKey = MurmurAdd( HashKey, Key.y );
+		HashKey = MurmurAdd( HashKey, Key.z );
+		HashKey = MurmurAdd( HashKey, NormalDirectionBits );
+		HashKey = MurmurAdd( HashKey, CoarseLevelSpacing);
+		
+		if (ICHashTableFind(HashKey, Index))
+		{
+			uint RecordIndex = IrradianceCachingParameters.RWHashToIndex[Index];
+			FIrradianceCacheRecord Record = IrradianceCachingParameters.IrradianceCacheRecords[RecordIndex];
+			if (Record.Irradiance.w > IrradianceCachingParameters.Quality)
+			{
+				bIrradianceQuerySuccessful = true;
+				
+				RecordIrradiance = asfloat(Record.Irradiance.xyz) / Record.Irradiance.w;
+			}
+			
+			bGeometryQuerySuccessful = true;
+			RecordWorldNormal = Record.WorldNormal.xyz;
+			NearestRecordIndex = RecordIndex;
+		}
+	}
+	
+	if (bIrradianceQuerySuccessful)
+	{		
+		OutColor = float4(RecordIrradiance * View.PreExposure, 0);
+	}
+	else
+	{
+		discard;
+	}
+}

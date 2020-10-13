@@ -498,9 +498,4 @@ void FWindowsMixedRealityHandTracking::AddKeys()
 {
 }
 
-void FWindowsMixedRealityHandTracking::ConditionallyEnable()
-{
-	// @TODO: fix
-}
-
 #undef LOCTEXT_NAMESPACE

@@ -35,7 +35,7 @@ uint ComputeMipDensity(
 		(RawDensity7 & VOXEL_HAIR_MASK);
 	TotalHair /= 8;
 
-	return min(VOXEL_HAIR_MASK, TotalHair) | OutTotalOpaque;
+	return min(uint(VOXEL_HAIR_MASK), TotalHair) | OutTotalOpaque;
 }
 
 #if SHADER_MIP_VIRTUALVOXEL
@@ -130,9 +130,11 @@ int3 PageCountResolution;
 uint PageResolution;
 uint MipIt;
 
+Buffer<uint>	  PageIndexGlobalCounter; // Allocated page counter
 Texture3D<uint>	  DensityTexture;
 Buffer<uint>	  PageToPageIndexBuffer;
 RWBuffer<uint>	  OutPageIndexBuffer;
+RWBuffer<uint2>	  OutPageIndexOccupancyBuffer;
 
 [numthreads(1, 1, 64)]
 void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
@@ -141,22 +143,53 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 	const uint  PageIndex = DispatchThreadId.x + DispatchThreadId.y * MaxDispatchCountPerDim;
 	const uint3 PageCoord = IndexToCoord(PageIndex, PageCountResolution);
 
+	const uint AllocatedPageCount = PageIndexGlobalCounter[0];
+	if (PageIndex >= AllocatedPageCount)
+		return;
+
 	const uint OutPageResolution = PageResolution >> MipIt;
 	const uint TotalVoxelPerOutPageResolution = OutPageResolution * OutPageResolution * OutPageResolution;
 	const uint VoxelIndex = DispatchThreadId.z;
 	if (VoxelIndex >= TotalVoxelPerOutPageResolution)
 		return;
 
-	const uint3 OutVoxelCoordOffset = IndexToCoord(VoxelIndex, OutPageResolution);
-	const uint3 OutVoxelCoord = PageCoord * OutPageResolution + OutVoxelCoordOffset;
-
-	const uint Density = DensityTexture.Load(uint4(OutVoxelCoord, MipIt));
-	// Update the page index with invalid page index if the voxel does not contain any data.
-	// This allow to save tracing cost when evaluating the transmittance.
-	if (Density == 0)
 	{
+		const uint3 OutVoxelCoordOffset = IndexToCoord(VoxelIndex, OutPageResolution);
+		const uint3 OutVoxelCoord = PageCoord * OutPageResolution + OutVoxelCoordOffset;
+
+		const uint Density = DensityTexture.Load(uint4(OutVoxelCoord, MipIt));
+		// Update the page index with invalid page index if the voxel does not contain any data.
+		// This allow to save tracing cost when evaluating the transmittance.
+		if (Density == 0)
+		{
+			const uint PageIndexOffset = PageToPageIndexBuffer[PageIndex];
+			OutPageIndexBuffer[PageIndexOffset] = INVALID_VOXEL_PAGE_INDEX;
+		}
+	}
+
+	// Fill in the occupancy table
+	{
+		const uint OccMipIt = 3; // A voxel at this mip has a size of 8x8x8
+		const uint OccPageResolution = PageResolution >> OccMipIt;
+		uint2 Occupancy = 0;
+		uint BitIndex = 0;
+		for (uint z = 0; z < 4; ++z)
+		for (uint y = 0; y < 4; ++y)
+		for (uint x = 0; x < 4; ++x)
+		{
+			const uint3 OutVoxelCoord = PageCoord * OccPageResolution + uint3(x,y,z);
+			const uint Density = DensityTexture.Load(uint4(OutVoxelCoord, OccMipIt));
+			if (Density > 0)
+			{
+				if (BitIndex < 32)
+					Occupancy.x = Occupancy.x | (1 << BitIndex);
+				else
+					Occupancy.y = Occupancy.y | (1 << (BitIndex-32));
+			}
+			++BitIndex;
+		}
 		const uint PageIndexOffset = PageToPageIndexBuffer[PageIndex];
-		OutPageIndexBuffer[PageIndexOffset] = INVALID_VOXEL_PAGE_INDEX;
+		OutPageIndexOccupancyBuffer[PageIndexOffset] = Occupancy;
 	}
 }
 #endif

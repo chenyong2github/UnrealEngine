@@ -249,13 +249,21 @@ public:
 							// If the key is in a distributed cache (e.g. Pak or S3) then don't backfill any further. 
 							bool IsInDistributedCache = !PutBackend->IsWritable() && !PutBackend->BackfillLowerCacheLevels() && PutBackend->CachedDataProbablyExists(CacheKey);
 
-							// only backfill to fast caches (todo - need a way to put data that was created locally into the cache for other people)
-							bool bFastCache = PutBackend->GetSpeedClass() >= ESpeedClass::Fast;
+							if (!IsInDistributedCache)
+							{
+								// only backfill to fast caches (todo - need a way to put data that was created locally into the cache for other people)
+								bool bFastCache = PutBackend->GetSpeedClass() >= ESpeedClass::Fast;
 
-							if (bFastCache && PutBackend->IsWritable() && !PutBackend->CachedDataProbablyExists(CacheKey))
-							{								
-								AsyncPutInnerBackends[PutCacheIndex]->PutCachedData(CacheKey, OutData, false); // we do not need to force a put here
-								UE_LOG(LogDerivedDataCache, Verbose, TEXT("Back-filling cache %s with: %s (%d bytes) (force=%d)"), *PutBackend->GetName(), CacheKey, OutData.Num(), false);
+								if (bFastCache && PutBackend->IsWritable() && !PutBackend->CachedDataProbablyExists(CacheKey))
+								{								
+									AsyncPutInnerBackends[PutCacheIndex]->PutCachedData(CacheKey, OutData, false); // we do not need to force a put here
+									UE_LOG(LogDerivedDataCache, Verbose, TEXT("Back-filling cache %s with: %s (%d bytes) (force=%d)"), *PutBackend->GetName(), CacheKey, OutData.Num(), false);
+								}
+							}
+							else
+							{ 
+								UE_LOG(LogDerivedDataCache, Verbose, TEXT("Item %s exists in distributed cache %s. Skipping any further backfills."), CacheKey, *PutBackend->GetName());
+								break;
 							}
 						}
 					}

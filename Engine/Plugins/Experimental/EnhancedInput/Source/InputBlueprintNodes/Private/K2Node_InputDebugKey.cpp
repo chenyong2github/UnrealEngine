@@ -341,7 +341,7 @@ void UK2Node_InputDebugKey::GetMenuActions(FBlueprintActionDatabaseRegistrar& Ac
 	// corresponding to that asset)
 	if (ActionRegistrar.IsOpenForRegistration(ActionKey))
 	{
-		for (FKey const Key : AllKeys)
+		for (const FKey& Key : AllKeys)
 		{
 			// AnyKey is not supported as a debug key
 			if (!Key.IsBindableInBlueprints() || Key == EKeys::AnyKey)

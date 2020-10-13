@@ -3,6 +3,7 @@
 #include "USDStageImportFactory.h"
 
 #include "USDConversionUtils.h"
+#include "USDErrorUtils.h"
 #include "USDStageImporterModule.h"
 #include "USDStageImportOptions.h"
 #include "USDStageImportOptionsWindow.h"
@@ -44,9 +45,14 @@ UObject* UUsdStageImportFactory::FactoryCreateFile(UClass* InClass, UObject* InP
 	UObject* ImportedObject = nullptr;
 
 #if USE_USD_SDK
-	if (ImportContext.Init(InName.ToString(), Filename, Flags, IsAutomatedImport()))
+	const FString InitialPackagePath =InParent ? InParent->GetName() : TEXT( "/Game/" );
+	const bool bIsReimport = false;
+	const bool bAllowActorImport = true;
+	if (ImportContext.Init(InName.ToString(), Filename, InitialPackagePath, Flags, IsAutomatedImport(), bIsReimport, bAllowActorImport))
 	{
 		GEditor->GetEditorSubsystem<UImportSubsystem>()->BroadcastAssetPreImport( this, InClass, InParent, InName, Parms );
+
+		FScopedUsdMessageLog ScopedMessageLog;
 
 		UUsdStageImporter* USDImporter = IUsdStageImporterModule::Get().GetImporter();
 		USDImporter->ImportFromFile(ImportContext);
@@ -54,8 +60,6 @@ UObject* UUsdStageImportFactory::FactoryCreateFile(UClass* InClass, UObject* InP
 		GEditor->GetEditorSubsystem<UImportSubsystem>()->BroadcastAssetPostImport(this, ImportContext.World);
 		GEditor->BroadcastLevelActorListChanged();
 		GEditor->RedrawLevelEditingViewports();
-
-		ImportContext.DisplayErrorMessages(ImportContext.bIsAutomated);
 
 		ImportedObject = ImportContext.ImportedPackage ? Cast<UObject>( ImportContext.ImportedPackage ) : Cast<UObject>( ImportContext.SceneActor );
 	}

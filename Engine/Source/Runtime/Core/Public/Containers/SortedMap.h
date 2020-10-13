@@ -537,6 +537,54 @@ private:
 		PairItType PairIt;
 	};
 
+	/** The base of TSortedMap reverse iterators. */
+	template<bool bConst>
+	class TBaseReverseIterator
+	{
+		// Once we add reverse iterator to TArray, this class and TBaseIterator could be merged with a template parameter for forward vs reverse.
+	private:
+		typedef typename TChooseClass<bConst, const TSortedMap, TSortedMap>::Result MapType;
+		typedef typename TChooseClass<bConst, const KeyType, KeyType>::Result ItKeyType;
+		typedef typename TChooseClass<bConst, const ValueType, ValueType>::Result ItValueType;
+		typedef typename ElementArrayType::SizeType SizeType;
+
+	public:
+		typedef typename TChooseClass<bConst, const typename ElementArrayType::ElementType, typename ElementArrayType::ElementType>::Result PairType;
+
+	protected:
+		FORCEINLINE TBaseReverseIterator(PairType* InData, SizeType InNum)
+			: Data(InData), Index(InNum-1)
+		{
+		}
+
+	public:
+		FORCEINLINE TBaseReverseIterator& operator++()
+		{
+			checkf(Index != static_cast<SizeType>(-1), TEXT("Incrementing an invalid iterator is illegal"));
+			--Index;
+			return *this;
+		}
+
+		/** conversion to "bool" returning true if the iterator is valid. */
+		FORCEINLINE explicit operator bool() const
+		{
+			return Index != static_cast<SizeType>(-1);
+		}
+
+		FORCEINLINE friend bool operator==(const TBaseReverseIterator& Lhs, const TBaseReverseIterator& Rhs) { return Lhs.Index == Rhs.Index; }
+		FORCEINLINE friend bool operator!=(const TBaseReverseIterator& Lhs, const TBaseReverseIterator& Rhs) { return Lhs.Index != Rhs.Index; }
+
+		FORCEINLINE ItKeyType& Key()   const { return Data[Index].Key; }
+		FORCEINLINE ItValueType& Value() const { return Data[Index].Value; }
+
+		FORCEINLINE PairType& operator* () const { return  Data[Index]; }
+		FORCEINLINE PairType* operator->() const { return &Data[Index]; }
+
+	protected:
+		PairType* Data;
+		SizeType Index;
+	};
+
 	/** An array of the key-value pairs in the map */
 	ElementArrayType Pairs;
 
@@ -577,6 +625,30 @@ public:
 			: TBaseIterator<true>(InPairIt)
 		{
 		}
+	};
+
+	/** Reverse Map iterator */
+	class TReverseIterator : public TBaseReverseIterator<false>
+	{
+	public:
+		FORCEINLINE TReverseIterator(TSortedMap& InMap)
+			: TBaseReverseIterator<false>(InMap.Pairs.GetData(), InMap.Pairs.Num())
+		{
+		}
+
+		// Add constructor from PairItType and RemoveCurrent once we have reverse iterators on TArray
+	};
+
+	/** Const map iterator */
+	class TConstReverseIterator : public TBaseReverseIterator<true>
+	{
+	public:
+		FORCEINLINE TConstReverseIterator(const TSortedMap& InMap)
+			: TBaseReverseIterator<true>(InMap.Pairs.GetData(), InMap.Pairs.Num())
+		{
+		}
+
+		// Add constructor from PairItType once we have reverse iterators on TArray
 	};
 
 	/** Iterates over values associated with a specified key in a const map. This will be at most one value because keys must be unique */

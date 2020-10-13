@@ -424,7 +424,7 @@ void FBlueprintNativeCodeGenUtils::GenerateCppCode(UObject* Obj, TSharedPtr<FStr
 		FDisableGatheringDataOnScope DisableFib;
 
 		const FString TempPackageName = FString::Printf(TEXT("%s%s"), *UDynamicClass::GetTempPackagePrefix(), *InBlueprintObj->GetOutermost()->GetPathName());
-		UPackage* TempPackage = CreatePackage(nullptr, *TempPackageName);
+		UPackage* TempPackage = CreatePackage( *TempPackageName);
 		check(TempPackage);
 		ON_SCOPE_EXIT
 		{

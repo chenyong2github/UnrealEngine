@@ -30,8 +30,7 @@ public:
 
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
-		// See FDebugViewModeMaterialProxy::GetFriendlyName()
-		return AllowDebugViewShaderMode(DVSM_LODColoration, Parameters.Platform, Parameters.MaterialParameters.FeatureLevel) && Parameters.MaterialParameters.bMaterialIsLODColoration;
+		return ShouldCompileDebugViewModeShader(DVSM_LODColoration, Parameters);
 	}
 
 	FLODColorationPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer):
@@ -54,7 +53,14 @@ class FLODColorationInterface : public FDebugViewModeInterface
 public:
 
 	FLODColorationInterface() : FDebugViewModeInterface(TEXT("LODColoration"), false, true, false) {}
-	virtual TShaderRef<FDebugViewModePS> GetPixelShader(const FMaterial* InMaterial, FVertexFactoryType* VertexFactoryType) const override { return InMaterial->GetShader<FLODColorationPS>(VertexFactoryType); }
+	virtual void AddShaderTypes(ERHIFeatureLevel::Type InFeatureLevel,
+		EMaterialTessellationMode InMaterialTessellationMode,
+		const FVertexFactoryType* InVertexFactoryType,
+		FMaterialShaderTypes& OutShaderTypes) const override
+	{
+		AddDebugViewModeShaderTypes(InFeatureLevel, InMaterialTessellationMode, InVertexFactoryType, OutShaderTypes);
+		OutShaderTypes.AddShaderType<FLODColorationPS>();
+	}
 
 	virtual void GetDebugViewModeShaderBindings(
 		const FDebugViewModePS& ShaderBase,

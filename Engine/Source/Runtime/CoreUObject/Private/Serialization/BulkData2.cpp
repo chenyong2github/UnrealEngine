@@ -791,11 +791,18 @@ void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, boo
 			{
 				Filename = &Linker->Filename;
 			}
-			else if(!::ShouldAllowBulkDataInIoStore() && !IsInlined()) 
+			else if (!::ShouldAllowBulkDataInIoStore() && !IsInlined())
 			{
-				// Fallback path for when the IoStore is enabled but bulkdata has been forced to the pakfiles anyway.
-				FallbackFilename = FPackageName::LongPackageNameToFilename(Package->FileName.ToString(), Package->ContainsMap() ? TEXT(".umap") : TEXT(".uasset"));
-				Filename = &FallbackFilename;
+				const TCHAR* PackageExtension = Package->ContainsMap() ? TEXT(".umap") : TEXT(".uasset");
+				if (FPackageName::TryConvertLongPackageNameToFilename(Package->FileName.ToString(), FallbackFilename, PackageExtension))
+				{
+					Filename = &FallbackFilename;
+				}
+				else
+				{	
+					// Note that this Bulkdata object will end up with an invalid token and will end up resolving to an empty file path!
+					UE_LOG(LogSerialization, Warning, TEXT("LongPackageNameToFilename failed to convert '%s'. Path does not map to any roots!"), *Package->FileName.ToString());
+				}				
 			}
 		}
 
@@ -851,11 +858,14 @@ void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, boo
 				}
 				else
 				{
-					checkf(Filename != nullptr, TEXT("Could not find Filename"));
-					FString MemoryMappedFilename = ConvertFilenameFromFlags(*Filename);
-					if (!MemoryMapBulkData(MemoryMappedFilename, BulkDataOffset, BulkDataSize))
+					// If we have no valid input file name then the package is broken anyway and we will not be able to find any memory mapped data!
+					if (Filename != nullptr)
 					{
-						bShouldForceLoad = true; // Signal we want to force the BulkData to load
+						const FString MemoryMappedFilename = ConvertFilenameFromFlags(*Filename);
+						if (!MemoryMapBulkData(MemoryMappedFilename, BulkDataOffset, BulkDataSize))
+						{
+							bShouldForceLoad = true; // Signal we want to force the BulkData to load
+						}
 					}
 				}
 			}
@@ -1189,8 +1199,6 @@ IBulkDataIORequest* FBulkDataBase::CreateStreamingRequest(int64 OffsetInBulkData
 	else
 	{
 		const FString AssetFilename = FileTokenSystem::GetFilename(Data.Token);
-
-		checkf(AssetFilename.IsEmpty() == false, TEXT("BulkData file name is missing"));
 		const FString Filename = ConvertFilenameFromFlags(AssetFilename);
 
 		UE_CLOG(IsStoredCompressedOnDisk(), LogSerialization, Fatal, TEXT("Package level compression is no longer supported (%s)."), *Filename);
@@ -1566,14 +1574,17 @@ void FBulkDataBase::ProcessDuplicateData(FArchive& Ar, const UPackage* Package, 
 	}
 	else
 	{
-		checkf(Filename != nullptr, TEXT("If IoDispatcher is not used then ProcessDuplicateData requires a valid Filename pointer"));
-		const FString OptionalDataFilename = FPathViews::ChangeExtension(*Filename, BulkDataExt::Optional);
-
-		if (IFileManager::Get().FileExists(*OptionalDataFilename))
+		// If we have no valid input file name then the package is broken anyway and we will not be able to find the optional data!
+		if (Filename != nullptr)
 		{
-			BulkDataFlags = NewFlags;
-			checkf(BulkDataSize == NewSizeOnDisk, TEXT("Size mistach between original data size (%lld)and duplicate data size (%lld)"), BulkDataSize, NewSizeOnDisk);
-			InOutOffsetInFile = NewOffset;
+			const FString OptionalDataFilename = FPathViews::ChangeExtension(*Filename, BulkDataExt::Optional);
+
+			if (IFileManager::Get().FileExists(*OptionalDataFilename))
+			{
+				BulkDataFlags = NewFlags;
+				checkf(BulkDataSize == NewSizeOnDisk, TEXT("Size mistach between original data size (%lld)and duplicate data size (%lld)"), BulkDataSize, NewSizeOnDisk);
+				InOutOffsetInFile = NewOffset;
+			}
 		}
 	}
 #endif

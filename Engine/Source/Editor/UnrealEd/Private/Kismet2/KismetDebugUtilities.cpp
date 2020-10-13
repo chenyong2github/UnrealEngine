@@ -39,6 +39,7 @@
 #include "Misc/UObjectToken.h"
 #include "AnimGraphNode_Base.h"
 #include "UObject/UnrealType.h"
+#include "AnimationGraphSchema.h"
 
 #define LOCTEXT_NAMESPACE "BlueprintDebugging"
 
@@ -1065,18 +1066,49 @@ FKismetDebugUtilities::FOnWatchedPinsListChanged FKismetDebugUtilities::WatchedP
 
 bool FKismetDebugUtilities::CanWatchPin(const UBlueprint* Blueprint, const UEdGraphPin* Pin)
 {
-	//@TODO: This function belongs in the schema
-	const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
+	// Forward to schema
+	if(const UEdGraphNode* Node = Pin->GetOwningNode())
+	{
+		if(const UAnimationGraphSchema* AnimationGraphSchema = Cast<UAnimationGraphSchema>(Node->GetSchema()))
+		{
+			// Anim graphs need to respect whether they have a binding as they are effectively unlinked
+			bool bHasBinding = false; 
 
-	UEdGraph* Graph = Pin->GetOwningNode()->GetGraph();
+			if(UAnimGraphNode_Base* AnimGraphNode = Cast<UAnimGraphNode_Base>(Pin->GetOwningNode()))
+			{
+				// Compare FName without number to make sure we catch array properties that are split into multiple pins
+				FName ComparisonName = Pin->GetFName();
+				ComparisonName.SetNumber(0);
 
-	// Inputs should always be followed to their corresponding output in the world above
-	const bool bNotAnInput = (Pin->Direction != EGPD_Input);
+				if (FAnimGraphNodePropertyBinding* BindingPtr = AnimGraphNode->PropertyBindings.Find(ComparisonName))
+				{
+					bHasBinding = true;
+				}
+			}
 
-	//@TODO: Make watching a schema-allowable/denyable thing
-	const bool bCanWatchThisGraph = true;
+			UEdGraph* Graph = Pin->GetOwningNode()->GetGraph();
 
-	return bCanWatchThisGraph && !K2Schema->IsMetaPin(*Pin) && bNotAnInput && !IsPinBeingWatched(Blueprint, Pin);
+			// We allow input pins to be watched only if they have bindings, otherwise we need to follow to output pins
+			const bool bNotAnInputOrBound = (Pin->Direction != EGPD_Input) || bHasBinding;
+
+			return !AnimationGraphSchema->IsMetaPin(*Pin) && bNotAnInputOrBound && !IsPinBeingWatched(Blueprint, Pin);
+		}
+		else if(const UEdGraphSchema_K2* K2Schema = Cast<UEdGraphSchema_K2>(Node->GetSchema()))
+		{
+			UEdGraph* Graph = Pin->GetOwningNode()->GetGraph();
+
+			// Inputs should always be followed to their corresponding output in the world above
+			const bool bNotAnInput = (Pin->Direction != EGPD_Input);
+
+			//@TODO: Make watching a schema-allowable/denyable thing
+			const bool bCanWatchThisGraph = true;
+
+			return bCanWatchThisGraph && !K2Schema->IsMetaPin(*Pin) && bNotAnInput && !IsPinBeingWatched(Blueprint, Pin);
+		}
+	}
+
+	return false;
+	
 }
 
 bool FKismetDebugUtilities::IsPinBeingWatched(const UBlueprint* Blueprint, const UEdGraphPin* Pin)

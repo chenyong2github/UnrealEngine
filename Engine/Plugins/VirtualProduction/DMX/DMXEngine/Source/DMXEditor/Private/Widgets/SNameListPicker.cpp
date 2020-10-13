@@ -40,7 +40,8 @@ void SNameListPicker::Construct(const FArguments& InArgs)
 	// List of selectable names for the dropdown menu
 	SAssignNew(OptionsListView, SListView< TSharedPtr<FName> >)
 		.ListItemsSource(&FilteredOptions)
-		.OnSelectionChanged(this, &SNameListPicker::HandleSelectionChanged)
+		.OnMouseButtonClick(this, &SNameListPicker::OnClickItem)
+		.OnSelectionChanged(this, &SNameListPicker::OnSelectionChanged)
 		.OnGenerateRow(this, &SNameListPicker::GenerateNameItemWidget)
 		.SelectionMode(ESelectionMode::Single);
 	UpdateFilteredOptions(TEXT(""));
@@ -152,7 +153,7 @@ SNameListPicker::~SNameListPicker()
 
 TSharedRef<ITableRow> SNameListPicker::GenerateNameItemWidget(TSharedPtr<FName> InItem, const TSharedRef<STableViewBase>& OwnerTable) const
 {
-	TSharedPtr<STextBlock> RowTextBlock = nullptr;
+	TSharedPtr<STextBlock> RowTextBlock = nullptr; 
 	TSharedRef< STableRow< TSharedPtr<FName> > > TableRow =
 		SNew(STableRow< TSharedPtr<FName> >, OwnerTable)
 		.ShowSelection(true)
@@ -178,15 +179,29 @@ TSharedRef<ITableRow> SNameListPicker::GenerateNameItemWidget(TSharedPtr<FName> 
 	return TableRow;
 }
 
-void SNameListPicker::HandleSelectionChanged(const TSharedPtr<FName> Item, ESelectInfo::Type SelectInfo)
+void SNameListPicker::OnSelectionChanged(const TSharedPtr<FName> Item, ESelectInfo::Type SelectInfo)
 {
 	if (SelectInfo == ESelectInfo::OnKeyPress || SelectInfo == ESelectInfo::OnNavigation)
 	{
 		return;
 	}
 
-	// could happens when editing multiple values
+	OnUserSelectedItem(Item);
+}
+
+void SNameListPicker::OnClickItem(const TSharedPtr<FName> Item)
+{
+	OnUserSelectedItem(Item);
+}
+
+void SNameListPicker::OnUserSelectedItem(const TSharedPtr<FName> Item)
+{
 	if (!Item.IsValid())
+	{
+		return;
+	}
+	const bool bWasNoneSelected = Item->IsEqual(FDMXNameListItem::None);
+	if(bWasNoneSelected)
 	{
 		return;
 	}

@@ -4,11 +4,6 @@
 #include "SwitchboardListenerApp.h"
 
 #include "Interfaces/IPv4/IPv4Endpoint.h"
-#include "ISourceControlState.h"
-#include "ISourceControlModule.h"
-#include "ISourceControlProvider.h"
-#include "SourceControlOperations.h"
-
 #include "RequiredProgramMainCPPInclude.h"
 
 IMPLEMENT_APPLICATION(SwitchboardListener, "SwitchboardListener");
@@ -120,6 +115,7 @@ bool RunSwitchboardListener(int ArgC, TCHAR* ArgV[])
 	{
 		const double CurrentTime = FPlatformTime::Seconds();
 		const double DeltaTime = CurrentTime - LastTime;
+		LastTime = CurrentTime;
 
 		FTaskGraphInterface::Get().ProcessThreadUntilIdle(ENamedThreads::GameThread);
 
@@ -127,19 +123,16 @@ bool RunSwitchboardListener(int ArgC, TCHAR* ArgV[])
 		FTicker::GetCoreTicker().Tick(DeltaTime);
 
 		bListenerIsRunning = Listener.Tick();
-		ISourceControlModule::Get().Tick();
 
 		GFrameCounter++;
 		FStats::AdvanceFrame(false);
 		GLog->FlushThreadedLogs();
 
 		// Run garbage collection for the UObjects for the rest of the frame or at least to 2 ms
-		IncrementalPurgeGarbage(true, FMath::Max<float>(0.002f, IdealFrameTime - (FPlatformTime::Seconds() - LastTime)));
+		IncrementalPurgeGarbage(true, FMath::Max<float>(0.002f, IdealFrameTime - (FPlatformTime::Seconds() - CurrentTime)));
 
 		// Throttle main thread main fps by sleeping if we still have time
-		FPlatformProcess::Sleep(FMath::Max<float>(0.0f, IdealFrameTime - (FPlatformTime::Seconds() - LastTime)));
-
-		LastTime = CurrentTime;
+		FPlatformProcess::Sleep(FMath::Max<float>(0.0f, IdealFrameTime - (FPlatformTime::Seconds() - CurrentTime)));
 	}
 
 	return true;
@@ -161,6 +154,10 @@ INT32_MAIN_INT32_ARGC_TCHAR_ARGV()
 		return 1;
 	}
 	UE_LOG(LogSwitchboard, Display, TEXT("Successfully initialized socket system."));
+
+#if PLATFORM_WINDOWS
+	ShowWindow(GetConsoleWindow(), SW_MINIMIZE);
+#endif
 
 	const bool bListenerResult = RunSwitchboardListener(ArgC, ArgV);
 	UninitEngine();

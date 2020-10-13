@@ -61,6 +61,7 @@
     <Compile Include="BundleUtils.cs" />
     <Compile Include="CommandEnvironment.cs" />
     <Compile Include="DeviceReservation.cs" />
+    <Compile Include="FileRegions.cs" />
     <Compile Include="ImageUtils.cs" />
     <Compile Include="LogUtils.cs" />
     <Compile Include="CommandletUtils.cs" />

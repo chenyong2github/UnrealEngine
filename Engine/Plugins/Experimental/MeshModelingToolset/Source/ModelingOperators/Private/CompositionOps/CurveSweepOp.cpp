@@ -47,6 +47,7 @@ void FCurveSweepOp::CalculateResult(FProgressCancel* Progress)
 	CurveSweeper.bUVsSkipFullyWeldedEdges = bUVsSkipFullyWeldedEdges;
 	CurveSweeper.PolygonGroupingMode = PolygonGroupingMode;
 	CurveSweeper.QuadSplitMethod = QuadSplitMode;
+	CurveSweeper.DiagonalTolerance = DiagonalTolerance;
 	CurveSweeper.Generate();
 
 	if (Progress->Cancelled())

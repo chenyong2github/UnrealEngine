@@ -315,9 +315,11 @@ FMeshShapeGenerator& FProfileSweepGenerator::Generate()
 
 					int32 TriIndex = GetTriangleIndex(SweepIndex, ProfileIndex, NumTrisPerSweepSegment, TriangleOffsets);
 
-					// The currently supported modes are to either always connect diagonally down, or connect the shorter diagonal
+					// The currently supported modes are to either always connect diagonally down, or connect the shorter diagonal.
+					// For comparing diagonals, we allow some percent difference to triangulate symmetric quads uniformly.
 					if (QuadSplitMethod == EProfileSweepQuadSplit::Uniform
-						|| Vertices[CurrentVert].DistanceSquared(Vertices[BottomRightVert]) <= Vertices[BottomVert].DistanceSquared(Vertices[RightVert]))
+						|| Vertices[CurrentVert].DistanceSquared(Vertices[BottomRightVert])
+							/ Vertices[BottomVert].DistanceSquared(Vertices[RightVert]) <= (1 + DiagonalTolerance)*(1 + DiagonalTolerance))
 					{
 						FVector3d DiagonalDown = (Vertices[BottomRightVert] - Vertices[CurrentVert]).Normalized();
 

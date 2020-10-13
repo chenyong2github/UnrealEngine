@@ -145,7 +145,7 @@ namespace UnrealBuildTool
 		}
 
 
-		void AppendCLArguments_Global(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
+		protected virtual void AppendCLArguments_Global(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
 		{
 			// Suppress generation of object code for unreferenced inline functions. Enabling this option is more standards compliant, and causes a big reduction
 			// in object file sizes (and link times) due to the amount of stuff we inline.
@@ -195,6 +195,9 @@ namespace UnrealBuildTool
 				{
 					Arguments.Add("--target=i686-pc-windows-msvc");
 				}
+
+				// This matches Microsoft's default support floor for SSE.
+				Arguments.Add("-mssse3");
 			}
 
 			// Compile into an .obj file, and skip linking.
@@ -504,14 +507,7 @@ namespace UnrealBuildTool
 			{
 				if (CompileEnvironment.bUndefinedIdentifierWarningsAsErrors)
 				{
-					if (Target.WindowsPlatform.Compiler == WindowsCompiler.VisualStudio2015_DEPRECATED)
-					{
-						Arguments.Add("/we4668");
-					}
-					else if (Target.WindowsPlatform.Compiler == WindowsCompiler.VisualStudio2017)
-					{
-						Arguments.Add("/wd4668");
-					}
+					Arguments.Add("/we4668");
 				}
 				else
 				{

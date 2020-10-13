@@ -1237,7 +1237,7 @@ bool FReplayHelper::ReplicateCheckpointActor(AActor* ToReplicate, UNetConnection
 
 	UActorChannel* ActorChannel = Connection->FindActorChannelRef(ToReplicate);
 
-	if (ActorChannel == nullptr && ToReplicate->NetDormancy != DORM_Awake)
+	if (ActorChannel == nullptr && ToReplicate->NetDormancy > DORM_Awake)
 	{
 		// Create a new channel for this actor.
 		ActorChannel = Cast<UActorChannel>(Connection->CreateChannelByName(NAME_Actor, EChannelCreateFlags::OpenedLocally));

@@ -10,7 +10,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 
 struct FDataProviderTableRowData;
-class IStageDataCollection;
+class IStageMonitorSession;
 
 
 using FDataProviderTableRowDataPtr = TSharedPtr<FDataProviderTableRowData>;
@@ -38,11 +38,13 @@ private:
 	/** Getters to populate the UI */
 	FText GetStateGlyphs() const;
 	FSlateColor GetStateColorAndOpacity() const;
+	FText GetTimecode() const;
 	FText GetMachineName() const;
 	FText GetProcessId() const;
 	FText GetStageName() const;
 	FText GetRoles() const;
 	FText GetAverageFPS() const;
+	FText GetIdleTime() const;
 	FText GetGameThreadTiming() const;
 	FText GetRenderThreadTiming() const;
 	FText GetGPUTiming() const;
@@ -67,7 +69,10 @@ public:
 	SLATE_BEGIN_ARGS(SDataProviderListView) {}
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, TWeakPtr<IStageDataCollection> InCollection);
+	void Construct(const FArguments& InArgs, const TWeakPtr<IStageMonitorSession>& InSession);
+
+	/** Updates the session this widget is currently sourcing data from */
+	void RefreshMonitorSession(TWeakPtr<IStageMonitorSession> NewSession);
 
 	/** Cleanup ourselves */
 	virtual ~SDataProviderListView();
@@ -86,14 +91,17 @@ private:
 	/** Rebuild provider list from scratch */
 	void RebuildDataProviderList();
 
+	/** Binds to the current session desired delegates */
+	void AttachToMonitorSession(const TWeakPtr<IStageMonitorSession>& NewSession);
+
 private:
 	
 	/** Widget and data containing info about what's shown in the listview */
 	TArray<FDataProviderTableRowDataPtr> ListItemsSource;
 	TArray<TWeakPtr<SDataProviderTableRow>> ListRowWidgets;
 
-	/** Pointer to the collection of stage data */
-	TWeakPtr<IStageDataCollection> Collection;
+	/** Pointer to the stage session data */
+	TWeakPtr<IStageMonitorSession> Session;
 
 	/** Used to cache if list needs to be refreshed or not */
 	bool bRebuildListRequested = false;

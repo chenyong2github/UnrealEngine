@@ -38,7 +38,7 @@ void UColorConverterOutputPass::OnDisabled_Implementation()
 UTexture* UColorConverterOutputPass::ApplyColorTransform(UTexture* Input, UComposurePostProcessingPassProxy* PostProcessProxy, FInheritedTargetPool& TargetPool)
 {
 	UTexture* Result = Input;
-	if (ColorConverter && ColorConverter->bEnabled)
+	if (ColorConverter && ColorConverter->IsPassEnabled())
 	{
 		// @TODO - should outputs have access to the PrePassLookupTable? TargetCamera?
 		Result = ColorConverter->ApplyTransform(Input, /*PrePassLookupTable =*/nullptr, PostProcessProxy, /*TargetCamera =*/nullptr, TargetPool);

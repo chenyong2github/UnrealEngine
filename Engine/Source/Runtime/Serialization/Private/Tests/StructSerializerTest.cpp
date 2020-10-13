@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "Algo/ForEach.h"
 #include "CoreMinimal.h"
 #include "Misc/Guid.h"
 #include "Serialization/MemoryWriter.h"
@@ -23,6 +24,482 @@
 
 namespace StructSerializerTest
 {
+	template<typename KeyType, typename ValueType>
+	void CopyKeys(TMap<KeyType, ValueType>& OutMap, const TMap<KeyType, ValueType>& SourceMap)
+	{
+		OutMap.Empty(SourceMap.Num());
+		Algo::ForEach(SourceMap, [&OutMap](const TPair<KeyType, ValueType>& Other)
+		{
+			OutMap.Add(Other.Key);
+		});
+	}
+
+	template<>
+	void CopyKeys(TMap<FString, FVector>& OutMap, const TMap<FString, FVector>& SourceMap)
+	{
+		OutMap.Empty(SourceMap.Num());
+		Algo::ForEach(SourceMap, [&OutMap](const TPair<FString, FVector>& Other)
+		{
+			OutMap.Add(Other.Key, FVector(76.7f));
+		});
+	}
+
+	template<>
+	void CopyKeys(TMap<FString, FStructSerializerBuiltinTestStruct>& OutMap, const TMap<FString, FStructSerializerBuiltinTestStruct>& SourceMap)
+	{
+		OutMap.Empty(SourceMap.Num());
+		Algo::ForEach(SourceMap, [&OutMap](const TPair<FString, FStructSerializerBuiltinTestStruct>& Other)
+		{
+			OutMap.Add(Other.Key, { NoInit });
+		});
+	}
+
+	
+
+	void ValidateNumerics(FAutomationTestBase& Test, const FStructSerializerNumericTestStruct& Struct1, const FStructSerializerNumericTestStruct& Struct2)
+	{
+		Test.TestEqual<int8>(TEXT("Numerics.Int8 value must be the same before and after de-/serialization"), Struct1.Int8, Struct2.Int8);
+		Test.TestEqual<int16>(TEXT("Numerics.Int16 value must be the same before and after de-/serialization"), Struct1.Int16, Struct2.Int16);
+		Test.TestEqual<int32>(TEXT("Numerics.Int32 value must be the same before and after de-/serialization"), Struct1.Int32, Struct2.Int32);
+		Test.TestEqual<int64>(TEXT("Numerics.Int64 value must be the same before and after de-/serialization"), Struct1.Int64, Struct2.Int64);
+		Test.TestEqual<uint8>(TEXT("Numerics.UInt8 value must be the same before and after de-/serialization"), Struct1.UInt8, Struct2.UInt8);
+		Test.TestEqual<uint16>(TEXT("Numerics.UInt16 value must be the same before and after de-/serialization"), Struct1.UInt16, Struct2.UInt16);
+		Test.TestEqual<uint32>(TEXT("Numerics.UInt32 value must be the same before and after de-/serialization"), Struct1.UInt32, Struct2.UInt32);
+		Test.TestEqual<uint64>(TEXT("Numerics.UInt64 value must be the same before and after de-/serialization"), Struct1.UInt64, Struct2.UInt64);
+		Test.TestEqual<float>(TEXT("Numerics.Float value must be the same before and after de-/serialization"), Struct1.Float, Struct2.Float);
+		Test.TestEqual<double>(TEXT("Numerics.Double value must be the same before and after de-/serialization"), Struct1.Double, Struct2.Double);
+	}
+
+	void ValidateBooleans(FAutomationTestBase& Test, const FStructSerializerBooleanTestStruct& Struct1, const FStructSerializerBooleanTestStruct& Struct2)
+	{
+		Test.TestEqual<bool>(TEXT("Booleans.BoolFalse must be the same before and after de-/serialization"), Struct1.BoolFalse, Struct2.BoolFalse);
+		Test.TestEqual<bool>(TEXT("Booleans.BoolTrue must be the same before and after de-/serialization"), Struct1.BoolTrue, Struct2.BoolTrue);
+		Test.TestEqual<bool>(TEXT("Booleans.Bitfield0 must be the same before and after de-/serialization"), Struct1.Bitfield0, Struct2.Bitfield0);
+		Test.TestEqual<bool>(TEXT("Booleans.Bitfield1 must be the same before and after de-/serialization"), Struct1.Bitfield1, Struct2.Bitfield1);
+		Test.TestEqual<bool>(TEXT("Booleans.Bitfield2Set must be the same before and after de-/serialization"), Struct1.Bitfield2Set, Struct2.Bitfield2Set);
+		Test.TestEqual<bool>(TEXT("Booleans.Bitfield3 must be the same before and after de-/serialization"), Struct1.Bitfield3, Struct2.Bitfield3);
+		Test.TestEqual<bool>(TEXT("Booleans.Bitfield4Set must be the same before and after de-/serialization"), Struct1.Bitfield4Set, Struct2.Bitfield4Set);
+		Test.TestEqual<bool>(TEXT("Booleans.Bitfield5Set must be the same before and after de-/serialization"), Struct1.Bitfield5Set, Struct2.Bitfield5Set);
+		Test.TestEqual<bool>(TEXT("Booleans.Bitfield6 must be the same before and after de-/serialization"), Struct1.Bitfield6, Struct2.Bitfield6);
+		Test.TestEqual<bool>(TEXT("Booleans.Bitfield7 must be the same before and after de-/serialization"), Struct1.Bitfield7Set, Struct2.Bitfield7Set);
+	}
+
+	void ValidateObjects(FAutomationTestBase& Test, const FStructSerializerObjectTestStruct& Struct1, const FStructSerializerObjectTestStruct& Struct2)
+	{
+		Test.TestEqual<class UClass*>(TEXT("Objects.Class must be the same before and after de-/serialization"), Struct1.Class, Struct2.Class);
+		Test.TestEqual<TSubclassOf<class UMetaData>>(TEXT("Objects.SubClass must be the same before and after de-/serialization"), Struct1.SubClass, Struct2.SubClass);
+		Test.TestEqual<TSoftClassPtr<class UMetaData>>(TEXT("Objects.SoftClass must be the same before and after de-/serialization"), Struct1.SoftClass, Struct2.SoftClass);
+		Test.TestEqual<UObject*>(TEXT("Objects.Object must be the same before and after de-/serialization"), Struct1.Object, Struct2.Object);
+		Test.TestEqual<TWeakObjectPtr<class UMetaData>>(TEXT("Objects.WeakObject must be the same before and after de-/serialization"), Struct1.WeakObject, Struct2.WeakObject);
+		Test.TestEqual<TSoftObjectPtr<class UMetaData>>(TEXT("Objects.SoftObject must be the same before and after de-/serialization"), Struct1.SoftObject, Struct2.SoftObject);
+		Test.TestEqual<FSoftClassPath>(TEXT("Objects.ClassPath must be the same before and after de-/serialization"), Struct1.ClassPath, Struct2.ClassPath);
+		Test.TestEqual<FSoftObjectPath>(TEXT("Objects.ObjectPath must be the same before and after de-/serialization"), Struct1.ObjectPath, Struct2.ObjectPath);
+	}
+
+	void ValidateBuiltIns(FAutomationTestBase& Test, const FStructSerializerBuiltinTestStruct& Struct1, const FStructSerializerBuiltinTestStruct& Struct2)
+	{
+		Test.TestEqual<FGuid>(TEXT("Builtins.Guid must be the same before and after de-/serialization"), Struct1.Guid, Struct2.Guid);
+		Test.TestEqual<FName>(TEXT("Builtins.Name must be the same before and after de-/serialization"), Struct1.Name, Struct2.Name);
+		Test.TestEqual<FString>(TEXT("Builtins.String must be the same before and after de-/serialization"), Struct1.String, Struct2.String);
+		Test.TestEqual<FString>(TEXT("Builtins.Text must be the same before and after de-/serialization"), Struct1.Text.ToString(), Struct2.Text.ToString());
+		Test.TestEqual<FVector>(TEXT("Builtins.Vector must be the same before and after de-/serialization"), Struct1.Vector, Struct2.Vector);
+		Test.TestEqual<FVector4>(TEXT("Builtins.Vector4 must be the same before and after de-/serialization"), Struct1.Vector4, Struct2.Vector4);
+		Test.TestEqual<FRotator>(TEXT("Builtins.Rotator must be the same before and after de-/serialization"), Struct1.Rotator, Struct2.Rotator);
+		Test.TestEqual<FQuat>(TEXT("Builtins.Quat must be the same before and after de-/serialization"), Struct1.Quat, Struct2.Quat);
+		Test.TestEqual<FColor>(TEXT("Builtins.Color must be the same before and after de-/serialization"), Struct1.Color, Struct2.Color);
+	}
+
+	void ValidateArrays(FAutomationTestBase& Test, const FStructSerializerArrayTestStruct& Struct1, const FStructSerializerArrayTestStruct& Struct2)
+	{
+		Test.TestEqual<TArray<int32>>(TEXT("Arrays.Int32Array must be the same before and after de-/serialization"), Struct1.Int32Array, Struct2.Int32Array);
+		Test.TestEqual<TArray<uint8>>(TEXT("Arrays.ByteArray must be the same before and after de-/serialization"), Struct1.ByteArray, Struct2.ByteArray);
+		Test.TestEqual<int32>(TEXT("Arrays.StaticSingleElement[0] must be the same before and after de-/serialization"), Struct1.StaticSingleElement[0], Struct2.StaticSingleElement[0]);
+		Test.TestEqual<int32>(TEXT("Arrays.StaticInt32Array[0] must be the same before and after de-/serialization"), Struct1.StaticInt32Array[0], Struct2.StaticInt32Array[0]);
+		Test.TestEqual<int32>(TEXT("Arrays.StaticInt32Array[1] must be the same before and after de-/serialization"), Struct1.StaticInt32Array[1], Struct2.StaticInt32Array[1]);
+		Test.TestEqual<int32>(TEXT("Arrays.StaticInt32Array[2] must be the same before and after de-/serialization"), Struct1.StaticInt32Array[2], Struct2.StaticInt32Array[2]);
+		Test.TestEqual<float>(TEXT("Arrays.StaticFloatArray[0] must be the same before and after de-/serialization"), Struct1.StaticFloatArray[0], Struct2.StaticFloatArray[0]);
+		Test.TestEqual<float>(TEXT("Arrays.StaticFloatArray[1] must be the same before and after de-/serialization"), Struct1.StaticFloatArray[1], Struct2.StaticFloatArray[1]);
+		Test.TestEqual<float>(TEXT("Arrays.StaticFloatArray[2] must be the same before and after de-/serialization"), Struct1.StaticFloatArray[2], Struct2.StaticFloatArray[2]);
+		Test.TestEqual<TArray<FVector>>(TEXT("Arrays.VectorArray must be the same before and after de-/serialization"), Struct1.VectorArray, Struct2.VectorArray);
+	}
+
+	void ValidateMaps(FAutomationTestBase& Test, const FStructSerializerMapTestStruct& Struct1, const FStructSerializerMapTestStruct& Struct2)
+	{
+		Test.TestTrue(TEXT("Maps.IntToStr must be the same before and after de-/serialization"), Struct1.IntToStr.OrderIndependentCompareEqual(Struct2.IntToStr));
+		Test.TestTrue(TEXT("Maps.StrToStr must be the same before and after de-/serialization"), Struct1.StrToStr.OrderIndependentCompareEqual(Struct2.StrToStr));
+		Test.TestTrue(TEXT("Maps.StrToVec must be the same before and after de-/serialization"), Struct1.StrToVec.OrderIndependentCompareEqual(Struct2.StrToVec));
+	}
+
+	void ValidateSets(FAutomationTestBase& Test, const FStructSerializerSetTestStruct& Struct1, const FStructSerializerSetTestStruct& Struct2)
+	{
+		Test.TestTrue(TEXT("Sets.IntSet must be the same before and after de-/serialization"), Struct1.IntSet.Num() == Struct2.IntSet.Num() && Struct1.IntSet.Difference(Struct2.IntSet).Num() == 0);
+		Test.TestTrue(TEXT("Sets.StrSet must be the same before and after de-/serialization"), Struct1.StrSet.Num() == Struct2.StrSet.Num() && Struct1.StrSet.Difference(Struct2.StrSet).Num() == 0);
+		Test.TestTrue(TEXT("Sets.NameSet must be the same before and after de-/serialization"), Struct1.NameSet.Num() == Struct2.NameSet.Num() && Struct1.NameSet.Difference(Struct2.NameSet).Num() == 0);
+		Test.TestTrue(TEXT("Sets.StructSet must be the same before and after de-/serialization"), Struct1.StructSet.Num() == Struct2.StructSet.Num() && Struct1.StructSet.Difference(Struct2.StructSet).Num() == 0);
+	}
+
+	template<typename TSerializerBackend, typename TDeserializerBackend>
+	void TestElementSerialization(FAutomationTestBase& Test)
+	{
+		// serialization
+	
+		FStructSerializerTestStruct OriginalStruct;
+		UClass* MetaDataClass = LoadClass<UMetaData>(nullptr, TEXT("/Script/CoreUObject.MetaData"));
+		UMetaData* MetaDataObject = NewObject<UMetaData>();
+		// setup object tests
+		OriginalStruct.Objects.Class = MetaDataClass;
+		OriginalStruct.Objects.SubClass = MetaDataClass;
+		OriginalStruct.Objects.SoftClass = MetaDataClass;
+		OriginalStruct.Objects.Object = MetaDataObject;
+		OriginalStruct.Objects.WeakObject = MetaDataObject;
+		OriginalStruct.Objects.SoftObject = MetaDataObject;
+		OriginalStruct.Objects.ClassPath = MetaDataClass;
+		OriginalStruct.Objects.ObjectPath = MetaDataObject;
+
+		{
+			FStructSerializerPolicies Policies;
+			Policies.MapSerialization = EStructSerializerMapPolicies::Array;
+
+			FStructDeserializerPolicies DeserializerPolicies;
+			DeserializerPolicies.MissingFields = EStructDeserializerErrorPolicies::Warning;
+			DeserializerPolicies.MapPolicies = EStructDeserializerMapPolicies::Array;
+			
+			//Numerics
+			{
+				FStructSerializerTestStruct TestStruct = OriginalStruct;
+
+				TArray<uint8> Buffer;
+				FMemoryReader Reader(Buffer);
+				FMemoryWriter Writer(Buffer);
+
+				TSerializerBackend SerializerBackend(Writer, EStructSerializerBackendFlags::Default);
+				TDeserializerBackend DeserializerBackend(Reader);
+
+				const FName Member = GET_MEMBER_NAME_CHECKED(FStructSerializerTestStruct, Numerics);
+				FProperty* Property = FindFProperty<FProperty>(FStructSerializerTestStruct::StaticStruct(), Member);
+				FStructSerializer::SerializeElement(&TestStruct, Property, INDEX_NONE, SerializerBackend, Policies);
+
+				FStructSerializerTestStruct TestStruct2(NoInit);
+				Test.TestTrue(TEXT("Deserialization must succeed"), FStructDeserializer::DeserializeElement(&TestStruct2, *FStructSerializerTestStruct::StaticStruct(), INDEX_NONE, DeserializerBackend, DeserializerPolicies));
+
+				ValidateNumerics(Test, TestStruct.Numerics, TestStruct2.Numerics);
+			}
+
+			//Booleans
+			{
+				TArray<uint8> Buffer;
+				FMemoryReader Reader(Buffer);
+				FMemoryWriter Writer(Buffer);
+				
+				TSerializerBackend SerializerBackend(Writer, EStructSerializerBackendFlags::Default);
+				TDeserializerBackend DeserializerBackend(Reader);
+
+				FStructSerializerTestStruct TestStruct = OriginalStruct;
+				const FName Member = GET_MEMBER_NAME_CHECKED(FStructSerializerTestStruct, Booleans);
+				FProperty* Property = FindFProperty<FProperty>(FStructSerializerTestStruct::StaticStruct(), Member);
+				FStructSerializer::SerializeElement(&TestStruct, Property, INDEX_NONE, SerializerBackend, Policies);
+
+				FStructSerializerTestStruct TestStruct2(NoInit);
+				Test.TestTrue(TEXT("Deserialization must succeed"), FStructDeserializer::DeserializeElement(&TestStruct2, *FStructSerializerTestStruct::StaticStruct(), INDEX_NONE, DeserializerBackend, DeserializerPolicies));
+
+				ValidateBooleans(Test, TestStruct.Booleans, TestStruct2.Booleans);
+			}
+
+			//Objects
+			{
+				TArray<uint8> Buffer;
+				FMemoryReader Reader(Buffer);
+				FMemoryWriter Writer(Buffer);
+
+				TSerializerBackend SerializerBackend(Writer, EStructSerializerBackendFlags::Default);
+				TDeserializerBackend DeserializerBackend(Reader);
+
+				FStructSerializerTestStruct TestStruct = OriginalStruct;
+				const FName Member = GET_MEMBER_NAME_CHECKED(FStructSerializerTestStruct, Objects);
+				FProperty* Property = FindFProperty<FProperty>(FStructSerializerTestStruct::StaticStruct(), Member);
+				FStructSerializer::SerializeElement(&TestStruct, Property, INDEX_NONE, SerializerBackend, Policies);
+
+				FStructSerializerTestStruct TestStruct2(NoInit);
+				Test.TestTrue(TEXT("Deserialization must succeed"), FStructDeserializer::DeserializeElement(&TestStruct2, *FStructSerializerTestStruct::StaticStruct(), INDEX_NONE, DeserializerBackend, DeserializerPolicies));
+
+				ValidateObjects(Test, TestStruct.Objects, TestStruct2.Objects);
+			}
+
+			//Built ins
+			{
+				TArray<uint8> Buffer;
+				FMemoryReader Reader(Buffer);
+				FMemoryWriter Writer(Buffer);
+
+				TSerializerBackend SerializerBackend(Writer, EStructSerializerBackendFlags::Default);
+				TDeserializerBackend DeserializerBackend(Reader);
+
+				FStructSerializerTestStruct TestStruct = OriginalStruct;
+				const FName Member = GET_MEMBER_NAME_CHECKED(FStructSerializerTestStruct, Builtins);
+				FProperty* Property = FindFProperty<FProperty>(FStructSerializerTestStruct::StaticStruct(), Member);
+				FStructSerializer::SerializeElement(&TestStruct, Property, INDEX_NONE, SerializerBackend, Policies);
+
+				FStructSerializerTestStruct TestStruct2(NoInit);
+				Test.TestTrue(TEXT("Deserialization must succeed"), FStructDeserializer::DeserializeElement(&TestStruct2, *FStructSerializerTestStruct::StaticStruct(), INDEX_NONE, DeserializerBackend, DeserializerPolicies));
+
+				ValidateBuiltIns(Test, TestStruct.Builtins, TestStruct2.Builtins);
+			}
+
+			//Arrays
+			{
+				TArray<uint8> Buffer;
+				FMemoryReader Reader(Buffer);
+				FMemoryWriter Writer(Buffer);
+
+				TSerializerBackend SerializerBackend(Writer, EStructSerializerBackendFlags::Default);
+				TDeserializerBackend DeserializerBackend(Reader);
+
+				FStructSerializerTestStruct TestStruct = OriginalStruct;
+				const FName Member = GET_MEMBER_NAME_CHECKED(FStructSerializerTestStruct, Arrays);
+				FProperty* Property = FindFProperty<FProperty>(FStructSerializerTestStruct::StaticStruct(), Member);
+				FStructSerializer::SerializeElement(&TestStruct, Property, INDEX_NONE, SerializerBackend, Policies);
+
+				FStructSerializerTestStruct TestStruct2(NoInit);
+				TestStruct2.Arrays.Int32Array.SetNumUninitialized(TestStruct.Arrays.Int32Array.Num());
+				TestStruct2.Arrays.ByteArray.SetNumUninitialized(TestStruct.Arrays.ByteArray.Num());
+				TestStruct2.Arrays.VectorArray.SetNumUninitialized(TestStruct.Arrays.VectorArray.Num());
+				TestStruct2.Arrays.StructArray.SetNumZeroed(TestStruct.Arrays.StructArray.Num()); 
+
+				Test.TestTrue(TEXT("Deserialization must succeed"), FStructDeserializer::DeserializeElement(&TestStruct2, *FStructSerializerTestStruct::StaticStruct(), INDEX_NONE, DeserializerBackend, DeserializerPolicies));
+
+				ValidateArrays(Test, TestStruct.Arrays, TestStruct2.Arrays);
+			}
+
+			//Maps
+			{
+				TArray<uint8> Buffer;
+				FMemoryReader Reader(Buffer);
+				FMemoryWriter Writer(Buffer);
+
+				TSerializerBackend SerializerBackend(Writer, EStructSerializerBackendFlags::Default);
+				TDeserializerBackend DeserializerBackend(Reader);
+
+				FStructSerializerTestStruct TestStruct = OriginalStruct;
+				const FName Member = GET_MEMBER_NAME_CHECKED(FStructSerializerTestStruct, Maps);
+				FProperty* Property = FindFProperty<FProperty>(FStructSerializerTestStruct::StaticStruct(), Member);
+				FStructSerializer::SerializeElement(&TestStruct, Property, INDEX_NONE, SerializerBackend, Policies);
+
+				FStructSerializerTestStruct TestStruct2(NoInit);
+				CopyKeys(TestStruct2.Maps.IntToStr, TestStruct.Maps.IntToStr);
+				CopyKeys(TestStruct2.Maps.StrToStr, TestStruct.Maps.StrToStr);
+				CopyKeys(TestStruct2.Maps.StrToStruct, TestStruct.Maps.StrToStruct);
+				CopyKeys(TestStruct2.Maps.StrToVec, TestStruct.Maps.StrToVec);
+
+				Test.TestTrue(TEXT("Deserialization must succeed"), FStructDeserializer::DeserializeElement(&TestStruct2, *FStructSerializerTestStruct::StaticStruct(), INDEX_NONE, DeserializerBackend, DeserializerPolicies));
+
+				ValidateMaps(Test, TestStruct.Maps, TestStruct2.Maps);
+			}
+
+			//Sets
+			{
+				TArray<uint8> Buffer;
+				FMemoryReader Reader(Buffer);
+				FMemoryWriter Writer(Buffer);
+
+				TSerializerBackend SerializerBackend(Writer, EStructSerializerBackendFlags::Default);
+				TDeserializerBackend DeserializerBackend(Reader);
+
+				FStructSerializerTestStruct TestStruct = OriginalStruct;
+				const FName Member = GET_MEMBER_NAME_CHECKED(FStructSerializerTestStruct, Sets);
+				FProperty* Property = FindFProperty<FProperty>(FStructSerializerTestStruct::StaticStruct(), Member);
+				FStructSerializer::SerializeElement(&TestStruct, Property, INDEX_NONE, SerializerBackend, Policies);
+
+				FStructSerializerTestStruct TestStruct2(NoInit);
+				TestStruct2.Sets.IntSet = { -1, -2, -3 };
+				TestStruct2.Sets.NameSet = { TEXT("Pre1"), TEXT("Pre2") , TEXT("Pre3") };
+				TestStruct2.Sets.StrSet = { TEXT("Pre4"), TEXT("Pre5") , TEXT("Pre6"), TEXT("Pre7") };
+				TestStruct2.Sets.StructSet = { FStructSerializerBuiltinTestStruct(NoInit) };
+				Test.TestTrue(TEXT("Deserialization must succeed"), FStructDeserializer::DeserializeElement(&TestStruct2, *FStructSerializerTestStruct::StaticStruct(), INDEX_NONE, DeserializerBackend, DeserializerPolicies));
+
+				ValidateSets(Test, TestStruct.Sets, TestStruct2.Sets);
+			}
+			
+			//TArray<uint8> element
+			{
+				TArray<uint8> Buffer;
+				FMemoryReader Reader(Buffer);
+				FMemoryWriter Writer(Buffer);
+
+				TSerializerBackend SerializerBackend(Writer, EStructSerializerBackendFlags::Default);
+				TDeserializerBackend DeserializerBackend(Reader);
+
+				FStructSerializerArrayTestStruct TestStruct = OriginalStruct.Arrays;
+				FStructSerializerArrayTestStruct TestStruct2(NoInit);
+				TestStruct2.ByteArray.SetNumUninitialized(TestStruct.ByteArray.Num());
+				TestStruct2.ByteArray[0] = 89;
+				TestStruct2.ByteArray[1] = 91;
+				TestStruct2.ByteArray[2] = 93;
+
+				const FName Member = GET_MEMBER_NAME_CHECKED(FStructSerializerArrayTestStruct, ByteArray);
+				FProperty* Property = FindFProperty<FProperty>(FStructSerializerArrayTestStruct::StaticStruct(), Member);
+
+				constexpr int32 TestIndex = 1;
+				FStructSerializer::SerializeElement(&TestStruct, Property, TestIndex, SerializerBackend, Policies);
+				Test.TestTrue(TEXT("Deserialization must succeed"), FStructDeserializer::DeserializeElement(&TestStruct2, *FStructSerializerArrayTestStruct::StaticStruct(), TestIndex, DeserializerBackend, DeserializerPolicies));
+				Test.TestNotEqual<uint8>(TEXT("Arrays.ByteArray[0] must not be the same before and after de-/serialization of element 1"), TestStruct.ByteArray[0], TestStruct2.ByteArray[0]);
+				Test.TestEqual<uint8>(TEXT("Arrays.ByteArray[1] must be the same before and after de-/serialization of element 1"), TestStruct.ByteArray[TestIndex], TestStruct2.ByteArray[TestIndex]);
+				Test.TestNotEqual<uint8>(TEXT("Arrays.ByteArray[2] must not be the same before and after de-/serialization of element 1"), TestStruct.ByteArray[2], TestStruct2.ByteArray[2]);
+			}
+
+			//TArray<Struct> element
+			{
+				TArray<uint8> Buffer;
+				FMemoryReader Reader(Buffer);
+				FMemoryWriter Writer(Buffer);
+
+				TSerializerBackend SerializerBackend(Writer, EStructSerializerBackendFlags::Default);
+				TDeserializerBackend DeserializerBackend(Reader);
+
+				FStructSerializerArrayTestStruct TestStruct = OriginalStruct.Arrays;
+				FStructSerializerArrayTestStruct TestStruct2(NoInit);
+				TestStruct2.StructArray.SetNumZeroed(TestStruct.StructArray.Num());
+
+				const FName Member = GET_MEMBER_NAME_CHECKED(FStructSerializerArrayTestStruct, StructArray);
+				FProperty* Property = FindFProperty<FProperty>(FStructSerializerArrayTestStruct::StaticStruct(), Member);
+
+				constexpr int32 TestIndex = 1;
+				FStructSerializer::SerializeElement(&TestStruct, Property, TestIndex, SerializerBackend, Policies);
+				Test.TestTrue(TEXT("Deserialization must succeed"), FStructDeserializer::DeserializeElement(&TestStruct2, *FStructSerializerArrayTestStruct::StaticStruct(), TestIndex, DeserializerBackend, DeserializerPolicies));
+				Test.TestFalse(TEXT("Arrays.StructArray[0] must not be the same before and after de-/serialization of element 1"), TestStruct.StructArray[0] == TestStruct2.StructArray[0]);
+				ValidateBuiltIns(Test, TestStruct.StructArray[TestIndex], TestStruct2.StructArray[TestIndex]);
+			}
+			
+			//static single element
+			{
+				TArray<uint8> Buffer;
+				FMemoryReader Reader(Buffer);
+				FMemoryWriter Writer(Buffer);
+
+				TSerializerBackend SerializerBackend(Writer, EStructSerializerBackendFlags::Default);
+				TDeserializerBackend DeserializerBackend(Reader);
+
+				FStructSerializerArrayTestStruct TestStruct = OriginalStruct.Arrays;
+				FStructSerializerArrayTestStruct TestStruct2(NoInit);
+				TestStruct2.StaticSingleElement[0] = 998;
+
+				const FName Member = GET_MEMBER_NAME_CHECKED(FStructSerializerArrayTestStruct, StaticSingleElement);
+				FProperty* Property = FindFProperty<FProperty>(FStructSerializerArrayTestStruct::StaticStruct(), Member);
+
+				constexpr int32 TestIndex = 0;
+				FStructSerializer::SerializeElement(&TestStruct, Property, TestIndex, SerializerBackend, Policies);
+				Test.TestTrue(TEXT("Deserialization must succeed"), FStructDeserializer::DeserializeElement(&TestStruct2, *FStructSerializerArrayTestStruct::StaticStruct(), TestIndex, DeserializerBackend, DeserializerPolicies));
+				Test.TestEqual<int32>(TEXT("Arrays.StaticSingleElement[0] must be the same before and after de-/serialization"), TestStruct.StaticSingleElement[TestIndex], TestStruct2.StaticSingleElement[TestIndex]);
+			}
+
+			//static float array element
+			{
+				TArray<uint8> Buffer;
+				FMemoryReader Reader(Buffer);
+				FMemoryWriter Writer(Buffer);
+
+				TSerializerBackend SerializerBackend(Writer, EStructSerializerBackendFlags::Default);
+				TDeserializerBackend DeserializerBackend(Reader);
+
+				FStructSerializerArrayTestStruct TestStruct = OriginalStruct.Arrays;
+				FStructSerializerArrayTestStruct TestStruct2(NoInit);
+				FMemory::Memset(&TestStruct2.StaticFloatArray, 99, sizeof(TestStruct2.StaticFloatArray));
+
+				const FName Member = GET_MEMBER_NAME_CHECKED(FStructSerializerArrayTestStruct, StaticFloatArray);
+				FProperty* Property = FindFProperty<FProperty>(FStructSerializerArrayTestStruct::StaticStruct(), Member);
+
+				constexpr int32 TestIndex = 1;
+				FStructSerializer::SerializeElement(&TestStruct, Property, TestIndex, SerializerBackend, Policies);
+				Test.TestTrue(TEXT("Deserialization must succeed"), FStructDeserializer::DeserializeElement(&TestStruct2, *FStructSerializerArrayTestStruct::StaticStruct(), TestIndex, DeserializerBackend, DeserializerPolicies));
+				Test.TestNotEqual<int32>(TEXT("Arrays.StaticFloatArray[0] must not be the same before and after de-/serialization of element 1"), TestStruct.StaticFloatArray[0], TestStruct2.StaticFloatArray[0]);
+				Test.TestEqual<int32>(TEXT("Arrays.StaticFloatArray[1] must be the same before and after de-/serialization"), TestStruct.StaticFloatArray[TestIndex], TestStruct2.StaticFloatArray[TestIndex]);
+				Test.TestNotEqual<int32>(TEXT("Arrays.StaticFloatArray[2] must not be the same before and after de-/serialization of element 1"), TestStruct.StaticFloatArray[2], TestStruct2.StaticFloatArray[2]);
+			}
+
+			//TMap<int32, FString> element
+			{
+				TArray<uint8> Buffer;
+				FMemoryReader Reader(Buffer);
+				FMemoryWriter Writer(Buffer);
+
+				TSerializerBackend SerializerBackend(Writer, EStructSerializerBackendFlags::Default);
+				TDeserializerBackend DeserializerBackend(Reader);
+
+				FStructSerializerMapTestStruct TestStruct = OriginalStruct.Maps;
+				FStructSerializerMapTestStruct TestStruct2(NoInit);
+				CopyKeys(TestStruct2.IntToStr, TestStruct.IntToStr);
+
+				const FName Member = GET_MEMBER_NAME_CHECKED(FStructSerializerMapTestStruct, IntToStr);
+				FProperty* Property = FindFProperty<FProperty>(FStructSerializerMapTestStruct::StaticStruct(), Member);
+
+				constexpr int32 TestIndex = 1;
+				FStructSerializer::SerializeElement(&TestStruct, Property, TestIndex, SerializerBackend, Policies);
+				Test.TestTrue(TEXT("Deserialization must succeed"), FStructDeserializer::DeserializeElement(&TestStruct2, *FStructSerializerMapTestStruct::StaticStruct(), TestIndex, DeserializerBackend, DeserializerPolicies));
+
+				TArray<int32> Keys;
+				Keys.Reserve(TestStruct.IntToStr.Num());
+				TestStruct.IntToStr.GenerateKeyArray(Keys);
+				Test.TestNotEqual<FString>(TEXT("Maps.IntToStr[0] must not be the same before and after de-/serialization of element 1"), TestStruct.IntToStr[Keys[0]], TestStruct2.IntToStr[Keys[0]]);
+				Test.TestEqual<FString>(TEXT("Maps.IntToStr[1] must be the same before and after de-/serialization of element 1"), TestStruct.IntToStr[Keys[TestIndex]], TestStruct2.IntToStr[Keys[TestIndex]]);
+				Test.TestNotEqual<FString>(TEXT("Maps.IntToStr[2] must not be the same before and after de-/serialization of element 1"), TestStruct.IntToStr[Keys[2]], TestStruct2.IntToStr[Keys[2]]);
+			}
+
+			//TMap<FString, FVector> element
+			{
+				TArray<uint8> Buffer;
+				FMemoryReader Reader(Buffer);
+				FMemoryWriter Writer(Buffer);
+
+				TSerializerBackend SerializerBackend(Writer, EStructSerializerBackendFlags::Default);
+				TDeserializerBackend DeserializerBackend(Reader);
+
+				FStructSerializerMapTestStruct TestStruct = OriginalStruct.Maps;
+				FStructSerializerMapTestStruct TestStruct2(NoInit);
+				CopyKeys(TestStruct2.StrToVec, TestStruct.StrToVec);
+
+				const FName Member = GET_MEMBER_NAME_CHECKED(FStructSerializerMapTestStruct, StrToVec);
+				FProperty* Property = FindFProperty<FProperty>(FStructSerializerMapTestStruct::StaticStruct(), Member);
+
+				constexpr int32 TestIndex = 1;
+				FStructSerializer::SerializeElement(&TestStruct, Property, TestIndex, SerializerBackend, Policies);
+				Test.TestTrue(TEXT("Deserialization must succeed"), FStructDeserializer::DeserializeElement(&TestStruct2, *FStructSerializerMapTestStruct::StaticStruct(), TestIndex, DeserializerBackend, DeserializerPolicies));
+
+				TArray<FString> Keys;
+				Keys.Reserve(TestStruct.IntToStr.Num());
+				TestStruct.StrToVec.GenerateKeyArray(Keys);
+				Test.TestNotEqual<FVector>(TEXT("Maps.StrToVec[0] must not be the same before and after de-/serialization of element 1"), TestStruct.StrToVec[Keys[0]], TestStruct2.StrToVec[Keys[0]]);
+				Test.TestEqual<FVector>(TEXT("Maps.StrToVec[1] must be the same before and after de-/serialization of element 1"), TestStruct.StrToVec[Keys[TestIndex]], TestStruct2.StrToVec[Keys[TestIndex]]);
+				Test.TestNotEqual<FVector>(TEXT("Maps.StrToVec[2] must not be the same before and after de-/serialization of element 1"), TestStruct.StrToVec[Keys[2]], TestStruct2.StrToVec[Keys[2]]);
+			}
+
+			//TSet<FName> element
+			{
+				TArray<uint8> Buffer;
+				FMemoryReader Reader(Buffer);
+				FMemoryWriter Writer(Buffer);
+
+				TSerializerBackend SerializerBackend(Writer, EStructSerializerBackendFlags::Default);
+				TDeserializerBackend DeserializerBackend(Reader);
+
+				FStructSerializerSetTestStruct TestStruct = OriginalStruct.Sets;
+				FStructSerializerSetTestStruct TestStruct2(NoInit);
+				TestStruct2.NameSet = { TEXT("Pre1"), TEXT("Pre2") , TEXT("Pre3") };
+
+				const FName Member = GET_MEMBER_NAME_CHECKED(FStructSerializerSetTestStruct, NameSet);
+				FProperty* Property = FindFProperty<FProperty>(FStructSerializerSetTestStruct::StaticStruct(), Member);
+
+				constexpr int32 TestIndex = 1;
+				FStructSerializer::SerializeElement(&TestStruct, Property, TestIndex, SerializerBackend, Policies);
+				Test.TestTrue(TEXT("Deserialization must succeed"), FStructDeserializer::DeserializeElement(&TestStruct2, *FStructSerializerSetTestStruct::StaticStruct(), TestIndex, DeserializerBackend, DeserializerPolicies));
+
+				TArray<FName> SetArray1 = TestStruct.NameSet.Array();
+				TArray<FName> SetArray2 = TestStruct2.NameSet.Array();
+				Test.TestNotEqual<FName>(TEXT("Sets.NameSet[0] must not be the same before and after de-/serialization of element 1"), SetArray1[0], SetArray2[0]);
+				Test.TestEqual<FName>(TEXT("Sets.NameSet[1] must be the same before and after de-/serialization of element 1"), SetArray1[TestIndex], SetArray2[TestIndex]);
+				Test.TestNotEqual<FName>(TEXT("Sets.NameSet[2] must not be the same before and after de-/serialization of element 1"), SetArray1[2], SetArray2[2]);
+			}
+		}
+	}
+
 	void TestSerialization( FAutomationTestBase& Test, IStructSerializerBackend& SerializerBackend, IStructDeserializerBackend& DeserializerBackend )
 	{
 		// serialization
@@ -54,72 +531,24 @@ namespace StructSerializerTest
 		}
 
 		// test numerics
-		Test.TestEqual<int8>(TEXT("Numerics.Int8 value must be the same before and after de-/serialization"), TestStruct.Numerics.Int8, TestStruct2.Numerics.Int8);
-		Test.TestEqual<int16>(TEXT("Numerics.Int16 value must be the same before and after de-/serialization"), TestStruct.Numerics.Int16, TestStruct2.Numerics.Int16);
-		Test.TestEqual<int32>(TEXT("Numerics.Int32 value must be the same before and after de-/serialization"), TestStruct.Numerics.Int32, TestStruct2.Numerics.Int32);
-		Test.TestEqual<int64>(TEXT("Numerics.Int64 value must be the same before and after de-/serialization"), TestStruct.Numerics.Int64, TestStruct2.Numerics.Int64);
-		Test.TestEqual<uint8>(TEXT("Numerics.UInt8 value must be the same before and after de-/serialization"), TestStruct.Numerics.UInt8, TestStruct2.Numerics.UInt8);
-		Test.TestEqual<uint16>(TEXT("Numerics.UInt16 value must be the same before and after de-/serialization"), TestStruct.Numerics.UInt16, TestStruct2.Numerics.UInt16);
-		Test.TestEqual<uint32>(TEXT("Numerics.UInt32 value must be the same before and after de-/serialization"), TestStruct.Numerics.UInt32, TestStruct2.Numerics.UInt32);
-		Test.TestEqual<uint64>(TEXT("Numerics.UInt64 value must be the same before and after de-/serialization"), TestStruct.Numerics.UInt64, TestStruct2.Numerics.UInt64);
-		Test.TestEqual<float>(TEXT("Numerics.Float value must be the same before and after de-/serialization"), TestStruct.Numerics.Float, TestStruct2.Numerics.Float);
-		Test.TestEqual<double>(TEXT("Numerics.Double value must be the same before and after de-/serialization"), TestStruct.Numerics.Double, TestStruct2.Numerics.Double);
+		ValidateNumerics(Test, TestStruct.Numerics, TestStruct2.Numerics);
 
 		// test booleans
-		Test.TestEqual<bool>(TEXT("Booleans.BoolFalse must be the same before and after de-/serialization"), TestStruct.Booleans.BoolFalse, TestStruct2.Booleans.BoolFalse);
-		Test.TestEqual<bool>(TEXT("Booleans.BoolTrue must be the same before and after de-/serialization"), TestStruct.Booleans.BoolTrue, TestStruct2.Booleans.BoolTrue);
-		Test.TestEqual<bool>(TEXT("Booleans.Bitfield0 must be the same before and after de-/serialization"), TestStruct.Booleans.Bitfield0, TestStruct2.Booleans.Bitfield0);
-		Test.TestEqual<bool>(TEXT("Booleans.Bitfield1 must be the same before and after de-/serialization"), TestStruct.Booleans.Bitfield1, TestStruct2.Booleans.Bitfield1);
-		Test.TestEqual<bool>(TEXT("Booleans.Bitfield2Set must be the same before and after de-/serialization"), TestStruct.Booleans.Bitfield2Set, TestStruct2.Booleans.Bitfield2Set);
-		Test.TestEqual<bool>(TEXT("Booleans.Bitfield3 must be the same before and after de-/serialization"), TestStruct.Booleans.Bitfield3, TestStruct2.Booleans.Bitfield3);
-		Test.TestEqual<bool>(TEXT("Booleans.Bitfield4Set must be the same before and after de-/serialization"), TestStruct.Booleans.Bitfield4Set, TestStruct2.Booleans.Bitfield4Set);
-		Test.TestEqual<bool>(TEXT("Booleans.Bitfield5Set must be the same before and after de-/serialization"), TestStruct.Booleans.Bitfield5Set, TestStruct2.Booleans.Bitfield5Set);
-		Test.TestEqual<bool>(TEXT("Booleans.Bitfield6 must be the same before and after de-/serialization"), TestStruct.Booleans.Bitfield6, TestStruct2.Booleans.Bitfield6);
-		Test.TestEqual<bool>(TEXT("Booleans.Bitfield7 must be the same before and after de-/serialization"), TestStruct.Booleans.Bitfield7Set, TestStruct2.Booleans.Bitfield7Set);
-
+		ValidateBooleans(Test, TestStruct.Booleans, TestStruct2.Booleans);
+	
 		// test objects
-		Test.TestEqual<class UClass*>(TEXT("Objects.Class must be the same before and after de-/serialization"), TestStruct.Objects.Class, TestStruct2.Objects.Class);
-		Test.TestEqual<TSubclassOf<class UMetaData>>(TEXT("Objects.SubClass must be the same before and after de-/serialization"), TestStruct.Objects.SubClass, TestStruct2.Objects.SubClass);
-		Test.TestEqual<TSoftClassPtr<class UMetaData>>(TEXT("Objects.SoftClass must be the same before and after de-/serialization"), TestStruct.Objects.SoftClass, TestStruct2.Objects.SoftClass);
-		Test.TestEqual<UObject*>(TEXT("Objects.Object must be the same before and after de-/serialization"), TestStruct.Objects.Object, TestStruct2.Objects.Object);
-		Test.TestEqual<TWeakObjectPtr<class UMetaData>>(TEXT("Objects.WeakObject must be the same before and after de-/serialization"), TestStruct.Objects.WeakObject, TestStruct2.Objects.WeakObject);
-		Test.TestEqual<TSoftObjectPtr<class UMetaData>>(TEXT("Objects.SoftObject must be the same before and after de-/serialization"), TestStruct.Objects.SoftObject, TestStruct2.Objects.SoftObject);
-		Test.TestEqual<FSoftClassPath>(TEXT("Objects.ClassPath must be the same before and after de-/serialization"), TestStruct.Objects.ClassPath, TestStruct2.Objects.ClassPath);
-		Test.TestEqual<FSoftObjectPath>(TEXT("Objects.ObjectPath must be the same before and after de-/serialization"), TestStruct.Objects.ObjectPath, TestStruct2.Objects.ObjectPath);
+		ValidateObjects(Test, TestStruct.Objects, TestStruct2.Objects);
 
 		// test built-ins
-		Test.TestEqual<FGuid>(TEXT("Builtins.Guid must be the same before and after de-/serialization"), TestStruct.Builtins.Guid, TestStruct2.Builtins.Guid);
-		Test.TestEqual<FName>(TEXT("Builtins.Name must be the same before and after de-/serialization"), TestStruct.Builtins.Name, TestStruct2.Builtins.Name);
-		Test.TestEqual<FString>(TEXT("Builtins.String must be the same before and after de-/serialization"), TestStruct.Builtins.String, TestStruct2.Builtins.String);
-		Test.TestEqual<FString>(TEXT("Builtins.Text must be the same before and after de-/serialization"), TestStruct.Builtins.Text.ToString(), TestStruct2.Builtins.Text.ToString());
-		Test.TestEqual<FVector>(TEXT("Builtins.Vector must be the same before and after de-/serialization"), TestStruct.Builtins.Vector, TestStruct2.Builtins.Vector);
-		Test.TestEqual<FVector4>(TEXT("Builtins.Vector4 must be the same before and after de-/serialization"), TestStruct.Builtins.Vector4, TestStruct2.Builtins.Vector4);
-		Test.TestEqual<FRotator>(TEXT("Builtins.Rotator must be the same before and after de-/serialization"), TestStruct.Builtins.Rotator, TestStruct2.Builtins.Rotator);
-		Test.TestEqual<FQuat>(TEXT("Builtins.Quat must be the same before and after de-/serialization"), TestStruct.Builtins.Quat, TestStruct2.Builtins.Quat);
-		Test.TestEqual<FColor>(TEXT("Builtins.Color must be the same before and after de-/serialization"), TestStruct.Builtins.Color, TestStruct2.Builtins.Color);
+		ValidateBuiltIns(Test, TestStruct.Builtins, TestStruct2.Builtins);
 
 		// test arrays
-		Test.TestEqual<TArray<int32>>(TEXT("Arrays.Int32Array must be the same before and after de-/serialization"), TestStruct.Arrays.Int32Array, TestStruct2.Arrays.Int32Array);
-		Test.TestEqual<TArray<uint8>>(TEXT("Arrays.ByteArray must be the same before and after de-/serialization"), TestStruct.Arrays.ByteArray, TestStruct2.Arrays.ByteArray);
-		Test.TestEqual<int32>(TEXT("Arrays.StaticSingleElement[0] must be the same before and after de-/serialization"), TestStruct.Arrays.StaticSingleElement[0], TestStruct2.Arrays.StaticSingleElement[0]);
-		Test.TestEqual<int32>(TEXT("Arrays.StaticInt32Array[0] must be the same before and after de-/serialization"), TestStruct.Arrays.StaticInt32Array[0], TestStruct2.Arrays.StaticInt32Array[0]);
-		Test.TestEqual<int32>(TEXT("Arrays.StaticInt32Array[1] must be the same before and after de-/serialization"), TestStruct.Arrays.StaticInt32Array[1], TestStruct2.Arrays.StaticInt32Array[1]);
-		Test.TestEqual<int32>(TEXT("Arrays.StaticInt32Array[2] must be the same before and after de-/serialization"), TestStruct.Arrays.StaticInt32Array[2], TestStruct2.Arrays.StaticInt32Array[2]);
-		Test.TestEqual<float>(TEXT("Arrays.StaticFloatArray[0] must be the same before and after de-/serialization"), TestStruct.Arrays.StaticFloatArray[0], TestStruct2.Arrays.StaticFloatArray[0]);
-		Test.TestEqual<float>(TEXT("Arrays.StaticFloatArray[1] must be the same before and after de-/serialization"), TestStruct.Arrays.StaticFloatArray[1], TestStruct2.Arrays.StaticFloatArray[1]);
-		Test.TestEqual<float>(TEXT("Arrays.StaticFloatArray[2] must be the same before and after de-/serialization"), TestStruct.Arrays.StaticFloatArray[2], TestStruct2.Arrays.StaticFloatArray[2]);
-		Test.TestEqual<TArray<FVector>>(TEXT("Arrays.VectorArray must be the same before and after de-/serialization"), TestStruct.Arrays.VectorArray, TestStruct2.Arrays.VectorArray);
+		ValidateArrays(Test, TestStruct.Arrays, TestStruct2.Arrays);
 
 		// test maps
-		Test.TestTrue(TEXT("Maps.IntToStr must be the same before and after de-/serialization"), TestStruct.Maps.IntToStr.OrderIndependentCompareEqual(TestStruct2.Maps.IntToStr));
-		Test.TestTrue(TEXT("Maps.StrToStr must be the same before and after de-/serialization"), TestStruct.Maps.StrToStr.OrderIndependentCompareEqual(TestStruct2.Maps.StrToStr));
-		Test.TestTrue(TEXT("Maps.StrToVec must be the same before and after de-/serialization"), TestStruct.Maps.StrToVec.OrderIndependentCompareEqual(TestStruct2.Maps.StrToVec));
-
+		ValidateMaps(Test, TestStruct.Maps, TestStruct2.Maps);
 		// test sets
-		Test.TestTrue(TEXT("Sets.IntSet must be the same before and after de-/serialization"), TestStruct.Sets.IntSet.Num() == TestStruct2.Sets.IntSet.Num() && TestStruct.Sets.IntSet.Difference(TestStruct2.Sets.IntSet).Num() == 0);
-		Test.TestTrue(TEXT("Sets.StrSet must be the same before and after de-/serialization"), TestStruct.Sets.StrSet.Num() == TestStruct2.Sets.StrSet.Num() && TestStruct.Sets.StrSet.Difference(TestStruct2.Sets.StrSet).Num() == 0);
-		Test.TestTrue(TEXT("Sets.NameSet must be the same before and after de-/serialization"), TestStruct.Sets.NameSet.Num() == TestStruct2.Sets.NameSet.Num() && TestStruct.Sets.NameSet.Difference(TestStruct2.Sets.NameSet).Num() == 0);
-		Test.TestTrue(TEXT("Sets.StructSet must be the same before and after de-/serialization"), TestStruct.Sets.StructSet.Num() == TestStruct2.Sets.StructSet.Num() && TestStruct.Sets.StructSet.Difference(TestStruct2.Sets.StructSet).Num() == 0);
+		ValidateSets(Test, TestStruct.Sets, TestStruct2.Sets);
 	}
 }
 
@@ -169,6 +598,19 @@ bool FStructSerializerTest::RunTest( const FString& Parameters )
 		FCborStructDeserializerBackend DeserializerBackend(Reader, ECborEndianness::StandardCompliant);
 
 		StructSerializerTest::TestSerialization(*this, SerializerBackend, DeserializerBackend);
+	}
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStructElementSerializerTest, "System.Core.Serialization.StructElementSerializer", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FStructElementSerializerTest::RunTest(const FString& Parameters)
+{
+	//Element de/serialization for both types of backend
+	{
+		StructSerializerTest::TestElementSerialization<FJsonStructSerializerBackend, FJsonStructDeserializerBackend>(*this);
+		StructSerializerTest::TestElementSerialization<FCborStructSerializerBackend, FCborStructDeserializerBackend>(*this);
 	}
 
 	return true;

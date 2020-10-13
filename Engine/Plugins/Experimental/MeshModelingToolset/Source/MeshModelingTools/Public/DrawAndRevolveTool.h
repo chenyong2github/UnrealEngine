@@ -43,14 +43,21 @@ public:
 	/** Connect the ends of an open profile to the axis to close the top and bottom of the revolved result. Not relevant if profile curve is closed. */
 	UPROPERTY(EditAnywhere, Category = RevolveSettings, AdvancedDisplay)
 	bool bConnectOpenProfileToAxis = true;
-
-	/** Determines the draw plane and the rotation axis (X in the plane). Can only be edited until the first point is added. */
-	UPROPERTY(EditAnywhere, Category = DrawPlane, meta = (EditCondition = "bAllowedToEditDrawPlane", HideEditConditionToggle))
-	FTransform DrawPlaneAndAxis = FTransform(FRotator(90, 0, 0));
 	
 	/** Determines whether plane control widget snaps to world grid (only relevant if world coordinate mode is active in viewport) .*/
 	UPROPERTY(EditAnywhere, Category = DrawPlane)
 	bool bSnapToWorldGrid = false;
+
+	/** Sets the draw plane origin. The revolution axis is the X axis in the plane. */
+	UPROPERTY(EditAnywhere, Category = DrawPlane, meta = (
+		EditCondition = "bAllowedToEditDrawPlane", HideEditConditionToggle))
+	FVector DrawPlaneOrigin = FVector(0, 0, 0);
+
+	/** Sets the draw plane orientation. The revolution axis is the X axis in the plane. */
+	UPROPERTY(EditAnywhere, Category = DrawPlane, meta = (
+		EditCondition = "bAllowedToEditDrawPlane", HideEditConditionToggle, 
+		UIMin = -180, UIMax = 180, ClampMin = -180000, ClampMax = 18000))
+	FRotator DrawPlaneOrientation = FRotator(90, 0, 0);
 
 	/** Enables/disables snapping while editing the profile curve. */
 	UPROPERTY(EditAnywhere, Category = ProfileCurve)
@@ -114,7 +121,7 @@ protected:
 
 	bool bProfileCurveComplete = false;
 
-	void UpdateRevolutionAxis(const FTransform& PlaneTransform);
+	void UpdateRevolutionAxis();
 
 	UPROPERTY()
 	UCurveControlPointsMechanic* ControlPointsMechanic = nullptr;

@@ -183,18 +183,29 @@ void SVariantManager::Construct(const FArguments& InArgs, TSharedRef<FVariantMan
 		SplitterValues = FSplitterValues(SplitterValuesString);
 	}
 
-	RightPropertiesColumnWidth = 1.0f - SplitterValues.PropertyNameColumn;
-	PropertiesColumnSizeData.LeftColumnWidth = TAttribute<float>(this, &SVariantManager::OnGetPropertiesLeftColumnWidth);
-	PropertiesColumnSizeData.RightColumnWidth = TAttribute<float>(this, &SVariantManager::OnGetPropertiesRightColumnWidth);
-	PropertiesColumnSizeData.OnWidthChanged = SSplitter::FOnSlotResized::CreateSP(this, &SVariantManager::OnSetPropertiesColumnWidth);
+	PropertiesNameColumnWidth = SplitterValues.PropertyNameColumn;
+	PropertiesValueColumnWidth = 1.0f - SplitterValues.ActorColumn - SplitterValues.PropertyNameColumn;
+	DependenciesVariantColumnWidth = SplitterValues.DependenciesVariantColumn;
+	DependenciesControlColumnWidth = 1.0f - SplitterValues.DependenciesVariantSetsColumn - SplitterValues.DependenciesVariantColumn;
 
-	VariantColumnWidth = SplitterValues.DependenciesVariantColumn;
-	ControlsColumnWidth = 1.0f - VariantColumnWidth - SplitterValues.DependenciesVariantSetsColumn;
-	DependenciesColumnSizeData.VariantSetColumnWidth = TAttribute<float>( this, &SVariantManager::OnGetDependenciesVariantSetColumnWidth);
-	DependenciesColumnSizeData.VariantColumnWidth = TAttribute<float>( this, &SVariantManager::OnGetDependenciesVariantColumnWidth);
-	DependenciesColumnSizeData.ControlColumnWidth = TAttribute<float>( this, &SVariantManager::OnGetDependenciesControlColumnWidth);
-	DependenciesColumnSizeData.OnVariantWidthChanged = SSplitter::FOnSlotResized::CreateSP( this, &SVariantManager::OnSetDependenciesVariantColumnWidth);
-	DependenciesColumnSizeData.OnControlWidthChanged = SSplitter::FOnSlotResized::CreateSP( this, &SVariantManager::OnSetDependenciesControlColumnWidth);
+	PropertiesColumnSizeData.LeftColumnWidth = TAttribute<float>( this, &SVariantManager::OnGetPropertiesActorColumnWidth );
+	PropertiesColumnSizeData.MiddleColumnWidth = TAttribute<float>( this, &SVariantManager::OnGetPropertiesNameColumnWidth );
+	PropertiesColumnSizeData.RightColumnWidth = TAttribute<float>( this, &SVariantManager::OnGetPropertiesValueColumnWidth );
+	PropertiesColumnSizeData.OnFirstSplitterChanged = SSplitter::FOnSlotResized::CreateSP( this, &SVariantManager::OnSetPropertiesNameColumnWidth );
+	PropertiesColumnSizeData.OnSecondSplitterChanged = SSplitter::FOnSlotResized::CreateLambda( [ this ]( float InNewWidth )
+	{
+		// We want the actor column to remain fixed while we move the splitter between property names and values
+		float PropertyComboWidth = PropertiesNameColumnWidth + PropertiesValueColumnWidth;
+		float OldActorColumnWidth = 1.0f - PropertyComboWidth;
+		PropertiesValueColumnWidth = InNewWidth;
+		PropertiesNameColumnWidth = 1.0f - PropertiesValueColumnWidth - OldActorColumnWidth;
+	} );
+
+	DependenciesColumnSizeData.LeftColumnWidth = TAttribute<float>( this, &SVariantManager::OnGetDependenciesVariantSetColumnWidth );
+	DependenciesColumnSizeData.MiddleColumnWidth = TAttribute<float>( this, &SVariantManager::OnGetDependenciesVariantColumnWidth );
+	DependenciesColumnSizeData.RightColumnWidth = TAttribute<float>( this, &SVariantManager::OnGetDependenciesControlColumnWidth );
+	DependenciesColumnSizeData.OnFirstSplitterChanged = SSplitter::FOnSlotResized::CreateSP( this, &SVariantManager::OnSetDependenciesVariantColumnWidth );
+	DependenciesColumnSizeData.OnSecondSplitterChanged = SSplitter::FOnSlotResized::CreateSP( this, &SVariantManager::OnSetDependenciesControlColumnWidth );
 
 	InVariantManager->GetSelection().GetOnOutlinerNodeSelectionChanged().AddSP(this, &SVariantManager::OnOutlinerNodeSelectionChanged);
 	InVariantManager->GetSelection().GetOnActorNodeSelectionChanged().AddSP(this, &SVariantManager::OnActorNodeSelectionChanged);
@@ -432,15 +443,15 @@ SVariantManager::~SVariantManager()
 	}
 
 	// Save splitter layout
+	if ( MainSplitter )
 	{
 		FChildren* MainSlots = MainSplitter->GetChildren();
-		FChildren* PropertySlots = PropertiesSplitter->GetChildren();
-		if (MainSlots->Num() > 0 && PropertySlots->Num() > 0)
+		if (MainSlots->Num() > 0)
 		{
 			FSplitterValues Values;
 			Values.VariantColumn = MainSplitter->SlotAt(0).SizeValue.Get();
-			Values.ActorColumn = PropertiesSplitter->SlotAt(0).SizeValue.Get();
-			Values.PropertyNameColumn = OnGetPropertiesLeftColumnWidth();
+			Values.ActorColumn = OnGetPropertiesActorColumnWidth();;
+			Values.PropertyNameColumn = OnGetPropertiesNameColumnWidth();
 			Values.DependenciesVariantSetsColumn = OnGetDependenciesVariantSetColumnWidth();
 			Values.DependenciesVariantColumn = OnGetDependenciesVariantColumnWidth();
 
@@ -3499,7 +3510,8 @@ TSharedRef<SWidget> SVariantManager::GenerateRightTreePropertiesRowContent()
 		.HitDetectionSplitterHandleSize( BorderThickness )
 
 		+ SSplitter::Slot()
-		.Value(SplitterValues.ActorColumn)
+		.Value( PropertiesColumnSizeData.LeftColumnWidth )
+		.OnSlotResized( SSplitter::FOnSlotResized::CreateLambda( []( float InNewWidth ) {} ) )
 		[
 			SNew(SVerticalBox)
 			+ SVerticalBox::Slot()
@@ -3574,13 +3586,26 @@ TSharedRef<SWidget> SVariantManager::GenerateRightTreePropertiesRowContent()
 			.VAlign(VAlign_Fill)
 			.FillHeight(1.0f)
 			[
-				ActorListView.ToSharedRef()
+				SNew(SBox)
+				.MinDesiredHeight(30.0f)
+				[
+					ActorListView.ToSharedRef()
+				]
 			]
 		]
 
 		// Properties column
 		+ SSplitter::Slot()
-		.Value(1.0f - SplitterValues.ActorColumn)
+		.Value( TAttribute<float>::Create( TAttribute<float>::FGetter::CreateLambda( [this]()
+		{
+			return PropertiesNameColumnWidth + PropertiesValueColumnWidth;
+		} ) ) )
+		.OnSlotResized( SSplitter::FOnSlotResized::CreateLambda( [this]( float InNewWidth )
+		{
+			// InNewWidth is the new size of the property names + property values "combo", as they're a nested splitter
+			// We want to keep the property values column fixed in size though
+			PropertiesNameColumnWidth = FMath::Max(InNewWidth - PropertiesValueColumnWidth, 0.01f);
+		} ) )
 		[
 			SNew(SVerticalBox)
 			+ SVerticalBox::Slot()
@@ -3595,12 +3620,8 @@ TSharedRef<SWidget> SVariantManager::GenerateRightTreePropertiesRowContent()
 				.HitDetectionSplitterHandleSize( BorderThickness )
 
 				+ SSplitter::Slot()
-				.Value(PropertiesColumnSizeData.LeftColumnWidth)
-				.OnSlotResized(SSplitter::FOnSlotResized::CreateLambda([](float InNewWidth)
-				{
-					//This has to be bound or the splitter will take it upon itself to determine the size
-					//We do nothing here because it is handled by the column size data
-				}))
+				.Value( PropertiesColumnSizeData.MiddleColumnWidth )
+				.OnSlotResized( SSplitter::FOnSlotResized::CreateLambda( []( float InNewWidth ) {} ) )
 				[
 					SNew(SBox)
 					.HeightOverride(VM_COMMON_HEADER_MAX_HEIGHT)
@@ -3653,8 +3674,8 @@ TSharedRef<SWidget> SVariantManager::GenerateRightTreePropertiesRowContent()
 					]
 				]
 				+ SSplitter::Slot()
-				.Value(PropertiesColumnSizeData.RightColumnWidth)
-				.OnSlotResized(PropertiesColumnSizeData.OnWidthChanged)
+				.Value( PropertiesColumnSizeData.RightColumnWidth )
+				.OnSlotResized( PropertiesColumnSizeData.OnSecondSplitterChanged )
 				[
 					SNew(SBox)
 					.HeightOverride(VM_COMMON_HEADER_MAX_HEIGHT)
@@ -3719,7 +3740,7 @@ TSharedRef<SWidget> SVariantManager::GenerateRightTreeDependenciesRowContent()
 			.HitDetectionSplitterHandleSize( BorderThickness )
 
 			+SSplitter::Slot()
-			.Value(DependenciesColumnSizeData.VariantSetColumnWidth)
+			.Value(DependenciesColumnSizeData.LeftColumnWidth)
 			.OnSlotResized(SSplitter::FOnSlotResized::CreateLambda([](float InNewWidth)
 			{
 				//This has to be bound or the splitter will take it upon itself to determine the size
@@ -3737,8 +3758,8 @@ TSharedRef<SWidget> SVariantManager::GenerateRightTreeDependenciesRowContent()
 				]
 			]
 			+ SSplitter::Slot()
-			.Value(DependenciesColumnSizeData.VariantColumnWidth)
-			.OnSlotResized(DependenciesColumnSizeData.OnVariantWidthChanged)
+			.Value( DependenciesColumnSizeData.MiddleColumnWidth )
+			.OnSlotResized( DependenciesColumnSizeData.OnFirstSplitterChanged )
 			[
 				SNew(SBox)
 				.HeightOverride(VM_COMMON_HEADER_MAX_HEIGHT)
@@ -3752,8 +3773,8 @@ TSharedRef<SWidget> SVariantManager::GenerateRightTreeDependenciesRowContent()
 				]
 			]
 			+ SSplitter::Slot()
-			.Value(DependenciesColumnSizeData.ControlColumnWidth)
-			.OnSlotResized(DependenciesColumnSizeData.OnControlWidthChanged)
+			.Value( DependenciesColumnSizeData.RightColumnWidth )
+			.OnSlotResized( DependenciesColumnSizeData.OnSecondSplitterChanged )
 			[
 				SNullWidget::NullWidget
 			]
@@ -3765,11 +3786,15 @@ TSharedRef<SWidget> SVariantManager::GenerateRightTreeDependenciesRowContent()
 		.VAlign(VAlign_Top)
 		.AutoHeight()
 		[
-			SAssignNew(DependenciesList, SListView<FVariantDependencyModelPtr>)
-			.SelectionMode(ESelectionMode::None)
-			.ListItemsSource(&DisplayedDependencies)
-			.OnGenerateRow(this, &SVariantManager::GenerateDependencyRow, true)
-			.Visibility(EVisibility::Visible)
+			SNew( SBox )
+			.MinDesiredHeight( 30.0f )
+			[
+				SAssignNew(DependenciesList, SListView<FVariantDependencyModelPtr>)
+				.SelectionMode(ESelectionMode::None)
+				.ListItemsSource(&DisplayedDependencies)
+				.OnGenerateRow(this, &SVariantManager::GenerateDependencyRow, true)
+				.Visibility(EVisibility::Visible)
+			]
 		]
 
 		// Separator

@@ -24,5 +24,10 @@ public class TestPALTarget : TargetRules
 
 		// Make a console application under Windows, so entry point is main() everywhere
 		bIsBuildingConsoleApplication = true;
+
+		if (Target.Platform == UnrealTargetPlatform.Linux && Target.Configuration != UnrealTargetConfiguration.Shipping)
+		{
+			GlobalDefinitions.Add("COMPILE_FORK_PAGE_PROTECTOR=1");
+		}
 	}
 }

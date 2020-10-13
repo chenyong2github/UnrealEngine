@@ -728,11 +728,6 @@ public:
 	FVector2D ProjectionMatrixJitterAmount;
 
 	/**
-	* If set, forces the exposure compensation on a render. Useful when doing tiled renders where auto-exposure is disabled.
-	*/
-	TOptional<float> ExposureCompensation;
-
-	/**
 	* Any additional texture mip map bias that should be added when rendering. Can be used to force extra sharpness. A more negative number means more likely to use a higher quality mip map.
 	*/
 	float TextureSharpnessBias;

@@ -433,7 +433,7 @@ bool FMovieSceneCameraAnimSectionTemplate::UpdateCamera(ACameraActor& TempCamera
 /** Persistent data that exists as long as a given camera anim section is being evaluated */
 struct FMovieSceneCameraShakeSectionInstanceData : IPersistentEvaluationData
 {
-	TWeakObjectPtr<UCameraShake> CameraShakeInst;
+	TWeakObjectPtr<UMatineeCameraShake> CameraShakeInst;
 };
 
 /** Pre animated token that restores a camera animation */
@@ -445,7 +445,7 @@ struct FPreAnimatedCameraShakeTokenProducer : IMovieScenePreAnimatedTokenProduce
 		{
 			virtual void RestoreState(UObject& InObject, IMovieScenePlayer& Player) override
 			{
-				UCameraShake* CameraShake = CastChecked<UCameraShake>(&InObject);
+				UCameraShakeBase* CameraShake = CastChecked<UCameraShakeBase>(&InObject);
 				CameraShake->StopShake(true);
 				CameraShake->RemoveFromRoot();
 			}
@@ -470,7 +470,7 @@ bool FMovieSceneCameraShakeSectionTemplate::EnsureSetup(const FMovieSceneEvaluat
 {
 	// Get the camera anim instance from the section data (local to this specific section)
 	FMovieSceneCameraShakeSectionInstanceData& SectionData = PersistentData.GetOrAddSectionData<FMovieSceneCameraShakeSectionInstanceData>();
-	UCameraShake* CameraShakeInstance = SectionData.CameraShakeInst.Get();
+	UMatineeCameraShake* CameraShakeInstance = SectionData.CameraShakeInst.Get();
 
 	if (!CameraShakeInstance)
 	{
@@ -479,7 +479,7 @@ bool FMovieSceneCameraShakeSectionTemplate::EnsureSetup(const FMovieSceneEvaluat
 			return false;
 		}
 
-		CameraShakeInstance = NewObject<UCameraShake>(GetTransientPackage(), SourceData.ShakeClass);
+		CameraShakeInstance = NewObject<UMatineeCameraShake>(GetTransientPackage(), SourceData.ShakeClass);
 		if (CameraShakeInstance)
 		{
 			// Store the anim instance with the section and always remove it when we've finished evaluating
@@ -492,7 +492,7 @@ bool FMovieSceneCameraShakeSectionTemplate::EnsureSetup(const FMovieSceneEvaluat
 			// make it root so GC doesn't take it away
 			CameraShakeInstance->AddToRoot();
 			CameraShakeInstance->SetTempCameraAnimActor(TempCameraActor);
-			CameraShakeInstance->PlayShake(nullptr, SourceData.PlayScale, SourceData.PlaySpace, SourceData.UserDefinedPlaySpace);
+			CameraShakeInstance->StartShake(nullptr, SourceData.PlayScale, SourceData.PlaySpace, SourceData.UserDefinedPlaySpace);
 			if (CameraShakeInstance->AnimInst)
 			{
 				CameraShakeInstance->AnimInst->SetStopAutomatically(false);
@@ -510,7 +510,7 @@ bool FMovieSceneCameraShakeSectionTemplate::UpdateCamera(ACameraActor& TempCamer
 {
 	// Get the camera anim instance from the section data (local to this specific section)
 	FMovieSceneCameraShakeSectionInstanceData& SectionData = PersistentData.GetOrAddSectionData<FMovieSceneCameraShakeSectionInstanceData>();
-	UCameraShake* CameraShakeInstance = SectionData.CameraShakeInst.Get();
+	UMatineeCameraShake* CameraShakeInstance = SectionData.CameraShakeInst.Get();
 
 	if (!ensure(CameraShakeInstance))
 	{

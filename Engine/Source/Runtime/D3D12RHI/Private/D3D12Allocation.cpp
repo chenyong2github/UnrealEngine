@@ -10,6 +10,10 @@
 #include "Misc/BufferedOutputDevice.h"
 #include "HAL/PlatformStackWalk.h"
 
+#ifndef NEEDS_D3D12_INDIRECT_ARGUMENT_HEAP_WORKAROUND
+#define NEEDS_D3D12_INDIRECT_ARGUMENT_HEAP_WORKAROUND 0
+#endif
+
 #if D3D12RHI_SEGREGATED_TEXTURE_ALLOC
 static int32 GD3D12ReadOnlyTextureAllocatorMinPoolSize = 4 * 1024 * 1024;
 static FAutoConsoleVariableRef CVarD3D12ReadOnlyTextureAllocatorMinPoolSize(
@@ -50,14 +54,6 @@ static FAutoConsoleVariableRef CVarD3D12FastAllocatorMinPagesToRetain(
 	GD3D12FastAllocatorMinPagesToRetain,
 	TEXT("Minimum number of pages to retain. Pages below this limit will never be released. Pages above can be released after being unused for a certain number of frames."),
 	ECVF_Default);
- 
-// TODO: TEMP HACK - all D3D12 platforms should pass this flag. Incoming update will fix the problem.
-static int32 GD3D12SkipIndirectArgsHeap = 0;
-static FAutoConsoleVariableRef CVarD3D12SkipIndirectArgsHeap(
-	TEXT("d3d12.SkipIndirectArgsHeap"),
-	GD3D12SkipIndirectArgsHeap,
-	TEXT("1: Enable temporary hack to skip IA flag on heaps."),
-	ECVF_ReadOnly);
 
 namespace ED3D12AllocatorID
 {
@@ -947,8 +943,7 @@ void* FD3D12DynamicHeapAllocator::AllocUploadResource(uint32 Size, uint32 Alignm
 		Size = 16;
 	}
 	
-	//Work loads like infiltrator create enourmous amounts of buffer space in setup
-	//clean up as we go as it can even run out of memory before the first frame.
+	// Clean up the release queue of resources which are currently not used by the GPU anymore
 	if (Adapter->GetDeferredDeletionQueue().QueueSize() > 128)
 	{
 		Adapter->GetDeferredDeletionQueue().ReleaseResources(true, false);
@@ -1021,11 +1016,9 @@ FD3D12ResourceAllocator::FInitConfig FD3D12DefaultBufferPool::GetResourceAllocat
 	if (EnumHasAnyFlags(InBufferUsage, BUF_DrawIndirect))
 	{
 		check(InResourceFlags & D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
-		if (GD3D12SkipIndirectArgsHeap == 0) // TEMP HACK
-		{
-			// TODO: TEMP HACK - all D3D12 platforms should pass this flag
-			InitConfig.HeapFlags |= D3D12RHI_HEAP_FLAG_ALLOW_INDIRECT_BUFFERS;
-		}
+#if !NEEDS_D3D12_INDIRECT_ARGUMENT_HEAP_WORKAROUND
+		InitConfig.HeapFlags |= D3D12RHI_HEAP_FLAG_ALLOW_INDIRECT_BUFFERS;
+#endif
 	}
 
 	return InitConfig;
@@ -1900,7 +1893,7 @@ void FD3D12SegListAllocator::VerifyEmpty()
 		}
 	}
 
-	checkf(TotalBytesRequested == 0,
+	ensureMsgf(TotalBytesRequested == 0,
 		TEXT("FD3D12SegListAllocator contains %lld allocated bytes but is expected to be empty. This likely means a memory leak. Use d3d12.SegListTrackLeaks=1 CVar to print allocations to the log."),
 		(uint64)TotalBytesRequested);
 }

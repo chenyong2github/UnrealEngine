@@ -100,6 +100,14 @@ class FThreadTimingTrack : public FTimingEventsTrack
 public:
 	typedef typename Trace::ITimeline<Trace::FTimingProfilerEvent>::FTimelineEventInfo TimelineEventInfo;
 
+	struct FPendingEventInfo
+	{
+		double StartTime;
+		double EndTime;
+		uint32 Depth;
+		uint32 TimerIndex;
+	};
+
 	explicit FThreadTimingTrack(FThreadTimingSharedState& InSharedState, const FString& InName, const TCHAR* InGroupName, uint32 InTimelineIndex, uint32 InThreadId)
 		: FTimingEventsTrack(InName)
 		, SharedState(InSharedState)

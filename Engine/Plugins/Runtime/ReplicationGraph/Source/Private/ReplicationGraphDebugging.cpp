@@ -664,6 +664,33 @@ FAutoConsoleCommandWithWorldAndArgs NetRepGraphSetDebugActorConnectionCmd(TEXT("
 // --------------------------------------------------------------------------------------------------------------------------------------------
 // --------------------------------------------------------------------------------------------------------------------------------------------
 
+#if !(UE_BUILD_SHIPPING)
+FAutoConsoleCommandWithWorldAndArgs NetRepGraphSetCellSize(TEXT("Net.RepGraph.Spatial.SetCellSize"), TEXT(""),
+FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+{
+	float NewGridSize = 0.f;
+	if (Args.Num() > 0)
+	{
+		LexFromString(NewGridSize, *Args[0]);
+	}
+
+	if (NewGridSize <= 0.f)
+	{
+		return;
+	}
+
+	for (TObjectIterator<UReplicationGraphNode_GridSpatialization2D> It; It; ++It)
+	{
+		UReplicationGraphNode_GridSpatialization2D* Node = *It;
+		if (Node && Node->HasAnyFlags(RF_ClassDefaultObject) == false)
+		{
+			Node->CellSize = NewGridSize;
+			Node->ForceRebuild();
+		}
+	}
+}));
+#endif
+
 #if !(UE_BUILD_SHIPPING | UE_BUILD_TEST)
 FAutoConsoleCommandWithWorldAndArgs NetRepGraphForceRebuild(TEXT("Net.RepGraph.Spatial.ForceRebuild"),TEXT(""),
 	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
@@ -680,35 +707,6 @@ FAutoConsoleCommandWithWorldAndArgs NetRepGraphForceRebuild(TEXT("Net.RepGraph.S
 	})
 );
 
-FAutoConsoleCommandWithWorldAndArgs NetRepGraphSetCellSize(TEXT("Net.RepGraph.Spatial.SetCellSize"),TEXT(""),
-	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
-	{
-		float NewGridSize = 0.f;
-		if (Args.Num() > 0 )
-		{
-			LexFromString(NewGridSize, *Args[0]);
-		}
-
-		if (NewGridSize <= 0.f)
-		{
-			return;
-		}
-
-		for (TObjectIterator<UReplicationGraphNode_GridSpatialization2D> It; It; ++It)
-		{
-			UReplicationGraphNode_GridSpatialization2D* Node = *It;
-			if (Node && Node->HasAnyFlags(RF_ClassDefaultObject) == false)
-			{
-				Node->CellSize = NewGridSize;
-				Node->ForceRebuild();
-			}
-		}
-	})
-);
-
-
-
-
 // --------------------------------------------------------------------------------------------------------------------------------------------
 // --------------------------------------------------------------------------------------------------------------------------------------------
 // --------------------------------------------------------------------------------------------------------------------------------------------
@@ -718,7 +716,6 @@ FAutoConsoleCommandWithWorldAndArgs NetRepGraphSetCellSize(TEXT("Net.RepGraph.Sp
 FAutoConsoleCommand RepDriverListsAddTestmd(TEXT("Net.RepGraph.Lists.AddTest"), TEXT(""), FConsoleCommandWithArgsDelegate::CreateLambda([](const TArray< FString >& Args) 
 { 
 	static FActorRepListRefView List;
-	List.PrepareForWrite(true);
 
 	int32 Num = 1;
 	if (Args.Num() > 0 )
@@ -1055,7 +1052,7 @@ void UReplicationGraphNode::LogNode(FReplicationGraphDebugInfo& DebugInfo, const
 
 void LogActorRepList(FReplicationGraphDebugInfo& DebugInfo, FString Prefix, const FActorRepListRefView& List)
 {
-	if (List.IsValid() == false || List.Num() <= 0)
+	if (List.Num() <= 0)
 	{
 		return;
 	}

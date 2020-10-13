@@ -11,29 +11,21 @@
 
 #include "VCamOutputComposure.generated.h"
 
-UCLASS(meta = (DisplayName = "Composure"))
+UCLASS(meta = (DisplayName = "Composure Output Provider"))
 class VCAMCORE_API UVCamOutputComposure : public UVCamOutputProviderBase
 {
 	GENERATED_BODY()
 
 public:
-	virtual void InitializeSafe() override;
-	virtual void Destroy() override;
-	virtual void Tick(const float DeltaTime) override;
-	virtual void SetActive(const bool InActive) override;
 
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 
+	// List of Composure stack Compositing Elements to render the requested UMG into
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Output")
 	TArray<TSoftObjectPtr<ACompositingElement>> LayerTargets;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Output")
-	UTextureRenderTarget2D* RenderTarget;
-
 protected:
 	virtual void CreateUMG() override;
-
-private:
 };

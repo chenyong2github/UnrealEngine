@@ -132,6 +132,7 @@ void FXRTrackingSystemBase::GetMotionControllerData(UObject* WorldContext, const
 	GetObjectsOfClass(UMotionControllerComponent::StaticClass(), MotionControllers);
 
 	MotionControllerData.bValid = false;
+	MotionControllerData.HandIndex = Hand;
 
 	for (int32 MotionControllerIndex = 0; MotionControllerIndex < MotionControllers.Num(); ++MotionControllerIndex)
 	{

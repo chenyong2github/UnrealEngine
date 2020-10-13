@@ -50,8 +50,9 @@ namespace UnrealBuildTool.Rules
                         "UnrealEd",
                         "Slate",
                         "SlateCore",
-						"EditorStyle"
-                    }
+						"EditorStyle",
+						"ActorLayerUtilities"
+					}
 					);
             }
         }

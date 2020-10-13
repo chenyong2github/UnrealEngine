@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DMXSubsystem.h"
+
 #include "Interfaces/IDMXProtocol.h"
 #include "Interfaces/IDMXProtocolUniverse.h"
 #include "DMXProtocolTypes.h"
@@ -11,6 +12,8 @@
 #include "Library/DMXEntityFixtureType.h"
 #include "Library/DMXEntityFixturePatch.h"
 
+#include "AssetData.h"
+#include "AssetRegistryModule.h"
 #include "EngineUtils.h"
 #include "UObject/UObjectIterator.h"
 #include "Async/Async.h"
@@ -105,68 +108,71 @@ void UDMXSubsystem::SendDMX(UDMXEntityFixturePatch* FixturePatch, TMap<FDMXAttri
 		}
 	}
 }
-bool UDMXSubsystem::SetMatrixPixel(UDMXEntityFixturePatch* FixturePatch, FIntPoint Pixel, FDMXAttributeName Attribute, int32 Value)
-{
 
+bool UDMXSubsystem::SetMatrixCellValue(UDMXEntityFixturePatch* FixturePatch, FIntPoint Cell, FDMXAttributeName Attribute, int32 Value)
+{
 	if (FixturePatch == nullptr)
 	{
 		return false;
 	}
 
-	if (!FixturePatch->ParentFixtureTypeTemplate->bPixelFunctionsEnabled)
-	{
-		UE_LOG(DMXSubsystemLog, Error, TEXT("Fixture Patch is not a Matrix Fixture"));
-		return false;
-	}
-
 	if (const UDMXEntityFixtureType* ParentType = FixturePatch->ParentFixtureTypeTemplate)
 	{
+		if (!FixturePatch->ParentFixtureTypeTemplate->bFixtureMatrixEnabled)
+		{
+			UE_LOG(DMXSubsystemLog, Error, TEXT("Fixture Patch is not a Matrix Fixture"));
+			return false;
+		}
+
 		if (ParentType->Modes.Num() < 1)
 		{
-			UE_LOG(DMXSubsystemLog, Error, TEXT("Tried to use Fixture Patch which Parent Fixture Type has no Modes set up."));
+			UE_LOG(DMXSubsystemLog, Error, TEXT("Tried to use Fixture Patch %s which Parent Fixture Type has no Modes set up."), *FixturePatch->GetDisplayName());
 			return false;
 		}
 
-		const int32 ActiveMode = FMath::Min(FixturePatch->ActiveMode, ParentType->Modes.Num() - 1);
-		const FDMXFixtureMode& RelevantMode = ParentType->Modes[ActiveMode];
-
-		const FDMXPixelMatrix& PixelMatrix = RelevantMode.PixelMatrixConfig;
-
-		if (Pixel.X >= PixelMatrix.XPixels || Pixel.X < 0)
+		if(FixturePatch->CanReadActiveMode() == false)
 		{
-			UE_LOG(DMXSubsystemLog, Error, TEXT("Invalid X Coordinate for patch (requested %d, expected in range 0-%d)."), Pixel.X, PixelMatrix.XPixels);
+			UE_LOG(DMXSubsystemLog, Error, TEXT("Invalid active Mode in %s"), *FixturePatch->GetDisplayName());
 			return false;
 		}
 
-		if (Pixel.Y >= PixelMatrix.YPixels || Pixel.Y < 0)
+		const FDMXFixtureMode& RelevantMode = ParentType->Modes[FixturePatch->ActiveMode];
+		const FDMXFixtureMatrix& FixtureMatrixConfig = RelevantMode.FixtureMatrixConfig;
+
+		if (Cell.X >= FixtureMatrixConfig.XCells || Cell.X < 0)
 		{
-			UE_LOG(DMXSubsystemLog, Error, TEXT("Invalid Y Coordinate for patch (requested %d, expected in range 0-%d)."), Pixel.Y, PixelMatrix.YPixels);
+			UE_LOG(DMXSubsystemLog, Error, TEXT("Invalid X Coordinate for patch (requested %d, expected in range 0-%d)."), Cell.X, FixtureMatrixConfig.XCells - 1);
 			return false;
 		}
+
+		if (Cell.Y >= FixtureMatrixConfig.YCells || Cell.Y < 0)
+		{
+			UE_LOG(DMXSubsystemLog, Error, TEXT("Invalid Y Coordinate for patch (requested %d, expected in range 0-%d)."), Cell.Y, FixtureMatrixConfig.YCells - 1);
+			return false;
+		}
+
+		TMap<FDMXAttributeName, int32> AttributeNameChannelMap;
+		GetMatrixCellChannelsAbsolute(FixturePatch, Cell, AttributeNameChannelMap);
 
 		IDMXFragmentMap DMXFragmentMap;
-		TArray<int32> Channels;
-
-		for (const FDMXFixturePixelFunction& PixelFunction : PixelMatrix.PixelFunctions)
+		for (const FDMXFixtureCellAttribute& CellAttribute : FixtureMatrixConfig.CellAttributes)
 		{
-			if (PixelFunction.Attribute.GetAttribute() != Attribute.GetAttribute())
+			if (!AttributeNameChannelMap.Contains(Attribute))
 			{
 				continue;
 			}
 
-			if (!PixelMatrix.GetChannelsFromPixel(Pixel, Attribute, Channels))
-			{
-				return false;
-			}
+			int32 FirstChannel = AttributeNameChannelMap[Attribute];
+			int32 LastChannel = FirstChannel + UDMXEntityFixtureType::NumChannelsToOccupy(CellAttribute.DataType) - 1;
 
-			int32 ChannelValue = 0;
-			uint8* ChannelValueBytes = reinterpret_cast<uint8*>(&ChannelValue);
-			UDMXEntityFixtureType::IntToBytes(PixelFunction.DataType, PixelFunction.bUseLSBMode, Value, ChannelValueBytes);
+			TArray<uint8> ByteArr;
+			IntValueToBytes(Value, CellAttribute.DataType, ByteArr, CellAttribute.bUseLSBMode);
 
-			for (int32 ChannelIndex = 0; ChannelIndex < Channels.Num(); ChannelIndex++)
+			int32 ByteOffset = 0;
+			for (int32 Channel = FirstChannel; Channel <= LastChannel; Channel++)
 			{
-				uint32 FinalChannel = Channels[ChannelIndex] + FixturePatch->ManualStartingAddress - 1;
-				DMXFragmentMap.Add(FinalChannel, ChannelValueBytes[ChannelIndex]);
+				DMXFragmentMap.Add(Channel, ByteArr[ByteOffset]);
+				ByteOffset++;
 			}
 
 			const int32& Universe = FixturePatch->UniverseID;
@@ -186,7 +192,15 @@ bool UDMXSubsystem::SetMatrixPixel(UDMXEntityFixturePatch* FixturePatch, FIntPoi
 					IDMXProtocolPtr Protocol = Controller->DeviceProtocol.GetProtocol();
 					if (Protocol.IsValid())
 					{
+						// If sent DMX will not be looped back via network, input it directly
+						bool bCanLoopback = Protocol->IsReceiveDMXEnabled() && Protocol->IsSendDMXEnabled();
+						if (!bCanLoopback)
+						{
+							Protocol->InputDMXFragment(Universe + Controller->RemoteOffset, DMXFragmentMap);
+						}
+
 						Results.Add(Protocol->SendDMXFragment(Universe + Controller->RemoteOffset, DMXFragmentMap));
+
 						UniversesUsed.Add(RemoteUniverse); // Avoid setting values in the same Universe more than once
 					}
 				}
@@ -205,118 +219,116 @@ bool UDMXSubsystem::SetMatrixPixel(UDMXEntityFixturePatch* FixturePatch, FIntPoi
 		}
 	}
 
-	UE_LOG(DMXSubsystemLog, Error, TEXT("Unable to retrieve Channels from Pixel coordinates."));
+	UE_LOG(DMXSubsystemLog, Error, TEXT("Unable to retrieve Channels from Cell coordinates."));
 	return false;
 }
 
-bool UDMXSubsystem::GetMatrixPixelValue(UDMXEntityFixturePatch* FixturePatch, FIntPoint Pixel /* Pixel X/Y */, TMap<FDMXAttributeName, int32>& AttributeValueMap)
+bool UDMXSubsystem::GetMatrixCellValue(UDMXEntityFixturePatch* FixturePatch, FIntPoint Cells /* Cell X/Y */, TMap<FDMXAttributeName, int32>& AttributeValueMap)
 {
-
 	if (FixturePatch == nullptr)
 	{
 		return false;
 	}
 
-	if (!FixturePatch->ParentFixtureTypeTemplate->bPixelFunctionsEnabled)
-	{
-		UE_LOG(DMXSubsystemLog, Error, TEXT("Fixture Patch is not a Matrix Fixture"));
-		return false;
-	}
-
 	if (const UDMXEntityFixtureType* ParentType = FixturePatch->ParentFixtureTypeTemplate)
 	{
+		if (!FixturePatch->ParentFixtureTypeTemplate->bFixtureMatrixEnabled)
+		{
+			UE_LOG(DMXSubsystemLog, Error, TEXT("Fixture Patch is not a Matrix Fixture"));
+			return false;
+		}
+
 		if (ParentType->Modes.Num() < 1)
 		{
-			UE_LOG(DMXSubsystemLog, Error, TEXT("Tried to use Fixture Patch which Parent Fixture Type has no Modes set up."));
+			UE_LOG(DMXSubsystemLog, Error, TEXT("Tried to use Fixture Patch %s which Parent Fixture Type has no Modes set up."), *FixturePatch->GetDisplayName());
 			return false;
 		}
 
-		const int32 ActiveMode = FMath::Min(FixturePatch->ActiveMode, ParentType->Modes.Num() - 1);
-		const FDMXFixtureMode& RelevantMode = ParentType->Modes[ActiveMode];
-
-		const FDMXPixelMatrix& PixelMatrix = RelevantMode.PixelMatrixConfig;
-
-		if (Pixel.X >= PixelMatrix.XPixels || Pixel.X < 0)
+		if (FixturePatch->CanReadActiveMode() == false)
 		{
-			UE_LOG(DMXSubsystemLog, Error, TEXT("Invalid X Coordinate for patch (requested %d, expected in range 0-%d)."), Pixel.X, PixelMatrix.XPixels);
+			UE_LOG(DMXSubsystemLog, Error, TEXT("Invalid active Mode in Fixture Patch %s"), *FixturePatch->GetDisplayName());
 			return false;
 		}
 
-		if (Pixel.Y >= PixelMatrix.YPixels || Pixel.Y < 0)
+		const FDMXFixtureMode& RelevantMode = ParentType->Modes[FixturePatch->ActiveMode];
+		const FDMXFixtureMatrix& FixtureMatrix = RelevantMode.FixtureMatrixConfig;
+
+		if (Cells.X >= FixtureMatrix.XCells || Cells.X < 0)
 		{
-			UE_LOG(DMXSubsystemLog, Error, TEXT("Invalid Y Coordinate for patch (requested %d, expected in range 0-%d)."), Pixel.Y, PixelMatrix.YPixels);
+			UE_LOG(DMXSubsystemLog, Error, TEXT("Invalid X Coordinate for patch (requested %d, expected in range 0-%d)."), Cells.X, FixtureMatrix.XCells - 1);
 			return false;
 		}
 
-		TArray<int32> Channels;
-		int32 AttributeItr = 0;
-		for (const FDMXFixturePixelFunction& PixelFunction : PixelMatrix.PixelFunctions)
+		if (Cells.Y >= FixtureMatrix.YCells || Cells.Y < 0)
 		{
-			if (!PixelMatrix.GetChannelsFromPixel(Pixel, PixelFunction.Attribute, Channels))
+			UE_LOG(DMXSubsystemLog, Error, TEXT("Invalid Y Coordinate for patch (requested %d, expected in range 0-%d)."), Cells.Y, FixtureMatrix.YCells - 1);
+			return false;
+		}
+
+		const int32& Universe = FixturePatch->UniverseID;
+		const TArray<UDMXEntityController*>&& RelevantControllers = FixturePatch->GetRelevantControllers();
+
+		TMap<FDMXAttributeName, int32> AttributeNameChannelMap;
+		GetMatrixCellChannelsAbsolute(FixturePatch, Cells, AttributeNameChannelMap);
+
+		for (const UDMXEntityController* Controller : RelevantControllers)
+		{
+			IDMXProtocolPtr Protocol = Controller->DeviceProtocol.GetProtocol();
+			TSharedPtr<IDMXProtocolUniverse, ESPMode::ThreadSafe> ProtocolUniverse = Protocol->GetUniverseById(Universe);
+			check(ProtocolUniverse.IsValid());
+
+			FDMXBufferPtr Buffer = ProtocolUniverse.Get()->GetInputDMXBuffer();
+			if (Buffer.IsValid())
 			{
-				continue;
-			}
-
-			const int32& Universe = FixturePatch->UniverseID;
-			const TArray<UDMXEntityController*>&& RelevantControllers = FixturePatch->GetRelevantControllers();
-
-			for (const UDMXEntityController* Controller : RelevantControllers)
-			{
-				IDMXProtocolPtr Protocol = Controller->DeviceProtocol.GetProtocol();
-				TSharedPtr<IDMXProtocolUniverse, ESPMode::ThreadSafe> ProtocolUniverse = Protocol->GetUniverseById(Universe);
-				if (ProtocolUniverse.IsValid())
+				TArray<uint8> DMXBuffer;
+				Buffer->AccessDMXData([&DMXBuffer](TArray<uint8>& InData)
 				{
-					FDMXBufferPtr Buffer = ProtocolUniverse.Get()->GetInputDMXBuffer();
-					if (Buffer.IsValid())
+					DMXBuffer = InData;
+				});
+
+				for (const FDMXFixtureCellAttribute& CellAttribute : FixtureMatrix.CellAttributes)
+				{
+					TArray<uint8> ChannelValues;
+					for (const TPair<FDMXAttributeName, int32>& AttributeNameChannelKvp : AttributeNameChannelMap)
 					{
-						TArray<uint8> DMXBuffer;
-						Buffer->AccessDMXData([&DMXBuffer](TArray<uint8>& InData)
+						if (CellAttribute.Attribute != AttributeNameChannelKvp.Key)
 						{
-							DMXBuffer = InData;
-						});
-
-						TArray<uint8> ChannelValues;
-
-						for (int32 Channel : Channels)
-						{
-							int32 PixelIndexOffset = Channel - 1;
-							int32 PatchStartingIndex = FixturePatch->GetStartingChannel() - 1;
-							int32 PixelIndex = PatchStartingIndex + PixelIndexOffset;
-							if (PixelIndex >= DMXBuffer.Num())
-							{
-							break;
-							}
-
-							ChannelValues.Add(DMXBuffer[PixelIndex]);
+							continue;
 						}
 
-						const int32 Value = UDMXEntityFixtureType::BytesToInt(PixelFunction.DataType, PixelFunction.bUseLSBMode, &ChannelValues[AttributeItr]);
+						int32 FirstChannel = AttributeNameChannelKvp.Value;
+						int32 LastChannel = FirstChannel + UDMXEntityFixtureType::NumChannelsToOccupy(CellAttribute.DataType) - 1;
 
-						AttributeValueMap.Add(PixelFunction.Attribute, Value);
+						for (int32 Channel = FirstChannel; Channel <= LastChannel; Channel++)
+						{
+							int32 ChannelIndex = Channel - 1;
+
+							check(DMXBuffer.IsValidIndex(ChannelIndex));
+							ChannelValues.Add(DMXBuffer[ChannelIndex]);
+						}
 					}
+
+					const int32 Value = BytesToInt(ChannelValues, CellAttribute.bUseLSBMode);
+
+					AttributeValueMap.Add(CellAttribute.Attribute, Value);
 				}
-
 			}
-
-			AttributeItr++;
 		}
 
 		return true;
-
 	}
 
 	return false;
 }
 
-bool UDMXSubsystem::GetMatrixPixelChannels(UDMXEntityFixturePatch* FixturePatch, FIntPoint Pixel /* Pixel X/Y */, TMap<FDMXAttributeName, int32>& AttributeChannelMap)
+bool UDMXSubsystem::GetMatrixCellChannelsRelative(UDMXEntityFixturePatch* FixturePatch, FIntPoint CellCoordinates /* Cell X/Y */, TMap<FDMXAttributeName, int32>& AttributeChannelMap)
 {
-
 	if (FixturePatch == nullptr)
 	{
 		return false;
 	}
 
-	if (!FixturePatch->ParentFixtureTypeTemplate->bPixelFunctionsEnabled)
+	if (!FixturePatch->ParentFixtureTypeTemplate->bFixtureMatrixEnabled)
 	{
 		UE_LOG(DMXSubsystemLog, Error, TEXT("Fixture Patch is not a Matrix Fixture"));
 		return false;
@@ -330,106 +342,142 @@ bool UDMXSubsystem::GetMatrixPixelChannels(UDMXEntityFixturePatch* FixturePatch,
 			return false;
 		}
 
-		const int32 ActiveMode = FMath::Min(FixturePatch->ActiveMode, ParentType->Modes.Num() - 1);
-		const FDMXFixtureMode& RelevantMode = ParentType->Modes[ActiveMode];
-
-		const FDMXPixelMatrix& PixelMatrix = RelevantMode.PixelMatrixConfig;
-
-		if (Pixel.X >= PixelMatrix.XPixels || Pixel.X < 0)
+		if (FixturePatch->CanReadActiveMode() == false)
 		{
-			UE_LOG(DMXSubsystemLog, Error, TEXT("Invalid X Coordinate for patch (requested %d, expected in range 0-%d)."), Pixel.X, PixelMatrix.XPixels);
+			UE_LOG(DMXSubsystemLog, Error, TEXT("Invalid active Mode in %s"), *FixturePatch->GetDisplayName());
 			return false;
 		}
 
-		if (Pixel.Y >= PixelMatrix.YPixels || Pixel.Y < 0)
+		const FDMXFixtureMode& RelevantMode = ParentType->Modes[FixturePatch->ActiveMode];
+		const FDMXFixtureMatrix& FixtureMatrix = RelevantMode.FixtureMatrixConfig;
+
+		if (CellCoordinates.X >= FixtureMatrix.XCells || CellCoordinates.X < 0)
 		{
-			UE_LOG(DMXSubsystemLog, Error, TEXT("Invalid Y Coordinate for patch (requested %d, expected in range 0-%d)."), Pixel.Y, PixelMatrix.YPixels);
+			UE_LOG(DMXSubsystemLog, Error, TEXT("Invalid X Coordinate for patch (requested %d, expected in range 0-%d)."), CellCoordinates.X, FixtureMatrix.XCells - 1);
+			return false;
+		}
+
+		if (CellCoordinates.Y >= FixtureMatrix.YCells || CellCoordinates.Y < 0)
+		{
+			UE_LOG(DMXSubsystemLog, Error, TEXT("Invalid Y Coordinate for patch (requested %d, expected in range 0-%d)."), CellCoordinates.Y, FixtureMatrix.YCells - 1);
 			return false;
 		}
 
 		TArray<int32> Channels;
-		int32 ChannelItr = 0;
-		for (const FDMXFixturePixelFunction& PixelFunction : PixelMatrix.PixelFunctions)
+		for (const FDMXFixtureCellAttribute& CellAttribute : FixtureMatrix.CellAttributes)
 		{
-			if (!PixelMatrix.GetChannelsFromPixel(Pixel, PixelFunction.Attribute, Channels))
+			if (!FixtureMatrix.GetChannelsFromCell(CellCoordinates, CellAttribute.Attribute, Channels))
 			{
 				continue;
 			}
+
+			check(Channels.IsValidIndex(0));
 			
-			AttributeChannelMap.Add(PixelFunction.Attribute, Channels[ChannelItr]);
-			
-			ChannelItr++;
-		}
-		return true;
-	}
-
-	return false;
-}
-
-bool UDMXSubsystem::GetMatrixProperties(UDMXEntityFixturePatch* FixturePatch, FDMXPixelMatrix& MatrixProperties)
-{
-	if (FixturePatch == nullptr)
-	{
-		return false;
-	}
-
-	if (!FixturePatch->ParentFixtureTypeTemplate->bPixelFunctionsEnabled)
-	{
-		UE_LOG(DMXSubsystemLog, Error, TEXT("Fixture Patch is not a Matrix Fixture"));
-		return false;
-	}
-
-	if (const UDMXEntityFixtureType* ParentType = FixturePatch->ParentFixtureTypeTemplate)
-	{
-		if (ParentType->Modes.Num() < 1)
-		{
-			UE_LOG(DMXSubsystemLog, Error, TEXT("Tried to use Fixture Patch but Parent Fixture Type has no Modes set up."));
-			return false;
-		}
-
-		const int32 ActiveMode = FMath::Min(FixturePatch->ActiveMode, ParentType->Modes.Num() - 1);
-		const FDMXFixtureMode& RelevantMode = ParentType->Modes[ActiveMode];
-
-		const FDMXPixelMatrix& PixelMatrix = RelevantMode.PixelMatrixConfig;
-
-		MatrixProperties = PixelMatrix;
-		return true;
-	}
-
-	return false;
-}
-
-bool UDMXSubsystem::GetPixelAttributes(UDMXEntityFixturePatch* FixturePatch, TArray<FDMXAttributeName>& PixelAtributes)
-{
-	if (FixturePatch == nullptr)
-	{
-		return false;
-	}
-
-	if (!FixturePatch->ParentFixtureTypeTemplate->bPixelFunctionsEnabled)
-	{
-		UE_LOG(DMXSubsystemLog, Error, TEXT("Fixture Patch is not a Matrix Fixture"));
-		return false;
-	}
-
-	if (const UDMXEntityFixtureType* ParentType = FixturePatch->ParentFixtureTypeTemplate)
-	{
-		if (ParentType->Modes.Num() < 1)
-		{
-			UE_LOG(DMXSubsystemLog, Error, TEXT("Tried to use Fixture Patch but Parent Fixture Type has no Modes set up."));
-			return false;
-		}
-
-		const int32 ActiveMode = FMath::Min(FixturePatch->ActiveMode, ParentType->Modes.Num() - 1);
-		const FDMXFixtureMode& RelevantMode = ParentType->Modes[ActiveMode];
-
-		const FDMXPixelMatrix& PixelMatrix = RelevantMode.PixelMatrixConfig;
-
-		for (const FDMXFixturePixelFunction& PixelFunction : PixelMatrix.PixelFunctions)
-		{
-			if (!PixelFunction.Attribute.IsNone())
+			if (Channels[0] > DMX_MAX_ADDRESS)
 			{
-				PixelAtributes.Add(PixelFunction.Attribute);
+				break;
+			}
+
+			AttributeChannelMap.Add(CellAttribute.Attribute, Channels[0]);
+		}
+
+		return true;
+	}
+
+	return false;
+}
+
+bool UDMXSubsystem::GetMatrixCellChannelsAbsolute(UDMXEntityFixturePatch* FixturePatch, FIntPoint CellCoordinate /* Cell X/Y */, TMap<FDMXAttributeName, int32>& AttributeChannelMap)
+{
+	if (!FixturePatch)
+	{
+		return false;
+	}
+
+	int32 PatchStartingChannelOffset = FixturePatch->GetStartingChannel() - 1;
+	if(GetMatrixCellChannelsRelative(FixturePatch, CellCoordinate, AttributeChannelMap))
+	{
+		for (TPair<FDMXAttributeName, int32>& AttributeChannelKvp : AttributeChannelMap)
+		{
+			int32 Channel = AttributeChannelKvp.Value + PatchStartingChannelOffset;
+			if (Channel > DMX_MAX_ADDRESS)
+			{
+				break;
+			}
+
+			AttributeChannelKvp.Value = Channel;
+		}
+
+		return true;
+	}
+
+	return false;
+}
+
+bool UDMXSubsystem::GetMatrixProperties(UDMXEntityFixturePatch* FixturePatch, FDMXFixtureMatrix& MatrixProperties)
+{
+	if (FixturePatch == nullptr)
+	{
+		return false;
+	}
+
+	if (const UDMXEntityFixtureType* ParentType = FixturePatch->ParentFixtureTypeTemplate)
+	{
+		if (!ParentType->bFixtureMatrixEnabled)
+		{
+			UE_LOG(DMXSubsystemLog, Error, TEXT("Fixture Patch is not a Matrix Fixture"));
+			return false;
+		}
+
+		if (ParentType->Modes.Num() < 1)
+		{
+			UE_LOG(DMXSubsystemLog, Error, TEXT("Tried to use Fixture Patch but Parent Fixture Type has no Modes set up."));
+			return false;
+		}
+
+		const int32 ActiveMode = FMath::Min(FixturePatch->ActiveMode, ParentType->Modes.Num() - 1);
+		const FDMXFixtureMode& RelevantMode = ParentType->Modes[ActiveMode];
+
+		const FDMXFixtureMatrix& FixtureMatrix = RelevantMode.FixtureMatrixConfig;
+
+		MatrixProperties = FixtureMatrix;
+		return true;
+	}
+
+	return false;
+}
+
+bool UDMXSubsystem::GetCellAttributes(UDMXEntityFixturePatch* FixturePatch, TArray<FDMXAttributeName>& CellAttributeNames)
+{
+	if (FixturePatch == nullptr)
+	{
+		return false;
+	}
+
+	if (!FixturePatch->ParentFixtureTypeTemplate->bFixtureMatrixEnabled)
+	{
+		UE_LOG(DMXSubsystemLog, Error, TEXT("Fixture Patch is not a Matrix Fixture"));
+		return false;
+	}
+
+	if (const UDMXEntityFixtureType* ParentType = FixturePatch->ParentFixtureTypeTemplate)
+	{
+		if (ParentType->Modes.Num() < 1)
+		{
+			UE_LOG(DMXSubsystemLog, Error, TEXT("Tried to use Fixture Patch but Parent Fixture Type has no Modes set up."));
+			return false;
+		}
+
+		const int32 ActiveMode = FMath::Min(FixturePatch->ActiveMode, ParentType->Modes.Num() - 1);
+		const FDMXFixtureMode& RelevantMode = ParentType->Modes[ActiveMode];
+
+		const FDMXFixtureMatrix& FixtureMatrix = RelevantMode.FixtureMatrixConfig;
+
+		for (const FDMXFixtureCellAttribute& CellAtrribute : FixtureMatrix.CellAttributes)
+		{
+			if (!CellAtrribute.Attribute.IsNone())
+			{
+				CellAttributeNames.Add(CellAtrribute.Attribute);
 			}
 			
 		}
@@ -440,14 +488,14 @@ bool UDMXSubsystem::GetPixelAttributes(UDMXEntityFixturePatch* FixturePatch, TAr
 	return false;
 }
 
-bool UDMXSubsystem::GetMatrixPixel(UDMXEntityFixturePatch* FixturePatch, FIntPoint Coordinate, FDMXPixel& OutPixel)
+bool UDMXSubsystem::GetMatrixCell(UDMXEntityFixturePatch* FixturePatch, FIntPoint Coordinate, FDMXCell& OutCell)
 {
 	if (FixturePatch == nullptr)
 	{
 		return false;
 	}
 
-	if (!FixturePatch->ParentFixtureTypeTemplate->bPixelFunctionsEnabled)
+	if (!FixturePatch->ParentFixtureTypeTemplate->bFixtureMatrixEnabled)
 	{
 		UE_LOG(DMXSubsystemLog, Error, TEXT("Fixture Patch is not a Matrix Fixture"));
 		return false;
@@ -464,31 +512,29 @@ bool UDMXSubsystem::GetMatrixPixel(UDMXEntityFixturePatch* FixturePatch, FIntPoi
 		const int32 ActiveMode = FMath::Min(FixturePatch->ActiveMode, ParentType->Modes.Num() - 1);
 		const FDMXFixtureMode& RelevantMode = ParentType->Modes[ActiveMode];
 
-		const FDMXPixelMatrix& PixelMatrix = RelevantMode.PixelMatrixConfig;
+		const FDMXFixtureMatrix& FixtureMatrix = RelevantMode.FixtureMatrixConfig;
 
 		TArray<int32> AllIDs;
 		TArray<int32> OrderedIDs;
 
-		int32 XPixels = PixelMatrix.XPixels;
-		int32 YPixels = PixelMatrix.YPixels;
+		int32 XCells = FixtureMatrix.XCells;
+		int32 YCells = FixtureMatrix.YCells;
 
-		for (int32 YPixel = 0; YPixel < YPixels; YPixel++)
+		for (int32 YCell = 0; YCell < YCells; YCell++)
 		{
-			for (int32 XPixel = 0; XPixel < XPixels; XPixel++)
+			for (int32 XCell = 0; XCell < XCells; XCell++)
 			{
-				AllIDs.Add(XPixel + YPixel * XPixels);
+				AllIDs.Add(XCell + YCell * XCell);
 			}
 		}
 
-		FDMXUtils::PixelsDistributionSort(PixelMatrix.PixelsDistribution, XPixels, YPixels, AllIDs, OrderedIDs);
+		FDMXUtils::PixelMappingDistributionSort(FixtureMatrix.PixelMappingDistribution, XCells, YCells, AllIDs, OrderedIDs);
 
-		FDMXPixel Pixel;
-
-		Pixel.PixelAttributes = PixelMatrix.PixelFunctions;
-		Pixel.Coordinate = Coordinate;
-		Pixel.PixelID = OrderedIDs[Coordinate.Y + Coordinate.X * XPixels] + 1;
+		FDMXCell Cell;
+		Cell.Coordinate = Coordinate;
+		Cell.CellID = OrderedIDs[Coordinate.Y + Coordinate.X * XCells] + 1;
 		
-		OutPixel = Pixel;
+		OutCell = Cell;
 
 		return true;
 	}
@@ -496,14 +542,14 @@ bool UDMXSubsystem::GetMatrixPixel(UDMXEntityFixturePatch* FixturePatch, FIntPoi
 	return false;
 }
 
-bool UDMXSubsystem::GetAllMatrixPixels(UDMXEntityFixturePatch* FixturePatch, TArray<FDMXPixel>& Pixels)
+bool UDMXSubsystem::GetAllMatrixCells(UDMXEntityFixturePatch* FixturePatch, TArray<FDMXCell>& Cells)
 {
 	if (FixturePatch == nullptr)
 	{
 		return false;
 	}
 
-	if (!FixturePatch->ParentFixtureTypeTemplate->bPixelFunctionsEnabled)
+	if (!FixturePatch->ParentFixtureTypeTemplate->bFixtureMatrixEnabled)
 	{
 		UE_LOG(DMXSubsystemLog, Error, TEXT("Fixture Patch is not a Matrix Fixture"));
 		return false;
@@ -520,36 +566,35 @@ bool UDMXSubsystem::GetAllMatrixPixels(UDMXEntityFixturePatch* FixturePatch, TAr
 		const int32 ActiveMode = FMath::Min(FixturePatch->ActiveMode, ParentType->Modes.Num() - 1);
 		const FDMXFixtureMode& RelevantMode = ParentType->Modes[ActiveMode];
 
-		const FDMXPixelMatrix& PixelMatrix = RelevantMode.PixelMatrixConfig;
+		const FDMXFixtureMatrix& FixtureMatrix = RelevantMode.FixtureMatrixConfig;
 
 		TArray<int32> AllIDs;
 		TArray<int32> OrderedIDs;
 
-		int32 XPixels = PixelMatrix.XPixels;
-		int32 YPixels = PixelMatrix.YPixels;
+		int32 XCells = FixtureMatrix.XCells;
+		int32 YCells = FixtureMatrix.YCells;
 
-		for (int32 YPixel = 0; YPixel < YPixels; YPixel++)
+		for (int32 YCell = 0; YCell < YCells; YCell++)
 		{
-			for (int32 XPixel = 0; XPixel < XPixels; XPixel++)
+			for (int32 XCell = 0; XCell < XCells; XCell++)
 			{
-				AllIDs.Add(XPixel + YPixel * XPixels);
+				AllIDs.Add(XCell + YCell * XCells);
 			}
 		}
 
-		FDMXUtils::PixelsDistributionSort(PixelMatrix.PixelsDistribution, XPixels, YPixels, AllIDs, OrderedIDs);
+		FDMXUtils::PixelMappingDistributionSort(FixtureMatrix.PixelMappingDistribution, XCells, YCells, AllIDs, OrderedIDs);
 
-		for (int32 YPixel = 0; YPixel < YPixels; YPixel++)
+		for (int32 YCell = 0; YCell < YCells; YCell++)
 		{
-			for (int32 XPixel = 0; XPixel < XPixels; XPixel++)
+			for (int32 XCell = 0; XCell < XCells; XCell++)
 			{
 
-				FDMXPixel Pixel;
+				FDMXCell Cell;
 
-				Pixel.PixelAttributes = PixelMatrix.PixelFunctions;
-				Pixel.Coordinate = FIntPoint(XPixel, YPixel);
-				Pixel.PixelID = OrderedIDs[YPixel + XPixel * YPixels] + 1;
+				Cell.Coordinate = FIntPoint(XCell, YCell);
+				Cell.CellID = OrderedIDs[YCell + XCell * YCells] + 1;
 
-				Pixels.Add(Pixel);
+				Cells.Add(Cell);
 
 			}
 		}
@@ -560,9 +605,9 @@ bool UDMXSubsystem::GetAllMatrixPixels(UDMXEntityFixturePatch* FixturePatch, TAr
 	return false;
 }
 
-void UDMXSubsystem::PixelDistributionSort(EDMXPixelsDistribution InDistribution, int32 InNumXPanels, int32 InNumYPanels, const TArray<int32>& InUnorderedList, TArray<int32>& OutSortedList)
+void UDMXSubsystem::PixelMappingDistributionSort(EDMXPixelMappingDistribution InDistribution, int32 InNumXPanels, int32 InNumYPanels, const TArray<int32>& InUnorderedList, TArray<int32>& OutSortedList)
 {
-	FDMXUtils::PixelsDistributionSort(InDistribution, InNumXPanels, InNumYPanels, InUnorderedList, OutSortedList);
+	FDMXUtils::PixelMappingDistributionSort(InDistribution, InNumXPanels, InNumYPanels, InUnorderedList, OutSortedList);
 }
 
 void UDMXSubsystem::SendDMXRaw(FDMXProtocolName SelectedProtocol, int32 RemoteUniverse, TMap<int32, uint8> AddressValueMap, EDMXSendResult& OutResult)
@@ -757,6 +802,14 @@ bool UDMXSubsystem::GetFunctionsMap(UDMXEntityFixturePatch* InFixturePatch, TMap
 
 		return false;
 	}
+
+	if (InFixturePatch->GetRelevantControllers().Num() == 0)
+	{
+		UE_LOG(DMXSubsystemLog, Warning, TEXT("%s has no controller to receive DMX from."), *InFixturePatch->GetDisplayName());
+
+		return false;
+	}
+
 	FDMXProtocolName FixturePatchProtocol = InFixturePatch->GetRelevantControllers()[0]->DeviceProtocol;
 	IDMXProtocolPtr Protocol = FixturePatchProtocol.GetProtocol();
 	if (!Protocol.IsValid())
@@ -925,7 +978,7 @@ TArray<UDMXEntityFixturePatch*> UDMXSubsystem::GetAllFixturesWithTag(const UDMXL
 TArray<UDMXEntityFixturePatch*> UDMXSubsystem::GetAllFixturesInLibrary(const UDMXLibrary* DMXLibrary)
 {
 	TArray<UDMXEntityFixturePatch*> FoundPatches;
-
+	
 	if (DMXLibrary != nullptr)
 	{
 		DMXLibrary->ForEachEntityOfType<UDMXEntityFixturePatch>([&](UDMXEntityFixturePatch* Patch)
@@ -933,6 +986,23 @@ TArray<UDMXEntityFixturePatch*> UDMXSubsystem::GetAllFixturesInLibrary(const UDM
 			FoundPatches.Add(Patch);
 		});
 	}
+
+	// Sort patches by universes and channels
+	FoundPatches.Sort([](const UDMXEntityFixturePatch& FixturePatchA, const UDMXEntityFixturePatch& FixturePatchB) {
+
+		if (FixturePatchA.UniverseID < FixturePatchB.UniverseID)
+		{
+			return true;
+		}
+
+		bool bSameUniverse = FixturePatchA.UniverseID == FixturePatchB.UniverseID;
+		if (bSameUniverse)
+		{
+			return FixturePatchA.GetStartingChannel() <= FixturePatchB.GetStartingChannel();
+		}
+	
+		return false;
+	});
 
 	return FoundPatches;
 }
@@ -1004,16 +1074,9 @@ UDMXEntityController* UDMXSubsystem::GetControllerByName(const UDMXLibrary* DMXL
 	return GetDMXEntityByName<UDMXEntityController>(DMXLibrary, Name);
 }
 
-TArray<UDMXLibrary*> UDMXSubsystem::GetAllDMXLibraries()
+const TArray<UDMXLibrary*>& UDMXSubsystem::GetAllDMXLibraries()
 {
-	TArray<UDMXLibrary*> LibrariesFound;
-
-	for (TObjectIterator<UDMXLibrary> LibraryItr; LibraryItr; ++LibraryItr)
-	{
-		LibrariesFound.Add(*LibraryItr);
-	}
-
-	return LibrariesFound;
+	return LoadedDMXLibraries;
 }
 
 FORCEINLINE EDMXFixtureSignalFormat SignalFormatFromBytesNum(uint32 InBytesNum)
@@ -1127,6 +1190,11 @@ float UDMXSubsystem::GetNormalizedAttributeValue(UDMXEntityFixturePatch* InFixtu
 
 void UDMXSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
+	IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(FName("AssetRegistry")).Get();
+	AssetRegistry.OnFilesLoaded().AddUObject(this, &UDMXSubsystem::OnAssetRegistryFinishedLoadingFiles);
+	AssetRegistry.OnAssetAdded().AddUObject(this, &UDMXSubsystem::OnAssetRegistryAddedAsset);
+	AssetRegistry.OnAssetRemoved().AddUObject(this, &UDMXSubsystem::OnAssetRegistryRemovedAsset);
+
 	for (const FName& ProtocolName : IDMXProtocol::GetProtocolNames())
 	{
 		if (IDMXProtocolPtr Protocol = IDMXProtocol::Get(ProtocolName))
@@ -1170,5 +1238,40 @@ void UDMXSubsystem::Deinitialize()
 		{
 			Protocol->GetOnUniverseInputBufferUpdated().Remove(It.Value);
 		}
+	}
+}
+
+void UDMXSubsystem::OnAssetRegistryFinishedLoadingFiles()
+{
+	IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(FName("AssetRegistry")).Get();
+
+	TArray<FAssetData> Assets;
+	AssetRegistry.GetAssetsByClass(UDMXLibrary::StaticClass()->GetFName(), Assets, true);
+
+	for (const FAssetData& Asset : Assets)
+	{
+		UObject* AssetObject = Asset.GetAsset();
+		UDMXLibrary* Library = Cast<UDMXLibrary>(AssetObject);
+		LoadedDMXLibraries.AddUnique(Library);
+	}
+}
+
+void UDMXSubsystem::OnAssetRegistryAddedAsset(const FAssetData& Asset)
+{
+	if (Asset.AssetClass == UDMXLibrary::StaticClass()->GetFName())
+	{
+		UObject* AssetObject = Asset.GetAsset();
+		UDMXLibrary* Library = Cast<UDMXLibrary>(AssetObject);
+		LoadedDMXLibraries.AddUnique(Library);
+	}
+}
+
+void UDMXSubsystem::OnAssetRegistryRemovedAsset(const FAssetData& Asset)
+{
+	if (Asset.AssetClass == UDMXLibrary::StaticClass()->GetFName())
+	{
+		UObject* AssetObject = Asset.GetAsset();
+		UDMXLibrary* Library = Cast<UDMXLibrary>(AssetObject);
+		LoadedDMXLibraries.Remove(Library);
 	}
 }

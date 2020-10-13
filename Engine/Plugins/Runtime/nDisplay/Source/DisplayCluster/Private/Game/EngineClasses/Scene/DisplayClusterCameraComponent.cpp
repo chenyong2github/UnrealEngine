@@ -1,49 +1,78 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "DisplayClusterCameraComponent.h"
-#include "Config/DisplayClusterConfigTypes.h"
+#include "Components/DisplayClusterCameraComponent.h"
 
-#include "Camera/CameraComponent.h"
+#include "Engine/StaticMesh.h"
+#include "Materials/MaterialInterface.h"
+#include "Materials/Material.h"
+#include "UObject/ConstructorHelpers.h"
 
-#include "CoreGlobals.h"
+#include "DisplayClusterConfigurationTypes.h"
 
 
 UDisplayClusterCameraComponent::UDisplayClusterCameraComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-	, EyeDist(0.064f)
-	, bEyeSwap(false)
-	, ForceEyeOffset(0)
+	, InterpupillaryDistance(6.4f)
+	, bSwapEyes(false)
+	, StereoOffset(EDisplayClusterEyeStereoOffset::None)
 {
 	// Children of UDisplayClusterSceneComponent must always Tick to be able to process VRPN tracking
 	PrimaryComponentTick.bCanEverTick = true;
-}
 
-void UDisplayClusterCameraComponent::BeginPlay()
-{
-	Super::BeginPlay();
-}
-
-void UDisplayClusterCameraComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
-{
-	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
-}
-
-void UDisplayClusterCameraComponent::SetSettings(const FDisplayClusterConfigSceneNode* ConfigData)
-{
-	check(ConfigData);
-	if (ConfigData)
+#if WITH_EDITOR 
+	// Create visual mesh component as a child
+	VisCameraComponent = CreateDefaultSubobject<UStaticMeshComponent>(FName(*(GetName() + FString("_impl"))));
+	if (VisCameraComponent)
 	{
-		const FDisplayClusterConfigCamera* const CameraCfg = static_cast<const FDisplayClusterConfigCamera*>(ConfigData);
+		static ConstructorHelpers::FObjectFinder<UStaticMesh> ScreenMesh(TEXT("/Engine/EditorMeshes/Camera/SM_CineCam"));
 
-		EyeDist        = CameraCfg->EyeDist;
-		bEyeSwap       = CameraCfg->EyeSwap;
-		ForceEyeOffset = CameraCfg->ForceOffset;
+		VisCameraComponent->SetFlags(EObjectFlags::RF_DuplicateTransient | RF_Transient | RF_TextExportTransient);
+		VisCameraComponent->AttachToComponent(this, FAttachmentTransformRules(EAttachmentRule::KeepRelative, false));
+		VisCameraComponent->SetRelativeLocationAndRotation(FVector::ZeroVector, FRotator(0.f, 90.f, 0.f));
+		VisCameraComponent->SetRelativeScale3D(FVector(0.5f, 0.5f, 0.5f));
+		VisCameraComponent->SetStaticMesh(ScreenMesh.Object);
+		VisCameraComponent->SetMobility(EComponentMobility::Movable);
+		VisCameraComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		VisCameraComponent->SetVisibility(true);
 	}
-
-	Super::SetSettings(ConfigData);
+#endif
 }
 
-bool UDisplayClusterCameraComponent::ApplySettings()
+void UDisplayClusterCameraComponent::ApplyConfigurationData()
 {
-	return Super::ApplySettings();
+	Super::ApplyConfigurationData();
+
+	const UDisplayClusterConfigurationSceneComponentCamera* CfgCamera = Cast<UDisplayClusterConfigurationSceneComponentCamera>(GetConfigParameters());
+	if (CfgCamera)
+	{
+		InterpupillaryDistance = CfgCamera->InterpupillaryDistance;
+		bSwapEyes = CfgCamera->bSwapEyes;
+
+		switch (CfgCamera->StereoOffset)
+		{
+		case EDisplayClusterConfigurationEyeStereoOffset::Left:
+			StereoOffset = EDisplayClusterEyeStereoOffset::Left;
+			break;
+
+		case EDisplayClusterConfigurationEyeStereoOffset::None:
+			StereoOffset = EDisplayClusterEyeStereoOffset::None;
+			break;
+
+		case EDisplayClusterConfigurationEyeStereoOffset::Right:
+			StereoOffset = EDisplayClusterEyeStereoOffset::Right;
+			break;
+
+		default:
+			StereoOffset = EDisplayClusterEyeStereoOffset::None;
+			break;
+		}
+	}
 }
+
+#if WITH_EDITOR 
+void UDisplayClusterCameraComponent::SetNodeSelection(bool bSelect)
+{
+	VisCameraComponent->bDisplayVertexColors = bSelect;
+	VisCameraComponent->PushSelectionToProxy();
+}
+#endif

@@ -263,3 +263,32 @@ void FHairStrandsDatas::Reset()
 	StrandsCurves.Reset();
 	StrandsPoints.Reset();
 }
+
+FArchive& operator<<(FArchive& Ar, FHairStrandsClusterCullingData::FHairClusterInfo& Info)
+{
+	Ar << Info.LODCount;
+	Ar << Info.LODInfoOffset;
+	Ar << Info.ScreenSize;
+	Ar << Info.bIsVisible;
+	return Ar;
+}
+
+FArchive& operator<<(FArchive& Ar, FHairStrandsClusterCullingData::FHairClusterLODInfo& Info)
+{
+	Ar << Info.VertexOffset;
+	Ar << Info.VertexCount0;
+	Ar << Info.VertexCount1;
+	Ar << Info.RadiusScale0;
+	Ar << Info.RadiusScale1;
+	return Ar;
+}
+
+FArchive& operator<<(FArchive& Ar, FHairStrandsClusterCullingData::FHairClusterInfo::Packed& Info)
+{
+	uint32* Uint32Data = (uint32*)&Info;
+	Ar << Uint32Data[0];
+	Ar << Uint32Data[1];
+	Ar << Uint32Data[2];
+	Ar << Uint32Data[3];
+	return Ar;
+}

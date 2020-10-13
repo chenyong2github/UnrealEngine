@@ -54,7 +54,7 @@ namespace ParticleEditorPromotionTestUtils
 	static UObject* CreateAsset(UFactory* CreateFactory, UClass* AssetClass, const FString& AssetName)
 	{
 		FString PackageName = FString::Printf(TEXT("%s/%s"), *FEditorPromotionTestUtilities::GetGamePath(), *AssetName);
-		UPackage* AssetPackage = CreatePackage(NULL, *PackageName);
+		UPackage* AssetPackage = CreatePackage( *PackageName);
 		EObjectFlags Flags = RF_Public | RF_Standalone;
 
 		UObject* CreatedAsset = CreateFactory->FactoryCreateNew(AssetClass, AssetPackage, FName(*AssetName), Flags, NULL, GWarn);

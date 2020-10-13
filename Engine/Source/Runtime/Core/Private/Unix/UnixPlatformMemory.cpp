@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "Unix/UnixPlatformMemory.h"
+#include "Unix/UnixForkPageProtector.h"
 #include "Misc/AssertionMacros.h"
 #include "Misc/CoreDelegates.h"
 #include "Misc/FeedbackContext.h"
@@ -78,6 +79,7 @@ namespace
 {
 	// The max allowed to be set for the caching
 	const int32 MaximumAllowedMaxNumFileMappingCache = 1000000;
+	bool GEnableProtectForkedPages = false;
 }
 
 /** Controls growth of pools - see PooledVirtualMemoryAllocator.cpp */
@@ -99,6 +101,11 @@ void FUnixPlatformMemory::Init()
 	UE_LOG(LogInit, Log, TEXT(" - VirtualMemoryAllocator pools will grow at scale %g"), GVMAPoolScale);
 	UE_LOG(LogInit, Log, TEXT(" - MemoryRangeDecommit() will %s"), 
 		GMemoryRangeDecommitIsNoOp ? TEXT("be a no-op (re-run with -vmapoolevict to change)") : TEXT("will evict the memory from RAM (re-run with -novmapoolevict to change)"));
+}
+
+bool FUnixPlatformMemory::HasForkPageProtectorEnabled()
+{
+	return COMPILE_FORK_PAGE_PROTECTOR && GEnableProtectForkedPages;
 }
 
 class FMalloc* FUnixPlatformMemory::BaseAllocator()
@@ -236,6 +243,10 @@ class FMalloc* FUnixPlatformMemory::BaseAllocator()
 				if (FCStringAnsi::Stricmp(Arg, "-novmapoolevict") == 0)
 				{
 					GMemoryRangeDecommitIsNoOp = true;
+				}
+				if (FCStringAnsi::Stricmp(Arg, "-protectforkedpages") == 0)
+				{
+					GEnableProtectForkedPages = true;
 				}
 			}
 			free(Arg);
@@ -451,6 +462,8 @@ void* FUnixPlatformMemory::BinnedAllocFromOS(SIZE_T Size)
 	}
 
 	LLM(FLowLevelMemTracker::Get().OnLowLevelAlloc(ELLMTracker::Platform, Pointer, Size));
+	UE::FForkPageProtector::Get().AddMemoryRegion(Pointer, Size);
+
 	return Pointer;
 }
 
@@ -475,6 +488,8 @@ void FUnixPlatformMemory::BinnedFreeToOS(void* Ptr, SIZE_T Size)
 
 		void* PointerToUnmap = AllocDescriptor->PointerToUnmap;
 		SIZE_T SizeToUnmap = AllocDescriptor->SizeToUnmap;
+
+		UE::FForkPageProtector::Get().FreeMemoryRegion(PointerToUnmap);
 
 		// do checks, from most to least serious
 		if (UE4_PLATFORM_SANITY_CHECK_OS_ALLOCATIONS != 0)
@@ -508,6 +523,8 @@ void FUnixPlatformMemory::BinnedFreeToOS(void* Ptr, SIZE_T Size)
 	}
 	else
 	{
+		UE::FForkPageProtector::Get().FreeMemoryRegion(Ptr);
+
 		if (UNLIKELY(munmap(Ptr, SizeInWholePages) != 0))
 		{
 			FPlatformMemory::OnOutOfMemory(SizeInWholePages, 0);
@@ -541,6 +558,8 @@ FUnixPlatformMemory::FPlatformVirtualMemoryBlock FUnixPlatformMemory::FPlatformV
 	if (LIKELY(Result.Ptr != MAP_FAILED))
 	{
 		MarkMappedMemoryMergable(Result.Ptr, Result.GetActualSize());
+
+		UE::FForkPageProtector::Get().AddMemoryRegion(Result.Ptr, Result.GetActualSize());
 	}
 	else
 	{
@@ -563,6 +582,9 @@ void FUnixPlatformMemory::FPlatformVirtualMemoryBlock::FreeVirtual()
 			FPlatformMemory::OnOutOfMemory(GetActualSize(), 0);
 			// unreachable
 		}
+
+		UE::FForkPageProtector::Get().FreeMemoryRegion(Ptr);
+
 		Ptr = nullptr;
 		VMSizeDivVirtualSizeAlignment = 0;
 	}

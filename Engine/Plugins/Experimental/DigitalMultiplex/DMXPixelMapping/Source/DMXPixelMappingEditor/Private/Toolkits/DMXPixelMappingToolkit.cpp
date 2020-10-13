@@ -1,22 +1,23 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Toolkits/DMXPixelMappingToolkit.h"
+
 #include "DMXPixelMappingEditorModule.h"
 #include "DMXPixelMapping.h"
 #include "DMXPixelMappingEditorUtils.h"
 #include "Templates/DMXPixelMappingComponentTemplate.h"
 #include "K2Node_PixelMappingBaseComponent.h"
-#include "Views/SDMXPixelMappingPalatteView.h"
+#include "Views/SDMXPixelMappingPaletteView.h"
 #include "Views/SDMXPixelMappingHierarchyView.h"
 #include "Views/SDMXPixelMappingDesignerView.h"
 #include "Views/SDMXPixelMappingPreviewView.h"
 #include "Views/SDMXPixelMappingDetailsView.h"
-#include "ViewModels/DMXPixelMappingPalatteViewModel.h"
+#include "ViewModels/DMXPixelMappingPaletteViewModel.h"
 #include "Components/DMXPixelMappingRendererComponent.h"
 #include "Components/DMXPixelMappingOutputComponent.h"
 #include "Components/DMXPixelMappingRootComponent.h"
 #include "Components/DMXPixelMappingMatrixComponent.h"
-#include "Components/DMXPixelMappingMatrixPixelComponent.h"
+#include "Components/DMXPixelMappingMatrixCellComponent.h"
 #include "DMXPixelMappingToolbar.h"
 #include "DMXPixelMappingEditorCommands.h"
 #include "Library/DMXEntityFixtureType.h"
@@ -32,7 +33,7 @@
 
 #define LOCTEXT_NAMESPACE "DMXPixelMappingToolkit"
 
-const FName FDMXPixelMappingToolkit::PalatteViewTabID(TEXT("DMXPixelMappingEditor_PalatteViewTabID"));
+const FName FDMXPixelMappingToolkit::PaletteViewTabID(TEXT("DMXPixelMappingEditor_PaletteViewTabID"));
 const FName FDMXPixelMappingToolkit::HierarchyViewTabID(TEXT("DMXPixelMappingEditor_HierarchyViewTabID"));
 
 const FName FDMXPixelMappingToolkit::DesignerViewTabID(TEXT("DMXPixelMappingEditor_DesignerViewTabID"));
@@ -64,6 +65,9 @@ FDMXPixelMappingToolkit::~FDMXPixelMappingToolkit()
 
 void FDMXPixelMappingToolkit::InitPixelMappingEditor(const EToolkitMode::Type Mode, const TSharedPtr<class IToolkitHost>& InitToolkitHost, UDMXPixelMapping* InDMXPixelMapping)
 {
+	check(InDMXPixelMapping);
+	InDMXPixelMapping->DestroyInvalidComponents();
+
 	DMXPixelMapping = InDMXPixelMapping;
 
 	InitializeInternal(Mode, InitToolkitHost, FGuid::NewGuid());
@@ -76,8 +80,8 @@ void FDMXPixelMappingToolkit::RegisterTabSpawners(const TSharedRef<class FTabMan
 
 	FAssetEditorToolkit::RegisterTabSpawners(InTabManager);
 
-	InTabManager->RegisterTabSpawner(PalatteViewTabID, FOnSpawnTab::CreateSP(this, &FDMXPixelMappingToolkit::SpawnTab_PalatteView))
-		.SetDisplayName(LOCTEXT("Tab_PalatteView", "Palette"))
+	InTabManager->RegisterTabSpawner(PaletteViewTabID, FOnSpawnTab::CreateSP(this, &FDMXPixelMappingToolkit::SpawnTab_PaletteView))
+		.SetDisplayName(LOCTEXT("Tab_PaletteView", "Palette"))
 		.SetGroup(WorkspaceMenuCategoryRef)
 		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Viewports"));
 
@@ -106,7 +110,7 @@ void FDMXPixelMappingToolkit::UnregisterTabSpawners(const TSharedRef<class FTabM
 {
 	FAssetEditorToolkit::UnregisterTabSpawners(InTabManager);
 
-	InTabManager->UnregisterTabSpawner(PalatteViewTabID);
+	InTabManager->UnregisterTabSpawner(PaletteViewTabID);
 	InTabManager->UnregisterTabSpawner(HierarchyViewTabID);
 	InTabManager->UnregisterTabSpawner(DesignerViewTabID);
 	InTabManager->UnregisterTabSpawner(PreviewViewTabID);
@@ -380,10 +384,10 @@ void FDMXPixelMappingToolkit::BroadcastPostChange(UDMXPixelMapping* InDMXPixelMa
 
 void FDMXPixelMappingToolkit::DeleteMatrixPixels(UDMXPixelMappingMatrixComponent* InMatrixComponent)
 {
-	if (InMatrixComponent != nullptr && InMatrixComponent->GetChildrenCount())
+	if (InMatrixComponent != nullptr)
 	{
 		TSet<FDMXPixelMappingComponentReference> ComponentReference;
-		InMatrixComponent->ForEachComponentOfClass<UDMXPixelMappingMatrixPixelComponent>([this, &ComponentReference](UDMXPixelMappingMatrixPixelComponent* InComponent)
+		InMatrixComponent->ForEachComponentOfClass<UDMXPixelMappingMatrixCellComponent>([this, &ComponentReference](UDMXPixelMappingMatrixCellComponent* InComponent)
 		{
 			ComponentReference.Add(GetReferenceFromComponent(InComponent));
 		}, false);
@@ -408,46 +412,43 @@ void FDMXPixelMappingToolkit::CreateMatrixPixels(UDMXPixelMappingMatrixComponent
 		{
 			if (UDMXEntityFixtureType* ParentFixtureType = FixturePatch->ParentFixtureTypeTemplate)
 			{
-				// check if at least one mode is active
-				if (ParentFixtureType->Modes.Num() > 0)
+				if(FixturePatch->CanReadActiveMode())
 				{
 					int32 ActiveMode = FixturePatch->ActiveMode;
 
-					check(ParentFixtureType->Modes.IsValidIndex(ActiveMode));
-
 					const FDMXFixtureMode& FixtureMode = ParentFixtureType->Modes[ActiveMode];
-					const FDMXPixelMatrix& PixelMatrixConfig = FixtureMode.PixelMatrixConfig;
+					const FDMXFixtureMatrix& FixtureMatrixConfig = FixtureMode.FixtureMatrixConfig;
 
 					// If there are any pixel functions
-					int32 NumChannels = PixelMatrixConfig.XPixels * PixelMatrixConfig.YPixels;
-					if (NumChannels > 0 && ParentFixtureType->bPixelFunctionsEnabled)
+					int32 NumChannels = FixtureMatrixConfig.XCells * FixtureMatrixConfig.YCells;
+					if (NumChannels > 0 && ParentFixtureType->bFixtureMatrixEnabled)
 					{
-						InMatrixComponent->SetNumPixels(FIntPoint(PixelMatrixConfig.XPixels, PixelMatrixConfig.YPixels));
+						InMatrixComponent->SetNumCells(FIntPoint(FixtureMatrixConfig.XCells, FixtureMatrixConfig.YCells));
 
 						TArray<int32> AllChannels;
 						int32 MaxChannels = NumChannels + 1;
-						for (int32 PixelIndex = 1; PixelIndex < MaxChannels; PixelIndex++)
+						for (int32 CellID = 1; CellID < MaxChannels; CellID++)
 						{
-							AllChannels.Add(PixelIndex);
+							AllChannels.Add(CellID);
 						}
 
 						TArray<int32> OrderedChannels;
-						FDMXUtils::PixelsDistributionSort(FixtureMode.PixelMatrixConfig.PixelsDistribution, PixelMatrixConfig.XPixels, PixelMatrixConfig.YPixels, AllChannels, OrderedChannels);
-						TArray<UDMXPixelMappingMatrixPixelComponent*> Components;
+						FDMXUtils::PixelMappingDistributionSort(FixtureMode.FixtureMatrixConfig.PixelMappingDistribution, FixtureMatrixConfig.XCells, FixtureMatrixConfig.YCells, AllChannels, OrderedChannels);
+						TArray<UDMXPixelMappingMatrixCellComponent*> Components;
 						check(AllChannels.Num() == OrderedChannels.Num());
 						int32 XYIndex = 0;
-						for (int32 IndexX = 0; IndexX < PixelMatrixConfig.XPixels; IndexX++)
+						for (int32 IndexX = 0; IndexX < FixtureMatrixConfig.XCells; IndexX++)
 						{
-							for (int32 IndexY = 0; IndexY < PixelMatrixConfig.YPixels; IndexY++)
+							for (int32 IndexY = 0; IndexY < FixtureMatrixConfig.YCells; IndexY++)
 							{
 								// Create or delete all matrix pixels
-								TSharedPtr<FDMXPixelMappingComponentTemplate> ComponentTemplate = MakeShared<FDMXPixelMappingComponentTemplate>(UDMXPixelMappingMatrixPixelComponent::StaticClass());
-								UDMXPixelMappingMatrixPixelComponent* Component = Cast<UDMXPixelMappingMatrixPixelComponent>(ComponentTemplate->Create(DMXPixelMapping->GetRootComponent()));
+								TSharedPtr<FDMXPixelMappingComponentTemplate> ComponentTemplate = MakeShared<FDMXPixelMappingComponentTemplate>(UDMXPixelMappingMatrixCellComponent::StaticClass());
+								UDMXPixelMappingMatrixCellComponent* Component = Cast<UDMXPixelMappingMatrixCellComponent>(ComponentTemplate->Create(DMXPixelMapping->GetRootComponent()));
 								const FName UniqueName = MakeUniqueObjectName(Component->GetOuter(), Component->GetClass(), FName(FixturePatch->GetDisplayName()));
 								const FString NewNameStr = UniqueName.ToString();
 								Component->Rename(*NewNameStr);
 								Components.Add(Component);
-								Component->PixelIndex = OrderedChannels[XYIndex];
+								Component->CellID = OrderedChannels[XYIndex];
 								InMatrixComponent->SetChildSizeAndPosition(Component, FIntPoint(IndexX, IndexY));
 								XYIndex++;
 								bAtLeastOnePixelAdded = true;
@@ -455,17 +456,26 @@ void FDMXPixelMappingToolkit::CreateMatrixPixels(UDMXPixelMappingMatrixComponent
 						}
 
 						// Adds matrix child in right order
-						for (int32 PixelIndex = 0; PixelIndex < OrderedChannels.Num(); PixelIndex++)
+						for (int32 CellID = 0; CellID < OrderedChannels.Num(); CellID++)
 						{
-							int32 ComponentIndex = OrderedChannels.IndexOfByKey<int32>(PixelIndex + 1);
+							int32 ComponentIndex = OrderedChannels.IndexOfByKey<int32>(CellID + 1);
 							InMatrixComponent->AddChild(Components[ComponentIndex]);
 							Components[ComponentIndex]->PostParentAssigned();
 						}
-						DesignerView->UpdateOutput(true);
+
+						const bool bForceUpdate = true;
+						DesignerView->UpdateOutput(bForceUpdate);
 
 						// Set distribution
-						InMatrixComponent->Distribution = FixtureMode.PixelMatrixConfig.PixelsDistribution;
+						InMatrixComponent->Distribution = FixtureMode.FixtureMatrixConfig.PixelMappingDistribution;
 					}
+				}
+				else
+				{
+					InMatrixComponent->SetNumCells(FIntPoint(0, 0));
+
+					const bool bForceUpdate = true;
+					DesignerView->UpdateOutput(bForceUpdate);
 				}
 			}
 		}
@@ -527,7 +537,7 @@ void FDMXPixelMappingToolkit::InitializeInternal(const EToolkitMode::Type Mode, 
 					->Split
 					(
 						FTabManager::NewStack()
-						->AddTab(PalatteViewTabID, ETabState::OpenedTab)
+						->AddTab(PaletteViewTabID, ETabState::OpenedTab)
 						->SetSizeCoefficient(0.5f)
 					)
 					->Split
@@ -574,14 +584,14 @@ void FDMXPixelMappingToolkit::InitializeInternal(const EToolkitMode::Type Mode, 
 	RegenerateMenusAndToolbars();
 }
 
-TSharedRef<SDockTab> FDMXPixelMappingToolkit::SpawnTab_PalatteView(const FSpawnTabArgs& Args)
+TSharedRef<SDockTab> FDMXPixelMappingToolkit::SpawnTab_PaletteView(const FSpawnTabArgs& Args)
 {
-	check(Args.GetTabId() == PalatteViewTabID);
+	check(Args.GetTabId() == PaletteViewTabID);
 
 	TSharedRef<SDockTab> SpawnedTab = SNew(SDockTab)
-		.Label(LOCTEXT("PalatteViewTabID", "Palette"))
+		.Label(LOCTEXT("PaletteViewTabID", "Palette"))
 		[
-			PalatteView.ToSharedRef()
+			PaletteView.ToSharedRef()
 		];
 
 	return SpawnedTab;
@@ -643,12 +653,12 @@ void FDMXPixelMappingToolkit::CreateInternalViewModels()
 {
 	TSharedPtr<FDMXPixelMappingToolkit> ThisPtr(SharedThis(this));
 
-	PalatteViewModel = MakeShared<FDMXPixelMappingPalatteViewModel>(ThisPtr);
+	PaletteViewModel = MakeShared<FDMXPixelMappingPaletteViewModel>(ThisPtr);
 }
 
 void FDMXPixelMappingToolkit::CreateInternalViews()
 {
-	CreateOrGetView_PalatteView();
+	CreateOrGetView_PaletteView();
 	CreateOrGetView_HierarchyView();
 	CreateOrGetView_DesignerView();
 	CreateOrGetView_PreviewView();
@@ -708,14 +718,14 @@ void FDMXPixelMappingToolkit::OnComponentRenamed(UDMXPixelMappingBaseComponent* 
 	BroadcastPostChange(GetDMXPixelMapping());
 }
 
-TSharedRef<SWidget> FDMXPixelMappingToolkit::CreateOrGetView_PalatteView()
+TSharedRef<SWidget> FDMXPixelMappingToolkit::CreateOrGetView_PaletteView()
 {
-	if (!PalatteView.IsValid())
+	if (!PaletteView.IsValid())
 	{
-		PalatteView = SNew(SDMXPixelMappingPalatteView, SharedThis(this));
+		PaletteView = SNew(SDMXPixelMappingPaletteView, SharedThis(this));
 	}
 
-	return PalatteView.ToSharedRef();
+	return PaletteView.ToSharedRef();
 }
 
 TSharedRef<SWidget> FDMXPixelMappingToolkit::CreateOrGetView_HierarchyView()

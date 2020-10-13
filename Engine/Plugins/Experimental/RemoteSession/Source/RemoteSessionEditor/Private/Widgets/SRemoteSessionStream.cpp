@@ -448,9 +448,10 @@ void SRemoteSessionStream::EnabledStreaming(bool bInStreaming)
 			if (IRemoteSessionModule* RemoteSession = FModuleManager::LoadModulePtr<IRemoteSessionModule>("RemoteSession"))
 			{
 				TArray<FRemoteSessionChannelInfo> SupportedChannels;
-				SupportedChannels.Emplace(FRemoteSessionInputChannel::StaticType(), ERemoteSessionChannelMode::Read, FOnRemoteSessionChannelCreated::CreateSP(this, &SRemoteSessionStream::OnInputChannelCreated));
-				SupportedChannels.Emplace(FRemoteSessionImageChannel::StaticType(), ERemoteSessionChannelMode::Write, FOnRemoteSessionChannelCreated::CreateSP(this, &SRemoteSessionStream::OnImageChannelCreated));
+				SupportedChannels.Emplace(FRemoteSessionInputChannel::StaticType(), ERemoteSessionChannelMode::Read);
+				SupportedChannels.Emplace(FRemoteSessionImageChannel::StaticType(), ERemoteSessionChannelMode::Write);
 				RemoteSessionHost = RemoteSession->CreateHost(MoveTemp(SupportedChannels), WidgetUserData->Port);
+				RemoteSessionHost->RegisterChannelChangeDelegate(FOnRemoteSessionChannelChange::CreateSP(this, &SRemoteSessionStream::OnRemoteSessionChannelChange));
 				RemoteSessionHost->Tick(0.f);
 			}
 
@@ -543,9 +544,26 @@ void SRemoteSessionStream::ResetUObject()
 	}
 }
 
-void SRemoteSessionStream::OnInputChannelCreated(TWeakPtr<IRemoteSessionChannel> Instance, const FString& Type, ERemoteSessionChannelMode Mode)
+void SRemoteSessionStream::OnRemoteSessionChannelChange(IRemoteSessionRole* Role, TWeakPtr<IRemoteSessionChannel> Channel, ERemoteSessionChannelChange Change)
 {
-	TSharedPtr<FRemoteSessionInputChannel> InputChannel = StaticCastSharedPtr<FRemoteSessionInputChannel>(Instance.Pin());
+	TSharedPtr<IRemoteSessionChannel> Pinned = Channel.Pin();
+
+	if (Pinned && Change == ERemoteSessionChannelChange::Created)
+	{
+		if (Pinned->GetType() == FRemoteSessionInputChannel::StaticType())
+		{
+			OnInputChannelCreated(Pinned);
+		}
+		else if (Pinned->GetType() == FRemoteSessionImageChannel::StaticType())
+		{
+			OnImageChannelCreated(Pinned);
+		}
+	}
+}
+
+void SRemoteSessionStream::OnInputChannelCreated(TWeakPtr<IRemoteSessionChannel> Channel)
+{
+	TSharedPtr<FRemoteSessionInputChannel> InputChannel = StaticCastSharedPtr<FRemoteSessionInputChannel>(Channel.Pin());
 	if (InputChannel)
 	{
 		InputChannel->SetPlaybackWindow(VirtualWindow, nullptr);
@@ -553,9 +571,9 @@ void SRemoteSessionStream::OnInputChannelCreated(TWeakPtr<IRemoteSessionChannel>
 	}
 }
 
-void SRemoteSessionStream::OnImageChannelCreated(TWeakPtr<IRemoteSessionChannel> Instance, const FString& Type, ERemoteSessionChannelMode Mode)
+void SRemoteSessionStream::OnImageChannelCreated(TWeakPtr<IRemoteSessionChannel> Channel)
 {
-	TSharedPtr<FRemoteSessionImageChannel> ImageChannel = StaticCastSharedPtr<FRemoteSessionImageChannel>(Instance.Pin());
+	TSharedPtr<FRemoteSessionImageChannel> ImageChannel = StaticCastSharedPtr<FRemoteSessionImageChannel>(Channel.Pin());
 	if (ImageChannel)
 	{
 		ImageChannel->SetImageProvider(nullptr);

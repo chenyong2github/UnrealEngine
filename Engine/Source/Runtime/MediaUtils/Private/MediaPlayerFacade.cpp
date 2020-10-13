@@ -340,7 +340,7 @@ FName FMediaPlayerFacade::GetPlayerName() const
 	{
 		return NAME_None;
 	}
-	return CurrentPlayer->GetPlayerName();
+	return MediaModule->GetPlayerFactory(CurrentPlayer->GetPlayerPluginGUID())->GetPlayerName();
 }
 
 
@@ -1002,16 +1002,16 @@ TSharedPtr<IMediaPlayer, ESPMode::ThreadSafe> FMediaPlayerFacade::GetPlayerForUr
 		PlayerName = NAME_None;
 	}
 
-	// reuse existing player if requested
-	if (Player.IsValid() && (PlayerName == Player->GetPlayerName()))
-	{
-		return Player;
-	}
-
 	if (MediaModule == nullptr)
 	{
 		UE_LOG(LogMediaUtils, Error, TEXT("Failed to load Media module"));
 		return nullptr;
+	}
+
+	// reuse existing player if requested
+	if (Player.IsValid() && (PlayerName == MediaModule->GetPlayerFactory(Player->GetPlayerPluginGUID())->GetPlayerName()))
+	{
+		return Player;
 	}
 
 	// try to create requested player
@@ -1039,7 +1039,7 @@ TSharedPtr<IMediaPlayer, ESPMode::ThreadSafe> FMediaPlayerFacade::GetPlayerForUr
 	// try to reuse existing player
 	if (Player.IsValid())
 	{
-		IMediaPlayerFactory* Factory = MediaModule->GetPlayerFactory(Player->GetPlayerName());
+		IMediaPlayerFactory* Factory = MediaModule->GetPlayerFactory(Player->GetPlayerPluginGUID());
 
 		if ((Factory != nullptr) && Factory->CanPlayUrl(Url, Options))
 		{

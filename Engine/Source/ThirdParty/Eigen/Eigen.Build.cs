@@ -9,12 +9,7 @@ public class Eigen : ModuleRules
         Type = ModuleType.External;
 		
 		PublicIncludePaths.Add(ModuleDirectory);
-
-        if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Mac)
-        {
-           PublicIncludePaths.Add( ModuleDirectory + "/Eigen/" );
-        }
-
+        PublicIncludePaths.Add( ModuleDirectory + "/Eigen/" );
         PublicDefinitions.Add("EIGEN_MPL2_ONLY");
 		ShadowVariableWarningLevel = WarningLevel.Off;
 	}

@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Containers/ArrayView.h"
+#include "UObject/ObjectMacros.h"
 
 class UObject;
 struct FPropertyAccessLibrary;

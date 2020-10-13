@@ -105,7 +105,7 @@ void MainCS(
 	// Pixel coordinate of the center of the nearest input pixel K.
 	float2 PPCk = floor(PPCo) + 0.5;
 	
-	uint2 InputPixelPos = PPCk;
+	uint2 InputPixelPos = InputInfo_ViewportMin + uint2(PPCk);
 
 	// Fetch reprojections related informations.
 	float2 PrevScreenPos = ScreenPos;
@@ -152,15 +152,20 @@ void MainCS(
 	
 	ISOLATE
 	{
-		taa_half InputToHistoryFactor = taa_half(HistoryInfo_ViewportSize.x * InputInfo_ViewportSizeInverse.x);
-	
 		// Vector in pixel between pixel K -> O.
 		taa_half2 dKO = taa_half2(PPCo - PPCk);
 
 		FilteredInputColor = taa_half(0.0);
 
 		taa_half FilteredInputColorWeight = taa_half(0.0);
-		taa_half FinalInputToHistoryFactor = bOffScreen ? taa_half(1.0) : InputToHistoryFactor;
+		
+		#if 0 // shader compiler bug :'(
+			taa_half InputToHistoryFactor = taa_half(HistoryInfo_ViewportSize.x * InputInfo_ViewportSizeInverse.x);
+			taa_half FinalInputToHistoryFactor = bOffScreen ? taa_half(1.0) : InputToHistoryFactor;
+		#else
+			float InputToHistoryFactor = float(HistoryInfo_ViewportSize.x * InputInfo_ViewportSizeInverse.x);
+			float FinalInputToHistoryFactor = bOffScreen ? float(1.0) : InputToHistoryFactor;
+		#endif
 
 		InputMinColor = taa_half(INFINITE_FLOAT);
 		InputMaxColor = taa_half(-INFINITE_FLOAT);
@@ -195,7 +200,7 @@ void MainCS(
 			//if (i != 4)
 			//	continue;
 
-			float2 SampleInputBufferUV = (PPCk + PixelOffset) * InputInfo_ExtentInverse;
+			float2 SampleInputBufferUV = (InputInfo_ViewportMin + PPCk + PixelOffset) * InputInfo_ExtentInverse;
 			SampleInputBufferUV = clamp(SampleInputBufferUV, InputInfo_UVViewportBilinearMin, InputInfo_UVViewportBilinearMax);
 
 			taa_half3 InputColor = InputSceneColorTexture.SampleLevel(GlobalPointClampedSampler, SampleInputBufferUV, 0);
@@ -288,8 +293,8 @@ void MainCS(
 
 		// Correct history
 		{
-			PrevHistoryMoment1 *= HistoryPreExposureCorrection;
-			PrevFallbackColor *= HistoryPreExposureCorrection;
+			PrevHistoryMoment1 *= taa_half(HistoryPreExposureCorrection);
+			PrevFallbackColor *= taa_half(HistoryPreExposureCorrection);
 		}
 	}
 		
@@ -421,8 +426,8 @@ void MainCS(
 		#if 0
 			FinalHistoryValidity = OutputValidity;
 		#else
-			float OutputInvValidity = SafeRcp(OutputValidity);
-			FinalHistoryValidity = ceil(float(255.0) * OutputValidity) * rcp(float(255.0));
+			taa_half OutputInvValidity = SafeRcp(OutputValidity);
+			FinalHistoryValidity = ceil(taa_half(255.0) * OutputValidity) * rcp(taa_half(255.0));
 			FinalHistoryMoment1 *= FinalHistoryValidity * OutputInvValidity;
 		#endif
 
@@ -569,7 +574,11 @@ void MainCS(
 
 		FinalOutputValidity = lerp(taa_half(1.0), saturate(FinalHistoryValidity), OutputBlend);
 
-		taa_half3 NormalizedFinalHistoryMoment1 = FinalHistoryMoment1 * SafeRcp(FinalHistoryValidity);
+		#if 1// Works arround shader compiler bug
+			taa_half3 NormalizedFinalHistoryMoment1 = taa_half3(FinalHistoryMoment1 * float(SafeRcp(FinalHistoryValidity)));
+		#else
+			taa_half3 NormalizedFinalHistoryMoment1 = FinalHistoryMoment1 * SafeRcp(FinalHistoryValidity);
+		#endif
 
 		taa_half FallbackWeight = HdrWeight4(FinalFallbackColor);
 		taa_half Moment1Weight = HdrWeight4(NormalizedFinalHistoryMoment1);
@@ -631,8 +640,8 @@ void MainCS(
 				uint2 Random = Rand3DPCG16(int3(LocalHistoryPixelPos, View.StateFrameIndexMod8)).xy;
 				float2 E = Hammersley16(0, 1, Random);
 
-				FinalHistoryMoment1 += FinalHistoryMoment1 * (E.x * HistoryQuantizationError);
-				FinalFallbackColor += FinalFallbackColor * (E.x * HistoryQuantizationError);
+				FinalHistoryMoment1 += FinalHistoryMoment1 * taa_half3(E.x * HistoryQuantizationError);
+				FinalFallbackColor += FinalFallbackColor * taa_half3(E.x * HistoryQuantizationError);
 			}
 			#endif
 

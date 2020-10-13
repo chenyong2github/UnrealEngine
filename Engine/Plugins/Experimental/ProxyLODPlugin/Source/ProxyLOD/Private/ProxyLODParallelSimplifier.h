@@ -159,16 +159,18 @@ static inline float ProxyLOD::SimplifyMesh(const TerminationCriterionType& Termi
 	Simplifier.InitCosts();
 
 	// Do the simplification.  
-
 	const float MaxSqrError = Simplifier.SimplifyMesh(Terminator);
 
 	// Resize the AOSMesh to hold the result - this empties it first.
-
 	InOutMesh.Resize(Simplifier.GetNumVerts(), Simplifier.GetNumTris());
 
 	// Copy the new mesh back into the AOSMeshedVolume and capture the seam vertexes.
+	int NumVertices;
+	int NumIndices;
+	Simplifier.OutputMesh(InOutMesh.Vertexes, InOutMesh.Indexes, SeamVertexArray, &NumVertices, &NumIndices);
 
-	Simplifier.OutputMesh(InOutMesh.Vertexes, InOutMesh.Indexes, SeamVertexArray);
+	// Set the number of vertices again after calling OutputMesh which removes duplicates
+	InOutMesh.SetVertexAndIndexCount(NumVertices, NumIndices);
 
 	return MaxSqrError;
 }

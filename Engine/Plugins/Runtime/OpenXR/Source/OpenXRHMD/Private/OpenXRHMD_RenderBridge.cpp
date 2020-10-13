@@ -6,16 +6,30 @@
 #include "OpenXRCore.h"
 #include "OpenXRPlatformRHI.h"
 
+void FOpenXRRenderBridge::BeginDrawing()
+{
+	if (OpenXRHMD)
+	{
+		OpenXRHMD->OnBeginRendering_RHIThread();
+	}
+}
+
 bool FOpenXRRenderBridge::Present(int32& InOutSyncInterval)
 {
 	if (OpenXRHMD)
 	{
-		OpenXRHMD->FinishRendering();
+		OpenXRHMD->OnFinishRendering_RHIThread();
 	}
 
 	InOutSyncInterval = 0; // VSync off
 
-	return true;
+#if PLATFORM_HOLOLENS
+	bool bNeedsNativePresent = false;
+#else
+	bool bNeedsNativePresent = !FPlatformMisc::IsStandaloneStereoOnlyDevice();
+#endif
+
+	return bNeedsNativePresent;
 }
 
 #ifdef XR_USE_GRAPHICS_API_D3D11

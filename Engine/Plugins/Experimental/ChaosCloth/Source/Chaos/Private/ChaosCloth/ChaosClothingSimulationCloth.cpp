@@ -7,8 +7,14 @@
 #include "ChaosCloth/ChaosWeightMapTarget.h"
 #include "ChaosCloth/ChaosClothPrivate.h"
 #include "Containers/ArrayView.h"
+#include "HAL/IConsoleManager.h"
 
 using namespace Chaos;
+
+namespace ChaosClothingSimulationClothConsoleVariables
+{
+	TAutoConsoleVariable<bool> CVarLegacyDisablesAccurateWind(TEXT("p.ChaosCloth.LegacyDisablesAccurateWind"), true, TEXT("Whether using the Legacy wind model switches off the accurate wind model, or adds up to it"));
+}
 
 FClothingSimulationCloth::FLODData::FLODData(int32 InNumParticles, const TConstArrayView<uint32>& InIndices, const TArray<TConstArrayView<float>>& InWeightMaps)
 	: NumParticles(InNumParticles)
@@ -269,6 +275,18 @@ void FClothingSimulationCloth::FLODData::Remove(FClothingSimulationSolver* Solve
 	SolverData.Remove(Solver);
 }
 
+void FClothingSimulationCloth::FLODData::Update(FClothingSimulationSolver* Solver, FClothingSimulationCloth* Cloth)
+{
+	check(Solver);
+	const int32 Offset = SolverData.FindChecked(Solver).Offset;
+	check(Offset != INDEX_NONE);
+
+	// Update the animatable constraint parameters
+	FClothConstraints& ClothConstraints = Solver->GetClothConstraints(Offset);
+	ClothConstraints.SetMaxDistancesMultiplier(Cloth->MaxDistancesMultiplier);
+	ClothConstraints.SetAnimDriveSpringStiffness(Cloth->AnimDriveSpringStiffness);
+}
+
 void FClothingSimulationCloth::FLODData::Enable(FClothingSimulationSolver* Solver, bool bEnable) const
 {
 	check(Solver);
@@ -343,6 +361,7 @@ FClothingSimulationCloth::FClothingSimulationCloth(
 	float InAngularVelocityScale,
 	float InDragCoefficient,
 	float InLiftCoefficient,
+	bool bInUseLegacyWind,
 	float InDampingCoefficient,
 	float InCollisionThickness,
 	float InFrictionCoefficient,
@@ -377,6 +396,7 @@ FClothingSimulationCloth::FClothingSimulationCloth(
 	, AngularVelocityScale(InAngularVelocityScale)
 	, DragCoefficient(InDragCoefficient)
 	, LiftCoefficient(InLiftCoefficient)
+	, bUseLegacyWind(bInUseLegacyWind)
 	, DampingCoefficient(InDampingCoefficient)
 	, CollisionThickness(InCollisionThickness)
 	, FrictionCoefficient(InFrictionCoefficient)
@@ -622,6 +642,7 @@ void FClothingSimulationCloth::Update(FClothingSimulationSolver* Solver)
 	// Update reference space transform from the mesh's reference bone transform  TODO: Add override in the style of LODIndexOverride
 	const TRigidTransform<float, 3> OldReferenceSpaceTransform = ReferenceSpaceTransform;
 	ReferenceSpaceTransform = Mesh->GetReferenceBoneTransform();
+	ReferenceSpaceTransform.SetScale3D(TVector<float, 3>(1.f));
 
 	// Update Cloth Colliders
 	for (FClothingSimulationCollider* Collider : Colliders)
@@ -672,6 +693,7 @@ void FClothingSimulationCloth::Update(FClothingSimulationSolver* Solver)
 	if (LODIndex != INDEX_NONE)
 	{
 		// Update Cloth group parameters  TODO: Cloth groups should exist as their own node object so that they can be used by several cloth objects
+		LODData[LODIndex].Update(Solver, this);
 
 		// Update gravity
 		// This code relies on the solver gravity property being already set.
@@ -680,7 +702,16 @@ void FClothingSimulationCloth::Update(FClothingSimulationSolver* Solver)
 		Solver->SetGravity(GroupId, GetGravity(Solver));
 
 		// Update wind
-		Solver->SetWindVelocityField(GroupId, DragCoefficient, LiftCoefficient, &GetTriangleMesh(Solver));
+		Solver->SetLegacyWind(GroupId, bUseLegacyWind);
+
+		if (bUseLegacyWind && ChaosClothingSimulationClothConsoleVariables::CVarLegacyDisablesAccurateWind.GetValueOnAnyThread())
+		{
+			Solver->SetWindVelocityField(GroupId, 0.f, 0.f, &GetTriangleMesh(Solver));
+		}
+		else
+		{
+			Solver->SetWindVelocityField(GroupId, DragCoefficient, LiftCoefficient, &GetTriangleMesh(Solver));
+		}
 
 		// Update general solver properties
 		Solver->SetProperties(GroupId, DampingCoefficient, CollisionThickness, FrictionCoefficient);
@@ -697,12 +728,14 @@ void FClothingSimulationCloth::Update(FClothingSimulationSolver* Solver)
 
 			// Reset to start pose
 			LODData[LODIndex].ResetStartPose(Solver);
+			UE_LOG(LogChaosCloth, VeryVerbose, TEXT("Cloth in group Id %d Needs reset."), GroupId);
 		}
 		else if (bNeedsTeleport)
 		{
 			// Remove all impulse velocity from the last frame
 			OutLinearVelocityScale = TVector<float, 3>(0.f);
 			OutAngularVelocityScale = 0.f;
+			UE_LOG(LogChaosCloth, VeryVerbose, TEXT("Cloth in group Id %d Needs teleport."), GroupId);
 		}
 		else
 		{

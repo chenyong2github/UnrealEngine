@@ -213,5 +213,9 @@ private:
 	const FDebugViewModeInterface* DebugViewModeInterface;
 };
 
+void AddDebugViewModeShaderTypes(ERHIFeatureLevel::Type FeatureLevel,
+	EMaterialTessellationMode MaterialTessellationMode,
+	const FVertexFactoryType* VertexFactoryType,
+	FMaterialShaderTypes& OutShaderTypes);
 
 #endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)

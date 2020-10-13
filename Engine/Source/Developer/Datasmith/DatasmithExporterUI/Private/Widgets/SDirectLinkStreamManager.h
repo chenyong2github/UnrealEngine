@@ -60,6 +60,19 @@ private:
 
 	FReply OnChangeCacheDirectoryClicked();
 
+	EVisibility GetNoConnectionHintVisibility() const;
+
+	float GetNoConnectionHintFillHeight() const;
+
+	EVisibility GetConnectionViewVisibility() const;
+
+	EVisibility GetAdavancedSettingVisibility() const;
+
+	FReply OnShowAdavancedSettingClicked();
+
+	FText GetShowAdavancedSettingToolTipText() const;
+
+
 	TSharedPtr<SListView<TSharedRef<FStreamData>>> ConnectionsView;
 
 	// The list of streams connection
@@ -84,4 +97,9 @@ private:
 	FString DirectLinkCacheDirectory;
 
 	FOnCacheDirectoryChanged OnCacheDirectoryChanged;
+
+	TSharedPtr<class SButton> ShowAdavancedSettingButton;
+	TSharedPtr<class SImage> ShowAdavancedSettingImage;
+
+	bool bShowingAdavancedSetting;
 };

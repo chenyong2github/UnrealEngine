@@ -8,6 +8,7 @@
 class AActor;
 struct FAssetData;
 class ULevel;
+class SNotificationItem;
 
 UCLASS()
 class URemoteControlPresetActorFactory : public UActorFactory
@@ -22,4 +23,7 @@ public:
 	virtual bool CanCreateActorFrom( const FAssetData& AssetData, FText& OutErrorMsg ) override;
 	virtual UObject* GetAssetFromActorInstance(AActor* ActorInstance) override;
 	//~ End UActorFactory Interface
+
+private:
+	TWeakPtr<SNotificationItem> ActiveNotification;
 };

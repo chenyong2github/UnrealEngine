@@ -377,6 +377,14 @@ class EdgeBotImpl extends PerforceStatefulBot {
 			description += `#ROBOMERGE-BOT: (v${VersionReader.getShortVersion()})\n`
 		}
 
+		if (info.forceStompChanges) {
+			description += `#ROBOMERGE-CONFLICT stomped\n`
+		}
+		else if (info.forceCreateAShelf) {
+			description += `#ROBOMERGE-CONFLICT from-shelf\n`
+		}
+
+
 		if (target.flags.has('disregardexcludedauthors')) {
 			description += '#ROBOMERGE[ALL]: #DISREGARDEXCLUDEDAUTHORS\n'
 		}
@@ -984,6 +992,10 @@ export class EdgeBot extends EdgeBotEntryPoints {
 
 		this.revertPendingCLWithShelf = this.proxyAsync("revertPendingCLWithShelf")
 		this.performMerge = this.proxyAsync("performMerge")
+
+		if (options.forcePause) {
+			this.impl.pause('Pause forced in branchspec.json', 'branchspec')
+		}
 	}
 
 	// Could extend this by offering _log_action() calls

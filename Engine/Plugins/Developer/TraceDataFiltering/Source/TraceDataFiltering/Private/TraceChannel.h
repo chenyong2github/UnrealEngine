@@ -9,7 +9,7 @@ class ISessionTraceFilterService;
 class FTraceChannel : public ITraceObject
 {
 public:
-	FTraceChannel(FString InName, FString InParentName, uint32 InHash, bool bInEnabled, bool bInCmdLineOnly, const TArray<TSharedPtr<ITraceObject>>& InChildObjects, TSharedPtr<ISessionTraceFilterService> InFilterService);
+	FTraceChannel(FString InName, FString InParentName, uint32 InHash, bool bInEnabled, bool bInReadOnly, const TArray<TSharedPtr<ITraceObject>>& InChildObjects, TSharedPtr<ISessionTraceFilterService> InFilterService);
 
 	/** Begin ITraceObject overrides */
 	virtual FText GetDisplayText() const override;;

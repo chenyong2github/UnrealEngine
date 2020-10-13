@@ -19,6 +19,7 @@
 #include "Misc/CString.h"
 #include "Misc/DateTime.h"
 #include "Misc/Paths.h"
+#include "Modules/ModuleManager.h"
 #include "ProfilingDebugging/CountersTrace.h"
 #include "ProfilingDebugging/MiscTrace.h"
 #include "ProfilingDebugging/PlatformFileTrace.h"
@@ -134,7 +135,7 @@ void FTraceAuxiliaryImpl::AddChannel(const TCHAR* Name)
 bool FTraceAuxiliaryImpl::Connect(ETraceConnectType Type, const TCHAR* Parameter)
 {
 	// Connect/write to file. But only if we're not already sending/writing
-	bool bConnected = (State >= EState::Tracing);
+	bool bConnected = Trace::IsTracing();
 	if (!bConnected)
 	{
 		if (Type == ETraceConnectType::Network)
@@ -387,6 +388,12 @@ void FTraceAuxiliary::Initialize(const TCHAR* CommandLine)
 	Trace::Initialize(Desc);
 
 	FCoreDelegates::OnEndFrame.AddStatic(Trace::Update);
+	FModuleManager::Get().OnModulesChanged().AddLambda([](FName Name, EModuleChangeReason Reason){
+		if (Reason == EModuleChangeReason::ModuleLoaded)
+		{
+			EnableChannels();
+		}
+	});
 
 	// Extract an explicit channel set from the command line.
 	FString Parameter;
@@ -409,6 +416,9 @@ void FTraceAuxiliary::Initialize(const TCHAR* CommandLine)
 	{
 		GTraceAuxiliary.Connect(ETraceConnectType::File, nullptr);
 	}
+
+	Trace::ThreadRegister(TEXT("GameThread"), FPlatformTLS::GetCurrentThreadId(), -1);
+
 #endif
 }
 

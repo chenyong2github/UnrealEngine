@@ -74,7 +74,7 @@ public:
 	virtual TSharedPtr<class IPersonaPreviewScene> GetPreviewScene() const override { return PreviewScene.Pin(); }
 	virtual void SetSkeletalMesh(USkeletalMesh* NewSkeletalMesh) override;
 	virtual void SetSelectedSocket(const struct FSelectedSocketInfo& InSocketInfo) override;
-	virtual void SetSelectedBone(const FName& InBoneName) override;
+	virtual void SetSelectedBone(const FName& InBoneName, ESelectInfo::Type InSelectInfo) override;
 	virtual void DeselectAll() override;
 	virtual TArray<TSharedPtr<ISkeletonTreeItem>> GetSelectedItems() const override { return SkeletonTreeView->GetSelectedItems(); }
 	virtual void SelectItemsBy(TFunctionRef<bool(const TSharedRef<ISkeletonTreeItem>&, bool&)> Predicate) const override;
@@ -309,7 +309,7 @@ private:
 	}
 
 	/** Handle bone selection changing externally */
-	void HandleSelectedBoneChanged(const FName& InBoneName);
+	void HandleSelectedBoneChanged(const FName& InBoneName, ESelectInfo::Type InSelectInfo);
 
 	/** Handle socket selection changing externally */
 	void HandleSelectedSocketChanged(const FSelectedSocketInfo& InSocketInfo);

@@ -3,6 +3,7 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">x64</Platform>
+	<AssemblyInfo Condition=" '$(AssemblyInfo)' == ''">..\Properties\DefaultAssemblyInfo.cs</AssemblyInfo>
     <!--If the evironment variable is not define, try to find the Rhino files on build machines-->
     <ProductVersion>8.0.30703</ProductVersion>
     <SchemaVersion>2.0</SchemaVersion>
@@ -70,7 +71,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="DatasmithRhino.cs" />
-    <Compile Include="..\Properties\AssemblyInfo.cs">
+    <Compile Include="$(AssemblyInfo)">
       <Link>Properties\AssemblyInfo.cs</Link>
     </Compile>
     <Compile Include="..\Private\**\*.cs">

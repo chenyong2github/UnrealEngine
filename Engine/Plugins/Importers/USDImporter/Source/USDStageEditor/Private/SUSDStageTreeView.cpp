@@ -2,6 +2,7 @@
 
 #include "SUSDStageTreeView.h"
 
+#include "SUSDStageEditorStyle.h"
 #include "UnrealUSDWrapper.h"
 #include "USDConversionUtils.h"
 #include "USDLayerUtils.h"
@@ -24,6 +25,7 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Layout/SSeparator.h"
+#include "Widgets/SToolTip.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "Widgets/Views/STableRow.h"
 
@@ -72,7 +74,11 @@ public:
 
 		TreeItem->RenameRequestEvent.BindSP( &Item.Get(), &SInlineEditableTextBlock::EnterEditingMode );
 
-		return Item;
+		return SNew(SBox)
+			.VAlign( VAlign_Center )
+			[
+				Item
+			];
 	}
 
 protected:
@@ -208,10 +214,22 @@ public:
 	{
 		const TSharedPtr< FUsdPrimViewModel > TreeItem = StaticCastSharedPtr< FUsdPrimViewModel >( InTreeItem );
 
+		if ( !TreeItem->HasVisibilityAttribute() )
+		{
+			float ItemSize = FUsdStageEditorStyle::Get()->GetFloat( "UsdStageEditor.ListItemHeight" );
+
+			return SNew(SBox)
+				.HeightOverride( ItemSize )
+				.WidthOverride( ItemSize )
+				.Visibility( EVisibility::Visible )
+				.ToolTip( SNew( SToolTip ).Text( LOCTEXT( "NoGeomImageable", "Only prims with the GeomImageable schema (or derived) have the visibility attribute!" ) ) );
+		}
+
 		TSharedRef< SWidget > Item = SNew( SButton )
 										.ContentPadding(0)
 										.ButtonStyle( FEditorStyle::Get(), "ToggleButton" )
 										.OnClicked( this, &FUsdStageVisibilityColumn::OnToggleVisibility, TreeItem )
+										.ToolTip( SNew( SToolTip ).Text( LOCTEXT( "GeomImageable", "Toggle the visibility of this prim" ) ) )
 										.HAlign( HAlign_Center )
 										.VAlign( VAlign_Center )
 										.Content()
@@ -231,13 +249,14 @@ public:
 	{
 		TSharedPtr< FUsdPrimViewModel > TreeItem = StaticCastSharedPtr< FUsdPrimViewModel >( InTreeItem );
 
-		TSharedRef< STextBlock > Item =
-			SNew(STextBlock)
+		return SNew(SBox)
+			.VAlign( VAlign_Center )
+			[
+				SNew(STextBlock)
 				.TextStyle( FEditorStyle::Get(), "LargeText" )
 				.Text( TreeItem->RowData, &FUsdPrimModel::GetType )
-				.Font( FEditorStyle::GetFontStyle( "ContentBrowser.SourceTreeItemFont" ) );
-
-		return Item;
+				.Font( FEditorStyle::GetFontStyle( "ContentBrowser.SourceTreeItemFont" ) )
+			];
 	}
 };
 

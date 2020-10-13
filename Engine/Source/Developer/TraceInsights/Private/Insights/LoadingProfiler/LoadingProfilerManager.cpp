@@ -51,8 +51,6 @@ TSharedPtr<FLoadingProfilerManager> FLoadingProfilerManager::CreateInstance()
 FLoadingProfilerManager::FLoadingProfilerManager(TSharedRef<FUICommandList> InCommandList)
 	: bIsInitialized(false)
 	, bIsAvailable(false)
-	, AvailabilityCheckNextTimestamp(0)
-	, AvailabilityCheckWaitTimeSec(1.0)
 	, CommandList(InCommandList)
 	, ActionManager(this)
 	, ProfilerWindow(nullptr)
@@ -76,12 +74,17 @@ void FLoadingProfilerManager::Initialize(IUnrealInsightsModule& InsightsModule)
 	}
 	bIsInitialized = true;
 
+	UE_LOG(LoadingProfiler, Log, TEXT("Initialize"));
+
 	// Register tick functions.
 	OnTick = FTickerDelegate::CreateSP(this, &FLoadingProfilerManager::Tick);
-	OnTickHandle = FTicker::GetCoreTicker().AddTicker(OnTick, 1.0f);
+	OnTickHandle = FTicker::GetCoreTicker().AddTicker(OnTick, 0.0f);
 
 	FLoadingProfilerCommands::Register();
 	BindCommands();
+
+	FInsightsManager::Get()->GetSessionChangedEvent().AddSP(this, &FLoadingProfilerManager::OnSessionChanged);
+	OnSessionChanged();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -94,12 +97,16 @@ void FLoadingProfilerManager::Shutdown()
 	}
 	bIsInitialized = false;
 
+	FInsightsManager::Get()->GetSessionChangedEvent().RemoveAll(this);
+
 	FLoadingProfilerCommands::Unregister();
 
 	// Unregister tick function.
 	FTicker::GetCoreTicker().RemoveTicker(OnTickHandle);
 
 	FLoadingProfilerManager::Instance.Reset();
+
+	UE_LOG(LoadingProfiler, Log, TEXT("Shutdown"));
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -209,38 +216,43 @@ FLoadingProfilerActionManager& FLoadingProfilerManager::GetActionManager()
 
 bool FLoadingProfilerManager::Tick(float DeltaTime)
 {
-	if (!bIsAvailable)
+	// Check if session has Load Time events (to spawn the tab), but not too often.
+	if (!bIsAvailable && AvailabilityCheck.Tick())
 	{
-		// Check if session has Load Time events (to spawn the tab), but not too often.
-		const uint64 Time = FPlatformTime::Cycles64();
-		if (Time > AvailabilityCheckNextTimestamp)
+		bool bIsProviderAvailable = false;
+
+		TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+		if (Session.IsValid())
 		{
-			AvailabilityCheckWaitTimeSec += 1.0; // increase wait time with 1s
-			const uint64 WaitTime = static_cast<uint64>(AvailabilityCheckWaitTimeSec / FPlatformTime::GetSecondsPerCycle64());
-			AvailabilityCheckNextTimestamp = Time + WaitTime;
+			Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 
-			bool bIsProviderAvailable = false;
-
-			TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
-			if (Session.IsValid())
+			if (Session->IsAnalysisComplete())
 			{
-				Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-				const Trace::ILoadTimeProfilerProvider* LoadTimeProfilerProvider = Trace::ReadLoadTimeProfilerProvider(*Session.Get());
-				if (LoadTimeProfilerProvider)
-				{
-					bIsProviderAvailable = (LoadTimeProfilerProvider->GetTimelineCount() > 0);
-				}
+				// Never check again during this session.
+				AvailabilityCheck.Disable();
 			}
 
-			if (bIsProviderAvailable)
+			const Trace::ILoadTimeProfilerProvider* LoadTimeProfilerProvider = Trace::ReadLoadTimeProfilerProvider(*Session.Get());
+			if (LoadTimeProfilerProvider)
 			{
-				bIsAvailable = true;
+				bIsProviderAvailable = (LoadTimeProfilerProvider->GetTimelineCount() > 0);
+			}
+		}
+		else
+		{
+			// Do not check again until the next session changed event (see OnSessionChanged).
+			AvailabilityCheck.Disable();
+		}
 
-				const FName& TabId = FInsightsManagerTabs::LoadingProfilerTabId;
-				if (FGlobalTabmanager::Get()->HasTabSpawner(TabId))
-				{
-					FGlobalTabmanager::Get()->TryInvokeTab(TabId);
-				}
+		if (bIsProviderAvailable)
+		{
+			bIsAvailable = true;
+
+			const FName& TabId = FInsightsManagerTabs::LoadingProfilerTabId;
+			if (FGlobalTabmanager::Get()->HasTabSpawner(TabId))
+			{
+				UE_LOG(LoadingProfiler, Log, TEXT("Opening the \"Asset Loading Insights\" tab..."));
+				FGlobalTabmanager::Get()->TryInvokeTab(TabId);
 			}
 		}
 	}
@@ -252,9 +264,17 @@ bool FLoadingProfilerManager::Tick(float DeltaTime)
 
 void FLoadingProfilerManager::OnSessionChanged()
 {
+	UE_LOG(LoadingProfiler, Log, TEXT("OnSessionChanged"));
+
 	bIsAvailable = false;
-	AvailabilityCheckNextTimestamp = 0;
-	AvailabilityCheckWaitTimeSec = 1.0;
+	if (FInsightsManager::Get()->GetSession().IsValid())
+	{
+		AvailabilityCheck.Enable(0.3);
+	}
+	else
+	{
+		AvailabilityCheck.Disable();
+	}
 
 	TSharedPtr<SLoadingProfilerWindow> Wnd = GetProfilerWindow();
 	if (Wnd.IsValid())

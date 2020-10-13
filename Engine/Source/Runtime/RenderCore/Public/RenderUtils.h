@@ -474,7 +474,7 @@ RENDERCORE_API bool IsSimpleForwardShadingEnabled(const FStaticShaderPlatform Pl
 
 RENDERCORE_API bool MobileSupportsGPUScene(const FStaticShaderPlatform Platform);
 
-RENDERCORE_API bool IsMobileDeferredShading();
+RENDERCORE_API bool IsMobileDeferredShadingEnabled(const FStaticShaderPlatform Platform);
 
 RENDERCORE_API bool SupportsTextureCubeArray(ERHIFeatureLevel::Type FeatureLevel);
 
@@ -567,6 +567,12 @@ inline bool ForceSimpleSkyDiffuse(const FStaticShaderPlatform Platform)
 {
 	extern RENDERCORE_API uint64 GSimpleSkyDiffusePlatformMask;
 	return !!(GSimpleSkyDiffusePlatformMask & (1ull << Platform));
+}
+
+inline bool VelocityEncodeDepth(const FStaticShaderPlatform Platform)
+{
+	extern RENDERCORE_API uint64 GVelocityEncodeDepthPlatformMask;
+	return !!(GVelocityEncodeDepthPlatformMask & (1ull << Platform));
 }
 
 /** Unit cube vertex buffer (VertexDeclarationFVector4) */

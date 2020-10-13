@@ -3,10 +3,9 @@
 #pragma once
 
 #include "Policy/DisplayClusterProjectionPolicyBase.h"
-#include "Config/DisplayClusterConfigTypes.h"
-
 
 class UCameraComponent;
+class UWorld;
 
 
 /**
@@ -16,7 +15,7 @@ class FDisplayClusterProjectionCameraPolicy
 	: public FDisplayClusterProjectionPolicyBase
 {
 public:
-	FDisplayClusterProjectionCameraPolicy(const FString& ViewportId);
+	FDisplayClusterProjectionCameraPolicy(const FString& ViewportId, const TMap<FString, FString>& Parameters);
 	virtual ~FDisplayClusterProjectionCameraPolicy();
 
 public:
@@ -38,6 +37,7 @@ public:
 	void SetCamera(UCameraComponent* NewCamera, float FOVMultiplier);
 
 private:
+	UWorld* World;
 	// Camera to use for rendering
 	UCameraComponent* AssignedCamera = nullptr;
 	// FOV multiplier

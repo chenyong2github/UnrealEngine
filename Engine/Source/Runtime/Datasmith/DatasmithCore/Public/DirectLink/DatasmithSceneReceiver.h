@@ -2,14 +2,17 @@
 
 #pragma once
 
-#include "DirectLink/DeltaConsumer.h"
-#include "DirectLink/ElementSnapshot.h"
+#include "DirectLinkDeltaConsumer.h"
+#include "DirectLinkElementSnapshot.h"
 
 
 class IDatasmithElement;
 class IDatasmithScene;
 
-
+/**
+ * This class receives DirectLink scene snapshots, and convert them into a DatasmithScene.
+ * A listener can be registered to be notified of a scene modification
+ */
 class DATASMITHCORE_API FDatasmithSceneReceiver
 	: public DirectLink::ISceneReceiver
 {
@@ -28,10 +31,13 @@ public:
 public:
 	FDatasmithSceneReceiver();
 
+	// Register a listner that will be notified of important scene edition events
 	void SetChangeListener(ISceneChangeListener* Listener) { ChangeListener = Listener; }
+
+	// Get the reconstructed DatasmithScene. Can be null.
 	TSharedPtr<IDatasmithScene> GetScene();
 
-private:
+private: // DirectLink::ISceneReceiver API
 	virtual void FinalSnapshot(const DirectLink::FSceneSnapshot& SceneSnapshot) override;
 
 private:
@@ -48,28 +54,9 @@ private:
 	struct FFinalizableNode
 	{
 		TSharedPtr<IDatasmithElement> Element;
-		DirectLink::FReferenceSnapshot RefSnapshot;
-	};
-	struct FFinalizableNode2
-	{
-		TSharedPtr<IDatasmithElement> Element;
 		const DirectLink::FElementSnapshot* Snapshot;
 	};
 
-	struct FElementEdit{
-		DirectLink::FSceneGraphId Id;
-		DirectLink::FElementHash OldHash;
-		DirectLink::FElementHash NewHash;
-	};
-	struct FChangeLog
-	{
-		DirectLink::FSceneIdentifier OldSceneId;
-		DirectLink::FSceneIdentifier NewSceneId;
-		int32 SyncCycle;
-		bool bForceNewScene;
-	};
-
-	FChangeLog ChangeLog;
 	ISceneChangeListener* ChangeListener = nullptr;
 
 	struct FSceneState

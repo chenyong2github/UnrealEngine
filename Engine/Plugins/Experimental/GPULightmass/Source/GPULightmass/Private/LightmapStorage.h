@@ -81,9 +81,9 @@ public:
 		int32 Revision = -1;
 		int32 RenderPassIndex = 0;
 		int32 CPURevision = -1;
+		int32 OngoingReadbackRevision = -1;
 		bool bCanBeDenoised = false;
 		bool bWasDenoisedWithoutProximity = false;
-		bool bHasReadbackInFlight = false;
 
 		void Invalidate()
 		{
@@ -97,7 +97,7 @@ public:
 			CPURevision = -1;
 			bCanBeDenoised = false;
 			bWasDenoisedWithoutProximity = false;
-			bHasReadbackInFlight = false;
+			OngoingReadbackRevision = -1;
 		}
 	};
 
@@ -169,9 +169,8 @@ public:
 		return TileRelevantLightSampleCountStates[LinearIndex];
 	}
 
-	bool IsTileGIConverged(FTileVirtualCoordinates Coords);
-	bool IsTileShadowConverged(FTileVirtualCoordinates Coords);
-	bool IsTileFullyConverged(FTileVirtualCoordinates Coords);
+	bool IsTileGIConverged(FTileVirtualCoordinates Coords, int32 NumGISamples);
+	bool IsTileShadowConverged(FTileVirtualCoordinates Coords, int32 NumShadowSamples);
 	bool DoesTileHaveValidCPUData(FTileVirtualCoordinates Coords, int32 CurrentRevision);
 
 	FString Name;

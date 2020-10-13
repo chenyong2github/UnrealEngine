@@ -208,6 +208,18 @@ static TAutoConsoleVariable<int32> CVarRayTracingReflectionsExperimentalDeferred
 	TEXT("Whether to use the experimental deferred ray traced reflection rendering algorithm, which only supports a subset of features but runs faster. (default = 0)."),
 	ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<float> CVarRayTracingReflectionsNormalBias(
+	TEXT("r.RayTracing.Reflections.NormalBias"),
+	0.1,
+	TEXT("Magnitude of normal bias for reflection rays. (default = 0.1)"),
+	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<int32> CVarRayTracingReflectionsEnableTwoSidedGeometry(
+	TEXT("r.RayTracing.Reflections.EnableTwoSidedGeometry"),
+	1,
+	TEXT("Two-sided geometry setting for reflection rays. (default = 1)"),
+	ECVF_RenderThreadSafe);
+
 // ESamplePhase
 enum class ESamplePhase
 {
@@ -266,6 +278,8 @@ class FRayTracingReflectionsRGS : public FGlobalShader
 		SHADER_PARAMETER(float, ReflectionMaxRayDistance)
 		SHADER_PARAMETER(float, ReflectionMaxRoughness)
 		SHADER_PARAMETER(float, ReflectionMaxNormalBias)
+		SHADER_PARAMETER(float, ShadowMaxNormalBias)
+		SHADER_PARAMETER(int32, ReflectionEnableTwoSidedGeometry)
 		SHADER_PARAMETER(int32, TestPathRoughness)
 		SHADER_PARAMETER(float, MinClearCoatLevel)
 		SHADER_PARAMETER(int32, MaxUnderCoatBounces)
@@ -417,6 +431,11 @@ static bool ShouldRayTracedReflectionsRayTraceSkyLightContribution(const FScene&
 void FDeferredShadingSceneRenderer::PrepareRayTracingReflections(const FViewInfo& View, const FScene& Scene, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
 {
 	// Declare all RayGen shaders that require material closest hit shaders to be bound
+
+	if (!GRayTracingReflections)
+	{
+		return;
+	}
 
 	if (CVarRayTracingReflectionsExperimentalDeferred.GetValueOnRenderThread())
 	{
@@ -634,7 +653,9 @@ void FDeferredShadingSceneRenderer::RenderRayTracingReflections(
 	CommonParameters.ReflectionMinRayDistance = FMath::Min(GRayTracingReflectionsMinRayDistance, GRayTracingReflectionsMaxRayDistance);
 	CommonParameters.ReflectionMaxRayDistance = GRayTracingReflectionsMaxRayDistance;
 	CommonParameters.ReflectionMaxRoughness = GetRayTracingReflectionsMaxRoughness(View);
-	CommonParameters.ReflectionMaxNormalBias = GetRaytracingMaxNormalBias();
+	CommonParameters.ReflectionMaxNormalBias = CVarRayTracingReflectionsNormalBias.GetValueOnRenderThread();
+	CommonParameters.ReflectionEnableTwoSidedGeometry = CVarRayTracingReflectionsEnableTwoSidedGeometry.GetValueOnRenderThread();
+	CommonParameters.ShadowMaxNormalBias = GetRaytracingMaxNormalBias();
 	CommonParameters.RayTracingResolution = RayTracingResolution;
 	CommonParameters.TileAlignedResolution = TileAlignedResolution;
 	CommonParameters.TestPathRoughness = CVarRayTracingReflectionsTestPathRoughness.GetValueOnRenderThread();

@@ -12,26 +12,40 @@
 #include "GroomAssetCards.h"
 #include "GroomResources.h"
 
+struct FHairGroupCardsTextures;
+
+#if WITH_EDITOR
 namespace FHairCardsBuilder
 {
-	void ImportGeometry(
+	bool ImportGeometry(
 		const UStaticMesh* StaticMesh,
-		FHairCardsDatas& Out);
+		FHairCardsDatas& OutCards,
+		FHairStrandsDatas& OutGuides,
+		FHairCardsInterpolationDatas& OutInterpolationData);
+
+	void ExportGeometry(
+		const FHairCardsDatas& InCardsData, 
+		UStaticMesh* OutStaticMesh);
 
 	void BuildGeometry(
+		const FString& LODName,
 		const struct FHairStrandsDatas& In,
 		const struct FHairStrandsDatas& InSim,
 		const struct FHairGroupsProceduralCards& Settings,
 		FHairCardsProceduralDatas& Out,
 		FHairStrandsDatas& OutGuides,
-		FHairCardsInterpolationDatas& OutInterpolation);
+		FHairCardsInterpolationDatas& OutInterpolation,
+		FHairGroupCardsTextures& OutTextures);
 
 	void BuildTextureAtlas(
 		FHairCardsProceduralDatas* ProceduralData,
 		FHairCardsRestResource* RestResource,
-		FHairCardsProceduralResource* AtlasResource);
+		FHairCardsProceduralResource* AtlasResource,
+		FHairGroupCardsTextures* Textures);
 
 	void Convert(const FHairCardsProceduralDatas& In, FHairCardsDatas& Out);
+
+	FString GetVersion();
 }
 
 namespace FHairMeshesBuilder
@@ -44,4 +58,7 @@ namespace FHairMeshesBuilder
 	void ImportGeometry(
 		const UStaticMesh* StaticMesh,
 		FHairMeshesDatas& Out);
+
+	FString GetVersion();
 }
+#endif // WITH_EDITOR

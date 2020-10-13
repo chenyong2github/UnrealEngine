@@ -99,14 +99,14 @@ void UNiagaraDataInterfaceLandscape::GetFunctions(TArray<FNiagaraFunctionSignatu
 // #todo(dmp): this is gpu only for now
 void UNiagaraDataInterfaceLandscape::GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc)
 {
-	if (BindingInfo.Name == GetNumCellsName)
-	{
-		OutFunc = FVMExternalFunction::CreateUObject(this, &UNiagaraDataInterfaceLandscape::EmptyVMFunction);
-	}
-	else if (BindingInfo.Name == GetHeightName)
-	{
-		OutFunc = FVMExternalFunction::CreateUObject(this, &UNiagaraDataInterfaceLandscape::EmptyVMFunction);
-	}
+	//if (BindingInfo.Name == GetNumCellsName)
+	//{
+	//	OutFunc = FVMExternalFunction::CreateUObject(this, &UNiagaraDataInterfaceLandscape::EmptyVMFunction);
+	//}
+	//else if (BindingInfo.Name == GetHeightName)
+	//{
+	//	OutFunc = FVMExternalFunction::CreateUObject(this, &UNiagaraDataInterfaceLandscape::EmptyVMFunction);
+	//}
 }
 
 bool UNiagaraDataInterfaceLandscape::GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL)

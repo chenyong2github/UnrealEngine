@@ -2,7 +2,6 @@
 
 #include "MPCDIWarpTexture.h"
 #include "MPCDIData.h"
-#include "MPCDIHelpers.h"
 #include "MPCDIWarpHelpers.h"
 
 THIRD_PARTY_INCLUDES_START

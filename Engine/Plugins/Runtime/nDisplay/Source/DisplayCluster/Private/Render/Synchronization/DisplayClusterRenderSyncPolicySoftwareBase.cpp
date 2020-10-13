@@ -4,7 +4,8 @@
 
 
 
-FDisplayClusterRenderSyncPolicySoftwareBase::FDisplayClusterRenderSyncPolicySoftwareBase()
+FDisplayClusterRenderSyncPolicySoftwareBase::FDisplayClusterRenderSyncPolicySoftwareBase(const TMap<FString, FString>& Parameters)
+	: FDisplayClusterRenderSyncPolicyBase(Parameters)
 {
 }
 

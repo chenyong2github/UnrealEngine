@@ -77,6 +77,7 @@
 #include "AnimSequenceLevelSequenceLink.h"
 
 
+int32 FSkeletalAnimationTrackEditor::NumberActive = 0;
 
 namespace SkeletalAnimationEditorConstants
 {
@@ -740,8 +741,7 @@ void FSkeletalAnimationSection::BuildSectionContextMenu(FMenuBuilder& MenuBuilde
 		MenuBuilder.BeginSection(NAME_None, LOCTEXT("MotionBlendingOptions", "Motion Blending Options"));
 		{
 			MenuBuilder.AddSubMenu(
-				LOCTEXT("MatchWithThisBoneInPreviousClip", "Match With This Bone In Previous Clip"), LOCTEXT("MatchWithThisBoneInPreviousClip_Tooltip",
-					"Match This Bone With Previous Clip At Current Frame"),
+				LOCTEXT("MatchWithThisBoneInPreviousClip", "Match With This Bone In Previous Clip"), LOCTEXT("MatchWithThisBoneInPreviousClip_Tooltip", "Match This Bone With Previous Clip At Current Frame"),
 				FNewMenuDelegate::CreateLambda([=](FMenuBuilder& SubMenuBuilder) {
 					int32 Index = -1;
 					if (Track->bAutoMatchClipsRootMotions) //IF AutoMatching we can't set it to Zero
@@ -769,8 +769,7 @@ void FSkeletalAnimationSection::BuildSectionContextMenu(FMenuBuilder& MenuBuilde
 					}));
 
 			MenuBuilder.AddSubMenu(
-				LOCTEXT("MatchWithThisBoneInNextClip", "Match With This Bone In Next Clip"), LOCTEXT("MatchWithThisBoneInNextClip_Tooltip",
-					"Match This Bone With Next Clip At Current Frame"),
+				LOCTEXT("MatchWithThisBoneInNextClip", "Match With This Bone In Next Clip"), LOCTEXT("MatchWithThisBoneInNextClip_Tooltip", "Match This Bone With Next Clip At Current Frame"),
 				FNewMenuDelegate::CreateLambda([=](FMenuBuilder& SubMenuBuilder) {
 					int32 Index = -1;
 					if (Track->bAutoMatchClipsRootMotions) //IF AutoMatching we can't set it to Zero
@@ -975,6 +974,7 @@ FSkeletalAnimationTrackEditor::FSkeletalAnimationTrackEditor( TSharedRef<ISequen
 	: FMovieSceneTrackEditor( InSequencer ) 
 { 
 	//We use the FGCObject pattern to keep the anim export option alive during the editor session
+
 	AnimSeqExportOption = NewObject<UAnimSeqExportOption>();
 
 	SequencerSavedHandle = InSequencer->OnPostSave().AddRaw(this, &FSkeletalAnimationTrackEditor::OnSequencerSaved);
@@ -983,6 +983,8 @@ FSkeletalAnimationTrackEditor::FSkeletalAnimationTrackEditor( TSharedRef<ISequen
 
 void FSkeletalAnimationTrackEditor::OnInitialize()
 {
+	++FSkeletalAnimationTrackEditor::NumberActive;
+
 	GLevelEditorModeTools().ActivateMode(FSkeletalAnimationTrackEditMode::ModeName);
 	FSkeletalAnimationTrackEditMode* EditMode = static_cast<FSkeletalAnimationTrackEditMode*>(GLevelEditorModeTools().GetActiveMode(FSkeletalAnimationTrackEditMode::ModeName));
 	if (EditMode)
@@ -993,11 +995,17 @@ void FSkeletalAnimationTrackEditor::OnInitialize()
 }
 void FSkeletalAnimationTrackEditor::OnRelease()
 {
-	GLevelEditorModeTools().DeactivateMode(FSkeletalAnimationTrackEditMode::ModeName);
+	--FSkeletalAnimationTrackEditor::NumberActive;
+
 	if (GetSequencer().IsValid() && SequencerSavedHandle.IsValid())
 	{
 		GetSequencer()->OnPostSave().Remove(SequencerSavedHandle);
 	}
+	if (FSkeletalAnimationTrackEditor::NumberActive == 0)
+	{
+		GLevelEditorModeTools().DeactivateMode(FSkeletalAnimationTrackEditMode::ModeName);
+	}
+
 }
 
 void FSkeletalAnimationTrackEditor::AddReferencedObjects(FReferenceCollector& Collector)
@@ -1597,6 +1605,7 @@ void FSkeletalAnimationTrackEditor::BuildTrackContextMenu( FMenuBuilder& MenuBui
 			FExecuteAction::CreateStatic( &CopyInterpAnimControlTrack, GetSequencer().ToSharedRef(), MatineeAnimControlTrack, SkeletalAnimationTrack ),
 			FCanExecuteAction::CreateLambda( [=]()->bool { return MatineeAnimControlTrack != nullptr && MatineeAnimControlTrack->AnimSeqs.Num() > 0 && SkeletalAnimationTrack != nullptr; } ) ) );
 
+	/** Put this back when and if it works
 	MenuBuilder.BeginSection(NAME_None, LOCTEXT("MotionBlendingOptions", "Motion Blending Options"));
 	{
 		MenuBuilder.AddMenuEntry(
@@ -1616,6 +1625,7 @@ void FSkeletalAnimationTrackEditor::BuildTrackContextMenu( FMenuBuilder& MenuBui
 		);
 		MenuBuilder.EndSection();
 	}
+	*/
 
 	MenuBuilder.BeginSection(NAME_None, LOCTEXT("SkelAnimTrackDisplay", "Display"));
 	{

@@ -23,19 +23,19 @@ class HAIRSTRANDSCORE_API FHairCardsVertexFactory : public FVertexFactory
 {
 	DECLARE_VERTEX_FACTORY_TYPE(FHairCardsVertexFactory);
 public:
-
-	FHairCardsVertexFactory(ERHIFeatureLevel::Type InFeatureLevel, const char* InDebugName)
-		: FVertexFactory(InFeatureLevel)
-		, DebugName(InDebugName)
-	{
-		bSupportsManualVertexFetch = true;
-	}
-	
 	struct FDataType
 	{
 		TArray<FHairGroupInstance*> Instances;
 	};
 
+	FHairCardsVertexFactory(const TArray<FHairGroupInstance*>& InitialData, ERHIFeatureLevel::Type InFeatureLevel, const char* InDebugName)
+		: FVertexFactory(InFeatureLevel)
+		, DebugName(InDebugName)
+	{
+		bSupportsManualVertexFetch = true;
+		Data.Instances = InitialData;
+	}
+	
 	/**
 	 * Should we cache the material's shadertype on this platform with this vertex factory? 
 	 */

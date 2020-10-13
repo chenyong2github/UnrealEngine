@@ -178,7 +178,6 @@ FScreenPassTexture FOpenColorIODisplayExtension::PostProcessPassAfterTonemap_Ren
 	{
 		return SceneColor;
 	}
-	const FScreenPassTextureViewport SceneColorViewport(SceneColor);
 
 	if (!SceneColor.IsValid())
 	{
@@ -191,13 +190,7 @@ FScreenPassTexture FOpenColorIODisplayExtension::PostProcessPassAfterTonemap_Ren
 		// Get shader from shader map.
 		FGlobalShaderMap* GlobalShaderMap = GetGlobalShaderMap(ViewFamily.GetFeatureLevel());
 
-		// Reusing the same output description for our back buffer as SceneColor
-		FRDGTextureDesc OutputDesc = SceneColor.Texture->Desc;
-		OutputDesc.Flags |= TexCreate_RenderTargetable;
-		FLinearColor ClearColor(0., 0., 0., 0.);
-		OutputDesc.ClearValue = FClearValueBinding(ClearColor);
-
-		FRDGTexture* BackBufferRenderTargetTexture = GraphBuilder.CreateTexture(OutputDesc, TEXT("BackBufferRenderTargetTexture"));
+		
 		FScreenPassRenderTarget BackBufferRenderTarget;
 
 		// If the override output is provided it means that this is the last pass in post processing.
@@ -207,8 +200,19 @@ FScreenPassTexture FOpenColorIODisplayExtension::PostProcessPassAfterTonemap_Ren
 		}
 		else
 		{
+			// Reusing the same output description for our back buffer as SceneColor when it's not overriden
+			FRDGTextureDesc OutputDesc = SceneColor.Texture->Desc;
+			OutputDesc.Flags |= TexCreate_RenderTargetable;
+			FLinearColor ClearColor(0., 0., 0., 0.);
+			OutputDesc.ClearValue = FClearValueBinding(ClearColor);
+
+			FRDGTexture* BackBufferRenderTargetTexture = GraphBuilder.CreateTexture(OutputDesc, TEXT("BackBufferRenderTargetTexture"));
 			BackBufferRenderTarget = FScreenPassRenderTarget(BackBufferRenderTargetTexture, SceneColor.ViewRect, ERenderTargetLoadAction::EClear);
 		}
+
+		//Get input and output viewports. Backbuffer could be targeting a different region than input viewport
+		const FScreenPassTextureViewport SceneColorViewport(SceneColor);
+		const FScreenPassTextureViewport BackBufferViewport(BackBufferRenderTarget);
 
 		FScreenPassRenderTarget SceneColorRenderTarget(SceneColor, ERenderTargetLoadAction::ELoad);
 
@@ -247,12 +251,13 @@ FScreenPassTexture FOpenColorIODisplayExtension::PostProcessPassAfterTonemap_Ren
 				DefaultBlendState,
 				DepthStencilState,
 				SceneColorViewport,
+				BackBufferViewport,
 				Parameters](FRHICommandListImmediate& RHICmdList)
 			{
 				DrawScreenPass(
 					RHICmdList,
 					View,
-					SceneColorViewport,
+					BackBufferViewport,
 					SceneColorViewport,
 					FScreenPassPipelineState(VertexShader, OCIOPixelShader, DefaultBlendState, DepthStencilState),
 					[&](FRHICommandListImmediate& RHICmdList)

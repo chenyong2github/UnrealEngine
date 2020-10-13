@@ -424,7 +424,7 @@ namespace Gauntlet
 			Config.CommandLine = GenerateProcessedCommandLine(Config.CommandLine);
 
 			// Now add the project (the above code doesn't handle arguments without a leading - so do this last
-			bool IsContentOnlyProject = (Config.Build.Flags & BuildFlags.ContentOnlyProject) == BuildFlags.ContentOnlyProject;
+			bool IsContentOnlyProject = (Config.Build != null) && ((Config.Build.Flags & BuildFlags.ContentOnlyProject) == BuildFlags.ContentOnlyProject);
 
 			// Add in editor - TODO, should this be in the editor build?
 			if (Role.RoleType.UsesEditor() || IsContentOnlyProject)
@@ -467,7 +467,7 @@ namespace Gauntlet
 			// Break down Commandline into individual tokens 
 			Dictionary<string, string> CommandlineTokens = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 			// turn Name(p1,etc) into a collection of Name|(p1,etc) groups
-			MatchCollection Matches = Regex.Matches(InCommandLine, "(?<option>\\-?[\\w\\d.:\\[\\]\\/\\\\]+)(=(?<value>(\"([^\"]*)\")|(\\S+)))?");
+			MatchCollection Matches = Regex.Matches(InCommandLine, "(?<option>\\-?[\\w\\d.:\\[\\]\\/\\\\\\?]+)(=(?<value>(\"([^\"]*)\")|(\\S+)))?");
 
 			foreach (Match M in Matches)
 			{

@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "IAnimBlueprintCompilerCreationContext.h"
+#include "Templates/SubclassOf.h"
 
 class FAnimBlueprintCompilerContext;
 

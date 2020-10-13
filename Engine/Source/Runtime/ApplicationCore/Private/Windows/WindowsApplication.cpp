@@ -700,6 +700,29 @@ static BOOL CALLBACK MonitorEnumProc(HMONITOR Monitor, HDC MonitorDC, LPRECT Rec
 	return TRUE;
 }
 
+static FIntPoint GetMaxResolutionForDisplay(const DISPLAY_DEVICE& DisplayDevice, int32 NativeWidth, int32 NativeHeight)
+{
+	uint32 MaxWidth = NativeWidth;
+	uint32 MaxHeight = NativeHeight;
+
+	uint32 ModeIndex = 0;
+	DEVMODE DisplayMode;
+	FMemory::Memzero(DisplayMode);
+
+	while (EnumDisplaySettings(DisplayDevice.DeviceName, ModeIndex++, &DisplayMode))
+	{
+		if (DisplayMode.dmPelsWidth > MaxWidth && DisplayMode.dmPelsHeight > MaxHeight)
+		{
+			MaxWidth = DisplayMode.dmPelsWidth;
+			MaxHeight = DisplayMode.dmPelsHeight;
+		}
+
+		FMemory::Memzero(DisplayMode);
+	}
+
+	return FIntPoint(MaxWidth, MaxHeight);
+}
+
 /**
  * Extract hardware information about connect monitors
  * @param OutMonitorInfo - Reference to an array for holding records about each detected monitor
@@ -710,7 +733,6 @@ static void GetMonitorsInfo(TArray<FMonitorInfo>& OutMonitorInfo)
 	DisplayDevice.cb = sizeof(DisplayDevice);
 	DWORD DeviceIndex = 0; // device index
 
-	FMonitorInfo* PrimaryDevice = nullptr;
 	OutMonitorInfo.Empty(2); // Reserve two slots, as that will be the most common maximum
 
 	FString DeviceID;
@@ -756,12 +778,9 @@ static void GetMonitorsInfo(TArray<FMonitorInfo>& OutMonitorInfo)
 							Info.DPI *= DPIScaleFactor;
 						}
 
-						OutMonitorInfo.Add(Info);
+						Info.MaxResolution = GetMaxResolutionForDisplay(DisplayDevice, Info.NativeWidth, Info.NativeHeight);
 
-						if (PrimaryDevice == nullptr && Info.bIsPrimary)
-						{
-							PrimaryDevice = &OutMonitorInfo.Last();
-						}
+						OutMonitorInfo.Add(Info);
 					}
 				}
 				MonitorIndex++;

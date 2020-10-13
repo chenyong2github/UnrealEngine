@@ -222,13 +222,13 @@ void UMovieSceneDMXLibraryTrackRecorder::RecordSampleImpl(const FQualifiedFrameT
 				{
 					if(Channel.IsCellFunction())
 					{
-						for (const FDMXFixturePixelFunction& PixelFunction : Mode.PixelMatrixConfig.PixelFunctions)
+						for (const FDMXFixtureCellAttribute& CellAttribute : Mode.FixtureMatrixConfig.CellAttributes)
 						{
 							UDMXSubsystem* DMXSubsystem = UDMXSubsystem::GetDMXSubsystem_Pure();
 							check(DMXSubsystem);
 
 							TMap<FDMXAttributeName, int32> AttributeNameValueMap;
-							DMXSubsystem->GetMatrixPixelValue(Patch, Channel.CellCoordinate, AttributeNameValueMap);
+							DMXSubsystem->GetMatrixCellValue(Patch, Channel.CellCoordinate, AttributeNameValueMap);
 
 							int32* ValuePtr = AttributeNameValueMap.Find(Channel.AttributeName);
 							if (ValuePtr)

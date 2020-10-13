@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "Policy/DisplayClusterProjectionPolicyBase.h"
 #include "Policy/PicpProjectionPolicyBase.h"
 
 #include "IMPCDI.h"
@@ -30,7 +29,7 @@ public:
 		Mesh
 	};
 
-	FPicpProjectionMPCDIPolicy(const FString& ViewportId);
+	FPicpProjectionMPCDIPolicy(const FString& ViewportId, const TMap<FString, FString>& Parameters);
 	virtual ~FPicpProjectionMPCDIPolicy();
 
 	//////////////////////////////////////////////////////////////////////////////////////////////

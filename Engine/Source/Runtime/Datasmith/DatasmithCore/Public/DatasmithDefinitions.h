@@ -309,6 +309,14 @@ enum class EDatasmithShaderUsage
 	LightFunction
 };
 
+static const TCHAR* DatasmithShadingModelStrings[] = { TEXT("DefaultLit"), TEXT("ThinTranslucent") };
+
+enum class EDatasmithShadingModel
+{
+	DefaultLit,
+	ThinTranslucent,
+};
+
 UENUM()
 enum class EDatasmithActorRemovalRule : uint8
 {
@@ -575,6 +583,7 @@ static const TCHAR* KeyValuePropertyTypeStrings[] = { TEXT("String"), TEXT("Colo
 #define DATASMITH_STACKLAYER					TEXT("Stacked")
 #define DATASMITH_BLENDMODE						TEXT("Blendmode")
 #define DATASMITH_OPACITYMASKCLIPVALUE			TEXT("OpacityMaskClipValue")
+#define DATASMITH_SHADINGMODEL					TEXT("ShadingModel")
 
 #define DATASMITH_ENVILLUMINATIONMAP			TEXT("Illuminate")
 

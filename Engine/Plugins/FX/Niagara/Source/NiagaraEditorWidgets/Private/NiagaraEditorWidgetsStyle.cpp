@@ -186,8 +186,8 @@ TSharedRef< FSlateStyleSet > FNiagaraEditorWidgetsStyle::Create()
 	Style->Set("NiagaraEditor.Stack.Stats.RuntimeUsageColorDefault", FLinearColor(FColor(200, 60, 60)));
 	Style->Set("NiagaraEditor.Stack.Stats.RuntimeUsageColorParticleUpdate", FLinearColor(FColor(246, 3, 142)));
 	Style->Set("NiagaraEditor.Stack.Stats.RuntimeUsageColorParticleSpawn", FLinearColor(FColor(255, 181, 0)));
-	Style->Set("NiagaraEditor.Stack.Stats.RuntimeUsageColorSystemSpawn", FLinearColor(FColor(20, 161, 255)));
-	Style->Set("NiagaraEditor.Stack.Stats.RuntimeUsageColorSystemUpdate", FLinearColor(FColor(169, 99, 255)));
+	Style->Set("NiagaraEditor.Stack.Stats.RuntimeUsageColorSystem", FLinearColor(FColor(20, 161, 255)));
+	Style->Set("NiagaraEditor.Stack.Stats.RuntimeUsageColorEmitter", FLinearColor(FColor(241, 99, 6)));
 	Style->Set("NiagaraEditor.Stack.Stats.LowCostColor", FLinearColor(FColor(143, 185, 130)));
 	Style->Set("NiagaraEditor.Stack.Stats.MediumCostColor", FLinearColor(FColor(220, 210, 86)));
 	Style->Set("NiagaraEditor.Stack.Stats.HighCostColor", FLinearColor(FColor(205, 114, 69)));

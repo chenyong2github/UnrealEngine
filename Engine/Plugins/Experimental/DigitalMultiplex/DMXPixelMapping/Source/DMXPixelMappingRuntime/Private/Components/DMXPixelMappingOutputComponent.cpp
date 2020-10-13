@@ -22,7 +22,7 @@ UDMXPixelMappingOutputComponent::UDMXPixelMappingOutputComponent()
 		.WidthOverride(SizeY);
 #endif // WITH_EDITOR
 
-	PixelBlendingQuality = EDMXPixelBlendingQuality::Low;
+	CellBlendingQuality = EDMXPixelBlendingQuality::Low;
 }
 
 #if WITH_EDITOR
@@ -85,28 +85,31 @@ void UDMXPixelMappingOutputComponent::PostEditChangeChainProperty(FPropertyChang
 	// Call the parent at the first place
 	Super::PostEditChangeChainProperty(PropertyChangedChainEvent);
 
-	// Round the values
-	if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, PositionX))
+	if (PropertyChangedChainEvent.ChangeType != EPropertyChangeType::Interactive)
 	{
-		PositionX = FMath::RoundHalfToZero(PositionX);
-	}
-	else if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, PositionY))
-	{
-		PositionY = FMath::RoundHalfToZero(PositionY);
-	}
-	else if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, SizeX))
-	{
-		SizeX = FMath::RoundHalfToZero(SizeX);
-	}
-	else if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, SizeY))
-	{
-		SizeY = FMath::RoundHalfToZero(SizeY);
+		// Round the values
+		if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, PositionX))
+		{
+			PositionX = FMath::RoundHalfToZero(PositionX);
+		}
+		else if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, PositionY))
+		{
+			PositionY = FMath::RoundHalfToZero(PositionY);
+		}
+		else if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, SizeX))
+		{
+			SizeX = FMath::RoundHalfToZero(SizeX);
+		}
+		else if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, SizeY))
+		{
+			SizeY = FMath::RoundHalfToZero(SizeY);
+		}
 	}
 }
 
 #endif // WITH_EDITOR
 
-FVector2D UDMXPixelMappingOutputComponent::GetSize()
+FVector2D UDMXPixelMappingOutputComponent::GetSize() const
 {
 	ensureMsgf(false, TEXT("You must implement GetSize() in your child class"));
 

@@ -1189,8 +1189,7 @@ bool SDMXEntityList::CanDuplicateNodes() const
 
 void SDMXEntityList::OnDuplicateNodes()
 {
-	TArray<UDMXEntity*>&& SelectedEntities = GetSelectedEntities();
-
+	TArray<UDMXEntity*> SelectedEntities = GetSelectedEntities();
 	// Sort selected entities by universe and starting channel to get a meaningful order when auto assign addresses
 	SelectedEntities.Sort([&](UDMXEntity& FirstEntity, UDMXEntity& SecondEntity) {
 		UDMXEntityFixturePatch* FirstPatch = CastChecked<UDMXEntityFixturePatch>(&FirstEntity);
@@ -1200,6 +1199,7 @@ void SDMXEntityList::OnDuplicateNodes()
 			(FirstPatch->UniverseID == SecondPatch->UniverseID &&
 				FirstPatch->GetStartingChannel() <= SecondPatch->GetStartingChannel());
 		});
+	
 	UDMXLibrary* Library = GetDMXLibrary();
 	if (SelectedEntities.Num() > 0 && Library != nullptr)
 	{
@@ -1211,46 +1211,34 @@ void SDMXEntityList::OnDuplicateNodes()
 		const FScopedTransaction Transaction(SelectedEntities.Num() > 1 ? LOCTEXT("DuplicateEntities", "Duplicate Entities") : LOCTEXT("DuplicateEntity", "Duplicate Entity"));
 		Library->Modify();
 
-		// Store new entities to select them after updating the tree
 		TArray<UDMXEntity*> NewEntities;
 		NewEntities.Reserve(SelectedEntities.Num());
 
 		// We'll have the duplicates be placed right after their original counterparts
 		int32 NewEntityIndex = Library->FindEntityIndex(SelectedEntities.Last(0));
-		// Duplicate each selected entity
 		for (UDMXEntity* Entity : SelectedEntities)
 		{
 			FObjectDuplicationParameters DuplicationParams(Entity, GetDMXLibrary());
+			
 			if (UDMXEntity* EntityCopy = CastChecked<UDMXEntity>(StaticDuplicateObjectEx(DuplicationParams)))
 			{
 				EntityCopy->SetName(FDMXEditorUtils::FindUniqueEntityName(Library, EntityCopy->GetClass(), EntityCopy->GetDisplayName()));
-				Library->AddEntity(EntityCopy);
 				NewEntities.Add(EntityCopy);
+				
+				Library->AddEntity(EntityCopy);
 				Library->SetEntityIndex(EntityCopy, ++NewEntityIndex);
 
-				OnEntitiesAdded.ExecuteIfBound();
+				if (UDMXEntityFixturePatch* FixturePatch = Cast<UDMXEntityFixturePatch>(EntityCopy))
+				{
+					AutoAssignCopiedPatch(FixturePatch);
+				}
 			}
 		}
-
-		// Refresh entities tree to contain nodes with the new entities and select them
-		UpdateTree();
-		SelectItemsByEntity(NewEntities, ESelectInfo::OnMouseClick); // OnMouseClick triggers selection updated event
-
-		SelectedEntities = GetSelectedEntities();
-
-		// Auto assign the addresses of the newly added entities
-		for (UDMXEntity* Entity : SelectedEntities)
-		{
-			if (UDMXEntityFixturePatch* FixturePatch = Cast<UDMXEntityFixturePatch>(Entity))
-			{
-				AutoAssignCopiedPatch(FixturePatch);
-			}
-		}
-		// Hacky solution to update UI after auto assignment
+		
 		OnEntitiesAdded.ExecuteIfBound();
-
-		// Update the tree anew since addresses changed
-		UpdateTree();
+		
+		UpdateTree(); // Need to refresh tree so new entities have nodes created for them
+		SelectItemsByEntity(NewEntities, ESelectInfo::OnMouseClick); // OnMouseClick triggers selection updated event
 	}
 }
 
@@ -1293,15 +1281,13 @@ void SDMXEntityList::OnDeleteNodes()
 		// Confirmation text for a single entity in use
 		if (EntitiesInUse.Num() == 1)
 		{
-			ConfirmDelete = FText::Format(LOCTEXT("ConfirmDeleteEntityInUse",
-				"Entity \"{0}\" is in use! Do you really want to delete it?"),
+			ConfirmDelete = FText::Format(LOCTEXT("ConfirmDeleteEntityInUse", "Entity \"{0}\" is in use! Do you really want to delete it?"),
 				FText::FromString(EntitiesInUse[0]->GetDisplayName()));
 		}
 		// Confirmation text for when all of the selected entities are in use
 		else if (EntitiesInUse.Num() == EntitiesToDelete.Num())
 		{
-			ConfirmDelete = LOCTEXT("ConfirmDeleteAllEntitiesInUse",
-				"All selected entities are in use! Do you really want to delete them?");
+			ConfirmDelete = LOCTEXT("ConfirmDeleteAllEntitiesInUse", "All selected entities are in use! Do you really want to delete them?");
 		}
 		// Confirmation text for multiple entities, but not so much that would make the dialog huge
 		else if (EntitiesInUse.Num() > 1 && EntitiesInUse.Num() <= 10)
@@ -1312,17 +1298,13 @@ void SDMXEntityList::OnDeleteNodes()
 				EntitiesNames += TEXT("\t") + Entity->GetDisplayName() + TEXT("\n");
 			}
 
-			ConfirmDelete = FText::Format(LOCTEXT("ConfirmDeleteSomeEntitiesInUse",
-				"The Entities below are in use!\n"
-				"{0}" // no line break here because EntitiesNames will have one at the end already
-				"\nDo you really want to delete them?"),
+			ConfirmDelete = FText::Format(LOCTEXT("ConfirmDeleteSomeEntitiesInUse", "The Entities below are in use!\n{0}\nDo you really want to delete them?"),
 				FText::FromString(EntitiesNames));
 		}
 		// Confirmation text for several entities. Displaying each of their names would make a huge dialog
 		else
 		{
-			ConfirmDelete = FText::Format(LOCTEXT("ConfirmDeleteManyEntitiesInUse",
-				"{0} of the selected entities are in use!\nDo you really want to delete them?"),
+			ConfirmDelete = FText::Format(LOCTEXT("ConfirmDeleteManyEntitiesInUse", "{0} of the selected entities are in use!\nDo you really want to delete them?"),
 				FText::AsNumber(EntitiesInUse.Num()));
 		}
 
@@ -1509,7 +1491,7 @@ void SDMXEntityList::SelectItemsByEntity(const TArray<UDMXEntity*>& InEntities, 
 				}
 			}
 		}
-		EntitiesTreeWidget->SetItemSelection(SelectedNodes, true);
+		EntitiesTreeWidget->SetItemSelection(SelectedNodes, true, ESelectInfo::OnMouseClick);
 
 		// Scroll the first selected node into view
 		if (FirstNode.IsValid())
@@ -1774,14 +1756,46 @@ FText SDMXEntityList::CheckForPatchError(UDMXEntityFixturePatch* FixturePatch) c
 {
 	const TArray<UDMXEntityController*> Controllers = GetDMXLibrary()->GetEntitiesTypeCast<UDMXEntityController>();
 
+	if (FixturePatch->ParentFixtureTypeTemplate->Modes.Num() == 0)
+	{
+		return LOCTEXT("DMXEntityList.FixtureTypeHasNoModes", "This patch's fixture type has no modes.");
+	}
+	
+	const bool bHasAnyFunctions = [FixturePatch]()
+	{
+		for(const FDMXFixtureMode& Mode : FixturePatch->ParentFixtureTypeTemplate->Modes)
+		{
+			if (Mode.Functions.Num() > 0 || 
+				Mode.FixtureMatrixConfig.CellAttributes.Num() > 0)
+			{
+				return true;
+			}
+		}
+		return false;
+	}();
+	if (!bHasAnyFunctions)
+	{
+		return LOCTEXT("DMXEntityList.FixtureTypeHasNoFunctions", "This patch's fixture type has no functions.");
+	}
+	
+	if (FixturePatch->GetChannelSpan() == 0)
+	{
+		return LOCTEXT("DMXEntityList.FixtureTypeHasNoChannelSpan", "This patch has a channel span of 0.");
+	}
+
+	
 	if (FixturePatch->GetChannelSpan() > DMX_UNIVERSE_SIZE)
 	{
 		return LOCTEXT("DMXEntityList.ChannelSpanExceedsUniverseSize", "Patch uses more than 512 channels.");
 	}
+
+	
 	if (Controllers.Num() == 0)
 	{
 		return LOCTEXT("DMXEntityList.PatchMissingController", "No controller available. See 'Controllers' tab to create one.");
 	}
+
+	
 	if (!FixturePatch->IsInControllersRange(Controllers))
 	{
 		return LOCTEXT("DMXEntityList.PatchNotInControllersRange", "The Universe of the patch is smaller than 0 or not reachable by any Controller in the Library.");

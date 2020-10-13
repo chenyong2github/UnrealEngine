@@ -55,7 +55,7 @@ void FDataprepEditor::CreateGraphEditor()
 		];
 
 		FName UniqueGraphName = MakeUniqueObjectName( GetTransientPackage(), UWorld::StaticClass(), FName( *(LOCTEXT("DataprepGraph", "Graph").ToString()) ) );
-		DataprepGraph = TStrongObjectPtr<UDataprepGraph>( NewObject< UDataprepGraph >(GetTransientPackage(), UniqueGraphName) );
+		DataprepGraph = NewObject< UDataprepGraph >(GetTransientPackage(), UniqueGraphName);
 		DataprepGraph->Schema = UDataprepGraphSchema::StaticClass();
 
 		DataprepGraph->Initialize( DataprepAsset );
@@ -63,7 +63,7 @@ void FDataprepEditor::CreateGraphEditor()
 		GraphEditor = SNew(SDataprepGraphEditor, DataprepAsset)
 			.Appearance(AppearanceInfo)
 			.TitleBar(TitleBarWidget)
-			.GraphToEdit(DataprepGraph.Get())
+			.GraphToEdit(DataprepGraph)
 			.DataprepEditor( StaticCastSharedRef<FDataprepEditor>( this->AsShared() ) );
 	}
 }

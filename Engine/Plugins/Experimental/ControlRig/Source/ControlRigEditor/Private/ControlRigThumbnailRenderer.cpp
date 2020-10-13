@@ -18,7 +18,30 @@ UControlRigThumbnailRenderer::UControlRigThumbnailRenderer(const FObjectInitiali
 
 bool UControlRigThumbnailRenderer::CanVisualizeAsset(UObject* Object)
 {
-	return Cast<UControlRigBlueprint>(Object) != nullptr;
+	if (UControlRigBlueprint* InRigBlueprint = Cast<UControlRigBlueprint>(Object))
+	{
+		USkeletalMesh* SkeletalMesh = InRigBlueprint->PreviewSkeletalMesh.Get();
+		if (SkeletalMesh != nullptr)
+		{
+			if (InRigBlueprint->GizmoLibrary.IsValid())
+			{
+				for (const FRigControl& Control : InRigBlueprint->HierarchyContainer.ControlHierarchy)
+				{
+					if (const FControlRigGizmoDefinition* GizmoDef = InRigBlueprint->GizmoLibrary->GetGizmoByName(Control.GizmoName))
+					{
+						UStaticMesh* StaticMesh = GizmoDef->StaticMesh.Get();
+						if (StaticMesh == nullptr) // not yet loaded
+						{
+							return false;
+						}
+					}
+					return true;
+				}
+			}
+		}
+
+	}
+	return false;
 }
 
 void UControlRigThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uint32 Width, uint32 Height, FRenderTarget* RenderTarget, FCanvas* Canvas, bool bAdditionalViewFamily)

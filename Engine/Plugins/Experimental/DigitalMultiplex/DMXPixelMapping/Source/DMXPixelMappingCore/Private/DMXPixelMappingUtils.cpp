@@ -4,40 +4,40 @@
 #include "DMXPixelMappingTypes.h"
 #include "Interfaces/IDMXProtocol.h"
 
-uint32 FDMXPixelMappingUtils::GetNumChannelsPerPixel(EDMXPixelFormat InPixelFormat)
+uint32 FDMXPixelMappingUtils::GetNumChannelsPerCell(EDMXCellFormat InCellFormat)
 {
-	switch (InPixelFormat)
+	switch (InCellFormat)
 	{
-	case EDMXPixelFormat::PF_RG:
-	case EDMXPixelFormat::PF_RB:
-	case EDMXPixelFormat::PF_GB:
-	case EDMXPixelFormat::PF_GR:
-	case EDMXPixelFormat::PF_BR:
-	case EDMXPixelFormat::PF_BG:
+	case EDMXCellFormat::PF_RG:
+	case EDMXCellFormat::PF_RB:
+	case EDMXCellFormat::PF_GB:
+	case EDMXCellFormat::PF_GR:
+	case EDMXCellFormat::PF_BR:
+	case EDMXCellFormat::PF_BG:
 		return 2;
-	case EDMXPixelFormat::PF_RGB:
-	case EDMXPixelFormat::PF_BRG:
-	case EDMXPixelFormat::PF_GRB:
-	case EDMXPixelFormat::PF_GBR:
+	case EDMXCellFormat::PF_RGB:
+	case EDMXCellFormat::PF_BRG:
+	case EDMXCellFormat::PF_GRB:
+	case EDMXCellFormat::PF_GBR:
 		return 3;
-	case EDMXPixelFormat::PF_RGBA:
-	case EDMXPixelFormat::PF_GBRA:
-	case EDMXPixelFormat::PF_BRGA:
-	case EDMXPixelFormat::PF_GRBA:
+	case EDMXCellFormat::PF_RGBA:
+	case EDMXCellFormat::PF_GBRA:
+	case EDMXCellFormat::PF_BRGA:
+	case EDMXCellFormat::PF_GRBA:
 		return 4;
 	}
 
 	return 1;
 }
 
-uint32 FDMXPixelMappingUtils::GetUniverseMaxChannels(EDMXPixelFormat InPixelFormat, uint32 InStartAddress)
+uint32 FDMXPixelMappingUtils::GetUniverseMaxChannels(EDMXCellFormat InCellFormat, uint32 InStartAddress)
 {
-	uint32 NumChannelsPerPixel = FDMXPixelMappingUtils::GetNumChannelsPerPixel(InPixelFormat);
+	uint32 NumChannelsPerCell = FDMXPixelMappingUtils::GetNumChannelsPerCell(InCellFormat);
 
-	return DMX_MAX_ADDRESS - ((DMX_MAX_ADDRESS - (InStartAddress - 1)) % NumChannelsPerPixel);
+	return DMX_MAX_ADDRESS - ((DMX_MAX_ADDRESS - (InStartAddress - 1)) % NumChannelsPerCell);
 }
 
-bool FDMXPixelMappingUtils::CanFitPixelIntoChannels(EDMXPixelFormat InPixelFormat, uint32 InStartAddress)
+bool FDMXPixelMappingUtils::CanFitCellIntoChannels(EDMXCellFormat InCellFormat, uint32 InStartAddress)
 {
-	return (InStartAddress + GetNumChannelsPerPixel(InPixelFormat) - 1) <= DMX_MAX_ADDRESS;
+	return (InStartAddress + GetNumChannelsPerCell(InCellFormat) - 1) <= DMX_MAX_ADDRESS;
 }

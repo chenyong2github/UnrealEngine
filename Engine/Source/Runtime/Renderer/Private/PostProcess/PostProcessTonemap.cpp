@@ -1087,6 +1087,7 @@ class FMobileTonemapVS : public FGlobalShader
 		SHADER_PARAMETER(float, FringeIntensity)
 		SHADER_PARAMETER(FVector2D, Color_ScreenPosToViewportBias)
 		SHADER_PARAMETER(FVector2D, Color_ScreenPosToViewportScale)
+		SHADER_PARAMETER(FVector4, LensPrincipalPointOffsetScale)
 		SHADER_PARAMETER(float, DefaultEyeExposure)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_SRV(Buffer<float4>, EyeAdaptationBuffer)
@@ -1179,8 +1180,8 @@ FScreenPassTexture AddMobileTonemapperPass(FRDGBuilder& GraphBuilder, const FVie
 	FVector4 ScreenPosToScenePixelValue(
 		ViewportExtent.X * 0.5f,
 		-ViewportExtent.Y * 0.5f,
-		ViewportExtent.X * 0.5f - 0.5f + ViewportOffset.X,
-		ViewportExtent.Y * 0.5f - 0.5f + ViewportOffset.Y);
+		ViewportExtent.X * 0.5f + ViewportOffset.X,
+		ViewportExtent.Y * 0.5f + ViewportOffset.Y);
 
 	float Sharpen = FMath::Clamp(CVarTonemapperSharpen.GetValueOnRenderThread(), 0.0f, 10.0f);
 
@@ -1207,6 +1208,7 @@ FScreenPassTexture AddMobileTonemapperPass(FRDGBuilder& GraphBuilder, const FVie
 	VSShaderParameters->Color_ScreenPosToViewportBias = FVector2D(ScreenPosToScenePixelValue.Z, ScreenPosToScenePixelValue.W);
 	VSShaderParameters->DefaultEyeExposure = Inputs.bUseEyeAdaptation ? 0.0f : GetEyeAdaptationFixedExposure(View);
 	VSShaderParameters->EyeAdaptationBuffer = Inputs.bUseEyeAdaptation && View.GetLastEyeAdaptationBuffer(GraphBuilder.RHICmdList) ? View.GetLastEyeAdaptationBuffer(GraphBuilder.RHICmdList)->SRV : nullptr;
+	VSShaderParameters->LensPrincipalPointOffsetScale = View.LensPrincipalPointOffsetScale;
 
 	auto PixelShaderPermutationVector = FMobileTonemapPS::BuildPermutationVector(View, Inputs.bFlipYAxis, Inputs.bMetalMSAAHDRDecode);
 

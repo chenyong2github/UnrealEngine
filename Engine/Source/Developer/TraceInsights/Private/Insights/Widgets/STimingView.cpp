@@ -3648,24 +3648,29 @@ void STimingView::SetEventFilter(const TSharedPtr<ITimingEventFilter> InEventFil
 
 void STimingView::ToggleEventFilterByEventType(const uint64 EventType)
 {
-	bool bSameFilter = false;
-
-	if (TimingEventFilter.IsValid() &&
-		TimingEventFilter->Is<FTimingEventFilterByEventType>())
+	if(IsFilterByEventType(EventType))
 	{
-		const FTimingEventFilterByEventType& EventFilterByEventType = TimingEventFilter->As<FTimingEventFilterByEventType>();
-		if (EventFilterByEventType.GetEventType() == EventType)
-		{
-			bSameFilter = true;
-			SetEventFilter(nullptr); // reset filter
-		}
+		SetEventFilter(nullptr); // reset filter
 	}
-
-	if (!bSameFilter)
+	else
 	{
 		TSharedRef<FTimingEventFilterByEventType> NewEventFilter = MakeShared<FTimingEventFilterByEventType>(EventType);
 		SetEventFilter(NewEventFilter); // set new filter
 	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool STimingView::IsFilterByEventType(const uint64 EventType) const
+{
+	if (TimingEventFilter.IsValid() &&
+		TimingEventFilter->Is<FTimingEventFilterByEventType>())
+	{
+		const FTimingEventFilterByEventType& EventFilterByEventType = TimingEventFilter->As<FTimingEventFilterByEventType>();
+		return EventFilterByEventType.GetEventType() == EventType;
+	}
+
+	return false;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -3713,9 +3718,7 @@ TSharedRef<SWidget> STimingView::MakeAutoScrollOptionsMenu()
 
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("AutoScrollViewportOffset-10", "Viewport Offset: -10%"),
-			LOCTEXT("AutoScrollViewportOffset-10_Tooltip",
-				"Set the viewport offset to -10% (i.e. backward) of the viewport's width.\n"
-				"Avoids flickering as the end of session will be outside of the viewport."),
+			LOCTEXT("AutoScrollViewportOffset-10_Tooltip", "Set the viewport offset to -10% (i.e. backward) of the viewport's width.\nAvoids flickering as the end of session will be outside of the viewport."),
 			FSlateIcon(),
 			FUIAction(FExecuteAction::CreateSP(this, &STimingView::AutoScrollViewportOffset_Execute, -0.1),
 				FCanExecuteAction(),
@@ -3737,9 +3740,7 @@ TSharedRef<SWidget> STimingView::MakeAutoScrollOptionsMenu()
 
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("AutoScrollViewportOffset+10", "Viewport Offset: +10%"),
-			LOCTEXT("AutoScrollViewportOffset+10_Tooltip",
-				"Set the viewport offset to +10% (i.e. forward) of the viewport's width.\n"
-				"Allows 10% empty space on the right side of the viewport."),
+			LOCTEXT("AutoScrollViewportOffset+10_Tooltip", "Set the viewport offset to +10% (i.e. forward) of the viewport's width.\nAllows 10% empty space on the right side of the viewport."),
 			FSlateIcon(),
 			FUIAction(FExecuteAction::CreateSP(this, &STimingView::AutoScrollViewportOffset_Execute, +0.1),
 				FCanExecuteAction(),

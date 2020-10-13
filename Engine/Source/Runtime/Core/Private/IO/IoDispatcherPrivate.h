@@ -49,5 +49,6 @@ public:
 	FIoReadCallback Callback;
 	uint32 UnfinishedReadsCount = 0;
 	EIoDispatcherPriority Priority;
+	bool bFailed = false;
 };
 

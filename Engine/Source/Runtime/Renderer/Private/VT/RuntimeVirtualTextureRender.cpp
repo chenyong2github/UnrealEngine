@@ -98,7 +98,7 @@ namespace RuntimeVirtualTexture
 		static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 		{
 			return UseVirtualTexturing(GetMaxSupportedFeatureLevel(Parameters.Platform)) &&
-				(Parameters.MaterialParameters.MaterialDomain == MD_RuntimeVirtualTexture || Parameters.MaterialParameters.bHasRuntimeVirtualTextureOutput || Parameters.MaterialParameters.bIsDefaultMaterial);
+				(Parameters.MaterialParameters.bHasRuntimeVirtualTextureOutput || Parameters.MaterialParameters.bIsDefaultMaterial);
 		}
 
 		static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -118,13 +118,13 @@ namespace RuntimeVirtualTexture
 		}
 
 		template <typename TRHICmdList>
-		void SetParameters(TRHICmdList& RHICmdList, FSceneView const& View, FMaterialRenderProxy const& MaterialProxy)
+		void SetParameters(TRHICmdList& RHICmdList, FSceneView const& View, FMaterialRenderProxy const& MaterialProxy, FMaterial const& Material)
 		{
 			FMeshMaterialShader::SetParameters(
 				RHICmdList,
 				RHICmdList.GetBoundPixelShader(),
 				&MaterialProxy,
-				*MaterialProxy.GetMaterial(View.FeatureLevel),
+				Material,
 				View,
 				View.ViewUniformBuffer,
 				ESceneTextureSetupMode::All);
@@ -1024,7 +1024,7 @@ namespace RuntimeVirtualTexture
 		const float ZOffset = -NearPlane;
 		ViewInitOptions.ProjectionMatrix = FReversedZOrthoMatrix(OrthoWidth, OrthoHeight, ZScale, ZOffset);
 
-		const FVector MipLevelParameter = FVector4((float)vLevel, 0.f, OrthoWidth / (float)TextureSize.X, OrthoHeight / (float)TextureSize.Y);
+		const FVector4 MipLevelParameter = FVector4((float)vLevel, (float)MaxLevel, OrthoWidth / (float)TextureSize.X, OrthoHeight / (float)TextureSize.Y);
 		
 		const float HeightRange = FMath::Max(WorldBounds.Max.Z - WorldBounds.Min.Z, 1.f);
 		const FVector2D WorldHeightPackParameter = FVector2D(1.f / HeightRange, -WorldBounds.Min.Z / HeightRange);

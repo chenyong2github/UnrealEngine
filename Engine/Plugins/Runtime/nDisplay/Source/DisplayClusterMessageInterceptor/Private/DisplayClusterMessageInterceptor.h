@@ -9,7 +9,7 @@
 
 class IMessageBus;
 class IDisplayClusterClusterManager;
-struct FDisplayClusterClusterEvent;
+struct FDisplayClusterClusterEventJson;
 
 
 DECLARE_LOG_CATEGORY_EXTERN(LogDisplayClusterInterception, Log, All);
@@ -43,7 +43,7 @@ public:
 	void Stop();
 	
 	void SyncMessages();
-	void HandleClusterEvent(const FDisplayClusterClusterEvent& InEvent);
+	void HandleClusterEvent(const FDisplayClusterClusterEventJson& InEvent);
 
 	// IMessageInterceptor interface
 	virtual FName GetDebugName() const override;

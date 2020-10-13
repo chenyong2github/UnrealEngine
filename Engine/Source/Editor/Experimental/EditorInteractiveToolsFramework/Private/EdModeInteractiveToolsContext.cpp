@@ -30,6 +30,7 @@
 #include "EdMode.h"
 
 #include "BaseGizmos/GizmoRenderingUtil.h"
+#include "UnrealClient.h"
 
 //#define ENABLE_DEBUG_PRINTING
 
@@ -50,6 +51,58 @@ static float SnapToIncrement(float fValue, float fIncrement, float offset = 0)
 	}
 	return sign * (float)nInc * fIncrement + offset;
 }
+
+
+
+
+static bool IsVisibleObjectHit_Internal(const FHitResult& HitResult)
+{
+	AActor* Actor = HitResult.GetActor();
+	if (Actor != nullptr && (Actor->IsHidden() || Actor->IsHiddenEd()) )
+	{
+		return false;
+	}
+	UPrimitiveComponent* Component = HitResult.GetComponent();
+	if (Component != nullptr && (Component->IsVisible() == false && Component->IsVisibleInEditor() == false))
+	{
+		return false;
+	}
+	return true;
+}
+
+static bool FindNearestVisibleObjectHit_Internal(UWorld* World, FHitResult& HitResultOut, const FVector& Start, const FVector& End, bool bIsSceneGeometrySnapQuery)
+{
+	FCollisionObjectQueryParams ObjectQueryParams(FCollisionObjectQueryParams::AllObjects);
+	FCollisionQueryParams QueryParams = FCollisionQueryParams::DefaultQueryParam;
+	QueryParams.bTraceComplex = true;
+	QueryParams.bReturnFaceIndex = bIsSceneGeometrySnapQuery;
+
+	TArray<FHitResult> OutHits;
+	if (World->LineTraceMultiByObjectType(OutHits, Start, End, ObjectQueryParams, QueryParams) == false)
+	{
+		return false;
+	}
+
+	float NearestVisible = TNumericLimits<float>::Max();
+	for (const FHitResult& CurResult : OutHits)
+	{
+		if (CurResult.Distance < NearestVisible)
+		{
+			if (IsVisibleObjectHit_Internal(CurResult))
+			{
+				HitResultOut = CurResult;
+				NearestVisible = CurResult.Distance;
+			}
+		}
+	}
+
+	return NearestVisible < TNumericLimits<float>::Max();
+}
+
+
+
+
+
 
 class FEdModeToolsContextQueriesImpl : public IToolsContextQueriesAPI
 {
@@ -183,13 +236,9 @@ public:
 		// cast ray into world
 		FVector RayStart = CachedViewState.Position;
 		FVector RayDirection = Request.Position - RayStart; RayDirection.Normalize();
-		FVector RayEnd = RayStart + 9999999 * RayDirection;
-		FCollisionObjectQueryParams ObjectQueryParams(FCollisionObjectQueryParams::AllObjects);
-		FCollisionQueryParams QueryParams = FCollisionQueryParams::DefaultQueryParam;
-		QueryParams.bTraceComplex = true;
-		QueryParams.bReturnFaceIndex = true;
+		FVector RayEnd = RayStart + HALF_WORLD_MAX * RayDirection;
 		FHitResult HitResult;
-		bool bHitWorld = EditorModeManager->GetWorld()->LineTraceSingleByObjectType(HitResult, RayStart, RayEnd, ObjectQueryParams, QueryParams);
+		bool bHitWorld = FindNearestVisibleObjectHit_Internal(EditorModeManager->GetWorld(), HitResult, RayStart, RayEnd, true);
 		if (bHitWorld && HitResult.FaceIndex >= 0)
 		{
 			float VisualAngle = OpeningAngleDeg(Request.Position, HitResult.ImpactPoint, RayStart);
@@ -633,11 +682,11 @@ public:
 	FPrimitiveDrawInterface* PDI;
 	const FSceneView* SceneView;
 	FViewCameraState ViewCameraState;
+	EViewInteractionState ViewInteractionState;
 
-	FEdModeTempRenderContext(const FSceneView* View, FViewport* Viewport, FEditorViewportClient* ViewportClient, FPrimitiveDrawInterface* DrawInterface)
+	FEdModeTempRenderContext(const FSceneView* View, FViewport* Viewport, FEditorViewportClient* ViewportClient, FPrimitiveDrawInterface* DrawInterface, EViewInteractionState ViewInteractionState)
+		:PDI(DrawInterface), SceneView(View), ViewInteractionState(ViewInteractionState)
 	{
-		PDI = DrawInterface;
-		SceneView = View;
 		CacheCurrentViewState(Viewport, ViewportClient);
 	}
 
@@ -654,6 +703,11 @@ public:
 	virtual FViewCameraState GetCameraState() override
 	{
 		return ViewCameraState;
+	}
+
+	virtual EViewInteractionState GetViewInteractionState() override
+	{
+		return ViewInteractionState;
 	}
 
 	void CacheCurrentViewState(FViewport* Viewport, FEditorViewportClient* ViewportClient)
@@ -737,11 +791,40 @@ void UEdModeInteractiveToolsContext::Render(const FSceneView* View, FViewport* V
 	}
 
 	// Render Tool and Gizmos
-	FEdModeTempRenderContext RenderContext(View, Viewport, ViewportClient, PDI);
+	const FEditorViewportClient* Focused = EditorModeManager->GetFocusedViewportClient();
+	const FEditorViewportClient* Hovered = EditorModeManager->GetHoveredViewportClient();
+	EViewInteractionState InteractionState = EViewInteractionState::None;
+	if (ViewportClient == Focused )
+	{
+		InteractionState |= EViewInteractionState::Focused;
+	}
+	if (ViewportClient == Hovered )
+	{
+		InteractionState |= EViewInteractionState::Hovered;
+	}
+	FEdModeTempRenderContext RenderContext(View, Viewport, ViewportClient, PDI, InteractionState);
 	ToolManager->Render(&RenderContext);
 	GizmoManager->Render(&RenderContext);
 }
 
+void UEdModeInteractiveToolsContext::DrawHUD(FViewportClient* ViewportClient,FViewport* Viewport,const FSceneView* View, FCanvas* Canvas)
+{
+	FEditorViewportClient* EditorViewportClient = static_cast<FEditorViewportClient*>(Viewport->GetClient());
+	const FViewportClient* Focused = EditorModeManager->GetFocusedViewportClient();
+	const FViewportClient* Hovered = EditorModeManager->GetHoveredViewportClient();
+	EViewInteractionState InteractionState = EViewInteractionState::None;
+	if (ViewportClient == Focused )
+	{
+		InteractionState |= EViewInteractionState::Focused;
+	}
+	if (ViewportClient == Hovered )
+	{
+		InteractionState |= EViewInteractionState::Hovered;
+	}
+	FEdModeTempRenderContext RenderContext(View, Viewport, EditorViewportClient, nullptr /*PDI*/, InteractionState);
+	ToolManager->DrawHUD(Canvas, &RenderContext);
+	GizmoManager->DrawHUD(Canvas, &RenderContext);
+}
 
 
 bool UEdModeInteractiveToolsContext::ProcessEditDelete()
@@ -871,6 +954,7 @@ bool UEdModeInteractiveToolsContext::InputKey(FEditorViewportClient* ViewportCli
 				{
 					return false;
 				}
+				// TODO: This should no longer be necessary: test and remove.
 				// This is a special-case hack for UMultiClickSequenceInputBehavior, because it holds capture across multiple
 				// mouse clicks, which prevents alt+mouse navigation from working between clicks (very annoying in draw polygon).
 				// Remove this special-case once that tool is fixed to use CollectSurfacePathMechanic instead
@@ -982,6 +1066,7 @@ bool UEdModeInteractiveToolsContext::MouseMove(FEditorViewportClient* ViewportCl
 
 	if (InputRouter->HasActiveMouseCapture())
 	{
+		// TODO: This should no longer be necessary: test and remove.
 		// This state occurs if InputBehavior did not release capture on mouse release.
 		// UMultiClickSequenceInputBehavior does this, eg for multi-click draw-polygon sequences.
 		// It's not ideal though and maybe would be better done via multiple captures + hover...?

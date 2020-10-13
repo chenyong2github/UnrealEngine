@@ -138,7 +138,8 @@ void FClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, 
 		// Must set the local space location prior to adding any mesh/cloth, as otherwise the start poses would be in the wrong local space
 		const FClothingSimulationContext* const Context = static_cast<const FClothingSimulationContext*>(InOwnerComponent->GetClothingSimulationContext());
 		check(Context);
-		Solver->SetLocalSpaceLocation(bUseLocalSpaceSimulation ? Context->ComponentToWorld.GetLocation() : TVector<float, 3>(0.f));
+		static const bool bReset = true;
+		Solver->SetLocalSpaceLocation(bUseLocalSpaceSimulation ? Context->ComponentToWorld.GetLocation() : TVector<float, 3>(0.f), bReset);
 	}
 	else
 	{
@@ -197,6 +198,7 @@ void FClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, 
 		ClothConfig->AngularVelocityScale,
 		ClothConfig->DragCoefficient,
 		ClothConfig->LiftCoefficient,
+		ClothConfig->bUsePointBasedWindModel,
 		ClothConfig->DampingCoefficient,
 		ClothConfig->CollisionThickness,
 		ClothConfig->FrictionCoefficient,
@@ -270,16 +272,16 @@ void FClothingSimulation::Simulate(IClothingSimulationContext* InContext)
 
 	const double StartTime = FPlatformTime::Seconds();
 
+	const bool bNeedsReset = (Context->TeleportMode == EClothingTeleportMode::TeleportAndReset);
+	const bool bNeedsTeleport = (Context->TeleportMode > EClothingTeleportMode::None);
+
 	// Update Solver animatable parameters
-	Solver->SetLocalSpaceLocation(bUseLocalSpaceSimulation ? Context->ComponentToWorld.GetLocation() : TVector<float, 3>(0.f));
-	Solver->SetWindVelocity(Context->WindVelocity);
+	Solver->SetLocalSpaceLocation(bUseLocalSpaceSimulation ? Context->ComponentToWorld.GetLocation() : TVector<float, 3>(0.f), bNeedsReset);
+	Solver->SetWindVelocity(Context->WindVelocity, Context->WindAdaption);
 	Solver->SetGravity(bUseGravityOverride ? GravityOverride : Context->WorldGravity);
 	Solver->EnableClothGravityOverride(!bUseGravityOverride);  // Disable all cloth gravity overrides when the interactor takes over
 
 	// Check teleport modes
-	const bool bNeedsReset = (Context->TeleportMode == EClothingTeleportMode::TeleportAndReset);
-	const bool bNeedsTeleport = (Context->TeleportMode > EClothingTeleportMode::None);
-
 	for (const TUniquePtr<FClothingSimulationCloth>& Cloth : Cloths)
 	{
 		// Update Cloth animatable parameters
@@ -354,7 +356,6 @@ void FClothingSimulation::GetSimulationData(
 
 		if (Cloth->GetLODIndex(Solver.Get()) == INDEX_NONE || Cloth->GetOffset(Solver.Get()) == INDEX_NONE)
 		{
-			Data.Reset();
 			continue;
 		}
 
@@ -429,7 +430,8 @@ void FClothingSimulation::RefreshClothConfig(const IClothingSimulationContext* I
 
 	// Update new space location
 	const FClothingSimulationContext* const Context = static_cast<const FClothingSimulationContext*>(InContext);
-	Solver->SetLocalSpaceLocation(bUseLocalSpaceSimulation ? Context->ComponentToWorld.GetLocation() : TVector<float, 3>(0.f));
+	static const bool bReset = true;
+	Solver->SetLocalSpaceLocation(bUseLocalSpaceSimulation ? Context->ComponentToWorld.GetLocation() : TVector<float, 3>(0.f), bReset);
 
 	// Reset stats
 	ResetStats();
@@ -445,6 +447,7 @@ void FClothingSimulation::RefreshClothConfig(const IClothingSimulationContext* I
 		const uint32 GroupId = Cloth->GetGroupId();
 		const UChaosClothConfig* const ClothConfig = Mesh->GetAsset()->GetClothConfig<UChaosClothConfig>();
 
+		AnimDriveSpringStiffness = ClothConfig->AnimDriveSpringStiffness;
 		Cloth = MakeUnique<FClothingSimulationCloth>(
 			Mesh,
 			MoveTemp(ClothColliders),
@@ -472,6 +475,7 @@ void FClothingSimulation::RefreshClothConfig(const IClothingSimulationContext* I
 			ClothConfig->AngularVelocityScale,
 			ClothConfig->DragCoefficient,
 			ClothConfig->LiftCoefficient,
+			ClothConfig->bUsePointBasedWindModel,
 			ClothConfig->DampingCoefficient,
 			ClothConfig->CollisionThickness,
 			ClothConfig->FrictionCoefficient,
@@ -723,12 +727,13 @@ static void DrawSphere(FPrimitiveDrawInterface* PDI, const TSphere<float, 3>& Sp
 #endif
 }
 
-static void DrawBox(FPrimitiveDrawInterface* PDI, const TBox<float, 3>& Box, const FQuat& Rotation, const FVector& Position, const FLinearColor& Color)
+static void DrawBox(FPrimitiveDrawInterface* PDI, const FAABB3& Box, const FQuat& Rotation, const FVector& Position, const FLinearColor& Color)
 {
 #if CHAOS_DEBUG_DRAW
 	if (!PDI)
 	{
-		FDebugDrawQueue::GetInstance().DrawDebugBox(Position, Box.Extents() * 0.5f, Rotation, Color.ToFColor(true), false, KINDA_SMALL_NUMBER, SDPG_Foreground, 0.f);
+		const TVector<float, 3> Center = Position + Rotation.RotateVector(Box.GetCenter());
+		FDebugDrawQueue::GetInstance().DrawDebugBox(Center, Box.Extents() * 0.5f, Rotation, Color.ToFColor(true), false, KINDA_SMALL_NUMBER, SDPG_Foreground, 0.f);
 		return;
 	}
 #endif
@@ -742,18 +747,23 @@ static void DrawCapsule(FPrimitiveDrawInterface* PDI, const TCapsule<float>& Cap
 {
 	const float Radius = Capsule.GetRadius();
 	const float HalfHeight = Capsule.GetHeight() * 0.5f + Radius;
+	const TVector<float, 3> Center = Position + Rotation.RotateVector(Capsule.GetCenter());
 #if CHAOS_DEBUG_DRAW
 	if (!PDI)
 	{
-		FDebugDrawQueue::GetInstance().DrawDebugCapsule(Position, HalfHeight, Radius, Rotation, Color.ToFColor(true), false, KINDA_SMALL_NUMBER, SDPG_Foreground, 0.f);
+		const FQuat Orientation = FQuat::FindBetweenNormals(TVector<float, 3>::UpVector, Capsule.GetAxis());
+		FDebugDrawQueue::GetInstance().DrawDebugCapsule(Center, HalfHeight, Radius, Rotation * Orientation, Color.ToFColor(true), false, KINDA_SMALL_NUMBER, SDPG_Foreground, 0.f);
 		return;
 	}
 #endif
 #if WITH_EDITOR
-	const FVector X = Rotation.RotateVector(FVector::ForwardVector);
-	const FVector Y = Rotation.RotateVector(FVector::RightVector);
-	const FVector Z = Rotation.RotateVector(FVector::UpVector);
-	DrawWireCapsule(PDI, Position, X, Y, Z, Color, Radius, HalfHeight, 12, SDPG_World, 0.0f, 0.001f, false);
+	const TVector<float, 3> Up = Capsule.GetAxis();
+	TVector<float, 3> Forward, Right;
+	Up.FindBestAxisVectors(Forward, Right);
+	const FVector X = Rotation.RotateVector(Forward);
+	const FVector Y = Rotation.RotateVector(Right);
+	const FVector Z = Rotation.RotateVector(Up);
+	DrawWireCapsule(PDI, Center, X, Y, Z, Color, Radius, HalfHeight, 12, SDPG_World, 0.0f, 0.001f, false);
 #endif
 }
 
@@ -846,7 +856,7 @@ void FClothingSimulation::DebugDrawBounds() const
 	const FBoxSphereBounds Bounds = Solver->CalculateBounds();
 
 	// Draw bounds
-	DrawBox(nullptr, TBox<float, 3>(-Bounds.BoxExtent, Bounds.BoxExtent), FQuat::Identity, Bounds.Origin, FLinearColor(FColor::Purple));
+	DrawBox(nullptr, FAABB3(-Bounds.BoxExtent, Bounds.BoxExtent), FQuat::Identity, Bounds.Origin, FLinearColor(FColor::Purple));
 	DrawSphere(nullptr, TSphere<float, 3>(FVector::ZeroVector, Bounds.SphereRadius), FQuat::Identity, Bounds.Origin, FLinearColor(FColor::Orange));
 
 	// Draw individual cloth bounds
@@ -858,8 +868,8 @@ void FClothingSimulation::DebugDrawBounds() const
 			continue;
 		}
 
-		const TAABB<float, 3> BoundingBox = Cloth->CalculateBoundingBox(Solver.Get());
-		DrawBox(nullptr, TBox<float, 3>(BoundingBox), FQuat::Identity, Bounds.Origin, Color);
+		const FAABB3 BoundingBox = Cloth->CalculateBoundingBox(Solver.Get());
+		DrawBox(nullptr, BoundingBox, FQuat::Identity, Bounds.Origin, Color);
 	}
 }
 
@@ -1051,7 +1061,7 @@ void FClothingSimulation::DebugDrawCollision(FPrimitiveDrawInterface* PDI) const
 						break;
 
 					case ImplicitObjectType::Box:
-						DrawBox(PDI, Object->GetObjectChecked<TBox<float, 3>>(), Rotation, Position, Color);
+						DrawBox(PDI, Object->GetObjectChecked<TBox<float, 3>>().BoundingBox(), Rotation, Position, Color);
 						break;
 
 					case ImplicitObjectType::Capsule:

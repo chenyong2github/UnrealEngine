@@ -2648,11 +2648,7 @@ void FCsvProfiler::BeginFrame()
 					SetMetadata(TEXT("ExtraDevelopmentMemoryMB"), *FString::FromInt(ExtraDevelopmentMemoryMB)); 
 #endif
 
-#if PLATFORM_COMPILER_OPTIMIZATION_PG
-					SetMetadata(TEXT("PGOEnabled"), TEXT("1"));
-#else
-					SetMetadata(TEXT("PGOEnabled"), TEXT("0"));
-#endif
+					SetMetadata(TEXT("PGOEnabled"), FPlatformMisc::IsPGOEnabled() ? TEXT("1") : TEXT("0"));
 
 					GCsvStatCounts = !!CVarCsvStatCounts.GetValueOnGameThread();
 
@@ -3102,7 +3098,7 @@ void FCsvProfiler::RecordEvent(int32 CategoryIndex, const FString& EventText)
 	if (GCsvProfilerIsCapturing && GCsvCategoriesEnabled[CategoryIndex])
 	{
 		LLM_SCOPE(ELLMTag::CsvProfiler);
-		UE_LOG(LogCsvProfiler, Display, TEXT("CSVEvent [Frame %d] : \"%s\""), FCsvProfiler::Get()->GetCaptureFrameNumber(), *EventText);
+		UE_LOG(LogCsvProfiler, Display, TEXT("CSVEvent \"%s\" [Frame %d]"), *EventText, FCsvProfiler::Get()->GetCaptureFrameNumber());
 		FCsvProfilerThreadData::Get().AddEvent(EventText, CategoryIndex);
 	}
 }

@@ -4,62 +4,12 @@
 #include "../MonteCarlo.ush"
 
 #include "HairStrandsVisibilityCommon.ush"
+#include "HairCardsTextureCommon.ush"
 
 #define DEBUG_ENABLE 0
 #if DEBUG_ENABLE
 #include "../ShaderDrawDebug.ush"
 #endif
-
-
-/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-float2 LineLineIntersect(float3 p1, float3 p2, float3 p3, float3 p4)
-{
-	float3 p13, p43, p21;
-	float d1343, d4321, d1321, d4343, d2121;
-	float numer, denom;
-	float mua;
-
-	p13 = p1 - p3;
-	p43 = p4 - p3;
-	p21 = p2 - p1;
-
-	d1343 = dot(p13, p43);
-	d4321 = dot(p43, p21);
-	d1321 = dot(p13, p21);
-	d4343 = dot(p43, p43);
-	d2121 = dot(p21, p21);
-
-	denom = d2121 * d4343 - d4321 * d4321;
-	//if (abs(denom) < 0.0000001)//almost impossible: view ray perfectly aligned with line direction (and it would only affect one pixel)
-	//	return float2(0.0,0.0);
-	numer = d1343 * d4321 - d1321 * d4343;
-
-	mua = numer / denom;
-	mua = clamp(mua, 0.0, 1.0);
-	return float2(mua, (d1343 + d4321 * mua) / d4343); //return (mua,mub)
-}
-
-float Intersection(float3 InP0, float3 InP1, float3 RayP0, float3 RayP1, float Radius, inout float OutU)
-{
-	float3 P1 = InP0;
-	float3 P2 = InP1;
-	float3 P3 = RayP0;
-	float3 P4 = RayP1;
-
-	//compute the two closest points on the volumetric line and current view ray
-	float2 muab = LineLineIntersect(P1, P2, P3, P4);
-
-	//pa and pb, the two closest points
-	float3 pa = P1 + muab.x * (P2 - P1);
-	float3 pb = P3 + muab.y * (P4 - P3);
-
-	//texture sample coordinate
-	const float sample = length(pa - pb) / Radius;
-	OutU = muab.x;
-
-	return sample < 1 ? muab.y : -1;
-}
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -144,6 +94,7 @@ Buffer<float4> NormalsBuffer;
 Buffer<float2> UVsBuffer;
 
 float MaxDistance;
+int TracingDirection;
 
 float3 Voxel_MinBound;
 float3 Voxel_MaxBound;
@@ -296,7 +247,7 @@ bool Trace(
 				uint2 OffsetAndCount = 0;
 				{
 					const uint LinearIndexCoord = CoordToIndex(VolumeCoord, Voxel_Resolution, 0);
-					OffsetAndCount = Voxel_OffsetAndCount.Load(LinearIndexCoord);
+					OffsetAndCount = Voxel_OffsetAndCount[LinearIndexCoord];
 				}
 
 				if (OffsetAndCount.y > 0)
@@ -373,10 +324,12 @@ void MainPS(
 	in float3  InTangent	: MESH_TANGENT,
 	in float3  InBitangent	: MESH_BITANGENT,
 	in float3  InNormal		: MESH_NORMAL,
+	out float  OutDepthTest	: SV_Depth,
 	out float  OutDepth		: SV_Target0,
 	out float  OutCoverage	: SV_Target1,
 	out float4 OutTangent	: SV_Target2,
-	out float4 OutAttribute : SV_Target3)
+	out float4 OutAttribute : SV_Target3,
+	out uint   OutTriangleMask : SV_Target4)
 {
 	const float3 T = normalize(InTangent);
 	const float3 B = normalize(InBitangent);
@@ -385,10 +338,11 @@ void MainPS(
 	const float3 PixelAxisX = ddx(InPosition);
 	const float3 PixelAxisY = ddy(InPosition);
 
-	OutDepth = abs(MaxDistance);
+	OutDepth = max(0, MaxDistance);
 	OutCoverage = 0;
 	OutTangent = 0;
 	OutAttribute = 0;
+	OutDepthTest = 1;
 
 	float3 Tangent_ObjectSpace = 0;
 	const int2 PixelCoord = int2(SvPosition.xy);
@@ -410,27 +364,32 @@ void MainPS(
 		float3 RayO = InPosition + Jitter.x * PixelAxisX + Jitter.y * PixelAxisY;
 		float3 RayD = N;
 
-		const bool bIsPositive = MaxDistance > 0;
 		// If the tracing distance is:
 		// * Positive: Tracing is done outside towards the surface
 		// * Negative: Tracing is done inside, starting from the surface
-		if (bIsPositive)
+		// * Zero    : Tracing is from outside towards the surface, but continus within the surface
+		if (TracingDirection > 0)
 		{
 			RayO = RayO + RayD * MaxDistance;
 			RayD =-RayD;
 		}
-		else
+		else if (TracingDirection < 0)
 		{
 			RayD = -RayD;
 		}
+		else // (TracingDirection == 0)
+		{
+			RayO = RayO + RayD * MaxDistance * 0.5f;
+			RayD = -RayD;
+		}
 	
-		float  SampleDepth = abs(MaxDistance);
+		float  SampleDepth = MaxDistance;
 		float  SampleCoverage = 0;
 		float3 SampleTangent  = 0;
 		float2 SampleRootUV = 0;
 		float  SampleU = 0;
 		float  SampleSeed = 0;
-		if (Trace(RayO, RayD, abs(MaxDistance), bDebugEnable, SampleDepth, SampleCoverage, SampleTangent, SampleRootUV, SampleU, SampleSeed))
+		if (Trace(RayO, RayD, MaxDistance, bDebugEnable, SampleDepth, SampleCoverage, SampleTangent, SampleRootUV, SampleU, SampleSeed))
 		{
 			if (SampleDepth < OutDepth)
 			{
@@ -459,13 +418,112 @@ void MainPS(
 	}
 	else
 	{
-		OutDepth = 0;
+		OutDepth = MaxDistance;
 		OutCoverage = 0;
 		OutTangent = 0;
 		OutAttribute = 0;
 	}
+
+	OutDepth = saturate(OutDepth / MaxDistance);
+	OutDepthTest = OutDepth;
+	OutTriangleMask = 1;
 }
 
-#endif
+#endif // SHADER_PIXEL
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+#if SHADER_TEXTURE_DILATION
+
+uint PackDistance(float x)							{ return x * 1000.f; }
+float UnpackDistance(float x, inout bool bIsValid)	{ bIsValid = x != 0; return float(x) / 1000.f; }
+
+int2 Resolution;
+int ClearDistance;
+RWTexture2D<uint> TriangleMaskTexture;
+
+Texture2D<float>  Source_DepthTexture;
+Texture2D<float>  Source_CoverageTexture;
+Texture2D<float4> Source_TangentTexture;
+Texture2D<float4> Source_AttributeTexture;
+
+RWTexture2D<float>  Target_DepthTexture;
+RWTexture2D<float>  Target_CoverageTexture;
+RWTexture2D<float4> Target_TangentTexture;
+RWTexture2D<float4> Target_AttributeTexture;
+
+// Dilate the source texture (Depth/Coverage/Tanget/Attribute), using a distance to triangle edge metric. 
+// Original valid pixel are marked into the triangleMasktexture during the texture generation. Then 
+// successive dilation pass are run. At each pass the triangleMaskTexure stored the distance to triangle
+// edge in order to propagate correctly the pixel edge information.
+[numthreads(8, 4, 1)]
+void MainCS(int2 DispatchThreadId : SV_DispatchThreadID)
+{
+	if (DispatchThreadId.x >= Resolution.x || DispatchThreadId.y >= Resolution.y)
+		return;
+
+	const float MaxDistance = 1000000.f;
+
+	const uint2 PixelCoord = DispatchThreadId.xy;
+	const uint  PackedDistance = TriangleMaskTexture.Load(PixelCoord);
+
+	bool bIsValid = false;
+	const float Distance = UnpackDistance(PackedDistance, bIsValid);
+
+	if (bIsValid)
+	{
+		// Fast path: the pixel is valid, we copy value
+		Target_DepthTexture[PixelCoord]		= Source_DepthTexture.Load(uint3(PixelCoord,0));
+		Target_CoverageTexture[PixelCoord]	= Source_CoverageTexture.Load(uint3(PixelCoord, 0));
+		Target_TangentTexture[PixelCoord]	= Source_TangentTexture.Load(uint3(PixelCoord, 0));
+		Target_AttributeTexture[PixelCoord] = Source_AttributeTexture.Load(uint3(PixelCoord, 0));
+		return;
+	}
+	else
+	{
+		float Target_Depth = 0;
+		float Target_Coverage = 0;
+		float4 Target_Tangent = 0;
+		float4 Target_Attribute = 0;
+
+		// Find the closest neighbor from triangle, amoung valid neighbord
+		bool bIsDilatedPixelValid = false;
+		float MinDistance = 9999999;
+		for (int y = -1; y <= 1; ++y)
+		for (int x = -1; x <= 1; ++x)
+		{
+			if (x == 0 && y == 0)
+				continue;
+
+			const int2 NPixelOffset = int2(x, y);
+			const int2 NPixelCoord = clamp(PixelCoord + NPixelOffset, 0, Resolution);
+
+			bool bNIsValid = false;
+			const uint NPackedDistance = TriangleMaskTexture.Load(uint2(NPixelCoord));
+			const float NDistance = UnpackDistance(NPackedDistance, bNIsValid);
+			if (bNIsValid && NDistance <= MinDistance)
+			{
+				Target_Depth		= Source_DepthTexture.Load(uint3(NPixelCoord,0));
+				Target_Coverage		= Source_CoverageTexture.Load(uint3(NPixelCoord, 0));
+				Target_Tangent		= Source_TangentTexture.Load(uint3(NPixelCoord, 0));
+				Target_Attribute	= Source_AttributeTexture.Load(uint3(NPixelCoord, 0));
+				MinDistance			= NDistance;
+				bIsDilatedPixelValid= true;
+			}
+		}
+
+		// If a valid neighbord has been bound, update pixel value
+		if (bIsDilatedPixelValid)
+		{
+			Target_DepthTexture[PixelCoord]		= Target_Depth;
+			Target_CoverageTexture[PixelCoord]	= Target_Coverage;
+			Target_TangentTexture[PixelCoord]	= Target_Tangent;
+			Target_AttributeTexture[PixelCoord] = Target_Attribute;
+
+			TriangleMaskTexture[PixelCoord] = PackDistance(MinDistance);
+		}
+	}
+
+
+}
+#endif // SHADER_TEXTURE_DILATION

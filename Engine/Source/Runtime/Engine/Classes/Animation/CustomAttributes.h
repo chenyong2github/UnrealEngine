@@ -23,6 +23,20 @@ enum class ECustomAttributeBlendType : uint8
 	Blend
 };
 
+USTRUCT()
+struct ENGINE_API FCustomAttributeSetting
+{
+	GENERATED_BODY()
+
+	/** Name of the custom attribute */
+	UPROPERTY(EditAnywhere, Category = CustomAttributeSetting)
+	FString Name;
+
+	/** Optional property describing the meaning (or role) of the custom attribute, allowing to add context to an attribute */
+	UPROPERTY(EditAnywhere, Category = CustomAttributeSetting)
+	FString Meaning;
+};
+
 USTRUCT(Experimental)
 struct ENGINE_API FCustomAttribute
 {

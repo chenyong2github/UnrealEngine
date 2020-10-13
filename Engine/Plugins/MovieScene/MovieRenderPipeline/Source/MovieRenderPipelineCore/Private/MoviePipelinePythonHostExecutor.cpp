@@ -25,7 +25,12 @@ void UMoviePipelinePythonHostExecutor::Execute_Implementation(UMoviePipelineQueu
 	// Now that we've done some C++ only things, call the Python version of this.
 	ExecuteDelayed(InPipelineQueue);
 }
-	
+
+void UMoviePipelinePythonHostExecutor::CancelAllJobs_Implementation()
+{
+	UE_LOG(LogMovieRenderPipeline, Error, TEXT("Attempting to cancel jobs on a UMoviePipelinePythonHostExecutor with a python executor that has not implemented canceling jobs."));
+}
+
 void UMoviePipelinePythonHostExecutor::OnMapLoadFinished(UWorld* NewWorld)
 {
 	LastLoadedWorld = NewWorld;

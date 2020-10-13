@@ -138,6 +138,7 @@ void UControlRig::Initialize(bool bInitRigUnits)
 	Hierarchy.ControlHierarchy.OnControlSelected.RemoveAll(this);
 	Hierarchy.ControlHierarchy.OnControlSelected.AddUObject(this, &UControlRig::HandleOnControlSelected);
 	Hierarchy.ControlHierarchy.OnControlUISettingsChanged.AddUObject(this, &UControlRig::HandleOnControlUISettingChanged);
+	Hierarchy.OnEventReceived.RemoveAll(this);
 	Hierarchy.OnEventReceived.AddUObject(this, &UControlRig::HandleOnRigEvent);
 }
 
@@ -425,6 +426,68 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 	Context.State = InState;
 	Context.Hierarchy = &Hierarchy;
 
+	Context.ToWorldSpaceTransform = FTransform::Identity;
+	Context.OwningComponent = nullptr;
+	Context.OwningActor = nullptr;
+	Context.World = nullptr;
+
+	if (!OuterSceneComponent.IsValid())
+	{
+		USceneComponent* SceneComponentFromRegistry = DataSourceRegistry->RequestSource<USceneComponent>(UControlRig::OwnerComponent);
+		if (SceneComponentFromRegistry)
+		{
+			OuterSceneComponent = SceneComponentFromRegistry;
+		}
+		else
+		{
+			UObject* Parent = this;
+			while (Parent)
+			{
+				Parent = Parent->GetOuter();
+				if (Parent)
+				{
+					if (USceneComponent* SceneComponent = Cast<USceneComponent>(Parent))
+					{
+						OuterSceneComponent = SceneComponent;
+						break;
+					}
+				}
+			}
+		}
+	}
+
+	if (OuterSceneComponent.IsValid())
+	{
+		Context.ToWorldSpaceTransform = OuterSceneComponent->GetComponentToWorld();
+		Context.OwningComponent = OuterSceneComponent.Get();
+		Context.OwningActor = Context.OwningComponent->GetOwner();
+		Context.World = Context.OwningComponent->GetWorld();
+	}
+	else
+	{
+		if (ObjectBinding.IsValid())
+		{
+			AActor* HostingActor = ObjectBinding->GetHostingActor();
+			if (HostingActor)
+			{
+				Context.OwningActor = HostingActor;
+				Context.World = HostingActor->GetWorld();
+			}
+			else if (UObject* Owner = ObjectBinding->GetBoundObject())
+			{
+				Context.World = Owner->GetWorld();
+			}
+		}
+
+		if (Context.World == nullptr)
+		{
+			if (UObject* Outer = GetOuter())
+			{
+				Context.World = Outer->GetWorld();
+			}
+		}
+	}
+
 #if WITH_EDITOR
 	Context.Log = ControlRigLog;
 	if (ControlRigLog != nullptr)
@@ -563,7 +626,6 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 
 	if (Context.DrawInterface && Context.DrawContainer)
 	{
-		DrawInterface.Reset();
 		Context.DrawInterface->Instructions.Append(Context.DrawContainer->Instructions);
 
 		for (const FRigControl& Control : Hierarchy.ControlHierarchy)
@@ -1906,7 +1968,8 @@ FRigVMExternalVariable UControlRig::GetExternalVariableFromPinType(const FName& 
 	{
 		ExternalVariable.TypeName = TEXT("int32");
 	}
-	else if (InPinType.PinCategory == UEdGraphSchema_K2::PC_Enum)
+	else if (InPinType.PinCategory == UEdGraphSchema_K2::PC_Enum ||
+		InPinType.PinCategory == UEdGraphSchema_K2::PC_Byte)
 	{
 		if (UEnum* Enum = Cast<UEnum>(InPinType.PinSubCategoryObject))
 		{

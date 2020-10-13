@@ -12,6 +12,7 @@ public class StageMonitor : ModuleRules
 			new string[]
 			{
 				"Core",
+				"StageDataCore",
 			}
 		);
 
@@ -20,7 +21,10 @@ public class StageMonitor : ModuleRules
 			{
 				"CoreUObject",
 				"GameplayTags",
-				"StageDataCore",
+				"Json",
+				"JsonUtilities",
+				"Serialization",
+				"StageMonitorCommon",
 				"VPUtilities"
 			}
 		);

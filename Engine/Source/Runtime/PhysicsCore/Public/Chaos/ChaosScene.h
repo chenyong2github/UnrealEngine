@@ -122,12 +122,14 @@ public:
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnPhysScenePostTick,FChaosScene*);
 	FOnPhysScenePostTick OnPhysScenePostTick;
 
+	bool AreAnyTasksPending() const;
+	void BeginDestroy();
 	bool IsCompletionEventComplete() const;
 	FGraphEventArray GetCompletionEvents();
 
 protected:
 
-	TUniquePtr<Chaos::ISpatialAccelerationCollection<Chaos::TAccelerationStructureHandle<float, 3>, float, 3>> SolverAccelerationStructure;
+	Chaos::ISpatialAccelerationCollection<Chaos::TAccelerationStructureHandle<float, 3>, float, 3>* SolverAccelerationStructure;
 
 	// Control module for Chaos - cached to avoid constantly hitting the module manager
 	FChaosSolversModule* ChaosModule;
@@ -149,8 +151,11 @@ protected:
 
 	//Engine interface BEGIN
 	virtual float OnStartFrame(float InDeltaTime){ return InDeltaTime; }
-	virtual void OnSyncBodies(const int32 SolverSyncTimestamp, Chaos::FPBDRigidDirtyParticlesBufferAccessor& Accessor);
+	virtual void OnSyncBodies();
 	//Engine interface END
+
+	template <typename RigidLambda>
+	void PullPhysicsStateForEachDirtyProxy(const int32 SyncTimestamp, const RigidLambda& DirtyRigidFunc);
 
 	float MDeltaTime;
 

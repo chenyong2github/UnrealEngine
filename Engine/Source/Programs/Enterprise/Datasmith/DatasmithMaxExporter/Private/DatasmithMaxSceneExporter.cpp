@@ -1125,13 +1125,13 @@ bool FDatasmithMaxSceneExporter::ParseCoronaLight(LightObject& Light, TSharedRef
 				{
 				case ECoronaLightShapes::Disk:
 					AreaLightElement->SetLightShape( EDatasmithLightShape::Disc );
-					AreaLightElement->SetLightType(EDatasmithAreaLightType::Rect);
+					AreaLightElement->SetLightType( EDatasmithAreaLightType::Rect );
 
 					break;
 
 				case ECoronaLightShapes::Rectangle:
 					AreaLightElement->SetLightShape( EDatasmithLightShape::Rectangle );
-					AreaLightElement->SetLightType(EDatasmithAreaLightType::Rect);
+					AreaLightElement->SetLightType( EDatasmithAreaLightType::Rect );
 
 					break;
 
@@ -1220,11 +1220,6 @@ bool FDatasmithMaxSceneExporter::ParseCoronaLight(LightObject& Light, TSharedRef
 		ParamBlock2->ReleaseDesc();
 	}
 
-	if ( !bLightShapeVisible)
-	{
-		AreaLightElement->SetLightShape( EDatasmithLightShape::None );
-	}
-
 	if ( AreaLightElement->GetUseTemperature() )
 	{
 		AreaLightElement->SetColor( FLinearColor::White );
@@ -1244,35 +1239,92 @@ bool FDatasmithMaxSceneExporter::ParseCoronaLight(LightObject& Light, TSharedRef
 		}
 	}
 
+	if ( AreaLightElement->GetLightShape() == EDatasmithLightShape::Disc || AreaLightElement->GetLightShape() == EDatasmithLightShape::Sphere )
+	{
+		AreaLightElement->SetLength( AreaLightElement->GetWidth() );
+	}
+
 	if ((bLightIntensityIsInDefaultCoronaUnit || bLightIntensityIsInLux) && IntensityID != -1 && IntensityBlockID != -1 && IntensityUnitID != -1)
 	{
-		// Here we make use of the automatic unit conversion of the corona unit properties, the reason why we do this instead of doing the conversion manually
-		// is because Corona default light intensity unit (and lux) is actually a unit of the intensity of the surface of the light's shape, so not only changing the width and height 
-		// have an effect on the intensity in other unit types, but the transform scale too. So unless we go through each triangle of the light's shape to determine its surface
-		// there is no easy way to convert the intensity value to a standardized unit type since we must take into account the transform.
-		IParamBlock2* ParamBlock2 = Light.GetParamBlockByID((short)IntensityBlockID);
-		const float InitialIntensityValue = ParamBlock2->GetFloat(IntensityID, GetCOREInterface()->GetTime());
-
-		switch (AreaLightElement->GetLightShape())
+		if ( bLightIntensityIsInDefaultCoronaUnit )
 		{
-		case EDatasmithLightShape::Disc:
-		case EDatasmithLightShape::Rectangle:
-			ParamBlock2->SetValue(IntensityUnitID, GetCOREInterface()->GetTime(), (int)ECoronaIntensityUnits::Lumen);
-			AreaLightElement->SetIntensityUnits(EDatasmithLightUnits::Lumens);
-			AreaLightElement->SetIntensity(ParamBlock2->GetFloat(IntensityID, GetCOREInterface()->GetTime()));
-			break;
-		
-		case EDatasmithLightShape::Sphere:
-		case EDatasmithLightShape::Cylinder:
-			ParamBlock2->SetValue(IntensityUnitID, GetCOREInterface()->GetTime(), (int)ECoronaIntensityUnits::Candelas);
-			AreaLightElement->SetIntensityUnits(EDatasmithLightUnits::Candelas);
-			AreaLightElement->SetIntensity(ParamBlock2->GetFloat(IntensityID, GetCOREInterface()->GetTime()));
-			break;
-		}
+			const FVector LightScale = AreaLightElement->GetScale();
 
-		ParamBlock2->SetValue(IntensityUnitID, GetCOREInterface()->GetTime(), bLightIntensityIsInDefaultCoronaUnit ? (int)ECoronaIntensityUnits::Default : (int)ECoronaIntensityUnits::Lux);
-		//Making sure there is no floating point calculation artifact by restoring the exact same value.
-		ParamBlock2->SetValue(IntensityID, GetCOREInterface()->GetTime(), InitialIntensityValue); 
+			double Area = 0.0;
+			const double LightWidthInMeters = AreaLightElement->GetWidth() * LightScale.X * 0.01;
+			const double LightLengthInMeters = AreaLightElement->GetLength() * LightScale.Y * 0.01;
+			const double LightHeightInMeters = AreaLightElement->GetWidth() * LightScale.Z * 0.01; // Only used for spheres which can become ellipsoids when scaled
+
+			switch ( AreaLightElement->GetLightShape() )
+			{
+			case EDatasmithLightShape::Rectangle:
+				Area = LightWidthInMeters * LightLengthInMeters;
+
+				break;
+
+			case EDatasmithLightShape::Disc:
+				// Area of a disc = Pi * Radius * Radius
+				Area = LightWidthInMeters * LightLengthInMeters * PI;
+
+				break;
+
+			case EDatasmithLightShape::Sphere:
+				// Area of an ellipsoid = 4 * Pi ( ( ( width * length ) ^ 1.6075 + (width * height) ^ 1.6075 + (length * height) ^ 1.6075 ) / 3 ) ^ ( 1 / 1.6075 )
+				Area = FMath::Pow( LightWidthInMeters * LightLengthInMeters, 1.6075 ) + FMath::Pow( LightWidthInMeters * LightHeightInMeters, 1.6075 ) + FMath::Pow( LightLengthInMeters * LightHeightInMeters, 1.6075 );
+				Area /= 3.0;
+				Area = FMath::Pow( Area, 1.0 / 1.6075 );
+				Area *= 4.0 * PI;
+
+				break;
+
+			case EDatasmithLightShape::Cylinder:
+				// Area of a cylinder = ( 2 * Pi * radius * height ) + ( 2 * Pi * radius^2 )
+				Area = ( 2.0 * PI * LightWidthInMeters * LightLengthInMeters ) + ( 2.0 * PI * FMath::Square( LightWidthInMeters ) );
+				break;
+			}
+
+			// Default Corona units: watts / steradian * square meters (w / sr * m^2)
+			// w / sr * m^2 => candela / m^2
+			// 683 w / sr * m^2 = 1 candela / m^2
+
+			if ( !FMath::IsNearlyZero( Area ) )
+			{
+				AreaLightElement->SetIntensityUnits( EDatasmithLightUnits::Candelas );
+
+				const double Intensity = AreaLightElement->GetIntensity();
+				double IntensityInCandelasPerSqMeters = Intensity * 683.0;
+				double IntensityInCandelas = IntensityInCandelasPerSqMeters * Area;
+
+				AreaLightElement->SetIntensity( IntensityInCandelas );
+			}
+		}
+		else
+		{
+			// Here we make use of the automatic unit conversion of the corona unit properties.
+			IParamBlock2* ParamBlock2 = Light.GetParamBlockByID((short)IntensityBlockID);
+			const float InitialIntensityValue = ParamBlock2->GetFloat(IntensityID, GetCOREInterface()->GetTime());
+
+			switch (AreaLightElement->GetLightShape())
+			{
+			case EDatasmithLightShape::Disc:
+			case EDatasmithLightShape::Rectangle:
+				ParamBlock2->SetValue(IntensityUnitID, GetCOREInterface()->GetTime(), (int)ECoronaIntensityUnits::Lumen);
+				AreaLightElement->SetIntensityUnits(EDatasmithLightUnits::Lumens);
+				AreaLightElement->SetIntensity(ParamBlock2->GetFloat(IntensityID, GetCOREInterface()->GetTime()));
+				break;
+
+			case EDatasmithLightShape::Sphere:
+			case EDatasmithLightShape::Cylinder:
+				ParamBlock2->SetValue(IntensityUnitID, GetCOREInterface()->GetTime(), (int)ECoronaIntensityUnits::Candelas);
+				AreaLightElement->SetIntensityUnits(EDatasmithLightUnits::Candelas);
+				AreaLightElement->SetIntensity(ParamBlock2->GetFloat(IntensityID, GetCOREInterface()->GetTime()));
+				break;
+			}
+
+			ParamBlock2->SetValue(IntensityUnitID, GetCOREInterface()->GetTime(), bLightIntensityIsInDefaultCoronaUnit ? (int)ECoronaIntensityUnits::Default : (int)ECoronaIntensityUnits::Lux);
+			//Making sure there is no floating point calculation artifact by restoring the exact same value.
+			ParamBlock2->SetValue(IntensityID, GetCOREInterface()->GetTime(), InitialIntensityValue);
+		}
 	}
 
 	// For disc and sphere shapes, width is radius so set both length and width to 2 * radius
@@ -1280,11 +1332,16 @@ bool FDatasmithMaxSceneExporter::ParseCoronaLight(LightObject& Light, TSharedRef
 		AreaLightElement->GetLightShape() == EDatasmithLightShape::Cylinder )
 	{
 		AreaLightElement->SetWidth( AreaLightElement->GetWidth() * 2.f );
+
+		if ( AreaLightElement->GetLightShape() == EDatasmithLightShape::Disc || AreaLightElement->GetLightShape() == EDatasmithLightShape::Sphere )
+		{
+			AreaLightElement->SetLength( AreaLightElement->GetWidth() );
+		}
 	}
 
-	if ( AreaLightElement->GetLightShape() == EDatasmithLightShape::Disc || AreaLightElement->GetLightShape() == EDatasmithLightShape::Sphere )
+	if ( !bLightShapeVisible)
 	{
-		AreaLightElement->SetLength( AreaLightElement->GetWidth() );
+		AreaLightElement->SetLightShape( EDatasmithLightShape::None );
 	}
 
 	return true;

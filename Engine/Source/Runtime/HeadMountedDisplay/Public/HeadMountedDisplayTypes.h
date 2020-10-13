@@ -312,6 +312,9 @@ struct HEADMOUNTEDDISPLAY_API FXRMotionControllerData
 	EXRVisualType DeviceVisualType;
 
 	UPROPERTY(BlueprintReadOnly, Category = "XR")
+	EControllerHand HandIndex;
+
+	UPROPERTY(BlueprintReadOnly, Category = "XR")
 	ETrackingStatus TrackingStatus = ETrackingStatus::NotTracked;
 	
 	UPROPERTY(BlueprintReadOnly, Category = "XR")

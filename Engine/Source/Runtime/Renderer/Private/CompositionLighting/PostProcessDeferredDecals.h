@@ -39,6 +39,8 @@ struct FDeferredDecalPassTextures
 	FRDGTextureRef DBufferB = nullptr;
 	FRDGTextureRef DBufferC = nullptr;
 	FRDGTextureRef DBufferMask = nullptr;
+
+	ERenderTargetLoadAction DBufferLoadAction = ERenderTargetLoadAction::EClear;
 };
 
 FDeferredDecalPassTextures GetDeferredDecalPassTextures(
@@ -59,8 +61,7 @@ END_SHADER_PARAMETER_STRUCT()
 
 void GetDeferredDecalPassParameters(
 	const FViewInfo& View,
-	const FDeferredDecalPassTextures& DecalPassTextures,
-	ERenderTargetLoadAction DBufferLoadAction,
+	FDeferredDecalPassTextures& DecalPassTextures,
 	FDecalRenderingCommon::ERenderTargetMode RenderTargetMode,
 	FDeferredDecalPassParameters& PassParameters);
 
@@ -68,5 +69,4 @@ void RenderMeshDecals(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	FDeferredDecalPassTextures& DecalPassTextures,
-	ERenderTargetLoadAction DBufferLoadAction,
 	EDecalRenderStage DecalRenderStage);

@@ -21,6 +21,8 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FSolverPostAdvance, Chaos::FReal);
 namespace Chaos
 {
 
+	extern CHAOS_API int32 UseAsyncResults;
+
 	class FPhysicsSolverBase;
 	struct FPendingSpatialDataQueue;
 
@@ -32,7 +34,7 @@ namespace Chaos
 	{
 	public:
 
-		FPhysicsSolverAdvanceTask(FPhysicsSolverBase& InSolver, TArray<TFunction<void()>>&& InQueue, TArray<FPushPhysicsData*>&& PushData, FReal InDt);
+		FPhysicsSolverAdvanceTask(FPhysicsSolverBase& InSolver, TArray<TFunction<void()>>&& InQueue, TArray<FPushPhysicsData*>&& PushData, FReal InDt, int32 InputDataExternalTimestamp);
 
 		TStatId GetStatId() const;
 		static ENamedThreads::Type GetDesiredThread();
@@ -46,6 +48,7 @@ namespace Chaos
 		TArray<TFunction<void()>> Queue;
 		TArray<FPushPhysicsData*> PushData;
 		FReal Dt;
+		int32 InputDataExternalTimestamp;
 	};
 
 
@@ -112,34 +115,27 @@ namespace Chaos
 			MarshallingManager.GetProducerData_External()->DirtyProxiesDataBuffer.SetNumDirtyShapes(Proxy,NumShapes);
 		}
 
-		template <typename Lambda>
-		FSimCallbackHandle& RegisterSimCallbackNoData(const Lambda& Func)
+		/** Creates a new sim callback object of the type given. Caller expected to free using FreeSimCallbackObject_External*/
+		template <typename TSimCallbackObjectType>
+		TSimCallbackObjectType* CreateAndRegisterSimCallbackObject_External()
 		{
-			return MarshallingManager.RegisterSimCallback([&Func](const TArray<FSimCallbackData*>&){ Func();});
+			auto NewCallbackObject = new TSimCallbackObjectType();
+			RegisterSimCallbackObject_External(NewCallbackObject);
+			return NewCallbackObject;
+		}
+
+		void UnregisterAndFreeSimCallbackObject_External(ISimCallbackObject* SimCallbackObject)
+		{
+			MarshallingManager.UnregisterSimCallbackObject_External(SimCallbackObject);
 		}
 
 		template <typename Lambda>
 		void RegisterSimOneShotCallback(const Lambda& Func)
 		{
-			FSimCallbackHandle& Callback = MarshallingManager.RegisterSimCallback([Func](const TArray<FSimCallbackData*>&){ Func();});
-			MarshallingManager.UnregisterSimCallback(Callback,true);
-		}
-
-		template <typename Lambda>
-		FSimCallbackHandle& RegisterSimCallback(const Lambda& Func)
-		{
-			return MarshallingManager.RegisterSimCallback(Func);
-		}
-
-		void UnregisterSimCallback(FSimCallbackHandle& Handle)
-		{
-			MarshallingManager.UnregisterSimCallback(Handle);
-		}
-
-		// Used to marshal data for a callback associated with a specific external time
-		FSimCallbackData& FindOrCreateCallbackProducerData(FSimCallbackHandle& Callback)
-		{
-			return MarshallingManager.GetProducerCallbackData_External(Callback);
+			//do we need a pool to avoid allocations?
+			auto CommandObject = new FSimCallbackCommandObject(Func);
+			RegisterSimCallbackObject_External(CommandObject);
+			MarshallingManager.UnregisterSimCallbackObject_External(CommandObject, true);
 		}
 
 		template <typename Lambda>
@@ -157,6 +153,21 @@ namespace Chaos
 			{
 				FTaskGraphInterface::Get().WaitUntilTaskCompletes(PendingTasks);
 			}
+		}
+
+		virtual bool AreAnyTasksPending() const
+		{
+			return false;
+		}
+
+		bool IsPendingTasksComplete() const
+		{
+			if (PendingTasks && !PendingTasks->IsComplete())
+			{
+				return false;
+			}
+
+			return true;
 		}
 
 		const UObject* GetOwner() const
@@ -196,7 +207,8 @@ namespace Chaos
 			PushPhysicsState(DtWithPause);
 
 			TArray<FPushPhysicsData*> PushData = MarshallingManager.StepInternalTime_External(DtWithPause);
-			SetExternalTimestampConsumed_External(MarshallingManager.GetExternalTimestampConsumed_External());
+
+			FGraphEventRef BlockingTasks = PendingTasks;
 
 			if(PushData.Num())	//only kick off sim if enough dt passed
 			{
@@ -204,8 +216,19 @@ namespace Chaos
 				if(ThreadingMode == EThreadingModeTemp::SingleThread)
 				{
 					ensure(!PendingTasks || PendingTasks->IsComplete());	//if mode changed we should have already blocked
-					FPhysicsSolverAdvanceTask ImmediateTask(*this,MoveTemp(CommandQueue),MoveTemp(PushData), DtWithPause);
+					FPhysicsSolverAdvanceTask ImmediateTask(*this,MoveTemp(CommandQueue),MoveTemp(PushData), DtWithPause, MarshallingManager.GetExternalTimestampConsumed_External());
+#if !UE_BUILD_SHIPPING
+					if (bStealAdvanceTasksForTesting)
+					{
+						StolenSolverAdvanceTasks.Emplace(MoveTemp(ImmediateTask));
+					}
+					else
+					{
+						ImmediateTask.AdvanceSolver();
+					}
+#else
 					ImmediateTask.AdvanceSolver();
+#endif
 				}
 				else
 				{
@@ -215,11 +238,16 @@ namespace Chaos
 						Prereqs.Add(PendingTasks);
 					}
 
-					PendingTasks = TGraphTask<FPhysicsSolverAdvanceTask>::CreateTask(&Prereqs).ConstructAndDispatchWhenReady(*this,MoveTemp(CommandQueue), MoveTemp(PushData), DtWithPause);
+					PendingTasks = TGraphTask<FPhysicsSolverAdvanceTask>::CreateTask(&Prereqs).ConstructAndDispatchWhenReady(*this,MoveTemp(CommandQueue), MoveTemp(PushData), InDt, MarshallingManager.GetExternalTimestampConsumed_External());
+					const bool bAsyncResults = !!UseAsyncResults;
+					if(!bAsyncResults)
+					{
+						BlockingTasks = PendingTasks;	//block right away
+					}
 				}
 			}
 
-			return PendingTasks;
+			return BlockingTasks;
 		}
 
 #if CHAOS_CHECKED
@@ -234,16 +262,23 @@ namespace Chaos
 		}
 #endif
 
-		void ApplyCallbacks_Internal()
+		void ApplyCallbacks_Internal(const FReal SimTime, const FReal Dt)
 		{
-			for(FSimCallbackHandlePT* Callback : SimCallbacks)
+			for (ISimCallbackObject* Callback : SimCallbackObjects)
 			{
-				if(!Callback->bPendingDelete)
+				if (!Callback->bPendingDelete)
 				{
-					Callback->Handle->Func(Callback->IntervalData);
-					MarshallingManager.FreeCallbackData_Internal(Callback);	//todo: split out for different sim phases, also wait for resim
+					Callback->PreSimulate_Internal(SimTime, Dt);
+					
+					//todo: split out for different sim phases, also wait for resim
+					//we do this here instead of in object because later on when we split data out, we'll need to steal the data
+					for (FSimCallbackInput* Input : Callback->IntervalData)
+					{
+						Callback->FreeInputData_Internal(Input);
+					}
+					Callback->IntervalData.Reset();
 
-					if(Callback->Handle->bRunOnceMore)
+					if (Callback->bRunOnceMore)
 					{
 						Callback->bPendingDelete = true;
 					}
@@ -256,17 +291,16 @@ namespace Chaos
 			//might be possible to improve this, but number of callbacks is expected to be small
 			//one shot callbacks expect a FIFO so can't use RemoveAtSwap
 			//might be worth splitting into two different buffers if this is too slow
-			for(int32 Idx = SimCallbacks.Num()-1; Idx >= 0; --Idx)
+
+			for (int32 Idx = SimCallbackObjects.Num() - 1; Idx >= 0; --Idx)
 			{
-				FSimCallbackHandlePT* Callback = SimCallbacks[Idx];
-				if(Callback->bPendingDelete)
+				ISimCallbackObject* Callback = SimCallbackObjects[Idx];
+				if (Callback->bPendingDelete)
 				{
-					MarshallingManager.FreeCallbackData_Internal(Callback);
-					delete Callback->Handle;
 					delete Callback;
-					SimCallbacks.RemoveAt(Idx);
+					SimCallbackObjects.RemoveAt(Idx);
 				}
-			}		
+			}
 		}
 
 		void UpdateParticleInAccelerationStructure_External(TGeometryParticle<FReal,3>* Particle,bool bDelete);
@@ -281,6 +315,10 @@ namespace Chaos
 			bPaused_External = bShouldPause;
 		}
 
+		/** Used to update external thread data structures. RigidFunc allows per dirty rigid code to execute. Include PhysicsSolverBaseImpl.h to call this function*/
+		template <typename RigidLambda>
+		void PullPhysicsStateForEachDirtyProxy_External(const RigidLambda& RigidFunc);
+
 	protected:
 		/** Mode that the results buffers should be set to (single, double, triple) */
 		EMultiBufferMode BufferMode;
@@ -293,21 +331,7 @@ namespace Chaos
 		/** Only allow construction with valid parameters as well as restricting to module construction */
 		virtual ~FPhysicsSolverBase();
 
-		static void DestroySolver(FPhysicsSolverBase& InSolver)
-		{
-			//block on any pending tasks
-			InSolver.WaitOnPendingTasks_External();
-
-			//make sure any pending commands are executed
-			//we don't have a flush function because of dt concerns (don't want people flushing because commands end up in wrong dt)
-			//but in this case we just need to ensure all resources are freed
-			for(const auto& Command : InSolver.CommandQueue)
-			{
-				Command();
-			}
-
-			delete &InSolver;
-		}
+		static void DestroySolver(FPhysicsSolverBase& InSolver);
 
 		FPhysicsSolverBase() = delete;
 		FPhysicsSolverBase(const FPhysicsSolverBase& InCopy) = delete;
@@ -318,7 +342,7 @@ namespace Chaos
 		virtual void AdvanceSolverBy(const FReal Dt) = 0;
 		virtual void PushPhysicsState(const FReal Dt) = 0;
 		virtual void ProcessPushedData_Internal(const TArray<FPushPhysicsData*>& PushDataArray) = 0;
-		virtual void SetExternalTimestampConsumed_External(const int32 Timestamp) = 0;
+		virtual void SetExternalTimestampConsumed_Internal(const int32 Timestamp) = 0;
 
 #if CHAOS_CHECKED
 		FName DebugName;
@@ -334,11 +358,20 @@ namespace Chaos
 	//
 	TArray<TFunction<void()>> CommandQueue;
 
-	TArray<FSimCallbackHandlePT*> SimCallbacks;
+	TArray<ISimCallbackObject*> SimCallbackObjects;
 
 	FGraphEventRef PendingTasks;
 
 	private:
+
+		//This is private because the user should never create their own callback object
+		//The lifetime management should always be done by solver to ensure callbacks are accessing valid memory on async tasks
+		void RegisterSimCallbackObject_External(ISimCallbackObject* SimCallbackObject)
+		{
+			ensure(SimCallbackObject->Solver == nullptr);	//double register?
+			SimCallbackObject->SetSolver_External(this);
+			MarshallingManager.RegisterSimCallbackObject_External(SimCallbackObject);
+		}
 
 		/** 
 		 * Whether this solver is paused. Paused solvers will still 'tick' however they will receive a Dt of zero so they can still
@@ -382,5 +415,17 @@ namespace Chaos
 		FSolverPreAdvance EventPreSolve;
 		FSolverPreBuffer EventPreBuffer;
 		FSolverPostAdvance EventPostSolve;
+
+
+#if !UE_BUILD_SHIPPING
+	// Solver testing utility
+	private:
+		// instead of running advance task in single threaded, put in array for manual execution control for unit tests.
+		bool bStealAdvanceTasksForTesting;
+		TArray<FPhysicsSolverAdvanceTask> StolenSolverAdvanceTasks;
+	public:
+		void SetStealAdvanceTasks_ForTesting(bool bInStealAdvanceTasksForTesting);
+		void PopAndExecuteStolenAdvanceTask_ForTesting();
+#endif
 	};
 }

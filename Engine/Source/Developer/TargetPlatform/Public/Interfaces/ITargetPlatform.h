@@ -92,6 +92,9 @@ enum class ETargetPlatformFeatures
 	
 	/* Can we use the virtual texture streaming system on this platform. */
 	VirtualTextureStreaming,
+
+	/* The platform makes use of extra cook-time file region metadata in its packaging process. */
+	CookFileRegionMetadata,
 };
 
 enum class EPlatformAuthentication
@@ -411,6 +414,11 @@ public:
 	* Gets whether the platform will use SH2 instead of SH3 for sky irradiance.
 	*/
 	virtual bool ForcesSimpleSkyDiffuse() const = 0;
+
+	/**
+	* Gets whether the platform will encode depth velocity.
+	*/
+	virtual bool VelocityEncodeDepth() const = 0;
 
 	/**
 	* Gets down sample mesh distance field divider.

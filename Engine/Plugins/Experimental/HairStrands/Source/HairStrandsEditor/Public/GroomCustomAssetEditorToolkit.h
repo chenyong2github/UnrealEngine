@@ -111,6 +111,7 @@ private:
 	TSharedRef<SDockTab> SpawnTab_RenderingProperties(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_CardsProperties(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_MeshesProperties(const FSpawnTabArgs& Args);
+	TSharedRef<SDockTab> SpawnTab_MaterialProperties(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_PhysicsProperties(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_PreviewGroomComponent(const FSpawnTabArgs& Args);
 
@@ -125,6 +126,7 @@ private:
 	TSharedPtr<class IDetailsView> DetailView_RenderingProperties;
 	TSharedPtr<class IDetailsView> DetailView_CardsProperties;
 	TSharedPtr<class IDetailsView> DetailView_MeshesProperties;
+	TSharedPtr<class IDetailsView> DetailView_MaterialProperties;
 	TSharedPtr<class IDetailsView> DetailView_PhysicsProperties;
 	TSharedPtr<class IDetailsView> DetailView_PreviewGroomComponent;
 
@@ -136,6 +138,7 @@ private:
 	static const FName TabId_RenderingProperties;
 	static const FName TabId_CardsProperties;
 	static const FName TabId_MeshesProperties;
+	static const FName TabId_MaterialProperties;
 	static const FName TabId_PhysicsProperties;
 	static const FName TabId_PreviewGroomComponent;
 

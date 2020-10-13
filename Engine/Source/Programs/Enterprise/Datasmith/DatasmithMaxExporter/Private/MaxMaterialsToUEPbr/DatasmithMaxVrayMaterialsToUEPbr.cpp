@@ -27,6 +27,7 @@ namespace DatasmithMaxVRayMaterialsToUEPbrImpl
 			, bLockReflectionIORToRefractionIOR( false )
 			, ReflectionIOR( 0.f )
 			, RefractionIOR( 0.f )
+			, FogMultiplier( 0.f )
 		{
 		}
 
@@ -64,6 +65,11 @@ namespace DatasmithMaxVRayMaterialsToUEPbrImpl
 
 		// Displacement
 		DatasmithMaxTexmapParser::FMapParameter DisplacementMap;
+
+		// Fog
+		DatasmithMaxTexmapParser::FWeightedColorParameter FogColor;
+		DatasmithMaxTexmapParser::FMapParameter FogColorMap;
+		float FogMultiplier;
 	};
 
 	FMaxVRayMaterial ParseVRayMaterialProperties( Mtl& Material )
@@ -243,6 +249,28 @@ namespace DatasmithMaxVRayMaterialsToUEPbrImpl
 				else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("texmap_displacement_on")) == 0)
 				{
 					VRayMaterialProperties.DisplacementMap.bEnabled = ( ParamBlock2->GetInt( ParamDefinition.ID, CurrentTime ) != 0 );
+				}
+
+				// Fog
+				else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("refraction_fogColor")) == 0)
+				{
+					VRayMaterialProperties.FogColor.Value = FDatasmithMaxMatHelper::MaxLinearColorToFLinearColor( (BMM_Color_fl)ParamBlock2->GetColor( ParamDefinition.ID, CurrentTime ) );
+				}
+				else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("texmap_refraction_fog")) == 0)
+				{
+					VRayMaterialProperties.FogColorMap.Map = ParamBlock2->GetTexmap( ParamDefinition.ID, CurrentTime );
+				}
+				else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("texmap_refraction_fog_on")) == 0)
+				{
+					VRayMaterialProperties.FogColorMap.bEnabled = ( ParamBlock2->GetInt( ParamDefinition.ID, CurrentTime ) != 0 );
+				}
+				else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("texmap_refraction_fog_multiplier")) == 0)
+				{
+					VRayMaterialProperties.FogColorMap.Weight = ParamBlock2->GetFloat( ParamDefinition.ID, CurrentTime ) / 100.f;
+				}
+				else if ( FCString::Stricmp(ParamDefinition.int_name, TEXT("refraction_fogMult")) == 0 )
+				{
+					VRayMaterialProperties.FogMultiplier = ParamBlock2->GetFloat( ParamDefinition.ID, CurrentTime );
 				}
 			}
 			ParamBlock2->ReleaseDesc();
@@ -785,6 +813,33 @@ void FDatasmithMaxVRayMaterialsToUEPbr::Convert( TSharedRef< IDatasmithScene > D
 		if ( UEOpacityExpression )
 		{
 			UEOpacityExpression->ConnectExpression( PbrMaterialElement->GetOpacity() );
+
+			IDatasmithMaterialExpressionGeneric* ThinTranslucencyMaterialOutput = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionGeneric >();
+			ThinTranslucencyMaterialOutput->SetExpressionName( TEXT("ThinTranslucentMaterialOutput") );
+
+			// Fog
+			IDatasmithMaterialExpression* FogExpression = FDatasmithMaxTexmapToUEPbrUtils::MapOrValue( this, VRayMaterialProperties.FogColorMap, TEXT("Fog"), VRayMaterialProperties.FogColor.Value, TOptional< float >() );
+
+			if ( FogExpression )
+			{
+				FogExpression->SetName( TEXT("Fog") );
+
+				IDatasmithMaterialExpressionScalar* FogMultiplier = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionScalar >();
+				FogMultiplier->SetName( TEXT("Fog Multiplier") );
+				FogMultiplier->GetScalar() = VRayMaterialProperties.FogMultiplier;
+
+				IDatasmithMaterialExpressionGeneric* MultiplyFog = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionGeneric >();
+				MultiplyFog->SetExpressionName( TEXT("Multiply") );
+
+				FogExpression->ConnectExpression( *MultiplyFog->GetInput(0) );
+				FogMultiplier->ConnectExpression( *MultiplyFog->GetInput(1) );
+
+				FogExpression = MultiplyFog;
+
+				FogExpression->ConnectExpression( *ThinTranslucencyMaterialOutput->GetInput(0) );
+			}
+
+			PbrMaterialElement->SetShadingModel( EDatasmithShadingModel::ThinTranslucent );
 		}
 
 		if ( RefractionIOR )

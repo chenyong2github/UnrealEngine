@@ -59,6 +59,15 @@ bool FXRMotionControllerBase::GetControllerOrientationAndPosition(const int32 Co
 	return bSucess;
 }
 
+bool FXRMotionControllerBase::GetControllerOrientationAndPositionForTime(const int32 ControllerIndex, const FName MotionSource, FTimespan Time, bool& OutTimeWasUsed, FRotator& OutOrientation, FVector& OutPosition, bool& OutbProvidedLinearVelocity, FVector& OutLinearVelocity, bool& OutbProvidedAngularVelocity, FVector& OutAngularVelocityRadPerSec, float WorldToMetersScale) const
+{
+	// Default implementation simply ignores the Timespan, no additional accuracy is provided by this call, velocities are not provided.
+	OutTimeWasUsed = false;
+	OutbProvidedLinearVelocity = false;
+	OutbProvidedAngularVelocity = false;
+	return GetControllerOrientationAndPosition(ControllerIndex, MotionSource, OutOrientation, OutPosition, WorldToMetersScale);
+}
+
 ETrackingStatus FXRMotionControllerBase::GetControllerTrackingStatus(const int32 ControllerIndex, const FName MotionSource) const
 {
 	if (ControllerIndex != INDEX_NONE)

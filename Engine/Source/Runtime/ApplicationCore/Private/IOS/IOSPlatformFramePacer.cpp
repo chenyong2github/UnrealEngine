@@ -34,24 +34,6 @@ namespace IOSDisplayConstants
 
 @end
 
-// @todo ios: Move these up into some shared header
-// __TV_OS_VERSION_MAX_ALLOWED is only defined when building for tvos, so we can use that to determine
-#if PLATFORM_TVOS
-
-#define UE4_HAS_IOS10 (__TVOS_10_0 && __TV_OS_VERSION_MAX_ALLOWED >= __TVOS_10_0)
-#define UE4_HAS_IOS9 (__TVOS_9_0 && __TV_OS_VERSION_MAX_ALLOWED >= __TVOS_9_0)
-#define UE4_TARGET_PRE_IOS10 (!__TVOS_10_0 || __TV_OS_VERSION_MIN_REQUIRED < __TVOS_10_0)
-#define UE4_TARGET_PRE_IOS9 (!__TVOS_9_0 || __TV_OS_VERSION_MIN_REQUIRED < __TVOS_9_0)
-
-#else
-
-#define UE4_HAS_IOS10 (__IPHONE_10_0 && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_10_0)
-#define UE4_HAS_IOS9 (__IPHONE_9_0 && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_9_0)
-#define UE4_TARGET_PRE_IOS10 (!__IPHONE_10_0 || __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_10_0)
-#define UE4_TARGET_PRE_IOS9 (!__IPHONE_9_0 || __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_9_0)
-
-#endif
-
 @implementation FIOSFramePacer
 
 #ifdef __GNUC__
@@ -62,17 +44,9 @@ namespace IOSDisplayConstants
 {
 	NSRunLoop *runloop = [NSRunLoop currentRunLoop];
 	CADisplayLink *displayLink = [CADisplayLink displayLinkWithTarget:self selector:@selector(signal:)];
-#if UE4_HAS_IOS10
 	if ([displayLink respondsToSelector : @selector(preferredFramesPerSecond)] == YES)
 	{
 		displayLink.preferredFramesPerSecond = EnablePresentPacing ? 0 : (FIOSPlatformRHIFramePacer::GetMaxRefreshRate() / FIOSPlatformRHIFramePacer::FrameInterval);
-	}
-	else
-#endif
-	{
-#if UE4_TARGET_PRE_IOS10
-		displayLink.frameInterval = FIOSPlatformRHIFramePacer::FrameInterval;
-#endif
 	}
 
 	[displayLink addToRunLoop:runloop forMode:NSDefaultRunLoopMode];
@@ -127,22 +101,11 @@ namespace IOSDisplayConstants
 				FIOSPlatformRHIFramePacer::FrameInterval = NewFrameInterval;
 				uint32 MaxRefreshRate = FIOSPlatformRHIFramePacer::GetMaxRefreshRate();
 
-#if (UE4_HAS_IOS10 || UE4_TARGET_PRE_IOS10)	
 				CADisplayLink* displayLinkParam = (CADisplayLink*)param;
-#endif
-		
-#if UE4_HAS_IOS10
 				
 				if (displayLinkParam.preferredFramesPerSecond > 0)
 				{
-					displayLinkParam.preferredFramesPerSecond = EnablePresentPacing ? 0 : (MaxRefreshRate / FIOSPlatformRHIFramePacer::FrameInterval);
-				}
-				else
-#endif
-				{
-#if UE4_TARGET_PRE_IOS10
-					displayLinkParam.frameInterval = EnablePresentPacing ? 0 : FIOSPlatformRHIFramePacer::FrameInterval;
-#endif
+					displayLinkParam.preferredFramesPerSecond = MaxRefreshRate / FIOSPlatformRHIFramePacer::FrameInterval;
 				}
 
 				// Update pacing for present

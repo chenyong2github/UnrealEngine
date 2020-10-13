@@ -573,9 +573,7 @@ void FDatasmithActorImporter::SetupHierarchicalInstancedStaticMeshComponent(FDat
 	{
 		ImportContext.LogWarning(FText::GetEmpty())
 			->AddToken(FUObjectToken::Create(HierarchicalInstancedStaticMeshComponent))
-			->AddToken(FTextToken::Create(FText::Format(LOCTEXT("HierarchicalInstancedStaticMeshComponentHasInvertedScale",
-				"{0} has instances with negative scaling producing unsupported inverted meshes."),
-				FText::FromString(HierarchicalInstancedStatictMeshActorElement->GetLabel()))));
+			->AddToken(FTextToken::Create(FText::Format(LOCTEXT("HierarchicalInstancedStaticMeshComponentHasInvertedScale", "{0} has instances with negative scaling producing unsupported inverted meshes."), FText::FromString(HierarchicalInstancedStatictMeshActorElement->GetLabel()))));
 	}
 
 	SetupStaticMeshComponent(ImportContext, HierarchicalInstancedStaticMeshComponent, HierarchicalInstancedStatictMeshActorElement);

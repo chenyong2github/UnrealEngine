@@ -32,15 +32,30 @@ public:
 	///**
 	// * Configure the ASA session.  
 	// * This will take effect when the next session is started.
+	// * This version is deprecated.  Please use ConfigSession2 instead.
 	// * 
 	// * @param AccountId      The Azure Spatial Anchor Account ID.
 	// * @param AccountKey		The Azure Spatial Anchor Account Key.
+	// * @param CoarseLocalizationSettings	Settings related to locating the device in the world (eg GPS).
 	// * @param LogVerbosity	Logging verbosity for the Azure Spatial Anchor api.
 	// *
 	// * @return (Boolean)  True if the session configuration was set.
 	// */
-	UFUNCTION(BlueprintCallable, Category = "AR|AzureSpatialAnchors", meta = (Keywords = "azure spatial anchor hololens wmr pin ar all"))
+	UFUNCTION(BlueprintCallable, Category = "AR|AzureSpatialAnchors", meta = (DeprecatedFunction, DeprecationMessage = "ConfigSession is deprecated, use ConfigSession2 instead."))
 	static bool ConfigSession(const FString& AccountId, const FString& AccountKey, const FCoarseLocalizationSettings CoarseLocalizationSettings, EAzureSpatialAnchorsLogVerbosity LogVerbosity);
+
+	///**
+	// * Configure the ASA session.  
+	// * This will take effect when the next session is started.
+	// * 
+	// * @param SessionConfiguration		Azure cloud sign in related configuration.
+	// * @param CoarseLocalizationSettings	Settings related to locating the device in the world (eg GPS).
+	// * @param LogVerbosity				Logging verbosity for the Azure Spatial Anchor api.
+	// *
+	// * @return (Boolean)  True if the session configuration was set.
+	// */
+	UFUNCTION(BlueprintCallable, Category = "AR|AzureSpatialAnchors", meta = (Keywords = "azure spatial anchor hololens wmr pin ar all"))
+	static bool ConfigSession2(const FAzureSpatialAnchorsSessionConfiguration& SessionConfiguration, const FCoarseLocalizationSettings CoarseLocalizationSettings, EAzureSpatialAnchorsLogVerbosity LogVerbosity);
 
 	///**
 	// * Start a Session running.  

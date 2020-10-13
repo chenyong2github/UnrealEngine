@@ -228,7 +228,7 @@ TArray<UObject*> UDEPRECATED_UUSDImporter::ImportMeshes(FUsdImportContext& Impor
 			// Once we've already imported it we dont need to import it again
 			if(!ImportContext.PathToImportAssetMap.Contains(NewPackageName))
 			{
-				UPackage* Package = CreatePackage(nullptr, *NewPackageName);
+				UPackage* Package = CreatePackage(*NewPackageName);
 
 				Package->FullyLoad();
 

@@ -11,6 +11,7 @@
 #include "NiagaraScript.h"
 #include "ShaderParameterUtils.h"
 #include "NiagaraEmitterInstanceBatcher.h"
+#include "NiagaraStats.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceStaticMesh"
 
@@ -159,6 +160,10 @@ void FStaticMeshGpuSpawnBuffer::Initialise(const FStaticMeshLODResources* Res, c
 
 void FStaticMeshGpuSpawnBuffer::InitRHI()
 {
+#if STATS
+	ensure(GPUMemoryUsage == 0);
+#endif
+
 	MeshIndexBufferSrv = RHICreateShaderResourceView(SectionRenderData->IndexBuffer.IndexBufferRHI);
 	MeshVertexBufferSrv = SectionRenderData->VertexBuffers.PositionVertexBuffer.GetSRV();
 	MeshTangentBufferSrv = SectionRenderData->VertexBuffers.StaticMeshVertexBuffer.GetTangentsSRV();
@@ -176,6 +181,9 @@ void FStaticMeshGpuSpawnBuffer::InitRHI()
 		FMemory::Memcpy(SectionInfoBuffer, ValidSections.GetData(), SizeByte);
 		RHIUnlockVertexBuffer(BufferSectionRHI);
 		BufferSectionSRV = RHICreateShaderResourceView(BufferSectionRHI, sizeof(SectionInfo), PF_R32G32B32A32_UINT);
+#if STATS
+		GPUMemoryUsage += SizeByte;
+#endif
 	}
 
 	if (SocketTransformsResourceArray.Num() > 0)
@@ -185,6 +193,9 @@ void FStaticMeshGpuSpawnBuffer::InitRHI()
 		SocketTransformsBuffer = RHICreateVertexBuffer(SocketTransformsResourceArray.GetTypeSize() * SocketTransformsResourceArray.Num(), BUF_ShaderResource | BUF_Static, RHICreateInfo);
 		SocketTransformsSRV = RHICreateShaderResourceView(SocketTransformsBuffer, sizeof(float) * 4, PF_A32B32G32R32F);
 		SocketTransformsResourceArray.Empty();
+#if STATS
+		GPUMemoryUsage += SocketTransformsResourceArray.GetTypeSize() * SocketTransformsResourceArray.Num();
+#endif
 	}
 
 	if (FilteredAndUnfilteredSocketsResourceArray.Num() > 0)
@@ -194,11 +205,23 @@ void FStaticMeshGpuSpawnBuffer::InitRHI()
 		FilteredAndUnfilteredSocketsBuffer = RHICreateVertexBuffer(FilteredAndUnfilteredSocketsResourceArray.GetTypeSize() * FilteredAndUnfilteredSocketsResourceArray.Num(), BUF_ShaderResource | BUF_Static, RHICreateInfo);
 		FilteredAndUnfilteredSocketsSRV = RHICreateShaderResourceView(FilteredAndUnfilteredSocketsBuffer, sizeof(uint16), PF_R16_UINT);
 		FilteredAndUnfilteredSocketsResourceArray.Empty();
+#if STATS
+		GPUMemoryUsage += FilteredAndUnfilteredSocketsResourceArray.GetTypeSize() * FilteredAndUnfilteredSocketsResourceArray.Num();
+#endif
 	}
+#if STATS
+	GPUMemoryUsage += FilteredAndUnfilteredSocketsResourceArray.GetTypeSize() * FilteredAndUnfilteredSocketsResourceArray.Num();
+	INC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, GPUMemoryUsage);
+#endif
 }
 
 void FStaticMeshGpuSpawnBuffer::ReleaseRHI()
 {
+#if STATS
+	DEC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, GPUMemoryUsage);
+	GPUMemoryUsage = 0;
+#endif
+
 	MeshIndexBufferSrv.SafeRelease();
 	BufferSectionSRV.SafeRelease();
 	BufferSectionRHI.SafeRelease();
@@ -771,6 +794,7 @@ void FNiagaraDataInterfaceProxyStaticMesh::ConsumePerInstanceDataFromGameThread(
 
 UNiagaraDataInterfaceStaticMesh::UNiagaraDataInterfaceStaticMesh(FObjectInitializer const& ObjectInitializer)
 	: Super(ObjectInitializer)
+	, SourceMode(ENDIStaticMesh_SourceMode::Default)
 #if WITH_EDITORONLY_DATA
 	, PreviewMesh(nullptr)
 #endif
@@ -803,6 +827,49 @@ void UNiagaraDataInterfaceStaticMesh::PostEditChangeProperty(FPropertyChangedEve
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 	ChangeId++;
+
+	if (PropertyChangedEvent.Property &&
+		PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UNiagaraDataInterfaceStaticMesh, SourceMode))
+	{
+		if (SourceMode != ENDIStaticMesh_SourceMode::Default && SourceMode != ENDIStaticMesh_SourceMode::Source)
+		{
+			// Ensure we don't have any reference to a source actor that we'll never use
+			Source = nullptr;
+			SourceComponent = nullptr;
+		}
+	
+		if (SourceMode != ENDIStaticMesh_SourceMode::Default && SourceMode != ENDIStaticMesh_SourceMode::DefaultMeshOnly)
+		{
+			// Ensure we don't cook in a default mesh we'll never use
+			DefaultMesh = nullptr;
+		}
+	}
+}
+
+bool UNiagaraDataInterfaceStaticMesh::CanEditChange(const FProperty* InProperty) const
+{
+	if (!Super::CanEditChange(InProperty))
+	{
+		return false;
+	}
+
+	if (InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UNiagaraDataInterfaceStaticMesh, Source) &&
+		SourceMode != ENDIStaticMesh_SourceMode::Default &&
+		SourceMode != ENDIStaticMesh_SourceMode::Source)
+	{
+		// Disable Source if we'll never use it
+		return false;
+	}
+
+	if (InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UNiagaraDataInterfaceStaticMesh, DefaultMesh) &&
+		SourceMode != ENDIStaticMesh_SourceMode::Default &&
+		SourceMode != ENDIStaticMesh_SourceMode::DefaultMeshOnly)
+	{
+		// Disable Default Mesh if we'll never use it
+		return false;
+	}
+
+	return true;
 }
 #endif //WITH_EDITOR
 
@@ -1346,7 +1413,9 @@ bool UNiagaraDataInterfaceStaticMesh::CopyToInternal(UNiagaraDataInterface* Dest
 	}
 
 	UNiagaraDataInterfaceStaticMesh* OtherTyped = CastChecked<UNiagaraDataInterfaceStaticMesh>(Destination);
+	OtherTyped->SourceMode = SourceMode;
 	OtherTyped->Source = Source;
+	OtherTyped->SourceComponent = SourceComponent;
 	OtherTyped->DefaultMesh = DefaultMesh;
 #if WITH_EDITORONLY_DATA
 	OtherTyped->PreviewMesh = PreviewMesh;
@@ -1365,7 +1434,9 @@ bool UNiagaraDataInterfaceStaticMesh::Equals(const UNiagaraDataInterface* Other)
 		return false;
 	}
 	const UNiagaraDataInterfaceStaticMesh* OtherTyped = CastChecked<const UNiagaraDataInterfaceStaticMesh>(Other);
-	return OtherTyped->Source == Source &&
+	return OtherTyped->SourceMode == SourceMode &&
+		OtherTyped->Source == Source &&
+		OtherTyped->SourceComponent == SourceComponent &&
 		OtherTyped->DefaultMesh == DefaultMesh &&
 		//OtherTyped->bEnableVertexColorRangeSorting == bEnableVertexColorRangeSorting &&//TODO: Vertex color filtering needs more work.
 		OtherTyped->SectionFilter.AllowedMaterialSlots == SectionFilter.AllowedMaterialSlots &&
@@ -1383,7 +1454,7 @@ bool UNiagaraDataInterfaceStaticMesh::InitPerInstanceData(void* PerInstanceData,
 	if (bSuccess)
 	{
 		FStaticMeshGpuSpawnBuffer* MeshGpuSpawnBuffer = nullptr;
-		if (Inst->bMeshValid && SystemInstance->HasGPUEmitters())
+		if (Inst->bMeshValid && IsUsedWithGPUEmitter(SystemInstance))
 		{
 			// Always allocate when bAllowCPUAccess (index buffer can only have SRV created in this case as of today)
 			// We do not know if this interface is allocated for CPU or GPU so we allocate for both case... TODO: have some cached data created in case a GPU version is needed?
@@ -1502,107 +1573,110 @@ void UNiagaraDataInterfaceStaticMesh::GetFeedback(UNiagaraSystem* Asset, UNiagar
 
 UStaticMesh* UNiagaraDataInterfaceStaticMesh::GetStaticMesh(TWeakObjectPtr<USceneComponent>& OutComponent, FNiagaraSystemInstance* SystemInstance)
 {
-	UStaticMesh* OutMesh = nullptr;
-	UStaticMeshComponent* FoundMeshComponent = nullptr;
-	OutComponent = nullptr;
+	// Helper to scour an actor (or its parents) for a valid Static mesh component
+	auto FindActorMeshComponent = [](AActor* Actor, bool bRecurseParents = false) -> UStaticMeshComponent*
+	{
+		if (AStaticMeshActor* MeshActor = Cast<AStaticMeshActor>(Actor))
+		{
+			UStaticMeshComponent* Comp = MeshActor->GetStaticMeshComponent();
+			if (Comp && !Comp->IsPendingKill())
+			{
+				return Comp;
+			}
+		}
 
-	if (SourceComponent)
+		// Fall back on any valid component on the actor
+		while (Actor)
+		{
+			for (UActorComponent* ActorComp : Actor->GetComponents())
+			{
+				UStaticMeshComponent* Comp = Cast<UStaticMeshComponent>(ActorComp);
+				if (Comp && !Comp->IsPendingKill() && Comp->GetStaticMesh() != nullptr)
+				{
+					return Comp;
+				}
+			}
+
+			if (bRecurseParents)
+			{
+				Actor = Actor->GetParentActor();
+			}
+			else
+			{
+				break;
+			}
+		}
+
+		return nullptr;
+	};
+
+	UStaticMeshComponent* FoundMeshComponent = nullptr;	
+
+	const bool bTrySource = SourceMode == ENDIStaticMesh_SourceMode::Default || SourceMode == ENDIStaticMesh_SourceMode::Source;
+	const bool bTryAttachParent = SourceMode == ENDIStaticMesh_SourceMode::Default || SourceMode == ENDIStaticMesh_SourceMode::AttachParent;
+	const bool bTryDefaultMesh = SourceMode == ENDIStaticMesh_SourceMode::Default || SourceMode == ENDIStaticMesh_SourceMode::DefaultMeshOnly;
+
+	if (bTrySource && SourceComponent && !SourceComponent->IsPendingKill())
 	{
 		FoundMeshComponent = SourceComponent;
-		OutMesh = SourceComponent->GetStaticMesh();
 	}
-	else if (Source)
+	else if (bTrySource && Source)
 	{
-		AStaticMeshActor* MeshActor = Cast<AStaticMeshActor>(Source);
-		UStaticMeshComponent* SourceComp = nullptr;
-		if (MeshActor != nullptr)
-		{
-			SourceComp = MeshActor->GetStaticMeshComponent();
-		}
-		else
-		{
-			SourceComp = Source->FindComponentByClass<UStaticMeshComponent>();
-		}
-
-		if (SourceComp)
-		{
-			FoundMeshComponent = SourceComp;
-			OutMesh = SourceComp->GetStaticMesh();
-		}
-		else
-		{
-			OutComponent = Source->GetRootComponent();
-		}
+		FoundMeshComponent = FindActorMeshComponent(Source);
 	}
-	else if (SystemInstance != nullptr)
+	else if (bTryAttachParent && SystemInstance)
 	{
 		if (USceneComponent* AttachComponent = SystemInstance->GetAttachComponent())
 		{
 			// First, try to find the mesh component up the attachment hierarchy
 			for (USceneComponent* Curr = AttachComponent; Curr; Curr = Curr->GetAttachParent())
 			{
-				if (UStaticMeshComponent* ParentComp = Cast<UStaticMeshComponent>(Curr))
+				UStaticMeshComponent* ParentComp = Cast<UStaticMeshComponent>(Curr);
+				if (ParentComp && !ParentComp->IsPendingKill())
 				{
 					FoundMeshComponent = ParentComp;
-					OutMesh = ParentComp->GetStaticMesh();
 					break;
 				}
 			}
-
-			if (!OutMesh)
+			
+			if (!FoundMeshComponent)
 			{
 				// Next, try to find one in our outer chain
-				if (UStaticMeshComponent* OuterComp = AttachComponent->GetTypedOuter<UStaticMeshComponent>())
+				UStaticMeshComponent* OuterComp = AttachComponent->GetTypedOuter<UStaticMeshComponent>();
+				if (OuterComp && !OuterComp->IsPendingKill())
 				{
 					FoundMeshComponent = OuterComp;
-					OutMesh = OuterComp->GetStaticMesh();
 				}
-				else if (AActor* Owner = AttachComponent->GetAttachmentRootActor())
+				else if (AActor* Actor = AttachComponent->GetAttachmentRootActor())
 				{
-					// Final fall-back, look for any mesh component on our root actor or any of its parents					
-					while (Owner && !OutMesh)
-					{
-						for (UActorComponent* ActorComp : Owner->GetComponents())
-						{
-							UStaticMeshComponent* SourceComp = Cast<UStaticMeshComponent>(ActorComp);
-							if (SourceComp)
-							{
-								FoundMeshComponent = SourceComp;
-								UStaticMesh* PossibleMesh = SourceComp->GetStaticMesh();
-								if (PossibleMesh != nullptr && PossibleMesh->bAllowCPUAccess)
-								{
-									OutMesh = PossibleMesh;
-									break;
-								}
-							}
-						}
-
-						// Iterate on the actor hierarchy.
-						Owner = Owner->GetParentActor();
-					}
+					// Final fall-back, look for any mesh component on our root actor or any of its parents
+					FoundMeshComponent = FindActorMeshComponent(Actor, true);
 				}
 			}
 		}
 	}
 
-	if (!OutComponent.IsValid())
+	UStaticMesh* Mesh = nullptr;
+	OutComponent = nullptr;
+	if (FoundMeshComponent)
 	{
+		Mesh = FoundMeshComponent->GetStaticMesh();
 		OutComponent = FoundMeshComponent;
 	}
-
-	if (!OutMesh)
+	else if (bTryDefaultMesh)
 	{
-		OutMesh = DefaultMesh;
+		Mesh = DefaultMesh;
 	}
 
 #if WITH_EDITORONLY_DATA
-	if (!OutMesh && !FoundMeshComponent && (!SystemInstance || !SystemInstance->GetWorld()->IsGameWorld()))
+	if (!Mesh && !FoundMeshComponent && (!SystemInstance || !SystemInstance->GetWorld()->IsGameWorld()))
 	{
-		OutMesh = PreviewMesh;		
+		// NOTE: We don't fall back on the preview mesh if we have a valid static mesh component referenced
+		Mesh = PreviewMesh;		
 	}
 #endif
 
-	return OutMesh;
+	return Mesh;
 }
 
 //Whether or not there is valid mesh data on this interface

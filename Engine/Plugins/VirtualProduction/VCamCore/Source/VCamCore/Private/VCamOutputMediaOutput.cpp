@@ -2,41 +2,18 @@
 
 #include "VCamOutputMediaOutput.h"
 
-#if WITH_EDITOR
-#endif
-
-void UVCamOutputMediaOutput::InitializeSafe()
+void UVCamOutputMediaOutput::Activate()
 {
-	Super::InitializeSafe();
+	StartCapturing();
+
+	Super::Activate();
 }
 
-void UVCamOutputMediaOutput::Destroy()
+void UVCamOutputMediaOutput::Deactivate()
 {
-	Super::Destroy();
-}
+	StopCapturing();
 
-void UVCamOutputMediaOutput::Tick(const float DeltaTime)
-{
-	Super::Tick(DeltaTime);
-}
-
-void UVCamOutputMediaOutput::SetActive(const bool bInActive)
-{
-	if (bInActive)
-	{
-		StartCapturing();
-	}
-	else
-	{
-		StopCapturing();
-	}
-
-	Super::SetActive(bInActive);
-}
-
-void UVCamOutputMediaOutput::CreateUMG()
-{
-	Super::CreateUMG();
+	Super::Deactivate();
 }
 
 void UVCamOutputMediaOutput::StartCapturing()
@@ -46,9 +23,17 @@ void UVCamOutputMediaOutput::StartCapturing()
 		MediaCapture = OutputConfig->CreateMediaCapture();
 		if (MediaCapture)
 		{
-			FMediaCaptureOptions Options;
-			Options.bResizeSourceBuffer = true;
-			MediaCapture->CaptureActiveSceneViewport(Options);
+			TSharedPtr<FSceneViewport> SceneViewport = GetTargetSceneViewport();
+			if (SceneViewport.IsValid())
+			{
+				FMediaCaptureOptions Options;
+				Options.bResizeSourceBuffer = true;
+				MediaCapture->CaptureSceneViewport(SceneViewport, Options);
+			}
+			else
+			{
+				UE_LOG(LogVCamOutputProvider, Warning, TEXT("MediaOutput mode failed to find valid SceneViewport"));
+			}
 		}
 		else
 		{

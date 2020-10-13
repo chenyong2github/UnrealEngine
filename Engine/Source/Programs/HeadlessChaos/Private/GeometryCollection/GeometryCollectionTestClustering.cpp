@@ -461,7 +461,7 @@ namespace GeometryCollectionTest
 				BrokenFrame = Frame;
 			}
 
-			if ((BrokenFrame != INDEX_NONE) && (Frame > BrokenFrame))
+			if ((BrokenFrame != INDEX_NONE) && (Frame > BrokenFrame + 1)) // +1 so that the boxes have a bit of time to move away from each other
 			{
 				// The boxes are now moving independently - the bottom one is on the ground and should be stopped.
 				// The top one is still falling, so they should be closer together	

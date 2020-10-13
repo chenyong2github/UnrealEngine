@@ -97,6 +97,11 @@ bool FPackageReader::OpenPackageFile(EOpenPackageResult* OutErrorCode)
 			SetPackageErrorCode(EOpenPackageResult::CustomVersionMissing);
 			return false;
 		}
+		else if (Diff.Type == ECustomVersionDifference::Invalid)
+		{
+			SetPackageErrorCode(EOpenPackageResult::CustomVersionInvalid);
+			return false;
+		}
 		else if (Diff.Type == ECustomVersionDifference::Newer)
 		{
 			UE_LOG(LogAssetRegistry, Error, TEXT("Package %s has newer custom version of %s"), *PackageFilename, *Diff.Version->GetFriendlyName().ToString());
@@ -148,7 +153,12 @@ bool FPackageReader::ReadAssetRegistryData(TArray<FAssetData*>& AssetDataList)
 	}
 
 	// Determine the package name and path
-	FString PackageName = FPackageName::FilenameToLongPackageName(PackageFilename);
+	FString PackageName;
+	if (!FPackageName::TryConvertFilenameToLongPackageName(PackageFilename, PackageName))
+	{
+		// Path was possibly unmounted
+		return false;
+	}
 
 	using namespace UE::AssetRegistry;
 
@@ -325,7 +335,14 @@ bool FPackageReader::ReadAssetRegistryDataIfCookedPackage(TArray<FAssetData*>& A
 
 bool FPackageReader::ReadDependencyData(FPackageDependencyData& OutDependencyData)
 {
-	OutDependencyData.PackageName = FName(*FPackageName::FilenameToLongPackageName(PackageFilename));
+	FString PackageNameString;
+	if (!FPackageName::TryConvertFilenameToLongPackageName(PackageFilename, PackageNameString))
+	{
+		// Path was possibly unmounted
+		return false;
+	}
+
+	OutDependencyData.PackageName = FName(*PackageNameString);
 	OutDependencyData.PackageData.DiskSize = PackageFileSize;
 	OutDependencyData.PackageData.PackageGuid = PackageFileSummary.Guid;
 

@@ -86,10 +86,7 @@ FIOSTargetSettingsCustomization::FIOSTargetSettingsCustomization()
 	new (IconNames)FPlatformIconInfo(TEXT("Icon83.5@2x.png"), LOCTEXT("AppIcon_iPadProRetina_iOS9", "iPad Pro Retina iOS9 App Icon"), FText::GetEmpty(), 167, 167, FPlatformIconInfo::Required);
 	new (IconNames)FPlatformIconInfo(TEXT("Icon1024.png"), LOCTEXT("AppIcon_Marketing", "Marketing Icon"), FText::GetEmpty(), 1024, 1024, FPlatformIconInfo::Required);
 
-	new (LaunchImageNames)FPlatformIconInfo(TEXT("LaunchScreenIOS.png"), LOCTEXT("LaunchImageIOS", "Launch Screen Image"), LOCTEXT("LaunchImageIOSDesc", 
-		"This image is used for the Launch Screen when custom launch screen storyboards are not in use. "
-		"The image is used in both portait and landscape modes and will be uniformly scaled to occupy the full width or height as necessary for of all devices, "
-		"so if your app supports both a square image is recommended. The png file supplied must not have an alpha channel."), -1, -1, FPlatformIconInfo::Required);
+	new (LaunchImageNames)FPlatformIconInfo(TEXT("LaunchScreenIOS.png"), LOCTEXT("LaunchImageIOS", "Launch Screen Image"), LOCTEXT("LaunchImageIOSDesc", "This image is used for the Launch Screen when custom launch screen storyboards are not in use. The image is used in both portait and landscape modes and will be uniformly scaled to occupy the full width or height as necessary for of all devices, so if your app supports both a square image is recommended. The png file supplied must not have an alpha channel."), -1, -1, FPlatformIconInfo::Required);
 
 	bShowAllProvisions = false;
 	bShowAllCertificates = false;
@@ -1758,7 +1755,7 @@ void FIOSTargetSettingsCustomization::SetShaderStandard(int32 Value)
 	{
 		FText Message;
 		
-		uint8 EnumValue = (uint8)EIOSVersion::IOS_11;
+		uint8 EnumValue = (uint8)EIOSVersion::IOS_12;
 		if (MinOSPropertyHandle.IsValid())
 		{
 			MinOSPropertyHandle->GetValue(EnumValue);
@@ -1770,34 +1767,10 @@ void FIOSTargetSettingsCustomization::SetShaderStandard(int32 Value)
 			MRTPropertyHandle->GetValue(bMRTEnabled);
 		}
 		
-		if (Value == 1 && ((EIOSVersion)EnumValue < EIOSVersion::IOS_9))
-		{
-			Message = LOCTEXT("iOSMetalShaderVersion1_1","Enabling Metal Shader Standard v1.1 increases the minimum operating system requirement for Metal from iOS 8.0 or later to iOS 9.0 or later. This does not affect tvOS.");
-			SetMinVersion((int32)EIOSVersion::IOS_9);
-		}
-		else if (Value < 3 && bMRTEnabled)
-		{
-			FPropertyAccess::Result ResMRT = ShaderVersionPropertyHandle->SetValue((uint8)3);
-			check(ResMRT == FPropertyAccess::Success);
-
-			Message = LOCTEXT("MetalMRTStandardv1.2","Enabling the Desktop Forward Renderer Metal requires Shader Standard v2.0 which increases the minimum operating system requirement for Metal from iOS 10.0 or later to iOS 11.0 or later.");
-			SetMinVersion((int32)EIOSVersion::IOS_11);
-		}
-		else if (Value == 3 && (EIOSVersion)EnumValue < EIOSVersion::IOS_11)
-		{
-			Message = LOCTEXT("iOSMetalShaderVersion2_0","Enabling Metal Shader Standard v2.0 increases the minimum operating system requirement for Metal from iOS 10.0/tvOS 10.0 or later to iOS/tvOS 11.0 or later.");
-			SetMinVersion((int32)EIOSVersion::IOS_11);
-		}
-        else if (Value == 4 && (EIOSVersion)EnumValue < EIOSVersion::IOS_12)
-        {
-            Message = LOCTEXT("iOSMetalShaderVersion2_1","Enabling Metal Shader Standard v2.1 increases the minimum operating system requirement for Metal from iOS 10.0/tvOS 10.0 or later to iOS/tvOS 12.0 or later.");
-            SetMinVersion((int32)EIOSVersion::IOS_12);
-        }
-
 		// make sure we never set the min version to less than current supported
-		if (((EIOSVersion)EnumValue < EIOSVersion::IOS_11))
+		if (((EIOSVersion)EnumValue < EIOSVersion::IOS_12))
 		{
-			SetMinVersion((int32)EIOSVersion::IOS_11);
+			SetMinVersion((int32)EIOSVersion::IOS_12);
 		}
 
 		
@@ -1828,9 +1801,9 @@ void FIOSTargetSettingsCustomization::UpdateOSVersionWarning()
 		{
 			uint8 EnumValue;
 			MinOSPropertyHandle->GetValue(EnumValue);
-			if (EnumValue < (uint8)EIOSVersion::IOS_11)
+			if (EnumValue < (uint8)EIOSVersion::IOS_12)
 			{
-				SetMinVersion((int32)EIOSVersion::IOS_11);
+				SetMinVersion((int32)EIOSVersion::IOS_12);
 				
 				FText Message;
 				Message = LOCTEXT("MetalMRTStandardv1.2","Enabling the Desktop Forward Renderer Metal requires Shader Standard v2.0 which increases the minimum operating system requirement for Metal from iOS 10.0 or later to iOS 11.0 or later.");
@@ -1856,9 +1829,9 @@ void FIOSTargetSettingsCustomization::UpdateMetalMRTWarning()
 		{
 			uint8 EnumValue;
 			MinOSPropertyHandle->GetValue(EnumValue);
-			if (EnumValue < (uint8)EIOSVersion::IOS_11)
+			if (EnumValue < (uint8)EIOSVersion::IOS_12)
 			{
-				SetMinVersion((int32)EIOSVersion::IOS_11);
+				SetMinVersion((int32)EIOSVersion::IOS_12);
 				
 				FText Message;
 				Message = LOCTEXT("MetalMRTStandardv1.2","Enabling the Desktop Forward Renderer Metal requires Shader Standard v2.0 which increases the minimum operating system requirement for Metal from iOS 10.0 or later to iOS 11.0 or later.");

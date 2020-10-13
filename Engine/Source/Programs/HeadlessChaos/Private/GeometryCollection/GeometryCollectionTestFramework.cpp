@@ -9,6 +9,7 @@
 #include "Generators/SphereGenerator.h"
 #include "Generators/GridBoxMeshGenerator.h"
 
+#include "HeadlessChaosTestUtility.h"
 #include "ChaosSolversModule.h"
 #include "Chaos/ErrorReporter.h"
 
@@ -183,8 +184,8 @@ namespace GeometryCollectionTest
 		SimFilterData.Word1 = 0xFFFF; // this body channel
 		SimFilterData.Word3 = 0xFFFF; // collision candidate channels
 
-		TGeometryCollectionPhysicsProxy<Traits>* PhysObject =
-			new TGeometryCollectionPhysicsProxy<Traits>(
+		FGeometryCollectionPhysicsProxy* PhysObject =
+			new FGeometryCollectionPhysicsProxy(
 				nullptr,			// UObject owner
 				*DynamicCollection, // Game thread collection
 				SimulationParams,
@@ -269,6 +270,7 @@ namespace GeometryCollectionTest
 	, Solver(nullptr)
 	{
 		Solver = Module->CreateSolver<Traits>(nullptr,Parameters.ThreadingMode);	//until refactor is done, solver must be created after thread change
+		ChaosTest::InitSolverSettings(Solver);
 	}
 
 	template<typename Traits>
@@ -284,10 +286,16 @@ namespace GeometryCollectionTest
 			{
 				Solver->UnregisterObject(BCW->Particle);
 			}
-			delete Object;
 		}
 		
 		FChaosSolversModule::GetModule()->DestroySolver(Solver);
+
+		//don't delete wrapper objects until solver is gone.
+		//can have callbacks that rely on wrapper objects
+		for (WrapperBase* Object : PhysicsObjects)
+		{
+			delete Object;
+		}
 	}
 
 	template<typename Traits>
@@ -319,9 +327,6 @@ namespace GeometryCollectionTest
 	{
 		Solver->SyncEvents_GameThread();
 		Solver->AdvanceAndDispatch_External(Dt);
-
-		Solver->BufferPhysicsResults();
-		Solver->FlipBuffers();
 		Solver->UpdateGameThreadStructures();
 	}
 	

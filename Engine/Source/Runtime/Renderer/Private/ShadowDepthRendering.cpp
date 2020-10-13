@@ -601,7 +601,8 @@ void OverrideWithDefaultMaterialForShadowDepth(
 		!bReflectiveShadowmap)													// Don't override when rendering reflective shadow maps.
 	{
 		const FMaterialRenderProxy* DefaultProxy = UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
-		const FMaterial* DefaultMaterialResource = DefaultProxy->GetMaterial(InFeatureLevel);
+		const FMaterial* DefaultMaterialResource = DefaultProxy->GetMaterialNoFallback(InFeatureLevel);
+		check(DefaultMaterialResource);
 
 		// Override with the default material for opaque materials that don't modify mesh position.
 		InOutMaterialRenderProxy = DefaultProxy;
@@ -610,7 +611,7 @@ void OverrideWithDefaultMaterialForShadowDepth(
 }
 
 template <bool bRenderingReflectiveShadowMaps>
-void GetShadowDepthPassShaders(
+bool GetShadowDepthPassShaders(
 	const FMaterial& Material,
 	const FVertexFactory* VertexFactory,
 	ERHIFeatureLevel::Type FeatureLevel,
@@ -631,117 +632,124 @@ void GetShadowDepthPassShaders(
 	// One pass point lights don't output a linear depth, so they are already perspective correct.
 	const bool bUsePerspectiveCorrectShadowDepths = !bDirectionalLight && !bOnePassPointLightShadow;
 
-	HullShader.Reset();
-	DomainShader.Reset();
-	GeometryShader.Reset();
-
-	FVertexFactoryType* VFType = VertexFactory->GetType();
+	const FVertexFactoryType* VFType = VertexFactory->GetType();
 
 	const bool bInitializeTessellationShaders =
 		Material.GetTessellationMode() != MTM_NoTessellation
 		&& RHISupportsTessellation(GShaderPlatformForFeatureLevel[FeatureLevel])
 		&& VFType->SupportsTessellationShaders();
 
+	FMaterialShaderTypes ShaderTypes;
+
 	// Vertex related shaders
 	if (bOnePassPointLightShadow)
 	{
 		if (bPositionOnlyVS)
 		{
-			VertexShader = Material.GetShader<TShadowDepthVS<VertexShadowDepth_OnePassPointLight, false, true, true> >(VFType);
+			ShaderTypes.AddShaderType<TShadowDepthVS<VertexShadowDepth_OnePassPointLight, false, true, true>>();
 		}
 		else
 		{
-			VertexShader = Material.GetShader<TShadowDepthVS<VertexShadowDepth_OnePassPointLight, false, false, true> >(VFType);
+			ShaderTypes.AddShaderType<TShadowDepthVS<VertexShadowDepth_OnePassPointLight, false, false, true>>();
 		}
 
 		if (RHISupportsGeometryShaders(GShaderPlatformForFeatureLevel[FeatureLevel]))
 		{
 			// Use the geometry shader which will clone output triangles to all faces of the cube map
-			GeometryShader = Material.GetShader<FOnePassPointShadowDepthGS>(VFType);
+			ShaderTypes.AddShaderType<FOnePassPointShadowDepthGS>();
 		}
 
 		if (bInitializeTessellationShaders)
 		{
-			HullShader = Material.GetShader<TShadowDepthHS<VertexShadowDepth_OnePassPointLight, false> >(VFType);
-			DomainShader = Material.GetShader<TShadowDepthDS<VertexShadowDepth_OnePassPointLight, false> >(VFType);
+			ShaderTypes.AddShaderType<TShadowDepthHS<VertexShadowDepth_OnePassPointLight, false>>();
+			ShaderTypes.AddShaderType<TShadowDepthDS<VertexShadowDepth_OnePassPointLight, false>>();
 		}
 	}
 	else if (bUsePerspectiveCorrectShadowDepths)
 	{
 		if (bRenderingReflectiveShadowMaps)
 		{
-			VertexShader = Material.GetShader<TShadowDepthVS<VertexShadowDepth_PerspectiveCorrect, true, false> >(VFType);
+			ShaderTypes.AddShaderType<TShadowDepthVS<VertexShadowDepth_PerspectiveCorrect, true, false>>();
 		}
 		else
 		{
 			if (bPositionOnlyVS)
 			{
-				VertexShader = Material.GetShader<TShadowDepthVS<VertexShadowDepth_PerspectiveCorrect, false, true> >(VFType);
+				ShaderTypes.AddShaderType<TShadowDepthVS<VertexShadowDepth_PerspectiveCorrect, false, true>>();
 			}
 			else
 			{
-				VertexShader = Material.GetShader<TShadowDepthVS<VertexShadowDepth_PerspectiveCorrect, false, false> >(VFType);
+				ShaderTypes.AddShaderType<TShadowDepthVS<VertexShadowDepth_PerspectiveCorrect, false, false>>();
 			}
 		}
 
 		if (bInitializeTessellationShaders)
 		{
-			HullShader = Material.GetShader<TShadowDepthHS<VertexShadowDepth_PerspectiveCorrect, bRenderingReflectiveShadowMaps> >(VFType);
-			DomainShader = Material.GetShader<TShadowDepthDS<VertexShadowDepth_PerspectiveCorrect, bRenderingReflectiveShadowMaps> >(VFType);
+			ShaderTypes.AddShaderType<TShadowDepthHS<VertexShadowDepth_PerspectiveCorrect, bRenderingReflectiveShadowMaps>>();
+			ShaderTypes.AddShaderType<TShadowDepthDS<VertexShadowDepth_PerspectiveCorrect, bRenderingReflectiveShadowMaps>>();
 		}
 	}
 	else
 	{
 		if (bRenderingReflectiveShadowMaps)
 		{
-			VertexShader = Material.GetShader<TShadowDepthVS<VertexShadowDepth_OutputDepth, true, false> >(VFType);
+			ShaderTypes.AddShaderType<TShadowDepthVS<VertexShadowDepth_OutputDepth, true, false>>();
 
 			if (bInitializeTessellationShaders)
 			{
-				HullShader = Material.GetShader<TShadowDepthHS<VertexShadowDepth_OutputDepth, true> >(VFType);
-				DomainShader = Material.GetShader<TShadowDepthDS<VertexShadowDepth_OutputDepth, true> >(VFType);
+				ShaderTypes.AddShaderType<TShadowDepthHS<VertexShadowDepth_OutputDepth, true>>();
+				ShaderTypes.AddShaderType<TShadowDepthDS<VertexShadowDepth_OutputDepth, true>>();
 			}
 		}
 		else
 		{
 			if (bPositionOnlyVS)
 			{
-				VertexShader = Material.GetShader<TShadowDepthVS<VertexShadowDepth_OutputDepth, false, true> >(VFType);
+				ShaderTypes.AddShaderType<TShadowDepthVS<VertexShadowDepth_OutputDepth, false, true>>();
 			}
 			else
 			{
-				VertexShader = Material.GetShader<TShadowDepthVS<VertexShadowDepth_OutputDepth, false, false> >(VFType);
+				ShaderTypes.AddShaderType<TShadowDepthVS<VertexShadowDepth_OutputDepth, false, false>>();
 			}
 
 			if (bInitializeTessellationShaders)
 			{
-				HullShader = Material.GetShader<TShadowDepthHS<VertexShadowDepth_OutputDepth, false> >(VFType);
-				DomainShader = Material.GetShader<TShadowDepthDS<VertexShadowDepth_OutputDepth, false> >(VFType);
+				ShaderTypes.AddShaderType<TShadowDepthHS<VertexShadowDepth_OutputDepth, false>>();
+				ShaderTypes.AddShaderType<TShadowDepthDS<VertexShadowDepth_OutputDepth, false>>();
 			}
 		}
 	}
 
 	// Pixel shaders
-	if (Material.WritesEveryPixel(true) && !bUsePerspectiveCorrectShadowDepths && !bRenderingReflectiveShadowMaps && VertexFactory->SupportsNullPixelShader())
-	{
-		// No pixel shader necessary.
-		PixelShader.Reset();
-	}
-	else
+	const bool bNullPixelShader = Material.WritesEveryPixel(true) && !bUsePerspectiveCorrectShadowDepths && !bRenderingReflectiveShadowMaps && VertexFactory->SupportsNullPixelShader();
+	if (!bNullPixelShader)
 	{
 		if (bUsePerspectiveCorrectShadowDepths)
 		{
-			PixelShader = Material.GetShader<TShadowDepthPS<PixelShadowDepth_PerspectiveCorrect, bRenderingReflectiveShadowMaps> >(VFType, false);
+			ShaderTypes.AddShaderType<TShadowDepthPS<PixelShadowDepth_PerspectiveCorrect, bRenderingReflectiveShadowMaps>>();
 		}
 		else if (bOnePassPointLightShadow)
 		{
-			PixelShader = Material.GetShader<TShadowDepthPS<PixelShadowDepth_OnePassPointLight, false> >(VFType, false);
+			ShaderTypes.AddShaderType<TShadowDepthPS<PixelShadowDepth_OnePassPointLight, false>>();
 		}
 		else
 		{
-			PixelShader = Material.GetShader<TShadowDepthPS<PixelShadowDepth_NonPerspectiveCorrect, bRenderingReflectiveShadowMaps> >(VFType, false);
+			ShaderTypes.AddShaderType<TShadowDepthPS<PixelShadowDepth_NonPerspectiveCorrect, bRenderingReflectiveShadowMaps>>();
 		}
 	}
+
+	FMaterialShaders Shaders;
+	if (!Material.TryGetShaders(ShaderTypes, VFType, Shaders))
+	{
+		return false;
+	}
+
+	Shaders.TryGetHullShader(HullShader);
+	Shaders.TryGetDomainShader(DomainShader);
+	Shaders.TryGetGeometryShader(GeometryShader);
+	Shaders.TryGetVertexShader(VertexShader);
+	Shaders.TryGetPixelShader(PixelShader);
+	return true;
 }
 
 /*-----------------------------------------------------------------------------
@@ -1875,7 +1883,7 @@ void FSceneRenderer::RenderShadowDepthMaps(FRHICommandListImmediate& RHICmdList)
 }
 
 template<bool bRenderReflectiveShadowMap>
-void FShadowDepthPassMeshProcessor::Process(
+bool FShadowDepthPassMeshProcessor::Process(
 	const FMeshBatch& RESTRICT MeshBatch,
 	uint64 BatchElementMask,
 	int32 StaticMeshId,
@@ -1900,7 +1908,7 @@ void FShadowDepthPassMeshProcessor::Process(
 		&& MaterialResource.WritesEveryPixel(true)
 		&& !MaterialResource.MaterialModifiesMeshPosition_RenderThread();
 
-	GetShadowDepthPassShaders<bRenderReflectiveShadowMap>(
+	if (!GetShadowDepthPassShaders<bRenderReflectiveShadowMap>(
 		MaterialResource,
 		VertexFactory,
 		FeatureLevel,
@@ -1911,7 +1919,10 @@ void FShadowDepthPassMeshProcessor::Process(
 		ShadowDepthPassShaders.HullShader,
 		ShadowDepthPassShaders.DomainShader,
 		ShadowDepthPassShaders.PixelShader,
-		ShadowDepthPassShaders.GeometryShader);
+		ShadowDepthPassShaders.GeometryShader))
+	{
+		return false;
+	}
 
 	FShadowDepthShaderElementData ShaderElementData;
 	ShaderElementData.InitializeMeshMaterialData(ViewIfDynamicMeshCommand, PrimitiveSceneProxy, MeshBatch, StaticMeshId, false);
@@ -1937,61 +1948,83 @@ void FShadowDepthPassMeshProcessor::Process(
 			bUsePositionOnlyVS ? EMeshPassFeatures::PositionAndNormalOnly : EMeshPassFeatures::Default,
 			ShaderElementData);
 	}
+
+	return true;
+}
+
+bool FShadowDepthPassMeshProcessor::TryAddMeshBatch(const FMeshBatch& RESTRICT MeshBatch,
+	uint64 BatchElementMask,
+	const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy,
+	int32 StaticMeshId,
+	const FMaterialRenderProxy& MaterialRenderProxy,
+	const FMaterial& Material)
+{
+	const EBlendMode BlendMode = Material.GetBlendMode();
+	const bool bReflectiveShadowmap = ShadowDepthType.bReflectiveShadowmap && !ShadowDepthType.bOnePassPointLightShadow;
+	const bool bShouldCastShadow = Material.ShouldCastDynamicShadows();
+
+	const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(MeshBatch);
+	const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(MeshBatch, Material, OverrideSettings);
+
+	ERasterizerCullMode FinalCullMode;
+
+	{
+		const ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(MeshBatch, Material, OverrideSettings);
+
+		const bool bTwoSided = Material.IsTwoSided() || PrimitiveSceneProxy->CastsShadowAsTwoSided();
+		// @TODO: only render directional light shadows as two sided, and only when blocking is enabled (required by geometry volume injection)
+		const bool bEffectivelyTwoSided = ShadowDepthType.bReflectiveShadowmap ? true : bTwoSided;
+		// Invert culling order when mobile HDR == false.
+		auto ShaderPlatform = GShaderPlatformForFeatureLevel[FeatureLevel];
+		static auto* MobileHDRCvar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MobileHDR"));
+		check(MobileHDRCvar);
+		const bool bPlatformReversesCulling = (RHINeedsToSwitchVerticalAxis(ShaderPlatform) && MobileHDRCvar->GetValueOnAnyThread() == 0);
+
+		const bool bRenderSceneTwoSided = bEffectivelyTwoSided;
+		const bool bReverseCullMode = XOR(bPlatformReversesCulling, ShadowDepthType.bOnePassPointLightShadow);
+
+		FinalCullMode = bRenderSceneTwoSided ? CM_None : bReverseCullMode ? InverseCullMode(MeshCullMode) : MeshCullMode;
+	}
+
+	bool bResult = true;
+	if ((bShouldCastShadow || (bReflectiveShadowmap && (Material.ShouldInjectEmissiveIntoLPV() || Material.ShouldBlockGI())))
+		&& ShouldIncludeDomainInMeshPass(Material.GetMaterialDomain())
+		&& ShouldIncludeMaterialInDefaultOpaquePass(Material))
+	{
+		const FMaterialRenderProxy* EffectiveMaterialRenderProxy = &MaterialRenderProxy;
+		const FMaterial* EffectiveMaterial = &Material;
+
+		OverrideWithDefaultMaterialForShadowDepth(EffectiveMaterialRenderProxy, EffectiveMaterial, ShadowDepthType.bReflectiveShadowmap, FeatureLevel);
+
+		if (ShadowDepthType.bReflectiveShadowmap)
+		{
+			bResult = Process<true>(MeshBatch, BatchElementMask, StaticMeshId, PrimitiveSceneProxy, *EffectiveMaterialRenderProxy, *EffectiveMaterial, MeshFillMode, FinalCullMode);
+		}
+		else
+		{
+			bResult = Process<false>(MeshBatch, BatchElementMask, StaticMeshId, PrimitiveSceneProxy, *EffectiveMaterialRenderProxy, *EffectiveMaterial, MeshFillMode, FinalCullMode);
+		}
+	}
+
+	return bResult;
 }
 
 void FShadowDepthPassMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId)
 {
 	if (MeshBatch.CastShadow)
 	{
-		// Determine the mesh's material and blend mode.
-		const FMaterialRenderProxy* FallbackMaterialRenderProxyPtr = nullptr;
-		const FMaterial& Material = MeshBatch.MaterialRenderProxy->GetMaterialWithFallback(FeatureLevel, FallbackMaterialRenderProxyPtr);
-
-		const FMaterialRenderProxy& MaterialRenderProxy = FallbackMaterialRenderProxyPtr ? *FallbackMaterialRenderProxyPtr : *MeshBatch.MaterialRenderProxy;
-		const EBlendMode BlendMode = Material.GetBlendMode();
-		const bool bReflectiveShadowmap = ShadowDepthType.bReflectiveShadowmap && !ShadowDepthType.bOnePassPointLightShadow;
-		const bool bShouldCastShadow = Material.ShouldCastDynamicShadows();
-
-		const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(MeshBatch);
-		const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(MeshBatch, Material, OverrideSettings);
-
-		ERasterizerCullMode FinalCullMode;
-
+		const FMaterialRenderProxy* MaterialRenderProxy = MeshBatch.MaterialRenderProxy;
+		while (MaterialRenderProxy)
 		{
-			const ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(MeshBatch, Material, OverrideSettings);
-
-			const bool bTwoSided = Material.IsTwoSided() || PrimitiveSceneProxy->CastsShadowAsTwoSided();
-			// @TODO: only render directional light shadows as two sided, and only when blocking is enabled (required by geometry volume injection)
-			const bool bEffectivelyTwoSided = ShadowDepthType.bReflectiveShadowmap ? true : bTwoSided;
-			// Invert culling order when mobile HDR == false.
-			auto ShaderPlatform = GShaderPlatformForFeatureLevel[FeatureLevel];
-			static auto* MobileHDRCvar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MobileHDR"));
-			check(MobileHDRCvar);
-			const bool bPlatformReversesCulling = (RHINeedsToSwitchVerticalAxis(ShaderPlatform) && MobileHDRCvar->GetValueOnAnyThread() == 0);
-
-			const bool bRenderSceneTwoSided = bEffectivelyTwoSided;
-			const bool bReverseCullMode = XOR(bPlatformReversesCulling, ShadowDepthType.bOnePassPointLightShadow);
-
-			FinalCullMode = bRenderSceneTwoSided ? CM_None : bReverseCullMode ? InverseCullMode(MeshCullMode) : MeshCullMode;
-		}
-
-		if ((bShouldCastShadow || (bReflectiveShadowmap && (Material.ShouldInjectEmissiveIntoLPV() || Material.ShouldBlockGI())))
-			&& ShouldIncludeDomainInMeshPass(Material.GetMaterialDomain())
-			&& ShouldIncludeMaterialInDefaultOpaquePass(Material))
-		{
-			const FMaterialRenderProxy* EffectiveMaterialRenderProxy = &MaterialRenderProxy;
-			const FMaterial* EffectiveMaterial = &Material;
-
-			OverrideWithDefaultMaterialForShadowDepth(EffectiveMaterialRenderProxy, EffectiveMaterial, ShadowDepthType.bReflectiveShadowmap, FeatureLevel);
-
-			if (ShadowDepthType.bReflectiveShadowmap)
+			const FMaterial* Material = MaterialRenderProxy->GetMaterialNoFallback(FeatureLevel);
+			if (Material)
 			{
-				Process<true>(MeshBatch, BatchElementMask, StaticMeshId, PrimitiveSceneProxy, *EffectiveMaterialRenderProxy, *EffectiveMaterial, MeshFillMode, FinalCullMode);
+				if (TryAddMeshBatch(MeshBatch, BatchElementMask, PrimitiveSceneProxy, StaticMeshId, *MaterialRenderProxy, *Material))
+				{
+					break;
+				}
 			}
-			else
-			{
-				Process<false>(MeshBatch, BatchElementMask, StaticMeshId, PrimitiveSceneProxy, *EffectiveMaterialRenderProxy, *EffectiveMaterial, MeshFillMode, FinalCullMode);
-			}
+			MaterialRenderProxy = MaterialRenderProxy->GetFallback(FeatureLevel);
 		}
 	}
 }

@@ -1,9 +1,56 @@
-## Robomerge Documentation
+## Robomerge help and quick reference
 <!-- The 'toc' comment is required by the marked-toc plugin and for roboserver.ts to insert a table of contents. -->
 <!-- toc -->
 
-### Quick Reference
-#### Changelist Description Flags
+### Intro
+RoboMerge monitors commits to Perforce streams. It reads commit messages to find commands telling it to merge between branches, and some branches are set up to be automatically merged.
+
+### Conflicts
+If Perforce encounters a conflict when RoboMerge is merging a changelist, an email and Slack DM is sent to the author of the change, and also a Slack message is sent to the channel for the project.
+
+There are three main ways to resolve a conflict, available on the web page and via buttons on the conflict email and Slack message:
+
+#### Stomp
+
+Available if the conflicting files are all assets. Use with care, as this will overwrite all changes in the target stream with those from the source.
+
+When you select Stomp, RoboMerge will validate that the stomp is possible and, if it is, show a web page where you can confirm it should proceed with the stomp.
+
+#### Create shelf
+
+When you select create shelf, RoboMerge will open a web page to ask which workspace to create the Perforce shelf in. Shelf creation can take a few minutes.
+
+Resolve the conflict in P4V as follows:
+
+- unshelve the files from the shelf RoboMerge created
+- resolve any conflicting files
+- commit (in the commit dialog, press the button to delete the shelved files)
+
+#### Skip
+
+This tells RoboMerge to ignore the change and carry on. This is not available in all streams, because it can be hard to track down when changes were skipped when they shouldn't have been.
+
+
+RoboMerge will perform no further merges on the stream until the conflict has been resolved. The web page shows which streams RoboMerge is currently blocked on, including the author responsible for resolving the conflicts.
+
+
+### Example commands
+
+![Example Robomerge Graph](/img/RM-Example-Graph.png)
+
+A common pattern is to configure RoboMerge to merge commits to Main into release and feature branches. In the above example, commits to **Release-5.0** are _automatically_ merged up to **Release-6.0**, and then up to **Main**. The merge paths for each of our development streams can be seen on the [RoboMerge web page](/).
+
+To request a changelist committed to Main to be merged down to **Release-6.0** and **Release-5.0**, the changelist description would include the line:
+
+`#robomerge Release-6.0, Release-5.0`
+
+Multiple branches can be separated by commas and/or spaces. Most branches are given short aliases, which can also be found on the web page. This command could be simply written:
+
+`#robomerge 5.0`
+
+using the 5.0 alias and allowing RoboMerge to calculate the route from Main to 5.0. On the web page, hover over the box for a stream to see what aliases have been set up.
+
+### Changelist Description Flags
 **The following flags can be added to RoboMerge commands inside your Perforce commit description:**
 
 | Symbol  | Name | Kind   | Example                   | Description                                                                                                                                                          |
@@ -17,32 +64,6 @@
 | null    |      | global | `#robomerge null`         | Make every automatic merge of this commit a null merge (this is the old behavior of the deadend tag). Like ignore and deadend, can be used without a #.              |
 
 Note that `#robomerge none` is now an error, due to confusion surrounding its usage.
-
-
-### What is Robomerge?
-
-#### Usage
-RoboMerge monitors commits to Perforce streams. It reads commit messages to find commands telling it to merge between branches, and some branches are set up to be automatically merged. For example:
-
-![Example Robomerge Graph](/img/RM-Example-Graph.png)
-
-A common pattern is to configure RoboMerge to merge commits to Main into release and feature branches. In the above example, commits to **Release-5.0** are _automatically_ merged up to **Release-6.0**, and then up to **Main**. The merge paths for each of our development streams can be seen on the [RoboMerge admin page](/).
-
-To request a changelist committed to Main to be merged down to **Release-6.0** and **Release-5.0**, the changelist description would include the line:
-
-`#robomerge Release-6.0, Release-5.0`
-
-Multiple branches can be separated by commas and/or spaces. Most branches are given short aliases, which can also be found on the admin page. This command could be simply written:
-
-`#robomerge 5.0`
-
-using the 5.0 alias and allowing RoboMerge to calculate the route from Main to 5.0. On the admin page, hover over the box for a stream to see what aliases have been set up.
-
-#### Conflicts
-If Perforce encounters a conflict when RoboMerge is merging a changelist:
-- An email is sent to the author, warning of the conflict. Robomerge will also reach out via Slack with some common options to address the conflict
-- RoboMerge will perform no further merges on the stream until the author unshelves the changes (or uses the Create a Shelf feature), resolves all conflicts and commits the generated changelist.
-The admin page shows which streams RoboMerge is currently blocked on, including the author responsible for resolving the conflicts.
 
 #### Example cases
 Most of the changes are fine but one file should be deadended:
@@ -71,7 +92,7 @@ for both node and edge.
 |`noStreamAliases`          |b |`false`     | |Stream names not available for commands, e.g. if there are duplicate stream names in bot | |
 |`reportToBuildHealth`      |b |`false`     | |UGS integration                          | |
 |`slackChannel`             |b |            | |Channel to receive blockages             |Not practical to make this per edge|
-|`visibility`               |bn|`['fte']`   | |Permissions to access bot/node on admin site| |
+|`visibility`               |bn|`['fte']`   | |Permissions to access bot/node on web page| |
 |`aliases`                  |n |            | |Alternative names for use in commands    | |
 |`badgeProject`             |n |            | |UGS integration                          | |
 |`depot`                    |n |**required**| |Depot, e.g. UE4                          |Flag currently called `defaultStreamDepot`|

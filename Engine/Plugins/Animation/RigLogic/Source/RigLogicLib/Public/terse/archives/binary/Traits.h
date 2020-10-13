@@ -2,9 +2,16 @@
 
 #pragma once
 
+#ifdef _MSC_VER
+    #pragma warning(push)
+    #pragma warning(disable : 4365 4987)
+#endif
 #include <cstdint>
 #include <type_traits>
 #include <utility>
+#ifdef _MSC_VER
+    #pragma warning(pop)
+#endif
 
 static_assert(sizeof(char) == 1ul, "Unsupported platform, char is not 8-bits wide.");
 
@@ -53,14 +60,6 @@ static auto test_save(std::uint32_t)->std::false_type;
 
 template<class T>
 struct has_save : decltype(test_save<T>(0)) {};
-
-template<std::size_t size>
-struct uint_of_size {
-    using type = typename std::conditional<(size == 1ul), std::uint8_t,
-                                           typename std::conditional<(size == 2ul), std::uint16_t,
-                                                                     typename std::conditional<(size <= 4ul), std::uint32_t,
-                                                                                               std::uint64_t>::type>::type>::type;
-};
 
 template<typename TContainer>
 using is_batchable = std::is_scalar<typename TContainer::value_type>;

@@ -151,7 +151,7 @@ private:
 	FCriticalSection AllocatedPointersCritical;	
 
 	/** Set during mutating operations to prevent internal allocations from recursing */
-	FThreadSafeBool	bRecursive;
+	bool	bRecursive;
 
 	/** Is allocation capture enabled? */
 	bool	bCaptureAllocs;

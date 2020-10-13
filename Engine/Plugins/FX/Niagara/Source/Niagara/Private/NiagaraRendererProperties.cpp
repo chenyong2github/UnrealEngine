@@ -107,6 +107,12 @@ bool UNiagaraRendererProperties::IsSupportedVariableForBinding(const FNiagaraVar
 	return false;
 }
 
+void UNiagaraRendererProperties::RenameEmitter(const FName& InOldName, const UNiagaraEmitter* InRenamedEmitter)
+{
+	const ENiagaraRendererSourceDataMode SourceMode = GetCurrentSourceMode();
+	UpdateSourceModeDerivates(SourceMode);
+}
+
 const TArray<FNiagaraVariable>& UNiagaraRendererProperties::GetBoundAttributes()
 {
 	CurrentBoundAttributes.Reset();
@@ -159,6 +165,42 @@ const FSlateBrush* UNiagaraRendererProperties::GetStackIcon() const
 FText UNiagaraRendererProperties::GetWidgetDisplayName() const
 {
 	return GetClass()->GetDisplayNameText();
+}
+
+void UNiagaraRendererProperties::RenameVariable(const FNiagaraVariableBase& OldVariable, const FNiagaraVariableBase& NewVariable, const UNiagaraEmitter* InEmitter)
+{
+	// Handle the renaming of generic renderer bindings...
+	for (const FNiagaraVariableAttributeBinding* AttributeBinding : AttributeBindings)
+	{
+		FNiagaraVariableAttributeBinding* Binding = const_cast<FNiagaraVariableAttributeBinding*>(AttributeBinding);
+		if (Binding)
+			Binding->RenameVariableIfMatching(OldVariable, NewVariable, InEmitter, GetCurrentSourceMode());
+	}
+}
+void UNiagaraRendererProperties::RemoveVariable(const FNiagaraVariableBase& OldVariable,const UNiagaraEmitter* InEmitter)
+{
+	// Handle the reset to defaults of generic renderer bindings
+	for (const FNiagaraVariableAttributeBinding* AttributeBinding : AttributeBindings)
+	{
+		FNiagaraVariableAttributeBinding* Binding = const_cast<FNiagaraVariableAttributeBinding*>(AttributeBinding);
+		if (Binding && Binding->Matches(OldVariable, InEmitter, GetCurrentSourceMode()))
+		{
+			// Reset to default but first we have to find the default value!
+			for (TFieldIterator<FProperty> PropertyIterator(GetClass()); PropertyIterator; ++PropertyIterator)
+			{
+				if (PropertyIterator->ContainerPtrToValuePtr<void>(this) == Binding)
+				{
+					FNiagaraVariableAttributeBinding* DefaultBinding = static_cast<FNiagaraVariableAttributeBinding*>(PropertyIterator->ContainerPtrToValuePtr<void>(GetClass()->GetDefaultObject()));
+					if (DefaultBinding)
+					{
+						Binding->ResetToDefault(*DefaultBinding, InEmitter, GetCurrentSourceMode());
+					}
+					break;
+				}
+			}		
+		}
+			
+	}
 }
 
 #endif
@@ -228,15 +270,11 @@ bool UNiagaraRendererProperties::NeedsLoadForTargetPlatform(const class ITargetP
 
 void UNiagaraRendererProperties::PostLoadBindings(ENiagaraRendererSourceDataMode InSourceMode)
 {
-	
 	for (int32 i = 0; i < AttributeBindings.Num(); i++)
 	{
 		FNiagaraVariableAttributeBinding* Binding = const_cast<FNiagaraVariableAttributeBinding*>(AttributeBindings[i]);
 		Binding->PostLoad(InSourceMode);
 	}
-
-	UpdateSourceModeDerivates(InSourceMode);
-
 }
 
 void UNiagaraRendererProperties::PostInitProperties()

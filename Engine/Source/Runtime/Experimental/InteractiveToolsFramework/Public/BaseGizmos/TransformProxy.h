@@ -21,7 +21,7 @@ class USceneComponent;
  * Otherwise the main transform is centered at the average origin and
  * has no rotation.
  */
-UCLASS()
+UCLASS(Transient)
 class INTERACTIVETOOLSFRAMEWORK_API UTransformProxy : public UObject
 {
 	GENERATED_BODY()

@@ -41,12 +41,16 @@ protected:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = VirtualTexture, meta = (UIMin = "0", UIMax = "2", EditCondition = bEnableScalability))
 	uint32 ScalabilityGroup = 0;
 
+	/** Hide primitives in the main pass. Hidden primitives will be those that draw to this virtual texture with 'Draw in Main Pass' set to 'From Virtual Texture'. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = VirtualTexture)
+	bool bHidePrimitives = false;
+
 	/** Texture object containing streamed low mips. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, NonPIEDuplicateTransient, Category = VirtualTextureBuild)
 	UVirtualTextureBuilder* StreamingTexture = nullptr;
 
 	/** Number of low mips to serialize and stream for the virtual texture. This can reduce rendering update cost. */
-	UPROPERTY(EditAnywhere, Category = VirtualTextureBuild, meta = (UIMin = "0", UIMax = "6", DisplayName = "Streaming Levels"))
+	UPROPERTY(EditAnywhere, Category = VirtualTextureBuild, meta = (UIMin = "0", UIMax = "12", DisplayName = "Streaming Levels"))
 	int32 StreamLowMips = 0;
 
 	/** Placeholder for details customization button. */
@@ -66,8 +70,13 @@ protected:
 	bool bBuildDebugStreamingMips = false;
 
 #if WITH_EDITOR
+	/** Delegate handle for our function called on PIE end. */
 	FDelegateHandle PieEndDelegateHandle;
 #endif
+
+	/** Delegate that this virtual texture will call to evaluated the full HidePrimitives state. */
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FGetHidePrimitivesDelegate, bool&, bool&);
+	FGetHidePrimitivesDelegate HidePrimitivesDelegate;
 
 public:
 	/**
@@ -86,11 +95,17 @@ public:
 	/** Get group index of the scalability settings. */
 	uint32 GetScalabilityGroup() const { return ScalabilityGroup; }
 
+	/** Get the delegate used to extend the calculation of the HidePrimitives state. */
+	FGetHidePrimitivesDelegate& GetHidePrimitivesDelegate() { return HidePrimitivesDelegate; }
+
+	/** Get the full hide primitive state including the evaluating the GetHidePrimitivesDelegate delegate. */
+	void GetHidePrimitiveSettings(bool& OutHidePrimitiveEditor, bool& OutHidePrimitiveGame) const;
+
 	/** Get the streaming virtual texture object on this component. */
 	UVirtualTextureBuilder* GetStreamingTexture() const { return StreamingTexture; }
 
 	/** Public getter for virtual texture streaming low mips */
-	int32 NumStreamingMips() const { return FMath::Clamp(StreamLowMips, 0, 6); }
+	int32 NumStreamingMips() const { return FMath::Clamp(StreamLowMips, 0, 12); }
 
 	/** Get if we want to use any streaming low mips on this component. */
 	bool IsStreamingLowMips() const;

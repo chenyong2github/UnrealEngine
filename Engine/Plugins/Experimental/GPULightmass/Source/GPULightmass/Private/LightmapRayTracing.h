@@ -37,20 +37,9 @@ class FLightmapPathTracingRGS : public FGlobalShader
 	SHADER_USE_ROOT_PARAMETER_STRUCT(FLightmapPathTracingRGS, FGlobalShader)
 
 	class FUseIrradianceCaching : SHADER_PERMUTATION_BOOL("USE_IRRADIANCE_CACHING");
-	class FVisualizeIrradianceCache : SHADER_PERMUTATION_BOOL("VISUALIZE_IRRADIANCE_CACHE");
 	class FUseFirstBounceRayGuiding : SHADER_PERMUTATION_BOOL("USE_FIRST_BOUNCE_RAY_GUIDING");
 
-	using FPermutationDomain = TShaderPermutationDomain<FUseIrradianceCaching, FVisualizeIrradianceCache, FUseFirstBounceRayGuiding>;
-	
-	static FPermutationDomain RemapPermutation(FPermutationDomain PermutationVector)
-	{
-		if (!PermutationVector.Get<FUseIrradianceCaching>())
-		{
-			PermutationVector.Set<FVisualizeIrradianceCache>(false);
-		}
-
-		return PermutationVector;
-	}
+	using FPermutationDomain = TShaderPermutationDomain<FUseIrradianceCaching, FUseFirstBounceRayGuiding>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -69,16 +58,15 @@ class FLightmapPathTracingRGS : public FGlobalShader
 		SHADER_PARAMETER(int, NumTotalSamples)
 		SHADER_PARAMETER(int, NumRayGuidingTrialSamples)
 		SHADER_PARAMETER_SRV(RaytracingAccelerationStructure, TLAS)
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, GBufferWorldPosition)
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, GBufferWorldNormal)
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, GBufferShadingNormal)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float4>, GBufferWorldPosition)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float4>, GBufferWorldNormal)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float4>, GBufferShadingNormal)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, IrradianceAndSampleCount)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, SHDirectionality)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, SHCorrectionAndStationarySkyLightBentNormal)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint>, RayGuidingLuminance)
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint>, RayGuidingSampleCount)
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float>, RayGuidingCDFX)
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float>, RayGuidingCDFY)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, RayGuidingCDFX)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, RayGuidingCDFY)
 		SHADER_PARAMETER_SRV(StructuredBuffer<FGPUTileDescription>, BatchedTiles)
 		SHADER_PARAMETER_STRUCT_REF(FPathTracingLightData, LightParameters)
 		SHADER_PARAMETER_STRUCT_REF(FSkyLightData, SkyLight)
@@ -156,9 +144,9 @@ class FStationaryLightShadowTracingRGS : public FGlobalShader
 		SHADER_PARAMETER_SRV(Buffer<int>, LightSampleIndexArray)
 		SHADER_PARAMETER_SRV(StructuredBuffer<FLightShaderParameters>, LightShaderParametersArray)
 		SHADER_PARAMETER_SRV(StructuredBuffer<FGPUTileDescription>, BatchedTiles)
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, GBufferWorldPosition)
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, GBufferWorldNormal)
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, GBufferShadingNormal)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float4>, GBufferWorldPosition)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float4>, GBufferWorldNormal)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float4>, GBufferShadingNormal)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, ShadowMask)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, ShadowMaskSampleCount)
 	END_SHADER_PARAMETER_STRUCT()
@@ -184,7 +172,6 @@ class FFirstBounceRayGuidingCDFBuildCS : public FGlobalShader
 		SHADER_PARAMETER(int, NumRayGuidingTrialSamples)
 		SHADER_PARAMETER_SRV(StructuredBuffer<FGPUTileDescription>, BatchedTiles)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint>, RayGuidingLuminance)
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint>, RayGuidingSampleCount)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float>, RayGuidingCDFX)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float>, RayGuidingCDFY)
 	END_SHADER_PARAMETER_STRUCT()

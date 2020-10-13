@@ -29,7 +29,11 @@ namespace OpenGLConsoleVariables
 		ECVF_ReadOnly
 		);
 
-	int32 bUBODirectWrite = 1;
+#if PLATFORM_ANDROID
+		int32 bUBODirectWrite = 0;
+#else
+		int32 bUBODirectWrite = 1;
+#endif
 
 	static FAutoConsoleVariableRef CVarUBODirectWrite(
 		TEXT("OpenGL.UBODirectWrite"),

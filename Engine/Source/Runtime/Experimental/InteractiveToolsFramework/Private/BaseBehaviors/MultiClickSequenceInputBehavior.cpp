@@ -6,125 +6,162 @@
 
 UMultiClickSequenceInputBehavior::UMultiClickSequenceInputBehavior()
 {
-	bInActiveSequence = false;
 }
 
 
 void UMultiClickSequenceInputBehavior::Initialize(IClickSequenceBehaviorTarget* TargetIn)
 {
 	this->Target = TargetIn;
-	bInActiveSequence = false;
 }
-
 
 FInputCaptureRequest UMultiClickSequenceInputBehavior::WantsCapture(const FInputDeviceState& input)
 {
-	check(bInActiveSequence == false);   // should not happen...
-	bInActiveSequence = false;
-
-	if ( IsPressed(input) && (ModifierCheckFunc == nullptr || ModifierCheckFunc(input) ) )
+	if (!Target)
 	{
-		if ( Target->CanBeginClickSequence(GetDeviceRay(input)) )
+		return FInputCaptureRequest::Ignore();
+	}
+
+	if (IsPressed(input))
+	{
+		switch (State)
 		{
+		case ESequenceState::NotStarted:
+		{
+			if ((ModifierCheckFunc == nullptr || ModifierCheckFunc(input))
+				&& Target->CanBeginClickSequence(GetDeviceRay(input)))
+			{
+				return FInputCaptureRequest::Begin(this, EInputCaptureSide::Any);
+			}
+			break;
+		}
+		case ESequenceState::WaitingForNextClick:
+		{
+			// TODO: we could consider doing the extra checks for non-first clicks as well.
 			return FInputCaptureRequest::Begin(this, EInputCaptureSide::Any);
+			break;
+		}
 		}
 	}
+
 	return FInputCaptureRequest::Ignore();
 }
 
 
 FInputCaptureUpdate UMultiClickSequenceInputBehavior::BeginCapture(const FInputDeviceState& input, EInputCaptureSide eSide)
 {
-	Modifiers.UpdateModifiers(input, Target);
+	check(Target); // WantsCapture should not have allowed this if we didn't have a target
 
-	Target->OnBeginClickSequence(GetDeviceRay(input));
-	bInActiveSequence = true;
-	
 	return FInputCaptureUpdate::Begin(this, EInputCaptureSide::Any);
 }
 
 
 FInputCaptureUpdate UMultiClickSequenceInputBehavior::UpdateCapture(const FInputDeviceState& input, const FInputCaptureData& data)
 {
-	check(bInActiveSequence == true);   // should always be the case!
-
-	// This is a hack to avoid terminating multi-click sequences if the user does alt+mouse camera navigation.
-	// This entire class should be deprecated and removed, in which case this hack won't be relevant...
-	if (input.bAltKeyDown)
-	{
-		return FInputCaptureUpdate::Continue();
-	}
+	check(Target);
 
 	Modifiers.UpdateModifiers(input, Target);
 
-	// allow target to abort click sequence
-	if (Target->RequestAbortClickSequence())
+	// Allow target to abort click sequence
+	if (State == ESequenceState::WaitingForNextClick && Target->RequestAbortClickSequence())
 	{
 		Target->OnTerminateClickSequence();
-		bInActiveSequence = false;
+		State = ESequenceState::NotStarted;
 		return FInputCaptureUpdate::End();
 	}
 
-	if (IsReleased(input)) 
+	// Look for click completion
+	if (IsReleased(input))
 	{
-		bool bContinue = Target->OnNextSequenceClick(GetDeviceRay(input));
-		if (bContinue == false)
+		switch (State)
 		{
-			bInActiveSequence = false;
-			return FInputCaptureUpdate::End();
+		case ESequenceState::NotStarted:
+		{
+			// Extra check when beginning the sequence
+			if (Target->CanBeginClickSequence(GetDeviceRay(input)))
+			{
+				Target->OnBeginClickSequence(GetDeviceRay(input));
+				State = ESequenceState::WaitingForNextClick;
+			}
+			break;
 		}
-	}
-	else
-	{
-		Target->OnNextSequencePreview(GetDeviceRay(input));
-	}
+		case ESequenceState::WaitingForNextClick:
+		{
+			bool bContinue = Target->OnNextSequenceClick(GetDeviceRay(input));
+			if (!bContinue)
+			{
+				// Done with the click sequence
+				State = ESequenceState::NotStarted;
+			}
+			break;
+		}
+		}
 
+		// Mouse release always ends the click capture
+		return FInputCaptureUpdate::End();
+	}
 	return FInputCaptureUpdate::Continue();
 }
 
-
 void UMultiClickSequenceInputBehavior::ForceEndCapture(const FInputCaptureData& data)
 {
-	Target->OnTerminateClickSequence();
-	bInActiveSequence = false;
+	// Only affects us if we were in the middle of a sequence
+	if (Target && State == ESequenceState::WaitingForNextClick)
+	{
+		Target->OnTerminateClickSequence();
+	}
 }
-
 
 bool UMultiClickSequenceInputBehavior::WantsHoverEvents()
 {
 	return true;
 }
 
-
 FInputCaptureRequest UMultiClickSequenceInputBehavior::WantsHoverCapture(const FInputDeviceState& InputState)
 {
-	return FInputCaptureRequest::Begin(this, EInputCaptureSide::Any);
+	return Target != nullptr ? FInputCaptureRequest::Begin(this, EInputCaptureSide::Any) : FInputCaptureRequest::Ignore();
 }
 
 FInputCaptureUpdate UMultiClickSequenceInputBehavior::BeginHoverCapture(const FInputDeviceState& InputState, EInputCaptureSide eSide) 
 {
-	if (Target != nullptr)
-	{
-		Modifiers.UpdateModifiers(InputState, Target);
-		Target->OnBeginSequencePreview(FInputDeviceRay(InputState.Mouse.WorldRay, InputState.Mouse.Position2D));
-		return FInputCaptureUpdate::Begin(this, EInputCaptureSide::Any);
-	}
-	return FInputCaptureUpdate::Ignore();
+	check(Target); // WantsHoverCapture shouldn't have allowed this without a target
+
+	return FInputCaptureUpdate::Begin(this, EInputCaptureSide::Any);
 }
 
 FInputCaptureUpdate UMultiClickSequenceInputBehavior::UpdateHoverCapture(const FInputDeviceState& InputState)
 {
-	if (Target != nullptr)
+	check(Target);
+
+	Modifiers.UpdateModifiers(InputState, Target);
+
+	// Allow target to abort click sequence
+	if (State == ESequenceState::WaitingForNextClick && Target->RequestAbortClickSequence())
 	{
-		Modifiers.UpdateModifiers(InputState, Target);
-		Target->OnBeginSequencePreview(FInputDeviceRay(InputState.Mouse.WorldRay, InputState.Mouse.Position2D));
-		return FInputCaptureUpdate::Continue();
+		Target->OnTerminateClickSequence();
+		State = ESequenceState::NotStarted;
+		return FInputCaptureUpdate::End();
 	}
-	return FInputCaptureUpdate::End();
+
+	// Dispatch the correct preview callback
+	switch (State)
+	{
+	case ESequenceState::NotStarted:
+	{
+		Target->OnBeginSequencePreview(FInputDeviceRay(InputState.Mouse.WorldRay, InputState.Mouse.Position2D));
+		break;
+	}
+	case ESequenceState::WaitingForNextClick:
+	{
+		Target->OnNextSequencePreview(FInputDeviceRay(InputState.Mouse.WorldRay, InputState.Mouse.Position2D));
+		break;
+	}
+	}
+
+	return FInputCaptureUpdate::Continue();
 }
 
 
 void UMultiClickSequenceInputBehavior::EndHoverCapture()
 {
-	// end
+	// Nothing to do.
 }

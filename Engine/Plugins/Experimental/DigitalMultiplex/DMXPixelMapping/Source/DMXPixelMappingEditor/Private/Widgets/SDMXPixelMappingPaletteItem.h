@@ -9,32 +9,32 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 
 class STableViewBase;
-class FDMXPixelMappingPalatteWidgetViewModel;
+class FDMXPixelMappingPaletteWidgetViewModel;
 class FDMXPixelMappingComponentTemplate;
 class FReply;
 
 class SDMXPixelMappingHierarchyItemHeader
-	: public STableRow<TSharedPtr<FDMXPixelMappingPalatteWidgetViewModel>>
+	: public STableRow<TSharedPtr<FDMXPixelMappingPaletteWidgetViewModel>>
 {
 public:
 	SLATE_BEGIN_ARGS(SDMXPixelMappingHierarchyItemHeader) {}
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, const TSharedRef< STableViewBase >& InOwnerTableView, const TSharedPtr<FDMXPixelMappingPalatteWidgetViewModel>& InViewModel);
+	void Construct(const FArguments& InArgs, const TSharedRef< STableViewBase >& InOwnerTableView, const TSharedPtr<FDMXPixelMappingPaletteWidgetViewModel>& InViewModel);
 };
 
 class SDMXPixelMappingHierarchyItemTemplate
-	: public STableRow<TSharedPtr<FDMXPixelMappingPalatteWidgetViewModel>>
+	: public STableRow<TSharedPtr<FDMXPixelMappingPaletteWidgetViewModel>>
 {
 public:
 	SLATE_BEGIN_ARGS(SDMXPixelMappingHierarchyItemTemplate) {}
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, const TSharedRef< STableViewBase >& InOwnerTableView, const TSharedPtr<FDMXPixelMappingPalatteWidgetViewModel>& InViewModel);
+	void Construct(const FArguments& InArgs, const TSharedRef< STableViewBase >& InOwnerTableView, const TSharedPtr<FDMXPixelMappingPaletteWidgetViewModel>& InViewModel);
 
 private:
 	FReply OnDraggingWidget(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent);
 
 private:
-	TWeakPtr<FDMXPixelMappingPalatteWidgetViewModel> ViewModel;
+	TWeakPtr<FDMXPixelMappingPaletteWidgetViewModel> ViewModel;
 };

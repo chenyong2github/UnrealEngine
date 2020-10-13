@@ -11,7 +11,9 @@
 #include "Chaos/Serializable.h"
 #include "Chaos/PBDSuspensionConstraints.h"
 #include "Chaos/Framework/MultiBufferResource.h"
+#include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 #include "PhysicsSolver.h"
+
 
 
 template< class CONSTRAINT_TYPE >
@@ -46,6 +48,27 @@ EPhysicsProxyType TSuspensionConstraintProxy<Chaos::FSuspensionConstraint>::Conc
 	return EPhysicsProxyType::SuspensionConstraintType;
 }
 
+template< class CONSTRAINT_TYPE>
+Chaos::TGeometryParticleHandle<Chaos::FReal, 3>*
+TSuspensionConstraintProxy<CONSTRAINT_TYPE>::GetParticleHandleFromProxy(IPhysicsProxyBase* ProxyBase)
+{
+	if (ProxyBase)
+	{
+		if (ProxyBase->GetType() == EPhysicsProxyType::SingleGeometryParticleType)
+		{
+			return ((FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<Chaos::FReal, 3>>*)ProxyBase)->GetHandle();
+		}
+		else if (ProxyBase->GetType() == EPhysicsProxyType::SingleRigidParticleType)
+		{
+			return ((FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<Chaos::FReal, 3>>*)ProxyBase)->GetHandle();
+		}
+		else if (ProxyBase->GetType() == EPhysicsProxyType::SingleKinematicParticleType)
+		{
+			return ((FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<Chaos::FReal, 3>>*)ProxyBase)->GetHandle();
+		}
+	}
+	return nullptr;
+}
 
 template < >
 template < class Trait >
@@ -57,13 +80,16 @@ void TSuspensionConstraintProxy<Chaos::FSuspensionConstraint>::InitializeOnPhysi
 		auto& SuspensionConstraints = InSolver->GetSuspensionConstraints();
 		if (Constraint != nullptr)
 		{
-			auto Particles = Constraint->GetParticles();
+			Chaos::FConstraintBase::FProxyBasePair& BasePairs = Constraint->GetParticleProxies();
 
-			if (Particles[0] && Particles[0]->Handle())
+			
+			Chaos::TGeometryParticleHandle<Chaos::FReal, 3>* Handle0 = GetParticleHandleFromProxy(BasePairs[0]);
+			if (Handle0)
 			{
-				Handle = SuspensionConstraints.AddConstraint( Particles[0]->Handle(), Constraint->GetLocation()
+				Handle = SuspensionConstraints.AddConstraint(Handle0, Constraint->GetLocation()
 					, SuspensionSettingsBuffer);
 			}
+			
 		}
 	}
 }
@@ -207,6 +233,9 @@ void TSuspensionConstraintProxy<Chaos::FSuspensionConstraint>::DestroyOnPhysicsT
 	{
 		auto& SuspensionConstraints = RBDSolver->GetSuspensionConstraints();
 		SuspensionConstraints.RemoveConstraint(Handle->GetConstraintIndex());
+
+		delete Constraint; 
+		Constraint = nullptr;
 	}
 }
 

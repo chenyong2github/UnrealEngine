@@ -69,55 +69,6 @@ struct FFBIKEndEffector
 	}
 };
 
-USTRUCT()
-struct FFBIKMidEffector
-{
-	GENERATED_BODY()
-	/**
-	 * The last bone in the chain to solve - the effector
-	 */
-	UPROPERTY(meta = (Constant, CustomWidget = "BoneName"))
-	FRigElementKey Item;
-
-	UPROPERTY()
-	FVector Position;
-
-	UPROPERTY()
-	float	PositionAlpha = 0.f;
-
-	UPROPERTY()
-	FQuat	Rotation;
-
-	UPROPERTY()
-	float	RotationAlpha = 0.f;
-
-	UPROPERTY()
-	float	Stiffness = 0.f;
-
-	FFBIKMidEffector()
-	 :	Item(NAME_None, ERigElementType::Bone)
-	 ,	Position(FVector::ZeroVector)
-	 ,	Rotation(FQuat::Identity)
-	{
-	}
-
-	FFBIKMidEffector(const FFBIKMidEffector& Other)
-	{
-		*this = Other;
-	}
-
-	FFBIKMidEffector& operator = (const FFBIKMidEffector& Other)
-	{
-		Item = Other.Item;
-		Position = Other.Position;
-		PositionAlpha = Other.PositionAlpha;
-		Rotation = Other.Rotation;
-		RotationAlpha = Other.RotationAlpha;
-		Stiffness = Other.Stiffness;
-		return *this;
-	}
-};
-
 class FULLBODYIK_API FJacobianSolver_FullbodyIK : public FJacobianSolverBase
 {
 public:
@@ -142,10 +93,8 @@ struct FRigUnit_FullbodyIK_WorkData
 	TArray<FFBIKLinkData> LinkData;
 	/** Effector Targets - search key is LinkData Index */
 	TMap<int32, FFBIKEffectorTarget> EffectorTargets; 
-	/** Mid Effector Link Indices - MidEffector index to LinkData index*/
-	TArray<int32> MidEffectorLinkIndices; 
 	/** End Effector Link Indices - EndEffector index to LinkData index*/
-	TArray<int32> EndEffectorLinkIndices;
+	TArray<int32> EffectorLinkIndices;
 	/** Map from LinkData index to Rig Hierarchy Index*/
 	TMap<int32, FRigElementKey> LinkDataToHierarchyIndices;
 	/** Map from Rig Hierarchy Index to LinkData index*/
@@ -216,9 +165,7 @@ struct FSolverInput
 };
 
 /**
- * The FABRIK solver can solve multi chains within a root using multi effectors
- * the Forward and Backward Reaching Inverse Kinematics algorithm.
- * For now this node supports single effector chains only.
+ * Based on Jacobian solver at core, this can solve multi chains within a root using multi effectors
  */
 USTRUCT(meta=(DisplayName="Fullbody IK", Category="Hierarchy", Keywords="Multi, Effector, N-Chain, FB, IK"))
 struct FRigUnit_FullbodyIK : public FRigUnit_HighlevelBaseMutable
@@ -241,10 +188,7 @@ struct FRigUnit_FullbodyIK : public FRigUnit_HighlevelBaseMutable
 	FRigElementKey Root;
 
 	UPROPERTY(meta = (Input))
-	TArray<FFBIKEndEffector> EndEffectors;
-
-	UPROPERTY(meta = (Input))
-	TArray<FFBIKMidEffector> MidEffectors;
+	TArray<FFBIKEndEffector> Effectors;
 
 	UPROPERTY(EditAnywhere, Category = FRigUnit_Jacobian, meta = (Input))
 	TArray<FFBIKConstraintOption> Constraints;

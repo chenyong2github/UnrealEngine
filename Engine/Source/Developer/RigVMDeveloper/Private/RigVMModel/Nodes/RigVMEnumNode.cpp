@@ -44,12 +44,12 @@ UObject* URigVMEnumNode::GetCPPTypeObject() const
 	return EnumValuePin->GetCPPTypeObject();
 }
 
-FString URigVMEnumNode::GetDefaultValue() const
+FString URigVMEnumNode::GetDefaultValue(const URigVMPin::FDefaultValueOverride& InDefaultValueOverride) const
 {
 	URigVMPin* EnumValuePin = FindPin(EnumValueName);
 	if (EnumValuePin == nullptr)
 	{
 		return FString();
 	}
-	return EnumValuePin->GetDefaultValue();
+	return EnumValuePin->GetDefaultValue(InDefaultValueOverride);
 }

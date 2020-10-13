@@ -5,6 +5,7 @@
 #include "Engine/SkeletalMesh.h"
 #include "AI/NavigationSystemBase.h"
 #include "Engine/Engine.h"
+#include "EngineModule.h"
 #include "Misc/MessageDialog.h"
 #include "Modules/ModuleManager.h"
 #include "SlateOptMacros.h"
@@ -246,6 +247,7 @@ void FMatExpressionPreview::NotifyCompilationFinished()
 	{
 		CastChecked<UMaterialGraphNode>(Expression->GraphNode)->bPreviewNeedsUpdate = true;
 	}
+	FMaterialRenderProxy::CacheUniformExpressions_GameThread(true);
 }
 
 /////////////////////
@@ -818,9 +820,8 @@ FMaterialEditor::~FMaterialEditor()
 	MaterialDetailsView.Reset();
 
 	{
-		SCOPED_SUSPEND_RENDERING_THREAD(true);
-	
-		ExpressionPreviews.Empty();
+		//SCOPED_SUSPEND_RENDERING_THREAD(true);
+		FMaterial::DeferredDeleteArray(ExpressionPreviews);
 	}
 	
 	check( !ScopedTransaction );
@@ -838,6 +839,7 @@ void FMaterialEditor::GetAllMaterialExpressionGroups(TArray<FString>* OutGroups)
 		UMaterialExpression* MaterialExpression = Material->Expressions[ MaterialExpressionIndex ];
 		UMaterialExpressionParameter* Param = Cast<UMaterialExpressionParameter>(MaterialExpression);
 		UMaterialExpressionTextureSampleParameter* TextureS = Cast<UMaterialExpressionTextureSampleParameter>(MaterialExpression);
+		UMaterialExpressionRuntimeVirtualTextureSampleParameter* RVTS = Cast<UMaterialExpressionRuntimeVirtualTextureSampleParameter>(MaterialExpression);
 		UMaterialExpressionFontSampleParameter* FontS = Cast<UMaterialExpressionFontSampleParameter>(MaterialExpression);
 		if (Param)
 		{
@@ -870,6 +872,23 @@ void FMaterialEditor::GetAllMaterialExpressionGroups(TArray<FString>* OutGroups)
 				{
 					return GroupName == DataElement.GroupName;
 				});
+				UpdatedGroups.Add(FParameterGroupData(GroupName, ParameterGroupDataElement->GroupSortPriority));
+			}
+		}
+		else if (RVTS)
+		{
+			const FString& GroupName = RVTS->Group.ToString();
+			OutGroups->AddUnique(GroupName);
+			if (Material->AttemptInsertNewGroupName(GroupName))
+			{
+				UpdatedGroups.Add(FParameterGroupData(GroupName, 0));
+			}
+			else
+			{
+				FParameterGroupData* ParameterGroupDataElement = Material->ParameterGroupData.FindByPredicate([&GroupName](const FParameterGroupData& DataElement)
+					{
+						return GroupName == DataElement.GroupName;
+					});
 				UpdatedGroups.Add(FParameterGroupData(GroupName, ParameterGroupDataElement->GroupSortPriority));
 			}
 		}
@@ -962,6 +981,11 @@ void FMaterialEditor::CreateInternalWidgets()
 
 	MaterialDetailsView->RegisterInstancedCustomPropertyLayout( 
 		UMaterialExpressionTextureSampleParameter::StaticClass(), 
+		LayoutExpressionParameterDetails
+		);
+
+	MaterialDetailsView->RegisterInstancedCustomPropertyLayout(
+		UMaterialExpressionRuntimeVirtualTextureSampleParameter::StaticClass(),
 		LayoutExpressionParameterDetails
 		);
 
@@ -2581,9 +2605,9 @@ void FMaterialEditor::AddReferencedObjects( FReferenceCollector& Collector )
 	Collector.AddReferencedObject(EmptyMaterial);
 	Collector.AddReferencedObject(MaterialEditorInstance);
 	Collector.AddReferencedObject(PreviewExpression);
-	for (FMatExpressionPreview& ExpressionPreview : ExpressionPreviews)
+	for (FMatExpressionPreview* ExpressionPreview : ExpressionPreviews)
 	{
-		ExpressionPreview.AddReferencedObjects(Collector);
+		ExpressionPreview->AddReferencedObjects(Collector);
 	}
 }
 
@@ -3747,6 +3771,8 @@ void FMaterialEditor::OnVectorParameterDefaultChanged(class UMaterialExpression*
 
 		OverriddenVectorParametersToRevert.AddUnique(ParameterName);
 	}
+
+	OnParameterDefaultChanged();
 }
 
 void FMaterialEditor::SetScalarParameterDefaultOnDependentMaterials(FName ParameterName, float Value, bool bOverride)
@@ -3822,6 +3848,20 @@ void FMaterialEditor::OnScalarParameterDefaultChanged(class UMaterialExpression*
 		SetScalarParameterDefaultOnDependentMaterials(ParameterName, Value, true);
 
 		OverriddenScalarParametersToRevert.AddUnique(ParameterName);
+	}
+
+	OnParameterDefaultChanged();
+}
+
+void FMaterialEditor::OnParameterDefaultChanged()
+{
+	// Brute force all flush virtual textures if this material writes to any runtime virtual texture.
+	if (Material->GetCachedExpressionData().bHasRuntimeVirtualTextureOutput)
+	{
+		ENQUEUE_RENDER_COMMAND(FlushVTCommand)([](FRHICommandListImmediate& RHICmdList)
+		{
+			GetRendererModule().FlushVirtualTextureCache(); 
+		});
 	}
 }
 
@@ -4911,10 +4951,10 @@ void FMaterialEditor::RefreshExpressionPreviews(bool bForceRefreshAll /*= false*
 	if ( bAlwaysRefreshAllPreviews || bForceRefreshAll)
 	{
 		// we need to make sure the rendering thread isn't drawing these tiles
-		SCOPED_SUSPEND_RENDERING_THREAD(true);
+		//SCOPED_SUSPEND_RENDERING_THREAD(true);
 
 		// Refresh all expression previews.
-		ExpressionPreviews.Empty();
+		FMaterial::DeferredDeleteArray(ExpressionPreviews);
 
 		for (int32 ExpressionIndex = 0; ExpressionIndex < Material->Expressions.Num(); ++ExpressionIndex)
 		{
@@ -4962,11 +5002,12 @@ void FMaterialEditor::RefreshExpressionPreview(UMaterialExpression* MaterialExpr
 	{
 		for( int32 PreviewIndex = 0 ; PreviewIndex < ExpressionPreviews.Num() ; ++PreviewIndex )
 		{
-			FMatExpressionPreview& ExpressionPreview = ExpressionPreviews[PreviewIndex];
-			if( ExpressionPreview.GetExpression() == MaterialExpression )
+			FMatExpressionPreview* ExpressionPreview = ExpressionPreviews[PreviewIndex];
+			if( ExpressionPreview->GetExpression() == MaterialExpression )
 			{
 				// we need to make sure the rendering thread isn't drawing this tile
-				SCOPED_SUSPEND_RENDERING_THREAD(true);
+				//SCOPED_SUSPEND_RENDERING_THREAD(true);
+				FMaterial::DeferredDelete(ExpressionPreview);
 				ExpressionPreviews.RemoveAt( PreviewIndex );
 				MaterialExpression->bNeedToUpdatePreview = false;
 
@@ -4993,13 +5034,13 @@ FMatExpressionPreview* FMaterialEditor::GetExpressionPreview(UMaterialExpression
 	bNewlyCreated = false;
 	if (!MaterialExpression->bHidePreviewWindow && !MaterialExpression->bCollapsed)
 	{
-		FMatExpressionPreview*	Preview = NULL;
+		FMatExpressionPreview* Preview = NULL;
 		for( int32 PreviewIndex = 0 ; PreviewIndex < ExpressionPreviews.Num() ; ++PreviewIndex )
 		{
-			FMatExpressionPreview& ExpressionPreview = ExpressionPreviews[PreviewIndex];
-			if( ExpressionPreview.GetExpression() == MaterialExpression )
+			FMatExpressionPreview* ExpressionPreview = ExpressionPreviews[PreviewIndex];
+			if( ExpressionPreview->GetExpression() == MaterialExpression )
 			{
-				Preview = &ExpressionPreviews[PreviewIndex];
+				Preview = ExpressionPreviews[PreviewIndex];
 				break;
 			}
 		}
@@ -5009,7 +5050,7 @@ FMatExpressionPreview* FMaterialEditor::GetExpressionPreview(UMaterialExpression
 			bNewlyCreated = true;
 			Preview = new FMatExpressionPreview(MaterialExpression);
 			ExpressionPreviews.Add(Preview);
-			Preview->CacheShaders(GMaxRHIShaderPlatform);
+			Preview->CacheShaders(GMaxRHIShaderPlatform, EMaterialShaderPrecompileMode::None);
 		}
 		return Preview;
 	}

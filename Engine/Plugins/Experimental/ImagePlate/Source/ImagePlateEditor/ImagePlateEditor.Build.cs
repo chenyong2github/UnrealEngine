@@ -15,6 +15,7 @@ namespace UnrealBuildTool.Rules
 					"EditorStyle",
 					"Engine",
 					"ImagePlate",
+					"LevelSequence",
 					"MovieScene",
 					"MovieSceneTools",
 					"MovieSceneTracks",

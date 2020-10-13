@@ -151,9 +151,9 @@ private:
 	TUniquePtr<FLightmapTilePoolGPU> UploadTilePoolGPU;
 
 	FQueuedThreadPool* DenoisingThreadPool;
+
+	void RenderIrradianceCacheVisualization(FPostOpaqueRenderParameters& Parameters);
+	FDelegateHandle IrradianceCacheVisualizationDelegateHandle;
 };
 
 }
-
-extern int32 GGPULightmassSamplesPerTexel;
-extern int32 GGPULightmassShadowSamplesPerTexel;

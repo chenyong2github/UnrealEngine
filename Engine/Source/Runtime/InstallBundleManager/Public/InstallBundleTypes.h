@@ -12,6 +12,7 @@
 enum class EInstallBundleSourceType : int
 {
 	Bulk,
+	Launcher,
 	BuildPatchServices,
 #if WITH_PLATFORM_INSTALL_BUNDLE_SOURCE
 	Platform,

@@ -453,8 +453,13 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 		if (targetBranchName) {
 			logMessage += ', target: ' + targetBranchName
 		}
-		if (additionalArgs && additionalArgs.commandOverride) {
-			logMessage += ', with command ' + additionalArgs.commandOverride
+		if (additionalArgs) {
+			if (additionalArgs.additionalFlags) {
+				logMessage += `, (${additionalArgs.additionalFlags.join(', ')})`
+			}
+			if (additionalArgs.commandOverride) {
+				logMessage += ', with command ' + additionalArgs.commandOverride
+			}
 		}
 		this.nodeBotLogger.info(logMessage);
 		this.queuedChanges.push({cl: changenum, who: instigator, ...(additionalArgs || {})});
@@ -1587,7 +1592,7 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 
 		const args = parsedLines.arguments
 		if (optTargetBranch || (args.length + defaultTargets.length) > 0) {
-			computeTargets(this.branch, this.ubergraph, change.change, info, args, defaultTargets, this.nodeBotLogger, optTargetBranch)
+			computeTargets(this.branch, this.ubergraph, change.change, info, args, defaultTargets, this.nodeBotLogger, !this.branch.config.disallowDeadend, optTargetBranch)
 		}
 
 		if (!info.errors) {
@@ -1662,6 +1667,13 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 			}
 
 			const integration = await targetEdge.performMerge(info, target, this.branch.convertIntegratesToEdits)
+
+			// wake up target nodebot, so look for further merges or conflict resolutions
+			const targetNodebot = target.branch.bot as NodeBot
+			if (targetNodebot) {
+				targetNodebot.ticksSinceLastNewP4Commit = 0
+				targetNodebot.skipTickCounter = 0
+			}
 
 			// If the target edge is now blocked after the merge attempt, remove it from future merges this tick
 			if (targetEdge.isBlocked) {

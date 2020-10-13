@@ -223,6 +223,14 @@ public:
 	 */
 	virtual void SetRegisterMountPointDelegate( const FRegisterMountPointDelegate& Delegate ) = 0;
 
+	/**
+	 * Sets the delegate to call to unregister a new content mount point.  This is used internally by the plug-in manager system
+	 * and should not be called by you.  This is registered at application startup by FPackageName code in CoreUObject.
+	 *
+	 * @param	Delegate	The delegate to that will be called when plug-in manager needs to unregister a mount point
+	 */
+	virtual void SetUnRegisterMountPointDelegate( const FRegisterMountPointDelegate& Delegate ) = 0;
+
 	/** Delegate type for updating the package localization cache.  Used internally by FPackageLocalizationManager code. */
 	DECLARE_DELEGATE( FUpdatePackageLocalizationCacheDelegate );
 
@@ -332,6 +340,11 @@ public:
 	 * These plugins are not loaded implicitly, but instead wait for this function to be called.
 	 */
 	virtual void MountExplicitlyLoadedPlugin(const FString& PluginName) = 0;
+
+	/**
+	 * Marks an explicitly loaded plugin as disabled, unmounts its content (does not work on plugins with compiled modules).
+	 */
+	virtual bool UnmountExplicitlyLoadedPlugin(const FString& PluginName, FText* OutReason) = 0;
 
 	/**
 	* Does a reverse lookup to try to figure out what the UObject package name is for a plugin

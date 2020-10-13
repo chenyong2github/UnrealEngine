@@ -517,9 +517,9 @@ public:
 		// Copy the existing elements to a new array.
 		TSparseArray<ElementType,Allocator> CompactedArray;
 		CompactedArray.Empty(Num());
-		for(TConstIterator It(*this);It;++It)
+		for(TIterator It(*this);It;++It)
 		{
-			new(CompactedArray.AddUninitialized()) ElementType(*It);
+			new(CompactedArray.AddUninitialized()) ElementType(MoveTempIfPossible(*It));
 		}
 
 		// Replace this array with the compacted array.

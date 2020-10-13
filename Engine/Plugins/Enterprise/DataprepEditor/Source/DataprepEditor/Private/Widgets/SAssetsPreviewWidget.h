@@ -99,6 +99,10 @@ namespace AssetPreviewWidget
 
 		void SelectMatchingItems(const TSet<UObject*>& InAssets);
 
+		TSet<UObject*> GetSelectedAssets() const;
+
+		void SetSelectedAssets(TSet<UObject*> InSelectionSet, ESelectInfo::Type SelectionInfo);
+
 	private:
 
 		friend struct FAssetTreeItem;
@@ -128,8 +132,6 @@ namespace AssetPreviewWidget
 		void UpdateColumns();
 
 		void Refresh();
-
-		TSet<UObject*> GetSelectedAssets() const;
 
 		/**
 		 * Find or create the parents chain

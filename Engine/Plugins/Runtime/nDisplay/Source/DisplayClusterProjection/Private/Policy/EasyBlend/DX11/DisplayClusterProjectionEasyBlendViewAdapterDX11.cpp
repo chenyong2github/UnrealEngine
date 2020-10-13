@@ -3,14 +3,16 @@
 #include "Policy/EasyBlend/DX11/DisplayClusterProjectionEasyBlendViewAdapterDX11.h"
 #include "Policy/EasyBlend/DX11/DisplayClusterProjectionEasyBlendLibraryDX11.h"
 
-#include "DisplayClusterProjectionHelpers.h"
 #include "DisplayClusterProjectionLog.h"
+#include "Misc/DisplayClusterHelpers.h"
 
 #include "RHI.h"
 #include "RHIResources.h"
 #include "RHIUtilities.h"
 
+#if PLATFORM_WINDOWS
 #include "Windows/D3D11RHI/Private/D3D11RHIPrivate.h"
+#endif
 
 #include "Engine/GameViewportClient.h"
 #include "Engine/Engine.h"
@@ -129,15 +131,12 @@ bool FDisplayClusterProjectionEasyBlendViewAdapterDX11::GetProjectionMatrix(cons
 	check(Views.Num() > (int)ViewIdx);
 
 	// Build Projection matrix:
-	const float n = ZNear;
-	const float f = ZFar;
+	const float Left   = Views[ViewIdx].EasyBlendMeshData->Frustum.LeftAngle;
+	const float Right  = Views[ViewIdx].EasyBlendMeshData->Frustum.RightAngle;
+	const float Bottom = Views[ViewIdx].EasyBlendMeshData->Frustum.BottomAngle;
+	const float Top    = Views[ViewIdx].EasyBlendMeshData->Frustum.TopAngle;
 
-	const float l = Views[ViewIdx].EasyBlendMeshData->Frustum.LeftAngle;
-	const float r = Views[ViewIdx].EasyBlendMeshData->Frustum.RightAngle;
-	const float b = Views[ViewIdx].EasyBlendMeshData->Frustum.BottomAngle;
-	const float t = Views[ViewIdx].EasyBlendMeshData->Frustum.TopAngle;
-
-	OutPrjMatrix = DisplayClusterHelpers::math::GetProjectionMatrixFromAngles(l, r, t, b, n, f);
+	OutPrjMatrix = DisplayClusterHelpers::math::GetProjectionMatrixFromAngles(Left, Right, Top, Bottom, ZNear, ZFar);
 
 	return true;
 }
@@ -148,6 +147,11 @@ bool FDisplayClusterProjectionEasyBlendViewAdapterDX11::ApplyWarpBlend_RenderThr
 	check(Views.Num() > (int)ViewIdx);
 
 	if (!InitializeResources_RenderThread())
+	{
+		return false;
+	}
+
+	if (!GEngine)
 	{
 		return false;
 	}
@@ -172,7 +176,7 @@ bool FDisplayClusterProjectionEasyBlendViewAdapterDX11::ApplyWarpBlend_RenderThr
 
 	// Setup In/Out EasyBlend textures
 	{
-		FScopeLock lock(&DllAccessCS);
+		FScopeLock Lock(&DllAccessCS);
 
 		check(DisplayClusterProjectionEasyBlendLibraryDX11::EasyBlendSetInputTexture2DFunc);
 		const EasyBlendSDKDXError EasyBlendSDKDXError1 = DisplayClusterProjectionEasyBlendLibraryDX11::EasyBlendSetInputTexture2DFunc(Views[ViewIdx].EasyBlendMeshData.Get(), SrcTextureD3D11);
@@ -206,7 +210,7 @@ bool FDisplayClusterProjectionEasyBlendViewAdapterDX11::ApplyWarpBlend_RenderThr
 	DeviceContext->Flush();
 
 	{
-		FScopeLock lock(&DllAccessCS);
+		FScopeLock Lock(&DllAccessCS);
 
 		// Perform warp&blend by the EasyBlend
 		check(DisplayClusterProjectionEasyBlendLibraryDX11::EasyBlendDXRenderFunc);
@@ -236,7 +240,7 @@ bool FDisplayClusterProjectionEasyBlendViewAdapterDX11::InitializeResources_Rend
 
 	if (!bIsRenderResourcesInitialized)
 	{
-		FScopeLock lock(&RenderingResourcesInitializationCS);
+		FScopeLock Lock(&RenderingResourcesInitializationCS);
 		if (!bIsRenderResourcesInitialized)
 		{
 			static const TConsoleVariableData<int32>* CVarDefaultBackBufferPixelFormat = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.DefaultBackBufferPixelFormat"));
@@ -279,7 +283,7 @@ bool FDisplayClusterProjectionEasyBlendViewAdapterDX11::InitializeResources_Rend
 					}
 				}
 
-				// Here we set initialization flag. In case we couldn't initialize the EasyBlend device objects, we don't want do it again.
+				// Here we set initialization flag. In case we couldn't initialize EasyBlend device objects, we won't do it again.
 				// However, the per-view bIsInitialized flag must be tested before call any EasyBlend function.
 				bIsRenderResourcesInitialized = true;
 			}

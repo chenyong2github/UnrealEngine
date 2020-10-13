@@ -98,6 +98,14 @@ namespace OpenGLConsoleVariables
 		TEXT("If true, use dynamic buffer orphaning hint.")
 		);
 	
+	int32 bUsePersistentMappingStagingBuffer= 1;
+	static FAutoConsoleVariableRef CVarUsePersistentMappingStagingBuffer(
+		TEXT("OpenGL.UsePersistentMappingStagingBuffer"),
+		bUsePersistentMappingStagingBuffer,
+		TEXT("If true, it will use persistent mapping for the Staging Buffer."),
+		ECVF_ReadOnly
+	);
+
 	static TAutoConsoleVariable<int32> CVarUseSeparateShaderObjects(
 		TEXT("OpenGL.UseSeparateShaderObjects"),
 		0,
@@ -3345,8 +3353,24 @@ void FOpenGLDynamicRHI::RHICopyToStagingBuffer(FRHIVertexBuffer* SourceBufferRHI
 	glBindBuffer(GL_COPY_WRITE_BUFFER, DestinationBuffer->ShadowBuffer);
 	if (DestinationBuffer->ShadowSize < InNumBytes)
 	{
-		// Orphan the existing buffer.
-		glBufferData(GL_COPY_WRITE_BUFFER, InNumBytes, NULL, GL_STREAM_READ);
+		if (FOpenGL::SupportsBufferStorage() && OpenGLConsoleVariables::bUsePersistentMappingStagingBuffer)
+		{
+			if (DestinationBuffer->Mapping != nullptr)
+			{
+				FOpenGL::UnmapBuffer(GL_COPY_WRITE_BUFFER);
+				glDeleteBuffers(1, &DestinationBuffer->ShadowBuffer);
+				glGenBuffers(1, &DestinationBuffer->ShadowBuffer);
+				glBindBuffer(GL_COPY_WRITE_BUFFER, DestinationBuffer->ShadowBuffer);
+			}
+
+			FOpenGL::BufferStorage(GL_COPY_WRITE_BUFFER, InNumBytes, NULL, GL_MAP_READ_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT);
+
+			DestinationBuffer->Mapping = FOpenGL::MapBufferRange(GL_COPY_WRITE_BUFFER, 0, InNumBytes, FOpenGL::EResourceLockMode::RLM_ReadOnlyPersistent);
+		}
+		else
+		{
+			glBufferData(GL_COPY_WRITE_BUFFER, InNumBytes, NULL, GL_STREAM_READ);
+		}
 		DestinationBuffer->ShadowSize = InNumBytes;
 	}
 

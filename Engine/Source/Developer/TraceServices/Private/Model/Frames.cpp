@@ -35,7 +35,7 @@ void FFrameProvider::EnumerateFrames(ETraceFrameType FrameType, uint64 Start, ui
 	{
 		return;
 	}
-	for (auto Iterator = Frames[FrameType].GetIteratorFromItem(Start); Iterator; ++Iterator)
+	for (auto Iterator = Frames[FrameType].GetIteratorFromItem(Start); Iterator && Iterator->Index < End; ++Iterator)
 	{
 		Callback(*Iterator);
 	}

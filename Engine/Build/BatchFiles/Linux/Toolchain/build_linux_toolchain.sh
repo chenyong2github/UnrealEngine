@@ -3,8 +3,8 @@
 set -x
 set -eu
 
-ToolChainVersion=v16
-LLVM_VERSION=9.0.1
+ToolChainVersion=v17
+LLVM_VERSION=10.0.1
 LLVM_URL=https://github.com/llvm/llvm-project/releases/download/llvmorg-${LLVM_VERSION}
 
 ToolChainVersionName="${ToolChainVersion}_clang-${LLVM_VERSION}-centos7"
@@ -47,6 +47,16 @@ for arch in $TARGETS; do
 	../crosstool-ng/ct-ng build.$CORES
 	popd
 done
+
+# since we are -u in the bash script and this ENV is not set it complains when source the devtoolset-7
+export MANPATH=""
+
+# cannot use this normal method as it creates its own bash, so lets just sorce the env
+# scl enable devtoolset-7 bash
+source /opt/rh/devtoolset-7/enable
+
+# need to unset this or crosstools complains
+unset LD_LIBRARY_PATH
 
 #
 # Linux
@@ -117,12 +127,14 @@ for arch in $TARGETS; do
 	popd
 
 	echo "Copying clang..."
-	cp -L ${InstallClangDir}/bin/clang         ${OutputDirLinux}/$arch/bin/
-	cp -L ${InstallClangDir}/bin/clang++       ${OutputDirLinux}/$arch/bin/
-	cp -L ${InstallClangDir}/bin/lld           ${OutputDirLinux}/$arch/bin/
-	cp -L ${InstallClangDir}/bin/ld.lld        ${OutputDirLinux}/$arch/bin/
-	cp -L ${InstallClangDir}/bin/llvm-ar       ${OutputDirLinux}/$arch/bin/
-	cp -L ${InstallClangDir}/bin/llvm-profdata ${OutputDirLinux}/$arch/bin/
+	cp -L ${InstallClangDir}/bin/clang           ${OutputDirLinux}/$arch/bin/
+	cp -L ${InstallClangDir}/bin/clang++         ${OutputDirLinux}/$arch/bin/
+	cp -L ${InstallClangDir}/bin/lld             ${OutputDirLinux}/$arch/bin/
+	cp -L ${InstallClangDir}/bin/ld.lld          ${OutputDirLinux}/$arch/bin/
+	cp -L ${InstallClangDir}/bin/llvm-ar         ${OutputDirLinux}/$arch/bin/
+	cp -L ${InstallClangDir}/bin/llvm-profdata   ${OutputDirLinux}/$arch/bin/
+	cp -L ${InstallClangDir}/bin/llvm-objcopy    ${OutputDirLinux}/$arch/bin/
+	cp -L ${InstallClangDir}/bin/llvm-symbolizer ${OutputDirLinux}/$arch/bin/
 
 	if [ "$arch" == "x86_64-unknown-linux-gnu" ]; then
 		cp -r -L ${InstallClangDir}/lib/clang ${OutputDirLinux}/$arch/lib/

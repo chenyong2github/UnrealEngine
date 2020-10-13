@@ -1125,10 +1125,7 @@ void SunMergePS_Mobile(
 		OutColor.rgb += SunColorVignetteIntensity.rgb * Sun;
 	#endif
 
-	half Vignette = ComputeVignetteMask(InUVVignette.zw, SunColorVignetteIntensity.a);
-
-	OutColor.a = Vignette;
-	OutColor.rgb *= OutColor.a;
+	OutColor.a = 1.0f;
 }
 
 #undef SUN_P0

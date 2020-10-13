@@ -37,9 +37,9 @@ bool FChunkDownloader::CheckFileSha1Hash(const FString& FullPathOnDisk, const FS
 	// create a SHA1 reader
 	FSHA1 HashContext;
 
-	// read in 128K chunks to prevent raising the memory high water mark too much
+	// read in 64K chunks to prevent raising the memory high water mark too much
 	{
-		static const int64 FILE_BUFFER_SIZE = 128 * 1024;
+		static const int64 FILE_BUFFER_SIZE = 64 * 1024;
 		uint8 Buffer[FILE_BUFFER_SIZE];
 		int64 FileSize = FilePtr->Size();
 		for (int64 Pointer = 0; Pointer<FileSize;)
@@ -1214,13 +1214,13 @@ void FChunkDownloader::TryDownloadBuildManifest(int TryNumber)
 			else
 			{
 				UE_LOG(LogChunkDownloader, Error, TEXT("HTTP %d while downloading manifest from '%s'"), HttpStatus, *HttpRequest->GetURL());
-				LastError = FText::Format(LOCTEXT("ManifestHttpError", "[Try {0}] Manifest download failed (HTTP {1})"), FText::AsNumber(TryNumber), FText::AsNumber(HttpStatus));
+				LastError = FText::Format(LOCTEXT("ManifestHttpError_FailureCode", "[Try {0}] Manifest download failed (HTTP {1})"), FText::AsNumber(TryNumber), FText::AsNumber(HttpStatus));
 			}
 		}
 		else
 		{
 			UE_LOG(LogChunkDownloader, Error, TEXT("HTTP connection issue while downloading manifest '%s'"), *HttpRequest->GetURL());
-			LastError = FText::Format(LOCTEXT("ManifestHttpError", "[Try {0}] Connection issues downloading manifest. Check your network connection..."), FText::AsNumber(TryNumber));
+			LastError = FText::Format(LOCTEXT("ManifestHttpError_Generic", "[Try {0}] Connection issues downloading manifest. Check your network connection..."), FText::AsNumber(TryNumber));
 		}
 
 		// try to load it
@@ -1863,3 +1863,5 @@ void FChunkDownloader::MountChunks(const TArray<int32>& ChunkIds, const FCallbac
 	SaveLocalManifest(false);
 	ComputeLoadingStats();
 }
+
+#undef LOCTEXT_NAMESPACE

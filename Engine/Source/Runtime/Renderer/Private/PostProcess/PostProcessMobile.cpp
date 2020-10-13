@@ -46,7 +46,7 @@ float GetMobileDepthOfFieldScale(const FViewInfo& View)
 
 bool IsMobileEyeAdaptationEnabled(const FViewInfo& View)
 {
-	return IsMobileHDR() && View.ViewState != nullptr && View.Family->EngineShowFlags.EyeAdaptation && CVarMobileEyeAdaptation.GetValueOnRenderThread() == 1;
+	return View.ViewState != nullptr && View.Family->EngineShowFlags.EyeAdaptation && CVarMobileEyeAdaptation.GetValueOnRenderThread() == 1;
 }
 
 //Following variations are always generated
@@ -1078,7 +1078,7 @@ FScreenPassTexture AddMobileSunMergePass(FRDGBuilder& GraphBuilder, const FViewI
 {
 	FIntPoint OutputSize = FIntPoint::DivideAndRoundUp(View.ViewRect.Size(), 4);
 	
-	FRDGTextureDesc SunMergeDesc = FRDGTextureDesc::Create2D(OutputSize, GetHDRPixelFormat(), FClearValueBinding::Black, TexCreate_RenderTargetable | TexCreate_ShaderResource);
+	FRDGTextureDesc SunMergeDesc = FRDGTextureDesc::Create2D(OutputSize, PF_FloatR11G11B10, FClearValueBinding::Black, TexCreate_RenderTargetable | TexCreate_ShaderResource);
 
 	FScreenPassRenderTarget SunMergeOutput = FScreenPassRenderTarget(GraphBuilder.CreateTexture(SunMergeDesc, TEXT("SunMerge")), ERenderTargetLoadAction::EClear);
 
@@ -2152,9 +2152,6 @@ IMPLEMENT_GLOBAL_SHADER(FMobileHistogramEyeAdaptationCS, "/Engine/Private/PostPr
 
 void AddMobileEyeAdaptationPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FEyeAdaptationParameters& EyeAdaptationParameters, const FMobileEyeAdaptationInputs& Inputs)
 {
-	// Get the custom 1x1 target used to store exposure value and Toggle the two render targets used to store new and old.
-	View.SwapEyeAdaptationBuffers(GraphBuilder);
-
 	const FExposureBufferData* EyeAdaptationThisFrameBuffer = View.GetEyeAdaptationBuffer(GraphBuilder.RHICmdList);
 	const FExposureBufferData* EyeAdaptationLastFrameBuffer = View.GetLastEyeAdaptationBuffer(GraphBuilder.RHICmdList);
 

@@ -23,7 +23,7 @@ static UAndroidDeviceProfileMatchingRules* GetAndroidDeviceProfileMatchingRules(
 {
 	// We need to initialize the class early as device profiles need to be evaluated before ProcessNewlyLoadedUObjects can be called.
 	extern UClass* Z_Construct_UClass_UAndroidDeviceProfileMatchingRules();
-	CreatePackage(nullptr, UAndroidDeviceProfileMatchingRules::StaticPackage());
+	CreatePackage(UAndroidDeviceProfileMatchingRules::StaticPackage());
 	Z_Construct_UClass_UAndroidDeviceProfileMatchingRules();
 
 	// Get the default object which will has the values from DeviceProfiles.ini

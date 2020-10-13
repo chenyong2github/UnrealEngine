@@ -3,6 +3,7 @@
 #include "USDStageEditorModule.h"
 
 #include "SUSDStage.h"
+#include "SUSDStageEditorStyle.h"
 #include "USDMemory.h"
 #include "USDStageActor.h"
 
@@ -55,6 +56,8 @@ public:
 					.SetGroup( WorkspaceMenu::GetMenuStructure().GetLevelEditorCategory() )
 					.SetIcon( LayersIcon );
 			});
+
+		FUsdStageEditorStyle::Initialize();
 	}
 
 	virtual void ShutdownModule() override
@@ -64,6 +67,8 @@ public:
 			FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>( "LevelEditor" );
 			LevelEditorModule.OnTabManagerChanged().Remove( LevelEditorTabManagerChangedHandle );
 		}
+
+		FUsdStageEditorStyle::Shutdown();
 	}
 
 private:

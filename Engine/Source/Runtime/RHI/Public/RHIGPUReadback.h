@@ -108,5 +108,5 @@ public:
 private:
 	void EnqueueCopyInternal(FRHICommandList& RHICmdList, FRHITexture* SourceTexture, FResolveParams Params);
 
-	FTextureRHIRef DestinationStagingBuffer;
+	FTextureRHIRef DestinationStagingTexture;
 };

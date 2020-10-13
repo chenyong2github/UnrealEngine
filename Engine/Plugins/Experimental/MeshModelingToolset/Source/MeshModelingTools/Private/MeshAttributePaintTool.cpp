@@ -329,9 +329,10 @@ void UMeshAttributePaintTool::CalculateVertexROI(const FBrushStampData& Stamp, T
 	FTransform3d Transform(ComponentTarget->GetWorldTransform());
 	FVector3d StampPosLocal = Transform.InverseTransformPosition(Stamp.WorldPosition);
 
-	float RadiusSqr = CurrentBrushRadius * CurrentBrushRadius;
+	float Radius = GetCurrentBrushRadiusLocal();
+	float RadiusSqr = Radius * Radius;
 	const FDynamicMesh3* Mesh = PreviewMesh->GetPreviewDynamicMesh();
-	FAxisAlignedBox3d QueryBox(StampPosLocal, CurrentBrushRadius);
+	FAxisAlignedBox3d QueryBox(StampPosLocal, Radius);
 	VerticesOctree.RangeQuery(QueryBox,
 		[&](int32 VertexID) { return Mesh->GetVertex(VertexID).DistanceSquared(StampPosLocal) < RadiusSqr; },
 		VertexROI);
@@ -420,7 +421,7 @@ void UMeshAttributePaintTool::UpdateVisibleAttribute()
 double UMeshAttributePaintTool::CalculateBrushFalloff(double Distance)
 {
 	double f = FMathd::Clamp(1.0 - BrushProperties->BrushFalloffAmount, 0.0, 1.0);
-	double d = Distance / GetCurrentBrushRadius();
+	double d = Distance / GetCurrentBrushRadiusLocal();
 	double w = 1;
 	if (d > f)
 	{

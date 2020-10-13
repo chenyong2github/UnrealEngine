@@ -2714,12 +2714,8 @@ bool ALandscape::PrepareLayersHeightmapTextureResources(bool bInWaitForStreaming
 					{
 						LayerHeightmap->FinishCachePlatformData();
 
-						LayerHeightmap->Resource = LayerHeightmap->CreateResource();
-
-						if (LayerHeightmap->Resource != nullptr)
-						{
-							BeginInitResource(LayerHeightmap->Resource);
-						}
+						// Explicit call to base class to skip CachePlatormData of UTexture2D
+						LayerHeightmap->UTexture::UpdateResource();
 					}
 
 					IsReady &= IsTextureFullyStreamedIn(LayerHeightmap, bInWaitForStreaming);
@@ -3712,12 +3708,8 @@ bool ALandscape::PrepareLayersWeightmapTextureResources(bool bInWaitForStreaming
 						{
 							LayerWeightmap->FinishCachePlatformData();
 
-							LayerWeightmap->Resource = LayerWeightmap->CreateResource();
-
-							if (LayerWeightmap->Resource != nullptr)
-							{
-								BeginInitResource(LayerWeightmap->Resource);
-							}
+							// Explicit call to base class to skip CachePlatormData of UTexture2D
+							LayerWeightmap->UTexture::UpdateResource();
 						}
 
 						IsReady &= IsTextureFullyStreamedIn(LayerWeightmap, bInWaitForStreaming);
@@ -4266,7 +4258,7 @@ void ALandscape::UpdateLayersMaterialInstances(const TArray<ULandscapeComponent*
 
 		Component->MaterialPerLOD = NewMaterialPerLOD;
 
-		Component->MaterialInstances.SetNumZeroed(Component->MaterialPerLOD.Num()/* * 2*/); // over allocate in case we are using tessellation
+		Component->MaterialInstances.SetNumZeroed(Component->MaterialPerLOD.Num() * 2); // over allocate in case we are using tessellation
 		Component->MaterialIndexToDisabledTessellationMaterial.Init(INDEX_NONE, MaxLOD + 1);
 		int8 TessellatedMaterialCount = 0;
 		int8 MaterialIndex = 0;
@@ -4326,27 +4318,38 @@ void ALandscape::UpdateLayersMaterialInstances(const TArray<ULandscapeComponent*
 					MaterialInstance->RecacheUniformExpressions(true);
 				}
 
-				/*// Setup material instance with disabled tessellation
+				// Setup material instance with disabled tessellation
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 				if (CombinationMaterialInstance->GetMaterial()->D3D11TessellationMode != EMaterialTessellationMode::MTM_NoTessellation)
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 				{
-					int32 TessellatedMaterialIndex = MaterialPerLOD.Num() + TessellatedMaterialCount++;
-					ULandscapeMaterialInstanceConstant* TessellationMaterialInstance = Cast<ULandscapeMaterialInstanceConstant>(MaterialInstances[TessellatedMaterialIndex]);
+					int32 TessellatedMaterialIndex = Component->MaterialPerLOD.Num() + TessellatedMaterialCount++;
+					ULandscapeMaterialInstanceConstant* TessellationMaterialInstance = Cast<ULandscapeMaterialInstanceConstant>(Component->MaterialInstances[TessellatedMaterialIndex]);
 
-					if (NeedToCreateMIC || TessellationMaterialInstance == nullptr)
+					NeedToCreateMIC |= TessellationMaterialInstance == nullptr;
+					if (NeedToCreateMIC)
 					{
 						TessellationMaterialInstance = NewObject<ULandscapeMaterialInstanceConstant>(this);
-						TessellationMaterialInstance->SetParentEditorOnly(MaterialInstance);
-
-						MaterialInstances[TessellatedMaterialIndex] = TessellationMaterialInstance;
-						MaterialIndexToDisabledTessellationMaterial[MaterialIndex] = TessellatedMaterialIndex;
-
-						TessellationMaterialInstance->bDisableTessellation = true;
-						TessellationMaterialInstance->PostEditChange();
+						Component->MaterialInstances[TessellatedMaterialIndex] = TessellationMaterialInstance;
 					}
 
-					Context.AddMaterialInstance(TessellationMaterialInstance); // must be done after SetParent
+					Component->MaterialIndexToDisabledTessellationMaterial[MaterialIndex] = TessellatedMaterialIndex;
+					TessellationMaterialInstance->bDisableTessellation = true;
+
+					TessellationMaterialInstance->SetParentEditorOnly(MaterialInstance);
+
+					MaterialUpdateContext.GetValue().AddMaterialInstance(TessellationMaterialInstance); // must be done after SetParent
+
+					if (NeedToCreateMIC)
+					{
+						TessellationMaterialInstance->PostEditChange();
+					}
+					else
+					{
+						bHasUniformExpressionUpdatePending = true;
+						TessellationMaterialInstance->RecacheUniformExpressions(true);
+					}
 				}
-				*/
 			}
 
 			++MaterialIndex;
@@ -4818,6 +4821,15 @@ void ALandscape::UpdateLayersContent(bool bInWaitForStreaming, bool bInSkipMonit
 		MonitorLandscapeEdModeChanges();
 	}
 	MonitorShaderCompilation();
+
+	// Make sure Brush get a chance to request an update of the landscape
+	for (FLandscapeLayer& Layer : LandscapeLayers)
+	{
+		for (FLandscapeLayerBrush& Brush : Layer.Brushes)
+		{
+			Brush.GetBrush()->PushDeferredLayersContentUpdate();
+		}
+	}
 
 	if (bSplineLayerUpdateRequested)
 	{
@@ -5555,6 +5567,11 @@ int32 ALandscape::GetLayerIndex(FName InLayerName) const
 const FLandscapeLayer* ALandscape::GetLayer(const FGuid& InLayerGuid) const
 {
 	return LandscapeLayers.FindByPredicate([&InLayerGuid](const FLandscapeLayer& Other) { return Other.Guid == InLayerGuid; });
+}
+
+const FLandscapeLayer* ALandscape::GetLayer(const FName& InLayerName) const
+{
+	return LandscapeLayers.FindByPredicate([InLayerName](const FLandscapeLayer& Layer) { return Layer.Name == InLayerName; });
 }
 
 void ALandscape::ForEachLayer(TFunctionRef<void(struct FLandscapeLayer&)> Fn)

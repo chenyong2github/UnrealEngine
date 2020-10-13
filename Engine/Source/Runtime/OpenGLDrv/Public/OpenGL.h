@@ -65,6 +65,7 @@ public:
 		RLM_WriteOnly,
 		RLM_WriteOnlyUnsynchronized,
 		RLM_WriteOnlyPersistent,
+		RLM_ReadOnlyPersistent,
 	};
 
 	enum EQueryMode

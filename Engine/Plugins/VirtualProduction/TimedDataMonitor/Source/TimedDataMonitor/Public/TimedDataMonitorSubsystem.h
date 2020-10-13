@@ -6,6 +6,7 @@
 #include "Engine/EngineBaseTypes.h"
 #include "Engine/LatentActionManager.h"
 #include "ITimedDataInput.h"
+#include "StageMessages.h"
 #include "Subsystems/EngineSubsystem.h"
 #include "Tickable.h"
 #include "TimedDataMonitorCalibration.h"
@@ -32,6 +33,61 @@ enum class ETimedDataMonitorEvaluationState : uint8
 	Disabled = 3,
 };
 
+USTRUCT(meta = (DisplayName = "TimedSourcesConnectionEvent"))
+struct FTimedDataMonitorChannelConnectionStateEvent : public FStageProviderMessage
+{
+	GENERATED_BODY()
+
+public:
+	FTimedDataMonitorChannelConnectionStateEvent() = default;
+	FTimedDataMonitorChannelConnectionStateEvent(ETimedDataInputState InNewState, const FString& InInputName, const FString& InChannelName)
+		: NewState(InNewState)
+		, InputName(InInputName)
+		, ChannelName(InChannelName)
+		{}
+
+	virtual FString ToString() const;
+	
+	/** New state of the channel */
+	UPROPERTY(VisibleAnywhere, Category = "Timed Data State")
+	ETimedDataInputState NewState;
+
+	/** Input owning that channel */
+	UPROPERTY(VisibleAnywhere, Category = "Timed Data State")
+	FString InputName;
+
+	/** Channel which had a state change */
+	UPROPERTY(VisibleAnywhere, Category = "Timed Data State")
+	FString ChannelName;
+};
+
+USTRUCT(meta = (DisplayName = "TimedSourcesEvaluationEvent"))
+struct FTimedDataMonitorChannelEvaluationStateEvent : public FStageProviderMessage
+{
+	GENERATED_BODY()
+
+public:
+	FTimedDataMonitorChannelEvaluationStateEvent() = default;
+	FTimedDataMonitorChannelEvaluationStateEvent(ETimedDataMonitorEvaluationState InNewState, const FString& InInputName, const FString& InChannelName)
+		: NewState(InNewState)
+		, InputName(InInputName)
+		, ChannelName(InChannelName)
+	{}
+
+	virtual FString ToString() const;
+
+	/** New state of the channel */
+	UPROPERTY(VisibleAnywhere, Category = "Timed Data State")
+	ETimedDataMonitorEvaluationState NewState;
+
+	/** Input owning that channel */
+	UPROPERTY(VisibleAnywhere, Category = "Timed Data State")
+	FString InputName;
+
+	/** Channel which had a state change */
+	UPROPERTY(VisibleAnywhere, Category = "Timed Data State")
+	FString ChannelName;
+};
 
 /**
  * Exponential running mean calculator. Gives better result than incremental running mean when parameters change
@@ -109,6 +165,8 @@ private:
 	{
 		ITimedDataInput* Input = nullptr;
 		TArray<FTimedDataMonitorChannelIdentifier> ChannelIdentifiers;
+		ETimedDataInputState CachedConnectionState;
+		ETimedDataMonitorEvaluationState CachedEvaluationState;
 
 	public:
 		void ResetValue();
@@ -120,6 +178,8 @@ private:
 		bool bEnabled = true;
 		FTimedDataMonitorInputIdentifier InputIdentifier;
 		FTimedDataChannelEvaluationStatistics Statistics;
+		ETimedDataInputState CachedConnectionState;
+		ETimedDataMonitorEvaluationState CachedEvaluationState;
 
 	public:
 		void ResetValue();
@@ -362,6 +422,15 @@ private:
 
 	void OnTimedDataSourceCollectionChanged();
 
+	/** Caches state with regards to evaluation of registered inputs */
+	void CacheEvaluationState();
+
+	/** Caches connection state of each inputs */
+	void CacheConnectionState();
+
+	/** Caches the current evaluation state for a channel */
+	void CacheChannelEvaluationState(FTimeDataChannelItem& Identifier);
+
 	/** Update internal statistics for each enabled channel */
 	void UpdateEvaluationStatistics();
 
@@ -377,6 +446,11 @@ private:
 	TMap<FTimedDataMonitorChannelIdentifier, FTimeDataChannelItem> ChannelMap;
 	FSimpleMulticastDelegate OnIdentifierListChanged_Delegate;
 	float CachedTimecodeProviderFrameDelayInSeconds = 0.0f;
+
+	/** Cached system state for evaluation and connection based on each input / channel and source that caused last change */
+	ETimedDataMonitorEvaluationState CachedEvaluationState = ETimedDataMonitorEvaluationState::Disabled;
+	ETimedDataInputState CachedConnectionState = ETimedDataInputState::Disconnected;
+
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	struct FChannelStatisticLogging

@@ -14,6 +14,7 @@ static const TCHAR* GetIoErrorText(EIoErrorCode ErrorCode)
 		TEXT("Cancelled"),
 		TEXT("FileOpen Failed"),
 		TEXT("File Not Open"),
+		TEXT("Read Error"),
 		TEXT("Write Error"),
 		TEXT("Not Found"),
 		TEXT("Corrupt Toc"),

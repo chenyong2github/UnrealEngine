@@ -10,8 +10,6 @@
 #include "LevelEditorViewport.h"
 #include "Editor.h"
 
-extern int32 GGPULightmassSamplesPerTexel;
-
 IMPLEMENT_MATERIAL_SHADER_TYPE(, FVLMVoxelizationVS, TEXT("/Plugin/GPULightmass/Private/VolumetricLightmapVoxelization.usf"), TEXT("VLMVoxelizationVS"), SF_Vertex);
 IMPLEMENT_MATERIAL_SHADER_TYPE(, FVLMVoxelizationGS, TEXT("/Plugin/GPULightmass/Private/VolumetricLightmapVoxelization.usf"), TEXT("VLMVoxelizationGS"), SF_Geometry);
 IMPLEMENT_MATERIAL_SHADER_TYPE(, FVLMVoxelizationPS, TEXT("/Plugin/GPULightmass/Private/VolumetricLightmapVoxelization.usf"), TEXT("VLMVoxelizationPS"), SF_Pixel);
@@ -455,7 +453,7 @@ void FVolumetricLightmapRenderer::BackgroundTick()
 	}
 
 	int32 NumCellsPerBrick = 5 * 5 * 5;
-	if (SamplesTaken >= (uint64)NumTotalBricks * NumCellsPerBrick * GGPULightmassSamplesPerTexel)
+	if (SamplesTaken >= (uint64)NumTotalBricks * NumCellsPerBrick * Scene->Settings->GISamples)
 	{
 		return;
 	}
@@ -600,7 +598,7 @@ void FVolumetricLightmapRenderer::BackgroundTick()
 
 		SamplesTaken += BricksToCalcThisFrame * NumCellsPerBrick;
 
-		if (SamplesTaken >= (uint64)NumTotalBricks * NumCellsPerBrick * GGPULightmassSamplesPerTexel)
+		if (SamplesTaken >= (uint64)NumTotalBricks * NumCellsPerBrick * Scene->Settings->GISamples)
 		{
 			break;
 		}

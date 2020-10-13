@@ -8,6 +8,21 @@
 
 DECLARE_GPU_STAT_NAMED(RenderAnisotropyPass, TEXT("Render Anisotropy Pass"));
 
+static int32 GAnisotropicMaterials = 0;
+static FAutoConsoleVariableRef CVarAnisotropicMaterials(
+	TEXT("r.AnisotropicMaterials"),
+	GAnisotropicMaterials,
+	TEXT("Whether anisotropic BRDF is used for material with anisotropy."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+	);
+
+bool SupportsAnisotropicMaterials(ERHIFeatureLevel::Type FeatureLevel, EShaderPlatform ShaderPlatform)
+{
+	return GAnisotropicMaterials
+		&& FeatureLevel >= ERHIFeatureLevel::SM5
+		&& FDataDrivenShaderPlatformInfo::GetSupportsAnisotropicMaterials(ShaderPlatform);
+}
+
 static bool IsAnisotropyPassCompatible(FMaterialShaderParameters MaterialParameters)
 {
 	return 
@@ -274,6 +289,11 @@ void FAnisotropyMeshProcessor::Process(
 
 bool FDeferredShadingSceneRenderer::ShouldRenderAnisotropyPass() const
 {
+	if (!SupportsAnisotropicMaterials(FeatureLevel, ShaderPlatform))
+	{
+		return false;
+	}
+
 	if (IsAnyForwardShadingEnabled(GetFeatureLevelShaderPlatform(FeatureLevel)))
 	{
 		return false;

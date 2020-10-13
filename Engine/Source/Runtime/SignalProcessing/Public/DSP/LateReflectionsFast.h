@@ -139,6 +139,9 @@ namespace Audio
 			const AlignedFloatBuffer& InDelayModulations,
 			FLateReflectionsPlateOutputs& OutPlateSamples);
 
+		// Flush internal audio to silence.
+		void FlushAudio();
+
 		void SetDensity(float InDensity);
 		void SetDampening(float InDampening);
 		void SetDecay(float InDecay);
@@ -257,6 +260,9 @@ namespace Audio
 		// OutSamples is mixed with InSamples based upon gain.
 		void ProcessAudio(const AlignedFloatBuffer& InSamples, const int32 InNumChannels, AlignedFloatBuffer& OutLeftSamples, AlignedFloatBuffer& OutRightSamples);
 
+		// Flush internal audio to silence.
+		void FlushAudio();
+
 	private:
 		void ProcessAudioBuffer(const float* InSampleData, const int32 InNumFrames, const int32 InNumChannels, float* OutLeftSampleData, float* OutRightSampleData);
 
@@ -298,10 +304,6 @@ namespace Audio
 		// The plate outputs
 		FLateReflectionsPlateOutputs LeftPlateOutputs;
 		FLateReflectionsPlateOutputs RightPlateOutputs;
-
-		// Plate output buffering.
-		TUniquePtr<FAlignedBlockBuffer> LeftPlateOutputBuffer;
-		TUniquePtr<FAlignedBlockBuffer> RightPlateOutputBuffer;
 
 		// Buffer for delay modulation of left and right plates.
 		AlignedFloatBuffer LeftDelayModSamples;

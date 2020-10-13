@@ -18,9 +18,11 @@ bool MaterialSettingsRequireAdjacencyInformation_GameThread(UMaterialInterface* 
 	{
 		UMaterial* BaseMaterial = Material->GetMaterial();
 		check(BaseMaterial);
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		EMaterialTessellationMode TessellationMode = (EMaterialTessellationMode)BaseMaterial->D3D11TessellationMode;
 		bool bEnableCrackFreeDisplacement = BaseMaterial->bEnableCrackFreeDisplacement;
 		return TessellationMode == MTM_PNTriangles || (TessellationMode == MTM_FlatTessellation && bEnableCrackFreeDisplacement);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 	return false;
 }
@@ -39,13 +41,10 @@ bool MaterialRenderingRequiresAdjacencyInformation_RenderingThread(UMaterialInte
 		FMaterialRenderProxy* MaterialRenderProxy = Material->GetRenderProxy();
 		if (ensureMsgf(MaterialRenderProxy, TEXT("Could not determine if RequiresAdjacencyInformation. Invalid MaterialRenderProxy on Material '%s'"), *GetNameSafe(Material)))
 		{
-			const FMaterial* MaterialResource = MaterialRenderProxy->GetMaterial(InFeatureLevel);
-			if (ensureMsgf(MaterialResource, TEXT("Could not determine if RequiresAdjacencyInformation. Invalid MaterialResource on Material '%s'"), *GetNameSafe(Material)))
-			{
-				EMaterialTessellationMode TessellationMode = MaterialResource->GetTessellationMode();
-				bool bEnableCrackFreeDisplacement = MaterialResource->IsCrackFreeDisplacementEnabled();
-				return TessellationMode == MTM_PNTriangles || (TessellationMode == MTM_FlatTessellation && bEnableCrackFreeDisplacement);
-			}
+			const FMaterial& MaterialResource = MaterialRenderProxy->GetIncompleteMaterialWithFallback(InFeatureLevel);
+			EMaterialTessellationMode TessellationMode = MaterialResource.GetTessellationMode();
+			bool bEnableCrackFreeDisplacement = MaterialResource.IsCrackFreeDisplacementEnabled();
+			return TessellationMode == MTM_PNTriangles || (TessellationMode == MTM_FlatTessellation && bEnableCrackFreeDisplacement);
 		}
 	}
 	return false;
@@ -83,9 +82,11 @@ bool RequiresAdjacencyInformation(UMaterialInterface* Material, const FVertexFac
 		{
 			const UMaterial* BaseMaterial = Material->GetMaterial_Concurrent();
 			check(BaseMaterial);
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			EMaterialTessellationMode TessellationMode = (EMaterialTessellationMode)BaseMaterial->D3D11TessellationMode;
 			bool bEnableCrackFreeDisplacement = BaseMaterial->bEnableCrackFreeDisplacement;
 			return TessellationMode == MTM_PNTriangles || (TessellationMode == MTM_FlatTessellation && bEnableCrackFreeDisplacement);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 	}
 	return false;

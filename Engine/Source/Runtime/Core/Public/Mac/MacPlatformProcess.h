@@ -9,23 +9,145 @@
 #include "GenericPlatform/GenericPlatformProcess.h"
 #include <sys/sysctl.h>
 
-/** Mac implementation of the process handle. */
-struct FProcHandle : public TProcHandle<void*, nullptr>
+/** Wrapper around Unix pid_t. Should not be copyable as changes in the process state won't be properly propagated to all copies. */
+struct FProcState
 {
-public:
 	/** Default constructor. */
-	FORCEINLINE FProcHandle()
-		: TProcHandle()
-		, Activity(nil)
-	{}
+	FORCEINLINE FProcState()
+		:	ProcessId(0)
+		,	bIsRunning(false)
+		,	bHasBeenWaitedFor(false)
+		,	ReturnCode(-1)
+		,	bFireAndForget(false)
+	{
+	}
 
 	/** Initialization constructor. */
-	FORCEINLINE explicit FProcHandle( HandleType Other )
-		: TProcHandle( Other )
-		, Activity(nil)
-	{}
+	explicit FProcState(pid_t InProcessId, bool bInFireAndForget);
 
-	id<NSObject> Activity;
+	/** Destructor. */
+	~FProcState();
+
+	/** Getter for process id */
+	FORCEINLINE pid_t GetProcessId() const
+	{
+		return ProcessId;
+	}
+
+	/**
+	 * Returns whether this process is running.
+	 *
+	 * @return true if running
+	 */
+	bool	IsRunning();
+
+	/**
+	 * Returns child's return code (only valid to call if not running)
+	 *
+	 * @param ReturnCode set to return code if not NULL (use the value only if method returned true)
+	 *
+	 * @return return whether we have the return code (we don't if it crashed)
+	 */
+	bool	GetReturnCode(int32* ReturnCodePtr);
+
+	/**
+	 * Waits for the process to end.
+	 * Has a side effect (stores child's return code).
+	 */
+	void	Wait();
+
+protected:  // the below is not a public API!
+
+	// FProcState should not be copyable since it breeds problems (e.g. one copy could have wait()ed, but another would not know it)
+
+	/** Copy constructor - should not be publicly accessible */
+	FORCEINLINE FProcState(const FProcState& Other)
+		:	ProcessId(Other.ProcessId)
+		,	bIsRunning(Other.bIsRunning)  // assume it is
+		,	bHasBeenWaitedFor(Other.bHasBeenWaitedFor)
+		,	ReturnCode(Other.ReturnCode)
+		,	bFireAndForget(Other.bFireAndForget)
+	{
+		checkf(false, TEXT("FProcState should not be copied"));
+	}
+
+	/** Assignment operator - should not be publicly accessible */
+	FORCEINLINE FProcState& operator=(const FProcState& Other)
+	{
+		checkf(false, TEXT("FProcState should not be copied"));
+		return *this;
+	}
+
+	// -------------------------
+
+	/** Process id */
+	pid_t	ProcessId;
+
+	/** Whether the process has finished or not (cached) */
+	bool	bIsRunning;
+
+	/** Whether the process's return code has been collected */
+	bool	bHasBeenWaitedFor;
+
+	/** Return code of the process (if negative, means that process did not finish gracefully but was killed/crashed*/
+	int32	ReturnCode;
+
+	/** Whether this child is fire-and-forget */
+	bool	bFireAndForget;
+};
+
+/** FProcHandle can be copied (and thus passed by value). */
+struct FProcHandle
+{
+	/** Child proc state set from CreateProc() call */
+	FProcState* 		ProcInfo;
+
+	/** Pid of external process opened with OpenProcess() call.
+	  * Added to FProcHandle so we don't have to special case FProcState with process
+	  * we can only check for running state, and even then the PID could be reused so
+	  * we don't ever want to terminate, etc.
+	  */
+	pid_t				OpenedPid;
+
+	FProcHandle()
+	:	ProcInfo(nullptr), OpenedPid(-1)
+	{
+	}
+
+	FProcHandle(FProcState* InHandle)
+	:	ProcInfo(InHandle), OpenedPid(-1)
+	{
+	}
+
+	FProcHandle(pid_t InProcPid)
+	:	ProcInfo(nullptr), OpenedPid(InProcPid)
+	{
+	}
+
+	/** Accessors. */
+	FORCEINLINE pid_t Get() const
+	{
+		return ProcInfo ? ProcInfo->GetProcessId() : OpenedPid;
+	}
+
+	/** Resets the handle to invalid */
+	FORCEINLINE void Reset()
+	{
+		ProcInfo = nullptr;
+		OpenedPid = -1;
+	}
+
+	/** Checks the validity of handle */
+	FORCEINLINE bool IsValid() const
+	{
+		return ProcInfo != nullptr || OpenedPid != -1;
+	}
+
+	// the below is not part of FProcHandle API and is specific to Unix implementation
+	FORCEINLINE FProcState* GetProcessInfo() const
+	{
+		return ProcInfo;
+	}
 };
 
 /**
@@ -141,11 +263,15 @@ struct CORE_API FMacPlatformProcess : public FGenericPlatformProcess
 	static bool WritePipe(void* WritePipe, const uint8* Data, const int32 DataLength, int32* OutDataLength = nullptr);
 	static bool ExecProcess(const TCHAR* URL, const TCHAR* Params, int32* OutReturnCode, FString* OutStdOut, FString* OutStdErr, const TCHAR* OptionalWorkingDirectory = NULL);
 	static void SetThreadAffinityMask(uint64 AffinityMask);
-	
+
 	// Mac specific
 	static const TCHAR* UserPreferencesDir();
 	static const TCHAR* UserLogsDir();
 	static const TCHAR* UserHomeDir();
+
+private:
+
+	static FProcHandle CreateProcInternal(const TCHAR* URL, const TCHAR* Parms, bool bLaunchDetached, bool bLaunchHidden, bool bLaunchReallyHidden, uint32* OutProcessID, int32 PriorityModifier, const TCHAR* OptionalWorkingDirectory, void* PipeStdOutChild, void* PipeStdErrChild, void *PipeStdInChild);
 };
 
 typedef FMacPlatformProcess FPlatformProcess;

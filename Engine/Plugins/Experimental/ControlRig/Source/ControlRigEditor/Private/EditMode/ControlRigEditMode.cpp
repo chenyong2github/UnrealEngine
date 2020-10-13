@@ -323,6 +323,11 @@ void FControlRigEditMode::Enter()
 
 void FControlRigEditMode::Exit()
 {
+	if (UControlRig* ControlRig = GetControlRig(true))
+	{
+		ControlRig->ClearControlSelection();
+	}
+
 	if (InteractionScope)
 	{
 
@@ -672,13 +677,16 @@ bool FControlRigEditMode::StartTracking(FEditorViewportClient* InViewportClient,
 				}
 			}
 
-			UObject* Blueprint = ControlRig->GetClass()->ClassGeneratedBy;
-			if (Blueprint)
+			if (!IsInLevelEditor())
 			{
-				Blueprint->SetFlags(RF_Transactional);
-				if (bShouldModify)
+				UObject* Blueprint = ControlRig->GetClass()->ClassGeneratedBy;
+				if (Blueprint)
 				{
-					Blueprint->Modify();
+					Blueprint->SetFlags(RF_Transactional);
+					if (bShouldModify)
+					{
+						Blueprint->Modify();
+					}
 				}
 			}
 
@@ -1435,6 +1443,12 @@ void FControlRigEditMode::BindCommands()
 	CommandBindings->MapAction(
 		Commands.ResetAllTransforms,
 		FExecuteAction::CreateRaw(this, &FControlRigEditMode::ResetTransforms, false));
+	
+	CommandBindings->MapAction(
+		Commands.FrameSelection,
+		FExecuteAction::CreateRaw(this, &FControlRigEditMode::FrameSelection),
+		FCanExecuteAction::CreateRaw(this, &FControlRigEditMode::CanFrameSelection)
+	);
 
 	CommandBindings->MapAction(
 		Commands.IncreaseGizmoSize,
@@ -1481,6 +1495,41 @@ bool FControlRigEditMode::GetRigElementGlobalTransform(const FRigElementKey& InE
 
 	return false;
 }
+
+bool FControlRigEditMode::CanFrameSelection()
+{
+	for (const FRigElementKey& SelectedKey : SelectedRigElements)
+	{
+		if (SelectedKey.Type == ERigElementType::Control)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+void FControlRigEditMode::FrameSelection()
+{
+	TArray<AActor*> Actors;
+	for (const FRigElementKey& SelectedKey : SelectedRigElements)
+	{
+		if (SelectedKey.Type == ERigElementType::Control)
+		{
+			AControlRigGizmoActor* GizmoActor = GetGizmoFromControlName(SelectedKey.Name);
+			if (GizmoActor)
+			{
+				Actors.Add(GizmoActor);
+			}
+		}
+	}
+
+	if (Actors.Num() )
+	{
+		TArray<UPrimitiveComponent*> SelectedComponents;
+		GEditor->MoveViewportCamerasToActor(Actors, SelectedComponents, true);
+	}
+}
+
 
 void FControlRigEditMode::IncreaseGizmoSize()
 {

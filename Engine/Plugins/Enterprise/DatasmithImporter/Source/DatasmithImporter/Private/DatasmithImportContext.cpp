@@ -224,6 +224,8 @@ TSharedRef<FTokenizedMessage> FDatasmithImportContext::LogInfo(const FText& InIn
 
 bool FDatasmithImportContext::Init(TSharedRef< IDatasmithScene > InScene, const FString& InImportPath, EObjectFlags InFlags, FFeedbackContext* InWarn, const TSharedPtr<FJsonObject>& ImportSettingsJson, bool bSilent)
 {
+	Options->BaseOptions.AssetOptions.PackagePath = FName(*InImportPath); // Package path displayed in options window
+
 	return InitOptions(InScene, ImportSettingsJson, bSilent)
 		&& SetupDestination(InImportPath, InFlags, InWarn, bSilent);
 }
@@ -510,20 +512,20 @@ bool FDatasmithActorImportContext::Init()
 }
 
 FDatasmithAssetsImportContext::FDatasmithAssetsImportContext( FDatasmithImportContext& ImportContext )
-	: ParentContext( ImportContext )
+	: ParentContext( &ImportContext )
 {
 }
 
 bool FDatasmithAssetsImportContext::Init()
 {
 	FString NewRootFolder;
-	if ( ParentContext.SceneAsset )
+	if ( GetParentContext().SceneAsset )
 	{
-		NewRootFolder = FPackageName::GetLongPackagePath( ParentContext.SceneAsset->GetOutermost()->GetName() );
+		NewRootFolder = FPackageName::GetLongPackagePath( GetParentContext().SceneAsset->GetOutermost()->GetName() );
 	}
 	else
 	{
-		NewRootFolder = FPaths::Combine( ParentContext.Options->BaseOptions.AssetOptions.PackagePath.ToString(), ParentContext.SceneName );
+		NewRootFolder = FPaths::Combine( GetParentContext().Options->BaseOptions.AssetOptions.PackagePath.ToString(), GetParentContext().SceneName );
 	}
 
 	ReInit(NewRootFolder);
@@ -535,12 +537,12 @@ void FDatasmithAssetsImportContext::ReInit(const FString& NewRootFolder)
 {
 	RootFolderPath = UPackageTools::SanitizePackageName(NewRootFolder);
 
-	StaticMeshesFinalPackage.Reset( CreatePackage( nullptr, *FPaths::Combine( RootFolderPath, TEXT("Geometries") ) ) );
-	MaterialsFinalPackage.Reset( CreatePackage( nullptr, *FPaths::Combine( RootFolderPath, TEXT("Materials") ) ) );
-	TexturesFinalPackage.Reset( CreatePackage( nullptr, *FPaths::Combine( RootFolderPath, TEXT("Textures") ) ) );
-	LightPackage.Reset( CreatePackage( nullptr, *FPaths::Combine( RootFolderPath, TEXT("Lights") ) ) );
-	LevelSequencesFinalPackage.Reset( CreatePackage( nullptr, *FPaths::Combine( RootFolderPath, TEXT("Animations") ) ) );
-	LevelVariantSetsFinalPackage.Reset( CreatePackage( nullptr, *FPaths::Combine( RootFolderPath, TEXT("Variants") ) ) );
+	StaticMeshesFinalPackage.Reset( CreatePackage( *FPaths::Combine( RootFolderPath, TEXT("Geometries") ) ) );
+	MaterialsFinalPackage.Reset( CreatePackage( *FPaths::Combine( RootFolderPath, TEXT("Materials") ) ) );
+	TexturesFinalPackage.Reset( CreatePackage( *FPaths::Combine( RootFolderPath, TEXT("Textures") ) ) );
+	LightPackage.Reset( CreatePackage( *FPaths::Combine( RootFolderPath, TEXT("Lights") ) ) );
+	LevelSequencesFinalPackage.Reset( CreatePackage( *FPaths::Combine( RootFolderPath, TEXT("Animations") ) ) );
+	LevelVariantSetsFinalPackage.Reset( CreatePackage( *FPaths::Combine( RootFolderPath, TEXT("Variants") ) ) );
 
 	TransientFolderPath = FPaths::Combine( RootFolderPath, TEXT("Temp") );
 

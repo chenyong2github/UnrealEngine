@@ -21,11 +21,44 @@ public:
 	virtual void OnRemovePin(class UARPin* Pin) = 0;
 
 	virtual void OnUpdatePin(class UARPin* Pin, XrSession InSession, XrSpace TrackingSpace, XrTime DisplayTime, float worldToMeterScale) = 0;
+
+	// ARPin Local Store support.
+	// Some Platforms/Devices have the ability to persist AR Anchors (real world positions) to the device or user account.
+	// They are saved and loaded with a string identifier.
+
+	virtual bool IsLocalPinSaveSupported() const
+	{
+		return false;
+	}
+
+	virtual bool ArePinsReadyToLoad()
+	{
+		return false;
+	}
+
+	virtual void LoadARPins(XrSession InSession, TFunction<UARPin*(FName)> OnCreatePin)
+	{
+	}
+
+	virtual bool SaveARPin(XrSession InSession, FName InName, UARPin* InPin)
+	{
+		return false;
+	}
+
+	virtual void RemoveSavedARPin(XrSession InSession, FName InName)
+	{
+	}
+
+	virtual void RemoveAllSavedARPins(XrSession InSession)
+	{
+	}
 };
 
 class IOpenXRExtensionPlugin : public IModularFeature
 {
 public:
+	virtual ~IOpenXRExtensionPlugin(){}
+
 	static FName GetModularFeatureName()
 	{
 		static FName OpenXRFeatureName = FName(TEXT("OpenXRExtension"));
@@ -95,6 +128,20 @@ public:
 	virtual IOpenXRCustomAnchorSupport* GetCustomAnchorSupport() { return nullptr; }
 
 	/**
+	* Callback to provide extra view configurations that should be rendered in the main render pass
+	*/
+	virtual void GetViewConfigurations(XrSystemId InSystem, TArray<XrViewConfigurationView>& OutViews)
+	{
+	}
+
+	/**
+	* Callback to provide the pose and fov of each view that was provided in GetViewConfigurations
+	*/
+	virtual void GetViewLocations(XrSession InSession, XrTime InDisplayTime, XrSpace InViewSpace, TArray<XrView>& OutViews)
+	{
+	}
+
+	/**
 	* Callbacks with returned pointer added to next chain, do *not* return pointers to structs on the stack.
 	* Remember to assign InNext to the next pointer of your struct or otherwise you may break the next chain.
 	*/
@@ -109,12 +156,21 @@ public:
 		return InNext;
 	}
 
+	virtual void PostGetSystem(XrInstance InInstance, XrSystemId InSystem)
+	{
+	}
+
 	virtual const void* OnCreateSession(XrInstance InInstance, XrSystemId InSystem, const void* InNext)
 	{
 		return InNext;
 	}
 
 	virtual const void* OnBeginSession(XrSession InSession, const void* InNext)
+	{
+		return InNext;
+	}
+
+	virtual const void* OnWaitFrame(XrSession InSession, const void* InNext)
 	{
 		return InNext;
 	}
@@ -141,7 +197,7 @@ public:
 	}
 
 	// FOpenXRRenderBridge::Present, RHI thread
-	virtual const void* OnEndFrame(XrSession InSession, XrTime DisplayTime, const void* InNext)
+	virtual const void* OnEndFrame(XrSession InSession, XrTime DisplayTime, const TArray<XrSwapchainSubImage> InColorImages, const TArray<XrSwapchainSubImage> InDepthImages, const void* InNext)
 	{
 		return InNext;
 	}
@@ -156,4 +212,21 @@ public:
 	virtual void PostSyncActions(XrSession InSession, XrTime DisplayTime, XrSpace TrackingSpace)
 	{
 	}
+
+
+	/**
+	 * Start the AR system.
+	 *
+	 * @param SessionType The type of AR session to create
+	 *
+	 * @return true if the system was successfully started
+	 */
+	virtual void OnStartARSession(class UARSessionConfig* SessionConfig) {}
+
+	/** Stop the AR system but leave its internal state intact. */
+	virtual void OnPauseARSession() {}
+
+	/** Stop the AR system and reset its internal state; this task must succeed. */
+	virtual void OnStopARSession() {}
+
 };

@@ -23,7 +23,7 @@ void FDMXEntityFixtureTypeModePropertiesDetails::CustomizeDetails(IDetailLayoutB
 	DetailBuilder.HideCategory("Entity Properties");
 	DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UDMXEntityFixtureType, DMXImport));
 	DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UDMXEntityFixtureType, DMXCategory));
-	DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UDMXEntityFixtureType, bPixelFunctionsEnabled));
+	DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UDMXEntityFixtureType, bFixtureMatrixEnabled));
 	DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UDMXEntityFixtureType, Modes));
 
 	if (TSharedPtr<FDMXEditor> DMXEditor = DMXEditorPtr.Pin())
@@ -69,19 +69,19 @@ void FDMXEntityFixtureTypeModePropertiesDetails::CustomizeDetails(IDetailLayoutB
 					ModeChildHandle->MarkResetToDefaultCustomized();
 				}
 
-				// Hide reset to default buttons for PixelMatrixConfig
-				TSharedPtr<IPropertyHandle> PixelMatrixConfigHandle = ModeHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXFixtureMode, PixelMatrixConfig));
-				check(PixelMatrixConfigHandle.IsValid());
+				// Hide reset to default buttons for FixtureMatrixConfig
+				TSharedPtr<IPropertyHandle> CellMatrixConfigHandle = ModeHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXFixtureMode, FixtureMatrixConfig));
+				check(CellMatrixConfigHandle.IsValid());
 
-				uint32 NumChildrenInPixelMatrixConfig = 0;
-				PixelMatrixConfigHandle->GetNumChildren(NumChildrenInPixelMatrixConfig);
+				uint32 NumChildrenInFixtureMatrixConfig = 0;
+				CellMatrixConfigHandle->GetNumChildren(NumChildrenInFixtureMatrixConfig);
 
-				for (uint32 IndexPixelMatrixConfigChild = 0; IndexPixelMatrixConfigChild < NumChildrenInPixelMatrixConfig; IndexPixelMatrixConfigChild++)
+				for (uint32 IndexFixtureMatrixConfigChild = 0; IndexFixtureMatrixConfigChild < NumChildrenInFixtureMatrixConfig; IndexFixtureMatrixConfigChild++)
 				{
-					TSharedPtr<IPropertyHandle> PixelMatrixConfigChildHandle = PixelMatrixConfigHandle->GetChildHandle(IndexPixelMatrixConfigChild);
-					check(PixelMatrixConfigChildHandle.IsValid() && PixelMatrixConfigChildHandle->IsValidHandle());
+					TSharedPtr<IPropertyHandle> FixtureMatrixConfigChildHandle = CellMatrixConfigHandle->GetChildHandle(IndexFixtureMatrixConfigChild);
+					check(FixtureMatrixConfigChildHandle.IsValid() && FixtureMatrixConfigChildHandle->IsValidHandle());
 
-					PixelMatrixConfigChildHandle->MarkResetToDefaultCustomized();
+					FixtureMatrixConfigChildHandle->MarkResetToDefaultCustomized();
 				}
 
 				// Show only edited modes

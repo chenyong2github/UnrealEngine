@@ -108,7 +108,21 @@ public:
 	virtual bool IsEnabled() const = 0;
 
 	/**
-	 * Sets if DMX is received from the network
+	 * Sets if DMX is sent to the network. 
+	 * NOTE: Should be set to same for all protocols as. This is a globally accessible switch, see DMXProtocolSettings, DMXProtocolBlueprintLibrary.
+	 * @param bEnabled	If true, sends DMX signals to the network.
+	 */
+	virtual void SetSendDMXEnabled(bool bEnabled) = 0;
+
+	 /**
+	 * Returns whether dmx is received from network.
+	 * @return Return	If true, DMX is received from the network.
+	 */
+	virtual bool IsSendDMXEnabled() const = 0;
+
+	/**
+	 * Sets if DMX is received from the network. 
+	 * NOTE: Should be set to same for all protocols. This is a globally accessible switch, see DMXProtocolSettings, DMXProtocolBlueprintLibrary.
 	 * @param bEnabled	If true, receives inbound DMX signals, else ignores them.
 	 */
 	virtual void SetReceiveDMXEnabled(bool bEnabled) = 0;
@@ -233,6 +247,17 @@ public:
 	 * @param OutSettings is the FJsonObject to set the fields in
 	 */
 	virtual void GetDefaultUniverseSettings(uint16 InUniverseID, FJsonObject& OutSettings) const = 0;
+
+	/**
+	 * Zeroes Input DMX Buffers in all active Universes
+	 */
+	virtual void ZeroInputBuffers() = 0;
+
+	/**
+	 * Zeroes Output DMX Buffers in all active Universes
+	 */
+	virtual void ZeroOutputBuffers() = 0;
+
 
 	/**
 	 * Called on when a Universe Input Buffer was updated

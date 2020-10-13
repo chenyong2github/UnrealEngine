@@ -191,7 +191,7 @@ namespace Audio
 		}
 
 		// Set up Package.
-		CurrentPackage = CreatePackage(nullptr, *AbsoluteFilePath);
+		CurrentPackage = CreatePackage( *AbsoluteFilePath);
 
 		// Create a new USoundWave.
 		CurrentSoundWave = NewObject<USoundWave>(CurrentPackage, *FileName, RF_Public | RF_Standalone);
@@ -301,7 +301,7 @@ namespace Audio
 			}
 
 			// Set up Package.
-			CurrentPackage = CreatePackage(nullptr, *AbsoluteFilePath);
+			CurrentPackage = CreatePackage( *AbsoluteFilePath);
 
 			// Create a new USoundWave.
 			CurrentSoundWave = NewObject<USoundWave>(CurrentPackage, **FileName, RF_Public | RF_Standalone);

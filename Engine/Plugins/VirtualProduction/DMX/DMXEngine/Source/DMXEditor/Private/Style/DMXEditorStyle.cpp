@@ -35,8 +35,10 @@ FName FDMXEditorStyle::GetStyleSetName()
 
 TSharedRef<FSlateStyleSet> FDMXEditorStyle::Create()
 {
+	static const FVector2D Icon8x8(8.0f, 8.0f);
 	static const FVector2D Icon16x16(16.0f, 16.0f);
 	static const FVector2D Icon40x40(40.0f, 40.0f);
+	static const FVector2D Icon50x40(50.0f, 40.0f);
 	static const FVector2D Icon34x29(34.0f, 29.0f);
 	static const FVector2D Icon51x30(51.0f, 30.0f);
 	static const FVector2D Icon51x31(51.0f, 31.0f);
@@ -61,8 +63,11 @@ TSharedRef<FSlateStyleSet> FDMXEditorStyle::Create()
 	Style->Set("DMXEditor.Font.InputUniverseChannelID", FSlateFontInfo(FontRoboto, 10, FName(TEXT("Regular"))));
 	Style->Set("DMXEditor.Font.InputUniverseChannelValue", FSlateFontInfo(FontRoboto, 10, FName(TEXT("Light"))));
 	
-	// Level editor icon
-	Style->Set("DMXEditor.LevelEditor", new IMAGE_BRUSH("Icons/LevelEditor/icon_DMXTools_40px", Icon40x40));
+	// Level editor toolbar icons
+	Style->Set("DMXEditor.LevelEditor.MenuIcon_none", new IMAGE_BRUSH("Icons/LevelEditor/icon_DMXTools_none_50x40", Icon50x40));
+	Style->Set("DMXEditor.LevelEditor.MenuIcon_snd", new IMAGE_BRUSH("Icons/LevelEditor/icon_DMXTools_snd_50x40", Icon50x40));
+	Style->Set("DMXEditor.LevelEditor.MenuIcon_rcv", new IMAGE_BRUSH("Icons/LevelEditor/icon_DMXTools_rcv_50x40", Icon50x40));
+	Style->Set("DMXEditor.LevelEditor.MenuIcon_snd-rcv", new IMAGE_BRUSH("Icons/LevelEditor/icon_DMXTools_snd-rcv_50x40", Icon50x40));
 
 	// Distribution Grid buttons
 	Style->Set("DMXEditor.PixelMapping.DistributionGrid.0.0", new IMAGE_BRUSH("Icons/DistributionGrid/icon_PixelDirection_0_0_161x160", Icon34x29));

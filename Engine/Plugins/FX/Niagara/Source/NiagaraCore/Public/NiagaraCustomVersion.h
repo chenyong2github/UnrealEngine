@@ -160,6 +160,8 @@ struct FNiagaraCustomVersion
 
 		AddLibraryVisibilityProperty, // Expand the visibility options of the scripts to be able to hide a script completely from the user 
 
+		SignificanceHandlers,
+
 		// DO NOT ADD A NEW VERSION UNLESS YOU HAVE TALKED TO THE NIAGARA LEAD. Mismanagement of these versions can lead to data loss if it is adjusted in multiple streams simultaneously.
 		// -----<new versions can be added above this line>  -------------------------------------------------
 		VersionPlusOne,

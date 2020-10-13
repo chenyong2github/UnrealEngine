@@ -10,6 +10,7 @@
 
 class FExtender;
 class FTakePresetActions;
+class UTakePreset;
 class FSerializedRecorder;
 class UTakeRecorderSources;
 class USequencerSettings;
@@ -20,6 +21,10 @@ public:
 	FTakeRecorderModule();
 
 	void PopulateSourcesMenu(TSharedRef<FExtender> InExtender, UTakeRecorderSources* InSources);
+	virtual UTakePreset* GetPendingTake() const override;
+
+	//~ ITakeRecorderModule API
+	virtual FOnGenerateToolbarExtensions& GetToolbarExtensionGenerators() override { return ToolbarExtensionGenerators; }
 
 private:
 
@@ -66,6 +71,7 @@ private:
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnExtendSourcesMenuEvent, TSharedRef<FExtender>, UTakeRecorderSources*);
 
 	FOnExtendSourcesMenuEvent SourcesMenuExtenderEvent;
+	FOnGenerateToolbarExtensions ToolbarExtensionGenerators;
 
 	FDelegateHandle LevelEditorLayoutExtensionHandle;
 	FDelegateHandle LevelEditorTabManagerChangedHandle;

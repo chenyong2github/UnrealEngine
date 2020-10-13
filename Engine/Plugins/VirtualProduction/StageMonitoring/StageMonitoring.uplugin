@@ -40,7 +40,7 @@
 			"LoadingPhase": "Default"
 		},
 		{
-			"Name": "StageDataCore",
+			"Name": "StageMonitorCommon",
 			"Type": "Runtime",
 			"LoadingPhase": "Default"
 		}

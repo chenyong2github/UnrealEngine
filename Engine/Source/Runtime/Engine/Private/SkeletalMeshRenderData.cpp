@@ -126,6 +126,11 @@ static FString BuildSkeletalMeshDerivedDataKey(const ITargetPlatform* TargetPlat
 	);
 }
 
+FString FSkeletalMeshRenderData::GetDerivedDataKey(const ITargetPlatform* TargetPlatform, USkeletalMesh* Owner)
+{
+	return BuildSkeletalMeshDerivedDataKey(TargetPlatform, Owner);
+}
+
 void FSkeletalMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, USkeletalMesh* Owner)
 {
 	check(Owner);

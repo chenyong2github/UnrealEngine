@@ -191,4 +191,23 @@ void UMoviePipelineNewProcessExecutor::CheckForProcessFinished()
 		// Process is still running, spin wheels.
 	}
 }
+
+void UMoviePipelineNewProcessExecutor::CancelAllJobs_Implementation()
+{
+	if (!ensureMsgf(ProcessHandle.IsValid(), TEXT("Attempting to cancel UMoviePipelineNewProcessExecutor job without a valid process handle. This should only be called if the process was originally valid!")))
+	{
+		return;
+	}
+
+	if (FPlatformProcess::IsProcRunning(ProcessHandle))
+	{
+		// Process is still running, try to kill it.
+		FPlatformProcess::TerminateProc(ProcessHandle);
+	}
+	else
+	{
+		UE_LOG(LogMovieRenderPipeline, Warning, TEXT("Attempting to cancel UMoviePipelineNewProcessExecutor job but process has already exited."));
+	}
+}
+
 #undef LOCTEXT_NAMESPACE // "MoviePipelineNewProcessExecutor"

@@ -79,6 +79,11 @@ public:
 	TSharedPtr<FEditorViewportClient> GetViewportClient() const { return Client; }
 
 	/**
+	 * @return The current FSceneViewport shared pointer
+	 */
+	TSharedPtr<FSceneViewport> GetSceneViewport() { return SceneViewport; }
+
+	/**
 	 * Controls the visibility of the widget transform toolbar, if there is an associated toolbar
 	 */
 	virtual EVisibility GetTransformToolbarVisibility() const;

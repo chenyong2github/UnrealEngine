@@ -31,8 +31,8 @@ struct FVisualizeSubsurfaceInputs
 
 FScreenPassTexture AddVisualizeSubsurfacePass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FVisualizeSubsurfaceInputs& Inputs);
 
-void AddSubsurfacePass(
+FRDGTextureRef AddSubsurfacePass(
 	FRDGBuilder& GraphBuilder,
 	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
 	TArrayView<const FViewInfo> Views,
-	FRDGTextureRef& SceneColorTexture);
+	FRDGTextureRef SceneColorTexture);

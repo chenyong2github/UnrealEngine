@@ -13,7 +13,7 @@ UMovieSceneSection* UMovieSceneCameraShakeSourceShakeTrack::AddNewCameraShake(co
 	return AddNewCameraShake(KeyTime, ShakeSourceComponent.CameraShake, true);
 }
 
-UMovieSceneSection* UMovieSceneCameraShakeSourceShakeTrack::AddNewCameraShake(const FFrameNumber KeyTime, const TSubclassOf<UCameraShake> ShakeClass, bool bIsAutomaticShake)
+UMovieSceneSection* UMovieSceneCameraShakeSourceShakeTrack::AddNewCameraShake(const FFrameNumber KeyTime, const TSubclassOf<UCameraShakeBase> ShakeClass, bool bIsAutomaticShake)
 {
 	// It's OK to place an auto-shake on a shake source actor with no default shake set on it... 
 	// Designers do that sometimes, using a shake source for a bunch of various shakes, but no
@@ -25,18 +25,18 @@ UMovieSceneSection* UMovieSceneCameraShakeSourceShakeTrack::AddNewCameraShake(co
 	UMovieSceneCameraShakeSourceShakeSection* const NewSection = Cast<UMovieSceneCameraShakeSourceShakeSection>(CreateNewSection());
 	if (NewSection)
 	{
-		float ShakeDuration = -1.f;
+		FCameraShakeDuration ShakeDuration;
 		if (ShakeClass)
 		{
-			UCameraShake::GetCameraShakeDuration(ShakeClass, ShakeDuration);
+			UCameraShakeBase::GetCameraShakeDuration(ShakeClass, ShakeDuration);
 		}
-		if (ShakeDuration <= SMALL_NUMBER)
+		if (!ShakeDuration.IsFixed())
 		{
 			// Default endless shakes to 5 seconds totally arbitrarily.
-			ShakeDuration = 5.f;
+			ShakeDuration = FCameraShakeDuration(5.f);
 		}
 
-		const FFrameTime ShakeDurationTime = ShakeDuration * GetTypedOuter<UMovieScene>()->GetTickResolution();
+		const FFrameTime ShakeDurationTime = ShakeDuration.Get() * GetTypedOuter<UMovieScene>()->GetTickResolution();
 		NewSection->InitialPlacement(CameraShakeSections, KeyTime, ShakeDurationTime.FrameNumber.Value, SupportsMultipleRows());
 		if (!bIsAutomaticShake)
 		{

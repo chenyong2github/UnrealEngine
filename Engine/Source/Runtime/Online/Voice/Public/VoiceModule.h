@@ -10,9 +10,6 @@
 #include "Interfaces/VoiceCodec.h"
 #include "Net/VoiceConfig.h"
 
-/** Name of default capture device */
-#define DEFAULT_DEVICE_NAME TEXT("Default Device")
-
 /** Default voice chat sample rate */
 #define DEFAULT_VOICE_SAMPLE_RATE 16000
 /** Deprecated value, use DEFAULT_VOICE_SAMPLE_RATE */
@@ -74,7 +71,7 @@ public:
 	 *
 	 * @return new voice capture object, possibly NULL
 	 */
-	virtual TSharedPtr<IVoiceCapture> CreateVoiceCapture(const FString& DeviceName = DEFAULT_DEVICE_NAME, int32 SampleRate = UVOIPStatics::GetVoiceSampleRate(), int32 NumChannels = UVOIPStatics::GetVoiceNumChannels());
+	virtual TSharedPtr<IVoiceCapture> CreateVoiceCapture(const FString& DeviceName, int32 SampleRate = UVOIPStatics::GetVoiceSampleRate(), int32 NumChannels = UVOIPStatics::GetVoiceNumChannels());
 
 	/**
 	 * Instantiates a new voice encoder object

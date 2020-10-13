@@ -746,7 +746,7 @@ UObject* NewObject(UClass* InObjClass, UObject* InObjectOuter, const FName InObj
 			return nullptr;
 		}
 
-		UObject* ObjectInstance = ::NewObject<UObject>(InObjectOuter, InObjClass, InObjectName);
+		UObject* ObjectInstance = ::NewObject<UObject>(InObjectOuter, InObjClass, InObjectName, RF_Transactional);
 		if (!ObjectInstance)
 		{
 			SetPythonError(PyExc_Exception, InErrorCtxt, TEXT("NewObject returned a null instance"));

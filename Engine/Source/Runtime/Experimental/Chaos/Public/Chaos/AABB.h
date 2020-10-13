@@ -410,25 +410,28 @@ namespace Chaos
 			MMax = TVector<T, d>(FGenericPlatformMath::Min(MMax[0], Other.MMax[0]), FGenericPlatformMath::Min(MMax[1], Other.MMax[1]), FGenericPlatformMath::Min(MMax[2], Other.MMax[2]));
 		}
 
-		FORCEINLINE void Thicken(const float Thickness)
+		FORCEINLINE TAABB<T, d>& Thicken(const float Thickness)
 		{
 			MMin -= TVector<T, d>(Thickness);
 			MMax += TVector<T, d>(Thickness);
+			return *this;
 		}
 
 		//Grows (or shrinks) the box by this vector symmetrically - Changed name because previous Thicken had different semantics which caused several bugs
-		FORCEINLINE void ThickenSymmetrically(const TVector<T, d>& Thickness)
+		FORCEINLINE TAABB<T, d>& ThickenSymmetrically(const TVector<T, d>& Thickness)
 		{
 			const TVector<T, d> AbsThickness = TVector<T, d>(FGenericPlatformMath::Abs(Thickness.X), FGenericPlatformMath::Abs(Thickness.Y), FGenericPlatformMath::Abs(Thickness.Z));
 			MMin -= AbsThickness;
 			MMax += AbsThickness;
+			return *this;
 		}
 
 		/** Grow along a vector (as if swept by the vector's direction and magnitude) */
-		FORCEINLINE void GrowByVector(const TVector<T, d>& V)
+		FORCEINLINE TAABB<T, d>& GrowByVector(const TVector<T, d>& V)
 		{
 			MMin += V.ComponentwiseMin(TVector<T, d>(0));
 			MMax += V.ComponentwiseMax(TVector<T, d>(0));
+			return *this;
 		}
 
 		FORCEINLINE TVector<T, d> Center() const { return (MMax - MMin) / (T)2 + MMin; }
@@ -453,14 +456,22 @@ namespace Chaos
 			}
 		}
 
-		FORCEINLINE void Scale(const TVector<T, d>& InScale)
+		FORCEINLINE TAABB<T, d>& Scale(const TVector<T, d>& InScale)
 		{
 			MMin *= InScale;
 			MMax *= InScale;
+			return *this;
 		}
 
 		FORCEINLINE const TVector<T, d>& Min() const { return MMin; }
 		FORCEINLINE const TVector<T, d>& Max() const { return MMax; }
+
+		// The radius of the sphere centered on the AABB origin (not the AABB center) which would encompass this AABB
+		FORCEINLINE T OriginRadius() const
+		{
+			const TVector<T, d> MaxAbs = TVector<T, d>::Max(MMin.GetAbs(), MMax.GetAbs());
+			return MaxAbs.Size();
+		}
 
 		FORCEINLINE T GetArea() const { return GetArea(Extents()); }
 		FORCEINLINE static T GetArea(const TVector<T, d>& Dim) { return d == 2 ? Dim.Product() : 2. * (Dim[0] * Dim[1] + Dim[0] * Dim[2] + Dim[1] * Dim[2]); }
@@ -497,7 +508,7 @@ namespace Chaos
 
 		FORCEINLINE static TRotation<T, d> GetRotationOfMass()
 		{
-			return TRotation<T, d>::FromElements(TVector<T, d>(0), 1);
+			return TRotation<T, d>::FromIdentity();
 		}
 
 		FORCEINLINE constexpr bool IsConvex() const { return true; }

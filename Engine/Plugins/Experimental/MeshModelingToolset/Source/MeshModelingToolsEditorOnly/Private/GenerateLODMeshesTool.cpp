@@ -403,7 +403,8 @@ void UGenerateLODMeshesTool::GenerateAssets()
 		FComponentMaterialSet MaterialSet;
 		ComponentTarget->GetMaterialSet(MaterialSet);
 
-		FString Name = FString::Printf( TEXT("%s_LOD%d"), *ComponentTarget->GetOwnerActor()->GetName(), k);
+		FString BaseName = AssetGenerationUtil::GetComponentAssetBaseName(ComponentTarget->GetOwnerComponent());
+		FString Name = FString::Printf( TEXT("%s_LOD%d"), *BaseName, (SimplifyProperties->NameIndexBase+k) );
 
 		AActor* NewActor = AssetGenerationUtil::GenerateStaticMeshActor(
 			AssetAPI, TargetWorld,

@@ -73,6 +73,11 @@ void FDeferredShadingSceneRenderer::PrepareRayTracingTranslucency(const FViewInf
 {
 	// Declare all RayGen shaders that require material closest hit shaders to be bound
 
+	if (!GetRayTracingTranslucencyOptions().IsEnabled)
+	{
+		return;
+	}
+
 	FRayTracingPrimaryRaysRGS::FPermutationDomain PermutationVector;
 
 	const bool bLightingMissShader = CanUseRayTracingLightingMissShader(View.GetShaderPlatform());

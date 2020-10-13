@@ -141,7 +141,7 @@ namespace DatasmithImportFactoryImpl
 		UDatasmithScene* SceneAsset = FDatasmithImporterUtils::FindObject< UDatasmithScene >( nullptr, PackageName );
 		if ( !SceneAsset )
 		{
-			UPackage* Package = CreatePackage( nullptr, *PackageName );
+			UPackage* Package = CreatePackage( *PackageName );
 			if ( !ensure(Package) )
 			{
 				InContext.LogError( CreateAssetFailure );

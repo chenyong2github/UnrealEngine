@@ -155,7 +155,7 @@ void FMacWindow::Initialize( FMacApplication* const Application, const TSharedRe
 
 				// Tell Cocoa that we are opting into drag and drop.
 				// Only makes sense for regular windows (windows that last a while.)
-				[WindowHandle registerForDraggedTypes:@[NSFilenamesPboardType, NSPasteboardTypeString]];
+				[WindowHandle registerForDraggedTypes:@[NSPasteboardTypeFileURL, NSPasteboardTypeString]];
 
 				if( Definition->HasOSWindowBorder )
 				{

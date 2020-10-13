@@ -13,6 +13,7 @@
 #include "MovieRenderPipelineCoreModule.h"
 #include "Misc/FrameRate.h"
 #include "MoviePipelineOutputSetting.h"
+#include "MoviePipelineBurnInSetting.h"
 #include "Containers/UnrealString.h"
 #include "Misc/StringFormatArg.h"
 #include "MoviePipelineOutputBase.h"
@@ -47,17 +48,22 @@ void UMoviePipelineImageSequenceOutputBase::OnRecieveImageDataImpl(FMoviePipelin
 
 	check(InMergedOutputFrame);
 
-	// We do a little special handling for Burn In overlays, because we need to composite them on top of the main image. We may also want to write them
-	// to disk separately from the main file, which may then result in writing a separate image type (ie: jpegs must write burn in as a png for alpha support).
+	UMoviePipelineBurnInSetting* BurnInSettings = GetPipeline()->GetPipelineMasterConfig()->FindSetting<UMoviePipelineBurnInSetting>();
+	bool bCompositeBurnInOntoFinalImage = BurnInSettings ? BurnInSettings->bCompositeOntoFinalImage : false;
+
+	// We do a little special handling for Burn In overlays if we are compositing them on top of the main image, otherwise we treat them as normal passes
 	TUniquePtr<FImagePixelData> BurnInImageData = nullptr;
-	for (TPair<FMoviePipelinePassIdentifier, TUniquePtr<FImagePixelData>>& RenderPassData : InMergedOutputFrame->ImageOutputData)
+	if (bCompositeBurnInOntoFinalImage)
 	{
-		if (RenderPassData.Key == FMoviePipelinePassIdentifier(TEXT("BurnInOverlay")))
+		for (TPair<FMoviePipelinePassIdentifier, TUniquePtr<FImagePixelData>>& RenderPassData : InMergedOutputFrame->ImageOutputData)
 		{
-			// Burn in data should always be 8 bit values, this is assumed later when we composite.
-			check(RenderPassData.Value->GetType() == EImagePixelType::Color);
-			BurnInImageData = RenderPassData.Value->CopyImageData();
-			break;
+			if (RenderPassData.Key == FMoviePipelinePassIdentifier(TEXT("BurnInOverlay")))
+			{
+				// Burn in data should always be 8 bit values, this is assumed later when we composite.
+				check(RenderPassData.Value->GetType() == EImagePixelType::Color);
+				BurnInImageData = RenderPassData.Value->CopyImageData();
+				break;
+			}
 		}
 	}
 
@@ -70,8 +76,8 @@ void UMoviePipelineImageSequenceOutputBase::OnRecieveImageDataImpl(FMoviePipelin
 
 	for (TPair<FMoviePipelinePassIdentifier, TUniquePtr<FImagePixelData>>& RenderPassData : InMergedOutputFrame->ImageOutputData)
 	{
-		// Don't write out the burn in pass in this loop, it will get handled separately (or composited).
-		if (RenderPassData.Key == FMoviePipelinePassIdentifier(TEXT("BurnInOverlay")))
+		// Don't write out the burn in pass in this loop if it is being composited on the final image
+		if (bCompositeBurnInOntoFinalImage && RenderPassData.Key == FMoviePipelinePassIdentifier(TEXT("BurnInOverlay")))
 		{
 			continue;
 		}
@@ -130,7 +136,7 @@ void UMoviePipelineImageSequenceOutputBase::OnRecieveImageDataImpl(FMoviePipelin
 			FString FileNameFormatString = OutputSettings->FileNameFormat;
 
 			// If we're writing more than one render pass out, we need to ensure the file name has the format string in it so we don't
-			// overwrite the same file multiple times. Burn In overlays don't count because they get composited on top of an existing file.
+			// overwrite the same file multiple times. Burn In overlays don't count if they are getting composited on top of an existing file.
 			const bool bIncludeRenderPass = InMergedOutputFrame->ImageOutputData.Num() - (BurnInImageData ? 1 : 0) > 1;
 			const bool bTestFrameNumber = true;
 

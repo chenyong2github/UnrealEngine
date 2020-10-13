@@ -13,14 +13,7 @@ FBackChannelOSCConnection::FBackChannelOSCConnection(TSharedRef<IBackChannelSock
 	: Connection(InConnection)
 {
 	LastReceiveTime = FPlatformTime::Seconds();
-	LastSendTime = 0;
-	PingTime = 3;
-	HasErrorState = false;
-
-	// OSC connections expect a size followed by payload for TCP connections
-	ExpectedSizeOfNextPacket = 4;
-	ReceivedDataSize = 0;
-
+	
 	const int32 kDefaultBufferSize = 4096;
 	ReceiveBuffer.AddUninitialized(kDefaultBufferSize);
 }
@@ -70,6 +63,16 @@ void FBackChannelOSCConnection::RemoveRouteDelegate(FStringView Path, FDelegateH
 	FScopeLock Lock(&PacketMutex);
 	DispatchMap.RemoveRoute(Path, InHandle);
 }
+
+void FBackChannelOSCConnection::SetBufferSizes(int32 DesiredSendSize, int32 DesiredReceiveSize)
+{
+	if (Connection.IsValid())
+	{
+		Connection->SetBufferSizes(DesiredSendSize, DesiredReceiveSize);
+	}
+}
+
+
 /*
 FDelegateHandle FBackChannelOSCConnection::AddMessageHandler(const TCHAR* Path, FBackChannelDispatchDelegate::FDelegate Delegate)
 {
@@ -84,11 +87,11 @@ void FBackChannelOSCConnection::RemoveMessageHandler(const TCHAR* Path, FDelegat
 	InHandle.Reset();
 }*/
 
-void FBackChannelOSCConnection::ReceivePackets(const float MaxTime /*= 0*/)
+void FBackChannelOSCConnection::ReceiveAndDispatchMessages(const float MaxTime /*= 0*/)
 {
-	const float kTimeout = 10;
+	const float kTimeout = FPlatformMisc::IsDebuggerPresent() ? ConnectionTImeoutWhenDebugging : ConnectionTimeout;
 
-	ReceiveData(MaxTime);
+	ReceiveMessages(MaxTime);
 	DispatchMessages();
 
 	const float TimeSinceSend = FPlatformTime::Seconds() - LastSendTime;
@@ -108,9 +111,11 @@ void FBackChannelOSCConnection::ReceivePackets(const float MaxTime /*= 0*/)
 	}
 }
 
-void FBackChannelOSCConnection::ReceiveData(const float MaxTime /*= 0*/)
+void FBackChannelOSCConnection::ReceiveMessages(const float MaxTime /*= 0*/)
 {
-	const double StarTime = FPlatformTime::Seconds();
+	const double StartTime = FPlatformTime::Seconds();
+    
+    //UE_LOG(LogBackChannel, Log, TEXT("Starting Packet Check at %.02f"), StartTime);
 
 	bool KeepReceiving = false;
 
@@ -127,7 +132,6 @@ void FBackChannelOSCConnection::ReceiveData(const float MaxTime /*= 0*/)
 		if (Received > 0)
 		{
 			LastReceiveTime = FPlatformTime::Seconds();
-
 			ReceivedDataSize += Received;
 
 			if (ReceivedDataSize == ExpectedSizeOfNextPacket)
@@ -150,11 +154,12 @@ void FBackChannelOSCConnection::ReceiveData(const float MaxTime /*= 0*/)
 				else
 				{
 					// read packet
-					FScopeLock PacketLock(&PacketMutex);
 					TSharedPtr<FBackChannelOSCPacket> Packet = FBackChannelOSCPacket::CreateFromBuffer(ReceiveBuffer.GetData(), ExpectedSizeOfNextPacket);
 
 					if (Packet.IsValid())
 					{
+                        FScopeLock PacketLock(&PacketMutex);
+                        
 						bool bAddPacket = true;
 
 						if (Packet->GetType() == OSCPacketType::Message)
@@ -194,11 +199,15 @@ void FBackChannelOSCConnection::ReceiveData(const float MaxTime /*= 0*/)
 			}
 		}
 
-		const double ElapsedTime = FPlatformTime::Seconds() - StarTime;
+		const double ElapsedTime = FPlatformTime::Seconds() - StartTime;
 
-		KeepReceiving = PacketsReceived == 0 && ElapsedTime < MaxTime;
+        // keep receiving until we run out of time, unless we received a packet
+		KeepReceiving = ElapsedTime < MaxTime && PacketsReceived == 0;
 
 	} while (KeepReceiving);
+    
+    const double ElapsedTime = FPlatformTime::Seconds() - StartTime;
+    UE_LOG(LogBackChannel, VeryVerbose, TEXT("Received %d packets in %.03f secs at %.03f"), PacketsReceived, ElapsedTime, FPlatformTime::Seconds());
 }
 
 void FBackChannelOSCConnection::DispatchMessages()
@@ -247,6 +256,7 @@ bool FBackChannelOSCConnection::IsThreaded() const
 
 uint32 FBackChannelOSCConnection::Run()
 {
+    const float kMaxReceiveTime = 1;
 	const int32 kDefaultBufferSize = 4096;
 
 	TArray<uint8> Buffer;
@@ -257,10 +267,11 @@ uint32 FBackChannelOSCConnection::Run()
 	UE_LOG(LogBackChannel, Verbose, TEXT("OSC Connection to %s is Running"), *Connection->GetDescription());
 
 	while (ExitRequested == false)
-	{		
-		ReceivePackets(1);		
-
-		FPlatformProcess::SleepNoStats(0);
+	{
+        // This call itself will yield to the OS while waiting for recv so while this looks like a spinloop
+        // it really isn't :)
+        ReceiveAndDispatchMessages(kMaxReceiveTime);
+        
 	}
 
 	UE_LOG(LogBackChannel, Verbose, TEXT("OSC Connection to %s is exiting."), *Connection->GetDescription());

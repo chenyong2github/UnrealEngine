@@ -249,7 +249,7 @@ void UEditorEngine::EndPlayMap()
 		if (Actor)
 		{
 			// We need to notify or else the manipulation transform widget won't appear, but only notify once at the end because OnEditorSelectionChanged is expensive for large groups. 
-			SelectActor( Actor, false, false );
+			SelectActor( Actor, true, false );
 		}
 	}	
 	GEditor->GetSelectedActors()->EndBatchSelectOperation(true);
@@ -1026,6 +1026,20 @@ void UEditorEngine::StartQueuedPlaySessionRequestImpl()
 		return;
 	}
 
+	// End any previous sessions running in separate processes.
+	EndPlayOnLocalPc();
+
+	// If there's level already being played, close it. (This may change GWorld). 
+	if (PlayWorld && PlaySessionRequest->SessionDestination == EPlaySessionDestinationType::InProcess)
+	{
+		// Cache our Play Session Request, as EndPlayMap will clear it. When this function exits the request will be reset anyways.
+		FRequestPlaySessionParams OriginalRequest = PlaySessionRequest.GetValue();
+		// Immediately end the current play world.
+		EndPlayMap(); 
+		// Restore the request as we're now processing it.
+		PlaySessionRequest = OriginalRequest;
+	}
+
 	// We want to use the ULevelEditorPlaySettings that come from the Play Session Request.
 	// By the time this function gets called, these settings are a copy of either the CDO, 
 	// or a user provided instance. The settings may have been modified by the game instance
@@ -1048,19 +1062,28 @@ void UEditorEngine::StartQueuedPlaySessionRequestImpl()
 		NewPos.Position = Position;
 	}
 
-	// End any previous sessions running in separate processes.
-	EndPlayOnLocalPc();
-
 	// If our settings require us to launch a separate process in any form, we require the user to save
 	// their content so that when the new process reads the data from disk it will match what we have in-editor.
 	bool bUserWantsInProcess;
 	EditorPlaySettings->GetRunUnderOneProcess(bUserWantsInProcess);
 
-	const bool bIsInProcess = PlaySessionRequest->SessionDestination == EPlaySessionDestinationType::InProcess && bUserWantsInProcess;
+	bool bIsSeparateProcess = PlaySessionRequest->SessionDestination != EPlaySessionDestinationType::InProcess;
+	if (!bUserWantsInProcess)
+	{
+		int32 NumClients;
+		EditorPlaySettings->GetPlayNumberOfClients(NumClients);
 
-	bool bRequestSave = !bIsInProcess;
+		EPlayNetMode NetMode;
+		EditorPlaySettings->GetPlayNetMode(NetMode);
 
-	if (bRequestSave && !SaveMapsForPlaySession())
+		// More than one client will spawn a second process.		
+		bIsSeparateProcess |= NumClients > 1;
+
+		// If they want to run anyone as a client, a dedicated server is started in a separate process.
+		bIsSeparateProcess |= NetMode == EPlayNetMode::PIE_Client;
+	}
+
+	if (bIsSeparateProcess && !SaveMapsForPlaySession())
 	{
 		// Maps did not save, print a warning
 		FText ErrorMsg = LOCTEXT("PIEWorldSaveFail", "PIE failed because map save was canceled");
@@ -2161,7 +2184,7 @@ UWorld* UEditorEngine::CreatePIEWorldByDuplication(FWorldContext &WorldContext, 
 	// Create a package for the PIE world
 	UE_LOG( LogPlayLevel, Log, TEXT("Creating play world package: %s"),  *PlayWorldMapName );	
 
-	UPackage* PlayWorldPackage = CreatePackage(nullptr,*PlayWorldMapName);
+	UPackage* PlayWorldPackage = CreatePackage(*PlayWorldMapName);
 	PlayWorldPackage->SetPackageFlags(PKG_PlayInEditor);
 	PlayWorldPackage->PIEInstanceID = WorldContext.PIEInstance;
 	PlayWorldPackage->FileName = InPackage->FileName;
@@ -2396,30 +2419,31 @@ void UEditorEngine::StartPlayInEditorSession(FRequestPlaySessionParams& InReques
 	const double PIEStartTime = FStudioAnalytics::GetAnalyticSeconds();
 	const FScopedBusyCursor BusyCursor;
 
-	// Block PIE when there is a transaction recording into the undo buffer. This is generally avoided
+	// Cancel the transaction if one is opened when PIE is requested. This is generally avoided
 	// because we buffer the request for the PIE session until the start of the next frame, but sometimes
 	// transactions can get stuck open due to implementation errors so it's important that we check.
 	if (GEditor->IsTransactionActive())
 	{
 		FFormatNamedArguments Args;
 		Args.Add(TEXT("TransactionName"), GEditor->GetTransactionName());
-
-		FText NotificationText;
 		if (InRequestParams.WorldType == EPlaySessionWorldType::SimulateInEditor)
 		{
-			NotificationText = FText::Format(NSLOCTEXT("UnrealEd", "SIECantStartDuringTransaction", "Can't Simulate when performing {TransactionName} operation"), Args);
+			Args.Add(TEXT("PlaySession"), NSLOCTEXT("UnrealEd", "SimulatePlaySession", "Simulate"));
 		}
 		else
 		{
-			NotificationText = FText::Format(NSLOCTEXT("UnrealEd", "PIECantStartDuringTransaction", "Can't Play In Editor when performing {TransactionName} operation"), Args);
+			Args.Add(TEXT("PlaySession"), NSLOCTEXT("UnrealEd", "PIEPlaySession", "Play In Editor"));
 		}
+
+		FText NotificationText;
+		NotificationText = FText::Format(NSLOCTEXT("UnrealEd", "CancellingTransactionForPIE", "Cancelling open '{TransactionName}' operation to start {PlaySession}"), Args);
 
 		FNotificationInfo Info(NotificationText);
 		Info.ExpireDuration = 5.0f;
 		Info.bUseLargeFont = true;
 		FSlateNotificationManager::Get().AddNotification(Info);
-		CancelRequestPlaySession();
-		return;
+		GEditor->CancelTransaction(0);
+		UE_LOG(LogPlayLevel, Warning, TEXT("Cancelling Open Transaction '%s' to start PIE session."), *GEditor->GetTransactionName().ToString());
 	}
 
 	// Prompt the user that Matinee must be closed before PIE can occur. If they don't want
@@ -2489,14 +2513,6 @@ void UEditorEngine::StartPlayInEditorSession(FRequestPlaySessionParams& InReques
 				Blueprint->bDisplayCompilePIEWarning = false;
 			}
 		}
-	}
-
-	// If there's level already being played, close it. (This may change GWorld). 
-	// This also invalidates PlaySessionRequest so don't use it below.
-	if (PlayWorld)
-	{
-		// Immediately end the play world.
-		EndPlayMap();
 	}
 
 	// Register for log processing so we can promote errors/warnings to the message log
@@ -2687,16 +2703,16 @@ void UEditorEngine::StartPlayInEditorSession(FRequestPlaySessionParams& InReques
 			}
 		}
 
+		// This needs to be run before ToggleBetweenPIEandSIE as it creates the list of selected actors.
+		// It only re-selects the actors if you are entering SIE. 
+		TransferEditorSelectionToPlayInstances(InRequestParams.WorldType == EPlaySessionWorldType::SimulateInEditor);
+
 		// If they requested a SIE, we immediately convert the PIE into a SIE. This finds and executes on the first
 		// world context, and doesn't support networking.
 		if (!bUseOnlineSubsystemForLogin && InRequestParams.WorldType == EPlaySessionWorldType::SimulateInEditor)
 		{
 			const bool bNewSession = true;
 			ToggleBetweenPIEandSIE(bNewSession);
-
-			// If we have actors selected in the Editor, save that information and then re-select
-			// the equivalent actors in the SIE session.
-			TransferEditorSelectionToSIEInstances();
 		}
 	}
 
@@ -2987,7 +3003,7 @@ FText GeneratePIEViewportWindowTitle(const EPlayNetMode InNetMode, const ERHIFea
 	return FText::Format(NSLOCTEXT("UnrealEd", "PlayInEditor_WindowTitleFormat", "{GameName} Preview [NetMode: {NetMode}] {FixedFPS} ({PlatformBits}-bit/{RHIName}) {XRSystemName}"), Args);
 }
 
-void UEditorEngine::TransferEditorSelectionToSIEInstances()
+void UEditorEngine::TransferEditorSelectionToPlayInstances(const bool bInSelectInstances)
 {
 	// Make a list of all the selected actors
 	TArray<UObject *> SelectedActors;
@@ -3023,7 +3039,7 @@ void UEditorEngine::TransferEditorSelectionToSIEInstances()
 			AActor* SimActor = EditorUtilities::GetSimWorldCounterpartActor(Actor);
 			if (SimActor && !SimActor->IsHidden())
 			{
-				SelectActor(SimActor, true, false);
+				SelectActor(SimActor, bInSelectInstances, false);
 			}
 		}
 	}
@@ -3058,7 +3074,8 @@ TSharedRef<SPIEViewport> UEditorEngine::GeneratePIEViewportWindow(const FRequest
 			.AutoCenter(bCenterNewWindowOverride ? EAutoCenter::PreferredWorkArea : EAutoCenter::None)
 			.UseOSWindowBorder(bUseOSWndBorder)
 			.SaneWindowPlacement(!bCenterNewWindowOverride)
-			.SizingRule(ESizingRule::UserSized);
+			.SizingRule(ESizingRule::UserSized)
+			.AdjustInitialSizeAndPositionForDPIScale(false);
 
 		PieWindow->SetAllowFastUpdate(true);
 	}

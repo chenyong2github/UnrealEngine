@@ -913,6 +913,12 @@ void FSceneView::SetupAntiAliasingMethod()
 				AntiAliasingMethod = AAM_FXAA;
 			}
 		}
+
+		// Overides the anti aliasing method to temporal AA when using a custom temporal upscaler.
+		if (GetFeatureLevel() >= ERHIFeatureLevel::SM5 && Family->GetTemporalUpscalerInterface() != nullptr)
+		{
+			AntiAliasingMethod = AAM_TemporalAA;
+		}
 	}
 
     // TemporalAA requires view state for history.

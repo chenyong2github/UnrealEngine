@@ -20,6 +20,7 @@ public class MovieRenderPipelineRenderPasses : ModuleRules
 				"UEOpenExrRTTI", // Needed for EXR metadata
 				"ImageWrapper",				
 				"CinematicCamera", // For metadata
+				"MovieRenderPipelineSettings", // For settings
 			}
 		);
 
@@ -30,6 +31,7 @@ public class MovieRenderPipelineRenderPasses : ModuleRules
 				"RenderCore",
 				"RHI",
 				"OpenColorIO",
+				"ActorLayerUtilities", // For Layering
 			}
         );
 

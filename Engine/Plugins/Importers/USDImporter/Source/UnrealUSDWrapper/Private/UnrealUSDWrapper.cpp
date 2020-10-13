@@ -1084,16 +1084,34 @@ UE::FUsdStage UnrealUSDWrapper::OpenStage( const TCHAR* FilePath, EUsdInitialLoa
 #if USE_USD_SDK
 	FScopedUsdAllocs UsdAllocs;
 
+	pxr::SdfLayerHandleSet LoadedLayers = pxr::SdfLayer::GetLoadedLayers();
+	pxr::UsdStageRefPtr Stage;
+
 	if ( bUseStageCache )
 	{
 		pxr::UsdStageCacheContext UsdStageCacheContext( pxr::UsdUtilsStageCache::Get() );
 
-		return UE::FUsdStage( pxr::UsdStage::Open( TCHAR_TO_ANSI( FilePath ), pxr::UsdStage::InitialLoadSet( InitialLoadSet ) ) );
+		Stage = pxr::UsdStage::Open( TCHAR_TO_ANSI( FilePath ), pxr::UsdStage::InitialLoadSet( InitialLoadSet ) );
 	}
 	else
 	{
-		return UE::FUsdStage( pxr::UsdStage::Open( TCHAR_TO_ANSI( FilePath ), pxr::UsdStage::InitialLoadSet( InitialLoadSet ) ) );
+		Stage = pxr::UsdStage::Open( TCHAR_TO_ANSI( FilePath ), pxr::UsdStage::InitialLoadSet( InitialLoadSet ) );
+
+		// Layers are cached in the layer registry independently of the stage cache. If the layer is already in the registry by the time
+		// we try to open a stage, even if we're not using a stage cache at all the layer will be reused and the file will *not* be re-read.
+		// Here we keep track of these loaded layers and manually reload the ones that were reused, because if we're passing false for
+		// bUseStageCache we really expect the files to be fully re-read
+		pxr::SdfLayerHandleVector StageLayers = Stage->GetLayerStack();
+		for ( pxr::SdfLayerHandle StageLayer : StageLayers )
+		{
+			if ( LoadedLayers.count( StageLayer ) > 0 )
+			{
+				StageLayer->Reload();
+			}
+		}
 	}
+
+	return UE::FUsdStage( Stage );
 #else
 	return UE::FUsdStage();
 #endif // #if USE_USD_SDK

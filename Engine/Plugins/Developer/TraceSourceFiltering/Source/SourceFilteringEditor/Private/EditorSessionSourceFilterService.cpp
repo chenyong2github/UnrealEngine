@@ -315,7 +315,7 @@ void FEditorSessionSourceFilterService::OnSaveAsPreset()
 
 	// Saving into a new package
 	const FString NewAssetName = FPackageName::GetLongPackageAssetName(PackageName);
-	UPackage* NewPackage = CreatePackage(nullptr, *PackageName);
+	UPackage* NewPackage = CreatePackage(*PackageName);
 	USourceFilterCollection* NewPreset = NewObject<USourceFilterCollection>(NewPackage, *NewAssetName, RF_Public | RF_Standalone | RF_Transactional);
 
 	if (NewPreset)

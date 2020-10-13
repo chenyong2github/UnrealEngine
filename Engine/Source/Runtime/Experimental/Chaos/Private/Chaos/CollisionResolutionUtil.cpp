@@ -51,6 +51,10 @@ namespace Chaos
 			FVec3 Jr0, Jr1, IInvJr0, IInvJr1;
 			FReal ImpulseRatioNumerator0 = 0, ImpulseRatioNumerator1 = 0, ImpulseRatioDenom0 = 0, ImpulseRatioDenom1 = 0;
 			FReal ImpulseSizeSQ = Impulse.SizeSquared();
+			if (ImpulseSizeSQ < SMALL_NUMBER)
+			{
+				return Impulse;
+			}
 			FVec3 KinematicVelocity = !bIsRigidDynamic0 ? Velocity1 : !bIsRigidDynamic1 ? Velocity2 : FVec3(0);
 			if (bIsRigidDynamic0)
 			{
@@ -67,6 +71,55 @@ namespace Chaos
 				ImpulseRatioDenom1 = ImpulseSizeSQ / PBDRigid1->M() + FVec3::DotProduct(Jr1, IInvJr1);
 			}
 			FReal Numerator = -2 * (ImpulseRatioNumerator0 - ImpulseRatioNumerator1);
+			if (Numerator <= 0)
+			{
+				return FVec3(0);
+			}
+			ensure(Numerator > 0);
+			FReal Denominator = ImpulseRatioDenom0 + ImpulseRatioDenom1;
+			return Numerator < Denominator ? (Impulse * Numerator / Denominator) : Impulse;
+		}
+
+		FVec3 GetEnergyClampedImpulse(
+			const FVec3& Impulse, 
+			FReal InvM0, 
+			const FMatrix33& InvI0, 
+			FReal InvM1, 
+			const FMatrix33& InvI1,
+			const FRotation3& Q0,
+			const FVec3& V0,
+			const FVec3& W0,
+			const FRotation3& Q1,
+			const FVec3& V1,
+			const FVec3& W1,
+			const FVec3& ContactOffset0,
+			const FVec3& ContactOffset1, 
+			const FVec3& ContactVelocity0, 
+			const FVec3& ContactVelocity1)
+		{
+			FVec3 Jr0, Jr1, IInvJr0, IInvJr1;
+			FReal ImpulseRatioNumerator0 = 0, ImpulseRatioNumerator1 = 0, ImpulseRatioDenom0 = 0, ImpulseRatioDenom1 = 0;
+			FReal ImpulseSizeSQ = Impulse.SizeSquared();
+			if (ImpulseSizeSQ < SMALL_NUMBER)
+			{
+				return Impulse;
+			}
+			FVec3 KinematicVelocity = (InvM0 == 0.0f) ? ContactVelocity0 : (InvM1 == 0.0f) ? ContactVelocity1 : FVec3(0);
+			if (InvM0 > 0.0f)
+			{
+				Jr0 = FVec3::CrossProduct(ContactOffset0, Impulse);
+				IInvJr0 = Q0.RotateVector(InvI0 * Q0.UnrotateVector(Jr0));
+				ImpulseRatioNumerator0 = FVec3::DotProduct(Impulse, V0 - KinematicVelocity) + FVec3::DotProduct(Jr0, W0);
+				ImpulseRatioDenom0 = InvM0 * ImpulseSizeSQ + FVec3::DotProduct(Jr0, IInvJr0);
+			}
+			if (InvM1 > 0.0f)
+			{
+				Jr1 = FVec3::CrossProduct(ContactOffset1, Impulse);
+				IInvJr1 = Q1.RotateVector(InvI1 * Q1.UnrotateVector(Jr1));
+				ImpulseRatioNumerator1 = FVec3::DotProduct(Impulse, V1 - KinematicVelocity) + FVec3::DotProduct(Jr1, W1);
+				ImpulseRatioDenom1 = InvM1 * ImpulseSizeSQ + FVec3::DotProduct(Jr1, IInvJr1);
+			}
+			FReal Numerator = -2.0f * (ImpulseRatioNumerator0 - ImpulseRatioNumerator1);
 			if (Numerator <= 0)
 			{
 				return FVec3(0);
@@ -222,12 +275,14 @@ namespace Chaos
 					{
 						//QUICK_SCOPE_CYCLE_COUNTER(STAT_Box);
 						const TBox<float, 3>* Box = Object.GetObject<Chaos::TBox<float, 3>>();
+						const FVec3 BoxMin = Box->Min();
+						const FVec3 BoxMax = Box->Max();
 
 						if (NormalAveraging && UpdateType != ECollisionUpdateType::Any)
 						{
 							ispc::SampleBoxNormalAverage(
-								(ispc::FVector&)Box->Min(),
-								(ispc::FVector&)Box->Max(),
+								(ispc::FVector&)BoxMin,
+								(ispc::FVector&)BoxMax,
 								(ispc::FTransform&)SampleToObjectTM,
 								(ispc::FVector*)&SampleParticles.XArray()[0],
 								&PotentialParticles[0],
@@ -239,8 +294,8 @@ namespace Chaos
 						else
 						{
 							ispc::SampleBoxNoNormal(
-								(ispc::FVector&)Box->Min(),
-								(ispc::FVector&)Box->Max(),
+								(ispc::FVector&)BoxMin,
+								(ispc::FVector&)BoxMax,
 								(ispc::FTransform&)SampleToObjectTM,
 								(ispc::FVector*)&SampleParticles.XArray()[0],
 								&PotentialParticles[0],
@@ -395,12 +450,14 @@ namespace Chaos
 				else if (Object.GetType() == ImplicitObjectType::Box && NumParticles > 0)
 				{
 					const TBox<float, 3>* Box = Object.GetObject<Chaos::TBox<float, 3>>();
+					const FVec3 BoxMin = Box->Min();
+					const FVec3 BoxMax = Box->Max();
 
 					if (NormalAveraging && UpdateType != ECollisionUpdateType::Any)
 					{
 						ispc::SampleBoxNormalAverageAll(
-							(ispc::FVector&)Box->Min(),
-							(ispc::FVector&)Box->Max(),
+							(ispc::FVector&)BoxMin,
+							(ispc::FVector&)BoxMax,
 							(ispc::FTransform&)SampleToObjectTM,
 							(ispc::FVector*)&SampleParticles.XArray()[0],
 							CullingDistance,
@@ -411,8 +468,8 @@ namespace Chaos
 					else
 					{
 						ispc::SampleBoxNoNormalAll(
-							(ispc::FVector&)Box->Min(),
-							(ispc::FVector&)Box->Max(),
+							(ispc::FVector&)BoxMin,
+							(ispc::FVector&)BoxMax,
 							(ispc::FTransform&)SampleToObjectTM,
 							(ispc::FVector*)&SampleParticles.XArray()[0],
 							DeepestParticle,

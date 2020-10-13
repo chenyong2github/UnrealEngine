@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "AudioModulation.h"
 #include "CoreMinimal.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "SoundControlBus.h"
@@ -32,7 +33,7 @@ public:
 	/**
 	 * Returns modulation implementation associated with the provided world
 	 */
-	static AudioModulation::FAudioModulationSystem* GetModulationSystem(UWorld* World);
+	static AudioModulation::FAudioModulation* GetModulation(UWorld* World);
 
 	/** Activates a bus. Does nothing if an instance of the provided bus is already active
 	 * @param Bus - Bus to activate
@@ -50,16 +51,16 @@ public:
 		WorldContext = "WorldContextObject", 
 		Keywords = "activate modulation modulator control bus mix")
 	)
-	static void ActivateBusMix(const UObject* WorldContextObject, USoundControlBusMix* BusMix);
+	static void ActivateBusMix(const UObject* WorldContextObject, USoundControlBusMix* Mix);
 
-	/** Activates a bus modulator (eg. LFO). Does nothing if an instance of the provided modulator is already active
+	/** Activates a modulation generator. Does nothing if an instance of the provided generator is already active
 	 * @param Modulator - Modulator to activate
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Audio", DisplayName = "Activate Control Bus Modulator", meta = (
+	UFUNCTION(BlueprintCallable, Category = "Audio", DisplayName = "Activate Modulation Generator", meta = (
 		WorldContext = "WorldContextObject", 
-		Keywords = "activate modulation modulator lfo")
+		Keywords = "activate modulation modulator generator lfo")
 	)
-	static void ActivateBusModulator(const UObject* WorldContextObject, USoundModulationGenerator* Modulator);
+	static void ActivateGenerator(const UObject* WorldContextObject, USoundModulationGenerator* Generator);
 
 	/** Creates a modulation bus with the provided default value.
 	 * @param Name - Name of bus
@@ -72,27 +73,6 @@ public:
 		Keywords = "make create bus modulation LPF modulator")
 	)
 	static USoundControlBus* CreateBus(const UObject* WorldContextObject, FName Name, USoundModulationParameter* Parameter, bool Activate = true);
-
-	/** Creates an LFO modulator.
-	 * @param Name - Name of LFO
-	 * @param Amplitude - Amplitude of new LFO.
-	 * @param Frequency - Frequency of new LFO.
-	 * @param Offset - Offset of new LFO.
-	 * @param Activate - Whether or not to activate lfo on creation.
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Audio", DisplayName = "Create Control Bus LFO", meta = (
-		AdvancedDisplay = "5",
-		WorldContext = "WorldContextObject",
-		Keywords = "make create lfo modulation modulator")
-	)
-	static USoundModulationGeneratorLFO* CreateLFO(
-		const UObject* WorldContextObject, 
-		FName Name, 
-		float Amplitude, 
-		float Frequency, 
-		float Offset,
-		bool Activate = true
-	);
 
 	/** Creates a stage used to mix a control bus.
 	 * @param Bus - Bus stage is in charge of applying mix value to.
@@ -142,19 +122,19 @@ public:
 		WorldContext = "WorldContextObject",
 		Keywords = "deactivate modulation modulator")
 	)
-	static void DeactivateBusMix(const UObject* WorldContextObject, USoundControlBusMix* BusMix);
+	static void DeactivateBusMix(const UObject* WorldContextObject, USoundControlBusMix* Mix);
 
-	/** Deactivates a bus modulator. Does nothing if an instance of the provided bus mix is already inactive
-	 * @param Modulator - Modulator to activate
+	/** Deactivates a modulation generator. Does nothing if an instance of the provided generator is already inactive
+	 * @param Generator - Generator to activate
 	 * @param Scope - Scope of modulator
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Audio", DisplayName = "Deactivate Control Bus Modulator", meta = (
 		WorldContext = "WorldContextObject",
 		Keywords = "deactivate bus modulation modulator")
 )
-	static void DeactivateBusModulator(const UObject* WorldContextObject, USoundModulationGenerator* Modulator);
+	static void DeactivateGenerator(const UObject* WorldContextObject, USoundModulationGenerator* Generator);
 
-	/** Saves control bus mix to a profile, serialized to an ini file.  If mix is loaded, uses current proxy's state. 
+	/** Saves control bus mix to a profile, serialized to an ini file.  If mix is loaded, uses current proxy's state.
 	 * If not, uses default UObject representation.
 	 * @param BusMix - Mix object to serialize to profile .ini.
 	 * @param ProfileIndex - Index of profile, allowing multiple profiles can be saved for single mix object. If 0, saves to default ini profile (no suffix).
@@ -164,7 +144,7 @@ public:
 		AdvancedDisplay = "2",
 		Keywords = "save serialize bus control modulation mix modulator ini")
 	)
-	static void SaveMixToProfile(const UObject* WorldContextObject, USoundControlBusMix* BusMix, int32 ProfileIndex = 0);
+	static void SaveMixToProfile(const UObject* WorldContextObject, USoundControlBusMix* Mix, int32 ProfileIndex = 0);
 
 	/** Loads control bus mix from a profile into UObject mix definition, deserialized from an ini file.
 	 * @param BusMix - Mix object to deserialize profile .ini to.
@@ -177,7 +157,7 @@ public:
 		AdvancedDisplay = "2",
 		Keywords = "load deserialize control bus modulation mix modulator ini")
 	)
-	static UPARAM(DisplayName = "Stages") TArray<FSoundControlBusMixStage> LoadMixFromProfile(const UObject* WorldContextObject, USoundControlBusMix* BusMix, bool bActivate = true, int32 ProfileIndex = 0);
+	static UPARAM(DisplayName = "Stages") TArray<FSoundControlBusMixStage> LoadMixFromProfile(const UObject* WorldContextObject, USoundControlBusMix* Mix, bool bActivate = true, int32 ProfileIndex = 0);
 
 	/** Sets a mix with the provided stage data if stages provided in active instance proxy of mix. Does not update UObject definition of mix.
 	 * @param Mix - Mix to update
@@ -190,18 +170,15 @@ public:
 		WorldContext = "WorldContextObject",
 		Keywords = "set bus control modulation modulator mix stage")
 	)
-	static void UpdateMix(const UObject* WorldContextObject, USoundControlBusMix* Mix, TArray<FSoundControlBusMixStage> Stages, float InFadeTime = -1.0f);
+	static void UpdateMix(const UObject* WorldContextObject, USoundControlBusMix* Mix, TArray<FSoundControlBusMixStage> Stages, float FadeTime = -1.0f);
 
 	/** Sets filtered stages of a given class to a provided target value for active instance of mix. Does not update UObject definition of mix.
 	 * @param Mix - Mix to modify
-	 * @param AddressFilter - Address filter to apply to provided mix's stages.
-	 * @param BusClass - Filters buses by subclass.
+	 * @param AddressFilter - (Optional) Address filter to apply to provided mix's stages.
+	 * @param ParamClassFilter - (Optional) Filters buses by parameter class.
+	 * @param ParamFilter - (Optional) Filters buses by parameter.
 	 * @param Value - Target value to mix filtered stages to.
 	 * @param FadeTime - If non-negative, updates the fade time for the resulting bus stages found matching the provided filter.
-	 * @param AttackTime - If non-negative, updates the attack time for the resulting bus stages found matching the provided filter.
-	 * @param ReleaseTime - If non-negative, updates the release time for the resulting bus stages found matching the provided filter.
-	 * @param bUpdateObject - If true, will dirty mix object and update stages on the SoundControlBusMix object in addition to updating 
-	 * the audio thread proxy.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Audio", DisplayName = "Set Control Bus Mix By Filter", meta = (
 		AdvancedDisplay = "6",

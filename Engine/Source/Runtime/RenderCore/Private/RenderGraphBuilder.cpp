@@ -277,7 +277,7 @@ inline FRDGViewHandle GetHandleIfNoUAVBarrier(FRDGViewRef Resource)
 	return FRDGViewHandle::Null;
 }
 
-inline EResourceTransitionFlags GetTextureViewTransitionFlags(FRDGViewRef Resource)
+inline EResourceTransitionFlags GetTextureViewTransitionFlags(FRDGViewRef Resource, FRDGTextureRef Texture)
 {
 	if (Resource)
 	{
@@ -301,6 +301,13 @@ inline EResourceTransitionFlags GetTextureViewTransitionFlags(FRDGViewRef Resour
 			}
 		}
 		break;
+		}
+	}
+	else
+	{
+		if (EnumHasAnyFlags(Texture->Flags, ERDGTextureFlags::MaintainCompression))
+		{
+			return EResourceTransitionFlags::MaintainCompression;
 		}
 	}
 	return EResourceTransitionFlags::None;
@@ -628,6 +635,8 @@ void FRDGBuilder::Compile()
 		{
 			FRDGPass* Pass = Passes[PassHandle];
 
+			bool bUntrackedOutputs = Pass->GetParameters().HasExternalOutputs();
+
 			for (auto& TexturePair : Pass->TextureStates)
 			{
 				FRDGTextureRef Texture = TexturePair.Key;
@@ -647,12 +656,15 @@ void FRDGBuilder::Compile()
 				{
 					AddCullingDependency(LastProducers[Index], PassHandle, PassState[bWholePassState ? 0 : Index].Access);
 				}
+
+				bUntrackedOutputs |= Texture->bExternal;
 			}
 
 			for (auto& BufferPair : Pass->BufferStates)
 			{
 				FRDGBufferRef Buffer = BufferPair.Key;
 				AddCullingDependency(Buffer->LastProducer, PassHandle, BufferPair.Value.State.Access);
+				bUntrackedOutputs |= Buffer->bExternal;
 			}
 
 			const ERDGPassFlags PassFlags = Pass->GetFlags();
@@ -663,7 +675,7 @@ void FRDGBuilder::Compile()
 			PassesOnRaster[PassHandle] = bRaster;
 			PassesOnAsyncCompute[PassHandle] = bAsyncCompute;
 			PassesToNeverCull[PassHandle] = bNeverCull;
-			PassesWithUntrackedOutputs[PassHandle] = Pass->bUntrackedOutputs;
+			PassesWithUntrackedOutputs[PassHandle] = bUntrackedOutputs;
 			AsyncComputePassCount += bAsyncCompute ? 1 : 0;
 			RasterPassCount += bRaster ? 1 : 0;
 		}
@@ -1321,7 +1333,6 @@ void FRDGBuilder::SetupPass(FRDGPass* Pass)
 	const ERDGPassFlags PassFlags = Pass->GetFlags();
 	const ERHIPipeline PassPipeline = Pass->GetPipeline();
 
-	bool bPassUntrackedOutputs = PassParameters.HasExternalOutputs();
 	bool bPassUAVAccess = false;
 
 	Pass->TextureStates.Reserve(PassParameters.GetTextureParameterCount() + (PassParameters.HasRenderTargets() ? (MaxSimultaneousRenderTargets + 1) : 0));
@@ -1329,7 +1340,7 @@ void FRDGBuilder::SetupPass(FRDGPass* Pass)
 	{
 		check(Access != ERHIAccess::Unknown);
 		const FRDGViewHandle NoUAVBarrierHandle = GetHandleIfNoUAVBarrier(TextureView);
-		const EResourceTransitionFlags TransitionFlags = GetTextureViewTransitionFlags(TextureView);
+		const EResourceTransitionFlags TransitionFlags = GetTextureViewTransitionFlags(TextureView, Texture);
 
 		auto& PassState = Pass->TextureStates.FindOrAdd(Texture);
 		PassState.ReferenceCount++;
@@ -1362,7 +1373,6 @@ void FRDGBuilder::SetupPass(FRDGPass* Pass)
 		}
 
 		bPassUAVAccess |= EnumHasAnyFlags(Access, ERHIAccess::UAVMask);
-		bPassUntrackedOutputs |= Texture->bExternal;
 	});
 
 	Pass->BufferStates.Reserve(PassParameters.GetBufferParameterCount());
@@ -1379,11 +1389,9 @@ void FRDGBuilder::SetupPass(FRDGPass* Pass)
 		PassState.State.Pipeline = PassPipeline;
 
 		bPassUAVAccess |= EnumHasAnyFlags(Access, ERHIAccess::UAVMask);
-		bPassUntrackedOutputs |= Buffer->bExternal;
 	});
 
 	Pass->bUAVAccess = bPassUAVAccess;
-	Pass->bUntrackedOutputs = bPassUntrackedOutputs;
 
 	const bool bEmptyParameters = !Pass->TextureStates.Num() && !Pass->BufferStates.Num();
 	PassesWithEmptyParameters.Add(bEmptyParameters);
@@ -2088,6 +2096,17 @@ void FRDGBuilder::BeginResourceRHI(FRDGPassHandle PassHandle, FRDGTextureSRVRef 
 			PooledTexture->FMaskSRV = RHICreateShaderResourceViewFMask((FRHITexture2D*)PooledTexture->Texture);
 		}
 		SRV->ResourceRHI = PooledTexture->FMaskSRV;
+		check(SRV->ResourceRHI);
+		return;
+	}
+
+	if (SRV->Desc.MetaData == ERDGTextureMetaDataAccess::CMask)
+	{
+		if (!PooledTexture->CMaskSRV)
+		{
+			PooledTexture->CMaskSRV = RHICreateShaderResourceViewWriteMask((FRHITexture2D*)PooledTexture->Texture);
+		}
+		SRV->ResourceRHI = PooledTexture->CMaskSRV;
 		check(SRV->ResourceRHI);
 		return;
 	}

@@ -14,6 +14,7 @@ public class DMXPixelMappingRuntime : ModuleRules
 				"Core",
 				"CoreUObject",
 				"DMXRuntime",
+				"RHI"
 			});
 
 		PrivateDependencyModuleNames.AddRange(

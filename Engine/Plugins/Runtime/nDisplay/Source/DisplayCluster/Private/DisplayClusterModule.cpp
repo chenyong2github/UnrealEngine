@@ -10,6 +10,7 @@
 
 #include "Misc/DisplayClusterGlobals.h"
 #include "Misc/DisplayClusterLog.h"
+#include "Misc/DisplayClusterTypesConverter.h"
 
 
 FDisplayClusterModule::FDisplayClusterModule()
@@ -72,7 +73,7 @@ bool FDisplayClusterModule::Init(EDisplayClusterOperationMode OperationMode)
 {
 	CurrentOperationMode = OperationMode;
 
-	UE_LOG(LogDisplayClusterModule, Log, TEXT("Initializing subsystems to %s operation mode"), *FDisplayClusterTypesConverter::template ToString(CurrentOperationMode));
+	UE_LOG(LogDisplayClusterModule, Log, TEXT("Initializing subsystems to %s operation mode"), *DisplayClusterTypesConverter::template ToString(CurrentOperationMode));
 
 	bool result = true;
 	auto it = Managers.CreateIterator();

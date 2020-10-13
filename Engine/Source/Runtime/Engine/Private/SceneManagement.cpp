@@ -190,8 +190,7 @@ FMeshBatchAndRelevance::FMeshBatchAndRelevance(const FMeshBatch& InMesh, const F
 	Mesh(&InMesh),
 	PrimitiveSceneProxy(InPrimitiveSceneProxy)
 {
-	const FMaterial* Material = InMesh.MaterialRenderProxy->GetMaterial(FeatureLevel);
-	EBlendMode BlendMode = Material->GetBlendMode();
+	EBlendMode BlendMode = InMesh.MaterialRenderProxy->GetIncompleteMaterialWithFallback(FeatureLevel).GetBlendMode();
 	bHasOpaqueMaterial = (BlendMode == BLEND_Opaque);
 	bHasMaskedMaterial = (BlendMode == BLEND_Masked);
 	bRenderInMainPass = PrimitiveSceneProxy->ShouldRenderInMainPass();
@@ -748,6 +747,15 @@ FViewUniformShaderParameters::FViewUniformShaderParameters()
 	LightmapSceneData = GIdentityPrimitiveBuffer.LightmapSceneDataBufferSRV;
 
 	SkyIrradianceEnvironmentMap = GIdentityPrimitiveBuffer.SkyIrradianceEnvironmentMapSRV;
+
+	PhysicsFieldClipmapTexture = BlackVolume;
+	PhysicsFieldClipmapSampler = TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+
+	// [todo] Default to some other buffer
+	WaterData = GIdentityPrimitiveBuffer.PrimitiveSceneDataBufferSRV;
+
+	HairScatteringLUTTexture = BlackVolume;
+	HairScatteringLUTSampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
 
 	//this can be deleted once sm4 support is removed.
 	if (!PrimitiveSceneData)

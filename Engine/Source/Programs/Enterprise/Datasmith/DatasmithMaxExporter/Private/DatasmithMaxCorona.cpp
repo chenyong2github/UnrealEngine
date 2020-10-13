@@ -3,6 +3,7 @@
 #include "DatasmithMaxWriter.h"
 
 #include "DatasmithSceneFactory.h"
+#include "DatasmithMaxTexmapParser.h"
 #include "DatasmithMaxSceneParser.h"
 #include "DatasmithMaxSceneExporter.h"
 
@@ -37,89 +38,27 @@ float GetCoronaTexmapGamma(BitmapTex* InBitmapTex)
 
 FString FDatasmithMaxMatWriter::DumpBitmapCorona(TSharedPtr<IDatasmithCompositeTexture>& CompTex, BitmapTex* InBitmapTex, const TCHAR* Prefix, bool bForceInvert, bool bIsGrayscale)
 {
-	FString Path;
-	float TileU = 1.0f;
-	float TileV = 1.0f;
-	float OffsetU = 1.0f;
-	float offsetV = 1.0f;
-	float RotW = 0.f;
-	int UVCoordinate = 0;
-	int MirrorU = 0;
-	int MirrorV = 0;
-
-	int NumParamBlocks = InBitmapTex->NumParamBlocks();
-
-	for (int j = 0; j < NumParamBlocks; j++)
-	{
-		IParamBlock2* ParamBlock2 = InBitmapTex->GetParamBlockByID((short)j);
-		// The the descriptor to 'decode'
-		ParamBlockDesc2* ParamBlockDesc = ParamBlock2->GetDesc();
-		// Loop through all the defined parameters therein
-		for (int i = 0; i < ParamBlockDesc->count; i++)
-		{
-			const ParamDef& ParamDefinition = ParamBlockDesc->paramdefs[i];
-
-			if (FCString::Stricmp(ParamDefinition.int_name, TEXT("filename")) == 0)
-			{
-				Path = FDatasmithMaxSceneExporter::GetActualPath(ParamBlock2->GetStr(ParamDefinition.ID, GetCOREInterface()->GetTime()));
-			}
-			else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("uvwScale")) == 0)
-			{
-				Point3 Point = ParamBlock2->GetPoint3(ParamDefinition.ID, GetCOREInterface()->GetTime());
-				TileU = Point.x;
-				TileV = Point.y;
-			}
-			else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("uvwOffset")) == 0)
-			{
-				Point3 Point = ParamBlock2->GetPoint3(ParamDefinition.ID, GetCOREInterface()->GetTime());
-				OffsetU = Point.x;
-				offsetV = Point.y;
-			}
-			else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("uvwAngle")) == 0)
-			{
-				Point3 Point = ParamBlock2->GetPoint3(ParamDefinition.ID, GetCOREInterface()->GetTime());
-				RotW = Point.z;
-			}
-			else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("uvwChannel")) == 0)
-			{
-				UVCoordinate = ParamBlock2->GetInt(ParamDefinition.ID, GetCOREInterface()->GetTime()) - 1;
-			}
-			else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("tilingU")) == 0)
-			{
-				if (ParamBlock2->GetInt(ParamDefinition.ID, GetCOREInterface()->GetTime()) == 2)
-				{
-					MirrorU = 2;
-				}
-			}
-			else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("tilingV")) == 0)
-			{
-				if (ParamBlock2->GetInt(ParamDefinition.ID, GetCOREInterface()->GetTime()) == 2)
-				{
-					MirrorV = 2;
-				}
-			}
-		}
-		ParamBlock2->ReleaseDesc();
-	}
+	DatasmithMaxTexmapParser::FCoronaBitmapParameters CoronaBitmapParameters = DatasmithMaxTexmapParser::ParseCoronaBitmap( InBitmapTex );
 
 	float Gamma = GetCoronaTexmapGamma(InBitmapTex);
-	FString OrigBase = FPaths::GetBaseFilename(Path) + FString("_") + FString::SanitizeFloat(Gamma).Replace(TEXT("."), TEXT("_"));
+	FString OrigBase = FPaths::GetBaseFilename(CoronaBitmapParameters.Path) + FString("_") + FString::SanitizeFloat(Gamma).Replace(TEXT("."), TEXT("_"));
 	FString Base = OrigBase + TextureSuffix;
 
-	// tricky way since autodesk method was not the usual one
 	float IntegerPart;
-	float UOffset = (OffsetU * TileU);
-	UOffset += (-0.5f + 0.5f * TileU);
+	float UOffset = (CoronaBitmapParameters.OffsetU * CoronaBitmapParameters.TileU);
+	UOffset += (-0.5f + 0.5f * CoronaBitmapParameters.TileU);
 	UOffset = 1.0f - UOffset;
 	UOffset = FMath::Modf(UOffset, &IntegerPart);
 
-	float VOffset = (offsetV * TileV);
-	VOffset += (0.5f - 0.5f * TileV);
+	float VOffset = (CoronaBitmapParameters.OffsetV * CoronaBitmapParameters.TileV);
+	VOffset += (0.5f - 0.5f * CoronaBitmapParameters.TileV);
 	VOffset = FMath::Modf(VOffset, &IntegerPart);
 
 	float Multiplier = 1.0;
 	int Slot = 0;
-	FDatasmithTextureSampler TextureSampler(UVCoordinate, TileU, TileV, UOffset, VOffset, -(RotW) / (2 * PI), Multiplier, bForceInvert,Slot, false, MirrorU, MirrorV);
+	FDatasmithTextureSampler TextureSampler(CoronaBitmapParameters.UVCoordinate, CoronaBitmapParameters.TileU, CoronaBitmapParameters.TileV, 
+		UOffset, VOffset, -(CoronaBitmapParameters.RotW) / (2.f * PI), Multiplier, bForceInvert, Slot, false,
+		CoronaBitmapParameters.MirrorU, CoronaBitmapParameters.MirrorV);
 
 	CompTex->AddSurface(*OrigBase, TextureSampler);
 
@@ -765,100 +704,49 @@ FString FDatasmithMaxMatWriter::DumpCoronaColor(TSharedPtr<IDatasmithCompositeTe
 {
 	FString ActualPrefix = FString(Prefix) + FString(TEXT("comp"));
 
-	int NumParamBlocks = InTexmap->NumParamBlocks();
+	DatasmithMaxTexmapParser::FCoronaColorParameters ColorParameters = DatasmithMaxTexmapParser::ParseCoronaColor( InTexmap );
 
-	BMM_Color_fl RgbColor;
-	Point3 ColorHdr;
-	float Multiplier = 1.f;
-	float Temperature = 6500.f;
-	int Method = 0;
-	FString HexColor = TEXT("");
-	bool bInputIsLinear = false;
+	FLinearColor CoronaColor;
 
-	for (int j = 0; j < NumParamBlocks; j++)
-	{
-		IParamBlock2* ParamBlock2 = InTexmap->GetParamBlockByID((short)j);
-		// The the descriptor to 'decode'
-		ParamBlockDesc2* ParamBlockDesc = ParamBlock2->GetDesc();
-		// Loop through all the defined parameters therein
-		for (int i = 0; i < ParamBlockDesc->count; i++)
-		{
-			const ParamDef& ParamDefinition = ParamBlockDesc->paramdefs[i];
-
-			if (FCString::Stricmp(ParamDefinition.int_name, TEXT("color")) == 0)
-			{
-				RgbColor = (BMM_Color_fl)ParamBlock2->GetColor(ParamDefinition.ID, GetCOREInterface()->GetTime());
-			}
-			else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("ColorHdr")) == 0)
-			{
-				ColorHdr = ParamBlock2->GetPoint3(ParamDefinition.ID, GetCOREInterface()->GetTime());
-			}
-			else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("Multiplier")) == 0)
-			{
-				Multiplier = ParamBlock2->GetFloat(ParamDefinition.ID, GetCOREInterface()->GetTime());
-			}
-			else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("Temperature")) == 0)
-			{
-				Temperature = ParamBlock2->GetFloat(ParamDefinition.ID, GetCOREInterface()->GetTime());
-			}
-			else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("Method")) == 0)
-			{
-				Method = ParamBlock2->GetInt(ParamDefinition.ID, GetCOREInterface()->GetTime());
-			}
-			else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("bInputIsLinear")) == 0)
-			{
-				if (ParamBlock2->GetInt(ParamDefinition.ID, GetCOREInterface()->GetTime()) != 0)
-				{
-					bInputIsLinear = true;
-				}
-			}
-			else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("HexColor")) == 0)
-			{
-				HexColor = ParamBlock2->GetStr(ParamDefinition.ID, GetCOREInterface()->GetTime());
-			}
-		}
-		ParamBlock2->ReleaseDesc();
-	}
-
-	switch (Method)
+	switch ( ColorParameters.Method )
 	{
 	case 1:
-		RgbColor.r = ColorHdr.x;
-		RgbColor.g = ColorHdr.y;
-		RgbColor.b = ColorHdr.z;
+		CoronaColor.R = ColorParameters.ColorHdr.X;
+		CoronaColor.G = ColorParameters.ColorHdr.Y;
+		CoronaColor.B = ColorParameters.ColorHdr.Z;
 		break;
 	case 2:
-		RgbColor = FDatasmithMaxMatHelper::TemperatureToColor(Temperature);
-		bInputIsLinear = true;
+		CoronaColor = FDatasmithMaxMatHelper::MaxLinearColorToFLinearColor( FDatasmithMaxMatHelper::TemperatureToColor( ColorParameters.Temperature ) );
+		ColorParameters.bInputIsLinear = true;
 		break;
 	case 3:
-		if (HexColor.Len() == 7)
+		if ( ColorParameters.HexColor.Len() == 7 )
 		{
-			FString Red = TEXT("0x") + HexColor.Mid(1, 2);
-			FString Green = TEXT("0x") + HexColor.Mid(3, 2);
-			FString Blue = TEXT("0x") + HexColor.Mid(5, 2);
+			FString Red = TEXT("0x") + ColorParameters.HexColor.Mid(1, 2);
+			FString Green = TEXT("0x") + ColorParameters.HexColor.Mid(3, 2);
+			FString Blue = TEXT("0x") + ColorParameters.HexColor.Mid(5, 2);
 
-			RgbColor.r = FCString::Strtoi(*Red, nullptr, 16) / 255.0f;
-			RgbColor.g = FCString::Strtoi(*Green, nullptr, 16) / 255.0f;
-			RgbColor.b = FCString::Strtoi(*Blue, nullptr, 16) / 255.0f;
+			CoronaColor.R = FCString::Strtoi(*Red, nullptr, 16) / 255.0f;
+			CoronaColor.G = FCString::Strtoi(*Green, nullptr, 16) / 255.0f;
+			CoronaColor.B = FCString::Strtoi(*Blue, nullptr, 16) / 255.0f;
 			break;
 		}
 	default:
+		CoronaColor = ColorParameters.RgbColor;
 		break;
 	}
 
-	RgbColor.r *= Multiplier;
-	RgbColor.g *= Multiplier;
-	RgbColor.b *= Multiplier;
+	CoronaColor.R *= ColorParameters.Multiplier;
+	CoronaColor.G *= ColorParameters.Multiplier;
+	CoronaColor.B *= ColorParameters.Multiplier;
 
-	if (bInputIsLinear)
+	if ( !ColorParameters.bInputIsLinear )
 	{
-		RgbColor.r = FMath::Pow(RgbColor.r, 0.4545f);
-		RgbColor.g = FMath::Pow(RgbColor.g, 0.4545f);
-		RgbColor.b = FMath::Pow(RgbColor.b, 0.4545f);
+		const bool bConvertToSRGB = false; // CoronaColor is already in SRGB
+		CoronaColor = FLinearColor::FromSRGBColor( CoronaColor.ToFColor( bConvertToSRGB ) );
 	}
 
-	CompTex->AddSurface(FDatasmithMaxMatHelper::MaxColorToFLinearColor(RgbColor));
+	CompTex->AddSurface( CoronaColor );
 
 	return FString();
 }
@@ -1106,9 +994,8 @@ bool FDatasmithMaxMatWriter::GetCoronaFixNormal(Texmap* InTexmap)
 	for (int j = 0; j < NumParamBlocks; j++)
 	{
 		IParamBlock2* ParamBlock2 = InTexmap->GetParamBlockByID((short)j);
-		// The the descriptor to 'decode'
 		ParamBlockDesc2* ParamBlockDesc = ParamBlock2->GetDesc();
-		// Loop through all the defined parameters therein
+
 		for (int i = 0; i < ParamBlockDesc->count; i++)
 		{
 			const ParamDef& ParamDefinition = ParamBlockDesc->paramdefs[i];
@@ -1116,7 +1003,10 @@ bool FDatasmithMaxMatWriter::GetCoronaFixNormal(Texmap* InTexmap)
 			if (FCString::Stricmp(ParamDefinition.int_name, TEXT("addGamma")) == 0)
 			{
 				if (ParamBlock2->GetInt(ParamDefinition.ID, GetCOREInterface()->GetTime()) != 0)
+				{
 					bFixNormalGamma = true;
+				}
+
 				continue;
 			}
 		}

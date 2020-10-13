@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraModule.h"
+#include "Misc/LazySingleton.h"
 #include "Modules/ModuleManager.h"
 #include "NiagaraTypes.h"
 #include "NiagaraEvents.h"
@@ -57,6 +58,7 @@ FNiagaraVariable INiagaraModule::Engine_DeltaTime;
 FNiagaraVariable INiagaraModule::Engine_InvDeltaTime;
 FNiagaraVariable INiagaraModule::Engine_Time;
 FNiagaraVariable INiagaraModule::Engine_RealTime;
+FNiagaraVariable INiagaraModule::Engine_QualityLevel;
 
 FNiagaraVariable INiagaraModule::Engine_Owner_Position;
 FNiagaraVariable INiagaraModule::Engine_Owner_Velocity;
@@ -85,6 +87,7 @@ FNiagaraVariable INiagaraModule::Engine_Emitter_TotalSpawnedParticles;
 FNiagaraVariable INiagaraModule::Engine_Emitter_SpawnCountScale;
 FNiagaraVariable INiagaraModule::Engine_System_TickCount;
 FNiagaraVariable INiagaraModule::Engine_System_NumEmittersAlive;
+FNiagaraVariable INiagaraModule::Engine_System_SignificanceIndex;
 FNiagaraVariable INiagaraModule::Engine_System_NumEmitters;
 FNiagaraVariable INiagaraModule::Engine_NumSystemInstances;
 
@@ -169,6 +172,7 @@ void INiagaraModule::StartupModule()
 	
 	Engine_Time = FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Engine.Time"));
 	Engine_RealTime = FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Engine.RealTime"));
+	Engine_QualityLevel = FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Engine.QualityLevel"));
 
 	Engine_Owner_Position = FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Engine.Owner.Position"));
 	Engine_Owner_Velocity = FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Engine.Owner.Velocity"));
@@ -198,6 +202,7 @@ void INiagaraModule::StartupModule()
 	Engine_Emitter_InstanceSeed = FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Engine.Emitter.InstanceSeed"));
 	Engine_System_TickCount = FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Engine.System.TickCount"));
 	Engine_System_NumEmittersAlive = FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Engine.System.NumEmittersAlive"));
+	Engine_System_SignificanceIndex = FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Engine.System.SignificanceIndex"));
 	Engine_System_NumEmitters = FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Engine.System.NumEmitters"));
 	Engine_NumSystemInstances = FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Engine.NumSystemInstances"));
 
@@ -301,6 +306,8 @@ void INiagaraModule::ShutdownModule()
 	NiagaraShaderModule.ResetOnRequestDefaultDataInterfaceHandler();
 
 	ShutdownRenderingResources();
+
+	FNiagaraTypeRegistry::TearDown();
 }
 
 #if WITH_EDITOR
@@ -428,6 +435,7 @@ UScriptStruct* FNiagaraTypeDefinition::HalfVec4Struct;
 UClass* FNiagaraTypeDefinition::UObjectClass;
 UClass* FNiagaraTypeDefinition::UMaterialClass;
 UClass* FNiagaraTypeDefinition::UTextureClass;
+UClass* FNiagaraTypeDefinition::UTextureRenderTargetClass;
 
 UEnum* FNiagaraTypeDefinition::ExecutionStateEnum;
 UEnum* FNiagaraTypeDefinition::SimulationTargetEnum;
@@ -459,6 +467,7 @@ FNiagaraTypeDefinition FNiagaraTypeDefinition::HalfVec4Def;
 FNiagaraTypeDefinition FNiagaraTypeDefinition::UObjectDef;
 FNiagaraTypeDefinition FNiagaraTypeDefinition::UMaterialDef;
 FNiagaraTypeDefinition FNiagaraTypeDefinition::UTextureDef;
+FNiagaraTypeDefinition FNiagaraTypeDefinition::UTextureRenderTargetDef;
 
 TSet<UScriptStruct*> FNiagaraTypeDefinition::NumericStructs;
 TArray<FNiagaraTypeDefinition> FNiagaraTypeDefinition::OrderedNumericTypes;
@@ -470,16 +479,6 @@ TSet<UStruct*> FNiagaraTypeDefinition::IntStructs;
 TSet<UStruct*> FNiagaraTypeDefinition::BoolStructs;
 
 FNiagaraTypeDefinition FNiagaraTypeDefinition::CollisionEventDef;
-
-
-FNiagaraTypeRegistry::RegisteredTypesArray FNiagaraTypeRegistry::RegisteredTypes;
-TArray<FNiagaraTypeDefinition> FNiagaraTypeRegistry::RegisteredParamTypes;
-TArray<FNiagaraTypeDefinition> FNiagaraTypeRegistry::RegisteredPayloadTypes;
-TArray<FNiagaraTypeDefinition> FNiagaraTypeRegistry::RegisteredUserDefinedTypes;
-TArray<FNiagaraTypeDefinition> FNiagaraTypeRegistry::RegisteredNumericTypes;
-TMap<uint32, int32> FNiagaraTypeRegistry::RegisteredTypeIndexMap;
-FRWLock FNiagaraTypeRegistry::RegisteredTypesLock;
-
 
 bool FNiagaraTypeDefinition::IsDataInterface()const
 {
@@ -513,6 +512,7 @@ void FNiagaraTypeDefinition::Init()
 	FNiagaraTypeDefinition::UObjectClass = UObject::StaticClass();
 	FNiagaraTypeDefinition::UMaterialClass = UMaterialInterface::StaticClass();
 	FNiagaraTypeDefinition::UTextureClass = UTexture::StaticClass();
+	FNiagaraTypeDefinition::UTextureRenderTargetClass = UTextureRenderTarget::StaticClass();
 	
 	ParameterMapDef = FNiagaraTypeDefinition(ParameterMapStruct);
 	IDDef = FNiagaraTypeDefinition(IDStruct);
@@ -535,6 +535,7 @@ void FNiagaraTypeDefinition::Init()
 	UObjectDef = FNiagaraTypeDefinition(UObjectClass);
 	UMaterialDef = FNiagaraTypeDefinition(UMaterialClass);
 	UTextureDef = FNiagaraTypeDefinition(UTextureClass);
+	UTextureRenderTargetDef = FNiagaraTypeDefinition(UTextureRenderTargetClass);
 
 	CollisionEventDef = FNiagaraTypeDefinition(FNiagaraCollisionEventPayload::StaticStruct());
 	NumericStructs.Add(NumericStruct);
@@ -722,6 +723,7 @@ void FNiagaraTypeDefinition::RecreateUserDefinedTypeRegistry()
 	FNiagaraTypeRegistry::Register(UObjectDef, true, false, false);
 	FNiagaraTypeRegistry::Register(UMaterialDef, true, false, false);
 	FNiagaraTypeRegistry::Register(UTextureDef, true, false, false);
+	FNiagaraTypeRegistry::Register(UTextureRenderTargetDef, true, false, false);
 	FNiagaraTypeRegistry::Register(FNiagaraRandInfo::StaticStruct(), true, true, false);
 	FNiagaraTypeRegistry::Register(StaticEnum<ENiagaraLegacyTrailWidthMode>(), true, true, false);
 
@@ -961,7 +963,7 @@ void FNiagaraTypeDefinition::PostSerialize(const FArchive& Ar)
 UNiagaraDataInterfaceBase* FNiagaraTypeRegistry::GetDefaultDataInterfaceByName(const FString& DIClassName)
 {
 	UClass* DIClass = nullptr;
-	for (const FNiagaraTypeDefinition& Def : RegisteredTypes)
+	for (const FNiagaraTypeDefinition& Def : Get().RegisteredTypes)
 	{
 		if (Def.IsDataInterface())
 		{
@@ -993,6 +995,37 @@ UNiagaraDataInterfaceBase* FNiagaraTypeRegistry::GetDefaultDataInterfaceByName(c
 	return nullptr;
 }
 
+// this will hold onto references to the classes/enums/structs that are used as a part of type definitions.  In the case that something is forcibly deleted
+// the contents of the RegisteredTypes array will have it's ClassStructorEnum cleared, and it will no longer be treated as a valid type
+// (FNiagaraTypeDefinitionHandle::Resolve will return an invalid Dummy reference).
+// 
+// It might be worth investigating changing RegisteredTypeIndexMap to be hashed based on the name of the class/enum/struct rather than the pointer.  That
+// way if we reload a type old data, with their existing index, will still be treated as valid.  In this current implementation old FNiagaraVariables will
+// have invalid types.  But, for now I think it would be an error to unload a type without having the variables that dependend on it also getting deleted.
+void FNiagaraTypeRegistry::AddReferencedObjects(FReferenceCollector& Collector)
+{
+	for (FNiagaraTypeDefinition& RegisteredType : RegisteredTypes)
+	{
+		Collector.AddReferencedObject(RegisteredType.ClassStructOrEnum);
+	}
+}
+
+FString FNiagaraTypeRegistry::GetReferencerName() const
+{
+	return TEXT("FNiagaraTypeRegistry");
+}
+
+FNiagaraTypeRegistry& FNiagaraTypeRegistry::Get()
+{
+	return TLazySingleton<FNiagaraTypeRegistry>::Get();
+}
+
+void FNiagaraTypeRegistry::TearDown()
+{
+	TLazySingleton<FNiagaraTypeRegistry>::TearDown();
+}
+
+//////////////////////////////////////////////////////////////////////////
 
 FDelegateHandle INiagaraModule::SetOnProcessShaderCompilationQueue(FOnProcessQueue InOnProcessQueue)
 {
@@ -1019,7 +1052,12 @@ const FNiagaraTypeDefinition& FNiagaraTypeDefinitionHandle::Resolve() const
 
 	if (RegisteredTypes.IsValidIndex(RegisteredTypeIndex))
 	{
-		return RegisteredTypes[RegisteredTypeIndex];
+		// If the type is invalid, then it's likely that it has been invalidated by GC because the underlying object has
+		// been unloaded.
+		if (RegisteredTypes[RegisteredTypeIndex].IsValid())
+		{
+			return RegisteredTypes[RegisteredTypeIndex];
+		}
 	}
 
 	static FNiagaraTypeDefinition Dummy;
@@ -1107,12 +1145,20 @@ void FNiagaraVariable::PostSerialize(const FArchive& Ar)
 #if WITH_EDITOR
 const TArray<FNiagaraVariable>& FNiagaraGlobalParameters::GetVariables()
 {
+	static const FName NAME_NiagaraStructPadding0 = "Engine.PaddingInt32_0";
+	static const FName NAME_NiagaraStructPadding1 = "Engine.PaddingInt32_1";
+	static const FName NAME_NiagaraStructPadding2 = "Engine.PaddingInt32_2";
+
 	static const TArray<FNiagaraVariable> Variables =
 	{
 		SYS_PARAM_ENGINE_DELTA_TIME,
 		SYS_PARAM_ENGINE_INV_DELTA_TIME,
 		SYS_PARAM_ENGINE_TIME,
 		SYS_PARAM_ENGINE_REAL_TIME,
+		SYS_PARAM_ENGINE_QUALITY_LEVEL,
+		FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), NAME_NiagaraStructPadding0),
+		FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), NAME_NiagaraStructPadding1),
+		FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), NAME_NiagaraStructPadding2),
 	};
 
 	return Variables;
@@ -1120,6 +1166,10 @@ const TArray<FNiagaraVariable>& FNiagaraGlobalParameters::GetVariables()
 
 const TArray<FNiagaraVariable>& FNiagaraSystemParameters::GetVariables()
 {
+	static const FName NAME_NiagaraStructPadding0 = "Engine.System.PaddingInt32_0";
+	static const FName NAME_NiagaraStructPadding1 = "Engine.System.PaddingInt32_1";
+	static const FName NAME_NiagaraStructPadding2 = "Engine.System.PaddingInt32_2";
+
 	static const TArray<FNiagaraVariable> Variables =
 	{
 		SYS_PARAM_ENGINE_TIME_SINCE_RENDERED,
@@ -1130,6 +1180,10 @@ const TArray<FNiagaraVariable>& FNiagaraSystemParameters::GetVariables()
 		SYS_PARAM_ENGINE_SYSTEM_TICK_COUNT,
 		SYS_PARAM_ENGINE_SYSTEM_NUM_EMITTERS,
 		SYS_PARAM_ENGINE_SYSTEM_NUM_EMITTERS_ALIVE,
+		SYS_PARAM_ENGINE_SYSTEM_SIGNIFICANCE_INDEX,
+		FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), NAME_NiagaraStructPadding0),
+		FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), NAME_NiagaraStructPadding1),
+		FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), NAME_NiagaraStructPadding2),
 	};
 
 	return Variables;

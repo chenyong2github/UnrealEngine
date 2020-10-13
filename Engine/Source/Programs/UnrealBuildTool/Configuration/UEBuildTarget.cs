@@ -3449,7 +3449,6 @@ namespace UnrealBuildTool
 			GlobalLinkEnvironment.bSupportEditAndContinue = Rules.bSupportEditAndContinue;
 			GlobalLinkEnvironment.bCreateMapFile = Rules.bCreateMapFile;
 			GlobalLinkEnvironment.bHasExports = Rules.bHasExports;
-			GlobalLinkEnvironment.bAllowASLR = (GlobalCompileEnvironment.Configuration == CppConfiguration.Shipping && Rules.bAllowASLRInShipping);
 			GlobalLinkEnvironment.bUsePDBFiles = Rules.bUsePDBFiles;
 			GlobalLinkEnvironment.BundleDirectory = BuildPlatform.GetBundleDirectory(Rules, Binaries[0].OutputFilePaths);
 			GlobalLinkEnvironment.BundleVersion = Rules.BundleVersion;

@@ -6,6 +6,7 @@ using Rhino.Geometry;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Text;
 
 namespace DatasmithRhino
 {
@@ -44,6 +45,7 @@ namespace DatasmithRhino
 		public RhinoSceneHierarchyNode LinkedNode { get; private set; }
 		public FDatasmithFacadeActor DatasmithActor { get; private set; }
 		private List<RhinoSceneHierarchyNode> Children;
+		public HashSet<int> LayerIndices { get; private set; } = new HashSet<int>();
 
 		public RhinoSceneHierarchyNodeInfo Info { get; private set; }
 
@@ -77,12 +79,30 @@ namespace DatasmithRhino
 		{
 			LinkedNode = InLinkedNode;
 			InLinkedNode.bIsInstanceDefinition = true;
+			LayerIndices.UnionWith(InLinkedNode.LayerIndices);
 		}
 
 		public RhinoSceneHierarchyNode AddChild(RhinoSceneHierarchyNodeInfo InNodeInfo)
 		{
 			RhinoSceneHierarchyNode ChildNode = new RhinoSceneHierarchyNode(this, InNodeInfo);
+			ChildNode.LayerIndices.UnionWith(LayerIndices);
 			Children.Add(ChildNode);
+
+			return ChildNode;
+		}
+
+		public RhinoSceneHierarchyNode AddChild(RhinoSceneHierarchyNodeInfo InNodeInfo, int LayerIndex)
+		{
+			RhinoSceneHierarchyNode ChildNode = AddChild(InNodeInfo);
+			ChildNode.LayerIndices.Add(LayerIndex);
+
+			return ChildNode;
+		}
+
+		public RhinoSceneHierarchyNode AddChild(RhinoSceneHierarchyNodeInfo InNodeInfo, IEnumerable<int> LayerIndices)
+		{
+			RhinoSceneHierarchyNode ChildNode = AddChild(InNodeInfo);
+			ChildNode.LayerIndices.UnionWith(LayerIndices);
 
 			return ChildNode;
 		}
@@ -148,6 +168,29 @@ namespace DatasmithRhino
 		}
 	}
 
+	public class RhinoTextureInfo
+	{
+		public Texture RhinoTexture { get; private set; }
+		public string Name { get; private set; }
+		public string Label { get { return Name; } }
+		public string FilePath { get; private set; }
+
+		public RhinoTextureInfo(Texture InRhinoTexture, string InName, string InFilePath)
+		{
+			RhinoTexture = InRhinoTexture;
+			Name = InName;
+			FilePath = InFilePath;
+		}
+
+		public bool IsSupported()
+		{
+			return (RhinoTexture.Enabled 
+				&& (RhinoTexture.TextureType == TextureType.Bitmap 
+					|| RhinoTexture.TextureType == TextureType.Bump 
+					|| RhinoTexture.TextureType == TextureType.Transparency));
+		}
+	}
+
 	public class DatasmithMeshInfo
 	{
 		public List<Mesh> RhinoMeshes { get; private set; }
@@ -181,12 +224,17 @@ namespace DatasmithRhino
 		public Dictionary<InstanceDefinition, RhinoSceneHierarchyNode> InstanceDefinitionHierarchyNodeDictionary = new Dictionary<InstanceDefinition, RhinoSceneHierarchyNode>();
 		public Dictionary<Guid, RhinoSceneHierarchyNode> GuidToHierarchyNodeDictionary = new Dictionary<Guid, RhinoSceneHierarchyNode>();
 		public Dictionary<Guid, DatasmithMeshInfo> ObjectIdToMeshInfoDictionary = new Dictionary<Guid, DatasmithMeshInfo>();
-		public Dictionary<int, string> MaterialIndexToMaterialHashDictionary = new Dictionary<int, string>();
 		public Dictionary<string, RhinoMaterialInfo> MaterialHashToMaterialInfo = new Dictionary<string, RhinoMaterialInfo>();
+		public Dictionary<string, RhinoTextureInfo> TextureHashToTextureInfo = new Dictionary<string, RhinoTextureInfo>();
 
+		private Dictionary<int, string> MaterialIndexToMaterialHashDictionary = new Dictionary<int, string>();
+		private Dictionary<Guid, string> TextureIdToTextureHash = new Dictionary<Guid, string>();
+		private Dictionary<int, string> LayerIndexToLayerString = new Dictionary<int, string>();
+		private Dictionary<int, HashSet<int>> LayerIndexToLayerIndexHierarchy = new Dictionary<int, HashSet<int>>();
 		private List<string> GroupNameList = new List<string>();
 		private FUniqueNameGenerator ActorLabelGenerator = new FUniqueNameGenerator();
 		private FUniqueNameGenerator MaterialLabelGenerator = new FUniqueNameGenerator();
+		private FUniqueNameGenerator TextureLabelGenerator = new FUniqueNameGenerator();
 
 		public DatasmithRhinoSceneParser(RhinoDoc InDoc, Rhino.FileIO.FileWriteOptions InOptions)
 		{
@@ -217,6 +265,40 @@ namespace DatasmithRhino
 			return null;
 		}
 
+		public RhinoTextureInfo GetTextureInfoFromRhinoTexture(Guid TextureId)
+		{
+			if (TextureIdToTextureHash.TryGetValue(TextureId, out string TextureHash))
+			{
+				if (TextureHashToTextureInfo.TryGetValue(TextureHash, out RhinoTextureInfo TextureInfo))
+				{
+					return TextureInfo;
+				}
+			}
+
+			return null;
+		}
+
+		public string GetNodeLayerString(RhinoSceneHierarchyNode Node)
+		{
+			StringBuilder Buider = new StringBuilder();
+			foreach (int LayerIndex in Node.LayerIndices)
+			{
+				if (LayerIndexToLayerString.TryGetValue(LayerIndex, out string LayerString))
+				{
+					if (Buider.Length == 0)
+					{
+						Buider.Append(LayerString);
+					}
+					else
+					{
+						Buider.Append("," + LayerString);
+					}
+				}
+			}
+
+			return Buider.ToString();
+		}
+
 		private void ParseRhinoHierarchy()
 		{
 			foreach(var CurrentLayer in RhinoDocument.Layers)
@@ -231,7 +313,7 @@ namespace DatasmithRhino
 
 		private void RecursivelyParseLayerHierarchy(Layer CurrentLayer, RhinoSceneHierarchyNode ParentNode)
 		{
-			if(!CurrentLayer.IsVisible)
+			if(!CurrentLayer.IsVisible || CurrentLayer.IsDeleted)
 			{
 				return;
 			}
@@ -239,8 +321,9 @@ namespace DatasmithRhino
 			int MaterialIndex = CurrentLayer.RenderMaterialIndex;
 			Transform ParentTransform = ParentNode.bIsRoot ? ExportOptions.Xform : ParentNode.Info.WorldTransform;
 			RhinoSceneHierarchyNodeInfo NodeInfo = GenerateNodeInfo(CurrentLayer, ParentNode.bIsInstanceDefinition, MaterialIndex, ParentTransform);
-			RhinoSceneHierarchyNode CurrentNode = ParentNode.AddChild(NodeInfo);
+			RhinoSceneHierarchyNode CurrentNode = ParentNode.AddChild(NodeInfo, CurrentLayer.Index);
 			GuidToHierarchyNodeDictionary.Add(CurrentLayer.Id, CurrentNode);
+			LayerIndexToLayerString.Add(CurrentLayer.Index, BuildLayerString(CurrentLayer, ParentNode));
 			AddMaterialIndexMapping(CurrentLayer.RenderMaterialIndex);
 
 			RhinoObject[] ObjectsInLayer = RhinoDocument.Objects.FindByLayer(CurrentLayer);
@@ -262,32 +345,82 @@ namespace DatasmithRhino
 			}
 		}
 
+		private string BuildLayerString(Layer CurrentLayer, RhinoSceneHierarchyNode ParentNode)
+		{
+			string CurrentLayerName = FUniqueNameGenerator.GetTargetName(CurrentLayer).Replace(',', '_');
+
+			if (!ParentNode.bIsRoot && ParentNode.Info.bHasRhinoLayer)
+			{
+				Layer ParentLayer = ParentNode.Info.RhinoModelComponent as Layer;
+
+				if (LayerIndexToLayerString.TryGetValue(ParentLayer.Index, out string ParentLayerString))
+				{
+					return string.Format("{0}_{1}", ParentLayerString, CurrentLayerName);
+				}
+			}
+
+			return CurrentLayerName;
+		}
+
 		private void RecursivelyParseObjectInstance(RhinoObject[] InObjects, RhinoSceneHierarchyNode ParentNode)
 		{
 			foreach (RhinoObject CurrentObject in InObjects)
 			{
-				if (!ParentNode.bIsInstanceDefinition
-					&& ExportOptions.WriteSelectedObjectsOnly
-					&& CurrentObject.IsSelected(/*checkSubObjects=*/true) == 0)
+				if (CurrentObject == null
+					|| IsObjectIgnoredBySelection(CurrentObject, ParentNode)
+					|| IsUnsupportedObject(CurrentObject))
 				{
-					// The object is not selected, skip it.
+					// Skip the object.
 					continue;
+				}
+
+				RhinoSceneHierarchyNode DefinitionRootNode = null;
+				if (CurrentObject.ObjectType == ObjectType.InstanceReference)
+				{
+					InstanceObject CurrentInstance = CurrentObject as InstanceObject;
+					DefinitionRootNode = GetOrCreateDefinitionRootNode(CurrentInstance.InstanceDefinition);
+
+					if (DefinitionRootNode.GetChildrenCount() == 0)
+					{
+						// Don't instantiate empty definitions.
+						continue;
+					}
 				}
 
 				int MaterialIndex = GetObjectMaterialIndex(CurrentObject, ParentNode.Info);
 				RhinoSceneHierarchyNodeInfo ObjectNodeInfo = GenerateNodeInfo(CurrentObject, ParentNode.bIsInstanceDefinition, MaterialIndex, ParentNode.Info.WorldTransform);
-				RhinoSceneHierarchyNode ObjectNode = ParentNode.AddChild(ObjectNodeInfo);
-				GuidToHierarchyNodeDictionary.Add(CurrentObject.Id, ObjectNode);
-				AddObjectMaterialReference(CurrentObject);
-
-				if(CurrentObject.ObjectType == ObjectType.InstanceReference)
+				RhinoSceneHierarchyNode ObjectNode;
+				if (ParentNode.bIsRoot && ParentNode.bIsInstanceDefinition)
 				{
-					InstanceObject CurrentInstance = CurrentObject as InstanceObject;
-					RhinoSceneHierarchyNode DefinitionRootNode = GetOrCreateDefinitionRootNode(CurrentInstance.InstanceDefinition);
+					// The objects inside a Block definitions may be defined in a different layer than the one we are currently in.
+					ObjectNode = ParentNode.AddChild(ObjectNodeInfo, GetOrCreateLayerIndexHierarchy(CurrentObject.Attributes.LayerIndex));
+				}
+				else
+				{
+					ObjectNode = ParentNode.AddChild(ObjectNodeInfo);
+				}
+				GuidToHierarchyNodeDictionary.Add(CurrentObject.Id, ObjectNode);
+				AddObjectMaterialReference(CurrentObject, MaterialIndex);
 
+				if (DefinitionRootNode != null)
+				{
 					InstanciateDefinition(ObjectNode, DefinitionRootNode);
 				}
 			}
+		}
+
+		private bool IsObjectIgnoredBySelection(RhinoObject InObject, RhinoSceneHierarchyNode ParentNode)
+		{
+			return !ParentNode.bIsInstanceDefinition
+					&& ExportOptions.WriteSelectedObjectsOnly
+					&& InObject.IsSelected(/*checkSubObjects=*/true) == 0;
+		}
+
+		private static bool IsUnsupportedObject(RhinoObject InObject)
+		{
+			// Geometry objects without meshes are currently not supported.
+			return InObject.ComponentType == ModelComponentType.ModelGeometry 
+				&& !InObject.IsMeshable(MeshType.Render);
 		}
 
 		private void InstanciateDefinition(RhinoSceneHierarchyNode ParentNode, RhinoSceneHierarchyNode DefinitionNode)
@@ -400,9 +533,9 @@ namespace DatasmithRhino
 			}
 		}
 
-		private void AddObjectMaterialReference(RhinoObject InObject)
+		private void AddObjectMaterialReference(RhinoObject InObject, int  MaterialIndex)
 		{
-			if(InObject.ObjectType == ObjectType.Brep)
+			if (InObject.ObjectType == ObjectType.Brep)
 			{
 				BrepObject InBrepObject = InObject as BrepObject;
 				if(InBrepObject.HasSubobjectMaterials)
@@ -410,13 +543,13 @@ namespace DatasmithRhino
 					RhinoObject[] SubObjects = InBrepObject.GetSubObjects();
 					foreach (ComponentIndex CurrentIndex in InBrepObject.SubobjectMaterialComponents)
 					{
-						int MaterialIndex = SubObjects[CurrentIndex.Index].Attributes.MaterialIndex;
-						AddMaterialIndexMapping(MaterialIndex);
+						int SubObjectMaterialIndex = SubObjects[CurrentIndex.Index].Attributes.MaterialIndex;
+						AddMaterialIndexMapping(SubObjectMaterialIndex);
 					}
 				}
 			}
 
-			AddMaterialIndexMapping(InObject.Attributes.MaterialIndex);
+			AddMaterialIndexMapping(MaterialIndex);
 		}
 
 		private void AddMaterialIndexMapping(int MaterialIndex)
@@ -442,6 +575,34 @@ namespace DatasmithRhino
 				string MaterialName = FDatasmithFacadeElement.GetStringHash(MaterialLabel);
 
 				MaterialHashToMaterialInfo.Add(MaterialHash, new RhinoMaterialInfo(RhinoMaterial, MaterialName, MaterialLabel));
+
+				Texture[] MaterialTextures = RhinoMaterial.GetTextures();
+				for (int TextureIndex = 0; TextureIndex < MaterialTextures.Length; ++TextureIndex)
+				{
+					Texture RhinoTexture = MaterialTextures[TextureIndex];
+					if(RhinoTexture != null)
+					{
+						string TextureHash = FDatasmithRhinoUtilities.GetTextureHash(RhinoTexture);
+						AddTextureHashMapping(TextureHash, RhinoTexture);
+					}
+				}
+			}
+		}
+
+		private void AddTextureHashMapping(string TextureHash, Texture RhinoTexture)
+		{
+			if (!TextureIdToTextureHash.ContainsKey(RhinoTexture.Id))
+			{
+				TextureIdToTextureHash.Add(RhinoTexture.Id, TextureHash);
+
+				if (!TextureHashToTextureInfo.ContainsKey(TextureHash))
+				{
+					string TextureName, TexturePath;
+					FDatasmithRhinoUtilities.GetRhinoTextureNameAndPath(RhinoTexture, out TextureName, out TexturePath);
+					TextureName = TextureLabelGenerator.GenerateUniqueNameFromBaseName(TextureName);
+
+					TextureHashToTextureInfo.Add(TextureHash, new RhinoTextureInfo(RhinoTexture, TextureName, TexturePath));
+				}
 			}
 		}
 
@@ -484,6 +645,33 @@ namespace DatasmithRhino
 
 				GroupNameList.Insert(GroupIndex, GroupName);
 			}
+		}
+
+		private HashSet<int> GetOrCreateLayerIndexHierarchy(int ChildLayerIndex)
+		{
+			HashSet<int> LayerIndexHierarchy; 
+			if (!LayerIndexToLayerIndexHierarchy.TryGetValue(ChildLayerIndex, out LayerIndexHierarchy))
+			{
+				LayerIndexHierarchy = new HashSet<int>();
+				Layer CurrentLayer = RhinoDocument.Layers.FindIndex(ChildLayerIndex);
+
+				if (CurrentLayer != null)
+				{
+					LayerIndexHierarchy.Add(CurrentLayer.Index);
+
+					//Add all parent layers to the hierarchy set
+					while (CurrentLayer.ParentLayerId != Guid.Empty)
+					{
+						CurrentLayer = RhinoDocument.Layers.FindId(CurrentLayer.ParentLayerId);
+						LayerIndexHierarchy.Add(CurrentLayer.Index);
+					}
+				}
+
+				//The above search is costly, to avoid doing it for every exported object, cache the result.
+				LayerIndexToLayerIndexHierarchy.Add(ChildLayerIndex, LayerIndexHierarchy);
+			}
+
+			return LayerIndexHierarchy;
 		}
 
 		private void ParseRhinoMeshes()
@@ -535,6 +723,7 @@ namespace DatasmithRhino
 			Settings.HiddenObjects = false;
 			//First get all non-instance directly in the scene
 			Settings.ObjectTypeFilter = ObjectType.AnyObject ^ (ObjectType.InstanceDefinition | ObjectType.InstanceReference);
+			Settings.ReferenceObjects = true;
 
 			//Calling GetObjectList instead of directly iterating through RhinoDocument.Objects as it seems that the ObjectTable may sometimes contain uninitialized RhinoObjects.
 			HashSet<RhinoObject> ExportedObjects = new HashSet<RhinoObject>(RhinoDocument.Objects.GetObjectList(Settings));

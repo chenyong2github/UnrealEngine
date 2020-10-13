@@ -118,11 +118,6 @@ namespace DatasmithRevitExporter
 			// Revit uses foot as internal system unit for all 3D coordinates.
 			FDatasmithFacadeElement.SetWorldUnitScale(CENTIMETERS_PER_FOOT);
 
-			if (DirectLink != null)
-			{
-				DirectLink.SyncRevitDocument();
-			}
-
 			// We are ready to proceed with the export.
 			return true;
 		}
@@ -157,7 +152,7 @@ namespace DatasmithRevitExporter
 			// Create an empty Datasmith scene.
 			if (DirectLink != null)
 			{
-				DirectLink.OnBeginExport(RevitDocument);
+				DirectLink.OnBeginExport();
 				DatasmithScene = DirectLink.DatasmithScene;
 			}
 			else
@@ -586,15 +581,14 @@ namespace DatasmithRevitExporter
 		)
 		{
 			// Check if we have cache for this document.
-			FDocumentData DocumentData = new FDocumentData(InDocument, DatasmithScene, ref MessageList, DirectLink?.GetOrAddCache(InDocument) ?? null);
-
-			if (DirectLink != null)
-			{
-				// With DirectLink, we delay export of metadata for a faster initial export.
-				DocumentData.bSkipMetadataExport = true;
-			}
+			FDocumentData DocumentData = new FDocumentData(InDocument, ref MessageList, DirectLink);
 
 			DocumentDataStack.Push(DocumentData);
+
+			if (DocumentDataStack.Count > 1 && DirectLink != null)
+			{
+				DirectLink.OnBeginLinkedDocument(InDocument);
+			}
 
 			if (bInAddLocationActors)
 			{
@@ -610,11 +604,12 @@ namespace DatasmithRevitExporter
 
 			if (DocumentDataStack.Count == 0)
 			{
-				DocumentData.WrapupScene(DatasmithScene, DirectLink == null, UniqueTextureNameSet);
+				DocumentData.WrapupScene(DatasmithScene, UniqueTextureNameSet);
 			}
 			else
 			{
 				DocumentData.WrapupLink(DatasmithScene, DocumentDataStack.Peek().GetCurrentActor(), UniqueTextureNameSet);
+				DirectLink?.OnEndLinkedDocument();
 			}
 		}
 
@@ -725,11 +720,6 @@ namespace DatasmithRevitExporter
 			CameraInfo InViewCamera
 		)
 		{
-			if (DirectLink != null && DirectLink.IsActorCached(InView3D.Id))
-			{
-				return;
-			}
-
 			// Create a new Datasmith camera actor.
 			// Hash the Datasmith camera actor name to shorten it.
 			string HashedName = FDatasmithFacadeElement.GetStringHash(InView3D.UniqueId);
@@ -786,10 +776,8 @@ namespace DatasmithRevitExporter
 			// Add the camera actor to the Datasmith scene.
 			DatasmithScene.AddActor(CameraActor);
 
-			if (DirectLink != null)
-			{
-				DirectLink.CacheActor(RevitDocument, InView3D.Id, new FDocumentData.FBaseElementData(CameraActor, null, DocumentDataStack.Peek()));
-			}
+			DirectLink?.MarkForExport(InView3D);
+			DirectLink?.CacheElement(RevitDocument, InView3D, new FDocumentData.FBaseElementData(CameraActor, null, DocumentDataStack.Peek()));
 		}
 	}
 }

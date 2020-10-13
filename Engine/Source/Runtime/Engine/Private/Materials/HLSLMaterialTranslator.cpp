@@ -952,15 +952,6 @@ bool FHLSLMaterialTranslator::Translate()
 			Errorf(TEXT("Material using the DeferredDecal domain need to use the BlendModel Translucent (this saves performance)"));
 		}
 
-		if (Domain == MD_RuntimeVirtualTexture)
-		{
-			// Add connected material output nodes to the runtime virtual texture output mask.
-			MaterialCompilationOutput.RuntimeVirtualTextureOutputAttributeMask |= Material->HasBaseColorConnected() ? (1 << (uint8)ERuntimeVirtualTextureAttributeType::BaseColor) : 0;
-			MaterialCompilationOutput.RuntimeVirtualTextureOutputAttributeMask |= Material->HasNormalConnected() ? (1 << (uint8)ERuntimeVirtualTextureAttributeType::Normal) : 0;
-			MaterialCompilationOutput.RuntimeVirtualTextureOutputAttributeMask |= Material->HasRoughnessConnected() ? (1 << (uint8)ERuntimeVirtualTextureAttributeType::Roughness) : 0;
-			MaterialCompilationOutput.RuntimeVirtualTextureOutputAttributeMask |= Material->HasSpecularConnected() ? (1 << (uint8)ERuntimeVirtualTextureAttributeType::Specular) : 0;
-		}
-
 		if (MaterialCompilationOutput.bNeedsSceneTextures)
 		{
 			if (Domain != MD_DeferredDecal && Domain != MD_PostProcess)
@@ -1240,7 +1231,7 @@ void FHLSLMaterialTranslator::GetMaterialEnvironment(EShaderPlatform InPlatform,
 	OutEnvironment.SetDefine(TEXT("MATERIAL_IS_SKY"), Material->IsSky());
 	OutEnvironment.SetDefine(TEXT("MATERIAL_COMPUTE_FOG_PER_PIXEL"), Material->ComputeFogPerPixel());
 	OutEnvironment.SetDefine(TEXT("MATERIAL_FULLY_ROUGH"), bIsFullyRough || Material->IsFullyRough());
-	OutEnvironment.SetDefine(TEXT("MATERIAL_USES_ANISOTROPY"), bUsesAnisotropy);
+	OutEnvironment.SetDefine(TEXT("MATERIAL_USES_ANISOTROPY"), bUsesAnisotropy && FDataDrivenShaderPlatformInfo::GetSupportsAnisotropicMaterials(Platform));
 
 	// Count the number of VTStacks (each stack will allocate a feedback slot)
 	OutEnvironment.SetDefine(TEXT("NUM_VIRTUALTEXTURE_SAMPLES"), VTStacks.Num());
@@ -3072,6 +3063,7 @@ int32 FHLSLMaterialTranslator::ViewProperty(EMaterialExposedViewProperty Propert
 		{MEVP_RuntimeVirtualTextureOutputLevel, MCT_Float1, TEXT("View.RuntimeVirtualTextureMipLevel.x"), nullptr},
 		{MEVP_RuntimeVirtualTextureOutputDerivative, MCT_Float2, TEXT("View.RuntimeVirtualTextureMipLevel.zw"), nullptr},
 		{MEVP_PreExposure, MCT_Float1, TEXT("View.PreExposure.x"), TEXT("View.OneOverPreExposure.x")},
+		{MEVP_RuntimeVirtualTextureMaxLevel, MCT_Float1, TEXT("View.RuntimeVirtualTextureMipLevel.y"), nullptr},
 	};
 	static_assert((sizeof(ViewPropertyMetaArray) / sizeof(ViewPropertyMetaArray[0])) == MEVP_MAX, "incoherency between EMaterialExposedViewProperty and ViewPropertyMetaArray");
 
@@ -4491,12 +4483,12 @@ int32 FHLSLMaterialTranslator::TextureSample(
 	}
 
 	const FString UVs = CoerceParameter(CoordinateIndex, UVsType);
-	const bool bStoreTexCoordScales = ShaderFrequency == SF_Pixel && TextureReferenceIndex != INDEX_NONE && Material && Material->GetShaderMapUsage() == EMaterialShaderMapUsage::DebugViewMode;
-	const bool bStoreAvailableVTLevel = ShaderFrequency == SF_Pixel && TextureReferenceIndex != INDEX_NONE && Material && Material->GetShaderMapUsage() == EMaterialShaderMapUsage::DebugViewMode;
+	const bool bStoreTexCoordScales = ShaderFrequency == SF_Pixel && TextureReferenceIndex != INDEX_NONE;
+	const bool bStoreAvailableVTLevel = ShaderFrequency == SF_Pixel && TextureReferenceIndex != INDEX_NONE;
 
 	if (bStoreTexCoordScales)
 	{
-		AddCodeChunk(MCT_Float, TEXT("StoreTexCoordScale(Parameters.TexCoordScalesParams, %s, %d)"), *UVs, (int)TextureReferenceIndex);
+		AddCodeChunk(MCT_Float, TEXT("MaterialStoreTexCoordScale(Parameters, %s, %d)"), *UVs, (int)TextureReferenceIndex);
 	}
 
 	int32 VTStackIndex = INDEX_NONE;
@@ -4622,7 +4614,7 @@ int32 FHLSLMaterialTranslator::TextureSample(
 	if (bStoreTexCoordScales)
 	{
 		FString SamplingCode = CoerceParameter(SamplingCodeIndex, MCT_Float4);
-		AddCodeChunk(MCT_Float, TEXT("StoreTexSample(Parameters.TexCoordScalesParams, %s, %d)"), *SamplingCode, (int)TextureReferenceIndex);
+		AddCodeChunk(MCT_Float, TEXT("MaterialStoreTexSample(Parameters, %s, %d)"), *SamplingCode, (int)TextureReferenceIndex);
 	}
 
 	return SamplingCodeIndex;
@@ -6491,6 +6483,18 @@ int32 FHLSLMaterialTranslator::ShadowReplace(int32 Default, int32 Shadow)
 	return AddCodeChunk(ResultType, TEXT("(GetShadowReplaceState() ? (%s) : (%s))"), *GetParameterCode(Shadow), *GetParameterCode(Default));
 }
 
+
+int32 FHLSLMaterialTranslator::ReflectionCapturePassSwitch(int32 Default, int32 Reflection)
+{
+	if (Default == INDEX_NONE || Reflection == INDEX_NONE)
+	{
+		return INDEX_NONE;
+	}
+
+	EMaterialValueType ResultType = GetArithmeticResultType(Default, Reflection);
+	return AddCodeChunk(ResultType, TEXT("(GetReflectionCapturePassSwitchState() ? (%s) : (%s))"), *GetParameterCode(Reflection), *GetParameterCode(Default));
+}
+
 int32 FHLSLMaterialTranslator::RayTracingQualitySwitchReplace(int32 Normal, int32 RayTraced)
 {
 	if (Normal == INDEX_NONE || RayTraced == INDEX_NONE)
@@ -6790,9 +6794,9 @@ int32 FHLSLMaterialTranslator::GetHairSeed()
 	return AddCodeChunk(MCT_Float1, TEXT("MaterialExpressionGetHairSeed(Parameters)"));
 }
 
-int32 FHLSLMaterialTranslator::GetHairTangent()
+int32 FHLSLMaterialTranslator::GetHairTangent(bool bUseTangentSpace)
 {
-	return AddCodeChunk(MCT_Float3, TEXT("MaterialExpressionGetHairTangent(Parameters)"));
+	return AddCodeChunk(MCT_Float3, TEXT("MaterialExpressionGetHairTangent(Parameters, %s)"), bUseTangentSpace ? TEXT("true") : TEXT("false"));
 }
 
 int32 FHLSLMaterialTranslator::GetHairRootUV()
@@ -6878,6 +6882,43 @@ int32 FHLSLMaterialTranslator::DistanceFieldGradient(int32 PositionArg)
 	return AddCodeChunk(MCT_Float3, TEXT("GetDistanceFieldGradientGlobal(%s)"), *GetParameterCode(PositionArg));
 }
 
+int32 FHLSLMaterialTranslator::SamplePhysicsField(int32 PositionArg, const int32 OutputType, const int32 TargetIndex)
+{
+	if (ErrorUnlessFeatureLevelSupported(ERHIFeatureLevel::SM5) == INDEX_NONE)
+	{
+		return INDEX_NONE;
+	}
+
+	if (PositionArg == INDEX_NONE)
+	{
+		return INDEX_NONE;
+	}
+
+	if (TargetIndex != INDEX_NONE)
+	{
+		if (OutputType == EFieldOutputType::Field_Output_Vector)
+		{
+			return AddCodeChunk(MCT_Float3, TEXT("MatPhysicsField_SamplePhysicsVectorField(%s,%d)"), *GetParameterCode(PositionArg), static_cast<uint8>(TargetIndex));
+		}
+		else if (OutputType == EFieldOutputType::Field_Output_Scalar)
+		{
+			return AddCodeChunk(MCT_Float, TEXT("MatPhysicsField_SamplePhysicsScalarField(%s,%d)"), *GetParameterCode(PositionArg), static_cast<uint8>(TargetIndex));
+		}
+		else if (OutputType == EFieldOutputType::Field_Output_Integer)
+		{
+			return AddCodeChunk(MCT_Float, TEXT("MatPhysicsField_SamplePhysicsIntegerField(%s,%d)"), *GetParameterCode(PositionArg), static_cast<uint8>(TargetIndex));
+		}
+		else
+		{
+			return INDEX_NONE;
+		}
+	}
+	else
+	{
+		return INDEX_NONE;
+	}
+}
+
 int32 FHLSLMaterialTranslator::AtmosphericFogColor( int32 WorldPosition )
 {
 	if (ErrorUnlessFeatureLevelSupported(ERHIFeatureLevel::SM5) == INDEX_NONE)
@@ -6946,6 +6987,49 @@ int32 FHLSLMaterialTranslator::SkyAtmosphereDistantLightScatteredLuminance()
 {
 	bUsesSkyAtmosphere = true;
 	return AddCodeChunk(MCT_Float3, TEXT("MaterialExpressionSkyAtmosphereDistantLightScatteredLuminance(Parameters)"));
+}
+
+int32 FHLSLMaterialTranslator::SceneDepthWithoutWater(int32 Offset, int32 ViewportUV, bool bUseOffset, float FallbackDepth)
+{
+	if (ShaderFrequency == SF_Vertex && FeatureLevel <= ERHIFeatureLevel::ES3_1)
+	{
+		// mobile currently does not support this, we need to read a separate copy of the depth, we must disable framebuffer fetch and force scene texture reads.
+		return Errorf(TEXT("Cannot read scene depth from the vertex shader with feature level ES3.1 or below."));
+	}
+
+	if (!Material->GetShadingModels().HasShadingModel(MSM_SingleLayerWater))
+	{
+		return Errorf(TEXT("Can only read scene depth below water when material Shading Model is Single Layer Water."));
+	}
+	
+	if (Material->GetMaterialDomain() != MD_Surface)
+	{
+		return Errorf(TEXT("Can only read scene depth below water when material Domain is set to Surface."));
+	}
+
+	if (IsTranslucentBlendMode(Material->GetBlendMode()))
+	{
+		return Errorf(TEXT("Can only read scene depth below water when material Blend Mode isn't translucent."));
+	}
+
+	if (Offset == INDEX_NONE && bUseOffset)
+	{
+		return INDEX_NONE;
+	}
+
+	AddEstimatedTextureSample();
+
+	const FString UserDepthCode(TEXT("MaterialExpressionSceneDepthWithoutWater(%s, %s)"));
+	const FString FallbackString(FString::SanitizeFloat(FallbackDepth));
+	const int32 TexCoordCode = GetScreenAlignedUV(Offset, ViewportUV, bUseOffset);
+
+	// add the code string
+	return AddCodeChunk(
+		MCT_Float,
+		*UserDepthCode,
+		*GetParameterCode(TexCoordCode),
+		*FallbackString
+	);
 }
 
 int32 FHLSLMaterialTranslator::GetCloudSampleAltitude()
@@ -7386,17 +7470,8 @@ int32 FHLSLMaterialTranslator::CustomOutput(class UMaterialExpressionCustomOutpu
 
 int32 FHLSLMaterialTranslator::VirtualTextureOutput(uint8 AttributeMask)
 {
-	if (Material->GetMaterialDomain() == MD_RuntimeVirtualTexture)
-	{
-		// RuntimeVirtualTextureOutput would priority over the output material attributes here
-		// But that could be considered confusing for the user so we error instead
-		Errorf(TEXT("RuntimeVirtualTextureOutput nodes are not used when the Material Domain is set to 'Virtual Texture'"));
-	}
-	else
-	{
-		MaterialCompilationOutput.bHasRuntimeVirtualTextureOutputNode |= AttributeMask != 0;
-		MaterialCompilationOutput.RuntimeVirtualTextureOutputAttributeMask |= AttributeMask;
-	}
+	MaterialCompilationOutput.bHasRuntimeVirtualTextureOutputNode |= AttributeMask != 0;
+	MaterialCompilationOutput.RuntimeVirtualTextureOutputAttributeMask |= AttributeMask;
 
 	// return value is not used
 	return INDEX_NONE;

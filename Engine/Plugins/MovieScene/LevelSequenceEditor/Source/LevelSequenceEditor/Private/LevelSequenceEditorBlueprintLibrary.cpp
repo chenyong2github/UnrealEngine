@@ -229,13 +229,21 @@ void ULevelSequenceEditorBlueprintLibrary::SetSequencer(TSharedRef<ISequencer> I
 {
 	CurrentSequencer = TWeakPtr<ISequencer>(InSequencer);
 }
+
+void ULevelSequenceEditorBlueprintLibrary::RefreshCurrentLevelSequence()
+{
+	if (CurrentSequencer.IsValid())
+	{
+		CurrentSequencer.Pin()->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::Unknown);
+	}
+}
 	
 TArray<UObject*> ULevelSequenceEditorBlueprintLibrary::GetBoundObjects(FMovieSceneObjectBindingID ObjectBinding)
 {
 	TArray<UObject*> BoundObjects;
 	if (CurrentSequencer.IsValid())
 	{
-		for (TWeakObjectPtr<> WeakObject : CurrentSequencer.Pin()->FindBoundObjects(ObjectBinding.GetGuid(), CurrentSequencer.Pin()->GetFocusedTemplateID()))
+		for (TWeakObjectPtr<> WeakObject : CurrentSequencer.Pin()->FindBoundObjects(ObjectBinding.GetGuid(), ObjectBinding.GetSequenceID()))
 		{
 			if (WeakObject.IsValid())
 			{

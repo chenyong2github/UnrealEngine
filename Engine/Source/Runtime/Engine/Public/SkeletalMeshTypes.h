@@ -152,29 +152,13 @@ struct FMeshToMeshVertData
 	// skinning, anything else uses the source mesh and the above skin data to get the final position
 	uint16	 SourceMeshVertIndices[4];
 
-	// Dummy for alignment (16 bytes)
-	uint32	 Padding[2];
+	// For weighted averaging of multiple triangle influences
+	float	 Weight = 0.0f;
 
-	/**
-	 * Serializer
-	 *
-	 * @param Ar - archive to serialize with
-	 * @param V - vertex to serialize
-	 * @return archive that was used
-	 */
-	friend FArchive& operator<<(FArchive& Ar, FMeshToMeshVertData& V)
-	{
-		Ar	<< V.PositionBaryCoordsAndDist 
-			<< V.NormalBaryCoordsAndDist
-			<< V.TangentBaryCoordsAndDist
-			<< V.SourceMeshVertIndices[0]
-			<< V.SourceMeshVertIndices[1]
-			<< V.SourceMeshVertIndices[2]
-			<< V.SourceMeshVertIndices[3]
-			<< V.Padding[0]
-			<< V.Padding[1];
-		return Ar;
-	}
+	// Dummy for alignment
+	uint32	 Padding;
+
+	friend ENGINE_API FArchive& operator<<(FArchive& Ar, FMeshToMeshVertData& V);
 };
 
 struct FClothingSectionData

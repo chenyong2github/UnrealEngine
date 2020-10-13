@@ -3,6 +3,7 @@
 #include "Commandlets/SavePackageUtilitiesCommandlet.h"
 
 #include "Editor.h"
+#include "HAL/IConsoleManager.h"
 #include "HAL/FileManager.h"
 #include "HAL/IConsoleManager.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"

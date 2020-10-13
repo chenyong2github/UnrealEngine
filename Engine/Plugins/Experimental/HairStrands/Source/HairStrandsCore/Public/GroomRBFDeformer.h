@@ -9,5 +9,5 @@ class UGroomAsset;
 struct HAIRSTRANDSCORE_API FGroomRBFDeformer
 {
 	// Return a new GroomAsset with the RBF deformation from the BindingAsset baked into it
-	static UGroomAsset* GetRBFDeformedGroomAsset(const UGroomAsset* GroomAsset, const class UGroomBindingAsset* BindingAsset, const FVector& DeformationOffset);
+	static void GetRBFDeformedGroomAsset(const UGroomAsset* GroomAsset, const class UGroomBindingAsset* BindingAsset, UGroomAsset* OutGroomAsset);
 };

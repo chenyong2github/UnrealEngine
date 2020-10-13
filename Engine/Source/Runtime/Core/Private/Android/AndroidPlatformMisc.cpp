@@ -51,6 +51,7 @@
 #include "Misc/OutputDevice.h"
 #include "Logging/LogMacros.h"
 #include "Misc/OutputDeviceError.h"
+#include "Async/Async.h"
 
 #if USE_ANDROID_JNI
 extern AAssetManager * AndroidThunkCpp_GetAssetManager();
@@ -202,6 +203,16 @@ static void InitCpuThermalSensor()
 
 void FAndroidMisc::RequestExit( bool Force )
 {
+
+#if PLATFORM_COMPILER_OPTIMIZATION_PG_PROFILING
+	// Write the PGO profiling file on a clean shutdown.
+	extern void PGO_WriteFile();
+	if (!GIsCriticalError)
+	{
+		PGO_WriteFile();
+	}
+#endif
+
 	UE_LOG(LogAndroid, Log, TEXT("FAndroidMisc::RequestExit(%i)"), Force);
 	if (Force)
 	{
@@ -530,6 +541,11 @@ void FAndroidMisc::PlatformInit()
 #endif
 
 	InitCpuThermalSensor();
+
+	UE_LOG(LogInit, Log, TEXT(" - This binary is optimized with LTO: %s, PGO: %s, instrumented for PGO data collection: %s"),
+		PLATFORM_COMPILER_OPTIMIZATION_LTCG ? TEXT("yes") : TEXT("no"),
+		FPlatformMisc::IsPGOEnabled() ? TEXT("yes") : TEXT("no"),
+		PLATFORM_COMPILER_OPTIMIZATION_PG_PROFILING ? TEXT("yes") : TEXT("no"));
 }
 
 extern void AndroidThunkCpp_DismissSplashScreen();
@@ -2895,6 +2911,60 @@ int32 FAndroidMisc::GetNativeDisplayRefreshRate()
 	return 60;
 #endif
 
+}
+
+static FAndroidMemoryWarningContext GAndroidMemoryWarningContext;
+void (*GMemoryWarningHandler)(const FGenericMemoryWarningContext& Context) = NULL;
+void FAndroidMisc::UpdateOSMemoryStatus(EOSMemoryStatusCategory OSMemoryStatusCategory, int value)
+{
+	switch (OSMemoryStatusCategory)
+	{
+		case EOSMemoryStatusCategory::OSTrim:
+			GAndroidMemoryWarningContext.LastTrimMemoryState = value;
+			break;
+		case EOSMemoryStatusCategory::MemoryAdvisorState:
+			GAndroidMemoryWarningContext.LastNativeMemoryAdvisorState = value;
+			break;
+		case EOSMemoryStatusCategory::MemoryAdvisorEstimateMB:
+			GAndroidMemoryWarningContext.MemoryAdvisorEstimatedAvailableMemoryMB = value;
+			break;
+		case EOSMemoryStatusCategory::OomScore:
+			GAndroidMemoryWarningContext.OomScore = value;
+			break;
+		default:
+			checkNoEntry();
+	}
+
+	if (FTaskGraphInterface::IsRunning())
+	{
+		// Run on game thread to avoid mem handler callback getting confused.
+		AsyncTask(ENamedThreads::GameThread, [AndroidMemoryWarningContext = GAndroidMemoryWarningContext]()
+			{
+				if (GMemoryWarningHandler)
+				{
+					// note that we may also call this when recovering from low memory conditions. (i.e. not in low memory state.)
+					GMemoryWarningHandler(AndroidMemoryWarningContext);
+				}
+			});
+	}
+	else
+	{
+		const FAndroidMemoryWarningContext& Context = GAndroidMemoryWarningContext;
+		UE_LOG(LogAndroid, Warning, TEXT("Not calling memory warning handler, received too early. %d, %d %d %d"), Context.LastTrimMemoryState
+			   , Context.LastNativeMemoryAdvisorState, Context.MemoryAdvisorEstimatedAvailableMemoryMB, Context.OomScore);
+	}
+}
+
+void FAndroidMisc::SetMemoryWarningHandler(void (*InHandler)(const FGenericMemoryWarningContext& Context))
+{
+	check(IsInGameThread());
+	GMemoryWarningHandler = InHandler;
+}
+
+bool FAndroidMisc::HasMemoryWarningHandler()
+{
+	check(IsInGameThread());
+	return GMemoryWarningHandler != nullptr;
 }
 
 bool FAndroidMisc::SupportsBackbufferSampling()

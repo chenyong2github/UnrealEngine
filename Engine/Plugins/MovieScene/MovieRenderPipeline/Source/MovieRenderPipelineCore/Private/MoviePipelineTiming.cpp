@@ -40,7 +40,7 @@ void UMoviePipeline::TickProducingFrames()
 			if (!OutputFuture.Get())
 			{
 				UE_LOG(LogMovieRenderPipeline, Error, TEXT("Error exporting frame, canceling movie export."));
-				RequestShutdown();
+				RequestShutdown(true);
 				break;
 			}
 		}
@@ -110,7 +110,7 @@ void UMoviePipeline::TickProducingFrames()
 		// This means that the camera will be in the correct location for warm-up frames to allow any systems
 		// dependent on camera position to properly warm up. If motion blur fixes are enabled, then we'll jump 
 		// again after the warm-up frames.
-		UMoviePipelineAntiAliasingSetting* AntiAliasingSettings = FindOrAddSetting<UMoviePipelineAntiAliasingSetting>(CurrentCameraCut);
+		UMoviePipelineAntiAliasingSetting* AntiAliasingSettings = FindOrAddSettingForShot<UMoviePipelineAntiAliasingSetting>(CurrentCameraCut);
 
 		if (!CurrentCameraCut->ShotInfo.bEmulateFirstFrameMotionBlur)
 		{
@@ -170,7 +170,7 @@ void UMoviePipeline::TickProducingFrames()
 		CachedOutputState.bDiscardRenderResult = true;
 
 		// We only render a warm up frame if this is the last engine warmup frame and there are render warmup frames to do.
-		UMoviePipelineAntiAliasingSetting* AntiAliasingSettings = FindOrAddSetting<UMoviePipelineAntiAliasingSetting>(CurrentCameraCut);
+		UMoviePipelineAntiAliasingSetting* AntiAliasingSettings = FindOrAddSettingForShot<UMoviePipelineAntiAliasingSetting>(CurrentCameraCut);
 		check(AntiAliasingSettings);
 		const bool bRenderFrame = CurrentCameraCut->ShotInfo.NumEngineWarmUpFramesRemaining == 0 && AntiAliasingSettings->RenderWarmUpCount > 0;
 		CachedOutputState.bSkipRendering = !bRenderFrame;
@@ -213,7 +213,7 @@ void UMoviePipeline::TickProducingFrames()
 		FFrameTime TicksToEndOfPreviousFrame;
 		float WorldTimeDilation = GetWorld()->GetWorldSettings()->GetEffectiveTimeDilation();
 
-		UMoviePipelineAntiAliasingSetting* AntiAliasing = FindOrAddSetting<UMoviePipelineAntiAliasingSetting>(CurrentCameraCut);
+		UMoviePipelineAntiAliasingSetting* AntiAliasing = FindOrAddSettingForShot<UMoviePipelineAntiAliasingSetting>(CurrentCameraCut);
 		if (AntiAliasing->TemporalSampleCount == 1)
 		{
 			TicksToEndOfPreviousFrame = FrameMetrics.TicksPerOutputFrame;
@@ -287,7 +287,7 @@ void UMoviePipeline::TickProducingFrames()
 		// engine delta time at the end.
 		FFrameTime DeltaFrameTime = FFrameTime();
 
-		UMoviePipelineAntiAliasingSetting* AntiAliasingSettings = FindOrAddSetting<UMoviePipelineAntiAliasingSetting>(CurrentCameraCut);
+		UMoviePipelineAntiAliasingSetting* AntiAliasingSettings = FindOrAddSettingForShot<UMoviePipelineAntiAliasingSetting>(CurrentCameraCut);
 		check(AntiAliasingSettings);
 
 		// If we've rendered the last sample and wrapped around, then we're going to be

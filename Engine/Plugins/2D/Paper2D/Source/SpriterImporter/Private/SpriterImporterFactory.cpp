@@ -619,7 +619,7 @@ UObject* USpriterImporterFactory::CreateNewAsset(UClass* AssetClass, const FStri
 	AssetToolsModule.Get().CreateUniqueAssetName(TentativePackagePath, DefaultSuffix, /*out*/ PackageName, /*out*/ AssetName);
 
 	// Create a package for the asset
-	UObject* OuterForAsset = CreatePackage(nullptr, *PackageName);
+	UObject* OuterForAsset = CreatePackage(*PackageName);
 
 	// Create a frame in the package
 	UObject* NewAsset = NewObject<UObject>(OuterForAsset, AssetClass, *AssetName, Flags);

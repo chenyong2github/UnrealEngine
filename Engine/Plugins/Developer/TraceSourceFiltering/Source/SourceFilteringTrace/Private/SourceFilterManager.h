@@ -83,7 +83,7 @@ protected:
 	void SetupAsyncTasks(ENamedThreads::Type CurrentThread);
 
 	/** Waits for any previously kicked of async tasks */
-	void WaitForAsyncTasks() const;
+	void WaitForAsyncTasks();
 
 	/** Reset last frame's transient data and setup the next */
 	void ResetPerFrameData();
@@ -98,8 +98,9 @@ protected:
 	void UnregisterTickFunctions();	
 
 protected:
-	/** Registered delegate for whenever an AActor is spawned within World */
+	/** Registered delegate for whenever an AActor is spawned, and before, within World */
 	FDelegateHandle ActorSpawningDelegateHandle;
+	FDelegateHandle PreActorSpawningDelegateHandle;
 
 	/** Filtering settings for the running instance */
 	UTraceSourceFilteringSettings* Settings;	

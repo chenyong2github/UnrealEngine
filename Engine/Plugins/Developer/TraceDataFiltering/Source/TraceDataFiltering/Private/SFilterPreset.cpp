@@ -22,7 +22,7 @@ void SFilterPreset::Construct(const FArguments& InArgs)
 {
 	bEnabled = false;
 	bHighlighted = false;
-	OnPresetsChanged = InArgs._OnPresetsChanged;
+	OnPresetChanged = InArgs._OnPresetChanged;
 	OnRequestRemove = InArgs._OnRequestRemove;
 	OnRequestEnableOnly = InArgs._OnRequestEnableOnly;
 	OnRequestEnableAll = InArgs._OnRequestEnableAll;
@@ -86,15 +86,12 @@ void SFilterPreset::Construct(const FArguments& InArgs)
 	ToggleButtonPtr->SetToolTipText(Attribute);
 }
 
-void SFilterPreset::SetEnabled(bool InEnabled, bool InExecuteOnPresetsChanged /*= true*/)
+void SFilterPreset::SetEnabled(bool InEnabled)
 {
 	if (InEnabled != bEnabled)
 	{
 		bEnabled = InEnabled;
-		if (InExecuteOnPresetsChanged)
-		{
-			OnPresetsChanged.ExecuteIfBound();
-		}
+ 		OnPresetChanged.ExecuteIfBound(*this);
 	}
 }
 
@@ -137,8 +134,7 @@ FReply SFilterPreset::OnMouseMove(const FGeometry& MyGeometry, const FPointerEve
 
 void SFilterPreset::PresetToggled(ECheckBoxState NewState)
 {
-	bEnabled = NewState == ECheckBoxState::Checked;
-	OnPresetsChanged.ExecuteIfBound();
+	SetEnabled(NewState == ECheckBoxState::Checked);
 }
 
 FReply SFilterPreset::FilterCtrlClicked()
@@ -157,9 +153,7 @@ FReply SFilterPreset::FilterDoubleClicked()
 {
 	// Disable all other presets and enable this one.
 	OnRequestDisableAll.ExecuteIfBound();
-	bEnabled = true;
-	OnPresetsChanged.ExecuteIfBound();
-
+	SetEnabled(true);
 	return FReply::Handled();
 }
 

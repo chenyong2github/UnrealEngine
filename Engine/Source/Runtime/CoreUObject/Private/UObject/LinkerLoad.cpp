@@ -1353,6 +1353,11 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::UpdateFromPackageFileSummary()
 				// Temporarily just warn and continue. @todo: this needs to be fixed properly
 				UE_LOG(LogLinker, Warning, TEXT("Package %s was saved with a custom integration that is not present. Tag %s  Version %d"), *Filename, *Diff.Version->Key.ToString(), Diff.Version->Version);
 			}
+			else if (Diff.Type == ECustomVersionDifference::Invalid)
+			{
+				UE_LOG(LogLinker, Error, TEXT("Package %s was saved with an invalid custom version. Tag %s  Version %d"), *Filename, *Diff.Version->Key.ToString(), Diff.Version->Version);
+				return LINKER_Failed;
+			}
 			else if (Diff.Type == ECustomVersionDifference::Newer)
 			{
 				FCustomVersion LatestVersion = FCurrentCustomVersions::Get(Diff.Version->Key).GetValue();
@@ -2994,7 +2999,7 @@ bool FLinkerLoad::VerifyImportInner(const int32 ImportIndex, FString& WarningSuf
 			// In the case of a non instanced load `PackageToLoad` and `PackageToLoadInto` will be the same and we won't be providing a package to load into since `Package` will be null.
 			if (PackageToLoad != PackageToLoadInto)
 			{
-				Package = CreatePackage(nullptr, *PackageToLoadInto.ToString());
+				Package = CreatePackage(*PackageToLoadInto.ToString());
 			}
 			Package = LoadPackageInternal(Package, *PackageToLoad.ToString(), InternalLoadFlags | LOAD_IsVerifying, this, nullptr, nullptr);
 		}
@@ -3009,7 +3014,7 @@ bool FLinkerLoad::VerifyImportInner(const int32 ImportIndex, FString& WarningSuf
 		// @todo linkers: This could quite possibly be cleaned up
 		if (Package == nullptr)
 		{
-			Package = CreatePackage(NULL, *PackageToLoad.ToString());
+			Package = CreatePackage(*PackageToLoad.ToString());
 		}
 
 		// if we couldn't create the package or it is 
@@ -4413,7 +4418,7 @@ UObject* FLinkerLoad::CreateExport( int32 Index )
 		{
 			// Create the forced export in the TopLevel instead of LinkerRoot. Please note that CreatePackage
 			// will find and return an existing object if one exists and only create a new one if there doesn't.
-			Export.Object = CreatePackage( NULL, *Export.ObjectName.ToString() );
+			Export.Object = CreatePackage( *Export.ObjectName.ToString() );
 			check(Export.Object);
 			check(CurrentLoadContext);
 			CurrentLoadContext->IncrementForcedExportCount();
@@ -4886,7 +4891,7 @@ UObject* FLinkerLoad::CreateImport( int32 Index )
 					// Import is a toplevel package.
 					if( Import.OuterIndex.IsNull() )
 					{
-						FindObject = CreatePackage(NULL, *Import.ObjectName.ToString());
+						FindObject = CreatePackage(*Import.ObjectName.ToString());
 					}
 					// Import is regular import/ export.
 					else
@@ -4905,7 +4910,7 @@ UObject* FLinkerLoad::CreateImport( int32 Index )
 							// Outer is toplevel package, create/ find it.
 							else if( OuterImport.OuterIndex.IsNull() )
 							{
-								FindOuter = CreatePackage( NULL, *OuterImport.ObjectName.ToString() );
+								FindOuter = CreatePackage( *OuterImport.ObjectName.ToString() );
 							}
 							// Outer is regular import/ export, use IndexToObject to potentially recursively load/ find it.
 							else

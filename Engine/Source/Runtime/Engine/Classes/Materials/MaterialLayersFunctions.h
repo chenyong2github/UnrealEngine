@@ -167,6 +167,15 @@ FORCEINLINE uint32 GetTypeHash(const FMemoryImageMaterialParameterInfo& Value)
 // Backwards compat
 using FHashedMaterialParameterInfo = FMemoryImageMaterialParameterInfo;
 
+UENUM()
+enum class EMaterialLayerLinkState : uint8
+{
+	Uninitialized = 0u, // Saved with previous engine version
+	LinkedToParent, // Layer should mirror changes from parent material
+	UnlinkedFromParent, // Layer is based on parent material, but should not mirror changes
+	NotFromParent, // Layer was created locally in this material, not in parent
+};
+
 USTRUCT()
 struct ENGINE_API FMaterialLayersFunctions
 {
@@ -189,8 +198,6 @@ struct ENGINE_API FMaterialLayersFunctions
 		void AppendKeyString(FString& KeyString) const;
 	};
 
-	static const FGuid UninitializedParentGuid;
-	static const FGuid NoParentGuid;
 	static const FGuid BackgroundGuid;
 		
 	FMaterialLayersFunctions()
@@ -203,10 +210,9 @@ struct ENGINE_API FMaterialLayersFunctions
 		LayerNames.Add(LayerName);
 		RestrictToLayerRelatives.Add(false);
 		// Use a consistent Guid for the background layer
-		// This layer never needs to resolve, so doesn't need to be unique
 		// Default constructor assigning different guids will break FStructUtils::AttemptToFindUninitializedScriptStructMembers
 		LayerGuids.Add(BackgroundGuid);
-		ParentLayerGuids.Add(NoParentGuid);
+		LayerLinkStates.Add(EMaterialLayerLinkState::NotFromParent);
 #endif
 	}
 
@@ -220,7 +226,7 @@ struct ENGINE_API FMaterialLayersFunctions
 		RestrictToLayerRelatives.Empty();
 		RestrictToBlendRelatives.Empty();
 		LayerGuids.Empty();
-		ParentLayerGuids.Empty();
+		LayerLinkStates.Empty();
 #endif
 	}
 
@@ -248,12 +254,10 @@ struct ENGINE_API FMaterialLayersFunctions
 	TArray<FGuid> LayerGuids;
 
 	/**
-	 * Refers to the layer in the parent's LayerGuids list used to initialize this layer
-	 * - Special value of 'NoParentGuid' means this layer was created in this material, not based on any layer in the parent
-	 * - Special value of 'UninitializedParentGuid' means this data was serialized before these guids existed...layers with this value will attempt to match a parent layer with the same resources assigned
+	 * State of each layer's link to parent material
 	 */
 	UPROPERTY(EditAnywhere, Category = MaterialLayers)
-	TArray<FGuid> ParentLayerGuids;
+	TArray<EMaterialLayerLinkState> LayerLinkStates;
 
 	/**
 	 * List of Guids that exist in the parent material that have been explicitly deleted
@@ -266,11 +270,11 @@ struct ENGINE_API FMaterialLayersFunctions
 	UPROPERTY()
 	FString KeyString_DEPRECATED;
 
-	void AppendBlendedLayer();
+	int32 AppendBlendedLayer();
 
-	void AddLayerCopy(const FMaterialLayersFunctions& Source, int32 SourceLayerIndex, const FGuid& ParentGuid);
+	int32 AddLayerCopy(const FMaterialLayersFunctions& Source, int32 SourceLayerIndex, EMaterialLayerLinkState LinkState);
 
-	void InsertLayerCopy(const FMaterialLayersFunctions& Source, int32 SourceLayerIndex, const FGuid& ParentGuid, int32 LayerIndex);
+	void InsertLayerCopy(const FMaterialLayersFunctions& Source, int32 SourceLayerIndex, EMaterialLayerLinkState LinkState, int32 LayerIndex);
 
 	void RemoveBlendedLayerAt(int32 Index);
 
@@ -312,7 +316,7 @@ struct ENGINE_API FMaterialLayersFunctions
 		return LayerName;
 	}
 
-	void CopyGuidsToParent();
+	void LinkAllLayersToParent();
 
 	bool ResolveParent(const FMaterialLayersFunctions& Parent, TArray<int32>& OutRemapLayerIndices);
 
@@ -334,7 +338,7 @@ struct ENGINE_API FMaterialLayersFunctions
 			return false;
 		}
 #if WITH_EDITORONLY_DATA
-		if (ParentLayerGuids != Other.ParentLayerGuids || DeletedParentLayerGuids != Other.DeletedParentLayerGuids)
+		if (LayerLinkStates != Other.LayerLinkStates || DeletedParentLayerGuids != Other.DeletedParentLayerGuids)
 		{
 			return false;
 		}

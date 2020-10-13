@@ -1096,6 +1096,8 @@ void UControlRigComponent::SetControlRig(UControlRig* InControlRig)
 	ControlRig->OnPostSetup_AnyThread().AddUObject(this, &UControlRigComponent::HandleControlRigPostSetupEvent);
 	ControlRig->OnExecuted_AnyThread().AddUObject(this, &UControlRigComponent::HandleControlRigExecutedEvent);
 
+	ControlRig->GetDataSourceRegistry()->RegisterDataSource(UControlRig::OwnerComponent, this);
+
 	ControlRig->Initialize();
 }
 

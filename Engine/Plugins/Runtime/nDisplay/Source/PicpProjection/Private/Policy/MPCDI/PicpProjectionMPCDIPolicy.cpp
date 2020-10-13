@@ -2,18 +2,16 @@
 
 #include "Policy/MPCDI/PicpProjectionMPCDIPolicy.h"
 
-#include "PicpProjectionHelpers.h"
 #include "PicpProjectionLog.h"
 #include "PicpProjectionStrings.h"
 
-#include "DisplayClusterProjectionHelpers.h"
-#include "DisplayClusterProjectionLog.h"
-#include "DisplayClusterProjectionStrings.h"
-
-#include "Config/DisplayClusterConfigTypes.h"
+#include "IDisplayCluster.h"
+#include "Config/IDisplayClusterConfigManager.h"
 #include "Game/IDisplayClusterGameManager.h"
 #include "Render/IDisplayClusterRenderManager.h"
+#include "Render/Device/IDisplayClusterRenderDevice.h"
 
+#include "Misc/DisplayClusterHelpers.h"
 #include "Misc/Paths.h"
 
 #include "Engine/RendererSettings.h"
@@ -29,8 +27,8 @@ static TAutoConsoleVariable<int32> CVarPicpShowFakeCamera(
 	ECVF_RenderThreadSafe
 );
 
-FPicpProjectionMPCDIPolicy::FPicpProjectionMPCDIPolicy(const FString& ViewportId)
-	: FPicpProjectionPolicyBase(ViewportId)
+FPicpProjectionMPCDIPolicy::FPicpProjectionMPCDIPolicy(const FString& ViewportId, const TMap<FString, FString>& Parameters)
+	: FPicpProjectionPolicyBase(ViewportId, Parameters)
 	, PicpMPCDIAPI(IPicpMPCDI::Get())
 	, MPCDIAPI(IMPCDI::Get())
 {
@@ -64,33 +62,24 @@ bool FPicpProjectionMPCDIPolicy::HandleAddViewport(const FIntPoint& InViewportSi
 	check(InViewsAmount > 0);
 
 	IMPCDI::ConfigParser CfgData;
-	{
-		//Load config:
-		FDisplayClusterConfigProjection CfgProjection;
-		if (!DisplayClusterHelpers::config::GetViewportProjection(GetViewportId(), CfgProjection))
-		{
-			UE_LOG(LogPicpProjectionMPCDI, Error, TEXT("Couldn't obtain projection info for '%s' viewport"), *GetViewportId());
-			return false;
-		}
 
-		if (!MPCDIAPI.LoadConfig(CfgProjection.Params, CfgData))
-		{
-			UE_LOG(LogPicpProjectionMPCDI, Error, TEXT("Couldn't read MPCDI configuration from the config file"));
-			return false;
-		}
+	if (!MPCDIAPI.LoadConfig(GetParameters(), CfgData))
+	{
+		UE_LOG(LogPicpProjectionMPCDI, Error, TEXT("Couldn't read MPCDI configuration from the config file"));
+		return false;
 	}
 
 	// Load MPCDI config
 	if (!MPCDIAPI.Load(CfgData, WarpRef))
 	{
-		UE_LOG(LogPicpProjectionMPCDI, Warning, TEXT("Couldn't load PICP MPCDI config: %s"), *CfgData.ConfigLineStr);
+		UE_LOG(LogPicpProjectionMPCDI, Warning, TEXT("Couldn't initialize PICP MPCDI for viewport %s"), *GetViewportId());
 		return false;
 	}
 
 	// Support custom origin node
 	OriginCompId = CfgData.OriginType;
 
-	UE_LOG(LogPicpProjectionMPCDI, Log, TEXT("PICP MPCDI policy has been initialized [%s]"), *CfgData.ConfigLineStr);
+	UE_LOG(LogPicpProjectionMPCDI, Log, TEXT("PICP MPCDI policy for viewport %s has been initialized"), *GetViewportId());
 
 	// Finally, initialize internal views data container
 	Views.AddDefaulted(InViewsAmount);
@@ -272,12 +261,15 @@ bool FPicpProjectionMPCDIPolicy::UpdateCameraTexture_RenderThread(FRHICommandLis
 		IDisplayClusterRenderManager* const Manager = IDisplayCluster::Get().GetRenderMgr();
 		check(Manager);
 
+		IDisplayClusterRenderDevice* const RenderDevice = Manager->GetRenderDevice();
+		check(RenderDevice);
+
 		//Copy all cameras RTT render to separate textures
 		for (auto& It : ViewportOverlayData.Cameras)
 		{
 			FIntRect RTTViewportRect;
 
-			bool RTTViewportFound = Manager->GetViewportRect(It.RTTViewportId, RTTViewportRect);
+			bool RTTViewportFound = RenderDevice->GetViewportRect(It.RTTViewportId, RTTViewportRect);
 			if (RTTViewportFound)
 			{
 				FResolveParams RTTViewportCopyParams;

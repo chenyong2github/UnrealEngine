@@ -7,7 +7,6 @@
 #include "UObject/ObjectMacros.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "InputCoreTypes.h"
-#include "ILiveLinkSource.h"
 #include "WindowsMixedRealityHandTrackingFunctionLibrary.generated.h"
 
 UCLASS(ClassGroup = WindowsMixedReality)

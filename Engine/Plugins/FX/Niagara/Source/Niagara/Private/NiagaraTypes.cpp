@@ -72,6 +72,18 @@ void FNiagaraVariableMetaData::CopyPerScriptMetaData(const FNiagaraVariableMetaD
 	SetIsUsingLegacyNameString(OtherMetaData.GetIsUsingLegacyNameString());
 }
 
+void FNiagaraVariableMetaData::CopyUserEditableMetaData(const FNiagaraVariableMetaData& OtherMetaData)
+{
+	for (const FProperty* ChildProperty : TFieldRange<FProperty>(StaticStruct()))
+	{
+		if (ChildProperty->HasAnyPropertyFlags(CPF_Edit))
+		{
+			int32 PropertyOffset = ChildProperty->GetOffset_ForInternal();
+			ChildProperty->CopyCompleteValue((uint8*)this + PropertyOffset, (uint8*)&OtherMetaData + PropertyOffset);
+		};
+	}
+}
+
 
 void FNiagaraVariableMetaData::SetCachedNamespacelessVariableName(const FName& InVariableName)
 {
@@ -83,7 +95,7 @@ void FNiagaraVariableMetaData::SetCachedNamespacelessVariableName(const FName& I
 };
 
 
-FNiagaraVariable FNiagaraVariable::ResolveAliases(const FNiagaraVariable& InVar, const TMap<FString, FString>& InAliases, const TCHAR* InJoinSeparator)
+FNiagaraVariable FNiagaraVariable::ResolveAliases(const FNiagaraVariable& InVar, const TMap<FString, FString>& InAliases, const TMap<FString, FString>& InStartOnlyAliases, const TCHAR* InJoinSeparator)
 {
 	FNiagaraVariable OutVar = InVar;
 
@@ -100,6 +112,19 @@ FNiagaraVariable FNiagaraVariable::ResolveAliases(const FNiagaraVariable& InVar,
 			if (SplitName[i].Equals(It.Key()))
 			{
 				SplitName[i] = It.Value();
+			}
+			++It;
+		}
+	}
+
+	if (SplitName.Num() > 0)
+	{
+		TMap<FString, FString>::TConstIterator It = InStartOnlyAliases.CreateConstIterator();
+		while (It)
+		{
+			if (SplitName[0].Equals(It.Key()))
+			{
+				SplitName[0] = It.Value();
 			}
 			++It;
 		}

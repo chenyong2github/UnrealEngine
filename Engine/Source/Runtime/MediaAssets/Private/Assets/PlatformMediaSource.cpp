@@ -2,6 +2,9 @@
 
 #include "PlatformMediaSource.h"
 #include "UObject/SequencerObjectVersion.h"
+#include "UObject/MediaFrameWorkObjectVersion.h"
+#include "Modules/ModuleManager.h"
+#include "IMediaModule.h"
 #include "MediaAssetsPrivate.h"
 
 #if WITH_EDITOR
@@ -12,8 +15,12 @@
 void UPlatformMediaSource::PreSave(const class ITargetPlatform* TargetPlatform)
 {
 #if WITH_EDITORONLY_DATA
-	UMediaSource** PlatformMediaSource = PlatformMediaSources.Find(TargetPlatform->IniPlatformName());
-	MediaSource = (PlatformMediaSource != nullptr) ? *PlatformMediaSource : nullptr;
+	// Do this only if we are cooking (aka: have a target platform)
+	if (TargetPlatform)
+	{
+		UMediaSource** PlatformMediaSource = PlatformMediaSources.Find(TargetPlatform->IniPlatformName());
+		MediaSource = (PlatformMediaSource != nullptr) ? *PlatformMediaSource : nullptr;
+	}
 #endif
 }
 
@@ -41,9 +48,12 @@ void UPlatformMediaSource::Serialize(FArchive& Ar)
 	Super::Serialize(Ar);
 
 	Ar.UsingCustomVersion(FSequencerObjectVersion::GUID);
-	auto CustomVersion = Ar.CustomVer(FSequencerObjectVersion::GUID);
+	Ar.UsingCustomVersion(FMediaFrameworkObjectVersion::GUID);
 
-	if (Ar.IsLoading() && (CustomVersion < FSequencerObjectVersion::RenameMediaSourcePlatformPlayers))
+	auto MediaCustomVersion = Ar.CustomVer(FMediaFrameworkObjectVersion::GUID);
+	auto SeqCustomVersion = Ar.CustomVer(FSequencerObjectVersion::GUID);
+
+	if (Ar.IsLoading() && (SeqCustomVersion < FSequencerObjectVersion::RenameMediaSourcePlatformPlayers))
 	{
 		FString DummyDefaultSource;
 		Ar << DummyDefaultSource;
@@ -61,7 +71,80 @@ void UPlatformMediaSource::Serialize(FArchive& Ar)
 		}
 		else
 		{
-			Ar << PlatformMediaSources;
+			IMediaModule* MediaModule = static_cast<IMediaModule*>(FModuleManager::Get().GetModule(TEXT("Media")));
+
+			if (Ar.IsLoading() && MediaCustomVersion < FMediaFrameworkObjectVersion::SerializeGUIDsInPlatformMediaSourceInsteadOfPlainNames)
+			{
+				// Load old data version
+				TMap<FString, UMediaSource*> OldPlatformMediaSources;
+
+				Ar << OldPlatformMediaSources;
+
+				// Do filter platforms that we cannot translate so they do not pop up visibly
+				// (we will loose them on save anyways as we cannot generate a GUID)
+				PlatformMediaSources.Empty();
+				BlindPlatformMediaSources.Empty();
+				if (MediaModule)
+				{
+					for (auto Entry : OldPlatformMediaSources)
+					{
+						FGuid PlatformGuid = MediaModule->GetPlatformGuid(FName(Entry.Key));
+						if (PlatformGuid.IsValid())
+						{
+							PlatformMediaSources.Add(Entry);
+						}
+					}
+				}
+			}
+			else
+			{
+				// New editor data format
+				TMap<FGuid, UMediaSource*> PlatformGuidMediaSources;
+
+				if (Ar.IsSaving())
+				{
+					if (MediaModule)
+					{
+						for (auto Entry : PlatformMediaSources)
+						{
+							FGuid PlatformGuid = MediaModule->GetPlatformGuid(FName(Entry.Key));
+							// Check if we got something (just to be sure, we really expect this to work)
+							if (PlatformGuid.IsValid())
+							{
+								PlatformGuidMediaSources.Add(TTuple<FGuid, UMediaSource*>(PlatformGuid, Entry.Value));
+							}
+						}
+					}
+
+					// Move over any blind data we encountered when loading earlier - but avoid overriding any data existing in the object otherwise
+					for (auto BlindEntry : BlindPlatformMediaSources)
+					{
+						PlatformGuidMediaSources.FindOrAdd(BlindEntry.Key, BlindEntry.Value);
+					}
+
+					Ar << PlatformGuidMediaSources;
+				}
+				else
+				{
+					Ar << PlatformGuidMediaSources;
+
+					PlatformMediaSources.Empty();
+					BlindPlatformMediaSources.Empty();
+					for (auto Entry : PlatformGuidMediaSources)
+					{
+						FName PlatformName = MediaModule ? MediaModule->GetPlatformName(Entry.Key) : FName();
+						// Could we resolve the GUID or is this an unknown platform?
+						if (PlatformName.IsValid())
+						{
+							PlatformMediaSources.Add(TTuple<FString, UMediaSource*>(PlatformName.ToString(), Entry.Value));
+						}
+						else
+						{
+							BlindPlatformMediaSources.Add(Entry);
+						}
+					}
+				}
+			}
 		}
 #else
 		Ar << MediaSource;

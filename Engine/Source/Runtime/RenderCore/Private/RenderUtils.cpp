@@ -89,6 +89,55 @@ FArchive& operator<<(FArchive& Ar, FPackedRGBA16N& N)
 	return Ar;
 }
 
+/**
+ * Bulk data interface for providing a single black color used to initialize a
+ * volume texture.
+ */
+class FBlackVolumeTextureResourceBulkDataInterface : public FResourceBulkDataInterface
+{
+public:
+
+	/** Default constructor. */
+	FBlackVolumeTextureResourceBulkDataInterface(uint8 Alpha)
+		: Color(0, 0, 0, Alpha)
+	{
+	}
+
+	/** Default constructor. */
+	FBlackVolumeTextureResourceBulkDataInterface(FColor InColor)
+		: Color(InColor)
+	{
+	}
+
+	/**
+	 * Returns a pointer to the bulk data.
+	 */
+	virtual const void* GetResourceBulkData() const override
+	{
+		return &Color;
+	}
+
+	/** 
+	 * @return size of resource memory
+	 */
+	virtual uint32 GetResourceBulkDataSize() const override
+	{
+		return sizeof(Color);
+	}
+
+	/**
+	 * Free memory after it has been used to initialize RHI resource 
+	 */
+	virtual void Discard() override
+	{
+	}
+
+private:
+
+	/** Storage for the color. */
+	FColor Color;
+};
+
 //
 // FWhiteTexture implementation
 //
@@ -104,7 +153,9 @@ public:
 	virtual void InitRHI() override
 	{
 		// Create the texture RHI.  		
-		FRHIResourceCreateInfo CreateInfo(TEXT("ColoredTexture"));
+		FBlackVolumeTextureResourceBulkDataInterface BlackTextureBulkData(FColor(R, G, B, A));
+		FRHIResourceCreateInfo CreateInfo(&BlackTextureBulkData);
+		CreateInfo.DebugName = TEXT("ColoredTexture");
 		ETextureCreateFlags CreateFlags = TexCreate_ShaderResource;
 		if(bWithUAV)
 		{
@@ -113,12 +164,6 @@ public:
 		// BGRA typed UAV is unsupported per D3D spec, use RGBA here.
 		FTexture2DRHIRef Texture2D = RHICreateTexture2D(1, 1, PF_R8G8B8A8, 1, 1, CreateFlags, CreateInfo);
 		TextureRHI = Texture2D;
-
-		// Write the contents of the texture.
-		uint32 DestStride;
-		FColor* DestBuffer = (FColor*)RHILockTexture2D(Texture2D, 0, RLM_WriteOnly, DestStride, false);
-		*DestBuffer = FColor(R, G, B, A);
-		RHIUnlockTexture2D(Texture2D, 0, false);
 
 		// Create the sampler state RHI resource.
 		FSamplerStateInitializerRHI SamplerStateInitializer(SF_Point,AM_Wrap,AM_Wrap,AM_Wrap);
@@ -191,49 +236,6 @@ public:
 };
 
 FVertexBufferWithSRV* GWhiteVertexBufferWithSRV = new TGlobalResource<FWhiteVertexBuffer>;
-
-/**
- * Bulk data interface for providing a single black color used to initialize a
- * volume texture.
- */
-class FBlackVolumeTextureResourceBulkDataInterface : public FResourceBulkDataInterface
-{
-public:
-
-	/** Default constructor. */
-	FBlackVolumeTextureResourceBulkDataInterface(uint8 Alpha)
-		: Color(0, 0, 0, Alpha)
-	{
-	}
-
-	/**
-	 * Returns a pointer to the bulk data.
-	 */
-	virtual const void* GetResourceBulkData() const override
-	{
-		return &Color;
-	}
-
-	/** 
-	 * @return size of resource memory
-	 */
-	virtual uint32 GetResourceBulkDataSize() const override
-	{
-		return sizeof(Color);
-	}
-
-	/**
-	 * Free memory after it has been used to initialize RHI resource 
-	 */
-	virtual void Discard() override
-	{
-	}
-
-private:
-
-	/** Storage for the color. */
-	FColor Color;
-};
 
 /**
  * A class representing a 1x1x1 black volume texture.
@@ -771,7 +773,14 @@ void CopyTextureData2D(const void* Source,void* Dest,uint32 SizeY,EPixelFormat F
 	if(SourceStride == DestStride || DestStride == 0)
 	{
 		// If the source and destination have the same stride, copy the data in one block.
-		FMemory::Memcpy(Dest,Source,NumBlocksY * SourceStride);
+		if (ensure(Source))
+		{
+			FMemory::Memcpy(Dest,Source,NumBlocksY * SourceStride);
+		}
+		else
+		{
+			FMemory::Memzero(Dest,NumBlocksY * SourceStride);
+		}
 	}
 	else
 	{
@@ -779,11 +788,18 @@ void CopyTextureData2D(const void* Source,void* Dest,uint32 SizeY,EPixelFormat F
 		const uint32 NumBytesPerRow = FMath::Min<uint32>(SourceStride, DestStride);
 		for(uint32 BlockY = 0;BlockY < NumBlocksY;++BlockY)
 		{
-			FMemory::Memcpy(
-				(uint8*)Dest   + DestStride   * BlockY,
-				(uint8*)Source + SourceStride * BlockY,
-				NumBytesPerRow
-				);
+			if (ensure(Source))
+			{
+				FMemory::Memcpy(
+					(uint8*)Dest   + DestStride   * BlockY,
+					(uint8*)Source + SourceStride * BlockY,
+					NumBytesPerRow
+					);
+			}
+			else
+			{
+				FMemory::Memzero((uint8*)Dest + DestStride * BlockY, NumBytesPerRow);
+			}
 		}
 	}
 }
@@ -957,15 +973,22 @@ RENDERCORE_API bool MobileSupportsGPUScene(const FStaticShaderPlatform Platform)
 	return (CVar && CVar->GetValueOnAnyThread() != 0) ? true : false;
 }
 
-RENDERCORE_API bool IsMobileDeferredShading()
+RENDERCORE_API bool IsMobileDeferredShadingEnabled(const FStaticShaderPlatform Platform)
 {
+	if (IsOpenGLPlatform(Platform))
+	{
+		// needs MRT framebuffer fetch or PLS
+		return false;
+	}
 	static auto* MobileShadingPathCvar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.ShadingPath"));
 	return MobileShadingPathCvar->GetValueOnAnyThread() == 1;
 }
 
 RENDERCORE_API bool SupportsTextureCubeArray(ERHIFeatureLevel::Type FeatureLevel)
 {
-	return FeatureLevel == ERHIFeatureLevel::SM5 || IsMobileDeferredShading();
+	return FeatureLevel == ERHIFeatureLevel::SM5 
+		// mobile deferred requries ES3.2 feature set
+		|| IsMobileDeferredShadingEnabled(GMaxRHIShaderPlatform);
 }
 
 RENDERCORE_API bool GPUSceneUseTexture2D(const FStaticShaderPlatform Platform)
@@ -1037,6 +1060,9 @@ static_assert(SP_NumPlatforms <= sizeof(GDBufferPlatformMask) * 8, "GDBufferPlat
 
 RENDERCORE_API uint64 GBasePassVelocityPlatformMask = 0;
 static_assert(SP_NumPlatforms <= sizeof(GBasePassVelocityPlatformMask) * 8, "GBasePassVelocityPlatformMask must be large enough to support all shader platforms");
+
+RENDERCORE_API uint64 GVelocityEncodeDepthPlatformMask = 0;
+static_assert(SP_NumPlatforms <= sizeof(GVelocityEncodeDepthPlatformMask) * 8, "GVelocityEncodeDepthPlatformMask must be large enough to support all shader platforms");
 
 RENDERCORE_API uint64 GSelectiveBasePassOutputsPlatformMask = 0;
 static_assert(SP_NumPlatforms <= sizeof(GSelectiveBasePassOutputsPlatformMask) * 8, "GSelectiveBasePassOutputsPlatformMask must be large enough to support all shader platforms");
@@ -1173,6 +1199,15 @@ RENDERCORE_API void RenderUtilsInit()
 				{
 					GSimpleSkyDiffusePlatformMask &= ~Mask;
 				}
+
+				if (TargetPlatform->VelocityEncodeDepth())
+				{
+					GVelocityEncodeDepthPlatformMask |= Mask;
+				}
+				else
+				{
+					GVelocityEncodeDepthPlatformMask &= ~Mask;
+				}
 			}
 		}
 	}
@@ -1215,9 +1250,9 @@ RENDERCORE_API void RenderUtilsInit()
 				}
 				else
 				{
-					GUseRayTracing = true;
+					GUseRayTracing = false;
 
-					UE_LOG(LogRendererCore, Log, TEXT("Ray tracing is enabled for the game. Reason: r.RayTracing=1 and r.RayTracing.EnableInGame is not present (default true)."));
+					UE_LOG(LogRendererCore, Log, TEXT("Ray tracing is disabled for the game. Reason: r.RayTracing=1, but user setting r.RayTracing.EnableInGame is not present (default false)."));
 				}
 			}
 

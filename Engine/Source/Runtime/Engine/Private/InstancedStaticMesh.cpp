@@ -395,6 +395,11 @@ void FStaticMeshInstanceBuffer::InitRHI()
 		if (InstanceData->GetNumCustomDataFloats() > 0)
 		{
 			CreateVertexBuffer(InstanceData->GetCustomDataResourceArray(), AccessFlags | BUF_ShaderResource, 4, PF_R32_FLOAT, InstanceCustomDataBuffer.VertexBufferRHI, InstanceCustomDataSRV);
+			// Make sure we still create custom data SRV on platforms that do not support/use MVF 
+			if (InstanceCustomDataSRV == nullptr)
+			{
+				InstanceCustomDataSRV = RHICreateShaderResourceView(InstanceCustomDataBuffer.VertexBufferRHI, 4, PF_R32_FLOAT);
+			}
 		}
 		else
 		{
@@ -460,11 +465,14 @@ void FStaticMeshInstanceBuffer::CreateVertexBuffer(FResourceArrayInterface* InRe
 
 void FStaticMeshInstanceBuffer::BindInstanceVertexBuffer(const class FVertexFactory* VertexFactory, FInstancedStaticMeshDataType& InstancedStaticMeshData) const
 {
-	if (InstanceData->GetNumInstances() && RHISupportsManualVertexFetch(GMaxRHIShaderPlatform))
+	if (InstanceData->GetNumInstances())
 	{
-		check(InstanceOriginSRV);
-		check(InstanceTransformSRV);
-		check(InstanceLightmapSRV);
+		if (RHISupportsManualVertexFetch(GMaxRHIShaderPlatform))
+		{
+			check(InstanceOriginSRV);
+			check(InstanceTransformSRV);
+			check(InstanceLightmapSRV);
+		}
 		check(InstanceCustomDataSRV); // Should not be nullptr, but can be assigned a dummy buffer
 	}
 
@@ -881,7 +889,6 @@ void FInstancedStaticMeshSceneProxy::GetDynamicMeshElements(const TArray<const F
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_InstancedStaticMeshSceneProxy_GetMeshElements);
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	const bool bSelectionRenderEnabled = GIsEditor && ViewFamily.EngineShowFlags.Selection;
 
 	// If the first pass rendered selected instances only, we need to render the deselected instances in a second pass
@@ -945,7 +952,6 @@ void FInstancedStaticMeshSceneProxy::GetDynamicMeshElements(const TArray<const F
 			}
 		}
 	}
-#endif
 }
 
 int32 FInstancedStaticMeshSceneProxy::CollectOccluderElements(FOccluderElementsCollector& Collector) const

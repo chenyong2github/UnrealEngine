@@ -1099,7 +1099,7 @@ void FParallelMeshDrawCommandPass::DispatchPassSetup(
 
 		if (bExecuteInParallel)
 		{
-			if (GAllowOnDemandShaderCreation && RHISupportsMultithreadedShaderCreation(GMaxRHIShaderPlatform))
+			if (IsOnDemandShaderCreationEnabled())
 			{
 				TaskEventRef = TGraphTask<FMeshDrawCommandPassSetupTask>::CreateTask(nullptr, ENamedThreads::GetRenderThread()).ConstructAndDispatchWhenReady(TaskContext);
 			}
@@ -1115,13 +1115,22 @@ void FParallelMeshDrawCommandPass::DispatchPassSetup(
 			QUICK_SCOPE_CYCLE_COUNTER(STAT_MeshPassSetupImmediate);
 			FMeshDrawCommandPassSetupTask Task(TaskContext);
 			Task.AnyThreadTask();
-			if (!GAllowOnDemandShaderCreation || !RHISupportsMultithreadedShaderCreation(GMaxRHIShaderPlatform))
+			if (!IsOnDemandShaderCreationEnabled())
 			{
 				FMeshDrawCommandInitResourcesTask DependentTask(TaskContext);
 				DependentTask.AnyThreadTask();
 			}
 		}
 	}
+}
+
+bool FParallelMeshDrawCommandPass::IsOnDemandShaderCreationEnabled()
+{
+	// GL rhi does not support multithreaded shader creation, however the engine can be configured to not run mesh drawing tasks in threads other than the RT 
+	// (see FRHICommandListExecutor::UseParallelAlgorithms()): if this condition is true, on demand shader creation can be enabled.
+	const bool bIsMobileRenderer = FSceneInterface::GetShadingPath(GMaxRHIFeatureLevel) == EShadingPath::Mobile;
+	return GAllowOnDemandShaderCreation && 
+		(RHISupportsMultithreadedShaderCreation(GMaxRHIShaderPlatform) || (bIsMobileRenderer && (!GSupportsParallelRenderingTasksWithSeparateRHIThread && IsRunningRHIInSeparateThread())));
 }
 
 void FParallelMeshDrawCommandPass::WaitForMeshPassSetupTask() const
@@ -1241,6 +1250,9 @@ public:
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(DrawVisibleMeshCommandsAnyThreadTask);
 		checkSlow(RHICmdList.IsInsideRenderPass());
+
+		// FDrawVisibleMeshCommandsAnyThreadTasks must only run on RT if RHISupportsMultithreadedShaderCreation is not supported!
+		check(IsInRenderingThread() || RHISupportsMultithreadedShaderCreation(GMaxRHIShaderPlatform));
 
 		// Recompute draw range.
 		const int32 DrawNum = VisibleMeshDrawCommands.Num();

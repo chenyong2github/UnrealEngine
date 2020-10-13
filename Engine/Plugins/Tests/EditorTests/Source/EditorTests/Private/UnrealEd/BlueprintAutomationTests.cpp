@@ -607,7 +607,7 @@ public:
 	static UPackage* CreateTempPackage(FString Name)
 	{
 		FString TempPackageName = FString::Printf(TEXT("/Temp/BpAutomation-%u-%s"), GenTempUid(), *Name);
-		return CreatePackage(NULL, *TempPackageName);
+		return CreatePackage(*TempPackageName);
 	}
 
 	/**

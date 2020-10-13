@@ -34,7 +34,7 @@ FUsdLayerViewModel::FUsdLayerViewModel( FUsdLayerViewModel* InParentItem, const 
 
 bool FUsdLayerViewModel::IsValid() const
 {
-	return (bool)UsdStage && ( !ParentItem || ParentItem->LayerIdentifier != LayerIdentifier );
+	return ( bool ) UsdStage && ( !ParentItem || !ParentItem->LayerIdentifier.Equals( LayerIdentifier, ESearchCase::Type::IgnoreCase ) );
 }
 
 TArray< TSharedRef< FUsdLayerViewModel > > FUsdLayerViewModel::GetChildren()
@@ -59,7 +59,7 @@ TArray< TSharedRef< FUsdLayerViewModel > > FUsdLayerViewModel::GetChildren()
 			{
 				const FString SubLayerIdentifier = UsdToUnreal::ConvertString( pxr::SdfComputeAssetPathRelativeToLayer( UsdLayer, SubLayerPath ) );
 
-				if ( !Children.IsValidIndex( SubLayerIndex ) || Children[ SubLayerIndex ]->LayerIdentifier != SubLayerIdentifier )
+				if ( !Children.IsValidIndex( SubLayerIndex ) || !Children[ SubLayerIndex ]->LayerIdentifier.Equals( SubLayerIdentifier, ESearchCase::Type::IgnoreCase ) )
 				{
 					Children.Reset();
 					bNeedsRefresh = true;
@@ -147,7 +147,9 @@ void FUsdLayerViewModel::RefreshData()
 	LayerModel->bIsMuted = UsdStageRef->IsLayerMuted( UsdLayerIdentifier.Get() );
 
 	const pxr::SdfLayerHandle& EditTargetLayer = UsdStageRef->GetEditTarget().GetLayer();
-	LayerModel->bIsEditTarget = ( EditTargetLayer ? EditTargetLayer->GetIdentifier() == UsdLayerIdentifier.Get() : false );
+	LayerModel->bIsEditTarget = ( EditTargetLayer
+		? FCStringAnsi::Stricmp( EditTargetLayer->GetIdentifier().c_str(), UsdLayerIdentifier.Get().c_str() ) == 0
+		: false );
 
 	for ( const TSharedRef< FUsdLayerViewModel >& Child : Children )
 	{
@@ -168,7 +170,7 @@ bool FUsdLayerViewModel::CanMuteLayer() const
 		return false;
 	}
 
-	return ( ( UsdStage.GetRootLayer().GetIdentifier() != LayerIdentifier ) && !LayerModel->bIsEditTarget );
+	return !UsdStage.GetRootLayer().GetIdentifier().Equals( LayerIdentifier, ESearchCase::Type::IgnoreCase ) && !LayerModel->bIsEditTarget;
 }
 
 void FUsdLayerViewModel::ToggleMuteLayer()

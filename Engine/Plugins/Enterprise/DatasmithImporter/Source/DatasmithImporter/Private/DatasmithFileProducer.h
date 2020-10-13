@@ -14,7 +14,6 @@
 
 #include "IDetailCustomization.h"
 #include "Input/Reply.h"
-#include "UObject/StrongObjectPtr.h"
 
 #include "DatasmithFileProducer.generated.h"
 
@@ -81,7 +80,11 @@ private:
 	TUniquePtr< FDatasmithTranslatableSceneSource > TranslatableSourcePtr;
 	TUniquePtr< FDataprepWorkReporter > ProgressTaskPtr;
 
-	TStrongObjectPtr< UDatasmithScene > DatasmithScenePtr;
+	UPROPERTY( Transient, DuplicateTransient )
+	UDatasmithScene* DatasmithScene;
+
+	UPROPERTY( Transient, DuplicateTransient )
+	UPackage* TransientPackage = nullptr;
 
 	TArray< TWeakObjectPtr< UObject > > Assets;
 
@@ -211,7 +214,8 @@ private:
 	/** Set of files matching folder and extensions */
 	TSet< FString > FilesToProcess;
 
-	TStrongObjectPtr< UDatasmithFileProducer > FileProducer;
+	UPROPERTY( Transient, DuplicateTransient )
+	UDatasmithFileProducer* FileProducer;
 
 	static TSet< FString > SupportedFormats;
 

@@ -23,22 +23,8 @@
 #include "AssetRegistryModule.h"
 #include "GroomBindingBuilder.h"
 #include "GroomTextureBuilder.h"
+#include "GroomBindingAsset.h"
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// Helper functions
-
-void CreateFilename(const FString& InAssetName, const FString& Suffix, FString& OutPackageName, FString& OutAssetName)
-{
-	// Get a unique package and asset name
-	FAssetToolsModule& AssetToolsModule = FModuleManager::Get().LoadModuleChecked<FAssetToolsModule>("AssetTools");
-	AssetToolsModule.Get().CreateUniqueAssetName(InAssetName, Suffix, OutPackageName, OutAssetName);
-}
-
-void RegisterTexture(UTexture2D* Out)
-{
-	FAssetRegistryModule::AssetCreated(Out);
-}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Actions
@@ -260,11 +246,7 @@ void FGroomActions::ExecuteCreateBindingAsset(TArray<TWeakObjectPtr<UGroomAsset>
 				CurrentOptions->TargetSkeletalMesh->ConditionalPostLoad();
 
 				UGroomBindingAsset* BindingAsset = CreateGroomBindinAsset(GroomAsset.Get(), CurrentOptions->SourceSkeletalMesh, CurrentOptions->TargetSkeletalMesh, CurrentOptions->NumInterpolationPoints);
-
-				// The binding task will generate and set the binding value back to the binding asset.
-				// This code is not thread safe.
-				const bool bUseGPU = true;
-				FGroomBindingBuilder::BuildBinding(BindingAsset, bUseGPU, true);
+				BindingAsset->Build();
 			}
 		}
 	}
@@ -333,12 +315,8 @@ void FGroomActions::ExecuteCreateFollicleTexture(TArray<TWeakObjectPtr<UGroomAss
 			Info.KernelSizeInPixels = FMath::Max(2, CurrentOptions->RootRadius);
 		}
 
-		FHairAssetHelper Helper;
-		Helper.CreateFilename = CreateFilename;
-		Helper.RegisterTexture = RegisterTexture;
-
 		const uint32 Resolution = FMath::RoundUpToPowerOfTwo(CurrentOptions->Resolution);
-		UTexture2D* FollicleTexture = FGroomTextureBuilder::CreateGroomFollicleMaskTexture(CurrentOptions->Grooms[0].Groom, Resolution, Helper);
+		UTexture2D* FollicleTexture = FGroomTextureBuilder::CreateGroomFollicleMaskTexture(CurrentOptions->Grooms[0].Groom, Resolution);
 		if (FollicleTexture)
 		{
 			const bool bUseGPU = true;
@@ -391,10 +369,12 @@ void FGroomActions::ExecuteCreateStrandsTextures(TArray<TWeakObjectPtr<UGroomAss
 				}
 
 				float SignDirection = 1;
+				float MaxDistance = CurrentOptions->TraceDistance;
 				switch (CurrentOptions->TraceType)
 				{
-				case EStrandsTexturesTraceType::TraceOuside: SignDirection =  1; break;
-				case EStrandsTexturesTraceType::TraceInside: SignDirection = -1; break;
+				case EStrandsTexturesTraceType::TraceOuside:		SignDirection =  1; break;
+				case EStrandsTexturesTraceType::TraceInside:		SignDirection = -1; break;
+				case EStrandsTexturesTraceType::TraceBidirectional: SignDirection = 0;  MaxDistance *= 2; break;
 				}
 
 				UStaticMesh* StaticMesh = nullptr;
@@ -409,18 +389,27 @@ void FGroomActions::ExecuteCreateStrandsTextures(TArray<TWeakObjectPtr<UGroomAss
 
 				FStrandsTexturesInfo Info;
 				Info.GroomAsset   = GroomAsset.Get();
-				Info.MaxTracingDistance = SignDirection * CurrentOptions->TraceDistance;
+				Info.TracingDirection = SignDirection;
+				Info.MaxTracingDistance = MaxDistance;
 				Info.Resolution = FMath::RoundUpToPowerOfTwo(FMath::Max(256, CurrentOptions->Resolution));
+				Info.LODIndex = FMath::Max(0, CurrentOptions->LODIndex);
 				Info.SectionIndex = FMath::Max(0, CurrentOptions->SectionIndex);
 				Info.UVChannelIndex= FMath::Max(0, CurrentOptions->UVChannelIndex);
 				Info.SkeletalMesh = SkeletalMesh;
 				Info.StaticMesh = StaticMesh;
+				if (CurrentOptions->GroupIndex.Num())
+				{
+					Info.GroupIndices = CurrentOptions->GroupIndex;
+				}
+				else
+				{
+					for (int32 GroupIndex = 0; GroupIndex < GroomAsset->GetNumHairGroups(); ++GroupIndex)
+					{
+						Info.GroupIndices.Add(GroupIndex);
+					}
+				}
 
-				FHairAssetHelper Helper;
-				Helper.CreateFilename = CreateFilename;
-				Helper.RegisterTexture = RegisterTexture;
-				
-				FStrandsTexturesOutput Output = FGroomTextureBuilder::CreateGroomStrandsTexturesTexture(GroomAsset.Get(), Info.Resolution, Helper);
+				FStrandsTexturesOutput Output = FGroomTextureBuilder::CreateGroomStrandsTexturesTexture(GroomAsset.Get(), Info.Resolution);
 				if (Output.IsValid())
 				{
 					FGroomTextureBuilder::BuildStrandsTextures(Info, Output);

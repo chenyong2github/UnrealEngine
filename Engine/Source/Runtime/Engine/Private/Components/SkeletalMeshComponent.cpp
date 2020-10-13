@@ -375,11 +375,11 @@ void USkeletalMeshComponent::RegisterEndPhysicsTick(bool bRegister)
 	{
 		if (bRegister)
 		{
-			if (SetupActorComponentTickFunction(&EndPhysicsTickFunction))
+			UWorld* World = GetWorld();
+			if (World->EndPhysicsTickFunction.IsTickFunctionRegistered() && SetupActorComponentTickFunction(&EndPhysicsTickFunction))
 			{
 				EndPhysicsTickFunction.Target = this;
 				// Make sure our EndPhysicsTick gets called after physics simulation is finished
-				UWorld* World = GetWorld();
 				if (World != nullptr)
 				{
 					EndPhysicsTickFunction.AddPrerequisite(World, World->EndPhysicsTickFunction);
@@ -543,14 +543,100 @@ void USkeletalMeshComponent::OnRegister()
 	}
 
 #if WITH_APEX_CLOTHING || WITH_CHAOS_CLOTHING
-	// If we don't have a valid simulation factory - check to see if we have an available default to use instead
-	if (*ClothingSimulationFactory == nullptr)
+	// If no simulation factory is currently set, set it to the default factory
+	if (!ClothingSimulationFactory)
 	{
 		ClothingSimulationFactory = UClothingSimulationFactory::GetDefaultClothingSimulationFactoryClass();
 	}
 
+	// Look up for the best simulation factory to support each asset
+	if (SkeletalMesh)
+	{
+		// Check whether all clothing assets are supported by the current factory
+		bool bSupportsAllAssets = true;
+
+		UClothingSimulationFactory* const DefaultObject = ClothingSimulationFactory->GetDefaultObject<UClothingSimulationFactory>();
+		for (UClothingAssetBase* const ClothingAsset : SkeletalMesh->MeshClothingAssets)
+		{
+			if (ClothingAsset && !DefaultObject->SupportsAsset(ClothingAsset))
+			{
+				bSupportsAllAssets = false;
+
+				UE_LOG(LogSkeletalMesh, Display,
+					TEXT("OnRegister[%s]: [%s] is currently unable to provide a fully functional simulation for each of this SkeletalMesh's clothing assets."),
+					*GetNameSafe(SkeletalMesh),
+					*ClothingSimulationFactory->GetName());
+				UE_LOG(LogSkeletalMesh, Display,
+					TEXT("OnRegister[%s]: The ClothingSimulationFactory property will now be automatically updated to use the most functional simulation that can be found."),
+					*GetNameSafe(SkeletalMesh));
+
+				break;
+			}
+		}
+
+		// Try to find a new clothing factory that matches most asset requirements
+		if (!bSupportsAllAssets)
+		{
+			int MostSupportedNumAssets = 0;
+
+			const TArray<IClothingSimulationFactoryClassProvider*> ClassProviders = IModularFeatures::Get().GetModularFeatureImplementations<IClothingSimulationFactoryClassProvider>(IClothingSimulationFactoryClassProvider::FeatureName);
+			for (const IClothingSimulationFactoryClassProvider* const ClassProvider : ClassProviders)
+			{
+				if (ClassProvider)
+				{
+					if (const TSubclassOf<UClothingSimulationFactory> NewClothingSimulationFactory = ClassProvider->GetClothingSimulationFactoryClass())
+					{
+						int NumAssets = 0;
+						int SupportedNumAssets = 0;
+						UClothingSimulationFactory* const NewDefaultObject = NewClothingSimulationFactory->GetDefaultObject<UClothingSimulationFactory>();
+						for (UClothingAssetBase* const ClothingAsset : SkeletalMesh->MeshClothingAssets)
+						{
+							if (ClothingAsset)
+							{
+								if (NewDefaultObject->SupportsAsset(ClothingAsset))
+								{
+									++SupportedNumAssets;
+								}
+								++NumAssets;
+							}
+						}
+
+						if (SupportedNumAssets > MostSupportedNumAssets)
+						{
+							ClothingSimulationFactory = NewClothingSimulationFactory;
+							MostSupportedNumAssets = SupportedNumAssets;
+							if (SupportedNumAssets == NumAssets)
+							{
+								bSupportsAllAssets = true;
+								break;  // Stop at the first factory that supports all assets
+							}
+						}
+					}
+				}
+			}
+
+			UE_CLOG(!MostSupportedNumAssets, LogSkeletalMesh, Warning,
+				TEXT("OnRegister[%s]: There is no clothing simulation factory available that supports any of this SkeletalMesh's clothing assets."),
+				*GetNameSafe(SkeletalMesh));
+
+			UE_CLOG(MostSupportedNumAssets && !bSupportsAllAssets, LogSkeletalMesh, Warning,
+				TEXT("OnRegister[%s]: The most suitable clothing simulation factory available only partially supports this SkeletalMesh's clothing assets."),
+				*GetNameSafe(SkeletalMesh));
+		}
+	}
+
 	RecreateClothingActors();
-#endif
+#endif  // #if WITH_APEX_CLOTHING || WITH_CHAOS_CLOTHING
+
+#if WITH_CHAOS_CLOTHING
+	// TODO: Add missing Chaos Cloth collision with environment
+	if (bCollideWithEnvironment && ClothingSimulationFactory && ClothingSimulationFactory->GetName() == TEXT("ChaosClothingSimulationFactory"))
+	{
+		UE_LOG(LogSkeletalMesh, Display, TEXT("OnRegister[%s]: "
+			"Chaos Cloth does not currently support bCollideWithEnvironment."),
+			*GetNameSafe(SkeletalMesh));
+	}
+#endif  // #if WITH_CHAOS_CLOTHING
 }
 
 void USkeletalMeshComponent::OnUnregister()

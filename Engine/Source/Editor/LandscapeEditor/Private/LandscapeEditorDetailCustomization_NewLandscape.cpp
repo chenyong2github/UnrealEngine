@@ -1346,7 +1346,7 @@ void FLandscapeEditorStructCustomization_FLandscapeImportLayer::OnImportLayerCre
 			PackageName = NewLayerDlg->GetFullAssetPath().ToString();
 			LayerObjectName = FName(*NewLayerDlg->GetAssetName().ToString());
 
-			UPackage* Package = CreatePackage(nullptr, *PackageName);
+			UPackage* Package = CreatePackage( *PackageName);
 			ULandscapeLayerInfoObject* LayerInfo = NewObject<ULandscapeLayerInfoObject>(Package, LayerObjectName, RF_Public | RF_Standalone | RF_Transactional);
 			LayerInfo->LayerName = LayerName;
 			LayerInfo->bNoWeightBlend = bNoWeightBlend;

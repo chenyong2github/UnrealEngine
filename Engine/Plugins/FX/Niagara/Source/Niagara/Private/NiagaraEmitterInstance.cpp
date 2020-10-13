@@ -400,6 +400,9 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FNiagaraSystemInstanceID 
 #if !UE_BUILD_SHIPPING
 			GPUExecContext->SetDebugSimName(CachedEmitter->GetDebugSimName());
 #endif
+#if STATS
+			GPUExecContext->EmitterPtr = GetEmitterHandle().GetInstance();
+#endif
 			GPUExecContext->MainDataSet = ParticleDataSet;
 			GPUExecContext->GPUScript_RT = CachedEmitter->GetGPUComputeScript()->GetRenderThreadScript();
 
@@ -507,12 +510,6 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FNiagaraSystemInstanceID 
 			}
 		}
 	}	
-
-	if (GPUExecContext)
-	{
-		GPUExecContext->BakeVariableNamesForIterationLookup();
-	}
-
 
 	MaxInstanceCount = CachedEmitter->GetMaxInstanceCount();
 	ParticleDataSet->SetMaxInstanceCount(MaxInstanceCount);
@@ -995,6 +992,10 @@ bool FNiagaraEmitterInstance::HandleCompletion(bool bForce)
 
 	if (IsComplete())
 	{
+		if( GPUExecContext )
+		{
+			GPUExecContext->Reset(Batcher);
+		}
 		ParticleDataSet->ResetBuffers();
 		if (EventInstanceData.IsValid())
 		{
@@ -1180,6 +1181,10 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 
 	if (ExecutionState == ENiagaraExecutionState::InactiveClear)
 	{
+		if (GPUExecContext)
+		{
+			GPUExecContext->Reset(Batcher);
+		}
 		Data.ResetBuffers();
 		ExecutionState = ENiagaraExecutionState::Inactive;
 		return;

@@ -299,7 +299,7 @@ public:
 	 * @param	bLightingSuccessful	Whether the lighting build was successful or not.
 	 * @param	bForceCompletion	Force all encoding to be fully completed (they may be asynchronous).
 	 */
-	static void EncodeTextures( UWorld* InWorld, bool bLightingSuccessful, bool bMultithreadedEncode = false );
+	static void EncodeTextures( UWorld* InWorld, ULevel* LightingScenario, bool bLightingSuccessful, bool bMultithreadedEncode = false );
 
 #if WITH_EDITOR
 	/**

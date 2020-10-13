@@ -21,6 +21,7 @@
 #include "SceneTypes.h"
 #include "SceneInterface.h"
 #include "Components/PrimitiveComponent.h"
+#include "PhysicsField/PhysicsFieldComponent.h"
 #include "MaterialShared.h"
 #include "SceneManagement.h"
 #include "PrecomputedLightVolume.h"
@@ -152,6 +153,9 @@ FSceneViewState::FSceneViewState()
 	, SeparateTranslucencyTimer(TimerQueryPool)
 	, SeparateTranslucencyModulateTimer(TimerQueryPool)
 {
+	// Set FeatureLevel to a valid value, so we get Init/ReleaseDynamicRHI calls on FeatureLevel changes
+	SetFeatureLevel(GMaxRHIFeatureLevel);
+	
 	UniqueID = FSceneViewState_UniqueID.Increment();
 	OcclusionFrameCounter = 0;
 	LastRenderTime = -FLT_MAX;
@@ -1090,6 +1094,8 @@ FScene::FScene(UWorld* InWorld, bool bInRequiresHitProxies, bool bInIsEditorScen
 ,	MobileWholeSceneShadowAtlasSize(0, 0)
 ,	GPUSkinCache(nullptr)
 ,	SceneLODHierarchy(this)
+,	RuntimeVirtualTexturePrimitiveHideMaskEditor(0)
+,	RuntimeVirtualTexturePrimitiveHideMaskGame(0)
 ,	DefaultMaxDistanceFieldOcclusionDistance(InWorld->GetWorldSettings()->DefaultMaxDistanceFieldOcclusionDistance)
 ,	GlobalDistanceFieldViewDistance(InWorld->GetWorldSettings()->GlobalDistanceFieldViewDistance)
 ,	DynamicIndirectShadowsSelfShadowingIntensity(FMath::Clamp(InWorld->GetWorldSettings()->DynamicIndirectShadowsSelfShadowingIntensity, 0.0f, 1.0f))
@@ -1876,6 +1882,37 @@ void FScene::AddOrRemoveDecal_RenderThread(FDeferredDecalProxy* Proxy, bool bAdd
 	}
 }
 
+void FScene::SetPhysicsField(FPhysicsFieldSceneProxy* PhysicsFieldSceneProxy)
+{
+	check(PhysicsFieldSceneProxy);
+	FScene* Scene = this;
+
+	ENQUEUE_RENDER_COMMAND(FSetPhysicsFieldCommand)(
+		[Scene, PhysicsFieldSceneProxy](FRHICommandListImmediate& RHICmdList)
+		{
+			Scene->PhysicsField = PhysicsFieldSceneProxy;
+		});
+}
+
+void FScene::ResetPhysicsField()
+{
+	FScene* Scene = this;
+
+	ENQUEUE_RENDER_COMMAND(FResetPhysicsFieldCommand)(
+		[Scene](FRHICommandListImmediate& RHICmdList)
+		{
+			Scene->PhysicsField = nullptr;
+		});
+}
+
+void FScene::UpdatePhysicsField(FRHICommandListImmediate& RHICmdList, FViewInfo& View)
+{
+	if (PhysicsField)
+	{
+		PhysicsField->FieldResource->FieldInfos.ViewOrigin = View.ViewMatrices.GetViewOrigin();
+	}
+}
+
 void FScene::AddDecal(UDecalComponent* Component)
 {
 	if(!Component->SceneProxy)
@@ -2306,6 +2343,9 @@ void FVolumetricLightmapSceneData::AddLevelVolume(const FPrecomputedVolumetricLi
 	}
 
 	InVolume->Data->AddToSceneData(&GlobalVolumetricLightmapData);
+	
+	// Invalidate CPU lightmap lookup cache
+	CPUInterpolationCache.Empty();
 }
 
 void FVolumetricLightmapSceneData::RemoveLevelVolume(const FPrecomputedVolumetricLightmap* InVolume)
@@ -2318,6 +2358,9 @@ void FVolumetricLightmapSceneData::RemoveLevelVolume(const FPrecomputedVolumetri
 	{
 		PersistentLevelVolumetricLightmap = nullptr;
 	}
+
+	// Invalidate CPU lightmap lookup cache
+	CPUInterpolationCache.Empty();
 }
 
 const FPrecomputedVolumetricLightmap* FVolumetricLightmapSceneData::GetLevelVolumetricLightmap() const
@@ -2469,10 +2512,22 @@ void FScene::RemoveRuntimeVirtualTexture(class URuntimeVirtualTextureComponent* 
 void FScene::AddRuntimeVirtualTexture_RenderThread(FRuntimeVirtualTextureSceneProxy* SceneProxy)
 {
 	SceneProxy->SceneIndex = RuntimeVirtualTextures.Add(SceneProxy);
+
+	const uint8 HideFlagBit = 1 << SceneProxy->SceneIndex;
+	RuntimeVirtualTexturePrimitiveHideMaskEditor &= ~HideFlagBit;
+	RuntimeVirtualTexturePrimitiveHideMaskEditor |= (SceneProxy->bHidePrimitivesInEditor ? HideFlagBit : 0);
+	RuntimeVirtualTexturePrimitiveHideMaskGame &= ~HideFlagBit;
+	RuntimeVirtualTexturePrimitiveHideMaskGame |= (SceneProxy->bHidePrimitivesInGame ? HideFlagBit : 0);
 }
 
 void FScene::UpdateRuntimeVirtualTexture_RenderThread(FRuntimeVirtualTextureSceneProxy* SceneProxy, FRuntimeVirtualTextureSceneProxy* SceneProxyToReplace)
 {
+	const uint8 HideFlagBit = 1 << SceneProxy->SceneIndex;
+	RuntimeVirtualTexturePrimitiveHideMaskEditor &= ~HideFlagBit;
+	RuntimeVirtualTexturePrimitiveHideMaskEditor |= (SceneProxy->bHidePrimitivesInEditor ? HideFlagBit : 0);
+	RuntimeVirtualTexturePrimitiveHideMaskGame &= ~HideFlagBit;
+	RuntimeVirtualTexturePrimitiveHideMaskGame |= (SceneProxy->bHidePrimitivesInGame ? HideFlagBit : 0);
+
 	for (TSparseArray<FRuntimeVirtualTextureSceneProxy*>::TIterator It(RuntimeVirtualTextures); It; ++It)
 	{
 		if (*It == SceneProxyToReplace)
@@ -2489,6 +2544,10 @@ void FScene::UpdateRuntimeVirtualTexture_RenderThread(FRuntimeVirtualTextureScen
 
 void FScene::RemoveRuntimeVirtualTexture_RenderThread(FRuntimeVirtualTextureSceneProxy* SceneProxy)
 {
+	const uint8 HideFlagBit = 1 << SceneProxy->SceneIndex;
+	RuntimeVirtualTexturePrimitiveHideMaskEditor &= ~HideFlagBit;
+	RuntimeVirtualTexturePrimitiveHideMaskGame &= ~HideFlagBit;
+
 	RuntimeVirtualTextures.RemoveAt(SceneProxy->SceneIndex);
 	delete SceneProxy;
 }
@@ -2518,6 +2577,12 @@ uint32 FScene::GetRuntimeVirtualTextureSceneIndex(uint32 ProducerId)
 	// Should not get here
 	check(false);
 	return 0;
+}
+
+void FScene::GetRuntimeVirtualTextureHidePrimitiveMask(uint8& bHideMaskEditor, uint8& bHideMaskGame) const
+{
+	bHideMaskEditor = RuntimeVirtualTexturePrimitiveHideMaskEditor;
+	bHideMaskGame = RuntimeVirtualTexturePrimitiveHideMaskGame;
 }
 
 void FScene::InvalidateRuntimeVirtualTexture(class URuntimeVirtualTextureComponent* Component, FBoxSphereBounds const& WorldBounds)
@@ -4326,6 +4391,10 @@ public:
 	virtual void RemoveSkyAtmosphere(FSkyAtmosphereSceneProxy* SkyAtmosphereSceneProxy) override {}
 	virtual FSkyAtmosphereRenderSceneInfo* GetSkyAtmosphereSceneInfo() override { return NULL; }
 	virtual const FSkyAtmosphereRenderSceneInfo* GetSkyAtmosphereSceneInfo() const override { return NULL; }
+
+	virtual void SetPhysicsField(FPhysicsFieldSceneProxy* PhysicsFieldSceneProxy) override {}
+	virtual void ResetPhysicsField() override {}
+	virtual void UpdatePhysicsField(FRHICommandListImmediate& RHICmdList, FViewInfo& View) override {}
 
 	virtual void AddVolumetricCloud(FVolumetricCloudSceneProxy* VolumetricCloudSceneProxy) override {}
 	virtual void RemoveVolumetricCloud(FVolumetricCloudSceneProxy* VolumetricCloudSceneProxy) override {}

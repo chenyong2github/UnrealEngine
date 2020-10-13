@@ -40,6 +40,8 @@ public:
 	virtual EDMXSendResult SendDMXZeroUniverse(uint16 UniverseID, bool bForceSendDMX /** = false */) override;
 	virtual uint16 GetFinalSendUniverseID(uint16 InUniverseID) const override;
 	virtual bool IsEnabled() const override;
+	virtual void SetSendDMXEnabled(bool bEnabled);
+	virtual bool IsSendDMXEnabled() const;
 	virtual void SetReceiveDMXEnabled(bool bEnabled);
 	virtual bool IsReceiveDMXEnabled() const override;
 	virtual TSharedPtr<IDMXProtocolUniverse, ESPMode::ThreadSafe> AddUniverse(const FJsonObject& InSettings) override;
@@ -52,6 +54,8 @@ public:
 	virtual uint16 GetMinUniverseID() const override;
 	virtual uint16 GetMaxUniverses() const override;
 	virtual void GetDefaultUniverseSettings(uint16 InUniverseID, FJsonObject& OutSettings) const override;
+	virtual void ZeroInputBuffers() override;
+	virtual void ZeroOutputBuffers() override;
 
 	DECLARE_DERIVED_EVENT(FDMXProtocolArtNet, IDMXProtocol::FOnUniverseInputBufferUpdated, FOnUniverseInputBufferUpdated);
 	virtual FOnUniverseInputBufferUpdated& GetOnUniverseInputBufferUpdated() override { return OnUniverseInputBufferUpdated; }
@@ -81,6 +85,12 @@ private:
 
 	/** Destroys the listener for DMX packets, does not affect the network interface */
 	void DestroyDMXListener();
+
+	/** Defines whether DMX should be sent */
+	bool bShouldSendDMX;
+
+	/** Defines whether DMX should be received */
+	bool bShouldReceiveDMX;
 
 public:
 	//~ Begin IDMXProtocolRDM implementation
@@ -169,9 +179,6 @@ private:
 	TSharedPtr<IDMXProtocolSender> ArtNetSender;
 	TSharedPtr<IDMXProtocolReceiver> ArtNetReceiver;
 	TSharedPtr<FDMXProtocolReceivingRunnable> ReceivingRunnable;
-	
-	/** Defines if DMX should be received */
-	bool bShouldReceiveDMX;
 
 	/** Holds the network socket used to transport packages. */
 	FSocket* BroadcastSocket;

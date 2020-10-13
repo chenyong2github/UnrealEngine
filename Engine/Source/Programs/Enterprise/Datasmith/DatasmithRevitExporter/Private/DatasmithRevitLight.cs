@@ -50,6 +50,13 @@ namespace DatasmithRevitExporter
 				// Write a IES definition file and set its file path for the Datasmith light.
 				// Use the user's temporary folder as IES definition file folder path.
 				io_datasmithLightActor.WriteIESFile(Path.GetTempPath(), iesFileName, iesCacheData);
+
+				FamilyInstance LightInstance = in_sourceElement as FamilyInstance;
+
+				// Rotate the IES photometric web to match that of Revit.
+				// Note: if tilt angle is present, it will be exported at part of the family instance transform, 
+				// so no need to process it here.
+				io_datasmithLightActor.SetIesRotation(-90f * (LightInstance.Mirrored ? -1f : 1f) , 0f, -90f);
 			}
 
 			if(io_datasmithLightActor is FDatasmithFacadeSpotLight pointLightActor)

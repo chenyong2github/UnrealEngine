@@ -128,8 +128,12 @@ namespace WindowsMixedReality
 			IHeadMountedDisplayModule::StartupModule();
 
 			// Set the shader directory even if we won't be able to load the interop so shader compliation does not fail.
-			FString PluginShaderDir = FPaths::Combine(IPluginManager::Get().FindPlugin(TEXT("WindowsMixedReality"))->GetBaseDir(), TEXT("Shaders"));
-			AddShaderSourceDirectoryMapping(TEXT("/Plugin/WindowsMixedReality"), PluginShaderDir);
+			const FString VirtualShaderDir = TEXT("/Plugin/WindowsMixedReality");
+			if (!AllShaderSourceDirectoryMappings().Contains(VirtualShaderDir))  // Two modules try to map this, so we have to check if its already set.
+			{
+				FString PluginShaderDir = FPaths::Combine(IPluginManager::Get().FindPlugin(TEXT("WindowsMixedReality"))->GetBaseDir(), TEXT("Shaders"));
+				AddShaderSourceDirectoryMapping(VirtualShaderDir, PluginShaderDir);
+			}
 
 			HMD = LoadInteropLibrary();
 			if (!HMD)
@@ -224,7 +228,7 @@ namespace WindowsMixedReality
 #if WITH_INPUT_SIMULATION
 		if (auto* InputSim = UWindowsMixedRealityInputSimulationEngineSubsystem::GetInputSimulationIfEnabled())
 		{
-			if (IsHMDConnectedInternal())
+			if (InputSim->HasPositionalTracking())
 			{
 				return true;
 			}
@@ -235,11 +239,6 @@ namespace WindowsMixedReality
 	}
 
 	bool FWindowsMixedRealityHMD::IsHMDConnected()
-	{
-		return IsHMDConnectedInternal();
-	}
-
-	bool FWindowsMixedRealityHMD::IsHMDConnectedInternal() const
 	{
 #if WITH_WINDOWS_MIXED_REALITY
 		if (HMD->IsRemoting())
@@ -875,6 +874,7 @@ namespace WindowsMixedReality
 		MotionControllerData.DeviceName = GetSystemName();
 		MotionControllerData.ApplicationInstanceID = FApp::GetInstanceId();
 		MotionControllerData.DeviceVisualType = EXRVisualType::Hand;
+		MotionControllerData.HandIndex = Hand;
 
 		MotionControllerData.TrackingStatus = (ETrackingStatus)GetControllerTrackingStatus((WindowsMixedReality::HMDHand)Hand);
 
@@ -1170,6 +1170,8 @@ namespace WindowsMixedReality
 					int Width, Height;
 					if (HMD->GetDisplayDimensions(Width, Height))
 					{
+						bIsStereoEnabled = HMD->IsStereoEnabled();
+
 						SceneVP->SetViewportSize(
 #if PLATFORM_HOLOLENS
 							Width,
@@ -1180,7 +1182,6 @@ namespace WindowsMixedReality
 
 						Window->SetViewportSizeDrivenByWindow(false);
 
-						bIsStereoEnabled = HMD->IsStereoEnabled();
 						if (bIsStereoEnabled)
 						{
 							HMD->CreateHiddenVisibleAreaMesh();
@@ -1239,8 +1240,16 @@ namespace WindowsMixedReality
 		return true;
 	}
 
+	bool FWindowsMixedRealityHMD::bEnableStereoReentranceGuard = false;
+
 	bool FWindowsMixedRealityHMD::EnableStereo(bool stereo)
 	{
+		if (bEnableStereoReentranceGuard)
+		{
+			return false;
+		}
+
+		bEnableStereoReentranceGuard = true;
 #if WITH_WINDOWS_MIXED_REALITY
 		if (stereo)
 		{
@@ -1251,18 +1260,20 @@ namespace WindowsMixedReality
 				if (FParse::Value(FCommandLine::Get(), TEXT("RemotingAppIp="), RemotingAppIp) &&
 					FParse::Value(FCommandLine::Get(), TEXT("RemotingBitRate="), RemotingBitRate))
 				{
-					ConnectToRemoteHoloLens(*RemotingAppIp, RemotingBitRate, false);
+					FWindowsMixedRealityStatics::ConnectToRemoteHoloLens(*RemotingAppIp, RemotingBitRate, false);
 				}
 			}
 
 			if (bIsStereoDesired && HMD->IsInitialized())
 			{
+				bEnableStereoReentranceGuard = false;
 				return false;
 			}
 
 			FindMRSceneViewport(bIsStereoDesired);
 			if (!bIsStereoDesired)
 			{
+				bEnableStereoReentranceGuard = false;
 				return false;
 			}
 
@@ -1336,6 +1347,8 @@ namespace WindowsMixedReality
 			StopSpeechRecognition();
 		}
 #endif
+		bEnableStereoReentranceGuard = false;
+
 		return bIsStereoDesired;
 	}
 

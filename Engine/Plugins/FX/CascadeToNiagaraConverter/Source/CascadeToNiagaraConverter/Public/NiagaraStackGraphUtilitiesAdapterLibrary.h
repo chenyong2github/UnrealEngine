@@ -3,21 +3,27 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "CascadeToNiagaraConverterModule.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "NiagaraEditor/Public/ViewModels/Stack/NiagaraStackGraphUtilities.h"
 #include "AssetData.h"
 #include "Particles/ParticleEmitter.h"
 #include "Particles/SubUVAnimation.h"
+#include "Particles/Acceleration/ParticleModuleAccelerationDragScaleOverLife.h"
+#include "Particles/Acceleration/ParticleModuleAccelerationOverLifetime.h"
+#include "Particles/Attractor/ParticleModuleAttractorParticle.h"
 #include "Particles/Camera/ParticleModuleCameraOffset.h"
 #include "Particles/Parameter/ParticleModuleParameterDynamic.h"
 #include "Particles/ParticleSpriteEmitter.h"
 #include "Particles/ParticleModuleRequired.h"
 #include "Particles/Orbit/ParticleModuleOrbit.h"
 #include "Particles/Collision/ParticleModuleCollisionBase.h"
+#include "Particles/Trail/ParticleModuleTrailSource.h"
 #include "Particles/TypeData/ParticleModuleTypeDataGpu.h"
 #include "Particles/TypeData/ParticleModuleTypeDataMesh.h"
 #include "Particles/TypeData/ParticleModuleTypeDataRibbon.h"
 #include "Curves/RichCurve.h"
+#include "NiagaraEmitter.h"
 #include "NiagaraStackGraphUtilitiesAdapterLibrary.generated.h"
 
 class UNiagaraSystem;
@@ -42,16 +48,19 @@ struct FRichCurveKey;
 UENUM()
 enum class EScriptExecutionCategory : uint8
 {
-	EmitterSpawn,
+	EmitterSpawn = 0,
 	EmitterUpdate,
 	ParticleSpawn,
-	ParticleUpdate
+	ParticleUpdate,
+	ParticleEvent UMETA(Hidden),
+
+	NONE
 };
 
 UENUM()
 enum class EDistributionType : uint8
 {
-	Const,
+	Const = 0,
 	ConstCurve,
 	Uniform,
 	UniformCurve,
@@ -63,7 +72,7 @@ enum class EDistributionType : uint8
 UENUM()
 enum class EDistributionValueType : uint8
 {
-	Float,
+	Float = 0,
 	Vector,
 
 	NONE
@@ -72,7 +81,7 @@ enum class EDistributionValueType : uint8
 UENUM()
 enum class ECascadeRendererType : uint8
 { 
-	Sprite,
+	Sprite = 0,
 	Mesh,
 	Ribbon,
 	Beam,
@@ -84,7 +93,7 @@ enum class ECascadeRendererType : uint8
 UENUM()
 enum class ENiagaraScriptInputType : uint8
 {
-	Int,
+	Int = 0,
 	Float,
 	Vec2,
 	Vec3,
@@ -94,6 +103,34 @@ enum class ENiagaraScriptInputType : uint8
 	Struct,
 	Enum,
 	DataInterface,
+	Bool,
+
+	NONE
+};
+
+UENUM()
+enum class ERibbonConversionMode : uint8
+{
+	Event = 0,
+	DirectRead,
+
+	NONE
+};
+
+UENUM()
+enum class EStackEntryAddActionMode : uint8
+{
+	Module = 0,
+	SetParameter,
+
+	NONE
+};
+
+UENUM()
+enum class ENiagaraEventHandlerAddMode : uint8
+{
+	AddEvent,
+	AddEventAndEventGenerator,
 
 	NONE
 };
@@ -102,28 +139,8 @@ enum class ENiagaraScriptInputType : uint8
 /////	Wrapper Structs																							  /////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-/** Wrapper for storing a script execution category with a script conversion context. */
-USTRUCT()
-struct FScriptConversionContextAndExecutionCategory
-{
-	GENERATED_BODY()
 
-	FScriptConversionContextAndExecutionCategory() = default;
-
-	FScriptConversionContextAndExecutionCategory(UNiagaraScriptConversionContext* InScriptConversionContext, EScriptExecutionCategory InScriptExecutionCategory)
-		: ScriptConversionContext(InScriptConversionContext)
-		, ScriptExecutionCategory(InScriptExecutionCategory)
-	{};
-
-	UPROPERTY()
-		UNiagaraScriptConversionContext* ScriptConversionContext;
-
-	UPROPERTY()
-		EScriptExecutionCategory ScriptExecutionCategory;
-
-};
-
-/** BlueprintType wrapper around FEmitterDynamicParameterBP to allow managing in blueprint/python logic. */
+/** BlueprintType wrapper around FEmitterDynamicParameter to allow managing in blueprint/python logic. */
 USTRUCT(BlueprintInternalUseOnly)
 struct FEmitterDynamicParameterBP
 {
@@ -161,7 +178,7 @@ struct FEmitterDynamicParameterBP
 		, bScaleVelocityByParamValue(false)
 	{
 	}
-	FEmitterDynamicParameterBP(FName InParamName, uint32 InUseEmitterTime, TEnumAsByte<enum EEmitterDynamicParameterValue> InValueMethod, UDistributionFloatConstant* InDistribution)
+	FEmitterDynamicParameterBP(FName InParamName, uint32 InUseEmitterTime, TEnumAsByte<EEmitterDynamicParameterValue> InValueMethod, UDistributionFloatConstant* InDistribution)
 		: ParamName(InParamName)
 		, bUseEmitterTime((bool)InUseEmitterTime)
 		, bSpawnTimeOnly(false)
@@ -253,16 +270,6 @@ struct FParticleBurstBlueprint
 	float Time;
 };
 
-/** Wrapper for tracking indices of parameter set nodes added to Emitter Conversion Contexts. */
-USTRUCT(BlueprintInternalUseOnly)
-struct FParameterSetIndices
-{
-	GENERATED_BODY()
-
-	UPROPERTY()
-	TArray<int32> Indices;
-};
-
 USTRUCT(BlueprintInternalUseOnly)
 struct FRichCurveKeyBP : public FRichCurveKey
 {
@@ -281,6 +288,149 @@ struct FRichCurveKeyBP : public FRichCurveKey
 	static TArray<FRichCurveKey> KeysToBase(const TArray<FRichCurveKeyBP>& InKeyBPs);
 };
 
+USTRUCT(BlueprintInternalUseOnly)
+struct FNiagaraAddEventGeneratorOptions
+{
+	GENERATED_BODY()
+
+	FNiagaraAddEventGeneratorOptions() = default;
+
+	/** The name to lookup the emitter which has the event generator. */
+	UPROPERTY(BlueprintReadWrite, Category = "Event Generator Options")
+	FName SourceEmitterName;
+
+	/** AssetData pointing to the UNiagaraScript that generates the event. */
+	UPROPERTY(BlueprintReadWrite, Category = "Event Generator Options")
+	FAssetData EventGeneratorScriptAssetData;
+};
+
+USTRUCT(BlueprintInternalUseOnly)
+struct FNiagaraEventHandlerAddAction
+{
+	GENERATED_BODY()
+
+	FNiagaraEventHandlerAddAction()
+		: Mode(ENiagaraEventHandlerAddMode::AddEvent)
+		, AddEventGeneratorOptions()
+		, ExecutionMode(EScriptExecutionMode::EveryParticle)
+		, SpawnNumber(0)
+		, MaxEventsPerFrame(0)
+		, SourceEmitterID()
+		, SourceEventName()
+		, bRandomSpawnNumber(false)
+		, MinSpawnNumber(0)
+	{};
+
+	FNiagaraEventHandlerAddAction(const FNiagaraEventHandlerAddAction& Other) = default;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Event Handler Options")
+	ENiagaraEventHandlerAddMode Mode;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Event Handler Options")
+	FNiagaraAddEventGeneratorOptions AddEventGeneratorOptions;
+
+	// Begin FNiagaraEventScriptProperties
+	/** Controls which particles have the event script run on them.*/
+	UPROPERTY(BlueprintReadWrite, Category = "Event Handler Options")
+	EScriptExecutionMode ExecutionMode;
+
+	/** Controls whether or not particles are spawned as a result of handling the event. Only valid for EScriptExecutionMode::SpawnedParticles. If Random Spawn Number is used, this will act as the maximum spawn range. */
+	UPROPERTY(BlueprintReadWrite, Category = "Event Handler Options")
+	int32 SpawnNumber;
+
+	/** Controls how many events are consumed by this event handler. If there are more events generated than this value, they will be ignored.*/
+	UPROPERTY(BlueprintReadWrite, Category = "Event Handler Options")
+	int32 MaxEventsPerFrame;
+
+	/** Id of the Emitter Handle that generated the event. If all zeroes, the event generator is assumed to be this emitter.*/
+	UPROPERTY()
+	FGuid SourceEmitterID;
+
+	/** The name of the event generated. This will be "Collision" for collision events and the Event Name field on the DataSetWrite node in the module graph for others. */
+	UPROPERTY(BlueprintReadWrite, Category = "Event Handler Options")
+	FName SourceEventName;
+
+	/** Whether using a random spawn number. */
+	UPROPERTY(BlueprintReadWrite, Category = "Event Handler Options")
+	bool bRandomSpawnNumber;
+
+	/** The minimum spawn number when random spawn is used. Spawn Number is used as the maximum range. */
+	UPROPERTY(BlueprintReadWrite, Category = "Event Handler Options")
+	int32 MinSpawnNumber;
+	// End FNiagaraEventScriptProperties
+
+	FNiagaraEventScriptProperties GetEventScriptProperties() const;
+};
+
+USTRUCT(BlueprintType)
+struct FStackEntryID
+{
+	GENERATED_BODY()
+
+	FStackEntryID()
+		: ScriptExecutionCategory(EScriptExecutionCategory::EmitterSpawn)
+		, EventName()
+	{};
+
+	FStackEntryID(EScriptExecutionCategory TargetExecutionCategory)
+		: ScriptExecutionCategory(TargetExecutionCategory)
+		, EventName()
+	{};
+
+	FStackEntryID(const FNiagaraEventHandlerAddAction& TargetEventHandlerStackEntry)
+		: ScriptExecutionCategory(EScriptExecutionCategory::ParticleEvent)
+		, EventName(TargetEventHandlerStackEntry.SourceEventName)
+	{};
+
+	// The stack group to put a stack entry in.
+	UPROPERTY()
+	EScriptExecutionCategory ScriptExecutionCategory;
+
+	// If the ScriptExecutionCategory is ParticleEvent, this FName is the key to find the desired event stack group.
+	UPROPERTY()
+	FName EventName;
+};
+
+USTRUCT()
+struct FStackEntryAddAction
+{
+	GENERATED_BODY()
+
+		FStackEntryAddAction() = default;
+
+	FStackEntryAddAction(UNiagaraScriptConversionContext* InScriptConversionContext, const FStackEntryID& InStackEntryID, const FName& InModuleName)
+		: Mode(EStackEntryAddActionMode::Module)
+		, ScriptConversionContext(InScriptConversionContext)
+		, StackEntryID(InStackEntryID)
+		, ModuleName(InModuleName)
+	{};
+
+	FStackEntryAddAction(UNiagaraClipboardFunction* InParameterSetClipboardFunction, const FStackEntryID& InStackEntryID)
+		: Mode(EStackEntryAddActionMode::SetParameter)
+		, ClipboardFunction(InParameterSetClipboardFunction)
+		, StackEntryID(InStackEntryID)
+	{};
+
+	// The mode of the AddStackEntryAction: when the action is applied to a UNiagaraEmitterConversionContext during Finalize(), the mode chooses what form of stack entry to add.
+	UPROPERTY()
+	EStackEntryAddActionMode Mode;
+
+	// If Mode is Module, represents the pending module script to create a stack entry for. Otherwise this value is ignored.
+	UPROPERTY()
+	UNiagaraScriptConversionContext* ScriptConversionContext;
+
+	// If mode is SetParameter, represents the pending parameter to set directly and create a stack entry for. Otherwise this value is ignored.
+	UPROPERTY()
+	UNiagaraClipboardFunction* ClipboardFunction;
+
+	// Info to find the category of the stack to add the stack entry to.
+	UPROPERTY()
+	FStackEntryID StackEntryID;
+
+	// If Mode is Module, acts as a key to lookup the ScriptConversionContext.
+	UPROPERTY()
+	FName ModuleName;
+};
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////	Logging Framework																						  /////
@@ -323,24 +473,35 @@ public:
 	 * @param InSystem					The System to convert.
 	 * @param InSystemViewModelGuid		A Guid key to the FNiagaraSystemViewModel pointing at the InSystem.
 	 */
-	void Init(UNiagaraSystem* InSystem, FGuid InSystemViewModelGuid)
+	void Init(UNiagaraSystem* InSystem, const TSharedPtr<FNiagaraSystemViewModel>& InSystemViewModel)
 	{
 		System = InSystem;
-		SystemViewModelGuid = InSystemViewModelGuid;
+		SystemViewModel = InSystemViewModel;
 	}
+
+	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
+	void Cleanup();
 
 	/** Add an empty emitter to the system and return an emitter conversion context. */
 	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
 	UNiagaraEmitterConversionContext* AddEmptyEmitter(FString NewEmitterNameString);
 
+	/**
+	 * Apply all pending UNiagaraScriptConversionContexts and UNiagaraRendererProperties to the owned
+	 * UNiagaraEmitterContexts by creating clipboard inputs and pasting them onto the emitter conversion context's
+	 * Emitter.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
 	void Finalize();
 
+	UNiagaraEmitterConversionContext* const* FindEmitterConversionContextByName(const FName& EmitterName);
+
 private:
-	UPROPERTY()
 	UNiagaraSystem* System;
 
-	UPROPERTY()
-	FGuid SystemViewModelGuid;
+	TSharedPtr<FNiagaraSystemViewModel> SystemViewModel;
+
+	TMap<FName, UNiagaraEmitterConversionContext*> EmitterNameToConversionContextMap;
 };
 
 /** 
@@ -358,25 +519,59 @@ public:
 	UNiagaraEmitterConversionContext()
 		: PastedFunctionCallNode(nullptr)
 	{};
-	
+
+	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
+	void Cleanup();
+
 	/** 
 	 * Find or add a script conversion context to this emitter conversion context. If a script conversion context
 	 * is not found by name string then a new one is created and initialized from the NiagaraScriptAssetData.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
-	UNiagaraScriptConversionContext* FindOrAddModuleScript(FString ScriptNameString, FAssetData NiagaraScriptAssetData, EScriptExecutionCategory ExecutionCategory);
+	UNiagaraScriptConversionContext* FindOrAddModuleScript(
+		FString ScriptNameString
+		, FAssetData NiagaraScriptAssetData
+		, EScriptExecutionCategory ModuleScriptExecutionCategory
+	);
 
+	/**
+	 * Find a module script conversion context or add a module script conversion context  to this emitter conversion context for an event category. If a script conversion context
+	 * is not found by name string then a new one is created and initialized from the NiagaraScriptAssetData.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
+	UNiagaraScriptConversionContext* FindOrAddModuleEventScript(
+		FString ScriptNameString
+		, FAssetData NiagaraScriptAssetData
+		, FNiagaraEventHandlerAddAction EventScriptProps
+	);
+
+	
 	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
 	UNiagaraScriptConversionContext* FindModuleScript(FString ScriptNameString);
 
 	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
-	void AddModuleScript(UNiagaraScriptConversionContext* ScriptConversionContext, FString ScriptNameString, EScriptExecutionCategory ExecutionCategory);
+	void AddModuleScript(
+		UNiagaraScriptConversionContext* ScriptConversionContext
+		, FString ScriptNameString
+		, EScriptExecutionCategory ModuleScriptExecutionCategory
+	);
+
+	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
+	void AddModuleEventScript(
+		UNiagaraScriptConversionContext* ScriptConversionContext
+		, FString ScriptNameString
+		, FNiagaraEventHandlerAddAction EventScriptProps
+	);
 
 	/**
 	 * Add a set parameter module to the emitter handled by this emitter conversion context.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
-	void SetParameterDirectly(FString ParameterNameString, UNiagaraScriptConversionContextInput* ParameterInput, EScriptExecutionCategory TargetExecutionCategory);
+	void SetParameterDirectly(
+		FString ParameterNameString
+		, UNiagaraScriptConversionContextInput* ParameterInput
+		, EScriptExecutionCategory SetParameterExecutionCategory
+	);
 
 	/** Add a renderer to this emitter conversion context through renderer properties. */
 	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
@@ -403,55 +598,61 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
 	void Finalize();
 
-	/** 
+	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
+	UNiagaraEmitter* GetEmitter() {return Emitter;};
+
+	void InternalFinalizeEvents(UNiagaraSystemConversionContext* OwningSystemConversionContext);
+
+	void InternalFinalizeStackEntryAddActions();
+
+	/**
 	 * Init the Emitter Conversion Context. 
 	 * @param InEmitter						The Emitter to convert.
 	 * @param InEmitterHandleViewModelGuid	A Guid key to the FNiagaraEmitterHandleViewModel pointing at the InEmitter.
 	 */
-	void Init(UNiagaraEmitter* InEmitter, FGuid InEmitterHandleViewModelGuid)
+	void Init(UNiagaraEmitter* InEmitter, const TSharedPtr<FNiagaraEmitterHandleViewModel>& InEmitterHandleViewModel)
 	{
 		Emitter = InEmitter;
-		EmitterHandleViewModelGuid = InEmitterHandleViewModelGuid;
+		EmitterHandleViewModel = InEmitterHandleViewModel;
 		bEnabled = true;
 	};
 
+	FGuid GetEmitterHandleId() const;
+
 	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
-	void SetEnabled(bool bInEnabled) {bEnabled = bInEnabled;}
+	void SetEnabled(bool bInEnabled) {bEnabled = bInEnabled;};
 
 	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
 	bool GetEnabled() const {return bEnabled;};
 
-
+	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
+	void AddEventHandler(FNiagaraEventHandlerAddAction EventScriptPropertiesBP);
 
 private:
-	UPROPERTY(EditAnywhere, Category = "FXConverterUtilities")
 	UNiagaraEmitter* Emitter;
 
-	UPROPERTY()
-	FGuid EmitterHandleViewModelGuid;
+	TSharedPtr<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel;
 
-	UPROPERTY()
-	TMap<FString, FScriptConversionContextAndExecutionCategory> ScriptNameToStagedScriptMap;
+	TArray<FNiagaraEventHandlerAddAction> EventHandlerAddActions;
 
-	UPROPERTY()
-	TMap<EScriptExecutionCategory, FParameterSetIndices> ScriptExecutionCategoryToParameterSetIndicesMap;
+	TArray<FStackEntryAddAction> StackEntryAddActions;
 
-	UPROPERTY()
-	TArray<UNiagaraClipboardFunction*> StagedParameterSets;
-
-	UPROPERTY()
 	TMap<FString, UNiagaraRendererProperties*> RendererNameToStagedRendererPropertiesMap;
 
-	UPROPERTY()
 	TArray<FGenericConverterMessage> EmitterMessages;
 
-	UPROPERTY()
 	bool bEnabled;
 
 	UNiagaraNodeFunctionCall* PastedFunctionCallNode;
 
 	UFUNCTION()
 	void SetPastedFunctionCallNode(UNiagaraNodeFunctionCall* InFunctionCallNode) {PastedFunctionCallNode = InFunctionCallNode;};
+
+	UNiagaraScriptConversionContext* PrivateFindOrAddModuleScript(
+		const FString& ScriptNameString
+		, const FAssetData& NiagaraScriptAssetData
+		, const FStackEntryID& StackEntryID
+	);
 };
 
 /** Wrapper for programmatically adding scripts to a UNiagaraEmitter through a UNiagaraEmitterConversionContext. */
@@ -498,23 +699,17 @@ public:
 
 private:
 	// Execution category to add this script to when it is finalized to a system or emitter.
-	UPROPERTY()
 	EScriptExecutionCategory TargetExecutionCategory;
 
-	UPROPERTY()
 	TArray<const UNiagaraClipboardFunctionInput*> FunctionInputs;
 
-	UPROPERTY()
 	UNiagaraScript* Script;
 
-	UPROPERTY()
 	TArray<FGenericConverterMessage> StackMessages;
 
 	// Map of input variable names to their type defs for verifying inputs.
-	UPROPERTY()
 	TMap<FString, FNiagaraTypeDefinition> InputNameToTypeDefMap;
 
-	UPROPERTY()
 	bool bEnabled;
 };
 
@@ -605,7 +800,7 @@ public:
 	static UNiagaraScriptConversionContextInput* CreateScriptInputStruct(UUserDefinedStruct* Value);
 
 	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
-	static UNiagaraScriptConversionContextInput* CreateScriptInputEnum(UUserDefinedEnum* Value);
+	static UNiagaraScriptConversionContextInput* CreateScriptInputEnum(const FString& UserDefinedEnumAssetPath, const FString& UserDefinedEnumValueNameString);
 
 	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
 	static UNiagaraScriptConversionContextInput* CreateScriptInputInt(int32 Value);
@@ -615,6 +810,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
 	static UNiagaraScriptConversionContextInput* CreateScriptInputDI(UNiagaraDataInterface* Value);
+
+	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
+	static UNiagaraScriptConversionContextInput* CreateScriptInputBool(bool Value);
 
 
 	// Niagara Renderer Properties Helpers
@@ -718,11 +916,10 @@ public:
 	);
 
 	UFUNCTION(BlueprintCallable, meta = (ScriptMethod), Category = "FXConverterUtilities")
-	static void GetParticleModuleRequiredProps(
+	static void GetParticleModuleRequiredPerRendererProps(
 		  UParticleModuleRequired* ParticleModuleRequired
 		, UMaterialInterface*& OutMaterialInterface
 		, TEnumAsByte<EParticleScreenAlignment>& OutScreenAlignment
-		, bool& bOutUseLocalSpace
 		, int32& OutSubImages_Horizontal
 		, int32& OutSubImages_Vertical
 		, TEnumAsByte<EParticleSortMode>& OutSortMode
@@ -736,6 +933,37 @@ public:
 		, float& OutAlphaThreshold
 	);
 
+	UFUNCTION(BlueprintCallable, meta = (ScriptMethod), Category = "FXConverterUtilities")
+	static void GetParticleModuleRequiredPerModuleProps(
+		UParticleModuleRequired* ParticleModuleRequired
+		, bool& bOutOrbitModuleAffectsVelocityAlignment
+		, float& OutRandomImageTime
+		, int32& OutRandomImageChanges
+		, bool& bOutOverrideSystemMacroUV
+		, FVector& OutMacroUVPosition
+		, float& OutMacroUVRadius
+	);
+
+	UFUNCTION(BlueprintCallable, meta = (ScriptMethod), Category = "FXConverterUtilities")
+	static void GetParticleModuleRequiredPerEmitterProps(
+		UParticleModuleRequired* ParticleModuleRequired
+		, FVector& OutEmitterOrigin
+		, FRotator& OutEmitterRotation
+		, bool& bOutUseLocalSpace
+		, bool& bOutKillOnDeactivate
+		, bool& bOutKillOnCompleted
+		, bool& bOutUseLegacyEmitterTime
+		, bool& bOutEmitterDurationUseRange
+		, float& OutEmitterDuration
+		, float& OutEmitterDurationLow
+		, bool& bOUtEmitterDelayUseRange
+		, bool& bOutDelayFirstLoopOnly
+		, float& OutEmitterDelay
+		, float& OutEmitterDelayLow
+		, bool& bOutDurationRecalcEachLoop
+		, int32& OutEmitterLoops
+	);
+	
 	UFUNCTION(BlueprintCallable, meta = (ScriptMethod), Category = "FXConverterUtilities")
 	static void GetParticleModuleColorProps(UParticleModuleColor* ParticleModule, UDistribution*& OutStartColor, UDistribution*& OutStartAlpha, bool& bOutClampAlpha);
 
@@ -807,7 +1035,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
 	static void GetParticleModuleOrbitProps(
 		UParticleModuleOrbit* ParticleModule
-		, TEnumAsByte<enum EOrbitChainMode>& OutChainMode
+		, TEnumAsByte<EOrbitChainMode>& OutChainMode
 		, UDistribution*& OutOffsetAmount
 		, FOrbitOptionsBP& OutOffsetOptions
 		, UDistribution*& OutRotationAmount
@@ -870,9 +1098,110 @@ public:
 	static void GetParticleModuleAccelerationDragProps(UParticleModuleAccelerationDrag* ParticleModule, UDistribution*& OutDragCoefficientRaw);
 	
 	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
+	static void GetParticleModuleAccelerationDragScaleOverLifeProps(UParticleModuleAccelerationDragScaleOverLife* ParticleModule, UDistribution*& OutDragScaleRaw);
+
+	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
 	static void GetParticleModuleAccelerationProps(UParticleModuleAcceleration* ParticleModule, UDistribution*& OutAcceleration, bool& bOutApplyOwnerScale);
 
+	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
+	static void GetParticleModuleAccelerationOverLifetimeProps(UParticleModuleAccelerationOverLifetime* ParticleModule, UDistribution*& OutAccelOverLife);
 
+	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
+	static void GetParticleModuleTrailSourceProps(
+		UParticleModuleTrailSource* ParticleModule
+		, TEnumAsByte<ETrail2SourceMethod>& OutSourceMethod
+		, FName& OutSourceName
+		, UDistribution*& OutSourceStrength
+		, bool& bOutLockSourceStrength
+		, int32& OutSourceOffsetCount
+		, TArray<FVector>& OutSourceOffsetDefaults
+		, TEnumAsByte<EParticleSourceSelectionMethod>& OutSelectionMethod
+		, bool& bOutInheritRotation
+	);
+	
+	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
+	static void GetParticleModuleAttractorParticleProps(
+		UParticleModuleAttractorParticle* ParticleModule
+		, FName& OutEmitterName, UDistribution*& OutRange
+		, bool& bOutStrengthByDistance
+		, UDistribution*& OutStrength
+		, bool& bOutAffectBaseVelocity
+		, TEnumAsByte<EAttractorParticleSelectionMethod>& OutSelectionMethod
+		, bool& bOutRenewSource
+		, bool& bOutInheritSourceVelocity
+	);
+	
+	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
+	static void GetParticleModuleAttractorPointProps(
+		UParticleModuleAttractorPoint* ParticleModule
+		, UDistribution*& OutPosition
+		, UDistribution*& OutRange
+		, UDistribution*& OutStrength
+		, bool& boutStrengthByDistance
+		, bool& bOutAffectsBaseVelocity
+		, bool& bOutOverrideVelocity
+		, bool& bOutUseWorldSpacePosition
+		, bool& bOutPositiveX
+		, bool& bOutPositiveY
+		, bool& bOutPositiveZ
+		, bool& bOutNegativeX
+		, bool& bOutNegativeY
+		, bool& bOutNegativeZ
+	);
+
+	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
+	static void GetParticleModuleAttractorLineProps(
+		UParticleModuleAttractorLine* ParticleModule
+		, FVector& OutStartPoint
+		, FVector& OutEndPoint
+		, UDistribution*& OutRange
+		, UDistribution*& OutStrength
+	);
+	
+	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
+	static void GetParticleModuleLocationDirectProps(
+		UParticleModuleLocationDirect* ParticleModule
+		, UDistribution*& OutLocation
+		, UDistribution*& OutLocationOffset
+		, UDistribution*& OutScaleFactor
+	);
+	
+	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
+	static void GetParticleModuleLocationProps(
+		UParticleModuleLocation* ParticleModule
+		, UDistribution*& OutStartLocation
+		, float& OutDistributeOverNPoints
+		, float& OutDistributeThreshold
+	);
+	
+	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
+	static void GetParticleModuleKillBoxProps(
+		UParticleModuleKillBox* ParticleModule
+		, UDistribution*& OutLowerLeftCorner
+		, UDistribution*& OutUpperRightCorner
+		, bool& bOutWorldSpaceCoords
+		, bool& bOutKillInside
+		, bool& bOutAxisAlignedAndFixedSize
+	);
+	
+	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
+	static void GetParticleModuleLightProps(
+		UParticleModuleLight* ParticleModule
+		, bool& bOutUseInverseSquaredFalloff
+		, bool& bOutAffectsTranslucency
+		, bool& bOutPreviewLightRadius
+		, float& OutSpawnFraction
+		, UDistribution*& OutColorScaleOverLife
+		, UDistribution*& OutBrightnessOverLife
+		, UDistribution*& OutRadiusScale
+		, UDistribution*& OutLightExponent
+		, FLightingChannels& OutLightingChannels
+		, float& OutVolumetricScatteringIntensity
+		, bool& bOutHighQualityLights
+		, bool& bOutShadowCastingLights
+	);
+	
+	
 	// Cascade Distribution Getters
 	UFUNCTION(BlueprintCallable, meta = (ScriptMethod), Category = "FXConverterUtilities")
 	static void GetDistributionMinMaxValues(
@@ -930,14 +1259,6 @@ public:
 
 	UFUNCTION(BlueprintCallable, meta = (ScriptMethod), Category = "FXConverterUtilities")
 	static TArray<FRichCurveKeyBP> KeysFromInterpCurveTwoVectors(FInterpCurveTwoVectors Curve, int32 ComponentIdx);
-
-
-	// Maps from python addressable FGuid to non-blueprint types
-	static TMap<FGuid, TSharedPtr<FNiagaraEmitterHandleViewModel>> GuidToNiagaraEmitterHandleViewModelMap;
-	static TMap<FGuid, TSharedPtr<FNiagaraSystemViewModel>> GuidToNiagaraSystemViewModelMap;
-
-	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
-	static void Cleanup();
 
 
 	// Code only utilities

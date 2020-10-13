@@ -20,7 +20,7 @@ public:
 	virtual void LoadAsset(bool bAddToRoot = false) PURE_VIRTUAL(USoundNodeAssetReferencer::LoadAsset,);
 	virtual void ClearAssetReferences() PURE_VIRTUAL(USoundNodeAssetReferencer::ClearAssetReferences, );
 
-	bool ShouldHardReferenceAsset() const;
+	bool ShouldHardReferenceAsset(const class ITargetPlatform*) const;
 
 #if WITH_EDITOR
 	virtual void PostEditImport() override;

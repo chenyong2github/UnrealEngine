@@ -13,38 +13,74 @@ namespace DatasmithRhino
 	{
 		public static void ExportMaterials(FDatasmithFacadeScene DatasmithScene, DatasmithRhinoSceneParser SceneParser)
 		{
-			int MaterialIndex = 0;
-			int MaterialCount = SceneParser.MaterialHashToMaterialInfo.Count;
+			int TextureAndMaterialCount = SceneParser.TextureHashToTextureInfo.Count + SceneParser.MaterialHashToMaterialInfo.Count;
+			int TextureAndMaterialProgress = 0;
+
+			foreach (RhinoTextureInfo CurrentTextureInfo in SceneParser.TextureHashToTextureInfo.Values)
+			{
+				FDatasmithRhinoProgressManager.Instance.UpdateCurrentTaskProgress((float)(++TextureAndMaterialProgress) / TextureAndMaterialCount);
+
+				FDatasmithFacadeTexture TextureElement = ParseTexture(CurrentTextureInfo);
+				if(TextureElement != null)
+				{
+					DatasmithScene.AddTexture(TextureElement);
+				}
+			}
+
 			foreach (RhinoMaterialInfo CurrentMaterialInfo in SceneParser.MaterialHashToMaterialInfo.Values)
 			{
-				FDatasmithRhinoProgressManager.Instance.UpdateCurrentTaskProgress((float)(MaterialIndex++) / MaterialCount);
+				FDatasmithRhinoProgressManager.Instance.UpdateCurrentTaskProgress((float)(++TextureAndMaterialProgress) / TextureAndMaterialCount);
 				FDatasmithFacadeUEPbrMaterial DSMaterial = new FDatasmithFacadeUEPbrMaterial(CurrentMaterialInfo.Name);
 				DSMaterial.SetLabel(CurrentMaterialInfo.Label);
-				List<FDatasmithFacadeTexture> MaterialTextures;
-				ParseMaterial(DSMaterial, CurrentMaterialInfo.RhinoMaterial, out MaterialTextures);
+				ParseMaterial(DSMaterial, CurrentMaterialInfo.RhinoMaterial, SceneParser);
 
 				DatasmithScene.AddMaterial(DSMaterial);
-				foreach (FDatasmithFacadeTexture CurrentTexture in MaterialTextures)
-				{
-					DatasmithScene.AddTexture(CurrentTexture);
-				}
 			}
 		}
 
-		public static void ParseMaterial(FDatasmithFacadeUEPbrMaterial DSMaterial, Material RhinoMaterial, out List<FDatasmithFacadeTexture> OutTextures)
+		public static FDatasmithFacadeTexture ParseTexture(RhinoTextureInfo TextureInfo)
+		{
+			Texture RhinoTexture = TextureInfo.RhinoTexture;
+			if (!TextureInfo.IsSupported())
+			{
+				return null;
+			}
+
+			FDatasmithFacadeTexture TextureElement = new FDatasmithFacadeTexture(TextureInfo.Name);
+			TextureElement.SetLabel(TextureInfo.Label);
+			TextureElement.SetFile(TextureInfo.FilePath);
+			TextureElement.SetTextureFilter(FDatasmithFacadeTexture.ETextureFilter.Default);
+			TextureElement.SetRGBCurve(1);
+			TextureElement.SetTextureAddressX(RhinoTexture.WrapU == TextureUvwWrapping.Clamp ? FDatasmithFacadeTexture.ETextureAddress.Clamp : FDatasmithFacadeTexture.ETextureAddress.Wrap);
+			TextureElement.SetTextureAddressY(RhinoTexture.WrapV == TextureUvwWrapping.Clamp ? FDatasmithFacadeTexture.ETextureAddress.Clamp : FDatasmithFacadeTexture.ETextureAddress.Wrap);
+
+			FDatasmithFacadeTexture.ETextureMode TextureMode = FDatasmithFacadeTexture.ETextureMode.Diffuse;
+			if (RhinoTexture.TextureType == TextureType.Bump)
+			{
+				TextureMode = FDatasmithFacadeTexture.ETextureMode.Bump;
+			}
+
+			TextureElement.SetTextureMode(TextureMode);
+
+			return TextureElement;
+		}
+
+		public static void ParseMaterial(FDatasmithFacadeUEPbrMaterial DSMaterial, Material RhinoMaterial, DatasmithRhinoSceneParser SceneParser)
 		{
 			Color MaterialDiffuseColor = RhinoMaterial.DiffuseColor;
 			MaterialDiffuseColor = Color.FromArgb(255 - (byte)(255 * RhinoMaterial.Transparency), MaterialDiffuseColor);
 
-			OutTextures = new List<FDatasmithFacadeTexture>();
-			for (int TextureIndex = 0; TextureIndex < RhinoMaterial.GetTextures().Length; ++TextureIndex)
+			Texture[] MaterialTextures = RhinoMaterial.GetTextures();
+			for (int TextureIndex = 0; TextureIndex < MaterialTextures.Length; ++TextureIndex)
 			{
-				Texture RhinoTexture = RhinoMaterial.GetTextures()[TextureIndex];
-
-				FDatasmithFacadeTexture ParsedTexture = ParseMaterialTexture(DSMaterial, RhinoTexture, MaterialDiffuseColor);
-				if (ParsedTexture != null)
+				Texture RhinoTexture = MaterialTextures[TextureIndex];
+				if(RhinoTexture != null)
 				{
-					OutTextures.Add(ParsedTexture);
+					RhinoTextureInfo TextureInfo = SceneParser.GetTextureInfoFromRhinoTexture(RhinoTexture.Id);
+					if (TextureInfo != null)
+					{
+						AddTextureToMaterial(DSMaterial, TextureInfo, MaterialDiffuseColor);
+					}
 				}
 			}
 
@@ -107,31 +143,14 @@ namespace DatasmithRhino
 		}
 
 
-		private static FDatasmithFacadeTexture ParseMaterialTexture(FDatasmithFacadeUEPbrMaterial DSMaterial, Texture RhinoTexture, Color DiffuseColor)
+		private static void AddTextureToMaterial(FDatasmithFacadeUEPbrMaterial DSMaterial, RhinoTextureInfo TextureInfo, Color DiffuseColor)
 		{
-			if (!RhinoTexture.Enabled || (RhinoTexture.TextureType != TextureType.Bitmap && RhinoTexture.TextureType != TextureType.Bump && RhinoTexture.TextureType != TextureType.Transparency))
+			if (!TextureInfo.IsSupported())
 			{
-				return null;
+				return;
 			}
 
-			string FilePath = GetTextureFilePath(RhinoTexture);
-			if (FilePath.Length == 0)
-			{
-				return null;
-			}
-
-			string TextureName;
-			FDatasmithFacadeTexture.ETextureMode TextureMode;
-			GetTextureNameAndMode(RhinoTexture, FilePath, out TextureName, out TextureMode);
-
-			FDatasmithFacadeTexture TextureElement = new FDatasmithFacadeTexture(TextureName);
-			TextureElement.SetLabel(TextureName);
-			TextureElement.SetTextureFilter(FDatasmithFacadeTexture.ETextureFilter.Default);
-			TextureElement.SetRGBCurve(1);
-			TextureElement.SetTextureAddressX(RhinoTexture.WrapU == TextureUvwWrapping.Clamp ? FDatasmithFacadeTexture.ETextureAddress.Clamp : FDatasmithFacadeTexture.ETextureAddress.Wrap);
-			TextureElement.SetTextureAddressY(RhinoTexture.WrapV == TextureUvwWrapping.Clamp ? FDatasmithFacadeTexture.ETextureAddress.Clamp : FDatasmithFacadeTexture.ETextureAddress.Wrap);
-			TextureElement.SetFile(FilePath);
-			TextureElement.SetTextureMode(TextureMode);
+			Texture RhinoTexture = TextureInfo.RhinoTexture;
 
 			// Extract texture mapping info
 			double BlendConstant, BlendA0, BlendA1, BlendA2, BlendA3;
@@ -143,7 +162,7 @@ namespace DatasmithRhino
 			{
 				case TextureType.Bitmap:
 					{
-						FDatasmithFacadeMaterialExpression TextureExpression = FDatasmithFacadeMaterialsUtils.CreateTextureExpression(DSMaterial, "Diffuse Map", TextureElement.GetName(), UVParameters);
+						FDatasmithFacadeMaterialExpression TextureExpression = FDatasmithFacadeMaterialsUtils.CreateTextureExpression(DSMaterial, "Diffuse Map", TextureInfo.Name, UVParameters);
 
 						WeightedExpressionParameters.SetColorsRGB(DiffuseColor.R, DiffuseColor.G, DiffuseColor.B, DiffuseColor.A);
 						WeightedExpressionParameters.SetExpression(TextureExpression);
@@ -154,7 +173,7 @@ namespace DatasmithRhino
 					break;
 				case TextureType.Bump:
 					{
-						FDatasmithFacadeMaterialExpression TextureExpression = FDatasmithFacadeMaterialsUtils.CreateTextureExpression(DSMaterial, "Bump Map", TextureElement.GetName(), UVParameters);
+						FDatasmithFacadeMaterialExpression TextureExpression = FDatasmithFacadeMaterialsUtils.CreateTextureExpression(DSMaterial, "Bump Map", TextureInfo.Name, UVParameters);
 
 						WeightedExpressionParameters.SetExpression(TextureExpression);
 						WeightedExpressionParameters.SetTextureMode(FDatasmithFacadeTexture.ETextureMode.Bump);
@@ -165,7 +184,7 @@ namespace DatasmithRhino
 					break;
 				case TextureType.Transparency:
 					{
-						FDatasmithFacadeMaterialExpression TextureExpression = FDatasmithFacadeMaterialsUtils.CreateTextureExpression(DSMaterial, "Opacity Map", TextureElement.GetName(), UVParameters);
+						FDatasmithFacadeMaterialExpression TextureExpression = FDatasmithFacadeMaterialsUtils.CreateTextureExpression(DSMaterial, "Opacity Map", TextureInfo.Name, UVParameters);
 
 						Color BlendColor = Color.White;
 						WeightedExpressionParameters.SetColorsRGB(BlendColor.R, BlendColor.G, BlendColor.B, BlendColor.A);
@@ -179,72 +198,6 @@ namespace DatasmithRhino
 						}
 					}
 					break;
-			}
-
-			return TextureElement;
-		}
-
-		private static string GetTextureFilePath(Texture RhinoTexture)
-		{
-			string FileName = "";
-			string FilePath = RhinoTexture.FileReference.FullPath;
-			if (FilePath != null && FilePath.Length != 0)
-			{
-				FileName = Path.GetFileName(FilePath);
-				if (!File.Exists(FilePath))
-				{
-					FilePath = "";
-				}
-			}
-
-			// Rhino's full path did not work, check with Rhino's relative path starting from current path
-			string RhinoFilePath = RhinoDoc.ActiveDoc.Path;
-			if (RhinoFilePath != null && RhinoFilePath != "")
-			{
-				string CurrentPath =  Path.GetFullPath(Path.GetDirectoryName(RhinoFilePath));
-				if (FilePath == null || FilePath.Length == 0)
-				{
-					string RelativePath = RhinoTexture.FileReference.RelativePath;
-					if (RelativePath != null && RelativePath.Length != 0)
-					{
-						FilePath = Path.Combine(CurrentPath, RelativePath);
-						FilePath = Path.GetFullPath(FilePath);
-
-						if (!File.Exists(FilePath))
-						{
-							FilePath = "";
-						}
-					}
-				}
-
-				// Last resort, search for the file
-				if (FilePath == null || FilePath == "")
-				{
-					// Search the texture in the CurrentPath and its sub-folders
-					string[] FileNames = Directory.GetFiles(CurrentPath, FileName, SearchOption.AllDirectories);
-					if (FileNames.Length > 0)
-					{
-						FilePath = Path.GetFullPath(FileNames[0]);
-					}
-				}
-			}
-
-			return FilePath;
-		}
-
-		private static void GetTextureNameAndMode(Texture RhinoTexture, string TexturePath, out string Name, out FDatasmithFacadeTexture.ETextureMode Mode)
-		{
-			Name = System.IO.Path.GetFileNameWithoutExtension(TexturePath);
-			Mode = FDatasmithFacadeTexture.ETextureMode.Diffuse;
-
-			if (RhinoTexture.TextureType == TextureType.Bump)
-			{
-				Name += "_normal";
-				Mode = FDatasmithFacadeTexture.ETextureMode.Bump;
-			}
-			else if (RhinoTexture.TextureType == TextureType.Transparency)
-			{
-				Name += "_alpha";
 			}
 		}
 

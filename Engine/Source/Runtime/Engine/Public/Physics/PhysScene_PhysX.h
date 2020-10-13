@@ -184,6 +184,18 @@ public:
 		return PhysicsSceneCompletion;
 	}
 
+	/** returns the completion events for a frame (for PhysX this is a single event) but a list is required for larger compatibility */
+	FGraphEventArray GetCompletionEvents()
+	{
+		FGraphEventArray NewArray;
+		NewArray.Add(GetCompletionEvent());
+		return NewArray;
+	}
+	bool IsCompletionEventComplete() const
+	{
+		return PhysicsSceneCompletion->IsComplete();
+	}
+
 	/** Handle exec commands related to scene (PXVIS and APEXVIS) */
 	bool HandleExecCommands(const TCHAR* Cmd, FOutputDevice* Ar);
 

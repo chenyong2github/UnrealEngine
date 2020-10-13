@@ -885,7 +885,7 @@ FActionMenuContent SDataprepGraphEditor::OnCreateNodeOrPinMenu(UEdGraph* Current
 					{
 						bAreFilterFromSameAction &= Action == ClickedAction;
 					}
-					return !bAreFilterFromSameAction;
+					return false;
 				};
 
 			// Check if the selection is only filters
@@ -899,8 +899,7 @@ FActionMenuContent SDataprepGraphEditor::OnCreateNodeOrPinMenu(UEdGraph* Current
 					{
 						bIsSelectionOnlyFilters = false;
 					}
-
-					return !bIsSelectionOnlyFilters;
+					return false;
 				};
 
 			DataprepGraphEditorUtils::ForEachActionAndStep( SelectedNodes, OnEachAction, OnEachStepForFilterOnly );

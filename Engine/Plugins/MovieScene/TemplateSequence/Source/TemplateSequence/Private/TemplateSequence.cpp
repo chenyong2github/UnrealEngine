@@ -6,6 +6,8 @@
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 #include "MovieScene.h"
+#include "MovieSceneTrack.h"
+#include "Tracks/MovieSceneSpawnTrack.h"
 
 IMPLEMENT_MODULE(FDefaultModuleImpl, TemplateSequence);
 
@@ -113,6 +115,16 @@ bool UTemplateSequence::AllowsSpawnableObjects() const
 FText UTemplateSequence::GetDisplayName() const
 {
 	return UMovieSceneSequence::GetDisplayName();
+}
+
+ETrackSupport UTemplateSequence::IsTrackSupported(TSubclassOf<class UMovieSceneTrack> InTrackClass) const
+{
+	if (InTrackClass == UMovieSceneSpawnTrack::StaticClass())
+	{
+		return ETrackSupport::Supported;
+	}
+
+	return Super::IsTrackSupported(InTrackClass);
 }
 
 void UTemplateSequence::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
