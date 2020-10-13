@@ -35,6 +35,11 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="EOS Artifact Settings")
 	FString EncryptionKey;
+
+private:
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
 };
 
 USTRUCT(BlueprintType)
@@ -94,4 +99,7 @@ public:
 
 private:
 	virtual void PostInitProperties() override;
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
 };
