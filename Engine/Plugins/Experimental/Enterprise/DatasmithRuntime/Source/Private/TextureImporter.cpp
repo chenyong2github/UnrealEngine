@@ -4,7 +4,6 @@
 
 #include "DatasmithRuntimeAuxiliaryData.h"
 
-#include "IESLoader.h"
 #include "DatasmithRuntimeUtils.h"
 #include "LogCategory.h"
 
@@ -15,6 +14,7 @@
 #include "Async/Async.h"
 #include "Engine/Texture2D.h"
 #include "Engine/TextureLightProfile.h"
+#include "IESConverter.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 
@@ -37,19 +37,18 @@ namespace DatasmithRuntime
 		}
 
 		// checks for .IES extension to avoid wasting loading large assets just to reject them during header parsing
-		FIESLoadHelper IESLoadHelper(Buffer.GetData(), Buffer.Num());
-		Buffer.Empty();
+		FIESConverter IESConverter(Buffer.GetData(), Buffer.Num());
 
-		if(IESLoadHelper.IsValid())
+		if(IESConverter.IsValid())
 		{
-			TArray<uint8> RAWData;
-			TextureData.TextureMultiplier = IESLoadHelper.ExtractInRGBA16F(RAWData);
-
-			TextureData.Width = IESLoadHelper.GetWidth();
-			TextureData.Height = IESLoadHelper.GetHeight();
-			TextureData.Brightness = IESLoadHelper.GetBrightness();
+			TextureData.Width = IESConverter.GetWidth();
+			TextureData.Height = IESConverter.GetHeight();
+			TextureData.Brightness = IESConverter.GetBrightness();
 			TextureData.BytesPerPixel = 8; // RGBA16F
 			TextureData.Pitch = TextureData.Width * TextureData.BytesPerPixel;
+			TextureData.TextureMultiplier = IESConverter.GetMultiplier();
+
+			const TArray<uint8>& RAWData = IESConverter.GetRawData();
 
 			TextureData.ImageData = (uint8*)FMemory::Malloc(RAWData.Num() * sizeof(uint8), 0x20);
 			FMemory::Memcpy(TextureData.ImageData, RAWData.GetData(), RAWData.Num() * sizeof(uint8));

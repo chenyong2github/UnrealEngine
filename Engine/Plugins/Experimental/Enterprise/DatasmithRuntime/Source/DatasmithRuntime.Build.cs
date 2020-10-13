@@ -27,6 +27,7 @@ public class DatasmithRuntime : ModuleRules
 				"CoreUObject",
 				"DirectLink",
 				"Engine",
+				"IESFile",
 				"FreeImage",
 				"Landscape",
 				"LevelSequence",

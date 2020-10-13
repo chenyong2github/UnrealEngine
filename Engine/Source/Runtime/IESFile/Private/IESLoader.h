@@ -5,7 +5,7 @@
 
 #include "CoreMinimal.h"
 
-class Error;
+//class Error;
 
 enum class EIESPhotometricType;
 
@@ -13,11 +13,11 @@ enum class EIESPhotometricType;
  * To load the IES file image format. IES files exist for many real world lights. The file stores how much light is emitted in a specific direction.
  * The data is usually measured but tools to paint IES files exist.
  */
-class FIESLoadHelper
+class FIESLoader
 {
 public:
 	/** is loading the file, can take some time, success can be checked with IsValid() */
-	FIESLoadHelper(const uint8* Buffer, uint32 BufferLength);
+	FIESLoader(const uint8* Buffer, uint32 BufferLength);
 
 	// @return Multiplier as the texture is normalized
 	float ExtractInRGBA16F(TArray<uint8>& OutData);
@@ -29,6 +29,11 @@ public:
 
 	/** @return in Lumens */
 	float GetBrightness() const;
+
+	const TCHAR* GetError() const
+	{
+		return Error.IsEmpty() ? nullptr : *Error;
+	}
 
 private:
 
@@ -49,7 +54,7 @@ private:
 	void Load(const uint8* Buffer);
 
 	// 0 if no error, otherwise points to an ASCII error string
-	const char* Error;
+	FString Error;
 
 	float ComputeMax() const;
 

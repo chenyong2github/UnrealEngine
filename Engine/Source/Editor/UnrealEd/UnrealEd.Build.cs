@@ -125,6 +125,7 @@ public class UnrealEd : ModuleRules
 				"LauncherPlatform",
 				"EditorStyle",
 				"EngineSettings",
+				"IESFile",
 				"ImageWriteQueue",
 				"InputCore",
 				"InputBindingEditor",
