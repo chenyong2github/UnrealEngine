@@ -163,6 +163,17 @@ void UMovieSceneSequenceExtensions::SetTickResolution(UMovieSceneSequence* Seque
 	{
 		MovieScene->Modify();
 
+		UE::MovieScene::TimeHelpers::MigrateFrameTimes(MovieScene->GetTickResolution(), TickResolution, MovieScene);
+	}
+}
+
+void UMovieSceneSequenceExtensions::SetTickResolutionDirectly(UMovieSceneSequence* Sequence, FFrameRate TickResolution)
+{
+	UMovieScene* MovieScene = GetMovieScene(Sequence);
+	if (MovieScene)	
+	{
+		MovieScene->Modify();
+
 		MovieScene->SetTickResolutionDirectly(TickResolution);
 	}
 }
