@@ -115,22 +115,12 @@ public:
 
 	virtual void SetupForPipelineImpl(UMoviePipeline* InPipeline) override
 	{
-		if (!(IsEnabled() && GetIsUserCustomized()))
-		{
-			return;
-		}
-
 		int32 NumSamples = bOverrideSubSurfaceScattering ? BurleySampleCount : 0;
 		MOVIEPIPELINE_STORE_AND_OVERRIDE_CVAR_INT(PrevBurleyOverride, TEXT("r.SSS.Burley.NumSamplesOverride"), NumSamples, true);
 	}
 
 	virtual void TeardownForPipelineImpl(UMoviePipeline* InPipeline) override
 	{
-		if (!(IsEnabled() && GetIsUserCustomized()))
-		{
-			return;
-		}
-
 		int32 NumSamples = 0; // Dummy
 		MOVIEPIPELINE_STORE_AND_OVERRIDE_CVAR_INT(PrevBurleyOverride, TEXT("r.SSS.Burley.NumSamplesOverride"), NumSamples, false);
 	}

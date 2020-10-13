@@ -23,11 +23,6 @@ void UMoviePipelineGameOverrideSetting::TeardownForPipelineImpl(UMoviePipeline* 
 
 void UMoviePipelineGameOverrideSetting::ApplyCVarSettings(const bool bOverrideValues)
 {
-	if (!IsEnabled())
-	{
-		return;
-	}
-
 	if (bCinematicQualitySettings)
 	{
 		if (bOverrideValues)

@@ -15,23 +15,11 @@
 
 void UMoviePipelineWidgetRenderer::GatherOutputPassesImpl(TArray<FMoviePipelinePassIdentifier>& ExpectedRenderPasses)
 {
-	// If this was transiently added, don't render.
-	if (!GetIsUserCustomized() || !IsEnabled())
-	{
-		return;
-	}
-
 	ExpectedRenderPasses.Add(FMoviePipelinePassIdentifier(TEXT("ViewportUI")));
 }
 
 void UMoviePipelineWidgetRenderer::RenderSample_GameThreadImpl(const FMoviePipelineRenderPassMetrics& InSampleState)
 {
-	// If this was transiently added, don't make a burn-in.
-	if (!GetIsUserCustomized() || !IsEnabled())
-	{
-		return;
-	}
-
 	if (InSampleState.bDiscardResult)
 	{
 		return;
@@ -84,12 +72,6 @@ void UMoviePipelineWidgetRenderer::RenderSample_GameThreadImpl(const FMoviePipel
 
 void UMoviePipelineWidgetRenderer::SetupImpl(const MoviePipeline::FMoviePipelineRenderPassInitSettings& InPassInitSettings)
 {
-	// If this was transiently added, don't render.
-	if (!GetIsUserCustomized() || !IsEnabled())
-	{
-		return;
-	}
-
 	RenderTarget = NewObject<UTextureRenderTarget2D>();
 	RenderTarget->ClearColor = FLinearColor::Transparent;
 
@@ -103,12 +85,6 @@ void UMoviePipelineWidgetRenderer::SetupImpl(const MoviePipeline::FMoviePipeline
 
 void UMoviePipelineWidgetRenderer::TeardownImpl() 
 {
-	// If this was transiently added, don't render.
-	if (!GetIsUserCustomized() || !IsEnabled())
-	{
-		return;
-	}
-	
 	FlushRenderingCommands();
 
 	WidgetRenderer = nullptr;

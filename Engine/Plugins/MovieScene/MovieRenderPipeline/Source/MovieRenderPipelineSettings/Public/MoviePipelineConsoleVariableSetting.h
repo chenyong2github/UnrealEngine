@@ -33,11 +33,6 @@ public:
 protected:
 	void ApplyCVarSettings(const bool bOverrideValues)
 	{
-		if (!(GetIsUserCustomized() && IsEnabled()))
-		{
-			return;
-		}
-
 		if (bOverrideValues)
 		{
 			PreviousConsoleVariableValues.Reset();
