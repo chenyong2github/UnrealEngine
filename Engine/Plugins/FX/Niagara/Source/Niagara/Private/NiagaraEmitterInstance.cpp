@@ -1122,10 +1122,8 @@ bool FNiagaraEmitterInstance::WaitForDebugInfo()
 	FNiagaraComputeExecutionContext* DebugContext = GPUExecContext;
 	if (CachedEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim && DebugContext)
 	{
-		ENQUEUE_RENDER_COMMAND(CaptureCommand)([=](FRHICommandListImmediate& RHICmdList)
-		{
-			Batcher->ProcessDebugInfo(GPUExecContext);
-		});
+		ENQUEUE_RENDER_COMMAND(CaptureCommand)([=](FRHICommandListImmediate& RHICmdList) { Batcher->ProcessDebugReadbacks(RHICmdList, true); });
+		FlushRenderingCommands(); 
 		return true;
 	}
 	return false;
@@ -1301,7 +1299,7 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 		if (ParentSystemInstance->ShouldCaptureThisFrame())
 		{
 			TSharedPtr<struct FNiagaraScriptDebuggerInfo, ESPMode::ThreadSafe> DebugInfo = ParentSystemInstance->GetActiveCaptureWrite(CachedIDName, ENiagaraScriptUsage::ParticleGPUComputeScript, FGuid());
-			if (DebugInfo)
+			if (DebugInfo && Batcher != nullptr)
 			{
 				//Data.Dump(DebugInfo->Frame, true, 0, OrigNumParticles);
 				//DebugInfo->Frame.Dump(true, 0, OrigNumParticles);
@@ -1310,7 +1308,13 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 				//TODO: This layout info can be pulled into the emitter/systems etc and all sets just refer to them. They are becoming an annoyance here.
 				DebugInfo->Frame.Init(&CachedEmitterCompiledData->GPUCaptureDataSetCompiledData);
 
-				GPUExecContext->DebugInfo = DebugInfo;
+				// Execute a readback
+				ENQUEUE_RENDER_COMMAND(NiagaraReadbackGpuSim)(
+					[RT_Batcher=Batcher, RT_InstanceID=OwnerSystemInstanceID, RT_DebugInfo=DebugInfo, RT_Context=GPUExecContext](FRHICommandListImmediate& RHICmdList)
+					{
+						RT_Batcher->AddDebugReadback(RT_InstanceID, RT_DebugInfo, RT_Context);
+					}
+				);
 			}
 		}
 #endif

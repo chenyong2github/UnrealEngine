@@ -411,22 +411,6 @@ public:
 	bool IsIterationStage(FNiagaraDataInterfaceProxy* DIProxy, uint32 CurrentStage) const;
 	FNiagaraDataInterfaceProxy* FindIterationInterface(const TArray<FNiagaraDataInterfaceProxy*>& InProxies, uint32 SimulationStageIndex) const;
 	const FSimulationStageMetaData* GetSimStageMetaData(uint32 SimulationStageIndex) const;
-
-#if WITH_EDITORONLY_DATA
-	mutable TUniquePtr<FRHIGPUMemoryReadback> GPUDebugDataReadbackFloat;
-	mutable TUniquePtr<FRHIGPUMemoryReadback> GPUDebugDataReadbackInt;
-	mutable TUniquePtr<FRHIGPUMemoryReadback> GPUDebugDataReadbackHalf;
-	mutable TUniquePtr<FRHIGPUMemoryReadback> GPUDebugDataReadbackCounts;
-	mutable uint32 GPUDebugDataFloatSize = 0;
-	mutable uint32 GPUDebugDataIntSize = 0;
-	mutable uint32 GPUDebugDataHalfSize = 0;
-	mutable uint32 GPUDebugDataFloatStride = 0;
-	mutable uint32 GPUDebugDataIntStride = 0;
-	mutable uint32 GPUDebugDataHalfStride = 0;
-	mutable uint32 GPUDebugDataCountOffset = INDEX_NONE;
-	mutable TSharedPtr<struct FNiagaraScriptDebuggerInfo, ESPMode::ThreadSafe> DebugInfo;
-#endif
-
 };
 
 struct FNiagaraDataInterfaceInstanceData
