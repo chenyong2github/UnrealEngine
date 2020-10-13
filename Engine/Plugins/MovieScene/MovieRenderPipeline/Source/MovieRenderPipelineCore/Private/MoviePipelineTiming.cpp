@@ -172,7 +172,9 @@ void UMoviePipeline::TickProducingFrames()
 		// We only render a warm up frame if this is the last engine warmup frame and there are render warmup frames to do.
 		UMoviePipelineAntiAliasingSetting* AntiAliasingSettings = FindOrAddSettingForShot<UMoviePipelineAntiAliasingSetting>(CurrentCameraCut);
 		check(AntiAliasingSettings);
-		const bool bRenderFrame = CurrentCameraCut->ShotInfo.NumEngineWarmUpFramesRemaining == 0 && AntiAliasingSettings->RenderWarmUpCount > 0;
+		// Some features (such as GPU particles) need to be rendered to warm up
+		const bool bRenderFrame = (CurrentCameraCut->ShotInfo.NumEngineWarmUpFramesRemaining == 0 && AntiAliasingSettings->RenderWarmUpCount > 0) || AntiAliasingSettings->bRenderWarmUpFrames;
+
 		CachedOutputState.bSkipRendering = !bRenderFrame;
 
 		// Render the next frame at a reasonable frame rate to pass time in the world.
