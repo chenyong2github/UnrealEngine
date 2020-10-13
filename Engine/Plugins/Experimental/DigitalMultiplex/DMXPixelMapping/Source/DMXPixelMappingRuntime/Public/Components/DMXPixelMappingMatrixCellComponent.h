@@ -59,7 +59,7 @@ public:
 #endif // WITH_EDITOR	
 
 	virtual UTextureRenderTarget2D* GetOutputTexture() override;
-	virtual FVector2D GetSize() override;
+	virtual FVector2D GetSize() const override;
 	virtual FVector2D GetPosition() override;
 	virtual void SetPosition(const FVector2D& InPosition) override;
 	virtual void SetSize(const FVector2D& InSize) override;
@@ -90,6 +90,16 @@ public:
 
 	UPROPERTY()
 	FDMXEntityFixturePatchRef FixturePatchMatrixRef;
+
+#if WITH_EDITORONLY_DATA
+	/** The X position relative to the parent group */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Common Settings")
+	float RelativePositionX;
+
+	/** The Y position relative to the parent group */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Common Settings")
+	float RelativePositionY;
+#endif // WITH_EDITORONLY_DATA
 
 private:
 	UPROPERTY(Transient)

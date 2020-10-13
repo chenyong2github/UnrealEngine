@@ -20,6 +20,13 @@ class DMXRUNTIME_API UDMXComponent
 
 	friend FBufferUpdatedReceiver;
 
+protected:
+	//~ Begin UObject Interface
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif // WITH_EDITOR
+	//~ End UObject Interface
+
 	DECLARE_DYNAMIC_MULTICAST_SPARSE_DELEGATE_TwoParams(FDMXComponentFixturePatchReceivedSignature, UDMXComponent, OnFixturePatchReceived, UDMXEntityFixturePatch*, FixturePatch, const TArray<uint8>&, ChannelsArray);
 public:
 	UPROPERTY(EditAnywhere, Category = "DMX")
@@ -39,13 +46,13 @@ public:
 public:
 	UDMXComponent();
 
+	void RestartPacketReceiver();
+
 protected:
-	// Called when the game starts
+	// ~Begin UActorComponentInterface	
 	virtual void BeginPlay() override;
-
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
-
-	void SetupPacketReceiver();
+	// ~End UActorComponentInterface
 
 private:
 	TArray<uint8> ChannelBuffer;

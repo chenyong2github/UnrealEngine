@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Widgets/SDMXPixelMappingPaletteItem.h"
-#include "ViewModels/DMXPixelMappingPalatteViewModel.h"
+#include "ViewModels/DMXPixelMappingPaletteViewModel.h"
 #include "Templates/DMXPixelMappingComponentTemplate.h"
 #include "DragDrop/DMXPixelMappingDragDropOp.h"
 
@@ -11,7 +11,7 @@
 #include "EditorStyleSet.h"
 
 
-void SDMXPixelMappingHierarchyItemHeader::Construct(const FArguments& InArgs, const TSharedRef< STableViewBase >& InOwnerTableView, const TSharedPtr<FDMXPixelMappingPalatteWidgetViewModel>& InViewModel)
+void SDMXPixelMappingHierarchyItemHeader::Construct(const FArguments& InArgs, const TSharedRef< STableViewBase >& InOwnerTableView, const TSharedPtr<FDMXPixelMappingPaletteWidgetViewModel>& InViewModel)
 {
 	STableRow<FDMXPixelMappingPreviewWidgetViewModelPtr>::Construct(
 		STableRow<FDMXPixelMappingPreviewWidgetViewModelPtr>::FArguments()
@@ -25,7 +25,7 @@ void SDMXPixelMappingHierarchyItemHeader::Construct(const FArguments& InArgs, co
 		InOwnerTableView);
 }
 
-void SDMXPixelMappingHierarchyItemTemplate::Construct(const FArguments& InArgs, const TSharedRef< STableViewBase >& InOwnerTableView, const TSharedPtr<FDMXPixelMappingPalatteWidgetViewModel>& InViewModel)
+void SDMXPixelMappingHierarchyItemTemplate::Construct(const FArguments& InArgs, const TSharedRef< STableViewBase >& InOwnerTableView, const TSharedPtr<FDMXPixelMappingPaletteWidgetViewModel>& InViewModel)
 {
 	ViewModel = InViewModel;
 
@@ -46,5 +46,6 @@ void SDMXPixelMappingHierarchyItemTemplate::Construct(const FArguments& InArgs, 
 
 FReply SDMXPixelMappingHierarchyItemTemplate::OnDraggingWidget(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
+	check(ViewModel.IsValid());
 	return FReply::Handled().BeginDragDrop(FDMXPixelMappingDragDropOp::New(ViewModel.Pin()->GetTemplate()));
 }

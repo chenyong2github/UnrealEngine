@@ -33,15 +33,12 @@ UDMXPixelMappingMatrixComponent::UDMXPixelMappingMatrixComponent()
 	PositionXCached = PositionX = 0.f;
 	PositionYCached = PositionY = 0.f;
 
-	SetNumPixels(FIntPoint(1));
+	SetNumCells(FIntPoint(1));
 
 	ColorMode = EDMXColorMode::CM_RGB;
 	AttributeRExpose = AttributeGExpose = AttributeBExpose = true;
-	AttributeR.SetFromName("Red");
-	AttributeG.SetFromName("Green");
-	AttributeB.SetFromName("Blue");
 
-	MonochromeExpose = true;
+	bMonochromeExpose = true;
 
 	Distribution = EDMXPixelMappingDistribution::TopLeftToRight;
 
@@ -62,9 +59,44 @@ void UDMXPixelMappingMatrixComponent::PostLoad()
 	ResizeOutputTarget(SizeX, SizeY);
 }
 
+void UDMXPixelMappingMatrixComponent::LogInvalidProperties()
+{
+	UDMXEntityFixturePatch* FixturePatch = FixturePatchMatrixRef.GetFixturePatch();
+	if (FixturePatch && FixturePatch->IsValidLowLevel())
+	{
+		UDMXEntityFixtureType* FixtureType = FixturePatch->ParentFixtureTypeTemplate;
+		if (FixtureType)
+		{
+			if (!FixturePatch->CanReadActiveMode())
+			{
+				UE_LOG(LogDMXPixelMappingRuntime, Warning, TEXT("%s has no valid Active Mode set. %s will not receive DMX."), *FixturePatch->GetDisplayName(), *GetName());
+			}
+			else
+			{
+				const FDMXFixtureMode& Mode = FixtureType->Modes[FixturePatch->ActiveMode];
+				FIntPoint NumCellsInActiveMode = FIntPoint(Mode.FixtureMatrixConfig.XCells, Mode.FixtureMatrixConfig.YCells);
+				if (NumCellsInActiveMode != NumCells)
+				{
+					UE_LOG(LogDMXPixelMappingRuntime, Warning, TEXT("Number of cells in %s no longer matches %s. %s will not function properly."), *GetName(), *FixtureType->GetDisplayName(), *GetName());
+				}
+			}
+		}
+		else
+		{
+			UE_LOG(LogDMXPixelMappingRuntime, Warning, TEXT("%s has no valid Fixture Type set. %s will not receive DMX."), *FixturePatch->GetDisplayName(), *GetName());
+		}
+	}
+	else
+	{
+		UE_LOG(LogDMXPixelMappingRuntime, Warning, TEXT("%s has no valid Fixture Patch set."), *GetName());
+	}
+}
+
 #if WITH_EDITOR
 void UDMXPixelMappingMatrixComponent::PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedChainEvent)
 {
+	// Note, property changes of fixture patch are listened for in tick
+
 	// Call the parent at the first place
 	Super::PostEditChangeChainProperty(PropertyChangedChainEvent);
 
@@ -72,8 +104,54 @@ void UDMXPixelMappingMatrixComponent::PostEditChangeChainProperty(FPropertyChang
 	{
 		check(PatchNameWidget.IsValid());
 		PatchNameWidget->SetText(FText::FromString(GetUserFriendlyName()));
-	}
 
+		if (UDMXPixelMapping* PixelMapping = GetPixelMapping())
+		{
+			UpdateNumCells();
+			PixelMapping->OnEditorRebuildChildrenComponentsDelegate.ExecuteIfBound(this);
+		}
+	}
+	else if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(FDMXEntityReference, DMXLibrary))
+	{
+		if (UDMXPixelMapping* PixelMapping = GetPixelMapping())
+		{
+			UpdateNumCells();
+			PixelMapping->OnEditorRebuildChildrenComponentsDelegate.ExecuteIfBound(this);
+		}
+	}
+	else if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixComponent, bVisibleInDesigner))
+	{
+		UpdateWidget();
+
+		// Update all children
+		ForEachComponentOfClass<UDMXPixelMappingMatrixCellComponent>([](UDMXPixelMappingMatrixCellComponent* InComponent)
+		{
+			InComponent->UpdateWidget();
+		}, false);
+	}
+	else if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixComponent, CellBlendingQuality))
+	{
+		// Update all children
+		ForEachComponentOfClass<UDMXPixelMappingMatrixCellComponent>([&](UDMXPixelMappingMatrixCellComponent* InComponent)
+		{
+			InComponent->CellBlendingQuality = CellBlendingQuality;
+		}, false);
+	}
+	else if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, EditorColor))
+	{
+		Brush.TintColor = EditorColor;
+
+		ForEachComponentOfClass<UDMXPixelMappingMatrixCellComponent>([this](UDMXPixelMappingMatrixCellComponent* InComponent)
+			{
+				if (InComponent->EditorColor == PreviousEditorColor)
+				{
+					InComponent->EditorColor = EditorColor;
+				}
+			}, true);
+
+		PreviousEditorColor = EditorColor;
+	}	
+	
 	if (PropertyChangedChainEvent.ChangeType != EPropertyChangeType::Interactive)
 	{
 		if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixComponent, PositionX) ||
@@ -92,41 +170,6 @@ void UDMXPixelMappingMatrixComponent::PostEditChangeChainProperty(FPropertyChang
 			SetSizeInternal(FVector2D(SizeX, SizeY));
 		}
 	}
-
-	if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixComponent, bVisibleInDesigner))
-	{
-		UpdateWidget();
-
-		// Update all children
-		ForEachComponentOfClass<UDMXPixelMappingMatrixCellComponent>([](UDMXPixelMappingMatrixCellComponent* InComponent)
-		{
-			InComponent->UpdateWidget();
-		}, false);
-	}
-
-	if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixComponent, CellBlendingQuality))
-	{
-		// Update all children
-		ForEachComponentOfClass<UDMXPixelMappingMatrixCellComponent>([&](UDMXPixelMappingMatrixCellComponent* InComponent)
-		{
-			InComponent->CellBlendingQuality = CellBlendingQuality;
-		}, false);
-	}
-
-	if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, EditorColor))
-	{
-		Brush.TintColor = EditorColor;
-
-		ForEachComponentOfClass<UDMXPixelMappingMatrixCellComponent>([this](UDMXPixelMappingMatrixCellComponent* InComponent)
-			{
-				if (InComponent->EditorColor == PreviousEditorColor)
-				{
-					InComponent->EditorColor = EditorColor;
-				}
-			}, true);
-
-		PreviousEditorColor = EditorColor;
-	}	
 }
 #endif // WITH_EDITOR
 
@@ -324,6 +367,10 @@ void UDMXPixelMappingMatrixComponent::PostParentAssigned()
 	Super::PostParentAssigned();
 
 	ResizeOutputTarget(SizeX, SizeY);
+
+#if WITH_EDITOR
+	AutoMapAttributes();
+#endif // WITH_EDITOR
 }
 
 #if WITH_EDITOR
@@ -340,65 +387,58 @@ FString UDMXPixelMappingMatrixComponent::GetUserFriendlyName() const
 
 void UDMXPixelMappingMatrixComponent::Tick(float DeltaTime)
 {
-	// check num of the pixels each tick!!! @TODO
-
 #if WITH_EDITOR
+	// Test for property changes each tick
+
 	if (UDMXPixelMapping * PixelMapping = GetPixelMapping())
 	{
 		if (PixelMapping->OnEditorRebuildChildrenComponentsDelegate.IsBound())
 		{
-			bool bShouldDeletePixelComponents = false;
+			bool bShouldRebuildChildren = false;
 
 			UDMXLibrary* DMXLibrary = FixturePatchMatrixRef.DMXLibrary;
 			UDMXEntityFixturePatch* FixturePatch = FixturePatchMatrixRef.GetFixturePatch();
 
-			if (DMXLibrary == nullptr || FixturePatch == nullptr)
-			{
-				if (GetChildrenCount())
-				{
-					bShouldDeletePixelComponents = true;
-				}
-			}
-			else if (DMXLibrary != nullptr && FixturePatch != nullptr)
+			if (DMXLibrary != nullptr && FixturePatch != nullptr)
 			{
 				if (UDMXEntityFixtureType * ParentFixtureType = FixturePatch->ParentFixtureTypeTemplate)
 				{
-					if (ParentFixtureType->Modes.Num() > 0)
+					if (!FixturePatch->CanReadActiveMode() && GetChildrenCount() > 0)
+					{
+						bShouldRebuildChildren = true;
+					}
+					else if (!ParentFixtureType->bFixtureMatrixEnabled && GetChildrenCount() > 0)
+					{
+						bShouldRebuildChildren = true;
+					}
+					else
 					{
 						int32 ActiveMode = FixturePatch->ActiveMode;
-
-						check(ParentFixtureType->Modes.IsValidIndex(ActiveMode));
 
 						const FDMXFixtureMode& FixtureMode = ParentFixtureType->Modes[ActiveMode];
 						const FDMXFixtureMatrix& FixtureMatrixConfig = FixtureMode.FixtureMatrixConfig;
 
-						FIntPoint CheckNumPixels(FixtureMatrixConfig.XCells, FixtureMatrixConfig.YCells);
-						if (FIntPoint(FixtureMatrixConfig.XCells, FixtureMatrixConfig.YCells) != NumPixels)
+						FIntPoint NewNumCells(FixtureMatrixConfig.XCells, FixtureMatrixConfig.YCells);
+						if (NumCells != NewNumCells)
 						{
-							bShouldDeletePixelComponents = true;
-							if (ParentFixtureType->bFixtureMatrixEnabled)
-							{
-								NumPixels = CheckNumPixels;
-							}
+							bShouldRebuildChildren = true;
 						}
 						else if (FixtureMatrixConfig.PixelMappingDistribution != Distribution)
 						{
-							bShouldDeletePixelComponents = true;
+							bShouldRebuildChildren = true;
 							Distribution = FixtureMatrixConfig.PixelMappingDistribution;
-						}
-						else if (GetChildrenCount() > 0 && !ParentFixtureType->bFixtureMatrixEnabled)
-						{
-							bShouldDeletePixelComponents = true;
-							NumPixels = 0;
 						}
 					}
 				}
 			}
 
-			if (bShouldDeletePixelComponents)
+			if (bShouldRebuildChildren)
 			{
+				UpdateNumCells();
+
+				LogInvalidProperties();
+				
 				PixelMapping->OnEditorRebuildChildrenComponentsDelegate.Execute(this);
-				bShouldDeletePixelComponents = false;
 			}
 		}
 	}
@@ -418,7 +458,7 @@ UTextureRenderTarget2D* UDMXPixelMappingMatrixComponent::GetOutputTexture()
 	return OutputTarget;
 }
 
-FVector2D UDMXPixelMappingMatrixComponent::GetSize()
+FVector2D UDMXPixelMappingMatrixComponent::GetSize() const
 {
 	return FVector2D(SizeX, SizeY);
 }
@@ -475,7 +515,7 @@ void UDMXPixelMappingMatrixComponent::SetSizeInternal(const FVector2D& InSize)
 
 	/* Pixel size needs to round since it may not be possible to get consistent pixel size throughout the matrix given
 	 * the total size and number of desired pixels. Without this there may be artifacts in the output. */
-	PixelSize = FVector2D(FMath::RoundHalfToZero(SizeX / (float)NumPixels.X), FMath::RoundHalfToZero(SizeY / (float)NumPixels.Y));
+	PixelSize = FVector2D(FMath::RoundHalfToZero(SizeX / (float)NumCells.X), FMath::RoundHalfToZero(SizeY / (float)NumCells.Y));
 
 	ForEachComponentOfClass<UDMXPixelMappingMatrixCellComponent>([this](UDMXPixelMappingMatrixCellComponent* InComponent)
 	{
@@ -485,8 +525,8 @@ void UDMXPixelMappingMatrixComponent::SetSizeInternal(const FVector2D& InSize)
 
 #if WITH_EDITOR
 	// Calculate total pixel size. This prevents unused space being rendered due to the rounded pixel size above.
-	const uint32 TotalPixelSizeX = PixelSize.X * NumPixels.X;
-	const uint32 TotalPixelSizeY = PixelSize.Y * NumPixels.Y;
+	const uint32 TotalPixelSizeX = PixelSize.X * NumCells.X;
+	const uint32 TotalPixelSizeY = PixelSize.Y * NumCells.Y;
 	CachedWidget->SetWidthOverride(TotalPixelSizeX);
 	CachedWidget->SetHeightOverride(TotalPixelSizeY);
 	CachedLabelBox->SetWidthOverride(TotalPixelSizeX);
@@ -592,10 +632,10 @@ void UDMXPixelMappingMatrixComponent::SetPositionBasedOnRelativePixel(UDMXPixelM
 	PositionYCached = PositionY;
 }
 
-void UDMXPixelMappingMatrixComponent::SetNumPixels(const FIntPoint& InNumPixels)
+void UDMXPixelMappingMatrixComponent::SetNumCells(const FIntPoint& InNumCells)
 {
-	NumPixels = InNumPixels;
-	PixelSize = FVector2D(SizeX / NumPixels.X, SizeY / NumPixels.Y);
+	NumCells = InNumCells;
+	PixelSize = FVector2D(SizeX / NumCells.X, SizeY / NumCells.Y);
 }
 
 void UDMXPixelMappingMatrixComponent::SetChildSizeAndPosition(UDMXPixelMappingMatrixCellComponent* InMatrixPixelComponent, const FIntPoint& InPixelCoordinate)
@@ -610,5 +650,90 @@ bool UDMXPixelMappingMatrixComponent::CanBeMovedTo(const UDMXPixelMappingBaseCom
 {
 	return Component && Component->IsA<UDMXPixelMappingRendererComponent>();
 }
+
+#if WITH_EDITOR
+void UDMXPixelMappingMatrixComponent::UpdateNumCells()
+{
+	NumCells = 0;
+
+	UDMXLibrary* DMXLibrary = FixturePatchMatrixRef.DMXLibrary;
+	UDMXEntityFixturePatch* FixturePatch = FixturePatchMatrixRef.GetFixturePatch();
+
+	if (DMXLibrary != nullptr && FixturePatch != nullptr)
+	{
+		if (UDMXEntityFixtureType* ParentFixtureType = FixturePatch->ParentFixtureTypeTemplate)
+		{
+			if (FixturePatch->CanReadActiveMode() && ParentFixtureType->bFixtureMatrixEnabled)
+			{
+				int32 ActiveMode = FixturePatch->ActiveMode;
+
+				const FDMXFixtureMode& FixtureMode = ParentFixtureType->Modes[ActiveMode];
+				const FDMXFixtureMatrix& FixtureMatrixConfig = FixtureMode.FixtureMatrixConfig;
+
+				NumCells = FIntPoint(FixtureMatrixConfig.XCells, FixtureMatrixConfig.YCells);
+			}
+		}
+	}
+}
+#endif // WITH_EDITOR
+
+#if WITH_EDITOR
+void UDMXPixelMappingMatrixComponent::AutoMapAttributes()
+{
+	if (UDMXEntityFixturePatch* FixturePatch = FixturePatchMatrixRef.GetFixturePatch())
+	{
+		if (FixturePatch->CanReadActiveMode())
+		{
+			if (UDMXEntityFixtureType* FixtureType = FixturePatch->ParentFixtureTypeTemplate)
+			{
+				Modify();
+
+				const FDMXFixtureMode& Mode = FixtureType->Modes[FixturePatch->ActiveMode];
+
+				int32 RedIndex = Mode.FixtureMatrixConfig.CellAttributes.IndexOfByPredicate([](const FDMXFixtureCellAttribute& Attribute) {
+					return Attribute.Attribute.Name == "Red";
+					});
+
+				if (RedIndex != INDEX_NONE)
+				{
+					AttributeR.SetFromName("Red");
+				}
+				else
+				{
+					AttributeR.SetToNone();
+				}
+
+
+				int32 GreenIndex = Mode.FixtureMatrixConfig.CellAttributes.IndexOfByPredicate([](const FDMXFixtureCellAttribute& Attribute) {
+					return Attribute.Attribute.Name == "Green";
+					});
+
+				if (GreenIndex != INDEX_NONE)
+				{
+					AttributeG.SetFromName("Green");
+				}
+				else
+				{
+					AttributeG.SetToNone();
+				}
+
+
+				int32 BlueIndex = Mode.FixtureMatrixConfig.CellAttributes.IndexOfByPredicate([](const FDMXFixtureCellAttribute& Attribute) {
+					return Attribute.Attribute.Name == "Blue";
+					});
+
+				if (BlueIndex != INDEX_NONE)
+				{
+					AttributeB.SetFromName("Blue");
+				}
+				else
+				{
+					AttributeB.SetToNone();
+				}
+			}
+		}
+	}
+}
+#endif // WITH_EDITOR
 
 #undef LOCTEXT_NAMESPACE

@@ -17,7 +17,7 @@ class TreeFilterHandler;
 class ITableRow;
 class STableViewBase;
 
-class SDMXPixelMappingPalatteView
+class SDMXPixelMappingPaletteView
 	: public SCompoundWidget
 {
 public:
@@ -29,7 +29,7 @@ public:
 
 public:
 
-	SLATE_BEGIN_ARGS(SDMXPixelMappingPalatteView) { }
+	SLATE_BEGIN_ARGS(SDMXPixelMappingPaletteView) { }
 	SLATE_END_ARGS()
 
 public:

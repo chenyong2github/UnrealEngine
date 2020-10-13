@@ -73,19 +73,23 @@ void SDMXPixelMappingHierarchyItem::OnRequestBeginRename()
 
 FReply SDMXPixelMappingHierarchyItem::OnDraggingWidget(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
-	return FReply::Handled().BeginDragDrop(FDMXPixelMappingDragDropOp::New(Model.Pin()->GetReference().GetComponent()));
+	check(Model.IsValid());
+
+	return FReply::Handled().BeginDragDrop(FDMXPixelMappingDragDropOp::New({ Model.Pin()->GetReference() }));
 }
 
 FReply SDMXPixelMappingHierarchyItem::OnDropWidget(const FDragDropEvent& InDragDropEvent)
 {
 	const FScopedTransaction Transaction(FText::FromString("MoveComponent"));
 	TSharedPtr<FDMXPixelMappingDragDropOp> ComponentDragDropOp = InDragDropEvent.GetOperationAs<FDMXPixelMappingDragDropOp>();
-	if (ComponentDragDropOp.IsValid() && ComponentDragDropOp->Component != nullptr)
+	if (ComponentDragDropOp.IsValid())
 	{
-		if (HierarchyView.IsValid())
+		UDMXPixelMappingBaseComponent* Source = ComponentDragDropOp->TryGetBaseComponent();
+
+		if (Source && HierarchyView.IsValid())
 		{
 			UDMXPixelMappingBaseComponent* Destination = Model.Pin()->GetReference().GetComponent();
-			UDMXPixelMappingBaseComponent* Source = ComponentDragDropOp->Component.Get();
+			
 			UDMXPixelMappingBaseComponent* NewParent = nullptr;
 			if (Source->CanBeMovedTo(Destination))
 			{

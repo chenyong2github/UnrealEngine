@@ -109,7 +109,7 @@ void UDMXPixelMappingOutputComponent::PostEditChangeChainProperty(FPropertyChang
 
 #endif // WITH_EDITOR
 
-FVector2D UDMXPixelMappingOutputComponent::GetSize()
+FVector2D UDMXPixelMappingOutputComponent::GetSize() const
 {
 	ensureMsgf(false, TEXT("You must implement GetSize() in your child class"));
 

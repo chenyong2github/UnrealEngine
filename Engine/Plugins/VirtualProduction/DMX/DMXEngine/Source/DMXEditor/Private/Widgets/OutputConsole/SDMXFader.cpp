@@ -253,6 +253,13 @@ void SDMXFader::SendDMX()
 
 	check(Protocol.IsValid());
 
+	// If sent DMX will not be looped back via network, input it directly
+	const bool bCanLoopback = Protocol->IsReceiveDMXEnabled() && Protocol->IsSendDMXEnabled();
+	if (!bCanLoopback)
+	{
+		Protocol->InputDMXFragment(UniverseID, FragmentMap);
+	}
+
 	// TODO: This does not overcome issues with SendDMXFragment as described in #397
 	EDMXSendResult SendResult = Protocol->SendDMXFragmentCreate(UniverseID, FragmentMap);
 	if (SendResult != EDMXSendResult::Success)
