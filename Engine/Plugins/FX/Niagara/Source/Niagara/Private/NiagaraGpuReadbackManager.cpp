@@ -1,18 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraGpuReadbackManager.h"
-
-#include "RHI.h"
-
-// Copyright Epic Games, Inc. All Rights Reserved.
-
-/*==============================================================================
-Class used help realtime debug Gpu Compute simulations
-==============================================================================*/
-#pragma once
+#include "NiagaraCommon.h"
 
 #include "CoreMinimal.h"
-#include "NiagaraCommon.h"
+#include "RHI.h"
 #include "RHICommandList.h"
 
 FNiagaraGpuReadbackManager::FNiagaraGpuReadbackManager()
