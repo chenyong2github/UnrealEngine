@@ -61,7 +61,7 @@ enum ELoadFlags
 	LOAD_EditorOnly					= 0x00000004,	///< Load for editor-only purposes and by editor-only code
 	LOAD_ResolvingDeferredExports	= 0x00000008,	///< Denotes that we should not defer export loading (as we're resolving them)
 	LOAD_Verify						= 0x00000010,	///< Only verify existance; don't actually load.
-	LOAD_AllowDll					= 0x00000020,	///< Allow plain DLLs.
+//	LOAD_Unused						= 0x00000020,	///< Allow plain DLLs.
 //	LOAD_Unused						= 0x00000040
 	LOAD_NoVerify					= 0x00000080,   ///< Don't verify imports yet.
 	LOAD_IsVerifying				= 0x00000100,	///< Is verifying imports
