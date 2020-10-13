@@ -5,7 +5,7 @@
 #if INTEL_ISPC
 #include "PerParticlePBDCollisionConstraint.ispc.generated.h"
 #endif
-PRAGMA_DISABLE_OPTIMIZATION
+
 #if INTEL_ISPC && !UE_BUILD_SHIPPING
 bool bChaos_PerParticleCollision_ISPC_Enabled = false;  // TODO: Enable once ISPC collision works
 FAutoConsoleVariableRef CVarChaosPerParticleCollisionISPCEnabled(TEXT("p.Chaos.PerParticleCollision.ISPC"), bChaos_PerParticleCollision_ISPC_Enabled, TEXT("Whether to use ISPC optimizations in per particle collisions"));
