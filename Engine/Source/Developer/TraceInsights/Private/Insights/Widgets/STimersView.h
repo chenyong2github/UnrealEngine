@@ -23,6 +23,7 @@
 
 class FMenuBuilder;
 class FTimingGraphTrack;
+class FUICommandList;
 
 namespace Trace
 {
