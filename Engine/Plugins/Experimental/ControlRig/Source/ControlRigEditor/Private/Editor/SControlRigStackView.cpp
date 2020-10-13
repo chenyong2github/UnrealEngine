@@ -4,6 +4,7 @@
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Layout/SScrollBar.h"
+#include "Widgets/Input/SSearchBox.h"
 #include "ControlRigEditor.h"
 #include "ControlRigEditorStyle.h"
 #include "ControlRigStackCommands.h"
@@ -154,26 +155,55 @@ void SControlRigStackView::Construct( const FArguments& InArgs, TSharedRef<FCont
 	BindCommands();
 
 	ChildSlot
+	[
+		SNew(SVerticalBox)
+		+SVerticalBox::Slot()
+		.AutoHeight()
+		.VAlign(VAlign_Top)
+		.Padding(0.0f)
 		[
-			SNew(SVerticalBox)
-			+ SVerticalBox::Slot()
-			.Padding(0.0f, 0.0f)
+			SNew(SBorder)
+			.Padding(0.0f)
+			.BorderImage(FEditorStyle::GetBrush("DetailsView.CategoryTop"))
+			.BorderBackgroundColor(FLinearColor(0.6f, 0.6f, 0.6f, 1.0f))
 			[
-				SNew(SBorder)
-				.Padding(2.0f)
-				.BorderImage(FEditorStyle::GetBrush("SCSEditor.TreePanel"))
+				SNew(SVerticalBox)
+				+SVerticalBox::Slot()
+				.AutoHeight()
+				.VAlign(VAlign_Top)
 				[
-					SAssignNew(TreeView, STreeView<TSharedPtr<FRigStackEntry>>)
-					.TreeItemsSource(&Operators)
-					.SelectionMode(ESelectionMode::Multi)
-					.OnGenerateRow(this, &SControlRigStackView::MakeTableRowWidget)
-					.OnGetChildren(this, &SControlRigStackView::HandleGetChildrenForTree)
-					.OnSelectionChanged(this, &SControlRigStackView::OnSelectionChanged)
-					.OnContextMenuOpening(this, &SControlRigStackView::CreateContextMenu)
-					.ItemHeight(28)
+					SNew(SHorizontalBox)
+					//.Visibility(this, &SRigHierarchy::IsSearchbarVisible)
+					+SHorizontalBox::Slot()
+					.AutoWidth()
+					+SHorizontalBox::Slot()
+					.VAlign(VAlign_Center)
+					.Padding(3.0f, 1.0f)
+					[
+						SAssignNew(FilterBox, SSearchBox)
+						.OnTextChanged(this, &SControlRigStackView::OnFilterTextChanged)
+					]
 				]
 			]
-		];
+		]
+		+SVerticalBox::Slot()
+		.Padding(0.0f, 0.0f)
+		[
+			SNew(SBorder)
+			.Padding(2.0f)
+			.BorderImage(FEditorStyle::GetBrush("SCSEditor.TreePanel"))
+			[
+				SAssignNew(TreeView, STreeView<TSharedPtr<FRigStackEntry>>)
+				.TreeItemsSource(&Operators)
+				.SelectionMode(ESelectionMode::Multi)
+				.OnGenerateRow(this, &SControlRigStackView::MakeTableRowWidget)
+				.OnGetChildren(this, &SControlRigStackView::HandleGetChildrenForTree)
+				.OnSelectionChanged(this, &SControlRigStackView::OnSelectionChanged)
+				.OnContextMenuOpening(this, &SControlRigStackView::CreateContextMenu)
+				.ItemHeight(28)
+			]
+		]
+	];
 
 	RefreshTreeView(nullptr);
 
@@ -286,9 +316,12 @@ void SControlRigStackView::RefreshTreeView(URigVM* InVM)
 			{
 				Label = FString::Printf(TEXT("%s(...)"), *Left);
 			}
-			
-			TSharedPtr<FRigStackEntry> NewEntry = MakeShared<FRigStackEntry>(Operators.Num(), ERigStackEntry::Operator, InstructionIndex, Instruction.OpCode, Label);
-			Operators.Add(NewEntry);
+
+			if (FilterText.IsEmpty() || Label.Contains(FilterText.ToString()))
+			{ 
+				TSharedPtr<FRigStackEntry> NewEntry = MakeShared<FRigStackEntry>(InstructionIndex, ERigStackEntry::Operator, InstructionIndex, Instruction.OpCode, Label);
+				Operators.Add(NewEntry);
+			}
 		}
 
 		// fill the children from the log
@@ -373,6 +406,12 @@ void SControlRigStackView::OnVMCompiled(UBlueprint* InCompiledBlueprint, URigVM*
 		UControlRig* ControlRig = ControlRigEditor.Pin()->ControlRig;
 		OnControlRigInitializedHandle = ControlRig->OnInitialized_AnyThread().AddSP(this, &SControlRigStackView::HandleControlRigInitializedEvent);
 	}
+}
+
+void SControlRigStackView::OnFilterTextChanged(const FText& SearchText)
+{
+	FilterText = SearchText;
+	RefreshTreeView(ControlRigEditor.Pin()->ControlRig->GetVM());
 }
 
 void SControlRigStackView::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URigVMGraph* InGraph, UObject* InSubject)

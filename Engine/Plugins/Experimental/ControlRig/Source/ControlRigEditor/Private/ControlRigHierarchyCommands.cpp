@@ -28,10 +28,10 @@ void FControlRigHierarchyCommands::RegisterCommands()
 	UI_COMMAND(Unparent, "Unparent", "Unparents the selected elements from the hierarchy", EUserInterfaceActionType::Button, FInputChord(EKeys::P, EModifierKey::Shift));
 	UI_COMMAND(FilteringFlattensHierarchy, "Filtering Flattens Hierarchy", "Whether to keep the hierarchy or flatten it when searching for tree items", EUserInterfaceActionType::ToggleButton, FInputChord());
 	UI_COMMAND(HideParentsWhenFiltering, "Hide Parents When Filtering", "Whether to show parent items grayed out, or hide them entirely when filtering", EUserInterfaceActionType::ToggleButton, FInputChord());
-	UI_COMMAND(ShowImportedBones, "Show imported bones", "Whether to show or hide imported bones", EUserInterfaceActionType::ToggleButton, FInputChord());
-	UI_COMMAND(ShowBones, "Show bones", "Whether to show or hide bones", EUserInterfaceActionType::ToggleButton, FInputChord());
-	UI_COMMAND(ShowControls, "Show controls", "Whether to show or hide controls", EUserInterfaceActionType::ToggleButton, FInputChord());
-	UI_COMMAND(ShowSpaces, "Show spaces", "Whether to show or hide spaces", EUserInterfaceActionType::ToggleButton, FInputChord());
+	UI_COMMAND(ShowImportedBones, "Show Imported Bones", "Whether to show or hide imported bones", EUserInterfaceActionType::ToggleButton, FInputChord());
+	UI_COMMAND(ShowBones, "Show Bones", "Whether to show or hide bones", EUserInterfaceActionType::ToggleButton, FInputChord());
+	UI_COMMAND(ShowControls, "Show Controls", "Whether to show or hide controls", EUserInterfaceActionType::ToggleButton, FInputChord());
+	UI_COMMAND(ShowSpaces, "Show Spaces", "Whether to show or hide spaces", EUserInterfaceActionType::ToggleButton, FInputChord());
 }
 
 #undef LOCTEXT_NAMESPACE
