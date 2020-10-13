@@ -51,9 +51,9 @@ namespace ResonanceAudio
 		virtual ~FAmbisonicsFactory();
 
 		// This function is called by the ResonanceAudioPluginListener as soon as the ResonanceAudioApi is initialized.
-		void SetResonanceAudioApi(uint32 AudioDeviceID, vraudio::ResonanceAudioApi* InResonanceAudioApi) 
+		void SetResonanceAudioApi(uint32 AudioDeviceID, FResonanceAudioApiSharedPtr InResonanceAudioApi) 
 		{
-			vraudio::ResonanceAudioApi*& ApiPtr = ResonanceAudioAPIMap.FindOrAdd(AudioDeviceID);
+			FResonanceAudioApiSharedPtr& ApiPtr = ResonanceAudioAPIMap.FindOrAdd(AudioDeviceID);
 			ApiPtr = InResonanceAudioApi;
 		};
 
@@ -72,9 +72,9 @@ namespace ResonanceAudio
 		//~ IAmbisonicsMixer
 
 	private:
-		vraudio::ResonanceAudioApi* CreateNewResonanceApiInstance(FAudioDevice* AudioDevice, const FAudioPluginInitializationParams& InInitInfo);
+		FResonanceAudioApiSharedPtr CreateNewResonanceApiInstance(FAudioDevice* AudioDevice, const FAudioPluginInitializationParams& InInitInfo);
 
 		// Map of which audio engine StreamIds map to which Resonance SourceIds.
-		TMap<uint32, vraudio::ResonanceAudioApi*> ResonanceAudioAPIMap;
+		TMap<uint32, FResonanceAudioApiSharedPtr> ResonanceAudioAPIMap;
 	};
 }
