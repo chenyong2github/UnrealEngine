@@ -361,6 +361,18 @@ void UVCamBlueprintFunctionLibrary::EnableDebugFocusPlane(UCineCameraComponent* 
 	CineCamera->FocusSettings.bDrawDebugFocusPlane = bEnabled;
 }
 
+FString UVCamBlueprintFunctionLibrary::GetNextUndoDescription()
+{
+#if WITH_EDITOR
+	if (GEditor != nullptr && GEditor->Trans != nullptr)
+	{
+		return GEditor->Trans->GetUndoContext().Title.ToString();
+	}
+#endif
+
+	return "";
+}
+
 bool UVCamBlueprintFunctionLibrary::DeprojectScreenToWorld(const FVector2D& InScreenPosition, FVector& OutWorldPosition, FVector& OutWorldDirection)
 {
 	FName LevelEditorName(TEXT("LevelEditor"));
