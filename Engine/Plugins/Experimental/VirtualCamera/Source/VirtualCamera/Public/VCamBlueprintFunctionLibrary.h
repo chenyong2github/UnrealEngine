@@ -137,6 +137,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "VirtualCamera")
 	static int32 TimecodeToFrameAmount(FTimecode Timecode, const FFrameRate& InFrameRate);
 
+	/** Returns the description of the undo action that will be performed next.*/
+	UFUNCTION(BlueprintPure, Category = "VirtualCamera")
+	static FString GetNextUndoDescription();
+
 private:
 
 	static bool DeprojectScreenToWorld(const FVector2D& InScreenPosition, FVector& OutWorldPosition, FVector& OutWorldDirection);
