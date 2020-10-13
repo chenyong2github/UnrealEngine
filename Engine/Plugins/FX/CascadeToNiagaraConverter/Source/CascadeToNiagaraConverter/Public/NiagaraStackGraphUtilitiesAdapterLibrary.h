@@ -11,6 +11,7 @@
 #include "Particles/SubUVAnimation.h"
 #include "Particles/Acceleration/ParticleModuleAccelerationDragScaleOverLife.h"
 #include "Particles/Acceleration/ParticleModuleAccelerationOverLifetime.h"
+#include "Particles/Attractor/ParticleModuleAttractorParticle.h"
 #include "Particles/Camera/ParticleModuleCameraOffset.h"
 #include "Particles/Parameter/ParticleModuleParameterDynamic.h"
 #include "Particles/ParticleSpriteEmitter.h"
@@ -177,7 +178,7 @@ struct FEmitterDynamicParameterBP
 		, bScaleVelocityByParamValue(false)
 	{
 	}
-	FEmitterDynamicParameterBP(FName InParamName, uint32 InUseEmitterTime, TEnumAsByte<enum EEmitterDynamicParameterValue> InValueMethod, UDistributionFloatConstant* InDistribution)
+	FEmitterDynamicParameterBP(FName InParamName, uint32 InUseEmitterTime, TEnumAsByte<EEmitterDynamicParameterValue> InValueMethod, UDistributionFloatConstant* InDistribution)
 		: ParamName(InParamName)
 		, bUseEmitterTime((bool)InUseEmitterTime)
 		, bSpawnTimeOnly(false)
@@ -1034,7 +1035,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
 	static void GetParticleModuleOrbitProps(
 		UParticleModuleOrbit* ParticleModule
-		, TEnumAsByte<enum EOrbitChainMode>& OutChainMode
+		, TEnumAsByte<EOrbitChainMode>& OutChainMode
 		, UDistribution*& OutOffsetAmount
 		, FOrbitOptionsBP& OutOffsetOptions
 		, UDistribution*& OutRotationAmount
@@ -1125,7 +1126,7 @@ public:
 		, bool& bOutStrengthByDistance
 		, UDistribution*& OutStrength
 		, bool& bOutAffectBaseVelocity
-		, TEnumAsByte<enum EAttractorParticleSelectionMethod>& OutSelectionMethod
+		, TEnumAsByte<EAttractorParticleSelectionMethod>& OutSelectionMethod
 		, bool& bOutRenewSource
 		, bool& bOutInheritSourceVelocity
 	);
