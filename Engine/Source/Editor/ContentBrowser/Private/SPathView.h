@@ -162,7 +162,7 @@ public:
 	virtual void LoadSettings(const FString& IniFilename, const FString& IniSection, const FString& SettingsString);
 
 	/** Populates the tree with all folders that are not filtered out */
-	virtual void Populate();
+	virtual void Populate(const bool bIsRefreshingFilter = false);
 
 	/** Sets an alternate tree title*/
 	void SetTreeTitle(FText InTitle)
@@ -369,7 +369,7 @@ public:
 	/** Constructs this widget with InArgs */
 	virtual void Construct(const FArguments& InArgs) override;
 
-	virtual void Populate() override;
+	virtual void Populate(const bool bIsRefreshingFilter = false) override;
 
 	/** Saves any settings to config that should be persistent between editor sessions */
 	virtual void SaveSettings(const FString& IniFilename, const FString& IniSection, const FString& SettingsString) const override;
