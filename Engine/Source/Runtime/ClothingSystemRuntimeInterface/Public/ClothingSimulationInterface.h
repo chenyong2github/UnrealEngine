@@ -162,4 +162,6 @@ public:
 	virtual int32 GetNumSubsteps() const { return 0; }
 	/** Return the simulation time in ms. Implementation must be thread safe. */
 	virtual float GetSimulationTime() const { return 0.f; }
+	/** Return whether the simulation is teleported. Implementation must be thread safe. */
+	virtual bool IsTeleported() const { return false; }
 };
