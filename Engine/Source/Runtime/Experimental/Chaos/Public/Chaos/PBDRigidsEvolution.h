@@ -389,6 +389,7 @@ public:
 	CHAOS_API void DestroyParticle(TGeometryParticleHandle<FReal, 3>* Particle)
 	{
 		RemoveParticleFromAccelerationStructure(*Particle);
+		UniqueIndicesPendingRelease.Add(Particle->UniqueIdx());
 		ConstraintGraph.RemoveParticle(Particle);
 		RemoveConstraints(TSet<TGeometryParticleHandle<FReal, 3>*>({ Particle }));
 		Particles.DestroyParticle(Particle);
@@ -760,7 +761,8 @@ protected:
 	TUniquePtr<FAccelerationStructure> ScratchExternalAcceleration;
 	bool bExternalReady;
 	bool bIsSingleThreaded;
-
+	
+	TArray<FUniqueIdx> UniqueIndicesPendingRelease;
 public:
 	int32 LatestExternalTimestampConsumed;	//The latest external timestamp we consumed inputs from. Needed for synchronizing different DTs
 
