@@ -13,6 +13,8 @@
 #include "ThumbnailRendering/ThumbnailManager.h"
 #include "SEditorViewport.h"
 #include "Editor/UnrealEd/Public/SCommonEditorViewportToolbarBase.h"
+#include "MaterialEditorSettings.h"
+#include "Animation/CurveSequence.h"
 
 class FMaterialEditorViewportClient;
 class IMaterialEditor;
@@ -136,6 +138,8 @@ public:
 	SLATE_END_ARGS()
 
 	void Construct( const FArguments& InArgs, UMaterialInterface* PreviewMaterial );
+	virtual ~SMaterialEditorUIPreviewViewport();
+
 	void SetPreviewMaterial(UMaterialInterface* InMaterialInterface);
 
 private:
@@ -146,7 +150,31 @@ private:
 	TOptional<int32> OnGetPreviewXValue() const { return PreviewSize.X; }
 	TOptional<int32> OnGetPreviewYValue() const { return PreviewSize.Y; }
 
+	bool IsBackgroundTypeChecked(EBackgroundType BackgroundType) const;
+	bool IsShowBorderChecked() const;
+
+	void SetBackgroundType(EBackgroundType NewBackgroundType);
+	void ToggleShowBorder();
+
+	FMenuBuilder BuildViewOptionsMenu(bool bForContextMenu = false);
+	FReply OnViewportClicked(const FGeometry& Geometry, const FPointerEvent& MouseEvent);
+	void ShowContextMenu(const FGeometry& Geometry, const FPointerEvent& MouseEvent);
+
+	FReply OnMouseWheel(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent);
+	void HandleSettingsActionExecute();
+	void HandleSettingsChanged();
+	
+	void HandleDidZoom();
+	void ExecuteZoomToActual();
+	bool CanZoomToActual() const;
+	FSlateColor GetZoomTextColorAndOpacity() const;
+	FText GetZoomText() const;
+	FText GetDisplayedAtSizeText() const;
+
 private:
 	FIntPoint PreviewSize;
 	TSharedPtr<class SMaterialEditorUIPreviewZoomer> PreviewZoomer;
+	TSharedPtr<SWidget> PreviewArea;
+	FPreviewBackgroundSettings BackgroundSettings;
+	FCurveSequence ZoomLevelFade;
 };
