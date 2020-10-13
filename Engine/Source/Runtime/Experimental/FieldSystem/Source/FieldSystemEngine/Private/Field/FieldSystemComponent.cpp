@@ -20,6 +20,7 @@ UFieldSystemComponent::UFieldSystemComponent(const FObjectInitializer& ObjectIni
 	: Super(ObjectInitializer)
 	, FieldSystem(nullptr)
 	, IsGlobalField(false)
+	, IsChaosField(true)
 	, ChaosModule(nullptr)
 	, bHasPhysicsState(false)
 {
@@ -111,39 +112,42 @@ void UFieldSystemComponent::DispatchCommand(const FFieldSystemCommand& InCommand
 	using namespace Chaos;
 	if (HasValidPhysicsState())
 	{
-		checkSlow(ChaosModule); // Should already be checked from OnCreatePhysicsState
-
-		// Assemble a list of compatible solvers
-		TArray<FPhysicsSolverBase*> SupportedSolverList;
-		if(SupportedSolvers.Num() > 0)
+		if (IsChaosField)
 		{
-			for(TSoftObjectPtr<AChaosSolverActor>& SolverActorPtr : SupportedSolvers)
+			checkSlow(ChaosModule); // Should already be checked from OnCreatePhysicsState
+
+			// Assemble a list of compatible solvers
+			TArray<FPhysicsSolverBase*> SupportedSolverList;
+			if(SupportedSolvers.Num() > 0)
 			{
-				if(AChaosSolverActor* CurrActor = SolverActorPtr.Get())
+				for(TSoftObjectPtr<AChaosSolverActor>& SolverActorPtr : SupportedSolvers)
 				{
-					SupportedSolverList.Add(CurrActor->GetSolver());
+					if(AChaosSolverActor* CurrActor = SolverActorPtr.Get())
+					{
+						SupportedSolverList.Add(CurrActor->GetSolver());
+					}
 				}
 			}
-		}
 
-		TArray<FPhysicsSolverBase*> WorldSolverList = ChaosModule->GetAllSolvers();
-		const int32 NumFilterSolvers = SupportedSolverList.Num();
+			TArray<FPhysicsSolverBase*> WorldSolverList = ChaosModule->GetAllSolvers();
+			const int32 NumFilterSolvers = SupportedSolverList.Num();
 
-		for(FPhysicsSolverBase* Solver : WorldSolverList)
-		{
-			const bool bSolverValid = NumFilterSolvers == 0 || SupportedSolverList.Contains(Solver);
-			if(bSolverValid)
+			for (FPhysicsSolverBase* Solver : WorldSolverList)
 			{
-				Solver->CastHelper([&InCommand](auto& Concrete)
+				const bool bSolverValid = NumFilterSolvers == 0 || SupportedSolverList.Contains(Solver);
+				if (bSolverValid)
 				{
-					Concrete.EnqueueCommandImmediate([ConcreteSolver = &Concrete, NewCommand = InCommand]()
-					{
-						if(ConcreteSolver->HasActiveParticles())
+					Solver->CastHelper([&InCommand](auto& Concrete)
 						{
-							ConcreteSolver->GetPerSolverField().BufferCommand(NewCommand);
-						}
-					});
-				});
+							Concrete.EnqueueCommandImmediate([ConcreteSolver = &Concrete, NewCommand = InCommand]()
+								{
+									if (ConcreteSolver->HasActiveParticles())
+									{
+										ConcreteSolver->GetPerSolverField().BufferCommand(NewCommand);
+									}
+								});
+						});
+				}
 			}
 		}
 		if (IsGlobalField)
