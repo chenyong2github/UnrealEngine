@@ -1,7 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#pragma once
-
 #include "IOpenXRARTrackedGeometryHolder.h"
 #include "MRMeshBufferDefines.h"
 #include "MRMeshComponent.h"
