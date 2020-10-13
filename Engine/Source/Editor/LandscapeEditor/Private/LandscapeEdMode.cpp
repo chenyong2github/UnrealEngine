@@ -3228,22 +3228,11 @@ bool FEdModeLandscape::IsSelectionAllowed(AActor* InActor, bool bInSelection) co
 /** FEdMode: Called when the currently selected actor has changed */
 void FEdModeLandscape::ActorSelectionChangeNotify()
 {
-	if (CurrentGizmoActor.IsValid() && CurrentGizmoActor->IsSelected())
+	if (CurrentGizmoActor.IsValid() && CurrentGizmoActor->IsSelected() && (GEditor->GetSelectedActors()->CountSelections<AActor>() != 1))
 	{
 		GEditor->SelectNone(false, true);
 		GEditor->SelectActor(CurrentGizmoActor.Get(), true, false, true);
 	}
-	/*
-		USelection* EditorSelection = GEditor->GetSelectedActors();
-		for ( FSelectionIterator Itor(EditorSelection) ; Itor ; ++Itor )
-		{
-		if (((*Itor)->IsA(ALandscapeGizmoActor::StaticClass())) )
-		{
-		bIsGizmoSelected = true;
-		break;
-		}
-		}
-	*/
 }
 
 void FEdModeLandscape::ActorMoveNotify()
