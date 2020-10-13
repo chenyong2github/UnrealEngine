@@ -218,21 +218,23 @@ struct FPropertyRetirement
 #if !UE_BUILD_SHIPPING
 	static const uint32 ExpectedSanityTag = 0xDF41C9A3;
 
-	uint32			SanityTag;
+	uint32 SanityTag;
 #endif
 
-	FPropertyRetirement * Next;
+	FPropertyRetirement* Next;
 
 	TSharedPtr<class INetDeltaBaseState> DynamicState;
 
-	FPacketIdRange	OutPacketIdRange;
+	FPacketIdRange OutPacketIdRange;
+	uint32 FastArrayChangelistHistory;
 
 	FPropertyRetirement() :
 #if !UE_BUILD_SHIPPING
-			SanityTag( ExpectedSanityTag ),
+		SanityTag( ExpectedSanityTag ),
 #endif
-			Next( nullptr )
-		,	DynamicState ( nullptr )
+		 Next(nullptr)
+		, DynamicState(nullptr)
+		, FastArrayChangelistHistory(0)
 	{}
 
 	void CountBytes(FArchive& Ar) const;
