@@ -108,6 +108,26 @@ namespace Audio
 	SIGNALPROCESSING_API void ArrayAddInPlace(TArrayView<const float> InValues, TArrayView<float> InAccumulateValues);
 	SIGNALPROCESSING_API void ArrayAddInPlace(const AlignedFloatBuffer& InValues, AlignedFloatBuffer& InAccumulateValues);
 
+	/** Multiply Add arrays element-wise in place. InAccumulateValues[i] += InMultiplier * InValues[i]
+	 *
+	 *  @param InValues - The array to add.
+	 *  @param InMultiplier - The value to multiply against InValues
+	 *  @param InAccumulateValues - The array which holds the sum.
+	 */
+	SIGNALPROCESSING_API void ArrayMultiplyAddInPlace(TArrayView<const float> InValues, float InMultiplier, TArrayView<float> InAccumulateValues);
+	SIGNALPROCESSING_API void ArrayMultiplyAddInPlace(const AlignedFloatBuffer& InValues, float InMultiplier, AlignedFloatBuffer& InAccumulateValues);
+
+	/** Linearly Interpolate Add arrays element-wise in place. InAccumulateValues[i] += ((1 - alpha) * InStartMultiplier + alpha * InEndMultipler) * InValues[i]
+	 * Interpolation is performed over the length of the array.
+	 *
+	 *  @param InValues - The array to add.
+	 *  @param InStartMultiplier - The beginning value to multiply against InValues
+	 *  @param InEndMultiplier - The ending value to multiply against InValues
+	 *  @param InAccumulateValues - The array which holds the sum.
+	 */
+	SIGNALPROCESSING_API void ArrayLerpAddInPlace(TArrayView<const float> InValues, float InStartMultiplier, float InEndMultiplier, TArrayView<float> InAccumulateValues);
+	SIGNALPROCESSING_API void ArrayLerpAddInPlace(const AlignedFloatBuffer& InValues, float InStartMultiplier, float InEndMultiplier, AlignedFloatBuffer& InAccumulateValues);
+
 	/** Subract arrays element-wise. OutArray = InMinuend - InSubtrahend
 	 *
 	 *  InMinuend is the array of data to be subtracted from.
