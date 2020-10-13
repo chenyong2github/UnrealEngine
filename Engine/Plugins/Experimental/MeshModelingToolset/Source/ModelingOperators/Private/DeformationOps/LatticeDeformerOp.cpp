@@ -18,7 +18,9 @@ void FLatticeDeformerOp::CalculateResult(FProgressCancel* Progress)
 	}
 
 	TArray<FVector3d> DeformedPositions;
-	Lattice->GetDeformedMeshVertexPositions(LatticeControlPoints, DeformedPositions, InterpolationType, Progress);
+	FLatticeExecutionInfo ExecutionInfo = FLatticeExecutionInfo();
+	ExecutionInfo.bParallel = true;
+	Lattice->GetDeformedMeshVertexPositions(LatticeControlPoints, DeformedPositions, InterpolationType, ExecutionInfo, Progress);
 
 	check(ResultMesh->VertexCount() == DeformedPositions.Num());
 

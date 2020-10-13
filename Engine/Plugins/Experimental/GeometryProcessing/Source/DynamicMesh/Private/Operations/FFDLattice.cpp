@@ -3,6 +3,7 @@
 #include "Operations/FFDLattice.h"
 #include "DynamicMesh3.h"
 #include "Util/ProgressCancel.h"
+#include "Async/ParallelFor.h"
 
 FFFDLattice::FFFDLattice(const FVector3i& InDims, const FDynamicMesh3& Mesh, float Padding) :
 	Dims(InDims)
@@ -96,30 +97,62 @@ FVector3d FFFDLattice::ComputeTrilinearWeights(const FVector3d& QueryPoint, FVec
 	return Weights;
 }
 
-void FFFDLattice::ComputeInitialEmbedding(const FDynamicMesh3& Mesh)
-{
-	VertexEmbeddings.Reset(Mesh.VertexCount());
-	for (const FVector3d& VertexPosition : Mesh.VerticesItr())
-	{
-		FEmbedding Embedding;
-		Embedding.CellWeighting = ComputeTrilinearWeights(VertexPosition, Embedding.LatticeCell);
-		VertexEmbeddings.Add(Embedding);
-	}
 
-	check(VertexEmbeddings.Num() == Mesh.VertexCount());
+void FFFDLattice::ComputeInitialEmbedding(const FDynamicMesh3& Mesh, FLatticeExecutionInfo ExecutionInfo)
+{
+	int MaxVertexID = Mesh.MaxVertexID();
+	VertexEmbeddings.SetNum(MaxVertexID);
+
+	EParallelForFlags ParallelForFlags = ExecutionInfo.bParallel ? EParallelForFlags::None : EParallelForFlags::ForceSingleThread;
+
+	ParallelFor(MaxVertexID,
+				[this, &Mesh, MaxVertexID](int VertexID)
+	{
+		if (!Mesh.IsVertex(VertexID))
+		{
+			return;
+		}
+
+		FVector3d VertexPosition = Mesh.GetVertex(VertexID);
+
+		FEmbedding& Embedding = VertexEmbeddings[VertexID];
+		Embedding.CellWeighting = ComputeTrilinearWeights(VertexPosition, Embedding.LatticeCell);
+	},
+				ParallelForFlags);
+
 }
 
 
-void FFFDLattice::GetDeformedMeshVertexPositions(const TArray<FVector3d>& LatticeControlPoints, 
-												 TArray<FVector3d>& OutVertexPositions, 
+void FFFDLattice::GetDeformedMeshVertexPositions(const TArray<FVector3d>& LatticeControlPoints,
+												 TArray<FVector3d>& OutVertexPositions,
 												 ELatticeInterpolation Interpolation,
+												 FLatticeExecutionInfo ExecutionInfo,
 												 FProgressCancel* Progress) const
 {
-	int NumVertices = VertexEmbeddings.Num();
-	OutVertexPositions.SetNumZeroed(NumVertices);
+	int MaxVertexID = VertexEmbeddings.Num();
+	OutVertexPositions.SetNumZeroed(MaxVertexID);
 
-	for (int VertexID = 0; VertexID < NumVertices; ++VertexID)
+	EParallelForFlags ParallelForFlags = ExecutionInfo.bParallel ? EParallelForFlags::None : EParallelForFlags::ForceSingleThread;
+	ParallelForFlags |= EParallelForFlags::BackgroundPriority;
+
+	bool bCancelled = false;
+
+	check(VertexEmbeddings.Num() == OutVertexPositions.Num());
+
+	auto InterpolationJob = [this, &OutVertexPositions, &LatticeControlPoints, &bCancelled, ExecutionInfo, MaxVertexID, Interpolation, Progress]
+	(int VertexID)
 	{
+		// Every once in a while, check for cancellation
+		if ((VertexID % ExecutionInfo.CancelCheckSize == 0) && Progress && Progress->Cancelled())
+		{
+			bCancelled = true;
+		}
+
+		if (bCancelled || VertexEmbeddings[VertexID].LatticeCell[0] < 0)
+		{
+			return;
+		}
+
 		if (Interpolation == ELatticeInterpolation::Cubic)
 		{
 			OutVertexPositions[VertexID] = InterpolatedPositionCubic(VertexEmbeddings[VertexID], LatticeControlPoints);
@@ -128,13 +161,10 @@ void FFFDLattice::GetDeformedMeshVertexPositions(const TArray<FVector3d>& Lattic
 		{
 			OutVertexPositions[VertexID] = InterpolatedPosition(VertexEmbeddings[VertexID], LatticeControlPoints);
 		}
+	};
 
-		// Every once in a while, check for cancellation
-		if (Progress && (VertexID % 1000 == 0) && Progress->Cancelled())
-		{
-			return;
-		}
-	}
+	ParallelFor(MaxVertexID, InterpolationJob, ParallelForFlags);
+
 }
 
 

@@ -16,6 +16,11 @@ enum class ELatticeInterpolation : uint8
 	Cubic = 1
 };
 
+struct FLatticeExecutionInfo
+{
+	bool bParallel = true;
+	int CancelCheckSize = 100000;		// Number of vertices to process before checking for cancel
+};
 
 /** 
  * Free-form deformation lattice. Initialize it with a mesh and desired resolution, get the initial lattice points out.
@@ -28,8 +33,8 @@ public:
 	/// Linear interpolation information. There should be one of these per mesh vertex.
 	struct FEmbedding
 	{
-		FVector3i LatticeCell;		// Original point is in the hexahedron whose Min corner is LatticeCell
-		FVector3d CellWeighting;	// Original linear interpolation weights of the point in the cell
+		FVector3i LatticeCell = { -1, -1, -1 };		// Original point is in the hexahedron whose Min corner is LatticeCell
+		FVector3d CellWeighting = { 0,0,0 };	// Original linear interpolation weights of the point in the cell
 	};
 
 	/// Create a lattice that fits the given mesh and has the given resolution along each dimension. Also precompute
@@ -41,6 +46,7 @@ public:
 	void GetDeformedMeshVertexPositions(const TArray<FVector3d>& LatticeControlPoints,
 										TArray<FVector3d>& OutVertexPositions, 
 										ELatticeInterpolation Interpolation = ELatticeInterpolation::Linear,
+										FLatticeExecutionInfo ExecutionInfo = FLatticeExecutionInfo(),
 										FProgressCancel* Progress = nullptr) const;
 
 	void GenerateInitialLatticePositions(TArray<FVector3d>& OutLatticePositions) const;
@@ -76,7 +82,7 @@ protected:
 	}
 
 	/// For each vertex in Mesh, compute the lattice cell it resides in and its weighting
-	void ComputeInitialEmbedding(const FDynamicMesh3& Mesh);
+	void ComputeInitialEmbedding(const FDynamicMesh3& Mesh, FLatticeExecutionInfo ExecutionInfo = FLatticeExecutionInfo());
 
 	/// Compute cell index and linear interpolation weights for a given point
 	FVector3d ComputeTrilinearWeights(const FVector3d& Pt, FVector3i& GridCoordinates) const;
