@@ -101,7 +101,7 @@ public class Python : ModuleRules
 		}
 	}
 
-	protected virtual List<PythonSDKPaths> GetPotentialPythonSDKs(ReadOnlyTargetRules Target)
+	private List<PythonSDKPaths> GetPotentialPythonSDKs(ReadOnlyTargetRules Target)
 	{
 		var EngineDir = Path.GetFullPath(Target.RelativeEnginePath);
 		
@@ -154,7 +154,7 @@ public class Python : ModuleRules
 		return PotentialSDKs;
 	}
 
-	protected virtual void AppendPythonRuntimeDependencies(ReadOnlyTargetRules Target, bool IsEnginePython)
+	private void AppendPythonRuntimeDependencies(ReadOnlyTargetRules Target, bool IsEnginePython)
 	{
 		if (Target.Platform == UnrealTargetPlatform.Linux && IsEnginePython)
 		{
@@ -162,7 +162,7 @@ public class Python : ModuleRules
 		}
 	}
 
-	protected string InvokePython(string InPythonRoot, string InPythonArgs)
+	private string InvokePython(string InPythonRoot, string InPythonArgs)
 	{
 		ProcessStartInfo ProcStartInfo = new ProcessStartInfo();
 		ProcStartInfo.FileName = Path.Combine(InPythonRoot, "python");
@@ -187,7 +187,7 @@ public class Python : ModuleRules
 		}
 	}
 
-	protected PythonSDKPaths DiscoverPythonSDK(string InPythonRoot)
+	private PythonSDKPaths DiscoverPythonSDK(string InPythonRoot)
 	{
 		string PythonRoot = InPythonRoot;
 		List<string> PythonIncludePaths = null;
@@ -267,7 +267,7 @@ public class Python : ModuleRules
 		return new PythonSDKPaths(PythonRoot, PythonIncludePaths, PythonLibs);
 	}
 
-	protected class PythonSDKPaths
+	private class PythonSDKPaths
 	{
 		public PythonSDKPaths(string InPythonRoot, List<string> InPythonIncludePaths, List<string> InPythonLibs)
 		{
