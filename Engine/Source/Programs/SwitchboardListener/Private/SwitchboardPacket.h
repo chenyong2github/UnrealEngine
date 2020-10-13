@@ -36,6 +36,9 @@ struct FSwitchboardStateRunningProcess
 
 	UPROPERTY()
 	FString Name;
+
+	UPROPERTY()
+	FString Caller;
 };
 
 USTRUCT()

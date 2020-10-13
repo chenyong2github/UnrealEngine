@@ -190,6 +190,10 @@ class SettingsDialog(QtCore.QObject):
 
         # add widgets for settings shared by all devices of a plugin
         for setting in plugin_settings:
+
+            if not setting.show_ui:
+                continue
+
             value_type = type(setting.get_value())
 
             if value_type is list:
@@ -214,6 +218,10 @@ class SettingsDialog(QtCore.QObject):
 
             # regular "instance" settings
             for setting in settings:
+
+                if not setting.show_ui:
+                    continue
+
                 value_type = type(setting.get_value(device_name))
 
                 if value_type is list:
@@ -226,6 +234,10 @@ class SettingsDialog(QtCore.QObject):
                     self.create_device_setting_checkbox(setting, layout)
 
             for setting in overrides:
+
+                if not setting.show_ui:
+                    continue
+                
                 value_type = type(setting.get_value(device_name))
 
                 if value_type in [str, int]:
