@@ -454,17 +454,17 @@ namespace Chaos
 		{
 			ApplyParticlePendingData(PendingData, *AsyncInternalAcceleration, true); //only the first queue needs to update the cached acceleration
 			ApplyParticlePendingData(PendingData, *AsyncExternalAcceleration, false);
-
-			// Async queue deletes complete, unique index free to be consumed by new particles.
-			if(PendingData.bDelete)
-			{
-				//NOTE: This assumes that we are never creating a PT particle that is replicated to GT
-				//At the moment that is true, and it seems like we have enough mechanisms to avoid this direction
-				//If we want to support that, the UniqueIndex must be kept around until GT goes away
-				//This is hard to do, but would probably mean the ownership of the index is in the proxy
-				Particles.GetUniqueIndices().ReleaseIdx(PendingData.UniqueIdx());
-			}
 		}
+
+		//NOTE: This assumes that we are never creating a PT particle that is replicated to GT
+		//At the moment that is true, and it seems like we have enough mechanisms to avoid this direction
+		//If we want to support that, the UniqueIndex must be kept around until GT goes away
+		//This is hard to do, but would probably mean the ownership of the index is in the proxy
+		for (FUniqueIdx UniqueIdx : UniqueIndicesPendingRelease)
+		{
+			Particles.GetUniqueIndices().ReleaseIdx(UniqueIdx);
+		}
+		UniqueIndicesPendingRelease.Reset();
 		AsyncAccelerationQueue.Reset();
 
 		//other queues are no longer needed since we've flushed all operations and now have a pristine structure
