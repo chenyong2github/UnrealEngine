@@ -58,6 +58,8 @@ private:
 
 	FHitResult LastViewportTouchResult;
 
+	bool bUsingDummyUMG = false;
+
 	void CreateRemoteSession();
 	void DestroyRemoteSession();
 
