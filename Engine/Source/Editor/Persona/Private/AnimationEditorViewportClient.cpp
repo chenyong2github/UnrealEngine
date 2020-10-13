@@ -1000,6 +1000,10 @@ FText FAnimationViewportClient::GetDisplayInfo(bool bDisplayAllInfo) const
 			NumberFormatOptions.MaximumFractionalDigits = 2;
 			TextValue = ConcatenateLine(TextValue, FText::Format(LOCTEXT("SimulationTime", "Simulation Time: {0}ms"), FText::AsNumber(SimulationTime, &NumberFormatOptions)));
 		}
+		if (ClothingSimulation->IsTeleported())
+		{
+			TextValue = ConcatenateLine(TextValue, LOCTEXT("IsTeleported", "*** Warning ***: Max Delta Time Teleport!"));
+		}
 	}
 
 	if (PreviewMeshComponent->GetSectionPreview() != INDEX_NONE)

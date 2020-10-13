@@ -73,12 +73,13 @@ namespace Chaos
 		void RefreshPhysicsAsset();
 
 		// IClothingSimulation interface
-		virtual int32 GetNumCloths() const { return NumCloths; }
-		virtual int32 GetNumKinematicParticles() const { return NumKinemamicParticles; }
-		virtual int32 GetNumDynamicParticles() const { return NumDynamicParticles; }
-		virtual int32 GetNumIterations() const { return NumIterations; }
-		virtual int32 GetNumSubsteps() const { return NumSubsteps; }
-		virtual float GetSimulationTime() const { return SimulationTime; }
+		virtual int32 GetNumCloths() const override { return NumCloths; }
+		virtual int32 GetNumKinematicParticles() const override { return NumKinemamicParticles; }
+		virtual int32 GetNumDynamicParticles() const override { return NumDynamicParticles; }
+		virtual int32 GetNumIterations() const override { return NumIterations; }
+		virtual int32 GetNumSubsteps() const override { return NumSubsteps; }
+		virtual float GetSimulationTime() const override { return SimulationTime; }
+		virtual bool IsTeleported() const override { return bIsTeleported; }
 		// End of IClothingSimulation interface
 
 #if WITH_EDITOR
@@ -140,6 +141,7 @@ namespace Chaos
 		TAtomic<int32> NumIterations;
 		TAtomic<int32> NumSubsteps;
 		TAtomic<float> SimulationTime;
+		TAtomic<bool> bIsTeleported;
 
 		// Overrides
 		bool bUseLocalSpaceSimulation;
