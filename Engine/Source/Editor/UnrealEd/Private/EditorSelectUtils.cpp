@@ -441,9 +441,16 @@ void UUnrealEdEngine::SelectGroup(AGroupActor* InGroupActor, bool bForceSelectio
 			}
 		}
 
-		if (bSelectionChanged && bNotify)
+		if (bSelectionChanged)
 		{
-			SelectionSet->GetMutableElementList()->NotifyPendingChanges();
+			if (bNotify)
+			{
+				SelectionSet->GetMutableElementList()->NotifyPendingChanges();
+			}
+			else
+			{
+				SelectionSet->GetMutableElementList()->ClearPendingChanges();
+			}
 		}
 	}
 }
@@ -497,6 +504,10 @@ void UUnrealEdEngine::SelectActor(AActor* Actor, bool bInSelected, bool bNotify,
 			{
 				SelectionSet->GetMutableElementList()->NotifyPendingChanges();
 			}
+			else
+			{
+				SelectionSet->GetMutableElementList()->ClearPendingChanges();
+			}
 		}
 		else if (bNotify || bForceRefresh)
 		{
@@ -526,9 +537,16 @@ void UUnrealEdEngine::SelectComponent(UActorComponent* Component, bool bInSelect
 			? SelectionSet->SelectElement(Component->AcquireEditorElementHandle(), SelectionOptions)
 			: SelectionSet->DeselectElement(Component->AcquireEditorElementHandle(), SelectionOptions);
 
-		if (bSelectionChanged && bNotify)
+		if (bSelectionChanged)
 		{
-			SelectionSet->GetMutableElementList()->NotifyPendingChanges();
+			if (bNotify)
+			{
+				SelectionSet->GetMutableElementList()->NotifyPendingChanges();
+			}
+			else
+			{
+				SelectionSet->GetMutableElementList()->ClearPendingChanges();
+			}
 		}
 	}
 }
@@ -655,9 +673,16 @@ void UUnrealEdEngine::SelectNone(bool bNoteSelectionChange, bool bDeselectBSPSur
 	{
 		PostActorSelectionChanged();
 
-		if (bNoteSelectionChange && SelectionSet)
+		if (SelectionSet)
 		{
-			SelectionSet->GetMutableElementList()->NotifyPendingChanges();
+			if (bNoteSelectionChange)
+			{
+				SelectionSet->GetMutableElementList()->NotifyPendingChanges();
+			}
+			else
+			{
+				SelectionSet->GetMutableElementList()->ClearPendingChanges();
+			}
 		}
 	}
 }

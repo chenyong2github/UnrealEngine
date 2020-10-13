@@ -563,6 +563,11 @@ public:
 	void NotifyPendingChanges();
 
 	/**
+	 * Clear whether there are pending changes for OnChangedDelegate to notify for, without emitting a notification.
+	 */
+	void ClearPendingChanges();
+
+	/**
 	 * Access the interface to allow external systems (such as USelection) to receive immediate sync notifications as an element list is changed.
 	 * This exists purely as a bridging mechanism and shouldn't be relied on for new code. It is lazily created as needed.
 	 */

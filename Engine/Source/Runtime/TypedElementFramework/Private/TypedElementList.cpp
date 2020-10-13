@@ -243,6 +243,11 @@ void UTypedElementList::NotifyPendingChanges()
 	}
 }
 
+void UTypedElementList::ClearPendingChanges()
+{
+	bHasPendingNotify = false;
+}
+
 void UTypedElementList::NoteListMayChange()
 {
 	if (!bHasPendingNotify)
