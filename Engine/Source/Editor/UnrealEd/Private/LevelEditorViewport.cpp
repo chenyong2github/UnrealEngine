@@ -2258,12 +2258,14 @@ void FLevelEditorViewportClient::ProcessClick(FSceneView& View, HHitProxy* HitPr
 				const bool bWasDoubleClick = (Click.GetEvent() == IE_DoubleClick);
 
 				const bool bSelectComponent = bActorAlreadySelectedExclusively && bActorIsBlueprintable && (bComponentAlreadySelected != bWasDoubleClick);
+				bool bComponentSelected = false;
 
 				if (bSelectComponent)
 				{
-					LevelViewportClickHandlers::ClickComponent(this, ActorHitProxy, Click);
+					bComponentSelected = LevelViewportClickHandlers::ClickComponent(this, ActorHitProxy, Click);
 				}
-				else
+				
+				if (!bComponentSelected)
 				{
 					LevelViewportClickHandlers::ClickActor(this, ConsideredActor, Click, true);
 				}
