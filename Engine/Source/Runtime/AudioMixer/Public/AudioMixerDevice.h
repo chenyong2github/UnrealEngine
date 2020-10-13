@@ -101,14 +101,16 @@ namespace Audio
 		virtual void UpdateSourceEffectChain(const uint32 SourceEffectChainId, const TArray<FSourceEffectChainEntry>& SourceEffectChain, const bool bPlayEffectChainTails) override;
 		virtual bool GetCurrentSourceEffectChain(const uint32 SourceEffectChainId, TArray<FSourceEffectChainEntry>& OutCurrentSourceEffectChainEntries) override;
 
-		// Updates submix instances with new properties
+		// Submix dry/wet settings
 		virtual void UpdateSubmixProperties(USoundSubmixBase* InSubmix) override;
-		
-		// Submix wet/dry settings
-		void SetSubmixWetDryLevel(USoundSubmix* InSoundSubmix, float InOutputVolume, float InWetLevel, float InDryLevel) override;
-		void SetSubmixOutputVolume(USoundSubmix* InSoundSubmix, float InOutputVolume) override;
-		void SetSubmixWetLevel(USoundSubmix* InSoundSubmix, float InWetLevel) override;
-		void SetSubmixDryLevel(USoundSubmix* InSoundSubmix, float InDryLevel) override;
+		virtual void SetSubmixWetDryLevel(USoundSubmix* InSoundSubmix, float InOutputVolume, float InWetLevel, float InDryLevel) override;
+		virtual void SetSubmixOutputVolume(USoundSubmix* InSoundSubmix, float InOutputVolume) override;
+		virtual void SetSubmixWetLevel(USoundSubmix* InSoundSubmix, float InWetLevel) override;
+		virtual void SetSubmixDryLevel(USoundSubmix* InSoundSubmix, float InDryLevel) override;
+
+		// Submix effect chain override settings
+		virtual void SetSubmixEffectChainOverride(USoundSubmix* InSoundSubmix, const TArray<FSoundEffectSubmixPtr>& InSubmixEffectPresetChain, float InFadeTimeSec) override;
+		virtual void ClearSubmixEffectChainOverride(USoundSubmix* InSoundSubmix, float InFadeTimeSec) override;
 
 		// Submix recording callbacks:
 		virtual void StartRecording(USoundSubmix* InSubmix, float ExpectedRecordingDuration) override;
@@ -123,7 +125,6 @@ namespace Audio
 		virtual void AddEnvelopeFollowerDelegate(USoundSubmix* InSubmix, const FOnSubmixEnvelopeBP& OnSubmixEnvelopeBP) override;
 
 		// Submix Spectrum Analysis
-
 		virtual void StartSpectrumAnalysis(USoundSubmix* InSubmix, const FSoundSpectrumAnalyzerSettings& InSettings) override;
 		virtual void StopSpectrumAnalysis(USoundSubmix* InSubmix) override;
 		virtual void GetMagnitudesForFrequencies(USoundSubmix* InSubmix, const TArray<float>& InFrequencies, TArray<float>& OutMagnitudes) override;
@@ -191,7 +192,7 @@ namespace Audio
 		FMixerSubmixWeakPtr GetMasterEQSubmix();
 
 		// Add submix effect to master submix
-		void AddMasterSubmixEffect(uint32 SubmixEffectId, FSoundEffectSubmixPtr SoundEffect);
+		void AddMasterSubmixEffect(FSoundEffectSubmixPtr SoundEffect);
 		
 		// Remove submix effect from master submix
 		void RemoveMasterSubmixEffect(uint32 SubmixEffectId);
@@ -200,7 +201,7 @@ namespace Audio
 		void ClearMasterSubmixEffects();
 
 		// Add submix effect to given submix
-		int32 AddSubmixEffect(USoundSubmix* InSoundSubmix, uint32 SubmixEffectId, FSoundEffectSubmixPtr SoundEffect);
+		int32 AddSubmixEffect(USoundSubmix* InSoundSubmix, FSoundEffectSubmixPtr SoundEffect);
 
 		// Remove submix effect to given submix
 		void RemoveSubmixEffect(USoundSubmix* InSoundSubmix, uint32 SubmixEffectId);
@@ -209,7 +210,7 @@ namespace Audio
 		void RemoveSubmixEffectAtIndex(USoundSubmix* InSoundSubmix, int32 SubmixChainIndex);
 
 		// Replace the submix effect of the given submix at the submix chain index with the new submix effect id and submix instance
-		void ReplaceSoundEffectSubmix(USoundSubmix* InSoundSubmix, int32 InSubmixChainIndex, int32 SubmixEffectId, FSoundEffectSubmixPtr SoundEffect);
+		void ReplaceSoundEffectSubmix(USoundSubmix* InSoundSubmix, int32 InSubmixChainIndex, FSoundEffectSubmixPtr SoundEffect);
 
 		// Clear all submix effects from given submix
 		void ClearSubmixEffects(USoundSubmix* InSoundSubmix);
