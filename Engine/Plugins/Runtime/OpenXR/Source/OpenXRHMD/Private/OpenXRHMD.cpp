@@ -1285,7 +1285,7 @@ FOpenXRHMD::FOpenXRHMD(const FAutoRegister& AutoRegister, XrInstance InInstance,
 	, bNeedReAllocatedDepth(false)
 	, bNeedReBuildOcclusionMesh(true)
 	, CurrentSessionState(XR_SESSION_STATE_UNKNOWN)
-	, FrameEventRHI(FPlatformProcess::CreateSynchEvent())
+	, FrameEventRHI(FPlatformProcess::GetSynchEventFromPool())
 	, EnabledExtensions(std::move(InEnabledExtensions))
 	, ExtensionPlugins(std::move(InExtensionPlugins))
 	, Instance(InInstance)
@@ -1388,6 +1388,8 @@ FOpenXRHMD::~FOpenXRHMD()
 	{
 		XR_ENSURE(xrDestroySession(Session));
 	}
+
+	FPlatformProcess::ReturnSynchEventToPool(FrameEventRHI);
 }
 
 const FOpenXRHMD::FPipelinedFrameState& FOpenXRHMD::GetPipelinedFrameStateForThread() const
