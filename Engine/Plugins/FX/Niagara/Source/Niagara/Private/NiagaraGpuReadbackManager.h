@@ -26,6 +26,14 @@ public:
 	// Tick call which polls for completed readbacks
 	void Tick();
 	
+private:
+	// Internal tick impl
+	void TickInternal(bool bAssumeGpuIdle);
+
+public:
+	// Wait for all pending readbacks to complete
+	void WaitCompletion(FRHICommandListImmediate& RHICmdList);
+
 	// Enqueue a readback of a single buffer
 	void EnqueueReadback(FRHICommandList& RHICmdList, FRHIVertexBuffer* Buffer, FCompletionCallback Callback);
 
