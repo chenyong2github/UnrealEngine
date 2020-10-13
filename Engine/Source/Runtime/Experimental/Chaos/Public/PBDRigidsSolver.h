@@ -75,6 +75,12 @@ namespace Chaos
 		TSolverQueryMaterialScope() = delete;
 	};
 
+	template<ELockType LockType>
+	struct TSolverSimMaterialScope
+	{
+		TSolverSimMaterialScope() = delete;
+	};
+
 	/**
 	*
 	*/
@@ -505,6 +511,49 @@ namespace Chaos
 		~TSolverQueryMaterialScope()
 		{
 			Solver->QueryMaterialLock.WriteUnlock();
+		}
+
+	private:
+		FPhysicsSolverBase* Solver;
+	};
+
+	template<>
+	struct TSolverSimMaterialScope<ELockType::Read>
+	{
+		TSolverSimMaterialScope() = delete;
+
+
+		explicit TSolverSimMaterialScope(FPhysicsSolverBase* InSolver)
+			: Solver(InSolver)
+		{
+			check(Solver);
+			Solver->SimMaterialLock.ReadLock();
+		}
+
+		~TSolverSimMaterialScope()
+		{
+			Solver->SimMaterialLock.ReadUnlock();
+		}
+
+	private:
+		FPhysicsSolverBase* Solver;
+	};
+
+	template<>
+	struct TSolverSimMaterialScope<ELockType::Write>
+	{
+		TSolverSimMaterialScope() = delete;
+
+		explicit TSolverSimMaterialScope(FPhysicsSolverBase* InSolver)
+			: Solver(InSolver)
+		{
+			check(Solver);
+			Solver->SimMaterialLock.WriteLock();
+		}
+
+		~TSolverSimMaterialScope()
+		{
+			Solver->SimMaterialLock.WriteUnlock();
 		}
 
 	private:
