@@ -2207,7 +2207,6 @@ void FRDGBuilder::BeginResourceRHI(FRDGPassHandle PassHandle, FRDGBufferSRVRef S
 	}
 
 	FRDGBufferRef Buffer = SRV->Desc.Buffer;
-
 	check(Buffer->PooledBuffer);
 
 	if (!Buffer->FirstPass.IsValid())
@@ -2215,29 +2214,7 @@ void FRDGBuilder::BeginResourceRHI(FRDGPassHandle PassHandle, FRDGBufferSRVRef S
 		Buffer->FirstPass = PassHandle;
 	}
 
-	if (Buffer->PooledBuffer->SRVs.Contains(SRV->Desc))
-	{
-		SRV->ResourceRHI = Buffer->PooledBuffer->SRVs[SRV->Desc];
-		return;
-	}
-
-	FShaderResourceViewRHIRef RHIShaderResourceView;
-
-	if (Buffer->Desc.UnderlyingType == FRDGBufferDesc::EUnderlyingType::VertexBuffer)
-	{
-		RHIShaderResourceView = RHICreateShaderResourceView(Buffer->PooledBuffer->VertexBuffer, SRV->Desc.BytesPerElement, SRV->Desc.Format);
-	}
-	else if (Buffer->Desc.UnderlyingType == FRDGBufferDesc::EUnderlyingType::StructuredBuffer)
-	{
-		RHIShaderResourceView = RHICreateShaderResourceView(Buffer->PooledBuffer->StructuredBuffer);
-	}
-	else
-	{
-		check(0);
-	}
-
-	SRV->ResourceRHI = RHIShaderResourceView;
-	Buffer->PooledBuffer->SRVs.Add(SRV->Desc, RHIShaderResourceView);
+	SRV->ResourceRHI = Buffer->PooledBuffer->GetOrCreateSRV(SRV->Desc);
 }
 
 void FRDGBuilder::BeginResourceRHI(FRDGPassHandle PassHandle, FRDGBufferUAV* UAV)
@@ -2251,33 +2228,7 @@ void FRDGBuilder::BeginResourceRHI(FRDGPassHandle PassHandle, FRDGBufferUAV* UAV
 
 	FRDGBufferRef Buffer = UAV->Desc.Buffer;
 	BeginResourceRHI(PassHandle, Buffer);
-
-	if (Buffer->PooledBuffer->UAVs.Contains(UAV->Desc))
-	{
-		UAV->ResourceRHI = Buffer->PooledBuffer->UAVs[UAV->Desc];
-		return;
-	}
-
-	// Hack to make sure only one UAVs is around.
-	Buffer->PooledBuffer->UAVs.Empty();
-
-	FUnorderedAccessViewRHIRef RHIUnorderedAccessView;
-
-	if (Buffer->Desc.UnderlyingType == FRDGBufferDesc::EUnderlyingType::VertexBuffer)
-	{
-		RHIUnorderedAccessView = RHICreateUnorderedAccessView(Buffer->PooledBuffer->VertexBuffer, UAV->Desc.Format);
-	}
-	else if (Buffer->Desc.UnderlyingType == FRDGBufferDesc::EUnderlyingType::StructuredBuffer)
-	{
-		RHIUnorderedAccessView = RHICreateUnorderedAccessView(Buffer->PooledBuffer->StructuredBuffer, UAV->Desc.bSupportsAtomicCounter, UAV->Desc.bSupportsAppendBuffer);
-	}
-	else
-	{
-		check(0);
-	}
-
-	UAV->ResourceRHI = RHIUnorderedAccessView;
-	Buffer->PooledBuffer->UAVs.Add(UAV->Desc, RHIUnorderedAccessView);
+	UAV->ResourceRHI = Buffer->PooledBuffer->GetOrCreateUAV(UAV->Desc);
 }
 
 void FRDGBuilder::EndResourceRHI(FRDGPassHandle PassHandle, FRDGTextureRef Texture, uint32 ReferenceCount)
