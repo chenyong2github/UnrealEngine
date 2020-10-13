@@ -112,6 +112,10 @@
 	#define UStructProperty DEPRECATED_MACRO(4.25, "UStructProperty has been renamed to FStructProperty") FStructProperty
 #endif
 
+#ifndef UDelegateProperty
+	#define UDelegateProperty DEPRECATED_MACRO(4.26, "UDelegateProperty has been renamed to FDelegateProperty") FDelegateProperty
+#endif
+
 #ifndef UMulticastDelegateProperty
 	#define UMulticastDelegateProperty DEPRECATED_MACRO(4.25, "UMulticastDelegateProperty has been renamed to FMulticastDelegateProperty") FMulticastDelegateProperty
 #endif
