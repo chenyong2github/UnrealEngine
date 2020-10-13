@@ -248,11 +248,12 @@
             // 
             // checkAllConnectionsCheckBox
             // 
-            this.checkAllConnectionsCheckBox.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
+			this.checkAllConnectionsCheckBox.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
             this.checkAllConnectionsCheckBox.AutoSize = true;
-            this.checkAllConnectionsCheckBox.Location = new System.Drawing.Point(1200, 315);
+            this.checkAllConnectionsCheckBox.Location = new System.Drawing.Point(1344, 568);
+            this.checkAllConnectionsCheckBox.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             this.checkAllConnectionsCheckBox.Name = "checkAllConnectionsCheckBox";
-            this.checkAllConnectionsCheckBox.Size = new System.Drawing.Size(15, 14);
+            this.checkAllConnectionsCheckBox.Size = new System.Drawing.Size(22, 21);
             this.checkAllConnectionsCheckBox.TabIndex = 23;
             this.checkAllConnectionsCheckBox.UseVisualStyleBackColor = true;
             // 
