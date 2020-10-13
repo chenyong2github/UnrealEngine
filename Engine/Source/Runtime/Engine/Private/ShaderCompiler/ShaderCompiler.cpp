@@ -2852,17 +2852,15 @@ void FShaderCompilingManager::ProcessCompiledShaderMaps(
 #endif
 				//Material->RemoveOutstandingCompileId(ShaderMap->CompilingId);
 
+				bool bReleaseCompilingId = false;
+
 				// Only process results that still match the ID which requested a compile
 				// This avoids applying shadermaps which are out of date and a newer one is in the async compiling pipeline
 				if (Material->GetMaterialId() != CompilingShaderMap->GetShaderMapId().BaseMaterialId)
 				{
-					check(false); // TODO
-					++MaterialIndex;
-					continue;
+					bReleaseCompilingId = true;
 				}
-
-				bool bReleaseCompilingId = false;
-				if (bSuccess)
+				else if (bSuccess)
 				{
 					MaterialsToUpdate.Add(Material, ShaderMapToUseForRendering);
 					if (ShaderMapToUseForRendering->IsComplete(Material, true))
