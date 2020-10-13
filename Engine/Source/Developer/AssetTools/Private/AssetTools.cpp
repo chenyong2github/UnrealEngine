@@ -99,6 +99,7 @@
 #include "AssetTypeActions/AssetTypeActions_Texture2DArray.h"
 #include "AssetTypeActions/AssetTypeActions_TextureCube.h"
 #include "AssetTypeActions/AssetTypeActions_VolumeTexture.h"
+#include "AssetTypeActions/AssetTypeActions_TextureRenderTarget2DArray.h"
 #include "AssetTypeActions/AssetTypeActions_TextureRenderTargetCube.h"
 #include "AssetTypeActions/AssetTypeActions_TextureRenderTargetVolume.h"
 #include "AssetTypeActions/AssetTypeActions_TextureLightProfile.h"
@@ -278,6 +279,7 @@ UAssetToolsImpl::UAssetToolsImpl(const FObjectInitializer& ObjectInitializer)
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_VolumeTexture));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_TextureRenderTarget));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_TextureRenderTarget2D));
+	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_TextureRenderTarget2DArray));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_TextureRenderTargetCube));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_TextureRenderTargetVolume));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_TextureLightProfile));

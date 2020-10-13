@@ -7,12 +7,10 @@
 class FNiagaraSystemInstance;
 
 // Global HLSL variable base names, used by HLSL.
+extern NIAGARA_API const FString NumAttributesName;
 extern NIAGARA_API const FString NumCellsName;
 extern NIAGARA_API const FString CellSizeName;
 extern NIAGARA_API const FString WorldBBoxSizeName;
-
-extern NIAGARA_API const FString NumCellsName;
-extern NIAGARA_API const FString CellSizeName;
 
 // Global VM function names, also used by the shaders code generation methods.
 extern NIAGARA_API const FName NumCellsFunctionName;
@@ -64,10 +62,10 @@ class NIAGARA_API UNiagaraDataInterfaceRWBase : public UNiagaraDataInterface
 	GENERATED_UCLASS_BODY()
 
 public:
-	UPROPERTY(EditAnywhere, Category = "Deprecated")
+	UPROPERTY(EditAnywhere, Category = "Deprecated", AdvancedDisplay)
 	TSet<int> OutputShaderStages;
 
-	UPROPERTY(EditAnywhere, Category = "Deprecated")
+	UPROPERTY(EditAnywhere, Category = "Deprecated", AdvancedDisplay)
 	TSet<int> IterationShaderStages;
 
 public:
@@ -204,7 +202,7 @@ public:
 	int32 NumCellsY;
 	
 	// Number of cells on the longest axis
-	UPROPERTY(EditAnywhere, Category = "Deprecated")
+	UPROPERTY(EditAnywhere, Category = "Deprecated", AdvancedDisplay)
 	int32 NumCellsMaxAxis;
 
 	// Number of Attributes
@@ -212,11 +210,11 @@ public:
 	int32 NumAttributes;
 
 	// Set grid resolution according to longest axis
-	UPROPERTY(EditAnywhere, Category = "Deprecated")
+	UPROPERTY(EditAnywhere, Category = "Deprecated", AdvancedDisplay)
 	bool SetGridFromMaxAxis;	
 
 	// World size of the grid
-	UPROPERTY(EditAnywhere, Category = "Deprecated")
+	UPROPERTY(EditAnywhere, Category = "Deprecated", AdvancedDisplay)
 	FVector2D WorldBBoxSize;
 
 

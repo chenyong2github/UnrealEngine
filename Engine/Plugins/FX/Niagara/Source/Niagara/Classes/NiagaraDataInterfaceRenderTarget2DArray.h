@@ -1,18 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "NiagaraDataInterface.h"
 #include "NiagaraDataInterfaceRW.h"
 #include "ClearQuad.h"
 #include "NiagaraComponent.h"
-#include "NiagaraDataInterfaceRenderTargetVolume.generated.h"
+#include "NiagaraDataInterfaceRenderTarget2DArray.generated.h"
 
 class FNiagaraSystemInstance;
-class UTextureRenderTargetVolume;
+class UTextureRenderTarget2DArray;
 
 
-struct FRenderTargetVolumeRWInstanceData_GameThread
+struct FRenderTarget2DArrayRWInstanceData_GameThread
 {
-	FRenderTargetVolumeRWInstanceData_GameThread()
+	FRenderTarget2DArrayRWInstanceData_GameThread()
 	{
 #if WITH_EDITORONLY_DATA
 		bPreviewTexture = false;
@@ -21,16 +22,16 @@ struct FRenderTargetVolumeRWInstanceData_GameThread
 
 	FIntVector Size = FIntVector(EForceInit::ForceInitToZero);
 	
-	UTextureRenderTargetVolume* TargetTexture = nullptr;
+	UTextureRenderTarget2DArray* TargetTexture = nullptr;
 #if WITH_EDITORONLY_DATA
 	uint32 bPreviewTexture : 1;
 #endif
 	FNiagaraParameterDirectBinding<UObject*> RTUserParamBinding;
 };
 
-struct FRenderTargetVolumeRWInstanceData_RenderThread
+struct FRenderTarget2DArrayRWInstanceData_RenderThread
 {
-	FRenderTargetVolumeRWInstanceData_RenderThread()
+	FRenderTarget2DArrayRWInstanceData_RenderThread()
 	{
 #if WITH_EDITORONLY_DATA
 		bPreviewTexture = false;
@@ -46,18 +47,25 @@ struct FRenderTargetVolumeRWInstanceData_RenderThread
 #endif
 };
 
-struct FNiagaraDataInterfaceProxyRenderTargetVolumeProxy : public FNiagaraDataInterfaceProxy
+struct FNiagaraDataInterfaceProxyRenderTarget2DArrayProxy : public FNiagaraDataInterfaceProxy
 {
-	virtual int32 PerInstanceDataPassedToRenderThreadSize() const override { return 0; }
+	FNiagaraDataInterfaceProxyRenderTarget2DArrayProxy() {}
+	virtual void ConsumePerInstanceDataFromGameThread(void* PerInstanceData, const FNiagaraSystemInstanceID& Instance) override {}
+	virtual int32 PerInstanceDataPassedToRenderThreadSize() const override
+	{
+		return 0;
+	}
+
+	virtual void ClearBuffers(FRHICommandList& RHICmdList) {}
 	virtual void PostSimulate(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceArgs& Context) override;
 
 	/* List of proxy data for each system instances*/
 	// #todo(dmp): this should all be refactored to avoid duplicate code
-	TMap<FNiagaraSystemInstanceID, FRenderTargetVolumeRWInstanceData_RenderThread> SystemInstancesToProxyData_RT;
+	TMap<FNiagaraSystemInstanceID, FRenderTarget2DArrayRWInstanceData_RenderThread> SystemInstancesToProxyData_RT;
 };
 
-UCLASS(EditInlineNew, Category = "Grid", meta = (DisplayName = "Render Target Volume", Experimental), Blueprintable, BlueprintType)
-class NIAGARA_API UNiagaraDataInterfaceRenderTargetVolume : public UNiagaraDataInterfaceRWBase
+UCLASS(EditInlineNew, Category = "Grid", meta = (DisplayName = "Render Target 2D Array", Experimental), Blueprintable, BlueprintType)
+class NIAGARA_API UNiagaraDataInterfaceRenderTarget2DArray : public UNiagaraDataInterfaceRWBase
 {
 	GENERATED_UCLASS_BODY()
 
@@ -83,7 +91,7 @@ public:
 	virtual bool InitPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance) override;
 	virtual void DestroyPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance) override;
 	virtual bool PerInstanceTick(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds) override;
-	virtual int32 PerInstanceDataSize()const override { return sizeof(FRenderTargetVolumeRWInstanceData_GameThread); }
+	virtual int32 PerInstanceDataSize()const override { return sizeof(FRenderTarget2DArrayRWInstanceData_GameThread); }
 	virtual bool PerInstanceTickPostSimulate(void* PerInstanceData, FNiagaraSystemInstance* InSystemInstance, float DeltaSeconds) override;
 	virtual bool HasPreSimulateTick() const override { return true; }
 	virtual bool HasPostSimulateTick() const override { return true; }
@@ -91,8 +99,8 @@ public:
 	virtual bool CanExposeVariables() const override { return true;}
 	virtual void GetExposedVariables(TArray<FNiagaraVariableBase>& OutVariables) const override;
 	virtual bool GetExposedVariableValue(const FNiagaraVariableBase& InVariable, void* InPerInstanceData, FNiagaraSystemInstance* InSystemInstance, void* OutData) const override;
+
 	//~ UNiagaraDataInterface interface END
-	
 	void GetSize(FVectorVMContext& Context); 
 	void SetSize(FVectorVMContext& Context);
 
@@ -101,9 +109,9 @@ public:
 	static const FName GetSizeFunctionName;
 	static const FName LinearToIndexName;
 
+	static const FString SizeName;
 	static const FString RWOutputName;
 	static const FString OutputName;
-	static const FString SizeName;
 
 	UPROPERTY(EditAnywhere, Category = "Render Target")
 	FIntVector Size;
@@ -117,10 +125,8 @@ public:
 	FNiagaraUserParameterBinding RenderTargetUserParameter;
 
 protected:
-	//~ UNiagaraDataInterface interface END
-
 	static FNiagaraVariableBase ExposedRTVar;
 	
 	UPROPERTY(Transient)
-	TMap<uint64, UTextureRenderTargetVolume*> ManagedRenderTargets;
+	TMap<uint64, UTextureRenderTarget2DArray*> ManagedRenderTargets;
 };

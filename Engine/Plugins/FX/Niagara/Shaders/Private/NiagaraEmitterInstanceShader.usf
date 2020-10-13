@@ -58,7 +58,10 @@ bool NiagaraAny(bool4 b) { return b.x || b.y || b.z || b.w; }
  * -----------------------------------------------------------------
  */
 #if GPU_SIMULATION
+	// Used to convert from DispatchThreadId to a linear thread id
+	uint DispatchThreadIdToLinear;
 
+	static uint GLinearThreadId;
 	static uint3 GDispatchThreadId;
 	static uint3 GGroupThreadId;
 	static uint GCurrentPhase;
@@ -78,8 +81,6 @@ bool NiagaraAny(bool4 b) { return b.x || b.y || b.z || b.w; }
 	#endif
 
 	uint EmitterTickCounter;
-
-	
 
 	float4 Modulo(float4 x, float4 y){ return fmod(x,y); }
 	float3 Modulo(float3 x, float3 y){ return fmod(x,y); }
@@ -118,28 +119,19 @@ bool NiagaraAny(bool4 b) { return b.x || b.y || b.z || b.w; }
 	static int Engine_ExecutionCount;
 	static int GGPUExecIndex;
 
-	int3 SimulationStageIterationInfo;							// Packed data where X = Instance Count, Y = Iteration Index, Z = Num Iterations
-	float SimulationStageNormalizedIterationIndex;
-
-	// Note: These are referenced from an asset that passes back the data to the user (see SimulationStageIterationInfo)
-	int SimulationStage_GetInstanceCount() { return SimulationStageIterationInfo.x; }
-	int SimulationStage_GetIterationIndex() { return SimulationStageIterationInfo.y; }
-	int SimulationStage_GetNumIterations() { return SimulationStageIterationInfo.z; }
-	float SimulationStage_GetNormalizedIterationIndex() { return SimulationStageNormalizedIterationIndex; }
-
 	static uint GSpawnStartInstance;
 	uint SpawnedInstances;
 	uint UpdateStartInstance;
 
 	void SetupExecIndexForGPU()
 	{
-		GGPUExecIndex = UpdateStartInstance + GDispatchThreadId.x;
+		GGPUExecIndex = UpdateStartInstance + GLinearThreadId;
 		Engine_ExecutionCount = GSpawnStartInstance;
 	}
 
 	void SetupExecIndexAndSpawnInfoForGPU()
 	{
-		GGPUExecIndex = UpdateStartInstance + GDispatchThreadId.x - GSpawnStartInstance;
+		GGPUExecIndex = UpdateStartInstance + GLinearThreadId - GSpawnStartInstance;
 
 		int SpawnInfoIndex = 0;
 		UNROLL
@@ -308,32 +300,32 @@ int rand(int x, int Seed1, int Seed2, int Seed3)
 	float rand(float x)
 	{
 		RandomCounterNonDeterministic -= 1;
-		return rand4(GDispatchThreadId.x, EmitterTickCounter, GDispatchThreadId.x, RandomCounterNonDeterministic).x * x;
+		return rand4(GLinearThreadId, EmitterTickCounter, GLinearThreadId, RandomCounterNonDeterministic).x * x;
 	}
 
 	float2 rand(float2 x)
 	{
 		RandomCounterNonDeterministic -= 1;
-		return rand4(GDispatchThreadId.x, EmitterTickCounter, GDispatchThreadId.x, RandomCounterNonDeterministic).xy * x;
+		return rand4(GLinearThreadId, EmitterTickCounter, GLinearThreadId, RandomCounterNonDeterministic).xy * x;
 	}
 
 	float3 rand(float3 x)
 	{
 		RandomCounterNonDeterministic -= 1;
-		return rand4(GDispatchThreadId.x, EmitterTickCounter, GDispatchThreadId.x, RandomCounterNonDeterministic).xyz * x;
+		return rand4(GLinearThreadId, EmitterTickCounter, GLinearThreadId, RandomCounterNonDeterministic).xyz * x;
 	}
 
 	float4 rand(float4 x) 
 	{
 		RandomCounterNonDeterministic -= 1;
-		return rand4(GDispatchThreadId.x, EmitterTickCounter, GDispatchThreadId.x, RandomCounterNonDeterministic).xyzw * x;
+		return rand4(GLinearThreadId, EmitterTickCounter, GLinearThreadId, RandomCounterNonDeterministic).xyzw * x;
 	}
 
 	// Integer randoms are INCLUSIVE, i.e. includes both the upper and lower limits
 	int rand(int x)
 	{
 		RandomCounterNonDeterministic -= 1;
-		return int(rand4(GDispatchThreadId.x, EmitterTickCounter, GDispatchThreadId.x, RandomCounterNonDeterministic).x * (x+1));
+		return int(rand4(GLinearThreadId, EmitterTickCounter, GLinearThreadId, RandomCounterNonDeterministic).x * (x+1));
 	}
 #else
 	// Old unseeded, passthrough to FRandomStream
@@ -496,6 +488,19 @@ int rand_int(int x, int Seed1, int Seed2, int Seed3)
 
 	Buffer<int> FreeIDList;
 	RWBuffer<int> RWIDToIndexTable;
+	
+	// X = Count Buffer Instance Count Offset (INDEX_NONE == Use Instance Count)
+	// Y = Instance Count
+	// Z = Iteration Index
+	// W = Num Iterations
+	int4 SimulationStageIterationInfo;
+	float SimulationStageNormalizedIterationIndex;
+
+	// Note: These are referenced from an asset that passes back the data to the user (see SimulationStageIterationInfo)
+	int SimulationStage_GetInstanceCount() { return SimulationStageIterationInfo.x == -1 ? SimulationStageIterationInfo.y : RWInstanceCounts[SimulationStageIterationInfo.x]; }
+	int SimulationStage_GetIterationIndex() { return SimulationStageIterationInfo.z; }
+	int SimulationStage_GetNumIterations() { return SimulationStageIterationInfo.w; }
+	float SimulationStage_GetNormalizedIterationIndex() { return SimulationStageNormalizedIterationIndex; }
 
 	void AcquireID(int DataSetID, out int IDIndex, out int IDAcquireTag)
 	{
@@ -506,7 +511,7 @@ int rand_int(int x, int Seed1, int Seed2, int Seed3)
 
 		// This is the same as ExecIndex() right now, but that function may change in the future to accommodate multiple
 		// spawn infos. Revisit this computation if the change affects the meaning of UpdateStartInstance or GSpawnStartInstance.
-		int SpawnIndex = UpdateStartInstance + GDispatchThreadId.x - GSpawnStartInstance;
+		int SpawnIndex = UpdateStartInstance + GLinearThreadId - GSpawnStartInstance;
 		IDIndex = FreeIDList[SpawnIndex];
 		IDAcquireTag = EmitterTickCounter;
 	}
@@ -521,7 +526,7 @@ int rand_int(int x, int Seed1, int Seed2, int Seed3)
 		RWIDToIndexTable[IDIndex] = InstanceIndex;
 	}
 
-#define USE_WAVE_INTRISICS (XBOXONE_PROFILE)
+#define USE_WAVE_INTRISICS 0//(XBOXONE_PROFILE)
 #define USE_GROUP_SHARED ((THREADGROUP_SIZE == 64 || THREADGROUP_SIZE == 32)  && !USE_WAVE_INTRISICS)
 
 #if USE_GROUP_SHARED
@@ -746,7 +751,7 @@ int rand_int(int x, int Seed1, int Seed2, int Seed3)
 			BRANCH
 			if (!bStageKillsParticles)
 			{
-				return GDispatchThreadId.x;
+				return GLinearThreadId;
 			}
 		#endif // USE_SIMULATION_STAGES
 

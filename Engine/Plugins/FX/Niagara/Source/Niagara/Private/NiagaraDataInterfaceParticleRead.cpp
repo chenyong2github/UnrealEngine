@@ -172,6 +172,31 @@ struct FNiagaraDataInterfaceProxyParticleRead : public FNiagaraDataInterfaceProx
 		return SystemsRenderData.Find(InstanceID);
 	}
 
+	virtual void PreStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceStageArgs& Context) override
+	{
+		uint32 ParticleCount = 0;
+		uint32 InstanceCountOffset = INDEX_NONE;
+
+		FNDIParticleRead_RenderInstanceData* InstanceData = SystemsRenderData.Find(Context.SystemInstanceID);
+		if (ensure(InstanceData))
+		{
+			if ( InstanceData->SourceEmitterGPUContext != nullptr )
+			{
+				if ( FNiagaraDataSet* SourceDataSet = InstanceData->SourceEmitterGPUContext->MainDataSet )
+				{
+					if ( const FNiagaraDataBuffer* CurrentData = SourceDataSet->GetCurrentData() )
+					{
+						ParticleCount = CurrentData->GetNumInstances();
+						InstanceCountOffset = CurrentData->GetGPUInstanceCountBufferOffset();
+					}
+				}
+			}
+		}
+
+		SetElementCount(ParticleCount);
+		SetGPUInstanceCountOffset(InstanceCountOffset);
+	}
+
 private:
 	TMap<FNiagaraSystemInstanceID, FNDIParticleRead_RenderInstanceData> SystemsRenderData;
 };

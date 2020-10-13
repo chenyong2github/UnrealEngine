@@ -35,11 +35,11 @@ public:
 	void OnSystemDeallocated(FNiagaraSystemInstanceID SystemInstanceID);
 
 	// Add a texture to visualize
-	void AddTexture(FRHICommandList& RHICmdList, FNiagaraSystemInstanceID SystemInstanceID, FName SourceName, FTexture2DRHIRef Texture2D);
+	void AddTexture(FRHICommandList& RHICmdList, FNiagaraSystemInstanceID SystemInstanceID, FName SourceName, FRHITexture* Texture);
 
 	// Add a texture to visualize that contains a number of attributes and select which attributes to push into RGBA where -1 means ignore that channel
 	// The first -1 in the attribute indices list will also limit the number of attributes we attempt to read
-	void AddAttributeTexture(FRHICommandList& RHICmdList, FNiagaraSystemInstanceID SystemInstanceID, FName SourceName, FTexture2DRHIRef Texture2D, FIntPoint NumTextureAttributes, FIntVector4 AttributeIndices);
+	void AddAttributeTexture(FRHICommandList& RHICmdList, FNiagaraSystemInstanceID SystemInstanceID, FName SourceName, FRHITexture* Texture, FIntPoint NumTextureAttributes, FIntVector4 AttributeIndices);
 
 	// Do we need DrawDebug to be called?
 	bool ShouldDrawDebug() const;

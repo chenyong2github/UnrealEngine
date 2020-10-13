@@ -13,20 +13,38 @@ class UTextureRenderTarget2D;
 
 struct FRenderTarget2DRWInstanceData_GameThread
 {
+	FRenderTarget2DRWInstanceData_GameThread()
+	{
+#if WITH_EDITORONLY_DATA
+		bPreviewTexture = false;
+#endif
+	}
+
 	FIntPoint Size = FIntPoint(EForceInit::ForceInitToZero);
 	
 	UTextureRenderTarget2D* TargetTexture = nullptr;
-
+#if WITH_EDITORONLY_DATA
+	uint32 bPreviewTexture : 1;
+#endif
+	FNiagaraParameterDirectBinding<UObject*> RTUserParamBinding;
 };
 
 struct FRenderTarget2DRWInstanceData_RenderThread
 {
+	FRenderTarget2DRWInstanceData_RenderThread()
+	{
+#if WITH_EDITORONLY_DATA
+		bPreviewTexture = false;
+#endif
+	}
+
 	FIntPoint Size = FIntPoint(EForceInit::ForceInitToZero);
 	
-	FTextureRHIRef RenderTargetToCopyTo;
+	FTextureReferenceRHIRef TextureReferenceRHI;
 	FUnorderedAccessViewRHIRef UAV;
-
-	void* DebugTargetTexture = nullptr;
+#if WITH_EDITORONLY_DATA
+	uint32 bPreviewTexture : 1;
+#endif
 };
 
 struct FNiagaraDataInterfaceProxyRenderTarget2DProxy : public FNiagaraDataInterfaceProxy
@@ -102,11 +120,17 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Render Target")
 	FIntPoint Size;
 
-protected:
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(Transient, EditAnywhere, Category = "Render Target")
+	uint8 bPreviewRenderTarget : 1;
+#endif
 
+	UPROPERTY(EditAnywhere, Category = "Render Target", meta = (ToolTip = "When valid the user parameter is used as the render target rather than creating one internal, note that the input render target will be adjusted by the Niagara simulation"))
+	FNiagaraUserParameterBinding RenderTargetUserParameter;
+
+protected:
 	static FNiagaraVariableBase ExposedRTVar;
 	
 	UPROPERTY(Transient)
 	TMap< uint64, UTextureRenderTarget2D*> ManagedRenderTargets;
-	
 };

@@ -115,6 +115,7 @@
 #include "Engine/Texture.h"
 #include "Factories/TextureFactory.h"
 #include "Factories/ReimportTextureFactory.h"
+#include "Factories/TextureRenderTarget2DArrayFactoryNew.h"
 #include "Factories/TextureRenderTargetCubeFactoryNew.h"
 #include "Factories/TextureRenderTargetVolumeFactoryNew.h"
 #include "Factories/TextureRenderTargetFactoryNew.h"
@@ -169,6 +170,7 @@
 #include "Engine/VolumeTexture.h"
 #include "Engine/TextureRenderTarget.h"
 #include "Engine/TextureRenderTarget2D.h"
+#include "Engine/TextureRenderTarget2DArray.h"
 #include "Engine/CanvasRenderTarget2D.h"
 #include "Engine/TextureRenderTargetCube.h"
 #include "Engine/TextureRenderTargetVolume.h"
@@ -2223,6 +2225,34 @@ UObject* UCurveLinearColorAtlasFactory::FactoryCreateNew(UClass* Class, UObject*
 	return Object;
 }
 
+/*-----------------------------------------------------------------------------
+	UTextureRenderTarget2DArrayFactoryNew
+-----------------------------------------------------------------------------*/
+UTextureRenderTarget2DArrayFactoryNew::UTextureRenderTarget2DArrayFactoryNew(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+
+	SupportedClass = UTextureRenderTarget2DArray::StaticClass();
+	bCreateNew = true;
+	bEditAfterNew = true;
+	bEditorImport = false;
+
+	Width = 256;
+	Height = 256;
+	Slices = 1;
+	Format = 0;
+}
+
+UObject* UTextureRenderTarget2DArrayFactoryNew::FactoryCreateNew(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn)
+{
+	// create the new object
+	UTextureRenderTarget2DArray* Result = NewObject<UTextureRenderTarget2DArray>(InParent, Class, Name, Flags);
+
+	// initialize the resource
+	Result->InitAutoFormat(Width, Height, Slices);
+
+	return (Result);
+}
 
 /*-----------------------------------------------------------------------------
 	UTextureRenderTargetCubeFactoryNew

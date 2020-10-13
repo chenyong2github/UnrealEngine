@@ -8,6 +8,9 @@
 #include "NiagaraEmitterInstanceBatcher.h"
 #include "NiagaraSystemInstance.h"
 #include "NiagaraRenderer.h"
+#if WITH_EDITOR
+#include "NiagaraGpuComputeDebug.h"
+#endif
 #include "Engine/TextureRenderTarget2D.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceRenderTarget2D"
@@ -50,22 +53,32 @@ public:
 
 		SetShaderValue(RHICmdList, ComputeShaderRHI, SizeParam, ProxyData->Size);
 	
-		if ( OutputParam.IsUAVBound())
+		if (OutputParam.IsUAVBound())
 		{
-
 			FRHIUnorderedAccessView* OutputUAV = nullptr;
 
-			if (Context.IsOutputStage && ProxyData->UAV.IsValid())
+			if (Context.IsOutputStage)
 			{
-				OutputUAV = ProxyData->UAV;
-				// FIXME: this transition needs to happen in FNiagaraDataInterfaceProxyRenderTarget2DProxy::PreStage so it doesn't break up the overlap group,
-				// but for some reason it stops working if I move it in there.
-				RHICmdList.Transition(FRHITransitionInfo(OutputUAV, ERHIAccess::SRVMask, ERHIAccess::UAVCompute));
+				if (FRHITexture* TextureRHI = ProxyData->TextureReferenceRHI->GetReferencedTexture())
+				{
+					// Note: Because we control the render target it should not changed underneath us without queueing a request to recreate the UAV.  If that assumption changes we would need to track the UAV.
+					if (!ProxyData->UAV.IsValid())
+					{
+						ProxyData->UAV = RHICreateUnorderedAccessView(TextureRHI, 0);
+					}
+
+					OutputUAV = ProxyData->UAV;
+					// FIXME: this transition needs to happen in FNiagaraDataInterfaceProxyRenderTarget2DProxy::PreStage so it doesn't break up the overlap group,
+					// but for some reason it stops working if I move it in there.
+					RHICmdList.Transition(FRHITransitionInfo(OutputUAV, ERHIAccess::SRVMask, ERHIAccess::UAVCompute));
+				}
 			}
-			else
+
+			if (OutputUAV == nullptr)
 			{
 				OutputUAV = Context.Batcher->GetEmptyRWTextureFromPool(RHICmdList, EPixelFormat::PF_A16B16G16R16);
 			}
+
 			RHICmdList.SetUAVParameter(ComputeShaderRHI, OutputParam.GetUAVIndex(), OutputUAV);
 		}
 	}
@@ -77,10 +90,13 @@ public:
 			FNiagaraDataInterfaceProxyRenderTarget2DProxy* VFDI = static_cast<FNiagaraDataInterfaceProxyRenderTarget2DProxy*>(Context.DataInterface);
 			FRenderTarget2DRWInstanceData_RenderThread* ProxyData = VFDI->SystemInstancesToProxyData_RT.Find(Context.SystemInstanceID);
 			OutputParam.UnsetUAV(RHICmdList, Context.Shader.GetComputeShader());
-			if (ProxyData)
+			if (ProxyData && Context.IsOutputStage)
 			{
-				// FIXME: move to FNiagaraDataInterfaceProxyRenderTarget2DProxy::PostStage, same as for the transition in Set() above.
-				RHICmdList.Transition(FRHITransitionInfo(ProxyData->UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask));
+				if (FRHIUnorderedAccessView* OutputUAV = ProxyData->UAV)
+				{
+					// FIXME: move to FNiagaraDataInterfaceProxyRenderTarget2DProxy::PostStage, same as for the transition in Set() above.
+					RHICmdList.Transition(FRHITransitionInfo(OutputUAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask));
+				}
 			}
 		}
 	}
@@ -100,8 +116,8 @@ UNiagaraDataInterfaceRenderTarget2D::UNiagaraDataInterfaceRenderTarget2D(FObject
 {
 	Proxy.Reset(new FNiagaraDataInterfaceProxyRenderTarget2DProxy());
 
-	//FNiagaraTypeDefinition Def(UObject::StaticClass());
-	//RenderTargetUserParameter.Parameter.SetType(Def);
+	FNiagaraTypeDefinition Def(UTextureRenderTarget::StaticClass());
+	RenderTargetUserParameter.Parameter.SetType(Def);
 }
 
 
@@ -216,6 +232,10 @@ bool UNiagaraDataInterfaceRenderTarget2D::Equals(const UNiagaraDataInterface* Ot
 	const UNiagaraDataInterfaceRenderTarget2D* OtherTyped = CastChecked<const UNiagaraDataInterfaceRenderTarget2D>(Other);
 	return
 		OtherTyped != nullptr &&
+#if WITH_EDITORONLY_DATA
+		OtherTyped->bPreviewRenderTarget == bPreviewRenderTarget &&
+#endif
+		OtherTyped->RenderTargetUserParameter == RenderTargetUserParameter &&
 		OtherTyped->Size == Size;
 }
 
@@ -233,6 +253,10 @@ bool UNiagaraDataInterfaceRenderTarget2D::CopyToInternal(UNiagaraDataInterface* 
 	}
 
 	DestinationTyped->Size = Size;
+#if WITH_EDITORONLY_DATA
+	DestinationTyped->bPreviewRenderTarget = bPreviewRenderTarget;
+#endif
+	DestinationTyped->RenderTargetUserParameter = RenderTargetUserParameter;
 	return true;
 }
 
@@ -312,29 +336,55 @@ bool UNiagaraDataInterfaceRenderTarget2D::InitPerInstanceData(void* PerInstanceD
 	check(Proxy);
 
 	FRenderTarget2DRWInstanceData_GameThread* InstanceData = new (PerInstanceData) FRenderTarget2DRWInstanceData_GameThread();
-	InstanceData->Size = Size;
-	InstanceData->TargetTexture = NewObject<UTextureRenderTarget2D>(this);
+	InstanceData->Size.X = FMath::Clamp<int>(Size.X, 1, GMaxTextureDimensions);
+	InstanceData->Size.Y = FMath::Clamp<int>(Size.Y, 1, GMaxTextureDimensions);
+	InstanceData->RTUserParamBinding.Init(SystemInstance->GetInstanceParameters(), RenderTargetUserParameter.Parameter);
+#if WITH_EDITORONLY_DATA
+	InstanceData->bPreviewTexture = bPreviewRenderTarget;
+#endif
+
+	// Find or create the render target
+	if (UObject* UserParamObject = InstanceData->RTUserParamBinding.GetValue())
+	{
+		if (UTextureRenderTarget2D* UserTargetTexture = Cast<UTextureRenderTarget2D>(UserParamObject))
+		{
+			InstanceData->TargetTexture = UserTargetTexture;
+		}
+		else
+		{
+			UE_LOG(LogNiagara, Error, TEXT("RenderTarget UserParam is a '%s' but is expected to be a UTextureRenderTarget2D"), *GetNameSafe(UserParamObject->GetClass()));
+		}
+	}
+	if (InstanceData->TargetTexture == nullptr)
+	{
+		InstanceData->TargetTexture = NewObject<UTextureRenderTarget2D>(this);
+		ManagedRenderTargets.Add(SystemInstance->GetId()) = InstanceData->TargetTexture;
+	}
 	InstanceData->TargetTexture->bCanCreateUAV = true;
+	InstanceData->TargetTexture->bAutoGenerateMips = false;
 	InstanceData->TargetTexture->RenderTargetFormat = RTF_RGBA16f;
 	InstanceData->TargetTexture->ClearColor = FLinearColor(0.0, 0, 0, 0);
-	InstanceData->TargetTexture->bAutoGenerateMips = false;
-	FNiagaraSystemInstanceID SysID = SystemInstance->GetId();
-	ManagedRenderTargets.Add(SysID) = InstanceData->TargetTexture;
+	InstanceData->TargetTexture->InitAutoFormat(InstanceData->Size.X, InstanceData->Size.Y);
+	InstanceData->TargetTexture->UpdateResourceImmediate(true);
 
 	// Push Updates to Proxy.
 	FNiagaraDataInterfaceProxyRenderTarget2DProxy* RT_Proxy = GetProxyAs<FNiagaraDataInterfaceProxyRenderTarget2DProxy>();
 	ENQUEUE_RENDER_COMMAND(FUpdateData)(
-		[GridColl = this, TexPtr = InstanceData->TargetTexture, RT_Proxy, InstanceID = SystemInstance->GetId(), RT_InstanceData=*InstanceData](FRHICommandListImmediate& RHICmdList)
-	{
-		check(!RT_Proxy->SystemInstancesToProxyData_RT.Contains(InstanceID));
-		FRenderTarget2DRWInstanceData_RenderThread* TargetData = &RT_Proxy->SystemInstancesToProxyData_RT.Add(InstanceID);
+		[RT_Proxy, RT_InstanceID=SystemInstance->GetId(), RT_InstanceData=*InstanceData, RT_TargetTexture=InstanceData->TargetTexture](FRHICommandListImmediate& RHICmdList)
+		{
+			check(!RT_Proxy->SystemInstancesToProxyData_RT.Contains(RT_InstanceID));
+			FRenderTarget2DRWInstanceData_RenderThread* TargetData = &RT_Proxy->SystemInstancesToProxyData_RT.Add(RT_InstanceID);
 
-		TargetData->DebugTargetTexture = TexPtr;
-		TargetData->Size = RT_InstanceData.Size;
+			TargetData->Size = RT_InstanceData.Size;
+#if WITH_EDITORONLY_DATA
+			TargetData->bPreviewTexture = RT_InstanceData.bPreviewTexture;
+#endif
+			TargetData->TextureReferenceRHI = RT_TargetTexture->TextureReference.TextureReferenceRHI;
+			TargetData->UAV.SafeRelease();
 
-		RT_Proxy->SetElementCount(TargetData->Size.X * TargetData->Size.Y);
-		TargetData->RenderTargetToCopyTo = nullptr;
-	});
+			RT_Proxy->SetElementCount(TargetData->Size);
+		}
+	);
 	return true;
 }
 
@@ -395,8 +445,8 @@ void UNiagaraDataInterfaceRenderTarget2D::SetSize(FVectorVMContext& Context)
 		OutSuccess.SetAndAdvance(bSuccess);
 		if (bSuccess)
 		{
-			InstData->Size.X = SizeX;
-			InstData->Size.Y = SizeY;
+			InstData->Size.X = FMath::Clamp<int>(SizeX, 1, GMaxTextureDimensions);
+			InstData->Size.Y = FMath::Clamp<int>(SizeY, 1, GMaxTextureDimensions);
 		}
 	}
 }
@@ -421,69 +471,73 @@ bool UNiagaraDataInterfaceRenderTarget2D::PerInstanceTick(void* PerInstanceData,
 	return false;
 }
 
-bool UNiagaraDataInterfaceRenderTarget2D::PerInstanceTickPostSimulate(void* PerInstanceData, FNiagaraSystemInstance* InSystemInstance, float DeltaSeconds)
+bool UNiagaraDataInterfaceRenderTarget2D::PerInstanceTickPostSimulate(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds)
 {
 	FRenderTarget2DRWInstanceData_GameThread* InstanceData = static_cast<FRenderTarget2DRWInstanceData_GameThread*>(PerInstanceData);
-	bool bNeedsReset = false;
 
 	{
-
-		FTextureResource* RT_Resource = nullptr;
-
+#if WITH_EDITORONLY_DATA
+		InstanceData->bPreviewTexture = bPreviewRenderTarget;
+#endif
 
 		bool bUpdateRT = true;
+
+		// Update user parameter binding
+		if (UObject* UserParamObject = InstanceData->RTUserParamBinding.GetValue())
+		{
+			if (UTextureRenderTarget2D* UserTargetTexture = Cast<UTextureRenderTarget2D>(UserParamObject))
+			{
+				if ( InstanceData->TargetTexture != UserTargetTexture )
+				{
+					InstanceData->TargetTexture = UserTargetTexture;
+					ManagedRenderTargets.Remove(SystemInstance->GetId());
+				}
+			}
+			else
+			{
+				UE_LOG(LogNiagara, Error, TEXT("RenderTarget UserParam is a '%s' but is expected to be a UTextureRenderTarget2D"), *GetNameSafe(UserParamObject->GetClass()));
+			}
+		}
+
+		// Do we need to update the texture?
 		if (InstanceData->TargetTexture)
 		{
-			int32 RTSizeX = FMath::Max(InstanceData->Size.X, 1);
-			int32 RTSizeY = FMath::Max(InstanceData->Size.Y, 1);
-
-			if (InstanceData->TargetTexture->SizeX != RTSizeX || InstanceData->TargetTexture->SizeY != RTSizeY || InstanceData->TargetTexture->RenderTargetFormat != RTF_RGBA16f)
+			if (InstanceData->TargetTexture->SizeX != InstanceData->Size.X || InstanceData->TargetTexture->SizeY != InstanceData->Size.Y || InstanceData->TargetTexture->RenderTargetFormat != RTF_RGBA16f || !InstanceData->TargetTexture->bCanCreateUAV || InstanceData->TargetTexture->bAutoGenerateMips)
 			{
 				// resize RT to match what we need for the output
-				InstanceData->TargetTexture->InitAutoFormat(RTSizeX, RTSizeY);
+				InstanceData->TargetTexture->bCanCreateUAV = true;
+				InstanceData->TargetTexture->bAutoGenerateMips = false;
+				InstanceData->TargetTexture->RenderTargetFormat = RTF_RGBA16f;
+				InstanceData->TargetTexture->InitAutoFormat(InstanceData->Size.X, InstanceData->Size.Y);
 				InstanceData->TargetTexture->UpdateResourceImmediate(true);
 				bUpdateRT = true;
-				//TargetTexture->InitCustomFormat(InstanceData->Size.X * InstanceData->NumTiles.X, InstanceData->Size.Y * InstanceData->NumTiles.Y, PF_R32_FLOAT, false);
-
-				/*if (InstanceData->TargetTexture->Resource)
-				{
-					bNeedsReset = true;
-				}*/
 			}
-			RT_Resource = InstanceData->TargetTexture->Resource;
 		}
 
 		if (bUpdateRT)
 		{
 			FNiagaraDataInterfaceProxyRenderTarget2DProxy* RT_Proxy = GetProxyAs<FNiagaraDataInterfaceProxyRenderTarget2DProxy>();
-			ENQUEUE_RENDER_COMMAND(FUpdateData)(
-				[GridColl = this, TexPtr = InstanceData->TargetTexture, RT_Resource, RT_Proxy, InstanceID = InSystemInstance->GetId(), RT_InstanceData = *InstanceData](FRHICommandListImmediate& RHICmdList)
-			{
-				FRenderTarget2DRWInstanceData_RenderThread* TargetData = RT_Proxy->SystemInstancesToProxyData_RT.Find(InstanceID);
-				if (!TargetData)
-					return;
-
-				TargetData->DebugTargetTexture = TexPtr;
-				TargetData->Size = RT_InstanceData.Size;
-				RT_Proxy->SetElementCount(TargetData->Size.X* TargetData->Size.Y);
-				if (RT_Resource && RT_Resource->TextureRHI.IsValid())
+			ENQUEUE_RENDER_COMMAND(FUpdateData)
+			(
+				[RT_Proxy, RT_InstanceID=SystemInstance->GetId(), RT_InstanceData=*InstanceData, RT_TargetTexture=InstanceData->TargetTexture](FRHICommandListImmediate& RHICmdList)
 				{
-					//if (TargetData->RenderTargetToCopyTo != RT_Resource->TextureRHI)
+					FRenderTarget2DRWInstanceData_RenderThread* TargetData = RT_Proxy->SystemInstancesToProxyData_RT.Find(RT_InstanceID);
+					if (ensureMsgf(TargetData != nullptr, TEXT("InstanceData was not found for %llu"), RT_InstanceID))
 					{
-						TargetData->RenderTargetToCopyTo =RT_Resource->TextureRHI; //  TexPtr->TextureReference.TextureReferenceRHI crashes when creating the UAV
-						TargetData->UAV = RHICreateUnorderedAccessView(TargetData->RenderTargetToCopyTo, 0);
+						TargetData->Size = RT_InstanceData.Size;
+	#if WITH_EDITORONLY_DATA
+						TargetData->bPreviewTexture = RT_InstanceData.bPreviewTexture;
+	#endif
+						TargetData->TextureReferenceRHI = RT_TargetTexture->TextureReference.TextureReferenceRHI;
+						TargetData->UAV.SafeRelease();
+
+						RT_Proxy->SetElementCount(TargetData->Size);
 					}
 				}
-				else
-				{
-					TargetData->RenderTargetToCopyTo = nullptr;
-					TargetData->UAV = nullptr;
-				}
-
-			});
+			);
 		}
 	}
-	return bNeedsReset;
+	return false;
 }
 
 void FNiagaraDataInterfaceProxyRenderTarget2DProxy::PreStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceStageArgs& Context)
@@ -497,18 +551,20 @@ void FNiagaraDataInterfaceProxyRenderTarget2DProxy::PostStage(FRHICommandList& R
 
 void FNiagaraDataInterfaceProxyRenderTarget2DProxy::PostSimulate(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceArgs& Context)
 {
-
 	FRenderTarget2DRWInstanceData_RenderThread* ProxyData = SystemInstancesToProxyData_RT.Find(Context.SystemInstanceID);
 
-	if (ProxyData->RenderTargetToCopyTo != nullptr)
+#if WITH_EDITOR
+	if (ProxyData && ProxyData->bPreviewTexture && ProxyData->TextureReferenceRHI.IsValid())
 	{
-
-		//FRHICopyTextureInfo CopyInfo;
-		//RHICmdList.CopyTexture(ProxyData->CurrentData->GridBuffer.Buffer, ProxyData->RenderTargetToCopyTo, CopyInfo);
-
-		//RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, ProxyData->RenderTargetToCopyTo);
-		//RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToGfx, ProxyData->UAV);
+		if (FNiagaraGpuComputeDebug* GpuComputeDebug = Context.Batcher->GetGpuComputeDebug())
+		{
+			if (FRHITexture* RHITexture = ProxyData->TextureReferenceRHI->GetReferencedTexture())
+			{
+				GpuComputeDebug->AddTexture(RHICmdList, Context.SystemInstanceID, SourceDIName, RHITexture);
+			}
+		}
 	}
+#endif
 }
 
 void FNiagaraDataInterfaceProxyRenderTarget2DProxy::ResetData(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceArgs& Context)
