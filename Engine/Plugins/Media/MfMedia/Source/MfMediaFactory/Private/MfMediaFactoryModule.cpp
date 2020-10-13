@@ -169,7 +169,9 @@ public:
 		// supported platforms
 		AddSupportedPlatform(FGuid(0x21f5cd78, 0xc2824344, 0xa0f32e55, 0x28059b27));
 		AddSupportedPlatform(FGuid(0x0df604e1, 0x12e44452, 0x80bee1c7, 0x4eb934b1));
+#if MFMEDIAFACTORY_WINDOWS && MFMEDIAFACTORY_USE_WINDOWS
 		AddSupportedPlatform(FGuid(0xd1d5f296, 0xff834a87, 0xb20faaa9, 0xd6b8e9a6));
+#endif
 		AddSupportedPlatform(FGuid(0x5636fbc1, 0xd2b54f62, 0xac8e7d4f, 0xb184b45a));
 		AddSupportedPlatform(FGuid(0x941259d5, 0x0a2746aa, 0xadc0ba84, 0x4790ad8a));
 		AddSupportedPlatform(FGuid(0xccf05903, 0x822b47e1, 0xb2236a28, 0xdfd78817));
