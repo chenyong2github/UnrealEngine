@@ -1144,9 +1144,13 @@ private:
 	}
 
 	TSet<FFileInPakFileHistory> History;
+	FCriticalSection HistoryLock;
 
 	void OnFileOpenedForRead(const TCHAR* PakFileName, const TCHAR* FileName)
 	{
+		//UE_LOG(LogInit, Warning, TEXT("OnFileOpenedForRead %u: %s - %s"), FPlatformTLS::GetCurrentThreadId(), PakFileName, FileName);
+
+		FScopeLock ScopeLock(&HistoryLock);
 		History.Emplace(FFileInPakFileHistory{ PakFileName, FileName });
 	}
 
@@ -1163,6 +1167,18 @@ public:
 
 	void DumpHistory()
 	{
+		FScopeLock ScopeLock(&HistoryLock);
+
+		History.Sort([](const FFileInPakFileHistory& A, const FFileInPakFileHistory& B)
+		{
+			if (A.PakFileName == B.PakFileName)
+			{
+				return A.FileName < B.FileName;
+			}
+
+			return A.PakFileName < B.PakFileName;
+		});
+
 		const FString SavePath = FPaths::ProjectLogDir() / TEXT("FilesLoadedFromPakFiles.csv");
 
 		FArchive* Writer = IFileManager::Get().CreateFileWriter(*SavePath, FILEWRITE_NoFail);
@@ -4319,7 +4335,14 @@ void DumpEarlyReads(bool bDumpEarlyConfigReads, bool bDumpEarlyPakFileReads, boo
 	if (bForceQuitAfterEarlyReads)
 	{
 		GLog->Flush();
-		GEngine->DeferredCommands.Emplace(TEXT("Quit force"));
+		if (GEngine)
+		{
+			GEngine->DeferredCommands.Emplace(TEXT("Quit force"));
+		}
+		else
+		{
+			FPlatformMisc::RequestExit(true);
+		}
 	}
 }
 
