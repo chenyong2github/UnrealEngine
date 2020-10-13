@@ -1773,7 +1773,7 @@ TSharedPtr<IDatasmithMeshActorElement> FDatasmithC4DImporter::ImportPolygon(mela
 		{
 			TargetMaterial = ImportSimpleColorMaterial(PolyObject, UseColor);
 		}
-		else // Automatic or Off
+		else if (UseColor == melange::ID_BASEOBJECT_USECOLOR_AUTOMATIC)
 		{
 			if (MaterialName.IsEmpty())
 			{
