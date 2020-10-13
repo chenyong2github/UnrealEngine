@@ -517,16 +517,16 @@ void FGroomRBFDeformer::GetRBFDeformedGroomAsset(const UGroomAsset* InGroomAsset
 		}
 
 		// Apply changes onto cards and meshes (OutGroomASset already contain duplicated mesh asset
-		for (FHairGroupsCardsSourceDescription& Desc : OutGroomAsset->HairGroupsCards)
+		for (FHairGroupsCardsSourceDescription& CardsDesc : OutGroomAsset->HairGroupsCards)
 		{
 			UStaticMesh* Mesh = nullptr;
-			if (Desc.SourceType == EHairCardsSourceType::Procedural)
+			if (CardsDesc.SourceType == EHairCardsSourceType::Procedural)
 			{
-				Mesh = Desc.ProceduralMesh;
+				Mesh = CardsDesc.ProceduralMesh;
 			}
-			else if (Desc.SourceType == EHairCardsSourceType::Imported)
+			else if (CardsDesc.SourceType == EHairCardsSourceType::Imported)
 			{
-				Mesh = Desc.ImportedMesh;
+				Mesh = CardsDesc.ImportedMesh;
 			}
 			if (!Mesh)
 			{
@@ -534,28 +534,28 @@ void FGroomRBFDeformer::GetRBFDeformedGroomAsset(const UGroomAsset* InGroomAsset
 			}
 
 			Mesh->ConditionalPostLoad();
-			DeformStaticMeshPositions(Mesh, MeshVertexPositionsBuffer_Target, BindingAsset->HairGroupDatas[Desc.GroupIndex].RenRootData.MeshProjectionLODs[MeshLODIndex]);
+			DeformStaticMeshPositions(Mesh, MeshVertexPositionsBuffer_Target, BindingAsset->HairGroupDatas[CardsDesc.GroupIndex].RenRootData.MeshProjectionLODs[MeshLODIndex]);
 
 			// Update the procedural mesh key of the deformed meshed
 			{
 				TArray<FHairGroupsCardsSourceDescription> Descriptions;
-				Descriptions.Add(Desc);
-				Desc.ProceduralMeshKey = GroomDerivedDataCacheUtils::BuildCardsDerivedDataKeySuffix(Desc.GroupIndex, OutGroomAsset->HairGroupsLOD[Desc.GroupIndex].LODs, Descriptions);
+				Descriptions.Add(CardsDesc);
+				CardsDesc.ProceduralMeshKey = GroomDerivedDataCacheUtils::BuildCardsDerivedDataKeySuffix(CardsDesc.GroupIndex, OutGroomAsset->HairGroupsLOD[CardsDesc.GroupIndex].LODs, Descriptions);
 			}
 		} 
 
 		// Apply RBF deformation to mesh vertices
-		for (FHairGroupsMeshesSourceDescription& Desc : OutGroomAsset->HairGroupsMeshes)
+		for (FHairGroupsMeshesSourceDescription& HairDesc : OutGroomAsset->HairGroupsMeshes)
 		{
-			if (UStaticMesh* Mesh = Desc.ImportedMesh)
+			if (UStaticMesh* Mesh = HairDesc.ImportedMesh)
 			{
-				if (Mesh->GetNumLODs() == 0 || Desc.GroupIndex < 0 || Desc.GroupIndex >= InGroomAsset->GetNumHairGroups() || Desc.LODIndex == -1)
+				if (Mesh->GetNumLODs() == 0 || HairDesc.GroupIndex < 0 || HairDesc.GroupIndex >= InGroomAsset->GetNumHairGroups() || HairDesc.LODIndex == -1)
 				{
 					continue;
 				}
 
 				Mesh->ConditionalPostLoad();
-				DeformStaticMeshPositions(Mesh, MeshVertexPositionsBuffer_Target, BindingAsset->HairGroupDatas[Desc.GroupIndex].RenRootData.MeshProjectionLODs[MeshLODIndex]);
+				DeformStaticMeshPositions(Mesh, MeshVertexPositionsBuffer_Target, BindingAsset->HairGroupDatas[HairDesc.GroupIndex].RenRootData.MeshProjectionLODs[MeshLODIndex]);
 			}
 		}
 
