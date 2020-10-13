@@ -23,7 +23,19 @@ void UFontFace::Serialize(FArchive& Ar)
 {
 	Ar.UsingCustomVersion(FEditorObjectVersion::GUID);
 
+	FString OriginalSourceFilename;
+	if (Ar.IsCooking())
+	{
+		OriginalSourceFilename = MoveTemp(SourceFilename);
+		SourceFilename = GetCookedFilename();
+	}
+
 	Super::Serialize(Ar);
+
+	if (Ar.IsCooking())
+	{
+		SourceFilename = MoveTemp(OriginalSourceFilename);
+	}
 
 	if (Ar.IsLoading())
 	{
