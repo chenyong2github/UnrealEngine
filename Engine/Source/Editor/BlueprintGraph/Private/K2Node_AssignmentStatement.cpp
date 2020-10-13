@@ -123,7 +123,8 @@ void UK2Node_AssignmentStatement::NotifyPinConnectionListChanged(UEdGraphPin* Pi
 		ValuePin->PinType.PinSubCategoryObject = NULL;
 	}
 	else if (Pin->LinkedTo.Num() > 0 && 
-		Pin->LinkedTo[0]->PinType.PinCategory != UEdGraphSchema_K2::PC_Wildcard)
+		(	Pin->LinkedTo[0]->PinType.PinCategory != UEdGraphSchema_K2::PC_Wildcard ||
+			Pin->LinkedTo[0]->PinType.PinCategory == Pin->PinType.PinCategory) )
 	{
 		Pin->PinType = Pin->LinkedTo[0]->PinType;
 
