@@ -37,14 +37,20 @@ RAY_TRACING_ENTRY_RAYGEN(OcclusionMainRG)
 	              | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER;        // don't run closesthit shader
 	const uint InstanceInclusionMask = RAY_TRACING_MASK_OPAQUE;
 
-	FMinimalPayload MinimalPayload = TraceVisibilityRay(
-		TLAS,
+	FDefaultPayload Payload = (FDefaultPayload)0;
+
+	TraceRay(
+		TLAS,   // AccelerationStructure
 		RayFlags,
 		InstanceInclusionMask,
-		uint2(RayIndex & 0xFFFF, RayIndex >> 16),
-		Ray);
+		RAY_TRACING_SHADER_SLOT_MATERIAL, // RayContributionToHitGroupIndex
+		RAY_TRACING_NUM_SHADER_SLOTS,     // MultiplierForGeometryContributionToShaderIndex
+		0,      // MissShaderIndex
+		Ray,    // RayDesc
+		Payload // Payload
+	);
 
-	OcclusionOutput[RayIndex] = MinimalPayload.IsHit() ? ~0 : 0;
+	OcclusionOutput[RayIndex] = Payload.IsHit() ? ~0 : 0;
 }
 
 RAY_TRACING_ENTRY_RAYGEN(IntersectionMainRG)
@@ -60,7 +66,7 @@ RAY_TRACING_ENTRY_RAYGEN(IntersectionMainRG)
 
 	uint RayFlags = RAY_FLAG_FORCE_OPAQUE; // don't run anyhit shader
 
-	FIntersectionPayload Payload = (FIntersectionPayload)0;
+	FDefaultPayload Payload = (FDefaultPayload)0;
 
 	TraceRay(
 		TLAS,   // AccelerationStructure
@@ -77,7 +83,7 @@ RAY_TRACING_ENTRY_RAYGEN(IntersectionMainRG)
 }
 
 RAY_TRACING_ENTRY_CLOSEST_HIT(IntersectionMainCHS,
-	FIntersectionPayload, Payload,
+	FDefaultPayload, Payload,
 	FDefaultAttributes, Attributes)
 {
 	Payload.HitT = RayTCurrent();
@@ -103,8 +109,12 @@ RAY_TRACING_ENTRY_ANY_HIT(DefaultOpaqueAHS,
 {
 }
 
-// Default miss shader that can be used in all ray tracing pipelines that use payloads derived from FMinimalPayload.
-RAY_TRACING_ENTRY_MISS(DefaultMainMS, FMinimalPayload, Payload)
+RAY_TRACING_ENTRY_MISS(DefaultPayloadMS, FDefaultPayload, Payload)
+{
+	Payload.SetMiss();
+}
+
+RAY_TRACING_ENTRY_MISS(PackedMaterialClosestHitPayloadMS, FPackedMaterialClosestHitPayload, Payload)
 {
 	Payload.SetMiss();
 }
