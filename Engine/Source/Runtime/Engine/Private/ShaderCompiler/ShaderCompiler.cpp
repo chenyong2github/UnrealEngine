@@ -199,7 +199,8 @@ void FShaderCompileJobCollection::InternalSetPriority(FShaderCommonCompileJob* J
 	{
 		FShaderCommonCompileJob* NewJob = CloneJob(Job);
 		NewJob->Priority = InPriority;
-		NewJob->PendingShaderMap->NumPendingJobs.Increment();
+		const int32 NewNumPendingJobs = NewJob->PendingShaderMap->NumPendingJobs.Increment();
+		checkf(NewNumPendingJobs > 1, TEXT("Invalid number of pending jobs %d, should have had at least 1 job previously"), NewNumPendingJobs);
 
 		InternalAddJob(NewJob);
 
@@ -3426,12 +3427,18 @@ void FShaderCompilingManager::ProcessAsyncResults(bool bLimitExecutionTime, bool
 				//
 				for (TMap<int32, FPendingShaderMapCompileResultsPtr>::TIterator It(ShaderMapJobs); It; ++It)
 				{
-					FShaderMapCompileResults* Results = It.Value();
+					FPendingShaderMapCompileResultsPtr& Results = It.Value();
 					if (Results->FinishedJobs.Num() > 0)
 					{
 						FShaderMapFinalizeResults& FinalizeResults = PendingFinalizeShaderMaps.FindOrAdd(It.Key());
 						FinalizeResults.FinishedJobs.Append(Results->FinishedJobs);
 						Results->FinishedJobs.Reset();
+					}
+
+					checkf(Results->FinishedJobs.Num() == 0, TEXT("Failed to remove finished jobs, %d remain"), Results->FinishedJobs.Num());
+					if (Results->NumPendingJobs.GetValue() == 0)
+					{
+						It.RemoveCurrent();
 					}
 				}
 
