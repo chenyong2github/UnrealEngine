@@ -51,6 +51,8 @@ public:
 
 	int32 GetColumnPositionIndex(const FName& ColumnId) const;
 
+	void GetVisibleColumnsData(const TArray<TSharedPtr<class FBaseTreeNode>> &InNodes, FString& OutData) const;
+
 protected:
 	void ResetColumns() { Columns.Reset(); }
 	void AddColumn(TSharedRef<FTableColumn> Column);

@@ -39,22 +39,7 @@
 #define LOCTEXT_NAMESPACE "STimersView"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-
-STimersView::STimersView()
-	: Table(MakeShared<Insights::FTable>())
-	, bExpansionSaved(false)
-	, bFilterOutZeroCountTimers(false)
-	, GroupingMode(ETimerGroupingMode::ByType)
-	, AvailableSorters()
-	, CurrentSorter(nullptr)
-	, ColumnBeingSorted(GetDefaultColumnBeingSorted())
-	, ColumnSortMode(GetDefaultColumnSortMode())
-	, Aggregator(MakeShared<Insights::FTimerAggregator>())
-{
-	FMemory::Memset(bTimerTypeIsVisible, 1);
-}
-
-
+// FTimersViewCommands
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 class FTimersViewCommands : public TCommands<FTimersViewCommands>
@@ -79,6 +64,26 @@ public:
 
 	TSharedPtr<FUICommandInfo> Command_CopyToClipboard;
 };
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// STimersView
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+STimersView::STimersView()
+	: Table(MakeShared<Insights::FTable>())
+	, bExpansionSaved(false)
+	, bFilterOutZeroCountTimers(false)
+	, GroupingMode(ETimerGroupingMode::ByType)
+	, AvailableSorters()
+	, CurrentSorter(nullptr)
+	, ColumnBeingSorted(GetDefaultColumnBeingSorted())
+	, ColumnSortMode(GetDefaultColumnSortMode())
+	, Aggregator(MakeShared<Insights::FTimerAggregator>())
+{
+	FMemory::Memset(bTimerTypeIsVisible, 1);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void STimersView::InitCommandList()
 {
@@ -2012,44 +2017,14 @@ void STimersView::ContextMenu_CopySelectedToClipboard_Execute()
 		return;
 	}
 
-	constexpr TCHAR Separator = TEXT('\t');
 	FString ClipboardText;
-
-	TArray<TSharedRef<Insights::FTableColumn>> VisibleColumns;
-	Table->GetVisibleColumns(VisibleColumns);
-
-	// Table headers
-	for (const TSharedRef<Insights::FTableColumn>& ColumnRef : VisibleColumns)
-	{
-		ClipboardText += ColumnRef->GetShortName().ToString().ReplaceCharWithEscapedChar() + Separator;
-	}
-
-	if (ClipboardText.Len() > 0)
-	{
-		ClipboardText.RemoveAt(ClipboardText.Len() - 1, 1, false);
-		ClipboardText.AppendChar(TEXT('\n'));
-	}
 
 	if (CurrentSorter.IsValid())
 	{
 		CurrentSorter->Sort(SelectedNodes, ColumnSortMode == EColumnSortMode::Ascending ? Insights::ESortMode::Ascending : Insights::ESortMode::Descending);
 	}
 
-	// Selected items
-	for (Insights::FBaseTreeNodePtr Node : SelectedNodes)
-	{
-		for (const TSharedRef<Insights::FTableColumn>& ColumnRef : VisibleColumns)
-		{
-			FText NodeText = ColumnRef->GetValueAsText(*Node);
-			ClipboardText += NodeText.ToString().ReplaceCharWithEscapedChar() + Separator;
-		}
-
-		if (ClipboardText.Len() > 0)
-		{
-			ClipboardText.RemoveAt(ClipboardText.Len() - 1, 1, false);
-			ClipboardText.AppendChar(TEXT('\n'));
-		}
-	}
+	Table->GetVisibleColumnsData(SelectedNodes, ClipboardText);
 
 	if (ClipboardText.Len() > 0)
 	{

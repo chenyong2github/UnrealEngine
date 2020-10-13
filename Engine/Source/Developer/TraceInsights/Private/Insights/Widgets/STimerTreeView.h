@@ -55,7 +55,10 @@ public:
 	void Reset();
 	void SetTree(const Trace::FTimingProfilerButterflyNode& Root);
 
+	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
+
 private:
+	void InitCommandList();
 	FTimerNodePtr CreateTimerNodeRec(const Trace::FTimingProfilerButterflyNode& Node);
 	void ExpandNodesRec(FTimerNodePtr NodePtr, int32 Depth);
 
@@ -65,6 +68,9 @@ private:
 	TSharedPtr<SWidget> TreeView_GetMenuContent();
 	void TreeView_BuildSortByMenu(FMenuBuilder& MenuBuilder);
 	void TreeView_BuildViewColumnMenu(FMenuBuilder& MenuBuilder);
+
+	bool ContextMenu_CopySelectedToClipboard_CanExecute() const;
+	void ContextMenu_CopySelectedToClipboard_Execute();
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Tree View - Columns' Header
@@ -173,6 +179,8 @@ private:
 
 	/** The view name (ex.: "Callers" or "Callees"). */
 	FText ViewName;
+
+	TSharedPtr<FUICommandList> CommandList;
 
 	//////////////////////////////////////////////////
 	// Tree View, Columns
