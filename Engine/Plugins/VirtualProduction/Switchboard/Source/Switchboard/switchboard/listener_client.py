@@ -176,19 +176,22 @@ class ListenerClient(object):
             else:
                 if self.command_declined_delegate:
                     self.command_declined_delegate(message_id, message["error"])
+
         elif "program started" in message:
+            message_id = uuid.UUID(message['message id'])
             if message['program started'] == True:
-                message_id = uuid.UUID(message['message id'])
                 program_id = uuid.UUID(message['program id'])
                 if self.program_started_delegate:
                     self.program_started_delegate(program_id, message_id)
             else:
                 if self.program_start_failed_delegate:
                     self.program_start_failed_delegate(message['error'], message_id)
+
         elif "program ended" in message:
             program_id = uuid.UUID(message['program id'])
             if self.program_ended_delegate:
                 self.program_ended_delegate(program_id, message['returncode'], message['output'])
+
         elif "program killed" in message:
             program_id = uuid.UUID(message['program id'])
             if message['program killed'] == True:
@@ -197,6 +200,7 @@ class ListenerClient(object):
             else:
                 if self.program_kill_failed_delegate:
                     self.program_kill_failed_delegate(program_id, message['error'])
+
         elif "vcs init complete" in message:
             if message['vcs init complete'] == True:
                 if self.vcs_init_completed_delegate:
@@ -204,6 +208,7 @@ class ListenerClient(object):
             else:
                 if self.vcs_init_failed_delegate:
                     self.vcs_init_failed_delegate(message['error'])
+
         elif "vcs report revision complete" in message:
             if message['vcs report revision complete'] == True:
                 if self.vcs_report_revision_completed_delegate:
@@ -211,6 +216,7 @@ class ListenerClient(object):
             else:
                 if self.vcs_report_revision_failed_delegate:
                     self.vcs_report_revision_failed_delegate(message['error'])
+
         elif "vcs sync complete" in message:
             if message['vcs sync complete'] == True:
                 if self.vcs_sync_completed_delegate:
@@ -218,6 +224,7 @@ class ListenerClient(object):
             else:
                 if self.vcs_sync_failed_delegate:
                     self.vcs_sync_failed_delegate(message['error'])
+
         elif "send file complete" in message:
             if message['send file complete'] == True:
                 if self.send_file_completed_delegate:
@@ -225,6 +232,7 @@ class ListenerClient(object):
             else:
                 if self.send_file_failed_delegate:
                     self.send_file_failed_delegate(message['destination'], message['error'])
+                    
         elif "receive file complete" in message:
             if message['receive file complete'] == True:
                 if self.receive_file_completed_delegate:

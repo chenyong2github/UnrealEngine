@@ -60,7 +60,7 @@ class Device(QtCore.QObject):
         # If the device should autoconnect on startup
         self.auto_connect = True
 
-        self.device_hash = random.getrandbits(64)
+        self.device_hash = random.getrandbits(64) # TODO: This is not really a hash. Could be changed to real hash based on e.g. ip and name.
 
         # Lazily create the OSC client as needed
         self.osc_client = None

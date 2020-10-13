@@ -157,8 +157,9 @@ bool CreateTaskFromCommand(const FString& InCommand, const FIPv4Endpoint& InEndp
 		TSharedPtr<FJsonValue> ExeField = JsonData->TryGetField(TEXT("exe"));
 		TSharedPtr<FJsonValue> ArgsField = JsonData->TryGetField(TEXT("args"));
 		TSharedPtr<FJsonValue> NameField = JsonData->TryGetField(TEXT("name"));
+		TSharedPtr<FJsonValue> CallerField = JsonData->TryGetField(TEXT("caller"));
 
-		OutTask = MakeUnique<FSwitchboardStartTask>(MessageID, InEndpoint, ExeField->AsString(), ArgsField->AsString(), NameField->AsString());
+		OutTask = MakeUnique<FSwitchboardStartTask>(MessageID, InEndpoint, ExeField->AsString(), ArgsField->AsString(), NameField->AsString(), CallerField->AsString());
 		return true;
 	}
 	else if (CommandName == TEXT("kill"))

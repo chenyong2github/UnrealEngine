@@ -23,7 +23,7 @@ class Setting(QtCore.QObject):
     """
     Allows Device to return paramters that are meant to be set in the settings menu
     """
-    def __init__(self, attr_name, nice_name, value, possible_values=[], placholder_text=None, tool_tip=None):
+    def __init__(self, attr_name, nice_name, value, possible_values=[], placholder_text=None, tool_tip=None, show_ui=True):
         super().__init__()
 
         self.attr_name = attr_name
@@ -35,6 +35,7 @@ class Setting(QtCore.QObject):
         self._overrides = {}
         self.placholder_text = placholder_text
         self.tool_tip = tool_tip
+        self.show_ui = show_ui
 
     def is_overriden(self, device_name):
         try:
