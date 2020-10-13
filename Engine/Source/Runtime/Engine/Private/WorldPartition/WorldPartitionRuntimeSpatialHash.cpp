@@ -106,6 +106,7 @@ static FAutoConsoleVariableRef CVarRuntimeSpatialHashCellToSourceAngleContributi
 
 // ------------------------------------------------------------------------------------------------
 
+#if WITH_EDITOR
 // Clustering
 struct FActorCluster
 {
@@ -244,6 +245,7 @@ TArray<FActorCluster> CreateActorClusters(UWorldPartition* WorldPartition)
 	for (FActorCluster* ActorCluster : ActorClustersSet) { delete ActorCluster; }
 	return ActorClusters;
 }
+#endif
 
 /**
   * Square 2D grid helper
