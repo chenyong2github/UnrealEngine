@@ -17,6 +17,10 @@ class SEditorViewport;
 class SSlider;
 enum class ECheckBoxState : uint8;
 
+/** A delegate that is executed when adding menu content. */
+DECLARE_DELEGATE_OneParam(FOnCamSpeedChanged, int32);
+DECLARE_DELEGATE_OneParam(FOnCamSpeedScalarChanged, float);
+
 /**
  * Viewport toolbar containing transform, grid snapping, local to world and camera speed controls.
  */
@@ -28,6 +32,9 @@ public:
 		SLATE_ARGUMENT( TSharedPtr<class SEditorViewport>, Viewport )
 		SLATE_ARGUMENT( TSharedPtr<FUICommandList>, CommandList )
 		SLATE_ARGUMENT( TSharedPtr<FExtender>, Extenders )
+
+		SLATE_EVENT( FOnCamSpeedChanged, OnCamSpeedChanged )
+		SLATE_EVENT( FOnCamSpeedScalarChanged, OnCamSpeedScalarChanged )
 	SLATE_END_ARGS()
 
 	void Construct( const FArguments& InArgs );
@@ -69,6 +76,10 @@ private:
 
 	/** Camera speed scalar Label callback */
 	FText GetCameraSpeedScalarLabel() const;
+
+	/** Called when the camera speed is changed */
+	FOnCamSpeedChanged OnCamSpeedChanged;
+	FOnCamSpeedScalarChanged OnCamSpeedScalarChanged;
 
 	/** Grid snap label callbacks */
 	FText GetLocationGridLabel() const;
