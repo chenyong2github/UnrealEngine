@@ -1071,8 +1071,9 @@ void FOpenXRHMD::SetFinalViewRect(const enum EStereoscopicPass StereoPass, const
 	float NearZ = GNearClippingPlane / GetWorldToMetersScale();
 
 	FPipelinedFrameState& PipelineState = GetPipelinedFrameStateForThread();
+	FPipelinedLayerState& LayerState = GetPipelinedLayerStateForThread();
 
-	XrSwapchainSubImage& ColorImage = PipelineState.ColorImages[ViewIndex];
+	XrSwapchainSubImage& ColorImage = LayerState.ColorImages[ViewIndex];
 	ColorImage.swapchain = Swapchain.IsValid() ? static_cast<FOpenXRSwapchain*>(GetSwapchain())->GetHandle() : XR_NULL_HANDLE;
 	ColorImage.imageArrayIndex = bIsMobileMultiViewEnabled ? ViewIndex : 0;
 	ColorImage.imageRect = {
@@ -1080,7 +1081,7 @@ void FOpenXRHMD::SetFinalViewRect(const enum EStereoscopicPass StereoPass, const
 		{ FinalViewRect.Width(), FinalViewRect.Height() }
 	};
 
-	XrSwapchainSubImage& DepthImage = PipelineState.DepthImages[ViewIndex];
+	XrSwapchainSubImage& DepthImage = LayerState.DepthImages[ViewIndex];
 	if (bDepthExtensionSupported)
 	{
 		DepthImage.swapchain = DepthSwapchain.IsValid() ? static_cast<FOpenXRSwapchain*>(GetDepthSwapchain())->GetHandle() : XR_NULL_HANDLE;
@@ -1094,8 +1095,8 @@ void FOpenXRHMD::SetFinalViewRect(const enum EStereoscopicPass StereoPass, const
 		return;
 	}
 
-	XrCompositionLayerProjectionView& Projection = PipelineState.ProjectionLayers[ViewIndex];
-	XrCompositionLayerDepthInfoKHR& DepthLayer = PipelineState.DepthLayers[ViewIndex];
+	XrCompositionLayerProjectionView& Projection = LayerState.ProjectionLayers[ViewIndex];
+	XrCompositionLayerDepthInfoKHR& DepthLayer = LayerState.DepthLayers[ViewIndex];
 
 	Projection.type = XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW;
 	Projection.next = nullptr;
@@ -1246,6 +1247,11 @@ void FOpenXRHMD::SetupView(FSceneViewFamily& InViewFamily, FSceneView& InView)
 
 void FOpenXRHMD::BeginRenderViewFamily(FSceneViewFamily& InViewFamily)
 {
+	PipelinedLayerStateRendering.ProjectionLayers.SetNum(PipelinedFrameStateRendering.PluginViews.Num());
+	PipelinedLayerStateRendering.DepthLayers.SetNum(PipelinedFrameStateRendering.PluginViews.Num());
+
+	PipelinedLayerStateRendering.ColorImages.SetNum(PipelinedFrameStateRendering.ViewConfigs.Num());
+	PipelinedLayerStateRendering.DepthImages.SetNum(PipelinedFrameStateRendering.ViewConfigs.Num());
 }
 
 void FOpenXRHMD::PreRenderView_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneView& InView)
@@ -1279,6 +1285,7 @@ FOpenXRHMD::FOpenXRHMD(const FAutoRegister& AutoRegister, XrInstance InInstance,
 	, bNeedReAllocatedDepth(false)
 	, bNeedReBuildOcclusionMesh(true)
 	, CurrentSessionState(XR_SESSION_STATE_UNKNOWN)
+	, FrameEventRHI(FPlatformProcess::CreateSynchEvent())
 	, EnabledExtensions(std::move(InEnabledExtensions))
 	, ExtensionPlugins(std::move(InExtensionPlugins))
 	, Instance(InInstance)
@@ -1369,8 +1376,10 @@ FOpenXRHMD::FOpenXRHMD(const FAutoRegister& AutoRegister, XrInstance InInstance,
 	// Add a device space for the HMD without an action handle and ensure it has the correct index
 	ensure(DeviceSpaces.Emplace(XR_NULL_HANDLE) == HMDDeviceId);
 
-	// Give the RHI frame state the same initial values.
-	PipelinedFrameStateRHI = PipelinedFrameStateGame;
+	// Give the all frame states the same initial values.
+	PipelinedFrameStateRHI = PipelinedFrameStateRendering = PipelinedFrameStateGame;
+
+	FrameEventRHI->Trigger();
 }
 
 FOpenXRHMD::~FOpenXRHMD()
@@ -1381,30 +1390,63 @@ FOpenXRHMD::~FOpenXRHMD()
 	}
 }
 
-
 const FOpenXRHMD::FPipelinedFrameState& FOpenXRHMD::GetPipelinedFrameStateForThread() const
 {
-	if (IsInGameThread())
+	if (IsInRHIThread())
 	{
-		return PipelinedFrameStateGame;
+		return PipelinedFrameStateRHI;
+	}
+	else if (IsInRenderingThread())
+	{
+		return PipelinedFrameStateRendering;
 	}
 	else
 	{
-		check(IsInRenderingThread() || IsInRHIThread());
-		return PipelinedFrameStateRHI;
+		check(IsInGameThread());
+		return PipelinedFrameStateGame;
 	}
 }
 
 FOpenXRHMD::FPipelinedFrameState& FOpenXRHMD::GetPipelinedFrameStateForThread()
 {
-	if (IsInGameThread())
+	if (IsInRHIThread())
 	{
-		return PipelinedFrameStateGame;
+		return PipelinedFrameStateRHI;
+	}
+	else if (IsInRenderingThread())
+	{
+		return PipelinedFrameStateRendering;
 	}
 	else
 	{
-		check(IsInRenderingThread() || IsInRHIThread());
-		return PipelinedFrameStateRHI;
+		check(IsInGameThread());
+		return PipelinedFrameStateGame;
+	}
+}
+
+const FOpenXRHMD::FPipelinedLayerState& FOpenXRHMD::GetPipelinedLayerStateForThread() const
+{
+	if (IsInRHIThread())
+	{
+		return PipelinedLayerStateRHI;
+	}
+	else
+	{
+		check(IsInRenderingThread());
+		return PipelinedLayerStateRendering;
+	}
+}
+
+FOpenXRHMD::FPipelinedLayerState& FOpenXRHMD::GetPipelinedLayerStateForThread()
+{
+	if (IsInRHIThread())
+	{
+		return PipelinedLayerStateRHI;
+	}
+	else
+	{
+		check(IsInRenderingThread());
+		return PipelinedLayerStateRendering;
 	}
 }
 
@@ -1513,12 +1555,6 @@ void FOpenXRHMD::EnumerateViews(FPipelinedFrameState& PipelineState)
 			View.pose = ToXrPose(FTransform::Identity);
 		}
 	}
-
-	PipelineState.ProjectionLayers.SetNum(ViewConfigCount);
-	PipelineState.DepthLayers.SetNum(ViewConfigCount);
-
-	PipelineState.ColorImages.SetNum(PipelineState.ViewConfigs.Num());
-	PipelineState.DepthImages.SetNum(PipelineState.ViewConfigs.Num());
 }
 
 #if !PLATFORM_HOLOLENS
@@ -1878,30 +1914,71 @@ bool FOpenXRHMD::AllocateDepthTexture(uint32 Index, uint32 SizeX, uint32 SizeY, 
 
 void FOpenXRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& ViewFamily)
 {
-	PipelinedFrameStateRHI = PipelinedFrameStateGame;
-
 	ensure(IsInRenderingThread());
-	FPipelinedFrameState& PipelineState = GetPipelinedFrameStateForThread();
+
+	PipelinedFrameStateRendering = PipelinedFrameStateGame;
+
+	FPipelinedLayerState& LayerState = GetPipelinedLayerStateForThread();
+	for (int32 ViewIndex = 0; ViewIndex < LayerState.ProjectionLayers.Num(); ViewIndex++)
+	{
+		const XrView& View = PipelinedFrameStateRendering.Views[ViewIndex];
+		FTransform EyePose = ToFTransform(View.pose, GetWorldToMetersScale());
+
+		// Apply the base HMD pose to each eye pose, we will late update this pose for late update in another callback
+		FTransform BasePose(ViewFamily.Views[ViewIndex]->BaseHmdOrientation, ViewFamily.Views[ViewIndex]->BaseHmdLocation);
+		XrCompositionLayerProjectionView& Projection = LayerState.ProjectionLayers[ViewIndex];
+		Projection.pose = ToXrPose(EyePose * BasePose, GetWorldToMetersScale());
+		Projection.fov = View.fov;
+	}
 
 #if !PLATFORM_HOLOLENS
-		if (bHiddenAreaMaskSupported && bNeedReBuildOcclusionMesh)
-		{
-			BuildOcclusionMeshes();
-		}
+	if (bHiddenAreaMaskSupported && bNeedReBuildOcclusionMesh)
+	{
+		BuildOcclusionMeshes();
+	}
 #endif
 
-	const FSceneView* MainView = ViewFamily.Views[0];
-	check(MainView);
-	const FTransform BaseTransform = FTransform(MainView->BaseHmdOrientation, MainView->BaseHmdLocation);
-
-	// Set the base pose and fov for each view
-	for (int32 ViewIndex = 0; ViewIndex < PipelineState.ProjectionLayers.Num(); ViewIndex++)
+	if (bIsReady)
 	{
-		const XrView& View = PipelineState.Views[ViewIndex];
-		XrCompositionLayerProjectionView& Projection = PipelineState.ProjectionLayers[ViewIndex];
-		FTransform ViewTransform = ToFTransform(View.pose, GetWorldToMetersScale());
-		Projection.pose = ToXrPose(ViewTransform * BaseTransform, GetWorldToMetersScale());
-		Projection.fov = View.fov;
+		// Ensure xrEndFrame has been called before starting rendering the next frame.
+		bool signaled = FrameEventRHI->Wait(PipelinedFrameStateRHI.FrameState.predictedDisplayPeriod);
+
+		// TODO: This should be moved to the RHI thread at some point
+		XrFrameBeginInfo BeginInfo;
+		BeginInfo.type = XR_TYPE_FRAME_BEGIN_INFO;
+		BeginInfo.next = nullptr;
+		XrTime DisplayTime = PipelinedFrameStateRHI.FrameState.predictedDisplayTime;
+		for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
+		{
+			BeginInfo.next = Module->OnBeginFrame(Session, DisplayTime, BeginInfo.next);
+		}
+		XrResult Result;
+		{
+			// There is a chance xrBeginFrame may time out waiting for FrameEventRHI so a mutex is needed
+			// to ensure the two calls never overlap (spec requires they are externally synchronized).
+			FScopeLock ScopeLock(&BeginEndFrameMutex);
+			Result = xrBeginFrame(Session, &BeginInfo);
+		}
+		if (XR_SUCCEEDED(Result))
+		{
+			bIsRendering = true;
+
+			Swapchain->IncrementSwapChainIndex_RHIThread(PipelinedFrameStateRHI.FrameState.predictedDisplayPeriod);
+			if (bDepthExtensionSupported && !bNeedReAllocatedDepth)
+			{
+				ensure(DepthSwapchain != nullptr);
+				DepthSwapchain->IncrementSwapChainIndex_RHIThread(PipelinedFrameStateRHI.FrameState.predictedDisplayPeriod);
+			}
+		}
+		else
+		{
+			static bool bLoggedBeginFrameFailure = false;
+			if (!bLoggedBeginFrameFailure)
+			{
+				UE_LOG(LogHMD, Error, TEXT("Unexpected error on xrBeginFrame. Error code was %s."), OpenXRResultToString(Result));
+				bLoggedBeginFrameFailure = true;
+			}
+		}
 	}
 
 	// Snapshot new poses for late update.
@@ -1913,15 +1990,17 @@ void FOpenXRHMD::OnLateUpdateApplied_RenderThread(const FTransform& NewRelativeT
 	FHeadMountedDisplayBase::OnLateUpdateApplied_RenderThread(NewRelativeTransform);
 
 	ensure(IsInRenderingThread());
-	FPipelinedFrameState& PipelineState = GetPipelinedFrameStateForThread();
+	FPipelinedFrameState& FrameState = GetPipelinedFrameStateForThread();
+	FPipelinedLayerState& LayerState = GetPipelinedLayerStateForThread();
 
-	for (int32 ViewIndex = 0; ViewIndex < PipelineState.ProjectionLayers.Num(); ViewIndex++)
+	for (int32 ViewIndex = 0; ViewIndex < LayerState.ProjectionLayers.Num(); ViewIndex++)
 	{
-		const XrView& View = PipelineState.Views[ViewIndex];
-		XrCompositionLayerProjectionView& Projection = PipelineState.ProjectionLayers[ViewIndex];
+		const XrView& View = FrameState.Views[ViewIndex];
+		XrCompositionLayerProjectionView& Projection = LayerState.ProjectionLayers[ViewIndex];
 
-		FTransform ViewTransform = ToFTransform(View.pose, GetWorldToMetersScale());
-		Projection.pose = ToXrPose(ViewTransform * NewRelativeTransform, GetWorldToMetersScale());
+		// Apply the new HMD orientation to each eye pose for the final pose
+		FTransform EyePose = ToFTransform(View.pose, GetWorldToMetersScale());
+		Projection.pose = ToXrPose(EyePose * NewRelativeTransform, GetWorldToMetersScale());
 	}
 }
 
@@ -1938,12 +2017,12 @@ void FOpenXRHMD::OnBeginRendering_GameThread()
 	XrFrameWaitInfo WaitInfo;
 	WaitInfo.type = XR_TYPE_FRAME_WAIT_INFO;
 	WaitInfo.next = nullptr;
-	for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
-	{
-		WaitInfo.next = Module->OnWaitFrame(Session, WaitInfo.next);
-	}
 
 	XrFrameState FrameState{XR_TYPE_FRAME_STATE};
+	for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
+	{
+		FrameState.next = Module->OnWaitFrame(Session, FrameState.next);
+	}
 	XR_ENSURE(xrWaitFrame(Session, &WaitInfo, &FrameState));
 
 	// The pipeline state on the game thread can only be safely modified after xrWaitFrame which will be unblocked by
@@ -1955,7 +2034,6 @@ void FOpenXRHMD::OnBeginRendering_GameThread()
 	PipelineState.WorldToMetersScale = WorldToMetersScale;
 
 	EnumerateViews(PipelineState);
-	UpdateDeviceLocations();
 }
 
 bool FOpenXRHMD::ReadNextEvent(XrEventDataBuffer* buffer)
@@ -2079,44 +2157,22 @@ bool FOpenXRHMD::OnStartGameFrame(FWorldContext& WorldContext)
 
 	GetARCompositionComponent()->StartARGameFrame(WorldContext);
 
+	// Add a display period to the simulation frame state so we're predicting poses for the new frame.
+	FPipelinedFrameState& PipelineState = GetPipelinedFrameStateForThread();
+	PipelineState.FrameState.predictedDisplayTime += PipelineState.FrameState.predictedDisplayPeriod;
+
+	// Snapshot new poses for game simulation.
+	UpdateDeviceLocations();
+
 	return true;
 }
 
 void FOpenXRHMD::OnBeginRendering_RHIThread()
 {
 	ensure(IsInRenderingThread() || IsInRHIThread());
-	if (bIsReady)
-	{
-		XrFrameBeginInfo BeginInfo;
-		BeginInfo.type = XR_TYPE_FRAME_BEGIN_INFO;
-		BeginInfo.next = nullptr;
-		XrTime DisplayTime = PipelinedFrameStateRHI.FrameState.predictedDisplayTime;
-		for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
-		{
-			BeginInfo.next = Module->OnBeginFrame(Session, DisplayTime, BeginInfo.next);
-		}
-		XrResult Result = xrBeginFrame(Session, &BeginInfo);
-		if (XR_SUCCEEDED(Result))
-		{
-			bIsRendering = true;
 
-			Swapchain->IncrementSwapChainIndex_RHIThread(PipelinedFrameStateRHI.FrameState.predictedDisplayPeriod);
-			if (bDepthExtensionSupported && !bNeedReAllocatedDepth)
-			{
-				ensure(DepthSwapchain != nullptr);
-				DepthSwapchain->IncrementSwapChainIndex_RHIThread(PipelinedFrameStateRHI.FrameState.predictedDisplayPeriod);
-			}
-		}
-		else
-		{
-			static bool bLoggedBeginFrameFailure = false;
-			if (!bLoggedBeginFrameFailure)
-			{
-				UE_LOG(LogHMD, Error, TEXT("Unexpected error on xrBeginFrame. Error code was %s."), OpenXRResultToString(Result));
-				bLoggedBeginFrameFailure = true;
-			}
-		}
-	}
+	PipelinedFrameStateRHI = PipelinedFrameStateRendering;
+	PipelinedLayerStateRHI = PipelinedLayerStateRendering;
 }
 
 void FOpenXRHMD::OnFinishRendering_RHIThread()
@@ -2128,13 +2184,14 @@ void FOpenXRHMD::OnFinishRendering_RHIThread()
 	}
 
 	const FPipelinedFrameState& PipelineState = GetPipelinedFrameStateForThread();
+	const FPipelinedLayerState& LayerState = GetPipelinedLayerStateForThread();
 
 	XrCompositionLayerProjection Layer = {};
 	Layer.type = XR_TYPE_COMPOSITION_LAYER_PROJECTION;
 	Layer.next = nullptr;
 	Layer.space = PipelineState.TrackingSpace;
-	Layer.viewCount = PipelineState.ProjectionLayers.Num();
-	Layer.views = PipelineState.ProjectionLayers.GetData();
+	Layer.viewCount = LayerState.ProjectionLayers.Num();
+	Layer.views = LayerState.ProjectionLayers.GetData();
 	for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
 	{
 		Layer.next = Module->OnEndProjectionLayer(Session, 0, Layer.next);
@@ -2167,22 +2224,33 @@ void FOpenXRHMD::OnFinishRendering_RHIThread()
 			{
 				if (PipelineState.PluginViews[i] == Module)
 				{
-					ColorImages.Add(PipelineState.ColorImages[i]);
+					ColorImages.Add(LayerState.ColorImages[i]);
 					if (bDepthExtensionSupported)
 					{
-						DepthImages.Add(PipelineState.DepthImages[i]);
+						DepthImages.Add(LayerState.DepthImages[i]);
 					}
 				}
 			}
 			EndInfo.next = Module->OnEndFrame(Session, EndInfo.displayTime, ColorImages, DepthImages, EndInfo.next);
 		}
-		XrResult Result = xrEndFrame(Session, &EndInfo);
+		XrResult Result;
+		{
+			// OnBeginRendering_RenderThread may time out waiting for FrameEventRHI to be signaled. This can result
+			// in xrBeginFrame being called on the render thread while xrEndFrame is being called on the RHI thread,
+			// so a mutex is needed to ensure they are externally synchronized, as required by the OpenXR specification.
+			// This may also result in a XR_ERROR_CALL_ORDER_INVALID error.
+			FScopeLock ScopeLock(&BeginEndFrameMutex);
+			Result = xrEndFrame(Session, &EndInfo);
+		}
 
 		// Ignore invalid call order for now, we will recover on the next frame
-		ensure(XR_SUCCEEDED(Result) || Result == XR_ERROR_CALL_ORDER_INVALID);
+		ensure(XR_SUCCEEDED(Result));
 
 		bIsRendering = false;
 	}
+
+	// Signal that it is now ok to start rendering the next frame.
+	FrameEventRHI->Trigger();
 }
 
 FXRRenderBridge* FOpenXRHMD::GetActiveRenderBridge_GameThread(bool /* bUseSeparateRenderTarget */)
