@@ -10,7 +10,7 @@
 class AActor;
 class FTextureRenderTargetResource;
 class IDisplayClusterProjectionPolicy;
-
+class FSceneInterface;
 
 struct FDisplayClusterRenderingParameters
 {

@@ -12,7 +12,7 @@ class UMaterial;
 class UMaterialInstanceDynamic;
 class UDisplayClusterProjectionPolicyParameters;
 class ADisplayClusterRootActor;
-
+class UMeshComponent;
 
 /**
  * Projection policy preview component (Editor)
