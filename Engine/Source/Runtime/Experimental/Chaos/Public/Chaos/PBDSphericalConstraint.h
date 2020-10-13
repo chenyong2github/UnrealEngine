@@ -194,7 +194,7 @@ namespace Chaos
 			});
 		}
 
-		inline void ApplyLegacyHelperISPC(TPBDParticles<T, d>& Particles, const T Dt) const;
+		void ApplyLegacyHelperISPC(TPBDParticles<T, d>& Particles, const T Dt) const;
 
 	private:
 		const TArray<TVector<T, d>>& AnimationPositions;  // Positions of spheres, use global indexation (will need adding ParticleOffset)
