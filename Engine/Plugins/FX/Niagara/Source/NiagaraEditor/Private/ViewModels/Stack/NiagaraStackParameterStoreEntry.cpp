@@ -286,6 +286,114 @@ void UNiagaraStackParameterStoreEntry::ReplaceValueObject(UObject* Obj)
 	GetSystemViewModel()->ResetSystem();
 }
 
+bool UNiagaraStackParameterStoreEntry::TestCanCopyWithMessage(FText& OutMessage) const
+{
+	OutMessage = LOCTEXT("CanCopyMessage", "Copy the value of this user parameter input.");
+	return true;
+}
+
+bool UNiagaraStackParameterStoreEntry::TestCanPasteWithMessage(const UNiagaraClipboardContent* ClipboardContent, FText& OutMessage) const
+{
+	if (ClipboardContent->FunctionInputs.Num() == 0 || GetIsEnabledAndOwnerIsEnabled() == false)
+	{
+		// Empty clipboard, or disabled don't allow paste, but be silent.
+		return false;
+	}
+	if (ClipboardContent->FunctionInputs.Num() > 1)
+	{
+		OutMessage = LOCTEXT("CantPasteMultipleInputs", "Can't paste multiple values onto a single user parameter input.");
+		return false;
+	}
+	const UNiagaraClipboardFunctionInput* ClipboardFunctionInput = ClipboardContent->FunctionInputs[0];
+	if (ClipboardFunctionInput == nullptr)
+	{
+		return false;
+	}
+	if (ClipboardFunctionInput->InputType != InputType)
+	{
+		OutMessage = LOCTEXT("CantPasteIncorrectType", "Cannot paste inputs with mismatched types.");
+		return false;
+	}
+	if (!(ClipboardFunctionInput->ValueMode == ENiagaraClipboardFunctionInputValueMode::Local || ClipboardFunctionInput->ValueMode == ENiagaraClipboardFunctionInputValueMode::Data))
+	{
+		OutMessage = LOCTEXT("CantPasteInvalidValueMode", "Only data interfaces and local values can be pasted here.");
+		return false;
+	}
+	OutMessage = LOCTEXT("PasteMessage", "Paste the input from the clipboard here.");
+	return true;
+}
+
+FText UNiagaraStackParameterStoreEntry::GetPasteTransactionText(const UNiagaraClipboardContent* ClipboardContent) const
+{
+	return LOCTEXT("PasteInputTransactionText", "Paste Niagara user parameter value");
+}
+
+void UNiagaraStackParameterStoreEntry::Copy(UNiagaraClipboardContent* ClipboardContent) const
+{
+	if (const UNiagaraClipboardFunctionInput* ClipboardInput = ToClipboardFunctionInput(ClipboardContent))
+	{
+		ClipboardContent->FunctionInputs.Add(ClipboardInput);
+	}
+}
+
+void UNiagaraStackParameterStoreEntry::Paste(const UNiagaraClipboardContent* ClipboardContent, FText& OutPasteWarning)
+{
+	ensureMsgf(ClipboardContent != nullptr && ClipboardContent->FunctionInputs.Num() == 1, TEXT("Clipboard must not be null, and must contain a single input.  Call TestCanPasteWithMessage to validate"));
+
+	const UNiagaraClipboardFunctionInput* ClipboardInput = ClipboardContent->FunctionInputs[0];
+	if (ClipboardInput != nullptr && ClipboardInput->InputType == InputType)
+	{
+		SetValueFromClipboardFunctionInput(*ClipboardInput);
+	}
+}
+
+const UNiagaraClipboardFunctionInput* UNiagaraStackParameterStoreEntry::ToClipboardFunctionInput(UObject* InOuter) const
+{
+	// check for a local value
+	if (InputType.GetClass() == nullptr && LocalValueStruct.IsValid())
+	{
+		TArray<uint8> LocalValueData;
+		LocalValueData.AddUninitialized(InputType.GetSize());
+		FMemory::Memcpy(LocalValueData.GetData(), LocalValueStruct->GetStructMemory(), InputType.GetSize());
+		return UNiagaraClipboardFunctionInput::CreateLocalValue(InOuter, ParameterName, InputType, TOptional<bool>(), LocalValueData);
+	}
+
+	// check for a data interface
+	if (ValueObject.IsValid() && ValueObject->IsA<UNiagaraDataInterface>())
+	{
+		return UNiagaraClipboardFunctionInput::CreateDataValue(InOuter, ParameterName, InputType, TOptional<bool>(), Cast<UNiagaraDataInterface>(ValueObject.Get()));
+	}
+	return nullptr;
+}
+
+void UNiagaraStackParameterStoreEntry::SetValueFromClipboardFunctionInput(const UNiagaraClipboardFunctionInput& ClipboardFunctionInput)
+{
+	if (!ensureMsgf(ClipboardFunctionInput.InputType == InputType, TEXT("Can not set input value from clipboard, input types don't match.")))
+	{
+		return;
+	}
+	switch (ClipboardFunctionInput.ValueMode)
+	{
+	case ENiagaraClipboardFunctionInputValueMode::Local:
+	{
+		FMemory::Memcpy(LocalValueStruct->GetStructMemory(), ClipboardFunctionInput.Local.GetData(), InputType.GetSize());
+		NotifyValueChanged();
+		break;
+	}
+	case ENiagaraClipboardFunctionInputValueMode::Data:
+	{
+		UNiagaraDataInterface* InputDataInterface = Cast<UNiagaraDataInterface>(ValueObject.Get());
+		if (ensureMsgf(InputDataInterface != nullptr && ClipboardFunctionInput.Data != nullptr, TEXT("Data interface paste failed. Check that data can be pasted with TestCanPasteWithMessage() before calling Paste().")))
+		{
+			ClipboardFunctionInput.Data->CopyTo(InputDataInterface);
+		}
+		break;
+	}
+	default:
+		ensureMsgf(false, TEXT("An invalid value mode was used to paste user parameter data. Check that data can be pasted with TestCanPasteWithMessage() before calling Paste()."));
+		break;
+	}
+}
 
 void UNiagaraStackParameterStoreEntry::Delete()
 {
@@ -373,8 +481,6 @@ TSharedPtr<FNiagaraVariable> UNiagaraStackParameterStoreEntry::GetCurrentValueVa
 {
 	if (InputType.GetClass() == nullptr)
 	{
-		const UEdGraphSchema_Niagara* NiagaraSchema = GetDefault<UEdGraphSchema_Niagara>();
-		
 		FNiagaraVariable DefaultVariable(InputType, ParameterName);
 		const uint8* Data = ParameterStore->GetParameterData(DefaultVariable);
 		DefaultVariable.SetData(Data);
