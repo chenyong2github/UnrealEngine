@@ -96,6 +96,9 @@ namespace ChaosTest {
 	TPBDRigidParticleHandle<T, 3>* AppendDynamicParticleBox(TPBDRigidsSOAs<T, 3>& SOAs, const TVector<T, 3>& Scale = TVector<T, 3>(1), TArray<TVector<int32, 3>>* OutElements = nullptr);
 
 	template<class T>
+	TPBDRigidParticleHandle<T, 3>* AppendDynamicParticleBoxMargin(TPBDRigidsSOAs<T, 3>& SOAs, const TVector<T, 3>& Scale, FReal Margin, TArray<TVector<int32, 3>>* OutElements = nullptr);
+
+	template<class T>
 	TPBDRigidParticleHandle<T, 3>* AppendDynamicParticleSphere(TPBDRigidsSOAs<T, 3>& SOAs, const TVector<T, 3>& Scale = TVector<T, 3>(1), TArray<TVector<int32, 3>>* OutElements = nullptr);
 
 	template<class T>
@@ -202,10 +205,7 @@ namespace ChaosTest {
 	void InitEvolutionSettings(T_Evolution& Evolution)
 	{
 		// Settings used for unit tests
-		const float ShapePadding = 0.0f;
 		const float CullDistance = 0.0f;
-		Evolution.GetCollisionConstraints().SetShapePadding(ShapePadding);
-		Evolution.GetBroadPhase().SetShapePadding(ShapePadding);
 		Evolution.GetCollisionConstraints().SetCullDistance(CullDistance);
 		Evolution.GetBroadPhase().SetBoundsThickness(CullDistance);
 	}

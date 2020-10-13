@@ -67,7 +67,6 @@ int32 ChaosImmediate_Collision_PairIterations = -1;
 int32 ChaosImmediate_Collision_PushOutPairIterations = 0;	// Force disabled - not compatible with ECollisionApplyType::Position
 int32 ChaosImmediate_Collision_Priority = 1;
 float ChaosImmediate_Collision_CullDistance = 1.0f;
-float ChaosImmediate_Collision_ShapePadding = 0;
 float ChaosImmediate_Collision_RestitutionThresholdMultiplier = 3.0f;
 int32 ChaosImmediate_Collision_RestitutionEnabled = true;
 int32 ChaosImmediate_Collision_DeferNarrowPhase = 1;
@@ -77,7 +76,6 @@ FAutoConsoleVariableRef CVarChaosImmPhysCollisionPairIterations(TEXT("p.Chaos.Im
 FAutoConsoleVariableRef CVarChaosImmPhysCollisionPushOutPairIterations(TEXT("p.Chaos.ImmPhys.Collision.PushOutPairIterations"), ChaosImmediate_Collision_PushOutPairIterations, TEXT("Override collision push-out pair iterations (if >= 0)"));
 FAutoConsoleVariableRef CVarChaosImmPhysCollisionPriority(TEXT("p.Chaos.ImmPhys.Collision.Priority"), ChaosImmediate_Collision_Priority, TEXT("Set the Collision constraint sort order (Joints have priority 0)"));
 FAutoConsoleVariableRef CVarChaosImmPhysCollisionCullDistance(TEXT("p.Chaos.ImmPhys.Collision.CullDistance"), ChaosImmediate_Collision_CullDistance, TEXT("CullDistance"));
-FAutoConsoleVariableRef CVarChaosImmPhysCollisionShapePadding(TEXT("p.Chaos.ImmPhys.Collision.ShapePadding"), ChaosImmediate_Collision_ShapePadding, TEXT("ShapePadding"));
 FAutoConsoleVariableRef CVarChaosImmPhysCollisionRestitutionThresholdMultiplier(TEXT("p.Chaos.ImmPhys.Collision.RestitutionThresholdMultiplier"), ChaosImmediate_Collision_RestitutionThresholdMultiplier, TEXT("Collision Restitution Threshold (Acceleration) = Multiplier * Gravity"));
 FAutoConsoleVariableRef CVarChaosImmPhysCollisionRestitutionEnabled(TEXT("p.Chaos.ImmPhys.Collision.RestitutionEnabled"), ChaosImmediate_Collision_RestitutionEnabled, TEXT("Collision Restitution Enable/Disable"));
 FAutoConsoleVariableRef CVarChaosImmPhysCollisionDeferNarrowPhase(TEXT("p.Chaos.ImmPhys.Collision.DeferNarrowPhase"), ChaosImmediate_Collision_DeferNarrowPhase, TEXT("Create contacts for all broadphase pairs, perform NarrowPhase later."));
@@ -213,8 +211,8 @@ namespace ImmediatePhysics_Chaos
 		FImplementation()
 			: Particles()
 			, Joints()
-			, Collisions(Particles, CollidedParticles, ParticleMaterials, PerParticleMaterials, 0, 0, ChaosImmediate_Collision_CullDistance, ChaosImmediate_Collision_ShapePadding)
-			, BroadPhase(&ActivePotentiallyCollidingPairs, nullptr, nullptr, ChaosImmediate_Collision_CullDistance, ChaosImmediate_Collision_ShapePadding)
+			, Collisions(Particles, CollidedParticles, ParticleMaterials, PerParticleMaterials, 0, 0, ChaosImmediate_Collision_CullDistance)
+			, BroadPhase(&ActivePotentiallyCollidingPairs, nullptr, nullptr, ChaosImmediate_Collision_CullDistance)
 			, NarrowPhase()
 			, CollisionDetector(BroadPhase, NarrowPhase, Collisions)
 			, JointsRule(0, Joints)
@@ -759,7 +757,6 @@ namespace ImmediatePhysics_Chaos
 			JointsSettings.AngularDriveDamping = ChaosImmediate_Joint_AngularDriveDamping;
 			Implementation->Joints.SetSettings(JointsSettings);
 
-			Implementation->Collisions.SetShapePadding(ChaosImmediate_Collision_ShapePadding);
 			Implementation->Collisions.SetRestitutionEnabled(ChaosImmediate_Collision_RestitutionEnabled != 0);
 			Implementation->Collisions.SetRestitutionThreshold(ChaosImmediate_Collision_RestitutionThresholdMultiplier * InGravity.Size());
 			Implementation->Collisions.SetCollisionsEnabled(ChaosImmediate_Collision_Enabled != 0);
