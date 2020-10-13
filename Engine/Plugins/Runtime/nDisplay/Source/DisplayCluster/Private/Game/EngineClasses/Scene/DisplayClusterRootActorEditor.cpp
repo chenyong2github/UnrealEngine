@@ -148,12 +148,15 @@ void ADisplayClusterRootActor::RebuildPreview()
 		}
 	}
 
-	AsyncTask(ENamedThreads::GameThread, [this]()
+	if (GIsEditor)
 	{
-		// Force SActorDetails redraw
-		FLevelEditorModule& LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
-		LevelEditor.BroadcastComponentsEdited();
-	});
+		AsyncTask(ENamedThreads::GameThread, [this]()
+		{
+			// Force SActorDetails redraw
+			FLevelEditorModule& LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
+			LevelEditor.BroadcastComponentsEdited();
+		});
+	}
 }
 
 UDisplayClusterPreviewComponent* ADisplayClusterRootActor::GetPreviewComponent(const FString& NodeId, const FString& ViewportId)
