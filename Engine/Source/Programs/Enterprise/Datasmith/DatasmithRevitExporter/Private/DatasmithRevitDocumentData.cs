@@ -225,7 +225,7 @@ namespace DatasmithRevitExporter
 
 			private Transform GetPivotTransform(Element InElement)
 			{
-				if (InElement.Location == null || (InElement as FamilyInstance) != null)
+				if ((InElement as FamilyInstance) != null)
 				{
 					return null;
 				}
@@ -237,19 +237,7 @@ namespace DatasmithRevitExporter
 
 				// Get pivot translation
 
-				if (InElement.Location.GetType() == typeof(LocationCurve))
-				{
-					LocationCurve CurveLocation = InElement.Location as LocationCurve;
-					if (CurveLocation.Curve != null && CurveLocation.Curve.IsBound)
-					{
-						Translation = CurveLocation.Curve.GetEndPoint(0);
-					}
-				}
-				else if (InElement.Location.GetType() == typeof(LocationPoint))
-				{
-					Translation = (InElement.Location as LocationPoint).Point;
-				}
-				else if (InElement.GetType() == typeof(Railing))
+				if (InElement.GetType() == typeof(Railing))
 				{
 					// Railings don't have valid location, so instead we need to get location from its path.
 					IList<Curve> Paths = (InElement as Railing).GetPath();
@@ -261,6 +249,21 @@ namespace DatasmithRevitExporter
 				else if (InElement.GetType() == typeof(StructuralConnectionHandler))
 				{
 					Translation = (InElement as StructuralConnectionHandler).GetOrigin();
+				}
+				else if (InElement.Location != null)
+				{
+					if (InElement.Location.GetType() == typeof(LocationCurve))
+					{
+						LocationCurve CurveLocation = InElement.Location as LocationCurve;
+						if (CurveLocation.Curve != null && CurveLocation.Curve.IsBound)
+						{
+							Translation = CurveLocation.Curve.GetEndPoint(0);
+						}
+					}
+					else if (InElement.Location.GetType() == typeof(LocationPoint))
+					{
+						Translation = (InElement.Location as LocationPoint).Point;
+					}
 				}
 
 				if (Translation == null)
