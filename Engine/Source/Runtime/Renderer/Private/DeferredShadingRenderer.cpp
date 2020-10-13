@@ -2009,6 +2009,8 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	}
 
 	// Strata initialisation
+	const bool bStrataEnabled = Strata::IsStrataEnabled();
+	if (bStrataEnabled)
 	{		
 		Strata::InitialiseStrataFrameSceneData(*this, GraphBuilder);		
 	}
@@ -2645,6 +2647,11 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		{
 			RenderHairStrandsDebugInfo(GraphBuilder, Views, HairDatas, HairStrandsBookmarkParameters.HairClusterData, SceneColorTexture.Target);
 		}
+	}
+
+	if (bStrataEnabled)
+	{
+		Strata::AddVisualizeMaterialPasses(GraphBuilder, Views, SceneColorTexture.Target);
 	}
 
 	if (bCanOverlayRayTracingOutput && ViewFamily.EngineShowFlags.LightShafts)

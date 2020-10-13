@@ -452,6 +452,7 @@ private:
 		SetVisualizeCalibrationGrayscale(false);
 		SetVisualizeCalibrationCustom(false);
 		SetVirtualTexturePrimitives(false);
+		SetVisualizeStrataMaterial(false);
 	}
 
 
