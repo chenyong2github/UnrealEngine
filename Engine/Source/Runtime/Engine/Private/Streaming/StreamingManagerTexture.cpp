@@ -1890,7 +1890,7 @@ void FRenderAssetStreamingManager::PropagateLightingScenarioChange()
 	}
 }
 
-void FRenderAssetStreamingManager::GetRenderedTextureAssets(TMap<FString, FRenderedTextureGroupMipStats>& OutRenderedTextureAssets, const int32 MipLevelMaxToCheck)
+void FRenderAssetStreamingManager::AddRenderedTextureStats(TMap<FString, FRenderedTextureStats>& OutRenderedTextureStats)
 {
 	FScopeLock ScopeLock(&CriticalSection);
 	
@@ -1902,16 +1902,24 @@ void FRenderAssetStreamingManager::GetRenderedTextureAssets(TMap<FString, FRende
 			continue;
 		}
 
+		UStreamableRenderAsset* RenderAsset = StreamingRenderAsset.RenderAsset;
+		const FStreamableRenderResourceState ResourceState = RenderAsset->GetStreamableResourceState();
 		const FString TextureGroupName = UTexture::GetTextureGroupString(static_cast<TextureGroup>(StreamingRenderAsset.LODGroup));
-		const FStreamableRenderResourceState ResourceState = StreamingRenderAsset.RenderAsset->GetStreamableResourceState();
-		const int32 CurrentMipIndex = FMath::Max(ResourceState.MaxNumLODs - StreamingRenderAsset.ResidentMips, 0);
-		const int32 MaxAllowedMipIndex = FMath::Max(ResourceState.MaxNumLODs - StreamingRenderAsset.MaxAllowedMips, 0);
-		const int32 MipIndexDifference = FMath::Max(MaxAllowedMipIndex - CurrentMipIndex, 0);
-		const int32 MipArrayIndex = FMath::Clamp(-MipIndexDifference, 0, MipLevelMaxToCheck-1);
+		const int32 CurrentMipIndex = FMath::Max(0, ResourceState.MaxNumLODs - StreamingRenderAsset.ResidentMips);
+		const int32 MaxAllowedMipIndex = FMath::Max(0, ResourceState.MaxNumLODs - StreamingRenderAsset.MaxAllowedMips);
+		const int32 MipIndexDifference = FMath::Max(0, MaxAllowedMipIndex - CurrentMipIndex);
+		const int32 MipArrayIndex = FMath::Max(0, -MipIndexDifference);
 
-		FRenderedTextureGroupMipStats& Group = OutRenderedTextureAssets.FindOrAdd(TextureGroupName, FRenderedTextureGroupMipStats(MipLevelMaxToCheck));
-		Group.MipDifferenceByAmount[MipArrayIndex]++;
-		Group.TotalAssetCount++;
+		FRenderedTextureStats* Stats = OutRenderedTextureStats.Find(RenderAsset->GetName());
+		if(Stats != nullptr) {
+			// Keep max mip level ever shown
+			Stats->MaxMipLevelShown = MipArrayIndex < Stats->MaxMipLevelShown ? MipArrayIndex : Stats->MaxMipLevelShown;
+		} else {
+			FRenderedTextureStats NewStats;
+			NewStats.MaxMipLevelShown = MipArrayIndex;
+			NewStats.TextureGroup = TextureGroupName;
+			OutRenderedTextureStats.Add(RenderAsset->GetName(), NewStats);
+		}
 	}
 }
 
