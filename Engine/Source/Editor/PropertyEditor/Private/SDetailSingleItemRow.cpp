@@ -18,6 +18,217 @@
 #include "Modules/ModuleManager.h"
 #include "SResetToDefaultPropertyEditor.h"
 
+
+namespace DetailWidgetConstants
+{
+	const FMargin LeftRowPadding( 12.0f, 2.5f, 12.0f, 2.5f );
+	const FMargin RightRowPadding( 12.0f, 2.5f, 2.0f, 2.5f );
+}
+
+namespace SDetailSingleItemRow_Helper
+{
+	//Get the node item number in case it is expand we have to recursively count all expanded children
+	void RecursivelyGetItemShow(TSharedRef<FDetailTreeNode> ParentItem, int32 &ItemShowNum)
+	{
+		if (ParentItem->GetVisibility() == ENodeVisibility::Visible)
+		{
+			ItemShowNum++;
+		}
+
+		if (ParentItem->ShouldBeExpanded())
+		{
+			TArray< TSharedRef<FDetailTreeNode> > Childrens;
+			ParentItem->GetChildren(Childrens);
+			for (TSharedRef<FDetailTreeNode> ItemChild : Childrens)
+			{
+				RecursivelyGetItemShow(ItemChild, ItemShowNum);
+			}
+		}
+	}
+
+	FSlateColor GetBackgroundColor(int32 IndentLevel)
+	{
+		FLinearColor BackgroundColor = FAppStyle::Get().GetSlateColor("Colors.Background").GetSpecifiedColor();
+
+		return FSlateColor(BackgroundColor + FLinearColor(2.0f/255, 2.0f/255, 2.0f/255) * (IndentLevel % 4));
+	}
+}
+
+class SDetailsIndent : public SCompoundWidget
+{
+public:
+
+	SLATE_BEGIN_ARGS(SDetailsIndent) {}
+	SLATE_END_ARGS()
+
+	TSharedPtr<SHorizontalBox> ChildBox;
+	TSharedPtr<SButton> ExpanderArrow;
+	TSharedPtr<SDetailSingleItemRow> Row;
+
+	void Construct(const FArguments& InArgs, TSharedRef<SDetailSingleItemRow> DetailsRow)
+	{
+		Row = DetailsRow;
+
+		ChildSlot
+		[
+			SAssignNew(ChildBox, SHorizontalBox)
+		];
+	}
+
+	void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override
+	{
+		int32 IndentLevel = Row->GetIndentLevel();
+		if (ChildBox->NumSlots() == IndentLevel)
+		{
+			// already initialized, don't need to do anything
+			return;
+		}
+
+		ChildBox->ClearChildren();
+
+		for (int32 i = 0; i < IndentLevel; ++i)
+		{
+			SHorizontalBox::FSlot& NewSlot = ChildBox->AddSlot()
+				.VAlign(VAlign_Fill)
+				.HAlign(HAlign_Left)
+				.Padding(0);
+
+			if (i == IndentLevel - 1)
+			{
+				NewSlot
+				.AutoWidth()
+				[
+					SNew(SBox)
+					.WidthOverride(32)
+					[
+						SNew(SBorder)
+						.BorderImage(FAppStyle::Get().GetBrush("DetailsView.GridLine"))
+						.Visibility(this, &SDetailsIndent::GetExpanderVisibility)
+						.Padding(FMargin(0, 0, 1, 0))
+						[
+							SNew(SBorder)
+							.BorderImage(FAppStyle::Get().GetBrush("DetailsView.CategoryMiddle"))
+							.BorderBackgroundColor(Row.ToSharedRef(), &SDetailSingleItemRow::GetInnerBackgroundColor)
+							.Padding(0)
+							[
+								SAssignNew(ExpanderArrow, SButton)
+								.ButtonStyle(FCoreStyle::Get(), "NoBorder")
+								.VAlign(VAlign_Center)
+								.HAlign(HAlign_Center)
+								.Visibility(this, &SDetailsIndent::GetExpanderVisibility)
+								.ClickMethod(EButtonClickMethod::MouseDown)
+								.OnClicked(this, &SDetailsIndent::OnExpanderClicked)
+								.ContentPadding(0)
+								.IsFocusable(false)
+								[
+									SNew(SImage)
+									.Image(this, &SDetailsIndent::GetExpanderImage)
+									.ColorAndOpacity(FSlateColor::UseForeground())
+								]
+							]
+						]
+					]
+				];
+			}
+			else
+			{
+				NewSlot
+				[
+					SNew(SBox)
+					.WidthOverride(16)
+					[
+						SNew(SBorder)
+						.BorderImage(FAppStyle::Get().GetBrush("DetailsView.CategoryMiddle"))
+						.BorderBackgroundColor_Static(&SDetailSingleItemRow_Helper::GetBackgroundColor, i)
+						.Padding(0)
+						[
+							SNew(SImage)
+							.Image(FAppStyle::Get().GetBrush("DetailsView.ArrayDropShadow"))
+						]
+					]
+				];
+			}
+		}
+	}
+
+	EVisibility GetExpanderVisibility() const
+	{
+		return Row->DoesItemHaveChildren() ? EVisibility::Visible : EVisibility::Collapsed;
+	}
+
+	const FSlateBrush* GetExpanderImage() const
+	{
+		const bool bIsItemExpanded = Row->IsItemExpanded();
+
+		FName ResourceName;
+		if (bIsItemExpanded)
+		{
+			if (ExpanderArrow->IsHovered())
+			{
+				static FName ExpandedHoveredName = "TreeArrow_Expanded_Hovered";
+				ResourceName = ExpandedHoveredName;
+			}
+			else
+			{
+				static FName ExpandedName = "TreeArrow_Expanded";
+				ResourceName = ExpandedName;
+			}
+		}
+		else
+		{
+			if (ExpanderArrow->IsHovered())
+			{
+				static FName CollapsedHoveredName = "TreeArrow_Collapsed_Hovered";
+				ResourceName = CollapsedHoveredName;
+			}
+			else
+			{
+				static FName CollapsedName = "TreeArrow_Collapsed";
+				ResourceName = CollapsedName;
+			}
+		}
+
+		return FAppStyle::Get().GetBrush(ResourceName);
+	}
+
+	FReply OnExpanderClicked()
+	{
+		// Recurse the expansion if "shift" is being pressed
+		const FModifierKeysState ModKeyState = FSlateApplication::Get().GetModifierKeys();
+		if(ModKeyState.IsShiftDown())
+		{
+			Row->Private_OnExpanderArrowShiftClicked();
+		}
+		else
+		{
+			Row->ToggleExpansion();
+		}
+
+		return FReply::Handled();
+	}
+
+	/*int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override
+	{
+		int32 IndentLevel = Row->GetIndentLevel();
+		for (int32 i = 0; i < IndentLevel; ++i)
+		{
+			FVector2D Offset(i * 16, 0);
+
+			FSlateDrawElement::MakeBox( 
+				OutDrawElements,
+				LayerId,
+				AllottedGeometry.ToPaintGeometry(FSlateLayoutTransform(Offset)),
+				GetIndentBrush(i),
+				ESlateDrawEffect::None,
+				FLinearColor(1,1,1,0.5f)
+			);
+		}
+
+		return LayerId;
+	}
+	*/
+};
+
 void SConstrainedBox::Construct(const FArguments& InArgs)
 {
 	MinWidth = InArgs._MinWidth;
@@ -49,34 +260,6 @@ FVector2D SConstrainedBox::ComputeDesiredSize(float LayoutScaleMultiplier) const
 		}
 
 		return FVector2D(XVal, ChildSize.Y);
-	}
-}
-
-namespace DetailWidgetConstants
-{
-	const FMargin LeftRowPadding( 0.0f, 2.5f, 12.0f, 2.5f );
-	const FMargin RightRowPadding( 12.0f, 2.5f, 2.0f, 2.5f );
-}
-
-namespace SDetailSingleItemRow_Helper
-{
-	//Get the node item number in case it is expand we have to recursively count all expanded children
-	void RecursivelyGetItemShow(TSharedRef<FDetailTreeNode> ParentItem, int32 &ItemShowNum)
-	{
-		if (ParentItem->GetVisibility() == ENodeVisibility::Visible)
-		{
-			ItemShowNum++;
-		}
-
-		if (ParentItem->ShouldBeExpanded())
-		{
-			TArray< TSharedRef<FDetailTreeNode> > Childrens;
-			ParentItem->GetChildren(Childrens);
-			for (TSharedRef<FDetailTreeNode> ItemChild : Childrens)
-			{
-				RecursivelyGetItemShow(ItemChild, ItemShowNum);
-			}
-		}
 	}
 }
 
@@ -398,18 +581,34 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 				.Value(ColumnSizeData.PropertyColumnWidth)
 				.OnSlotResized(ColumnSizeData.OnPropertyColumnResized)
 			[
-				SAssignNew(InnerSplitter, SSplitter)
-				.Style(FEditorStyle::Get(), "DetailsView.Splitter")
-				.PhysicalSplitterHandleSize(1.0f)
-				.HitDetectionSplitterHandleSize(5.0f)
-				.HighlightedHandleIndex(ColumnSizeData.HoveredSplitterIndex)
-				.OnHandleHovered(ColumnSizeData.OnSplitterHandleHovered)
+				SNew(SBorder)
+				.BorderImage(FAppStyle::Get().GetBrush("DetailsView.CategoryMiddle"))
+				.BorderBackgroundColor(this, &SDetailSingleItemRow::GetInnerBackgroundColor)
+				.Padding(0)
+				[
+					SAssignNew(InnerSplitter, SSplitter)
+					.Style(FEditorStyle::Get(), "DetailsView.Splitter")
+					.PhysicalSplitterHandleSize(1.0f)
+					.HitDetectionSplitterHandleSize(5.0f)
+					.HighlightedHandleIndex(ColumnSizeData.HoveredSplitterIndex)
+					.OnHandleHovered(ColumnSizeData.OnSplitterHandleHovered)
+				]
 			];
 
 			// create Name column:
 			// | Left  | Name | Value | Right |
 			TSharedRef<SHorizontalBox> NameColumnBox = SNew(SHorizontalBox)
 				.Clipping(EWidgetClipping::OnDemand);
+
+			// indentation and expander arrow
+			NameColumnBox->AddSlot()
+				.HAlign(HAlign_Left)
+				.VAlign(VAlign_Fill)
+				.Padding(0,0,0,0)
+				.AutoWidth()
+				[
+					SNew(SDetailsIndent, SharedThis(this))
+				];
 			
 			TSharedPtr<FPropertyNode> PropertyNode = Customization->GetPropertyNode();
 			if (PropertyNode.IsValid())
@@ -417,15 +616,16 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 				if (PropertyNode->IsReorderable())
 				{
 					TSharedPtr<SDetailSingleItemRow> InRow = SharedThis(this);
-					TSharedRef<SWidget> Handle = PropertyEditorHelpers::MakePropertyReorderHandle(PropertyNode.ToSharedRef(), InRow);
-					Handle->SetEnabled(IsPropertyEditingEnabled);
+					TSharedRef<SWidget> ArrayHandle = PropertyEditorHelpers::MakePropertyReorderHandle(PropertyNode.ToSharedRef(), InRow);
+					ArrayHandle->SetEnabled(IsPropertyEditingEnabled);
 
 					NameColumnBox->AddSlot()
-						.Padding(0.0f, 0.0f, 10.0f, 0.0f)
-						.HAlign(HAlign_Right)
+						.Padding(5,0,0,0)
+						.HAlign(HAlign_Left)
 						.VAlign(VAlign_Center)
+						.AutoWidth()
 						[
-							Handle
+							ArrayHandle
 						];
 
 					ArrayDragDelegate = FOnTableRowDragEnter::CreateSP(this, &SDetailSingleItemRow::OnArrayDragEnter);
@@ -443,17 +643,6 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 					ArrayAcceptDropDelegate = FOnCanAcceptDrop::CreateSP(this, &SDetailSingleItemRow::OnArrayCanAcceptDrop);
 				}
 			}
-
-			// expander arrow
-			NameColumnBox->AddSlot()
-				.HAlign(HAlign_Right)
-				.VAlign(VAlign_Center)
-				.Padding(0,0,3,0)
-				.AutoWidth()
-				[
-					SNew(SExpanderArrow, SharedThis(this))
-					.BaseIndentLevel(1)
-				];
 
 			if (bHasMultipleColumns)
 			{
@@ -501,7 +690,7 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 						+ SHorizontalBox::Slot()
 						.HAlign(HAlign_Right)
 						.VAlign(VAlign_Center)
-						.Padding(3,0,3,0)
+						.Padding(5,0,0,0)
 						.AutoWidth()
 						[
 							ExtensionWidget.ToSharedRef()
@@ -613,12 +802,13 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 	this->ChildSlot
 	[
 		SNew( SBorder )
-		.BorderImage( FEditorStyle::GetBrush( "DetailsView.GridLine" ) )
-		.Padding( FMargin( 0, 0, 0, 1 ) )
+		.BorderImage(FAppStyle::Get().GetBrush( "DetailsView.GridLine"))
+		.Padding( FMargin(0, 0, 0, 1) )
 		[
 			SNew( SBorder )
-			.BorderImage( this, &SDetailSingleItemRow::GetBorderImage )
-			.Padding( FMargin( 0.0f, 0.0f, SDetailTableRowBase::ScrollbarPaddingSize, 0.0f ) )
+			.BorderImage(FAppStyle::Get().GetBrush("DetailsView.CategoryMiddle"))
+			.BorderBackgroundColor(this, &SDetailSingleItemRow::GetOuterBackgroundColor)
+			.Padding(FMargin( 0.0f, 0.0f, SDetailTableRowBase::ScrollbarPaddingSize, 0.0f ))
 			[
 				Widget
 			]
@@ -635,6 +825,47 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 			.OnCanAcceptDrop(ArrayAcceptDropDelegate),
 		InOwnerTableView
 	);
+}
+
+/** Get the background color of the outer part of the row, which contains the edit condition and extension widgets. */
+FSlateColor SDetailSingleItemRow::GetOuterBackgroundColor() const
+{
+	if (IsHighlighted())
+	{
+		return FAppStyle::Get().GetSlateColor("Colors.Background");
+	}
+	else if (bIsDragDropObject)
+	{
+		return FAppStyle::Get().GetSlateColor("Colors.Background");
+	}
+	else if (IsHovered() && !bIsHoveredDragTarget)
+	{
+		return FAppStyle::Get().GetSlateColor("Colors.Header");
+	}
+	else if (bIsHoveredDragTarget)
+	{
+		return FAppStyle::Get().GetSlateColor("Colors.Background");
+	}
+	
+	return FAppStyle::Get().GetSlateColor("Colors.Background");
+}
+
+/** Get the background color of the inner part of the row, which contains the name and value widgets. */
+FSlateColor SDetailSingleItemRow::GetInnerBackgroundColor() const
+{
+	if (IsHovered() && !bIsHoveredDragTarget)
+	{
+		return FAppStyle::Get().GetSlateColor("Colors.Header");
+	}
+
+	int32 IndentLevel = 0; 
+	if (OwnerTablePtr.IsValid())
+	{
+		IndentLevel = GetIndentLevel();
+	}
+	IndentLevel = FMath::Max(0, IndentLevel - 1);
+
+	return SDetailSingleItemRow_Helper::GetBackgroundColor(IndentLevel);
 }
 
 bool SDetailSingleItemRow::OnContextMenuOpening(FMenuBuilder& MenuBuilder)
@@ -860,30 +1091,6 @@ bool SDetailSingleItemRow::CanPasteProperty() const
 	}
 
 	return !ClipboardContent.IsEmpty();
-}
-
-const FSlateBrush* SDetailSingleItemRow::GetBorderImage() const
-{
-	if( IsHighlighted() )
-	{
-		return FEditorStyle::GetBrush("DetailsView.CategoryMiddle_Highlighted");
-	}
-	else if (bIsDragDropObject)
-	{
-		return FEditorStyle::GetBrush("DetailsView.CategoryMiddle_Active");
-	}
-	else if (IsHovered() && !bIsHoveredDragTarget)
-	{
-		return FEditorStyle::GetBrush("DetailsView.CategoryMiddle_Hovered");
-	}
-	else if (bIsHoveredDragTarget)
-	{
-		return FEditorStyle::GetBrush("DetailsView.CategoryMiddle_Highlighted");
-	}
-	else
-	{
-		return FEditorStyle::GetBrush("DetailsView.CategoryMiddle");
-	}
 }
 
 TSharedRef<SWidget> SDetailSingleItemRow::CreateExtensionWidget(TSharedRef<SWidget> ValueWidget, FDetailLayoutCustomization& InCustomization, TSharedRef<FDetailTreeNode> InTreeNode)

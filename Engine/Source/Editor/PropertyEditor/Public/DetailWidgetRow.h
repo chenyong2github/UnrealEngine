@@ -13,7 +13,6 @@
 #include "Widgets/Layout/SSpacer.h"
 
 class FDetailWidgetRow;
-struct FCustomEditCondition;
 class FResetToDefaultOverride;
 
 /** Widget declaration for custom widgets in a widget row */

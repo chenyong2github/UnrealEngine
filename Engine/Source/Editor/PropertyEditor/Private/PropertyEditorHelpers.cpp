@@ -821,9 +821,11 @@ namespace PropertyEditorHelpers
 		TSharedRef<SArrayRowHandle> Handle = SNew(SArrayRowHandle)
 			.Content()
 			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
-				.Padding(5.0f, 0.0f)
+				SNew(SBox)
+				.Padding(0.0f)
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
+				.WidthOverride(16.0f)
 				[
 					SNew(SImage)
 					.Image(FCoreStyle::Get().GetBrush("VerticalBoxDragIndicatorShort"))

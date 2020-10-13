@@ -88,7 +88,8 @@ private:
 	void OnCopyProperty();
 	void OnPasteProperty();
 	bool CanPasteProperty() const;
-	const FSlateBrush* GetBorderImage() const;
+	FSlateColor GetOuterBackgroundColor() const;
+	FSlateColor GetInnerBackgroundColor() const;
 	TSharedRef<SWidget> CreateExtensionWidget( TSharedRef<SWidget> ValueWidget, FDetailLayoutCustomization& InCustomization, TSharedRef<FDetailTreeNode> InTreeNode );
 	TSharedRef<SWidget> CreateKeyframeButton( FDetailLayoutCustomization& InCustomization, TSharedRef<FDetailTreeNode> InTreeNode );
 	bool IsKeyframeButtonEnabled(TSharedRef<FDetailTreeNode> InTreeNode) const;
@@ -121,6 +122,8 @@ private:
 	bool bIsHoveredDragTarget;
 	bool bIsDragDropObject;
 	TSharedPtr<FPropertyNode> SwappablePropertyNode;
+
+	friend class SDetailsIndent;
 };
 
 class FArrayRowDragDropOp : public FDecoratedDragDropOp
