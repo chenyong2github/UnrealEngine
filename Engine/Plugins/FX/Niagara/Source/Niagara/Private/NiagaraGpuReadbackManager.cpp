@@ -25,13 +25,18 @@ FNiagaraGpuReadbackManager::~FNiagaraGpuReadbackManager()
 
 void FNiagaraGpuReadbackManager::Tick()
 {
+	TickInternal(false);
+}
+
+void FNiagaraGpuReadbackManager::TickInternal(bool bAssumeGpuIdle)
+{
 	check(IsInRenderingThread());
 
 	TArray<TPair<void*, uint32>, TInlineAllocator<1>> ReadbackData;
 	while (FPendingReadback * Readback = PendingReadbacks.Peek())
 	{
 		// When we hit the first incomplete readback the rest will also be incomplete as we assume chronological insertion order
-		if (!Readback->Fence->Poll())
+		if (!bAssumeGpuIdle && !Readback->Fence->Poll())
 		{
 			break;
 		}
@@ -40,7 +45,7 @@ void FNiagaraGpuReadbackManager::Tick()
 		for (const TPair<FStagingBufferRHIRef, uint32>& StagingBuffer : Readback->StagingBuffers)
 		{
 			void* DataPtr = StagingBuffer.Key->Lock(0, StagingBuffer.Value);
-			ensure(DataPtr);
+			ensureMsgf(DataPtr || (StagingBuffer.Value == 0), TEXT("NiagaraGpuReadbackManager StagingBuffer returned nullptr and size is %d bytes, bAssumeGpuIdle(%d)"), StagingBuffer.Value, bAssumeGpuIdle);
 			ReadbackData.Emplace(DataPtr, StagingBuffer.Value);
 		}
 
@@ -56,6 +61,18 @@ void FNiagaraGpuReadbackManager::Tick()
 		// Remove the readback as it's complete
 		PendingReadbacks.Pop();
 	}
+}
+
+// Wait for all pending readbacks to complete
+void FNiagaraGpuReadbackManager::WaitCompletion(FRHICommandListImmediate& RHICmdList)
+{
+	// Ensure all GPU commands have been executed as we will ignore the fence
+	// This is because the fence may be implemented as a simple counter rather than a real fence
+	RHICmdList.SubmitCommandsAndFlushGPU();
+	RHICmdList.BlockUntilGPUIdle();
+
+	// Perform a tick which will flush everything
+	TickInternal(true);
 }
 
 void FNiagaraGpuReadbackManager::EnqueueReadback(FRHICommandList& RHICmdList, FRHIVertexBuffer* Buffer, FCompletionCallback Callback)
