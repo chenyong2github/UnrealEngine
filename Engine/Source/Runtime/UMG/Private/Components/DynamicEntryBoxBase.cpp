@@ -194,6 +194,7 @@ void UDynamicEntryBoxBase::SetRadialSettings(const FRadialBoxSettings& InSetting
 		StaticCastSharedPtr<SRadialBox>(MyPanelWidget)->SetStartingAngle(InSettings.StartingAngle);
 		StaticCastSharedPtr<SRadialBox>(MyPanelWidget)->SetDistributeItemsEvenly(InSettings.bDistributeItemsEvenly);
 		StaticCastSharedPtr<SRadialBox>(MyPanelWidget)->SetAngleBetweenItems(InSettings.AngleBetweenItems);
+		StaticCastSharedPtr<SRadialBox>(MyPanelWidget)->SetSectorCentralAngle(InSettings.SectorCentralAngle);
 	}
 }
 
@@ -233,7 +234,8 @@ TSharedRef<SWidget> UDynamicEntryBoxBase::RebuildWidget()
 			.UseAllottedWidth(true)
 			.StartingAngle(RadialBoxSettings.StartingAngle)
 			.bDistributeItemsEvenly(RadialBoxSettings.bDistributeItemsEvenly)
-			.AngleBetweenItems(RadialBoxSettings.AngleBetweenItems);
+			.AngleBetweenItems(RadialBoxSettings.AngleBetweenItems)
+			.SectorCentralAngle(RadialBoxSettings.SectorCentralAngle);
 		break;
 	case EDynamicBoxType::Overlay:
 		EntryBoxWidget = SAssignNew(MyPanelWidget, SOverlay)
