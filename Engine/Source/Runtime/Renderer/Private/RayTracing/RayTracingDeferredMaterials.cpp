@@ -33,6 +33,26 @@ class FRayTracingDeferredMaterialCHS : public FGlobalShader
 
 IMPLEMENT_GLOBAL_SHADER(FRayTracingDeferredMaterialCHS, "/Engine/Private/RayTracing/RayTracingDeferredMaterials.usf", "DeferredMaterialCHS", SF_RayHitGroup);
 
+class FRayTracingDeferredMaterialMS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FRayTracingDeferredMaterialMS)
+	SHADER_USE_ROOT_PARAMETER_STRUCT(FRayTracingDeferredMaterialMS, FGlobalShader)
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return ShouldCompileRayTracingShadersForProject(Parameters.Platform);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+	}
+
+	using FParameters = FEmptyShaderParameters;
+};
+
+IMPLEMENT_GLOBAL_SHADER(FRayTracingDeferredMaterialMS, "/Engine/Private/RayTracing/RayTracingDeferredMaterials.usf", "DeferredMaterialMS", SF_RayMiss);
+
 FRayTracingPipelineState* FDeferredShadingSceneRenderer::BindRayTracingDeferredMaterialGatherPipeline(FRHICommandList& RHICmdList, const FViewInfo& View, const TArrayView<FRHIRayTracingShader*>& RayGenShaderTable)
 {
 	SCOPE_CYCLE_COUNTER(STAT_BindRayTracingPipeline);
@@ -47,6 +67,10 @@ FRayTracingPipelineState* FDeferredShadingSceneRenderer::BindRayTracingDeferredM
 	auto ClosestHitShader = View.ShaderMap->GetShader<FRayTracingDeferredMaterialCHS>();
 	FRHIRayTracingShader* HitShaderTable[] = { ClosestHitShader.GetRayTracingShader() };
 	Initializer.SetHitGroupTable(HitShaderTable);
+
+	auto MissShader = View.ShaderMap->GetShader<FRayTracingDeferredMaterialMS>();
+	FRHIRayTracingShader* MissShaderTable[] = { MissShader.GetRayTracingShader() };
+	Initializer.SetMissShaderTable(MissShaderTable);
 
 	FRayTracingPipelineState* PipelineState = PipelineStateCache::GetAndOrCreateRayTracingPipelineState(RHICmdList, Initializer);
 
