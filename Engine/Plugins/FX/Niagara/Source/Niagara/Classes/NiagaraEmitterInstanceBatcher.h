@@ -26,6 +26,7 @@ the same VectorVM byte code / compute shader code
 
 class FGPUSortManager;
 class FNiagaraGpuComputeDebug;
+class FNiagaraGpuReadbackManager;
 
 enum class ETickStage
 {
@@ -161,6 +162,7 @@ public:
 	/** Get the Gpu Compute Debug class, useful for visualizing textures, etc. */
 	FNiagaraGpuComputeDebug* GetGpuComputeDebug() const { return GpuComputeDebugPtr.Get(); }
 #endif
+	FNiagaraGpuReadbackManager* GetGpuReadbackManager() const { return GpuReadbackManagerPtr.Get(); }
 
 private:
 	using FEmitterInstanceList = TArray<FNiagaraComputeInstanceData*>;
@@ -308,4 +310,5 @@ private:
 #if WITH_EDITOR
 	TUniquePtr<FNiagaraGpuComputeDebug> GpuComputeDebugPtr;
 #endif
+	TUniquePtr<FNiagaraGpuReadbackManager> GpuReadbackManagerPtr;
 };
