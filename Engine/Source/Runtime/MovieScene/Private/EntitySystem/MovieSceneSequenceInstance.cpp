@@ -174,8 +174,6 @@ void FSequenceInstance::Update(UMovieSceneEntitySystemLinker* Linker, const FMov
 	FScopeCycleCounterUObject ContextScope(bShouldTrackObject ? GetPlayer()->AsUObject() : nullptr);
 #endif
 
-	SCOPED_NAMED_EVENT_TEXT("Widget::PlayAnimation", FColor::Emerald);
-
 	bHasEverUpdated = true;
 
 	if (bFinished)
