@@ -222,9 +222,19 @@ class DevicenDisplay(DeviceUnreal):
         # MultiUser parameters
 
         if CONFIG.MUSERVER_AUTO_JOIN:
-            args += f' -CONCERTRETRYAUTOCONNECTONERROR -CONCERTAUTOCONNECT -CONCERTSERVER={CONFIG.MUSERVER_SERVER_NAME} -CONCERTSESSION={SETTINGS.MUSERVER_SESSION_NAME} -CONCERTDISPLAYNAME={self.name} '
+            mu_options = [
+                f'-CONCERTRETRYAUTOCONNECTONERROR',
+                f'-CONCERTAUTOCONNECT', 
+                f'-CONCERTSERVER={CONFIG.MUSERVER_SERVER_NAME}',
+                f'-CONCERTSESSION={SETTINGS.MUSERVER_SESSION_NAME}', 
+                f'-CONCERTDISPLAYNAME={self.name}',
+                f'-CONCERTISHEADLESS',
+            ]
 
-        args += f' -LogCmds="LogDisplayClusterPlugin Log, LogDisplayClusterEngine Log, LogDisplayClusterConfig Log, LogDisplayClusterCluster Log, LogDisplayClusterGame Log, LogDisplayClusterGameMode Log, LogDisplayClusterInput Log, LogDisplayClusterInputVRPN Log, LogDisplayClusterNetwork Log, LogDisplayClusterNetworkMsg Log, LogDisplayClusterRender Log, LogDisplayClusterRenderSync Log, LogDisplayClusterBlueprint Log" '
+            args += f" {' '.join(mu_options)} "
+
+        # TODO: Make these optional
+        #args += f' -LogCmds="LogDisplayClusterPlugin Log, LogDisplayClusterEngine Log, LogDisplayClusterConfig Log, LogDisplayClusterCluster Log, LogDisplayClusterGame Log, LogDisplayClusterGameMode Log, LogDisplayClusterInput Log, LogDisplayClusterInputVRPN Log, LogDisplayClusterNetwork Log, LogDisplayClusterNetworkMsg Log, LogDisplayClusterRender Log, LogDisplayClusterRenderSync Log, LogDisplayClusterBlueprint Log" '
 
         path_to_exe = self.generate_unreal_exe_path()
         self.setting_ue_command_line.update_value(f"{path_to_exe} {args}")
