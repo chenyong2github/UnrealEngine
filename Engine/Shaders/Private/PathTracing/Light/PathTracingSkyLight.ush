@@ -66,12 +66,11 @@ void SkyLight_EvalLight(
 
 void SkyLight_EstimateLight(
 	int LightId,
-	RayDesc Ray,
-	FMaterialClosestHitPayload Payload,
+	float3 WorldPos,
+	float3 WorldNormal,
 	out float OutIrradiance
 )
 {
-	float3 WorldNormal = Payload.WorldNormal;
 	// Modifying diffuse contribution to prevent false negatives with PDF estimation
 	float3 SkySHDiffuse = max(GetSkySHDiffuse(WorldNormal), 0.01);
 	float3 SkyLightIrradiance = GetColor(LightId) * SkySHDiffuse;
@@ -101,6 +100,7 @@ void SkyLight_SampleLight(
 	//uint MipCount = Log2(SkyLight.MipDimensions.x);
 	uint MipCount = log2(SkyLight.MipDimensions.x);
 	float FacePdf = 0.0;
+	// FIXME: RandSample.x has already been used to pick a light source ...
 	uint FaceIndex = SampleFace(MipCount, RandSample.x, FacePdf);
 
 	uint2 MipPixel = 0;
@@ -168,4 +168,58 @@ void SkyLight_SampleLight(
 	OutLightUV = RayDirection;
 	OutPdf = RayPdf;
 #endif
+}
+
+
+//  NOTE: put new methods at the end for now, so we can re-use the methods above
+float4 SkyLight_TraceLight(RayDesc Ray, int LightId, float HitT) {
+	if (Ray.TMax == HitT)
+	{
+		// LightUV convention in the code below is just the world space ray direction
+		// so its safe to call into the method below for now ...
+
+		// #dxr_todo: write optimized form that combines radiance and pdf lookup in a single step
+
+		float3 Radiance = 0.0;
+		float Pdf = 0.0;
+
+		float3 LightUV = normalize(Ray.Direction);
+		SkyLight_EvalLight(LightId, LightUV, Ray, Radiance);
+		if (any(Radiance > 0))
+		{
+			SkyLight_PdfLight(Ray, LightId, LightUV, Pdf);
+		}
+		
+
+		return float4(Radiance, Pdf);
+	}
+	return 0.0;
+}
+
+void SkyLight_SampleLight(
+	int LightId,
+	float4 RandSample,
+	float3 WorldPos,
+	float3 WorldNormal,
+	out float3 OutDirection,
+	out float  OutDistance,
+	out float3 OutRadianceOverPdf,
+	out float OutPdf)
+{
+	// Make temp structures so we can re-use the calls above
+	// #dxr_todo: write optimized form that combines radiance and pdf lookup in a single step
+	RayDesc Ray;
+	Ray.Origin = WorldPos;
+	FMaterialClosestHitPayload Payload;
+	Payload.WorldNormal = WorldNormal;
+
+
+	float3 LightUV;
+	float3 Radiance;
+	SkyLight_SampleLight(Ray, Payload, RandSample, LightId, LightUV, OutPdf);
+	SkyLight_EvalLight(LightId, LightUV, Ray, Radiance);
+	
+	OutDirection = LightUV;
+	OutDistance = 1.0e27;
+	OutRadianceOverPdf = Radiance / OutPdf;
 }

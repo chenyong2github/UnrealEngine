@@ -10,8 +10,14 @@
 
 float CalcLobeSelectionPdf(float3 V, FMaterialClosestHitPayload Payload)
 {
-	// dxr_todo: Reinstate weighted lobe selection criteria (eg: roughness)
-	return 0.5;
+	// #dxr_todo: Can do much better than this - but this at least prevents under-sampling when one of the lobes is black
+	float3 Diff = GetDiffuseColor(Payload);
+	float3 Spec = GetSpecularColor(Payload);
+
+	float D = Diff.x + Diff.y + Diff.z;
+	float S = Spec.x + Spec.y + Spec.z;
+	return D / (D + S + 1e-6);
+
 
 	float Pdf = min(GetRoughness(Payload), 0.9);
 	return Pdf;
@@ -108,14 +114,14 @@ void DefaultLit_SampleMaterial(
 		float3 F_Metallic = F_Schlick(GetSpecularColor(Payload), VoH);
 		float3 F_Dielectric = FresnelReflectance(VoH, Ior1, GetIor(Payload));
 		float3 F = lerp(F_Dielectric, F_Metallic, GetMetallic(Payload));
-		float D = D_GGX(a2, NoH);
+		float D = Result.w / Result.z;// D_GGX(a2, NoH);
 		// Note: Pedantic application of normalized weights is on purpose
 		float G = Vis_SmithJointApprox(a2, NoV, NoL) * (4.0 * NoV * NoL);
 
 		float MicrofacetPdf = 0.0;
 		if (VoH > 0.0)
 		{
-			MicrofacetPdf = D * NoH / (4.0 * VoH);
+			MicrofacetPdf = Result.w / (4.0 * VoH);
 		}
 
 		OutThroughput = 0.0;

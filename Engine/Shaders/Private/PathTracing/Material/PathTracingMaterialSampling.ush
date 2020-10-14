@@ -42,7 +42,7 @@ bool IsNeeValidMaterial(FMaterialClosestHitPayload Payload)
 	#if FORCE_ALL_MATERIALS_DIFFUSE
 		return true;
 	#endif
-	
+
 	if (IsPureSpecularReflection(Payload))
 	{
 		return false;
@@ -62,6 +62,10 @@ bool IsNeeValidMaterial(FMaterialClosestHitPayload Payload)
 	else if (IsTwoSidedFoliageMaterial(Payload))
 	{
 		return true;
+	}
+	else if (IsUnlitMaterial(Payload))
+	{
+		return false;
 	}
 	else if(IsLambert(Payload))
 	{
@@ -124,6 +128,13 @@ void SampleMaterial(
 	{
 		TwoSidedFoliage_SampleMaterial(RayDirection, Payload, RandSample, OutDirection, OutThroughput, OutPdf, OutPositionBiasSign);
 	}
+	else if (IsUnlitMaterial(Payload))
+	{
+		OutDirection = 0;
+		OutThroughput = 0;
+		OutPdf = 0;
+		return;
+	}
 	else if(IsLambert(Payload))
 	{
 		Lambert_SampleMaterial(Payload, RandSample, OutDirection, OutThroughput, OutPdf);
@@ -176,6 +187,10 @@ void PdfMaterial(
 	else if (IsTwoSidedFoliageMaterial(Payload))
 	{
 		OutPdf = TwoSidedFoliage_PdfMaterial(IncomingDirection, OutgoingDirection, Payload);
+	}
+	else if (IsUnlitMaterial(Payload))
+	{
+		OutPdf = 0.0;
 	}
 	else if (IsLambert(Payload))
 	{
@@ -234,6 +249,12 @@ void EvalMaterial(
 	else if (IsTwoSidedFoliageMaterial(Payload))
 	{
 		TwoSidedFoliage_EvalMaterial(IncomingDirection, OutgoingDirection, Payload, OutThroughput, OutPdf);
+	}
+	else if (IsUnlitMaterial(Payload))
+	{
+		OutThroughput = 0.0;
+		OutPdf = 0.0;
+		return;
 	}
 	else if (IsLambert(Payload))
 	{

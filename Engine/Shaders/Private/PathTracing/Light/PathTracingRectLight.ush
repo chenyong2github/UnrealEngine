@@ -9,6 +9,85 @@
 #include "../../RectLight.ush"
 #include "PathTracingLightCommon.ush"
 
+float4 RectLight_TraceLight(RayDesc Ray, int LightId, float HitT)
+{
+	float3 LightPosition = GetPosition(LightId);
+	float3 LightNormal = GetNormal(LightId);
+	float3 LightDirection = LightPosition - Ray.Origin;
+	float DoN = dot(Ray.Direction, LightNormal);
+	float t = dot(LightDirection, LightNormal) / DoN;
+	// ray points toward the plane and intersect it?
+	if (DoN < 0 && t > Ray.TMin && t < HitT)
+	{
+		float3 LightdPdu = GetdPdu(LightId);
+		float3 LightdPdv = GetdPdv(LightId);
+		float2 LightExtent = 0.5 * GetRectSize(LightId);
+
+		float3 P = t * Ray.Direction - LightDirection;
+		float2 UV = float2(dot(P, LightdPdu), dot(P, LightdPdv));
+		// test point against 
+		if (all(abs(UV) <= LightExtent))
+		{
+			// Clip the Rectangle by the barndoors
+			FRect Rect = GetRect(LightDirection,
+				-LightNormal,
+				LightdPdv,
+				LightExtent.x,
+				LightExtent.y,
+				GetRectLightBarnCosAngle(LightId),
+				GetRectLightBarnLength(LightId),
+				true);
+			P = t * Ray.Direction - Rect.Origin;
+			// test again with the clipped extents
+			UV = float2(dot(P, LightdPdu), dot(P, LightdPdv));
+			if (all(abs(UV) <= Rect.Extent))
+			{
+				// stored color is radiance
+				float3 Radiance = GetColor(LightId);
+				float SolidAngle = BuildSphericalRect(Rect).SolidAngle;
+				return float4(Radiance, 1.0 / SolidAngle);
+			}
+		}
+	}
+	return 0.0;
+}
+
+void RectLight_SampleLight(
+	int LightId,
+	float4 RandSample,
+	float3 WorldPos,
+	float3 WorldNormal,
+	out float3 OutDirection,
+	out float  OutDistance,
+	out float3 OutRadianceOverPdf,
+	out float OutPdf)
+{
+	float3 LightPosition = GetPosition(LightId);
+	float3 LightNormal = GetNormal(LightId);
+	float3 LightdPdu = GetdPdu(LightId);
+	float3 LightdPdv = GetdPdv(LightId);
+	float LightWidth = GetWidth(LightId);
+	float LightHeight = GetHeight(LightId);
+
+	// Define rectangle and compute solid angle
+	FRect Rect = GetRect(LightPosition - WorldPos,
+		-LightNormal,
+		LightdPdv,
+		0.5 * LightWidth,
+		0.5 * LightHeight,
+		GetRectLightBarnCosAngle(LightId),
+		GetRectLightBarnLength(LightId),
+		true /* bComputeVisibleRect */);
+	FSphericalRect SphericalRect = BuildSphericalRect(Rect);
+
+	float3 Direction = UniformSampleSphericalRect(RandSample.yz, SphericalRect);
+
+	OutDirection = normalize(Direction);
+	OutDistance = length(Direction);
+	OutRadianceOverPdf = GetColor(LightId) * SphericalRect.SolidAngle;
+	OutPdf = 1.0 / SphericalRect.SolidAngle;
+}
+
 void RectLight_GenerateLightRay(
 	RayDesc Ray,
 	int LightId,
@@ -47,14 +126,14 @@ void RectLight_EvalLight(
 
 void RectLight_EstimateLight(
 	int LightId,
-	RayDesc Ray,
-	FMaterialClosestHitPayload Payload,
+	float3 WorldPos,
+	float3 WorldNormal,
 	out float OutIrradiance
 )
 {
 	// Distance to centroid
 	// #dxr_todo: UE-72533 Use closest point, instead
-	float3 LightDirection = GetPosition(LightId) - Payload.WorldPos;
+	float3 LightDirection = GetPosition(LightId) - WorldPos;
 	float LightDistanceSquared = dot(LightDirection, LightDirection);
 	LightDirection = normalize(LightDirection);
 	float3 LightNormal = GetNormal(LightId);
@@ -67,7 +146,7 @@ void RectLight_EstimateLight(
 	}
 
 	// Approximate geometric term
-	float3 SurfaceNormal = Payload.WorldNormal;
+	float3 SurfaceNormal = WorldNormal;
 #if 0
 	float NoL = dot(SurfaceNormal, LightDirection);
 	NoL = ENABLE_TRANSMISSION && HasTransmission(LightId) ? abs(NoL) : saturate(NoL);
