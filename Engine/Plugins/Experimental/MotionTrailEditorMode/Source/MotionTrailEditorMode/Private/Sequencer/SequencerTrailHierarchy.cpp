@@ -314,7 +314,10 @@ void FSequencerTrailHierarchy::UpdateSequencerBindings(const TArray<FGuid>& Sequ
 					continue;
 				}
 
-				OnUpdated(BoundComponent, AllTrails[ObjectsTracked[BoundComponent]].Get(), ObjectsTracked[BoundComponent]);
+				if (AllTrails[ObjectsTracked[BoundComponent]].IsValid())
+				{
+					OnUpdated(BoundComponent, AllTrails[ObjectsTracked[BoundComponent]].Get(), ObjectsTracked[BoundComponent]);
+				}
 			}
 		} // if TransformTrack
 		if (UMovieSceneSkeletalAnimationTrack* AnimTrack = Sequencer->GetFocusedMovieSceneSequence()->GetMovieScene()->FindTrack<UMovieSceneSkeletalAnimationTrack>(BindingGuid))
@@ -362,7 +365,10 @@ void FSequencerTrailHierarchy::UpdateSequencerBindings(const TArray<FGuid>& Sequ
 
 				for (const TPair<FName, FGuid>& BoneNameGuidPair : BonesTracked[BoundComponent])
 				{
-					OnUpdated(BoundComponent, AllTrails[BoneNameGuidPair.Value].Get(), BoneNameGuidPair.Value);
+					if (AllTrails[BoneNameGuidPair.Value].IsValid())
+					{
+						OnUpdated(BoundComponent, AllTrails[BoneNameGuidPair.Value].Get(), BoneNameGuidPair.Value);
+					}
 				}
 			}
 		}
@@ -411,7 +417,10 @@ void FSequencerTrailHierarchy::UpdateSequencerBindings(const TArray<FGuid>& Sequ
 
 				for (const TPair<FName, FGuid>& ControlNameGuidPair : ControlsTracked[BoundComponent])
 				{
-					OnUpdated(BoundComponent, AllTrails[ControlNameGuidPair.Value].Get(), ControlNameGuidPair.Value);
+					if (AllTrails[ControlNameGuidPair.Value].IsValid())
+					{
+						OnUpdated(BoundComponent, AllTrails[ControlNameGuidPair.Value].Get(), ControlNameGuidPair.Value);
+					}
 				}
 			}
 		} // if ControlRigParameterTrack
