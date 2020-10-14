@@ -450,7 +450,7 @@ void PersistentHierarchicalCull(
 				}
 				else
 				{
-					WaveInterlockedAddRoundUp( OutCandidateClustersArgs[3], OutCandidateClustersArgs[0], 64, NumChildren, CandidateClustersOffset );
+					WaveInterlockedAddInGroups( OutCandidateClustersArgs[3], OutCandidateClustersArgs[0], 64, NumChildren, CandidateClustersOffset );
 
 					FVisibleCluster VisibleCluster;
 					VisibleCluster.Flags = VisibleNode.Flags | CULLING_FLAG_TEST_LOD;
@@ -857,7 +857,7 @@ void CandidateCullInner(
 		else
 		{
 			uint OccludedClusterOffset = 0;
-			WaveInterlockedAddScalarRoundUp( OutOccludedClustersArgs[3], OutOccludedClustersArgs[0], 64, 1, OccludedClusterOffset );
+			WaveInterlockedAddScalarInGroups( OutOccludedClustersArgs[3], OutOccludedClustersArgs[0], 64, 1, OccludedClusterOffset );
 
 			if( OccludedClusterOffset < MaxClusters )
 			{

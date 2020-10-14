@@ -137,7 +137,7 @@ void InstanceCull(
 				if( bWasOccluded )
 				{
 					uint OccludedInstanceOffset = 0;
-					WaveInterlockedAddScalarRoundUp( OutOccludedInstancesArgs[3], OutOccludedInstancesArgs[0], 64, 1, OccludedInstanceOffset );
+					WaveInterlockedAddScalarInGroups( OutOccludedInstancesArgs[3], OutOccludedInstancesArgs[0], 64, 1, OccludedInstanceOffset );
 					OutOccludedInstances[ OccludedInstanceOffset ] = InstanceId;
 				}
 #endif
