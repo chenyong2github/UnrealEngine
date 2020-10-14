@@ -1131,6 +1131,7 @@ FActionMenuContent SGraphEditorImpl::GraphEd_OnGetContextMenuFor(const FGraphCon
 		check(Schema);
 
 		GraphPinForMenu.SetPin(SpawnInfo.GraphPin);
+		GraphNodeForMenu = SpawnInfo.GraphNode;
 		
 		if ((SpawnInfo.GraphPin != NULL) || (SpawnInfo.GraphNode != NULL))
 		{
