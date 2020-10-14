@@ -148,37 +148,37 @@ FArchive& FArchiveUObjectFromStructuredArchiveImpl::operator<<(FWeakObjectPtr& V
 	return *this;
 }
 
-void FArchiveUObjectFromStructuredArchiveImpl::PushShufflePattern(EDataShufflePattern Pattern)
+void FArchiveUObjectFromStructuredArchiveImpl::PushFileRegionType(EFileRegionType Type)
 {
-	check(CurrentPattern == EDataShufflePattern::None);
-	check(Pattern != EDataShufflePattern::None);
+	check(CurrentFileRegionType == EFileRegionType::None);
+	check(Type != EFileRegionType::None);
 
-	CurrentPattern = Pattern;
-	ShuffleStart = Tell();
+	CurrentFileRegionType = Type;
+	FileRegionStart = Tell();
 }
 
-void FArchiveUObjectFromStructuredArchiveImpl::PopShufflePattern()
+void FArchiveUObjectFromStructuredArchiveImpl::PopFileRegionType()
 {
-	check(CurrentPattern != EDataShufflePattern::None);
+	check(CurrentFileRegionType != EFileRegionType::None);
 
 	if (IsCooking() && CookingTarget()->SupportsFeature(ETargetPlatformFeatures::CookFileRegionMetadata))
 	{
 		FLinkerSave* LinkerSave = Cast<FLinkerSave>(GetLinker());
 		check(LinkerSave);
 
-		int64 Length = Tell() - ShuffleStart;
+		int64 Length = Tell() - FileRegionStart;
 		if (Length > 0)
 		{
-			LinkerSave->FileRegions.Add(FFileRegion(ShuffleStart, Length, CurrentPattern));
+			LinkerSave->FileRegions.Add(FFileRegion(FileRegionStart, Length, CurrentFileRegionType));
 		}
 	}
 
-	CurrentPattern = EDataShufflePattern::None;
+	CurrentFileRegionType = EFileRegionType::None;
 }
 
 bool FArchiveUObjectFromStructuredArchiveImpl::Finalize(FStructuredArchive::FRecord Record)
 {
-	check(CurrentPattern == EDataShufflePattern::None);
+	check(CurrentFileRegionType == EFileRegionType::None);
 
 	bool bShouldSerialize = Super::Finalize(Record);
 	if (bShouldSerialize)

@@ -8,24 +8,17 @@ using System;
 namespace AutomationTool
 {
 	/// <summary>
-	/// Describes the way regions of cooked data should be rearranged to achieve higher compression ratios.
+	/// Provides an identifier for the type of data within a given file region.
 	/// NOTE: Enum values here must match those in Serialization/FileRegions.h
 	/// </summary>
-	public enum DataShufflePattern : byte
+	public enum FileRegionType : byte
 	{
 		None = 0,
-
-		// 8 Byte Vectors
-		Pattern_44 = 1,
-		Pattern_224 = 2,
-		Pattern_116 = 3,
-		Pattern_11111111 = 4,
-
-		// 16 Byte Vectors
-		Pattern_8224 = 5,
-		Pattern_116224 = 6,
-		Pattern_116116 = 7,
-		Pattern_4444 = 8
+		BC1 = 2,
+		BC2 = 5,
+		BC3 = 6,
+		BC4 = 3,
+		BC5 = 7
 	}
 
 	public struct FileRegion
@@ -34,7 +27,7 @@ namespace AutomationTool
 
 		public ulong Offset;
 		public ulong Length;
-		public DataShufflePattern Pattern;
+		public FileRegionType Type;
 
 		public static List<FileRegion> ReadRegionsFromFile(string Filename)
 		{
@@ -50,7 +43,7 @@ namespace AutomationTool
 						FileRegion Region;
 						Region.Offset = Reader.ReadUInt64();
 						Region.Length = Reader.ReadUInt64();
-						Region.Pattern = (DataShufflePattern)Reader.ReadByte();
+						Region.Type = (FileRegionType)Reader.ReadByte();
 						Results.Add(Region);
 					}
 
@@ -65,12 +58,12 @@ namespace AutomationTool
 
 		public static void PrintSummaryTable(IEnumerable<FileRegion> Regions)
         {
-			var RegionsByPattern = (from Region in Regions group Region by Region.Pattern).ToDictionary(g => g.Key, g => g.ToList());
+			var RegionsByType = (from Region in Regions group Region by Region.Type).ToDictionary(g => g.Key, g => g.ToList());
 
 			CommandUtils.LogInformation(" +-------------------+----------------------------------+---------------+");
-			CommandUtils.LogInformation(" |      Pattern      |           Total Length           |  Num Regions  |");
+			CommandUtils.LogInformation(" |        Type       |           Total Length           |  Num Regions  |");
 			CommandUtils.LogInformation(" +-------------------+----------------------------------+---------------+");
-			foreach (var Pair in RegionsByPattern)
+			foreach (var Pair in RegionsByType)
 			{
 				// Find the total number of bytes covered by regions with this pattern
 				long TotalSizeInBytes = Pair.Value.Sum(r => (long)r.Length);

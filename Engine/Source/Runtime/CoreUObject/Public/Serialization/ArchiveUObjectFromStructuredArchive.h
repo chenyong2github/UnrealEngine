@@ -31,13 +31,13 @@ public:
 	virtual FArchive& operator<<(FWeakObjectPtr& Value) override;
 	//~ End FArchive Interface
 
-	virtual void PushShufflePattern(EDataShufflePattern Pattern) override;
-	virtual void PopShufflePattern() override;
+	virtual void PushFileRegionType(EFileRegionType Type) override;
+	virtual void PopFileRegionType() override;
 
 private:
 
-	int64 ShuffleStart = 0;
-	EDataShufflePattern CurrentPattern = EDataShufflePattern::None;
+	int64 FileRegionStart = 0;
+	EFileRegionType CurrentFileRegionType = EFileRegionType::None;
 
 	TArray<FLazyObjectPtr> LazyObjectPtrs;
 	TArray<FWeakObjectPtr> WeakObjectPtrs;
