@@ -212,9 +212,6 @@ void FStarshipEditorStyle::FStyle::SyncSettings()
 		{
 			SetColor(WindowHighlightColor_LinearRef, FLinearColor(0, 0, 0, 0));
 		}
-
-		WindowStyle.SetBorderBrush(EditorWindowHighlightBrush);
-		WindowStyle.SetBorderColor(WindowHighlightColor);
 	}
 }
 
@@ -7813,9 +7810,6 @@ void FStarshipEditorStyle::FStyle::SetupStatusBarStyle()
 		.SetColorAndOpacity(FStyleColors::Primary));
 }
 
-#undef IMAGE_BRUSH
-#undef BOX_BRUSH
-#undef BORDER_BRUSH
 #undef DEFAULT_FONT
 #undef ICON_FONT
 #undef LOCTEXT_NAMESPACE

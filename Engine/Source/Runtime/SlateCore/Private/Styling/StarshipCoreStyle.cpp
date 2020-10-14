@@ -671,8 +671,8 @@ TSharedRef<ISlateStyle> FStarshipCoreStyle::Create()
 			.SetPressed(IMAGE_BRUSH_SVG("Starship/CoreWidgets/Window/close", FVector2D(42.0f, 34.0f), FStyleColors::Foreground));
 #endif
 
-		Style->Set("Window", FWindowStyle()
-
+		FWindowStyle Window =
+			FWindowStyle()
 #if !PLATFORM_MAC
 			.SetMinimizeButtonStyle(MinimizeButtonStyle)
 			.SetMaximizeButtonStyle(MaximizeButtonStyle)
@@ -682,16 +682,17 @@ TSharedRef<ISlateStyle> FStarshipCoreStyle::Create()
 			.SetTitleTextStyle(NormalText)
 			.SetActiveTitleBrush(FSlateNoResource())
 			.SetInactiveTitleBrush(FSlateNoResource())
-			.SetFlashTitleBrush(IMAGE_BRUSH("Common/Window/WindowTitle_Flashing", Icon24x24, FLinearColor(1.0f, 1.0f, 1.0f, 1.0f), ESlateBrushTileType::Horizontal))	
+			.SetFlashTitleBrush(IMAGE_BRUSH("Common/Window/WindowTitle_Flashing", Icon24x24, FLinearColor(1.0f, 1.0f, 1.0f, 1.0f), ESlateBrushTileType::Horizontal))
 			.SetBackgroundBrush(FSlateColorBrush(FStyleColors::Recessed))
-			.SetBorderBrush(FSlateNoResource())
-			.SetOutlineBrush(FSlateRoundedBoxBrush(FLinearColor::Transparent, 0.0, FStyleColors::WindowBorder, 2.0))
+			.SetBorderBrush(FSlateRoundedBoxBrush(FStyleColors::Recessed, 2.0, FStyleColors::WindowBorder, 2.0))
+			.SetOutlineBrush(FSlateRoundedBoxBrush(FStyleColors::Recessed, 2.0, FStyleColors::InputOutline, 1.0))
 			.SetChildBackgroundBrush(FSlateColorBrush(FStyleColors::Recessed))
-			.SetOutlineColor(WindowHighlight)
-			.SetCornerRadius(0)
-			.SetBorderPadding(FMargin(2.0, 2.0, 2.0, 2.0))
-		);
+			.SetCornerRadius(2)
+			.SetBorderPadding(FMargin(3.0, 3.0, 3.0, 3.0));
 
+
+		Style->Set("Window", Window);
+		
 		Style->Set("ChildWindow.Background", new FSlateColorBrush(FStyleColors::Recessed));
 	}
 

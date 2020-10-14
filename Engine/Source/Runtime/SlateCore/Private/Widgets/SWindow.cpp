@@ -530,7 +530,7 @@ EHorizontalAlignment SWindow::GetTitleAlignment()
 
 void SWindow::ConstructWindowInternals()
 {
-	ForegroundColor = FCoreStyle::Get().GetSlateColor("DefaultForeground");
+	ForegroundColor = FAppStyle::Get().GetSlateColor("DefaultForeground");
 
 	// Setup widget that represents the main area of the window.  That is, everything inside the window's border.
 	TSharedRef< SVerticalBox > MainWindowArea =
@@ -561,17 +561,18 @@ void SWindow::ConstructWindowInternals()
 
 	UpdateWindowContentVisibility();
 
-	// create window content slot
-	MainWindowArea->AddSlot()
-		.FillHeight(1.0f)
-		.Expose(ContentSlot)
-		[
-			SNullWidget::NullWidget
-		];
-
 	// create window
-	if (Type != EWindowType::ToolTip && Type != EWindowType::CursorDecorator && !bIsPopupWindow && !bHasOSWindowBorder)
+	if ((Type == EWindowType::Normal || Type == EWindowType::GameWindow) && !bHasOSWindowBorder)
 	{
+		// create window content slot
+		MainWindowArea->AddSlot()
+			.FillHeight(1.0f)
+			.Expose(ContentSlot)
+			[
+				SNullWidget::NullWidget
+			];
+
+
 		WindowBackgroundImage =
 			FSlateApplicationBase::Get().MakeImage(
 				WindowBackground,
@@ -609,18 +610,18 @@ void SWindow::ConstructWindowInternals()
 
 			// window outline
 			+ SOverlay::Slot()
+			.Padding(2.0f)
 			[
 				WindowOutline.ToSharedRef()
 			]
 
 			// main area
 			+ SOverlay::Slot()
+			.Padding(TAttribute<FMargin>::Create(TAttribute<FMargin>::FGetter::CreateSP(this, &SWindow::GetWindowBorderSize, false)))
 			[
 				SAssignNew(ContentAreaVBox, SVerticalBox)
 				.Visibility(WindowContentVisibility)
-
-				+ SVerticalBox::Slot()
-				.Padding(TAttribute<FMargin>::Create(TAttribute<FMargin>::FGetter::CreateSP(this, &SWindow::GetWindowBorderSize, false)))
+				+ SVerticalBox::Slot()	
 				[
 					MainWindowArea
 				]
@@ -635,6 +636,15 @@ void SWindow::ConstructWindowInternals()
 	}
 	else if ( bHasOSWindowBorder || bVirtualWindow )
 	{
+		// create window content slot
+		MainWindowArea->AddSlot()
+			.FillHeight(1.0f)
+			.Expose(ContentSlot)
+			[
+				SNullWidget::NullWidget
+			];
+
+
 		this->ChildSlot
 		[
 			SAssignNew(WindowOverlay, SOverlay)
@@ -1247,26 +1257,27 @@ void SWindow::SetNativeWindow( TSharedRef<FGenericWindow> InNativeWindow )
 
 void SWindow::SetContent( TSharedRef<SWidget> InContent )
 {
-	if ( bIsPopupWindow || Type == EWindowType::CursorDecorator )
+	if (ContentSlot)
 	{
-		this->ChildSlot.operator[]( InContent );
+		ContentSlot->operator[](InContent);
 	}
 	else
 	{
-		this->ContentSlot->operator[]( InContent );
+		ChildSlot.operator[](InContent);
 	}
+	
 	Invalidate(EInvalidateWidgetReason::ChildOrder);
 }
 
 TSharedRef<const SWidget> SWindow::GetContent() const
 {
-	if ( bIsPopupWindow || Type == EWindowType::CursorDecorator )
+	if (ContentSlot)
 	{
-		return this->ChildSlot.GetChildAt(0);
+		return ContentSlot->GetWidget();
 	}
 	else
 	{
-		return this->ContentSlot->GetWidget();
+		return ChildSlot.GetChildAt(0);
 	}
 }
 
@@ -1694,7 +1705,6 @@ bool SWindow::OnIsActiveChanged( const FWindowActivateEvent& ActivateEvent )
 	return true;
 }
 
-
 void SWindow::Maximize()
 {
 	if (NativeWindow.IsValid())
@@ -1721,7 +1731,7 @@ void SWindow::Minimize()
 
 int32 SWindow::GetCornerRadius()
 {
-	return IsRegularWindow() ? Style->WindowCornerRadius : 0;
+	return Style->WindowCornerRadius;
 }
 
 bool SWindow::SupportsKeyboardFocus() const
