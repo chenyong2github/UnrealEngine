@@ -182,6 +182,19 @@ bool APlayerController::DestroyNetworkActorHandled()
 	UNetConnection* C = Cast<UNetConnection>(Player);
 	if (C)
 	{
+		UChildConnection* CC = Cast<UChildConnection>(Player);
+		if (CC)
+		{
+			// we are a child (splitscreen) player controller, we'll proceed to a normal destruction scheme by returning false.
+			UNetConnection* Parent = CC->GetParentConnection();
+			if (Parent)
+			{
+				// remove the child connection from the parent
+				Parent->Children.Remove(CC);
+			}
+			return false;
+		}
+
 		if (C->Channels[0] && C->State != USOCK_Closed)
 		{
 			C->bPendingDestroy = true;
@@ -1336,12 +1349,13 @@ void APlayerController::OnNetCleanup(UNetConnection* Connection)
 
 	check(UNetConnection::GNetConnectionBeingCleanedUp == NULL);
 	UNetConnection::GNetConnectionBeingCleanedUp = Connection;
+	
+	Destroy( true );
 	//@note: if we ever implement support for splitscreen players leaving a match without the primary player leaving, we'll need to insert
 	// a call to ClearOnlineDelegates() here so that PlayerController.ClearOnlineDelegates can use the correct ControllerId (which lives
 	// in ULocalPlayer)
 	Player = NULL;
-	NetConnection = NULL;
-	Destroy( true );		
+	NetConnection = NULL;	
 	UNetConnection::GNetConnectionBeingCleanedUp = NULL;
 }
 
