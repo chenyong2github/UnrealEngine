@@ -1845,6 +1845,8 @@ void FControlRigEditor::Tick(float DeltaTime)
 {
 	FBlueprintEditor::Tick(DeltaTime);
 
+	bool bDrawHierarchyBones = false;
+
 	// tick the control rig in case we don't have skeletal mesh
 	if (UControlRigBlueprint* Blueprint = GetControlRigBlueprint())
 	{
@@ -1854,6 +1856,15 @@ void FControlRigEditor::Tick(float DeltaTime)
 		{
 			ControlRig->SetDeltaTime(DeltaTime);
 			ControlRig->Evaluate_AnyThread();
+			bDrawHierarchyBones = true;
+		}
+	}
+
+	if (bDrawHierarchyBones)
+	{
+		if (FControlRigEditorEditMode* EditMode = GetEditMode())
+		{
+			EditMode->bDrawHierarchyBones = bDrawHierarchyBones;
 		}
 	}
 }
