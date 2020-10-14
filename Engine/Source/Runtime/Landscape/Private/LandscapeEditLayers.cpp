@@ -18,6 +18,7 @@ LandscapeEditLayers.cpp: Landscape editing layers mode
 #include "GlobalShader.h"
 #include "ShaderParameterUtils.h"
 #include "Engine/TextureRenderTarget2D.h"
+#include "Logging/MessageLog.h"
 
 #if WITH_EDITOR
 #include "LandscapeEditorModule.h"
@@ -39,10 +40,12 @@ LandscapeEditLayers.cpp: Landscape editing layers mode
 #include "Misc/FileHelper.h"
 #include "Misc/MapErrors.h"
 #include "Misc/UObjectToken.h"
+#include "Misc/ScopeExit.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Editor.h"
+#include "Widgets/Notifications/SNotificationList.h"
+#include "Framework/Notifications/NotificationManager.h"
 #endif
-#include "Logging/MessageLog.h"
 
 #define LOCTEXT_NAMESPACE "Landscape"
 
@@ -1276,19 +1279,56 @@ typedef FLandscapeLayersRender_RenderThread<FLandscapeLayersWeightmapShaderParam
 
 #if WITH_EDITOR
 
-struct FLandscapeIsTextureFullyStreamedIn
+void ALandscape::ShowEditLayersResourcesNotification(const FText& InText, TWeakPtr<SNotificationItem>& NotificationItem)
 {
-	bool operator()(UTexture2D* InTexture, bool bInWaitForStreaming)
+	TSharedPtr<SNotificationItem> PinnedItem = NotificationItem.Pin();
+	if (!PinnedItem.IsValid())
 	{
-		check(InTexture);
-		InTexture->bForceMiplevelsToBeResident = true;
-		if (bInWaitForStreaming)
-		{
-			InTexture->WaitForStreaming();
-		}
-		return InTexture->IsFullyStreamedIn();
+		FNotificationInfo Info(InText);
+		Info.bUseThrobber = true;
+		PinnedItem = FSlateNotificationManager::Get().AddNotification(Info);
+		NotificationItem = PinnedItem;
 	}
-};
+	else
+	{
+		PinnedItem->SetText(InText);
+	}
+	PinnedItem->SetCompletionState(SNotificationItem::ECompletionState::CS_Pending);
+	PinnedItem->SetExpireDuration(1.0f);
+	PinnedItem->ExpireAndFadeout();
+}
+
+void ALandscape::HideEditLayersResourcesNotification(TWeakPtr<SNotificationItem>& InNotificationItem)
+{
+	TSharedPtr<SNotificationItem> PinnedItem = InNotificationItem.Pin();
+	if (PinnedItem.IsValid() && (PinnedItem->GetCompletionState() != SNotificationItem::ECompletionState::CS_Success))
+	{
+		PinnedItem->SetCompletionState(SNotificationItem::ECompletionState::CS_Success);
+		PinnedItem->SetExpireDuration(1.0f);
+		PinnedItem->ExpireAndFadeout();
+	}
+}
+
+bool ALandscape::IsStreamableAssetFullyStreamedIn(UStreamableRenderAsset* InStreamableAsset, bool bInWaitForStreaming) const
+{
+	check(InStreamableAsset);
+	InStreamableAsset->bForceMiplevelsToBeResident = true;
+	if (bInWaitForStreaming && !InStreamableAsset->IsFullyStreamedIn())
+	{
+		InStreamableAsset->WaitForStreaming();
+	}
+	return InStreamableAsset->IsFullyStreamedIn();
+}
+
+bool ALandscape::IsMaterialResourceCompiled(FMaterialResource* InMaterialResource, bool bInWaitForCompilation) const
+{
+	check(InMaterialResource);
+	if (bInWaitForCompilation && !InMaterialResource->HasValidGameThreadShaderMap())
+	{
+		InMaterialResource->FinishCompilation();
+	}
+	return InMaterialResource->HasValidGameThreadShaderMap();
+}
 
 void ALandscape::CreateLayersRenderingResource()
 {
@@ -2650,10 +2690,10 @@ void ALandscape::PrintLayersDebugTextureResource(const FString& InContext, FText
 	}
 }
 
-bool ALandscape::PrepareLayersBrushTextureResources(bool bInWaitForStreaming, bool bHeightmap) const
+bool ALandscape::PrepareLayersBrushResources(bool bInWaitForStreaming, bool bHeightmap) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(LandscapeLayers_PrepareLayersBrushTextureResources);
-	TSet<UTexture2D*> StreamableTextures;
+	TSet<UObject*> Dependencies;
 	for (const FLandscapeLayer& Layer : LandscapeLayers)
 	{
 		for (const FLandscapeLayerBrush& Brush : Layer.Brushes)
@@ -2662,20 +2702,38 @@ bool ALandscape::PrepareLayersBrushTextureResources(bool bInWaitForStreaming, bo
 			{
 				if ((LandscapeBrush->IsAffectingWeightmap() && !bHeightmap) || (LandscapeBrush->IsAffectingHeightmap() && bHeightmap))
 				{
-					LandscapeBrush->GetRenderDependencies(StreamableTextures);
+					LandscapeBrush->GetRenderDependencies(Dependencies);
 				}
 			}
 		}
 	}
 
-	bool bReady = true;
-	FLandscapeIsTextureFullyStreamedIn IsTextureFullyStreamedIn;
-	for (UTexture2D* Texture : StreamableTextures)
+	ERHIFeatureLevel::Type FeatureLevel = GetWorld() ? (ERHIFeatureLevel::Type)GetWorld()->FeatureLevel : GMaxRHIFeatureLevel;
+	for (UObject* Dependency : Dependencies)
 	{
-		bReady &= IsTextureFullyStreamedIn(Texture, bInWaitForStreaming);
+		// Streamable textures need to be fully streamed in : 
+		if (UStreamableRenderAsset* StreamableRenderAsset = Cast<UStreamableRenderAsset>(Dependency))
+		{
+			if (!IsStreamableAssetFullyStreamedIn(StreamableRenderAsset, bInWaitForStreaming))
+			{
+				return false;
+			}
+		}
+
+		// Material shaders need to be fully compiled : 
+		if (UMaterialInterface* MaterialInterface = Cast<UMaterialInterface>(Dependency))
+		{
+			if (FMaterialResource* MaterialResource = MaterialInterface->GetMaterialResource(FeatureLevel))
+			{
+				if (!IsMaterialResourceCompiled(MaterialResource, bInWaitForStreaming))
+				{
+					return false;
+				}
+			}
+		}
 	}
 
-	return bReady;
+	return true;
 }
 
 bool ALandscape::PrepareLayersHeightmapTextureResources(bool bInWaitForStreaming) const
@@ -2692,13 +2750,12 @@ bool ALandscape::PrepareLayersHeightmapTextureResources(bool bInWaitForStreaming
 
 	Info->ForAllLandscapeProxies([&](ALandscapeProxy* Proxy)
 	{
-		FLandscapeIsTextureFullyStreamedIn IsTextureFullyStreamedIn;
 				
 		for (ULandscapeComponent* Component : Proxy->LandscapeComponents)
 		{
 			UTexture2D* ComponentHeightmap = Component->GetHeightmap();
 
-			IsReady &= IsTextureFullyStreamedIn(ComponentHeightmap, bInWaitForStreaming);
+			IsReady &= IsStreamableAssetFullyStreamedIn(ComponentHeightmap, bInWaitForStreaming);
 
 			for (const FLandscapeLayer& Layer : LandscapeLayers)
 			{
@@ -2718,7 +2775,7 @@ bool ALandscape::PrepareLayersHeightmapTextureResources(bool bInWaitForStreaming
 						LayerHeightmap->UTexture::UpdateResource();
 					}
 
-					IsReady &= IsTextureFullyStreamedIn(LayerHeightmap, bInWaitForStreaming);
+					IsReady &= IsStreamableAssetFullyStreamedIn(LayerHeightmap, bInWaitForStreaming);
 					IsReady &= bInWaitForStreaming || (LayerHeightmap->Resource != nullptr && LayerHeightmap->Resource->IsInitialized());
 				}
 			}
@@ -3682,14 +3739,13 @@ bool ALandscape::PrepareLayersWeightmapTextureResources(bool bInWaitForStreaming
 
 	Info->ForAllLandscapeProxies([&](ALandscapeProxy* Proxy)
 	{
-		FLandscapeIsTextureFullyStreamedIn IsTextureFullyStreamedIn;
 		for (const FLandscapeLayer& Layer : LandscapeLayers)
 		{
 			for (ULandscapeComponent* Component : Proxy->LandscapeComponents)
 			{
 				for (UTexture2D* ComponentWeightmap : Component->GetWeightmapTextures())
 				{
-					if (!IsTextureFullyStreamedIn(ComponentWeightmap, bInWaitForStreaming))
+					if (!IsStreamableAssetFullyStreamedIn(ComponentWeightmap, bInWaitForStreaming))
 					{
 						IsReady = false;
 						break;
@@ -3712,7 +3768,7 @@ bool ALandscape::PrepareLayersWeightmapTextureResources(bool bInWaitForStreaming
 							LayerWeightmap->UTexture::UpdateResource();
 						}
 
-						IsReady &= IsTextureFullyStreamedIn(LayerWeightmap, bInWaitForStreaming);
+						IsReady &= IsStreamableAssetFullyStreamedIn(LayerWeightmap, bInWaitForStreaming);
 						IsReady &= bInWaitForStreaming || (LayerWeightmap->Resource != nullptr && LayerWeightmap->Resource->IsInitialized());
 					}
 				}
@@ -4787,18 +4843,30 @@ void ALandscape::GetLandscapeComponentWeightmapsToRender(ULandscapeComponent* La
 	}
 }
 
-bool ALandscape::AreLayersTextureResourcesReady(bool bInWaitForStreaming) const
+bool ALandscape::AreLayersResourcesReady(bool bInWaitForStreaming) const
 {
 	const bool bHeightmapReady = PrepareLayersHeightmapTextureResources(bInWaitForStreaming);
 	const bool bWeightmapReady = PrepareLayersWeightmapTextureResources(bInWaitForStreaming);
-	const bool bBrushHeightmapbReady = PrepareLayersBrushTextureResources(bInWaitForStreaming, true);
-	const bool bBrushWeightmapReady = PrepareLayersBrushTextureResources(bInWaitForStreaming, false);
-	return bHeightmapReady && bWeightmapReady && bBrushHeightmapbReady && bBrushWeightmapReady;
+	const bool bBrushHeightmapReady = PrepareLayersBrushResources(bInWaitForStreaming, /* bHeightmap = */ true);
+	const bool bBrushWeightmapReady = PrepareLayersBrushResources(bInWaitForStreaming, /* bHeightmap = */ false);
+	return bHeightmapReady && bWeightmapReady && bBrushHeightmapReady && bBrushWeightmapReady;
 }
 
 void ALandscape::UpdateLayersContent(bool bInWaitForStreaming, bool bInSkipMonitorLandscapeEdModeChanges)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(LandscapeLayers_UpdateLayersContent);
+	
+	bool bHideEditLayerResourcesNotification = true;
+	ON_SCOPE_EXIT
+	{
+		// Make sure to hide the notification if necessary when we early-out :
+		if (bHideEditLayerResourcesNotification)
+		{
+			HideEditLayersResourcesNotification(EditLayersResourcesNotification);
+			WaitingForResourcesStartTime = -1.0;
+		}
+	};
+
 	// Remove this command line switch after fixes for D3D12 RHI
 	if (FParse::Param(FCommandLine::Get(), TEXT("nolandscapelayerupdate")))
 	{
@@ -4837,11 +4905,6 @@ void ALandscape::UpdateLayersContent(bool bInWaitForStreaming, bool bInSkipMonit
 		bSplineLayerUpdateRequested = false;
 	}
 
-	if (!AreLayersTextureResourcesReady(bInWaitForStreaming))
-	{
-		return;
-	}
-	
 	const bool bForceRender = CVarOutputLayersDebugDrawCallName.GetValueOnAnyThread() == 1;
 
 	if (LayerContentUpdateModes == 0 && !bForceRender)
@@ -4849,6 +4912,28 @@ void ALandscape::UpdateLayersContent(bool bInWaitForStreaming, bool bInSkipMonit
 		return;
 	}
 
+	if (!AreLayersResourcesReady(bInWaitForStreaming))
+	{
+		if (!bInWaitForStreaming)
+		{
+			static constexpr double TimeBeforeDisplayingNotification = 3.0;
+			if (WaitingForResourcesStartTime < 0.0)
+			{
+				WaitingForResourcesStartTime = FSlateApplicationBase::Get().GetCurrentTime();
+			}
+
+			if ((FSlateApplicationBase::Get().GetCurrentTime() - WaitingForResourcesStartTime) > TimeBeforeDisplayingNotification)
+			{
+				// let the user know we are waiting for resources :
+				static const FText NotificationText(LOCTEXT("WaitForLayersResources", "Landscape edition waiting for edit layers resources to be ready."));
+				ShowEditLayersResourcesNotification(NotificationText, EditLayersResourcesNotification);
+			}
+			// The notification may not be visible yet (because of the initial delay) but it should not be hidden and the initial delay timer shouldn't be reset : 
+			bHideEditLayerResourcesNotification = false;
+		}
+		return;
+	}
+	
 	bool bUpdateAll = LayerContentUpdateModes & Update_All;
 
 	bool bPartialUpdate = !bForceRender && !bUpdateAll && CVarLandscapeLayerOptim.GetValueOnAnyThread() == 1;

@@ -33,9 +33,14 @@ class WATER_API IWaterBrushActorInterface
 	virtual bool AffectsLandscape() const = 0;
 
 	/**
-	 * Returns true if this water actor is affecting (i.e. being rendered by) a AWaterMeshActor :
+	 * Returns true if this water actor is currently affecting (i.e. being rendered by) a AWaterMeshActor :
 	 */
 	virtual bool AffectsWaterMesh() const = 0;
+
+	/**
+	 * Returns true if this water actor could potentially be affecting (i.e. being rendered by) a AWaterMeshActor :
+	 */
+	virtual bool CanAffectWaterMesh() const = 0;
 
 #if WITH_EDITOR
 	/** 
@@ -62,6 +67,11 @@ class WATER_API IWaterBrushActorInterface
 	 * Returns an ordered list of components to render in the actor brush render pass (e.g. USplineMeshComponents for rivers)
 	 */
 	virtual TArray<UPrimitiveComponent*> GetBrushRenderableComponents() const;
+
+	/**
+	 * Returns the list of objects this actor depends on to render its brush (textures, materials...)
+	 */
+	virtual void GetBrushRenderDependencies(TSet<UObject*>& OutDependencies) const = 0;
 
 	/** 
 	 * Struct indicating what type of change occurrend on the water brush actor

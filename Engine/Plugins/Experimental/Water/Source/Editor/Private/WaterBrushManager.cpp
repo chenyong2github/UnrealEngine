@@ -21,6 +21,7 @@
 #include "WaterEditorSettings.h"
 #include "WaterSubsystem.h"
 #include "WaterUtils.h"
+#include "WaterVersion.h"
 #include "Algo/Transform.h"
 #include "Curves/CurveFloat.h"
 
@@ -46,6 +47,27 @@ AWaterBrushManager::AWaterBrushManager(const FObjectInitializer& ObjectInitializ
 	PrimaryActorTick.TickGroup = ETickingGroup::TG_PrePhysics;
 	bIsEditorOnlyActor = false;
 	bLockLocation = true;
+}
+
+void AWaterBrushManager::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+
+	Ar.UsingCustomVersion(FWaterCustomVersion::GUID);
+}
+
+void AWaterBrushManager::PostLoad()
+{
+	Super::PostLoad();
+
+	if (GetLinkerCustomVersion(FWaterCustomVersion::GUID) < FWaterCustomVersion::MoveBrushMaterialsToWaterBrushManager)
+	{
+		// Only setup some default materials for water brushes that were NOT instantiated by blueprint, otherwise we would override the default values contained in the BP : 
+		if (GetClass()->ClassGeneratedBy == nullptr)
+		{
+			SetupDefaultMaterials();
+		}
+	}
 }
 
 void AWaterBrushManager::PostLoadSubobjects(FObjectInstancingGraph* OuterInstanceGraph)
@@ -155,6 +177,14 @@ UTextureRenderTarget2D* AWaterBrushManager::WeightPingPongWrite(const FBrushRend
 	else // Even
 	{
 		return WeightmapRTA;
+	}
+}
+
+void AWaterBrushManager::AddDependencyIfValid(UObject* Dependency, TSet<UObject*>& OutDependencies)
+{
+	if (IsValid(Dependency))
+	{
+		OutDependencies.Add(Dependency);
 	}
 }
 
@@ -339,6 +369,23 @@ void AWaterBrushManager::BlueprintGetRenderTargets_Native(UTextureRenderTarget2D
 	OutVelocityRenderTarget = VelocityWrite;
 }
 
+void AWaterBrushManager::GetRenderDependencies(TSet<UObject*>& OutDependencies)
+{
+	Super::GetRenderDependencies(OutDependencies);
+
+	// Add all materials as depencies : we don't want to render the brush if one of those materials isn't compiled yet : 
+	AddDependencyIfValid(BrushAngleFalloffMaterial, OutDependencies);
+	AddDependencyIfValid(BrushWidthFalloffMaterial, OutDependencies);
+	AddDependencyIfValid(DistanceFieldCacheMaterial, OutDependencies);
+	AddDependencyIfValid(RenderRiverSplineDepthMaterial, OutDependencies);
+	AddDependencyIfValid(DebugDistanceFieldMaterial, OutDependencies);
+	AddDependencyIfValid(WeightmapMaterial, OutDependencies);
+	AddDependencyIfValid(DrawCanvasMaterial, OutDependencies);
+	AddDependencyIfValid(CompositeWaterBodyTextureMaterial, OutDependencies);
+	AddDependencyIfValid(IslandFalloffMaterial, OutDependencies);
+	AddDependencyIfValid(FinalizeVelocityHeightMaterial, OutDependencies);
+}
+
 void AWaterBrushManager::UpdateTransform(const FTransform& Transform)
 {
 	LandscapeTransform = Transform;
@@ -362,8 +409,6 @@ void AWaterBrushManager::UpdateTransform(const FTransform& Transform)
 
 bool AWaterBrushManager::SetupRiverSplineRenderMIDs(const FBrushActorRenderContext& BrushActorRenderContext)
 {
-	const UWaterEditorSettings* WaterEditorSettings = GetDefault<UWaterEditorSettings>();
-	check(WaterEditorSettings != nullptr);
 	AWaterBody* WaterBody = BrushActorRenderContext.GetActorAs<AWaterBody>();
 	check(WaterBody->GetWaterBodyType() == EWaterBodyType::River);
 
@@ -389,7 +434,7 @@ bool AWaterBrushManager::SetupRiverSplineRenderMIDs(const FBrushActorRenderConte
 	for (int32 MIDIndex = 0; MIDIndex < NumSplineMids; ++MIDIndex)
 	{
 		check(MIDIndex < SplineMeshComponents.Num());
-		RiverSplineMIDs[MIDIndex] = FWaterUtils::GetOrCreateTransientMID(RiverSplineMIDs[MIDIndex], TEXT("RiverSplineMID"), WaterEditorSettings->GetDefaultRenderRiverSplineDepthsMaterial());
+		RiverSplineMIDs[MIDIndex] = FWaterUtils::GetOrCreateTransientMID(RiverSplineMIDs[MIDIndex], TEXT("RiverSplineMID"), RenderRiverSplineDepthMaterial);
 		UMaterialInstanceDynamic* TempMID = RiverSplineMIDs[MIDIndex];
 		if (TempMID != nullptr)
 		{
@@ -817,7 +862,8 @@ void AWaterBrushManager::SetBrushMIDParams(const FBrushRenderContext& BrushRende
 
 void AWaterBrushManager::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
-	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(AWaterBrushManager, RenderSplineDepthsMaterial))
+	FName ChangedProperty = PropertyChangedEvent.GetPropertyName();
+	if (ChangedProperty == GET_MEMBER_NAME_CHECKED(AWaterBrushManager, RenderRiverSplineDepthMaterial))
 	{
 		RiverSplineMIDs.Reset();
 	}
@@ -1100,17 +1146,14 @@ void AWaterBrushManager::RenderBrushActorContext(FBrushRenderContext& BrushRende
 
 bool AWaterBrushManager::CreateMIDs()
 {
-	const UWaterEditorSettings* WaterEditorSettings = GetDefault<UWaterEditorSettings>();
-	check(WaterEditorSettings != nullptr);
-
-	BrushAngleFalloffMID = FWaterUtils::GetOrCreateTransientMID(BrushAngleFalloffMID, TEXT("BrushAngleFalloffMID"), WaterEditorSettings->GetDefaultBrushAngleFalloffMaterial());
-	IslandFalloffMID = FWaterUtils::GetOrCreateTransientMID(IslandFalloffMID, TEXT("IslandFalloffMID"), WaterEditorSettings->GetDefaultBrushIslandFalloffMaterial());
-	BrushWidthFalloffMID = FWaterUtils::GetOrCreateTransientMID(BrushWidthFalloffMID, TEXT("BrushWidthFalloffMID"), WaterEditorSettings->GetDefaultBrushWidthFalloffMaterial());
-	WeightmapMID = FWaterUtils::GetOrCreateTransientMID(WeightmapMID, TEXT("WeightmapMID"), WaterEditorSettings->GetDefaultBrushWeightmapMaterial());
-	DistanceFieldCacheMID = FWaterUtils::GetOrCreateTransientMID(DistanceFieldCacheMID, TEXT("DistanceFieldCacheMID"), WaterEditorSettings->GetDefaultCacheDistanceFieldCacheMaterial());
-	CompositeWaterBodyTextureMID = FWaterUtils::GetOrCreateTransientMID(CompositeWaterBodyTextureMID, TEXT("CompositeWaterBodyTextureMID"), WaterEditorSettings->GetDefaultCompositeWaterBodyTextureMaterial());
-	FinalizeVelocityHeightMID = FWaterUtils::GetOrCreateTransientMID(FinalizeVelocityHeightMID, TEXT("FinalizeVelocityHeightMID"), WaterEditorSettings->GetDefaultFinalizeVelocityHeightMaterial());
-	DrawCanvasMID = FWaterUtils::GetOrCreateTransientMID(DrawCanvasMID, TEXT("DrawCanvasMID"), WaterEditorSettings->GetDefaultDrawCanvasMaterial());
+	BrushAngleFalloffMID = FWaterUtils::GetOrCreateTransientMID(BrushAngleFalloffMID, TEXT("BrushAngleFalloffMID"), BrushAngleFalloffMaterial);
+	IslandFalloffMID = FWaterUtils::GetOrCreateTransientMID(IslandFalloffMID, TEXT("IslandFalloffMID"), IslandFalloffMaterial);
+	BrushWidthFalloffMID = FWaterUtils::GetOrCreateTransientMID(BrushWidthFalloffMID, TEXT("BrushWidthFalloffMID"), BrushWidthFalloffMaterial);
+	WeightmapMID = FWaterUtils::GetOrCreateTransientMID(WeightmapMID, TEXT("WeightmapMID"), WeightmapMaterial);
+	DistanceFieldCacheMID = FWaterUtils::GetOrCreateTransientMID(DistanceFieldCacheMID, TEXT("DistanceFieldCacheMID"), DistanceFieldCacheMaterial);
+	CompositeWaterBodyTextureMID = FWaterUtils::GetOrCreateTransientMID(CompositeWaterBodyTextureMID, TEXT("CompositeWaterBodyTextureMID"), CompositeWaterBodyTextureMaterial);
+	FinalizeVelocityHeightMID = FWaterUtils::GetOrCreateTransientMID(FinalizeVelocityHeightMID, TEXT("FinalizeVelocityHeightMID"), FinalizeVelocityHeightMaterial);
+	DrawCanvasMID = FWaterUtils::GetOrCreateTransientMID(DrawCanvasMID, TEXT("DrawCanvasMID"), DrawCanvasMaterial);
 
 	if ((BrushAngleFalloffMID == nullptr)
 		|| (IslandFalloffMID == nullptr)
@@ -1151,6 +1194,26 @@ void AWaterBrushManager::SortWaterBodiesForBrushRender_Implementation(TArray<AWa
 		}
 		return LHSPriority < RHSPriority;
 	});
+}
+
+void AWaterBrushManager::SetupDefaultMaterials()
+{
+	const UWaterEditorSettings* WaterEditorSettings = GetDefault<UWaterEditorSettings>();
+	check(WaterEditorSettings != nullptr);
+
+	BrushAngleFalloffMaterial = WaterEditorSettings->GetDefaultBrushAngleFalloffMaterial();
+	BrushWidthFalloffMaterial = WaterEditorSettings->GetDefaultBrushWidthFalloffMaterial();
+	DistanceFieldCacheMaterial = WaterEditorSettings->GetDefaultCacheDistanceFieldCacheMaterial();
+	RenderRiverSplineDepthMaterial = WaterEditorSettings->GetDefaultRenderRiverSplineDepthsMaterial();
+	WeightmapMaterial = WaterEditorSettings->GetDefaultBrushWeightmapMaterial();
+	DrawCanvasMaterial = WaterEditorSettings->GetDefaultDrawCanvasMaterial();
+	CompositeWaterBodyTextureMaterial = WaterEditorSettings->GetDefaultCompositeWaterBodyTextureMaterial();
+	IslandFalloffMaterial = WaterEditorSettings->GetDefaultBrushIslandFalloffMaterial();
+	FinalizeVelocityHeightMaterial = WaterEditorSettings->GetDefaultFinalizeVelocityHeightMaterial();
+
+	JumpFloodComponent2D->JumpStepMaterial = WaterEditorSettings->GetDefaultJumpFloodStepMaterial();
+	JumpFloodComponent2D->BlurEdgesMaterial = WaterEditorSettings->GetDefaultBlurEdgesMaterial();
+	JumpFloodComponent2D->FindEdgesMaterial = WaterEditorSettings->GetDefaultFindEdgesMaterial();
 }
 
 UTextureRenderTarget2D* AWaterBrushManager::Render_Native(bool InIsHeightmap, UTextureRenderTarget2D* InCombinedResult, FName const& InWeightmapLayerName)
