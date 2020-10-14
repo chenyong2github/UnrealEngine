@@ -1152,6 +1152,7 @@ TSharedPtr<FExistingStaticMeshData> SaveExistingStaticMeshData(UStaticMesh* Exis
 				}
 			}
 
+			const FStaticMeshSourceModel& SourceModel = ExistingMesh->GetSourceModel(SourceModelIndex);
 			FExistingLODMeshData& ExistingLODData = ExistingMeshDataPtr->ExistingLODData[SourceModelIndex];
 			ExistingLODData.ExistingBuildSettings = SourceModel.BuildSettings;
 			ExistingLODData.ExistingReductionSettings = SourceModel.ReductionSettings;

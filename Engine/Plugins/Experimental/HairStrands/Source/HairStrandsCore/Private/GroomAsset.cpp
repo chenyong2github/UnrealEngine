@@ -927,7 +927,7 @@ namespace GroomDerivedDataCacheUtils
 				{
 					Desc.ImportedMesh->ConditionalPostLoad();
 
-					Ar << Desc.ImportedMesh->RenderData->DerivedDataKey;
+					Ar << Desc.ImportedMesh->GetRenderData()->DerivedDataKey;
 				}
 			}
 			else if (Desc.SourceType == EHairCardsSourceType::Procedural)
@@ -936,7 +936,7 @@ namespace GroomDerivedDataCacheUtils
 				{
 					Desc.ProceduralMesh->ConditionalPostLoad();
 				
-					Ar << Desc.ProceduralMesh->RenderData->DerivedDataKey;
+					Ar << Desc.ProceduralMesh->GetRenderData()->DerivedDataKey;
 				}
 				Desc.ProceduralSettings.BuildDDCKey(Ar);
 			}
@@ -979,7 +979,7 @@ namespace GroomDerivedDataCacheUtils
 			{
 				Desc.ImportedMesh->ConditionalPostLoad();
 
-				Ar << Desc.ImportedMesh->RenderData->DerivedDataKey;
+				Ar << Desc.ImportedMesh->GetRenderData()->DerivedDataKey;
 			}
 			// Material is not included as it doesn't affect the data building
 		}
