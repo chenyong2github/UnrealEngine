@@ -691,4 +691,5 @@ private:
 
 	friend class URigVMCompiler;
 	friend class FRigVMByteCodeTest;
+	friend class URigVM;
 };
