@@ -156,22 +156,15 @@ FIOSInputInterface::FIOSInputInterface( const TSharedRef< FGenericApplicationMes
     
     NSNotificationCenter* notificationCenter = [NSNotificationCenter defaultCenter];
     NSOperationQueue* currentQueue = [NSOperationQueue currentQueue];
-        
-#if (!UE4_HAS_IOS14 && !UE4_HAS_TVOS14)
-    [notificationCenter addObserverForName:GCControllerDidConnectNotification object:nil queue:currentQueue usingBlock:^(NSNotification* Notification)
-    {
-        HandleConnection(Notification.object);
-    }];
-#endif
 
     [notificationCenter addObserverForName:GCControllerDidDisconnectNotification object:nil queue:currentQueue usingBlock:^(NSNotification* Notification)
     {
         HandleDisconnect(Notification.object);
     }];
 
-#if (UE4_HAS_IOS14 || UE4_HAS_TVOS14)
     if (@available(iOS 14, *))
     {
+#if (UE4_HAS_IOS14 || UE4_HAS_TVOS14)
         [notificationCenter addObserverForName:GCMouseDidConnectNotification object:nil queue:currentQueue usingBlock:^(NSNotification* Notification)
         {
             HandleMouseConnection(Notification.object);
@@ -209,8 +202,15 @@ FIOSInputInterface::FIOSInputInterface( const TSharedRef< FGenericApplicationMes
                 SetCurrentController(Notification.object);
             }];
         }
-    }
 #endif
+    }
+    else
+    {
+        [notificationCenter addObserverForName:GCControllerDidConnectNotification object:nil queue:currentQueue usingBlock:^(NSNotification* Notification)
+         {
+            HandleConnection(Notification.object);
+        }];
+    }
     
 	dispatch_async(dispatch_get_main_queue(), ^
 	   {
@@ -752,7 +752,9 @@ void FIOSInputInterface::SendControllerEvents()
 		
         if (Controller.bPauseWasPressed)
         {
-            HandleInputInternal(FGamepadKeyNames::SpecialRight, i, true, false);
+            MessageHandler->OnControllerButtonPressed(FGamepadKeyNames::SpecialRight, Cont.playerIndex, false);
+            MessageHandler->OnControllerButtonReleased(FGamepadKeyNames::SpecialRight, Cont.playerIndex, false);
+            
             Controller.bPauseWasPressed = false;
         }
         
