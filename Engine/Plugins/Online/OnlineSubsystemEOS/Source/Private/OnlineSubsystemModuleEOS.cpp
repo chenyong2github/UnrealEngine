@@ -9,6 +9,8 @@
 #include "Features/IModularFeature.h"
 #include "Features/IModularFeatures.h"
 
+#include "Misc/CoreDelegates.h"
+
 #if WITH_EDITOR
 	#include "ISettingsModule.h"
 	#include "ISettingsSection.h"
