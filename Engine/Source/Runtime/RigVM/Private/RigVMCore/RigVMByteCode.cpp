@@ -157,6 +157,12 @@ bool FRigVMByteCode::Serialize(FArchive& Ar)
 	}
 	else
 	{
+		// during reference collection we don't reset the bytecode.
+		if (Ar.IsObjectReferenceCollector())
+		{
+			return false;
+		}
+
 		ByteCode.Reset();
 		bByteCodeIsAligned = false;
 	}
