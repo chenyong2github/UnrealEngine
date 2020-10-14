@@ -26,7 +26,7 @@
 UDisplayClusterPreviewComponent::UDisplayClusterPreviewComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-#if WITH_EDITORONLY_DATA
+#if WITH_EDITOR
 	RenderTarget = nullptr;
 	ViewportConfig = nullptr;
 	TextureSize = FIntPoint(512, 512);
@@ -51,7 +51,7 @@ UDisplayClusterPreviewComponent::UDisplayClusterPreviewComponent(const FObjectIn
 }
 
 
-#if WITH_EDITORONLY_DATA
+#if WITH_EDITOR
 void UDisplayClusterPreviewComponent::OnComponentCreated()
 {
 	Super::OnComponentCreated();

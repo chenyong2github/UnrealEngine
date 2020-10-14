@@ -17,20 +17,23 @@ UDisplayClusterXformComponent::UDisplayClusterXformComponent(const FObjectInitia
 	PrimaryComponentTick.bCanEverTick = true;
 
 #if WITH_EDITOR
-	// Create visual mesh component as a child
-	VisXformComponent = CreateDefaultSubobject<UStaticMeshComponent>(FName(*(GetName() + FString("_impl"))));
-	if (VisXformComponent)
+	if (GIsEditor)
 	{
-		static ConstructorHelpers::FObjectFinder<UStaticMesh> ScreenMesh(TEXT("/Engine/VREditor/TransformGizmo/SM_Sequencer_Node"));
+		// Create visual mesh component as a child
+		VisXformComponent = CreateDefaultSubobject<UStaticMeshComponent>(FName(*(GetName() + FString("_impl"))));
+		if (VisXformComponent)
+		{
+			static ConstructorHelpers::FObjectFinder<UStaticMesh> ScreenMesh(TEXT("/Engine/VREditor/TransformGizmo/SM_Sequencer_Node"));
 
-		VisXformComponent->SetFlags(EObjectFlags::RF_DuplicateTransient | RF_Transient | RF_TextExportTransient);
-		VisXformComponent->AttachToComponent(this, FAttachmentTransformRules(EAttachmentRule::KeepRelative, false));
-		VisXformComponent->SetRelativeLocationAndRotation(FVector::ZeroVector, FRotator::ZeroRotator);
-		VisXformComponent->SetRelativeScale3D(FVector::OneVector);
-		VisXformComponent->SetStaticMesh(ScreenMesh.Object);
-		VisXformComponent->SetMobility(EComponentMobility::Movable);
-		VisXformComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-		VisXformComponent->SetVisibility(true);
+			VisXformComponent->SetFlags(EObjectFlags::RF_DuplicateTransient | RF_Transient | RF_TextExportTransient);
+			VisXformComponent->AttachToComponent(this, FAttachmentTransformRules(EAttachmentRule::KeepRelative, false));
+			VisXformComponent->SetRelativeLocationAndRotation(FVector::ZeroVector, FRotator::ZeroRotator);
+			VisXformComponent->SetRelativeScale3D(FVector::OneVector);
+			VisXformComponent->SetStaticMesh(ScreenMesh.Object);
+			VisXformComponent->SetMobility(EComponentMobility::Movable);
+			VisXformComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			VisXformComponent->SetVisibility(true);
+		}
 	}
 #endif
 }
