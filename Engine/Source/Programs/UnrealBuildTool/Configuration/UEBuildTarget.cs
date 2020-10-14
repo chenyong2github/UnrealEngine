@@ -2015,6 +2015,9 @@ namespace UnrealBuildTool
 			}
 			Makefile.ExternalDependencies.UnionWith(Makefile.PluginFiles);
 
+			// Add any toolchain dependencies
+			TargetToolChain.GetExternalDependencies(Makefile.ExternalDependencies);
+
 			// Add any leaf dependencies (eg. response files) to the dependencies list
 			IEnumerable<FileItem> LeafPrerequisiteItems = Makefile.Actions.SelectMany(x => x.PrerequisiteItems).Except(Makefile.Actions.SelectMany(x => x.ProducedItems));
 			foreach (FileItem LeafPrerequisiteItem in LeafPrerequisiteItems)
