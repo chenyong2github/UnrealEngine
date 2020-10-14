@@ -108,6 +108,8 @@ protected:
 	TSharedPtr<FNiagaraVariable> GetCurrentValueVariable();
 	UObject* GetCurrentValueObject();
 
+	void NotifyDataInterfaceChanged();
+
 private:
 	void RemovePins(TArray<UEdGraphPin*> PinsToRemove);
 	TArray<UEdGraphPin*> GetOwningPins(); 
