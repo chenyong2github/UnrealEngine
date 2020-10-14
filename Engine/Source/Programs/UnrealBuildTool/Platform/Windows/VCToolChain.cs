@@ -75,6 +75,12 @@ namespace UnrealBuildTool
 			}
 		}
 
+		public override void GetExternalDependencies(HashSet<FileItem> ExternalDependencies)
+		{
+			ExternalDependencies.Add(FileItem.GetItemByFileReference(EnvVars.CompilerPath));
+			ExternalDependencies.Add(FileItem.GetItemByFileReference(EnvVars.LinkerPath));
+		}
+
 		static public void AddDefinition(List<string> Arguments, string Definition)
 		{
 			// Split the definition into name and value
