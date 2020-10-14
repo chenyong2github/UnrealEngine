@@ -33,12 +33,6 @@ void UDisplayClusterGameEngine::Init(class IEngineLoop* InEngineLoop)
 	// Detect requested operation mode
 	OperationMode = DetectOperationMode();
 
-	if (OperationMode == EDisplayClusterOperationMode::Cluster)
-	{
-		// Instantiate the tickable helper
-		TickableHelper = NewObject<UDisplayClusterGameEngineTickableHelper>();
-	}
-
 	// Initialize Display Cluster
 	if (!GDisplayCluster->Init(OperationMode))
 	{
@@ -289,21 +283,5 @@ void UDisplayClusterGameEngine::Tick(float DeltaSeconds, bool bIdleMode)
 	else
 	{
 		Super::Tick(DeltaSeconds, bIdleMode);
-	}
-}
-
-TStatId UDisplayClusterGameEngineTickableHelper::GetStatId() const
-{
-	RETURN_QUICK_DECLARE_CYCLE_STAT(UDisplayClusterGameEngineTickableHelper, STATGROUP_Tickables);
-}
-
-void UDisplayClusterGameEngineTickableHelper::Tick(float DeltaSeconds)
-{
-	static const EDisplayClusterOperationMode OperationMode = GDisplayCluster->GetOperationMode();
-
-	if (OperationMode == EDisplayClusterOperationMode::Cluster)
-	{
-		UE_LOG(LogDisplayClusterEngine, Verbose, TEXT("Perform Tick()"));
-		GDisplayCluster->Tick(DeltaSeconds);
 	}
 }
