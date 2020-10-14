@@ -977,6 +977,34 @@ FText UMaterialExpression::GetCreationName() const
 	return FText::GetEmpty();
 }
 
+void UMaterialExpression::GetExpressionToolTip(TArray<FString>& OutToolTip)
+{
+	if (Desc.Len() > 0)
+	{
+		if (GraphNode)
+		{
+			GraphNode->GetNodeTitle(ENodeTitleType::FullTitle).ToString().ParseIntoArrayLines(OutToolTip, false);
+		}
+
+		TArray<FString> Multiline = TArray<FString>();
+		Desc.ParseIntoArrayLines(Multiline, false);
+
+		TArray<FString> CurrentLines = TArray<FString>();
+		for (FString Line : Multiline)
+		{
+			if (Line.IsEmpty())
+			{
+				OutToolTip.Add(Line);
+			}
+			else
+			{
+				ConvertToMultilineToolTip(Line, 40, CurrentLines);
+				OutToolTip.Append(CurrentLines);
+			}
+		}
+	}
+}
+
 bool UMaterialExpression::IsInputConnectionRequired(int32 InputIndex) const
 {
 	int32 Index = 0;
