@@ -333,15 +333,20 @@ bool UNiagaraScript::HasIdsRequiredForShaderCaching() const
 	return CachedScriptVMId.CompilerVersionID.IsValid() && CachedScriptVMId.BaseScriptCompileHash.IsValid();
 }
 
-FString UNiagaraScript::GetNiagaraDDCKeyString()
+FString UNiagaraScript::BuildNiagaraDDCKeyString(const FNiagaraVMExecutableDataId& CompileId)
 {
 	enum { UE_NIAGARA_COMPILATION_DERIVEDDATA_VER = 2 };
 
 	FString KeyString = FString::Printf(TEXT("%i_%i"),
 		(int32)UE_NIAGARA_COMPILATION_DERIVEDDATA_VER, GNiagaraSkipVectorVMBackendOptimizations);
 
-	LastGeneratedVMId.AppendKeyString(KeyString);
+	CompileId.AppendKeyString(KeyString);
 	return FDerivedDataCacheInterface::BuildCacheKey(TEXT("NiagaraScriptDerivedData"), NIAGARASCRIPT_DERIVEDDATA_VER, *KeyString);
+}
+
+FString UNiagaraScript::GetNiagaraDDCKeyString()
+{
+	return BuildNiagaraDDCKeyString(LastGeneratedVMId);
 }
 
 void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id) const
