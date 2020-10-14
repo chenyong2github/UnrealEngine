@@ -100,6 +100,7 @@ int32 FWindowsPlatformApplicationMisc::GetAppIcon()
 
 static void WinPumpMessages()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(WinPumpMessages);
 	{
 		MSG Msg;
 		while( PeekMessage(&Msg,NULL,0,0,PM_REMOVE) )

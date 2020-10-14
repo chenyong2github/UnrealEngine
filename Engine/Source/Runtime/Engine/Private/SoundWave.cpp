@@ -762,6 +762,7 @@ FByteBulkData* USoundWave::GetCompressedData(FName Format, const FPlatformAudioC
 		return nullptr;
 	}
 
+	TRACE_CPUPROFILER_EVENT_SCOPE(USoundWave::GetCompressedData);
 	FName PlatformSpecificFormat = GetPlatformSpecificFormat(Format, CompressionOverrides);
 
 	bool bContainedValidData = CompressedFormatData.Contains(PlatformSpecificFormat);

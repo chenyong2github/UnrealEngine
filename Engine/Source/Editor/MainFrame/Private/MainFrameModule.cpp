@@ -72,6 +72,8 @@ const FText StaticGetApplicationTitle( const bool bIncludeGameName )
 
 void FMainFrameModule::CreateDefaultMainFrame( const bool bStartImmersive, const bool bStartPIE )
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FMainFrameModule::CreateDefaultMainFrame);
+
 	if (!IsWindowInitialized())
 	{
 		FRootWindowLocation DefaultWindowLocation;

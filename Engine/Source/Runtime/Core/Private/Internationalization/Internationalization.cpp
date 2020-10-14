@@ -392,6 +392,7 @@ FString& FInternationalization::Leetify(FString& SourceString)
 
 void FInternationalization::LoadAllCultureData()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FInternationalization::LoadAllCultureData);
 	Implementation->LoadAllCultureData();
 }
 

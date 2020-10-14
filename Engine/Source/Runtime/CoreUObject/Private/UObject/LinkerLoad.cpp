@@ -4044,6 +4044,10 @@ void FLinkerLoad::Preload( UObject* Object )
 						else
 #endif
 						{
+#if WITH_EDITOR
+							TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*(Object->GetClass()->GetName() + TEXT("_Serialize")));
+							TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*Object->GetFullName());
+#endif
 							Object->Serialize(*this);
 						}
 

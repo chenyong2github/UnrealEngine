@@ -376,6 +376,7 @@ IModuleInterface* FModuleManager::LoadModuleWithFailureReason(const FName InModu
 		}
 	}
 
+	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*FString::Printf(TEXT("LoadModule %s"), *InModuleName.ToString()));
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("Module Load"), STAT_ModuleLoad, STATGROUP_LoadTime);
 #if	STATS
 	// This is fine here, we only load a handful of modules.
@@ -521,6 +522,8 @@ IModuleInterface* FModuleManager::LoadModuleWithFailureReason(const FName InModu
 
 						if ( ModuleInfo->Module.IsValid() )
 						{
+							TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*(InModuleName.ToString() + TEXT("::StartupModule")));
+
 							// Startup the module
 							ModuleInfo->Module->StartupModule();
 							// The module might try to load other dependent modules in StartupModule. In this case, we want those modules shut down AFTER this one because we may still depend on the module at shutdown.

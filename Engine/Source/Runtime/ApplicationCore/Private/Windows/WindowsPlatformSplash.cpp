@@ -697,6 +697,7 @@ void FWindowsPlatformSplash::Hide()
 {
 	if(GSplashScreenThread)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FWindowsPlatformSplash::Hide);
 		if(GSplashScreenWnd)
 		{
 			// Send message to splash screen window to destroy itself

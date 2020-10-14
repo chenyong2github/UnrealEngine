@@ -508,6 +508,8 @@ void FBlueprintActionMenuBuilder::AddMenuSection(FBlueprintActionFilter const& F
 //------------------------------------------------------------------------------
 void FBlueprintActionMenuBuilder::RebuildActionList()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FBlueprintActionMenuBuilder::RebuildActionList);
+
 	using namespace FBlueprintActionMenuBuilderImpl;
 
 	FGraphActionListBuilderBase::Empty();

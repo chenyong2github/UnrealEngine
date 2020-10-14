@@ -3348,6 +3348,8 @@ bool FScene::RequiresHitProxies() const
 
 void FScene::Release()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FScene::Release);
+
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	// Verify that no components reference this scene being destroyed
 	static bool bTriggeredOnce = false;
@@ -3769,6 +3771,7 @@ struct FPrimitiveArraySortKey
 
 void FScene::UpdateAllPrimitiveSceneInfos(FRHICommandListImmediate& RHICmdList, bool bAsyncCreateLPIs)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(Scene::UpdateAllPrimitiveSceneInfos);
 	SCOPED_NAMED_EVENT(FScene_UpdateAllPrimitiveSceneInfos, FColor::Orange);
 	SCOPE_CYCLE_COUNTER(STAT_UpdateScenePrimitiveRenderThreadTime);
 
@@ -4579,6 +4582,8 @@ void FRendererModule::UpdateStaticDrawLists()
 
 void UpdateStaticMeshesForMaterials(const TArray<const FMaterial*>& MaterialResourcesToUpdate)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UpdateStaticMeshesForMaterials);
+
 	TArray<UMaterialInterface*> UsedMaterials;
 	TSet<UMaterialInterface*> UsedMaterialsDependencies;
 	TMap<FScene*, TArray<FPrimitiveSceneInfo*>> UsedPrimitives;

@@ -523,6 +523,8 @@ void UWorldPartition::LoadEditorCells(const FBox& Box)
 	TArray<UWorldPartitionEditorCell*> CellsToLoad;
 	if (EditorHash->GetIntersectingCells(Box, CellsToLoad))
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartition::LoadEditorCells);
+
 		FWorldPartionCellUpdateContext CellUpdateContext(this);
 
 		int32 NumActorsToLoad = Algo::TransformAccumulate(CellsToLoad, [](UWorldPartitionEditorCell* Cell) { return Cell->Actors.Num() - Cell->LoadedActors.Num();}, 0);
@@ -617,6 +619,9 @@ void UWorldPartition::UnloadEditorCells(const FBox& Box)
 // Loads actors in Editor cell
 void UWorldPartition::UpdateLoadingEditorCell(UWorldPartitionEditorCell* Cell, bool bShouldBeLoaded)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartition::UpdateLoadingEditorCell);
+	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*FString::Printf(TEXT("UWorldPartition::UpdateLoadingEditorCell(%s)"), *Cell->GetFullName()));
+	
 	FWorldPartionCellUpdateContext CellUpdateContext(this);
 
 	UE_LOG(LogWorldPartition, Verbose, TEXT("UWorldPartition::UpdateLoadingEditorCell 0x%08llx [%s]"), Cell, bShouldBeLoaded ? TEXT("Load") : TEXT("Unload"));

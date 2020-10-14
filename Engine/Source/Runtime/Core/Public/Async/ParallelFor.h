@@ -143,6 +143,8 @@ namespace ParallelForImpl
 	template<typename FunctionType>
 	inline bool TParallelForData<FunctionType>::Process(int32 TasksToSpawn, TSharedRef<TParallelForData<FunctionType>, ESPMode::ThreadSafe>& Data, ENamedThreads::Type InDesiredThread, bool bMaster)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(TParallelForData::Process)
+
 		int32 MaybeTasksLeft = Num - IndexToDo.GetValue();
 		if (TasksToSpawn && MaybeTasksLeft > 0)
 		{

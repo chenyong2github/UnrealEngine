@@ -2418,6 +2418,8 @@ bool UEditorEngine::PackageIsAMapFile( const TCHAR* PackageFilename, FText& OutN
 
 bool UEditorEngine::Map_Load(const TCHAR* Str, FOutputDevice& Ar)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UEditorEngine::Map_Load);
+
 	auto FindWorldInPackageOrFollowRedirector = [](UPackage*& InOutPackage)
 	{
 		UWorld* RetVal = nullptr;

@@ -1024,10 +1024,14 @@ protected:
 		TSharedPtr<FMonitoredProcess> UBTProcess = MakeShareable(new FMonitoredProcess(CmdExe, CommandLine, true));
 		UBTProcess->OnOutput().BindStatic(&FTargetPlatformManagerModule::OnStatusOutput);
 		SDKStatusMessage = TEXT("");
-		UBTProcess->Launch();
-		while(UBTProcess->Update())
+
 		{
-			FPlatformProcess::Sleep(0.01f);
+			TRACE_CPUPROFILER_EVENT_SCOPE(WaitUntilUBTStarted);
+			UBTProcess->Launch();
+			while(UBTProcess->Update())
+			{
+				FPlatformProcess::Sleep(0.01f);
+			}
 		}
 
 		TArray<FString> PlatArray;

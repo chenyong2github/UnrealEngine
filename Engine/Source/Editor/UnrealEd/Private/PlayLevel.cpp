@@ -2409,6 +2409,8 @@ void UEditorEngine::RemapGamepadControllerIdForPIE(class UGameViewportClient* In
 
 void UEditorEngine::StartPlayInEditorSession(FRequestPlaySessionParams& InRequestParams)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UEditorEngine::StartPlayInEditorSession);
+
 	// This reflects that the user has tried to launch a PIE session, but it may still
 	// create one-or-more new processes depending on multiplayer settings.
 	check(InRequestParams.SessionDestination == EPlaySessionDestinationType::InProcess);

@@ -1123,6 +1123,7 @@ static FAutoConsoleVariableRef CVarTimeoutForBlockOnRenderFence(
  */
 static void GameThreadWaitForTask(const FGraphEventRef& Task, ENamedThreads::Type TriggerThreadIndex = ENamedThreads::ActualRenderingThread, bool bEmptyGameThreadTasks = false)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(GameThreadWaitForTask);
 	SCOPE_TIME_GUARD(TEXT("GameThreadWaitForTask"));
 
 	check(IsInGameThread());
@@ -1261,6 +1262,8 @@ void FlushRenderingCommands(bool bFlushDeferredDeletes)
 	{
 		return;
 	}
+
+	TRACE_CPUPROFILER_EVENT_SCOPE(FlushRenderingCommands);
 	FSuspendRenderingTickables SuspendRenderingTickables;
 
 	// Need to flush GT because render commands from threads other than GT are sent to

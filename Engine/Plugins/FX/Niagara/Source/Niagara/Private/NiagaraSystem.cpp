@@ -1873,6 +1873,8 @@ void UNiagaraSystem::InitEmitterDataSetCompiledData(FNiagaraDataSetCompiledData&
 
 bool UNiagaraSystem::RequestCompile(bool bForce, FNiagaraSystemUpdateContext* OptionalUpdateContext)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UNiagaraSystem::RequestCompile)
+
 	// We remove emitters and scripts on dedicated servers, so skip further work.
 	const bool bIsDedicatedServer = !GIsClient && GIsServer;
 	if (bIsDedicatedServer)

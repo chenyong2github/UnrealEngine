@@ -222,6 +222,8 @@ bool PreprocessShader(
 	EDumpShaderDefines DefinesPolicy
 	)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(PreprocessShader);
+
 	// Skip the cache system and directly load the file path (used for debugging)
 	if (ShaderInput.bSkipPreprocessedCache)
 	{

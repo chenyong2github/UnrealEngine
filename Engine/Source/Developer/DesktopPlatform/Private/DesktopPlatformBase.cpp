@@ -660,6 +660,7 @@ bool FDesktopPlatformBase::IsUnrealBuildToolAvailable()
 
 bool FDesktopPlatformBase::InvokeUnrealBuildToolSync(const FString& InCmdLineParams, FOutputDevice &Ar, bool bSkipBuildUBT, int32& OutReturnCode, FString& OutProcOutput)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FDesktopPlatformBase::InvokeUnrealBuildToolSync);
 	void* PipeRead = nullptr;
 	void* PipeWrite = nullptr;
 

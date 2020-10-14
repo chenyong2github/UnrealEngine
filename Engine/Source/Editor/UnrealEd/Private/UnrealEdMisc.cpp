@@ -535,6 +535,8 @@ void FUnrealEdMisc::InitEngineAnalytics()
 {
 	if ( FEngineAnalytics::IsAvailable() )
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FUnrealEdMisc::InitEngineAnalytics);
+
 		IAnalyticsProvider& EngineAnalytics = FEngineAnalytics::GetProvider();
 
 		// Send analytics about sample projects
