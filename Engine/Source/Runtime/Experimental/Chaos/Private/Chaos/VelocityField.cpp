@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Chaos/VelocityField.h"
+#include "HAL/IConsoleManager.h"
 #if INTEL_ISPC
 #include "VelocityField.ispc.generated.h"
 #endif
