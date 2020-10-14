@@ -572,15 +572,12 @@ namespace UsdSkelRootTranslatorImpl
 
 				pxr::UsdPrim ParentPrim = MeshPrim.GetParent();
 				FString ParentPrimPath = UsdToUnreal::ConvertPath( ParentPrim.GetPath() );
-				if ( ProcessedLODParentPaths.Contains( ParentPrimPath ) )
-				{
-					continue;
-				}
-				ProcessedLODParentPaths.Add( ParentPrimPath );
 
 				bool bInterpretedLODs = false;
-				if ( bInterpretLODs && UsdUtils::IsGeomMeshALOD( MeshPrim ) )
+				if ( bInterpretLODs && UsdUtils::IsGeomMeshALOD( MeshPrim ) && !ProcessedLODParentPaths.Contains( ParentPrimPath ) )
 				{
+					ProcessedLODParentPaths.Add( ParentPrimPath );
+
 					bInterpretedLODs = UsdUtils::IterateLODMeshes( ParentPrim, IterateLODsLambda );
 				}
 
