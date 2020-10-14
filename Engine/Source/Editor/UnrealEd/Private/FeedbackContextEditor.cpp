@@ -51,7 +51,7 @@ public:
 		SLATE_EVENT( FReceiveUserCancelDelegate, ReceiveUserCancelDelegate)
 
 		/** The feedback scope stack that we are presenting to the user */
-		SLATE_ARGUMENT( TWeakPtr<FSlowTaskStack>, ScopeStack )
+		SLATE_ARGUMENT(TWeakPtr<FSlowTaskStack>, ScopeStack)
 
 	SLATE_END_ARGS()
 
@@ -618,7 +618,7 @@ void FFeedbackContextEditor::OnUserCancel()
 TWeakPtr<class SBuildProgressWidget> FFeedbackContextEditor::ShowBuildProgressWindow()
 {
 	TSharedRef<SWindow> BuildProgressWindowRef = SNew(SWindow)
-		.ClientSize(FVector2D(500,200))
+		.ClientSize(FVector2D(600,200))
 		.IsPopupWindow(true);
 
 	BuildProgressWidget = SNew(SBuildProgressWidget);

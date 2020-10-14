@@ -48,7 +48,7 @@ public:
 		, _BarFillType(EProgressBarFillType::LeftToRight)
 		, _Percent( TOptional<float>() )
 		, _FillColorAndOpacity( FLinearColor::White )
-		, _BorderPadding( FVector2D(1,0) )
+		, _BorderPadding( FVector2D(0,0) )
 		, _BackgroundImage(nullptr)
 		, _FillImage(nullptr)
 		, _MarqueeImage(nullptr)

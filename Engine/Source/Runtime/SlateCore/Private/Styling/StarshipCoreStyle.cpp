@@ -70,6 +70,9 @@ FStyleFonts::FStyleFonts()
 	, NormalBold(FONT(10, "Bold"))
 	, Small(FONT(8,  "Regular"))
 	, SmallBold(FONT(8,  "Bold"))
+	, HeadingMedium(FONT(33, "BoldCondensed"))
+	, HeadingSmall(FONT(21, "BoldCondensed"))
+	, HeadingExtraSmall(FONT(15, "BoldCondensed"))
 {
 };
 
@@ -907,6 +910,10 @@ void FStarshipCoreStyle::SetupTextStyles(TSharedRef<FStyle>& Style)
 	Style->Set("SmallFont", StyleFonts.Small);
 	Style->Set("NormalFontBold", StyleFonts.NormalBold);
 	Style->Set("SmallFontBold", StyleFonts.SmallBold);
+
+	Style->Set("HeadingMedium", StyleFonts.HeadingMedium);
+	Style->Set("HeadingSmall", StyleFonts.HeadingSmall);
+	Style->Set("HeadingExtraSmall", StyleFonts.HeadingExtraSmall);
 
 	FSlateBrush* DefaultTextUnderlineBrush = new IMAGE_BRUSH("Old/White", Icon8x8, FLinearColor::White, ESlateBrushTileType::Both);
 

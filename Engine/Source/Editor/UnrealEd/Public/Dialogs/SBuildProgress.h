@@ -11,7 +11,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Layout/SBorder.h"
 
-class SBuildProgressWidget : public SBorder
+class SBuildProgressWidget : public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS( SBuildProgressWidget ) {}
