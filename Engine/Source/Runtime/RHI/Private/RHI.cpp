@@ -112,39 +112,29 @@ inline FString BuildEnumNameBitList(EnumType Value, const TCHAR*(*GetEnumName)(E
 
 FString GetRHIAccessName(ERHIAccess Access)
 {
-	switch (Access)
+	return BuildEnumNameBitList<ERHIAccess>(Access, [](ERHIAccess AccessBit)
 	{
-		// Cases for legacy resource state, to make the huge bit combinations easier to read...
-	case ERHIAccess::EReadable:  return TEXT("EReadable");
-	case ERHIAccess::EWritable:  return TEXT("EWritable");
-	case ERHIAccess::ERWBarrier: return TEXT("ERWBarrier");
-
-		// All other states are built as a logic OR of state bits.
-	default:
-		return BuildEnumNameBitList<ERHIAccess>(Access, [](ERHIAccess AccessBit)
+		switch (AccessBit)
 		{
-			switch (AccessBit)
-			{
-			default: checkNoEntry(); // fall through
-			case ERHIAccess::Unknown:             return TEXT("Unknown");
-			case ERHIAccess::CPURead:             return TEXT("CPURead");
-			case ERHIAccess::Present:             return TEXT("Present");
-			case ERHIAccess::IndirectArgs:        return TEXT("IndirectArgs");
-			case ERHIAccess::VertexOrIndexBuffer: return TEXT("VertexOrIndexBuffer");
-			case ERHIAccess::SRVCompute:          return TEXT("SRVCompute");
-			case ERHIAccess::SRVGraphics:         return TEXT("SRVGraphics");
-			case ERHIAccess::CopySrc:             return TEXT("CopySrc");
-			case ERHIAccess::ResolveSrc:          return TEXT("ResolveSrc");
-			case ERHIAccess::DSVRead:             return TEXT("DSVRead");
-			case ERHIAccess::UAVCompute:          return TEXT("UAVCompute");
-			case ERHIAccess::UAVGraphics:         return TEXT("UAVGraphics");
-			case ERHIAccess::RTV:                 return TEXT("RTV");
-			case ERHIAccess::CopyDest:            return TEXT("CopyDest");
-			case ERHIAccess::ResolveDst:          return TEXT("ResolveDst");
-			case ERHIAccess::DSVWrite:            return TEXT("DSVWrite");
-			}
-		});
-	}
+		default: checkNoEntry(); // fall through
+		case ERHIAccess::Unknown:             return TEXT("Unknown");
+		case ERHIAccess::CPURead:             return TEXT("CPURead");
+		case ERHIAccess::Present:             return TEXT("Present");
+		case ERHIAccess::IndirectArgs:        return TEXT("IndirectArgs");
+		case ERHIAccess::VertexOrIndexBuffer: return TEXT("VertexOrIndexBuffer");
+		case ERHIAccess::SRVCompute:          return TEXT("SRVCompute");
+		case ERHIAccess::SRVGraphics:         return TEXT("SRVGraphics");
+		case ERHIAccess::CopySrc:             return TEXT("CopySrc");
+		case ERHIAccess::ResolveSrc:          return TEXT("ResolveSrc");
+		case ERHIAccess::DSVRead:             return TEXT("DSVRead");
+		case ERHIAccess::UAVCompute:          return TEXT("UAVCompute");
+		case ERHIAccess::UAVGraphics:         return TEXT("UAVGraphics");
+		case ERHIAccess::RTV:                 return TEXT("RTV");
+		case ERHIAccess::CopyDest:            return TEXT("CopyDest");
+		case ERHIAccess::ResolveDst:          return TEXT("ResolveDst");
+		case ERHIAccess::DSVWrite:            return TEXT("DSVWrite");
+		}
+	});
 }
 
 FString GetResourceTransitionFlagsName(EResourceTransitionFlags Flags)

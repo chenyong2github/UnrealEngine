@@ -188,8 +188,6 @@ void FD3D11DynamicRHI::RHICopyToResolveTarget(FRHITexture* SourceTextureRHI, FRH
 		return;
 	}
 
-	// @todo fix this RHITransitionResources(EResourceTransitionAccess::EReadable, &SourceTextureRHI, 1);
-
 	FRHICommandList_RecursiveHazardous RHICmdList(this);
 	
 

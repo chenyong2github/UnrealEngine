@@ -271,13 +271,13 @@ void BuildSkyLightMipTree(
 			FIntVector MipLevelDimensions = FIntVector(SkyLightMipTreeDimensions.X >> MipLevel, SkyLightMipTreeDimensions.Y >> MipLevel, 1);
 			FIntVector NumGroups = FIntVector::DivideAndRoundUp(MipLevelDimensions, FBuildMipTreeCS::GetGroupSize());
 			DispatchComputeShader(RHICmdList, BuildSkyLightMipTreeComputeShader, NumGroups.X, NumGroups.Y, 1);
-			BuildSkyLightMipTreeComputeShader->UnsetParameters(RHICmdList, ERHIAccess::ERWBarrier, *MipTrees[FaceIndex]);
+			BuildSkyLightMipTreeComputeShader->UnsetParameters(RHICmdList, ERHIAccess::UAVCompute, *MipTrees[FaceIndex]);
 		}
 
 		FRHITransitionInfo UAVTransitions[6];
 		for (int MipTreeIndex = 0; MipTreeIndex < 6; ++MipTreeIndex)
 		{
-			UAVTransitions[MipTreeIndex] = FRHITransitionInfo(MipTrees[MipTreeIndex]->UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier);
+			UAVTransitions[MipTreeIndex] = FRHITransitionInfo(MipTrees[MipTreeIndex]->UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute);
 		}
 		RHICmdList.Transition(MakeArrayView(UAVTransitions, UE_ARRAY_COUNT(UAVTransitions)));
 	}
@@ -306,7 +306,7 @@ void BuildSolidAnglePdf(
 		BuildSolidAnglePdfComputeShader->SetParameters(RHICmdList, MipLevel, Dimensions, SolidAnglePdf);
 		FIntVector NumGroups = FIntVector::DivideAndRoundUp(Dimensions, FBuildSolidAnglePdfCS::GetGroupSize());
 		DispatchComputeShader(RHICmdList, BuildSolidAnglePdfComputeShader, NumGroups.X, NumGroups.Y, 1);
-		BuildSolidAnglePdfComputeShader->UnsetParameters(RHICmdList, ERHIAccess::ERWBarrier, SolidAnglePdf);
+		BuildSolidAnglePdfComputeShader->UnsetParameters(RHICmdList, ERHIAccess::UAVCompute, SolidAnglePdf);
 	}
 }
 
@@ -363,13 +363,13 @@ void BuildSkyLightMipTreePdf(
 			FIntVector NumGroups = FIntVector::DivideAndRoundUp(MipLevelDimensions, FBuildMipTreeCS::GetGroupSize());
 			DispatchComputeShader(RHICmdList, BuildSkyLightMipTreePdfComputeShader, NumGroups.X, NumGroups.Y, 1);
 		}
-		BuildSkyLightMipTreePdfComputeShader->UnsetParameters(RHICmdList, ERHIAccess::ERWBarrier, *MipTreePdfs[FaceIndex]);
+		BuildSkyLightMipTreePdfComputeShader->UnsetParameters(RHICmdList, ERHIAccess::UAVCompute, *MipTreePdfs[FaceIndex]);
 	}
 
 	FRHITransitionInfo UAVTransitions[6];
 	for (int MipTreeIndex = 0; MipTreeIndex < 6; ++MipTreeIndex)
 	{
-		UAVTransitions[MipTreeIndex] = FRHITransitionInfo(MipTreePdfs[MipTreeIndex]->UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier);
+		UAVTransitions[MipTreeIndex] = FRHITransitionInfo(MipTreePdfs[MipTreeIndex]->UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute);
 	}
 	RHICmdList.Transition(MakeArrayView(UAVTransitions, UE_ARRAY_COUNT(UAVTransitions)));
 }

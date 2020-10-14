@@ -539,19 +539,19 @@ void FScatterUploadBuffer::ResourceUploadTo(FRHICommandList& RHICmdList, Resourc
 	}
 
 	auto ComputeShader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<typename ResourceTypeTraits<ResourceType>::FScatterCS >(PermutationVector);
+
+	RHICmdList.BeginUAVOverlap(DstBuffer.UAV);
+
 	for (uint32 LoopIdx = 0; LoopIdx < NumLoops; ++LoopIdx)
 	{
-		if (LoopIdx != 0)
-		{
-			RHICmdList.Transition(FRHITransitionInfo(DstBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::ERWNoBarrier));
-		}
-
 		Parameters.Common.SrcOffset = LoopIdx * (uint32)GMaxComputeDispatchDimension * ThreadGroupSize;
 
 		uint32 LoopNumDispatch = FMath::Min(NumDispatches - LoopIdx * (uint32)GMaxComputeDispatchDimension, (uint32)GMaxComputeDispatchDimension);
 
 		FComputeShaderUtils::Dispatch(RHICmdList, ComputeShader, Parameters, FIntVector(LoopNumDispatch, 1, 1));
 	}
+
+	RHICmdList.EndUAVOverlap(DstBuffer.UAV);
 
 	if (bFlush)
 	{

@@ -217,7 +217,7 @@ void UpdateLumenCubeMapTrees(const FDistanceFieldSceneData& DistanceFieldSceneDa
 		const uint32 NumCubeMapTrees = LumenSceneData.CubeMapTrees.Num();
 		const uint32 CubeMapTreeNumFloat4s = FMath::RoundUpToPowerOfTwo(NumCubeMapTrees * FLumenCubeMapTreeGPUData::DataStrideInFloat4s);
 		const uint32 CubeMapTreeNumBytes = CubeMapTreeNumFloat4s * sizeof(FVector4);
-		const bool bResizedCubeMapTreeData = ResizeResourceIfNeeded(RHICmdList, LumenSceneData.CubeMapTreeBuffer, CubeMapTreeNumBytes, TEXT("LumenCubeMapTrees"));
+		ResizeResourceIfNeeded(RHICmdList, LumenSceneData.CubeMapTreeBuffer, CubeMapTreeNumBytes, TEXT("LumenCubeMapTrees"));
 
 		const int32 NumCubeMapTreeUploads = LumenSceneData.CubeMapTreeIndicesToUpdateInBuffer.Num();
 
@@ -238,9 +238,9 @@ void UpdateLumenCubeMapTrees(const FDistanceFieldSceneData& DistanceFieldSceneDa
 				}
 			}
 
-			RHICmdList.Transition(FRHITransitionInfo(LumenSceneData.CubeMapTreeBuffer.UAV, ERHIAccess::Unknown, bResizedCubeMapTreeData ? ERHIAccess::ERWBarrier : ERHIAccess::EWritable));
+			RHICmdList.Transition(FRHITransitionInfo(LumenSceneData.CubeMapTreeBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
 			LumenSceneData.UploadCubeMapTreeBuffer.ResourceUploadTo(RHICmdList, LumenSceneData.CubeMapTreeBuffer, false);
-			RHICmdList.Transition(FRHITransitionInfo(LumenSceneData.CubeMapTreeBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::EReadable));
+			RHICmdList.Transition(FRHITransitionInfo(LumenSceneData.CubeMapTreeBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask));
 		}
 	}
 
@@ -251,7 +251,7 @@ void UpdateLumenCubeMapTrees(const FDistanceFieldSceneData& DistanceFieldSceneDa
 		const uint32 NumCubeMaps = LumenSceneData.CubeMaps.Num();
 		const uint32 CubeMapNumFloat4s = FMath::RoundUpToPowerOfTwo(NumCubeMaps * FLumenCubeMapGPUData::DataStrideInFloat4s);
 		const uint32 CubeMapNumBytes = CubeMapNumFloat4s * sizeof(FVector4);
-		const bool bResizedCubeMapData = ResizeResourceIfNeeded(RHICmdList, LumenSceneData.CubeMapBuffer, CubeMapNumBytes, TEXT("LumenCubeMaps"));
+		ResizeResourceIfNeeded(RHICmdList, LumenSceneData.CubeMapBuffer, CubeMapNumBytes, TEXT("LumenCubeMaps"));
 
 		const int32 NumCubeMapUploads = LumenSceneData.CubeMapIndicesToUpdateInBuffer.Num();
 
@@ -272,9 +272,9 @@ void UpdateLumenCubeMapTrees(const FDistanceFieldSceneData& DistanceFieldSceneDa
 				}
 			}
 
-			RHICmdList.Transition(FRHITransitionInfo(LumenSceneData.CubeMapBuffer.UAV, ERHIAccess::Unknown, bResizedCubeMapData ? ERHIAccess::ERWBarrier : ERHIAccess::EWritable));
+			RHICmdList.Transition(FRHITransitionInfo(LumenSceneData.CubeMapBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
 			LumenSceneData.UploadCubeMapBuffer.ResourceUploadTo(RHICmdList, LumenSceneData.CubeMapBuffer, false);
-			RHICmdList.Transition(FRHITransitionInfo(LumenSceneData.CubeMapBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::EReadable));
+			RHICmdList.Transition(FRHITransitionInfo(LumenSceneData.CubeMapBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask));
 		}
 	}
 
@@ -296,7 +296,7 @@ void UpdateLumenCubeMapTrees(const FDistanceFieldSceneData& DistanceFieldSceneDa
 		const int32 NumIndices = FMath::RoundUpToPowerOfTwo(DistanceFieldSceneData.NumObjectsInBuffer);
 		const uint32 IndexSizeInBytes = GPixelFormats[PF_R32_UINT].BlockBytes;
 		const uint32 IndicesSizeInBytes = FMath::DivideAndRoundUp<int32>(NumIndices * IndexSizeInBytes, 16) * 16; // Round to multiple of 16 bytes
-		const bool bResizedIndexElements = ResizeResourceIfNeeded(RHICmdList, LumenSceneData.DFObjectToCubeMapTreeIndexBuffer, IndicesSizeInBytes, TEXT("DFObjectToCubeMapTreeIndices"));
+		ResizeResourceIfNeeded(RHICmdList, LumenSceneData.DFObjectToCubeMapTreeIndexBuffer, IndicesSizeInBytes, TEXT("DFObjectToCubeMapTreeIndices"));
 
 		const int32 NumIndexUploads = LumenSceneData.DFObjectIndicesToUpdateInBuffer.Num();
 
@@ -326,9 +326,9 @@ void UpdateLumenCubeMapTrees(const FDistanceFieldSceneData& DistanceFieldSceneDa
 				}
 			}
 
-			RHICmdList.Transition(FRHITransitionInfo(LumenSceneData.DFObjectToCubeMapTreeIndexBuffer.UAV, ERHIAccess::Unknown, bResizedIndexElements ? ERHIAccess::ERWBarrier : ERHIAccess::EWritable));
+			RHICmdList.Transition(FRHITransitionInfo(LumenSceneData.DFObjectToCubeMapTreeIndexBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
 			LumenSceneData.ByteBufferUploadBuffer.ResourceUploadTo(RHICmdList, LumenSceneData.DFObjectToCubeMapTreeIndexBuffer, false);
-			RHICmdList.Transition(FRHITransitionInfo(LumenSceneData.DFObjectToCubeMapTreeIndexBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::EReadable));
+			RHICmdList.Transition(FRHITransitionInfo(LumenSceneData.DFObjectToCubeMapTreeIndexBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask));
 		}
 	}
 	
@@ -354,7 +354,7 @@ void UpdateLumenCubeMapTrees(const FDistanceFieldSceneData& DistanceFieldSceneDa
 
 		if (bBufferResized)
 		{
-			RHICmdList.Transition(FRHITransitionInfo(LumenSceneData.PrimitiveToDFObjectIndexBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
+			RHICmdList.Transition(FRHITransitionInfo(LumenSceneData.PrimitiveToDFObjectIndexBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
 
 			const uint32 DeltaIndicesSizeInBytesForPrimitives = IndicesSizeInBytesForPrimitives - LumenSceneData.PrimitiveToDFObjectIndexBufferSize;
 			const uint32 DstOffset = LumenSceneData.PrimitiveToDFObjectIndexBufferSize;
@@ -396,9 +396,9 @@ void UpdateLumenCubeMapTrees(const FDistanceFieldSceneData& DistanceFieldSceneDa
 				}
 			}
 
-			RHICmdList.Transition(FRHITransitionInfo(LumenSceneData.PrimitiveToDFObjectIndexBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::EWritable));
+			RHICmdList.Transition(FRHITransitionInfo(LumenSceneData.PrimitiveToDFObjectIndexBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
 			LumenSceneData.UploadPrimitiveBuffer.ResourceUploadTo(RHICmdList, LumenSceneData.PrimitiveToDFObjectIndexBuffer, false);
-			RHICmdList.Transition(FRHITransitionInfo(LumenSceneData.PrimitiveToDFObjectIndexBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::EReadable));
+			RHICmdList.Transition(FRHITransitionInfo(LumenSceneData.PrimitiveToDFObjectIndexBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask));
 		}
 	}
 

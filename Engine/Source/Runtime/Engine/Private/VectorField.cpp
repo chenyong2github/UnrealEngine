@@ -1171,7 +1171,7 @@ public:
 				NoiseVolumeTextureRHI = AnimatedVectorField->NoiseField->Resource->VolumeTextureRHI;
 			}
 
-			RHICmdList.Transition(FRHITransitionInfo(VolumeTextureUAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
+			RHICmdList.Transition(FRHITransitionInfo(VolumeTextureUAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
 			RHICmdList.SetComputeShader(CompositeCS.GetComputeShader());
 			CompositeCS->SetOutput(RHICmdList, VolumeTextureUAV);
 			/// ?
@@ -1187,7 +1187,7 @@ public:
 				SizeY / THREADS_PER_AXIS,
 				SizeZ / THREADS_PER_AXIS );
 			CompositeCS->UnbindBuffers(RHICmdList);
-			RHICmdList.Transition(FRHITransitionInfo(VolumeTextureUAV, ERHIAccess::ERWBarrier, ERHIAccess::SRVMask));
+			RHICmdList.Transition(FRHITransitionInfo(VolumeTextureUAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask));
 		}
 	}
 

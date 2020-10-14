@@ -2549,50 +2549,6 @@ public:
 		TransitionResources(TransitionType, &InTextures[0], InTextures.Num());
 	}
 
-	inline void TransitionResources(ERHIAccess TransitionType, EResourceTransitionPipeline /* ignored TransitionPipeline */, FRHIUnorderedAccessView* const* InUAVs, int32 NumUAVs, FRHIComputeFence* WriteFence)
-	{
-		// Stack allocate the transition descriptors. These will get memcpy()ed onto the RHI command list if required.
-		FMemMark Mark(FMemStack::Get());
-		TArray<FRHITransitionInfo, TMemStackAllocator<>> Infos;
-		Infos.Reserve(NumUAVs);
-
-		for (int32 Index = 0; Index < NumUAVs; ++Index)
-		{
-			Infos.Add(FRHITransitionInfo(InUAVs[Index], ERHIAccess::Unknown, TransitionType));
-		}
-
-		if (WriteFence)
-		{
-			ERHIPipeline SrcPipeline = IsAsyncCompute() ? ERHIPipeline::AsyncCompute : ERHIPipeline::Graphics;
-			ERHIPipeline DstPipeline = IsAsyncCompute() ? ERHIPipeline::Graphics : ERHIPipeline::AsyncCompute;
-
-			// Cross-pipeline transition. Begin on the current context and store the
-			// transition in the "compute fence" so we can end it later on the other context.
-			WriteFence->Transition = RHICreateTransition(SrcPipeline, DstPipeline, ERHICreateTransitionFlags::None, Infos);
-			BeginTransitions(MakeArrayView(&WriteFence->Transition, 1));
-		}
-		else
-		{
-			// No compute fence, so this transition is happening entirely on the current pipe.
-			Transition(Infos);
-		}
-	}
-
-	FORCEINLINE_DEBUGGABLE void TransitionResource(ERHIAccess TransitionType, EResourceTransitionPipeline TransitionPipeline, FRHIUnorderedAccessView* InUAV, FRHIComputeFence* WriteFence)
-	{
-		TransitionResources(TransitionType, TransitionPipeline, &InUAV, 1, WriteFence);
-	}
-
-	FORCEINLINE_DEBUGGABLE void TransitionResource(ERHIAccess TransitionType, EResourceTransitionPipeline TransitionPipeline, FRHIUnorderedAccessView* InUAV)
-	{
-		TransitionResource(TransitionType, TransitionPipeline, InUAV, nullptr);
-	}
-
-	FORCEINLINE_DEBUGGABLE void TransitionResources(ERHIAccess TransitionType, EResourceTransitionPipeline TransitionPipeline, FRHIUnorderedAccessView* const* InUAVs, int32 NumUAVs)
-	{
-		TransitionResources(TransitionType, TransitionPipeline, InUAVs, NumUAVs, nullptr);
-	}
-
 	FORCEINLINE_DEBUGGABLE void WaitComputeFence(FRHIComputeFence* WaitFence)
 	{
 		check(WaitFence->Transition);
@@ -2600,7 +2556,6 @@ public:
 		WaitFence->Transition = nullptr;
 	}
 
-//	UE_DEPRECATED(4.26, "BeginUAVOverlap() with no arguments is deprecated. Use the overload which takes a UAV or array of UAVs to explicitly mark as safe for overlapped access.")
 	FORCEINLINE_DEBUGGABLE void BeginUAVOverlap()
 	{
 		if (Bypass())
@@ -2611,7 +2566,6 @@ public:
 		ALLOC_COMMAND(FRHICommandBeginUAVOverlap)();
 	}
 
-//	UE_DEPRECATED(4.26, "EndUAVOverlap() with no arguments is deprecated. Use the overload which takes a UAV or array of UAVs to explicitly mark as safe for overlapped access.")
 	FORCEINLINE_DEBUGGABLE void EndUAVOverlap()
 	{
 		if (Bypass())
@@ -3964,12 +3918,6 @@ public:
 		return CreateAndLockIndexBuffer(Stride, Size, (EBufferUsageFlags) InUsage, ResourceState, CreateInfo, OutDataBuffer);
 	}
 	
-	UE_DEPRECATED(4.26, "The RHI resource creation API has been refactored. Use global RHICreate functions with default initial ResourceState")
-	FORCEINLINE FIndexBufferRHIRef CreateIndexBuffer(uint32 Stride, uint32 Size, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo)
-	{
-		return RHICreateIndexBuffer(Stride, Size, InUsage, CreateInfo);
-	}
-	
 	FORCEINLINE void* LockIndexBuffer(FRHIIndexBuffer* IndexBuffer, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode)
 	{
 		return GDynamicRHI->RHILockIndexBuffer(*this, IndexBuffer, Offset, SizeRHI, LockMode);
@@ -4001,12 +3949,6 @@ public:
 		return CreateAndLockVertexBuffer(Size, (EBufferUsageFlags) InUsage, ResourceState, CreateInfo, OutDataBuffer);
 	}
 
-	UE_DEPRECATED(4.26, "The RHI resource creation API has been refactored. Use global RHICreate functions with default initial ResourceState")
-	FORCEINLINE FVertexBufferRHIRef CreateVertexBuffer(uint32 Size, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo)
-	{
-		return RHICreateVertexBuffer(Size, InUsage, CreateInfo);
-	}
-	
 	FORCEINLINE void* LockVertexBuffer(FRHIVertexBuffer* VertexBuffer, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode)
 	{
 		return GDynamicRHI->RHILockVertexBuffer(*this, VertexBuffer, Offset, SizeRHI, LockMode);
@@ -4024,12 +3966,6 @@ public:
 		GDynamicRHI->RHICopyVertexBuffer(SourceBuffer,DestBuffer);
 	}
 
-	UE_DEPRECATED(4.26, "The RHI resource creation API has been refactored. Use global RHICreate functions with default initial ResourceState")
-	FORCEINLINE FStructuredBufferRHIRef CreateStructuredBuffer(uint32 Stride, uint32 Size, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo)
-	{
-		return RHICreateStructuredBuffer(Stride, Size, InUsage, CreateInfo);
-	}
-	
 	FORCEINLINE void* LockStructuredBuffer(FRHIStructuredBuffer* StructuredBuffer, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode)
 	{
 		return GDynamicRHI->RHILockStructuredBuffer(*this, StructuredBuffer, Offset, SizeRHI, LockMode);
@@ -4135,24 +4071,6 @@ public:
 		return GDynamicRHI->RHICreateTextureReference_RenderThread(*this, LastRenderTime);
 	}
 	
-	UE_DEPRECATED(4.26, "The RHI resource creation API has been refactored. Use global RHICreate functions with default initial ResourceState")
-	FORCEINLINE FTexture2DRHIRef CreateTexture2D(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 NumSamples, ETextureCreateFlags Flags, FRHIResourceCreateInfo& CreateInfo)
-	{
-		return RHICreateTexture2D(SizeX, SizeY, Format, NumMips, NumSamples, Flags, CreateInfo);
-	}
-
-	UE_DEPRECATED(4.26, "The RHI resource creation API has been refactored. Use global RHICreate functions with default initial ResourceState")
-	FORCEINLINE FTexture2DRHIRef CreateTextureExternal2D(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 NumSamples, ETextureCreateFlags Flags, FRHIResourceCreateInfo& CreateInfo)
-	{
-		return RHICreateTextureExternal2D(SizeX, SizeY, Format, NumMips, NumSamples, Flags, CreateInfo);
-	}
-
-	UE_DEPRECATED(4.26, "The RHI resource creation API has been refactored. Use global RHICreate functions with default initial ResourceState")
-	FORCEINLINE FTexture2DRHIRef AsyncCreateTexture2D(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, void** InitialMipData, uint32 NumInitialMips)
-	{
-		return RHIAsyncCreateTexture2D(SizeX, SizeY, Format, NumMips, Flags, InitialMipData, NumInitialMips);
-	}
-	
 	FORCEINLINE void CopySharedMips(FRHITexture2D* DestTexture2D, FRHITexture2D* SrcTexture2D)
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_CopySharedMips_Flush);
@@ -4183,18 +4101,6 @@ public:
 		return GDynamicRHI->RHITransferTextures(Params);
 	}
 
-	UE_DEPRECATED(4.26, "The RHI resource creation API has been refactored. Use global RHICreate functions with default initial ResourceState")
-	FORCEINLINE FTexture2DArrayRHIRef CreateTexture2DArray(uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint8 Format, uint32 NumMips, uint32 NumSamples, ETextureCreateFlags Flags, FRHIResourceCreateInfo& CreateInfo)
-	{
-		return RHICreateTexture2DArray(SizeX, SizeY, SizeZ, Format, NumMips, NumSamples, Flags, CreateInfo);
-	}
-
-	UE_DEPRECATED(4.26, "The RHI resource creation API has been refactored. Use global RHICreate functions with default initial ResourceState")
-	FORCEINLINE FTexture3DRHIRef CreateTexture3D(uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, FRHIResourceCreateInfo& CreateInfo)
-	{
-		return RHICreateTexture3D(SizeX, SizeY, SizeZ, Format, NumMips, Flags, CreateInfo);
-	}
-	
 	FORCEINLINE void GetResourceInfo(FRHITexture* Ref, FRHIResourceInfo& OutInfo)
 	{
 		return RHIGetResourceInfo(Ref, OutInfo);
@@ -4333,18 +4239,6 @@ public:
 		checkf(UpdateRegion.DestZ + UpdateRegion.Depth <= Texture->GetSizeZ(), TEXT("UpdateTexture3D out of bounds on Z. Texture: %s, %i, %i, %i"), *Texture->GetName().ToString(), UpdateRegion.DestZ, UpdateRegion.Depth, Texture->GetSizeZ());
 		LLM_SCOPE(ELLMTag::Textures);
 		GDynamicRHI->UpdateTexture3D_RenderThread(*this, Texture, MipIndex, UpdateRegion, SourceRowPitch, SourceDepthPitch, SourceData);
-	}
-	
-	UE_DEPRECATED(4.26, "The RHI resource creation API has been refactored. Use global RHICreate functions with default initial ResourceState")
-	FORCEINLINE FTextureCubeRHIRef CreateTextureCube(uint32 Size, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, FRHIResourceCreateInfo& CreateInfo)
-	{
-		return RHICreateTextureCube(Size, Format, NumMips, Flags, CreateInfo);
-	}
-	
-	UE_DEPRECATED(4.26, "The RHI resource creation API has been refactored. Use global RHICreate functions with default initial ResourceState")
-	FORCEINLINE FTextureCubeRHIRef CreateTextureCubeArray(uint32 Size, uint32 ArraySize, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, FRHIResourceCreateInfo& CreateInfo)
-	{
-		return RHICreateTextureCubeArray(Size, ArraySize, Format, NumMips, Flags, CreateInfo);
 	}
 	
 	FORCEINLINE void* LockTextureCubeFace(FRHITextureCube* Texture, uint32 FaceIndex, uint32 ArrayIndex, uint32 MipIndex, EResourceLockMode LockMode, uint32& DestStride, bool bLockWithinMiptail)

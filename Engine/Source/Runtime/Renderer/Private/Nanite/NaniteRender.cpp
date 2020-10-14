@@ -3864,12 +3864,7 @@ void DrawBasePass(
 	TRefCountPtr<IPooledRenderTarget> DebugVisualizationOutput;
 	TRefCountPtr<IPooledRenderTarget> MaterialDepthOutput; // Only used for visualizing material depth export
 
-	if (UseComputeDepthExport())
-	{
-		// TODO: Force decompress depth buffer. This is a workaround for current lack of decompression support in the RHI when binding a compressed resource as UAV.
-		// RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, SceneTargets.SceneDepthZ->GetRenderTargetItem().TargetableTexture);
-	}
-	else if (GNaniteMaterialCulling == 1 || GNaniteMaterialCulling == 2)
+	if (!UseComputeDepthExport() && (GNaniteMaterialCulling == 1 || GNaniteMaterialCulling == 2))
 	{
 		// Mode 1 and 2 (32bit mask) is currently unsupported when compute depth export is disabled.
 		// Culling was intended, so fall back to range load method.
@@ -4332,17 +4327,6 @@ void DrawBasePass(
 			ConvertToExternalTexture(GraphBuilder, MaterialDepth, MaterialDepthOutput);
 		}
 	}
-
-#if 0 // Still needed?
-	// TODO hack to enable triangle view in test mode
-	if (DebugVisualizationOutput)
-	{
-		GVisualizeTexture.SetCheckPoint(RHICmdList, DebugVisualizationOutput);
-	}
-
-	// Scene depth buffer will be rendered to next, so we need to explicitly put it into depth write state.
-	RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EComputeToGfx, SceneTargets.SceneDepthZ->GetRenderTargetItem().UAV);
-#endif
 
 	if (GRHISupportsResummarizeHTile && GNaniteResummarizeHTile != 0 && !UseComputeDepthExport())
 	{

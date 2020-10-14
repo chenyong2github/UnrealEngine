@@ -242,7 +242,7 @@ void ResizeAndCenterTexture(
 	ClampedImageCenterUV.Y = FMath::Clamp(SrcImageCenterUV.Y, 0.f, 1.f);
 
 	check(DstUAV);
-	RHICmdList.Transition(FRHITransitionInfo(DstUAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
+	RHICmdList.Transition(FRHITransitionInfo(DstUAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
 
 	{
 		TShaderMapRef<FResizeAndCenterTextureCS> ComputeShader(View.ShaderMap);
@@ -293,7 +293,7 @@ void CaptureKernelWeight(
 	FSceneRenderTargetItem& DstTargetItem = CenterWeightRT->GetRenderTargetItem();
 
 	check(DstTargetItem.UAV);
-	RHICmdList.Transition(FRHITransitionInfo(DstTargetItem.UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
+	RHICmdList.Transition(FRHITransitionInfo(DstTargetItem.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
 
 	{
 		TShaderMapRef<FCaptureKernelWeightsCS> ComputeShader(View.ShaderMap);
@@ -309,7 +309,7 @@ void CaptureKernelWeight(
 		FComputeShaderUtils::Dispatch(RHICmdList, ComputeShader, PassParameters, FIntVector(1, 1, 1));
 	}
 
-	RHICmdList.Transition(FRHITransitionInfo(DstTargetItem.UAV, ERHIAccess::ERWBarrier, ERHIAccess::SRVMask));
+	RHICmdList.Transition(FRHITransitionInfo(DstTargetItem.UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask));
 
 	ensureMsgf(DstTargetItem.TargetableTexture == DstTargetItem.ShaderResourceTexture, TEXT("%s should be resolved to a separate SRV"), *DstTargetItem.TargetableTexture->GetName().ToString());
 }
@@ -346,7 +346,7 @@ void BlendLowRes(
 
 	// set destination
 	check(DstUAV);
-	RHICmdList.Transition(FRHITransitionInfo(DstUAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
+	RHICmdList.Transition(FRHITransitionInfo(DstUAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
 
 	{
 		TShaderMapRef<FBlendLowResCS> ComputeShader(View.ShaderMap);
@@ -370,7 +370,7 @@ void BlendLowRes(
 		FComputeShaderUtils::Dispatch(RHICmdList, ComputeShader, PassParameters, FIntVector(ThreadsGroupsPerScanLine, TargetExtent.Y, 1));
 	}
 
-	RHICmdList.Transition(FRHITransitionInfo(DstUAV, ERHIAccess::ERWBarrier, ERHIAccess::SRVMask));
+	RHICmdList.Transition(FRHITransitionInfo(DstUAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask));
 }
 
 /**
@@ -393,7 +393,7 @@ void CopyImageRect(
 
 	// set destination
 	check(DstUAV);
-	RHICmdList.Transition(FRHITransitionInfo(DstUAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
+	RHICmdList.Transition(FRHITransitionInfo(DstUAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
 
 	{
 		TShaderMapRef<FPassThroughCS> ComputeShader(View.ShaderMap);
@@ -619,7 +619,7 @@ void ConvolveWithKernel(
 		TmpTargets[1]->GetRenderTargetItem(),
 		Intermediates.PreFilter);
 
-	RHICmdList.Transition(FRHITransitionInfo(ResultUAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
+	RHICmdList.Transition(FRHITransitionInfo(ResultUAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
 }
 
 FSceneRenderTargetItem* InitDomainAndGetKernel(FRHICommandList& RHICmdList, const FViewInfo& View, const FFFTBloomIntermediates& Intermediates)
@@ -700,7 +700,7 @@ FSceneRenderTargetItem* InitDomainAndGetKernel(FRHICommandList& RHICmdList, cons
 		ResizeAndCenterTexture(RHICmdList, View, PhysicalSpaceKernelTextureRef, ImageSize, CenterUV, Intermediates.KernelSupportScale,
 			Intermediates.FrequencySize, SpectralKernelRTItem.UAV, PaddedFrequencySize, Intermediates.bHalfResolutionFFT);
 
-		RHICmdList.Transition(FRHITransitionInfo(SpectralKernelRTItem.UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
+		RHICmdList.Transition(FRHITransitionInfo(SpectralKernelRTItem.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
 
 		// Two Dimensional FFT of the physical space kernel.  
 		// Input: SpectralRTItem holds the physical space kernel, on return it will be the spectral space 

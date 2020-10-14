@@ -256,6 +256,8 @@ void FSystemTextures::InitializeFeatureLevelDependentTextures(FRHICommandListImm
 			Desc.Extent.X * sizeof(BlackBytes),
 			Desc.Extent.X * Desc.Extent.Y * sizeof(BlackBytes),
 			BlackBytes);
+
+		RHICmdList.Transition(FRHITransitionInfo(VolumetricBlackDummy->GetTargetableRHI(), ERHIAccess::RTV, ERHIAccess::SRVMask));
 	}
 
 	if (CurrentFeatureLevel < ERHIFeatureLevel::SM5 && InFeatureLevel >= ERHIFeatureLevel::SM5)

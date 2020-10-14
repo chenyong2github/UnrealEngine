@@ -2672,8 +2672,6 @@ void FD3D11DynamicRHI::RHICopyTexture(FRHITexture* SourceTextureRHI, FRHITexture
 		return;
 	}
 
-	// @todo - fix this RHITransitionResources(EResourceTransitionAccess::EReadable, &SourceTextureRHI, 1);
-
 	FRHICommandList_RecursiveHazardous RHICmdList(this);	
 
 	FD3D11TextureBase* SourceTexture = GetD3D11TextureFromRHITexture(SourceTextureRHI);

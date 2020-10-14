@@ -539,11 +539,11 @@ void FDeferredShadingSceneRenderer::UpdateGlobalDistanceFieldObjectBuffers(FRHIC
 
 				const uint32 DFObjectDataNumFloat4s = FMath::RoundUpToPowerOfTwo(NumDFObjects * FDistanceFieldObjectBuffers::ObjectDataStride);
 				const uint32 DFObjectDataNumBytes = DFObjectDataNumFloat4s * sizeof(FVector4);
-				const bool bResizedDFObjectData = ResizeResourceIfNeeded(RHICmdList, ObjectBuffers->Data, DFObjectDataNumBytes, TEXT("DFObjectData"));
+				ResizeResourceIfNeeded(RHICmdList, ObjectBuffers->Data, DFObjectDataNumBytes, TEXT("DFObjectData"));
 
 				const uint32 DFObjectBoundsNumFloat4s = FMath::RoundUpToPowerOfTwo(NumDFObjects * FDistanceFieldObjectBuffers::ObjectBoundsStride);
 				const uint32 DFObjectBoundsNumBytes = DFObjectBoundsNumFloat4s * sizeof(FVector4);
-				const bool bResizedDFObjectBounds = ResizeResourceIfNeeded(RHICmdList, ObjectBuffers->Bounds, DFObjectBoundsNumBytes, TEXT("DFObjectBounds"));
+				ResizeResourceIfNeeded(RHICmdList, ObjectBuffers->Bounds, DFObjectBoundsNumBytes, TEXT("DFObjectBounds"));
 
 				const int32 NumDFObjectUploads = DistanceFieldSceneData.IndicesToUpdateInObjectBuffers.Num();
 
@@ -708,17 +708,18 @@ void FDeferredShadingSceneRenderer::UpdateGlobalDistanceFieldObjectBuffers(FRHIC
 						RangeCount == 1
 					);
 
-					TStaticArray<FRHITransitionInfo, 2> TransitionInfos;
-					TransitionInfos[0] = FRHITransitionInfo(ObjectBuffers->Data.UAV, ERHIAccess::Unknown, bResizedDFObjectData ? ERHIAccess::ERWBarrier : ERHIAccess::EWritable);
-					TransitionInfos[1] = FRHITransitionInfo(ObjectBuffers->Bounds.UAV, ERHIAccess::Unknown, bResizedDFObjectBounds ? ERHIAccess::ERWBarrier : ERHIAccess::EWritable);
-					RHICmdList.Transition(TransitionInfos);
+					RHICmdList.Transition({
+						FRHITransitionInfo(ObjectBuffers->Data.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute),
+						FRHITransitionInfo(ObjectBuffers->Bounds.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute)
+					});
 
 					DistanceFieldSceneData.UploadDistanceFieldDataBuffer.ResourceUploadTo(RHICmdList, ObjectBuffers->Data, false);
 					DistanceFieldSceneData.UploadDistanceFieldBoundsBuffer.ResourceUploadTo(RHICmdList, ObjectBuffers->Bounds, false);
 
-					TransitionInfos[0] = FRHITransitionInfo(ObjectBuffers->Data.UAV, ERHIAccess::Unknown, ERHIAccess::EReadable);
-					TransitionInfos[1] = FRHITransitionInfo(ObjectBuffers->Bounds.UAV, ERHIAccess::Unknown, ERHIAccess::EReadable);
-					RHICmdList.Transition(TransitionInfos);
+					RHICmdList.Transition({
+						FRHITransitionInfo(ObjectBuffers->Data.UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask),
+						FRHITransitionInfo(ObjectBuffers->Bounds.UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask)
+					});
 				}
 			}
 		}
@@ -812,11 +813,11 @@ void FDeferredShadingSceneRenderer::UpdateGlobalHeightFieldObjectBuffers(FRHICom
 
 				const uint32 HeighFieldObjectDataNumFloat4s = FMath::RoundUpToPowerOfTwo(NumHeightFieldObjects * FHeightFieldObjectBuffers::ObjectDataStride);
 				const uint32 HeighFieldObjectDataNumBytes = HeighFieldObjectDataNumFloat4s * sizeof(FVector4);
-				const bool bResizedHeighFieldObjectData = ResizeResourceIfNeeded(RHICmdList, ObjectBuffers->Data, HeighFieldObjectDataNumBytes, TEXT("HeighFieldObjectData"));
+				ResizeResourceIfNeeded(RHICmdList, ObjectBuffers->Data, HeighFieldObjectDataNumBytes, TEXT("HeighFieldObjectData"));
 
 				const uint32 HeighFieldObjectBoundsNumFloat4s = FMath::RoundUpToPowerOfTwo(NumHeightFieldObjects * FHeightFieldObjectBuffers::ObjectBoundsStride);
 				const uint32 HeighFieldObjectBoundsNumBytes = HeighFieldObjectBoundsNumFloat4s * sizeof(FVector4);
-				const bool bResizedHeighFieldObjectBounds = ResizeResourceIfNeeded(RHICmdList, ObjectBuffers->Bounds, HeighFieldObjectBoundsNumBytes, TEXT("HeighFieldObjectBounds"));
+				ResizeResourceIfNeeded(RHICmdList, ObjectBuffers->Bounds, HeighFieldObjectBoundsNumBytes, TEXT("HeighFieldObjectBounds"));
 
 				const int32 NumHeighFieldObjectUploads = DistanceFieldSceneData.IndicesToUpdateInHeightFieldObjectBuffers.Num();
 
@@ -854,9 +855,9 @@ void FDeferredShadingSceneRenderer::UpdateGlobalHeightFieldObjectBuffers(FRHICom
 
 							const FIntRect& HeightFieldRect = HeightFieldCompDesc.HeightfieldRect;
 							const float WorldToLocalScale = FMath::Min3(
-							WorldToLocalT.GetColumn(0).Size(),
-							WorldToLocalT.GetColumn(1).Size(),
-							WorldToLocalT.GetColumn(2).Size());
+								WorldToLocalT.GetColumn(0).Size(),
+								WorldToLocalT.GetColumn(1).Size(),
+								WorldToLocalT.GetColumn(2).Size());
 							UploadObjectData[3] = FVector4(HeightFieldRect.Width(), HeightFieldRect.Height(), WorldToLocalScale, 0.f);
 
 							FVector4 HeightUVScaleBias(ForceInitToZero);
@@ -891,17 +892,18 @@ void FDeferredShadingSceneRenderer::UpdateGlobalHeightFieldObjectBuffers(FRHICom
 						}
 					}
 
-					TStaticArray<FRHITransitionInfo, 2> TransitionInfos;
-					TransitionInfos[0] = FRHITransitionInfo(ObjectBuffers->Data.UAV, ERHIAccess::Unknown, bResizedHeighFieldObjectData ? ERHIAccess::ERWBarrier : ERHIAccess::EWritable);
-					TransitionInfos[1] = FRHITransitionInfo(ObjectBuffers->Bounds.UAV, ERHIAccess::Unknown, bResizedHeighFieldObjectBounds ? ERHIAccess::ERWBarrier : ERHIAccess::EWritable);
-					RHICmdList.Transition(TransitionInfos);
+					RHICmdList.Transition({
+						FRHITransitionInfo(ObjectBuffers->Data.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute),
+						FRHITransitionInfo(ObjectBuffers->Bounds.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute)
+					});
 
 					DistanceFieldSceneData.UploadHeightFieldDataBuffer.ResourceUploadTo(RHICmdList, ObjectBuffers->Data, false);
 					DistanceFieldSceneData.UploadHeightFieldBoundsBuffer.ResourceUploadTo(RHICmdList, ObjectBuffers->Bounds, false);
 
-					TransitionInfos[0] = FRHITransitionInfo(ObjectBuffers->Data.UAV, ERHIAccess::Unknown, ERHIAccess::EReadable);
-					TransitionInfos[1] = FRHITransitionInfo(ObjectBuffers->Bounds.UAV, ERHIAccess::Unknown, ERHIAccess::EReadable);
-					RHICmdList.Transition(TransitionInfos);
+					RHICmdList.Transition({
+						FRHITransitionInfo(ObjectBuffers->Data.UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask),
+						FRHITransitionInfo(ObjectBuffers->Bounds.UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask)
+					});
 				}
 			}
 		}

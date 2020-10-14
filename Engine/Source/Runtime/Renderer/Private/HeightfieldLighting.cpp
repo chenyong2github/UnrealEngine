@@ -1328,7 +1328,7 @@ public:
 		HeightfieldDescriptionParameters.Set(RHICmdList, ShaderRHI, GetHeightfieldDescriptionsSRV(), NumHeightfieldsValue);
 		HeightfieldTextureParameters.Set(RHICmdList, ShaderRHI, HeightfieldTextureValue, nullptr, nullptr);
 
-		RHICmdList.Transition(FRHITransitionInfo(ScreenGridResources.ScreenGridConeVisibility.UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
+		RHICmdList.Transition(FRHITransitionInfo(ScreenGridResources.ScreenGridConeVisibility.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
 		ScreenGridConeVisibility.SetBuffer(RHICmdList, ShaderRHI, ScreenGridResources.ScreenGridConeVisibility);
 
 		FAOSampleData2 AOSampleData;
@@ -1350,7 +1350,7 @@ public:
 	void UnsetParameters(FRHICommandList& RHICmdList, const FAOScreenGridResources& ScreenGridResources)
 	{
 		ScreenGridConeVisibility.UnsetUAV(RHICmdList, RHICmdList.GetBoundComputeShader());
-		RHICmdList.Transition(FRHITransitionInfo(ScreenGridResources.ScreenGridConeVisibility.UAV, ERHIAccess::ERWBarrier, ERHIAccess::SRVMask));
+		RHICmdList.Transition(FRHITransitionInfo(ScreenGridResources.ScreenGridConeVisibility.UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask));
 	}
 
 private:

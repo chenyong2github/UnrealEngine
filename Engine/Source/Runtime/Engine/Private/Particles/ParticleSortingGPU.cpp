@@ -185,10 +185,9 @@ int32 GenerateParticleSortKeys(
 	KeyGenCS->SetOutput(RHICmdList, KeyBufferUAV, SortedVertexBufferUAV);
 	KeyGenCS->SetPositionTextures(RHICmdList, PositionTextureRHI);
 
-	FRHITransitionInfo UAVTransitions[] = { 
-		FRHITransitionInfo(KeyBufferUAV, ERHIAccess::Unknown, ERHIAccess::ERWNoBarrier),
-		FRHITransitionInfo(SortedVertexBufferUAV, ERHIAccess::Unknown, ERHIAccess::ERWNoBarrier),
-	};
+	// TR-KeyGen : No sync needed between tasks since they update different parts of the data (assuming it's ok if cache line overlap).
+	RHICmdList.BeginUAVOverlap({ KeyBufferUAV, SortedVertexBufferUAV });
+
 	// For each simulation, generate keys and store them in the sorting buffers.
 	for (const FParticleSimulationSortInfo& SortInfo : SimulationsToSort)
 	{
@@ -210,14 +209,14 @@ int32 GenerateParticleSortKeys(
 			// Dispatch.
 			KeyGenCS->SetParameters(RHICmdList, KeyGenUniformBuffer, SortInfo.VertexBufferSRV);
 			DispatchComputeShader(RHICmdList, KeyGenCS.GetShader(), GroupCount, 1, 1);
-
-			// TR-KeyGen : No sync needed between tasks since they update different parts of the data (assuming it's ok if cache line overlap).
-			RHICmdList.Transition(MakeArrayView(UAVTransitions, UE_ARRAY_COUNT(UAVTransitions)));
 		}
 	}
 
 	// Clear the output buffer.
 	KeyGenCS->UnbindBuffers(RHICmdList);
+
+	RHICmdList.EndUAVOverlap({ KeyBufferUAV, SortedVertexBufferUAV });
+
 	return TotalParticleCount;
 }
 

@@ -192,40 +192,6 @@ static void GetVkStageAndAccessFlags(ERHIAccess RHIAccess, FRHITransitionInfo::E
 			AccessFlags = VK_ACCESS_TRANSFER_WRITE_BIT;
 			Layout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
 			return;
-
-		case ERHIAccess::EReadable:
-			// All the stages which could possibly read from the resource, so basically the same as SRVGraphics + SRVCompute + DSVRead.
-			StageFlags = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_TESSELLATION_CONTROL_SHADER_BIT | VK_PIPELINE_STAGE_TESSELLATION_EVALUATION_SHADER_BIT | VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT |VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT |
-				VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
-			AccessFlags = VK_ACCESS_MEMORY_READ_BIT;
-			// For the source state, this doesn't give us enough information to know the current layout, so we'll leave it as undefined and the layout manager will fill it in when the transition is executed.
-			// For the destination state, we assume this will be an SRV.
-			if (!bIsSourceState)
-			{
-				Layout = SRVLayout;
-			}
-			return;
-
-		case ERHIAccess::EWritable:
-			// The engine no longer uses this state, but there may be licensee code which does.
-			// All the stages which could possibly write to the resource, so UAVGraphics + UAVCompute + DSVWrite + RTV.
-			StageFlags = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_TESSELLATION_CONTROL_SHADER_BIT | VK_PIPELINE_STAGE_TESSELLATION_EVALUATION_SHADER_BIT | VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT |
-				VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
-			AccessFlags = VK_ACCESS_MEMORY_WRITE_BIT;
-			// For the source state, this has the same problem as EReadable. For the destination state we assume the caller means UAV.
-			if (!bIsSourceState)
-			{
-				Layout = VK_IMAGE_LAYOUT_GENERAL;
-			}
-			return;
-
-		case ERHIAccess::ERWBarrier:
-			// This is used for UAVs, so it's UAVGraphics + UAVCompute.
-			StageFlags = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_TESSELLATION_CONTROL_SHADER_BIT | VK_PIPELINE_STAGE_TESSELLATION_EVALUATION_SHADER_BIT | VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT |
-				VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
-			AccessFlags = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
-			Layout = VK_IMAGE_LAYOUT_GENERAL;
-			return;
 	}
 
 	// If DSVWrite is set, we ignore everything else because it decides the layout.

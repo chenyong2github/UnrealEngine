@@ -150,20 +150,6 @@ public:
 	
 	static const TCHAR* GetFunctionName() { return TEXT("ClearCS"); }
 
-	UE_DEPRECATED(4.25, "TClearReplacementCS::SetResource is deprecated. Call GetClearResourceParam() and bind the UAV manually instead. Be sure to handle any necessary resource transitions.")
-	inline void SetResource(FRHIComputeCommandList& RHICmdList, FRHIUnorderedAccessView* UAV)
-	{
-		RHICmdList.Transition(FRHITransitionInfo(UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
-		SetUAVParameter(RHICmdList, RHICmdList.GetBoundComputeShader(), ClearResourceParam, UAV);
-	}
-
-	UE_DEPRECATED(4.25, "TClearReplacementCS::FinalizeResource is deprecated. Call GetClearResourceParam() and bind the UAV manually instead. Be sure to handle any necessary resource transitions.")
-	inline void FinalizeResource(FRHIComputeCommandList& RHICmdList, FRHIUnorderedAccessView* UAV)
-	{
-		SetUAVParameter(RHICmdList, RHICmdList.GetBoundComputeShader(), ClearResourceParam, nullptr);
-		RHICmdList.Transition(FRHITransitionInfo(UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
-	}
-
 	inline const FShaderResourceParameter& GetClearResourceParam() const { return ClearResourceParam; }
 	inline uint32 GetResourceParamIndex() const { return ClearResourceParam.GetBaseIndex(); }
 

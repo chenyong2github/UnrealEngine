@@ -103,8 +103,8 @@ public:
 		if (bBarrier)
 		{
 			FRHITransitionInfo UAVTransitions[2];
-			UAVTransitions[0] = FRHITransitionInfo(ObjectBuffers.Bounds.UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier);
-			UAVTransitions[1] = FRHITransitionInfo(ObjectBuffers.Data.UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier);
+			UAVTransitions[0] = FRHITransitionInfo(ObjectBuffers.Bounds.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute);
+			UAVTransitions[1] = FRHITransitionInfo(ObjectBuffers.Data.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute);
 			RHICmdList.Transition(MakeArrayView(UAVTransitions, UE_ARRAY_COUNT(UAVTransitions)));
 		}
 

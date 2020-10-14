@@ -28,7 +28,6 @@ struct FRayTracingGeometrySegment;
 struct FAccelerationStructureBuildParams;
 struct FRayTracingLocalShaderBindings;
 enum class EAsyncComputeBudget;
-enum class EResourceTransitionPipeline;
 
 #define VALIDATE_UNIFORM_BUFFER_GLOBAL_BINDINGS (!UE_BUILD_SHIPPING && !UE_BUILD_TEST)
 

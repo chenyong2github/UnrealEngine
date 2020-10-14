@@ -742,7 +742,9 @@ int32 SortGPUBuffers(FRHICommandListImmediate& RHICmdList, FGPUSortBuffers SortB
 			}
 
 			//make UAV safe for clear
-			RHICmdList.Transition(FRHITransitionInfo(GSortOffsetBuffers.BufferUAVs[0], ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
+			RHICmdList.Transition({
+				FRHITransitionInfo(GSortOffsetBuffers.BufferUAVs[0], ERHIAccess::Unknown, ERHIAccess::UAVCompute)
+			});
 			
 			// Clear the offsets buffer.			
 			RHICmdList.SetComputeShader(ClearOffsetsCS.GetComputeShader());			
@@ -751,7 +753,10 @@ int32 SortGPUBuffers(FRHICommandListImmediate& RHICmdList, FGPUSortBuffers SortB
 			ClearOffsetsCS->UnbindBuffers(RHICmdList);
 
 			//make UAV safe for readback
-			RHICmdList.Transition(FRHITransitionInfo(GSortOffsetBuffers.BufferUAVs[0], ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
+			RHICmdList.Transition({
+				FRHITransitionInfo(SortBuffers.RemoteKeyUAVs[BufferIndex], ERHIAccess::Unknown, ERHIAccess::SRVCompute),
+				FRHITransitionInfo(GSortOffsetBuffers.BufferUAVs[0], ERHIAccess::Unknown, ERHIAccess::UAVCompute)
+			});
 
 			// Phase 1: Scan upsweep to compute per-digit totals.
 			RHICmdList.SetComputeShader(UpsweepCS.GetComputeShader());
@@ -761,10 +766,10 @@ int32 SortGPUBuffers(FRHICommandListImmediate& RHICmdList, FGPUSortBuffers SortB
 			UpsweepCS->UnbindBuffers(RHICmdList);
 
 			//barrier both UAVS since for next step.
-			FRHITransitionInfo PrePhase2BarrierUAVS[2];
-			PrePhase2BarrierUAVS[0] = FRHITransitionInfo(GSortOffsetBuffers.BufferUAVs[0], ERHIAccess::Unknown, ERHIAccess::ERWBarrier);
-			PrePhase2BarrierUAVS[1] = FRHITransitionInfo(GSortOffsetBuffers.BufferUAVs[1], ERHIAccess::Unknown, ERHIAccess::ERWBarrier);
-			RHICmdList.Transition(MakeArrayView(PrePhase2BarrierUAVS, 2));
+			RHICmdList.Transition({
+				FRHITransitionInfo(GSortOffsetBuffers.BufferUAVs[0], ERHIAccess::UAVCompute, ERHIAccess::SRVCompute),
+				FRHITransitionInfo(GSortOffsetBuffers.BufferUAVs[1], ERHIAccess::Unknown, ERHIAccess::UAVCompute)
+			});
 
 			if (bDebugOffsets)
 			{
@@ -785,13 +790,11 @@ int32 SortGPUBuffers(FRHICommandListImmediate& RHICmdList, FGPUSortBuffers SortB
 				GSortOffsetBuffers.DumpOffsets(1);
 			}
 
-			//UAV is going to SRV, so transition to Readable.
-			RHICmdList.Transition(FRHITransitionInfo(GSortOffsetBuffers.BufferUAVs[1], ERHIAccess::Unknown, ERHIAccess::SRVCompute));
-
-			FRHITransitionInfo PrePhase3BarrierUAVS[2];
-			PrePhase3BarrierUAVS[0] = FRHITransitionInfo(SortBuffers.RemoteKeyUAVs[BufferIndex ^ 0x1], ERHIAccess::Unknown, ERHIAccess::ERWBarrier);
-			PrePhase3BarrierUAVS[1] = FRHITransitionInfo(SortBuffers.RemoteValueUAVs[BufferIndex ^ 0x1], ERHIAccess::Unknown, ERHIAccess::ERWBarrier);
-			RHICmdList.Transition(MakeArrayView(PrePhase3BarrierUAVS, 2));
+			RHICmdList.Transition({
+				FRHITransitionInfo(GSortOffsetBuffers.BufferUAVs[1], ERHIAccess::UAVCompute, ERHIAccess::SRVCompute),
+				FRHITransitionInfo(SortBuffers.RemoteKeyUAVs[BufferIndex ^ 0x1], ERHIAccess::Unknown, ERHIAccess::UAVCompute),
+				FRHITransitionInfo(SortBuffers.RemoteValueUAVs[BufferIndex ^ 0x1], ERHIAccess::Unknown, ERHIAccess::UAVCompute)
+			});
 
 			const bool bIsLastPass = ((PassBits << RADIX_BITS) & KeyMask) == 0;
 			// Phase 3: Downsweep to compute final offsets and scatter keys.
@@ -802,7 +805,7 @@ int32 SortGPUBuffers(FRHICommandListImmediate& RHICmdList, FGPUSortBuffers SortB
 				{
 					ValuesUAV = SortBuffers.FinalValuesUAV;
 					// Transition resource since FinalValuesUAV can also be SortBuffers.FirstValuesSRV.
-					RHICmdList.Transition(FRHITransitionInfo(ValuesUAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
+					RHICmdList.Transition(FRHITransitionInfo(ValuesUAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
 				}
 				else
 				{
@@ -817,7 +820,11 @@ int32 SortGPUBuffers(FRHICommandListImmediate& RHICmdList, FGPUSortBuffers SortB
 			DispatchComputeShader(RHICmdList, DownsweepCS.GetShader(), GroupCount, 1, 1 );
 			DownsweepCS->UnbindBuffers(RHICmdList);
 
-			RHICmdList.Transition(MakeArrayView(PrePhase3BarrierUAVS, 2));
+
+			RHICmdList.Transition({
+				FRHITransitionInfo(SortBuffers.RemoteKeyUAVs[BufferIndex ^ 0x1], ERHIAccess::UAVCompute, ERHIAccess::SRVCompute),
+				FRHITransitionInfo(SortBuffers.RemoteValueUAVs[BufferIndex ^ 0x1], ERHIAccess::UAVCompute, ERHIAccess::SRVCompute)
+			});
 
 			// Flip buffers.
 			BufferIndex ^= 0x1;

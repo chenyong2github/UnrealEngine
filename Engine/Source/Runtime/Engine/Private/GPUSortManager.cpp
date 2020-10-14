@@ -118,17 +118,18 @@ public:
 		int32 StartingIndex,
 		int32 DestCount);
 
-	/**
-	 * Unbinds any buffers that have been bound.
-	 */
-	void UnbindBuffers(FRHICommandList& RHICmdList);
+	void Begin(FRHICommandList& RHICmdList);
+	void End(FRHICommandList& RHICmdList);
 
 private:
+	static TGlobalResource<FGPUSortDummyUAV> NiagaraSortingDummyUAV[COPYUINTCS_BUFFER_COUNT];
 
 	LAYOUT_FIELD(FShaderParameter, CopyParams);
 	LAYOUT_FIELD(FShaderResourceParameter, SourceData);
 	LAYOUT_ARRAY(FShaderResourceParameter, DestData, COPYUINTCS_BUFFER_COUNT);
 };
+
+TGlobalResource<FGPUSortDummyUAV> FCopyUIntBufferCS::NiagaraSortingDummyUAV[COPYUINTCS_BUFFER_COUNT];
 
 //*****************************************************************************
 
@@ -152,8 +153,6 @@ void FCopyUIntBufferCS::SetParameters(
 	int32 StartingIndex,
 	int32 DestCount)
 {
-	static TGlobalResource<FGPUSortDummyUAV> NiagaraSortingDummyUAV[COPYUINTCS_BUFFER_COUNT];
-		
 	FRHIComputeShader* ComputeShaderRHI = RHICmdList.GetBoundComputeShader();
 	check(DestCount > 0 && DestCount <= COPYUINTCS_BUFFER_COUNT);
 
@@ -169,21 +168,34 @@ void FCopyUIntBufferCS::SetParameters(
 	for (int32 Index = DestCount; Index < COPYUINTCS_BUFFER_COUNT; ++Index)
 	{
 		// TR-DummyUAVs : those buffers are only ever used here, but there content is never accessed.
-		RHICmdList.Transition(FRHITransitionInfo(NiagaraSortingDummyUAV[Index].Buffer.UAV, ERHIAccess::Unknown, ERHIAccess::ERWNoBarrier));
 		SetUAVParameter(RHICmdList, ComputeShaderRHI, DestData[Index], NiagaraSortingDummyUAV[Index].Buffer.UAV);
 	}
 
 	SetShaderValue(RHICmdList, ComputeShaderRHI, CopyParams, CopyParamsValue);
 }
 
-void FCopyUIntBufferCS::UnbindBuffers(FRHICommandList& RHICmdList)
+void FCopyUIntBufferCS::Begin(FRHICommandList& RHICmdList)
+{
+	FRHIUnorderedAccessView* Views[COPYUINTCS_BUFFER_COUNT];
+	for (int32 Index = 0; Index < COPYUINTCS_BUFFER_COUNT; ++Index)
+	{
+		Views[Index] = NiagaraSortingDummyUAV[Index].Buffer.UAV;
+	}
+	RHICmdList.BeginUAVOverlap(Views);
+}
+
+void FCopyUIntBufferCS::End(FRHICommandList& RHICmdList)
 {
 	FRHIComputeShader* ComputeShaderRHI = RHICmdList.GetBoundComputeShader();
 	SetSRVParameter(RHICmdList, ComputeShaderRHI, SourceData, nullptr);
+
+	FRHIUnorderedAccessView* Views[COPYUINTCS_BUFFER_COUNT];
 	for (int32 Index = 0; Index < COPYUINTCS_BUFFER_COUNT; ++Index)
 	{
+		Views[Index] = NiagaraSortingDummyUAV[Index].Buffer.UAV;
 		SetUAVParameter(RHICmdList, ComputeShaderRHI, DestData[Index], nullptr);
 	}
+	RHICmdList.EndUAVOverlap(Views);
 }
 
 //*****************************************************************************
@@ -195,6 +207,8 @@ void CopyUIntBufferToTargets(FRHICommandListImmediate& RHICmdList, ERHIFeatureLe
 	TShaderMapRef<FCopyUIntBufferCS> CopyBufferCS(GetGlobalShaderMap(FeatureLevel));
 	RHICmdList.SetComputeShader(CopyBufferCS.GetComputeShader());
 	
+	CopyBufferCS->Begin(RHICmdList);
+
 	int32 Index0InPass = 0;
 	while (Index0InPass < NumTargets)
 	{
@@ -207,8 +221,8 @@ void CopyUIntBufferToTargets(FRHICommandListImmediate& RHICmdList, ERHIFeatureLe
 		StartingOffset += NumElementsInPass;
 		Index0InPass += COPYUINTCS_BUFFER_COUNT;
 	};
-	
-	CopyBufferCS->UnbindBuffers(RHICmdList);
+
+	CopyBufferCS->End(RHICmdList);
 }
 
 //*****************************************************************************
@@ -405,8 +419,8 @@ void FGPUSortManager::FSortBatch::GenerateKeys(FRHICommandListImmediate& RHICmdL
 	const int32 InitialIndex = 0;
 	FRHIUnorderedAccessView* KeyValueUAVs[] = { SortBuffers->GetKeyBufferUAV(InitialIndex), DynamicValueBuffer->ValueBuffers.Last().UInt32UAV };
 	FRHITransitionInfo KeyValueUAVTransitions[] = {
-		FRHITransitionInfo(SortBuffers->GetKeyBufferUAV(InitialIndex), ERHIAccess::Unknown, ERHIAccess::ERWBarrier), 
-		FRHITransitionInfo(DynamicValueBuffer->ValueBuffers.Last().UInt32UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier),
+		FRHITransitionInfo(SortBuffers->GetKeyBufferUAV(InitialIndex), ERHIAccess::Unknown, ERHIAccess::UAVCompute), 
+		FRHITransitionInfo(DynamicValueBuffer->ValueBuffers.Last().UInt32UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute),
 	};
 
 	// TR-KeyGen : Sync the keys with the last GPU sort task.
@@ -419,7 +433,7 @@ void FGPUSortManager::FSortBatch::GenerateKeys(FRHICommandListImmediate& RHICmdL
 			SCOPED_DRAW_EVENTF(RHICmdList, GPUSortBatch, TEXT("KeyGen_%s"), *Callback.Name.ToString());
 			const bool bAsInt32 = EnumHasAnyFlags(Callback.Flags, EGPUSortFlags::ValuesAsInt32);
 			FRHIUnorderedAccessView* TypedValueUAV = bAsInt32 ? DynamicValueBuffer->ValueBuffers.Last().Int32UAV : DynamicValueBuffer->ValueBuffers.Last().G16R16UAV;
-			// TR-KeyGen : TypedValueUAV is the same as ValueUAVs[1] but with a different type. The callback needs to do an ERWNoBarrier between each dispatch updating partially the content.
+			// TR-KeyGen : TypedValueUAV is the same as ValueUAVs[1] but with a different type. The callback needs to do an BeginUAVOverlap / EndUAVOverlap between each dispatch updating partially the content.
 			Callback.Delegate.Execute(RHICmdList, Id, NumElements, (Flags & EGPUSortFlags::AnyKeyPrecision) | KeyGenLocation, KeyValueUAVs[0], TypedValueUAV);
 		}
 	}
@@ -440,6 +454,8 @@ void FGPUSortManager::FSortBatch::SortAndResolve(FRHICommandListImmediate& RHICm
 
 		SortBuffer.FirstValuesSRV = ValueBuffers.Last().UInt32SRV;
 		SortBuffer.FinalValuesUAV = ValueBuffers.Last().UInt32UAV;
+
+		RHICmdList.Transition(FRHITransitionInfo(SortBuffer.FinalValuesUAV, ERHIAccess::Unknown, ERHIAccess::SRVCompute));
 
 		const int32 InitialIndex = 0;
 		const FGPUSortManager::FKeyGenInfo KeyGenInfo((uint32)NumElements, EnumHasAnyFlags(Flags, EGPUSortFlags::HighPrecisionKeys) != 0);
@@ -462,7 +478,7 @@ void FGPUSortManager::FSortBatch::SortAndResolve(FRHICommandListImmediate& RHICm
 					TargetUAVs.Add(ValueBuffer.UInt32UAV);
 					TargetSizes.Add(ValueBuffer.UsedCount);
 
-					UAVTransitions.Add(FRHITransitionInfo(ValueBuffer.UInt32UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
+					UAVTransitions.Add(FRHITransitionInfo(ValueBuffer.UInt32UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
 					SRVTransitions.Add(FRHITransitionInfo(ValueBuffer.UInt32UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask));
 				}
 			}

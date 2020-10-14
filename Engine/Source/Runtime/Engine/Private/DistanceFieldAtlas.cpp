@@ -1550,9 +1550,10 @@ void FLandscapeTextureAtlas::UpdateAllocations(FRHICommandListImmediate& RHICmdL
 
 	if (PendingUploads.Num())
 	{
-		FRDGBuilder GraphBuilder(RHICmdList);
+		RHICmdList.Transition(FRHITransitionInfo(AtlasUAVRHI, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
+		RHICmdList.BeginUAVOverlap(AtlasUAVRHI);
 
-		RHICmdList.Transition(FRHITransitionInfo(AtlasUAVRHI, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
+		FRDGBuilder GraphBuilder(RHICmdList);
 
 		if (SubAllocType == SAT_Height)
 		{
@@ -1561,17 +1562,12 @@ void FLandscapeTextureAtlas::UpdateAllocations(FRHICommandListImmediate& RHICmdL
 			{
 				typename FUploadHeightFieldToAtlasCS::FParameters* Parameters = GraphBuilder.AllocParameters<typename FUploadHeightFieldToAtlasCS::FParameters>();
 				const FIntPoint UpdateRegion = PendingUploads[Idx].SetShaderParameters(Parameters, *this);
-				const bool bNeedBarrier = Idx > 0;
 				GraphBuilder.AddPass(
 					RDG_EVENT_NAME("UploadHeightFieldToAtlas"),
 					Parameters,
 					ERDGPassFlags::Compute,
-					[Parameters, ComputeShader, UpdateRegion, bNeedBarrier](FRHICommandList& CmdList)
+					[Parameters, ComputeShader, UpdateRegion](FRHICommandList& CmdList)
 				{
-					if (bNeedBarrier)
-					{
-						CmdList.Transition(FRHITransitionInfo(Parameters->RWHeightFieldAtlas, ERHIAccess::Unknown, ERHIAccess::ERWNoBarrier));
-					}
 					FComputeShaderUtils::Dispatch(CmdList, ComputeShader, *Parameters, FIntVector(UpdateRegion.X, UpdateRegion.Y, 1));
 				});
 			}
@@ -1583,24 +1579,21 @@ void FLandscapeTextureAtlas::UpdateAllocations(FRHICommandListImmediate& RHICmdL
 			{
 				typename FUploadVisibilityToAtlasCS::FParameters* Parameters = GraphBuilder.AllocParameters<typename FUploadVisibilityToAtlasCS::FParameters>();
 				const FIntPoint UpdateRegion = PendingUploads[Idx].SetShaderParameters(Parameters, *this);
-				const bool bNeedBarrier = Idx > 0;
 				GraphBuilder.AddPass(
 					RDG_EVENT_NAME("UploadVisibilityToAtlas"),
 					Parameters,
 					ERDGPassFlags::Compute,
-					[Parameters, ComputeShader, UpdateRegion, bNeedBarrier](FRHICommandList& CmdList)
+					[Parameters, ComputeShader, UpdateRegion](FRHICommandList& CmdList)
 				{
-					if (bNeedBarrier)
-					{
-						CmdList.Transition(FRHITransitionInfo(Parameters->RWVisibilityAtlas, ERHIAccess::Unknown, ERHIAccess::ERWNoBarrier));
-					}
 					FComputeShaderUtils::Dispatch(CmdList, ComputeShader, *Parameters, FIntVector(UpdateRegion.X, UpdateRegion.Y, 1));
 				});
 			}
 		}
 
 		GraphBuilder.Execute();
-		RHICmdList.Transition(FRHITransitionInfo(AtlasUAVRHI, ERHIAccess::Unknown, ERHIAccess::SRVGraphics));
+
+		RHICmdList.EndUAVOverlap(AtlasUAVRHI);
+		RHICmdList.Transition(FRHITransitionInfo(AtlasUAVRHI, ERHIAccess::UAVCompute, ERHIAccess::SRVGraphics));
 	}
 }
 

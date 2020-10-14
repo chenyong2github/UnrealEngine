@@ -905,7 +905,7 @@ void ClearAtlas(FRHICommandListImmediate& RHICmdList, const TRefCountPtr<IPooled
 	RHICmdList.BeginRenderPass(RPInfo, TEXT("ClearAtlas"));
 
 	RHICmdList.EndRenderPass();
-	RHICmdList.Transition(FRHITransitionInfo(Atlas->GetRenderTargetItem().TargetableTexture, ERHIAccess::Unknown, ERHIAccess::EReadable));
+	RHICmdList.Transition(FRHITransitionInfo(Atlas->GetRenderTargetItem().TargetableTexture, ERHIAccess::Unknown, ERHIAccess::SRVMask));
 }
 
 void ClearAtlasesToDebugValues(FRHICommandListImmediate& RHICmdList, FLumenSceneData& LumenSceneData)
@@ -1787,13 +1787,12 @@ void UpdateCardSceneBuffer(FRHICommandListImmediate& RHICmdList, const FSceneVie
 
 	FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
 
-	bool bResizedCardData = false;
 	{
 		const int32 NumCardEntries = LumenSceneData.Cards.Num();
 		const uint32 CardSceneNumFloat4s = NumCardEntries * FLumenCardGPUData::DataStrideInFloat4s;
 		const uint32 CardSceneNumBytes = FMath::DivideAndRoundUp(CardSceneNumFloat4s, 16384u) * 16384 * sizeof(FVector4);
 		// Reserve enough space
-		bResizedCardData = ResizeResourceIfNeeded(RHICmdList, LumenSceneData.CardBuffer, FMath::RoundUpToPowerOfTwo(CardSceneNumFloat4s) * sizeof(FVector4), TEXT("Cards0"));
+		ResizeResourceIfNeeded(RHICmdList, LumenSceneData.CardBuffer, FMath::RoundUpToPowerOfTwo(CardSceneNumFloat4s) * sizeof(FVector4), TEXT("Cards0"));
 	}
 
 	if (GLumenSceneUploadCardBufferEveryFrame)
@@ -1827,9 +1826,9 @@ void UpdateCardSceneBuffer(FRHICommandListImmediate& RHICmdList, const FSceneVie
 			}
 		}
 
-		RHICmdList.Transition(FRHITransitionInfo(LumenSceneData.CardBuffer.UAV, ERHIAccess::Unknown, bResizedCardData ? ERHIAccess::ERWBarrier : ERHIAccess::EWritable));
+		RHICmdList.Transition(FRHITransitionInfo(LumenSceneData.CardBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
 		LumenSceneData.UploadBuffer.ResourceUploadTo(RHICmdList, LumenSceneData.CardBuffer, false);
-		RHICmdList.Transition(FRHITransitionInfo(LumenSceneData.CardBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::EReadable));
+		RHICmdList.Transition(FRHITransitionInfo(LumenSceneData.CardBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask));
 	}
 
 	UpdateLumenCubeMapTrees(Scene->DistanceFieldSceneData, LumenSceneData, RHICmdList, Scene->Primitives.Num());

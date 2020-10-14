@@ -911,7 +911,7 @@ void FScene::UpdateSceneCaptureContents(USceneCaptureComponentCube* CaptureCompo
 		ENQUEUE_RENDER_COMMAND(ODSCaptureCommand)(
 			[LeftEye, RightEye, RenderTarget, InFeatureLevel](FRHICommandListImmediate& RHICmdList)
 		{
-			const ERHIAccess FinalAccess = ERHIAccess::EWritable;
+			const ERHIAccess FinalAccess = ERHIAccess::RTV;
 
 			FRDGBuilder GraphBuilder(RHICmdList);
 			FRDGTextureRef OutputTexture = GraphBuilder.RegisterExternalTexture(CreateRenderTarget(RenderTarget->GetRenderTargetTexture(), TEXT("Output")));

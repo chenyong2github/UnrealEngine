@@ -792,27 +792,6 @@ void FGPUSkinCache::CommitRayTracingGeometryUpdates(FRHICommandList& RHICmdList)
 }
 #endif // RHI_RAYTRACING
 
-#if 0
-void FGPUSkinCache::TransitionToWriteable(FRHICommandList& RHICmdList)
-{
-	int32 BufferIndex = InternalUpdateCount % GPUSKINCACHE_FRAMES;
-	RHICmdList.Transition(FRHITransitionInfo(SkinCacheBuffers[BufferIndex].UAV, ERHIAccess::Unknown, ERHIAccess::ERWNoBarrier));
-}
-
-void FGPUSkinCache::TransitionAllToWriteable(FRHICommandList& RHICmdList)
-{
-	if (bInitialized)
-	{
-		FRHITransitionInfo OutUAVs[GPUSKINCACHE_FRAMES];
-		for (int32 Index = 0; Index < GPUSKINCACHE_FRAMES; ++Index)
-		{
-			OutUAVs[Index] = FRHITransitionInfo(SkinCacheBuffer[Index].UAV, ERHIAccess::Unknown, ERHIAccess::ERWNoBarrier);
-		}
-		RHICmdList.Transition(MakeArrayView(OutUAVs, UE_ARRAY_COUNT(OutUAVs)));
-	}
-}
-#endif
-
 /** base of the FRecomputeTangentsPerTrianglePassCS class */
 class FBaseRecomputeTangentsPerTriangleShader : public FGlobalShader
 {
@@ -1114,8 +1093,6 @@ void FGPUSkinCache::DispatchUpdateSkinTangents(FRHICommandListImmediate& RHICmdL
 			FRHIComputeShader* ShaderRHI = Shader.GetComputeShader();
 			RHICmdList.SetComputeShader(ShaderRHI);
 
-			RHICmdList.Transition(FRHITransitionInfo(StagingBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::ERWNoBarrier));
-
 			if (!GAllowDupedVertsForRecomputeTangents)
 			{
 				check(LodData.RenderSections[SectionIndex].DuplicatedVerticesBuffer.DupVertData.Num() && LodData.RenderSections[SectionIndex].DuplicatedVerticesBuffer.DupVertIndexData.Num());
@@ -1123,15 +1100,18 @@ void FGPUSkinCache::DispatchUpdateSkinTangents(FRHICommandListImmediate& RHICmdL
 				DispatchData.DuplicatedIndicesIndices = LodData.RenderSections[SectionIndex].DuplicatedVerticesBuffer.LengthAndIndexDuplicatedVerticesIndexBuffer.VertexBufferSRV;
 			}
 
-			RHICmdList.Transition(FRHITransitionInfo(DispatchData.GetPositionRWBuffer()->UAV.GetReference(), ERHIAccess::UAVCompute, ERHIAccess::SRVCompute));
+			TArray<FRHITransitionInfo, TInlineAllocator<4>> Transitions;
+			Transitions.Add(FRHITransitionInfo(StagingBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
+			Transitions.Add(FRHITransitionInfo(DispatchData.GetPositionRWBuffer()->UAV.GetReference(), ERHIAccess::UAVCompute, ERHIAccess::SRVCompute));
 			if (!GBlendUsingVertexColorForRecomputeTangents)
 			{
-				RHICmdList.Transition(FRHITransitionInfo(DispatchData.GetTangentRWBuffer()->UAV.GetReference(), ERHIAccess::UAVCompute, ERHIAccess::SRVCompute));
+				Transitions.Add(FRHITransitionInfo(DispatchData.GetTangentRWBuffer()->UAV.GetReference(), ERHIAccess::UAVCompute, ERHIAccess::SRVCompute));
 			}
 			else if (DispatchData.IntermediateTangentBuffer)
 			{
-				RHICmdList.Transition(FRHITransitionInfo(DispatchData.IntermediateTangentBuffer->UAV.GetReference(), ERHIAccess::UAVCompute, ERHIAccess::SRVCompute));
+				Transitions.Add(FRHITransitionInfo(DispatchData.IntermediateTangentBuffer->UAV.GetReference(), ERHIAccess::UAVCompute, ERHIAccess::SRVCompute));
 			}
+			RHICmdList.Transition(Transitions);
 
 			INC_DWORD_STAT_BY(STAT_GPUSkinCache_NumTrianglesForRecomputeTangents, NumTriangles);
 			Shader->SetParameters(RHICmdList, Entry, DispatchData, StagingBuffer);
@@ -1165,15 +1145,15 @@ void FGPUSkinCache::DispatchUpdateSkinTangents(FRHICommandListImmediate& RHICmdL
 			uint32 VertexCount = DispatchData.NumVertices;
 			uint32 ThreadGroupCountValue = FMath::DivideAndRoundUp(VertexCount, ComputeShader->ThreadGroupSizeX);
 
-			RHICmdList.Transition(FRHITransitionInfo(StagingBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
-			RHICmdList.Transition(FRHITransitionInfo(DispatchData.GetTangentRWBuffer()->UAV.GetReference(), GBlendUsingVertexColorForRecomputeTangents ? ERHIAccess::Unknown : ERHIAccess::SRVCompute, ERHIAccess::UAVCompute));
+			RHICmdList.Transition({
+				FRHITransitionInfo(DispatchData.GetTangentRWBuffer()->UAV.GetReference(), GBlendUsingVertexColorForRecomputeTangents ? ERHIAccess::Unknown : ERHIAccess::SRVCompute, ERHIAccess::UAVCompute),
+				FRHITransitionInfo(StagingBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute)
+			});
 
 			ComputeShader->SetParameters(RHICmdList, Entry, DispatchData, StagingBuffer);
 			DispatchComputeShader(RHICmdList, ComputeShader.GetShader(), ThreadGroupCountValue, 1, 1);
 			ComputeShader->UnsetParameters(RHICmdList);
 		}
-		// todo				RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToGfx, TangentsBlendBuffer.VertexBufferSRV);
-		//			ensureMsgf(DestRenderTarget.TargetableTexture == DestRenderTarget.ShaderResourceTexture, TEXT("%s should be resolved to a separate SRV"), *DestRenderTarget.TargetableTexture->GetName().ToString());	
 	}
 }
 
@@ -1243,7 +1223,6 @@ void FGPUSkinCache::DoDispatch(FRHICommandListImmediate& RHICmdList, FGPUSkinCac
 	INC_DWORD_STAT(STAT_GPUSkinCache_TotalNumChunks);
 	PrepareUpdateSkinning(SkinCacheEntry, Section, RevisionNumber, nullptr);
 	DispatchUpdateSkinning(RHICmdList, SkinCacheEntry, Section, RevisionNumber);
-	//RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, DispatchData.GetRWBuffer());
 	SkinCacheEntry->UpdateVertexFactoryDeclaration(Section);
 
 	if (SkinCacheEntry->DispatchData[Section].IndexBuffer)

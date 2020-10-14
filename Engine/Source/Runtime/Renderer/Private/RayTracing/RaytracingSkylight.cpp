@@ -866,12 +866,14 @@ void FDeferredShadingSceneRenderer::VisualizeSkyLightMipTree(
 	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 
 	// Transition to graphics
-	RHICmdList.Transition(FRHITransitionInfo(SkyLightMipTreePosX.UAV, ERHIAccess::Unknown, ERHIAccess::SRVGraphics));
-	RHICmdList.Transition(FRHITransitionInfo(SkyLightMipTreeNegX.UAV, ERHIAccess::Unknown, ERHIAccess::SRVGraphics));
-	RHICmdList.Transition(FRHITransitionInfo(SkyLightMipTreePosY.UAV, ERHIAccess::Unknown, ERHIAccess::SRVGraphics));
-	RHICmdList.Transition(FRHITransitionInfo(SkyLightMipTreeNegY.UAV, ERHIAccess::Unknown, ERHIAccess::SRVGraphics));
-	RHICmdList.Transition(FRHITransitionInfo(SkyLightMipTreePosZ.UAV, ERHIAccess::Unknown, ERHIAccess::SRVGraphics));
-	RHICmdList.Transition(FRHITransitionInfo(SkyLightMipTreeNegZ.UAV, ERHIAccess::Unknown, ERHIAccess::SRVGraphics));
+	RHICmdList.Transition({
+		FRHITransitionInfo(SkyLightMipTreePosX.UAV, ERHIAccess::Unknown, ERHIAccess::SRVGraphics),
+		FRHITransitionInfo(SkyLightMipTreeNegX.UAV, ERHIAccess::Unknown, ERHIAccess::SRVGraphics),
+		FRHITransitionInfo(SkyLightMipTreePosY.UAV, ERHIAccess::Unknown, ERHIAccess::SRVGraphics),
+		FRHITransitionInfo(SkyLightMipTreeNegY.UAV, ERHIAccess::Unknown, ERHIAccess::SRVGraphics),
+		FRHITransitionInfo(SkyLightMipTreePosZ.UAV, ERHIAccess::Unknown, ERHIAccess::SRVGraphics),
+		FRHITransitionInfo(SkyLightMipTreeNegZ.UAV, ERHIAccess::Unknown, ERHIAccess::SRVGraphics)
+	});
 
 	// Draw
 	RHICmdList.SetViewport((float)View.ViewRect.Min.X, (float)View.ViewRect.Min.Y, 0.0f, (float)View.ViewRect.Max.X, (float)View.ViewRect.Max.Y, 1.0f);
@@ -891,11 +893,13 @@ void FDeferredShadingSceneRenderer::VisualizeSkyLightMipTree(
 	RHICmdList.CopyToResolveTarget(SceneColor->GetRenderTargetItem().TargetableTexture, SceneColor->GetRenderTargetItem().ShaderResourceTexture, FResolveParams());
 
 	// Transition to compute
-	RHICmdList.Transition(FRHITransitionInfo(SkyLightMipTreePosX.UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
-	RHICmdList.Transition(FRHITransitionInfo(SkyLightMipTreeNegX.UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
-	RHICmdList.Transition(FRHITransitionInfo(SkyLightMipTreePosY.UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
-	RHICmdList.Transition(FRHITransitionInfo(SkyLightMipTreeNegY.UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
-	RHICmdList.Transition(FRHITransitionInfo(SkyLightMipTreePosZ.UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
-	RHICmdList.Transition(FRHITransitionInfo(SkyLightMipTreeNegZ.UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
+	RHICmdList.Transition({
+		FRHITransitionInfo(SkyLightMipTreePosX.UAV, ERHIAccess::SRVGraphics, ERHIAccess::UAVCompute),
+		FRHITransitionInfo(SkyLightMipTreeNegX.UAV, ERHIAccess::SRVGraphics, ERHIAccess::UAVCompute),
+		FRHITransitionInfo(SkyLightMipTreePosY.UAV, ERHIAccess::SRVGraphics, ERHIAccess::UAVCompute),
+		FRHITransitionInfo(SkyLightMipTreeNegY.UAV, ERHIAccess::SRVGraphics, ERHIAccess::UAVCompute),
+		FRHITransitionInfo(SkyLightMipTreePosZ.UAV, ERHIAccess::SRVGraphics, ERHIAccess::UAVCompute),
+		FRHITransitionInfo(SkyLightMipTreeNegZ.UAV, ERHIAccess::SRVGraphics, ERHIAccess::UAVCompute)
+	});
 }
 #endif

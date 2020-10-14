@@ -276,7 +276,7 @@ public:
 
 		if (TileIntersectionCountsBuffer)
 		{
-			RHICmdList.Transition(FRHITransitionInfo(TileIntersectionCountsBuffer->UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
+			RHICmdList.Transition(FRHITransitionInfo(TileIntersectionCountsBuffer->UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
 		}
 
 		if (ShadowingType == ShapeShadow_MovableSkylightTiledCulling)
@@ -719,7 +719,7 @@ bool FDeferredShadingSceneRenderer::RenderCapsuleDirectShadows(
 				FPlatformMemory::Memcpy(CapsuleShapeLockedData, CapsuleShapeData.GetData(), DataSize);
 				RHIUnlockVertexBuffer(LightSceneInfo.ShadowCapsuleShapesVertexBuffer);
 
-				RHICmdList.Transition(FRHITransitionInfo(View.ViewState->CapsuleTileIntersectionCountsBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
+				RHICmdList.Transition(FRHITransitionInfo(View.ViewState->CapsuleTileIntersectionCountsBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
 				RHICmdList.ClearUAVUint(View.ViewState->CapsuleTileIntersectionCountsBuffer.UAV, FUintVector4(0, 0, 0, 0));
 			});
 
@@ -1252,7 +1252,7 @@ void FDeferredShadingSceneRenderer::RenderIndirectCapsuleShadows(
 
 			AddPass(GraphBuilder, [&View](FRHIComputeCommandList& RHICmdList)
 			{
-				RHICmdList.Transition(FRHITransitionInfo(View.ViewState->CapsuleTileIntersectionCountsBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
+				RHICmdList.Transition(FRHITransitionInfo(View.ViewState->CapsuleTileIntersectionCountsBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
 				RHICmdList.ClearUAVUint(View.ViewState->CapsuleTileIntersectionCountsBuffer.UAV, FUintVector4(0, 0, 0, 0));
 			});
 

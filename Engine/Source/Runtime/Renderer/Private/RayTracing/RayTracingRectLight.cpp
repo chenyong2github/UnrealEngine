@@ -188,9 +188,9 @@ void BuildRectLightMipTree(FRDGBuilder& GraphBuilder, UTexture* SourceTexture, F
 			FIntVector MipLevelDimensions = FIntVector(LocalData.RectLightMipTreeDimensions.X >> MipLevel, LocalData.RectLightMipTreeDimensions.Y >> MipLevel, 1);
 			FIntVector NumGroups = FIntVector::DivideAndRoundUp(MipLevelDimensions, FBuildRectLightMipTreeCS::GetGroupSize());
 			DispatchComputeShader(RHICmdList, BuildRectLightMipTreeComputeShader.GetShader(), NumGroups.X, NumGroups.Y, 1);
-			BuildRectLightMipTreeComputeShader->UnsetParameters(RHICmdList, ERHIAccess::ERWBarrier, LocalData.RectLightMipTree);
+			BuildRectLightMipTreeComputeShader->UnsetParameters(RHICmdList, ERHIAccess::UAVCompute, LocalData.RectLightMipTree);
 		}
-		BuildRectLightMipTreeComputeShader->UnsetParameters(RHICmdList, ERHIAccess::ERWBarrier, LocalData.RectLightMipTree);
+		BuildRectLightMipTreeComputeShader->UnsetParameters(RHICmdList, ERHIAccess::UAVCompute, LocalData.RectLightMipTree);
 	});
 }
 
@@ -422,7 +422,7 @@ void FDeferredShadingSceneRenderer::VisualizeRectLightMipTree(
 	GVisualizeTexture.SetCheckPoint(RHICmdList, RectLightMipTreeRT);
 
 	// Transition to compute
-	RHICmdList.Transition(FRHITransitionInfo(RectLightMipTree.UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
+	RHICmdList.Transition(FRHITransitionInfo(RectLightMipTree.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
 }
 
 void FDeferredShadingSceneRenderer::PrepareRayTracingRectLight(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders)

@@ -138,12 +138,12 @@ public:
 	void SetParameters(FRHICommandList& RHICmdList, const FScene* Scene, const FSceneView& View, const FDistanceFieldAOParameters& Parameters)
 	{
 		FRHITransitionInfo UAVTransitions[6];
-		UAVTransitions[0] = FRHITransitionInfo(GAOCulledObjectBuffers.Buffers.ObjectIndirectArguments.UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier);
-		UAVTransitions[1] = FRHITransitionInfo(GAOCulledObjectBuffers.Buffers.Bounds.UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier);
-		UAVTransitions[2] = FRHITransitionInfo(GAOCulledObjectBuffers.Buffers.Data.UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier);
-		UAVTransitions[3] = FRHITransitionInfo(GAOCulledObjectBuffers.Buffers.BoxBounds.UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier);
-		UAVTransitions[4] = FRHITransitionInfo(Scene->DistanceFieldSceneData.GetCurrentObjectBuffers()->Data.UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier);
-		UAVTransitions[5] = FRHITransitionInfo(Scene->DistanceFieldSceneData.GetCurrentObjectBuffers()->Bounds.UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier);
+		UAVTransitions[0] = FRHITransitionInfo(GAOCulledObjectBuffers.Buffers.ObjectIndirectArguments.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute);
+		UAVTransitions[1] = FRHITransitionInfo(GAOCulledObjectBuffers.Buffers.Bounds.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute);
+		UAVTransitions[2] = FRHITransitionInfo(GAOCulledObjectBuffers.Buffers.Data.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute);
+		UAVTransitions[3] = FRHITransitionInfo(GAOCulledObjectBuffers.Buffers.BoxBounds.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute);
+		UAVTransitions[4] = FRHITransitionInfo(Scene->DistanceFieldSceneData.GetCurrentObjectBuffers()->Data.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute);
+		UAVTransitions[5] = FRHITransitionInfo(Scene->DistanceFieldSceneData.GetCurrentObjectBuffers()->Bounds.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute);
 		RHICmdList.Transition(MakeArrayView(UAVTransitions, UE_ARRAY_COUNT(UAVTransitions)));
 
 		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
@@ -213,7 +213,7 @@ void CullObjectsToView(FRDGBuilder& GraphBuilder, FScene* Scene, const FViewInfo
 
 		CulledObjectBuffers.Buffers.AcquireTransientResource();
 
-		RHICmdList.Transition(FRHITransitionInfo(CulledObjectBuffers.Buffers.ObjectIndirectArguments.UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
+		RHICmdList.Transition(FRHITransitionInfo(CulledObjectBuffers.Buffers.ObjectIndirectArguments.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
 		RHICmdList.ClearUAVUint(CulledObjectBuffers.Buffers.ObjectIndirectArguments.UAV, FUintVector4(0, 0, 0, 0));
 
 		TShaderMapRef<FCullObjectsForViewCS> ComputeShader(GetGlobalShaderMap(Scene->GetFeatureLevel()));
@@ -272,8 +272,8 @@ public:
 		FTileIntersectionResources* TileIntersectionResources = ((FSceneViewState*)View.State)->AOTileIntersectionResources;
 
 		FRHITransitionInfo UAVTransitions[2];
-		UAVTransitions[0] = FRHITransitionInfo(TileIntersectionResources->TileConeAxisAndCos.UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier);
-		UAVTransitions[1] = FRHITransitionInfo(TileIntersectionResources->TileConeDepthRanges.UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier);
+		UAVTransitions[0] = FRHITransitionInfo(TileIntersectionResources->TileConeAxisAndCos.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute);
+		UAVTransitions[1] = FRHITransitionInfo(TileIntersectionResources->TileConeDepthRanges.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute);
 		RHICmdList.Transition(MakeArrayView(UAVTransitions, UE_ARRAY_COUNT(UAVTransitions)));
 
 		TileConeAxisAndCos.SetBuffer(RHICmdList, ShaderRHI, TileIntersectionResources->TileConeAxisAndCos);
@@ -549,7 +549,7 @@ void ScatterTilesToObjects(FRHICommandListImmediate& RHICmdList, const FViewInfo
 	TArray<FRHITransitionInfo> TransitionInfos;
 	for (FRHIUnorderedAccessView* UAV : UAVs)
 	{
-		TransitionInfos.Add(FRHITransitionInfo(UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
+		TransitionInfos.Add(FRHITransitionInfo(UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
 	}
 	RHICmdList.Transition(MakeArrayView(TransitionInfos.GetData(), TransitionInfos.Num()));
 
@@ -676,7 +676,7 @@ void BuildTileObjectLists(FRDGBuilder& GraphBuilder, FScene* Scene, TArray<FView
 					SCOPED_DRAW_EVENT(RHICmdList, CountTileObjectIntersections);
 
 					// Start at 0 tiles per object
-					RHICmdList.Transition(FRHITransitionInfo(TileIntersectionResources->NumCulledTilesArray.UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
+					RHICmdList.Transition(FRHITransitionInfo(TileIntersectionResources->NumCulledTilesArray.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
 					RHICmdList.ClearUAVUint(TileIntersectionResources->NumCulledTilesArray.UAV, FUintVector4(0, 0, 0, 0));
 
 					// Rasterize object bounding shapes and intersect with screen tiles to compute how many tiles intersect each object
@@ -686,7 +686,7 @@ void BuildTileObjectLists(FRDGBuilder& GraphBuilder, FScene* Scene, TArray<FView
 				{
 					SCOPED_DRAW_EVENT(RHICmdList, ComputeStartOffsets);
 					// Start at 0 threadgroups
-					RHICmdList.Transition(FRHITransitionInfo(TileIntersectionResources->ObjectTilesIndirectArguments.UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
+					RHICmdList.Transition(FRHITransitionInfo(TileIntersectionResources->ObjectTilesIndirectArguments.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
 					RHICmdList.ClearUAVUint(TileIntersectionResources->ObjectTilesIndirectArguments.UAV, FUintVector4(0, 0, 0, 0));
 
 					// Accumulate how many cone trace threadgroups we should dispatch, and also compute the start offset for each object's culled tile data
@@ -705,7 +705,7 @@ void BuildTileObjectLists(FRDGBuilder& GraphBuilder, FScene* Scene, TArray<FView
 					SCOPED_DRAW_EVENT(RHICmdList, CullTilesToObjects);
 
 					// Start at 0 tiles per object
-					RHICmdList.Transition(FRHITransitionInfo(TileIntersectionResources->NumCulledTilesArray.UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
+					RHICmdList.Transition(FRHITransitionInfo(TileIntersectionResources->NumCulledTilesArray.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
 					RHICmdList.ClearUAVUint(TileIntersectionResources->NumCulledTilesArray.UAV, FUintVector4(0, 0, 0, 0));
 
 					// Rasterize object bounding shapes and intersect with screen tiles, and write out intersecting tile indices for the cone tracing pass

@@ -716,14 +716,6 @@ enum class ERHIPipeline : uint8
 };
 ENUM_CLASS_FLAGS(ERHIPipeline)
 
-enum class EResourceTransitionPipeline
-{
-	EGfxToCompute, //     UE_DEPRECATED(4.26, "The RHI resource barrier API has been refactored. Use the new RHITransition API. EResourceTransitionPipeline has been replaced with ERHIPipeline bitmask."),
-	EComputeToGfx, //     UE_DEPRECATED(4.26, "The RHI resource barrier API has been refactored. Use the new RHITransition API. EResourceTransitionPipeline has been replaced with ERHIPipeline bitmask."),
-	EGfxToGfx,     //     UE_DEPRECATED(4.26, "The RHI resource barrier API has been refactored. Use the new RHITransition API. EResourceTransitionPipeline has been replaced with ERHIPipeline bitmask."),
-	EComputeToCompute // UE_DEPRECATED(4.26, "The RHI resource barrier API has been refactored. Use the new RHITransition API. EResourceTransitionPipeline has been replaced with ERHIPipeline bitmask.")
-};
-
 enum class ERHIAccess
 {
 	// Used when the previous state of a resource is not known,
@@ -775,41 +767,12 @@ enum class ERHIAccess
 	WriteOnlyMask = WriteOnlyExclusiveMask | DSVWrite,
 
 	// A mask of all bits representing writable states which may also include readable states.
-	WritableMask = WriteOnlyMask | UAVMask,
-
-
-	// ------------------------------------------
-	// Legacy states
-
-	// These are for compatibility with the legacy RHITransitionResources API implementation. Do not use these when writing new rendering code/features.
-	EReadable    = ReadOnlyMask, // "Generic read"
-	EWritable    = WritableMask, // "Generic write"
-	ERWBarrier   = CopySrc | CopyDest | SRVCompute | SRVGraphics | UAVCompute | UAVGraphics, // Mostly for UAVs. Transition to read/write state and always insert a resource barrier.
-	ERWNoBarrier = ERWBarrier    // Mostly for UAVs. Indicates we want R/W access and do not require synchronization for the duration of the RW state.  The initial transition from writable->RWNoBarrier and readable->RWNoBarrier still requires a sync.
-
-	//-------------------------------------------
+	WritableMask = WriteOnlyMask | UAVMask
 };
 ENUM_CLASS_FLAGS(ERHIAccess)
 
 /** Mask of read states that can be used together for textures. */
 extern RHI_API ERHIAccess GRHITextureReadAccessMask;
-
-// Helper namespace to maintain compatibility with old renderer code for one engine release.
-namespace EResourceTransitionAccess
-{
-	UE_DEPRECATED(4.26, "The RHI resource barrier API has been refactored. Use the RHITransition API and ERHIAccess to specify explicit previous/next states during resource transitions.")
-	static constexpr const ERHIAccess EReadable    = ERHIAccess::EReadable;
-
-	UE_DEPRECATED(4.26, "The RHI resource barrier API has been refactored. Use the RHITransition API and ERHIAccess to specify explicit previous/next states during resource transitions.")
-	static constexpr const ERHIAccess EWritable    = ERHIAccess::EWritable;
-
-	UE_DEPRECATED(4.26, "The RHI resource barrier API has been refactored. Use the RHITransition API and ERHIAccess to specify explicit previous/next states during resource transitions.")
-	static constexpr const ERHIAccess ERWBarrier   = ERHIAccess::ERWBarrier;
-
-	UE_DEPRECATED(4.26, "The RHI resource barrier API has been refactored. Use the RHITransition API and ERHIAccess to specify explicit previous/next states during resource transitions.")
-	static constexpr const ERHIAccess ERWNoBarrier = ERHIAccess::ERWNoBarrier;
-};
-
 
 /** to customize the RHIReadSurfaceData() output */
 class FReadSurfaceDataFlags
@@ -1639,8 +1602,8 @@ struct FResolveParams
 	/** Array index to resolve in the dest. */
 	int32 DestArrayIndex;
 	/** States to transition to at the end of the resolve operation. */
-	ERHIAccess SourceAccessFinal = ERHIAccess::EReadable;
-	ERHIAccess DestAccessFinal = ERHIAccess::EReadable;
+	ERHIAccess SourceAccessFinal = ERHIAccess::SRVMask;
+	ERHIAccess DestAccessFinal = ERHIAccess::SRVMask;
 
 	/** constructor */
 	FResolveParams(
@@ -1690,18 +1653,6 @@ struct FRHICopyTextureInfo
 	uint32 NumMips = 1;
 };
 
-inline constexpr bool IsLegacyAccess(ERHIAccess Access)
-{
-	switch (Access)
-	{
-	case ERHIAccess::EReadable:
-	case ERHIAccess::EWritable:
-	case ERHIAccess::ERWBarrier:
-		return true;
-	}
-	return false;
-}
-
 inline constexpr bool IsReadOnlyAccess(ERHIAccess Access)
 {
 	return EnumHasAnyFlags(Access, ERHIAccess::ReadOnlyMask) && !EnumHasAnyFlags(Access, ~ERHIAccess::ReadOnlyMask);
@@ -1726,8 +1677,7 @@ inline constexpr bool IsInvalidAccess(ERHIAccess Access)
 {
 	return
 		((EnumHasAnyFlags(Access, ERHIAccess::ReadOnlyExclusiveMask) && EnumHasAnyFlags(Access, ERHIAccess::WritableMask)) ||
-		 (EnumHasAnyFlags(Access, ERHIAccess::WriteOnlyExclusiveMask) && EnumHasAnyFlags(Access, ERHIAccess::ReadableMask))) &&
-		!IsLegacyAccess(Access);
+		 (EnumHasAnyFlags(Access, ERHIAccess::WriteOnlyExclusiveMask) && EnumHasAnyFlags(Access, ERHIAccess::ReadableMask)));
 }
 
 inline constexpr bool IsValidAccess(ERHIAccess Access)

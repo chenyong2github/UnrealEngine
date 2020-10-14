@@ -308,7 +308,7 @@ public:
 		FAOScreenGridResources* ScreenGridResources = View.ViewState->AOScreenGridResources;
 				
 		// Note: no transition, want to overlap object cone tracing and global DF cone tracing since both shaders use atomics to ScreenGridConeVisibility
-		RHICmdList.Transition(FRHITransitionInfo(ScreenGridResources->ScreenGridConeVisibility.UAV, ERHIAccess::Unknown, ERHIAccess::ERWNoBarrier));
+		RHICmdList.BeginUAVOverlap(ScreenGridResources->ScreenGridConeVisibility.UAV);
 
 		ScreenGridConeVisibility.SetBuffer(RHICmdList, ShaderRHI, ScreenGridResources->ScreenGridConeVisibility);
 	}
@@ -316,6 +316,7 @@ public:
 	void UnsetParameters(FRHICommandList& RHICmdList, const FViewInfo& View)
 	{
 		ScreenGridConeVisibility.UnsetUAV(RHICmdList, RHICmdList.GetBoundComputeShader());
+		RHICmdList.EndUAVOverlap(View.ViewState->AOScreenGridResources->ScreenGridConeVisibility.UAV);
 	}
 
 private:
@@ -528,7 +529,7 @@ void FDeferredShadingSceneRenderer::RenderDistanceFieldAOScreenGrid(
 			FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
 
 			float ConeVisibilityClearValue = 1.0f;
-			RHICmdList.Transition(FRHITransitionInfo(ScreenGridResources->ScreenGridConeVisibility.UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
+			RHICmdList.Transition(FRHITransitionInfo(ScreenGridResources->ScreenGridConeVisibility.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
 			RHICmdList.ClearUAVUint(ScreenGridResources->ScreenGridConeVisibility.UAV, FUintVector4(*(uint32*)&ConeVisibilityClearValue, 0, 0, 0)); // @todo - ScreenGridConeVisibility should probably be R32_FLOAT format.
 
 			if (bUseGlobalDistanceField)
@@ -565,7 +566,7 @@ void FDeferredShadingSceneRenderer::RenderDistanceFieldAOScreenGrid(
 				SCOPED_DRAW_EVENT(RHICmdList, ConeTraceObjects);
 				FTileIntersectionResources* TileIntersectionResources = ((FSceneViewState*)View.State)->AOTileIntersectionResources;
 
-				RHICmdList.Transition(FRHITransitionInfo(ScreenGridResources->ScreenGridConeVisibility.UAV, ERHIAccess::ERWBarrier, ERHIAccess::ERWBarrier));
+				RHICmdList.Transition(FRHITransitionInfo(ScreenGridResources->ScreenGridConeVisibility.UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute));
 
 				if (bUseGlobalDistanceField)
 				{
@@ -596,7 +597,7 @@ void FDeferredShadingSceneRenderer::RenderDistanceFieldAOScreenGrid(
 			// Compute heightfield occlusion after heightfield GI, otherwise it self-shadows incorrectly
 			View.HeightfieldLightingViewInfo.ComputeOcclusionForScreenGrid(View, RHICmdList, DistanceFieldNormal->GetPooledRenderTarget()->GetRenderTargetItem(), *ScreenGridResources, Parameters);
 
-			RHICmdList.Transition(FRHITransitionInfo(ScreenGridResources->ScreenGridConeVisibility.UAV, ERHIAccess::ERWBarrier, ERHIAccess::SRVCompute));
+			RHICmdList.Transition(FRHITransitionInfo(ScreenGridResources->ScreenGridConeVisibility.UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVCompute));
 		});
 	}
 

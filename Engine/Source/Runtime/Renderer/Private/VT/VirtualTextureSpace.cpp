@@ -302,7 +302,7 @@ void FVirtualTextureSpace::AllocateTextures(FRHICommandList& RHICmdList)
 				FRHITexture* DstTexture = RenderTarget->GetRenderTargetItem().TargetableTexture;
 
 				FRHITransitionInfo TransitionsBefore[] = {
-					FRHITransitionInfo(SrcTexture, ERHIAccess::EReadable, ERHIAccess::CopySrc),
+					FRHITransitionInfo(SrcTexture, ERHIAccess::Unknown, ERHIAccess::CopySrc),
 					FRHITransitionInfo(DstTexture, ERHIAccess::Unknown, ERHIAccess::CopyDest)
 				};
 				RHICmdList.Transition(MakeArrayView(TransitionsBefore, UE_ARRAY_COUNT(TransitionsBefore)));

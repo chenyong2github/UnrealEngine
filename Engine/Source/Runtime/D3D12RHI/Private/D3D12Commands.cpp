@@ -328,11 +328,11 @@ void FD3D12CommandContext::RHIBeginTransitionsWithoutFencing(TArrayView<const FR
 
 				D3D12_RESOURCE_STATES State = D3D12_RESOURCE_STATE_COMMON;
 
-				if (EnumHasAnyFlags(Info.AccessAfter, ERHIAccess::EWritable))
+				if (EnumHasAnyFlags(Info.AccessAfter, ERHIAccess::WritableMask))
 				{
 					State |= D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
 				}
-				else if (EnumHasAnyFlags(Info.AccessAfter, ERHIAccess::EReadable))
+				else if (EnumHasAnyFlags(Info.AccessAfter, ERHIAccess::ReadableMask))
 				{
 					State |= D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
 				}
@@ -387,7 +387,6 @@ void FD3D12CommandContext::RHIEndTransitions(TArrayView<const FRHITransition*> T
 			// Sometimes we could still have barriers with resources, invalid but can still happen
 			if (bSamePipeline)
 			{
-				bUAVBarrier |= Info.AccessAfter == ERHIAccess::ERWBarrier;
 				bUAVBarrier |= EnumHasAnyFlags(Info.AccessBefore, ERHIAccess::UAVMask) && EnumHasAnyFlags(Info.AccessAfter, ERHIAccess::UAVMask);
 			}
 
@@ -409,29 +408,26 @@ void FD3D12CommandContext::RHIEndTransitions(TArrayView<const FRHITransition*> T
 					State |= SkipFastClearEliminateState;
 				}
 
-				if (Info.AccessAfter != ERHIAccess::ERWBarrier)
+				if (EnumHasAnyFlags(Info.AccessAfter, ERHIAccess::WritableMask))
 				{
-					if (EnumHasAnyFlags(Info.AccessAfter, ERHIAccess::EWritable))
+					if (bIsAsyncComputeContext)
 					{
-						if (bIsAsyncComputeContext)
-						{
-							State |= D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
-						}
-						else
-						{
-							State |= Resource->GetWritableState();
-						}
+						State |= D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
 					}
-					else if (EnumHasAnyFlags(Info.AccessAfter, ERHIAccess::EReadable))
+					else
 					{
-						if (bIsAsyncComputeContext)
-						{
-							State |= D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
-						}
-						else
-						{
-							State |= Resource->GetReadableState();
-						}
+						State |= Resource->GetWritableState();
+					}
+				}
+				else if (EnumHasAnyFlags(Info.AccessAfter, ERHIAccess::ReadableMask))
+				{
+					if (bIsAsyncComputeContext)
+					{
+						State |= D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
+					}
+					else
+					{
+						State |= Resource->GetReadableState();
 					}
 				}
 

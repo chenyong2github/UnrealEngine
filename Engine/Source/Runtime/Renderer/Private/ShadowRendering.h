@@ -619,7 +619,7 @@ public:
 	void SetupShadowUniformBuffers(FRHICommandListImmediate& RHICmdList, FScene* Scene, FLightPropagationVolume* LPV = nullptr);
 
 	/**
-	* Ensure Cached Shadowmap is in EReadable state
+	* Ensure Cached Shadowmap is in readable state
 	*/
 	void TransitionCachedShadowmap(FRHICommandListImmediate& RHICmdList, FScene* Scene);
 

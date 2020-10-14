@@ -116,9 +116,9 @@ void FDeferredShadingSceneRenderer::BuildVarianceMipTree(FRHICommandListImmediat
 		FIntVector MipLevelDimensions = FIntVector(VarianceMipTreeDimensions.X >> MipLevel, VarianceMipTreeDimensions.Y >> MipLevel, 1);
 		FIntVector NumGroups = FIntVector::DivideAndRoundUp(MipLevelDimensions, FBuildVarianceMipTreeCS::GetGroupSize());
 		DispatchComputeShader(RHICmdList, BuildVarianceMipTreeComputeShader.GetShader(), NumGroups.X, NumGroups.Y, 1);
-		BuildVarianceMipTreeComputeShader->UnsetParameters(RHICmdList, ERHIAccess::ERWBarrier, VarianceMipTree);
+		BuildVarianceMipTreeComputeShader->UnsetParameters(RHICmdList, ERHIAccess::UAVCompute, VarianceMipTree);
 	}
-	BuildVarianceMipTreeComputeShader->UnsetParameters(RHICmdList, ERHIAccess::ERWBarrier, VarianceMipTree);
+	BuildVarianceMipTreeComputeShader->UnsetParameters(RHICmdList, ERHIAccess::UAVCompute, VarianceMipTree);
 }
 
 class FVisualizeMipTreePS : public FGlobalShader
@@ -221,7 +221,7 @@ void FDeferredShadingSceneRenderer::VisualizeVarianceMipTree(FRHICommandListImme
 		VertexShader);
 	RHICmdList.EndRenderPass();
 
-	RHICmdList.Transition(FRHITransitionInfo(VarianceMipTree.UAV, ERHIAccess::SRVGraphics, ERHIAccess::ERWBarrier));
+	RHICmdList.Transition(FRHITransitionInfo(VarianceMipTree.UAV, ERHIAccess::SRVGraphics, ERHIAccess::UAVCompute));
 
 	// Declare RT as visualizable
 	RHICmdList.CopyToResolveTarget(VarianceMipTreeRT->GetRenderTargetItem().TargetableTexture, VarianceMipTreeRT->GetRenderTargetItem().ShaderResourceTexture, FResolveParams());
