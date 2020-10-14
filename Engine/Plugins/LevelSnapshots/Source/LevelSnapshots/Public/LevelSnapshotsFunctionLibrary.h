@@ -17,4 +17,7 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "LevelSnapshots", meta = (WorldContext = "WorldContextObject"))
 	static ULevelSnapshot* TakeLevelSnapshot(const UObject* WorldContextObject);
+
+	UFUNCTION(BlueprintCallable, Category = "Snapshot")
+	static void TestDeserialization(const ULevelSnapshot* Snapshot, AActor* TestActor);
 };

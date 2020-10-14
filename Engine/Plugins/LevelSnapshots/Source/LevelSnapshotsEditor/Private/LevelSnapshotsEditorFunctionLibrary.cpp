@@ -10,7 +10,7 @@
 
 #define LOCTEXT_NAMESPACE "LevelSnapshotEditorLibrary"
 
-void ULevelSnapshotsEditorFunctionLibrary::SaveLevelSnapshotToDisk(const UObject* WorldContextObject, ULevelSnapshot* LevelSnapshot, const FString FileName, const FString FolderPath)
+void ULevelSnapshotsEditorFunctionLibrary::SaveLevelSnapshotToDisk(ULevelSnapshot* LevelSnapshot, const FString FileName, const FString FolderPath)
 {
 	if (!LevelSnapshot)
 	{
@@ -32,13 +32,6 @@ void ULevelSnapshotsEditorFunctionLibrary::SaveLevelSnapshotToDisk(const UObject
 	AssetTools.CreateUniqueAssetName(BasePackageName, TEXT(""), PackageName, AssetName);
 
 	ULevelSnapshot* SnapshotAsset = NewObject<ULevelSnapshot>(CreatePackage(NULL, *PackageName), *AssetName, RF_Public, LevelSnapshot);
-
-	UWorld* TargetWorld = nullptr;
-	if (WorldContextObject)
-	{
-		TargetWorld = WorldContextObject->GetWorld();
-	}
-	SnapshotAsset->SnapshotWorld(TargetWorld);
 
 	if (SnapshotAsset)
 	{

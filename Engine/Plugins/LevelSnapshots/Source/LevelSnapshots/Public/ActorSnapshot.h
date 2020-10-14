@@ -40,6 +40,8 @@ struct FActorSnapshot
 	// Initialize the snapshot from a given actor
 	explicit FActorSnapshot(AActor* TargetActor);
 
+	AActor* GetDeserializedActor() const;
+
 	/** The name of the object when it was serialized */
 	UPROPERTY(VisibleAnywhere, Category = "Snapshot")
 	FName ObjectName;
@@ -69,7 +71,7 @@ struct FActorSnapshot
 	uint32 InternalIndex;
 
 	/** List of references to other objects, captured as soft object paths. */
-	UPROPERTY()
+	UPROPERTY(VisibleAnywhere, Category = "Snapshot")
 	TArray<FSoftObjectPath> ReferencedObjects;
 
 	/** List of references to names. */

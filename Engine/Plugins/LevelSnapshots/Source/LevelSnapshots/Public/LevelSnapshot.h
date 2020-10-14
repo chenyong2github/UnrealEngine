@@ -17,14 +17,11 @@ public:
 	void SnapshotWorld(UWorld* TargetWorld);
 
 private:
+	friend class ULevelSnapshotsFunctionLibrary;
 
 	void SnapshotActor(AActor* TargetActor);
 
 	// Map of Actor Snapshots mapping from the object path to the actual snapshot
 	UPROPERTY(VisibleAnywhere, Category = "Snapshot")
 	TMap<FString, FActorSnapshot> ActorSnapshots;
-
-public:
-	UPROPERTY(VisibleAnywhere, Category = "Snapshot")
-	FString MapName;
 };

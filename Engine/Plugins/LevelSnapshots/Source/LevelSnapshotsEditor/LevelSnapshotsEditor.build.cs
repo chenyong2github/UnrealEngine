@@ -5,33 +5,30 @@ using UnrealBuildTool;
 public class LevelSnapshotsEditor : ModuleRules
 {
 	public LevelSnapshotsEditor(ReadOnlyTargetRules Target) : base(Target)
-	{		
+	{
+		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
+		
 		PublicDependencyModuleNames.AddRange(
 			new string[]
-				{
-					"Core",
-				}
+			{
+				"Core",
+			}
 			);
 			
 		
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
-				{
-					"AssetRegistry",
-					"AssetTools",
-					"CoreUObject",
-					"ContentBrowser",
-					"EditorStyle",
-					"EditorSubsystem",
-					"Engine",
-					"InputCore",
-					"LevelSnapshots",
-					"PropertyEditor",
-					"Slate",
-					"SlateCore",
-					"ToolMenus",
-					"UnrealEd"
-				}
+			{
+				"CoreUObject",
+				"Engine",
+				"Slate",
+				"SlateCore",
+				"UnrealEd",
+				"LevelSnapshots",
+				"LevelSnapshotFilters",
+				"AssetRegistry",
+				"AssetTools"
+			}
 			);
 	}
 }

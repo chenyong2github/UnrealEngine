@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LevelSnapshotsFunctionLibrary.h"
+#include "DiffUtils.h"
 #include "Engine/LevelStreaming.h"
 #include "LevelSnapshot.h"
 
@@ -33,3 +34,37 @@ ULevelSnapshot* ULevelSnapshotsFunctionLibrary::TakeLevelSnapshot(const UObject*
 
 	return NewSnapshot;
 };
+
+void ULevelSnapshotsFunctionLibrary::TestDeserialization(const ULevelSnapshot* Snapshot, AActor* TestActor)
+{
+	if (!TestActor)
+	{
+		return;
+	}
+
+	if (Snapshot && Snapshot->ActorSnapshots.Num() > 0)
+	{
+		for (const TPair<FString, FActorSnapshot>& SnapshotPair : Snapshot->ActorSnapshots)
+		{
+			const FString& SnapshotPathName = SnapshotPair.Key;
+			const FActorSnapshot& ActorSnapshot = SnapshotPair.Value;
+
+			// See if the Snapshot is for the same actor
+			if (SnapshotPathName == TestActor->GetPathName())
+			{
+				AActor* DeserializedActor = ActorSnapshot.GetDeserializedActor();
+				if (DeserializedActor)
+				{
+					TArray<FSingleObjectDiffEntry> DifferingProperties;
+					DiffUtils::CompareUnrelatedObjects(DeserializedActor, TestActor, DifferingProperties);
+					for (FSingleObjectDiffEntry& DifferingProperty : DifferingProperties)
+					{
+						FString PropertyDisplayName = DifferingProperty.Identifier.ToDisplayName();
+						UE_LOG(LogTemp, Warning, TEXT("Property Difference: %s"), *PropertyDisplayName);
+					}
+				}
+				break;
+			}
+		}
+	}
+}

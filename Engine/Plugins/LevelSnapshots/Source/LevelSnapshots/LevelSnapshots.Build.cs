@@ -21,9 +21,10 @@ public class LevelSnapshots : ModuleRules
 			{
 				"CoreUObject",
 				"Engine",
+				"Kismet",
 				"Slate",
 				"SlateCore",
-				"TransactionAuditor" // TODO: TEMP
+				"LevelSnapshotFilters"
 			}
 			);
 	}
