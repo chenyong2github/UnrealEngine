@@ -53,7 +53,6 @@ public:
 
 	/** Method called when the selection */
 	void OnGeometrySelectionChanged();
-	void OnActorSelectionChanged(UObject* SelectionContainer);
 
 	/** Returns a reference to the geometry mode tool */
 	class FModeTool_GeometryModify* GetGeometryModeTool() const;
@@ -77,6 +76,4 @@ private:
 private:
 	/** Geometry tools widget */
 	TSharedPtr<class SGeometryModeControls> GeomWidget;
-
-	bool bHasBrushActorSelected;
 };
