@@ -98,11 +98,6 @@ public:
 	virtual void SetEditRenderType() override { GLandscapeEditRenderMode = ELandscapeEditRenderMode::None | (GLandscapeEditRenderMode & ELandscapeEditRenderMode::BitMaskForMask); }
 	virtual bool SupportsMask() override { return false; }
 
-	void CreateSplineComponent(ALandscapeProxy* Proxy, FVector Scale3D)
-	{
-		Proxy->CreateSplineComponent(Scale3D);
-	}
-
 	void UpdatePropertiesWindows()
 	{
 		if (GLevelEditorModeTools().IsModeActive(EdMode->GetID()))
@@ -981,7 +976,7 @@ public:
 			{
 				if (!Landscape->SplineComponent)
 				{
-					CreateSplineComponent(Landscape, FVector(1.0f) / Landscape->GetRootComponent()->GetRelativeScale3D());
+					Landscape->CreateSplineComponent();
 					check(Landscape->SplineComponent);
 				}
 				SplinesComponent = Landscape->SplineComponent;
@@ -2139,7 +2134,7 @@ public:
 		}
 		if (!Landscape->SplineComponent)
 		{
-			CreateSplineComponent(Landscape, FVector(1.0f) / Landscape->GetRootComponent()->GetRelativeScale3D());
+			Landscape->CreateSplineComponent();
 			check(Landscape->SplineComponent);
 		}
 		Landscape->SplineComponent->Modify();

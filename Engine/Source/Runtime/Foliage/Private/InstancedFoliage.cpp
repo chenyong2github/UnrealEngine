@@ -2851,6 +2851,28 @@ void AInstancedFoliageActor::MoveInstancesForComponentToLevel(UActorComponent* I
 }
 
 void AInstancedFoliageActor::MoveInstancesToNewComponent(UPrimitiveComponent* InOldComponent, const FBox& InBoxWithInstancesToMove, UPrimitiveComponent* InNewComponent)
+{
+	MoveInstancesToNewComponent(InOldComponent, InNewComponent, [InBoxWithInstancesToMove](const FFoliageInfo& FoliageInfo)
+	{
+		return FoliageInfo.GetInstancesOverlappingBox(InBoxWithInstancesToMove);
+	});
+}
+
+void AInstancedFoliageActor::MoveInstancesToNewComponent(UPrimitiveComponent* InOldComponent, UPrimitiveComponent* InNewComponent)
+{
+	MoveInstancesToNewComponent(InOldComponent, InNewComponent, [](const FFoliageInfo& FoliageInfo)
+	{
+		TArray<int32> InstanceIndices;
+		InstanceIndices.SetNum(FoliageInfo.Instances.Num());
+		for (int32 InstanceIndex = 0; InstanceIndex < FoliageInfo.Instances.Num(); ++InstanceIndex)
+		{
+			InstanceIndices[InstanceIndex] = InstanceIndex;
+		}
+		return MoveTemp(InstanceIndices);
+	});
+}
+
+void AInstancedFoliageActor::MoveInstancesToNewComponent(UPrimitiveComponent* InOldComponent, UPrimitiveComponent* InNewComponent, TFunctionRef<TArray<int32>(const FFoliageInfo&)> GetInstancesToMoveFunc)
 {	
 	const auto OldBaseId = InstanceBaseCache.GetInstanceBaseId(InOldComponent);
 	if (OldBaseId == FFoliageInstanceBaseCache::InvalidBaseId)
@@ -2858,87 +2880,99 @@ void AInstancedFoliageActor::MoveInstancesToNewComponent(UPrimitiveComponent* In
 		// This foliage actor has no instances with specified base
 		return;
 	}
+		
+	ULevel* IFALevel = InNewComponent->GetOwner()->GetLevel();
+	UWorld* IFAWorld = IFALevel->GetWorld();
+	
+	TArray<int32> InstancesToDelete;
+	TSet<int32> InstancesToUpdateBase;
+	TMap<AInstancedFoliageActor*, TArray<FFoliageInstance*>> PerIFAInstancesToMove;
 
-	AInstancedFoliageActor* TargetIFA = AInstancedFoliageActor::GetInstancedFoliageActorForLevel(InNewComponent->GetOwner()->GetLevel(), true);
-	TArray<int32> InstancesToMove;
-
+	// If Modify was called on this IFA
+	bool bModified = false;
+	
 	for (auto& Pair : FoliageInfos)
-	{
-		InstancesToMove.Reset();
-
+	{			
 		FFoliageInfo& Info = *Pair.Value;
-		
-		InstancesToMove = Info.GetInstancesOverlappingBox(InBoxWithInstancesToMove);
-		
-		FFoliageInfo* TargetMeshInfo = nullptr;
-		UFoliageType* TargetFoliageType = TargetIFA->AddFoliageType(Pair.Key, &TargetMeshInfo);
-
-		// Add the foliage to the new level
-		for (int32 InstanceIndex : InstancesToMove)
+		// Make sure we indeed have Instances that have the OldComponent as a base for this specific FoliageType
+		TSet<int32>* OldInstanceSet = Info.ComponentHash.Find(OldBaseId);
+		if(OldInstanceSet && OldInstanceSet->Num())
 		{
-			if (Info.Instances.IsValidIndex(InstanceIndex))
+			FFoliageInstanceBaseId NewBaseId = FFoliageInstanceBaseCache::InvalidBaseId;
+			TArray<int32> PotentialInstances = GetInstancesToMoveFunc(Info);
+
+			// Reset temp containers
+			PerIFAInstancesToMove.Reset();
+			InstancesToUpdateBase.Reset();
+			InstancesToDelete.Reset(PotentialInstances.Num());
+
+			// Cumulate Instances to move Per IFA
+			for (int32 InstanceIndex : PotentialInstances)
 			{
-				FFoliageInstance NewInstance = Info.Instances[InstanceIndex];
-				TargetMeshInfo->AddInstance(TargetIFA, TargetFoliageType, NewInstance, InNewComponent);
-			}
-		}
-
-		TargetMeshInfo->Refresh(TargetIFA, true, true);
-		
-		// Remove from old level
-		Info.RemoveInstances(this, InstancesToMove, true);
-	}
-}
-
-void AInstancedFoliageActor::MoveInstancesToNewComponent(UPrimitiveComponent* InOldComponent, UPrimitiveComponent* InNewComponent)
-{
-	AInstancedFoliageActor* TargetIFA = AInstancedFoliageActor::GetInstancedFoliageActorForLevel(InNewComponent->GetOwner()->GetLevel(), true);
-
-	const auto OldBaseId = this->InstanceBaseCache.GetInstanceBaseId(InOldComponent);
-	if (OldBaseId == FFoliageInstanceBaseCache::InvalidBaseId)
-	{
-		// This foliage actor has no any instances with specified base
-		return;
-	}
-
-	const auto NewBaseId = TargetIFA->InstanceBaseCache.AddInstanceBaseId(InNewComponent);
-
-	for (auto& Pair : FoliageInfos)
-	{
-		FFoliageInfo& Info = *Pair.Value;
-
-		TSet<int32> InstanceSet;
-		if (Info.ComponentHash.RemoveAndCopyValue(OldBaseId, InstanceSet) && InstanceSet.Num())
-		{
-			// For same FoliageActor can just remap the instances, otherwise we have to do a more complex move
-			if (TargetIFA == this)
-			{
-				// Update the instances
-				for (int32 InstanceIndex : InstanceSet)
+				if (Info.Instances.IsValidIndex(InstanceIndex) && OldInstanceSet->Contains(InstanceIndex))
 				{
-					Info.Instances[InstanceIndex].BaseId = NewBaseId;
-				}
+					FFoliageInstance& InstanceToMove = Info.Instances[InstanceIndex];
+					const bool bCreate = true;
+					if (AInstancedFoliageActor* TargetIFA = AInstancedFoliageActor::Get(IFAWorld, bCreate, IFALevel, InstanceToMove.Location))
+					{
+						// Call Modify only once
+						if (!bModified)
+						{
+							Modify();
+							bModified = true;
+						}
 
-				// Update the hash
-				Info.ComponentHash.Add(NewBaseId, MoveTemp(InstanceSet));
+						// Same IFA just update the Base 
+						if (this == TargetIFA)
+						{
+							if (NewBaseId == FFoliageInstanceBaseCache::InvalidBaseId)
+							{
+								NewBaseId = InstanceBaseCache.AddInstanceBaseId(InNewComponent);
+							}
+							InstanceToMove.BaseComponent = InNewComponent;
+							InstanceToMove.BaseId = NewBaseId;
+							InstancesToUpdateBase.Add(InstanceIndex);
+							OldInstanceSet->Remove(InstanceIndex);
+						}
+						else
+						{
+							TArray<FFoliageInstance*>& InstancesToMove = PerIFAInstancesToMove.FindOrAdd(TargetIFA);
+							InstancesToMove.Add(&InstanceToMove);
+							InstancesToDelete.Add(InstanceIndex);
+						}
+					}
+				}
 			}
-			else
+
+			// Add Instances to IFAs
+			for (auto& IFAPair : PerIFAInstancesToMove)
 			{
+				AInstancedFoliageActor* TargetIFA = IFAPair.Key;
+				TargetIFA->Modify();
 				FFoliageInfo* TargetMeshInfo = nullptr;
 				UFoliageType* TargetFoliageType = TargetIFA->AddFoliageType(Pair.Key, &TargetMeshInfo);
-
-				// Add the foliage to the new level
-				for (int32 InstanceIndex : InstanceSet)
+				for (FFoliageInstance* InstanceToMove : IFAPair.Value)
 				{
-					FFoliageInstance NewInstance = Info.Instances[InstanceIndex];
-					NewInstance.BaseId = NewBaseId;
-					TargetMeshInfo->AddInstance(TargetIFA, TargetFoliageType, NewInstance);
+					TargetMeshInfo->AddInstance(TargetIFA, TargetFoliageType, *InstanceToMove, InNewComponent);
 				}
-
 				TargetMeshInfo->Refresh(TargetIFA, true, true);
-
-				// Remove from old level
-				Info.RemoveInstances(this, InstanceSet.Array(), true);
+			}
+									
+			// Remove old set if empty
+			if (!OldInstanceSet->Num())
+			{
+				Info.ComponentHash.Remove(OldBaseId);
+			}
+			// Add instances that are still in the old ifa but with a new base
+			if (InstancesToUpdateBase.Num())
+			{
+				check(NewBaseId != FFoliageInstanceBaseCache::InvalidBaseId);
+				Info.ComponentHash.Add(NewBaseId, InstancesToUpdateBase);
+			}
+			// Remove from old IFA
+			if (InstancesToDelete.Num())
+			{
+				Info.RemoveInstances(this, InstancesToDelete, true);
 			}
 		}
 	}

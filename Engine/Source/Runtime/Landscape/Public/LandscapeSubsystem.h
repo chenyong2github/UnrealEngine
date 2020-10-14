@@ -36,7 +36,7 @@ public:
 	LANDSCAPE_API int32 GetOutdatedGrassMapCount();
 
 	LANDSCAPE_API bool IsGridBased() const;
-	LANDSCAPE_API void UpdateGrid(ULandscapeInfo* LandscapeInfo, uint32 GridSizeInComponents);
+	LANDSCAPE_API void ChangeGridSize(ULandscapeInfo* LandscapeInfo, uint32 NewGridSizeInComponents);
 	LANDSCAPE_API ALandscapeProxy* FindOrAddLandscapeProxy(ULandscapeInfo* LandscapeInfo, const FIntPoint& SectionBase);
 #endif
 

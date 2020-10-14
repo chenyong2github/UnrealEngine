@@ -1030,6 +1030,8 @@ public:
 	/** Extends passed region with this component section size */
 	LANDSCAPE_API void GetComponentExtent(int32& MinX, int32& MinY, int32& MaxX, int32& MaxY) const;
 
+	LANDSCAPE_API FIntRect GetComponentExtent() const;
+
 	/** Updates navigation properties to match landscape's master switch */
 	void UpdateNavigationRelevance();
 

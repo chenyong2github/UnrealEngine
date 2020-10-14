@@ -3270,6 +3270,11 @@ void ULandscapeSplineSegment::PostEditChangeProperty(FPropertyChangedEvent& Prop
 	}
 }
 
+void ALandscapeProxy::CreateSplineComponent()
+{
+	CreateSplineComponent(FVector(1.0f) / GetRootComponent()->GetRelativeScale3D());
+}
+
 void ALandscapeProxy::CreateSplineComponent(const FVector& Scale3D)
 {
 	check(SplineComponent == nullptr);
@@ -3441,27 +3446,53 @@ void ULandscapeInfo::MoveSplineToLevel(ULandscapeSplineControlPoint* InControlPo
 		return;
 	}
 	
+	MoveSplineToProxy(InControlPoint, ToProxy);
+}
+
+void ULandscapeInfo::MoveSplineToProxy(ULandscapeSplineControlPoint* InControlPoint, ALandscapeProxy* InLandscapeProxy)
+{
+	ALandscapeProxy* FromProxy = InControlPoint->GetTypedOuter<ALandscapeProxy>();
 	TSet<ULandscapeSplineControlPoint*> ControlPoints;
-	
+
 	FindStartingControlPoints(InControlPoint, ControlPoints);
-	
+
 	FromProxy->Modify();
 	FromProxy->SplineComponent->Modify();
 	FromProxy->SplineComponent->MarkRenderStateDirty();
 
 	for (ULandscapeSplineControlPoint* ControlPoint : ControlPoints)
 	{
-		MoveControlPointToLandscape(ControlPoint, FromProxy, ToProxy);
+		MoveControlPointToLandscape(ControlPoint, FromProxy, InLandscapeProxy);
 	}
 }
 
 void ULandscapeInfo::MoveSplinesToLevel(ULandscapeSplinesComponent * InSplineComponent, ULevel * TargetLevel)
 {
+	ALandscapeProxy* FromProxy = InSplineComponent->GetTypedOuter<ALandscapeProxy>();
+	if (FromProxy->GetLevel() == TargetLevel)
+	{
+		return;
+	}
+
+	ALandscapeProxy* ToProxy = GetLandscapeProxyForLevel(TargetLevel);
+	if (!ToProxy)
+	{
+		return;
+	}
+	
+	MoveSplinesToProxy(InSplineComponent, ToProxy);
+}
+
+/** Moves all Splines to target Proxy. Creates ULandscapeSplineComponent if needed */
+void ULandscapeInfo::MoveSplinesToProxy(ULandscapeSplinesComponent* InSplineComponent, ALandscapeProxy* InLandscapeProxy)
+{
+	check(InSplineComponent->GetTypedOuter<ALandscapeProxy>() != InLandscapeProxy);
+	
 	TArray<ULandscapeSplineControlPoint*> CopyControlPoints(InSplineComponent->ControlPoints);
-	for(ULandscapeSplineControlPoint* ControlPoint : CopyControlPoints)
+	for (ULandscapeSplineControlPoint* ControlPoint : CopyControlPoints)
 	{
 		// Even if ControlPoints are part of same connected spline they will be skipped if already moved
-		MoveSplineToLevel(ControlPoint, TargetLevel);
+		MoveSplineToProxy(ControlPoint, InLandscapeProxy);
 	}
 }
 #endif // WITH_EDITOR

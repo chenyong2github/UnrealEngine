@@ -250,6 +250,12 @@ public:
 	/** Moves all Splines to target level. Creates ULandscapeSplineComponent if needed. */
 	LANDSCAPE_API void MoveSplinesToLevel(ULandscapeSplinesComponent* InSplineComponent, ULevel* TargetLevel);
 
+	/** Moves Splines connected to this control point to target Proxy. Creates ULandscapeSplineComponent if needed. */
+	LANDSCAPE_API void MoveSplineToProxy(ULandscapeSplineControlPoint* InControlPoint, ALandscapeProxy* InLandscapeProxy);
+
+	/** Moves all Splines to target Proxy. Creates ULandscapeSplineComponent if needed */
+	LANDSCAPE_API void MoveSplinesToProxy(ULandscapeSplinesComponent* InSplineComponent, ALandscapeProxy* InLandscapeProxy);
+
 	/** Will call UpdateAllComponentMaterialInstances on all LandscapeProxies */
 	LANDSCAPE_API void UpdateAllComponentMaterialInstances();
 

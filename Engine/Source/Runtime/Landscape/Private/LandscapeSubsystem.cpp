@@ -14,6 +14,7 @@
 #include "ActorPartition/ActorPartitionSubsystem.h"
 #include "Engine/World.h"
 #include "Math/IntRect.h"
+#include "LandscapeConfigHelper.h"
 
 static int32 GUseStreamingManagerForCameras = 1;
 static FAutoConsoleVariableRef CVarUseStreamingManagerForCameras(
@@ -170,88 +171,17 @@ bool ULandscapeSubsystem::IsGridBased() const
 	return UWorld::HasSubsystem<UWorldPartitionSubsystem>(GetWorld());
 }
 
-namespace LandscapeSubsystemUtils
-{
-	ALandscapeProxy* FindOrAddLandscapeProxy(UActorPartitionSubsystem* ActorPartitionSubsystem, ULandscapeInfo* LandscapeInfo, const UActorPartitionSubsystem::FCellCoord& CellCoord)
-	{
-		ALandscape* Landscape = LandscapeInfo->LandscapeActor.Get();
-		check(Landscape);
-							
-		auto LandscapeProxyCreated = [CellCoord, Landscape](APartitionActor* PartitionActor)
-		{
-			const FIntPoint CellLocation(CellCoord.X * Landscape->GridSize, CellCoord.Y * Landscape->GridSize);
-
-			ALandscapeProxy* LandscapeProxy = CastChecked<ALandscapeProxy>(PartitionActor);
-			// copy shared properties to this new proxy
-			LandscapeProxy->GetSharedProperties(Landscape);
-			const FVector ProxyLocation = Landscape->GetActorLocation() + FVector(CellLocation.X * Landscape->GetActorRelativeScale3D().X, CellLocation.Y * Landscape->GetActorRelativeScale3D().Y, 0.0f);
-
-			LandscapeProxy->CreateLandscapeInfo();
-			LandscapeProxy->SetActorLocationAndRotation(ProxyLocation, Landscape->GetActorRotation());
-			LandscapeProxy->LandscapeSectionOffset = FIntPoint(CellLocation.X, CellLocation.Y);
-		};
-
-		const bool bCreate = true;
-		const bool bBoundsSearch = false;
-		return Cast<ALandscapeProxy>(ActorPartitionSubsystem->GetActor(ALandscapeStreamingProxy::StaticClass(), CellCoord, bCreate, LandscapeInfo->LandscapeGuid, Landscape->GridSize, bBoundsSearch, LandscapeProxyCreated));
-	}
-}
-
-void ULandscapeSubsystem::UpdateGrid(ULandscapeInfo* LandscapeInfo, uint32 GridSizeInComponents)
+void ULandscapeSubsystem::ChangeGridSize(ULandscapeInfo* LandscapeInfo, uint32 GridSizeInComponents)
 {
 	if (!IsGridBased())
 	{
 		return;
 	}
 
-	check(LandscapeInfo);
-
-	const uint32 GridSize = LandscapeInfo->GetGridSize(GridSizeInComponents);
-	LandscapeInfo->LandscapeActor->Modify();
-	LandscapeInfo->LandscapeActor->GridSize = GridSize;
-
-	FIntRect Extent;
-	LandscapeInfo->GetLandscapeExtent(Extent.Min.X, Extent.Min.Y, Extent.Max.X, Extent.Max.Y);
-	const FBox Bounds(FVector(Extent.Min), FVector(Extent.Max));
-
-	UActorPartitionSubsystem* ActorPartitionSubsystem = GetWorld()->GetSubsystem<UActorPartitionSubsystem>();
-
-	TArray<ULandscapeComponent*> LandscapeComponents;
-	LandscapeComponents.Reserve(LandscapeInfo->XYtoComponentMap.Num());
-	LandscapeInfo->ForAllLandscapeComponents([&LandscapeComponents](ULandscapeComponent* LandscapeComponent)
-	{
-		LandscapeComponents.Add(LandscapeComponent);
-	});
-
-	FActorPartitionGridHelper::ForEachIntersectingCell(ALandscapeStreamingProxy::StaticClass(), Extent, GetWorld()->PersistentLevel, [ActorPartitionSubsystem, LandscapeInfo, GridSizeInComponents, &LandscapeComponents, GridSize](const UActorPartitionSubsystem::FCellCoord& CellCoord, const FIntRect& CellBounds)
-	{		
-		TArray<ULandscapeComponent*> ComponentsToMove;
-		const int32 MaxComponents = (int32)(GridSizeInComponents * GridSizeInComponents);
-		ComponentsToMove.Reserve(MaxComponents);
-		for (int32 i = 0; i < LandscapeComponents.Num();)
-		{
-			ULandscapeComponent* LandscapeComponent = LandscapeComponents[i];
-			if (CellBounds.Contains(LandscapeComponent->GetSectionBase()))
-			{
-				ComponentsToMove.Add(LandscapeComponent);
-				LandscapeComponents.RemoveAtSwap(i);
-			}
-			else
-			{
-				i++;
-			}
-		}
-		
-		check(ComponentsToMove.Num() <= MaxComponents);
-		if (ComponentsToMove.Num())
-		{
-			ALandscapeProxy* LandscapeProxy = LandscapeSubsystemUtils::FindOrAddLandscapeProxy(ActorPartitionSubsystem, LandscapeInfo, CellCoord);
-			check(LandscapeProxy);
-			LandscapeInfo->MoveComponentsToProxy(ComponentsToMove, LandscapeProxy);
-		}
-
-		return true;
-	}, GridSize);
+	TSet<AActor*> ActorsToDelete;
+	FLandscapeConfigHelper::ChangeGridSize(LandscapeInfo, GridSizeInComponents, ActorsToDelete);
+	// This code path is used for converting a non grid based Landscape to a gridbased so it shouldn't delete any actors
+	check(!ActorsToDelete.Num());
 }
 
 ALandscapeProxy* ULandscapeSubsystem::FindOrAddLandscapeProxy(ULandscapeInfo* LandscapeInfo, const FIntPoint& SectionBase)
@@ -261,11 +191,7 @@ ALandscapeProxy* ULandscapeSubsystem::FindOrAddLandscapeProxy(ULandscapeInfo* La
 		return LandscapeInfo->GetCurrentLevelLandscapeProxy(true);
 	}
 
-	UActorPartitionSubsystem* ActorPartitionSubsystem = GetWorld()->GetSubsystem<UActorPartitionSubsystem>();
-	const uint32 GridSize = LandscapeInfo->LandscapeActor->GridSize;
-	
-	UActorPartitionSubsystem::FCellCoord CellCoord = UActorPartitionSubsystem::FCellCoord::GetCellCoord(SectionBase, GetWorld()->PersistentLevel, GridSize);
-	return LandscapeSubsystemUtils::FindOrAddLandscapeProxy(ActorPartitionSubsystem, LandscapeInfo, CellCoord);
+	return FLandscapeConfigHelper::FindOrAddLandscapeStreamingProxy(LandscapeInfo, SectionBase);
 }
 
 #endif

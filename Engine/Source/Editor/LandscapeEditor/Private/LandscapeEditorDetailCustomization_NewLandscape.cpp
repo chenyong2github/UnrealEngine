@@ -890,7 +890,7 @@ FReply FLandscapeEditorDetailCustomization_NewLandscape::OnCreateButtonClicked()
 		LandscapeEdMode->SetCurrentTool("Sculpt"); // change to sculpting mode and tool
 		LandscapeEdMode->SetCurrentLayer(0);
 
-		LandscapeEdMode->GetWorld()->GetSubsystem<ULandscapeSubsystem>()->UpdateGrid(LandscapeInfo, UISettings->WorldPartitionGridSize);
+		LandscapeEdMode->GetWorld()->GetSubsystem<ULandscapeSubsystem>()->ChangeGridSize(LandscapeInfo, UISettings->WorldPartitionGridSize);
 
 		if (LandscapeEdMode->CurrentToolTarget.LandscapeInfo.IsValid())
 		{

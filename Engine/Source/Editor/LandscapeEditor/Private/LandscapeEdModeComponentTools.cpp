@@ -578,7 +578,6 @@ public:
 						if (LandscapeProxy)
 						{
 							LandscapeComponent = NewObject<ULandscapeComponent>(LandscapeProxy, NAME_None, RF_Transactional);
-							LandscapeProxy->LandscapeComponents.Add(LandscapeComponent);
 							NewComponents.Add(LandscapeComponent);
 							LandscapeComponent->Init(
 								ComponentBase.X, ComponentBase.Y,
@@ -586,17 +585,9 @@ public:
 								LandscapeProxy->NumSubsections,
 								LandscapeProxy->SubsectionSizeQuads
 							);
-							LandscapeComponent->AttachToComponent(LandscapeProxy->GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
-
-							// Assign shared properties
-							LandscapeComponent->UpdatedSharedPropertiesFromActor();
-
-							int32 ComponentVerts = (LandscapeProxy->SubsectionSizeQuads + 1) * LandscapeProxy->NumSubsections;
-							// Update Weightmap Scale Bias
-							LandscapeComponent->WeightmapScaleBias = FVector4(1.0f / (float)ComponentVerts, 1.0f / (float)ComponentVerts, 0.5f / (float)ComponentVerts, 0.5f / (float)ComponentVerts);
-							LandscapeComponent->WeightmapSubsectionOffset = (float)(LandscapeComponent->SubsectionSizeQuads + 1) / (float)ComponentVerts;
 
 							TArray<FColor> HeightData;
+							const int32 ComponentVerts = (LandscapeComponent->SubsectionSizeQuads + 1) * LandscapeComponent->NumSubsections;
 							HeightData.Empty(FMath::Square(ComponentVerts));
 							HeightData.AddZeroed(FMath::Square(ComponentVerts));
 							LandscapeComponent->InitHeightmapData(HeightData, true);

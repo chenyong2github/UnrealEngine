@@ -35,6 +35,14 @@ namespace LandscapeDataAccess
 	{
 		return FMath::RoundToInt(FMath::Clamp<float>(Height * LANDSCAPE_INV_ZSCALE + MidValue, 0.f, MaxValue));		
 	}
+
+	FORCEINLINE FColor PackHeight(uint16 Height)
+	{
+		FColor Color(ForceInit);
+		Color.R = Height >> 8;
+		Color.G = Height & 255;
+		return MoveTemp(Color);
+	}
 };
 
 #if WITH_EDITOR

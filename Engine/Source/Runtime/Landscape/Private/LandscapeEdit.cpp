@@ -89,13 +89,24 @@ ULandscapeLayerInfoObject* ALandscapeProxy::VisibilityLayer = nullptr;
 
 void ULandscapeComponent::Init(int32 InBaseX, int32 InBaseY, int32 InComponentSizeQuads, int32 InNumSubsections, int32 InSubsectionSizeQuads)
 {
+	ALandscapeProxy* LandscapeProxy = GetLandscapeProxy();
+	check(LandscapeProxy && !LandscapeProxy->LandscapeComponents.Contains(this));
+	LandscapeProxy->LandscapeComponents.Add(this);
+
 	SetSectionBase(FIntPoint(InBaseX, InBaseY));
 	SetRelativeLocation(FVector(GetSectionBase() - GetLandscapeProxy()->LandscapeSectionOffset));
 	ComponentSizeQuads = InComponentSizeQuads;
 	NumSubsections = InNumSubsections;
 	SubsectionSizeQuads = InSubsectionSizeQuads;
 	check(NumSubsections * SubsectionSizeQuads == ComponentSizeQuads);
-	ULandscapeInfo* Info = GetLandscapeInfo();
+
+	AttachToComponent(LandscapeProxy->GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
+	const int32 ComponentVerts = (SubsectionSizeQuads + 1) * NumSubsections;
+	
+	WeightmapScaleBias = FVector4(1.0f / (float)ComponentVerts, 1.0f / (float)ComponentVerts, 0.5f / (float)ComponentVerts, 0.5f / (float)ComponentVerts);
+	WeightmapSubsectionOffset = (float)(SubsectionSizeQuads + 1) / (float)ComponentVerts;
+		
+	UpdatedSharedPropertiesFromActor();
 }
 
 void ULandscapeComponent::UpdateCachedBounds(bool bInApproximateBounds)
@@ -2163,6 +2174,13 @@ void ULandscapeComponent::GetComponentExtent(int32& MinX, int32& MinY, int32& Ma
 	MaxY = FMath::Max(SectionBaseY + ComponentSizeQuads, MaxY);
 }
 
+FIntRect ULandscapeComponent::GetComponentExtent() const
+{
+	int32 MinX = MAX_int32, MinY = MAX_int32, MaxX = MIN_int32, MaxY = MIN_int32;
+	GetComponentExtent(MinX, MinY, MaxX, MaxY);
+	return FIntRect(MinX, MinY, MaxX, MaxY);
+}
+
 //
 // ALandscape
 //
@@ -2377,13 +2395,7 @@ LANDSCAPE_API void ALandscapeProxy::Import(const FGuid& InGuid, int32 InMinX, in
 			const int32 BaseY = InMinY + Y * ComponentSizeQuads;
 
 			ULandscapeComponent* LandscapeComponent = NewObject<ULandscapeComponent>(this, NAME_None, RF_Transactional);
-			LandscapeComponent->SetRelativeLocation(FVector(BaseX, BaseY, 0));
-			LandscapeComponent->SetupAttachment(GetRootComponent(), NAME_None);
-			LandscapeComponents.Add(LandscapeComponent);
 			LandscapeComponent->Init(BaseX, BaseY, ComponentSizeQuads, NumSubsections, SubsectionSizeQuads);
-
-			// Assign shared properties
-			LandscapeComponent->UpdatedSharedPropertiesFromActor();
 		}
 	}
 

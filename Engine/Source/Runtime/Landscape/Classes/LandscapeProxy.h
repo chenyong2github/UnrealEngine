@@ -973,6 +973,7 @@ public:
 #if WITH_EDITOR
 	LANDSCAPE_API int32 GetOutdatedGrassMapCount() const;
 	LANDSCAPE_API void BuildGrassMaps(struct FScopedSlowTask* InSlowTask = nullptr);
+	LANDSCAPE_API void CreateSplineComponent();
 	LANDSCAPE_API void CreateSplineComponent(const FVector& Scale3D);
 
 	virtual bool CanEditChange(const FProperty* InProperty) const override;
