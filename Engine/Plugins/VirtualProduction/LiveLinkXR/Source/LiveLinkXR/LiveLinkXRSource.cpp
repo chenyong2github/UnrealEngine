@@ -49,6 +49,12 @@ FLiveLinkXRSource::FLiveLinkXRSource(const FLiveLinkXRSettings& Settings)
 
 FLiveLinkXRSource::~FLiveLinkXRSource()
 {
+	// This could happen if the object is destroyed before FCoreDelegates::OnEndFrame calls FLiveLinkXRSource::Start
+	if (DeferredStartDelegateHandle.IsValid())
+	{
+		FCoreDelegates::OnEndFrame.Remove(DeferredStartDelegateHandle);
+	}
+
 	Stop();
 
 	if (Thread != nullptr)
