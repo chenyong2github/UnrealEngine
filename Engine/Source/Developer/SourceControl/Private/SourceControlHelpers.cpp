@@ -74,7 +74,7 @@ ISourceControlProvider* VerifySourceControl(bool bSilent)
  * @param	bSilent		if false then write out any error info to the Log. Any error text can be retrieved by LastErrorMsg() regardless.
  * @return	Fully qualified file path to use with source control or "" if conversion unsuccessful.
  */
-FString ConvertFileToQualifiedPath(const FString& InFile, bool bSilent, const FString& AssociatedExtension = FString())
+FString ConvertFileToQualifiedPath(const FString& InFile, bool bSilent, bool bAllowDirectories = false, const TCHAR* AssociatedExtension = nullptr)
 {
 	// Converted to qualified file path
 	FString SCFile;
@@ -101,8 +101,6 @@ FString ConvertFileToQualifiedPath(const FString& InFile, bool bSilent, const FS
 	// - AnimSequence'/Game/Mannequin/Animations/ThirdPersonIdle.ThirdPersonIdle'
 
 	SCFile = InFile;
-	bool bPackage = false;
-
 
 	// Is ExportTextPath (often stored in Clipboard) form?
 	//  - i.e. AnimSequence'/Game/Mannequin/Animations/ThirdPersonIdle.ThirdPersonIdle'
@@ -111,39 +109,38 @@ FString ConvertFileToQualifiedPath(const FString& InFile, bool bSilent, const FS
 		SCFile = FPackageName::ExportTextPathToObjectPath(SCFile);
 	}
 
-	if (SCFile[0] == '/')
+	// Package paths
+	if (SCFile[0] == TEXT('/') && FPackageName::IsValidLongPackageName(SCFile, /*bIncludeReadOnlyRoots*/false))
 	{
 		// Assume it is a package
-		bPackage = true;
+		bool bPackage = true;
 
 		// Try to get filename by finding it on disk
 		if (!FPackageName::DoesPackageExist(SCFile, nullptr, &SCFile))
 		{
-			// The package does not exist on disk, see if we can find it in memory and predict the file extension
-			// Only do this if the supplied package name is valid
-			const bool bIncludeReadOnlyRoots = false;
-			bPackage = FPackageName::IsValidLongPackageName(SCFile, bIncludeReadOnlyRoots);
-
-			if (bPackage)
+			// First do the conversion without any extension set, as this will allow us to test whether the path represents an existing directory rather than an asset
+			if (FPackageName::TryConvertLongPackageNameToFilename(SCFile, SCFile))
 			{
-				const FString* PackageExtension = &FPackageName::GetAssetPackageExtension();
-
-				if (AssociatedExtension.IsEmpty())
+				if (bAllowDirectories && FPaths::DirectoryExists(SCFile))
 				{
-					UPackage* Package = FindPackage(nullptr, *SCFile);
-
-					if (Package)
-					{
-						// This is a package in memory that has not yet been saved. Determine the extension and convert to a filename
-						PackageExtension = Package->ContainsMap() ? &FPackageName::GetMapPackageExtension() : &FPackageName::GetAssetPackageExtension();
-					}
+					// This path mapped to a known directory, so ensure it ends in a slash
+					SCFile /= FString();
+				}
+				else if (AssociatedExtension)
+				{
+					// Just use the requested extension
+					SCFile += AssociatedExtension;
 				}
 				else
 				{
-					PackageExtension = &AssociatedExtension;
+					// The package does not exist on disk, see if we can find it in memory and predict the file extension
+					UPackage* Package = FindPackage(nullptr, *SCFile);
+					SCFile += (Package && Package->ContainsMap() ? FPackageName::GetMapPackageExtension() : FPackageName::GetAssetPackageExtension());
 				}
-
-				bPackage = FPackageName::TryConvertLongPackageNameToFilename(SCFile, SCFile, *PackageExtension);
+			}
+			else
+			{
+				bPackage = false;
 			}
 		}
 
@@ -169,7 +166,7 @@ FString ConvertFileToQualifiedPath(const FString& InFile, bool bSilent, const FS
 	// Something akin to "C:/Epic/UE4/Engine/Binaries/Win64/" as a current path.
 	SCFile = FPaths::ConvertRelativePathToFull(InFile);
 
-	if (FPaths::FileExists(SCFile))
+	if (FPaths::FileExists(SCFile) || (bAllowDirectories && FPaths::DirectoryExists(SCFile)))
 	{
 		return SCFile;
 	}
@@ -177,7 +174,7 @@ FString ConvertFileToQualifiedPath(const FString& InFile, bool bSilent, const FS
 	// Qualify based on project directory.
 	SCFile = FPaths::ConvertRelativePathToFull(FPaths::ConvertRelativePathToFull(FPaths::ProjectDir()), InFile);
 
-	if (FPaths::FileExists(SCFile))
+	if (FPaths::FileExists(SCFile) || (bAllowDirectories && FPaths::DirectoryExists(SCFile)))
 	{
 		return SCFile;
 	}
@@ -197,13 +194,13 @@ FString ConvertFileToQualifiedPath(const FString& InFile, bool bSilent, const FS
  * @param	bSilent			if false then write out any error info to the Log. Any error text can be retrieved by LastErrorMsg() regardless.
  * @return	true if all files successfully converted, false if any had errors
  */
-bool ConvertFilesToQualifiedPaths(const TArray<FString>& InFiles, TArray<FString>& OutFilePaths, bool bSilent)
+bool ConvertFilesToQualifiedPaths(const TArray<FString>& InFiles, TArray<FString>& OutFilePaths, bool bSilent, bool bAllowDirectories = false)
 {
 	uint32 SkipNum = 0u;
 
 	for (const FString& File : InFiles)
 	{
-		FString SCFile = ConvertFileToQualifiedPath(File, bSilent);
+		FString SCFile = ConvertFileToQualifiedPath(File, bSilent, bAllowDirectories);
 
 		if (SCFile.IsEmpty())
 		{
@@ -256,6 +253,62 @@ bool USourceControlHelpers::IsAvailable()
 FText USourceControlHelpers::LastErrorMsg()
 {
 	return SourceControlHelpersInternal::LastErrorText;
+}
+
+
+bool USourceControlHelpers::SyncFile(const FString& InFile, bool bSilent)
+{
+	// Determine file type and ensure it is in form source control wants
+	FString SCFile = SourceControlHelpersInternal::ConvertFileToQualifiedPath(InFile, bSilent, /*bAllowDirectories*/true);
+
+	if (SCFile.IsEmpty())
+	{
+		return false;
+	}
+
+	// Ensure source control system is up and running
+	ISourceControlProvider* Provider = SourceControlHelpersInternal::VerifySourceControl(bSilent);
+
+	if (!Provider)
+	{
+		return false;
+	}
+
+	if (Provider->Execute(ISourceControlOperation::Create<FSync>(), SCFile) == ECommandResult::Succeeded)
+	{
+		return true;
+	}
+
+	// Only error info after this point
+
+	FFormatNamedArguments Arguments;
+	Arguments.Add(TEXT("InFile"), FText::FromString(InFile));
+	Arguments.Add(TEXT("SCFile"), FText::FromString(SCFile));
+
+	SourceControlHelpersInternal::LogError(FText::Format(LOCTEXT("SyncFailed", "Failed to sync file '{InFile}' ({SCFile})."), Arguments), bSilent);
+	return false;
+}
+
+
+bool USourceControlHelpers::SyncFiles(const TArray<FString>& InFiles, bool bSilent)
+{
+	ISourceControlProvider* Provider = SourceControlHelpersInternal::VerifySourceControl(bSilent);
+
+	if (!Provider)
+	{
+		return false;
+	}
+
+	TArray<FString> FilePaths;
+
+	// Even if some files were skipped, still apply to the others
+	bool bFilesSkipped = !SourceControlHelpersInternal::ConvertFilesToQualifiedPaths(InFiles, FilePaths, bSilent, /*bAllowDirectories*/true);
+
+	// Less error checking and info is made for multiple files than the single file version.
+	// This multi-file version could be made similarly more sophisticated.
+	ECommandResult::Type Result = Provider->Execute(ISourceControlOperation::Create<FSync>(), FilePaths);
+
+	return !bFilesSkipped && (Result == ECommandResult::Succeeded);
 }
 
 
@@ -780,7 +833,7 @@ bool USourceControlHelpers::CopyFile(const FString& InSourcePath, const FString&
 
 	// Determine file type and ensure it is in form source control wants
 	FString SCSourcExt(FPaths::GetExtension(SCSource, true));
-	FString SCDest(SourceControlHelpersInternal::ConvertFileToQualifiedPath(InDestPath, bSilent, SCSourcExt));
+	FString SCDest(SourceControlHelpersInternal::ConvertFileToQualifiedPath(InDestPath, bSilent, /*bAllowDirectories*/false, *SCSourcExt));
 
 	if (SCDest.IsEmpty())
 	{
