@@ -17,7 +17,7 @@ FAutoConsoleVariableRef CVarChaosPerParticleCollisionISPCParallelBatchSize(TEXT(
 using namespace Chaos;
 
 template<class T, int d, EGeometryParticlesSimType SimType>
-inline void TPerParticlePBDCollisionConstraint<T, d, SimType>::ApplyHelperISPC(TPBDParticles<T, d>& Particles, const T Dt, int32 Offset, int32 Range) const
+void TPerParticlePBDCollisionConstraint<T, d, SimType>::ApplyHelperISPC(TPBDParticles<T, d>& Particles, const T Dt, int32 Offset, int32 Range) const
 {
 	PhysicsParallelFor(Range - Offset, [&](int32 Index)
 	{
@@ -26,7 +26,7 @@ inline void TPerParticlePBDCollisionConstraint<T, d, SimType>::ApplyHelperISPC(T
 }
 
 template<>
-inline void TPerParticlePBDCollisionConstraint<float, 3, EGeometryParticlesSimType::RigidBodySim>::ApplyHelperISPC(TPBDParticles <float, 3> & Particles, const float Dt, int32 Offset, int32 Range) const
+void TPerParticlePBDCollisionConstraint<float, 3, EGeometryParticlesSimType::RigidBodySim>::ApplyHelperISPC(TPBDParticles <float, 3> & Particles, const float Dt, int32 Offset, int32 Range) const
 {
 	PhysicsParallelFor(Range - Offset, [&](int32 Index)
 	{
@@ -62,7 +62,7 @@ extern "C" void GetPhiWithNormal(const uint8* CollisionParticles, const float* I
 }
 
 template<>
-inline void TPerParticlePBDCollisionConstraint<float, 3, EGeometryParticlesSimType::Other>::ApplyHelperISPC(TPBDParticles <float, 3>& InParticles, const float Dt, int32 Offset, int32 Range) const
+void TPerParticlePBDCollisionConstraint<float, 3, EGeometryParticlesSimType::Other>::ApplyHelperISPC(TPBDParticles <float, 3>& InParticles, const float Dt, int32 Offset, int32 Range) const
 {
 	FCollisionParticles& CollisionParticles = MCollisionParticlesActiveView.GetItems();
 
