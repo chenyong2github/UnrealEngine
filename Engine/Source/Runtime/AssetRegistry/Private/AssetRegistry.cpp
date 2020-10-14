@@ -3278,7 +3278,11 @@ void UAssetRegistryImpl::SetManageReferences(const TMultiMap<FAssetIdentifier, F
 
 					SourceNode->IterateOverDependencies([&IterateFunction, SourceNode](FDependsNode* TargetNode, EDependencyCategory DependencyCategory, EDependencyProperty DependencyProperties, bool bDuplicate)
 						{
-							IterateFunction(SourceNode, TargetNode, DependencyCategory, DependencyProperties);
+							// Skip editor-only properties
+							if (!!(DependencyProperties & EDependencyProperty::Game))
+							{
+								IterateFunction(SourceNode, TargetNode, DependencyCategory, DependencyProperties);
+							}
 						}, RecurseType);
 				}
 			}
