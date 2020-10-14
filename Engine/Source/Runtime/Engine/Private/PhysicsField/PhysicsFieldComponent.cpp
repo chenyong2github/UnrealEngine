@@ -19,6 +19,7 @@
 * 
 */
 
+DECLARE_GPU_STAT(PhysicsFieldUpdate);
 
 /** Clipmap enable/disable */
 static TAutoConsoleVariable<int32> CVarPhysicsFieldEnableClipmap(
@@ -162,13 +163,14 @@ public:
 
 		PhysicsTargets.Bind(Initializer.ParameterMap, TEXT("PhysicsTargets"));
 		TargetCount.Bind(Initializer.ParameterMap, TEXT("TargetCount"));
+		TimeSeconds.Bind(Initializer.ParameterMap, TEXT("TimeSeconds"));
 	}
 
 	FBuildPhysicsFieldClipmapCS()
 	{
 	}
 
-	void SetParameters(FRHICommandList& RHICmdList, FPhysicsFieldResource* FieldResource)
+	void SetParameters(FRHICommandList& RHICmdList, FPhysicsFieldResource* FieldResource, const float InTimeSeconds)
 	{
 		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
 
@@ -189,6 +191,7 @@ public:
 
 			SetShaderValue(RHICmdList, ShaderRHI, PhysicsTargets, FieldResource->FieldInfos.PhysicsTargets);
 			SetShaderValue(RHICmdList, ShaderRHI, TargetCount, FieldResource->FieldInfos.TargetCount);
+			SetShaderValue(RHICmdList, ShaderRHI, TimeSeconds, InTimeSeconds);
 		}
 	}
 
@@ -216,6 +219,7 @@ private:
 
 	LAYOUT_FIELD(FShaderParameter, PhysicsTargets);
 	LAYOUT_FIELD(FShaderParameter, TargetCount);
+	LAYOUT_FIELD(FShaderParameter, TimeSeconds);
 };
 
 IMPLEMENT_SHADER_TYPE(, FBuildPhysicsFieldClipmapCS, TEXT("/Engine/Private/PhysicsFieldBuilder.usf"), TEXT("BuildPhysicsFieldClipmapCS"), SF_Compute);
@@ -259,9 +263,10 @@ void FPhysicsFieldResource::ReleaseRHI()
 }
 
 void FPhysicsFieldResource::UpdateResource(FRHICommandListImmediate& RHICmdList, const int32 NodesCount, const int32 ParamsCount,
-				const int32* TargetsOffsetsDatas, const int32* NodesOffsetsDatas, const float* NodesParamsDatas)
+				const int32* TargetsOffsetsDatas, const int32* NodesOffsetsDatas, const float* NodesParamsDatas, const float TimeSeconds)
 {
-	
+	SCOPED_GPU_STAT(RHICmdList, PhysicsFieldUpdate);
+
 	InitInternalBuffer<float, 1, EPixelFormat::PF_R32_FLOAT>(ParamsCount, NodesParams);
 	InitInternalBuffer<int32, 1, EPixelFormat::PF_R32_SINT>(NodesCount, NodesOffsets);
 
@@ -276,7 +281,7 @@ void FPhysicsFieldResource::UpdateResource(FRHICommandListImmediate& RHICmdList,
 
 	const uint32 NumGroups = FMath::DivideAndRoundUp<int32>(FieldInfos.ClipmapResolution, FBuildPhysicsFieldClipmapCS::ThreadGroupSize);
 
-	ComputeShader->SetParameters(RHICmdList, this);
+	ComputeShader->SetParameters(RHICmdList, this, TimeSeconds);
 	DispatchComputeShader(RHICmdList, ComputeShader.GetShader(), NumGroups, NumGroups, NumGroups);
 	ComputeShader->UnsetParameters(RHICmdList, this);
 }
@@ -350,7 +355,7 @@ void FPhysicsFieldInstance::ReleaseInstance()
 	NodesParams.Empty();
 }
 
-void FPhysicsFieldInstance::UpdateInstance(const TArray<FFieldSystemCommand>& InFieldCommands)
+void FPhysicsFieldInstance::UpdateInstance(const TArray<FFieldSystemCommand>& InFieldCommands, const float TimeSeconds)
 {
 	FieldCommands = InFieldCommands;
 
@@ -440,13 +445,14 @@ void FPhysicsFieldInstance::UpdateInstance(const TArray<FFieldSystemCommand>& In
 
 		const int32 LocalNodesCount = NodesOffsets.Num();
 		const int32 LocalParamsCount = NodesParams.Num();
+		const float LocalTimeSeconds = TimeSeconds;
 
 		FPhysicsFieldResource* LocalFieldResource = FieldResource;
 		ENQUEUE_RENDER_COMMAND(FUpdateFieldInstanceCommand)(
-			[LocalFieldResource, LocalNodesCount, LocalParamsCount, LocalNodesParams, LocalNodesOffsets, LocalTargetsOffsets](FRHICommandListImmediate& RHICmdList)
+			[LocalFieldResource, LocalNodesCount, LocalParamsCount, LocalNodesParams, LocalNodesOffsets, LocalTargetsOffsets, LocalTimeSeconds](FRHICommandListImmediate& RHICmdList)
 			{
 				LocalFieldResource->UpdateResource(RHICmdList,LocalNodesCount, LocalParamsCount,
-					LocalTargetsOffsets, LocalNodesOffsets, LocalNodesParams);
+					LocalTargetsOffsets, LocalNodesOffsets, LocalNodesParams, LocalTimeSeconds);
 			});
 	}
 }
@@ -485,6 +491,22 @@ void FPhysicsFieldInstance::BuildNodeParams(FFieldNodeBase* FieldNode)
 			NodesParams.Add(FieldNode->Type());
 			NodesParams.Add(FFieldNodeBase::ESerializationType::FieldNode_FUniformScalar);
 			NodesParams.Add(LocalNode->Magnitude);
+		}
+		else if (FieldNode->SerializationType() == FFieldNodeBase::ESerializationType::FieldNode_FWaveScalar)
+		{
+			FWaveScalar* LocalNode = StaticCast<FWaveScalar*>(FieldNode);
+			NodesOffsets.Add(NodesParams.Num());
+			NodesParams.Add(FieldNode->Type());
+			NodesParams.Add(FFieldNodeBase::ESerializationType::FieldNode_FWaveScalar);
+			NodesParams.Add(LocalNode->Magnitude);
+			NodesParams.Add(LocalNode->Position.X);
+			NodesParams.Add(LocalNode->Position.Y);
+			NodesParams.Add(LocalNode->Position.Z);
+			NodesParams.Add(LocalNode->Wavelength);
+			NodesParams.Add(LocalNode->Period);
+			NodesParams.Add(LocalNode->Time);
+			NodesParams.Add(LocalNode->Function);
+			NodesParams.Add(LocalNode->Falloff);
 		}
 		else if (FieldNode->SerializationType() == FFieldNodeBase::ESerializationType::FieldNode_FRadialFalloff)
 		{
@@ -745,10 +767,16 @@ void UPhysicsFieldComponent::SendRenderDynamicData_Concurrent()
 {
 	Super::SendRenderTransform_Concurrent();
 
+	TArray<FFieldSystemCommand> FieldCommands;
+	FieldCommands.Append(PersistentCommands);
+	FieldCommands.Append(TransientCommands);
+
+	const float TimeSeconds = GetWorld() ? GetWorld()->TimeSeconds : 0.0;
+
 	if (FieldInstance && FieldCommands.Num() > 0)
 	{
-		FieldInstance->UpdateInstance(FieldCommands);
-		FieldCommands.Empty();
+		FieldInstance->UpdateInstance(FieldCommands, TimeSeconds);
+		TransientCommands.Empty();
 	}
 }
 
@@ -801,9 +829,24 @@ void UPhysicsFieldComponent::TickComponent(float DeltaTime, enum ELevelTick Tick
 	MarkRenderDynamicDataDirty();
 }
 
-void UPhysicsFieldComponent::BufferCommand(const FFieldSystemCommand& FieldCommand)
+void UPhysicsFieldComponent::AddTransientCommand(const FFieldSystemCommand& FieldCommand)
 {
-	FieldCommands.Add(FieldCommand);
+	TransientCommands.Add(FieldCommand);
+}
+
+void UPhysicsFieldComponent::AddPersistentCommand(const FFieldSystemCommand& FieldCommand)
+{
+	PersistentCommands.Add(FieldCommand);
+}
+
+void UPhysicsFieldComponent::RemoveTransientCommand(const FFieldSystemCommand& FieldCommand)
+{
+	TransientCommands.Remove(FieldCommand);
+}
+
+void UPhysicsFieldComponent::RemovePersistentCommand(const FFieldSystemCommand& FieldCommand)
+{
+	PersistentCommands.Remove(FieldCommand);
 }
 
 /**
