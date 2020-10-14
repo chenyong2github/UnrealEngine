@@ -69,6 +69,16 @@ namespace UnrealBuildTool
 			// convert to float for easy comparison
 			IOSSDKVersionFloat = float.Parse(IOSSDKVersion, System.Globalization.CultureInfo.InvariantCulture);
 		}
+
+		public string GetSDKPath(string Architecture)
+		{
+			if (Architecture == "-simulator")
+			{
+				return BaseSDKDirSim + "/" + SimulatorPlatformName + IOSSDKVersion + ".sdk";
+			}
+
+			return BaseSDKDir + "/" + DevicePlatformName + IOSSDKVersion + ".sdk";
+		}
 	}
 
 	class IOSToolChain : AppleToolChain
@@ -265,14 +275,7 @@ namespace UnrealBuildTool
 			// What architecture(s) to build for
 			Result += GetArchitectureArgument(CompileEnvironment.Configuration, CompileEnvironment.Architecture);
 
-			if (CompileEnvironment.Architecture == "-simulator")
-			{
-				Result += " -isysroot " + Settings.Value.BaseSDKDirSim + "/" + Settings.Value.SimulatorPlatformName + Settings.Value.IOSSDKVersion + ".sdk";
-			}
-			else
-			{
-				Result += " -isysroot " + Settings.Value.BaseSDKDir + "/" + Settings.Value.DevicePlatformName + Settings.Value.IOSSDKVersion + ".sdk";
-			}
+			Result += " -isysroot " + Settings.Value.GetSDKPath(CompileEnvironment.Architecture);
 
 			Result += " -m" + GetXcodeMinVersionParam() + "=" + ProjectSettings.RuntimeVersion;
 
