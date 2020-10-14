@@ -12,7 +12,8 @@
 
 namespace NDIExportLocal
 {
-	const FName		StoreDataName(TEXT("StoreParticleData"));
+	const FName		StoreDataName_DEPRECATED(TEXT("StoreParticleData"));
+	const FName		ExportDataName(TEXT("ExportParticleData"));
 
 	const FString	WriteBufferSizeName(TEXT("WriteBufferSize_"));
 	const FString	RWWriteBufferName(TEXT("RWWriteBuffer_"));
@@ -404,20 +405,37 @@ bool UNiagaraDataInterfaceExport::Equals(const UNiagaraDataInterface* Other) con
 
 void UNiagaraDataInterfaceExport::GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions)
 {
+	FNiagaraFunctionSignature SigOld;
+	SigOld.Name = NDIExportLocal::StoreDataName_DEPRECATED;
+#if WITH_EDITORONLY_DATA
+	SigOld.Description = NSLOCTEXT("Niagara", "ExportDataFunctionDescription", "This function takes the particle data and stores it to be exported to the registered callback handler after the simulation has ticked.");
+#endif
+	SigOld.bMemberFunction = true;
+	SigOld.bRequiresContext = false;
+	SigOld.bSupportsGPU = true;
+	SigOld.bSoftDeprecatedFunction = true;
+	SigOld.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Export interface")));
+	SigOld.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("Store Data")));
+	SigOld.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Position")));
+	SigOld.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Size")));
+	SigOld.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Velocity")));
+	SigOld.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("Success")));
+	OutFunctions.Add(SigOld);
+
 	FNiagaraFunctionSignature Sig;
-	Sig.Name = NDIExportLocal::StoreDataName;
+	Sig.Name = NDIExportLocal::ExportDataName;
 #if WITH_EDITORONLY_DATA
 	Sig.Description = NSLOCTEXT("Niagara", "ExportDataFunctionDescription", "This function takes the particle data and stores it to be exported to the registered callback handler after the simulation has ticked.");
 #endif
 	Sig.bMemberFunction = true;
 	Sig.bRequiresContext = false;
 	Sig.bSupportsGPU = true;
+	Sig.bRequiresExecPin = true;
 	Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Export interface")));
 	Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("Store Data")));
 	Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Position")));
 	Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Size")));
 	Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Velocity")));
-	Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("Success")));
 	OutFunctions.Add(Sig);
 }
 
@@ -442,9 +460,16 @@ bool UNiagaraDataInterfaceExport::GetFunctionHLSL(const FNiagaraDataInterfaceGPU
 		{TEXT("NDIGetContextName"), TEXT("NDIEXPORT_MAKE_CONTEXT(") + ParamInfo.DataInterfaceHLSLSymbol + TEXT(")")},
 	};
 
-	if (FunctionInfo.DefinitionName == NDIExportLocal::StoreDataName)
+	if (FunctionInfo.DefinitionName == NDIExportLocal::StoreDataName_DEPRECATED)
 	{
 		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (in bool bStoreData, in float3 Position, in float Size, in float3 Velocity, out bool bSuccess) { {NDIGetContextName} NDIExport_StoreData(DIContext, bStoreData, Position, Size, Velocity, bSuccess); }\n");
+		OutHLSL += FString::Format(FormatSample, ArgsSample);
+		return true;
+	}
+
+	if (FunctionInfo.DefinitionName == NDIExportLocal::ExportDataName)
+	{
+		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (in bool bStoreData, in float3 Position, in float Size, in float3 Velocity) { bool bOutDummy; {NDIGetContextName} NDIExport_StoreData(DIContext, bStoreData, Position, Size, Velocity, bOutDummy); }\n");
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 		return true;
 	}
@@ -453,15 +478,20 @@ bool UNiagaraDataInterfaceExport::GetFunctionHLSL(const FNiagaraDataInterfaceGPU
 }
 
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceExport, StoreData);
+DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceExport, ExportData);
 void UNiagaraDataInterfaceExport::GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc)
 {
-	if (BindingInfo.Name == NDIExportLocal::StoreDataName)
+	if (BindingInfo.Name == NDIExportLocal::StoreDataName_DEPRECATED)
 	{
 		NDI_FUNC_BINDER(UNiagaraDataInterfaceExport, StoreData)::Bind(this, OutFunc);
 	}
+	else if (BindingInfo.Name == NDIExportLocal::ExportDataName)
+	{
+		NDI_FUNC_BINDER(UNiagaraDataInterfaceExport, ExportData)::Bind(this, OutFunc);
+	}
 	else
 	{
-		UE_LOG(LogNiagara, Error, TEXT("Could not find data interface external function. Expected Name: %s  Actual Name: %s"), *NDIExportLocal::StoreDataName.ToString(), *BindingInfo.Name.ToString());
+		UE_LOG(LogNiagara, Error, TEXT("Could not find data interface external function. Expected Name: %s  Actual Name: %s"), *NDIExportLocal::ExportDataName.ToString(), *BindingInfo.Name.ToString());
 	}
 }
 
@@ -494,6 +524,34 @@ void UNiagaraDataInterfaceExport::StoreData(FVectorVMContext& Context)
 			Valid = InstData->GatheredData.Enqueue(Data);
 		}
 		OutSample.SetAndAdvance(Valid);
+	}
+}
+
+void UNiagaraDataInterfaceExport::ExportData(FVectorVMContext& Context)
+{
+	VectorVM::FUserPtrHandler<FNDIExportInstanceData_GameThread> InstData(Context);
+
+	FNDIInputParam<FNiagaraBool> StoreDataParam(Context);
+	FNDIInputParam<FVector> PositionParam(Context);
+	FNDIInputParam<float> SizeParam(Context);
+	FNDIInputParam<FVector> VelocityParam(Context);
+
+	checkfSlow(InstData.Get(), TEXT("Export data interface has invalid instance data. %s"), *GetPathName());
+	bool ValidHandlerData = InstData->UserParamBinding.BoundVariable.IsValid() && InstData->CallbackHandler.IsValid();
+
+	for (int32 i = 0; i < Context.NumInstances; ++i)
+	{
+		const bool ShouldStore = StoreDataParam.GetAndAdvance();
+
+		FBasicParticleData Data;
+		Data.Position = PositionParam.GetAndAdvance();
+		Data.Size = SizeParam.GetAndAdvance();
+		Data.Velocity = VelocityParam.GetAndAdvance();
+
+		if (ValidHandlerData && ShouldStore)
+		{
+			InstData->GatheredData.Enqueue(Data);
+		}
 	}
 }
 
