@@ -123,6 +123,29 @@ void UMoviePipeline::Initialize(UMoviePipelineExecutorJob* InJob)
 		Shutdown(true);
 		return;
 	}
+
+	{
+		// If they have a preset origin set, we  will attempt to load from it and copy it into our configuration.
+		// A preset origin is only set if they have not modified the preset using the UI, if they have it will have
+		// been copied into the local configuration when it was modified and the preset origin cleared. This resolves 
+		// an issue where if a preset asset is updated after this job is made, the job uses the wrong settings because
+		//  the UI is the one who updates the configuration from the preset.
+		if (InJob->GetPresetOrigin())
+		{
+			UE_LOG(LogMovieRenderPipeline, Log, TEXT("Job has a master preset specified, updating local master configuration from preset."));
+			InJob->GetConfiguration()->CopyFrom(InJob->GetPresetOrigin());
+		}
+
+		// Now we need to update each shot as well.
+		for (UMoviePipelineExecutorShot* Shot : InJob->ShotInfo)
+		{
+			if (Shot->GetShotOverridePresetOrigin())
+			{
+				UE_LOG(LogMovieRenderPipeline, Log, TEXT("Shot has a preset specified, updating local override configuraton from preset."));
+				Shot->GetShotOverrideConfiguration()->CopyFrom(Shot->GetShotOverridePresetOrigin());
+			}
+		}
+	}
 	
 	if (!ensureAlwaysMsgf(InJob->GetConfiguration(), TEXT("MoviePipeline cannot be initialized with null configuration. Aborting.")))
 	{
