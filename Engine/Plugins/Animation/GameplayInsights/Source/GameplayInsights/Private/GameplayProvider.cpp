@@ -9,6 +9,8 @@ FName FGameplayProvider::ProviderName("GameplayProvider");
 FGameplayProvider::FGameplayProvider(Trace::IAnalysisSession& InSession)
 	: Session(InSession)
 	, EndPlayEvent(nullptr)
+	, bHasAnyData(false)
+	, bHasObjectProperties(false)
 {
 }
 
@@ -230,6 +232,8 @@ void FGameplayProvider::AppendClass(uint64 InClassId, uint64 InSuperId, const TC
 {
 	Session.WriteAccessCheck();
 
+	bHasAnyData = true;
+
 	if(ClassIdToIndexMap.Find(InClassId) == nullptr)
 	{
 		const TCHAR* NewClassName = Session.StoreString(InClassName);
@@ -251,6 +255,8 @@ void FGameplayProvider::AppendObject(uint64 InObjectId, uint64 InOuterId, uint64
 {
 	Session.WriteAccessCheck();
 
+	bHasAnyData = true;
+
 	if(ObjectIdToIndexMap.Find(InObjectId) == nullptr)
 	{
 		const TCHAR* NewObjectName = Session.StoreString(InObjectName);
@@ -271,6 +277,8 @@ void FGameplayProvider::AppendObject(uint64 InObjectId, uint64 InOuterId, uint64
 void FGameplayProvider::AppendObjectEvent(uint64 InObjectId, double InTime, const TCHAR* InEventName)
 {
 	Session.WriteAccessCheck();
+
+	bHasAnyData = true;
 
 	// Important events need some extra routing
 	if(EndPlayEvent == nullptr)
@@ -312,6 +320,8 @@ void FGameplayProvider::AppendWorld(uint64 InObjectId, int32 InPIEInstanceId, ui
 {
 	Session.WriteAccessCheck();
 
+	bHasAnyData = true;
+
 	if (WorldIdToIndexMap.Find(InObjectId) == nullptr)
 	{
 		FWorldInfo NewWorldInfo;
@@ -330,6 +340,8 @@ void FGameplayProvider::AppendClassPropertyStringId(uint32 InStringId, const FSt
 {
 	Session.WriteAccessCheck();
 
+	bHasAnyData = true;
+
 	const TCHAR* StoredString = Session.StoreString(InString);
 
 	PropertyStrings.Add(InStringId, StoredString);
@@ -338,6 +350,8 @@ void FGameplayProvider::AppendClassPropertyStringId(uint32 InStringId, const FSt
 void FGameplayProvider::AppendClassProperty(uint64 InClassId, int32 InId, int32 InParentId, uint32 InTypeStringId, uint32 InKeyStringId)
 {
 	Session.WriteAccessCheck();
+
+	bHasAnyData = true;
 
 	if(int32* ClassInfoIndexPtr = ClassIdToIndexMap.Find(InClassId))
 	{
@@ -356,6 +370,9 @@ void FGameplayProvider::AppendClassProperty(uint64 InClassId, int32 InId, int32 
 void FGameplayProvider::AppendPropertiesStart(uint64 InObjectId, double InTime, uint64 InEventId)
 {
 	Session.WriteAccessCheck();
+
+	bHasAnyData = true;
+	bHasObjectProperties = true;
 
 	TSharedPtr<FObjectPropertiesStorage> Storage;
 	uint32* IndexPtr = ObjectIdToPropertiesStorage.Find(InObjectId);
@@ -382,6 +399,9 @@ void FGameplayProvider::AppendPropertiesStart(uint64 InObjectId, double InTime, 
 void FGameplayProvider::AppendPropertiesEnd(uint64 InObjectId, double InTime)
 {
 	Session.WriteAccessCheck();
+
+	bHasAnyData = true;
+	bHasObjectProperties = true;
 
 	TSharedPtr<FObjectPropertiesStorage> Storage;
 	uint32* IndexPtr = ObjectIdToPropertiesStorage.Find(InObjectId);
@@ -410,6 +430,9 @@ void FGameplayProvider::AppendPropertyValue(uint64 InObjectId, double InTime, ui
 {
 	Session.WriteAccessCheck();
 
+	bHasAnyData = true;
+	bHasObjectProperties = true;
+
 	TSharedPtr<FObjectPropertiesStorage> Storage;
 	uint32* IndexPtr = ObjectIdToPropertiesStorage.Find(InObjectId);
 	if(IndexPtr != nullptr)
@@ -433,6 +456,20 @@ void FGameplayProvider::AppendPropertyValue(uint64 InObjectId, double InTime, ui
 
 		Storage->OpenEvent.PropertyValueEndIndex = Storage->Values.Num();
 	}
+}
+
+bool FGameplayProvider::HasAnyData() const 
+{
+	Session.ReadAccessCheck();
+
+	return bHasAnyData;
+}
+
+bool FGameplayProvider::HasObjectProperties() const 
+{
+	Session.ReadAccessCheck();
+
+	return bHasObjectProperties;
 }
 
 #undef LOCTEXT_NAMESPACE

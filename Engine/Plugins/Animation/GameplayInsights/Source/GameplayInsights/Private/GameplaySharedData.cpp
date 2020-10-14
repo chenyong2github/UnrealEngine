@@ -146,17 +146,30 @@ void FGameplaySharedData::Tick(Insights::ITimingViewSession& InTimingViewSession
 	{
 		Trace::FAnalysisSessionReadScope SessionReadScope(GetAnalysisSession());
 
-		// Add a track for each tracked object
-		GameplayProvider->EnumerateObjects([this, &InTimingViewSession, &InAnalysisSession, &GameplayProvider](const FObjectInfo& InObjectInfo)
+		if(GameplayProvider->HasAnyData())
 		{
-			GameplayProvider->ReadObjectEventsTimeline(InObjectInfo.Id, [this, &InTimingViewSession, &InAnalysisSession, &InObjectInfo, &GameplayProvider](const IGameplayProvider::ObjectEventsTimeline& InTimeline)
+			// Add a track for each tracked object
+			GameplayProvider->EnumerateObjects([this, &InTimingViewSession, &InAnalysisSession, &GameplayProvider](const FObjectInfo& InObjectInfo)
 			{
-				if(InTimeline.GetEventCount() > 0)
+				if(bObjectTracksEnabled || bObjectPropertyTracksEnabled)
 				{
-					TSharedRef<FObjectEventsTrack> ObjectEventsTrack = GetObjectEventsTrackForId(InTimingViewSession, InAnalysisSession, InObjectInfo);
+					TSharedPtr<FObjectEventsTrack> ObjectEventsTrack;
 
-					GameplayProvider->ReadObjectPropertiesTimeline(InObjectInfo.Id, [this, &InObjectInfo, &ObjectEventsTrack, &InTimingViewSession, &GameplayProvider](const IGameplayProvider::ObjectPropertiesTimeline& InTimeline)
+					GameplayProvider->ReadObjectEventsTimeline(InObjectInfo.Id, [this, &InTimingViewSession, &InAnalysisSession, &InObjectInfo, &GameplayProvider, &ObjectEventsTrack](const IGameplayProvider::ObjectEventsTimeline& InTimeline)
 					{
+						if(bObjectTracksEnabled)
+						{
+							ObjectEventsTrack = GetObjectEventsTrackForId(InTimingViewSession, InAnalysisSession, InObjectInfo);
+						}
+					});
+
+					GameplayProvider->ReadObjectPropertiesTimeline(InObjectInfo.Id, [this, &InObjectInfo, &ObjectEventsTrack, &InTimingViewSession, &InAnalysisSession, &GameplayProvider](const IGameplayProvider::ObjectPropertiesTimeline& InTimeline)
+					{
+						if(!ObjectEventsTrack.IsValid())
+						{
+							ObjectEventsTrack = GetObjectEventsTrackForId(InTimingViewSession, InAnalysisSession, InObjectInfo);
+						}
+
 						auto FindObjectProperties = [](const FBaseTimingTrack& InTrack)
 						{
 							return InTrack.Is<FObjectPropertiesTrack>();
@@ -174,12 +187,12 @@ void FGameplaySharedData::Tick(Insights::ITimingViewSession& InTimingViewSession
 
 							ObjectEventsTrack->GetGameplayTrack().AddChildTrack(ObjectPropertiesTrack->GetGameplayTrack());
 
-							MakeTrackAndAncestorsVisible(ObjectEventsTrack, true);
+							MakeTrackAndAncestorsVisible(ObjectEventsTrack.ToSharedRef(), true);
 						}
 					});
 				}
 			});
-		});
+		}
 
 		if(bObjectTracksDirty)
 		{
