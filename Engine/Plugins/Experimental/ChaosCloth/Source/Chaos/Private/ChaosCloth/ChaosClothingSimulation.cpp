@@ -274,6 +274,7 @@ void FClothingSimulation::Simulate(IClothingSimulationContext* InContext)
 
 	const bool bNeedsReset = (Context->TeleportMode == EClothingTeleportMode::TeleportAndReset);
 	const bool bNeedsTeleport = (Context->TeleportMode > EClothingTeleportMode::None);
+	bIsTeleported = bNeedsTeleport;
 
 	// Update Solver animatable parameters
 	Solver->SetLocalSpaceLocation(bUseLocalSpaceSimulation ? Context->ComponentToWorld.GetLocation() : TVector<float, 3>(0.f), bNeedsReset);
