@@ -18,6 +18,7 @@ public class PlacementMode : ModuleRules
 				"SlateCore",
                 "UnrealEd",
                 "ContentBrowser",
+				"ContentBrowserData",
                 "CollectionManager",
                 "LevelEditor",
                 "AssetTools",

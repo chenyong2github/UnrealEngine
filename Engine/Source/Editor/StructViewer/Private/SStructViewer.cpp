@@ -35,7 +35,7 @@
 #include "AssetData.h"
 #include "AssetRegistryModule.h"
 
-#include "DragAndDrop/AssetDragDropOp.h"
+#include "ContentBrowserDataDragDropOp.h"
 
 #include "Editor/UnrealEdEngine.h"
 #include "Engine/UserDefinedStruct.h"
@@ -1586,11 +1586,10 @@ FReply SStructViewer::OnDragDetected(const FGeometry& Geometry, const FPointerEv
 			FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 
 			// Spawn a loaded user defined struct just like any other asset from the Content Browser.
-			TArray<FAssetData> InAssetData;
-			InAssetData.Add(AssetRegistryModule.Get().GetAssetByObjectPath(Item->GetStructPath()));
-			if (InAssetData[0].IsValid())
+			const FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(Item->GetStructPath());
+			if (AssetData.IsValid())
 			{
-				return FReply::Handled().BeginDragDrop(FAssetDragDropOp::New(InAssetData));
+				return FReply::Handled().BeginDragDrop(FContentBrowserDataDragDropOp::Legacy_New(MakeArrayView(&AssetData, 1)));
 			}
 		}
 	}
