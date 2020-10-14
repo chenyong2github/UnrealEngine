@@ -110,7 +110,7 @@ void USoundEffectSourcePresetChain::AddReferencedEffects(FReferenceCollector& Co
 
 void USoundEffectPreset::UnregisterInstance(TSoundEffectPtr InEffectPtr)
 {
-	if (ensure(IsInAudioThread()))
+	if (ensure(IsInAudioThread() || IsInGameThread()))
 	{
 		if (InEffectPtr.IsValid())
 		{
@@ -132,7 +132,7 @@ void USoundEffectPreset::UnregisterInstance(TSoundEffectPtr InEffectPtr)
 
 void USoundEffectPreset::RegisterInstance(USoundEffectPreset& InPreset, TSoundEffectPtr InEffectPtr)
 {
-	ensure(IsInAudioThread());
+	ensure(IsInAudioThread() || IsInGameThread());
 	if (!InEffectPtr.IsValid())
 	{
 		return;
