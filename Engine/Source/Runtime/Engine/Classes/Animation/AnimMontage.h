@@ -839,10 +839,12 @@ public:
 
 	//~Begin Time Stretch Curve
 public:
+
+	/** Time stretch curve will only be used when the montage has a non-default play rate  */
 	UPROPERTY(EditAnywhere, Category = TimeStretchCurve)
 	FTimeStretchCurve TimeStretchCurve;
 
-	/** Name of optional TimeStretchCurveName to look for in Montage. */
+	/** Name of optional TimeStretchCurveName to look for in Montage. Time stretch curve will only be used when the montage has a non-default play rate */
 	UPROPERTY(EditAnywhere, Category = TimeStretchCurve)
 	FName TimeStretchCurveName;
 
