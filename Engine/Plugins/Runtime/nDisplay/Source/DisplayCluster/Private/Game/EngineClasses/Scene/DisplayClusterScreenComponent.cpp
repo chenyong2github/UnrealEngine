@@ -22,22 +22,25 @@ UDisplayClusterScreenComponent::UDisplayClusterScreenComponent(const FObjectInit
 	PrimaryComponentTick.bCanEverTick = true;
 
 #if WITH_EDITOR
-	// Create visual mesh component as a child
-	VisScreenComponent = CreateDefaultSubobject<UStaticMeshComponent>(FName(*(GetName() + FString("_impl"))));
-	if (VisScreenComponent)
+	if (GIsEditor)
 	{
-		static ConstructorHelpers::FObjectFinder<UStaticMesh> ScreenMesh(TEXT("/nDisplay/Meshes/plane_1x1"));
+		// Create visual mesh component as a child
+		VisScreenComponent = CreateDefaultSubobject<UStaticMeshComponent>(FName(*(GetName() + FString("_impl"))));
+		if (VisScreenComponent)
+		{
+			static ConstructorHelpers::FObjectFinder<UStaticMesh> ScreenMesh(TEXT("/nDisplay/Meshes/plane_1x1"));
 
-		VisScreenComponent->SetFlags(EObjectFlags::RF_DuplicateTransient | RF_Transient | RF_TextExportTransient);
-		VisScreenComponent->AttachToComponent(this, FAttachmentTransformRules(EAttachmentRule::KeepRelative, false));
-		VisScreenComponent->RegisterComponentWithWorld(GetWorld());
+			VisScreenComponent->SetFlags(EObjectFlags::RF_DuplicateTransient | RF_Transient | RF_TextExportTransient);
+			VisScreenComponent->AttachToComponent(this, FAttachmentTransformRules(EAttachmentRule::KeepRelative, false));
+			VisScreenComponent->RegisterComponentWithWorld(GetWorld());
 
-		VisScreenComponent->SetRelativeLocationAndRotation(FVector::ZeroVector, FRotator::ZeroRotator);
-		VisScreenComponent->SetRelativeScale3D(FVector::OneVector);
-		VisScreenComponent->SetStaticMesh(ScreenMesh.Object);
-		VisScreenComponent->SetMobility(EComponentMobility::Movable);
-		VisScreenComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-		VisScreenComponent->SetVisibility(true);
+			VisScreenComponent->SetRelativeLocationAndRotation(FVector::ZeroVector, FRotator::ZeroRotator);
+			VisScreenComponent->SetRelativeScale3D(FVector::OneVector);
+			VisScreenComponent->SetStaticMesh(ScreenMesh.Object);
+			VisScreenComponent->SetMobility(EComponentMobility::Movable);
+			VisScreenComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			VisScreenComponent->SetVisibility(true);
+		}
 	}
 #endif
 }

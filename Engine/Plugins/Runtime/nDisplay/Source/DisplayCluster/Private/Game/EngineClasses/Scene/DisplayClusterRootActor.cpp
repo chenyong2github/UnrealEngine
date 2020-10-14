@@ -78,6 +78,39 @@ void ADisplayClusterRootActor::InitializeFromConfig(const FString& ConfigFile)
 	}
 }
 
+void ADisplayClusterRootActor::InitializeRootActor()
+{
+	bool bIsPIE = false;
+
+#if WITH_EDITOR
+	if (UWorld* World = GetWorld())
+	{
+		bIsPIE = World->IsPlayInEditor();
+	}
+#endif
+
+	// Packaged, PIE and -game runtime
+	if (IsRunningGame() || bIsPIE)
+	{
+		IPDisplayClusterConfigManager* const ConfigMgr = (GDisplayCluster ? GDisplayCluster->GetPrivateConfigMgr() : nullptr);
+		if (ConfigMgr)
+		{
+			UDisplayClusterConfigurationData* ConfigData = ConfigMgr->GetConfig();
+			if (ConfigData)
+			{
+				InitializeFromConfig(ConfigData);
+			}
+		}
+	}
+#if WITH_EDITOR
+	// Initialize from file property by default in Editor
+	else
+	{
+		InitializeFromConfig(PreviewConfigPath.FilePath);
+	}
+#endif
+}
+
 bool ADisplayClusterRootActor::BuildHierarchy(UDisplayClusterConfigurationData* ConfigData)
 {
 	check(ConfigData);
@@ -243,44 +276,15 @@ void ADisplayClusterRootActor::Tick(float DeltaSeconds)
 
 void ADisplayClusterRootActor::PostLoad()
 {
-	bool bIsPIE = false;
-
-#if WITH_EDITOR
-	if (UWorld* World = GetWorld())
-	{
-		bIsPIE = World->IsPlayInEditor();
-	}
-#endif
-
-	// Packaged, PIE and -game runtime
-	if (IsRunningGame() || bIsPIE)
-	{
-		IPDisplayClusterConfigManager* const ConfigMgr = (GDisplayCluster ? GDisplayCluster->GetPrivateConfigMgr() : nullptr);
-		if (ConfigMgr)
-		{
-			UDisplayClusterConfigurationData* ConfigData = ConfigMgr->GetConfig();
-			if (ConfigData)
-			{
-				InitializeFromConfig(ConfigData);
-			}
-		}
-	}
-#if WITH_EDITOR
-	// Initialize from file property by default in Editor
-	else
-	{
-		InitializeFromConfig(PreviewConfigPath.FilePath);
-	}
-#endif
-
+	InitializeRootActor();
 	Super::PostLoad();
 }
 
-void ADisplayClusterRootActor::OnConstruction(const FTransform& Transform)
+void ADisplayClusterRootActor::PostActorCreated()
 {
-	Super::OnConstruction(Transform);
+	InitializeRootActor();
+	Super::PostActorCreated();
 }
-
 
 int32 ADisplayClusterRootActor::GetScreensAmount() const
 {

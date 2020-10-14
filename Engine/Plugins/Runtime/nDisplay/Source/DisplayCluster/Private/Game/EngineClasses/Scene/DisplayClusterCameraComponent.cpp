@@ -19,21 +19,24 @@ UDisplayClusterCameraComponent::UDisplayClusterCameraComponent(const FObjectInit
 	// Children of UDisplayClusterSceneComponent must always Tick to be able to process VRPN tracking
 	PrimaryComponentTick.bCanEverTick = true;
 
-#if WITH_EDITOR 
-	// Create visual mesh component as a child
-	VisCameraComponent = CreateDefaultSubobject<UStaticMeshComponent>(FName(*(GetName() + FString("_impl"))));
-	if (VisCameraComponent)
+#if WITH_EDITOR
+	if (GIsEditor)
 	{
-		static ConstructorHelpers::FObjectFinder<UStaticMesh> ScreenMesh(TEXT("/Engine/EditorMeshes/Camera/SM_CineCam"));
+		// Create visual mesh component as a child
+		VisCameraComponent = CreateDefaultSubobject<UStaticMeshComponent>(FName(*(GetName() + FString("_impl"))));
+		if (VisCameraComponent)
+		{
+			static ConstructorHelpers::FObjectFinder<UStaticMesh> ScreenMesh(TEXT("/Engine/EditorMeshes/Camera/SM_CineCam"));
 
-		VisCameraComponent->SetFlags(EObjectFlags::RF_DuplicateTransient | RF_Transient | RF_TextExportTransient);
-		VisCameraComponent->AttachToComponent(this, FAttachmentTransformRules(EAttachmentRule::KeepRelative, false));
-		VisCameraComponent->SetRelativeLocationAndRotation(FVector::ZeroVector, FRotator(0.f, 90.f, 0.f));
-		VisCameraComponent->SetRelativeScale3D(FVector(0.5f, 0.5f, 0.5f));
-		VisCameraComponent->SetStaticMesh(ScreenMesh.Object);
-		VisCameraComponent->SetMobility(EComponentMobility::Movable);
-		VisCameraComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-		VisCameraComponent->SetVisibility(true);
+			VisCameraComponent->SetFlags(EObjectFlags::RF_DuplicateTransient | RF_Transient | RF_TextExportTransient);
+			VisCameraComponent->AttachToComponent(this, FAttachmentTransformRules(EAttachmentRule::KeepRelative, false));
+			VisCameraComponent->SetRelativeLocationAndRotation(FVector::ZeroVector, FRotator(0.f, 90.f, 0.f));
+			VisCameraComponent->SetRelativeScale3D(FVector(0.5f, 0.5f, 0.5f));
+			VisCameraComponent->SetStaticMesh(ScreenMesh.Object);
+			VisCameraComponent->SetMobility(EComponentMobility::Movable);
+			VisCameraComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			VisCameraComponent->SetVisibility(true);
+		}
 	}
 #endif
 }
@@ -69,7 +72,7 @@ void UDisplayClusterCameraComponent::ApplyConfigurationData()
 	}
 }
 
-#if WITH_EDITOR 
+#if WITH_EDITOR
 void UDisplayClusterCameraComponent::SetNodeSelection(bool bSelect)
 {
 	VisCameraComponent->bDisplayVertexColors = bSelect;
