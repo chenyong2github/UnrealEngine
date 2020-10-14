@@ -1934,9 +1934,19 @@ public:
 	/** Associates a shadermap with an asset (note: one shadermap can be used by several assets, e.g. MIs). 
 	 * This helps cooker lay out the shadermaps (and shaders) in the file open order, if provided. Maps not associated with any assets
 	 * may be placed after all maps associated with known assets. Global shadermaps need to be associated with a "Global" asset */
-	void MarkAsAssociatedWithAsset(const FString& AssetPath)
+	void AssociateWithAsset(const FString& AssetPath)
 	{
-		AssociatedAssets.AddUnique(AssetPath);
+		AssociatedAssets.Add(AssetPath);
+	}
+
+	void AssociateWithAssets(const FShaderMapAssetPaths& AssetPaths)
+	{
+		AssociatedAssets.Append(AssetPaths);
+	}
+
+	const FShaderMapAssetPaths& GetAssociatedAssets() const
+	{
+		return AssociatedAssets;
 	}
 #endif // WITH_EDITOR
 
@@ -1950,7 +1960,7 @@ protected:
 private:
 #if WITH_EDITOR
 	/** List of the assets that are using this shadermap. This is only available in the editor (cooker) to influence ordering of shader libraries. */
-	TArray<FString> AssociatedAssets;
+	FShaderMapAssetPaths AssociatedAssets;
 #endif
 	const FTypeLayoutDesc& ContentTypeLayout;
 	TRefCountPtr<FShaderMapResource> Resource;

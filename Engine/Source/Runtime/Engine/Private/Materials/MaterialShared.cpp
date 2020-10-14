@@ -951,7 +951,7 @@ void FMaterial::SerializeInlineShaderMap(FArchive& Ar)
 				{
 					GameThreadShaderMap = MoveTemp(LoadedShaderMap);
 #if WITH_EDITOR
-					GameThreadShaderMap->MarkAsAssociatedWithAsset(GetAssetPath());
+					GameThreadShaderMap->AssociateWithAsset(GetAssetPath());
 #endif
 				}
 			}
@@ -1908,7 +1908,7 @@ bool FMaterial::CacheShaders(const FMaterialShaderMapId& ShaderMapId, EShaderPla
 	// some of the above paths did not mark the shader map as associated with an asset, do so
 	if (GameThreadShaderMap)
 	{
-		GameThreadShaderMap->MarkAsAssociatedWithAsset(GetAssetPath());
+		GameThreadShaderMap->AssociateWithAsset(GetAssetPath());
 	}
 #endif
 
@@ -2056,7 +2056,7 @@ bool FMaterial::BeginCompileShaderMap(
 	SCOPE_SECONDS_COUNTER(MaterialCompileTime);
 
 #if WITH_EDITOR
-	NewShaderMap->MarkAsAssociatedWithAsset(GetAssetPath());
+	NewShaderMap->AssociateWithAsset(GetAssetPath());
 #endif
 	// Generate the material shader code.
 	FMaterialCompilationOutput NewCompilationOutput;

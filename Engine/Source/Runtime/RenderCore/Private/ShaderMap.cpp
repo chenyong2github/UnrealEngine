@@ -179,7 +179,7 @@ bool FShaderMapBase::Serialize(FArchive& Ar, bool bInlineShaderResources, bool b
 		{
 			FSHAHash ResourceHash = Code->ResourceHash;
 			Ar << ResourceHash;
-			FShaderCodeLibrary::AddShaderCode(GetShaderPlatform(), Code);
+			FShaderCodeLibrary::AddShaderCode(GetShaderPlatform(), Code, GetAssociatedAssets());
 		}
 		else
 #endif // WITH_EDITOR
