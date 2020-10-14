@@ -4789,6 +4789,7 @@ void UDemoNetDriver::InitDestroyedStartupActors()
 					PRAGMA_DISABLE_DEPRECATION_WARNINGS
 					DeletedNetStartupActors.Add(Info.FullName);
 					PRAGMA_ENABLE_DEPRECATION_WARNINGS
+					ReplayHelper.DeletedNetStartupActors.Add(Info.FullName);
 					ReplayHelper.RecordingDeltaCheckpointData.DestroyedNetStartupActors.Add(Info.FullName);
 				}
 			}
