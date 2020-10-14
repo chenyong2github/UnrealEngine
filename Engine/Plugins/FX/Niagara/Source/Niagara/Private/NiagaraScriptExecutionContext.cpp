@@ -853,14 +853,6 @@ FNiagaraComputeExecutionContext::~FNiagaraComputeExecutionContext()
 	// EmitterInstanceReadback.GPUCountOffset should be INDEX_NONE at this point to ensure the index is reused.
 	// When the batcher is being destroyed though, we don't free the index, but this would not be leaking.
 	// check(EmitterInstanceReadback.GPUCountOffset == INDEX_NONE);
-
-#if WITH_EDITORONLY_DATA
-	GPUDebugDataReadbackFloat.Reset();
-	GPUDebugDataReadbackInt.Reset();
-	GPUDebugDataReadbackHalf.Reset();
-	GPUDebugDataReadbackCounts.Reset();
-#endif
-
 	SetDataToRender(nullptr);
 
 	ExternalCBufferLayout = nullptr;
@@ -1137,13 +1129,6 @@ void FNiagaraComputeExecutionContext::ResetInternal(NiagaraEmitterInstanceBatche
 	{
 		EmitterInstanceReadback.GPUCountOffset = INDEX_NONE;
 	}
-
-#if WITH_EDITORONLY_DATA
-	GPUDebugDataReadbackFloat.Reset();
-	GPUDebugDataReadbackInt.Reset();
-	GPUDebugDataReadbackHalf.Reset();
-	GPUDebugDataReadbackCounts.Reset();
-#endif
 
 	GpuSpawnInfo_GT.Reset();
 
