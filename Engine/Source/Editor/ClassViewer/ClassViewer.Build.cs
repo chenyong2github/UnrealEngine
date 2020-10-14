@@ -27,6 +27,7 @@ public class ClassViewer : ModuleRules
                 "EditorStyle",
 				"UnrealEd",
 				"PropertyEditor",
+				"ContentBrowserData",
                 "Settings",
             }
 		);

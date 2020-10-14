@@ -24,6 +24,7 @@ public class StructViewer : ModuleRules
 				"SlateCore",
                 "EditorStyle",
 				"UnrealEd",
+				"ContentBrowserData",
                 "Settings",
             }
 		);
