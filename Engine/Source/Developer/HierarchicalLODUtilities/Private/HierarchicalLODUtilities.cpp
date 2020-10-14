@@ -294,7 +294,7 @@ UStaticMesh* CreateImposterStaticMesh(UStaticMeshComponent* InComponent, UMateri
 		StaticMesh->InitResources();
 
 		// make sure it has a new lighting guid
-		StaticMesh->LightingGuid = FGuid::NewGuid();
+		StaticMesh->SetLightingGuid();
 
 		// Set it to use textured lightmaps. Note that Build Lighting will do the error-checking (texcoordindex exists for all LODs, etc).
 		StaticMesh->LightMapResolution = InProxySettings.LightMapResolution;
@@ -329,7 +329,7 @@ UStaticMesh* CreateImposterStaticMesh(UStaticMeshComponent* InComponent, UMateri
 
 		// Commit mesh description and materials list to static mesh
 		StaticMesh->CommitMeshDescription(0);
-		StaticMesh->StaticMaterials = { InMaterial };
+		StaticMesh->SetStaticMaterials({ InMaterial });
 
 		//Set the Imported version before calling the build
 		StaticMesh->ImportVersion = EImportStaticMeshVersion::LastVersion;
@@ -493,7 +493,7 @@ bool FHierarchicalLODUtilities::BuildStaticMeshForLODActor(ALODActor* LODActor, 
 			FProjectStatus ProjectStatus;
 			if (IProjectManager::Get().QueryStatusForCurrentProject(ProjectStatus) && (ProjectStatus.IsTargetPlatformSupported(TEXT("Android")) || ProjectStatus.IsTargetPlatformSupported(TEXT("IOS"))))
 			{
-				if (MainMesh->RenderData.IsValid() && MainMesh->RenderData->LODResources.Num() && MainMesh->RenderData->LODResources[0].IndexBuffer.Is32Bit())
+				if (MainMesh->GetRenderData() && MainMesh->GetRenderData()->LODResources.Num() && MainMesh->GetRenderData()->LODResources[0].IndexBuffer.Is32Bit())
 				{
 					FMessageLog("HLODResults").Warning()
 						->AddToken(FUObjectToken::Create(LODActor))
@@ -1042,7 +1042,7 @@ int32 FHierarchicalLODUtilities::GetLODLevelForScreenSize(const UStaticMeshCompo
 {
 	check(StaticMeshComponent != nullptr && StaticMeshComponent->GetStaticMesh() != nullptr);
 
-	const FStaticMeshRenderData* RenderData = StaticMeshComponent->GetStaticMesh()->RenderData.Get();
+	const FStaticMeshRenderData* RenderData = StaticMeshComponent->GetStaticMesh()->GetRenderData();
 	checkf(RenderData != nullptr, TEXT("StaticMesh in StaticMeshComponent %s contains invalid render data"), *StaticMeshComponent->GetName());
 	checkf(StaticMeshComponent->GetStaticMesh()->GetNumSourceModels() > 0, TEXT("StaticMesh in StaticMeshComponent %s contains no SourceModels"), *StaticMeshComponent->GetName());
 

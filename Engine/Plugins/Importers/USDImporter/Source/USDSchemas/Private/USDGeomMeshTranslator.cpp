@@ -454,13 +454,13 @@ namespace UsdGeomMeshTranslatorImpl
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE( UsdGeomMeshTranslatorImpl::PreBuildStaticMesh );
 
-		if ( StaticMesh.RenderData )
+		if ( StaticMesh.GetRenderData())
 		{
 			StaticMesh.ReleaseResources();
 			StaticMesh.ReleaseResourcesFence.Wait();
 		}
 
-		StaticMesh.RenderData = MakeUnique< FStaticMeshRenderData >();
+		StaticMesh.SetRenderData(MakeUnique< FStaticMeshRenderData >());
 		StaticMesh.CreateBodySetup();
 	}
 
@@ -473,11 +473,11 @@ namespace UsdGeomMeshTranslatorImpl
 		check(RunningPlatform);
 
 		const FStaticMeshLODSettings& LODSettings = RunningPlatform->GetStaticMeshLODSettings();
-		StaticMesh.RenderData->Cache(RunningPlatform, &StaticMesh, LODSettings );
+		StaticMesh.GetRenderData()->Cache(RunningPlatform, &StaticMesh, LODSettings );
 
-		if ( StaticMesh.BodySetup )
+		if ( StaticMesh.GetBodySetup())
 		{
-			StaticMesh.BodySetup->CreatePhysicsMeshes();
+			StaticMesh.GetBodySetup()->CreatePhysicsMeshes();
 		}
 
 		return true;
@@ -491,7 +491,7 @@ namespace UsdGeomMeshTranslatorImpl
 
 		if ( const FMeshDescription* MeshDescription = StaticMesh.GetMeshDescription( 0 ) )
 		{
-			StaticMesh.RenderData->Bounds = MeshDescription->GetBounds();
+			StaticMesh.GetRenderData()->Bounds = MeshDescription->GetBounds();
 		}
 
 		StaticMesh.CalculateExtendedBounds();

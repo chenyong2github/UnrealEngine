@@ -942,7 +942,7 @@ void FFbxExporter::ExportStaticMesh(AActor* Actor, UStaticMeshComponent* StaticM
 			if (CurrentLodIndex + 1 < StaticMesh->GetNumLODs())
 			{
 				//Convert the screen size to a threshold, it is just to be sure that we set some threshold, there is no way to convert this precisely
-				double LodScreenSize = (double)(10.0f / StaticMesh->RenderData->ScreenSize[CurrentLodIndex].Default);
+				double LodScreenSize = (double)(10.0f / StaticMesh->GetRenderData()->ScreenSize[CurrentLodIndex].Default);
 				FbxLodGroupAttribute->AddThreshold(LodScreenSize);
 			}
 
@@ -1189,7 +1189,7 @@ void FFbxExporter::ExportStaticMesh( UStaticMesh* StaticMesh, const TArray<FStat
 			if (CurrentLodIndex + 1 < StaticMesh->GetNumLODs())
 			{
 				//Convert the screen size to a threshold, it is just to be sure that we set some threshold, there is no way to convert this precisely
-				double LodScreenSize = (double)(10.0f / StaticMesh->RenderData->ScreenSize[CurrentLodIndex].Default);
+				double LodScreenSize = (double)(10.0f / StaticMesh->GetRenderData()->ScreenSize[CurrentLodIndex].Default);
 				FbxLodGroupAttribute->AddThreshold(LodScreenSize);
 			}
 			ExportStaticMeshToFbx(StaticMesh, CurrentLodIndex, *MeshName, FbxActorLOD, -1, nullptr, MaterialOrder);
@@ -3518,7 +3518,7 @@ public:
 	
 	void ExportCollisions()
 	{
-		const FKAggregateGeom& AggGeo = StaticMesh->BodySetup->AggGeom;
+		const FKAggregateGeom& AggGeo = StaticMesh->GetBodySetup()->AggGeom;
 
 		int32 VerticeNumber = 0;
 		for (const FKConvexElem &ConvexElem : AggGeo.ConvexElems)
@@ -4171,7 +4171,7 @@ private:
 
 FbxNode* FFbxExporter::ExportCollisionMesh(const UStaticMesh* StaticMesh, const TCHAR* MeshName, FbxNode* ParentActor)
 {
-	const FKAggregateGeom& AggGeo = StaticMesh->BodySetup->AggGeom;
+	const FKAggregateGeom& AggGeo = StaticMesh->GetBodySetup()->AggGeom;
 	if (AggGeo.GetElementCount() <= 0)
 	{
 		return nullptr;

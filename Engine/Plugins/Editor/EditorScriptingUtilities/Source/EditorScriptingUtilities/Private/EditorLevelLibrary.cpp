@@ -1177,7 +1177,7 @@ namespace InternalEditorLevelLibrary
 				bool bActorIsValid = false;
 				for (UStaticMeshComponent* MeshCmp : ComponentArray)
 				{
-					if (MeshCmp->GetStaticMesh() && MeshCmp->GetStaticMesh()->RenderData.IsValid())
+					if (MeshCmp->GetStaticMesh() && MeshCmp->GetStaticMesh()->GetRenderData())
 					{
 						bActorIsValid = true;
 						OutPrimitiveComponent.Add(MeshCmp);

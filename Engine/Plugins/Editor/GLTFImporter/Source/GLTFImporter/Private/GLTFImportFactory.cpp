@@ -177,7 +177,7 @@ void UGLTFImportFactory::UpdateMeshes() const
 				check(Material);
 			}
 
-			StaticMesh->StaticMaterials[PrimIndex].MaterialInterface = Material;
+			StaticMesh->GetStaticMaterials()[PrimIndex].MaterialInterface = Material;
 		}
 
 		StaticMesh->MarkPackageDirty();
