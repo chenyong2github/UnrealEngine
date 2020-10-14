@@ -1212,7 +1212,7 @@ void APlayerCameraManager::DisplayDebug(class UCanvas* Canvas, const FDebugDispl
 	DisplayDebugManager.DrawString(FString::Printf(TEXT("   Camera Style:%s main ViewTarget:%s"), *CameraStyle.ToString(), *ViewTarget.Target->GetName()));
 	if (PendingViewTarget.Target)
 	{
-		DisplayDebugManager.DrawString(FString::Printf(TEXT("   PendingViewTarget:%s"), *CameraStyle.ToString(), *PendingViewTarget.Target->GetName()));
+		DisplayDebugManager.DrawString(FString::Printf(TEXT("   PendingViewTarget:%s"), *PendingViewTarget.Target->GetName()));
 	}
 	DisplayDebugManager.DrawString(FString::Printf(TEXT("   CamLoc:%s CamRot:%s FOV:%f"), *CurrentPOV.Location.ToCompactString(), *CurrentPOV.Rotation.ToCompactString(), CurrentPOV.FOV));
 	DisplayDebugManager.DrawString(FString::Printf(TEXT("   AspectRatio: %1.3f"), CurrentPOV.AspectRatio));
