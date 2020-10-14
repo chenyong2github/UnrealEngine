@@ -16,6 +16,7 @@ DECLARE_LOG_CATEGORY_EXTERN(LogShaderLibrary, Log, All);
 class FShaderPipeline;
 class FShaderMapResource;
 class FShaderMapResourceCode;
+using FShaderMapAssetPaths = TSet<FString>;
 
 struct RENDERCORE_API FShaderCodeLibraryPipeline
 {
@@ -197,12 +198,8 @@ struct RENDERCORE_API FShaderCodeLibrary
 	// Specify the shader formats to cook and which ones needs stable keys. Provide an array of FShaderFormatDescriptors
     static void CookShaderFormats(TArray<FShaderFormatDescriptor> const& ShaderFormats);
 
-	// At cook time, mark a shadermap boundary.
-	static void BeginShaderMap(EShaderPlatform InShaderPlatform, const TArray<FString>& AssociatedAssets, const FName& ShaderMapTypeName);
-	static void EndShaderMap(EShaderPlatform InShaderPlatform);
-
 	// At cook time, add shader code to collection
-	static bool AddShaderCode(EShaderPlatform ShaderPlatform, const FShaderMapResourceCode* Code);
+	static bool AddShaderCode(EShaderPlatform ShaderPlatform, const FShaderMapResourceCode* Code, const FShaderMapAssetPaths& AssociatedAssets);
 
 	// We check this early in the callstack to avoid creating a bunch of FName and keys and things we will never save anyway. 
 	// Pass the shader platform to check or EShaderPlatform::SP_NumPlatforms to check if any of the registered types require
