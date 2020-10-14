@@ -97,13 +97,13 @@ void TPBDSphericalConstraint<float, 3>::Apply(TPBDParticles<FReal, 3>& Particles
 }
 
 template<typename T, int d>
-inline void TPBDSphericalBackstopConstraint<T, d>::ApplyLegacyHelperISPC(TPBDParticles<T, d>& Particles, const T Dt) const
+void TPBDSphericalBackstopConstraint<T, d>::ApplyLegacyHelperISPC(TPBDParticles<T, d>& Particles, const T Dt) const
 {
 	return ApplyLegacyHelper(Particles, Dt);
 }
 
 template<>
-inline void TPBDSphericalBackstopConstraint<float, 3>::ApplyLegacyHelperISPC(TPBDParticles<float, 3>& Particles, const float Dt) const
+void TPBDSphericalBackstopConstraint<float, 3>::ApplyLegacyHelperISPC(TPBDParticles<float, 3>& Particles, const float Dt) const
 {
 	if (bChaos_Spherical_ISPC_Enabled)
 	{
