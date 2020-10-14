@@ -19,6 +19,8 @@
 * 
 */
 
+DEFINE_LOG_CATEGORY_STATIC(LogGlobalField, Log, All);
+
 DECLARE_GPU_STAT(PhysicsFieldUpdate);
 
 /** Clipmap enable/disable */
@@ -245,6 +247,15 @@ FPhysicsFieldResource::FPhysicsFieldResource(const int32 TargetCount, const TArr
 	FieldInfos.ClipmapCount = GPhysicsFieldClipmapCount;
 	FieldInfos.ClipmapDistance = GPhysicsFieldClipmapDistance;
 	FieldInfos.ClipmapResolution = GPhysicsFieldClipmapResolution;
+
+	const int32 DatasCount = FieldInfos.ClipmapCount * FieldInfos.TargetCount;
+	const int32 TextureSize = FieldInfos.ClipmapResolution * DatasCount + DatasCount - 1;
+
+	if (TextureSize > 2048 && DatasCount > 0)
+	{
+		FieldInfos.ClipmapResolution = (2048 + 1 - DatasCount) / DatasCount;
+		UE_LOG(LogGlobalField, Warning, TEXT("Texture Size out of the 2048 limit. Clamping the resolution to : %d"), FieldInfos.ClipmapResolution);
+	}
 }
 
 void FPhysicsFieldResource::InitRHI()
