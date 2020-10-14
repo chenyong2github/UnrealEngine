@@ -62,7 +62,7 @@ namespace KeyChainUtilities
 	static void LoadKeyChainFromFile(const FString& InFilename, FKeyChain& OutCryptoSettings)
 	{
 		FArchive* File = IFileManager::Get().CreateFileReader(*InFilename);
-		checkf(File == nullptr, TEXT("Specified crypto keys cache '%s' does not exist!"), *InFilename);
+		checkf(File != nullptr, TEXT("Specified crypto keys cache '%s' does not exist!"), *InFilename);
 		TSharedPtr<FJsonObject> RootObject;
 		TSharedRef<TJsonReader<char>> Reader = TJsonReaderFactory<char>::Create(File);
 		if (FJsonSerializer::Deserialize(Reader, RootObject))
