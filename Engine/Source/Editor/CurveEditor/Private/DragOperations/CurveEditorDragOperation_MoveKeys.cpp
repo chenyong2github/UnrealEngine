@@ -71,7 +71,8 @@ void FCurveEditorDragOperation_MoveKeys::OnDrag(FVector2D InitialPosition, FVect
 
 		FCurveSnapMetrics SnapMetrics = CurveEditor->GetCurveSnapMetrics(KeyData.CurveID);
 
-		if (CardinalPoint.IsSet() && (View->IsTimeSnapEnabled() || View->IsValueSnapEnabled()))
+		// If view is not absolute, snap based on the key that was grabbed, not all keys individually.
+		if (CardinalPoint.IsSet() && (View->IsTimeSnapEnabled() || View->IsValueSnapEnabled()) && View->ViewTypeID != ECurveEditorViewID::Absolute)
 		{
 			for (int KeyIndex = 0; KeyIndex < KeyData.StartKeyPositions.Num(); ++KeyIndex)
 			{
@@ -97,6 +98,13 @@ void FCurveEditorDragOperation_MoveKeys::OnDrag(FVector2D InitialPosition, FVect
 			StartPosition.InputValue  += DeltaInput;
 			StartPosition.OutputValue += DeltaOutput;
 
+			// Snap keys individually if view mode is absolute.
+			if (View->ViewTypeID == ECurveEditorViewID::Absolute)
+			{
+				StartPosition.InputValue  = View->IsTimeSnapEnabled() ? SnapMetrics.SnapInputSeconds(StartPosition.InputValue) : StartPosition.InputValue;
+				StartPosition.OutputValue = View->IsValueSnapEnabled() ? SnapMetrics.SnapOutput(StartPosition.OutputValue) : StartPosition.OutputValue;
+			}
+			
 			NewKeyPositionScratch.Add(StartPosition);
 		}
 
