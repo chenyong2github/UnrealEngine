@@ -1,8 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 
-#include "Factories/IESLoader.h"
+#include "IESLoader.h"
+
+#include "IESConverter.h"
 #include "Math/RandomStream.h"
+#include "Modules/ModuleManager.h"
+
+IMPLEMENT_MODULE(FDefaultModuleImpl, IESFile);
 
 enum EIESVersion
 {
@@ -105,11 +110,11 @@ static bool GetInt(const uint8*& BufferPos, int32& ret)
 
 
 
-FIESLoadHelper::FIESLoadHelper(const uint8* Buffer, uint32 BufferLength)
+FIESLoader::FIESLoader(const uint8* Buffer, uint32 BufferLength)
 	: Brightness(0)
 	, CachedIntegral(MAX_FLT)
 	, PhotometricType(EIESPhotometricType::TypeC)
-	, Error("No data loaded")
+	, Error(TEXT("No data loaded"))
 {
 	check(!IsValid());
 
@@ -129,7 +134,7 @@ FIESLoadHelper::FIESLoadHelper(const uint8* Buffer, uint32 BufferLength)
 #define PARSE_FLOAT(x) float x; if(!GetFloat(BufferPos, x)) return
 #define PARSE_INT(x) int32 x; if(!GetInt(BufferPos, x)) return
 
-void FIESLoadHelper::Load(const uint8* Buffer)
+void FIESLoader::Load(const uint8* Buffer)
 {
 	// file format as described here: http://www.ltblight.com/English.lproj/LTBLhelp/pages/iesformat.html
 
@@ -137,7 +142,7 @@ void FIESLoadHelper::Load(const uint8* Buffer)
 
 	EIESVersion Version = EIESV_1986;
 	{
-		Error = "VersionError";
+		Error = TEXT("VersionError");
 
 		char Line1[256];
 
@@ -164,7 +169,7 @@ void FIESLoadHelper::Load(const uint8* Buffer)
 		}
 	}
 
-	Error = "HeaderError";
+	Error = TEXT("HeaderError");
 
 	while(*BufferPos)
 	{
@@ -185,18 +190,18 @@ void FIESLoadHelper::Load(const uint8* Buffer)
 		}
 	}
 
-	Error = "HeaderParameterError";
+	Error = TEXT("HeaderParameterError");
 
-	PARSE_INT(LightCount);
+	PARSE_INT(LightCreationCount);
 
-	if(LightCount < 1)
+	if(LightCreationCount < 1)
 	{
-		Error = "Light count needs to be positive.";
+		Error = TEXT("Light count needs to be positive.");
 		return;
 	}
 
 	// if there is any file with that - do we need to parse it differently?
-	check(LightCount >= 1);
+	check(LightCreationCount >= 1);
 
 	PARSE_FLOAT(LumensPerLamp);
 
@@ -204,7 +209,7 @@ void FIESLoadHelper::Load(const uint8* Buffer)
 
 	if(CandelaMult < 0)
 	{
-		Error = "CandelaMult is negative";
+		Error = TEXT("CandelaMult is negative");
 		return;
 	}
 
@@ -213,13 +218,13 @@ void FIESLoadHelper::Load(const uint8* Buffer)
 
 	if(VAnglesNum < 0)
 	{
-		Error = "VAnglesNum is not valid";
+		Error = TEXT("VAnglesNum is not valid");
 		return;
 	}
 
 	if(HAnglesNum < 0)
 	{
-		Error = "HAnglesNum is not valid";
+		Error = TEXT("HAnglesNum is not valid");
 		return;
 	}
 
@@ -244,7 +249,7 @@ void FIESLoadHelper::Load(const uint8* Buffer)
 
 	PARSE_FLOAT(InputWatts);
 
-	Error = "ContentError";
+	Error = TEXT("ContentError");
 
 	{
 		float MinSoFar = -FLT_MAX;
@@ -257,7 +262,7 @@ void FIESLoadHelper::Load(const uint8* Buffer)
 			if(Value < MinSoFar)
 			{
 				// binary search later relies on that
-				Error = "V Values are not in increasing order";
+				Error = TEXT("V Values are not in increasing order");
 				return;
 			}
 
@@ -277,7 +282,7 @@ void FIESLoadHelper::Load(const uint8* Buffer)
 			if(Value < MinSoFar)
 			{
 				// binary search later relies on that
-				Error = "H Values are not in increasing order";
+				Error = TEXT("H Values are not in increasing order");
 				return;
 			}
 
@@ -297,7 +302,7 @@ void FIESLoadHelper::Load(const uint8* Buffer)
 		}
 	}
 
-	Error = "Unexpected content after candela values.";
+	Error = TEXT("Unexpected content after candela values.");
 
 	JumpOverWhiteSpace(BufferPos);
 
@@ -316,11 +321,11 @@ void FIESLoadHelper::Load(const uint8* Buffer)
 
 	if(*BufferPos)
 	{
-		Error = "Unexpected content after END.";
+		Error = TEXT("Unexpected content after END.");
 		return;
 	}
 
-	Error = 0;
+	Error = nullptr;
 
 	Brightness = ComputeMax(); // Use max candela as the brightness
 
@@ -336,27 +341,27 @@ void FIESLoadHelper::Load(const uint8* Buffer)
 #undef PARSE_FLOAT
 #undef PARSE_INT
 
-uint32 FIESLoadHelper::GetWidth() const
+uint32 FIESLoader::GetWidth() const
 {
 	return 256;
 }
 
-uint32 FIESLoadHelper::GetHeight() const
+uint32 FIESLoader::GetHeight() const
 {
 	return 256;
 }
 
-bool FIESLoadHelper::IsValid() const
+bool FIESLoader::IsValid() const
 {
-	return Error == 0;
+	return Error.IsEmpty();
 }
 
-float FIESLoadHelper::GetBrightness() const
+float FIESLoader::GetBrightness() const
 {
 	return Brightness;
 }
 
-float FIESLoadHelper::ExtractInRGBA16F(TArray<uint8>& OutData)
+float FIESLoader::ExtractInRGBA16F(TArray<uint8>& OutData)
 {
 	check(IsValid());
 
@@ -404,7 +409,7 @@ float FIESLoadHelper::ExtractInRGBA16F(TArray<uint8>& OutData)
 	return 1.f;
 }
 
-float FIESLoadHelper::ComputeFullIntegral()
+float FIESLoader::ComputeFullIntegral()
 {
 	// compute only if needed
 	if(CachedIntegral == MAX_FLT)
@@ -443,7 +448,7 @@ float FIESLoadHelper::ComputeFullIntegral()
 
 
 
-float FIESLoadHelper::ComputeMax() const
+float FIESLoader::ComputeMax() const
 {
 	float ret = 0.0f;
 
@@ -458,7 +463,7 @@ float FIESLoadHelper::ComputeMax() const
 }
 
 
-float FIESLoadHelper::ComputeFilterPos(float Value, const TArray<float>& SortedValues)
+float FIESLoader::ComputeFilterPos(float Value, const TArray<float>& SortedValues)
 {
 	check(SortedValues.Num());
 
@@ -518,7 +523,7 @@ float FIESLoadHelper::ComputeFilterPos(float Value, const TArray<float>& SortedV
 }
 
 
-float FIESLoadHelper::InterpolatePoint(int X, int Y) const
+float FIESLoader::InterpolatePoint(int X, int Y) const
 {
 	uint32 HAnglesNum = HAngles.Num();
 	uint32 VAnglesNum = VAngles.Num();
@@ -536,7 +541,7 @@ float FIESLoadHelper::InterpolatePoint(int X, int Y) const
 }
 
 
-float FIESLoadHelper::InterpolateBilinear(float fX, float fY) const
+float FIESLoader::InterpolateBilinear(float fX, float fY) const
 {
 	int X = (int)fX;
 	int Y = (int)fY;
@@ -555,7 +560,7 @@ float FIESLoadHelper::InterpolateBilinear(float fX, float fY) const
 	return FMath::Lerp(p0, p1, fracX);
 }
 
-float FIESLoadHelper::Interpolate2D(float HAngle, float VAngle) const
+float FIESLoader::Interpolate2D(float HAngle, float VAngle) const
 {
 	float u = 0.0f;
 	float v = 0.0f;
@@ -620,7 +625,7 @@ float FIESLoadHelper::Interpolate2D(float HAngle, float VAngle) const
 	return InterpolateBilinear(u, v);
 }
 
-float FIESLoadHelper::Interpolate1D(float VAngle) const
+float FIESLoader::Interpolate1D(float VAngle) const
 {
 	float v = ComputeFilterPos(VAngle, VAngles);
 
@@ -634,4 +639,38 @@ float FIESLoadHelper::Interpolate1D(float VAngle) const
 	}
 
 	return ret / HAnglesNum;
+}
+
+FIESConverter::FIESConverter(const uint8* Buffer, uint32 BufferLength)
+{
+	Impl = MakeShared<FIESLoader>(Buffer, BufferLength);
+	if (Impl->IsValid())
+	{
+		Multiplier = Impl->ExtractInRGBA16F(RawData);
+	}
+}
+
+bool FIESConverter::IsValid() const
+{
+	return Impl->IsValid();
+}
+
+const TCHAR* FIESConverter::GetError() const
+{
+	return Impl->GetError();
+}
+
+uint32 FIESConverter::GetWidth() const
+{
+	return Impl->GetWidth();
+}
+
+uint32 FIESConverter::GetHeight() const
+{
+	return Impl->GetHeight();
+}
+
+float FIESConverter::GetBrightness() const
+{
+	return Impl->GetBrightness();
 }

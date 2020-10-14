@@ -200,8 +200,8 @@
 
 #include "DDSLoader.h"
 #include "HDRLoader.h"
-#include "Factories/IESLoader.h"
 #include "Factories/TIFFLoader.h"
+#include "IESConverter.h"
 #include "IImageWrapper.h"
 #include "IImageWrapperModule.h"
 
@@ -4137,31 +4137,28 @@ UTexture* UTextureFactory::ImportTexture(UClass* Class, UObject* InParent, FName
 	if(!FCString::Stricmp(Type, TEXT("ies")))
 	{
 		// checks for .IES extension to avoid wasting loading large assets just to reject them during header parsing
-		FIESLoadHelper IESLoadHelper(Buffer, Length);
+		FIESConverter IESConverter(Buffer, Length);
 
-		if(IESLoadHelper.IsValid())
+		if(IESConverter.IsValid())
 		{
-			TArray<uint8> RAWData;
-			float Multiplier = IESLoadHelper.ExtractInRGBA16F(RAWData);
-
 			UTextureLightProfile* Texture = Cast<UTextureLightProfile>( CreateOrOverwriteAsset(UTextureLightProfile::StaticClass(), InParent, Name, Flags) );
 			if ( Texture )
 			{
 				Texture->Source.Init(
-					IESLoadHelper.GetWidth(),
-					IESLoadHelper.GetHeight(),
+					IESConverter.GetWidth(),
+					IESConverter.GetHeight(),
 					/*NumSlices=*/ 1,
 					1,
 					TSF_RGBA16F,
-					RAWData.GetData()
+					IESConverter.GetRawData().GetData()
 					);
 
 				Texture->AddressX = TA_Clamp;
 				Texture->AddressY = TA_Clamp;
 				Texture->CompressionSettings = TC_HDR;
 				MipGenSettings = TMGS_NoMipmaps;
-				Texture->Brightness = IESLoadHelper.GetBrightness();
-				Texture->TextureMultiplier = Multiplier;
+				Texture->Brightness = IESConverter.GetBrightness();
+				Texture->TextureMultiplier = IESConverter.GetMultiplier();
 			}
 
 			return Texture;
