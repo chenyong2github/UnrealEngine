@@ -144,8 +144,8 @@ struct FRigUnit_AimBoneMath : public FRigUnit_HighlevelBase
 		Secondary.Axis = FVector(0.f, 0.f, 1.f);
 		Weight = 1.f;
 		DebugSettings = FRigUnit_AimBone_DebugSettings();
-		PrimaryCachedSpaceIndex = FCachedRigElement();
-		SecondaryCachedSpaceIndex = FCachedRigElement();
+		PrimaryCachedSpace = FCachedRigElement();
+		SecondaryCachedSpace = FCachedRigElement();
 	}
 
 	RIGVM_METHOD()
@@ -186,10 +186,10 @@ struct FRigUnit_AimBoneMath : public FRigUnit_HighlevelBase
 	FRigUnit_AimBone_DebugSettings DebugSettings;
 
 	UPROPERTY()
-	FCachedRigElement PrimaryCachedSpaceIndex;
+	FCachedRigElement PrimaryCachedSpace;
 
 	UPROPERTY()
-	FCachedRigElement SecondaryCachedSpaceIndex;
+	FCachedRigElement SecondaryCachedSpace;
 };
 
 /**
@@ -212,8 +212,8 @@ struct FRigUnit_AimBone : public FRigUnit_HighlevelBaseMutable
 		bPropagateToChildren = false;
 		DebugSettings = FRigUnit_AimBone_DebugSettings();
 		BoneIndex = FCachedRigElement();
-		PrimaryCachedSpaceIndex = FCachedRigElement();
-		SecondaryCachedSpaceIndex = FCachedRigElement();
+		PrimaryCachedSpace = FCachedRigElement();
+		SecondaryCachedSpace = FCachedRigElement();
 	}
 
 	virtual FRigElementKey DetermineSpaceForPin(const FString& InPinPath, void* InUserContext) const override
@@ -272,10 +272,10 @@ struct FRigUnit_AimBone : public FRigUnit_HighlevelBaseMutable
 	FCachedRigElement BoneIndex;
 
 	UPROPERTY()
-	FCachedRigElement PrimaryCachedSpaceIndex;
+	FCachedRigElement PrimaryCachedSpace;
 
 	UPROPERTY()
-	FCachedRigElement SecondaryCachedSpaceIndex;
+	FCachedRigElement SecondaryCachedSpace;
 };
 
 /**
@@ -297,8 +297,8 @@ struct FRigUnit_AimItem: public FRigUnit_HighlevelBaseMutable
 		Weight = 1.f;
 		DebugSettings = FRigUnit_AimBone_DebugSettings();
 		CachedItem = FCachedRigElement();
-		PrimaryCachedSpaceIndex = FCachedRigElement();
-		SecondaryCachedSpaceIndex = FCachedRigElement();
+		PrimaryCachedSpace = FCachedRigElement();
+		SecondaryCachedSpace = FCachedRigElement();
 	}
 
 	virtual FRigElementKey DetermineSpaceForPin(const FString& InPinPath, void* InUserContext) const override
@@ -349,8 +349,8 @@ struct FRigUnit_AimItem: public FRigUnit_HighlevelBaseMutable
 	FCachedRigElement CachedItem;
 
 	UPROPERTY()
-	FCachedRigElement PrimaryCachedSpaceIndex;
+	FCachedRigElement PrimaryCachedSpace;
 
 	UPROPERTY()
-	FCachedRigElement SecondaryCachedSpaceIndex;
+	FCachedRigElement SecondaryCachedSpace;
 };
