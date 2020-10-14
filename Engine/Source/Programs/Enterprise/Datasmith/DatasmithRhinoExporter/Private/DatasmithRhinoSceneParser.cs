@@ -219,6 +219,7 @@ namespace DatasmithRhino
 	{
 		public RhinoDoc RhinoDocument { get; private set; }
 		public Rhino.FileIO.FileWriteOptions ExportOptions { get; private set; }
+		public bool bIsInWorksession { get { return RhinoDocument.Worksession != null && RhinoDocument.Worksession.ModelCount > 1; } }
 
 		public RhinoSceneHierarchyNode SceneRoot = new RhinoSceneHierarchyNode(/*bInIsInstanceDefinition=*/false);
 		public Dictionary<InstanceDefinition, RhinoSceneHierarchyNode> InstanceDefinitionHierarchyNodeDictionary = new Dictionary<InstanceDefinition, RhinoSceneHierarchyNode>();
@@ -301,12 +302,33 @@ namespace DatasmithRhino
 
 		private void ParseRhinoHierarchy()
 		{
-			foreach(var CurrentLayer in RhinoDocument.Layers)
+			RhinoSceneHierarchyNode DummyDocumentNode = SceneRoot;
+
+			if (bIsInWorksession)
+			{
+				// Rhino worksession adds dummy layers (with non consistent IDs) to all of the linked documents except the active one.
+				// This can cause reimport inconsistencies when the active document changes, as dummies are shuffled and some may be created while others destroyed.
+				// To address this issue we add our own "Current Document Layer" dummy layer, and use the file path as ActorElement name, 
+				// that way there are no actors deleted and the Datasmith IDs stay consistent.
+				string DummyLayerName = RhinoDocument.Path;
+				string DummyLayerLabel = RhinoDocument.Name;
+				const int DefaultMaterialIndex = -1;
+				const int DummyLayerIndex = -1;
+
+				DummyDocumentNode = SceneRoot.AddChild(GenerateDummyNodeInfo(DummyLayerName, DummyLayerLabel, DefaultMaterialIndex, ExportOptions.Xform), DummyLayerIndex);
+				LayerIndexToLayerString.Add(DummyLayerIndex, BuildLayerString(DummyDocumentNode.Info.Label, SceneRoot));
+			}
+
+			foreach (var CurrentLayer in RhinoDocument.Layers)
 			{
 				//Only add Layers directly under root, the recursion will do the rest.
 				if (CurrentLayer.ParentLayerId == Guid.Empty)
 				{
-					RecursivelyParseLayerHierarchy(CurrentLayer, SceneRoot);
+					RhinoSceneHierarchyNode ParentNode = bIsInWorksession && !CurrentLayer.IsReference
+						? DummyDocumentNode
+						: SceneRoot;
+
+					RecursivelyParseLayerHierarchy(CurrentLayer, ParentNode);
 				}
 			}
 		}
@@ -347,13 +369,20 @@ namespace DatasmithRhino
 
 		private string BuildLayerString(Layer CurrentLayer, RhinoSceneHierarchyNode ParentNode)
 		{
-			string CurrentLayerName = FUniqueNameGenerator.GetTargetName(CurrentLayer).Replace(',', '_');
+			return BuildLayerString(FUniqueNameGenerator.GetTargetName(CurrentLayer), ParentNode);
+		}
 
-			if (!ParentNode.bIsRoot && ParentNode.Info.bHasRhinoLayer)
+		private string BuildLayerString(string LayerName, RhinoSceneHierarchyNode ParentNode)
+		{
+			string CurrentLayerName = LayerName.Replace(',', '_');
+
+			if (!ParentNode.bIsRoot)
 			{
 				Layer ParentLayer = ParentNode.Info.RhinoModelComponent as Layer;
+				// If ParentLayer is null, then the parent node is a dummy document layer and we are in a worksession.
+				int ParentLayerIndex = ParentLayer == null ? -1 : ParentLayer.Index;
 
-				if (LayerIndexToLayerString.TryGetValue(ParentLayer.Index, out string ParentLayerString))
+				if (LayerIndexToLayerString.TryGetValue(ParentLayerIndex, out string ParentLayerString))
 				{
 					return string.Format("{0}_{1}", ParentLayerString, CurrentLayerName);
 				}
@@ -477,6 +506,24 @@ namespace DatasmithRhino
 		}
 
 		/// <summary>
+		/// Creates a new hierarchy node info that is not represented by any ModelComponent, used to add an empty actor to the scene. 
+		/// </summary>
+		/// <param name="UniqueID"></param>
+		/// <param name="TargetLabel"></param>
+		/// <param name="MaterialIndex"></param>
+		/// <param name="ParentTransform"></param>
+		/// <returns></returns>
+		private RhinoSceneHierarchyNodeInfo GenerateDummyNodeInfo(string UniqueID, string TargetLabel, int MaterialIndex, Transform ParentTransform)
+		{
+			string UniqueLabel = ActorLabelGenerator.GenerateUniqueNameFromBaseName(TargetLabel);
+			const ModelComponent NullModelComponent = null;
+			const List<string> NullTagList = null;
+			const bool bOverrideMaterial = false;
+
+			return new RhinoSceneHierarchyNodeInfo(NullModelComponent, UniqueID, UniqueLabel, NullTagList, MaterialIndex, bOverrideMaterial, ParentTransform);
+		}
+
+		/// <summary>
 		/// Creates a new hierarchy node info for a given Rhino Model Component, used to determine names and labels as well as linking.
 		/// </summary>
 		/// <param name="InModelComponent"></param>
@@ -486,7 +533,7 @@ namespace DatasmithRhino
 		/// <returns></returns>
 		private RhinoSceneHierarchyNodeInfo GenerateNodeInfo(ModelComponent InModelComponent, bool bIsInstanceDefinition, int MaterialIndex, Transform ParentTransform)
 		{
-			string Name = InModelComponent.Id.ToString();
+			string Name = GetModelComponentName(InModelComponent);
 			string Label = bIsInstanceDefinition
 				? FUniqueNameGenerator.GetTargetName(InModelComponent)
 				: ActorLabelGenerator.GenerateUniqueName(InModelComponent);
@@ -494,6 +541,48 @@ namespace DatasmithRhino
 			const bool bOverrideMaterial = false;
 
 			return new RhinoSceneHierarchyNodeInfo(InModelComponent, Name, Label, Tags, MaterialIndex, bOverrideMaterial, ParentTransform);
+		}
+
+		/// <summary>
+		/// Gets the unique datasmith element name for the given ModelComponent object.
+		/// Some ModelComponent may have volatile IDs, it's important to use this function to ensure the name is based on some other attributes in those cases.
+		/// </summary>
+		/// <param name="InModelComponent"></param>
+		/// <returns></returns>
+		private string GetModelComponentName(ModelComponent InModelComponent)
+		{
+			Layer RhinoLayer = InModelComponent as Layer;
+
+			if (bIsInWorksession && RhinoLayer != null && RhinoLayer.IsReference && RhinoLayer.ParentLayerId == Guid.Empty)
+			{
+				// This is a dummy layer added by Rhino representing the linked document.
+				// Use the document absolute filepath as unique name to ensure consistency across worksessions.
+				string DocumentFilePath = GetRhinoDocumentPathFromLayerName(RhinoLayer.Name);
+				if (DocumentFilePath != null)
+				{
+					return DocumentFilePath;
+				}
+			}
+
+			return InModelComponent.Id.ToString();
+		}
+
+		private string GetRhinoDocumentPathFromLayerName(string LayerName)
+		{
+			string[] DocumentPaths = RhinoDocument.Worksession.ModelPaths;
+
+			if (DocumentPaths != null)
+			{
+				foreach (string CurrentPath in DocumentPaths)
+				{
+					if (CurrentPath.Contains(LayerName))
+					{
+						return CurrentPath;
+					}
+				}
+			}
+
+			return null;
 		}
 
 		private int GetObjectMaterialIndex(RhinoObject InRhinoObject, RhinoSceneHierarchyNodeInfo ParentNodeInfo)
