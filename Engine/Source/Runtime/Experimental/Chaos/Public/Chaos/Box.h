@@ -145,16 +145,19 @@ namespace Chaos
 			return BoundingBox().Contains(Point, Tolerance);
 		}
 
+		// Minimum extents, including margin
 		FORCEINLINE const TVector<T, d> Min() const
 		{
 			return AABB.Min() - TVector<T, d>(GetMargin());
 		}
 		
+		// Maximum extents, including margin
 		FORCEINLINE const TVector<T, d> Max() const
 		{ 
 			return AABB.Max() + TVector<T, d>(GetMargin());
 		}
 
+		// Extents, including margin
 		FORCEINLINE const TAABB<T, d> BoundingBox() const
 		{
 			return TAABB<T, d>(Min(), Max());
@@ -173,20 +176,23 @@ namespace Chaos
 
 		virtual bool CHAOS_API Raycast(const TVector<T, d>& StartPoint, const TVector<T, d>& Dir, const T Length, const T Thickness, T& OutTime, TVector<T, d>& OutPosition, TVector<T, d>& OutNormal, int32& OutFaceIndex) const override
 		{
-			// Cast against box including margin
-			return BoundingBox().Raycast(StartPoint, Dir, Length, Thickness, OutTime, OutPosition, OutNormal, OutFaceIndex);
+			if (AABB.Raycast(StartPoint, Dir, Length, Thickness + GetMargin(), OutTime, OutPosition, OutNormal, OutFaceIndex))
+			{
+				// The AABB Raycast treats thickness as the ray thickness, so correct the position for the box margin
+				OutPosition += GetMargin() * OutNormal;
+				return true;
+			}
+			return false;
 		}
 
 		TVector<T, d> FindClosestPoint(const TVector<T, d>& StartPoint, const T Thickness = (T)0) const
 		{
-			// Cast against box including margin
-			return BoundingBox().FindClosestPoint(StartPoint, Thickness);
+			return AABB.FindClosestPoint(StartPoint, Thickness + GetMargin());
 		}
 
 		virtual Pair<TVector<T, d>, bool> FindClosestIntersectionImp(const TVector<T, d>& StartPoint, const TVector<T, d>& EndPoint, const T Thickness) const override
 		{
-			// Cast against box including margin
-			return BoundingBox().FindClosestIntersectionImp(StartPoint, EndPoint, Thickness);
+			return AABB.FindClosestIntersectionImp(StartPoint, EndPoint, Thickness + GetMargin());
 		}
 
 		virtual TVector<T, d> FindGeometryOpposingNormal(const TVector<T, d>& DenormDir, int32 FaceIndex, const TVector<T, d>& OriginalNormal) const override
