@@ -30,19 +30,19 @@ class UMaterialExpressionStrataDiffuseBSDF : public UMaterialExpression // STRAT
 	GENERATED_UCLASS_BODY()
 
 	/**
-	 * float3
+	 * Albedo (type = float3, unit = unitless)
 	 */
 	UPROPERTY()
 	FExpressionInput Albedo;
 
 	/**
-	 * float
+	 * Roughness (type = float, unit = unitless)
 	 */
 	UPROPERTY()
 	FExpressionInput Roughness;
 
 	/**
-	 * float3
+	 * Normal (type = float3, unit = unitless)
 	 */
 	UPROPERTY()
 	FExpressionInput Normal;
@@ -63,19 +63,19 @@ class UMaterialExpressionStrataDiffuseChanBSDF : public UMaterialExpression
 	GENERATED_UCLASS_BODY()
 
 	/**
-	 * float3
+	 * Albedo (type = float3, unit = unitless)
 	 */
 	UPROPERTY()
 	FExpressionInput Albedo;
 
 	/**
-	 * float
+	 * Roughness (type = float, unit = unitless)
 	 */
 	UPROPERTY()
 	FExpressionInput Roughness;
 
 	/**
-	 * float3
+	 * Normal (type = float3, unit = unitless)
 	 */
 	UPROPERTY()
 	FExpressionInput Normal;
@@ -96,32 +96,28 @@ class UMaterialExpressionStrataDielectricBSDF : public UMaterialExpression
 	GENERATED_UCLASS_BODY()
 	
 	/**
-	 * float
+	 * The index of refraction of the surface (type = float, unit = unitless)
 	 */
 	UPROPERTY()
 	FExpressionInput IOR;
-	// STRATA_TODO Refraction IOR?
 
 	/**
-	 * float3
+	 * A global color tint multiplied with the specular color, not physically based (type = float3, unit = unitless)
 	 */
 	UPROPERTY()
 	FExpressionInput Tint;
 		
 	/**
-	 * float2
+	 * Roughness (type = float2, unit = unitless)
 	 */
 	UPROPERTY()
 	FExpressionInput Roughness;
 
 	/**
-	 * float3
+	 * Normal (type = float3, unit = unitless)
 	 */
 	UPROPERTY()
 	FExpressionInput Normal;
-	// STRATA_TODO Tangent
-	// STRATA_TODO Distribution
-	// STRATA_TODO ScatterMode
 
 	//~ Begin UMaterialExpression Interface
 #if WITH_EDITOR
@@ -139,32 +135,28 @@ class UMaterialExpressionStrataConductorBSDF : public UMaterialExpression
 	GENERATED_UCLASS_BODY()
 		
 	/**
-	 * float3
+	 * Reflectivity when view direction is perpendicular to the surface, also known as F0 (type = float3, unit = unitless)
 	 */
 	UPROPERTY()
 	FExpressionInput Reflectivity;
 	
 	/**
-	 * float3
+	 * Reflectivity when the view direction is tangent to the surface (type = float3, unit = unitless)
 	 */
 	UPROPERTY()
 	FExpressionInput EdgeColor;
 
 	/**
-	 * float2
+	 * Roughness (type = float2, unit = unitless)
 	 */
 	UPROPERTY()
 	FExpressionInput Roughness;
 
 	/**
-	 * float3
+	 * Normal (type = float3, unit = unitless)
 	 */
 	UPROPERTY()
 	FExpressionInput Normal;
-
-	// STRATA_TODO Tangent
-	// STRATA_TODO Distribution
-	// STRATA_TODO ScatterMode
 
 	//~ Begin UMaterialExpression Interface
 #if WITH_EDITOR
@@ -182,13 +174,13 @@ class UMaterialExpressionStrataVolumeBSDF : public UMaterialExpression
 	GENERATED_UCLASS_BODY()
 		
 	/**
-	 * Albedo (type = float3, unit = 1/m)
+	 * Albedo (type = float3, unit = unitless)
 	 */
 	UPROPERTY()
 	FExpressionInput Albedo;
 	
 	/**
-	 * Extinction (type = float3, unit = 1/m)
+	 * The rate at which light is absorbed or scattered by the medium. Mean Free Path = 1 / Extinction. (type = float3, unit = 1/m)
 	 */
 	UPROPERTY()
 	FExpressionInput Extinction;
@@ -240,7 +232,7 @@ class UMaterialExpressionStrataHorizontalMixing : public UMaterialExpression
 	FExpressionInput Background;
 
 	/**
-	 * float
+	 * Lerp factor between Background (Mix == 0) and Foreground (Mix == 1).
 	 */
 	UPROPERTY()
 	FExpressionInput Mix;
@@ -261,13 +253,13 @@ class UMaterialExpressionStrataVerticalLayering : public UMaterialExpression
 	GENERATED_UCLASS_BODY()
 
 	/**
-	 * Strata material
+	 * Strata material layer on top of the Base material layer
 	 */
 	UPROPERTY()
 	FExpressionInput Top;
 	
 	/**
-	 * Strata material
+	 * Strata material layer below the Top material layer
 	 */
 	UPROPERTY()
 	FExpressionInput Base;
@@ -321,7 +313,7 @@ class UMaterialExpressionStrataMultiply : public UMaterialExpression
 	FExpressionInput A;
 	
 	/**
-	 * Strata material
+	 * Weight to apply to the strata material BSDFs
 	 */
 	UPROPERTY()
 	FExpressionInput Weight;
@@ -347,13 +339,13 @@ class UMaterialExpressionStrataArtisticIOR : public UMaterialExpression
 	GENERATED_UCLASS_BODY()
 
 	/**
-	* TODO F0
-	*/
+	 * Reflectivity when view direction is perpendicular to the surface, also known as F0 (type = float3, unit = unitless)
+	 */
 	UPROPERTY()
 	FExpressionInput Reflectivity;
 
 	/**
-	 * TODO Color for tangent view direction
+	 * Reflectivity when the view direction is tangent to the surface (type = float3, unit = unitless)
 	 */
 	UPROPERTY()
 	FExpressionInput EdgeColor;
@@ -374,13 +366,13 @@ class UMaterialExpressionStrataPhysicalIOR : public UMaterialExpression
 	GENERATED_UCLASS_BODY()
 
 	/**
-	* TODO 
+	* The index of refraction of the surface (type = float, unit = unitless)
 	*/
 	UPROPERTY()
 	FExpressionInput IOR;
 
 	/**
-	 * TODO 
+	 * The rate at which light is absorbed or scattered by the medium. Mean Free Path = 1 / Extinction. (type = float3, unit = 1/m)
 	 */
 	UPROPERTY()
 	FExpressionInput Extinction;

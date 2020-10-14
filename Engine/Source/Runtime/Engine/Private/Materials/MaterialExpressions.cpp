@@ -18958,19 +18958,14 @@ UMaterialExpressionStrataDiffuseBSDF::UMaterialExpressionStrataDiffuseBSDF(const
 #if WITH_EDITOR
 int32 UMaterialExpressionStrataDiffuseBSDF::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
-	if (!Albedo.GetTracedInput().Expression)
-	{
-		return Compiler->Errorf(TEXT("Missing Albedo input"));	// STRATA_TODO: defaults in the detail panel with auto read only if plug in
-	}
-	if (!Roughness.GetTracedInput().Expression)
-	{
-		return Compiler->Errorf(TEXT("Missing Roughness input"));	// STRATA_TODO: defaults in the detail panel with auto read only if plug in
-	}
 	if (!Normal.GetTracedInput().Expression)
 	{
 		return Compiler->Errorf(TEXT("Missing Normal input"));	// STRATA_TODO: defaults in the detail panel with auto read only if plug in
 	}
-	return Compiler->StrataDiffuseOrenNayarBSDF(Albedo.Compile(Compiler), Roughness.Compile(Compiler), Normal.Compile(Compiler));
+	return Compiler->StrataDiffuseOrenNayarBSDF(
+		Albedo.GetTracedInput().Expression		? Albedo.Compile(Compiler)		: Compiler->Constant3(0.18f, 0.18f, 0.18f),
+		Roughness.GetTracedInput().Expression	? Roughness.Compile(Compiler)	: Compiler->Constant(0.0f),
+		Normal.Compile(Compiler));
 }
 
 void UMaterialExpressionStrataDiffuseBSDF::GetCaption(TArray<FString>& OutCaptions) const
@@ -19024,19 +19019,14 @@ UMaterialExpressionStrataDiffuseChanBSDF::UMaterialExpressionStrataDiffuseChanBS
 #if WITH_EDITOR
 int32 UMaterialExpressionStrataDiffuseChanBSDF::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
-	if (!Albedo.GetTracedInput().Expression)
-	{
-		return Compiler->Errorf(TEXT("Missing Albedo input"));	// STRATA_TODO: defaults in the detail panel with auto read only if plug in
-	}
-	if (!Roughness.GetTracedInput().Expression)
-	{
-		return Compiler->Errorf(TEXT("Missing Roughness input"));	// STRATA_TODO: defaults in the detail panel with auto read only if plug in
-	}
 	if (!Normal.GetTracedInput().Expression)
 	{
 		return Compiler->Errorf(TEXT("Missing Normal input"));	// STRATA_TODO: defaults in the detail panel with auto read only if plug in
 	}
-	return Compiler->StrataDiffuseChanBSDF(Albedo.Compile(Compiler), Roughness.Compile(Compiler), Normal.Compile(Compiler));
+	return Compiler->StrataDiffuseChanBSDF(
+		Albedo.GetTracedInput().Expression		? Albedo.Compile(Compiler)		: Compiler->Constant3(0.18f, 0.18f, 0.18f),
+		Roughness.GetTracedInput().Expression	? Roughness.Compile(Compiler)	: Compiler->Constant(0.0f),
+		Normal.Compile(Compiler));
 }
 
 void UMaterialExpressionStrataDiffuseChanBSDF::GetCaption(TArray<FString>& OutCaptions) const
@@ -19090,23 +19080,15 @@ UMaterialExpressionStrataDielectricBSDF::UMaterialExpressionStrataDielectricBSDF
 #if WITH_EDITOR
 int32 UMaterialExpressionStrataDielectricBSDF::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
-	if (!Tint.GetTracedInput().Expression)
-	{
-		return Compiler->Errorf(TEXT("Missing Tint input"));	// STRATA_TODO: defaults in the detail panel with auto read only if plug in
-	}
-	if (!IOR.GetTracedInput().Expression)
-	{
-		return Compiler->Errorf(TEXT("Missing IOR input"));	// STRATA_TODO: defaults in the detail panel with auto read only if plug in
-	}
-	if (!Roughness.GetTracedInput().Expression)
-	{
-		return Compiler->Errorf(TEXT("Missing Roughness input"));	// STRATA_TODO: defaults in the detail panel with auto read only if plug in
-	}
 	if (!Normal.GetTracedInput().Expression)
 	{
 		return Compiler->Errorf(TEXT("Missing Normal input"));	// STRATA_TODO: defaults in the detail panel with auto read only if plug in
 	}
-	return Compiler->StrataDielectricBSDF(Roughness.Compile(Compiler), IOR.Compile(Compiler), Tint.Compile(Compiler), Normal.Compile(Compiler));
+	return Compiler->StrataDielectricBSDF(
+		Roughness.GetTracedInput().Expression	?	Roughness.Compile(Compiler) : Compiler->Constant2(0.0f, 0.0f),
+		IOR.GetTracedInput().Expression			?	IOR.Compile(Compiler)		: Compiler->Constant(1.5f),
+		Tint.GetTracedInput().Expression		?	Tint.Compile(Compiler)		: Compiler->Constant3(1.0f, 1.0f, 1.0f),
+		Normal.Compile(Compiler));
 }
 
 void UMaterialExpressionStrataDielectricBSDF::GetCaption(TArray<FString>& OutCaptions) const
@@ -19163,23 +19145,15 @@ UMaterialExpressionStrataConductorBSDF::UMaterialExpressionStrataConductorBSDF(c
 #if WITH_EDITOR
 int32 UMaterialExpressionStrataConductorBSDF::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
-	if (!Reflectivity.GetTracedInput().Expression)
-	{
-		return Compiler->Errorf(TEXT("Missing Reflectivity input"));			// STRATA_TODO: defaults in the detail panel with auto read only if plug in
-	}
-	if (!EdgeColor.GetTracedInput().Expression)
-	{
-		return Compiler->Errorf(TEXT("Missing EdgeColor input"));	// STRATA_TODO: defaults in the detail panel with auto read only if plug in
-	}
-	if (!Roughness.GetTracedInput().Expression)
-	{
-		return Compiler->Errorf(TEXT("Missing Roughness input"));	// STRATA_TODO: defaults in the detail panel with auto read only if plug in
-	}
 	if (!Normal.GetTracedInput().Expression)
 	{
 		return Compiler->Errorf(TEXT("Missing Normal input"));		// STRATA_TODO: defaults in the detail panel with auto read only if plug in
 	}
-	return Compiler->StrataConductorBSDF(Reflectivity.Compile(Compiler), EdgeColor.Compile(Compiler), Roughness.Compile(Compiler), Normal.Compile(Compiler));
+	return Compiler->StrataConductorBSDF(
+		Reflectivity.GetTracedInput().Expression	? Reflectivity.Compile(Compiler): Compiler->Constant3(0.947f, 0.776f, 0.371f),	// Default to Gold
+		EdgeColor.GetTracedInput().Expression		? EdgeColor.Compile(Compiler)	: Compiler->Constant3(1.000f, 0.982f, 0.753f),	// Default to Gold
+		Roughness.GetTracedInput().Expression		? Roughness.Compile(Compiler)	: Compiler->Constant2(0.0f, 0.0f),
+		Normal.Compile(Compiler));
 }
 
 void UMaterialExpressionStrataConductorBSDF::GetCaption(TArray<FString>& OutCaptions) const
@@ -19236,23 +19210,11 @@ UMaterialExpressionStrataVolumeBSDF::UMaterialExpressionStrataVolumeBSDF(const F
 #if WITH_EDITOR
 int32 UMaterialExpressionStrataVolumeBSDF::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
-	if (!Albedo.GetTracedInput().Expression)
-	{
-		return Compiler->Errorf(TEXT("Missing Albedo input"));	// STRATA_TODO: defaults in the detail panel with auto read only if plug in
-	}
-	if (!Extinction.GetTracedInput().Expression)
-	{
-		return Compiler->Errorf(TEXT("Missing Extinction input"));	// STRATA_TODO: defaults in the detail panel with auto read only if plug in
-	}
-	if (!Anisotropy.GetTracedInput().Expression)
-	{
-		return Compiler->Errorf(TEXT("Missing Anisotropy input"));	// STRATA_TODO: defaults in the detail panel with auto read only if plug in
-	}
 	return Compiler->StrataVolumeBSDF(
-		Albedo.Compile(Compiler), 
-		Extinction.Compile(Compiler), 
-		Anisotropy.Compile(Compiler), 
-		Thickness.GetTracedInput().Expression ? Thickness.Compile(Compiler) : Compiler->Constant(0.001f)); // default = 1mm
+		Albedo.GetTracedInput().Expression		? Albedo.Compile(Compiler)			: Compiler->Constant3(0.0f, 0.0f, 0.0f),
+		Extinction.GetTracedInput().Expression	? Extinction.Compile(Compiler)		: Compiler->Constant3(0.0f, 0.0f, 0.0f),
+		Anisotropy.GetTracedInput().Expression	? Anisotropy.Compile(Compiler)		: Compiler->Constant(0.0f),
+		Thickness.GetTracedInput().Expression	? Thickness.Compile(Compiler)		: Compiler->Constant(0.001f)); // default = 1mm
 }
 
 void UMaterialExpressionStrataVolumeBSDF::GetCaption(TArray<FString>& OutCaptions) const
@@ -19315,11 +19277,10 @@ int32 UMaterialExpressionStrataHorizontalMixing::Compile(class FMaterialCompiler
 	{
 		return Compiler->Errorf(TEXT("Missing Background input"));
 	}
-	if (!Mix.GetTracedInput().Expression)
-	{
-		return Compiler->Errorf(TEXT("Missing Mix input"));
-	}
-	return Compiler->StrataHorizontalMixing(Foreground.Compile(Compiler), Background.Compile(Compiler), Mix.GetTracedInput().Expression ? Mix.Compile(Compiler) : Compiler->Constant(0.0f));
+	return Compiler->StrataHorizontalMixing(
+		Foreground.Compile(Compiler), 
+		Background.Compile(Compiler), 
+		Mix.GetTracedInput().Expression ? Mix.Compile(Compiler) : Compiler->Constant(0.0f));
 }
 
 void UMaterialExpressionStrataHorizontalMixing::GetCaption(TArray<FString>& OutCaptions) const
@@ -19505,15 +19466,10 @@ UMaterialExpressionStrataArtisticIOR::UMaterialExpressionStrataArtisticIOR(const
 #if WITH_EDITOR
 int32 UMaterialExpressionStrataArtisticIOR::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
-	if (!Reflectivity.GetTracedInput().Expression)
-	{
-		return Compiler->Errorf(TEXT("Missing Reflectivity input"));
-	}
-	if (!EdgeColor.GetTracedInput().Expression)
-	{
-		return Compiler->Errorf(TEXT("Missing EdgeColor input"));
-	}
-	return Compiler->StrataArtisticIOR(Reflectivity.Compile(Compiler), EdgeColor.Compile(Compiler), OutputIndex);
+	return Compiler->StrataArtisticIOR(
+		Reflectivity.GetTracedInput().Expression	? Reflectivity.Compile(Compiler): Compiler->Constant3(0.947f, 0.776f, 0.371f),	// Default to Gold
+		EdgeColor.GetTracedInput().Expression		? EdgeColor.Compile(Compiler)	: Compiler->Constant3(1.000f, 0.982f, 0.753f),	// Default to Gold
+		OutputIndex);
 }
 
 void UMaterialExpressionStrataArtisticIOR::GetCaption(TArray<FString>& OutCaptions) const
@@ -19557,15 +19513,10 @@ UMaterialExpressionStrataPhysicalIOR::UMaterialExpressionStrataPhysicalIOR(const
 #if WITH_EDITOR
 int32 UMaterialExpressionStrataPhysicalIOR::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
-	if (!IOR.GetTracedInput().Expression)
-	{
-		return Compiler->Errorf(TEXT("Missing IOR input"));
-	}
-	if (!Extinction.GetTracedInput().Expression)
-	{
-		return Compiler->Errorf(TEXT("Missing Extinction input"));
-	}
-	return Compiler->StrataPhysicalIOR(IOR.Compile(Compiler), Extinction.Compile(Compiler), OutputIndex);
+	return Compiler->StrataPhysicalIOR(
+		IOR.GetTracedInput().Expression			? IOR.Compile(Compiler)			: Compiler->Constant3(0.18f, 0.42f, 1.37f),// Default to Gold
+		Extinction.GetTracedInput().Expression	? Extinction.Compile(Compiler)	: Compiler->Constant3(3.41f, 2.35f, 1.77f),// Default to Gold
+		OutputIndex);
 }
 
 void UMaterialExpressionStrataPhysicalIOR::GetCaption(TArray<FString>& OutCaptions) const
