@@ -1,0 +1,18 @@
+{
+	"source": "UE",
+	"applications": [
+		{
+			"app_key": "application.generated.ue.tp_collaborativebp-10955000.ue4editor-win64-debuggame.exe",
+			"launch_type": "url",
+			"url": "steam://launch/",
+			"action_manifest_path": "D:/Project/424Full/Templates/TP_CollaborativeBP/Config/SteamVRBindings/steamvr_manifest.json",
+			"strings":
+			{
+				"en_us":
+				{
+					"name": "TP_CollaborativeBP-10955000 [UE Editor]"
+				}
+			}
+		}
+	]
+}
