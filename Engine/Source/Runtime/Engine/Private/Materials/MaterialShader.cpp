@@ -2474,6 +2474,9 @@ FMaterialShaderMap* FMaterialShaderMap::AcquireFinalizedClone()
 	Clone->CopyResourceCode(*LocalCode);
 	Clone->AssignAndFreezeContent(LocalContent);
 	Clone->InitResource();
+#if WITH_EDITOR
+	Clone->AssociateWithAssets(GetAssociatedAssets());
+#endif
 
 	FinalizedClone = Clone;
 	return Clone;
