@@ -21,7 +21,7 @@ DECLARE_CYCLE_STAT(TEXT("Chaos PBD Velocity Damping"), STAT_ChaosPBDVelocityDamp
 DECLARE_CYCLE_STAT(TEXT("Chaos PBD Pre Iteration Updates"), STAT_ChaosPBDPreIterationUpdates, STATGROUP_Chaos);
 DECLARE_CYCLE_STAT(TEXT("Chaos PBD Constraint Rule"), STAT_ChaosPBDConstraintRule, STATGROUP_Chaos);
 DECLARE_CYCLE_STAT(TEXT("Chaos PBD Self Collision"), STAT_ChaosPBDSelfCollisionRule, STATGROUP_Chaos);
-DECLARE_CYCLE_STAT(TEXT("Chaos PBD Collision"), STAT_ChaosPBDCollisionRule, STATGROUP_Chaos);
+DECLARE_CYCLE_STAT(TEXT("Chaos PBD Collision Rule"), STAT_ChaosPBDCollisionRule, STATGROUP_Chaos);
 DECLARE_CYCLE_STAT(TEXT("Chaos PBD Collider Friction"), STAT_ChaosPBDCollisionRuleFriction, STATGROUP_Chaos);
 DECLARE_CYCLE_STAT(TEXT("Chaos PBD Collider Kinematic Update"), STAT_CollisionKinematicUpdate, STATGROUP_Chaos);
 
@@ -261,28 +261,31 @@ void TPBDEvolution<T, d>::AdvanceOneTimeStep(const T Dt)
 	TPBDCollisionSpringConstraints<T, d> SelfCollisionRule(MParticlesActiveView, MCollisionTriangles, MDisabledCollisionElements, MParticleGroupIds, MGroupSelfCollisionThicknesses, Dt);
 #endif
 
-	for (TFunction<void()>& ConstraintInit : MConstraintInits)
-	{
-		ConstraintInit();  // Clear XPBD's Lambdas
-	}
+	MConstraintInitsActiveView.SequentialFor(
+		[Dt](TArray<TFunction<void()>>& ConstraintInits, int32 Index)
+		{
+			ConstraintInits[Index]();  // Clear XPBD's Lambdas
+		});
 
 	// Do one extra collision pass at the start to decrease likelihood of cloth penetrating- TODO: Add option for more collision passed interleaved between constraints
 	{
 		SCOPE_CYCLE_COUNTER(STAT_ChaosPBDCollisionRule);
-		MParticlesActiveView.ParallelFor(
-			[&CollisionRule, Dt](TPBDParticles<T, d>& Particles, int32 Index)
+
+		MParticlesActiveView.RangeFor(
+			[&CollisionRule, Dt](TPBDParticles<T, d>& Particles, int32 Offset, int32 Range)
 			{
-				CollisionRule.Apply(Particles, Dt, Index);
+				CollisionRule.ApplyRange(Particles, Dt, Offset, Range);
 			});
 	}
 
 	for (int i = 0; i < MNumIterations; ++i)
 	{
-		for (TFunction<void(TPBDParticles<T, d>&, const T)>& ConstraintRule : MConstraintRules)
-		{
-			SCOPE_CYCLE_COUNTER(STAT_ChaosPBDConstraintRule);
-			ConstraintRule(MParticles, Dt); // P +/-= ...
-		}
+		MConstraintRulesActiveView.SequentialFor(
+			[this, Dt](TArray<TFunction<void(TPBDParticles<T, d>&, const T)>>& ConstraintRules, int32 Index)
+			{
+				SCOPE_CYCLE_COUNTER(STAT_ChaosPBDConstraintRule);
+				ConstraintRules[Index](MParticles, Dt); // P +/-= ...
+			});
 #if !COMPILE_WITHOUT_UNREAL_SUPPORT
 		{
 			SCOPE_CYCLE_COUNTER(STAT_ChaosPBDSelfCollisionRule);
@@ -291,11 +294,11 @@ void TPBDEvolution<T, d>::AdvanceOneTimeStep(const T Dt)
 #endif
 		{
 			SCOPE_CYCLE_COUNTER(STAT_ChaosPBDCollisionRule);
-			MParticlesActiveView.ParallelFor(
-				[&CollisionRule, Dt](TPBDParticles<T, d>& Particles, int32 Index)
+			MParticlesActiveView.RangeFor(
+				[&CollisionRule, Dt](TPBDParticles<T, d>& Particles, int32 Offset, int32 Range)
 				{
-					CollisionRule.Apply(Particles, Dt, Index);
-				},MinParallelBatchSize);
+					CollisionRule.ApplyRange(Particles, Dt, Offset, Range);
+				});
 		}
 	}
 	check(MParticleUpdate);

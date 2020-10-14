@@ -7,7 +7,6 @@
 #include "Chaos/PBDAxialSpringConstraints.h"
 #include "Chaos/XPBDAxialSpringConstraints.h"
 #include "Chaos/PBDVolumeConstraint.h"
-#include "Chaos/PBDLongRangeConstraints.h"
 #include "Chaos/XPBDLongRangeConstraints.h"
 #include "Chaos/PBDSphericalConstraint.h"
 #include "Chaos/PBDAnimDriveConstraint.h"
@@ -346,7 +345,7 @@ void FClothConstraints::SetVolumeConstraints(TArray<TVector<int32, 3>>&& Surface
 	++NumConstraintRules;
 }
 
-void FClothConstraints::SetLongRangeConstraints(const TMap<int32, TSet<uint32>>& PointToNeighborsMap, float StrainLimitingStiffness, float LimitScale, bool bUseGeodesicDistance, bool bUseXPBDConstraints)
+void FClothConstraints::SetLongRangeConstraints(const TMap<int32, TSet<uint32>>& PointToNeighborsMap, float StrainLimitingStiffness, float LimitScale, ETetherMode TetherMode, bool bUseXPBDConstraints)
 {
 	check(Evolution);
 	check(StrainLimitingStiffness > 0.f && StrainLimitingStiffness <= 1.f);
@@ -368,7 +367,7 @@ void FClothConstraints::SetLongRangeConstraints(const TMap<int32, TSet<uint32>>&
 			10, // The max number of connected neighbors per particle.
 			StrainLimitingStiffness,
 			LimitScale,
-			bUseGeodesicDistance);
+			TetherMode);
 	}
 	++NumConstraintRules;
 }

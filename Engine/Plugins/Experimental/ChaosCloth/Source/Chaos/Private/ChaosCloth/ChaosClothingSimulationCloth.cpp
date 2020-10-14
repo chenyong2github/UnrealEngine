@@ -3,7 +3,6 @@
 #include "ChaosCloth/ChaosClothingSimulationSolver.h"
 #include "ChaosCloth/ChaosClothingSimulationMesh.h"
 #include "ChaosCloth/ChaosClothingSimulationCollider.h"
-#include "ChaosCloth/ChaosClothConstraints.h"
 #include "ChaosCloth/ChaosWeightMapTarget.h"
 #include "ChaosCloth/ChaosClothPrivate.h"
 #include "Containers/ArrayView.h"
@@ -217,7 +216,7 @@ void FClothingSimulationCloth::FLODData::Add(FClothingSimulationSolver* Solver, 
 			TriangleMesh.GetPointToNeighborsMap(),
 			Cloth->StrainLimitingStiffness,
 			Cloth->LimitScale,
-			Cloth->bUseGeodesicDistance,
+			Cloth->TetherMode,
 			Cloth->bUseXPBDConstraints);
 	}
 
@@ -349,7 +348,7 @@ FClothingSimulationCloth::FClothingSimulationCloth(
 	bool bInUseThinShellVolumeConstraints,
 	float InStrainLimitingStiffness,
 	float InLimitScale,
-	bool bInUseGeodesicDistance,
+	ETetherMode InTetherMode,
 	float InMaxDistancesMultiplier,
 	float InAnimDriveSpringStiffness,
 	float InShapeTargetStiffness,
@@ -384,7 +383,7 @@ FClothingSimulationCloth::FClothingSimulationCloth(
 	, bUseThinShellVolumeConstraints(bInUseThinShellVolumeConstraints)
 	, StrainLimitingStiffness(InStrainLimitingStiffness)
 	, LimitScale(InLimitScale)
-	, bUseGeodesicDistance(bInUseGeodesicDistance)
+	, TetherMode(InTetherMode)
 	, MaxDistancesMultiplier(InMaxDistancesMultiplier)
 	, AnimDriveSpringStiffness(InAnimDriveSpringStiffness)
 	, ShapeTargetStiffness(InShapeTargetStiffness)
