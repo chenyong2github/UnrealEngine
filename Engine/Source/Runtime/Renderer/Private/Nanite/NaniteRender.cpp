@@ -2037,36 +2037,17 @@ void ListStatFilters(FSceneRenderer* SceneRenderer)
 		const bool bListShadows = CVarNaniteShadows.GetValueOnRenderThread() != 0;
 
 		// Virtual shadow maps
-		const auto& VirtualShadowMaps = SceneRenderer->SortedShadowsForShadowDepthPass.VirtualShadowMapShadows;
-		if (bListShadows && VirtualShadowMaps.Num())
+		if (bListShadows)
 		{
-			bool bHasDirectional = false;
-			bool bHasPerspective = false;
+			const auto& VirtualShadowMaps = SceneRenderer->SortedShadowsForShadowDepthPass.VirtualShadowMapShadows;
+			const auto& VirtualShadowClipmaps = SceneRenderer->SortedShadowsForShadowDepthPass.VirtualShadowMapClipmaps;
 
-			for (int32 VirtualShadowMapIndex = 0; VirtualShadowMapIndex < VirtualShadowMaps.Num(); ++VirtualShadowMapIndex)
-			{
-				FProjectedShadowInfo *ProjectedShadowInfo = VirtualShadowMaps[VirtualShadowMapIndex];
-				if (ProjectedShadowInfo->ShouldClampToNearPlane())
-				{
-					bHasDirectional = true;
-				}
-				else
-				{
-					bHasPerspective = true;
-				}
-
-				if (bHasPerspective && bHasDirectional)
-				{
-					break;
-				}
-			}
-
-			if (bHasDirectional)
+			if (VirtualShadowClipmaps.Num() > 0)
 			{
 				UE_LOG(LogNanite, Warning, TEXT("VSM_Directional"));
 			}
 
-			if (bHasPerspective)
+			if (VirtualShadowMaps.Num() > 0)
 			{
 				UE_LOG(LogNanite, Warning, TEXT("VSM_Perspective"));
 			}
@@ -2079,18 +2060,7 @@ void ListStatFilters(FSceneRenderer* SceneRenderer)
 			for (int32 AtlasIndex = 0; AtlasIndex < ShadowMapAtlases.Num(); AtlasIndex++)
 			{
 				const FSortedShadowMapAtlas& ShadowMapAtlas = ShadowMapAtlases[AtlasIndex];
-				for (int32 ShadowIndex = 0; ShadowIndex < ShadowMapAtlas.Shadows.Num(); ShadowIndex++)
-				{
-					FProjectedShadowInfo* ProjectedShadowInfo = ShadowMapAtlas.Shadows[ShadowIndex];
-					if (!ProjectedShadowInfo->bNaniteGeometry || ProjectedShadowInfo->CacheMode == SDCM_MovablePrimitivesOnly)
-					{
-						continue;
-					}
-
-					const FLightSceneProxy* LightProxy = ProjectedShadowInfo->GetLightSceneInfo().Proxy;
-					const FString LightFilterName = GetFilterNameForLight(ProjectedShadowInfo->GetLightSceneInfo().Proxy);
-					UE_LOG(LogNanite, Warning, TEXT("Shadow Map Atlases: %s"), *LightFilterName);
-				}
+				// TODO: Needs to be updated for single Nanite pass atlas rendering
 			}
 		}
 
