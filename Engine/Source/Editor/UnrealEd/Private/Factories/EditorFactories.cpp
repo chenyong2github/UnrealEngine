@@ -6174,8 +6174,8 @@ EReimportResult::Type UReimportFbxStaticMeshFactory::Reimport( UObject* Obj )
 			}
 
 			// preserve settings in navcollision subobject
-			UNavCollisionBase* NavCollision = Mesh->NavCollision ? 
-				(UNavCollisionBase*)StaticDuplicateObject(Mesh->NavCollision, GetTransientPackage()) :
+			UNavCollisionBase* NavCollision = Mesh->GetNavCollision() ? 
+				(UNavCollisionBase*)StaticDuplicateObject(Mesh->GetNavCollision(), GetTransientPackage()) :
 				nullptr;
 
 			bool bAddedNavCollisionDupToRoot = false;
@@ -6213,7 +6213,7 @@ EReimportResult::Type UReimportFbxStaticMeshFactory::Reimport( UObject* Obj )
 						//if the duplicated temporary UObject was add to root, we must remove it from the root
 						NavCollision->RemoveFromRoot();
 					}
-					Mesh->NavCollision = NavCollision;
+					Mesh->SetNavCollision(NavCollision);
 					NavCollision->Rename(NULL, Mesh, REN_DontCreateRedirectors | REN_DoNotDirty);
 				}
 

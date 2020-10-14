@@ -3066,7 +3066,7 @@ void FScene::GetDirectionalWindParameters(FVector& OutDirection, float& OutSpeed
 
 void FScene::AddSpeedTreeWind(FVertexFactory* VertexFactory, const UStaticMesh* StaticMesh)
 {
-	if (StaticMesh != NULL && StaticMesh->SpeedTreeWind.IsValid() && StaticMesh->RenderData.IsValid())
+	if (StaticMesh != NULL && StaticMesh->SpeedTreeWind.IsValid() && StaticMesh->GetRenderData())
 	{
 		FScene* Scene = this;
 		ENQUEUE_RENDER_COMMAND(FAddSpeedTreeWindCommand)(
@@ -3137,7 +3137,7 @@ void FScene::UpdateSpeedTreeWind(double CurrentTime)
 				const UStaticMesh* StaticMesh = It.Key();
 				FSpeedTreeWindComputation* WindComputation = It.Value();
 
-				if( !(StaticMesh->RenderData.IsValid() && StaticMesh->SpeedTreeWind.IsValid()) )
+				if( !(StaticMesh->GetRenderData() && StaticMesh->SpeedTreeWind.IsValid()) )
 				{
 					It.RemoveCurrent();
 					continue;

@@ -41,9 +41,9 @@ void FGeometryCollectionConversion::AppendStaticMesh(const UStaticMesh * StaticM
 	check(GeometryCollection);
 
 	// @todo : Discuss how to handle multiple LOD's
-	if (StaticMesh->RenderData && StaticMesh->RenderData->LODResources.Num() > 0)
+	if (StaticMesh->GetRenderData() && StaticMesh->GetRenderData()->LODResources.Num() > 0)
 	{
-		FStaticMeshVertexBuffers & VertexBuffer = StaticMesh->RenderData->LODResources[0].VertexBuffers;
+		const FStaticMeshVertexBuffers& VertexBuffer = StaticMesh->GetRenderData()->LODResources[0].VertexBuffers;
 
 		// vertex information
 		TManagedArray<FVector>& Vertex = GeometryCollection->Vertex;
@@ -82,7 +82,7 @@ void FGeometryCollectionConversion::AppendStaticMesh(const UStaticMesh * StaticM
 		TManagedArray<int32>& MaterialID = GeometryCollection->MaterialID;
 		TManagedArray<int32>& MaterialIndex = GeometryCollection->MaterialIndex;
 
-		FRawStaticIndexBuffer & IndexBuffer = StaticMesh->RenderData->LODResources[0].IndexBuffer;
+		const FRawStaticIndexBuffer& IndexBuffer = StaticMesh->GetRenderData()->LODResources[0].IndexBuffer;
 		FIndexArrayView IndexBufferView = IndexBuffer.GetArrayView();
 		const int32 IndicesCount = IndexBuffer.GetNumIndices() / 3;
 		int InitialNumIndices = GeometryCollection->NumElements(FGeometryCollection::FacesGroup);
@@ -210,7 +210,7 @@ void FGeometryCollectionConversion::AppendStaticMesh(const UStaticMesh * StaticM
 		// necessary since we reindex after all the meshes are added, but it is a good step to have
 		// optimal min/max vertex index right from the static mesh.  All we really need to do is
 		// assign material ids and rely on reindexing, in theory
-		for (const FStaticMeshSection &CurrSection : StaticMesh->RenderData->LODResources[0].Sections)
+		for (const FStaticMeshSection &CurrSection : StaticMesh->GetRenderData()->LODResources[0].Sections)
 		{			
 			// create new section
 			int32 SectionIndex = GeometryCollection->AddElements(1, FGeometryCollection::MaterialGroup);
