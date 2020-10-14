@@ -225,7 +225,7 @@ namespace UnrealVS
 										PropertyNameCaseInsensitive = true
 									});
 
-									if (activeDebugProfile != null)
+									if (!string.IsNullOrEmpty(activeDebugProfile))
 									{
 										Text = settings.Profiles[activeDebugProfile].CommandLineArgs ?? "";
 									}
@@ -424,7 +424,7 @@ namespace UnrealVS
 											PropertyNameCaseInsensitive = true
 										});
 
-										if (activeDebugProfile != null)
+										if (!string.IsNullOrEmpty(activeDebugProfile))
 										{
 											settings.Profiles[activeDebugProfile].CommandLineArgs = FullCommandLine;
 										}
