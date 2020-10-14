@@ -32,10 +32,10 @@ class AWaterBrushManager : public AWaterLandscapeBrush
 public:
 	GENERATED_BODY()
 	
- 	UPROPERTY(VisibleAnywhere, meta=(Category="Default"))
+ 	UPROPERTY()
 	USceneCaptureComponent2D* SceneCaptureComponent2D = nullptr;
 
-	UPROPERTY(VisibleAnywhere, meta=(Category="Default"))
+	UPROPERTY()
 	UJumpFloodComponent2D* JumpFloodComponent2D = nullptr;
 
 	// RTs
@@ -73,6 +73,38 @@ public:
 	UTextureRenderTarget2D* WeightmapRTB = nullptr;
 	// RTs End
 
+	// Brush materials
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, meta = (Category = "Brush Materials"))
+	UMaterialInterface* BrushAngleFalloffMaterial = nullptr;
+
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, meta = (Category = "Brush Materials"))
+	UMaterialInterface* BrushWidthFalloffMaterial = nullptr;
+
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, meta = (Category = "Brush Materials"))
+	UMaterialInterface* DistanceFieldCacheMaterial = nullptr;
+
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, meta = (Category = "Brush Materials"))
+	UMaterialInterface* RenderRiverSplineDepthMaterial = nullptr;
+
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, meta = (Category = "Brush Materials"))
+	UMaterialInterface* DebugDistanceFieldMaterial = nullptr;
+
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, meta = (Category = "Brush Materials"))
+	UMaterialInterface* WeightmapMaterial = nullptr;
+
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, meta = (Category = "Brush Materials"))
+	UMaterialInterface* DrawCanvasMaterial = nullptr;
+
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, meta = (Category = "Brush Materials"))
+	UMaterialInterface* CompositeWaterBodyTextureMaterial = nullptr;
+
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, meta = (Category = "Brush Materials"))
+	UMaterialInterface* IslandFalloffMaterial = nullptr;
+
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, meta = (Category = "Brush Materials"))
+	UMaterialInterface* FinalizeVelocityHeightMaterial = nullptr;
+	// Brush materials end
+
 	// MIDs
 	UPROPERTY(EditInstanceOnly, AdvancedDisplay, BlueprintReadWrite, Transient, meta=(Category="Debug MIDs"))
 	UMaterialInstanceDynamic* BrushAngleFalloffMID = nullptr;
@@ -103,15 +135,10 @@ public:
 
 	UPROPERTY(EditInstanceOnly, AdvancedDisplay, BlueprintReadWrite, Transient, meta = (Category = "Debug MIDs"))
 	UMaterialInstanceDynamic* FinalizeVelocityHeightMID = nullptr;
-
-	// TODO [jonathan.bard] : remove unused
-	UPROPERTY(EditInstanceOnly, AdvancedDisplay, BlueprintReadWrite, Transient, meta = (Category = "Debug MIDs"))
-	UMaterialInstanceDynamic* DownsampleMID = nullptr;
 	// MIDs End
 
-	// TODO [jonathan.bard] : rename to DebugDistanceFieldMaterial : 
-	// TODO [jonathan.bard] : put in UWaterEditorSettings
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (DisplayName = "Debug DF Material", Category = "Default"))
+	// TODO [jonathan.bard] : rename to DebugDistanceFieldMaterial and make it work : 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (DisplayName = "Debug DF Material", Category = "Debug"))
 	UMaterialInstance* DebugDF = nullptr;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Transient, meta=(DisplayName="Brush Curve RTCache", Category="Debug"))
@@ -141,27 +168,25 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayName="Show Grid", Category="Debug"))
 	bool ShowGrid = false;
 	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayName="Canvas Segment Size", Category="Default"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayName="Canvas Segment Size", Category="Settings"))
 	float CanvasSegmentSize = 1024.0f;	
 					
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayName="Water Clear Height", Category="Default"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayName="Water Clear Height", Category="Settings"))
 	float WaterClearHeight = -16384.0f;
 	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayName="Spline Mesh Extension", Category="Default"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayName="Spline Mesh Extension", Category="Settings"))
 	float SplineMeshExtension = 0.0f;
 	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayName="Use Dynamic Preview RT", Category="Texture Output"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayName="Use Dynamic Preview RT", Category="Debug"))
 	bool UseDynamicPreviewRT = false;
 		
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(DisplayName="Disable Brush Texture Effects", Category="Debug"))
 	bool DisableBrushTextureEffects = false;
-
-	// TODO [jonathan.bard] : Rename to RenderRiverSplineDepthMaterial : 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (Category = "Required"))
-	UMaterialInterface* RenderSplineDepthsMaterial = nullptr;
-
+			
 	AWaterBrushManager(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
+	virtual void Serialize(FArchive& Ar) override;
+	virtual void PostLoad() override;
 	virtual void OnConstruction(const FTransform& Transform) override;
 	virtual void BeginPlay() override;
 	virtual void PostLoadSubobjects(FObjectInstancingGraph* OuterInstanceGraph) override;
@@ -171,22 +196,24 @@ public:
 	virtual UTextureRenderTarget2D*  Render_Native(bool InIsHeightmap, UTextureRenderTarget2D* InCombinedResult, FName const& InWeightmapLayerName) override;
 		
 	virtual void BlueprintGetRenderTargets_Native(UTextureRenderTarget2D* InHeightRenderTarget, /*out*/ UTextureRenderTarget2D*& OutVelocityRenderTarget) override;
-	
+		
+	virtual void GetRenderDependencies(TSet<UObject*>& OutDependencies) override;
+
 	// Debug Buttons
-	UFUNCTION(BlueprintCallable, meta = (CallInEditor = "true", Category))
+	UFUNCTION(BlueprintCallable, meta = (CallInEditor = "true", Category = "Debug"))
 	virtual void ForceUpdate();
 
-	UFUNCTION(BlueprintCallable, meta = (CallInEditor = "true", Category))
+	UFUNCTION(BlueprintCallable, meta = (CallInEditor = "true", Category = "Debug"))
 	virtual void SingleBlurStep();
 
-	UFUNCTION(BlueprintCallable, meta = (CallInEditor = "true", Category))
+	UFUNCTION(BlueprintCallable, meta = (CallInEditor = "true", Category = "Debug"))
 	virtual void FindEdges();
 
-	UFUNCTION(BlueprintCallable, meta = (CallInEditor = "true", Category))
+	UFUNCTION(BlueprintCallable, meta = (CallInEditor = "true", Category = "Debug"))
 	virtual void SingleJumpStep();
 	// End Debug Buttons
 	
-	UFUNCTION(BlueprintCallable, BlueprintPure, meta = (Category))
+	UFUNCTION(BlueprintCallable, BlueprintPure, meta = (Category = "Debug"))
 	virtual void GetWaterCacheKey(AActor* WaterBrush, /*out*/ UWaterBodyBrushCacheContainer*& ContainerObject, /*out*/ FWaterBodyBrushCache& Value);
 
 	/** 
@@ -195,6 +222,8 @@ public:
 	*/
 	UFUNCTION(BlueprintNativeEvent)
 	void SortWaterBodiesForBrushRender(TArray<AWaterBody*>& InOutWaterBodies) const;
+
+	void SetupDefaultMaterials();
 
 private:
 	/** Internal struct for passing information around when rendering a water brush actor. */
@@ -264,6 +293,7 @@ private:
 	UTextureRenderTarget2D* WeightPingPongRead(const FBrushRenderContext& BrushRenderContext) const;
 	UTextureRenderTarget2D* WeightPingPongWrite(const FBrushRenderContext& BrushRenderContext) const;
 
+	static void AddDependencyIfValid(UObject* Dependency, TSet<UObject*>& OutDependencies);
 
 private:
 	bool bKillCache = false;

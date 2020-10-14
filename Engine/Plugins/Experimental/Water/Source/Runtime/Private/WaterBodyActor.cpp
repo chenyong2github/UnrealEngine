@@ -155,6 +155,22 @@ ETextureRenderTargetFormat AWaterBody::GetBrushRenderTargetFormat() const
 {
 	return (GetWaterBodyType() == EWaterBodyType::River) ? ETextureRenderTargetFormat::RTF_RGBA32f : ETextureRenderTargetFormat::RTF_RGBA16f;
 }
+
+void AWaterBody::GetBrushRenderDependencies(TSet<UObject*>& OutDependencies) const
+{
+	for (const TPair<FName, FWaterBodyWeightmapSettings>& Pair : LayerWeightmapSettings)
+	{
+		if (Pair.Value.ModulationTexture)
+		{
+			OutDependencies.Add(Pair.Value.ModulationTexture);
+		}
+	}
+
+	if (WaterHeightmapSettings.Effects.Displacement.Texture)
+	{
+		OutDependencies.Add(WaterHeightmapSettings.Effects.Displacement.Texture);
+	}
+}
 #endif //WITH_EDITOR
 
 void AWaterBody::NotifyActorBeginOverlap(AActor* OtherActor)
@@ -1317,24 +1333,6 @@ void AWaterBody::Destroyed()
 	RegisterOnUpdateWavesData(WaterWaves, /*bRegister = */false);
 #endif // WITH_EDITOR		
 }
-
-#if WITH_EDITORONLY_DATA
-void AWaterBody::GetBrushRenderDependencies(TSet<UTexture2D*>& OutTextures)
-{
-	for (const TPair<FName, FWaterBodyWeightmapSettings>& Pair : LayerWeightmapSettings)
-	{
-		if (Pair.Value.ModulationTexture)
-		{
-			OutTextures.Add(Pair.Value.ModulationTexture);
-		}
-	}
-
-	if (WaterHeightmapSettings.Effects.Displacement.Texture)
-	{
-		OutTextures.Add(WaterHeightmapSettings.Effects.Displacement.Texture);
-	}
-}
-#endif
 
 UWaterBodyGenerator::UWaterBodyGenerator(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

@@ -97,24 +97,6 @@ void AWaterLandscapeBrush::UpdateAffectedWeightmaps()
 }
 
 template<class T>
-class FAddActorsOfType
-{
-public:
-	void operator()(AWaterLandscapeBrush* Brush, const TMap<TWeakObjectPtr<AActor>, UObject*>& PreviousCache)
-	{
-		const UWorld* ThisWorld = Brush->GetWorld();
-
-		for (TObjectIterator<T> ActorIt; ActorIt; ++ActorIt)
-		{
-			UObject* const* FoundCache = PreviousCache.Find(TWeakObjectPtr<AActor>(*ActorIt));
-			const bool bTriggerEvent = false;
-			const bool bModify = false;
-			Brush->AddActorInternal(*ActorIt, ThisWorld, FoundCache != nullptr ? *FoundCache : nullptr, bTriggerEvent, bModify);
-		}
-	}
-};
-
-template<class T>
 class FGetActorsOfType
 {
 public:
@@ -148,9 +130,20 @@ void AWaterLandscapeBrush::UpdateActors(bool bInTriggerEvents)
 	TMap<TWeakObjectPtr<AActor>, UObject*> PreviousCache;
 	FMemory::Memswap(&Cache, &PreviousCache, sizeof(Cache));
 
-	// TODO [jonathan.bard] : replace by IWaterBrushActoInterface and merge those 2 :
-	FAddActorsOfType<AWaterBody>()(this, PreviousCache);
-	FAddActorsOfType<AWaterBodyIsland>()(this, PreviousCache);
+	if (UWorld* World = GetWorld())
+	{
+		for (FActorIterator It(World); It; ++It)
+		{
+			AActor* Actor = *It;
+			if (IWaterBrushActorInterface* WaterBrushActor = Cast<IWaterBrushActorInterface>(Actor))
+			{
+				UObject* const* FoundCache = PreviousCache.Find(TWeakObjectPtr<AActor>(Actor));
+				const bool bTriggerEvent = false;
+				const bool bModify = false;
+				AddActorInternal(Actor, World, FoundCache != nullptr ? *FoundCache : nullptr, bTriggerEvent, bModify);
+			}
+		}
+	}
 
 	UpdateAffectedWeightmaps();
 
@@ -178,9 +171,8 @@ void AWaterLandscapeBrush::OnActorChanged(AActor* Actor, bool bWeightmapSettings
 			RemoveActorInternal(Actor);
 		}
 
-		// Force rebuild the mesh if a water body actor has been added or removed (islands don't affect the water mesh so it's necessary for them): 
-		// TODO [jonathan.bard] : Replace with WaterBrushActor->CanAffectWaterMesh() : return true for AWaterBody, false otherwise (!= AffectsWaterMesh() which depends on internal actor data)
-		bRebuildWaterMesh = Actor->IsA<AWaterBody>(); 
+		// Force rebuild the mesh if a water body actor has been added or removed (islands don't affect the water mesh so it's not necessary for them): 
+		bRebuildWaterMesh = WaterBrushActor->CanAffectWaterMesh();
 		bForceUpdateBrush = true;
 	}
 
@@ -229,14 +221,6 @@ void AWaterLandscapeBrush::OnActorsAffectingLandscapeChanged()
 	MarkDirty();
 }
 
-void AWaterLandscapeBrush::PostLoad()
-{
-	Super::PostLoad();
-
-	const bool bTriggerEvents = false;
-	UpdateActors(bTriggerEvents);
-}
-
 bool AWaterLandscapeBrush::IsActorAffectingLandscape(AActor* Actor) const
 {
 	IWaterBrushActorInterface* WaterBrushActor = Cast<IWaterBrushActorInterface>(Actor);
@@ -249,6 +233,12 @@ void AWaterLandscapeBrush::PostInitProperties()
 
 	if (!HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject | RF_Transient))
 	{
+		OnWorldPostInitHandle = FWorldDelegates::OnPostWorldInitialization.AddLambda([this](UWorld* World, const UWorld::InitializationValues IVS)
+		{
+			const bool bTriggerEvents = false;
+			UpdateActors(bTriggerEvents);
+		});
+
 		OnLevelAddedToWorldHandle = FWorldDelegates::LevelAddedToWorld.AddLambda([this](ULevel* Level, UWorld* World)
 		{
 			if (World->IsEditorWorld()
@@ -312,6 +302,9 @@ void AWaterLandscapeBrush::BeginDestroy()
 	if (!HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject | RF_Transient))
 	{
 		ClearActors();
+
+		FWorldDelegates::OnPostWorldInitialization.Remove(OnWorldPostInitHandle);
+		OnWorldPostInitHandle.Reset();
 
 		FWorldDelegates::LevelAddedToWorld.Remove(OnLevelAddedToWorldHandle);
 		OnLevelAddedToWorldHandle.Reset();
@@ -475,19 +468,16 @@ void AWaterLandscapeBrush::SetOwningLandscape(ALandscape* InOwningLandscape)
 	}
 }
 
-void AWaterLandscapeBrush::GetRenderDependencies(TSet<UTexture2D*>& OutTextures)
+void AWaterLandscapeBrush::GetRenderDependencies(TSet<UObject*>& OutDependencies)
 {
-	Super::GetRenderDependencies(OutTextures);
+	Super::GetRenderDependencies(OutDependencies);
 
-	// TODO [jonathan.bard] : replace by IWaterBrushActoInterface and merge those 2 :
-	for (AWaterBody* Body : TActorRange<AWaterBody>(GetWorld()))
+	for (const TWeakInterfacePtr<IWaterBrushActorInterface>& WaterBrushActor : ActorsAffectingLandscape)
 	{
-		Body->GetBrushRenderDependencies(OutTextures);
-	}
-
-	for (AWaterBodyIsland* Island : TActorRange<AWaterBodyIsland>(GetWorld()))
-	{
-		Island->GetBrushRenderDependencies(OutTextures);
+		if (WaterBrushActor.IsValid())
+		{
+			WaterBrushActor->GetBrushRenderDependencies(OutDependencies);
+		}
 	}
 }
 

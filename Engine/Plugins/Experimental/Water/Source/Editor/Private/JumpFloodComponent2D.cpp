@@ -91,11 +91,9 @@ void UJumpFloodComponent2D::JumpFlood(UTextureRenderTarget2D* SeedRT, float Scen
 
 bool UJumpFloodComponent2D::CreateMIDs()
 {
-	const UWaterEditorSettings* WaterEditorSettings = GetDefault<UWaterEditorSettings>();
-	check(WaterEditorSettings != nullptr);
-	JumpStepMID = FWaterUtils::GetOrCreateTransientMID(JumpStepMID, TEXT("JumpStepMID"), WaterEditorSettings->GetDefaultJumpFloodStepMaterial());
-	BlurEdgesMID = FWaterUtils::GetOrCreateTransientMID(BlurEdgesMID, TEXT("BlurEdgesMID"), WaterEditorSettings->GetDefaultBlurEdgesMaterial());
-	FindEdgesMID = FWaterUtils::GetOrCreateTransientMID(FindEdgesMID, TEXT("FindEdgesMID"), WaterEditorSettings->GetDefaultFindEdgesMaterial());
+	JumpStepMID = FWaterUtils::GetOrCreateTransientMID(JumpStepMID, TEXT("JumpStepMID"), JumpStepMaterial);
+	BlurEdgesMID = FWaterUtils::GetOrCreateTransientMID(BlurEdgesMID, TEXT("BlurEdgesMID"), BlurEdgesMaterial);
+	FindEdgesMID = FWaterUtils::GetOrCreateTransientMID(FindEdgesMID, TEXT("FindEdgesMID"), FindEdgesMaterial);
 
 	if ((JumpStepMID == nullptr) || (BlurEdgesMID == nullptr) || (FindEdgesMID == nullptr))
 	{
