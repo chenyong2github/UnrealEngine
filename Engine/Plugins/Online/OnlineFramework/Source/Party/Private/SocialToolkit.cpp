@@ -1032,6 +1032,9 @@ void USocialToolkit::HandlePartyInviteReceived(const FUniqueNetId& LocalUserId, 
 								{
 									CanReceiveInviteFrom(User, PendingInvite, [this, PendingInvite, UserId = User.GetUserId(ESocialSubsystem::Primary)](const bool bResult)
 									{
+										UE_LOG(LogParty, Log, TEXT("USocialToolkit::HandlePartyInviteReceived LocalUser=[%s] Inviter=[%s] CanReceiveInviteFrom=[%s]"),
+											*GetLocalUserNetId(ESocialSubsystem::Primary).ToDebugString(), *UserId.ToDebugString(), *LexToString(bResult));
+
 										if (bResult)
 										{
 											QueueUserDependentActionInternal(UserId, ESocialSubsystem::Primary,
@@ -1039,10 +1042,6 @@ void USocialToolkit::HandlePartyInviteReceived(const FUniqueNetId& LocalUserId, 
 											{
 												OnPartyInviteReceived().Broadcast(User);
 											});
-										}
-										else
-										{
-											UE_LOG(LogParty, Log, TEXT("USocialToolkit::HandlePartyInviteReceived LocalUser=[%s] Inviter=[%s] ignoring invite due to platform invite permissions"), *GetLocalUserNetId(ESocialSubsystem::Primary).ToDebugString(), *UserId.ToDebugString());
 										}
 									});
 								}
