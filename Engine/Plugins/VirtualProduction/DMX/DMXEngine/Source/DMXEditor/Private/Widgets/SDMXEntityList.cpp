@@ -1863,6 +1863,12 @@ TSubclassOf<UDMXEntity> SDMXEntityList::GetListType() const
 
 void SDMXEntityList::PostUndo(bool bSuccess)
 {
+	UDMXLibrary* Library = GetDMXLibrary();
+	if (Library)
+	{
+		Library->Modify();
+	}
+
 	UpdateTree();
 }
 
