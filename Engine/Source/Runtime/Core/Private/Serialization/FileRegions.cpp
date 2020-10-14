@@ -7,7 +7,7 @@ inline FArchive& operator<<(FArchive& Ar, FFileRegion& Region)
 {
 	Ar << Region.Offset;
 	Ar << Region.Length;
-	Ar << Region.Pattern;
+	Ar << Region.Type;
 	return Ar;
 }
 
@@ -29,14 +29,14 @@ void FFileRegion::AccumulateFileRegions(TArray<FFileRegion>& InOutRegions, int64
 	int32 LastRegionIndex = -1;
 	auto AppendRegion = [&](FFileRegion NewRegion)
 	{
-		if (LastRegionIndex == -1 || InOutRegions[LastRegionIndex].Pattern != NewRegion.Pattern)
+		if (LastRegionIndex == -1 || InOutRegions[LastRegionIndex].Type != NewRegion.Type)
 		{
-			// First region in this file, or the pattern changed.
+			// First region in this file, or the type changed.
 			LastRegionIndex = InOutRegions.Add(NewRegion);
 		}
 		else
 		{
-			// Merge contiguous regions with the same pattern into a single region.
+			// Merge contiguous regions with the same type into a single region.
 			FFileRegion& PrevRegion = InOutRegions[LastRegionIndex];
 			check(NewRegion.Offset == PrevRegion.Offset + PrevRegion.Length); // Regions must be contiguous
 			PrevRegion.Length += NewRegion.Length;
@@ -52,8 +52,8 @@ void FFileRegion::AccumulateFileRegions(TArray<FFileRegion>& InOutRegions, int64
 
 		if (CurrentOffset < int64(CurrentRegion.Offset))
 		{
-			// Fill the gap with a none-pattern region
-			AppendRegion(FFileRegion(CurrentOffset, CurrentRegion.Offset - CurrentOffset, EDataShufflePattern::None));
+			// Fill the gap with a none-type region
+			AppendRegion(FFileRegion(CurrentOffset, CurrentRegion.Offset - CurrentOffset, EFileRegionType::None));
 		}
 
 		AppendRegion(CurrentRegion);
@@ -63,7 +63,7 @@ void FFileRegion::AccumulateFileRegions(TArray<FFileRegion>& InOutRegions, int64
 
 	if (CurrentOffset < EndOffset)
 	{
-		// Add a final none-pattern region for any remaining data.
-		AppendRegion(FFileRegion(CurrentOffset, EndOffset - CurrentOffset, EDataShufflePattern::None));
+		// Add a final none-type region for any remaining data.
+		AppendRegion(FFileRegion(CurrentOffset, EndOffset - CurrentOffset, EFileRegionType::None));
 	}
 }
