@@ -120,8 +120,8 @@ RENDERER_API TAutoConsoleVariable<float> CVarStaticMeshLODDistanceScale(
 
 static TAutoConsoleVariable<float> CVarMinAutomaticViewMipBias(
 	TEXT("r.ViewTextureMipBias.Min"),
-	-1.0f,
-	TEXT("Automatic view mip bias's minimum value (default to -1)."),
+	-2.0f,
+	TEXT("Automatic view mip bias's minimum value (default to -2)."),
 	ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<float> CVarMinAutomaticViewMipBiasOffset(
