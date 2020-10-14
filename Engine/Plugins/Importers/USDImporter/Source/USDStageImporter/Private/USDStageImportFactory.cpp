@@ -32,8 +32,6 @@ UUsdStageImportFactory::UUsdStageImportFactory(const FObjectInitializer& ObjectI
 	bEditorImport = true;
 	bText = false;
 
-	ImportOptions = ObjectInitializer.CreateDefaultSubobject<UUsdStageImportOptions>(this, TEXT("USDStageImportOptions"));
-
 	for ( const FString& Extension : UnrealUSDWrapper::GetAllSupportedFileFormats() )
 	{
 		Formats.Add( FString::Printf( TEXT( "%s; Universal Scene Descriptor files" ), *Extension ) );
@@ -92,11 +90,6 @@ void UUsdStageImportFactory::CleanUp()
 {
 	ImportContext = FUsdStageImportContext();
 	Super::CleanUp();
-}
-
-void UUsdStageImportFactory::ParseFromJson(TSharedRef<class FJsonObject> ImportSettingsJson)
-{
-	FJsonObjectConverter::JsonObjectToUStruct(ImportSettingsJson, ImportOptions->GetClass(), ImportOptions, 0, CPF_InstancedReference);
 }
 
 #undef LOCTEXT_NAMESPACE
