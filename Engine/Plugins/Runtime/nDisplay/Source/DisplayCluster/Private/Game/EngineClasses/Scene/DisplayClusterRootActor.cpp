@@ -10,6 +10,7 @@
 #include "Components/DisplayClusterXformComponent.h"
 #include "Components/DisplayClusterSceneComponentSyncParent.h"
 #include "Components/DisplayClusterPreviewComponent.h"
+#include "Components/DisplayClusterSyncTickComponent.h"
 
 #include "Config/IPDisplayClusterConfigManager.h"
 #include "DisplayClusterConfigurationStrings.h"
@@ -39,6 +40,8 @@ ADisplayClusterRootActor::ADisplayClusterRootActor(const FObjectInitializer& Obj
 {
 	// Root component
 	RootComponent = CreateDefaultSubobject<UDisplayClusterOriginComponent>(TEXT("DisplayClusterOrigin"));
+	// A helper component to trigger nDisplay Tick() during Tick phase
+	SyncTickComponent = CreateDefaultSubobject<UDisplayClusterSyncTickComponent>(TEXT("DisplayClusterSyncTick"));
 
 	PrimaryActorTick.bCanEverTick = true;
 	PrimaryActorTick.TickGroup = ETickingGroup::TG_PostUpdateWork;
