@@ -264,3 +264,7 @@ private:
 	bool bBlendingIn : 1;
 	bool bBlendingOut : 1;
 };
+/** Backwards compatible name for the Matinee camera shake, for C++ code. */
+UE_DEPRECATED(4.26, "Please use UMatineeCameraShake")
+typedef UMatineeCameraShake UCameraShake;
+
