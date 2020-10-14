@@ -318,14 +318,17 @@ void AController::Possess(APawn* InPawn)
 
 	const APawn* CurrentPawn = GetPawn();
 
+	// A notification is required when the current assigned pawn is not possessed (i.e. pawn assigned before calling Possess)
+	const bool bNotificationRequired = (CurrentPawn != nullptr && CurrentPawn->GetController() == nullptr);
+
 	// To preserve backward compatibility we keep notifying derived classed for null pawn in case some
 	// overrides decided to react differently when asked to possess a null pawn.
 	// Default engine implementation is to unpossess the current pawn.
 	OnPossess(InPawn);
 
-	// Notify only when pawn to possess has been accepted by the native class.
+	// Notify when pawn to possess (different than the assigned one) has been accepted by the native class or notification is explicitly required
 	APawn* NewPawn = GetPawn();
-	if (NewPawn != CurrentPawn)
+	if (NewPawn != CurrentPawn || bNotificationRequired)
 	{
 		ReceivePossess(NewPawn);
 		OnNewPawn.Broadcast(NewPawn);
