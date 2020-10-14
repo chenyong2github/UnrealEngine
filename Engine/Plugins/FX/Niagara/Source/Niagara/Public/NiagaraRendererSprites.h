@@ -75,11 +75,16 @@ private:
 	FVector2D PivotInUVSpace;
 	ENiagaraSortMode SortMode;
 	FVector2D SubImageSize;
+	
 	uint32 bSubImageBlend : 1;
 	uint32 bRemoveHMDRollInVR : 1;
 	uint32 bSortOnlyWhenTranslucent : 1;
 	uint32 bGpuLowLatencyTranslucency : 1;
+	uint32 bEnableCulling : 1;
 	uint32 bEnableDistanceCulling : 1;
+	uint32 bSetAnyBoundVars : 1;
+	uint32 bVisTagInParamStore : 1;
+
 	float MinFacingCameraBlendDistance;
 	float MaxFacingCameraBlendDistance;
 	FVector2D DistanceCullRange;
@@ -91,7 +96,6 @@ private:
 	int32 RendererVisibility;
 
 	int32 VFBoundOffsetsInParamStore[ENiagaraSpriteVFLayout::Type::Num];
-	uint32 bSetAnyBoundVars : 1;
 
 	const FNiagaraRendererLayout* RendererLayoutWithCustomSort;
 	const FNiagaraRendererLayout* RendererLayoutWithoutCustomSort;
