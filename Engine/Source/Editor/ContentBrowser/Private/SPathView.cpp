@@ -434,6 +434,10 @@ TSharedPtr<FTreeItem> SPathView::AddFolderItem(FContentBrowserItemData&& InItem,
 					check(&ParentTreeItem->Children == CurrentTreeItems);
 					ParentTreeItem->RequestSortChildren();
 				}
+				else
+				{
+					SortRootItems();
+				}
 
 				// If we have pending initial paths, and this path added the path, we should select it now
 				if (PendingInitialPaths.Num() > 0 && PendingInitialPaths.Contains(CurrentTreeItem->GetItem().GetVirtualPath()))
@@ -470,6 +474,10 @@ TSharedPtr<FTreeItem> SPathView::AddFolderItem(FContentBrowserItemData&& InItem,
 			{
 				check(&ParentTreeItem->Children == CurrentTreeItems);
 				ParentTreeItem->RequestSortChildren();
+			}
+			else
+			{
+				SortRootItems();
 			}
 
 			// If we have pending initial paths, and this path added the path, we should select it now
