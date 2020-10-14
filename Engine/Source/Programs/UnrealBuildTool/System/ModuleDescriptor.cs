@@ -241,15 +241,42 @@ namespace UnrealBuildTool
 			try
 			{
 				string[] WhitelistPlatforms;
+				// it's important we default to null, and don't have an empty whitelist by default, because that will indicate that no
+				// platforms should be compiled (see IsCompiledInConfiguration(), it only checks for null, not length)
+				Module.WhitelistPlatforms = null;
 				if (InObject.TryGetStringArrayField("WhitelistPlatforms", out WhitelistPlatforms))
 				{
-					Module.WhitelistPlatforms = Array.ConvertAll(WhitelistPlatforms, x => UnrealTargetPlatform.Parse(x)).ToList();
+					Module.WhitelistPlatforms = new List<UnrealTargetPlatform>();
+					foreach (string TargetPlatformName in WhitelistPlatforms)
+					{
+						UnrealTargetPlatform Platform;
+						if (UnrealTargetPlatform.TryParse(TargetPlatformName, out Platform))
+						{
+							Module.WhitelistPlatforms.Add(Platform);
+						}
+						else
+						{
+							Log.TraceWarning("Unknown platform {0} while parsing whitelist for module descriptor {1}", TargetPlatformName, Module.Name);
+						}
+					}
 				}
 
 				string[] BlacklistPlatforms;
 				if (InObject.TryGetStringArrayField("BlacklistPlatforms", out BlacklistPlatforms))
 				{
-					Module.BlacklistPlatforms = Array.ConvertAll(BlacklistPlatforms, x => UnrealTargetPlatform.Parse(x)).ToList();
+					Module.BlacklistPlatforms = new List<UnrealTargetPlatform>();
+					foreach (string TargetPlatformName in BlacklistPlatforms)
+					{
+						UnrealTargetPlatform Platform;
+						if (UnrealTargetPlatform.TryParse(TargetPlatformName, out Platform))
+						{
+							Module.BlacklistPlatforms.Add(Platform);
+						}
+						else
+						{
+							Log.TraceWarning("Unknown platform {0} while parsing blacklist for module descriptor {1}", TargetPlatformName, Module.Name);
+						}
+					}
 				}
 			}
 			catch (BuildException Ex)
@@ -313,7 +340,10 @@ namespace UnrealBuildTool
 			Writer.WriteValue("Name", Name);
 			Writer.WriteValue("Type", Type.ToString());
 			Writer.WriteValue("LoadingPhase", LoadingPhase.ToString());
-			if (WhitelistPlatforms != null && WhitelistPlatforms.Count > 0)
+			// important note: we don't check the length of the whitelist platforms, because if an unknown platform was read in, but was not valid, the 
+			// list will exist but be empty. We don't want to remove the whitelist completely, because that would allow this module on all platforms,
+			// which will not be the desired effect
+			if (WhitelistPlatforms != null)
 			{
 				Writer.WriteArrayStart("WhitelistPlatforms");
 				foreach (UnrealTargetPlatform WhitelistPlatform in WhitelistPlatforms)
@@ -431,7 +461,10 @@ namespace UnrealBuildTool
 		public bool IsCompiledInConfiguration(UnrealTargetPlatform Platform, UnrealTargetConfiguration Configuration, string TargetName, TargetType TargetType, bool bBuildDeveloperTools, bool bBuildRequiresCookedData)
 		{
 			// Check the platform is whitelisted
-			if (WhitelistPlatforms != null && WhitelistPlatforms.Count > 0 && !WhitelistPlatforms.Contains(Platform))
+			// important note: we don't check the length of the whitelist platforms, because if an unknown platform was read in, but was not valid, the 
+			// list will exist but be empty. In this case, we need to disallow all platforms from building, otherwise, build errors will occur when
+			// it starts compiling for _all_ platforms
+			if (WhitelistPlatforms != null && !WhitelistPlatforms.Contains(Platform))
 			{
 				return false;
 			}
