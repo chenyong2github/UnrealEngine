@@ -8957,14 +8957,15 @@ void FBlueprintEditor::NotifyPostChange(const FPropertyChangedEvent& PropertyCha
 
 void FBlueprintEditor::OnFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent)
 {
-	FName PropertyName = (PropertyChangedEvent.Property != NULL) ? PropertyChangedEvent.Property->GetFName() : NAME_None;
+	FName PropertyName = PropertyChangedEvent.GetPropertyName();
+	FName MemberPropertyName = PropertyChangedEvent.MemberProperty ? PropertyChangedEvent.MemberProperty->GetFName() : PropertyName;
 
-	if (PropertyName.IsValid())
+	if (MemberPropertyName.IsValid())
 	{
 		UBlueprint* Blueprint = GetBlueprintObj();
 		if (Blueprint)
 		{
-			int32 VarIndex = FBlueprintEditorUtils::FindNewVariableIndex(Blueprint, PropertyName);
+			int32 VarIndex = FBlueprintEditorUtils::FindNewVariableIndex(Blueprint, MemberPropertyName);
 			if (VarIndex != INDEX_NONE)
 			{
 				Blueprint->Modify();
