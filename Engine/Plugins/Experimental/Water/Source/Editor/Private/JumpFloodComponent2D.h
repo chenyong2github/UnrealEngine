@@ -7,6 +7,7 @@
 
 class UTextureRenderTarget2D;
 class UMaterialInstanceDynamic;
+class UMaterialInterface;
 
 UCLASS(config = Engine, Blueprintable, BlueprintType)
 class UJumpFloodComponent2D : public UActorComponent
