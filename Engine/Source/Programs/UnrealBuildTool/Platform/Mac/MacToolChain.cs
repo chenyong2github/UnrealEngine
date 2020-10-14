@@ -138,6 +138,11 @@ namespace UnrealBuildTool
 			get { return SettingsPrivate.Value; }
 		}
 
+		public static string SDKPath
+		{
+			get { return Settings.BaseSDKDir + "/MacOSX" + Settings.MacOSSDKVersion + ".sdk"; }
+		}
+
 		/// <summary>
 		/// Which compiler frontend to use
 		/// </summary>
@@ -227,7 +232,7 @@ namespace UnrealBuildTool
 			// Pass through the list of architectures			
 			Result += string.Format(" -arch {0}", string.Join(" -arch ", Architectures));				
 
-			Result += " -isysroot " + Settings.BaseSDKDir + "/MacOSX" + Settings.MacOSSDKVersion + ".sdk";
+			Result += " -isysroot " + SDKPath;
 			Result += " -mmacosx-version-min=" + (CompileEnvironment.bEnableOSX109Support ? "10.9" : Settings.MacOSVersion);
 
 			bool bStaticAnalysis = false;
@@ -377,7 +382,7 @@ namespace UnrealBuildTool
 			// Pass through the list of architectures			
 			Result += string.Format(" -arch {0}", string.Join(" ", Architectures));
 
-			Result += " -isysroot " + Settings.BaseSDKDir + "/MacOSX" + Settings.MacOSSDKVersion + ".sdk";
+			Result += " -isysroot " + SDKPath;
 			Result += " -mmacosx-version-min=" + Settings.MacOSVersion;
 			Result += " -dead_strip";
 
