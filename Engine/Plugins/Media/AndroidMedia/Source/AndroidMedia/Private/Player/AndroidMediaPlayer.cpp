@@ -270,7 +270,7 @@ bool FAndroidMediaPlayer::Open(const FString& Url, const IMediaOptions* /*Option
 
 			FPakFile* PakFile = NULL;
 			FPakEntry FileEntry;
-			if (!PakPlatformFile->FindFileInPakFiles(*FilePath, &PakFile, &FileEntry))
+			if (PakPlatformFile == nullptr || !PakPlatformFile->FindFileInPakFiles(*FilePath, &PakFile, &FileEntry))
 			{
 				UE_LOG(LogAndroidMedia, Warning, TEXT("File doesn't exist %s."), *FilePath);
 				return false;
