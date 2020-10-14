@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CoreMinimal.h"
+#include "Editor.h"
 #include "EngineDefines.h"
 #include "Misc/MessageDialog.h"
 #include "InputCoreTypes.h"
@@ -123,12 +124,6 @@ bool UGeomModifier::Apply()
 bool UGeomModifier::OnApply()
 {
 	return false;
-}
-
-
-bool UGeomModifier::SupportsCurrentSelection()
-{
-	return true;
 }
 
 
@@ -463,6 +458,10 @@ UGeomModifier_Edit::UGeomModifier_Edit(const FObjectInitializer& ObjectInitializ
 	ToolbarIconName = TEXT("GeometryMode.EditTool");
 }
 
+bool UGeomModifier_Edit::SupportsCurrentSelection()
+{
+	return GEditor->GetSelectedActors()->CountSelections<ABrush>() > 0;
+}
 
 bool UGeomModifier_Edit::InputDelta(FEditorViewportClient* InViewportClient,FViewport* InViewport,FVector& InDrag,FRotator& InRot,FVector& InScale)
 {
@@ -1270,6 +1269,14 @@ UGeomModifier_Pen::UGeomModifier_Pen(const FObjectInitializer& ObjectInitializer
 	ExtrudeDepth = 256;
 	bCreateConvexPolygons = true;
 	ToolbarIconName = TEXT("GeometryMode.PenTool");
+}
+
+/**
+* Pen can work always
+*/
+bool UGeomModifier_Pen::SupportsCurrentSelection()
+{
+	return true;
 }
 
 /**
@@ -2084,6 +2091,11 @@ void UGeomModifier_Clip::WasActivated()
 
 bool UGeomModifier_Clip::SupportsCurrentSelection()
 {
+	if ( !Super::SupportsCurrentSelection() )
+	{
+		return false;
+	}
+
 	FEdModeGeometry* mode = (FEdModeGeometry*)GLevelEditorModeTools().GetActiveMode(FGeometryEditingModes::EM_Geometry);
 	return mode->GetSelectionState() ? false : true;
 }
@@ -2616,8 +2628,12 @@ UGeomModifier_Flip::UGeomModifier_Flip(const FObjectInitializer& ObjectInitializ
 
 bool UGeomModifier_Flip::SupportsCurrentSelection()
 {
-	// Supports polygons selected and objects selected
+	if ( !Super::SupportsCurrentSelection() )
+	{
+		return false;
+	}
 
+	// Supports polygons selected and objects selected
 	FEdModeGeometry* mode = (FEdModeGeometry*)GLevelEditorModeTools().GetActiveMode(FGeometryEditingModes::EM_Geometry);
 	return (!mode->HaveEdgesSelected() && !mode->HaveVerticesSelected());
 }
@@ -3037,6 +3053,11 @@ UGeomModifier_Triangulate::UGeomModifier_Triangulate(const FObjectInitializer& O
 
 bool UGeomModifier_Triangulate::SupportsCurrentSelection()
 {
+	if ( !Super::SupportsCurrentSelection() )
+	{
+		return false;
+	}
+
 	FEdModeGeometry* mode = (FEdModeGeometry*)GLevelEditorModeTools().GetActiveMode(FGeometryEditingModes::EM_Geometry);
 	return (!mode->HaveEdgesSelected() && !mode->HaveVerticesSelected());
 }

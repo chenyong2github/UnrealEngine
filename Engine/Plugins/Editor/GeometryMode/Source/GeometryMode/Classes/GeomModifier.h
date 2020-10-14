@@ -94,7 +94,7 @@ public:
 	/**
 	 * @return		true if this modifier will work on the currently selected sub objects.
 	 */
-	virtual bool SupportsCurrentSelection();
+	virtual bool SupportsCurrentSelection(){return false;};
 
 	/** Gives the individual modifiers a chance to do something the first time they are activated. */
 	virtual void Initialize();
