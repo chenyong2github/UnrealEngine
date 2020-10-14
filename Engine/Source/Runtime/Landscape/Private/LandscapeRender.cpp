@@ -3604,6 +3604,9 @@ FLandscapeMaterialTextureStreamingInfo& ULandscapeMaterialInstanceConstant::Acqu
 
 void ULandscapeMaterialInstanceConstant::UpdateCachedTextureStreaming()
 {
+	// Remove outdated elements that no longer match the material's expressions.
+	TextureStreamingInfo.Empty();
+
 	const UMaterial* Material = GetMaterial();
 	if (Material)
 	{
