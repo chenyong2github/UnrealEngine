@@ -2,11 +2,11 @@
 
 #include "../Common.ush"
 #include "../SceneData.ush"
+#include "../WaveOpUtil.ush"
 #if VIRTUAL_TEXTURE_TARGET
 #include "../VirtualShadowMaps/PageAccessCommon.ush"
 
 RWStructuredBuffer<uint> OutDynamicCasterFlags;
-
 #endif
 
 #ifndef NEAR_CLIP
@@ -32,24 +32,26 @@ RWStructuredBuffer<uint> OutDynamicCasterFlags;
 // Triangle cluster culling
 //======================
 
-ByteAddressBuffer						HierarchyBuffer;
+ByteAddressBuffer			HierarchyBuffer;
 
-RWByteAddressBuffer						OutCandidateClusters;
-RWByteAddressBuffer						OutOccludedClusters;
-RWByteAddressBuffer						OutOccludedNodes;
-RWBuffer< uint >						OutStreamingRequests;	// TODO: Make this a ByteAddressBuffer, so we can store all 3 elements at once. Requires CPU-side readback code to be fixed up.
+RWByteAddressBuffer			OutCandidateClusters;
+RWByteAddressBuffer			OutOccludedClusters;
+RWByteAddressBuffer			OutOccludedNodes;
+RWBuffer< uint >			OutStreamingRequests;	// TODO: Make this a ByteAddressBuffer, so we can store all 3 elements at once. Requires CPU-side readback code to be fixed up.
 
-RWBuffer< uint >						OutCandidateClustersArgs;
-RWBuffer< uint >						OutOccludedClustersArgs;
+RWByteAddressBuffer			OutPartTransforms;
 
-StructuredBuffer< uint2 >				InTotalPrevDrawClusters;
+RWBuffer< uint >			OutCandidateClustersArgs;
+RWBuffer< uint >			OutOccludedClustersArgs;
+
+StructuredBuffer< uint2 >	InTotalPrevDrawClusters;
 
 uint LargePageRectThreshold;
 #if DEBUG_FLAGS
-RWStructuredBuffer<FStats>				OutStatsBuffer;
+RWStructuredBuffer<FStats>	OutStatsBuffer;
 #endif
 
-float									DisocclusionLodScaleFactor;	// TODO: HACK: Force LOD down first frame an instance is visible to mitigate disocclusion spikes.
+float						DisocclusionLodScaleFactor;	// TODO: HACK: Force LOD down first frame an instance is visible to mitigate disocclusion spikes.
 
 // Get the area of an "inclusive" rect (which means that the max is inside the rect), also guards against negative area (where min > max)
 uint GetInclusiveRectArea(uint4 Rect)
@@ -156,7 +158,6 @@ bool ShouldVisitChild( FNaniteView NaniteView, FInstanceSceneData InstanceData, 
 	}
 }
 
-
 bool SmallEnoughToDraw( FNaniteView NaniteView, FInstanceSceneData InstanceData, FInstanceDynamicData DynamicData, float4 LODBounds, float LODError, float EdgeLength, inout bool bUseHWRaster )
 {
 	float ProjectedEdgeScale = GetProjectedEdgeScales( NaniteView, InstanceData, DynamicData, LODBounds ).x;
@@ -177,13 +178,7 @@ bool SmallEnoughToDraw( FNaniteView NaniteView, FInstanceSceneData InstanceData,
 
 groupshared uint	GroupNumCandidateNodes;
 groupshared uint	GroupCandidateNodesOffset;
-groupshared uint	GroupNumCandidateClusters;
-groupshared uint	GroupCandidateClustersOffset;
-
-groupshared uint	GroupOccludedNodesOffset;
 groupshared uint	GroupOccludedBitmask[2];
-groupshared uint	GroupNumOccludedClusters;
-groupshared uint	GroupOccludedClustersOffset;
 
 globallycoherent RWCoherentStructuredBuffer(FPersistentState) MainAndPostPassPersistentStates;
 globallycoherent RWCoherentByteAddressBuffer InOutCandidateNodes;
@@ -240,7 +235,6 @@ void PersistentHierarchicalCull(
 		if( GroupIndex == 0 )
 		{
 			GroupNumCandidateNodes = 0;
-			GroupNumCandidateClusters = 0;
 #if CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN
 			GroupOccludedBitmask[0] = 0u;
 			GroupOccludedBitmask[1] = 0u;
@@ -313,7 +307,6 @@ void PersistentHierarchicalCull(
 		FHierarchyNodeSlice HierarchyNodeSlice = GetHierarchyNodeSlice( HierarchyOffset + VisibleNode.NodeIndex, GroupIndex );
 
 		const float MaxObjectScale = InstanceData.NonUniformScale.w;
-		const float4x4 LocalToWorld = InstanceData.LocalToWorld;
 		const float ZNear = NaniteView.NearPlane;
 
 #if CULLING_PASS == CULLING_PASS_NO_OCCLUSION || CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN
@@ -332,8 +325,8 @@ void PersistentHierarchicalCull(
 		BRANCH
 		if (bVisible)
 		{
-			float4 Bounds = HierarchyNodeSlice.Bounds;
-			float4 LODBounds = HierarchyNodeSlice.LODBounds;
+			float4 Bounds		= HierarchyNodeSlice.Bounds;
+			float4 LODBounds	= HierarchyNodeSlice.LODBounds;
 
 #if CULLING_PASS == CULLING_PASS_NO_OCCLUSION || CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN
 			bVisible = ShouldVisitChild( NaniteView, InstanceData, DynamicData, LODBounds, HierarchyNodeSlice.MinLODError, HierarchyNodeSlice.MaxParentLODError, StreamingPriority );
@@ -381,7 +374,7 @@ void PersistentHierarchicalCull(
 #elif CULLING_PASS == CULLING_PASS_OCCLUSION_POST
 			if (VisibleNode.Flags & CULLING_FLAG_TEST_LOD)
 			{
-				bVisible = ShouldVisitChild(NaniteView, InstanceData, DynamicData, LODBounds, HierarchyNodeSlice.MinLODError, HierarchyNodeSlice.MaxParentLODError, StreamingPriority );
+				bVisible = ShouldVisitChild( NaniteView, InstanceData, DynamicData, LODBounds, HierarchyNodeSlice.MinLODError, HierarchyNodeSlice.MaxParentLODError, StreamingPriority );
 			}
 		
 			BRANCH
@@ -414,9 +407,6 @@ void PersistentHierarchicalCull(
 					else
 					{
 						RequestPageRange( RuntimeResourceID, HierarchyNodeSlice.StartPageIndex, HierarchyNodeSlice.NumPages, NaniteView.StreamingPriorityCategory, StreamingPriority );
-
-						if( bLoaded )
-							InterlockedAdd( GroupNumCandidateClusters, NumChildren, CandidateClustersOffset );
 					}
 				
 				}
@@ -434,25 +424,10 @@ void PersistentHierarchicalCull(
 
 		if( GroupIndex == 0 )
 		{
-			if( GroupNumCandidateClusters > 0 )
-			{
-				InterlockedAdd( OutCandidateClustersArgs[3], GroupNumCandidateClusters, GroupCandidateClustersOffset );
-				InterlockedMax( OutCandidateClustersArgs[0], (GroupCandidateClustersOffset + GroupNumCandidateClusters + 63) / 64 );
-			}
-
 			uint NumNodes = GroupNumCandidateNodes;
 			InterlockedAdd( MainAndPostPassPersistentStates[ PersistentStateIndex ].WriteOffset, NumNodes, GroupCandidateNodesOffset );
 			InterlockedAdd( MainAndPostPassPersistentStates[ PersistentStateIndex ].NumActive, (int)NumNodes - 1 );
 			DeviceMemoryBarrier();
-
-
-#if CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN
-			if( GroupOccludedBitmask[0] | GroupOccludedBitmask[1] )
-			{
-				InterlockedAdd( MainAndPostPassPersistentStates[1].WriteOffset, 1, GroupOccludedNodesOffset );
-				InterlockedAdd( MainAndPostPassPersistentStates[1].NumActive, 1 );
-			}
-#endif
 		}
 		GroupMemoryBarrierWithGroupSync();
 
@@ -475,7 +450,7 @@ void PersistentHierarchicalCull(
 				}
 				else
 				{
-					CandidateClustersOffset += GroupCandidateClustersOffset;
+					WaveInterlockedAddRoundUp( OutCandidateClustersArgs[3], OutCandidateClustersArgs[0], 64, NumChildren, CandidateClustersOffset );
 
 					FVisibleCluster VisibleCluster;
 					VisibleCluster.Flags = VisibleNode.Flags | CULLING_FLAG_TEST_LOD;
@@ -499,6 +474,10 @@ void PersistentHierarchicalCull(
 		{
 			if( GroupOccludedBitmask[0] | GroupOccludedBitmask[1] )
 			{
+				uint OccludedNodesOffset;
+				InterlockedAdd( MainAndPostPassPersistentStates[1].WriteOffset, 1, OccludedNodesOffset );
+				InterlockedAdd( MainAndPostPassPersistentStates[1].NumActive, 1 );
+
 				FVisibleNode Node;
 				Node.Flags = VisibleNode.Flags & ~CULLING_FLAG_TEST_LOD;
 				Node.ViewId = VisibleNode.ViewId;
@@ -506,7 +485,7 @@ void PersistentHierarchicalCull(
 				Node.NodeIndex = VisibleNode.NodeIndex;
 				Node.EnabledBitmask[ 0 ] = GroupOccludedBitmask[ 0 ];
 				Node.EnabledBitmask[ 1 ] = GroupOccludedBitmask[ 1 ];
-				StoreVisibleNode( OutOccludedNodes, GroupOccludedNodesOffset, Node, true );
+				StoreVisibleNode( OutOccludedNodes, OccludedNodesOffset, Node, true );
 			}
 		}
 #endif
@@ -524,12 +503,6 @@ Buffer< uint >		OffsetClustersArgsSWHW;
 RWBuffer< uint >	VisibleClustersArgsSWHW;
 RWBuffer< uint >	OccludedClustersArgs;
 
-groupshared uint	GroupNumClustersPacked;		// SW | (HW << 8) | (OccludedSW << 16) | (OccludedHW << 24)
-groupshared uint	GroupNumClustersSW;
-groupshared uint	GroupNumClustersHW;
-groupshared uint	GroupVisibleClusterOffsetSW;
-groupshared uint	GroupVisibleClusterOffsetHW;
-
 void CandidateCullInner(
 	FVisibleCluster VisibleCluster,
 	uint InstanceId,
@@ -537,16 +510,7 @@ void CandidateCullInner(
 	uint GroupIndex
 	)
 {
-	if (GroupIndex == 0)
-	{
-		GroupNumClustersPacked = 0;
-		GroupNumClustersSW = 0;
-		GroupNumClustersHW = 0;
-	}
-	
 	FInstanceSceneData InstanceData = GetInstanceData( InstanceId );
-
-	GroupMemoryBarrierWithGroupSync();
 
 	FNaniteView NaniteView = GetNaniteView( VisibleCluster.ViewId );
 
@@ -766,63 +730,33 @@ void CandidateCullInner(
 	}
 #endif
 
-	uint ClusterOffsetsPacked = 0;
 	uint ClusterOffsetHW = 0;
 	uint ClusterOffsetSW = 0;
 	
 	BRANCH
-	if( bVisible )
+	if( bVisible && !bWasOccluded )
 	{
 #if CLUSTER_PER_PAGE
 		// Need full size counters
 		if( bUseHWRaster )
-			InterlockedAdd( GroupNumClustersHW, NumClustersToEmit, ClusterOffsetHW );
+		{
+			WaveInterlockedAdd_( VisibleClustersArgsSWHW[ HWClusterCounterIndex ], NumClustersToEmit, ClusterOffsetHW );
+		}
 		else
-			InterlockedAdd( GroupNumClustersSW, NumClustersToEmit, ClusterOffsetSW );
-#elif CULLING_PASS == CULLING_PASS_NO_OCCLUSION || CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN
-		uint Value = bUseHWRaster ? 0x100 : 0x1;
-		Value = bWasOccluded ? 0x10000 : Value;
-		InterlockedAdd( GroupNumClustersPacked, Value, ClusterOffsetsPacked );
-#else
-		if( !bWasOccluded )
 		{
-			uint Value = bUseHWRaster ? 0x100 : 0x1;
-			InterlockedAdd( GroupNumClustersPacked, Value, ClusterOffsetsPacked );
+			WaveInterlockedAdd_( VisibleClustersArgsSWHW[0], NumClustersToEmit, ClusterOffsetSW );
+		}
+#else
+		if( bUseHWRaster )
+		{
+			WaveInterlockedAddScalar_( VisibleClustersArgsSWHW[ HWClusterCounterIndex ], 1, ClusterOffsetHW );
+		}
+		else
+		{
+			WaveInterlockedAddScalar_( VisibleClustersArgsSWHW[0], 1, ClusterOffsetSW );
 		}
 #endif
 	}
-
-	GroupMemoryBarrierWithGroupSync();
-
-	if( GroupIndex == 0 )
-	{
-#if CLUSTER_PER_PAGE
-		uint NumVisibleClustersSW = GroupNumClustersSW;
-		uint NumVisibleClustersHW = GroupNumClustersHW;
-#else
-		uint NumVisibleClustersSW = GroupNumClustersPacked & 0xFF;
-		uint NumVisibleClustersHW = ( GroupNumClustersPacked >> 8 ) & 0xFF;
-#endif
-		if( NumVisibleClustersSW > 0 )
-		{
-			InterlockedAdd( VisibleClustersArgsSWHW[0], NumVisibleClustersSW, GroupVisibleClusterOffsetSW );
-		}
-
-		if( NumVisibleClustersHW > 0 )
-		{
-			InterlockedAdd( VisibleClustersArgsSWHW[HWClusterCounterIndex], NumVisibleClustersHW, GroupVisibleClusterOffsetHW );
-		}
-#if CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN
-		uint NumOccludedClusters = ( GroupNumClustersPacked >> 16 ) & 0xFF;
-		if( NumOccludedClusters > 0 )
-		{
-			InterlockedAdd( OutOccludedClustersArgs[3], NumOccludedClusters, GroupOccludedClustersOffset );
-			InterlockedMax( OutOccludedClustersArgs[0], (GroupOccludedClustersOffset + NumOccludedClusters + 63) / 64 );
-		}
-#endif
-	}
-
-	GroupMemoryBarrierWithGroupSync();
 
 	if( bVisible )
 	{
@@ -860,9 +794,9 @@ void CandidateCullInner(
 
 			uint ClusterIndex;
 			if( bUseHWRaster )
-				ClusterIndex = MaxClusters - GroupVisibleClusterOffsetHW - ClusterOffsetHW - NumClustersToEmit;	// HW clusters written from the top
+				ClusterIndex = MaxClusters - ClusterOffsetHW - NumClustersToEmit;	// HW clusters written from the top
 			else
-				ClusterIndex = GroupVisibleClusterOffsetSW + ClusterOffsetSW;	// SW clusters written from the bottom
+				ClusterIndex = ClusterOffsetSW;	// SW clusters written from the bottom
 
 			if( bUseHWRaster )
 			{
@@ -895,12 +829,11 @@ void CandidateCullInner(
 #else
 			if( bUseHWRaster )
 			{
-				uint VisibleClusterOffsetHW = ( ClusterOffsetsPacked >> 8 ) & 0xFF;
+				uint VisibleClusterOffsetHW = ClusterOffsetHW;
 				VisibleClusterOffsetHW += TotalPrevDrawClusters.y;
 #if CULLING_PASS == CULLING_PASS_OCCLUSION_POST
 				VisibleClusterOffsetHW += OffsetClustersArgsSWHW[HWClusterCounterIndex];
 #endif
-				VisibleClusterOffsetHW += GroupVisibleClusterOffsetHW;
 				if( VisibleClusterOffsetHW < MaxClusters )
 				{
 					StoreVisibleCluster( OutVisibleClustersSWHW, (MaxClusters - 1) - VisibleClusterOffsetHW, VisibleCluster, VIRTUAL_TEXTURE_TARGET );	// HW clusters written from the top
@@ -908,12 +841,11 @@ void CandidateCullInner(
 			}
 			else
 			{
-				uint VisibleClusterOffsetSW = ( ClusterOffsetsPacked ) & 0xFF;
+				uint VisibleClusterOffsetSW = ClusterOffsetSW;
 				VisibleClusterOffsetSW += TotalPrevDrawClusters.x;
 #if CULLING_PASS == CULLING_PASS_OCCLUSION_POST
 				VisibleClusterOffsetSW += OffsetClustersArgsSWHW[ 0 ];
 #endif
-				VisibleClusterOffsetSW += GroupVisibleClusterOffsetSW;
 				if( VisibleClusterOffsetSW < MaxClusters )
 				{
 					StoreVisibleCluster( OutVisibleClustersSWHW, VisibleClusterOffsetSW, VisibleCluster, VIRTUAL_TEXTURE_TARGET );	// SW clusters written from the bottom
@@ -924,8 +856,9 @@ void CandidateCullInner(
 #if CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN
 		else
 		{
-			uint OccludedClusterOffset = ( ClusterOffsetsPacked >> 16 ) & 0xFF;
-			OccludedClusterOffset += GroupOccludedClustersOffset;
+			uint OccludedClusterOffset = 0;
+			WaveInterlockedAddScalarRoundUp( OutOccludedClustersArgs[3], OutOccludedClustersArgs[0], 64, 1, OccludedClusterOffset );
+
 			if( OccludedClusterOffset < MaxClusters )
 			{
 				VisibleCluster.Flags = ( bUseHWRaster ? CULLING_FLAG_USE_HW : 0u );

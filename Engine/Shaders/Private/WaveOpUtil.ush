@@ -1,0 +1,85 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+uint CountBits( uint2 Bits )
+{
+	return countbits( Bits.x ) + countbits( Bits.y );
+}
+
+#if COMPILER_SUPPORTS_WAVE_VOTE
+
+#define WaveInterlockedAddScalar( Dest, Value ) \
+{ \
+	uint NumToAdd = WaveActiveCountBits( true ) * Value; \
+	if( WaveIsFirstLane() ) \
+		InterlockedAdd( Dest, NumToAdd ); \
+}
+
+#define WaveInterlockedAddScalar_( Dest, Value, OriginalValue ) \
+{ \
+	uint NumToAdd = WaveActiveCountBits( true ) * Value; \
+	if( WaveIsFirstLane() ) \
+		InterlockedAdd( Dest, NumToAdd, OriginalValue ); \
+	OriginalValue = WaveReadLaneFirst( OriginalValue ) + WavePrefixCountBits( true ) * Value; \
+}
+
+#define WaveInterlockedAdd( Dest, Value ) \
+{ \
+	uint NumToAdd = WaveActiveSum( Value ); \
+	if( WaveIsFirstLane() ) \
+		InterlockedAdd( Dest, NumToAdd ); \
+}
+
+#define WaveInterlockedAdd_( Dest, Value, OriginalValue ) \
+{ \
+	uint LocalOffset = WavePrefixSum( Value ); \
+	uint NumToAdd = WaveReadLaneLast( LocalOffset + Value ); \
+	if( WaveIsFirstLane() ) \
+		InterlockedAdd( Dest, NumToAdd, OriginalValue ); \
+	OriginalValue = WaveReadLaneFirst( OriginalValue ) + LocalOffset; \
+}
+
+#define WaveInterlockedAddScalarRoundUp( Dest, DestRoundedUp, RoundTo, Value, OriginalValue ) \
+{ \
+	uint NumToAdd = WaveActiveCountBits( true ) * Value; \
+	if( WaveIsFirstLane() ) \
+	{ \
+		InterlockedAdd( Dest, NumToAdd, OriginalValue ); \
+		InterlockedMax( DestRoundedUp, ( OriginalValue + NumToAdd + RoundTo - 1 ) / RoundTo ); \
+	} \
+	OriginalValue = WaveReadLaneFirst( OriginalValue ) + WavePrefixCountBits( true ) * Value; \
+}
+
+#define WaveInterlockedAddRoundUp( Dest, DestRoundedUp, RoundTo, Value, OriginalValue ) \
+{ \
+	uint LocalOffset = WavePrefixSum( Value ); \
+	uint NumToAdd = WaveReadLaneLast( LocalOffset + Value ); \
+	if( WaveIsFirstLane() ) \
+	{ \
+		InterlockedAdd( Dest, NumToAdd, OriginalValue ); \
+		InterlockedMax( DestRoundedUp, ( OriginalValue + NumToAdd + RoundTo - 1 ) / RoundTo ); \
+	} \
+	OriginalValue = WaveReadLaneFirst( OriginalValue ) + LocalOffset; \
+}
+
+#else
+
+#define WaveInterlockedAddScalar( Dest, Value )					InterlockedAdd( Dest, Value )
+#define WaveInterlockedAddScalar_( Dest, Value, OriginalValue )	InterlockedAdd( Dest, Value, OriginalValue )
+#define WaveInterlockedAdd( Dest, Value )						InterlockedAdd( Dest, Value )
+#define WaveInterlockedAdd_( Dest, Value, OriginalValue )		InterlockedAdd( Dest, Value, OriginalValue )
+
+#define WaveInterlockedAddScalarRoundUp( Dest, DestRoundedUp, RoundTo, Value, OriginalValue ) \
+{ \
+	InterlockedAdd( Dest, Value, OriginalValue ); \
+	InterlockedMax( DestRoundedUp, ( OriginalValue + Value + RoundTo - 1 ) / RoundTo ); \
+}
+
+#define WaveInterlockedAddRoundUp( Dest, DestRoundedUp, RoundTo, Value, OriginalValue ) \
+{ \
+	InterlockedAdd( Dest, Value, OriginalValue ); \
+	InterlockedMax( DestRoundedUp, ( OriginalValue + Value + RoundTo - 1 ) / RoundTo ); \
+}
+
+#endif // PLATFORM_SUPPORTS_SM6_0_WAVE_OPERATIONS

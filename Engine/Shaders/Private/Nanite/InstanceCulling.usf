@@ -2,6 +2,7 @@
 
 #include "../Common.ush"
 #include "../SceneData.ush"
+#include "../WaveOpUtil.ush"
 #include "../VirtualShadowMaps/PageAccessCommon.ush"
 
 #include "NaniteDataDecode.ush"
@@ -30,12 +31,6 @@ RWStructuredBuffer<FPersistentState>	OutMainAndPostPassPersistentStates;
 RWStructuredBuffer<FStats>				OutStatsBuffer;
 #endif
 
-groupshared uint	GroupNumNodes;
-groupshared uint	GroupNumOccludedInstances;
-
-groupshared uint	GroupNodeOffset;
-groupshared uint	GroupOccludedInstancesOffset;
-
 [numthreads(64, 1, 1)]
 void InstanceCull(
 	uint DispatchIndex : SV_DispatchThreadID,
@@ -48,11 +43,7 @@ void InstanceCull(
 	}
 #endif
 
-#if CULLING_PASS == CULLING_PASS_OCCLUSION_POST
-	const bool bIsPostPass = true;
-#else
-	const bool bIsPostPass = false;
-#endif
+	const bool bIsPostPass = (CULLING_PASS == CULLING_PASS_OCCLUSION_POST);
 
 #if NANITE_MULTI_VIEW && !INSTANCE_DRAW_LIST
 
@@ -63,21 +54,8 @@ void InstanceCull(
 	uint ViewId = 0;
 #endif // NANITE_MULTI_VIEW && !INSTANCE_DRAW_LIST
 
-	if (GroupIndex == 0)
-	{
-		GroupNumNodes = 0;
-#if CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN
-		GroupNumOccludedInstances = 0;
-#endif
-	}
-	
-	GroupMemoryBarrierWithGroupSync();
-
 	bool bIsVisible = false;
 	bool bWasOccluded = false;
-
-	uint NodeOffset = 0;
-	uint OccludedInstanceOffset = 0;
 
 #if CULLING_PASS == CULLING_PASS_NO_OCCLUSION || CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN
 	uint InstanceId = DispatchIndex;
@@ -137,11 +115,7 @@ void InstanceCull(
 			}
 #endif
 
-			if( CULLING_PASS == CULLING_PASS_NO_OCCLUSION )
-			{
-				InterlockedAdd( GroupNumNodes, 1, NodeOffset );
-			}
-			else if( CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN )
+			if( CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN )
 			{
 				float4x4 LocalToPrevTranslatedWorld = InstanceData.LocalToWorld;
 				LocalToPrevTranslatedWorld[ 3 ].xyz += NaniteView.PrevPreViewTranslation.xyz;
@@ -159,15 +133,14 @@ void InstanceCull(
 				if(!PrevCull.bIsVisible)
 					bWasOccluded = true;	// Not in previous frame. Assume occluded instead of occluder. Enables disocclusion hack.
 
-
-				if ( !bWasOccluded )	// Draw frustum culled in main pass
+#if CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN
+				if( bWasOccluded )
 				{
-					InterlockedAdd( GroupNumNodes, 1, NodeOffset );
+					uint OccludedInstanceOffset = 0;
+					WaveInterlockedAddScalarRoundUp( OutOccludedInstancesArgs[3], OutOccludedInstancesArgs[0], 64, 1, OccludedInstanceOffset );
+					OutOccludedInstances[ OccludedInstanceOffset ] = InstanceId;
 				}
-				else
-				{
-					InterlockedAdd(GroupNumOccludedInstances, 1, OccludedInstanceOffset);
-				}
+#endif
 			}
 		}
 #elif CULLING_PASS == CULLING_PASS_OCCLUSION_POST
@@ -182,77 +155,43 @@ void InstanceCull(
 				FScreenRect Rect = GetScreenRect( NaniteView.ViewSizeAndInvSize.xy, Cull, 4 );
 				bWasOccluded = bSkipBoxCullHZB ? false : !IsVisibleHZB( Rect, true );
 			}
-
-			if( !bWasOccluded )
-			{
-				InterlockedAdd(GroupNumNodes, 1, NodeOffset);
-			}
 			
 			bIsVisible = !bWasOccluded;
 		}
 #endif
 	}
 
-	GroupMemoryBarrierWithGroupSync();
-
-	if( GroupIndex == 0 )
+	if( bIsVisible && !bWasOccluded )
 	{
-		if( GroupNumNodes > 0 )
-		{
-			uint NumNodes = GroupNumNodes;
-			uint PersistentStateIndex = ( CULLING_PASS == CULLING_PASS_OCCLUSION_POST );
-			InterlockedAdd( OutMainAndPostPassPersistentStates[ PersistentStateIndex ].WriteOffset, NumNodes, GroupNodeOffset );
-			InterlockedAdd( OutMainAndPostPassPersistentStates[ PersistentStateIndex ].NumActive, NumNodes );
-		}
-		
-#if CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN
-		if( GroupNumOccludedInstances > 0 )
-		{
-			InterlockedAdd( OutOccludedInstancesArgs[ 3 ], GroupNumOccludedInstances, GroupOccludedInstancesOffset );
-			InterlockedMax( OutOccludedInstancesArgs[ 0 ], ( GroupOccludedInstancesOffset + GroupNumOccludedInstances + 63 ) / 64 );
-		}
-#endif
+		uint NodeOffset = 0;
+		uint PersistentStateIndex = ( CULLING_PASS == CULLING_PASS_OCCLUSION_POST );
+		WaveInterlockedAddScalar_( OutMainAndPostPassPersistentStates[ PersistentStateIndex ].WriteOffset, 1, NodeOffset );
+		WaveInterlockedAddScalar(  OutMainAndPostPassPersistentStates[ PersistentStateIndex ].NumActive, 1 );
 
-	#if DEBUG_FLAGS
+#if DEBUG_FLAGS
 		if (DebugFlags & DEBUG_FLAG_WRITE_STATS)
 		{
 		#if CULLING_PASS == CULLING_PASS_OCCLUSION_POST
-			InterlockedAdd(OutStatsBuffer[0].NumPostInstancesPostCull, GroupNumNodes);
+			WaveInterlockedAddScalar( OutStatsBuffer[0].NumPostInstancesPostCull, 1 );
 		#else
-			InterlockedAdd(OutStatsBuffer[0].NumMainInstancesPostCull, GroupNumNodes);
+			WaveInterlockedAddScalar( OutStatsBuffer[0].NumMainInstancesPostCull, 1 );
 		#endif
 		}
-	#endif
-	}
-
-	GroupMemoryBarrierWithGroupSync();
-
-	if (bIsVisible)
-	{
-#if CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN
-		if ( bWasOccluded )
-		{
-			OccludedInstanceOffset += GroupOccludedInstancesOffset;
-			OutOccludedInstances[OccludedInstanceOffset] = InstanceId;
-		}
-		else
 #endif
-		{
-			uint Flags = CULLING_FLAG_TEST_LOD;
+
+		uint Flags = CULLING_FLAG_TEST_LOD;
 #if CULLING_PASS == CULLING_PASS_OCCLUSION_POST
-			Flags |= CULLING_FLAG_FROM_DISOCCLUDED_INSTANCE;
+		Flags |= CULLING_FLAG_FROM_DISOCCLUDED_INSTANCE;
 #endif
-			NodeOffset += GroupNodeOffset;
 		
-			FVisibleNode Node;
-			Node.Flags = Flags;
-			Node.ViewId = ViewId;
-			Node.InstanceId = InstanceId;
-			Node.NodeIndex = 0;
-			Node.EnabledBitmask[0] = 0xFFFFFFFFu;
-			Node.EnabledBitmask[1] = 0xFFFFFFFFu;
-			StoreVisibleNode( OutNodes, NodeOffset, Node, bIsPostPass );
-		}
+		FVisibleNode Node;
+		Node.Flags = Flags;
+		Node.ViewId = ViewId;
+		Node.InstanceId = InstanceId;
+		Node.NodeIndex = 0;
+		Node.EnabledBitmask[0] = 0xFFFFFFFFu;
+		Node.EnabledBitmask[1] = 0xFFFFFFFFu;
+		StoreVisibleNode( OutNodes, NodeOffset, Node, bIsPostPass );
 	}
 #if NANITE_MULTI_VIEW && !INSTANCE_DRAW_LIST
 	}
@@ -341,44 +280,22 @@ void InstanceCullVSM(
 			}
 		}
 
-		// Atomic bookkeeping only happens once per view.
-		if( GroupIndex == 0 )
-		{
-			GroupNumNodes = 0;
-		}
-		GroupMemoryBarrierWithGroupSync();
-
 		uint NodeOffset = 0;
-		uint NumVisibleMips = countbits( VisibleMipsMask );
+
 		BRANCH
 		if( VisibleMipsMask )
 		{
-			InterlockedAdd( GroupNumNodes, NumVisibleMips, NodeOffset );
-		}
-	
-		GroupMemoryBarrierWithGroupSync();
-
-		if( GroupIndex == 0 )
-		{
-			if( GroupNumNodes > 0 )
-			{
-				uint NumNodes = GroupNumNodes;
-				InterlockedAdd( OutMainAndPostPassPersistentStates[ 0 ].WriteOffset, NumNodes, GroupNodeOffset );
-				InterlockedAdd( OutMainAndPostPassPersistentStates[ 0 ].NumActive, NumNodes );
-			}
-		
+			uint NumNodes = countbits( VisibleMipsMask );
+			WaveInterlockedAdd_( OutMainAndPostPassPersistentStates[0].WriteOffset, NumNodes, NodeOffset );
+			WaveInterlockedAdd(  OutMainAndPostPassPersistentStates[0].NumActive, NumNodes );
 
 	#if DEBUG_FLAGS
 			if (DebugFlags & DEBUG_FLAG_WRITE_STATS)
 			{
-				InterlockedAdd(OutStatsBuffer[0].NumMainInstancesPostCull, GroupNumNodes);
+				WaveInterlockedAdd(OutStatsBuffer[0].NumMainInstancesPostCull, NumNodes);
 			}
 	#endif
 		}
-
-		GroupMemoryBarrierWithGroupSync();
-
-		NodeOffset += GroupNodeOffset;
 
 		// Output visible nodes. Get compaction for free by only looping over set bits in VisibleMipsMask.
 		// Iteration count is equal to the maximum lane output count.
