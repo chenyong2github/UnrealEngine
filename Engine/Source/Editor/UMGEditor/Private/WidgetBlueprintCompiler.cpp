@@ -594,8 +594,15 @@ void FWidgetBlueprintCompilerContext::FinishCompilingClass(UClass* Class)
 
 		{
 			TGuardValue<uint32> DisableInitializeFromWidgetTree(UUserWidget::bInitializingFromWidgetTree, 0);
+
+			// Need to clear archetype flag before duplication as we check during dup to see if we should postload
+			EObjectFlags PreviousFlags = WidgetBP->WidgetTree->GetFlags();
+			WidgetBP->WidgetTree->ClearFlags(RF_ArchetypeObject);
+
 			UWidgetTree* NewWidgetTree = Cast<UWidgetTree>(StaticDuplicateObject(WidgetBP->WidgetTree, BPGClass, NAME_None, RF_AllFlags & ~RF_DefaultSubObject));
 			BPGClass->SetWidgetTreeArchetype(NewWidgetTree);
+
+			WidgetBP->WidgetTree->SetFlags(PreviousFlags);
 		}
 
 		for ( const UWidgetAnimation* Animation : WidgetBP->Animations )
