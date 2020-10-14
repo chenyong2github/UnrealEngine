@@ -256,7 +256,10 @@ void ADisplayClusterRootActor::PostLoad()
 	bool bIsPIE = false;
 
 #if WITH_EDITOR
-	bIsPIE = GetWorld()->IsPlayInEditor();
+	if (UWorld* World = GetWorld())
+	{
+		bIsPIE = World->IsPlayInEditor();
+	}
 #endif
 
 	// Packaged, PIE and -game runtime
