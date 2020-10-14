@@ -30,7 +30,7 @@ float4 PhysicsField_ComputeTargetOffsets(in int ClipmapIndex, in int TargetIndex
 
 int PhysicsField_GetClipmapIndex(in float3 WorldPosition, in float3 ClipmapCenter, in float ClipmapDistance, in int ClipmapExponent, in int ClipmapCount)
 {
-	const int3 ClipmapIndices = floor(log(abs(WorldPosition - ClipmapCenter) / ClipmapDistance) / log(ClipmapExponent) + int3(ClipmapCount, ClipmapCount, ClipmapCount));
+	const int3 ClipmapIndices = floor(log(abs(WorldPosition - ClipmapCenter) / float(ClipmapDistance)) / log(float(ClipmapExponent)) + int3(ClipmapCount, ClipmapCount, ClipmapCount));
 	int ClipmapIndex = max(max(ClipmapIndices[0], ClipmapIndices[1]), ClipmapIndices[2]);
 	
 	return clamp(ClipmapIndex, 0, ClipmapCount - 1);
