@@ -203,7 +203,7 @@ bool FAndroidMediaPlayerStreamer::StartNextMovie()
 
 		FPakFile* PakFile = NULL;
 		FPakEntry FileEntry;
-		if (!PakPlatformFile->FindFileInPakFiles(*MoviePath, &PakFile, &FileEntry))
+		if (PakPlatformFile == nullptr || !PakPlatformFile->FindFileInPakFiles(*MoviePath, &PakFile, &FileEntry))
 		{
 			return false;
 		}
