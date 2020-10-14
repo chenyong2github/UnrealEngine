@@ -4,6 +4,12 @@
 #include "OnlineSubsystemEOS.h"
 #include "OnlineSubsystemEOSModule.h"
 
+#if WITH_EDITOR
+	#include "Misc/MessageDialog.h"
+#endif
+
+#define LOCTEXT_NAMESPACE "EOS"
+
 UEOSSettings::UEOSSettings()
 	: CacheDir(TEXT("CacheDir"))
 {
@@ -65,3 +71,104 @@ const UEOSArtifactSettings* UEOSSettings::GetSettingsForArtifact(const FString& 
 	return SettingsObj;
 }
 
+#if WITH_EDITOR
+void UEOSSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	if (PropertyChangedEvent.Property == nullptr)
+	{
+		Super::PostEditChangeProperty(PropertyChangedEvent);
+		return;
+	}
+
+	// Turning off the overlay in general turns off the social overlay too
+	if (PropertyChangedEvent.Property->GetFName() == FName(TEXT("bEnableOverlay")))
+	{
+		if (!bEnableOverlay)
+		{
+			bEnableSocialOverlay = false;
+		}
+	}
+
+	// Turning on the social overlay requires the base overlay too
+	if (PropertyChangedEvent.Property->GetFName() == FName(TEXT("bEnableSocialOverlay")))
+	{
+		if (bEnableSocialOverlay)
+		{
+			bEnableOverlay = true;
+		}
+	}
+
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+}
+
+bool IsAnsi(const FString& Source)
+{
+	for (const TCHAR& IterChar : Source)
+	{
+		if (!FChar::IsPrint(IterChar))
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
+bool IsHex(const FString& Source)
+{
+	for (const TCHAR& IterChar : Source)
+	{
+		if (!FChar::IsHexDigit(IterChar))
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
+void UEOSArtifactSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	if (PropertyChangedEvent.Property == nullptr)
+	{
+		Super::PostEditChangeProperty(PropertyChangedEvent);
+		return;
+	}
+
+	if (PropertyChangedEvent.Property->GetFName() == FName(TEXT("ClientId")))
+	{
+		if (!ClientId.StartsWith(TEXT("xyz")))
+		{
+			FMessageDialog::Open(EAppMsgType::Ok,
+				LOCTEXT("ClientIdInvalidMsg", "Client ids created after SDK version 1.5 start with xyz. Double check that you did not use your BPT Client Id instead."));
+		}
+		if (!IsAnsi(ClientId))
+		{
+			FMessageDialog::Open(EAppMsgType::Ok,
+				LOCTEXT("ClientIdNotAnsiMsg", "Client ids must contain ANSI printable characters only"));
+			ClientId.Empty();
+		}
+	}
+
+	if (PropertyChangedEvent.Property->GetFName() == FName(TEXT("ClientSecret")))
+	{
+		if (!IsAnsi(ClientSecret))
+		{
+			FMessageDialog::Open(EAppMsgType::Ok,
+				LOCTEXT("ClientSecretNotAnsiMsg", "ClientSecret must contain ANSI printable characters only"));
+			ClientSecret.Empty();
+		}
+	}
+
+	if (PropertyChangedEvent.Property->GetFName() == FName(TEXT("EncryptionKey")))
+	{
+		if (!IsHex(EncryptionKey))
+		{
+			FMessageDialog::Open(EAppMsgType::Ok,
+				LOCTEXT("EncryptionKeyNotHexMsg", "EncryptionKey must contain HEX characters only"));
+			EncryptionKey.Empty();
+		}
+	}
+	
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+}
+
+#endif
