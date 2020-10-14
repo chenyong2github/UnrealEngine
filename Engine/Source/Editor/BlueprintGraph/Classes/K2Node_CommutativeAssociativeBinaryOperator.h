@@ -37,6 +37,9 @@ public:
 	/** Get TRUE input type (self, etc.. are skipped) */
 	BLUEPRINTGRAPH_API UEdGraphPin* GetInputPin(int32 InputPinIndex);
 
+	/** Returns the number of additional input pins that this node has */
+	BLUEPRINTGRAPH_API int32 GetNumberOfAdditionalInputs() const { return NumAdditionalInputs; }
+
 	virtual void RemoveInputPin(UEdGraphPin* Pin) override;
 
 	// UEdGraphNode interface

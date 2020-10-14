@@ -124,7 +124,7 @@ private:
 public:
 
 	/** Returns the first pin with the EGPD_Output direction */
-	UEdGraphPin* GetOutputPin() const;
+	BLUEPRINTGRAPH_API UEdGraphPin* GetOutputPin() const;
 
 	const FString& GetOperationName() const { return OperationName; }
 };
