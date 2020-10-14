@@ -892,7 +892,7 @@ bool FUntypedBulkData::NeedsOffsetFixup() const
 	return (BulkDataFlags & BULKDATA_NoOffsetFixUp) == 0;
 }
 
-void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool bAttemptFileMapping, EDataShufflePattern ShufflePattern)
+void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool bAttemptFileMapping, EFileRegionType FileRegionType)
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FUntypedBulkData::Serialize"), STAT_UBD_Serialize, STATGROUP_Memory);
 
@@ -1308,7 +1308,7 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 				BulkStore.BulkDataSizeOnDiskPos = SavedBulkDataSizeOnDiskPos;
 				BulkStore.BulkDataFlagsPos = SavedBulkDataFlagsPos;
 				BulkStore.BulkDataFlags = BulkDataFlags;
-				BulkStore.BulkDataShufflePattern = ShufflePattern;
+				BulkStore.BulkDataFileRegionType = FileRegionType;
 				BulkStore.BulkData = this;
 
 				// If having flag BULKDATA_DuplicateNonOptionalPayload, duplicate bulk data in optional storage (.uptnl)
@@ -1353,7 +1353,7 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 					DupeBulkStore.BulkDataSizeOnDiskPos = SavedDupeBulkDataSizeOnDiskPos;
 					DupeBulkStore.BulkDataFlagsPos = SavedDupeBulkDataFlagsPos;
 					DupeBulkStore.BulkDataFlags = SavedDupeBulkDataFlags;
-					DupeBulkStore.BulkDataShufflePattern = ShufflePattern;
+					DupeBulkStore.BulkDataFileRegionType = FileRegionType;
 					DupeBulkStore.BulkData = this;
 				}
 				
@@ -1368,14 +1368,14 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 				int64 SavedBulkDataStartPos = Ar.Tell();
 
 				// Serialize bulk data.
-				if (ShufflePattern != EDataShufflePattern::None)
+				if (FileRegionType != EFileRegionType::None)
 				{
-					Ar.PushShufflePattern(ShufflePattern);
+					Ar.PushFileRegionType(FileRegionType);
 				}
 				SerializeBulkData( Ar, BulkData.Get() );
-				if (ShufflePattern != EDataShufflePattern::None)
+				if (FileRegionType != EFileRegionType::None)
 				{
-					Ar.PopShufflePattern();
+					Ar.PopFileRegionType();
 				}
 
 				// store the payload endpos

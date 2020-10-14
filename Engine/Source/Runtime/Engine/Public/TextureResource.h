@@ -63,8 +63,8 @@ struct FTexture2DMipMap
 	/** Key if stored in the derived data cache. */
 	FString DerivedDataKey;
 
-	/** The shuffle pattern best suited for this mip's pixel data. */
-	EDataShufflePattern ShufflePattern = EDataShufflePattern::None;
+	/** The file region type appropriate for this mip's pixel format. */
+	EFileRegionType FileRegionType = EFileRegionType::None;
 
 	/**
 	 * Place mip-map data in the derived data cache associated with the provided

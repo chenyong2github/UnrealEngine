@@ -128,7 +128,7 @@ void FTexture2DMipMap::Serialize(FArchive& Ar, UObject* Owner, int32 MipIdx)
 	Ar << bCooked;
 
 #if WITH_EDITORONLY_DATA
-	BulkData.Serialize(Ar, Owner, MipIdx, false, ShufflePattern);
+	BulkData.Serialize(Ar, Owner, MipIdx, false, FileRegionType);
 #else
 	BulkData.Serialize(Ar, Owner, MipIdx, false);
 #endif
@@ -140,7 +140,7 @@ void FTexture2DMipMap::Serialize(FArchive& Ar, UObject* Owner, int32 MipIdx)
 #if WITH_EDITORONLY_DATA
 	if (!bCooked)
 	{
-		Ar << ShufflePattern;
+		Ar << FileRegionType;
 		Ar << DerivedDataKey;
 	}
 #endif // #if WITH_EDITORONLY_DATA
