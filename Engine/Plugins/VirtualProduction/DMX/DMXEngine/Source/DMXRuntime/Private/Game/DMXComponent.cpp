@@ -60,8 +60,8 @@ public:
 
 				if (InUniverseID == FixturePatchRemoteUniverse)
 				{
-					const int32 StartingIndex = DMXComponent->GetFixturePatch()->GetStartingChannel() - 1;
-					const int32 NumChannels = DMXComponent->GetFixturePatch()->GetChannelSpan();
+					const int32 StartingIndex = FixturePatch->GetStartingChannel() - 1;
+					const int32 NumChannels = FixturePatch->GetChannelSpan();
 
 					// In cases where the user changes the num channels of the fixutre type, we have to restart the receiver
 					if (NumChannels != DMXComponent->ChannelBuffer.Num())
