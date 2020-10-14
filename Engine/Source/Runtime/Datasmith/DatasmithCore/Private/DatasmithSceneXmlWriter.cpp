@@ -6,6 +6,7 @@
 #include "DatasmithDefinitions.h"
 #include "DatasmithMaterialElements.h"
 #include "DatasmithUtils.h"
+#include "DatasmithVariantElements.h"
 #include "IDatasmithSceneElements.h"
 
 #include "Math/Quat.h"
@@ -29,6 +30,13 @@ public:
 	static void WriteTexture(FArchive& Archive, int32 Indent, const TCHAR* Prefix, const TCHAR* Name, FDatasmithTextureSampler UV);
 	static void WriteMeshElement(const TSharedPtr< IDatasmithMeshElement >& MeshElement, FArchive& Archive, int32 Indent);
 	static void WriteLevelSequenceElement( const TSharedRef< IDatasmithLevelSequenceElement>& SequenceElement, FArchive& Archive, int32 Indent );
+
+	static void WriteLevelVariantSetsElement( const TSharedRef< IDatasmithLevelVariantSetsElement >& LevelVariantSetsElement, FArchive& Archive, int32 Indent );
+	static void WriteVariantSetElement( const TSharedRef< IDatasmithVariantSetElement >& VariantSetElement, FArchive& Archive, int32 Indent );
+	static void WriteVariantElement( const TSharedRef< IDatasmithVariantElement >& VariantElement, FArchive& Archive, int32 Indent );
+	static void WriteActorBindingElement( const TSharedRef< IDatasmithActorBindingElement >& ActorBindingElement, FArchive& Archive, int32 Indent );
+	static void WritePropertyCaptureElement( const TSharedRef< IDatasmithPropertyCaptureElement >& PropertyCaptureElement, FArchive& Archive, int32 Indent );
+	static void WriteObjectPropertyCaptureElement( const TSharedRef< IDatasmithObjectPropertyCaptureElement >& PropertyCaptureElement, FArchive& Archive, int32 Indent );
 
 	static void WriteActorElement(const TSharedPtr< IDatasmithActorElement >& ActorElement, FArchive& Archive, int32 Indent);
 	static void WriteBaseActorElement(const TSharedPtr< IDatasmithActorElement >& ActorElement, FArchive& Archive, int32 Indent);
@@ -361,6 +369,165 @@ void FDatasmithSceneXmlWriterImpl::WriteLevelSequenceElement(const TSharedRef< I
 
 	XmlString = TEXT("</") + FString(DATASMITH_LEVELSEQUENCENAME) + TEXT(">") + LINE_TERMINATOR;
 	SerializeToArchive(Archive, XmlString);
+}
+
+void FDatasmithSceneXmlWriterImpl::WriteLevelVariantSetsElement( const TSharedRef< IDatasmithLevelVariantSetsElement >& LevelVariantSetsElement, FArchive& Archive, int32 Indent )
+{
+	WriteIndent( Archive, Indent );
+
+	FString XmlString = TEXT( "<" ) + FString( DATASMITH_LEVELVARIANTSETSNAME ) + TEXT( " name=\"" ) + SanitizeXMLText( LevelVariantSetsElement->GetName() ) + TEXT( "\"" );
+	XmlString += FString( TEXT( ">" ) ) + LINE_TERMINATOR;
+
+	SerializeToArchive( Archive, XmlString );
+
+	for ( int32 VariantSetIndex = 0; VariantSetIndex < LevelVariantSetsElement->GetVariantSetsCount(); ++VariantSetIndex )
+	{
+		TSharedPtr<IDatasmithVariantSetElement> VariantSetElement = LevelVariantSetsElement->GetVariantSet( VariantSetIndex );
+		if ( VariantSetElement.IsValid() )
+		{
+			WriteVariantSetElement(VariantSetElement.ToSharedRef(), Archive, Indent + 1);
+		}
+	}
+
+	WriteIndent( Archive, Indent );
+
+	XmlString = TEXT( "</" ) + FString( DATASMITH_LEVELVARIANTSETSNAME ) + TEXT( ">" ) + LINE_TERMINATOR;
+	SerializeToArchive( Archive, XmlString );
+}
+
+void FDatasmithSceneXmlWriterImpl::WriteVariantSetElement( const TSharedRef< IDatasmithVariantSetElement >& VariantSetElement, FArchive& Archive, int32 Indent )
+{
+	WriteIndent( Archive, Indent );
+
+	FString XmlString = TEXT( "<" ) + FString( DATASMITH_VARIANTSETNAME ) + TEXT( " name=\"" ) + SanitizeXMLText( VariantSetElement->GetName() ) + TEXT( "\"" );
+	XmlString += FString( TEXT( ">" ) ) + LINE_TERMINATOR;
+
+	SerializeToArchive( Archive, XmlString );
+
+	for ( int32 VariantIndex = 0; VariantIndex < VariantSetElement->GetVariantsCount(); ++VariantIndex )
+	{
+		TSharedPtr<IDatasmithVariantElement> VariantElement = VariantSetElement->GetVariant( VariantIndex );
+		if ( VariantElement.IsValid() )
+		{
+			WriteVariantElement( VariantElement.ToSharedRef(), Archive, Indent + 1 );
+		}
+	}
+
+	WriteIndent( Archive, Indent );
+
+	XmlString = TEXT( "</" ) + FString( DATASMITH_VARIANTSETNAME ) + TEXT( ">" ) + LINE_TERMINATOR;
+	SerializeToArchive( Archive, XmlString );
+}
+
+void FDatasmithSceneXmlWriterImpl::WriteVariantElement( const TSharedRef< IDatasmithVariantElement >& VariantElement, FArchive& Archive, int32 Indent )
+{
+	WriteIndent( Archive, Indent );
+
+	FString XmlString = TEXT( "<" ) + FString( DATASMITH_VARIANTNAME ) + TEXT( " name=\"" ) + SanitizeXMLText( VariantElement->GetName() ) + TEXT( "\"" );
+	XmlString += FString( TEXT( ">" ) ) + LINE_TERMINATOR;
+
+	SerializeToArchive( Archive, XmlString );
+
+	for ( int32 BindingIndex = 0; BindingIndex < VariantElement->GetActorBindingsCount(); ++BindingIndex )
+	{
+		TSharedPtr<IDatasmithActorBindingElement> BindingElement = VariantElement->GetActorBinding( BindingIndex );
+		if ( BindingElement.IsValid() )
+		{
+			WriteActorBindingElement( BindingElement.ToSharedRef(), Archive, Indent + 1 );
+		}
+	}
+
+	WriteIndent( Archive, Indent );
+
+	XmlString = TEXT( "</" ) + FString( DATASMITH_VARIANTNAME ) + TEXT( ">" ) + LINE_TERMINATOR;
+	SerializeToArchive( Archive, XmlString );
+}
+
+void FDatasmithSceneXmlWriterImpl::WriteActorBindingElement( const TSharedRef< IDatasmithActorBindingElement >& ActorBindingElement, FArchive& Archive, int32 Indent )
+{
+	WriteIndent( Archive, Indent );
+
+	FString ActorName;
+	TSharedPtr<IDatasmithActorElement> Actor = ActorBindingElement->GetActor();
+	if ( Actor.IsValid() )
+	{
+		ActorName = Actor->GetName();
+	}
+
+	FString XmlString = TEXT( "<" ) + FString( DATASMITH_ACTORBINDINGNAME ) + TEXT( " actor=\"" ) + SanitizeXMLText( ActorName ) + TEXT( "\"" );
+	XmlString += FString( TEXT( ">" ) ) + LINE_TERMINATOR;
+
+	SerializeToArchive( Archive, XmlString );
+
+	for ( int32 PropertyIndex = 0; PropertyIndex < ActorBindingElement->GetPropertyCapturesCount(); ++PropertyIndex )
+	{
+		TSharedPtr<IDatasmithBasePropertyCaptureElement> BasePropertyElement = ActorBindingElement->GetPropertyCapture( PropertyIndex );
+
+		if ( BasePropertyElement->IsSubType( ( uint64 ) EDatasmithElementVariantSubType::PropertyCapture ) )
+		{
+			TSharedPtr<IDatasmithPropertyCaptureElement> PropertyElement = StaticCastSharedPtr< IDatasmithPropertyCaptureElement >( BasePropertyElement );
+			if ( PropertyElement.IsValid() )
+			{
+				WritePropertyCaptureElement( PropertyElement.ToSharedRef(), Archive, Indent + 1 );
+			}
+		}
+		else if ( BasePropertyElement->IsSubType( ( uint64 ) EDatasmithElementVariantSubType::ObjectPropertyCapture ) )
+		{
+			TSharedPtr<IDatasmithObjectPropertyCaptureElement> ObjectPropertyElement = StaticCastSharedPtr< IDatasmithObjectPropertyCaptureElement >( BasePropertyElement );
+			if ( ObjectPropertyElement.IsValid() )
+			{
+				WriteObjectPropertyCaptureElement( ObjectPropertyElement.ToSharedRef(), Archive, Indent + 1 );
+			}
+		}
+	}
+
+	WriteIndent( Archive, Indent );
+
+	XmlString = TEXT( "</" ) + FString( DATASMITH_ACTORBINDINGNAME ) + TEXT( ">" ) + LINE_TERMINATOR;
+	SerializeToArchive( Archive, XmlString );
+}
+
+void FDatasmithSceneXmlWriterImpl::WritePropertyCaptureElement( const TSharedRef< IDatasmithPropertyCaptureElement >& PropertyCaptureElement, FArchive& Archive, int32 Indent )
+{
+	WriteIndent( Archive, Indent );
+
+	const FString& PropertyPath = PropertyCaptureElement->GetPropertyPath();
+	FString PropertyCategory = LexToString( static_cast< uint8 >( PropertyCaptureElement->GetCategory() ) );
+
+	const TArray<uint8>& DataBytes = PropertyCaptureElement->GetRecordedData();
+	FString RecordedData = BytesToHex( DataBytes.GetData(), DataBytes.Num() );  // Use hex here to prevent XML injection
+
+	FString XmlString =
+		TEXT( "<" ) + FString( DATASMITH_PROPERTYCAPTURENAME ) +
+			TEXT( " path=\"" ) + SanitizeXMLText( PropertyPath ) + TEXT( "\"" ) +
+			TEXT( " category=\"" ) + SanitizeXMLText( PropertyCategory ) + TEXT( "\"" ) +
+			TEXT( " data=\"" ) + SanitizeXMLText( RecordedData ) + TEXT( "\"" ) +
+		TEXT( "/>" ) + LINE_TERMINATOR;
+
+	SerializeToArchive( Archive, XmlString );
+}
+
+void FDatasmithSceneXmlWriterImpl::WriteObjectPropertyCaptureElement( const TSharedRef< IDatasmithObjectPropertyCaptureElement >& PropertyCaptureElement, FArchive& Archive, int32 Indent )
+{
+	WriteIndent( Archive, Indent );
+
+	const FString& PropertyPath = PropertyCaptureElement->GetPropertyPath();
+	FString PropertyCategory = LexToString( static_cast< uint8 >( PropertyCaptureElement->GetCategory() ) );
+
+	FString Object;
+	if ( TSharedPtr<IDatasmithElement> PinnedElement = PropertyCaptureElement->GetRecordedObject().Pin() )
+	{
+		Object = PinnedElement->GetName();
+	}
+
+	FString XmlString =
+		TEXT( "<" ) + FString( DATASMITH_OBJECTPROPERTYCAPTURENAME ) +
+			TEXT( " path=\"" ) + SanitizeXMLText( PropertyPath ) + TEXT( "\"" ) +
+			TEXT( " category=\"" ) + SanitizeXMLText( PropertyCategory ) + TEXT( "\"" ) +
+			TEXT( " object=\"" ) + SanitizeXMLText( Object ) + TEXT( "\"" ) +
+		TEXT( "/>" ) + LINE_TERMINATOR;
+
+	SerializeToArchive( Archive, XmlString );
 }
 
 void FDatasmithSceneXmlWriterImpl::WriteActorElement(const TSharedPtr< IDatasmithActorElement >& ActorElement, FArchive& Archive, int32 Indent)
@@ -1739,6 +1906,15 @@ void FDatasmithSceneXmlWriter::Serialize( TSharedRef< IDatasmithScene > Datasmit
 		if (Sequence.IsValid())
 		{
 			FDatasmithSceneXmlWriterImpl::WriteLevelSequenceElement(Sequence.ToSharedRef(), Archive, 1);
+		}
+	}
+
+	for ( int32 LevelVariantSetsIndex = 0; LevelVariantSetsIndex < DatasmithScene->GetLevelVariantSetsCount(); ++LevelVariantSetsIndex )
+	{
+		TSharedPtr< IDatasmithLevelVariantSetsElement > LevelVariantSets = DatasmithScene->GetLevelVariantSets( LevelVariantSetsIndex );
+		if ( LevelVariantSets.IsValid() )
+		{
+			FDatasmithSceneXmlWriterImpl::WriteLevelVariantSetsElement( LevelVariantSets.ToSharedRef(), Archive, 1 );
 		}
 	}
 
