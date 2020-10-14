@@ -172,3 +172,5 @@ void UEOSArtifactSettings::PostEditChangeProperty(FPropertyChangedEvent& Propert
 }
 
 #endif
+
+#undef LOCTEXT_NAMESPACE
