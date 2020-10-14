@@ -14,6 +14,7 @@ FAnimationProvider::FAnimationProvider(Trace::IAnalysisSession& InSession, FGame
 	, SkeletalMeshPoseTransforms(InSession.GetLinearAllocator(), 256)
 	, SkeletalMeshCurves(InSession.GetLinearAllocator(), 256)
 	, SkeletalMeshParentIndices(InSession.GetLinearAllocator(), 256)
+	, bHasAnyData(false)
 {
 	GameplayProvider.OnObjectEndPlay().AddRaw(this, &FAnimationProvider::HandleObjectEndPlay);
 }
@@ -368,9 +369,18 @@ FText FAnimationProvider::FormatNodeValue(const FAnimNodeValueMessage& InMessage
 	return Text;
 }
 
+bool FAnimationProvider::HasAnyData() const
+{
+	Session.ReadAccessCheck();
+
+	return bHasAnyData;
+}
+
 void FAnimationProvider::AppendTickRecord(uint64 InAnimInstanceId, double InTime, uint64 InAssetId, int32 InNodeId, float InBlendWeight, float InPlaybackTime, float InRootMotionWeight, float InPlayRate, float InBlendSpacePositionX, float InBlendSpacePositionY, uint16 InFrameCounter, bool bInLooping, bool bInIsBlendSpace)
 {
 	Session.WriteAccessCheck();
+
+	bHasAnyData = true;
 
 	TSharedPtr<FTickRecordTimelineStorage> TimelineStorage;
 	uint32* TimelineStorageIndexPtr = ObjectIdToTickRecordTimelineStorage.Find(InAnimInstanceId);
@@ -415,6 +425,8 @@ void FAnimationProvider::AppendSkeletalMesh(uint64 InObjectId, const TArrayView<
 
 	if(SkeletalMeshIdToIndexMap.Find(InObjectId) == nullptr)
 	{
+		bHasAnyData = true;
+
 		FSkeletalMeshInfo NewSkeletalMeshInfo;
 		NewSkeletalMeshInfo.Id = InObjectId;
 		NewSkeletalMeshInfo.BoneCount = (uint32)InParentIndices.Num();
@@ -433,6 +445,8 @@ void FAnimationProvider::AppendSkeletalMesh(uint64 InObjectId, const TArrayView<
 void FAnimationProvider::AppendSkeletalMeshComponent(uint64 InObjectId, uint64 InMeshId, double InTime, uint16 InLodIndex, uint16 InFrameCounter, const TArrayView<const FTransform>& InPose, const TArrayView<const FSkeletalMeshNamedCurve>& InCurves)
 {
 	Session.WriteAccessCheck();
+
+	bHasAnyData = true;
 
 	TSharedPtr<FSkeletalMeshTimelineStorage> TimelineStorage;
 	uint32* IndexPtr = ObjectIdToSkeletalMeshPoseTimelines.Find(InObjectId);
@@ -487,6 +501,8 @@ void FAnimationProvider::AppendSkeletalMeshComponent(uint64 InObjectId, uint64 I
 void FAnimationProvider::AppendSkeletalMeshComponent(uint64 InObjectId, uint64 InMeshId, double InTime, uint16 InLodIndex, uint16 InFrameCounter, const FTransform& InComponentToWorld, const TArrayView<const FTransform>& InPose, const TArrayView<const uint32>& InCurveIds, const TArrayView<const float>& InCurveValues)
 {
 	Session.WriteAccessCheck();
+
+	bHasAnyData = true;
 
 	TSharedPtr<FSkeletalMeshTimelineStorage> TimelineStorage;
 	uint32* IndexPtr = ObjectIdToSkeletalMeshPoseTimelines.Find(InObjectId);
@@ -544,6 +560,8 @@ void FAnimationProvider::AppendName(uint32 InId, const TCHAR* InName)
 {
 	Session.WriteAccessCheck();
 
+	bHasAnyData = true;
+
 	NameMap.Add(InId, Session.StoreString(InName));
 }
 
@@ -565,6 +583,8 @@ void FAnimationProvider::HandleObjectEndPlay(uint64 InObjectId, double InTime, c
 void FAnimationProvider::AppendSkeletalMeshFrame(uint64 InObjectId, double InTime, uint16 InFrameCounter)
 {
 	Session.WriteAccessCheck();
+
+	bHasAnyData = true;
 
 	TSharedPtr<Trace::TIntervalTimeline<FSkeletalMeshFrameMessage>> Timeline;
 	uint32* IndexPtr = ObjectIdToSkeletalMeshFrameTimelines.Find(InObjectId);
@@ -601,6 +621,8 @@ void FAnimationProvider::AppendAnimGraph(uint64 InAnimInstanceId, double InStart
 {
 	Session.WriteAccessCheck();
 
+	bHasAnyData = true;
+
 	TSharedPtr<Trace::TIntervalTimeline<FAnimGraphMessage>> Timeline;
 	uint32* IndexPtr = ObjectIdToAnimGraphTimelines.Find(InAnimInstanceId);
 	if(IndexPtr != nullptr)
@@ -630,6 +652,8 @@ void FAnimationProvider::AppendAnimGraph(uint64 InAnimInstanceId, double InStart
 void FAnimationProvider::AppendAnimNodeStart(uint64 InAnimInstanceId, double InStartTime, uint16 InFrameCounter, int32 InNodeId, int32 PreviousNodeId, float InWeight, float InRootMotionWeight, const TCHAR* InTargetNodeName, uint8 InPhase)
 {
 	Session.WriteAccessCheck();
+
+	bHasAnyData = true;
 
 	TSharedPtr<Trace::TPointTimeline<FAnimNodeMessage>> Timeline;
 	uint32* IndexPtr = ObjectIdToAnimNodeTimelines.Find(InAnimInstanceId);
@@ -664,6 +688,8 @@ void FAnimationProvider::AppendAnimSequencePlayer(uint64 InAnimInstanceId, doubl
 {
 	Session.WriteAccessCheck();
 
+	bHasAnyData = true;
+
 	TSharedPtr<Trace::TPointTimeline<FAnimSequencePlayerMessage>> Timeline;
 	uint32* IndexPtr = ObjectIdToAnimSequencePlayerTimelines.Find(InAnimInstanceId);
 	if(IndexPtr != nullptr)
@@ -693,6 +719,8 @@ void FAnimationProvider::AppendAnimSequencePlayer(uint64 InAnimInstanceId, doubl
 void FAnimationProvider::AppendBlendSpacePlayer(uint64 InAnimInstanceId, double InTime, int32 InNodeId, uint64 InBlendSpaceId, float InPositionX, float InPositionY, float InPositionZ)
 {
 	Session.WriteAccessCheck();
+
+	bHasAnyData = true;
 
 	TSharedPtr<Trace::TPointTimeline<FBlendSpacePlayerMessage>> Timeline;
 	uint32* IndexPtr = ObjectIdToBlendSpacePlayerTimelines.Find(InAnimInstanceId);
@@ -797,6 +825,8 @@ void FAnimationProvider::AppendAnimNodeValue(uint64 InAnimInstanceId, double InT
 {
 	Session.WriteAccessCheck();
 
+	bHasAnyData = true;
+
 	TSharedPtr<Trace::TPointTimeline<FAnimNodeValueMessage>> Timeline;
 	uint32* IndexPtr = ObjectIdToAnimNodeValueTimelines.Find(InAnimInstanceId);
 	if(IndexPtr != nullptr)
@@ -823,6 +853,8 @@ void FAnimationProvider::AppendAnimNodeValue(uint64 InAnimInstanceId, double InT
 void FAnimationProvider::AppendStateMachineState(uint64 InAnimInstanceId, double InTime, int32 InNodeId, int32 InStateMachineIndex, int32 InStateIndex, float InStateWeight, float InElapsedTime)
 {
 	Session.WriteAccessCheck();
+
+	bHasAnyData = true;
 
 	TSharedPtr<Trace::TPointTimeline<FAnimStateMachineMessage>> Timeline;
 	uint32* IndexPtr = ObjectIdToStateMachineTimelines.Find(InAnimInstanceId);
@@ -853,6 +885,8 @@ void FAnimationProvider::AppendStateMachineState(uint64 InAnimInstanceId, double
 void FAnimationProvider::AppendNotify(uint64 InAnimInstanceId, double InTime, uint64 InAssetId, uint64 InNotifyId, uint32 InNameId, float InNotifyTime, float InNotifyDuration, EAnimNotifyMessageType InNotifyEventType)
 {
 	Session.WriteAccessCheck();
+
+	bHasAnyData = true;
 
 	// Check if stateful or event-based
 	if(InNotifyEventType == EAnimNotifyMessageType::Begin || InNotifyEventType == EAnimNotifyMessageType::End)
@@ -937,6 +971,8 @@ void FAnimationProvider::AppendNotify(uint64 InAnimInstanceId, double InTime, ui
 void FAnimationProvider::AppendMontage(uint64 InAnimInstanceId, double InTime, uint64 InMontageId, uint32 InCurrentSectionNameId, uint32 InNextSectionNameId, float InWeight, float InDesiredWeight, uint16 InFrameCounter)
 {
 	Session.WriteAccessCheck();
+
+	bHasAnyData = true;
 
 	TSharedPtr<FMontageTimelineStorage> TimelineStorage;
 	uint32* IndexPtr = ObjectIdToAnimMontageTimelines.Find(InAnimInstanceId);
