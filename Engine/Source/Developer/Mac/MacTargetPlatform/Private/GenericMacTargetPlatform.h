@@ -45,9 +45,8 @@ public:
 #endif
 
 		#if WITH_ENGINE
-			FConfigCacheIni::LoadLocalIniFile(EngineSettings, TEXT("Engine"), true, *this->IniPlatformName());
 			TextureLODSettings = nullptr;
-			StaticMeshLODSettings.Initialize(EngineSettings);
+			StaticMeshLODSettings.Initialize(this);
 		#endif
 	}
 
@@ -159,7 +158,7 @@ return TSuper::SupportsFeature(Feature);
 		if (!IS_DEDICATED_SERVER)
 		{
 			// just use the standard texture format name for this texture (with DX11 support)
-			GetDefaultTextureFormatNamePerLayer(OutFormats.AddDefaulted_GetRef(), this, Texture, EngineSettings, true);
+			GetDefaultTextureFormatNamePerLayer(OutFormats.AddDefaulted_GetRef(), this, Texture, true);
 		}
 	}
 
@@ -200,7 +199,7 @@ return TSuper::SupportsFeature(Feature);
 
 		bool bUseDXT5NormalMap = false;
 		FString UseDXT5NormalMapsString;
-		if (EngineSettings.GetString(TEXT("SystemSettings"), TEXT("Compat.UseDXT5NormalMaps"), UseDXT5NormalMapsString))
+		if (this->GetConfigSystem()->GetString(TEXT("SystemSettings"), TEXT("Compat.UseDXT5NormalMaps"), UseDXT5NormalMapsString, GEngineIni))
 		{
 			bUseDXT5NormalMap = FCString::ToBool(*UseDXT5NormalMapsString);
 		}
@@ -366,9 +365,6 @@ private:
 	ITargetDevicePtr LocalDevice;
 
 #if WITH_ENGINE
-	// Holds the Engine INI settings for quick use.
-	FConfigFile EngineSettings;
-
 	// Holds the texture LOD settings.
 	const UTextureLODSettings* TextureLODSettings;
 

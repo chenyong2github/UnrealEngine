@@ -130,9 +130,6 @@ private:
 	TSharedPtr<FMessageEndpoint, ESPMode::ThreadSafe> MessageEndpoint;
 
 #if WITH_ENGINE
-	// Holds the Engine INI settings, for quick use.
-	FConfigFile EngineSettings;
-
 	// Holds the cache of the target LOD settings.
 	const UTextureLODSettings* TextureLODSettings;
 

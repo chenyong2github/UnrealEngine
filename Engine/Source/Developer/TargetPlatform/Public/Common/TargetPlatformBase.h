@@ -41,6 +41,11 @@ public:
 		return *PlatformInfo->DataDrivenPlatformInfo;
 	}
 
+	virtual FConfigCacheIni* GetConfigSystem() const override
+	{
+		return FConfigCacheIni::ForPlatform(*IniPlatformName());
+	}
+
 	TARGETPLATFORM_API virtual bool UsesForwardShading() const override;
 
 	TARGETPLATFORM_API virtual bool UsesDBuffer() const override;

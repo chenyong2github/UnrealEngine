@@ -195,11 +195,10 @@ FAndroidTargetPlatform::FAndroidTargetPlatform(bool bInIsClient, const TCHAR* Fl
 	, DeviceDetection(nullptr)
 
 {
-	#if WITH_ENGINE
-		FConfigCacheIni::LoadLocalIniFile(EngineSettings, TEXT("Engine"), true, *IniPlatformName());
-			TextureLODSettings = nullptr; // These are registered by the device profile system.
-		StaticMeshLODSettings.Initialize(EngineSettings);
-	#endif
+#if WITH_ENGINE
+	TextureLODSettings = nullptr; // These are registered by the device profile system.
+	StaticMeshLODSettings.Initialize(this);
+#endif
 
 	TickDelegate = FTickerDelegate::CreateRaw(this, &FAndroidTargetPlatform::HandleTicker);
 	TickDelegateHandle = FTicker::GetCoreTicker().AddTicker(TickDelegate, 4.0f);

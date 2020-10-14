@@ -141,7 +141,7 @@ public:
 	 * Initializes LOD settings by reading them from the passed in config file section.
 	 * @param IniFile Preloaded ini file object to load from
 	 */
-	ENGINE_API void Initialize(const FConfigFile& IniFile);
+	ENGINE_API void Initialize(const ITargetPlatform* TargetPlatform);
 
 	/** Retrieve the settings for the specified LOD group. */
 	const FStaticMeshLODGroup& GetLODGroup(FName LODGroup) const

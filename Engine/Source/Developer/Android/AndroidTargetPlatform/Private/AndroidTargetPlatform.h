@@ -229,11 +229,6 @@ protected:
 	bool SupportsLandscapeMeshLODStreaming() const;
 	bool SupportsVulkanSM5() const;
 
-#if WITH_ENGINE
-	// Holds the Engine INI settings (for quick access).
-	FConfigFile EngineSettings;
-#endif //WITH_ENGINE
-
 protected:
 
 	// Handles when the ticker fires.
@@ -349,7 +344,7 @@ public:
 			{ { FName(TEXT("AutoDXT")) },	{ FName(TEXT("ASTC_RGBAuto")) } },
 		};
 
-		GetDefaultTextureFormatNamePerLayer(OutFormats.AddDefaulted_GetRef(), this, Texture, EngineSettings, true, false, 1);
+		GetDefaultTextureFormatNamePerLayer(OutFormats.AddDefaulted_GetRef(), this, Texture, true, false, 1);
 
 		for (FName& TextureFormatName : OutFormats.Last())
 		{

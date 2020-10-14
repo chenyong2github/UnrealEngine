@@ -61,21 +61,21 @@ int32 FLuminTargetPlatform::CheckRequirements(bool bProjectHasCode, EBuildConfig
 bool FLuminTargetPlatform::SupportsMobileRendering() const
 {
 	bool bUseMobileRendering = true;
-	LuminEngineSettings.GetBool(TEXT("/Script/LuminRuntimeSettings.LuminRuntimeSettings"), TEXT("bUseMobileRendering"), bUseMobileRendering);
+	GetConfigSystem()->GetBool(TEXT("/Script/LuminRuntimeSettings.LuminRuntimeSettings"), TEXT("bUseMobileRendering"), bUseMobileRendering, GEngineIni);
 	return bUseMobileRendering;
 }
 
 bool FLuminTargetPlatform::SupportsDesktopRendering() const
 {
 	bool bUseMobileRendering = true;
-	LuminEngineSettings.GetBool(TEXT("/Script/LuminRuntimeSettings.LuminRuntimeSettings"), TEXT("bUseMobileRendering"), bUseMobileRendering);
+	GetConfigSystem()->GetBool(TEXT("/Script/LuminRuntimeSettings.LuminRuntimeSettings"), TEXT("bUseMobileRendering"), bUseMobileRendering, GEngineIni);
 	return bUseMobileRendering == false;
 }
 
-static bool LuminSupportsVulkan(const FConfigFile& InLuminEngineSettings)
+static bool LuminSupportsVulkan(FConfigCacheIni* ConfigSystem)
 {
 	bool bSupportsVulkan = false;
-	InLuminEngineSettings.GetBool(TEXT("/Script/LuminRuntimeSettings.LuminRuntimeSettings"), TEXT("bUseVulkan"), bSupportsVulkan);
+	ConfigSystem->GetBool(TEXT("/Script/LuminRuntimeSettings.LuminRuntimeSettings"), TEXT("bUseVulkan"), bSupportsVulkan, GEngineIni);
 	return bSupportsVulkan;
 }
 
@@ -83,17 +83,6 @@ void FLuminTargetPlatform::RefreshSettings()
 {
 #if WITH_ENGINE
 	//UE_LOG(LogCore, Warning, TEXT("*** DIAGNOSE - REFRESH!!!"));
-
-	//the load above does not move settings from "SourceConfig" member to the object itself.  New loads will do that.
-	FConfigFile NewEngineSettings;
-	FConfigCacheIni::LoadLocalIniFile(NewEngineSettings, TEXT("Engine"), true, *IniPlatformName(), true);
-	LuminEngineSettings = NewEngineSettings;
-	//remove the source config as it is just a copied pointer
-	LuminEngineSettings.SourceConfigFile = nullptr;
-	//override the android version too
-	EngineSettings = NewEngineSettings;
-	//remove the source config as it is just a copied pointer
-	EngineSettings.SourceConfigFile = nullptr;
 
 	// Get the Target RHIs for this platform, we do not always want all those that are supported.
 	TArray<FName> TargetedShaderFormats;
@@ -188,7 +177,7 @@ void FLuminTargetPlatform::GetAllPossibleShaderFormats( TArray<FName>& OutFormat
 
 	if (SupportsMobileRendering())
 	{
-		if (LuminSupportsVulkan(LuminEngineSettings))
+		if (LuminSupportsVulkan(GetConfigSystem()))
 		{
 			OutFormats.AddUnique(bUseNOUB ? NAME_VULKAN_ES31_LUMIN_NOUB : NAME_VULKAN_ES31_LUMIN);
 		}
@@ -200,7 +189,7 @@ void FLuminTargetPlatform::GetAllPossibleShaderFormats( TArray<FName>& OutFormat
 
 	if (SupportsDesktopRendering())
 	{
-		if (LuminSupportsVulkan(LuminEngineSettings))
+		if (LuminSupportsVulkan(GetConfigSystem()))
 		{
 			OutFormats.AddUnique(bUseNOUB ? NAME_VULKAN_SM5_LUMIN_NOUB : NAME_VULKAN_SM5_LUMIN);
 		}
@@ -229,7 +218,7 @@ void FLuminTargetPlatform::GetTextureFormats(const UTexture* InTexture, TArray< 
 {
 	check(InTexture);
 
-	GetDefaultTextureFormatNamePerLayer(OutFormats.AddDefaulted_GetRef(), this, InTexture, LuminEngineSettings, false);
+	GetDefaultTextureFormatNamePerLayer(OutFormats.AddDefaulted_GetRef(), this, InTexture, false);
 	for (FName& TextureFormatName : OutFormats.Last())
 	{
 		// forward rendering only needs one channel for shadow maps

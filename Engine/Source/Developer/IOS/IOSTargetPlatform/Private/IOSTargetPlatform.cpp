@@ -32,9 +32,8 @@ FIOSTargetPlatform::FIOSTargetPlatform(bool bInIsTVOS, bool bIsClientOnly)
 	, bIsTVOS(bInIsTVOS)
 {
 #if WITH_ENGINE
-	FConfigCacheIni::LoadLocalIniFile(EngineSettings, TEXT("Engine"), true, *IniPlatformName());
 	TextureLODSettings = nullptr; // TextureLODSettings are registered by the device profile.
-	StaticMeshLODSettings.Initialize(EngineSettings);
+	StaticMeshLODSettings.Initialize(this);
 #endif // #if WITH_ENGINE
 
 	// initialize the connected device detector
@@ -599,7 +598,7 @@ void FIOSTargetPlatform::GetTextureFormats( const UTexture* Texture, TArray< TAr
         {
             BlockSize = 1;
         }
-		GetDefaultTextureFormatNamePerLayer(TextureFormatNames, this, Texture, EngineSettings, true, false, BlockSize);
+		GetDefaultTextureFormatNamePerLayer(TextureFormatNames, this, Texture, true, false, BlockSize);
 	}
 
 	// include the formats we want (use ASTC first so that it is preferred at runtime if they both exist and it's supported)

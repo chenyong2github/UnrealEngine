@@ -56,9 +56,8 @@ public:
 #endif
 
 #if WITH_ENGINE
-		FConfigCacheIni::LoadLocalIniFile(EngineSettings, TEXT("Engine"), true, *this->IniPlatformName());
 		TextureLODSettings = nullptr;
-		StaticMeshLODSettings.Initialize(EngineSettings);
+		StaticMeshLODSettings.Initialize(this);
 
 		InitDevicesFromConfig();
 
@@ -297,7 +296,7 @@ public:
 		if (!TProperties::IsServerOnly())
 		{
 			// just use the standard texture format name for this texture
-			GetDefaultTextureFormatNamePerLayer(OutFormats.AddDefaulted_GetRef(), this, InTexture, EngineSettings, true);
+			GetDefaultTextureFormatNamePerLayer(OutFormats.AddDefaulted_GetRef(), this, InTexture, true);
 		}
 	}
 
@@ -471,9 +470,6 @@ protected:
 
 
 #if WITH_ENGINE
-	// Holds the Engine INI settings for quick use.
-	FConfigFile EngineSettings;
-
 	// Holds the texture LOD settings.
 	const UTextureLODSettings* TextureLODSettings;
 

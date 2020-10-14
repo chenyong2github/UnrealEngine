@@ -87,10 +87,5 @@ public:
 
 protected:
 	virtual FAndroidTargetDevicePtr CreateTargetDevice(const ITargetPlatform& InTargetPlatform, const FString& InSerialNumber, const FString& InAndroidVariant) const override;
-
-protected:
-	// Holds the Engine INI settings, for quick use.
-	FConfigFile LuminEngineSettings;
-
 };
 

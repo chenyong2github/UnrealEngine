@@ -123,9 +123,6 @@ private:
 	FDelegateHandle DeviceDetectedRegistration;
 
 #if WITH_ENGINE
-	// Holds the Engine INI settings (for quick access).
-	FConfigFile EngineSettings;
-
 	// Holds a cache of the target LOD settings.
 	const UTextureLODSettings* TextureLODSettings;
 

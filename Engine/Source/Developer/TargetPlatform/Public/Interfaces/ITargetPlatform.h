@@ -226,6 +226,11 @@ public:
 	virtual const FDataDrivenPlatformInfo& GetPlatformInfo() const = 0;
 
 	/**
+	 * Returns the config system object usable by this TargetPlatform. It should not be modified in anyway
+	 */
+	virtual FConfigCacheIni* GetConfigSystem() const = 0;
+
+	/**
 	 * Gets the platform's INI name (so an offline tool can load the INI for the given target platform).
 	 *
 	 * @see PlatformName

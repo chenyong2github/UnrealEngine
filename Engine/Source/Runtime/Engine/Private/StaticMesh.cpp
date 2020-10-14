@@ -1962,7 +1962,7 @@ void FStaticMeshRenderData::SyncUVChannelData(const TArray<FStaticMaterial>& Obj
 	FStaticMeshLODSettings
 ------------------------------------------------------------------------------*/
 
-void FStaticMeshLODSettings::Initialize(const FConfigFile& IniFile)
+void FStaticMeshLODSettings::Initialize(const ITargetPlatform* TargetPlatform)
 {
 	check(!Groups.Num());
 	// Ensure there is a default LOD group.
@@ -1970,7 +1970,7 @@ void FStaticMeshLODSettings::Initialize(const FConfigFile& IniFile)
 
 	// Read individual entries from a config file.
 	const TCHAR* IniSection = TEXT("StaticMeshLODSettings");
-	const FConfigSection* Section = IniFile.Find(IniSection);
+	const FConfigSection* Section = TargetPlatform->GetConfigSystem()->GetSectionPrivate(IniSection, false, false, GEngineIni);
 	if (Section)
 	{
 		for (TMultiMap<FName,FConfigValue>::TConstIterator It(*Section); It; ++It)
