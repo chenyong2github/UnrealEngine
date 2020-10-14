@@ -70,7 +70,6 @@ struct ENGINE_API FCameraShakeUpdateResult
 		, Rotation(FRotator::ZeroRotator)
 		, FOV(0.f)
 		, Flags(ECameraShakeUpdateResultFlags::Default)
-		, bIsFinished(false)
 	{}
 
 	/** Location offset for the view, or new absolute location if ApplyAsAbsolute flag is set */
@@ -82,9 +81,6 @@ struct ENGINE_API FCameraShakeUpdateResult
 
 	/** Flags for how the base class should handle the result */
 	ECameraShakeUpdateResultFlags Flags;
-
-	/** Whether the camera shake is finished, for when duration isn't handled by the base class (see UCameraShakeBase::GetShakeInfo) */
-	bool bIsFinished;
 };
 
 /**
