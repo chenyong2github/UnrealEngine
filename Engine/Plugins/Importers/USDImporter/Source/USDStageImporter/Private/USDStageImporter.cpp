@@ -978,21 +978,21 @@ namespace UsdStageImporterImpl
 
 		if (ExistingAsset && NewMesh)
 		{
-			int32 NumExistingMaterials = ExistingMesh->StaticMaterials.Num();
-			int32 NumNewMaterials = NewMesh->StaticMaterials.Num();
+			int32 NumExistingMaterials = ExistingMesh->GetStaticMaterials().Num();
+			int32 NumNewMaterials = NewMesh->GetStaticMaterials().Num();
 
 			for (int32 NewMaterialIndex = 0; NewMaterialIndex < NumNewMaterials; ++NewMaterialIndex)
 			{
 				UMaterialInterface* ExistingMaterial = ExistingMesh->GetMaterial(NewMaterialIndex);
 
 				// Can't use SetMaterial as it starts a scoped transaction that would hold on to our transient assets...
-				NewMesh->StaticMaterials[NewMaterialIndex].MaterialInterface = ExistingMaterial;
+				NewMesh->GetStaticMaterials()[NewMaterialIndex].MaterialInterface = ExistingMaterial;
 			}
 
 			// Clear out any other assignments we may have
 			for (int32 Index = NumNewMaterials; Index < NumExistingMaterials; ++Index)
 			{
-				NewMesh->StaticMaterials[Index].MaterialInterface = nullptr;
+				NewMesh->GetStaticMaterials()[Index].MaterialInterface = nullptr;
 			}
 
 			return;
