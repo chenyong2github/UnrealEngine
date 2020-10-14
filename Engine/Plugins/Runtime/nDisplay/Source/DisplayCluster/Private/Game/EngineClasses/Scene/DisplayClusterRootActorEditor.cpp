@@ -57,7 +57,10 @@ void ADisplayClusterRootActor::PostEditChangeProperty(FPropertyChangedEvent& Pro
 	// Cluster node ID has been changed
 	else if (PropertyName == GET_MEMBER_NAME_CHECKED(ADisplayClusterRootActor, PreviewNodeId))
 	{
-		RebuildPreview();
+		AsyncTask(ENamedThreads::GameThread, [this]()
+		{
+			RebuildPreview();
+		});
 	}
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
@@ -150,12 +153,9 @@ void ADisplayClusterRootActor::RebuildPreview()
 
 	if (GIsEditor)
 	{
-		AsyncTask(ENamedThreads::GameThread, [this]()
-		{
-			// Force SActorDetails redraw
-			FLevelEditorModule& LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
-			LevelEditor.BroadcastComponentsEdited();
-		});
+		// Force SActorDetails redraw
+		FLevelEditorModule& LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
+		LevelEditor.BroadcastComponentsEdited();
 	}
 }
 
