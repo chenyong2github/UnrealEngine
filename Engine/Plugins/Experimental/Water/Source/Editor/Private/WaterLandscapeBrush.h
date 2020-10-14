@@ -14,7 +14,7 @@
 class AWaterBody;
 class AWaterBodyIsland;
 
-UCLASS(Blueprintable, hidecategories = (Replication, Input, LOD, Actor, Cooking, Rendering))
+UCLASS(Blueprintable, hidecategories = (Collision, Replication, Input, LOD, Actor, Cooking, Rendering))
 class AWaterLandscapeBrush : public ALandscapeBlueprintBrush
 {
 	GENERATED_BODY()
@@ -22,7 +22,6 @@ class AWaterLandscapeBrush : public ALandscapeBlueprintBrush
 public:
 	AWaterLandscapeBrush(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
-	virtual void PostLoad() override;
 	virtual void PostInitProperties() override;
 	virtual void BeginDestroy() override;
 	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
@@ -38,11 +37,11 @@ public:
 
 	const TArray<TWeakInterfacePtr<IWaterBrushActorInterface>>& GetActorsAffectingLandscape() const { return ActorsAffectingLandscape; }
 
-	UFUNCTION(BlueprintNativeEvent, meta = (CallInEditor = "true"))
+	UFUNCTION(BlueprintNativeEvent, meta = (CallInEditor = "true", Category = "Debug"))
 	void BlueprintWaterBodiesChanged();
 	virtual void BlueprintWaterBodiesChanged_Native() {}
 
-	UFUNCTION(BlueprintNativeEvent, meta = (CallInEditor = "true"))
+	UFUNCTION(BlueprintNativeEvent, meta = (CallInEditor = "true", Category = "Debug"))
 	void BlueprintWaterBodyChanged(AActor* Actor);
 	virtual void BlueprintWaterBodyChanged_Native(AActor* Actor) {}
 
@@ -79,14 +78,11 @@ public:
 		
 	virtual void SetOwningLandscape(ALandscape* InOwningLandscape) override;
 
-	virtual void GetRenderDependencies(TSet<UTexture2D *>& OutTextures) override;
+	virtual void GetRenderDependencies(TSet<UObject *>& OutDependencies) override;
 
 	void ForceUpdate();
 
 private:
-	template<class T>
-	friend class FAddActorsOfType;
-
 	template<class T>
 	friend class FGetActorsOfType;
 
@@ -105,6 +101,7 @@ private:
 	void MarkDirty();
 	
 	TArray<TWeakInterfacePtr<IWaterBrushActorInterface>> ActorsAffectingLandscape;
+	FDelegateHandle OnWorldPostInitHandle;
 	FDelegateHandle OnLevelAddedToWorldHandle;
 	FDelegateHandle OnLevelRemovedFromWorldHandle;
 	FDelegateHandle OnLevelActorAddedHandle;

@@ -6,7 +6,7 @@
 
 
 // Custom serialization version for Water plugin
-struct FWaterCustomVersion
+struct WATER_API FWaterCustomVersion
 {
 	enum Type
 	{
@@ -16,6 +16,8 @@ struct FWaterCustomVersion
 		WaterBodyRefactor,
 		// Transfer of TerrainCarvingSettings from landmass to water
 		MoveTerrainCarvingSettingsToWater,
+		// WaterBrushManager now can specify its own brush materials instead of using those from the default water editor settings : 
+		MoveBrushMaterialsToWaterBrushManager,
 
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,

@@ -14,12 +14,8 @@ class UJumpFloodComponent2D : public UActorComponent
 public:
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, meta=(Category="Default"))
-	bool UseBlur = false;
+	UJumpFloodComponent2D(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, meta=(Category="Default"))
-	int32 BlurPasses = 1;
-		
 	UFUNCTION(BlueprintCallable, meta = (Category))
 	virtual bool CreateMIDs();
 
@@ -41,7 +37,21 @@ public:
 	UFUNCTION(BlueprintCallable, meta = (Category))
 	UTextureRenderTarget2D* SingleBlurStep();
 
-	UJumpFloodComponent2D(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+public:
+	UPROPERTY(EditInstanceOnly, AdvancedDisplay, BlueprintReadWrite, meta = (Category = "Materials"))
+	UMaterialInterface* JumpStepMaterial = nullptr;
+
+	UPROPERTY(EditInstanceOnly, AdvancedDisplay, BlueprintReadWrite, meta = (Category = "Materials"))
+	UMaterialInterface* FindEdgesMaterial = nullptr;
+
+	UPROPERTY(EditInstanceOnly, AdvancedDisplay, BlueprintReadWrite, meta = (Category = "Materials"))
+	UMaterialInterface* BlurEdgesMaterial = nullptr;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, meta=(Category="Default"))
+	bool UseBlur = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, meta=(Category="Default"))
+	int32 BlurPasses = 1;
 
 private:
 	UPROPERTY(VisibleAnywhere, AdvancedDisplay, meta = (Category = "Default"))

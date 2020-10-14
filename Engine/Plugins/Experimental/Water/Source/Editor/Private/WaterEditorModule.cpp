@@ -24,6 +24,7 @@
 #include "WaterBodyActorFactory.h"
 #include "WaterBodyIslandActorFactory.h"
 #include "WaterBodyActorDetailCustomization.h"
+#include "WaterBrushManagerFactory.h"
 #include "IAssetTools.h"
 #include "IAssetTypeActions.h"
 #include "Toolkits/IToolkit.h"
@@ -36,12 +37,6 @@
 #define LOCTEXT_NAMESPACE "WaterEditor"
 
 DEFINE_LOG_CATEGORY(LogWaterEditor);
-
-static FAutoConsoleCommand ForceUpdateWaterCommand(
-	TEXT("r.Water.ForceUpdate"),
-	TEXT("Force updates all water"),
-	FConsoleCommandWithArgsDelegate::CreateStatic(&FWaterEditorModule::ForceUpdateWater)
-);
 
 EAssetTypeCategories::Type FWaterEditorModule::WaterAssetCategory;
 
@@ -57,7 +52,7 @@ void FWaterEditorModule::StartupModule()
 
 	// Helper lambda for registering asset type actions for automatic cleanup on shutdown
 	auto RegisterAssetTypeAction = [&](TSharedRef<IAssetTypeActions> Action)
-{
+	{
 		AssetTools.RegisterAssetTypeActions(Action);
 		CreatedAssetTypeActions.Add(Action);
 	};
@@ -77,6 +72,7 @@ void FWaterEditorModule::StartupModule()
 		GEditor->ActorFactories.Add(NewObject<UWaterBodyLakeActorFactory>());
 		GEditor->ActorFactories.Add(NewObject<UWaterBodyOceanActorFactory>());
 		GEditor->ActorFactories.Add(NewObject<UWaterBodyCustomActorFactory>());
+		GEditor->ActorFactories.Add(NewObject<UWaterBrushManagerFactory>());
 	}
 
 	UThumbnailManager::Get().RegisterCustomRenderer(UWaterBodyBrushCacheContainer::StaticClass(), UWaterBodyBrushCacheContainerThumbnailRenderer::StaticClass());
@@ -121,14 +117,6 @@ void FWaterEditorModule::ShutdownModule()
 	FWaterUIStyle::Shutdown();
 }
 
-void FWaterEditorModule::ForceUpdateWater(const TArray<FString>& Args)
-{
-	for (AWaterLandscapeBrush* Brush : TActorRange<AWaterLandscapeBrush>(GEditor->GetEditorWorldContext().World()))
-	{
-		Brush->ForceWaterTextureUpdate();
-	}
-}
-
 void FWaterEditorModule::RegisterComponentVisualizer(FName ComponentClassName, TSharedPtr<FComponentVisualizer> Visualizer)
 {
 	if (GUnrealEd != NULL)
@@ -156,16 +144,20 @@ void FWaterEditorModule::OnWaterBodyAddedToWorld(AActor* Actor)
 			if (!bHasWaterManager)
 			{
 				const UWaterEditorSettings* WaterEditorSettings = GetDefault<UWaterEditorSettings>();
-				check (WaterEditorSettings != nullptr);
-				TSubclassOf<AWaterLandscapeBrush> WaterManagerClass = WaterEditorSettings->GetWaterManagerClass();
-				if (UClass* WaterManagerClassPtr = WaterManagerClass.Get())
+				check(WaterEditorSettings != nullptr);
+				TSubclassOf<AWaterLandscapeBrush> WaterBrushClass = WaterEditorSettings->GetWaterManagerClass();
+				if (UClass* WaterBrushClassPtr = WaterBrushClass.Get())
 				{
+					UActorFactory* WaterBrushActorFactory = GEditor->FindActorFactoryForActorClass(WaterBrushClassPtr);
+
 					// If the water manager doesn't exist, spawn it now in the same level as the landscape
 					for (ALandscape* Landscape : TActorRange<ALandscape>(ActorWorld))
 					{
 						FActorSpawnParameters SpawnParams;
 						SpawnParams.OverrideLevel = Landscape->GetLevel();
-						AWaterLandscapeBrush* NewBrush = ActorWorld->SpawnActor<AWaterLandscapeBrush>(WaterManagerClassPtr, SpawnParams);
+						AWaterLandscapeBrush* NewBrush = (WaterBrushActorFactory != nullptr) 
+							? CastChecked<AWaterLandscapeBrush>(WaterBrushActorFactory->CreateActor(ActorWorld, ActorWorld->PersistentLevel, FTransform::Identity))
+							: ActorWorld->SpawnActor<AWaterLandscapeBrush>(WaterBrushClassPtr, SpawnParams);
 						if (NewBrush)
 						{
 							bHasWaterManager = true;

@@ -48,6 +48,22 @@ ETextureRenderTargetFormat AWaterBodyIsland::GetBrushRenderTargetFormat() const
 {
 	return ETextureRenderTargetFormat::RTF_RG16f;
 }
+
+void AWaterBodyIsland::GetBrushRenderDependencies(TSet<UObject*>& OutDependencies) const 
+{
+	for (const TPair<FName, FWaterBodyWeightmapSettings>& Pair : WaterWeightmapSettings)
+	{
+		if (Pair.Value.ModulationTexture)
+		{
+			OutDependencies.Add(Pair.Value.ModulationTexture);
+		}
+	}
+
+	if (WaterHeightmapSettings.Effects.Displacement.Texture)
+	{
+		OutDependencies.Add(WaterHeightmapSettings.Effects.Displacement.Texture);
+	}
+}
 #endif //WITH_EDITOR
 
 void AWaterBodyIsland::UpdateHeight()
@@ -75,25 +91,6 @@ void AWaterBodyIsland::Destroyed()
 		WaterBody->RemoveIsland(this);
 	}
 }
-
-
-#if WITH_EDITORONLY_DATA
-void AWaterBodyIsland::GetBrushRenderDependencies(TSet<UTexture2D*>& OutTextures)
-{
-	for (const TPair<FName, FWaterBodyWeightmapSettings>& Pair : WaterWeightmapSettings)
-	{
-		if (Pair.Value.ModulationTexture)
-		{
-			OutTextures.Add(Pair.Value.ModulationTexture);
-		}
-	}
-		
-	if (WaterHeightmapSettings.Effects.Displacement.Texture)
-	{
-		OutTextures.Add(WaterHeightmapSettings.Effects.Displacement.Texture);
-	}
-}
-#endif
 
 #if WITH_EDITOR
 void AWaterBodyIsland::UpdateOverlappingWaterBodies()
