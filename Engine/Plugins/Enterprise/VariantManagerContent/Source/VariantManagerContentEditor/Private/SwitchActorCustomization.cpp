@@ -64,7 +64,7 @@ void FSwitchActorCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailLay
 	}
 
 	IDetailCategoryBuilder& ActionsCategory = DetailLayoutBuilder.EditCategory(TEXT("SwitchActor"));
-	const FText FilterStr(LOCTEXT("SelectedOptionRow", "Selected Option"));
+	const FText FilterStr = FText::FromString( SWITCH_ACTOR_SELECTED_OPTION_NAME );
 	ActionsCategory.AddCustomRow(FilterStr)
 	.NameContent()
 	[
