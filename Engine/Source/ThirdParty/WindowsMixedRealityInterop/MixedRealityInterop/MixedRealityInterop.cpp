@@ -48,8 +48,6 @@
 #define HOLO_STREAMING_RENDERING 1
 #include <winrt/Windows.Data.Xml.Dom.h>
 #include <winrt/Windows.Storage.h>
-// HoloLens 1 Remoting
-#include <HolographicStreamerHelpers.h>
 #else
 #define HOLO_STREAMING_RENDERING 0
 #endif
@@ -131,7 +129,6 @@ namespace WindowsMixedReality
 
 	bool bInitialized = false;
 	bool isRemoteHolographicSpace = false;
-	bool m_isHL1Remoting = false;
 
 	HolographicSpace holographicSpace = nullptr;
 	winrt::Windows::Perception::Spatial::SpatialLocator Locator = nullptr;
@@ -300,14 +297,6 @@ namespace WindowsMixedReality
     winrt::Microsoft::Holographic::AppRemoting::IRemoteContext::OnDisconnected_revoker m_onDisconnectedEventRevoker;
     winrt::Microsoft::Holographic::AppRemoting::IRemoteSpeech::OnRecognizedSpeech_revoker m_onRecognizedSpeechRevoker;
 	winrt::Microsoft::Holographic::AppRemoting::IRemoteContext::OnListening_revoker m_onListeningEventRevoker;
-	
-	// HoloLens 1 Remoting
-	Microsoft::Holographic::HolographicStreamerHelpers^ m_streamerHelpers;
-	Microsoft::WRL::Wrappers::SRWLock m_connectionStateLock;
-	Windows::Foundation::EventRegistrationToken ConnectedToken;
-	Windows::Foundation::EventRegistrationToken DisconnectedToken;
-	Microsoft::Holographic::ConnectedEvent^ RemotingConnectedEvent = nullptr;
-	Microsoft::Holographic::DisconnectedEvent^ RemotingDisconnectedEvent = nullptr;
 
 	std::map<uint32_t, MixedRealityInterop::ConnectionCallback > ConnectionHandlerMap;
 	std::recursive_mutex ConnectionHandlerLock;
@@ -738,11 +727,6 @@ namespace WindowsMixedReality
 
 		bool CommitDepthTexture(Microsoft::WRL::ComPtr<ID3D11Texture2D> depthTexture, HolographicCameraRenderingParameters RenderingParameters)
 		{
-			if (isRemoteHolographicSpace && m_isHL1Remoting)
-			{
-				return false;
-			}
-
 			if (!isDepthBasedReprojectionSupported || depthTexture == nullptr)
 			{
 				return false;
@@ -1373,7 +1357,7 @@ namespace WindowsMixedReality
 		}
 
 		quadLayers.clear();
-		if (!m_isHL1Remoting && CameraResources != nullptr && CameraResources->GetCamera() != nullptr)
+		if (CameraResources != nullptr && CameraResources->GetCamera() != nullptr)
 		{
 			for (HolographicQuadLayer layer : CameraResources->GetCamera().QuadLayers())
 			{
@@ -1614,7 +1598,7 @@ namespace WindowsMixedReality
 			{
 				if (p.second)
 				{
-					p.second->Init(m_isHL1Remoting);
+					p.second->Init();
 				}
 			}
 		}
@@ -1786,29 +1770,25 @@ namespace WindowsMixedReality
 		// do nothing, we already blocked in present
 #else
 		// Wait for a frame to be ready before using it
-		// Do not wait for a frame if we are running on the emulator or HL1 Remoting.
-		if (!m_isHL1Remoting)
+		// Do not wait for a frame if we are running on the emulator.
+		if (!IsActiveAndValid())
 		{
-			if (!IsActiveAndValid())
-			{
-				return;
-			}
+			return;
+		}
 
-			try
-			{
+		try
+		{
 #if	LOG_HOLOLENS_FRAME_COUNTER
-				{ std::wstringstream string; string << L"BlockUntilNextFrame() started"; Log(string); }
-				holographicSpace.WaitForNextFrameReady();
-				{ std::wstringstream string; string << L"BlockUntilNextFrame() ended"; Log(string); }
+			{ std::wstringstream string; string << L"BlockUntilNextFrame() started"; Log(string); }
+			holographicSpace.WaitForNextFrameReady();
+			{ std::wstringstream string; string << L"BlockUntilNextFrame() ended"; Log(string); }
 #else
-				holographicSpace.WaitForNextFrameReady();
+			holographicSpace.WaitForNextFrameReady();
 #endif
-			}
-			catch (winrt::hresult_error&)
-			{
-				Log(L"BlockUntilNextFrame() failed with exception");
-			}
-
+		}
+		catch (winrt::hresult_error&)
+		{
+			Log(L"BlockUntilNextFrame() failed with exception");
 		}
 #endif
 	}
@@ -2262,7 +2242,7 @@ namespace WindowsMixedReality
 
 		//Note: HoloLens does not support Quad Layers, so we do not need to render to the third camera here.
 		// Quad Layers
-		uint32_t maxQuadLayers = (m_isHL1Remoting || (CameraResources.get() == nullptr) || (CameraResources->GetCamera() == nullptr)) ? 0 : CameraResources->GetCamera().MaxQuadLayerCount();
+		uint32_t maxQuadLayers = ((CameraResources.get() == nullptr) || (CameraResources->GetCamera() == nullptr)) ? 0 : CameraResources->GetCamera().MaxQuadLayerCount();
 		if (maxQuadLayers > 0)
 		{
 			if (quadLayers.size() > CameraResources->GetCamera().QuadLayers().Size())
@@ -2335,7 +2315,7 @@ namespace WindowsMixedReality
 		}
 
 		std::lock_guard<std::recursive_mutex> lock2(CameraResourcesLock);
-		if (m_isHL1Remoting || ((CameraResources.get() != nullptr) && (CameraResources->GetCamera() != nullptr)))
+		if ((CameraResources.get() != nullptr) && (CameraResources->GetCamera() != nullptr))
 		{
 #if HOLOLENS_BLOCKING_PRESENT
 			HolographicFramePresentResult presentResult = currentFrame->Frame.PresentUsingCurrentPrediction();
@@ -2560,7 +2540,7 @@ namespace WindowsMixedReality
 				SpatialInteractionSourceLocation sourceLocation = prop.TryGetLocation(coordinateSystem);
 				if (sourceLocation != nullptr)
 				{
-					if (!m_isHL1Remoting && source.IsPointingSupported() && sourceLocation.SourcePointerPose() != nullptr)
+					if (source.IsPointingSupported() && sourceLocation.SourcePointerPose() != nullptr)
 					{
 						float3 pos = sourceLocation.SourcePointerPose().Position();
 						float3 forward = sourceLocation.SourcePointerPose().ForwardDirection();
@@ -2704,7 +2684,7 @@ namespace WindowsMixedReality
 			CurrentSelectState[handIndex] = PressStateFromBool(isPressed);
 
 			// HoloLens 2 supports grasp over remoting.
-			if (supportsMotionControllers && !m_isHL1Remoting)
+			if (supportsMotionControllers)
 			{
 				// Grasp
 				isPressed = state.IsGrasped();
@@ -3607,33 +3587,26 @@ namespace WindowsMixedReality
 	HMDRemotingConnectionState MixedRealityInterop::GetConnectionState()
 	{
 #if HOLO_STREAMING_RENDERING
-		if (m_isHL1Remoting)
+		std::lock_guard<std::mutex> remoteLock(remoteContextLock);
+		if (m_remoteContext == nullptr)
 		{
 			return remotingState;
 		}
-		else
+
+		switch (m_remoteContext.ConnectionState())
 		{
-			std::lock_guard<std::mutex> remoteLock(remoteContextLock);
-			if (m_remoteContext == nullptr)
-			{
-				return remotingState;
-			}
-
-			switch (m_remoteContext.ConnectionState())
-			{
-			case winrt::Microsoft::Holographic::AppRemoting::ConnectionState::Connected:
-				return HMDRemotingConnectionState::Connected;
-				break;
-			case winrt::Microsoft::Holographic::AppRemoting::ConnectionState::Connecting:
-				return HMDRemotingConnectionState::Connecting;
-				break;
-			case winrt::Microsoft::Holographic::AppRemoting::ConnectionState::Disconnected:
-				return HMDRemotingConnectionState::Disconnected;
-				break;
-			}
-
-			return remotingState;
+		case winrt::Microsoft::Holographic::AppRemoting::ConnectionState::Connected:
+			return HMDRemotingConnectionState::Connected;
+			break;
+		case winrt::Microsoft::Holographic::AppRemoting::ConnectionState::Connecting:
+			return HMDRemotingConnectionState::Connecting;
+			break;
+		case winrt::Microsoft::Holographic::AppRemoting::ConnectionState::Disconnected:
+			return HMDRemotingConnectionState::Disconnected;
+			break;
 		}
+
+		return remotingState;
 #endif
 
 		return HMDRemotingConnectionState::Unknown;
@@ -3655,82 +3628,16 @@ namespace WindowsMixedReality
 	}
 #endif
 
-	void MixedRealityInterop::ConnectToRemoteHoloLens(ID3D11Device* device, const wchar_t * ip, int bitrate, bool IsHoloLens1, int port, bool listen)
+	void MixedRealityInterop::ConnectToRemoteHoloLens(ID3D11Device* device, const wchar_t * ip, int bitrate, int port, bool listen)
 	{
 #if HOLO_STREAMING_RENDERING
-		if (IsHoloLens1)
-		{
-			{ std::wstringstream string; string << L"ConnectToRemoteHoloLens trying to connect to HoloLens1 " << ip; Log(string); }
-		}
-		else
-		{
-			{ std::wstringstream string; string << L"ConnectToRemoteHoloLens trying to connect to HoloLens2 " << ip; Log(string); }
-		}
+		{ std::wstringstream string; string << L"ConnectToRemoteHoloLens trying to connect to HoloLens2 " << ip; Log(string); }
 		
-		if (m_streamerHelpers != nullptr)
-		{
-			// We are already connected to the remote device.
-			Log(L"ConnectToRemoteHoloLens: Already connected. Doing nothing.");
-			return;
-		}
-		else
 		{
 			if (bitrate < 1024) { bitrate = 1024; }
 			if (bitrate > 99999) { bitrate = 99999; }
 
 			wcsncpy_s(m_ip, ip, std::size(m_ip));
-
-			m_isHL1Remoting = IsHoloLens1;
-
-			// HoloLens 1 has a different remoting stack.
-			if (IsHoloLens1)
-			{
-				supportsHandedness = false;
-
-				// Connecting to the remote device can change the connection state.
-				auto exclusiveLock = m_connectionStateLock.LockExclusive();
-
-				m_streamerHelpers = ref new Microsoft::Holographic::HolographicStreamerHelpers();
-				m_streamerHelpers->CreateStreamer(device);
-				m_streamerHelpers->SetVideoFrameSize(1280, 720);
-				m_streamerHelpers->SetMaxBitrate(bitrate);
-
-				RemotingConnectedEvent = ref new Microsoft::Holographic::ConnectedEvent(
-					[this]()
-				{
-					remotingState = HMDRemotingConnectionState::Connected;
-					isRemoteHolographicSpace = true;
-
-					winrt::check_hresult(reinterpret_cast<::IUnknown*>(m_streamerHelpers->HolographicSpace)
-						->QueryInterface(winrt::guid_of<HolographicSpace>(),
-							reinterpret_cast<void**>(winrt::put_abi(holographicSpace))));
-
-					SetInteractionManagerForCurrentView();
-
-					CreateSpatialAnchorHelper(*this);
-				});
-				ConnectedToken = m_streamerHelpers->OnConnected += RemotingConnectedEvent;
-
-				RemotingDisconnectedEvent = ref new Microsoft::Holographic::DisconnectedEvent(
-					[this](_In_ Microsoft::Holographic::HolographicStreamerConnectionFailureReason failureReason)
-				{
-					ReportConnectionStatus(MixedRealityInterop::ConnectionEvent::DisconnectedFromPeer);
-					
-					remotingState = HMDRemotingConnectionState::Disconnected;
-				});
-				DisconnectedToken = m_streamerHelpers->OnDisconnected += RemotingDisconnectedEvent;
-
-				try
-				{
-					m_streamerHelpers->Connect(m_ip, 8001);
-				}
-				catch (Platform::Exception^ ex)
-				{
-					{ std::wstringstream string; string << L"Connect failed with hr =  " << ex->HResult; Log(string); }
-				}
-
-				return;
-			}
 
 			// HoloLens 2 Remoting
 			
@@ -3894,7 +3801,7 @@ namespace WindowsMixedReality
 				{
 					if (p.second)
 					{
-						p.second->Init(m_isHL1Remoting);
+						p.second->Init();
 					}
 				}
 			}
@@ -3931,35 +3838,7 @@ namespace WindowsMixedReality
 		//make sure to set to empty
 		wcsncpy_s(failureString, L"", std::size(failureString));
 
-#if HOLO_STREAMING_RENDERING
-		if (m_isHL1Remoting)
-		{
-			// Disconnecting from the remote device can change the connection state.
-			auto exclusiveLock = m_connectionStateLock.LockExclusive();
-
-			if (m_streamerHelpers != nullptr)
-			{
-				Log(L"DisconnectFromDevice: Disconnecting from wmr device.");
-
-				m_streamerHelpers->OnConnected -= ConnectedToken;
-				m_streamerHelpers->OnDisconnected -= DisconnectedToken;
-
-				RemotingConnectedEvent = nullptr;
-				RemotingDisconnectedEvent = nullptr;
-
-				m_streamerHelpers->Disconnect();
-
-				// Reset state
-				m_streamerHelpers = nullptr;
-
-				DestroySpatialAnchorHelper();
-
-				Dispose(true);
-			}
-
-			return;
-		}
-		
+#if HOLO_STREAMING_RENDERING	
 		if (m_remoteContext != nullptr)
 		{
 			Log(L"DisconnectFromDevice: Disconnecting from wmr device.");
@@ -4057,26 +3936,19 @@ namespace WindowsMixedReality
 		void(*FinishFunctionPointer)()
 	)
 	{
-		// HL1 does not support spatial mapping.
-		if (!m_isHL1Remoting)
-		{
-			StartMeshObserver(
-				InTriangleDensity,
-				InVolumeSize,
-				StartFunctionPointer,
-				AllocFunctionPointer,
-				RemovedMeshPointer,
-				FinishFunctionPointer
-			);
-		}
+		StartMeshObserver(
+			InTriangleDensity,
+			InVolumeSize,
+			StartFunctionPointer,
+			AllocFunctionPointer,
+			RemovedMeshPointer,
+			FinishFunctionPointer
+		);
 	}
 
 	void MixedRealityInterop::StopSpatialMapping()
 	{
-		if (!m_isHL1Remoting)
-		{
-			StopMeshObserver();
-		}
+		StopMeshObserver();
 	}
 
 	void MixedRealityInterop::StartSceneUnderstanding(
@@ -4216,11 +4088,6 @@ namespace WindowsMixedReality
 	)
 	{
 #if PLATFORM_HOLOLENS || HOLO_STREAMING_RENDERING
-		if (m_isHL1Remoting)
-		{
-			return;
-		}
-
 		MeshUpdateObserver& Instance = MeshUpdateObserver::Get();
 		// Pass any logging callback on
 		Instance.SetOnLog(m_logCallback);
@@ -4247,11 +4114,6 @@ namespace WindowsMixedReality
 	void StopMeshObserver()
 	{
 #if PLATFORM_HOLOLENS || HOLO_STREAMING_RENDERING
-		if (m_isHL1Remoting)
-		{
-			return;
-		}
-
 		MeshUpdateObserver::Release();
 #endif
 	}

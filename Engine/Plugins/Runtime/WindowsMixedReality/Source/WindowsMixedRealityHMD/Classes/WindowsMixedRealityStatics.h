@@ -52,7 +52,7 @@ namespace WindowsMixedReality
 			float value);
 #endif
 		// Remoting
-		static EXRDeviceConnectionResult::Type ConnectToRemoteHoloLens(FString remoteIP, unsigned int bitrate, bool isHoloLens1);
+		static EXRDeviceConnectionResult::Type ConnectToRemoteHoloLens(FString remoteIP, unsigned int bitrate);
 		static void DisconnectFromRemoteHoloLens();
 
 		DECLARE_MULTICAST_DELEGATE_TwoParams(FOnConfigureGesturesDelegate, const FXRGestureConfig&, bool& /*bSuccess*/);

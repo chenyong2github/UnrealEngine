@@ -396,7 +396,7 @@ namespace WindowsMixedReality
 		virtual void DisconnectRemoteXRDevice() override;
 
 		// Remoting
-		EXRDeviceConnectionResult::Type ConnectToRemoteHoloLens(const wchar_t* ip, unsigned int bitrate, bool isHoloLens1, unsigned int port=0, bool listen=false);
+		EXRDeviceConnectionResult::Type ConnectToRemoteHoloLens(const wchar_t* ip, unsigned int bitrate, unsigned int port=0, bool listen=false);
 		void DisconnectFromRemoteHoloLens();
 	private:
 #if WITH_WINDOWS_MIXED_REALITY
@@ -406,7 +406,6 @@ namespace WindowsMixedReality
 		{
 			FString ip;
 			unsigned int bitrate;
-			bool isHoloLens1;
 			unsigned int port;
 			bool listen;
 		};

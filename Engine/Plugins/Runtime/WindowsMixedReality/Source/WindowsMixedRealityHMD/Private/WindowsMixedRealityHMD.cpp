@@ -623,7 +623,7 @@ namespace WindowsMixedReality
 		{
 			if (isRemotingReconnecting)
 			{
-				ConnectToRemoteHoloLens(*RemotingDesc.ip, RemotingDesc.bitrate, RemotingDesc.isHoloLens1, RemotingDesc.port, RemotingDesc.listen);
+				ConnectToRemoteHoloLens(*RemotingDesc.ip, RemotingDesc.bitrate, RemotingDesc.port, RemotingDesc.listen);
 			}
 			else
 			{
@@ -1260,7 +1260,7 @@ namespace WindowsMixedReality
 				if (FParse::Value(FCommandLine::Get(), TEXT("RemotingAppIp="), RemotingAppIp) &&
 					FParse::Value(FCommandLine::Get(), TEXT("RemotingBitRate="), RemotingBitRate))
 				{
-					FWindowsMixedRealityStatics::ConnectToRemoteHoloLens(*RemotingAppIp, RemotingBitRate, false);
+					FWindowsMixedRealityStatics::ConnectToRemoteHoloLens(*RemotingAppIp, RemotingBitRate);
 				}
 			}
 
@@ -1289,14 +1289,7 @@ namespace WindowsMixedReality
 			}
 
 
-			if (FParse::Value(FCommandLine::Get(), TEXT("HoloLens1Remoting="), MatchesStr))
-			{
-				if (ParseAddress(MatchesStr, IPAddress, Port))
-				{
-					ConnectToRemoteHoloLens(*IPAddress, BitRate, true, Port);
-				}
-			}
-			else if (FParse::Value(FCommandLine::Get(), TEXT("HoloLensRemoting="), MatchesStr))
+			if (FParse::Value(FCommandLine::Get(), TEXT("HoloLensRemoting="), MatchesStr))
 			{
 				if (ParseAddress(MatchesStr, IPAddress, Port))
 				{
@@ -1307,12 +1300,12 @@ namespace WindowsMixedReality
 			{
 				if (ParseAddress(MatchesStr, IPAddress, Port))
 				{
-					ConnectToRemoteHoloLens(*IPAddress, BitRate, false, Port, true);
+					ConnectToRemoteHoloLens(*IPAddress, BitRate, false, Port);
 				}
 			}
 			else if (FParse::Value(FCommandLine::Get(), TEXT("HoloLensRemotingListenPort="), Port))
 			{
-				ConnectToRemoteHoloLens(TEXT("0.0.0.0"), BitRate, false, Port, true);
+				ConnectToRemoteHoloLens(TEXT("0.0.0.0"), BitRate, false, Port);
 			}
 #endif
 			HMD->EnableStereo(stereo);
@@ -2492,7 +2485,7 @@ namespace WindowsMixedReality
 		//call back out into the function used by the editor for IP parsing
 		UE_LOG(LogWmrHmd, Log, TEXT("Connecting to remote HoloLens: %s"), *IpAddress);
 
-		return WindowsMixedReality::FWindowsMixedRealityStatics::ConnectToRemoteHoloLens(IpAddress, BitRate, false);
+		return WindowsMixedReality::FWindowsMixedRealityStatics::ConnectToRemoteHoloLens(IpAddress, BitRate);
 	}
 	
 	void FWindowsMixedRealityHMD::DisconnectRemoteXRDevice()
@@ -2503,7 +2496,7 @@ namespace WindowsMixedReality
 
 
 	// Remoting
-	EXRDeviceConnectionResult::Type FWindowsMixedRealityHMD::ConnectToRemoteHoloLens(const wchar_t* ip, unsigned int bitrate, bool isHoloLens1, unsigned int Port, bool listen)
+	EXRDeviceConnectionResult::Type FWindowsMixedRealityHMD::ConnectToRemoteHoloLens(const wchar_t* ip, unsigned int bitrate, unsigned int Port, bool listen)
 	{
 		EXRDeviceConnectionResult::Type Result = EXRDeviceConnectionResult::Success;
 
@@ -2512,12 +2505,11 @@ namespace WindowsMixedReality
 #  if WITH_WINDOWS_MIXED_REALITY
 		RemotingDesc.ip = ip;
 		RemotingDesc.bitrate = bitrate;
-		RemotingDesc.isHoloLens1 = isHoloLens1;
 		RemotingDesc.port = Port;
 		RemotingDesc.listen = listen;
-		isRemotingReconnecting = !WITH_EDITOR && listen != 0 && !isHoloLens1;
+		isRemotingReconnecting = !WITH_EDITOR && listen != 0;
 		HMD->SetLogCallback(WindowsMixedRealityHMD::LogForInterop);
-		HMD->ConnectToRemoteHoloLens(D3D11Device.GetReference(), ip, bitrate, isHoloLens1, Port, listen);
+		HMD->ConnectToRemoteHoloLens(D3D11Device.GetReference(), ip, bitrate, Port, listen);
 #  else
 		UE_LOG(LogWmrHmd, Log, TEXT("FWindowsMixedRealityHMD::ConnectToRemoteHoloLens() is doing nothing because !WITH_WINDOWS_MIXED_REALITY."));
 #  endif

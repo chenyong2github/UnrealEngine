@@ -486,7 +486,7 @@ namespace WindowsMixedReality
 
 		HMDRemotingConnectionState GetConnectionState();
 		void SetLogCallback(void (*functionPointer)(const wchar_t* text));
-		void ConnectToRemoteHoloLens(ID3D11Device* device, const wchar_t* ip, int bitrate, bool IsHoloLens1 = false, int listenPort = 8265, bool listen = false);
+		void ConnectToRemoteHoloLens(ID3D11Device* device, const wchar_t* ip, int bitrate, int listenPort = 8265, bool listen = false);
 		void ConnectToLocalWMRHeadset();
 		void ConnectToLocalHoloLens();
 		void DisconnectFromDevice();

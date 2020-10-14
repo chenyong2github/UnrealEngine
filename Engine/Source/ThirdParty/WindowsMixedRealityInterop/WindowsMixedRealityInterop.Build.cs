@@ -14,7 +14,6 @@ public class WindowsMixedRealityInterop : ModuleRules
         string LibrariesPath = Path.Combine(WMRIPath, "Lib");
         bool bAddLibraries = true;
         PublicIncludePaths.Add(IncludePath);
-		PublicIncludePaths.Add(Path.Combine(IncludePath, "HoloLens1Remoting"));
 
         if (Target.Platform == UnrealTargetPlatform.Win64)
         {

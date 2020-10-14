@@ -157,7 +157,7 @@ namespace WindowsMixedReality
 #endif
 
 	// Remoting
-	EXRDeviceConnectionResult::Type FWindowsMixedRealityStatics::ConnectToRemoteHoloLens(FString remoteIP, unsigned int bitrate, bool isHoloLens1)
+	EXRDeviceConnectionResult::Type FWindowsMixedRealityStatics::ConnectToRemoteHoloLens(FString remoteIP, unsigned int bitrate)
 	{
 #if !PLATFORM_HOLOLENS
 		FWindowsMixedRealityHMD* hmd = GetWindowsMixedRealityHMD();
@@ -168,7 +168,7 @@ namespace WindowsMixedReality
 				// If the given ip is not valid, try using it as a port for a listen connection to the remoting player.
 				int port = FCString::Atoi(*remoteIP);
 				remoteIP = TEXT("0.0.0.0");
-				hmd->ConnectToRemoteHoloLens(*remoteIP, bitrate, isHoloLens1, port, true);
+				hmd->ConnectToRemoteHoloLens(*remoteIP, bitrate, port, true);
 			}
 			else
 			{
@@ -183,7 +183,7 @@ namespace WindowsMixedReality
 					address = remoteIP;
 					port = 8265;
 				}
-				hmd->ConnectToRemoteHoloLens(*address, bitrate, isHoloLens1, port);
+				hmd->ConnectToRemoteHoloLens(*address, bitrate, port);
 			}
 		}
 		else

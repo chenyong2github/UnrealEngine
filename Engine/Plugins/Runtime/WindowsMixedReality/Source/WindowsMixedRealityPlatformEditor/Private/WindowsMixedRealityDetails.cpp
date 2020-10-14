@@ -55,13 +55,13 @@ FReply FWindowsMixedRealityDetails::OnConnectButtonClicked()
 	UWindowsMixedRealityRuntimeSettings* settings = UWindowsMixedRealityRuntimeSettings::Get();
 
 	FString ip = settings->RemoteHoloLensIP;
-	int HoloLensType = settings->IsHoloLens1Remoting ? 1 : 2;
-	UE_LOG(LogTemp, Log, TEXT("Editor connecting to remote HoloLens%i: %s"), HoloLensType, *ip);
+
+	UE_LOG(LogTemp, Log, TEXT("Editor connecting to remote HoloLens %s"), *ip);
 
 	unsigned int bitrate = settings->MaxBitrate;
 
 	FString Details;
-	WindowsMixedReality::FWindowsMixedRealityStatics::ConnectToRemoteHoloLens(ip, bitrate, settings->IsHoloLens1Remoting);
+	WindowsMixedReality::FWindowsMixedRealityStatics::ConnectToRemoteHoloLens(ip, bitrate);
 
 	return FReply::Handled();
 }
