@@ -1756,6 +1756,8 @@ void FBehaviorTreeEditor::HandleNewNodeClassPicked(UClass* InClass) const
 			}
 		}
 	}
+
+	FSlateApplication::Get().DismissAllMenus();
 }
 
 void FBehaviorTreeEditor::CreateNewTask() const
