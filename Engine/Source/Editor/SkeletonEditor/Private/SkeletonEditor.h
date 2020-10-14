@@ -17,6 +17,8 @@ class ISkeletonTree;
 class USkeleton;
 class ISkeletonTreeItem;
 
+struct FToolMenuContext;
+
 namespace SkeletonEditorModes
 {
 	// Mode identifiers
@@ -56,6 +58,7 @@ public:
 	virtual FText GetBaseToolkitName() const override;
 	virtual FString GetWorldCentricTabPrefix() const override;
 	virtual FLinearColor GetWorldCentricTabColorScale() const override;
+	virtual void InitToolMenuContext(FToolMenuContext& MenuContext) override;
 
 	/** FEditorUndoClient interface */
 	virtual void PostUndo(bool bSuccess) override;

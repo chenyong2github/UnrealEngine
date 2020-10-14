@@ -4,6 +4,7 @@
 #include "Modules/ModuleManager.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Animation/DebugSkelMeshComponent.h"
+#include "Toolkits/AssetEditorToolkit.h"
 #include "AssetData.h"
 #include "EdGraph/EdGraphSchema.h"
 #include "Editor/EditorEngine.h"
@@ -20,6 +21,7 @@
 #include "IEditableSkeleton.h"
 #include "ISkeletonTreeItem.h"
 #include "Algo/Transform.h"
+#include "PersonaToolMenuContext.h"
 
 const FName SkeletonEditorAppIdentifier = FName(TEXT("SkeletonEditorApp"));
 
@@ -123,6 +125,16 @@ FString FSkeletonEditor::GetWorldCentricTabPrefix() const
 FLinearColor FSkeletonEditor::GetWorldCentricTabColorScale() const
 {
 	return FLinearColor(0.3f, 0.2f, 0.5f, 0.5f);
+}
+
+void FSkeletonEditor::InitToolMenuContext(FToolMenuContext& MenuContext)
+{
+	FAssetEditorToolkit::InitToolMenuContext(MenuContext);
+
+	UPersonaToolMenuContext* Context = NewObject<UPersonaToolMenuContext>();
+	Context->SetToolkit(GetPersonaToolkit());
+
+	MenuContext.AddObject(Context);
 }
 
 void FSkeletonEditor::BindCommands()

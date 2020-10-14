@@ -21,6 +21,8 @@ class UEdGraph;
 class USkeletalMesh;
 class ISkeletonTreeItem;
 
+struct FToolMenuContext;
+
 struct FAnimationBlueprintEditorModes
 {
 	// Mode constants
@@ -142,6 +144,7 @@ public:
 	virtual FText GetToolkitToolTipText() const override;
 	virtual FString GetWorldCentricTabPrefix() const override;
 	virtual FLinearColor GetWorldCentricTabColorScale() const override;	
+	virtual void InitToolMenuContext(FToolMenuContext& MenuContext) override;
 	//~ End IToolkit Interface
 
 	/** @return the documentation location for this editor */

@@ -26,6 +26,7 @@ public class SkeletonEditor : ModuleRules
                 "BlueprintGraph",
                 "Kismet",
                 "PinnedCommandList",
+				"ToolMenus"
             }
 		);
 

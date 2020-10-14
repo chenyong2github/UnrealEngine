@@ -26,6 +26,7 @@ class UAnimSequenceBase;
 class ISkeletonTreeItem;
 class IAnimSequenceCurveEditor;
 struct FRichCurve;
+struct FToolMenuContext;
 
 namespace AnimationEditorModes
 {
@@ -75,6 +76,7 @@ public:
 	virtual FText GetBaseToolkitName() const override;
 	virtual FString GetWorldCentricTabPrefix() const override;
 	virtual FLinearColor GetWorldCentricTabColorScale() const override;
+	virtual void InitToolMenuContext(FToolMenuContext& MenuContext) override;
 
 	/** FTickableEditorObject Interface */
 	virtual void Tick(float DeltaTime) override;

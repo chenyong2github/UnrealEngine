@@ -21,6 +21,7 @@ public class AnimationEditor : ModuleRules
                 "SkeletonEditor",
                 "Kismet",
                 "AnimGraph",
+				"ToolMenus"
             }
 		);
 

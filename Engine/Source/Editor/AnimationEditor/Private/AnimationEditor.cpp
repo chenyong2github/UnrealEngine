@@ -52,6 +52,8 @@
 #include "IAnimSequenceCurveEditor.h"
 #include "EditorModeManager.h"
 #include "IPersonaEditorModeManager.h"
+#include "Toolkits/AssetEditorToolkit.h"
+#include "PersonaToolMenuContext.h"
 
 const FName AnimationEditorAppIdentifier = FName(TEXT("AnimationEditorApp"));
 
@@ -164,6 +166,16 @@ FString FAnimationEditor::GetWorldCentricTabPrefix() const
 FLinearColor FAnimationEditor::GetWorldCentricTabColorScale() const
 {
 	return FLinearColor(0.3f, 0.2f, 0.5f, 0.5f);
+}
+
+void FAnimationEditor::InitToolMenuContext(FToolMenuContext& MenuContext)
+{
+	FAssetEditorToolkit::InitToolMenuContext(MenuContext);
+
+	UPersonaToolMenuContext* Context = NewObject<UPersonaToolMenuContext>();
+	Context->SetToolkit(GetPersonaToolkit());
+
+	MenuContext.AddObject(Context);
 }
 
 void FAnimationEditor::Tick(float DeltaTime)

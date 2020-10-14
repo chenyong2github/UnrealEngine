@@ -69,6 +69,9 @@
 #include "AnimationBlueprintInterfaceEditorMode.h"
 #include "ToolMenus.h"
 
+#include "PersonaToolMenuContext.h"
+#include "ToolMenuContext.h"
+
 // Hide related nodes feature
 #include "Preferences/AnimationBlueprintEditorOptions.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -1116,6 +1119,16 @@ FString FAnimationBlueprintEditor::GetWorldCentricTabPrefix() const
 FLinearColor FAnimationBlueprintEditor::GetWorldCentricTabColorScale() const
 {
 	return FLinearColor( 0.5f, 0.25f, 0.35f, 0.5f );
+}
+
+void FAnimationBlueprintEditor::InitToolMenuContext(FToolMenuContext& MenuContext)
+{
+	FAssetEditorToolkit::InitToolMenuContext(MenuContext);
+
+	UPersonaToolMenuContext* Context = NewObject<UPersonaToolMenuContext>();
+	Context->SetToolkit(GetPersonaToolkit());
+
+	MenuContext.AddObject(Context);
 }
 
 IAnimationSequenceBrowser* FAnimationBlueprintEditor::GetAssetBrowser() const

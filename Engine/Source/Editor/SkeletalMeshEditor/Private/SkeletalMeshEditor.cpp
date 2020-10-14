@@ -46,6 +46,7 @@
 #include "Factories/FbxSkeletalMeshImportData.h"
 
 #include "Misc/MessageDialog.h"
+#include "PersonaToolMenuContext.h"
 
 const FName SkeletalMeshEditorAppIdentifier = FName(TEXT("SkeletalMeshEditorApp"));
 
@@ -588,6 +589,10 @@ void FSkeletalMeshEditor::InitToolMenuContext(FToolMenuContext& MenuContext)
 	USkeletalMeshToolMenuContext* Context = NewObject<USkeletalMeshToolMenuContext>();
 	Context->SkeletalMeshEditor = SharedThis(this);
 	MenuContext.AddObject(Context);
+	
+	UPersonaToolMenuContext* PersonaContext = NewObject<UPersonaToolMenuContext>();
+	PersonaContext->SetToolkit(GetPersonaToolkit());
+	MenuContext.AddObject(PersonaContext);
 }
 
 void FSkeletalMeshEditor::FillMeshClickMenu(FMenuBuilder& MenuBuilder, HActor* HitProxy, const FViewportClick& Click)
