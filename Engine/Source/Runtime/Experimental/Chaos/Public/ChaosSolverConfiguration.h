@@ -27,7 +27,8 @@ struct FChaosSolverConfiguration
 		, CollisionPairIterations(FEvolution::DefaultNumCollisionPairIterations)
 		, PushOutIterations(FEvolution::DefaultNumPushOutIterations)
 		, CollisionPushOutPairIterations(FEvolution::DefaultNumCollisionPushOutPairIterations)
-		, CollisionMargin(FEvolution::DefaultCollisionMargin)
+		, CollisionMarginFraction(FEvolution::DefaultCollisionMarginFraction)
+		, CollisionMarginMax(FEvolution::DefaultCollisionMarginMax)
 		, CollisionCullDistance(FEvolution::DefaultCollisionCullDistance)
 		, ClusterConnectionFactor(1.0f)
 		, ClusterUnionConnectionType(EClusterUnionMethod::DelaunayTriangulation)
@@ -57,11 +58,15 @@ struct FChaosSolverConfiguration
 	UPROPERTY(EditAnywhere, Category = "SolverConfiguration|Iterations")
 	int32 CollisionPushOutPairIterations;
 
-	// A collision margin used by some boxes and convex shapes to improve collision detection results.
-	// The core geomsteyr of shapes of these types are reduced in size by CollisionMargin, and the CollisionMargin
+	// A collision margin as a fraction of size used by some boxes and convex shapes to improve collision detection results.
+	// The core geometry of shapes that support a margin are reduced in size by the margin, and the margin
 	// is added back on during collision detection. The net result is a shape of the same size but with rounded corners.
 	UPROPERTY(EditAnywhere, Category = "SolverConfiguration|Collision")
-	float CollisionMargin;
+	float CollisionMarginFraction;
+
+	// An upper limit on the collision margin that will be subtracted from boxes and convex shapes. See CollisionMarginFraction
+	UPROPERTY(EditAnywhere, Category = "SolverConfiguration|Collision")
+	float CollisionMarginMax;
 
 	// During collision detection, if tweo shapes are at least this far apart we do not calculate their nearest features
 	// during the collision detection step.

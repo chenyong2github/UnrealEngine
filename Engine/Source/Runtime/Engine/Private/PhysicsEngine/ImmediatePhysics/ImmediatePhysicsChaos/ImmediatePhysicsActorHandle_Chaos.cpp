@@ -151,7 +151,6 @@ namespace ImmediatePhysics_Chaos
 #endif
 #if WITH_CHAOS
 		AddParams.ChaosTriMeshes = MakeArrayView(BodySetup->ChaosTriMeshes);
-		AddParams.CollisionMargin = 0.0f;
 #endif
 
 		TArray<TUniquePtr<FImplicitObject>> Geoms;
