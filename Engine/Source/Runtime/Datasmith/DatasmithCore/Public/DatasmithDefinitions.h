@@ -427,6 +427,14 @@ static const TCHAR* KeyValuePropertyTypeStrings[] = { TEXT("String"), TEXT("Colo
 //LEVEL SEQUENCES
 #define DATASMITH_LEVELSEQUENCENAME				TEXT("LevelSequence")
 
+// VARIANTS
+#define DATASMITH_LEVELVARIANTSETSNAME			TEXT("LevelVariantSets")
+#define DATASMITH_VARIANTSETNAME				TEXT("VariantSet")
+#define DATASMITH_VARIANTNAME					TEXT("Variant")
+#define DATASMITH_ACTORBINDINGNAME				TEXT("ActorBinding")
+#define DATASMITH_PROPERTYCAPTURENAME			TEXT("PropertyCapture")
+#define DATASMITH_OBJECTPROPERTYCAPTURENAME		TEXT("ObjectPropertyCapture")
+
 //LIGHTS
 #define DATASMITH_LIGHTNAME						TEXT("Light")
 #define DATASMITH_POINTLIGHTNAME				TEXT("PointLight")
