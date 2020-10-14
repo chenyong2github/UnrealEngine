@@ -235,7 +235,7 @@ namespace AutomationTool
 		public static void RunCommandlet(FileReference ProjectName, string UE4Exe, string Commandlet, string Parameters = null, int ErrorLevel = 1)
 		{
 			string LogFile;
-			RunCommandlet(ProjectName, UE4Exe, Commandlet, Parameters, ErrorLevel, out LogFile);
+			RunCommandlet(ProjectName, UE4Exe, Commandlet, Parameters, out LogFile, ErrorLevel);
 		}
 
 		/// <summary>
@@ -245,9 +245,9 @@ namespace AutomationTool
 		/// <param name="UE4Exe">The name of the UE4 Editor executable to use.</param>
 		/// <param name="Commandlet">Commandlet name.</param>
 		/// <param name="Parameters">Command line parameters (without -run=)</param>
-		/// <param name="ErrorLevel">The minimum exit code, which is treated as an error.</param>
 		/// <param name="DestLogFile">Log file after completion</param>
-		public static void RunCommandlet(FileReference ProjectName, string UE4Exe, string Commandlet, string Parameters, int ErrorLevel, out string DestLogFile)
+		/// <param name="ErrorLevel">The minimum exit code, which is treated as an error.</param>
+		public static void RunCommandlet(FileReference ProjectName, string UE4Exe, string Commandlet, string Parameters, out string DestLogFile, int ErrorLevel = 1)
 		{
 			LogInformation("Running UE4Editor {0} for project {1}", Commandlet, ProjectName);
 
