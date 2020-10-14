@@ -63,6 +63,12 @@ public:
 	/** Add a property value message */
 	void AppendPropertyValue(uint64 InObjectId, double InTime, uint64 InEventId, int32 InPropertyId, const FStringView& InValue);
 
+	/** Check whether we have any data */
+	bool HasAnyData() const;
+
+	/** Check whether we have any object property data */
+	bool HasObjectProperties() const;
+
 private:
 	Trace::IAnalysisSession& Session;
 
@@ -112,4 +118,10 @@ private:
 
 	/** Map from string ID to stored string */
 	TMap<uint32, const TCHAR*> PropertyStrings;
+
+	/** Whether we have any data */
+	bool bHasAnyData;
+
+	/** Whether we have any object properties */
+	bool bHasObjectProperties;
 };

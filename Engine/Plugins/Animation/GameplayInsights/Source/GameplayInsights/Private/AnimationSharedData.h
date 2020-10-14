@@ -50,8 +50,11 @@ public:
 	void HideAllMeshes();
 #endif
 
-	// Check whether animation tracks are enabled
-	bool AreAnimationTracksEnabled() const;
+	// Check whether all animation tracks are enabled
+	bool AreAllAnimationTracksEnabled() const;
+
+	// Check whether any animation tracks are enabled
+	bool AreAnyAnimationTracksEnabled() const;
 
 	// Get the last cached analysis session
 	const Trace::IAnalysisSession& GetAnalysisSession() const { return *AnalysisSession; }
@@ -122,7 +125,6 @@ private:
 	/** Validity flags for pose times/ranges */
 	bool bTimeMarkerValid;
 	bool bMarkerFrameValid;
-	bool bSelectionRangeValid;
 
 	// Flags controlling whether check type of our animation tracks are enabled
 	bool bSkeletalMeshPoseTracksEnabled;
