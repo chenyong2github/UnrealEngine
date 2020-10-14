@@ -389,6 +389,7 @@ public:
 	CHAOS_API void DestroyParticle(TGeometryParticleHandle<FReal, 3>* Particle)
 	{
 		RemoveParticleFromAccelerationStructure(*Particle);
+		UniqueIndicesPendingRelease.Add(Particle->UniqueIdx());
 		ConstraintGraph.RemoveParticle(Particle);
 		RemoveConstraints(TSet<TGeometryParticleHandle<FReal, 3>*>({ Particle }));
 		Particles.DestroyParticle(Particle);
@@ -790,6 +791,7 @@ protected:
 	// Allows us to tell evolution to stop starting async tasks if we are trying to cleanup solver/evo.
 	bool bCanStartAsyncTasks;
 
+	TArray<FUniqueIdx> UniqueIndicesPendingRelease;
 public:
 	//The latest external timestamp we consumed inputs from, assigned to evolution when solver task executes, is used to stamp output data.
 	int32 LatestExternalTimestampConsumed_Internal;	
