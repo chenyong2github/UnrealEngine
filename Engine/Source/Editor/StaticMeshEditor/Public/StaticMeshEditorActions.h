@@ -88,6 +88,8 @@ public:
 
 	TSharedPtr< FUICommandInfo > ChangeMesh;
 
+	TSharedPtr< FUICommandInfo > BakeMaterials;
+
 	TSharedPtr< FUICommandInfo > SaveGeneratedLODs;
 
 	/**

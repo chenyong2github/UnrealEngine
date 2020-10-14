@@ -43,7 +43,8 @@ public class StaticMeshEditor : ModuleRules
                 "DesktopWidgets",
 				"EditorSubsystem",
 				"MeshDescription",
-				"StaticMeshDescription"
+				"StaticMeshDescription",
+				"ToolMenus"
 			}
 		);
 

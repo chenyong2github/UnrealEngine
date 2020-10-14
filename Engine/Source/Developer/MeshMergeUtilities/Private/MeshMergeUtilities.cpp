@@ -50,7 +50,6 @@
 #include "StaticMeshComponentAdapter.h"
 #include "SkeletalMeshAdapter.h"
 #include "StaticMeshAdapter.h"
-#include "MeshMergeEditorExtensions.h"
 
 #include "MeshMergeDataTracker.h"
 
@@ -87,15 +86,11 @@ DEFINE_LOG_CATEGORY(LogMeshMerging);
 FMeshMergeUtilities::FMeshMergeUtilities()
 {
 	Processor = new FProxyGenerationProcessor(this);
-
-	// Add callback for registering editor extensions with Skeletal/Static mesh editor
-	ModuleLoadedDelegateHandle = FModuleManager::Get().OnModulesChanged().AddStatic(&FMeshMergeEditorExtensions::OnModulesChanged);
 }
 
 FMeshMergeUtilities::~FMeshMergeUtilities()
 {
 	FModuleManager::Get().OnModulesChanged().Remove(ModuleLoadedDelegateHandle);
-	FMeshMergeEditorExtensions::RemoveExtenders();
 }
 
 void FMeshMergeUtilities::BakeMaterialsForComponent(TArray<TWeakObjectPtr<UObject>>& OptionObjects, IMaterialBakingAdapter* Adapter) const

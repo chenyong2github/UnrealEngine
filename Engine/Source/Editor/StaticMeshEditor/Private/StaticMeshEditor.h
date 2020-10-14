@@ -303,6 +303,9 @@ private:
 	/** Callback for checking the draw additional data flag. */
 	bool IsDrawAdditionalDataChecked() const;
 
+	/** Bake out Materials for give LOD(s). **/
+	void BakeMaterials();
+
 private:
 
 
@@ -429,6 +432,7 @@ private:
 	void OnConvexDecomposition();
 
 	//~ Begin FAssetEditorToolkit Interface.
+	virtual bool UsesCustomToolbarPlacement() const { return false;  }
 	virtual bool OnRequestClose() override;
 	//~ End FAssetEditorToolkit Interface.
 

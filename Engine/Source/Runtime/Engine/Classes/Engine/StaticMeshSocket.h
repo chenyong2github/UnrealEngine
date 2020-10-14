@@ -34,15 +34,15 @@ class UStaticMeshSocket : public UObject
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=StaticMeshSocket)
 	FVector RelativeScale;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=StaticMeshSocket)
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, Category=StaticMeshSocket)
 	FString Tag;
 
 #if WITH_EDITORONLY_DATA
-	UPROPERTY(EditAnywhere, Category=StaticMeshSocket)
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category=StaticMeshSocket)
 	class UStaticMesh* PreviewStaticMesh;
 
 	/* Weather the socket was imported with the asset or create in the editor. Importer will remove/modify only imported socket and will not touch any editor created socket. */
-	UPROPERTY(VisibleAnywhere, AdvancedDisplay, Category = StaticMeshSocket)
+	UPROPERTY()
 	bool bSocketCreatedAtImport;
 #endif // WITH_EDITORONLY_DATA
 

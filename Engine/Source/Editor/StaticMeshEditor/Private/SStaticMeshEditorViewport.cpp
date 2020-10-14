@@ -79,9 +79,14 @@ void SStaticMeshEditorViewport::PopulateViewportOverlays(TSharedRef<SOverlay> Ov
 	Overlay->AddSlot()
 		.VAlign(VAlign_Top)
 		.HAlign(HAlign_Left)
-		.Padding(FMargin(10.0f, 40.0f, 10.0f, 10.0f))
+		.Padding(FMargin(6.0f, 36.0f, 6.0f, 6.0f))
 		[
-			SAssignNew(OverlayTextVerticalBox, SVerticalBox)
+			SNew(SBorder)
+			.BorderImage( FAppStyle::Get().GetBrush( "FloatingBorder" ) )
+			.Padding(4.f)
+			[
+				SAssignNew(OverlayTextVerticalBox, SVerticalBox)
+			]
 		];
 
 	// this widget will display the current viewed feature level
