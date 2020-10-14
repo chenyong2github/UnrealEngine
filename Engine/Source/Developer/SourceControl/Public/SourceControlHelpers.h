@@ -178,6 +178,28 @@ public:
 	static FText LastErrorMsg();
 
 	/**
+	 * Use currently set source control provider to sync a file or directory to the head revision.
+	 * @note	Blocks until action is complete.
+	 *
+	 * @param	InFile	The file or directory to sync - can be either fully qualified path, relative path, long package name, asset path or export text path (often stored on clipboard)
+	 * @param	bSilent	if false (default) then write out any error info to the Log. Any error text can be retrieved by LastErrorMsg() regardless.
+	 * @return	true if succeeded, false if failed and can call LastErrorMsg() for more info.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Editor Source Control Helpers")
+	static bool SyncFile(const FString& InFile, bool bSilent = false);
+
+	/**
+	 * Use currently set source control provider to sync files or directories to the head revision.
+	 * @note	Blocks until action is complete.
+	 *
+	 * @param	InFiles	Files or directories to sync - can be either fully qualified path, relative path, long package name, asset path or export text path (often stored on clipboard)
+	 * @param	bSilent	if false (default) then write out any error info to the Log. Any error text can be retrieved by LastErrorMsg() regardless.
+	 * @return	true if succeeded, false if failed and can call LastErrorMsg() for more info.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Editor Source Control Helpers")
+	static bool SyncFiles(const TArray<FString>& InFiles, bool bSilent = false);
+
+	/**
 	 * Use currently set source control provider to check out a file.
 	 * @note	Blocks until action is complete.
 	 *
