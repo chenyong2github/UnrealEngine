@@ -356,10 +356,11 @@ static inline FString MakeStringFromProductUserId(EOS_ProductUserId UserId)
 {
 	FString StringId;
 
-	char ProductIdString[EOS_PRODUCTUSERID_MAX_LENGTH];
+	char ProductIdString[EOS_PRODUCTUSERID_MAX_LENGTH + 1];
 	ProductIdString[0] = '\0';
-	int32_t BufferSize = EOS_PRODUCTUSERID_MAX_LENGTH;
-	ensure(EOS_ProductUserId_ToString(UserId, ProductIdString, &BufferSize) == EOS_EResult::EOS_Success);
+	int32_t BufferSize = EOS_PRODUCTUSERID_MAX_LENGTH + 1;
+	EOS_EResult Result = EOS_ProductUserId_ToString(UserId, ProductIdString, &BufferSize);
+	ensure(Result == EOS_EResult::EOS_Success);
 	StringId += ProductIdString;
 
 	return StringId;
@@ -369,10 +370,11 @@ static inline FString MakeStringFromEpicAccountId(EOS_EpicAccountId AccountId)
 {
 	FString StringId;
 
-	char AccountIdString[EOS_EPICACCOUNTID_MAX_LENGTH];
+	char AccountIdString[EOS_EPICACCOUNTID_MAX_LENGTH + 1];
 	AccountIdString[0] = '\0';
-	int32_t BufferSize = EOS_EPICACCOUNTID_MAX_LENGTH;
-	ensure(EOS_EpicAccountId_ToString(AccountId, AccountIdString, &BufferSize) == EOS_EResult::EOS_Success);
+	int32_t BufferSize = EOS_EPICACCOUNTID_MAX_LENGTH + 1;
+	EOS_EResult Result = EOS_EpicAccountId_ToString(AccountId, AccountIdString, &BufferSize);
+	ensure(Result == EOS_EResult::EOS_Success);
 	StringId += AccountIdString;
 
 	return StringId;
