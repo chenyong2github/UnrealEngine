@@ -159,6 +159,7 @@ void UNiagaraStackParameterStoreEntry::Reset()
 		{
 			UNiagaraDataInterface* DefaultObject = NewObject<UNiagaraDataInterface>(this, const_cast<UClass*>(InputType.GetClass()));
 			DefaultObject->CopyTo(ParameterStore->GetDataInterface(Var));
+			NotifyDataInterfaceChanged();
 		}
 		else if (Var.IsUObject())
 		{
@@ -386,6 +387,7 @@ void UNiagaraStackParameterStoreEntry::SetValueFromClipboardFunctionInput(const 
 		if (ensureMsgf(InputDataInterface != nullptr && ClipboardFunctionInput.Data != nullptr, TEXT("Data interface paste failed. Check that data can be pasted with TestCanPasteWithMessage() before calling Paste().")))
 		{
 			ClipboardFunctionInput.Data->CopyTo(InputDataInterface);
+			NotifyDataInterfaceChanged();
 		}
 		break;
 	}
@@ -504,6 +506,15 @@ UObject* UNiagaraStackParameterStoreEntry::GetCurrentValueObject()
 		}
 	}
 	return nullptr;
+}
+
+void UNiagaraStackParameterStoreEntry::NotifyDataInterfaceChanged()
+{
+	if (ValueObject.IsValid())
+	{
+		TSharedRef<FNiagaraSystemViewModel> ViewModel = GetSystemViewModel(); 
+		ViewModel->NotifyDataObjectChanged(ValueObject.Get());
+	}
 }
 
 bool UNiagaraStackParameterStoreEntry::IsUniqueName(FString NewName)
