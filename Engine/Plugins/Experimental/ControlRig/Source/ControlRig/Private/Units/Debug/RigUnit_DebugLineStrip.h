@@ -41,7 +41,7 @@ struct FRigUnit_DebugLineStrip : public FRigUnit_DebugBaseMutable
 };
 
 /**
- * Draws line strips in the viewport given any number of points
+ * Draws a line strip in the viewport given any number of points
  */
 USTRUCT(meta=(DisplayName="Draw Line Strip"))
 struct FRigUnit_DebugLineStripItemSpace : public FRigUnit_DebugBaseMutable
