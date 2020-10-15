@@ -769,6 +769,19 @@ bool UMoviePipelineCustomTimeStep::UpdateTimeStep(UEngine* /*InEngine*/)
 	return false;
 }
 
+void UMoviePipelineCustomTimeStep::SetCachedFrameTiming(const MoviePipeline::FFrameTimeStepCache& InTimeCache)
+{ 
+	if (ensureMsgf(!FMath::IsNearlyZero(InTimeCache.DeltaTime), TEXT("An incorrect or uninitialized time step was used! Delta Time of 0 isn't allowed.")))
+	{
+		TimeCache = InTimeCache;
+	}
+	else
+	{
+		UE_LOG(LogMovieRenderPipeline, Error, TEXT("SetCachedFrameTiming called with zero delta time, falling back to 1/24"));
+		TimeCache = MoviePipeline::FFrameTimeStepCache(1 / 24.0);
+	}
+}
+
 void UMoviePipeline::ModifySequenceViaExtensions(ULevelSequence* InSequence)
 {
 }
@@ -1283,29 +1296,6 @@ MoviePipeline::FFrameConstantMetrics UMoviePipeline::CalculateShotFrameMetrics(c
 	APlayerCameraManager* PlayerCameraManager = GetWorld()->GetFirstPlayerController()->PlayerCameraManager;
 	if (PlayerCameraManager)
 	{
-		// Grab the motion blur setting from the camera, if applicable.
-		ACameraActor* CameraActor = Cast<ACameraActor>(PlayerCameraManager->GetViewTarget());
-		if (CameraActor)
-		{
-			UCameraComponent* CameraComponent = CameraActor->GetCameraComponent();
-			if (CameraComponent)
-			{
-				Output.ShutterAnglePercentage = CameraComponent->PostProcessSettings.MotionBlurAmount;
-			}
-		}
-		
-		// Apply any motion blur settings from post processing blends attached to the camera manager
-		TArray<FPostProcessSettings> const* CameraAnimPPSettings;
-		TArray<float> const* CameraAnimPPBlendWeights;
-		PlayerCameraManager->GetCachedPostProcessBlends(CameraAnimPPSettings, CameraAnimPPBlendWeights);
-		for (int32 PPIdx = 0; PPIdx < CameraAnimPPBlendWeights->Num(); ++PPIdx)
-		{
-			if ((*CameraAnimPPSettings)[PPIdx].bOverride_MotionBlurAmount)
-			{
-				Output.ShutterAnglePercentage = FMath::Lerp(Output.ShutterAnglePercentage, (double)(*CameraAnimPPSettings)[PPIdx].MotionBlurAmount, (*CameraAnimPPBlendWeights)[PPIdx]);
-			}
-		}
-
 		// Apply any motion blur settings from post process volumes in the world
 		FVector ViewLocation = PlayerCameraManager->GetCameraLocation();
 		for (IInterface_PostProcessVolume* PPVolume : GetWorld()->PostProcessVolumes)
@@ -1319,7 +1309,7 @@ MoviePipeline::FFrameConstantMetrics UMoviePipeline::CalculateShotFrameMetrics(c
 			}
 
 			float LocalWeight = FMath::Clamp(VolumeProperties.BlendWeight, 0.0f, 1.0f);
-			
+
 			if (!VolumeProperties.bIsUnbound)
 			{
 				float DistanceToPoint = 0.0f;
@@ -1338,6 +1328,29 @@ MoviePipeline::FFrameConstantMetrics UMoviePipeline::CalculateShotFrameMetrics(c
 			if (LocalWeight > 0.0f)
 			{
 				Output.ShutterAnglePercentage = FMath::Lerp(Output.ShutterAnglePercentage, (double)VolumeProperties.Settings->MotionBlurAmount, LocalWeight);
+			}
+		}
+
+		// Now try from the camera, which takes priority over post processing volumes.
+		ACameraActor* CameraActor = Cast<ACameraActor>(PlayerCameraManager->GetViewTarget());
+		if (CameraActor)
+		{
+			UCameraComponent* CameraComponent = CameraActor->GetCameraComponent();
+			if (CameraComponent && CameraComponent->PostProcessSettings.bOverride_MotionBlurAmount)
+			{
+				Output.ShutterAnglePercentage = FMath::Lerp(Output.ShutterAnglePercentage, (double)CameraComponent->PostProcessSettings.MotionBlurAmount, (double)CameraComponent->PostProcessBlendWeight);
+			}
+		}
+		
+		// Apply any motion blur settings from post processing blends attached to the camera manager
+		TArray<FPostProcessSettings> const* CameraAnimPPSettings;
+		TArray<float> const* CameraAnimPPBlendWeights;
+		PlayerCameraManager->GetCachedPostProcessBlends(CameraAnimPPSettings, CameraAnimPPBlendWeights);
+		for (int32 PPIdx = 0; PPIdx < CameraAnimPPBlendWeights->Num(); ++PPIdx)
+		{
+			if ((*CameraAnimPPSettings)[PPIdx].bOverride_MotionBlurAmount)
+			{
+				Output.ShutterAnglePercentage = FMath::Lerp(Output.ShutterAnglePercentage, (double)(*CameraAnimPPSettings)[PPIdx].MotionBlurAmount, (*CameraAnimPPBlendWeights)[PPIdx]);
 			}
 		}
 	}

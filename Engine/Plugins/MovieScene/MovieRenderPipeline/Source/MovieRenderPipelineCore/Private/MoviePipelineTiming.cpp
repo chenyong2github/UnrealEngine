@@ -540,10 +540,13 @@ void UMoviePipeline::TickProducingFrames()
 			LevelSequenceActor->GetSequencePlayer()->Play();
 		}
 
-		
-		// If the user doesn't want to render every frame we need to increase the delta time so that enough
-		// time passes in the world. The framerate of the output media will be adjusted to match.
-		// FrameDeltaTime = FrameDeltaTime * 1.0 / (double)Config->OutputFrameStep.Value;
+		if (DeltaFrameTime.GetFrame() == FFrameNumber(0))
+		{
+			// Too many temporal samples for the given shutter angle.
+			UE_LOG(LogMovieRenderPipeline, Error, TEXT("Too many temporal samples for the given shutter angle/tick rate combination. Temporal Samples: %d Shutter Angle: %f TicksPerOutputFrame: %s TicksPerSample: %s. Consider converting to Spatial Samples instead!"),
+				AntiAliasingSettings->TemporalSampleCount, FrameMetrics.ShutterAnglePercentage, *LexToString(FrameMetrics.TicksPerOutputFrame), *LexToString(FrameMetrics.TicksPerSample));
+			DeltaFrameTime = FFrameTime(FFrameNumber(1));
+		}
 
 		double FrameDeltaTime = FrameMetrics.TickResolution.AsSeconds(FFrameTime(DeltaFrameTime.GetFrame()));
 		CachedOutputState.TimeData.FrameDeltaTime = FrameDeltaTime;
