@@ -344,7 +344,7 @@ bool CalculatePropertyDef(PyTypeObject* InPyType, FPropertyDef& OutPropertyDef)
 
 	if (PyObject_IsSubclass((PyObject*)InPyType, (PyObject*)&PyLong_Type) == 1)
 	{
-		OutPropertyDef.PropertyClass = FInt64Property::StaticClass();
+		OutPropertyDef.PropertyClass = FIntProperty::StaticClass();
 		return true;
 	}
 
