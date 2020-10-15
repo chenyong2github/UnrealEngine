@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "CineCameraActor.h"
 #include "GameFramework/Actor.h"
 #include "IRemoteSessionRole.h"
 #include "IVirtualCameraController.h"
@@ -18,7 +19,6 @@
 
 struct FVirtualCameraViewportSettings;
 class IRemoteSessionUnmanagedRole;
-class UCineCameraComponent;
 class URemoteSessionMediaCapture;
 class URemoteSessionMediaOutput;
 class USceneCaptureComponent2D;
@@ -35,7 +35,7 @@ struct FCanDeleteAssetResult;
 
 
 UCLASS(Blueprintable, BlueprintType, Category="VirtualCamera", DisplayName="VirtualCameraActor")
-class VIRTUALCAMERA_API AVirtualCameraActor : public AActor, public IVirtualCameraController, public IVirtualCameraPresetContainer, public IVirtualCameraOptions
+class VIRTUALCAMERA_API AVirtualCameraActor : public ACineCameraActor, public IVirtualCameraController, public IVirtualCameraPresetContainer, public IVirtualCameraOptions
 {
 	GENERATED_BODY()
 
@@ -44,9 +44,6 @@ public:
 	AVirtualCameraActor(const FObjectInitializer& ObjectInitializer);
 	AVirtualCameraActor(FVTableHelper& Helper);
 	~AVirtualCameraActor();
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "VirtualCamera | Component")
-	UCineCameraComponent* StreamedCamera;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "VirtualCamera | Component")
 	USceneCaptureComponent2D* SceneCaptureComponent;
@@ -79,9 +76,6 @@ protected:
 
 	UPROPERTY(Transient)
 	UWorld* ActorWorld;
-
-	UPROPERTY(Transient)
-	USceneComponent* DefaultSceneRoot;
 
 	UPROPERTY(Transient)
 	AActor* PreviousViewTarget;
@@ -206,6 +200,8 @@ private:
 
 private:
 
+	UPROPERTY(BlueprintGetter = GetCineCameraComponent, Category = "VirtualCamera | Component")
+	UCineCameraComponent* StreamedCamera;
 	bool bIsStreaming;
 	TSharedPtr<IRemoteSessionUnmanagedRole> RemoteSessionHost;
 	TUniquePtr<FVirtualCameraViewportSettings> ViewportSettingsBackup;
