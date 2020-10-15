@@ -1591,7 +1591,7 @@ void FStaticMeshEditor::GenerateKDop(const FVector* Directions, uint32 NumDirect
 	const int32 PrimIndex = GenerateKDopAsSimpleCollision(StaticMesh, DirArray);
 	if (PrimIndex != INDEX_NONE)
 	{
-		StaticMesh->BodySetup->AggGeom.ConvexElems[PrimIndex].bIsGenerated = true;
+		StaticMesh->GetBodySetup()->AggGeom.ConvexElems[PrimIndex].bIsGenerated = true;
 	}
 	GEditor->EndTransaction();
 	if (PrimIndex != INDEX_NONE)
@@ -1615,7 +1615,7 @@ void FStaticMeshEditor::OnCollisionBox()
 	const int32 PrimIndex = GenerateBoxAsSimpleCollision(StaticMesh);
 	if (PrimIndex != INDEX_NONE)
 	{
-		StaticMesh->BodySetup->AggGeom.BoxElems[PrimIndex].bIsGenerated = true;
+		StaticMesh->GetBodySetup()->AggGeom.BoxElems[PrimIndex].bIsGenerated = true;
 	}
 	GEditor->EndTransaction();
 	if (PrimIndex != INDEX_NONE)
@@ -1642,7 +1642,7 @@ void FStaticMeshEditor::OnCollisionSphere()
 	const int32 PrimIndex = GenerateSphereAsSimpleCollision(StaticMesh);
 	if (PrimIndex != INDEX_NONE)
 	{
-		StaticMesh->BodySetup->AggGeom.SphereElems[PrimIndex].bIsGenerated = true;
+		StaticMesh->GetBodySetup()->AggGeom.SphereElems[PrimIndex].bIsGenerated = true;
 	}
 	GEditor->EndTransaction();
 	if (PrimIndex != INDEX_NONE)
@@ -1669,7 +1669,7 @@ void FStaticMeshEditor::OnCollisionSphyl()
 	const int32 PrimIndex = GenerateSphylAsSimpleCollision(StaticMesh);
 	if (PrimIndex != INDEX_NONE)
 	{
-		StaticMesh->BodySetup->AggGeom.SphylElems[PrimIndex].bIsGenerated = true;
+		StaticMesh->GetBodySetup()->AggGeom.SphylElems[PrimIndex].bIsGenerated = true;
 	}
 	GEditor->EndTransaction();
 	if (PrimIndex != INDEX_NONE)
