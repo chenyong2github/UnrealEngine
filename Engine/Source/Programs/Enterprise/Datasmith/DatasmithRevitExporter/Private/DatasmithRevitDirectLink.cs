@@ -348,6 +348,32 @@ namespace DatasmithRevitExporter
 					Link.SetAllElementsModified();
 				}
 			}
+
+			// Handle section boxes.
+			FilteredElementCollector Collector = new FilteredElementCollector(RootCache.SourceDocument, RootCache.SourceDocument.ActiveView.Id);
+			IList<Element> SectionBoxes = Collector.OfCategory(BuiltInCategory.OST_SectionBox).ToElements();
+
+			foreach(var SectionBox in SectionBoxes)
+			{
+				if (!RootCache.ModifiedElements.Contains(SectionBox.Id))
+				{
+					continue;
+				}
+
+				// This section box was modified, need to make all elements it intersects dirty, so they 
+				// can be re-exported.
+				BoundingBoxXYZ BBox = SectionBox.get_BoundingBox(RootCache.SourceDocument.ActiveView);
+				ElementFilter IntersectFilterStart = new BoundingBoxIntersectsFilter(new Outline(BBox.Min, BBox.Max));
+				ICollection<ElementId> IntersectedElements = new FilteredElementCollector(RootCache.SourceDocument).WherePasses(IntersectFilterStart).ToElementIds();
+
+				foreach (var ElemId in IntersectedElements)
+				{
+					if (!RootCache.ModifiedElements.Contains(ElemId))
+					{
+						RootCache.ModifiedElements.Add(ElemId);
+					}
+				}
+			}
 		}
 
 		void ProcessLinkedDocuments()
