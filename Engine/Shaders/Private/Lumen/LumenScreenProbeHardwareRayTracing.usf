@@ -56,6 +56,10 @@
 
 #include "../HairStrands/HairStrandsVoxelPageCommonStruct.ush"
 #include "../Common.ush"
+#if LUMEN_HARDWARE_RAYTRACING
+#include "../RayTracing/RayTracingCommon.ush"
+#endif
+
 #define SUPPORT_CONTACT_SHADOWS		0
 #define USE_SOURCE_TEXTURE			1
 #define USE_SOURCE_TEXTURE_ARRAY	1

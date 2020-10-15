@@ -340,7 +340,7 @@ struct FPackedMaterialClosestHitPayload : FMinimalPayload
 
 	void SetRadiance(in float3 InRadiance)
 	{
-		RadianceAndNormal[0] = f32tof16(InRadiance.x) | (f32tof16(InRadiance.y) << 16);
+		RadianceAndNormal[0]  = f32tof16(InRadiance.x) | (f32tof16(InRadiance.y) << 16);
 		RadianceAndNormal[1] &= 0xffff << 16; // Clear the radiance (low bits), keep packed normal component (high bits)
 		RadianceAndNormal[1] |= f32tof16(InRadiance.z);
 	}
@@ -356,9 +356,9 @@ struct FPackedMaterialClosestHitPayload : FMinimalPayload
 
 	void SetIndirectIrradiance(float3 InIndirectIrradiance)
 	{
-		PackedIndirectIrradiance[0] = f32tof16(InIndirectIrradiance.x);
+		PackedIndirectIrradiance[0]  = f32tof16(InIndirectIrradiance.x);
 		PackedIndirectIrradiance[0] |= f32tof16(InIndirectIrradiance.y) << 16;
-		PackedIndirectIrradiance[1] = f32tof16(InIndirectIrradiance.z);
+		PackedIndirectIrradiance[1]  = f32tof16(InIndirectIrradiance.z);
 	}
 
 	float3 GetIndirectIrradiance()
@@ -382,10 +382,10 @@ struct FPackedMaterialClosestHitPayload : FMinimalPayload
 	float4 GetCustomData()
 	{
 		float4 Result;
-		Result.x = PackedCustomData & 0xFF;
-		Result.y = (PackedCustomData >> 8) & 0xFF;
-		Result.z = (PackedCustomData >> 16) & 0xFF;
-		Result.w = (PackedCustomData >> 24) & 0xFF;
+		Result.x = float(PackedCustomData & 0xFF);
+		Result.y = float((PackedCustomData >> 8) & 0xFF);
+		Result.z = float((PackedCustomData >> 16) & 0xFF);
+		Result.w = float((PackedCustomData >> 24) & 0xFF);
 		Result /= 255.0;
 		return Result;
 	}	
@@ -423,9 +423,11 @@ struct FPackedMaterialClosestHitPayload : FMinimalPayload
 	float3 GetSpecularColor() { return ComputeF0(GetSpecular(), GetBaseColor(), GetMetallic()); }
 
 	// Member function for (IsLumenMinimalPayload() == 1)
-	void SetInstanceID(uint InstanceID) {
+	void SetInstanceID(uint InstanceID)
+	{
 		PackedCustomData = InstanceID;
 	}
+
 	void SetGeometryNormal(float3 GeometryNormal)
 	{
 		RadianceAndNormal[1] |= f32tof16(GeometryNormal.x) << 16;
@@ -460,9 +462,9 @@ FPackedMaterialClosestHitPayload PackRayTracingPayload(FMaterialClosestHitPayloa
 	Output.IorAndShadingModelIDAndBlendingModeAndFlagsAndPrimitiveLightingChannelMask |= (Input.BlendingMode & 0xF) << 20;                 // 4 bits
 	Output.IorAndShadingModelIDAndBlendingModeAndFlagsAndPrimitiveLightingChannelMask |= (Input.Flags & 0x1F) << 24;                       // 5 bits
 	Output.IorAndShadingModelIDAndBlendingModeAndFlagsAndPrimitiveLightingChannelMask |= (Input.PrimitiveLightingChannelMask & 0x7) << 29; // 3 bits
-	Output.PackedIndirectIrradiance[0] = f32tof16(Input.IndirectIrradiance.x);
+	Output.PackedIndirectIrradiance[0]  = f32tof16(Input.IndirectIrradiance.x);
 	Output.PackedIndirectIrradiance[0] |= f32tof16(Input.IndirectIrradiance.y) << 16;
-	Output.PackedIndirectIrradiance[1] = f32tof16(Input.IndirectIrradiance.z);
+	Output.PackedIndirectIrradiance[1]  = f32tof16(Input.IndirectIrradiance.z);
 	int4 CustomData = round(Input.CustomData * 255);
 	Output.PackedCustomData = CustomData.x | (CustomData.y << 8) | (CustomData.z << 16) | (CustomData.w << 24);
 	Output.WorldTangentAndAnisotropy[0]  = f32tof16(Input.WorldTangent.x);
