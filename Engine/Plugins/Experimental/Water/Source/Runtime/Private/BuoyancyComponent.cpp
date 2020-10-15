@@ -4,6 +4,7 @@
 #include "WaterBodyActor.h"
 #include "DrawDebugHelpers.h"
 #include "WaterSplineComponent.h"
+#include "WaterVersion.h"
 #include "Physics/SimpleSuspension.h"
 
 TAutoConsoleVariable<int32> CVarWaterDebugBuoyancy(
@@ -51,10 +52,22 @@ void UBuoyancyComponent::BeginPlay()
 void UBuoyancyComponent::PostLoad()
 {
 	Super::PostLoad();
-	if (Pontoons_DEPRECATED.Num())
+
+	if (GetLinkerCustomVersion(FWaterCustomVersion::GUID) < FWaterCustomVersion::UpdateBuoyancyComponentPontoonsData)
 	{
-		BuoyancyData.Pontoons = Pontoons_DEPRECATED;
+		if (Pontoons_DEPRECATED.Num())
+		{
+			BuoyancyData.Pontoons = Pontoons_DEPRECATED;
+		}
+		Pontoons_DEPRECATED.Empty();
 	}
+}
+
+void UBuoyancyComponent::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+
+	Ar.UsingCustomVersion(FWaterCustomVersion::GUID);
 }
 
 const float ToKmh(float SpeedCms)
@@ -585,7 +598,6 @@ FVector UBuoyancyComponent::ComputeWaterForce(const float DeltaTime, const FVect
 	}
 	return FVector::ZeroVector;
 }
-
 FVector UBuoyancyComponent::ComputeLinearDragForce(const FVector& PhyiscsVelocity) const
 {
 	FVector DragForce = FVector::ZeroVector;
