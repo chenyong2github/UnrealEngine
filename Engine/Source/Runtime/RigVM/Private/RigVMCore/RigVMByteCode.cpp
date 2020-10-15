@@ -1063,6 +1063,11 @@ void FRigVMByteCode::AlignByteCode()
 		return;
 	}
 
+	if (ByteCode.Num() == 0)
+	{
+		return;
+	}
+
 	FRigVMInstructionArray Instructions(*this, false);
 	uint64 BytesToReserve = ByteCode.Num();
 
