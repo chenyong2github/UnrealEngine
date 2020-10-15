@@ -102,14 +102,24 @@ else
 	LogDir="$uebp_LogFolder"
 fi
 
-trap TermHandler SIGTERM SIGINT
+# if we are running under UE, we need to run this with the term handler (otherwise canceling a UAT job from the editor
+# can leave mono, etc running in the background, which means we need the PID so we 
+# run it in the background
+if [ "$UE_DesktopUnrealProcess" = "1"]
+	# you can't set a dotted env var nicely in sh, but env will run a command with
+	# a list of env vars set, including dotted ones
+	echo Start UAT Non-Interactively: mono AutomationTool.exe "${Args[@]}"
+	trap TermHandler SIGTERM SIGINT
+	env uebp_LogFolder="$LogDir" mono AutomationTool.exe "${Args[@]}" $UATCompileArg &
+	UATPid=$!
+	wait $UATPid
+else
+	# you can't set a dotted env var nicely in sh, but env will run a command with
+	# a list of env vars set, including dotted ones
+	echo Start UAT Interactively: mono AutomationTool.exe "${Args[@]}"
+	env uebp_LogFolder="$LogDir" mono AutomationTool.exe "${Args[@]}" $UATCompileArg
+fi
 
-# you can't set a dotted env var nicely in sh, but env will run a command with
-# a list of env vars set, including dotted ones
-echo Start UAT: mono AutomationTool.exe "${Args[@]}"
-env uebp_LogFolder="$LogDir" mono AutomationTool.exe "${Args[@]}" $UATCompileArg &
-UATPid=$!
-wait $UATPid
 UATReturn=$?
 
 # @todo: Copy log files to somewhere useful
