@@ -446,7 +446,7 @@ public:
 	virtual ECustomTimeStepSynchronizationState GetSynchronizationState() const override { return ECustomTimeStepSynchronizationState::Synchronized; }
 	// ~UEngineCustomTimeStep Interface
 
-	void SetCachedFrameTiming(const MoviePipeline::FFrameTimeStepCache& InTimeCache) { TimeCache = InTimeCache; }
+	void SetCachedFrameTiming(const MoviePipeline::FFrameTimeStepCache& InTimeCache);
 
 private:
 	/** We don't do any thinking on our own, instead we just spit out the numbers stored in our time cache. */
