@@ -8,6 +8,7 @@
 #include "CADSceneGraph.h"
 #include "Containers/Map.h"
 #include "Containers/Queue.h"
+#include "Containers/UnrealString.h"
 #include "Misc/Paths.h"
 
 #ifdef CAD_INTERFACE
@@ -17,6 +18,9 @@
 #include "kernel_io/material_io/material_io.h"
 #endif // CAD_INTERFACE
 
+#ifdef CAD_INTERFACE // temporary in the wait of a full integration in UE
+#include "CADKernel/CADInterface/CoreTech/CoreTechBridge.h"
+#endif // CAD_INTERFACE
 
 struct FFileStatData;
 struct FFileDescription;
@@ -63,7 +67,11 @@ public:
 
 	EProcessResult ProcessFile(const CADLibrary::FFileDescription& InCTFileDescription);
 
-	void GetBodyTessellation(CT_OBJECT_ID BodyId, CT_OBJECT_ID ParentId, FBodyMesh& OutBodyMesh, uint32 ParentMaterialHash, bool bNeedRepair);
+	void GetKioBodyTessellation(CT_OBJECT_ID BodyId, CT_OBJECT_ID ParentId, FBodyMesh& OutBodyMesh, uint32 ParentMaterialHash, bool bNeedRepair);
+
+	void GetBodyTessellation(CT_OBJECT_ID BodyId, CT_OBJECT_ID ParentId, FBodyMesh& OutBodyMesh, uint32 ParentMaterialHash, bool bNeedRepair, FString BodyFile);
+	uint32 GetFaceTessellation(FIdent FaceID, TArray<FTessellationData>& FaceTessellationSet, const FImportParameters& ImportParams);
+	void DefineMeshCriteria(FIdent MeshModelId);
 
 	TSet<FFileDescription>& GetExternalRefSet()
 	{
@@ -134,6 +142,8 @@ protected:
 	TArray<FBodyMesh> BodyMeshes;
 
 	const FImportParameters& ImportParameters;
+
+	CADKernel::FCoreTechBridge CoreTechBridge;
 };
 
 #endif // CAD_INTERFACE

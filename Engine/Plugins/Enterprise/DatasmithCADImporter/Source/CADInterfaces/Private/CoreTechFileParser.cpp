@@ -16,6 +16,9 @@
 #include "Misc/Paths.h"
 #include "Templates/TypeHash.h"
 
+#include "CADKernel/Mesh/Structure/SurfaceMesh.h"
+#include "CADKernel/Math/Point.h"
+
 namespace CADLibrary 
 {
 
@@ -212,7 +215,7 @@ void FillArrayOfInt(int32 ElementCount, void* InCTValueArray, int32* OutValueArr
 	}
 }
 
-uint32 GetFaceTessellation(CT_OBJECT_ID FaceID, TArray<FTessellationData>& FaceTessellationSet, const FImportParameters& ImportParams)
+uint32 GetKioFaceTessellation(CT_OBJECT_ID FaceID, TArray<FTessellationData>& FaceTessellationSet, const FImportParameters& ImportParams)
 {
 	CT_IO_ERROR Error = IO_OK;
 
@@ -244,29 +247,31 @@ uint32 GetFaceTessellation(CT_OBJECT_ID FaceID, TArray<FTessellationData>& FaceT
 	}
 
 	FTessellationData& Tessellation = FaceTessellationSet.Emplace_GetRef();
-	Tessellation.IndexArray.SetNum(IndexCount);
+	Tessellation.VertexIndices.SetNum(IndexCount);
+
+	Tessellation.PatchId = (int32) FaceID;
 
 	switch (IndexType)
 	{
 	case CT_TESS_UBYTE:
-		FillArrayOfInt<uint8>(IndexCount, IndexArray, Tessellation.IndexArray.GetData());
+		FillArrayOfInt<uint8>(IndexCount, IndexArray, Tessellation.VertexIndices.GetData());
 		break;
 	case CT_TESS_USHORT:
-		FillArrayOfInt<uint16>(IndexCount, IndexArray, Tessellation.IndexArray.GetData());
+		FillArrayOfInt<uint16>(IndexCount, IndexArray, Tessellation.VertexIndices.GetData());
 		break;
 	case CT_TESS_UINT:
-		FillArrayOfInt<uint32>(IndexCount, IndexArray, Tessellation.IndexArray.GetData());
+		FillArrayOfInt<uint32>(IndexCount, IndexArray, Tessellation.VertexIndices.GetData());
 		break;
 	}
 
-	Tessellation.VertexArray.SetNum(VertexCount);
+	Tessellation.PositionArray.SetNum(VertexCount);
 	switch (VertexType)
 	{
 	case CT_TESS_FLOAT:
-		FillArrayOfVector<float>(VertexCount, VertexArray, Tessellation.VertexArray.GetData());
+		FillArrayOfVector<float>(VertexCount, VertexArray, Tessellation.PositionArray.GetData());
 		break;
 	case CT_TESS_DOUBLE:
-		FillArrayOfVector<double>(VertexCount, VertexArray, Tessellation.VertexArray.GetData());
+		FillArrayOfVector<double>(VertexCount, VertexArray, Tessellation.PositionArray.GetData());
 		break;
 	}
 
@@ -318,9 +323,8 @@ uint32 GetFaceTessellation(CT_OBJECT_ID FaceID, TArray<FTessellationData>& FaceT
 		ScaleUV(FaceID, Tessellation.TexCoordArray, (float) ImportParams.ScaleFactor);
 	}
 
-	return Tessellation.IndexArray.Num() / 3;
+	return Tessellation.VertexIndices.Num() / 3;
 }
-
 
 void GetCTObjectDisplayDataIds(CT_OBJECT_ID ObjectID, FObjectDisplayDataId& Material)
 {
@@ -485,7 +489,7 @@ void FCoreTechFileParser::SetFaceMainMaterial(FObjectDisplayDataId& InFaceMateri
 		FaceTessellations.ColorName = Color.UEMaterialName;
 		BodyMesh.ColorSet.Add(Color.UEMaterialName);
 	}
-	else if(InBodyMaterial.DefaultMaterialName)
+	else if (InBodyMaterial.DefaultMaterialName)
 	{
 		FaceTessellations.ColorName = InBodyMaterial.DefaultMaterialName;
 		BodyMesh.ColorSet.Add(InBodyMaterial.DefaultMaterialName);
@@ -506,7 +510,7 @@ void FCoreTechFileParser::ExportSceneGraphFile()
 
 void FCoreTechFileParser::ExportMeshArchiveFile()
 {
-	SerializeBodyMeshSet(*MeshArchiveFilePath, BodyMeshes);
+		SerializeBodyMeshSet(*MeshArchiveFilePath, BodyMeshes);
 }
 
 void FCoreTechFileParser::LoadSceneGraphArchive(const FString& SGFile)
@@ -568,8 +572,10 @@ void FCoreTechFileParser::ReadMaterials()
 FCoreTechFileParser::FCoreTechFileParser(const FImportParameters& ImportParams, const FString& EnginePluginsPath, const FString& InCachePath)
 	: CachePath(InCachePath)
 	, ImportParameters(ImportParams)
+	, CoreTechBridge()
 {
 	CTKIO_InitializeKernel(ImportParameters.MetricUnit, *EnginePluginsPath);
+	CoreTechBridge.InitializeCADKernel(0.00001 / ImportParams.MetricUnit);
 }
 
 bool FCoreTechFileParser::FindFile(FFileDescription& File)
@@ -1125,7 +1131,131 @@ uint32 GetBodiesFaceSetNum(TArray<CT_OBJECT_ID>& BodySet)
 	return size;
 }
 
-void FCoreTechFileParser::GetBodyTessellation(CT_OBJECT_ID BodyId, CT_OBJECT_ID ParentId, FBodyMesh& OutBodyMesh, uint32 DefaultMaterialHash, bool bNeedRepair)
+void FCoreTechFileParser::DefineMeshCriteria(FIdent MeshModelId)
+{
+	TArray<FIdent> Criteria;
+
+	{
+		FIdent CriterionId = CoreTechBridge.CreateCadCurvatureCriterion();
+		Criteria.Add(CriterionId);
+	}
+	
+	if (ImportParameters.MaxEdgeLength > SMALL_NUMBER)
+	{
+		FIdent CriterionId = CoreTechBridge.CreateMaxLengthCriterion(ImportParameters.MaxEdgeLength);
+		Criteria.Add(CriterionId);
+	}
+
+	if (ImportParameters.ChordTolerance > SMALL_NUMBER)
+	{
+		FIdent CriterionId = CoreTechBridge.CreateSAGCriterion(ImportParameters.ChordTolerance);
+		Criteria.Add(CriterionId);
+	}
+
+	if (ImportParameters.MaxNormalAngle > SMALL_NUMBER)
+	{
+		FIdent CriterionId = CoreTechBridge.CreateAngleCriterion(ImportParameters.MaxNormalAngle);
+		Criteria.Add(CriterionId);
+	}
+	CoreTechBridge.AddCriteria(MeshModelId, Criteria);
+}
+
+uint32 FCoreTechFileParser::GetFaceTessellation(FIdent FaceID, TArray<FTessellationData>& FaceTessellationSet, const FImportParameters& ImportParams)
+{
+	CT_IO_ERROR Error = IO_OK;
+
+	const CADKernel::FSurfaceMesh& SurfaceMesh = CoreTechBridge.GetFaceTesselation(FaceID);
+
+	int32 IndexCount = SurfaceMesh.TrianglesVerticesIndex.Num();
+	if (IndexCount == 0)
+	{
+		return 0;
+	}
+
+	FTessellationData& Tessellation = FaceTessellationSet.Emplace_GetRef();
+	Tessellation.PatchId = (int32) SurfaceMesh.GetId();
+
+	Tessellation.PositionIndices.Reserve(SurfaceMesh.VerticesGlobalIndex.Num());
+	for (int32 VertexIndex : SurfaceMesh.VerticesGlobalIndex)
+	{
+		Tessellation.PositionIndices.Add(VertexIndex);
+	}
+
+	Tessellation.VertexIndices.Reserve(IndexCount);
+	for(int32 Index : SurfaceMesh.TrianglesVerticesIndex)
+	{
+		Tessellation.VertexIndices.Add(Index);
+	}
+
+	Tessellation.NormalArray.Reserve(SurfaceMesh.Normals.Num());
+	for (const CADKernel::FPoint& Normal : SurfaceMesh.Normals)
+	{
+		Tessellation.NormalArray.Emplace((float)Normal.X, (float)Normal.Y, (float)Normal.Z);
+	}
+
+	Tessellation.TexCoordArray.Reserve(SurfaceMesh.UVMap.Num());
+	for (const CADKernel::FPoint2D& TexCoord : SurfaceMesh.UVMap)
+	{
+		Tessellation.TexCoordArray.Emplace((float)TexCoord.U, (float) TexCoord.V);
+	}
+
+	return Tessellation.VertexIndices.Num() / 3;
+}
+
+void FCoreTechFileParser::GetBodyTessellation(CT_OBJECT_ID CTBodyId, CT_OBJECT_ID ParentId, FBodyMesh& OutBodyMesh, uint32 DefaultMaterialHash, bool bNeedRepair, FString BodyFile)
+{
+	FObjectDisplayDataId BodyMaterial;
+	BodyMaterial.DefaultMaterialName = DefaultMaterialHash;
+	GetCTObjectDisplayDataIds(CTBodyId, BodyMaterial);
+
+	CoreTechBridge.Empty();
+	CoreTechBridge.DefineLogFile(*FPaths::Combine(CachePath, TEXT("CADKernel"), BodyFile + TEXT(".log")));
+
+	FIdent DSModelId = CoreTechBridge.AddModel();
+
+	TArray<FIdent> DSBodies;
+	FIdent DSBodyId = CoreTechBridge.AddBody(CTBodyId);
+	DSBodies.Add(DSBodyId);
+	CoreTechBridge.AddToModel(DSModelId, DSBodyId);
+
+	CoreTechBridge.SaveDatabase(*FPaths::Combine(CachePath, TEXT("CADKernel"), BodyFile + TEXT(".dtc")));
+
+	FIdent DSMeshModelId = CoreTechBridge.CreateMeshModel();
+	DefineMeshCriteria(DSMeshModelId);
+
+	CoreTechBridge.Mesh(DSMeshModelId, DSBodies);
+
+	CoreTechBridge.GetMeshModelPointCloud(DSMeshModelId, OutBodyMesh.VertexArray);
+   
+	const TArray<FIdent>& FacesIds = CoreTechBridge.GetFaceIds();
+	uint32 FaceSize = FacesIds.Num();
+
+	// Allocate memory space for tessellation data
+	OutBodyMesh.Faces.Reserve(FaceSize);
+	OutBodyMesh.ColorSet.Reserve(FaceSize);
+	OutBodyMesh.MaterialSet.Reserve(FaceSize);
+
+	// Loop through the face of bodies and collect all tessellation data
+	int32 FaceIndex = 0;
+	for (FIdent FaceID : FacesIds)
+	{
+		uint32 TriangleNum = GetFaceTessellation(FaceID, OutBodyMesh.Faces, ImportParameters);
+
+		if (TriangleNum == 0)
+		{
+			continue;
+		}
+
+		OutBodyMesh.TriangleCount += TriangleNum;
+
+		FObjectDisplayDataId FaceMaterial;
+		GetCTObjectDisplayDataIds(FaceID, FaceMaterial);
+		SetFaceMainMaterial(FaceMaterial, BodyMaterial, OutBodyMesh, FaceIndex);
+		FaceIndex++;
+	}
+}
+
+void FCoreTechFileParser::GetKioBodyTessellation(CT_OBJECT_ID BodyId, CT_OBJECT_ID ParentId, FBodyMesh& OutBodyMesh, uint32 DefaultMaterialHash, bool bNeedRepair)
 {
 	TArray<CT_OBJECT_ID> BodyFaces;
 	{
@@ -1209,7 +1339,7 @@ void FCoreTechFileParser::GetBodyTessellation(CT_OBJECT_ID BodyId, CT_OBJECT_ID 
 	int32 FaceIndex = 0;
 	for(CT_OBJECT_ID FaceID : BodyFaces)
 	{
-		uint32 TriangleNum = GetFaceTessellation(FaceID, OutBodyMesh.Faces, ImportParameters);
+		uint32 TriangleNum = GetKioFaceTessellation(FaceID, OutBodyMesh.Faces, ImportParameters);
 
 		if (TriangleNum == 0)
 		{
@@ -1261,11 +1391,20 @@ bool FCoreTechFileParser::ReadBody(CT_OBJECT_ID BodyId, CT_OBJECT_ID ParentId, u
 	FString BodyFile = FString::Printf(TEXT("UEx%08x"), SceneGraphArchive.BodySet[Index].MeshActorName);
 	CT_KERNEL_IO::SaveFile(ObjectList, *FPaths::Combine(CachePath, TEXT("body"), BodyFile + TEXT(".ct")), L"Ct");
 
-	GetBodyTessellation(BodyId, ParentId, BodyMeshes[BodyMeshIndex], DefaultMaterialHash, bNeedRepair);
+	CT_FLAGS BodyProperties;
+	CT_BODY_IO::AskProperties(BodyId, BodyProperties);
 
+	if (ImportParameters.bEnableKernelIOTessellation || !(BodyProperties & CT_BODY_PROP_EXACT))
+	{
+		GetKioBodyTessellation(BodyId, ParentId, BodyMeshes[BodyMeshIndex], DefaultMaterialHash, bNeedRepair);
+	}
+	else
+	{
+		GetBodyTessellation(BodyId, ParentId, BodyMeshes[BodyMeshIndex], DefaultMaterialHash, bNeedRepair, BodyFile);
+	}
 	SceneGraphArchive.BodySet[Index].ColorFaceSet = BodyMeshes[BodyMeshIndex].ColorSet;
 	SceneGraphArchive.BodySet[Index].MaterialFaceSet = BodyMeshes[BodyMeshIndex].MaterialSet;
-
+	
 	return true;
 }
 

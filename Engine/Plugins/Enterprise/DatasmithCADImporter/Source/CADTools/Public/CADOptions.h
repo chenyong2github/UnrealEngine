@@ -37,11 +37,11 @@ namespace CADLibrary
 		BodyOnly,
 	};
 
-	//enum class ERetessellationRule : uint8
-	//{
-	//	All = 0,
-	//	SkipDeletedSurfaces,
-	//};
+	enum class ERetessellationRule : uint8
+	{
+		All = 0,
+		SkipDeletedSurfaces,
+	};
 
 	struct FImportParameters
 	{
@@ -56,7 +56,8 @@ namespace CADLibrary
 		EDisplayPreference DisplayPreference = EDisplayPreference::MaterialPrefered;
 		bool bScaleUVMap = true;
 		bool bEnableCacheUsage = true;
-		//ERetessellationRule RetessellationRule = ERetessellationRule::All;
+		bool bEnableKernelIOTessellation = true;
+		ERetessellationRule RetessellationRule = ERetessellationRule::All;
 
 		uint32 GetHash() const
 		{

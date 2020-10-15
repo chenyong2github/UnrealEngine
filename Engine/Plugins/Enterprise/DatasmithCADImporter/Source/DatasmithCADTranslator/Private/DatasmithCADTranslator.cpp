@@ -19,6 +19,12 @@ static TAutoConsoleVariable<int32> CVarStaticCADTranslatorEnableThreadedImport(
 	TEXT("Activate to parallelise CAD file processing.\n"),
 	ECVF_Default);
 
+static TAutoConsoleVariable<int32> CVarStaticCADTranslatorEnableKernelIOTessellation(
+	TEXT("r.CADTranslator.EnableKernelIOTessellation"),
+	1,
+	TEXT("Activate to use KernelIO Tessellation.\n"),
+	ECVF_Default);
+
 void FDatasmithCADTranslator::Initialize(FDatasmithTranslatorCapabilities& OutCapabilities)
 {
 	if (ICADInterfacesModule::IsAvailable() == ECADInterfaceAvailability::Unavailable)
@@ -75,6 +81,11 @@ void FDatasmithCADTranslator::Initialize(FDatasmithTranslatorCapabilities& OutCa
 
 bool FDatasmithCADTranslator::LoadScene(TSharedRef<IDatasmithScene> DatasmithScene)
 {
+	ImportParameters.bEnableKernelIOTessellation = (CVarStaticCADTranslatorEnableKernelIOTessellation.GetValueOnAnyThread() != 0);;
+#ifdef CADKERNEL_DEBUG
+	ImportParameters.bEnableKernelIOTessellation = false;
+#endif
+
 	ImportParameters.MetricUnit = 0.001;
 	ImportParameters.ScaleFactor = 0.1;
 	const FDatasmithTessellationOptions& TesselationOptions = GetCommonTessellationOptions();

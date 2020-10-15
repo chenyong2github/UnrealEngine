@@ -20,7 +20,7 @@ FDatasmithMeshBuilder::FDatasmithMeshBuilder(TMap<uint32, FString>& InCADFileToU
 	, CADFileToMeshFile(InCADFileToUE4GeomMap)
 	, ImportParameters(InImportParameters)
 {
-	LoadMeshFiles();
+		LoadMeshFiles();
 }
 
 void FDatasmithMeshBuilder::LoadMeshFiles()
@@ -34,9 +34,9 @@ void FDatasmithMeshBuilder::LoadMeshFiles()
 		{
 			continue;
 		}
-		TArray<CADLibrary::FBodyMesh>& BodyMeshSet = BodyMeshes.Emplace_GetRef();
-		DeserializeBodyMeshFile(*MeshFile, BodyMeshSet);
-		for (FBodyMesh& Body : BodyMeshSet)
+		TArray<CADLibrary::FBodyMesh>& BodyMeshArray = BodyMeshes.Emplace_GetRef();
+		DeserializeBodyMeshFile(*MeshFile, BodyMeshArray);
+		for (FBodyMesh& Body : BodyMeshArray)
 		{
 			MeshActorNameToBodyMesh.Emplace(Body.MeshActorName, &Body);
 		}
@@ -47,14 +47,14 @@ TOptional<FMeshDescription> FDatasmithMeshBuilder::GetMeshDescription(TSharedRef
 {
 #ifdef CAD_INTERFACE
 	const TCHAR* NameLabel = OutMeshElement->GetName();
-	CADUUID BodyUuid = (CADUUID) FCString::Atoi64(OutMeshElement->GetName()+2);  // +2 to remove 2 first char (Ox)
+	CADUUID BodyUuid = (CADUUID)FCString::Atoi64(OutMeshElement->GetName() + 2);  // +2 to remove 2 first char (Ox)
 	if (BodyUuid == 0)
 	{
 		return TOptional<FMeshDescription>();
 	}
 
 	FBodyMesh** PPBody = MeshActorNameToBodyMesh.Find(BodyUuid);
-	if(PPBody == nullptr || *PPBody == nullptr)
+	if (PPBody == nullptr || *PPBody == nullptr)
 	{
 		return TOptional<FMeshDescription>();
 	}
@@ -64,7 +64,7 @@ TOptional<FMeshDescription> FDatasmithMeshBuilder::GetMeshDescription(TSharedRef
 	FMeshDescription MeshDescription;
 	DatasmithMeshHelper::PrepareAttributeForStaticMesh(MeshDescription);
 
-	if (ConvertCTBodySetToMeshDescription(ImportParameters, OutMeshParameters, Body, MeshDescription))
+	if (ConvertBodyMeshToMeshDescription(ImportParameters, OutMeshParameters, Body, MeshDescription))
 	{
 		return MoveTemp(MeshDescription);
 	}

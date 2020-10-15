@@ -6,6 +6,8 @@
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 
+uint32 MeshArchiveMagic = 345612;
+
 namespace CADLibrary
 {
 uint32 BuildColorId(uint32 ColorId, uint8 Alpha)
@@ -72,29 +74,31 @@ FArchive& operator<<(FArchive& Ar, FFileDescription& File)
 
 FArchive& operator<<(FArchive& Ar, FTessellationData& TessellationData)
 {
-	Ar << TessellationData.PatchId;
+	Ar << TessellationData.PositionArray;
 
-	Ar << TessellationData.VertexArray;
+	Ar << TessellationData.PositionIndices;
+	Ar << TessellationData.VertexIndices;
+
 	Ar << TessellationData.NormalArray;
-	Ar << TessellationData.IndexArray;
 	Ar << TessellationData.TexCoordArray;
-
-	Ar << TessellationData.StartVertexIndex;
 
 	Ar << TessellationData.ColorName;
 	Ar << TessellationData.MaterialName;
+
+	Ar << TessellationData.PatchId;
 
 	return Ar;
 }
 
 FArchive& operator<<(FArchive& Ar, FBodyMesh& BodyMesh)
 {
+	Ar << BodyMesh.VertexArray;
+	Ar << BodyMesh.Faces;
+	Ar << BodyMesh.BBox;
+
 	Ar << BodyMesh.TriangleCount;
 	Ar << BodyMesh.BodyID;
 	Ar << BodyMesh.MeshActorName;
-	Ar << BodyMesh.Faces;
-
-	Ar << BodyMesh.BBox;
 
 	Ar << BodyMesh.MaterialSet;
 	Ar << BodyMesh.ColorSet;
@@ -106,8 +110,7 @@ void SerializeBodyMeshSet(const TCHAR* Filename, TArray<FBodyMesh>& InBodySet)
 {
 	TUniquePtr<FArchive> Archive(IFileManager::Get().CreateFileWriter(Filename));
 
-	uint32 type = 234561;
-	*Archive << type;
+	*Archive << MeshArchiveMagic;
 
 	*Archive << InBodySet;
 
@@ -118,15 +121,12 @@ void DeserializeBodyMeshFile(const TCHAR* Filename, TArray<FBodyMesh>& OutBodySe
 {
 	TUniquePtr<FArchive> Archive(IFileManager::Get().CreateFileReader(Filename));
 
-	uint32 type = 0;
-	*Archive << type;
-	if (type != 234561)
+	uint32 MagicNumber = 0;
+	*Archive << MagicNumber;
+	if (MagicNumber == MeshArchiveMagic)
 	{
-		Archive->Close();
-		return;
+		*Archive << OutBodySet;
 	}
-
-	*Archive << OutBodySet;
 	Archive->Close();
 }
 
