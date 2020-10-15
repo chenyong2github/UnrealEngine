@@ -836,7 +836,7 @@ void ScreenProbeTemporalReprojectionDepthRejectionPS(
 	HistoryScreenUV = clamp(HistoryScreenUV, HistoryUVMinMax.xy, HistoryUVMinMax.zw);
 
 	float4 NewDiffuseLighting = Texture2DSampleLevel(DiffuseIndirect, GlobalPointClampedSampler, ScreenUV, 0);
-	float3 HistoryDiffuseIndirect = Texture2DSampleLevel(DiffuseIndirectHistory, GlobalPointClampedSampler, HistoryScreenUV, 0).xyz * PrevInvPreExposure * View.PreExposure;
+	float3 HistoryDiffuseIndirect = Texture2DSampleLevel(DiffuseIndirectHistory, GlobalBilinearClampedSampler, HistoryScreenUV, 0).xyz * PrevInvPreExposure * View.PreExposure;
 	bool bLightingIsValid = NewDiffuseLighting.w > 0.0f;
 	float LightingIsMoving = abs(NewDiffuseLighting.w);
 
