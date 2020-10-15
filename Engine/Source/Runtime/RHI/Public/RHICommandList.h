@@ -2600,7 +2600,6 @@ public:
 		WaitFence->Transition = nullptr;
 	}
 
-	UE_DEPRECATED(4.26, "BeginUAVOverlap() with no arguments is deprecated. Use the overload which takes a UAV or array of UAVs to explicitly mark as safe for overlapped access.")
 	FORCEINLINE_DEBUGGABLE void BeginUAVOverlap()
 	{
 		if (Bypass())
@@ -2611,8 +2610,7 @@ public:
 		ALLOC_COMMAND(FRHICommandBeginUAVOverlap)();
 	}
 
-	UE_DEPRECATED(4.26, "EndUAVOverlap() with no arguments is deprecated. Use the overload which takes a UAV or array of UAVs to explicitly mark as safe for overlapped access.")
-		FORCEINLINE_DEBUGGABLE void EndUAVOverlap()
+	FORCEINLINE_DEBUGGABLE void EndUAVOverlap()
 	{
 		if (Bypass())
 		{
