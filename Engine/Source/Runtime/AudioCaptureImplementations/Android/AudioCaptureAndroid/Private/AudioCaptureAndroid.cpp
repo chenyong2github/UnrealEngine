@@ -2,8 +2,10 @@
 
 #include "AudioCaptureAndroid.h"
 
+#include "CoreMinimal.h"
 
-
+DECLARE_LOG_CATEGORY_EXTERN(LogAudioCaptureAndroid, Log, All);
+DEFINE_LOG_CATEGORY(LogAudioCaptureAndroid);
 
 Audio::FAudioCaptureAndroidStream::FAudioCaptureAndroidStream()
 	: NumChannels(1)
@@ -28,6 +30,7 @@ bool Audio::FAudioCaptureAndroidStream::GetCaptureDeviceInfo(FCaptureDeviceInfo&
 
 bool Audio::FAudioCaptureAndroidStream::OpenCaptureStream(const FAudioCaptureDeviceParams& InParams, FOnCaptureFunction InOnCapture, uint32 NumFramesDesired)
 {
+	// Build stream settings object.
 	oboe::AudioStreamBuilder StreamBuilder;
 	StreamBuilder.setDeviceId(0);
 	StreamBuilder.setCallback(this);
@@ -36,13 +39,24 @@ bool Audio::FAudioCaptureAndroidStream::OpenCaptureStream(const FAudioCaptureDev
 	StreamBuilder.setChannelCount(NumChannels);
 	StreamBuilder.setFormat(oboe::AudioFormat::Float);
 
+	// Open up a capture stream
 	oboe::AudioStream* NewStream;
 	oboe::Result Result = StreamBuilder.openStream(&NewStream);
+
+	bool bSuccess = Result == oboe::Result::OK;
+
 	InputOboeStream.Reset(NewStream);
 
 	OnCapture = MoveTemp(InOnCapture);
 
-	return true;
+	if (!bSuccess)
+	{
+		// Log error on failure.
+		FString ErrorString(UTF8_TO_TCHAR(convertToText(Result)));
+		UE_LOG(LogAudioCaptureAndroid, Error, TEXT("Failed to open oboe capture stream: %s"), *ErrorString)
+	}
+
+	return bSuccess;
 }
 
 bool Audio::FAudioCaptureAndroidStream::CloseStream()
