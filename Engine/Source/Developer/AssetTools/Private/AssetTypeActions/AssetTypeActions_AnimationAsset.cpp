@@ -116,7 +116,14 @@ void FAssetTypeActions_AnimationAsset::OpenAnimAssetEditor(const TArray<UObject*
 {
 	EToolkitMode::Type Mode = EditWithinLevelEditor.IsValid() ? EToolkitMode::WorldCentric : EToolkitMode::Standalone;
 
-	// Force new window if control held down
+#if WITH_EDITOR
+	// Force opening a new tab when the Animation Editor options window has the 'Always Open In New Tab' option enabled.
+	const UPersonaOptions* PersonaOptions = GetDefault<UPersonaOptions>();
+	check(PersonaOptions);
+	bForceNewEditor |= PersonaOptions->bAlwaysOpenAnimationAssetsInNewTab;
+#endif
+
+	// Force new tab when shift is held down.
 	bForceNewEditor |= FSlateApplication::Get().GetModifierKeys().IsShiftDown();
 
 	// Find all the anim assets

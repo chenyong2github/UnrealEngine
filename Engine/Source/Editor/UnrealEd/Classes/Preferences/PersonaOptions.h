@@ -96,10 +96,16 @@ UCLASS(hidecategories=Object, config=EditorPerProjectUserSettings)
 class UNREALED_API UPersonaOptions : public UObject
 {
 	GENERATED_UCLASS_BODY()
-		
+
 	/** Whether or not the floor should be aligned to the Skeletal Mesh's bounds by default for the Animation Editor(s)*/
 	UPROPERTY(EditAnywhere, config, Category = "Preview Scene")
 	uint32 bAutoAlignFloorToMesh : 1;
+
+	/** Whether or not the Animation Editor opens in an additional tab when double clicking an animation asset or if it reuses an already existing Animation Editor tab.
+	  * You can also keep this disabled and hold shift pressed while double clicking the asset to open the asset inside its own tab.
+	  */
+	UPROPERTY(EditAnywhere, config, Category = "Assets")
+	uint32 bAlwaysOpenAnimationAssetsInNewTab : 1;
 
 	/** Whether or not the grid should be visible by default for the Animation Editor(s)*/
 	UPROPERTY(EditAnywhere, config, Category = "Viewport")
