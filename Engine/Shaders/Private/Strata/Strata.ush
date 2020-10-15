@@ -593,11 +593,10 @@ FStrataPixelBSDFs UnpackStrataIn(ByteAddressBuffer StrataBuffer, uint ByteOffset
 	FStrataPixelBSDFs PixelBSDFs = (FStrataPixelBSDFs)0;
 
 	STRATA_LOAD_UINT1(PixelBSDFs.BSDFCount);
-	PixelBSDFs.BSDFCount = min(PixelBSDFs.BSDFCount, STRATA_MAX_TOTAL_BSDF);	// To make the compiler happy with unrolling
+	PixelBSDFs.BSDFCount = min(PixelBSDFs.BSDFCount, STRATA_MAX_TOTAL_BSDF);	// To make the compiler happy
 
 	float DummyFloat = 0.0f;
 
-	UNROLL
 	for (int i = 0; i < PixelBSDFs.BSDFCount; ++i)
 	{
 		{
