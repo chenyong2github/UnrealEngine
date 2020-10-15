@@ -17,7 +17,7 @@
 #include "IAudioExtensionPlugin.h"
 #include "ISoundfieldFormat.h"
 #include "Sound/SoundModulationDestination.h"
-
+#include "Sound/QuartzQuantizationUtilities.h"
 
 namespace Audio
 {
@@ -107,6 +107,8 @@ namespace Audio
 
 		FSoundModulationDefaultSettings ModulationSettings;
 
+		FQuartzQuantizedRequestData QuantizedRequestData;
+
 		FName AudioComponentUserID;
 		uint64 AudioComponentID = 0;
 		bool bIs3D = false;
@@ -153,6 +155,7 @@ namespace Audio
 
 		void Play(const int32 SourceId);
 		void Stop(const int32 SourceId);
+		void StopInternal(const int32 SourceId);
 		void StopFade(const int32 SourceId, const int32 NumFrames);
 		void Pause(const int32 SourceId);
 		void SetPitch(const int32 SourceId, const float Pitch);
@@ -202,6 +205,13 @@ namespace Audio
 
 		void UpdateSourceEffectChain(const uint32 SourceEffectChainId, const TArray<FSourceEffectChainEntry>& SourceEffectChain, const bool bPlayEffectChainTails);
 
+
+		// Quantized event methods
+		void PauseSoundForQuantizationCommand(const int32 SourceId);
+		void SetSubBufferDelayForSound(const int32 SourceId, const int32 FramesToDelay);
+		void UnPauseSoundForQuantizationCommand(const int32 SourceId);
+
+		// Buffer getters
 		const float* GetPreDistanceAttenuationBuffer(const int32 SourceId) const;
 		const float* GetPreEffectBuffer(const int32 SourceId) const;
 		const float* GetPreviousSourceBusBuffer(const int32 SourceId) const;
@@ -309,6 +319,10 @@ namespace Audio
 			Audio::AlignedFloatBuffer PreDistanceAttenuationBuffer;
 			Audio::AlignedFloatBuffer SourceEffectScratchBuffer;
 
+			// Data used for delaying the rendering of source audio for sample-accurate quantization
+			int32 SubCallbackDelayLengthInFrames{ 0 };
+			Audio::TCircularAudioBuffer<float> SourceBufferDelayLine;
+
 			TArray<float> CurrentFrameValues;
 			TArray<float> NextFrameValues;
 			float CurrentFrameAlpha;
@@ -377,12 +391,17 @@ namespace Audio
 			FSpatializationParams SpatParams;
 			Audio::AlignedFloatBuffer ScratchChannelMap;
 
+			// Quantization data
+			FQuartzQuantizedCommandHandle QuantizedCommandHandle;
+
 			// State management
 			uint8 bIs3D:1;
 			uint8 bIsCenterChannelOnly:1;
 			uint8 bIsActive:1;
 			uint8 bIsPlaying:1;
 			uint8 bIsPaused:1;
+			uint8 bIsPausedForQuantization:1;
+			uint8 bDelayLineSet:1;
 			uint8 bIsStopping:1;
 			uint8 bHasStarted:1;
 			uint8 bIsBusy:1;

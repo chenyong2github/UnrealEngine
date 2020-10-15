@@ -42,7 +42,8 @@ CSV_DECLARE_CATEGORY_MODULE_EXTERN(AUDIOMIXERCORE_API, Audio);
 namespace Audio
 {
 	FMixerDevice::FMixerDevice(IAudioMixerPlatformInterface* InAudioMixerPlatform)
-		: AudioMixerPlatform(InAudioMixerPlatform)
+		: QuantizedEventClockManager(this)
+		, AudioMixerPlatform(InAudioMixerPlatform)
 		, AudioClockDelta(0.0)
 		, PreviousMasterVolume((float)INDEX_NONE)
 		, GameOrAudioThreadId(INDEX_NONE)
@@ -64,6 +65,10 @@ namespace Audio
 		{
 			delete AudioMixerPlatform;
 		}
+
+		// Shutdown all pending clock events, as they may have references to 
+		// the FMixerSourceManager that is about to be destroyed
+		QuantizedEventClockManager.Shutdown();
 	}
 
 	void FMixerDevice::CheckAudioThread() const
@@ -596,6 +601,9 @@ namespace Audio
 
 		// Pump the command queue to the audio render thread
 		PumpCommandQueue();
+
+		// update the clock manager
+		QuantizedEventClockManager.Update(SourceManager->GetNumOutputFrames());
 
 		// Compute the next block of audio in the source manager
 		SourceManager->ComputeNextBlockOfSamples();
@@ -2082,6 +2090,11 @@ namespace Audio
 		IsInAudioThread()
 			? UnregisterLambda()
 			: AsyncTask(ENamedThreads::AudioThread, MoveTemp(UnregisterLambda));
+	}
+
+	void FMixerDevice::FlushExtended(UWorld* WorldToFlush, bool bClearActivatedReverb)
+	{
+		QuantizedEventClockManager.Flush();
 	}
 
 	void FMixerDevice::StartAudioBus(uint32 InAudioBusId, int32 InNumChannels, bool bInIsAutomatic)
