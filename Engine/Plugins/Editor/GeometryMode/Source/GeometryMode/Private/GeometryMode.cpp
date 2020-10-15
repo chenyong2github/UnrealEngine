@@ -492,15 +492,9 @@ FText FGeometryModeToolkit::GetActiveToolDisplayName() const
 FText FGeometryModeToolkit::GetActiveToolMessage() const
 {
 	UGeomModifier* CurrentModifier = GetGeometryModeTool()->GetCurrentModifier();
-	const FText& Message =  ( CurrentModifier && CurrentModifier->SupportsCurrentSelection() ) ?
-		CurrentModifier->GetModifierTooltip()
-		:
-		LOCTEXT("GeometryMode_NoBrushSelectedMessage",
-				"Select a brush actor to begin editing its geometry");
-	return Message;
+	return ( CurrentModifier && CurrentModifier->SupportsCurrentSelection() )
+		? CurrentModifier->GetModifierTooltip()
+		: LOCTEXT("GeometryMode_NoBrushSelectedMessage", "Select a brush actor to begin editing its geometry");
 }
-
-
-
 
 #undef LOCTEXT_NAMESPACE
