@@ -8,13 +8,13 @@ class FSceneViewFamily;
 class SLevelViewportToolBar;
 struct FToolMenuSection;
 class SLevelViewport;
-
+class FEditorViewportClient;
 class UNREALED_API ICustomEditorStaticScreenPercentage
 {
 public:
 	virtual ~ICustomEditorStaticScreenPercentage() {};
 
-	virtual void SetupEditorViewFamily(FSceneViewFamily& ViewFamily, float PreviewResolutionFraction, bool bPreviewCustomTemporalUpscaler) = 0;
+	virtual void SetupEditorViewFamily(FSceneViewFamily& ViewFamily, FEditorViewportClient* ViewportClient) = 0;
 	
 	struct FViewportMenuEntryArguments
 	{
