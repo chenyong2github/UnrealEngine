@@ -32,6 +32,9 @@ UDMXPixelMappingFixtureGroupItemComponent::UDMXPixelMappingFixtureGroupItemCompo
 
 	ColorMode = EDMXColorMode::CM_RGB;
 	AttributeRExpose = AttributeGExpose = AttributeBExpose = true;
+	AttributeR.SetFromName("Red");
+	AttributeG.SetFromName("Green");
+	AttributeB.SetFromName("Blue");
 
 	bMonochromeExpose = true;
 
@@ -703,11 +706,6 @@ void UDMXPixelMappingFixtureGroupItemComponent::AutoMapAttributes()
 				{
 					AttributeR.SetFromName("Red");
 				}
-				else
-				{
-					AttributeR.SetToNone();
-				}
-
 
 				int32 GreenIndex = Mode.Functions.IndexOfByPredicate([](const FDMXFixtureFunction& Function) {
 					return Function.Attribute.Name == "Green";
@@ -717,11 +715,6 @@ void UDMXPixelMappingFixtureGroupItemComponent::AutoMapAttributes()
 				{
 					AttributeG.SetFromName("Green");
 				}
-				else
-				{
-					AttributeG.SetToNone();
-				}
-
 
 				int32 BlueIndex = Mode.Functions.IndexOfByPredicate([](const FDMXFixtureFunction& Function) {
 					return Function.Attribute.Name == "Blue";
@@ -730,10 +723,6 @@ void UDMXPixelMappingFixtureGroupItemComponent::AutoMapAttributes()
 				if (BlueIndex != INDEX_NONE)
 				{
 					AttributeB.SetFromName("Blue");
-				}
-				else
-				{
-					AttributeB.SetToNone();
 				}
 			}
 		}
