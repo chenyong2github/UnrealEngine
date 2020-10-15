@@ -31,13 +31,13 @@ public class MovieSceneTracks : ModuleRules
 			}
 		);
 
-		if (Target.bBuildWithEditorOnlyData)
+		if (Target.bBuildWithEditorOnlyData && Target.bBuildEditor)
 		{
-			PublicDependencyModuleNames.AddRange(
-				new string[] {
-					"BlueprintGraph"
-				}
-			);
+            PublicDependencyModuleNames.AddRange(
+                new string[] {
+                    "BlueprintGraph"
+                }
+            );
             PrivateDependencyModuleNames.AddRange(
                 new string[] {
                     "UnrealEd"
