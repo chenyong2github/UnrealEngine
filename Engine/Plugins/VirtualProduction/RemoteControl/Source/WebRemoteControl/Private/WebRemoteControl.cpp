@@ -728,8 +728,15 @@ bool FWebRemoteControlModule::HandlePresetSetPropertyRoute(const FHttpServerRequ
 	{
 		IRemoteControlModule::Get().ResolveObjectProperty(ObjectRef.Access, Object, RemoteControlProperty->FieldPathInfo.ToString(), ObjectRef);
 
-		NewPayloadReader.Seek(0);
-		bSuccess &= IRemoteControlModule::Get().SetObjectProperties(ObjectRef, Backend);
+		if (SetPropertyRequest.ResetToDefault)
+		{
+			bSuccess &= IRemoteControlModule::Get().ResetObjectProperties(ObjectRef);
+		}
+		else
+		{
+			NewPayloadReader.Seek(0);
+			bSuccess &= IRemoteControlModule::Get().SetObjectProperties(ObjectRef, Backend);
+		}
 	}
 
 	if (bSuccess)
