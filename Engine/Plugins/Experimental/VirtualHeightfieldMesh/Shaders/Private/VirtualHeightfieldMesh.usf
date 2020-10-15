@@ -417,10 +417,12 @@ void ResolveNeighborLodsCS(
 	uint FeedbackPos;
 	InterlockedAdd(RWFeedbackBuffer[0], NumFeedbackItems, FeedbackPos);
 
-	RWFeedbackBuffer[FeedbackPos + 1] = (Pos.x >> LodShift) | ((Pos.y >> LodShift) << 12) | ((Level + LodShift) << 24) | PageTableFeedbackId;
+	// Note that our general virtual texture feedback buffer convention is to write Level+1
+	uint LevelPlusOne = Level + 1;
+	RWFeedbackBuffer[FeedbackPos + 1] = (Pos.x >> LodShift) | ((Pos.y >> LodShift) << 12) | ((LevelPlusOne + LodShift) << 24) | PageTableFeedbackId;
 	if (NeighborIndex == 0)
 	{
-		RWFeedbackBuffer[FeedbackPos + 2] = Pos.x | (Pos.y << 12) | (Level << 24) | PageTableFeedbackId;
+		RWFeedbackBuffer[FeedbackPos + 2] = Pos.x | (Pos.y << 12) | (LevelPlusOne << 24) | PageTableFeedbackId;
 	}
 }
 
