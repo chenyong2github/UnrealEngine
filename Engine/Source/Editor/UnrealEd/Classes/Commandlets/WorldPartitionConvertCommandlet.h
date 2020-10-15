@@ -65,6 +65,8 @@ protected:
 	UHLODLayer* CreateHLODLayerFromINI(const FString& InHLODLayerName);
 	void SetupHLODLayerAssets();
 
+	void SetActorGuid(AActor* Actor, const FGuid& NewGuid);
+
 	// Conversion report
 	TSet<FString> MapsWithLevelScriptsBPs;
 	TSet<FString> MapsWithMapBuildData;

@@ -617,6 +617,11 @@ void UWorldPartitionConvertCommandlet::SetupHLODLayerAssets()
 	}
 }
 
+void UWorldPartitionConvertCommandlet::SetActorGuid(AActor* Actor, const FGuid& NewGuid)
+{
+	FSetActorGuid SetActorGuid(Actor, NewGuid);
+}
+
 void UWorldPartitionConvertCommandlet::OnWorldLoaded(UWorld* World)
 {
 	if (UWorldComposition* WorldComposition = World->WorldComposition)
@@ -1043,6 +1048,8 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 
 	if (!bReportOnly)
 	{
+		TSet<FGuid> ActorGuids;
+		
 		for(AActor* Actor: ActorList)
 		{
 			if (!Actor || Actor->IsPendingKill() || !Actor->SupportsExternalPackaging())
@@ -1050,13 +1057,22 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 				continue;
 			}
 
+			bool bAlreadySet = false;
+			ActorGuids.Add(Actor->GetActorGuid(), &bAlreadySet);
+			if (bAlreadySet)
+			{
+				UE_LOG(LogWorldPartitionConvertCommandlet, Error, TEXT("Duplicated guid actor %s(guid:%s) can't extract actor"), *Actor->GetName(), *Actor->GetActorGuid().ToString(EGuidFormats::Digits));
+				return 1;
+			}
+
 			if (Actor->IsPackageExternal())
 			{
 				PackagesToDelete.Add(Actor->GetPackage());
 				Actor->SetPackageExternal(false);
 			}
-
+						
 			Actor->SetPackageExternal(true);
+			
 			UPackage* ActorPackage = Actor->GetExternalPackage();
 			PackagesToSave.Add(ActorPackage);
 
