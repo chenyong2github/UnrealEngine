@@ -19,8 +19,7 @@ struct FRigUnit_ItemBaseMutable : public FRigUnitMutable
 };
 
 /**
- * Creates a collection based on a first and last item within a chain.
- * Chains can refer to bone chains or chains within a control hierarchy.
+ * Returns true or false if a given item exists
  */
 USTRUCT(meta=(DisplayName="Item Exists", Keywords=""))
 struct FRigUnit_ItemExists : public FRigUnit_ItemBase
