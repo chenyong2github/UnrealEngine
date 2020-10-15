@@ -14,6 +14,8 @@
 #include "Misc/App.h"
 #include "Kismet/GameplayStatics.h"
 
+
+
 DECLARE_CYCLE_STAT(TEXT("AudioComponent Play"), STAT_AudioComp_Play, STATGROUP_Audio);
 
 static float BakedAnalysisTimeShiftCVar = 0.0f;
@@ -384,10 +386,44 @@ bool UAudioComponent::IsInAudibleRange(float* OutMaxDistance) const
 
 void UAudioComponent::Play(float StartTime)
 {
-	PlayInternal(StartTime);
+	PlayInternalRequestData Data;
+	Data.StartTime = StartTime;
+	PlayInternal(Data);
 }
 
-void UAudioComponent::PlayInternal(const float StartTime, const float FadeInDuration, const float FadeVolumeLevel, const EAudioFaderCurve FadeCurve)
+void UAudioComponent::PlayQuantized(
+	  const UObject* WorldContextObject
+	, UPARAM(ref) UQuartzClockHandle*& InClockHandle
+	, UPARAM(ref) FQuartzQuantizationBoundary& InQuantizationBoundary
+	, const FOnQuartzCommandEventBP& InDelegate
+	, float InStartTime
+	, float InFadeInDuration
+	, float InFadeVolumeLevel
+	, EAudioFaderCurve InFadeCurve)
+{
+	PlayInternalRequestData Data;
+
+	Data.StartTime = InStartTime;
+	Data.FadeInDuration = InFadeInDuration;
+	Data.FadeVolumeLevel = InFadeVolumeLevel;
+	Data.FadeCurve = InFadeCurve;
+	Data.QuantizedRequestData = InClockHandle->GetQuartzSubsystem()->CreateDataDataForSchedulePlaySound(InClockHandle, InDelegate, InQuantizationBoundary);
+
+	// validate clock existence 
+	if (!InClockHandle)
+	{
+		UE_LOG(LogAudio, Warning, TEXT("Attempting to play Quantized Sound without supplying a Clock Handle"));	
+	}
+	else if (!InClockHandle->DoesClockExist(WorldContextObject))
+	{
+		UE_LOG(LogAudio, Warning, TEXT("Clock: '%s' Does not exist! Cannot play quantized sound: %s"), *Data.QuantizedRequestData.ClockName.ToString(), *this->Sound->GetName());
+		Data.QuantizedRequestData = {};
+	}
+
+	PlayInternal(Data);
+}
+
+void UAudioComponent::PlayInternal(const PlayInternalRequestData& InPlayRequestData)
 {
 	SCOPE_CYCLE_COUNTER(STAT_AudioComp_Play);
 
@@ -421,7 +457,7 @@ void UAudioComponent::PlayInternal(const float StartTime, const float FadeInDura
 			{
 				TimeAudioComponentPlayed = 0.0f;
 			}
-			FadeInTimeDuration = FadeInDuration;
+			FadeInTimeDuration = InPlayRequestData.FadeInDuration;
 
 			// Auto attach if requested
 			const bool bWasAutoAttached = bDidAutoAttach;
@@ -485,7 +521,7 @@ void UAudioComponent::PlayInternal(const float StartTime, const float FadeInDura
 
 			NewActiveSound.bEnableLowPassFilter = bEnableLowPassFilter;
 			NewActiveSound.LowPassFilterFrequency = LowPassFilterFrequency;
-			NewActiveSound.RequestedStartTime = FMath::Max(0.f, StartTime);
+			NewActiveSound.RequestedStartTime = FMath::Max(0.f, InPlayRequestData.StartTime);
 
 			if (bOverrideSubtitlePriority)
 			{
@@ -543,12 +579,16 @@ void UAudioComponent::PlayInternal(const float StartTime, const float FadeInDura
 				}
 			}
 
+
+			// Pass quantization data to the active sound
+			NewActiveSound.QuantizedRequestData = InPlayRequestData.QuantizedRequestData;
+
 			NewActiveSound.MaxDistance = MaxDistance;
 			NewActiveSound.InstanceParameters = InstanceParameters;
 
 			Audio::FVolumeFader& Fader = NewActiveSound.ComponentVolumeFader;
 			Fader.SetVolume(0.0f); // Init to 0.0f to fade as default is 1.0f
-			Fader.StartFade(FadeVolumeLevel, FadeInDuration, static_cast<Audio::EFaderCurve>(FadeCurve));
+			Fader.StartFade(InPlayRequestData.FadeVolumeLevel, InPlayRequestData.FadeInDuration, static_cast<Audio::EFaderCurve>(InPlayRequestData.FadeCurve));
 
 			// Bump ActiveCount... this is used to determine if an audio component is still active after a sound reports back as completed
 			++ActiveCount;
@@ -588,7 +628,13 @@ FAudioDevice* UAudioComponent::GetAudioDevice() const
 
 void UAudioComponent::FadeIn(float FadeInDuration, float FadeVolumeLevel, float StartTime, const EAudioFaderCurve FadeCurve)
 {
-	PlayInternal(StartTime, FadeInDuration, FadeVolumeLevel, FadeCurve);
+	PlayInternalRequestData Data;
+	Data.StartTime = StartTime;
+	Data.FadeInDuration = FadeInDuration;
+	Data.FadeVolumeLevel = FadeVolumeLevel;
+	Data.FadeCurve = FadeCurve;
+
+	PlayInternal(Data);
 }
 
 void UAudioComponent::FadeOut(float FadeOutDuration, float FadeVolumeLevel, const EAudioFaderCurve FadeCurve)
