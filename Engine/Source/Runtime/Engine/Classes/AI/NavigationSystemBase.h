@@ -32,6 +32,7 @@ enum class FNavigationSystemRunMode : uint8
 	EditorMode,
 	SimulationMode,
 	PIEMode,
+	InferFromWorldMode,
 };
 
 namespace ENavigationLockReason
