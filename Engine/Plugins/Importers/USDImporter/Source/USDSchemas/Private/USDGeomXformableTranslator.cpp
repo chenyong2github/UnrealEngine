@@ -301,7 +301,8 @@ USceneComponent* FUsdGeomXformableTranslator::CreateComponentsEx( TOptional< TSu
 
 		if ( ComponentType.IsSet() && ComponentType.GetValue() != nullptr )
 		{
-			SceneComponent = NewObject< USceneComponent >( ComponentOuter, ComponentType.GetValue(), FName( Prim.GetName() ), Context->ObjectFlags );
+			const FName ComponentName = MakeUniqueObjectName( ComponentOuter, ComponentType.GetValue(), FName( Prim.GetName() ) );
+			SceneComponent = NewObject< USceneComponent >( ComponentOuter, ComponentType.GetValue(), ComponentName, Context->ObjectFlags );
 
 			if ( AActor* Owner = SceneComponent->GetOwner() )
 			{
