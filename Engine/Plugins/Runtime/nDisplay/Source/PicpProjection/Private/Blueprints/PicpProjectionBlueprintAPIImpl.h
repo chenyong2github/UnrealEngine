@@ -54,4 +54,7 @@ public:
 
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Assign Warp Mesh To Viewport"), Category = "PICP")
 	virtual void AssignWarpMeshToViewport(const FString& ViewportId, UStaticMeshComponent* MeshComponent, USceneComponent* OriginComponent) override;
+
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get default backbuffer render target format"), Category = "PICP")
+	virtual ETextureRenderTargetFormat GetDefaultBackBufferRenderTargetFormat() const override;
 };
