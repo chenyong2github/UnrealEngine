@@ -93,8 +93,13 @@ void UMoviePipeline::TeardownRenderingPipelineForShot(UMoviePipelineExecutorShot
 		RenderPass->Teardown();
 	}
 
-	if (OutputBuilder->IsWorkOutstanding())
+	if (OutputBuilder->GetNumOutstandingFrames() > 1)
 	{
+		// The intention behind this warning is to catch when you've created a render pass that doesn't submit as many render passes as you expect. Unfortunately,
+		// it also catches the fact that temporal sampling tends to render an extra frame. When we are submitting frames we only check if the actual evaluation point
+		// surpasses the upper bound, at which point we don't submit anything more. We could check a whole frame in advance and never submit any temporal samples for
+		// the extra frame, but then this would not work with slow-motion. Instead, we will just comprimise here and only warn if there's multiple frames that are missing.
+		// This is going to be true if you have set up your rendering wrong (and are rendering more than one frame) so it will catch enough of the cases to be worth it.
 		UE_LOG(LogMovieRenderPipeline, Error, TEXT("Not all frames were fully submitted by the time rendering was torn down! Frames will be missing from output!"));
 	}
 }
