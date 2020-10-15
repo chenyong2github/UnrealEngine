@@ -6,10 +6,17 @@
 
 class UWorld;
 class ILevelSnapshotsEditorContext;
+class ULevelSnapshot;
 
 struct FLevelSnapshotsEditorViewBuilder
 {
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnSnapshotSelected, ULevelSnapshot* /* InLevelSnapshot */);
+
+	using FOnSnapshotSelectedDelegate = FOnSnapshotSelected::FDelegate;
+
 	TWeakPtr<ILevelSnapshotsEditorContext> EditorContextPtr;
+
+	FOnSnapshotSelected OnSnapshotSelected;
 };
 
 class SWidget;
@@ -30,5 +37,5 @@ public:
 
 	virtual TSharedRef<SWidget> GetOrCreateWidget() = 0;
 
-	virtual const FLevelSnapshotsEditorViewBuilder& GetBuilder() const = 0;
+	virtual TSharedRef<FLevelSnapshotsEditorViewBuilder> GetBuilder() const = 0;
 };

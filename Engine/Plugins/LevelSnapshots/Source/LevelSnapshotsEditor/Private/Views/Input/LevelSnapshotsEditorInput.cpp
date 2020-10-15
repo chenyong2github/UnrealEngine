@@ -4,8 +4,8 @@
 
 #include "Views/Input/SLevelSnapshotsEditorInput.h"
 
-FLevelSnapshotsEditorInput::FLevelSnapshotsEditorInput(const FLevelSnapshotsEditorViewBuilder& InBuilder)
-	: Builder(InBuilder)
+FLevelSnapshotsEditorInput::FLevelSnapshotsEditorInput(const TSharedRef<FLevelSnapshotsEditorViewBuilder>& InBuilder)
+	: BuilderPtr(InBuilder)
 {
 }
 
@@ -13,7 +13,7 @@ TSharedRef<SWidget> FLevelSnapshotsEditorInput::GetOrCreateWidget()
 {
 	if (!EditorInputWidget.IsValid())
 	{
-		SAssignNew(EditorInputWidget, SLevelSnapshotsEditorInput, SharedThis(this));
+		SAssignNew(EditorInputWidget, SLevelSnapshotsEditorInput, SharedThis(this), BuilderPtr.Pin().ToSharedRef());
 	}
 
 	return EditorInputWidget.ToSharedRef();

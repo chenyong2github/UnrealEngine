@@ -15,6 +15,9 @@ class LEVELSNAPSHOTSEDITOR_API ULevelSnapshotsEditorDataResults : public UObject
 public:
 	UPROPERTY(EditAnywhere, Category = "EditorSnapshots")
 	TArray<FString> Tags;
+
+	UPROPERTY(EditAnywhere, Category = "EditorSnapshots")
+	FString Version;
 };
 
 UCLASS()

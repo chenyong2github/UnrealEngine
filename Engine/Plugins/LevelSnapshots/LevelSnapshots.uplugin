@@ -21,6 +21,11 @@
 			"LoadingPhase": "Default"
 		},
 		{
+			"Name": "LevelSnapshotFilters",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		},
+		{
 			"Name": "LevelSnapshotsEditor",
 			"Type": "UncookedOnly",
 			"LoadingPhase": "Default"

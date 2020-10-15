@@ -24,10 +24,13 @@ public class LevelSnapshotsEditor : ModuleRules
 				"Slate",
 				"SlateCore",
 				"UnrealEd",
+				"InputCore",
+				"EditorStyle",
 				"LevelSnapshots",
 				"LevelSnapshotFilters",
 				"AssetRegistry",
-				"AssetTools"
+				"AssetTools",
+				"ToolMenus"
 			}
 			);
 	}

@@ -7,6 +7,7 @@
 
 struct FAssetData;
 class UWorld;
+struct FLevelSnapshotsEditorViewBuilder;
 
 class SLevelSnapshotsEditorBrowser : public SCompoundWidget
 {
@@ -21,11 +22,13 @@ public:
 
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs);
+	void Construct(const FArguments& InArgs, const TSharedRef<FLevelSnapshotsEditorViewBuilder>& InBuilder);
 
 private:
 	void OnAssetSelected(const FAssetData& InAssetData);
 	bool OnShouldFilterAsset(const FAssetData& InAssetData);
 
 	TAttribute<UWorld*> ValueAttribute;
+
+	TWeakPtr<FLevelSnapshotsEditorViewBuilder> BuilderPtr;
 };

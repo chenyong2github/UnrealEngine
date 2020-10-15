@@ -9,15 +9,15 @@ class SLevelSnapshotsEditorFilters;
 class FLevelSnapshotsEditorFilters : public ILevelSnapshotsEditorFilters
 {
 public:
-	FLevelSnapshotsEditorFilters(const FLevelSnapshotsEditorViewBuilder& InBuilder);
+	FLevelSnapshotsEditorFilters(const TSharedRef<FLevelSnapshotsEditorViewBuilder>& InBuilder);
 
 	//~ Begin ILevelSnapshotsEditorView Interface
 	virtual TSharedRef<SWidget> GetOrCreateWidget() override;
-	virtual const FLevelSnapshotsEditorViewBuilder& GetBuilder() const override { return Builder; }
+	virtual TSharedRef<FLevelSnapshotsEditorViewBuilder> GetBuilder() const override { return BuilderPtr.Pin().ToSharedRef(); }
 	//~ End ILevelSnapshotsEditorView Interface
 
 private:
 	TSharedPtr<SLevelSnapshotsEditorFilters> EditorFiltersWidget;
 
-	FLevelSnapshotsEditorViewBuilder Builder;
+	TWeakPtr<FLevelSnapshotsEditorViewBuilder> BuilderPtr;
 };

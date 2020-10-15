@@ -7,6 +7,7 @@
 
 class FLevelSnapshotsEditorInput;
 class UWorld;
+struct FLevelSnapshotsEditorViewBuilder;
 
 class SLevelSnapshotsEditorInput : public SCompoundWidget
 {
@@ -18,11 +19,13 @@ public:
 
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, const TSharedRef<FLevelSnapshotsEditorInput>& InEditorInput);
+	void Construct(const FArguments& InArgs, const TSharedRef<FLevelSnapshotsEditorInput>& InEditorInput, const TSharedRef<FLevelSnapshotsEditorViewBuilder>& InBuilder);
 
 private:
 	void OverrideWith(UWorld* InNewContext);
 
 private:
 	TWeakPtr<FLevelSnapshotsEditorInput> EditorInputPtr;
+
+	TWeakPtr<FLevelSnapshotsEditorViewBuilder> BuilderPtr;
 };

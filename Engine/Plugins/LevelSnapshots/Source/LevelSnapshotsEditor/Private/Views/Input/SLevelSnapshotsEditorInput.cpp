@@ -2,6 +2,7 @@
 
 #include "Views/Input/SLevelSnapshotsEditorInput.h"
 
+#include "ILevelSnapshotsEditorView.h"
 #include "Views/Input/LevelSnapshotsEditorInput.h"
 #include "Widgets/SLevelSnapshotsEditorBrowser.h"
 
@@ -194,16 +195,17 @@ SLevelSnapshotsEditorInput::~SLevelSnapshotsEditorInput()
 {
 }
 
-void SLevelSnapshotsEditorInput::Construct(const FArguments& InArgs, const TSharedRef<FLevelSnapshotsEditorInput>& InEditorInput)
+void SLevelSnapshotsEditorInput::Construct(const FArguments& InArgs, const TSharedRef<FLevelSnapshotsEditorInput>& InEditorInput, const TSharedRef<FLevelSnapshotsEditorViewBuilder>& InBuilder)
 {
 	EditorInputPtr = InEditorInput;
+	BuilderPtr = InBuilder;
 
 	auto GetWorld = [this]()
 	{
 		TSharedPtr<FLevelSnapshotsEditorInput> EditorInput = EditorInputPtr.Pin();
 		check(EditorInput.IsValid());
-		const FLevelSnapshotsEditorViewBuilder& Builder = EditorInput->GetBuilder();
-		TSharedPtr<ILevelSnapshotsEditorContext> EditorContext = Builder.EditorContextPtr.Pin();
+		TSharedPtr<FLevelSnapshotsEditorViewBuilder> Builder = BuilderPtr.Pin();
+		TSharedPtr<ILevelSnapshotsEditorContext> EditorContext = Builder->EditorContextPtr.Pin();
 		check(EditorContext.IsValid());
 
 		return EditorContext->Get();
@@ -231,7 +233,7 @@ void SLevelSnapshotsEditorInput::Construct(const FArguments& InArgs, const TShar
 
 			+ SVerticalBox::Slot()
 			[
-				SNew(SLevelSnapshotsEditorBrowser)
+				SNew(SLevelSnapshotsEditorBrowser, InBuilder)
 					.Value_Lambda(GetWorld)
 			]
 		];

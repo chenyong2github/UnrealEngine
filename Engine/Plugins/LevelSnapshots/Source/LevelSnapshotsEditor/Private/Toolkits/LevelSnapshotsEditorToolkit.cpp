@@ -32,14 +32,13 @@ void FLevelSnapshotsEditorToolkit::Initialize(const EToolkitMode::Type Mode, con
 	const bool bCreateDefaultToolbar = true;
 
 	EditorContext = MakeShared<FLevelSnapshotsEditorContext>();
-
-	FLevelSnapshotsEditorViewBuilder ViewBuilder;
-	ViewBuilder.EditorContextPtr = EditorContext;
+	ViewBuilder = MakeShared<FLevelSnapshotsEditorViewBuilder>();
+	ViewBuilder->EditorContextPtr = EditorContext;
 
 	// Initialize views
-	EditorInput		= MakeShared<FLevelSnapshotsEditorInput>(ViewBuilder);
-	EditorFilters	= MakeShared<FLevelSnapshotsEditorFilters>(ViewBuilder);
-	EditorResults	= MakeShared<FLevelSnapshotsEditorResults>(ViewBuilder);
+	EditorInput		= MakeShared<FLevelSnapshotsEditorInput>(ViewBuilder.ToSharedRef());
+	EditorFilters	= MakeShared<FLevelSnapshotsEditorFilters>(ViewBuilder.ToSharedRef());
+	EditorResults	= MakeShared<FLevelSnapshotsEditorResults>(ViewBuilder.ToSharedRef());
 
 	FString LayoutString = TEXT("Standalone_Test_Layout_4");
 	const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout(FName(LayoutString))

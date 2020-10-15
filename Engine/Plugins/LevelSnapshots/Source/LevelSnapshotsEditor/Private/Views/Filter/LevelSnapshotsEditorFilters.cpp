@@ -4,8 +4,8 @@
 
 #include "Views/Filter/SLevelSnapshotsEditorFilters.h"
 
-FLevelSnapshotsEditorFilters::FLevelSnapshotsEditorFilters(const FLevelSnapshotsEditorViewBuilder& InBuilder)
-	: Builder(InBuilder)
+FLevelSnapshotsEditorFilters::FLevelSnapshotsEditorFilters(const TSharedRef<FLevelSnapshotsEditorViewBuilder>& InBuilder)
+	: BuilderPtr(InBuilder)
 {
 }
 

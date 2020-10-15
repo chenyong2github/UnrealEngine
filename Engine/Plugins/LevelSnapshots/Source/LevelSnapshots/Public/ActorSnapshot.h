@@ -31,7 +31,7 @@ struct TStructOpsTypeTraits<FSerializedActorData> : public TStructOpsTypeTraitsB
 };
 
 USTRUCT()
-struct FActorSnapshot
+struct LEVELSNAPSHOTS_API FActorSnapshot
 {
 	GENERATED_BODY()
 

@@ -5,7 +5,97 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
+#include "LevelSnapshot.h"
+#include "PropertySnapshot.h"
+#include "UObject/StrongObjectPtr.h"
+
+#include "Widgets/Views/STableRow.h"
+#include "Widgets/Views/STreeView.h"
+
 class FLevelSnapshotsEditorResults;
+class SLevelSnapshotsEditorResults;
+class ULevelSnapshot;
+struct SLevelSnapshotsEditorResultsField;
+struct FLevelSnapshotsEditorViewBuilder;
+class IPropertyRowGenerator;
+
+struct FLevelSnapshotsEditorResultsRow
+{
+	enum ENodeType
+	{
+		Group,
+		Field,
+		FieldChild
+	};
+
+	virtual ~FLevelSnapshotsEditorResultsRow() {}
+
+	/** Get get this node's type. */
+	virtual ENodeType GetType() = 0;
+
+	virtual TSharedPtr<SLevelSnapshotsEditorResultsField> AsField() { return nullptr; }
+
+	virtual TSharedPtr<SWidget> AsFieldChild() { return nullptr; }
+
+	virtual TSharedPtr<struct FLevelSnapshotsEditorFilterRowGroup> AsGroup() { return nullptr; }
+
+	/** Get this tree node's childen. */
+	virtual void GetNodeChildren(TArray<TSharedPtr<FLevelSnapshotsEditorResultsRow>>& OutChildren) {}
+};
+
+struct SLevelSnapshotsEditorResultsChildField : public SCompoundWidget, public FLevelSnapshotsEditorResultsRow
+{
+
+};
+
+struct SLevelSnapshotsEditorResultsField : public SCompoundWidget, public FLevelSnapshotsEditorResultsRow
+{
+public:
+	SLATE_BEGIN_ARGS(SLevelSnapshotsEditorResultsField)
+	{}
+	SLATE_END_ARGS()
+
+	void Construct(const FArguments& InArgs, const TSharedRef<SWidget>& InContent);
+
+	virtual ENodeType GetType() override { return ENodeType::Field; }
+
+	virtual TSharedPtr<SLevelSnapshotsEditorResultsField> AsField() override;
+
+//public:
+//	FString ActorObjectPath;
+};
+
+struct FLevelSnapshotsEditorResultsRowGroup : public FLevelSnapshotsEditorResultsRow, public TSharedFromThis<FLevelSnapshotsEditorResultsRowGroup>
+{
+	FLevelSnapshotsEditorResultsRowGroup(const FString& InObjectPath, const FActorSnapshot& InActorSnapshot)
+		: ObjectPath(InObjectPath)
+		, ActorSnapshot(InActorSnapshot)
+	{}
+	
+	virtual ENodeType GetType() override { return ENodeType::Group; }
+
+	virtual void GetNodeChildren(TArray<TSharedPtr<FLevelSnapshotsEditorResultsRow>>& OutChildren) override;
+
+public:
+	FString ObjectPath;
+	FActorSnapshot ActorSnapshot;
+
+	/** This group's fields' widget. */
+	TArray<TSharedPtr<SLevelSnapshotsEditorResultsField>> Fields;
+};
+
+class SLevelSnapshotsEditorResultsRowGroup : public STableRow<TSharedPtr<FLevelSnapshotsEditorResultsRowGroup>>
+{
+public:
+	SLATE_BEGIN_ARGS(SLevelSnapshotsEditorResultsRowGroup)
+	{}
+	SLATE_END_ARGS()
+
+	void Tick(const FGeometry&, const double, const float);
+
+	void Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView, const TSharedPtr<FLevelSnapshotsEditorResultsRowGroup>& FieldGroup, const TSharedPtr<SLevelSnapshotsEditorResults>& OwnerPanel);
+
+};
 
 class SLevelSnapshotsEditorResults : public SCompoundWidget
 {
@@ -17,8 +107,35 @@ public:
 
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, const TSharedRef<FLevelSnapshotsEditorResults>& InEditorResults);
+	void Construct(const FArguments& InArgs, const TSharedRef<FLevelSnapshotsEditorResults>& InEditorResults, const TSharedRef<FLevelSnapshotsEditorViewBuilder>& InBuilder);
+
+private:
+	/** Generates a tree row. */
+	TSharedRef<ITableRow> OnGenerateRow(TSharedPtr<FLevelSnapshotsEditorResultsRow> InResultsRow, const TSharedRef<STableViewBase>& OwnerTable);
+
+	/** Get this group's children */
+	void OnGetGroupChildren(TSharedPtr<FLevelSnapshotsEditorResultsRow> InResultsRow, TArray<TSharedPtr<FLevelSnapshotsEditorResultsRow>>& OutRows);
+
+	void OnSelectionChanged(TSharedPtr<FLevelSnapshotsEditorResultsRow> InResultsRow, ESelectInfo::Type SelectInfo);
+
+	void Refresh();
+
+	void RefreshGroups();
+
+	void OnSnapshotSelected(ULevelSnapshot* InLevelSnapshot);
 
 private:
 	TWeakPtr<FLevelSnapshotsEditorResults> EditorResultsPtr;
+
+	/** Holds all the field groups. */
+	TArray<TSharedPtr<FLevelSnapshotsEditorResultsRowGroup>> FieldGroups;
+
+	TArray<TSharedPtr<IPropertyRowGenerator>> Generators;
+
+	/** Holds the section list view. */
+	TSharedPtr<STreeView<TSharedPtr<FLevelSnapshotsEditorResultsRow>>> ResultList;
+
+	TWeakPtr<FLevelSnapshotsEditorViewBuilder> BuilderPtr;
+
+	TArray<TStrongObjectPtr<UObject>> ActorObjects;
 };

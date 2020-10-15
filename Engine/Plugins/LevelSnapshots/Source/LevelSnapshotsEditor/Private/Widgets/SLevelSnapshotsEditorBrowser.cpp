@@ -2,6 +2,7 @@
 
 #include "Widgets/SLevelSnapshotsEditorBrowser.h"
 
+#include "ILevelSnapshotsEditorView.h"
 #include "LevelSnapshot.h"
 
 #include "IContentBrowserSingleton.h"
@@ -14,9 +15,10 @@ SLevelSnapshotsEditorBrowser::~SLevelSnapshotsEditorBrowser()
 {
 }
 
-void SLevelSnapshotsEditorBrowser::Construct(const FArguments& InArgs)
+void SLevelSnapshotsEditorBrowser::Construct(const FArguments& InArgs, const TSharedRef<FLevelSnapshotsEditorViewBuilder>& InBuilder)
 {
 	ValueAttribute = InArgs._Value;
+	BuilderPtr = InBuilder;
 
 	check(ValueAttribute.IsSet());
 
@@ -50,6 +52,10 @@ void SLevelSnapshotsEditorBrowser::Construct(const FArguments& InArgs)
 
 void SLevelSnapshotsEditorBrowser::OnAssetSelected(const FAssetData& InAssetData)
 {
+	TSharedPtr<FLevelSnapshotsEditorViewBuilder> Builder = BuilderPtr.Pin();
+	check(Builder.IsValid());
+
+	Builder->OnSnapshotSelected.Broadcast(Cast<ULevelSnapshot>(InAssetData.GetAsset()));
 }
 
 bool SLevelSnapshotsEditorBrowser::OnShouldFilterAsset(const FAssetData& InAssetData)

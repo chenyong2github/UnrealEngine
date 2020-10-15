@@ -10,6 +10,7 @@ class FLevelSnapshotsEditorInput;
 class FLevelSnapshotsEditorFilters;
 class FLevelSnapshotsEditorResults;
 class FLevelSnapshotsEditorContext;
+struct FLevelSnapshotsEditorViewBuilder;
 
 class FLevelSnapshotsEditorToolkit
 	: public ILevelSnapshotsEditorToolkit
@@ -58,6 +59,9 @@ public:
 	TSharedRef<SDockTab> SpawnTab_Results(const FSpawnTabArgs& Args);
 
 private:
+	TSharedPtr<FLevelSnapshotsEditorViewBuilder> ViewBuilder;
+
+
 	ULevelSnapshotsEditorData* EditorData;
 
 	TSharedPtr<FLevelSnapshotsEditorInput> EditorInput;

@@ -11,6 +11,8 @@ void ULevelSnapshot::SnapshotWorld(UWorld* TargetWorld)
 		UE_LOG(LogTemp, Warning, TEXT("Unable To Snapshot World as World was invalid"));
 	}
 
+	MapName = TargetWorld->GetMapName();
+
 	UE_LOG(LogTemp, Warning, TEXT("Attempting to Snapshot World - %s"), *TargetWorld->GetMapName());
 
 	for (TActorIterator<AActor> It(TargetWorld, AActor::StaticClass(), EActorIteratorFlags::SkipPendingKill); It; ++It)

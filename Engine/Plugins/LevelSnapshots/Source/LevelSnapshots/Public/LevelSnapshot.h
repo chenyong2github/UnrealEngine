@@ -21,7 +21,11 @@ private:
 
 	void SnapshotActor(AActor* TargetActor);
 
+public:
 	// Map of Actor Snapshots mapping from the object path to the actual snapshot
 	UPROPERTY(VisibleAnywhere, Category = "Snapshot")
 	TMap<FString, FActorSnapshot> ActorSnapshots;
+
+	UPROPERTY(VisibleAnywhere, Category = "Snapshot")
+	FString MapName;
 };
