@@ -124,6 +124,12 @@ void UMoviePipeline::Initialize(UMoviePipelineExecutorJob* InJob)
 		return;
 	}
 
+	if (!ensureAlwaysMsgf(InJob->GetConfiguration(), TEXT("MoviePipeline cannot be initialized with null configuration. Aborting.")))
+	{
+		Shutdown(true);
+		return;
+	}
+
 	{
 		// If they have a preset origin set, we  will attempt to load from it and copy it into our configuration.
 		// A preset origin is only set if they have not modified the preset using the UI, if they have it will have
@@ -147,12 +153,6 @@ void UMoviePipeline::Initialize(UMoviePipelineExecutorJob* InJob)
 		}
 	}
 	
-	if (!ensureAlwaysMsgf(InJob->GetConfiguration(), TEXT("MoviePipeline cannot be initialized with null configuration. Aborting.")))
-	{
-		Shutdown(true);
-		return;
-	}
-
 	if (!ensureAlwaysMsgf(PipelineState == EMovieRenderPipelineState::Uninitialized, TEXT("Pipeline cannot be reused. Create a new pipeline to execute a job.")))
 	{
 		Shutdown(true);
