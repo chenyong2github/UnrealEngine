@@ -394,7 +394,7 @@ void FChaosScene::SyncBodies(TSolver* Solver)
 	// FDirtyPropertiesManager is going to be updated to support a 
 	// FDirtySet that is specific to a TConstraintProperties class.
 	//
-	for (FJointConstraintPhysicsProxy* Proxy : Solver->GetJointConstraintPhysicsProxy())
+	for (FJointConstraintPhysicsProxy* Proxy : Solver->GetJointConstraintPhysicsProxy_External())
 	{
 		Proxy->PullFromPhysicsState(SolverSyncTimestamp);
 	}
