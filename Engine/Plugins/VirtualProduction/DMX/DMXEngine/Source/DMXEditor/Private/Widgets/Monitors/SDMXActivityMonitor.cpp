@@ -15,6 +15,7 @@
 #include "Widgets/Monitors/SDMXActivityInUniverse.h"
 
 #include "Async/Async.h"
+#include "Framework/Application/SlateApplication.h"
 #include "GenericPlatform/GenericPlatformString.h"
 #include "HAL/CriticalSection.h"
 #include "Internationalization/Regex.h"
@@ -367,7 +368,8 @@ void SDMXActivityMonitor::OnInputBufferUpdated(FName Protocol, uint16 UniverseID
 
 void SDMXActivityMonitor::VisualizeInputBuffer(FName Protocol, uint16 UniverseID, const TArray<uint8>& Values)
 {
-	if (!IsEngineExitRequested())
+	// We may get callbacks from OnInputBufferUpdated when slate is not initialized or engine is shutting down
+	if (!IsEngineExitRequested() && FSlateApplication::IsInitialized())
 	{
 		const TSharedRef<SDMXActivityInUniverse>& ActivityWidget = GetOrCreateActivityWidget(UniverseID);
 		ActivityWidget->VisualizeInputBuffer(Values);
