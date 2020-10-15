@@ -157,7 +157,7 @@ public class Python3 : ModuleRules
 	{
 		if (Target.Platform == UnrealTargetPlatform.Linux && IsEnginePython)
 		{
-			RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/Python/Linux/lib/libpython3.7m.so.1.0");
+			RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/Python3/Linux/lib/libpython3.7m.so.1.0");
 		}
 	}
 
