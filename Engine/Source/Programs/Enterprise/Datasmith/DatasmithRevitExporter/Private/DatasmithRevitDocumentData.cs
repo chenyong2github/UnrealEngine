@@ -863,6 +863,10 @@ namespace DatasmithRevitExporter
 
 			if (ActorMap.ContainsKey(InElement.Id))
 			{
+				if (DirectLink != null && DirectLink.IsElementCached(InElement))
+				{
+					return false;
+				}
 				ElementData = ActorMap[InElement.Id] as FElementData;
 			}
 			
@@ -1223,6 +1227,10 @@ namespace DatasmithRevitExporter
 						}
 						DirectLink.OnEndLinkedDocument();
 						ActorEntry.Value.AddToScene(InDatasmithScene, null, true);
+					}
+					else
+					{
+						ActorEntry.Value.AddToScene(InDatasmithScene, null, false);
 					}
 				}
 				else
