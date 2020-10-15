@@ -114,6 +114,10 @@ private:
 	TSharedPtr<FPropertyNode> GetPropertyNode() const;
 	TSharedPtr<IPropertyHandle> GetPropertyHandle() const;
 
+	EVisibility GetExpanderVisibility() const;
+	const FSlateBrush* GetExpanderImage() const;
+	FReply OnExpanderClicked();
+
 private:
 	TWeakPtr<IDetailKeyframeHandler> KeyframeHandler;
 	/** Customization for this widget */
@@ -122,6 +126,7 @@ private:
 	bool bIsHoveredDragTarget;
 	bool bIsDragDropObject;
 	TSharedPtr<FPropertyNode> SwappablePropertyNode;
+	TSharedPtr<SButton> ExpanderArrow;
 
 	friend class SDetailsIndent;
 };

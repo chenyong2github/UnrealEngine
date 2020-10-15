@@ -12,25 +12,13 @@ void SDetailCategoryTableRow::Construct( const FArguments& InArgs, TSharedRef<FD
 	bShowBorder = InArgs._ShowBorder;
 
 	TSharedPtr<SWidget> Widget = SNullWidget::NullWidget;
-
-	float MyContentTopPadding = 2.0f;
-	float MyContentBottomPadding = 2.0f;
-
-	float ChildSlotPadding = 2.0f;
-	float BorderVerticalPadding = 3.0f;
-
 	FDetailColumnSizeData& ColumnSizeData = InOwnerTreeNode->GetDetailsView()->GetColumnSizeData();
 
-	MyContentTopPadding += ChildSlotPadding + 2 * BorderVerticalPadding;
-	MyContentBottomPadding += 2 * BorderVerticalPadding;
-
-	ChildSlotPadding = 0.0f;
-	BorderVerticalPadding = 0.0f;
 
 	Widget = SNew(SHorizontalBox)
 		+ SHorizontalBox::Slot()
 		.VAlign(VAlign_Center)
-		.Padding(12.0f, MyContentTopPadding, 12.0f, MyContentBottomPadding)
+		.Padding(8, 0, 8, 0)
 		.AutoWidth()
 		[
 			SNew(SExpanderArrow, SharedThis(this))
@@ -51,14 +39,16 @@ void SDetailCategoryTableRow::Construct( const FArguments& InArgs, TSharedRef<FD
 		[
 			InArgs._HeaderContent.IsValid() ? InArgs._HeaderContent.ToSharedRef() : SNullWidget::NullWidget
 		];
+
+	const float VerticalPadding = bIsInnerCategory ? 8 : 10;
 	
 	ChildSlot
-	.Padding( 0.0f, bIsInnerCategory ? 0.0f : ChildSlotPadding, 0.0f, 0.0f )
+	.Padding(0)
 	[	
 		SNew( SBorder )
 		.BorderImage( this, &SDetailCategoryTableRow::GetBackgroundImage )
 		.BorderBackgroundColor( this, &SDetailCategoryTableRow::GetBackgroundColor )
-		.Padding( FMargin( 0.0f, BorderVerticalPadding, SDetailTableRowBase::ScrollbarPaddingSize, BorderVerticalPadding ) )
+		.Padding( FMargin(0, VerticalPadding, SDetailTableRowBase::ScrollbarPaddingSize, VerticalPadding) )
 		[
 			Widget.ToSharedRef()
 		]
