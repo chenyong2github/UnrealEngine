@@ -120,7 +120,7 @@ public:
 	{
 	}
 
-	// Allow effects to supply a dry level.
+	// Allow effects to supply a drylevel.
 	virtual float GetDryLevel() const { return 0.0f; }
 
 	// Processes audio in the submix effect.
@@ -153,4 +153,5 @@ private:
 	}
 
 	FSoundEffectSubmixInitData InitData_Internal;
+	uint32 ParentPresetUniqueId = INDEX_NONE;
 };
