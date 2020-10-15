@@ -15,7 +15,7 @@ IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FVirtualHeightfieldMeshVertexFactoryPar
 namespace
 {
 	template< typename T >
-	FIndexBufferRHIRef CreateIndexBuffer(int32 NumQuadsPerSide)
+	FIndexBufferRHIRef CreateIndexBuffer(uint32 NumQuadsPerSide)
 	{
 		TResourceArray<T, INDEXBUFFER_ALIGNMENT> Indices;
 
@@ -23,10 +23,10 @@ namespace
 		Indices.Reserve(NumQuadsPerSide * NumQuadsPerSide * 6);
 
 		// Build index buffer in morton order for better vertex reuse. This amounts to roughly 75% reuse rate vs 66% of naive scanline approach
-		for (int32 Morton = 0; Morton < NumQuadsPerSide * NumQuadsPerSide; Morton++)
+		for (uint32 Morton = 0; Morton < NumQuadsPerSide * NumQuadsPerSide; Morton++)
 		{
-			int32 SquareX = FMath::ReverseMortonCode2(Morton);
-			int32 SquareY = FMath::ReverseMortonCode2(Morton >> 1);
+			uint32 SquareX = FMath::ReverseMortonCode2(Morton);
+			uint32 SquareY = FMath::ReverseMortonCode2(Morton >> 1);
 
 			bool ForwardDiagonal = false;
 
