@@ -377,7 +377,6 @@ FEditorViewportClient::FEditorViewportClient(FEditorModeTools* InModeTools, FPre
 	, MovingPreviewLightTimer(0.0f)
 	, bLockFlightCamera(false)
 	, PreviewResolutionFraction(1.0f)
-	, bPreviewCustomTemporalUpscaler(false)
 	, SceneDPIMode(ESceneDPIMode::EditorDefault)
 	, PerspViewModeIndex(DefaultPerspectiveViewMode)
 	, OrthoViewModeIndex(DefaultOrthoViewMode)
@@ -2681,16 +2680,6 @@ void FEditorViewportClient::SetPreviewScreenPercentage(int32 PreviewScreenPercen
 	PreviewResolutionFraction = PreviewScreenPercentage / 100.0f;
 }
 
-bool FEditorViewportClient::GetPreviewCustomTemporalUpscaler() const
-{
-	return bPreviewCustomTemporalUpscaler;
-}
-
-void FEditorViewportClient::SetPreviewCustomTemporalUpscaler(bool PreviewCustomTemporalUpscaler)
-{
-	bPreviewCustomTemporalUpscaler = PreviewCustomTemporalUpscaler;
-}
-
 bool FEditorViewportClient::SupportsLowDPIPreview() const
 {
 	return GetDPIDerivedResolutionFraction() < 1.0f;
@@ -3844,7 +3833,7 @@ void FEditorViewportClient::Draw(FViewport* InViewport, FCanvas* Canvas)
 		// Setup custom upscaler and screen percentage.
 		if (GCustomEditorStaticScreenPercentage && ViewFamily.ViewMode == EViewModeIndex::VMI_Lit)
 		{
-			GCustomEditorStaticScreenPercentage->SetupEditorViewFamily(ViewFamily, PreviewResolutionFraction, bPreviewCustomTemporalUpscaler);
+			GCustomEditorStaticScreenPercentage->SetupEditorViewFamily(ViewFamily, this);
 		}
 
 		// If a screen percentage interface was not set by one of the view extension, then set the legacy one.
