@@ -609,7 +609,7 @@ void FNiagaraSystemInstance::Deactivate(bool bImmediate)
 
 		if (!IsComplete())
 		{
-			Complete();
+			Complete(true);
 		}
 	}
 	else
@@ -669,7 +669,7 @@ bool FNiagaraSystemInstance::DeallocateSystemInstance(TUniquePtr< FNiagaraSystem
 	return true;
 }
 
-void FNiagaraSystemInstance::Complete()
+void FNiagaraSystemInstance::Complete(bool bExternalCompletion)
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraSystemComplete);
 
@@ -714,7 +714,7 @@ void FNiagaraSystemInstance::Complete()
 		bNotifyOnCompletion = false;
 		if (OnCompleteDelegate.IsBound())
 		{
-			OnCompleteDelegate.Execute();
+			OnCompleteDelegate.Execute(bExternalCompletion);
 		}
 	}
 }
@@ -867,7 +867,7 @@ void FNiagaraSystemInstance::Reset(FNiagaraSystemInstance::EResetMode Mode)
 	else
 	{
 		SetActualExecutionState(ENiagaraExecutionState::Complete);
-		Complete();
+		Complete(true);
 	}
 }
 
@@ -1503,7 +1503,7 @@ void FNiagaraSystemInstance::InitDataInterfaces()
 	{
 		//Some error initializing the data interfaces so disable until we're explicitly reinitialized.
 		UE_LOG(LogNiagara, Error, TEXT("Error initializing data interfaces. Completing system. %s"), Asset.IsValid() ? *Asset->GetName() : TEXT("nullptr"));
-		Complete();
+		Complete(true);
 		return;
 	}
 	
@@ -1520,7 +1520,7 @@ void FNiagaraSystemInstance::InitDataInterfaces()
 		{
 			//Some error initializing the per instance function tables.
 			UE_LOG(LogNiagara, Error, TEXT("Error initializing data interfaces. Completing system. %s"), Asset.IsValid() ? *Asset->GetName() : TEXT("nullptr"));
-			Complete();
+			Complete(true);
 			return;
 		}
 	}
@@ -2054,7 +2054,7 @@ bool FNiagaraSystemInstance::HandleCompletion()
 	if (bCompletedAlready || bEmittersCompleteOrDisabled)
 	{
 		//UE_LOG(LogNiagara, Log, TEXT("Completion Achieved"));
-		Complete();
+		Complete(false);
 		return true;
 	}
 

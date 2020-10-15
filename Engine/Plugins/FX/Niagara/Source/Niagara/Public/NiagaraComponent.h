@@ -209,7 +209,7 @@ public:
 	void UnregisterWithScalabilityManager();
 
 	void PostSystemTick_GameThread();
-	void OnSystemComplete();
+	void OnSystemComplete(bool bExternalCompletion);
 
 	public:
 
