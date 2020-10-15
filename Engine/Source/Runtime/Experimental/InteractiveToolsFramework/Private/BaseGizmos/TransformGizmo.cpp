@@ -527,9 +527,10 @@ void UTransformGizmo::ReinitializeGizmoTransform(const FTransform& NewTransform)
 	GizmoComponent->TransformUpdated = temp;
 
 	// The underlying proxy has an existing way to reinitialize its transform without callbacks.
+	bool bSavedSetPivotMode = ActiveTarget->bSetPivotMode;
 	ActiveTarget->bSetPivotMode = true;
 	ActiveTarget->SetTransform(NewTransform);
-	ActiveTarget->bSetPivotMode = false;
+	ActiveTarget->bSetPivotMode = bSavedSetPivotMode;
 }
 
 void UTransformGizmo::SetNewGizmoTransform(const FTransform& NewTransform)

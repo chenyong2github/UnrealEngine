@@ -66,6 +66,14 @@ public:
 	UPROPERTY(meta = (TransientToolProperty))
 	bool bCanChangeResolution = true;
 
+	/** Whether the gizmo's axes remain aligned with world axes or rotate as the gizmo is transformed */
+	UPROPERTY(EditAnywhere, Category = Gizmo)
+	EToolContextCoordinateSystem GizmoCoordinateSystem = EToolContextCoordinateSystem::Local;
+
+	/** If Set Pivot Mode is active, the gizmo can be repositioned without moving the selected lattice points */
+	UPROPERTY(EditAnywhere, Category = Gizmo)
+	bool bSetPivotMode = false;
+
 };
 
 
@@ -106,8 +114,6 @@ public:
 	virtual void OnTick(float DeltaTime) override;
 	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
 
-	virtual void OnPropertyModified(UObject* PropertySet, FProperty* Property) override;
-
 	FVector3i GetLatticeResolution() const;
 
 protected:
@@ -131,6 +137,8 @@ protected:
 
 	UPROPERTY()
 	bool bLatticeDeformed = false;
+
+	bool bShouldRebuild = false;
 
 	// Create and store an FFFDLattice. Pass out the lattice's positions and edges.
 	void InitializeLattice(TArray<FVector3d>& OutLatticePoints, TArray<FVector2i>& OutLatticeEdges);

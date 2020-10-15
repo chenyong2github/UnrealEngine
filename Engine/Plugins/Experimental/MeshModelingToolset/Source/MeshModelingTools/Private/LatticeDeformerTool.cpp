@@ -13,6 +13,7 @@
 #include "MeshOpPreviewHelpers.h" //FDynamicMeshOpResult
 #include "ToolSceneQueriesUtil.h"
 #include "ToolBuilderUtil.h"
+#include "ToolSetupUtil.h"
 #include "DynamicMeshToMeshDescription.h"
 #include "MeshTransforms.h"
 #include "Algo/ForEach.h"
@@ -122,6 +123,25 @@ void ULatticeDeformerTool::Setup()
 	Settings->RestoreProperties(this);
 	AddToolPropertySource(Settings);
 
+	// Watch for property changes
+	Settings->WatchProperty(Settings->XAxisResolution, [this](int) { bShouldRebuild = true; });
+	Settings->WatchProperty(Settings->YAxisResolution, [this](int) { bShouldRebuild = true; });
+	Settings->WatchProperty(Settings->ZAxisResolution, [this](int) { bShouldRebuild = true; });
+	Settings->WatchProperty(Settings->Padding, [this](float) { bShouldRebuild = true; });
+	Settings->WatchProperty(Settings->InterpolationType, [this](ELatticeInterpolationType)
+	{
+		Preview->InvalidateResult();
+	});
+	Settings->WatchProperty(Settings->GizmoCoordinateSystem, [this](EToolContextCoordinateSystem)
+	{
+		ControlPointsMechanic->SetCoordinateSystem(Settings->GizmoCoordinateSystem);
+	});
+	Settings->WatchProperty(Settings->bSetPivotMode, [this](bool)
+	{
+		ControlPointsMechanic->UpdateSetPivotMode(Settings->bSetPivotMode);
+	});
+	
+
 	TArray<FVector3d> LatticePoints;
 	TArray<FVector2i> LatticeEdges;
 	InitializeLattice(LatticePoints, LatticeEdges);
@@ -130,15 +150,18 @@ void ULatticeDeformerTool::Setup()
 	ControlPointsMechanic = NewObject<ULatticeControlPointsMechanic>(this);
 	ControlPointsMechanic->Setup(this);
 	ControlPointsMechanic->SetWorld(TargetWorld);
-	ControlPointsMechanic->Initialize(LatticePoints, LatticeEdges);
+	FTransform3d LocalToWorld = FTransform3d(ComponentTarget->GetWorldTransform());
+	ControlPointsMechanic->Initialize(LatticePoints, LatticeEdges, LocalToWorld);
 
 	auto OnPointsChangedLambda = [this]()
 	{
 		Preview->InvalidateResult();
 		Settings->bCanChangeResolution = !ControlPointsMechanic->bHasChanged;
 	};
-
 	ControlPointsMechanic->OnPointsChanged.AddLambda(OnPointsChangedLambda);
+
+	ControlPointsMechanic->SetCoordinateSystem(Settings->GizmoCoordinateSystem);
+	ControlPointsMechanic->UpdateSetPivotMode(Settings->bSetPivotMode);
 
 	StartPreview();
 }
@@ -186,6 +209,20 @@ void ULatticeDeformerTool::StartPreview()
 	Preview = NewObject<UMeshOpPreviewWithBackgroundCompute>(LatticeDeformOpCreator);
 
 	Preview->Setup(TargetWorld, LatticeDeformOpCreator);
+
+	FComponentMaterialSet MaterialSet;
+	ComponentTarget->GetMaterialSet(MaterialSet);
+	Preview->ConfigureMaterials(MaterialSet.Materials,
+								ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager())
+	);
+
+	// configure secondary render material
+	UMaterialInterface* SelectionMaterial = ToolSetupUtil::GetSelectionMaterial(FLinearColor(0.8f, 0.75f, 0.0f), GetToolManager());
+	if (SelectionMaterial != nullptr)
+	{
+		Preview->PreviewMesh->SetSecondaryRenderMaterial(SelectionMaterial);
+	}
+
 	Preview->PreviewMesh->SetTangentsMode(EDynamicMeshTangentCalcType::NoTangents);
 	Preview->SetVisibility(true);
 	Preview->InvalidateResult();
@@ -193,33 +230,21 @@ void ULatticeDeformerTool::StartPreview()
 	ComponentTarget->SetOwnerVisibility(false);
 }
 
-void ULatticeDeformerTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
+void ULatticeDeformerTool::OnTick(float DeltaTime)
 {
 	if (Preview)
 	{
-		bool bShouldRebuild = Property &&
-			((Property->GetFName() == GET_MEMBER_NAME_CHECKED(ULatticeDeformerToolProperties, XAxisResolution)) ||
-			 (Property->GetFName() == GET_MEMBER_NAME_CHECKED(ULatticeDeformerToolProperties, YAxisResolution)) ||
-			 (Property->GetFName() == GET_MEMBER_NAME_CHECKED(ULatticeDeformerToolProperties, ZAxisResolution)) ||
-			 (Property->GetFName() == GET_MEMBER_NAME_CHECKED(ULatticeDeformerToolProperties, Padding)));
-
 		if (bShouldRebuild)
 		{
 			TArray<FVector3d> LatticePoints;
 			TArray<FVector2i> LatticeEdges;
 			InitializeLattice(LatticePoints, LatticeEdges);
-			ControlPointsMechanic->Initialize(LatticePoints, LatticeEdges);
+			FTransform3d LocalToWorld = FTransform3d(ComponentTarget->GetWorldTransform());
+			ControlPointsMechanic->Initialize(LatticePoints, LatticeEdges, LocalToWorld);
+			Preview->InvalidateResult();
+			bShouldRebuild = false;
 		}
 
-		Preview->InvalidateResult();
-	}
-}
-
-
-void ULatticeDeformerTool::OnTick(float DeltaTime)
-{
-	if (Preview)
-	{
 		Preview->Tick(DeltaTime);
 	}
 }

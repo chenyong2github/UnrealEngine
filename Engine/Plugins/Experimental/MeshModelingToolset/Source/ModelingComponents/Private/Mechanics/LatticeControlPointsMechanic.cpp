@@ -29,14 +29,16 @@ void ULatticeControlPointsMechanic::Setup(UInteractiveTool* ParentToolIn)
 
 	USingleClickInputBehavior* ClickBehavior = NewObject<USingleClickInputBehavior>();
 	ClickBehavior->Initialize(this);
-	ClickBehavior->Modifiers.RegisterModifier(CtrlModifierId, FInputDeviceState::IsCtrlKeyDown);
-	ClickBehavior->Modifiers.RegisterModifier(ShiftModifierId, FInputDeviceState::IsShiftKeyDown);
+	auto ShiftOrCtrlDown = [](const FInputDeviceState& State) -> bool {
+		return FInputDeviceState::IsShiftKeyDown(State) || FInputDeviceState::IsCtrlKeyDown(State);
+	};
+	ClickBehavior->Modifiers.RegisterModifier(AddToSelectionModifierId, ShiftOrCtrlDown);
+
 	ParentTool->AddInputBehavior(ClickBehavior);
 
 	UMouseHoverBehavior* HoverBehavior = NewObject<UMouseHoverBehavior>();
 	HoverBehavior->Initialize(this);
-	HoverBehavior->Modifiers.RegisterModifier(CtrlModifierId, FInputDeviceState::IsCtrlKeyDown);
-	HoverBehavior->Modifiers.RegisterModifier(ShiftModifierId, FInputDeviceState::IsShiftKeyDown);
+	HoverBehavior->Modifiers.RegisterModifier(AddToSelectionModifierId, ShiftOrCtrlDown);
 	ParentTool->AddInputBehavior(HoverBehavior);
 
 	UClickDragInputBehavior* ClickDragBehavior = NewObject<UClickDragInputBehavior>(this);
@@ -91,10 +93,32 @@ void ULatticeControlPointsMechanic::Setup(UInteractiveTool* ParentToolIn)
 	PointTransformGizmo->SetActiveTarget(PointTransformProxy);
 	PointTransformGizmo->SetVisibility(false);
 	PointTransformGizmo->bUseContextCoordinateSystem = false;
+	PointTransformGizmo->CurrentCoordinateSystem = EToolContextCoordinateSystem::Local;
 }
 
-void ULatticeControlPointsMechanic::Initialize(const TArray<FVector3d>& Points, const TArray<FVector2i>& Edges)
+void ULatticeControlPointsMechanic::SetCoordinateSystem(EToolContextCoordinateSystem InCoordinateSystem)
 {
+	PointTransformGizmo->CurrentCoordinateSystem = InCoordinateSystem;
+	UpdateGizmoLocation();
+}
+
+EToolContextCoordinateSystem ULatticeControlPointsMechanic::GetCoordinateSystem() const
+{
+	return PointTransformGizmo->CurrentCoordinateSystem;
+}
+
+
+void ULatticeControlPointsMechanic::UpdateSetPivotMode(bool bInSetPivotMode)
+{
+	PointTransformProxy->bSetPivotMode = bInSetPivotMode;
+}
+
+
+void ULatticeControlPointsMechanic::Initialize(const TArray<FVector3d>& Points, 
+											   const TArray<FVector2i>& Edges,
+											   const FTransform3d& InLocalToWorldTransform)
+{
+	LocalToWorldTransform = InLocalToWorldTransform;
 	ControlPoints = Points;
 	SelectedPointIDs.Empty();
 	LatticeEdges = Edges;
@@ -272,6 +296,11 @@ void ULatticeControlPointsMechanic::GizmoTransformChanged(UTransformProxy* Proxy
 		return;
 	}
 
+	if (PointTransformProxy->bSetPivotMode)
+	{
+		return;
+	}
+
 	bool bPointsChanged = false;
 
 	FVector Displacement = Transform.GetTranslation() - GizmoStartPosition;
@@ -399,30 +428,37 @@ void ULatticeControlPointsMechanic::ChangeSelection(int32 NewPointID, bool bAddT
 			}
 		}
 
-		ParentTool->GetToolManager()->EmitObjectChange(this, MakeUnique<FLatticeControlPointsMechanicSelectionChange>(
-			PointsToDeselect, false, CurrentChangeStamp), LatticePointDeselectionTransactionText);
-
+		FTransform PreviousTransform = PointTransformProxy->GetTransform();
 		SelectedPointIDs.Empty();
+		UpdateGizmoLocation();
+		FTransform NewTransform = PointTransformProxy->GetTransform();
+
+		ParentTool->GetToolManager()->EmitObjectChange(this, MakeUnique<FLatticeControlPointsMechanicSelectionChange>(
+			PointsToDeselect, false, PreviousTransform, NewTransform, CurrentChangeStamp), LatticePointDeselectionTransactionText);
 	}
 
 	// We check for validity here because giving an invalid id (such as -1) with bAddToSelection == false
 	// is an easy way to clear the selection.
 	if ((NewPointID >= 0)  && (NewPointID < ControlPoints.Num()))
 	{
+		FTransform PreviousTransform = PointTransformProxy->GetTransform();
+
 		if (bAddToSelection && DeselectPoint(NewPointID))
 		{
+			UpdateGizmoLocation();
+			FTransform NewTransform = PointTransformProxy->GetTransform();
 			ParentTool->GetToolManager()->EmitObjectChange(this, MakeUnique<FLatticeControlPointsMechanicSelectionChange>(
-				NewPointID, false, CurrentChangeStamp), LatticePointDeselectionTransactionText);
+				NewPointID, false, PreviousTransform, NewTransform, CurrentChangeStamp), LatticePointDeselectionTransactionText);
 		}
 		else
 		{
 			SelectPoint(NewPointID);
+			UpdateGizmoLocation();
+			FTransform NewTransform = PointTransformProxy->GetTransform();
 			ParentTool->GetToolManager()->EmitObjectChange(this, MakeUnique<FLatticeControlPointsMechanicSelectionChange>(
-				NewPointID, true, CurrentChangeStamp), LatticePointSelectionTransactionText);
+				NewPointID, true, PreviousTransform, NewTransform, CurrentChangeStamp), LatticePointSelectionTransactionText);
 		}
 	}
-
-	UpdateGizmoLocation();
 }
 
 void ULatticeControlPointsMechanic::UpdateGizmoLocation()
@@ -432,6 +468,8 @@ void ULatticeControlPointsMechanic::UpdateGizmoLocation()
 		return;
 	}
 
+	FVector3d NewGizmoLocation(0, 0, 0);
+
 	if (SelectedPointIDs.Num() == 0)
 	{
 		PointTransformGizmo->SetVisibility(false);
@@ -439,24 +477,21 @@ void ULatticeControlPointsMechanic::UpdateGizmoLocation()
 	}
 	else
 	{
-		FVector3d NewGizmoLocation(0,0,0);
 		for (int32 PointID : SelectedPointIDs)
 		{
 			NewGizmoLocation += ControlPoints[PointID];
 		}
 		NewGizmoLocation /= SelectedPointIDs.Num();
 
-		// Don't clear the gizmo rotation
-		FQuat OldGizmoRotation = PointTransformProxy->GetTransform().GetRotation();
-
-		PointTransformGizmo->ReinitializeGizmoTransform(FTransform(OldGizmoRotation, (FVector)NewGizmoLocation));
-
-		// Clear the child scale
-		FVector GizmoScale{ 1.0, 1.0, 1.0 };
-		PointTransformGizmo->SetNewChildScale(GizmoScale);
-
 		PointTransformGizmo->SetVisibility(true);
 	}
+
+	FTransform NewTransform(FQuat(LocalToWorldTransform.GetRotation()), (FVector)NewGizmoLocation);
+	PointTransformGizmo->ReinitializeGizmoTransform(NewTransform);
+
+	// Clear the child scale
+	FVector GizmoScale{ 1.0, 1.0, 1.0 };
+	PointTransformGizmo->SetNewChildScale(GizmoScale);
 }
 
 bool ULatticeControlPointsMechanic::DeselectPoint(int32 PointID)
@@ -540,7 +575,7 @@ void ULatticeControlPointsMechanic::OnEndHover()
 // Detects Ctrl key state
 void ULatticeControlPointsMechanic::OnUpdateModifierState(int ModifierID, bool bIsOn)
 {
-	if (ModifierID == CtrlModifierId || ModifierID == ShiftModifierId)
+	if (ModifierID == AddToSelectionModifierId)
 	{
 		bAddToSelectionToggle = bIsOn;
 	}
@@ -573,8 +608,6 @@ void ULatticeControlPointsMechanic::OnClickPress(const FInputDeviceRay& PressPos
 	}
 	CurrentDragSelection.Empty();
 
-	UpdateGizmoLocation();
-
 	DragStartScreenPosition = PressPos.ScreenPosition;
 	DragStartWorldRay = PressPos.WorldRay;
 
@@ -582,7 +615,6 @@ void ULatticeControlPointsMechanic::OnClickPress(const FInputDeviceRay& PressPos
 	if (PointTransformGizmo)
 	{
 		PointTransformGizmo->SetVisibility(false);
-		PointTransformGizmo->ReinitializeGizmoTransform(FTransform());
 	}
 }
 
@@ -666,25 +698,29 @@ void ULatticeControlPointsMechanic::OnClickRelease(const FInputDeviceRay& Releas
 
 	ParentTool->GetToolManager()->BeginUndoTransaction(LatticePointSelectionTransactionText);
 
-	if (SelectedPointIDs.Num() > 0)
+	TArray<int32> SavedSelectedIDs = SelectedPointIDs;
+
+	FTransform PreviousTransform = PointTransformProxy->GetTransform();
+	SelectedPointIDs = CurrentDragSelection;
+	UpdateGizmoLocation();
+	FTransform NewTransform = PointTransformProxy->GetTransform();
+
+	if (SavedSelectedIDs.Num() > 0)
 	{
 		ParentTool->GetToolManager()->EmitObjectChange(this, MakeUnique<FLatticeControlPointsMechanicSelectionChange>(
-			SelectedPointIDs, false, CurrentChangeStamp), LatticePointDeselectionTransactionText);
+			SavedSelectedIDs, false, PreviousTransform, NewTransform, CurrentChangeStamp), LatticePointDeselectionTransactionText);
 	}
 
 	if (CurrentDragSelection.Num() > 0)
 	{
 		ParentTool->GetToolManager()->EmitObjectChange(this, MakeUnique<FLatticeControlPointsMechanicSelectionChange>(
-			CurrentDragSelection, true, CurrentChangeStamp), LatticePointSelectionTransactionText);
+			CurrentDragSelection, true, PreviousTransform, NewTransform, CurrentChangeStamp), LatticePointSelectionTransactionText);
 	}
 
 	ParentTool->GetToolManager()->EndUndoTransaction();
 
-	SelectedPointIDs = CurrentDragSelection;
 	CurrentDragSelection.Empty();
-
 	bIsDragging = false;
-	UpdateGizmoLocation();
 }
 
 
@@ -704,16 +740,26 @@ const TArray<FVector3d>& ULatticeControlPointsMechanic::GetControlPoints() const
 // ==================== Undo/redo object functions ====================
 
 FLatticeControlPointsMechanicSelectionChange::FLatticeControlPointsMechanicSelectionChange(int32 PointIDIn,
-	bool AddedIn, int32 ChangeStampIn)
+																						   bool bAddedIn,
+																						   const FTransform& PreviousTransformIn,
+																						   const FTransform& NewTransformIn,
+																						   int32 ChangeStampIn)
 	: PointIDs{ PointIDIn }
-	, Added(AddedIn)
+	, bAdded(bAddedIn)
+	, PreviousTransform(PreviousTransformIn)
+	, NewTransform(NewTransformIn)
 	, ChangeStamp(ChangeStampIn)
 {}
 
 FLatticeControlPointsMechanicSelectionChange::FLatticeControlPointsMechanicSelectionChange(const TArray<int32>& PointIDsIn, 
-	bool AddedIn, int32 ChangeStampIn)
+																						   bool bAddedIn, 
+																						   const FTransform& PreviousTransformIn,
+																						   const FTransform& NewTransformIn, 
+																						   int32 ChangeStampIn)
 	: PointIDs(PointIDsIn)
-	, Added(AddedIn)
+	, bAdded(bAddedIn)
+	, PreviousTransform(PreviousTransformIn)
+	, NewTransform(NewTransformIn)
 	, ChangeStamp(ChangeStampIn)
 {}
 
@@ -723,7 +769,7 @@ void FLatticeControlPointsMechanicSelectionChange::Apply(UObject* Object)
 	
 	for (int32 PointID : PointIDs)
 	{
-		if (Added)
+		if (bAdded)
 		{
 			Mechanic->SelectPoint(PointID);
 		}
@@ -733,7 +779,11 @@ void FLatticeControlPointsMechanicSelectionChange::Apply(UObject* Object)
 		}
 	}
 
-	Mechanic->UpdateGizmoLocation();
+	Mechanic->PointTransformGizmo->ReinitializeGizmoTransform(NewTransform);
+	Mechanic->PointTransformGizmo->SetNewChildScale(FVector{ 1.0, 1.0, 1.0 });	// Clear the child scale
+
+	bool bAnyPointSelected = (Mechanic->SelectedPointIDs.Num() > 0);
+	Mechanic->PointTransformGizmo->SetVisibility(bAnyPointSelected);
 }
 
 void FLatticeControlPointsMechanicSelectionChange::Revert(UObject* Object)
@@ -741,7 +791,7 @@ void FLatticeControlPointsMechanicSelectionChange::Revert(UObject* Object)
 	ULatticeControlPointsMechanic* Mechanic = Cast<ULatticeControlPointsMechanic>(Object);
 	for (int32 PointID : PointIDs)
 	{
-		if (Added)
+		if (bAdded)
 		{
 			Mechanic->DeselectPoint(PointID);
 		}
@@ -750,7 +800,12 @@ void FLatticeControlPointsMechanicSelectionChange::Revert(UObject* Object)
 			Mechanic->SelectPoint(PointID);
 		}
 	}
-	Mechanic->UpdateGizmoLocation();
+	
+	Mechanic->PointTransformGizmo->ReinitializeGizmoTransform(PreviousTransform);
+	Mechanic->PointTransformGizmo->SetNewChildScale(FVector{ 1.0, 1.0, 1.0 });	// Clear the child scale
+
+	bool bAnyPointSelected = (Mechanic->SelectedPointIDs.Num() > 0);
+	Mechanic->PointTransformGizmo->SetVisibility(bAnyPointSelected);
 }
 
 FString FLatticeControlPointsMechanicSelectionChange::ToString() const
@@ -779,7 +834,6 @@ void FLatticeControlPointsMechanicMovementChange::Apply(UObject* Object)
 	ULatticeControlPointsMechanic* Mechanic = Cast<ULatticeControlPointsMechanic>(Object);
 	check(PointIDs.Num() == NewPositions.Num());
 	Mechanic->UpdatePointLocations(PointIDs, NewPositions);
-	Mechanic->UpdateGizmoLocation();
 	Mechanic->bHasChanged = false;
 	Mechanic->OnPointsChanged.Broadcast();
 }
@@ -789,7 +843,6 @@ void FLatticeControlPointsMechanicMovementChange::Revert(UObject* Object)
 	ULatticeControlPointsMechanic* Mechanic = Cast<ULatticeControlPointsMechanic>(Object);
 	check(PointIDs.Num() == OriginalPositions.Num());
 	Mechanic->UpdatePointLocations(PointIDs, OriginalPositions);
-	Mechanic->UpdateGizmoLocation();
 	if (bFirstMovement)
 	{
 		// If we're undoing the first change, make it possible to change the lattice resolution again

@@ -40,9 +40,17 @@ public:
 	DECLARE_MULTICAST_DELEGATE(OnPointsChangedEvent);
 	OnPointsChangedEvent OnPointsChanged;
 
-	virtual void Initialize(const TArray<FVector3d>& Points, const TArray<FVector2i>& Edges);
+	virtual void Initialize(const TArray<FVector3d>& Points, 
+							const TArray<FVector2i>& Edges,
+							const FTransform3d& LocalToWorldTransform );
+
 	void SetWorld(UWorld* World);
 	const TArray<FVector3d>& GetControlPoints() const;
+
+	void SetCoordinateSystem(EToolContextCoordinateSystem InCoordinateSystem);
+	EToolContextCoordinateSystem GetCoordinateSystem() const;
+
+	void UpdateSetPivotMode(bool bInSetPivotMode);
 
 	// UInteractionMechanic
 	virtual void Setup(UInteractiveTool* ParentTool) override;
@@ -80,6 +88,7 @@ protected:
 
 	TArray<FVector3d> ControlPoints;
 	TArray<FVector2i> LatticeEdges;
+	FTransform3d LocalToWorldTransform;
 
 	// Used for spatial queries
 	FGeometrySet3 GeometrySet;
@@ -103,10 +112,10 @@ protected:
 	// Cache previous color while temporarily changing the color of a hovered-over point
 	FColor PreHoverPointColor;
 
-	// Support for Ctrl toggle
+	// Support for Shift and Ctrl toggle
 	bool bAddToSelectionToggle = false;
-	const int32 CtrlModifierId = 1;
-	const int32 ShiftModifierId = 2;
+	const int32 AddToSelectionModifierId = 1;
+	
 
 	// Support for gizmo. Since the points aren't individual components, we don't actually use UTransformProxy
 	// for the transform forwarding- we just use it for the callbacks.
@@ -142,6 +151,7 @@ protected:
 	TArray<FVector3d> SelectedPointStartPositions;
 
 	// The starting point of the gizmo is needed to determine the offset by which to move the points.
+	// TODO: Replace with single FTransform?
 	FVector GizmoStartPosition;
 	FQuat	GizmoStartRotation;
 	FVector GizmoStartScale;
@@ -175,9 +185,11 @@ protected:
 class MODELINGCOMPONENTS_API FLatticeControlPointsMechanicSelectionChange : public FToolCommandChange
 {
 public:
-	FLatticeControlPointsMechanicSelectionChange(int32 PointIDIn, bool AddedIn, int32 ChangeStampIn);
+	FLatticeControlPointsMechanicSelectionChange(int32 PointIDIn, bool bAddedIn, const FTransform& PreviousTransformIn,
+												 const FTransform& NewTransformIn, int32 ChangeStampIn);
 
-	FLatticeControlPointsMechanicSelectionChange(const TArray<int32>& PointIDsIn, bool AddedIn, int32 ChangeStampIn);
+	FLatticeControlPointsMechanicSelectionChange(const TArray<int32>& PointIDsIn, bool bAddedIn, const FTransform& PreviousTransformIn,
+												 const FTransform& NewTransformIn, int32 ChangeStampIn);
 
 	virtual void Apply(UObject* Object) override;
 	virtual void Revert(UObject* Object) override;
@@ -189,8 +201,11 @@ public:
 
 protected:
 	TArray<int32> PointIDs;
+	bool bAdded;
 
-	bool Added;
+	const FTransform PreviousTransform;
+	const FTransform NewTransform;
+
 	int32 ChangeStamp;
 };
 
