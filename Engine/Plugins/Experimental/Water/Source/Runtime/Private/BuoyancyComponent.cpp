@@ -4,6 +4,7 @@
 #include "WaterBodyActor.h"
 #include "DrawDebugHelpers.h"
 #include "WaterSplineComponent.h"
+#include "WaterVersion.h"
 #include "Physics/SimpleSuspension.h"
 
 TAutoConsoleVariable<int32> CVarWaterDebugBuoyancy(
@@ -20,68 +21,125 @@ TAutoConsoleVariable<int32> CVarWaterUseSplineKeyOptimization(
 
 UBuoyancyComponent::UBuoyancyComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-	, BuoyancyCoefficient(0.1f)
-	, BuoyancyDamp(1000.f)
-	, BuoyancyDamp2(1.f)
-	, BuoyancyRampMinVelocity(20.f)
-	, BuoyancyRampMaxVelocity(50.f)
-	, BuoyancyRampMax(1.f)
-	, MaxBuoyantForce(5000000.f)
-	, WaterShorePushFactor(0.3f)
-	, WaterVelocityStrength(0.01f)
-	, MaxWaterForce(10000.f)
+	, SimulatingComponent(nullptr)
 	, PontoonConfiguration(0)
 	, VelocityPontoonIndex(0)
 	, bIsOverlappingWaterBody(false)
+	, bIsInWaterBody(false)
 {
 	PrimaryComponentTick.bCanEverTick = true;
-	PrimaryComponentTick.bStartWithTickEnabled = true;
+	PrimaryComponentTick.bStartWithTickEnabled = false;
 	PrimaryComponentTick.TickGroup = TG_PrePhysics;
 }
 
 void UBuoyancyComponent::BeginPlay()
 {
 	Super::BeginPlay();
-	for (FSphericalPontoon& Pontoon : Pontoons)
+	for (FSphericalPontoon& Pontoon : BuoyancyData.Pontoons)
 	{
 		if (Pontoon.CenterSocket != NAME_None)
 		{
 			Pontoon.bUseCenterSocket = true;
 		}
 	}
+	AActor* Owner = GetOwner();
+	check(Owner);
+	SimulatingComponent = Cast<UPrimitiveComponent>(Owner->GetRootComponent());
+	check(SimulatingComponent);
 	SetupWaterBodyOverlaps();
+}
+
+void UBuoyancyComponent::PostLoad()
+{
+	Super::PostLoad();
+
+	if (GetLinkerCustomVersion(FWaterCustomVersion::GUID) < FWaterCustomVersion::UpdateBuoyancyComponentPontoonsData)
+	{
+		if (Pontoons_DEPRECATED.Num())
+		{
+			BuoyancyData.Pontoons = Pontoons_DEPRECATED;
+		}
+		Pontoons_DEPRECATED.Empty();
+	}
+}
+
+void UBuoyancyComponent::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+
+	Ar.UsingCustomVersion(FWaterCustomVersion::GUID);
+}
+
+const float ToKmh(float SpeedCms)
+{
+	return SpeedCms * 0.036f; //cm/s to km/h
 }
 
 void UBuoyancyComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
-	AActor* Owner = GetOwner();
-	check(Owner);
-	UPrimitiveComponent* PrimComp = Cast<UPrimitiveComponent>(Owner->GetRootComponent());
-	check(PrimComp);
-	const FVector PhysicsVelocity = PrimComp->GetComponentVelocity();
-	const FVector ForwardDir = PrimComp->GetForwardVector();
+	if (!SimulatingComponent)
+	{
+		return;
+	}
+	const FVector PhysicsVelocity = SimulatingComponent->GetComponentVelocity();
+
+	const FVector ForwardDir = SimulatingComponent->GetForwardVector();
+	const FVector RightDir = SimulatingComponent->GetRightVector();
+
 	const float ForwardSpeed = FVector::DotProduct(ForwardDir, PhysicsVelocity);
-	const float ForwardSpeedKmh = ForwardSpeed * 0.036f; //cm/s to km/h
+	const float ForwardSpeedKmh = ToKmh(ForwardSpeed);
+
+	const float RightSpeed = FVector::DotProduct(RightDir, PhysicsVelocity);
+	const float RightSpeedKmh = ToKmh(RightSpeed);
+
 	UpdatePontoonCoefficients();
-	UpdatePontoons(DeltaTime, ForwardSpeed, ForwardSpeedKmh, PrimComp);
-	ApplyBuoyancy(PrimComp);
-	const FVector& WaterForce = ComputeWaterForce(DeltaTime, PhysicsVelocity);
-	PrimComp->AddForce(WaterForce, NAME_None, /*bAccelChange=*/true);
+
+	const int32 NumPontoonsInWater = UpdatePontoons(DeltaTime, ForwardSpeed, ForwardSpeedKmh, SimulatingComponent);
+	bIsInWaterBody = NumPontoonsInWater > 0;
+
+	if (SimulatingComponent->IsSimulatingPhysics())
+	{
+		const ECollisionEnabled::Type Collision = SimulatingComponent->GetCollisionEnabled();
+		if (Collision == ECollisionEnabled::QueryAndPhysics || Collision == ECollisionEnabled::PhysicsOnly)
+		{
+			ApplyBuoyancy(SimulatingComponent);
+
+			FVector TotalForce = FVector::ZeroVector;
+			FVector TotalTorque = FVector::ZeroVector;
+
+			TotalForce += ComputeWaterForce(DeltaTime, PhysicsVelocity);
+
+			if (BuoyancyData.bApplyDragForcesInWater)
+			{
+				TotalForce  += ComputeLinearDragForce(PhysicsVelocity);
+				TotalTorque += ComputeAngularDragTorque(SimulatingComponent->GetPhysicsAngularVelocityInDegrees());
+			}
+
+			SimulatingComponent->AddForce(TotalForce, NAME_None, /*bAccelChange=*/true);
+			SimulatingComponent->AddTorqueInDegrees(TotalTorque, NAME_None, /*bAccelChange=*/true);
+		}
+	}
+}
+
+void UBuoyancyComponent::EnableTick()
+{
+	SetComponentTickEnabled(true);
+}
+
+void UBuoyancyComponent::DisableTick()
+{
+	SetComponentTickEnabled(false);
 }
 
 void UBuoyancyComponent::SetupWaterBodyOverlaps()
 {
-	AActor* Owner = GetOwner();
-	check(Owner);
-	UPrimitiveComponent* PrimComp = Cast<UPrimitiveComponent>(Owner->GetRootComponent());
-	check(PrimComp);
-	PrimComp->SetCollisionObjectType(ECollisionChannel::ECC_PhysicsBody);
-	if (PrimComp->GetCollisionResponseToChannel(ECollisionChannel::ECC_WorldStatic) == ECollisionResponse::ECR_Ignore)
+	//SimulatingComponent->SetCollisionObjectType(ECollisionChannel::ECC_PhysicsBody);
+	if (SimulatingComponent->GetCollisionResponseToChannel(ECollisionChannel::ECC_WorldStatic) == ECollisionResponse::ECR_Ignore)
 	{
-		PrimComp->SetCollisionResponseToChannel(ECollisionChannel::ECC_WorldStatic, ECollisionResponse::ECR_Overlap);
+		SimulatingComponent->SetCollisionResponseToChannel(ECollisionChannel::ECC_WorldStatic, ECollisionResponse::ECR_Overlap);
 	}
-	PrimComp->SetGenerateOverlapEvents(true);
+	SimulatingComponent->SetGenerateOverlapEvents(true);
 }
 
 void UBuoyancyComponent::AddCustomPontoon(float Radius, FName CenterSocketName)
@@ -89,7 +147,7 @@ void UBuoyancyComponent::AddCustomPontoon(float Radius, FName CenterSocketName)
 	FSphericalPontoon Pontoon;
 	Pontoon.Radius = Radius;
 	Pontoon.CenterSocket = CenterSocketName;
-	Pontoons.Add(Pontoon);
+	BuoyancyData.Pontoons.Add(Pontoon);
 }
 
 void UBuoyancyComponent::AddCustomPontoon(float Radius, const FVector& RelativeLocation)
@@ -97,14 +155,14 @@ void UBuoyancyComponent::AddCustomPontoon(float Radius, const FVector& RelativeL
 	FSphericalPontoon Pontoon;
 	Pontoon.Radius = Radius;
 	Pontoon.RelativeLocation = RelativeLocation;
-	Pontoons.Add(Pontoon);
+	BuoyancyData.Pontoons.Add(Pontoon);
 }
 
 void UBuoyancyComponent::EnteredWaterBody(AWaterBody* WaterBody)
 {
 	bool bIsFirstBody = !CurrentWaterBodies.Num() && WaterBody;
 	CurrentWaterBodies.AddUnique(WaterBody);
-	for (FSphericalPontoon& Pontoon : Pontoons)
+	for (FSphericalPontoon& Pontoon : BuoyancyData.Pontoons)
 	{
 		Pontoon.SplineSegments.FindOrAdd(WaterBody, -1);
 	}
@@ -112,12 +170,13 @@ void UBuoyancyComponent::EnteredWaterBody(AWaterBody* WaterBody)
 	{
 		bIsOverlappingWaterBody = true;
 	}
+	EnableTick();
 }
 
 void UBuoyancyComponent::ExitedWaterBody(AWaterBody* WaterBody)
 {
 	CurrentWaterBodies.Remove(WaterBody);
-	for (FSphericalPontoon& Pontoon : Pontoons)
+	for (FSphericalPontoon& Pontoon : BuoyancyData.Pontoons)
 	{
 		Pontoon.SplineSegments.Remove(WaterBody);
 	}
@@ -125,6 +184,7 @@ void UBuoyancyComponent::ExitedWaterBody(AWaterBody* WaterBody)
 	{
 		bIsOverlappingWaterBody = false;
 	}
+	DisableTick();
 }
 
 void UBuoyancyComponent::ApplyBuoyancy(UPrimitiveComponent* PrimitiveComponent)
@@ -134,7 +194,7 @@ void UBuoyancyComponent::ApplyBuoyancy(UPrimitiveComponent* PrimitiveComponent)
 	if (PrimitiveComponent && bIsOverlappingWaterBody)
 	{
 		int PontoonIndex = 0;
-		for (const FSphericalPontoon& Pontoon : Pontoons)
+		for (const FSphericalPontoon& Pontoon : BuoyancyData.Pontoons)
 		{
 			if (PontoonConfiguration & (1 << PontoonIndex))
 			{
@@ -170,23 +230,22 @@ void UBuoyancyComponent::ComputeBuoyancy(FSphericalPontoon& Pontoon, float Forwa
 		}
 #endif
 
-		const UPrimitiveComponent* PrimComp = Cast<UPrimitiveComponent>(Owner->GetRootComponent());
-		check(PrimComp && PrimComp->GetBodyInstance());
-		const float VelocityZ = PrimComp->GetBodyInstance()->GetUnrealWorldVelocity().Z;
-		const float FirstOrderDrag = BuoyancyDamp * VelocityZ;
-		const float SecondOrderDrag = FMath::Sign(VelocityZ) * BuoyancyDamp2 * VelocityZ * VelocityZ;
+		check(SimulatingComponent && SimulatingComponent->GetBodyInstance());
+		const float VelocityZ = SimulatingComponent->GetBodyInstance()->GetUnrealWorldVelocity().Z;
+		const float FirstOrderDrag = BuoyancyData.BuoyancyDamp * VelocityZ;
+		const float SecondOrderDrag = FMath::Sign(VelocityZ) * BuoyancyData.BuoyancyDamp2 * VelocityZ * VelocityZ;
 		const float DampingFactor = -FMath::Max(FirstOrderDrag + SecondOrderDrag, 0.f);
 		// The buoyant force scales with submersed volume
 		return SubVolume * (InBuoyancyCoefficient) + DampingFactor;
 	};
 
-	const float MinVelocity = BuoyancyRampMinVelocity;
-	const float MaxVelocity = BuoyancyRampMaxVelocity;
+	const float MinVelocity = BuoyancyData.BuoyancyRampMinVelocity;
+	const float MaxVelocity = BuoyancyData.BuoyancyRampMaxVelocity;
 	const float RampFactor = FMath::Clamp((ForwardSpeedKmh - MinVelocity) / (MaxVelocity - MinVelocity), 0.f, 1.f);
-	const float BuoyancyRamp = RampFactor * (BuoyancyRampMax - 1);
-	float BuoyancyCoefficientWithRamp = BuoyancyCoefficient * (1 + BuoyancyRamp);
+	const float BuoyancyRamp = RampFactor * (BuoyancyData.BuoyancyRampMax - 1);
+	float BuoyancyCoefficientWithRamp = BuoyancyData.BuoyancyCoefficient * (1 + BuoyancyRamp);
 
-	const float BuoyantForce = FMath::Clamp(ComputeBuoyantForce(Pontoon.CenterLocation, Pontoon.Radius, BuoyancyCoefficientWithRamp, Pontoon.WaterHeight), 0.f, MaxBuoyantForce);
+	const float BuoyantForce = FMath::Clamp(ComputeBuoyantForce(Pontoon.CenterLocation, Pontoon.Radius, BuoyancyCoefficientWithRamp, Pontoon.WaterHeight), 0.f, BuoyancyData.MaxBuoyantForce);
 	Pontoon.LocalForce = FVector::UpVector * BuoyantForce * Pontoon.PontoonCoefficient;
 }
 
@@ -196,21 +255,20 @@ void UBuoyancyComponent::ComputePontoonCoefficients()
 	if (PontoonCoefficients.Num() == 0)
 	{
 		TArray<FVector> LocalPontoonLocations;
-		UPrimitiveComponent* PrimComp = Cast<UPrimitiveComponent>(GetOwner()->GetRootComponent());
-		if (!PrimComp)
+		if (!SimulatingComponent)
 		{
 			return;
 		}
-		for (int32 PontoonIndex = 0; PontoonIndex < Pontoons.Num(); ++PontoonIndex)
+		for (int32 PontoonIndex = 0; PontoonIndex < BuoyancyData.Pontoons.Num(); ++PontoonIndex)
 		{
 			if (PontoonConfiguration & (1 << PontoonIndex))
 			{
-				const FVector LocalPosition = PrimComp->GetSocketTransform(Pontoons[PontoonIndex].CenterSocket, ERelativeTransformSpace::RTS_ParentBoneSpace).GetLocation();
+				const FVector LocalPosition = SimulatingComponent->GetSocketTransform(BuoyancyData.Pontoons[PontoonIndex].CenterSocket, ERelativeTransformSpace::RTS_ParentBoneSpace).GetLocation();
 				LocalPontoonLocations.Add(LocalPosition);
 			}
 		}
 		PontoonCoefficients.AddZeroed(LocalPontoonLocations.Num());
-		if (FBodyInstance* BodyInstance = PrimComp->GetBodyInstance())
+		if (FBodyInstance* BodyInstance = SimulatingComponent->GetBodyInstance())
 		{
 			const FVector& LocalCOM = BodyInstance->GetMassSpaceLocal().GetLocation();
 			//Distribute a mass of 1 to each pontoon so that we get a scaling factor based on position relative to CoM
@@ -219,11 +277,11 @@ void UBuoyancyComponent::ComputePontoonCoefficients()
 	}
 
 	// Apply the coefficients
-	for (int32 PontoonIndex = 0, CoefficientIdx = 0; PontoonIndex < Pontoons.Num(); ++PontoonIndex)
+	for (int32 PontoonIndex = 0, CoefficientIdx = 0; PontoonIndex < BuoyancyData.Pontoons.Num(); ++PontoonIndex)
 	{
 		if (PontoonConfiguration & (1 << PontoonIndex))
 		{
-			Pontoons[PontoonIndex].PontoonCoefficient = PontoonCoefficients[CoefficientIdx++];
+			BuoyancyData.Pontoons[PontoonIndex].PontoonCoefficient = PontoonCoefficients[CoefficientIdx++];
 		}
 	}
 }
@@ -237,24 +295,24 @@ int32 UBuoyancyComponent::UpdatePontoons(float DeltaTime, float ForwardSpeed, fl
 	if (bIsOverlappingWaterBody)
 	{
 		int PontoonIndex = 0;
-		for (FSphericalPontoon& Pontoon : Pontoons)
+		for (FSphericalPontoon& Pontoon : BuoyancyData.Pontoons)
 		{
 			if (PontoonConfiguration & (1 << PontoonIndex))
 			{
 				if (Pontoon.bUseCenterSocket)
 				{
-					const FTransform& PrimCompTransform = PrimitiveComponent->GetSocketTransform(Pontoon.CenterSocket);
-					Pontoon.CenterLocation = PrimCompTransform.GetLocation() + Pontoon.Offset;
-					Pontoon.SocketRotation = PrimCompTransform.GetRotation();
+					const FTransform& SimulatingComponentTransform = PrimitiveComponent->GetSocketTransform(Pontoon.CenterSocket);
+					Pontoon.CenterLocation = SimulatingComponentTransform.GetLocation() + Pontoon.Offset;
+					Pontoon.SocketRotation = SimulatingComponentTransform.GetRotation();
 				}
 				else
 				{
-					Pontoon.CenterLocation = PrimitiveComponent->GetComponentLocation() + Pontoon.RelativeLocation;
+					Pontoon.CenterLocation = PrimitiveComponent->GetComponentTransform().TransformPosition(Pontoon.RelativeLocation);
 				}
 				GetWaterSplineKey(Pontoon.CenterLocation, Pontoon.SplineInputKeys, Pontoon.SplineSegments);
 				const FVector PontoonBottom = Pontoon.CenterLocation - FVector(0, 0, Pontoon.Radius);
 				/*Pass in large negative default value so we don't accidentally assume we're in water when we're not.*/
-				Pontoon.WaterHeight = GetWaterHeight(PontoonBottom - FVector::UpVector * 100.f, Pontoon.SplineInputKeys, -100000.f, Pontoon.CurrentWaterBody, Pontoon.WaterDepth, Pontoon.WaterPlaneLocation, Pontoon.WaterPlaneNormal);
+				Pontoon.WaterHeight = GetWaterHeight(PontoonBottom - FVector::UpVector * 100.f, Pontoon.SplineInputKeys, -100000.f, Pontoon.CurrentWaterBody, Pontoon.WaterDepth, Pontoon.WaterPlaneLocation, Pontoon.WaterPlaneNormal, Pontoon.WaterSurfacePosition, Pontoon.WaterVelocity, Pontoon.WaterBodyIndex);
 
 				const bool bPrevIsInWater = Pontoon.bIsInWater;
 				const float ImmersionDepth = Pontoon.WaterHeight - PontoonBottom.Z;
@@ -398,7 +456,7 @@ void UBuoyancyComponent::GetWaterSplineKey(FVector Location, TMap<const AWaterBo
 	}
 }
 
-float UBuoyancyComponent::GetWaterHeight(FVector Position, const TMap<const AWaterBody*, float>& SplineKeyMap, float DefaultHeight, AWaterBody*& OutWaterBody, float& OutWaterDepth, FVector& OutWaterPlaneLocation, FVector& OutWaterPlaneNormal, bool bShouldIncludeWaves)
+float UBuoyancyComponent::GetWaterHeight(FVector Position, const TMap<const AWaterBody*, float>& SplineKeyMap, float DefaultHeight, AWaterBody*& OutWaterBody, float& OutWaterDepth, FVector& OutWaterPlaneLocation, FVector& OutWaterPlaneNormal, FVector& OutWaterSurfacePosition, FVector& OutWaterVelocity, int32& OutWaterBodyIdx, bool bShouldIncludeWaves)
 {
 	float WaterHeight = DefaultHeight;
 	OutWaterBody = nullptr;
@@ -416,7 +474,8 @@ float UBuoyancyComponent::GetWaterHeight(FVector Position, const TMap<const AWat
 			EWaterBodyQueryFlags QueryFlags =
 				EWaterBodyQueryFlags::ComputeLocation
 				| EWaterBodyQueryFlags::ComputeNormal
-				| EWaterBodyQueryFlags::ComputeImmersionDepth;
+				| EWaterBodyQueryFlags::ComputeImmersionDepth
+				| EWaterBodyQueryFlags::ComputeVelocity;
 
 			if (bShouldIncludeWaves)
 			{
@@ -435,6 +494,9 @@ float UBuoyancyComponent::GetWaterHeight(FVector Position, const TMap<const AWat
 				}
 				OutWaterPlaneLocation = QueryResult.GetWaterPlaneLocation();
 				OutWaterPlaneNormal = QueryResult.GetWaterPlaneNormal();
+				OutWaterSurfacePosition = QueryResult.GetWaterSurfaceLocation();
+				OutWaterVelocity = QueryResult.GetVelocity();
+				OutWaterBodyIdx = CurrentWaterBody ? CurrentWaterBody->WaterBodyIndex : 0;
 				MaxImmersionDepth = QueryResult.GetImmersionDepth();
 			}
 		}
@@ -448,7 +510,10 @@ float UBuoyancyComponent::GetWaterHeight(FVector Position, const TMap<const AWat
 	float DummyDepth;
 	FVector DummyWaterPlaneLocation;
 	FVector DummyWaterPlaneNormal;
-	return GetWaterHeight(Position, SplineKeyMap, DefaultHeight, DummyActor, DummyDepth, DummyWaterPlaneLocation, DummyWaterPlaneNormal, bShouldIncludeWaves);
+	FVector DummyWaterSurfacePosition;
+	FVector DummyWaterVelocity;
+	int32 DummyWaterBodyIndex;
+	return GetWaterHeight(Position, SplineKeyMap, DefaultHeight, DummyActor, DummyDepth, DummyWaterPlaneLocation, DummyWaterPlaneNormal, DummyWaterSurfacePosition, DummyWaterVelocity, DummyWaterBodyIndex, bShouldIncludeWaves);
 }
 
 void UBuoyancyComponent::OnPontoonEnteredWater(const FSphericalPontoon& Pontoon)
@@ -461,13 +526,26 @@ void UBuoyancyComponent::OnPontoonExitedWater(const FSphericalPontoon& Pontoon)
 	OnExitedWaterDelegate.Broadcast(Pontoon);
 }
 
+void UBuoyancyComponent::GetLastWaterSurfaceInfo(FVector& OutWaterPlaneLocation, FVector& OutWaterPlaneNormal, FVector& OutWaterSurfacePosition, float& OutWaterDepth, int32& OutWaterBodyIdx, FVector& OutWaterVelocity)
+{
+	if (BuoyancyData.Pontoons.Num())
+	{
+		OutWaterPlaneLocation = BuoyancyData.Pontoons[0].WaterPlaneLocation;
+		OutWaterPlaneNormal = BuoyancyData.Pontoons[0].WaterPlaneNormal;
+		OutWaterSurfacePosition = BuoyancyData.Pontoons[0].WaterSurfacePosition;
+		OutWaterDepth = BuoyancyData.Pontoons[0].WaterDepth;
+		OutWaterBodyIdx = BuoyancyData.Pontoons[0].WaterBodyIndex;
+		OutWaterVelocity = BuoyancyData.Pontoons[0].WaterVelocity;
+	}
+}
+
 void UBuoyancyComponent::UpdatePontoonCoefficients()
 {
 	// Get current configuration mask
 	uint32 NewPontoonConfiguration = 0;
-	for (int32 PontoonIndex = 0; PontoonIndex < Pontoons.Num(); ++PontoonIndex)
+	for (int32 PontoonIndex = 0; PontoonIndex < BuoyancyData.Pontoons.Num(); ++PontoonIndex)
 	{
-		if (Pontoons[PontoonIndex].bEnabled)
+		if (BuoyancyData.Pontoons[PontoonIndex].bEnabled)
 		{
 			NewPontoonConfiguration |= 1 << PontoonIndex;
 		}
@@ -490,9 +568,9 @@ FVector UBuoyancyComponent::ComputeWaterForce(const float DeltaTime, const FVect
 	AActor* Owner = GetOwner();
 	check(Owner);
 
-	if (Pontoons.Num())
+	if (BuoyancyData.Pontoons.Num())
 	{
-		const FSphericalPontoon& Pontoon = Pontoons[VelocityPontoonIndex];
+		const FSphericalPontoon& Pontoon = BuoyancyData.Pontoons[VelocityPontoonIndex];
 		const AWaterBody* WaterBody = Pontoon.CurrentWaterBody;
 		if (WaterBody && WaterBody->GetWaterBodyType() == EWaterBodyType::River)
 		{
@@ -503,21 +581,50 @@ FVector UBuoyancyComponent::ComputeWaterForce(const float DeltaTime, const FVect
 			// Move away from spline
 			const FVector ShoreDirection = (Pontoon.CenterLocation - SplinePointLocation).GetSafeNormal2D();
 
-			const float WaterShorePushfactor = WaterShorePushFactor;
-			const FVector WaterDirection = WaterBody->GetWaterSpline()->GetDirectionAtSplineInputKey(InputKey, ESplineCoordinateSpace::World) * (1 - WaterShorePushfactor)
-				+ ShoreDirection * (WaterShorePushfactor);
+			const float WaterShorePushFactor = BuoyancyData.WaterShorePushFactor;
+			const FVector WaterDirection = WaterBody->GetWaterSpline()->GetDirectionAtSplineInputKey(InputKey, ESplineCoordinateSpace::World) * (1 - WaterShorePushFactor)
+				+ ShoreDirection * (WaterShorePushFactor);
 			const FVector WaterVelocity = WaterDirection * WaterSpeed;
-			const UPrimitiveComponent* PrimComp = Cast<UPrimitiveComponent>(Owner->GetRootComponent());
-			check(PrimComp && PrimComp->GetBodyInstance());
-			const FVector ActorVelocity = PrimComp->GetBodyInstance()->GetUnrealWorldVelocity();
+			check(SimulatingComponent && SimulatingComponent->GetBodyInstance());
+			const FVector ActorVelocity = SimulatingComponent->GetBodyInstance()->GetUnrealWorldVelocity();
 			const float ActorSpeedInWaterDir = FMath::Abs(FVector::DotProduct(ActorVelocity, WaterDirection));
 			if (ActorSpeedInWaterDir < WaterSpeed)
 			{
-				const FVector Acceleration = (WaterVelocity / DeltaTime) * WaterVelocityStrength;
-				const float MaxWaterAcceleration = MaxWaterForce;
+				const FVector Acceleration = (WaterVelocity / DeltaTime) * BuoyancyData.WaterVelocityStrength;
+				const float MaxWaterAcceleration = BuoyancyData.MaxWaterForce;
 				return Acceleration.GetClampedToSize(-MaxWaterAcceleration, MaxWaterAcceleration);
 			}
 		}
 	}
 	return FVector::ZeroVector;
+}
+
+FVector UBuoyancyComponent::ComputeLinearDragForce(const FVector& PhyiscsVelocity) const
+{
+	FVector DragForce = FVector::ZeroVector;
+	if (BuoyancyData.bApplyDragForcesInWater && IsInWaterBody() && SimulatingComponent)
+	{
+		FVector PlaneVelocity = PhyiscsVelocity;
+		PlaneVelocity.Z = 0;
+		const FVector VelocityDir = PlaneVelocity.GetSafeNormal();
+		const float SpeedKmh = ToKmh(PlaneVelocity.Size());
+		const float ClampedSpeed = FMath::Clamp(SpeedKmh, -BuoyancyData.MaxDragSpeed, BuoyancyData.MaxDragSpeed);
+
+		const float Resistance = ClampedSpeed * BuoyancyData.DragCoefficient;
+		DragForce += -Resistance * VelocityDir;
+
+		const float Resistance2 = ClampedSpeed * ClampedSpeed * BuoyancyData.DragCoefficient2;
+		DragForce += -Resistance2 * VelocityDir * FMath::Sign(SpeedKmh);
+	}
+	return DragForce;
+}
+
+FVector UBuoyancyComponent::ComputeAngularDragTorque(const FVector& AngularVelocity) const
+{
+	FVector DragTorque = FVector::ZeroVector;
+	if (BuoyancyData.bApplyDragForcesInWater && IsInWaterBody())
+	{
+		DragTorque = -AngularVelocity * BuoyancyData.AngularDragCoefficient;
+	}
+	return DragTorque;
 }

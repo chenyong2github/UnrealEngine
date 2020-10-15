@@ -53,6 +53,15 @@ struct FSphericalPontoon
 	UPROPERTY(BlueprintReadOnly, Category = Buoyancy)
 	FVector WaterPlaneNormal;
 
+	UPROPERTY(BlueprintReadOnly, Category = Buoyancy)
+	FVector WaterSurfacePosition;
+
+	UPROPERTY(BlueprintReadOnly, Category = Buoyancy)
+	FVector WaterVelocity;
+
+	UPROPERTY(BlueprintReadOnly, Category = Buoyancy)
+	int32 WaterBodyIndex;
+
 	TMap<const AWaterBody*, float> SplineInputKeys;
 	TMap<const AWaterBody*, float> SplineSegments;
 
@@ -75,6 +84,9 @@ struct FSphericalPontoon
 		, ImmersionDepth(0.f)
 		, WaterPlaneLocation(FVector::ZeroVector)
 		, WaterPlaneNormal(FVector::UpVector)
+		, WaterSurfacePosition(FVector::ZeroVector)
+		, WaterVelocity(FVector::ZeroVector)
+		, WaterBodyIndex(0)
 		, bIsInWater(false)
 		, bEnabled(true)
 		, bUseCenterSocket(false)
@@ -83,64 +95,13 @@ struct FSphericalPontoon
 	}
 };
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPontoonEnteredWater, const FSphericalPontoon&, Pontoon);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPontoonExitedWater, const FSphericalPontoon&, Pontoon);
-
-UCLASS(Blueprintable, Config = Game, meta = (BlueprintSpawnableComponent))
-class WATER_API UBuoyancyComponent : public UActorComponent
+USTRUCT(Blueprintable)
+struct FBuoyancyData
 {
 	GENERATED_BODY()
 
-public:
-	UBuoyancyComponent(const FObjectInitializer& ObjectInitializer);
-
-	virtual void BeginPlay() override;
-
-	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
-
-	virtual void SetupWaterBodyOverlaps();
-
-	bool HasPontoons() const { return Pontoons.Num() > 0; }
-	void AddCustomPontoon(float Radius, FName CenterSocketName);
-	void AddCustomPontoon(float Radius, const FVector& RelativeLocation);
-	virtual int32 UpdatePontoons(float DeltaTime, float ForwardSpeed, float ForwardSpeedKmh, UPrimitiveComponent* PrimitiveComponent);
-	void UpdatePontoonCoefficients();
-	FVector ComputeWaterForce(const float DeltaTime, const FVector LinearVelocity) const;
-
-	void EnteredWaterBody(AWaterBody* WaterBody);
-	void ExitedWaterBody(AWaterBody* WaterBody);
-
-	const TArray<AWaterBody*>& GetCurrentWaterBodies() const { return CurrentWaterBodies; }
-	TArray<AWaterBody*>& GetCurrentWaterBodies() { return CurrentWaterBodies; }
-
-	bool IsOverlappingWaterBody() const { return bIsOverlappingWaterBody; }
-
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Buoyancy)
 	TArray<FSphericalPontoon> Pontoons;
-
-	void GetWaterSplineKey(FVector Location, TMap<const AWaterBody*, float>& OutMap, TMap<const AWaterBody*, float>& OutSegmentMap) const;
-	float GetWaterHeight(FVector Position, const TMap<const AWaterBody*, float>& SplineKeyMap, float DefaultHeight, AWaterBody*& OutWaterBody, float& OutWaterDepth, FVector& OutWaterPlaneLocation, FVector& OutWaterPlaneNormal, bool bShouldIncludeWaves = true);
-	float GetWaterHeight(FVector Position, const TMap<const AWaterBody*, float>& SplineKeyMap, float DefaultHeight, bool bShouldIncludeWaves = true);
-
-	UFUNCTION(BlueprintCallable, Category = Cosmetic)
-	void OnPontoonEnteredWater(const FSphericalPontoon& Pontoon);
-
-	UFUNCTION(BlueprintCallable, Category = Cosmetic)
-	void OnPontoonExitedWater(const FSphericalPontoon& Pontoon);
-
-	UPROPERTY(BlueprintAssignable, Category = Cosmetic)
-	FOnPontoonEnteredWater OnEnteredWaterDelegate;
-
-	UPROPERTY(BlueprintAssignable, Category = Cosmetic)
-	FOnPontoonExitedWater OnExitedWaterDelegate;
-
-protected:
-	void ApplyBuoyancy(UPrimitiveComponent* PrimitiveComponent);
-	void ComputeBuoyancy(FSphericalPontoon& Pontoon, float ForwardSpeedKmh);
-	void ComputePontoonCoefficients();
-
-	UPROPERTY(Transient)
-	TArray<AWaterBody*> CurrentWaterBodies;
 
 	/** Increases buoyant force applied on each pontoon. */
 	UPROPERTY(EditDefaultsOnly, Category = Buoyancy)
@@ -182,8 +143,122 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = Buoyancy)
 	float MaxWaterForce;
 
+	UPROPERTY(EditDefaultsOnly, Category = Buoyancy, Meta = (EditCondition = "bApplyDragForcesInWater"))
+	float DragCoefficient = 20.f;
+
+	UPROPERTY(EditDefaultsOnly, Category = Buoyancy, Meta = (EditCondition = "bApplyDragForcesInWater"))
+	float DragCoefficient2 = 0.01f;
+
+	UPROPERTY(EditDefaultsOnly, Category = Buoyancy, Meta = (EditCondition = "bApplyDragForcesInWater"))
+	float AngularDragCoefficient = 1.f;
+
+	UPROPERTY(EditDefaultsOnly, Category = Buoyancy, Meta = (EditCondition = "bApplyDragForcesInWater"))
+	float MaxDragSpeed = 15.f;
+
+	UPROPERTY(EditDefaultsOnly, Category = Buoyancy)
+	bool bApplyDragForcesInWater = false;
+
+	FBuoyancyData()
+		: BuoyancyCoefficient(0.1f)
+		, BuoyancyDamp(1000.f)
+		, BuoyancyDamp2(1.f)
+		, BuoyancyRampMinVelocity(20.f)
+		, BuoyancyRampMaxVelocity(50.f)
+		, BuoyancyRampMax(1.f)
+		, MaxBuoyantForce(5000000.f)
+		, WaterShorePushFactor(0.3f)
+		, WaterVelocityStrength(0.01f)
+		, MaxWaterForce(10000.f)
+	{
+	}
+};
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPontoonEnteredWater, const FSphericalPontoon&, Pontoon);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPontoonExitedWater, const FSphericalPontoon&, Pontoon);
+
+UCLASS(Blueprintable, Config = Game, meta = (BlueprintSpawnableComponent))
+class WATER_API UBuoyancyComponent : public UActorComponent
+{
+	GENERATED_BODY()
+
+public:
+	UBuoyancyComponent(const FObjectInitializer& ObjectInitializer);
+
+	virtual void BeginPlay() override;
+
+	virtual void PostLoad() override;
+
+	virtual void Serialize(FArchive& Ar) override;
+
+	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
+
+	void EnableTick();
+
+	void DisableTick();
+
+	virtual void SetupWaterBodyOverlaps();
+
+	bool HasPontoons() const { return BuoyancyData.Pontoons.Num() > 0; }
+	void AddCustomPontoon(float Radius, FName CenterSocketName);
+	void AddCustomPontoon(float Radius, const FVector& RelativeLocation);
+	virtual int32 UpdatePontoons(float DeltaTime, float ForwardSpeed, float ForwardSpeedKmh, UPrimitiveComponent* PrimitiveComponent);
+	void UpdatePontoonCoefficients();
+	FVector ComputeWaterForce(const float DeltaTime, const FVector LinearVelocity) const;
+	FVector ComputeLinearDragForce(const FVector& PhyiscsVelocity) const;
+	FVector ComputeAngularDragTorque(const FVector& AngularVelocity) const;
+
+	void EnteredWaterBody(AWaterBody* WaterBody);
+	void ExitedWaterBody(AWaterBody* WaterBody);
+
+	const TArray<AWaterBody*>& GetCurrentWaterBodies() const { return CurrentWaterBodies; }
+	TArray<AWaterBody*>& GetCurrentWaterBodies() { return CurrentWaterBodies; }
+
+	bool IsOverlappingWaterBody() const { return bIsOverlappingWaterBody; }
+
+	UFUNCTION(BlueprintCallable, Category = Buoyancy)
+	bool IsInWaterBody() const { return bIsInWaterBody; }
+
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use BuoyancyData.Pontoons instead."))
+	TArray<FSphericalPontoon> Pontoons_DEPRECATED;
+
+	void GetWaterSplineKey(FVector Location, TMap<const AWaterBody*, float>& OutMap, TMap<const AWaterBody*, float>& OutSegmentMap) const;
+	float GetWaterHeight(FVector Position, const TMap<const AWaterBody*, float>& SplineKeyMap, float DefaultHeight, AWaterBody*& OutWaterBody, float& OutWaterDepth, FVector& OutWaterPlaneLocation, FVector& OutWaterPlaneNormal, FVector& OutWaterSurfacePosition, FVector& OutWaterVelocity, int32& OutWaterBodyIdx, bool bShouldIncludeWaves = true);
+	float GetWaterHeight(FVector Position, const TMap<const AWaterBody*, float>& SplineKeyMap, float DefaultHeight, bool bShouldIncludeWaves = true);
+
+	UFUNCTION(BlueprintCallable, Category = Cosmetic)
+	void OnPontoonEnteredWater(const FSphericalPontoon& Pontoon);
+
+	UFUNCTION(BlueprintCallable, Category = Cosmetic)
+	void OnPontoonExitedWater(const FSphericalPontoon& Pontoon);
+
+	UPROPERTY(BlueprintAssignable, Category = Cosmetic)
+	FOnPontoonEnteredWater OnEnteredWaterDelegate;
+
+	UPROPERTY(BlueprintAssignable, Category = Cosmetic)
+	FOnPontoonExitedWater OnExitedWaterDelegate;
+
+	UFUNCTION(BlueprintCallable, Category = Buoyancy)
+	void GetLastWaterSurfaceInfo(FVector& OutWaterPlaneLocation, FVector& OutWaterPlaneNormal,
+	FVector& OutWaterSurfacePosition, float& OutWaterDepth, int32& OutWaterBodyIdx, FVector& OutWaterVelocity);
+
+	UPROPERTY(EditDefaultsOnly, Category = Buoyancy)
+	FBuoyancyData BuoyancyData;
+
+protected:
+	void ApplyBuoyancy(UPrimitiveComponent* PrimitiveComponent);
+	void ComputeBuoyancy(FSphericalPontoon& Pontoon, float ForwardSpeedKmh);
+	void ComputePontoonCoefficients();
+
+	UPROPERTY(Transient)
+	TArray<AWaterBody*> CurrentWaterBodies;
+
+	// Primitive component that will be used for physics simulation.
+	UPROPERTY()
+	UPrimitiveComponent* SimulatingComponent;
+
 	uint32 PontoonConfiguration;
 	TMap<uint32, TArray<float>> ConfiguredPontoonCoefficients;
 	int32 VelocityPontoonIndex;
 	int8 bIsOverlappingWaterBody : 1;
+	int8 bIsInWaterBody : 1;
 };
