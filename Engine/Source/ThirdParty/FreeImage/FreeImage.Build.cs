@@ -8,7 +8,7 @@ public class FreeImage : ModuleRules
 	{
 		Type = ModuleType.External;
 
-		PublicSystemIncludePaths.Add(Path.Combine(ModuleDirectory, "Source"));
+		PublicSystemIncludePaths.Add(Path.Combine(ModuleDirectory, "FreeImage-3.18.0", "Dist"));
 
 		string BinaryLibraryFolder = Path.Combine(Target.UEThirdPartyBinariesDirectory, "FreeImage", Target.Platform.ToString());
 		string LibraryFileName = "";
@@ -43,9 +43,6 @@ public class FreeImage : ModuleRules
 		{
 			LibraryFileName = "libfreeimage-3.18.0.dylib";
 			string DynLibPath = Path.Combine(BinaryLibraryFolder, LibraryFileName);
-
-			PublicRuntimeLibraryPaths.Add(BinaryLibraryFolder);
-			PublicAdditionalLibraries.Add(DynLibPath);
 
             PublicDelayLoadDLLs.Add(DynLibPath);   
 			RuntimeDependencies.Add(DynLibPath);

@@ -275,7 +275,7 @@ namespace UnrealBuildTool
 			// What architecture(s) to build for
 			Result += GetArchitectureArgument(CompileEnvironment.Configuration, CompileEnvironment.Architecture);
 
-			Result += " -isysroot " + Settings.Value.GetSDKPath(CompileEnvironment.Architecture);
+			Result += string.Format(" -isysroot \"{0}\"", Settings.Value.GetSDKPath(CompileEnvironment.Architecture));
 
 			Result += " -m" + GetXcodeMinVersionParam() + "=" + ProjectSettings.RuntimeVersion;
 
