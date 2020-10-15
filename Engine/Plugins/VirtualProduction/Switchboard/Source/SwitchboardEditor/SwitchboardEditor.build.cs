@@ -8,6 +8,7 @@ public class SwitchboardEditor : ModuleRules
 	{
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
+				"Blutility",
 				"Core",
 				"CoreUObject",
 				"Engine",
