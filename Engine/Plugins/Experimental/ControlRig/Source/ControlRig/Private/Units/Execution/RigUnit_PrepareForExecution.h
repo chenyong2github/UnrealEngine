@@ -6,6 +6,9 @@
 #include "ControlRigDefines.h"
 #include "RigUnit_PrepareForExecution.generated.h"
 
+/**
+ * Event to setup elements before all solves
+ */
 USTRUCT(meta=(DisplayName="Setup Event", Category="Setup", TitleColor="1 0 0", NodeColor="0.1 0.1 0.1", Keywords="Setup,Init,Fit"))
 struct CONTROLRIG_API FRigUnit_PrepareForExecution : public FRigUnit
 {

@@ -6,6 +6,9 @@
 #include "ControlRigDefines.h"
 #include "RigUnit_ForLoop.generated.h"
 
+/**
+ * Given a count, execute iteratively until the count is up
+ */
 USTRUCT(meta=(DisplayName="For Loop", Category="Execution", TitleColor="1 0 0", NodeColor="0.1 0.1 0.1", Keywords="Iterate"))
 struct FRigUnit_ForLoopCount : public FRigUnitMutable
 {

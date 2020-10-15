@@ -6,9 +6,9 @@
 #include "RigUnit_GetCurveValue.generated.h"
 
 /**
- * GetCurveValue is used to retrieve a single transform from a Curve.
+ * GetCurveValue is used to retrieve a single float from a Curve
  */
-USTRUCT(meta=(DisplayName="Get Curve Value", Category="Curve", Keywords="GetCurveValue", Varying))
+USTRUCT(meta=(DisplayName="Get Curve Value", Category="Curve", Keywords="GetCurveValue,float", Varying))
 struct FRigUnit_GetCurveValue : public FRigUnit
 {
 	GENERATED_BODY()

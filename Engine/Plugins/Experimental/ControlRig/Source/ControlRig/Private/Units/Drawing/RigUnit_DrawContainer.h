@@ -5,7 +5,10 @@
 #include "Units/RigUnit.h"
 #include "RigUnit_DrawContainer.generated.h"
 
-USTRUCT(meta=(DisplayName="Get DrawInstruction", Category="Drawing", NodeColor = "0.25 0.25 0.05"))
+/**
+ * Get Imported Draw Container curve transform and color
+ */
+USTRUCT(meta=(DisplayName="Get Draw Instruction", Category="Drawing", NodeColor = "0.25 0.25 0.05", Keywords = "Curve,Shape"))
 struct FRigUnit_DrawContainerGetInstruction : public FRigUnit
 {
 	GENERATED_BODY()
@@ -30,7 +33,10 @@ struct FRigUnit_DrawContainerGetInstruction : public FRigUnit
 	FTransform Transform;
 };
 
-USTRUCT(meta = (DisplayName = "Set Draw Color", Category = "Drawing", NodeColor = "0.25 0.25 0.05"))
+/**
+ * Set Imported Draw Container curve color
+ */
+USTRUCT(meta = (DisplayName = "Set Draw Color", Category = "Drawing", NodeColor = "0.25 0.25 0.05", Keywords = "Curve,Shape"))
 struct FRigUnit_DrawContainerSetColor: public FRigUnitMutable
 {
 	GENERATED_BODY()
@@ -51,7 +57,10 @@ struct FRigUnit_DrawContainerSetColor: public FRigUnitMutable
 	FLinearColor Color;
 };
 
-USTRUCT(meta = (DisplayName = "Set Draw Thickness", Category = "Drawing", NodeColor = "0.25 0.25 0.05"))
+/**
+ * Set Imported Draw Container curve thickness
+ */
+USTRUCT(meta = (DisplayName = "Set Draw Thickness", Category = "Drawing", NodeColor = "0.25 0.25 0.05", Keywords = "Curve,Shape"))
 struct FRigUnit_DrawContainerSetThickness : public FRigUnitMutable
 {
 	GENERATED_BODY()
@@ -72,7 +81,10 @@ struct FRigUnit_DrawContainerSetThickness : public FRigUnitMutable
 	float Thickness;
 };
 
-USTRUCT(meta = (DisplayName = "Set Draw Transform", Category = "Drawing", NodeColor = "0.25 0.25 0.05"))
+/**
+ * Set Imported Draw Container curve transform
+ */
+USTRUCT(meta = (DisplayName = "Set Draw Transform", Category = "Drawing", NodeColor = "0.25 0.25 0.05", Keywords = "Curve,Shape"))
 struct FRigUnit_DrawContainerSetTransform : public FRigUnitMutable
 {
 	GENERATED_BODY()
