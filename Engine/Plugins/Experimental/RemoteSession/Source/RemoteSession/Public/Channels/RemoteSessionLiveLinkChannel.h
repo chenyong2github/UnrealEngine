@@ -20,10 +20,7 @@ public:
 	virtual void Tick(const float InDeltaTime) override;
 
 	/** Sends the current location and rotation for the XRTracking system to the remote */
-	void SendLiveLinkInfo();
-
-	/** Handles data coming from the client */
-	void ReceiveLiveLinkInfo(IBackChannelPacket& Message);
+	void SendLiveLinkHello(const FStringView InSubjectName);
 
 	/* Begin IRemoteSessionChannel implementation */
 	static const TCHAR* StaticType() { return TEXT("FRemoteSessionLiveLinkChannel"); }
@@ -33,14 +30,14 @@ public:
 protected:
 	
 
+	/** Handles data coming from the client */
+	void ReceiveLiveLinkHello(IBackChannelPacket& Message);
+
 	TSharedPtr<IBackChannelConnection, ESPMode::ThreadSafe> Connection;
+
 	ERemoteSessionChannelMode Role;
 
-
-private:
 	/** So we can manage callback lifetimes properly */
-	FDelegateHandle MessageCallbackHandle;
+	FDelegateHandle RouteHandle;
 
-	/** Used to finish construction of the class. Should be called from within the ctors */
-	void Init();
 };

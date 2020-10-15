@@ -120,7 +120,7 @@ FRemoteSessionImageChannel::FRemoteSessionImageChannel(ERemoteSessionChannelMode
 	}
 	else
 	{
-        // Make sure this is something sensible
+		// Big bugger for writing. #agrant-todo - need a way to auto set this?
 		InConnection->SetBufferSizes(2 * 1024 * 1024, 0);
 		ImageSender = MakeShared<FRemoteSessionImageChannel::FImageSender, ESPMode::ThreadSafe>(InConnection);
 	}
@@ -278,8 +278,8 @@ void FRemoteSessionImageChannel::SetFramebufferAsImageProvider()
 	{
 		const URemoteSessionSettings* Settings = URemoteSessionSettings::StaticClass()->GetDefaultObject<URemoteSessionSettings>();
 
-		NewImageProvider->SetCaptureFrameRate(Settings->ImageQuality);
-		SetCompressQuality(Settings->FrameRate);
+		NewImageProvider->SetCaptureFrameRate(Settings->FrameRate);
+		SetCompressQuality(Settings->ImageQuality);
 	}
 
 	{

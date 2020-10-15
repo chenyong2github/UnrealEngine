@@ -92,7 +92,7 @@ void UVCamOutputRemoteSession::CreateRemoteSession()
 
 			RemoteSessionHost = RemoteSession->CreateHost(MoveTemp(SupportedChannels), PortNumber);
 
-			RemoteSessionHost->RegisterChannelChangeDelegate(FOnRemoteSessionChannelChange::CreateUObject(this, &UVCamOutputRemoteSession::OnRemoteSessionChannelChange));
+			RemoteSessionHost->RegisterChannelChangeDelegate(FOnRemoteSessionChannelChange::FDelegate::CreateUObject(this, &UVCamOutputRemoteSession::OnRemoteSessionChannelChange));
 			if (RemoteSessionHost.IsValid())
 			{
 				RemoteSessionHost->Tick(0.0f);

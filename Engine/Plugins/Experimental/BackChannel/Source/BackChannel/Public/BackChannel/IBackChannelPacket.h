@@ -69,5 +69,5 @@ public:
 	virtual int Read(const TCHAR* Name, TArray<uint8>& Data) = 0;
 
 	/* Read a block of data from the message */
-	virtual int Read(const TCHAR* Name, void* InBlob, int32 BlobSize) = 0;
+	virtual int Read(const TCHAR* InName, void* OutBlob, int32 MaxBlobSize, int32& OutBlobSize) = 0;
 };

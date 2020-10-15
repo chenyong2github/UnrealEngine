@@ -376,7 +376,7 @@ bool FBackChannelConnection::WaitForConnection(double InTimeout, TFunction<bool(
 					}
 					else
 					{
-						UE_LOG(LogBackChannel, Log, TEXT("Accepted connection on %s"), *Socket->GetDescription());
+						UE_LOG(LogBackChannel, Log, TEXT("Accepted connection from %s on %s"), *RemoteAddress->ToString(true),  *Socket->GetDescription());
 					}
 				}
 			}
