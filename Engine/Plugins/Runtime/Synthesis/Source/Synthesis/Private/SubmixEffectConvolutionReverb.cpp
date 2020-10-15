@@ -229,8 +229,6 @@ Audio::FConvolutionReverbInitData FSubmixEffectConvolutionReverb::CreateConvolut
 		ConvReverbInitData.GainMatrix.Emplace(i, i, i, 1.f);
 	}
 
-	ConvReverbInitData.Samples = ConvReverbInitData.Samples;
-
 	return ConvReverbInitData;
 }
 
