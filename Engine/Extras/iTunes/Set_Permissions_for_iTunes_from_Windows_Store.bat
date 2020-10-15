@@ -10,7 +10,7 @@ type %temp%\itunes_perm_temp.txt
 for /f "tokens=1" %%i in (%temp%\itunes_perm_temp.txt) do if "%%i"=="ERROR:" goto err
 
 for /d %%f in ("C:\Program Files\WindowsApps\AppleInc.iTunes*") do takeown /F "%%f" /R
-for /d %%f in ("C:\Program Files\WindowsApps\AppleInc.iTunes*") do icacls "%%f" /grant %USERNAME%:F /T
+for /d %%f in ("C:\Program Files\WindowsApps\AppleInc.iTunes*") do icacls "%%f" /grant "%USERNAME%":F /T
 
 echo.
 echo Permissions updated.
