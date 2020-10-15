@@ -25,36 +25,71 @@ public:
 	static TSharedRef<FExtender> OnExtendLevelEditorActorContextMenu(const TSharedRef<FUICommandList> CommandList, const TArray<AActor*> SelectedActors)
 	{
 		TSharedRef<FExtender> Extender(new FExtender());
+			   
+		TMap<IEditorUtilityExtension*, TSet<int32>> UtilityAndSelectionIndices;
 
-		// Run thru the assets to determine if any meet our criteria
+		// Run thru the actors to determine if any meet our criteria
 		TArray<IEditorUtilityExtension*> SupportedUtils;
+		TArray<AActor*> SupportedActors;
 		if (SelectedActors.Num() > 0)
 		{
-			// Check blueprint utils (we need to load them to query their validity against these actors)
+			// Check blueprint utils (we need to load them to query their validity against these assets)
 			TArray<FAssetData> UtilAssets;
 			FBlutilityMenuExtensions::GetBlutilityClasses(UtilAssets, UActorActionUtility::StaticClass()->GetFName());
-			if (UtilAssets.Num() > 0)
+
+			// Collect all UActorActionUtility derived (non-blueprint) classes 
+			TSet<UActorActionUtility*> AssetClasses;
+			for (TObjectIterator<UClass> AssetActionClassIt; AssetActionClassIt; ++AssetActionClassIt)
+			{
+				if (AssetActionClassIt->IsChildOf(UActorActionUtility::StaticClass()) && UActorActionUtility::StaticClass()->GetFName() != AssetActionClassIt->GetFName() && AssetActionClassIt->ClassGeneratedBy == nullptr)
+				{
+					AssetClasses.Add(Cast<UActorActionUtility>(AssetActionClassIt->GetDefaultObject()));
+				}
+			}
+
+			if (UtilAssets.Num() + AssetClasses.Num() > 0)
 			{
 				for (AActor* Actor : SelectedActors)
-				{			
-					if(Actor)
+				{
+					if (Actor)
 					{
-						for(FAssetData& UtilAsset : UtilAssets)
+						auto ProcessAssetAction = [&SupportedUtils, &SupportedActors, &UtilityAndSelectionIndices, Actor](UActorActionUtility* InAction)
 						{
-							if(UEditorUtilityBlueprint* Blueprint = Cast<UEditorUtilityBlueprint>(UtilAsset.GetAsset()))
+							bool bPassesClassFilter = false;
+
+							UClass* SupportedClass = InAction->GetSupportedClass();
+							if (SupportedClass == nullptr || (SupportedClass && Actor->GetClass()->IsChildOf(SupportedClass)))
 							{
-								if(UClass* BPClass = Blueprint->GeneratedClass.Get())
+								bPassesClassFilter = true;
+							}
+							
+							if (bPassesClassFilter)
+							{
+								SupportedUtils.AddUnique(InAction);
+								const int32 Index = SupportedActors.AddUnique(Actor);
+								UtilityAndSelectionIndices.FindOrAdd(InAction).Add(Index);
+							}
+						};
+						
+						// Process asset based utilities
+						for (const FAssetData& UtilAsset : UtilAssets)
+						{
+							if (UEditorUtilityBlueprint* Blueprint = Cast<UEditorUtilityBlueprint>(UtilAsset.GetAsset()))
+							{
+								if (UClass* BPClass = Blueprint->GeneratedClass.Get())
 								{
-									if(UActorActionUtility* DefaultObject = Cast<UActorActionUtility>(BPClass->GetDefaultObject()))
+									if (UActorActionUtility* DefaultObject = Cast<UActorActionUtility>(BPClass->GetDefaultObject()))
 									{
-										UClass* SupportedClass = DefaultObject->GetSupportedClass();
-										if(SupportedClass == nullptr || (SupportedClass && Actor->GetClass()->IsChildOf(SupportedClass)))
-										{
-											SupportedUtils.AddUnique(DefaultObject);
-										}
+										ProcessAssetAction(DefaultObject);
 									}
 								}
 							}
+						}
+
+						// Process non-asset based utilities
+						for (UActorActionUtility* Action : AssetClasses)
+						{
+							ProcessAssetAction(Action);
 						}
 					}
 				}
@@ -68,7 +103,7 @@ public:
 				"ActorControl",
 				EExtensionHook::After,
 				CommandList,
-				FMenuExtensionDelegate::CreateStatic(&FBlutilityMenuExtensions::CreateBlutilityActionsMenu, SupportedUtils));
+				FMenuExtensionDelegate::CreateStatic(&FBlutilityMenuExtensions::CreateActorBlutilityActionsMenu, UtilityAndSelectionIndices, SupportedActors));
 		}
 
 		return Extender;
