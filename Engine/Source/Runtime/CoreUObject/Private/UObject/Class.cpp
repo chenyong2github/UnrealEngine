@@ -733,6 +733,34 @@ void UStruct::GetPreloadDependencies(TArray<UObject*>& OutDeps)
 	}
 }
 
+void UStruct::CollectBytecodeReferencedObjects(TArray<UObject*>& OutReferencedObjects)
+{
+	FArchiveScriptReferenceCollector ObjRefCollector(OutReferencedObjects);
+
+	int32 BytecodeIndex = 0;
+	while (BytecodeIndex < Script.Num())
+	{
+		SerializeExpr(BytecodeIndex, ObjRefCollector);
+	}
+}
+
+void UStruct::CollectPropertyReferencedObjects(TArray<UObject*>& OutReferencedObjects)
+{
+	FPropertyReferenceCollector PropertyReferenceCollector(this);
+	for (FField* CurrentField = ChildProperties; CurrentField; CurrentField = CurrentField->Next)
+	{
+		CurrentField->AddReferencedObjects(PropertyReferenceCollector);
+	}
+	OutReferencedObjects.Append(PropertyReferenceCollector.UniqueReferences.Array());
+}
+
+void UStruct::CollectBytecodeAndPropertyReferencedObjects()
+{
+	ScriptAndPropertyObjectReferences.Empty();
+	CollectBytecodeReferencedObjects(ScriptAndPropertyObjectReferences);
+	CollectPropertyReferencedObjects(ScriptAndPropertyObjectReferences);
+}
+
 void UStruct::Link(FArchive& Ar, bool bRelinkExistingProperties)
 {
 	if (bRelinkExistingProperties)
@@ -956,12 +984,7 @@ void UStruct::Link(FArchive& Ar, bool bRelinkExistingProperties)
 
 	{
 		// Now collect all references from FProperties to UObjects and store them in GC-exposed array for fast access
-		FPropertyReferenceCollector PropertyReferenceCollector(this);
-		for (FField* CurrentField = ChildProperties; CurrentField; CurrentField = CurrentField->Next)
-		{
-			CurrentField->AddReferencedObjects(PropertyReferenceCollector);
-		}
-		ScriptAndPropertyObjectReferences.Append(PropertyReferenceCollector.UniqueReferences.Array());
+		CollectPropertyReferencedObjects(ScriptAndPropertyObjectReferences);
 
 #if USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
 		// The old (non-EDL) FLinkerLoad code paths create placeholder objects
