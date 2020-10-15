@@ -1213,13 +1213,17 @@ namespace DatasmithRevitExporter
 
 				if (DirectLink != null && CollectedElement.GetType() == typeof(RevitLinkInstance))
 				{
-					DirectLink.OnBeginLinkedDocument((CollectedElement as RevitLinkInstance).GetLinkDocument());
-					foreach (FBaseElementData CurrentChild in ActorEntry.Value.ChildElements)
+					Document LinkedDoc = (CollectedElement as RevitLinkInstance).GetLinkDocument();
+					if (LinkedDoc != null)
 					{
-						CurrentChild.AddToScene(InDatasmithScene, ActorEntry.Value, false);
+						DirectLink.OnBeginLinkedDocument(LinkedDoc);
+						foreach (FBaseElementData CurrentChild in ActorEntry.Value.ChildElements)
+						{
+							CurrentChild.AddToScene(InDatasmithScene, ActorEntry.Value, false);
+						}
+						DirectLink.OnEndLinkedDocument();
+						ActorEntry.Value.AddToScene(InDatasmithScene, null, true);
 					}
-					DirectLink.OnEndLinkedDocument();
-					ActorEntry.Value.AddToScene(InDatasmithScene, null, true);
 				}
 				else
 				{
