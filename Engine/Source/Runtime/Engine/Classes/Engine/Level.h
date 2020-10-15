@@ -1009,10 +1009,10 @@ public:
 
 	/**
 	 * Create an package for this actor
-	 * @param InGuid the guid to generate the name from.
+	 * @param InActorPath the fully qualified actor path, in the format: 'Outermost.Outer.Name'
 	 * @return the created package
 	 */
-	static ENGINE_API UPackage* CreateActorPackage(UPackage* InLevelPackage, const FGuid& InGuid);
+	static ENGINE_API UPackage* CreateActorPackage(UPackage* InLevelPackage, const FString& InActorPath);
 
 	/**
 	 * Detach or reattach all level actors to from/to their external package

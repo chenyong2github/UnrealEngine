@@ -1158,8 +1158,16 @@ bool AActor::Rename( const TCHAR* InName, UObject* NewOuter, ERenameFlags Flags 
 	const bool bChangingOuters = (NewOuter && (NewOuter != GetOuter()));
 
 #if WITH_EDITOR
-	// if we have an external actor and the actor is changing outer, we will want to move its package location
+	// if we have an external actor and the actor is changing name/outer, we will want to update its package
 	const bool bExternalActor = IsPackageExternal();
+
+	if (!bRenameTest && bExternalActor)
+	{
+		if (ULevel* MyLevel = GetLevel())
+		{
+			SetPackageExternal(false, MyLevel->IsUsingExternalActors());
+		}
+	}
 #endif
 
 	if (!bRenameTest && bChangingOuters)
@@ -1176,31 +1184,29 @@ bool AActor::Rename( const TCHAR* InName, UObject* NewOuter, ERenameFlags Flags 
 				MyLevel->ActorsForGC.Remove(this);
 				// TODO: There may need to be some consideration about removing this actor from the level cluster, but that would probably require destroying the entire cluster, so defer for now
 			}
-
-#if WITH_EDITOR
-			if (bExternalActor)
-			{
-				SetPackageExternal(false, MyLevel->IsUsingExternalActors());
-			}
-#endif
 		}
 	}
 
 #if WITH_EDITOR
 	UObject* OldOuter = GetOuter();
 #endif
+
 	const bool bSuccess = Super::Rename( InName, NewOuter, Flags );
+
+#if WITH_EDITOR
+	if (!bRenameTest && bExternalActor && NewOuter)
+	{
+		if (ULevel* MyLevel = GetLevel())
+		{
+			SetPackageExternal(true, MyLevel->IsUsingExternalActors());
+		}
+	}
+#endif
 
 	if (!bRenameTest && bChangingOuters)
 	{
 		if (ULevel* MyLevel = GetLevel())
 		{
-#if WITH_EDITOR
-			if (bExternalActor)
-			{
-				SetPackageExternal(true, MyLevel->IsUsingExternalActors());
-			}
-#endif
 			MyLevel->Actors.Add(this);
 			MyLevel->ActorsForGC.Add(this);
 

@@ -54,6 +54,7 @@ Level.cpp: Level-related functions
 #include "AssetRegistryModule.h"
 #include "IAssetRegistry.h"
 #include "AssetData.h"
+#include "Misc/ArchiveMD5.h"
 #endif
 #include "Engine/LevelStreaming.h"
 #include "LevelUtils.h"
@@ -895,13 +896,29 @@ void ULevel::PreDuplicate(FObjectDuplicationParameters& DupParams)
 #if WITH_EDITOR
 	if (DupParams.DuplicateMode != EDuplicateMode::PIE && DupParams.bAssignExternalPackages)
 	{
-		UPackage* DestPackage = DupParams.DestOuter->GetPackage();
+		UPackage* SrcPackage = GetPackage();
+		UPackage* DstPackage = DupParams.DestOuter->GetPackage();
+
+		const FString ReplaceFrom = FPaths::GetBaseFilename(*SrcPackage->GetName());
+		const FString ReplaceTo = FPaths::GetBaseFilename(*DstPackage->GetName());
+
 		for (AActor* Actor : Actors)
 		{
 			UPackage* ActorPackage = Actor ? Actor->GetExternalPackage() : nullptr;
 			if (ActorPackage)
 			{
-				UPackage* DupActorPackage = CreateActorPackage(DestPackage, FGuid::NewGuid());
+				FString ActorPath = GetPathName();
+
+				if (DstPackage != SrcPackage)
+				{
+					ActorPath = ActorPath.Replace(
+						*FString::Printf(TEXT("%s.%s:"), *ReplaceFrom, *ReplaceFrom),
+						*FString::Printf(TEXT("%s.%s:"), *ReplaceTo, *ReplaceTo)
+					);
+				}
+
+				UPackage* DupActorPackage = CreateActorPackage(DstPackage, ActorPath);
+
 				DupActorPackage->MarkAsFullyLoaded();
 				DupParams.DuplicationSeed.Add(ActorPackage, DupActorPackage);
 			}
@@ -2335,26 +2352,37 @@ FString ULevel::GetExternalActorsPath(UPackage* InLevelPackage, const FString& I
 	return GetExternalActorsPath(InLevelPackage->GetName(), InPackageShortName);
 }
 
-UPackage* ULevel::CreateActorPackage(UPackage* InLevelPackage, const FGuid& InGuid)
+UPackage* ULevel::CreateActorPackage(UPackage* InLevelPackage, const FString& InActorPath)
 {
-	check(InGuid.IsValid());
-	FString GuidBase36 = InGuid.ToString(EGuidFormats::Base36Encoded);
+	// Convert the actor path to lowercase to make sure we get the same hash for case insensitive file systems
+	FString ActorPath = InActorPath.ToLower();
+
+	FArchiveMD5 ArMD5;
+	ArMD5 << ActorPath;
+
+	FMD5Hash MD5Hash;
+	ArMD5.GetHash(MD5Hash);
+
+	FGuid PackageGuid;
+	check(MD5Hash.GetSize() == sizeof(FGuid));
+	FMemory::Memcpy(&PackageGuid, MD5Hash.GetBytes(), sizeof(FGuid));
+	check(PackageGuid.IsValid());
+
+	FString GuidBase36 = PackageGuid.ToString(EGuidFormats::Base36Encoded);
 	check(GuidBase36.Len());
 
-	const int32 GuidBase36Len = GuidBase36.Len();
 	FString BaseDir = GetExternalActorsPath(InLevelPackage);
-	FString ActorPackageName =
-		FString::Printf(
-			TEXT("%s/%c%c/%c%c/%s"),
-			*BaseDir,
-			GuidBase36[0],
-			(GuidBase36Len > 1) ? GuidBase36[1] : '0',
-			(GuidBase36Len > 2) ? GuidBase36[2] : '0',
-			(GuidBase36Len > 3) ? GuidBase36[3] : '0',
-			*GuidBase36 + FMath::Min(GuidBase36Len - 1, 4)
-		);
 
-	UPackage* ActorPackage = CreatePackage( *ActorPackageName);
+	TStringBuilderWithBuffer<TCHAR, NAME_SIZE> ActorPackageName;
+	ActorPackageName.Append(BaseDir);
+	ActorPackageName.Append(TEXT("/"));
+	ActorPackageName.Append(*GuidBase36, 2);
+	ActorPackageName.Append(TEXT("/"));
+	ActorPackageName.Append(*GuidBase36 + 2, 2);
+	ActorPackageName.Append(TEXT("/"));
+	ActorPackageName.Append(*GuidBase36 + 4);
+
+	UPackage* ActorPackage = CreatePackage(*ActorPackageName);
 	ActorPackage->SetPackageFlags(PKG_EditorOnly);
 	return ActorPackage;
 }

@@ -270,7 +270,7 @@ void LineCheckTracker::CaptureLineCheck(int32 LineCheckFlags, const FVector* Ext
  * Notes:
  *	- The timestamp is stored in microseconds for a total of 54 bits, enough to cover
  *	  the next 570 years.
- *	- The highest 72 bits are appended to the name in base-64.
+ *	- The highest 72 bits are appended to the name in hexadecimal.
  *	- The lowest 30 bits of the timestamp are stored in the name number. This is to
  *	  minimize the total names generated for globally unique names (string part will
  *	  change every ~17 minutes for a specific actor class).
@@ -310,8 +310,13 @@ public:
 		// Make final name
 		TStringBuilderWithBuffer<TCHAR, NAME_SIZE> StringBuilder;
 		StringBuilder += BaseName.ToString();
-		StringBuilder += TEXT("_");
-		StringBuilder += FBase64::Encode(HighPart, 9);
+		StringBuilder += TEXT("_UAID_");
+
+		for (uint32 i=0; i<9; i++)
+		{
+			StringBuilder += NibbleToTChar(HighPart[i] >> 4);
+			StringBuilder += NibbleToTChar(HighPart[i] & 15);
+		}
 
 		return FName(*StringBuilder, (ElapsedUs & 0x3fffffff) | (1 << 30));
 	}
@@ -354,12 +359,19 @@ bool FActorSpawnUtils::IsGloballyUniqueName(FName Name)
 		const FString PlainName = Name.GetPlainNameString();
 		const int32 PlainNameLen = PlainName.Len();
 		
-		// Parse a name like this: StaticMeshActor_cCCECUPVj1cA
-		if (PlainNameLen >= 13 && PlainName[PlainNameLen - 13] == '_')
+		// Parse a name like this: StaticMeshActor_UAID_001122334455667788
+		if (PlainNameLen >= 24)
 		{
-			uint8 Dest[16];
-			if (FBase64::Decode(&PlainName[PlainNameLen - 12], 12, Dest))
+			if (!FCString::Strnicmp(*PlainName + PlainNameLen - 24, TEXT("_UAID_"), 6))
 			{
+				for (uint32 i=0; i<18; i++)
+				{
+					if (!CheckTCharIsHex(PlainName[PlainNameLen - i - 1]))
+					{
+						return false;
+					}
+				}
+
 				return true;
 			}
 		}
@@ -372,7 +384,8 @@ FName FActorSpawnUtils::GetBaseName(FName Name)
 {
 	if (IsGloballyUniqueName(Name))
 	{
-		return *Name.GetPlainNameString().LeftChop(13);
+		// Chop a name like this: StaticMeshActor_UAID_001122334455667788
+		return *Name.GetPlainNameString().LeftChop(24);
 	}
 
 	return *Name.GetPlainNameString();
@@ -527,17 +540,12 @@ AActor* UWorld::SpawnActor( UClass* Class, FTransform const* UserTransformPtr, c
 	if (SpawnParameters.OverridePackage)
 	{
 		ExternalPackage = SpawnParameters.OverridePackage;
+		bNeedGloballyUniqueName = true;
 	}
 	else if (LevelToSpawnIn->IsUsingExternalActors() && SpawnParameters.bCreateActorPackage && !(SpawnParameters.ObjectFlags & RF_Transient))
 	{
-		if (CastChecked<AActor>(Class->GetDefaultObject())->SupportsExternalPackaging())
-		{
-			// @todo FH: needs to handle mark package dirty and asset creation notification
-			ExternalPackage = ULevel::CreateActorPackage(LevelToSpawnIn->GetPackage(), ActorGuid);
-		}
+		bNeedGloballyUniqueName = CastChecked<AActor>(Class->GetDefaultObject())->SupportsExternalPackaging();
 	}
-
-	bNeedGloballyUniqueName = !!ExternalPackage;
 #endif
 
 	if (NewActorName.IsNone())
@@ -578,6 +586,19 @@ AActor* UWorld::SpawnActor( UClass* Class, FTransform const* UserTransformPtr, c
 		UE_LOG(LogSpawn, Warning, TEXT("Unable to spawn class '%s' due to client/server context."), *Class->GetName() );
 		return NULL;
 	}
+
+#if WITH_EDITOR
+	if (bNeedGloballyUniqueName && !ExternalPackage)
+	{
+		TStringBuilderWithBuffer<TCHAR, NAME_SIZE> ActorPath;
+		ActorPath += LevelToSpawnIn->GetPathName();
+		ActorPath += TEXT(".");
+		ActorPath += NewActorName.ToString();
+
+		// @todo FH: needs to handle mark package dirty and asset creation notification
+		ExternalPackage = ULevel::CreateActorPackage(LevelToSpawnIn->GetPackage(), *ActorPath);
+	}
+#endif
 
 	FTransform const UserTransform = UserTransformPtr ? *UserTransformPtr : FTransform::Identity;
 

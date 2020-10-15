@@ -847,13 +847,9 @@ void AActor::SetPackageExternal(bool bExternal, bool bShouldDirty)
 	UPackage* LevelPackage = GetLevel()->GetPackage();
 	if (bExternal)
 	{
-		ActorGuid = ActorGuid.IsValid() ? ActorGuid : FGuid::NewGuid();
-		UPackage* NewActorPackage = ULevel::CreateActorPackage(LevelPackage,  ActorGuid);
+		UPackage* NewActorPackage = ULevel::CreateActorPackage(LevelPackage, GetPathName());
 		SetExternalPackage(NewActorPackage);
-		// should be removed but needed for now so the package creation is visible to Multi-User
-		FAssetRegistryModule::AssetCreated(this);
 	}
-	// if the actor package is different, embed the actor back in the level
 	else 
 	{
 		UPackage* ActorPackage = GetExternalPackage();
