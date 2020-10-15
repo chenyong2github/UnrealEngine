@@ -6,6 +6,7 @@
 #include "ComposurePostMoves.h"
 #include "UObject/Package.h"
 #include "Engine/Texture2D.h"
+#include "Engine/RendererSettings.h"
 
 #include "IPicpProjection.h"
 #include "IPicpMPCDI.h"
@@ -151,3 +152,15 @@ void UPicpProjectionAPIImpl::AssignWarpMeshToViewport(const FString& ViewportId,
 	IPicpProjection& PicpModule = IPicpProjection::Get();
 	PicpModule.AssignWarpMeshToViewport(ViewportId, MeshComponent, OriginComponent);
 }
+
+
+ETextureRenderTargetFormat UPicpProjectionAPIImpl::GetDefaultBackBufferRenderTargetFormat() const
+{
+	const TConsoleVariableData<int32>* CVarDefaultBackBufferPixelFormat = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.DefaultBackBufferPixelFormat"));
+	EDefaultBackBufferPixelFormat::Type DefaultBackbufferFormat = EDefaultBackBufferPixelFormat::FromInt(CVarDefaultBackBufferPixelFormat->GetValueOnGameThread());
+	
+	const int32 ValidIndex = FMath::Clamp((int32)DefaultBackbufferFormat, 0, (int32)EDefaultBackBufferPixelFormat::DBBPF_MAX - 1);
+	static ETextureRenderTargetFormat STextureRenderTargetFormat[] = { RTF_RGBA8, RTF_RGBA8, RTF_RGBA16f, RTF_RGBA16f, RTF_RGB10A2 };
+	return STextureRenderTargetFormat[ValidIndex];
+}
+
