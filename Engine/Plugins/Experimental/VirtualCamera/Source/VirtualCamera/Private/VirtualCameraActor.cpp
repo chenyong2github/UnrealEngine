@@ -438,7 +438,7 @@ bool AVirtualCameraActor::StartStreaming()
 
 		if (RemoteSessionHost)
 		{
-			RemoteSessionHost->RegisterChannelChangeDelegate(FOnRemoteSessionChannelChange::CreateUObject(this, &AVirtualCameraActor::OnRemoteSessionChannelChange));
+			RemoteSessionHost->RegisterChannelChangeDelegate(FOnRemoteSessionChannelChange::FDelegate::CreateUObject(this, &AVirtualCameraActor::OnRemoteSessionChannelChange));
 			RemoteSessionHost->Tick(0.0f);
 		}
 	}
