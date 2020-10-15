@@ -2707,12 +2707,15 @@ bool FActiveGameplayEffectsContainer::InternalExecuteMod(FGameplayEffectSpec& Sp
 			}
 
 #if ENABLE_VISUAL_LOG
-			DebugExecutedGameplayEffectData DebugData;
-			DebugData.GameplayEffectName = Spec.Def->GetName();
-			DebugData.ActivationState = "INSTANT";
-			DebugData.Attribute = ModEvalData.Attribute;
-			DebugData.Magnitude = Owner->GetNumericAttribute(ModEvalData.Attribute) - OldValueOfProperty;
-			DebugExecutedGameplayEffects.Add(DebugData);
+			if (FVisualLogger::IsRecording())
+			{
+				DebugExecutedGameplayEffectData DebugData;
+				DebugData.GameplayEffectName = Spec.Def->GetName();
+				DebugData.ActivationState = "INSTANT";
+				DebugData.Attribute = ModEvalData.Attribute;
+				DebugData.Magnitude = Owner->GetNumericAttribute(ModEvalData.Attribute) - OldValueOfProperty;
+				DebugExecutedGameplayEffects.Add(DebugData);
+			}
 #endif // ENABLE_VISUAL_LOG
 
 			bExecuted = true;
