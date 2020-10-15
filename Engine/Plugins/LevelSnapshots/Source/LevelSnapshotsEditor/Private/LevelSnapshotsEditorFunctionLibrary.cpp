@@ -5,6 +5,8 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetToolsModule.h"
 #include "IAssetTools.h"
+#include "Editor.h"
+#include "Engine/World.h"
 #include "LevelSnapshot.h"
 #include "Logging/MessageLog.h"
 
@@ -31,7 +33,16 @@ void ULevelSnapshotsEditorFunctionLibrary::SaveLevelSnapshotToDisk(ULevelSnapsho
 
 	AssetTools.CreateUniqueAssetName(BasePackageName, TEXT(""), PackageName, AssetName);
 
+	// TODO. that is just for testing now
 	ULevelSnapshot* SnapshotAsset = NewObject<ULevelSnapshot>(CreatePackage(NULL, *PackageName), *AssetName, RF_Public, LevelSnapshot);
+	UWorld* World = GEditor->GetEditorWorldContext().World();
+	if (World != nullptr)
+	{
+		SnapshotAsset->MapName = World->GetMapName();
+
+		SnapshotAsset->SnapshotWorld(World);
+	}
+
 
 	if (SnapshotAsset)
 	{
