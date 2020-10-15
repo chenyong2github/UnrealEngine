@@ -2114,7 +2114,6 @@ void FLightmapRenderer::Finalize(FRHICommandListImmediate& RHICmdList)
 					TransferTexture(5);
 					TransferTexture(6);
 					TransferTexture(7);
-					TransferTexture(8);
 				}
 			}
 		}
