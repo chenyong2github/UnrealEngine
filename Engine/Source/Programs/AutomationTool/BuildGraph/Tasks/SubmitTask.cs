@@ -67,7 +67,7 @@ namespace AutomationTool.Tasks
 		/// <summary>
 		/// Allow verbose P4 output (spew).
 		/// </summary>
-		[TaskParameter(Optional = false)]
+		[TaskParameter(Optional = true)]
 		public bool P4Verbose;
 	}
 
