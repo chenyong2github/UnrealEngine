@@ -66,10 +66,23 @@ public:
 
 	virtual void Tick( float DeltaTime ) override;
 
-	virtual void RegisterChannelChangeDelegate(FOnRemoteSessionChannelChange InDelegate) override;
-	virtual void UnregisterChannelChangeDelegate(void* UserObject) override;
+	/* Registers a delegate for notifications of connection changes*/
+	virtual FDelegateHandle RegisterConnectionChangeDelegate(FOnRemoteSessionConnectionChange::FDelegate InDelegate) override;
+
+	/* Register for notifications when the host sends a list of available channels */
+	virtual FDelegateHandle RegisterChannelListDelegate(FOnRemoteSessionReceiveChannelList::FDelegate InDelegate) override;
+
+	/* Register for notifications whenever a change in the state of a channel occurs */
+	virtual FDelegateHandle RegisterChannelChangeDelegate(FOnRemoteSessionChannelChange::FDelegate InDelegate) override;
+
+	/* Unregister all delegates for the specified object */
+	virtual void RemoveAllDelegates(void* UserObject) override;
 
 	virtual TSharedPtr<IRemoteSessionChannel> GetChannel(const TCHAR* Type) override;
+
+	virtual bool OpenChannel(const FRemoteSessionChannelInfo& Info) override;
+
+	virtual bool IsLegacyConnection() const override;
 
 protected:
 
@@ -77,15 +90,24 @@ protected:
 	void			CreateOSCConnection(TSharedRef<IBackChannelSocketConnection> InConnection);
 	
 	void			SendLegacyVersionCheck();
+
+	virtual void 	BindEndpoints(TBackChannelSharedPtr<IBackChannelConnection> InConnection);
+
 	void 			OnReceiveLegacyVersion(IBackChannelPacket& Message);
 
 	void			SendHello();
 	void 			OnReceiveHello(IBackChannelPacket& Message);
 		
 	void 			CreateChannels(const TArray<FRemoteSessionChannelInfo>& Channels);
-	void 			CreateChannel(const FRemoteSessionChannelInfo& Channel);	
+
+	/* 
+		Called when the other side wants to open a channel. The connection that is the original requester will receive this message
+		will receive this message when the other end has created the channel so the successful connection state can be broadcast
+	*/
+	void			OnReceiveChangeChannel(IBackChannelPacket& Message);
+
+	void			OnReceiveChannelChanged(IBackChannelPacket& Message);
 	
-	void	        AddChannel(const TSharedPtr<IRemoteSessionChannel>& InChannel);
 	void	        ClearChannels();
 	
 
@@ -103,7 +125,7 @@ protected:
 
 	bool			IsStateCurrentOrPending(ConnectionState InState) const { return CurrentState == InState || PendingState == InState; }
 
-	bool			IsLegacyConnection() const;
+
 
 protected:
 
@@ -113,7 +135,14 @@ protected:
 
 	TSharedPtr<FBackChannelOSCConnection, ESPMode::ThreadSafe> OSCConnection;
 
-	TArray<FOnRemoteSessionChannelChange> ChangeDelegates;
+	FOnRemoteSessionChannelChange ChannelChangeDelegate;
+
+	FOnRemoteSessionConnectionChange ConnectionChangeDelegate;
+
+	FOnRemoteSessionReceiveChannelList ReceiveChannelListDelegate;
+
+
+	TArray<FRemoteSessionChannelInfo> SupportedChannels;
 
 private:
 
