@@ -34,6 +34,13 @@ struct FVariantImpl
 		for (const FVariantDependency& Dependency : Other->Dependencies)
 		{
 			const UVariant* OtherDependency = Dependency.Variant.Get();
+			if ( OtherDependency == nullptr )
+			{
+				// If the dependency has no variant picked yet it won't really do anything when triggered anyway,
+				// so there's no reason we need to block this.
+				continue;
+			}
+
 			if (!FVariantImpl::IsValidDependencyRecursive(This, OtherDependency, ParentStack))
 			{
 				return false;
