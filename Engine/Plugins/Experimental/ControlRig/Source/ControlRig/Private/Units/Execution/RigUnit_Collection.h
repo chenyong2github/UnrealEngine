@@ -349,6 +349,9 @@ struct FRigUnit_CollectionItemAtIndex : public FRigUnit_CollectionBase
 	FRigElementKey Item;
 };
 
+/**
+ * Given a collection of items, execute iteratively across all items in a given collection
+ */
 USTRUCT(meta=(DisplayName="For Each Item", Keywords="Collection,Loop,Iterate"))
 struct FRigUnit_CollectionLoop : public FRigUnit_CollectionBaseMutable
 {

@@ -107,6 +107,9 @@ struct FRigUnit_DebugTransformMutable : public FRigUnit_DebugBaseMutable
 	bool bEnabled;
 };
 
+/**
+ * Given a transform, will draw a point, axis, or a box in the viewport
+ */
 USTRUCT(meta=(DisplayName="Draw Transform"))
 struct FRigUnit_DebugTransformMutableItemSpace : public FRigUnit_DebugBaseMutable
 {
