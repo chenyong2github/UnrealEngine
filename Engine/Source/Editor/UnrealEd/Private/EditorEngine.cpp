@@ -7371,7 +7371,7 @@ void UEditorEngine::InitializeNewlyCreatedInactiveWorld(UWorld* World)
 			// it calls internally FNavigationSystem::AddNavigationSystemToWorld() with bInitializeForWorld=false.
 			// That does not gather nav bounds. When cooking, the nav system and nav bounds are needed on the navmesh serialize-save for tiles to be added to the archive.
 			// Also this call needs to occur after World->UpdateWorldComponents() else no bounds are found.
-			FNavigationSystem::AddNavigationSystemToWorld(*World, FNavigationSystemRunMode::EditorMode);
+			FNavigationSystem::AddNavigationSystemToWorld(*World, FNavigationSystemRunMode::InferFromWorldMode);
 		}
 
 		// Need to restore the dirty state as registering components dirties the world
