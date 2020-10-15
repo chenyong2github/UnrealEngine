@@ -2014,44 +2014,14 @@ void STimersView::ContextMenu_CopySelectedToClipboard_Execute()
 		return;
 	}
 
-	constexpr TCHAR Separator = TEXT('\t');
 	FString ClipboardText;
-
-	TArray<TSharedRef<Insights::FTableColumn>> VisibleColumns;
-	Table->GetVisibleColumns(VisibleColumns);
-
-	// Table headers
-	for (const TSharedRef<Insights::FTableColumn>& ColumnRef : VisibleColumns)
-	{
-		ClipboardText += ColumnRef->GetShortName().ToString().ReplaceCharWithEscapedChar() + Separator;
-	}
-
-	if (ClipboardText.Len() > 0)
-	{
-		ClipboardText.RemoveAt(ClipboardText.Len() - 1, 1, false);
-		ClipboardText.AppendChar(TEXT('\n'));
-	}
 
 	if (CurrentSorter.IsValid())
 	{
 		CurrentSorter->Sort(SelectedNodes, ColumnSortMode == EColumnSortMode::Ascending ? Insights::ESortMode::Ascending : Insights::ESortMode::Descending);
 	}
 
-	// Selected items
-	for (Insights::FBaseTreeNodePtr Node : SelectedNodes)
-	{
-		for (const TSharedRef<Insights::FTableColumn>& ColumnRef : VisibleColumns)
-		{
-			FText NodeText = ColumnRef->GetValueAsText(*Node);
-			ClipboardText += NodeText.ToString().ReplaceCharWithEscapedChar() + Separator;
-		}
-
-		if (ClipboardText.Len() > 0)
-		{
-			ClipboardText.RemoveAt(ClipboardText.Len() - 1, 1, false);
-			ClipboardText.AppendChar(TEXT('\n'));
-		}
-	}
+	Table->GetVisibleColumnsData(SelectedNodes, ClipboardText);
 
 	if (ClipboardText.Len() > 0)
 	{
