@@ -18,6 +18,8 @@ struct WATER_API FWaterCustomVersion
 		MoveTerrainCarvingSettingsToWater,
 		// WaterBrushManager now can specify its own brush materials instead of using those from the default water editor settings : 
 		MoveBrushMaterialsToWaterBrushManager,
+		// Deprecate pontoons data on UBuoyancyComponent
+		UpdateBuoyancyComponentPontoonsData,
 
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
