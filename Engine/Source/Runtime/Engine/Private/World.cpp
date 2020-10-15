@@ -4974,7 +4974,10 @@ APhysicsVolume* UWorld::InternalGetDefaultPhysicsVolume() const
 		// Spawn volume
 		FActorSpawnParameters SpawnParams;
 		SpawnParams.bAllowDuringConstructionScript = true;
+
+#if WITH_EDITOR
 		SpawnParams.bCreateActorPackage = false;
+#endif
 
 		UWorld* MutableThis = const_cast<UWorld*>(this);
 		MutableThis->DefaultPhysicsVolume = MutableThis->SpawnActor<APhysicsVolume>(DefaultPhysicsVolumeClass, SpawnParams);
