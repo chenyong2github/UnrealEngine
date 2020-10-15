@@ -8,6 +8,7 @@
 #include "Sound/SoundSubmix.h"
 #include "DSP/BufferVectorOperations.h"
 #include "DSP/MultithreadedPatching.h"
+#include "Quartz/AudioMixerClockManager.h"
 
 // Forward Declarations
 class FOnSubmixEnvelopeBP;
@@ -135,7 +136,7 @@ namespace Audio
 		// Submix buffer listener callbacks
 		virtual void RegisterSubmixBufferListener(ISubmixBufferListener* InSubmixBufferListener, USoundSubmix* InSubmix = nullptr) override;
 		virtual void UnregisterSubmixBufferListener(ISubmixBufferListener* InSubmixBufferListener, USoundSubmix* InSubmix = nullptr) override;
-
+		virtual void FlushExtended(UWorld* WorldToFlush, bool bClearActivatedReverb);
 		virtual void FlushAudioRenderingCommands(bool bPumpSynchronously = false) override;
 
 		// Audio Device Properties
@@ -241,6 +242,12 @@ namespace Audio
 		bool IsAudioBusActive(uint32 InAudioBusId);
 		FPatchOutputStrongPtr AddPatchForAudioBus(uint32 InAudioBusId, float PatchGain);
 
+		// Clock Manager for quantized event handling on Audio Render Thread
+		FQuartzClockManager QuantizedEventClockManager;
+
+		// Pushes the command to a audio render thread command queue to be executed on render thread
+		void AudioRenderThreadCommand(TFunction<void()> Command);
+
 
 	protected:
 
@@ -279,9 +286,6 @@ namespace Audio
 
 		bool IsMasterSubmixType(const USoundSubmixBase* InSubmix) const;
 		FMixerSubmixPtr GetMasterSubmixInstance(const USoundSubmixBase* InSubmix);
-
-		// Pushes the command to a audio render thread command queue to be executed on render thread
-		void AudioRenderThreadCommand(TFunction<void()> Command);
 		
 		// Pumps the audio render thread command queue
 		void PumpCommandQueue();

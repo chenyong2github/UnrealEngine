@@ -23,6 +23,7 @@
 #include "Sound/SoundSubmix.h"
 #include "Sound/SoundNodeWavePlayer.h"
 #include "Sound/SoundWave.h"
+#include "Sound/QuartzQuantizationUtilities.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
 

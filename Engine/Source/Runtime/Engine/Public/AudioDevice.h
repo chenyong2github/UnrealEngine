@@ -558,6 +558,11 @@ public:
 	 */
 	void Flush(UWorld* WorldToFlush, bool bClearActivatedReverb = true);
 
+	/*
+	* Derived classes can override this method to do their own cleanup. Called at the end of FAudioDevice::Flush()
+	*/
+	virtual void FlushExtended(UWorld* WorldToFlush, bool bClearActivatedReverb);
+
 	/**
 	 * Allows audio rendering command queue to flush during audio device flush.
 	 * @param bPumpSynchronously must be called in situations where the audio render thread is not being called.
