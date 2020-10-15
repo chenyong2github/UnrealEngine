@@ -646,6 +646,13 @@ public:
 	UPROPERTY(BlueprintGetter = GetStaticMaterials, BlueprintSetter = SetStaticMaterials, Category = StaticMesh)
 	TArray<FStaticMaterial> StaticMaterials;
 
+	static FName GetStaticMaterialsName()
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return GET_MEMBER_NAME_CHECKED(UStaticMesh, StaticMaterials);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+	
 	TArray<FStaticMaterial>& GetStaticMaterials()
 	{
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS

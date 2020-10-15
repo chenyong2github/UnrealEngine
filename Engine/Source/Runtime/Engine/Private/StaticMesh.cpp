@@ -6504,14 +6504,12 @@ int32 UStaticMesh::GetMaterialIndex(FName MaterialSlotName) const
 #if WITH_EDITOR
 void UStaticMesh::SetMaterial(int32 MaterialIndex, UMaterialInterface* NewMaterial)
 {
-	static FName NAME_StaticMaterials = GET_MEMBER_NAME_CHECKED(UStaticMesh, GetStaticMaterials());
-
 	if (GetStaticMaterials().IsValidIndex(MaterialIndex))
 	{
 		FScopedTransaction ScopeTransaction(LOCTEXT("StaticMeshMaterialChanged", "StaticMesh: Material changed"));
 
 		// flag the property (Materials) we're modifying so that not all of the object is rebuilt.
-		FProperty* ChangedProperty = FindFProperty<FProperty>(UStaticMesh::StaticClass(), NAME_StaticMaterials);
+		FProperty* ChangedProperty = FindFProperty<FProperty>(UStaticMesh::StaticClass(), UStaticMesh::GetStaticMaterialsName());
 		check(ChangedProperty);
 		PreEditChange(ChangedProperty);
 		UMaterialInterface* CancelOldMaterial = GetStaticMaterials()[MaterialIndex].MaterialInterface;
