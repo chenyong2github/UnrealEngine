@@ -118,7 +118,12 @@ class ListenerClient(object):
         buffer = []
         while self.is_connected:
             try:
-                read_sockets, write_sockets, _ = select.select([self.socket], [self.socket], [], 0)
+                rlist = [self.socket]
+                wlist = [self.socket] if len(self.message_queue) > 0 else []
+                xlist = []
+                timeout = 0.1
+
+                read_sockets, write_sockets, _ = select.select(rlist, wlist, xlist, timeout)
 
                 if len(self.message_queue) > 0:
                     message_bytes = self.message_queue.pop()
