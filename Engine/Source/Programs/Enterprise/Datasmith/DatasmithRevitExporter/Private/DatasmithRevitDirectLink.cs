@@ -153,6 +153,18 @@ namespace DatasmithRevitExporter
 			ActiveInstance = InstanceToActivate;
 		}
 
+		public static FDirectLink FindInstance(Document InDocument)
+		{
+			foreach (var Inst in Instances)
+			{
+				if (Inst.RootCache.SourceDocument.Equals(InDocument))
+				{
+					return Inst;
+				}
+			}
+			return null;
+		}
+
 		public static void DestroyInstance(FDirectLink Instance, Application InApp)
 		{
 			if (ActiveInstance == Instance)
