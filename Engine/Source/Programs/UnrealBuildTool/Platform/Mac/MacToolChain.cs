@@ -232,7 +232,7 @@ namespace UnrealBuildTool
 			// Pass through the list of architectures			
 			Result += string.Format(" -arch {0}", string.Join(" -arch ", Architectures));				
 
-			Result += " -isysroot " + SDKPath;
+			Result += string.Format(" -isysroot \"{0}\"", SDKPath);
 			Result += " -mmacosx-version-min=" + (CompileEnvironment.bEnableOSX109Support ? "10.9" : Settings.MacOSVersion);
 
 			bool bStaticAnalysis = false;
@@ -382,7 +382,7 @@ namespace UnrealBuildTool
 			// Pass through the list of architectures			
 			Result += string.Format(" -arch {0}", string.Join(" ", Architectures));
 
-			Result += " -isysroot " + SDKPath;
+			Result += string.Format(" -isysroot \"{0}\"", SDKPath);
 			Result += " -mmacosx-version-min=" + Settings.MacOSVersion;
 			Result += " -dead_strip";
 
@@ -804,7 +804,7 @@ namespace UnrealBuildTool
 					LinkCommand += string.Format(" -weak_library \"{0}\"", Path.GetFullPath(AdditionalLibrary));
 
 					AddLibraryPathToRPaths(AdditionalLibrary, AbsolutePath, ref RPaths, ref LinkCommand, bIsBuildingAppBundle);
-                }
+				}
 			}
 
 			// Add frameworks
