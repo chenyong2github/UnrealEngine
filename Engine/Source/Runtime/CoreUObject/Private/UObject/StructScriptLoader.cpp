@@ -288,13 +288,7 @@ bool FStructScriptLoader::LoadStructWithScript(UStruct* DestScriptContainer, FAr
 	if (!GUObjectArray.IsDisregardForGC(DestScriptContainer))
 	{
 		DestScriptContainer->ScriptAndPropertyObjectReferences.Empty();
-		FArchiveScriptReferenceCollector ObjRefCollector(DestScriptContainer->ScriptAndPropertyObjectReferences);
-
-		BytecodeIndex = 0;
-		while (BytecodeIndex < BytecodeBufferSize)
-		{
-			DestScriptContainer->SerializeExpr(BytecodeIndex, ObjRefCollector);
-		}
+		DestScriptContainer->CollectBytecodeReferencedObjects(DestScriptContainer->ScriptAndPropertyObjectReferences);
 	}
 
 	// success! (we filled the target with serialized script code)

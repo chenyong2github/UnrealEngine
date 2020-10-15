@@ -78,6 +78,9 @@ struct FUserDefinedStructureCompilerInner
 
 			CastChecked<UUserDefinedStructEditorData>(DuplicatedStruct->EditorData)->RecreateDefaultInstance();
 
+			// List of unique classes and structs to regenerate bytecode and property referenced objects list
+			TSet<UStruct*> StructsToRegenerateReferencesFor;
+
 			for (TAllFieldsIterator<FStructProperty> FieldIt(RF_NoFlags, EInternalObjectFlags::PendingKill); FieldIt; ++FieldIt)
 			{
 				FStructProperty* StructProperty = *FieldIt;
@@ -89,6 +92,7 @@ struct FUserDefinedStructureCompilerInner
 						{
 							ClearStructReferencesInBP(FoundBlueprint, BlueprintsToRecompile);
 							StructProperty->Struct = DuplicatedStruct;
+							StructsToRegenerateReferencesFor.Add(OwnerClass);
 						}
 					}
 					else if (UUserDefinedStruct* OwnerStruct = Cast<UUserDefinedStruct>(StructProperty->GetOwnerStruct()))
@@ -106,6 +110,7 @@ struct FUserDefinedStructureCompilerInner
 							{
 								// Don't change this for a default value only change, it won't get correctly replaced later
 								StructProperty->Struct = DuplicatedStruct;
+								StructsToRegenerateReferencesFor.Add(OwnerStruct);
 							}
 						}
 					}
@@ -114,6 +119,12 @@ struct FUserDefinedStructureCompilerInner
 						UE_LOG(LogK2Compiler, Error, TEXT("ReplaceStructWithTempDuplicate unknown owner"));
 					}
 				}
+			}
+
+			// Make sure we update the list of objects referenced by structs after we replaced the struct in FStructProperties
+			for (UStruct* Struct : StructsToRegenerateReferencesFor)
+			{
+				Struct->CollectBytecodeAndPropertyReferencedObjects();
 			}
 
 			DuplicatedStruct->RemoveFromRoot();
