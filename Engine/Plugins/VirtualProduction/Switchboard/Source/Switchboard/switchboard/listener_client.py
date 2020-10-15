@@ -125,7 +125,7 @@ class ListenerClient(object):
 
                 read_sockets, write_sockets, _ = select.select(rlist, wlist, xlist, timeout)
 
-                if len(self.message_queue) > 0:
+                if len(self.message_queue) and len(write_sockets):
                     message_bytes = self.message_queue.pop()
                     for ws in write_sockets:
                         ws.send(message_bytes)
