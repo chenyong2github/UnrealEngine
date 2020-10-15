@@ -263,6 +263,9 @@ struct FRCPresetSetPropertyRequest : public FRCRequest
 	 */
 	UPROPERTY()
 	bool GenerateTransaction = false;
+
+	UPROPERTY()
+	bool ResetToDefault = false;
 };
 
 /**
