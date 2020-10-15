@@ -69,7 +69,7 @@ FRigVMInstructionArray::FRigVMInstructionArray()
 {
 }
 
-FRigVMInstructionArray::FRigVMInstructionArray(const FRigVMByteCode& InByteCode)
+FRigVMInstructionArray::FRigVMInstructionArray(const FRigVMByteCode& InByteCode, bool bByteCodeIsAligned)
 {
 	uint64 ByteIndex = 0;
 	while (ByteIndex < InByteCode.Num())
@@ -81,8 +81,37 @@ FRigVMInstructionArray::FRigVMInstructionArray(const FRigVMByteCode& InByteCode)
 			Instructions.Reset();
 			break;
 		}
-		Instructions.Add(FRigVMInstruction(OpCode, ByteIndex));
-		ByteIndex += InByteCode.GetOpNumBytesAt(ByteIndex);
+
+		uint8 OperandAlignment = 0;
+
+		if (bByteCodeIsAligned)
+		{
+			uint64 Alignment = InByteCode.GetOpAlignment(OpCode);
+			if (Alignment > 0)
+			{
+				while (!IsAligned(&InByteCode[ByteIndex], Alignment))
+				{
+					ByteIndex++;
+				}
+			}
+
+			if (OpCode >= ERigVMOpCode::Execute_0_Operands && OpCode < ERigVMOpCode::Execute_64_Operands)
+			{
+				uint64 OperandByteIndex = ByteIndex + (uint64)sizeof(FRigVMExecuteOp);
+
+				Alignment = InByteCode.GetOperandAlignment();
+				if (Alignment > 0)
+				{
+					while (!IsAligned(&InByteCode[OperandByteIndex + OperandAlignment], Alignment))
+					{
+						OperandAlignment++;
+					}
+				}
+			}
+		}
+
+		Instructions.Add(FRigVMInstruction(OpCode, ByteIndex, OperandAlignment));
+		ByteIndex += InByteCode.GetOpNumBytesAt(ByteIndex, true);
 	}
 }
 
@@ -98,6 +127,7 @@ void FRigVMInstructionArray::Empty()
 
 FRigVMByteCode::FRigVMByteCode()
 	: NumInstructions(0)
+	, bByteCodeIsAligned(false)
 {
 }
 
@@ -128,6 +158,7 @@ bool FRigVMByteCode::Serialize(FArchive& Ar)
 	else
 	{
 		ByteCode.Reset();
+		bByteCodeIsAligned = false;
 	}
 
 	Ar << InstructionCount;
@@ -218,7 +249,7 @@ bool FRigVMByteCode::Serialize(FArchive& Ar)
 					FRigVMExecuteOp Op = GetOpAt<FRigVMExecuteOp>(Instruction.ByteCodeIndex);
 					Ar << Op;
 
-					FRigVMOperandArray Operands = GetOperandsForExecuteOp(Instruction.ByteCodeIndex);
+					FRigVMOperandArray Operands = GetOperandsForExecuteOp(Instruction);
 					int32 OperandCount = (int32)Op.GetOperandCount();
 					ensure(OperandCount == Operands.Num());
 
@@ -380,6 +411,8 @@ bool FRigVMByteCode::Serialize(FArchive& Ar)
 
 	if (Ar.IsLoading())
 	{
+		AlignByteCode();
+
 		Entries.Reset();
 		if (Ar.CustomVer(FAnimObjectVersion::GUID) >= FAnimObjectVersion::SerializeRigVMEntries)
 		{
@@ -420,6 +453,7 @@ bool FRigVMByteCode::Serialize(FArchive& Ar)
 void FRigVMByteCode::Reset()
 {
 	ByteCode.Reset();
+	bByteCodeIsAligned = false;
 	NumInstructions = 0;
 	Entries.Reset();
 }
@@ -427,6 +461,7 @@ void FRigVMByteCode::Reset()
 void FRigVMByteCode::Empty()
 {
 	ByteCode.Empty();
+	bByteCodeIsAligned = false;
 	NumInstructions = 0;
 	Entries.Empty();
 }
@@ -532,7 +567,20 @@ uint64 FRigVMByteCode::GetOpNumBytesAt(uint64 InByteCodeIndex, bool bIncludeOper
 			uint64 NumBytes = (uint64)sizeof(FRigVMExecuteOp);
 			if(bIncludeOperands)
 			{
-				const FRigVMExecuteOp& ExecuteOp = GetOpAt<FRigVMExecuteOp>(InByteCodeIndex);
+				FRigVMExecuteOp ExecuteOp;
+				FMemory::Memcpy(&ExecuteOp, &ByteCode[InByteCodeIndex], sizeof(FRigVMExecuteOp));
+
+				if (bByteCodeIsAligned)
+				{
+					static const uint64 OperandAlignment = GetOperandAlignment();
+					if (OperandAlignment > 0)
+					{
+						while (!IsAligned(&ByteCode[InByteCodeIndex + NumBytes], OperandAlignment))
+						{
+							NumBytes++;
+						}
+					}
+				}
 				NumBytes += (uint64)ExecuteOp.GetOperandCount() * (uint64)sizeof(FRigVMOperand);
 			}
 			return NumBytes;
@@ -664,6 +712,7 @@ uint64 FRigVMByteCode::AddExecuteOp(uint16 InFunctionIndex, const FRigVMOperandA
 {
 	FRigVMExecuteOp Op(InFunctionIndex, (uint8)InOperands.Num());
 	uint64 OpByteIndex = AddOp(Op);
+
 	uint64 OperandsByteIndex = (uint64)ByteCode.AddZeroed(sizeof(FRigVMOperand) * InOperands.Num());
 	FMemory::Memcpy(ByteCode.GetData() + OperandsByteIndex, InOperands.GetData(), sizeof(FRigVMOperand) * InOperands.Num());
 	return OpByteIndex;
@@ -758,7 +807,7 @@ FString FRigVMByteCode::DumpToText() const
 				const FRigVMExecuteOp& Op = GetOpAt<FRigVMExecuteOp>(Instruction.ByteCodeIndex);
 				Line += FString::Printf(TEXT(", FunctionIndex %d"), (int32)Op.FunctionIndex);
 
-				FRigVMOperandArray Operands = GetOperandsForExecuteOp(Instruction.ByteCodeIndex);
+				FRigVMOperandArray Operands = GetOperandsForExecuteOp(Instruction);
 				if (Operands.Num() > 0)
 				{
 					TArray<FString> OperandsContent;
@@ -864,3 +913,221 @@ uint64 FRigVMByteCode::AddEndBlockOp()
 	return AddOp(Op);
 }
 
+
+uint64 FRigVMByteCode::GetOpAlignment(ERigVMOpCode InOpCode) const
+{
+	switch (InOpCode)
+	{
+		case ERigVMOpCode::Execute_0_Operands:
+		case ERigVMOpCode::Execute_1_Operands:
+		case ERigVMOpCode::Execute_2_Operands:
+		case ERigVMOpCode::Execute_3_Operands:
+		case ERigVMOpCode::Execute_4_Operands:
+		case ERigVMOpCode::Execute_5_Operands:
+		case ERigVMOpCode::Execute_6_Operands:
+		case ERigVMOpCode::Execute_7_Operands:
+		case ERigVMOpCode::Execute_8_Operands:
+		case ERigVMOpCode::Execute_9_Operands:
+		case ERigVMOpCode::Execute_10_Operands:
+		case ERigVMOpCode::Execute_11_Operands:
+		case ERigVMOpCode::Execute_12_Operands:
+		case ERigVMOpCode::Execute_13_Operands:
+		case ERigVMOpCode::Execute_14_Operands:
+		case ERigVMOpCode::Execute_15_Operands:
+		case ERigVMOpCode::Execute_16_Operands:
+		case ERigVMOpCode::Execute_17_Operands:
+		case ERigVMOpCode::Execute_18_Operands:
+		case ERigVMOpCode::Execute_19_Operands:
+		case ERigVMOpCode::Execute_20_Operands:
+		case ERigVMOpCode::Execute_21_Operands:
+		case ERigVMOpCode::Execute_22_Operands:
+		case ERigVMOpCode::Execute_23_Operands:
+		case ERigVMOpCode::Execute_24_Operands:
+		case ERigVMOpCode::Execute_25_Operands:
+		case ERigVMOpCode::Execute_26_Operands:
+		case ERigVMOpCode::Execute_27_Operands:
+		case ERigVMOpCode::Execute_28_Operands:
+		case ERigVMOpCode::Execute_29_Operands:
+		case ERigVMOpCode::Execute_30_Operands:
+		case ERigVMOpCode::Execute_31_Operands:
+		case ERigVMOpCode::Execute_32_Operands:
+		case ERigVMOpCode::Execute_33_Operands:
+		case ERigVMOpCode::Execute_34_Operands:
+		case ERigVMOpCode::Execute_35_Operands:
+		case ERigVMOpCode::Execute_36_Operands:
+		case ERigVMOpCode::Execute_37_Operands:
+		case ERigVMOpCode::Execute_38_Operands:
+		case ERigVMOpCode::Execute_39_Operands:
+		case ERigVMOpCode::Execute_40_Operands:
+		case ERigVMOpCode::Execute_41_Operands:
+		case ERigVMOpCode::Execute_42_Operands:
+		case ERigVMOpCode::Execute_43_Operands:
+		case ERigVMOpCode::Execute_44_Operands:
+		case ERigVMOpCode::Execute_45_Operands:
+		case ERigVMOpCode::Execute_46_Operands:
+		case ERigVMOpCode::Execute_47_Operands:
+		case ERigVMOpCode::Execute_48_Operands:
+		case ERigVMOpCode::Execute_49_Operands:
+		case ERigVMOpCode::Execute_50_Operands:
+		case ERigVMOpCode::Execute_51_Operands:
+		case ERigVMOpCode::Execute_52_Operands:
+		case ERigVMOpCode::Execute_53_Operands:
+		case ERigVMOpCode::Execute_54_Operands:
+		case ERigVMOpCode::Execute_55_Operands:
+		case ERigVMOpCode::Execute_56_Operands:
+		case ERigVMOpCode::Execute_57_Operands:
+		case ERigVMOpCode::Execute_58_Operands:
+		case ERigVMOpCode::Execute_59_Operands:
+		case ERigVMOpCode::Execute_60_Operands:
+		case ERigVMOpCode::Execute_61_Operands:
+		case ERigVMOpCode::Execute_62_Operands:
+		case ERigVMOpCode::Execute_63_Operands:
+		case ERigVMOpCode::Execute_64_Operands:
+		{
+			static const uint64 Alignment = FRigVMExecuteOp::StaticStruct()->GetCppStructOps()->GetAlignment();
+			return Alignment;
+		}
+		case ERigVMOpCode::Copy:
+		{
+			static const uint64 Alignment = FRigVMCopyOp::StaticStruct()->GetCppStructOps()->GetAlignment();
+			return Alignment;
+		}
+		case ERigVMOpCode::Zero:
+		case ERigVMOpCode::BoolFalse:
+		case ERigVMOpCode::BoolTrue:
+		case ERigVMOpCode::Increment:
+		case ERigVMOpCode::Decrement:
+		{
+			static const uint64 Alignment = FRigVMUnaryOp::StaticStruct()->GetCppStructOps()->GetAlignment();
+			return Alignment;
+		}
+		case ERigVMOpCode::Equals:
+		case ERigVMOpCode::NotEquals:
+		{
+			static const uint64 Alignment = FRigVMComparisonOp::StaticStruct()->GetCppStructOps()->GetAlignment();
+			return Alignment;
+		}
+		case ERigVMOpCode::JumpAbsolute:
+		case ERigVMOpCode::JumpForward:
+		case ERigVMOpCode::JumpBackward:
+		{
+			static const uint64 Alignment = FRigVMJumpOp::StaticStruct()->GetCppStructOps()->GetAlignment();
+			return Alignment;
+		}
+		case ERigVMOpCode::JumpAbsoluteIf:
+		case ERigVMOpCode::JumpForwardIf:
+		case ERigVMOpCode::JumpBackwardIf:
+		{
+			static const uint64 Alignment = FRigVMJumpIfOp::StaticStruct()->GetCppStructOps()->GetAlignment();
+			return Alignment;
+		}
+		case ERigVMOpCode::ChangeType:
+		{
+			static const uint64 Alignment = FRigVMChangeTypeOp::StaticStruct()->GetCppStructOps()->GetAlignment();
+			return Alignment;
+		}
+		case ERigVMOpCode::Exit:
+		{
+			static const uint64 Alignment = FRigVMBaseOp::StaticStruct()->GetCppStructOps()->GetAlignment();
+			return Alignment;
+		}
+		case ERigVMOpCode::BeginBlock:
+		{
+			static const uint64 Alignment = FRigVMBinaryOp::StaticStruct()->GetCppStructOps()->GetAlignment();
+			return Alignment;
+		}
+		case ERigVMOpCode::EndBlock:
+		{
+			static const uint64 Alignment = FRigVMBaseOp::StaticStruct()->GetCppStructOps()->GetAlignment();
+			return Alignment;
+		}
+		case ERigVMOpCode::Invalid:
+		{
+			ensure(false);
+			return 0;
+		}
+	}
+	return 0;
+}
+
+uint64 FRigVMByteCode::GetOperandAlignment() const
+{
+	static const uint64 OperandAlignment = !FRigVMOperand::StaticStruct()->GetCppStructOps()->GetAlignment();
+	return OperandAlignment;
+}
+
+void FRigVMByteCode::AlignByteCode()
+{
+	if (bByteCodeIsAligned)
+	{
+		return;
+	}
+
+	FRigVMInstructionArray Instructions(*this, false);
+	uint64 BytesToReserve = ByteCode.Num();
+
+	for (int32 InstructionIndex = 0; InstructionIndex < Instructions.Num(); InstructionIndex++)
+	{
+		const FRigVMInstruction& Instruction = Instructions[InstructionIndex];
+		BytesToReserve += GetOpAlignment(Instruction.OpCode);
+
+		if (Instruction.OpCode >= ERigVMOpCode::Execute_0_Operands && Instruction.OpCode < ERigVMOpCode::Execute_64_Operands)
+		{
+			BytesToReserve += GetOperandAlignment();
+		}
+	}
+
+	TArray<uint8> AlignedByteCode;
+	AlignedByteCode.Reserve(BytesToReserve);
+	AlignedByteCode.AddZeroed(ByteCode.Num());
+
+	uint64 ShiftedBytes = 0;
+	for (int32 InstructionIndex = 0; InstructionIndex < Instructions.Num(); InstructionIndex++)
+	{
+		const FRigVMInstruction& Instruction = Instructions[InstructionIndex];
+		uint64 OriginalByteCodeIndex = Instruction.ByteCodeIndex;
+		uint64 AlignedByteCodeIndex = OriginalByteCodeIndex + ShiftedBytes;
+		uint64 OpAlignment = GetOpAlignment(Instruction.OpCode);
+
+		if (OpAlignment > 0)
+		{
+			while (!IsAligned(&AlignedByteCode[AlignedByteCodeIndex], OpAlignment))
+			{
+				AlignedByteCode[AlignedByteCodeIndex] = (uint8)Instruction.OpCode;
+				AlignedByteCodeIndex++;
+				ShiftedBytes++;
+				AlignedByteCode.AddZeroed(1);
+			}
+		}
+
+		uint64 NumBytesToCopy = GetOpNumBytesAt(OriginalByteCodeIndex, false);
+		FMemory::Memcpy(&AlignedByteCode[AlignedByteCodeIndex], &ByteCode[OriginalByteCodeIndex], NumBytesToCopy);
+
+		if (Instruction.OpCode >= ERigVMOpCode::Execute_0_Operands && Instruction.OpCode < ERigVMOpCode::Execute_64_Operands)
+		{
+			AlignedByteCodeIndex += NumBytesToCopy;
+
+			static const uint64 OperandAlignment = GetOperandAlignment();
+			if (OperandAlignment > 0)
+			{
+				while (!IsAligned(&AlignedByteCode[AlignedByteCodeIndex], OperandAlignment))
+				{
+					AlignedByteCodeIndex++;
+					ShiftedBytes++;
+					AlignedByteCode.AddZeroed(1);
+				}
+			}
+
+			FRigVMExecuteOp ExecuteOp;
+			FMemory::Memcpy(&ExecuteOp, &ByteCode[OriginalByteCodeIndex], sizeof(FRigVMExecuteOp));
+
+			OriginalByteCodeIndex += NumBytesToCopy;
+			NumBytesToCopy = sizeof(FRigVMOperand) * ExecuteOp.GetOperandCount();
+
+			FMemory::Memcpy(&AlignedByteCode[AlignedByteCodeIndex], &ByteCode[OriginalByteCodeIndex], NumBytesToCopy);
+		}
+	}
+
+	Swap(ByteCode, AlignedByteCode);
+	bByteCodeIsAligned = true;
+}
