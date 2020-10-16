@@ -198,7 +198,7 @@ float CubemapHardwarePCF(
 
 #if SHADOW_QUALITY <= 2
 
-		Shadow = InShadowDepthCubeTexture.SampleCmpLevelZero(InShadowDepthCubeTextureSampler, WorldSampleToLightVec, CompareDistance + ShadowDepthBias);
+		Shadow = InShadowDepthCubeTexture.SampleCmpLevelZero(InShadowDepthCubeTextureSampler, WorldSampleToLightVec, CompareDistance - ShadowDepthBias);
 
 #elif SHADOW_QUALITY == 3
 		UNROLL for(int i = 0; i < 5; ++i)
