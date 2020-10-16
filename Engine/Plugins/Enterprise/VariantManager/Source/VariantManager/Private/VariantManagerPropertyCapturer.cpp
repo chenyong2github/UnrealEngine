@@ -91,20 +91,20 @@ void FPropertyCaptureHelper::CaptureActorExceptionProperties(const AActor* Actor
 		return;
 	}
 
-	if ( TargetPropertyPath == TEXT( "Selected Option" ) && EnumHasAnyFlags( CategoriesToCapture, EPropertyValueCategory::Option ) )
+	const ASwitchActor* SwitchActor = Cast<const ASwitchActor>( Actor );
+	if ( SwitchActor &&
+		(TargetPropertyPath.IsEmpty() || TargetPropertyPath == SWITCH_ACTOR_SELECTED_OPTION_NAME ) &&
+		EnumHasAnyFlags( CategoriesToCapture, EPropertyValueCategory::Option ) )
 	{
-		if ( const ASwitchActor* SwitchActor = Cast<const ASwitchActor>( Actor ) )
-		{
-			FString DisplayString = PrettyPathString + TEXT( "Selected Option" );
+		FString DisplayString = PrettyPathString + SWITCH_ACTOR_SELECTED_OPTION_NAME;
 
-			// Initialize the dialog row item to unchecked, like in CaptureProp
-			const bool bChecked = false;
+		// Initialize the dialog row item to unchecked, like in CaptureProp
+		const bool bChecked = false;
 
-			// Capture directly here as we don't need to check the property path for this exception property (by calling CaptureProp), as we already know this exists for the switch actor
-			TSharedPtr<FCapturableProperty> NewCapture = MakeShared<FCapturableProperty>( DisplayString, PropertyPath, ComponentNames, bChecked, FName(), EPropertyValueCategory::Option );
-			CapturedPropertyPaths.Add( NewCapture );
-			CapturedPaths.Add( PrettyPathString );
-		}
+		// Capture directly here as we don't need to check the property path for this exception property (by calling CaptureProp), as we already know this exists for the switch actor
+		TSharedPtr<FCapturableProperty> NewCapture = MakeShared<FCapturableProperty>( DisplayString, PropertyPath, ComponentNames, bChecked, FName(), EPropertyValueCategory::Option );
+		CapturedPropertyPaths.Add( NewCapture );
+		CapturedPaths.Add( PrettyPathString );
 	}
 }
 
