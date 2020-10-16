@@ -180,7 +180,7 @@ void FTexture2DResource::CalcRequestedMipsSize()
  */
 void FTexture2DResource::GetData( uint32 MipIndex, void* Dest, uint32 DestPitch )
 {
-	const FTexture2DMipMap& MipMap = PlatformData->Mips[MipIndex];
+	const FTexture2DMipMap& MipMap = *GetPlatformMip(MipIndex);
 	check( MipData[MipIndex] );
 
 	// for platforms that returned 0 pitch from Lock, we need to just use the bulk data directly, never do 
