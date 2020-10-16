@@ -1388,12 +1388,16 @@ void FVirtualHeightfieldMeshRendererExtension::SubmitWork(FRHICommandListImmedia
 				MainViewDesc.ViewOrigin = Proxy->WorldToUV.TransformPosition(MainViewData.ViewOrigin);
 				MainViewDesc.LodDistances = VirtualHeightfieldMesh::CalculateLodRanges(MainView, Proxy);
 
-				for (int32 PlaneIndex = 0; PlaneIndex < 5; ++PlaneIndex)
+				const int32 MainViewNumPlanes = FMath::Min(MainViewData.ViewFrustum.Planes.Num(), 5);
+				for (int32 PlaneIndex = 0; PlaneIndex < MainViewNumPlanes; ++PlaneIndex)
 				{
-					const int32 CopyPlaneIndex = FMath::Min(PlaneIndex, MainViewData.ViewFrustum.Planes.Num() - 1);
-					FPlane Plane = MainViewData.ViewFrustum.Planes[CopyPlaneIndex];
+					FPlane Plane = MainViewData.ViewFrustum.Planes[PlaneIndex];
 					Plane = VirtualHeightfieldMesh::TransformPlane(Plane, Proxy->WorldToUV, Proxy->WorldToUVTransposeAdjoint);
 					MainViewDesc.Planes[PlaneIndex] = VirtualHeightfieldMesh::ConvertPlane(Plane);
+				}
+				for (int32 PlaneIndex = MainViewNumPlanes; PlaneIndex < 5; ++PlaneIndex)
+				{
+					MainViewDesc.Planes[PlaneIndex] = FPlane(0, 0, 0, 1); // Null plane won't cull anything
 				}
 
 				FOcclusionResults* OcclusionResults = GOcclusionResults.Find(FOcclusionResultsKey(Proxy, MainView));
@@ -1431,13 +1435,17 @@ void FVirtualHeightfieldMeshRendererExtension::SubmitWork(FRHICommandListImmedia
 					ChildViewDesc.ViewDebug = MainView;
 					ChildViewDesc.bIsMainView = CullView == MainView;
 					
-					for (int32 PlaneIndex = 0; PlaneIndex < 5; ++PlaneIndex)
+					const int32 ChildViewNumPlanes = FMath::Min(Frustum.Planes.Num(), 5);
+					for (int32 PlaneIndex = 0; PlaneIndex < ChildViewNumPlanes; ++PlaneIndex)
 					{
-						const int32 CopyPlaneIndex = FMath::Min(PlaneIndex, Frustum.Planes.Num() - 1);
-						FPlane Plane = Frustum.Planes[CopyPlaneIndex];
+						FPlane Plane = Frustum.Planes[PlaneIndex];
 						Plane = VirtualHeightfieldMesh::TranslatePlane(Plane, PreShadowTranslation);
 						Plane = VirtualHeightfieldMesh::TransformPlane(Plane, Proxy->WorldToUV, Proxy->WorldToUVTransposeAdjoint);
 						ChildViewDesc.Planes[PlaneIndex] = VirtualHeightfieldMesh::ConvertPlane(Plane);
+					}
+					for (int32 PlaneIndex = ChildViewNumPlanes; PlaneIndex < 5; ++PlaneIndex)
+					{
+						MainViewDesc.Planes[PlaneIndex] = FPlane(0, 0, 0, 1); // Null plane won't cull anything
 					}
 
 					// Build output graph resources
