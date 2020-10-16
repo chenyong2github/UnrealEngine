@@ -296,7 +296,10 @@ class DeviceUnreal(Device):
             else:
                 LOGGER.error(f"{self.name}: Project was not built successfully!")
                 for line in output.splitlines():
-                    LOGGER.error(f"{self.name}: {line}")
+                    # error lines from UBT usually look like this: $SourceFile: error C4430: missing type specifier - int assumed...
+                    if ": error " in line:
+                        LOGGER.error(f"{self.name}: {line}")
+
             self.status = DeviceStatus.CLOSED
             self.changelist = self.changelist # forces an update to the changelist field (to hide the Building state)
 
