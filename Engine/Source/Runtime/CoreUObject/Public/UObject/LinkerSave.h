@@ -60,8 +60,8 @@ public:
 		int64 BulkDataFlagsPos;
 		/** Bulk data flags at the time of serialization */
 		uint32 BulkDataFlags;
-		/** Any data shuffle pattern that applies to this bulk data */
-		EDataShufflePattern BulkDataShufflePattern;
+		/** The file region type to apply to this bulk data */
+		EFileRegionType BulkDataFileRegionType;
 		/** The bulkdata */
 		FUntypedBulkData* BulkData;
 	};

@@ -615,9 +615,9 @@ public:
 	 * @param Owner	Object owning the bulk data
 	 * @param Idx	Index of bulk data item being serialized
 	 * @param bAttemptFileMapping	If true, attempt to map this instead of loading it into malloc'ed memory
-	 * @param ShufflePattern	When cooking, a hint describing the best pattern to shuffle the bytes with to achieve higher compression ratios
+	 * @param FileRegionType	When cooking, a hint describing the type of data, used by some platforms to improve compression ratios
 	 */
-	void Serialize( FArchive& Ar, UObject* Owner, int32 Idx=INDEX_NONE, bool bAttemptFileMapping = false, EDataShufflePattern ShufflePattern = EDataShufflePattern::None );
+	void Serialize( FArchive& Ar, UObject* Owner, int32 Idx=INDEX_NONE, bool bAttemptFileMapping = false, EFileRegionType FileRegionType = EFileRegionType::None );
 
 	FOwnedBulkDataPtr* StealFileMapping()
 	{
