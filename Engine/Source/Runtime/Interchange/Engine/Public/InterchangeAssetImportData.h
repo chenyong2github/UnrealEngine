@@ -25,7 +25,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Interchange | AssetImportData")
 	FString ScriptGetFirstFilename() const
 	{
+		//TODO make sure this work at runtime
+#if WITH_EDITORONLY_DATA
 		return GetFirstFilename();
+#else
+		return FString();
+#endif
 	}
 
 	/**
@@ -34,7 +39,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Interchange | AssetImportData")
 	TArray<FString> ScriptExtractFilenames() const
 	{
+		//TODO make sure this work at runtime
+#if WITH_EDITORONLY_DATA
 		return ExtractFilenames();
+#else
+		return TArray<FString>();
+#endif
 	}
 
 	/**
@@ -44,7 +54,10 @@ public:
 	TArray<FString> ScriptExtractDisplayLabels() const
 	{
 		TArray<FString> TempDisplayLabels;
+		//TODO make sure this work at runtime
+#if WITH_EDITORONLY_DATA
 		ExtractDisplayLabels(TempDisplayLabels);
+#endif
 		return TempDisplayLabels;
 	}
 	

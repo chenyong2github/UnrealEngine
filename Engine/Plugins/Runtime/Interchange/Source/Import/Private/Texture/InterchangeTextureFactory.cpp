@@ -207,6 +207,8 @@ void UInterchangeTextureFactory::PostImportGameThreadCallback(const FPostImportG
 {
 	check(IsInGameThread());
 	Super::PostImportGameThreadCallback(Arguments);
+	//TODO make sure this work at runtime
+#if WITH_EDITORONLY_DATA
 	if (ensure(Arguments.ImportedObject && Arguments.SourceData))
 	{
 		//We must call the Update of the asset source file in the main thread because UAssetImportData::Update execute some delegate we do not control
@@ -219,5 +221,5 @@ void UInterchangeTextureFactory::PostImportGameThreadCallback(const FPostImportG
 																						 , Arguments.NodeContainer);
 		UE::Interchange::FFactoryCommon::UpdateImportAssetData(UpdateImportAssetDataParameters);
 	}
-	return;
+#endif
 }
