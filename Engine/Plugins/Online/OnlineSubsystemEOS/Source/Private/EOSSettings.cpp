@@ -4,6 +4,8 @@
 #include "OnlineSubsystemEOS.h"
 #include "OnlineSubsystemEOSModule.h"
 
+#include "Misc/CommandLine.h"
+
 #if WITH_EDITOR
 	#include "Misc/MessageDialog.h"
 #endif
