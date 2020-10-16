@@ -9,6 +9,8 @@
 namespace Audio
 {
 	// forwards
+	class FMixerDevice;
+	class FMixerSourceManager;
 	class FQuartzClockManager;
 
 	// Contains the pending command and the number of frames it has to wait to fire

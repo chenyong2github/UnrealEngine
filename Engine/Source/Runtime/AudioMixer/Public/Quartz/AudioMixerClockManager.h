@@ -8,7 +8,7 @@
 namespace Audio
 {
 	// forwards
-	class FAudioMixerDevice;
+	class FMixerDevice;
 
 	// Class that owns, updates, and provides access to all active clocks
 	// All methods are thread-safe. The method locks if it returns a value, and stages a command if it returns void

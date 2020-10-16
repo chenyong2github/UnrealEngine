@@ -7,7 +7,8 @@
 #include "UObject/Object.h"
 #include "UObject/Class.h"
 #include "Subsystems/WorldSubsystem.h"
-#include "Sound\QuartzQuantizationUtilities.h"
+#include "Sound/QuartzQuantizationUtilities.h"
+#include "Tickable.h"
 
 #include "QuartzSubsystem.generated.h"
 
