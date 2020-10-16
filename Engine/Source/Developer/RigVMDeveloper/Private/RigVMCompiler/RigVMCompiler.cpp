@@ -788,6 +788,30 @@ void URigVMCompiler::TraverseAssign(const FRigVMAssignExprAST* InExpr, FRigVMCom
 				}
 			}
 		}
+
+		if (Cast<URigVMVariableNode>(SourceExpr->GetPin()->GetNode()))
+		{
+			if (SourceExpr->GetPin()->RequiresWatch() && Settings.EnablePinWatches)
+			{
+				FRigVMOperand WatchOperand = FindOrAddRegister(SourceExpr, WorkData, true /*debug watch*/);
+				if (WatchOperand.IsValid())
+				{
+					WorkData.VM->GetByteCode().AddCopyOp(Source, WatchOperand);
+				}
+			}
+		}
+
+		if (Cast<URigVMVariableNode>(TargetExpr->GetPin()->GetNode()))
+		{
+			if (TargetExpr->GetPin()->RequiresWatch() && Settings.EnablePinWatches)
+			{
+				FRigVMOperand WatchOperand = FindOrAddRegister(TargetExpr, WorkData, true /*debug watch*/);
+				if (WatchOperand.IsValid())
+				{
+					WorkData.VM->GetByteCode().AddCopyOp(Target, WatchOperand);
+				}
+			}
+		}
 	}
 }
 
@@ -1087,7 +1111,7 @@ FString URigVMCompiler::GetPinHash(URigVMPin* InPin, const FRigVMVarExprAST* InV
 	}
 	else if (URigVMVariableNode* VariableNode = Cast<URigVMVariableNode>(Node))
 	{
-		if (InPin->GetName() == TEXT("Value") && !bIsLiteral)
+		if (InPin->GetName() == TEXT("Value") && !bIsLiteral && !bIsDebugValue)
 		{
 			return FString::Printf(TEXT("%sVariable::%s%s"), *Prefix, *VariableNode->GetVariableName().ToString(), *Suffix);
 		}
