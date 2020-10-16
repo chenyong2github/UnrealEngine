@@ -138,6 +138,7 @@ bool FRigVMByteCode::Serialize(FArchive& Ar)
 
 	if (Ar.CustomVer(FAnimObjectVersion::GUID) < FAnimObjectVersion::StoreMarkerNamesOnSkeleton)
 	{
+		// return false to skip the section in the archive
 		return false;
 	}
 
