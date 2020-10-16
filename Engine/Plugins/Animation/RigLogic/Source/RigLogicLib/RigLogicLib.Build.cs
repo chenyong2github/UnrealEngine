@@ -40,12 +40,13 @@ public class RigLogicLib : ModuleRules
             PrivateDefinitions.Add("TRIO_WINDOWS_FILE_MAPPING_AVAILABLE=1");
         }
 
-        if (Target.Platform == UnrealTargetPlatform.Linux)
+        if (Target.Platform == UnrealTargetPlatform.Linux || Target.Platform == UnrealTargetPlatform.LinuxAArch64)
         {
             PrivateDefinitions.Add("TRIO_MREMAP_AVAILABLE=1");
         }
 
         if (Target.Platform == UnrealTargetPlatform.Linux ||
+                Target.Platform == UnrealTargetPlatform.LinuxAArch64 ||
                 Target.Platform == UnrealTargetPlatform.Mac ||
                 Target.Platform == UnrealTargetPlatform.PS4)
         {
@@ -55,6 +56,7 @@ public class RigLogicLib : ModuleRules
         if (Target.Platform == UnrealTargetPlatform.Win32 ||
                 Target.Platform == UnrealTargetPlatform.Win64 ||
                 Target.Platform == UnrealTargetPlatform.Linux ||
+                Target.Platform == UnrealTargetPlatform.LinuxAArch64 ||
                 Target.Platform == UnrealTargetPlatform.Mac ||
                 Target.Platform == UnrealTargetPlatform.PS4 ||
                 Target.Platform == UnrealTargetPlatform.XboxOne)
