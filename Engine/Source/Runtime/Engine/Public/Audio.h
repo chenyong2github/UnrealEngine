@@ -11,6 +11,7 @@
 #include "Stats/Stats.h"
 #include "HAL/ThreadSafeBool.h"
 #include "Sound/AudioOutputTarget.h"
+#include "Sound/QuartzQuantizationUtilities.h"
 #include "Sound/SoundAttenuation.h"
 #include "Sound/SoundEffectSource.h"
 #include "Sound/SoundSubmixSend.h"
@@ -98,8 +99,6 @@ namespace Audio
 	 * Typed identifier for Audio Device Id
 	 */
 	using FDeviceId = uint32;
-
-	struct FQuartzQuantizedRequestData;
 }
 
 enum ELoopingMode
