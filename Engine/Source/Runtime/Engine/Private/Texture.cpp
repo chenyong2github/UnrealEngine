@@ -738,9 +738,25 @@ const TArray<UAssetUserData*>* UTexture::GetAssetUserDataArray() const
 
 FStreamableRenderResourceState UTexture::GetResourcePostInitState(FTexturePlatformData* PlatformData, bool bAllowStreaming, int32 MinRequestMipCount, int32 MaxMipCount) const
 {
-	const int32 NumMips = MaxMipCount > 0 ? MaxMipCount : FMath::Min3<int32>(PlatformData->Mips.Num(), GMaxTextureMipCount, FStreamableRenderResourceState::MAX_LOD_COUNT);
+	// Create the resource with a mip count limit taking in consideration the asset LODBias.
+	// This ensures that the mip count stays constant when toggling asset streaming at runtime.
+	const int32 NumMips = [&]() -> int32 
+	{
+		const int32 ExpectedAssetLODBias = FMath::Clamp<int32>(GetCachedLODBias() - NumCinematicMipLevels, 0, PlatformData->Mips.Num() - 1);
+		const int32 MaxRuntimeMipCount = FMath::Min<int32>(GMaxTextureMipCount, FStreamableRenderResourceState::MAX_LOD_COUNT);
+		if (MaxMipCount > 0)
+		{
+			return FMath::Min3<int32>(PlatformData->Mips.Num() - ExpectedAssetLODBias, MaxMipCount, MaxRuntimeMipCount);
+		}
+		else
+		{
+			return FMath::Min<int32>(PlatformData->Mips.Num() - ExpectedAssetLODBias, MaxRuntimeMipCount);
+		}
+	}();
+
 	const int32 NumOfNonOptionalMips = FMath::Min<int32>(NumMips, PlatformData->GetNumNonOptionalMips());
 	const int32 NumOfNonStreamingMips = FMath::Min<int32>(NumMips, PlatformData->GetNumNonStreamingMips());
+	const int32 AssetMipIdxForResourceFirstMip = FMath::Max<int32>(0, PlatformData->Mips.Num() - NumMips);
 
 	bool bMakeStreamble = false;
 	int32 NumRequestedMips = 0;
@@ -762,23 +778,19 @@ FStreamableRenderResourceState UTexture::GetResourcePostInitState(FTexturePlatfo
 	}
 	else
 	{
+		// Adjust CachedLODBias so that it takes into account FStreamableRenderResourceState::AssetLODBias.
+		const int32 ResourceLODBias = FMath::Max<int32>(0, GetCachedLODBias() - AssetMipIdxForResourceFirstMip);
+
 		// Ensure NumMipsInTail is within valid range to safeguard on the above expressions. 
 		const int32 NumMipsInTail = FMath::Clamp<int32>(PlatformData->GetNumMipsInTail(), 1, NumMips);
 
 		// Bias is not allowed to shrink the mip count bellow NumMipsInTail.
-		// Also, don't rely on optional mips 
-		if (NumMips - GetCachedLODBias() <= NumMipsInTail)
+		NumRequestedMips = FMath::Max<int32>(NumMips - ResourceLODBias, NumMipsInTail);
+
+		// If trying to load optional mips, check if the first resource mip is available.
+		if (NumRequestedMips > NumOfNonOptionalMips && !DoesMipDataExist(AssetMipIdxForResourceFirstMip))
 		{
-			NumRequestedMips = NumMipsInTail;
-		}
-		else if (NumMips > NumOfNonOptionalMips && !DoesMipDataExist(PlatformData->Mips.Num() - NumMips))
-		{
-			NumRequestedMips = FMath::Min<int32>(NumOfNonOptionalMips - GetCachedLODBias(), NumOfNonOptionalMips);
-			NumRequestedMips = FMath::Max<int32>(NumMipsInTail, NumRequestedMips);
-		}
-		else
-		{
-			NumRequestedMips = FMath::Min<int32>(NumMips - GetCachedLODBias(), NumMips);
+			NumRequestedMips = NumOfNonOptionalMips;
 		}
 	}
 
@@ -792,7 +804,7 @@ FStreamableRenderResourceState UTexture::GetResourcePostInitState(FTexturePlatfo
 	PostInitState.NumNonStreamingLODs = (uint8)NumOfNonStreamingMips;
 	PostInitState.NumNonOptionalLODs = (uint8)NumOfNonOptionalMips;
 	PostInitState.MaxNumLODs = (uint8)NumMips;
-	PostInitState.AssetLODBias = (uint8)(PlatformData->Mips.Num() - NumMips);
+	PostInitState.AssetLODBias = (uint8)AssetMipIdxForResourceFirstMip;
 	PostInitState.NumResidentLODs = (uint8)NumRequestedMips;
 	PostInitState.NumRequestedLODs = (uint8)NumRequestedMips;
 
