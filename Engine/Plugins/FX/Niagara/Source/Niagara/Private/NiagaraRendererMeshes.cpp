@@ -80,7 +80,7 @@ FNiagaraRendererMeshes::FNiagaraRendererMeshes(ERHIFeatureLevel::Type FeatureLev
 	UStaticMesh* Mesh = Properties->ParticleMesh;
 	check(Mesh);
 
-	MeshRenderData = Mesh->RenderData.Get();
+	MeshRenderData = Mesh->GetRenderData();
 	FacingMode = Properties->FacingMode;
 	PivotOffset = Properties->PivotOffset;
 	bLockedAxisEnable = Properties->bLockedAxisEnable;
@@ -95,7 +95,7 @@ FNiagaraRendererMeshes::FNiagaraRendererMeshes(ERHIFeatureLevel::Type FeatureLev
 	bEnableCulling = bEnableFrustumCulling;
 	DistanceCullRange = FVector2D(0, FLT_MAX);
 	RendererVisibility = Properties->RendererVisibility;	
-	LocalCullingSphere = Mesh->ExtendedBounds.GetSphere();
+	LocalCullingSphere = Mesh->GetExtendedBounds().GetSphere();
 
 	// Apply the PivotOffset to the local bounding sphere for culling, too
 	LocalCullingSphere.Center += PivotOffset;

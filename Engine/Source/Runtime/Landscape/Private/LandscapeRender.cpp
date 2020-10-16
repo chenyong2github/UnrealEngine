@@ -4617,9 +4617,9 @@ void FLandscapeMeshProxySceneProxy::DestroyRenderThreadResources()
 FPrimitiveSceneProxy* ULandscapeMeshProxyComponent::CreateSceneProxy()
 {
 	if (GetStaticMesh() == NULL
-		|| GetStaticMesh()->RenderData == NULL
-		|| GetStaticMesh()->RenderData->LODResources.Num() == 0
-		|| GetStaticMesh()->RenderData->LODResources[0].VertexBuffers.StaticMeshVertexBuffer.GetNumVertices() == 0)
+		|| GetStaticMesh()->GetRenderData() == NULL
+		|| GetStaticMesh()->GetRenderData()->LODResources.Num() == 0
+		|| GetStaticMesh()->GetRenderData()->LODResources[0].VertexBuffers.StaticMeshVertexBuffer.GetNumVertices() == 0)
 	{
 		return NULL;
 	}

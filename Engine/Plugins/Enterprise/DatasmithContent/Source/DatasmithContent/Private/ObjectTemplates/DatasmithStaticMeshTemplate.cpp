@@ -227,14 +227,14 @@ UObject* UDatasmithStaticMeshTemplate::UpdateObject( UObject* Destination, bool 
 	{
 		// If the SectionInfoMap was reset, the materials must be reapplied to follow it
 		bool bIgnorePreviousTemplate = bResetSectionInfoMap;
-		if ( !StaticMesh->StaticMaterials.IsValidIndex( StaticMaterialIndex ) )
+		if ( !StaticMesh->GetStaticMaterials().IsValidIndex( StaticMaterialIndex ) )
 		{
 			// If it's a new added material, the value must be force applied to it by ignoring the previous template
-			StaticMesh->StaticMaterials.AddDefaulted();
+			StaticMesh->GetStaticMaterials().AddDefaulted();
 			bIgnorePreviousTemplate = true;
 		}
 
-		FStaticMaterial& StaticMaterial = StaticMesh->StaticMaterials[ StaticMaterialIndex ];
+		FStaticMaterial& StaticMaterial = StaticMesh->GetStaticMaterials()[ StaticMaterialIndex ];
 
 		FDatasmithStaticMaterialTemplate* PreviousStaticMaterialTemplate = nullptr;
 
@@ -251,9 +251,9 @@ UObject* UDatasmithStaticMeshTemplate::UpdateObject( UObject* Destination, bool 
 		// Remove materials that aren't in the template anymore
 		for ( int32 MaterialIndexToRemove = PreviousStaticMeshTemplate->StaticMaterials.Num() - 1; MaterialIndexToRemove >= StaticMaterials.Num(); --MaterialIndexToRemove )
 		{
-			if ( StaticMesh->StaticMaterials.IsValidIndex( MaterialIndexToRemove ) )
+			if ( StaticMesh->GetStaticMaterials().IsValidIndex( MaterialIndexToRemove ) )
 			{
-				StaticMesh->StaticMaterials.RemoveAt( MaterialIndexToRemove );
+				StaticMesh->GetStaticMaterials().RemoveAt( MaterialIndexToRemove );
 			}
 		}
 	}
@@ -263,7 +263,7 @@ UObject* UDatasmithStaticMeshTemplate::UpdateObject( UObject* Destination, bool 
 	for ( int32 LODIndex = 0; LODIndex < NumLODs; ++LODIndex )
 	{
 		const FMeshDescription* MeshDescription = StaticMesh->GetMeshDescription( LODIndex );
-		if ( MeshDescription && MeshDescription->PolygonGroups().Num() == StaticMesh->StaticMaterials.Num() )
+		if ( MeshDescription && MeshDescription->PolygonGroups().Num() == StaticMesh->GetStaticMaterials().Num() )
 		{
 			FStaticMeshConstAttributes Attributes(*MeshDescription);
 			TArray< FStaticMaterial > TempStaticMaterials;
@@ -276,7 +276,7 @@ UObject* UDatasmithStaticMeshTemplate::UpdateObject( UObject* Destination, bool 
 				{
 					MaterialIndex = PolygonGroupID.GetValue();
 				}
-				TempStaticMaterials.Add( StaticMesh->StaticMaterials[ MaterialIndex ] );
+				TempStaticMaterials.Add( StaticMesh->GetStaticMaterials()[ MaterialIndex ] );
 
 				// Note that the StaticMesh.SectionInfoMap MaterialIndex will overwrite the StaticMeshLODResources.Sections MaterialIndex through FStaticMeshRenderData::ResolveSectionInfo()
 				// This ensures there won't be any mismatch when that happens
@@ -290,7 +290,7 @@ UObject* UDatasmithStaticMeshTemplate::UpdateObject( UObject* Destination, bool 
 			// Set the StaticMaterials with respect to LOD 0
 			if ( LODIndex == 0 )
 			{
-				StaticMesh->StaticMaterials = MoveTemp( TempStaticMaterials );
+				StaticMesh->SetStaticMaterials(MoveTemp( TempStaticMaterials ));
 			}
 		}
 	}
@@ -327,9 +327,9 @@ void UDatasmithStaticMeshTemplate::Load( const UObject* Source )
 	}
 
 	// Materials
-	StaticMaterials.Empty( SourceStaticMesh->StaticMaterials.Num() );
+	StaticMaterials.Empty( SourceStaticMesh->GetStaticMaterials().Num() );
 
-	for ( const FStaticMaterial& StaticMaterial : SourceStaticMesh->StaticMaterials )
+	for ( const FStaticMaterial& StaticMaterial : SourceStaticMesh->GetStaticMaterials())
 	{
 		FDatasmithStaticMaterialTemplate StaticMaterialTemplate;
 		StaticMaterialTemplate.Load( StaticMaterial );

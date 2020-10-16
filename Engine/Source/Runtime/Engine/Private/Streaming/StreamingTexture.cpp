@@ -79,7 +79,7 @@ void FStreamingRenderAsset::UpdateStaticData(const FRenderAssetStreamingSettings
 					// Screen sizes stored on assets are 2R/D where R is the radius of bounding spheres and D is the
 					// distance from view origins to bounds origins. The factor calculated by the streamer, however,
 					// is R/D so multiply 0.5 here
-					LODScreenSizes[ResourceState.MaxNumLODs - LODIndex - 1] = StaticMesh->RenderData->ScreenSize[LODIndex + ResourceState.AssetLODBias].GetValue() * 0.5f;
+					LODScreenSizes[ResourceState.MaxNumLODs - LODIndex - 1] = StaticMesh->GetRenderData()->ScreenSize[LODIndex + ResourceState.AssetLODBias].GetValue() * 0.5f;
 				}
 			}
 			else if (RenderAssetType == EStreamableRenderAssetType::SkeletalMesh)

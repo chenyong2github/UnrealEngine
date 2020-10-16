@@ -202,9 +202,9 @@ void UNiagaraMeshRendererProperties::CacheFromCompiledData(const FNiagaraDataSet
 
 void UNiagaraMeshRendererProperties::GetUsedMaterials(const FNiagaraEmitterInstance* InEmitter, TArray<UMaterialInterface*>& OutMaterials) const
 {
-	if (ParticleMesh && ParticleMesh->RenderData)
+	if (ParticleMesh && ParticleMesh->GetRenderData())
 	{
-		const FStaticMeshLODResources& LODModel = ParticleMesh->RenderData->LODResources[0];
+		const FStaticMeshLODResources& LODModel = ParticleMesh->GetRenderData()->LODResources[0];
 		if (bOverrideMaterials)
 		{
 			for (int32 SectionIndex = 0; SectionIndex < LODModel.Sections.Num(); SectionIndex++)
@@ -255,17 +255,17 @@ void UNiagaraMeshRendererProperties::GetUsedMaterials(const FNiagaraEmitterInsta
 uint32 UNiagaraMeshRendererProperties::GetNumIndicesPerInstance() const
 {
 	// TODO: Add proper support for multiple mesh sections for GPU mesh particles.
-	//return ParticleMesh ? ParticleMesh->RenderData->LODResources[0].Sections[0].NumTriangles * 3 : 0;
-	return ParticleMesh && ParticleMesh->RenderData ? ParticleMesh->RenderData->LODResources[0].IndexBuffer.GetNumIndices() : 0;
+	//return ParticleMesh ? ParticleMesh->GetRenderData()->LODResources[0].Sections[0].NumTriangles * 3 : 0;
+	return ParticleMesh && ParticleMesh->GetRenderData() ? ParticleMesh->GetRenderData()->LODResources[0].IndexBuffer.GetNumIndices() : 0;
 }
 
 void UNiagaraMeshRendererProperties::GetIndexInfoPerSection(int32 LODIndex, TArray<TPair<int32, int32>>& IndexInfoPerSection) const
 {
-	check(ParticleMesh && ParticleMesh->RenderData && ParticleMesh->RenderData->LODResources.IsValidIndex(LODIndex));
+	check(ParticleMesh && ParticleMesh->GetRenderData() && ParticleMesh->GetRenderData()->LODResources.IsValidIndex(LODIndex));
 
-	if (ParticleMesh && ParticleMesh->RenderData->LODResources.IsValidIndex(LODIndex))
+	if (ParticleMesh && ParticleMesh->GetRenderData()->LODResources.IsValidIndex(LODIndex))
 	{
-		const FStaticMeshLODResources& MeshLod = ParticleMesh->RenderData->LODResources[LODIndex];
+		const FStaticMeshLODResources& MeshLod = ParticleMesh->GetRenderData()->LODResources[LODIndex];
 		const int32 SectionCount = MeshLod.Sections.Num();
 		IndexInfoPerSection.SetNum(SectionCount);
 
@@ -453,9 +453,9 @@ void UNiagaraMeshRendererProperties::OnMeshPostBuild(UStaticMesh*)
 
 void UNiagaraMeshRendererProperties::CheckMaterialUsage()
 {
-	if (ParticleMesh && ParticleMesh->RenderData)
+	if (ParticleMesh && ParticleMesh->GetRenderData())
 	{
-		const FStaticMeshLODResources& LODModel = ParticleMesh->RenderData->LODResources[0];
+		const FStaticMeshLODResources& LODModel = ParticleMesh->GetRenderData()->LODResources[0];
 		for (int32 SectionIndex = 0; SectionIndex < LODModel.Sections.Num(); SectionIndex++)
 		{
 			const FStaticMeshSection& Section = LODModel.Sections[SectionIndex];

@@ -5422,9 +5422,9 @@ bool UEngine::HandleListStaticMeshesCommand(const TCHAR* Cmd, FOutputDevice& Ar)
 		Mesh->GetResourceSizeEx(ResourceSizeInc);
 
 		FResourceSizeEx DistanceFieldSizeExc = FResourceSizeEx(EResourceSizeMode::Exclusive);
-		if (Mesh->RenderData && Mesh->RenderData->LODResources[0].DistanceFieldData)
+		if (Mesh->GetRenderData() && Mesh->GetRenderData()->LODResources[0].DistanceFieldData)
 		{
-			Mesh->RenderData->LODResources[0].DistanceFieldData->GetResourceSizeEx(DistanceFieldSizeExc);
+			Mesh->GetRenderData()->LODResources[0].DistanceFieldData->GetResourceSizeEx(DistanceFieldSizeExc);
 		}
 
 		int32		NumKB = (Count.GetNum() + 512) / 1024;
@@ -5447,9 +5447,9 @@ bool UEngine::HandleListStaticMeshesCommand(const TCHAR* Cmd, FOutputDevice& Ar)
 #endif
 
 		int32		CollisionShapeCount = 0;
-		if (Mesh->BodySetup)
+		if (Mesh->GetBodySetup())
 		{
-			CollisionShapeCount = Mesh->BodySetup->AggGeom.GetElementCount();
+			CollisionShapeCount = Mesh->GetBodySetup()->AggGeom.GetElementCount();
 		}
 
 		int32		VertexCountTotal = 0;
@@ -5458,9 +5458,9 @@ bool UEngine::HandleListStaticMeshesCommand(const TCHAR* Cmd, FOutputDevice& Ar)
 		int32 ResidentResKBExc = 0;
 		int32 NumMissingLODs = 0;
 		FResourceSizeEx EvictedResourceSize(EResourceSizeMode::Exclusive);
-		if (Mesh->RenderData)
+		if (Mesh->GetRenderData())
 		{
-			NumMissingLODs = Mesh->RenderData->CurrentFirstLODIdx;
+			NumMissingLODs = Mesh->GetRenderData()->CurrentFirstLODIdx;
 			ResidentLodCount = LodCount - NumMissingLODs;
 		}
 		for(int32 i = 0; i < LodCount; i++)
@@ -5469,22 +5469,22 @@ bool UEngine::HandleListStaticMeshesCommand(const TCHAR* Cmd, FOutputDevice& Ar)
 			VertexCountTotalMobile += i >= MobileMinLOD ? Mesh->GetNumVertices(i) : 0;
 			if (i < NumMissingLODs)
 			{
-				Mesh->RenderData->LODResources[i].GetResourceSizeEx(EvictedResourceSize);
+				Mesh->GetRenderData()->LODResources[i].GetResourceSizeEx(EvictedResourceSize);
 			}
 		}
 		ResidentResKBExc = (ResourceSizeExc.GetTotalMemoryBytes() - EvictedResourceSize.GetTotalMemoryBytes() + 512) / 1024;
 
 		int32		VertexCountCollision = 0;
-		if(Mesh->BodySetup)
+		if(Mesh->GetBodySetup())
 		{
 #if PHYSICS_INTERFACE_PHYSX
 			// Count PhysX trimesh mem usage
-			for (physx::PxTriangleMesh* TriMesh : Mesh->BodySetup->TriMeshes)
+			for (physx::PxTriangleMesh* TriMesh : Mesh->GetBodySetup()->TriMeshes)
 			{
 				VertexCountCollision += TriMesh->getNbVertices();
 			}
 #elif WITH_CHAOS
-			for (auto& TriMesh : Mesh->BodySetup->ChaosTriMeshes)
+			for (auto& TriMesh : Mesh->GetBodySetup()->ChaosTriMeshes)
 			{
 				VertexCountCollision += TriMesh->Particles().Size();
 			}

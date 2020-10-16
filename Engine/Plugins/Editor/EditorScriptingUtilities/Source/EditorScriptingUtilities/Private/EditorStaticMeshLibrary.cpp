@@ -63,12 +63,12 @@ namespace InternalEditorMeshLibrary
 		TRACE_CPUPROFILER_EVENT_SCOPE(GenerateConvexCollision)
 
 		// If RenderData has not been computed yet, do it
-		if (!StaticMesh->RenderData)
+		if (!StaticMesh->GetRenderData())
 		{
 			StaticMesh->CacheDerivedData();
 		}
 
-		const FStaticMeshLODResources& LODModel = StaticMesh->RenderData->LODResources[0];
+		const FStaticMeshLODResources& LODModel = StaticMesh->GetRenderData()->LODResources[0];
 
 		// Make vertex buffer
 		int32 NumVerts = LODModel.VertexBuffers.StaticMeshVertexBuffer.GetNumVertices();
@@ -103,7 +103,7 @@ namespace InternalEditorMeshLibrary
 		}
 
 		// Get the BodySetup we are going to put the collision into
-		UBodySetup* BodySetup = StaticMesh->BodySetup;
+		UBodySetup* BodySetup = StaticMesh->GetBodySetup();
 		if(BodySetup)
 		{
 			BodySetup->RemoveSimpleCollision();
@@ -112,7 +112,7 @@ namespace InternalEditorMeshLibrary
 		{
 			// Otherwise, create one here.
 			StaticMesh->CreateBodySetup();
-			BodySetup = StaticMesh->BodySetup;
+			BodySetup = StaticMesh->GetBodySetup();
 		}
 
 		// Run actual util to do the work (if we have some valid input)
@@ -612,7 +612,7 @@ int32 UEditorStaticMeshLibrary::SetLodFromStaticMesh(UStaticMesh* DestinationSta
 	{
 		auto FindMaterialIndex = []( UStaticMesh* StaticMesh, const UMaterialInterface* Material ) -> int32
 		{
-			for ( int32 MaterialIndex = 0; MaterialIndex < StaticMesh->StaticMaterials.Num(); ++MaterialIndex )
+			for ( int32 MaterialIndex = 0; MaterialIndex < StaticMesh->GetStaticMaterials().Num(); ++MaterialIndex )
 			{
 				if ( StaticMesh->GetMaterial( MaterialIndex ) == Material )
 				{
@@ -625,7 +625,7 @@ int32 UEditorStaticMeshLibrary::SetLodFromStaticMesh(UStaticMesh* DestinationSta
 
 		TMap< int32, int32 > LodSectionMaterialMapping; // LOD section index -> destination material index
 
-		int32 NumDestinationMaterial = DestinationStaticMesh->StaticMaterials.Num();
+		int32 NumDestinationMaterial = DestinationStaticMesh->GetStaticMaterials().Num();
 
 		const int32 SourceLodNumSections = SourceStaticMesh->GetSectionInfoMap().GetSectionNumber( SourceLodIndex );
 
@@ -661,11 +661,11 @@ int32 UEditorStaticMeshLibrary::SetLodFromStaticMesh(UStaticMesh* DestinationSta
 			const int32 SourceMaterialIndex = SourceSectionInfo.MaterialIndex;
 			const int32 DestinationMaterialIndex = It->Value;
 
-			if ( !DestinationStaticMesh->StaticMaterials.IsValidIndex( DestinationMaterialIndex ) )
+			if ( !DestinationStaticMesh->GetStaticMaterials().IsValidIndex( DestinationMaterialIndex ) )
 			{
-				DestinationStaticMesh->StaticMaterials.Add( SourceStaticMesh->StaticMaterials[ SourceSectionInfo.MaterialIndex ] );
+				DestinationStaticMesh->GetStaticMaterials().Add( SourceStaticMesh->GetStaticMaterials()[ SourceSectionInfo.MaterialIndex ] );
 
-				ensure( DestinationStaticMesh->StaticMaterials.Num() == DestinationMaterialIndex + 1 ); // We assume that we are not creating holes in StaticMaterials
+				ensure( DestinationStaticMesh->GetStaticMaterials().Num() == DestinationMaterialIndex + 1 ); // We assume that we are not creating holes in StaticMaterials
 			}
 
 			FMeshSectionInfo DestinationSectionInfo = SourceSectionInfo;
@@ -769,9 +769,9 @@ TArray<float> UEditorStaticMeshLibrary::GetLodScreenSizes(UStaticMesh* StaticMes
 
 	for (int i = 0; i < StaticMesh->GetNumLODs(); i++)
 	{
-		if (StaticMesh->RenderData.IsValid())
+		if (StaticMesh->GetRenderData())
 		{
-			float CurScreenSize = StaticMesh->RenderData->ScreenSize[i].Default;
+			float CurScreenSize = StaticMesh->GetRenderData()->ScreenSize[i].Default;
 			ScreenSizes.Add(CurScreenSize);
 		}
 		else
@@ -889,7 +889,7 @@ int32 UEditorStaticMeshLibrary::GetSimpleCollisionCount(UStaticMesh* StaticMesh)
 		return -1;
 	}
 
-	UBodySetup* BodySetup = StaticMesh->BodySetup;
+	UBodySetup* BodySetup = StaticMesh->GetBodySetup();
 	if (BodySetup == nullptr)
 	{
 		return 0;
@@ -917,9 +917,9 @@ TEnumAsByte<ECollisionTraceFlag> UEditorStaticMeshLibrary::GetCollisionComplexit
 		return ECollisionTraceFlag::CTF_UseDefault;
 	}
 
-	if (StaticMesh->BodySetup)
+	if (StaticMesh->GetBodySetup())
 	{
-		return StaticMesh->BodySetup->CollisionTraceFlag;
+		return StaticMesh->GetBodySetup()->CollisionTraceFlag;
 	}
 
 	return ECollisionTraceFlag::CTF_UseDefault;
@@ -940,7 +940,7 @@ int32 UEditorStaticMeshLibrary::GetConvexCollisionCount(UStaticMesh* StaticMesh)
 		return -1;
 	}
 
-	UBodySetup* BodySetup = StaticMesh->BodySetup;
+	UBodySetup* BodySetup = StaticMesh->GetBodySetup();
 	if (BodySetup == nullptr)
 	{
 		return 0;
@@ -975,14 +975,14 @@ bool UEditorStaticMeshLibrary::BulkSetConvexDecompositionCollisionsWithNotificat
 		return false;
 	}
 
-	if (Algo::AnyOf(StaticMeshes, [](const UStaticMesh* StaticMesh) { return StaticMesh->RenderData == nullptr; }))
+	if (Algo::AnyOf(StaticMeshes, [](const UStaticMesh* StaticMesh) { return StaticMesh->GetRenderData() == nullptr; }))
 	{
 		UStaticMesh::BatchBuild(StaticMeshes);
 	}
 
 	Algo::SortBy(
 		StaticMeshes,
-		[](const UStaticMesh* StaticMesh){ return StaticMesh->RenderData->LODResources[0].VertexBuffers.StaticMeshVertexBuffer.GetNumVertices(); },
+		[](const UStaticMesh* StaticMesh){ return StaticMesh->GetRenderData()->LODResources[0].VertexBuffers.StaticMeshVertexBuffer.GetNumVertices(); },
 		TGreater<>()
 	);
 
@@ -998,15 +998,15 @@ bool UEditorStaticMeshLibrary::BulkSetConvexDecompositionCollisionsWithNotificat
 			EditedStaticMeshes.Add(StaticMesh);
 		}
 
-		if (StaticMesh->BodySetup)
+		if (StaticMesh->GetBodySetup())
 		{
 			if (bApplyChanges)
 			{
-				StaticMesh->BodySetup->Modify();
+				StaticMesh->GetBodySetup()->Modify();
 			}
 
 			// Remove simple collisions
-			StaticMesh->BodySetup->RemoveSimpleCollision();
+			StaticMesh->GetBodySetup()->RemoveSimpleCollision();
 		}
 	}
 
@@ -1087,7 +1087,7 @@ bool UEditorStaticMeshLibrary::RemoveCollisionsWithNotification(UStaticMesh* Sta
 		return false;
 	}
 
-	if (StaticMesh->BodySetup == nullptr)
+	if (StaticMesh->GetBodySetup() == nullptr)
 	{
 		UE_LOG(LogEditorScripting, Log, TEXT("RemoveCollisions: No collision set up. Nothing to do."));
 		return true;
@@ -1104,11 +1104,11 @@ bool UEditorStaticMeshLibrary::RemoveCollisionsWithNotification(UStaticMesh* Sta
 
 	if(bApplyChanges)
 	{
-		StaticMesh->BodySetup->Modify();
+		StaticMesh->GetBodySetup()->Modify();
 	}
 
 	// Remove simple collisions
-	StaticMesh->BodySetup->RemoveSimpleCollision();
+	StaticMesh->GetBodySetup()->RemoveSimpleCollision();
 
 	// refresh collision change back to static mesh components
 	RefreshCollisionChange(*StaticMesh);
@@ -1379,7 +1379,7 @@ int32 UEditorStaticMeshLibrary::GetNumberMaterials(UStaticMesh* StaticMesh)
 		return 0;
 	}
 
-	return StaticMesh->StaticMaterials.Num();
+	return StaticMesh->GetStaticMaterials().Num();
 }
 
 void UEditorStaticMeshLibrary::SetAllowCPUAccess(UStaticMesh* StaticMesh, bool bAllowCPUAccess)
