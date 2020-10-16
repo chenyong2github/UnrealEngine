@@ -641,7 +641,7 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 	if (bRequriesAmbientOcclusionPass)
 	{
-		RenderAmbientOcclusion(RHICmdList, SceneContext.SceneDepthZ);
+		RenderAmbientOcclusion(RHICmdList, View.PrevViewInfo.MobileSceneDepthZ.IsValid() ? View.PrevViewInfo.MobileSceneDepthZ : GSystemTextures.DepthDummy);
 	}
 	
 	FRHITexture* SceneColor = nullptr;
@@ -775,6 +775,11 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	
 	RenderFinish(GraphBuilder, ViewFamilyTexture);
 	GraphBuilder.Execute();
+
+	if (bRequriesAmbientOcclusionPass)
+	{
+		CacheSceneDepthZ(RHICmdList, View, SceneContext.SceneDepthZ);
+	}
 
 	FRHICommandListExecutor::GetImmediateCommandList().PollOcclusionQueries();
 	FRHICommandListExecutor::GetImmediateCommandList().ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
