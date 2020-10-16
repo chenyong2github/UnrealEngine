@@ -880,11 +880,10 @@ void UDeformMeshPolygonsTool::Setup()
 	//initialize topology selector
 	TopoSelector.Initialize(DynamicMeshComponent->GetMesh(), &Topology);
 	TopoSelector.SetSpatialSource([this]() { return &GetSpatial(); });
-	TopoSelector.PointsWithinToleranceTest = [this](const FVector3d& Position1, const FVector3d& Position2) {
-		FTransform Transform = ComponentTarget->GetWorldTransform();
-		return ToolSceneQueriesUtil::PointSnapQuery(this->CameraState, Transform.TransformPosition((FVector)Position1),
-		                                            Transform.TransformPosition((FVector)Position2),
-		                                            VisualAngleSnapThreshold);
+	TopoSelector.PointsWithinToleranceTest = [this](const FVector3d& Position1, const FVector3d& Position2, double TolScale) {
+		FTransform3d Transform(ComponentTarget->GetWorldTransform());
+		return ToolSceneQueriesUtil::PointSnapQuery(CameraState, Transform.TransformPosition(Position1), Transform.TransformPosition(Position2),
+			ToolSceneQueriesUtil::GetDefaultVisualAngleSnapThreshD() * TolScale);
 	};
 
 	// hide input StaticMeshComponent
