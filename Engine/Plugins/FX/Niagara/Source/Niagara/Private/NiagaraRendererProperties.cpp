@@ -7,6 +7,8 @@
 #include "NiagaraEmitter.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Styling/SlateIconFinder.h"
+#include "NiagaraScriptSourceBase.h"
+#include "NiagaraSystem.h"
 
 void FNiagaraRendererLayout::Initialize(int32 NumVariables)
 {
@@ -320,6 +322,12 @@ void UNiagaraRendererProperties::UpdateSourceModeDerivates(ENiagaraRendererSourc
 		// to ensure new ones get bound by the simulation
 		if (bFromPropertyEdit)
 		{
+			if (SrcEmitter)
+			{
+				// We may need to refresh internal variables because this may be the first binding to it, so request a recompile as that will pull data 
+				// into the right place.
+				UNiagaraSystem::RequestCompileForEmitter(SrcEmitter);
+			}
 			FNiagaraSystemUpdateContext Context(SrcEmitter, true);
 		}
 #endif
