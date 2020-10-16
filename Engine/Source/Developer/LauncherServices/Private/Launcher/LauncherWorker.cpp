@@ -60,7 +60,7 @@ uint32 FLauncherWorker::Run( )
 	// wait for tasks to be completed
 	while (Status == ELauncherWorkerStatus::Busy)
 	{
-		FPlatformProcess::Sleep(0.0f);
+		FPlatformProcess::Sleep(0.01f);
 
 		FString NewLine = FPlatformProcess::ReadPipe(ReadPipe);
 		if (NewLine.Len() > 0)
