@@ -23,6 +23,7 @@ class UDisplayClusterMeshComponent;
 class UDisplayClusterSceneComponent;
 class UDisplayClusterScreenComponent;
 class UDisplayClusterXformComponent;
+class UDisplayClusterSyncTickComponent;
 
 // Deprecated
 class UDisplayClusterRootComponent;
@@ -173,6 +174,9 @@ private:
 
 	UPROPERTY(Transient)
 	UDisplayClusterConfigurationData* CurrentConfigData;
+
+	UPROPERTY()
+	UDisplayClusterSyncTickComponent* SyncTickComponent;
 
 
 	//////////////////////////////////////////////////////////////////////////////////////////////
