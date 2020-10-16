@@ -23,6 +23,10 @@ namespace UnrealBuildTool
 		{
 		}
 
+		public virtual void GetExternalDependencies(HashSet<FileItem> ExternalDependencies)
+		{
+		}
+
 		public abstract CPPOutput CompileCPPFiles(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, string ModuleName, IActionGraphBuilder Graph);
 
 		public virtual CPPOutput CompileRCFiles(CppCompileEnvironment Environment, List<FileItem> InputFiles, DirectoryReference OutputDir, IActionGraphBuilder Graph)
