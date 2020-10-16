@@ -658,6 +658,17 @@ EReimportResult::Type UDatasmithImportFactory::ReimportStaticMesh(UStaticMesh* M
 
 	ImportContext.SceneAsset = FDatasmithImporterUtils::FindDatasmithSceneForAsset( Mesh );
 
+	// Restore additional import options
+	UDatasmithTranslatedSceneImportData* SceneAssetImportData = ExactCast<UDatasmithTranslatedSceneImportData>(ImportContext.SceneAsset->AssetImportData);
+	if (SceneAssetImportData)
+	{
+		ImportContext.AdditionalImportOptions.Empty();
+		for (UDatasmithOptionsBase* AdditionalOption : SceneAssetImportData->AdditionalOptions)
+		{
+			ImportContext.AdditionalImportOptions.Emplace(AdditionalOption);
+		}
+	}
+
 	TSharedRef< IDatasmithScene > Scene = FDatasmithSceneFactory::CreateScene(*Source.GetSceneName());
 	bool bIsSilent = true;
 	if ( !ImportContext.Init( Scene, MeshImportData->AssetImportOptions.PackagePath.ToString(), Mesh->GetFlags(), GWarn, ImportSettingsJson, bIsSilent ) )
