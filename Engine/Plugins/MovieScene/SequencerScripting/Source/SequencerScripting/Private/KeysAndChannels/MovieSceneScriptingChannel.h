@@ -13,9 +13,9 @@
 #include "SequencerScriptingRange.h"
 #include "SequenceTimeUnit.h"
 #include "ExtensionLibraries/MovieSceneSequenceExtensions.h"
-
+#include "MovieSceneSequence.h"
+#include "MovieScene.h"
 #include "MovieSceneScriptingChannel.generated.h"
-
 UCLASS(BlueprintType)
 class UMovieSceneScriptingKey : public UObject
 {
@@ -31,6 +31,7 @@ public:
 public:
 	FKeyHandle KeyHandle;
 	TWeakObjectPtr<UMovieSceneSequence> OwningSequence;
+	TWeakObjectPtr<UMovieSceneSection> OwningSection;
 };
 
 
@@ -51,7 +52,8 @@ public:
 template<typename ChannelType, typename ScriptingKeyType, typename ScriptingKeyValueType>
 struct TMovieSceneScriptingChannel
 {
-	ScriptingKeyType* AddKeyInChannel(TMovieSceneChannelHandle<ChannelType> ChannelHandle, TWeakObjectPtr<UMovieSceneSequence> Sequence, const FFrameNumber InTime, ScriptingKeyValueType& NewValue, float SubFrame, ESequenceTimeUnit TimeUnit, EMovieSceneKeyInterpolation Interpolation)
+	ScriptingKeyType* AddKeyInChannel(TMovieSceneChannelHandle<ChannelType> ChannelHandle, TWeakObjectPtr<UMovieSceneSequence> Sequence, 
+		TWeakObjectPtr<UMovieSceneSection> Section, const FFrameNumber InTime, ScriptingKeyValueType& NewValue, float SubFrame, ESequenceTimeUnit TimeUnit, EMovieSceneKeyInterpolation Interpolation)
 	{
 		ChannelType* Channel = ChannelHandle.Get();
 		if (Channel)
@@ -68,7 +70,17 @@ struct TMovieSceneScriptingChannel
 			using namespace UE::MovieScene;
 			Key->KeyHandle = AddKeyToChannel(Channel, KeyTime, NewValue, Interpolation);
 			Key->ChannelHandle = ChannelHandle;
+			Key->OwningSection = Section;
 			Key->OwningSequence = Sequence;
+
+#if WITH_EDITOR
+			const FMovieSceneChannelMetaData* MetaData = ChannelHandle.GetMetaData();
+			if (MetaData && Section.IsValid() && Sequence.IsValid() && Sequence->GetMovieScene())
+			{
+				Section.Get()->MarkAsChanged();
+				Sequence->GetMovieScene()->OnChannelChanged().Broadcast(MetaData, Section.Get());
+			}
+#endif
 
 			return Key;
 		}
@@ -89,13 +101,21 @@ struct TMovieSceneScriptingChannel
 		{
 			TArrayView<FKeyHandle, int> KeyArray = TArrayView<FKeyHandle, int>(&Key->KeyHandle, 1);
 			Channel->DeleteKeys(KeyArray);
+#if WITH_EDITOR
+			const FMovieSceneChannelMetaData* MetaData = ChannelHandle.GetMetaData();
+			if (MetaData && Key->OwningSection.IsValid() && Key->OwningSequence.IsValid() && Key->OwningSequence->GetMovieScene())
+			{
+				Key->OwningSection.Get()->MarkAsChanged();
+				Key->OwningSequence->GetMovieScene()->OnChannelChanged().Broadcast(MetaData, Key->OwningSection.Get());
+			}
+#endif
 			return;
 		}
 
 		FFrame::KismetExecutionMessage(TEXT("Invalid ChannelHandle for MovieSceneScriptingChannel, failed to remove key."), ELogVerbosity::Error);
 	}
 
-	TArray<UMovieSceneScriptingKey*> GetKeysInChannel(TMovieSceneChannelHandle<ChannelType> ChannelHandle, TWeakObjectPtr<UMovieSceneSequence> Sequence) const
+	TArray<UMovieSceneScriptingKey*> GetKeysInChannel(TMovieSceneChannelHandle<ChannelType> ChannelHandle, TWeakObjectPtr<UMovieSceneSequence> Sequence, TWeakObjectPtr<UMovieSceneSection> Section) const
 	{
 		TArray<UMovieSceneScriptingKey*> OutScriptingKeys;
 		ChannelType* Channel = ChannelHandle.Get();
@@ -111,6 +131,7 @@ struct TMovieSceneScriptingChannel
 				Key->KeyHandle = OutKeys[i];
 				Key->ChannelHandle = ChannelHandle;
 				Key->OwningSequence = Sequence;
+				Key->OwningSection = Section;
 				OutScriptingKeys.Add(Key);
 			}
 		}
@@ -330,3 +351,4 @@ struct TMovieSceneScriptingKey
 public:
 	TMovieSceneChannelHandle<ChannelType> ChannelHandle;
 };
+

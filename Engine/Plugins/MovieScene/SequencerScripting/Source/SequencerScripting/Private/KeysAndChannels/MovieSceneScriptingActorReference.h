@@ -81,7 +81,7 @@ public:
 	UMovieSceneScriptingActorReferenceKey* AddKey(const FFrameNumber InTime, FMovieSceneObjectBindingID NewValue, float SubFrame = 0.f, ESequenceTimeUnit TimeUnit = ESequenceTimeUnit::DisplayRate)
 	{
 		FMovieSceneActorReferenceKey ReferenceKey = FMovieSceneActorReferenceKey(NewValue);
-		return AddKeyInChannel(ChannelHandle, OwningSequence, InTime, ReferenceKey, SubFrame, TimeUnit, EMovieSceneKeyInterpolation::Auto);
+		return AddKeyInChannel(ChannelHandle, OwningSequence, OwningSection, InTime, ReferenceKey, SubFrame, TimeUnit, EMovieSceneKeyInterpolation::Auto);
 	}
 
 	/**
@@ -101,7 +101,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Keys", meta = (DisplayName = "Get Keys (Actor Reference)"))
 	virtual TArray<UMovieSceneScriptingKey*> GetKeys() const override
 	{
-		return GetKeysInChannel(ChannelHandle, OwningSequence);
+		return GetKeysInChannel(ChannelHandle, OwningSequence, OwningSection);
 	}
 
 	/**
@@ -161,5 +161,6 @@ public:
 	}
 public:
 	TWeakObjectPtr<UMovieSceneSequence> OwningSequence;
+	TWeakObjectPtr<UMovieSceneSection> OwningSection;
 	TMovieSceneChannelHandle<FMovieSceneActorReferenceData> ChannelHandle;
 };

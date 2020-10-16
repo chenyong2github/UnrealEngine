@@ -153,6 +153,10 @@ struct TSequencerKeyEditor
 		{
 			SetChannelDefault(Channel, InValue);
 		}
+		 
+		const FMovieSceneChannelMetaData* MetaData = ChannelHandle.GetMetaData();
+		Sequencer->OnChannelChanged().Broadcast(MetaData, OwningSection);
+
 	}
 
 	void SetValueWithNotify(const ValueType& InValue, EMovieSceneDataChangeType NotifyType = EMovieSceneDataChangeType::TrackValueChanged)

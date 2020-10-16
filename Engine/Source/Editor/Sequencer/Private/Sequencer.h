@@ -780,8 +780,8 @@ public:
 	virtual FOnStopEvent& OnStopEvent() override { return OnStopDelegate; }
 	virtual FOnBeginScrubbingEvent& OnBeginScrubbingEvent() override { return OnBeginScrubbingDelegate; }
 	virtual FOnEndScrubbingEvent& OnEndScrubbingEvent() override { return OnEndScrubbingDelegate; }
-	virtual FOnPreRefreshImmediate& OnPreRefreshImmediate() override { return OnPreRefreshImmediateDelagate; }
 	virtual FOnMovieSceneDataChanged& OnMovieSceneDataChanged() override { return OnMovieSceneDataChangedDelegate; }
+	virtual FOnChannelChanged& OnChannelChanged() override { return OnChannelChangedDelegate; }
 	virtual FOnMovieSceneBindingsChanged& OnMovieSceneBindingsChanged() override { return OnMovieSceneBindingsChangedDelegate; }
 	virtual FOnMovieSceneBindingsPasted& OnMovieSceneBindingsPasted() override { return OnMovieSceneBindingsPastedDelegate; }
 	virtual FOnSelectionChangedObjectGuids& GetSelectionChangedObjectGuids() override { return OnSelectionChangedObjectGuidsDelegate; }
@@ -1292,8 +1292,8 @@ private:
 	/** A delegate which is called any time the movie scene data is changed. */
 	FOnMovieSceneDataChanged OnMovieSceneDataChangedDelegate;
 
-	/** A delegate which is called before we refresh the ui and evaluate immediately. */
-	FOnPreRefreshImmediate  OnPreRefreshImmediateDelagate; 
+	/** A delegate which is called when the channel is changed by Sequencer. */
+	FOnChannelChanged OnChannelChangedDelegate;
 
 	/** A delegate which is called any time the movie scene bindings are changed. */
 	FOnMovieSceneBindingsChanged OnMovieSceneBindingsChangedDelegate;

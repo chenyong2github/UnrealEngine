@@ -14,6 +14,7 @@
 
 #include "MovieSceneScriptingBool.generated.h"
 
+
 /**
 * Exposes a Sequencer bool type key to Python/Blueprints.
 * Stores a reference to the data so changes to this class are forwarded onto the underlying data structures.
@@ -77,7 +78,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Keys", meta=(DisplayName = "Add Key (Bool)"))
 	UMovieSceneScriptingBoolKey* AddKey(const FFrameNumber& InTime, bool NewValue, float SubFrame = 0.f, ESequenceTimeUnit TimeUnit = ESequenceTimeUnit::DisplayRate)
 	{
-		return AddKeyInChannel(ChannelHandle, OwningSequence, InTime, NewValue, SubFrame, TimeUnit, EMovieSceneKeyInterpolation::Auto);
+		return AddKeyInChannel(ChannelHandle, OwningSequence, OwningSection, InTime, NewValue, SubFrame, TimeUnit, EMovieSceneKeyInterpolation::Auto);
 	}
 
 	/**
@@ -97,7 +98,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Keys", meta = (DisplayName = "Get Keys (Bool)"))
 	virtual TArray<UMovieSceneScriptingKey*> GetKeys() const override
 	{
-		return GetKeysInChannel(ChannelHandle, OwningSequence);
+		return GetKeysInChannel(ChannelHandle, OwningSequence, OwningSection);
 	}
 
 	/**
@@ -171,5 +172,7 @@ public:
 	}
 public:
 	TWeakObjectPtr<UMovieSceneSequence> OwningSequence;
+	TWeakObjectPtr<UMovieSceneSection> OwningSection;
 	TMovieSceneChannelHandle<FMovieSceneBoolChannel> ChannelHandle;
 };
+

@@ -81,7 +81,7 @@ private:
 	void OnSequencerDataChanged(EMovieSceneDataChangeType DataChangeType);
 
 	/** Delegate for when track immediately changes, so we need to do an interaction edit for things like fk/ik*/
-	void OnPreRefreshImmediate();
+	void OnChannelChanged(const FMovieSceneChannelMetaData* MetaData, UMovieSceneSection* InSection);
 
 	/** Delegate for Curve Selection Changed Event */
 	void OnCurveDisplayChanged(FCurveModel* InCurveModel, bool bDisplayed);
@@ -120,7 +120,6 @@ private:
 	/** Bake To Control Rig Sub Menu*/
 	void BakeToControlRig(UClass* InClass, FGuid ObjectBinding,UObject* BoundObject, USkeletalMeshComponent* SkelMeshComp, USkeleton* Skeleton);
 
-
 private:
 
 	/** Command Bindings added by the Transform Track Editor to Sequencer and curve editor. */
@@ -155,7 +154,8 @@ private:
 	FDelegateHandle SelectionChangedHandle;
 	FDelegateHandle SequencerChangedHandle;
 	FDelegateHandle CurveChangedHandle;
-	FDelegateHandle OnPreRefreshImmediateHandle;
+	FDelegateHandle OnChannelChangedHandle;
+	FDelegateHandle OnMovieSceneChannelChangedHandle;
 	FDelegateHandle OnActorAddedToSequencerHandle;
 
 private:

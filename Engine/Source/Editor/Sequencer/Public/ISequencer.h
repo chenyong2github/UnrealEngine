@@ -32,6 +32,7 @@ class IDetailsView;
 class IKeyArea;
 enum class EMapChangeType : uint8;
 class FCurveModel;
+struct FMovieSceneChannelMetaData;
 
 /**
  * Defines auto change modes.
@@ -158,8 +159,8 @@ public:
 	DECLARE_MULTICAST_DELEGATE(FOnStopEvent);
 	DECLARE_MULTICAST_DELEGATE(FOnBeginScrubbingEvent);
 	DECLARE_MULTICAST_DELEGATE(FOnEndScrubbingEvent);
-	DECLARE_MULTICAST_DELEGATE(FOnPreRefreshImmediate);
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnMovieSceneDataChanged, EMovieSceneDataChangeType);
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnChannelChanged, const FMovieSceneChannelMetaData* MetaData, UMovieSceneSection*)
 	DECLARE_MULTICAST_DELEGATE(FOnMovieSceneBindingsChanged);
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnMovieSceneBindingsPasted, const TArray<FMovieSceneBinding>&);
 	
@@ -558,11 +559,11 @@ public:
 	/** Gets a multicast delegate which is executed whenever the user stops scrubbing. */
 	virtual FOnEndScrubbingEvent& OnEndScrubbingEvent() = 0;
 
-	/** Gets a multicast delegate which is executed before we refresh and evaluate immediately */
-	virtual FOnPreRefreshImmediate& OnPreRefreshImmediate() = 0;
-
 	/** Gets a multicast delegate which is executed whenever the movie scene data is changed. */
 	virtual FOnMovieSceneDataChanged& OnMovieSceneDataChanged() = 0;
+
+	/** Gets a multicast delegate which is executed whenever a channel is changed by Sequencer. */
+	virtual FOnChannelChanged& OnChannelChanged() = 0;
 
 	/** Gets a multicast delegate which is executed whenever the movie scene bindings are changed. */
 	virtual FOnMovieSceneBindingsChanged& OnMovieSceneBindingsChanged() = 0;

@@ -749,14 +749,14 @@ struct TControlRigParameterActuatorFloat : TMovieSceneBlendingActuator<FControlR
 			bWasDoNotKey = Section->GetDoNotKey();
 			Section->SetDoNotKey(true);
 
-			if (Section->ControlRig)
+			if (Section->ControlRig && (Section->ControlsToSet.Num() == 0 || Section->ControlsToSet.Contains(ParameterName)))
 			{
 				FRigControl* RigControl = Section->ControlRig->FindControl(ParameterName);
 				if (RigControl && RigControl->ControlType == ERigControlType::Float)
 				{
-						Section->ControlRig->SetControlValue<float>(ParameterName, InFinalValue.Value, true, EControlRigSetKey::Never);
+					Section->ControlRig->SetControlValue<float>(ParameterName, InFinalValue.Value, true, EControlRigSetKey::Never);
 				}
-		}
+			}
 
 			Section->SetDoNotKey(bWasDoNotKey);
 		}
@@ -812,14 +812,14 @@ struct TControlRigParameterActuatorVector2D : TMovieSceneBlendingActuator<FContr
 			bWasDoNotKey = Section->GetDoNotKey();
 			Section->SetDoNotKey(true);
 
-			if (Section->ControlRig)
-		{
-				FRigControl* RigControl = Section->ControlRig->FindControl(ParameterName);
-			if (RigControl && (RigControl->ControlType == ERigControlType::Vector2D))
+			if (Section->ControlRig && (Section->ControlsToSet.Num() == 0 || Section->ControlsToSet.Contains(ParameterName)))
 			{
+				FRigControl* RigControl = Section->ControlRig->FindControl(ParameterName);
+				if (RigControl && (RigControl->ControlType == ERigControlType::Vector2D))
+				{
 					Section->ControlRig->SetControlValue<FVector2D>(ParameterName, InFinalValue.Value, true, EControlRigSetKey::Never);
+				}
 			}
-		}
 
 			Section->SetDoNotKey(bWasDoNotKey);
 		}
@@ -873,7 +873,7 @@ struct TControlRigParameterActuatorVector : TMovieSceneBlendingActuator<FControl
 		{
 			bWasDoNotKey = Section->GetDoNotKey();
 			Section->SetDoNotKey(true);
-			if (Section->ControlRig)
+			if (Section->ControlRig && (Section->ControlsToSet.Num() == 0 || Section->ControlsToSet.Contains(ParameterName)))
 			{
 				FRigControl* RigControl = Section->ControlRig->FindControl(ParameterName);
 				if (RigControl && (RigControl->ControlType == ERigControlType::Position || RigControl->ControlType == ERigControlType::Scale || RigControl->ControlType == ERigControlType::Rotator))
@@ -913,8 +913,7 @@ struct TControlRigParameterActuatorTransform : TMovieSceneBlendingActuator<FCont
 	{
 		const UMovieSceneControlRigParameterSection* Section = SectionData.Get();
 
-		if (Section->ControlRig)
-
+		if (Section->ControlRig && (Section->ControlsToSet.Num() == 0 || Section->ControlsToSet.Contains(ParameterName)))
 		{
 			FRigControl* RigControl = Section->ControlRig->FindControl(ParameterName);
 			if (RigControl && RigControl->ControlType == ERigControlType::Transform)
@@ -956,24 +955,24 @@ struct TControlRigParameterActuatorTransform : TMovieSceneBlendingActuator<FCont
 			bWasDoNotKey = Section->GetDoNotKey();
 			Section->SetDoNotKey(true);
 		
-			if (Section->ControlRig)
-		{
+			if (Section->ControlRig && (Section->ControlsToSet.Num() == 0 || Section->ControlsToSet.Contains(ParameterName)))
+			{
 				FRigControl* RigControl = Section->ControlRig->FindControl(ParameterName);
-			if (RigControl && RigControl->ControlType == ERigControlType::Transform)
-			{
-					Section->ControlRig->SetControlValue<FTransform>(ParameterName, InFinalValue.Value,true, EControlRigSetKey::Never);
-			}
-			else if (RigControl && RigControl->ControlType == ERigControlType::TransformNoScale)
-			{
-				FTransformNoScale NoScale = InFinalValue.Value;
-					Section->ControlRig->SetControlValue<FTransformNoScale>(ParameterName, NoScale, true, EControlRigSetKey::Never);
-			}
+				if (RigControl && RigControl->ControlType == ERigControlType::Transform)
+				{
+						Section->ControlRig->SetControlValue<FTransform>(ParameterName, InFinalValue.Value,true, EControlRigSetKey::Never);
+				}
+				else if (RigControl && RigControl->ControlType == ERigControlType::TransformNoScale)
+				{
+					FTransformNoScale NoScale = InFinalValue.Value;
+						Section->ControlRig->SetControlValue<FTransformNoScale>(ParameterName, NoScale, true, EControlRigSetKey::Never);
+				}
 				else if (RigControl && RigControl->ControlType == ERigControlType::EulerTransform)
 				{
 					FEulerTransform Euler = InFinalValue.Value;
 					Section->ControlRig->SetControlValue<FEulerTransform>(ParameterName, Euler, true, EControlRigSetKey::Never);
 				}
-		}
+			}
 
 			Section->SetDoNotKey(bWasDoNotKey);
 		}
@@ -1037,24 +1036,31 @@ void FMovieSceneControlRigParameterTemplate::Evaluate(const FMovieSceneEvaluatio
 
 			for (const FBoolParameterStringAndValue& BoolNameAndValue : Values.BoolValues)
 			{
-				FRigControl* RigControl = Section->ControlRig->FindControl(BoolNameAndValue.ParameterName);
-				if (RigControl && RigControl->ControlType == ERigControlType::Bool)
+				if (Section->ControlsToSet.Num() == 0 || Section->ControlsToSet.Contains(BoolNameAndValue.ParameterName))
 				{
-					Section->ControlRig->SetControlValue<bool>(BoolNameAndValue.ParameterName, BoolNameAndValue.Value, true, EControlRigSetKey::Never);
+					FRigControl* RigControl = Section->ControlRig->FindControl(BoolNameAndValue.ParameterName);
+					if (RigControl && RigControl->ControlType == ERigControlType::Bool)
+					{
+						Section->ControlRig->SetControlValue<bool>(BoolNameAndValue.ParameterName, BoolNameAndValue.Value, true, EControlRigSetKey::Never);
+					}
 				}
 			}
 
 			for (const FIntegerParameterStringAndValue& IntegerNameAndValue : Values.IntegerValues)
 			{
-				FRigControl* RigControl = Section->ControlRig->FindControl(IntegerNameAndValue.ParameterName);
-				if (RigControl && RigControl->ControlType == ERigControlType::Integer)
+				if (Section->ControlsToSet.Num() == 0 || Section->ControlsToSet.Contains(IntegerNameAndValue.ParameterName))
 				{
-					Section->ControlRig->SetControlValue<int32>(IntegerNameAndValue.ParameterName, IntegerNameAndValue.Value, true, EControlRigSetKey::Never);
+					FRigControl* RigControl = Section->ControlRig->FindControl(IntegerNameAndValue.ParameterName);
+					if (RigControl && RigControl->ControlType == ERigControlType::Integer)
+					{
+						Section->ControlRig->SetControlValue<int32>(IntegerNameAndValue.ParameterName, IntegerNameAndValue.Value, true, EControlRigSetKey::Never);
+					}
 				}
 			}
 		}
 		Section->SetDoNotKey(bWasDoNotKey);
-		
+	
+
 		uint32 OperandHash = GetTypeHash(Operand);
 		FString UniqueActuator(FString::FromInt((int32)OperandHash));
 		uint32 TrackId = Track->GetUniqueID();
