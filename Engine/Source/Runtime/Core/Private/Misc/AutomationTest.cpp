@@ -100,7 +100,9 @@ void FAutomationTestFramework::FAutomationTestOutputDevice::Serialize( const TCH
 
 void FAutomationTestFramework::FAutomationTestMessageFilter::Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const class FName& Category)
 {
-	if (DestinationContext)
+	// Prevent null dereference if logging happens in async tasks while changing DestinationContext
+	FFeedbackContext* const LocalDestinationContext = DestinationContext.load(std::memory_order_relaxed);
+	if (LocalDestinationContext)
 	{
 		if ((Verbosity == ELogVerbosity::Warning) || (Verbosity == ELogVerbosity::Error))
 		{
@@ -109,8 +111,7 @@ void FAutomationTestFramework::FAutomationTestMessageFilter::Serialize(const TCH
 				Verbosity = ELogVerbosity::Verbose;
 			}
 		}
-
-		DestinationContext->Serialize(V, Verbosity, Category);
+		LocalDestinationContext->Serialize(V, Verbosity, Category);
 	}
 }
 

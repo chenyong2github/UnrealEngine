@@ -28,7 +28,7 @@
 #include "HAL/PlatformProcess.h"
 #include "Misc/AutomationEvent.h"
 #include "Internationalization/Regex.h"
-
+#include <atomic>
 
 #ifndef WITH_AUTOMATION_TESTS
 	#define WITH_AUTOMATION_TESTS (WITH_DEV_AUTOMATION_TESTS || WITH_PERF_AUTOMATION_TESTS)
@@ -922,10 +922,12 @@ private:
 	 {
 	 public:
 		 FAutomationTestMessageFilter()
-			 : CurTest(nullptr) {}
+			: CurTest(nullptr)
+			, DestinationContext(nullptr) {}
 
 		 ~FAutomationTestMessageFilter()
 		 {
+			 DestinationContext = nullptr;
 			 CurTest = nullptr;
 		 }
 
@@ -962,7 +964,7 @@ private:
 
 	 private:
 		 class FAutomationTestBase* CurTest;
-		 FFeedbackContext* DestinationContext = nullptr;
+		 std::atomic<FFeedbackContext*> DestinationContext;
 	 };
 
 	//** Store information about blacklisted test */
