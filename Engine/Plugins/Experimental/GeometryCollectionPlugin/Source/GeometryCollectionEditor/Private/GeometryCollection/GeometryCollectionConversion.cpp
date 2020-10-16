@@ -188,7 +188,7 @@ void FGeometryCollectionConversion::AppendStaticMesh(const UStaticMesh * StaticM
 
 		// for each material, add a reference in our GeometryCollectionObject
 		const int32 MaterialStart = GeometryCollectionObject->Materials.Num();
-		const int32 NumMeshMaterials = StaticMesh->StaticMaterials.Num();
+		const int32 NumMeshMaterials = StaticMesh->GetStaticMaterials().Num();
 		GeometryCollectionObject->Materials.Reserve(MaterialStart + NumMeshMaterials);
 		
 		for(int32 Index = 0; Index < NumMeshMaterials; ++Index)

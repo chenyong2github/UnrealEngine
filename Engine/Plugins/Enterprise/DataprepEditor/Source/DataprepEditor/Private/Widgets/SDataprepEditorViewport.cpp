@@ -1645,7 +1645,7 @@ namespace DataprepEditor3DPreviewUtils
 					SourceModels[SourceModelIndex].BuildSettings = PrevBuildSettings[SourceModelIndex];
 				}
 
-				for ( FStaticMeshLODResources& LODResources : StaticMesh->RenderData->LODResources )
+				for ( FStaticMeshLODResources& LODResources : StaticMesh->GetRenderData()->LODResources )
 				{
 					LODResources.bHasColorVertexData = true;
 				}

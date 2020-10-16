@@ -426,7 +426,7 @@ TSet<UObject*> FDataprepEditorUtils::GetReferencedAssets(const TSet<AActor*>& In
 			{
 				ActorMeshes.Add(Mesh);
 
-				for (FStaticMaterial& StaticMaterial : Mesh->StaticMaterials)
+				for (FStaticMaterial& StaticMaterial : Mesh->GetStaticMaterials())
 				{
 					if (StaticMaterial.MaterialInterface)
 					{
@@ -528,7 +528,7 @@ TSet<TWeakObjectPtr<UObject>> FDataprepEditorUtils::GetActorsReferencingAssets(U
 			{
 				ActorMeshes.Add(Mesh);
 
-				for (FStaticMaterial& StaticMaterial : Mesh->StaticMaterials)
+				for (FStaticMaterial& StaticMaterial : Mesh->GetStaticMaterials())
 				{
 					ActorMaterials.Add(StaticMaterial.MaterialInterface);
 				}
