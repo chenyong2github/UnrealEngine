@@ -61,15 +61,15 @@ public:
 	UPROPERTY(meta = (TransientToolProperty))
 	bool bIsDuplicateMode = false;
 
-	UPROPERTY(EditAnywhere, Category = CombineMode, meta = (EditCondition = "bIsDuplicateMode == false", EditConditionHides, HideEditConditionToggle))
-	ECombineTargetType CombineTo = ECombineTargetType::NewAsset;
+	UPROPERTY(EditAnywhere, Category = AssetOptions, meta = (EditCondition = "bIsDuplicateMode == false", EditConditionHides, HideEditConditionToggle))
+	ECombineTargetType WriteOutputTo = ECombineTargetType::NewAsset;
 
 	/** Base name for newly-generated asset */
-	UPROPERTY(EditAnywhere, Category = NewAsset, meta = (TransientToolProperty, EditCondition = "bIsDuplicateMode || CombineTo == ECombineTargetType::NewAsset", EditConditionHides))
+	UPROPERTY(EditAnywhere, Category = AssetOptions, meta = (TransientToolProperty, EditCondition = "bIsDuplicateMode || WriteOutputTo == ECombineTargetType::NewAsset", EditConditionHides))
 	FString OutputName;
 
 	/** Name of asset that will be updated */
-	UPROPERTY(VisibleAnywhere, Category = UpdateAsset, meta = (TransientToolProperty, EditCondition = "bIsDuplicateMode == false && CombineTo != ECombineTargetType::NewAsset", EditConditionHides))
+	UPROPERTY(VisibleAnywhere, Category = AssetOptions, meta = (TransientToolProperty, EditCondition = "bIsDuplicateMode == false && WriteOutputTo != ECombineTargetType::NewAsset", EditConditionHides))
 	FString OutputAsset;
 };
 
