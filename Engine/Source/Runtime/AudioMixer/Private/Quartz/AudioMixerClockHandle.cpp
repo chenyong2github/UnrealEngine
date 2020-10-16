@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Quartz\AudioMixerClockHandle.h"
+#include "Quartz/AudioMixerClockHandle.h"
 #include "Sound/QuartzQuantizationUtilities.h"
 
 #include "AudioDevice.h"
 #include "AudioMixerDevice.h"
-#include "Engine\GameInstance.h"
+#include "Engine/GameInstance.h"
 
 // TODO: Don't access clock manager directly, go through the subsystem
 
