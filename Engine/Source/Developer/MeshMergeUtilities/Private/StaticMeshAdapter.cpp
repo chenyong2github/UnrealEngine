@@ -53,12 +53,12 @@ FString FStaticMeshAdapter::GetBaseName() const
 
 FName FStaticMeshAdapter::GetMaterialSlotName(int32 MaterialIndex) const
 {
-	return StaticMesh->StaticMaterials[MaterialIndex].MaterialSlotName;
+	return StaticMesh->GetStaticMaterials()[MaterialIndex].MaterialSlotName;
 }
 
 FName FStaticMeshAdapter::GetImportedMaterialSlotName(int32 MaterialIndex) const
 {
-	return StaticMesh->StaticMaterials[MaterialIndex].ImportedMaterialSlotName;
+	return StaticMesh->GetStaticMaterials()[MaterialIndex].ImportedMaterialSlotName;
 }
 
 void FStaticMeshAdapter::SetMaterial(int32 MaterialIndex, UMaterialInterface* Material)

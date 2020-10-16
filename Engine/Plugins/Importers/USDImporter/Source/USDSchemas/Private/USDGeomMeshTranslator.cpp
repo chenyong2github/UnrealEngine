@@ -84,7 +84,7 @@ namespace UsdGeomMeshTranslatorImpl
 		bool bMaterialAssignementsHaveChanged = false;
 
 		TArray<UMaterialInterface*> ExistingAssignments;
-		for ( const FStaticMaterial& StaticMaterial : StaticMesh.StaticMaterials )
+		for ( const FStaticMaterial& StaticMaterial : StaticMesh.GetStaticMaterials() )
 		{
 			ExistingAssignments.Add(StaticMaterial.MaterialInterface);
 		}
@@ -113,14 +113,14 @@ namespace UsdGeomMeshTranslatorImpl
 
 				// Create and set the static material
 				FStaticMaterial StaticMaterial( Material, *LexToString( StaticMeshSlotIndex ) );
-				if ( !StaticMesh.StaticMaterials.IsValidIndex( StaticMeshSlotIndex ) )
+				if ( !StaticMesh.GetStaticMaterials().IsValidIndex( StaticMeshSlotIndex ) )
 				{
-					StaticMesh.StaticMaterials.Add( MoveTemp( StaticMaterial ) );
+					StaticMesh.GetStaticMaterials().Add( MoveTemp( StaticMaterial ) );
 					bMaterialAssignementsHaveChanged = true;
 				}
-				else if ( !( StaticMesh.StaticMaterials[ StaticMeshSlotIndex ] == StaticMaterial ) )
+				else if ( !( StaticMesh.GetStaticMaterials()[ StaticMeshSlotIndex ] == StaticMaterial ) )
 				{
-					StaticMesh.StaticMaterials[ StaticMeshSlotIndex ] = MoveTemp( StaticMaterial );
+					StaticMesh.GetStaticMaterials()[ StaticMeshSlotIndex ] = MoveTemp( StaticMaterial );
 					bMaterialAssignementsHaveChanged = true;
 				}
 
@@ -857,7 +857,7 @@ void FBuildStaticMeshTaskChain::SetupTasks()
 					}
 				}
 
-				for ( FStaticMaterial& StaticMaterial : StaticMesh->StaticMaterials )
+				for ( FStaticMaterial& StaticMaterial : StaticMesh->GetStaticMaterials())
 				{
 					Context->CurrentlyUsedAssets.Add( StaticMaterial.MaterialInterface );
 				}
@@ -1111,7 +1111,7 @@ USceneComponent* FUsdGeomMeshTranslator::CreateComponents()
 				if ( UsdImportData->PrimPath != PrimPath.GetString() )
 				{
 					TArray<UMaterialInterface*> ExistingAssignments;
-					for ( FStaticMaterial& StaticMaterial : StaticMesh->StaticMaterials )
+					for ( FStaticMaterial& StaticMaterial : StaticMesh->GetStaticMaterials())
 					{
 						ExistingAssignments.Add( StaticMaterial.MaterialInterface );
 					}

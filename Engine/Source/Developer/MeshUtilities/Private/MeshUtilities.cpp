@@ -3051,7 +3051,7 @@ void FixupMaterialSlotNames_Implementation(TArray<MaterialSlotType>& MaterialSlo
 
 void FMeshUtilities::FixupMaterialSlotNames(UStaticMesh* StaticMesh) const
 {
-	FixupMaterialSlotNames_Implementation(StaticMesh->StaticMaterials);
+	FixupMaterialSlotNames_Implementation(StaticMesh->GetStaticMaterials());
 }
 
 void FMeshUtilities::FixupMaterialSlotNames(USkeletalMesh* SkeletalMesh) const
