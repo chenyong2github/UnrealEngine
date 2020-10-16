@@ -25,12 +25,14 @@ public:
 	//~ Begin IWaterBrushActorInterface interface
 	virtual bool AffectsLandscape() const override { return true; }
 	virtual bool AffectsWaterMesh() const override { return false; }
+	virtual bool CanAffectWaterMesh() const override { return false; }
 
 #if WITH_EDITOR
 	virtual const FWaterCurveSettings& GetWaterCurveSettings() const { return WaterCurveSettings; }
 	virtual const FWaterBodyHeightmapSettings& GetWaterHeightmapSettings() const override { return WaterHeightmapSettings; }
 	virtual const TMap<FName, FWaterBodyWeightmapSettings>& GetLayerWeightmapSettings() const override { return WaterWeightmapSettings; }
 	virtual ETextureRenderTargetFormat GetBrushRenderTargetFormat() const override;
+	virtual void GetBrushRenderDependencies(TSet<UObject*>& OutDependencies) const override;
 #endif //WITH_EDITOR
 	//~ End IWaterBrushActorInterface interface
 
@@ -45,8 +47,6 @@ public:
 #endif // WITH_EDITOR
 
 #if WITH_EDITORONLY_DATA
-	void GetBrushRenderDependencies(TSet<UTexture2D*>& OutTextures);
-
 	UPROPERTY(Category = Terrain, EditAnywhere, BlueprintReadWrite)
 	FWaterCurveSettings WaterCurveSettings;
 

@@ -25,8 +25,6 @@ public:
 
 	virtual void ShutdownModule() override;
 
-	static void ForceUpdateWater(const TArray<FString>& Args);
-
 	static EAssetTypeCategories::Type GetAssetCategory() { return WaterAssetCategory; }
 
 private:

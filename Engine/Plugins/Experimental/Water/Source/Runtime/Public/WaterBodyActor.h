@@ -248,12 +248,14 @@ public:
 	//~ Begin IWaterBrushActorInterface interface
 	virtual bool AffectsLandscape() const override;
 	virtual bool AffectsWaterMesh() const override;
+	virtual bool CanAffectWaterMesh() const override { return false; }
 
 #if WITH_EDITOR
 	virtual const FWaterCurveSettings& GetWaterCurveSettings() const { return CurveSettings; }
 	virtual const FWaterBodyHeightmapSettings& GetWaterHeightmapSettings() const override { return WaterHeightmapSettings; }
 	virtual const TMap<FName, FWaterBodyWeightmapSettings>& GetLayerWeightmapSettings() const override { return LayerWeightmapSettings; }
 	virtual ETextureRenderTargetFormat GetBrushRenderTargetFormat() const override;
+	virtual void GetBrushRenderDependencies(TSet<UObject*>& OutDependencies) const override;
 #endif //WITH_EDITOR
 	//~ End IWaterBrushActorInterface interface
 
@@ -394,10 +396,6 @@ public:
 	virtual void PreInitializeComponents() override;
 	virtual void BeginPlay() override;
 	virtual void PostDuplicate(bool bDuplicateForPie) override;
-
-#if WITH_EDITORONLY_DATA
-	void GetBrushRenderDependencies(TSet<UTexture2D*>& OutTextures);
-#endif
 
 	// INavRelevantInterface start
 	virtual void GetNavigationData(struct FNavigationRelevantData& Data) const override;

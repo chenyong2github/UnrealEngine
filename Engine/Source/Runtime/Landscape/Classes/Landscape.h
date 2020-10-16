@@ -12,6 +12,10 @@
 
 class ULandscapeComponent;
 class ILandscapeEdModeInterface;
+class SNotificationItem;
+class UStreamableRenderAsset;
+class FMaterialResource;
+struct FNotificationInfo;
 
 namespace ELandscapeToolTargetType
 {
@@ -350,8 +354,8 @@ private:
 	using FDirtyDelegate = TFunctionRef<void(UTexture2D*, FColor*, FColor*)>;
 	bool ResolveLayersTexture(class FLandscapeLayersTexture2DCPUReadBackResource* InCPUReadBackTexture, UTexture2D* InOutputTexture, FDirtyDelegate DirtyDelegate);
 		
-	bool AreLayersTextureResourcesReady(bool bInWaitForStreaming) const;
-	bool PrepareLayersBrushTextureResources(bool bInWaitForStreaming, bool bHeightmap) const;
+	bool AreLayersResourcesReady(bool bInWaitForStreaming) const;
+	bool PrepareLayersBrushResources(bool bInWaitForStreaming, bool bHeightmap) const;
 	bool PrepareLayersHeightmapTextureResources(bool bInWaitForStreaming) const;
 	bool PrepareLayersWeightmapTextureResources(bool bInWaitForStreaming) const;
 
@@ -408,6 +412,11 @@ private:
 
 	void UpdateWeightDirtyData(ULandscapeComponent* InLandscapeComponent, UTexture2D* Heightmap, FColor* InOldData, const FColor* InNewData, uint8 Channel);
 	void UpdateHeightDirtyData(ULandscapeComponent* InLandscapeComponent, UTexture2D* Heightmap, FColor* InOldData, const FColor* InNewData);
+
+	bool IsStreamableAssetFullyStreamedIn(UStreamableRenderAsset* InStreamableAsset, bool bInWaitForStreaming) const;
+	bool IsMaterialResourceCompiled(FMaterialResource* InMaterialResource, bool bInWaitForCompilation) const;
+	static void ShowEditLayersResourcesNotification(const FText& InText, TWeakPtr<SNotificationItem>& NotificationItem);
+	static void HideEditLayersResourcesNotification(TWeakPtr<SNotificationItem>& InNotificationItem);
 #endif
 
 public:
@@ -479,6 +488,12 @@ private:
 		
 	UPROPERTY(Transient)
 	bool bSplineLayerUpdateRequested;
+
+	/** Time since waiting for edit layers resources to be ready (for displaying a notification to the user) */
+	double WaitingForResourcesStartTime = -1.0;
+
+	/** User notification for when edit layer resources are not ready */
+	TWeakPtr<SNotificationItem> EditLayersResourcesNotification;
 
 	// Represent all the resolved paint layer, from all layers blended together (size of the landscape x material layer count)
 	class FLandscapeTexture2DArrayResource* CombinedLayersWeightmapAllMaterialLayersResource;
