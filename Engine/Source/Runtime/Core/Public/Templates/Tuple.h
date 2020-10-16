@@ -12,6 +12,7 @@
 #include "Serialization/MemoryLayout.h"
 #include "Templates/TypeHash.h"
 #include "Templates/IsConstructible.h"
+#include <tuple>
 
 // This workaround exists because Visual Studio causes false positives for code like this during static analysis:
 //
@@ -35,6 +36,12 @@
 	#define UE_TUPLE_STATIC_ANALYSIS_WORKAROUND 1
 #else
 	#define UE_TUPLE_STATIC_ANALYSIS_WORKAROUND 0
+#endif
+
+#if defined(__cpp_structured_bindings)
+	#define UE_TUPLE_STRUCTURED_BINDING_SUPPORT 1
+#else
+	#define UE_TUPLE_STRUCTURED_BINDING_SUPPORT 0
 #endif
 
 class FArchive;
@@ -688,6 +695,18 @@ public:
 		UE4Tuple_Private::Assign(*this, MoveTemp(Other), TMakeIntegerSequence<uint32, sizeof...(OtherTypes)>{});
 		return *this;
 	}
+
+#if UE_TUPLE_STRUCTURED_BINDING_SUPPORT
+	// TTuple support for structured binding - not intended to be called directly
+	template <int N> friend decltype(auto) get(               TTuple&  val) { return static_cast<               TTuple& >(val).template Get<N>(); }
+	template <int N> friend decltype(auto) get(const          TTuple&  val) { return static_cast<const          TTuple& >(val).template Get<N>(); }
+	template <int N> friend decltype(auto) get(      volatile TTuple&  val) { return static_cast<      volatile TTuple& >(val).template Get<N>(); }
+	template <int N> friend decltype(auto) get(const volatile TTuple&  val) { return static_cast<const volatile TTuple& >(val).template Get<N>(); }
+	template <int N> friend decltype(auto) get(               TTuple&& val) { return static_cast<               TTuple&&>(val).template Get<N>(); }
+	template <int N> friend decltype(auto) get(const          TTuple&& val) { return static_cast<const          TTuple&&>(val).template Get<N>(); }
+	template <int N> friend decltype(auto) get(      volatile TTuple&& val) { return static_cast<      volatile TTuple&&>(val).template Get<N>(); }
+	template <int N> friend decltype(auto) get(const volatile TTuple&& val) { return static_cast<const volatile TTuple&&>(val).template Get<N>(); }
+#endif
 };
 
 template <typename... Types>
@@ -866,3 +885,18 @@ FORCEINLINE TTuple<Types&...> Tie(Types&... Args)
 {
 	return TTuple<Types&...>(Args...);
 }
+
+#if UE_TUPLE_STRUCTURED_BINDING_SUPPORT
+// TTuple support for structured bindings
+template <typename... ArgTypes>
+class std::tuple_size<TTuple<ArgTypes...>>
+	: public std::integral_constant<std::size_t, sizeof...(ArgTypes)>
+{
+};
+template <std::size_t N, typename... ArgTypes>
+class std::tuple_element<N, TTuple<ArgTypes...>>
+{
+public:
+	using type = typename TTupleElement<N, TTuple<ArgTypes...>>::Type;
+};
+#endif
