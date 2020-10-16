@@ -1926,7 +1926,7 @@ void UNetDriver::InternalProcessRemoteFunctionPrivate(
 	}
 
 	// If saturated and function is unimportant, skip it. Note unreliable multicasts are queued at the actor channel level so they are not gated here.
-	if (!(Function->FunctionFlags & FUNC_NetReliable) && (!(Function->FunctionFlags & FUNC_NetMulticast)) && !Connection->IsNetReady(0))
+	if (!(Function->FunctionFlags & FUNC_NetReliable) && (!(Function->FunctionFlags & FUNC_NetMulticast)) && (!Connection->IsNetReady(0)))
 	{
 		DEBUG_REMOTEFUNCTION(TEXT("Network saturated, not calling %s::%s"), *GetNameSafe(Actor), *GetNameSafe(Function));
 		return;
@@ -4339,7 +4339,7 @@ int32 UNetDriver::ServerReplicateActors_ProcessPrioritizedActors( UNetConnection
 	int32 ActorUpdatesThisConnectionSent	= 0;
 	int32 FinalRelevantCount				= 0;
 
-	if ( !Connection->IsNetReady( 0 ) )
+	if (!Connection->IsNetReady( 0 ))
 	{
 		GNumSaturatedConnections++;
 		// Connection saturated, don't process any actors
@@ -4503,7 +4503,7 @@ int32 UNetDriver::ServerReplicateActors_ProcessPrioritizedActors( UNetConnection
 						Actor->ForceNetUpdate();
 					}
 					// second check for channel saturation
-					if ( !Connection->IsNetReady( 0 ) )
+					if (!Connection->IsNetReady( 0 ))
 					{
 						// We can bail out now since this connection is saturated, we'll return how far we got though
 						GNumSaturatedConnections++;
