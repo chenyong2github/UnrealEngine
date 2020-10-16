@@ -528,7 +528,7 @@ namespace UE
 			 * @param ElementAttributeKey - is the storage key (the path) of the attribute.
 			 *
 			 */
-			EAttributeTypes GetAttributeType(const FAttributeKey& ElementAttributeKey);
+			EAttributeTypes GetAttributeType(const FAttributeKey& ElementAttributeKey) const;
 
 			/**
 			 * Return true if the attribute key point on an existing attribute in the storage. Return false otherwise
@@ -581,6 +581,17 @@ namespace UE
 			 *
 			 */
 			static void CompareStorage(const FAttributeStorage& BaseStorage, const FAttributeStorage& VersionStorage, TArray<FAttributeKey>& RemovedAttributes, TArray<FAttributeKey>& AddedAttributes, TArray<FAttributeKey>& ModifiedAttributes);
+
+			/**
+			 * Copy an array of attributes from the source storage to the destination storage. If the attribute already exist in the destination, the value will be updated.
+			 * If a key do not exist in the source it will not be copy/created in the destination
+			 *
+			 * @param SourceStorage - The storage source
+			 * @param DestinationStorage - The storage destination
+			 * @param AttributeKeys - All attributes that must be copy from the source to the destination.
+			 *
+			 */
+			static void CopyStorageAttributes(const FAttributeStorage& SourceStorage, FAttributeStorage& DestinationStorage, const TArray<FAttributeKey>& AttributeKeys);
 
 			/**
 			 * Return the defrag ratio. This ratio is use to know when we need to defrag the storage

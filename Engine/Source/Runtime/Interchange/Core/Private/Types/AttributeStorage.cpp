@@ -113,7 +113,7 @@ namespace UE
 			return EAttributeStorageResult::Operation_Success;
 		}
 
-		EAttributeTypes FAttributeStorage::GetAttributeType(const FAttributeKey& ElementAttributeKey)
+		EAttributeTypes FAttributeStorage::GetAttributeType(const FAttributeKey& ElementAttributeKey) const
 		{
 			//Lock the storage
 			FScopeLock ScopeLock(&StorageMutex);
@@ -222,6 +222,65 @@ namespace UE
 				{
 					//Add the attribute to RemovedAttributes
 					AddedAttributes.Add(KeyVersion);
+				}
+			}
+		}
+
+		void FAttributeStorage::CopyStorageAttributes(const FAttributeStorage& SourceStorage, FAttributeStorage& DestinationStorage, const TArray<FAttributeKey>& AttributeKeys)
+		{
+			//Lock both storages
+			FScopeLock SourceScopeLock(&SourceStorage.StorageMutex);
+			FScopeLock DestinationScopeLock(&DestinationStorage.StorageMutex);
+
+			for (const FAttributeKey& AttributeKey : AttributeKeys)
+			{
+				if (const FAttributeAllocationInfo* SourceAttributeInfo = SourceStorage.AttributeAllocationTable.Find(AttributeKey))
+				{
+					FAttributeAllocationInfo* DestinationAttributeInfo = DestinationStorage.AttributeAllocationTable.Find(AttributeKey);
+					
+					if (!SourceStorage.AttributeStorage.IsValidIndex(SourceAttributeInfo->Offset))
+					{
+						//EAttributeStorageResult::Operation_Error_AttributeAllocationCorrupted;
+						continue;
+					}
+
+ 					const EAttributeTypes SourceValueType = SourceAttributeInfo->Type;
+ 					const uint64 SourceValueSize = SourceAttributeInfo->Size;
+					if (DestinationAttributeInfo)
+					{
+						if (DestinationAttributeInfo->Type != SourceValueType)
+						{
+							//EAttributeStorageResult::Operation_Error_WrongType;
+							continue;
+						}
+						if (DestinationAttributeInfo->Size != SourceValueSize)
+						{
+							//EAttributeStorageResult::Operation_Error_WrongSize;
+							continue;
+						}
+						if (!DestinationStorage.AttributeStorage.IsValidIndex(DestinationAttributeInfo->Offset))
+						{
+							//EAttributeStorageResult::Operation_Error_AttributeAllocationCorrupted;
+							continue;
+						}
+					}
+					else
+					{
+						DestinationAttributeInfo = &DestinationStorage.AttributeAllocationTable.Add(AttributeKey);
+						DestinationAttributeInfo->Type = SourceValueType;
+						DestinationAttributeInfo->Size = SourceValueSize;
+						DestinationAttributeInfo->Offset = DestinationStorage.AttributeStorage.AddZeroed(SourceValueSize);
+					}
+
+					//Force the specified attribute property
+					DestinationAttributeInfo->Property = SourceAttributeInfo->Property;
+					//Save the hash no need to compute it
+					DestinationAttributeInfo->Hash = SourceAttributeInfo->Hash;
+
+					//Memcpy source to destination storage
+					const uint8* SourceStorageData = SourceStorage.AttributeStorage.GetData();
+					uint8* DestinationStorageData = DestinationStorage.AttributeStorage.GetData();
+					FMemory::Memcpy(&DestinationStorageData[DestinationAttributeInfo->Offset], &SourceStorageData[SourceAttributeInfo->Offset], SourceValueSize);
 				}
 			}
 		}

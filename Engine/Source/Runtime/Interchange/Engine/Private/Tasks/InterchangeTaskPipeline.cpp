@@ -19,8 +19,16 @@ void UE::Interchange::FTaskPipeline::DoTask(ENamedThreads::Type CurrentThread, c
 	{
 		for (int32 GraphIndex = 0; GraphIndex < AsyncHelper->BaseNodeContainers.Num(); ++GraphIndex)
 		{
-			check(AsyncHelper->BaseNodeContainers[GraphIndex].IsValid());
-			Pipeline->ScriptedExecuteImportPipeline(AsyncHelper->BaseNodeContainers[GraphIndex].Get());
+			//Verify if the task was cancel
+			if (AsyncHelper->bCancel)
+			{
+				return;
+			}
+
+			if (ensure(AsyncHelper->BaseNodeContainers[GraphIndex].IsValid()))
+			{
+				Pipeline->ScriptedExecuteImportPipeline(AsyncHelper->BaseNodeContainers[GraphIndex].Get());
+			}
 		}
 	}
 }

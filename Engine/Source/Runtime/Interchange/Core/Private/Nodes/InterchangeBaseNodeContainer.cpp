@@ -44,7 +44,7 @@ bool UInterchangeBaseNodeContainer::IsNodeUIDValid(FName NodeUniqueID) const
 	return Nodes.Contains(NodeUniqueID);
 }
 
-void UInterchangeBaseNodeContainer::IterateNodes(TFunctionRef<void(FName, const UInterchangeBaseNode*)> IterationLambda)
+void UInterchangeBaseNodeContainer::IterateNodes(TFunctionRef<void(FName, UInterchangeBaseNode*)> IterationLambda)
 {
 	for (TPair<FName, UInterchangeBaseNode*>& NodeKeyValue : Nodes)
 	{

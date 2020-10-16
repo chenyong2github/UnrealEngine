@@ -370,6 +370,9 @@ private:
 	const UE::Interchange::FAttributeKey Macro_CustomBlendModeKey = UE::Interchange::FAttributeKey(TEXT("BlendMode"));
 
 #if WITH_ENGINE
+
+	//Material Ussage is not handle properly, you can have several usage check
+	//Currently I can set only one and retrieve the first, TODO make this work (maybe one key per usage...)
 	bool ApplyCustomMaterialUsageToAsset(UObject * Asset) const
 	{
 		if (!Asset)
@@ -390,6 +393,35 @@ private:
 		return false;
 	}
 
+	bool FillCustomMaterialUsageFromAsset(UObject* Asset)
+	{
+		if (!Asset)
+		{
+			return false;
+		}
+		UMaterialInterface* TypedObject = Cast<UMaterialInterface>(Asset);
+		if (!TypedObject)
+		{
+			return false;
+		}
+		const UMaterial* Material = TypedObject->GetMaterial_Concurrent();
+		if (!Material)
+		{
+			return false;
+		}
+		for (int32 Usage = 0; Usage < MATUSAGE_MAX; Usage++)
+		{
+			const EMaterialUsage UsageEnum = (EMaterialUsage)Usage;
+			if (Material->GetUsageByFlag(UsageEnum))
+			{
+				if (SetCustomMaterialUsage((int8)UsageEnum, false))
+				{
+					return true;
+				}
+			}
+		}
+		return false;
+	}
 #endif
 
 	IMPLEMENT_NODE_ATTRIBUTE_APPLY_UOBJECT(BlendMode, uint8, UMaterial, TEnumAsByte<enum EBlendMode>);

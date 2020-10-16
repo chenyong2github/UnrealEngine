@@ -11,6 +11,7 @@
 #include "Framework/Docking/TabManager.h"
 #include "Framework/Docking/LayoutService.h"
 #include "EngineGlobals.h"
+#include "InterchangeManager.h"
 #include "Interfaces/IMainFrameModule.h"
 #include "Editor/UnrealEdEngine.h"
 #include "EditorModeManager.h"
@@ -98,6 +99,8 @@ public:
 		else
 		{
 			// NORMAL EXIT PATH
+
+			if (UInterchangeManager::GetInterchangeManager().WarnIfInterchangeIsActive()) { return false; }
 
 			// Unattented mode can always exit.
 			if (FApp::IsUnattended())

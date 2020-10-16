@@ -40,7 +40,7 @@ public:
 	bool IsNodeUIDValid(FName NodeUniqueID) const;
 
 	/** Unordered iteration of the all nodes */
-	void IterateNodes(TFunctionRef<void(FName, const UInterchangeBaseNode*)> IterationLambda);
+	void IterateNodes(TFunctionRef<void(FName, UInterchangeBaseNode*)> IterationLambda);
 
 	/** Return all nodes that do not have any parent */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node Container")

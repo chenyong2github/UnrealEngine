@@ -2,9 +2,12 @@
 
 #pragma once
 
+#include <atomic>
 #include "Async/TaskGraphInterfaces.h"
 #include "CoreMinimal.h"
 #include "Delegates/DelegateCombinations.h"
+#include "HAL/Thread.h"
+#include "HAL/ThreadSafeBool.h"
 #include "InterchangeFactoryBase.h"
 #include "InterchangePipelineBase.h"
 #include "InterchangeSourceData.h"
@@ -96,7 +99,7 @@ namespace UE
 			{
 				UObject* ImportAsset;
 				UInterchangeFactoryBase* Factory;
-				UInterchangeBaseNode* AssetNode;
+				FString NodeUniqueId;
 			};
 
 			FCriticalSection ImportedAssetsPerSourceIndexLock;
@@ -106,6 +109,13 @@ namespace UE
 
 			TPromise< UObject* > RootObject;
 			FGraphEventRef RootObjectCompletionEvent;
+			
+			//If we cancel the tasks, we set this boolean to true
+			std::atomic<bool> bCancel;
+
+			void ReleaseTranslatorsSource();
+			void InitCancel();
+			void CancelAndWaitUntilDoneSynchronously();
 
 			void CleanUp();
 		};
@@ -163,21 +173,7 @@ public:
 	}
 
 	/** Return the interchange manager singleton.*/
-	static UInterchangeManager& GetInterchangeManager()
-	{
-		static TStrongObjectPtr<UInterchangeManager> InterchangeManager = nullptr;
-		if (!InterchangeManager.IsValid())
-		{
-			//We cannot create a TStrongObjectPtr outside of the main thread, we also need a valid Transient package
-			check(IsInGameThread() && GetTransientPackage());
-			InterchangeManager = TStrongObjectPtr<UInterchangeManager>(NewObject<UInterchangeManager>(GetTransientPackage(), NAME_None, EObjectFlags::RF_NoFlags));
-		}
-		//When we get here we should be valid
-		check(InterchangeManager.IsValid());
-
-		return *(InterchangeManager.Get());
-	}
-
+	static UInterchangeManager& GetInterchangeManager();
 
 	/** delegate type fired when new assets have been imported. Note: InCreatedObject can be NULL if import failed. Params: UFactory* InFactory, UObject* InCreatedObject */
 	DECLARE_MULTICAST_DELEGATE_OneParam(FInterchangeOnAssetPostImport, UObject*);
@@ -312,6 +308,13 @@ public:
 	 */
 	UInterchangeTranslatorBase* GetTranslatorForSourceData(const UInterchangeSourceData* SourceData) const;
 
+	/**
+	 * Return false if the Interchange is not active (importing or exporting).
+	 * If the interchange is active it will display a notification to let the user know he can cancel the asynchronous import/export
+	 * To be able to complete the operation he want to do. (The exit editor operation is calling this)
+	 */
+	bool WarnIfInterchangeIsActive();
+
 protected:
 
 	/** Return true if we can show some UI */
@@ -324,11 +327,30 @@ protected:
 	 */
 	void FindPipelineCandidate(TArray<UClass*>& PipelineCandidates);
 
+	/**
+	 * This function cancel all task and finish them has fast as possible.
+	 * We use this if the user cancel the work or if the editor is exiting.
+	 * @note - This is a blocking call until the tasks are completed.
+	 */
+	void CancelAllTasks();
+
+	/**
+	 * Same has CancelAllTasks, but will wait all task are done before exiting the function
+	 */
+	void CancelAllTasksSynchronously();
+
+	/**
+	 * If we set the mode to active we will setup the timer and add the thread that will block the GC.
+	 * If the we set the mode to inactive we will remove the timer and finish the thread that block the GC.
+	 */
+	void SetActiveMode(bool IsActive);
+
 private:
 	//By using pointer, there is no issue if the array get resize
 	TArray<TSharedPtr<UE::Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> > ImportTasks;
 
 	TSharedPtr<FAsyncTaskNotification> Notification = nullptr;
+	FDelegateHandle NotificationTickHandle;
 
 	//The manager will create translator at every import, translator must be able to retrieve payload information when the factory ask for it.
 	//The translator stored has value is only use to know if we can use this type of translator.
@@ -347,5 +369,8 @@ private:
 	UPROPERTY()
 	TMap<const UClass*, UInterchangeWriterBase* > RegisteredWriters;
 
+	//If interchange is currently importing we have a timer to watch the cancel and we block GC 
+	FThreadSafeBool bIsActive = false;
+	FThread GcGuardThread;
 	friend class UE::Interchange::FScopedTranslator;
 };

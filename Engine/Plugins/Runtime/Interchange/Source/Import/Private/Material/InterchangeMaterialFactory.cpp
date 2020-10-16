@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved. 
 #include "Material/InterchangeMaterialFactory.h"
 
+#include "InterchangeImportCommon.h"
 #include "InterchangeMaterialNode.h"
+#include "InterchangeSourceData.h"
 #include "LogInterchangeImportPlugin.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialExpressionScalarParameter.h"
@@ -12,6 +14,7 @@
 #include "Materials/MaterialInterface.h"
 #include "Nodes/InterchangeBaseNode.h"
 #include "Nodes/InterchangeBaseNodeContainer.h"
+
 
 #if WITH_EDITORONLY_DATA
 
@@ -118,7 +121,8 @@ UObject* UInterchangeMaterialFactory::CreateAsset(const UInterchangeMaterialFact
 
 	if (MaterialObject)
 	{
-		//The re-import change only the source data and will not apply any custom attribute to the asset.
+		//Currently material re-import will not touch the material at all
+		//TODO design a re-import process for the material (expressions and input connections)
 		if(!Arguments.ReimportObject)
 		{
 			UMaterial* Material = Cast<UMaterial>(MaterialObject);
@@ -281,18 +285,17 @@ void UInterchangeMaterialFactory::PostImportGameThreadCallback(const FPostImport
 {
 	check(IsInGameThread());
 	Super::PostImportGameThreadCallback(Arguments);
-#if WITH_EDITORONLY_DATA
-	if (ensure(Arguments.ReimportObject && Arguments.SourceData))
+	if (ensure(Arguments.ImportedObject && Arguments.SourceData))
 	{
 		//We must call the Update of the asset source file in the main thread because UAssetImportData::Update execute some delegate we do not control
-		UMaterialInterface* ImportedMaterial = CastChecked<UMaterialInterface>(Arguments.ReimportObject);
-		//Set the asset import data file source to allow reimport. TODO: manage MD5 Hash properly
-		TOptional<FMD5Hash> FileContentHash = Arguments.SourceData->GetFileContentHash();
-		if (ImportedMaterial->AssetImportData)
-		{
-			ImportedMaterial->AssetImportData->Update(Arguments.SourceData->GetFilename(), FileContentHash.IsSet() ? &FileContentHash.GetValue() : nullptr);
-		}
+		UMaterialInterface* ImportedMaterial = CastChecked<UMaterialInterface>(Arguments.ImportedObject);
+
+		UE::Interchange::FFactoryCommon::FUpdateImportAssetDataParameters UpdateImportAssetDataParameters(ImportedMaterial
+																										  , &ImportedMaterial->AssetImportData
+																										  , Arguments.SourceData
+																										  , Arguments.NodeUniqueID
+																										  , Arguments.NodeContainer);
+		UE::Interchange::FFactoryCommon::UpdateImportAssetData(UpdateImportAssetDataParameters);
 	}
-#endif //#if WITH_EDITORONLY_DATA
 	return;
 }

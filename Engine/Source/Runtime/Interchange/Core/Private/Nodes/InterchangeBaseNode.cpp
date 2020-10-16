@@ -192,6 +192,24 @@ void UInterchangeBaseNode::ApplyAllCustomAttributeToAsset(UObject* Object) const
 	}
 }
 
+void UInterchangeBaseNode::FillAllCustomAttributeFromAsset(UObject* Object) const
+{
+	UClass* ObjectClass = Object->GetClass();
+	for (const TPair<UClass*, TArray<UE::Interchange::FFillAttributeToAsset>>& ClassDelegatePair : FillCustomAttributeDelegates)
+	{
+		if (ObjectClass->IsChildOf(ClassDelegatePair.Key))
+		{
+			for (const UE::Interchange::FFillAttributeToAsset& Delegate : ClassDelegatePair.Value)
+			{
+				if (Delegate.IsBound())
+				{
+					Delegate.Execute(Object);
+				}
+			}
+		}
+	}
+}
+
 void UInterchangeBaseNode::Serialize(FArchive& Ar)
 {
 	Ar << Attributes;

@@ -32,6 +32,7 @@ public:
 	/** Begin UInterchangeTranslatorBase API*/
 	virtual bool CanImportSourceData(const UInterchangeSourceData* InSourceData) const override;
 	virtual bool Translate(const UInterchangeSourceData* SourceData, UInterchangeBaseNodeContainer& BaseNodeContainer) const override;
+	virtual void ReleaseSource() override;
 	virtual void ImportFinish() override;
 	/** End UInterchangeTranslatorBase API*/
 

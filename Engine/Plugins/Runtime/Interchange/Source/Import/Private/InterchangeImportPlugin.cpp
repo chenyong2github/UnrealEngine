@@ -31,24 +31,36 @@ IMPLEMENT_MODULE( FInterchangeImportPlugin, InterchangeImportPlugin)
 
 void FInterchangeImportPlugin::StartupModule()
 {
-	UInterchangeManager& InterchangeManager = UInterchangeManager::GetInterchangeManager();
+	auto RegisterItems = []()
+	{
+		UInterchangeManager& InterchangeManager = UInterchangeManager::GetInterchangeManager();
 
-	//Register the translators
-	//Scenes
-	//InterchangeManager.RegisterTranslator(UInterchangeFbxTranslator::StaticClass()); //Do not submit uncommented until we replace completly fbx importer (staticmesh + skeletalMesh + animation)
-	//Textures
-	InterchangeManager.RegisterTranslator(UInterchangeBMPTranslator::StaticClass());
-	InterchangeManager.RegisterTranslator(UInterchangeDDSTranslator::StaticClass());
-	InterchangeManager.RegisterTranslator(UInterchangeEXRTranslator::StaticClass());
-	InterchangeManager.RegisterTranslator(UInterchangeJPGTranslator::StaticClass());
-	InterchangeManager.RegisterTranslator(UInterchangePCXTranslator::StaticClass());
-	InterchangeManager.RegisterTranslator(UInterchangePNGTranslator::StaticClass());
-	InterchangeManager.RegisterTranslator(UInterchangePSDTranslator::StaticClass());
-	InterchangeManager.RegisterTranslator(UInterchangeTGATranslator::StaticClass());
+		//Register the translators
+		//Scenes
+		InterchangeManager.RegisterTranslator(UInterchangeFbxTranslator::StaticClass()); //Do not submit uncommented until we replace completly fbx importer (staticmesh + skeletalMesh + animation)
+		//Textures
+		InterchangeManager.RegisterTranslator(UInterchangeBMPTranslator::StaticClass());
+		InterchangeManager.RegisterTranslator(UInterchangeDDSTranslator::StaticClass());
+		InterchangeManager.RegisterTranslator(UInterchangeEXRTranslator::StaticClass());
+		InterchangeManager.RegisterTranslator(UInterchangeJPGTranslator::StaticClass());
+		InterchangeManager.RegisterTranslator(UInterchangePCXTranslator::StaticClass());
+		InterchangeManager.RegisterTranslator(UInterchangePNGTranslator::StaticClass());
+		InterchangeManager.RegisterTranslator(UInterchangePSDTranslator::StaticClass());
+		InterchangeManager.RegisterTranslator(UInterchangeTGATranslator::StaticClass());
 
-	//Register the factories
-	InterchangeManager.RegisterFactory(UInterchangeTextureFactory::StaticClass());
-	InterchangeManager.RegisterFactory(UInterchangeMaterialFactory::StaticClass());
+		//Register the factories
+		InterchangeManager.RegisterFactory(UInterchangeTextureFactory::StaticClass());
+		InterchangeManager.RegisterFactory(UInterchangeMaterialFactory::StaticClass());
+	};
+
+	if (GEngine)
+	{
+		RegisterItems();
+	}
+	else
+	{
+		FCoreDelegates::OnPostEngineInit.AddLambda(RegisterItems);
+	}
 }
 
 

@@ -32,6 +32,12 @@ void UE::Interchange::FTaskTranslator::DoTask(ENamedThreads::Type CurrentThread,
 		return;
 	}
 
+	//Verify if the task was cancel
+	if (AsyncHelper->bCancel)
+	{
+		return;
+	}
+
 	//Translate the source data
 	UInterchangeBaseNodeContainer& BaseNodeContainer = *(AsyncHelper->BaseNodeContainers[SourceIndex].Get());
 	Translator->Translate(SourceData, BaseNodeContainer);

@@ -35,6 +35,17 @@ public:
 	}
 
 	/**
+	 * Release source is called when we do not need anymore the translator source and also early in the cancel process.
+	 * This is where out of process translator will send the stop command.
+	 * A good example of why its useful to release the source is when the dispatcher delete the worker, the join on the
+	 * thread will be very short and will not block the main thread. If the worker stop command was send before the completion task.
+	 */
+	virtual void ReleaseSource()
+	{
+		return;
+	}
+
+	/**
 	 * This function is call when the import is done (FImportAsyncHelper::CleanUp) and we are cleaning the data.
 	 * Use it to free resource that need to be release before the next garbage collector pass.
 	 */

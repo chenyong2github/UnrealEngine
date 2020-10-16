@@ -16,9 +16,18 @@ void UE::Interchange::FTaskCompletion::DoTask(ENamedThreads::Type CurrentThread,
 {
 	TSharedPtr<FImportAsyncHelper, ESPMode::ThreadSafe> AsyncHelper = WeakAsyncHelper.Pin();
 	check(AsyncHelper.IsValid());
+
+	//No need anymore of the translators sources
+	AsyncHelper->ReleaseTranslatorsSource();
+
 	bool bIsFutureRootObjectSet = false;
 	for(TPair<int32, TArray<FImportAsyncHelper::FImportedAssetInfo>>& AssetInfosPerSourceIndexPair : AsyncHelper->ImportedAssetsPerSourceIndex)
 	{
+		//Verify if the task was cancel
+		if (AsyncHelper->bCancel)
+		{
+			break;
+		}
 		const int32 SourceIndex = AssetInfosPerSourceIndexPair.Key;
 		const bool bCallPostImportGameThreadCallback = ensure(AsyncHelper->SourceDatas.IsValidIndex(SourceIndex));
 		for (const FImportAsyncHelper::FImportedAssetInfo& AssetInfo : AssetInfosPerSourceIndexPair.Value)
@@ -28,8 +37,10 @@ void UE::Interchange::FTaskCompletion::DoTask(ENamedThreads::Type CurrentThread,
 			if(bCallPostImportGameThreadCallback && AssetInfo.Factory)
 			{
 				UInterchangeFactoryBase::FPostImportGameThreadCallbackParams Arguments;
-				Arguments.ReimportObject = Asset;
+				Arguments.ImportedObject = Asset;
 				Arguments.SourceData = AsyncHelper->SourceDatas[SourceIndex];
+				Arguments.NodeUniqueID = AssetInfo.NodeUniqueId;
+				Arguments.NodeContainer = AsyncHelper->BaseNodeContainers[SourceIndex].Get();
 				AssetInfo.Factory->PostImportGameThreadCallback(Arguments);
 			}
 
@@ -49,15 +60,36 @@ void UE::Interchange::FTaskCompletion::DoTask(ENamedThreads::Type CurrentThread,
 			else
 			{
 				InterchangeManager->OnAssetPostImport.Broadcast(Asset);
+				//Notify the asset registry, only when we have created the asset
+				FAssetRegistryModule::AssetCreated(Asset);
 			}
-			//Notify the asset registry
-			FAssetRegistryModule::AssetCreated(Asset);
 
 			if (!bIsFutureRootObjectSet && SourceIndex == 0)
 			{
 				bIsFutureRootObjectSet = true;
 				AsyncHelper->RootObject.SetValue(Asset);
 				AsyncHelper->RootObjectCompletionEvent->DispatchSubsequents();
+			}
+		}
+	}
+
+	//If task is cancel, delete all created assets by this task
+	if (AsyncHelper->bCancel)
+	{
+		for (TPair<int32, TArray<FImportAsyncHelper::FImportedAssetInfo>>& AssetInfosPerSourceIndexPair : AsyncHelper->ImportedAssetsPerSourceIndex)
+		{
+			const int32 SourceIndex = AssetInfosPerSourceIndexPair.Key;
+			for (const FImportAsyncHelper::FImportedAssetInfo& AssetInfo : AssetInfosPerSourceIndexPair.Value)
+			{
+				UObject* Asset = AssetInfo.ImportAsset;
+				if (Asset)
+				{
+					//Make any created asset go away
+					Asset->ClearFlags(RF_Standalone | RF_Public | RF_Transactional);
+					Asset->ClearInternalFlags(EInternalObjectFlags::Async);
+					Asset->SetFlags(RF_Transient);
+					Asset->MarkPendingKill();
+				}
 			}
 		}
 	}

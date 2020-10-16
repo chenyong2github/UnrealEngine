@@ -109,6 +109,14 @@ bool UInterchangeFbxTranslator::Translate(const UInterchangeSourceData* SourceDa
 	return true;
 }
 
+void UInterchangeFbxTranslator::ReleaseSource()
+{
+	if (Dispatcher.IsValid())
+	{
+		Dispatcher->StopProcess();
+	}
+}
+
 void UInterchangeFbxTranslator::ImportFinish()
 {
 	if (Dispatcher.IsValid())

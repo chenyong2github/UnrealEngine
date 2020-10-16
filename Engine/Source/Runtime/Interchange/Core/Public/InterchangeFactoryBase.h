@@ -3,13 +3,25 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Nodes/InterchangeBaseNode.h"
-#include "InterchangeTranslatorBase.h"
 #include "UObject/Class.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
 
 #include "InterchangeFactoryBase.generated.h"
+
+class UInterchangeBaseNode;
+class UInterchangeBaseNodeContainer;
+class UInterchangeSourceData;
+class UInterchangeTranslatorBase;
+
+
+UENUM()
+enum class EReimportStrategyFlags : uint8
+{
+	ApplyNoProperties, //Do not apply any property when re-importing, simply change the source data
+	ApplyPipelineProperties, //Always apply all pipeline specified properties
+	ApplyEditorChangedProperties //Always apply all pipeline properties, but leave the properties modified in editor since the last import
+};
 
 UCLASS(BlueprintType, Blueprintable, Abstract)
 class INTERCHANGECORE_API UInterchangeFactoryBase : public UObject
@@ -38,7 +50,7 @@ public:
 		FString AssetName = FString();
 
 		/** The base node that describe how to create the asset */
-		const UInterchangeBaseNode* AssetNode = nullptr;
+		UInterchangeBaseNode* AssetNode = nullptr;
 
 		/** The translator is use to retrieve the PayLoad data in case the factory need it */
 		const UInterchangeTranslatorBase* Translator = nullptr;
@@ -54,6 +66,8 @@ public:
 		 * the asset we want to re-import. The re-import should just change the source data and not any asset settings.
 		 */
 		UObject* ReimportObject = nullptr;
+
+		EReimportStrategyFlags ReimportStrategyFlags;
 	};
 
 	/**
@@ -97,7 +111,10 @@ public:
 		const UInterchangeSourceData* SourceData = nullptr;
 
 		/** The UObject  we want to execute code on*/
-		UObject* ReimportObject = nullptr;
+		UObject* ImportedObject = nullptr;
+		FString NodeUniqueID;
+		UInterchangeBaseNodeContainer* NodeContainer = nullptr;
+;
 	};
 	/* This function is call in the completion task on the main thread, use it to call main thread post creation step for your assets*/
 	virtual void PostImportGameThreadCallback(const FPostImportGameThreadCallbackParams& Arguments) const

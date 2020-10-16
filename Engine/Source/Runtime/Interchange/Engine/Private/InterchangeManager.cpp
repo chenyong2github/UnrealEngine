@@ -6,6 +6,7 @@
 #include "AssetRegistryModule.h"
 #include "CoreMinimal.h"
 #include "Engine/Blueprint.h"
+#include "Framework/Notifications/NotificationManager.h"
 #include "InterchangeFactoryBase.h"
 #include "InterchangeEngineLogPrivate.h"
 #include "InterchangeSourceData.h"
@@ -22,11 +23,13 @@
 #include "Tasks/InterchangeTaskPipeline.h"
 #include "Tasks/InterchangeTaskTranslator.h"
 #include "UObject/Class.h"
+#include "UObject/GarbageCollection.h"
 #include "UObject/NameTypes.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/UObjectIterator.h"
 #include "UObject/WeakObjectPtrTemplates.h"
+#include "Widgets/Notifications/SNotificationList.h"
 
 namespace InternalInterchangePrivate
 {
@@ -66,6 +69,7 @@ UInterchangeTranslatorBase* UE::Interchange::FScopedTranslator::GetTranslator()
 UE::Interchange::FImportAsyncHelper::FImportAsyncHelper()
 {
 	RootObjectCompletionEvent = FGraphEvent::CreateGraphEvent();
+	bCancel = false;
 }
 
 void UE::Interchange::FImportAsyncHelper::AddReferencedObjects(FReferenceCollector& Collector)
@@ -85,6 +89,61 @@ void UE::Interchange::FImportAsyncHelper::AddReferencedObjects(FReferenceCollect
 	for (UInterchangeFactoryBase* Factory : Factories)
 	{
 		Collector.AddReferencedObject(Factory);
+	}
+}
+
+void UE::Interchange::FImportAsyncHelper::ReleaseTranslatorsSource()
+{
+	for (UInterchangeTranslatorBase* BaseTranslator : Translators)
+	{
+		BaseTranslator->ReleaseSource();
+	}
+}
+
+void UE::Interchange::FImportAsyncHelper::InitCancel()
+{
+	bCancel = true;
+	ReleaseTranslatorsSource();
+}
+
+void UE::Interchange::FImportAsyncHelper::CancelAndWaitUntilDoneSynchronously()
+{
+	bCancel = true;
+
+	FGraphEventArray TasksToComplete;
+
+	if (TranslatorTasks.Num())
+	{
+		TasksToComplete.Append(TranslatorTasks);
+	}
+	if (PipelineTasks.Num())
+	{
+		TasksToComplete.Append(PipelineTasks);
+	}
+	if (ParsingTask.GetReference())
+	{
+		TasksToComplete.Add(ParsingTask);
+	}
+	if (CreateAssetTasks.Num())
+	{
+		TasksToComplete.Append(CreateAssetTasks);
+	}
+	if (CompletionTask.GetReference())
+	{
+		//Completion task will make sure any created asset before canceling will be mark for delete
+		TasksToComplete.Add(CompletionTask);
+	}
+
+	//Block until all task are completed, it should be fast since bCancel is true
+	if (TasksToComplete.Num())
+	{
+		FTaskGraphInterface::Get().WaitUntilTasksComplete(TasksToComplete, ENamedThreads::GameThread);
+	}
+	//Async import result in a null object when we cancel
+	if (!RootObjectCompletionEvent->IsComplete())
+	{
+		RootObject.SetValue(nullptr);
+		RootObjectCompletionEvent->DispatchSubsequents();
 	}
 }
 
@@ -166,6 +225,56 @@ void UE::Interchange::SanitizeInvalidChar(FString& String)
 		String.ReplaceCharInline(*InvalidChar, TCHAR('_'), ESearchCase::CaseSensitive);
 		++InvalidChar;
 	}
+}
+
+UInterchangeManager& UInterchangeManager::GetInterchangeManager()
+{
+	static TStrongObjectPtr<UInterchangeManager> InterchangeManager = nullptr;
+	
+	//This boolean will be true after we delete the singleton
+	static bool InterchangeManagerScopeOfLifeEnded = false;
+
+	if (!InterchangeManager.IsValid())
+	{
+		//We cannot create a TStrongObjectPtr outside of the main thread, we also need a valid Transient package
+		check(IsInGameThread() && GetTransientPackage());
+
+		//Avoid hard crash if someone call the manager after we delete it, but send a callstack to the crash manager
+		ensure(!InterchangeManagerScopeOfLifeEnded);
+
+		InterchangeManager = TStrongObjectPtr<UInterchangeManager>(NewObject<UInterchangeManager>(GetTransientPackage(), NAME_None, EObjectFlags::RF_NoFlags));
+		
+		//We cancel any running task when we pre exit the engine
+		FCoreDelegates::OnEnginePreExit.AddLambda([]()
+		{
+			//In editor the user cannot exit the editor if the interchange manager has active task.
+			//But if we are not running the editor its possible to get here, so block the main thread until all
+			//cancel tasks are done.
+			if(GIsEditor)
+			{
+				ensure(InterchangeManager->ImportTasks.Num() == 0);
+			}
+			else
+			{
+				InterchangeManager->CancelAllTasksSynchronously();
+			}
+		});
+
+		//We release the singleton here so all module was able to unhook there delegates
+		FCoreDelegates::OnExit.AddLambda([]()
+		{
+			//Task should have been cancel in the Engine pre exit callback
+			ensure(InterchangeManager->ImportTasks.Num() == 0);
+			//Release the InterchangeManager object
+			InterchangeManager.Reset();
+			InterchangeManagerScopeOfLifeEnded = true;
+		});
+	}
+
+	//When we get here we should be valid
+	check(InterchangeManager.IsValid());
+
+	return *(InterchangeManager.Get());
 }
 
 bool UInterchangeManager::RegisterTranslator(const UClass* TranslatorClass)
@@ -273,7 +382,7 @@ UE::Interchange::FAsyncImportResult UInterchangeManager::ImportAssetAsync(const 
 		NotificationConfig.bKeepOpenOnFailure = true;
 		NotificationConfig.TitleText = TitleText;
 		NotificationConfig.LogCategory = InternalInterchangePrivate::GetLogInterchangePtr();
-		NotificationConfig.bCanCancel.Set(false);
+		NotificationConfig.bCanCancel.Set(true);
 		NotificationConfig.bKeepOpenOnFailure.Set(true);
 
 		Notification = MakeShared<FAsyncTaskNotification>(NotificationConfig);
@@ -302,7 +411,7 @@ UE::Interchange::FAsyncImportResult UInterchangeManager::ImportAssetAsync(const 
 	if ( ImportAssetParameters.OverridePipeline == nullptr )
 	{
 		//Get all pipeline candidate we want for this import
-		/*TArray<UClass*> PipelineCandidates;
+		TArray<UClass*> PipelineCandidates;
 		FindPipelineCandidate(PipelineCandidates);
 
 		// Stack all pipelines, for this import proto. TODO: We need to be able to control which pipeline we use for the import
@@ -312,7 +421,7 @@ UE::Interchange::FAsyncImportResult UInterchangeManager::ImportAssetAsync(const 
 		{
 			UInterchangePipelineBase* GeneratedPipeline = NewObject<UInterchangePipelineBase>(GetTransientPackage(), PipelineCandidates[GraphPipelineNumber], NAME_None, RF_NoFlags);
 			AsyncHelper->Pipelines.Add(GeneratedPipeline);
-		}*/
+		}
 	}
 	else
 	{
@@ -389,6 +498,7 @@ TWeakPtr<UE::Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> UInterchangeM
 	//Copy the task data
 	AsyncHelper->TaskData = Data;
 	int32 AsyncHelperIndex = ImportTasks.Add(AsyncHelper);
+	SetActiveMode(true);
 	//Update the asynchronous notification
 	if (Notification.IsValid())
 	{
@@ -404,17 +514,26 @@ void UInterchangeManager::ReleaseAsyncHelper(TWeakPtr<UE::Interchange::FImportAs
 {
 	check(AsyncHelper.IsValid());
 	ImportTasks.RemoveSingle(AsyncHelper.Pin());
-	check(!AsyncHelper.IsValid());
+	//Make sure the async helper is destroy, if not destroy its because we are canceling the import and we still have a shared ptr on it
+	{
+		TSharedPtr<UE::Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> AsyncHelperSharedPtr = AsyncHelper.Pin();
+		check(!AsyncHelperSharedPtr.IsValid() || AsyncHelperSharedPtr->bCancel);
+	}
 
 	int32 ImportTaskNumber = ImportTasks.Num();
 	FString ImportTaskNumberStr = TEXT(" (") + FString::FromInt(ImportTaskNumber) + TEXT(")");
-	if (ImportTasks.Num() == 0 && Notification.IsValid())
+	if (ImportTaskNumber == 0)
 	{
-		FText TitleText = NSLOCTEXT("Interchange", "Asynchronous_import_end", "Import Done");
-		//TODO make sure any error are reported so we can control success or not
-		const bool bSuccess = true;
-		Notification->SetComplete(TitleText, FText::GetEmpty(), bSuccess);
-		Notification = nullptr; //This should delete the notification
+		SetActiveMode(false);
+
+		if (Notification.IsValid())
+		{
+			FText TitleText = NSLOCTEXT("Interchange", "Asynchronous_import_end", "Import Done");
+			//TODO make sure any error are reported so we can control success or not
+			const bool bSuccess = true;
+			Notification->SetComplete(TitleText, FText::GetEmpty(), bSuccess);
+			Notification = nullptr; //This should delete the notification
+		}
 	}
 	else if(Notification.IsValid())
 	{
@@ -440,6 +559,23 @@ UInterchangeTranslatorBase* UInterchangeManager::GetTranslatorForSourceData(cons
 	return nullptr;
 }
 
+bool UInterchangeManager::WarnIfInterchangeIsActive()
+{
+	if (!bIsActive)
+	{
+		return false;
+	}
+	//Tell user he have to cancel the import before closing the editor
+	FNotificationInfo Info(NSLOCTEXT("InterchangeManager", "WarnCannotProceed", "An import process is currently underway! Please cancel it to proceed!"));
+	Info.ExpireDuration = 5.0f;
+	TSharedPtr<SNotificationItem> WarnNotification = FSlateNotificationManager::Get().AddNotification(Info);
+	if (WarnNotification.IsValid())
+	{
+		WarnNotification->SetCompletionState(SNotificationItem::CS_Fail);
+	}
+	return true;
+}
+
 bool UInterchangeManager::IsAttended()
 {
 	if (FApp::IsGame())
@@ -460,10 +596,10 @@ void UInterchangeManager::FindPipelineCandidate(TArray<UClass*>& PipelineCandida
 	{
 		UClass* Class = *ClassIt;
 		// Only interested in native C++ classes
-		if (!Class->IsNative())
-		{
-			continue;
-		}
+// 		if (!Class->IsNative())
+// 		{
+// 			continue;
+// 		}
 		// Ignore deprecated
 		if (Class->HasAnyClassFlags(CLASS_Deprecated | CLASS_NewerVersionExists))
 		{
@@ -531,6 +667,92 @@ void UInterchangeManager::FindPipelineCandidate(TArray<UClass*>& PipelineCandida
 			check(Blueprint);
 			check(Blueprint->ParentClass == UInterchangePipelineBase::StaticClass());
 			PipelineCandidates.AddUnique(Blueprint->GeneratedClass);
+		}
+	}
+}
+
+void UInterchangeManager::CancelAllTasks()
+{
+	check(IsInGameThread());
+
+	//Set the cancel state on all task
+	int32 ImportTaskCount = ImportTasks.Num();
+	for (int32 TaskIndex = 0; TaskIndex < ImportTaskCount; ++TaskIndex)
+	{
+		TSharedPtr<UE::Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> AsyncHelper = ImportTasks[TaskIndex];
+		if (AsyncHelper.IsValid())
+		{
+			AsyncHelper->InitCancel();
+		}
+	}
+
+	//Tasks should all finish quite fast now
+};
+
+void UInterchangeManager::CancelAllTasksSynchronously()
+{
+	//Start the cancel process by cancelling all current task
+	CancelAllTasks();
+
+	//Now wait for each task to be completed on the main thread
+	while (ImportTasks.Num() > 0)
+	{
+		int32 ImportTaskCount = ImportTasks.Num();
+		TSharedPtr<UE::Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> AsyncHelper = ImportTasks[0];
+		if (AsyncHelper.IsValid())
+		{
+			//Cancel any on going interchange activity this is blocking but necessary.
+			AsyncHelper->CancelAndWaitUntilDoneSynchronously();
+			ensure(ImportTaskCount > ImportTasks.Num());
+			TWeakPtr<UE::Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> WeakAsyncHelper = AsyncHelper;
+			//free the async helper
+			AsyncHelper = nullptr;
+			//We verify that the weak pointer is invalid after releasing the async helper
+			ensure(!WeakAsyncHelper.IsValid());
+		}
+	}
+}
+
+void UInterchangeManager::SetActiveMode(bool IsActive)
+{
+	if (bIsActive == IsActive)
+	{
+		return;
+	}
+
+	bIsActive = IsActive;
+	if (bIsActive)
+	{
+		ensure(!NotificationTickHandle.IsValid());
+		NotificationTickHandle = FTicker::GetCoreTicker().AddTicker(TEXT("InterchangeManagerTickHandle"), 0.1f, [this](float)
+		{
+			if (Notification.IsValid() && Notification->GetPromptAction() == EAsyncTaskNotificationPromptAction::Cancel)
+			{
+				CancelAllTasks();
+			}
+			return true;
+		});
+
+		//Block GC in a different thread then game thread
+		FString ThreadName = FString(TEXT("InterchangeGCGuard"));
+		GcGuardThread = FThread(*ThreadName, [this]()
+		{
+			FGCScopeGuard GCScopeGuard;
+			while (bIsActive && ImportTasks.Num() > 0)
+			{
+				FPlatformProcess::Sleep(0.01f);
+			}
+		});
+	}
+	else
+	{
+		FTicker::GetCoreTicker().RemoveTicker(NotificationTickHandle);
+		NotificationTickHandle.Reset();
+
+		if (GcGuardThread.IsJoinable())
+		{
+			//Finish the thread
+			GcGuardThread.Join();
 		}
 	}
 }

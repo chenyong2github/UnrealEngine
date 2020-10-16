@@ -884,8 +884,49 @@ private:
 #endif //#if WITH_EDITORONLY_DATA
 	IMPLEMENT_NODE_ATTRIBUTE_APPLY_UOBJECT(LODBias, int32, UTexture, );
 	IMPLEMENT_NODE_ATTRIBUTE_APPLY_UOBJECT(LODGroup, uint8, UTexture, TEnumAsByte<enum TextureGroup>);
+	
 	//TODO support per platform data in the FAttributeStorage, so we can set different value per platform at the pipeline stage, We set only the default value for now
-	IMPLEMENT_NODE_ATTRIBUTE_APPLY_UOBJECT(Downscale, float, UTexture, );
+	//IMPLEMENT_NODE_ATTRIBUTE_APPLY_UOBJECT(Downscale, float, UTexture, );
+#if WITH_ENGINE
+	bool ApplyCustomDownscaleToAsset(UObject * Asset) const
+	{
+		if (!Asset)
+		{
+			return false;
+		}
+		UTexture* TypedObject = Cast<UTexture>(Asset);
+		if (!TypedObject)
+		{
+			return false;
+		}
+		float ValueData;
+		if (GetCustomDownscale(ValueData))
+		{
+			TypedObject->Downscale.Default = ValueData;
+			return true;
+		}
+		return false;
+	}
+
+	bool FillCustomDownscaleFromAsset(UObject* Asset)
+	{
+		if (!Asset)
+		{
+			return false;
+		}
+		UTexture* TypedObject = Cast<UTexture>(Asset);
+		if (!TypedObject)
+		{
+			return false;
+		}
+		if (SetCustomDownscale(TypedObject->Downscale.Default, false))
+		{
+			return true;
+		}
+		return false;
+	}
+#endif //WITH_ENGINE
+
 	IMPLEMENT_NODE_ATTRIBUTE_APPLY_UOBJECT(DownscaleOptions, uint8, UTexture, ETextureDownscaleOptions);
 #if WITH_EDITORONLY_DATA
 	//Compositing

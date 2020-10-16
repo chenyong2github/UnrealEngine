@@ -54,8 +54,11 @@ void UE::Interchange::FTaskCreatePackage::DoTask(ENamedThreads::Type CurrentThre
 	TSharedPtr<UE::Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> AsyncHelper = WeakAsyncHelper.Pin();
 	check(AsyncHelper.IsValid());
 
-	//The create package thread must always execute on the game thread
-	check(IsInGameThread());
+	//Verify if the task was cancel
+	if (AsyncHelper->bCancel)
+	{
+		return;
+	}
 
 	UPackage* Pkg = nullptr;
 	FString PackageName;
@@ -68,6 +71,9 @@ void UE::Interchange::FTaskCreatePackage::DoTask(ENamedThreads::Type CurrentThre
 	}
 	else
 	{
+		//The create package thread must always execute on the game thread
+		check(IsInGameThread());
+
 		Private::InternalGetPackageName(*AsyncHelper, SourceIndex, PackageBasePath, Node, PackageName, AssetName);
 		// We can not create assets that share the name of a map file in the same location
 		if (UE::Interchange::FPackageUtils::IsMapPackageAsset(PackageName))
@@ -100,13 +106,25 @@ void UE::Interchange::FTaskCreatePackage::DoTask(ENamedThreads::Type CurrentThre
 		}
 		CreateAssetParams.ReimportObject = AsyncHelper->TaskData.ReimportObject;
 		//Make sure the asset UObject is created with the correct type on the main thread
-		Factory->CreateEmptyAsset(CreateAssetParams);
+		UObject* NodeAsset = Factory->CreateEmptyAsset(CreateAssetParams);
+		if (NodeAsset)
+		{
+			FScopeLock Lock(&AsyncHelper->ImportedAssetsPerSourceIndexLock);
+			TArray<UE::Interchange::FImportAsyncHelper::FImportedAssetInfo>& ImportedInfos = AsyncHelper->ImportedAssetsPerSourceIndex.FindOrAdd(SourceIndex);
+			UE::Interchange::FImportAsyncHelper::FImportedAssetInfo& AssetInfo = ImportedInfos.AddDefaulted_GetRef();
+			AssetInfo.ImportAsset = NodeAsset;
+			AssetInfo.Factory = Factory;
+			AssetInfo.NodeUniqueId = Node->GetUniqueID().ToString();
+			Node->ReferenceObject = FSoftObjectPath(NodeAsset);
+		}
 	}
 	// Make sure the destination package is loaded
 	Pkg->FullyLoad();
-
-	FScopeLock Lock(&AsyncHelper->CreatedPackagesLock);
-	AsyncHelper->CreatedPackages.Add(PackageName, Pkg);
+	
+	{
+		FScopeLock Lock(&AsyncHelper->CreatedPackagesLock);
+		AsyncHelper->CreatedPackages.Add(PackageName, Pkg);
+	}
 }
 
 void UE::Interchange::FTaskCreateAsset::DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
@@ -114,16 +132,22 @@ void UE::Interchange::FTaskCreateAsset::DoTask(ENamedThreads::Type CurrentThread
 	TSharedPtr<UE::Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> AsyncHelper = WeakAsyncHelper.Pin();
 	check(WeakAsyncHelper.IsValid());
 
+	//Verify if the task was cancel
+	if (AsyncHelper->bCancel)
+	{
+		return;
+	}
+
+	UPackage* Pkg = nullptr;
 	FString PackageName;
 	FString AssetName;
 	Private::InternalGetPackageName(*AsyncHelper, SourceIndex, PackageBasePath, Node, PackageName, AssetName);
 	if (AsyncHelper->TaskData.ReimportObject)
 	{
-		UPackage* Pkg = AsyncHelper->TaskData.ReimportObject->GetPackage();
+		Pkg = AsyncHelper->TaskData.ReimportObject->GetPackage();
 		PackageName = Pkg->GetPathName();
 	}
-
-	UPackage* Pkg = nullptr;
+	else
 	{
 		FScopeLock Lock(&AsyncHelper->CreatedPackagesLock);
 		UPackage** PkgPtr = AsyncHelper->CreatedPackages.Find(PackageName);
@@ -159,14 +183,28 @@ void UE::Interchange::FTaskCreateAsset::DoTask(ENamedThreads::Type CurrentThread
 	}
 	CreateAssetParams.ReimportObject = AsyncHelper->TaskData.ReimportObject;
 
+	CreateAssetParams.ReimportStrategyFlags = EReimportStrategyFlags::ApplyNoProperties;
+	//CreateAssetParams.ReimportStrategyFlags = EReimportStrategyFlags::ApplyPipelineProperties;
+	//CreateAssetParams.ReimportStrategyFlags = EReimportStrategyFlags::ApplyEditorChangedProperties;
+
 	UObject* NodeAsset = Factory->CreateAsset(CreateAssetParams);
 	if (NodeAsset)
 	{
 		FScopeLock Lock(&AsyncHelper->ImportedAssetsPerSourceIndexLock);
 		TArray<UE::Interchange::FImportAsyncHelper::FImportedAssetInfo>& ImportedInfos = AsyncHelper->ImportedAssetsPerSourceIndex.FindOrAdd(SourceIndex);
-		UE::Interchange::FImportAsyncHelper::FImportedAssetInfo& AssetInfo = ImportedInfos.AddZeroed_GetRef();
-		AssetInfo.ImportAsset = NodeAsset;
+		UE::Interchange::FImportAsyncHelper::FImportedAssetInfo* AssetInfoPtr = ImportedInfos.FindByPredicate([NodeAsset](const UE::Interchange::FImportAsyncHelper::FImportedAssetInfo& CurInfo)
+		{
+			return CurInfo.ImportAsset == NodeAsset;
+		});
+
+		if (!AssetInfoPtr)
+		{
+			UE::Interchange::FImportAsyncHelper::FImportedAssetInfo& AssetInfo = ImportedInfos.AddDefaulted_GetRef();
+			AssetInfo.ImportAsset = NodeAsset;
+			AssetInfo.Factory = Factory;
+			AssetInfo.NodeUniqueId = Node->GetUniqueID().ToString();
+		}
+
 		Node->ReferenceObject = FSoftObjectPath(NodeAsset);
-		AssetInfo.Factory = Factory;
 	}
 }

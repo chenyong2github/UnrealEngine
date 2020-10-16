@@ -105,6 +105,24 @@ bool ApplyCustom##AttributeName##ToAsset(UObject* Asset) const										\
 		return true;																				\
 	}																								\
 	return false;																					\
+}																									\
+																									\
+bool FillCustom##AttributeName##FromAsset(UObject* Asset)											\
+{																									\
+	if (!Asset)																						\
+	{																								\
+		return false;																				\
+	}																								\
+	AssetType* TypedObject = Cast<AssetType>(Asset);												\
+	if (!TypedObject)																				\
+	{																								\
+		return false;																				\
+	}																								\
+	if (SetCustom##AttributeName((AttributeType)TypedObject->AttributeName, false))					\
+	{																								\
+		return true;																				\
+	}																								\
+	return false;																					\
 }
 
 #else //#if WITH_ENGINE
@@ -129,8 +147,10 @@ bool ApplyCustom##AttributeName##ToAsset(UObject* Asset) const										\
 	{																																				\
 		if(bAddApplyDelegate)																														\
 		{																																			\
-			TArray<UE::Interchange::FApplyAttributeToAsset>& Delegates = ApplyCustomAttributeDelegates.FindOrAdd(AssetType::StaticClass());				\
-			Delegates.Add(UE::Interchange::FApplyAttributeToAsset::CreateUObject(this, &NodeClassName::ApplyCustom##AttributeName##ToAsset));			\
+			TArray<UE::Interchange::FApplyAttributeToAsset>& Delegates = ApplyCustomAttributeDelegates.FindOrAdd(AssetType::StaticClass());			\
+			Delegates.Add(UE::Interchange::FApplyAttributeToAsset::CreateUObject(this, &NodeClassName::ApplyCustom##AttributeName##ToAsset));		\
+			TArray<UE::Interchange::FFillAttributeToAsset>& FillDelegates = FillCustomAttributeDelegates.FindOrAdd(AssetType::StaticClass());		\
+			FillDelegates.Add(UE::Interchange::FFillAttributeToAsset::CreateUObject(this, &NodeClassName::FillCustom##AttributeName##FromAsset));	\
 		}																																			\
 		return true;																																\
 	}																																				\
@@ -152,6 +172,7 @@ namespace UE
 	{
 
 		DECLARE_DELEGATE_RetVal_OneParam(bool, FApplyAttributeToAsset, UObject*);
+		DECLARE_DELEGATE_RetVal_OneParam(bool, FFillAttributeToAsset, UObject*);
 
 		/**
 		 * Helper struct use to declare static const data we use in the UInterchangeBaseNode
@@ -256,9 +277,18 @@ public:
 	 */
 	virtual bool HasAttribute(const UE::Interchange::FAttributeKey& NodeAttributeKey) const;
 
+	/**
+	 * This function return an attribute type for the specified Key. Return type None if the key is invalid
+	 *
+	 * @param NodeAttributeKey - The key of the attribute
+	 */
+	virtual UE::Interchange::EAttributeTypes GetAttributeType(const UE::Interchange::FAttributeKey& NodeAttributeKey) const
+	{
+		return Attributes.GetAttributeType(NodeAttributeKey);
+	}
 
 	/**
-	 * This function returnan  attribute handle for the specified Key.
+	 * This function return an  attribute handle for the specified Key.
 	 * If there is an issue with the KEY or storage the method will trip a check, always make sure you have a valid key before calling this
 	 * 
 	 * @param NodeAttributeKey - The key of the attribute
@@ -273,7 +303,8 @@ public:
 	 * Return the unique id pass in the constructor.
 	 *
 	 */
-	virtual FName GetUniqueID() const;
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
+	FName GetUniqueID() const;
 
 	/**
 	 * Return the display label pass in the constructor.
@@ -347,8 +378,25 @@ public:
 	 */
 	void ApplyAllCustomAttributeToAsset(UObject* Object) const;
 
+	void FillAllCustomAttributeFromAsset(UObject* Object) const;
+
 	virtual void Serialize(FArchive& Ar) override;
 
+	static void CompareNodeStorage(UInterchangeBaseNode* NodeA, const UInterchangeBaseNode* NodeB, TArray<UE::Interchange::FAttributeKey>& RemovedAttributes, TArray<UE::Interchange::FAttributeKey>& AddedAttributes, TArray<UE::Interchange::FAttributeKey>& ModifiedAttributes)
+	{
+		UE::Interchange::FAttributeStorage::CompareStorage(NodeA->Attributes, NodeB->Attributes, RemovedAttributes, AddedAttributes, ModifiedAttributes);
+	}
+	
+	static void CopyStorageAttributes(const UInterchangeBaseNode* SourceNode, UInterchangeBaseNode* DestinationNode, TArray<UE::Interchange::FAttributeKey>& AttributeKeys)
+	{
+		UE::Interchange::FAttributeStorage::CopyStorageAttributes(SourceNode->Attributes, DestinationNode->Attributes, AttributeKeys);
+	}
+
+	static void CopyStorage(const UInterchangeBaseNode* SourceNode, UInterchangeBaseNode* DestinationNode)
+	{
+		DestinationNode->Attributes = SourceNode->Attributes;
+	}
+	
 	UPROPERTY()
 	mutable FSoftObjectPath ReferenceObject;
 protected:
@@ -357,6 +405,8 @@ protected:
 
 	/* This array hold the delegate to apply the attribute that has to be set on an UObject */
 	TMap<UClass*, TArray<UE::Interchange::FApplyAttributeToAsset>> ApplyCustomAttributeDelegates;
+
+	TMap<UClass*, TArray<UE::Interchange::FFillAttributeToAsset>> FillCustomAttributeDelegates;
 
 	bool bIsInitialized = false;
 };

@@ -103,6 +103,14 @@ namespace UE
 			SpawnHandler();
 		}
 
+		void FInterchangeDispatcher::StopProcess()
+		{
+			if (IsHandlerAlive())
+			{
+				WorkerHandler->Stop();
+			}
+		}
+
 		void FInterchangeDispatcher::TerminateProcess()
 		{
 			//Empty the cache folder
@@ -166,10 +174,7 @@ namespace UE
 
 		void FInterchangeDispatcher::CloseHandler()
 		{
-			if (IsHandlerAlive())
-			{
-				WorkerHandler->Stop();
-			}
+			StopProcess();
 			WorkerHandler.Reset();
 		}
 

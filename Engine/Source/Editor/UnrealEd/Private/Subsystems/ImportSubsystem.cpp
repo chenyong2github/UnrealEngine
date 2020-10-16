@@ -112,17 +112,36 @@ UImportSubsystem::UImportSubsystem()
 
 void UImportSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
-	//Hook on Interchange manager to know when to broadcast import/reimport
-	UInterchangeManager& InterchangeManager = UInterchangeManager::GetInterchangeManager();
-	InterchangeManager.OnAssetPostImport.AddUObject(this, &UImportSubsystem::InterchangeBroadcastAssetPostImport);
-	InterchangeManager.OnAssetPostReimport.AddUObject(this, &UImportSubsystem::InterchangeBroadcastAssetPostReimport);
+	auto AttachDelegates = [this]()
+	{
+		//Hook on Interchange manager to know when to broadcast import/reimport
+		UInterchangeManager& InterchangeManager = UInterchangeManager::GetInterchangeManager();
+		InterchangeManager.OnAssetPostImport.AddUObject(this, &UImportSubsystem::InterchangeBroadcastAssetPostImport);
+		InterchangeManager.OnAssetPostReimport.AddUObject(this, &UImportSubsystem::InterchangeBroadcastAssetPostReimport);
+	};
+
+	if (GEngine)
+	{
+		AttachDelegates();
+	}
+	else
+	{
+		FCoreDelegates::OnPostEngineInit.AddLambda(AttachDelegates);
+	}
+
+	//Since subsystem deinitialize after the FCoreDelegates::OnExit and interchange manager is destroy during FCoreDelegates::OnExit
+	//We want to unregister delegate using the FCoreDelegates::OnPreExit.
+	FCoreDelegates::OnPreExit.AddLambda([this]()
+	{
+		//Unhook interchange manager import/reimport delegates
+		UInterchangeManager& InterchangeManager = UInterchangeManager::GetInterchangeManager();
+		InterchangeManager.OnAssetPostImport.RemoveAll(this);
+		InterchangeManager.OnAssetPostReimport.RemoveAll(this);
+	});
 }
 
 void UImportSubsystem::Deinitialize()
 {
-	UInterchangeManager& InterchangeManager = UInterchangeManager::GetInterchangeManager();
-	InterchangeManager.OnAssetPostImport.RemoveAll(this);
-	InterchangeManager.OnAssetPostReimport.RemoveAll(this);
 }
 
 void UImportSubsystem::ImportNextTick(const TArray<FString>& Files, const FString& DestinationPath)

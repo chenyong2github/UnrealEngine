@@ -22,12 +22,12 @@ public:
 	 * the Interchange manager is calling this function not the virtual one that is call by the default implementation.
 	 */
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Interchange | Translator")
-	bool ScriptedExecuteImportPipeline(UInterchangeBaseNodeContainer* BaseNodeContainerAdapter);
+	bool ScriptedExecuteImportPipeline(UInterchangeBaseNodeContainer* BaseNodeContainer);
 	/** The default implementation (call if the blueprint do not have any implementation) will call the virtual ExecuteImportPipeline */
-	bool ScriptedExecuteImportPipeline_Implementation(UInterchangeBaseNodeContainer* BaseNodeContainerAdapter)
+	bool ScriptedExecuteImportPipeline_Implementation(UInterchangeBaseNodeContainer* BaseNodeContainer)
 	{
 		//By default we call the virtual import pipeline execution
-		return ExecuteImportPipeline(BaseNodeContainerAdapter);
+		return ExecuteImportPipeline(BaseNodeContainer);
 	}
 
 	/**
@@ -35,12 +35,12 @@ public:
 	 * the Interchange manager is calling this function not the virtual one that is call by the default implementation.
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Interchange | Translator")
-	bool ScriptedExecuteExportPipeline(UInterchangeBaseNodeContainer* BaseNodeContainerAdapter);
+	bool ScriptedExecuteExportPipeline(UInterchangeBaseNodeContainer* BaseNodeContainer);
 
 	/** The default implementation (call if the blueprint do not have any implementation) will call the virtual ExecuteExportPipeline */
-	bool ScriptedExecuteExportPipeline_Implementation(UInterchangeBaseNodeContainer* BaseNodeContainerAdapter)
+	bool ScriptedExecuteExportPipeline_Implementation(UInterchangeBaseNodeContainer* BaseNodeContainer)
 	{
-		return ExecuteExportPipeline(BaseNodeContainerAdapter);
+		return ExecuteExportPipeline(BaseNodeContainer);
 	}
 
 	/**
@@ -62,7 +62,7 @@ protected:
 	 * The interchange manager is not calling this function directly. It is calling the blueprint native event in case this object is a blueprint derive object.
 	 * By default the scripted implementation is calling this virtual pipeline.
 	 */
-	virtual bool ExecuteImportPipeline(UInterchangeBaseNodeContainer* BaseNodeContainerAdapter)
+	virtual bool ExecuteImportPipeline(UInterchangeBaseNodeContainer* BaseNodeContainer)
 	{
 		return false;
 	}
@@ -79,7 +79,7 @@ protected:
 	}
 
 	/** This function can modify the BaseNodeContainer to create a pipeline that will set/validate the graph nodes hierarchy and options.*/
-	virtual bool ExecuteExportPipeline(UInterchangeBaseNodeContainer* BaseNodeContainerAdapter)
+	virtual bool ExecuteExportPipeline(UInterchangeBaseNodeContainer* BaseNodeContainer)
 	{
 		return false;
 	}

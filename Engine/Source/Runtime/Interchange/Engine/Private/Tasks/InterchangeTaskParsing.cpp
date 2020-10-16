@@ -30,7 +30,7 @@ void UE::Interchange::FTaskParsing::DoTask(ENamedThreads::Type CurrentThread, co
 	{
 		FName UniqueID;
 		int32 SourceIndex;
-		const UInterchangeBaseNode* Node;
+		UInterchangeBaseNode* Node;
 		TArray<FName> Dependencies;
 		FGraphEventRef GraphEventRef;
 		FGraphEventArray Prerequistes;
@@ -38,40 +38,43 @@ void UE::Interchange::FTaskParsing::DoTask(ENamedThreads::Type CurrentThread, co
 	};
 
 
-
 	FGraphEventArray CompletionPrerequistes;
 	TArray<FTaskData> TaskDatas;
-	for (int32 SourceIndex = 0; SourceIndex < AsyncHelper->SourceDatas.Num(); ++SourceIndex)
-	{
-		if (!AsyncHelper->BaseNodeContainers.IsValidIndex(SourceIndex))
-		{
-			continue;
-		}
-		UInterchangeBaseNodeContainer* BaseNodeContainer = AsyncHelper->BaseNodeContainers[SourceIndex].Get();
-		if (!BaseNodeContainer)
-		{
-			continue;
-		}
-		BaseNodeContainer->IterateNodes([&](const FName NodeUID, const UInterchangeBaseNode* Node)
-		{
-			if (Node->GetAssetClass() != nullptr)
-			{
-				UInterchangeFactoryBase* NodeFactory = InterchangeManager->GetRegisterFactory(Node->GetAssetClass());
-				if (!NodeFactory)
-				{
-					//nothing we can import from this element
-					return;
-				}
-				FTaskData& NodeTaskData = TaskDatas.AddDefaulted_GetRef();
-				NodeTaskData.UniqueID = Node->GetUniqueID();
-				NodeTaskData.SourceIndex = SourceIndex;
-				NodeTaskData.Node = Node;
-				Node->GetDependecies(NodeTaskData.Dependencies);
-				NodeTaskData.Factory = NodeFactory;
-			}
-		});
-	}
 
+	//Avoid creating asset if the asynchronous import is cancel, just create the completion task
+	if (!AsyncHelper->bCancel)
+	{
+		for (int32 SourceIndex = 0; SourceIndex < AsyncHelper->SourceDatas.Num(); ++SourceIndex)
+		{
+			if (!AsyncHelper->BaseNodeContainers.IsValidIndex(SourceIndex))
+			{
+				continue;
+			}
+			UInterchangeBaseNodeContainer* BaseNodeContainer = AsyncHelper->BaseNodeContainers[SourceIndex].Get();
+			if (!BaseNodeContainer)
+			{
+				continue;
+			}
+			BaseNodeContainer->IterateNodes([&](const FName NodeUID, UInterchangeBaseNode* Node)
+			{
+				if (Node->GetAssetClass() != nullptr)
+				{
+					UInterchangeFactoryBase* NodeFactory = InterchangeManager->GetRegisterFactory(Node->GetAssetClass());
+					if (!NodeFactory)
+					{
+						//nothing we can import from this element
+						return;
+					}
+					FTaskData& NodeTaskData = TaskDatas.AddDefaulted_GetRef();
+					NodeTaskData.UniqueID = Node->GetUniqueID();
+					NodeTaskData.SourceIndex = SourceIndex;
+					NodeTaskData.Node = Node;
+					Node->GetDependecies(NodeTaskData.Dependencies);
+					NodeTaskData.Factory = NodeFactory;
+				}
+			});
+		}
+	}
 	//Sort per dependencies
 	TaskDatas.Sort([](const FTaskData& A, const FTaskData& B)
 	{

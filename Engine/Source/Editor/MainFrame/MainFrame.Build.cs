@@ -44,6 +44,8 @@ public class MainFrame : ModuleRules
 				"ToolMenus",
 				"LauncherServices",
 				"DerivedDataCache",
+				"InterchangeCore",
+				"InterchangeEngine"
 			}
 		);
 

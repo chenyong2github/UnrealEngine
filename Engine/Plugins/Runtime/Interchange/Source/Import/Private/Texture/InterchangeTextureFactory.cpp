@@ -3,7 +3,10 @@
 
 #include "Engine/Texture.h"
 #include "Engine/Texture2D.h"
+#include "InterchangeAssetImportData.h"
+#include "InterchangeImportCommon.h"
 #include "InterchangeTextureNode.h"
+#include "InterchangeTranslatorBase.h"
 #include "LogInterchangeImportPlugin.h"
 #include "Nodes/InterchangeBaseNode.h"
 #include "Texture/InterchangeTexturePayloadInterface.h"
@@ -89,7 +92,7 @@ UObject* UInterchangeTextureFactory::CreateAsset(const UInterchangeTextureFactor
 		return nullptr;
 	}
 
-	const UInterchangeTextureNode* TextureNode = Cast<UInterchangeTextureNode>(Arguments.AssetNode);
+	UInterchangeTextureNode* TextureNode = Cast<UInterchangeTextureNode>(Arguments.AssetNode);
 	if (TextureNode == nullptr)
 	{
 		return nullptr;
@@ -164,11 +167,24 @@ UObject* UInterchangeTextureFactory::CreateAsset(const UInterchangeTextureFactor
 			Texture2D->MipGenSettings = Image.MipGenSettings.GetValue();
 		}
 
-		//The re-import change only the source data and will not apply any custom attribute to the asset.
 		if(!Arguments.ReimportObject)
 		{
 			/** Apply all TextureNode custom attributes to the texture asset */
 			TextureNode->ApplyAllCustomAttributeToAsset(Texture2D);
+		}
+		else
+		{
+			UInterchangeAssetImportData* InterchangeAssetImportData = Cast<UInterchangeAssetImportData>(Texture2D->AssetImportData);
+			UInterchangeBaseNode* PreviousNode = nullptr;
+			if (InterchangeAssetImportData)
+			{
+				PreviousNode = InterchangeAssetImportData->NodeContainer->GetNode(FName(*InterchangeAssetImportData->NodeUniqueID));
+			}
+			UInterchangeTextureNode* CurrentNode = NewObject<UInterchangeTextureNode>();
+			UInterchangeBaseNode::CopyStorage(TextureNode, CurrentNode);
+			CurrentNode->FillAllCustomAttributeFromAsset(Texture2D);
+			//Apply reimport strategy
+			UE::Interchange::FFactoryCommon::ApplyReimportStrategyToAsset(Arguments.ReimportStrategyFlags, Texture2D, PreviousNode, CurrentNode, TextureNode);
 		}
 		
 		//Getting the file Hash will cache it into the source data
@@ -191,15 +207,17 @@ void UInterchangeTextureFactory::PostImportGameThreadCallback(const FPostImportG
 {
 	check(IsInGameThread());
 	Super::PostImportGameThreadCallback(Arguments);
-#if WITH_EDITORONLY_DATA
-	if(ensure(Arguments.ReimportObject && Arguments.SourceData))
+	if (ensure(Arguments.ImportedObject && Arguments.SourceData))
 	{
 		//We must call the Update of the asset source file in the main thread because UAssetImportData::Update execute some delegate we do not control
-		UTexture* ImportedTexture = CastChecked<UTexture>(Arguments.ReimportObject);
-		//Set the asset import data file source to allow reimport. TODO: manage MD5 Hash properly
-		TOptional<FMD5Hash> FileContentHash = Arguments.SourceData->GetFileContentHash();
-		ImportedTexture->AssetImportData->Update(Arguments.SourceData->GetFilename(), FileContentHash.IsSet() ? &FileContentHash.GetValue() : nullptr);
+		UTexture* ImportedTexture = CastChecked<UTexture>(Arguments.ImportedObject);
+		
+		UE::Interchange::FFactoryCommon::FUpdateImportAssetDataParameters UpdateImportAssetDataParameters(ImportedTexture
+																						 , &ImportedTexture->AssetImportData
+																						 , Arguments.SourceData
+																						 , Arguments.NodeUniqueID
+																						 , Arguments.NodeContainer);
+		UE::Interchange::FFactoryCommon::UpdateImportAssetData(UpdateImportAssetDataParameters);
 	}
-#endif //#if WITH_EDITORONLY_DATA
 	return;
 }
