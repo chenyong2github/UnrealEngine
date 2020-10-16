@@ -162,10 +162,10 @@ void UEOSArtifactSettings::PostEditChangeProperty(FPropertyChangedEvent& Propert
 
 	if (PropertyChangedEvent.Property->GetFName() == FName(TEXT("EncryptionKey")))
 	{
-		if (!IsHex(EncryptionKey))
+		if (!IsHex(EncryptionKey) || EncryptionKey.Len() != 64)
 		{
 			FMessageDialog::Open(EAppMsgType::Ok,
-				LOCTEXT("EncryptionKeyNotHexMsg", "EncryptionKey must contain HEX characters only"));
+				LOCTEXT("EncryptionKeyNotHexMsg", "EncryptionKey must contain 64 hex characters"));
 			EncryptionKey.Empty();
 		}
 	}
