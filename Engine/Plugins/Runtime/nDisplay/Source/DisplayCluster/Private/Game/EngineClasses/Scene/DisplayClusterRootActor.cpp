@@ -31,10 +31,6 @@
 #include "Misc/DisplayClusterLog.h"
 #include "Misc/DisplayClusterStrings.h"
 
-#if WITH_EDITOR
-#include "LevelEditor.h"
-#endif
-
 
 ADisplayClusterRootActor::ADisplayClusterRootActor(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -61,7 +57,10 @@ void ADisplayClusterRootActor::InitializeFromConfig(UDisplayClusterConfiguration
 		BuildHierarchy(ConfigData);
 
 #if WITH_EDITOR
-		SetPreviewNodeId(ADisplayClusterRootActor::PreviewNodeNone);
+		if (GIsEditor)
+		{
+			SetPreviewNodeId(ADisplayClusterRootActor::PreviewNodeNone);
+		}
 #endif
 	}
 }
@@ -92,7 +91,7 @@ bool ADisplayClusterRootActor::BuildHierarchy(UDisplayClusterConfigurationData* 
 	SpawnComponents<UDisplayClusterScreenComponent, UDisplayClusterConfigurationSceneComponentScreen>(ConfigData->Scene->Screens, ScreenComponents, AllComponents);
 	SpawnComponents<UDisplayClusterMeshComponent,   UDisplayClusterConfigurationSceneComponentMesh>  (ConfigData->Scene->Meshes,  MeshComponents,   AllComponents);
 
-	RegisterAllComponents();
+	ReregisterAllComponents();
 
 	// Let the components apply their individual config parameters (in-Editor and before BeginPlay in gameplay)
 	for (const TPair<FString, UDisplayClusterSceneComponent*>& Component : AllComponents)
@@ -126,15 +125,6 @@ bool ADisplayClusterRootActor::BuildHierarchy(UDisplayClusterConfigurationData* 
 			return false;
 		}
 	}
-
-#if WITH_EDITOR
-	if (GIsEditor)
-	{
-		// Force SActorDetails redraw
-		FLevelEditorModule& LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
-		LevelEditor.BroadcastComponentsEdited();
-	}
-#endif
 
 	return true;
 }
@@ -276,7 +266,7 @@ void ADisplayClusterRootActor::PostLoad()
 		}
 	}
 #if WITH_EDITOR
-	// Initialize for file property by default in Editor
+	// Initialize from file property by default in Editor
 	else
 	{
 		InitializeFromConfig(PreviewConfigPath.FilePath);
