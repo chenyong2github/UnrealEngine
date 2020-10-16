@@ -188,6 +188,8 @@ public:
 
 	virtual void PostLoad() override;
 
+	virtual void Serialize(FArchive& Ar) override;
+
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
 	void EnableTick();
