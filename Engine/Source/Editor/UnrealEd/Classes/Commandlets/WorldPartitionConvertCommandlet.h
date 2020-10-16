@@ -107,6 +107,9 @@ protected:
 	UPROPERTY(Config)
 	TArray<FHLODLayerActorMapping> HLODLayersForActorClasses;
 
+	UPROPERTY(Config)
+	uint32 LandscapeGridSize;
+
 	UPROPERTY(Transient)
 	TMap<FString, UHLODLayer*> HLODLayers;
 };
