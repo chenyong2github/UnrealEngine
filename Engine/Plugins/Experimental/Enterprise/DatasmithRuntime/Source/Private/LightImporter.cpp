@@ -2,7 +2,6 @@
 
 #include "SceneImporter.h"
 
-#include "IESLoader.h"
 #include "DatasmithRuntimeUtils.h"
 
 #include "DatasmithAreaLightActor.h"
