@@ -39,6 +39,8 @@
 #include <FunctionDiscoveryKeys_devpkey.h>
 #endif
 
+#include "Misc/CoreDelegates.h"
+
 // Macro to check result code for XAudio2 failure, get the string version, log, and goto a cleanup
 #define XAUDIO2_GOTO_CLEANUP_ON_FAIL(Result)																										 \
 	if (FAILED(Result))																														 \
