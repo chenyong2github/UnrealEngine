@@ -37,8 +37,8 @@ public:
 	TSubclassOf<class UUserWidget> MenuClass;
 
 	/** Deprecated. Called when the menu content is requested to allow a more customized handling over what to display */
-	UE_DEPRECATED(4.27, "Use OnGetUserMenuContentEvent instead, you may need to make the previous binding return an User Widget.")
-	UPROPERTY(EditAnywhere, Category = "Events", meta = (DeprecationMessage = "4.27. Use OnGetUserMenuContentEvent instead, you may need to make the previous binding return an User Widget."))
+	UE_DEPRECATED(4.26, "Use OnGetUserMenuContentEvent instead, you may need to make the previous binding return an User Widget.")
+	UPROPERTY(EditAnywhere, Category = "Events", meta = (DeprecationMessage = "4.26. Use OnGetUserMenuContentEvent instead, you may need to make the previous binding return an User Widget."))
 	FGetWidget OnGetMenuContentEvent;
 
 	/** Called when the menu content is requested to allow a more customized handling over what to display */

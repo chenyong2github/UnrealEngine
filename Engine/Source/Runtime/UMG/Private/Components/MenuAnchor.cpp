@@ -80,6 +80,7 @@ TSharedRef<SWidget> UMenuAnchor::HandleGetMenuContent()
 			SlateMenuWidget = MenuWidget->TakeWidget();
 		}
 	}
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	else if ( OnGetMenuContentEvent.IsBound() )
 	{
 		// Remove when OnGetMenuContentEvent is fully deprecated.
@@ -89,6 +90,7 @@ TSharedRef<SWidget> UMenuAnchor::HandleGetMenuContent()
 			SlateMenuWidget = MenuWidget->TakeWidget();
 		}
 	}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	else
 	{
 		if ( MenuClass != nullptr && !MenuClass->HasAnyClassFlags(CLASS_Abstract) )

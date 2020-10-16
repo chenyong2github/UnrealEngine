@@ -604,7 +604,7 @@ public:
 	 */
 	virtual FPopupMethodReply OnQueryPopupMethod() const;
 
-	UE_DEPRECATED(4.27, "Renaming to TranslateMouseCoordinateForCustomHitTestChild")
+	UE_DEPRECATED(4.26, "Renaming to TranslateMouseCoordinateForCustomHitTestChild")
 	TSharedPtr<FVirtualPointerPosition> TranslateMouseCoordinateFor3DChild(const TSharedRef<SWidget>& ChildWidget, const FGeometry& MyGeometry, const FVector2D& ScreenSpaceMouseCoordinate, const FVector2D& LastScreenSpaceMouseCoordinate) const
 	{
 		return TranslateMouseCoordinateForCustomHitTestChild(ChildWidget, MyGeometry, ScreenSpaceMouseCoordinate, LastScreenSpaceMouseCoordinate);
