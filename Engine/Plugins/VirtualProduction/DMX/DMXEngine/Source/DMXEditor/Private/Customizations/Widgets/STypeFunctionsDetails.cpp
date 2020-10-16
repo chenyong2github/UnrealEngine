@@ -577,7 +577,7 @@ FText SDMXFunctionItemListViewBox::GetFixtureMatrixWarning() const
 
 		if (XCells == 0 || YCells == 0)
 		{
-			return LOCTEXT("DMXFixtureMatrix.NoFixtureMatrixAttributesPresentWarning", "Invalid Fixture Matrix: 0 Cells");
+			return LOCTEXT("DMXFixtureMatrix.NoFixtureMatrixCellsPresentWarning", "Invalid Fixture Matrix: 0 Cells");
 		}
 
 		TSharedPtr<IPropertyHandle> CellAttributesHandle = FixtureMatrixConfigHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXFixtureMatrix, CellAttributes));
