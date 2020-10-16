@@ -5891,7 +5891,20 @@ void UCookOnTheFlyServer::CookByTheBookFinished()
 		// Save modified asset registry with all streaming chunk info generated during cook
 		const FString& SandboxRegistryFilename = GetSandboxAssetRegistryFilename();
 
-		// previously shader library was saved at this spot, but it's too early to know the chunk assignments
+		if (bCacheShaderLibraries && PackagingSettings->bShareMaterialShaderCode)
+		{
+			// Save shader code map
+			FString LibraryName = !IsCookingDLC() ? FApp::GetProjectName() : CookByTheBookOptions->DlcName;
+
+			if (LibraryName.Len() > 0)
+			{
+				SaveShaderCodeLibrary(LibraryName);
+
+				ProcessShaderCodeLibraries(LibraryName);
+			}
+
+			FShaderCodeLibrary::Shutdown();
+		}
 
 		{
 			UE_SCOPED_HIERARCHICAL_COOKTIMER(SavingCurrentIniSettings)
@@ -6004,22 +6017,6 @@ void UCookOnTheFlyServer::CookByTheBookFinished()
 						Generator.WriteCookerOpenOrder(SandboxFile.Get());
 					}
 				}
-
-				if (bCacheShaderLibraries && PackagingSettings->bShareMaterialShaderCode)
-				{
-					// Save shader code map
-					FString LibraryName = !IsCookingDLC() ? FApp::GetProjectName() : CookByTheBookOptions->DlcName;
-
-					if (LibraryName.Len() > 0)
-					{
-						SaveShaderCodeLibrary(LibraryName);
-
-						ProcessShaderCodeLibraries(LibraryName);
-					}
-
-					FShaderCodeLibrary::Shutdown();
-				}
-
 				{
 					if (FParse::Param(FCommandLine::Get(), TEXT("fastcook")))
 					{
