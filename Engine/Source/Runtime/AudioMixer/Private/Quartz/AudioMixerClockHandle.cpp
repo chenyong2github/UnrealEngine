@@ -120,14 +120,8 @@ void UQuartzClockHandle::QuartzTick(float DeltaTime)
 
 bool UQuartzClockHandle::QuartzIsTickable() const
 {
-	return (CommandQueuePtr && !CommandQueuePtr->EventDelegateQueue.IsEmpty());
+	return (CommandQueuePtr && !CommandQueuePtr->IsQueueEmpty());
 }
-
-// void UQuartzClockHandle::ResetTransport(const UObject* WorldContextObject, const FOnQuartzCommandEventBP& InDelegate)
-// {
-// 	Audio::FQuartzQuantizedCommandInitInfo Data(QuartzSubsystem->CreateDataForTransportReset(this, InDelegate));
-// 	QuartzSubsystem->AddCommandToClock(WorldContextObject, Data);
-// }
 
 void UQuartzClockHandle::PumpCommandQueue()
 {
