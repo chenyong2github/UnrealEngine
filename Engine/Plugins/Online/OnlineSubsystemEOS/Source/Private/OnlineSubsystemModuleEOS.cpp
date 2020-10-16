@@ -109,3 +109,5 @@ void FOnlineSubsystemEOSModule::ShutdownModule()
 	delete EOSFactory;
 	EOSFactory = nullptr;
 }
+
+#undef LOCTEXT_NAMESPACE
