@@ -15,6 +15,22 @@ class FManagedArrayCollection;
 struct FGeometryCollectionSection;
 struct FSharedSimulationParameters;
 
+USTRUCT(BlueprintType)
+struct GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionSource
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "GeometrySource", meta=(AllowedClasses="StaticMesh, SkeletalMesh"))
+	FSoftObjectPath SourceGeometryObject;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "GeometrySource")
+	FTransform LocalTransform;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "GeometrySource")
+	TArray<UMaterialInterface*> SourceMaterial;
+};
+
+
 USTRUCT()
 struct GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionSizeSpecificData
 {
@@ -88,7 +104,7 @@ struct GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionSizeSpecificData
 * UObject wrapper for the FGeometryCollection
 *
 */
-UCLASS(customconstructor)
+UCLASS(BlueprintType, customconstructor)
 class GEOMETRYCOLLECTIONENGINE_API UGeometryCollection : public UObject
 {
 	GENERATED_UCLASS_BODY()
@@ -146,6 +162,9 @@ public:
 
 	/** The editable mesh representation of this geometry collection */
 	class UObject* EditableMesh;
+	
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "GeometrySource")
+	TArray<FGeometryCollectionSource> GeometrySource;
 	
 	UPROPERTY(EditAnywhere, Category = "Materials")
 	TArray<UMaterialInterface*> Materials;
