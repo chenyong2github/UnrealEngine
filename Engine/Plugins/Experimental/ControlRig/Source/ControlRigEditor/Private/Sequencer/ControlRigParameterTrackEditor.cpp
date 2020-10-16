@@ -382,35 +382,38 @@ void FControlRigParameterTrackEditor::BuildObjectBindingContextMenu(FMenuBuilder
 		USkeleton* Skeleton = AcquireSkeletonFromObjectGuid(ObjectBindings[0], &BoundObject, ParentSequencer);
 		USkeletalMeshComponent*  SkelMeshComp = AcquireSkeletalMeshFromObject(BoundObject, ParentSequencer);
 
-		MenuBuilder.BeginSection("Control Rig", LOCTEXT("ControlRig", "Control Rig"));
+		if (Skeleton && SkelMeshComp)
 		{
-			MenuBuilder.AddMenuEntry(
-				LOCTEXT("EditWithFKControlRig", "Edit With FK Control Rig"),
-				LOCTEXT("ConvertToFKControlRigTooltip", "Convert To FK Control Rig and Add Track For It."),
-				FSlateIcon(),
-				FUIAction(FExecuteAction::CreateRaw(this, &FControlRigParameterTrackEditor::ConvertToFKControlRig, ObjectBindings[0], BoundObject, SkelMeshComp, Skeleton)),
-				NAME_None,
-				EUserInterfaceActionType::Button);
+			MenuBuilder.BeginSection("Control Rig", LOCTEXT("ControlRig", "Control Rig"));
+			{
+				MenuBuilder.AddMenuEntry(
+					LOCTEXT("EditWithFKControlRig", "Edit With FK Control Rig"),
+					LOCTEXT("ConvertToFKControlRigTooltip", "Convert to FK Control Rig and add a track for it"),
+					FSlateIcon(),
+					FUIAction(FExecuteAction::CreateRaw(this, &FControlRigParameterTrackEditor::ConvertToFKControlRig, ObjectBindings[0], BoundObject, SkelMeshComp, Skeleton)),
+					NAME_None,
+					EUserInterfaceActionType::Button);
 
-			MenuBuilder.AddMenuEntry(
-				NSLOCTEXT("Sequencer", "FilterAssetBySkeleton", "Filter Asset By Skeleton"),
-				NSLOCTEXT("Sequencer", "FilterAssetBySkeletonTooltip", "Filters Control Rig Assets To Match Current Skeleton"),
-				FSlateIcon(),
-				FUIAction(
-					FExecuteAction::CreateSP(this, &FControlRigParameterTrackEditor::ToggleFilterAssetBySkeleton),
-					FCanExecuteAction(),
-					FIsActionChecked::CreateSP(this, &FControlRigParameterTrackEditor::IsToggleFilterAssetBySkeleton)
-				),
-				NAME_None,
-				EUserInterfaceActionType::ToggleButton);
+				MenuBuilder.AddMenuEntry(
+					NSLOCTEXT("Sequencer", "FilterAssetBySkeleton", "Filter Asset By Skeleton"),
+					NSLOCTEXT("Sequencer", "FilterAssetBySkeletonTooltip", "Filters Control Rig assets to match current skeleton"),
+					FSlateIcon(),
+					FUIAction(
+						FExecuteAction::CreateSP(this, &FControlRigParameterTrackEditor::ToggleFilterAssetBySkeleton),
+						FCanExecuteAction(),
+						FIsActionChecked::CreateSP(this, &FControlRigParameterTrackEditor::IsToggleFilterAssetBySkeleton)
+					),
+					NAME_None,
+					EUserInterfaceActionType::ToggleButton);
 
-			MenuBuilder.AddSubMenu(
-				LOCTEXT("BakeToControlRig", "Bake To Control Rig"),
-				LOCTEXT("BakeToControlRigTooltip", "Bake To An Invertable Control Rig that matches this Skeleton."),
-				FNewMenuDelegate::CreateRaw(this, &FControlRigParameterTrackEditor::BakeToControlRigSubMenu, ObjectBindings[0], BoundObject, SkelMeshComp, Skeleton)
-			);
+				MenuBuilder.AddSubMenu(
+					LOCTEXT("BakeToControlRig", "Bake To Control Rig"),
+					LOCTEXT("BakeToControlRigTooltip", "Bake to an invertible Control Rig that matches this skeleton"),
+					FNewMenuDelegate::CreateRaw(this, &FControlRigParameterTrackEditor::BakeToControlRigSubMenu, ObjectBindings[0], BoundObject, SkelMeshComp, Skeleton)
+				);
+			}
+			MenuBuilder.EndSection();
 		}
-		MenuBuilder.EndSection();
 	}
 }
 
@@ -680,7 +683,7 @@ void FControlRigParameterTrackEditor::BuildObjectBindingTrackMenu(FMenuBuilder& 
 			{
 				MenuBuilder.AddMenuEntry(
 					LOCTEXT("AddControlRig", "Animation ControlRig"),
-					NSLOCTEXT("Sequencer", "AddControlRigTooltip", "Adds an animation ControlRig track."),
+					NSLOCTEXT("Sequencer", "AddControlRigTooltip", "Adds an animation Control Rig track"),
 					FSlateIcon(),
 					FUIAction(
 						FExecuteAction::CreateSP(this, &FControlRigParameterTrackEditor::AddControlRigFromComponent, ObjectBindings[0]),
@@ -705,7 +708,7 @@ void FControlRigParameterTrackEditor::BuildObjectBindingTrackMenu(FMenuBuilder& 
 				{
 					MenuBuilder.AddMenuEntry(
 						LOCTEXT("AddFKControlRig", "FK Control Rig"),
-						NSLOCTEXT("Sequencer", "AddFKControlRigTooltip", "Adds an FK ControlRig track."),
+						NSLOCTEXT("Sequencer", "AddFKControlRigTooltip", "Adds an FK Control Rig track"),
 						FSlateIcon(),
 						FUIAction(
 							FExecuteAction::CreateSP(this, &FControlRigParameterTrackEditor::AddFKControlRig, ObjectBindings),
@@ -715,7 +718,7 @@ void FControlRigParameterTrackEditor::BuildObjectBindingTrackMenu(FMenuBuilder& 
 
 					MenuBuilder.AddMenuEntry(
 						NSLOCTEXT("Sequencer", "FilterAssetBySkeleton", "Filter Asset By Skeleton"),
-						NSLOCTEXT("Sequencer", "FilterAssetBySkeletonTooltip", "Filters Control Rig Assets To Match Current Skeleton"),
+						NSLOCTEXT("Sequencer", "FilterAssetBySkeletonTooltip", "Filters Control Rig assets to match current skeleton"),
 						FSlateIcon(),
 						FUIAction(
 							FExecuteAction::CreateSP(this, &FControlRigParameterTrackEditor::ToggleFilterAssetBySkeleton),
@@ -727,7 +730,7 @@ void FControlRigParameterTrackEditor::BuildObjectBindingTrackMenu(FMenuBuilder& 
 
 					MenuBuilder.AddSubMenu(
 						LOCTEXT("AddAssetControlRig", "Asset-Based ControlRig"),
-						NSLOCTEXT("Sequencer", "AddAsetControlRigTooltip", "Adds an asset based ControlRig track."),
+						NSLOCTEXT("Sequencer", "AddAsetControlRigTooltip", "Adds an asset based Control Rig track"),
 						FNewMenuDelegate::CreateRaw(this, &FControlRigParameterTrackEditor::AddControlRigSubMenu, ObjectBindings, Track)
 					);
 				}
@@ -2042,7 +2045,7 @@ void FControlRigParameterTrackEditor::BuildTrackContextMenu(FMenuBuilder& MenuBu
 	{
 		MenuBuilder.AddMenuEntry(
 			NSLOCTEXT("Sequencer", "ImportControlRigFBX", "Import Control Rig FBX"),
-			NSLOCTEXT("Sequencer", "ImportControlRigFBXTooltip", "Import Control Rig FBX."),
+			NSLOCTEXT("Sequencer", "ImportControlRigFBXTooltip", "Import Control Rig FBX"),
 			FSlateIcon(),
 			FUIAction(
 				FExecuteAction::CreateRaw(this, &FControlRigParameterTrackEditor::ImportFBX, Track, SectionToKey, NodeAndChannels)));
@@ -2058,7 +2061,7 @@ void FControlRigParameterTrackEditor::BuildTrackContextMenu(FMenuBuilder& MenuBu
 
 			MenuBuilder.AddMenuEntry(
 				NSLOCTEXT("Sequencer", "SelectBonesToAnimate", "Select Bones Or Curves To Animate"),
-				NSLOCTEXT("Sequencer", "SelectBonesToAnimateToolTip", "Select Which Bones or Curves You Want To Directly Animate."),
+				NSLOCTEXT("Sequencer", "SelectBonesToAnimateToolTip", "Select which bones or curves you want to directly animate"),
 				FSlateIcon(),
 				FUIAction(
 					FExecuteAction::CreateRaw(this, &FControlRigParameterTrackEditor::SelectFKBonesToAnimate, AutoRig)));
