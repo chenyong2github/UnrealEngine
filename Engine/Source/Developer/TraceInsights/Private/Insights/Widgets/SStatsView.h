@@ -23,6 +23,7 @@
 
 class FMenuBuilder;
 class FTimingGraphTrack;
+class FUICommandList;
 
 namespace Trace
 {
@@ -87,7 +88,11 @@ public:
 	FStatsNodePtr GetCounterNode(uint32 CounterId) const;
 	void SelectCounterNode(uint32 CounterId);
 
+	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
+
 private:
+	void InitCommandList();
+
 	void UpdateTree();
 
 	void UpdateNode(FStatsNodePtr NodePtr);
@@ -112,6 +117,9 @@ private:
 	TSharedPtr<SWidget> TreeView_GetMenuContent();
 	void TreeView_BuildSortByMenu(FMenuBuilder& MenuBuilder);
 	void TreeView_BuildViewColumnMenu(FMenuBuilder& MenuBuilder);
+
+	bool ContextMenu_CopySelectedToClipboard_CanExecute() const;
+	void ContextMenu_CopySelectedToClipboard_Execute();
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Tree View - Columns' Header
@@ -267,6 +275,8 @@ private:
 
 	/** A weak pointer to the profiler session used to populate this widget. */
 	TSharedPtr<const Trace::IAnalysisSession>/*Weak*/ Session;
+
+	TSharedPtr<FUICommandList> CommandList;
 
 	//////////////////////////////////////////////////
 	// Tree View, Columns

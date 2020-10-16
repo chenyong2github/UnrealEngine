@@ -120,6 +120,44 @@ void FTable::GetVisibleColumns(TArray<TSharedRef<FTableColumn>>& InArray) const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void FTable::GetVisibleColumnsData(const TArray<Insights::FBaseTreeNodePtr>& InNodes, FString& OutData) const
+{
+	constexpr TCHAR Separator = TEXT('\t');
+
+	TArray<TSharedRef<Insights::FTableColumn>> VisibleColumns;
+	GetVisibleColumns(VisibleColumns);
+
+	// Table headers
+	for (const TSharedRef<Insights::FTableColumn>& ColumnRef : VisibleColumns)
+	{
+		OutData += ColumnRef->GetShortName().ToString().ReplaceCharWithEscapedChar() + Separator;
+	}
+
+	if (OutData.Len() > 0)
+	{
+		OutData.RemoveAt(OutData.Len() - 1, 1, false);
+		OutData.AppendChar(TEXT('\n'));
+	}
+
+	// Selected items
+	for (Insights::FBaseTreeNodePtr Node : InNodes)
+	{
+		for (const TSharedRef<Insights::FTableColumn>& ColumnRef : VisibleColumns)
+		{
+			FText NodeText = ColumnRef->GetValueAsText(*Node);
+			OutData += NodeText.ToString().ReplaceCharWithEscapedChar() + Separator;
+		}
+
+		if (OutData.Len() > 0)
+		{
+			OutData.RemoveAt(OutData.Len() - 1, 1, false);
+			OutData.AppendChar(TEXT('\n'));
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 } // namespace Insights
 
 #undef LOCTEXT_NAMESPACE
