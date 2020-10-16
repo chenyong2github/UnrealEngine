@@ -8,6 +8,7 @@
 #include "MovieSceneImagePlateTrack.h"
 #include "MovieSceneImagePlateSection.h"
 #include "ImagePlateFileSequence.h"
+#include "ImagePlateComponent.h"
 
 #include "Engine/Texture2D.h"
 #include "Engine/Texture2DDynamic.h"
@@ -132,6 +133,12 @@ struct FImagePlateExecutionToken : IMovieSceneExecutionToken
 				TFuture<void> TextureCopied = FrameData.Get().CopyTo(RenderTexture);
 				// @todo: do we need to block here? It'll get picked up on the render thread anyway before our frame is out
 				//TextureCopied.Wait();
+			}
+
+			UImagePlateComponent* ImagePlateComponent = Cast<UImagePlateComponent>(Object);
+			if (ImagePlateComponent)
+			{
+				ImagePlateComponent->OnRenderTextureChanged();
 			}
 		}
 	}
