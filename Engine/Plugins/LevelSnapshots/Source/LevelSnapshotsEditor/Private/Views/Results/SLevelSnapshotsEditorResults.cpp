@@ -4,6 +4,7 @@
 
 #include "ActorSnapshot.h"
 #include "PropertySnapshot.h"
+#include "LevelSnapshotsEditorStyle.h"
 #include "ILevelSnapshotsEditorView.h"
 #include "Views/Results/LevelSnapshotsEditorResults.h"
 #include "Widgets/SLevelSnapshotsEditorResultsGroup.h"
@@ -11,15 +12,96 @@
 
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/SBoxPanel.h"
+#include "Widgets/Input/SCheckBox.h"
+#include "Widgets/Views/SExpanderArrow.h"
+#include "Widgets/Input/SCheckBox.h"
+#include "Widgets/Input/SComboButton.h"
 
+#include "Types/ISlateMetaData.h"
 #include "IPropertyRowGenerator.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
 #include "IDetailTreeNode.h"
 #include "PropertyHandle.h"
 #include "ISinglePropertyView.h"
+#include "EditorStyleSet.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 
 #define LOCTEXT_NAMESPACE "LevelSnapshotsEditor"
+
+namespace LevelSnapshotsEditorResultsUtil
+{
+	bool FindPropertyHandleRecursive(const TSharedPtr<IPropertyHandle>& PropertyHandle, const FString& QualifiedPropertyName, bool bRequiresMatchingPath)
+	{
+		if (PropertyHandle && PropertyHandle->IsValidHandle())
+		{
+			uint32 ChildrenCount = 0;
+			PropertyHandle->GetNumChildren(ChildrenCount);
+			for (uint32 Index = 0; Index < ChildrenCount; ++Index)
+			{
+				TSharedPtr<IPropertyHandle> ChildHandle = PropertyHandle->GetChildHandle(Index);
+				if (FindPropertyHandleRecursive(ChildHandle, QualifiedPropertyName, bRequiresMatchingPath))
+				{
+					return true;
+				}
+			}
+
+			if (PropertyHandle->GetProperty())
+			{
+				if (bRequiresMatchingPath)
+				{
+					if (PropertyHandle->GeneratePathToProperty() == QualifiedPropertyName)
+					{
+						return true;
+					}
+				}
+				else if (PropertyHandle->GetProperty()->GetName() == QualifiedPropertyName)
+				{
+					return true;
+				}
+			}
+		}
+
+		return false;
+	}
+
+	TSharedPtr<IDetailTreeNode> FindTreeNodeRecursive(const TSharedRef<IDetailTreeNode>& RootNode, const FString& QualifiedPropertyName, bool bRequiresMatchingPath)
+	{
+		TArray<TSharedRef<IDetailTreeNode>> Children;
+		RootNode->GetChildren(Children);
+		for (TSharedRef<IDetailTreeNode>& Child : Children)
+		{
+			TSharedPtr<IDetailTreeNode> FoundNode = FindTreeNodeRecursive(Child, QualifiedPropertyName, bRequiresMatchingPath);
+			if (FoundNode.IsValid())
+			{
+				return FoundNode;
+			}
+		}
+
+		TSharedPtr<IPropertyHandle> Handle = RootNode->CreatePropertyHandle();
+		if (FindPropertyHandleRecursive(Handle, QualifiedPropertyName, bRequiresMatchingPath))
+		{
+			return RootNode;
+		}
+
+		return nullptr;
+	}
+
+	/** Find a node by its name in a detail tree node hierarchy. */
+	TSharedPtr<IDetailTreeNode> FindNode(const TArray<TSharedRef<IDetailTreeNode>>& RootNodes, const FString& QualifiedPropertyName, bool bRequiresMatchingPath)
+	{
+		for (const TSharedRef<IDetailTreeNode>& CategoryNode : RootNodes)
+		{
+			TSharedPtr<IDetailTreeNode> FoundNode = FindTreeNodeRecursive(CategoryNode, QualifiedPropertyName, bRequiresMatchingPath);
+			if (FoundNode.IsValid())
+			{
+				return FoundNode;
+			}
+		}
+
+		return nullptr;
+	}
+}
 
 SLevelSnapshotsEditorResults::~SLevelSnapshotsEditorResults()
 {
@@ -37,15 +119,119 @@ void SLevelSnapshotsEditorResults::Construct(const FArguments& InArgs, const TSh
 		[
 			SNew(SVerticalBox)
 			+ SVerticalBox::Slot()
-		[
-			SAssignNew(ResultList, STreeView<TSharedPtr<FLevelSnapshotsEditorResultsRow>>)
-			.TreeItemsSource(reinterpret_cast<TArray<TSharedPtr<FLevelSnapshotsEditorResultsRow>>*>(&FieldGroups))
-		.ItemHeight(24.0f)
-		.OnGenerateRow(this, &SLevelSnapshotsEditorResults::OnGenerateRow)
-		.OnGetChildren(this, &SLevelSnapshotsEditorResults::OnGetGroupChildren)
-		.OnSelectionChanged(this, &SLevelSnapshotsEditorResults::OnSelectionChanged)
-		.ClearSelectionOnClick(false)
-		]
+			.AutoHeight()
+			.Padding(5.f, 10.f)
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(2.f, 0.f)
+				[
+					SNew(SButton)
+					.VAlign(VAlign_Center)
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("CollapseAll", "Collapse All"))
+					]
+				]
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(2.f, 0.f)
+				[
+					SNew(SButton)
+					.VAlign(VAlign_Center)
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("UnselectAll", "Unselect All"))
+					]
+				]
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(2.f, 0.f)
+				[
+					SNew(SButton)
+					.VAlign(VAlign_Center)
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("SelectAll", "Select All"))
+					]
+				]
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(2.f, 0.f)
+				[
+					SNew( SComboButton )
+					.ComboButtonStyle( FEditorStyle::Get(), "GenericFilters.ComboButtonStyle" )
+					.ForegroundColor(FLinearColor::White)
+					.ContentPadding(0)
+					.ToolTipText( LOCTEXT( "AddFilterToolTip", "Result Filters" ) )
+					.OnGetMenuContent( this, &SLevelSnapshotsEditorResults::MakeAddFilterMenu )
+					.HasDownArrow( true )
+					.ContentPadding( FMargin( 1, 0 ) )
+					.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("ContentBrowserFiltersCombo")))
+					.Visibility(EVisibility::Visible)
+					.ButtonContent()
+					[
+						SNew(SHorizontalBox)
+
+						+ SHorizontalBox::Slot()
+						.AutoWidth()
+						[
+							SNew(STextBlock)
+							.TextStyle(FEditorStyle::Get(), "GenericFilters.TextStyle")
+							.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.9"))
+							.Text(FText::FromString(FString(TEXT("\xf0b0"))) /*fa-filter*/)
+						]
+
+						+ SHorizontalBox::Slot()
+						.AutoWidth()
+						.Padding(2,0,0,0)
+						[
+							SNew(STextBlock)
+							.TextStyle(FEditorStyle::Get(), "GenericFilters.TextStyle")
+							.Text(LOCTEXT("Filters", "Filters"))
+						]
+					]
+				]
+				+ SHorizontalBox::Slot()
+				.HAlign(HAlign_Right)
+				.Padding(2.f, 0.f)
+				[
+					SNew(SHorizontalBox)
+					+SHorizontalBox::Slot()
+					.Padding(2.f, 0.f)
+					.AutoWidth()
+					[
+						SNew(SCheckBox)
+						.IsChecked(true)
+					]
+
+					+SHorizontalBox::Slot()
+					.Padding(2.f, 0.f)
+					.AutoWidth()
+					[
+						SNew(SBorder)
+						.Padding(FMargin(15.0f, 5.0f))
+						.BorderImage(FLevelSnapshotsEditorStyle::GetBrush("LevelSnapshotsEditor.BrightBorder"))
+						.HAlign(HAlign_Center)
+						[
+							SNew(STextBlock)
+							.Text(LOCTEXT("ShowAll", "Show All"))
+						]
+					]
+				]
+			]
+
+			+ SVerticalBox::Slot()
+			[
+				SAssignNew(ResultList, STreeView<TSharedPtr<FLevelSnapshotsEditorResultsRow>>)
+				.TreeItemsSource(reinterpret_cast<TArray<TSharedPtr<FLevelSnapshotsEditorResultsRow>>*>(&FieldGroups))
+				.ItemHeight(24.0f)
+				.OnGenerateRow(this, &SLevelSnapshotsEditorResults::OnGenerateRow)
+				.OnGetChildren(this, &SLevelSnapshotsEditorResults::OnGetGroupChildren)
+				.OnSelectionChanged(this, &SLevelSnapshotsEditorResults::OnSelectionChanged)
+				.ClearSelectionOnClick(false)
+			]
 		];
 
 	Refresh();
@@ -57,12 +243,7 @@ TSharedRef<ITableRow> SLevelSnapshotsEditorResults::OnGenerateRow(TSharedPtr<FLe
 	{
 		if (TSharedPtr<FLevelSnapshotsEditorResultsRowGroup> RowGroup = StaticCastSharedPtr<FLevelSnapshotsEditorResultsRowGroup>(InResultsRow))
 		{
-			return SNew(STableRow<TSharedPtr<SWidget>>, OwnerTable)
-				.Padding(FMargin(30.f, 0.f, 0.f, 0.f))
-				.ShowSelection(false)
-				[
-					SNew(SLevelSnapshotsEditorResultsGroup, RowGroup->ObjectPath, RowGroup->ActorSnapshot)
-				];
+			return SNew(SLevelSnapshotsEditorResultsRowGroup, OwnerTable, RowGroup.ToSharedRef(), SharedThis<SLevelSnapshotsEditorResults>(this));
 		}
 	}
 	else if (InResultsRow->GetType() == FLevelSnapshotsEditorResultsRow::Field)
@@ -109,6 +290,8 @@ void SLevelSnapshotsEditorResults::RefreshGroups()
 static TSharedRef<SWidget> CreatePropertyWidget(TSharedPtr<FLevelSnapshotsEditorResultsRowGroup> InRowGroup, const TSharedPtr<IDetailTreeNode>& Node, bool bGenerateChildren = false)
 {
 	FNodeWidgets NodeWidgets = Node->CreateNodeWidgets();
+
+	NodeWidgets.ValueWidget->SetEnabled(false);
 
 	TSharedRef<SHorizontalBox> FieldWidget = SNew(SHorizontalBox);
 
@@ -241,18 +424,38 @@ void SLevelSnapshotsEditorResults::OnSnapshotSelected(ULevelSnapshot* InLevelSna
 				Objects.Add(ActorObjectPtr.Get());
 				RowGenerator->SetObjects(Objects);
 
-				const TArray<TSharedRef<IDetailTreeNode>>& RootNodes = RowGenerator->GetRootTreeNodes();
-
-				for (const TSharedRef<IDetailTreeNode>& CategoryNode : RootNodes)
+				for (const TPair<FName, FInternalPropertySnapshot>& PropertyPair : ActorSnapshotPair.Value.Properties)
 				{
-					TArray<TSharedRef<IDetailTreeNode>> ChildNodes;
-					CategoryNode->GetChildren(ChildNodes);
+					FString PropertyString = PropertyPair.Key.ToString();
 
-					for (const TSharedRef<IDetailTreeNode>& ChildNode : ChildNodes)
+					// Check showld we expose this property from filtered list
+					if (TSharedPtr<IDetailTreeNode> Node = LevelSnapshotsEditorResultsUtil::FindNode(RowGenerator->GetRootTreeNodes(), PropertyString, true))
 					{
-						CreatePropertyWidget(NewGroup, ChildNode, true);
+						/*ExposedFieldWidgets.Add(SAssignNew(ExposedFieldWidget, SRCPanelExposedField, RCProperty, RowGenerator, WeakPanel)
+							.EditMode_Raw(this, &SRemoteControlTarget::GetPanelEditMode));*/
+
+						CreatePropertyWidget(NewGroup, Node, true);
+					}
+					else
+					{
+						UE_LOG(LogTemp, Warning, TEXT("Not in the list"));
 					}
 				}
+
+
+
+				//const TArray<TSharedRef<IDetailTreeNode>>& RootNodes = RowGenerator->GetRootTreeNodes();
+
+				//for (const TSharedRef<IDetailTreeNode>& CategoryNode : RootNodes)
+				//{
+				//	TArray<TSharedRef<IDetailTreeNode>> ChildNodes;
+				//	CategoryNode->GetChildren(ChildNodes);
+
+				//	for (const TSharedRef<IDetailTreeNode>& ChildNode : ChildNodes)
+				//	{
+				//		CreatePropertyWidget(NewGroup, ChildNode, true);
+				//	}
+				//}
 			}
 
 			FieldGroups.Add(NewGroup);
@@ -261,12 +464,82 @@ void SLevelSnapshotsEditorResults::OnSnapshotSelected(ULevelSnapshot* InLevelSna
 		RefreshGroups();
 	}
 }
+
+TSharedRef<SWidget> SLevelSnapshotsEditorResults::MakeAddFilterMenu()
+{
+	FMenuBuilder MenuBuilder(/*bInShouldCloseWindowAfterMenuSelection=*/true, nullptr, nullptr, /*bCloseSelfOnly=*/true);
+
+	MenuBuilder.BeginSection("BasicFilters");
+	{
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("Filter1", "Filter1"),
+			LOCTEXT("FilterTooltipPrefix", "FilterTooltipPrefix"),
+			FSlateIcon(),
+			FUIAction()
+			);
+
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("Filter2", "Filter2"),
+			LOCTEXT("FilterTooltipPrefix", "FilterTooltipPrefix"),
+			FSlateIcon(),
+			FUIAction()
+			);
+	}
+	MenuBuilder.EndSection();
+
+	return MenuBuilder.MakeWidget();
+}
+
 void SLevelSnapshotsEditorResultsRowGroup::Tick(const FGeometry&, const double, const float)
 {
 }
 
 void SLevelSnapshotsEditorResultsRowGroup::Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView, const TSharedPtr<FLevelSnapshotsEditorResultsRowGroup>& FieldGroup, const TSharedPtr<SLevelSnapshotsEditorResults>& OwnerPanel)
 {
+	ChildSlot
+		[
+			SNew(SBox)
+			.Padding(FMargin(0.0f, 2.0f))
+			[
+				SNew(SBorder)
+				.Padding(FMargin(5.0f, 8.0f))
+				.BorderImage(FLevelSnapshotsEditorStyle::GetBrush("LevelSnapshotsEditor.GroupBorder"))
+				.VAlign(VAlign_Fill)
+				[
+					SNew(SHorizontalBox)
+
+					+ SHorizontalBox::Slot()
+					.VAlign(VAlign_Fill)
+					.HAlign(HAlign_Center)
+					.Padding(FMargin(4.0f, 0.0f))
+					.AutoWidth()
+					[
+						SNew(SExpanderArrow, SharedThis(this))
+					]
+
+					+ SHorizontalBox::Slot()
+					.Padding(FMargin(4.0f, 0.0f))
+					.AutoWidth()
+					[
+						SNew(SCheckBox)
+						.IsChecked(true)
+					]
+
+					+ SHorizontalBox::Slot()
+					.Padding(FMargin(10.0f, 0.0f))
+					[
+						SNew(SLevelSnapshotsEditorResultsGroup, FieldGroup->ActorSnapshot.ObjectName.ToString(), FieldGroup->ActorSnapshot)
+					]
+				]
+			]
+		];
+
+
+	STableRow<TSharedPtr<FLevelSnapshotsEditorResultsRowGroup>>::ConstructInternal(
+		STableRow::FArguments()
+		.ShowSelection(false),
+		InOwnerTableView
+	);
 }
 
 void FLevelSnapshotsEditorResultsRowGroup::GetNodeChildren(TArray<TSharedPtr<FLevelSnapshotsEditorResultsRow>>& OutChildren)
@@ -278,7 +551,19 @@ void SLevelSnapshotsEditorResultsField::Construct(const FArguments& InArgs, cons
 {
 	ChildSlot
 		[
-			InContent
+			SNew(SHorizontalBox)
+
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			[
+				SNew(SCheckBox)
+				.IsChecked(true)
+			]
+
+			+ SHorizontalBox::Slot()
+			[
+				InContent
+			]
 		];
 }
 

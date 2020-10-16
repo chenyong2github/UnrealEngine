@@ -30,7 +30,9 @@ public class LevelSnapshotsEditor : ModuleRules
 				"LevelSnapshotFilters",
 				"AssetRegistry",
 				"AssetTools",
-				"ToolMenus"
+				"ToolMenus",
+				"Projects",
+				"EditorStyle"
 			}
 			);
 	}

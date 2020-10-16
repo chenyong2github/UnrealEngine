@@ -51,12 +51,20 @@ public:
 		return FLinearColor::White;
 	}
 
+
+private:
 	virtual void RegisterTabSpawners(const TSharedRef<FTabManager>& TabManager) override;
 	virtual void UnregisterTabSpawners(const TSharedRef<FTabManager>& TabManager) override;
 
 	TSharedRef<SDockTab> SpawnTab_Input(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_Filter(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_Results(const FSpawnTabArgs& Args);
+
+	/** Builds the toolbar widget */
+	void ExtendToolbar();
+	void SetupCommands();
+
+	void ApplyToWorld();
 
 private:
 	TSharedPtr<FLevelSnapshotsEditorViewBuilder> ViewBuilder;

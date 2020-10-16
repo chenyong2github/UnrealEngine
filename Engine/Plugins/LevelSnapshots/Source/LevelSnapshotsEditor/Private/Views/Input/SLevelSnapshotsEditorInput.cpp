@@ -6,6 +6,8 @@
 #include "Views/Input/LevelSnapshotsEditorInput.h"
 #include "Widgets/SLevelSnapshotsEditorBrowser.h"
 
+#include "AssetData.h"
+#include "AssetRegistryModule.h"
 #include "Editor.h"
 #include "EditorStyleSet.h"
 #include "Engine/World.h"
@@ -89,6 +91,7 @@ private:
 	FOnSetValue OnSetValueEvent;
 };
 
+#pragma optimize("", off)
 TSharedRef<SWidget> SLevelSnapshotsEditorContextPicker::BuildWorldPickerMenu()
 {
 	FMenuBuilder MenuBuilder(true, nullptr);
@@ -119,8 +122,29 @@ TSharedRef<SWidget> SLevelSnapshotsEditorContextPicker::BuildWorldPickerMenu()
 	}
 	MenuBuilder.EndSection();
 
+	// Get all worlds
+	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+	TArray<FAssetData> WorldAssets;
+	AssetRegistryModule.Get().GetAssetsByClass(UWorld::StaticClass()->GetFName(), WorldAssets);
+
+	MenuBuilder.BeginSection("Other Worlds");
+	for (const FAssetData& Asset : WorldAssets)
+	{
+		{
+			MenuBuilder.AddMenuEntry(
+				FText::FromName(Asset.AssetName),
+				LOCTEXT("World", "World"),
+				FSlateIcon(),
+				FUIAction()
+				);
+		}
+	}
+	MenuBuilder.EndSection();
+
 	return MenuBuilder.MakeWidget();
 }
+
+#pragma optimize("", on)
 
 FText SLevelSnapshotsEditorContextPicker::GetWorldDescription(UWorld* World)
 {
@@ -157,6 +181,8 @@ void SLevelSnapshotsEditorContextPicker::Construct(const FArguments& InArgs)
 	check(ValueAttribute.IsSet());
 	check(OnSetValueEvent.IsBound());
 
+	UWorld* World = GEditor->GetEditorWorldContext().World();
+
 	ChildSlot
 	.Padding(0.0f)
 	[
@@ -178,13 +204,14 @@ void SLevelSnapshotsEditorContextPicker::Construct(const FArguments& InArgs)
 				.AutoWidth()
 				[
 					SNew(SImage)
-						.Image(FEditorStyle::GetBrush("SceneOutliner.World"))
+					.Image(FEditorStyle::GetBrush("SceneOutliner.World"))
 				]
 
 				+ SHorizontalBox::Slot()
+				.Padding(3.f, 0.f)
 				[
 					SNew(STextBlock)
-					.Text(LOCTEXT("Worlds", "Worlds"))
+					.Text(GetWorldDescription(World))
 				]
 			]
 		]

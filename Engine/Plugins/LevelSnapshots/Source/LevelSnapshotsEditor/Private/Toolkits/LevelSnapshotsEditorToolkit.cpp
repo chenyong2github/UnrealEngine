@@ -2,6 +2,8 @@
 
 #include "Toolkits/LevelSnapshotsEditorToolkit.h"
 
+#include "LevelSnapshotsEditorCommands.h"
+#include "LevelSnapshotsEditorStyle.h"
 #include "LevelSnapshotsEditorData.h"
 #include "Misc/LevelSnapshotsEditorContext.h"
 #include "Views/Input/LevelSnapshotsEditorInput.h"
@@ -80,6 +82,10 @@ void FLevelSnapshotsEditorToolkit::Initialize(const EToolkitMode::Type Mode, con
 			);
 
 	InitAssetEditor(EToolkitMode::Standalone, TSharedPtr<IToolkitHost>(), FName("BaseAssetEditor"), StandaloneDefaultLayout, bCreateDefaultStandaloneMenu, bCreateDefaultToolbar, EditorData, false);
+
+	SetupCommands();
+	ExtendToolbar();
+	RegenerateMenusAndToolbars();
 }
 
 void FLevelSnapshotsEditorToolkit::RegisterTabSpawners(const TSharedRef<FTabManager>& InTabManager)
@@ -149,6 +155,47 @@ TSharedRef<SDockTab> FLevelSnapshotsEditorToolkit::SpawnTab_Results(const FSpawn
 		];
 
 	return DetailsTab.ToSharedRef();
+}
+
+void FLevelSnapshotsEditorToolkit::ExtendToolbar()
+{
+	struct Local
+	{
+		static void FillToolbar(FToolBarBuilder& ToolbarBuilder, FLevelSnapshotsEditorToolkit* Toolkit)
+		{
+			ToolbarBuilder.BeginSection("Apply");
+			{
+				ToolbarBuilder.AddToolBarButton(FLevelSnapshotsEditorCommands::Get().Apply,
+					NAME_None, TAttribute<FText>(), TAttribute<FText>(),
+					FSlateIcon(FLevelSnapshotsEditorStyle::GetStyleSetName(), "LevelSnapshotsEditor.Toolbar.Apply"),
+					FName(TEXT("ApplySnapshotToWorld")));
+			}
+			ToolbarBuilder.EndSection();
+		}
+	};
+
+
+	TSharedPtr<FExtender> ToolbarExtender = MakeShareable(new FExtender);
+
+	ToolbarExtender->AddToolBarExtension(
+		"Asset",
+		EExtensionHook::After,
+		GetToolkitCommands(),
+		FToolBarExtensionDelegate::CreateStatic(&Local::FillToolbar, this)
+		);
+
+	AddToolbarExtender(ToolbarExtender);
+}
+
+void FLevelSnapshotsEditorToolkit::SetupCommands()
+{
+	GetToolkitCommands()->MapAction(
+		FLevelSnapshotsEditorCommands::Get().Apply,
+		FExecuteAction::CreateRaw(this, &FLevelSnapshotsEditorToolkit::ApplyToWorld));
+}
+
+void FLevelSnapshotsEditorToolkit::ApplyToWorld()
+{
 }
 
 #undef LOCTEXT_NAMESPACE

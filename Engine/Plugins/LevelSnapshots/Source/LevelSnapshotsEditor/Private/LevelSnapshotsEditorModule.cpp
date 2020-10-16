@@ -2,6 +2,8 @@
 
 #include "LevelSnapshotsEditorModule.h"
 
+#include "LevelSnapshotsEditorCommands.h"
+#include "LevelSnapshotsEditorStyle.h"
 #include "LevelSnapshotsEditorData.h"
 #include "LevelSnapshotsUserSettings.h"
 #include "Toolkits/LevelSnapshotsEditorToolkit.h"
@@ -21,11 +23,16 @@ void FLevelSnapshotsEditorModule::StartupModule()
 	AssetTools.RegisterAssetTypeActions(MakeShared<FAssetTypeActions_LevelSnapshot>());
 
 	RegisterMenus();
+
+	FLevelSnapshotsEditorStyle::Initialize();
+	FLevelSnapshotsEditorCommands::Register();
 }
 
 void FLevelSnapshotsEditorModule::ShutdownModule()
 {
 	UToolMenus::UnregisterOwner(this);
+
+	FLevelSnapshotsEditorStyle::Shutdown();
 }
 
 void FLevelSnapshotsEditorModule::RegisterMenus()

@@ -31,7 +31,7 @@ void SLevelSnapshotsEditorBrowser::Construct(const FArguments& InArgs, const TSh
 	AssetPickerConfig.InitialAssetViewType = EAssetViewType::List;
 	AssetPickerConfig.bFocusSearchBoxWhenOpened = true;
 	AssetPickerConfig.bAllowNullSelection = false;
-	AssetPickerConfig.bShowBottomToolbar = true;
+	AssetPickerConfig.bShowBottomToolbar = false;
 	AssetPickerConfig.bAutohideSearchBar = false;
 	AssetPickerConfig.bAllowDragging = false;
 	AssetPickerConfig.bCanShowClasses = false;
@@ -39,7 +39,7 @@ void SLevelSnapshotsEditorBrowser::Construct(const FArguments& InArgs, const TSh
 	AssetPickerConfig.bShowTypeInColumnView = false;
 	AssetPickerConfig.bSortByPathInColumnView = false;
 	AssetPickerConfig.SaveSettingsName = TEXT("GlobalAssetPicker");
-	AssetPickerConfig.ThumbnailScale = 0.2f;
+	AssetPickerConfig.ThumbnailScale = 0.8f;
 	AssetPickerConfig.Filter = ARFilter;
 	AssetPickerConfig.OnAssetSelected = FOnAssetSelected::CreateSP(this, &SLevelSnapshotsEditorBrowser::OnAssetSelected);
 	AssetPickerConfig.OnShouldFilterAsset = FOnShouldFilterAsset::CreateSP(this, &SLevelSnapshotsEditorBrowser::OnShouldFilterAsset);

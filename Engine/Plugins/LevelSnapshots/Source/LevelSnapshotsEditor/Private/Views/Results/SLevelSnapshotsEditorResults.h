@@ -19,6 +19,8 @@ struct SLevelSnapshotsEditorResultsField;
 struct FLevelSnapshotsEditorViewBuilder;
 class IPropertyRowGenerator;
 
+enum class ECheckBoxState : uint8;
+
 struct FLevelSnapshotsEditorResultsRow
 {
 	enum ENodeType
@@ -124,6 +126,8 @@ private:
 
 	void OnSnapshotSelected(ULevelSnapshot* InLevelSnapshot);
 
+	TSharedRef<SWidget> MakeAddFilterMenu();
+
 private:
 	TWeakPtr<FLevelSnapshotsEditorResults> EditorResultsPtr;
 
@@ -138,4 +142,6 @@ private:
 	TWeakPtr<FLevelSnapshotsEditorViewBuilder> BuilderPtr;
 
 	TArray<TStrongObjectPtr<UObject>> ActorObjects;
+
+	TSharedPtr<SCheckBox> FilterButtonPtr;
 };
