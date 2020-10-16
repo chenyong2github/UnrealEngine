@@ -763,7 +763,7 @@ void AVirtualCameraActor::SaveSettings()
 void AVirtualCameraActor::LoadSettings()
 {
 	UCineCameraComponent* CineCamera = GetCineCameraComponent();
-	if (CineCamera)
+	if (!CineCamera)
 	{
 		return;
 	}
