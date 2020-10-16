@@ -53,6 +53,6 @@ namespace Audio
 		TQueue<TFunction<void(UQuartzClockHandle*)>, EQueueMode::Mpsc> EventDelegateQueue;
 		FThreadSafeBool bIsAcceptingCommands{ true };
 
-		friend class UQuartzClockHandle; // UClockHandle is the only class allowed to pump the command queue
+		friend class ::UQuartzClockHandle; // UClockHandle is the only class allowed to pump the command queue
 	};
 } // namespace Audio
