@@ -255,6 +255,8 @@ namespace Audio
 			SourceInfo.bIsActive = false;
 			SourceInfo.bIsPlaying = false;
 			SourceInfo.bIsPaused = false;
+			SourceInfo.bIsPausedForQuantization = false;
+			SourceInfo.bDelayLineSet = false;
 			SourceInfo.bIsStopping = false;
 			SourceInfo.bIsDone = false;
 			SourceInfo.bIsLastBuffer = false;
@@ -571,6 +573,8 @@ namespace Audio
 		SourceInfo.bIsDone = true;
 		SourceInfo.bIsLastBuffer = false;
 		SourceInfo.bIsPaused = false;
+		SourceInfo.bIsPausedForQuantization = false;
+		SourceInfo.bDelayLineSet = false;
 		SourceInfo.bIsStopping = false;
 		SourceInfo.bIsBusy = false;
 		SourceInfo.bUseHRTFSpatializer = false;
@@ -734,6 +738,8 @@ namespace Audio
 			SourceInfo.bIs3D = InitParams.bIs3D;
 			SourceInfo.bIsPlaying = false;
 			SourceInfo.bIsPaused = false;
+			SourceInfo.bIsPausedForQuantization = false;
+			SourceInfo.bDelayLineSet = false;
 			SourceInfo.bIsStopping = false;
 			SourceInfo.bIsActive = true;
 			SourceInfo.bIsBusy = true;
@@ -762,6 +768,23 @@ namespace Audio
 			SourceInfo.PitchModulation = PitchModulation;
 			SourceInfo.LowpassModulation = LowpassModulation;
 			SourceInfo.HighpassModulation = HighpassModulation;
+
+			// Pass required info to clock manager
+			const FQuartzQuantizedRequestData& QuantData = InitParams.QuantizedRequestData;
+			if (QuantData.QuantizedCommandPtr)
+			{
+				if (false == MixerDevice->QuantizedEventClockManager.DoesClockExist(QuantData.ClockName))
+				{
+					UE_LOG(LogAudioMixer, Warning, TEXT("Quantization Clock: '%s' Does not exist."), *QuantData.ClockName.ToString());
+					QuantData.QuantizedCommandPtr->Cancel();
+				}
+				else
+				{
+					FQuartzQuantizedCommandInitInfo QuantCommandInitInfo(QuantData, SourceId);
+					SourceInfo.QuantizedCommandHandle = MixerDevice->QuantizedEventClockManager.AddCommandToClock(QuantCommandInitInfo);
+				}
+			}
+
 
 			// Create the spatialization plugin source effect
 			if (InitParams.bUseHRTFSpatialization)
@@ -1086,17 +1109,28 @@ namespace Audio
 
 		AudioMixerThreadCommand([this, SourceId]()
 		{
-			AUDIO_MIXER_CHECK_AUDIO_PLAT_THREAD(MixerDevice);
-
-			FSourceInfo& SourceInfo = SourceInfos[SourceId];
-
-			SourceInfo.bIsPlaying = false;
-			SourceInfo.bIsPaused = false;
-			SourceInfo.bIsActive = false;
-			SourceInfo.bIsStopping = false;
-
-			AUDIO_MIXER_DEBUG_LOG(SourceId, TEXT("Is immediately stopping"));
+			StopInternal(SourceId);
 		});
+	}
+
+	void FMixerSourceManager::StopInternal(const int32 SourceId)
+	{
+		AUDIO_MIXER_CHECK_AUDIO_PLAT_THREAD(MixerDevice);
+
+		FSourceInfo& SourceInfo = SourceInfos[SourceId];
+
+		SourceInfo.bIsPlaying = false;
+		SourceInfo.bIsPaused = false;
+		SourceInfo.bIsActive = false;
+		SourceInfo.bIsStopping = false;
+
+		if (SourceInfo.bIsPausedForQuantization)
+		{
+			SourceInfo.QuantizedCommandHandle.Cancel();
+			SourceInfo.bIsPausedForQuantization = false;
+		}
+
+		AUDIO_MIXER_DEBUG_LOG(SourceId, TEXT("Is immediately stopping"));
 	}
 
 	void FMixerSourceManager::StopFade(const int32 SourceId, const int32 NumFrames)
@@ -1115,6 +1149,13 @@ namespace Audio
 
 			SourceInfo.bIsPaused = false;
 			SourceInfo.bIsStopping = true;
+
+			if (SourceInfo.bIsPausedForQuantization)
+			{
+				// no need to fade, we haven't actually started playing
+				StopInternal(SourceId);
+				return;
+			}
 			
 			// Only allow multiple of 4 fade frames and positive
 			int32 NumFadeFrames = AlignArbitrary(NumFrames, 4);
@@ -1631,7 +1672,8 @@ namespace Audio
 			}
 			else
 			{
-				SourceInfo.bIsLastBuffer = true;
+				SourceInfo.bIsLastBuffer = !SourceInfo.SubCallbackDelayLengthInFrames;
+				SourceInfo.SubCallbackDelayLengthInFrames = 0;
 				return;
 			}
 
@@ -1676,7 +1718,7 @@ namespace Audio
 		{
 			FSourceInfo& SourceInfo = SourceInfos[SourceId];
 
-			if (!SourceInfo.bIsBusy || !SourceInfo.bIsPlaying || SourceInfo.bIsPaused)
+			if (!SourceInfo.bIsBusy || !SourceInfo.bIsPlaying || SourceInfo.bIsPaused || SourceInfo.bIsPausedForQuantization)
 			{
 				continue;
 			}
@@ -1709,11 +1751,19 @@ namespace Audio
 			SourceInfo.PreDistanceAttenuationBuffer.Reset();
 			SourceInfo.PreDistanceAttenuationBuffer.AddZeroed(NumSamples);
 
+
 			SourceInfo.SourceEffectScratchBuffer.Reset();
 			SourceInfo.SourceEffectScratchBuffer.AddZeroed(NumSamples);
 
 			SourceInfo.SourceBuffer.Reset();
 			SourceInfo.SourceBuffer.AddZeroed(NumSamples);
+
+			if (SourceInfo.SubCallbackDelayLengthInFrames && !SourceInfo.bDelayLineSet)
+			{
+				SourceInfo.SourceBufferDelayLine.SetCapacity(SourceInfo.SubCallbackDelayLengthInFrames + 1);
+				SourceInfo.SourceBufferDelayLine.PushZeros(SourceInfo.SubCallbackDelayLengthInFrames * SourceInfo.NumInputChannels);
+				SourceInfo.bDelayLineSet = true;
+			}
 
 			float* PreDistanceAttenBufferPtr = SourceInfo.PreDistanceAttenuationBuffer.GetData();
 
@@ -1752,7 +1802,7 @@ namespace Audio
 					SourceInfo.PitchSourceParam.Reset();
 					continue;
 				}
-				
+
 				// Init the frame index iterator to 0 (i.e. render whole buffer)
 				int32 StartFrame = 0;
 
@@ -1830,13 +1880,29 @@ namespace Audio
 					}
 
 					// perform linear SRC to get the next sample value from the decoded buffer
-					for (int32 Channel = 0; Channel < SourceInfo.NumInputChannels; ++Channel)
+					if (SourceInfo.SubCallbackDelayLengthInFrames == 0)
 					{
-						const float CurrFrameValue = SourceInfo.CurrentFrameValues[Channel];
-						const float NextFrameValue = SourceInfo.NextFrameValues[Channel];
-						const float CurrentAlpha = SourceInfo.CurrentFrameAlpha;
+						for (int32 Channel = 0; Channel < SourceInfo.NumInputChannels; ++Channel)
+						{
+							const float CurrFrameValue = SourceInfo.CurrentFrameValues[Channel];
+							const float NextFrameValue = SourceInfo.NextFrameValues[Channel];
+							const float CurrentAlpha = SourceInfo.CurrentFrameAlpha;
+							PreDistanceAttenBufferPtr[SampleIndex++] = FMath::Lerp(CurrFrameValue, NextFrameValue, CurrentAlpha);
+						}
+					}
+					else
+					{
+						for (int32 Channel = 0; Channel < SourceInfo.NumInputChannels; ++Channel)
+						{
+							const float CurrFrameValue = SourceInfo.CurrentFrameValues[Channel];
+							const float NextFrameValue = SourceInfo.NextFrameValues[Channel];
+							const float CurrentAlpha = SourceInfo.CurrentFrameAlpha;
 
-						PreDistanceAttenBufferPtr[SampleIndex++] = FMath::Lerp(CurrFrameValue, NextFrameValue, CurrentAlpha);
+							const float CurrentSample = FMath::Lerp(CurrFrameValue, NextFrameValue, CurrentAlpha);
+
+							SourceInfo.SourceBufferDelayLine.Push(&CurrentSample, 1);
+							SourceInfo.SourceBufferDelayLine.Pop(&PreDistanceAttenBufferPtr[SampleIndex++], 1);
+						}
 					}
 
 					const float CurrentPitchScale = SourceInfo.PitchSourceParam.Update();
@@ -2056,7 +2122,7 @@ namespace Audio
 		{
 			FSourceInfo& SourceInfo = SourceInfos[SourceId];
 
-			if (!SourceInfo.bIsBusy || !SourceInfo.bIsPlaying || SourceInfo.bIsPaused || (SourceInfo.bIsDone && SourceInfo.bEffectTailsDone)) 
+			if (!SourceInfo.bIsBusy || !SourceInfo.bIsPlaying || SourceInfo.bIsPaused || SourceInfo.bIsPausedForQuantization || (SourceInfo.bIsDone && SourceInfo.bEffectTailsDone))
 			{
 				continue;
 			}
@@ -2371,7 +2437,7 @@ namespace Audio
 			const FSourceInfo& SourceInfo = SourceInfos[SourceId];
 
 			// Don't need to mix into submixes if the source is paused
-			if (!SourceInfo.bIsPaused && !SourceInfo.bIsDone && SourceInfo.bIsPlaying)
+			if (!SourceInfo.bIsPaused && !SourceInfo.bIsPausedForQuantization && !SourceInfo.bIsDone && SourceInfo.bIsPlaying)
 			{
 				const FMixerSourceSubmixOutputBuffer& SourceSubmixOutputBuffer = SourceSubmixOutputBuffers[SourceId];
 				SourceSubmixOutputBuffer.MixOutput(InSendLevel, InSubmixSendStage, OutWetBuffer);
@@ -2394,7 +2460,7 @@ namespace Audio
 		const FSourceInfo& SourceInfo = SourceInfos[SourceId];
 
 		// Don't need to mix into submixes if the source is paused
-		if (!SourceInfo.bIsPaused && !SourceInfo.bIsDone && SourceInfo.bIsPlaying)
+		if (!SourceInfo.bIsPaused && !SourceInfo.bIsPausedForQuantization && !SourceInfo.bIsDone && SourceInfo.bIsPlaying)
 		{
 			const FMixerSourceSubmixOutputBuffer& SourceSubmixOutputBuffer = SourceSubmixOutputBuffers[SourceId];
 			return SourceSubmixOutputBuffer.GetSoundfieldPacket(InKey);
@@ -2514,6 +2580,49 @@ namespace Audio
 				}
 			}
 		});
+	}
+
+	void FMixerSourceManager::PauseSoundForQuantizationCommand(const int32 SourceId)
+	{
+		AUDIO_MIXER_CHECK(SourceId < NumTotalSources);
+		if (!GameThreadInfo.bIsBusy[SourceId])
+		{
+			return;
+		}
+
+		FSourceInfo& SourceInfo = SourceInfos[SourceId];
+
+		SourceInfo.bIsPausedForQuantization = true;
+		SourceInfo.bIsActive = false;
+	}
+
+	void FMixerSourceManager::SetSubBufferDelayForSound(const int32 SourceId, const int32 FramesToDelay)
+	{
+		AUDIO_MIXER_CHECK(SourceId < NumTotalSources);
+		checkSlow(MixerDevice->IsAudioRenderingThread());
+		if (!GameThreadInfo.bIsBusy[SourceId])
+		{
+			return;
+		}
+
+		FSourceInfo& SourceInfo = SourceInfos[SourceId];
+
+		SourceInfo.SubCallbackDelayLengthInFrames = FramesToDelay;
+	}
+
+	void FMixerSourceManager::UnPauseSoundForQuantizationCommand(const int32 SourceId)
+	{
+		AUDIO_MIXER_CHECK(SourceId < NumTotalSources);
+		checkSlow(MixerDevice->IsAudioRenderingThread());
+		if (!GameThreadInfo.bIsBusy[SourceId])
+		{
+			return;
+		}
+
+		FSourceInfo& SourceInfo = SourceInfos[SourceId];
+
+		SourceInfo.bIsPausedForQuantization = false;
+		SourceInfo.bIsActive = !SourceInfo.bIsPaused;
 	}
 
 	const float* FMixerSourceManager::GetPreDistanceAttenuationBuffer(const int32 SourceId) const

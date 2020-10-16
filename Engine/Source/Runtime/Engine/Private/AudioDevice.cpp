@@ -5918,6 +5918,12 @@ void FAudioDevice::Flush(UWorld* WorldToFlush, bool bClearActivatedReverb)
 		// Make sure any in-flight audio rendering commands get executed.
 		FlushAudioRenderingCommands();
 	}
+
+	FlushExtended(WorldToFlush, bClearActivatedReverb);
+}
+
+void FAudioDevice::FlushExtended(UWorld* WorldToFlush, bool bClearActivatedReverb)
+{
 }
 
 /**

@@ -61,7 +61,13 @@ void UAudioCurveSourceComponent::FadeIn(float FadeInDuration, float FadeVolumeLe
 
 	if (CachedSyncPreRoll <= 0.0f)
 	{
-		PlayInternal(StartTime, FadeInDuration, FadeVolumeLevel, FadeType);
+		PlayInternalRequestData PlayData;
+		PlayData.StartTime = StartTime;
+		PlayData.FadeInDuration = FadeInDuration;
+		PlayData.FadeVolumeLevel = FadeVolumeLevel;
+		PlayData.FadeCurve = FadeType;
+
+		PlayInternal(PlayData);
 	}
 	else
 	{
@@ -94,7 +100,10 @@ void UAudioCurveSourceComponent::Play(float StartTime)
 
 	if (CachedSyncPreRoll <= 0.0f)
 	{
-		PlayInternal(StartTime);
+		PlayInternalRequestData PlayData;
+		PlayData.StartTime = StartTime;
+
+		PlayInternal(PlayData);
 	}
 	else
 	{
@@ -131,7 +140,13 @@ void UAudioCurveSourceComponent::TickComponent(float DeltaTime, enum ELevelTick 
 	Delay = FMath::Min(Delay + DeltaTime, CachedSyncPreRoll);
 	if (OldDelay < CachedSyncPreRoll && Delay >= CachedSyncPreRoll)
 	{
-		PlayInternal(CachedStartTime, CachedFadeInDuration, CachedFadeVolumeLevel, CachedFadeType);
+		PlayInternalRequestData PlayData;
+		PlayData.StartTime = CachedStartTime;
+		PlayData.FadeInDuration = CachedFadeInDuration;
+		PlayData.FadeVolumeLevel = CachedFadeVolumeLevel;
+		PlayData.FadeCurve = CachedFadeType;
+
+		PlayInternal(PlayData);
 	}
 	else if(Delay < CachedSyncPreRoll)
 	{

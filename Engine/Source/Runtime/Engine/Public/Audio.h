@@ -98,6 +98,8 @@ namespace Audio
 	 * Typed identifier for Audio Device Id
 	 */
 	using FDeviceId = uint32;
+
+	struct FQuartzQuantizedRequestData;
 }
 
 enum ELoopingMode
@@ -190,6 +192,9 @@ struct ENGINE_API FWaveInstance
 
 	/** Active Sound this wave instance belongs to */
 	FActiveSound* ActiveSound;
+
+	/** Quantized Request data */
+	TUniquePtr<Audio::FQuartzQuantizedRequestData> QuantizedRequestData;
 
 private:
 
