@@ -272,6 +272,7 @@ namespace Audio
 			float Volume;
 			int32 InstanceIndex;
 			FName WaveInstanceName;
+			FName SoundClassName;
 			uint8 bPlayWhenSilent : 1;
 		};
 
@@ -1837,7 +1838,7 @@ namespace Audio
 				WaveInstanceInfo.Key->Volume,
 				*WaveInstanceInfo.Key->WaveInstanceName.ToString(),
 				SoundOwner ? *SoundOwner->GetName() : TEXT("None"),
-				*WaveInstanceInfo.Value->SoundClassName.ToString());
+				*WaveInstanceInfo.Key->SoundClassName.ToString());
 			Canvas->DrawShadowedString(X, Y, *TheString, GetStatsFont(), WaveInstanceInfo.Key->bPlayWhenSilent == 0 ? BodyColor : FColor::Yellow);
 			Y += FontHeight;
 		}
@@ -2208,17 +2209,26 @@ namespace Audio
 			for (int32 InstanceIndex = FirstActiveIndex; InstanceIndex < WaveInstances.Num(); ++InstanceIndex)
 			{
 				const FWaveInstance* WaveInstance = WaveInstances[InstanceIndex];
-				int32* SoundInfoIndex = ActiveSoundToInfoIndex.Find(WaveInstance->ActiveSound);
-				if (SoundInfoIndex)
+				const FActiveSound* ActiveSound = WaveInstance->ActiveSound;
+				check(ActiveSound);
+
+				if (const int32* SoundInfoIndex = ActiveSoundToInfoIndex.Find(ActiveSound))
 				{
+					const USoundClass* SoundClass = ActiveSound->GetSoundClass();
+					if (const USoundClass* WaveSoundClass = WaveInstance->SoundClass)
+					{
+						SoundClass = WaveSoundClass;
+					}
+
 					FAudioStats::FStatWaveInstanceInfo WaveInstanceInfo;
 					FSoundSource* Source = WaveInstanceSourceMap.FindRef(WaveInstance);
 					WaveInstanceInfo.Description = Source ? Source->Describe((RequestedStats & FAudioStats::LongSoundNames) != 0) : FString(TEXT("No source"));
 					WaveInstanceInfo.Volume = WaveInstance->GetVolumeWithDistanceAttenuation() * WaveInstance->GetDynamicVolume();
 					WaveInstanceInfo.InstanceIndex = InstanceIndex;
 					WaveInstanceInfo.WaveInstanceName = *WaveInstance->GetName();
-					WaveInstanceInfo.bPlayWhenSilent = WaveInstance->ActiveSound->IsPlayWhenSilent() ? 1 : 0;
+					WaveInstanceInfo.bPlayWhenSilent = ActiveSound->IsPlayWhenSilent() ? 1 : 0;
 					WaveInstanceInfo.DebugInfo = Source ? Source->DebugInfo : WaveInstanceInfo.DebugInfo;
+					WaveInstanceInfo.SoundClassName = SoundClass->GetFName();
 					StatSoundInfos[*SoundInfoIndex].WaveInstanceInfos.Add(MoveTemp(WaveInstanceInfo));
 				}
 			}
