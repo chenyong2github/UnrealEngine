@@ -5783,7 +5783,6 @@ void UCookOnTheFlyServer::SaveShaderCodeLibrary(FString const& Name)
 		// Save shader code map - cleaning directories is deliberately a separate loop here as we open the cache once per shader platform and we don't assume that they can't be shared across target platforms.
 		for (const ITargetPlatform* TargetPlatform : PlatformManager->GetSessionPlatforms())
 		{
-		   
 			FString BasePath = !IsCookingDLC() ? FPaths::ProjectContentDir() : GetContentDirectoryForDLC();
 			
 			FString ShaderCodeDir = ConvertToFullSandboxPath(*BasePath, true, TargetPlatform->PlatformName());
@@ -5892,22 +5891,8 @@ void UCookOnTheFlyServer::CookByTheBookFinished()
 		// Save modified asset registry with all streaming chunk info generated during cook
 		const FString& SandboxRegistryFilename = GetSandboxAssetRegistryFilename();
 
-	   	if (bCacheShaderLibraries && PackagingSettings->bShareMaterialShaderCode)
-		{
-			// Save shader code map
-			FString LibraryName = !IsCookingDLC() ? FApp::GetProjectName() : CookByTheBookOptions->DlcName;
-			if (LibraryName.Len() > 0)
-			{
-				SaveShaderCodeLibrary(LibraryName);
+		// previously shader library was saved at this spot, but it's too early to know the chunk assignments
 
-				// Don't clean Saved/Shaders/<LibraryPlatform(s)>/ at the end as we might iterate next time - Next cook at startup will decide if clean on iterate flag
-				// /*CleanShaderCodeLibraries();*/
-				ProcessShaderCodeLibraries(LibraryName);
-			}
-
-			FShaderCodeLibrary::Shutdown();
-		}				
-		
 		{
 			UE_SCOPED_HIERARCHICAL_COOKTIMER(SavingCurrentIniSettings)
 			for (const ITargetPlatform* TargetPlatform : PlatformManager->GetSessionPlatforms() )
@@ -6019,6 +6004,22 @@ void UCookOnTheFlyServer::CookByTheBookFinished()
 						Generator.WriteCookerOpenOrder(SandboxFile.Get());
 					}
 				}
+
+				if (bCacheShaderLibraries && PackagingSettings->bShareMaterialShaderCode)
+				{
+					// Save shader code map
+					FString LibraryName = !IsCookingDLC() ? FApp::GetProjectName() : CookByTheBookOptions->DlcName;
+
+					if (LibraryName.Len() > 0)
+					{
+						SaveShaderCodeLibrary(LibraryName);
+
+						ProcessShaderCodeLibraries(LibraryName);
+					}
+
+					FShaderCodeLibrary::Shutdown();
+				}
+
 				{
 					if (FParse::Param(FCommandLine::Get(), TEXT("fastcook")))
 					{
