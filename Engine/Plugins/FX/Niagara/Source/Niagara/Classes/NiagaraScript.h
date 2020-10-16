@@ -642,6 +642,9 @@ public:
 		gather up the results with. The function returns whether or not any compiles were actually issued. */
 	NIAGARA_API bool RequestExternallyManagedAsyncCompile(const TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe>& RequestData, FNiagaraVMExecutableDataId& OutCompileId, uint32& OutAsyncHandle);
 
+	/** Builds the DDC string for the derived data cache using the supplied CompiledId */
+	static FString BuildNiagaraDDCKeyString(const FNiagaraVMExecutableDataId& CompileId);
+
 	/** Creates a string key for the derived data cache */
 	FString GetNiagaraDDCKeyString();
 
