@@ -203,6 +203,7 @@ void URigVM::CopyFrom(URigVM* InVM, bool bDeferCopy, bool bReferenceLiteralMemor
 	{
 		ByteCodeStorage = InVM->ByteCodeStorage;
 		ByteCodePtr = &ByteCodeStorage;
+		ByteCodePtr->bByteCodeIsAligned = InVM->ByteCodeStorage.bByteCodeIsAligned;
 	}
 	else
 	{
