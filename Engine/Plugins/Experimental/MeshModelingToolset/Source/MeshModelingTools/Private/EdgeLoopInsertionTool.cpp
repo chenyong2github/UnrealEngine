@@ -138,11 +138,10 @@ void UEdgeLoopInsertionTool::Setup()
 	// Set up the topology selector, which we use to select the edges where we insert the loops
 	TopologySelector.Initialize(CurrentMesh.Get(), CurrentTopology.Get());
 	TopologySelector.SetSpatialSource([this]() {return &MeshSpatial; });
-	TopologySelector.PointsWithinToleranceTest = [this](const FVector3d& Position1, const FVector3d& Position2) {
+	TopologySelector.PointsWithinToleranceTest = [this](const FVector3d& Position1, const FVector3d& Position2, double TolScale) {
 		FTransform3d Transform(ComponentTarget->GetWorldTransform());
-		return ToolSceneQueriesUtil::PointSnapQuery(CameraState,
-			Transform.TransformPosition(Position1), Transform.TransformPosition(Position2));
-
+		return ToolSceneQueriesUtil::PointSnapQuery(CameraState, Transform.TransformPosition(Position1), Transform.TransformPosition(Position2),
+			ToolSceneQueriesUtil::GetDefaultVisualAngleSnapThreshD() * TolScale);
 	};
 	TopologySelectorSettings.bEnableEdgeHits = true;
 	TopologySelectorSettings.bEnableFaceHits = false;

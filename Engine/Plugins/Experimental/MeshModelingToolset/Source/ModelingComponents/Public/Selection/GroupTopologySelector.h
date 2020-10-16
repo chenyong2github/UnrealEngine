@@ -61,7 +61,7 @@ public:
 	 * to the hit-test ray to treat as a "hit". By default this is Euclidean distance with
 	 * a tolerance of 1.0. You probably need to replace this with your own function.
 	 */
-	TFunction<bool(const FVector3d&, const FVector3d&)> PointsWithinToleranceTest;
+	TFunction<bool(const FVector3d&, const FVector3d&, double ToleranceScale)> PointsWithinToleranceTest;
 
 public:
 	FGroupTopologySelector();
