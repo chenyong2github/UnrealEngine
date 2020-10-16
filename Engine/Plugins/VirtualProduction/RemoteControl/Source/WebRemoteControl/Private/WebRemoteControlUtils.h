@@ -152,6 +152,29 @@ namespace WebRemoteControlUtils
 	}
 
 	/**
+	 * Deserialize a wrapped request into a wrapper struct.
+	 * @param InTCHARPayload The json payload to deserialize.
+	 * @param InCompleteCallback The callback to call error.
+	 * @param The wrapper structure to populate with the request's content.
+	 * @return Whether the deserialization was successful.
+	 */
+	UE_NODISCARD inline bool DeserializeWrappedRequestPayload(TConstArrayView<uint8> InTCHARPayload, const FHttpResultCallback* InCompleteCallback, FRCRequestWrapper& Wrapper)
+	{
+		if (!DeserializeRequestPayload(InTCHARPayload, InCompleteCallback, Wrapper))
+		{
+			return false;
+		}
+
+		FBlockDelimiters& BodyDelimiters = Wrapper.GetParameterDelimiters(FRCRequestWrapper::BodyLabel());
+		if (BodyDelimiters.BlockStart != BodyDelimiters.BlockEnd)
+		{
+			Wrapper.TCHARBody = InTCHARPayload.Slice(BodyDelimiters.BlockStart, BodyDelimiters.BlockEnd - BodyDelimiters.BlockStart);
+		}
+
+		return true;
+	}
+
+	/**
 	 * Get the struct delimiters for all the batched requests.
 	 * @param InTCHARPayload The json payload to deserialize.
 	 * @param OutStructParameters A mapping of Request Id to their respective struct delimiters.
