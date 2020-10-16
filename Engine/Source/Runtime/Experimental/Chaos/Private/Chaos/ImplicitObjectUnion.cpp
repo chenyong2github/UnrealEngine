@@ -198,13 +198,21 @@ void FImplicitObjectUnionClustered::FindAllIntersectingClusteredObjects(TArray<P
 	else
 	{
 		TArray<Pair<const FImplicitObject*, FRigidTransform3>> LocalOut;
-		for (const TUniquePtr<FImplicitObject>& Object : MObjects)
+		TArray<int32> Idxs;
+		for (int32 Idx = 0; Idx < MObjects.Num(); ++Idx)
 		{
+			int32 NumOut = LocalOut.Num();
+			const TUniquePtr<FImplicitObject>& Object = MObjects[Idx];
 			Object->FindAllIntersectingObjects(LocalOut, LocalBounds);
+			for (int32 i = NumOut; i < LocalOut.Num(); ++i)
+			{
+				Idxs.Add(Idx);
+			}
 		}
-		for (auto& OutElem : LocalOut)
+		for (int32 Idx = 0; Idx < LocalOut.Num(); ++Idx)
 		{
-			const TBVHParticles<FReal, 3>* Simplicial = nullptr;
+			auto& OutElem = LocalOut[Idx];
+			const TBVHParticles<FReal, 3>* Simplicial = MOriginalParticleLookupHack.IsValidIndex(Idxs[Idx]) ? MOriginalParticleLookupHack[Idxs[Idx]]->CollisionParticles().Get() : nullptr;
 			Out.Add(MakePair(MakePair(OutElem.First, Simplicial), OutElem.Second));
 		}
 	}
