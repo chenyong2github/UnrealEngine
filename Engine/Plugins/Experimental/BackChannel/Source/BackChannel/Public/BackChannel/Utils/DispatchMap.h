@@ -19,7 +19,7 @@ public:
 	
 	void RemoveRoute(FStringView Path, FDelegateHandle DelegateHandle);
 
-	void	DispatchMessage(IBackChannelPacket& Message);
+	bool	DispatchMessage(IBackChannelPacket& Message);
 
 protected:
 

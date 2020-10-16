@@ -114,7 +114,16 @@ public:
 	/* Write a bool to our arguments */
 	virtual int Write(const TCHAR* InName, const bool Value) override
 	{
-		return Write(InName, int32(Value));
+		if (Value == true)
+		{
+			WriteTag(TEXT('T'));
+		}
+		else
+		{
+			WriteTag(TEXT('F'));
+		}
+
+		return 0;
 	}
 
 	/* Write a string to our arguments */
@@ -133,14 +142,15 @@ public:
 	virtual int Write(const TCHAR* InName, const void* InBlob, int32 BlobSize) override
 	{
 		check(IsWriting());
-		return WriteTagAndData(TEXT('b'), InBlob, BlobSize);
+		// OSC blobs contain and int with the size before the data
+		WriteTag(TEXT('b'));
+		WriteData(&BlobSize, sizeof(int32));
+		return WriteData(InBlob, BlobSize);
 	}
 
 	/* Write a TArray into the message */
 	virtual int Write(const TCHAR* InName, const TArrayView<const uint8> Value) override
 	{
-		FString SizeParam = FString(InName) + TEXT("_Size");
-		Write(*SizeParam, Value.Num());
 		return Write(InName, Value.GetData(), Value.Num());
 	}
 
@@ -175,13 +185,24 @@ public:
 	/* Read a bool from our arguments */
 	virtual int Read(const TCHAR* InName, bool& Value) override
 	{
-		int32 Tmp(0);
-		int result = Read(InName, Tmp);
-		if (result == 0)
+		// try to read both tagd and see which was present
+		TCHAR TrueTag = ReadTag(TEXT('T'), true);
+
+		if (TrueTag != 0)
 		{
-			Value = Tmp == 0 ? false : true;
+			Value = true;
+			return 0;
 		}
-		return result;
+
+		TCHAR FalseTag = ReadTag(TEXT('F'), true);
+
+		if (FalseTag != 0)
+		{
+			Value = false;
+			return 0;
+		}
+
+		return 1;
 	}
 
 	/* Read a string from our arguments.  */
@@ -190,52 +211,37 @@ public:
 	//! Raw data blobs
 
 	/* Read a blob of data from our arguments */
-	virtual int Read(const TCHAR* InName, void* InBlob, int32 BlobSize) override
-	{
-		check(IsReading());
-		return ReadTagAndData(TEXT('b'), InBlob, BlobSize);
-	}		
+	virtual int Read(const TCHAR* InName, void* InBlob, int32 MaxBlobSize, int32& OutBlobSize) override;	
 
-	/* Read data from the message into a TArray. It must have been serialized by the Read form for TArray(!) */
-	virtual int Read(const TCHAR* InName, TArray<uint8>& Data) override
-	{
-		FString SizeParam = FString(InName) + TEXT("_Size");
-		int ArraySize(0);
-		Read(*SizeParam, ArraySize);
-		Data.Empty(ArraySize);
-		Data.AddUninitialized(ArraySize);
-
-		return Read(InName, Data.GetData(), ArraySize * sizeof(uint8));
-	}
-
-#if 0
-	/*
-	*	Write a TArray64 of type T to our arguments. This is a helper that writes an int32
-	*	for the size, then a blob of sizeof(t) * NumItems
+	/* 
+		Read data from the message into a TArray. It must have been serialized by the Read form for TArray(!). 
+		Note - data will be appended to the array.
 	*/
-	template<typename T>
-	void Write(const TCHAR* Name, const TArray64<T>& Value)
+	virtual int Read(const TCHAR* InName, TArray<uint8>& DataArray) override
 	{
-		ensureMsgf(Value.Num() == (int32)Value.Num(), TEXT("Tried to write array with %" INT64_FMT " elements, which would overflow because the element count is 32-bit"), Value.Num());
-		Write((int32)Value.Num());
-		Write(Value.GetData(), Value.Num() * sizeof(T));
+		return Read<uint8>(InName, DataArray);
 	}
-#endif
 
 	/*
 	 *	Read a TArray of type T from our arguments. This is a helper that reads an int
 	*	for the size, then allocated and reads a blob of sizeof(t) * NumItems
 	 */
 	template<typename T>
-	int Read(const TCHAR* InName, TArray<T>& Value)
+	int Read(const TCHAR* InName, TArray<T>& DataArray)
 	{
-		FString SizeParam = FString(InName) + TEXT("_Size");
+		int32 BlobSize = 0;
 
-		int32 ArraySize(0);
-		Read(*SizeParam, ArraySize);
-		Value.Empty();
-		Value.AddUninitialized(ArraySize);
-		return Read(InName, Value.GetData(), Value.Num() * sizeof(T));
+		// Read the size of the blob
+		int32 Err = Read(InName, nullptr, 0, BlobSize);
+
+		// how many elements this is
+		int NumNewElements = BlobSize / sizeof(uint8);
+
+		// Add enough space
+		int NumCurrentElements = DataArray.Num();
+		DataArray.AddUninitialized(NumNewElements);
+
+		return Read(InName, DataArray.GetData() + NumCurrentElements, BlobSize, BlobSize);
 	}
 	
 
@@ -258,7 +264,8 @@ public:
 	{
 		if (IsReading())
 		{
-			Read(Name, InBlob, BlobSize);
+			int32 OutSize(0);
+			Read(Name, InBlob, BlobSize, OutSize);
 		}
 		else
 		{
@@ -280,9 +287,11 @@ protected:
 
 	int Serialize(const TCHAR Code, void* InData, int32 InSize);
 
-	int ReadTagAndData(const TCHAR Code, void* InData, int32 InSize);
+	TCHAR ReadTag(const TCHAR ExpectedTag, bool SuppressWarning=false);
 	int ReadData(void* InData, int32 InSize);
+	int ReadTagAndData(const TCHAR ExpectedTag, void* InData, int32 InSize);
 
+	int WriteTag(const TCHAR Code);
 	int WriteTagAndData(const TCHAR Code, const void* InData, int32 InSize);
 	int WriteData(const void* InData, int32 InSize);
 

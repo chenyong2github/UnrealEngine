@@ -28,10 +28,10 @@ namespace RemoteSessionEd
 
 
 FRemoteSessionHost::FRemoteSessionHost(TArray<FRemoteSessionChannelInfo> InSupportedChannels)
-	: SupportedChannels(InSupportedChannels)
-	, HostTCPPort(0)
+	: HostTCPPort(0)
 	, IsListenerConnected(false)
 {
+	SupportedChannels = InSupportedChannels;
 	SavedEditorDragTriggerDistance = FSlateApplication::Get().GetDragTriggerDistance();
 }
 
@@ -111,17 +111,7 @@ bool FRemoteSessionHost::ProcessStateChange(const ConnectionState NewState, cons
 
 void FRemoteSessionHost::BindEndpoints(TBackChannelSharedPtr<IBackChannelConnection> InConnection)
 {
-	auto Delegate = FBackChannelRouteDelegate::FDelegate::CreateRaw(this, &FRemoteSessionHost::OnReceiveLegacyVersion);
-	InConnection->AddRouteDelegate(kLegacyVersionEndPoint, Delegate);
-
-	//Delegate = FBackChannelRouteDelegate::FDelegate::CreateRaw(this, &FRemoteSessionHost::OnCreateChannels);
-	//InConnection->AddRouteDelegate(GetChannelSelectionEndPoint(), Delegate);
-
-	Delegate = FBackChannelRouteDelegate::FDelegate::CreateRaw(this, &FRemoteSessionHost::OnReceiveHello);
-	InConnection->AddRouteDelegate(kHelloEndPoint, Delegate);
-
-	Delegate = FBackChannelRouteDelegate::FDelegate::CreateRaw(this, &FRemoteSessionHost::OnChangeChannel);
-	InConnection->AddRouteDelegate(kChangeChannelEndPoint, Delegate);
+	FRemoteSessionRole::BindEndpoints(InConnection);	
 }
 
 
@@ -173,48 +163,6 @@ void FRemoteSessionHost::SendChannelListToConnection()
 	}
 }
 
-void FRemoteSessionHost::OnChangeChannel(IBackChannelPacket& Message)
-{
-	FString ChannelName;
-	FString ChannelMode;
-	int32 Enabled(0);
-
-	Message.Read(TEXT("Name"), ChannelName);
-	Message.Read(TEXT("Mode"), ChannelMode);
-	Message.Read(TEXT("Enabled"), Enabled);
-
-	ERemoteSessionChannelMode Mode = ERemoteSessionChannelMode::Unknown;
-	LexFromString(Mode, *ChannelMode);
-
-	if (ChannelName.Len() == 0 || Mode == ERemoteSessionChannelMode::Unknown)
-	{
-		UE_LOG(LogRemoteSession, Error, TEXT("OnChangeChannel: Invalid channel details. Name=%s, Mode=%s"), *ChannelName, *ChannelMode);
-	}
-	else
-	{		
-		if (SupportedChannels.ContainsByPredicate([&ChannelName](FRemoteSessionChannelInfo& Elem) {
-				return Elem.Type == ChannelName;
-			}))
-		{
-			// Need to create channels on the main thread
-			AsyncTask(ENamedThreads::GameThread, [this, ChannelName, ChannelMode, Mode] {
-
-				FRemoteSessionChannelInfo Info;
-				Info.Type = ChannelName;
-				// flip our mode to opposite the ask from the client
-				Info.Mode = Mode == ERemoteSessionChannelMode::Read ? ERemoteSessionChannelMode::Write : ERemoteSessionChannelMode::Read;
-
-				UE_LOG(LogRemoteSession, Log, TEXT("OnChangeChannel: Creating channel Name=%s, Mode=%s"), *ChannelName, *ChannelMode);
-				CreateChannel(Info);
-			});
-		}
-		else
-		{
-			UE_LOG(LogRemoteSession, Warning, TEXT("OnChangeChannel: Client requested known but unavailable channel %s, Mode=%s"), *ChannelName, *ChannelMode);
-		}
-	}
-
-}
 
 void FRemoteSessionHost::Tick(float DeltaTime)
 {

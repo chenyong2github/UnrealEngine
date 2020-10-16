@@ -221,7 +221,11 @@ void FBackChannelOSCConnection::DispatchMessages()
 			TSharedPtr<FBackChannelOSCMessage> Msg = StaticCastSharedPtr<FBackChannelOSCMessage>(Packet);
 
 			UE_LOG(LogBackChannel, VeryVerbose, TEXT("Dispatching %s to handlers"), *Msg->GetPath());
-			DispatchMap.DispatchMessage(*Msg.Get());
+
+			if (!DispatchMap.DispatchMessage(*Msg.Get()))
+			{
+				UE_LOG(LogBackChannel, Log, TEXT("Failed to displatch message to %s. No handler?"), *Msg->GetPath());
+			}
 			Msg->ResetRead();
 		}
 	}
