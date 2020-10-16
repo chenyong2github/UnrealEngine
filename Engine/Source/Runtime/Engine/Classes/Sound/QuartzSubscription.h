@@ -40,6 +40,11 @@ namespace Audio
 		// (add more PushEvent overloads for other event types)
 		void PushEvent(const FQuartzQuantizedCommandDelegateData& Data);
 		void PushEvent(const FQuartzMetronomeDelegateData& Data);
+		bool IsQueueEmpty()
+		{
+			return EventDelegateQueue.IsEmpty();
+		}
+
 
 		// called when the game object owner is shutting down
 		void StopTakingCommands();
