@@ -18,7 +18,7 @@ FAutoConsoleVariableRef CVarMaxQuartzSubscribersToUpdatePerTick(
 	ECVF_Default);
 
 
-static FAudioDevice* GetAudioDeviceFromWorldContext(const UObject* WorldContextObject)
+static FAudioDevice* GetAudioDeviceUsingWorldContext(const UObject* WorldContextObject)
 {
 	UWorld* ThisWorld = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
 	if (!ThisWorld || !ThisWorld->bAllowAudioPlayback || ThisWorld->GetNetMode() == NM_DedicatedServer)
@@ -30,9 +30,9 @@ static FAudioDevice* GetAudioDeviceFromWorldContext(const UObject* WorldContextO
 }
 
 
-static Audio::FMixerDevice* GetAudioMixerDeviceFromWorldContext(const UObject* WorldContextObject)
+static Audio::FMixerDevice* GetAudioMixerDeviceUsingWorldContext(const UObject* WorldContextObject)
 {
-	if (FAudioDevice* AudioDevice = GetAudioDeviceFromWorldContext(WorldContextObject))
+	if (FAudioDevice* AudioDevice = GetAudioDeviceUsingWorldContext(WorldContextObject))
 	{
 		if (!AudioDevice->IsAudioMixerEnabled())
 		{
@@ -423,7 +423,7 @@ void UQuartzSubsystem::UnsubscribeFromAllTimeDivisionsInternal(const UObject* Wo
 
 Audio::FQuartzClockManager* UQuartzSubsystem::GetClockManager(const UObject* WorldContextObject) const
 {
-	Audio::FMixerDevice* MixerDevice = GetAudioMixerDeviceFromWorldContext(WorldContextObject);
+	Audio::FMixerDevice* MixerDevice = GetAudioMixerDeviceUsingWorldContext(WorldContextObject);
 
 	if (MixerDevice)
 	{
