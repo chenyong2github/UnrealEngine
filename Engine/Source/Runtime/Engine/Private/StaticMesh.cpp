@@ -2786,15 +2786,15 @@ void UStaticMesh::InitResources()
 			const int32 NumLODs = GetNumLODs();
 			const int32 MinFirstLOD = MinLOD.GetValue();
 
-			CachedSRRState.NumNonStreamingLODs = RenderData->NumInlinedLODs;
-			CachedSRRState.NumNonOptionalLODs = RenderData->GetNumNonOptionalLODs();
+			CachedSRRState.NumNonStreamingLODs = GetRenderData()->NumInlinedLODs;
+			CachedSRRState.NumNonOptionalLODs = GetRenderData()->GetNumNonOptionalLODs();
 			// Limit the number of LODs based on MinLOD value.
-			CachedSRRState.MaxNumLODs = FMath::Clamp<int32>(NumLODs - MinFirstLOD, RenderData->NumInlinedLODs, NumLODs);
+			CachedSRRState.MaxNumLODs = FMath::Clamp<int32>(NumLODs - MinFirstLOD, GetRenderData()->NumInlinedLODs, NumLODs);
 			CachedSRRState.AssetLODBias = MinFirstLOD;
 			// The optional LOD might be culled now.
 			CachedSRRState.NumNonOptionalLODs = FMath::Min(CachedSRRState.NumNonOptionalLODs, CachedSRRState.MaxNumLODs);
 			// Set LOD count to fit the current state.
-			CachedSRRState.NumResidentLODs = NumLODs - RenderData->CurrentFirstLODIdx;
+			CachedSRRState.NumResidentLODs = NumLODs - GetRenderData()->CurrentFirstLODIdx;
 			CachedSRRState.NumRequestedLODs = CachedSRRState.NumResidentLODs;
 			// Set whether the mips can be streamed.
 			CachedSRRState.bSupportsStreaming = !NeverStream && CachedSRRState.NumNonStreamingLODs != CachedSRRState.MaxNumLODs;
