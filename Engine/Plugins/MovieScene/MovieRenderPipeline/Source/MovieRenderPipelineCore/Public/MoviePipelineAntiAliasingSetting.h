@@ -20,6 +20,7 @@ public:
 		, RenderWarmUpCount(32)
 		, bUseCameraCutForWarmUp(false)
 		, EngineWarmUpCount(0)
+		, bRenderWarmUpFrames(false)
 		, AccumulationGamma(1.f)
 	{
 	}
@@ -133,6 +134,14 @@ public:
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (UIMin = 0, ClampMin = 0, EditCondition = "!bUseCameraCutForWarmUp"), AdvancedDisplay, Category = "Render Settings")
 	int32 EngineWarmUpCount;
+
+	/**
+	* Should we submit the warm-up frames to the GPU? Generally you want this disabled (as it is more performant), but
+	* some systems (such as gpu particles) need to be rendered to actually perform their warm-up. Enabling this will
+	* cause any warm up frames to also be submitted to the GPU which resolves this issue.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Render Settings")
+	bool bRenderWarmUpFrames;
 
 	/**
 	* For advanced users, the gamma space to apply accumulation in. During accumulation, pow(x,AccumulationGamma) 
