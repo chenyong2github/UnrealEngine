@@ -91,7 +91,7 @@ public:
 
 	/** Update RHI resources. */
 	void UpdateResource(FRHICommandListImmediate& RHICmdList, const int32 NodesCount, const int32 ParamsCount,
-		const int32* TargetsOffsetsDatas, const int32* NodesOffsetsDatas, const float* NodesParamsDatas);
+		const int32* TargetsOffsetsDatas, const int32* NodesOffsetsDatas, const float* NodesParamsDatas, const float TimeSeconds);
 };
 
 
@@ -131,7 +131,7 @@ public:
 	 * Update the datas based on the new bounds and commands
 	 * @param FieldCommands - Field commands to be sampled
 	 */
-	void UpdateInstance(const TArray<FFieldSystemCommand>& FieldCommands);
+	void UpdateInstance(const TArray<FFieldSystemCommand>& FieldCommands, const float TimeSeconds);
 
 	/** Update the offsets and paramsgiven a node */
 	void BuildNodeParams(FFieldNodeBase* FieldNode);
@@ -174,13 +174,25 @@ public:
 	virtual void DestroyRenderState_Concurrent() override;
 	//~ End UActorComponent Interface.
 
-	/** Store the field command */
-	void BufferCommand(const FFieldSystemCommand& InCommand);
+	/** Add the transient field command */
+	void AddTransientCommand(const FFieldSystemCommand& InCommand);
+
+	/** Add the persitent field command */
+	void AddPersistentCommand(const FFieldSystemCommand& FieldCommand);
+
+	/** Remove the transient field command */
+	void RemoveTransientCommand(const FFieldSystemCommand& InCommand);
+
+	/** Remove the persitent field command */
+	void RemovePersistentCommand(const FFieldSystemCommand& FieldCommand);
 
 	// These types are not static since we probably want in the future to be able to pick the vector/scalar/integer fields we are interested in
 
-	/** List of all the field commands in the world */
-	TArray<FFieldSystemCommand> FieldCommands;
+	/** List of all the field transient commands in the world */
+	TArray<FFieldSystemCommand> TransientCommands;
+
+	/** List of all the field persitent commands in the world */
+	TArray<FFieldSystemCommand> PersistentCommands;
 
 	/** The instance of the field system. */
 	FPhysicsFieldInstance* FieldInstance = nullptr;
