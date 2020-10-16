@@ -437,6 +437,7 @@ void UNiagaraDataInterfaceExport::GetFunctions(TArray<FNiagaraFunctionSignature>
 	Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Position")));
 	Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Size")));
 	Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Velocity")));
+	Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("WasExported")));
 	OutFunctions.Add(Sig);
 }
 
@@ -470,7 +471,7 @@ bool UNiagaraDataInterfaceExport::GetFunctionHLSL(const FNiagaraDataInterfaceGPU
 
 	if (FunctionInfo.DefinitionName == NDIExportLocal::ExportDataName)
 	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (in bool bStoreData, in float3 Position, in float Size, in float3 Velocity) { bool bOutDummy; {NDIGetContextName} NDIExport_StoreData(DIContext, bStoreData, Position, Size, Velocity, bOutDummy); }\n");
+		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (in bool bStoreData, in float3 Position, in float Size, in float3 Velocity, out bool bWasExported) { {NDIGetContextName} NDIExport_StoreData(DIContext, bStoreData, Position, Size, Velocity, bWasExported); }\n");
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 		return true;
 	}
@@ -537,6 +538,8 @@ void UNiagaraDataInterfaceExport::ExportData(FVectorVMContext& Context)
 	FNDIInputParam<float> SizeParam(Context);
 	FNDIInputParam<FVector> VelocityParam(Context);
 
+	FNDIOutputParam<FNiagaraBool> OutWasExported(Context);
+
 	checkfSlow(InstData.Get(), TEXT("Export data interface has invalid instance data. %s"), *GetPathName());
 	bool ValidHandlerData = InstData->UserParamBinding.BoundVariable.IsValid() && InstData->CallbackHandler.IsValid();
 
@@ -549,10 +552,12 @@ void UNiagaraDataInterfaceExport::ExportData(FVectorVMContext& Context)
 		Data.Size = SizeParam.GetAndAdvance();
 		Data.Velocity = VelocityParam.GetAndAdvance();
 
+		bool Valid = false;
 		if (ValidHandlerData && ShouldStore)
 		{
-			InstData->GatheredData.Enqueue(Data);
+			Valid = InstData->GatheredData.Enqueue(Data);
 		}
+		OutWasExported.SetAndAdvance(Valid);
 	}
 }
 
