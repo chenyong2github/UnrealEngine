@@ -752,8 +752,8 @@ void FIOSInputInterface::SendControllerEvents()
 		
         if (Controller.bPauseWasPressed)
         {
-            MessageHandler->OnControllerButtonPressed(FGamepadKeyNames::SpecialRight, Cont.playerIndex, false);
-            MessageHandler->OnControllerButtonReleased(FGamepadKeyNames::SpecialRight, Cont.playerIndex, false);
+            MessageHandler->OnControllerButtonPressed(FGamepadKeyNames::SpecialRight, i, false);
+            MessageHandler->OnControllerButtonReleased(FGamepadKeyNames::SpecialRight, i, false);
             
             Controller.bPauseWasPressed = false;
         }
