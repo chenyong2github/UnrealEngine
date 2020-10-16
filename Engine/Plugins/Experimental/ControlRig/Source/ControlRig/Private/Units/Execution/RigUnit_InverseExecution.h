@@ -6,6 +6,9 @@
 #include "ControlRigDefines.h"
 #include "RigUnit_InverseExecution.generated.h"
 
+/**
+ * Event for driving elements based off the skeleton hierarchy
+ */
 USTRUCT(meta=(DisplayName="Backwards Solve", Category="Inverse", TitleColor="1 0 0", NodeColor="0.1 0.1 0.1", Keywords="Inverse,Reverse,Backwards,Event"))
 struct CONTROLRIG_API FRigUnit_InverseExecution : public FRigUnit
 {

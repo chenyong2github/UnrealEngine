@@ -45,6 +45,9 @@ struct FRigUnit_DebugRectangle : public FRigUnit_DebugBaseMutable
 	bool bEnabled;
 };
 
+/**
+ * Draws vectors on each bone in the viewport across the entire hierarchy
+ */
 USTRUCT(meta=(DisplayName="Draw Rectangle", Keywords="Draw Square"))
 struct FRigUnit_DebugRectangleItemSpace : public FRigUnit_DebugBaseMutable
 {
@@ -138,6 +141,9 @@ struct FRigUnit_DebugArc : public FRigUnit_DebugBaseMutable
 	bool bEnabled;
 };
 
+/**
+ * Draws an arc in the viewport, can take in different min and max degrees
+ */
 USTRUCT(meta=(DisplayName="Draw Arc", Keywords="Draw Ellipse, Draw Circle"))
 struct FRigUnit_DebugArcItemSpace : public FRigUnit_DebugBaseMutable
 {

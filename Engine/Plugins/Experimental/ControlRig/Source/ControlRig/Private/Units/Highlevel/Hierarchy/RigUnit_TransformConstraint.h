@@ -113,7 +113,10 @@ private:
 	FRigUnit_TransformConstraint_WorkData WorkData;
 };
 
-USTRUCT(meta=(DisplayName="Transform Constraint", Category="Transforms"))
+/**
+ * Constrains an item's transform to multiple items' transforms
+ */
+USTRUCT(meta=(DisplayName="Transform Constraint", Category="Transforms", Keywords = "Parent,Orient,Scale"))
 struct FRigUnit_TransformConstraintPerItem : public FRigUnit_HighlevelBaseMutable
 {
 	GENERATED_BODY()

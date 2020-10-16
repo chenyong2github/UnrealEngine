@@ -6,7 +6,7 @@
 #include "RigUnit_SetControlVisibility.generated.h"
 
 /**
- * SetControlTransform is used to change the gizmo color on a control at runtime
+ * SetControlVisibility is used to change the gizmo visibility on a control at runtime
  */
 USTRUCT(meta=(DisplayName="Set Control Visibility", Category="Hierarchy", DocumentationPolicy="Strict", Keywords = "SetControlVisibility,Visibility,Hide,Show,Hidden,Visible,SetGizmoVisibility", PrototypeName = "SetControlVisibility"))
 struct FRigUnit_SetControlVisibility : public FRigUnitMutable

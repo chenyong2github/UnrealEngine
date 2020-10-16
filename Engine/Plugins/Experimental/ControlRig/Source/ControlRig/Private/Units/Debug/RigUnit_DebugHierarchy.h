@@ -6,6 +6,9 @@
 #include "Drawing/ControlRigDrawInterface.h"
 #include "RigUnit_DebugHierarchy.generated.h"
 
+/**
+ * Draws vectors on each bone in the viewport across the entire hierarchy
+ */
 USTRUCT(meta=(DisplayName="Draw Hierarchy"))
 struct FRigUnit_DebugHierarchy : public FRigUnit_DebugBaseMutable
 {
