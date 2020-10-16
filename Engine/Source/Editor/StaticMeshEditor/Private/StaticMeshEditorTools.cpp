@@ -97,7 +97,7 @@ void FStaticMeshDetails::CustomizeDetails( class IDetailLayoutBuilder& DetailBui
 	LightMapCoordinateIndexProperty->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FStaticMeshDetails::OnLightmapSettingsChanged));
 	LightMapResolutionProperty->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FStaticMeshDetails::OnLightmapSettingsChanged));
 
-	TSharedRef<IPropertyHandle> StaticMaterials = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UStaticMesh, StaticMaterials));
+	TSharedRef<IPropertyHandle> StaticMaterials = DetailBuilder.GetProperty(UStaticMesh::GetStaticMaterialsName());
 	StaticMaterials->MarkHiddenByCustomization();
 
 	TSharedRef<IPropertyHandle> ImportSettings = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UStaticMesh, AssetImportData));
