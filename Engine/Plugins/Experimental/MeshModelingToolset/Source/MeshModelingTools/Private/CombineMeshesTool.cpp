@@ -92,7 +92,7 @@ void UCombineMeshesTool::Setup()
 	AddToolPropertySource(BasicProperties);
 	BasicProperties->RestoreProperties(this);
 	BasicProperties->bIsDuplicateMode = this->bDuplicateMode;
-	BasicProperties->WatchProperty(BasicProperties->CombineTo, [&](ECombineTargetType NewType)
+	BasicProperties->WatchProperty(BasicProperties->WriteOutputTo, [&](ECombineTargetType NewType)
 	{
 		if (NewType == ECombineTargetType::NewAsset)
 		{
@@ -100,7 +100,7 @@ void UCombineMeshesTool::Setup()
 		}
 		else
 		{
-			int32 Index = (BasicProperties->CombineTo == ECombineTargetType::FirstInputAsset) ? 0 : ComponentTargets.Num() - 1;
+			int32 Index = (BasicProperties->WriteOutputTo == ECombineTargetType::FirstInputAsset) ? 0 : ComponentTargets.Num() - 1;
 			BasicProperties->OutputAsset = AssetGenerationUtil::GetComponentAssetBaseName(ComponentTargets[Index]->GetOwnerComponent(), false);
 		}
 	});
@@ -143,7 +143,7 @@ void UCombineMeshesTool::Shutdown(EToolShutdownType ShutdownType)
 
 	if (ShutdownType == EToolShutdownType::Accept)
 	{
-		if (bDuplicateMode || BasicProperties->CombineTo == ECombineTargetType::NewAsset)
+		if (bDuplicateMode || BasicProperties->WriteOutputTo == ECombineTargetType::NewAsset)
 		{
 			CreateNewAsset();
 		}
@@ -370,7 +370,7 @@ void UCombineMeshesTool::UpdateExistingAsset()
 	AccumulateDMesh.EnableAttributes();
 	AccumulateDMesh.Attributes()->EnableMaterialID();
 
-	int32 SkipIndex = (BasicProperties->CombineTo == ECombineTargetType::FirstInputAsset) ? 0 : (ComponentTargets.Num() - 1);
+	int32 SkipIndex = (BasicProperties->WriteOutputTo == ECombineTargetType::FirstInputAsset) ? 0 : (ComponentTargets.Num() - 1);
 	TUniquePtr<FPrimitiveComponentTarget>& UpdateTarget = ComponentTargets[SkipIndex];
 	SkipActor = UpdateTarget->GetOwnerActor();
 
