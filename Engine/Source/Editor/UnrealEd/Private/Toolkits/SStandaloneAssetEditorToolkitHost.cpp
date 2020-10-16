@@ -235,6 +235,18 @@ TSharedRef< SWidget > SStandaloneAssetEditorToolkitHost::GetParentWidget()
 
 void SStandaloneAssetEditorToolkitHost::BringToFront()
 {
+	// If our host window is not active, force it to front to ensure the tab will be visible
+	// The tab manager won't activate a tab on an inactive window in all cases
+	const TSharedPtr<SDockTab> HostTab = HostTabPtr.Pin();
+	if (HostTab.IsValid())
+	{
+		TSharedPtr<SWindow> ParentWindow = HostTab->GetParentWindow();
+		if (ParentWindow.IsValid() && !ParentWindow->IsActive())
+		{
+			ParentWindow->BringToFront();
+		}
+	}
+
 	FGlobalTabmanager::Get()->DrawAttentionToTabManager( this->MyTabManager.ToSharedRef() );
 }
 
