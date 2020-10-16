@@ -41,7 +41,7 @@ void UDisplayClusterMeshComponent::ApplyConfigurationData()
 	}
 }
 
-#if WITH_EDITOR 
+#if WITH_EDITOR
 void UDisplayClusterMeshComponent::SetNodeSelection(bool bSelect)
 {
 	WarpMeshComponent->bDisplayVertexColors = bSelect;

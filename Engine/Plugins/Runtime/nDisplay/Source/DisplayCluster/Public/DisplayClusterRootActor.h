@@ -139,7 +139,7 @@ protected:
 	virtual void Tick(float DeltaSeconds) override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void PostLoad() override;
-	virtual void OnConstruction(const FTransform& Transform) override;
+	virtual void PostActorCreated() override;
 
 protected:
 	TMap<FString, UDisplayClusterSceneComponent*>  AllComponents;
@@ -150,8 +150,11 @@ protected:
 	UDisplayClusterCameraComponent* DefaultCameraComponent;
 
 protected:
+	// Initializes the actor on spawn and load
+	void InitializeRootActor();
 	// Creates all hierarchy objects declared in a config file
 	virtual bool BuildHierarchy(UDisplayClusterConfigurationData* ConfigData);
+	// Cleans current hierarchy
 	virtual void CleanupHierarchy();
 
 private:
