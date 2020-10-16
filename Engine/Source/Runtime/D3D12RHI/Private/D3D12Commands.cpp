@@ -365,7 +365,7 @@ void FD3D12CommandContext::RHIEndTransitions(TArrayView<const FRHITransition*> T
 				}
 
 				D3D12_RESOURCE_STATES State = D3D12_RESOURCE_STATE_COMMON;
-				if (EnumHasAnyFlags(Info.Flags, EResourceTransitionFlags::MaintainCompression))
+				if (EnumHasAnyFlags(Info.Flags, EResourceTransitionFlags::MaintainCompression) && IsReadOnlyAccess(Info.AccessAfter))
 				{
 					State |= SkipFastClearEliminateState;
 				}
