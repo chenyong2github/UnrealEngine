@@ -121,4 +121,6 @@ private:
 
 	/** Cache last displayed text message */
 	FText LastMessageText;
+
+	bool bDropTargetItself;
 };
