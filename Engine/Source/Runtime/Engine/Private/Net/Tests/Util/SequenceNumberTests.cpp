@@ -79,8 +79,8 @@ bool FNetSequenceNumberTest::RunTest(const FString& Parameters)
 		FSequence3 Half(FSequence3::SeqNumberHalf);
 		FSequence3 MaxSeq(FSequence3::SeqNumberCount - 1);
 
-		TestTrue("SequenceNumbers - operator> Zero >= Zero", Zero >= Zero);
-		TestTrue("SequenceNumbers - operator> MaxSeq >= MaxSeq", MaxSeq >= MaxSeq);
+		TestTrue("SequenceNumbers - operator> Zero >= Zero", Zero >= Zero); //-V501 PVS - Testing overloaded operator
+		TestTrue("SequenceNumbers - operator> MaxSeq >= MaxSeq", MaxSeq >= MaxSeq); //-V501 PVS - Testing overloaded operator
 
 		TestTrue("SequenceNumbers - operator> HalfMinusOne >= Zero", HalfMinusOne >= Zero);
 		TestTrue("SequenceNumbers - operator> Half >= HalfMinusOne", Half >= HalfMinusOne);
@@ -112,8 +112,8 @@ bool FNetSequenceNumberTest::RunTest(const FString& Parameters)
 		FSequence3 Half(FSequence3::SeqNumberHalf);
 		FSequence3 MaxSeq(FSequence3::SeqNumberCount - 1);
 
-		TestTrue("SequenceNumbers - operator> Zero <= Zero", Zero <= Zero);
-		TestTrue("SequenceNumbers - operator> MaxSeq <= MaxSeq", MaxSeq <= MaxSeq);
+		TestTrue("SequenceNumbers - operator> Zero <= Zero", Zero <= Zero); //-V501 PVS - Testing overloaded operator
+		TestTrue("SequenceNumbers - operator> MaxSeq <= MaxSeq", MaxSeq <= MaxSeq); //-V501 PVS - Testing overloaded operator
 
 		TestFalse("SequenceNumbers - operator> HalfMinusOne < Zero", HalfMinusOne < Zero);
 		TestFalse("SequenceNumbers - operator> Half < HalfMinusOne", Half < HalfMinusOne);
