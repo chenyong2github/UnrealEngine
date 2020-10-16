@@ -609,7 +609,7 @@ void UCookOnTheFlyServer::AddCookOnTheFlyPlatformFromGameThread(ITargetPlatform*
 		return;
 	}
 
-	TArrayView<ITargetPlatform* const> NewTargetPlatforms{ TargetPlatform };
+	TArrayView<ITargetPlatform* const> NewTargetPlatforms(&TargetPlatform,1);
 
 	RefreshPlatformAssetRegistries(NewTargetPlatforms);
 	InitializeSandbox(NewTargetPlatforms);
