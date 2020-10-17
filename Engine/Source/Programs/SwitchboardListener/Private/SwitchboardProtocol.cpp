@@ -128,11 +128,12 @@ FString CreateSendFileToClientFailedMessage(const FString& InSourcePath, const F
 	return CreateMessage(TEXT("receive file complete"), false, { { TEXT("source"), InSourcePath }, { TEXT("error"), InError } });
 }
 
-bool CreateTaskFromCommand(const FString& InCommand, const FIPv4Endpoint& InEndpoint, TUniquePtr<FSwitchboardTask>& OutTask)
+bool CreateTaskFromCommand(const FString& InCommand, const FIPv4Endpoint& InEndpoint, TUniquePtr<FSwitchboardTask>& OutTask, bool& bOutEcho)
 {
 	TSharedRef<TJsonReader<TCHAR>> Reader = FJsonStringReader::Create(InCommand);
 
 	TSharedPtr<FJsonObject> JsonData;
+
 	if (!FJsonSerializer::Deserialize(Reader, JsonData))
 	{
 		return false;
@@ -140,15 +141,23 @@ bool CreateTaskFromCommand(const FString& InCommand, const FIPv4Endpoint& InEndp
 
 	TSharedPtr<FJsonValue> CommandField = JsonData->TryGetField(TEXT("command"));
 	TSharedPtr<FJsonValue> IdField = JsonData->TryGetField(TEXT("id"));
+
 	if (!CommandField.IsValid() || !IdField.IsValid())
 	{
 		return false;
 	}
 
 	FGuid MessageID;
+
 	if (!FGuid::Parse(IdField->AsString(), MessageID))
 	{
 		return false;
+	}
+
+	// Should we echo this command in the output log?
+	{
+		TSharedPtr<FJsonValue> EchoField = JsonData->TryGetField(TEXT("bEcho"));
+		bOutEcho = EchoField.IsValid() ? EchoField->AsBool() : true;
 	}
 
 	const FString CommandName = CommandField->AsString().ToLower();

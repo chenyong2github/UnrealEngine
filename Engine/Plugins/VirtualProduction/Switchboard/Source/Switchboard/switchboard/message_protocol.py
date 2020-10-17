@@ -71,7 +71,7 @@ def create_keep_alive_message():
 
 def create_get_sync_status_message(program_id):
     cmd_id = uuid.uuid4()
-    cmd = {'command': 'get sync status', 'id': str(cmd_id), 'uuid': str(program_id)}
+    cmd = {'command': 'get sync status', 'id': str(cmd_id), 'uuid': str(program_id), 'bEcho': False}
     message = json.dumps(cmd).encode() + b'\x00'
     return (cmd_id, message)
 

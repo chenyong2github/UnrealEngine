@@ -42,4 +42,4 @@ FString CreateSendFileToClientFailedMessage(const FString& InSourcePath, const F
 FString CreateSyncStatusMessage(const FSyncStatus& SyncStatus);
 //~
 
-bool CreateTaskFromCommand(const FString& InCommand, const FIPv4Endpoint& InEndpoint, TUniquePtr<FSwitchboardTask>& OutTask);
+bool CreateTaskFromCommand(const FString& InCommand, const FIPv4Endpoint& InEndpoint, TUniquePtr<FSwitchboardTask>& OutTask, bool& bOutEcho);
