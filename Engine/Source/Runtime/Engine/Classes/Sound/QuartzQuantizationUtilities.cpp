@@ -57,8 +57,8 @@ void FQuartzClockTickRate::SetSampleRate(float InNewSampleRate)
 
 int64 FQuartzClockTickRate::GetFramesPerDuration(EQuartzCommandQuantization InDuration) const
 {
-	const int32 FramesPerDotted16th = FramesPerTick * 3;
-	const int32 FramesPer16thTriplet = 8.f * FramesPerTick / 3.f;
+	const int64 FramesPerDotted16th = FramesPerTick * 3;
+	const int64 FramesPer16thTriplet = 8.f * FramesPerTick / 3.f;
 
 	switch (InDuration)
 	{
@@ -248,8 +248,8 @@ bool FQuartzTimeSignature::operator==(const FQuartzTimeSignature& Other)
 	{
 		for (int32 i = 0; i < NumPulseEntries; ++i)
 		{
-			const bool NumPulsesMatch = (OptionalPulseOverride[i].NumberOfPulses == OptionalPulseOverride[i].NumberOfPulses);
-			const bool DurationsMatch = (OptionalPulseOverride[i].PulseDuration == OptionalPulseOverride[i].PulseDuration);
+			const bool NumPulsesMatch = (OptionalPulseOverride[i].NumberOfPulses == Other.OptionalPulseOverride[i].NumberOfPulses);
+			const bool DurationsMatch = (OptionalPulseOverride[i].PulseDuration == Other.OptionalPulseOverride[i].PulseDuration);
 
 			if (!(NumPulseEntries && DurationsMatch))
 			{
