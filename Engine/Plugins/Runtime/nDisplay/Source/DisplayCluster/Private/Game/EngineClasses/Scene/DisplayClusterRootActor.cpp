@@ -83,13 +83,17 @@ void ADisplayClusterRootActor::InitializeFromConfig(const FString& ConfigFile)
 
 void ADisplayClusterRootActor::InitializeRootActor()
 {
+	const UWorld* World = GetWorld();
+
+	if (!World)
+	{
+		return;
+	}
+	
 	bool bIsPIE = false;
 
 #if WITH_EDITOR
-	if (UWorld* World = GetWorld())
-	{
-		bIsPIE = World->IsPlayInEditor();
-	}
+	bIsPIE = World->IsPlayInEditor();
 #endif
 
 	// Packaged, PIE and -game runtime
