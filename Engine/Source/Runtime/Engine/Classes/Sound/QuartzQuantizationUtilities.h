@@ -7,6 +7,7 @@
 #include "UObject/Object.h"
 #include "UObject/Class.h"
 #include "Containers/Map.h"
+#include "Containers/Queue.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 
 #include "QuartzQuantizationUtilities.generated.h"
@@ -26,6 +27,8 @@ namespace Audio
 	class IQuartzQuantizedCommand;
 	class FQuartzClock;
 	class FShareableQuartzCommandQueue;
+
+	class FMixerDevice;
 
 	struct FQuartzQuantizedCommandDelegateData;
 	struct FQuartzMetronomeDelegateData;
@@ -449,6 +452,8 @@ private:
 // NON-UOBJECT LAYER:
 namespace Audio
 {
+	class FAudioMixer;
+
 	// Simple class to track latency as a request/action propagates from GT to ART (or vice versa)
 	class ENGINE_API FQuartzLatencyTimer
 	{
