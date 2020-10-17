@@ -825,13 +825,7 @@ struct FShaderCodeStats
 	int64 ShadersUniqueSize;
 	int32 NumShaders;
 	int32 NumUniqueShaders;
-	//int32 NumPipelines;
-	//int32 NumUniquePipelines;
-
 	int32 NumShaderMaps;
-	int32 NumShaderMapsWithUnknownAssets;
-	int32 NumUnnamedShaderMaps;
-	int32 TimesShadersMovedCloser;
 };
 
 struct FEditorShaderCodeArchive
@@ -906,10 +900,15 @@ struct FEditorShaderCodeArchive
 
 					CodeStats.NumUniqueShaders++;
 					CodeStats.ShadersUniqueSize += SourceShaderEntry.Code.Num();
-					CodeStats.ShadersSize += SourceShaderEntry.Code.Num();
 				}
+				CodeStats.ShadersSize += Code->ShaderEntries[i].Code.Num();
 				SerializedShaders.ShaderIndices[ShaderMapEntry.ShaderIndicesOffset + i] = ShaderIndex;
 			}
+
+			// for total shaders, only count shaders when we're adding a new shadermap. AddShaderCode() for the same shadermap can be called several times during
+			// the cook because of serialization path being reused for other purposes than actual saving, so counting them every time artificially inflates number of shaders.
+			CodeStats.NumShaders += Code->ShaderEntries.Num();
+			CodeStats.NumShaderMaps++;
 		}
 		return ShaderMapIndex;
 	}
@@ -1148,10 +1147,10 @@ struct FEditorShaderCodeArchive
 					{
 						FileWriter->Serialize(Code.GetData(), Code.Num());
 					}
-
-					FileWriter->Close();
-					delete FileWriter;
 				}
+
+				FileWriter->Close();
+				delete FileWriter;
 
 				auto CopyFile = [this](const FString& SourcePath, const FString& DestinationPath) -> bool
 				{
@@ -1851,7 +1850,6 @@ public:
 		checkf(Platform < UE_ARRAY_COUNT(EditorShaderCodeStats), TEXT("FShaderCodeLibrary::AddShaderCode can only be called with a valid shader platform (expected no more than %d, passed: %d)"), 
 			static_cast<int32>(UE_ARRAY_COUNT(EditorShaderCodeStats)), static_cast<int32>(Platform));
 		FShaderCodeStats& CodeStats = EditorShaderCodeStats[Platform];
-		CodeStats.NumShaders += Code->ShaderEntries.Num();
 
 		checkf(Platform < UE_ARRAY_COUNT(EditorShaderCodeArchive), TEXT("FShaderCodeLibrary::AddShaderCode can only be called with a valid shader platform (expected no more than %d, passed: %d)"),
 			static_cast<int32>(UE_ARRAY_COUNT(EditorShaderCodeArchive)), static_cast<int32>(Platform));
@@ -1938,11 +1936,8 @@ public:
 				UE_LOG(LogShaderLibrary, Display, TEXT(""));
 				UE_LOG(LogShaderLibrary, Display, TEXT("Shader Code Stats: %s"), *LegacyShaderPlatformToShaderFormat((EShaderPlatform)PlatformId).ToString());
 				UE_LOG(LogShaderLibrary, Display, TEXT("================="));
-				UE_LOG(LogShaderLibrary, Display, TEXT("Unique Shaders: %d, Total Shaders: %d"), CodeStats.NumUniqueShaders, CodeStats.NumShaders);
+				UE_LOG(LogShaderLibrary, Display, TEXT("Unique Shaders: %d, Total Shaders: %d, Unique Shadermaps: %d"), CodeStats.NumUniqueShaders, CodeStats.NumShaders, CodeStats.NumShaderMaps);
 				UE_LOG(LogShaderLibrary, Display, TEXT("Unique Shaders Size: %.2fmb, Total Shader Size: %.2fmb"), UniqueSizeMB, TotalSizeMB);
-				UE_LOG(LogShaderLibrary, Display, TEXT("-- Layout details --"));
-				UE_LOG(LogShaderLibrary, Display, TEXT("Shadermaps: %d, of which belonging to unknown assets %d, unnamed %d"), CodeStats.NumShaderMaps, CodeStats.NumShaderMapsWithUnknownAssets, CodeStats.NumUnnamedShaderMaps);
-				UE_LOG(LogShaderLibrary, Display, TEXT("Times we moved shaders closer to the beginning of the file: %d"), CodeStats.TimesShadersMovedCloser);
 				UE_LOG(LogShaderLibrary, Display, TEXT("================="));
 			}
 
