@@ -816,7 +816,7 @@ void FGenericCrashContext::AddPortableCallStack() const
 
 	for (TArray<FCrashStackFrame>::TConstIterator It(CallStack); It; ++It)
 	{
-		CrashStackBuffer += FString::Printf(TEXT("%-*s 0x%016x + %-8x"),MaxModuleLength + 1, *It->ModuleName, It->BaseAddress, It->Offset);
+		CrashStackBuffer += FString::Printf(TEXT("%-*s 0x%016llx + %-16llx"),MaxModuleLength + 1, *It->ModuleName, It->BaseAddress, It->Offset);
 		CrashStackBuffer += LINE_TERMINATOR;
 	}
 
