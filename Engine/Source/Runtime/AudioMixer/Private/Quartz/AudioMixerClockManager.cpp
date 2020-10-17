@@ -19,7 +19,7 @@ namespace Audio
 	{
 		// this function should only be called on the Audio Render Thread
 		// (original intent was for this to be called only by the owning FMixerDevice)
-		checkSlow(!MixerDevice->IsAudioRenderingThread());
+		checkSlow(MixerDevice->IsAudioRenderingThread());
 
 		TickClocks(NumFramesUntilNextUpdate);
 	}
