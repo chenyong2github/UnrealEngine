@@ -267,6 +267,8 @@ void SaveAsset(UObject* InObject)
 	UPackage* const Package = InObject->GetOutermost();
 	FString const PackageName = Package->GetName();
 	FString const PackageFileName = FPackageName::LongPackageNameToFilename(PackageName, FPackageName::GetAssetPackageExtension());
+	// More like a quick fix to be able to save sequence recordings in -game mode
+	Package->GetMetaData();
 
 	UPackage::SavePackage(Package, NULL, RF_Standalone, *PackageFileName, GError, nullptr, false, true, SAVE_NoError);
 }
