@@ -236,6 +236,7 @@ class DevicenDisplay(DeviceUnreal):
 
         args = [
             f'"{uproject}"',
+            f'{map_name}',              # map to open
             "-game",                    # render nodes run in -game
             "-messaging",               # enables messaging, needed for MultiUser
             "-dc_cluster",              # this is a cluster node
@@ -303,7 +304,7 @@ class DevicenDisplay(DeviceUnreal):
     def on_ndisplay_config_transfer_complete(self, destination):
         LOGGER.info(f"{self.name}: nDisplay config file was successfully transferred to {destination} on host")
         self.path_to_config_on_host = destination
-        super().launch(map_name="")
+        super().launch(map_name=self.map_name_to_launch)
 
     def on_get_sync_status(self, message):
         ''' Called when 'get sync status' is received.
@@ -406,6 +407,8 @@ class DevicenDisplay(DeviceUnreal):
         self.settings['fullscreen'].update_value(menode['kwargs'].get("fullscreen", False))
 
     def launch(self, map_name):
+
+        self.map_name_to_launch = map_name
 
         # Update settings controlled exclusively by the nDisplay config file.
         try:

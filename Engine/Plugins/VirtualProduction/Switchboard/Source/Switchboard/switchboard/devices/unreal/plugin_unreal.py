@@ -1,7 +1,7 @@
 # Copyright Epic Games, Inc. All Rights Reserved.
 from switchboard import config_osc as osc
 from switchboard import message_protocol
-from switchboard.config import CONFIG, Setting, SETTINGS
+from switchboard.config import CONFIG, Setting, SETTINGS, DEFAULT_MAP_TEXT
 from switchboard.devices.device_base import Device, DeviceStatus
 from switchboard.devices.device_widget_base import DeviceWidget
 from switchboard.listener_client import ListenerClient
@@ -269,6 +269,9 @@ class DeviceUnreal(Device):
         return self.generate_unreal_exe_path(), self.generate_unreal_command_line_args(map_name)
 
     def launch(self, map_name, program_name="unreal"):
+
+        if map_name == DEFAULT_MAP_TEXT:
+            map_name = ''
 
         engine_path, args = self.generate_unreal_command_line(map_name)
         LOGGER.info(f"Launching UE4: {engine_path} {args}")
