@@ -2466,6 +2466,62 @@ namespace HairCards
 		{
 			const uint32 NumTriangles = InCards.IndexCounts[CardIt] / 3;
 			const uint32 VertexOffset = InCards.IndexOffsets[CardIt];
+			struct FSimilarUVVertices
+			{
+				float TexCoord = 0;
+				TArray<uint32> Indices;
+			};
+			TArray<FSimilarUVVertices> SimilarVertexU;
+			TArray<FSimilarUVVertices> SimilarVertexV;
+
+			auto AddSimilarUV = [](TArray<FSimilarUVVertices>& In, uint32 Index, float TexCoord, float Threshold)
+			{
+				bool bFound = false;
+				for (int32 It = 0, Count = In.Num(); It < Count; ++It)
+				{
+					if (FMath::Abs(In[It].TexCoord - TexCoord) < Threshold)
+					{
+						In[It].Indices.Add(Index);
+						bFound = true;
+						break;
+					}
+				}
+
+				if (!bFound)
+				{
+					FSimilarUVVertices& SimilarUV = In.AddDefaulted_GetRef();
+					SimilarUV.TexCoord = TexCoord;
+					SimilarUV.Indices.Add(Index);
+				}
+			};
+
+			const float UVCoordTreshold = 1.f / 4096.f; // 1 pixel for a 4k texture
+			for (uint32 TriangleIt = 0; TriangleIt < NumTriangles; ++TriangleIt)
+			{
+				const uint32 VertexIndexOffset = VertexOffset + TriangleIt * 3;
+				for (uint32 VertexIt = 0; VertexIt < 3; ++VertexIt)
+				{
+					const uint32 VertexIndex = InCards.Indices[VertexIndexOffset + VertexIt];
+					const FVector4 UV = TriangleUVs[VertexIt] = InCards.UVs[VertexIndex];
+					AddSimilarUV(SimilarVertexU, VertexIndex, UV.X, UVCoordTreshold);
+					AddSimilarUV(SimilarVertexV, VertexIndex, UV.Y, UVCoordTreshold);
+				}
+			}
+
+			// Find the perpendicular by comparison vertices UV, which are similar
+			const bool bIsMainDirectionU = SimilarVertexU.Num() >= SimilarVertexV.Num();
+			auto IsPerpendicularEdge = [bIsMainDirectionU, UVCoordTreshold](FVector4* TriangleUVs, uint32 Index0, uint32 Index1)
+			{
+				const FVector2D Diff = FMath::Abs(FVector2D(TriangleUVs[Index0].X - TriangleUVs[Index1].X, TriangleUVs[Index0].Y - TriangleUVs[Index1].Y));
+				if (bIsMainDirectionU)
+				{
+					return Diff.X < UVCoordTreshold &&  Diff.Y > UVCoordTreshold;
+				}
+				else
+				{
+					return Diff.X > UVCoordTreshold && Diff.Y < UVCoordTreshold;
+				}
+			};
 
 			TArray<FVector> CenterPoints;
 			CenterPoints.Reserve(NumTriangles);
@@ -2484,19 +2540,19 @@ namespace HairCards
 				uint32 V0 = MAX_uint32;
 				uint32 V1 = MAX_uint32;
 				uint32 V2 = MAX_uint32;
-				if (TriangleUVs[0].X != TriangleUVs[1].X && TriangleUVs[0].Y == TriangleUVs[1].Y)
+				if(IsPerpendicularEdge(TriangleUVs, 0, 1))
 				{
 					V0 = 0;
 					V1 = 1;
 					V2 = 2;
 				}
-				else if (TriangleUVs[0].X != TriangleUVs[2].X && TriangleUVs[0].Y == TriangleUVs[2].Y)
+				else if (IsPerpendicularEdge(TriangleUVs, 0, 2))
 				{
 					V0 = 0;
 					V1 = 2;
 					V2 = 1;
 				}
-				else if (TriangleUVs[1].X != TriangleUVs[2].X && TriangleUVs[1].Y == TriangleUVs[2].Y)
+				else if (IsPerpendicularEdge(TriangleUVs, 1, 2))
 				{
 					V0 = 1;
 					V1 = 2;
@@ -2522,17 +2578,41 @@ namespace HairCards
 					CenterPoint = (P0 + P1 + P2) / 3.f;
 				}
 
+				// Handle guide for single triangle card as from the center point of the segment to the other vertex
+				// Adding two points for creating a valid guide
+				if (NumTriangles == 1)
+				{
+					FVector P0 = FVector::ZeroVector;
+					FVector P1 = FVector::ZeroVector;
+					if (bFoundPerpendicularEdge)
+					{
+						P0 = InCards.Positions[TriangleIVertexIndices[V0]] + InCards.Positions[TriangleIVertexIndices[V1]];
+						P1 = InCards.Positions[TriangleIVertexIndices[V2]];
+					}
+					else
+					{
+						P0 = CenterPoint;
+						P1 = InCards.Positions[TriangleIVertexIndices[2]];
+					}
+					CenterPoints.Add(P0);
+					CenterPoints.Add(P1);
+				}
 				// Don't add duplicate points which are the points on the edge shared between 2 connected quads
-				if (CenterPoints.Num() == 0 || !CenterPoints.Last().Equals(CenterPoint))
+				else if (CenterPoints.Num() == 0 || !CenterPoints.Last().Equals(CenterPoint))
 				{
 					CenterPoints.Add(CenterPoint);
 				}
+			}
 
-				// Handle guide for single triangle card as from the center point of the segment to the other vertex
-				if (NumTriangles == 1)
-				{
-					CenterPoints.Add(InCards.Positions[TriangleIVertexIndices[V2]]);
-				}
+			// Insure that cards as at least two points to build a segment as a lot of the runtime code assume at have
+			// at least one valid segment
+			check(CenterPoints.Num() > 0);
+			if (CenterPoints.Num() == 1)
+			{
+				const FVector CenterPoint = CenterPoints[0];
+				const float SegmentSize = 0.5f;
+				const FVector P1 = CenterPoint + SegmentSize * (CenterPoint - InCards.BoundingBox.GetCenter()).GetSafeNormal();
+				CenterPoints.Add(P1);
 			}
 
 			// Compute and store the guide's total length
@@ -2966,7 +3046,7 @@ namespace FHairCardsBuilder
 FString GetVersion()
 {
 	// Important to update the version when cards building or importing changes
-	return TEXT("1");
+	return TEXT("4");
 }
 
 void AllocateAtlasTexture(UTexture2D* Out, const FIntPoint& Resolution, uint32 MipCount, EPixelFormat PixelFormat, ETextureSourceFormat SourceFormat)
@@ -3486,7 +3566,7 @@ namespace FHairMeshesBuilder
 FString GetVersion()
 {
 	// Important to update the version when meshes building or importing changes
-	return TEXT("1");
+	return TEXT("2");
 }
 
 void BuildGeometry(

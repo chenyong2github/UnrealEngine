@@ -52,7 +52,7 @@ struct FHairCardsNormalFormat
 	// TangentX & tangentZ are packed into 2 * PF_R8G8B8A8_SNORM
 	static const uint32 ComponentCount = 2;
 	static const uint32 SizeInByte = sizeof(Type);
-	static const EVertexElementType VertexElementType = VET_Float4;
+	static const EVertexElementType VertexElementType = VET_PackedNormal;
 	static const EPixelFormat Format = PF_R8G8B8A8_SNORM;
 };
 

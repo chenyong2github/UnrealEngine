@@ -23,8 +23,8 @@
 #include "Engine/SkeletalMesh.h"
 #include "Engine/StaticMesh.h"
 
+#define GROOMEDITOR_ENABLE_COMPONENT_PANEL 0
 #define LOCTEXT_NAMESPACE "GroomCustomAssetEditor"
-
 const FName FGroomCustomAssetEditorToolkit::ToolkitFName(TEXT("GroomEditor"));
 
 const FName FGroomCustomAssetEditorToolkit::TabId_Viewport(TEXT("GroomCustomAssetEditor_Render"));
@@ -83,10 +83,12 @@ void FGroomCustomAssetEditorToolkit::RegisterTabSpawners(const TSharedRef<class 
 		.SetGroup(WorkspaceMenuCategory.ToSharedRef())
 		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Details"));
 
+#if GROOMEDITOR_ENABLE_COMPONENT_PANEL
 	InTabManager->RegisterTabSpawner(TabId_PreviewGroomComponent, FOnSpawnTab::CreateSP(this, &FGroomCustomAssetEditorToolkit::SpawnTab_PreviewGroomComponent))
 		.SetDisplayName(LOCTEXT("PreviewGroomComponentTab", "Preview Component"))
 		.SetGroup(WorkspaceMenuCategory.ToSharedRef())
 		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Details"));
+#endif
 }
 
 void FGroomCustomAssetEditorToolkit::UnregisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)
@@ -101,7 +103,9 @@ void FGroomCustomAssetEditorToolkit::UnregisterTabSpawners(const TSharedRef<clas
 	InTabManager->UnregisterTabSpawner(TabId_MeshesProperties);
 	InTabManager->UnregisterTabSpawner(TabId_MaterialProperties);
 	InTabManager->UnregisterTabSpawner(TabId_PhysicsProperties);
+#if GROOMEDITOR_ENABLE_COMPONENT_PANEL
 	InTabManager->UnregisterTabSpawner(TabId_PreviewGroomComponent);
+#endif
 }
 
 FEdMode* FGroomCustomAssetEditorToolkit::GetEditorMode() const 
@@ -280,7 +284,9 @@ bool FGroomCustomAssetEditorToolkit::OnRequestClose()
 	DetailView_CardsProperties.Reset();
 	DetailView_MeshesProperties.Reset();
 	DetailView_MaterialProperties.Reset();
+#if GROOMEDITOR_ENABLE_COMPONENT_PANEL
 	DetailView_PreviewGroomComponent.Reset();
+#endif
 
 	return FAssetEditorToolkit::OnRequestClose();
 }
@@ -307,8 +313,10 @@ void FGroomCustomAssetEditorToolkit::InitCustomAssetEditor(const EToolkitMode::T
 	DetailView_CardsProperties			= PropertyEditorModule.CreateDetailView(FDetailsViewArgs(bIsUpdatable, bIsLockable, true, FDetailsViewArgs::ObjectsUseNameArea, false));
 	DetailView_MeshesProperties			= PropertyEditorModule.CreateDetailView(FDetailsViewArgs(bIsUpdatable, bIsLockable, true, FDetailsViewArgs::ObjectsUseNameArea, false));
 	DetailView_MaterialProperties		= PropertyEditorModule.CreateDetailView(FDetailsViewArgs(bIsUpdatable, bIsLockable, true, FDetailsViewArgs::ObjectsUseNameArea, false));
+#if GROOMEDITOR_ENABLE_COMPONENT_PANEL
 	DetailView_PreviewGroomComponent	= PropertyEditorModule.CreateDetailView(FDetailsViewArgs(bIsUpdatable, bIsLockable, true, FDetailsViewArgs::ObjectsUseNameArea, false));
-	
+#endif
+
 	// Customization
 	DetailView_CardsProperties->SetGenericLayoutDetailsDelegate(FOnGetDetailCustomizationInstance::CreateStatic(&FGroomRenderingDetails::MakeInstance, (IGroomCustomAssetEditorToolkit*)this, EMaterialPanelType::Cards));
 	DetailView_MeshesProperties->SetGenericLayoutDetailsDelegate(FOnGetDetailCustomizationInstance::CreateStatic(&FGroomRenderingDetails::MakeInstance, (IGroomCustomAssetEditorToolkit*)this, EMaterialPanelType::Meshes));
@@ -322,7 +330,7 @@ void FGroomCustomAssetEditorToolkit::InitCustomAssetEditor(const EToolkitMode::T
 	ViewportTab = SNew(SGroomEditorViewport);
 	
 	// Default layout
-	const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_GroomAssetEditor_Layout_v12c")
+	const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_GroomAssetEditor_Layout_v14")
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()
@@ -357,7 +365,9 @@ void FGroomCustomAssetEditorToolkit::InitCustomAssetEditor(const EToolkitMode::T
 					->AddTab(TabId_MeshesProperties,		ETabState::OpenedTab)
 					->AddTab(TabId_MaterialProperties,		ETabState::OpenedTab)
 					->AddTab(TabId_PhysicsProperties,		ETabState::OpenedTab)
+				#if GROOMEDITOR_ENABLE_COMPONENT_PANEL
 					->AddTab(TabId_PreviewGroomComponent,	ETabState::OpenedTab)
+				#endif
 				)
 			)
 		);
@@ -524,10 +534,12 @@ void FGroomCustomAssetEditorToolkit::InitCustomAssetEditor(const EToolkitMode::T
 		DetailView_MaterialProperties->SetObject(Cast<UObject>(GroomAsset));
 	}
 
+#if GROOMEDITOR_ENABLE_COMPONENT_PANEL
 	if (DetailView_PreviewGroomComponent.IsValid())
 	{
 		DetailView_PreviewGroomComponent->SetObject(PreviewGroomComponent.Get());
 	}
+#endif
 
 	ExtendToolbar();
 	RegenerateMenusAndToolbars();

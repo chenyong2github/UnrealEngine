@@ -28,7 +28,7 @@ static FAutoConsoleVariableRef CVarHairScatterSceneLighting(TEXT("r.HairStrands.
 static int32 GHairSkylightingEnable = 1;
 static FAutoConsoleVariableRef CVarHairSkylightingEnable(TEXT("r.HairStrands.SkyLighting"), GHairSkylightingEnable, TEXT("Enable sky lighting on hair."));
 
-static int32 GHairSkyAOEnable = 1;
+static int32 GHairSkyAOEnable = 0;
 static FAutoConsoleVariableRef CVarHairSkyAOEnable(TEXT("r.HairStrands.SkyAO"), GHairSkyAOEnable, TEXT("Enable (sky) AO on hair."));
 
 static float GHairSkylightingConeAngle = 3;
@@ -201,10 +201,16 @@ public:
 
 		SHADER_PARAMETER(uint32, MaxVisibilityNodeCount)
 		SHADER_PARAMETER(uint32, MultipleScatterSampleCount)
+
 		SHADER_PARAMETER(uint32, HairComponents)
 		SHADER_PARAMETER(float,  HairDualScatteringRoughnessOverride)
 		SHADER_PARAMETER(float, TransmissionDensityScaleFactor)
 		SHADER_PARAMETER(float, HairDistanceThreshold)
+
+		SHADER_PARAMETER(FVector4, SkyLight_OcclusionTintAndMinOcclusion)
+
+		SHADER_PARAMETER(uint32, SkyLight_OcclusionCombineMode)
+		SHADER_PARAMETER(float, SkyLight_OcclusionExponent)
 		SHADER_PARAMETER(uint32, bHairUseViewHairCount)
 		SHADER_PARAMETER(FIntPoint, MaxViewportResolution)
 
@@ -287,6 +293,7 @@ IMPLEMENT_GLOBAL_SHADER(FHairEnvironmentLightingVS, "/Engine/Private/HairStrands
 
 static void AddHairStrandsEnvironmentLightingPassPS(
 	FRDGBuilder& GraphBuilder,
+	const FScene* Scene,
 	const FViewInfo& View,
 	const FHairStrandsVisibilityData& VisibilityData,
 	const FHairStrandsMacroGroupDatas& MacroGroupDatas,
@@ -328,6 +335,21 @@ static void AddHairStrandsEnvironmentLightingPassPS(
 		}
 	}
 
+	float SkyLightContrast = 0.01f;
+	float SkyLightOcclusionExponent = 1.0f;
+	FVector4 SkyLightOcclusionTintAndMinOcclusion(0.0f, 0.0f, 0.0f, 0.0f);
+	EOcclusionCombineMode SkyLightOcclusionCombineMode = EOcclusionCombineMode::OCM_MAX;
+	if (FSkyLightSceneProxy* SkyLight = Scene->SkyLight)
+	{
+		SkyLightOcclusionExponent = SkyLight->OcclusionExponent;
+		SkyLightOcclusionTintAndMinOcclusion = FVector4(SkyLight->OcclusionTint);
+		SkyLightOcclusionTintAndMinOcclusion.W = SkyLight->MinOcclusion;
+		SkyLightOcclusionCombineMode = SkyLight->OcclusionCombineMode;
+	}
+
+	PassParameters->SkyLight_OcclusionCombineMode = SkyLightOcclusionCombineMode == OCM_Minimum ? 0.0f : 1.0f;
+	PassParameters->SkyLight_OcclusionExponent = SkyLightOcclusionExponent;
+	PassParameters->SkyLight_OcclusionTintAndMinOcclusion = SkyLightOcclusionTintAndMinOcclusion;
 	PassParameters->MaxViewportResolution = VisibilityData.SampleLightingViewportResolution;
 	PassParameters->HairVisibilityNodeCount = VisibilityData.NodeCount;
 	PassParameters->Voxel_TanConeAngle = FMath::Tan(FMath::DegreesToRadians(GetHairStrandsSkyLightingConeAngle()));
@@ -414,6 +436,7 @@ static void AddHairStrandsEnvironmentLightingPassPS(
 void RenderHairStrandsSceneColorScattering(
 	FRDGBuilder& GraphBuilder,
 	FRDGTextureRef SceneColorTexture,
+	const FScene* Scene,
 	TArrayView<const FViewInfo> Views,
 	FHairStrandsRenderingData* HairDatas)
 {
@@ -452,7 +475,7 @@ void RenderHairStrandsSceneColorScattering(
 			{
 				if (MacroGroupData.bNeedScatterSceneLighting)
 				{
-					AddHairStrandsEnvironmentLightingPassPS(GraphBuilder, View, VisibilityData, MacroGroupDatas, MacroGroupData, SceneColorTexture, nullptr);
+					AddHairStrandsEnvironmentLightingPassPS(GraphBuilder, Scene, View, VisibilityData, MacroGroupDatas, MacroGroupData, SceneColorTexture, nullptr);
 				}
 			}
 		}
@@ -461,6 +484,7 @@ void RenderHairStrandsSceneColorScattering(
 
 void RenderHairStrandsEnvironmentLighting(
 	FRDGBuilder& GraphBuilder,
+	const FScene* Scene,
 	const uint32 ViewIndex,
 	TArrayView<const FViewInfo> Views,
 	FHairStrandsRenderingData* HairDatas)
@@ -500,7 +524,7 @@ void RenderHairStrandsEnvironmentLighting(
 	const FHairStrandsMacroGroupDatas& MacroGroupDatas = HairDatas->MacroGroupsPerViews.Views[ViewIndex];
 	for (const FHairStrandsMacroGroupData& MacroGroupData : HairDatas->MacroGroupsPerViews.Views[ViewIndex].Datas)
 	{
-		AddHairStrandsEnvironmentLightingPassPS(GraphBuilder, View, VisibilityData, MacroGroupDatas, MacroGroupData, nullptr, bDebugSamplingEnable ? &HairDatas->DebugData.Resources : nullptr);
+		AddHairStrandsEnvironmentLightingPassPS(GraphBuilder, Scene, View, VisibilityData, MacroGroupDatas, MacroGroupData, nullptr, bDebugSamplingEnable ? &HairDatas->DebugData.Resources : nullptr);
 	}
 }
 

@@ -744,7 +744,6 @@ namespace GroomBinding_RootProjection
 			check(LODIt == OutRootData.MeshProjectionLODs[LODIt].LODIndex);
 
 			// 2.1. Build a grid around the hair AABB
-			FTriangleGrid Grid(InStrandsData.BoundingBox.Min, InStrandsData.BoundingBox.Max, VoxelWorldSize);
 
 			TArray<uint32> IndexBuffer;
 			InMeshRenderData->LODRenderData[LODIt].MultiSizeIndexContainer.GetIndexBuffer(IndexBuffer);
@@ -755,14 +754,16 @@ namespace GroomBinding_RootProjection
 			FBox MeshBound;
 			MeshBound.Init();
 			const uint32 SectionCount = InMeshRenderData->LODRenderData[LODIt].RenderSections.Num();
+			check(SectionCount > 0);
 			for (uint32 SectionIt = 0; SectionIt < SectionCount; ++SectionIt)
 			{
-				// 2.2. Insert all triangle within the grid
+				// 2.2.1 Compute the bounding box of the skeletal mesh
 				const uint32 TriangleCount = InMeshRenderData->LODRenderData[LODIt].RenderSections[SectionIt].NumTriangles;
 				const uint32 SectionBaseIndex = InMeshRenderData->LODRenderData[LODIt].RenderSections[SectionIt].BaseIndex;
 
 				check(TriangleCount < MaxTriangleCount);
 				check(SectionCount < MaxSectionCount);
+				check(TriangleCount > 0);
 
 				for (uint32 TriangleIt = 0; TriangleIt < TriangleCount; ++TriangleIt)
 				{
@@ -795,6 +796,63 @@ namespace GroomBinding_RootProjection
 					MeshBound += T.P0;
 					MeshBound += T.P1;
 					MeshBound += T.P2;
+				}
+			}
+
+			// Take the smallest bounding box between the groom and the skeletal mesh
+			const FVector MeshExtent = MeshBound.Max - MeshBound.Min;
+			const FVector HairExtent = InStrandsData.BoundingBox.Max - InStrandsData.BoundingBox.Min;
+			FVector GridMin;
+			FVector GridMax;
+			if (MeshExtent.Size() < HairExtent.Size())
+			{
+				GridMin = MeshBound.Min;
+				GridMax = MeshBound.Max;
+			}
+			else
+			{
+				GridMin = InStrandsData.BoundingBox.Min;
+				GridMax = InStrandsData.BoundingBox.Max;
+			}
+
+			FTriangleGrid Grid(GridMin, GridMax, VoxelWorldSize);
+			for (uint32 SectionIt = 0; SectionIt < SectionCount; ++SectionIt)
+			{
+				// 2.2.2 Insert all triangle within the grid
+				const uint32 TriangleCount = InMeshRenderData->LODRenderData[LODIt].RenderSections[SectionIt].NumTriangles;
+				const uint32 SectionBaseIndex = InMeshRenderData->LODRenderData[LODIt].RenderSections[SectionIt].BaseIndex;
+
+				check(TriangleCount < MaxTriangleCount);
+				check(SectionCount < MaxSectionCount);
+				check(TriangleCount > 0);
+
+				for (uint32 TriangleIt = 0; TriangleIt < TriangleCount; ++TriangleIt)
+				{
+					FTriangleGrid::FTriangle T;
+					T.TriangleIndex = TriangleIt;
+					T.SectionIndex = SectionIt;
+					T.SectionBaseIndex = SectionBaseIndex;
+
+					T.I0 = IndexBuffer[T.SectionBaseIndex + T.TriangleIndex * 3 + 0];
+					T.I1 = IndexBuffer[T.SectionBaseIndex + T.TriangleIndex * 3 + 1];
+					T.I2 = IndexBuffer[T.SectionBaseIndex + T.TriangleIndex * 3 + 2];
+
+					if (bHasTransferredPosition)
+					{
+						T.P0 = InTransferredPositions[LODIt][T.I0];
+						T.P1 = InTransferredPositions[LODIt][T.I1];
+						T.P2 = InTransferredPositions[LODIt][T.I2];
+					}
+					else
+					{
+						T.P0 = InMeshRenderData->LODRenderData[LODIt].StaticVertexBuffers.PositionVertexBuffer.VertexPosition(T.I0);
+						T.P1 = InMeshRenderData->LODRenderData[LODIt].StaticVertexBuffers.PositionVertexBuffer.VertexPosition(T.I1);
+						T.P2 = InMeshRenderData->LODRenderData[LODIt].StaticVertexBuffers.PositionVertexBuffer.VertexPosition(T.I2);
+					}
+
+					T.UV0 = InMeshRenderData->LODRenderData[LODIt].StaticVertexBuffers.StaticMeshVertexBuffer.GetVertexUV(T.I0, ChannelIndex);
+					T.UV1 = InMeshRenderData->LODRenderData[LODIt].StaticVertexBuffers.StaticMeshVertexBuffer.GetVertexUV(T.I1, ChannelIndex);
+					T.UV2 = InMeshRenderData->LODRenderData[LODIt].StaticVertexBuffers.StaticMeshVertexBuffer.GetVertexUV(T.I2, ChannelIndex);
 
 					Grid.Insert(T);
 				}
@@ -1405,7 +1463,8 @@ static bool InternalBuildBinding_CPU(UGroomBindingAsset* BindingAsset, bool bIni
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // GPU path
 
-
+#define GPU_BINDING 0
+#if GPU_BINDING
 #if WITH_EDITORONLY_DATA
 namespace GroomBinding_GPU
 {
@@ -1872,9 +1931,10 @@ namespace GroomBinding_GPU
 } // namespace GroomBinding_GPU
 
 #endif
-
+#endif
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Main entry (GPU path)
+#if GPU_BINDING
 static void InternalBuildBinding_GPU(FRDGBuilder& GraphBuilder, UGroomBindingAsset* BindingAsset)
 {
 #if WITH_EDITORONLY_DATA
@@ -2019,6 +2079,7 @@ static void InternalBuildBinding_GPU(FRDGBuilder& GraphBuilder, UGroomBindingAss
 
 #endif
 }
+#endif
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Asynchronous queuing for binding generation (GPU)
@@ -2040,7 +2101,9 @@ void RunHairStrandsBindingQueries(FRDGBuilder& GraphBuilder, FGlobalShaderMap* S
 	{
 		if (Q.Asset)
 		{
+			#if GPU_BINDING
 			InternalBuildBinding_GPU(GraphBuilder, Q.Asset);
+			#endif
 		}
 	}
 }
@@ -2064,7 +2127,10 @@ bool FGroomBindingBuilder::BuildBinding(UGroomBindingAsset* BindingAsset, bool b
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Immediate version
-
+#ifndef GPU_BINDING
+#define GPU_BINDING 0
+#endif
+#if GPU_BINDING
 void FGroomBindingBuilder::TransferMesh(
 	FRDGBuilder& GraphBuilder,
 	const FHairStrandsProjectionMeshData& SourceMeshData,
@@ -2127,6 +2193,6 @@ void FGroomBindingBuilder::ProjectStrands(
 
 	TransitBufferToReadable(GraphBuilder, TransitionQueue);
 }
-
+#endif
 
 #undef LOCTEXT_NAMESPACE

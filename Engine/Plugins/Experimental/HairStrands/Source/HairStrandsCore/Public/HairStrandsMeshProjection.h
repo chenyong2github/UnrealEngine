@@ -14,6 +14,8 @@ struct FHairStrandsRestRootResource;
 struct FHairStrandsDeformedRootResource;
 struct FHairMeshesRestResource;
 struct FHairMeshesDeformedResource;
+struct FHairCardsRestResource;
+struct FHairCardsDeformedResource;
 
 struct FHairStrandsProjectionMeshData
 {
@@ -148,12 +150,22 @@ void AddSkinUpdatePass(
 	FRDGBufferRef MatrixOffsets,
 	FRDGBufferRef OutDeformedosition);
 
-void AddHairMeshesInterpolationPass(
+void AddHairMeshesRBFInterpolationPass(
 	FRDGBuilder& GraphBuilder,
 	FGlobalShaderMap* ShaderMap,
 	const int32 MeshLODIndex,
 	FHairMeshesRestResource* RestResources,
 	FHairMeshesDeformedResource* DeformedResources,
+	FHairStrandsRestRootResource* RestRootResources,
+	FHairStrandsDeformedRootResource* DeformedRootResources,
+	FBufferTransitionQueue& OutTransitionQueue);
+
+void AddHairCardsRBFInterpolationPass(
+	FRDGBuilder& GraphBuilder,
+	FGlobalShaderMap* ShaderMap,
+	const int32 MeshLODIndex,
+	FHairCardsRestResource* RestResources,
+	FHairCardsDeformedResource* DeformedResources,
 	FHairStrandsRestRootResource* RestRootResources,
 	FHairStrandsDeformedRootResource* DeformedRootResources,
 	FBufferTransitionQueue& OutTransitionQueue);

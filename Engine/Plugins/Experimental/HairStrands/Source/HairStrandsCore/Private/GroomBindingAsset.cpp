@@ -545,6 +545,8 @@ void UGroomBindingAsset::CacheDerivedDatas()
 		TArray<uint8> DerivedData;
 		if (GetDerivedDataCacheRef().GetSynchronous(*DerivedDataKey, DerivedData, GetPathName()))
 		{
+			UE_LOG(LogHairStrands, Log, TEXT("[GroomBinding/DDC] Found (GroomiBinding:%s)."), *GetName());
+
 			FMemoryReader Ar(DerivedData, /*bIsPersistent=*/ true);
 
 			int64 UncompressedSize = 0;
@@ -560,6 +562,8 @@ void UGroomBindingAsset::CacheDerivedDatas()
 		}
 		else
 		{
+			UE_LOG(LogHairStrands, Log, TEXT("[GroomBinding/DDC] Not found (GroomiBinding:%s)."), *GetName());
+
 			// Build groom binding data
 			bIsValid = FGroomBindingBuilder::BuildBinding(this, false, false);
 			if (bIsValid)

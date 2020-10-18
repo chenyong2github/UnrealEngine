@@ -57,6 +57,8 @@ struct HAIRSTRANDSCORE_API FHairGroupInstance
 		bool bOwnRootResourceAllocation = true;
 		FHairStrandsRestRootResource* RestRootResource = nullptr;
 		FHairStrandsDeformedRootResource* DeformedRootResource = nullptr;
+
+		bool HasValidRootData() const { return RestRootResource != nullptr && DeformedRootResource != nullptr; }
 	};
 
 	struct FStrandsBaseWithInterpolation : FStrandsBase
@@ -99,6 +101,7 @@ struct HAIRSTRANDSCORE_API FHairGroupInstance
 	// Cards
 	struct FCards
 	{
+		bool IsValid() const { for (const FLOD& LOD: LODs) { if (LOD.IsValid()) { return true; } } return LODs.Num() > 0; }
 		bool IsValid(int32 LODIndex) const { return LODIndex >= 0 && LODIndex < LODs.Num() && LODs[LODIndex].DeformedResource != nullptr; }
 		struct FLOD
 		{
@@ -130,6 +133,7 @@ struct HAIRSTRANDSCORE_API FHairGroupInstance
 	// Meshes
 	struct FMeshes
 	{
+		bool IsValid() const { for (const FLOD& LOD : LODs) { if (LOD.IsValid()) { return true; } } return LODs.Num() > 0; }
 		bool IsValid(int32 LODIndex) const { return LODIndex >= 0 && LODIndex < LODs.Num() && LODs[LODIndex].DeformedResource != nullptr; }
 		struct FLOD
 		{
@@ -181,4 +185,9 @@ struct HAIRSTRANDSCORE_API FHairGroupInstance
 	EWorldType::Type		WorldType;
 	FHairGroupPublicData*	HairGroupPublicData = nullptr;
 	EHairGeometryType		GeometryType = EHairGeometryType::NoneGeometry;
+	const FBoxSphereBounds*	ProxyBounds = nullptr;
+	const FBoxSphereBounds* ProxyLocalBounds = nullptr;
+	bool					bUseCPULODSelection = true;
+	bool					bForceCards = false;
+	bool					bUpdatePositionOffset = false;
 };

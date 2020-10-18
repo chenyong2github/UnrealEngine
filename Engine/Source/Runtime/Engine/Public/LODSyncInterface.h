@@ -32,4 +32,7 @@ class ENGINE_API ILODSyncInterface
 
 	/** returns number of LODs */
 	virtual int32 GetNumSyncLODs() const = 0;
+
+	/** Returns what the current sync LOD has bee set to */
+	virtual int32 GetCurrentSyncLOD() const = 0;
 };

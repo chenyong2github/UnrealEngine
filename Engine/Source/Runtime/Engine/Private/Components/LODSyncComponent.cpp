@@ -6,6 +6,8 @@
 #include "GameFramework/Actor.h"
 #include "LODSyncInterface.h"
 
+DEFINE_LOG_CATEGORY_STATIC(LogLODSync, Warning, All);
+
 /* ULODSyncComponent interface
  *****************************************************************************/
 
@@ -24,6 +26,8 @@ void ULODSyncComponent::OnRegister()
 
 	InitializeSyncComponents();
 
+	UE_LOG(LogLODSync, Verbose, TEXT("Initialized Sync Component"));
+
 	// don't reset to zero because it may pop
 	CurrentLOD = FMath::Clamp(CurrentLOD, 0, CurrentNumLODs - 1);
 }
@@ -32,18 +36,40 @@ void ULODSyncComponent::OnUnregister()
 {
 	UninitializeSyncComponents();
 
+	UE_LOG(LogLODSync, Verbose, TEXT("Uninitialized Sync Component"));
 	Super::OnUnregister();
+}
+
+const FComponentSync* ULODSyncComponent::GetComponentSync(const FName& InName) const
+{
+	if (InName != NAME_None)
+	{
+		for (const FComponentSync& Comp : ComponentsToSync)
+		{
+			if (Comp.Name == InName)
+			{
+				return &Comp;
+			}
+		}
+	}
+
+	return nullptr;
 }
 
 void ULODSyncComponent::InitializeSyncComponents()
 {
+	DriveComponents.Reset();
 	SubComponents.Reset();
 
 	AActor* Owner = GetOwner();
 	// for now we only support skinnedmeshcomponent
 	TArray<UActorComponent*> AllComponents = Owner->GetComponentsByInterface(ULODSyncInterface::StaticClass());
 
+	// current num LODs start with NumLODs
+	// but if nothing is set, it will be -1
 	CurrentNumLODs = NumLODs;
+	// if NumLODs are -1, we try to find the max number of LODs of all the components
+	const bool bFindTheMaxLOD = (NumLODs == -1);
 	// we find all the components of the child and add this to prerequisite
 	for (UActorComponent* Component : AllComponents)
 	{
@@ -52,15 +78,24 @@ void ULODSyncComponent::InitializeSyncComponents()
 		{
 			FName Name = PrimComponent->GetFName();
 			ILODSyncInterface* LODInterface = Cast<ILODSyncInterface>(PrimComponent);
-			if (LODInterface && ComponentsToSync.Contains(Name))
+			const FComponentSync* CompSync = GetComponentSync(Name);
+			if (LODInterface && CompSync && CompSync->SyncOption != ESyncOption::Disabled)
 			{
 				PrimComponent->PrimaryComponentTick.AddPrerequisite(this, PrimaryComponentTick);
 				SubComponents.Add(PrimComponent);
 
-				if (NumLODs == -1)
+				if (CompSync->SyncOption == ESyncOption::Drive)
 				{
-					// get max lod
-					CurrentNumLODs = FMath::Max(CurrentNumLODs, LODInterface->GetNumSyncLODs());
+					DriveComponents.Add(PrimComponent);
+
+					const int LODCount = LODInterface->GetNumSyncLODs();
+					UE_LOG(LogLODSync, Verbose, TEXT("Adding new component (%s - LODCount : %d ) to sync."), *Name.ToString(), LODCount);
+					if (bFindTheMaxLOD)
+					{
+						// get max lod
+						CurrentNumLODs = FMath::Max(CurrentNumLODs, LODCount);
+						UE_LOG(LogLODSync, Verbose, TEXT("MaxLOD now is set to (%d )."), CurrentNumLODs);
+					}
 				}
 			}
 		}
@@ -114,15 +149,22 @@ void ULODSyncComponent::RefreshSyncComponents()
 
 void ULODSyncComponent::UninitializeSyncComponents()
 {
-	for (UPrimitiveComponent* Component : SubComponents)
+	auto ResetComponentList = [&](TArray<UPrimitiveComponent*>& ComponentList)
 	{
-		if (Component)
+		for (UPrimitiveComponent* Component : ComponentList)
 		{
-			Component->PrimaryComponentTick.RemovePrerequisite(this, PrimaryComponentTick);
+			if (Component)
+			{
+				Component->PrimaryComponentTick.RemovePrerequisite(this, PrimaryComponentTick);
+			}
 		}
-	}
 
-	SubComponents.Reset();
+		ComponentList.Reset();
+
+	};
+
+	ResetComponentList(DriveComponents);
+	ResetComponentList(SubComponents);
 }
 
 void ULODSyncComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
@@ -139,7 +181,7 @@ void ULODSyncComponent::TickComponent(float DeltaTime, enum ELevelTick TickType,
 	}
 	else
 	{
-		for (UPrimitiveComponent* Component : SubComponents)
+		for (UPrimitiveComponent* Component : DriveComponents)
 		{
 			if (Component)
 			{
@@ -149,7 +191,7 @@ void ULODSyncComponent::TickComponent(float DeltaTime, enum ELevelTick TickType,
 				if (DesiredSyncLOD >= 0)
 				{
 					const int32 DesiredLOD = GetSyncMappingLOD(Component->GetFName(), DesiredSyncLOD);
-					UE_LOG(LogSkeletalMesh, Verbose, TEXT("LOD Sync : Current Desired LOD (source %d target %d) for (%s)"), DesiredSyncLOD, DesiredLOD, *GetNameSafe(Component));
+					UE_LOG(LogLODSync, Verbose, TEXT("LOD Sync Drivers : %s - Source LOD [%d] RemappedLOD[%d]"), *GetNameSafe(Component), DesiredSyncLOD, DesiredLOD);
 					// we're looking for lowest LOD (highest fidelity)
 					CurrentWorkingLOD = FMath::Min(CurrentWorkingLOD, DesiredLOD);
 				}
@@ -159,13 +201,15 @@ void ULODSyncComponent::TickComponent(float DeltaTime, enum ELevelTick TickType,
 
 	// ensure current WorkingLOD is with in the range
 	CurrentWorkingLOD = FMath::Clamp(CurrentWorkingLOD, 0, CurrentNumLODs);
-	UE_LOG(LogSkeletalMesh, Verbose, TEXT("LOD Sync : Final LOD (%d)"), CurrentWorkingLOD);
+	UE_LOG(LogLODSync, Verbose, TEXT("LOD Sync : Final LOD (%d)"), CurrentWorkingLOD);
 	for (UPrimitiveComponent* Component : SubComponents)
 	{
 		if (Component)
 		{
 			ILODSyncInterface* LODInterface = Cast<ILODSyncInterface>(Component);
-			LODInterface->SetSyncLOD(GetCustomMappingLOD(Component->GetFName(), CurrentWorkingLOD));
+			const int32 NewLOD = GetCustomMappingLOD(Component->GetFName(), CurrentWorkingLOD);
+			UE_LOG(LogLODSync, Verbose, TEXT("LOD Sync Setter : %s - New LOD [%d]"), *GetNameSafe(Component), NewLOD);
+			LODInterface->SetSyncLOD(NewLOD);
 		}
 	}
 }
@@ -192,3 +236,22 @@ int32 ULODSyncComponent::GetSyncMappingLOD(const FName& ComponentName, int32 Cur
 	return CurrentSourceLOD;
 }
 
+FString ULODSyncComponent::GetLODSyncDebugText() const
+{
+	FString OutString;
+
+	for (UPrimitiveComponent* Component : SubComponents)
+	{
+		if (Component)
+		{
+			ILODSyncInterface* LODInterface = CastChecked<ILODSyncInterface>(Component);
+			const int32 CurrentSyncLOD = LODInterface->GetCurrentSyncLOD();
+			if (CurrentSyncLOD >= 0)
+			{
+				OutString += FString::Printf(TEXT("%s - %d\n"), *(Component->GetFName().ToString()), CurrentSyncLOD);
+			}
+		}
+	}
+
+	return OutString;
+}

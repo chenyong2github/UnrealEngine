@@ -1665,6 +1665,9 @@ void USkeletalMesh::PostDuplicate(bool bDuplicateForPIE)
 			{
 				return;
 			}
+
+			LLM_SCOPE(ELLMTag::SkeletalMesh);
+
 			FSkeletalMeshLODModel& ThisLODModel = ImportedModels.LODModels[LODIndex];
 			FRawSkeletalMeshBulkData& SourceRawSkeletalMeshBulkData = SourceMeshEditorData->GetLODImportedData(LODIndex);
 			FSkeletalMeshImportData RawMesh;

@@ -101,7 +101,7 @@ static void GetGroomInterpolationData(
 {
 	for (const FHairGroupInstance* Instance : Instances)
 	{
-		if (Instance->WorldType != WorldType)
+		if (!Instance || Instance->WorldType != WorldType || !Instance->Debug.SkeletalComponent)
 			continue;
 
 		FCachedGeometry CachedGeometry;
@@ -218,7 +218,7 @@ static void AddDebugProjectionMeshPass(
 	FRDGBuilder& GraphBuilder,
 	FGlobalShaderMap* ShaderMap,
 	const FIntRect Viewport,
-	TUniformBufferRef<FViewUniformShaderParameters>& ViewUniformBuffer,
+	const TUniformBufferRef<FViewUniformShaderParameters>& ViewUniformBuffer,
 	const EHairStrandsProjectionMeshType MeshType,
 	const bool bClearDepth,
 	FHairStrandsProjectionMeshData::Section& MeshSectionData,
@@ -374,7 +374,7 @@ static void AddDebugProjectionHairPass(
 	FRDGBuilder& GraphBuilder,
 	FGlobalShaderMap* ShaderMap,
 	FIntRect Viewport,
-	TUniformBufferRef<FViewUniformShaderParameters>& ViewUniformBuffer,
+	const TUniformBufferRef<FViewUniformShaderParameters>& ViewUniformBuffer,
 	const bool bClearDepth,
 	const EDebugProjectionHairType GeometryType,
 	const HairStrandsTriangleType PoseType,
@@ -725,6 +725,10 @@ static void AddDrawDebugCardsGuidesPass(
 
 	const FHairGroupInstance::FCards::FLOD& LOD = Instance->Cards.LODs[HairLODIndex];
 	
+	if (!LOD.Guides.Data)
+	{
+		return;
+	}
 	TShaderMapRef<FDrawDebugCardGuidesCS> ComputeShader(ShaderMap);
 
 	FDrawDebugCardGuidesCS::FParameters* Parameters = GraphBuilder.AllocParameters<FDrawDebugCardGuidesCS::FParameters>();
@@ -774,7 +778,7 @@ void RunHairStrandsDebug(
 	const TArray<FHairGroupInstance*>& Instances,
 	TRefCountPtr<IPooledRenderTarget>& SceneColorRT,
 	FIntRect Viewport,
-	TUniformBufferRef<FViewUniformShaderParameters>& ViewUniformBuffer)
+	const TUniformBufferRef<FViewUniformShaderParameters>& ViewUniformBuffer)
 {
 	const EHairDebugMode HairDebugMode = GetHairStrandsDebugMode();
 

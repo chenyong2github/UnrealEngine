@@ -29,7 +29,7 @@ static FAutoConsoleVariableRef CVarHairInterpolationMetric_AngleAttenuation(TEXT
 FString FGroomBuilder::GetVersion()
 {
 	// Important to update the version when groom building changes
-	return TEXT("1");
+	return TEXT("1c");
 }
 
 namespace HairStrandsBuilder
@@ -1469,6 +1469,7 @@ bool FGroomBuilder::BuildGroom(const FHairDescription& HairDescription, UGroomAs
 		return false;
 	}
 
+	const float GroomBoundRadius = FGroomBuilder::ComputeGroomBoundRadius(ProcessedHairDescription);
 	const uint32 GroupCount = ProcessedHairDescription.HairGroups.Num();
 	for (uint32 GroupIndex = 0; GroupIndex < GroupCount; ++GroupIndex)
 	{
@@ -1477,6 +1478,7 @@ bool FGroomBuilder::BuildGroom(const FHairDescription& HairDescription, UGroomAs
 		{
 			return false;
 		}
+		FGroomBuilder::BuildClusterData(GroomAsset, GroomBoundRadius, GroupIndex);
 	}
 
 	return true;
@@ -1988,7 +1990,48 @@ inline uint32 to10Bits(float V)
 	return FMath::Clamp(uint32(V * 1024), 0u, 1023u);
 }
 
-void FGroomBuilder::BuildClusterData(
+float FGroomBuilder::ComputeGroomBoundRadius(const FProcessedHairDescription& Description)
+{
+	FVector GroomBoundMin(FLT_MAX);
+	FVector GroomBoundMax(-FLT_MAX);
+	for (auto& Group : Description.HairGroups)
+	{
+		const FHairGroupData::FStrands& Strands = Group.Value.Value.Strands;
+		GroomBoundMin.X = FMath::Min(GroomBoundMin.X, Strands.Data.BoundingBox.Min.X);
+		GroomBoundMin.Y = FMath::Min(GroomBoundMin.Y, Strands.Data.BoundingBox.Min.Y);
+		GroomBoundMin.Z = FMath::Min(GroomBoundMin.Z, Strands.Data.BoundingBox.Min.Z);
+
+		GroomBoundMax.X = FMath::Max(GroomBoundMax.X, Strands.Data.BoundingBox.Max.X);
+		GroomBoundMax.Y = FMath::Max(GroomBoundMax.Y, Strands.Data.BoundingBox.Max.Y);
+		GroomBoundMax.Z = FMath::Max(GroomBoundMax.Z, Strands.Data.BoundingBox.Max.Z);
+	}
+
+	const float GroomBoundRadius = FVector::Distance(GroomBoundMax, GroomBoundMin) * 0.5f;
+	return GroomBoundRadius;
+}
+
+float FGroomBuilder::ComputeGroomBoundRadius(const TArray<FHairGroupData>& HairGroupsData)
+{
+	// Compute the bounding box of all the groups. This is used for scaling LOD sceensize 
+	// for each group & cluster respectively to their relative size
+	FVector GroomBoundMin(FLT_MAX);
+	FVector GroomBoundMax(-FLT_MAX);
+	for (const FHairGroupData& LocalGroupData : HairGroupsData)
+	{
+		GroomBoundMin.X = FMath::Min(GroomBoundMin.X, LocalGroupData.Strands.Data.BoundingBox.Min.X);
+		GroomBoundMin.Y = FMath::Min(GroomBoundMin.Y, LocalGroupData.Strands.Data.BoundingBox.Min.Y);
+		GroomBoundMin.Z = FMath::Min(GroomBoundMin.Z, LocalGroupData.Strands.Data.BoundingBox.Min.Z);
+
+		GroomBoundMax.X = FMath::Max(GroomBoundMax.X, LocalGroupData.Strands.Data.BoundingBox.Max.X);
+		GroomBoundMax.Y = FMath::Max(GroomBoundMax.Y, LocalGroupData.Strands.Data.BoundingBox.Max.Y);
+		GroomBoundMax.Z = FMath::Max(GroomBoundMax.Z, LocalGroupData.Strands.Data.BoundingBox.Max.Z);
+	}
+
+	const float GroomBoundRadius = FVector::Distance(GroomBoundMax, GroomBoundMin) * 0.5f;
+	return GroomBoundRadius;
+}
+
+static void InternalBuildClusterData(
 	const FHairStrandsDatas& InRenStrandsData,
 	const float InGroomAssetRadius, 
 	const FHairGroupsLOD& InSettings, 
@@ -2385,5 +2428,52 @@ void FGroomBuilder::BuildClusterData(
 		}
 	}
 }
+
+void FGroomBuilder::BuildClusterData(UGroomAsset* GroomAsset, const float GroomBoundRadius)
+{
+	if (GroomAsset)
+	{
+		const uint32 GroupCount = GroomAsset->HairGroupsData.Num();
+		for (uint32 GroupIt = 0; GroupIt < GroupCount; GroupIt++)
+		{
+			FHairGroupData& GroupData = GroomAsset->HairGroupsData[GroupIt];
+			InternalBuildClusterData(
+				GroupData.Strands.Data,
+				GroomBoundRadius,
+				GroomAsset->HairGroupsLOD[GroupIt],
+				GroupData.Strands.ClusterCullingData);
+		}
+	}
+}
+void FGroomBuilder::BuildClusterData(UGroomAsset* GroomAsset, const float GroomBoundRadius, uint32 GroupIndex)
+{
+	if (GroomAsset)
+	{
+		FHairGroupData& GroupData = GroomAsset->HairGroupsData[GroupIndex];
+		InternalBuildClusterData(
+			GroupData.Strands.Data,
+			GroomBoundRadius,
+			GroomAsset->HairGroupsLOD[GroupIndex],
+			GroupData.Strands.ClusterCullingData);
+	}
+}
+
+void FGroomBuilder::BuildClusterData(UGroomAsset* GroomAsset, const FProcessedHairDescription& ProcessedHairDescription)
+{
+	if (GroomAsset)
+	{
+		const float GroomBoundRadius = FGroomBuilder::ComputeGroomBoundRadius(ProcessedHairDescription);
+		FGroomBuilder::BuildClusterData(GroomAsset, GroomBoundRadius);
+	}
+}
+void FGroomBuilder::BuildClusterData(UGroomAsset* GroomAsset, const FProcessedHairDescription& ProcessedHairDescription, uint32 GroupIndex)
+{
+	if (GroomAsset)
+	{
+		const float GroomBoundRadius = FGroomBuilder::ComputeGroomBoundRadius(ProcessedHairDescription);
+		FGroomBuilder::BuildClusterData(GroomAsset, GroomBoundRadius, GroupIndex);
+	}
+}
+
 
 #undef LOCTEXT_NAMESPACE

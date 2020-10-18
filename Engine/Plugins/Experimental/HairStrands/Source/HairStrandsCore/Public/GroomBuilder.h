@@ -32,5 +32,11 @@ struct HAIRSTRANDSCORE_API FGroomBuilder
 	static bool BuildGroom(FProcessedHairDescription& ProcessedHairDescription, UGroomAsset* GroomAsset, uint32 GroupIndex);
 	static bool BuildGroom(const FHairDescription& HairDescription, UGroomAsset* GroomAsset);
 
-	static void BuildClusterData(const FHairStrandsDatas& RenStrandsData, const float InGroomAssetRadius, const FHairGroupsLOD& InSettings, FHairStrandsClusterCullingData& Out);
+	static float ComputeGroomBoundRadius(const FProcessedHairDescription& Description);
+	static float ComputeGroomBoundRadius(const TArray<FHairGroupData>& HairGroupsData);
+
+	static void BuildClusterData(UGroomAsset* GroomAsset, const float InGroomAssetRadius);
+	static void BuildClusterData(UGroomAsset* GroomAsset, const float InGroomAssetRadius, uint32 GroupIndex);
+	static void BuildClusterData(UGroomAsset* GroomAsset, const FProcessedHairDescription& ProcessedHairDescription);
+	static void BuildClusterData(UGroomAsset* GroomAsset, const FProcessedHairDescription& ProcessedHairDescription, uint32 GroupIndex);
 };

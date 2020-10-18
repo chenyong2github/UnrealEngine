@@ -93,7 +93,7 @@ FHairTransmittanceMask ComputeTransmittanceVoxel(
 	TraversalSettings.CountThreshold = GetOpaqueVoxelValue();
 	TraversalSettings.DistanceThreshold = 100000;
 	TraversalSettings.bDebugEnabled = bDebugEnabled;
-	TraversalSettings.SteppingScale = VirtualVoxel.SteppingScale;
+	TraversalSettings.SteppingScale = VirtualVoxel.SteppingScale_Environment;
 	TraversalSettings.Random = SampleRandom;
 	TraversalSettings.PixelRadius = PixelRadius;
 

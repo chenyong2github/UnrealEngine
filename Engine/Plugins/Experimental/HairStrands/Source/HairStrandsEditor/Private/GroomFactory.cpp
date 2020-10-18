@@ -24,7 +24,7 @@ UObject* UGroomFactory::FactoryCreateNew(UClass* InClass, UObject* InParent, FNa
 
 	Groom->UpdateHairGroupsInfo();
 	Groom->UpdateCachedSettings();
-	Groom->InitResources(false);
+	Groom->InitResources();
 
 	return Groom;
 }

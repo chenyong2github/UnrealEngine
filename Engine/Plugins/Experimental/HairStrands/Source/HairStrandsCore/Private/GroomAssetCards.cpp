@@ -113,3 +113,36 @@ bool FHairGroupsCardsSourceDescription::operator==(const FHairGroupsCardsSourceD
 		LODIndex == A.LODIndex &&
 		ImportedMesh == A.ImportedMesh;
 }
+
+bool FHairGroupsCardsSourceDescription::HasMeshChanged() const
+{
+#if WITH_EDITORONLY_DATA
+	if (SourceType == EHairCardsSourceType::Imported && ImportedMesh)
+	{
+		ImportedMesh->ConditionalPostLoad();
+		return ImportedMeshKey == ImportedMesh->RenderData->DerivedDataKey;
+	}
+	else if (SourceType == EHairCardsSourceType::Procedural && ProceduralMesh)
+	{
+		ProceduralMesh->ConditionalPostLoad();
+		return ProceduralMeshKey == ProceduralMesh->RenderData->DerivedDataKey;
+	}
+#endif
+	return false;
+}
+
+void FHairGroupsCardsSourceDescription::UpdateMeshKey()
+{
+#if WITH_EDITORONLY_DATA
+	if (SourceType == EHairCardsSourceType::Imported && ImportedMesh)
+	{
+		ImportedMesh->ConditionalPostLoad();
+		ImportedMeshKey = ImportedMesh->RenderData->DerivedDataKey;
+	}
+	else if (SourceType == EHairCardsSourceType::Procedural && ProceduralMesh)
+	{
+		ProceduralMesh->ConditionalPostLoad();
+		ProceduralMeshKey = ProceduralMesh->RenderData->DerivedDataKey;
+	}
+#endif
+}

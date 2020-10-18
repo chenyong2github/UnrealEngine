@@ -131,29 +131,28 @@ static void RasterToTexture(int32 Resolution, int32 KernelExtent, uint32 Channel
 static void InternalGenerateFollicleTexture_GPU(
 	FRDGBuilder& GraphBuilder,
 	bool bCopyDataBackToCPU,
-	EPixelFormat Format,
-	uint32 InKernelSizeInPixels,
+	const FIntPoint Resolution,
+	const uint32 MipCount,
+	const EPixelFormat Format,
+	const uint32 InKernelSizeInPixels,
 	const TArray<FRDGBufferRef>& InRootUVBuffers_R,
 	const TArray<FRDGBufferRef>& InRootUVBuffers_G,
 	const TArray<FRDGBufferRef>& InRootUVBuffers_B,
 	const TArray<FRDGBufferRef>& InRootUVBuffers_A,
-	UTexture2D* OutTexture)
+	UTexture2D*	OutTexture)
 {
 	const ERHIFeatureLevel::Type FeatureLevel = GMaxRHIFeatureLevel;
 	FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(FeatureLevel);
 
-	if (OutTexture == nullptr ||
+	if (OutTexture == nullptr || !OutTexture->Resource || !OutTexture->Resource->GetTexture2DRHI() ||
 		(InRootUVBuffers_R.Num() == 0 &&
-			InRootUVBuffers_G.Num() == 0 &&
-			InRootUVBuffers_B.Num() == 0 &&
-			InRootUVBuffers_A.Num() == 0))
+		 InRootUVBuffers_G.Num() == 0 &&
+		 InRootUVBuffers_B.Num() == 0 &&
+		 InRootUVBuffers_A.Num() == 0))
 	{
 		return;
 	}
-
-	const uint32 MipCount = OutTexture->GetNumMips();
-	const FIntPoint Resolution(OutTexture->Resource->GetSizeX(), OutTexture->Resource->GetSizeY());
-	check(OutTexture->Resource->GetSizeX() == OutTexture->Resource->GetSizeY());
+	check(Resolution.X == Resolution.Y);
 
 	FRDGTextureRef FollicleMaskTexture = nullptr;
 	if (InRootUVBuffers_R.Num())
@@ -210,82 +209,23 @@ static void InternalGenerateFollicleTexture_GPU(
 	}
 	AddComputeMipsPass(GraphBuilder, ShaderMap, FollicleMaskTexture);
 
-	check(FollicleMaskTexture->Desc.Format == OutTexture->GetPixelFormat());
-
 	// Select if the generated texture should be copy back to a CPU texture for being saved, or directly used
-#if WITH_EDITOR
-	if (bCopyDataBackToCPU)
-	{
-		AddReadbackTexturePass(
-			GraphBuilder, 
-			RDG_EVENT_NAME("CopyRDGToTexture2D"), 
-			FollicleMaskTexture,
+	AddReadbackTexturePass(
+		GraphBuilder,
+		RDG_EVENT_NAME("CopyRDGToTexture2D"),
+		FollicleMaskTexture,
 		[FollicleMaskTexture, MipCount, OutTexture](FRHICommandListImmediate& RHICmdList)
-		{		
-			FRHIResourceCreateInfo CreateInfo;
-			FTexture2DRHIRef StagingTexture = RHICreateTexture2D(
-				FollicleMaskTexture->Desc.Extent.X,
-				FollicleMaskTexture->Desc.Extent.Y,
-				FollicleMaskTexture->Desc.Format,
-				FollicleMaskTexture->Desc.NumMips,
-				1, TexCreate_CPUReadback, CreateInfo);
-
-			FRHICopyTextureInfo CopyInfo;
-			CopyInfo.NumMips = MipCount;
-			RHICmdList.CopyTexture(
-				FollicleMaskTexture->GetRHI(),
-				StagingTexture->GetTexture2D(),
-				CopyInfo);
-
-			GDynamicRHI->RHISubmitCommandsAndFlushGPU();
-			GDynamicRHI->RHIBlockUntilGPUIdle();
-
-			void* InData = nullptr;
-			int32 Width = 0, Height = 0;
-			RHICmdList.MapStagingSurface(StagingTexture, InData, Width, Height);
-			uint32* InDataRGBA8 = (uint32*)InData;
-
-			uint64 Offset = 0;
-			uint8 MipIndex = 0;
-			for (FTexture2DMipMap& Mip : OutTexture->PlatformData->Mips)
-			{
-				const uint32 MipResolution = Mip.SizeX;
-				const uint32 SizeInBytes = sizeof(uint32) * MipResolution * MipResolution;
-				const uint32 PixelCount = MipResolution * MipResolution;
-
-				// Store the mapped data into the texture 'source' data for being enable to 
-				// reimport/recompression/process per platform (the bulk data will be populated on save)
-				uint8* OutData = OutTexture->Source.LockMip(MipIndex);
-				FMemory::Memcpy(OutData, InDataRGBA8 + Offset, SizeInBytes);
-				OutTexture->Source.UnlockMip(MipIndex);
-
-				Offset += PixelCount;
-				++MipIndex;
-			}
-
-			RHICmdList.UnmapStagingSurface(StagingTexture);
-
-			OutTexture->DeferCompression = true; // This forces reloading data when the asset is saved
-			OutTexture->MarkPackageDirty();
-		});
-	}
-	else
-#endif
 	{
-		AddReadbackTexturePass(
-			GraphBuilder,
-			RDG_EVENT_NAME("CopyRDGToTexture2D"),
-			FollicleMaskTexture,
-			[FollicleMaskTexture, MipCount, OutTexture](FRHICommandListImmediate& RHICmdList)
+		if (OutTexture == nullptr || OutTexture->Resource || OutTexture->Resource->GetTexture2DRHI())
 		{
 			FRHICopyTextureInfo CopyInfo;
 			CopyInfo.NumMips = MipCount;
 			RHICmdList.CopyTexture(
 				FollicleMaskTexture->GetRHI(),
-				OutTexture->Resource->TextureRHI,
+				OutTexture->Resource->GetTexture2DRHI(),
 				CopyInfo);
-		});
-	}
+		}
+	});
 }
 
 
@@ -331,7 +271,10 @@ static void InternalBuildFollicleTexture_CPU(const TArray<FFollicleInfo>& InInfo
 static void InternalBuildFollicleTexture_GPU(
 	FRDGBuilder& GraphBuilder,
 	const TArray<FFollicleInfo>& InInfos,
-	UTexture2D* OutTexture)
+	const FIntPoint Resolution,
+	const uint32 MipCount,
+	const EPixelFormat InFormat,
+	UTexture2D*	OutTexture)
 {
 	uint32 KernelSizeInPixels = ~0;
 	TArray<FRDGBufferRef> RootUVBuffers[4];
@@ -371,7 +314,7 @@ static void InternalBuildFollicleTexture_GPU(
 	}
 
 	const EPixelFormat Format = bCopyDataBackToCPU ? PF_B8G8R8A8 : PF_R8G8B8A8;		 
-	InternalGenerateFollicleTexture_GPU(GraphBuilder, bCopyDataBackToCPU, Format, KernelSizeInPixels, RootUVBuffers[0], RootUVBuffers[1], RootUVBuffers[2], RootUVBuffers[3], OutTexture);
+	InternalGenerateFollicleTexture_GPU(GraphBuilder, bCopyDataBackToCPU, Resolution, MipCount, Format, KernelSizeInPixels, RootUVBuffers[0], RootUVBuffers[1], RootUVBuffers[2], RootUVBuffers[3], OutTexture);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -379,7 +322,11 @@ static void InternalBuildFollicleTexture_GPU(
 struct FFollicleQuery
 {
 	TArray<FFollicleInfo> Infos;
-	UTexture2D* OutTexture = nullptr;
+	FIntPoint Resolution = 0;
+	uint32 MipCount = 0;
+	EPixelFormat Format = PF_R8G8B8A8;
+	UTexture2D*	OutTexture = nullptr;
+
 };
 TQueue<FFollicleQuery> GFollicleQueries;
 
@@ -393,9 +340,9 @@ void RunHairStrandsFolliculeMaskQueries(FRDGBuilder& GraphBuilder, FGlobalShader
 	FFollicleQuery Q;
 	while (GFollicleQueries.Dequeue(Q))
 	{
-		if (Q.Infos.Num() > 0 && Q.OutTexture)
+		if (Q.Infos.Num() > 0 && Q.MipCount>0 && Q.Resolution.X > 0 && Q.Resolution.Y > 0)
 		{
-			InternalBuildFollicleTexture_GPU(GraphBuilder, Q.Infos, Q.OutTexture);
+			InternalBuildFollicleTexture_GPU(GraphBuilder, Q.Infos, Q.Resolution, Q.MipCount, Q.Format, Q.OutTexture);
 		}
 	}
 }
@@ -411,7 +358,20 @@ void FGroomTextureBuilder::BuildFollicleTexture(const TArray<FFollicleInfo>& InI
 	if (bUseGPU)
 	{
 		// Asynchronous (GPU)
-		GFollicleQueries.Enqueue({ InInfos, OutTexture });
+		const FIntPoint Resolution(OutTexture->GetSizeX(), OutTexture->GetSizeY());
+		const uint32 MipCount = OutTexture->GetNumMips();
+		if (MipCount > 0 && Resolution.X > 0 && Resolution.Y > 0)
+		{
+			const EPixelFormat Format = OutTexture->GetPixelFormat(0);
+			ENQUEUE_RENDER_COMMAND(FFollicleTextureQuery)(
+			[Resolution, MipCount, Format, InInfos, OutTexture](FRHICommandListImmediate& RHICmdList)
+			{
+				if (OutTexture->Resource)
+				{
+					GFollicleQueries.Enqueue({ InInfos, Resolution, MipCount, Format, OutTexture });
+				}
+			});
+		}
 	}
 	else
 	{

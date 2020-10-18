@@ -135,15 +135,15 @@ void UDNAAsset::Serialize(FArchive& Ar)
 
 	if (Ar.CustomVer(FDNAAssetCustomVersion::GUID) >= FDNAAssetCustomVersion::BeforeCustomVersionWasAdded)
 	{
+		LLM_SCOPE(ELLMTag::SkeletalMesh);
+
 		if (Ar.IsLoading())
 		{
-			UE_LOG(LogDNAAsset, Display, TEXT("Loading DNA Behavior..."));
 			FArchiveMemoryStream BehaviorStream{&Ar};
 			BehaviorStreamReader = ReadDNAFromStream(&BehaviorStream, EDNADataLayer::Behavior, 0u); //0u = max LOD
 
 			// Geometry data is always present (even if only as an empty placeholder), just so the uasset
 			// format remains consistent between editor and non-editor builds
-			UE_LOG(LogDNAAsset, Display, TEXT("Loading DNA Geometry..."));
 			FArchiveMemoryStream GeometryStream{&Ar};
 			auto Reader = ReadDNAFromStream(&GeometryStream, EDNADataLayer::Geometry, 0u); //0u = max LOD
 #if WITH_EDITORONLY_DATA
@@ -155,8 +155,6 @@ void UDNAAsset::Serialize(FArchive& Ar)
 		if (Ar.IsSaving())
 		{
 			TSharedPtr<IDNAReader> EmptyDNA = CreateEmptyDNA(AVG_EMPTY_SIZE);
-
-			UE_LOG(LogDNAAsset, Display, TEXT("Saving DNA Behavior..."));
 			IDNAReader* BehaviorStreamReaderPtr = (BehaviorStreamReader.IsValid() ? static_cast<IDNAReader*>(BehaviorStreamReader.Get()) : EmptyDNA.Get());
 			FArchiveMemoryStream BehaviorStream{&Ar};
 			WriteDNAToStream(BehaviorStreamReaderPtr, EDNADataLayer::Behavior, &BehaviorStream);
@@ -164,7 +162,6 @@ void UDNAAsset::Serialize(FArchive& Ar)
 			// When cooking (or when there was no Geometry data available), an empty DNA structure is written
 			// into the stream, serving as a placeholder just so uasset files can be conveniently loaded
 			// regardless if they were cooked or prepared for in-editor work
-			UE_LOG(LogDNAAsset, Display, TEXT("Saving DNA Geometry..."));
 			IDNAReader* GeometryStreamReaderPtr = (GeometryStreamReader.IsValid() && !Ar.IsCooking() ? static_cast<IDNAReader*>(GeometryStreamReader.Get()) : EmptyDNA.Get());
 			FArchiveMemoryStream GeometryStream{&Ar};
 			WriteDNAToStream(GeometryStreamReaderPtr, EDNADataLayer::Geometry, &GeometryStream);
