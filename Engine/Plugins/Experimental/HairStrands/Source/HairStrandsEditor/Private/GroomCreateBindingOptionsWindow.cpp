@@ -152,7 +152,7 @@ TSharedPtr<SGroomCreateBindingOptionsWindow> SGroomCreateBindingOptionsWindow::D
 	return DisplayOptions(BindingOptions, EGroomBindingOptionsVisibility::BuildOptions, LOCTEXT("GroomBindingRebuildWindowTitle", "Groom Binding Options"), LOCTEXT("Build", "Create"));
 }
 
-static UObject* InternalCreateNewBindAsset(FName InAssetName, UObject* InParent, UGroomAsset* GroomAsset, USkeletalMesh* SourceSkelMesh, USkeletalMesh* TargetSkelMesh, const int32 NumInterpolationPoints)
+static UObject* InternalCreateNewBindAsset(FName InAssetName, FName InPackageName, UObject* InParent, UGroomAsset* GroomAsset, USkeletalMesh* SourceSkelMesh, USkeletalMesh* TargetSkelMesh, const int32 NumInterpolationPoints)
 {
 	if (!TargetSkelMesh)
 	{
@@ -160,7 +160,7 @@ static UObject* InternalCreateNewBindAsset(FName InAssetName, UObject* InParent,
 	}
 
 	FString Name = InAssetName.ToString();
-	FString PackageName;
+	FString PackageName = InPackageName.ToString();
 
 	if (InAssetName == NAME_None)
 	{
@@ -216,7 +216,7 @@ UGroomBindingAsset* CreateGroomBindinAsset(UGroomAsset* GroomAsset, USkeletalMes
 		return nullptr;
 	}
 
-	UObject* BindingAsset = InternalCreateNewBindAsset(NAME_None, nullptr, GroomAsset, SourceSkelMesh, TargetSkelMesh, NumInterpolationPoints);
+	UObject* BindingAsset = InternalCreateNewBindAsset(NAME_None, NAME_None, nullptr, GroomAsset, SourceSkelMesh, TargetSkelMesh, NumInterpolationPoints);
 
 	if (BindingAsset)
 	{
@@ -231,6 +231,31 @@ UGroomBindingAsset* CreateGroomBindinAsset(UGroomAsset* GroomAsset, USkeletalMes
 	}
 
 	return (UGroomBindingAsset*) BindingAsset;
+}
+
+UGroomBindingAsset* CreateGroomBindinAsset(const FString& InDesiredPackagePath, UGroomAsset* GroomAsset, USkeletalMesh* SourceSkelMesh, USkeletalMesh* TargetSkelMesh, const int32 NumInterpolationPoints)
+{
+	if (!GroomAsset || !TargetSkelMesh)
+	{
+		return nullptr;
+	}
+
+	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
+	FString UniquePackageName;
+	FString UniqueAssetName;
+	AssetToolsModule.Get().CreateUniqueAssetName(InDesiredPackagePath, TEXT(""), UniquePackageName, UniqueAssetName);
+	UObject* BindingAsset = InternalCreateNewBindAsset(*UniqueAssetName, *UniquePackageName, nullptr, GroomAsset, SourceSkelMesh, TargetSkelMesh, NumInterpolationPoints);
+
+	if (BindingAsset)
+	{
+		TArray<UObject*> CreatedObjects;
+		CreatedObjects.Add(BindingAsset);
+
+		FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
+		ContentBrowserModule.Get().SyncBrowserToAssets(CreatedObjects);
+	}
+
+	return (UGroomBindingAsset*)BindingAsset;
 }
 
 #undef LOCTEXT_NAMESPACE
