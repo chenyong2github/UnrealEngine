@@ -28,7 +28,7 @@ class Setting(QtCore.QObject):
 
         self.attr_name = attr_name
         self.nice_name = nice_name
-        self._value = value
+        self._original_value = self._value = value
         self.possible_values = possible_values
         # todo-dara: overrides are identified by device name right now. this should be changed to the hash instead.
         # that way we could avoid having to patch the overrides and settings in CONFIG when a device is renamed.
@@ -74,10 +74,29 @@ class Setting(QtCore.QObject):
         if old_name in self._overrides.keys():
             self._overrides[new_name] = self._overrides.pop(old_name)
 
+    def reset(self):
+        self._value = self._original_value
+        self._overrides = {}
+
 
 # Store engine path, uproject path
 
 class Config(object):
+
+    saving_allowed = True
+    saving_allowed_fifo = []
+
+    def push_saving_allowed(self, value):
+        ''' Sets a new state of saving allowed, but pushes current to the stack
+        '''
+        self.saving_allowed_fifo.append(self.saving_allowed)
+        self.saving_allowed = value
+
+    def pop_saving_allowed(self):
+        ''' Restores saving_allowed flag from the stack
+        '''
+        self.saving_allowed = self.saving_allowed_fifo.pop()
+
     def __init__(self, file_name):
         self.init_with_file_name(file_name)
 
@@ -116,6 +135,7 @@ class Config(object):
         CONFIG.save()
 
     def init_with_file_name(self, file_name):
+
         if file_name:
             self.file_path = os.path.normpath(os.path.join(CONFIG_DIR, file_name))
 
@@ -190,14 +210,20 @@ class Config(object):
                     self._device_data_from_config.setdefault(device_type, []).append(device_data)
 
     def load_plugin_settings(self, device_type, settings):
-        self._plugin_settings[device_type] = settings
+        ''' Updates plugin settings values with those read from the config file.
+        '''
 
-        loaded_settings = self._plugin_data_from_config[device_type] if device_type in self._plugin_data_from_config else []
+        loaded_settings = self._plugin_data_from_config.get(device_type, [])
+
         if loaded_settings:
             for setting in settings:
                 if setting.attr_name in loaded_settings:
                     setting.update_value(loaded_settings[setting.attr_name])
             del self._plugin_data_from_config[device_type]
+
+    def register_plugin_settings(self, device_type, settings):
+
+        self._plugin_settings[device_type] = settings
 
         for setting in settings:
             setting.signal_setting_changed.connect(lambda: self.save())
@@ -238,47 +264,72 @@ class Config(object):
         self.save()
 
     def save(self):
+
+        if not self.saving_allowed:
+            return
+
         data = {}
+
+        # General settings
+        #
         data['project_name'] = self.PROJECT_NAME
         data['uproject'] = self.UPROJECT_PATH.get_value()
         data['engine_dir'] = self.ENGINE_DIR.get_value()
         data['build_engine'] = self.BUILD_ENGINE.get_value()
         data["maps_path"] = self.MAPS_PATH.get_value()
         data["maps_filter"] = self.MAPS_FILTER.get_value()
-        data["multiuser_exe"] = self.MULTIUSER_SERVER_EXE
+
         # Source Control Settings
+        #
         data["p4_sync_path"] = self.P4_PATH.get_value()
         data["source_control_workspace"] = self.SOURCE_CONTROL_WORKSPACE.get_value()
+        
         # MU Settings
+        #
+        data["multiuser_exe"] = self.MULTIUSER_SERVER_EXE
         data["muserver_command_line_arguments"] = self.MUSERVER_COMMAND_LINE_ARGUMENTS
         data["muserver_server_name"] = self.MUSERVER_SERVER_NAME
         data["muserver_auto_launch"] = self.MUSERVER_AUTO_LAUNCH
         data["muserver_auto_join"] = self.MUSERVER_AUTO_JOIN
         data["muserver_clean_history"] = self.MUSERVER_CLEAN_HISTORY
 
+        # Devices
+        #
         data["devices"] = {}
+
+        # Plugin settings
         for device_type, plugin_settings in self._plugin_settings.items():
+
             if not plugin_settings:
                 continue
-            data["devices"][device_type] = {}
-            data["devices"][device_type]["settings"] = {}
+
+            settings = {}
+
             for setting in plugin_settings:
-                data["devices"][device_type]["settings"][setting.attr_name] = setting.get_value()
+                settings[setting.attr_name] = setting.get_value()
+
+            data["devices"][device_type] = {
+                "settings" : settings,
+            }
 
         for (device_type, device_name), (settings, overrides) in self._device_settings.items():
+
             if not device_type in data["devices"].keys():
                 data["devices"][device_type] = {}
+
             serialized_settings = {}
+
             for setting in settings:
                 serialized_settings[setting.attr_name] = setting.get_value()
+
             for setting in overrides:
                 if setting.is_overriden(device_name):
                     serialized_settings[setting.attr_name] = setting.get_value(device_name)
+
             data["devices"][device_type][device_name] = serialized_settings
 
-        #if not self.is_writable():
-        #    p4_utils.p4_edit(self.file_path)
-
+        # Save to file
+        #
         with open(f'{self.file_path}', 'w') as f:
             json.dump(data, f, indent=4)
             LOGGER.debug(f'Config File: {self.file_path} updated')

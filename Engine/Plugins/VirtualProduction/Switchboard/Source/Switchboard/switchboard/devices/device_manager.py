@@ -55,17 +55,22 @@ class DeviceManager(QtCore.QObject):
         return device
 
     def find_available_device_plugins(self):
+
         plugin_modules = self._find_plugin_modules()
 
         found_plugins = {}
         plugin_widgets = {}
+
         for plugin in plugin_modules:
+
             try:
                 plugin_module = importlib.import_module(plugin)
             except:
                 LOGGER.error(f"Error while loading plugin: {plugin}\n\n=== Traceback BEGIN ===\n{traceback.format_exc()}=== Traceback END ===\n")
                 continue
+
             members = inspect.getmembers(plugin_module, inspect.isclass)
+
             for (name, c) in members:
                 # only add classes that are a sub-class of Device but not Device itself
                 if issubclass(c, Device) and (c is not Device):
@@ -76,18 +81,22 @@ class DeviceManager(QtCore.QObject):
                     plugin_widgets[display_name] = c
 
         plugin_icons = {}
+        
         for name, plugin in found_plugins.items():
-            CONFIG.load_plugin_settings(name, plugin.plugin_settings())
             plugin_icons[name] = plugin.load_plugin_icons()
 
         return found_plugins, plugin_widgets, plugin_icons
 
     def _find_plugin_modules(self):
+
         plugin_modules = []
         device_subdirs = next(os.walk(DEVICE_PLUGIN_PATH))[1]
+
         for subdir in device_subdirs:
+
             module_name = f"plugin_{subdir}"
             path = os.path.join(DEVICE_PLUGIN_PATH, subdir, module_name + ".py")
+
             if os.path.exists(path):
                 module = ".".join([DEVICE_PLUGIN_PACKAGE, subdir, module_name])
                 plugin_modules.append(module)
@@ -95,10 +104,12 @@ class DeviceManager(QtCore.QObject):
         return plugin_modules
 
     def get_device_add_dialog(self, device_type):
+
         if self._plugins[device_type].add_device_dialog is None:
             dialog = AddDeviceDialog(device_type, self.devices())
         else:
             dialog = self._plugins[device_type].add_device_dialog(self.devices())
+
         dialog.add_name_validator(self._device_name_validator)
         return dialog
 
@@ -122,7 +133,8 @@ class DeviceManager(QtCore.QObject):
         self.remove_device(device)
 
     def clear_device_list(self):
-
+        ''' Removes all device instances. 
+        '''
         devices_being_removed = list(self._devices.values())
 
         for device in devices_being_removed:
@@ -131,6 +143,18 @@ class DeviceManager(QtCore.QObject):
         if len(self._devices):
             LOGGER.error(f"{inspect.currentframe().f_code.co_name} failed to remove all devices one by one")
             self._devices.clear()
+
+    def reset_plugins_settings(self, config):
+        ''' Resets all plugins' settings, including their values and overrides.
+        This function should be called right after a new config is being loaded or created.
+        '''
+        for plugin in self._plugins.values():
+            plugin.reset_csettings()
+
+        for name, plugin in self._plugins.items():
+            plugin_settings = plugin.plugin_settings()
+            config.register_plugin_settings(name, plugin_settings)
+            config.load_plugin_settings(name, plugin_settings)
 
     def available_device_plugins(self):
         return self._plugins.keys()
