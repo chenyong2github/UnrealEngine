@@ -26,6 +26,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Output")
 	TArray<TSoftObjectPtr<ACompositingElement>> LayerTargets;
 
+	// TextureRenderTarget2D asset that contains the final output
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Output")
+	UTextureRenderTarget2D* FinalOutputRenderTarget = nullptr;
+
 protected:
 	virtual void CreateUMG() override;
 };
