@@ -128,7 +128,7 @@ FGlobalSDFTraceResult RayTraceGlobalDistanceField(FGlobalSDFTraceInput TraceInpu
 
 				if (DistanceField < ExpandSurfaceAmount)
 				{
-					TraceResult.HitTime = max(SampleRayTime + DistanceField - ExpandSurfaceAmount, TraceInput.MinTraceDistance);
+					TraceResult.HitTime = max(SampleRayTime + DistanceField - ExpandSurfaceAmount, 0.0f);
 					TraceResult.HitClipmapIndex = ClipmapIndex;
 					break;
 				}
