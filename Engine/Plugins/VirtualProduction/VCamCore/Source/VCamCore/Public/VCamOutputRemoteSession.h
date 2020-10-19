@@ -3,6 +3,7 @@
 #pragma once
 
 #include "VCamOutputProviderBase.h"
+#include "VCamOutputComposure.h"
 #include "ImageProviders/RemoteSessionMediaOutput.h"
 #include "IRemoteSessionRole.h"
 #include "RemoteSession.h"
@@ -37,13 +38,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Output")
 	int32 PortNumber = IRemoteSessionModule::kDefaultPort;
 
-	// Stream a separate render target instead of the default viewport (usually from Composure)
+	// If using the output from a Composure Output Provider, specify it here
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Output")
-	bool bUseRenderTargetFromComposure = false;
-
-	// TextureRenderTarget2D asset to stream
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Output", meta = (EditCondition = "bUseRenderTargetFromComposure"))
-	UTextureRenderTarget2D* ComposureRenderTarget = nullptr;
+	int32 FromComposureOutputProviderIndex = -1;
 
 protected:
 
@@ -62,6 +59,8 @@ private:
 
 	void CreateRemoteSession();
 	void DestroyRemoteSession();
+
+	UVCamOutputComposure* GetComposureProvider();
 
 	void OnRemoteSessionChannelChange(IRemoteSessionRole* Role, TWeakPtr<IRemoteSessionChannel> Channel, ERemoteSessionChannelChange Change);
 	void OnImageChannelCreated(TWeakPtr<IRemoteSessionChannel> Instance);
