@@ -262,8 +262,7 @@ float FBundlePrereqCombinedStatusHelper::GetCombinedProgressPercent() const
 		}
 	}
 	
-	FMath::Clamp(AllBundleProgressPercent, 0.f, 1.0f);
-	return AllBundleProgressPercent;
+	return FMath::Clamp(AllBundleProgressPercent, 0.f, 1.0f);
 }
 
 bool FBundlePrereqCombinedStatusHelper::Tick(float dt)
