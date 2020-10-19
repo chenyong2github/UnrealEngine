@@ -22,7 +22,14 @@ UVCamOutputProviderBase::UVCamOutputProviderBase()
 
 UVCamOutputProviderBase::~UVCamOutputProviderBase()
 {
+	// Deinitialize can't be done here since the destruction order isn't guaranteed
+}
+
+void UVCamOutputProviderBase::BeginDestroy()
+{
 	Deinitialize();
+
+	Super::BeginDestroy();
 }
 
 void UVCamOutputProviderBase::Initialize()

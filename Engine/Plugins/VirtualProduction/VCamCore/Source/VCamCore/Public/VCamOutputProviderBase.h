@@ -29,6 +29,8 @@ public:
 	UVCamOutputProviderBase();
 	~UVCamOutputProviderBase();
 
+	virtual void BeginDestroy() override;
+
 	// Called when the provider is brought online such as after instantiating or loading a component containing this provider 
 	// Use Initialize for any setup logic that needs to survive between Start / Stop cycles such as spawning transient objects 
 	// 
