@@ -256,6 +256,7 @@
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "MaterialGraph/MaterialGraphSchema.h"
+#include "StrataMaterial.h"
 #endif //WITH_EDITOR
 #include "Materials/MaterialInstanceConstant.h"
 #include "Curves/CurveLinearColorAtlas.h"
@@ -18962,10 +18963,14 @@ int32 UMaterialExpressionStrataDiffuseBSDF::Compile(class FMaterialCompiler* Com
 	{
 		return Compiler->Errorf(TEXT("Missing Normal input"));	// STRATA_TODO: defaults in the detail panel with auto read only if plug in
 	}
-	return Compiler->StrataDiffuseOrenNayarBSDF(
+	int32 OutputCodeChunk = Compiler->StrataDiffuseOrenNayarBSDF(
 		Albedo.GetTracedInput().Expression		? Albedo.Compile(Compiler)		: Compiler->Constant3(0.18f, 0.18f, 0.18f),
 		Roughness.GetTracedInput().Expression	? Roughness.Compile(Compiler)	: Compiler->Constant(0.0f),
 		Normal.Compile(Compiler));
+
+	StrataCreateSingleBSDFMaterial(Compiler, OutputCodeChunk, STRATA_BSDF_TYPE_DIFFUSE_ON);
+
+	return OutputCodeChunk;
 }
 
 void UMaterialExpressionStrataDiffuseBSDF::GetCaption(TArray<FString>& OutCaptions) const
@@ -19023,10 +19028,14 @@ int32 UMaterialExpressionStrataDiffuseChanBSDF::Compile(class FMaterialCompiler*
 	{
 		return Compiler->Errorf(TEXT("Missing Normal input"));	// STRATA_TODO: defaults in the detail panel with auto read only if plug in
 	}
-	return Compiler->StrataDiffuseChanBSDF(
+	int32 OutputCodeChunk = Compiler->StrataDiffuseChanBSDF(
 		Albedo.GetTracedInput().Expression		? Albedo.Compile(Compiler)		: Compiler->Constant3(0.18f, 0.18f, 0.18f),
 		Roughness.GetTracedInput().Expression	? Roughness.Compile(Compiler)	: Compiler->Constant(0.0f),
 		Normal.Compile(Compiler));
+
+	StrataCreateSingleBSDFMaterial(Compiler, OutputCodeChunk, STRATA_BSDF_TYPE_DIFFUSE_CHAN);
+
+	return OutputCodeChunk;
 }
 
 void UMaterialExpressionStrataDiffuseChanBSDF::GetCaption(TArray<FString>& OutCaptions) const
@@ -19084,11 +19093,15 @@ int32 UMaterialExpressionStrataDielectricBSDF::Compile(class FMaterialCompiler* 
 	{
 		return Compiler->Errorf(TEXT("Missing Normal input"));	// STRATA_TODO: defaults in the detail panel with auto read only if plug in
 	}
-	return Compiler->StrataDielectricBSDF(
+	int32 OutputCodeChunk = Compiler->StrataDielectricBSDF(
 		Roughness.GetTracedInput().Expression	?	Roughness.Compile(Compiler) : Compiler->Constant2(0.0f, 0.0f),
 		IOR.GetTracedInput().Expression			?	IOR.Compile(Compiler)		: Compiler->Constant(1.5f),
 		Tint.GetTracedInput().Expression		?	Tint.Compile(Compiler)		: Compiler->Constant3(1.0f, 1.0f, 1.0f),
 		Normal.Compile(Compiler));
+
+	StrataCreateSingleBSDFMaterial(Compiler, OutputCodeChunk, STRATA_BSDF_TYPE_DIELECTRIC);
+
+	return OutputCodeChunk;
 }
 
 void UMaterialExpressionStrataDielectricBSDF::GetCaption(TArray<FString>& OutCaptions) const
@@ -19149,11 +19162,15 @@ int32 UMaterialExpressionStrataConductorBSDF::Compile(class FMaterialCompiler* C
 	{
 		return Compiler->Errorf(TEXT("Missing Normal input"));		// STRATA_TODO: defaults in the detail panel with auto read only if plug in
 	}
-	return Compiler->StrataConductorBSDF(
+	int32 OutputCodeChunk = Compiler->StrataConductorBSDF(
 		Reflectivity.GetTracedInput().Expression	? Reflectivity.Compile(Compiler): Compiler->Constant3(0.947f, 0.776f, 0.371f),	// Default to Gold
 		EdgeColor.GetTracedInput().Expression		? EdgeColor.Compile(Compiler)	: Compiler->Constant3(1.000f, 0.982f, 0.753f),	// Default to Gold
 		Roughness.GetTracedInput().Expression		? Roughness.Compile(Compiler)	: Compiler->Constant2(0.0f, 0.0f),
 		Normal.Compile(Compiler));
+
+	StrataCreateSingleBSDFMaterial(Compiler, OutputCodeChunk, STRATA_BSDF_TYPE_CONDUCTOR);
+
+	return OutputCodeChunk;
 }
 
 void UMaterialExpressionStrataConductorBSDF::GetCaption(TArray<FString>& OutCaptions) const
@@ -19210,11 +19227,15 @@ UMaterialExpressionStrataVolumeBSDF::UMaterialExpressionStrataVolumeBSDF(const F
 #if WITH_EDITOR
 int32 UMaterialExpressionStrataVolumeBSDF::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
-	return Compiler->StrataVolumeBSDF(
+	int32 OutputCodeChunk = Compiler->StrataVolumeBSDF(
 		Albedo.GetTracedInput().Expression		? Albedo.Compile(Compiler)			: Compiler->Constant3(0.0f, 0.0f, 0.0f),
 		Extinction.GetTracedInput().Expression	? Extinction.Compile(Compiler)		: Compiler->Constant3(0.0f, 0.0f, 0.0f),
 		Anisotropy.GetTracedInput().Expression	? Anisotropy.Compile(Compiler)		: Compiler->Constant(0.0f),
-		Thickness.GetTracedInput().Expression	? Thickness.Compile(Compiler)		: Compiler->Constant(0.001f)); // default = 1mm
+		Thickness.GetTracedInput().Expression ? Thickness.Compile(Compiler)			: Compiler->Constant(0.001f)); // default = 1mm
+
+	StrataCreateSingleBSDFMaterial(Compiler, OutputCodeChunk, STRATA_BSDF_TYPE_VOLUME);
+
+	return OutputCodeChunk;
 }
 
 void UMaterialExpressionStrataVolumeBSDF::GetCaption(TArray<FString>& OutCaptions) const
@@ -19277,10 +19298,23 @@ int32 UMaterialExpressionStrataHorizontalMixing::Compile(class FMaterialCompiler
 	{
 		return Compiler->Errorf(TEXT("Missing Background input"));
 	}
-	return Compiler->StrataHorizontalMixing(
-		Foreground.Compile(Compiler), 
-		Background.Compile(Compiler), 
+
+	int32 ForegroundCodeChunk = Foreground.Compile(Compiler);
+	int32 BackgroundCodeChunk = Background.Compile(Compiler);
+
+	int32 OutputCodeChunk = Compiler->StrataHorizontalMixing(
+		ForegroundCodeChunk,
+		BackgroundCodeChunk,
 		Mix.GetTracedInput().Expression ? Mix.Compile(Compiler) : Compiler->Constant(0.0f));
+
+	if (!Compiler->ContainsStrataCodeChunk(ForegroundCodeChunk) || !Compiler->ContainsStrataCodeChunk(BackgroundCodeChunk))
+	{
+		return Compiler->Errorf(TEXT("Could not find ForegroundCodeChunk or BackgroundCodeChunk to mix"));
+	}
+	FStrataMaterialCompilationInfo StrataInfo = StrataHorizontalMixing(Compiler, Compiler->GetStrataCompilationInfo(ForegroundCodeChunk), Compiler->GetStrataCompilationInfo(BackgroundCodeChunk));
+	Compiler->AddStrataCodeChunk(OutputCodeChunk, StrataInfo);
+
+	return OutputCodeChunk;
 }
 
 void UMaterialExpressionStrataHorizontalMixing::GetCaption(TArray<FString>& OutCaptions) const
@@ -19326,7 +19360,20 @@ int32 UMaterialExpressionStrataVerticalLayering::Compile(class FMaterialCompiler
 	{
 		return Compiler->Errorf(TEXT("Missing Base input"));
 	}
-	return Compiler->StrataVerticalLayering(Top.Compile(Compiler), Base.Compile(Compiler));
+
+	int32 TopCodeChunk = Top.Compile(Compiler);
+	int32 BaseCodeChunk = Base.Compile(Compiler);
+
+	int32 OutputCodeChunk = Compiler->StrataVerticalLayering(TopCodeChunk, BaseCodeChunk);
+
+	if (!Compiler->ContainsStrataCodeChunk(TopCodeChunk) || !Compiler->ContainsStrataCodeChunk(BaseCodeChunk))
+	{
+		return Compiler->Errorf(TEXT("Could not find TopCodeChunk or BaseCodeChunk to layer"));
+	}
+	FStrataMaterialCompilationInfo StrataInfo = StrataVerticalLayering(Compiler, Compiler->GetStrataCompilationInfo(TopCodeChunk), Compiler->GetStrataCompilationInfo(BaseCodeChunk));
+	Compiler->AddStrataCodeChunk(OutputCodeChunk, StrataInfo);
+
+	return OutputCodeChunk;
 }
 
 void UMaterialExpressionStrataVerticalLayering::GetCaption(TArray<FString>& OutCaptions) const
@@ -19372,7 +19419,20 @@ int32 UMaterialExpressionStrataAdd::Compile(class FMaterialCompiler* Compiler, i
 	{
 		return Compiler->Errorf(TEXT("Missing B input"));
 	}
-	return Compiler->StrataAdd(A.Compile(Compiler), B.Compile(Compiler));
+
+	int32 ACodeChunk = A.Compile(Compiler);
+	int32 BCodeChunk = B.Compile(Compiler);
+
+	int32 OutputCodeChunk = Compiler->StrataAdd(ACodeChunk, BCodeChunk);
+
+	if (!Compiler->ContainsStrataCodeChunk(ACodeChunk) || !Compiler->ContainsStrataCodeChunk(BCodeChunk))
+	{
+		return Compiler->Errorf(TEXT("Could not find ACodeChunk or BCodeChunk to add"));
+	}
+	FStrataMaterialCompilationInfo StrataInfo = StrataAdd(Compiler, Compiler->GetStrataCompilationInfo(ACodeChunk), Compiler->GetStrataCompilationInfo(BCodeChunk));
+	Compiler->AddStrataCodeChunk(OutputCodeChunk, StrataInfo);
+
+	return OutputCodeChunk;
 }
 
 void UMaterialExpressionStrataAdd::GetCaption(TArray<FString>& OutCaptions) const
@@ -19418,7 +19478,20 @@ int32 UMaterialExpressionStrataMultiply::Compile(class FMaterialCompiler* Compil
 	{
 		return Compiler->Errorf(TEXT("Missing Base input"));
 	}
-	return Compiler->StrataMultiply(A.Compile(Compiler), Weight.Compile(Compiler));
+
+	int32 ACodeChunk = A.Compile(Compiler);
+	int32 WeightCodeChunk = Weight.Compile(Compiler);
+
+	int32 OutputCodeChunk = Compiler->StrataMultiply(ACodeChunk, WeightCodeChunk);
+
+	if (!Compiler->ContainsStrataCodeChunk(ACodeChunk))
+	{
+		return Compiler->Errorf(TEXT("Could not find ACodeChunk to multiply"));
+	}
+	FStrataMaterialCompilationInfo StrataInfo = StrataMultiply(Compiler, Compiler->GetStrataCompilationInfo(ACodeChunk));
+	Compiler->AddStrataCodeChunk(OutputCodeChunk, StrataInfo);
+
+	return OutputCodeChunk;
 }
 
 void UMaterialExpressionStrataMultiply::GetCaption(TArray<FString>& OutCaptions) const

@@ -2814,6 +2814,15 @@ void FMaterialEditor::UpdateMaterialinfoList_Old()
 					Line->AddToken(FTextToken::Create(FText::FromString(InterpolatorsString)));
 					Messages.Add(Line);
 				}
+
+				if (FMaterialShaderMap* ShaderMap = MaterialResource->GetGameThreadShaderMap())
+				{
+					const FString StrataMaterialDescription = ShaderMap->GetStrataMaterialDescription();
+
+					TSharedRef<FTokenizedMessage> Line = FTokenizedMessage::Create(EMessageSeverity::Info);
+					Line->AddToken(FTextToken::Create(FText::FromString(StrataMaterialDescription)));
+					Messages.Add(Line);
+				}
 			}
 
 			FString FeatureLevelName;

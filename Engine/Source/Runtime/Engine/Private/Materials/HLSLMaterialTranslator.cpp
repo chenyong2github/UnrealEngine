@@ -1100,6 +1100,38 @@ bool FHLSLMaterialTranslator::Translate()
 			TextureExpression->GetExternalTextureParameterInfo(MaterialCompilationOutput.UniformExpressionSet.UniformExternalTextureParameters.AddDefaulted_GetRef());
 		}
 
+		// Output some debug info as comment in code and in the material stat window
+		if (Chunk[MP_FrontMaterial] != INDEX_NONE && CodeChunkToStrataCompilationInfoMap.Contains(Chunk[MP_FrontMaterial]) == true)
+		{
+			const FStrataMaterialCompilationInfo& StrataCompilationInfo = CodeChunkToStrataCompilationInfoMap[Chunk[MP_FrontMaterial]];
+
+			FString StrataMaterialDescription = "";
+
+			StrataMaterialDescription += FString::Printf(TEXT("StrataCompilationInfo - TotalBSDFCount = %i\r\n"), StrataCompilationInfo.TotalBSDFCount);
+
+			for (uint32 LayerIt = 0; LayerIt < StrataCompilationInfo.LayerCount; ++LayerIt)
+			{
+				StrataMaterialDescription += FString::Printf(TEXT("    Layer %i BSDFs:\r\n"), LayerIt);
+
+				const FStrataMaterialCompilationInfo::FLayer& Layer = StrataCompilationInfo.Layers[LayerIt];
+				for (uint32 BSDFIt = 0; BSDFIt < Layer.BSDFCount; ++BSDFIt)
+				{
+					StrataMaterialDescription += FString::Printf(TEXT("        - %s\r\n"), *GetStrataBSDFName(Layer.BSDFs[BSDFIt].Type));
+				}
+			}
+
+			ResourcesString += TEXT("/*");
+			ResourcesString += StrataMaterialDescription;
+			ResourcesString += TEXT("*/");
+
+			MaterialCompilationOutput.StrataMaterialDescription = StrataMaterialDescription;
+		}
+		else
+		{
+			MaterialCompilationOutput.StrataMaterialDescription = "";
+			ResourcesString += "// No Strata material provided \r\n";
+		}
+
 		LoadShaderSourceFileChecked(TEXT("/Engine/Private/MaterialTemplate.ush"), GetShaderPlatform(), MaterialTemplate);
 
 		// Find the string index of the '#line' statement in MaterialTemplate.usf
@@ -7121,6 +7153,23 @@ int32 FHLSLMaterialTranslator::ShadingModel(EMaterialShadingModel InSelectedShad
 {
 	ShadingModelsFromCompilation.AddShadingModel(InSelectedShadingModel);
 	return AddInlinedCodeChunk(MCT_ShadingModel, TEXT("%d"), InSelectedShadingModel);
+}
+
+void FHLSLMaterialTranslator::AddStrataCodeChunk(int32 CodeChunk, FStrataMaterialCompilationInfo& StrataMaterialCompilationInfo)
+{
+	check(CodeChunk != INDEX_NONE);
+	CodeChunkToStrataCompilationInfoMap.Add(CodeChunk, StrataMaterialCompilationInfo);
+}
+
+bool FHLSLMaterialTranslator::ContainsStrataCodeChunk(int32 CodeChunk)
+{
+	return CodeChunk != INDEX_NONE ? CodeChunkToStrataCompilationInfoMap.Contains(CodeChunk) : false;
+}
+
+const FStrataMaterialCompilationInfo& FHLSLMaterialTranslator::GetStrataCompilationInfo(int32 CodeChunk)
+{
+	check(CodeChunk != INDEX_NONE);
+	return CodeChunkToStrataCompilationInfoMap[CodeChunk];
 }
 
 int32 FHLSLMaterialTranslator::FrontMaterial()

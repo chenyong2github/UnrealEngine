@@ -1,0 +1,49 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "StrataDefinitions.h"
+
+
+
+class FMaterialCompiler;
+
+
+
+struct FStrataMaterialCompilationInfo
+{
+	struct FBSDF
+	{
+		uint8 Type;
+	};
+
+	struct FLayer
+	{
+		uint32 BSDFCount;
+		FBSDF BSDFs[STRATA_MAX_BSDF_COUNT_PER_LAYER];
+	};
+
+	uint32 LayerCount;
+	FLayer Layers[STRATA_MAX_LAYER_COUNT];
+
+	uint32 TotalBSDFCount;
+
+	FStrataMaterialCompilationInfo()
+	{
+		TotalBSDFCount = 0;
+		LayerCount = 0;
+		memset(Layers, 0, sizeof(Layers));
+	}
+};
+
+FString GetStrataBSDFName(uint8 BSDFType);
+
+void StrataCreateSingleBSDFMaterial(FMaterialCompiler* Compiler, int32 CodeChunk, uint8 BSDFType);
+
+FStrataMaterialCompilationInfo StrataAdd(FMaterialCompiler* Compiler, const FStrataMaterialCompilationInfo& A, const FStrataMaterialCompilationInfo& B);
+FStrataMaterialCompilationInfo StrataMultiply(FMaterialCompiler* Compiler, const FStrataMaterialCompilationInfo& A);
+FStrataMaterialCompilationInfo StrataHorizontalMixing(FMaterialCompiler* Compiler, const FStrataMaterialCompilationInfo& A, const FStrataMaterialCompilationInfo& B);
+FStrataMaterialCompilationInfo StrataVerticalLayering(FMaterialCompiler* Compiler, const FStrataMaterialCompilationInfo& Top, const FStrataMaterialCompilationInfo& Base);
+
+

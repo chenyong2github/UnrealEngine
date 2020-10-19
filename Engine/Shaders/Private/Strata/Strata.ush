@@ -6,6 +6,7 @@
 #include "../BRDF.ush"
 #include "../ShadingCommon.ush"
 
+#include "/Engine/Shared/StrataDefinitions.h"
 
 // STRATA_TODO
 //	- What model exactly
@@ -54,13 +55,6 @@ struct FStrataVolume
 };
 
 
-#define STRATA_BSDF_TYPE_DIFFUSE_ON			0
-#define STRATA_BSDF_TYPE_DIFFUSE_CHAN		1
-#define STRATA_BSDF_TYPE_DIELECTRIC			2
-#define STRATA_BSDF_TYPE_CONDUCTOR			3
-#define STRATA_BSDF_TYPE_VOLUME				4
-
-
 
 // The largest Strata BSDF is FStrataConductor having as size of 24 bytes.
 // So we will have 
@@ -81,9 +75,6 @@ struct FStrataBSDF
 };
 
 
-#define STRATA_MAX_BSDF_COUNT_PER_LAYER	4
-#define STRATA_MAX_LAYER_COUNT			4
-#define STRATA_MAX_TOTAL_BSDF			4
 
 struct FStrataLayer
 {

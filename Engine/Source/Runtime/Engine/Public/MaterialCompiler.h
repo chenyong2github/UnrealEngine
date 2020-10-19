@@ -20,6 +20,7 @@ class UMaterialParameterCollection;
 class URuntimeVirtualTexture;
 class UTexture;
 struct FMaterialParameterInfo;
+struct FStrataMaterialCompilationInfo;
 
 enum EMaterialForceCastFlags
 {
@@ -400,6 +401,10 @@ public:
 	virtual int32 StrataMultiply(int32 A, int32 Weight) = 0;
 	virtual int32 StrataArtisticIOR(int32 Reflectivity, int32 EdgeColor, int32 OutputIndex) = 0;
 	virtual int32 StrataPhysicalIOR(int32 IOR, int32 Extinction, int32 OutputIndex) = 0;
+
+	virtual void AddStrataCodeChunk(int32 CodeChunk, FStrataMaterialCompilationInfo& StrataMaterialCompilationInfo) = 0;
+	virtual bool ContainsStrataCodeChunk(int32 CodeChunk) = 0;
+	virtual const FStrataMaterialCompilationInfo& GetStrataCompilationInfo(int32 CodeChunk) = 0;
 
 	// Water
 	virtual int32 SceneDepthWithoutWater(int32 Offset, int32 ViewportUV, bool bUseOffset, float FallbackDepth) = 0;
@@ -847,6 +852,21 @@ public:
 	virtual int32 StrataPhysicalIOR(int32 IOR, int32 Extinction, int32 OutputIndex) override
 	{
 		return Compiler->StrataPhysicalIOR(IOR, Extinction, OutputIndex);
+	}
+
+	virtual void AddStrataCodeChunk(int32 CodeChunk, FStrataMaterialCompilationInfo& StrataMaterialCompilationInfo) override
+	{
+		Compiler->AddStrataCodeChunk(CodeChunk, StrataMaterialCompilationInfo);
+	}
+
+	virtual bool ContainsStrataCodeChunk(int32 CodeChunk) override
+	{
+		return Compiler->ContainsStrataCodeChunk(CodeChunk);
+	}
+	
+	virtual const FStrataMaterialCompilationInfo& GetStrataCompilationInfo(int32 CodeChunk) override
+	{
+		return Compiler->GetStrataCompilationInfo(CodeChunk);
 	}
 
 protected:
