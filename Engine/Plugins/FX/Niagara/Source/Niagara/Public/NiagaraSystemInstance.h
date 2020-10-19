@@ -192,6 +192,17 @@ public:
 	/** Gets a multicast delegate which is called whenever this instance is complete. */
 	FORCEINLINE void SetOnComplete(const FOnComplete& InOnCompleteDelegate) { OnCompleteDelegate = InOnCompleteDelegate; }
 
+	//////////////////////////////////////////////////////////////////////////
+	//-TOFIX: Workaround FORT-315375 GT / RT Race
+	DECLARE_DELEGATE(FOnExecuteMaterialRecache)
+private:
+	FOnExecuteMaterialRecache OnExecuteMaterialRecacheDelegate;
+	bool bRequestMaterialRecache = false;
+public:
+	FORCEINLINE void SetOnExecuteMaterialRecache(const FOnExecuteMaterialRecache& InDelegate) { OnExecuteMaterialRecacheDelegate = InDelegate; }
+	FORCEINLINE void RequestMaterialRecache() { bRequestMaterialRecache = true; }
+	//////////////////////////////////////////////////////////////////////////
+
 #if WITH_EDITOR
 	/** Gets a multicast delegate which is called whenever this instance is initialized with an System asset. */
 	FOnInitialized& OnInitialized();
