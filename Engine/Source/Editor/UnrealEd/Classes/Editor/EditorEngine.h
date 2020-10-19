@@ -343,6 +343,8 @@ public:
  * Engine that drives the Editor.
  * Separate from UGameEngine because it may have much different functionality than desired for an instance of a game itself.
  */
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 UCLASS(config=Engine, transient)
 class UNREALED_API UEditorEngine : public UEngine
 {
@@ -836,9 +838,8 @@ private:
 	virtual TSharedPtr<SViewport> GetGameViewportWidget() const override;
 	virtual void TriggerStreamingDataRebuild() override;
 
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	// deprecated in 4.26
 	virtual bool NetworkRemapPath(UNetDriver* Driver, FString& Str, bool bReading = true) override;
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	virtual bool NetworkRemapPath(UNetConnection* Connection, FString& Str, bool bReading = true) override;
 	virtual bool NetworkRemapPath(UPendingNetGame* PendingNetGame, FString& Str, bool bReading = true) override;
 
@@ -3380,6 +3381,7 @@ protected:
 	/** Number of currently running instances logged into an online platform */
 	int32 NumOnlinePIEInstances;
 };
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 //////////////////////////////////////////////////////////////////////////
 // FActorLabelUtilities

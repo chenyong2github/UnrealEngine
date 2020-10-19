@@ -4,8 +4,6 @@
 
 namespace MeshAttribute
 {
-	const FName Vertex::CornerSharpness("CornerSharpness");
-
 	const FName VertexInstance::TextureCoordinate("TextureCoordinate");
 	const FName VertexInstance::Normal("Normal");
 	const FName VertexInstance::Tangent("Tangent");
@@ -13,8 +11,6 @@ namespace MeshAttribute
 	const FName VertexInstance::Color("Color");
 
 	const FName Edge::IsHard("IsHard");
-	const FName Edge::IsUVSeam("IsUVSeam");
-	const FName Edge::CreaseSharpness("CreaseSharpness");
 
 	const FName Triangle::Normal("Normal");
 	const FName Triangle::Tangent("Tangent");
@@ -26,8 +22,15 @@ namespace MeshAttribute
 	const FName Polygon::Center("Center");
 
 	const FName PolygonGroup::ImportedMaterialSlotName("ImportedMaterialSlotName");
-	const FName PolygonGroup::EnableCollision("EnableCollision");
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	// all deprected in 4.26
+	const FName Vertex::CornerSharpness("CornerSharpness");
 	const FName PolygonGroup::CastShadow("CastShadow");
+	const FName Edge::CreaseSharpness("CreaseSharpness");
+	const FName Edge::IsUVSeam("IsUVSeam");
+	const FName PolygonGroup::EnableCollision("EnableCollision");
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 

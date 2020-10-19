@@ -15,6 +15,7 @@
 /**
  * Editor main frame module
  */
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 class FMainFrameModule
 	: public IMainFrameModule
 {
@@ -26,10 +27,9 @@ public:
 	virtual void RecreateDefaultMainFrame(const bool bStartImmersive, const bool bStartPIE) override;
 	virtual bool IsRecreatingDefaultMainFrame() const override;
 	virtual TSharedRef<SWidget> MakeMainMenu(const TSharedPtr<FTabManager>& TabManager, const FName MenuName, FToolMenuContext& ToolMenuContext) const override;
-
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	
+	// deprecated in 4.26
 	virtual TSharedRef<SWidget> MakeMainTabMenu(const TSharedPtr<FTabManager>& TabManager, const FName MenuName, FToolMenuContext& ToolMenuContext) const override;
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	virtual TSharedRef<SWidget> MakeDeveloperTools( const TArray<FMainFrameDeveloperTool>& AdditionalTools ) const override;
 
@@ -258,3 +258,5 @@ private:
 	// Is recreating Default Main Frame
 	bool bRecreatingDefaultMainFrame;
 };
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
