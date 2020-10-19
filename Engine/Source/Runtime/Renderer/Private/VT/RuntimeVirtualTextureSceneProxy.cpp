@@ -62,7 +62,7 @@ FRuntimeVirtualTextureSceneProxy::FRuntimeVirtualTextureSceneProxy(URuntimeVirtu
 		}
 
 		// The Initialize() call will allocate the virtual texture by spawning work on the render thread.
-		VirtualTexture->Initialize(Producer, InitSettings, Transform, Bounds);
+		VirtualTexture->Initialize(Producer, Desc, Transform, Bounds);
 	}
 }
 

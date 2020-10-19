@@ -2123,6 +2123,8 @@ bool UMaterialExpressionRuntimeVirtualTextureSample::InitVirtualTextureDependent
 		MaterialType = VirtualTexture->GetMaterialType();
 		bChanged |= bSinglePhysicalSpace != VirtualTexture->GetSinglePhysicalSpace();
 		bSinglePhysicalSpace = VirtualTexture->GetSinglePhysicalSpace();
+		bChanged |= bAdaptive != VirtualTexture->GetAdaptivePageTable();
+		bAdaptive = VirtualTexture->GetAdaptivePageTable();
 	}
 	return bChanged;
 }
@@ -2208,6 +2210,15 @@ int32 UMaterialExpressionRuntimeVirtualTextureSample::Compile(class FMaterialCom
 		Compiler->Errorf(TEXT("%Page table packing is '%d', should be '%d' to match %s"),
 			bSinglePhysicalSpace ? 1 : 0,
 			VirtualTexture->GetSinglePhysicalSpace() ? 1 : 0,
+			*VirtualTexture->GetName());
+
+		bIsVirtualTextureValid = false;
+	}
+	else if ((VirtualTexture->GetAdaptivePageTable()) != bAdaptive)
+	{
+		Compiler->Errorf(TEXT("Adaptive page table is '%d', should be '%d' to match %s"),
+			bAdaptive ? 1 : 0,
+			VirtualTexture->GetAdaptivePageTable() ? 1 : 0,
 			*VirtualTexture->GetName());
 
 		bIsVirtualTextureValid = false;
@@ -2415,6 +2426,7 @@ int32 UMaterialExpressionRuntimeVirtualTextureSample::Compile(class FMaterialCom
 	}
 
 	// Compile the texture sample code
+	const bool bAutomaticMipViewBias = true;
 	int32 SampleCodeIndex[RuntimeVirtualTexture::MaxTextureLayers] = { INDEX_NONE };
 	for (int32 TexureLayerIndex = 0; TexureLayerIndex < TextureLayerCount; TexureLayerIndex++)
 	{
@@ -2424,7 +2436,7 @@ int32 UMaterialExpressionRuntimeVirtualTextureSample::Compile(class FMaterialCom
 			SAMPLERTYPE_VirtualMasks,
 			MipValueIndex, INDEX_NONE, TextureMipLevelMode, SamplerSourceMode,
 			TextureReferenceIndex[TexureLayerIndex],
-			true);
+			bAutomaticMipViewBias, bAdaptive);
 	}
 
 	// Compile any unpacking code

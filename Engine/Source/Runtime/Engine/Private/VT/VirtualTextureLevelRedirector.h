@@ -5,7 +5,10 @@
 #include "CoreMinimal.h"
 #include "VirtualTexturing.h"
 
-/** IVirtualTexture implementation that redirects requests to one of two children depending on vLevel. */
+/** 
+ * IVirtualTexture implementation that redirects requests to one of two children depending on vLevel.
+ * We take ownership of the referenced IVirtualTexture objects meaning that they are destroyed when this object is destroyed.
+ */
 class FVirtualTextureLevelRedirector : public IVirtualTexture
 {
 public:
@@ -17,7 +20,7 @@ public:
 		const FVirtualTextureProducerHandle& ProducerHandle,
 		uint8 LayerMask,
 		uint8 vLevel,
-		uint32 vAddress,
+		uint64 vAddress,
 		EVTRequestPagePriority Priority
 	) override;
 
@@ -28,7 +31,7 @@ public:
 		const FVirtualTextureProducerHandle& ProducerHandle,
 		uint8 LayerMask,
 		uint8 vLevel,
-		uint32 vAddress,
+		uint64 vAddress,
 		uint64 RequestHandle,
 		const FVTProduceTargetLayer* TargetLayers
 	) override;

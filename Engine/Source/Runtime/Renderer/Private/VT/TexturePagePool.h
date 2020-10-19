@@ -51,9 +51,14 @@ public:
 	void EvictPages(FVirtualTextureSystem* System, FVirtualTextureProducerHandle const& ProducerHandle, FVTProducerDescription const& Desc, FIntRect const& TextureRegion, uint32 MaxLevel, TArray<union FVirtualTextureLocalTile>& OutLocked);
 
 	/**
-	* Unmap all pages from the given space...pages will remain resident in the pool, but no longer by mapped to any page table
+	* Unmap all pages from the given address range in a space. Pages will remain resident in the pool, but no longer by mapped to any page table.
 	*/
-	void UnmapAllPagesForSpace(FVirtualTextureSystem* System, uint8 SpaceID);
+	void UnmapPages(FVirtualTextureSystem* System, uint8 SpaceID, uint32 vAddress, uint8 MaxLevel);
+
+	/**
+	* Remap physical pages from one producer to another.
+	*/
+	void RemapPages(FVirtualTextureSystem* System, uint8 SpaceID, FVirtualTexturePhysicalSpace* PhysicalSpace, FVirtualTextureProducerHandle const& ProducerHandleOld, uint32 OldVirtualAddress, FVirtualTextureProducerHandle const& ProducerHandleNew, uint32 NewVirtualAddress, int32 vLevelBias, uint32 Frame);
 
 	/**
 	 * Get descriptions of the locked pages in this pool

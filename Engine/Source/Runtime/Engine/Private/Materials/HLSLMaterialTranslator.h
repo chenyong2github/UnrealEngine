@@ -120,6 +120,7 @@ struct FMaterialVTStackEntry
 	int32 DebugMipValue0Index;
 	int32 DebugMipValue1Index;
 	int32 PreallocatedStackTextureIndex;
+	bool bAdaptive;
 	bool bGenerateFeedback;
 	float AspectRatio;
 
@@ -585,7 +586,14 @@ protected:
 
 	//static const TCHAR* GetVTAddressMode(TextureAddress Address);
 
-	uint32 AcquireVTStackIndex(ETextureMipValueMode MipValueMode, TextureAddress AddressU, TextureAddress AddressV, float AspectRatio, int32 CoordinateIndex, int32 MipValue0Index, int32 MipValue1Index, int32 PreallocatedStackTextureIndex, bool bGenerateFeedback);
+	uint32 AcquireVTStackIndex(
+		ETextureMipValueMode MipValueMode, 
+		TextureAddress AddressU, TextureAddress AddressV, 
+		float AspectRatio, 
+		int32 CoordinateIndex, 
+		int32 MipValue0Index, int32 MipValue1Index, 
+		int32 PreallocatedStackTextureIndex, 
+		bool bAdaptive, bool bGenerateFeedback);
 
 	virtual int32 TextureSample(
 		int32 TextureIndex,
@@ -596,7 +604,8 @@ protected:
 		ETextureMipValueMode MipValueMode = TMVM_None,
 		ESamplerSourceMode SamplerSource = SSM_FromTextureAsset,
 		int32 TextureReferenceIndex = INDEX_NONE,
-		bool AutomaticViewMipBias = false
+		bool AutomaticViewMipBias = false,
+		bool AdaptiveVirtualTexture = false
 	) override;
 
 	virtual int32 TextureProperty(int32 TextureIndex, EMaterialExposedTextureProperty Property) override;
