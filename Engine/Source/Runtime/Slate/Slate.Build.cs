@@ -41,8 +41,6 @@ public class Slate : ModuleRules
 				"Runtime/Slate/Private/Widgets/Notifications",
 				"Runtime/Slate/Private/Widgets/Text",
 				"Runtime/Slate/Private/Widgets/Views",
-
-				"Runtime/Toolbox/Public/"
 			});
 
 		if ((Target.Platform == UnrealTargetPlatform.Win64) ||

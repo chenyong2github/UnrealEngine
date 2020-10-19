@@ -36,7 +36,6 @@
 #include "Framework/Notifications/SlateAsyncTaskNotificationImpl.h"
 #include "Framework/Application/IInputProcessor.h"
 #include "GenericPlatform/ITextInputMethodSystem.h"
-#include "ToolboxModule.h"
 #include "Framework/Docking/TabCommands.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "Math/UnitConversion.h"
@@ -4293,20 +4292,6 @@ bool FSlateApplication::ProcessKeyDownEvent( const FKeyEvent& InKeyEvent )
 			}
 		}
 #endif
-
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-		// Ctrl+Shift+~ summons the Toolbox.
-		if (InKeyEvent.GetKey() == EKeys::Tilde && InKeyEvent.IsControlDown() && InKeyEvent.IsShiftDown())
-		{
-			IToolboxModule* ToolboxModule = FModuleManager::LoadModulePtr<IToolboxModule>("Toolbox");
-			if (ToolboxModule)
-			{
-				ToolboxModule->SummonToolbox();
-			}
-		}
-
-#endif //!(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-
 		// Bubble the keyboard event
 		TSharedRef<FWidgetPath> EventPathRef = SlateUser->GetFocusPath();
 		const FWidgetPath& EventPath = EventPathRef.Get();

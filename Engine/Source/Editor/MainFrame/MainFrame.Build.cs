@@ -58,7 +58,6 @@ public class MainFrame : ModuleRules
 				"LevelEditor",
 				"Settings",
 				"SourceCodeAccess",
-				"Toolbox",
 				"LocalizationDashboard",
 			}
 		);

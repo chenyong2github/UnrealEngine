@@ -31,8 +31,6 @@
 #include "Features/IModularFeatures.h"
 #include "UndoHistoryModule.h"
 #include "Framework/Commands/GenericCommands.h"
-#include "ToolboxModule.h"
-
 
 #define LOCTEXT_NAMESPACE "MainFileMenu"
 

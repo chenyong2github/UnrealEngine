@@ -36,7 +36,6 @@ public class TurnkeySupport : ModuleRules
 				"Analytics",
 				"ToolMenus",
 				"LauncherServices",
-				
 				"SettingsEditor"
 			}
 		);
@@ -50,7 +49,6 @@ public class TurnkeySupport : ModuleRules
 				"LevelEditor",
 				"Settings",
 				"SourceCodeAccess",
-				"Toolbox",
 				"LocalizationDashboard",
 			}
 		);

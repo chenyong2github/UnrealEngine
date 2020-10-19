@@ -196,9 +196,6 @@ public class Launch : ModuleRules
 			DynamicallyLoadedModuleNames.AddRange(new string[] {
 					"AutomationWindow",
 					"ProfilerClient",
-					"Toolbox",
-					"GammaUI",
-					"ModuleUI",
 					"OutputLog",
 					"TextureCompressor",
 					"MeshUtilities",

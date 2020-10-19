@@ -1,0 +1,96 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "EditorDebugTools.h"
+#include "EditorDebugToolsStyle.h"
+#include "LevelEditor.h"
+#include "Widgets/Docking/SDockTab.h"
+#include "Widgets/Layout/SBox.h"
+#include "Widgets/Text/STextBlock.h"
+#include "ToolMenus.h"
+#include "SDebugPanel.h"
+#include "ISourceCodeAccessModule.h"
+#include "ISourceCodeAccessor.h"
+#include "GammaUIPanel.h"
+#include "SModuleUI.h"
+#include "WorkspaceMenuStructureModule.h"
+#include "WorkspaceMenuStructure.h"
+
+static const FName EditorDebugToolsTabName("DebugTools");
+static const FName ModulesTabName("Modules");
+
+static bool CanShowModulesTab()
+{
+	ISourceCodeAccessModule* SourceCodeAccessModule = FModuleManager::GetModulePtr<ISourceCodeAccessModule>("SourceCodeAccess");
+	return SourceCodeAccessModule != nullptr && SourceCodeAccessModule->GetAccessor().CanAccessSourceCode();
+}
+
+#define LOCTEXT_NAMESPACE "FEditorDebugToolsModule"
+
+TSharedRef<SDockTab> CreateDebugToolsTab(const FSpawnTabArgs& Args)
+{
+	return
+		SNew(SDockTab)
+		.TabRole(ETabRole::NomadTab)
+		[
+			SNew(SVerticalBox)
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			[
+				SNew(SDebugPanel)
+			]
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			[
+				SNew(SGammaUIPanel)
+			]
+		];
+}
+
+TSharedRef<SDockTab> CreateModulesTab(const FSpawnTabArgs& Args)
+{
+	return
+		SNew(SDockTab)
+		.TabRole(ETabRole::NomadTab)
+		[
+			SNew(SBorder)
+			.Padding(2)
+			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			[
+				SNew(SModuleUI)
+			]
+		];
+}
+
+void FEditorDebugToolsModule::StartupModule()
+{
+	FTabSpawnerEntry& Spawner = FGlobalTabmanager::Get()->RegisterNomadTabSpawner(EditorDebugToolsTabName, FOnSpawnTab::CreateStatic(&CreateDebugToolsTab))
+		.SetDisplayName(NSLOCTEXT("Toolbox", "DebugTools", "Debug Tools"))
+		.SetTooltipText(NSLOCTEXT("Toolbox", "DebugToolsTooltipText", "Open the Debug Tools tab."))
+		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "DebugTools.TabIcon"))
+		.SetGroup(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsDebugCategory());
+
+	if (CanShowModulesTab())
+	{
+		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(ModulesTabName, FOnSpawnTab::CreateStatic(&CreateModulesTab))
+			.SetDisplayName(NSLOCTEXT("Toolbox", "Modules", "Modules"))
+			.SetTooltipText(NSLOCTEXT("Toolbox", "ModulesTooltipText", "Open the Modules tab."))
+			.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "Modules.TabIcon"))
+			.SetGroup(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsMiscCategory());
+	}
+}
+
+void FEditorDebugToolsModule::ShutdownModule()
+{
+	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(EditorDebugToolsTabName);
+
+	if (CanShowModulesTab())
+	{
+		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(ModulesTabName);
+	}
+}
+
+
+
+#undef LOCTEXT_NAMESPACE
+	
+IMPLEMENT_MODULE(FEditorDebugToolsModule, EditorDebugTools)
