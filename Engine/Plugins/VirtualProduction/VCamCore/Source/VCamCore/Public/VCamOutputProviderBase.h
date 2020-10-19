@@ -110,5 +110,7 @@ protected:
 private:
 	void NotifyWidgetOfComponentChange() const;
 
+	bool IsOuterComponentEnabled() const;
+
 	TSoftObjectPtr<UCineCameraComponent> TargetCamera;
 };
