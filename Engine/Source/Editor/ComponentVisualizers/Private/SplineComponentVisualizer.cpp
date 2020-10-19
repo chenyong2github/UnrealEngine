@@ -2944,6 +2944,44 @@ bool FSplineComponentVisualizer::CanResetToDefault() const
     }
 }
 
+bool FSplineComponentVisualizer::HandleSelectFirstLastSplinePoint(USplineComponent* InSplineComponent, bool bFirstPoint)
+{
+	const FScopedTransaction Transaction(LOCTEXT("SelectFirstSplinePoint", "Select First Spline Point"));
+
+	check(InSplineComponent);
+	check(SelectionState);
+
+	bool bResetEditedSplineComponent = false;
+	if (GetEditedSplineComponent() != InSplineComponent)
+	{
+		SetEditedSplineComponent(InSplineComponent);
+		bResetEditedSplineComponent = true;
+	}
+
+	OnSelectFirstLastSplinePoint(bFirstPoint);
+
+	return bResetEditedSplineComponent;
+}
+
+bool FSplineComponentVisualizer::HandleSelectAllSplinePoints(USplineComponent* InSplineComponent)
+{
+	const FScopedTransaction Transaction(LOCTEXT("SelectAllSplinePoints", "Select All Spline Points"));
+
+	check(InSplineComponent);
+	check(SelectionState);
+
+	bool bResetEditedSplineComponent = false;
+	if (GetEditedSplineComponent() != InSplineComponent)
+	{
+		SetEditedSplineComponent(InSplineComponent);
+		bResetEditedSplineComponent = true;
+	}
+
+	OnSelectAllSplinePoints();
+
+	return bResetEditedSplineComponent;
+}
+
 void FSplineComponentVisualizer::OnSelectFirstLastSplinePoint(bool bFirstPoint)
 {
 	const FScopedTransaction Transaction(LOCTEXT("SelectFirstSplinePoint", "Select First Spline Point"));
