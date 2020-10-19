@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EdGraph/EdGraphPin.h"
+#include "EdGraph/EdGraphNode.h"
 #include "UObject/BlueprintsObjectVersion.h"
 #include "UObject/FrameworkObjectVersion.h"
 #include "UObject/ReleaseObjectVersion.h"
@@ -1310,14 +1311,7 @@ bool UEdGraphPin::ImportTextItem(const TCHAR*& Buffer, int32 PortFlags, class UO
 
 FEdGraphTerminalType UEdGraphPin::GetPrimaryTerminalType() const
 {
-	FEdGraphTerminalType TerminalType;
-	TerminalType.TerminalCategory = PinType.PinCategory;
-	TerminalType.TerminalSubCategory = PinType.PinSubCategory;
-	TerminalType.TerminalSubCategoryObject = PinType.PinSubCategoryObject;
-	TerminalType.bTerminalIsConst = PinType.bIsConst;
-	TerminalType.bTerminalIsWeakPointer = PinType.bIsWeakPointer;
-	TerminalType.bTerminalIsUObjectWrapper = PinType.bIsUObjectWrapper;
-	return TerminalType;
+	return FEdGraphTerminalType::FromPinType(PinType);
 }
 
 void UEdGraphPin::MarkPendingKill()
