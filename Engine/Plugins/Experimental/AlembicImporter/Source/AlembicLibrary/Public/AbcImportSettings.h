@@ -25,7 +25,9 @@ enum class EBaseCalculationType : uint8
 	/** Determines the number of bases that should be used with the given percentage*/
 	PercentageBased = 1,
 	/** Set a fixed number of bases to import*/
-	FixedNumber
+	FixedNumber,
+	/** One base per frame, uncompressed*/
+	NoCompression
 };
 
 USTRUCT(Blueprintable)
