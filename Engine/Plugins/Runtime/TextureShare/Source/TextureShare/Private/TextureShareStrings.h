@@ -28,8 +28,6 @@ namespace TextureShareStrings
 		static constexpr auto GBufferVelocity = TEXT("GBufferVelocity");
 		static constexpr auto Foveation = TEXT("Foveation");
 
-		static constexpr auto DirectionalOcclusion = TEXT("DirectionalOcclusion");
-
 		static constexpr auto BackBuffer = TEXT("BackBuffer");
 	}
 };
