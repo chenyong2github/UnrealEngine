@@ -199,6 +199,8 @@ namespace MobileReflectionEnvironmentCapture
 				CopyInfo.Size.X = FMath::Max(1, CopyInfo.Size.X / 2);
 				CopyInfo.Size.Y = FMath::Max(1, CopyInfo.Size.Y / 2);
 			}
+
+			RHICmdList.Transition(FRHITransitionInfo(ProcessedTexture->TextureRHI, ERHIAccess::CopyDest, ERHIAccess::SRVGraphics));
 		}
 	}
 
