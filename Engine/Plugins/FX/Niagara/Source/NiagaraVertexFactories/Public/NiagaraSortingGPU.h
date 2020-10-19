@@ -65,6 +65,7 @@ public:
 		SHADER_PARAMETER(uint32, RendererVisTagAttributeOffset)
 		SHADER_PARAMETER(FVector2D, CullDistanceRangeSquared)
 		SHADER_PARAMETER(FVector4, LocalBoundingSphere)
+		SHADER_PARAMETER(FVector, CullingWorldSpaceOffset)
 
 		SHADER_PARAMETER_UAV(Buffer, OutKeys)
 		SHADER_PARAMETER_UAV(Buffer, OutParticleIndices)

@@ -678,10 +678,18 @@ void CalculateTransforms(in FVertexFactoryIntermediates Intermediates, out float
 	}
 	
 	////////////////////////////////////////////////////////////////////////////////
+	// Translation
+	float3 Translation = WorldParticlePosition;
+	if (!NiagaraMeshVF.bPivotOffsetIsWorldSpace)
+	{
+		Translation += mul(NiagaraMeshVF.PivotOffset * Scale, RotationMat);
+	}
+	
+	////////////////////////////////////////////////////////////////////////////////
 	// Compose Transforms
-	LocalToWorld = ComposeTransformMatrix(Scale, RotationMat, WorldParticlePosition);
-	LocalToWorldNoScale = ComposeTransformMatrix((float3)1.0f, RotationMat, WorldParticlePosition);
-	WorldToLocal = ComposeInvTransformMatrix(Scale, RotationMat, WorldParticlePosition);
+	LocalToWorld = ComposeTransformMatrix(Scale, RotationMat, Translation);
+	LocalToWorldNoScale = ComposeTransformMatrix((float3)1.0f, RotationMat, Translation);
+	WorldToLocal = ComposeInvTransformMatrix(Scale, RotationMat, Translation);
 }
 
 FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput Input)
@@ -819,6 +827,20 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 		Intermediates.ParticleToWorld = ParticleToWorld;
 		Intermediates.ParticleToWorldNoScale = ParticleToWorldNoScale;
 		Intermediates.WorldToParticle = WorldToParticle;
+	}
+	
+	if (NiagaraMeshVF.bPivotOffsetIsWorldSpace)
+	{
+		Intermediates.ParticleToWorld[3].xyz += NiagaraMeshVF.PivotOffset;
+		Intermediates.PrevParticleToWorld[3].xyz += NiagaraMeshVF.PivotOffset;
+		
+		float4x4 OffsetMtx = float4x4(
+			float4(1, 0, 0, 0),
+			float4(0, 1, 0, 0),
+			float4(0, 0, 1, 0),
+			float4(-NiagaraMeshVF.PivotOffset, 1)
+		);
+		Intermediates.WorldToParticle = mul(OffsetMtx, Intermediates.WorldToParticle);		
 	}
 
 	Intermediates.ParticlePosition = Intermediates.ParticleToWorld[3].xyz;

@@ -82,6 +82,8 @@ FNiagaraRendererMeshes::FNiagaraRendererMeshes(ERHIFeatureLevel::Type FeatureLev
 
 	MeshRenderData = Mesh->RenderData.Get();
 	FacingMode = Properties->FacingMode;
+	PivotOffset = Properties->PivotOffset;
+	PivotOffsetSpace = Properties->PivotOffsetSpace;
 	bLockedAxisEnable = Properties->bLockedAxisEnable;
 	LockedAxis = Properties->LockedAxis;
 	LockedAxisSpace = Properties->LockedAxisSpace;
@@ -373,7 +375,30 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 
 				PerViewUniformParameters.bLocalSpace = bLocalSpace;
 				PerViewUniformParameters.PrevTransformAvailable = false;
-				PerViewUniformParameters.DeltaSeconds = ViewFamily.DeltaWorldTime;				
+				PerViewUniformParameters.DeltaSeconds = ViewFamily.DeltaWorldTime;
+
+				// Calculate pivot offset
+				FVector WorldSpacePivotOffset = FVector(0, 0, 0);
+				FSphere OffsetCullingSphere = LocalCullingSphere;
+				if (PivotOffsetSpace == ENiagaraMeshPivotOffsetSpace::Mesh)
+				{
+					OffsetCullingSphere.Center += PivotOffset;
+
+					PerViewUniformParameters.PivotOffset = PivotOffset;
+					PerViewUniformParameters.bPivotOffsetIsWorldSpace = false;
+				}
+				else
+				{
+					WorldSpacePivotOffset = PivotOffset;
+					if (PivotOffsetSpace == ENiagaraMeshPivotOffsetSpace::Local || (bLocalSpace && PivotOffsetSpace == ENiagaraMeshPivotOffsetSpace::Simulation))
+					{
+						// The offset is in local space, transform it to world
+						WorldSpacePivotOffset = SceneProxy->GetLocalToWorld().TransformVector(WorldSpacePivotOffset);
+					}
+
+					PerViewUniformParameters.PivotOffset = WorldSpacePivotOffset;
+					PerViewUniformParameters.bPivotOffsetIsWorldSpace = true;
+				}
 
 				TConstArrayView<FNiagaraRendererVariableInfo> VFVariables = RendererLayout->GetVFVariables_RenderThread();
 				PerViewUniformParameters.PositionDataOffset = VFVariables[ENiagaraMeshVFLayout::Position].GetGPUOffset();
@@ -392,7 +417,7 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 
 				PerViewUniformParameters.MaterialParamValidMask = MaterialParamValidMask;
 				PerViewUniformParameters.SizeDataOffset = INDEX_NONE;
-				PerViewUniformParameters.DefaultPos = bLocalSpace ? FVector4(0.0f, 0.0f, 0.0f, 1.0f) : FVector4(SceneProxy->GetLocalToWorld().GetOrigin());
+				PerViewUniformParameters.DefaultPos = bLocalSpace ? FVector4(0.0f, 0.0f, 0.0f, 1.0f) : FVector4(SceneProxy->GetLocalToWorld().GetOrigin());				
 				PerViewUniformParameters.SubImageSize = FVector4(SubImageSize.X, SubImageSize.Y, 1.0f / SubImageSize.X, 1.0f / SubImageSize.Y);
 				PerViewUniformParameters.SubImageBlendMode = bSubImageBlend;
 				PerViewUniformParameters.FacingMode = (uint32)FacingMode;
@@ -411,7 +436,8 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 					SortInfo.SortMode = SortMode;
 					SortInfo.SetSortFlags(GNiagaraGPUSortingUseMaxPrecision != 0, bHasTranslucentMaterials); 
 					SortInfo.bEnableCulling = bDoGPUCulling;
-					SortInfo.LocalBSphere = LocalCullingSphere;
+					SortInfo.LocalBSphere = OffsetCullingSphere;
+					SortInfo.CullingWorldSpaceOffset = WorldSpacePivotOffset;
 					SortInfo.RendererVisTagAttributeOffset = RendererVisTagOffset;
 					SortInfo.RendererVisibility = RendererVisibility;
 					SortInfo.DistanceCullRange = DistanceCullRange;

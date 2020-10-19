@@ -48,6 +48,7 @@ int RendererVisibility;
 uint RendererVisTagAttributeOffset;
 float2 CullDistanceRangeSquared;
 float4 LocalBoundingSphere;
+float3 CullingWorldSpaceOffset;
 
 RWBuffer<uint> OutKeys;
 RWBuffer<int> OutParticleIndices;
@@ -155,7 +156,7 @@ bool CullParticle(in uint ParticleIndex)
 
 	// Transform the bounding sphere
 	float4 BSphere = LocalBoundingSphere;
-	BSphere.xyz = RotateVectorByQuat(BSphere.xyz * Scale, Quat) + Pos;
+	BSphere.xyz = RotateVectorByQuat(BSphere.xyz * Scale, Quat) + Pos + CullingWorldSpaceOffset;
 	BSphere.w *= max(abs(Scale.x), max(abs(Scale.y), abs(Scale.z)));
 
 	// Cull particles using distance ranges
