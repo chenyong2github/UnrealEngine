@@ -1136,6 +1136,10 @@ void FVulkanCommandListContext::RHIEndTransitions(TArrayView<const FRHITransitio
 		{
 			const VkImageMemoryBarrier& ImageBarrier = Data->ImageBarriers[ImgBarrierIdx];
 			FVulkanTextureBase* Texture = Data->Textures[ImgBarrierIdx];
+			if((Texture->Surface.UEFlags & TexCreate_CPUReadback) == TexCreate_CPUReadback)
+			{
+				continue;
+			}
 
 			Texture->OnLayoutTransition(*this, ImageBarrier.newLayout);
 
