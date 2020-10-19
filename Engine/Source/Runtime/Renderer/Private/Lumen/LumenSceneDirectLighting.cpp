@@ -70,7 +70,7 @@ FAutoConsoleVariableRef CVarOffscreenShadowingSDFSurfaceBiasScale(
 	ECVF_RenderThreadSafe
 	);
 
-float GShadowingSurfaceBias = 20;
+float GShadowingSurfaceBias = 2;
 FAutoConsoleVariableRef CVarShadowingSurfaceBias(
 	TEXT("r.Lumen.DirectLighting.ShadowingSurfaceBias"),
 	GShadowingSurfaceBias,
@@ -78,7 +78,7 @@ FAutoConsoleVariableRef CVarShadowingSurfaceBias(
 	ECVF_RenderThreadSafe
 	);
 
-float GShadowingSlopeScaledSurfaceBias = 50;
+float GShadowingSlopeScaledSurfaceBias = 2;
 FAutoConsoleVariableRef CVarShadowingSlopeScaledSurfaceBias(
 	TEXT("r.Lumen.DirectLighting.ShadowingSlopeScaledSurfaceBias"),
 	GShadowingSlopeScaledSurfaceBias,

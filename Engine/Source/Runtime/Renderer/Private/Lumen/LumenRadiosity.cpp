@@ -62,7 +62,7 @@ FAutoConsoleVariableRef CVarLumenRadiosityMinTraceDistance(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 	);
 
-float GLumenRadiositySurfaceBias = 12;
+float GLumenRadiositySurfaceBias = 5;
 FAutoConsoleVariableRef CVarLumenRadiositySurfaceBias(
 	TEXT("r.Lumen.Radiosity.SurfaceBias"),
 	GLumenRadiositySurfaceBias,
@@ -141,6 +141,11 @@ static constexpr int32 RadiosityComposedProbeResolution = (RadiosityProbeResolut
 bool IsRadiosityEnabled()
 {
 	return GLumenFastCameraMode ? false : bool(GLumenRadiosity);
+}
+
+FIntPoint GetRadiosityAtlasSize(FIntPoint MaxAtlasSize)
+{
+	return FIntPoint::DivideAndRoundDown(MaxAtlasSize, GLumenRadiosityDownsampleFactor);
 }
 
 FHemisphereDirectionSampleGenerator RadiosityDirections;

@@ -950,8 +950,7 @@ void AllocateCardAtlasses(FRHICommandListImmediate& RHICmdList, FLumenSceneData&
 	GRenderTargetPool.FindFreeElement(RHICmdList, LightingDesc, LumenSceneData.FinalLightingAtlas, TEXT("LumenSceneFinalLighting"), ERenderTargetTransience::NonTransient);
 	LumenSceneData.bFinalLightingAtlasContentsValid = false;
 
-	extern int32 GLumenRadiosityDownsampleFactor;
-	FPooledRenderTargetDesc RadiosityDesc(FPooledRenderTargetDesc::Create2DDesc(FIntPoint::DivideAndRoundDown(LumenSceneData.MaxAtlasSize, GLumenRadiosityDownsampleFactor), PF_FloatR11G11B10, FClearValueBinding::Black, TexCreate_None, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV, false));
+	FPooledRenderTargetDesc RadiosityDesc(FPooledRenderTargetDesc::Create2DDesc(GetRadiosityAtlasSize(LumenSceneData.MaxAtlasSize), PF_FloatR11G11B10, FClearValueBinding::Black, TexCreate_None, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV, false));
 	RadiosityDesc.AutoWritable = false;
 	GRenderTargetPool.FindFreeElement(RHICmdList, RadiosityDesc, LumenSceneData.RadiosityAtlas, TEXT("LumenSceneRadiosity"), ERenderTargetTransience::NonTransient);
 
@@ -1395,7 +1394,9 @@ void FDeferredShadingSceneRenderer::BeginUpdateLumenSceneTasks(FRHICommandListIm
 		const int32 LocalLumenSceneGeneration = GLumenSceneGeneration;
 		const bool bRecaptureLumenSceneOnce = LumenSceneData.Generation != LocalLumenSceneGeneration;
 		LumenSceneData.Generation = LocalLumenSceneGeneration;
-		const bool bReallocateAtlas = LumenSceneData.MaxAtlasSize != GetDesiredAtlasSize() || GLumenSceneReset;
+		const bool bReallocateAtlas = LumenSceneData.MaxAtlasSize != GetDesiredAtlasSize() 
+			|| (LumenSceneData.RadiosityAtlas && LumenSceneData.RadiosityAtlas->GetDesc().Extent != GetRadiosityAtlasSize(LumenSceneData.MaxAtlasSize))
+			|| GLumenSceneReset;
 
 		if (GLumenSceneReset != 2)
 		{

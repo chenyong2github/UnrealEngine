@@ -458,3 +458,4 @@ extern void ClearAtlasRDG(FRDGBuilder& GraphBuilder, FRDGTextureRef AtlasTexture
 extern FVector GetLumenSceneViewOrigin(const FViewInfo& View, int32 ClipmapIndex);
 extern int32 GetNumLumenVoxelClipmaps();
 extern void UpdateDistantScene(FScene* Scene, FViewInfo& View);
+extern FIntPoint GetRadiosityAtlasSize(FIntPoint MaxAtlasSize);
