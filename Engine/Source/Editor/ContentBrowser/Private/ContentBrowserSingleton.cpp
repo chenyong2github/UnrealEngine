@@ -28,6 +28,8 @@
 #include "CollectionAssetRegistryBridge.h"
 #include "ContentBrowserCommands.h"
 #include "CoreGlobals.h"
+#include "StatusBarSubsystem.h"
+#include "Toolkits/GlobalEditorCommonCommands.h"
 
 #define LOCTEXT_NAMESPACE "ContentBrowser"
 
@@ -105,6 +107,26 @@ TSharedRef<class SWidget> FContentBrowserSingleton::CreateCollectionPicker(const
 	return SNew( SCollectionPicker )
 		.IsEnabled( FSlateApplication::Get().GetNormalExecutionAttribute() )
 		.CollectionPickerConfig(CollectionPickerConfig);
+}
+
+TSharedRef<class SWidget> FContentBrowserSingleton::CreateContentBrowserDrawer(const FContentBrowserConfig& ContentBrowserConfig)
+{
+	TSharedPtr<SContentBrowser> ContentBrowserDrawerPinned;
+	if(!ContentBrowserDrawer.IsValid())
+	{
+		static const FName ContentBrowserDrawerInstanceName("ContentBrowserDrawer");
+		ContentBrowserDrawerPinned =
+			SNew(SContentBrowser, ContentBrowserDrawerInstanceName, &ContentBrowserConfig)
+			.IsEnabled(FSlateApplication::Get().GetNormalExecutionAttribute());
+
+		ContentBrowserDrawer = ContentBrowserDrawerPinned;
+	}
+	else
+	{
+		ContentBrowserDrawerPinned = ContentBrowserDrawer.Pin();
+	}
+
+	return ContentBrowserDrawerPinned.ToSharedRef();
 }
 
 void FContentBrowserSingleton::CreateOpenAssetDialog(const FOpenAssetDialogConfig& InConfig,
@@ -223,21 +245,29 @@ void FContentBrowserSingleton::FocusPrimaryContentBrowser(bool bFocusSearch)
 	}
 }
 
-void FContentBrowserSingleton::FocusContentBrowserSearchField(FName InstanceName)
+void FContentBrowserSingleton::FocusContentBrowserSearchField(TSharedPtr<SWidget> ContentBrowserWidget)
 {
-	if (InstanceName.IsValid() && !InstanceName.IsNone())
+	TSharedPtr<SContentBrowser> BrowserToFocus;
+
+	if (ContentBrowserWidget.IsValid() )
 	{
 		for (TWeakPtr<SContentBrowser>& Browser : AllContentBrowsers)
 		{
-			if (TSharedPtr<SContentBrowser> BrowserPinned = Browser.Pin())
+			if (Browser == ContentBrowserWidget)
 			{
-				if (BrowserPinned->GetInstanceName() == InstanceName)
-				{
-					BrowserPinned->SetKeyboardFocusOnSearch();
-					break;
-				}
+				BrowserToFocus = Browser.Pin();
 			}
 		}
+	}
+
+	if (!BrowserToFocus.IsValid() && ContentBrowserDrawer == ContentBrowserWidget)
+	{
+		BrowserToFocus = ContentBrowserDrawer.Pin();
+	}
+
+	if (BrowserToFocus.IsValid())
+	{
+		BrowserToFocus->SetKeyboardFocusOnSearch();
 	}
 }
 
@@ -284,13 +314,22 @@ TSharedPtr<SContentBrowser> FContentBrowserSingleton::FindContentBrowserToSync(b
 	}
 	else
 	{
-		// If there is no primary or it is locked, find the first non-locked valid browser
-		for (int32 BrowserIdx = 0; BrowserIdx < AllContentBrowsers.Num(); ++BrowserIdx)
+
+		// If there is no primary or it is locked, sync the content browser drawer
+		if (ContentBrowserDrawer.IsValid())
 		{
-			if ( AllContentBrowsers[BrowserIdx].IsValid() && (bAllowLockedBrowsers || !AllContentBrowsers[BrowserIdx].Pin()->IsLocked()) )
+			ContentBrowserToSync = ContentBrowserDrawer.Pin();
+		}
+		else
+		{
+			// if the drawer doesn't exist find the first non-locked valid browser
+			for (int32 BrowserIdx = 0; BrowserIdx < AllContentBrowsers.Num(); ++BrowserIdx)
 			{
-				ContentBrowserToSync = AllContentBrowsers[BrowserIdx].Pin();
-				break;
+				if (AllContentBrowsers[BrowserIdx].IsValid() && (bAllowLockedBrowsers || !AllContentBrowsers[BrowserIdx].Pin()->IsLocked()))
+				{
+					ContentBrowserToSync = AllContentBrowsers[BrowserIdx].Pin();
+					break;
+				}
 			}
 		}
 	}
@@ -567,11 +606,18 @@ void FContentBrowserSingleton::FocusContentBrowser(const TSharedPtr<SContentBrow
 {
 	if ( BrowserToFocus.IsValid() )
 	{
-		TSharedRef<SContentBrowser> Browser = BrowserToFocus.ToSharedRef();
-		TSharedPtr<FTabManager> TabManager = Browser->GetTabManager();
-		if ( TabManager.IsValid() )
+		if (BrowserToFocus == ContentBrowserDrawer)
 		{
-			TabManager->TryInvokeTab(Browser->GetInstanceName());
+			GEditor->GetEditorSubsystem<UStatusBarSubsystem>()->OpenContentBrowserDrawer();
+		}
+		else
+		{
+			TSharedRef<SContentBrowser> Browser = BrowserToFocus.ToSharedRef();
+			TSharedPtr<FTabManager> TabManager = Browser->GetTabManager();
+			if (TabManager.IsValid())
+			{
+				TabManager->TryInvokeTab(Browser->GetInstanceName());
+			}
 		}
 	}
 }
@@ -755,21 +801,29 @@ void FContentBrowserSingleton::ForceShowPluginContent(bool bEnginePlugin)
 	}
 }
 
-void FContentBrowserSingleton::SaveContentBrowserSettings(FName InstanceName)
+void FContentBrowserSingleton::SaveContentBrowserSettings(TSharedPtr<SWidget> ContentBrowserWidget)
 {
-	if (InstanceName.IsValid() && !InstanceName.IsNone())
+	TSharedPtr<SContentBrowser> BrowserToSave;
+
+	if (ContentBrowserWidget.IsValid())
 	{
 		for (TWeakPtr<SContentBrowser>& Browser : AllContentBrowsers)
 		{
-			if (TSharedPtr<SContentBrowser> BrowserPinned = Browser.Pin())
+			if (Browser == ContentBrowserWidget)
 			{
-				if (BrowserPinned->GetInstanceName() == InstanceName)
-				{
-					BrowserPinned->SaveSettings();
-					break;
-				}
+				BrowserToSave = Browser.Pin();
 			}
 		}
+	}
+
+	if (!BrowserToSave.IsValid() && ContentBrowserDrawer == ContentBrowserWidget)
+	{
+		BrowserToSave = ContentBrowserDrawer.Pin();
+	}
+
+	if (BrowserToSave.IsValid())
+	{
+		BrowserToSave->SaveSettings();
 	}
 }
 

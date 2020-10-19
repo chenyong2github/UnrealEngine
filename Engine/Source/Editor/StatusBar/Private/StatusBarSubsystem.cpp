@@ -18,8 +18,6 @@
 
 int32 UStatusBarSubsystem::HandleCounter = 0;
 
-static const FName StatusBarContentBrowserName = "StatusBarContentBrowser";
-
 void UStatusBarSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	FSourceControlCommands::Register();
@@ -52,6 +50,29 @@ bool UStatusBarSubsystem::FocusDebugConsole(TSharedRef<SWindow> ParentWindow)
 	return bFocusedSuccessfully;
 }
 
+bool UStatusBarSubsystem::OpenContentBrowserDrawer()
+{
+	TSharedPtr<SWindow> ParentWindow = FSlateApplication::Get().GetActiveTopLevelWindow();
+	if (!ParentWindow.IsValid())
+	{
+		if (TSharedPtr<SDockTab> ActiveTab = FGlobalTabmanager::Get()->GetActiveTab())
+		{
+			if (TSharedPtr<SDockTab> ActiveMajorTab = FGlobalTabmanager::Get()->GetMajorTabForTabManager(ActiveTab->GetTabManager()))
+			{
+				ParentWindow = ActiveMajorTab->GetParentWindow();
+			}
+		}
+	}
+
+	if (ParentWindow.IsValid() && ParentWindow->GetType() == EWindowType::Normal)
+	{
+		TSharedRef<SWindow> WindowRef = ParentWindow.ToSharedRef();
+		return ToggleContentBrowser(ParentWindow.ToSharedRef());
+	}
+
+	return false;
+}
+
 bool UStatusBarSubsystem::ToggleContentBrowser(TSharedRef<SWindow> ParentWindow)
 {
 	bool bWasDismissed = false;
@@ -74,8 +95,6 @@ bool UStatusBarSubsystem::ToggleContentBrowser(TSharedRef<SWindow> ParentWindow)
 
 	if(!bWasDismissed)
 	{
-		CreateContentBrowserIfNeeded();
-
 		TSharedPtr<SWindow> Window = ParentWindow;
 		GEditor->GetTimerManager()->SetTimerForNextTick(FTimerDelegate::CreateUObject(this, &UStatusBarSubsystem::HandleDeferredOpenContentBrowser, Window));
 	}
@@ -85,6 +104,8 @@ bool UStatusBarSubsystem::ToggleContentBrowser(TSharedRef<SWindow> ParentWindow)
 
 TSharedRef<SWidget> UStatusBarSubsystem::MakeStatusBarWidget(FName StatusBarName, const TSharedRef<SDockTab>& InParentTab)
 {
+	CreateContentBrowserIfNeeded();
+
 	TSharedRef<SStatusBar> StatusBar =
 		SNew(SStatusBar, StatusBarName, InParentTab)
 		.OnConsoleClosed_UObject(this, &UStatusBarSubsystem::OnDebugConsoleClosed)
@@ -159,7 +180,7 @@ void UStatusBarSubsystem::CreateContentBrowserIfNeeded()
 		FContentBrowserConfig Config;
 		Config.bCanSetAsPrimaryBrowser = false;
 
-		StatusBarContentBrowser = ContentBrowserSingleton.CreateContentBrowser(StatusBarContentBrowserName, nullptr, &Config);
+		StatusBarContentBrowser = ContentBrowserSingleton.CreateContentBrowserDrawer(Config);
 	}
 }
 
@@ -188,6 +209,13 @@ void UStatusBarSubsystem::OnContentBrowserOpened(TSharedRef<SStatusBar>& StatusB
 			}
 		}
 	}
+
+	IContentBrowserSingleton& ContentBrowserSingleton = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>("ContentBrowser").Get();;
+
+	// Cache off the previously focused widget so we can restore focus if the user hits the focus key again
+	PreviousKeyboardFocusedWidget = FSlateApplication::Get().GetKeyboardFocusedWidget();
+
+	ContentBrowserSingleton.FocusContentBrowserSearchField(StatusBarContentBrowser);
 }
 
 void UStatusBarSubsystem::OnContentBrowserDismissed(const TSharedPtr<SWidget>& NewlyFocusedWidget)
@@ -198,7 +226,7 @@ void UStatusBarSubsystem::OnContentBrowserDismissed(const TSharedPtr<SWidget>& N
 	}
 
 	IContentBrowserSingleton& ContentBrowserSingleton = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>("ContentBrowser").Get();;
-	ContentBrowserSingleton.SaveContentBrowserSettings(StatusBarContentBrowserName);
+	ContentBrowserSingleton.SaveContentBrowserSettings(StatusBarContentBrowser);
 
 	PreviousKeyboardFocusedWidget.Reset();
 }
@@ -214,11 +242,6 @@ void UStatusBarSubsystem::HandleDeferredOpenContentBrowser(TSharedPtr<SWindow> P
 			{
 				StatusBarPinned->OpenContentBrowser();
 				IContentBrowserSingleton& ContentBrowserSingleton = FModuleManager::Get().GetModuleChecked<FContentBrowserModule>("ContentBrowser").Get();
-
-				// Cache off the previously focused widget so we can restore focus if the user hits the focus key again
-				PreviousKeyboardFocusedWidget = FSlateApplication::Get().GetKeyboardFocusedWidget();
-
-				ContentBrowserSingleton.FocusContentBrowserSearchField(StatusBarContentBrowserName);
 				break;
 			}
 		}

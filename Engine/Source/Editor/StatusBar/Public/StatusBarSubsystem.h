@@ -72,9 +72,11 @@ public:
 	bool FocusDebugConsole(TSharedRef<SWindow> ParentWindow);
 
 	/**
-	 * Opens or closes the content browser drawer for a status bar residing in the passed in parent window
+	 * Opens the content browser drawer for a status bar residing in the active window 
+	 * 
+	 * @return true if the content browser was opened or false if no status bar in the active window was found
 	 */
-	bool ToggleContentBrowser(TSharedRef<SWindow> ParentWindow);
+	bool OpenContentBrowserDrawer();
 
 	/** 
 	 * Creates a new instance of a status bar widget
@@ -110,6 +112,7 @@ public:
 	void ClearStatusBarMessages(FName StatusBarName);
 
 private:
+	bool ToggleContentBrowser(TSharedRef<SWindow> ParentWindow);
 	void OnDebugConsoleClosed();
 	void CreateContentBrowserIfNeeded();
 	TSharedPtr<SStatusBar> GetStatusBar(FName StatusBarName) const;

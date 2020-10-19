@@ -154,25 +154,7 @@ void FGlobalEditorCommonCommands::OnSummonedConsoleCommandBox()
 
 void FGlobalEditorCommonCommands::OnOpenContentBrowserDrawer()
 {
-	TSharedPtr<SWindow> ParentWindow = FSlateApplication::Get().GetActiveTopLevelWindow();
-	if (!ParentWindow.IsValid())
-	{
-		if (TSharedPtr<SDockTab> ActiveTab = FGlobalTabmanager::Get()->GetActiveTab())
-		{
-			if (TSharedPtr<SDockTab> ActiveMajorTab = FGlobalTabmanager::Get()->GetMajorTabForTabManager(ActiveTab->GetTabManager()))
-			{
-				ParentWindow = ActiveMajorTab->GetParentWindow();
-			}
-		}
-	}
-
-	if (ParentWindow.IsValid() && ParentWindow->GetType() == EWindowType::Normal)
-	{
-		TSharedRef<SWindow> WindowRef = ParentWindow.ToSharedRef();
-		FOutputLogModule& OutputLogModule = FModuleManager::LoadModuleChecked<FOutputLogModule>(TEXT("OutputLog"));
-
-		GEditor->GetEditorSubsystem<UStatusBarSubsystem>()->ToggleContentBrowser(ParentWindow.ToSharedRef());
-	}
+	GEditor->GetEditorSubsystem<UStatusBarSubsystem>()->OpenContentBrowserDrawer();
 }
 
 //////////////////////////////////////////////////////////////////////////

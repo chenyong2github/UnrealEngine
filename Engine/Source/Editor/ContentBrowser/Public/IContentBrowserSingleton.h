@@ -493,6 +493,15 @@ public:
 	virtual TSharedRef<class SWidget> CreateCollectionPicker(const FCollectionPickerConfig& CollectionPickerConfig) = 0;
 
 	/**
+	 * Generates a content browser for use in a drawer. This content browser is a singleton and is reused among all drawers.
+	 *
+	 * @param ContentBrowserConfig	Initial defaults for the new content browser
+	 *
+	 * @return The content browser drawer widget
+	 */
+	virtual TSharedRef<class SWidget> CreateContentBrowserDrawer(const FContentBrowserConfig& ContentBrowserConfig) = 0;
+
+	/**
 	 * Opens the Open Asset dialog in a non-modal window
 	 *
 	 * @param OpenAssetConfig				A struct containing details about how the open asset dialog should behave
@@ -533,7 +542,7 @@ public:
 	virtual void FocusPrimaryContentBrowser(bool bFocusSearch) = 0;
 
 	/** Focuses the search field of a content browser widget */
-	virtual void FocusContentBrowserSearchField(FName InstanceName) = 0;
+	virtual void FocusContentBrowserSearchField(TSharedPtr<SWidget> ContentBrowserWidget) = 0;
 
 	/** Sets up an inline-name for the creation of a new asset in the primary content browser using the specified path and the specified class and/or factory */
 	virtual void CreateNewAsset(const FString& DefaultAssetName, const FString& PackagePath, UClass* AssetClass, UFactory* Factory) = 0;
@@ -626,7 +635,7 @@ public:
 	/**
 	 * Saves the settings for a particular content browser instance
 	 *
-	 * @param InstanceName The name of the content browser to save
+	 * @param ContentBrowserWidget The content browser widget to save
 	 */
-	virtual void SaveContentBrowserSettings(FName InstanceName) = 0;
+	virtual void SaveContentBrowserSettings(TSharedPtr<SWidget> ContentBrowserWidget) = 0;
 };

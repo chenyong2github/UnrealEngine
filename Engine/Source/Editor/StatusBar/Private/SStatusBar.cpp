@@ -438,8 +438,27 @@ void SStatusBar::OnGlobalFocusChanging(const FFocusEvent& FocusEvent, const FWea
 
 void SStatusBar::OnActiveTabChanged(TSharedPtr<SDockTab> PreviouslyActive, TSharedPtr<SDockTab> NewlyActivated)
 {
-	// Remove the content browser as the tab well's content is changing 
-	RemoveContentBrowser();
+	bool bShouldRemoveContentBrowser = false;
+	if (!PreviouslyActive || !NewlyActivated)
+	{
+		// Remove the content browser if there is some invalid state with the tabs
+		bShouldRemoveContentBrowser = true;
+	}
+	else if(NewlyActivated->GetTabRole() == ETabRole::MajorTab)
+	{
+		// Remove the content browser if a newly activated tab is a major tab
+		bShouldRemoveContentBrowser = true;
+	}
+	else if (PreviouslyActive->GetTabManager() != NewlyActivated->GetTabManager())
+	{
+		// Remove the content browser if we're switching tab managers (indicates a new status bar is becoming active)
+		bShouldRemoveContentBrowser = true;
+	}
+
+	if (bShouldRemoveContentBrowser)
+	{
+		RemoveContentBrowser();
+	}
 }
 
 bool SStatusBar::IsContentBrowserOpened() const
@@ -567,6 +586,7 @@ TSharedRef<SWidget> SStatusBar::MakeContentBrowserWidget()
 {
 	return
 		SNew(SButton)
+		.IsFocusable(false)
 		.ButtonStyle(&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("StatusBar.StatusBarButton"))
 		.OnClicked(this, &SStatusBar::OnContentBrowserButtonClicked)
 		.ToolTipText(FText::Format(LOCTEXT("StatusBar_ContentBrowserDrawerToolTip","Opens a temporary content browser above this status which will dismiss when it loses focus ({0})"), FGlobalEditorCommonCommands::Get().OpenContentBrowserDrawer->GetInputText()))

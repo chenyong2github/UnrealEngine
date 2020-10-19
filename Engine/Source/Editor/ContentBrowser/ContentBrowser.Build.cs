@@ -44,6 +44,7 @@ public class ContentBrowser : ModuleRules
 				"AssetRegistry",
 				"AssetTagsEditor",
 				"ToolMenus",
+				"StatusBar",
 			}
 		);
 
