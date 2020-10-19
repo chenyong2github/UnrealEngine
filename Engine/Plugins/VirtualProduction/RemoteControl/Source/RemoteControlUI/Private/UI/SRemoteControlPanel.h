@@ -30,6 +30,7 @@ struct SRCPanelExposedField;
 class SRemoteControlPanel;
 class SRemoteControlTarget;
 class URemoteControlPreset;
+class UBlueprintFunctionLibrary;
 
 DECLARE_DELEGATE_TwoParams(FOnEditModeChange, TSharedPtr<SRemoteControlPanel> /* Panel */, bool /* bEditModeChange */);
 
