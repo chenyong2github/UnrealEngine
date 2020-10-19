@@ -3,6 +3,87 @@
 #include "RigVMCore/RigVMStruct.h"
 #include "UObject/StructOnScope.h"
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool FRigVMStructNodeCreatedContext::IsValid() const
+{
+	return Reason != ERigVMNodeCreatedReason::Unknown &&
+		AllExternalVariablesDelegate.IsBound() &&
+		CreateExternalVariableDelegate.IsBound() &&
+		BindPinToExternalVariableDelegate.IsBound();
+}
+
+TArray<FRigVMExternalVariable> FRigVMStructNodeCreatedContext::GetExternalVariables() const
+{
+	TArray<FRigVMExternalVariable> ExternalVariables;
+
+	if (AllExternalVariablesDelegate.IsBound())
+	{
+		ExternalVariables = AllExternalVariablesDelegate.Execute();
+	}
+
+	return ExternalVariables;
+}
+
+FName FRigVMStructNodeCreatedContext::AddExternalVariable(const FRigVMExternalVariable& InVariableToCreate)
+{
+	if (CreateExternalVariableDelegate.IsBound())
+	{
+		return CreateExternalVariableDelegate.Execute(InVariableToCreate);
+	}
+	return NAME_None;
+}
+
+bool FRigVMStructNodeCreatedContext::BindPinToExternalVariable(FString InPinPath, FName InVariableName)
+{
+	if (BindPinToExternalVariableDelegate.IsBound())
+	{
+		return BindPinToExternalVariableDelegate.Execute(InPinPath, InVariableName);
+	}
+	return false;
+}
+
+FRigVMExternalVariable FRigVMStructNodeCreatedContext::FindVariable(FName InVariableName) const
+{
+	TArray<FRigVMExternalVariable> ExternalVariables = GetExternalVariables();
+	for (FRigVMExternalVariable ExternalVariable : ExternalVariables)
+	{
+		if (ExternalVariable.Name == InVariableName)
+		{
+			return ExternalVariable;
+		}
+	}
+	return FRigVMExternalVariable();
+}
+
+FName FRigVMStructNodeCreatedContext::FindFirstVariableOfType(FName InCPPTypeName) const
+{
+	TArray<FRigVMExternalVariable> ExternalVariables = GetExternalVariables();
+	for (FRigVMExternalVariable ExternalVariable : ExternalVariables)
+	{
+		if (ExternalVariable.TypeName == InCPPTypeName)
+		{
+			return ExternalVariable.Name;
+		}
+	}
+	return NAME_None;
+}
+
+FName FRigVMStructNodeCreatedContext::FindFirstVariableOfType(UObject* InCPPTypeObject) const
+{
+	TArray<FRigVMExternalVariable> ExternalVariables = GetExternalVariables();
+	for (FRigVMExternalVariable ExternalVariable : ExternalVariables)
+	{
+		if (ExternalVariable.TypeObject == InCPPTypeObject)
+		{
+			return ExternalVariable.Name;
+		}
+	}
+	return NAME_None;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 const FName FRigVMStruct::DeprecatedMetaName("Deprecated");
 const FName FRigVMStruct::InputMetaName("Input");
 const FName FRigVMStruct::OutputMetaName("Output");
@@ -364,6 +445,5 @@ FString FRigVMStruct::ExportToFullyQualifiedText(UScriptStruct* InStruct, const 
 
 	return FString::Printf(TEXT("(%s)"), *FString::Join(FieldValues, TEXT(",")));
 }
-
 
 #endif

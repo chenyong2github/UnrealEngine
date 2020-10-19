@@ -90,6 +90,11 @@ struct RIGVM_API FRigVMExternalVariable
 			ExternalVariable.TypeName = *StructProperty->Struct->GetStructCPPName();
 			ExternalVariable.TypeObject = StructProperty->Struct;
 		}
+		else if (FObjectProperty* ObjectProperty = CastField<FObjectProperty>(Property))
+		{
+			ExternalVariable.TypeName = *ObjectProperty->PropertyClass->GetName();
+			ExternalVariable.TypeObject = ObjectProperty->PropertyClass;
+		}
 
 		return ExternalVariable;
 	}
@@ -330,6 +335,38 @@ struct RIGVM_API FRigVMExternalVariable
 		Variable.TypeObject = T::StaticStruct();
 		Variable.bIsArray = true;
 		Variable.Size = T::StaticStruct()->GetStructureSize();
+		Variable.Memory = (uint8*)&InValue;
+		return Variable;
+	}
+
+	template <
+		typename T,
+		typename TEnableIf<TModels<CRigVMUClass, T>::Value>::Type * = nullptr
+	>
+	FORCEINLINE static FRigVMExternalVariable Make(const FName& InName, T& InValue)
+	{
+		FRigVMExternalVariable Variable;
+		Variable.Name = InName;
+		Variable.TypeName = T::StaticClass()->GetFName();
+		Variable.TypeObject = T::StaticClass();
+		Variable.bIsArray = false;
+		Variable.Size = T::StaticClass()->GetStructureSize();
+		Variable.Memory = (uint8*)&InValue;
+		return Variable;
+	}
+
+	template <
+		typename T,
+		typename TEnableIf<TModels<CRigVMUClass, T>::Value>::Type * = nullptr
+	>
+	FORCEINLINE static FRigVMExternalVariable Make(const FName& InName, TArray<T>& InValue)
+	{
+		FRigVMExternalVariable Variable;
+		Variable.Name = InName;
+		Variable.TypeName = T::StaticClass()->GetFName();
+		Variable.TypeObject = T::StaticClass();
+		Variable.bIsArray = true;
+		Variable.Size = T::StaticClass()->GetStructureSize();
 		Variable.Memory = (uint8*)&InValue;
 		return Variable;
 	}

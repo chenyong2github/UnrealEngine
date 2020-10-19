@@ -443,6 +443,8 @@ public:
 	void RepopulatePinsOnNode(URigVMNode* InNode);
 #endif
 
+	FRigVMStructNodeCreatedContext& GetStructNodeCreatedContext() { return StructNodeCreatedContext; }
+
 private:
 
 	UPROPERTY(BlueprintReadOnly, Category = RigVMController, meta = (ScriptName = "ModifiedEvent", AllowPrivateAccess = "true"))
@@ -562,6 +564,8 @@ private:
 
 	static TMap<FControlRigStructPinRedirectorKey, FString> PinPathCoreRedirectors;
 	FCriticalSection PinPathCoreRedirectorsLock;
+
+	FRigVMStructNodeCreatedContext StructNodeCreatedContext;
 
 	friend class URigVMGraph;
 	friend class URigVMActionStack;

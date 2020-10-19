@@ -225,6 +225,16 @@ URigVMStructNode* URigVMController::AddStructNode(UScriptStruct* InScriptStruct,
 
 	Notify(ERigVMGraphNotifType::NodeAdded, Node);
 
+	if (StructNodeCreatedContext.IsValid())
+	{
+		if (TSharedPtr<FStructOnScope> StructScope = Node->ConstructStructInstance())
+		{
+			TGuardValue<FName> NodeNameScope(StructNodeCreatedContext.NodeName, Node->GetFName());
+			FRigVMStruct* StructInstance = (FRigVMStruct*)StructScope->GetStructMemory();
+			StructInstance->OnStructNodeCreated(StructNodeCreatedContext);
+		}
+	}
+
 	if (bUndo)
 	{
 		ActionStack->EndAction(Action);
@@ -266,6 +276,12 @@ URigVMVariableNode* URigVMController::AddVariableNode(const FName& InVariableNam
 		InCPPTypeObject = URigVMPin::FindObjectFromCPPTypeObjectPath<UObject>(InCPPType);
 	}
 
+	FString CPPType = InCPPType;
+	if (UScriptStruct* ScriptStruct = Cast<UScriptStruct>(InCPPTypeObject))
+	{
+		CPPType = ScriptStruct->GetStructCPPName();
+	}
+
 	FString Name = GetValidNodeName(InNodeName.IsEmpty() ? FString(TEXT("VariableNode")) : InNodeName);
 	URigVMVariableNode* Node = NewObject<URigVMVariableNode>(Graph, *Name);
 	Node->Position = InPosition;
@@ -288,7 +304,7 @@ URigVMVariableNode* URigVMController::AddVariableNode(const FName& InVariableNam
 	Node->Pins.Add(VariablePin);
 
 	URigVMPin* ValuePin = NewObject<URigVMPin>(Node, *URigVMVariableNode::ValueName);
-	ValuePin->CPPType = InCPPType;
+	ValuePin->CPPType = CPPType;
 
 	if (UScriptStruct* ScriptStruct = Cast<UScriptStruct>(InCPPTypeObject))
 	{
