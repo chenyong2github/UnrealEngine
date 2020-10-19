@@ -15,7 +15,7 @@ class IDetailLayoutBuilder;
 class IPropertyHandle;
 class SToolTip;
 
-UCLASS(MinimalAPI, Experimental)
+UCLASS(MinimalAPI)
 class UAnimGraphNode_LinkedAnimLayer : public UAnimGraphNode_LinkedAnimGraphBase
 {
 	GENERATED_BODY()
