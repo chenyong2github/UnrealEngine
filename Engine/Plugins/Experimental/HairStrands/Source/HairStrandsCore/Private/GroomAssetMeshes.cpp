@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GroomAssetMeshes.h"
+#include "Engine/StaticMesh.h"
 
 FHairGroupsMeshesSourceDescription::FHairGroupsMeshesSourceDescription()
 {

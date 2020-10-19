@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GroomAssetCards.h"
+#include "Engine/StaticMesh.h"
 
 FHairCardsClusterSettings::FHairCardsClusterSettings()
 {
