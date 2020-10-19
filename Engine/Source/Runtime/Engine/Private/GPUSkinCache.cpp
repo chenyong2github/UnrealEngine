@@ -1534,10 +1534,22 @@ void FGPUSkinCache::EndBatchDispatch(FRHICommandListImmediate& RHICmdList)
 #if RHI_RAYTRACING
 	if (IsRayTracingEnabled() && GEnableGPUSkinCache)
 	{
-		for (FDispatchEntry& DispatchItem : BatchDispatches)
+		TSet<FGPUSkinCacheEntry*> SkinCacheEntriesProcessed;
+
+		// Process batched dispatches in reverse order to filter out duplicated ones and keep the last one
+		for (int32 Index = BatchDispatches.Num() - 1; Index >= 0; Index--)
 		{
+			FDispatchEntry& DispatchItem = BatchDispatches[Index];
+
 			FGPUSkinCacheEntry* SkinCacheEntry = DispatchItem.SkinCacheEntry;
 			FSkeletalMeshLODRenderData& LODModel = *DispatchItem.LODModel;
+
+			if (SkinCacheEntriesProcessed.Contains(SkinCacheEntry))
+			{
+				continue;
+			}
+
+			SkinCacheEntriesProcessed.Add(SkinCacheEntry);
 
 			ProcessRayTracingGeometryToUpdate(RHICmdList, SkinCacheEntry, LODModel, DispatchItem.bRequireRecreatingRayTracingGeometry, DispatchItem.bAnySegmentUsesWorldPositionOffset);
 		}
