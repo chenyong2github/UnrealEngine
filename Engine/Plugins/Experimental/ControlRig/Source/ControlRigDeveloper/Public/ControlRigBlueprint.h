@@ -160,13 +160,6 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Influence Map")
 	FRigInfluenceMapPerEvent Influences;
 
-private:
-
-	// need list of "allow query property" to "source" - whether rig unit or property itself
-	// this will allow it to copy data to target
-	UPROPERTY()
-	TMap<FName, FString> AllowSourceAccessProperties;
-
 public:
 	UPROPERTY()
 	FRigHierarchyContainer HierarchyContainer;
