@@ -15,6 +15,7 @@
 #include "HAL/PlatformApplicationMisc.h"
 #include "GenericPlatform/GenericPlatformFile.h"
 #endif
+#include "HAL/FileManager.h"
 #include "MetalProfiler.h"
 #include "GenericPlatform/GenericPlatformDriver.h"
 #include "MetalShaderResources.h"
