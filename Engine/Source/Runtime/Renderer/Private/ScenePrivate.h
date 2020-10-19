@@ -507,6 +507,8 @@ public:
 	/** Texture containing radiance cache probes, ready for sampling with bilinear border. */
 	TRefCountPtr<IPooledRenderTarget> FinalRadianceAtlas;
 
+	TRefCountPtr<IPooledRenderTarget> DepthProbeAtlasTexture;
+
 	TRefCountPtr<FRDGPooledBuffer> ProbeAllocator;
 	TRefCountPtr<FRDGPooledBuffer> ProbeFreeListAllocator;
 	TRefCountPtr<FRDGPooledBuffer> ProbeFreeList;
@@ -517,6 +519,7 @@ public:
 		RadianceProbeIndirectionTexture.SafeRelease();
 		RadianceProbeAtlasTexture.SafeRelease();
 		FinalRadianceAtlas.SafeRelease();
+		DepthProbeAtlasTexture.SafeRelease();
 		ProbeAllocator.SafeRelease();
 		ProbeFreeListAllocator.SafeRelease();
 		ProbeFreeList.SafeRelease();

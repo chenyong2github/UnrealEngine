@@ -29,6 +29,10 @@ FAutoConsoleVariableRef CVarLumenCubeMapTreeMinSize(
 	TEXT("r.LumenScene.CubeMapTreeMinSize"),
 	GLumenCubeMapTreeMinSize,
 	TEXT("Min mesh size to be included in the Lumen cube map tree."),
+	FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* InVariable)
+	{
+		FGlobalComponentRecreateRenderStateContext Context;
+	}),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 

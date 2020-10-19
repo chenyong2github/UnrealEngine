@@ -97,6 +97,7 @@ void FDeferredShadingSceneRenderer::RenderLumenRadianceCacheVisualization(FRDGBu
 	if (GAllowLumenScene
 		&& DoesPlatformSupportLumenGI(ShaderPlatform)
 		&& Views.Num() == 1
+		&& Views[0].ViewState
 		&& LumenRadianceCache::IsEnabled(Views[0])
 		&& GLumenRadianceCacheVisualize != 0)
 	{

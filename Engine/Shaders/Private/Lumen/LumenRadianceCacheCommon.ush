@@ -12,35 +12,38 @@
 
 #define RADIANCE_PROBE_MAX_CLIPMAPS 6
 #define RADIANCE_CACHE_USE_INTERPOLATION 1
-#define RADIANCE_CACHE_USE_HIERARCHY 0
+#define RADIANCE_CACHE_STORE_DEPTHS 0
 #define INVALID_PROBE_INDEX 0xFFFFFFFF
 
 Texture3D<uint> RadianceProbeIndirectionTexture;
 Texture2D<float3> RadianceCacheFinalRadianceAtlas;
 
+#if RADIANCE_CACHE_STORE_DEPTHS
+Texture2D<float> RadianceCacheDepthAtlas;
+#endif
+
 #if LUMEN_HARDWARE_RAYTRACING
-
-// Temporary hack to access SHADER_PARAMETER_ARRAY in RGS
-// Workaround for error "subscripted value is not an array, matrix, or vector" in DXC when SHADER_PARAMETER_ARRAY is used in RGS
-#define RadianceProbeClipmapTMin  RGSRadianceCacheParameters.RadianceProbeClipmapTMin
-#define WorldPositionToRadianceProbeCoordScale RGSRadianceCacheParameters.WorldPositionToRadianceProbeCoordScale
-#define WorldPositionToRadianceProbeCoordBias RGSRadianceCacheParameters.WorldPositionToRadianceProbeCoordBias
-#define RadianceProbeCoordToWorldPositionScale RGSRadianceCacheParameters.RadianceProbeCoordToWorldPositionScale
-#define RadianceProbeCoordToWorldPositionBias RGSRadianceCacheParameters.RadianceProbeCoordToWorldPositionBias
-
+	// Temporary hack to access SHADER_PARAMETER_ARRAY in RGS
+	// Workaround for error "subscripted value is not an array, matrix, or vector" in DXC when SHADER_PARAMETER_ARRAY is used in RGS
+	#define RadianceProbeClipmapTMin  RGSRadianceCacheParameters.RadianceProbeClipmapTMin
+	#define WorldPositionToRadianceProbeCoordScale RGSRadianceCacheParameters.WorldPositionToRadianceProbeCoordScale
+	#define WorldPositionToRadianceProbeCoordBias RGSRadianceCacheParameters.WorldPositionToRadianceProbeCoordBias
+	#define RadianceProbeCoordToWorldPositionScale RGSRadianceCacheParameters.RadianceProbeCoordToWorldPositionScale
+	#define RadianceProbeCoordToWorldPositionBias RGSRadianceCacheParameters.RadianceProbeCoordToWorldPositionBias
 #else
-float RadianceProbeClipmapTMin[RADIANCE_PROBE_MAX_CLIPMAPS];
-float WorldPositionToRadianceProbeCoordScale[RADIANCE_PROBE_MAX_CLIPMAPS];
-float3 WorldPositionToRadianceProbeCoordBias[RADIANCE_PROBE_MAX_CLIPMAPS];
-float RadianceProbeCoordToWorldPositionScale[RADIANCE_PROBE_MAX_CLIPMAPS];
-float3 RadianceProbeCoordToWorldPositionBias[RADIANCE_PROBE_MAX_CLIPMAPS];
+	float RadianceProbeClipmapTMin[RADIANCE_PROBE_MAX_CLIPMAPS];
+	float WorldPositionToRadianceProbeCoordScale[RADIANCE_PROBE_MAX_CLIPMAPS];
+	float3 WorldPositionToRadianceProbeCoordBias[RADIANCE_PROBE_MAX_CLIPMAPS];
+	float RadianceProbeCoordToWorldPositionScale[RADIANCE_PROBE_MAX_CLIPMAPS];
+	float3 RadianceProbeCoordToWorldPositionBias[RADIANCE_PROBE_MAX_CLIPMAPS];
 #endif
 
 float ReprojectionRadiusScale;
 float FinalRadianceAtlasMaxMip;
 
 uint2 ProbeAtlasResolutionInProbes;
-float2 InvRadianceProbeAtlasResolution;
+float2 InvProbeFinalRadianceAtlasResolution;
+float2 InvProbeDepthAtlasResolution;
 
 uint NumRadianceProbeClipmaps;
 uint RadianceProbeClipmapResolution;
@@ -90,8 +93,9 @@ float GetRadianceProbeOcclusionDistanceWithInterpolation(float3 RayOrigin, float
 	if (ClipmapIndex < NumRadianceProbeClipmaps)
 	{
 		bCoveredByRadianceCache = true;
-		// Should technically be diagonal voxel length of trilinear footprint + ProbeTMin
-		return GetRadianceProbeTMin(ClipmapIndex) + RadianceProbeCoordToWorldPositionScale[ClipmapIndex];
+
+		float CellOcclusionDistance = RadianceProbeCoordToWorldPositionScale[ClipmapIndex] * sqrt(3.0f);
+		return GetRadianceProbeTMin(ClipmapIndex) + CellOcclusionDistance;
 	}
 	else
 	{
@@ -102,19 +106,24 @@ float GetRadianceProbeOcclusionDistanceWithInterpolation(float3 RayOrigin, float
 
 float3 SampleRadianceCacheProbe(uint ProbeIndex, float3 WorldSpaceDirection, float MipLevel)
 {
-	uint ClipmapResolution = RadianceProbeClipmapResolution;
-	uint NumClipmaps = NumRadianceProbeClipmaps;
-
-	uint2 ProbeAtlasCoord = FinalProbeResolution * uint2(ProbeIndex % ProbeAtlasResolutionInProbes.x, ProbeIndex / ProbeAtlasResolutionInProbes.x);
 	float2 ProbeUV = DirectionToOctahedralMap(WorldSpaceDirection);
 
+#define VISUALIZE_PROBE_DEPTH 0
+#if VISUALIZE_PROBE_DEPTH && RADIANCE_CACHE_STORE_DEPTHS
+	uint2 ProbeAtlasCoord = RadianceProbeResolution * uint2(ProbeIndex % ProbeAtlasResolutionInProbes.x, ProbeIndex / ProbeAtlasResolutionInProbes.x);
+	float2 ProbeTexelCoord = ProbeUV * RadianceProbeResolution;
+	float2 ProbeAtlasUV = (ProbeAtlasCoord + ProbeTexelCoord) * InvProbeDepthAtlasResolution;
+	return RadianceCacheDepthAtlas.SampleLevel(GlobalPointClampedSampler, ProbeAtlasUV, MipLevel).x / 10000.0f;
+#else
+	uint2 ProbeAtlasCoord = FinalProbeResolution * uint2(ProbeIndex % ProbeAtlasResolutionInProbes.x, ProbeIndex / ProbeAtlasResolutionInProbes.x);
 	float2 ProbeTexelCoord = ProbeUV * RadianceProbeResolution + exp2(FinalRadianceAtlasMaxMip);
-	float2 ProbeAtlasUV = (ProbeAtlasCoord + ProbeTexelCoord) * InvRadianceProbeAtlasResolution;
+	float2 ProbeAtlasUV = (ProbeAtlasCoord + ProbeTexelCoord) * InvProbeFinalRadianceAtlasResolution;
 
 	float3 UnmappedDebugColor = 0.0f;
 	// Show bright green when an unallocated probe is sampled
 	UnmappedDebugColor = float3(0.0f, 10.0f, 0.0f);
 	return ProbeIndex == INVALID_PROBE_INDEX ? UnmappedDebugColor : RadianceCacheFinalRadianceAtlas.SampleLevel(GlobalBilinearClampedSampler, ProbeAtlasUV, MipLevel);
+#endif
 }
 
 uint GetProbeIndexFromIndirectionTexture(uint3 ProbeCoord, uint ClipmapIndex)
@@ -126,10 +135,46 @@ uint GetProbeIndexFromIndirectionTexture(uint3 ProbeCoord, uint ClipmapIndex)
 float3 SampleRadianceCacheProbeWithParallaxCorrection(uint3 ProbeCoord, uint ProbeClipmapIndex, float3 WorldSpacePosition, float3 WorldSpaceDirection, float MipLevel)
 {
 	float3 ProbeWorldPosition = ProbeCoord * RadianceProbeCoordToWorldPositionScale[ProbeClipmapIndex] + RadianceProbeCoordToWorldPositionBias[ProbeClipmapIndex];
-	float ReprojectionRadius = ReprojectionRadiusScale * GetRadianceProbeTMin(ProbeClipmapIndex);
-	float3 IntersectionPosition = WorldSpacePosition + WorldSpaceDirection * RayIntersectSphere(WorldSpacePosition, WorldSpaceDirection, float4(ProbeWorldPosition, ReprojectionRadius)).y;
-	float3 ReprojectedDirection = IntersectionPosition - ProbeWorldPosition;
+	float ProbeTMin = GetRadianceProbeTMin(ProbeClipmapIndex);
 	uint ProbeIndex = GetProbeIndexFromIndirectionTexture(ProbeCoord, ProbeClipmapIndex);
+	float3 ReprojectedDirection = WorldSpaceDirection;
+
+#define SIMPLE_SPHERE_PARALLAX 1
+#define TRACE_THROUGH_PROBE_DEPTHS_REFERENCE 0
+
+#if SIMPLE_SPHERE_PARALLAX
+
+	float ReprojectionRadius = ReprojectionRadiusScale * ProbeTMin;
+	float3 IntersectionPosition = WorldSpacePosition + WorldSpaceDirection * RayIntersectSphere(WorldSpacePosition, WorldSpaceDirection, float4(ProbeWorldPosition, ReprojectionRadius)).y;
+	ReprojectedDirection = IntersectionPosition - ProbeWorldPosition;
+
+#elif TRACE_THROUGH_PROBE_DEPTHS_REFERENCE && RADIANCE_CACHE_STORE_DEPTHS
+	//@note - no depth mips implemented
+	float3 ProbeTraceStart = WorldSpacePosition + WorldSpaceDirection * RayIntersectSphere(WorldSpacePosition, WorldSpaceDirection, float4(ProbeWorldPosition, ProbeTMin)).y;
+	float3 ProbeTraceEnd = ProbeWorldPosition + WorldSpaceDirection * 10000.0f;
+	float3 ProbeTraceDirection = ProbeTraceEnd - ProbeTraceStart;
+	uint2 ProbeAtlasCoord = RadianceProbeResolution * uint2(ProbeIndex % ProbeAtlasResolutionInProbes.x, ProbeIndex / ProbeAtlasResolutionInProbes.x);
+
+	float NumSamples = 100.0f;
+
+	for (float StepIndex = 0; StepIndex < NumSamples; StepIndex++)
+	{
+		float3 StepPosition = ProbeTraceStart + StepIndex / (NumSamples - 1) * ProbeTraceDirection;
+		float3 ProbeToStepPosition = StepPosition - ProbeWorldPosition;
+		float2 ProbeUV = DirectionToOctahedralMap(ProbeToStepPosition);
+		float2 ProbeAtlasUV = (ProbeAtlasCoord + ProbeUV * RadianceProbeResolution) * InvProbeDepthAtlasResolution;
+		float StepHitDistanceFromProbe = RadianceCacheDepthAtlas.SampleLevel(GlobalPointClampedSampler, ProbeAtlasUV, MipLevel).x;
+		float StepRayDistanceFromProbeSq = dot(ProbeToStepPosition, ProbeToStepPosition);
+
+		if (StepHitDistanceFromProbe * StepHitDistanceFromProbe < StepRayDistanceFromProbeSq)
+		{
+			ReprojectedDirection = ProbeToStepPosition;
+			break;
+		}
+	}
+
+#endif
+
 	return SampleRadianceCacheProbe(ProbeIndex, ReprojectedDirection, MipLevel);
 }
 

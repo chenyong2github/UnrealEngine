@@ -370,6 +370,7 @@ void SetupTraceFromProbesCS()
 
 Buffer<float4> ProbeTraceData;
 RWTexture2D<float4> RWRadianceProbeAtlasTexture;
+RWTexture2D<float> RWDepthProbeAtlasTexture;
 
 float StepFactor;
 float VoxelStepFactor;
@@ -430,6 +431,7 @@ void TraceFromProbesCS(
 		TraceResult = (FConeTraceResult)0;
 		TraceResult.Lighting = 0.0;
 		TraceResult.Transparency = 1.0;
+		TraceResult.OpaqueHitDistance = TraceInput.MaxTraceDistance;
 
 		ConeTraceLumenSceneVoxels(TraceInput, TraceResult);
 
@@ -462,8 +464,19 @@ void TraceFromProbesCS(
 		RWRadianceProbeAtlasTexture[AtlasCoord + uint2(1, 0)] = float4(Lighting, 0);
 		RWRadianceProbeAtlasTexture[AtlasCoord + uint2(0, 1)] = float4(Lighting, 0);
 		RWRadianceProbeAtlasTexture[AtlasCoord + uint2(1, 1)] = float4(Lighting, 0);
+
+		#if RADIANCE_CACHE_STORE_DEPTHS
+			RWDepthProbeAtlasTexture[AtlasCoord] = TraceResult.OpaqueHitDistance;
+			RWDepthProbeAtlasTexture[AtlasCoord + uint2(1, 0)] = TraceResult.OpaqueHitDistance;
+			RWDepthProbeAtlasTexture[AtlasCoord + uint2(0, 1)] = TraceResult.OpaqueHitDistance;
+			RWDepthProbeAtlasTexture[AtlasCoord + uint2(1, 1)] = TraceResult.OpaqueHitDistance;
+		#endif
 #else
 		RWRadianceProbeAtlasTexture[ProbeTexelCoord + ProbeAtlasBaseCoord] = float4(Lighting, 0);
+
+		#if RADIANCE_CACHE_STORE_DEPTHS
+			RWDepthProbeAtlasTexture[ProbeTexelCoord + ProbeAtlasBaseCoord] = TraceResult.OpaqueHitDistance;
+		#endif
 #endif
 	}
 }

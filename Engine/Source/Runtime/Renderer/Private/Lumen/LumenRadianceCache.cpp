@@ -70,7 +70,7 @@ FAutoConsoleVariableRef CVarRadianceCacheProbeResolution(
 	ECVF_RenderThreadSafe
 );
 
-int32 GRadianceCacheNumMipmaps = 3;
+int32 GRadianceCacheNumMipmaps = 1;
 FAutoConsoleVariableRef CVarRadianceCacheNumMipmaps(
 	TEXT("r.Lumen.RadianceCache.NumMipmaps"),
 	GRadianceCacheNumMipmaps,
@@ -94,7 +94,7 @@ FAutoConsoleVariableRef CVarRadianceCacheProbeRadiusScale(
 	ECVF_RenderThreadSafe
 );
 
-float GRadianceCacheReprojectionRadiusScale = 10;
+float GRadianceCacheReprojectionRadiusScale = 1.5f;
 FAutoConsoleVariableRef CVarRadianceCacheProbeReprojectionRadiusScale(
 	TEXT("r.Lumen.RadianceCache.ReprojectionRadiusScale"),
 	GRadianceCacheReprojectionRadiusScale,
@@ -204,6 +204,7 @@ namespace LumenRadianceCache
 			const FRadianceCacheState& RadianceCacheState = View.ViewState->RadianceCacheState;
 			OutParameters.RadianceProbeIndirectionTexture = RadianceCacheState.RadianceProbeIndirectionTexture ? GraphBuilder.RegisterExternalTexture(RadianceCacheState.RadianceProbeIndirectionTexture, TEXT("RadianceCacheIndirectionTexture")) : nullptr;
 			OutParameters.RadianceCacheFinalRadianceAtlas = GraphBuilder.RegisterExternalTexture(RadianceCacheState.FinalRadianceAtlas, TEXT("RadianceCacheFinalRadianceAtlas"));
+			OutParameters.RadianceCacheDepthAtlas = GraphBuilder.RegisterExternalTexture(RadianceCacheState.DepthProbeAtlasTexture, TEXT("RadianceCacheDepthAtlas"));
 
 			for (int32 ClipmapIndex = 0; ClipmapIndex < RadianceCacheState.Clipmaps.Num(); ++ClipmapIndex)
 			{
@@ -218,7 +219,8 @@ namespace LumenRadianceCache
 
 			OutParameters.ReprojectionRadiusScale = FMath::Clamp<float>(GRadianceCacheReprojectionRadiusScale, 1.0f, 10000.0f);
 			OutParameters.FinalRadianceAtlasMaxMip = GRadianceCacheNumMipmaps - 1;
-			OutParameters.InvRadianceProbeAtlasResolution = FVector2D(1.0f, 1.0f) / FVector2D(LumenRadianceCache::GetFinalRadianceAtlasTextureSize());
+			OutParameters.InvProbeFinalRadianceAtlasResolution = FVector2D(1.0f, 1.0f) / FVector2D(LumenRadianceCache::GetFinalRadianceAtlasTextureSize());
+			OutParameters.InvProbeDepthAtlasResolution = FVector2D(1.0f, 1.0f) / FVector2D(LumenRadianceCache::GetProbeAtlasTextureSize());
 
 			OutParameters.RadianceProbeClipmapResolution = GetClipmapGridResolution();
 			OutParameters.ProbeAtlasResolutionInProbes = FIntPoint(GRadianceCacheProbeAtlasResolutionInProbes, GRadianceCacheProbeAtlasResolutionInProbes);
@@ -232,6 +234,7 @@ namespace LumenRadianceCache
 		{
 			OutParameters.RadianceProbeIndirectionTexture = GraphBuilder.RegisterExternalTexture(GSystemTextures.VolumetricBlackDummy);
 			OutParameters.RadianceCacheFinalRadianceAtlas = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
+			OutParameters.RadianceCacheDepthAtlas = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
 		}
 	}
 
@@ -649,6 +652,7 @@ class FRadianceCacheTraceFromProbesCS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, RWRadianceProbeAtlasTexture)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, RWDepthProbeAtlasTexture)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenCardTracingParameters, TracingParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenIndirectTracingParameters, IndirectTracingParameters)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float4>, ProbeTraceData)
@@ -851,6 +855,24 @@ void FDeferredShadingSceneRenderer::RenderRadianceCache(
 			RadianceProbeAtlasTexture = GraphBuilder.CreateTexture(ProbeAtlasDesc, TEXT("RadianceProbeAtlasTexture"));
 		}
 
+		FRDGTextureRef DepthProbeAtlasTexture = nullptr;
+
+		if (RadianceCacheState.DepthProbeAtlasTexture.IsValid()
+			&& RadianceCacheState.DepthProbeAtlasTexture->GetDesc().Extent == RadianceProbeAtlasTextureSize)
+		{
+			DepthProbeAtlasTexture = GraphBuilder.RegisterExternalTexture(RadianceCacheState.DepthProbeAtlasTexture);
+		}
+		else
+		{
+			FRDGTextureDesc ProbeAtlasDesc = FRDGTextureDesc::Create2D(
+				RadianceProbeAtlasTextureSize,
+				PF_R16F,
+				FClearValueBinding::None,
+				TexCreate_ShaderResource | TexCreate_UAV);
+
+			DepthProbeAtlasTexture = GraphBuilder.CreateTexture(ProbeAtlasDesc, TEXT("DepthProbeAtlasTexture"));
+		}
+
 		const FIntPoint FinalRadianceAtlasSize = LumenRadianceCache::GetFinalRadianceAtlasTextureSize();
 		FRDGTextureRef FinalRadianceAtlas = nullptr;
 
@@ -877,6 +899,7 @@ void FDeferredShadingSceneRenderer::RenderRadianceCache(
 		
 		RadianceCacheParameters.RadianceProbeIndirectionTexture = nullptr;
 		RadianceCacheParameters.RadianceCacheFinalRadianceAtlas = nullptr;
+		RadianceCacheParameters.RadianceCacheDepthAtlas = nullptr;
 
 		const FIntVector RadianceProbeIndirectionTextureSize = LumenRadianceCache::GetProbeIndirectionTextureSize();
 
@@ -995,7 +1018,8 @@ void FDeferredShadingSceneRenderer::RenderRadianceCache(
 
 		FRDGTextureUAVRef FinalRadianceAtlasUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(FinalRadianceAtlas));
 		FRDGTextureUAVRef RadianceProbeTextureUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(RadianceProbeAtlasTexture));
-
+		FRDGTextureUAVRef DepthProbeTextureUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(DepthProbeAtlasTexture));
+		
 		FRDGBufferRef ProbeAllocator = nullptr;
 
 		if (IsValidRef(RadianceCacheState.ProbeAllocator))
@@ -1098,6 +1122,7 @@ void FDeferredShadingSceneRenderer::RenderRadianceCache(
 				GetLumenCardTracingParameters(View, TracingInputs, PassParameters->TracingParameters);
 				SetupLumenDiffuseTracingParametersForProbe(PassParameters->IndirectTracingParameters, -1.0f);
 				PassParameters->RWRadianceProbeAtlasTexture = RadianceProbeTextureUAV;
+				PassParameters->RWDepthProbeAtlasTexture = DepthProbeTextureUAV;
 				PassParameters->ProbeTraceData = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(ProbeTraceData, PF_A32B32G32R32F));
 				PassParameters->RadianceCacheParameters = RadianceCacheParameters;
 				PassParameters->TraceProbesIndirectArgs = TracePassIndex == 0 ? TraceProbesIndirectArgs : TraceProbesOverbudgetIndirectArgs;
@@ -1184,10 +1209,12 @@ void FDeferredShadingSceneRenderer::RenderRadianceCache(
 		ConvertToExternalBuffer(GraphBuilder, ProbeLastUsedFrame, RadianceCacheState.ProbeLastUsedFrame);
 		ConvertToExternalTexture(GraphBuilder, RadianceProbeIndirectionTexture, RadianceCacheState.RadianceProbeIndirectionTexture);
 		ConvertToExternalTexture(GraphBuilder, RadianceProbeAtlasTexture, RadianceCacheState.RadianceProbeAtlasTexture);
+		ConvertToExternalTexture(GraphBuilder, DepthProbeAtlasTexture, RadianceCacheState.DepthProbeAtlasTexture);
 		ConvertToExternalTexture(GraphBuilder, FinalRadianceAtlas, RadianceCacheState.FinalRadianceAtlas);
 	
 		RadianceCacheParameters.RadianceProbeIndirectionTexture = RadianceProbeIndirectionTexture;
 		RadianceCacheParameters.RadianceCacheFinalRadianceAtlas = FinalRadianceAtlas;
+		RadianceCacheParameters.RadianceCacheDepthAtlas = DepthProbeAtlasTexture;
 	}
 	else // GRadianceCacheUpdate != 0
 	{
