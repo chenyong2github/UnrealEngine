@@ -62,3 +62,22 @@ float EyeAdaptationLookup()
 	return 0.0f;
 #endif
 }
+
+float3 EyeAdaptationInverseLookup(float3 LightValue, float Alpha)
+{
+	float Adaptation = EyeAdaptationLookup();
+
+	// When Alpha=0.0, we want to multiply by 1.0. when Alpha = 1.0, we want to multiply by 1/Adaptation.
+	// So the lerped value is:
+	//     LerpLogScale = Lerp(log(1),log(1/Adaptaiton),T)
+	// Which is simplified as:
+	//     LerpLogScale = Lerp(0,-log(Adaptation),T)
+	//     LerpLogScale = -T * logAdaptation;
+
+	float LerpLogScale = -Alpha * log(Adaptation);
+	float Scale = exp(LerpLogScale);
+	return LightValue * Scale;
+}
+
+
+
