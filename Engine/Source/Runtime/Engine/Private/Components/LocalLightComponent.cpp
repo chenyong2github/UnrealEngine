@@ -166,7 +166,7 @@ void ULocalLightComponent::PushRadiusToRenderThread()
 
 float ULocalLightComponent::GetUnitsConversionFactor(ELightUnits SrcUnits, ELightUnits TargetUnits, float CosHalfConeAngle)
 {
-	FMath::Clamp<float>(CosHalfConeAngle, -1, 1 - KINDA_SMALL_NUMBER);
+	CosHalfConeAngle = FMath::Clamp<float>(CosHalfConeAngle, -1, 1 - KINDA_SMALL_NUMBER);
 
 	if (SrcUnits == TargetUnits)
 	{
