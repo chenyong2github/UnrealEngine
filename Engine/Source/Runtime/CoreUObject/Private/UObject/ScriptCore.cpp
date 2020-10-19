@@ -51,6 +51,14 @@ static FAutoConsoleVariableRef CVarVerboseScriptStats(
 	ECVF_Default
 );
 
+static int32 GShortScriptWarnings = 0;
+static FAutoConsoleVariableRef CVarShortScriptWarnings(
+	TEXT("bp.ShortScriptWarnings"),
+	GShortScriptWarnings,
+	TEXT("Shorten the blueprint exception logs.\n"),
+	ECVF_Default
+);
+
 #if PER_FUNCTION_SCRIPT_STATS
 static int32 GMaxFunctionStatDepth = -1;
 static FAutoConsoleVariableRef CVarMaxFunctionStatDepth(
@@ -173,7 +181,7 @@ void FBlueprintCoreDelegates::ThrowScriptException(const UObject* ActiveObject, 
 	{
 #if DO_BLUEPRINT_GUARD
 		// If nothing is bound, show warnings so something is left in the log.
-		if (bShouldLogWarning && (OnScriptException.IsBound() == false))
+		if (bShouldLogWarning && (OnScriptException.IsBound() == false) && !GShortScriptWarnings)
 		{
 			UE_LOG(LogScript, Warning, TEXT("%s"), *StackFrame.GetStackTrace());
 		}
@@ -565,14 +573,27 @@ void FFrame::Serialize( const TCHAR* V, ELogVerbosity::Type Verbosity, const cla
 	else
 	{
 #if DO_BLUEPRINT_GUARD
-		UE_LOG(LogScript, Warning,
-			TEXT("%s\r\n\t%s\r\n\t%s:%04X%s"),
-			V,
-			*Object->GetFullName(),
-			*Node->GetFullName(),
-			Code - Node->Script.GetData(),
-			ShowKismetScriptStackOnWarnings() ? *(FString(TEXT("\r\n")) + GetStackTrace()) : TEXT("")
-		);
+		if (GShortScriptWarnings)
+		{
+			UE_LOG(LogScript, Warning,
+				TEXT("%s Object(%s)  %s:%04X"),
+				V,
+				*Object->GetName(),
+				*Node->GetName(),
+				Code - Node->Script.GetData()
+			);
+		}
+		else
+		{
+			UE_LOG(LogScript, Warning,
+				TEXT("%s\r\n\t%s\r\n\t%s:%04X%s"),
+				V,
+				*Object->GetFullName(),
+				*Node->GetFullName(),
+				Code - Node->Script.GetData(),
+				ShowKismetScriptStackOnWarnings() ? *(FString(TEXT("\r\n")) + GetStackTrace()) : TEXT("")
+			);
+		}
 #endif
 	}
 }
