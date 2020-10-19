@@ -781,6 +781,12 @@ public:
 };
 
 /**
+* Convert the virtual shader path to an actual file system path.
+* CompileErrors output array is optional.
+*/
+extern RENDERCORE_API FString GetShaderSourceFilePath(const FString& VirtualFilePath, TArray<struct FShaderCompilerError>* CompileErrors = nullptr);
+
+/**
  * Converts an absolute or relative shader filename to a filename relative to
  * the shader directory.
  * @param InFilename - The shader filename.
@@ -853,6 +859,9 @@ extern RENDERCORE_API void ResetAllShaderSourceDirectoryMappings();
  * @param RealShaderDirectory FPlatformProcess::BaseDir() relative path of the directory map.
  */
 extern RENDERCORE_API void AddShaderSourceDirectoryMapping(const FString& VirtualShaderDirectory, const FString& RealShaderDirectory);
+
+extern RENDERCORE_API void AddShaderSourceFileEntry(TArray<FString>& OutVirtualFilePaths, FString VirtualFilePath, EShaderPlatform ShaderPlatform);
+extern RENDERCORE_API void GetAllVirtualShaderSourcePaths(TArray<FString>& OutVirtualFilePaths, EShaderPlatform ShaderPlatform);
 
 /** Validates that the uniform buffer at the requested static slot. */
 extern RENDERCORE_API void ValidateStaticUniformBuffer(FRHIUniformBuffer* UniformBuffer, FUniformBufferStaticSlot Slot, uint32 ExpectedHash);

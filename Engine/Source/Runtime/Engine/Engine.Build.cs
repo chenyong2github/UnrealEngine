@@ -127,14 +127,6 @@ public class Engine : ModuleRules
 
 		DynamicallyLoadedModuleNames.Add("EyeTracker");
 
-		
-		if (Target.bUseXGEController &&
-			Target.Type == TargetType.Editor &&
-			(Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32))
-		{
-			PrivateDependencyModuleNames.Add("XGEController");
-		}
-
 		if (Target.Configuration != UnrealTargetConfiguration.Shipping)
 		{
 			PrivateIncludePathModuleNames.Add("Localization");

@@ -49,6 +49,7 @@
 #include "ProfilingDebugging/DiagnosticTable.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
 #include "ShaderCore.h"
+#include "DistributedBuildInterface/Public/DistributedBuildControllerInterface.h"
 #if WITH_EDITOR
 #include "Rendering/StaticLightingSystemInterface.h"
 #endif
@@ -1909,6 +1910,44 @@ void FShaderCompilerStats::RegisterCompiledShaders(uint32 NumCompiled, EShaderPl
 
 FShaderCompilingManager* GShaderCompilingManager = NULL;
 
+bool FShaderCompilingManager::AllTargetPlatformSupportsRemoteShaderCompiling()
+{
+	ITargetPlatformManagerModule* TPM = GetTargetPlatformManager();	
+	if (!TPM)
+	{
+		return false;
+	}
+	
+	const TArray<ITargetPlatform*>& Platforms = TPM->GetActiveTargetPlatforms();
+	for (int32 Index = 0; Index < Platforms.Num(); Index++)
+	{
+		if (!Platforms[Index]->CanSupportRemoteShaderCompile())
+		{
+			return false;
+		}
+	}
+	
+	return true;
+}
+
+IDistributedBuildController* FShaderCompilingManager::FindRemoteCompilerController() const
+{
+	TArray<FString> AvailableControllers;
+	GConfig->GetArray(TEXT("CompileDistributionControllers"),TEXT("Controllers"),AvailableControllers, GEngineIni);
+
+	for (const FString& Controller : AvailableControllers)
+	{
+		if (IDistributedBuildController* ControllerPtr = FModuleManager::LoadModulePtr<IDistributedBuildController>(*Controller))
+		{
+			if (ControllerPtr->IsSupported())
+			{
+				return ControllerPtr;
+			}
+		}
+	}
+	return nullptr;
+}
+
 FShaderCompilingManager::FShaderCompilingManager() :
 	bCompilingDuringGame(false),
 	NumOutstandingJobs(0),
@@ -1925,6 +1964,11 @@ FShaderCompilingManager::FShaderCompilingManager() :
 {
 	bool bForceUseSCWMemoryPressureLimits = false;
 
+	bIsEngineLoopInitialized = false;
+	FCoreDelegates::OnFEngineLoopInitComplete.AddLambda([&](){ bIsEngineLoopInitialized = true; });
+	
+	BuildDistributionController = nullptr;
+	
 	WorkersBusyTime = 0;
 
 	// Threads must use absolute paths on Windows in case the current directory is changed on another thread!
@@ -2079,31 +2123,19 @@ FShaderCompilingManager::FShaderCompilingManager() :
 	NumShaderCompilingThreadsDuringGame = FMath::Min<int32>(NumShaderCompilingThreadsDuringGame, NumShaderCompilingThreads);
 
 	bool bIsUsingXGEInterface = false;
+
 #if PLATFORM_WINDOWS
-	bool bCanUseXGE = bAllowCompilingThroughWorkers;
-	ITargetPlatformManagerModule* TPM = GetTargetPlatformManager();
-	if (TPM)
+	const bool bCanUseRemoteCompiling = bAllowCompilingThroughWorkers && AllTargetPlatformSupportsRemoteShaderCompiling();
+
+	BuildDistributionController = bCanUseRemoteCompiling ? FindRemoteCompilerController() : nullptr;
+	
+	if (BuildDistributionController)
 	{
-		const TArray<ITargetPlatform*>& Platforms = TPM->GetActiveTargetPlatforms();
-
-		for (int32 Index = 0; Index < Platforms.Num(); Index++)
-		{
-			if (!Platforms[Index]->CanSupportXGEShaderCompile())
-			{
-				bCanUseXGE = false;
-				break;
-			}
-		}
-	}
-
-
-	if (FShaderCompileXGEThreadRunnable_InterceptionInterface::IsSupported() && bCanUseXGE)
-	{
-		UE_LOG(LogShaderCompilers, Display, TEXT("Using XGE Shader Compiler (Interception Interface)."));
-		Thread = MakeUnique<FShaderCompileXGEThreadRunnable_InterceptionInterface>(this);
+		UE_LOG(LogShaderCompilers, Display, TEXT("Using %s for Shader Compilation."), *BuildDistributionController->GetName());
+		Thread = MakeUnique<FShaderCompileDistributedThreadRunnable_Interface>(this, *BuildDistributionController);
 		bIsUsingXGEInterface = true;
 	}
-	else if (FShaderCompileXGEThreadRunnable_XmlInterface::IsSupported() && bCanUseXGE)
+	else if (bCanUseRemoteCompiling && FShaderCompileXGEThreadRunnable_XmlInterface::IsSupported())
 	{
 		UE_LOG(LogShaderCompilers, Display, TEXT("Using XGE Shader Compiler (XML Interface)."));
 		Thread = MakeUnique<FShaderCompileXGEThreadRunnable_XmlInterface>(this);
@@ -2366,8 +2398,18 @@ void FShaderCompilingManager::BlockOnShaderMapCompletion(const TArray<int32>& Sh
 
 			if (NumPendingJobs > 0)
 			{
+				const float SleepTime =.01f;
+				
+				// if the engine loop is not initialized, we need to manually tick the Distributed build controller
+				// otherwise we can get stuck in a infinite loop waiting for jobs that never will be done
+				// because for example, some controllers depend on the HTTP module which needs to be ticked in the main thread
+				if (!bIsEngineLoopInitialized && BuildDistributionController)
+				{
+					BuildDistributionController->Tick(SleepTime);
+				}
+				
 				// Yield CPU time while waiting
-				FPlatformProcess::Sleep(.01f);
+				FPlatformProcess::Sleep(SleepTime);
 
 				// Flush threaded logs around every 500ms or so based on Sleep of 0.01f seconds above
 				if (++LogCounter > 50)
@@ -2439,8 +2481,18 @@ void FShaderCompilingManager::BlockOnAllShaderMapCompletion(TMap<int32, FShaderM
 
 			if (NumPendingJobs > 0)
 			{
+				const float SleepTime =.01f;
+				
+				// if the engine loop is not initialized, we need to manually tick the Distributed build controller
+				// otherwise we can get stuck in a infinite loop waiting for jobs that never will be done
+				// because for example, some controllers depend on the HTTP module which needs to be ticked in the main thread
+				if (!bIsEngineLoopInitialized && BuildDistributionController)
+				{
+					BuildDistributionController->Tick(SleepTime);
+				}
+				
 				// Yield CPU time while waiting
-				FPlatformProcess::Sleep(.01f);
+				FPlatformProcess::Sleep(SleepTime);
 			}
 		} 
 		while (NumPendingJobs > 0);
@@ -3117,6 +3169,15 @@ void FShaderCompilingManager::ProcessAsyncResults(bool bLimitExecutionTime, bool
 		{
 			const double StartTime = FPlatformTime::Seconds();
 
+			// Some controllers need to be manually ticked if the engine loop it is not initialized
+			// to do things like tick the HTTPModule.
+			// Otherwise the results from the controller will never be processed.
+			// We check for bBlockOnGlobalShaderCompletion because the BlockOnShaderMapCompletion methods already do this.
+			if (!bBlockOnGlobalShaderCompletion && !bIsEngineLoopInitialized && BuildDistributionController)
+			{
+				BuildDistributionController->Tick(0.0f);
+			}
+			
 			// Block on global shaders before checking for shader maps to finalize
 			// So if we block on global shaders for a long time, we will get a chance to finalize all the non-global shader maps completed during that time.
 			if (bBlockOnGlobalShaderCompletion)
