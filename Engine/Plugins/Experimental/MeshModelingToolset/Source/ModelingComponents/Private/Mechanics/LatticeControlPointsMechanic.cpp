@@ -83,7 +83,6 @@ void ULatticeControlPointsMechanic::Setup(UInteractiveTool* ParentToolIn)
 	PointTransformProxy = NewObject<UTransformProxy>(this);
 	
 	// TODO: Maybe don't have the gizmo's axes flip around when it crosses the origin, if possible?
-	// TODO: Enable local vs world gizmo switching (UETOOL-2356)
 	PointTransformGizmo = GizmoManager->CreateCustomTransformGizmo(
 		ETransformGizmoSubElements::FullTranslateRotateScale, this);
 
@@ -240,34 +239,6 @@ void ULatticeControlPointsMechanic::UpdateDrawables()
 		const FVector3d& B = ControlPoints[LatticeEdges[EdgeIndex].Y];
 		DrawnLatticeEdges->SetLineStart(EdgeIndex, FVector(A));
 		DrawnLatticeEdges->SetLineEnd(EdgeIndex, FVector(B));
-	}
-}
-
-
-void ULatticeControlPointsMechanic::UpdateDrawablesForPoint(int32 PointIndex)
-{
-	const FVector3d& P = ControlPoints[PointIndex];
-	GeometrySet.UpdatePoint(PointIndex, P);
-
-	DrawnControlPoints->SetPointPosition(PointIndex, static_cast<FVector>(P));
-	DrawnControlPoints->SetPointColor(PointIndex, NormalPointColor);
-
-	if (DrawnControlPoints->IsPointValid(PointIndex))
-	{
-		DrawnControlPoints->SetPointColor(PointIndex, SelectedColor);
-	}
-
-	// TODO: Accelerate this somehow. Don't want to search over the entire set of edges any time one point changes.
-	for (int32 EdgeIndex = 0; EdgeIndex < LatticeEdges.Num(); ++EdgeIndex)		
-	{
-		if (LatticeEdges[EdgeIndex].X == PointIndex)
-		{
-			DrawnLatticeEdges->SetLineStart(EdgeIndex, static_cast<FVector>(P));
-		}
-		else if (LatticeEdges[EdgeIndex].Y == PointIndex)
-		{
-			DrawnLatticeEdges->SetLineEnd(EdgeIndex, static_cast<FVector>(P));
-		}
 	}
 }
 
@@ -498,7 +469,7 @@ bool ULatticeControlPointsMechanic::DeselectPoint(int32 PointID)
 {
 	bool PointFound = false;
 	int32 IndexInSelection;
-	// TODO: This might be slow if we have a lot of selected points (UETOOL-2357)
+	
 	if (SelectedPointIDs.Find(PointID, IndexInSelection))
 	{
 		SelectedPointIDs.RemoveAt(IndexInSelection);

@@ -169,7 +169,6 @@ protected:
 
 	void RebuildDrawables();
 	void UpdateDrawables();
-	void UpdateDrawablesForPoint(int32 PointIndex);
 
 	// Used for expiring undo/redo changes, which compare this to their stored value and expire themselves if they do not match.
 	int32 CurrentChangeStamp = 0;
