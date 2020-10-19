@@ -8,51 +8,41 @@
 #include "Engine/Texture2D.h"
 #include "WaterRuntimeSettings.h"
 
-FWaterIconHelper::FWaterIconHelper(const TCHAR* IconTextureName)
-: Texture(IconTextureName)
-, ID_CategoryName(TEXT("Water"))
-, NAME_DisplayName(NSLOCTEXT("Water", "WaterSpriteName", "Water"))
+UBillboardComponent* FWaterIconHelper::EnsureSpriteComponentCreated(AActor* Actor, const TCHAR* InIconTextureName, const FText& InDisplayName)
 {
-}
-
-UTexture2D* FWaterIconHelper::GetTexture()
-{
-	return Texture.Get();
-}
-
-void FWaterIconHelper::UpdateSpriteTexture(AActor* Actor, UTexture2D* InTexture)
-{
-	if (InTexture)
+	UBillboardComponent* ActorIcon = Cast<UBillboardComponent>(Actor->GetComponentByClass(UBillboardComponent::StaticClass()));
+	if (ActorIcon == nullptr)
 	{
-		if (UBillboardComponent* ActorIcon = Cast<UBillboardComponent>(Actor->GetComponentByClass(UBillboardComponent::StaticClass())))
+		ActorIcon = Actor->CreateEditorOnlyDefaultSubobject<UBillboardComponent>(TEXT("Sprite"), true);
+	}
+
+	ConstructorHelpers::FObjectFinderOptional<UTexture2D> Texture(InIconTextureName);
+	ActorIcon->Sprite = Texture.Get();
+	ActorIcon->bHiddenInGame = true;
+	ActorIcon->SpriteInfo.Category = TEXT("Water");
+	ActorIcon->SpriteInfo.DisplayName = InDisplayName;
+	ActorIcon->SetupAttachment(Actor->GetRootComponent());
+	UpdateSpriteComponent(Actor, ActorIcon->Sprite);
+	return ActorIcon;
+}
+
+void FWaterIconHelper::UpdateSpriteComponent(AActor* Actor, UTexture2D* InTexture)
+{
+	if (UBillboardComponent* ActorIcon = Cast<UBillboardComponent>(Actor->GetComponentByClass(UBillboardComponent::StaticClass())))
+	{
+		float TargetSize = GetDefault<UWaterRuntimeSettings>()->WaterBodyIconWorldSize;
+		FVector ZOffset(0.0f, 0.0f, GetDefault<UWaterRuntimeSettings>()->WaterBodyIconWorldZOffset);
+		if (InTexture != nullptr)
 		{
-			float TargetSize = GetDefault<UWaterRuntimeSettings>()->WaterBodyIconWorldSize;
-			FVector ZOffset(0.0f, 0.0f, GetDefault<UWaterRuntimeSettings>()->WaterBodyIconWorldZOffset);
 			int32 TextureSize = FMath::Max(InTexture->GetSizeX(), InTexture->GetSizeY());
 			float Scale = (float)TargetSize / TextureSize;
-			ActorIcon->Sprite = InTexture;
-			ActorIcon->SetRelativeLocation(ZOffset);
 			ActorIcon->SetRelativeScale3D(FVector(Scale));
-			ActorIcon->bIsScreenSizeScaled = true;
-			ActorIcon->MarkRenderStateDirty();
-			FAttachmentTransformRules AttachmentRules(EAttachmentRule::KeepRelative, false);
-			ActorIcon->ConvertAttachLocation(EAttachLocation::KeepRelativeOffset, AttachmentRules.LocationRule, AttachmentRules.RotationRule, AttachmentRules.ScaleRule);
-			ActorIcon->AttachToComponent(Actor->GetRootComponent(), AttachmentRules);
 		}
+		ActorIcon->Sprite = InTexture;
+		ActorIcon->SetRelativeLocation(ZOffset);
+		ActorIcon->bIsScreenSizeScaled = true;
+		ActorIcon->MarkRenderStateDirty();
 	}
-}
-
-UBillboardComponent* FWaterIconHelper::CreateSprite(AActor* Actor, UTexture2D* InTexture, const FName& InCategoryName, const FText& InDisplayName)
-{
-	UBillboardComponent* ActorIcon = Actor->CreateEditorOnlyDefaultSubobject<UBillboardComponent>(TEXT("Sprite"));
-	if (ActorIcon)
-	{
-		ActorIcon->bHiddenInGame = true;
-		ActorIcon->SpriteInfo.Category = InCategoryName;
-		ActorIcon->SpriteInfo.DisplayName = InDisplayName;
-		FWaterIconHelper::UpdateSpriteTexture(Actor, InTexture);
-	}
-	return ActorIcon;
 }
 
 #endif

@@ -33,14 +33,11 @@ AWaterBodyIsland::AWaterBodyIsland(const FObjectInitializer& ObjectInitializer)
 	{
 		SplineComp->OnSplineDataChanged().AddUObject(this, &AWaterBodyIsland::OnSplineDataChanged);
 	}
+
+	ActorIcon = FWaterIconHelper::EnsureSpriteComponentCreated(this, TEXT("/Water/Icons/WaterBodyIslandSprite"), NSLOCTEXT("Water", "WaterBodyIslandSpriteName", "Water Body Island"));
 #endif
 
 	RootComponent = SplineComp;
-	
-#if WITH_EDITORONLY_DATA
-	static FWaterIconHelper IconHelper(TEXT("/Water/Icons/WaterBodyIslandSprite"));
-	ActorIcon = FWaterIconHelper::CreateSprite(this, IconHelper.GetTexture(), IconHelper.GetCategoryName(), IconHelper.GetDisplayName());
-#endif
 }
 
 #if WITH_EDITOR
@@ -177,7 +174,7 @@ void AWaterBodyIsland::UpdateActorIcon()
 {
 	if (ActorIcon && SplineComp)
 	{
-		FWaterIconHelper::UpdateSpriteTexture(this, ActorIcon->Sprite);
+		FWaterIconHelper::UpdateSpriteComponent(this, ActorIcon->Sprite);
 
 		// Move the actor icon to the center of the island
 		FVector ZOffset(0.0f, 0.0f, GetDefault<UWaterRuntimeSettings>()->WaterBodyIconWorldZOffset);

@@ -97,17 +97,14 @@ AWaterBody::AWaterBody(const FObjectInitializer& ObjectInitializer)
 	{
 		SplineComp->OnSplineDataChanged().AddUObject(this, &AWaterBody::OnSplineDataChanged);
 	}
+
+	ActorIcon = FWaterIconHelper::EnsureSpriteComponentCreated(this, TEXT("/Water/Icons/WaterSprite"), NSLOCTEXT("Water", "WaterBodySpriteName", "Water Body"));
 #endif
 
 	RootComponent = SplineComp;
 
 	bCanAffectNavigation = false;
 	bFillCollisionUnderWaterBodiesForNavmesh = false;
-
-#if WITH_EDITORONLY_DATA
-	static FWaterIconHelper IconHelper(TEXT("/Water/Icons/WaterSprite"));
-	ActorIcon = FWaterIconHelper::CreateSprite(this, IconHelper.GetTexture(), IconHelper.GetCategoryName(), IconHelper.GetDisplayName());
-#endif
 }
 
 bool AWaterBody::IsFlatSurface() const
@@ -891,7 +888,7 @@ void AWaterBody::UpdateActorIcon()
 		// Actor icon gets in the way of meshes
 		ActorIcon->SetVisibility(IsIconVisible());
 
-		FWaterIconHelper::UpdateSpriteTexture(this, ActorIcon->Sprite);
+		FWaterIconHelper::UpdateSpriteComponent(this, ActorIcon->Sprite);
 
 		if (GetWaterBodyType() == EWaterBodyType::Lake && SplineComp)
 		{
@@ -1195,11 +1192,6 @@ void AWaterBody::PostLoad()
 	}
 
 #if WITH_EDITOR
-	if (UBillboardComponent* Icon = GetClass()->GetDefaultObject<AWaterBody>()->ActorIcon)
-	{
-		FWaterIconHelper::UpdateSpriteTexture(this, Icon->Sprite);
-	}
-
 	RegisterOnUpdateWavesData(WaterWaves, /* bRegister = */true);
 #endif
 }
