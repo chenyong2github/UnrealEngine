@@ -590,7 +590,7 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 		TraversalSettings.CountThreshold	= GetOpaqueVoxelValue();
 		TraversalSettings.DistanceThreshold = DistanceThreshold;
 		TraversalSettings.bDebugEnabled		= bDebugEnabled;
-		TraversalSettings.SteppingScale		= VirtualVoxel.SteppingScale;
+		TraversalSettings.SteppingScale		= VirtualVoxel.SteppingScale_Shadow;
 		TraversalSettings.Random			= SampleRandom;
 		TraversalSettings.TanConeAngle		= 0;
 		TraversalSettings.bIsPrimaryRay		= true;

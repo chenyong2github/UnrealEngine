@@ -8,10 +8,11 @@
 	#error HAIR_COMPONENT_GS is not defined, please include ShadingCommon.ush
 #endif
 
-float Hair_g2(float B,float Theta)
+float Hair_g2(float Variance,float Theta)
 {
-	// Unnormalized Gaussian to get more uniform look accross roughness range
-	return exp(-0.5 * Pow2(Theta) / (B * B));
+	//const float A = 1.f / sqrt(2 * PI * Variance);
+	const float A = 1.f;
+	return A * exp(-0.5 * Pow2(Theta) / Variance);
 }
 
 // Dual scattering computation are done here for faster iteration (i.e., does not invalidate tons of shaders)
@@ -27,7 +28,7 @@ FHairTransmittanceData ComputeDualScatteringTerms(
 {
 	const float SinThetaL = clamp(dot(T, L), -1, 1);
 	const float SinThetaV = clamp(dot(T, V), -1, 1);
-
+	const float CosThetaL = sqrt(1 - SinThetaL * SinThetaL);
 	const float MaxAverageScatteringValue = 0.99f;
 
 	// Straight implementation of the dual scattering paper 
@@ -41,8 +42,10 @@ FHairTransmittanceData ComputeDualScatteringTerms(
 	const float3 A3 = ab * ab2 * af2 / (OneMinusAf2*Pow2(OneMinusAf2));
 	const float3 Ab = A1 + A3;
 
-	// Add a min roughness for dual scattering based on adhoc value. This reduce scattering noise
-	Roughness = max(Roughness, 0.20f);
+	// Add a min/max roughness for dual scattering based. This is a bit adhoc, but 
+	// * Min/lower bound helps with BSDF being too narrow and causing some fireflies, 
+	// * Max/upper bound helps against "too-flat" look due to dual scattering assuming directional lobe (vs. more radially uniform)
+	Roughness = clamp(Roughness, 0.18f, 0.6f);
 	const float Beta_R	 = Pow2( Roughness );
 	const float Beta_TT	 = Pow2( Roughness / 2 ); 
 	const float Beta_TRT = Pow2( Roughness * 2 ); 
@@ -59,42 +62,36 @@ FHairTransmittanceData ComputeDualScatteringTerms(
 	// This is a coarse approximation of eq. 13. Normally, Beta_f should be weighted by the 'normalized' 
 	// R, TT, and TRT terms 
 	const float3 af_weights = af / (af.r + af.g + af.b);
-    const float3 Beta_f  = dot(float3(Beta_R, Beta_TT, Beta_TRT), af_weights);
+	const float3 Beta_f  = dot(float3(Beta_R, Beta_TT, Beta_TRT), af_weights);
 	const float3 Beta_f2 = Beta_f*Beta_f;
-	const float3 sigma_f = Beta_f * max(1, TransmittanceMask.HairCount);
+	const float3 sigma_f2 = Beta_f2 * max(1, TransmittanceMask.HairCount);
 
-    const float Theta_h = (asin(SinThetaL) + asin(SinThetaV)) * 0.5f;
+	const float Theta_d = asin(SinThetaL) + asin(SinThetaV);
+	const float Theta_h = Theta_d * 0.5f;
 
 	// Global scattering spread 'Sf'
-	// It is unclear if this is correct to use a normalized Gaussian as in the original paper, as with an increase 
-	// number of hair count the Gaussian will become more and more spread, and have less and less contribution. 
-	// This is correct from an energy point of view, as long as the scattering is integrated over multiple scattering 
-	// event, which is not our case here.
-	// This is why there is a non-normalized Gaussian version in case this does not fly properly with regular 
-	// normalized Gaussian
-	// const float3 Sf = 1;
-	// const float3 Sf = Hair_g_unnormalized(sigma_f, Theta_h) / PI; 
-    float3 Sf = float3(	Hair_g2(Pow2(sigma_f.r), Theta_h), 
-						Hair_g2(Pow2(sigma_f.g), Theta_h), 
-						Hair_g2(Pow2(sigma_f.b), Theta_h)) / PI;
+	float3 Sf = float3(	Hair_g2(sigma_f2.r, Theta_h), 
+						Hair_g2(sigma_f2.g, Theta_h), 
+						Hair_g2(sigma_f2.b, Theta_h)) / PI;
 	const float3 Tf = TransmittanceMask.Transmittance;
 
 	// Overall shift due to the various local scatteing event (all shift & roughnesss should vary with color)
-	//const float3 shift_f = 0.33f * (Shift_R + Shift_TT + Shift_TRT);
-    const float3 shift_f = dot(float3(Shift_R, Shift_TT, Shift_TRT), af_weights);
+	const float3 shift_f = dot(float3(Shift_R, Shift_TT, Shift_TRT), af_weights);
 	const float3 shift_b = shift_f;
-    const float3 delta_b = 0; //shift_b * (1 - 2*ab2 / Pow2(1 - af2)) * shift_f * (2 * Pow2(1 - af2) + 4*af2*ab2)/Pow3(1-af2);
+	const float3 delta_b = shift_b * (1 - 2*ab2 / Pow2(1 - af2)) * shift_f * (2 * Pow2(1 - af2) + 4*af2*ab2)/Pow3(1-af2);
 
 	const float3 ab_weights = ab / (ab.r + ab.g + ab.b);
 	const float3 Beta_b  = dot(float3(Beta_R, Beta_TT, Beta_TRT), ab_weights);
-	const float3 Beta_b2 = Beta_f2;
+	const float3 Beta_b2 = Beta_b * Beta_b;
 
-    const float3 sigma_b = (1 + db*af2) * (ab*sqrt(2*Beta_f2 + Beta_b2) + ab*ab2*sqrt(2*Beta_f2 + Beta_b2)) / (ab + ab*ab2*(2*Beta_f + 3*Beta_b));
+	const float3 sigma_b = (1 + db*af2) * (ab*sqrt(2*Beta_f2 + Beta_b2) + ab*ab2*sqrt(2*Beta_f2 + Beta_b2)) / (ab + ab*ab2*(2*Beta_f + 3*Beta_b));
+	const float3 sigma_b2 = sigma_b * sigma_b;
 
 	// Local scattering Spread 'Sb'
-    float3 Sb = float3(	Hair_g2(Pow2(sigma_b.r), Theta_h - delta_b.r),
-						Hair_g2(Pow2(sigma_b.g), Theta_h - delta_b.g),
-						Hair_g2(Pow2(sigma_b.b), Theta_h - delta_b.b))  / PI;
+	// In Efficient Implementation of the Dual Scattering Model, the variance for back scattering is the sum of the front & back variances
+	float3 Sb = float3(	Hair_g2(sigma_f2.r + sigma_b2.r, Theta_h - delta_b.r),
+						Hair_g2(sigma_f2.g + sigma_b2.g, Theta_h - delta_b.g),
+						Hair_g2(sigma_f2.b + sigma_b2.b, Theta_h - delta_b.b)) / PI;
 
 
 	// Different variant for managing sefl-occlusion issue for global scattering

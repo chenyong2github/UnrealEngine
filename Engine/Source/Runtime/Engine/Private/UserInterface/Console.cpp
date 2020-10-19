@@ -182,6 +182,8 @@ void UConsole::InvalidateAutocomplete()
 
 void UConsole::BuildRuntimeAutoCompleteList(bool bForce)
 {
+	LLM_SCOPE(ELLMTag::EngineMisc);
+
 #if ALLOW_CONSOLE
 	if (!bForce)
 	{

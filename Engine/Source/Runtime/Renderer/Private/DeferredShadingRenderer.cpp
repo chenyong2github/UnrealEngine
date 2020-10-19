@@ -2086,6 +2086,20 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		SceneContext.ScreenSpaceGTAOHorizons.SafeRelease();
 		AddServiceLocalQueuePass(GraphBuilder);
 	}
+	// Hair base pass for deferred shading
+	if (bHairEnable && !IsForwardShadingEnabled(ShaderPlatform))
+	{
+		check(HairDatas);
+		RenderHairBasePass(GraphBuilder, Scene,  SceneContext, Views, HairDatasStorage);
+
+		const FSceneTextureParameters SceneTextureParameters = GetSceneTextureParameters(GraphBuilder, SceneTextures);
+		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+		{
+			FViewInfo& View = Views[ViewIndex];
+			RDG_EVENT_SCOPE(GraphBuilder, "BuildHZB_HairUpdate(ViewId=%d)", ViewIndex);
+			BuildHZB(GraphBuilder, SceneTextureParameters, Views[ViewIndex]);
+		}
+	}
 
 	// Rebuild scene textures to include velocity, custom depth, and SSAO.
 	SceneTexturesSetupMode |= ESceneTextureSetupMode::All;
@@ -2097,12 +2111,6 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		AddClearStencilPass(GraphBuilder, SceneDepthTexture.Target);
 	}
 
-	// Hair base pass for deferred shading
-	if (bHairEnable && !IsForwardShadingEnabled(ShaderPlatform))
-	{
-		check(HairDatas);
-		RenderHairBasePass(GraphBuilder, Scene, SceneContext, Views, HairDatasStorage);
-	}
 
 	if (bRenderDeferredLighting)
 	{
@@ -2193,7 +2201,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 		if (HairDatas)
 		{
-			RenderHairStrandsSceneColorScattering(GraphBuilder, SceneColorTexture.Target, Views, HairDatas);
+			RenderHairStrandsSceneColorScattering(GraphBuilder, SceneColorTexture.Target, Scene, Views, HairDatas);
 		}
 #if RHI_RAYTRACING
 		if (SkyLightTexture)

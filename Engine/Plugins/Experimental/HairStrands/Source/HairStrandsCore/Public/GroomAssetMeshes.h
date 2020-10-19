@@ -41,6 +41,11 @@ struct HAIRSTRANDSCORE_API FHairGroupsMeshesSourceDescription
 	UPROPERTY(EditAnywhere, Category = "MeshesSource")
 	int32 LODIndex = -1;
 
+	UPROPERTY(Transient)
+	FString ImportedMeshKey;
+
 	bool operator==(const FHairGroupsMeshesSourceDescription& A) const;
 
+	bool HasMeshChanged() const;
+	void UpdateMeshKey();
 };

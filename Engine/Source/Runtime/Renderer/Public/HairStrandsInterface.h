@@ -132,6 +132,9 @@ public:
 	void SupportVoxelization(bool InVoxelize) { bSupportVoxelization = InVoxelize; }
 	bool DoesSupportVoxelization() const { return bSupportVoxelization; }
 
+	void SetLODGeometryTypes(const TArray<EHairGeometryType>& InTypes) { LODGeometryTypes = InTypes; }
+	const TArray<EHairGeometryType>& GetLODGeometryTypes() const { return LODGeometryTypes; }
+
 	void SetLODVisibilities(const TArray<bool>& InLODVisibility) { LODVisibilities = InLODVisibility; }
 	const TArray<bool>& GetLODVisibilities() const { return LODVisibilities; }
 
@@ -210,6 +213,7 @@ public:
 	   bounding box, which might not be as accurate as the GPU ones*/
 	TArray<bool> LODVisibilities;
 	TArray<float> LODScreenSizes;
+	TArray<EHairGeometryType> LODGeometryTypes;
 
 	// Data change every frame by the groom proxy based on views data
 	float LODIndex = 0;			// Current LOD used for all views
@@ -292,6 +296,12 @@ RENDERER_API bool IsHairRayTracingEnabled();
 // Return true if the hair should be rendered using the sub-pixel lighting path, false if the regular gbuffer lighting path should be used
 RENDERER_API bool IsHairStrandsComplexLightingEnabled();
 
+// Return true if hair simulation is enabled.
+RENDERER_API bool IsHairStrandsSimulationEnable();
+
+// Return true if hair binding is enabled (i.e., hair can be attached to skeletal mesh)
+RENDERER_API bool IsHairStrandsBindingEnable();
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 typedef TArray<FRHIUnorderedAccessView*> FBufferTransitionQueue;
@@ -312,6 +322,7 @@ RENDERER_API void SetHairScreenLODInfo(bool bEnable);
 enum class EHairStrandsBookmark : uint8
 {
 	ProcessTasks,
+	ProcessLODSelection,
 	ProcessGuideInterpolation,
 	ProcessGatherCluster,
 	ProcessStrandsInterpolation,
@@ -326,7 +337,8 @@ struct FHairStrandsBookmarkParameters
 	class FGlobalShaderMap* ShaderMap = nullptr;
 
 	FIntRect ViewRect; // View 0
-	FSceneView* View = nullptr;// // View 0
+	const FSceneView* View = nullptr;// // View 0
+	TArray<const FSceneView*> AllViews;
 	TRefCountPtr<IPooledRenderTarget> SceneColorTexture = nullptr;
 
 	bool bHzbRequest = false;

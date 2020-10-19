@@ -18,3 +18,27 @@ bool FHairGroupsMeshesSourceDescription::operator==(const FHairGroupsMeshesSourc
 		MaterialSlotName == A.MaterialSlotName &&
 		ImportedMesh == A.ImportedMesh;
 }
+
+
+bool FHairGroupsMeshesSourceDescription::HasMeshChanged() const
+{
+#if WITH_EDITORONLY_DATA
+	if (ImportedMesh)
+	{
+		ImportedMesh->ConditionalPostLoad();
+		return ImportedMeshKey == ImportedMesh->RenderData->DerivedDataKey;
+	}
+#endif
+	return false;
+}
+
+void FHairGroupsMeshesSourceDescription::UpdateMeshKey()
+{
+#if WITH_EDITORONLY_DATA
+	if (ImportedMesh)
+	{
+		ImportedMesh->ConditionalPostLoad();
+		ImportedMeshKey = ImportedMesh->RenderData->DerivedDataKey;
+	}
+#endif
+}
