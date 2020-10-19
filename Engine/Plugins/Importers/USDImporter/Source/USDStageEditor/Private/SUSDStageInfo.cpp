@@ -28,11 +28,7 @@ void SUsdStageInfo::Construct( const FArguments& InArgs, AUsdStageActor* InUsdSt
 
 	if ( InUsdStageActor )
 	{
-		// Just adapt the event signature as we don't use the ChangedFields yet
-		InUsdStageActor->GetUsdListener().GetOnStageInfoChanged().AddLambda( [ this, InUsdStageActor ]( const TArray<FString>& ChangedFields )
-		{
-			this->RefreshStageInfos( InUsdStageActor );
-		});
+		InUsdStageActor->GetUsdListener().GetOnStageInfoChanged().AddSP(this, &SUsdStageInfo::OnStageInfoChanged );
 	}
 
 	ChildSlot
@@ -119,6 +115,14 @@ FText SUsdStageInfo::GetMetersPerUnit() const
 	else
 	{
 		return FText();
+	}
+}
+
+void SUsdStageInfo::OnStageInfoChanged( const TArray<FString>& ChangedFields )
+{
+	if ( AUsdStageActor* StageActor = UsdStageActor.Get() )
+	{
+		RefreshStageInfos( StageActor );
 	}
 }
 
