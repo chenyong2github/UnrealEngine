@@ -1472,7 +1472,7 @@ void FPixelShaderInOut_MainPS(
 	OpaqueBasePass.Strata.MaterialLobesTextureUAV[uint2(In.SvPosition.xy)] = Strata.LayerCount; // Could store a bit pack of layer count, BSDF type masks for tiling, etc.
 
 	uint2 PixelPos = In.SvPosition.xy;
-	uint PixelStrataDataByteOffset = (PixelPos.y * ResolvedView.BufferSizeAndInvSize.x + PixelPos.x) * OpaqueBasePass.Strata.MaxBytesPerPixel;
+	uint PixelStrataDataByteOffset = GetStrataPixelDataByteOffset(PixelPos, ResolvedView.BufferSizeAndInvSize.x, OpaqueBasePass.Strata.MaxBytesPerPixel);
 
 	PackStrataOut(OpaqueBasePass.Strata.MaterialLobesBufferUAV, PixelStrataDataByteOffset, Strata, MaterialParameters.WorldNormal, MaterialParameters.CameraVector);
 #endif // STRATA_OPAQUE_ENABLED

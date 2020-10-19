@@ -209,7 +209,7 @@ void DeferredLightPixelMain(
 
 			if (LightMask > 0)
 			{
-				uint PixelStrataDataByteOffset = (PixelPos.y * View.BufferSizeAndInvSize.x + PixelPos.x) * Strata.MaxBytesPerPixel;
+				uint PixelStrataDataByteOffset = GetStrataPixelDataByteOffset(PixelPos, View.BufferSizeAndInvSize.x, Strata.MaxBytesPerPixel);
 				FStrataPixelBSDFs PixelBSDFs = UnpackStrataIn(Strata.MaterialLobesBuffer, PixelStrataDataByteOffset);
 
 				FShadowTerms ShadowTerms = { ScreenSpaceData.AmbientOcclusion, 1.0, 1.0, InitHairTransmittanceData() };
