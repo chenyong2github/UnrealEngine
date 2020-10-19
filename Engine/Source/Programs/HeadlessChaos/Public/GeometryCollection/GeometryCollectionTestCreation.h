@@ -12,6 +12,9 @@ namespace GeometryCollectionTest
 	void  Creation();
 
 	template<class T>
+	void  Empty();
+
+	template<class T>
 	void  AppendTransformHierarchy();
 
 	template<class T>
