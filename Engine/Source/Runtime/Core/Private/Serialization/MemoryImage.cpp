@@ -69,7 +69,8 @@ void FPlatformTypeLayoutParameters::InitializeForCurrent()
 	check(GetRawPointerSize() == sizeof(void*));
 	check(GetMemoryImagePointerSize() == sizeof(FMemoryImagePtrInt));
 
-#if defined(__clang__)
+	// clang for Windows matches the MSVC ABI
+#if defined(__clang__) && !defined(PLATFORM_WINDOWS)
 	InitializeForClang();
 #else
 	InitializeForMSVC();
