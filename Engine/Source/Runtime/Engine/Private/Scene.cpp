@@ -451,13 +451,6 @@ FPostProcessSettings::FPostProcessSettings()
 	BloomDirtMaskTint = FLinearColor(0.5f, 0.5f, 0.5f);
 	AmbientCubemapIntensity = 1.0f;
 	AmbientCubemapTint = FLinearColor(1, 1, 1);
-	LPVIntensity = 1.0f;
-	LPVSize = 5312.0f;
-	LPVSecondaryOcclusionIntensity = 0.0f;
-	LPVSecondaryBounceIntensity = 0.0f;
-	LPVVplInjectionBias = 0.64f;
-	LPVGeometryVolumeBias = 0.384f;
-	LPVEmissiveInjectionIntensity = 1.0f;
 	CameraShutterSpeed = 60.f;
 	CameraISO = 100.f;
 	AutoExposureCalibrationConstant_DEPRECATED = 16.f;
@@ -492,15 +485,6 @@ FPostProcessSettings::FPostProcessSettings()
 	AutoExposureSpeedDown = 1.0f;
 
 	AutoExposureApplyPhysicalCameraExposure = 1;
-
-	LPVDirectionalOcclusionIntensity = 0.0f;
-	LPVDirectionalOcclusionRadius = 8.0f;
-	LPVDiffuseOcclusionExponent = 1.0f;
-	LPVSpecularOcclusionExponent = 7.0f;
-	LPVDiffuseOcclusionIntensity = 1.0f;
-	LPVSpecularOcclusionIntensity = 1.0f;
-	LPVFadeRange = 0.0f;
-	LPVDirectionalOcclusionFadeRange = 0.0f;
 
 	// next value might get overwritten by r.DefaultFeature.LensFlare
 	LensFlareIntensity = 1.0f;
@@ -720,21 +704,6 @@ FPostProcessSettings::FPostProcessSettings(const FPostProcessSettings& Settings)
 	, bOverride_RayTracingAOSamplesPerPixel(Settings.bOverride_RayTracingAOSamplesPerPixel)
 	, bOverride_RayTracingAOIntensity(Settings.bOverride_RayTracingAOIntensity)
 	, bOverride_RayTracingAORadius(Settings.bOverride_RayTracingAORadius)
-	, bOverride_LPVIntensity(Settings.bOverride_LPVIntensity)
-	, bOverride_LPVDirectionalOcclusionIntensity(Settings.bOverride_LPVDirectionalOcclusionIntensity)
-	, bOverride_LPVDirectionalOcclusionRadius(Settings.bOverride_LPVDirectionalOcclusionRadius)
-	, bOverride_LPVDiffuseOcclusionExponent(Settings.bOverride_WhiteTemp)
-	, bOverride_LPVSpecularOcclusionExponent(Settings.bOverride_LPVSpecularOcclusionExponent)
-	, bOverride_LPVDiffuseOcclusionIntensity(Settings.bOverride_LPVDiffuseOcclusionIntensity)
-	, bOverride_LPVSpecularOcclusionIntensity(Settings.bOverride_LPVSpecularOcclusionIntensity)
-	, bOverride_LPVSize(Settings.bOverride_LPVSize)
-	, bOverride_LPVSecondaryOcclusionIntensity(Settings.bOverride_LPVSecondaryOcclusionIntensity)
-	, bOverride_LPVSecondaryBounceIntensity(Settings.bOverride_LPVSecondaryBounceIntensity)
-	, bOverride_LPVGeometryVolumeBias(Settings.bOverride_LPVGeometryVolumeBias)
-	, bOverride_LPVVplInjectionBias(Settings.bOverride_LPVVplInjectionBias)
-	, bOverride_LPVEmissiveInjectionIntensity(Settings.bOverride_LPVEmissiveInjectionIntensity)
-	, bOverride_LPVFadeRange(Settings.bOverride_LPVFadeRange)
-	, bOverride_LPVDirectionalOcclusionFadeRange(Settings.bOverride_LPVDirectionalOcclusionFadeRange)
 	, bOverride_IndirectLightingColor(Settings.bOverride_IndirectLightingColor)
 	, bOverride_IndirectLightingIntensity(Settings.bOverride_IndirectLightingIntensity)
 	, bOverride_ColorGradingIntensity(Settings.bOverride_ColorGradingIntensity)
@@ -929,19 +898,6 @@ FPostProcessSettings::FPostProcessSettings(const FPostProcessSettings& Settings)
 	, MotionBlurMax(Settings.MotionBlurMax)
 	, MotionBlurTargetFPS(Settings.MotionBlurTargetFPS)
 	, MotionBlurPerObjectSize(Settings.MotionBlurPerObjectSize)
-	, LPVIntensity(Settings.LPVIntensity)
-	, LPVVplInjectionBias(Settings.LPVVplInjectionBias)
-	, LPVSize(Settings.LPVSize)
-	, LPVSecondaryOcclusionIntensity(Settings.LPVSecondaryOcclusionIntensity)
-	, LPVSecondaryBounceIntensity(Settings.LPVSecondaryBounceIntensity)
-	, LPVGeometryVolumeBias(Settings.LPVGeometryVolumeBias)
-	, LPVEmissiveInjectionIntensity(Settings.LPVEmissiveInjectionIntensity)
-	, LPVDirectionalOcclusionIntensity(Settings.LPVDirectionalOcclusionIntensity)
-	, LPVDirectionalOcclusionRadius(Settings.LPVDirectionalOcclusionRadius)
-	, LPVDiffuseOcclusionExponent(Settings.WhiteTemp)
-	, LPVSpecularOcclusionExponent(Settings.LPVSpecularOcclusionExponent)
-	, LPVDiffuseOcclusionIntensity(Settings.LPVDiffuseOcclusionIntensity)
-	, LPVSpecularOcclusionIntensity(Settings.LPVSpecularOcclusionIntensity)
 
 	, ReflectionsType(Settings.ReflectionsType)
 	, ScreenSpaceReflectionIntensity(Settings.ScreenSpaceReflectionIntensity)
@@ -963,9 +919,6 @@ FPostProcessSettings::FPostProcessSettings(const FPostProcessSettings& Settings)
 
 	, PathTracingMaxBounces(Settings.PathTracingMaxBounces)
 	, PathTracingSamplesPerPixel(Settings.PathTracingSamplesPerPixel)
-
-	, LPVFadeRange(Settings.LPVFadeRange)
-	, LPVDirectionalOcclusionFadeRange(Settings.LPVDirectionalOcclusionFadeRange)
 
 	, ScreenPercentage(Settings.ScreenPercentage)
 

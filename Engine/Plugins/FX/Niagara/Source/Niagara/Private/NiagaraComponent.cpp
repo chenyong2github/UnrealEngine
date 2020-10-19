@@ -335,7 +335,6 @@ FRHIUniformBuffer* FNiagaraSceneProxy::GetUniformBufferNoVelocity() const
 				bHasPrecomputedVolumetricLightmap,
 				DrawsVelocity(),
 				GetLightingChannelMask(),
-				LpvBiasMultiplier,
 				LocalPrimitiveSceneInfo ? LocalPrimitiveSceneInfo->GetLightmapDataOffset() : 0,
 				SingleCaptureIndex,
 				false,

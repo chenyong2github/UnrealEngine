@@ -1186,7 +1186,6 @@ TSharedPtr<FExistingStaticMeshData> SaveExistingStaticMeshData(UStaticMesh* Exis
 
 		ExistingMeshDataPtr->ExistingBodySetup = ExistingMesh->BodySetup;
 
-		ExistingMeshDataPtr->LpvBiasMultiplier = ExistingMesh->LpvBiasMultiplier;
 		ExistingMeshDataPtr->bHasNavigationData = ExistingMesh->bHasNavigationData;
 		ExistingMeshDataPtr->LODGroup = ExistingMesh->LODGroup;
 		ExistingMeshDataPtr->MinLOD = ExistingMesh->MinLOD;
@@ -1720,7 +1719,6 @@ void RestoreExistingMeshData(TSharedPtr<const FExistingStaticMeshData> ExistingM
 		}
 	}
 
-	NewMesh->LpvBiasMultiplier = ExistingMeshDataPtr->LpvBiasMultiplier;
 	NewMesh->bHasNavigationData = ExistingMeshDataPtr->bHasNavigationData;
 	NewMesh->LODGroup = ExistingMeshDataPtr->LODGroup;
 

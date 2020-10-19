@@ -22,7 +22,6 @@
 #include "IHeadMountedDisplay.h"
 #include "IXRTrackingSystem.h"
 #include "Engine/RendererSettings.h"
-#include "LightPropagationVolumeSettings.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "HighResScreenshot.h"
 #include "Slate/SceneViewport.h"
@@ -1659,31 +1658,6 @@ void FSceneView::OverridePostProcessSettings(const FPostProcessSettings& Src, fl
 		}
 	}
 
-	// will be deprecated soon, use the new asset LightPropagationVolumeBlendable instead
-	{
-		FLightPropagationVolumeSettings& Dest = FinalPostProcessSettings.BlendableManager.GetSingleFinalData<FLightPropagationVolumeSettings>();
-
-		LERP_PP(LPVIntensity);
-		LERP_PP(LPVSecondaryOcclusionIntensity);
-		LERP_PP(LPVSecondaryBounceIntensity);
-		LERP_PP(LPVVplInjectionBias);
-		LERP_PP(LPVGeometryVolumeBias);
-		LERP_PP(LPVEmissiveInjectionIntensity);
-		LERP_PP(LPVDirectionalOcclusionIntensity);
-		LERP_PP(LPVDirectionalOcclusionRadius);
-		LERP_PP(LPVDiffuseOcclusionExponent);
-		LERP_PP(LPVSpecularOcclusionExponent);
-		LERP_PP(LPVDiffuseOcclusionIntensity);
-		LERP_PP(LPVSpecularOcclusionIntensity);
-		LERP_PP(LPVFadeRange);
-		LERP_PP(LPVDirectionalOcclusionFadeRange);
-
-		if (Src.bOverride_LPVSize)
-		{
-			Dest.LPVSize = Src.LPVSize;
-		}
-	}
-
 	// Blendable objects
 	{
 		uint32 Count = Src.WeightedBlendables.Array.Num();
@@ -1795,26 +1769,6 @@ void FSceneView::StartFinalPostprocessSettings(FVector InViewLocation)
 void FSceneView::EndFinalPostprocessSettings(const FSceneViewInitOptions& ViewInitOptions)
 {
 	const auto SceneViewFeatureLevel = GetFeatureLevel();
-
-	// will be deprecated soon, use the new asset LightPropagationVolumeBlendable instead
-	{
-		FLightPropagationVolumeSettings& Dest = FinalPostProcessSettings.BlendableManager.GetSingleFinalData<FLightPropagationVolumeSettings>();
-
-		if(Dest.LPVDirectionalOcclusionIntensity < 0.001f)
-		{
-			Dest.LPVDirectionalOcclusionIntensity = 0.0f;
-		}
-
-		if (Dest.LPVIntensity < 0.001f)
-		{
-			Dest.LPVIntensity = 0.0f;
-		}
-
-		if(!Family->EngineShowFlags.GlobalIllumination)
-		{
-			Dest.LPVIntensity = 0.0f;
-		}
-	}
 
 	{
 		static const auto SceneColorFringeQualityCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.SceneColorFringeQuality"));

@@ -188,8 +188,6 @@ ULandscapeComponent::ULandscapeComponent(const FObjectInitializer& ObjectInitial
 	EditToolRenderData = FLandscapeEditToolRenderData();
 #endif
 
-	LpvBiasMultiplier = 0.0f; // Bias is 0 for landscape, since it's single sided
-
 	// We don't want to load this on the server, this component is for graphical purposes only
 	AlwaysLoadOnServer = false;
 

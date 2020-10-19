@@ -176,7 +176,6 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 ,	VirtualTextureLodBias(InComponent->VirtualTextureLodBias)
 ,	VirtualTextureCullMips(InComponent->VirtualTextureCullMips)
 ,	VirtualTextureMinCoverage(InComponent->VirtualTextureMinCoverage)
-,	LpvBiasMultiplier(InComponent->LpvBiasMultiplier)
 ,	DynamicIndirectShadowMinVisibility(0)
 ,	PrimitiveComponentId(InComponent->ComponentId)
 ,	Scene(InComponent->GetScene())
@@ -396,7 +395,6 @@ void FPrimitiveSceneProxy::UpdateUniformBuffer()
 				bHasPrecomputedVolumetricLightmap,
 				DrawsVelocity(), 
 				GetLightingChannelMask(),
-				LpvBiasMultiplier,
 				PrimitiveSceneInfo ? PrimitiveSceneInfo->GetLightmapDataOffset() : 0,
 				SingleCaptureIndex,
 				bOutputVelocity || AlwaysHasVelocity(),

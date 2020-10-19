@@ -1541,8 +1541,6 @@ public:
 	virtual bool IsTranslucencyWritingCustomDepth() const { return false; }
 	virtual bool IsTranslucencyWritingVelocity() const { return false; }
 	virtual bool IsTangentSpaceNormal() const { return false; }
-	virtual bool ShouldInjectEmissiveIntoLPV() const { return false; }
-	virtual bool ShouldBlockGI() const { return false; }
 	virtual bool ShouldGenerateSphericalParticleNormals() const { return false; }
 	virtual	bool ShouldDisableDepthTest() const { return false; }
 	virtual	bool ShouldWriteOnlyAlpha() const { return false; }
@@ -2381,8 +2379,6 @@ public:
 	ENGINE_API virtual bool IsTranslucencyWritingCustomDepth() const override;
 	ENGINE_API virtual bool IsTranslucencyWritingVelocity() const override;
 	ENGINE_API virtual bool IsTangentSpaceNormal() const override;
-	ENGINE_API virtual bool ShouldInjectEmissiveIntoLPV() const override;
-	ENGINE_API virtual bool ShouldBlockGI() const override;
 	ENGINE_API virtual bool ShouldGenerateSphericalParticleNormals() const override;
 	ENGINE_API virtual bool ShouldDisableDepthTest() const override;
 	ENGINE_API virtual bool ShouldWriteOnlyAlpha() const override;
@@ -3015,8 +3011,6 @@ struct FMaterialShaderParameters
 			uint64 bIsTwoSided : 1;
 			uint64 bIsDistorted : 1;
 			uint64 bShouldCastDynamicShadows : 1;
-			uint64 bShouldInjectEmissiveIntoLPV : 1;
-			uint64 bShouldBlockGI : 1;
 			uint64 bWritesEveryPixel : 1;
 			uint64 bWritesEveryPixelShadowPass : 1;
 			uint64 bHasNormalConnected : 1;
@@ -3080,8 +3074,6 @@ struct FMaterialShaderParameters
 		bIsTwoSided = InMaterial->IsTwoSided();
 		bIsDistorted = InMaterial->IsDistorted();
 		bShouldCastDynamicShadows = InMaterial->ShouldCastDynamicShadows();
-		bShouldInjectEmissiveIntoLPV = InMaterial->ShouldInjectEmissiveIntoLPV();
-		bShouldBlockGI = InMaterial->ShouldBlockGI();
 		bWritesEveryPixel = InMaterial->WritesEveryPixel(false);
 		bWritesEveryPixelShadowPass = InMaterial->WritesEveryPixel(true);
 		bHasNormalConnected = InMaterial->HasNormalConnected();

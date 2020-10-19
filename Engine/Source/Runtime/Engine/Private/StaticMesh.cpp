@@ -2778,7 +2778,6 @@ UStaticMesh::UStaticMesh(const FObjectInitializer& ObjectInitializer)
 	NumStreamedLODs.Default = -1;
 #endif // #if WITH_EDITORONLY_DATA
 	LightMapResolution = 4;
-	LpvBiasMultiplier = 1.0f;
 	MinLOD.Default = 0;
 
 	bSupportUniformlyDistributedSampling = false;

@@ -65,7 +65,6 @@ DECLARE_GPU_STAT_NAMED_EXTERN(ShadowProjection, TEXT("Shadow Projection"));
 
 class AWorldSettings;
 class FAtmosphericFogSceneInfo;
-class FLightPropagationVolume;
 class FMaterialParameterCollectionInstanceResource;
 class FPrecomputedLightVolume;
 class FScene;
@@ -929,9 +928,6 @@ private:
 	// counts up by one each frame, warped in 0..3 range, ResetViewState() puts it back to 0
 	int32 DistanceFieldTemporalSampleIndex;
 
-	// light propagation volume used in this view
-	TRefCountPtr<FLightPropagationVolume> LightPropagationVolume;
-
 	// whether this view is a stereo counterpart to a primary view
 	bool bIsStereoView;
 
@@ -1182,20 +1178,8 @@ public:
 		return DistanceFieldTemporalSampleIndex;
 	}
 
-
-	// call only if not yet created
-	void SetupLightPropagationVolume(FSceneView& View, FSceneViewFamily& ViewFamily);
-
-	/**
-	 * @return can return 0
-	 * @param bIncludeStereo - specifies whether the getter should include stereo views in its returned value
-	 */
-	FLightPropagationVolume* GetLightPropagationVolume(ERHIFeatureLevel::Type InFeatureLevel, bool bIncludeStereo = false) const;
-
 	/** Default constructor. */
 	FSceneViewState();
-
-	void DestroyLightPropagationVolume();
 
 	virtual ~FSceneViewState();
 
@@ -1429,11 +1413,6 @@ public:
 	void OnStartRender(FViewInfo& View, FSceneViewFamily& ViewFamily)
 	{
 		check(IsInRenderingThread());
-
-		if(!(View.FinalPostProcessSettings.IndirectLightingColor * View.FinalPostProcessSettings.IndirectLightingIntensity).IsAlmostBlack())
-		{
-			SetupLightPropagationVolume(View, ViewFamily);
-		}
 		ConditionallyAllocateSceneSoftwareOcclusion(View.GetFeatureLevel());
 	}
 

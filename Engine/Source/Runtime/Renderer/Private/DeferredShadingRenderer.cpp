@@ -220,7 +220,6 @@ DECLARE_CYCLE_STAT(TEXT("DeferredShadingSceneRenderer DistanceFieldAO Init"), ST
 DECLARE_CYCLE_STAT(TEXT("DeferredShadingSceneRenderer FGlobalDynamicVertexBuffer Commit"), STAT_FDeferredShadingSceneRenderer_FGlobalDynamicVertexBuffer_Commit, STATGROUP_SceneRendering);
 DECLARE_CYCLE_STAT(TEXT("DeferredShadingSceneRenderer FXSystem PreRender"), STAT_FDeferredShadingSceneRenderer_FXSystem_PreRender, STATGROUP_SceneRendering);
 DECLARE_CYCLE_STAT(TEXT("DeferredShadingSceneRenderer AllocGBufferTargets"), STAT_FDeferredShadingSceneRenderer_AllocGBufferTargets, STATGROUP_SceneRendering);
-DECLARE_CYCLE_STAT(TEXT("DeferredShadingSceneRenderer ClearLPVs"), STAT_FDeferredShadingSceneRenderer_ClearLPVs, STATGROUP_SceneRendering);
 DECLARE_CYCLE_STAT(TEXT("DeferredShadingSceneRenderer DBuffer"), STAT_FDeferredShadingSceneRenderer_DBuffer, STATGROUP_SceneRendering);
 DECLARE_CYCLE_STAT(TEXT("DeferredShadingSceneRenderer ResolveDepth After Basepass"), STAT_FDeferredShadingSceneRenderer_ResolveDepth_After_Basepass, STATGROUP_SceneRendering);
 DECLARE_CYCLE_STAT(TEXT("DeferredShadingSceneRenderer Resolve After Basepass"), STAT_FDeferredShadingSceneRenderer_Resolve_After_Basepass, STATGROUP_SceneRendering);
@@ -1323,8 +1322,6 @@ void FDeferredShadingSceneRenderer::WaitForRayTracingScene(FRDGBuilder& GraphBui
 
 #endif // RHI_RAYTRACING
 
-extern bool IsLpvIndirectPassRequired(const FViewInfo& View);
-
 static TAutoConsoleVariable<float> CVarStallInitViews(
 	TEXT("CriticalPathStall.AfterInitViews"),
 	0.0f,
@@ -2013,15 +2010,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	const bool bStrataEnabled = Strata::IsStrataEnabled();
 	if (bStrataEnabled)
 	{		
-		Strata::InitialiseStrataFrameSceneData(*this, GraphBuilder);		
-	}
-
-	// Clear LPVs for all views
-	if (FeatureLevel >= ERHIFeatureLevel::SM5)
-	{
-		SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_ClearLPVs);
-		ClearLPVs(GraphBuilder);
-		AddServiceLocalQueuePass(GraphBuilder);
+		Strata::InitialiseStrataFrameSceneData(*this, GraphBuilder);
 	}
 
 	if(GetCustomDepthPassLocation() == 0)
@@ -2409,24 +2398,6 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 			FilterTranslucentVolumeLighting(GraphBuilder, View, ViewIndex);
 		}
 		AddServiceLocalQueuePass(GraphBuilder);
-
-		// Pre-lighting composition lighting stage
-		// e.g. LPV indirect
-		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
-		{
-			FViewInfo& View = Views[ViewIndex]; 
-
-			if(IsLpvIndirectPassRequired(View))
-			{
-				AddUntrackedAccessPass(GraphBuilder, [this, &View, ViewIndex](FRHICommandListImmediate& InRHICmdList)
-				{
-					SCOPED_GPU_MASK(InRHICmdList, View.GPUMask);
-					SCOPED_CONDITIONAL_DRAW_EVENTF(InRHICmdList, EventView, Views.Num() > 1, TEXT("View%d"), ViewIndex);
-					GCompositionLighting.ProcessLpvIndirect(InRHICmdList, View);
-					ServiceLocalQueue();
-				});
-			}
-		}
 
 		// Render diffuse sky lighting and reflections that only operate on opaque pixels
 		RenderDeferredReflectionsAndSkyLighting(GraphBuilder, SceneTextures, SceneColorTexture, DynamicBentNormalAOTexture, VelocityTexture, HairDatas);

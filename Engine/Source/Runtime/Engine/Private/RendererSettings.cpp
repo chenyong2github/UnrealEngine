@@ -73,7 +73,6 @@ URendererSettings::URendererSettings(const FObjectInitializer& ObjectInitializer
 	GPUSimulationTextureSizeY = 1024;
 	bEnableRayTracing = 0;
 	bEnableRayTracingTextureLOD = 0;
-	bLPV = 1;
 }
 
 void URendererSettings::PostInitProperties()

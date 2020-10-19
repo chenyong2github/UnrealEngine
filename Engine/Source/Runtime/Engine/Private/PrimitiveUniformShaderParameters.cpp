@@ -128,7 +128,6 @@ FPrimitiveSceneShaderData::FPrimitiveSceneShaderData(const FPrimitiveSceneProxy*
 		bHasPrecomputedVolumetricLightmap,
 		Proxy->DrawsVelocity(), 
 		Proxy->GetLightingChannelMask(),
-		Proxy->GetLpvBiasMultiplier(),
 		Proxy->GetPrimitiveSceneInfo()->GetLightmapDataOffset(),
 		SingleCaptureIndex,
         bOutputVelocity,
@@ -164,7 +163,7 @@ void FPrimitiveSceneShaderData::Setup(const FPrimitiveUniformShaderParameters& P
 	Data[17] = *(const FVector4*)&PrimitiveUniformShaderParameters.PreviousWorldToLocal.M[3][0];
 
 	Data[18] = FVector4(PrimitiveUniformShaderParameters.ActorWorldPosition, PrimitiveUniformShaderParameters.UseSingleSampleShadowFromStationaryLights);
-	Data[19] = FVector4(PrimitiveUniformShaderParameters.ObjectBounds, PrimitiveUniformShaderParameters.LpvBiasMultiplier);
+	Data[19] = FVector4(PrimitiveUniformShaderParameters.ObjectBounds, 0.0f);
 
 	Data[20] = FVector4(
 		PrimitiveUniformShaderParameters.DecalReceiverMask, 

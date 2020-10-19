@@ -9,11 +9,9 @@
 #include "PostProcess/RenderingCompositionGraph.h"
 #include "PostProcess/PostProcessInput.h"
 #include "PostProcess/PostProcessing.h"
-#include "CompositionLighting/PostProcessLpvIndirect.h"
 #include "CompositionLighting/PostProcessAmbientOcclusion.h"
 #include "CompositionLighting/PostProcessDeferredDecals.h"
 #include "PostProcess/PostProcessSubsurface.h"
-#include "LightPropagationVolumeSettings.h"
 #include "DecalRenderingShared.h"
 #include "VisualizeTexture.h"
 #include "RayTracing/RaytracingOptions.h"
@@ -25,7 +23,6 @@ FCompositionLighting GCompositionLighting;
 
 DECLARE_GPU_STAT_NAMED(CompositionBeforeBasePass, TEXT("Composition BeforeBasePass") );
 DECLARE_GPU_STAT_NAMED(CompositionPreLighting, TEXT("Composition PreLighting") );
-DECLARE_GPU_STAT_NAMED(CompositionLpvIndirect, TEXT("Composition LpvIndirect") );
 DECLARE_GPU_STAT_NAMED(CompositionPostLighting, TEXT("Composition PostLighting") );
 
 static TAutoConsoleVariable<int32> CVarSSAOSmoothPass(
@@ -73,33 +70,6 @@ bool IsAmbientCubemapPassRequired(const FSceneView& View)
 	return View.FinalPostProcessSettings.ContributingCubemaps.Num() != 0 && IsUsingGBuffers(View.GetShaderPlatform());
 }
 
-bool IsLpvIndirectPassRequired(const FViewInfo& View)
-{
-	FScene* Scene = (FScene*)View.Family->Scene;
-
-	const FSceneViewState* ViewState = (FSceneViewState*)View.State;
-
-	if(ViewState)
-	{
-		// This check should be inclusive to stereo views
-		const bool bIncludeStereoViews = true;
-
-		FLightPropagationVolume* LightPropagationVolume = ViewState->GetLightPropagationVolume(View.GetFeatureLevel(), bIncludeStereoViews);
-
-		if(LightPropagationVolume)
-		{
-			const FLightPropagationVolumeSettings& LPVSettings = View.FinalPostProcessSettings.BlendableManager.GetSingleFinalDataConst<FLightPropagationVolumeSettings>();
-
-			if(LPVSettings.LPVIntensity > 0.0f)
-			{
-				return true;
-			}
-		}
-	}
-
-	return false;
-}
-
 static bool IsReflectionEnvironmentActive(const FSceneView& View)
 {
 	FScene* Scene = (FScene*)View.Family->Scene;
@@ -125,15 +95,12 @@ bool ShouldRenderScreenSpaceAmbientOcclusion(const FViewInfo& View)
 {
 	bool bEnabled = true;
 
-	if (!IsLpvIndirectPassRequired(View))
-	{
-		bEnabled = View.FinalPostProcessSettings.AmbientOcclusionIntensity > 0
-			&& View.Family->EngineShowFlags.Lighting
-			&& View.FinalPostProcessSettings.AmbientOcclusionRadius >= 0.1f
-			&& !View.Family->UseDebugViewPS()
-			&& (FSSAOHelper::IsBasePassAmbientOcclusionRequired(View) || IsAmbientCubemapPassRequired(View) || IsReflectionEnvironmentActive(View) || IsSkylightActive(View) || View.Family->EngineShowFlags.VisualizeBuffer)
-			&& !IsSimpleForwardShadingEnabled(View.GetShaderPlatform());
-	}
+	bEnabled = View.FinalPostProcessSettings.AmbientOcclusionIntensity > 0
+		&& View.Family->EngineShowFlags.Lighting
+		&& View.FinalPostProcessSettings.AmbientOcclusionRadius >= 0.1f
+		&& !View.Family->UseDebugViewPS()
+		&& (FSSAOHelper::IsBasePassAmbientOcclusionRequired(View) || IsAmbientCubemapPassRequired(View) || IsReflectionEnvironmentActive(View) || IsSkylightActive(View) || View.Family->EngineShowFlags.VisualizeBuffer)
+		&& !IsSimpleForwardShadingEnabled(View.GetShaderPlatform());
 #if RHI_RAYTRACING
 	bEnabled &= !ShouldRenderRayTracingAmbientOcclusion(View);
 #endif
@@ -674,37 +641,6 @@ void FCompositionLighting::ProcessAfterBasePass(
 			}
 		}
 	}
-}
-
-
-void FCompositionLighting::ProcessLpvIndirect(FRHICommandListImmediate& RHICmdList, FViewInfo& View)
-{
-	check(IsInRenderingThread());
-	
-	FMemMark Mark(FMemStack::Get());
-	FRenderingCompositePassContext CompositeContext(RHICmdList, View);
-	FPostprocessContext Context(RHICmdList, CompositeContext.Graph, View);
-
-	{
-		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
-
-		FRenderingCompositePass* SSAO = Context.Graph.RegisterPass(new FRCPassPostProcessInput(SceneContext.ScreenSpaceAO));
-
-		FRenderingCompositePass* Pass = Context.Graph.RegisterPass(new FRCPassPostProcessLpvIndirect());
-		Pass->SetInput(ePId_Input0, Context.FinalOutput);
-		Pass->SetInput(ePId_Input1, SSAO );
-
-		Context.FinalOutput = FRenderingCompositeOutputRef(Pass);
-	}
-
-	// The graph setup should be finished before this line ----------------------------------------
-
-	SCOPED_DRAW_EVENT(RHICmdList, CompositionLpvIndirect);
-	SCOPED_GPU_STAT(RHICmdList, CompositionLpvIndirect);
-
-	// we don't replace the final element with the scenecolor because this is what those passes should do by themself
-
-	CompositeContext.Process(Context.FinalOutput.GetPass(), TEXT("CompositionLighting"));
 }
 
 bool FCompositionLighting::CanProcessAsyncSSAO(const TArray<FViewInfo>& Views)

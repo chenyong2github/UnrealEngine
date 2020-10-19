@@ -378,48 +378,6 @@ public:
 		return true;
 	}
 
-	// reflective shadow map for Light Propagation Volume
-	virtual bool GetViewDependentRsmWholeSceneProjectedShadowInitializer(
-		const class FSceneView& View, 
-		const FBox& LightPropagationVolumeBounds,
-	    class FWholeSceneProjectedShadowInitializer& OutInitializer ) const override
-	{
-		float LpvExtent = LightPropagationVolumeBounds.GetExtent().X; // LPV is a cube, so this should be valid
-
-		OutInitializer.PreShadowTranslation = -LightPropagationVolumeBounds.GetCenter();
-		OutInitializer.WorldToLight = FInverseRotationMatrix(GetDirection().GetSafeNormal().Rotation());
-		OutInitializer.Scales = FVector2D(1.0f / LpvExtent,1.0f / LpvExtent);
-		OutInitializer.SubjectBounds = FBoxSphereBounds( FVector::ZeroVector, LightPropagationVolumeBounds.GetExtent(), FMath::Sqrt( LpvExtent * LpvExtent * 3.0f ) );
-		OutInitializer.WAxis = FVector4(0,0,0,1);
-		// Use the minimum of half the world, things further away do not cast shadows,
-		// However, if the cascade bounds are larger, then extend the casting distance far enough to encompass the cascade.
-		OutInitializer.MinLightW = FMath::Min<float>(-HALF_WORLD_MAX, -OutInitializer.SubjectBounds.SphereRadius);
-		// Range must extend to end of cascade bounds
-		const float MaxLightW = OutInitializer.SubjectBounds.SphereRadius;
-		OutInitializer.MaxDistanceToCastInLightW = MaxLightW - OutInitializer.MinLightW;
-
-		// Compute the RSM bounds
-		{
-			FVector Centre = LightPropagationVolumeBounds.GetCenter();
-			FVector Extent = LightPropagationVolumeBounds.GetExtent();
-			FVector CascadeFrustumVerts[8];
-			CascadeFrustumVerts[0] = Centre + Extent * FVector( -1.0f,-1.0f, 1.0f ); // 0 Near Top    Right
-			CascadeFrustumVerts[1] = Centre + Extent * FVector( -1.0f,-1.0f,-1.0f ); // 1 Near Bottom Right
-			CascadeFrustumVerts[2] = Centre + Extent * FVector(  1.0f,-1.0f, 1.0f ); // 2 Near Top    Left
-			CascadeFrustumVerts[3] = Centre + Extent * FVector(  1.0f,-1.0f,-1.0f ); // 3 Near Bottom Left
-			CascadeFrustumVerts[4] = Centre + Extent * FVector( -1.0f, 1.0f, 1.0f ); // 4 Far  Top    Right
-			CascadeFrustumVerts[5] = Centre + Extent * FVector( -1.0f, 1.0f,-1.0f ); // 5 Far  Bottom Right
-			CascadeFrustumVerts[6] = Centre + Extent * FVector(  1.0f, 1.0f, 1.0f ); // 6 Far  Top    Left
-			CascadeFrustumVerts[7] = Centre + Extent * FVector(  1.0f, 1.0f,-1.0f ); // 7 Far  Bottom Left
-
-			FPlane Far;
-			FPlane Near;
-			const FVector LightDirection = -GetDirection();
-			ComputeShadowCullingVolume(View.bReverseCulling, CascadeFrustumVerts, LightDirection, OutInitializer.CascadeSettings.ShadowBoundsAccurate, Near, Far);
-		}
-		return true;
-	}
-
 	virtual FVector2D GetDirectionalLightDistanceFadeParameters(ERHIFeatureLevel::Type InFeatureLevel, bool bPrecomputedLightingIsValid, int32 MaxNearCascades) const override
 	{
 		float FarDistance = GetCSMMaxDistance(bPrecomputedLightingIsValid, MaxNearCascades);

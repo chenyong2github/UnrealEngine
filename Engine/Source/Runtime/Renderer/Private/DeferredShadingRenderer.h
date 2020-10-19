@@ -179,12 +179,6 @@ public:
 	/** Clears a view */
 	void ClearView(FRHICommandListImmediate& RHICmdList);
 
-	/** Clears LPVs for all views */
-	void ClearLPVs(FRDGBuilder& GraphBuilder);
-
-	/** Propagates LPVs for all views */
-	void UpdateLPVs(FRHICommandListImmediate& RHICmdList);
-
 	/**
 	 * Renders the scene's prepass for a particular view
 	 * @return true if anything was rendered
@@ -668,9 +662,6 @@ private:
 	void UpdateHalfResDepthSurfaceCheckerboardMinMax(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneDepthTexture);
 
 	FRDGTextureRef CopyStencilToLightingChannelTexture(FRDGBuilder& GraphBuilder, FRDGTextureSRVRef SceneStencilTexture);
-
-	/** Injects reflective shadowmaps into LPVs */
-	bool InjectReflectiveShadowMaps(FRHICommandListImmediate& RHICmdList, const FLightSceneInfo* LightSceneInfo);
 
 	/** Renders capsule shadows for all per-object shadows using it for the given light. */
 	bool RenderCapsuleDirectShadows(

@@ -181,9 +181,7 @@ protected:
 		CurrentMobileSceneColorFormat(EPixelFormat::PF_Unknown),
 		bAllowStaticLighting(true),
 		CurrentMaxShadowResolution(0),
-		CurrentRSMResolution(0),
 		CurrentTranslucencyLightingVolumeDim(64),
-		bCurrentLightPropagationVolume(false),
 		CurrentFeatureLevel(ERHIFeatureLevel::Num),
 		CurrentShadingPath(EShadingPath::Num),
 		bRequireSceneColorAlpha(false),
@@ -334,11 +332,6 @@ public:
 	const FTexture2DRHIRef& GetSmallDepthSurface() const							{ return (const FTexture2DRHIRef&)SmallDepthZ->GetRenderTargetItem().TargetableTexture; }
 	const FTexture2DRHIRef& GetOptionalShadowDepthColorSurface(FRHICommandList& RHICmdList, int32 Width, int32 Height) const;
 
-	const FTexture2DRHIRef& GetDirectionalOcclusionTexture() const 
-	{	
-		return (const FTexture2DRHIRef&)DirectionalOcclusion->GetRenderTargetItem().TargetableTexture; 
-	}
-
 	// @return can be empty if the feature is disabled
 	FCustomDepthTextures RequestCustomDepth(FRDGBuilder& GraphBuilder, bool bPrimitives);
 
@@ -387,9 +380,6 @@ public:
 	FIntPoint GetPreShadowCacheTextureResolution() const;
 	FIntPoint GetTranslucentShadowDepthTextureResolution() const;
 	int32 GetTranslucentShadowDownsampleFactor() const { return 2; }
-
-	/** Returns the size of the RSM buffer, taking into account platform limitations and game specific resolution limits. */
-	inline int32 GetReflectiveShadowMapResolution() const { return CurrentRSMResolution; }
 
 	int32 GetNumGBufferTargets() const;
 
@@ -452,9 +442,6 @@ public:
 	// Light Accumulation is a high precision scratch pad matching the size of the scene color buffer used by many passes.
 	TRefCountPtr<IPooledRenderTarget> LightAccumulation;
 
-	// Reflection Environment: Bringing back light accumulation buffer to apply indirect reflections
-	TRefCountPtr<IPooledRenderTarget> DirectionalOcclusion;
-	
 	// Scene depth and stencil.
 	TRefCountPtr<IPooledRenderTarget> SceneDepthZ;
 	TRefCountPtr<FRHIShaderResourceView> SceneStencilSRV;
@@ -667,8 +654,6 @@ private:
 	bool bAllowStaticLighting;
 	/** To detect a change of the CVar r.Shadow.MaxResolution */
 	int32 CurrentMaxShadowResolution;
-	/** To detect a change of the CVar r.Shadow.RsmResolution*/
-	int32 CurrentRSMResolution;
 	/** To detect a change of the CVar r.TranslucencyLightingVolumeDim */
 	int32 CurrentTranslucencyLightingVolumeDim;
 	/** To detect a change of the CVar r.MobileMSAA or r.MSAA */

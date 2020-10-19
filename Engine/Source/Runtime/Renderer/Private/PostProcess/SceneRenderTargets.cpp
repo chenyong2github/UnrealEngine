@@ -12,7 +12,6 @@
 #include "SceneTextureParameters.h"
 #include "VelocityRendering.h"
 #include "RendererModule.h"
-#include "LightPropagationVolume.h"
 #include "ScenePrivate.h"
 #include "HdrCustomResolveShaders.h"
 #include "WideCustomResolveShaders.h"
@@ -29,11 +28,6 @@
 #include "VT/VirtualTextureFeedback.h"
 #include "VisualizeTexture.h"
 #include "GpuDebugRendering.h"
-static TAutoConsoleVariable<int32> CVarRSMResolution(
-	TEXT("r.LPV.RSMResolution"),
-	360,
-	TEXT("Reflective Shadow Map resolution (used for LPV) - higher values result in less aliasing artifacts, at the cost of performance"),
-	ECVF_Scalability | ECVF_RenderThreadSafe);
 
 /*-----------------------------------------------------------------------------
 FSceneRenderTargets
@@ -236,7 +230,6 @@ static void SnapshotArray(TArray<TRefCountPtr<IPooledRenderTarget>, TInlineAlloc
 
 FSceneRenderTargets::FSceneRenderTargets(const FViewInfo& View, const FSceneRenderTargets& SnapshotSource)
 	: LightAccumulation(GRenderTargetPool.MakeSnapshot(SnapshotSource.LightAccumulation))
-	, DirectionalOcclusion(GRenderTargetPool.MakeSnapshot(SnapshotSource.DirectionalOcclusion))
 	, SceneDepthZ(GRenderTargetPool.MakeSnapshot(SnapshotSource.SceneDepthZ))	
 	, SceneVelocity(GRenderTargetPool.MakeSnapshot(SnapshotSource.SceneVelocity))
 	, SmallDepthZ(GRenderTargetPool.MakeSnapshot(SnapshotSource.SmallDepthZ))
@@ -278,7 +271,6 @@ FSceneRenderTargets::FSceneRenderTargets(const FViewInfo& View, const FSceneRend
 	, CurrentMobileSceneColorFormat(SnapshotSource.CurrentMobileSceneColorFormat)
 	, bAllowStaticLighting(SnapshotSource.bAllowStaticLighting)
 	, CurrentMaxShadowResolution(SnapshotSource.CurrentMaxShadowResolution)
-	, CurrentRSMResolution(SnapshotSource.CurrentRSMResolution)
 	, CurrentTranslucencyLightingVolumeDim(SnapshotSource.CurrentTranslucencyLightingVolumeDim)
 	, CurrentMSAACount(SnapshotSource.CurrentMSAACount)
 	, CurrentMinShadowResolution(SnapshotSource.CurrentMinShadowResolution)
@@ -652,8 +644,6 @@ void FSceneRenderTargets::Allocate(FRHICommandListImmediate& RHICmdList, const F
 
 	int32 MaxShadowResolution = GetCachedScalabilityCVars().MaxShadowResolution;
 
-	int32 RSMResolution = FMath::Clamp(CVarRSMResolution.GetValueOnRenderThread(), 1, 2048);
-
 	if (ViewFamily.Scene->GetShadingPath() == EShadingPath::Mobile)
 	{
 		// ensure there is always enough space for mobile renderer's tiled shadow maps
@@ -668,8 +658,6 @@ void FSceneRenderTargets::Allocate(FRHICommandListImmediate& RHICmdList, const F
 	const int32 TranslucencyLightingVolumeDim = GetTranslucencyLightingVolumeDim();
 
 	int32 MSAACount = GetNumSceneColorMSAASamples(NewFeatureLevel);
-
-	bool bLightPropagationVolume = UseLightPropagationVolumeRT(NewFeatureLevel);
 
 	uint32 MinShadowResolution;
 	{
@@ -686,10 +674,8 @@ void FSceneRenderTargets::Allocate(FRHICommandListImmediate& RHICmdList, const F
 		(bAllowStaticLighting != bNewAllowStaticLighting) ||
 		(bUseDownsizedOcclusionQueries != bDownsampledOcclusionQueries) ||
 		(CurrentMaxShadowResolution != MaxShadowResolution) ||
- 		(CurrentRSMResolution != RSMResolution) ||
 		(CurrentTranslucencyLightingVolumeDim != TranslucencyLightingVolumeDim) ||
 		(CurrentMSAACount != MSAACount) ||
-		(bCurrentLightPropagationVolume != bLightPropagationVolume) ||
 		(CurrentMinShadowResolution != MinShadowResolution))
 	{
 		CurrentGBufferFormat = GBufferFormat;
@@ -698,11 +684,9 @@ void FSceneRenderTargets::Allocate(FRHICommandListImmediate& RHICmdList, const F
 		bAllowStaticLighting = bNewAllowStaticLighting;
 		bUseDownsizedOcclusionQueries = bDownsampledOcclusionQueries;
 		CurrentMaxShadowResolution = MaxShadowResolution;
-		CurrentRSMResolution = RSMResolution;
 		CurrentTranslucencyLightingVolumeDim = TranslucencyLightingVolumeDim;
 		CurrentMSAACount = MSAACount;
 		CurrentMinShadowResolution = MinShadowResolution;
-		bCurrentLightPropagationVolume = bLightPropagationVolume;
 
 		// Reinitialize the render targets for the given size.
 		SetBufferSize(DesiredBufferSize.X, DesiredBufferSize.Y);
@@ -1721,13 +1705,6 @@ void FSceneRenderTargets::AllocateDeferredShadingPathRenderTargets(FRHICommandLi
 		}
 	}
 
-	// LPV : Dynamic directional occlusion for diffuse and specular
-	if(UseLightPropagationVolumeRT(CurrentFeatureLevel))
-	{
-		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(BufferSize, PF_R8G8, FClearValueBinding::Transparent, TexCreate_None, TexCreate_RenderTargetable | TexCreate_ShaderResource, false));
-		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, DirectionalOcclusion, TEXT("DirectionalOcclusion"));
-	}
-
 	if (CurrentFeatureLevel >= ERHIFeatureLevel::SM5) 
 	{
 		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(BufferSize, PF_FloatRGBA, FClearValueBinding::Black, TexCreate_None, TexCreate_RenderTargetable | TexCreate_ShaderResource, false));
@@ -2001,7 +1978,6 @@ void FSceneRenderTargets::ReleaseAllTargets()
 	ScreenSpaceGTAOHorizons.SafeRelease();
 	QuadOverdrawBuffer.SafeRelease();
 	LightAccumulation.SafeRelease();
-	DirectionalOcclusion.SafeRelease();
 	CustomDepth.SafeRelease();
 	MobileCustomDepth.SafeRelease();
 	MobileCustomStencil.SafeRelease();

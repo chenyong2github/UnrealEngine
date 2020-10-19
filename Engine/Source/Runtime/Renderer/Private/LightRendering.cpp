@@ -7,7 +7,6 @@
 #include "LightRendering.h"
 #include "RendererModule.h"
 #include "DeferredShadingRenderer.h"
-#include "LightPropagationVolume.h"
 #include "ScenePrivate.h"
 #include "PostProcess/SceneFilterRendering.h"
 #include "PipelineStateCache.h"
@@ -1347,78 +1346,6 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLights(
 					}
 				}
 			}
-		}
-
-		if ( IsFeatureLevelSupported(ShaderPlatformForFeatureLevel, ERHIFeatureLevel::SM5) )
-		{
-			RDG_EVENT_SCOPE(GraphBuilder, "IndirectLighting");
-			bool bRenderedRSM = false;
-			// Render Reflective shadow maps
-			// Draw shadowed and light function lights
-			for (int32 LightIndex = AttenuationLightStart; LightIndex < SortedLights.Num(); LightIndex++)
-			{
-				const FSortedLightSceneInfo& SortedLightInfo = SortedLights[LightIndex];
-				const FLightSceneInfo& LightSceneInfo = *SortedLightInfo.LightSceneInfo;
-				// Render any reflective shadow maps (if necessary)
-				if ( LightSceneInfo.Proxy && LightSceneInfo.Proxy->AffectsDynamicIndirectLighting() )
-				{
-					if ( LightSceneInfo.Proxy->GetLightType() == LightType_Directional )
-					{
-						INC_DWORD_STAT(STAT_NumReflectiveShadowMapLights);
-						AddUntrackedAccessPass(GraphBuilder, [this, &LightSceneInfo](FRHICommandListImmediate& RHICmdList)
-						{
-							InjectReflectiveShadowMaps(RHICmdList, &LightSceneInfo);
-						});
-						bRenderedRSM = true;
-					}
-				}
-			}
-
-			// LPV Direct Light Injection
-			if (bRenderedRSM)
-			{
-				for (int32 LightIndex = SimpleLightsEnd; LightIndex < SortedLights.Num(); LightIndex++)
-				{
-					const FSortedLightSceneInfo& SortedLightInfo = SortedLights[LightIndex];
-					const FLightSceneInfo* const LightSceneInfo = SortedLightInfo.LightSceneInfo;
-
-					// Render any reflective shadow maps (if necessary)
-					if ( LightSceneInfo && LightSceneInfo->Proxy && LightSceneInfo->Proxy->AffectsDynamicIndirectLighting() )
-					{
-						if ( LightSceneInfo->Proxy->GetLightType() != LightType_Directional )
-						{
-							// Inject the light directly into all relevant LPVs
-							for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
-							{
-								FViewInfo& View = Views[ViewIndex];
-								RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
-
-								if (LightSceneInfo->ShouldRenderLight(View))
-								{
-									FSceneViewState* ViewState = (FSceneViewState*)View.State;
-									if (ViewState)
-									{
-										FLightPropagationVolume* Lpv = ViewState->GetLightPropagationVolume(View.GetFeatureLevel());
-										if (Lpv && LightSceneInfo->Proxy)
-										{
-											AddUntrackedAccessPass(GraphBuilder, [Lpv, LightSceneInfo, &View](FRHICommandListImmediate& RHICmdList)
-											{
-												Lpv->InjectLightDirect(RHICmdList, *LightSceneInfo->Proxy, View);
-											});
-										}
-									}
-								}
-							}
-						}
-					}
-				}
-			}
-
-			// Kickoff the LPV update (asynchronously if possible)
-			AddUntrackedAccessPass(GraphBuilder, [this](FRHICommandListImmediate& RHICmdList)
-			{
-				UpdateLPVs(RHICmdList);
-			});
 		}
 
 		{

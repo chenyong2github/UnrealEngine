@@ -32,9 +32,6 @@ public:
 		TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
 		bool bEnableSSAO);
 
-	// only call if LPV is enabled
-	void ProcessLpvIndirect(FRHICommandListImmediate& RHICmdList, FViewInfo& View);
-
 	bool CanProcessAsyncSSAO(const TArray<FViewInfo>& Views);
 
 	void ProcessAsyncSSAO(

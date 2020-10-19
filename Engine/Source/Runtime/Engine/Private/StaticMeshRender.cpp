@@ -287,8 +287,6 @@ FStaticMeshSceneProxy::FStaticMeshSceneProxy(UStaticMeshComponent* InComponent, 
 	// We always use local vertex factory, which gets its primitive data from GPUScene, so we can skip expensive primitive uniform buffer updates
 	bVFRequiresPrimitiveUniformBuffer = !UseGPUScene(GMaxRHIShaderPlatform, FeatureLevel);
 
-	LpvBiasMultiplier = FMath::Min( InComponent->GetStaticMesh()->LpvBiasMultiplier * InComponent->LpvBiasMultiplier, 3.0f );
-
 #if STATICMESH_ENABLE_DEBUG_RENDERING
 	if( GIsEditor )
 	{
@@ -1057,29 +1055,6 @@ HHitProxy* FStaticMeshSceneProxy::CreateHitProxies(UPrimitiveComponent* Componen
 }
 #endif // WITH_EDITOR
 
-// use for render thread only
-bool UseLightPropagationVolumeRT2(ERHIFeatureLevel::Type InFeatureLevel)
-{
-	if (InFeatureLevel < ERHIFeatureLevel::SM5)
-	{
-		return false;
-	}
-
-	// todo: better we get the engine LPV state not the cvar (later we want to make it changeable at runtime)
-	static const auto* CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.LightPropagationVolume"));
-	check(CVar);
-
-	int32 Value = CVar->GetValueOnRenderThread();
-
-	return Value != 0;
-}
-
-inline bool AllowShadowOnlyMesh(ERHIFeatureLevel::Type InFeatureLevel)
-{
-	// todo: later we should refine that (only if occlusion feature in LPV is on, only if inside a cascade, if shadow casting is disabled it should look at bUseEmissiveForDynamicAreaLighting)
-	return !UseLightPropagationVolumeRT2(InFeatureLevel);
-}
-
 inline void SetupMeshBatchForRuntimeVirtualTexture(FMeshBatch& MeshBatch)
 {
 	MeshBatch.CastShadow = 0;
@@ -1164,8 +1139,7 @@ void FStaticMeshSceneProxy::DrawStaticElements(FStaticPrimitiveDrawInterface* PD
 					const FLODInfo& ProxyLODInfo = LODs[LODIndex];
 
 					// The shadow-only mesh can be used only if all elements cast shadows and use opaque materials with no vertex modification.
-					// In some cases (e.g. LPV) we don't want the optimization
-					bool bSafeToUseUnifiedMesh = AllowShadowOnlyMesh(FeatureLevel);
+					bool bSafeToUseUnifiedMesh = true;
 
 					bool bAnySectionUsesDitheredLODTransition = false;
 					bool bAllSectionsUseDitheredLODTransition = true;

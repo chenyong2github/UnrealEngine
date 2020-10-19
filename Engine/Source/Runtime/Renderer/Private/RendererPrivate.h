@@ -16,7 +16,6 @@
 #include "LightMapDensityRendering.h"
 #include "ClearQuad.h"
 #include "AtmosphereRendering.h"
-#include "LightPropagationVolume.h"
 #include "ScenePrivate.h"
 #include "RenderTargetTemp.h"
 #include "RendererModule.h"

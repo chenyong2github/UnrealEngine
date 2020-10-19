@@ -29,7 +29,6 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FPrimitiveUniformShaderParameters,ENGINE_AP
 	SHADER_PARAMETER_EX(float,UseSingleSampleShadowFromStationaryLights,EShaderPrecisionModifier::Half)	
 
 	SHADER_PARAMETER(FVector,ObjectBounds)		// only needed for editor/development
-	SHADER_PARAMETER(float,LpvBiasMultiplier)
 
 	SHADER_PARAMETER_EX(float,DecalReceiverMask,EShaderPrecisionModifier::Half)
 	SHADER_PARAMETER_EX(float,PerObjectGBufferData,EShaderPrecisionModifier::Half)		// 0..1, 2 bits, bCastContactShadow, bHeightfieldRepresentation
@@ -65,7 +64,6 @@ inline FPrimitiveUniformShaderParameters GetPrimitiveUniformShaderParameters(
 	bool bUseVolumetricLightmap,
 	bool bDrawsVelocity,
 	uint32 LightingChannelMask,
-	float LpvBiasMultiplier,
 	uint32 LightmapDataIndex,
 	int32 SingleCaptureIndex,
 	bool bOutputVelocity,
@@ -87,7 +85,6 @@ inline FPrimitiveUniformShaderParameters GetPrimitiveUniformShaderParameters(
 	Result.ObjectOrientation = LocalToWorld.GetUnitAxis( EAxis::Z );
 	Result.ActorWorldPosition = ActorPosition;
 	Result.LightingChannelMask = LightingChannelMask;
-	Result.LpvBiasMultiplier = LpvBiasMultiplier;
 
 	{
 		// Extract per axis scales from LocalToWorld transform
@@ -142,7 +139,6 @@ inline FPrimitiveUniformShaderParameters GetPrimitiveUniformShaderParameters(
 	bool bUseVolumetricLightmap,
 	bool bDrawsVelocity,
 	uint32 LightingChannelMask,
-	float LpvBiasMultiplier,
 	uint32 LightmapDataIndex,
 	int32 SingleCaptureIndex,
     bool bOutputVelocity,
@@ -163,8 +159,7 @@ inline FPrimitiveUniformShaderParameters GetPrimitiveUniformShaderParameters(
 		bUseSingleSampleShadowFromStationaryLights, 
 		bUseVolumetricLightmap, 
 		bDrawsVelocity, 
-		LightingChannelMask, 
-		LpvBiasMultiplier, 
+		LightingChannelMask,
 		LightmapDataIndex, 
 		SingleCaptureIndex,
 		bOutputVelocity,
@@ -179,8 +174,7 @@ inline TUniformBufferRef<FPrimitiveUniformShaderParameters> CreatePrimitiveUnifo
 	const FBoxSphereBounds& LocalBounds,
 	const FBoxSphereBounds& PreSkinnedLocalBounds,
 	bool bReceivesDecals,
-	bool bDrawsVelocity,
-	float LpvBiasMultiplier = 1.0f
+	bool bDrawsVelocity
 	)
 {
 	check(IsInRenderingThread());
@@ -199,7 +193,6 @@ inline TUniformBufferRef<FPrimitiveUniformShaderParameters> CreatePrimitiveUnifo
 			false,
 			bDrawsVelocity,
 			GetDefaultLightingChannelMask(),
-			LpvBiasMultiplier,
 			INDEX_NONE,
 			INDEX_NONE,
 			false,
@@ -226,7 +219,6 @@ inline FPrimitiveUniformShaderParameters GetIdentityPrimitiveParameters()
 		false,
 		/* bDrawsVelocity = */ true,
 		GetDefaultLightingChannelMask(),
-		1.0f,		// LPV bias
 		INDEX_NONE,
 		INDEX_NONE,
 		false,

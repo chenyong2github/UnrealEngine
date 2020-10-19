@@ -526,7 +526,6 @@ public:
 	inline bool WritesVirtualTexture(URuntimeVirtualTexture* VirtualTexture) const { return RuntimeVirtualTextures.Find(VirtualTexture) != INDEX_NONE; }
 	inline bool AffectsDynamicIndirectLighting() const { return bAffectDynamicIndirectLighting; }
 	inline bool AffectsDistanceFieldLighting() const { return bAffectDistanceFieldLighting; }
-	inline float GetLpvBiasMultiplier() const { return LpvBiasMultiplier; }
 	inline EIndirectLightingCacheQuality GetIndirectLightingCacheQuality() const { return IndirectLightingCacheQuality; }
 	inline bool CastsVolumetricTranslucentShadow() const { return bCastVolumetricTranslucentShadow; }
 	inline bool CastsContactShadow() const { return bCastContactShadow; }
@@ -1011,9 +1010,6 @@ protected:
 	int8 VirtualTextureCullMips;
 	/** Log2 of minimum estimated pixel coverage before culling from runtime virtual texture. */
 	int8 VirtualTextureMinCoverage;
-
-	/** The bias applied to LPV injection */
-	float LpvBiasMultiplier;
 
 	/** Min visibility for capsule shadows. */
 	float DynamicIndirectShadowMinVisibility;

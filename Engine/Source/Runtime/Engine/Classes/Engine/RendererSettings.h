@@ -815,12 +815,6 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 		ConfigRestartRequired = true))
 		uint32 bSupportReversedIndexBuffers : 1;
 
-	UPROPERTY(config, EditAnywhere, Category = Lighting, meta = (
-		ConsoleVariable = "r.LightPropagationVolume", DisplayName = "Light Propagation Volumes",
-		ToolTip = "Whether to allow the usage and compilation of Light Propagation Volumes.",
-		ConfigRestartRequired = true))
-		uint32 bLPV : 1;
-
 	UPROPERTY(config, EditAnywhere, Category = Mobile, meta = (
 		ConsoleVariable = "r.Mobile.AmbientOcclusion", DisplayName = "Mobile Ambient Occlusion",
 		ToolTip = "Mobile Ambient Occlusion. Causion: An extra sampler will be occupied in mobile base pass pixel shader after enable the mobile ambient occlusion. Changing this setting requires restarting the editor.",

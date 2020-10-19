@@ -169,7 +169,6 @@ public:
 	/** Shadows to project for each feature that needs special handling. */
 	TArray<FProjectedShadowInfo*,SceneRenderingAllocator> ShadowsToProject;
 	TArray<FProjectedShadowInfo*,SceneRenderingAllocator> CapsuleShadowsToProject;
-	TArray<FProjectedShadowInfo*,SceneRenderingAllocator> RSMsToProject;
 
 	/** All visible projected preshdows.  These are not allocated on the mem stack so they are refcounted. */
 	TArray<TRefCountPtr<FProjectedShadowInfo>,SceneRenderingAllocator> ProjectedPreShadows;
@@ -1638,8 +1637,6 @@ struct FSortedShadowMaps
 	/** Visible shadows sorted by their shadow depth map render target. */
 	TArray<FSortedShadowMapAtlas,SceneRenderingAllocator> ShadowMapAtlases;
 
-	TArray<FSortedShadowMapAtlas,SceneRenderingAllocator> RSMAtlases;
-
 	TArray<FSortedShadowMapAtlas,SceneRenderingAllocator> ShadowMapCubemaps;
 
 	FSortedShadowMapAtlas PreshadowCache;
@@ -1661,11 +1658,6 @@ struct FSortedShadowMaps
 		for (int i = 0; i < ShadowMapAtlases.Num(); i++)
 		{
 			MemorySize += ShadowMapAtlases[i].RenderTargets.ComputeMemorySize();
-		}
-
-		for (int i = 0; i < RSMAtlases.Num(); i++)
-		{
-			MemorySize += RSMAtlases[i].RenderTargets.ComputeMemorySize();
 		}
 
 		for (int i = 0; i < ShadowMapCubemaps.Num(); i++)
@@ -1896,8 +1888,6 @@ protected:
 	void AllocateCachedSpotlightShadowDepthTargets(FRHICommandListImmediate& RHICmdList, TArray<FProjectedShadowInfo*, SceneRenderingAllocator>& CachedShadows);
 
 	void AllocateCSMDepthTargets(FRHICommandListImmediate& RHICmdList, const TArray<FProjectedShadowInfo*, SceneRenderingAllocator>& WholeSceneDirectionalShadows, TArray<FSortedShadowMapAtlas,SceneRenderingAllocator>& OutAtlases);
-
-	void AllocateRSMDepthTargets(FRHICommandListImmediate& RHICmdList, const TArray<FProjectedShadowInfo*, SceneRenderingAllocator>& RSMShadows);
 
 	void AllocateOnePassPointLightDepthTargets(FRHICommandListImmediate& RHICmdList, const TArray<FProjectedShadowInfo*, SceneRenderingAllocator>& WholeScenePointShadows);
 
@@ -2257,7 +2247,6 @@ struct FFastVramConfig
 	ETextureCreateFlags HZB;
 	ETextureCreateFlags SceneDepth;
 	ETextureCreateFlags SceneColor;
-	ETextureCreateFlags LPV;
 	ETextureCreateFlags BokehDOF;
 	ETextureCreateFlags CircleDOF;
 	ETextureCreateFlags CombineLUTs;

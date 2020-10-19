@@ -189,9 +189,6 @@ DEFINE_STAT(STAT_Scene_UpdateStaticDrawLists_RT);
 DEFINE_STAT(STAT_Scene_UpdateStaticDrawListsForMaterials_RT);
 DEFINE_STAT(STAT_GameToRendererMallocTotal);
 
-DEFINE_STAT(STAT_UpdateLPVs);
-DEFINE_STAT(STAT_ReflectiveShadowMaps);
-DEFINE_STAT(STAT_ReflectiveShadowMapDrawTime);
 DEFINE_STAT(STAT_NumReflectiveShadowMapLights);
 
 DEFINE_STAT(STAT_ShadowmapAtlasMemory);

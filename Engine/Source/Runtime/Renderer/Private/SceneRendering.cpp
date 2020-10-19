@@ -392,7 +392,6 @@ FASTVRAM_CVAR(GBufferVelocity, 0);
 FASTVRAM_CVAR(HZB, 1);
 FASTVRAM_CVAR(SceneDepth, 1);
 FASTVRAM_CVAR(SceneColor, 1);
-FASTVRAM_CVAR(LPV, 1);
 FASTVRAM_CVAR(BokehDOF, 1);
 FASTVRAM_CVAR(CircleDOF, 1);
 FASTVRAM_CVAR(CombineLUTs, 1);
@@ -534,7 +533,6 @@ void FFastVramConfig::Update()
 	bDirty |= UpdateTextureFlagFromCVar(CVarFastVRam_HZB, HZB);
 	bDirty |= UpdateTextureFlagFromCVar(CVarFastVRam_SceneDepth, SceneDepth);
 	bDirty |= UpdateTextureFlagFromCVar(CVarFastVRam_SceneColor, SceneColor);
-	bDirty |= UpdateTextureFlagFromCVar(CVarFastVRam_LPV, LPV);
 	bDirty |= UpdateTextureFlagFromCVar(CVarFastVRam_BokehDOF, BokehDOF);
 	bDirty |= UpdateTextureFlagFromCVar(CVarFastVRam_CircleDOF, CircleDOF);
 	bDirty |= UpdateTextureFlagFromCVar(CVarFastVRam_CombineLUTs, CombineLUTs);
@@ -2169,11 +2167,6 @@ void FSortedShadowMaps::Release()
 	for (int32 AtlasIndex = 0; AtlasIndex < ShadowMapAtlases.Num(); AtlasIndex++)
 	{
 		ShadowMapAtlases[AtlasIndex].RenderTargets.Release();
-	}
-
-	for (int32 AtlasIndex = 0; AtlasIndex < RSMAtlases.Num(); AtlasIndex++)
-	{
-		RSMAtlases[AtlasIndex].RenderTargets.Release();
 	}
 
 	for (int32 AtlasIndex = 0; AtlasIndex < ShadowMapCubemaps.Num(); AtlasIndex++)

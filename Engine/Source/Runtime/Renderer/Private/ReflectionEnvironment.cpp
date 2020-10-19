@@ -25,7 +25,6 @@
 #include "PostProcess/PostProcessing.h"
 #include "PostProcess/PostProcessSubsurface.h"
 #include "LightRendering.h"
-#include "LightPropagationVolumeSettings.h"
 #include "PipelineStateCache.h"
 #include "DistanceFieldAmbientOcclusion.h"
 #include "SceneTextureParameters.h"
@@ -36,9 +35,6 @@
 #include "PixelShaderUtils.h"
 #include "SceneTextureParameters.h"
 #include "HairStrands/HairStrandsRendering.h"
-
-
-extern TAutoConsoleVariable<int32> CVarLPVMixing;
 
 static TAutoConsoleVariable<int32> CVarReflectionEnvironment(
 	TEXT("r.ReflectionEnvironment"),

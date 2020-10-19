@@ -593,12 +593,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Material, meta=(DisplayName = "Emissive (Dynamic Area Light)"), AdvancedDisplay)
 	uint8 bUseEmissiveForDynamicAreaLighting : 1;
 
-	/**
-	 * If enabled, the material's opacity defines how much GI is blocked when using the LightPropagationVolume feature
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Material, meta=(DisplayName = "Block Global Illumination"), AdvancedDisplay)
-	uint8 bBlockGI : 1;
-
 	/** 
 	 * This is a special usage flag that allows a material to be assignable to any primitive type.
 	 * This is useful for materials used by code to implement certain viewmodes, for example the default material or lighting only material.

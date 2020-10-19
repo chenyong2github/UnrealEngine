@@ -318,7 +318,6 @@ void FDynamicPrimitiveUniformBuffer::Set(
 			bHasPrecomputedVolumetricLightmap,
 			bDrawsVelocity,
 			GetDefaultLightingChannelMask(),
-			1.0f,
 			INDEX_NONE,
 			INDEX_NONE,
 			bOutputVelocity,

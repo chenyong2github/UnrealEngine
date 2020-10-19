@@ -7208,7 +7208,6 @@ void FParticleSystemSceneProxy::UpdateWorldSpacePrimitiveUniformBuffer() const
 			GetScene().HasPrecomputedVolumetricLightmap_RenderThread(),
 			DrawsVelocity(),
 			GetLightingChannelMask(),
-			0,
 			INDEX_NONE,
 			INDEX_NONE,
 			AlwaysHasVelocity()

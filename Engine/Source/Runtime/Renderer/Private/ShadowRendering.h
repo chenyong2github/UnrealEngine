@@ -27,7 +27,6 @@
 #include "SceneRenderTargetParameters.h"
 #include "ShaderParameterUtils.h"
 #include "LightRendering.h"
-#include "LightPropagationVolume.h"
 #include "HairStrands/HairStrandsRendering.h"
 
 ENGINE_API IPooledRenderTarget* GetSubsufaceProfileTexture_RT(FRHICommandListImmediate& RHICmdList);
@@ -54,7 +53,6 @@ class FShadowDepthBasePS;
 void OverrideWithDefaultMaterialForShadowDepth(
 	const FMaterialRenderProxy*& InOutMaterialRenderProxy, 
 	const FMaterial*& InOutMaterialResource,
-	bool bReflectiveShadowmap,
 	ERHIFeatureLevel::Type InFeatureLevel
 	);
 
@@ -75,19 +73,16 @@ class FShadowDepthType
 public:
 	bool bDirectionalLight;
 	bool bOnePassPointLightShadow;
-	bool bReflectiveShadowmap;
 
-	FShadowDepthType(bool bInDirectionalLight, bool bInOnePassPointLightShadow, bool bInReflectiveShadowmap) 
+	FShadowDepthType(bool bInDirectionalLight, bool bInOnePassPointLightShadow) 
 	: bDirectionalLight(bInDirectionalLight)
 	, bOnePassPointLightShadow(bInOnePassPointLightShadow)
-	, bReflectiveShadowmap(bInReflectiveShadowmap)
 	{}
 
 	inline bool operator==(const FShadowDepthType& rhs) const
 	{
-		if (bDirectionalLight != rhs.bDirectionalLight || 
-			bOnePassPointLightShadow != rhs.bOnePassPointLightShadow || 
-			bReflectiveShadowmap != rhs.bReflectiveShadowmap) 
+		if (bDirectionalLight != rhs.bDirectionalLight ||
+			bOnePassPointLightShadow != rhs.bOnePassPointLightShadow)
 		{
 			return false;
 		}
@@ -116,7 +111,6 @@ public:
 
 private:
 
-	template<bool bRenderReflectiveShadowMap>
 	void Process(
 		const FMeshBatch& RESTRICT MeshBatch,
 		uint64 BatchElementMask,
@@ -201,18 +195,12 @@ typedef TFunctionRef<void(FRHICommandList& RHICmdList, bool bFirst)> FBeginShado
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FShadowDepthPassUniformParameters,)
 	SHADER_PARAMETER_STRUCT(FSceneTextureUniformParameters, SceneTextures)
-	SHADER_PARAMETER_STRUCT(FLpvWriteUniformBufferParameters, LPV)
 	SHADER_PARAMETER(FMatrix, ProjectionMatrix)
 	SHADER_PARAMETER(FMatrix, ViewMatrix)
 	SHADER_PARAMETER(FVector4, ShadowParams)
 	SHADER_PARAMETER(float, bClampToNearPlane)
 	SHADER_PARAMETER_ARRAY(FMatrix, ShadowViewProjectionMatrices, [6])
 	SHADER_PARAMETER_ARRAY(FMatrix, ShadowViewMatrices, [6])
-
-	SHADER_PARAMETER_UAV(RWStructuredBuffer<VplListEntry>, RWGvListBuffer)
-	SHADER_PARAMETER_UAV(RWByteAddressBuffer, RWGvListHeadBuffer)
-	SHADER_PARAMETER_UAV(RWStructuredBuffer<VplListEntry>, RWVplListBuffer)
-	SHADER_PARAMETER_UAV(RWByteAddressBuffer, RWVplListHeadBuffer)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FMobileShadowDepthPassUniformParameters,)
@@ -335,9 +323,6 @@ public:
 	/** Whether this shadow affects the whole scene or only a group of objects. */
 	uint32 bWholeSceneShadow : 1;
 
-	/** Whether the shadow needs to render reflective shadow maps. */ 
-	uint32 bReflectiveShadowmap : 1; 
-
 	/** Whether this shadow should support casting shadows from translucent surfaces. */
 	uint32 bTranslucentShadow : 1;
 
@@ -424,7 +409,6 @@ public:
 		uint32 InSnapResolutionX,
 		uint32 InSnapResolutionY,
 		uint32 InBorderSize,
-		bool bInReflectiveShadowMap,
 		TSharedPtr<FVirtualShadowMapCacheEntry> VirtualSmCacheEntry = TSharedPtr<FVirtualShadowMapCacheEntry>()
 		);
 
@@ -610,13 +594,13 @@ public:
 
 	FShadowDepthType GetShadowDepthType() const 
 	{
-		return FShadowDepthType(bDirectionalLight, bOnePassPointLightShadow, bReflectiveShadowmap);
+		return FShadowDepthType(bDirectionalLight, bOnePassPointLightShadow);
 	}
 
 	/**
 	* Setup uniformbuffers and update Primitive Shader Data
 	*/
-	void SetupShadowUniformBuffers(FRHICommandListImmediate& RHICmdList, FScene* Scene, FLightPropagationVolume* LPV = nullptr);
+	void SetupShadowUniformBuffers(FRHICommandListImmediate& RHICmdList, FScene* Scene);
 
 	/**
 	* Ensure Cached Shadowmap is in readable state

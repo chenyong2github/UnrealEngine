@@ -108,12 +108,6 @@ static bool MobileDetermineStaticMeshesCSMVisibilityStateInner(
 	if (PrimitiveProxy->WillEverBeLit() && PrimitiveProxy->ShouldReceiveMobileCSMShadows()
 		&& (PrimitiveProxy->GetLightingChannelMask() & LightProxy->GetLightingChannelMask()) != 0)
 	{
-
-		if (ProjectedShadowInfo->bReflectiveShadowmap && !PrimitiveProxy->AffectsDynamicIndirectLighting())
-		{
-			return bFoundCSMReceiver;
-		}
-
 		const FVector LightDirection = LightProxy->GetDirection();
 		const FVector PrimitiveToShadowCenter = ProjectedShadowInfo->ShadowBounds.Center - PrimitiveBounds.Origin;
 		// Project the primitive's bounds origin onto the light vector
@@ -343,8 +337,7 @@ bool BuildSingleCascadeShadowInfo(FViewInfo &View, TArray<FVisibleLightInfo, Sce
 				ShadowBufferResolution.Y,
 				ShadowBufferResolution.X,
 				ShadowBufferResolution.Y,
-				ShadowBorder,
-				false	// no RSM
+				ShadowBorder
 			);
 			bSuccess = true;
 		}

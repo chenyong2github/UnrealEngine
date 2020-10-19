@@ -648,14 +648,6 @@ public:
 	FPrimitiveComponentId ComponentId;
 
 	/**
-	 * Multiplier used to scale the Light Propagation Volume light injection bias, to reduce light bleeding. 
-	 * Set to 0 for no bias, 1 for default or higher for increased biasing (e.g. for 
-	 * thin geometry such as walls)
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, AdvancedDisplay, Category=Rendering, meta=(UIMin = "0.0", UIMax = "3.0"))
-	float LpvBiasMultiplier;
-
-	/**
 	* Incremented by the main thread before being attached to the scene, decremented
 	* by the rendering thread after removal. This counter exists to assert that 
 	* operations are safe in order to help avoid race conditions.

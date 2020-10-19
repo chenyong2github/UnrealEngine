@@ -614,10 +614,6 @@ class UStaticMesh : public UStreamableRenderAsset, public IInterface_CollisionDa
 		return INDEX_NONE;
 	}
 
-	/** Bias multiplier for Light Propagation Volume lighting */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=StaticMesh, meta=(UIMin = "0.0", UIMax = "3.0"))
-	float LpvBiasMultiplier;
-
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = StaticMesh)
 	TArray<FStaticMaterial> StaticMaterials;
 

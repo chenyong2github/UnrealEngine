@@ -9,7 +9,6 @@
 #include "DepthRendering.h"
 #include "SceneRendering.h"
 #include "DeferredShadingRenderer.h"
-#include "LightPropagationVolume.h"
 #include "ScenePrivate.h"
 #include "PipelineStateCache.h"
 #include "ClearQuad.h"
@@ -1581,43 +1580,6 @@ bool FSceneRenderer::CheckForProjectedShadows( const FLightSceneInfo* LightScene
 		}
 	}
 	return false;
-}
-
-bool FDeferredShadingSceneRenderer::InjectReflectiveShadowMaps(FRHICommandListImmediate& RHICmdList, const FLightSceneInfo* LightSceneInfo)
-{
-	FVisibleLightInfo& VisibleLightInfo = VisibleLightInfos[LightSceneInfo->Id];
-
-	// Inject the RSM into the LPVs
-	for (int32 ShadowIndex = 0; ShadowIndex < VisibleLightInfo.RSMsToProject.Num(); ShadowIndex++)
-	{
-		FProjectedShadowInfo* ProjectedShadowInfo = VisibleLightInfo.RSMsToProject[ShadowIndex];
-
-		check(ProjectedShadowInfo->bReflectiveShadowmap);
-
-		if (ProjectedShadowInfo->bAllocated && ProjectedShadowInfo->DependentView)
-		{
-			FSceneViewState* ViewState = (FSceneViewState*)ProjectedShadowInfo->DependentView->State;
-
-			FLightPropagationVolume* LightPropagationVolume = ViewState ? ViewState->GetLightPropagationVolume(FeatureLevel) : NULL;
-
-			if (LightPropagationVolume)
-			{
-				if (ProjectedShadowInfo->bWholeSceneShadow)
-				{
-					LightPropagationVolume->InjectDirectionalLightRSM( 
-						RHICmdList, 
-						*ProjectedShadowInfo->DependentView,
-						(const FTexture2DRHIRef&)ProjectedShadowInfo->RenderTargets.ColorTargets[0]->GetRenderTargetItem().ShaderResourceTexture,
-						(const FTexture2DRHIRef&)ProjectedShadowInfo->RenderTargets.ColorTargets[1]->GetRenderTargetItem().ShaderResourceTexture, 
-						(const FTexture2DRHIRef&)ProjectedShadowInfo->RenderTargets.DepthTarget->GetRenderTargetItem().ShaderResourceTexture,
-						*ProjectedShadowInfo, 
-						LightSceneInfo->Proxy->GetColor() );
-				}
-			}
-		}
-	}
-
-	return true;
 }
 
 void FSceneRenderer::RenderShadowProjections(

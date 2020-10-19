@@ -564,11 +564,6 @@ bool FSceneRenderer::ShouldRenderTranslucency(ETranslucencyPass::Type Translucen
 	// Change this condition to control where simple elements should be rendered.
 	if (IsMainTranslucencyPass(TranslucencyPass))
 	{
-		if (ViewFamily.EngineShowFlags.VisualizeLPV)
-		{
-			return true;
-		}
-
 		for (const FViewInfo& View : Views)
 		{
 			if (View.bHasTranslucentViewMeshElements || View.SimpleElementCollector.BatchedElements.HasPrimsToDraw())
@@ -906,17 +901,6 @@ static void RenderViewTranslucencyInner(
 			if (ParallelCommandListSet)
 			{
 				RHICmdList.EndRenderPass();
-			}
-		}
-
-		const FSceneViewState* ViewState = (const FSceneViewState*)View.State;
-		if (ViewState && View.Family->EngineShowFlags.VisualizeLPV)
-		{
-			FLightPropagationVolume* LightPropagationVolume = ViewState->GetLightPropagationVolume(View.GetFeatureLevel());
-
-			if (LightPropagationVolume)
-			{
-				LightPropagationVolume->Visualise(RHICmdList, View);
 			}
 		}
 	}

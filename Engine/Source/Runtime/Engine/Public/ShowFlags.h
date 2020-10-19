@@ -382,7 +382,6 @@ private:
 		SetLightMapDensity(false);
 		SetLODColoration(false);
 		SetHLODColoration(false);
-		SetVisualizeLPV(false);
 		SetStreamingBounds(false);
 		SetHISMCOcclusionBounds(false);
 		SetHISMCClusterTree(false);

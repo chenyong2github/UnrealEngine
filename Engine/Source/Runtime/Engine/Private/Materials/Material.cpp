@@ -980,7 +980,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	bEnableStencilTest = false;
 
 	bUseEmissiveForDynamicAreaLighting = false;
-	bBlockGI = false;
 	RefractionDepthBias = 0.0f;
 	MaterialDecalResponse = MDR_ColorNormalRoughness;
 

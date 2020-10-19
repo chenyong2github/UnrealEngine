@@ -1372,18 +1372,6 @@ public:
 	}
 
 	/**
-	 * Sets up a projected shadow initializer for a reflective shadow map that's dependent on the current view for shadows from the entire scene.
-	 * @return True if the whole-scene projected shadow should be used.
-	 */
-	virtual bool GetViewDependentRsmWholeSceneProjectedShadowInitializer(
-		const class FSceneView& View, 
-		const FBox& LightPropagationVolumeBounds,
-		class FWholeSceneProjectedShadowInitializer& OutInitializer ) const
-	{
-		return false;
-	}
-
-	/**
 	 * Sets up a projected shadow initializer for the given subject.
 	 * @param SubjectBounds - The bounding volume of the subject.
 	 * @param OutInitializer - Upon successful return, contains the initialization parameters for the shadow.

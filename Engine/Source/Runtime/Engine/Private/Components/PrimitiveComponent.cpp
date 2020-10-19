@@ -327,7 +327,6 @@ UPrimitiveComponent::UPrimitiveComponent(const FObjectInitializer& ObjectInitial
 	bCastDynamicShadow = true;
 	bAffectDynamicIndirectLighting = true;
 	bAffectDistanceFieldLighting = true;
-	LpvBiasMultiplier = 1.0f;
 	bCastStaticShadow = true;
 	bCastVolumetricTranslucentShadow = false;
 	bCastContactShadow = true;

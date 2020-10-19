@@ -38,7 +38,6 @@
 #include "PostProcess/PostProcessStreamingAccuracyLegend.h"
 #include "PostProcess/PostProcessSubsurface.h"
 #include "CompositionLighting/PostProcessPassThrough.h"
-#include "CompositionLighting/PostProcessLpvIndirect.h"
 #include "ShaderPrint.h"
 #include "GpuDebugRendering.h"
 #include "HighResScreenshot.h"
@@ -889,11 +888,6 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 		PassInputs.ComplexityScale = ComplexityScale;
 
 		SceneColor = AddVisualizeComplexityPass(GraphBuilder, View, PassInputs);
-	}
-
-	if (EngineShowFlags.VisualizeLPV)
-	{
-		AddVisualizeLPVPass(GraphBuilder, View, SceneColor);
 	}
 
 #if WITH_EDITOR

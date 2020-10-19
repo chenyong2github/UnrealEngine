@@ -41,7 +41,6 @@
 #include "SkyAtmosphereRendering.h"
 #include "BasePassRendering.h"
 #include "MobileBasePassRendering.h"
-#include "LightPropagationVolume.h"
 #include "ScenePrivate.h"
 #include "RendererModule.h"
 #include "StaticMeshResources.h"
@@ -201,8 +200,6 @@ FSceneViewState::FSceneViewState()
 
 	SequencerState = ESS_None;
 
-	LightPropagationVolume = NULL; 
-
 	bIsStereoView = false;
 
 	bRoundRobinOcclusionEnabled = false;
@@ -288,7 +285,6 @@ FSceneViewState::~FSceneViewState()
 	AOTileIntersectionResources = NULL;
 	DestroyRenderResource(AOScreenGridResources);
 	AOScreenGridResources = NULL;
-	DestroyLightPropagationVolume();
 
 #if RHI_RAYTRACING
 	DestroyRWBuffer(VarianceMipTree);
