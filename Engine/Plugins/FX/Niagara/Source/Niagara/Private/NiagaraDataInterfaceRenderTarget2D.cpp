@@ -511,6 +511,11 @@ bool UNiagaraDataInterfaceRenderTarget2D::PerInstanceTickPostSimulate(void* PerI
 				InstanceData->TargetTexture->InitAutoFormat(InstanceData->Size.X, InstanceData->Size.Y);
 				InstanceData->TargetTexture->UpdateResourceImmediate(true);
 				bUpdateRT = true;
+
+				//////////////////////////////////////////////////////////////////////////
+				//-TOFIX: Workaround FORT-315375 GT / RT Race
+				SystemInstance->RequestMaterialRecache();
+				//////////////////////////////////////////////////////////////////////////
 			}
 		}
 

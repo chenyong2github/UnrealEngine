@@ -861,6 +861,28 @@ bool UNiagaraComponent::InitializeSystem()
 		SystemInstance->Init(bForceSolo);
 		SystemInstance->SetOnPostTick(FNiagaraSystemInstance::FOnPostTick::CreateUObject(this, &UNiagaraComponent::PostSystemTick_GameThread));
 		SystemInstance->SetOnComplete(FNiagaraSystemInstance::FOnComplete::CreateUObject(this, &UNiagaraComponent::OnSystemComplete));
+
+		//////////////////////////////////////////////////////////////////////////
+		//-TOFIX: Workaround FORT-315375 GT / RT Race
+		SystemInstance->SetOnExecuteMaterialRecache(
+			FNiagaraSystemInstance::FOnExecuteMaterialRecache::CreateLambda(
+				[WeakComponent=TWeakObjectPtr<UNiagaraComponent>(this)]()
+				{
+					check(IsInGameThread());
+
+					auto Component = WeakComponent.Get();
+					if (Component)
+					{
+						for (const FNiagaraMaterialOverride& MaterialOverride : Component->EmitterMaterials)
+						{
+							MaterialOverride.Material->RecacheUniformExpressions(true);
+						}
+					}
+				}
+			)
+		);
+		//////////////////////////////////////////////////////////////////////////
+
 		if (bEnableGpuComputeDebug)
 		{
 			SystemInstance->SetGpuComputeDebug(bEnableGpuComputeDebug);
@@ -1699,16 +1721,13 @@ FBoxSphereBounds UNiagaraComponent::CalcBounds(const FTransform& LocalToWorld) c
 void UNiagaraComponent::UpdateEmitterMaterials(bool bForceUpdateEmitterMaterials)
 {
 	check(IsInRenderingThread() || IsInGameThread() || IsAsyncLoading() || GIsSavingPackage); // Same restrictions as MIDs
-	if (!bNeedsUpdateEmitterMaterials && !bForceUpdateEmitterMaterials)
-		return;
 
-	if (bForceUpdateEmitterMaterials)
+	if (!bNeedsUpdateEmitterMaterials && !bForceUpdateEmitterMaterials)
 	{
-		EmitterMaterials.Empty();
+		return;
 	}
 
 	TArray<FNiagaraMaterialOverride> NewEmitterMaterials;
-	
 	if (SystemInstance)
 	{
 		for (int32 i = 0; i < SystemInstance->GetEmitters().Num(); i++)
@@ -1716,48 +1735,65 @@ void UNiagaraComponent::UpdateEmitterMaterials(bool bForceUpdateEmitterMaterials
 			FNiagaraEmitterInstance* EmitterInst = &SystemInstance->GetEmitters()[i].Get();
 			if (UNiagaraEmitter* Emitter = EmitterInst->GetCachedEmitter())
 			{
-
 				Emitter->ForEachEnabledRenderer(
 					[&](UNiagaraRendererProperties* Properties)
 					{
+						// Nothing to do if we don't create MIDs for this material
+						if ( !Properties->NeedsMIDsForMaterials() )
+						{
+							return;
+						}
+
 						TArray<UMaterialInterface*> UsedMaterials;
 						Properties->GetUsedMaterials(EmitterInst, UsedMaterials);
-						bool bCreateMidsForUsedMaterials = Properties->NeedsMIDsForMaterials();
 
-						uint32 Index = 0;
-						for (UMaterialInterface*& Mat : UsedMaterials)
+						uint32 MaterialIndex = 0;
+						for (UMaterialInterface*& ExistingMaterial : UsedMaterials)
 						{
-							if (Mat && bCreateMidsForUsedMaterials && !Mat->IsA<UMaterialInstanceDynamic>())
+							if (ExistingMaterial)
 							{
-								bool bFoundMatch = false;
-								for (int32 i = 0; i < EmitterMaterials.Num(); i++)
+								bool bCreateMID = true;
+
+								if ( ExistingMaterial->IsA<UMaterialInstanceDynamic>() )
 								{
-									if (EmitterMaterials[i].EmitterRendererProperty == Properties && EmitterMaterials[i].Material )
+									if ( EmitterMaterials.FindByPredicate([&](const FNiagaraMaterialOverride& ExistingOverride) -> bool { return (ExistingOverride.Material == ExistingMaterial) && (ExistingOverride.EmitterRendererProperty == Properties) && (ExistingOverride.MaterialSubIndex == MaterialIndex); }) )
 									{
-										UMaterialInstanceDynamic* MatDyn = Cast< UMaterialInstanceDynamic>(EmitterMaterials[i].Material);
-										if (MatDyn && MatDyn->Parent == Mat)
+										if ( bForceUpdateEmitterMaterials )
 										{
-											bFoundMatch = true;
-											Mat = MatDyn;
-											NewEmitterMaterials.Add(EmitterMaterials[i]);
-											break;
+											// Forcing an update means create a new MID so grab the parent from the existing one
+											ExistingMaterial = CastChecked<UMaterialInstanceDynamic>(ExistingMaterial)->Parent;
+										}
+										else
+										{
+											// We found one so no need to create but make sure we keep it for tracking
+											FNiagaraMaterialOverride& NewOverride = NewEmitterMaterials.AddDefaulted_GetRef();
+											NewOverride.Material = ExistingMaterial;
+											NewOverride.EmitterRendererProperty = Properties;
+											NewOverride.MaterialSubIndex = MaterialIndex;
+											//////////////////////////////////////////////////////////////////////////
+											//-TOFIX: Workaround FORT-315375 GT / RT Race
+											NewOverride.Material->RecacheUniformExpressions(true);
+											//////////////////////////////////////////////////////////////////////////
+
+											bCreateMID = false;
 										}
 									}
 								}
 
-								if (!bFoundMatch)
+								// Create a new MID
+								if ( bCreateMID )
 								{
 									UE_LOG(LogNiagara, Log, TEXT("Create Dynamic Material for component %s"), *GetPathName());
-									Mat = UMaterialInstanceDynamic::Create(Mat, this);
+									ExistingMaterial = UMaterialInstanceDynamic::Create(ExistingMaterial, this);
 									FNiagaraMaterialOverride Override;
-									Override.Material = Mat;
+									Override.Material = ExistingMaterial;
 									Override.EmitterRendererProperty = Properties;
-									Override.MaterialSubIndex = Index;
+									Override.MaterialSubIndex = MaterialIndex;
 
 									NewEmitterMaterials.Add(Override);
 								}
 							}
-							Index++;
+							++MaterialIndex;
 						}
 					}
 				);				
@@ -1767,7 +1803,7 @@ void UNiagaraComponent::UpdateEmitterMaterials(bool bForceUpdateEmitterMaterials
 		bNeedsUpdateEmitterMaterials = false;
 	}
 
-	EmitterMaterials = NewEmitterMaterials;
+	EmitterMaterials = MoveTemp(NewEmitterMaterials);
 }
 
 FPrimitiveSceneProxy* UNiagaraComponent::CreateSceneProxy()
