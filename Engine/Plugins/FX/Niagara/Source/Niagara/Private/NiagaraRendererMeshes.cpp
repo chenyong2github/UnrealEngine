@@ -98,9 +98,6 @@ FNiagaraRendererMeshes::FNiagaraRendererMeshes(ERHIFeatureLevel::Type FeatureLev
 	RendererVisibility = Properties->RendererVisibility;	
 	LocalCullingSphere = Mesh->GetExtendedBounds().GetSphere();
 
-	// Apply the PivotOffset to the local bounding sphere for culling, too
-	LocalCullingSphere.Center += PivotOffset;
-
 	if (Properties->bEnableCameraDistanceCulling)
 	{
 		DistanceCullRange = FVector2D(Properties->MinCameraDistance, Properties->MaxCameraDistance);
@@ -421,7 +418,6 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 				PerViewUniformParameters.MaterialParamValidMask = MaterialParamValidMask;
 				PerViewUniformParameters.SizeDataOffset = INDEX_NONE;
 				PerViewUniformParameters.DefaultPos = bLocalSpace ? FVector4(0.0f, 0.0f, 0.0f, 1.0f) : FVector4(SceneProxy->GetLocalToWorld().GetOrigin());
-				PerViewUniformParameters.PivotOffset = PivotOffset;
 				PerViewUniformParameters.SubImageSize = FVector4(SubImageSize.X, SubImageSize.Y, 1.0f / SubImageSize.X, 1.0f / SubImageSize.Y);
 				PerViewUniformParameters.SubImageBlendMode = bSubImageBlend;
 				PerViewUniformParameters.FacingMode = (uint32)FacingMode;
