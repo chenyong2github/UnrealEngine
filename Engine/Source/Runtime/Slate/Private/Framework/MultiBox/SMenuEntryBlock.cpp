@@ -1576,10 +1576,22 @@ FSlateColor SMenuEntryBlock::InvertOnHover() const
  */
 const FSlateBrush* SMenuEntryBlock::GetCheckBoxImageBrushFromStyle(const FCheckBoxStyle* Style) const
 {
-	switch (IsChecked())
+	if (IsHovered()) 
 	{
-	case ECheckBoxState::Checked: return &Style->CheckedImage;
-	case ECheckBoxState::Unchecked: return &Style->UncheckedImage;
-	default: return &Style->UndeterminedImage;
+		switch (IsChecked())
+		{
+			case ECheckBoxState::Checked: return &Style->CheckedHoveredImage;
+			case ECheckBoxState::Unchecked: return &Style->UncheckedHoveredImage;
+			default: return &Style->UndeterminedHoveredImage;
+		}
+	}
+	else
+	{
+		switch (IsChecked())
+		{
+			case ECheckBoxState::Checked: return &Style->CheckedImage;
+			case ECheckBoxState::Unchecked: return &Style->UncheckedImage;
+			default: return &Style->UndeterminedImage;
+		}
 	}
 }
