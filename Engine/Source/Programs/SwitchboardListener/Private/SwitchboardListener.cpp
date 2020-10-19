@@ -212,7 +212,8 @@ bool FSwitchboardListener::Tick()
 bool FSwitchboardListener::ParseIncomingMessage(const FString& InMessage, const FIPv4Endpoint& InEndpoint)
 {
 	TUniquePtr<FSwitchboardTask> Task;
-	if (CreateTaskFromCommand(InMessage, InEndpoint, Task))
+	bool bEcho = true;
+	if (CreateTaskFromCommand(InMessage, InEndpoint, Task, bEcho))
 	{
 		if (Task->Type == ESwitchboardTaskType::Disconnect)
 		{
@@ -224,7 +225,11 @@ bool FSwitchboardListener::ParseIncomingMessage(const FString& InMessage, const 
 		}
 		else
 		{
-			UE_LOG(LogSwitchboard, Display, TEXT("Received %s command"), *Task->Name);
+			if (bEcho)
+			{
+				UE_LOG(LogSwitchboard, Display, TEXT("Received %s command"), *Task->Name);
+			}
+
 			SendMessage(CreateCommandAcceptedMessage(Task->TaskID), InEndpoint);
 			ScheduledTasks.Enqueue(MoveTemp(Task));
 		}
