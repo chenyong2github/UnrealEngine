@@ -165,6 +165,11 @@ void AddSample(uint SampleOffset, uint SampleIt, const float3 D, const float3 W)
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+
+float4 SkyLight_OcclusionTintAndMinOcclusion;
+float SkyLight_OcclusionExponent;
+uint SkyLight_OcclusionCombineMode;
+
 float HairDistanceThreshold;
 uint bHairUseViewHairCount;
 Texture2D<float> HairCountTexture;
@@ -201,7 +206,7 @@ FHairTraversalResult InternalComputeHairCountVoxel(
 	TraversalSettings.CountThreshold = GetOpaqueVoxelValue();
 	TraversalSettings.DistanceThreshold = DistanceThreshold;
 	TraversalSettings.bDebugEnabled = bDebugEnabled;
-	TraversalSettings.SteppingScale = VirtualVoxel.SteppingScale;
+	TraversalSettings.SteppingScale = VirtualVoxel.SteppingScale_Environment;
 	TraversalSettings.PixelRadius = PixelRadius;
 	TraversalSettings.bUseOccupancy = View.GeneralPurposeTweak > 0;
 
@@ -668,10 +673,38 @@ float3 ReflectionEnvironmentSH(
 		HairComponents);
 
 	bool bEvalMultiScatter = true;
-	float3 Color = PI * HairShading(GBuffer, L, V, N, 1, TransmittanceData, 1, 0.2, uint2(0, 0));
+	float3 f_s = PI * HairShading(GBuffer, L, V, N, 1, TransmittanceData, 1, 0.2, uint2(0, 0));
+
+	// This logic mimic the ReflecitonEnvironemtPixelShader.usf. Ideallyw we should share the same 
+	// code/path, but the various permutation make the code a bit obscure
+	// Need to take into account DFAO?
+	float3 Lighting = 0;
+	{
+		float AmbientOcclusion = 1;
+		float SkyVisibility = 1;
+		float3 SkyLightingNormal = GBuffer.WorldNormal;
+
+		// Apply DFAO controls
+		SkyVisibility = pow(SkyVisibility, SkyLight_OcclusionExponent);
+		SkyVisibility = lerp(SkyVisibility, 1, SkyLight_OcclusionTintAndMinOcclusion.w);
+
+		// Combine with other AO sources
+		if (SkyLight_OcclusionCombineMode == 0)
+		{
+			// Combine with min which nicely avoids over-occlusion in cases where strong DFAO is present along with strong SSAO (distant trees)
+			SkyVisibility = min(SkyVisibility, min(GBuffer.GBufferAO, AmbientOcclusion));
+		}
+		else
+		{
+			// Combine with mul, which continues to add SSAO depth even indoors.  SSAO will need to be tweaked to be less strong.
+			SkyVisibility = SkyVisibility * min(GBuffer.GBufferAO, AmbientOcclusion);
+		}
+		const float3 DiffuseLighting = PreExposure * GetSkySHDiffuse(L) * View.SkyLightColor.rgb;
+		Lighting = SkyVisibility * DiffuseLighting * f_s + (1 - SkyVisibility) * SkyLight_OcclusionTintAndMinOcclusion.xyz * f_s;
+	}
 
 	// Transform NaNs to black, transform negative colors to black.
-	return -min(-Color, 0.0);
+	return -min(-Lighting, 0.0);
 }
 #endif // #if PERMUTATION_INTEGRATION_TYPE == INTEGRATION_SH
 

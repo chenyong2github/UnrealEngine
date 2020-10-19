@@ -282,7 +282,7 @@ struct FRBFDeformedPositions
 };
 
 #if WITH_EDITORONLY_DATA
-void ApplyDeformationToGroom(const TArray<FRBFDeformedPositions>& DeformedPositions, UGroomAsset* GroomAsset)
+static void ApplyDeformationToGroom(const TArray<FRBFDeformedPositions>& DeformedPositions, UGroomAsset* GroomAsset)
 {
 	// The deformation must be stored in the HairDescription to rebuild the hair data when the groom is loaded
 	FHairDescription HairDescription = GroomAsset->GetHairDescription();
@@ -377,10 +377,14 @@ void ApplyDeformationToGroom(const TArray<FRBFDeformedPositions>& DeformedPositi
 	}
 
 	FGroomBuilder::BuildGroom(HairDescription, GroomAsset);
-
+	FGroomBuilder::BuildClusterData(GroomAsset, FGroomBuilder::ComputeGroomBoundRadius(GroomAsset->HairGroupsData));
+	
 	GroomAsset->CommitHairDescription(MoveTemp(HairDescription));
 	GroomAsset->UpdateHairGroupsInfo();
-	GroomAsset->InitResources(true);
+
+	// Update/reimport the cards/meshes geometry which have been deformed prior to call this function
+	GroomAsset->BuildCardsGeometry();
+	GroomAsset->BuildMeshesGeometry();
 }
 
 static void ExtractSkeletalVertexPosition(
@@ -533,18 +537,10 @@ void FGroomRBFDeformer::GetRBFDeformedGroomAsset(const UGroomAsset* InGroomAsset
 				continue;
 			}
 
-			Mesh->ConditionalPostLoad();
 			if (Desc.GroupIndex >= 0)
 			{
+				Mesh->ConditionalPostLoad();
 				DeformStaticMeshPositions(Mesh, MeshVertexPositionsBuffer_Target, BindingAsset->HairGroupDatas[Desc.GroupIndex].RenRootData.MeshProjectionLODs[MeshLODIndex]);
-
-				// Update the procedural mesh key of the deformed meshed
-
-				{
-					TArray<FHairGroupsCardsSourceDescription> Descriptions;
-					Descriptions.Add(Desc);
-					Desc.ProceduralMeshKey = GroomDerivedDataCacheUtils::BuildCardsDerivedDataKeySuffix(Desc.GroupIndex, OutGroomAsset->HairGroupsLOD[Desc.GroupIndex].LODs, Descriptions);
-				}
 			}
 		} 
 

@@ -11,8 +11,9 @@ Texture2D<uint4> CategorisationTexture;
 void MainPS(
 	in FScreenVertexOutput Input,
 	out float SvDepth		: SV_DEPTH,
-	out float4  OutGBufferB	: SV_Target0,
-	out float4 OutColor		: SV_Target1
+	out float4 OutGBufferB	: SV_Target0,
+	out float4 OutGBufferC	: SV_Target1,
+	out float4 OutColor		: SV_Target2
 )
 {
 	const FCategorizationData CategorisationData = DecodeCategorizationData(CategorisationTexture.Load(uint3(Input.Position.xy, 0)));
@@ -21,7 +22,11 @@ void MainPS(
 		discard;
 	}
 
-	SvDepth = 0; // CategorisationData.ClosestDepth;
-	OutGBufferB = 0;
+	// Add a depth bias in order to avoid precision issue during the composition pass, which would reject certain samples.
+	// This depth is only used for screen passes like AO/SSGI/... so no need to be very accurate
+	const float DepthBias = 0.001f; 
+	SvDepth = CategorisationData.ClosestDepth-DepthBias;
+	OutGBufferB = float4(0, 0, 0.3f, EncodeShadingModelIdAndSelectiveOutputMask(SHADINGMODELID_HAIR, 0));
+	OutGBufferC = 0;
 	OutColor = 0;
 }

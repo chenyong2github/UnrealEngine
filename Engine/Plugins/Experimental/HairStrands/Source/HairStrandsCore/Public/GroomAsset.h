@@ -19,6 +19,7 @@
 #include "HairStrandsInterface.h"
 #include "Engine/SkeletalMesh.h"
 #include "Interfaces/Interface_AssetUserData.h"
+#include "PerPlatformProperties.h"
 
 #include "GroomAsset.generated.h"
 
@@ -121,6 +122,8 @@ struct HAIRSTRANDSCORE_API FHairGroupData
 			FHairCardsInterpolationResource*	InterpolationResource = nullptr;
 
 			FBaseWithInterpolation				Guides;
+
+			bool bIsCookedOut = false;
 		};
 		TArray<FLOD> LODs;
 	} Cards;
@@ -141,6 +144,7 @@ struct HAIRSTRANDSCORE_API FHairGroupData
 			bool IsValid() const { return RestResource != nullptr; }
 			FHairMeshesDatas Data;
 			FHairMeshesRestResource* RestResource = nullptr;
+			bool bIsCookedOut = false;
 		};
 		TArray<FLOD> LODs;
 	} Meshes;
@@ -150,6 +154,8 @@ struct HAIRSTRANDSCORE_API FHairGroupData
 		FHairStrandsDebugDatas Data;
 		FHairStrandsDebugDatas::FResources* Resource = nullptr;
 	} Debug;
+
+	bool bIsCookedOut = false;
 };
 
 struct FProcessedHairDescription
@@ -230,6 +236,18 @@ public:
 	UPROPERTY(EditAnywhere, Category = "LOD", meta = (ToolTip = "LOD selection type (CPU/GPU)"))
 	EHairLODSelectionType LODSelectionType;
 
+	/** Minimum LOD to cook */
+	UPROPERTY(EditAnywhere, Category = "LOD", meta = (DisplayName = "Minimum LOD"))
+	FPerPlatformInt MinLOD;
+
+	/** When true all LODs below MinLod will still be cooked */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "LOD")
+	FPerPlatformBool DisableBelowMinLodStripping;
+
+	/** The LOD bias to use after LOD stripping, regardless of MinLOD. Computed at cook time */
+	UPROPERTY()
+	TArray<float> EffectiveLODBias;
+
 	//~ Begin UObject Interface.
 	virtual void PostLoad() override;
 	virtual void BeginDestroy() override;
@@ -268,9 +286,9 @@ public:
 	void SetHairWidth(float Width);
 
 	/** Initialize/Update/Release resources. */
-	void InitResources(bool bForceRebuildClusterData);
+	void InitResources();
 	void InitGuideResources();
-	void InitStrandsResources(bool bForceRebuildClusterData);
+	void InitStrandsResources();
 	void InitCardsResources();
 	void InitMeshesResources();
 #if WITH_EDITOR
@@ -327,6 +345,9 @@ public:
 	bool IsMaterialUsed(int32 MaterialIndex) const;
 	TArray<FName> GetMaterialSlotNames() const;
 
+	bool BuildCardsGeometry();
+	bool BuildMeshesGeometry();
+
 private:
 	enum EClassDataStripFlag : uint8
 	{
@@ -338,13 +359,12 @@ private:
 	};
 
 	uint8 GenerateClassStripFlags(FArchive& Ar);
+	void ApplyStripFlags(uint8 StripFlags, const class ITargetPlatform* CookTarget);
 
 #if WITH_EDITORONLY_DATA
 	bool HasImportedStrandsData() const;
 
-	bool BuildCardsGeometry();
 	bool BuildCardsGeometry(uint32 GroupIndex);
-	bool BuildMeshesGeometry();
 	bool BuildMeshesGeometry(uint32 GroupIndex);
 
 public:

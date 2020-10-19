@@ -476,7 +476,7 @@ void MainPS(
 		const float3 Random = GetShadowMaskRandom(PixelCoord.xy);
 		{
 			const float PositionBiasScale = 0.5f;
-			const float3 DepthBias = VirtualVoxel.VoxelWorldSize * (2 * LightDirection + PositionBiasScale * (Random * 2 - 1));
+			const float3 DepthBias = VirtualVoxel.VoxelWorldSize * (VirtualVoxel.DepthBiasScale_Shadow * LightDirection + PositionBiasScale * (Random * 2 - 1));
 			WorldPosition += DepthBias;
 		}
 
@@ -505,7 +505,7 @@ void MainPS(
 		TraversalSettings.CountThreshold = 1;
 		TraversalSettings.DistanceThreshold = DistanceThreshold;
 		TraversalSettings.bDebugEnabled = bDebugEnabled;
-		TraversalSettings.SteppingScale = VirtualVoxel.SteppingScale;
+		TraversalSettings.SteppingScale = VirtualVoxel.SteppingScale_Shadow;
 		TraversalSettings.Random = Random;
 		TraversalSettings.PixelRadius = SceneDepth * VirtualVoxel.HairCoveragePixelRadiusAtDepth1;
 		

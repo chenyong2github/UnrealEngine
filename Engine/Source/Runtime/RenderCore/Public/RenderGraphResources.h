@@ -1091,7 +1091,7 @@ struct FRDGBufferUAVDesc
 	bool bSupportsAppendBuffer = false;
 };
 
-class FRDGPooledBuffer
+class RENDERCORE_API FRDGPooledBuffer
 {
 public:
 	const FRDGBufferDesc Desc;

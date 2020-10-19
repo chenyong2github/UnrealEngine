@@ -2765,10 +2765,11 @@ static void AddHairVisibilityColorAndDepthPatchPass(
 	const FViewInfo& View,
 	const FRDGTextureRef& CategorisationTexture,
 	FRDGTextureRef& OutGBufferBTexture,
+	FRDGTextureRef& OutGBufferCTexture,
 	FRDGTextureRef& OutColorTexture,
 	FRDGTextureRef& OutDepthTexture)
 {
-	if (!OutGBufferBTexture || !OutColorTexture || !OutDepthTexture)
+	if (!OutGBufferBTexture || !OutGBufferCTexture || !OutColorTexture || !OutDepthTexture)
 	{
 		return;
 	}
@@ -2776,7 +2777,8 @@ static void AddHairVisibilityColorAndDepthPatchPass(
 	FHairVisibilityDepthPS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairVisibilityDepthPS::FParameters>();
 	Parameters->CategorisationTexture = CategorisationTexture;
 	Parameters->RenderTargets[0] = FRenderTargetBinding(OutGBufferBTexture, ERenderTargetLoadAction::ELoad);
-	Parameters->RenderTargets[1] = FRenderTargetBinding(OutColorTexture, ERenderTargetLoadAction::ELoad);
+	Parameters->RenderTargets[1] = FRenderTargetBinding(OutGBufferCTexture, ERenderTargetLoadAction::ELoad);
+	Parameters->RenderTargets[2] = FRenderTargetBinding(OutColorTexture, ERenderTargetLoadAction::ELoad);
 	Parameters->RenderTargets.DepthStencil = FDepthStencilBinding(
 		OutDepthTexture,
 		ERenderTargetLoadAction::ELoad,
@@ -2805,7 +2807,7 @@ static void AddHairVisibilityColorAndDepthPatchPass(
 			RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
 			GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_Zero, BO_Add, BF_One, BF_Zero>::GetRHI();
 			GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
-			GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
+			GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<true, CF_Always>::GetRHI();
 
 			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
 			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
@@ -3300,6 +3302,7 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 							View,
 							CategorizationTexture,
 							SceneGBufferBTexture,
+							SceneGBufferCTexture,
 							SceneColorTexture,
 							SceneDepthTexture);
 					}
@@ -3509,6 +3512,7 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 							View,
 							CategorizationTexture,
 							SceneGBufferBTexture,
+							SceneGBufferCTexture,
 							SceneColorTexture,
 							SceneDepthTexture);
 					}
@@ -3597,6 +3601,7 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 						View,
 						CategorizationTexture,
 						SceneGBufferBTexture,
+						SceneGBufferCTexture,
 						SceneColorTexture,
 						SceneDepthTexture);
 				}

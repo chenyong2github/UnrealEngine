@@ -1545,6 +1545,7 @@ private:
 	virtual int32 GetDesiredSyncLOD() const override;
 	virtual void SetSyncLOD(int32 LODIndex) override;
 	virtual int32 GetNumSyncLODs() const override;
+	virtual int32 GetCurrentSyncLOD() const override;
 	// END ILODSyncComponent
 
 	// Animation update rate control.

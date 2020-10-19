@@ -14,7 +14,7 @@
 
 #define USE_HAIR_COMPLEX_TRANSMITTANCE 1
 
-#if MANUAL_VERTEX_FETCH
+#if MANUAL_VERTEX_FETCH 
 	Buffer<float4> VertexFetch_InstanceOriginBuffer;
 	Buffer<float4> VertexFetch_InstanceTransformBuffer;
 #endif
@@ -92,8 +92,11 @@ float2 GetHairStrandsDimensions(uint HairPrimitiveId, float2 HairPrimitiveUV)
 
 float2 GetHairStrandsRootUV(uint HairPrimitiveId, float2 HairPrimitiveUV)
 {
-	//return GetHairStrandsAttributes(HairPrimitiveId, HairPrimitiveUV).HairRootUV;
+#if MANUAL_VERTEX_FETCH
 	return HairCardsVF.UVsBuffer[HairPrimitiveId].zw;
+#else
+	return GetHairStrandsAttributes(HairPrimitiveId, HairPrimitiveUV).HairRootUV; // TODO fix me?
+#endif
 }
 
 float  GetHairStrandsSeed(uint HairPrimitiveId, float2 HairPrimitiveUV)
@@ -123,10 +126,25 @@ float GetHairStrandsRoughness(uint HairPrimitiveId, float2 HairPrimitiveUV)
 
 struct FVertexFactoryInput
 {
+#if MANUAL_VERTEX_FETCH
+	uint VertexId : SV_VertexID;
+#else
+	float4 Position  : ATTRIBUTE0; 
+
+	// TangentZ.w contains sign of tangent basis determinant
+  #if METAL_PROFILE
+	float3	TangentX : ATTRIBUTE1;
+	float4	TangentZ : ATTRIBUTE2;
+  #else
+	half3	TangentX : ATTRIBUTE1;
+	half4	TangentZ : ATTRIBUTE2;
+  #endif
+	float4 UVs		 : ATTRIBUTE3;
+#endif
+
 #if VF_USE_PRIMITIVE_SCENE_DATA
 	uint PrimitiveId : ATTRIBUTE13;
 #endif	
-	uint VertexId : SV_VertexID;
 };
 
 #if RAYHITGROUPSHADER 
@@ -168,7 +186,11 @@ uint GetPrimitiveId(FVertexFactoryInput Input)
 
 uint GetHairPrimitiveId(FVertexFactoryInput Input)
 {
+#if MANUAL_VERTEX_FETCH
 	return Input.VertexId;
+#else
+	return 0;
+#endif
 }
 
 struct FHairCardsPoint
@@ -180,8 +202,13 @@ struct FHairCardsPoint
 
 FHairCardsPoint GetVertexPosition(FVertexFactoryInput Input)
 {
+#if MANUAL_VERTEX_FETCH
 	const float4 Data = HairCardsVF.PositionBuffer[Input.VertexId];
 	const float4 UVs  = HairCardsVF.UVsBuffer[Input.VertexId];
+#else
+	const float4 Data = Input.Position;
+	const float4 UVs  = Input.UVs;
+#endif
 
 	FHairCardsPoint Out;
 	Out.Position = Data.xyz;
@@ -192,7 +219,11 @@ FHairCardsPoint GetVertexPosition(FVertexFactoryInput Input)
 
 float3 GetVertexPreviousPosition(FVertexFactoryInput Input)
 {
+#if MANUAL_VERTEX_FETCH
 	const float4 Data = HairCardsVF.PreviousPositionBuffer[Input.VertexId];
+#else
+	const float4 Data = Input.Position;
+#endif
 	return Data.xyz;
 }
 
@@ -276,8 +307,13 @@ float4 CalcWorldPosition(float3 Position, uint PrimitiveId)
 
 half3x3 CalcTangentToLocal(FVertexFactoryInput Input, inout float TangentSign)
 {
+#if MANUAL_VERTEX_FETCH
 	const half3 TangentInputX = HairCardsVF.NormalsBuffer[Input.VertexId * 2 + 0].xyz;
 	const half4 TangentInputZ = HairCardsVF.NormalsBuffer[Input.VertexId * 2 + 1];
+#else
+	const half3 TangentInputX = Input.TangentX.xyz;
+	const half4 TangentInputZ = Input.TangentZ;
+#endif
 
 	half3 TangentX = TangentBias(TangentInputX);
 	half4 TangentZ = TangentBias(TangentInputZ);
@@ -395,9 +431,14 @@ FVertexFactoryInterpolantsVSToPS VertexFactoryGetInterpolantsVSToPS(FVertexFacto
 #if INSTANCED_STEREO
 	Interpolants.EyeIndex = 0;
 #endif
-	
+
+#if MANUAL_VERTEX_FETCH
 	Interpolants.HairPrimitiveId = Input.VertexId;
 	Interpolants.HairPrimitiveUV = GetVertexPosition(Input).CardsUVs;
+#else
+	Interpolants.HairPrimitiveId = 0;
+	Interpolants.HairPrimitiveUV = GetVertexPosition(Input).CardsUVs;
+#endif
 	SetPrimitiveId(Interpolants, Intermediates.PrimitiveId);
 #if NUM_TEX_COORD_INTERPOLATORS 
 	SetUV(Interpolants, 0, Interpolants.HairPrimitiveUV);

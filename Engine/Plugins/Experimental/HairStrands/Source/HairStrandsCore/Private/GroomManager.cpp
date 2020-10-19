@@ -13,6 +13,13 @@
 #include "GroomResources.h"
 #include "GroomInstance.h"
 #include "GroomGeometryCache.h"
+#include "HAL/IConsoleManager.h"
+
+static int32 GHairStrandsMinLOD = 0;
+static FAutoConsoleVariableRef CVarGHairStrandsMinLOD(TEXT("r.HairStrands.MinLOD"), GHairStrandsMinLOD, TEXT("Clamp the min hair LOD to this value, preventing to reach lower/high-quality LOD."));
+
+static int32 GHairStrands_UseCards = 0;
+static FAutoConsoleVariableRef CVarHairStrands_UseCards(TEXT("r.HairStrands.UseCardsInsteadOfStrands"), GHairStrands_UseCards, TEXT("Force cards geometry on all groom elements. If no cards data is available, nothing will be displayed"));
 
 DEFINE_LOG_CATEGORY_STATIC(LogGroomManager, Log, All);
 
@@ -80,6 +87,8 @@ void UnregisterHairStrands(uint32 ComponentId)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+bool NeedsUpdateCardsMeshTriangles();
+
 void RunHairStrandsInterpolation(
 	FRDGBuilder& GraphBuilder,
 	EWorldType::Type WorldType, 
@@ -138,9 +147,10 @@ void RunHairStrandsInterpolation(
 		{
 			if (EHairStrandsInterpolationType::RenderStrands == Type)
 			{
-				if (Instance->GeometryType == EHairGeometryType::Strands)
+				const EHairGeometryType InstanceGeometryType = Instance->GeometryType;
+				if (InstanceGeometryType == EHairGeometryType::Strands)
 				{
-					if (MeshLODIndex < Instance->Strands.DeformedRootResource->LODs.Num() && Instance->Strands.DeformedRootResource->LODs[MeshLODIndex].IsValid())
+					if (Instance->Strands.HasValidRootData() && Instance->Strands.DeformedRootResource->IsValid(MeshLODIndex))
 					{
 						AddHairStrandUpdateMeshTrianglesPass(
 							GraphBuilder, 
@@ -153,14 +163,13 @@ void RunHairStrandsInterpolation(
 							TransitionQueue);
 					}
 				}
-				else if (Instance->GeometryType == EHairGeometryType::Cards)
+				else if (InstanceGeometryType == EHairGeometryType::Cards)
 				{
 					const uint32 HairLODIndex = Instance->HairGroupPublicData->LODIndex;
 					if (Instance->Cards.IsValid(HairLODIndex))
 					{
 						FHairGroupInstance::FCards::FLOD& CardsInstance = Instance->Cards.LODs[HairLODIndex];
-						if (MeshLODIndex < CardsInstance.Guides.DeformedRootResource->LODs.Num() &&
-							CardsInstance.Guides.DeformedRootResource->LODs[MeshLODIndex].IsValid())
+						if (CardsInstance.Guides.IsValid() && Instance->Guides.HasValidRootData() && CardsInstance.Guides.DeformedRootResource->IsValid(MeshLODIndex) && NeedsUpdateCardsMeshTriangles())
 						{
 							AddHairStrandUpdateMeshTrianglesPass(
 								GraphBuilder,
@@ -174,30 +183,14 @@ void RunHairStrandsInterpolation(
 						}
 					}
 				}
-				else if (Instance->GeometryType == EHairGeometryType::Meshes)
+				else if (InstanceGeometryType == EHairGeometryType::Meshes)
 				{
-					const uint32 HairLODIndex = Instance->HairGroupPublicData->LODIndex;
-					if (Instance->Meshes.IsValid(HairLODIndex))
-					{
-						FHairGroupInstance::FMeshes::FLOD& MeshesInstance = Instance->Meshes.LODs[HairLODIndex];
-						if (MeshLODIndex < Instance->Guides.DeformedRootResource->LODs.Num() && Instance->Guides.DeformedRootResource->LODs[MeshLODIndex].IsValid())
-						{
-							AddHairMeshesInterpolationPass(
-								GraphBuilder,
-								ShaderMap,
-								MeshLODIndex,
-								MeshesInstance.RestResource,
-								MeshesInstance.DeformedResource,
-								Instance->Guides.RestRootResource, 
-								Instance->Guides.DeformedRootResource,
-								TransitionQueue);
-						}
-					}
+					// Nothing to do
 				}
 			}
 			else if (EHairStrandsInterpolationType::SimulationStrands == Type)
 			{
-				if (MeshLODIndex < Instance->Guides.DeformedRootResource->LODs.Num() && Instance->Guides.DeformedRootResource->LODs[MeshLODIndex].IsValid())
+				if (Instance->Guides.IsValid() && Instance->Guides.HasValidRootData() && Instance->Guides.DeformedRootResource->IsValid(MeshLODIndex))
 				{
 					AddHairStrandUpdateMeshTrianglesPass(
 						GraphBuilder,
@@ -278,6 +271,206 @@ static void RunHairStrandsGatherCluster(
 	}
 }
 
+
+// Return the LOD which should be used for a given screen size and LOD bias value
+// This function is mirrored in HairStrandsClusterCommon.ush
+static float GetHairInstanceLODIndex(const TArray<float>& InLODScreenSizes, float InScreenSize, float InLODBias)
+{
+	const uint32 LODCount = InLODScreenSizes.Num();
+	check(LODCount > 0);
+
+	float OutLOD = 0;
+	if (LODCount > 1 && InScreenSize < InLODScreenSizes[0])
+	{
+		for (uint32 LODIt = 1; LODIt < LODCount; ++LODIt)
+		{
+			if (InScreenSize >= InLODScreenSizes[LODIt])
+			{
+				uint32 PrevLODIt = LODIt - 1;
+
+				const float S_Delta = abs(InLODScreenSizes[PrevLODIt] - InLODScreenSizes[LODIt]);
+				const float S = S_Delta > 0 ? FMath::Clamp(FMath::Abs(InScreenSize - InLODScreenSizes[LODIt]) / S_Delta, 0.f, 1.f) : 0;
+				OutLOD = PrevLODIt + (1 - S);
+				break;
+			}
+			else if (LODIt == LODCount - 1)
+			{
+				OutLOD = LODIt;
+			}
+		}
+	}
+
+	if (InLODBias != 0)
+	{
+		OutLOD = FMath::Clamp(OutLOD + InLODBias, 0.f, float(LODCount - 1));
+	}
+	return OutLOD;
+}
+
+
+static EHairGeometryType ConvertLODGeometryType(EHairGeometryType Type, bool InbUseCards, EShaderPlatform Platform)
+{
+	// Force cards only if it is enabled or fallback on cards if strands are disabled
+	InbUseCards = (InbUseCards || !IsHairStrandsEnabled(EHairStrandsShaderType::Strands, Platform)) && IsHairStrandsEnabled(EHairStrandsShaderType::Cards, Platform);
+
+	switch (Type)
+	{
+	case EHairGeometryType::Strands: return IsHairStrandsEnabled(EHairStrandsShaderType::Strands, Platform) ? (InbUseCards ? EHairGeometryType::Cards : EHairGeometryType::Strands) : (InbUseCards ? EHairGeometryType::Cards : EHairGeometryType::NoneGeometry);
+	case EHairGeometryType::Cards:   return IsHairStrandsEnabled(EHairStrandsShaderType::Cards, Platform) ? EHairGeometryType::Cards : EHairGeometryType::NoneGeometry;
+	case EHairGeometryType::Meshes:  return IsHairStrandsEnabled(EHairStrandsShaderType::Meshes, Platform) ? EHairGeometryType::Meshes : EHairGeometryType::NoneGeometry;
+	}
+	return EHairGeometryType::NoneGeometry;
+}
+
+static void RunHairLODSelection(EWorldType::Type WorldType, const TArray<const FSceneView*> Views)
+{
+	EShaderPlatform ShaderPlatform = EShaderPlatform::SP_NumPlatforms;
+	if (Views.Num() > 0)
+	{
+		ShaderPlatform = Views[0]->GetShaderPlatform();
+	}
+
+	for (FHairGroupInstance* Instance : GHairManager.Instances)
+	{
+		int32 MeshLODIndex = -1;
+		if (!Instance || Instance->WorldType != WorldType)
+			continue;
+
+		check(Instance->HairGroupPublicData);
+
+		// 1. Swap current/previous buffer for all LODs
+		if (Instance->Guides.DeformedResource) { Instance->Guides.DeformedResource->SwapBuffer(); }
+		if (Instance->Strands.DeformedResource) { Instance->Strands.DeformedResource->SwapBuffer(); }
+
+		for (uint32 LODIt = 0, LODCount = Instance->Cards.LODs.Num(); LODIt < LODCount; ++LODIt)
+		{
+			if (Instance->Cards.IsValid(LODIt))
+			{
+				Instance->Cards.LODs[LODIt].DeformedResource->SwapBuffer();
+				if (Instance->Cards.LODs[LODIt].Guides.IsValid())
+				{
+					Instance->Cards.LODs[LODIt].Guides.DeformedResource->SwapBuffer();
+				}
+			}
+		}
+
+		for (uint32 LODIt = 0, LODCount = Instance->Meshes.LODs.Num(); LODIt < LODCount; ++LODIt)
+		{
+			if (Instance->Meshes.IsValid(LODIt))
+			{
+				Instance->Meshes.LODs[LODIt].DeformedResource->SwapBuffer();
+			}
+		}
+
+
+		// 1.2 Update the local offset (used for improving precision of strands data, as they are stored in 16bit precision)
+		// If attached to a mesh, ProxyLocalBound is mapped on the bounding box of the parent skeletal mesh. This offset is 
+		// based on the center of the skeletal mesh (which is computed based on the physics capsules/boxes/...)
+		if (Instance->bUpdatePositionOffset && Instance->ProxyLocalBounds)
+		{
+			const FVector PositionOffset = Instance->ProxyLocalBounds->GetSphere().Center;
+			if (Instance->Strands.DeformedResource)
+			{
+				Instance->Strands.DeformedResource->GetPositionOffset(FHairStrandsDeformedResource::Current) = PositionOffset;
+			}
+		
+			if (Instance->Guides.DeformedResource)
+			{
+				Instance->Guides.DeformedResource->GetPositionOffset(FHairStrandsDeformedResource::Current) = PositionOffset;
+			}
+		
+			for (uint32 LODIt = 0, LODCount = Instance->Cards.LODs.Num(); LODIt < LODCount; ++LODIt)
+			{
+				if (Instance->Cards.IsValid(LODIt) && Instance->Cards.LODs[LODIt].Guides.IsValid())
+				{
+					Instance->Cards.LODs[LODIt].Guides.DeformedResource->GetPositionOffset(FHairStrandsDeformedResource::Current) = PositionOffset;
+				}
+			}
+		}	
+
+		//if (Instance->ProxyLocalToWorld)
+		//{
+		//	Instance->LocalToWorld = *Instance->ProxyLocalToWorld;
+		//}
+
+		// 2. Perform LOD selection based on all the views	
+		// CPU LOD selection. 
+		// * When enable the CPU LOD selection allow to change the geometry representation. 
+		// * GPU LOD selecion allow fine grain LODing, but does not support representation changes (strands, cards, meshes)
+		// 
+		// Use the forced LOD index if set, otherwise compute the LOD based on the maximal screensize accross all views
+		// Compute the view where the screen size is maximale
+		float LODIndex = Instance->Strands.Modifier.LODForcedIndex; // check where this is updated 
+		if (LODIndex < 0 && Instance->bUseCPULODSelection)
+		{
+			const float MinLOD = FMath::Max(0, GHairStrandsMinLOD);
+			const FSphere SphereBound = Instance->ProxyBounds ? Instance->ProxyBounds->GetSphere() : FSphere(0);
+			for (const FSceneView* View : Views)
+			{
+				const float ScreenSize = ComputeBoundsScreenSize(FVector4(SphereBound.Center, 1), SphereBound.W, *View);
+				const float LODBias = Instance->Strands.Modifier.LODBias;
+				const float ViewLODIndex = FMath::Max(MinLOD, GetHairInstanceLODIndex(Instance->HairGroupPublicData->GetLODScreenSizes(), ScreenSize, LODBias));
+
+				// Select highest LOD accross all views
+				LODIndex = LODIndex == -1 ? ViewLODIndex : FMath::Min(LODIndex, ViewLODIndex);
+			}
+		}
+
+		const TArray<EHairGeometryType>& LODGeometryTypes = Instance->HairGroupPublicData->GetLODGeometryTypes();
+		const TArray<bool>& LODVisibilities = Instance->HairGroupPublicData->GetLODVisibilities();
+		const int32 LODCount = LODVisibilities.Num();
+
+		// CPU selection: insure the LOD index is in valid range 
+		// GPU selection: -1 means auto-selection based on GPU data, >=0 means forced LOD
+		if (Instance->bUseCPULODSelection)
+		{
+			LODIndex = FMath::Clamp(LODIndex, 0.f, float(LODCount - 1));
+		}
+		else
+		{
+			LODIndex = FMath::Clamp(LODIndex, -1.f, float(LODCount - 1));
+		}
+		const int32 IntLODIndex = FMath::Clamp(FMath::FloorToInt(LODIndex), 0, LODCount - 1);
+		const bool bIsVisible = LODVisibilities[IntLODIndex];
+		const bool bForceCards = GHairStrands_UseCards > 0 || Instance->bForceCards; // todo
+		EHairGeometryType GeometryType = ConvertLODGeometryType(LODGeometryTypes[IntLODIndex], bForceCards, ShaderPlatform);
+
+		if (GeometryType == EHairGeometryType::Meshes)
+		{
+			if (!Instance->Meshes.IsValid(IntLODIndex))
+			{
+				GeometryType = EHairGeometryType::NoneGeometry;
+			}
+		}
+		else if (GeometryType == EHairGeometryType::Cards)
+		{
+			if (!Instance->Cards.IsValid(IntLODIndex))
+			{
+				GeometryType = EHairGeometryType::NoneGeometry;
+			}
+		}
+		else if (GeometryType == EHairGeometryType::Strands)
+		{
+			if (!Instance->Strands.IsValid())
+			{
+				GeometryType = EHairGeometryType::NoneGeometry;
+			}
+		}
+
+		if (!bIsVisible)
+		{
+			GeometryType = EHairGeometryType::NoneGeometry;
+		}
+
+		Instance->HairGroupPublicData->SetLODVisibility(bIsVisible);
+		Instance->HairGroupPublicData->SetLODIndex(LODIndex);
+		Instance->HairGroupPublicData->SetLODBias(0);
+		Instance->HairGroupPublicData->VFInput.GeometryType = GeometryType;
+		Instance->GeometryType = GeometryType;
+	}
+}
+
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 bool HasHairStrandsFolliculeMaskQueries();
 void RunHairStrandsFolliculeMaskQueries(FRDGBuilder& GraphBuilder, FGlobalShaderMap* ShaderMap);
@@ -334,7 +527,7 @@ void RunHairStrandsDebug(
 	const TArray<FHairGroupInstance*>& Instances,
 	TRefCountPtr<IPooledRenderTarget>& SceneColor,
 	FIntRect Viewport,
-	TUniformBufferRef<FViewUniformShaderParameters>& ViewUniformBuffer);
+	const TUniformBufferRef<FViewUniformShaderParameters>& ViewUniformBuffer);
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // HairStrands Bookmark API
@@ -358,6 +551,12 @@ void ProcessHairStrandsBookmark(
 		{
 			RunHairStrandsProcess(GraphBuilder, Parameters.ShaderMap, Parameters.DebugShaderData);
 		}
+	}
+	else if (Bookmark == EHairStrandsBookmark::ProcessLODSelection)
+	{
+		RunHairLODSelection(
+			Parameters.WorldType,
+			Parameters.AllViews);
 	}
 	else if (Bookmark == EHairStrandsBookmark::ProcessGuideInterpolation)
 	{
