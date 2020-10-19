@@ -59,8 +59,6 @@ namespace Impl
 	int32 TestValue1 = TestMagicNumber;
 	int32 TestValue2 = TestMagicNumber;
 
-	FTestMovieScenePlayer TestPlayer;
-
 	FMovieSceneTrackIdentifier TrackID = FMovieSceneTrackIdentifier::Invalid();
 
 	FMovieSceneEvaluationKey TrackKey1(MovieSceneSequenceID::Root, ++TrackID);
@@ -92,6 +90,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMovieScenePreAnimatedStateGlobalTest, "System.
 bool FMovieScenePreAnimatedStateGlobalTest::RunTest(const FString& Parameters)
 {
 	using namespace Impl;
+	FTestMovieScenePlayer TestPlayer;
 
 	ResetValues();
 
@@ -122,6 +121,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMovieScenePreAnimatedStateEntityTest, "System.
 bool FMovieScenePreAnimatedStateEntityTest::RunTest(const FString& Parameters)
 {
 	using namespace Impl;
+	FTestMovieScenePlayer TestPlayer;
 
 	ResetValues();
 
@@ -152,6 +152,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMovieScenePreAnimatedStateOverlappingEntitiesT
 bool FMovieScenePreAnimatedStateOverlappingEntitiesTest::RunTest(const FString& Parameters)
 {
 	using namespace Impl;
+	FTestMovieScenePlayer TestPlayer;
 
 	ResetValues();
 
@@ -219,6 +220,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMovieScenePreAnimatedStateKeepThenRestoreEntit
 bool FMovieScenePreAnimatedStateKeepThenRestoreEntityTest::RunTest(const FString& Parameters)
 {
 	using namespace Impl;
+	FTestMovieScenePlayer TestPlayer;
 
 	ResetValues();
 
