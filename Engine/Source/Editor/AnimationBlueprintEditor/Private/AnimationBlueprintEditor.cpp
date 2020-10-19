@@ -1123,7 +1123,7 @@ FLinearColor FAnimationBlueprintEditor::GetWorldCentricTabColorScale() const
 
 void FAnimationBlueprintEditor::InitToolMenuContext(FToolMenuContext& MenuContext)
 {
-	FAssetEditorToolkit::InitToolMenuContext(MenuContext);
+	IAnimationBlueprintEditor::InitToolMenuContext(MenuContext);
 
 	UPersonaToolMenuContext* Context = NewObject<UPersonaToolMenuContext>();
 	Context->SetToolkit(GetPersonaToolkit());
