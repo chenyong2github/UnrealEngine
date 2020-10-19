@@ -14,7 +14,7 @@ import fnmatch
 from PySide2 import QtCore
 
 CONFIG_DIR = os.path.normpath(os.path.join(os.path.dirname(__file__), '..', "configs"))
-
+DEFAULT_MAP_TEXT = '-- Default Map --'
 
 class Setting(QtCore.QObject):
     signal_setting_changed = QtCore.Signal(object, object)
@@ -106,10 +106,11 @@ class Config(object):
         self.SWITCHBOARD_DIR = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '../'))
         self.ENGINE_DIR = Setting("engine_dir", "Engine Directory", engine_dir, tool_tip="Path to UE4 engine directory")
         self.BUILD_ENGINE = Setting("build_engine", "Build Engine", False, tool_tip="Is Engine built from source?")
-        self.MAPS_PATH = Setting("maps_path", "Map Path", "Game/maps/", tool_tip="Relative path from Content folder that contains maps to launch into.")
+        self.MAPS_PATH = Setting("maps_path", "Map Path", "", tool_tip="Relative path from Content folder that contains maps to launch into.")
         self.MAPS_FILTER = Setting("maps_filter", "Map Filter", "*.umap", tool_tip="Walk every file in the Map Path and run a fnmatch to filter the file names")
         self.SOURCE_CONTROL_WORKSPACE = Setting("source_control_workspace", "Workspace Name", "", tool_tip="SourceControl Workspace/Branch")
         self.P4_PATH = Setting("p4_sync_path", "Perforce Project Path", "//UE4/Project")
+        self.CURRENT_LEVEL = DEFAULT_MAP_TEXT
 
         self.OSC_SERVER_PORT = 6000
         self.OSC_CLIENT_PORT = 8000
@@ -164,7 +165,7 @@ class Config(object):
         project_settings.append(self.ENGINE_DIR)
         self.BUILD_ENGINE = Setting("build_engine", "Build Engine", data.get('build_engine', False), tool_tip="Is Engine built from source?")
         project_settings.append(self.BUILD_ENGINE)
-        self.MAPS_PATH = Setting("maps_path", "Map Path", data.get('maps_path', ''), placholder_text="Game/maps/", tool_tip="Relative path from Content folder that contains maps to launch into.")
+        self.MAPS_PATH = Setting("maps_path", "Map Path", data.get('maps_path', ''), placholder_text="Maps", tool_tip="Relative path from Content folder that contains maps to launch into.")
         project_settings.append(self.MAPS_PATH)
         self.MAPS_FILTER = Setting("maps_filter", "Map Filter", data.get('maps_filter', '*.umap'), placholder_text="*.umap", tool_tip="Walk every file in the Map Path and run a fnmatch to filter the file names")
         project_settings.append(self.MAPS_FILTER)
@@ -186,6 +187,9 @@ class Config(object):
         self.MUSERVER_AUTO_LAUNCH = data.get('muserver_auto_launch', True)
         self.MUSERVER_AUTO_JOIN = data.get('muserver_auto_join', True)
         self.MUSERVER_CLEAN_HISTORY = data.get('muserver_clean_history', True)
+
+        # MISC SETTINGS
+        self.CURRENT_LEVEL = data.get('current_level', DEFAULT_MAP_TEXT)
 
         # automatically save whenever a project setting is changed or overriden by a device
         for setting in project_settings:
@@ -293,6 +297,10 @@ class Config(object):
         data["muserver_auto_join"] = self.MUSERVER_AUTO_JOIN
         data["muserver_clean_history"] = self.MUSERVER_CLEAN_HISTORY
 
+        # Current Level
+        #
+        data["current_level"] = self.CURRENT_LEVEL
+
         # Devices
         #
         data["devices"] = {}
@@ -312,6 +320,7 @@ class Config(object):
                 "settings" : settings,
             }
 
+        # Device settings
         for (device_type, device_name), (settings, overrides) in self._device_settings.items():
 
             if not device_type in data["devices"].keys():
@@ -360,7 +369,7 @@ class Config(object):
         self.save()
 
     def maps(self):
-        maps_path = os.path.normpath(os.path.join(os.path.dirname(self.UPROJECT_PATH.get_value()), 'content', self.MAPS_PATH.get_value()))
+        maps_path = os.path.normpath(os.path.join(os.path.dirname(self.UPROJECT_PATH.get_value()), 'Content', self.MAPS_PATH.get_value()))
 
         maps = []
         for _, _, files in os.walk(maps_path):
