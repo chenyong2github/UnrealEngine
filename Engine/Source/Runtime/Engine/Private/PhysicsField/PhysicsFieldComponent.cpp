@@ -15,13 +15,23 @@
 #include "Field/FieldSystemNodes.h"
 
 /**
-*	Consolde variables
-* 
+*	Stats
+*
 */
 
+DECLARE_STATS_GROUP(TEXT("PhysicsFields"), STATGROUP_PhysicsFields, STATCAT_Advanced);
+
+DECLARE_CYCLE_STAT(TEXT("Create Scene Proxy [GT]"), STAT_PhysicsFields_CreateSceneProxy, STATGROUP_PhysicsFields);
+DECLARE_CYCLE_STAT(TEXT("Send Render Data [GT]"), STAT_PhysicsFields_SendRenderData, STATGROUP_PhysicsFields);
+DECLARE_CYCLE_STAT(TEXT("UpdateResource [RT]"), STAT_PhysicsFields_UpdateResource_RT, STATGROUP_PhysicsFields);
+DECLARE_GPU_STAT(PhysicsFields);
+
+/**
+*	Console variables
+* 
+*/
 DEFINE_LOG_CATEGORY_STATIC(LogGlobalField, Log, All);
 
-DECLARE_GPU_STAT(PhysicsFieldUpdate);
 
 /** Clipmap enable/disable */
 static TAutoConsoleVariable<int32> CVarPhysicsFieldEnableClipmap(
@@ -260,6 +270,8 @@ FPhysicsFieldResource::FPhysicsFieldResource(const int32 TargetCount, const TArr
 
 void FPhysicsFieldResource::InitRHI()
 {
+	SCOPE_CYCLE_COUNTER(STAT_PhysicsFields_UpdateResource_RT);
+
 	const int32 DatasCount = FieldInfos.ClipmapCount * FieldInfos.TargetCount;
 	InitInternalTexture<float, 4, EPixelFormat::PF_A32B32G32R32F>(FieldInfos.ClipmapResolution, FieldInfos.ClipmapResolution, FieldInfos.ClipmapResolution * DatasCount + DatasCount-1, FieldClipmap);
 	InitInternalBuffer<int32, 1, EPixelFormat::PF_R32_SINT>(EFieldPhysicsType::Field_PhysicsType_Max + 1, TargetsOffsets);
@@ -276,7 +288,9 @@ void FPhysicsFieldResource::ReleaseRHI()
 void FPhysicsFieldResource::UpdateResource(FRHICommandListImmediate& RHICmdList, const int32 NodesCount, const int32 ParamsCount,
 				const int32* TargetsOffsetsDatas, const int32* NodesOffsetsDatas, const float* NodesParamsDatas, const float TimeSeconds)
 {
-	SCOPED_GPU_STAT(RHICmdList, PhysicsFieldUpdate);
+	SCOPE_CYCLE_COUNTER(STAT_PhysicsFields_UpdateResource_RT);
+	SCOPED_DRAW_EVENT(RHICmdList, PhysicsFields);
+	SCOPED_GPU_STAT(RHICmdList, PhysicsFields);
 
 	InitInternalBuffer<float, 1, EPixelFormat::PF_R32_FLOAT>(ParamsCount, NodesParams);
 	InitInternalBuffer<int32, 1, EPixelFormat::PF_R32_SINT>(NodesCount, NodesOffsets);
@@ -742,6 +756,8 @@ UPhysicsFieldComponent::UPhysicsFieldComponent()
 
 void UPhysicsFieldComponent::CreateRenderState_Concurrent(FRegisterComponentContext* Context)
 {
+	SCOPE_CYCLE_COUNTER(STAT_PhysicsFields_CreateSceneProxy);
+
 	Super::CreateRenderState_Concurrent(Context);
 
 	if (!FieldProxy)
@@ -776,6 +792,8 @@ void UPhysicsFieldComponent::DestroyRenderState_Concurrent()
 
 void UPhysicsFieldComponent::SendRenderDynamicData_Concurrent()
 {
+	SCOPE_CYCLE_COUNTER(STAT_PhysicsFields_SendRenderData);
+
 	Super::SendRenderTransform_Concurrent();
 
 	TArray<FFieldSystemCommand> FieldCommands;
