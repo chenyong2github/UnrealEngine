@@ -60,6 +60,10 @@ static VkAccessFlags GetVkAccessMaskForLayout(VkImageLayout Layout)
 			Flags = VK_ACCESS_MEMORY_READ_BIT;
 			break;
 
+		case VK_IMAGE_LAYOUT_FRAGMENT_DENSITY_MAP_OPTIMAL_EXT:
+			Flags = VK_ACCESS_FRAGMENT_DENSITY_MAP_READ_BIT_EXT;
+			break;
+
 		case VK_IMAGE_LAYOUT_GENERAL:
 		case VK_IMAGE_LAYOUT_UNDEFINED:
 			Flags = 0;
@@ -117,6 +121,10 @@ static VkPipelineStageFlags GetVkStageFlagsForLayout(VkImageLayout Layout)
 
 		case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR:
 			Flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+			break;
+
+		case VK_IMAGE_LAYOUT_FRAGMENT_DENSITY_MAP_OPTIMAL_EXT:
+			Flags = VK_PIPELINE_STAGE_FRAGMENT_DENSITY_PROCESS_BIT_EXT;
 			break;
 
 		case VK_IMAGE_LAYOUT_GENERAL:
