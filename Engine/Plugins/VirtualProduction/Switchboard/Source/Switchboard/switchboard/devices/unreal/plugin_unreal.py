@@ -9,30 +9,76 @@ from switchboard.switchboard_logging import LOGGER
 
 from PySide2 import QtWidgets, QtGui, QtCore
 
-import base64
-import os
+import os, base64
 from pathlib import Path
 
 
 class DeviceUnreal(Device):
-    setting_buffer_size = Setting("buffer_size", "Buffer Size", 1024, tool_tip="Buffer size used for communication with SwitchboardListener")
-    setting_command_line_arguments = Setting("command_line_arguments", 'Command Line Arguments', "", tool_tip=f'Additional command line arguments for the engine')
-    setting_exec_cmds = Setting("setting_exec_cmds", 'ExecCmds', "", tool_tip=f'ExecCmds to be passed. No need for outer double quotes.')
-    setting_is_recording_device = Setting("is_recording_device", 'Is Recording Device', True, tool_tip=f'Is this device used to record')
-    setting_port = Setting("port", "Listener Port", 2980, tool_tip="Port of SwitchboardListener")
-    setting_roles_filename = Setting("roles_filename", "Roles Filename", "VPRoles.ini", tool_tip="File that stores VirtualProduction roles. Default: Config/Tags/VPRoles.ini")
-    setting_stage_session_id = Setting("stage_session_id", "Stage Session ID", 0)
-    setting_ue4_exe = Setting("editor_exe", "UE4 Editor filename", "UE4Editor.exe")
+
+    csettings = {
+        'buffer_size': Setting(
+            attr_name="buffer_size", 
+            nice_name="Buffer Size", 
+            value=1024, 
+            tool_tip="Buffer size used for communication with SwitchboardListener",
+        ),
+        'command_line_arguments': Setting(
+            attr_name="command_line_arguments", 
+            nice_name='Command Line Arguments', 
+            value="", 
+            tool_tip=f'Additional command line arguments for the engine',
+        ),
+        'exec_cmds': Setting(
+            attr_name="exec_cmds", 
+            nice_name='ExecCmds', 
+            value="", 
+            tool_tip=f'ExecCmds to be passed. No need for outer double quotes.',
+        ),
+        'port': Setting(
+            attr_name="port", 
+            nice_name="Listener Port", 
+            value=2980, 
+            tool_tip="Port of SwitchboardListener"
+        ),
+        'roles_filename': Setting(
+            attr_name="roles_filename", 
+            nice_name="Roles Filename", 
+            value="VPRoles.ini", 
+            tool_tip="File that stores VirtualProduction roles. Default: Config/Tags/VPRoles.ini",
+        ),
+        'stage_session_id': Setting(
+            attr_name="stage_session_id", 
+            nice_name="Stage Session ID",
+            value=0,
+        ),
+        'ue4_exe': Setting(
+            attr_name="editor_exe", 
+            nice_name="UE4 Editor filename", 
+            value="UE4Editor.exe",
+        ),
+    }
 
     def __init__(self, name, ip_address, **kwargs):
         super().__init__(name, ip_address, **kwargs)
 
-        self.unreal_client = ListenerClient(self.ip_address, port=self.setting_port.get_value(self.name), buffer_size=self.setting_buffer_size.get_value(self.name))
+        self.unreal_client = ListenerClient(
+            ip_address=self.ip_address, 
+            port=DeviceUnreal.csettings['port'].get_value(self.name), 
+            buffer_size=DeviceUnreal.csettings['buffer_size'].get_value(self.name)
+        )
 
-        roles = kwargs["roles"] if "roles" in kwargs.keys() else []
-        self.setting_roles = Setting("roles", "Roles", roles, possible_values=[], tool_tip="List of roles for this device")
+        roles = kwargs.get("roles", [])
+
+        self.setting_roles = Setting(
+            attr_name="roles", 
+            nice_name="Roles", 
+            value=roles, 
+            possible_values=[], 
+            tool_tip="List of roles for this device"
+        )
+
         self.setting_ip_address.signal_setting_changed.connect(self.on_setting_ip_address_changed)
-        self.setting_port.signal_setting_changed.connect(self.on_setting_port_changed)
+        DeviceUnreal.csettings['port'].signal_setting_changed.connect(self.on_setting_port_changed)
 
         self.auto_connect = False
         self.start_build_after_sync = False
@@ -53,28 +99,20 @@ class DeviceUnreal(Device):
         self._running_remote_program_names = {} # key: program id, value: program name
         self._running_remote_program_ids = {} # key: program name, value: program id
 
-    @staticmethod
-    def plugin_settings():
-        settings = Device.plugin_settings()
-        settings.append(DeviceUnreal.setting_buffer_size)
-        settings.append(DeviceUnreal.setting_command_line_arguments)
-        settings.append(DeviceUnreal.setting_exec_cmds)
-        settings.append(DeviceUnreal.setting_port)
-        settings.append(DeviceUnreal.setting_roles_filename)
-        settings.append(DeviceUnreal.setting_stage_session_id)
-        settings.append(DeviceUnreal.setting_ue4_exe)
-        return settings
+    @classmethod
+    def plugin_settings(cls):
+        return Device.plugin_settings() + list(DeviceUnreal.csettings.values())
 
     def setting_overrides(self):
-        overrides = super().setting_overrides()
-        overrides.append(Device.setting_is_recording_device)
-        overrides.append(DeviceUnreal.setting_command_line_arguments)
-        overrides.append(DeviceUnreal.setting_exec_cmds)
-        overrides.append(CONFIG.ENGINE_DIR)
-        overrides.append(CONFIG.BUILD_ENGINE)
-        overrides.append(CONFIG.SOURCE_CONTROL_WORKSPACE)
-        overrides.append(CONFIG.UPROJECT_PATH)
-        return overrides
+        return super().setting_overrides() + [
+            Device.csettings['is_recording_device'],
+            DeviceUnreal.csettings['command_line_arguments'],
+            DeviceUnreal.csettings['exec_cmds'],
+            CONFIG.ENGINE_DIR,
+            CONFIG.BUILD_ENGINE,
+            CONFIG.SOURCE_CONTROL_WORKSPACE,
+            CONFIG.UPROJECT_PATH,
+        ]
 
     def device_settings(self):
         return super().device_settings() + [self.setting_roles]
@@ -90,7 +128,7 @@ class DeviceUnreal(Device):
         self.unreal_client.ip_address = new_address
 
     def on_setting_port_changed(self, _, new_port):
-        if not self.setting_port.is_overriden(self.name):
+        if not DeviceUnreal.csettings['port'].is_overriden(self.name):
             LOGGER.info(f"Updating Port for ListenerClient to {new_port}")
             self.unreal_client.port = new_port
 
@@ -126,7 +164,7 @@ class DeviceUnreal(Device):
 
     def _request_roles_file(self):
         uproject_path = CONFIG.UPROJECT_PATH.get_value(self.name)
-        roles_filename = self.setting_roles_filename.get_value(self.name)
+        roles_filename = DeviceUnreal.csettings["roles_filename"].get_value(self.name)
         roles_file_path = os.path.join(os.path.dirname(uproject_path), "Config", "Tags", roles_filename)
         _, msg = message_protocol.create_copy_file_from_listener_message(roles_file_path)
         self.unreal_client.send_message(msg)
@@ -199,15 +237,15 @@ class DeviceUnreal(Device):
             self.status = DeviceStatus.CLOSED
 
     def generate_unreal_exe_path(self):
-        return CONFIG.engine_path(CONFIG.ENGINE_DIR.get_value(self.name), self.setting_ue4_exe.get_value())
+        return CONFIG.engine_path(CONFIG.ENGINE_DIR.get_value(self.name), DeviceUnreal.csettings["ue4_exe"].get_value())
 
     def generate_unreal_command_line_args(self, map_name):
 
-        command_line_args = f'{self.setting_command_line_arguments.get_value(self.name)}'
+        command_line_args = f'{DeviceUnreal.csettings["command_line_arguments"].get_value(self.name)}'
         if CONFIG.MUSERVER_AUTO_JOIN:
             command_line_args += f' -CONCERTRETRYAUTOCONNECTONERROR -CONCERTAUTOCONNECT -CONCERTSERVER={CONFIG.MUSERVER_SERVER_NAME} -CONCERTSESSION={SETTINGS.MUSERVER_SESSION_NAME} -CONCERTDISPLAYNAME={self.name}'
         
-        exec_cmds = f'{self.setting_exec_cmds.get_value(self.name)}'.strip()
+        exec_cmds = f'{DeviceUnreal.csettings["exec_cmds"].get_value(self.name)}'.strip()
         command_line_args += f' ExecCmds={exec_cmds} '
 
         selected_roles = self.setting_roles.get_value()
@@ -219,7 +257,7 @@ class DeviceUnreal(Device):
         if unsupported_roles:
             LOGGER.error(f"{self.name}: Omitted unsupported roles: {'|'.join(unsupported_roles)}")
 
-        session_id = self.setting_stage_session_id.get_value()
+        session_id = DeviceUnreal.csettings["stage_session_id"].get_value()
         if session_id > 0:
             command_line_args += f" -StageSessionId={session_id}"
         command_line_args += f" -StageFriendlyName={self.name}"
@@ -330,7 +368,7 @@ class DeviceUnreal(Device):
         self.status = DeviceStatus.CLOSED
 
     def on_file_received(self, source_path, content):
-        if source_path.endswith(self.setting_roles_filename.get_value(self.name)):
+        if source_path.endswith(DeviceUnreal.csettings["roles_filename"].get_value(self.name)):
             decoded_content = base64.b64decode(content).decode()
             tags = parse_unreal_tag_file(decoded_content.splitlines())
             self.setting_roles.possible_values = tags
