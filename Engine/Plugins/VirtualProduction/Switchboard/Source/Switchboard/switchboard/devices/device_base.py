@@ -35,9 +35,17 @@ class DeviceQtHandler(QtCore.QObject):
 
 
 class Device(QtCore.QObject):
+
     add_device_dialog = None # falls back to the default AddDeviceDialog as specified in device_widget_base
 
-    setting_is_recording_device = Setting("is_recording_device", 'Is Recording Device', True, tool_tip=f'Is this device used to record')
+    csettings = {
+        'is_recording_device': Setting(
+            attr_name="is_recording_device", 
+            nice_name='Is Recording Device', 
+            value=True, 
+            tool_tip=f'Is this device used to record',
+        )
+    }
 
     def __init__(self, name, ip_address, **kwargs):
         super().__init__()
@@ -106,10 +114,15 @@ class Device(QtCore.QObject):
                 icon.addFile(icon_path)
         return icons
 
-    @staticmethod
-    def plugin_settings():
+    @classmethod
+    def reset_csettings(cls):
+        for csetting in cls.csettings.values():
+            csetting.reset()
+
+    @classmethod
+    def plugin_settings(cls):
         # settings that are shared by all devices of a plugin
-        return [Device.setting_is_recording_device]
+        return list(cls.csettings.values())
 
     def device_settings(self):
         # settings that are specific to an instance of the device
@@ -138,11 +151,11 @@ class Device(QtCore.QObject):
 
     @property
     def is_recording_device(self):
-        return self.setting_is_recording_device.get_value(self.name)
+        return Device.csettings['is_recording_device'].get_value(self.name)
 
     @is_recording_device.setter
     def is_recording_device(self, value):
-        self.setting_is_recording_device.update_value(value)
+        Device.csettings['is_recording_device'].update_value(value)
         self.device_qt_handler.signal_device_is_recording_device_changed.emit(self, value)
 
     @property

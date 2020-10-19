@@ -47,7 +47,8 @@ class AddnDisplayDialog(AddDeviceDialog):
     def result(self):
         res = super().result()
         if res == QtWidgets.QDialog.Accepted:
-            DevicenDisplay.setting_ndisplay_config_file.update_value(self.config_file_field.text())
+            config_path = self.config_file_field.text().replace('"', '').strip()
+            DevicenDisplay.csettings['ndisplay_config_file'].update_value(config_path)
         return res
 
     def on_clicked_browse_file(self):
@@ -81,14 +82,47 @@ class DevicenDisplay(DeviceUnreal):
 
     add_device_dialog = AddnDisplayDialog
     
-    # TODO: These Settings should be in a collection.
-    setting_ndisplay_config_file = Setting("ndisplay_cfg_file", "nDisplay Config File", "", tool_tip="Path to nDisplay config file")
-    setting_use_all_available_cores = Setting("use_all_available_cores", "Use All Available Cores", False)
-    setting_texture_streaming = Setting("texture_streaming", "Texture Streaming", True)
-    setting_render_api = Setting("render_api", "Render API", "dx12", possible_values=["dx11", "dx12"])
-    setting_render_mode = Setting("render_mode", "Render Mode", "Mono", possible_values=["Mono", "Frame sequential", "Side-by-Side", "Top-bottom"])
-    setting_ndisplay_cmd_args = Setting(attr_name="ndisplay_cmd_args", nice_name="Extra Cmd Line Args", value="")
-    setting_ndisplay_exec_cmds = Setting("ndisplay_exec_cmds", 'ExecCmds', "", tool_tip=f'ExecCmds to be passed. No need for outer double quotes.')
+    csettings = {
+        'ndisplay_config_file': Setting(
+            attr_name="ndisplay_cfg_file", 
+            nice_name="nDisplay Config File", 
+            value="", 
+            tool_tip="Path to nDisplay config file"
+        ),
+        'use_all_available_cores': Setting(
+            attr_name="use_all_available_cores", 
+            nice_name="Use All Available Cores", 
+            value=False,
+        ),
+        'texture_streaming': Setting(
+            attr_name="texture_streaming", 
+            nice_name="Texture Streaming", 
+            value=True,
+        ),
+        'render_api': Setting(
+            attr_name="render_api", 
+            nice_name="Render API", 
+            value="dx12", 
+            possible_values=["dx11", "dx12"],
+        ),
+        'render_mode': Setting(
+            attr_name="render_mode", 
+            nice_name="Render Mode", 
+            value="Mono", 
+            possible_values=["Mono", "Frame sequential", "Side-by-Side", "Top-bottom"]
+        ),
+        'ndisplay_cmd_args': Setting(
+            attr_name="ndisplay_cmd_args", 
+            nice_name="Extra Cmd Line Args", 
+            value="",
+        ),
+        'ndisplay_exec_cmds': Setting(
+            attr_name="ndisplay_exec_cmds", 
+            nice_name='ExecCmds', 
+            value="", 
+            tool_tip=f'ExecCmds to be passed. No need for outer double quotes.',
+        ),
+    }
 
     ndisplay_monitor_ui = None
     ndisplay_monitor = None
@@ -96,31 +130,51 @@ class DevicenDisplay(DeviceUnreal):
     def __init__(self, name, ip_address, **kwargs):
         super().__init__(name, ip_address, **kwargs)
 
-        # TODO: These Settings should be in a collection.
-        self.setting_ue_command_line = Setting(attr_name="ue_command_line", nice_name="UE Command Line", value=kwargs.get("ue_command_line", ''), show_ui=True)
-        self.setting_window_position = Setting(attr_name="window_position", nice_name="Window Position", value=tuple(kwargs.get("window_position", (0,0))), show_ui=False)
-        self.setting_window_resolution = Setting(attr_name="window_resolution", nice_name="Window Resolution", value=tuple(kwargs.get("window_resolution", (100,100))), show_ui=False)
-        self.setting_fullscreen = Setting(attr_name="fullscreen", nice_name="fullscreen", value=kwargs.get("fullscreen", False), show_ui=False)
+        self.settings = {
+            'ue_command_line': Setting(
+                attr_name="ue_command_line", 
+                nice_name="UE Command Line", 
+                value=kwargs.get("ue_command_line", ''), 
+                show_ui=True
+            ),
+            'window_position': Setting(
+                attr_name="window_position", 
+                nice_name="Window Position", 
+                value=tuple(kwargs.get("window_position", (0,0))), 
+                show_ui=False
+            ),
+            'window_resolution': Setting(
+                attr_name="window_resolution", 
+                nice_name="Window Resolution", 
+                value=tuple(kwargs.get("window_resolution", (100,100))), show_ui=False
+            ),
+            'fullscreen': Setting(
+                attr_name="fullscreen", 
+                nice_name="fullscreen", 
+                value=kwargs.get("fullscreen", False), show_ui=False
+            ),
+        }
 
-        self.render_mode_cmdline_opts = {"Mono": "-dc_dev_mono", "Frame sequential": "-quad_buffer_stereo", "Side-by-Side": "-dc_dev_side_by_side", "Top-bottom": "-dc_dev_top_bottom"}
-        self.path_to_config_on_host = DevicenDisplay.setting_ndisplay_config_file.get_value()
+        self.render_mode_cmdline_opts = {
+            "Mono"            : "-dc_dev_mono", 
+            "Frame sequential": "-quad_buffer_stereo", 
+            "Side-by-Side"    : "-dc_dev_side_by_side", 
+            "Top-bottom"      : "-dc_dev_top_bottom"
+        }
 
-        if len(self.setting_ue_command_line.get_value()) == 0:
+        self.path_to_config_on_host = DevicenDisplay.csettings['ndisplay_config_file'].get_value()
+
+        if len(self.settings['ue_command_line'].get_value()) == 0:
             self.generate_unreal_command_line()
 
         CONFIG.ENGINE_DIR.signal_setting_overriden.connect(self.on_cmdline_affecting_override)
-        CONFIG.ENGINE_DIR.signal_setting_changed.connect(lambda: self.generate_unreal_command_line())
+        CONFIG.ENGINE_DIR.signal_setting_changed.connect(self.on_change_setting_affecting_command_line)
         CONFIG.UPROJECT_PATH.signal_setting_overriden.connect(self.on_cmdline_affecting_override)
-        CONFIG.UPROJECT_PATH.signal_setting_changed.connect(lambda: self.generate_unreal_command_line())
+        CONFIG.UPROJECT_PATH.signal_setting_changed.connect(self.on_change_setting_affecting_command_line)
 
-        self.setting_ndisplay_config_file.signal_setting_changed.connect(lambda: self.generate_unreal_command_line())
-        self.setting_use_all_available_cores.signal_setting_changed.connect(lambda: self.generate_unreal_command_line())
-        self.setting_texture_streaming.signal_setting_changed.connect(lambda: self.generate_unreal_command_line())
-        self.setting_render_api.signal_setting_changed.connect(lambda: self.generate_unreal_command_line())
-        self.setting_render_mode.signal_setting_changed.connect(lambda: self.generate_unreal_command_line())
-
-        self.setting_ndisplay_cmd_args.signal_setting_changed.connect(lambda: self.generate_unreal_command_line())
-        self.setting_ndisplay_exec_cmds.signal_setting_changed.connect(lambda: self.generate_unreal_command_line())
+        # common settings affect instance command line
+        for csetting in self.__class__.plugin_settings():
+            csetting.signal_setting_changed.connect(self.on_change_setting_affecting_command_line)
 
         self.unreal_client.send_file_completed_delegate = self.on_ndisplay_config_transfer_complete
         self.unreal_client.delegates['get sync status'] = self.on_get_sync_status
@@ -129,34 +183,25 @@ class DevicenDisplay(DeviceUnreal):
         if not self.__class__.ndisplay_monitor:
             self.__class__.ndisplay_monitor = nDisplayMonitor(None)
 
-    @staticmethod
-    def plugin_settings():
-        return [
-            DeviceUnreal.setting_port,
-            DevicenDisplay.setting_ndisplay_cmd_args,
-            DevicenDisplay.setting_ndisplay_exec_cmds,
-            DevicenDisplay.setting_ndisplay_config_file,
-            DevicenDisplay.setting_use_all_available_cores,
-            DevicenDisplay.setting_texture_streaming,
-            DevicenDisplay.setting_render_api,
-            DevicenDisplay.setting_render_mode,
-        ]
+    def on_change_setting_affecting_command_line(self, oldval, newval):
+        self.generate_unreal_command_line()
+
+    @classmethod
+    def plugin_settings(cls):
+        ''' Returns common settings that belong to all devices of this class.
+        '''
+        return [DeviceUnreal.csettings['port']] + list(cls.csettings.values())
 
     def device_settings(self):
         ''' This is given to the config, so that it knows to save them when they change.
         settings_dialog.py will try to create a UI for each setting if setting.show_ui is True.
         '''
-        return super().device_settings() + [
-            self.setting_ue_command_line, 
-            self.setting_window_resolution, 
-            self.setting_window_position,
-            self.setting_fullscreen,
-        ]
+        return super().device_settings() + list(self.settings.values())
 
     def setting_overrides(self):
         return [
-            DevicenDisplay.setting_ndisplay_cmd_args,
-            DevicenDisplay.setting_ndisplay_exec_cmds,
+            DevicenDisplay.csettings['ndisplay_cmd_args'],
+            DevicenDisplay.csettings['ndisplay_exec_cmds'],
             CONFIG.ENGINE_DIR, 
             CONFIG.BUILD_ENGINE, 
             CONFIG.SOURCE_CONTROL_WORKSPACE, 
@@ -174,18 +219,18 @@ class DevicenDisplay(DeviceUnreal):
     def generate_unreal_command_line(self, map_name=""):
 
         uproject = os.path.normpath(CONFIG.UPROJECT_PATH.get_value(self.name))
-        additional_args = self.setting_ndisplay_cmd_args.get_value(self.name)
+        additional_args = self.csettings['ndisplay_cmd_args'].get_value(self.name)
 
         cfg_file = self.path_to_config_on_host
 
-        win_pos = self.setting_window_position.get_value()
-        win_res = self.setting_window_resolution.get_value()
-        fullscreen = self.setting_fullscreen.get_value()
+        win_pos = self.settings['window_position'].get_value()
+        win_res = self.settings['window_resolution'].get_value()
+        fullscreen = self.settings['fullscreen'].get_value()
 
-        render_mode = self.render_mode_cmdline_opts[self.setting_render_mode.get_value()]
-        render_api = f"-{self.setting_render_api.get_value()}"
-        use_all_cores = "-useallavailablecores" if self.setting_use_all_available_cores.get_value() else ""
-        no_texture_streaming = "-notexturestreaming" if not self.setting_texture_streaming.get_value() else ""
+        render_mode = self.render_mode_cmdline_opts[DevicenDisplay.csettings['render_mode'].get_value(self.name)]
+        render_api = f"-{DevicenDisplay.csettings['render_api'].get_value(self.name)}"
+        use_all_cores = "-useallavailablecores" if DevicenDisplay.csettings['use_all_available_cores'].get_value(self.name) else ""
+        no_texture_streaming = "-notexturestreaming" if not DevicenDisplay.csettings['texture_streaming'].get_value(self.name) else ""
 
         # fill in fixed arguments
 
@@ -210,7 +255,7 @@ class DevicenDisplay(DeviceUnreal):
 
         # fill in ExecCmds
 
-        exec_cmds = f'{self.setting_ndisplay_exec_cmds.get_value(self.name)}'.strip().split(';')
+        exec_cmds = f'{self.csettings["ndisplay_exec_cmds"].get_value(self.name)}'.strip().split(';')
         exec_cmds.append('DisableAllScreenMessages')
         exec_cmds = [cmd for cmd in exec_cmds if len(cmd.strip())]
 
@@ -251,7 +296,7 @@ class DevicenDisplay(DeviceUnreal):
 
         path_to_exe = self.generate_unreal_exe_path()
         args_expanded = ' '.join(args)
-        self.setting_ue_command_line.update_value(f"{path_to_exe} {args_expanded}")
+        self.settings['ue_command_line'].update_value(f"{path_to_exe} {args_expanded}")
 
         return path_to_exe, args_expanded
 
@@ -347,7 +392,7 @@ class DevicenDisplay(DeviceUnreal):
         ''' Updates settings that are exclusively controlled by the config file
         '''
 
-        nodes = self.parse_config(cfg_file)
+        nodes = self.__class__.parse_config(cfg_file)
 
         # find which node is self:
         menode = next(node for node in nodes if node['name'] == self.name)
@@ -356,15 +401,15 @@ class DevicenDisplay(DeviceUnreal):
             LOGGER.error(f"{self.name} not found in config file {cfg_file}")
             return
 
-        self.setting_window_position.update_value(menode['kwargs'].get("window_position", (0.0)))
-        self.setting_window_resolution.update_value(menode['kwargs'].get("window_resolution", (100,100)))
-        self.setting_fullscreen.update_value(menode['kwargs'].get("fullscreen", False))
+        self.settings['window_position'].update_value(menode['kwargs'].get("window_position", (0.0)))
+        self.settings['window_resolution'].update_value(menode['kwargs'].get("window_resolution", (100,100)))
+        self.settings['fullscreen'].update_value(menode['kwargs'].get("fullscreen", False))
 
     def launch(self, map_name):
 
         # Update settings controlled exclusively by the nDisplay config file.
         try:
-            cfg_file = self.setting_ndisplay_config_file.get_value()
+            cfg_file = DevicenDisplay.csettings['ndisplay_config_file'].get_value(self.name)
             self.update_settings_controlled_by_config(cfg_file)
         except:
             LOGGER.error(f"{self.name}: Could not update from '{cfg_file}' before launch. \n\n=== Traceback BEGIN ===\n{traceback.format_exc()}=== Traceback END ===\n")
