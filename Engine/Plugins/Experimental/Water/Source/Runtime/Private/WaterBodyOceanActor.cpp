@@ -21,8 +21,7 @@ AWaterBodyOcean::AWaterBodyOcean(const FObjectInitializer& ObjectInitializer)
 	CollisionExtents = FVector(50000.f, 50000.f, 10000.f);
 
 #if WITH_EDITOR
-	static FWaterIconHelper IconHelper(TEXT("/Water/Icons/WaterBodyOceanSprite"));
-	FWaterIconHelper::UpdateSpriteTexture(this, IconHelper.GetTexture());
+	ActorIcon = FWaterIconHelper::EnsureSpriteComponentCreated(this, TEXT("/Water/Icons/WaterBodyOceanSprite"), NSLOCTEXT("Water", "WaterBodyOceanSpriteName", "Water Body Ocean"));
 #endif
 
 	// @todo_water : Remove these checks (Once AWaterBody is no more Blueprintable, these methods should become PURE_VIRTUAL and this class should overload them)
