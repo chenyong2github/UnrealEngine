@@ -4,8 +4,11 @@
 #include "Styling/SlateStyleRegistry.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Interfaces/IPluginManager.h"
+#include "Styling/SlateStyleMacros.h"
 
 TSharedPtr< FSlateStyleSet > FEditorDebugToolsStyle::StyleInstance = NULL;
+
+#define IMAGE_PLUGIN_BRUSH( RelativePath, ... ) FSlateImageBrush( Style->RootToContentDir( RelativePath, TEXT(".png") ), __VA_ARGS__ )
 
 void FEditorDebugToolsStyle::Initialize()
 {
@@ -37,7 +40,16 @@ const FVector2D Icon40x40(40.0f, 40.0f);
 TSharedRef< FSlateStyleSet > FEditorDebugToolsStyle::Create()
 {
 	TSharedRef< FSlateStyleSet > Style = MakeShareable(new FSlateStyleSet("EditorDebugToolsStyle"));
-	Style->SetContentRoot(IPluginManager::Get().FindPlugin("EditorDebugTools")->GetBaseDir() / TEXT("Resources"));
+	Style->SetContentRoot(IPluginManager::Get().FindPlugin("EditorDebugTools")->GetBaseDir() / TEXT("Resources/Slate"));
+
+	// Gamma reference.
+	Style->Set("GammaReference", new IMAGE_PLUGIN_BRUSH("GammaReference", FVector2D(256, 128)));
+
+	// Debug Tools Window
+	Style->Set("DebugTools.TabIcon", new IMAGE_PLUGIN_BRUSH("icon_tab_DebugTools_16x", Icon16x16));
+	
+	// Modules Window
+	Style->Set("Modules.TabIcon", new IMAGE_PLUGIN_BRUSH("icon_tab_Modules_16px", Icon16x16));
 
 	return Style;
 }

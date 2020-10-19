@@ -8,25 +8,24 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Input/SSpinBox.h"
 #include "EditorStyleSet.h"
+#include "EditorDebugToolsStyle.h"
 
 void SGammaUIPanel::Construct(const SGammaUIPanel::FArguments& InArgs)
 {
 	ChildSlot
-		.Padding( FMargin(8) )
+	.Padding( FMargin(8) )
 	[
 		SNew( SVerticalBox )
-
 		+ SVerticalBox::Slot()
-			.AutoHeight()
-			.Padding( 0.0f, 4.0f, 0.0f, 4.0f )
+		.AutoHeight()
+		.Padding(0.0f, 4.0f, 0.0f, 4.0f)
 		[
-			SNew( STextBlock )
-				.Text( NSLOCTEXT( "GammaUI", "GammaUILabel", "Gamma" ) )
+			SNew(STextBlock)
+			.Text(NSLOCTEXT("GammaUI", "GammaUILabel", "Gamma"))
 		]
-
 		+ SVerticalBox::Slot()
-			.AutoHeight()
-			.Padding( 0.0f, 4.0f, 0.0f, 4.0f )
+		.AutoHeight()
+		.Padding( 0.0f, 4.0f, 0.0f, 4.0f )
 		[
 			SNew( SSpinBox<float> )
 			.Delta(0.01f)
@@ -35,14 +34,13 @@ void SGammaUIPanel::Construct(const SGammaUIPanel::FArguments& InArgs)
 			.Value( this, &SGammaUIPanel::OnGetGamma )
 			.OnValueChanged( this, &SGammaUIPanel::OnGammaChanged )
 		]
-
 		+ SVerticalBox::Slot()
-			.AutoHeight()
-			.Padding( 0.0f, 4.0f, 0.0f, 4.0f )
-			.HAlign( HAlign_Center )
+		.AutoHeight()
+		.Padding(0.0f, 4.0f, 0.0f, 4.0f)
+		.HAlign(HAlign_Center)
 		[
 			SNew(SImage)
-			.Image(FEditorStyle::GetBrush(TEXT("GammaReference")))
+			.Image(FEditorDebugToolsStyle::Get().GetBrush(TEXT("GammaReference")))
 		]
 	];
 }

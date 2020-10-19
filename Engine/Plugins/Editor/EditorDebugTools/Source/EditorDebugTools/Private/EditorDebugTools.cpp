@@ -63,10 +63,12 @@ TSharedRef<SDockTab> CreateModulesTab(const FSpawnTabArgs& Args)
 
 void FEditorDebugToolsModule::StartupModule()
 {
+	FEditorDebugToolsStyle::Initialize();
+
 	FTabSpawnerEntry& Spawner = FGlobalTabmanager::Get()->RegisterNomadTabSpawner(EditorDebugToolsTabName, FOnSpawnTab::CreateStatic(&CreateDebugToolsTab))
 		.SetDisplayName(NSLOCTEXT("Toolbox", "DebugTools", "Debug Tools"))
 		.SetTooltipText(NSLOCTEXT("Toolbox", "DebugToolsTooltipText", "Open the Debug Tools tab."))
-		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "DebugTools.TabIcon"))
+		.SetIcon(FSlateIcon(FEditorDebugToolsStyle::GetStyleSetName(), "DebugTools.TabIcon"))
 		.SetGroup(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsDebugCategory());
 
 	if (CanShowModulesTab())
@@ -74,13 +76,15 @@ void FEditorDebugToolsModule::StartupModule()
 		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(ModulesTabName, FOnSpawnTab::CreateStatic(&CreateModulesTab))
 			.SetDisplayName(NSLOCTEXT("Toolbox", "Modules", "Modules"))
 			.SetTooltipText(NSLOCTEXT("Toolbox", "ModulesTooltipText", "Open the Modules tab."))
-			.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "Modules.TabIcon"))
+			.SetIcon(FSlateIcon(FEditorDebugToolsStyle::GetStyleSetName(), "Modules.TabIcon"))
 			.SetGroup(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsMiscCategory());
 	}
 }
 
 void FEditorDebugToolsModule::ShutdownModule()
 {
+	FEditorDebugToolsStyle::Shutdown();
+
 	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(EditorDebugToolsTabName);
 
 	if (CanShowModulesTab())
