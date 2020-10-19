@@ -83,6 +83,7 @@ FNiagaraRendererMeshes::FNiagaraRendererMeshes(ERHIFeatureLevel::Type FeatureLev
 	MeshRenderData = Mesh->GetRenderData();
 	FacingMode = Properties->FacingMode;
 	PivotOffset = Properties->PivotOffset;
+	PivotOffsetSpace = Properties->PivotOffsetSpace;
 	bLockedAxisEnable = Properties->bLockedAxisEnable;
 	LockedAxis = Properties->LockedAxis;
 	LockedAxisSpace = Properties->LockedAxisSpace;
@@ -379,6 +380,29 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 				PerViewUniformParameters.PrevTransformAvailable = false;
 				PerViewUniformParameters.DeltaSeconds = ViewFamily.DeltaWorldTime;				
 
+				// Calculate pivot offset
+				FVector WorldSpacePivotOffset = FVector(0, 0, 0);
+				FSphere OffsetCullingSphere = LocalCullingSphere;
+				if (PivotOffsetSpace == ENiagaraMeshPivotOffsetSpace::Mesh)
+				{
+					OffsetCullingSphere.Center += PivotOffset;
+
+					PerViewUniformParameters.PivotOffset = PivotOffset;
+					PerViewUniformParameters.bPivotOffsetIsWorldSpace = false;
+				}
+				else
+				{
+					WorldSpacePivotOffset = PivotOffset;
+					if (PivotOffsetSpace == ENiagaraMeshPivotOffsetSpace::Local || (bLocalSpace && PivotOffsetSpace == ENiagaraMeshPivotOffsetSpace::Simulation))
+					{
+						// The offset is in local space, transform it to world
+						WorldSpacePivotOffset = SceneProxy->GetLocalToWorld().TransformVector(WorldSpacePivotOffset);
+					}
+
+					PerViewUniformParameters.PivotOffset = WorldSpacePivotOffset;
+					PerViewUniformParameters.bPivotOffsetIsWorldSpace = true;
+				}
+
 				TConstArrayView<FNiagaraRendererVariableInfo> VFVariables = RendererLayout->GetVFVariables_RenderThread();
 				PerViewUniformParameters.PositionDataOffset = VFVariables[ENiagaraMeshVFLayout::Position].GetGPUOffset();
 				PerViewUniformParameters.VelocityDataOffset = VFVariables[ENiagaraMeshVFLayout::Velocity].GetGPUOffset();
@@ -416,7 +440,8 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 					SortInfo.SortMode = SortMode;
 					SortInfo.SetSortFlags(GNiagaraGPUSortingUseMaxPrecision != 0, bHasTranslucentMaterials); 
 					SortInfo.bEnableCulling = bDoGPUCulling;
-					SortInfo.LocalBSphere = LocalCullingSphere;
+					SortInfo.LocalBSphere = OffsetCullingSphere;
+					SortInfo.CullingWorldSpaceOffset = WorldSpacePivotOffset;
 					SortInfo.RendererVisTagAttributeOffset = RendererVisTagOffset;
 					SortInfo.RendererVisibility = RendererVisibility;
 					SortInfo.DistanceCullRange = DistanceCullRange;

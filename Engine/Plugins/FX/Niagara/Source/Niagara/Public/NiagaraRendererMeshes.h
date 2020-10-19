@@ -57,6 +57,7 @@ private:
 	FVector2D SubImageSize;
 
 	FVector PivotOffset;
+	ENiagaraMeshPivotOffsetSpace PivotOffsetSpace;
 
 	FVector LockedAxis;
 	ENiagaraMeshLockedAxisSpace LockedAxisSpace;

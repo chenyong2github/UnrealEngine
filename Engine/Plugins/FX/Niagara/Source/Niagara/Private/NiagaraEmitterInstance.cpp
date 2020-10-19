@@ -848,7 +848,7 @@ int FNiagaraEmitterInstance::GetTotalBytesUsed()
 
 FBox FNiagaraEmitterInstance::InternalCalculateDynamicBounds(int32 ParticleCount) const
 {
-	if (!ParticleCount || !CachedEmitter)
+	if (!ParticleCount || !CachedEmitter || !ParentSystemInstance)
 	{
 		return FBox(ForceInit);
 	}
@@ -862,9 +862,10 @@ FBox FNiagaraEmitterInstance::InternalCalculateDynamicBounds(int32 ParticleCount
 	FBox Ret;
 	Ret.Init();
 
+	const FTransform& Transform = ParentSystemInstance->GetWorldTransform();
 	for (const TUniquePtr<FNiagaraBoundsCalculator>& BoundsCalculator : BoundsCalculators)
 	{
-		Ret += BoundsCalculator->CalculateBounds(*ParticleDataSet, ParticleCount);
+		Ret += BoundsCalculator->CalculateBounds(Transform, *ParticleDataSet, ParticleCount);
 	}
 
 	return Ret;
