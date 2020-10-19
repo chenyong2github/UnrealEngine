@@ -5,12 +5,11 @@
 
 
 float3 StrataEnvironmentLighting(
+	float2 BufferUV,
 	FGBufferData GBuffer,
 	float3 WorldPosition,
 	float3 CameraToPixel,
 	float3 V,
-	float3 N,
-	float3 R,
 	float3 AmbientOcclusion,
 	FStrataPixelBSDFs PixelBSDFs
 	)
@@ -20,11 +19,6 @@ float3 StrataEnvironmentLighting(
 	{
 		FStrataBSDF BSDF = PixelBSDFs.BSDFs[i];
 		const float3 BSDFThroughput = BSDF.Weight;
-
-		BxDFContext Context = (BxDFContext)0;
-		float3 L = N;
-		Init(Context, N, V, L);
-		float SatNoL = saturate(Context.NoL);
 
 		float3 Albedo = 0.0f;
 		float3 Normal = 0.0f;
@@ -41,45 +35,53 @@ float3 StrataEnvironmentLighting(
 		case STRATA_BSDF_TYPE_DIELECTRIC:
 		{
 			BRANCH
-				if (ReflectionStruct.SkyLightParameters.y > 0)
-				{
-					float F0 = DielectricIorToF0(BSDF.Dielectric.IOR);
+			if (ReflectionStruct.SkyLightParameters.y > 0)
+			{
+				float F0 = DielectricIorToF0(BSDF.Dielectric.IOR);
 
-					const float SafeRoughness = MakeRoughnessSafe(BSDF.Dielectric.Roughness.x);
-					float a2 = Pow4(SafeRoughness);
-					float Energy = 1.0f; // See EnergyNormalization
+				const float SafeRoughness = MakeRoughnessSafe(BSDF.Dielectric.Roughness.x);
+				float a2 = Pow4(SafeRoughness);
+				float Energy = 1.0f; // See EnergyNormalization
 
-					// Generalized microfacet specular
-					//float D = D_GGX(a2, Context.NoH) * Energy;
-					//float Vis = Vis_SmithJointApprox(a2, Context.NoV, SatNoL);
-					//float3 F = F_Schlick(F0, Context.VoH);
+				// Generalized microfacet specular
+				//float D = D_GGX(a2, Context.NoH) * Energy;
+				//float Vis = Vis_SmithJointApprox(a2, Context.NoV, SatNoL);
+				//float3 F = F_Schlick(F0, Context.VoH);
 
-					float3 EvalEnvBRDF = EnvBRDFApprox(F0, SafeRoughness, Context.NoV);
-					float SkyAverageBrightness = 1.0f;
-					SpecularLuminance += GetSkyLightReflection(R, SafeRoughness, SkyAverageBrightness) * EvalEnvBRDF * BSDF.Dielectric.Tint;
-				}
+				const float3 N = BSDF.Dielectric.Normal;
+				const float SatNoV = saturate(dot(N, V));
+				float3 R = 2 * dot(V, N) * N - V;
+
+				float3 EvalEnvBRDF = EnvBRDFApprox(F0, SafeRoughness, SatNoV);
+				float SkyAverageBrightness = 1.0f;
+				SpecularLuminance += GetSkyLightReflection(R, SafeRoughness, SkyAverageBrightness) * EvalEnvBRDF * BSDF.Dielectric.Tint;
+			}
 		}
 		break;
 		case STRATA_BSDF_TYPE_CONDUCTOR:
 		{
 			BRANCH
-				if (ReflectionStruct.SkyLightParameters.y > 0)
-				{
-					// See SpecularGGX, isotropic verion
+			if (ReflectionStruct.SkyLightParameters.y > 0)
+			{
+				// See SpecularGGX, isotropic verion
 
-					const float SafeRoughness = MakeRoughnessSafe(BSDF.Conductor.Roughness.x);
-					float a2 = Pow4(SafeRoughness);
-					float Energy = 1.0f; // See EnergyNormalization
+				const float SafeRoughness = MakeRoughnessSafe(BSDF.Conductor.Roughness.x);
+				float a2 = Pow4(SafeRoughness);
+				float Energy = 1.0f; // See EnergyNormalization
 
-					// Generalized microfacet specular
-					//float D = D_GGX(a2, Context.NoH) * Energy;
-					//float Vis = Vis_SmithJointApprox(a2, Context.NoV, SatNoL);
-					//float3 F = F_Schlick(BSDF.Conductor.Reflectivity, BSDF.Conductor.EdgeColor, Context.VoH); // STRATA_TODO check that this is correct 
+				// Generalized microfacet specular
+				//float D = D_GGX(a2, Context.NoH) * Energy;
+				//float Vis = Vis_SmithJointApprox(a2, Context.NoV, SatNoL);
+				//float3 F = F_Schlick(BSDF.Conductor.Reflectivity, BSDF.Conductor.EdgeColor, Context.VoH); // STRATA_TODO check that this is correct 
 
-					float3 EvalEnvBRDF = EnvBRDFApprox(BSDF.Conductor.Reflectivity, BSDF.Conductor.EdgeColor, SafeRoughness, Context.NoV);
-					float SkyAverageBrightness = 1.0f;
-					SpecularLuminance += GetSkyLightReflection(R, SafeRoughness, SkyAverageBrightness) * EvalEnvBRDF;
-				}
+				const float3 N = BSDF.Conductor.Normal;
+				const float SatNoV = saturate(dot(N, V));
+				float3 R = 2 * dot(V, N) * N - V;
+
+				float3 EvalEnvBRDF = EnvBRDFApprox(BSDF.Conductor.Reflectivity, BSDF.Conductor.EdgeColor, SafeRoughness, SatNoV);
+				float SkyAverageBrightness = 1.0f;
+				SpecularLuminance += GetSkyLightReflection(R, SafeRoughness, SkyAverageBrightness) * EvalEnvBRDF;
+			}
 		}
 		break;
 		case STRATA_BSDF_TYPE_VOLUME:
@@ -93,7 +95,8 @@ float3 StrataEnvironmentLighting(
 			const float3 SafeExtinctionThreshold = 0.000001f;
 			const float3 SafeExtinctionCoefficients = max(SafeExtinctionThreshold, ExtinctionCoefficients);
 
-			const float PathLength = Thickness / max(0.0001f, saturate(Context.NoV));
+			const float SatNoV = saturate(dot(GBuffer.WorldNormal, V));
+			const float PathLength = Thickness / max(0.0001f, SatNoV);
 			const float3 SafePathSegmentTransmittance = exp(-SafeExtinctionCoefficients * PathLength);
 			const float3 NormLuminanceTransfert = 1.0f * ScatteringCoefficients;
 			float3 NormLuminanceSingleScattering = (NormLuminanceTransfert - NormLuminanceTransfert * SafePathSegmentTransmittance) / SafeExtinctionCoefficients;
@@ -107,12 +110,26 @@ float3 StrataEnvironmentLighting(
 		break;
 		}
 
+		// Diffuse component
 		if (any(Albedo > 0.0f))
 		{
-			// BentNormal?
-			SkyLighting += BSDFThroughput * Diffuse_Lambert(Albedo) * GetSkySHDiffuse(Normal) * View.SkyLightColor.rgb * AmbientOcclusion;
+			// Apply bent normal if needed
+			#if APPLY_SKY_SHADOWING
+			{
+				Normal = UpsampleDFAO(BufferUV, GBuffer.Depth, Normal); // Bent normal
+			}
+			#endif
+
+			// Compute the common sky visibility factors
+			FSkyLightVisibilityData SkyVisData = GetSkyLightVisibilityData(GBuffer, AmbientOcclusion, Normal);
+
+			// Finally sample the sky diffuse contribution (spherical harmonic, Lambert BRDF)
+			float3 DiffuseLookup = GetSkySHDiffuse(Normal) * View.SkyLightColor.rgb;			// STRATA_TODO compute SH coefficients for ON or Chan
+			// And accumulate
+			SkyLighting += (SkyVisData.SkyDiffuseLookUpMul * DiffuseLookup + SkyVisData.SkyDiffuseLookUpAdd) * Albedo;
 		}
 
+		// Specular component
 		SkyLighting += BSDFThroughput * SpecularLuminance * View.SkyLightColor.rgb * AmbientOcclusion;
 	}
 #if USE_PREEXPOSURE

@@ -19,41 +19,6 @@
 #include "ReflectionEnvironmentComposite.ush"
 
 
-#if STRATA_ENABLED
-#include "/Engine/Private/Strata/Strata.ush"
-#include "/Engine/Private/ParticipatingMediaCommon.ush"
-#include "/Engine/Private/Strata/StrataEnvironmentLighting.ush"
-#endif
-
-
-float3 GatherRadiance(float CompositeAlpha, float3 WorldPosition, float3 RayDirection, float Roughness, float3 BentNormal, float IndirectIrradiance, uint ShadingModelID, uint NumCulledReflectionCaptures, uint CaptureDataStartIndex)
-{
-	// Indirect occlusion from DFAO, which should be applied to reflection captures and skylight specular, but not SSR
-	float IndirectSpecularOcclusion = 1.0f;
-	float3 ExtraIndirectSpecular = 0;
-
-#if SUPPORT_DFAO_INDIRECT_OCCLUSION
-	float IndirectDiffuseOcclusion;
-	GetDistanceFieldAOSpecularOcclusion(BentNormal, RayDirection, Roughness, ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE, IndirectSpecularOcclusion, IndirectDiffuseOcclusion, ExtraIndirectSpecular);
-	// Apply DFAO to IndirectIrradiance before mixing with indirect specular
-	IndirectIrradiance *= IndirectDiffuseOcclusion;
-#endif
-
-	const bool bCompositeSkylight = true;
-	return CompositeReflectionCapturesAndSkylight(
-		CompositeAlpha, 
-		WorldPosition, 
-		RayDirection, 
-		Roughness, 
-		IndirectIrradiance, 
-		IndirectSpecularOcclusion, 
-		ExtraIndirectSpecular, 
-		NumCulledReflectionCaptures, 
-		CaptureDataStartIndex, 
-		0,
-		bCompositeSkylight);
-}
-
 
 Texture2D ScreenSpaceReflectionsTexture;
 SamplerState ScreenSpaceReflectionsSampler;
@@ -70,55 +35,29 @@ int CloudSkyAOEnabled;
 Texture2D AmbientOcclusionTexture;
 SamplerState AmbientOcclusionSampler;
 
-
 float3 ContrastAndNormalizeMulAdd;
 float OcclusionExponent;
 float OcclusionCombineMode;
 
-void RemapClearCoatDiffuseAndSpecularColor(FGBufferData GBuffer, float2 ScreenPosition, inout float3 DiffuseColor, inout float3 SpecularColor)
+
+
+struct FSkyLightVisibilityData
 {
-	if (GBuffer.ShadingModelID == SHADINGMODELID_CLEAR_COAT)
-	{
-		// Attenuate base color and recompute diffuse color
-		float3 WorldPosition = mul(float4(ScreenPosition * GBuffer.Depth, GBuffer.Depth, 1), View.ScreenToWorld).xyz;
-		float3 CameraToPixel = normalize(WorldPosition - View.WorldCameraOrigin);
-		float3 V = -CameraToPixel;
-		float NoV = saturate(dot(GBuffer.WorldNormal, V));
-		float RefractionScale = ((NoV * 0.5 + 0.5) * NoV - 1) * saturate(1.25 - 1.25 * GBuffer.Roughness) + 1;
-
-		float MetalSpec = 0.9;
-		float3 AbsorptionColor = GBuffer.BaseColor * (1 / MetalSpec);
-		float3 Absorption = AbsorptionColor * ((NoV - 1) * 0.85 * (1 - lerp(AbsorptionColor, Square(AbsorptionColor), -0.78)) + 1);
-
-		float F0 = 0.04;
-		float Fc = Pow5(1 - NoV);
-		float F = Fc + (1 - Fc) * F0;
-		float ClearCoat = GBuffer.CustomData.x;
-		float LayerAttenuation = lerp(1, (1 - F), ClearCoat);
-
-		float3 BaseColor = lerp(GBuffer.BaseColor * LayerAttenuation, MetalSpec * Absorption * RefractionScale, GBuffer.Metallic * ClearCoat);
-		//BaseColor += Dither / 255.f;
-		DiffuseColor = BaseColor - BaseColor * GBuffer.Metallic;
-
-		float Specular = lerp(GBuffer.Specular, RefractionScale, ClearCoat);
-		SpecularColor = ComputeF0(Specular, BaseColor, GBuffer.Metallic);
-	}
-}
-
-float3 SkyLightDiffuse(FGBufferData GBuffer, float AmbientOcclusion, float2 BufferUV, float2 ScreenPosition, float3 BentNormal, float3 DiffuseColor)
+	float  SkyDiffuseLookUpMul;
+	float3 SkyDiffuseLookUpAdd;
+	float3 SkyDiffuseLookUpNormal;
+};
+FSkyLightVisibilityData GetSkyLightVisibilityData(FGBufferData GBuffer, float AmbientOcclusion, float3 BentNormal)
 {
-	float2 UV = BufferUV;
-	float3 Lighting = 0;
-
 	float SkyVisibility = 1;
 	float DotProductFactor = 1;
 	float3 SkyLightingNormal = GBuffer.WorldNormal;
-	BRANCH if( GBuffer.ShadingModelID == SHADINGMODELID_CLEAR_COAT && CLEAR_COAT_BOTTOM_NORMAL)
+	BRANCH if (GBuffer.ShadingModelID == SHADINGMODELID_CLEAR_COAT && CLEAR_COAT_BOTTOM_NORMAL)
 	{
-		const float2 oct1 = ((float2(GBuffer.CustomData.a, GBuffer.CustomData.z) * 2) - (256.0/255.0)) + UnitVectorToOctahedron(GBuffer.WorldNormal);
-		SkyLightingNormal = OctahedronToUnitVector(oct1);			
+		const float2 oct1 = ((float2(GBuffer.CustomData.a, GBuffer.CustomData.z) * 2) - (256.0 / 255.0)) + UnitVectorToOctahedron(GBuffer.WorldNormal);
+		SkyLightingNormal = OctahedronToUnitVector(oct1);
 	}
-	
+
 #if APPLY_SKY_SHADOWING
 #define USE_DIRECTIONAL_OCCLUSION_ON_SKY_DIFFUSE 1
 
@@ -160,14 +99,94 @@ float3 SkyLightDiffuse(FGBufferData GBuffer, float AmbientOcclusion, float2 Buff
 		SkyVisibility = SkyVisibility * min(GBuffer.GBufferAO, AmbientOcclusion);
 	}
 
-	float ScalarFactors = SkyVisibility;
+	// Apply AO to the sky diffuse and account for darkening due to the geometry term
+	// apply the Diffuse color to the lighting (including OcclusionTintAndMinOcclusion as it's considered another light, that fixes SubsurfaceProfile being too dark)
+	FSkyLightVisibilityData SkyVisData;
+	SkyVisData.SkyDiffuseLookUpMul = SkyVisibility * DotProductFactor;
+	SkyVisData.SkyDiffuseLookUpAdd = (1 - SkyVisibility) * OcclusionTintAndMinOcclusion.xyz;
+	SkyVisData.SkyDiffuseLookUpNormal = SkyLightingNormal;
+	return SkyVisData;
+}
+
+
+#if STRATA_ENABLED
+#include "/Engine/Private/Strata/Strata.ush"
+#include "/Engine/Private/ParticipatingMediaCommon.ush"
+#include "/Engine/Private/Strata/StrataEnvironmentLighting.ush"
+#endif
+
+
+float3 GatherRadiance(float CompositeAlpha, float3 WorldPosition, float3 RayDirection, float Roughness, float3 BentNormal, float IndirectIrradiance, uint ShadingModelID, uint NumCulledReflectionCaptures, uint CaptureDataStartIndex)
+{
+	// Indirect occlusion from DFAO, which should be applied to reflection captures and skylight specular, but not SSR
+	float IndirectSpecularOcclusion = 1.0f;
+	float3 ExtraIndirectSpecular = 0;
+
+#if SUPPORT_DFAO_INDIRECT_OCCLUSION
+	float IndirectDiffuseOcclusion;
+	GetDistanceFieldAOSpecularOcclusion(BentNormal, RayDirection, Roughness, ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE, IndirectSpecularOcclusion, IndirectDiffuseOcclusion, ExtraIndirectSpecular);
+	// Apply DFAO to IndirectIrradiance before mixing with indirect specular
+	IndirectIrradiance *= IndirectDiffuseOcclusion;
+#endif
+
+	const bool bCompositeSkylight = true;
+	return CompositeReflectionCapturesAndSkylight(
+		CompositeAlpha, 
+		WorldPosition, 
+		RayDirection, 
+		Roughness, 
+		IndirectIrradiance, 
+		IndirectSpecularOcclusion, 
+		ExtraIndirectSpecular, 
+		NumCulledReflectionCaptures, 
+		CaptureDataStartIndex, 
+		0,
+		bCompositeSkylight);
+}
+
+void RemapClearCoatDiffuseAndSpecularColor(FGBufferData GBuffer, float2 ScreenPosition, inout float3 DiffuseColor, inout float3 SpecularColor)
+{
+	if (GBuffer.ShadingModelID == SHADINGMODELID_CLEAR_COAT)
+	{
+		// Attenuate base color and recompute diffuse color
+		float3 WorldPosition = mul(float4(ScreenPosition * GBuffer.Depth, GBuffer.Depth, 1), View.ScreenToWorld).xyz;
+		float3 CameraToPixel = normalize(WorldPosition - View.WorldCameraOrigin);
+		float3 V = -CameraToPixel;
+		float NoV = saturate(dot(GBuffer.WorldNormal, V));
+		float RefractionScale = ((NoV * 0.5 + 0.5) * NoV - 1) * saturate(1.25 - 1.25 * GBuffer.Roughness) + 1;
+
+		float MetalSpec = 0.9;
+		float3 AbsorptionColor = GBuffer.BaseColor * (1 / MetalSpec);
+		float3 Absorption = AbsorptionColor * ((NoV - 1) * 0.85 * (1 - lerp(AbsorptionColor, Square(AbsorptionColor), -0.78)) + 1);
+
+		float F0 = 0.04;
+		float Fc = Pow5(1 - NoV);
+		float F = Fc + (1 - Fc) * F0;
+		float ClearCoat = GBuffer.CustomData.x;
+		float LayerAttenuation = lerp(1, (1 - F), ClearCoat);
+
+		float3 BaseColor = lerp(GBuffer.BaseColor * LayerAttenuation, MetalSpec * Absorption * RefractionScale, GBuffer.Metallic * ClearCoat);
+		//BaseColor += Dither / 255.f;
+		DiffuseColor = BaseColor - BaseColor * GBuffer.Metallic;
+
+		float Specular = lerp(GBuffer.Specular, RefractionScale, ClearCoat);
+		SpecularColor = ComputeF0(Specular, BaseColor, GBuffer.Metallic);
+	}
+}
+
+float3 SkyLightDiffuse(FGBufferData GBuffer, float AmbientOcclusion, float2 BufferUV, float2 ScreenPosition, float3 BentNormal, float3 DiffuseColor)
+{
+	float2 UV = BufferUV;
+	float3 Lighting = 0;
+
+	FSkyLightVisibilityData SkyVisData = GetSkyLightVisibilityData(GBuffer, AmbientOcclusion, BentNormal);
 
 	BRANCH
 	if (GBuffer.ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE)
 	{
 		float3 SubsurfaceLookup = GetSkySHDiffuse(-GBuffer.WorldNormal) * View.SkyLightColor.rgb;
 		float3 SubsurfaceColor = ExtractSubsurfaceColor(GBuffer);
-		Lighting += ScalarFactors * SubsurfaceLookup * SubsurfaceColor;
+		Lighting += SkyVisData.SkyDiffuseLookUpMul * SubsurfaceLookup * SubsurfaceColor;
 	}
 
 	if (GBuffer.ShadingModelID == SHADINGMODELID_SUBSURFACE || GBuffer.ShadingModelID == SHADINGMODELID_PREINTEGRATED_SKIN)
@@ -183,7 +202,7 @@ float3 SkyLightDiffuse(FGBufferData GBuffer, float AmbientOcclusion, float2 Buff
 		float3 N = GBuffer.WorldNormal;
 		float3 V = -normalize(mul(float4(ScreenPosition, 1, 0), View.ScreenToWorld).xyz);
 		float3 L = normalize(V - N * dot(V, N));
-		SkyLightingNormal = L;
+		SkyVisData.SkyDiffuseLookUpNormal = L;
 		FHairTransmittanceData TransmittanceData = InitHairTransmittanceData(true);
 		DiffuseColor = PI * HairShading(GBuffer, L, V, N, 1, TransmittanceData, 0, 0.2, uint2(0, 0));
 	}
@@ -195,12 +214,10 @@ float3 SkyLightDiffuse(FGBufferData GBuffer, float AmbientOcclusion, float2 Buff
 	}
 
 	// Compute the preconvolved incoming lighting with the bent normal direction
-	float3 DiffuseLookup = GetSkySHDiffuse(SkyLightingNormal) * View.SkyLightColor.rgb;
+	float3 DiffuseLookup = GetSkySHDiffuse(SkyVisData.SkyDiffuseLookUpNormal) * View.SkyLightColor.rgb;
 
-	// Apply AO to the sky diffuse and account for darkening due to the geometry term
-	// apply the Diffuse color to the lighting (including OcclusionTintAndMinOcclusion as it's considered another light, that fixes SubsurfaceProfile being too dark)
-	Lighting += ((ScalarFactors * DotProductFactor) * DiffuseLookup + (1 - SkyVisibility) * OcclusionTintAndMinOcclusion.xyz) * DiffuseColor;
-
+	// And accumulate the lighting
+	Lighting += (SkyVisData.SkyDiffuseLookUpMul * DiffuseLookup + SkyVisData.SkyDiffuseLookUpAdd) * DiffuseColor;
 #if USE_PREEXPOSURE
 	Lighting *= View.PreExposure;
 #endif
@@ -362,12 +379,50 @@ void ReflectionEnvironmentSkyLighting(
 	
 	OutColor = 0.0f;
 
-	#if ENABLE_DYNAMIC_SKY_LIGHT
+#if ENABLE_DYNAMIC_SKY_LIGHT
+
+	uint2 PixelPos = SvPosition.xy;
+
+	const bool bUnlitMaterial = ShadingModelID == SHADINGMODELID_UNLIT;
+#if STRATA_ENABLED
+	const bool bStrataMaterial = Strata.MaterialLobesTexture[PixelPos].x > 0.0f;
+#else
+	const bool bStrataMaterial = false;
+#endif
+
+	float3 SkyLighting = 0;
 	BRANCH
-	// Only light pixels marked as lit
-	if (ShadingModelID != SHADINGMODELID_UNLIT)
+#if STRATA_ENABLED
+#if ENABLE_SKY_LIGHT
+	if (bStrataMaterial)
 	{
-		float CloudAmbientOcclusion = 1.0f;
+		uint PixelStrataDataByteOffset = (PixelPos.y * View.BufferSizeAndInvSize.x + PixelPos.x) * Strata.MaxBytesPerPixel;
+		FStrataPixelBSDFs PixelBSDFs = UnpackStrataIn(Strata.MaterialLobesBuffer, PixelStrataDataByteOffset);
+
+		float3 WorldPosition = mul(float4(ScreenPosition * GBuffer.Depth, GBuffer.Depth, 1), View.ScreenToWorld).xyz;
+		float3 CameraToPixel = normalize(WorldPosition - View.WorldCameraOrigin);
+		float3 V = -CameraToPixel;
+		
+		SkyLighting = StrataEnvironmentLighting(
+			BufferUV,
+			GBuffer,
+			WorldPosition,
+			CameraToPixel,
+			V,
+			AmbientOcclusion,
+			PixelBSDFs);
+	}
+	else
+#endif
+#endif
+	if (!bUnlitMaterial) // Only light pixels marked as lit
+	{
+		SkyLighting = SkyLightDiffuse(GBuffer, AmbientOcclusion, BufferUV, ScreenPosition, BentNormal, DiffuseColor);
+	}
+	
+	BRANCH 
+	if (!bUnlitMaterial || bStrataMaterial)
+	{
 		// Ideally we would compute spatially how much of the sky+cloud is visible for each point in the world. But we evaluate the sky light only once at the sky light component position as of today.
 		// To add some spatial variation, we can affect the sky light diffuse contribution according to cloud occlusion from above.
 		// This is an approximation because clouds are also occluding the sky in the sky light capture (a bit of a double contribution then). but it does help by adding spatially varying details.
@@ -376,52 +431,19 @@ void ReflectionEnvironmentSkyLighting(
 		{
 			float3 WorldPosition = mul(float4(ScreenPosition * GBuffer.Depth, GBuffer.Depth, 1), View.ScreenToWorld).xyz;
 			float OutOpticalDepth = 0.0f;
-			CloudAmbientOcclusion = GetCloudVolumetricShadow(WorldPosition, CloudSkyAOWorldToLightClipMatrix, CloudSkyAOFarDepthKm, CloudSkyAOTexture, CloudSkyAOSampler, OutOpticalDepth);
+			SkyLighting *= GetCloudVolumetricShadow(WorldPosition, CloudSkyAOWorldToLightClipMatrix, CloudSkyAOFarDepthKm, CloudSkyAOTexture, CloudSkyAOSampler, OutOpticalDepth);
 		}
 #endif
-
-		float3 SkyLighting = 0;
-#if STRATA_ENABLED
-#if ENABLE_SKY_LIGHT
-		uint2 PixelPos = SvPosition.xy;
-		if (Strata.MaterialLobesTexture[PixelPos].x > 0.0f)
-		{
-			uint PixelStrataDataByteOffset = (PixelPos.y * View.BufferSizeAndInvSize.x + PixelPos.x) * Strata.MaxBytesPerPixel;
-			FStrataPixelBSDFs PixelBSDFs = UnpackStrataIn(Strata.MaterialLobesBuffer, PixelStrataDataByteOffset);
-
-			float3 WorldPosition = mul(float4(ScreenPosition * GBuffer.Depth, GBuffer.Depth, 1), View.ScreenToWorld).xyz;
-			float3 CameraToPixel = normalize(WorldPosition - View.WorldCameraOrigin);
-			float3 V = -CameraToPixel;
-			float3 N = GBuffer.WorldNormal;
-
-			float3 R = 2 * dot(V, N) * N - V;
-
-			SkyLighting = StrataEnvironmentLighting(
-				GBuffer,
-				WorldPosition,
-				CameraToPixel,
-				V,
-				N,
-				R,
-				AmbientOcclusion,
-				PixelBSDFs);
-		}
-		else
-#endif
-#endif
-		{
-			SkyLighting = SkyLightDiffuse(GBuffer, AmbientOcclusion, BufferUV, ScreenPosition, BentNormal, DiffuseColor)* CloudAmbientOcclusion;
-		}
-
-		// Scene color alpha is used for ScreenSpaceSubsurfaceScattering (if that is not needed it can be disabled with SUBSURFACE_CHANNEL_MODE)
-		FLightAccumulator LightAccumulator = (FLightAccumulator)0;
-
-		const bool bNeedsSeparateSubsurfaceLightAccumulation = UseSubsurfaceProfile(ShadingModelID);
-
-		LightAccumulator_Add(LightAccumulator, SkyLighting, SkyLighting, 1.0f, bNeedsSeparateSubsurfaceLightAccumulation);
-		OutColor = LightAccumulator_GetResult(LightAccumulator);
 	}
-	#endif
+
+	// Scene color alpha is used for ScreenSpaceSubsurfaceScattering (if that is not needed it can be disabled with SUBSURFACE_CHANNEL_MODE)
+	FLightAccumulator LightAccumulator = (FLightAccumulator)0;
+	const bool bNeedsSeparateSubsurfaceLightAccumulation = UseSubsurfaceProfile(ShadingModelID);
+
+	LightAccumulator_Add(LightAccumulator, SkyLighting, SkyLighting, 1.0f, bNeedsSeparateSubsurfaceLightAccumulation);
+	OutColor = LightAccumulator_GetResult(LightAccumulator);
+
+#endif // ENABLE_DYNAMIC_SKY_LIGHT
 
 	BRANCH
 	if (ShadingModelID != SHADINGMODELID_UNLIT && ShadingModelID != SHADINGMODELID_HAIR)

@@ -63,10 +63,10 @@ float3 StrataForwardLighting(
 
 #if ENABLE_SKY_LIGHT
 				BRANCH
-					if (ReflectionStruct.SkyLightParameters.y > 0)
-					{
-						Color += GetEffectiveSkySHDiffuse(N) * SkyLightCommonFactor * Diffuse_Lambert(BSDF.Diffuse.Albedo); // STRATA_TODO should not be lambert
-					}
+				if (ReflectionStruct.SkyLightParameters.y > 0)
+				{
+					Color += GetEffectiveSkySHDiffuse(N) * BSDF.Diffuse.Albedo * SkyLightCommonFactor; // STRATA_TODO compute SH coefficients for ON
+				}
 #endif
 
 				LayerCoverage	+= BSDFCoverage;
@@ -83,10 +83,10 @@ float3 StrataForwardLighting(
 
 #if ENABLE_SKY_LIGHT
 				BRANCH
-					if (ReflectionStruct.SkyLightParameters.y > 0)
-					{
-						Color += GetEffectiveSkySHDiffuse(N) * SkyLightCommonFactor * Diffuse_Lambert(BSDF.Diffuse.Albedo); // STRATA_TODO should not be lambert
-					}
+				if (ReflectionStruct.SkyLightParameters.y > 0)
+				{
+					Color += GetEffectiveSkySHDiffuse(N) * BSDF.Diffuse.Albedo * SkyLightCommonFactor; // STRATA_TODO compute SH coefficients for Chan
+				}
 #endif
 				
 				LayerCoverage	+= BSDFCoverage;

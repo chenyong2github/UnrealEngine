@@ -1466,6 +1466,8 @@ void FPixelShaderInOut_MainPS(
 	GBuffer.BaseColor = 0;
 	GBuffer.Specular = 0;
 	GBuffer.Metallic = 0;
+	GBuffer.ShadingModelID = SHADINGMODELID_STRATA;
+	GBuffer.WorldNormal = MaterialParameters.WorldNormal;
 
 	OpaqueBasePass.Strata.MaterialLobesTextureUAV[uint2(In.SvPosition.xy)] = Strata.LayerCount; // Could store a bit pack of layer count, BSDF type masks for tiling, etc.
 
