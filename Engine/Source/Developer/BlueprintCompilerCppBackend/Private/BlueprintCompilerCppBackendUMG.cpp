@@ -49,7 +49,12 @@ void FBackendHelperUMG::CreateClassSubobjects(FEmitterLocalContext& Context, boo
 			// We need the same regeneration like for cooking. See UMovieSceneSequence::Serialize
 			UMovieSceneCompiledDataManager::GetPrecompiledData()->Compile(Anim);
 
-			FEmitDefaultValueHelper::HandleClassSubobject(Context, Anim, FEmitterLocalContext::EClassSubobjectList::MiscConvertedSubobjects, bCreate, bInitialize);
+			FString AnimationName = FEmitDefaultValueHelper::HandleClassSubobject(Context, Anim, FEmitterLocalContext::EClassSubobjectList::MiscConvertedSubobjects, bCreate, bInitialize);
+
+			if (bInitialize)
+			{
+				Context.AddLine(FString::Printf(TEXT("UMovieSceneCompiledDataManager::GetPrecompiledData()->Compile(%s);"), *AnimationName));
+			}
 		}
 	}
 }
