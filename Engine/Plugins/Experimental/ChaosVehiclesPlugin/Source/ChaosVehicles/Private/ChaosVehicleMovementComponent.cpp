@@ -57,6 +57,7 @@ FAutoConsoleVariableRef CVarChaosVehiclesDisableThrusters(TEXT("p.Vehicle.Disabl
 FAutoConsoleVariableRef CVarChaosVehiclesBatchQueries(TEXT("p.Vehicle.BatchQueries"), GVehicleDebugParams.BatchQueries, TEXT("Enable/Disable Batching Of Suspension Raycasts."));
 FAutoConsoleVariableRef CVarChaosVehiclesForceDebugScaling(TEXT("p.Vehicle.SetForceDebugScaling"), GVehicleDebugParams.ForceDebugScaling, TEXT("Set Scaling For Force Visualisation."));
 FAutoConsoleVariableRef CVarChaosVehiclesSleepCounterThreshold(TEXT("p.Vehicle.SleepCounterThreshold"), GVehicleDebugParams.SleepCounterThreshold, TEXT("Set The Sleep Counter Iteration Threshold."));
+FAutoConsoleVariableRef CVarChaosVehiclesDisableVehicleSleep(TEXT("p.Vehicle.DisableVehicleSleep"), GVehicleDebugParams.DisableVehicleSleep, TEXT("Disable Vehicle Agressive Sleeping."));
 
 
 void FVehicleState::CaptureState(FBodyInstance* TargetInstance, float GravityZ, float DeltaTime)
@@ -290,7 +291,10 @@ void UChaosVehicleMovementComponent::TickVehicle(float DeltaTime)
 		APawn* MyOwner = Cast<APawn>(UpdatedComponent->GetOwner());
 		if (MyOwner)
 		{
-			ProcessSleeping();
+			if (!GVehicleDebugParams.DisableVehicleSleep)
+			{
+				ProcessSleeping();
+			}
 
 			if (!VehicleState.bSleeping)
 			{
