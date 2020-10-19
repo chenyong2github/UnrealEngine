@@ -13,9 +13,8 @@
 AWaterBodyExclusionVolume::AWaterBodyExclusionVolume(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-#if WITH_EDITOR
-	static FWaterIconHelper IconHelper(TEXT("/Water/Icons/WaterBodyExclusionVolumeSprite"));
-	ActorIcon = FWaterIconHelper::CreateSprite(this, IconHelper.GetTexture(), IconHelper.GetCategoryName(), IconHelper.GetDisplayName());
+#if WITH_EDITORONLY_DATA
+	ActorIcon = FWaterIconHelper::EnsureSpriteComponentCreated(this, TEXT("/Water/Icons/WaterBodyExclusionVolumeSprite"), NSLOCTEXT("Water", "WaterBodExclusionVolumeSpriteName", "Water Body Exclusion Volume"));
 #endif
 }
 
@@ -68,7 +67,7 @@ void AWaterBodyExclusionVolume::UpdateOverlappingWaterBodies()
 #if WITH_EDITOR
 void AWaterBodyExclusionVolume::UpdateActorIcon()
 {
-	FWaterIconHelper::UpdateSpriteTexture(this, ActorIcon->Sprite);
+	FWaterIconHelper::UpdateSpriteComponent(this, ActorIcon->Sprite);
 }
 #endif // WITH_EDITOR
 

@@ -11,21 +11,15 @@ class AActor;
 class UTexture2D;
 class UBillboardComponent;
 
-// Structure to hold one-time initialization
 struct FWaterIconHelper
 {
-	FWaterIconHelper(const TCHAR* IconTextureName);
-	UTexture2D* GetTexture();
-	const FName& GetCategoryName() const { return ID_CategoryName; }
-	const FText& GetDisplayName() const { return NAME_DisplayName; }
+	/** Ensures a billboard component is created and added to the actor's components. 
+	 * This is meant to be called in the constructor only (because of ConstructorHelpers::FObjectFinderOptional).
+	*/
+	static UBillboardComponent* EnsureSpriteComponentCreated(AActor* Actor, const TCHAR* InIconTextureName, const FText& InDisplayName);
 
-	static UBillboardComponent* CreateSprite(AActor* Actor, UTexture2D* InTexture, const FName& InCategoryName, const FText& InDisplayName);
-	static void UpdateSpriteTexture(AActor* Actor, UTexture2D* InTexture);
-
-private:
-	ConstructorHelpers::FObjectFinderOptional<UTexture2D> Texture;
-	FName ID_CategoryName;
-	FText NAME_DisplayName;
+	/** Updates the texture/scale/position of the actor's billboard component, if any */
+	static void UpdateSpriteComponent(AActor* Actor, UTexture2D* InTexture);
 };
 
 #endif
