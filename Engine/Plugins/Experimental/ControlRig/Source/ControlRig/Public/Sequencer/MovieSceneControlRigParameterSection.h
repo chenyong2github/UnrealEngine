@@ -204,6 +204,7 @@ private:
 	TArray<bool> OldControlsMask;
 
 
+
 public:
 
 	UMovieSceneControlRigParameterSection();
@@ -353,8 +354,11 @@ protected:
 
 	// When true we do not set a key on the section, since it will be set because we changed the value
 	// We need this because control rig notifications are set on every change even when just changing sequencer time
-	// which forces a sequencer eval, not like the edito where changes are only set on UI changes(changing time doesn't send change delegate)
+	// which forces a sequencer eval, not like the editor where changes are only set on UI changes(changing time doesn't send change delegate)
 	mutable bool bDoNotKey;
 
-
+public:
+	/** Special list of Names that we should only Modify. Needed to handle Interaction (FK/IK) since Control Rig expecting only changed value to be set
+	not all Controls*/
+	mutable TSet<FName> ControlsToSet;
 };
