@@ -261,6 +261,13 @@ private:
 	FCachedBoundShaderStateLink_Threadsafe CacheLink;
 };
 
+struct FVulkanCpuReadbackBuffer
+{
+	VkBuffer Buffer;
+	uint32 MipOffsets[MAX_TEXTURE_MIP_COUNT];
+	uint32 MipSize[MAX_TEXTURE_MIP_COUNT];
+};
+
 /** Texture/RT wrapper. */
 class FVulkanSurface
 {
@@ -416,6 +423,7 @@ public:
 
 	static void InternalLockWrite(FVulkanCommandListContext& Context, FVulkanSurface* Surface, const VkImageSubresourceRange& SubresourceRange, const VkBufferImageCopy& Region, VulkanRHI::FStagingBuffer* StagingBuffer);
 
+	const FVulkanCpuReadbackBuffer* GetCpuReadbackBuffer() const { return CpuReadbackBuffer; }
 private:
 
 	void SetInitialImageState(FVulkanCommandListContext& Context, VkImageLayout InitialLayout, bool bClear, const FClearValueBinding& ClearValueBinding);
@@ -433,6 +441,8 @@ private:
 
 	VkImageAspectFlags FullAspectMask;
 	VkImageAspectFlags PartialAspectMask;
+
+	FVulkanCpuReadbackBuffer* CpuReadbackBuffer;
 
 	friend struct FVulkanTextureBase;
 };

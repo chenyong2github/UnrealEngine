@@ -1102,17 +1102,23 @@ public:
 			Info.SourcePosition.Y = Params.InitialPositionOffset.Y >> Params.SourceMip;
 			Info.Size.Y = DestSize.Y;
 			Info.DestPosition.Y = 0;
-check(Info.SourcePosition.Y >= 0);
+			check(Info.SourcePosition.Y >= 0);
 			check(Info.SourcePosition.Y + Info.Size.Y <= SourceSize.Y);
 			check(Info.DestPosition.Y + Info.Size.Y <= DestSize.Y);
 		}
 
+		InRHICmdList.Transition(FRHITransitionInfo(Params.SourceResource->TextureRHI, Params.SrcAccess, ERHIAccess::CopySrc));
+		InRHICmdList.Transition(FRHITransitionInfo(Params.DestResource->TextureRHI, Params.DestAccess, ERHIAccess::CopyDest));
 		InRHICmdList.CopyTexture(Params.SourceResource->TextureRHI, Params.DestResource->TextureRHI, Info);
 
 		if (Params.DestCPUResource != nullptr)
 		{
+			InRHICmdList.Transition(FRHITransitionInfo(Params.DestCPUResource->TextureRHI, ERHIAccess::Unknown, ERHIAccess::CopyDest));
 			InRHICmdList.CopyTexture(Params.SourceResource->TextureRHI, Params.DestCPUResource->TextureRHI, Info);
+			InRHICmdList.Transition(FRHITransitionInfo(Params.DestCPUResource->TextureRHI, ERHIAccess::CopyDest, ERHIAccess::CPURead));
 		}
+		InRHICmdList.Transition(FRHITransitionInfo(Params.SourceResource->TextureRHI, ERHIAccess::CopySrc, Params.SrcAccess));
+		InRHICmdList.Transition(FRHITransitionInfo(Params.DestResource->TextureRHI, ERHIAccess::CopyDest, Params.DestAccess));
 	}
 
 private:
@@ -1139,9 +1145,11 @@ public:
 
 		check(IsInRenderingThread());
 
+		InRHICmdList.Transition(FRHITransitionInfo(RenderTargetResource->TextureRHI, ERHIAccess::SRVMask, ERHIAccess::RTV));
 		FRHIRenderPassInfo RPInfo(RenderTargetResource->TextureRHI, ERenderTargetActions::Clear_Store);
 		InRHICmdList.BeginRenderPass(RPInfo, TEXT("Clear"));
 		InRHICmdList.EndRenderPass();
+		InRHICmdList.Transition(FRHITransitionInfo(RenderTargetResource->TextureRHI, ERHIAccess::RTV, ERHIAccess::SRVMask));
 	}
 
 	FString DebugName;
@@ -1194,6 +1202,8 @@ public:
 		// Create and add the new view
 		FSceneView* View = new FSceneView(ViewInitOptions);
 		ViewFamily.Views.Add(View);
+
+		InRHICmdList.Transition(FRHITransitionInfo(ViewFamily.RenderTarget->GetRenderTargetTexture(), ERHIAccess::SRVMask, ERHIAccess::RTV));
 
 		// Init VB/IB Resource
 		VertexDeclaration.InitResource();
@@ -1255,7 +1265,7 @@ public:
 		InRHICmdList.DrawPrimitive(0, PrimitiveCount, 1);
 
 		InRHICmdList.EndRenderPass();
-		InRHICmdList.Transition(FRHITransitionInfo(ViewFamily.RenderTarget->GetRenderTargetTexture(), ERHIAccess::RTV, ERHIAccess::SRVGraphics));
+		InRHICmdList.Transition(FRHITransitionInfo(ViewFamily.RenderTarget->GetRenderTargetTexture(), ERHIAccess::RTV, ERHIAccess::SRVMask));
 
 		VertexDeclaration.ReleaseResource();
 		VertexBufferResource.ReleaseResource();
@@ -1873,12 +1883,12 @@ void ALandscape::AddDeferredCopyLayersTexture(UTexture* InSourceTexture, UTextur
 }
 
 void ALandscape::AddDeferredCopyLayersTexture(const FString& InSourceDebugName, FTextureResource* InSourceResource, const FString& InDestDebugName, FTextureResource* InDestResource, FTextureResource* InDestCPUResource, const FIntPoint& InInitialPositionOffset,
-											  uint8 InSourceCurrentMip, uint8 InDestCurrentMip, uint32 InSourceArrayIndex, uint32 InDestArrayIndex)
+											  uint8 InSourceCurrentMip, uint8 InDestCurrentMip, uint32 InSourceArrayIndex, uint32 InDestArrayIndex, ERHIAccess SrcAccess, ERHIAccess DestAccess)
 {
 	check(InSourceResource != nullptr);
 	check(InDestResource != nullptr);
 
-	PendingCopyTextures.Add(FLandscapeLayersCopyTextureParams(InSourceDebugName, InSourceResource, InDestDebugName, InDestResource, InDestCPUResource, InInitialPositionOffset, SubsectionSizeQuads, NumSubsections, InSourceCurrentMip, InDestCurrentMip, InSourceArrayIndex, InDestArrayIndex));
+	PendingCopyTextures.Add(FLandscapeLayersCopyTextureParams(InSourceDebugName, InSourceResource, InDestDebugName, InDestResource, InDestCPUResource, InInitialPositionOffset, SubsectionSizeQuads, NumSubsections, InSourceCurrentMip, InDestCurrentMip, InSourceArrayIndex, InDestArrayIndex, SrcAccess, DestAccess));
 }
 
 void ALandscape::CommitDeferredCopyLayersTexture()
@@ -3830,7 +3840,7 @@ int32 ALandscape::RegenerateLayersWeightmaps(const TArray<ULandscapeComponent*>&
 			SourceDebugName = OutputDebugName ? LandscapeScratchRT1->GetName() : GEmptyDebugName;
 			DestDebugName = OutputDebugName ? FString::Printf(TEXT("Weight: Clear CombinedProcLayerWeightmapAllLayersResource %d, "), LayerIndex) : GEmptyDebugName;
 
-			AddDeferredCopyLayersTexture(SourceDebugName, LandscapeScratchRT1->GameThread_GetRenderTargetResource(), DestDebugName, CombinedLayersWeightmapAllMaterialLayersResource, nullptr, FIntPoint(0, 0), 0, 0, 0, LayerIndex);
+			AddDeferredCopyLayersTexture(SourceDebugName, LandscapeScratchRT1->GameThread_GetRenderTargetResource(), DestDebugName, CombinedLayersWeightmapAllMaterialLayersResource, nullptr, FIntPoint(0, 0), 0, 0, 0, LayerIndex, ERHIAccess::SRVMask, ERHIAccess::UAVMask);
 		}
 
 		CommitDeferredCopyLayersTexture();

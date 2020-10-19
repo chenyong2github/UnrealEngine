@@ -190,7 +190,7 @@ struct FLandscapeLayer
 struct FLandscapeLayersCopyTextureParams
 {
 	FLandscapeLayersCopyTextureParams(const FString& InSourceResourceDebugName, FTextureResource* InSourceResource, const FString& InDestResourceDebugName, FTextureResource* InDestResource, FTextureResource* InDestCPUResource,
-		const FIntPoint& InInitialPositionOffset, int32 InSubSectionSizeQuad, int32 InNumSubSections, uint8 InSourceCurrentMip, uint8 InDestCurrentMip, uint32 InSourceArrayIndex, uint32 InDestArrayIndex)
+		const FIntPoint& InInitialPositionOffset, int32 InSubSectionSizeQuad, int32 InNumSubSections, uint8 InSourceCurrentMip, uint8 InDestCurrentMip, uint32 InSourceArrayIndex, uint32 InDestArrayIndex, ERHIAccess SrcAccess = ERHIAccess::SRVMask, ERHIAccess DestAccess = ERHIAccess::SRVMask)
 		: SourceResourceDebugName(InSourceResourceDebugName)
 		, SourceResource(InSourceResource)
 		, DestResourceDebugName(InDestResourceDebugName)
@@ -203,6 +203,8 @@ struct FLandscapeLayersCopyTextureParams
 		, DestMip(InDestCurrentMip)
 		, SourceArrayIndex(InSourceArrayIndex)
 		, DestArrayIndex(InDestArrayIndex)
+		, SrcAccess(SrcAccess)
+		, DestAccess(DestAccess)
 	{}
 
 	FString SourceResourceDebugName;
@@ -217,6 +219,9 @@ struct FLandscapeLayersCopyTextureParams
 	uint8 DestMip;
 	uint32 SourceArrayIndex;
 	uint32 DestArrayIndex;
+	ERHIAccess SrcAccess;
+	ERHIAccess DestAccess;
+
 };
 
 UCLASS(MinimalAPI, showcategories=(Display, Movement, Collision, Lighting, LOD, Input), hidecategories=(Mobility))
@@ -399,8 +404,7 @@ private:
 	void AddDeferredCopyLayersTexture(UTexture* InSourceTexture, UTexture* InDestTexture, FTextureResource* InDestCPUResource = nullptr, const FIntPoint& InInitialPositionOffset = FIntPoint(0, 0), uint8 InSourceCurrentMip = 0, uint8 InDestCurrentMip = 0,
 									  uint32 InSourceArrayIndex = 0, uint32 InDestArrayIndex = 0);
 	void AddDeferredCopyLayersTexture(const FString& InSourceDebugName, FTextureResource* InSourceResource, const FString& InDestDebugName, FTextureResource* InDestResource, FTextureResource* InDestCPUResource = nullptr, const FIntPoint& InInitialPositionOffset = FIntPoint(0, 0),
-									  uint8 InSourceCurrentMip = 0, uint8 InDestCurrentMip = 0, uint32 InSourceArrayIndex = 0, uint32 InDestArrayIndex = 0);
-
+									  uint8 InSourceCurrentMip = 0, uint8 InDestCurrentMip = 0, uint32 InSourceArrayIndex = 0, uint32 InDestArrayIndex = 0, ERHIAccess SrcAccess = ERHIAccess::SRVMask, ERHIAccess DestAccess = ERHIAccess::SRVMask);
 	void CommitDeferredCopyLayersTexture();
 
 	void InitializeLayers();
