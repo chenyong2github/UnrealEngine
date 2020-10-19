@@ -189,17 +189,24 @@ class DevicenDisplay(DeviceUnreal):
 
         # fill in fixed arguments
 
-        fixed_args = [
-            "-game",       # render nodes run in -game
-            "-messaging",  # enables messaging, needed for MultiUser
-            "-dc_cluster", # this is a cluster node
-            "-nosplash",   # avoids splash screen
-            "-fixedseed",  # for determinism
-            "-NoVerifyGC", # improves performance
-            "-noxrstereo", # avoids conflicting with steam/oculus
+        args = [
+            f'"{uproject}"',
+            "-game",                    # render nodes run in -game
+            "-messaging",               # enables messaging, needed for MultiUser
+            "-dc_cluster",              # this is a cluster node
+            "-nosplash",                # avoids splash screen
+            "-fixedseed",               # for determinism
+            "-NoVerifyGC",              # improves performance
+            "-noxrstereo",              # avoids a conflict with steam/oculus
+            f'{additional_args}',       # specified in settings
+            f'dc_cfg="{cfg_file}"',     # nDisplay config file
+            f'{render_api}',            # dx11/12
+            f'{render_mode}',           # mono/...
+            f'{use_all_cores}',         # -useallavailablecores
+            f'{no_texture_streaming}',  # -notexturestreaming
+            f'dc_node={self.name}',     # name of this node in the nDisplay cluster
+            f'Log={self.name}.log',     # log file
         ]
-
-        args = f'"{uproject}" {additional_args} {" ".join(fixed_args)} dc_cfg="{cfg_file}" {render_api} {render_mode} {use_all_cores} {no_texture_streaming} '
 
         # fill in ExecCmds
 
@@ -209,37 +216,44 @@ class DevicenDisplay(DeviceUnreal):
 
         if len(exec_cmds):
             exec_cmds_expanded = ';'.join(exec_cmds)
-            args += f' ExecCmds="{exec_cmds_expanded}" '
+            args.append(f'ExecCmds="{exec_cmds_expanded}"')
 
         # when in fullscreen, the window parameters should not be passed
-        if fullscreen:
-            args += f' fullscreen=true '
-        else:
-            args += f' -windowed WinX={win_pos[0]} WinY={win_pos[1]} ResX={win_res[0]} ResY={win_res[1]} '
 
-        args += f" dc_node={self.name} Log={self.name}.log "
+        if fullscreen:
+            args.extend([
+                'fullscreen=true',
+            ])
+        else:
+            args.extend([
+                f'-windowed',
+                f'-forceres',
+                f'WinX={win_pos[0]}',
+                f'WinY={win_pos[1]}',
+                f'ResX={win_res[0]}',
+                f'ResY={win_res[1]}',
+            ])
 
         # MultiUser parameters
 
         if CONFIG.MUSERVER_AUTO_JOIN:
-            mu_options = [
+            args.extend([
                 f'-CONCERTRETRYAUTOCONNECTONERROR',
                 f'-CONCERTAUTOCONNECT', 
                 f'-CONCERTSERVER={CONFIG.MUSERVER_SERVER_NAME}',
                 f'-CONCERTSESSION={SETTINGS.MUSERVER_SESSION_NAME}', 
                 f'-CONCERTDISPLAYNAME={self.name}',
                 f'-CONCERTISHEADLESS',
-            ]
+            ])
 
-            args += f" {' '.join(mu_options)} "
-
-        # TODO: Make these optional
+        # TODO: Make logs optional and selectable
         #args += f' -LogCmds="LogDisplayClusterPlugin Log, LogDisplayClusterEngine Log, LogDisplayClusterConfig Log, LogDisplayClusterCluster Log, LogDisplayClusterGame Log, LogDisplayClusterGameMode Log, LogDisplayClusterInput Log, LogDisplayClusterInputVRPN Log, LogDisplayClusterNetwork Log, LogDisplayClusterNetworkMsg Log, LogDisplayClusterRender Log, LogDisplayClusterRenderSync Log, LogDisplayClusterBlueprint Log" '
 
         path_to_exe = self.generate_unreal_exe_path()
-        self.setting_ue_command_line.update_value(f"{path_to_exe} {args}")
+        args_expanded = ' '.join(args)
+        self.setting_ue_command_line.update_value(f"{path_to_exe} {args_expanded}")
 
-        return path_to_exe, args
+        return path_to_exe, args_expanded
 
     def on_ndisplay_config_transfer_complete(self, destination):
         LOGGER.info(f"{self.name}: nDisplay config file was successfully transferred to {destination} on host")
