@@ -1745,6 +1745,7 @@ void FSteamVRInputDevice::GenerateActionBindings(TArray<FInputMapping> &InInputM
 				InputState.bIsXButton = InputState.bIsYButton = false;
 				if (CurrentInputKeyName.Contains(TEXT("OculusTouch"))
 					|| CurrentInputKeyName.Contains(TEXT("Cosmos"))
+					|| CurrentInputKeyName.Contains(TEXT("HPMixedRealityController"))
 					)
 				{
 					// Check cap sense
@@ -2489,6 +2490,7 @@ void FSteamVRInputDevice::GenerateActionManifest(bool GenerateActions, bool Gene
 	ControllerTypes.Emplace(FControllerType(TEXT("vive_cosmos_controller"), TEXT("Cosmos"), TEXT("SteamVR_Cosmos")));
 	ControllerTypes.Emplace(FControllerType(TEXT("oculus_touch"), TEXT("OculusTouch"), TEXT("SteamVR_OculusTouch")));
 	ControllerTypes.Emplace(FControllerType(TEXT("holographic_controller"), TEXT("MixedReality"), TEXT("SteamVR_MixedReality")));
+	ControllerTypes.Emplace(FControllerType(TEXT("hpmotioncontroller"), TEXT("HPMixedRealityController"), TEXT("SteamVR_HPMixedRealityController")));
 
 	ControllerTypes.Emplace(FControllerType(TEXT("indexhmd"), TEXT("Valve Index Headset"), TEXT("SteamVR_Valve_Index_Headset")));
 	ControllerTypes.Emplace(FControllerType(TEXT("vive"), TEXT("Vive Headset"), TEXT("SteamVR_Vive_Headset")));

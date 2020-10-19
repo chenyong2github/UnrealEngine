@@ -1,17 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "OpenXRHPController.h"
+#include "HPMotionController.h"
 #include "InputCoreTypes.h"
 #include "OpenXRCore.h"
 
-#define LOCTEXT_NAMESPACE "OpenXRHPControllerModule"
+#define LOCTEXT_NAMESPACE "HPMotionControllerModule"
 
 // Left
 const FKey HPMixedRealityController_Left_X_Click("HPMixedRealityController_Left_X_Click");
 const FKey HPMixedRealityController_Left_Y_Click("HPMixedRealityController_Left_Y_Click");
 const FKey HPMixedRealityController_Left_Menu_Click("HPMixedRealityController_Left_Menu_Click");
-const FKey HPMixedRealityController_Left_Squeeze("HPMixedRealityController_Left_Squeeze_Click");
-const FKey HPMixedRealityController_Left_Squeeze_Axis("HPMixedRealityController_Left_Squeeze_Axis");
+const FKey HPMixedRealityController_Left_Grip("HPMixedRealityController_Left_Grip_Click");
+const FKey HPMixedRealityController_Left_Grip_Axis("HPMixedRealityController_Left_Grip_Axis");
 const FKey HPMixedRealityController_Left_Trigger("HPMixedRealityController_Left_Trigger_Click");
 const FKey HPMixedRealityController_Left_Trigger_Axis("HPMixedRealityController_Left_Trigger_Axis");
 const FKey HPMixedRealityController_Left_Thumbstick_X("HPMixedRealityController_Left_Thumbstick_X");
@@ -22,8 +22,8 @@ const FKey HPMixedRealityController_Left_Thumbstick("HPMixedRealityController_Le
 const FKey HPMixedRealityController_Right_A_Click("HPMixedRealityController_Right_A_Click");
 const FKey HPMixedRealityController_Right_B_Click("HPMixedRealityController_Right_B_Click");
 const FKey HPMixedRealityController_Right_Menu_Click("HPMixedRealityController_Right_Menu_Click");
-const FKey HPMixedRealityController_Right_Squeeze("HPMixedRealityController_Right_Squeeze_Click");
-const FKey HPMixedRealityController_Right_Squeeze_Axis("HPMixedRealityController_Right_Squeeze_Axis");
+const FKey HPMixedRealityController_Right_Grip("HPMixedRealityController_Right_Grip_Click");
+const FKey HPMixedRealityController_Right_Grip_Axis("HPMixedRealityController_Right_Grip_Axis");
 const FKey HPMixedRealityController_Right_Trigger("HPMixedRealityController_Right_Trigger_Click");
 const FKey HPMixedRealityController_Right_Trigger_Axis("HPMixedRealityController_Right_Trigger_Axis");
 const FKey HPMixedRealityController_Right_Thumbstick_X("HPMixedRealityController_Right_Thumbstick_X");
@@ -31,7 +31,7 @@ const FKey HPMixedRealityController_Right_Thumbstick_Y("HPMixedRealityController
 const FKey HPMixedRealityController_Right_Thumbstick("HPMixedRealityController_Right_Thumbstick_Click");
 
 
-void FOpenXRHPControllerModule::StartupModule()
+void FHPMotionControllerModule::StartupModule()
 {
 	RegisterOpenXRExtensionModularFeature();
 
@@ -48,11 +48,11 @@ void FOpenXRHPControllerModule::StartupModule()
 	EKeys::AddKey(FKeyDetails(HPMixedRealityController_Left_Menu_Click,
 		LOCTEXT("HPMixedRealityController_Left_Menu_Click", "HP Mixed Reality (L) Menu"),
 		FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "HPMixedRealityController"));
-	EKeys::AddKey(FKeyDetails(HPMixedRealityController_Left_Squeeze,
-		LOCTEXT("HPMixedRealityController_Left_Squeeze_Click", "HP Mixed Reality (L) Squeeze"),
+	EKeys::AddKey(FKeyDetails(HPMixedRealityController_Left_Grip,
+		LOCTEXT("HPMixedRealityController_Left_Grip_Click", "HP Mixed Reality (L) Grip"),
 		FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "HPMixedRealityController"));
-	EKeys::AddKey(FKeyDetails(HPMixedRealityController_Left_Squeeze_Axis,
-		LOCTEXT("HPMixedRealityController_Left_Squeeze_Axis", "HP Mixed Reality (L) Squeeze Axis"),
+	EKeys::AddKey(FKeyDetails(HPMixedRealityController_Left_Grip_Axis,
+		LOCTEXT("HPMixedRealityController_Left_Grip_Axis", "HP Mixed Reality (L) Grip Axis"),
 		FKeyDetails::GamepadKey | FKeyDetails::Axis1D | FKeyDetails::NotBlueprintBindableKey, "HPMixedRealityController"));
 	EKeys::AddKey(FKeyDetails(HPMixedRealityController_Left_Trigger,
 		LOCTEXT("HPMixedRealityController_Left_Trigger_Click", "HP Mixed Reality (L) Trigger"),
@@ -80,11 +80,11 @@ void FOpenXRHPControllerModule::StartupModule()
 	EKeys::AddKey(FKeyDetails(HPMixedRealityController_Right_Menu_Click,
 		LOCTEXT("HPMixedRealityController_Right_Menu_Click", "HP Mixed Reality (R) Menu"),
 		FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "HPMixedRealityController"));
-	EKeys::AddKey(FKeyDetails(HPMixedRealityController_Right_Squeeze,
-		LOCTEXT("HPMixedRealityController_Right_Squeeze_Click", "HP Mixed Reality (R) Squeeze"),
+	EKeys::AddKey(FKeyDetails(HPMixedRealityController_Right_Grip,
+		LOCTEXT("HPMixedRealityController_Right_Grip_Click", "HP Mixed Reality (R) Grip"),
 		FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "HPMixedRealityController"));
-	EKeys::AddKey(FKeyDetails(HPMixedRealityController_Right_Squeeze_Axis,
-		LOCTEXT("HPMixedRealityController_Right_Squeeze_Axis", "HP Mixed Reality (R) Squeeze Axis"),
+	EKeys::AddKey(FKeyDetails(HPMixedRealityController_Right_Grip_Axis,
+		LOCTEXT("HPMixedRealityController_Right_Grip_Axis", "HP Mixed Reality (R) Grip Axis"),
 		FKeyDetails::GamepadKey | FKeyDetails::Axis1D | FKeyDetails::NotBlueprintBindableKey, "HPMixedRealityController"));
 	EKeys::AddKey(FKeyDetails(HPMixedRealityController_Right_Trigger,
 		LOCTEXT("HPMixedRealityController_Right_Trigger_Click", "HP Mixed Reality (R) Trigger"),
@@ -103,19 +103,19 @@ void FOpenXRHPControllerModule::StartupModule()
 		FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "HPMixedRealityController"));
 }
 
-void FOpenXRHPControllerModule::ShutdownModule()
+void FHPMotionControllerModule::ShutdownModule()
 {
 	IModularFeatures::Get().UnregisterModularFeature(GetModularFeatureName(), this);
 }
 
-bool FOpenXRHPControllerModule::GetRequiredExtensions(TArray<const ANSICHAR*>& OutExtensions)
+bool FHPMotionControllerModule::GetRequiredExtensions(TArray<const ANSICHAR*>& OutExtensions)
 {
 	// XR_EXT_HP_MIXED_REALITY_CONTROLLER_EXTENSION_NAME is defined in openxr.h starting with 1.0.10
 	OutExtensions.Add("XR_EXT_hp_mixed_reality_controller");
 	return true;
 }
 
-bool FOpenXRHPControllerModule::GetInteractionProfile(XrInstance InInstance, FString& OutKeyPrefix, XrPath& OutPath, bool& OutHasHaptics)
+bool FHPMotionControllerModule::GetInteractionProfile(XrInstance InInstance, FString& OutKeyPrefix, XrPath& OutPath, bool& OutHasHaptics)
 {
 	OutKeyPrefix = "HPMixedRealityController";
 
@@ -129,4 +129,4 @@ bool FOpenXRHPControllerModule::GetInteractionProfile(XrInstance InInstance, FSt
 
 #undef LOCTEXT_NAMESPACE
 
-IMPLEMENT_MODULE(FOpenXRHPControllerModule, OpenXRHPController)
+IMPLEMENT_MODULE(FHPMotionControllerModule, HPMotionController)
