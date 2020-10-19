@@ -1,5 +1,5 @@
 # Copyright Epic Games, Inc. All Rights Reserved.
-from .config import CONFIG, SETTINGS
+from .config import CONFIG, SETTINGS, DEFAULT_MAP_TEXT
 from . import config
 from . import config_osc as osc
 from . import p4_utils
@@ -177,10 +177,8 @@ class SwitchboardDialog(QtCore.QObject):
 
         # Update the UI
         self.p4_refresh_cl()
-        CONFIG.P4_PATH.signal_setting_changed.connect(lambda: self.p4_refresh_cl())
         self.refresh_levels()
-        CONFIG.MAPS_PATH.signal_setting_changed.connect(lambda: self.refresh_levels())
-        CONFIG.MAPS_FILTER.signal_setting_changed.connect(lambda: self.refresh_levels())
+        self.set_config_hooks()
 
         self.update_configs_menu()
         self.set_multiuser_session_name(f'{SETTINGS.MUSERVER_SESSION_NAME}')
@@ -191,6 +189,11 @@ class SwitchboardDialog(QtCore.QObject):
         # If starting up with new config, open the menu to create a new one
         if not CONFIG.file_path:
             self.menu_new_config()
+
+    def set_config_hooks(self):
+        CONFIG.P4_PATH.signal_setting_changed.connect(lambda: self.p4_refresh_cl())
+        CONFIG.MAPS_PATH.signal_setting_changed.connect(lambda: self.refresh_levels())
+        CONFIG.MAPS_FILTER.signal_setting_changed.connect(lambda: self.refresh_levels())
 
     def show_device_add_menu(self):
         self.device_add_menu.clear()
@@ -251,6 +254,7 @@ class SwitchboardDialog(QtCore.QObject):
                 config_action.setEnabled(False)
 
     def set_current_config(self, config_name):
+
         SETTINGS.CONFIG = config_name
         SETTINGS.save()
 
@@ -267,6 +271,9 @@ class SwitchboardDialog(QtCore.QObject):
 
         # Reset plugin settings
         self.device_manager.reset_plugins_settings(CONFIG)
+
+        # Set hooks to this dialog's UI
+        self.set_config_hooks()
 
         # Add new devices
         self.device_manager.add_devices(CONFIG._device_data_from_config)
@@ -302,10 +309,15 @@ class SwitchboardDialog(QtCore.QObject):
             # Reset plugin settings
             self.device_manager.reset_plugins_settings(CONFIG)
 
+            # Set hooks to this dialog's UI
+            self.set_config_hooks()
+
             # Re-enable saving after loading
             CONFIG.pop_saving_allowed()
 
-            # Update the config menu
+            # Update the UI
+            self.p4_refresh_cl()
+            self.refresh_levels()
             self.update_configs_menu()
 
     def menu_delete_config(self):
@@ -724,11 +736,13 @@ class SwitchboardDialog(QtCore.QObject):
         self._set_level(value)
 
     def _set_level(self, value):
+        ''' Called when level dropdown text changes
+        '''
         self._level = value
 
-        if SETTINGS.CURRENT_LEVEL != value:
-            SETTINGS.CURRENT_LEVEL = value
-            SETTINGS.save()
+        if CONFIG.CURRENT_LEVEL != value:
+            CONFIG.CURRENT_LEVEL = value
+            CONFIG.save()
 
         if self.window.level_combo_box.currentText() != self._level:
             self.window.level_combo_box.setCurrentText(self._level)
@@ -960,14 +974,13 @@ class SwitchboardDialog(QtCore.QObject):
             self.window.changelist_combo_box.setCurrentIndex(0)
 
     def refresh_levels(self):
-        current_level = SETTINGS.CURRENT_LEVEL
+        current_level = CONFIG.CURRENT_LEVEL
 
         self.window.level_combo_box.clear()
-        self.window.level_combo_box.addItems(CONFIG.maps())
+        self.window.level_combo_box.addItems([DEFAULT_MAP_TEXT] + CONFIG.maps())
 
         if current_level and current_level in CONFIG.maps():
             self.level = current_level
-            #self.window.changelist_combo_box.setCurrentText(SETTINGS.CURRENT_LEVEL)
 
     def osc_take(self, ip_address, command, value):
         device = self._device_from_ip_address(ip_address, command, value=value)
