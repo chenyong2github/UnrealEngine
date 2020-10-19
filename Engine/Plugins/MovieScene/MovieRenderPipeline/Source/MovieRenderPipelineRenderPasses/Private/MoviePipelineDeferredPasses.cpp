@@ -86,6 +86,11 @@ void UMoviePipelineDeferredPassBase::SetupImpl(const MoviePipeline::FMoviePipeli
 		// Initialize to the tile size (not final size) and use a 16 bit back buffer to avoid precision issues when accumulating later
 		NewTarget->InitCustomFormat(InPassInitSettings.BackbufferResolution.X, InPassInitSettings.BackbufferResolution.Y, EPixelFormat::PF_FloatRGBA, false);
 
+		// OCIO: Since this is a manually created Render target we don't need Gamma to be applied.
+		// We use this render target to render to via a display extension that utilizes Display Gamma
+		// which has a default value of 2.2 (DefaultDisplayGamma), therefore we need to set Gamma on this render target to 2.2 to cancel out any unwanted effects.
+		NewTarget->TargetGamma = FOpenColorIODisplayExtension::DefaultDisplayGamma;
+
 		TileRenderTargets.Add(NewTarget);
 	}
 
