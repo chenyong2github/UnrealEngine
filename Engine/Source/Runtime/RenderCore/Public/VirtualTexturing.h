@@ -36,6 +36,7 @@ inline bool operator!=(const FVirtualTextureProducerHandle& Lhs, const FVirtualT
 /** Maximum dimension of VT page table texture */
 #define VIRTUALTEXTURE_LOG2_MAX_PAGETABLE_SIZE 12u
 #define VIRTUALTEXTURE_MAX_PAGETABLE_SIZE (1u << VIRTUALTEXTURE_LOG2_MAX_PAGETABLE_SIZE)
+#define VIRTUALTEXTURE_MIN_PAGETABLE_SIZE 32u
 
 /**
  * Parameters needed to create an IAllocatedVirtualTexture
@@ -48,6 +49,10 @@ struct FAllocatedVTDescription
 	uint8 Dimensions = 0u;
 	uint8 NumTextureLayers = 0u;
 	
+	uint32 MaxSpaceSize = 0u;
+	uint8 ForceSpaceID = 0xff;
+	uint32 IndirectionTextureSize = 0u;
+
 	/** Producer for each texture layer. */
 	FVirtualTextureProducerHandle ProducerHandle[VIRTUALTEXTURE_SPACE_MAXLAYERS];
 	/** Local layer inside producer for each texture layer. */
@@ -242,7 +247,7 @@ public:
 	* @param Priority Priority of the request, used to drive async IO/task priority needed to generate data for request
 	* @return FVTRequestPageResult describing the availability of the request
 	*/
-	virtual FVTRequestPageResult RequestPageData(const FVirtualTextureProducerHandle& ProducerHandle, uint8 LayerMask, uint8 vLevel, uint32 vAddress, EVTRequestPagePriority Priority) = 0;
+	virtual FVTRequestPageResult RequestPageData(const FVirtualTextureProducerHandle& ProducerHandle, uint8 LayerMask, uint8 vLevel, uint64 vAddress, EVTRequestPagePriority Priority) = 0;
 
 	/**
 	* Upload page data to the cache, data must have been previously requested, and reported either 'Available' or 'Pending'
@@ -263,7 +268,7 @@ public:
 	virtual IVirtualTextureFinalizer* ProducePageData(FRHICommandListImmediate& RHICmdList,
 		ERHIFeatureLevel::Type FeatureLevel,
 		EVTProducePageFlags Flags,
-		const FVirtualTextureProducerHandle& ProducerHandle, uint8 LayerMask, uint8 vLevel, uint32 vAddress,
+		const FVirtualTextureProducerHandle& ProducerHandle, uint8 LayerMask, uint8 vLevel, uint64 vAddress,
 		uint64 RequestHandle,
 		const FVTProduceTargetLayer* TargetLayers) = 0;
 
@@ -307,15 +312,15 @@ public:
 		, VirtualAddress(~0u)
 	{}
 
+	virtual uint32 GetNumPageTableTextures() const = 0;
 	virtual FRHITexture* GetPageTableTexture(uint32 InPageTableIndex) const = 0;
+	virtual FRHITexture* GetPageTableIndirectionTexture() const = 0;
+	virtual uint32 GetPhysicalTextureSize(uint32 InLayerIndex) const = 0;
 	virtual FRHITexture* GetPhysicalTexture(uint32 InLayerIndex) const = 0;
 	virtual FRHIShaderResourceView* GetPhysicalTextureSRV(uint32 InLayerIndex, bool bSRGB) const = 0;
-	virtual uint32 GetPhysicalTextureSize(uint32 InLayerIndex) const = 0;
-	virtual uint32 GetNumPageTableTextures() const = 0;
 
 	/** Writes 2x FUintVector4 */
 	virtual void GetPackedPageTableUniform(FUintVector4* OutUniform) const = 0;
-
 	/** Writes 1x FUintVector4 */
 	virtual void GetPackedUniform(FUintVector4* OutUniform, uint32 LayerIndex) const = 0;
 
@@ -360,6 +365,31 @@ protected:
 	uint32 SpaceID;
 	uint32 MaxLevel;
 	uint32 VirtualAddress;
+};
+
+/** 
+ * Interface for adaptive virtual textures. 
+ * This manages multiple allocated virtual textures in a space to simulate a single larger virtual texture. 
+ */
+class IAdaptiveVirtualTexture
+{
+public:
+	/** Get the persistent allocated virtual texture for low mips from the adaptive virtual texture. */
+	virtual IAllocatedVirtualTexture* GetAllocatedVirtualTexture() = 0;
+
+protected:
+	friend class FVirtualTextureSystem;
+	virtual ~IAdaptiveVirtualTexture() {}
+	virtual int32 GetSpaceID() const = 0;
+	virtual void Destroy(class FVirtualTextureSystem* InSystem) = 0;
+};
+
+/** Describes an adaptive virtual texture. */
+struct FAdaptiveVTDescription
+{
+	uint32 TileCountX;
+	uint32 TileCountY;
+	uint32 MaxAdaptiveLevel;
 };
 
 /**

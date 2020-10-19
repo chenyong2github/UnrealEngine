@@ -62,7 +62,7 @@ FVTRequestPageResult FLightmapPreviewVirtualTexture::RequestPageData(
 	const FVirtualTextureProducerHandle& InProducerHandle,
 	uint8 LayerMask,
 	uint8 vLevel,
-	uint32 vAddress,
+	uint64 vAddress,
 	EVTRequestPagePriority Priority)
 {
 	return FVTRequestPageResult(EVTRequestPageStatus::Available, 0);
@@ -75,11 +75,13 @@ IVirtualTextureFinalizer* FLightmapPreviewVirtualTexture::ProducePageData(
 	const FVirtualTextureProducerHandle& InProducerHandle,
 	uint8 LayerMask,
 	uint8 vLevel,
-	uint32 vAddress,
+	uint64 vAddress,
 	uint64 RequestHandle,
 	const FVTProduceTargetLayer* TargetLayers)
 {
-	FLightmapTileRequest TileRequest(LightmapRenderState, FTileVirtualCoordinates(vAddress, vLevel));
+	check(vAddress <= MAX_uint32); // Not supporting 64 bit vAddress here. Only currrently supported for adaptive runtime virtual texture.
+	
+	FLightmapTileRequest TileRequest(LightmapRenderState, FTileVirtualCoordinates((uint32)vAddress, vLevel));
 
 	if (!LightmapRenderState->IsTileCoordinatesValid(TileRequest.VirtualCoordinates))
 	{

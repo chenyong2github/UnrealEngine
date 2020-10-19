@@ -18,7 +18,7 @@ FVTRequestPageResult FVirtualTextureLevelRedirector::RequestPageData(
 	const FVirtualTextureProducerHandle& ProducerHandle,
 	uint8 LayerMask,
 	uint8 vLevel,
-	uint32 vAddress,
+	uint64 vAddress,
 	EVTRequestPagePriority Priority)
 {
 	int32 VirtualTextureIndex = vLevel < TransitionLevel ? 0 : 1;
@@ -33,7 +33,7 @@ IVirtualTextureFinalizer* FVirtualTextureLevelRedirector::ProducePageData(
 	const FVirtualTextureProducerHandle& ProducerHandle,
 	uint8 LayerMask,
 	uint8 vLevel,
-	uint32 vAddress,
+	uint64 vAddress,
 	uint64 RequestHandle,
 	const FVTProduceTargetLayer* TargetLayers)
 {
