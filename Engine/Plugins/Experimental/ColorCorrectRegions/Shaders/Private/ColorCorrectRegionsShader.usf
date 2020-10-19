@@ -749,8 +749,11 @@ float4 ProcessRegion(in out FMaterialPixelParameters Parameters, in FExternalExp
 	}
 
 	// Pre Multiply color. The actual Alpha blending is done in a separate pass.
-	FinalColor = (FinalColor.rgb * (1.00000000 - SceneTextureLookup(GetDefaultSceneTextureUV(Parameters, PPI_Opacity), PPI_Opacity, false)));
-
+#if SAMPLE_OPACITY_FROM_GBUFFER
+	FinalColor = FinalColor.rgb;
+#else
+	FinalColor = (FinalColor.rgb * (1.00000000 - ExternalExpressions.SceneTexture.a));
+#endif
 	return float4(FinalColor, FinalAlpha);
 }
 
@@ -825,8 +828,14 @@ void CalcPixelMaterialInputs(in out FMaterialPixelParameters Parameters, in out 
 #if CLIP_PIXELS_OUTSIDE_AABB
 	PixelMaterialInputs.Opacity = FinalColor.a;
 #else
-	PixelMaterialInputs.Opacity = SceneTextureLookup(GetDefaultSceneTextureUV(Parameters, PPI_Opacity), PPI_Opacity, false);
+	#if SAMPLE_OPACITY_FROM_GBUFFER
+		// On the lower scalability settings there is no alpha channel in Scene texture.
+		PixelMaterialInputs.Opacity = 1.0;
+	#else
+		PixelMaterialInputs.Opacity = SceneTexture.a;
+	#endif
 #endif
+
 	PixelMaterialInputs.OpacityMask = 1.00000000;
 	PixelMaterialInputs.BaseColor = MaterialFloat3(0.00000000, 0.00000000, 0.00000000);
 	PixelMaterialInputs.Metallic = 0.00000000;
