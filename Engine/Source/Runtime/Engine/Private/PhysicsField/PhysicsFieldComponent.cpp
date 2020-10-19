@@ -380,10 +380,8 @@ void FPhysicsFieldInstance::ReleaseInstance()
 	NodesParams.Empty();
 }
 
-void FPhysicsFieldInstance::UpdateInstance(const TArray<FFieldSystemCommand>& InFieldCommands, const float TimeSeconds)
+void FPhysicsFieldInstance::UpdateInstance(const float TimeSeconds)
 {
-	FieldCommands = InFieldCommands;
-
 	NodesOffsets.Empty();
 	NodesParams.Empty();
 
@@ -796,16 +794,22 @@ void UPhysicsFieldComponent::SendRenderDynamicData_Concurrent()
 
 	Super::SendRenderTransform_Concurrent();
 
-	TArray<FFieldSystemCommand> FieldCommands;
-	FieldCommands.Append(PersistentCommands);
-	FieldCommands.Append(TransientCommands);
-
-	const float TimeSeconds = GetWorld() ? GetWorld()->TimeSeconds : 0.0;
-
-	if (FieldInstance && FieldCommands.Num() > 0)
+	if (FieldInstance)
 	{
-		FieldInstance->UpdateInstance(FieldCommands, TimeSeconds);
+		const bool bPreviousUpdate = FieldInstance->FieldCommands.Num() > 0;
+
+		FieldInstance->FieldCommands.Empty();
+		FieldInstance->FieldCommands.Append(PersistentCommands);
+		FieldInstance->FieldCommands.Append(TransientCommands);
 		TransientCommands.Empty();
+
+		const bool bCurrentUpdate = FieldInstance->FieldCommands.Num() > 0;
+
+		if (bCurrentUpdate || bPreviousUpdate)
+		{
+			const float TimeSeconds = GetWorld() ? GetWorld()->TimeSeconds : 0.0;
+			FieldInstance->UpdateInstance(TimeSeconds);
+		}
 	}
 }
 
