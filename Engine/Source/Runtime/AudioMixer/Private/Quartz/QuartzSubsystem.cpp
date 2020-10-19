@@ -405,7 +405,7 @@ void UQuartzSubsystem::UnsubscribeFromTimeDivision(const UObject* WorldContextOb
 
 void UQuartzSubsystem::UnsubscribeFromAllTimeDivisions(const UObject* WorldContextObject, UPARAM(ref) UQuartzClockHandle*& InClockHandle)
 {
-	if (InClockHandle)
+	if (InClockHandle != nullptr)
 	{
 		UnsubscribeFromAllTimeDivisionsInternal(WorldContextObject, *InClockHandle);
 	}
@@ -415,7 +415,7 @@ void UQuartzSubsystem::UnsubscribeFromAllTimeDivisionsInternal(const UObject* Wo
 {
 	Audio::FQuartzClockManager* ClockManager = GetClockManager(WorldContextObject);
 
-	if (!ClockManager)
+	if (ClockManager != nullptr)
 	{
 		ClockManager->UnsubscribeFromAllTimeDivisions(InClockHandle.GetClockName(), InClockHandle.GetCommandQueue());
 	}
