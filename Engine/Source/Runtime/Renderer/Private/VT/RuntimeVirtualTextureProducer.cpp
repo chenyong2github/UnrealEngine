@@ -85,8 +85,8 @@ void FRuntimeVirtualTextureFinalizer::Finalize(FRHICommandListImmediate& RHICmdL
 	{
 		RuntimeVirtualTexture::FRenderPageDesc& RenderPageDesc = RenderPageBatchDesc.PageDescs[BatchSize];
 
-		const float X = (float)FMath::ReverseMortonCode2(Entry.vAddress);
-		const float Y = (float)FMath::ReverseMortonCode2(Entry.vAddress >> 1);
+		const float X = (float)FMath::ReverseMortonCode2_64(Entry.vAddress);
+		const float Y = (float)FMath::ReverseMortonCode2_64(Entry.vAddress >> 1);
 		const float DivisorX = (float)Desc.BlockWidthInTiles / (float)(1 << Entry.vLevel);
 		const float DivisorY = (float)Desc.BlockHeightInTiles / (float)(1 << Entry.vLevel);
 
@@ -154,7 +154,7 @@ FVTRequestPageResult FRuntimeVirtualTextureProducer::RequestPageData(
 	const FVirtualTextureProducerHandle& ProducerHandle,
 	uint8 LayerMask,
 	uint8 vLevel,
-	uint32 vAddress,
+	uint64 vAddress,
 	EVTRequestPagePriority Priority)
 {
 	//todo[vt]: 
@@ -175,7 +175,7 @@ IVirtualTextureFinalizer* FRuntimeVirtualTextureProducer::ProducePageData(
 	const FVirtualTextureProducerHandle& ProducerHandle,
 	uint8 LayerMask,
 	uint8 vLevel,
-	uint32 vAddress,
+	uint64 vAddress,
 	uint64 RequestHandle,
 	const FVTProduceTargetLayer* TargetLayers)
 {

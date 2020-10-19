@@ -59,16 +59,27 @@ void FTexturePagePool::EvictAllPages(FVirtualTextureSystem* System)
 	}
 }
 
-void FTexturePagePool::UnmapAllPagesForSpace(FVirtualTextureSystem* System, uint8 SpaceID)
+void FTexturePagePool::UnmapPages(FVirtualTextureSystem* System, uint8 SpaceID, uint32 vAddress, uint8 MaxLevel)
 {
-	// walk through all of our current mapping entries, and unmap any that belong to the current space
+	const uint32 XMin = FMath::ReverseMortonCode2(vAddress);
+	const uint32 YMin = FMath::ReverseMortonCode2(vAddress >> 1);
+	const uint32 XMax = XMin + (1 << MaxLevel);
+	const uint32 YMax = YMin + (1 << MaxLevel);
+
+	// Walk through all of our current mapping entries, and unmap any that are in the desired range
 	for (int32 MappingIndex = NumPages + 1; MappingIndex < PageMapping.Num(); ++MappingIndex)
 	{
 		struct FPageMapping& Mapping = PageMapping[MappingIndex];
 		if (Mapping.PageTableLayerIndex != 0xff && Mapping.SpaceID == SpaceID)
 		{
-			// we're unmapping all pages for space, so don't try to map any ancestor pages...they'll be unmapped as well
-			UnmapPageMapping(System, MappingIndex, false);
+			const uint32 X = (float)FMath::ReverseMortonCode2(Mapping.vAddress);
+			const uint32 Y = (float)FMath::ReverseMortonCode2(Mapping.vAddress >> 1);
+
+			if (X >= XMin && Y >= YMin && X < XMax && Y < YMax)
+			{
+				// We're unmapping all pages in the range, so don't try to map any ancestor pages...they'll be unmapped as well
+				UnmapPageMapping(System, MappingIndex, false);
+			}
 		}
 	}
 }
@@ -88,9 +99,6 @@ void FTexturePagePool::EvictPages(FVirtualTextureSystem* System, const FVirtualT
 
 void FTexturePagePool::EvictPages(FVirtualTextureSystem* System, FVirtualTextureProducerHandle const& ProducerHandle, FVTProducerDescription const& Desc, FIntRect const& TextureRegion, uint32 MaxLevel, TArray<union FVirtualTextureLocalTile>& OutLocked)
 {
-	//todo[vt]: 
-	// Simple linear iteration of all physical pages here. Can we do better?
-	// We should test if it's faster to store a physical page list sorted by Morton code and find upper and lower bounds in that.
 	for (uint32 i = 0; i < NumPages; ++i)
 	{
 		if (Pages[i].PackedProducerHandle == ProducerHandle.PackedValue)
@@ -357,4 +365,65 @@ void FTexturePagePool::UnmapAllPages(FVirtualTextureSystem* System, uint16 pAddr
 	}
 
 	check(PageMapping[pAddress].NextIndex == pAddress); // verify the list is properly empty
+}
+
+void FTexturePagePool::RemapPages(FVirtualTextureSystem* System, uint8 SpaceID, FVirtualTexturePhysicalSpace* PhysicalSpace, FVirtualTextureProducerHandle const& OldProducerHandle, uint32 OldVirtualAddress, FVirtualTextureProducerHandle const& NewProducerHandle, uint32 NewVirtualAddress, int32 vLevelBias, uint32 Frame)
+{
+	const uint32 OldBaseX = FMath::ReverseMortonCode2(OldVirtualAddress);
+	const uint32 OldBaseY = FMath::ReverseMortonCode2(OldVirtualAddress >> 1);
+	const uint32 NewBaseX = FMath::ReverseMortonCode2(NewVirtualAddress);
+	const uint32 NewBaseY = FMath::ReverseMortonCode2(NewVirtualAddress >> 1);
+
+	for (uint32 pAddress = 0u; pAddress < NumPages; ++pAddress)
+	{
+		FPageEntry& PageEntry = Pages[pAddress];
+		if (PageEntry.PackedProducerHandle == OldProducerHandle.PackedValue)
+		{
+			if ((int32)PageEntry.Local_vLevel + vLevelBias < 0)
+			{
+				// Remap removes this level 
+				UnmapAllPages(System, pAddress, false);
+				// Queue page for recycling
+				FreeHeap.Update(0, pAddress);
+			}
+			else
+			{
+				// Directly modify page entry for new producer
+				PageHash.Remove(GetPageHash(PageEntry), pAddress);
+				PageEntry.PackedProducerHandle = NewProducerHandle.PackedValue;
+				PageEntry.Local_vLevel += vLevelBias;
+				PageHash.Add(GetPageHash(PageEntry), pAddress);
+
+				if (FreeHeap.IsPresent(pAddress))
+				{
+					FreeHeap.Update((Frame << 4) + PageEntry.Local_vLevel, pAddress);
+				}
+
+				// Go through mappings and modify directly.
+				uint32 MappingIndex = PageMapping[pAddress].NextIndex;
+				while (MappingIndex != pAddress)
+				{
+					FPageMapping& Mapping = PageMapping[MappingIndex];
+
+					FVirtualTextureSpace* Space = System->GetSpace(Mapping.SpaceID);
+					FTexturePageMap& PageMap = Space->GetPageMapForPageTableLayer(Mapping.PageTableLayerIndex);
+
+					PageMap.UnmapPage(System, Space, Mapping.vLogSize, Mapping.vAddress, false);
+
+					const uint32 XLocal = FMath::ReverseMortonCode2(Mapping.vAddress) - OldBaseX;
+					const uint32 YLocal = FMath::ReverseMortonCode2(Mapping.vAddress >> 1) - OldBaseY;
+					const uint32 X = NewBaseX + ((vLevelBias >= 0) ? (XLocal << vLevelBias) : (XLocal >> -vLevelBias));
+					const uint32 Y = NewBaseY + ((vLevelBias >= 0) ? (YLocal << vLevelBias) : (YLocal >> -vLevelBias));
+
+					Mapping.vAddress = FMath::MortonCode2(X) | (FMath::MortonCode2(Y) << 1);
+					Mapping.vLogSize = (int32)Mapping.vLogSize + vLevelBias;
+
+					const int32 vLevel = PageEntry.Local_vLevel; // Deal with any producer mip bias?
+					PageMap.MapPage(Space, PhysicalSpace, Mapping.vLogSize, Mapping.vAddress, vLevel, pAddress);
+
+					MappingIndex = Mapping.NextIndex;
+				}
+			}
+		}
+	}
 }

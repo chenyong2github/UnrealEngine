@@ -4,8 +4,13 @@
 
 #include "CoreMinimal.h"
 #include "IDetailCustomization.h"
-#include "Widgets/Text/STextBlock.h"
 #include "Input/Reply.h"
+#include "Layout/Visibility.h"
+
+class IPropertyHandle;
+class STextBlock;
+class URuntimeVirtualTexture;
+class URuntimeVirtualTextureComponent;
 
 /** UI customization for URuntimeVirtualTexture */
 class FRuntimeVirtualTextureDetailsCustomization : public IDetailCustomization
@@ -16,21 +21,26 @@ public:
 protected:
 	FRuntimeVirtualTextureDetailsCustomization();
 
-	/** Callback for updating values after and edit. */
-	void RefreshDetails();
+	/** Callback for updating text values after an edit. */
+	void RefreshTextDetails();
+	/** Callback for full update of details view after an edit. */
+	void RefreshDetailsView();
 
 	//~ Begin IDetailCustomization Interface.
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
 	//~ End IDetailCustomization Interface.
 
 private:
-	class URuntimeVirtualTexture* VirtualTexture;
+	URuntimeVirtualTexture* VirtualTexture = nullptr;
 
-	TSharedPtr<class STextBlock> TileCountText;
-	TSharedPtr<class STextBlock> TileSizeText;
-	TSharedPtr<class STextBlock> TileBorderSizeText;
+	IDetailLayoutBuilder* CachedDetailBuilder = nullptr;
 
-	TSharedPtr<class STextBlock> SizeText;
+	TSharedPtr<STextBlock> TileCountText;
+	TSharedPtr<STextBlock> TileSizeText;
+	TSharedPtr<STextBlock> TileBorderSizeText;
+
+	TSharedPtr<STextBlock> SizeText;
+	TSharedPtr<STextBlock> PageTableSizeText;
 };
 
 
@@ -58,5 +68,5 @@ protected:
 	//~ End IDetailCustomization Interface.
 
 private:
-	class URuntimeVirtualTextureComponent* RuntimeVirtualTextureComponent;
+	URuntimeVirtualTextureComponent* RuntimeVirtualTextureComponent;
 };
