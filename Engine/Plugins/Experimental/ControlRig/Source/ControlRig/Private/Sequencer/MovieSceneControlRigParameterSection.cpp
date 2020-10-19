@@ -1140,6 +1140,7 @@ void UMovieSceneControlRigParameterSection::ReconstructChannelProxy(bool bForce)
 									case ERigControlType::Scale:
 									case ERigControlType::Rotator:
 									case ERigControlType::Transform:
+									case ERigControlType::EulerTransform:
 									case ERigControlType::TransformNoScale:
 									{
 										Group = FText::FromName(ParentControl.GetDisplayName());
@@ -1196,6 +1197,7 @@ void UMovieSceneControlRigParameterSection::ReconstructChannelProxy(bool bForce)
 									case ERigControlType::Scale:
 									case ERigControlType::Rotator:
 									case ERigControlType::Transform:
+									case ERigControlType::EulerTransform:
 									case ERigControlType::TransformNoScale:
 									{
 										Group = FText::FromName(ParentControl.GetDisplayName());
@@ -1255,6 +1257,7 @@ void UMovieSceneControlRigParameterSection::ReconstructChannelProxy(bool bForce)
 									case ERigControlType::Scale:
 									case ERigControlType::Rotator:
 									case ERigControlType::Transform:
+									case ERigControlType::EulerTransform:
 									case ERigControlType::TransformNoScale:
 									{
 										Group = FText::FromName(ParentControl.GetDisplayName());
@@ -1311,6 +1314,7 @@ void UMovieSceneControlRigParameterSection::ReconstructChannelProxy(bool bForce)
 									case ERigControlType::Scale:
 									case ERigControlType::Rotator:
 									case ERigControlType::Transform:
+									case ERigControlType::EulerTransform:
 									case ERigControlType::TransformNoScale:
 									{
 										Group = FText::FromName(ParentControl.GetDisplayName());
@@ -2274,7 +2278,5 @@ FIntegerParameterNameAndCurve::FIntegerParameterNameAndCurve(FName InParameterNa
 {
 	ParameterName = InParameterName;
 }
-
-
 
 #undef LOCTEXT_NAMESPACE 

@@ -143,6 +143,7 @@
 
 #include "EntitySystem/MovieSceneEntitySystemLinker.h"
 
+
 #define LOCTEXT_NAMESPACE "Sequencer"
 
 DEFINE_LOG_CATEGORY(LogSequencer);
@@ -2415,7 +2416,6 @@ void FSequencer::NotifyMovieSceneDataChanged( EMovieSceneDataChangeType DataChan
 	else if (DataChangeType == EMovieSceneDataChangeType::TrackValueChangedRefreshImmediately)
 	{
 		// Evaluate now
-		OnPreRefreshImmediateDelagate.Broadcast();
 		EvaluateInternal(PlayPosition.GetCurrentPositionAsRange());
 	}
 	else if (DataChangeType == EMovieSceneDataChangeType::RefreshAllImmediately)
@@ -2423,7 +2423,6 @@ void FSequencer::NotifyMovieSceneDataChanged( EMovieSceneDataChangeType DataChan
 		RefreshTree();
 
 		// Evaluate now
-		OnPreRefreshImmediateDelagate.Broadcast();
 		EvaluateInternal(PlayPosition.GetCurrentPositionAsRange());
 	}
 	else
