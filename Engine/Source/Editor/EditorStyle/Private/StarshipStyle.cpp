@@ -18,7 +18,6 @@
 #include "Framework/Application/SlateApplication.h"
 
 
-#define DEFAULT_FONT(...) FStarshipCoreStyle::GetDefaultFontStyle(__VA_ARGS__)
 #define ICON_FONT(...) FSlateFontInfo(RootToContentDir("Fonts/FontAwesome", TEXT(".ttf")), __VA_ARGS__)
 
 #define LOCTEXT_NAMESPACE "EditorStyle"
@@ -949,10 +948,6 @@ void FStarshipEditorStyle::FStyle::SetupGeneralStyles()
 		Set( "AnimEditor.EditPreviewParameters.Small", new IMAGE_BRUSH( "Icons/icon_adjust_parameters_40x", Icon20x20) );		
 	}
 
-
-	// Gamma reference.
-	Set("GammaReference",new IMAGE_BRUSH( "Old/GammaReference",FVector2D(256,128)));
-
 #endif // WITH_EDITOR || (IS_PROGRAM && WITH_UNREAL_DEVELOPER_TOOLS)
 
 	// Output Log Window
@@ -1009,20 +1004,9 @@ void FStarshipEditorStyle::FStyle::SetupGeneralStyles()
 		Set("OutputLog.OpenInExternalEditor", new IMAGE_BRUSH("Icons/icon_Asset_Open_In_External_Editor_16x", Icon16x16));
 
 	}
-
-	// Debug Tools Window
-	{
-		Set("DebugTools.TabIcon", new IMAGE_BRUSH( "Icons/icon_tab_DebugTools_16x", Icon16x16 ) );
-	}
-
 	// Performance Analysis Tools Window
 	{
 		Set("PerfTools.TabIcon", new IMAGE_BRUSH( "Icons/icon_tab_PerfTools_16x", Icon16x16 ) );
-	}
-
-	// Modules Window
-	{
-		Set("Modules.TabIcon", new IMAGE_BRUSH( "Icons/icon_tab_Modules_16px", Icon16x16 ) );
 	}
 
 	// Class Viewer Window
@@ -2120,7 +2104,7 @@ void FStarshipEditorStyle::FStyle::SetupSequencerStyles()
 		Set("Sequencer.RestoreAnimatedState.Small", new IMAGE_BRUSH("Sequencer/Main_Icons/Icon_Sequencer_RestoreAnimatedState_24x", Icon24x24));
 		Set("Sequencer.GenericGripLeft", new BOX_BRUSH("Sequencer/GenericGripLeft", FMargin(5.f / 16.f)));
 		Set("Sequencer.GenericGripRight", new BOX_BRUSH("Sequencer/GenericGripRight", FMargin(5.f / 16.f)));
-		Set("Sequencer.SectionArea.Background", new FSlateColorBrush(FColor::White));
+		Set("Sequencer.SectionArea.Background", new FSlateColorBrush(FStyleColors::White));
 
 		Set("Sequencer.Section.Background", new BORDER_BRUSH(TEXT("Sequencer/SectionBackground"), FMargin(4.f / 16.f)));
 		Set("Sequencer.Section.BackgroundTint", new BOX_BRUSH(TEXT("Sequencer/SectionBackgroundTint"), FMargin(4 / 16.f)));

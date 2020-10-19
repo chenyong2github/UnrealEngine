@@ -22,9 +22,7 @@ class SFilePathBlock : public SCompoundWidget
 public:
 
 	SLATE_BEGIN_ARGS( SFilePathBlock )
-		: _LabelBackgroundColor(FLinearColor::Black)
-		, _LabelBackgroundBrush(FEditorStyle::GetBrush("WhiteBrush"))
-		, _ReadOnlyFolderPath(false)
+		: _ReadOnlyFolderPath(false)
 	{}
 		/** Attribute specifying the text to display in the folder input */
 		SLATE_ATTRIBUTE(FText, FolderPath)
@@ -34,12 +32,6 @@ public:
 
 		/** Hint name that appears when there is no text in the name box */
 		SLATE_ATTRIBUTE(FText, NameHint)
-
-		/** Background label tint for the folder/name labels */
-		SLATE_ATTRIBUTE(FSlateColor, LabelBackgroundColor)
-
-		/** Background label brush for the folder/name labels */
-		SLATE_ATTRIBUTE(const FSlateBrush*, LabelBackgroundBrush)
 
 		/** If true, the folder path cannot be modified by the user */
 		SLATE_ARGUMENT(bool, ReadOnlyFolderPath)

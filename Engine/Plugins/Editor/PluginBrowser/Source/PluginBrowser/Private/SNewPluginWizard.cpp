@@ -108,14 +108,14 @@ void SNewPluginWizard::Construct(const FArguments& Args, TSharedPtr<SDockTab> In
 	PluginFolderPath = AbsoluteGamePluginPath;
 	bIsPluginPathValid = true;
 
-	const float PaddingAmount = FPluginStyle::Get()->GetFloat("PluginCreator.Padding");
-
 	// Create the list view and ensure that it exists
 	GenerateListViewWidget();
 	check(ListView.IsValid());
 
 	TSharedPtr<SWidget> HeaderWidget = PluginWizardDefinition->GetCustomHeaderWidget();
 	FText PluginNameTextHint = PluginWizardDefinition->IsMod() ? LOCTEXT("ModNameTextHint", "Mod Name") : LOCTEXT("PluginNameTextHint", "Plugin Name");
+	
+	const FMargin PaddingAmount(5.0f);
 
 	TSharedRef<SVerticalBox> MainContent = SNew(SVerticalBox)
 	+SVerticalBox::Slot()
@@ -164,8 +164,6 @@ void SNewPluginWizard::Construct(const FArguments& Args, TSharedPtr<SDockTab> In
 	[
 		SAssignNew(FilePathBlock, SFilePathBlock)
 		.OnBrowseForFolder(this, &SNewPluginWizard::OnBrowseButtonClicked)
-		.LabelBackgroundBrush(FPluginStyle::Get()->GetBrush("PluginCreator.Background"))
-		.LabelBackgroundColor(FLinearColor::White)
 		.FolderPath(this, &SNewPluginWizard::GetPluginDestinationPath)
 		.Name(this, &SNewPluginWizard::GetCurrentPluginName)
 		.NameHint(PluginNameTextHint)

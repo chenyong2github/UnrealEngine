@@ -6,14 +6,14 @@
 #include "Styling/CoreStyle.h"
 #include "EditorStyleSet.h"
 #include "Interfaces/IPluginManager.h"
+#include "Styling/StarshipCoreStyle.h"
 
-#define IMAGE_BRUSH( RelativePath, ... ) FSlateImageBrush( FPluginStyle::InContent( RelativePath, ".png" ), __VA_ARGS__ )
-#define IMAGE_BRUSH_SVG( RelativePath, ... ) FSlateVectorImageBrush( FPluginStyle::InContent( RelativePath, ".svg" ), __VA_ARGS__ )
-#define BOX_BRUSH( RelativePath, ... ) FSlateBoxBrush( FPluginStyle::InContent( RelativePath, ".png" ), __VA_ARGS__ )
-#define BORDER_BRUSH( RelativePath, ... ) FSlateBorderBrush( FPluginStyle::InContent( RelativePath, ".png" ), __VA_ARGS__ )
-#define DEFAULT_FONT(...) FCoreStyle::GetDefaultFontStyle(__VA_ARGS__)
+#define RootToContentDir FPluginStyle::InContent
 
-FString FPluginStyle::InContent( const FString& RelativePath, const ANSICHAR* Extension )
+#include "Styling/SlateStyleMacros.h"
+#include "Styling/StyleColors.h"
+
+FString FPluginStyle::InContent( const FString& RelativePath, const TCHAR* Extension )
 {
 	static FString ContentDir = IPluginManager::Get().FindPlugin(TEXT("PluginBrowser"))->GetContentDir();
 	return ( ContentDir / RelativePath ) + Extension;
@@ -193,19 +193,18 @@ void FPluginStyle::Initialize()
 
 	// Plugin Creator
 	{
-		const float PaddingAmount = 5.0f;
-		StyleSet->Set( "PluginCreator.Padding", PaddingAmount);
-
-		StyleSet->Set( "PluginCreator.Background", new BOX_BRUSH( "AppTabContentArea", FMargin(4/16.0f) ) );
+		const FButtonStyle& BaseButtonStyle = FStarshipCoreStyle::GetCoreStyle().GetWidgetStyle<FButtonStyle>("Button");
+		StyleSet->Set("PluginPath.BrowseButton",
+			FButtonStyle(BaseButtonStyle)
+			.SetNormal(FSlateRoundedBoxBrush(FStyleColors::Secondary, 4.0f, FStyleColors::Secondary, 2.0f))
+			.SetHovered(FSlateRoundedBoxBrush(FStyleColors::Hover, 4.0f, FStyleColors::Hover, 2.0f))
+			.SetPressed(FSlateRoundedBoxBrush(FStyleColors::Header, 4.0f, FStyleColors::Header, 2.0f))
+			.SetNormalPadding(FMargin(2, 2, 2, 2))
+			.SetPressedPadding(FMargin(2, 3, 2, 1)));
 	}
 
 	FSlateStyleRegistry::RegisterSlateStyle( *StyleSet.Get() );
 };
-
-#undef IMAGE_BRUSH
-#undef BOX_BRUSH
-#undef BORDER_BRUSH
-#undef DEFAULT_FONT
 
 void FPluginStyle::Shutdown()
 {
@@ -216,3 +215,5 @@ void FPluginStyle::Shutdown()
 		StyleSet.Reset();
 	}
 }
+
+#undef RootToContentDir
