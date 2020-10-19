@@ -61,7 +61,8 @@ struct PROJECTS_API FPluginDescriptor
 	/** Version of the engine that this plugin is compatible with */
 	FString EngineVersion;
 
-	/** List of target platforms supported by this plugin. This list will be copied to any plugin reference from a project file, to allow filtering entire plugins from staged builds. */
+	/** Controls a subset of platforms that can use this plugin, and which ones will stage the .uplugin file and content files. 
+	Generally, for code plugins, it should be the union of platforms that the modules in the plugin are compiled for. */
 	TArray<FString> SupportedTargetPlatforms;
 
 	/** List of programs that are supported by this plugin. */
