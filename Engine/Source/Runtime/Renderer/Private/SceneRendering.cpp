@@ -3666,6 +3666,10 @@ static void RenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, 
 		{
 			SceneRenderer->Scene->DistanceFieldSceneData.PrimitiveModifiedBounds[CacheType].Reset();
 		}
+		if (SceneRenderer->Scene->LumenSceneData)
+		{
+			SceneRenderer->Scene->LumenSceneData->PrimitiveModifiedBounds.Reset();
+		}
 
 		// Immediately issue EndFrame() for all extensions in case any of the outstanding tasks they issued getting out of this frame
 		extern TSet<IPersistentViewUniformBufferExtension*> PersistentViewUniformBufferExtensions;

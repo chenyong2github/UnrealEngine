@@ -54,17 +54,23 @@ FLumenCardTracingInputs::FLumenCardTracingInputs(FRDGBuilder& GraphBuilder, cons
 		VoxelLighting = GraphBuilder.RegisterExternalTexture(View.ViewState->Lumen.VoxelLighting);
 		VoxelGridResolution = View.ViewState->Lumen.VoxelGridResolution;
 		NumClipmapLevels = View.ViewState->Lumen.NumClipmapLevels;
-		ClipmapWorldToUVScale = View.ViewState->Lumen.ClipmapWorldToUVScale;
-		ClipmapWorldToUVBias = View.ViewState->Lumen.ClipmapWorldToUVBias;
-		ClipmapVoxelSizeAndRadius = View.ViewState->Lumen.ClipmapVoxelSizeAndRadius;
-		ClipmapWorldCenter = View.ViewState->Lumen.ClipmapWorldCenter;
-		ClipmapWorldExtent = View.ViewState->Lumen.ClipmapWorldExtent;
-		ClipmapWorldSamplingExtent = View.ViewState->Lumen.ClipmapWorldSamplingExtent;
+
+		for (int32 ClipmapIndex = 0; ClipmapIndex < NumClipmapLevels; ++ClipmapIndex)
+		{
+			const FLumenVoxelLightingClipmapState& Clipmap = View.ViewState->Lumen.VoxelLightingClipmapState[ClipmapIndex];
+
+			ClipmapWorldToUVScale[ClipmapIndex] = FVector(1.0f) / (2.0f * Clipmap.Extent);
+			ClipmapWorldToUVBias[ClipmapIndex] = -(Clipmap.Center - Clipmap.Extent) * ClipmapWorldToUVScale[ClipmapIndex];
+			ClipmapVoxelSizeAndRadius[ClipmapIndex] = FVector4(Clipmap.VoxelSize, Clipmap.VoxelRadius);
+			ClipmapWorldCenter[ClipmapIndex] = Clipmap.Center;
+			ClipmapWorldExtent[ClipmapIndex] = Clipmap.Extent;
+			ClipmapWorldSamplingExtent[ClipmapIndex] = Clipmap.Extent - 0.5f * Clipmap.VoxelSize;
+		}
 	}
 	else
 	{
 		VoxelLighting = GraphBuilder.RegisterExternalTexture(GSystemTextures.VolumetricBlackDummy);
-		VoxelGridResolution = FIntVector(1, 1, 1);
+		VoxelGridResolution = FIntVector(1);
 		NumClipmapLevels = 0;
 	}
 }
@@ -84,12 +90,6 @@ void FLumenCardTracingInputs::ExtractToScene(FRDGBuilder& GraphBuilder, FScene* 
 		ConvertToExternalTexture(GraphBuilder, VoxelLighting, View.ViewState->Lumen.VoxelLighting);
 		View.ViewState->Lumen.VoxelGridResolution = VoxelGridResolution;
 		View.ViewState->Lumen.NumClipmapLevels = NumClipmapLevels;
-		View.ViewState->Lumen.ClipmapWorldToUVScale = ClipmapWorldToUVScale;
-		View.ViewState->Lumen.ClipmapWorldToUVBias = ClipmapWorldToUVBias;
-		View.ViewState->Lumen.ClipmapVoxelSizeAndRadius = ClipmapVoxelSizeAndRadius;
-		View.ViewState->Lumen.ClipmapWorldCenter = ClipmapWorldCenter;
-		View.ViewState->Lumen.ClipmapWorldExtent = ClipmapWorldExtent;
-		View.ViewState->Lumen.ClipmapWorldSamplingExtent = ClipmapWorldSamplingExtent;
 	}
 }
 

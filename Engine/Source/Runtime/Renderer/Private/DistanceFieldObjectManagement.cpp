@@ -99,6 +99,15 @@ static int32 PartitionUpdateRangesDFO(FParallelUpdateRangesDFO& Ranges, int32 It
 	return Ranges.Range[3].ItemCount > 0 ? 4 : 3;
 }
 
+void AddModifiedBounds(FScene* Scene, FGlobalDFCacheType CacheType, const FBox& Bounds)
+{
+	FDistanceFieldSceneData& DistanceFieldData = Scene->DistanceFieldSceneData;
+	FLumenSceneData& LumenData = *Scene->LumenSceneData;
+
+	DistanceFieldData.PrimitiveModifiedBounds[CacheType].Add(Bounds);
+	LumenData.PrimitiveModifiedBounds.Add(Bounds);
+}
+
 void UpdateGlobalDistanceFieldObjectRemoves(FRHICommandListImmediate& RHICmdList, FScene* Scene)
 {
 	FDistanceFieldSceneData& DistanceFieldSceneData = Scene->DistanceFieldSceneData;
@@ -121,7 +130,7 @@ void UpdateGlobalDistanceFieldObjectRemoves(FRHICommandListImmediate& RHICmdList
 				if (InstanceIndex >= 0)
 				{
 					FGlobalDFCacheType CacheType = DistanceFieldSceneData.PendingRemoveOperations[RemoveIndex].bOftenMoving ? GDF_Full : GDF_MostlyStatic;
-					DistanceFieldSceneData.PrimitiveModifiedBounds[CacheType].Add(DistanceFieldSceneData.PrimitiveInstanceMapping[InstanceIndex].WorldBounds);
+					AddModifiedBounds(Scene, CacheType, DistanceFieldSceneData.PrimitiveInstanceMapping[InstanceIndex].WorldBounds);
 					PendingRemoveOperations.Add(InstanceIndex);
 				}
 			}
@@ -177,7 +186,7 @@ void UpdateGlobalHeightFieldObjectRemoves(FRHICommandListImmediate& RHICmdList, 
 			if (ObjectIdx >= 0)
 			{
 				const FGlobalDFCacheType CacheType = RemoveInfo.bOftenMoving ? GDF_Full : GDF_MostlyStatic;
-				SceneData.PrimitiveModifiedBounds[CacheType].Add(RemoveInfo.WorldBounds);
+				AddModifiedBounds(Scene, CacheType, RemoveInfo.WorldBounds);
 				PendingRemoveObjectIndices.Add(ObjectIdx);
 			}
 		}
@@ -312,8 +321,7 @@ bool ProcessPrimitiveUpdate(
 						PrimitiveSceneInfo->DistanceFieldInstanceIndices[TransformIndex] = AddIndex;
 
 						LumenUpdateDFObjectIndex(Scene, MappingIndex);
-
-						DistanceFieldSceneData.PrimitiveModifiedBounds[CacheType].Add(WorldBounds);
+						AddModifiedBounds(Scene, CacheType, WorldBounds);
 						LogDistanceFieldUpdate(PrimitiveSceneInfo, BoundingRadius, bIsAddOperation);
 					}
 					else 
@@ -333,12 +341,12 @@ bool ProcessPrimitiveUpdate(
 								const FVector MergedExtentIncrease = MergedBounds.GetExtent() - Mapping.WorldBounds.GetExtent() - WorldBounds.GetExtent();
 								if (MergedExtentIncrease.GetMax() < 100.0f)
 								{
-									DistanceFieldSceneData.PrimitiveModifiedBounds[CacheType].Add(MergedBounds);
+									AddModifiedBounds(Scene, CacheType, MergedBounds);
 								}
 								else
 								{
-									DistanceFieldSceneData.PrimitiveModifiedBounds[CacheType].Add(Mapping.WorldBounds);
-									DistanceFieldSceneData.PrimitiveModifiedBounds[CacheType].Add(WorldBounds);
+									AddModifiedBounds(Scene, CacheType, Mapping.WorldBounds);
+									AddModifiedBounds(Scene, CacheType, WorldBounds);
 								}
 								LogDistanceFieldUpdate(PrimitiveSceneInfo, BoundingRadius, bIsAddOperation);
 
@@ -393,7 +401,7 @@ bool ProcessHeightFieldPrimitiveUpdate(
 
 		const FGlobalDFCacheType CacheType = PrimitiveSceneInfo->Proxy->IsOftenMoving() ? GDF_Full : GDF_MostlyStatic;
 		const FBoxSphereBounds Bounds = PrimitiveSceneInfo->Proxy->GetBounds();
-		SceneData.PrimitiveModifiedBounds[CacheType].Add(Bounds.GetBox());
+		AddModifiedBounds(Scene, CacheType, Bounds.GetBox());
 
 		PrimitiveSceneInfo->DistanceFieldInstanceIndices.Empty(1);
 		PrimitiveSceneInfo->DistanceFieldInstanceIndices.Add(UploadIdx);
@@ -930,7 +938,7 @@ void FDeferredShadingSceneRenderer::AddOrRemoveSceneHeightFieldPrimitives(bool b
 		check(RemoveInfo.DistanceFieldInstanceIndices.Num() == 1);
 		PendingRemoveIndices.Add(RemoveInfo.DistanceFieldInstanceIndices[0]);
 		const FGlobalDFCacheType CacheType = RemoveInfo.bOftenMoving ? GDF_Full : GDF_MostlyStatic;
-		SceneData.PrimitiveModifiedBounds[CacheType].Add(RemoveInfo.WorldBounds);
+		AddModifiedBounds(Scene, CacheType, RemoveInfo.WorldBounds);
 	}
 	SceneData.PendingHeightFieldRemoveOps.Reset();
 	Algo::Sort(PendingRemoveIndices);
@@ -955,7 +963,7 @@ void FDeferredShadingSceneRenderer::AddOrRemoveSceneHeightFieldPrimitives(bool b
 			Primitive->DistanceFieldInstanceIndices.Add(HFIdx);
 			const FGlobalDFCacheType CacheType = Primitive->Proxy->IsOftenMoving() ? GDF_Full : GDF_MostlyStatic;
 			const FBoxSphereBounds& Bounds = Primitive->Proxy->GetBounds();
-			SceneData.PrimitiveModifiedBounds[CacheType].Add(Bounds.GetBox());
+			AddModifiedBounds(Scene, CacheType, Bounds.GetBox());
 		}
 		SceneData.PendingHeightFieldAddOps.Reset();
 	}

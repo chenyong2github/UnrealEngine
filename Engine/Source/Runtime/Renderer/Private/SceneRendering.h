@@ -606,7 +606,7 @@ public:
 
 	/** Legacy regions in the volume texture to update. Used only by heighfield composition. */
 
-	// Bounds in the volume texture to update. This should replace UpdateRegions after rewriting heighfield composition
+	// Bounds in the volume texture to update.
 	TArray<FClipmapUpdateBounds, TInlineAllocator<64>> UpdateBounds;
 };
 

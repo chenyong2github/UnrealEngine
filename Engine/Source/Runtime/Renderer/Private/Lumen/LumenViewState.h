@@ -90,6 +90,24 @@ public:
 	}
 };
 
+class FLumenVoxelLightingClipmapState
+{
+public:
+	FIntVector FullUpdateOriginInTiles = FIntVector(0);
+	FIntVector LastPartialUpdateOriginInTiles = FIntVector(0);
+	FIntVector ScrollOffsetInTiles = FIntVector(0);
+
+	FVector Center = FVector(0.0f);
+	FVector Extent = FVector(0.0f);
+	FVector VoxelSize = FVector(0.0f);
+	float VoxelRadius = 0.0f;
+	float MeshSDFRadiusThreshold = 0.0f;
+	FVector VoxelCoordToUVScale = FVector(0.0f);
+	FVector VoxelCoordToUVBias = FVector(0.0f);
+
+	TArray<FBox> PrimitiveModifiedBounds;
+};
+
 class FLumenViewState
 {
 public:
@@ -98,15 +116,11 @@ public:
 	FReflectionTemporalState ReflectionState;
 
 	// Voxel clipmaps
-	TRefCountPtr<IPooledRenderTarget> VoxelLighting;
-	FIntVector VoxelGridResolution;
 	int32 NumClipmapLevels;
-	TStaticArray<FVector, MaxVoxelClipmapLevels> ClipmapWorldToUVScale;
-	TStaticArray<FVector, MaxVoxelClipmapLevels> ClipmapWorldToUVBias;
-	TStaticArray<FVector, MaxVoxelClipmapLevels> ClipmapWorldCenter;
-	TStaticArray<FVector, MaxVoxelClipmapLevels> ClipmapWorldExtent;
-	TStaticArray<FVector, MaxVoxelClipmapLevels> ClipmapWorldSamplingExtent;
-	TStaticArray<FVector4, MaxVoxelClipmapLevels> ClipmapVoxelSizeAndRadius;
+	FLumenVoxelLightingClipmapState VoxelLightingClipmapState[MaxVoxelClipmapLevels];
+	TRefCountPtr<IPooledRenderTarget> VoxelLighting;
+	TRefCountPtr<IPooledRenderTarget> VoxelVisBuffer;
+	FIntVector VoxelGridResolution;
 
 	// Translucency
 	TRefCountPtr<IPooledRenderTarget> TranslucencyVolume0;
@@ -118,6 +132,7 @@ public:
 		ReflectionState.SafeRelease();
 
 		VoxelLighting.SafeRelease();
+		VoxelVisBuffer.SafeRelease();
 		TranslucencyVolume0.SafeRelease();
 		TranslucencyVolume1.SafeRelease();
 	}

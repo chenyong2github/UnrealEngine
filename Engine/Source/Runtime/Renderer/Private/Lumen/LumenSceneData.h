@@ -194,6 +194,8 @@ public:
 	FRWBufferStructured CardBuffer;
 	TUniformBufferRef<FLumenCardScene> UniformBuffer;
 
+	TArray<FBox> PrimitiveModifiedBounds;
+
 	// Cube map trees
 	TArray<int32> DFObjectIndicesToUpdateInBuffer;
 	TArray<int32> CubeMapTreeIndicesToUpdateInBuffer;

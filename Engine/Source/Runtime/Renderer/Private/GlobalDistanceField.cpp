@@ -22,7 +22,7 @@ FAutoConsoleVariableRef CVarAOGlobalDistanceField(
 	GAOGlobalDistanceField,
 	TEXT("Whether to use a global distance field to optimize occlusion cone traces.\n")
 	TEXT("The global distance field is created by compositing object distance fields into clipmaps as the viewer moves through the level."),
-	ECVF_RenderThreadSafe
+	ECVF_Scalability | ECVF_RenderThreadSafe
 	);
 
 float GGlobalDistanceFieldOccupancyRatio = 0.3f;
@@ -30,7 +30,7 @@ FAutoConsoleVariableRef CVarAOGlobalDistanceFieldOccupancyRatio(
 	TEXT("r.AOGlobalDistanceField.OccupancyRatio"),
 	GGlobalDistanceFieldOccupancyRatio,
 	TEXT("Expected sparse global distacne field occupancy for the page atlas allocation. 0.25 means 25% - filled and 75% - empty."),
-	ECVF_RenderThreadSafe
+	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
 int32 GAOGlobalDistanceFieldNumClipmaps = 4;
@@ -38,7 +38,7 @@ FAutoConsoleVariableRef CVarAOGlobalDistanceFieldNumClipmaps(
 	TEXT("r.AOGlobalDistanceField.NumClipmaps"), 
 	GAOGlobalDistanceFieldNumClipmaps,
 	TEXT("Num clipmaps in the global distance field.  Setting this to anything other than 4 is currently only supported by Lumen."),
-	ECVF_RenderThreadSafe
+	ECVF_Scalability | ECVF_RenderThreadSafe
 	);
 
 int32 GAOUpdateGlobalDistanceField = 1;
@@ -46,7 +46,7 @@ FAutoConsoleVariableRef CVarAOUpdateGlobalDistanceField(
 	TEXT("r.AOUpdateGlobalDistanceField"),
 	GAOUpdateGlobalDistanceField,
 	TEXT("Whether to update the global distance field, useful for debugging."),
-	ECVF_RenderThreadSafe
+	ECVF_Scalability | ECVF_RenderThreadSafe
 	);
 
 int32 GAOGlobalDistanceFieldCacheMostlyStaticSeparately = 1;
@@ -54,7 +54,7 @@ FAutoConsoleVariableRef CVarAOGlobalDistanceFieldCacheMostlyStaticSeparately(
 	TEXT("r.AOGlobalDistanceFieldCacheMostlyStaticSeparately"),
 	GAOGlobalDistanceFieldCacheMostlyStaticSeparately,
 	TEXT("Whether to cache mostly static primitives separately from movable primitives, which reduces global DF update cost when a movable primitive is modified.  Adds another 12Mb of volume textures."),
-	ECVF_RenderThreadSafe
+	ECVF_Scalability | ECVF_RenderThreadSafe
 	);
 
 int32 GAOGlobalDistanceFieldPartialUpdates = 1;
@@ -62,7 +62,7 @@ FAutoConsoleVariableRef CVarAOGlobalDistanceFieldPartialUpdates(
 	TEXT("r.AOGlobalDistanceFieldPartialUpdates"),
 	GAOGlobalDistanceFieldPartialUpdates,
 	TEXT("Whether to allow partial updates of the global distance field.  When profiling it's useful to disable this and get the worst case composition time that happens on camera cuts."),
-	ECVF_RenderThreadSafe
+	ECVF_Scalability | ECVF_RenderThreadSafe
 	);
 
 int32 GAOGlobalDistanceFieldStaggeredUpdates = 1;
@@ -70,7 +70,7 @@ FAutoConsoleVariableRef CVarAOGlobalDistanceFieldStaggeredUpdatess(
 	TEXT("r.AOGlobalDistanceFieldStaggeredUpdates"),
 	GAOGlobalDistanceFieldStaggeredUpdates,
 	TEXT("Whether to allow the larger clipmaps to be updated less frequently."),
-	ECVF_RenderThreadSafe
+	ECVF_Scalability | ECVF_RenderThreadSafe
 	);
 
 int32 GAOGlobalDistanceFieldClipmapUpdatesPerFrame = 2;
@@ -78,7 +78,7 @@ FAutoConsoleVariableRef CVarAOGlobalDistanceFieldClipmapUpdatesPerFrame(
 	TEXT("r.AOGlobalDistanceFieldClipmapUpdatesPerFrame"),
 	GAOGlobalDistanceFieldClipmapUpdatesPerFrame,
 	TEXT("How many clipmaps to update each frame, only 1 or 2 supported.  With values less than 2, the first clipmap is only updated every other frame, which can cause incorrect self occlusion during movement."),
-	ECVF_RenderThreadSafe
+	ECVF_Scalability | ECVF_RenderThreadSafe
 	);
 
 int32 GAOGlobalDistanceFieldForceFullUpdate = 0;
@@ -86,7 +86,7 @@ FAutoConsoleVariableRef CVarAOGlobalDistanceFieldForceFullUpdate(
 	TEXT("r.AOGlobalDistanceFieldForceFullUpdate"),
 	GAOGlobalDistanceFieldForceFullUpdate,
 	TEXT("Whether to force full global distance field update every frame."),
-	ECVF_RenderThreadSafe
+	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
 int32 GAOGlobalDistanceFieldForceMovementUpdate = 0;
@@ -94,7 +94,7 @@ FAutoConsoleVariableRef CVarAOGlobalDistanceFieldForceMovementUpdate(
 	TEXT("r.AOGlobalDistanceFieldForceMovementUpdate"),
 	GAOGlobalDistanceFieldForceMovementUpdate,
 	TEXT("Whether to force N texel border on X, Y and Z update each frame."),
-	ECVF_RenderThreadSafe
+	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
 int32 GAOLogGlobalDistanceFieldModifiedPrimitives = 0;
@@ -104,7 +104,7 @@ FAutoConsoleVariableRef CVarAOLogGlobalDistanceFieldModifiedPrimitives(
 	TEXT("Whether to log primitive modifications (add, remove, updatetransform) that caused an update of the global distance field.\n")
 	TEXT("This can be useful for tracking down why updating the global distance field is always costing a lot, since it should be mostly cached.\n")
 	TEXT("Pass 2 to log only non movable object updates."),
-	ECVF_RenderThreadSafe
+	ECVF_Scalability | ECVF_RenderThreadSafe
 	);
 
 int32 GAODrawGlobalDistanceFieldModifiedPrimitives = 0;
@@ -113,7 +113,7 @@ FAutoConsoleVariableRef CVarAODrawGlobalDistanceFieldModifiedPrimitives(
 	GAODrawGlobalDistanceFieldModifiedPrimitives,
 	TEXT("Whether to lodrawg primitive modifications (add, remove, updatetransform) that caused an update of the global distance field.\n")
 	TEXT("This can be useful for tracking down why updating the global distance field is always costing a lot, since it should be mostly cached."),
-	ECVF_RenderThreadSafe
+	ECVF_Scalability | ECVF_RenderThreadSafe
 	);
 
 float GAOGlobalDFClipmapDistanceExponent = 2;
@@ -121,7 +121,7 @@ FAutoConsoleVariableRef CVarAOGlobalDFClipmapDistanceExponent(
 	TEXT("r.AOGlobalDFClipmapDistanceExponent"),
 	GAOGlobalDFClipmapDistanceExponent,
 	TEXT("Exponent used to derive each clipmap's size, together with r.AOInnerGlobalDFClipmapDistance."),
-	ECVF_RenderThreadSafe
+	ECVF_Scalability | ECVF_RenderThreadSafe
 	);
 
 int32 GAOGlobalDFResolution = 128;
@@ -129,7 +129,7 @@ FAutoConsoleVariableRef CVarAOGlobalDFResolution(
 	TEXT("r.AOGlobalDFResolution"),
 	GAOGlobalDFResolution,
 	TEXT("Resolution of the global distance field.  Higher values increase fidelity but also increase memory and composition cost."),
-	ECVF_RenderThreadSafe
+	ECVF_Scalability | ECVF_RenderThreadSafe
 	);
 
 float GAOGlobalDFStartDistance = 100;
@@ -138,7 +138,7 @@ FAutoConsoleVariableRef CVarAOGlobalDFStartDistance(
 	GAOGlobalDFStartDistance,
 	TEXT("World space distance along a cone trace to switch to using the global distance field instead of the object distance fields.\n")
 	TEXT("This has to be large enough to hide the low res nature of the global distance field, but smaller values result in faster cone tracing."),
-	ECVF_RenderThreadSafe
+	ECVF_Scalability | ECVF_RenderThreadSafe
 	);
 
 int32 GAOGlobalDistanceFieldRepresentHeightfields = 1;
@@ -146,7 +146,7 @@ FAutoConsoleVariableRef CVarAOGlobalDistanceFieldRepresentHeightfields(
 	TEXT("r.AOGlobalDistanceFieldRepresentHeightfields"),
 	GAOGlobalDistanceFieldRepresentHeightfields,
 	TEXT("Whether to put landscape in the global distance field.  Changing this won't propagate until the global distance field gets recached (fly away and back)."),
-	ECVF_RenderThreadSafe
+	ECVF_Scalability | ECVF_RenderThreadSafe
 	);
 
 float GGlobalDistanceFieldHeightFieldThicknessScale = 4.0f;
@@ -154,7 +154,7 @@ FAutoConsoleVariableRef CVarGlobalDistanceFieldHeightFieldThicknessScale(
 	TEXT("r.GlobalDistanceFieldHeightFieldThicknessScale"),
 	GGlobalDistanceFieldHeightFieldThicknessScale,
 	TEXT("Thickness of the height field when it's entered into the global distance field, measured in distance field voxels. Defaults to 4 which means 4x the voxel size as thickness."),
-	ECVF_RenderThreadSafe
+	ECVF_Scalability | ECVF_RenderThreadSafe
 	);
 
 float GAOGlobalDistanceFieldMinMeshSDFRadius = 20;
@@ -170,7 +170,7 @@ FAutoConsoleVariableRef CVarAOGlobalDistanceFieldMinMeshSDFRadiusInVoxels(
 	TEXT("r.AOGlobalDistanceField.MinMeshSDFRadiusInVoxels"),
 	GAOGlobalDistanceFieldMinMeshSDFRadiusInVoxels,
 	TEXT("Meshes with a smaller radius than this number of voxels are culled from the global SDF."),
-	ECVF_RenderThreadSafe
+	ECVF_Scalability | ECVF_RenderThreadSafe
 	);
 
 float GAOGlobalDistanceFieldCameraPositionVelocityOffsetDecay = .7f;
@@ -194,7 +194,7 @@ FAutoConsoleVariableRef CVarAOGlobalDistanceFieldAverageCulledObjectsPerPage(
 	TEXT("r.AOGlobalDistanceField.AverageCulledObjectsPerPage"),
 	GAOGlobalDistanceFieldAverageCulledObjectsPerPage,
 	TEXT("Average expected number of objects per page, used to preallocate memory for the cull grid."),
-	ECVF_RenderThreadSafe
+	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
 int32 GAOGlobalDistanceFieldMipFactor = 4;
@@ -202,11 +202,8 @@ FAutoConsoleVariableRef CVarAOGlobalDistanceFieldMipFactor(
 	TEXT("r.AOGlobalDistanceField.MipFactor"),
 	GAOGlobalDistanceFieldMipFactor,
 	TEXT("Resolution divider for the mip map of a distance field clipmap."),
-	ECVF_RenderThreadSafe
+	ECVF_Scalability | ECVF_RenderThreadSafe
 );
-
-// Approximation of margin added to SDF objects during generation inside FMeshUtilities::GenerateSignedDistanceFieldVolumeData.
-constexpr float MESH_SDF_APPROX_MARGIN = 0.7f;
 
 float GetMinMeshSDFRadius(float VoxelWorldSize)
 {
@@ -453,7 +450,8 @@ static void AddUpdateBoundsForAxis(FIntVector MovementInPages,
 
 	if (FMath::Abs(MovementInPages[ComponentIndex]) > 0)
 	{
-		UpdateBounds.Add(FClipmapUpdateBounds(AxisUpdateBounds.GetCenter(), AxisUpdateBounds.GetExtent(), false));
+		const FVector CellCenterAndBilinearFootprintBias = FVector((1.0f - 0.5f) * ClipmapPageSize);
+		UpdateBounds.Add(FClipmapUpdateBounds(AxisUpdateBounds.GetCenter(), AxisUpdateBounds.GetExtent() + CellCenterAndBilinearFootprintBias, false));
 	}
 }
 
@@ -885,7 +883,7 @@ static void ComputeUpdateRegionsAndUpdateViewState(
 					{
 						const FBox PrimBounds = ClipmapViewState.Cache[CacheType].PrimitiveModifiedBounds[BoundsIndex];
 						const FVector PrimWorldCenter = PrimBounds.GetCenter();
-						const FVector PrimWorldExtent = PrimBounds.GetExtent() * MESH_SDF_APPROX_MARGIN;
+						const FVector PrimWorldExtent = PrimBounds.GetExtent() * GlobalDistanceField::MESH_SDF_APPROX_MARGIN;
 						const FBox ModifiedBounds(PrimWorldCenter - PrimWorldExtent, PrimWorldCenter + PrimWorldExtent);
 
 						if (ModifiedBounds.ComputeSquaredDistanceToBox(ClipmapBounds) < ClipmapInfluenceRadius * ClipmapInfluenceRadius)
