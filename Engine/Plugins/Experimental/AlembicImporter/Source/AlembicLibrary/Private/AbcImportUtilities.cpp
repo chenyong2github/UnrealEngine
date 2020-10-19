@@ -1178,7 +1178,7 @@ void AbcImporterUtilities::PropogateMatrixTransformationToSample(FAbcMeshSample*
 	}
 }
 
-void AbcImporterUtilities::GenerateDeltaFrameDataMatrix(const TArray<FVector>& FrameVertexData, TArray<FVector>& AverageVertexData, const int32 SampleOffset, const int32 AverageVertexOffset, TArray<float>& OutGeneratedMatrix)
+void AbcImporterUtilities::GenerateDeltaFrameDataMatrix(const TArray<FVector>& FrameVertexData, const TArray<FVector>& AverageVertexData, const int32 SampleOffset, const int32 AverageVertexOffset, TArray<float>& OutGeneratedMatrix)
 {
 	const uint32 NumVertices = FrameVertexData.Num();
 	for (uint32 VertexIndex = 0; VertexIndex < NumVertices; ++VertexIndex)
@@ -1191,7 +1191,7 @@ void AbcImporterUtilities::GenerateDeltaFrameDataMatrix(const TArray<FVector>& F
 	}
 }
 
-void AbcImporterUtilities::GenerateCompressedMeshData(FCompressedAbcData& CompressedData, const uint32 NumUsedSingularValues, const uint32 NumSamples, const TArray<float>& BasesMatrix, const TArray<float>& BasesWeights, const float SampleTimeStep, const float StartTime)
+void AbcImporterUtilities::GenerateCompressedMeshData(FCompressedAbcData& CompressedData, const uint32 NumUsedSingularValues, const uint32 NumSamples, const TArrayView<float>& BasesMatrix, const TArray<float>& BasesWeights, const float SampleTimeStep, const float StartTime)
 {
 	// Allocate base sample data	
 	CompressedData.BaseSamples.AddZeroed(NumUsedSingularValues);
@@ -1228,7 +1228,7 @@ void AbcImporterUtilities::GenerateCompressedMeshData(FCompressedAbcData& Compre
 		// Should be possible to rearrange the data so this can become a memcpy
 		for (uint32 CurveSampleIndex = 0; CurveSampleIndex < NumSamples; ++CurveSampleIndex)
 		{
-			CurveValues.Add(BasesWeights[BaseIndex + (OriginalNumberOfSingularValues* CurveSampleIndex)]);
+			CurveValues.Add(BasesWeights[BaseIndex + (OriginalNumberOfSingularValues * CurveSampleIndex)]);
 			TimeValues.Add(StartTime + (SampleTimeStep * CurveSampleIndex));
 		}
 	}
