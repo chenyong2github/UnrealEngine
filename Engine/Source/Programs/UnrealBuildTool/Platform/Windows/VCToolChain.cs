@@ -997,15 +997,6 @@ namespace UnrealBuildTool
 				AddDefinition(SharedArguments, DefinitionArgument);
 			}
 
-			// Module interface paths.
-			if (Target.bEnableCppModules)
-			{
-				foreach (DirectoryReference ModuleInterfacePath in CompileEnvironment.ModuleInterfacePaths)
-				{
-					SharedArguments.Add(String.Format("/ifcSearchDir \"{0}\"", ModuleInterfacePath));
-				}
-			}
-
 			// Create a compile action for each source file.
 			CPPOutput Result = new CPPOutput();
 			foreach (FileItem SourceFile in InputFiles)

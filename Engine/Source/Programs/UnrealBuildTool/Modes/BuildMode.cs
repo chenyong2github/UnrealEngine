@@ -402,6 +402,8 @@ namespace UnrealBuildTool
 								CompiledModuleInterfaces.Add(PrerequisiteAction.CompiledModuleInterfaceFile);
 							}
 						}
+
+						Dictionary<FileItem, string> ModuleInputs = ModuleOutputs.ToDictionary(x => x.Value, x => x.Key);
 						foreach (Action PrerequisiteAction in PrerequisiteActions)
 						{
 							if (PrerequisiteAction.ActionType == ActionType.CompileModuleInterface)
@@ -415,11 +417,23 @@ namespace UnrealBuildTool
 										if (ModuleOutputs.TryGetValue(ImportedModule, out ModuleOutput))
 										{
 											PrerequisiteAction.PrerequisiteItems.Add(ModuleOutput);
+											PrerequisiteAction.CommandArguments += String.Format(" /reference \"{0}={1}\"", ImportedModule, ModuleOutput.FullName);
 										}
 										else
 										{
 											throw new BuildException("Unable to find interface for module '{0}'", ImportedModule);
 										}
+									}
+								}
+							}
+							else if(PrerequisiteAction.ActionType == ActionType.Compile)
+							{
+								foreach(FileItem PrerequisiteItem in PrerequisiteAction.PrerequisiteItems)
+								{
+									string ModuleName;
+									if(ModuleInputs.TryGetValue(PrerequisiteItem, out ModuleName))
+									{
+										PrerequisiteAction.CommandArguments += String.Format(" /reference \"{0}={1}\"", ModuleName, PrerequisiteItem.AbsolutePath);
 									}
 								}
 							}
