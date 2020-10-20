@@ -1068,23 +1068,10 @@ namespace Audio
 
 		DryChannelBuffer.Reset();
 
-		// Check if we need to allocate a dry buffer
+		// Check if we need to allocate a dry buffer. This is stored here before effects processing. We mix in with wet buffer after effects processing.
 		if (!FMath::IsNearlyEqual(CurrentDryLevel, TargetDryLevel) || !FMath::IsNearlyZero(CurrentDryLevel))
 		{
 			DryChannelBuffer.Append(InputBuffer);
-
-			// If we've already set the volume, only need to multiply by constant
-			if (FMath::IsNearlyEqual(TargetDryLevel, CurrentDryLevel))
-			{
-
-				Audio::MultiplyBufferByConstantInPlace(DryChannelBuffer, TargetDryLevel);
-			}
-			else
-			{
-				// To avoid popping, we do a fade on the buffer to the target volume
-				Audio::FadeBufferFast(DryChannelBuffer, CurrentDryLevel, TargetDryLevel);
-				CurrentDryLevel = TargetDryLevel;
-			}
 		}
 
 		{
@@ -1110,9 +1097,18 @@ namespace Audio
 				InputData.ListenerTransforms = MixerDevice->GetListenerTransforms();
 				InputData.AudioClock = MixerDevice->GetAudioClock();
 
+				SubmixChainMixBuffer.Reset(NumSamples);
+				SubmixChainMixBuffer.AddZeroed(NumSamples);
+				bool bProcessedAnEffect = false;
+
 				for (int32 EffectChainIndex = EffectChains.Num() - 1; EffectChainIndex >= 0; --EffectChainIndex)
 				{
 					FSubmixEffectFadeInfo& FadeInfo = EffectChains[EffectChainIndex];
+
+					if (!FadeInfo.EffectChain.Num())
+					{
+						continue;
+					}
 
 					// If we're not the current chain and we've finished fading out, lets remove it from the effect chains
 					if (!FadeInfo.bIsCurrentChain && FadeInfo.FadeVolume.IsDone())
@@ -1128,16 +1124,52 @@ namespace Audio
 					// Prepare the scratch buffer for effect chain processing
 					EffectChainOutputBuffer.SetNumUninitialized(NumSamples);
 
-					// Generate the audio into the effect chain
-					GenerateEffectChainAudio(InputData, FadeInfo.EffectChain, EffectChainOutputBuffer);
+					bProcessedAnEffect |= GenerateEffectChainAudio(InputData, FadeInfo.EffectChain, EffectChainOutputBuffer);
 
 					float StartFadeVolume = FadeInfo.FadeVolume.GetValue();
 					FadeInfo.FadeVolume.Update(DeltaTimeSec);
 					float EndFadeVolume = FadeInfo.FadeVolume.GetValue();
 
-					MixInBufferFast(EffectChainOutputBuffer, InputBuffer, StartFadeVolume, EndFadeVolume);
+					MixInBufferFast(EffectChainOutputBuffer, SubmixChainMixBuffer, StartFadeVolume, EndFadeVolume);
+				}
+
+				// If we processed any effects, write over the old input buffer vs mixing into it. This is basically the "wet channel" audio in a submix.
+				if (bProcessedAnEffect)
+				{
+					FMemory::Memcpy((void*)BufferPtr, (void*)SubmixChainMixBuffer.GetData(), sizeof(float)* NumSamples);
+				}
+
+				// Apply the wet level here after processing effects. 
+				if (!FMath::IsNearlyEqual(TargetWetLevel, CurrentWetLevel) || !FMath::IsNearlyEqual(CurrentWetLevel, 1.0f))
+				{
+					if (FMath::IsNearlyEqual(TargetWetLevel, CurrentWetLevel))
+					{
+						MultiplyBufferByConstantInPlace(InputBuffer, TargetWetLevel);
+					}
+					else
+					{
+						FadeBufferFast(InputBuffer, CurrentWetLevel, TargetWetLevel);
+						CurrentWetLevel = TargetWetLevel;
+					}
 				}
 			}
+		}
+
+		// Mix in the dry channel buffer
+		if (DryChannelBuffer.Num() > 0)
+		{
+			// If we've already set the volume, only need to multiply by constant
+			if (FMath::IsNearlyEqual(TargetDryLevel, CurrentDryLevel))
+			{
+				MultiplyBufferByConstantInPlace(DryChannelBuffer, TargetDryLevel);
+			}
+			else
+			{
+				// To avoid popping, we do a fade on the buffer to the target volume
+				FadeBufferFast(DryChannelBuffer, CurrentDryLevel, TargetDryLevel);
+				CurrentDryLevel = TargetDryLevel;
+			}
+			MixInBufferFast(DryChannelBuffer, InputBuffer);
 		}
 
 		// If we're muted, memzero the buffer. Note we are still doing all the work to maintain buffer state between mutings.
@@ -1145,7 +1177,6 @@ namespace Audio
 		{
 			FMemory::Memzero((void*)BufferPtr, sizeof(float) * NumSamples);
 		}
-	
 	
 		// If we are recording, Add out buffer to the RecordingData buffer:
 		{
@@ -1234,13 +1265,14 @@ namespace Audio
 		}
 	}
 
-	void FMixerSubmix::GenerateEffectChainAudio(FSoundEffectSubmixInputData& InputData, TArray<FSoundEffectSubmixPtr>& InEffectChain, AlignedFloatBuffer& OutBuffer)
+	bool FMixerSubmix::GenerateEffectChainAudio(FSoundEffectSubmixInputData& InputData, TArray<FSoundEffectSubmixPtr>& InEffectChain, AlignedFloatBuffer& OutBuffer)
 	{
 		FSoundEffectSubmixOutputData OutputData;
 		OutputData.AudioBuffer = &ScratchBuffer;
 		OutputData.NumChannels = NumChannels;
 
 		const int32 NumOutputFrames = OutBuffer.Num() / NumChannels;
+		bool bProcessedAnEffect = false;
 
 		for (FSoundEffectSubmixPtr& SubmixEffect : InEffectChain)
 		{
@@ -1279,11 +1311,14 @@ namespace Audio
 			const float DryLevel = SubmixEffect->GetDryLevel();
 			if (DryLevel > 0.0f)
 			{
-				Audio::MixInBufferFast(InputBuffer, ScratchBuffer, DryLevel);
+				MixInBufferFast(InputBuffer, ScratchBuffer, DryLevel);
 			}
 
+			bProcessedAnEffect = true;
 			FMemory::Memcpy((void*)OutBuffer.GetData(), (void*)ScratchBuffer.GetData(), sizeof(float) * NumSamples);
 		}
+
+		return bProcessedAnEffect;
 	}
 
 
