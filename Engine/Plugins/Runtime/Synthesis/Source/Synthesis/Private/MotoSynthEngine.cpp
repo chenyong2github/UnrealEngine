@@ -219,7 +219,7 @@ bool FMotoSynthEngine::NeedsSpawnGrain()
 
 void FMotoSynthEngine::SpawnGrain(int32& StartingIndex, const MotoSynthDataPtr& SynthData)
 {
-	if (FreeGrains.Num() && CurrentRPM > 0.0f)
+	if (FreeGrains.Num() && CurrentRPM > 0.0f && SynthData)
 	{
 		int32 GrainIndex = FreeGrains.Pop(false);
 		ActiveGrains.Push(GrainIndex);
