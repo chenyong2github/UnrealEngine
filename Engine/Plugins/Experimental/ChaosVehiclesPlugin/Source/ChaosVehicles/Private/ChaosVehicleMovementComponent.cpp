@@ -40,7 +40,6 @@ PRAGMA_DISABLE_OPTIMIZATION
 DEFINE_LOG_CATEGORY(LogVehicle);
 
 
-#if WITH_CHAOS
 
 FVehicleDebugParams GVehicleDebugParams;
 
@@ -1340,7 +1339,6 @@ void UChaosVehicleMovementComponent::CreatePhysicsVehicle()
 	PVehicle = MakeUnique<Chaos::FSimpleWheeledVehicle>();
 }
 
-#endif
 
 void FVehicleAerofoilConfig::FillAerofoilSetup(const UChaosVehicleMovementComponent& MovementComponent)
 {

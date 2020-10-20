@@ -292,6 +292,8 @@ namespace Chaos
 
 	Chaos::FPhysicsSolver* FGeometryCollectionCacheAdapter::GetComponentSolver(UPrimitiveComponent* InComponent) const
 	{
+#if WITH_CHAOS
+
 		if(InComponent && InComponent->GetWorld())
 		{
 			UWorld* ComponentWorld = InComponent->GetWorld();
@@ -301,6 +303,8 @@ namespace Chaos
 				return WorldScene->GetSolver();
 			}
 		}
+
+#endif // WITH_CHAOS
 
 		return nullptr;
 	}

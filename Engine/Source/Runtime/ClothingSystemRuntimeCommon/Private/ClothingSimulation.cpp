@@ -18,10 +18,12 @@ FClothingSimulationContextCommon::FClothingSimulationContextCommon()
 	: ComponentToWorld(FTransform::Identity)
 	, WorldGravity(FVector::ZeroVector)
 	, WindVelocity(FVector::ZeroVector)
+	, WindAdaption(0.0f)
 	, DeltaSeconds(0.f)
 	, TeleportMode(EClothingTeleportMode::None)
 	, MaxDistanceScale(1.f)
 	, PredictedLod(INDEX_NONE)
+
 {}
 
 FClothingSimulationContextCommon::~FClothingSimulationContextCommon()

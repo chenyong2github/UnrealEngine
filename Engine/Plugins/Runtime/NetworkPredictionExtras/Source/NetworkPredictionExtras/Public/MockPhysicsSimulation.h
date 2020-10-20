@@ -106,6 +106,7 @@ public:
 	UPrimitiveComponent* PrimitiveComponent = nullptr;
 };
 
+
 struct FMockPhysicsJumpCue
 {
 	FMockPhysicsJumpCue() = default;
@@ -129,6 +130,7 @@ struct FMockPhysicsJumpCue
 		return Start.Equals(Other.Start, ErrorTolerance);
 	}
 };
+
 
 struct FMockPhysicsChargeCue
 {
@@ -157,6 +159,8 @@ struct FMockPhysicsChargeCue
 	}
 };
 
+#if WITH_CHAOS
+
 struct FMockPhysicsCueSet
 {
 	template<typename TDispatchTable>
@@ -166,3 +170,5 @@ struct FMockPhysicsCueSet
 		DispatchTable.template RegisterType<FMockPhysicsChargeCue>();
 	}
 };
+
+#endif // WITH_CHAOS

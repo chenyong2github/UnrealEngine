@@ -16,6 +16,9 @@
 #include "HAL/PlatformMath.h"
 #include "Containers/ArrayView.h"
 #include "Containers/BitArray.h"
+#if PHYSICS_INTERFACE_PHYSX
+#include "PhysXIncludes.h"
+#endif
 
 #if PHYSICS_INTERFACE_PHYSX
 #include "PhysXPublic.h"
