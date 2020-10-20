@@ -3731,17 +3731,6 @@ namespace UnrealBuildTool
 				GlobalCompileEnvironment.Definitions.Add("WITH_LIVE_CODING=0");
 			}
 
-			if (Rules.bUseXGEController &&
-				Rules.Type == TargetType.Editor &&
-				(Platform == UnrealTargetPlatform.Win32 || Platform == UnrealTargetPlatform.Win64))
-			{
-				GlobalCompileEnvironment.Definitions.Add("WITH_XGE_CONTROLLER=1");
-			}
-			else
-			{
-				GlobalCompileEnvironment.Definitions.Add("WITH_XGE_CONTROLLER=0");
-			}
-
 			// Compile in the names of the module manifests
 			GlobalCompileEnvironment.Definitions.Add(String.Format("UBT_MODULE_MANIFEST=\"{0}\"", ModuleManifest.GetStandardFileName(AppName, Platform, Configuration, Architecture, false)));
 			GlobalCompileEnvironment.Definitions.Add(String.Format("UBT_MODULE_MANIFEST_DEBUGGAME=\"{0}\"", ModuleManifest.GetStandardFileName(AppName, Platform, UnrealTargetConfiguration.DebugGame, Architecture, true)));
