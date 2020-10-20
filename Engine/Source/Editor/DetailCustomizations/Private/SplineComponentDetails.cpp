@@ -32,6 +32,7 @@
 #include "LevelEditorViewport.h"
 
 #define LOCTEXT_NAMESPACE "SplineComponentDetails"
+DEFINE_LOG_CATEGORY_STATIC(LogSplineComponentDetails, Log, All)
 
 USplineMetadataDetailsFactoryBase::USplineMetadataDetailsFactoryBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -53,6 +54,8 @@ public:
 	virtual bool InitiallyCollapsed() const override { return false; }
 	virtual FName GetName() const override;
 	//~ End IDetailCustomNodeBuilder interface
+
+	static bool bAlreadyWarnedInvalidIndex;
 
 private:
 
@@ -207,6 +210,8 @@ private:
 	FSimpleDelegate OnRegenerateChildren;
 };
 
+bool FSplinePointDetails::bAlreadyWarnedInvalidIndex = false;
+
 FSplinePointDetails::FSplinePointDetails(USplineComponent* InOwningSplineComponent)
 	: SplineComp(nullptr)
 {
@@ -225,6 +230,8 @@ FSplinePointDetails::FSplinePointDetails(USplineComponent* InOwningSplineCompone
 
 	SplineComp = InOwningSplineComponent;
 	check(SplineComp);
+
+	bAlreadyWarnedInvalidIndex = false;
 }
 
 void FSplinePointDetails::SetOnRebuildChildren(FSimpleDelegate InOnRegenerateChildren)
@@ -571,6 +578,7 @@ void FSplinePointDetails::Tick(float DeltaTime)
 
 void FSplinePointDetails::UpdateValues()
 {
+	check(SplineComp);
 	check(SplineVisualizer.IsValid());
 
 	bool bNeedsRebuild = false;
@@ -593,22 +601,48 @@ void FSplinePointDetails::UpdateValues()
 	PointType.Reset();
 
 	// Only display point details when there are selected keys
-	if (SelectedKeys.Num() > 0)
+	if (SplineVisualizer->GetEditedSplineComponent() == SplineComp  && SelectedKeys.Num() > 0)
 	{
+		bool bValidIndices = true;
 		for (int32 Index : SelectedKeys)
 		{
-			InputKey.Add(SplineComp->GetSplinePointsPosition().Points[Index].InVal);
-			Position.Add(SplineComp->GetSplinePointsPosition().Points[Index].OutVal);
-			ArriveTangent.Add(SplineComp->GetSplinePointsPosition().Points[Index].ArriveTangent);
-			LeaveTangent.Add(SplineComp->GetSplinePointsPosition().Points[Index].LeaveTangent);
-			Rotation.Add(SplineComp->GetSplinePointsRotation().Points[Index].OutVal.Rotator());
-			Scale.Add(SplineComp->GetSplinePointsScale().Points[Index].OutVal);
-			PointType.Add(ConvertInterpCurveModeToSplinePointType(SplineComp->GetSplinePointsPosition().Points[Index].InterpMode));
+			if (Index < 0 ||
+				Index >= SplineComp->GetSplinePointsPosition().Points.Num() ||
+				Index >= SplineComp->GetSplinePointsRotation().Points.Num() ||
+				Index >= SplineComp->GetSplinePointsScale().Points.Num())
+			{
+				bValidIndices = false;
+				if (!bAlreadyWarnedInvalidIndex)
+				{
+					UE_LOG(LogSplineComponentDetails, Error, TEXT("Spline component details selected keys contains invalid index %d for spline %s with %d points, %d rotations, %d scales"),
+						Index, 
+						*SplineComp->GetPathName(), 
+						SplineComp->GetSplinePointsPosition().Points.Num(),
+						SplineComp->GetSplinePointsRotation().Points.Num(),
+						SplineComp->GetSplinePointsScale().Points.Num());
+					bAlreadyWarnedInvalidIndex = true;
+				}
+				break;
+			}
 		}
 
-		if (SplineMetaDataDetails)
+		if (bValidIndices)
 		{
-			SplineMetaDataDetails->Update(SplineComp, SelectedKeys);
+			for (int32 Index : SelectedKeys)
+			{
+				InputKey.Add(SplineComp->GetSplinePointsPosition().Points[Index].InVal);
+				Position.Add(SplineComp->GetSplinePointsPosition().Points[Index].OutVal);
+				ArriveTangent.Add(SplineComp->GetSplinePointsPosition().Points[Index].ArriveTangent);
+				LeaveTangent.Add(SplineComp->GetSplinePointsPosition().Points[Index].LeaveTangent);
+				Rotation.Add(SplineComp->GetSplinePointsRotation().Points[Index].OutVal.Rotator());
+				Scale.Add(SplineComp->GetSplinePointsScale().Points[Index].OutVal);
+				PointType.Add(ConvertInterpCurveModeToSplinePointType(SplineComp->GetSplinePointsPosition().Points[Index].InterpMode));
+			}
+
+			if (SplineMetaDataDetails)
+			{
+				SplineMetaDataDetails->Update(SplineComp, SelectedKeys);
+			}
 		}
 	}
 
