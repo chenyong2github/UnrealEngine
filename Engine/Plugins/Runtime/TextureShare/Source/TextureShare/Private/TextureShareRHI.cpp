@@ -18,7 +18,6 @@
 
 #include "ScreenRendering.h"
 #include "PostProcess/SceneFilterRendering.h"
-#include "PostProcessParameters.h"
 
 #include "RenderTargetPool.h"
 

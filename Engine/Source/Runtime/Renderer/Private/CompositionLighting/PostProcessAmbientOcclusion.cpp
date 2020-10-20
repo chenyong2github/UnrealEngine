@@ -7,6 +7,7 @@
 #include "CompositionLighting/PostProcessAmbientOcclusion.h"
 #include "CompositionLighting/CompositionLighting.h"
 #include "SceneTextureParameters.h"
+#include "ScenePrivate.h"
 
 DECLARE_GPU_STAT_NAMED(SSAOSetup, TEXT("ScreenSpace AO Setup") );
 DECLARE_GPU_STAT_NAMED(SSAO, TEXT("ScreenSpace AO") );

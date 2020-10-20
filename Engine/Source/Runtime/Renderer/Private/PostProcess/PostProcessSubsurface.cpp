@@ -15,7 +15,7 @@
 #include "Engine/SubsurfaceProfile.h"
 #include "CanvasTypes.h"
 #include "RenderTargetTemp.h"
-#include "SystemTextures.h"
+#include "ScenePrivate.h"
 #include "GenerateMips.h"
 #include "ClearQuad.h"
 

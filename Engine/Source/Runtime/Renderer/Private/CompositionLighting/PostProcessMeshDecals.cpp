@@ -16,6 +16,7 @@
 #include "DecalRenderingShared.h"
 #include "CompositionLighting/PostProcessDeferredDecals.h"
 #include "SceneRendering.h"
+#include "ScenePrivate.h"
 #include "UnrealEngine.h"
 #include "DebugViewModeRendering.h"
 #include "MeshPassProcessor.inl"

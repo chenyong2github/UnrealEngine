@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "ScreenPass.h"
 #include "UniformBuffer.h"
 #include "RendererInterface.h"
 
