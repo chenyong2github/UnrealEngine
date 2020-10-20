@@ -28,6 +28,7 @@
 #include "BuildSettings.h"
 #include "ARSystem.h"
 #include "IHandTracker.h"
+#include "ScenePrivate.h"
 
 #if PLATFORM_ANDROID
 #include <android_native_app_glue.h>
