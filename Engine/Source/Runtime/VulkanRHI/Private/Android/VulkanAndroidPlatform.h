@@ -21,6 +21,8 @@
 #define VULKAN_SUPPORTS_PHYSICAL_DEVICE_PROPERTIES2	1
 #define VULKAN_SUPPORTS_ASTC_DECODE_MODE			(VULKAN_SUPPORTS_PHYSICAL_DEVICE_PROPERTIES2)
 
+// crashing during callback setup on Android, code will fallback to VK_EXT_debug_report instead
+#define VULKAN_SUPPORTS_DEBUG_UTILS					0
 
 // Android's hashes currently work fine as the problematic cases are:
 //	VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL = 1000117000,
