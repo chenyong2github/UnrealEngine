@@ -490,7 +490,7 @@ void UMovieSceneSkeletalAnimationTrack::SetUpRootMotions(bool bForce)
 					UMovieSceneSkeletalAnimationSection* AnimSection = Cast<UMovieSceneSkeletalAnimationSection>(Section);
 					if (AnimSection->GetRootMotionTransform( FrameNumber.FrameNumber, TickResolution, CurrentTransform, CurrentWeight))
 					{
-						CurrentTransform = CurrentTransform * AnimSection->TempOffsetTransform;
+						CurrentTransform =  CurrentTransform * AnimSection->TempOffsetTransform;
 						CurrentTransforms.Add(CurrentTransform);
 						CurrentWeights.Add(CurrentWeight);
 					}
@@ -579,6 +579,10 @@ void UMovieSceneSkeletalAnimationTrack::MatchSectionByBoneTransform(bool bMatchW
 		PrevSection = Section;
 	}
 
+	TranslationDiff = FVector(0.0f, 0.0f, 0.0f);
+	RotationDiff = FQuat::Identity;
+	SecondSectionRootDiff = FTransform::Identity;
+
 	if (bMatchWithPrevious && PrevSection)
 	{
 		UMovieSceneSkeletalAnimationSection* FirstSection = Cast<UMovieSceneSkeletalAnimationSection>(PrevSection);
@@ -589,16 +593,45 @@ void UMovieSceneSkeletalAnimationTrack::MatchSectionByBoneTransform(bool bMatchW
 		{
 			float FirstSectionTime = FirstSection->MapTimeToAnimation(CurrentFrame, FrameRate);
 			FTransform  FirstTransform = GetWorldTransformForBone(FirstAnimSequence, SkelMeshComp, BoneName, FirstSectionTime);
-			//multiply it by the offset transform
-			//We know do this is SetUpRootMotions so we can move clips around before this one
-			//FTransform OffsetTransform = FirstSection->GetOffsetTransform();
-			//FirstTransform = FirstTransform * OffsetTransform;
 			float SecondSectionTime = CurrentSection->MapTimeToAnimation(CurrentFrame, FrameRate);
 			FTransform  SecondTransform = GetWorldTransformForBone(SecondAnimSequence, SkelMeshComp, BoneName, SecondSectionTime);
-			FTransform SecondInverse = SecondTransform.Inverse();
-			SecondSectionRootDiff = SecondInverse * FirstTransform;
-			TranslationDiff = - SecondTransform.GetTranslation() + FirstTransform.GetTranslation();
-			RotationDiff = SecondInverse.GetRotation() * FirstTransform.GetRotation();
+
+			//Need to match the translations and rotations here 
+			FVector FirstTransformTranslation = FirstTransform.GetTranslation();
+			FVector SecondTransformTranslation = SecondTransform.GetTranslation();
+			FRotator FirstTransformRotation = FirstTransform.GetRotation().Rotator();
+			FRotator SecondTransformRotation = SecondTransform.GetRotation().Rotator();
+			if (!CurrentSection->bMatchTranslation)
+			{
+				FirstTransformTranslation.X = SecondTransformTranslation.X;
+				FirstTransformTranslation.Y = SecondTransformTranslation.Y;
+				FirstTransformTranslation.Z = SecondTransformTranslation.Z;
+			}
+			if (!CurrentSection->bMatchIncludeZHeight)
+			{
+				FirstTransformTranslation.Z = SecondTransformTranslation.Z;
+			}
+			FirstTransform.SetTranslation(FirstTransformTranslation);
+
+			if (!CurrentSection->bMatchRotationYaw)
+			{
+				FirstTransformRotation.Yaw = SecondTransformRotation.Yaw;
+			}
+			if (!CurrentSection->bMatchRotationPitch)
+			{
+				FirstTransformRotation.Pitch = SecondTransformRotation.Pitch;
+			}
+			if (!CurrentSection->bMatchRotationRoll)
+			{
+				FirstTransformRotation.Roll = SecondTransformRotation.Roll;
+			}
+			FirstTransform.SetRotation(FirstTransformRotation.Quaternion());
+
+			// Below is the match but we need to use GetRelativeTransformReverse since Inverse doesn't work as expected.
+			//	* GetRelativeTransformReverse returns this(-1)* Other, and parameter is Other.
+			SecondSectionRootDiff = SecondTransform.GetRelativeTransformReverse(FirstTransform);
+			TranslationDiff = SecondSectionRootDiff.GetTranslation();
+			RotationDiff = SecondSectionRootDiff.GetRotation();
 
 		}
 	}
@@ -612,16 +645,45 @@ void UMovieSceneSkeletalAnimationTrack::MatchSectionByBoneTransform(bool bMatchW
 		{
 			float FirstSectionTime = CurrentSection->MapTimeToAnimation(CurrentFrame, FrameRate);
 			FTransform  FirstTransform = GetWorldTransformForBone(FirstAnimSequence, SkelMeshComp, BoneName, FirstSectionTime);
-			//multiply it by the offset transform
-			//We know do this is SetUpRootMotions so we can move clips around before this one
-			//FTransform OffsetTransform = FirstSection->GetOffsetTransform();
-			//FirstTransform = FirstTransform * OffsetTransform;
 			float SecondSectionTime = SecondSection->MapTimeToAnimation(CurrentFrame, FrameRate);
 			FTransform  SecondTransform = GetWorldTransformForBone(SecondAnimSequence, SkelMeshComp, BoneName, SecondSectionTime);
-			FTransform FirstInverse = FirstTransform.Inverse();
-			SecondSectionRootDiff = SecondTransform * FirstInverse;
-			TranslationDiff = SecondTransform.GetTranslation() - FirstTransform.GetTranslation();
-			RotationDiff = SecondTransform.GetRotation() * FirstInverse.GetRotation();
+
+			//Need to match the translations and rotations here 
+			FVector FirstTransformTranslation = FirstTransform.GetTranslation();
+			FVector SecondTransformTranslation = SecondTransform.GetTranslation();
+			FRotator FirstTransformRotation = FirstTransform.GetRotation().Rotator();
+			FRotator SecondTransformRotation = SecondTransform.GetRotation().Rotator();
+			if (!CurrentSection->bMatchTranslation)
+			{
+				SecondTransformTranslation.X = FirstTransformTranslation.X;
+				SecondTransformTranslation.Y = FirstTransformTranslation.Y;
+				SecondTransformTranslation.Z = FirstTransformTranslation.Z;
+			}
+			if (!CurrentSection->bMatchIncludeZHeight)
+			{
+				SecondTransformTranslation.Z = FirstTransformTranslation.Z;
+			}
+			SecondTransform.SetTranslation(SecondTransformTranslation);
+
+			if (!CurrentSection->bMatchRotationYaw)
+			{
+				SecondTransformRotation.Yaw = FirstTransformRotation.Yaw;
+			}
+			if (!CurrentSection->bMatchRotationPitch)
+			{
+				SecondTransformRotation.Pitch = FirstTransformRotation.Pitch;
+			}
+			if (!CurrentSection->bMatchRotationRoll)
+			{
+				SecondTransformRotation.Roll = FirstTransformRotation.Roll;
+			}
+			SecondTransform.SetRotation(SecondTransformRotation.Quaternion());
+
+			//GetRelativeTransformReverse returns this(-1)* Other, and parameter is Other.
+			SecondSectionRootDiff = FirstTransform.GetRelativeTransformReverse(SecondTransform);
+			TranslationDiff = SecondSectionRootDiff.GetTranslation();
+			RotationDiff = SecondSectionRootDiff.GetRotation();
+
 		}
 	}
 }

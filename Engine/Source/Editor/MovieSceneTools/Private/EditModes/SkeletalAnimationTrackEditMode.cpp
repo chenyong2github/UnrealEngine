@@ -334,95 +334,98 @@ void FSkeletalAnimationTrackEditMode::Render(const FSceneView* View, FViewport* 
 		TArrayView<TWeakObjectPtr<UObject>> BoundObjects = Sequencer->FindObjectsInCurrentSequence(Binding.GetObjectGuid());
 		for (UMovieSceneTrack* Track : Binding.GetTracks())
 		{
-			if (UMovieSceneSkeletalAnimationTrack* SkelAnimTrack = Cast<UMovieSceneSkeletalAnimationTrack>(Track))
-			{
-				for (TWeakObjectPtr<> WeakBinding : BoundObjects)
+			if(!Track->IsEvalDisabled())
+			{ 
+				if (UMovieSceneSkeletalAnimationTrack* SkelAnimTrack = Cast<UMovieSceneSkeletalAnimationTrack>(Track))
 				{
-					UObject* BoundObject = WeakBinding.Get();
-					if (BoundObject)
+					for (TWeakObjectPtr<> WeakBinding : BoundObjects)
 					{
-						//show root motions
-						if (SkelAnimTrack->bShowRootMotionTrail)
+						UObject* BoundObject = WeakBinding.Get();
+						if (BoundObject)
 						{
-							//Get Transform Track if so then exit
-							//TODO a bunch, what if no transform track, what if multiple what if external transform?
-							for (UMovieSceneTrack* TrackTrack : Binding.GetTracks())
+							//show root motions
+							if (SkelAnimTrack->bShowRootMotionTrail)
 							{
-								UMovieScene3DTransformTrack* TransformTrack = Cast<UMovieScene3DTransformTrack>(TrackTrack);
-								if (!TransformTrack)
+								//Get Transform Track if so then exit
+								//TODO a bunch, what if no transform track, what if multiple what if external transform?
+								for (UMovieSceneTrack* TrackTrack : Binding.GetTracks())
 								{
-									continue;
-								}
-								RenderTrail(BoundObject, SkelAnimTrack, InterrogationLinker,TransformTrack, Sequencer, PDI);
-								
-							}
-						}
-						//show skeletons
-						USkeletalMeshComponent* SkelMeshComp = AcquireSkeletalMeshFromObject(BoundObject);
-						if (SkelMeshComp && SkelMeshComp->GetAnimInstance())
-						{
-							const FLinearColor Colors[5] = { FLinearColor(1.0f,0.0f,1.0f,1.0f), FLinearColor(0.0f,1.0f,0.0f,1.0f), FLinearColor(0.0f, 0.0f, 1.0f, 0.0f),
-								FLinearColor(0.5f, 0.5f, 0.0f, 1.0f), FLinearColor(0.0f, 0.5f, 0.5f, 1.0f) };
-
-							int32 SectionIndex = 0;
-							FQualifiedFrameTime CurrentTime = Sequencer->GetLocalTime();
-
-							for (UMovieSceneSection* Section : Track->GetAllSections())
-							{
-								UMovieSceneSkeletalAnimationSection* AnimSection = Cast<UMovieSceneSkeletalAnimationSection>(Section);
-								if (AnimSection && AnimSection->bShowSkeleton && AnimSection->IsActive())
-								{
-									UAnimSequence* AnimSequence = Cast<UAnimSequence>(AnimSection->Params.Animation);
-									if (AnimSequence)
+									UMovieScene3DTransformTrack* TransformTrack = Cast<UMovieScene3DTransformTrack>(TrackTrack);
+									if (!TransformTrack)
 									{
-										FCompactPose OutPose;
-										OutPose.ResetToRefPose(SkelMeshComp->GetAnimInstance()->GetRequiredBones());
+										continue;
+									}
+									RenderTrail(BoundObject, SkelAnimTrack, InterrogationLinker, TransformTrack, Sequencer, PDI);
 
-										FBlendedCurve OutCurve;
-										FStackCustomAttributes TempAttributes;
-										FAnimationPoseData OutAnimationPoseData(OutPose, OutCurve, TempAttributes);
+								}
+							}
+							//show skeletons
+							USkeletalMeshComponent* SkelMeshComp = AcquireSkeletalMeshFromObject(BoundObject);
+							if (SkelMeshComp && SkelMeshComp->GetAnimInstance())
+							{
+								const FLinearColor Colors[5] = { FLinearColor(1.0f,0.0f,1.0f,1.0f), FLinearColor(0.0f,1.0f,0.0f,1.0f), FLinearColor(0.0f, 0.0f, 1.0f, 0.0f),
+									FLinearColor(0.5f, 0.5f, 0.0f, 1.0f), FLinearColor(0.0f, 0.5f, 0.5f, 1.0f) };
 
-										const float Seconds = AnimSection->MapTimeToAnimation(CurrentTime.Time, CurrentTime.Rate);
-										FAnimExtractContext ExtractionContext(Seconds, false);
+								int32 SectionIndex = 0;
+								FQualifiedFrameTime CurrentTime = Sequencer->GetLocalTime();
 
-										AnimSequence->GetAnimationPose(OutAnimationPoseData, ExtractionContext);
-
-										FFrameTime TimeToSample = CurrentTime.Time;
-										if (TimeToSample < AnimSection->GetRange().GetLowerBoundValue())
+								for (UMovieSceneSection* Section : Track->GetAllSections())
+								{
+									UMovieSceneSkeletalAnimationSection* AnimSection = Cast<UMovieSceneSkeletalAnimationSection>(Section);
+									if (AnimSection && AnimSection->bShowSkeleton && AnimSection->IsActive())
+									{
+										UAnimSequence* AnimSequence = Cast<UAnimSequence>(AnimSection->Params.Animation);
+										if (AnimSequence)
 										{
-											TimeToSample = AnimSection->GetRange().GetLowerBoundValue();
-										}
-										else if (TimeToSample > AnimSection->GetRange().GetUpperBoundValue())
-										{
-											TimeToSample = AnimSection->GetRange().GetUpperBoundValue();
-										}
-										FTransform RootMotionAtStart;
-										float Weight;
-										AnimSection->GetRootMotionTransform(TimeToSample, MovieScene->GetTickResolution(), RootMotionAtStart, Weight);
-										RootMotionAtStart = RootMotionAtStart * AnimSection->TempOffsetTransform;
-										OutPose[FCompactPoseBoneIndex(0)] = RootMotionAtStart;
+											FCompactPose OutPose;
+											OutPose.ResetToRefPose(SkelMeshComp->GetAnimInstance()->GetRequiredBones());
 
-										FVector RootLocation;
-										DrawBonesFromCompactPose(OutPose, SkelMeshComp, PDI, Colors[SectionIndex % 5], RootLocation);
-										if (IsRootSelected(AnimSection))
-										{
-											RootTransform = RootMotionAtStart;
-											RootTransform.SetLocation(RootLocation);
-										}
-										if (PDI != nullptr)
-										{
-											if (PDI->IsHitTesting())
+											FBlendedCurve OutCurve;
+											FStackCustomAttributes TempAttributes;
+											FAnimationPoseData OutAnimationPoseData(OutPose, OutCurve, TempAttributes);
+
+											const float Seconds = AnimSection->MapTimeToAnimation(CurrentTime.Time, CurrentTime.Rate);
+											FAnimExtractContext ExtractionContext(Seconds, false);
+
+											AnimSequence->GetAnimationPose(OutAnimationPoseData, ExtractionContext);
+
+											FFrameTime TimeToSample = CurrentTime.Time;
+											if (TimeToSample < AnimSection->GetRange().GetLowerBoundValue())
 											{
-												PDI->SetHitProxy(new HMovieSceneSkeletalAnimationRootHitProxy(AnimSection, SkelMeshComp));
+												TimeToSample = AnimSection->GetRange().GetLowerBoundValue();
 											}
-											PDI->DrawPoint(RootLocation, Colors[SectionIndex % 5], 10.f, SDPG_Foreground);
-											if (PDI->IsHitTesting())
+											else if (TimeToSample > AnimSection->GetRange().GetUpperBoundValue())
 											{
-												PDI->SetHitProxy(nullptr);
+												TimeToSample = AnimSection->GetRange().GetUpperBoundValue();
 											}
+											FTransform RootMotionAtStart;
+											float Weight;
+											AnimSection->GetRootMotionTransform(TimeToSample, MovieScene->GetTickResolution(), RootMotionAtStart, Weight);
+											RootMotionAtStart = RootMotionAtStart * AnimSection->TempOffsetTransform;
+											OutPose[FCompactPoseBoneIndex(0)] = RootMotionAtStart;
 
+											FVector RootLocation;
+											DrawBonesFromCompactPose(OutPose, SkelMeshComp, PDI, Colors[SectionIndex % 5], RootLocation);
+											if (IsRootSelected(AnimSection))
+											{
+												RootTransform = RootMotionAtStart;
+												RootTransform.SetLocation(RootLocation);
+											}
+											if (PDI != nullptr)
+											{
+												if (PDI->IsHitTesting())
+												{
+													PDI->SetHitProxy(new HMovieSceneSkeletalAnimationRootHitProxy(AnimSection, SkelMeshComp));
+												}
+												PDI->DrawPoint(RootLocation, Colors[SectionIndex % 5], 10.f, SDPG_Foreground);
+												if (PDI->IsHitTesting())
+												{
+													PDI->SetHitProxy(nullptr);
+												}
+
+											}
+											++SectionIndex;
 										}
-										++SectionIndex;
 									}
 								}
 							}
