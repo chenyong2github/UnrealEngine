@@ -107,11 +107,11 @@ class SwitchboardDialog(QtCore.QObject):
         # DeviceManager initialize with from the config
         #
         CONFIG.push_saving_allowed(False)
-
-        self.device_manager.reset_plugins_settings(CONFIG)
-        self.device_manager.add_devices(CONFIG._device_data_from_config)
-
-        CONFIG.pop_saving_allowed()
+        try:
+            self.device_manager.reset_plugins_settings(CONFIG)
+            self.device_manager.add_devices(CONFIG._device_data_from_config)
+        finally:
+            CONFIG.pop_saving_allowed()
 
         # add menu for adding new devices
         self.device_add_menu = QtWidgets.QMenu()
@@ -265,21 +265,22 @@ class SwitchboardDialog(QtCore.QObject):
         # Disable saving while loading
         CONFIG.push_saving_allowed(False)
 
-        # Remove all devices
-        self.device_manager.clear_device_list()
-        self.device_list_widget.clear_widgets()
+        try:
+            # Remove all devices
+            self.device_manager.clear_device_list()
+            self.device_list_widget.clear_widgets()
 
-        # Reset plugin settings
-        self.device_manager.reset_plugins_settings(CONFIG)
+            # Reset plugin settings
+            self.device_manager.reset_plugins_settings(CONFIG)
 
-        # Set hooks to this dialog's UI
-        self.set_config_hooks()
+            # Set hooks to this dialog's UI
+            self.set_config_hooks()
 
-        # Add new devices
-        self.device_manager.add_devices(CONFIG._device_data_from_config)
-
-        # Re-enable saving after loading.
-        CONFIG.pop_saving_allowed()
+            # Add new devices
+            self.device_manager.add_devices(CONFIG._device_data_from_config)
+        finally:
+            # Re-enable saving after loading.
+            CONFIG.pop_saving_allowed()
 
         self.p4_refresh_cl()
         self.refresh_levels()
@@ -301,19 +302,19 @@ class SwitchboardDialog(QtCore.QObject):
 
             # Disable saving while loading
             CONFIG.push_saving_allowed(False)
+            try:
+                # Remove all devices
+                self.device_manager.clear_device_list()
+                self.device_list_widget.clear_widgets()
 
-            # Remove all devices
-            self.device_manager.clear_device_list()
-            self.device_list_widget.clear_widgets()
+                # Reset plugin settings
+                self.device_manager.reset_plugins_settings(CONFIG)
 
-            # Reset plugin settings
-            self.device_manager.reset_plugins_settings(CONFIG)
-
-            # Set hooks to this dialog's UI
-            self.set_config_hooks()
-
-            # Re-enable saving after loading
-            CONFIG.pop_saving_allowed()
+                # Set hooks to this dialog's UI
+                self.set_config_hooks()
+            finally:
+                # Re-enable saving after loading
+                CONFIG.pop_saving_allowed()
 
             # Update the UI
             self.p4_refresh_cl()
@@ -386,12 +387,12 @@ class SwitchboardDialog(QtCore.QObject):
 
         # avoid saving the config all the time while in the settings dialog
         CONFIG.push_saving_allowed(False)
-
-        # Show the Settings Dialog
-        settings_dialog.ui.exec()
-
-        # Restore saving, which should happen at the end of this function
-        CONFIG.pop_saving_allowed()
+        try:
+            # Show the Settings Dialog
+            settings_dialog.ui.exec()
+        finally:
+            # Restore saving, which should happen at the end of this function
+            CONFIG.pop_saving_allowed()
 
         new_config_name = settings_dialog.config_name()
         if config_name != new_config_name:
