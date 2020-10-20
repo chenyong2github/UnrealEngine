@@ -357,12 +357,18 @@ TSharedRef<SWidget> SCommonEditorViewportToolbarBase::GenerateFOVMenu() const
 			.Padding( FMargin(4.0f, 0.0f, 0.0f, 0.0f) )
 			.WidthOverride( 100.0f )
 			[
-				SNew(SSpinBox<float>)
-				.Font( FEditorStyle::GetFontStyle( TEXT( "MenuItem.Font" ) ) )
-				.MinValue(FOVMin)
-				.MaxValue(FOVMax)
-				.Value(this, &SCommonEditorViewportToolbarBase::OnGetFOVValue)
-				.OnValueChanged(this, &SCommonEditorViewportToolbarBase::OnFOVValueChanged)
+				SNew ( SBorder )
+				.BorderImage(FAppStyle::Get().GetBrush("Menu.WidgetBorder"))
+				.Padding(FMargin(1.0f))
+				[
+					SNew(SSpinBox<float>)
+					.Style(&FAppStyle::Get(), "Menu.SpinBox")
+					.Font( FEditorStyle::GetFontStyle( TEXT( "MenuItem.Font" ) ) )
+					.MinValue(FOVMin)
+					.MaxValue(FOVMax)
+					.Value(this, &SCommonEditorViewportToolbarBase::OnGetFOVValue)
+					.OnValueChanged(this, &SCommonEditorViewportToolbarBase::OnFOVValueChanged)
+				]
 			]
 		];
 }
@@ -392,15 +398,21 @@ TSharedRef<SWidget> SCommonEditorViewportToolbarBase::GenerateScreenPercentageMe
 		[
 			SNew(SBox)
 			.Padding(FMargin(4.0f, 0.0f, 0.0f, 0.0f))
-		.WidthOverride(100.0f)
-		[
-			SNew(SSpinBox<int32>)
-			.Font(FEditorStyle::GetFontStyle(TEXT("MenuItem.Font")))
-		.MinValue(PreviewScreenPercentageMin)
-		.MaxValue(PreviewScreenPercentageMax)
-		.Value(this, &SCommonEditorViewportToolbarBase::OnGetScreenPercentageValue)
-		.OnValueChanged(const_cast<SCommonEditorViewportToolbarBase*>(this), &SCommonEditorViewportToolbarBase::OnScreenPercentageValueChanged)
-		]
+			.WidthOverride(100.0f)
+			[
+				SNew ( SBorder )
+				.BorderImage(FAppStyle::Get().GetBrush("Menu.WidgetBorder"))
+				.Padding(FMargin(1.0f))
+				[
+					SNew(SSpinBox<int32>)
+					.Style(&FAppStyle::Get(), "Menu.SpinBox")
+					.Font(FEditorStyle::GetFontStyle(TEXT("MenuItem.Font")))
+					.MinValue(PreviewScreenPercentageMin)
+					.MaxValue(PreviewScreenPercentageMax)
+					.Value(this, &SCommonEditorViewportToolbarBase::OnGetScreenPercentageValue)
+					.OnValueChanged(const_cast<SCommonEditorViewportToolbarBase*>(this), &SCommonEditorViewportToolbarBase::OnScreenPercentageValueChanged)
+				]
+			]
 		];
 }
 
@@ -432,13 +444,19 @@ TSharedRef<SWidget> SCommonEditorViewportToolbarBase::GenerateFarViewPlaneMenu()
 			.Padding(FMargin(4.0f, 0.0f, 0.0f, 0.0f))
 			.WidthOverride(100.0f)
 			[
-				SNew(SSpinBox<float>)
-				.ToolTipText(LOCTEXT("FarViewPlaneTooltip", "Distance to use as the far view plane, or zero to enable an infinite far view plane"))
-				.MinValue(0.0f)
-				.MaxValue(100000.0f)
-				.Font(FEditorStyle::GetFontStyle(TEXT("MenuItem.Font")))
-				.Value(this, &SCommonEditorViewportToolbarBase::OnGetFarViewPlaneValue)
-				.OnValueChanged(const_cast<SCommonEditorViewportToolbarBase*>(this), &SCommonEditorViewportToolbarBase::OnFarViewPlaneValueChanged)
+				SNew ( SBorder )
+				.BorderImage(FAppStyle::Get().GetBrush("Menu.WidgetBorder"))
+				.Padding(FMargin(1.0f))
+				[
+					SNew(SSpinBox<float>)
+					.Style(&FAppStyle::Get(), "Menu.SpinBox")
+					.ToolTipText(LOCTEXT("FarViewPlaneTooltip", "Distance to use as the far view plane, or zero to enable an infinite far view plane"))
+					.MinValue(0.0f)
+					.MaxValue(100000.0f)
+					.Font(FEditorStyle::GetFontStyle(TEXT("MenuItem.Font")))
+					.Value(this, &SCommonEditorViewportToolbarBase::OnGetFarViewPlaneValue)
+					.OnValueChanged(const_cast<SCommonEditorViewportToolbarBase*>(this), &SCommonEditorViewportToolbarBase::OnFarViewPlaneValueChanged)
+				]
 			]
 		];
 }

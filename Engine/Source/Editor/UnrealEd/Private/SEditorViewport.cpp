@@ -591,14 +591,20 @@ TSharedRef<SWidget> SEditorViewport::BuildFixedEV100Menu()  const
 			.Padding( FMargin(0.0f, 0.0f, 0.0f, 0.0f) )
 			.WidthOverride( 100.0f )
 			[
-				SNew(SSpinBox<float>)
-				.Font( FEditorStyle::GetFontStyle( TEXT( "MenuItem.Font" ) ) )
-				.MinValue(EV100Min)
-				.MaxValue(EV100Max)
-				.Value( this, &SEditorViewport::OnGetFixedEV100Value )
-				.OnValueChanged( const_cast<SEditorViewport*>(this), &SEditorViewport::OnFixedEV100ValueChanged )
-				.ToolTipText(LOCTEXT( "EV100ToolTip", "Sets the exposure value of the camera using the specified EV100. Exposure = 1 / (1.2 * 2^EV100)"))
-				.IsEnabled( this, &SEditorViewport::IsFixedEV100Enabled )
+				SNew ( SBorder )
+				.BorderImage(FAppStyle::Get().GetBrush("Menu.WidgetBorder"))
+				.Padding(FMargin(1.0f))
+				[
+					SNew(SSpinBox<float>)
+					.Style(&FAppStyle::Get(), "Menu.SpinBox")
+					.Font( FEditorStyle::GetFontStyle( TEXT( "MenuItem.Font" ) ) )
+					.MinValue(EV100Min)
+					.MaxValue(EV100Max)
+					.Value( this, &SEditorViewport::OnGetFixedEV100Value )
+					.OnValueChanged( const_cast<SEditorViewport*>(this), &SEditorViewport::OnFixedEV100ValueChanged )
+					.ToolTipText(LOCTEXT( "EV100ToolTip", "Sets the exposure value of the camera using the specified EV100. Exposure = 1 / (1.2 * 2^EV100)"))
+					.IsEnabled( this, &SEditorViewport::IsFixedEV100Enabled )
+				]
 			]
 		];
 };
