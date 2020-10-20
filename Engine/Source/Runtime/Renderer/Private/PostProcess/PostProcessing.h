@@ -5,6 +5,7 @@
 #include "ScreenPass.h"
 #include "TranslucentRendering.h"
 #include "SystemTextures.h"
+#include "ScenePrivate.h"
 
 class FSceneTextureParameters;
 

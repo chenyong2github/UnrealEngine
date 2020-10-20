@@ -13,7 +13,6 @@
 #include "Engine/TextureRenderTarget2D.h"
 #include "PostProcess/SceneFilterRendering.h"
 #include "PostProcess/PostProcessMaterial.h"
-#include "PostProcessParameters.h"
 #include "MaterialShader.h"
 #include "MaterialShaderType.h"
 #include "GoogleARCoreAndroidHelper.h"

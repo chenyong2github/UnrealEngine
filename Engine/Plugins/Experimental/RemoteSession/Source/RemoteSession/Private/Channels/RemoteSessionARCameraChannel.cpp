@@ -26,7 +26,6 @@
 #include "Containers/DynamicRHIResourceArray.h"
 #include "PostProcess/SceneFilterRendering.h"
 #include "PostProcess/PostProcessMaterial.h"
-#include "PostProcessParameters.h"
 #include "EngineModule.h"
 
 #include "GeneralProjectSettings.h"

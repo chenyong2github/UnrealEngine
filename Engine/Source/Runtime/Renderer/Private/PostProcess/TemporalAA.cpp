@@ -8,6 +8,7 @@
 #include "PostProcessing.h"
 #include "SceneTextureParameters.h"
 #include "PixelShaderUtils.h"
+#include "ScenePrivate.h"
 
 namespace
 {
