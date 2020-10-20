@@ -20,55 +20,55 @@ DECLARE_DWORD_COUNTER_STAT(TEXT("Number Drawn Materials"), STAT_WaterDrawnMats, 
 
 /** Scalability CVars */
 static TAutoConsoleVariable<int32> CVarWaterMeshLODMorphEnabled(
-	TEXT("r.Water.WaterMeshLODMorphEnabled"), 1,
+	TEXT("r.Water.WaterMesh.LODMorphEnabled"), 1,
 	TEXT("If the smooth LOD morph is enabled. Turning this off may cause slight popping between LOD levels but will skip the calculations in the vertex shader, making it cheaper"),
 	ECVF_Scalability | ECVF_RenderThreadSafe);
 
 /** Debug CVars */
 static TAutoConsoleVariable<int32> CVarWaterMeshShowWireframe(
-	TEXT("r.Water.WaterMeshShowWireframe"),
+	TEXT("r.Water.WaterMesh.ShowWireframe"),
 	0,
 	TEXT("Forces wireframe rendering on for water"),
 	ECVF_RenderThreadSafe
 );
 
 static TAutoConsoleVariable<int32> CVarWaterMeshShowWireframeAtBaseHeight(
-	TEXT("r.Water.WaterMeshShowWireframeAtBaseHeight"),
+	TEXT("r.Water.WaterMesh.ShowWireframeAtBaseHeight"),
 	0,
 	TEXT("When rendering in wireframe, show the mesh with no displacement"),
 	ECVF_RenderThreadSafe
 );
 
 static TAutoConsoleVariable<int32> CVarWaterMeshEnableRendering(
-	TEXT("r.Water.WaterMeshEnableRendering"),
+	TEXT("r.Water.WaterMesh.EnableRendering"),
 	1,
 	TEXT("Turn off all water rendering from within the scene proxy"),
 	ECVF_RenderThreadSafe
 );
 
 static TAutoConsoleVariable<int32> CVarWaterMeshShowLODLevels(
-	TEXT("r.Water.WaterMeshShowLODLevels"),
+	TEXT("r.Water.WaterMesh.ShowLODLevels"),
 	0,
 	TEXT("Shows the LOD levels as concentric squares around the observer position at height 0"),
 	ECVF_RenderThreadSafe
 );
 
 static TAutoConsoleVariable<int32> CVarWaterMeshShowTileBounds(
-	TEXT("r.Water.WaterMeshShowTileBounds"),
+	TEXT("r.Water.WaterMesh.ShowTileBounds"),
 	0,
-	TEXT("Shows the tile bounds colored by r.Water.WaterMeshTileBoundsColor"),
+	TEXT("Shows the tile bounds colored by r.Water.WaterMesh.TileBoundsColor"),
 	ECVF_RenderThreadSafe
 );
 
 static TAutoConsoleVariable<int32> CVarWaterMeshTileBoundsColor(
-	TEXT("r.Water.WaterMeshTileBoundsColor"),
+	TEXT("r.Water.WaterMesh.TileBoundsColor"),
 	1,
-	TEXT("Color of the tile bounds visualized by r.Water.WaterMeshShowTileBounds. 0 is by LOD, 1 is by water body type"),
+	TEXT("Color of the tile bounds visualized by r.Water.WaterMesh.ShowTileBounds. 0 is by LOD, 1 is by water body type"),
 	ECVF_RenderThreadSafe
 );
 
 static TAutoConsoleVariable<int32> CVarWaterMeshPreAllocStagingInstanceMemory(
-	TEXT("r.Water.WaterMeshPreAllocStagingInstanceMemory"),
+	TEXT("r.Water.WaterMesh.PreAllocStagingInstanceMemory"),
 	0,
 	TEXT("Pre-allocates staging instance data memory according to historical max. This reduces the overhead when the array needs to grow but may use more memory"),
 	ECVF_RenderThreadSafe);

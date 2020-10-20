@@ -15,37 +15,37 @@
 
 /** Scalability CVars*/
 static TAutoConsoleVariable<int32> CVarWaterMeshLODCountBias(
-	TEXT("r.Water.WaterMeshLODCountBias"), 0,
+	TEXT("r.Water.WaterMesh.LODCountBias"), 0,
 	TEXT("This value is added to the LOD Count of each Water Mesh Component. Negative values will lower the quality(fewer and larger water tiles at the bottom level of the water quadtree), higher values will increase quality (more and smaller water tiles at the bottom level of the water quadtree)"),
 	ECVF_Scalability);
 
 static TAutoConsoleVariable<int32> CVarWaterMeshTessFactorBias(
-	TEXT("r.Water.WaterMeshTessFactorBias"), 0,
+	TEXT("r.Water.WaterMesh.TessFactorBias"), 0,
 	TEXT("This value is added to the tessellation factor of each Mesh Component. Negative values will lower the overall density/resolution or the vertex grid, higher values will increase the density/resolution "),
 	ECVF_Scalability);
 
 static TAutoConsoleVariable<float> CVarWaterMeshLODScaleBias(
-	TEXT("r.Water.WaterMeshLODScaleBias"), 0.0f,
+	TEXT("r.Water.WaterMesh.LODScaleBias"), 0.0f,
 	TEXT("This value is added to the LOD Scale of each Mesh Component. Negative values will lower the overall density/resolution or the vertex grid and make the LODs smaller, higher values will increase the density/resolution and make the LODs larger. Smallest value is -0.5. That will make the inner LOD as tight and optimized as possible"),
 	ECVF_Scalability);
 
 /** Debug CVars */ 
 static TAutoConsoleVariable<int32> CVarWaterMeshShowTileGenerationGeometry(
-	TEXT("r.Water.WaterMeshShowTileGenerationGeometry"),
+	TEXT("r.Water.WaterMesh.ShowTileGenerationGeometry"),
 	0,
 	TEXT("This debug option will display the geometry used for intersecting the water grid and generating tiles"),
 	ECVF_Default
 );
 
 static TAutoConsoleVariable<int32> CVarWaterMeshForceRebuildMeshPerFrame(
-	TEXT("r.Water.WaterMeshForceRebuildMeshPerFrame"),
+	TEXT("r.Water.WaterMesh.ForceRebuildMeshPerFrame"),
 	0,
 	TEXT("Force rebuilding the entire mesh each frame"),
 	ECVF_Default
 );
 
 static TAutoConsoleVariable<int32> CVarWaterMeshEnabled(
-	TEXT("r.Water.WaterMeshEnabled"),
+	TEXT("r.Water.WaterMesh.Enabled"),
 	1,
 	TEXT("If the water mesh is enabled or disabled. This affects both rendering and the water tile generation"),
 	ECVF_RenderThreadSafe
