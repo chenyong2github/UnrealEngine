@@ -489,16 +489,16 @@ public:
 
 #endif
 
+#if WITH_EDITOR
+	FString GetOperandLabel(const FRigVMOperand& InOperand) const;
+#endif
+
 private:
 
 	void ResolveFunctionsIfRequired();
 	void RefreshInstructionsIfRequired();
 	void InvalidateCachedMemory();
 	void CacheMemoryHandlesIfRequired(FRigVMMemoryContainerPtrArray InMemory);
-
-#if WITH_EDITOR
-	FString GetOperandLabel(const FRigVMOperand& InOperand) const;
-#endif
 
 	UPROPERTY(transient)
 	FRigVMInstructionArray Instructions;
