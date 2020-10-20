@@ -800,7 +800,7 @@ void UWorldPartition::UnregisterActor(AActor* Actor)
 #if WITH_EDITOR
 void UWorldPartition::OnAssetAdded(const FAssetData& InAssetData)
 {
-	if (!bIgnoreAssetRegistryEvents)
+	if (ShouldHandleAssetEvent(InAssetData))
 	{
 		TUniquePtr<FWorldPartitionActorDesc> NewActorDesc = GetActorDescriptor(InAssetData);
 		if (NewActorDesc.IsValid())
@@ -815,7 +815,7 @@ void UWorldPartition::OnAssetAdded(const FAssetData& InAssetData)
 
 void UWorldPartition::OnAssetRemoved(const FAssetData& InAssetData)
 {
-	if (!bIgnoreAssetRegistryEvents)
+	if (ShouldHandleAssetEvent(InAssetData))
 	{
 		TUniquePtr<FWorldPartitionActorDesc> NewActorDesc = GetActorDescriptor(InAssetData);
 		if (NewActorDesc.IsValid())
@@ -830,7 +830,7 @@ void UWorldPartition::OnAssetRemoved(const FAssetData& InAssetData)
 
 void UWorldPartition::OnAssetUpdated(const FAssetData& InAssetData)
 {
-	if (!bIgnoreAssetRegistryEvents)
+	if (ShouldHandleAssetEvent(InAssetData))
 	{
 		TUniquePtr<FWorldPartitionActorDesc> NewActorDesc = GetActorDescriptor(InAssetData);
 		if (NewActorDesc.IsValid())
@@ -842,6 +842,29 @@ void UWorldPartition::OnAssetUpdated(const FAssetData& InAssetData)
 			HashActorDesc(ExistingActorDesc.Get());
 		}
 	}
+}
+
+bool UWorldPartition::ShouldHandleAssetEvent(const FAssetData& InAssetData)
+{
+	// Ignore asset event when specifically asking to
+	if (bIgnoreAssetRegistryEvents)
+	{
+		return false;
+	}
+
+	// Ignore in-memory assets until they gets saved
+	if (InAssetData.HasAnyPackageFlags(PKG_NewlyCreated))
+	{
+		return false;
+	}
+
+	// Only handle actors
+	if (!InAssetData.GetClass()->IsChildOf<AActor>())
+	{
+		return false;
+	}
+
+	return true;
 }
 
 TUniquePtr<FWorldPartitionActorDesc> UWorldPartition::GetActorDescriptor(const FAssetData& InAssetData)

@@ -38,6 +38,7 @@
 #include "GameFramework/WorldSettings.h"
 #include "Engine/NetDriver.h"
 #include "Engine/Player.h"
+#include "AssetRegistryModule.h"
 
 #include "Components/BoxComponent.h"
 #include "GameFramework/MovementComponent.h"
@@ -733,6 +734,11 @@ AActor* UWorld::SpawnActor( UClass* Class, FTransform const* UserTransformPtr, c
 	OnActorSpawned.Broadcast(Actor);
 
 #if WITH_EDITOR
+	if (Actor->IsAsset())
+	{
+		FAssetRegistryModule::AssetCreated(Actor);
+	}
+
 	if (GIsEditor)
 	{
 		GEngine->BroadcastLevelActorAdded(Actor);

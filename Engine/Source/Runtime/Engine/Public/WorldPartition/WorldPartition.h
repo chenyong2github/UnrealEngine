@@ -78,6 +78,7 @@ private:
 	void OnAssetRemoved(const FAssetData& InAssetData);
 	void OnAssetUpdated(const FAssetData& InAssetData);
 
+	bool ShouldHandleAssetEvent(const FAssetData& InAssetData);
 	TUniquePtr<FWorldPartitionActorDesc> GetActorDescriptor(const FAssetData& InAssetData);
 
 	void ApplyActorTransform(AActor* InActor, const FTransform& InTransform);

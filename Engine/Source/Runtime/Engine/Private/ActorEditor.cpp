@@ -22,8 +22,6 @@
 #include "ActorEditorUtils.h"
 #include "EngineGlobals.h"
 
-#include "AssetRegistryModule.h"
-
 #if WITH_EDITOR
 
 #include "Editor.h"
