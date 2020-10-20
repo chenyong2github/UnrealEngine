@@ -686,7 +686,7 @@ TSegmentMesh<T>& TTriangleMesh<T>::GetSegmentMesh()
 			{
 				// This is a non-manifold mesh, where this edge is shared by
 				// more than 2 faces.
-				ensureMsgf(false, TEXT("Skipping non-manifold edge to face mapping."));
+				CHAOS_ENSURE_MSG(false, TEXT("Skipping non-manifold edge to face mapping."));
 			}
 		}
 	}
