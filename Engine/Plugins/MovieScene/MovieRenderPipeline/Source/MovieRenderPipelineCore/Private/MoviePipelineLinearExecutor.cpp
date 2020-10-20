@@ -115,7 +115,7 @@ void UMoviePipelineLinearExecutorBase::CancelCurrentJob_Implementation()
 	OnExecutorErroredImpl(nullptr, true, LOCTEXT("CancelingExecutorJob", "Executor canceling current job."));
 	if (ActiveMoviePipeline)
 	{
-		ActiveMoviePipeline->RequestShutdown(true);
+		ActiveMoviePipeline->Shutdown(true);
 	}	
 }
 
@@ -125,7 +125,7 @@ void UMoviePipelineLinearExecutorBase::CancelAllJobs_Implementation()
 	OnExecutorErroredImpl(nullptr, true, LOCTEXT("CancelingExecutorQueue", "Executor asked to cancel all jobs."));
 	if (ActiveMoviePipeline)
 	{
-		ActiveMoviePipeline->RequestShutdown(true);
+		ActiveMoviePipeline->Shutdown(true);
 	}
 }
 
