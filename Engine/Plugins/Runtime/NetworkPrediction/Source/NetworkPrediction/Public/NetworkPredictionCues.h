@@ -25,7 +25,7 @@ Notes on reliability:
 -In other words: do not use cues in stateful ways! Cues should be used for transient events ("NotifyExplosion") not state ("NotifySetDestroyed(true)")
 -For state transitions, just use FinalizeFrame to detect these changes. "State transitions" are 100% reliable, but (obviously) cannot use data that is not in the Sync/Aux buffer.
 
-Notes on "simulation affect events" (E.g, *not* NetSimCues)
+Notes on "simulation affecting events" (E.g, *not* NetSimCues)
 -If you have an event that needs to affect the simulation during the simulation - that is seen as an extension of the simulation and is "up to the user" to implement.
 -In other words, handle the event yourself inline with the simulation. That means directly broadcasting/calling other functions/into other classes/etc inside your simulation.
 -If your event has state mutation on the handler side, that is a hazard (e.g, state that the network sim is not aware of, but is used in the event code which is an extension of the simulation)

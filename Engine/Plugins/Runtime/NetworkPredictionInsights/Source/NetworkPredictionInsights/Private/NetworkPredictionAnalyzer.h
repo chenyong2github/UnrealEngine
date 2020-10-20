@@ -33,6 +33,7 @@ private:
 		RouteId_SimulationCreated,
 		RouteId_SimulationConfig,
 		RouteId_WorldFrameStart,
+		RouteId_WorldPreInit,
 		RouteId_PieBegin,
 		RouteId_SystemFault,
 		RouteId_Tick,
@@ -46,6 +47,7 @@ private:
 		RouteId_RollbackInject,
 		RouteId_PushInputFrame,
 		RouteId_ProduceInput,
+		RouteId_BufferedInput,
 		RouteId_OOBStateMod
 
 		/*
@@ -74,9 +76,8 @@ private:
 	FNetworkPredictionProvider& NetworkPredictionProvider;
 
 	// Current values
-	uint64 EngineFrameNumber;
+	uint64 EngineFrameNumber=0;
 	float DeltaTimeSeconds;
-	uint32 GameInstanceID;
 	int32 TraceID=INDEX_NONE;
 
 	int32 TickStartMS;
