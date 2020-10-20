@@ -1038,6 +1038,15 @@ struct FJsonDataBag
 								break;
 							}
 							case EJson::Array:
+							{
+								// if we have an array, serialize to string and write raw
+								FString JsonStr;
+								auto Writer = TJsonWriterFactory<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>::Create(&JsonStr);
+								FJsonSerializer::Serialize(JsonValue->AsArray(), Writer);
+								Serializer.WriteIdentifierPrefix(*It.Key);
+								Serializer.WriteRawJSONValue(*JsonStr);
+								break;
+							}
 							case EJson::Object:
 							{
 								// if we have an object, serialize to string and write raw
