@@ -32,10 +32,7 @@ FConcertLocalFileSharingService::~FConcertLocalFileSharingService()
 	LoadActiveServices(ActivePids);
 	ActivePids.Remove(FPlatformProcess::GetCurrentProcessId());
 	RemoveDeadProcessesAndFiles(ActivePids);
-	if (ActivePids.Num()) // If no pids are left, the sharing directory was deleted, don't recreate it to save an empty file.
-	{
-		SaveActiveServices(ActivePids);
-	}
+	SaveActiveServices(ActivePids);
 }
 
 void FConcertLocalFileSharingService::RemoveDeadProcessesAndFiles(TArray<uint32>& InOutPids)
@@ -46,10 +43,22 @@ void FConcertLocalFileSharingService::RemoveDeadProcessesAndFiles(TArray<uint32>
 		return !FPlatformProcess::IsApplicationRunning(Pid);
 	});
 
-	// If no processes are left using the shared directory, delete it with its content.
+	// If no processes are left using the shared directory, delete expired files. Normally, files are deleted once consumed, but in case of a crash, some files may be left over.
 	if (InOutPids.Num() == 0)
 	{
-		IFileManager::Get().DeleteDirectory(*SharedRootPathname, /*RequireExists*/false, /*Tree*/true);
+		IFileManager::Get().IterateDirectory(*SharedRootPathname, [this](const TCHAR* Pathname, bool bIsDirectory)
+		{
+			// The delay is a security in case the file containing the active service PID failed to open or another process failed to updated it, so the list of PID provided above may be incomplete.
+			// The shared files are expected to be consumed pretty much immediatedly. So adding a 1h expiration delay sounds reasonable.
+			constexpr double FileExpirationDelaySeconds = 3600;
+			if (bIsDirectory || ActiveServicesRepositoryPathname == Pathname || IFileManager::Get().GetFileAgeSeconds(Pathname) < FileExpirationDelaySeconds)
+			{
+				return true; // Continue -> shared files are stored flat, don't delete the json file containing the pid and keep files for at least 1h.
+			}
+
+			IFileManager::Get().Delete(Pathname, /*bRequireExit*/false, /*bEventIfReadOnly*/false, /*bQuiet*/true);
+			return true;
+		});
 	}
 }
 
@@ -96,17 +105,20 @@ void FConcertLocalFileSharingService::LoadActiveServices(TArray<uint32>& OutPids
 	if (IFileManager::Get().FileExists(*ActiveServicesRepositoryPathname))
 	{
 		TUniquePtr<FArchive> Ar(IFileManager::Get().CreateFileReader(*ActiveServicesRepositoryPathname));
-		TSharedRef<TJsonReader<>> JsonReader = TJsonReaderFactory<>::Create(Ar.Get());
-
-		TArray< TSharedPtr<FJsonValue> > Pids;
-		if (FJsonSerializer::Deserialize(JsonReader, Pids))
+		if (Ar)
 		{
-			for (const TSharedPtr<FJsonValue>& PidVal : Pids)
+			TSharedRef<TJsonReader<>> JsonReader = TJsonReaderFactory<>::Create(Ar.Get());
+
+			TArray< TSharedPtr<FJsonValue> > Pids;
+			if (FJsonSerializer::Deserialize(JsonReader, Pids))
 			{
-				uint32 Pid;
-				if (PidVal->TryGetNumber(Pid))
+				for (const TSharedPtr<FJsonValue>& PidVal : Pids)
 				{
-					OutPids.Add(Pid);
+					uint32 Pid;
+					if (PidVal->TryGetNumber(Pid))
+					{
+						OutPids.Add(Pid);
+					}
 				}
 			}
 		}
@@ -118,13 +130,16 @@ void FConcertLocalFileSharingService::SaveActiveServices(const TArray<uint32>& I
 	if (IFileManager::Get().DirectoryExists(*SharedRootPathname) || IFileManager::Get().MakeDirectory(*SharedRootPathname, /*Tree*/true))
 	{
 		TUniquePtr<FArchive> Ar(IFileManager::Get().CreateFileWriter(*ActiveServicesRepositoryPathname));
-		TSharedRef<TJsonWriter<>> JsonWriter = TJsonWriterFactory<>::Create(Ar.Get());
-
-		JsonWriter->WriteArrayStart();
-		for (uint32 Pid : InPids)
+		if (Ar)
 		{
-			JsonWriter->WriteValue(static_cast<int64>(Pid));
+			TSharedRef<TJsonWriter<>> JsonWriter = TJsonWriterFactory<>::Create(Ar.Get());
+
+			JsonWriter->WriteArrayStart();
+			for (uint32 Pid : InPids)
+			{
+				JsonWriter->WriteValue(static_cast<int64>(Pid));
+			}
+			JsonWriter->WriteArrayEnd();
 		}
-		JsonWriter->WriteArrayEnd();
 	}
 }
