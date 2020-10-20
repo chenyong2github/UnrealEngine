@@ -125,6 +125,8 @@ public:
 
 	void GenerateHLOD();
 	void GenerateNavigationData();
+
+	void DumpActorDescs(const FString& Path);
 #endif
 
 public:
