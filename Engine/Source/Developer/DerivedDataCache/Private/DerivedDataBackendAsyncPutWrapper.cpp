@@ -166,7 +166,7 @@ bool FDerivedDataBackendAsyncPutWrapper::ApplyDebugOptions(FBackendDebugOptions&
 	return InnerBackend->ApplyDebugOptions(InOptions);
 }
 
-// TLS for async put reetrant guard
+// TLS for async put reentrant guard
 static thread_local bool bReentrantAsyncPut = false;
 
 bool FDerivedDataBackendAsyncPutWrapper::GetCachedData(const TCHAR* CacheKey, TArray<uint8>& OutData)
