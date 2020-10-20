@@ -74,6 +74,10 @@ void UAudioCaptureComponent::FinishDestroy()
 
 void UAudioCaptureComponent::OnBeginGenerate()
 {
+	CapturedAudioDataSamples = 0;
+	ReadSampleIndex = 0;
+	CaptureAudioData.Reset();
+
 	if (!bIsStreamOpen)
 	{
 		bIsStreamOpen = CaptureSynth.OpenDefaultStream();
@@ -102,18 +106,6 @@ void UAudioCaptureComponent::OnEndGenerate()
 
 		bIsNotReadyForForFinishDestroy = false;
 	}
-}
-
-// Called when synth is about to start playing
-void UAudioCaptureComponent::OnStart() 
-{
-	CapturedAudioDataSamples = 0;
-	ReadSampleIndex = 0;
-	CaptureAudioData.Reset();
-}
-
-void UAudioCaptureComponent::OnStop()
-{
 }
 
 int32 UAudioCaptureComponent::OnGenerateAudio(float* OutAudio, int32 NumSamples)
