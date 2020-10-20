@@ -8,6 +8,7 @@
 #include "LandscapeEditorModule.h"
 #include "LandscapeEditorUtils.h"
 #include "LandscapeEdMode.h"
+#include "LandscapeConfigHelper.h"
 
 #include "Misc/MessageDialog.h"
 #include "Modules/ModuleManager.h"
@@ -15,9 +16,6 @@
 #include "Templates/UnrealTemplate.h"
 
 #define LOCTEXT_NAMESPACE "LandscapeEditor.NewLandscape"
-
-const int32 FNewLandscapeUtils::SectionSizes[6] = { 7, 15, 31, 63, 127, 255 };
-const int32 FNewLandscapeUtils::NumSections[2] = { 1, 2 };
 
 void FNewLandscapeUtils::ChooseBestComponentSizeForImport(ULandscapeEditorObject* UISettings)
 {
@@ -28,12 +26,12 @@ void FNewLandscapeUtils::ChooseBestComponentSizeForImport(ULandscapeEditorObject
 	if(Width > 0 && Height > 0)
 	{
 		// Try to find a section size and number of sections that exactly matches the dimensions of the heightfield
-		for(int32 SectionSizesIdx = UE_ARRAY_COUNT(SectionSizes) - 1; SectionSizesIdx >= 0; SectionSizesIdx--)
+		for(int32 SectionSizesIdx = UE_ARRAY_COUNT(FLandscapeConfig::SubsectionSizeQuadsValues) - 1; SectionSizesIdx >= 0; SectionSizesIdx--)
 		{
-			for(int32 NumSectionsIdx = UE_ARRAY_COUNT(NumSections) - 1; NumSectionsIdx >= 0; NumSectionsIdx--)
+			for(int32 NumSectionsIdx = UE_ARRAY_COUNT(FLandscapeConfig::NumSectionValues) - 1; NumSectionsIdx >= 0; NumSectionsIdx--)
 			{
-				int32 ss = SectionSizes[SectionSizesIdx];
-				int32 ns = NumSections[NumSectionsIdx];
+				int32 ss = FLandscapeConfig::SubsectionSizeQuadsValues[SectionSizesIdx];
+				int32 ns = FLandscapeConfig::NumSectionValues[NumSectionsIdx];
 
 				if(((Width - 1) % (ss * ns)) == 0 && ((Width - 1) / (ss * ns)) <= 32 &&
 					((Height - 1) % (ss * ns)) == 0 && ((Height - 1) / (ss * ns)) <= 32)
@@ -58,19 +56,19 @@ void FNewLandscapeUtils::ChooseBestComponentSizeForImport(ULandscapeEditorObject
 			// if there was no exact match, try increasing the section size until we encompass the whole heightmap
 			const int32 CurrentSectionSize = UISettings->NewLandscape_QuadsPerSection;
 			const int32 CurrentNumSections = UISettings->NewLandscape_SectionsPerComponent;
-			for(int32 SectionSizesIdx = 0; SectionSizesIdx < UE_ARRAY_COUNT(SectionSizes); SectionSizesIdx++)
+			for(int32 SectionSizesIdx = 0; SectionSizesIdx < UE_ARRAY_COUNT(FLandscapeConfig::SubsectionSizeQuadsValues); SectionSizesIdx++)
 			{
-				if(SectionSizes[SectionSizesIdx] < CurrentSectionSize)
+				if(FLandscapeConfig::SubsectionSizeQuadsValues[SectionSizesIdx] < CurrentSectionSize)
 				{
 					continue;
 				}
 
-				const int32 ComponentsX = FMath::DivideAndRoundUp((Width - 1), SectionSizes[SectionSizesIdx] * CurrentNumSections);
-				const int32 ComponentsY = FMath::DivideAndRoundUp((Height - 1), SectionSizes[SectionSizesIdx] * CurrentNumSections);
+				const int32 ComponentsX = FMath::DivideAndRoundUp((Width - 1), FLandscapeConfig::SubsectionSizeQuadsValues[SectionSizesIdx] * CurrentNumSections);
+				const int32 ComponentsY = FMath::DivideAndRoundUp((Height - 1), FLandscapeConfig::SubsectionSizeQuadsValues[SectionSizesIdx] * CurrentNumSections);
 				if(ComponentsX <= 32 && ComponentsY <= 32)
 				{
 					bFoundMatch = true;
-					UISettings->NewLandscape_QuadsPerSection = SectionSizes[SectionSizesIdx];
+					UISettings->NewLandscape_QuadsPerSection = FLandscapeConfig::SubsectionSizeQuadsValues[SectionSizesIdx];
 					//UISettings->NewLandscape_SectionsPerComponent = ;
 					UISettings->NewLandscape_ComponentCount.X = ComponentsX;
 					UISettings->NewLandscape_ComponentCount.Y = ComponentsY;
@@ -83,8 +81,8 @@ void FNewLandscapeUtils::ChooseBestComponentSizeForImport(ULandscapeEditorObject
 		if(!bFoundMatch)
 		{
 			// if the heightmap is very large, fall back to using the largest values we support
-			const int32 MaxSectionSize = SectionSizes[UE_ARRAY_COUNT(SectionSizes) - 1];
-			const int32 MaxNumSubSections = NumSections[UE_ARRAY_COUNT(NumSections) - 1];
+			const int32 MaxSectionSize = FLandscapeConfig::SubsectionSizeQuadsValues[UE_ARRAY_COUNT(FLandscapeConfig::SubsectionSizeQuadsValues) - 1];
+			const int32 MaxNumSubSections = FLandscapeConfig::NumSectionValues[UE_ARRAY_COUNT(FLandscapeConfig::NumSectionValues) - 1];
 			const int32 ComponentsX = FMath::DivideAndRoundUp((Width - 1), MaxSectionSize * MaxNumSubSections);
 			const int32 ComponentsY = FMath::DivideAndRoundUp((Height - 1), MaxSectionSize * MaxNumSubSections);
 

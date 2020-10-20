@@ -16,7 +16,4 @@ public:
 	static void ImportLandscapeData( ULandscapeEditorObject* UISettings, TArray< FLandscapeFileResolution >& ImportResolutions );
 	static TOptional< TArray< FLandscapeImportLayerInfo > > CreateImportLayersInfo( ULandscapeEditorObject* UISettings, int32 NewLandscapePreviewMode );
 	static TArray< uint16 > ComputeHeightData( ULandscapeEditorObject* UISettings, TArray< FLandscapeImportLayerInfo >& ImportLayers, int32 NewLandscapePreviewMode );
-
-	static const int32 SectionSizes[6];
-	static const int32 NumSections[2];
 };

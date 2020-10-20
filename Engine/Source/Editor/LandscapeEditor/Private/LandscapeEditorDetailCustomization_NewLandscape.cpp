@@ -20,6 +20,7 @@
 #include "LandscapeEditorObject.h"
 #include "Landscape.h"
 #include "LandscapeEditorUtils.h"
+#include "LandscapeConfigHelper.h"
 #include "NewLandscapeUtils.h"
 
 #include "DetailLayoutBuilder.h"
@@ -597,10 +598,10 @@ TSharedRef<SWidget> FLandscapeEditorDetailCustomization_NewLandscape::GetSection
 {
 	FMenuBuilder MenuBuilder(true, nullptr);
 
-	for (int32 i = 0; i < UE_ARRAY_COUNT(FNewLandscapeUtils::SectionSizes); i++)
+	for (int32 i = 0; i < UE_ARRAY_COUNT(FLandscapeConfig::SubsectionSizeQuadsValues); i++)
 	{
-		MenuBuilder.AddMenuEntry(FText::Format(LOCTEXT("NxNQuads", "{0}\u00D7{0} Quads"), FText::AsNumber(FNewLandscapeUtils::SectionSizes[i])), FText::GetEmpty(),
-			FSlateIcon(), FExecuteAction::CreateStatic(&OnChangeSectionSize, PropertyHandle, FNewLandscapeUtils::SectionSizes[i]));
+		MenuBuilder.AddMenuEntry(FText::Format(LOCTEXT("NxNQuads", "{0}\u00D7{0} Quads"), FText::AsNumber(FLandscapeConfig::SubsectionSizeQuadsValues[i])), FText::GetEmpty(),
+			FSlateIcon(), FExecuteAction::CreateStatic(&OnChangeSectionSize, PropertyHandle, FLandscapeConfig::SubsectionSizeQuadsValues[i]));
 	}
 
 	return MenuBuilder.MakeWidget();
@@ -629,13 +630,13 @@ TSharedRef<SWidget> FLandscapeEditorDetailCustomization_NewLandscape::GetSection
 {
 	FMenuBuilder MenuBuilder(true, nullptr);
 
-	for (int32 i = 0; i < UE_ARRAY_COUNT(FNewLandscapeUtils::NumSections); i++)
+	for (int32 i = 0; i < UE_ARRAY_COUNT(FLandscapeConfig::NumSectionValues); i++)
 	{
 		FFormatNamedArguments Args;
-		Args.Add(TEXT("Width"), FNewLandscapeUtils::NumSections[i]);
-		Args.Add(TEXT("Height"), FNewLandscapeUtils::NumSections[i]);
-		MenuBuilder.AddMenuEntry(FText::Format(FNewLandscapeUtils::NumSections[i] == 1 ? LOCTEXT("1x1Section", "{Width}\u00D7{Height} Section") : LOCTEXT("NxNSections", "{Width}\u00D7{Height} Sections"), Args),
-			FText::GetEmpty(), FSlateIcon(), FExecuteAction::CreateStatic(&OnChangeSectionsPerComponent, PropertyHandle, FNewLandscapeUtils::NumSections[i]));
+		Args.Add(TEXT("Width"), FLandscapeConfig::NumSectionValues[i]);
+		Args.Add(TEXT("Height"), FLandscapeConfig::NumSectionValues[i]);
+		MenuBuilder.AddMenuEntry(FText::Format(FLandscapeConfig::NumSectionValues[i] == 1 ? LOCTEXT("1x1Section", "{Width}\u00D7{Height} Section") : LOCTEXT("NxNSections", "{Width}\u00D7{Height} Sections"), Args),
+			FText::GetEmpty(), FSlateIcon(), FExecuteAction::CreateStatic(&OnChangeSectionsPerComponent, PropertyHandle, FLandscapeConfig::NumSectionValues[i]));
 	}
 
 	return MenuBuilder.MakeWidget();
