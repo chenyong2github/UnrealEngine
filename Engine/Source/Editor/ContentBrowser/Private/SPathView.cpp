@@ -1473,6 +1473,12 @@ void SPathView::HandleItemDataUpdated(TArrayView<const FContentBrowserItemDataUp
 		switch (ItemDataUpdate.GetUpdateType())
 		{
 		case EContentBrowserItemUpdateType::Added:
+			if (DoesItemPassFilter(ItemData))
+			{
+				AddFolderItem(CopyTemp(ItemData));
+			}
+			break;
+
 		case EContentBrowserItemUpdateType::Modified:
 			if (DoesItemPassFilter(ItemData))
 			{
@@ -1845,6 +1851,12 @@ void SFavoritePathView::HandleItemDataUpdated(TArrayView<const FContentBrowserIt
 		switch (ItemDataUpdate.GetUpdateType())
 		{
 		case EContentBrowserItemUpdateType::Added:
+			if (DoesItemPassFilter(ItemData))
+			{
+				AddFolderItem(CopyTemp(ItemData));
+			}
+			break;
+
 		case EContentBrowserItemUpdateType::Modified:
 			if (DoesItemPassFilter(ItemData))
 			{

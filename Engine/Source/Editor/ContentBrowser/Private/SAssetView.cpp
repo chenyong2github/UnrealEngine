@@ -4252,6 +4252,12 @@ void SAssetView::HandleItemDataUpdated(TArrayView<const FContentBrowserItemDataU
 		switch (ItemDataUpdate.GetUpdateType())
 		{
 		case EContentBrowserItemUpdateType::Added:
+			if (DoesItemPassBackendFilter(ItemData))
+			{
+				AddItem(ItemDataKey, ItemData);
+			}
+			break;
+
 		case EContentBrowserItemUpdateType::Modified:
 			if (DoesItemPassBackendFilter(ItemData))
 			{
