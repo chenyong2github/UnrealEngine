@@ -470,9 +470,14 @@ UFunction* FTypePromotion::FindBestMatchingFunc_Internal(const FString& Operatio
 		return nullptr;
 	}
 
-	// Track the function with the best score
+	// Track the function with the best score, input, and output types
 	UFunction* BestFunc = nullptr;
+	FEdGraphPinType BestFuncLowestInputType;
+	FEdGraphPinType BestFuncOutputType;
 	int32 BestScore = -1;
+
+	const bool bIsSinglePin = PinsToConsider.Num() == 1;
+	const bool bIsComparisonOp = GetComparisonOpNames().Contains(Operation);
 
 	const UEdGraphSchema_K2* Schema = GetDefault<UEdGraphSchema_K2>();
 		
@@ -484,6 +489,11 @@ UFunction* FTypePromotion::FindBestMatchingFunc_Internal(const FString& Operatio
 	{
 		int32 FuncScore = -1;
 		CheckedPins.Reset();
+
+		// Track this functions highest input and output types so that if there is a function with
+		// the same score as it we can prefer the correct one. 
+		FEdGraphPinType CurFuncHighestInputType;
+		FEdGraphPinType CurFuncOutputType;
 
 		// For each property in the func, see if it matches any of the given pins
 		for (TFieldIterator<FProperty> PropIt(Func); PropIt && (PropIt->PropertyFlags & CPF_Parm); ++PropIt)
@@ -497,18 +507,54 @@ UFunction* FTypePromotion::FindBestMatchingFunc_Internal(const FString& Operatio
 					// Give a point for each function parameter that matches up with a pin to consider
 					if (!CheckedPins.Contains(Pin) && Schema->ArePinTypesEquivalent(ParamType, Pin->PinType))
 					{
-						++FuncScore;
-						CheckedPins.Add(Pin);
+						// Are the directions compatible? 
+						// If we are a comparison or only a single pin then we don't care about the direction
+						if (bIsSinglePin || bIsComparisonOp ||
+						   (Param->HasAnyPropertyFlags(CPF_ReturnParm) && Pin->Direction == EGPD_Output) ||
+						   (!Param->HasAnyPropertyFlags(CPF_ReturnParm) && Pin->Direction == EGPD_Input))
+						{
+							++FuncScore;
+							CheckedPins.Add(Pin);
+						}
+
 						break;
 					}
+				}
+
+				// Keep track of the highest input pin type on this function
+				if (Param->HasAnyPropertyFlags(CPF_ReturnParm))
+				{
+					CurFuncOutputType = ParamType;
+				}
+				else if (CurFuncHighestInputType.PinCategory == NAME_None || FTypePromotion::GetHigherType(ParamType, CurFuncHighestInputType) == ETypeComparisonResult::TypeBHigher)
+				{
+					CurFuncHighestInputType = ParamType;
 				}
 			}
 		}
 
-		// If this function has the best score, then update it! 
-		if (FuncScore > BestScore)
+		// If the pin type has no name, then this is an invalid comparison
+		ETypeComparisonResult InputCompareRes = BestFuncLowestInputType.PinCategory != NAME_None ? FTypePromotion::GetHigherType(CurFuncHighestInputType, BestFuncLowestInputType) : ETypeComparisonResult::InvalidComparison;
+		ETypeComparisonResult OutputCompareRes = BestFuncOutputType.PinCategory != NAME_None ? FTypePromotion::GetHigherType(CurFuncOutputType, BestFuncOutputType) : ETypeComparisonResult::InvalidComparison;
+		
+		// We want to prefer a HIGHER input, and a LOWER output. 
+		const bool bHasInputOutputPreference =
+			InputCompareRes != ETypeComparisonResult::TypeBHigher &&
+			OutputCompareRes != ETypeComparisonResult::TypeAHigher;
+
+		// If the scores are equal, then prefer the LARGER input and output type because we can promote up, but we can never go back down
+		const bool bScoresEqualAndPreferred = 
+			FuncScore == BestScore && FuncScore != -1 &&
+			(bIsComparisonOp || bIsSinglePin || 
+			(InputCompareRes == ETypeComparisonResult::TypeAHigher ||
+			OutputCompareRes == ETypeComparisonResult::TypeAHigher));
+
+		// Keep track of the best function!
+		if (bScoresEqualAndPreferred || (FuncScore > BestScore && (bHasInputOutputPreference || bIsComparisonOp)))
 		{
 			BestScore = FuncScore;
+			BestFuncLowestInputType = CurFuncHighestInputType;
+			BestFuncOutputType = CurFuncOutputType;
 			BestFunc = Func;
 		}
 	}
