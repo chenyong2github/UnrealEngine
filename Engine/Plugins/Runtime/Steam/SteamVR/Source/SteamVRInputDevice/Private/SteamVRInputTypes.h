@@ -58,66 +58,97 @@ using namespace vr;
 #define APP_MANIFEST_PREFIX				"application.generated.ue."
 
 // Action paths
-#define ACTION_SET						"/actions/main"
-#define ACTION_PATH_IN					"/actions/main/in"
-#define ACTION_PATH_CONTROLLER_LEFT		"/actions/main/in/controllerleft"
-#define ACTION_PATH_CONTROLLER_RIGHT	"/actions/main/in/controllerright"
-#define ACTION_PATH_SPECIAL_BACK_L		"/actions/main/in/special1"
-#define ACTION_PATH_SPECIAL_BACK_R		"/actions/main/in/special2"
-#define ACTION_PATH_SPECIAL_FRONT_L		"/actions/main/in/special3"
-#define ACTION_PATH_SPECIAL_FRONT_R		"/actions/main/in/special4"
-#define ACTION_PATH_SPECIAL_FRONTR_L	"/actions/main/in/special5"
-#define ACTION_PATH_SPECIAL_FRONTR_R	"/actions/main/in/special6"
-#define ACTION_PATH_SPECIAL_PISTOL_L	"/actions/main/in/special7"
-#define ACTION_PATH_SPECIAL_PISTOL_R	"/actions/main/in/special8"
-#define ACTION_PATH_SKELETON_LEFT		"/actions/main/in/skeletonleft"		
-#define ACTION_PATH_SKELETON_RIGHT		"/actions/main/in/skeletonright"
-#define ACTION_PATH_SKEL_HAND_LEFT		"/skeleton/hand/left"
-#define ACTION_PATH_SKEL_HAND_RIGHT		"/skeleton/hand/right"
-#define ACTION_PATH_OPEN_CONSOLE		"/actions/main/in/open_console"
-#define ACTION_PATH_VIBRATE_LEFT		"/actions/main/out/vibrateleft"
-#define ACTION_PATH_VIBRATE_RIGHT		"/actions/main/out/vibrateright"
+#define ACTION_SET								"/actions/main"
+#define ACTION_PATH_IN							"/actions/main/in"
+#define ACTION_PATH_CONTROLLER_LEFT				"/actions/main/in/controllerleft"
+#define ACTION_PATH_CONTROLLER_RIGHT			"/actions/main/in/controllerright"
+
+#define ACTION_PATH_TRACKER_CAMERA				"/actions/main/in/tracker_camera"
+#define ACTION_PATH_TRACKER_CHEST				"/actions/main/in/tracker_chest"
+#define ACTION_PATH_TRACKER_HANDED_BACK_LEFT	"/actions/main/in/tracker_handed_back_left"
+#define ACTION_PATH_TRACKER_HANDED_BACK_RIGHT	"/actions/main/in/tracker_handed_back_right"
+#define ACTION_PATH_TRACKER_HANDED_FRONT_LEFT	"/actions/main/in/tracker_handed_front_left"
+#define ACTION_PATH_TRACKER_HANDED_FRONT_RIGHT	"/actions/main/in/tracker_handed_front_right"
+#define ACTION_PATH_TRACKER_HANDED_FRONTR_LEFT	"/actions/main/in/tracker_handed_frontr_left"
+#define ACTION_PATH_TRACKER_HANDED_FRONTR_RIGHT	"/actions/main/in/tracker_handed_frontr_right"
+#define ACTION_PATH_TRACKER_HANDED_GRIP_LEFT	"/actions/main/in/tracker_handed_grip_left"
+#define ACTION_PATH_TRACKER_HANDED_GRIP_RIGHT	"/actions/main/in/tracker_handed_grip_right"
+#define ACTION_PATH_TRACKER_HANDED_POSE_LEFT	"/actions/main/in/tracker_handed_pose_left"
+#define ACTION_PATH_TRACKER_HANDED_POSE_RIGHT	"/actions/main/in/tracker_handed_pose_right"
+#define ACTION_PATH_TRACKER_FOOT_LEFT			"/actions/main/in/tracker_foot_left"
+#define ACTION_PATH_TRACKER_FOOT_RIGHT			"/actions/main/in/tracker_foot_right"
+#define ACTION_PATH_TRACKER_SHOULDER_LEFT		"/actions/main/in/tracker_shoulder_left"
+#define ACTION_PATH_TRACKER_SHOULDER_RIGHT		"/actions/main/in/tracker_shoulder_right"
+#define ACTION_PATH_TRACKER_ELBOW_LEFT			"/actions/main/in/tracker_elbow_left"
+#define ACTION_PATH_TRACKER_ELBOW_RIGHT			"/actions/main/in/tracker_elbow_right"
+#define ACTION_PATH_TRACKER_KNEE_LEFT			"/actions/main/in/tracker_knee_left"
+#define ACTION_PATH_TRACKER_KNEE_RIGHT			"/actions/main/in/tracker_knee_right"
+#define ACTION_PATH_TRACKER_KEYBOARD			"/actions/main/in/tracker_keyboard"
+#define ACTION_PATH_TRACKER_WAIST				"/actions/main/in/tracker_waist"
+
+#define ACTION_PATH_SKELETON_LEFT				"/actions/main/in/skeletonleft"		
+#define ACTION_PATH_SKELETON_RIGHT				"/actions/main/in/skeletonright"
+#define ACTION_PATH_SKEL_HAND_LEFT				"/skeleton/hand/left"
+#define ACTION_PATH_SKEL_HAND_RIGHT				"/skeleton/hand/right"
+#define ACTION_PATH_OPEN_CONSOLE				"/actions/main/in/open_console"
+#define ACTION_PATH_VIBRATE_LEFT				"/actions/main/out/vibrateleft"
+#define ACTION_PATH_VIBRATE_RIGHT				"/actions/main/out/vibrateright"
 
 // Input paths
-#define ACTION_PATH_HEAD_PROXIMITY		"/user/head/proximity"
-#define ACTION_PATH_CONT_RAW_LEFT		"/user/hand/left/pose/raw"
-#define ACTION_PATH_CONT_RAW_RIGHT		"/user/hand/right/pose/raw"
-#define ACTION_PATH_SPCL_BACK_LEFT		"/user/hand/left/pose/back"					// Special 1
-#define ACTION_PATH_SPCL_BACK_RIGHT		"/user/hand/right/pose/back"				// Special 2
-#define ACTION_PATH_SPCL_FRONT_LEFT		"/user/hand/left/pose/front"				// Special 3
-#define ACTION_PATH_SPCL_FRONT_RIGHT	"/user/hand/right/pose/front"				// Special 4
-#define ACTION_PATH_SPCL_FRONTR_LEFT	"/user/hand/left/pose/frontandrolled"		// Special 5
-#define ACTION_PATH_SPCL_FRONTR_RIGHT	"/user/hand/right/pose/frontandrolled"		// Special 6
-#define ACTION_PATH_SPCL_PISTOL_LEFT	"/user/hand/left/pose/pistolgrip"			// Special 7
-#define ACTION_PATH_SPCL_PISTOL_RIGHT	"/user/hand/right/pose/pistolgrip"			// Special 8
-#define ACTION_PATH_TRIGGER_LEFT		"/user/hand/left/input/trigger"
-#define ACTION_PATH_TRIGGER_RIGHT		"/user/hand/right/input/trigger"
-#define ACTION_PATH_BUMPER_LEFT			"/user/hand/left/input/bumper"
-#define ACTION_PATH_BUMPER_RIGHT		"/user/hand/right/input/bumper"
-#define ACTION_PATH_THUMBSTICK_LEFT		"/user/hand/left/input/thumbstick"
-#define ACTION_PATH_THUMBSTICK_RIGHT	"/user/hand/right/input/thumbstick"
-#define ACTION_PATH_TRACKPAD_LEFT		"/user/hand/left/input/trackpad"
-#define ACTION_PATH_TRACKPAD_RIGHT		"/user/hand/right/input/trackpad"
-#define ACTION_PATH_JOYSTICK_LEFT		"/user/hand/left/input/joystick"
-#define ACTION_PATH_JOYSTICK_RIGHT		"/user/hand/right/input/joystick"
-#define ACTION_PATH_GRIP_LEFT			"/user/hand/left/input/grip"
-#define ACTION_PATH_GRIP_RIGHT			"/user/hand/right/input/grip"
-#define ACTION_PATH_BTN_A_LEFT			"/user/hand/left/input/a"
-#define ACTION_PATH_BTN_A_RIGHT			"/user/hand/right/input/a"
-#define ACTION_PATH_BTN_B_LEFT			"/user/hand/left/input/b"
-#define ACTION_PATH_BTN_B_RIGHT			"/user/hand/right/input/b"
-#define ACTION_PATH_BTN_X_LEFT			"/user/hand/left/input/x"
-#define ACTION_PATH_BTN_Y_LEFT			"/user/hand/left/input/y"
-#define ACTION_PATH_USER_SKEL_LEFT		"/user/hand/left/input/skeleton/left"
-#define ACTION_PATH_USER_SKEL_RIGHT		"/user/hand/right/input/skeleton/right"
-#define ACTION_PATH_USER_VIB_LEFT		"/user/hand/left/output/haptic"
-#define ACTION_PATH_USER_VIB_RIGHT		"/user/hand/right/output/haptic"
-#define ACTION_PATH_PINCH_GRAB_LEFT		"/user/hand/left/input/pinch"
-#define ACTION_PATH_PINCH_GRAB_RIGHT	"/user/hand/right/input/pinch"
-#define ACTION_PATH_GRIP_GRAB_LEFT		"/user/hand/left/input/grip"
-#define ACTION_PATH_GRIP_GRAB_RIGHT		"/user/hand/right/input/grip"
-#define ACTION_PATH_APPMENU_LEFT        "/user/hand/left/input/application_menu"
-#define ACTION_PATH_APPMENU_RIGHT        "/user/hand/right/input/application_menu"
+#define ACTION_PATH_HEAD_PROXIMITY				"/user/head/proximity"
+#define ACTION_PATH_CONT_RAW_LEFT				"/user/hand/left/pose/raw"
+#define ACTION_PATH_CONT_RAW_RIGHT				"/user/hand/right/pose/raw"
+
+#define ACTION_PATH_SPCL_CAMERA					"/user/camera/pose/raw"	
+#define ACTION_PATH_SPCL_CHEST					"/user/chest/pose/raw"	
+#define ACTION_PATH_SPCL_WAIST					"/user/waist/pose/raw"	
+#define ACTION_PATH_SPCL_SHOULDER_LEFT			"/user/shoulder/left/pose/raw"	
+#define ACTION_PATH_SPCL_SHOULDER_RIGHT			"/user/shoulder/right/pose/raw"	
+#define ACTION_PATH_SPCL_FOOT_LEFT				"/user/foot/left/pose/raw"	
+#define ACTION_PATH_SPCL_FOOT_RIGHT				"/user/foot/right/pose/raw"
+#define ACTION_PATH_SPCL_ELBOW_LEFT				"/user/elbow/left/pose/raw"	
+#define ACTION_PATH_SPCL_ELBOW_RIGHT			"/user/elbow/right/pose/raw"	
+#define ACTION_PATH_SPCL_KNEE_LEFT				"/user/knee/left/pose/raw"	
+#define ACTION_PATH_SPCL_KNEE_RIGHT				"/user/knee/right/pose/raw"	
+#define ACTION_PATH_SPCL_KEYBOARD				"/user/keyboard/pose/raw"	
+
+#define ACTION_PATH_SPCL_BACK_LEFT				"/user/hand/left/pose/back"			
+#define ACTION_PATH_SPCL_BACK_RIGHT				"/user/hand/right/pose/back"	
+#define ACTION_PATH_SPCL_FRONT_LEFT				"/user/hand/left/pose/front"	
+#define ACTION_PATH_SPCL_FRONT_RIGHT			"/user/hand/right/pose/front"	
+#define ACTION_PATH_SPCL_FRONTR_LEFT			"/user/hand/left/pose/front_rolled"	
+#define ACTION_PATH_SPCL_FRONTR_RIGHT			"/user/hand/right/pose/front_rolled"	
+#define ACTION_PATH_SPCL_PISTOL_LEFT			"/user/hand/left/pose/pistol"			
+#define ACTION_PATH_SPCL_PISTOL_RIGHT			"/user/hand/right/pose/pistol"	
+
+#define ACTION_PATH_TRIGGER_LEFT				"/user/hand/left/input/trigger"
+#define ACTION_PATH_TRIGGER_RIGHT				"/user/hand/right/input/trigger"
+#define ACTION_PATH_BUMPER_LEFT					"/user/hand/left/input/bumper"
+#define ACTION_PATH_BUMPER_RIGHT				"/user/hand/right/input/bumper"
+#define ACTION_PATH_THUMBSTICK_LEFT				"/user/hand/left/input/thumbstick"
+#define ACTION_PATH_THUMBSTICK_RIGHT			"/user/hand/right/input/thumbstick"
+#define ACTION_PATH_TRACKPAD_LEFT				"/user/hand/left/input/trackpad"
+#define ACTION_PATH_TRACKPAD_RIGHT				"/user/hand/right/input/trackpad"
+#define ACTION_PATH_JOYSTICK_LEFT				"/user/hand/left/input/joystick"
+#define ACTION_PATH_JOYSTICK_RIGHT				"/user/hand/right/input/joystick"
+#define ACTION_PATH_GRIP_LEFT					"/user/hand/left/input/grip"
+#define ACTION_PATH_GRIP_RIGHT					"/user/hand/right/input/grip"
+#define ACTION_PATH_BTN_A_LEFT					"/user/hand/left/input/a"
+#define ACTION_PATH_BTN_A_RIGHT					"/user/hand/right/input/a"
+#define ACTION_PATH_BTN_B_LEFT					"/user/hand/left/input/b"
+#define ACTION_PATH_BTN_B_RIGHT					"/user/hand/right/input/b"
+#define ACTION_PATH_BTN_X_LEFT					"/user/hand/left/input/x"
+#define ACTION_PATH_BTN_Y_LEFT					"/user/hand/left/input/y"
+#define ACTION_PATH_USER_SKEL_LEFT				"/user/hand/left/input/skeleton/left"
+#define ACTION_PATH_USER_SKEL_RIGHT				"/user/hand/right/input/skeleton/right"
+#define ACTION_PATH_USER_VIB_LEFT				"/user/hand/left/output/haptic"
+#define ACTION_PATH_USER_VIB_RIGHT				"/user/hand/right/output/haptic"
+#define ACTION_PATH_PINCH_GRAB_LEFT				"/user/hand/left/input/pinch"
+#define ACTION_PATH_PINCH_GRAB_RIGHT			"/user/hand/right/input/pinch"
+#define ACTION_PATH_GRIP_GRAB_LEFT				"/user/hand/left/input/grip"
+#define ACTION_PATH_GRIP_GRAB_RIGHT				"/user/hand/right/input/grip"
+#define ACTION_PATH_APPMENU_LEFT				"/user/hand/left/input/application_menu"
+#define ACTION_PATH_APPMENU_RIGHT				"/user/hand/right/input/application_menu"
 
 
 namespace SteamVRInputDeviceConstants 
@@ -242,6 +273,8 @@ struct FControllerType
 	FString	Description;
 	FString KeyEquivalent;
 	FName	ControllerName;
+	FString OutputPath;
+	FString RawDriverPath;
 	bool bIsActive;
 
 	FControllerType() {}
@@ -250,6 +283,19 @@ struct FControllerType
 		, Name(inName)
 		, Description(inDescription)
 		, KeyEquivalent(inKeyEquivalent)
+	{
+		OutputPath = "";
+		RawDriverPath = "";
+		bIsActive = false;
+	}
+
+	FControllerType( const FName& inName, const FString& inDescription, const FString& inKeyEquivalent, const FString& inOutputPath, const FString& inRawDriverPath )
+		: bIsGenerated( false )
+		, Name( inName )
+		, Description( inDescription )
+		, KeyEquivalent( inKeyEquivalent )
+		, OutputPath ( inOutputPath )
+		, RawDriverPath ( inRawDriverPath )
 	{
 		bIsActive = false;
 	}
