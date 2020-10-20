@@ -7,6 +7,7 @@
 #include "ChaosCloth/ChaosClothPrivate.h"
 #include "Containers/ArrayView.h"
 #include "HAL/IConsoleManager.h"
+#include "ClothingSimulation.h"
 
 using namespace Chaos;
 
@@ -644,9 +645,13 @@ void FClothingSimulationCloth::Update(FClothingSimulationSolver* Solver)
 	ReferenceSpaceTransform.SetScale3D(TVector<float, 3>(1.f));
 
 	// Update Cloth Colliders
-	for (FClothingSimulationCollider* Collider : Colliders)
 	{
-		Collider->Update(Solver, this);
+		SCOPE_CYCLE_COUNTER(STAT_ClothUpdateCollisions);
+
+		for (FClothingSimulationCollider* Collider : Colliders)
+		{
+			Collider->Update(Solver, this);
+		}
 	}
 
 	// Update the source mesh skinned positions

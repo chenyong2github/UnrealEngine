@@ -717,6 +717,7 @@ void FClothingSimulationSolver::Update(float InDeltaTime)
 	// Advance Sim
 	{
 		SCOPE_CYCLE_COUNTER(STAT_ChaosClothSolverUpdateSolverStep);
+		SCOPE_CYCLE_COUNTER(STAT_ClothInternalSolve);
 
 		Evolution->SetIterations(NumIterations);
 
@@ -734,6 +735,7 @@ void FClothingSimulationSolver::Update(float InDeltaTime)
 	// Post solver step, update normals, ...etc
 	{
 		SCOPE_CYCLE_COUNTER(STAT_ChaosClothSolverUpdatePostSolverStep);
+		SCOPE_CYCLE_COUNTER(STAT_ClothComputeNormals);
 
 		for (FClothingSimulationCloth* Cloth : Cloths)
 		{

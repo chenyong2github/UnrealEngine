@@ -9,9 +9,9 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Async/ParallelFor.h"
 
-DECLARE_CYCLE_STAT(TEXT("Chaos Cloth Skin Physics Mesh"), STAT_ChaosClothSkinPhysicsMesh, STATGROUP_Physics);
-DECLARE_CYCLE_STAT(TEXT("Chaos Cloth Wrap Deform Mesh"), STAT_ChaosClothWrapDeformMesh, STATGROUP_Physics);
-DECLARE_CYCLE_STAT(TEXT("Chaos Cloth Wrap Deform Cloth LOD"), STAT_ChaosClothWrapDeformClothLOD, STATGROUP_Physics);
+DECLARE_CYCLE_STAT(TEXT("Chaos Cloth Skin Physics Mesh"), STAT_ChaosClothSkinPhysicsMesh, STATGROUP_ChaosCloth);
+DECLARE_CYCLE_STAT(TEXT("Chaos Cloth Wrap Deform Mesh"), STAT_ChaosClothWrapDeformMesh, STATGROUP_ChaosCloth);
+DECLARE_CYCLE_STAT(TEXT("Chaos Cloth Wrap Deform Cloth LOD"), STAT_ChaosClothWrapDeformClothLOD, STATGROUP_ChaosCloth);
 
 using namespace Chaos;
 
@@ -214,6 +214,7 @@ FORCEINLINE static void AddInfluence(FVector& OutPosition, FVector& OutNormal, c
 void FClothingSimulationMesh::SkinPhysicsMesh(int32 LODIndex, const TVector<float, 3>& LocalSpaceLocation, TVector<float, 3>* OutPositions, TVector<float, 3>* OutNormals) const
 {
 	SCOPE_CYCLE_COUNTER(STAT_ChaosClothSkinPhysicsMesh);
+	SCOPE_CYCLE_COUNTER(STAT_ClothSkinPhysMesh);
 
 	check(Asset && Asset->LodData.IsValidIndex(LODIndex));
 	const FClothPhysicalMeshData& PhysicalMeshData = Asset->LodData[LODIndex].PhysicalMeshData;
