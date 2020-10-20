@@ -20,7 +20,10 @@
 		{
 			"Name" : "XGEController",
 			"Type" : "UncookedOnly",
-			"LoadingPhase" : "EarliestPossible"
+			"LoadingPhase" : "EarliestPossible",
+			"WhitelistPlatforms": [
+				"Win64"
+			]
 		}
 	]
 }
