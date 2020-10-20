@@ -33,6 +33,7 @@ class FNetworkPredictionModule : public INetworkPredictionModule
 
 	FDelegateHandle PieHandle;
 	FDelegateHandle ModulesChangedHandle;
+	FDelegateHandle WorldPreInitHandle;
 };
 
 void FNetworkPredictionModule::StartupModule()
@@ -50,7 +51,8 @@ void FNetworkPredictionModule::StartupModule()
 	});
 
 	ModulesChangedHandle = FModuleManager::Get().OnModulesChanged().AddRaw(this, &FNetworkPredictionModule::OnModulesChanged);
-	
+
+	// Finalize types if the engine is up and running, or register for callback for when it is
 	if (GIsRunning)
 	{
 		FinalizeNetworkPredictionTypes();
@@ -62,9 +64,14 @@ void FNetworkPredictionModule::StartupModule()
 			this->FinalizeNetworkPredictionTypes();
 		});
 	}
+	
+	this->WorldPreInitHandle = FWorldDelegates::OnPreWorldInitialization.AddLambda([this](UWorld* World, const UWorld::InitializationValues IVS)
+	{
+		UE_NP_TRACE_WORLD_PREINIT();
+	});
 
 #if WITH_EDITOR
-	PieHandle = FEditorDelegates::PreBeginPIE.AddLambda([this](const bool bBegan)
+	PieHandle = FEditorDelegates::PreBeginPIE.AddLambda([](const bool bBegan)
 	{
 		UE_NP_TRACE_PIE_START();
 	});
@@ -88,6 +95,12 @@ void FNetworkPredictionModule::ShutdownModule()
 	{
 		FModuleManager::Get().OnModulesChanged().Remove(ModulesChangedHandle);
 		ModulesChangedHandle.Reset();
+	}
+
+	if (WorldPreInitHandle.IsValid())
+	{
+		FWorldDelegates::OnPreWorldInitialization.Remove(WorldPreInitHandle);
+		WorldPreInitHandle.Reset();
 	}
 
 #if WITH_EDITOR

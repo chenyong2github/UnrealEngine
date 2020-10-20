@@ -162,17 +162,20 @@ void SNPSimFrameContents::NotifyContentClicked(const FSimContentsView& InContent
 	SimInfoText += FString::Format(TEXT(
 		"{0}\n"
 		"Sim Group: {1}\n"
-		"GameInstanceId: {2}\n"
-		"SimID: {3}\n"
-		"TraceID: {4}\n"
-		"NetRole: {5}"),
+		"SimID: {2}\n"
+		"TraceID: {3}\n"
+		"NetRole: {4}\n"
+		"ServiceMask: {5}\n"
+		"TickingMode: {6}\n"
+		""),
 	{
 		*InContent.SimView->ConstData.DebugName,
 		*GroupNameStr,
-		InContent.SimView->ConstData.GameInstanceId,
 		InContent.SimView->ConstData.ID.SimID,
 		InContent.SimView->TraceID,
-		*NetRoleStr
+		*NetRoleStr,
+		InContent.SimView->SparseData->ServiceMask,
+		LexToString(InContent.SimView->SparseData->TickingPolicy)
 	});
 
 	TSharedPtr<SVerticalBox> VertBox;
@@ -196,62 +199,6 @@ void SNPSimFrameContents::NotifyContentClicked(const FSimContentsView& InContent
 	];
 
 	// -------------------------------------------------------------
-	//	End of Frame
-	// -------------------------------------------------------------
-	uint64 EngineFrame = (InContent.SimTick ? InContent.SimTick->EngineFrame : (InContent.NetRecv ? InContent.NetRecv->EngineFrame : 0));
-	const FSimulationData::FEngineFrame* EOFState = nullptr;
-	if (EngineFrame > 0)
-	{
-		for (auto It = InContent.SimView->EOFState.GetIteratorFromEnd(); It; --It)
-		{
-			if (It->EngineFrame == EngineFrame)
-			{
-				EOFState = &*It;
-				break;
-			}
-		}
-
-		if (EOFState)
-		{
-			FString EOFText = FString::Format(TEXT(
-			"EngineFrame {0}\n"
-			"EngineFrameDeltaTime: {1}\n"
-			"BufferSize: {2}\n"
-			"PendingTickFrame: {3}\n"
-			"LatestInputFrame: {4}\n"
-			"TotalSimTime: {5}\n"
-			"AllowedSimTime: {6}"),
-			{
-				EOFState->EngineFrame,
-				EOFState->EngineFrameDeltaTime,
-				EOFState->BufferSize,
-				EOFState->PendingTickFrame,
-				EOFState->LatestInputFrame,
-				EOFState->TotalSimTime,
-				EOFState->AllowedSimTime
-			});
-
-			/*
-			for (const FSimulationData::FSystemFault& Fault : EOFState->SystemFaults)
-			{
-				EOFText.Append(Fault.Str);
-				EOFText.Append(TEXT("\n"));
-			}
-			*/
-
-			VertBox->AddSlot()
-			.AutoHeight()
-			.VAlign(VAlign_Top)
-			.HAlign(HAlign_Left)
-			.Padding(4.0f, 4.0f, 4.0f, 4.0f)
-			[
-				SNew(STextBlock)
-				.Text(FText::FromString(EOFText))
-			];
-		}
-	}
-
-	// -------------------------------------------------------------
 	//	Simulation Tick
 	// -------------------------------------------------------------
 	if (InContent.SimTick)
@@ -266,16 +213,20 @@ void SNPSimFrameContents::NotifyContentClicked(const FSimContentsView& InContent
 			"Start Simulation MS: {2}\n"
 			"End Simulation MS: {3}\n"
 			"Delta Simulation MS: {4}\n"
-			"Repredict: {5}\n"
-			"Confirmed Engine Frame: {6}\n"
-			"Trashed Engine Frame: {7}\n"
-			"GFrameNumber: {8}\n\n"),
+			"Num Buffered InputCmds: {5}\n"
+			"Input Buffer Fault: {6}\n"
+			"Repredict: {7}\n"
+			"Confirmed Engine Frame: {8}\n"
+			"Trashed Engine Frame: {9}\n"
+			"GFrameNumber: {10}\n\n"),
 		{
 			SimTick.OutputFrame,
 			SimTick.LocalOffsetFrame,
 			SimTick.StartMS,
 			SimTick.EndMS,
 			(SimTick.EndMS - SimTick.StartMS),
+			SimTick.NumBufferedInputCmds,
+			SimTick.bInputFault,
 			SimTick.bRepredict,
 			SimTick.ConfirmedEngineFrame,
 			SimTick.TrashedEngineFrame,
@@ -407,29 +358,6 @@ void SNPSimFrameContents::NotifyContentClicked(const FSimContentsView& InContent
 			.Text(FText::FromString(FaultString))
 		];
 	}
-
-	if (EOFState && EOFState->SystemFaults.Num() > 0)
-	{
-		FString FaultString = TEXT("Engine Frame Faults:\n");
-
-		for (const FSimulationData::FSystemFault& Fault : EOFState->SystemFaults)
-		{
-			FaultString.Append(Fault.Str);
-			FaultString.Append(TEXT("\n"));
-		}
-
-		SystemFaultsVBoxPtr->AddSlot()
-		.AutoHeight()
-		.VAlign(VAlign_Top)
-		.HAlign(HAlign_Left)
-		.Padding(4.0f, 4.0f, 4.0f, 4.0f)
-		[
-			SNew(SEditableText)
-			.IsReadOnly(true)
-			.Text(FText::FromString(FaultString))
-		];
-	}
-
 }
 
 

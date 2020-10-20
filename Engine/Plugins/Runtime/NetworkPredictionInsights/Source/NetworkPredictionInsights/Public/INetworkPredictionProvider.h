@@ -32,11 +32,11 @@ enum class ENP_NetRole: uint8
 	MAX,
 };
 
-// Must be kept in sync with 
+// Must be kept in sync with ENetworkPredictionTickingPolicy
 enum class ENP_TickingPolicy: uint8
 {
-	Independent,
-	Fixed
+	Independent = 1 << 0,
+	Fixed = 1 << 1
 };
 
 // Must be kept in sync with ENetworkPredictionTickingPolicy
@@ -82,6 +82,7 @@ const TCHAR* LexToString(ENP_NetRole Role);
 const TCHAR* LexToString(ENP_UserState State);
 const TCHAR* LexToString(ENP_UserStateSource Source);
 const TCHAR* LexToString(ENetSerializeRecvStatus Status);
+const TCHAR* LexToString(ENP_TickingPolicy Policy);
 
 // How we identify actors across network connection and PIE sessions
 struct FSimNetActorID
@@ -158,6 +159,11 @@ struct TRestrictedPageArrayView
 	{
 		check(Index >= StartItemIdx && Index < EndItemIdx);
 		return PageArray[Index];
+	}
+
+	int32 GetNum() const
+	{
+		return PageArray.Num();
 	}
 
 private:
@@ -341,7 +347,6 @@ struct FSimulationData
 	FSimulationData(int32 InTraceID, Trace::ILinearAllocator& Allocator)
 		: TraceID(InTraceID)
 		, Ticks(Allocator, 1024)
-		, EOFState(Allocator, 1024)
 		, NetRecv(Allocator, 1024)
 		, UserData(Allocator)
 	{ }
@@ -379,6 +384,8 @@ struct FSimulationData
 
 		int32 OutputFrame;
 		int32 LocalOffsetFrame;
+		int32 NumBufferedInputCmds;
+		bool bInputFault;
 
 		// Analysis Data:
 
@@ -388,22 +395,6 @@ struct FSimulationData
 		uint64 ConfirmedEngineFrame = 0;	// Engine frame this became confirmed (we serialized a time past this)
 		uint64 TrashedEngineFrame = 0;		// Engine frame this became trashed (we resimulated this time in a later frame)
 		bool bRepredict = false;			// This tick was a repredict: we had already simulated up to this point before
-	};
-
-	// End of (Engine) Frame state of the simulation
-	// It may be better to eventually just trace the events that change this simulation specific state (NetSerialize, Tick, etc)
-	struct FEngineFrame
-	{
-		uint64 EngineFrame;
-		float EngineFrameDeltaTime;
-
-		int32 BufferSize;
-		int32 PendingTickFrame;
-		int32 LatestInputFrame;
-		FSimTime TotalSimTime;
-		FSimTime AllowedSimTime;
-
-		TArray<FSystemFault> SystemFaults;	// System faults encountered during this tick
 	};
 
 	// Data that changes rarely over time about the simulation
@@ -425,7 +416,6 @@ struct FSimulationData
 	struct FConst
 	{
 		FSimNetActorID ID;
-		uint32 GameInstanceId;
 		FName GroupName;
 		FString DebugName;
 	};
@@ -562,12 +552,39 @@ struct FSimulationData
 	struct FRestrictedView
 	{
 		const TRestrictedPageArrayView<FTick> Ticks;
-		const TRestrictedPageArrayView<FEngineFrame> EOFState;
 		const TRestrictedPageArrayView<FNetSerializeRecv> NetRecv;
 		const FRestrictedUserStateView UserData;
 		const TSharedRef<const FSparse> SparseData;
 		const FConst& ConstData;
 		const int32 TraceID;
+
+		int32 GetMaxSimTime() const
+		{
+			int32 MaxSimTime = 0;
+			if (Ticks.GetNum() > 0)
+			{
+				MaxSimTime = Ticks.GetLast().EndMS;
+			}
+			if (NetRecv.GetNum() > 0)
+			{
+				MaxSimTime = FMath::Max<int32>(MaxSimTime, NetRecv.GetLast().SimTimeMS);
+			}
+			return MaxSimTime;
+		}
+
+		uint64 GetMaxEngineFrame() const
+		{
+			uint64 MaxEngineFrame = 0;
+			if (Ticks.GetNum() > 0)
+			{
+				MaxEngineFrame = Ticks.GetLast().EngineFrame;
+			}
+			if (NetRecv.GetNum() > 0)
+			{
+				MaxEngineFrame = FMath::Max<int32>(MaxEngineFrame, NetRecv.GetLast().EngineFrame);
+			}
+			return MaxEngineFrame;
+		}
 	};
 
 	TSharedRef<FRestrictedView> MakeRestrictedView(uint64 MinEngineFrame, uint64 MaxEngineFrame) const
@@ -576,7 +593,6 @@ struct FSimulationData
 
 		return MakeShareable(new FRestrictedView  {
 			{ Ticks, FindMinIndexPagedArray(Ticks, MinEngineFrame), FindMaxIndexPagedArray(Ticks, MaxEngineFrame) },
-			{ EOFState, FindMinIndexPagedArray(EOFState, MinEngineFrame), FindMaxIndexPagedArray(EOFState, MaxEngineFrame) },
 			{ NetRecv, FindMinIndexPagedArray(NetRecv, MinEngineFrame), FindMaxIndexPagedArray(NetRecv, MaxEngineFrame) },
 			FRestrictedUserStateView(UserData, MaxEngineFrame),
 			SparseData.Read(MaxEngineFrame), ConstData, TraceID
@@ -588,7 +604,6 @@ struct FSimulationData
 	int32 TraceID;
 	
 	TPagedArray<FTick> Ticks;
-	TPagedArray<FEngineFrame> EOFState;
 	TPagedArray<FNetSerializeRecv> NetRecv;	// Actually holds the allocated recv records
 	
 	TSparseFrameData<FSparse> SparseData;
@@ -606,6 +621,9 @@ struct FSimulationData
 		uint64 TrashItemIdx = 0;
 
 		FSimTime MaxTickSimTimeMS = 0; // Highest EndMS we have seen so far from Tick traces
+
+		int32 NumBufferedInputCmds = 0;
+		bool bInputFault = false;
 
 		ENP_UserStateSource PendingUserStateSource = ENP_UserStateSource::Unknown;
 		TArray<FUserState*> PendingCommitUserStates; // NetRecv'd state that hasn't been commited

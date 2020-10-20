@@ -32,6 +32,9 @@
 // Called when a PIE session is started. This is so we can keep our sets of worlds/simulations separate in between runs.
 #define UE_NP_TRACE_PIE_START() FNetworkPredictionTrace::TracePIEStart()
 
+// Called during WorldPreInit. This mainly just ensure we have a valid trace context so that actors loaded with the map can trace their \initialization
+#define UE_NP_TRACE_WORLD_PREINIT() FNetworkPredictionTrace::TraceWorldPreInit()
+
 // Generic fault/error message that gets bubbled up in the NP Insights UI
 #define UE_NP_TRACE_SYSTEM_FAULT(Format, ...) FNetworkPredictionTrace::TraceSystemFault(TEXT(Format), ##__VA_ARGS__)
 
@@ -55,6 +58,9 @@
 
 // Called before running input producing services
 #define UE_NP_TRACE_PUSH_INPUT_FRAME(Frame) FNetworkPredictionTrace::TracePushInputFrame(Frame)
+
+// Called to trace buffered input state
+#define UE_NP_TRACE_BUFFERED_INPUT(NumBufferedFrames, bFault) FNetworkPredictionTrace::TraceBufferedInput(NumBufferedFrames, bFault)
 
 // Trace call to Driver's ProduceInput function
 #define UE_NP_TRACE_PRODUCE_INPUT(TraceID) FNetworkPredictionTrace::TraceProduceInput(TraceID)
@@ -80,6 +86,7 @@
 #define UE_NP_TRACE_SIM_CONFIG(...)
 
 #define UE_NP_TRACE_PIE_START(...)
+#define UE_NP_TRACE_WORLD_PREINIT(...)
 #define UE_NP_TRACE_SYSTEM_FAULT(Format, ...) UE_LOG(LogNetworkPrediction, Warning, TEXT(Format), ##__VA_ARGS__);
 #define UE_NP_TRACE_WORLD_FRAME_START(...)
 #define UE_NP_TRACE_PUSH_TICK(...)
@@ -89,6 +96,7 @@
 #define UE_NP_TRACE_ROLLBACK_INJECT(...)
 #define UE_NP_TRACE_PUSH_INPUT_FRAME(...)
 #define UE_NP_TRACE_PRODUCE_INPUT(...)
+#define UE_NP_TRACE_BUFFERED_INPUT(...)
 #define UE_NP_TRACE_OOB_STATE_MOD(...)
 
 #define UE_NP_TRACE_USER_STATE_INPUT(...)
@@ -175,6 +183,7 @@ public:
 	static void TraceSimulationConfig(int32 TraceID, ENetRole NetRole, bool bHasNetConnection, const FNetworkPredictionInstanceArchetype& Archetype, const FNetworkPredictionInstanceConfig& Config, int32 ServiceMask);
 
 	static void TracePIEStart();
+	static void TraceWorldPreInit();
 	static void TraceSystemFault(const TCHAR* Fmt, ...);
 
 	static void TraceSimulationScope(int32 TraceID);
@@ -188,6 +197,7 @@ public:
 	static void TraceRollbackInject(int32 TraceID);
 
 	static void TracePushInputFrame(int32 Frame);
+	static void TraceBufferedInput(int32 NumBufferedFrames, bool bFault);
 	static void TraceProduceInput(int32 TraceID);
 
 	static void TraceOOBStateMod(int32 SimulationId, int32 Frame, const FAnsiStringView& StrView);
