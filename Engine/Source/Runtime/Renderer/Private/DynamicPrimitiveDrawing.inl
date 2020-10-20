@@ -135,6 +135,29 @@ inline void FViewElementPDI::DrawLine(
 	);
 }
 
+inline void FViewElementPDI::DrawTranslucentLine(
+	const FVector& Start,
+	const FVector& End,
+	const FLinearColor& Color,
+	uint8 DepthPriorityGroup,
+	float Thickness,
+	float DepthBias,
+	bool bScreenSpace
+)
+{
+	FBatchedElements& Elements = GetElements(DepthPriorityGroup);
+
+	Elements.AddTranslucentLine(
+		Start,
+		End,
+		Color,
+		CurrentHitProxy ? CurrentHitProxy->Id : FHitProxyId(),
+		Thickness,
+		DepthBias,
+		bScreenSpace
+	);
+}
+
 inline void FViewElementPDI::DrawPoint(
 	const FVector& Position,
 	const FLinearColor& Color,

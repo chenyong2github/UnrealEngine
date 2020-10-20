@@ -1962,6 +1962,7 @@ public:
 		float OpacityMaskRefVal = .5f
 		) = 0;
 
+	// Draw an opaque line. The alpha component of Color is ignored.
 	virtual void DrawLine(
 		const FVector& Start,
 		const FVector& End,
@@ -1971,6 +1972,17 @@ public:
 		float DepthBias = 0.0f,
 		bool bScreenSpace = false
 		) = 0;
+
+	// Draw a translucent line. The alpha component of Color determines the transparency.
+	virtual void DrawTranslucentLine(
+		const FVector& Start,
+		const FVector& End,
+		const FLinearColor& Color,
+		uint8 DepthPriorityGroup,
+		float Thickness = 0.0f,
+		float DepthBias = 0.0f,
+		bool bScreenSpace = false
+	) = 0;
 
 	virtual void DrawPoint(
 		const FVector& Position,
@@ -2078,6 +2090,16 @@ public:
 		float DepthBias = 0.0f,
 		bool bScreenSpace = false
 		) override;
+
+	virtual void DrawTranslucentLine(
+		const FVector& Start,
+		const FVector& End,
+		const FLinearColor& Color,
+		uint8 DepthPriorityGroup,
+		float Thickness = 0.0f,
+		float DepthBias = 0.0f,
+		bool bScreenSpace = false
+	) override;
 
 	virtual void DrawPoint(
 		const FVector& Position,

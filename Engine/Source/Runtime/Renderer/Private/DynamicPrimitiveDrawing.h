@@ -46,6 +46,15 @@ public:
 		float DepthBias = 0.0f,
 		bool bScreenSpace = false
 		) override;
+	virtual void DrawTranslucentLine(
+		const FVector& Start,
+		const FVector& End,
+		const FLinearColor& Color,
+		uint8 DepthPriorityGroup,
+		float Thickness = 0.0f,
+		float DepthBias = 0.0f,
+		bool bScreenSpace = false
+	) override;
 	virtual void DrawPoint(
 		const FVector& Position,
 		const FLinearColor& Color,

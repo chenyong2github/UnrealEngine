@@ -142,6 +142,31 @@ void FSimpleElementCollector::DrawLine(
 		);
 }
 
+
+void FSimpleElementCollector::DrawTranslucentLine(
+	const FVector& Start,
+	const FVector& End,
+	const FLinearColor& Color,
+	uint8 DepthPriorityGroup,
+	float Thickness/* = 0.0f*/,
+	float DepthBias/* = 0.0f*/,
+	bool bScreenSpace/* = false*/
+)
+{
+	FBatchedElements& Elements = DepthPriorityGroup == SDPG_World ? BatchedElements : TopBatchedElements;
+
+	Elements.AddTranslucentLine(
+		Start,
+		End,
+		Color,
+		HitProxyId,
+		Thickness,
+		DepthBias,
+		bScreenSpace
+	);
+}
+
+
 void FSimpleElementCollector::DrawPoint(
 	const FVector& Position,
 	const FLinearColor& Color,
@@ -547,7 +572,7 @@ const FSceneView& GetLODView(const FSceneView& InView)
 			return *InView.Family->Views[LODViewIndex];
 		}
 	}
-	
+
 	return InView;
 }
 

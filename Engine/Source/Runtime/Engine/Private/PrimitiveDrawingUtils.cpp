@@ -929,7 +929,7 @@ void DrawCircle(FPrimitiveDrawInterface* PDI, const FVector& Base, const FVector
 	for(int32 SideIndex = 0;SideIndex < NumSides;SideIndex++)
 	{
 		const FVector Vertex = Base + (X * FMath::Cos(AngleDelta * (SideIndex + 1)) + Y * FMath::Sin(AngleDelta * (SideIndex + 1))) * Radius;
-		PDI->DrawLine(LastVertex, Vertex, Color, DepthPriority, Thickness, DepthBias, bScreenSpace);
+		PDI->DrawTranslucentLine(LastVertex, Vertex, Color, DepthPriority, Thickness, DepthBias, bScreenSpace);
 		LastVertex = Vertex;
 	}
 }
@@ -945,7 +945,7 @@ void DrawArc(FPrimitiveDrawInterface* PDI, const FVector Base, const FVector X, 
 	for(int32 i=0; i<Sections; i++)
 	{
 		FVector ThisVertex = Base + Radius * ( FMath::Cos(CurrentAngle * (PI/180.0f)) * X + FMath::Sin(CurrentAngle * (PI/180.0f)) * Y );
-		PDI->DrawLine( LastVertex, ThisVertex, Color, DepthPriority );
+		PDI->DrawTranslucentLine( LastVertex, ThisVertex, Color, DepthPriority );
 		LastVertex = ThisVertex;
 		CurrentAngle += AngleStep;
 	}
@@ -1092,15 +1092,15 @@ void DrawWireCone(FPrimitiveDrawInterface* PDI, TArray<FVector>& Verts, const FT
 	// Draw spokes.
 	for ( int32 i = 0 ; i < Verts.Num(); ++i )
 	{
-		PDI->DrawLine(Transform.GetLocation(), Verts[i], Color, DepthPriority, Thickness, DepthBias, bScreenSpace);
+		PDI->DrawTranslucentLine(Transform.GetLocation(), Verts[i], Color, DepthPriority, Thickness, DepthBias, bScreenSpace);
 	}
 
 	// Draw rim.
 	for ( int32 i = 0 ; i < Verts.Num()-1 ; ++i )
 	{
-		PDI->DrawLine(Verts[i], Verts[i + 1], Color, DepthPriority, Thickness, DepthBias, bScreenSpace);
+		PDI->DrawTranslucentLine(Verts[i], Verts[i + 1], Color, DepthPriority, Thickness, DepthBias, bScreenSpace);
 	}
-	PDI->DrawLine(Verts[Verts.Num() - 1], Verts[0], Color, DepthPriority, Thickness, DepthBias, bScreenSpace);
+	PDI->DrawTranslucentLine(Verts[Verts.Num() - 1], Verts[0], Color, DepthPriority, Thickness, DepthBias, bScreenSpace);
 }
 
 void DrawWireCone(FPrimitiveDrawInterface* PDI, TArray<FVector>& Verts, const FMatrix& Transform, float ConeLength, float ConeAngle, int32 ConeSides, const FLinearColor& Color, uint8 DepthPriority, float Thickness, float DepthBias, bool bScreenSpace)
