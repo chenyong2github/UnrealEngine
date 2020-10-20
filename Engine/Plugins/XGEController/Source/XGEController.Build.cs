@@ -11,5 +11,7 @@ public class XGEController : ModuleRules
 		{
 			"Core"
 		});
+		
+		PrivateIncludePathModuleNames.Add("Engine");
 	}
 }

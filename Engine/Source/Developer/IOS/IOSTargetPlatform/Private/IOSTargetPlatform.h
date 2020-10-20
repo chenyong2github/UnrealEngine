@@ -98,7 +98,7 @@ public:
 
 	virtual bool SupportsFeature( ETargetPlatformFeatures Feature ) const override;
 
-	virtual bool CanSupportXGEShaderCompile() const override;
+	virtual bool CanSupportRemoteShaderCompile() const override;
 
 	virtual bool IsSdkInstalled(bool bProjectHasCode, FString& OutTutorialPath) const override;
 	virtual int32 CheckRequirements(bool bProjectHasCode, EBuildConfiguration Configuration, bool bRequiresAssetNativization, FString& OutTutorialPath, FString& OutDocumentationPath, FText& CustomizedLogMessage) const override;
