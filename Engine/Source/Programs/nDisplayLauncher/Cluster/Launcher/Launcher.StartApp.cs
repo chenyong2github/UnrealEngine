@@ -86,6 +86,12 @@ namespace nDisplayLauncher.Cluster
 			// Fullscreen/windowed
 			commandCmd = string.Format("{0} {1}", commandCmd, Window.IsFullscreen ? ArgFullscreen : ArgWindowed );
 
+			// If windowed, we need to add -ForceRes parameter
+			if (!Window.IsFullscreen)
+			{
+				commandCmd = string.Format("{0} {1}", commandCmd, ArgForceRes);
+			}
+
 			// Window location and size
 			if (Window.ResX > 0 && Window.ResY > 0)
 			{

@@ -47,6 +47,7 @@ namespace nDisplayLauncher.Cluster
 		private const string ArgWindowed             = "-windowed";
 		private const string ArgNoTextureStreaming   = "-notexturestreaming";
 		private const string ArgUseAllAvailableCores = "-useallavailablecores";
+		private const string ArgForceRes             = "-forceres";
 
 		public enum ClusterCommandType
 		{

@@ -79,7 +79,6 @@ private:
 
 	// Interface pointer to avoid type casting
 	IDisplayClusterRenderDevice* RenderDevicePtr = nullptr;
-	bool bWindowAdjusted = false;
 
 private:
 	// Rendering device factories
