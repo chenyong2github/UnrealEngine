@@ -1,6 +1,8 @@
 package com.epicgames.ue4;
 
 import android.app.Application;
+import android.content.Context;
+import android.content.res.Configuration;
 import android.arch.lifecycle.Lifecycle;
 import android.arch.lifecycle.LifecycleObserver;
 import android.arch.lifecycle.OnLifecycleEvent;
@@ -22,6 +24,30 @@ public class GameApplication extends Application implements LifecycleObserver {
 		ProcessLifecycleOwner.get().getLifecycle().addObserver(this);
 
 		NetworkChangedManager.getInstance().initNetworkCallback(this);
+	}
+
+	@Override
+	public void attachBaseContext(Context base) {
+		super.attachBaseContext(base);
+//$${gameApplicationAttachBaseContextAdditions}$$
+	}
+
+	@Override
+	public void onLowMemory() {
+		super.onLowMemory();
+//$${gameApplicationOnLowMemoryAdditions}$$
+	}
+
+	@Override
+	public void onTrimMemory(int level) {
+		super.onTrimMemory(level);
+//$${gameApplicationOnTrimMemoryAdditions}$$
+	}
+
+	@Override
+	public void onConfigurationChanged (Configuration newConfig) {
+		super.onConfigurationChanged(newConfig);
+//$${gameApplicationOnConfigurationChangedAdditions}$$		
 	}
 
 	@OnLifecycleEvent(Lifecycle.Event.ON_START)
