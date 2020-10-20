@@ -6,6 +6,9 @@
 
 
 #include "Common.ush"
+
+#define SceneTexturesStruct RenderVolumetricCloudParameters.SceneTextures
+
 #include "Random.ush"
 #include "VolumetricCloudCommon.ush"
 
