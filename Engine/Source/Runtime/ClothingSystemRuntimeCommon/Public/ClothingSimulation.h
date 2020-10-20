@@ -8,6 +8,13 @@
 
 class USkeletalMeshComponent;
 
+// Common simulation stats
+DECLARE_CYCLE_STAT_EXTERN(TEXT("Compute Clothing Normals"), STAT_ClothComputeNormals, STATGROUP_Physics, CLOTHINGSYSTEMRUNTIMECOMMON_API);
+DECLARE_CYCLE_STAT_EXTERN(TEXT("Internal Solve"), STAT_ClothInternalSolve, STATGROUP_Physics, CLOTHINGSYSTEMRUNTIMECOMMON_API);
+DECLARE_CYCLE_STAT_EXTERN(TEXT("Update Collisions"), STAT_ClothUpdateCollisions, STATGROUP_Physics, CLOTHINGSYSTEMRUNTIMECOMMON_API);
+DECLARE_CYCLE_STAT_EXTERN(TEXT("Skin Physics Mesh"), STAT_ClothSkinPhysMesh, STATGROUP_Physics, CLOTHINGSYSTEMRUNTIMECOMMON_API);
+DECLARE_CYCLE_STAT_EXTERN(TEXT("Fill Context"), STAT_ClothFillContext, STATGROUP_Physics, CLOTHINGSYSTEMRUNTIMECOMMON_API);
+
 /** Base simulation data that just about every simulation would need. */
 class CLOTHINGSYSTEMRUNTIMECOMMON_API FClothingSimulationContextCommon : public IClothingSimulationContext
 {
