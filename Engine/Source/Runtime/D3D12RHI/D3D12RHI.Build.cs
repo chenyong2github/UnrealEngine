@@ -46,7 +46,8 @@ public class D3D12RHI : ModuleRules
                 AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAPI");
 				AddEngineThirdPartyPrivateStaticDependencies(Target, "AMD_AGS");
             	AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAftermath");
-            	AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelMetricsDiscovery");
+				AddEngineThirdPartyPrivateStaticDependencies(Target, "GeForceNOW");
+				AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelMetricsDiscovery");
             }
         }
     }

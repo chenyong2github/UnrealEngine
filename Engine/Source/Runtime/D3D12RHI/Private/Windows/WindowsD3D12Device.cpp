@@ -30,6 +30,12 @@
 
 #include "ShaderCompiler.h"
 
+#if NV_GEFORCENOW
+THIRD_PARTY_INCLUDES_START
+#include "GfnRuntimeSdk_CAPI.h"
+THIRD_PARTY_INCLUDES_END
+#endif
+
 #pragma comment(lib, "d3d12.lib")
 
 IMPLEMENT_MODULE(FD3D12DynamicRHIModule, D3D12RHI);
@@ -630,9 +636,23 @@ void FD3D12DynamicRHI::Init()
 #endif
 
 	// Disable ray tracing for Windows build versions
+
+	bool bIsRunningNvidiaGFN = false;
+#if NV_GEFORCENOW
+	const GfnRuntimeSdk::GfnRuntimeError GfnResult = GfnRuntimeSdk::gfnInitializeRuntimeSdk(GfnRuntimeSdk::gfnDefaultLanguage);
+	const bool bGfnRuntimeSDKInitialized = GfnResult == GfnRuntimeSdk::gfnSuccess || GfnResult == GfnRuntimeSdk::gfnInitSuccessClientOnly;
+	if (bGfnRuntimeSDKInitialized && GfnRuntimeSdk::gfnIsRunningInCloud())
+	{
+		UE_LOG(LogRHI, Log, TEXT("GeForceNow cloud instance running. Ray Tracing Windows build version check disabled"));
+		bIsRunningNvidiaGFN = true;
+		GfnRuntimeSdk::gfnShutdownRuntimeSdk();
+	}
+#endif
+
 	if (GRHISupportsRayTracing
 		&& GMinimumWindowsBuildVersionForRayTracing > 0
-		&& !FPlatformMisc::VerifyWindowsVersion(10, 0, GMinimumWindowsBuildVersionForRayTracing))
+		&& !FPlatformMisc::VerifyWindowsVersion(10, 0, GMinimumWindowsBuildVersionForRayTracing)
+		&& !bIsRunningNvidiaGFN)
 	{
 		GRHISupportsRayTracing = false;
 
