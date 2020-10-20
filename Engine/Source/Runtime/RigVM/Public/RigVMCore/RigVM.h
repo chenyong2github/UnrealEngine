@@ -41,7 +41,9 @@ public:
 	{
 	}
 
-	bool Serialize(FArchive& Ar);
+	void Serialize(FArchive& Ar);
+	void Save(FArchive& Ar);
+	void Load(FArchive& Ar);
 	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, FRigVMParameter& P)
 	{
 		P.Serialize(Ar);
@@ -121,6 +123,8 @@ public:
 
 	// UObject interface
 	void Serialize(FArchive& Ar);
+	void Save(FArchive& Ar);
+	void Load(FArchive& Ar);
 
 	// resets the container and maintains all memory
 	void Reset();

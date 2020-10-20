@@ -5,27 +5,47 @@
 #include "UObject/AnimObjectVersion.h"
 #include "HAL/PlatformTLS.h"
 
-bool FRigVMParameter::Serialize(FArchive& Ar)
+void FRigVMParameter::Serialize(FArchive& Ar)
 {
 	Ar.UsingCustomVersion(FAnimObjectVersion::GUID);
 
 	if (Ar.CustomVer(FAnimObjectVersion::GUID) < FAnimObjectVersion::StoreMarkerNamesOnSkeleton)
 	{
-		return false;
+		return;
 	}
 
+	if (Ar.IsSaving() || Ar.IsObjectReferenceCollector())
+	{
+		Save(Ar);
+	}
+	else if (Ar.IsLoading())
+	{
+		Load(Ar);
+	}
+	else
+	{
+		checkNoEntry();
+	}
+}
+
+void FRigVMParameter::Save(FArchive& Ar)
+{
+	Ar << Type;
+	Ar << Name;
+	Ar << RegisterIndex;
+	Ar << CPPType;
+	Ar << ScriptStructPath;
+}
+
+void FRigVMParameter::Load(FArchive& Ar)
+{
 	Ar << Type;
 	Ar << Name;
 	Ar << RegisterIndex;
 	Ar << CPPType;
 	Ar << ScriptStructPath;
 
-	if (Ar.IsLoading())
-	{
-		ScriptStruct = nullptr;
-	}
-
-	return true;
+	ScriptStruct = nullptr;
 }
 
 UScriptStruct* FRigVMParameter::GetScriptStruct() const
@@ -70,10 +90,32 @@ void URigVM::Serialize(FArchive& Ar)
 
 	ensure(ExecutingThreadId == INDEX_NONE);
 
-	if (Ar.IsLoading())
+	if (Ar.IsSaving() || Ar.IsObjectReferenceCollector())
 	{
-		Reset();
+		Save(Ar);
 	}
+	else if (Ar.IsLoading())
+	{
+		Load(Ar);
+	}
+	else
+	{
+		checkNoEntry();
+	}
+}
+
+void URigVM::Save(FArchive& Ar)
+{
+	Ar << WorkMemoryStorage;
+	Ar << LiteralMemoryStorage;
+	Ar << FunctionNamesStorage;
+	Ar << ByteCodeStorage;
+	Ar << Parameters;
+}
+
+void URigVM::Load(FArchive& Ar)
+{
+	Reset();
 
 	Ar << WorkMemoryStorage;
 	Ar << LiteralMemoryStorage;
@@ -81,26 +123,23 @@ void URigVM::Serialize(FArchive& Ar)
 	Ar << ByteCodeStorage;
 	Ar << Parameters;
 
-	if (Ar.IsLoading())
+	if (WorkMemoryStorage.bEncounteredErrorDuringLoad ||
+		LiteralMemoryStorage.bEncounteredErrorDuringLoad)
 	{
-		if (WorkMemoryStorage.bEncounteredErrorDuringLoad ||
-			LiteralMemoryStorage.bEncounteredErrorDuringLoad)
-		{
-			Reset();
-		}
-		else
-		{
-			Instructions.Reset();
-			FunctionsStorage.Reset();
-			ParametersNameMap.Reset();
+		Reset();
+	}
+	else
+	{
+		Instructions.Reset();
+		FunctionsStorage.Reset();
+		ParametersNameMap.Reset();
 
-			for (int32 Index = 0; Index < Parameters.Num(); Index++)
-			{
-				ParametersNameMap.Add(Parameters[Index].Name, Index);
-			}
-
-			InvalidateCachedMemory();
+		for (int32 Index = 0; Index < Parameters.Num(); Index++)
+		{
+			ParametersNameMap.Add(Parameters[Index].Name, Index);
 		}
+
+		InvalidateCachedMemory();
 	}
 }
 

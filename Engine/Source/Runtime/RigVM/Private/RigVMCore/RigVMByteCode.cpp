@@ -4,65 +4,57 @@
 #include "UObject/AnimObjectVersion.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
 
-bool FRigVMExecuteOp::Serialize(FArchive& Ar)
+void FRigVMExecuteOp::Serialize(FArchive& Ar)
 {
 	Ar << OpCode;
 	Ar << FunctionIndex;
-	return true;
 }
 
-bool FRigVMUnaryOp::Serialize(FArchive& Ar)
+void FRigVMUnaryOp::Serialize(FArchive& Ar)
 {
 	Ar << OpCode;
 	Ar << Arg;
-	return true;
 }
 
-bool FRigVMBinaryOp::Serialize(FArchive& Ar)
+void FRigVMBinaryOp::Serialize(FArchive& Ar)
 {
 	Ar << OpCode;
 	Ar << ArgA;
 	Ar << ArgB;
-	return true;
 }
 
-bool FRigVMCopyOp::Serialize(FArchive& Ar)
+void FRigVMCopyOp::Serialize(FArchive& Ar)
 {
 	Ar << OpCode;
 	Ar << Source;
 	Ar << Target;
-	return true;
 }
 
-bool FRigVMComparisonOp::Serialize(FArchive& Ar)
+void FRigVMComparisonOp::Serialize(FArchive& Ar)
 {
 	Ar << OpCode;
 	Ar << A;
 	Ar << B;
 	Ar << Result;
-	return true;
 }
 
-bool FRigVMJumpOp::Serialize(FArchive& Ar)
+void FRigVMJumpOp::Serialize(FArchive& Ar)
 {
 	Ar << OpCode;
 	Ar << InstructionIndex;
-	return true;
 }
 
-bool FRigVMJumpIfOp::Serialize(FArchive& Ar)
+void FRigVMJumpIfOp::Serialize(FArchive& Ar)
 {
 	Ar << OpCode;
 	Ar << Arg;
 	Ar << InstructionIndex;
 	Ar << Condition;
-	return true;
 }
 
-bool FRigVMChangeTypeOp::Serialize(FArchive& Ar)
+void FRigVMChangeTypeOp::Serialize(FArchive& Ar)
 {
 	ensure(false);
-	return false;
 }
 
 FRigVMInstructionArray::FRigVMInstructionArray()
@@ -131,36 +123,39 @@ FRigVMByteCode::FRigVMByteCode()
 {
 }
 
-bool FRigVMByteCode::Serialize(FArchive& Ar)
+void FRigVMByteCode::Serialize(FArchive& Ar)
 {
 	Ar.UsingCustomVersion(FAnimObjectVersion::GUID);
 	Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
 
 	if (Ar.CustomVer(FAnimObjectVersion::GUID) < FAnimObjectVersion::StoreMarkerNamesOnSkeleton)
 	{
-		return false;
+		return;
 	}
 
-	if (Ar.IsLoading() && Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::RigVMByteCodeDeterminism)
+	if (Ar.IsSaving() || Ar.IsObjectReferenceCollector())
 	{
-		Ar << ByteCode;
-		return true;
+		Save(Ar);
 	}
-
-	FRigVMInstructionArray Instructions;
-	
-	int32 InstructionCount = 0;
-	if (Ar.IsSaving())
+	else if (Ar.IsLoading())
 	{
-		Instructions = GetInstructions();
-		InstructionCount = Instructions.Num();
+		Load(Ar);
 	}
 	else
 	{
-		ByteCode.Reset();
-		bByteCodeIsAligned = false;
+		checkNoEntry();
 	}
+}
 
+void FRigVMByteCode::Save(FArchive& Ar) const
+{
+	FRigVMInstructionArray Instructions;
+
+	int32 InstructionCount = 0;
+	
+	Instructions = GetInstructions();
+	InstructionCount = Instructions.Num();
+	
 	Ar << InstructionCount;
 
 	for (int32 InstructionIndex = 0; InstructionIndex < InstructionCount; InstructionIndex++)
@@ -168,12 +163,8 @@ bool FRigVMByteCode::Serialize(FArchive& Ar)
 		FRigVMInstruction Instruction;
 		ERigVMOpCode OpCode = ERigVMOpCode::Invalid;
 
-		if (Ar.IsSaving())
-		{
-			Instruction = Instructions[InstructionIndex];
-			OpCode = Instruction.OpCode;
-		}
-			
+		Instruction = Instructions[InstructionIndex];
+		OpCode = Instruction.OpCode;
 		Ar << OpCode;
 
 		switch (OpCode)
@@ -244,52 +235,24 @@ bool FRigVMByteCode::Serialize(FArchive& Ar)
 			case ERigVMOpCode::Execute_63_Operands:
 			case ERigVMOpCode::Execute_64_Operands:
 			{
-				if (Ar.IsSaving())
+				FRigVMExecuteOp Op = GetOpAt<FRigVMExecuteOp>(Instruction.ByteCodeIndex);
+				Ar << Op;
+
+				FRigVMOperandArray Operands = GetOperandsForExecuteOp(Instruction);
+				int32 OperandCount = (int32)Op.GetOperandCount();
+				ensure(OperandCount == Operands.Num());
+
+				for (int32 OperandIndex = 0; OperandIndex < OperandCount; OperandIndex++)
 				{
-					FRigVMExecuteOp Op = GetOpAt<FRigVMExecuteOp>(Instruction.ByteCodeIndex);
-					Ar << Op;
-
-					FRigVMOperandArray Operands = GetOperandsForExecuteOp(Instruction);
-					int32 OperandCount = (int32)Op.GetOperandCount();
-					ensure(OperandCount == Operands.Num());
-
-					for (int32 OperandIndex = 0; OperandIndex < OperandCount; OperandIndex++)
-					{
-						FRigVMOperand Operand = Operands[OperandIndex];
-						Ar << Operand;
-					}
-				}
-				else
-				{
-					FRigVMExecuteOp Op;
-					Ar << Op;
-
-					int32 OperandCount = Op.GetOperandCount();
-					TArray<FRigVMOperand> Operands;
-					for (int32 OperandIndex = 0; OperandIndex < OperandCount; OperandIndex++)
-					{
-						FRigVMOperand Operand;
-						Ar << Operand;
-						Operands.Add(Operand);
-					}
-
-					AddExecuteOp(Op.FunctionIndex, Operands);
+					FRigVMOperand Operand = Operands[OperandIndex];
+					Ar << Operand;
 				}
 				break;
 			}
 			case ERigVMOpCode::Copy:
 			{
-				if (Ar.IsSaving())
-				{
-					FRigVMCopyOp Op = GetOpAt<FRigVMCopyOp>(Instruction.ByteCodeIndex);
-					Ar << Op;
-				}
-				else
-				{
-					FRigVMCopyOp Op;
-					Ar << Op;
-					AddOp<FRigVMCopyOp>(Op);
-				}
+				FRigVMCopyOp Op = GetOpAt<FRigVMCopyOp>(Instruction.ByteCodeIndex);
+				Ar << Op;
 				break;
 			}
 			case ERigVMOpCode::Zero:
@@ -298,108 +261,49 @@ bool FRigVMByteCode::Serialize(FArchive& Ar)
 			case ERigVMOpCode::Increment:
 			case ERigVMOpCode::Decrement:
 			{
-				if (Ar.IsSaving())
-				{
-					FRigVMUnaryOp Op = GetOpAt<FRigVMUnaryOp>(Instruction.ByteCodeIndex);
-					Ar << Op;
-				}
-				else
-				{
-					FRigVMUnaryOp Op;
-					Ar << Op;
-					AddOp<FRigVMUnaryOp>(Op);
-				}
+				FRigVMUnaryOp Op = GetOpAt<FRigVMUnaryOp>(Instruction.ByteCodeIndex);
+				Ar << Op;
 				break;
 			}
 			case ERigVMOpCode::Equals:
 			case ERigVMOpCode::NotEquals:
 			{
-				if (Ar.IsSaving())
-				{
-					FRigVMComparisonOp Op = GetOpAt<FRigVMComparisonOp>(Instruction.ByteCodeIndex);
-					Ar << Op;
-				}
-				else
-				{
-					FRigVMComparisonOp Op;
-					Ar << Op;
-					AddOp<FRigVMComparisonOp>(Op);
-				}
+				FRigVMComparisonOp Op = GetOpAt<FRigVMComparisonOp>(Instruction.ByteCodeIndex);
+				Ar << Op;
 				break;
 			}
 			case ERigVMOpCode::JumpAbsolute:
 			case ERigVMOpCode::JumpForward:
 			case ERigVMOpCode::JumpBackward:
 			{
-				if (Ar.IsSaving())
-				{
-					FRigVMJumpOp Op = GetOpAt<FRigVMJumpOp>(Instruction.ByteCodeIndex);
-					Ar << Op;
-				}
-				else
-				{
-					FRigVMJumpOp Op;
-					Ar << Op;
-					AddOp<FRigVMJumpOp>(Op);
-				}
+				FRigVMJumpOp Op = GetOpAt<FRigVMJumpOp>(Instruction.ByteCodeIndex);
+				Ar << Op;
 				break;
 			}
 			case ERigVMOpCode::JumpAbsoluteIf:
 			case ERigVMOpCode::JumpForwardIf:
 			case ERigVMOpCode::JumpBackwardIf:
 			{
-				if (Ar.IsSaving())
-				{
-					FRigVMJumpIfOp Op = GetOpAt<FRigVMJumpIfOp>(Instruction.ByteCodeIndex);
-					Ar << Op;
-				}
-				else
-				{
-					FRigVMJumpIfOp Op;
-					Ar << Op;
-					AddOp<FRigVMJumpIfOp>(Op);
-				}
+				FRigVMJumpIfOp Op = GetOpAt<FRigVMJumpIfOp>(Instruction.ByteCodeIndex);
+				Ar << Op;
 				break;
 			}
 			case ERigVMOpCode::Exit:
 			{
-				if (Ar.IsSaving())
-				{
-					// nothing todo, the ExitOp has no custom data inside of it
-					// so all we need is the previously saved OpCode.
-				}
-				else
-				{
-					AddExitOp();
-				}
+				// nothing todo, the ExitOp has no custom data inside of it
+				// so all we need is the previously saved OpCode.
 				break;
 			}
 			case ERigVMOpCode::BeginBlock:
 			{
-				if (Ar.IsSaving())
-				{
-					FRigVMBinaryOp Op = GetOpAt<FRigVMBinaryOp>(Instruction.ByteCodeIndex);
-					Ar << Op;
-				}
-				else
-				{
-					FRigVMBinaryOp Op;
-					Ar << Op;
-					AddOp<FRigVMBinaryOp>(Op);
-				}
+				FRigVMBinaryOp Op = GetOpAt<FRigVMBinaryOp>(Instruction.ByteCodeIndex);
+				Ar << Op;
 				break;
 			}
 			case ERigVMOpCode::EndBlock:
 			{
-				if (Ar.IsSaving())
-				{
-					// nothing todo, the EndBlock has no custom data inside of it
-					// so all we need is the previously saved OpCode.
-				}
-				else
-				{
-					AddEndBlockOp();
-				}
+				// nothing todo, the EndBlock has no custom data inside of it
+				// so all we need is the previously saved OpCode.
 				break;
 			}
 			default:
@@ -409,45 +313,213 @@ bool FRigVMByteCode::Serialize(FArchive& Ar)
 		}
 	}
 
-	if (Ar.IsLoading())
+	UScriptStruct* ScriptStruct = FRigVMByteCodeEntry::StaticStruct();
+	TArray<uint8, TAlignedHeapAllocator<16>> DefaultStructData;
+	DefaultStructData.AddZeroed(ScriptStruct->GetStructureSize());
+	ScriptStruct->InitializeDefaultValue(DefaultStructData.GetData());
+
+	TArray<FString> View;
+	for (uint16 EntryIndex = 0; EntryIndex < Entries.Num(); EntryIndex++)
 	{
-		AlignByteCode();
+		FString Value;
+		ScriptStruct->ExportText(Value, &Entries[EntryIndex], DefaultStructData.GetData(), nullptr, PPF_None, nullptr);
+		View.Add(Value);
+	}
 
-		Entries.Reset();
-		if (Ar.CustomVer(FAnimObjectVersion::GUID) >= FAnimObjectVersion::SerializeRigVMEntries)
+	Ar << View;
+}
+
+void FRigVMByteCode::Load(FArchive& Ar)
+{
+	if (Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::RigVMByteCodeDeterminism)
+	{
+		Ar << ByteCode;
+		return;
+	}
+
+	FRigVMInstructionArray Instructions;
+
+	int32 InstructionCount = 0;
+	
+	ByteCode.Reset();
+	bByteCodeIsAligned = false;
+	Ar << InstructionCount;
+
+	for (int32 InstructionIndex = 0; InstructionIndex < InstructionCount; InstructionIndex++)
+	{
+		FRigVMInstruction Instruction;
+		ERigVMOpCode OpCode = ERigVMOpCode::Invalid;
+
+		Ar << OpCode;
+
+		switch (OpCode)
 		{
-			UScriptStruct* ScriptStruct = FRigVMByteCodeEntry::StaticStruct();
-
-			TArray<FString> View;
-			Ar << View;
-
-			for (int32 EntryIndex = 0; EntryIndex < View.Num(); EntryIndex++)
+			case ERigVMOpCode::Execute_0_Operands:
+			case ERigVMOpCode::Execute_1_Operands:
+			case ERigVMOpCode::Execute_2_Operands:
+			case ERigVMOpCode::Execute_3_Operands:
+			case ERigVMOpCode::Execute_4_Operands:
+			case ERigVMOpCode::Execute_5_Operands:
+			case ERigVMOpCode::Execute_6_Operands:
+			case ERigVMOpCode::Execute_7_Operands:
+			case ERigVMOpCode::Execute_8_Operands:
+			case ERigVMOpCode::Execute_9_Operands:
+			case ERigVMOpCode::Execute_10_Operands:
+			case ERigVMOpCode::Execute_11_Operands:
+			case ERigVMOpCode::Execute_12_Operands:
+			case ERigVMOpCode::Execute_13_Operands:
+			case ERigVMOpCode::Execute_14_Operands:
+			case ERigVMOpCode::Execute_15_Operands:
+			case ERigVMOpCode::Execute_16_Operands:
+			case ERigVMOpCode::Execute_17_Operands:
+			case ERigVMOpCode::Execute_18_Operands:
+			case ERigVMOpCode::Execute_19_Operands:
+			case ERigVMOpCode::Execute_20_Operands:
+			case ERigVMOpCode::Execute_21_Operands:
+			case ERigVMOpCode::Execute_22_Operands:
+			case ERigVMOpCode::Execute_23_Operands:
+			case ERigVMOpCode::Execute_24_Operands:
+			case ERigVMOpCode::Execute_25_Operands:
+			case ERigVMOpCode::Execute_26_Operands:
+			case ERigVMOpCode::Execute_27_Operands:
+			case ERigVMOpCode::Execute_28_Operands:
+			case ERigVMOpCode::Execute_29_Operands:
+			case ERigVMOpCode::Execute_30_Operands:
+			case ERigVMOpCode::Execute_31_Operands:
+			case ERigVMOpCode::Execute_32_Operands:
+			case ERigVMOpCode::Execute_33_Operands:
+			case ERigVMOpCode::Execute_34_Operands:
+			case ERigVMOpCode::Execute_35_Operands:
+			case ERigVMOpCode::Execute_36_Operands:
+			case ERigVMOpCode::Execute_37_Operands:
+			case ERigVMOpCode::Execute_38_Operands:
+			case ERigVMOpCode::Execute_39_Operands:
+			case ERigVMOpCode::Execute_40_Operands:
+			case ERigVMOpCode::Execute_41_Operands:
+			case ERigVMOpCode::Execute_42_Operands:
+			case ERigVMOpCode::Execute_43_Operands:
+			case ERigVMOpCode::Execute_44_Operands:
+			case ERigVMOpCode::Execute_45_Operands:
+			case ERigVMOpCode::Execute_46_Operands:
+			case ERigVMOpCode::Execute_47_Operands:
+			case ERigVMOpCode::Execute_48_Operands:
+			case ERigVMOpCode::Execute_49_Operands:
+			case ERigVMOpCode::Execute_50_Operands:
+			case ERigVMOpCode::Execute_51_Operands:
+			case ERigVMOpCode::Execute_52_Operands:
+			case ERigVMOpCode::Execute_53_Operands:
+			case ERigVMOpCode::Execute_54_Operands:
+			case ERigVMOpCode::Execute_55_Operands:
+			case ERigVMOpCode::Execute_56_Operands:
+			case ERigVMOpCode::Execute_57_Operands:
+			case ERigVMOpCode::Execute_58_Operands:
+			case ERigVMOpCode::Execute_59_Operands:
+			case ERigVMOpCode::Execute_60_Operands:
+			case ERigVMOpCode::Execute_61_Operands:
+			case ERigVMOpCode::Execute_62_Operands:
+			case ERigVMOpCode::Execute_63_Operands:
+			case ERigVMOpCode::Execute_64_Operands:
 			{
-				FRigVMByteCodeEntry Entry;
-				ScriptStruct->ImportText(*View[EntryIndex], &Entry, nullptr, PPF_None, nullptr, ScriptStruct->GetName());
-				Entries.Add(Entry);
+				FRigVMExecuteOp Op;
+				Ar << Op;
+
+				int32 OperandCount = Op.GetOperandCount();
+				TArray<FRigVMOperand> Operands;
+				for (int32 OperandIndex = 0; OperandIndex < OperandCount; OperandIndex++)
+				{
+					FRigVMOperand Operand;
+					Ar << Operand;
+					Operands.Add(Operand);
+				}
+
+				AddExecuteOp(Op.FunctionIndex, Operands);
+				break;
+			}
+			case ERigVMOpCode::Copy:
+			{
+				FRigVMCopyOp Op;
+				Ar << Op;
+				AddOp<FRigVMCopyOp>(Op);
+				break;
+			}
+			case ERigVMOpCode::Zero:
+			case ERigVMOpCode::BoolFalse:
+			case ERigVMOpCode::BoolTrue:
+			case ERigVMOpCode::Increment:
+			case ERigVMOpCode::Decrement:
+			{
+				FRigVMUnaryOp Op;
+				Ar << Op;
+				AddOp<FRigVMUnaryOp>(Op);
+				break;
+			}
+			case ERigVMOpCode::Equals:
+			case ERigVMOpCode::NotEquals:
+			{
+				FRigVMComparisonOp Op;
+				Ar << Op;
+				AddOp<FRigVMComparisonOp>(Op);
+				break;
+			}
+			case ERigVMOpCode::JumpAbsolute:
+			case ERigVMOpCode::JumpForward:
+			case ERigVMOpCode::JumpBackward:
+			{
+				FRigVMJumpOp Op;
+				Ar << Op;
+				AddOp<FRigVMJumpOp>(Op);
+				break;
+			}
+			case ERigVMOpCode::JumpAbsoluteIf:
+			case ERigVMOpCode::JumpForwardIf:
+			case ERigVMOpCode::JumpBackwardIf:
+			{
+				FRigVMJumpIfOp Op;
+				Ar << Op;
+				AddOp<FRigVMJumpIfOp>(Op);
+				break;
+			}
+			case ERigVMOpCode::Exit:
+			{	
+				AddExitOp();	
+				break;
+			}
+			case ERigVMOpCode::BeginBlock:
+			{
+				FRigVMBinaryOp Op;
+				Ar << Op;
+				AddOp<FRigVMBinaryOp>(Op);
+				break;
+			}
+			case ERigVMOpCode::EndBlock:
+			{
+				AddEndBlockOp();
+				break;
+			}
+			default:
+			{
+				ensure(false);
 			}
 		}
 	}
-	else if(Ar.IsSaving())
+	
+	AlignByteCode();
+
+	Entries.Reset();
+	if (Ar.CustomVer(FAnimObjectVersion::GUID) >= FAnimObjectVersion::SerializeRigVMEntries)
 	{
 		UScriptStruct* ScriptStruct = FRigVMByteCodeEntry::StaticStruct();
-		TArray<uint8, TAlignedHeapAllocator<16>> DefaultStructData;
-		DefaultStructData.AddZeroed(ScriptStruct->GetStructureSize());
-		ScriptStruct->InitializeDefaultValue(DefaultStructData.GetData());
 
 		TArray<FString> View;
-		for (uint16 EntryIndex = 0; EntryIndex < Entries.Num(); EntryIndex++)
-		{
-			FString Value;
-			ScriptStruct->ExportText(Value, &Entries[EntryIndex], DefaultStructData.GetData(), nullptr, PPF_None, nullptr);
-			View.Add(Value);
-		}
-
 		Ar << View;
-	}
 
-	return true;
+		for (int32 EntryIndex = 0; EntryIndex < View.Num(); EntryIndex++)
+		{
+			FRigVMByteCodeEntry Entry;
+			ScriptStruct->ImportText(*View[EntryIndex], &Entry, nullptr, PPF_None, nullptr, ScriptStruct->GetName());
+			Entries.Add(Entry);
+		}
+	}
 }
 
 void FRigVMByteCode::Reset()

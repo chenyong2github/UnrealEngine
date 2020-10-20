@@ -136,7 +136,7 @@ struct RIGVM_API FRigVMExecuteOp : public FRigVMBaseOp
 
 	FORCEINLINE uint8 GetOperandCount() const { return uint8(OpCode) - uint8(ERigVMOpCode::Execute_0_Operands); }
 
-	bool Serialize(FArchive& Ar);
+	void Serialize(FArchive& Ar);
 	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, FRigVMExecuteOp& P)
 	{
 		P.Serialize(Ar);
@@ -175,7 +175,7 @@ struct RIGVM_API FRigVMUnaryOp : public FRigVMBaseOp
 
 	FRigVMOperand Arg;
 
-	bool Serialize(FArchive& Ar);
+	void Serialize(FArchive& Ar);
 	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, FRigVMUnaryOp& P)
 	{
 		P.Serialize(Ar);
@@ -209,7 +209,7 @@ struct RIGVM_API FRigVMBinaryOp : public FRigVMBaseOp
 	FRigVMOperand ArgA;
 	FRigVMOperand ArgB;
 
-	bool Serialize(FArchive& Ar);
+	void Serialize(FArchive& Ar);
 	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, FRigVMBinaryOp& P)
 	{
 		P.Serialize(Ar);
@@ -243,7 +243,7 @@ struct RIGVM_API FRigVMCopyOp : public FRigVMBaseOp
 	FRigVMOperand Source;
 	FRigVMOperand Target;
 
-	bool Serialize(FArchive& Ar);
+	void Serialize(FArchive& Ar);
 	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, FRigVMCopyOp& P)
 	{
 		P.Serialize(Ar);
@@ -286,7 +286,7 @@ struct RIGVM_API FRigVMComparisonOp : public FRigVMBaseOp
 	FRigVMOperand B;
 	FRigVMOperand Result;
 
-	bool Serialize(FArchive& Ar);
+	void Serialize(FArchive& Ar);
 	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, FRigVMComparisonOp& P)
 	{
 		P.Serialize(Ar);
@@ -318,7 +318,7 @@ struct RIGVM_API FRigVMJumpOp : public FRigVMBaseOp
 
 	int32 InstructionIndex;
 
-	bool Serialize(FArchive& Ar);
+	void Serialize(FArchive& Ar);
 	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, FRigVMJumpOp& P)
 	{
 		P.Serialize(Ar);
@@ -353,7 +353,7 @@ struct RIGVM_API FRigVMJumpIfOp : public FRigVMUnaryOp
 	int32 InstructionIndex;
 	bool Condition;
 
-	bool Serialize(FArchive& Ar);
+	void Serialize(FArchive& Ar);
 	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, FRigVMJumpIfOp& P)
 	{
 		P.Serialize(Ar);
@@ -390,7 +390,7 @@ struct RIGVM_API FRigVMChangeTypeOp : public FRigVMUnaryOp
 	uint16 ElementCount;
 	uint16 SliceCount;
 
-	bool Serialize(FArchive& Ar);
+	void Serialize(FArchive& Ar);
 	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, FRigVMChangeTypeOp& P)
 	{
 		P.Serialize(Ar);
@@ -496,7 +496,9 @@ public:
 
 	FRigVMByteCode();
 
-	bool Serialize(FArchive& Ar);
+	void Serialize(FArchive& Ar);
+	void Save(FArchive& Ar) const;
+	void Load(FArchive& Ar);
 	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, FRigVMByteCode& P)
 	{
 		P.Serialize(Ar);

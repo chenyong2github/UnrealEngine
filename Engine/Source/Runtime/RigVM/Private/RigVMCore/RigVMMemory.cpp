@@ -13,21 +13,20 @@
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool FRigVMOperand::Serialize(FArchive& Ar)
+void FRigVMOperand::Serialize(FArchive& Ar)
 {
 	Ar << MemoryType;
 	Ar << RegisterIndex;
 	Ar << RegisterOffset;
-	return true;
 }
 
-bool FRigVMRegister::Serialize(FArchive& Ar)
+void FRigVMRegister::Serialize(FArchive& Ar)
 {
 	Ar.UsingCustomVersion(FAnimObjectVersion::GUID);
 
 	if (Ar.CustomVer(FAnimObjectVersion::GUID) < FAnimObjectVersion::StoreMarkerNamesOnSkeleton)
 	{
-		return false;
+		return;
 	}
 
 	uint16 SliceIndex = 0;
@@ -43,52 +42,94 @@ bool FRigVMRegister::Serialize(FArchive& Ar)
 	Ar << Name;
 	Ar << ScriptStructIndex;
 
-	if (Ar.IsLoading())
+	if (Ar.IsSaving() || Ar.IsObjectReferenceCollector())
 	{
-		if (Ar.CustomVer(FAnimObjectVersion::GUID) >= FAnimObjectVersion::SerializeRigVMRegisterArrayState)
-		{
-			Ar << bIsArray;
-		}
-		else
-		{
-			bIsArray = false;
-		}
-
-		if (Ar.CustomVer(FAnimObjectVersion::GUID) >= FAnimObjectVersion::SerializeRigVMRegisterDynamicState)
-		{
-			Ar << bIsDynamic;
-		}
-		else
-		{
-			bIsDynamic = false;
-		}
+		Save(Ar);
+	}
+	else if (Ar.IsLoading())
+	{
+		Load(Ar);
 	}
 	else
 	{
+		checkNoEntry();
+	}
+}
+
+void FRigVMRegister::Save(FArchive& Ar)
+{
+	Ar << bIsArray;
+	Ar << bIsDynamic;
+}
+
+void FRigVMRegister::Load(FArchive& Ar)
+{
+	if (Ar.CustomVer(FAnimObjectVersion::GUID) >= FAnimObjectVersion::SerializeRigVMRegisterArrayState)
+	{
 		Ar << bIsArray;
-		Ar << bIsDynamic;
+	}
+	else
+	{
+		bIsArray = false;
 	}
 
-	return true;
+	if (Ar.CustomVer(FAnimObjectVersion::GUID) >= FAnimObjectVersion::SerializeRigVMRegisterDynamicState)
+	{
+		Ar << bIsDynamic;
+	}
+	else
+	{
+		bIsDynamic = false;
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool FRigVMRegisterOffset::Serialize(FArchive& Ar)
+void FRigVMRegisterOffset::Serialize(FArchive& Ar)
 {
 	Ar.UsingCustomVersion(FAnimObjectVersion::GUID);
 	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
 
 	if (Ar.CustomVer(FAnimObjectVersion::GUID) < FAnimObjectVersion::StoreMarkerNamesOnSkeleton)
 	{
-		return false;
+		return;
 	}
 
+	if (Ar.IsSaving() || Ar.IsObjectReferenceCollector())
+	{
+		Save(Ar);
+	}
+	else if (Ar.IsLoading())
+	{
+		Load(Ar);
+	}
+	else
+	{
+		checkNoEntry();
+	}
+}
+
+void FRigVMRegisterOffset::Save(FArchive& Ar)
+{
 	Ar << Segments;
 	Ar << Type;
 	Ar << CPPType;
 
-	if (Ar.IsLoading() && Ar.CustomVer(FReleaseObjectVersion::GUID) < FReleaseObjectVersion::SerializeRigVMOffsetSegmentPaths)
+	Ar << ScriptStruct;
+	
+	Ar << ElementSize;
+	Ar << ParentScriptStruct;
+	Ar << CachedSegmentPath;
+	Ar << ArrayIndex;
+}
+
+void FRigVMRegisterOffset::Load(FArchive& Ar)
+{
+	Ar << Segments;
+	Ar << Type;
+	Ar << CPPType;
+
+	if (Ar.CustomVer(FReleaseObjectVersion::GUID) < FReleaseObjectVersion::SerializeRigVMOffsetSegmentPaths)
 	{
 		FName ScriptStructPath;
 		Ar << ScriptStructPath;
@@ -102,43 +143,32 @@ bool FRigVMRegisterOffset::Serialize(FArchive& Ar)
 
 	Ar << ElementSize;
 
-	if (Ar.IsLoading())
+	if (Ar.CustomVer(FReleaseObjectVersion::GUID) >= FReleaseObjectVersion::SerializeRigVMOffsetSegmentPaths)
 	{
-		if (Ar.CustomVer(FReleaseObjectVersion::GUID) >= FReleaseObjectVersion::SerializeRigVMOffsetSegmentPaths)
-		{
-			FString SegmentPath;
-			Ar << ParentScriptStruct;
-			Ar << SegmentPath;
-			Ar << ArrayIndex;
+		FString SegmentPath;
+		Ar << ParentScriptStruct;
+		Ar << SegmentPath;
+		Ar << ArrayIndex;
 
-			if (Ar.IsTransacting())
+		if (Ar.IsTransacting())
+		{
+			CachedSegmentPath = SegmentPath;
+		}
+		else if (ParentScriptStruct != nullptr && !SegmentPath.IsEmpty())
+		{
+			int32 InitialOffset = ArrayIndex * ParentScriptStruct->GetStructureSize();
+			FRigVMRegisterOffset TempOffset(ParentScriptStruct, SegmentPath, InitialOffset, ElementSize);
+			if (TempOffset.GetSegments().Num() == Segments.Num())
 			{
+				Segments = TempOffset.GetSegments();
 				CachedSegmentPath = SegmentPath;
 			}
-			else if (ParentScriptStruct != nullptr && !SegmentPath.IsEmpty())
+			else
 			{
-				int32 InitialOffset = ArrayIndex * ParentScriptStruct->GetStructureSize();
-				FRigVMRegisterOffset TempOffset(ParentScriptStruct, SegmentPath, InitialOffset, ElementSize);
-				if (TempOffset.GetSegments().Num() == Segments.Num())
-				{
-					Segments = TempOffset.GetSegments();
-					CachedSegmentPath = SegmentPath;
-				}
-				else
-				{
-					checkNoEntry();
-				}
+				checkNoEntry();
 			}
 		}
 	}
-	else
-	{
-		Ar << ParentScriptStruct;
-		Ar << CachedSegmentPath;
-		Ar << ArrayIndex;
-	}
-
-	return true;
 }
 
 FRigVMRegisterOffset::FRigVMRegisterOffset(UScriptStruct* InScriptStruct, const FString& InSegmentPath, int32 InInitialOffset, uint16 InElementSize)
@@ -457,37 +487,42 @@ FRigVMMemoryContainer& FRigVMMemoryContainer::operator= (const FRigVMMemoryConta
 	return *this;
 }
 
-bool FRigVMMemoryContainer::Serialize(FArchive& Ar)
+void FRigVMMemoryContainer::Serialize(FArchive& Ar)
 {
 	Ar.UsingCustomVersion(FAnimObjectVersion::GUID);
 
  	if (Ar.CustomVer(FAnimObjectVersion::GUID) < FAnimObjectVersion::StoreMarkerNamesOnSkeleton)
  	{
- 		return false;
+ 		return;
  	}
 
-	if (Ar.IsLoading())
+	if (Ar.IsSaving() || Ar.IsObjectReferenceCollector())
 	{
-		for (int32 RegisterIndex = 0; RegisterIndex < Registers.Num(); RegisterIndex++)
-		{
-			Destroy(RegisterIndex);
-		}
+		Save(Ar);
 	}
-
-	if (Ar.IsSaving())
+	else if (Ar.IsLoading())
 	{
-		for (FRigVMRegister& Register : Registers)
+		Load(Ar);
+	}
+	else
+	{
+		checkNoEntry();
+	}
+}
+
+void FRigVMMemoryContainer::Save(FArchive& Ar)
+{
+	for (FRigVMRegister& Register : Registers)
+	{
+		if (Register.IsNestedDynamic())
 		{
-			if (Register.IsNestedDynamic())
-			{
-				FRigVMNestedByteArray* NestedArrayStorage = (FRigVMNestedByteArray*)&Data[Register.GetWorkByteIndex()];
-				Register.SliceCount = NestedArrayStorage->Num();
-			}
-			else if (Register.IsDynamic())
-			{
-				FRigVMByteArray* ArrayStorage = (FRigVMByteArray*)&Data[Register.GetWorkByteIndex()];
-				Register.SliceCount = ArrayStorage->Num();
-			}
+			FRigVMNestedByteArray* NestedArrayStorage = (FRigVMNestedByteArray*)&Data[Register.GetWorkByteIndex()];
+			Register.SliceCount = NestedArrayStorage->Num();
+		}
+		else if (Register.IsDynamic())
+		{
+			FRigVMByteArray* ArrayStorage = (FRigVMByteArray*)&Data[Register.GetWorkByteIndex()];
+			Register.SliceCount = ArrayStorage->Num();
 		}
 	}
 
@@ -496,170 +531,435 @@ bool FRigVMMemoryContainer::Serialize(FArchive& Ar)
 	Ar << Registers;
 	Ar << RegisterOffsets;
 
-	if (Ar.IsLoading())
+	
+	TArray<FString> ScriptStructPaths;
+	for (UScriptStruct* ScriptStruct : ScriptStructs)
 	{
-#if DEBUG_RIGVMMEMORY
-		UE_LOG_RIGVMMEMORY(TEXT("%d Memory - Begin Loading..."), (int32)GetMemoryType());
-#endif
+		ScriptStructPaths.Add(ScriptStruct->GetPathName());
+	}
+	Ar << ScriptStructPaths;
 
-		bEncounteredErrorDuringLoad = false;
+	uint64 TotalBytes = Data.Num();
+	Ar << TotalBytes;
 
-		ScriptStructs.Reset();
-		TArray<FString> ScriptStructPaths;
-		Ar << ScriptStructPaths;
-		
-		for (const FString& ScriptStructPath : ScriptStructPaths)
+	for (FRigVMRegister& Register : Registers)
+	{
+		if (Register.ElementCount == 0 && !Register.IsDynamic())
 		{
-			UScriptStruct* ScriptStruct = FindObject<UScriptStruct>(nullptr, *ScriptStructPath);
-
-			// this might have happened if a given script struct no longer 
-			// exists or cannot be loaded.
-			if (ScriptStruct == nullptr)
-			{
-				FString PackagePath = Ar.GetArchiveName();
-				UE_LOG(LogRigVM, Error, TEXT("Struct '%s' cannot be found. Asset '%s' no longer functional."), *ScriptStructPath, *PackagePath);
-				bEncounteredErrorDuringLoad = true;
-			}
-
-			ScriptStructs.Add(ScriptStruct);
+			continue;
 		}
 
-		uint64 TotalBytes = 0;
-		Ar << TotalBytes;
-		
-		Data.Empty();
-
-		if (!bEncounteredErrorDuringLoad)
+		if (!Register.IsDynamic())
 		{
-			// during load we'll recreate the memory for all registers.
-			// the size for structs might have changed, so we need to reallocate.
-			for (int32 RegisterIndex = 0; RegisterIndex < Registers.Num(); RegisterIndex++)
+			switch (Register.Type)
 			{
-				FRigVMRegister& Register = Registers[RegisterIndex];
+				case ERigVMRegisterType::Plain:
+				{
+					FRigVMByteArray View;
+					View.Append(&Data[Register.GetWorkByteIndex()], Register.GetAllocatedBytes() - Register.GetAlignmentBytes());
+					Ar << View;
+					break;
+				}
+				case ERigVMRegisterType::Name:
+				{
+					TArray<FName> View;
+					View.Append((FName*)&Data[Register.GetWorkByteIndex()], Register.GetTotalElementCount());
+					Ar << View;
+					break;
+				}
+				case ERigVMRegisterType::String:
+				{
+					TArray<FString> View;
+					View.Append((FString*)&Data[Register.GetWorkByteIndex()], Register.GetTotalElementCount());
+					Ar << View;
+					break;
+				}
+				case ERigVMRegisterType::Struct:
+				{
+					uint8* DataPtr = &Data[Register.GetWorkByteIndex()];
+					UScriptStruct* ScriptStruct = GetScriptStruct(Register);
 
+					TArray<uint8, TAlignedHeapAllocator<16>> DefaultStructData;
+					DefaultStructData.AddZeroed(ScriptStruct->GetStructureSize());
+					ScriptStruct->InitializeDefaultValue(DefaultStructData.GetData());
+
+					TArray<FString> View;
+					for (uint16 ElementIndex = 0; ElementIndex < Register.GetTotalElementCount(); ElementIndex++)
+					{
+						FString Value;
+						ScriptStruct->ExportText(Value, DataPtr, DefaultStructData.GetData(), nullptr, PPF_None, nullptr);
+						View.Add(Value);
+						DataPtr += Register.ElementSize;
+					}
+
+					ScriptStruct->DestroyStruct(DefaultStructData.GetData(), 1);
+
+					Ar << View;
+					break;
+				}
+			}
+		}
+		else if (!Register.IsNestedDynamic())
+		{
+			FRigVMByteArray* ArrayStorage = (FRigVMByteArray*)&Data[Register.GetWorkByteIndex()];
+
+			switch (Register.Type)
+			{
+			case ERigVMRegisterType::Plain:
+			{
+				Ar << *ArrayStorage;
+				break;
+			}
+			case ERigVMRegisterType::Name:
+			{
+				TArray<FName> View = FRigVMFixedArray<FName>(*ArrayStorage);
+				Ar << View;
+				break;
+			}
+			case ERigVMRegisterType::String:
+			{
+				TArray<FString> View = FRigVMFixedArray<FString>(*ArrayStorage);
+				Ar << View;
+				break;
+			}
+			case ERigVMRegisterType::Struct:
+			{
+				uint8* DataPtr = ArrayStorage->GetData();
+				uint16 NumElements = (uint16)(ArrayStorage->Num() / Register.ElementSize);
+				ensure(NumElements * Register.ElementSize == ArrayStorage->Num());
 				UScriptStruct* ScriptStruct = GetScriptStruct(Register);
-				if (ScriptStruct)
+
+				TArray<FString> View;
+				for (uint16 ElementIndex = 0; ElementIndex < NumElements; ElementIndex++)
 				{
-					Register.ElementSize = ScriptStruct->GetStructureSize();
-				}
-				else if (Register.Type == ERigVMRegisterType::Name)
-				{
-					Register.ElementSize = sizeof(FName);
-				}
-				else if (Register.Type == ERigVMRegisterType::String)
-				{
-					Register.ElementSize = sizeof(FString);
+					FString Value;
+					ScriptStruct->ExportText(Value, DataPtr, nullptr, nullptr, PPF_None, nullptr);
+					View.Add(Value);
+					DataPtr += Register.ElementSize;
 				}
 
-				Register.AlignmentBytes = 0;
-				Register.TrailingBytes = 0;
-
-				if (Registers[RegisterIndex].IsDynamic())
-				{
-					Register.ByteIndex = Data.AddZeroed(sizeof(FRigVMByteArray));
-				}
-				else
-				{
-					Register.ByteIndex = Data.AddZeroed(Register.GetNumBytesAllSlices());
-				}
+				Ar << View;
+				break;
 			}
-			UpdateRegisters();
-
-			// once the register memory is allocated we can construt its contents.
-			for (int32 RegisterIndex = 0; RegisterIndex < Registers.Num(); RegisterIndex++)
-			{
-				const FRigVMRegister& Register = Registers[RegisterIndex];
-				if (!Registers[RegisterIndex].IsDynamic())
-				{
-					Construct(RegisterIndex);
-				}
 			}
 		}
-
-		for (int32 RegisterIndex=0;RegisterIndex<Registers.Num();RegisterIndex++)
+		else
 		{
-			FRigVMRegister& Register = Registers[RegisterIndex];
+			FRigVMNestedByteArray* NestedArrayStorage = (FRigVMNestedByteArray*)&Data[Register.GetWorkByteIndex()];
 
-			if (Register.ElementCount == 0 && !Register.IsDynamic())
+			for (int32 SliceIndex = 0; SliceIndex < Register.SliceCount; SliceIndex++)
 			{
-				continue;
-			}
+				if (NestedArrayStorage->Num() <= SliceIndex)
+				{
+					FRigVMByteArray EmptyStorage;
+					Ar << EmptyStorage;
+					continue;
+				}
 
-			if (!Register.IsDynamic())
-			{
+				FRigVMByteArray& ArrayStorage = (*NestedArrayStorage)[SliceIndex];
+
 				switch (Register.Type)
 				{
 					case ERigVMRegisterType::Plain:
 					{
-						FRigVMByteArray View;
-						Ar << View;
-						if (!bEncounteredErrorDuringLoad)
-						{
-							ensure(View.Num() <= Register.GetAllocatedBytes());
-							FMemory::Memcpy(&Data[Register.GetWorkByteIndex()], View.GetData(), View.Num());
-						}
+						Ar << ArrayStorage;
 						break;
 					}
 					case ERigVMRegisterType::Name:
 					{
-						TArray<FName> View;
+						TArray<FName> View = FRigVMFixedArray<FName>(ArrayStorage);
 						Ar << View;
-						if (!bEncounteredErrorDuringLoad)
-						{
-							ensure(View.Num() == Register.GetTotalElementCount());
-							RigVMCopy<FName>(&Data[Register.GetWorkByteIndex()], View.GetData(), View.Num());
-						}
 						break;
 					}
 					case ERigVMRegisterType::String:
 					{
-						TArray<FString> View;
+						TArray<FString> View = FRigVMFixedArray<FString>(ArrayStorage);
 						Ar << View;
-						if (!bEncounteredErrorDuringLoad)
-						{
-							ensure(View.Num() == Register.GetTotalElementCount());
-							RigVMCopy<FString>(&Data[Register.GetWorkByteIndex()], View.GetData(), View.Num());
-						}
 						break;
 					}
 					case ERigVMRegisterType::Struct:
 					{
+						uint8* DataPtr = ArrayStorage.GetData();
+						uint16 NumElements = (uint16)(ArrayStorage.Num() / Register.ElementSize);
+						ensure(NumElements * Register.ElementSize == ArrayStorage.Num());
+						UScriptStruct* ScriptStruct = GetScriptStruct(Register);
+
 						TArray<FString> View;
-						Ar << View;
-						if (!bEncounteredErrorDuringLoad)
+						for (uint16 ElementIndex = 0; ElementIndex < NumElements; ElementIndex++)
 						{
-							ensure(View.Num() == Register.GetTotalElementCount());
-
-							uint8* DataPtr = &Data[Register.GetWorkByteIndex()];
-							UScriptStruct* ScriptStruct = GetScriptStruct(Register);
-							if (ScriptStruct && !bEncounteredErrorDuringLoad)
-							{
-								ensure(ScriptStruct->GetStructureSize() == Register.ElementSize);
-
-								for (uint16 ElementIndex = 0; ElementIndex < Register.GetTotalElementCount(); ElementIndex++)
-								{
-									FRigVMMemoryContainerImportErrorContext ErrorPipe;
-									ScriptStruct->ImportText(*View[ElementIndex], DataPtr, nullptr, PPF_None, &ErrorPipe, ScriptStruct->GetName());
-									if (ErrorPipe.NumErrors > 0)
-									{
-										bEncounteredErrorDuringLoad = true;
-										break;
-									}
-									DataPtr += Register.ElementSize;
-								}
-							}
+							FString Value;
+							ScriptStruct->ExportText(Value, DataPtr, nullptr, nullptr, PPF_None, nullptr);
+							View.Add(Value);
+							DataPtr += Register.ElementSize;
 						}
+
+						Ar << View;
 						break;
 					}
 				}
 			}
-			else if (!Register.IsNestedDynamic())
+		}
+	}
+}
+
+void FRigVMMemoryContainer::Load(FArchive& Ar)
+{
+	for (int32 RegisterIndex = 0; RegisterIndex < Registers.Num(); RegisterIndex++)
+	{
+		Destroy(RegisterIndex);
+	}
+	
+	Ar << bUseNameMap;
+	Ar << MemoryType;
+	Ar << Registers;
+	Ar << RegisterOffsets;
+
+
+#if DEBUG_RIGVMMEMORY
+	UE_LOG_RIGVMMEMORY(TEXT("%d Memory - Begin Loading..."), (int32)GetMemoryType());
+#endif
+
+	bEncounteredErrorDuringLoad = false;
+
+	ScriptStructs.Reset();
+	TArray<FString> ScriptStructPaths;
+	Ar << ScriptStructPaths;
+
+	for (const FString& ScriptStructPath : ScriptStructPaths)
+	{
+		UScriptStruct* ScriptStruct = FindObject<UScriptStruct>(nullptr, *ScriptStructPath);
+
+		// this might have happened if a given script struct no longer 
+		// exists or cannot be loaded.
+		if (ScriptStruct == nullptr)
+		{
+			FString PackagePath = Ar.GetArchiveName();
+			UE_LOG(LogRigVM, Error, TEXT("Struct '%s' cannot be found. Asset '%s' no longer functional."), *ScriptStructPath, *PackagePath);
+			bEncounteredErrorDuringLoad = true;
+		}
+
+		ScriptStructs.Add(ScriptStruct);
+	}
+
+	uint64 TotalBytes = 0;
+	Ar << TotalBytes;
+
+	Data.Empty();
+
+	if (!bEncounteredErrorDuringLoad)
+	{
+		// during load we'll recreate the memory for all registers.
+		// the size for structs might have changed, so we need to reallocate.
+		for (int32 RegisterIndex = 0; RegisterIndex < Registers.Num(); RegisterIndex++)
+		{
+			FRigVMRegister& Register = Registers[RegisterIndex];
+
+			UScriptStruct* ScriptStruct = GetScriptStruct(Register);
+			if (ScriptStruct)
+			{
+				Register.ElementSize = ScriptStruct->GetStructureSize();
+			}
+			else if (Register.Type == ERigVMRegisterType::Name)
+			{
+				Register.ElementSize = sizeof(FName);
+			}
+			else if (Register.Type == ERigVMRegisterType::String)
+			{
+				Register.ElementSize = sizeof(FString);
+			}
+
+			Register.AlignmentBytes = 0;
+			Register.TrailingBytes = 0;
+
+			if (Registers[RegisterIndex].IsDynamic())
+			{
+				Register.ByteIndex = Data.AddZeroed(sizeof(FRigVMByteArray));
+			}
+			else
+			{
+				Register.ByteIndex = Data.AddZeroed(Register.GetNumBytesAllSlices());
+			}
+		}
+		UpdateRegisters();
+
+		// once the register memory is allocated we can construt its contents.
+		for (int32 RegisterIndex = 0; RegisterIndex < Registers.Num(); RegisterIndex++)
+		{
+			const FRigVMRegister& Register = Registers[RegisterIndex];
+			if (!Registers[RegisterIndex].IsDynamic())
+			{
+				Construct(RegisterIndex);
+			}
+		}
+	}
+
+	for (int32 RegisterIndex = 0; RegisterIndex < Registers.Num(); RegisterIndex++)
+	{
+		FRigVMRegister& Register = Registers[RegisterIndex];
+
+		if (Register.ElementCount == 0 && !Register.IsDynamic())
+		{
+			continue;
+		}
+
+		if (!Register.IsDynamic())
+		{
+			switch (Register.Type)
+			{
+				case ERigVMRegisterType::Plain:
+				{
+					FRigVMByteArray View;
+					Ar << View;
+					if (!bEncounteredErrorDuringLoad)
+					{
+						ensure(View.Num() <= Register.GetAllocatedBytes());
+						FMemory::Memcpy(&Data[Register.GetWorkByteIndex()], View.GetData(), View.Num());
+					}
+					break;
+				}
+				case ERigVMRegisterType::Name:
+				{
+					TArray<FName> View;
+					Ar << View;
+					if (!bEncounteredErrorDuringLoad)
+					{
+						ensure(View.Num() == Register.GetTotalElementCount());
+						RigVMCopy<FName>(&Data[Register.GetWorkByteIndex()], View.GetData(), View.Num());
+					}
+					break;
+				}
+				case ERigVMRegisterType::String:
+				{
+					TArray<FString> View;
+					Ar << View;
+					if (!bEncounteredErrorDuringLoad)
+					{
+						ensure(View.Num() == Register.GetTotalElementCount());
+						RigVMCopy<FString>(&Data[Register.GetWorkByteIndex()], View.GetData(), View.Num());
+					}
+					break;
+				}
+				case ERigVMRegisterType::Struct:
+				{
+					TArray<FString> View;
+					Ar << View;
+					if (!bEncounteredErrorDuringLoad)
+					{
+						ensure(View.Num() == Register.GetTotalElementCount());
+
+						uint8* DataPtr = &Data[Register.GetWorkByteIndex()];
+						UScriptStruct* ScriptStruct = GetScriptStruct(Register);
+						if (ScriptStruct && !bEncounteredErrorDuringLoad)
+						{
+							ensure(ScriptStruct->GetStructureSize() == Register.ElementSize);
+
+							for (uint16 ElementIndex = 0; ElementIndex < Register.GetTotalElementCount(); ElementIndex++)
+							{
+								FRigVMMemoryContainerImportErrorContext ErrorPipe;
+								ScriptStruct->ImportText(*View[ElementIndex], DataPtr, nullptr, PPF_None, &ErrorPipe, ScriptStruct->GetName());
+								if (ErrorPipe.NumErrors > 0)
+								{
+									bEncounteredErrorDuringLoad = true;
+									break;
+								}
+								DataPtr += Register.ElementSize;
+							}
+						}
+					}
+					break;
+				}
+			}
+		}
+		else if (!Register.IsNestedDynamic())
+		{
+			FRigVMByteArray* ArrayStorage = nullptr;
+
+			if (!bEncounteredErrorDuringLoad)
+			{
+				ArrayStorage = (FRigVMByteArray*)&Data[Register.GetWorkByteIndex()];
+			}
+
+			switch (Register.Type)
+			{
+				case ERigVMRegisterType::Plain:
+				{
+					FRigVMByteArray View;
+					Ar << View;
+					if (ArrayStorage)
+					{
+						*ArrayStorage = View;
+					}
+					break;
+				}
+				case ERigVMRegisterType::Name:
+				{
+					TArray<FName> View;
+					Ar << View;
+
+					if (ArrayStorage)
+					{
+						FRigVMDynamicArray<FName> ValueArray(*ArrayStorage);
+						ValueArray.CopyFrom(View);
+					}
+					break;
+				}
+				case ERigVMRegisterType::String:
+				{
+					TArray<FString> View;
+					Ar << View;
+
+					if (ArrayStorage)
+					{
+						FRigVMDynamicArray<FString> ValueArray(*ArrayStorage);
+						ValueArray.CopyFrom(View);
+					}
+					break;
+				}
+				case ERigVMRegisterType::Struct:
+				{
+					TArray<FString> View;
+					Ar << View;
+
+					UScriptStruct* ScriptStruct = GetScriptStruct(Register);
+					if (ScriptStruct && !bEncounteredErrorDuringLoad && ArrayStorage)
+					{
+						ensure(ScriptStruct->GetStructureSize() == Register.ElementSize);
+
+						ArrayStorage->SetNumZeroed(View.Num() * Register.ElementSize);
+						uint8* DataPtr = ArrayStorage->GetData();
+
+						for (uint16 ElementIndex = 0; ElementIndex < View.Num(); ElementIndex++)
+						{
+							FRigVMMemoryContainerImportErrorContext ErrorPipe;
+							ScriptStruct->ImportText(*View[ElementIndex], DataPtr, nullptr, PPF_None, &ErrorPipe, ScriptStruct->GetName());
+							if (ErrorPipe.NumErrors > 0)
+							{
+								bEncounteredErrorDuringLoad = true;
+								break;
+							}
+							DataPtr += Register.ElementSize;
+						}
+					}
+					break;
+				}
+			}
+		}
+		else
+		{
+			FRigVMNestedByteArray* NestedArrayStorage = nullptr;
+			if (!bEncounteredErrorDuringLoad)
+			{
+				NestedArrayStorage = (FRigVMNestedByteArray*)&Data[Register.GetWorkByteIndex()];
+				NestedArrayStorage->Reset();
+				NestedArrayStorage->SetNumZeroed(Register.SliceCount);
+			}
+
+			for (int32 SliceIndex = 0; SliceIndex < Register.SliceCount; SliceIndex++)
 			{
 				FRigVMByteArray* ArrayStorage = nullptr;
-
-				if (!bEncounteredErrorDuringLoad)
+				if (NestedArrayStorage)
 				{
-					ArrayStorage = (FRigVMByteArray*)&Data[Register.GetWorkByteIndex()];
+					ArrayStorage = &(*NestedArrayStorage)[SliceIndex];
 				}
 
 				switch (Register.Type)
@@ -727,281 +1027,25 @@ bool FRigVMMemoryContainer::Serialize(FArchive& Ar)
 					}
 				}
 			}
-			else
-			{
-				FRigVMNestedByteArray* NestedArrayStorage = nullptr; 
-				if (!bEncounteredErrorDuringLoad)
-				{
-					NestedArrayStorage = (FRigVMNestedByteArray*)&Data[Register.GetWorkByteIndex()];
-					NestedArrayStorage->Reset();
-					NestedArrayStorage->SetNumZeroed(Register.SliceCount);
-				}
-
-				for (int32 SliceIndex = 0; SliceIndex < Register.SliceCount; SliceIndex++)
-				{
-					FRigVMByteArray* ArrayStorage = nullptr;
-					if (NestedArrayStorage)
-					{
-						ArrayStorage = &(*NestedArrayStorage)[SliceIndex];
-					}
-
-					switch (Register.Type)
-					{
-						case ERigVMRegisterType::Plain:
-						{
-							FRigVMByteArray View;
-							Ar << View;
-							if (ArrayStorage)
-							{
-								*ArrayStorage = View;
-							}
-							break;
-						}
-						case ERigVMRegisterType::Name:
-						{
-							TArray<FName> View;
-							Ar << View;
-
-							if (ArrayStorage)
-							{
-								FRigVMDynamicArray<FName> ValueArray(*ArrayStorage);
-								ValueArray.CopyFrom(View);
-							}
-							break;
-						}
-						case ERigVMRegisterType::String:
-						{
-							TArray<FString> View;
-							Ar << View;
-
-							if (ArrayStorage)
-							{
-								FRigVMDynamicArray<FString> ValueArray(*ArrayStorage);
-								ValueArray.CopyFrom(View);
-							}
-							break;
-						}
-						case ERigVMRegisterType::Struct:
-						{
-							TArray<FString> View;
-							Ar << View;
-
-							UScriptStruct* ScriptStruct = GetScriptStruct(Register);
-							if (ScriptStruct && !bEncounteredErrorDuringLoad && ArrayStorage)
-							{
-								ensure(ScriptStruct->GetStructureSize() == Register.ElementSize);
-
-								ArrayStorage->SetNumZeroed(View.Num() * Register.ElementSize);
-								uint8* DataPtr = ArrayStorage->GetData();
-
-								for (uint16 ElementIndex = 0; ElementIndex < View.Num(); ElementIndex++)
-								{
-									FRigVMMemoryContainerImportErrorContext ErrorPipe;
-									ScriptStruct->ImportText(*View[ElementIndex], DataPtr, nullptr, PPF_None, &ErrorPipe, ScriptStruct->GetName());
-									if (ErrorPipe.NumErrors > 0)
-									{
-										bEncounteredErrorDuringLoad = true;
-										break;
-									}
-									DataPtr += Register.ElementSize;
-								}
-							}
-							break;
-						}
-					}
-				}
-			}
 		}
+	}
 
-		if (bEncounteredErrorDuringLoad)
-		{
+	if (bEncounteredErrorDuringLoad)
+	{
 #if DEBUG_RIGVMMEMORY
-			UE_LOG_RIGVMMEMORY(TEXT("%d Memory - Encountered errors during load."), (int32)GetMemoryType());
+		UE_LOG_RIGVMMEMORY(TEXT("%d Memory - Encountered errors during load."), (int32)GetMemoryType());
 #endif
-			Reset();
-		}
-		else
-		{
-			UpdateRegisters();
-		}
-
-#if DEBUG_RIGVMMEMORY
-		UE_LOG_RIGVMMEMORY(TEXT("%d Memory - Finished Loading."), (int32)GetMemoryType());
-#endif
+		Reset();
 	}
 	else
 	{
-		TArray<FString> ScriptStructPaths;
-		for (UScriptStruct* ScriptStruct : ScriptStructs)
-		{
-			ScriptStructPaths.Add(ScriptStruct->GetPathName());
-		}
-		Ar << ScriptStructPaths;
-
-		uint64 TotalBytes = Data.Num();
-		Ar << TotalBytes;
-
-		for (FRigVMRegister& Register : Registers)
-		{
-			if (Register.ElementCount == 0 && !Register.IsDynamic())
-			{
-				continue;
-			}
-
-			if (!Register.IsDynamic())
-			{
-				switch (Register.Type)
-				{
-					case ERigVMRegisterType::Plain:
-					{
-						FRigVMByteArray View;
-						View.Append(&Data[Register.GetWorkByteIndex()], Register.GetAllocatedBytes() - Register.GetAlignmentBytes());
-						Ar << View;
-						break;
-					}
-					case ERigVMRegisterType::Name:
-					{
-						TArray<FName> View;
-						View.Append((FName*)&Data[Register.GetWorkByteIndex()], Register.GetTotalElementCount());
-						Ar << View;
-						break;
-					}
-					case ERigVMRegisterType::String:
-					{
-						TArray<FString> View;
-						View.Append((FString*)&Data[Register.GetWorkByteIndex()], Register.GetTotalElementCount());
-						Ar << View;
-						break;
-					}
-					case ERigVMRegisterType::Struct:
-					{
-						uint8* DataPtr = &Data[Register.GetWorkByteIndex()];
-						UScriptStruct* ScriptStruct = GetScriptStruct(Register);
-
-						TArray<uint8, TAlignedHeapAllocator<16>> DefaultStructData;
-						DefaultStructData.AddZeroed(ScriptStruct->GetStructureSize());
-						ScriptStruct->InitializeDefaultValue(DefaultStructData.GetData());
-
-						TArray<FString> View;
-						for (uint16 ElementIndex = 0; ElementIndex < Register.GetTotalElementCount(); ElementIndex++)
-						{
-							FString Value;
-							ScriptStruct->ExportText(Value, DataPtr, DefaultStructData.GetData(), nullptr, PPF_None, nullptr);
-							View.Add(Value);
-							DataPtr += Register.ElementSize;
-						}
-
-						ScriptStruct->DestroyStruct(DefaultStructData.GetData(), 1);
-
-						Ar << View;
-						break;
-					}
-				}
-			}
-			else if (!Register.IsNestedDynamic())
-			{
-				FRigVMByteArray* ArrayStorage = (FRigVMByteArray*)&Data[Register.GetWorkByteIndex()];
-
-				switch (Register.Type)
-				{
-					case ERigVMRegisterType::Plain:
-					{
-						Ar << *ArrayStorage;
-						break;
-					}
-					case ERigVMRegisterType::Name:
-					{
-						TArray<FName> View = FRigVMFixedArray<FName>(*ArrayStorage);
-						Ar << View;
-						break;
-					}
-					case ERigVMRegisterType::String:
-					{
-						TArray<FString> View = FRigVMFixedArray<FString>(*ArrayStorage);
-						Ar << View;
-						break;
-					}
-					case ERigVMRegisterType::Struct:
-					{
-						uint8* DataPtr = ArrayStorage->GetData();
-						uint16 NumElements = (uint16)(ArrayStorage->Num() / Register.ElementSize);
-						ensure(NumElements * Register.ElementSize == ArrayStorage->Num());
-						UScriptStruct* ScriptStruct = GetScriptStruct(Register);
-
-						TArray<FString> View;
-						for (uint16 ElementIndex = 0; ElementIndex < NumElements; ElementIndex++)
-						{
-							FString Value;
-							ScriptStruct->ExportText(Value, DataPtr, nullptr, nullptr, PPF_None, nullptr);
-							View.Add(Value);
-							DataPtr += Register.ElementSize;
-						}
-
-						Ar << View;
-						break;
-					}
-				}
-			}
-			else
-			{
-				FRigVMNestedByteArray* NestedArrayStorage = (FRigVMNestedByteArray*)&Data[Register.GetWorkByteIndex()];
-
-				for (int32 SliceIndex = 0; SliceIndex < Register.SliceCount; SliceIndex++)
-				{
-					if (NestedArrayStorage->Num() <= SliceIndex)
-					{
-						FRigVMByteArray EmptyStorage;
-						Ar << EmptyStorage;
-						continue;
-					}
-
-					FRigVMByteArray& ArrayStorage = (*NestedArrayStorage)[SliceIndex];
-
-					switch (Register.Type)
-					{
-						case ERigVMRegisterType::Plain:
-						{
-							Ar << ArrayStorage;
-							break;
-						}
-						case ERigVMRegisterType::Name:
-						{
-							TArray<FName> View = FRigVMFixedArray<FName>(ArrayStorage);
-							Ar << View;
-							break;
-						}
-						case ERigVMRegisterType::String:
-						{
-							TArray<FString> View = FRigVMFixedArray<FString>(ArrayStorage);
-							Ar << View;
-							break;
-						}
-						case ERigVMRegisterType::Struct:
-						{
-							uint8* DataPtr = ArrayStorage.GetData();
-							uint16 NumElements = (uint16)(ArrayStorage.Num() / Register.ElementSize);
-							ensure(NumElements * Register.ElementSize == ArrayStorage.Num());
-							UScriptStruct* ScriptStruct = GetScriptStruct(Register);
-
-							TArray<FString> View;
-							for (uint16 ElementIndex = 0; ElementIndex < NumElements; ElementIndex++)
-							{
-								FString Value;
-								ScriptStruct->ExportText(Value, DataPtr, nullptr, nullptr, PPF_None, nullptr);
-								View.Add(Value);
-								DataPtr += Register.ElementSize;
-							}
-
-							Ar << View;
-							break;
-						}
-					}
-				}
-			}
-		}
+		UpdateRegisters();
 	}
 
-	return true;
+#if DEBUG_RIGVMMEMORY
+	UE_LOG_RIGVMMEMORY(TEXT("%d Memory - Finished Loading."), (int32)GetMemoryType());
+#endif
+	
 }
 
 void FRigVMMemoryContainer::Reset()

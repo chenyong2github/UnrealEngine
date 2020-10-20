@@ -92,7 +92,9 @@ public:
 	// returns the index of the register of this argument
 	FORCEINLINE_DEBUGGABLE int32 GetRegisterOffset() const { return RegisterOffset == UINT16_MAX ? INDEX_NONE : (int32)RegisterOffset; }
 
-	bool Serialize(FArchive& Ar);
+	void Serialize(FArchive& Ar);
+	void Save(FArchive& Ar) const;
+	void Load(FArchive& Ar);
 	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, FRigVMOperand& P)
 	{
 		P.Serialize(Ar);
@@ -202,7 +204,9 @@ struct RIGVM_API FRigVMRegister
 	UPROPERTY()
 	bool bIsDynamic;
 
-	bool Serialize(FArchive& Ar);
+	void Serialize(FArchive& Ar);
+	void Save(FArchive& Ar);
+	void Load(FArchive& Ar);
 	FORCEINLINE_DEBUGGABLE friend FArchive& operator<<(FArchive& Ar, FRigVMRegister& P)
 	{
 		P.Serialize(Ar);
@@ -278,7 +282,9 @@ public:
 	{
 	}
 
-	bool Serialize(FArchive& Ar);
+	void Serialize(FArchive& Ar);
+	void Save(FArchive& Ar);
+	void Load(FArchive& Ar);
 	FORCEINLINE_DEBUGGABLE friend FArchive& operator<<(FArchive& Ar, FRigVMRegisterOffset& P)
 	{
 		P.Serialize(Ar);
@@ -574,7 +580,9 @@ public:
 	// accessor for a register based on a a name. note: only works if SupportsNames() == true
 	FORCEINLINE_DEBUGGABLE FRigVMRegister& GetRegister(const FName& InName) { return Registers[GetIndex(InName)]; }
 
-	bool Serialize(FArchive& Ar);
+	void Serialize(FArchive& Ar);
+	void Save(FArchive& Ar);
+	void Load(FArchive& Ar);
 	FORCEINLINE_DEBUGGABLE friend FArchive& operator<<(FArchive& Ar, FRigVMMemoryContainer& P)
 	{
 		P.Serialize(Ar);
