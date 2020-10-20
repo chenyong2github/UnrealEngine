@@ -326,7 +326,7 @@ TArray<UMoviePipelineOutputBase*> UMoviePipelineMasterConfig::GetOutputContainer
 	TArray<UMoviePipelineOutputBase*> OutputContainers;
 
 	// Don't want transient settings trying to write out files 
-	for (UMoviePipelineSetting* Setting : GetUserSettings())
+	for (UMoviePipelineSetting* Setting : FindSettings<UMoviePipelineOutputBase>())
 	{
 		UMoviePipelineOutputBase* Output = Cast<UMoviePipelineOutputBase>(Setting);
 		if (Output)
