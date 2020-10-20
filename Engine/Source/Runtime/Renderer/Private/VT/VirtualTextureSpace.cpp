@@ -50,7 +50,6 @@ FVirtualTextureSpace::FVirtualTextureSpace(FVirtualTextureSystem* InSystem, uint
 	, NumRefs(0u)
 	, ID(InID)
 	, bNeedToAllocatePageTable(true)
-	, bNeedToAllocatePageTableIndirection(true)
 	, bForceEntireUpdate(false)
 {
 	// Initialize page map with large enough capacity to handle largest possible physical texture
@@ -80,6 +79,8 @@ FVirtualTextureSpace::FVirtualTextureSpace(FVirtualTextureSystem* InSystem, uint
 	ensure(Description.MaxSpaceSize <= VIRTUALTEXTURE_MAX_PAGETABLE_SIZE);
 	NumPageTableLevels = FMath::FloorLog2(PageTableSize) + 1;
 	Allocator.Initialize(PageTableSize);
+
+	bNeedToAllocatePageTableIndirection = InDesc.IndirectionTextureSize > 0;
 }
 
 FVirtualTextureSpace::~FVirtualTextureSpace()
@@ -113,6 +114,8 @@ void FVirtualTextureSpace::InitRHI()
 		FTextureEntry& TextureEntry = PageTable[TextureIndex];
 		TextureEntry.TextureReferenceRHI = RHICreateTextureReference(nullptr);
 	}
+	PageTableIndirection.TextureReferenceRHI = RHICreateTextureReference(nullptr);
+	RHIUpdateTextureReference(PageTableIndirection.TextureReferenceRHI, GBlackUintTexture->TextureRHI);
 }
 
 void FVirtualTextureSpace::ReleaseRHI()
@@ -124,7 +127,8 @@ void FVirtualTextureSpace::ReleaseRHI()
 		GRenderTargetPool.FreeUnusedResource(TextureEntry.RenderTarget);
 	}
 
-	GRenderTargetPool.FreeUnusedResource(PageTableIndirection);
+	PageTableIndirection.TextureReferenceRHI.SafeRelease();
+	GRenderTargetPool.FreeUnusedResource(PageTableIndirection.RenderTarget);
 
 	UpdateBuffer.SafeRelease();
 	UpdateBufferSRV.SafeRelease();
@@ -320,6 +324,8 @@ void FVirtualTextureSpace::AllocateTextures(FRHICommandList& RHICmdList)
 
 	if (bNeedToAllocatePageTableIndirection)
 	{
+		SCOPED_GPU_MASK(RHICmdList, FRHIGPUMask::All());
+
 		if (Description.IndirectionTextureSize > 0)
 		{
 			const FPooledRenderTargetDesc Desc = FPooledRenderTargetDesc::Create2DDesc(
@@ -330,8 +336,13 @@ void FVirtualTextureSpace::AllocateTextures(FRHICommandList& RHICmdList)
 				TexCreate_UAV | TexCreate_ShaderResource,
 				false);
 
-			GRenderTargetPool.FindFreeElement(RHICmdList, Desc, PageTableIndirection, TEXT("PageTableIndirection"));
-			FRHITexture* TextureRHI = PageTableIndirection->GetRenderTargetItem().ShaderResourceTexture;
+			TRefCountPtr<IPooledRenderTarget> RenderTarget;
+			GRenderTargetPool.FindFreeElement(RHICmdList, Desc, RenderTarget, TEXT("PageTableIndirection"));
+			PageTableIndirection.RenderTarget = RenderTarget;
+
+			FRHITexture* TextureRHI = RenderTarget->GetRenderTargetItem().ShaderResourceTexture;
+			RHIUpdateTextureReference(PageTableIndirection.TextureReferenceRHI, TextureRHI);
+
 			RHICmdList.ClearUAVUint(RHICreateUnorderedAccessView(TextureRHI), FUintVector4(ForceInitToZero));
 		}
 
@@ -545,13 +556,4 @@ void FVirtualTextureSpace::DumpToConsole(bool verbose)
 {
 	UE_LOG(LogConsoleResponse, Display, TEXT("-= Space ID %i =-"), ID);
 	Allocator.DumpToConsole(verbose);
-}
-
-FRHITexture* FVirtualTextureSpace::GetPageTableIndirectionTexture() const
-{
-	if (PageTableIndirection.IsValid())
-	{
-		return PageTableIndirection->GetRenderTargetItem().TargetableTexture;
-	}
-	return GBlackUintTexture->TextureRHI;
 }
