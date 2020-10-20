@@ -545,9 +545,6 @@ extern RHI_API bool GRHISupportsRayTracing;
 /** Whether or not the RHI supports adding new shaders to an existing RT PSO. */
 extern RHI_API bool GRHISupportsRayTracingPSOAdditions;
 
-/** Whether or not the RHI supports binding multiple miss shaders with local resources via RHISetRayTracingMissShader(). */
-extern RHI_API bool GRHISupportsRayTracingMissShaderBindings;
-
 /** Whether or not the RHI supports async building ray tracing acceleration structures. */
 extern RHI_API bool GRHISupportsRayTracingAsyncBuildAccelerationStructure;
 

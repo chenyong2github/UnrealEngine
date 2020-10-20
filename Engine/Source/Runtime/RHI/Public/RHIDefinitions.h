@@ -327,7 +327,6 @@ class RHI_API FGenericDataDrivenShaderPlatformInfo
 	uint32 bSupports4ComponentUAVReadWrite: 1;
 	uint32 bSupportsRenderTargetWriteMask: 1;
 	uint32 bSupportsRayTracing: 1;
-	uint32 bSupportsRayTracingMissShaderBindings : 1; // Whether resources could be bound for miss shaders
 	uint32 bSupportsRayTracingIndirectInstanceData : 1; // Whether instance transforms can be copied from the GPU to the TLAS instances buffer
 	uint32 bSupportsGPUSkinCache: 1;
 	uint32 bSupportsGPUScene : 1;
@@ -484,11 +483,6 @@ public:
 	static FORCEINLINE_DEBUGGABLE const bool GetSupportsRayTracing(const FStaticShaderPlatform Platform)
 	{
 		return Infos[Platform].bSupportsRayTracing;
-	}
-
-	static FORCEINLINE_DEBUGGABLE const bool GetSupportsRayTracingMissShaderBindings(const FStaticShaderPlatform Platform)
-	{
-		return Infos[Platform].bSupportsRayTracingMissShaderBindings;
 	}
 
 	static FORCEINLINE_DEBUGGABLE const bool GetSupportsRayTracingIndirectInstanceData(const FStaticShaderPlatform Platform)

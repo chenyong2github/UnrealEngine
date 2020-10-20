@@ -805,7 +805,6 @@ void FD3D12Adapter::InitializeDevices()
 					UE_LOG(LogD3D12RHI, Log, TEXT("D3D12 ray tracing 1.0 is supported."));
 
 					GRHISupportsRayTracing = true;
-					GRHISupportsRayTracingMissShaderBindings = true;
 
 					if (D3D12Caps5.RaytracingTier >= D3D12_RAYTRACING_TIER_1_1
 						&& RootDevice7)
