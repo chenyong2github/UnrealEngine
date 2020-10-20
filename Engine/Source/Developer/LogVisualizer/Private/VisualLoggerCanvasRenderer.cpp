@@ -9,7 +9,7 @@
 #include "LogVisualizerSettings.h"
 #include "LogVisualizerSessionSettings.h"
 #include "VisualLoggerDatabase.h"
-#include "LogVisualizerPrivate.h"
+#include "LogVisualizerPublic.h"
 #include "VisualLoggerTimeSliderController.h"
 #include "Debug/ReporterGraph.h"
 

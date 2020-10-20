@@ -3,10 +3,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "SVisualLoggerBaseWidget.h"
 #include "Widgets/SWidget.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Framework/Commands/UICommandList.h"
-#include "Developer/LogVisualizer/Private/LogVisualizerPrivate.h"
 
 class FMenuBuilder;
 class SComboButton;

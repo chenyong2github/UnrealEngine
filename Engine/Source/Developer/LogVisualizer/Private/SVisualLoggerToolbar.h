@@ -6,7 +6,7 @@
 #include "Widgets/SWidget.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Framework/Commands/UICommandList.h"
-#include "Developer/LogVisualizer/Private/LogVisualizerPrivate.h"
+#include "SVisualLoggerBaseWidget.h"
 
 /**
 * Implements the messaging debugger toolbar widget.

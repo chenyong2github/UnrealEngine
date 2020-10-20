@@ -8,9 +8,10 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Framework/Commands/UICommandList.h"
 #include "Widgets/Layout/SSplitter.h"
-#include "Developer/LogVisualizer/Private/LogVisualizerPrivate.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Layout/SScrollBox.h"
+#include "SVisualLoggerBaseWidget.h"
+
 
 class SVisualLoggerTimelinesContainer;
 

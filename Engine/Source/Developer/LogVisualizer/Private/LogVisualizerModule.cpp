@@ -10,10 +10,12 @@
 #include "VisualLoggerDatabase.h"
 #include "LogVisualizerStyle.h"
 #include "SVisualLogger.h"
+#include "SVisualLoggerTab.h"
 #include "VisualLoggerCommands.h"
 #include "Widgets/Docking/SDockTab.h"
-#include "LogVisualizerPrivate.h"
+#include "LogVisualizerPublic.h"
 #include "Features/IModularFeatures.h"
+
 #if WITH_EDITOR
 #include "ISettingsModule.h"
 #include "WorkspaceMenuStructure.h"

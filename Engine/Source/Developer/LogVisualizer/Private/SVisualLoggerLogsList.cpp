@@ -8,6 +8,7 @@
 #include "LogVisualizerStyle.h"
 #include "Widgets/Views/SListView.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "LogVisualizerPublic.h"
 
 #define LOCTEXT_NAMESPACE "SVisualLoggerLogsList"
 

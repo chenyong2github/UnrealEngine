@@ -5,7 +5,7 @@
 #include "Rendering/DrawElements.h"
 #include "VisualLoggerDatabase.h"
 #include "LogVisualizerStyle.h"
-#include "LogVisualizerPrivate.h"
+#include "LogVisualizerPublic.h"
 #include "VisualLoggerTimeSliderController.h"
 #include "Misc/OutputDeviceHelper.h"
 

@@ -13,6 +13,8 @@
 #include "LogVisualizerStyle.h"
 #include "SFilterWidget.h"
 #include "Widgets/Input/SSearchBox.h"
+#include "LogVisualizerPublic.h"
+
 #if WITH_EDITOR
 #include "Editor/EditorEngine.h"
 #include "EditorViewportClient.h"

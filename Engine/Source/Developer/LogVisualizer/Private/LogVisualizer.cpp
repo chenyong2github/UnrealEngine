@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LogVisualizer.h"
+#include "LogVisualizerPublic.h"
 #include "EngineGlobals.h"
 #include "GameFramework/SpectatorPawn.h"
 #include "Engine/LocalPlayer.h"
@@ -8,6 +9,7 @@
 #include "LogVisualizerSettings.h"
 #include "VisualLoggerDatabase.h"
 #include "VisualLoggerCameraController.h"
+
 #if WITH_EDITOR
 #include "Editor/EditorEngine.h"
 #include "EditorViewportClient.h"
@@ -332,3 +334,7 @@ void FLogVisualizer::GotoLastItem(FName RowName)
 	}
 }
 
+void FLogVisualizer::SeekToTime(float Time)
+{
+	GetTimeSliderController()->CommitScrubPosition(Time,  /*bIsScrubbing=*/true);
+}

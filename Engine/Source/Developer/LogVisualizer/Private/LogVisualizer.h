@@ -23,7 +23,6 @@
 #include "HAL/RunnableThread.h"
 #include "Engine/World.h"
 #include "SVisualLogger.h"
-#include "LogVisualizerPrivate.h"
 #include "Developer/LogVisualizer/Private/SVisualLoggerToolbar.h"
 #include "Developer/LogVisualizer/Private/SVisualLoggerFilters.h"
 #include "Widgets/Layout/SScrollBarTrack.h"

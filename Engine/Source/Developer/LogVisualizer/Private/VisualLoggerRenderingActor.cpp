@@ -5,7 +5,7 @@
 #include "VisualLogger/VisualLogger.h"
 #include "LogVisualizerSettings.h"
 #include "VisualLoggerDatabase.h"
-#include "LogVisualizerPrivate.h"
+#include "LogVisualizerPublic.h"
 #if WITH_EDITOR
 #include "GeomTools.h"
 #endif // WITH_EDITOR

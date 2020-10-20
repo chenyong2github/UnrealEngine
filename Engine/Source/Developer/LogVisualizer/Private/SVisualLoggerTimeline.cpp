@@ -10,7 +10,6 @@
 #include "LogVisualizerSettings.h"
 #include "VisualLoggerDatabase.h"
 #include "LogVisualizerStyle.h"
-#include "LogVisualizerPrivate.h"
 #include "SVisualLoggerTimelinesContainer.h"
 #include "SVisualLoggerTimelineBar.h"
 

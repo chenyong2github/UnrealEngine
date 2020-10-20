@@ -5,7 +5,7 @@
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "LogVisualizerSettings.h"
-#include "LogVisualizerPrivate.h"
+#include "LogVisualizerPublic.h"
 #include "VisualLoggerRenderingActor.h"
 
 TSharedPtr< struct FVisualLoggerDatabase > FVisualLoggerDatabase::StaticInstance = nullptr;

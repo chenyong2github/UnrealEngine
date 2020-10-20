@@ -3,18 +3,7 @@
 
 /* Dependencies
 *****************************************************************************/
-
 #include "CoreMinimal.h"
-#include "Input/Reply.h"
-#include "Widgets/SCompoundWidget.h"
-#include "Developer/LogVisualizer/Private/SVisualLogger.h"
-#include "Widgets/Docking/SDockTab.h"
-
-class FVisualLoggerTimeSliderController;
-struct FLogEntryItem;
-
-/* Private includes
-*****************************************************************************/
 
 class FText;
 struct FGeometry;
@@ -48,20 +37,19 @@ struct LOGVISUALIZER_API FLogVisualizer
 
 	FLinearColor GetColorForCategory(int32 Index) const;
 	FLinearColor GetColorForCategory(const FString& InFilterName) const;
-	TSharedPtr<FVisualLoggerTimeSliderController> GetTimeSliderController() { return TimeSliderController; }
 	UWorld* GetWorld(UObject* OptionalObject = nullptr);
 	FVisualLoggerEvents& GetEvents() { return VisualLoggerEvents; }
 
 	void SetCurrentVisualizer(TSharedPtr<class SVisualLogger> Visualizer) { CurrentVisualizer = Visualizer; }
 
 	void SetAnimationOutlinerFillPercentage(float FillPercentage) { AnimationOutlinerFillPercentage = FillPercentage; }
-	float GetAnimationOutlinerFillPercentage() 
+	float GetAnimationOutlinerFillPercentage()
 	{
 		if (VisualLoggerEvents.GetAnimationOutlinerFillPercentageFunc.IsBound())
 		{
 			SetAnimationOutlinerFillPercentage(VisualLoggerEvents.GetAnimationOutlinerFillPercentageFunc.Execute());
 		}
-		return AnimationOutlinerFillPercentage; 
+		return AnimationOutlinerFillPercentage;
 	}
 
 	int32 GetNextItem(FName RowName, int32 MoveDistance = 1);
@@ -74,35 +62,25 @@ struct LOGVISUALIZER_API FLogVisualizer
 
 	void UpdateCameraPosition(FName Rowname, int32 ItemIndes);
 
+	void SeekToTime(float Time);
+
 	/** Static access */
 	static void Initialize();
 	static void Shutdown();
 	static FLogVisualizer& Get();
+
 protected:
+	TSharedPtr<FVisualLoggerTimeSliderController> GetTimeSliderController() { return TimeSliderController; }
+
 	static TSharedPtr< struct FLogVisualizer > StaticInstance;
-	
+
 	TSharedPtr<FVisualLoggerTimeSliderController> TimeSliderController;
 	FVisualLoggerEvents VisualLoggerEvents;
 	TWeakPtr<class SVisualLogger> CurrentVisualizer;
 	float AnimationOutlinerFillPercentage;
-};
 
-class SVisualLoggerTab : public SDockTab
-{
-public:
-	virtual bool SupportsKeyboardFocus() const override { return true; }
-	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override
-	{
-		return FLogVisualizer::Get().GetEvents().OnKeyboardEvent.Execute(MyGeometry, InKeyEvent);
-	}
-};
-
-class SVisualLoggerBaseWidget : public SCompoundWidget
-{
-public:
-	virtual bool SupportsKeyboardFocus() const override { return true; }
-	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override
-	{
-		return FLogVisualizer::Get().GetEvents().OnKeyboardEvent.Execute(MyGeometry, InKeyEvent);
-	}
+	friend class SVisualLoggerViewer;
+	friend class SVisualLoggerView;
+	friend class SVisualLogger;
+	friend struct FVisualLoggerCanvasRenderer;
 };
