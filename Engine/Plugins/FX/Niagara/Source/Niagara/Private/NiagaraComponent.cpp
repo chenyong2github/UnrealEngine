@@ -2077,6 +2077,15 @@ void UNiagaraComponent::SetVariableMaterial(FName InVariableName, UMaterialInter
 	}
 }
 
+void UNiagaraComponent::SetVariableTextureRenderTarget(FName InVariableName, class UTextureRenderTarget* TextureRenderTarget)
+{
+	const FNiagaraVariable VariableDesc(FNiagaraTypeDefinition::GetUTextureRenderTargetDef(), InVariableName);
+	OverrideParameters.SetUObject(TextureRenderTarget, VariableDesc);
+#if WITH_EDITOR
+	SetParameterOverride(VariableDesc, FNiagaraVariant(TextureRenderTarget));
+#endif
+}
+
 TArray<FVector> UNiagaraComponent::GetNiagaraParticlePositions_DebugOnly(const FString& InEmitterName)
 {
 	return GetNiagaraParticleValueVec3_DebugOnly(InEmitterName, TEXT("Position"));
