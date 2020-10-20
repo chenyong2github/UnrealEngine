@@ -744,10 +744,7 @@ void FVoiceEngineImpl::OnPostLoadMap(UWorld*)
 	for (FRemoteTalkerData::TIterator It(RemoteTalkerBuffers); It; ++It)
 	{
 		FRemoteTalkerDataImpl& RemoteData = It.Value();
-		if (RemoteData.VoipSynthComponent && RemoteData.VoipSynthComponent->GetAudioComponent() != nullptr)
-		{
-			RemoteData.VoipSynthComponent->GetAudioComponent()->Play();
-		}
+		RemoteData.Reset();
 	}
 }
 
