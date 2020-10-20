@@ -395,10 +395,10 @@ void FAnimInstanceProxy::PreUpdate(UAnimInstance* InAnimInstance, float DeltaSec
 	TArray<FAnimTickRecord>& UngroupedActivePlayers = UngroupedActivePlayerArrays[GetSyncGroupWriteIndex()];
 	UngroupedActivePlayers.Reset();
 
-	TArray<FAnimGroupInstance>& SyncGroups = SyncGroupArrays[GetSyncGroupWriteIndex()];
-	for (int32 GroupIndex = 0; GroupIndex < SyncGroups.Num(); ++GroupIndex)
+	FSyncGroupMap& SyncGroups = SyncGroupMaps[GetSyncGroupWriteIndex()];
+	for (auto& SyncGroupPair : SyncGroups)
 	{
-		SyncGroups[GroupIndex].Reset();
+		SyncGroupPair.Value.Reset();
 	}
 
 	TArray<float>& StateWeights = StateWeightArrays[GetSyncGroupWriteIndex()];
@@ -602,18 +602,14 @@ void FAnimInstanceProxy::ClearObjects()
 	Skeleton = nullptr;
 }
 
-FAnimTickRecord& FAnimInstanceProxy::CreateUninitializedTickRecord(int32 GroupIndex, FAnimGroupInstance*& OutSyncGroupPtr)
+FAnimTickRecord& FAnimInstanceProxy::CreateUninitializedTickRecord(FAnimGroupInstance*& OutSyncGroupPtr, FName GroupName)
 {
 	// Find or create the sync group if there is one
 	OutSyncGroupPtr = nullptr;
-	if (GroupIndex >= 0)
+	if (GroupName != NAME_None)
 	{
-		TArray<FAnimGroupInstance>& SyncGroups = SyncGroupArrays[GetSyncGroupWriteIndex()];
-		while (SyncGroups.Num() <= GroupIndex)
-		{
-			new (SyncGroups) FAnimGroupInstance();
-		}
-		OutSyncGroupPtr = &(SyncGroups[GroupIndex]);
+		FSyncGroupMap& SyncGroupMap = SyncGroupMaps[GetSyncGroupWriteIndex()];
+		OutSyncGroupPtr = &SyncGroupMap.FindOrAdd(GroupName);
 	}
 
 	// Create the record
@@ -621,12 +617,12 @@ FAnimTickRecord& FAnimInstanceProxy::CreateUninitializedTickRecord(int32 GroupIn
 	return *TickRecord;
 }
 
-FAnimTickRecord& FAnimInstanceProxy::CreateUninitializedTickRecordInScope(int32 GroupIndex, EAnimSyncGroupScope Scope, FAnimGroupInstance*& OutSyncGroupPtr)
+FAnimTickRecord& FAnimInstanceProxy::CreateUninitializedTickRecordInScope(FAnimGroupInstance*& OutSyncGroupPtr, FName GroupName, EAnimSyncGroupScope Scope)
 {
-	if (GroupIndex >= 0)
+	if (GroupName != NAME_None)
 	{
-		// If we have no main proxy, force us to local
-		if(MainInstanceProxy == nullptr)
+		// If we have no main proxy or it is "this", force us to local
+		if(MainInstanceProxy == nullptr || MainInstanceProxy == this)
 		{
 			Scope = EAnimSyncGroupScope::Local;
 		}
@@ -638,14 +634,36 @@ FAnimTickRecord& FAnimInstanceProxy::CreateUninitializedTickRecordInScope(int32 
 			// Fall through
 
 		case EAnimSyncGroupScope::Local:
-			return CreateUninitializedTickRecord(GroupIndex, OutSyncGroupPtr);
+			return CreateUninitializedTickRecord(OutSyncGroupPtr, GroupName);
 		case EAnimSyncGroupScope::Component:
 			// Forward to the main instance to sync with animations there in TickAssetPlayerInstances()
-			return MainInstanceProxy->CreateUninitializedTickRecord(GroupIndex, OutSyncGroupPtr);
+			return MainInstanceProxy->CreateUninitializedTickRecord(OutSyncGroupPtr, GroupName);
 		}
 	}
 	
-	return CreateUninitializedTickRecord(GroupIndex, OutSyncGroupPtr);
+	return CreateUninitializedTickRecord(OutSyncGroupPtr, GroupName);
+}
+
+FAnimTickRecord& FAnimInstanceProxy::CreateUninitializedTickRecord(int32 GroupIndex, FAnimGroupInstance*& OutSyncGroupPtr)
+{
+	FName SyncGroupName = NAME_None;
+	if(GroupIndex >= 0)
+	{
+		SyncGroupName = GetAnimClassInterface()->GetSyncGroupNames()[GroupIndex];
+	}
+
+	return CreateUninitializedTickRecord(OutSyncGroupPtr, SyncGroupName);
+}
+
+FAnimTickRecord& FAnimInstanceProxy::CreateUninitializedTickRecordInScope(int32 GroupIndex, EAnimSyncGroupScope Scope, FAnimGroupInstance*& OutSyncGroupPtr)
+{
+	FName SyncGroupName = NAME_None;
+	if(GroupIndex >= 0)
+	{
+		SyncGroupName = GetAnimClassInterface()->GetSyncGroupNames()[GroupIndex];
+	}
+
+	return CreateUninitializedTickRecordInScope(OutSyncGroupPtr, SyncGroupName, Scope);
 }
 
 void FAnimInstanceProxy::MakeSequenceTickRecord(FAnimTickRecord& TickRecord, class UAnimSequenceBase* Sequence, bool bLooping, float PlayRate, float FinalBlendWeight, float& CurrentTime, FMarkerTickRecord& MarkerTickRecord) const
@@ -709,20 +727,20 @@ void FAnimInstanceProxy::TickAssetPlayerInstances(float DeltaSeconds)
 	SCOPE_CYCLE_COUNTER(STAT_TickAssetPlayerInstances);
 
 	// Handle all players inside sync groups
-	TArray<FAnimGroupInstance>& SyncGroups = SyncGroupArrays[GetSyncGroupWriteIndex()];
-	const TArray<FAnimGroupInstance>& PreviousSyncGroups = SyncGroupArrays[GetSyncGroupReadIndex()];
+	FSyncGroupMap& SyncGroupMap = SyncGroupMaps[GetSyncGroupWriteIndex()];
+	const FSyncGroupMap& PreviousSyncGroupMap = SyncGroupMaps[GetSyncGroupReadIndex()];
 	TArray<FAnimTickRecord>& UngroupedActivePlayers = UngroupedActivePlayerArrays[GetSyncGroupWriteIndex()];
 
-	for (int32 GroupIndex = 0; GroupIndex < SyncGroups.Num(); ++GroupIndex)
+	for (auto& SyncGroupPair : SyncGroupMap)
 	{
-		FAnimGroupInstance& SyncGroup = SyncGroups[GroupIndex];
+		FAnimGroupInstance& SyncGroup = SyncGroupPair.Value;
 	
 		if (SyncGroup.ActivePlayers.Num() > 0)
 		{
-			const FAnimGroupInstance* PreviousGroup = PreviousSyncGroups.IsValidIndex(GroupIndex) ? &PreviousSyncGroups[GroupIndex] : nullptr;
+			const FAnimGroupInstance* PreviousGroup = PreviousSyncGroupMap.Find(SyncGroupPair.Key);
 			SyncGroup.Prepare(PreviousGroup);
 
-			UE_LOG(LogAnimMarkerSync, Log, TEXT("Ticking Group [%d] GroupLeader [%d]"), GroupIndex, SyncGroup.GroupLeaderIndex);
+			UE_LOG(LogAnimMarkerSync, Log, TEXT("Ticking Group [%s] GroupLeader [%d]"), *SyncGroupPair.Key.ToString(), SyncGroup.GroupLeaderIndex);
 
 			const bool bOnlyOneAnimationInGroup = SyncGroup.ActivePlayers.Num() == 1;
 
@@ -748,7 +766,7 @@ void FAnimInstanceProxy::TickAssetPlayerInstances(float DeltaSeconds)
 #endif
 
 			// initialize to invalidate first
-			ensureMsgf(SyncGroup.GroupLeaderIndex == INDEX_NONE, TEXT("SyncGroup with GroupIndex=%d had a non -1 group leader index of %d in asset %s"), GroupIndex, SyncGroup.GroupLeaderIndex, *GetNameSafe(SkeletalMeshComponent));
+			ensureMsgf(SyncGroup.GroupLeaderIndex == INDEX_NONE, TEXT("SyncGroup %s had a non -1 group leader index of %d in asset %s"), *SyncGroupPair.Key.ToString(), SyncGroup.GroupLeaderIndex, *GetNameSafe(SkeletalMeshComponent));
 			int32 GroupLeaderIndex = 0;
 			for (; GroupLeaderIndex < SyncGroup.ActivePlayers.Num(); ++GroupLeaderIndex)
 			{
@@ -793,7 +811,7 @@ void FAnimInstanceProxy::TickAssetPlayerInstances(float DeltaSeconds)
 			if (TickContext.CanUseMarkerPosition())
 			{
 				const FMarkerSyncAnimPosition& MarkerStart = TickContext.MarkerTickContext.GetMarkerSyncStartPosition();
-				FName SyncGroupName = GetAnimClassInterface()->GetSyncGroupNames()[GroupIndex];
+				FName SyncGroupName = SyncGroupPair.Key;
 				FAnimTickRecord& GroupLeader = SyncGroup.ActivePlayers[SyncGroup.GroupLeaderIndex];
 				FString LeaderAnimName = GroupLeader.SourceAsset->GetName();
 
@@ -911,16 +929,14 @@ int32 FAnimInstanceProxy::GetSyncGroupIndexFromName(FName SyncGroupName) const
 
 bool FAnimInstanceProxy::GetTimeToClosestMarker(FName SyncGroup, FName MarkerName, float& OutMarkerTime) const
 {
-	const int32 SyncGroupIndex = GetSyncGroupIndexFromName(SyncGroup);
-	const TArray<FAnimGroupInstance>& SyncGroups = SyncGroupArrays[GetSyncGroupReadIndex()];
+	const FSyncGroupMap& SyncGroupMap = SyncGroupMaps[GetSyncGroupReadIndex()];
 
-	if (SyncGroups.IsValidIndex(SyncGroupIndex))
+	if (const FAnimGroupInstance* SyncGroupInstancePtr = SyncGroupMap.Find(SyncGroup))
 	{
-		const FAnimGroupInstance& SyncGroupInstance = SyncGroups[SyncGroupIndex];
-		if (SyncGroupInstance.bCanUseMarkerSync && SyncGroupInstance.ActivePlayers.IsValidIndex(SyncGroupInstance.GroupLeaderIndex))
+		if (SyncGroupInstancePtr->bCanUseMarkerSync && SyncGroupInstancePtr->ActivePlayers.IsValidIndex(SyncGroupInstancePtr->GroupLeaderIndex))
 		{
-			const FMarkerSyncAnimPosition& EndPosition = SyncGroupInstance.MarkerTickContext.GetMarkerSyncEndPosition();
-			const FAnimTickRecord& Leader = SyncGroupInstance.ActivePlayers[SyncGroupInstance.GroupLeaderIndex];
+			const FMarkerSyncAnimPosition& EndPosition = SyncGroupInstancePtr->MarkerTickContext.GetMarkerSyncEndPosition();
+			const FAnimTickRecord& Leader = SyncGroupInstancePtr->ActivePlayers[SyncGroupInstancePtr->GroupLeaderIndex];
 			if (EndPosition.PreviousMarkerName == MarkerName)
 			{
 				OutMarkerTime = Leader.MarkerTickRecord->PreviousMarker.TimeToMarker;
@@ -953,15 +969,13 @@ void FAnimInstanceProxy::AddAnimNotifyFromGeneratedClass(int32 NotifyIndex)
 
 bool FAnimInstanceProxy::HasMarkerBeenHitThisFrame(FName SyncGroup, FName MarkerName) const
 {
-	const int32 SyncGroupIndex = GetSyncGroupIndexFromName(SyncGroup);
-	const TArray<FAnimGroupInstance>& SyncGroups = SyncGroupArrays[GetSyncGroupReadIndex()];
+	const FSyncGroupMap& SyncGroupMap = SyncGroupMaps[GetSyncGroupReadIndex()];
 
-	if (SyncGroups.IsValidIndex(SyncGroupIndex))
+	if (const FAnimGroupInstance* SyncGroupInstancePtr = SyncGroupMap.Find(SyncGroup))
 	{
-		const FAnimGroupInstance& SyncGroupInstance = SyncGroups[SyncGroupIndex];
-		if (SyncGroupInstance.bCanUseMarkerSync)
+		if (SyncGroupInstancePtr->bCanUseMarkerSync)
 		{
-			return SyncGroupInstance.MarkerTickContext.MarkersPassedThisTick.ContainsByPredicate([&MarkerName](const FPassedMarker& PassedMarker) -> bool
+			return SyncGroupInstancePtr->MarkerTickContext.MarkersPassedThisTick.ContainsByPredicate([&MarkerName](const FPassedMarker& PassedMarker) -> bool
 			{
 				return PassedMarker.PassedMarkerName == MarkerName;
 			});
@@ -988,15 +1002,13 @@ bool FAnimInstanceProxy::IsSyncGroupBetweenMarkers(FName InSyncGroupName, FName 
 
 FMarkerSyncAnimPosition FAnimInstanceProxy::GetSyncGroupPosition(FName InSyncGroupName) const
 {
-	const int32 SyncGroupIndex = GetSyncGroupIndexFromName(InSyncGroupName);
-	const TArray<FAnimGroupInstance>& SyncGroups = SyncGroupArrays[GetSyncGroupReadIndex()];
+	const FSyncGroupMap& SyncGroupMap = SyncGroupMaps[GetSyncGroupReadIndex()];
 
-	if (SyncGroups.IsValidIndex(SyncGroupIndex))
+	if (const FAnimGroupInstance* SyncGroupInstancePtr = SyncGroupMap.Find(InSyncGroupName))
 	{
-		const FAnimGroupInstance& SyncGroupInstance = SyncGroups[SyncGroupIndex];
-		if (SyncGroupInstance.bCanUseMarkerSync && SyncGroupInstance.MarkerTickContext.IsMarkerSyncEndValid())
+		if (SyncGroupInstancePtr->bCanUseMarkerSync && SyncGroupInstancePtr->MarkerTickContext.IsMarkerSyncEndValid())
 		{
-			return SyncGroupInstance.MarkerTickContext.GetMarkerSyncEndPosition();
+			return SyncGroupInstancePtr->MarkerTickContext.GetMarkerSyncEndPosition();
 		}
 	}
 
