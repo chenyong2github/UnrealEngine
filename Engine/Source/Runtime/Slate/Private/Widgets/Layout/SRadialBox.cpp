@@ -121,8 +121,9 @@ void SRadialBox::FChildArranger::Arrange()
 
 		const FVector2D DesiredSizeOfSlot = Widget->GetDesiredSize();
 
-		ArrangementData.SlotOffset.X = (Radius - DesiredSizeOfSlot.X / 2.f) * FMath::Cos(FMath::DegreesToRadians(DegreeOffset)) + MiddlePointOffset - DesiredSizeOfSlot.X / 2.f;
-		ArrangementData.SlotOffset.Y = (Radius - DesiredSizeOfSlot.Y / 2.f )* FMath::Sin(FMath::DegreesToRadians(DegreeOffset)) + MiddlePointOffset - DesiredSizeOfSlot.Y / 2.f;
+		float SmallestSide = FMath::Min(DesiredSizeOfSlot.X / 2.f, DesiredSizeOfSlot.Y / 2.f);
+		ArrangementData.SlotOffset.X = (Radius - SmallestSide) * FMath::Cos(FMath::DegreesToRadians(DegreeOffset)) + MiddlePointOffset - DesiredSizeOfSlot.X / 2.f;
+		ArrangementData.SlotOffset.Y = (Radius - SmallestSide)* FMath::Sin(FMath::DegreesToRadians(DegreeOffset)) + MiddlePointOffset - DesiredSizeOfSlot.Y / 2.f;
 		ArrangementData.SlotSize.X = DesiredSizeOfSlot.X;
 		ArrangementData.SlotSize.Y = DesiredSizeOfSlot.Y;
 
