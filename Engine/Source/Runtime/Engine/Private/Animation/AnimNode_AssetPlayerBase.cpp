@@ -4,7 +4,10 @@
 #include "Animation/AnimInstanceProxy.h"
 
 FAnimNode_AssetPlayerBase::FAnimNode_AssetPlayerBase()
-	: GroupIndex(INDEX_NONE)
+	: GroupName(NAME_None)
+#if WITH_EDITORONLY_DATA
+	, GroupIndex_DEPRECATED(INDEX_NONE)
+#endif
 	, GroupRole(EAnimGroupRole::CanBeLeader)
 	, GroupScope(EAnimSyncGroupScope::Local)
 	, bIgnoreForRelevancyTest(false)
@@ -38,9 +41,9 @@ void FAnimNode_AssetPlayerBase::CreateTickRecordForNode(const FAnimationUpdateCo
 	const float FinalBlendWeight = Context.GetFinalBlendWeight();
 
 	FAnimGroupInstance* SyncGroup;
-	const int32 GroupIndexToUse = ((GroupRole < EAnimGroupRole::TransitionLeader) || bHasBeenFullWeight) ? GroupIndex : INDEX_NONE;
+	const FName GroupNameToUse = ((GroupRole < EAnimGroupRole::TransitionLeader) || bHasBeenFullWeight) ? GroupName : NAME_None;
 
-	FAnimTickRecord& TickRecord = Context.AnimInstanceProxy->CreateUninitializedTickRecordInScope(GroupIndexToUse, GroupScope, /*out*/ SyncGroup);
+	FAnimTickRecord& TickRecord = Context.AnimInstanceProxy->CreateUninitializedTickRecordInScope(/*out*/ SyncGroup, GroupNameToUse, GroupScope);
 
 	Context.AnimInstanceProxy->MakeSequenceTickRecord(TickRecord, Sequence, bLooping, PlayRate, FinalBlendWeight, /*inout*/ InternalTimeAccumulator, MarkerTickRecord);
 	TickRecord.RootMotionWeightModifier = Context.GetRootMotionWeightModifier();
