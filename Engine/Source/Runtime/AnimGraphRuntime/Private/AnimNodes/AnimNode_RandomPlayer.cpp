@@ -231,7 +231,7 @@ void FAnimNode_RandomPlayer::Update_AnyThread(const FAnimationUpdateContext& Con
 
 	FAnimInstanceProxy* AnimProxy = Context.AnimInstanceProxy;
 	FAnimGroupInstance* SyncGroup;
-	FAnimTickRecord& TickRecord = AnimProxy->CreateUninitializedTickRecord(INDEX_NONE, SyncGroup);
+	FAnimTickRecord& TickRecord = AnimProxy->CreateUninitializedTickRecord(SyncGroup, NAME_None);
 	AnimProxy->MakeSequenceTickRecord(
 	    TickRecord, CurrentData->Entry->Sequence, true, CurrentData->PlayRate,
 	    CurrentData->BlendWeight, CurrentData->CurrentPlayTime, CurrentData->MarkerTickRecord);
@@ -240,7 +240,7 @@ void FAnimNode_RandomPlayer::Update_AnyThread(const FAnimationUpdateContext& Con
 
 	if (FAnimationRuntime::HasWeight(NextData->BlendWeight))
 	{
-		FAnimTickRecord& NextTickRecord = AnimProxy->CreateUninitializedTickRecord(INDEX_NONE, SyncGroup);
+		FAnimTickRecord& NextTickRecord = AnimProxy->CreateUninitializedTickRecord(SyncGroup, NAME_None);
 		AnimProxy->MakeSequenceTickRecord(
 		    NextTickRecord, NextData->Entry->Sequence, true, NextData->PlayRate,
 		    NextData->BlendWeight, NextData->CurrentPlayTime, NextData->MarkerTickRecord);

@@ -334,14 +334,14 @@ void UAnimInstance::UpdateMontageSyncGroup()
 		bool bRecordNeedsResetting = true;
 		if (MontageInstance->bDidUseMarkerSyncThisTick)
 		{
-			const int32 GroupIndexToUse = MontageInstance->GetSyncGroupIndex();
+			const FName GroupNameToUse = MontageInstance->GetSyncGroupName();
 
 			// that is public data, so if anybody decided to play with it
-			if (ensure(GroupIndexToUse != INDEX_NONE))
+			if (ensure(GroupNameToUse != NAME_None))
 			{
 				bRecordNeedsResetting = false;
 				FAnimGroupInstance* SyncGroup;
-				FAnimTickRecord& TickRecord = GetProxyOnGameThread<FAnimInstanceProxy>().CreateUninitializedTickRecord(GroupIndexToUse, /*out*/ SyncGroup);
+				FAnimTickRecord& TickRecord = GetProxyOnGameThread<FAnimInstanceProxy>().CreateUninitializedTickRecord(/*out*/ SyncGroup, GroupNameToUse);
 				MakeMontageTickRecord(TickRecord, MontageInstance->Montage, MontageInstance->GetPosition(),
 					MontageInstance->GetPreviousPosition(), MontageInstance->GetDeltaMoved(), MontageInstance->GetWeight(),
 					MontageInstance->MarkersPassedThisTick, MontageInstance->MarkerTickRecord);
@@ -1044,20 +1044,20 @@ void UAnimInstance::DisplayDebug(class UCanvas* Canvas, const FDebugDisplayInfo&
 		FIndenter AnimIndent(Indent);
 
 		//Display Sync Groups
-		const TArray<FAnimGroupInstance>& SyncGroups = GetProxyOnGameThread<FAnimInstanceProxy>().GetSyncGroupRead();
+		const FAnimInstanceProxy::FSyncGroupMap& SyncGroupMap = GetProxyOnGameThread<FAnimInstanceProxy>().GetSyncGroupMapRead();
 		const TArray<FAnimTickRecord>& UngroupedActivePlayers = GetProxyOnGameThread<FAnimInstanceProxy>().GetUngroupedActivePlayersRead();
 
-		Heading = FString::Printf(TEXT("SyncGroups: %i"), SyncGroups.Num());
+		Heading = FString::Printf(TEXT("SyncGroups: %i"), SyncGroupMap.Num());
 		DisplayDebugManager.DrawString(Heading, Indent);
 
-		for (int32 GroupIndex = 0; GroupIndex < SyncGroups.Num(); ++GroupIndex)
+		for (const auto& SyncGroupPair : SyncGroupMap)
 		{
 			FIndenter GroupIndent(Indent);
-			const FAnimGroupInstance& SyncGroup = SyncGroups[GroupIndex];
+			const FAnimGroupInstance& SyncGroup = SyncGroupPair.Value;
 
 			DisplayDebugManager.SetLinearDrawColor(TextYellow);
 
-			FString GroupLabel = FString::Printf(TEXT("Group %i - Players %i"), GroupIndex, SyncGroup.ActivePlayers.Num());
+			FString GroupLabel = FString::Printf(TEXT("Group %s - Players %i"), *SyncGroupPair.Key.ToString(), SyncGroup.ActivePlayers.Num());
 			DisplayDebugManager.DrawString(GroupLabel, Indent);
 
 			if (SyncGroup.ActivePlayers.Num() > 0)

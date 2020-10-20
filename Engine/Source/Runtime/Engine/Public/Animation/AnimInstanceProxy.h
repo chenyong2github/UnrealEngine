@@ -109,6 +109,8 @@ struct ENGINE_API FAnimInstanceProxy
 	GENERATED_BODY()
 
 public:
+	using FSyncGroupMap = TMap<FName, FAnimGroupInstance>;
+
 	FAnimInstanceProxy()
 		: AnimInstanceObject(nullptr)
 		, AnimClassInterface(nullptr)
@@ -218,10 +220,17 @@ public:
 		SyncGroupWriteIndex = GetSyncGroupReadIndex();
 	}
 
-	/** Get the sync group we are currently reading from */
+	UE_DEPRECATED(5.0, "Sync groups are no longer stored in arrays, please use GetSyncGroupMapRead")
 	const TArray<FAnimGroupInstance>& GetSyncGroupRead() const
+	{
+		static const TArray<FAnimGroupInstance> Dummy;
+		return Dummy; 
+	}
+
+	/** Get the sync group we are currently reading from */
+	const FSyncGroupMap& GetSyncGroupMapRead() const
 	{ 
-		return SyncGroupArrays[GetSyncGroupReadIndex()]; 
+		return SyncGroupMaps[GetSyncGroupReadIndex()]; 
 	}
 
 	/** Get the ungrouped active player we are currently reading from */
@@ -344,13 +353,19 @@ public:
 		return SkeletalMeshComponent; 
 	}
 
-	// Creates an uninitialized tick record in the list for the correct group or the ungrouped array.  If the group is valid, OutSyncGroupPtr will point to the group.
+	UE_DEPRECATED(4.26, "Please use the overload that takes a group FName")
 	FAnimTickRecord& CreateUninitializedTickRecord(int32 GroupIndex, FAnimGroupInstance*& OutSyncGroupPtr);
+
+	UE_DEPRECATED(4.26, "Please use the overload that takes a group FName")
+	FAnimTickRecord& CreateUninitializedTickRecordInScope(int32 GroupIndex, EAnimSyncGroupScope Scope, FAnimGroupInstance*& OutSyncGroupPtr);
+
+	// Creates an uninitialized tick record in the list for the correct group or the ungrouped array.  If the group is valid, OutSyncGroupPtr will point to the group.
+	FAnimTickRecord& CreateUninitializedTickRecord(FAnimGroupInstance*& OutSyncGroupPtr, FName GroupName);
 
 	// Creates an uninitialized tick record in the list for the correct group or the ungrouped array.  
 	// If the group is valid, OutSyncGroupPtr will point to the group.
 	// Supply the scope to sync with tick records outside this instance
-	FAnimTickRecord& CreateUninitializedTickRecordInScope(int32 GroupIndex, EAnimSyncGroupScope Scope, FAnimGroupInstance*& OutSyncGroupPtr);
+	FAnimTickRecord& CreateUninitializedTickRecordInScope(FAnimGroupInstance*& OutSyncGroupPtr, FName GroupName, EAnimSyncGroupScope Scope);
 
 	/** Helper function: make a tick record for a sequence */
 	void MakeSequenceTickRecord(FAnimTickRecord& TickRecord, UAnimSequenceBase* Sequence, bool bLooping, float PlayRate, float FinalBlendWeight, float& CurrentTime, FMarkerTickRecord& MarkerTickRecord) const;
@@ -877,7 +892,7 @@ private:
 	TArray<FAnimTickRecord> UngroupedActivePlayerArrays[2];
 
 	/** The set of tick groups for this anim instance */
-	TArray<FAnimGroupInstance> SyncGroupArrays[2];
+	FSyncGroupMap SyncGroupMaps[2];
 
 	/** Buffers containing read/write buffers for all current machine weights */
 	TArray<float> MachineWeightArrays[2];
