@@ -109,7 +109,7 @@ TArray<FString> FShaderCompileDistributedThreadRunnable_Interface::GetDependency
 			const FShaderPipelineCompileJob* PipelineJob = Job->GetShaderPipelineJob();
 			if (PipelineJob)
 			{
-				for (const TRefCountPtr<FShaderCompileJob> CommonCompileJob : PipelineJob->StageJobs)
+				for (const TRefCountPtr<FShaderCompileJob>& CommonCompileJob : PipelineJob->StageJobs)
 				{
 					if (const FShaderCompileJob* SingleShaderJob = CommonCompileJob->GetSingleShaderJob())
 					{
