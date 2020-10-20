@@ -11,6 +11,8 @@
 #include "Misc/DisplayClusterStrings.h"
 #include "DisplayClusterProjectionStrings.h"
 
+#include "DisplayClusterConfigurationLog.h"
+
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 
