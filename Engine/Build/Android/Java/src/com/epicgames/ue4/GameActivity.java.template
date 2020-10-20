@@ -75,6 +75,7 @@ import android.app.NativeActivity;
 import android.app.ActivityManager;
 import android.app.ProgressDialog;
 import android.os.Bundle;
+import android.os.PersistableBundle;
 import android.util.Log;
 
 import android.os.Vibrator;
@@ -3538,6 +3539,27 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 //$${gameActivityOnPauseAdditions}$$
 		super.onPause();
 		Log.debug("==============> GameActive.onPause complete!");
+	}
+
+	@Override
+	public void onRestart()
+	{
+		super.onRestart();
+//$${gameActivityOnRestartAdditions}$$
+	}
+
+	@Override
+	public void onSaveInstanceState(Bundle outState, PersistableBundle outPersistentState)
+	{
+		super.onSaveInstanceState(outState, outPersistentState);
+//$${gameActivityOnSaveInstanceStateAdditions}$$
+	}
+
+	@Override
+	public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults)
+	{
+		super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+//$${gameActivityOnRequestPermissionsResultAdditions}$$
 	}
 	
 	@Override
