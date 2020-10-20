@@ -507,6 +507,8 @@ namespace Audio
 				NumTotalFrames = SoundWave.Duration * AudioDevice->GetSampleRate();
 				check(NumTotalFrames > 0);
 			}
+
+			StartFrame = FMath::Clamp<int32>((InWaveInstance->StartTime / SoundWave.Duration) * NumTotalFrames, 0, NumTotalFrames);
 		}
 
 		check(!MixerSourceBuffer.IsValid());		
@@ -786,7 +788,7 @@ namespace Audio
 
 		if (MixerSourceVoice && NumTotalFrames > 0)
 		{
-			int64 NumFrames = MixerSourceVoice->GetNumFramesPlayed();
+			int64 NumFrames = StartFrame + MixerSourceVoice->GetNumFramesPlayed();
 			AUDIO_MIXER_CHECK(NumTotalFrames > 0);
 			PreviousPlaybackPercent = (float)NumFrames / NumTotalFrames;
 			if (WaveInstance->LoopingMode == LOOP_Never)
