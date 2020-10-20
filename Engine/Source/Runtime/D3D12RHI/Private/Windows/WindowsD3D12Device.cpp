@@ -809,7 +809,6 @@ void FD3D12DynamicRHI::Init()
 
 #if 0//D3D12_RHI_RAYTRACING
 	GRHISupportsRayTracing = GetAdapter().GetD3DRayTracingDevice() != nullptr;
-	GRHISupportsRayTracingMissShaderBindings = true;
 #endif
 
 	D3D12_FEATURE_DATA_D3D12_OPTIONS6 options = {};
