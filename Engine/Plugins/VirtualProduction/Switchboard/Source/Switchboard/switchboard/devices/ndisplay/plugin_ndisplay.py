@@ -232,6 +232,12 @@ class DevicenDisplay(DeviceUnreal):
         use_all_cores = "-useallavailablecores" if DevicenDisplay.csettings['use_all_available_cores'].get_value(self.name) else ""
         no_texture_streaming = "-notexturestreaming" if not DevicenDisplay.csettings['texture_streaming'].get_value(self.name) else ""
 
+        ini_engine = "-ini:Engine"\
+            ":[/Script/Engine.Engine]:GameEngine=/Script/DisplayCluster.DisplayClusterGameEngine"\
+            ",[/Script/Engine.Engine]:GameViewportClientClassName=/Script/DisplayCluster.DisplayClusterViewportClient"
+
+        ini_game = "-ini:Game:[/Script/EngineSettings.GeneralProjectSettings]:bUseBorderlessWindow=True"
+
         # fill in fixed arguments
 
         args = [
@@ -252,6 +258,8 @@ class DevicenDisplay(DeviceUnreal):
             f'{no_texture_streaming}',  # -notexturestreaming
             f'dc_node={self.name}',     # name of this node in the nDisplay cluster
             f'Log={self.name}.log',     # log file
+            f'{ini_engine}',            # Engine ini injections
+            f'{ini_game}',              # Game ini injections
         ]
 
         # fill in ExecCmds
