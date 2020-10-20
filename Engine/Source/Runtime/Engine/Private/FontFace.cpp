@@ -24,7 +24,7 @@ void UFontFace::Serialize(FArchive& Ar)
 	Ar.UsingCustomVersion(FEditorObjectVersion::GUID);
 
 	FString OriginalSourceFilename;
-	if (Ar.IsCooking())
+	if (Ar.IsCooking() && !HasAnyFlags(RF_ClassDefaultObject))
 	{
 		OriginalSourceFilename = MoveTemp(SourceFilename);
 		SourceFilename = GetCookedFilename();
@@ -32,7 +32,7 @@ void UFontFace::Serialize(FArchive& Ar)
 
 	Super::Serialize(Ar);
 
-	if (Ar.IsCooking())
+	if (Ar.IsCooking() && !HasAnyFlags(RF_ClassDefaultObject))
 	{
 		SourceFilename = MoveTemp(OriginalSourceFilename);
 	}
