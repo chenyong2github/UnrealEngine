@@ -268,7 +268,7 @@ void TextureLoadVirtualPageTableInternal(
 	in out VTPageTableResult OutResult,
 	Texture2D<uint4> PageTable0, Texture2D<uint4> PageTable1,
 	VTPageTableUniform PageTableUniform,
-	float2 UV, uint vLevel)
+	float2 UV, int vLevel)
 {
 	OutResult.UV = UV * PageTableUniform.SizeInPages;
 
