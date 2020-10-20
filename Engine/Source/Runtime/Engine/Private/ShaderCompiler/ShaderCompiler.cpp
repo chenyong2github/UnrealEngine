@@ -3363,6 +3363,10 @@ void FShaderCompilingManager::CancelCompilation(const TCHAR* MaterialName, const
 				ShaderMapJobs.Remove(MapIdx);
 			}
 		}
+
+		// Don't continue finalizing once compilation has been canceled
+		// the CompilingId has been removed from ShaderMapsBeingCompiled, which will cause crash when attempting to do any further processing
+		const int32 NumPendingRemoved = PendingFinalizeShaderMaps.Remove(MapIdx);
 	}
 
 	if (TotalNumJobsRemoved > 0)
