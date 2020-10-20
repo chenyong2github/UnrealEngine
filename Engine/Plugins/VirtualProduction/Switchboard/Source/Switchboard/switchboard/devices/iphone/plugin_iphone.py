@@ -12,7 +12,7 @@ import datetime
 class DeviceiPhone(Device):
     QUERY_IPHONE_TIME = 5
 
-    def __init__(self, name, ip_address, port=CONFIG.OSC_CLIENT_PORT, **kwargs):
+    def __init__(self, name, ip_address, port=CONFIG.OSC_CLIENT_PORT.get_value(), **kwargs):
         super().__init__(name, ip_address, **kwargs)
 
         self.auto_connect = False
@@ -106,7 +106,7 @@ class DeviceiPhone(Device):
 
     # Tell the iPhone which ip_address is running Switchboard
     def osc_add_send_target(self):
-        self.send_osc_message(osc.OSC_ADD_SEND_TARGET, [SETTINGS.IP_ADDRESS, CONFIG.OSC_SERVER_PORT], log=True)
+        self.send_osc_message(osc.OSC_ADD_SEND_TARGET, [SETTINGS.IP_ADDRESS, CONFIG.OSC_SERVER_PORT.get_value()], log=True)
 
     def osc_add_send_target_confirm(self):
         # If the iPhone is left on and CP is relaunched the normal bootup sequence doesn't happen 
