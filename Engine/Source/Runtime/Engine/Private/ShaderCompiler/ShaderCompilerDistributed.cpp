@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "ShaderCompiler.h"
 #include "HAL/FileManager.h"
 #include "DistributedBuildInterface/Public/DistributedBuildControllerInterface.h"
