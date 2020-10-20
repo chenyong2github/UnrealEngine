@@ -47,8 +47,7 @@ public class RigLogicLib : ModuleRules
 
         if (Target.Platform == UnrealTargetPlatform.Linux ||
                 Target.Platform == UnrealTargetPlatform.LinuxAArch64 ||
-                Target.Platform == UnrealTargetPlatform.Mac ||
-                Target.Platform == UnrealTargetPlatform.PS4)
+                Target.Platform == UnrealTargetPlatform.Mac)
         {
             PrivateDefinitions.Add("TRIO_MMAP_AVAILABLE=1");
         }
@@ -56,12 +55,9 @@ public class RigLogicLib : ModuleRules
         if (Target.Platform == UnrealTargetPlatform.Win32 ||
                 Target.Platform == UnrealTargetPlatform.Win64 ||
                 Target.Platform == UnrealTargetPlatform.Linux ||
-                Target.Platform == UnrealTargetPlatform.Mac ||
-                Target.Platform == UnrealTargetPlatform.PS4 ||
-                Target.Platform == UnrealTargetPlatform.XboxOne)
+                Target.Platform == UnrealTargetPlatform.Mac)
         {
-            // Disable SSE in serialization for now as there's no way to pass the -msse3 flag to the compiler currently
-            // PublicDefinitions.Add("TERSE_ENABLE_SSE=1");
+            PublicDefinitions.Add("TERSE_ENABLE_SSE=1");
             PrivateDefinitions.Add("RL_BUILD_WITH_SSE=1");
         }
     }
