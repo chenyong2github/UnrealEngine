@@ -1417,7 +1417,7 @@ namespace WindowsMixedReality
 	RenderTargetDescription wmrRenderTargets[3];
 
 	void FWindowsMixedRealityHMD::GetEyeRenderParams_RenderThread(
-		const FRenderingCompositePassContext& Context,
+		const FHeadMountedDisplayPassContext& Context,
 		FVector2D& EyeToSrcUVScaleValue,
 		FVector2D& EyeToSrcUVOffsetValue) const
 	{

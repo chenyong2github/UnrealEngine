@@ -4,7 +4,7 @@
 
 #include "ScreenPass.h"
 #include "TranslucentRendering.h"
-#include "PostProcess/RenderingCompositionGraph.h"
+#include "SystemTextures.h"
 
 class FSceneTextureParameters;
 
@@ -39,6 +39,8 @@ bool IsPostProcessingWithComputeEnabled(ERHIFeatureLevel::Type FeatureLevel);
 
 // Returns whether the post process pipeline supports propagating the alpha channel.
 bool IsPostProcessingWithAlphaChannelSupported();
+
+using FPostProcessVS = FScreenPassVS;
 
 struct FPostProcessingInputs
 {
@@ -81,37 +83,6 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& V
 
 void AddBasicPostProcessPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View);
 
-// For compatibility with composition graph passes until they are ported to Render Graph.
-class RENDERER_API FPostProcessVS : public FScreenPassVS
-{
-public:
-	FPostProcessVS() = default;
-	FPostProcessVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FScreenPassVS(Initializer)
-	{}
-
-	void SetParameters(const FRenderingCompositePassContext&) {}
-	void SetParameters(FRHICommandList&, FRHIUniformBuffer*) {}
-};
-
-/** The context used to setup a post-process pass. */
-class FPostprocessContext
-{
-public:
-	FPostprocessContext(FRHICommandListImmediate& InRHICmdList, FRenderingCompositionGraph& InGraph, const FViewInfo& InView);
-
-	FRHICommandListImmediate& RHICmdList;
-	FRenderingCompositionGraph& Graph;
-	const FViewInfo& View;
-
-	// 0 if there was no scene color available at constructor call time
-	FRenderingCompositePass* SceneColor;
-	// never 0
-	FRenderingCompositePass* SceneDepth;
-
-	FRenderingCompositeOutputRef FinalOutput;
-};
-
 /**
  * The center for all post processing activities.
  */
@@ -119,8 +90,6 @@ class FPostProcessing
 {
 public:
 	void ProcessPlanarReflection(FRHICommandListImmediate& RHICmdList, const FViewInfo& View, TRefCountPtr<IPooledRenderTarget>& OutFilteredSceneColor);
-
-	void OverrideRenderTarget(FRenderingCompositeOutputRef It, TRefCountPtr<IPooledRenderTarget>& RT, FPooledRenderTargetDesc& Desc);
 };
 
 /** The global used for post processing. */

@@ -153,41 +153,4 @@ FScreenPassTexture AddVisualizeLevelInstancePass(FRDGBuilder& GraphBuilder, cons
 	return MoveTemp(Output);
 }
 
-FRenderingCompositeOutputRef AddVisualizeLevelInstancePass(FRenderingCompositionGraph& Graph, FRenderingCompositeOutputRef Input, const Nanite::FRasterResults *NaniteRasterResults)
-{
-	FRenderingCompositePass* Pass = Graph.RegisterPass(
-		new(FMemStack::Get()) TRCPassForRDG<1, 1>(
-			[NaniteRasterResults](FRenderingCompositePass* InPass, FRenderingCompositePassContext& InContext)
-	{
-		FRDGBuilder GraphBuilder(InContext.RHICmdList);
-
-		FRDGTextureRef SceneColorTexture = InPass->CreateRDGTextureForRequiredInput(GraphBuilder, ePId_Input0, TEXT("SceneColor"));
-		const FIntRect SceneColorViewRect = InContext.GetSceneColorDestRect(InPass);
-
-		const FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
-		FRDGTextureRef SceneDepthTexture = GraphBuilder.RegisterExternalTexture(SceneContext.SceneDepthZ, TEXT("SceneDepthZ"));
-
-		FVisualizeLevelInstanceInputs Inputs;
-		Inputs.SceneColor.Texture = SceneColorTexture;
-		Inputs.SceneColor.ViewRect = SceneColorViewRect;
-		Inputs.SceneDepth.Texture = SceneDepthTexture;
-		Inputs.SceneDepth.ViewRect = InContext.View.ViewRect;
-
-		if (FRDGTextureRef OutputTexture = InPass->FindRDGTextureForOutput(GraphBuilder, ePId_Output0, TEXT("BackBuffer")))
-		{
-			Inputs.OverrideOutput.Texture = OutputTexture;
-			Inputs.OverrideOutput.ViewRect = InContext.GetSceneColorDestRect(InPass->GetOutput(ePId_Output0)->PooledRenderTarget->GetRenderTargetItem());
-			Inputs.OverrideOutput.LoadAction = InContext.View.IsFirstInFamily() ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad;
-		}
-
-		FScreenPassTexture Outputs = AddVisualizeLevelInstancePass(GraphBuilder, InContext.View, Inputs, NaniteRasterResults);
-
-		InPass->ExtractRDGTextureForOutput(GraphBuilder, ePId_Output0, Outputs.Texture);
-
-		GraphBuilder.Execute();
-	}));
-	Pass->SetInput(ePId_Input0, Input);
-	return Pass;
-}
-
 #endif

@@ -494,7 +494,6 @@ void GeometryAwareUpsample(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRD
 		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 		PixelShader->SetParameters(RHICmdList, View, DistanceFieldNormal->GetPooledRenderTarget()->GetRenderTargetItem(), BentNormalInterpolation->GetPooledRenderTarget()->GetRenderTargetItem(), Parameters);
-		VertexShader->SetParameters(RHICmdList, View.ViewUniformBuffer);
 
 		DrawRectangle(
 			RHICmdList,
@@ -592,8 +591,6 @@ void UpdateHistory(
 						VelocityTexture ? VelocityTexture->GetPooledRenderTarget() : nullptr,
 						Parameters);
 
-					VertexShader->SetParameters(RHICmdList, View.ViewUniformBuffer);
-
 					DrawRectangle(
 						RHICmdList,
 						0, 0,
@@ -660,8 +657,6 @@ void UpdateHistory(
 						SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 						PixelShader->SetParameters(RHICmdList, View, DistanceFieldNormal->GetPooledRenderTarget()->GetRenderTargetItem(), NewBentNormalHistory->GetPooledRenderTarget()->GetRenderTargetItem());
 					}
-
-					VertexShader->SetParameters(RHICmdList, View.ViewUniformBuffer);
 
 					DrawRectangle(
 						RHICmdList,

@@ -102,7 +102,7 @@ void FGoogleVRHMD::GenerateDistortionCorrectionVertexBuffer(EStereoscopicPass Ey
 	RHIUnlockVertexBuffer(DistortionMeshVertices);
 }
 
-void FGoogleVRHMD::DrawDistortionMesh_RenderThread(struct FRenderingCompositePassContext& Context, const FIntPoint& TextureSize)
+void FGoogleVRHMD::DrawDistortionMesh_RenderThread(struct FHeadMountedDisplayPassContext& Context, const FIntPoint& TextureSize)
 {
 	const FViewInfo& View = Context.View;
 	FRHICommandListImmediate& RHICmdList = Context.RHICmdList;

@@ -4,7 +4,6 @@
 
 #include "ScreenPass.h"
 #include "OverridePassSequence.h"
-#include "RenderingCompositionGraph.h"
 
 // Returns whether subsurface scattering is globally enabled.
 bool IsSubsurfaceEnabled();

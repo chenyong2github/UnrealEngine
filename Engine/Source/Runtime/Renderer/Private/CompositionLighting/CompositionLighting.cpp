@@ -6,8 +6,6 @@
 
 #include "CompositionLighting/CompositionLighting.h"
 #include "ScenePrivate.h"
-#include "PostProcess/RenderingCompositionGraph.h"
-#include "PostProcess/PostProcessInput.h"
 #include "PostProcess/PostProcessing.h"
 #include "CompositionLighting/PostProcessAmbientOcclusion.h"
 #include "CompositionLighting/PostProcessDeferredDecals.h"

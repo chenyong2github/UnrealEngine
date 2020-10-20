@@ -514,7 +514,7 @@ public:
 	/**
 	 * Returns eye render params, used from PostProcessHMD, RenderThread.
 	 */
-	virtual void GetEyeRenderParams_RenderThread(const struct FRenderingCompositePassContext& Context, FVector2D& EyeToSrcUVScaleValue, FVector2D& EyeToSrcUVOffsetValue) const override;
+	virtual void GetEyeRenderParams_RenderThread(const struct FHeadMountedDisplayPassContext& Context, FVector2D& EyeToSrcUVScaleValue, FVector2D& EyeToSrcUVOffsetValue) const override;
 
 	// Renders texture into a backbuffer. Could be empty if no rendertarget texture is used, or if direct-rendering
 	// through RHI bridge is implemented.
@@ -742,7 +742,7 @@ public:
 	// Begin IHeadMountedDisplay Virtual Interface //
 	/////////////////////////////////////////////////
 
-	virtual void DrawDistortionMesh_RenderThread(struct FRenderingCompositePassContext& Context, const FIntPoint& TextureSize) override;
+	virtual void DrawDistortionMesh_RenderThread(struct FHeadMountedDisplayPassContext& Context, const FIntPoint& TextureSize) override;
 
 	virtual float GetPixelDenity() const override { return PixelDensity; }
 	virtual void SetPixelDensity(const float NewDensity) override;

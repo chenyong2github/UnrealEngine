@@ -6,7 +6,6 @@
 
 #include "ScreenPass.h"
 #include "OverridePassSequence.h"
-#include "PostProcess/RenderingCompositionGraph.h"
 
 namespace Nanite
 {
@@ -29,7 +28,5 @@ struct FVisualizeLevelInstanceInputs
 };
 
 FScreenPassTexture AddVisualizeLevelInstancePass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FVisualizeLevelInstanceInputs& Inputs, const Nanite::FRasterResults *NaniteRasterResults);
-
-FRenderingCompositeOutputRef AddVisualizeLevelInstancePass(FRenderingCompositionGraph& Graph, FRenderingCompositeOutputRef Input, const Nanite::FRasterResults *NaniteRasterResults);
 
 #endif

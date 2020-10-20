@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PostProcess/PostProcessing.h"
-#include "PostProcess/PostProcessInput.h"
 #include "PostProcess/PostProcessAA.h"
 #if WITH_EDITOR
 	#include "PostProcess/PostProcessBufferInspector.h"
@@ -37,7 +36,6 @@
 #include "PostProcess/PostProcessFFTBloom.h"
 #include "PostProcess/PostProcessStreamingAccuracyLegend.h"
 #include "PostProcess/PostProcessSubsurface.h"
-#include "CompositionLighting/PostProcessPassThrough.h"
 #include "ShaderPrint.h"
 #include "GpuDebugRendering.h"
 #include "HighResScreenshot.h"
@@ -1316,42 +1314,6 @@ static bool IsGaussianActive(const FViewInfo& View)
 		return false;
 	}
 	return true;
-}
-
-FPostprocessContext::FPostprocessContext(FRHICommandListImmediate& InRHICmdList, FRenderingCompositionGraph& InGraph, const FViewInfo& InView)
-	: RHICmdList(InRHICmdList)
-	, Graph(InGraph)
-	, View(InView)
-	, SceneColor(0)
-	, SceneDepth(0)
-{
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(InRHICmdList);
-	if (SceneContext.IsSceneColorAllocated())
-	{
-		SceneColor = Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessInput(SceneContext.GetSceneColor()));
-	}
-
-	SceneDepth = Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessInput(SceneContext.SceneDepthZ));
-
-	FinalOutput = FRenderingCompositeOutputRef(SceneColor);
-}
-
-// could be moved into the graph
-// allows for Framebuffer blending optimization with the composition graph
-void FPostProcessing::OverrideRenderTarget(FRenderingCompositeOutputRef It, TRefCountPtr<IPooledRenderTarget>& RT, FPooledRenderTargetDesc& Desc)
-{
-	for (;;)
-	{
-		It.GetOutput()->PooledRenderTarget = RT;
-		It.GetOutput()->RenderTargetDesc = Desc;
-
-		if (!It.GetPass()->FrameBufferBlendingWithInput0())
-		{
-			break;
-		}
-
-		It = *It.GetPass()->GetInput(ePId_Input0);
-	}
 }
 
 void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FMobilePostProcessingInputs& Inputs)

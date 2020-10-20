@@ -1441,7 +1441,6 @@ void FProjectedShadowInfo::RenderRayTracedDistanceFieldProjection(
 				TShaderMapRef<TDistanceFieldShadowingUpsamplePS<false> > PixelShader(View.ShaderMap);
 				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
-				VertexShader->SetParameters(RHICmdList, View.ViewUniformBuffer);
 				PixelShader->SetParameters(RHICmdList, View, this, ScissorRect, RayTracedShadowsTexture->GetPooledRenderTarget());
 			}
 			else
@@ -1449,7 +1448,6 @@ void FProjectedShadowInfo::RenderRayTracedDistanceFieldProjection(
 				TShaderMapRef<TDistanceFieldShadowingUpsamplePS<true> > PixelShader(View.ShaderMap);
 				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
-				VertexShader->SetParameters(RHICmdList, View.ViewUniformBuffer);
 				PixelShader->SetParameters(RHICmdList, View, this, ScissorRect, RayTracedShadowsTexture->GetPooledRenderTarget());
 			}
 

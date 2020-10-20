@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "PostProcess/RenderingCompositionGraph.h"
 #include "PostProcess/PostProcessEyeAdaptation.h"
 #include "ScreenPass.h"
 #include "OverridePassSequence.h"

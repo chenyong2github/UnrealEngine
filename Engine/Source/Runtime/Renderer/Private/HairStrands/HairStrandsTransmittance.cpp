@@ -16,6 +16,7 @@
 #include "PostProcessing.h"
 #include "GpuDebugRendering.h"
 #include "ShaderPrintParameters.h"
+#include "LightSceneInfo.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -434,7 +435,6 @@ static void AddDeepShadowOpaqueMaskPass(
 	TShaderMapRef<FDeepShadowMaskPS> PixelShader(View.ShaderMap, PermutationVector);
 	const FGlobalShaderMap* GlobalShaderMap = View.ShaderMap;
 	const FIntRect Viewport = View.ViewRect;
-	const FViewInfo* CapturedView = &View;
 
 	{
 		ClearUnusedGraphResources(PixelShader, Parameters);
@@ -444,7 +444,7 @@ static void AddDeepShadowOpaqueMaskPass(
 			RDG_EVENT_NAME("HairStrandsShadowMask"),
 			Parameters,
 			ERDGPassFlags::Raster,
-			[Parameters, VertexShader, PixelShader, Viewport, Resolution, CapturedView](FRHICommandList& RHICmdList)
+			[Parameters, VertexShader, PixelShader, Viewport, Resolution](FRHICommandList& RHICmdList)
 		{
 			FGraphicsPipelineStateInitializer GraphicsPSOInit;
 			RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
@@ -458,7 +458,6 @@ static void AddDeepShadowOpaqueMaskPass(
 			GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 
-			VertexShader->SetParameters(RHICmdList, CapturedView->ViewUniformBuffer);
 			RHICmdList.SetViewport(Viewport.Min.X, Viewport.Min.Y, 0.0f, Viewport.Max.X, Viewport.Max.Y, 1.0f);
 			SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *Parameters);
 

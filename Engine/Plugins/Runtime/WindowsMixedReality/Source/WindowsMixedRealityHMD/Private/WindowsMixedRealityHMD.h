@@ -291,7 +291,7 @@ namespace WindowsMixedReality
 
 		// Inherited via FXRRenderTargetManager
 		virtual void GetEyeRenderParams_RenderThread(
-			const struct FRenderingCompositePassContext& Context,
+			const struct FHeadMountedDisplayPassContext& Context,
 			FVector2D& EyeToSrcUVScaleValue,
 			FVector2D& EyeToSrcUVOffsetValue) const override;
 		virtual FIntPoint GetIdealRenderTargetSize() const override;

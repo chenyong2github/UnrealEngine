@@ -9,7 +9,6 @@
 #include "CoreMinimal.h"
 #include "UniformBuffer.h"
 #include "RendererInterface.h"
-#include "PostProcess/RenderingCompositionGraph.h"
 
 class FViewInfo;
 

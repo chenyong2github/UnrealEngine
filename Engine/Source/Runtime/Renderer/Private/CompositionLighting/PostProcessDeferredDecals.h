@@ -4,7 +4,6 @@
 
 #include "RenderGraph.h"
 #include "DecalRenderingCommon.h"
-#include "PostProcess/RenderingCompositionGraph.h"
 
 class FViewInfo;
 

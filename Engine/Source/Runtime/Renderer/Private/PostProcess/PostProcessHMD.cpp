@@ -5,7 +5,6 @@
 #include "Engine/Engine.h"
 #include "IHeadMountedDisplay.h"
 #include "IXRTrackingSystem.h"
-#include "RenderingCompositionGraph.h"
 
 /** The filter vertex declaration resource type. */
 class FDistortionVertexDeclaration : public FRenderResource
@@ -96,7 +95,7 @@ FScreenPassTexture AddDefaultHMDDistortionPass(FRDGBuilder& GraphBuilder, const 
 	IHeadMountedDisplay* HMDDevice = GEngine->XRSystem->GetHMDDevice();
 
 	{
-		FRenderingCompositePassContext PassContext(GraphBuilder.RHICmdList, View);
+		FHeadMountedDisplayPassContext PassContext(GraphBuilder.RHICmdList, View);
 		FVector2D EyeToSrcUVScaleValue;
 		FVector2D EyeToSrcUVOffsetValue;
 		HMDDevice->GetEyeRenderParams_RenderThread(PassContext, EyeToSrcUVScaleValue, EyeToSrcUVOffsetValue);
@@ -124,7 +123,7 @@ FScreenPassTexture AddDefaultHMDDistortionPass(FRDGBuilder& GraphBuilder, const 
 		SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), *PassParameters);
 		SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *PassParameters);
 
-		FRenderingCompositePassContext PassContext(RHICmdList, View);
+		FHeadMountedDisplayPassContext PassContext(RHICmdList, View);
 		HMDDevice->DrawDistortionMesh_RenderThread(PassContext, PassParameters->InputTexture->Desc.Extent);
 	});
 
