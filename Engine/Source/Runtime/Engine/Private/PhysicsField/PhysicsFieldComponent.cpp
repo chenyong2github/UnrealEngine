@@ -68,7 +68,7 @@ FAutoConsoleVariableRef CVarPhysicsFieldClipmapExponent(
 );
 
 /** Resolution of each clipmaps */
-int32 GPhysicsFieldClipmapResolution = 64;
+int32 GPhysicsFieldClipmapResolution = 32;
 FAutoConsoleVariableRef CVarPhysicsFieldClipmapResolution(
 	TEXT("r.PhysicsField.ClipmapResolution"),
 	GPhysicsFieldClipmapResolution,

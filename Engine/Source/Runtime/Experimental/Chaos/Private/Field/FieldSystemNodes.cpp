@@ -221,11 +221,12 @@ bool FUniformScalar::operator==(const FFieldNodeBase& Node)
 */
 void FWaveScalar::Evaluate(FFieldContext& Context, TArrayView<float>& Results) const
 {
-	const float Wavenumber = 2.0 * PI / Wavelength;
-	const float Frequency = 2.0 * PI / Period;
+	const float Velocity = (Period != 0.0 ) ? Wavelength / Period : 0.0;
 
-	const float Radius = Wavenumber * Time / Frequency;
-	const float Decay = Time / Period;
+	const float Wavenumber = (Wavelength != 0.0 ) ? 2.0 * PI / Wavelength : 0.0;
+	const float DeltaTime = FMath::Max(Context.TimeSeconds - Time, 0.0f);
+	const float Radius = Wavelength * DeltaTime / Period;
+	const float Decay = DeltaTime / Period;
 
 	int32 NumSamples = Context.SampleIndices.Num();
 	for (int32 SampleIndex = 0; SampleIndex < NumSamples; SampleIndex++)
@@ -233,7 +234,7 @@ void FWaveScalar::Evaluate(FFieldContext& Context, TArrayView<float>& Results) c
 		const ContextIndex& Index = Context.SampleIndices[SampleIndex];
 
 		const float Distance = (Context.Samples[Index.Sample] - Position).Size();
-		const float Phase = Wavenumber * Distance - Frequency * Time;
+		const float Phase = Wavenumber * (Distance - Radius);
 
 		if (Function == EWaveFunctionType::Field_Wave_Cosine)
 		{
@@ -245,7 +246,7 @@ void FWaveScalar::Evaluate(FFieldContext& Context, TArrayView<float>& Results) c
 		}
 		else if (Function == EWaveFunctionType::Field_Wave_Falloff)
 		{
-			if (Distance < Radius)
+			if (Distance < Radius && Radius > 0)
 			{
 				const float Fraction = (1.0 - Distance / Radius);
 				if (Falloff == EFieldFalloffType::Field_FallOff_None)
@@ -1357,7 +1358,7 @@ void FCullingField<T>::Evaluate(FFieldContext& Context, TArrayView<T>& Results) 
 		if (InputField != nullptr && IndexBuffer.Num())
 		{
 			TArrayView<ContextIndex> IndexBufferView(&(IndexBuffer[0]), IndexBuffer.Num());
-			FFieldContext LocalContext(IndexBufferView, Context.Samples, Context.MetaData);
+			FFieldContext LocalContext(IndexBufferView, Context.Samples, Context.MetaData, Context.TimeSeconds);
 			InputField->Evaluate(LocalContext, Results);
 		}
 
