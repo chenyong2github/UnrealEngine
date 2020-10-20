@@ -216,7 +216,7 @@ static void InternalGenerateFollicleTexture_GPU(
 		FollicleMaskTexture,
 		[FollicleMaskTexture, MipCount, OutTexture](FRHICommandListImmediate& RHICmdList)
 	{
-		if (OutTexture == nullptr || OutTexture->Resource || OutTexture->Resource->GetTexture2DRHI())
+		if (OutTexture && OutTexture->Resource && OutTexture->Resource->GetTexture2DRHI())
 		{
 			FRHICopyTextureInfo CopyInfo;
 			CopyInfo.NumMips = MipCount;
