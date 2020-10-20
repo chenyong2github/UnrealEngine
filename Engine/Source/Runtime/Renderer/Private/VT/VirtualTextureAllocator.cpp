@@ -56,7 +56,6 @@ void FVirtualTextureAllocator::Grow()
 	FreeList.Add(0xffff);
 
 	uint16 OldRootIndex = RootIndex;
-	FAddressBlock& OldRootBlock = AddressBlocks[RootIndex];
 
 	// Add new root block
 	FAddressBlock RootBlock(LogSize);
@@ -65,19 +64,19 @@ void FVirtualTextureAllocator::Grow()
 	AddressBlocks[RootIndex] = RootBlock;
 
 	// Reparent old root block
- 	OldRootBlock.Parent = RootIndex;
- 	OldRootBlock.FirstSibling = OldRootIndex;
-	OldRootBlock.NextSibling = AcquireBlock();
+	AddressBlocks[OldRootIndex].Parent = RootIndex;
+	AddressBlocks[OldRootIndex].FirstSibling = OldRootIndex;
+	AddressBlocks[OldRootIndex].NextSibling = AcquireBlock();
 
 	// Add new siblings for old root block
-	int32 NextSibling = OldRootBlock.NextSibling;
+	int32 NextSibling = AddressBlocks[OldRootIndex].NextSibling;
 	const int32 NumChildren = (1 << vDimensions);
 	for (int32 Sibling = 1; Sibling < NumChildren; Sibling++)
 	{
 		const int32 BlockIndex = NextSibling;
 		NextSibling = (Sibling + 1 < NumChildren) ? AcquireBlock() : 0xffff;
 
-		FAddressBlock Block(OldRootBlock, Sibling, vDimensions);
+		FAddressBlock Block(AddressBlocks[OldRootIndex], Sibling, vDimensions);
 		Block.NextSibling = NextSibling;
 		AddressBlocks[BlockIndex] = Block;
 	}
@@ -88,7 +87,7 @@ void FVirtualTextureAllocator::Grow()
 	check(SortedAddresses.Num() == SortedIndices.Num());
 
 	int32 Sibling = 1;
-	uint16 Index = OldRootBlock.NextSibling;
+	uint16 Index = AddressBlocks[OldRootIndex].NextSibling;
 	while (Index != 0xffff)
 	{
 		FAddressBlock& AddressBlock = AddressBlocks[Index];
