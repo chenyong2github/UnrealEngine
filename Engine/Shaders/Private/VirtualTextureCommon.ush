@@ -94,9 +94,9 @@ void FinalizeVirtualTextureFeedback(in FVirtualTextureFeedbackParams Params, flo
  * Apply before after calculating mip level/derivatives!
  */
 
-#define VTADDRESSMODE_CLAMP 0
-#define VTADDRESSMODE_WRAP 1
-#define VTADDRESSMODE_MIRROR 2
+#define VTADDRESSMODE_CLAMP 0u
+#define VTADDRESSMODE_WRAP 1u
+#define VTADDRESSMODE_MIRROR 2u
 
 float ApplyAddressModeMirror(float v)
 {
@@ -208,7 +208,7 @@ void ApplyAdaptivePageTableUniform(
 	in out VTPageTableResult InOutResult,
 	in out VTPageTableUniform InOutPageTableUniform,
 	in out float2 UV,
-	in out float vLevel)
+	in out int vLevel)
 {
 	if (vLevel < 0)
 	{
