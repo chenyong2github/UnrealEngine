@@ -2233,20 +2233,20 @@ class FGenerateVulkanVisitor : public ir_visitor
 					ralloc_asprintf_append(buffer, "(1.0/0.0) /*Inf*/");
 					break;
 
-				case 0xffc00000u:
-					ralloc_asprintf_append(buffer, "(0.0/0.0) /*-Nan*/");
-					break;
-
 				case 0xff800000u:
 					ralloc_asprintf_append(buffer, "(-1.0/0.0) /*-Inf*/");
 					break;
 
-				case 0x7fc00000u:
-					ralloc_asprintf_append(buffer, "(0.0/0.0) /*Nan*/");
-					break;
-
 				default:
-					checkf(false, TEXT("constant->value.u[index] = 0x%0x"), constant->value.u[index]);
+					checkf(FGenericPlatformMath::IsNaN(constant->value.f[index]), TEXT("constant->value.u[index] = 0x%0x"), constant->value.u[index]);
+					if ((constant->value.u[index] >> 31u) == 1u)
+					{
+						ralloc_asprintf_append(buffer, "(-0.0/0.0) /*-Nan*/");
+					}
+					else
+					{
+						ralloc_asprintf_append(buffer, "(0.0/0.0) /*Nan*/");
+					}
 					break;
 				}
 			}

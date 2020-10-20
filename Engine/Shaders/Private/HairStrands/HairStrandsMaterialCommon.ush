@@ -162,7 +162,7 @@ FEvaluateOutput Evaluate(
 		const float StrandRealRadius = WorldStrandRadius;
 		Coverage = StrandRealRadius / max(StrandRealRadius, PixelRadius);
 
-		SampleCoverage8bit = min(uint(Coverage * 0xFF), 0xFF);
+		SampleCoverage8bit = min(uint(Coverage * 0xFF), 0xFFu);
 	}
 
 	// expressed the coverage relatively to the current pixel coverage?

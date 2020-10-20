@@ -88,7 +88,7 @@ void MainPS(
 		}
 		Samples_Depth = CatData.ClosestDepth;
 
-		const float InvSampleCount = 1.f / max(1, NodeDesc.Count);
+		const float InvSampleCount = 1.f / max(1u, NodeDesc.Count);
 		Samples_Tangent		 = normalize(Samples_Tangent);
 		Samples_Specular	*= InvSampleCount;
 		Samples_BaseColor	*= InvSampleCount;
