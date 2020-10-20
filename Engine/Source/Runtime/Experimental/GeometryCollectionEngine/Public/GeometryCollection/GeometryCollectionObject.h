@@ -131,6 +131,9 @@ public:
 	TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe>       GetGeometryCollection() { return GeometryCollection; }
 	const TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GetGeometryCollection() const { return GeometryCollection; }
 
+	/** Return collection to initial (ie. empty) state. */
+	void Reset();
+	
 	int32 AppendGeometry(const UGeometryCollection & Element, bool ReindexAllMaterials = false, const FTransform& TransformRoot = FTransform::Identity);
 	int32 NumElements(const FName & Group) const;
 	void RemoveElements(const FName & Group, const TArray<int32>& SortedDeletionList);

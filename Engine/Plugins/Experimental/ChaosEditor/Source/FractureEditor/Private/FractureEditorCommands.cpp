@@ -40,6 +40,7 @@ void FFractureEditorCommands::RegisterCommands()
 	UI_COMMAND(MoveUp, "Level Up", "Move Bones Up One Level", EUserInterfaceActionType::Button, FInputChord() );
 
 	UI_COMMAND(GenerateAsset, "New", "Generate Geometry Collection Asset from static meshes contained in selected actors", EUserInterfaceActionType::Button, FInputChord() );
+	UI_COMMAND(ResetAsset, "Reset", "Reset Geometry Collection Asset to its initial unfractured state", EUserInterfaceActionType::Button, FInputChord());
 
 
 	for (TObjectIterator<UClass> ClassIterator; ClassIterator; ++ClassIterator)

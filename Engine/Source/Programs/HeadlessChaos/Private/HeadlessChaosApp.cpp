@@ -286,6 +286,7 @@ TEST(GeometryCollection_MatricesTest,ReparentingMatrices) { GeometryCollectionTe
 // Creation Tests
 TEST(GeometryCollection_CreationTest,CheckIncrementMask) { GeometryCollectionTest::CheckIncrementMask<float>(); SUCCEED(); }
 TEST(GeometryCollection_CreationTest,Creation) { GeometryCollectionTest::Creation<float>(); SUCCEED(); }
+TEST(GeometryCollection_CreationTest,Empty) { GeometryCollectionTest::Empty<float>(); SUCCEED(); }
 TEST(GeometryCollection_CreationTest,AppendTransformHierarchy) { GeometryCollectionTest::AppendTransformHierarchy<float>(); SUCCEED(); }
 TEST(GeometryCollection_CreationTest,ParentTransformTest) { GeometryCollectionTest::ParentTransformTest<float>(); SUCCEED(); }
 TEST(GeometryCollection_CreationTest,DeleteFromEnd) { GeometryCollectionTest::DeleteFromEnd<float>(); SUCCEED(); }

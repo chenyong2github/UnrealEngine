@@ -161,6 +161,17 @@ void UGeometryCollection::FixupRemoveOnFractureMaterials(FSharedSimulationParame
 	}
 }
 
+void UGeometryCollection::Reset()
+{
+	if (GeometryCollection.IsValid())
+	{
+		Modify();
+		GeometryCollection->Empty();
+		Materials.Empty();
+		InvalidateCollection();
+	}
+}
+
 /** AppendGeometry */
 int32 UGeometryCollection::AppendGeometry(const UGeometryCollection & Element, bool ReindexAllMaterials, const FTransform& TransformRoot)
 {
