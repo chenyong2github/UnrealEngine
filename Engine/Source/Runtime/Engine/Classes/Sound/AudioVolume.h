@@ -89,7 +89,7 @@ struct FInteriorSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=InteriorSettings)
 	float ExteriorTime;
 
-	// The desired LPF frequency cutoff in hertz of sounds outside the volume when the player is inside the volume
+	// The desired LPF frequency cutoff in hertz of sounds inside the volume when the player is outside the volume
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = InteriorSettings)
 	float ExteriorLPF;
 
@@ -105,7 +105,7 @@ struct FInteriorSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=InteriorSettings)
 	float InteriorTime;
 
-	// The desired LPF frequency cutoff in hertz of sounds inside  the volume when the player is outside the volume
+	// The desired LPF frequency cutoff in hertz of sounds outside the volume when the player is inside the volume
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = InteriorSettings)
 	float InteriorLPF;
 
