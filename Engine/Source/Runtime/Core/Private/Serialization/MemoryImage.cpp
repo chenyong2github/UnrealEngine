@@ -82,7 +82,7 @@ void FPlatformTypeLayoutParameters::InitializeForCurrent()
 	check(GetMemoryImagePointerSize() == sizeof(FMemoryImagePtrInt));
 
 	// clang for Windows matches the MSVC ABI
-#if defined(__clang__) && !defined(PLATFORM_WINDOWS)
+#if defined(__clang__) && !PLATFORM_WINDOWS
 	InitializeForClang();
 #else
 	InitializeForMSVC();
