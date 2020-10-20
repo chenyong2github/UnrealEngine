@@ -99,6 +99,12 @@ protected:
 	TMap<FName, EActorGridPlacement> LevelsGridPlacement;
 
 	UPROPERTY(Config)
+	FVector WorldOrigin;
+	
+	UPROPERTY(Config)
+	FVector WorldExtent;
+
+	UPROPERTY(Config)
 	FString HLODLayerAssetsPath;
 
 	UPROPERTY(Config)
