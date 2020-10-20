@@ -1408,10 +1408,12 @@ struct FMeshCollisionInitHelper
 		PxGeom.scale.scale.y = ComponentScale.Y * CollisionScale;
 		PxGeom.scale.scale.z = ComponentScale.Z;
 
+#if WITH_EDITOR
 		PxGeomEd.triangleMesh = MeshRef->RBTriangleMeshEd;
 		PxGeomEd.scale.scale.x = ComponentScale.X * CollisionScale;
 		PxGeomEd.scale.scale.y = ComponentScale.Y * CollisionScale;
 		PxGeomEd.scale.scale.z = ComponentScale.Z;
+#endif
 
 		check(World);
 		PhysScene = World->GetPhysicsScene();

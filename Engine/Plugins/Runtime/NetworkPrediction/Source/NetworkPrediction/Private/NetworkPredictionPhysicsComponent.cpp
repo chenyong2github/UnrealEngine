@@ -115,6 +115,8 @@ void UNetworkPredictionPhysicsComponent::SetPrimitiveComponent(UPrimitiveCompone
 
 	if (UpdatedPrimitive)
 	{
+#if WITH_CHAOS
 		PhysicsActorHandle = UpdatedPrimitive->BodyInstance.GetPhysicsActorHandle();
+#endif
 	}
 }

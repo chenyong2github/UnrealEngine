@@ -16,6 +16,9 @@
 #include "HAL/PlatformMath.h"
 #include "Containers/ArrayView.h"
 #include "Containers/BitArray.h"
+#if PHYSICS_INTERFACE_PHYSX
+#include "PhysXIncludes.h"
+#endif
 
 DECLARE_CYCLE_STAT(TEXT("Chaos Cloth Update Collider"), STAT_ChaosClothingSimulationColliderUpdate, STATGROUP_ChaosCloth);
 

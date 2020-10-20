@@ -28,7 +28,6 @@ using namespace Chaos;
 PRAGMA_DISABLE_OPTIMIZATION
 #endif
 
-#if WITH_CHAOS
 
 FWheeledVehicleDebugParams GWheeledVehicleDebugParams;
 extern FVehicleDebugParams GVehicleDebugParams;
@@ -156,12 +155,13 @@ void UChaosWheeledVehicleMovementComponent::FixupSkeletalMesh()
 
 							FPhysicsCommand::ExecuteWrite(TargetInstance->ActorHandle, [&](const FPhysicsActorHandle& Chassis)
 								{
+#if WITH_CHAOS
 									const FVector LocalWheel = GetWheelRestingPosition(WheelSetup);
 									FPhysicsConstraintHandle ConstraintHandle = FPhysicsInterface::CreateSuspension(Chassis, LocalWheel);
 
 									if (ConstraintHandle.IsValid())
 									{
-										auto& SusSettings = PVehicle->GetSuspension(WheelIdx).Setup();
+										const Chaos::FSimpleSuspensionConfig& SusSettings = PVehicle->GetSuspension(WheelIdx).Setup();
 										ConstraintHandles.Add(ConstraintHandle);
 										if (Chaos::FSuspensionConstraint* Constraint = static_cast<Chaos::FSuspensionConstraint*>(ConstraintHandle.Constraint))
 										{
@@ -174,7 +174,7 @@ void UChaosWheeledVehicleMovementComponent::FixupSkeletalMesh()
 											Constraint->SetAxis(-SusSettings.SuspensionAxis);
 										}
 									}
-
+#endif // WITH_CHAOS
 								});
 						}
 					}
@@ -857,9 +857,10 @@ void UChaosWheeledVehicleMovementComponent::ApplySuspensionForces(float DeltaTim
 		{
 			FPhysicsCommand::ExecuteWrite(TargetInstance->ActorHandle, [&](const FPhysicsActorHandle& Chassis)
 			{
+#if WITH_CHAOS
 				if (ConstraintHandles.Num() > 0)
 				{
-					auto& ConstraintHandle = ConstraintHandles[WheelIdx];
+					FPhysicsConstraintHandle& ConstraintHandle = ConstraintHandles[WheelIdx];
 					if (ConstraintHandle.IsValid())
 					{
 						if (Chaos::FSuspensionConstraint* Constraint = static_cast<Chaos::FSuspensionConstraint*>(ConstraintHandle.Constraint))
@@ -871,6 +872,7 @@ void UChaosWheeledVehicleMovementComponent::ApplySuspensionForces(float DeltaTim
 					}
 
 				}
+#endif // WITH_CHAOS
 			});
 		}
 
@@ -1725,7 +1727,6 @@ FChaosWheelSetup::FChaosWheelSetup()
 
 }
 
-#endif // WITH_CHAOS
 
 #if VEHICLE_DEBUGGING_ENABLED
 PRAGMA_ENABLE_OPTIMIZATION
