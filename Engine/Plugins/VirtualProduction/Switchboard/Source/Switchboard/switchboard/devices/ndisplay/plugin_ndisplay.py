@@ -62,7 +62,7 @@ class AddnDisplayDialog(AddDeviceDialog):
             SETTINGS.save()
 
     def devices_to_add(self):
-        cfg_file = self.config_file_field.text()
+        cfg_file = self.config_file_field.text().replace('"', '')
         try:
             devices = DevicenDisplay.parse_config(cfg_file)
             if len(devices) == 0:
@@ -180,8 +180,16 @@ class DevicenDisplay(DeviceUnreal):
         self.unreal_client.delegates['get sync status'] = self.on_get_sync_status
 
         # create monitor if it doesn't exist
-        if not self.__class__.ndisplay_monitor:
-            self.__class__.ndisplay_monitor = nDisplayMonitor(None)
+        self.__class__.create_monitor_if_necessary()
+
+    @classmethod
+    def create_monitor_if_necessary(cls):
+        ''' Creates the nDisplay Monitor if it doesn't exist yet.
+        '''
+        if not cls.ndisplay_monitor:
+            cls.ndisplay_monitor = nDisplayMonitor(None)
+
+        return cls.ndisplay_monitor
 
     def on_change_setting_affecting_command_line(self, oldval, newval):
         self.generate_unreal_command_line()
@@ -443,6 +451,8 @@ class DevicenDisplay(DeviceUnreal):
     def plug_into_ui(cls, menubar, tabs):
         ''' Implementation of base class function that allows plugin to inject UI elements.
         '''
+
+        cls.create_monitor_if_necessary()
 
         # Create Monitor UI if it doesn't exist
         if not cls.ndisplay_monitor_ui:
