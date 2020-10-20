@@ -123,12 +123,6 @@ void UMoviePipelineDeferredPassBase::SetupImpl(const MoviePipeline::FMoviePipeli
 
 	SurfaceQueue = MakeShared<FMoviePipelineSurfaceQueue>(InPassInitSettings.BackbufferResolution, EPixelFormat::PF_FloatRGBA, 3, true);
 
-	// We must have at least enough accumulators to render all of the requested post process materials, because work doesn't begin
-	// until they're actually submitted to the render thread (which happens all at once) but we tie up an accumulator as we get ready to submit.
-	// If there aren't enough accumulators then we block until one is free but since submission hasn't gone through they'll never be free.
-	int32 PoolSize = (ActivePostProcessMaterials.Num() + 1) * 3;
-	AccumulatorPool = MakeShared<TAccumulatorPool<FImageOverlappedAccumulator>, ESPMode::ThreadSafe>(PoolSize);
-
 	// Each stencil layer uses its own view state to keep TAA history etc separate
 	if (bAddDefaultLayer)
 	{
@@ -144,6 +138,13 @@ void UMoviePipelineDeferredPassBase::SetupImpl(const MoviePipeline::FMoviePipeli
 	{
 		StencilLayerViewStates[Index].Allocate();
 	}
+
+
+	// We must have at least enough accumulators to render all of the requested post process materials, because work doesn't begin
+	// until they're actually submitted to the render thread (which happens all at once) but we tie up an accumulator as we get ready to submit.
+	// If there aren't enough accumulators then we block until one is free but since submission hasn't gone through they'll never be free.
+	int32 PoolSize = (StencilLayerViewStates.Num() + ActivePostProcessMaterials.Num() + 1) * 3;
+	AccumulatorPool = MakeShared<TAccumulatorPool<FImageOverlappedAccumulator>, ESPMode::ThreadSafe>(PoolSize);
 	
 	// This scene view extension will be released automatically as soon as Render Sequence is torn down.
 	// One Extension per sequence, since each sequence has its own OCIO settings.
