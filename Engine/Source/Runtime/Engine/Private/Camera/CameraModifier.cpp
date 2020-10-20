@@ -2,7 +2,8 @@
 
 #include "Camera/CameraModifier.h"
 #include "Camera/PlayerCameraManager.h"
-
+#include "Engine/Canvas.h"
+#include "DisplayDebugHelpers.h"
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -149,6 +150,11 @@ void UCameraModifier::ModifyCamera(float DeltaTime, FVector ViewLocation, FRotat
 }
 
 void UCameraModifier::ModifyPostProcess(float DeltaTime, float& PostProcessBlendWeight, FPostProcessSettings& PostProcessSettings)
+{
+
+}
+
+void UCameraModifier::DisplayDebug(class UCanvas* Canvas, const FDebugDisplayInfo& DebugDisplay, float& YL, float& YPos)
 {
 
 }
