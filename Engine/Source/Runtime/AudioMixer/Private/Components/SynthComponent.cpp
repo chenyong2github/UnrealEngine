@@ -391,26 +391,6 @@ void USynthComponent::PumpPendingMessages()
 	{
 		Command();
 	}
-
-	ESynthEvent SynthEvent;
-	while (PendingSynthEvents.Dequeue(SynthEvent))
-	{
-		switch (SynthEvent)
-		{
-			case ESynthEvent::Start:
-				bIsSynthPlaying = true;
-				OnStart();
-				break;
-
-			case ESynthEvent::Stop:
-				bIsSynthPlaying = false;
-				OnStop();
-				break;
-
-			default:
-				break;
-		}
-	}
 }
 
 FAudioDevice* USynthComponent::GetAudioDevice() const
@@ -491,14 +471,6 @@ void USynthComponent::Start()
 		AudioComponent->Play(0);
 
 		SetActiveFlag(AudioComponent->IsActive());
-
-		if (IsActive())
-		{
-			if (!SoundGenerator.IsValid())
-			{
-				PendingSynthEvents.Enqueue(ESynthEvent::Start);
-			}
-		}
 	}
 }
 
@@ -506,11 +478,6 @@ void USynthComponent::Stop()
 {
 	if (IsActive())
 	{
-		if (!SoundGenerator.IsValid())
-		{
-			PendingSynthEvents.Enqueue(ESynthEvent::Stop);
-		}
-
 		if (AudioComponent)
 		{
 			AudioComponent->Stop();		

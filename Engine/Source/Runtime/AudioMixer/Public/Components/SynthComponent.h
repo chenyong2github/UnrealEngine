@@ -233,10 +233,10 @@ protected:
 	// Called when synth is created.
 	virtual bool Init(int32& SampleRate) { return true; }
 
-	// Called when synth is about to start playing
+	UE_DEPRECATED(4.26, "Use OnBeginGenerate to get a callback before audio is generating on the audio render thread")
 	virtual void OnStart() {}
 
-	// Called when synth is about to stop playing
+	UE_DEPRECATED(4.26, "Use OnEndGenerate to get a callback when audio stops generating on the audio render thread")
 	virtual void OnStop() {}
 
 	// Called when the synth component begins generating audio in render thread
@@ -288,15 +288,6 @@ private:
 	bool bIsInitialized;
 
 	TQueue<TFunction<void()>> CommandQueue;
-
-	enum class ESynthEvent : uint8
-	{
-		None,
-		Start,
-		Stop
-	};
-
-	TQueue<ESynthEvent> PendingSynthEvents;
 
 	// Synth component's handle to its sound generator instance.
 	// used to forward BP functions to the instance directly.
