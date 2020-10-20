@@ -214,12 +214,13 @@ namespace nDisplayLauncher.Cluster
 		}
 
 		public static UE4LogVerbosity UE4LogVerbosity_FromString(string From, UE4LogVerbosity Default)
-		{
-			From = From.Trim();
+		{			
 			if (string.IsNullOrEmpty(From))
 			{
 				return Default;
 			}
+
+			From = From.Trim();
 
 			if (string.Compare(From, "All", true) == 0)
 			{

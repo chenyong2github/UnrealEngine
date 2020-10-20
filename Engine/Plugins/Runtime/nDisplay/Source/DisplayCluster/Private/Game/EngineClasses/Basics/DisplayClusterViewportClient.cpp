@@ -75,7 +75,7 @@ static UCanvas* GetCanvasByName(FName CanvasName)
 
 void UDisplayClusterViewportClient::Init(struct FWorldContext& WorldContext, UGameInstance* OwningGameInstance, bool bCreateNewAudioDevice)
 {
-	const bool bIsNDisplayClusterMode = (!GEngine->XRSystem.IsValid() && GEngine->StereoRenderingDevice.IsValid() && GDisplayCluster->GetOperationMode() == EDisplayClusterOperationMode::Cluster);
+	const bool bIsNDisplayClusterMode = (GEngine->StereoRenderingDevice.IsValid() && GDisplayCluster->GetOperationMode() == EDisplayClusterOperationMode::Cluster);
 	if (bIsNDisplayClusterMode)
 	{
 		// r.CompositionForceRenderTargetLoad
@@ -83,6 +83,13 @@ void UDisplayClusterViewportClient::Init(struct FWorldContext& WorldContext, UGa
 		if (ForceLoadCVar)
 		{
 			ForceLoadCVar->Set(int32(1));
+		}
+
+		// r.SceneRenderTargetResizeMethodForceOverride
+		IConsoleVariable* const RTResizeForceOverrideCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.SceneRenderTargetResizeMethodForceOverride"));
+		if (RTResizeForceOverrideCVar)
+		{
+			RTResizeForceOverrideCVar->Set(int32(1));
 		}
 
 		// r.SceneRenderTargetResizeMethod
@@ -107,7 +114,7 @@ void UDisplayClusterViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCa
 {
 	////////////////////////////////
 	// For any operation mode other than 'Cluster' we use default UGameViewportClient::Draw pipeline
-	const bool bIsNDisplayClusterMode = (!GEngine->XRSystem.IsValid() && GEngine->StereoRenderingDevice.IsValid() && GDisplayCluster->GetOperationMode() == EDisplayClusterOperationMode::Cluster);
+	const bool bIsNDisplayClusterMode = (GEngine->StereoRenderingDevice.IsValid() && GDisplayCluster->GetOperationMode() == EDisplayClusterOperationMode::Cluster);
 	if (!bIsNDisplayClusterMode)
 	{
 		return UGameViewportClient::Draw(InViewport, SceneCanvas);
