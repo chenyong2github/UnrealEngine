@@ -328,7 +328,7 @@ void UMoviePipelineDeferredPassBase::RenderSample_GameThreadImpl(const FMoviePip
 		GetRendererModule().BeginRenderingViewFamily(&Canvas, ViewFamily.Get());
 
 		// Readback + Accumulate.
-		PostRendererSubmission(InOutSampleState, PassIdentifier, Canvas);
+		PostRendererSubmission(InOutSampleState, PassIdentifier, GetOutputFileSortingOrder(), Canvas);
 	}
 
 	// Now submit stencil layers if needed
@@ -447,7 +447,7 @@ void UMoviePipelineDeferredPassBase::RenderSample_GameThreadImpl(const FMoviePip
 					GetRendererModule().BeginRenderingViewFamily(&Canvas, ViewFamily.Get());
 
 					// Readback + Accumulate.
-					PostRendererSubmission(InSampleState, LayerPassIdentifier, Canvas);
+					PostRendererSubmission(InSampleState, LayerPassIdentifier, GetOutputFileSortingOrder() + 1, Canvas);
 				}
 			}
 
@@ -541,7 +541,7 @@ TFunction<void(TUniquePtr<FImagePixelData>&&)> UMoviePipelineDeferredPassBase::M
 	return Callback;
 }
 
-void UMoviePipelineDeferredPassBase::PostRendererSubmission(const FMoviePipelineRenderPassMetrics& InSampleState, const FMoviePipelinePassIdentifier InPassIdentifier, FCanvas& InCanvas)
+void UMoviePipelineDeferredPassBase::PostRendererSubmission(const FMoviePipelineRenderPassMetrics& InSampleState, const FMoviePipelinePassIdentifier InPassIdentifier, const int32 InSortingOrder, FCanvas& InCanvas)
 {
 	// If this was just to contribute to the history buffer, no need to go any further.
 	if (InSampleState.bDiscardResult)
@@ -619,7 +619,7 @@ void UMoviePipelineDeferredPassBase::PostRendererSubmission(const FMoviePipeline
 	TSharedRef<FImagePixelDataPayload, ESPMode::ThreadSafe> FramePayload = MakeShared<FImagePixelDataPayload, ESPMode::ThreadSafe>();
 	FramePayload->PassIdentifier = InPassIdentifier;
 	FramePayload->SampleState = InSampleState;
-	FramePayload->SortingOrder = GetOutputFileSortingOrder();
+	FramePayload->SortingOrder = InSortingOrder;
 
 	MoviePipeline::FImageSampleAccumulationArgs AccumulationArgs;
 	{
