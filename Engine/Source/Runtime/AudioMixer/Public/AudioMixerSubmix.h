@@ -297,7 +297,7 @@ namespace Audio
 		void SubmixCommand(TFunction<void()> Command);
 
 		// Generates audio from the given effect chain into the given buffer
-		void GenerateEffectChainAudio(FSoundEffectSubmixInputData& InputData, TArray<FSoundEffectSubmixPtr>& InEffectChain, AlignedFloatBuffer& OutBuffer);
+		bool GenerateEffectChainAudio(FSoundEffectSubmixInputData& InputData, TArray<FSoundEffectSubmixPtr>& InEffectChain, AlignedFloatBuffer& OutBuffer);
 
 		// This mixer submix's Id
 		uint32 Id;
@@ -333,6 +333,7 @@ namespace Audio
 		TMap<FMixerSourceVoice*, FSubmixVoiceData> MixerSourceVoices;
 
 		AlignedFloatBuffer ScratchBuffer;
+		AlignedFloatBuffer SubmixChainMixBuffer;
 		AlignedFloatBuffer InputBuffer;
 		AlignedFloatBuffer DownmixedBuffer;
 		AlignedFloatBuffer SourceInputBuffer;
