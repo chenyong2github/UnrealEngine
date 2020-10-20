@@ -166,7 +166,7 @@ class Device(QtCore.QObject):
     def ip_address(self, value):
         self.setting_ip_address.update_value(value)
         # todo-dara: probably better to have the osc client connect to a change of the ip address.
-        self.setup_osc_client()
+        self.setup_osc_client(CONFIG.OSC_CLIENT_PORT.get_value())
 
     @property
     def status(self):
@@ -204,12 +204,12 @@ class Device(QtCore.QObject):
     def disconnect_listener(self):
         self.status = DeviceStatus.DISCONNECTED
 
-    def setup_osc_client(self, osc_port=CONFIG.OSC_CLIENT_PORT):
+    def setup_osc_client(self, osc_port):
         self.osc_client = pythonosc.udp_client.SimpleUDPClient(self.ip_address, osc_port)
 
     def send_osc_message(self, command, value, log=True):
         if not self.osc_client:
-            self.setup_osc_client()
+            self.setup_osc_client(CONFIG.OSC_CLIENT_PORT.get_value())
 
         if log:
             LOGGER.osc(f'OSC Server: Sending {command} {value} to {self.name} ({self.ip_address})')

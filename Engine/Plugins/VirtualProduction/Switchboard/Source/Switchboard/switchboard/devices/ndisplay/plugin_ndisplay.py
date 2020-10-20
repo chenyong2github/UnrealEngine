@@ -190,7 +190,7 @@ class DevicenDisplay(DeviceUnreal):
     def plugin_settings(cls):
         ''' Returns common settings that belong to all devices of this class.
         '''
-        return [DeviceUnreal.csettings['port']] + list(cls.csettings.values())
+        return [DeviceUnreal.csettings['port'], DeviceUnreal.csettings['roles_filename']] + list(cls.csettings.values())
 
     def device_settings(self):
         ''' This is given to the config, so that it knows to save them when they change.

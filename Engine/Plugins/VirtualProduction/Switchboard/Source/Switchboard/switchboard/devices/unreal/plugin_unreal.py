@@ -288,7 +288,7 @@ class DeviceUnreal(Device):
 
         if program_name == "unreal":
             self.status = DeviceStatus.OPEN
-            self.send_osc_message(osc.OSC_ADD_SEND_TARGET, [SETTINGS.IP_ADDRESS, CONFIG.OSC_SERVER_PORT])
+            self.send_osc_message(osc.OSC_ADD_SEND_TARGET, [SETTINGS.IP_ADDRESS, CONFIG.OSC_SERVER_PORT.get_value()])
 
         self._running_remote_program_names[program_id] = program_name
         self._running_remote_program_ids[program_name] = program_id

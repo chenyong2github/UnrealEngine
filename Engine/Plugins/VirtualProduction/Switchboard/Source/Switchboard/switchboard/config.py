@@ -44,10 +44,7 @@ class Setting(QtCore.QObject):
             return False
 
     def remove_override(self, device_name):
-        try:
-            del self._overrides[device_name]
-        except KeyError:
-            pass
+        self._overrides.pop(device_name, None)
 
     def update_value(self, new_value):
         if self._value == new_value:
@@ -112,8 +109,8 @@ class Config(object):
         self.P4_PATH = Setting("p4_sync_path", "Perforce Project Path", "//UE4/Project")
         self.CURRENT_LEVEL = DEFAULT_MAP_TEXT
 
-        self.OSC_SERVER_PORT = 6000
-        self.OSC_CLIENT_PORT = 8000
+        self.OSC_SERVER_PORT = Setting("osc_server_port", "OSC Server Port", 6000)
+        self.OSC_CLIENT_PORT = Setting("osc_client_port", "OSC Client Port", 8000)
 
         # MU Settings
         self.MULTIUSER_SERVER_EXE = 'UnrealMultiUserServer.exe'
@@ -170,6 +167,11 @@ class Config(object):
         self.MAPS_FILTER = Setting("maps_filter", "Map Filter", data.get('maps_filter', '*.umap'), placholder_text="*.umap", tool_tip="Walk every file in the Map Path and run a fnmatch to filter the file names")
         project_settings.append(self.MAPS_FILTER)
 
+        # OSC settings
+        self.OSC_SERVER_PORT = Setting("osc_server_port", "OSC Server Port", data.get('osc_server_port', 6000))
+        self.OSC_CLIENT_PORT = Setting("osc_client_port", "OSC Client Port", data.get('osc_client_port', 8000))
+        project_settings.extend([self.OSC_SERVER_PORT, self.OSC_CLIENT_PORT])
+
         # Perforce settings
         self.SOURCE_CONTROL_WORKSPACE = Setting("source_control_workspace", "Workspace Name", data.get("source_control_workspace"), tool_tip="SourceControl Workspace/Branch")
         self.P4_PATH = Setting("p4_sync_path", "Perforce Project Path", data.get("p4_sync_path", ''), placholder_text="//UE4/Project")
@@ -177,9 +179,6 @@ class Config(object):
 
         # EXE names
         self.MULTIUSER_SERVER_EXE = data.get('multiuser_exe', 'UnrealMultiUserServer.exe')
-
-        self.OSC_SERVER_PORT = 6000
-        self.OSC_CLIENT_PORT = 8000
 
         # MU Settings
         self.MUSERVER_COMMAND_LINE_ARGUMENTS = data.get('muserver_command_line_arguments', '')
@@ -282,6 +281,11 @@ class Config(object):
         data['build_engine'] = self.BUILD_ENGINE.get_value()
         data["maps_path"] = self.MAPS_PATH.get_value()
         data["maps_filter"] = self.MAPS_FILTER.get_value()
+        
+		# OSC settings
+		#
+        data["osc_server_port"] = self.OSC_SERVER_PORT.get_value()
+        data["osc_client_port"] = self.OSC_CLIENT_PORT.get_value()
 
         # Source Control Settings
         #

@@ -123,7 +123,7 @@ class SwitchboardDialog(QtCore.QObject):
 
         # Start the OSC server
         self.osc_server = switchboard_application.OscServer()
-        self.osc_server.launch(SETTINGS.IP_ADDRESS)
+        self.osc_server.launch(SETTINGS.IP_ADDRESS, CONFIG.OSC_SERVER_PORT.get_value())
 
         # Setup the MU server
         self.mu_server = switchboard_application.MultiUserApplication()
@@ -370,6 +370,8 @@ class SwitchboardDialog(QtCore.QObject):
         settings_dialog.set_p4_project_path(CONFIG.P4_PATH.get_value())
         settings_dialog.set_map_path(CONFIG.MAPS_PATH.get_value())
         settings_dialog.set_map_filter(CONFIG.MAPS_FILTER.get_value())
+        settings_dialog.set_osc_server_port(CONFIG.OSC_SERVER_PORT.get_value())
+        settings_dialog.set_osc_client_port(CONFIG.OSC_CLIENT_PORT.get_value())
         settings_dialog.set_mu_server_name(CONFIG.MUSERVER_SERVER_NAME)
         settings_dialog.set_mu_cmd_line_args(CONFIG.MUSERVER_COMMAND_LINE_ARGUMENTS)
         settings_dialog.set_mu_clean_history(CONFIG.MUSERVER_CLEAN_HISTORY)
@@ -407,7 +409,7 @@ class SwitchboardDialog(QtCore.QObject):
 
             # Relaunch the OSC server
             self.osc_server.close()
-            self.osc_server.launch(SETTINGS.IP_ADDRESS)
+            self.osc_server.launch(SETTINGS.IP_ADDRESS, CONFIG.OSC_SERVER_PORT.get_value())
 
         transport_path = settings_dialog.transport_path()
         if transport_path != SETTINGS.TRANSPORT_PATH:
