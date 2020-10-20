@@ -1194,6 +1194,7 @@ bool UMovieSceneCompiledDataManager::CompileSubTrackHierarchy(UMovieSceneSubTrac
 
 			// Iterate into the sub sequence
 			FGatherParameters SubParams = Params.CreateForSubData(*SubData, SubSequenceID);
+			SubParams.SetClampRange(EffectiveRange);
 			SubParams.Flags |= Entry.Flags;
 
 			RootPath->Push(SubData->DeterministicSequenceID);
