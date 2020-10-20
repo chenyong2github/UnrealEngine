@@ -1316,7 +1316,10 @@ FCriticalSection RenderSuspend;
 		}
 		UE_LOG(LogTemp, Display, TEXT("Done with entering background tasks time."));
     }
-	[self ToggleSuspend:true];
+// fix for freeze on tvOS, moving to applicationDidEnterBackground. Not making the changes for iOS platforms as the bug does not happen and could bring some side effets.
+#if !PLATFORM_TVOS
+    [self ToggleSuspend:true];
+#endif
 	[self ToggleAudioSession:false];
     
     RenderSuspend.TryLock();
@@ -1351,6 +1354,11 @@ FCriticalSection RenderSuspend;
 	 If your application supports background execution, this method is called
 	 instead of applicationWillTerminate: when the user quits.
 	 */
+
+    // fix for freeze on tvOS, moving to applicationDidEnterBackground. Not making the changes for iOS platforms as the bug does not happen and could bring some side effets.
+#if PLATFORM_TVOS
+    [self ToggleSuspend:true];
+#endif
 
 	FEmbeddedCommunication::KeepAwake(TEXT("Background"), false);
 
