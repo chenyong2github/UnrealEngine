@@ -1352,11 +1352,15 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 		static const auto CVarMobileMultiView = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("vr.MobileMultiView"));
 		static const auto CVarODSCapture = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("vr.ODSCapture"));
 
-		const bool bIsInstancedStereo = (RHISupportsInstancedStereo(Platform) && (CVarInstancedStereo && CVarInstancedStereo->GetValueOnGameThread() != 0));
+		bool bIsInstancedStereo = (RHISupportsInstancedStereo(Platform) && (CVarInstancedStereo && CVarInstancedStereo->GetValueOnGameThread() != 0));
 		const bool bIsMultiView = (RHISupportsMultiView(Platform) && bIsInstancedStereo);
 
-		const bool bIsAndroidGLES = RHISupportsMobileMultiView(Platform);
-		const bool bIsMobileMultiView = (bIsAndroidGLES && (CVarMobileMultiView && CVarMobileMultiView->GetValueOnGameThread() != 0));
+		bool bIsMobileMultiView = (CVarMobileMultiView && CVarMobileMultiView->GetValueOnGameThread() != 0);
+		if (bIsMobileMultiView && !RHISupportsMobileMultiView(Platform))
+		{
+			// Native mobile multi-view is not supported, fall back to instancing if available
+			bIsMobileMultiView = bIsInstancedStereo = RHISupportsInstancedStereo(Platform);
+		}
 
 		const bool bIsODSCapture = CVarODSCapture && (CVarODSCapture->GetValueOnGameThread() != 0);
 
