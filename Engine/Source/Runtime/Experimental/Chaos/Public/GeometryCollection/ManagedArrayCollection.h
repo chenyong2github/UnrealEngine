@@ -333,6 +333,12 @@ public:
 	void Reserve(int32 Size, FName Group);
 
 	/**
+	* Empty the group 
+	*  @param Group - The group to empty
+	*/
+	void EmptyGroup(FName Group);
+
+	/**
 	* Reorders elements in a group. NewOrder must be the same length as the group.
 	*/
 	virtual void ReorderElements(FName Group, const TArray<int32>& NewOrder);

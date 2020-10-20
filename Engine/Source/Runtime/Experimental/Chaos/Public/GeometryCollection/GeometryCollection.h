@@ -146,6 +146,11 @@ public:
 	virtual void RemoveElements(const FName & Group, const TArray<int32>& DeletionList, FProcessingParameters Params = FProcessingParameters()) override;
 
 	/**
+	* Empty each managed array in each group in order to reset the collection to an initial (empty) state. 
+	*/
+	void Empty();
+
+	/**
 	* Reorders elements in a group. NewOrder must be the same length as the group.
 	*/
 	virtual void ReorderElements(FName Group, const TArray<int32>& NewOrder) override;

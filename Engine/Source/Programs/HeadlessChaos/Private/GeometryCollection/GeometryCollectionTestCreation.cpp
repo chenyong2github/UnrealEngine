@@ -83,6 +83,66 @@ namespace GeometryCollectionTest
 	template void Creation<float>();
 
 	template<class T>
+	void Empty()
+	{
+		// Set up Collection, empty it, then set it back up again.
+		// Rebuild Collection should be the same as the initial set up.
+		
+		TSharedPtr<FGeometryCollection> Collection(new FGeometryCollection());
+
+		GeometryCollection::SetupCubeGridExample(Collection);
+
+		Collection->Empty();
+
+		EXPECT_TRUE(Collection->HasGroup(FTransformCollection::TransformGroup));
+		EXPECT_TRUE(Collection->HasGroup(FGeometryCollection::VerticesGroup));
+		EXPECT_TRUE(Collection->HasGroup(FGeometryCollection::FacesGroup));
+		EXPECT_TRUE(Collection->HasGroup(FGeometryCollection::MaterialGroup));
+		EXPECT_TRUE(Collection->HasGroup(FGeometryCollection::GeometryGroup));
+
+		EXPECT_EQ(Collection->NumElements(FTransformCollection::TransformGroup), 0);
+		EXPECT_EQ(Collection->NumElements(FGeometryCollection::VerticesGroup), 0);
+		EXPECT_EQ(Collection->NumElements(FGeometryCollection::FacesGroup), 0);
+		EXPECT_EQ(Collection->NumElements(FGeometryCollection::MaterialGroup), 0);
+		EXPECT_EQ(Collection->NumElements(FGeometryCollection::GeometryGroup), 0);
+
+		GeometryCollection::SetupCubeGridExample(Collection);
+
+		EXPECT_TRUE(Collection->HasGroup(FTransformCollection::TransformGroup));
+		EXPECT_TRUE(Collection->HasGroup(FGeometryCollection::VerticesGroup));
+		EXPECT_TRUE(Collection->HasGroup(FGeometryCollection::FacesGroup));
+		EXPECT_TRUE(Collection->HasGroup(FGeometryCollection::MaterialGroup));
+		EXPECT_TRUE(Collection->HasGroup(FGeometryCollection::GeometryGroup));
+
+		EXPECT_EQ(Collection->NumElements(FTransformCollection::TransformGroup), 1000);
+		EXPECT_EQ(Collection->NumElements(FGeometryCollection::VerticesGroup), 8000);
+		EXPECT_EQ(Collection->NumElements(FGeometryCollection::FacesGroup), 12000);
+		EXPECT_EQ(Collection->NumElements(FGeometryCollection::MaterialGroup), 2);
+		EXPECT_EQ(Collection->NumElements(FGeometryCollection::GeometryGroup), 1000);
+
+		int HalfTheFaces = Collection->NumElements(FGeometryCollection::FacesGroup) / 2;
+		EXPECT_EQ((Collection->Sections)[0].MaterialID, 0);
+		EXPECT_EQ((Collection->Sections)[0].FirstIndex, 0);
+		EXPECT_EQ((Collection->Sections)[0].NumTriangles, HalfTheFaces);
+		EXPECT_EQ((Collection->Sections)[0].MinVertexIndex, 0);
+		EXPECT_EQ((Collection->Sections)[0].MaxVertexIndex, Collection->NumElements(FGeometryCollection::VerticesGroup) - 1);
+
+		EXPECT_EQ((Collection->Sections)[1].MaterialID, 1);
+		EXPECT_EQ((Collection->Sections)[1].FirstIndex, HalfTheFaces * 3);
+		EXPECT_EQ((Collection->Sections)[1].NumTriangles, HalfTheFaces);
+		EXPECT_EQ((Collection->Sections)[1].MinVertexIndex, 0);
+		EXPECT_EQ((Collection->Sections)[1].MaxVertexIndex, Collection->NumElements(FGeometryCollection::VerticesGroup) - 1);
+
+		EXPECT_TRUE(GeometryCollectionAlgo::HasValidGeometryReferences(Collection.Get()));
+
+		EXPECT_TRUE(Collection->HasContiguousFaces());
+		EXPECT_TRUE(Collection->HasContiguousVertices());
+		EXPECT_TRUE(Collection->HasContiguousRenderFaces());
+
+	}
+	template void Empty<float>();
+
+	template<class T>
 	void AppendTransformHierarchy()
 	{
 		TSharedPtr<FGeometryCollection> Collection = GeometryCollection::MakeCubeElement(FTransform(FQuat::MakeFromEuler(FVector(0, 0, 90.)), FVector(0, 10, 0)), FVector(1.0));

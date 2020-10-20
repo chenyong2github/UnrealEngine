@@ -36,6 +36,7 @@ class FFractureEditorCommands : public TCommands<FFractureEditorCommands>
 		TSharedPtr< FUICommandInfo > Merge;
 		TSharedPtr< FUICommandInfo > MoveUp;
 		TSharedPtr< FUICommandInfo > GenerateAsset;
+		TSharedPtr< FUICommandInfo > ResetAsset;
 
 		// Fracture Commands
 		TSharedPtr< FUICommandInfo > Uniform;

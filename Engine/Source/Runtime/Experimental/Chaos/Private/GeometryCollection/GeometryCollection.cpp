@@ -575,6 +575,14 @@ void FGeometryCollection::RemoveGeometryElements(const TArray<int32>& SortedGeom
 	}
 }
 
+void FGeometryCollection::Empty()
+{
+	for (const FName& GroupName : GroupNames())
+	{
+		EmptyGroup(GroupName);
+	}
+}
+
 void FGeometryCollection::ReorderElements(FName Group, const TArray<int32>& NewOrder)
 {
 	if (Group == FTransformCollection::TransformGroup)
