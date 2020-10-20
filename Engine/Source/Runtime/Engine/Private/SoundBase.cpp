@@ -7,6 +7,7 @@
 #include "Sound/AudioSettings.h"
 #include "Sound/SoundClass.h"
 #include "Sound/SoundSubmix.h"
+#include "Engine/AssetUserData.h"
 
 
 USoundClass* USoundBase::DefaultSoundClassObject = nullptr;
@@ -231,3 +232,46 @@ void USoundBase::Serialize(FArchive& Ar)
 #endif // WITH_EDITORONLY_DATA
 }
 
+void USoundBase::AddAssetUserData(UAssetUserData* InUserData)
+{
+	if (InUserData != nullptr)
+	{
+		UAssetUserData* ExistingData = GetAssetUserDataOfClass(InUserData->GetClass());
+		if (ExistingData != nullptr)
+		{
+			AssetUserData.Remove(ExistingData);
+		}
+		AssetUserData.Add(InUserData);
+	}
+}
+
+UAssetUserData* USoundBase::GetAssetUserDataOfClass(TSubclassOf<UAssetUserData> InUserDataClass)
+{
+	for (int32 DataIdx = 0; DataIdx < AssetUserData.Num(); DataIdx++)
+	{
+		UAssetUserData* Datum = AssetUserData[DataIdx];
+		if (Datum != nullptr && Datum->IsA(InUserDataClass))
+		{
+			return Datum;
+		}
+	}
+	return nullptr;
+}
+
+void USoundBase::RemoveUserDataOfClass(TSubclassOf<UAssetUserData> InUserDataClass)
+{
+	for (int32 DataIdx = 0; DataIdx < AssetUserData.Num(); DataIdx++)
+	{
+		UAssetUserData* Datum = AssetUserData[DataIdx];
+		if (Datum != nullptr && Datum->IsA(InUserDataClass))
+		{
+			AssetUserData.RemoveAt(DataIdx);
+			return;
+		}
+	}
+}
+
+const TArray<UAssetUserData*>* USoundBase::GetAssetUserDataArray() const
+{
+	return &AssetUserData;
+}
