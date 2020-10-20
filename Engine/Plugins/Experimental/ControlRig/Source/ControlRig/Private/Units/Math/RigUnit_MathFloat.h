@@ -745,7 +745,7 @@ struct FRigUnit_MathFloatRad : public FRigUnit_MathFloatUnaryOp
  * Returns the sinus value of the given value (in radians)
  */
 USTRUCT(meta=(DisplayName="Sin", PrototypeName="Sin"))
-struct FRigUnit_MathFloatSin : public FRigUnit_MathFloatUnaryOp
+struct CONTROLRIG_API FRigUnit_MathFloatSin : public FRigUnit_MathFloatUnaryOp
 {
 	GENERATED_BODY()
 

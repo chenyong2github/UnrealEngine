@@ -9,7 +9,7 @@
  * SetTransform is used to set a single transform on hierarchy.
  */
 USTRUCT(meta=(DisplayName="Set Transform", Category="Hierarchy", DocumentationPolicy = "Strict", Keywords="SetBoneTransform,SetControlTransform,SetInitialTransform,SetSpaceTransform", Varying))
-struct FRigUnit_SetTransform : public FRigUnitMutable
+struct CONTROLRIG_API FRigUnit_SetTransform : public FRigUnitMutable
 {
 	GENERATED_BODY()
 

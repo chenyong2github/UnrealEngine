@@ -9,7 +9,7 @@
  * Simulates a time value - can act as a timeline playing back
  */
 USTRUCT(meta=(DisplayName="Accumulated Time", Keywords="Playback,Pause,Timeline"))
-struct FRigUnit_Timeline : public FRigUnit_SimBase
+struct CONTROLRIG_API FRigUnit_Timeline : public FRigUnit_SimBase
 {
 	GENERATED_BODY()
 	
