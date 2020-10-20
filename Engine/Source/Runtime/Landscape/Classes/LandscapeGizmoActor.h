@@ -10,7 +10,7 @@
 
 class UBillboardComponent;
 
-UCLASS(notplaceable, MinimalAPI, NotBlueprintable)
+UCLASS(notplaceable, transient, MinimalAPI, NotBlueprintable)
 class ALandscapeGizmoActor : public AActor
 {
 	GENERATED_UCLASS_BODY()

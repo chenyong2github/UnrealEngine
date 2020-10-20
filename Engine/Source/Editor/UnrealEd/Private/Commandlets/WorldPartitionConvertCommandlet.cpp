@@ -41,6 +41,7 @@
 #include "LandscapeStreamingProxy.h"
 #include "LandscapeInfo.h"
 #include "LandscapeConfigHelper.h"
+#include "LandscapeGizmoActor.h"
 
 DEFINE_LOG_CATEGORY(LogWorldPartitionConvertCommandlet);
 
@@ -307,7 +308,8 @@ bool UWorldPartitionConvertCommandlet::ShouldDeleteActor(AActor* Actor, bool bMa
 {
 	if (Actor->HasAllFlags(RF_Transient) ||
 		Actor->IsA<ALODActor>() ||
-		Actor->IsA<ALevelBounds>())
+		Actor->IsA<ALevelBounds>() ||
+		Actor->IsA<ALandscapeGizmoActor>())
 	{
 		return true;
 	}
