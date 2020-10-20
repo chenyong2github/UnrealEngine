@@ -36,17 +36,16 @@ bool FMeshPaintStaticMeshComponentAdapter::Construct(UMeshComponent* InComponent
 
 FMeshPaintStaticMeshComponentAdapter::~FMeshPaintStaticMeshComponentAdapter()
 {
+#if WITH_EDITOR
 	if (StaticMeshComponent != nullptr)
 	{
-#if WITH_EDITOR
-		if (ReferencedStaticMesh != nullptr)
-		{
-			ReferencedStaticMesh->OnPostMeshBuild().RemoveAll(this);
-		}
-
 		StaticMeshComponent->OnStaticMeshChanged().RemoveAll(this);
-#endif
 	}
+	if (ReferencedStaticMesh != nullptr)
+	{
+		ReferencedStaticMesh->OnPostMeshBuild().RemoveAll(this);
+	}
+#endif
 }
 
 void FMeshPaintStaticMeshComponentAdapter::OnPostMeshBuild(UStaticMesh* StaticMesh)
