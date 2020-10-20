@@ -166,6 +166,9 @@ bool FDerivedDataBackendAsyncPutWrapper::ApplyDebugOptions(FBackendDebugOptions&
 	return InnerBackend->ApplyDebugOptions(InOptions);
 }
 
+// TLS for async put reetrant guard
+static thread_local bool bReentrantAsyncPut = false;
+
 bool FDerivedDataBackendAsyncPutWrapper::GetCachedData(const TCHAR* CacheKey, TArray<uint8>& OutData)
 {
 	COOK_STAT(auto Timer = UsageStats.TimeGet());
@@ -175,6 +178,9 @@ bool FDerivedDataBackendAsyncPutWrapper::GetCachedData(const TCHAR* CacheKey, TA
 		UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s CacheHit from InFlightCache on %s"), *GetName(), CacheKey);
 		return true;
 	}
+
+	// Async Put might be triggered from the inner backend, the reentrant guard will ignore async put request triggered from an async put
+	TGuardValue<bool> ReentrantPutGuard(bReentrantAsyncPut, true);
 	bool bSuccess = InnerBackend->GetCachedData(CacheKey, OutData);
 	if (bSuccess)
 	{
@@ -191,6 +197,12 @@ bool FDerivedDataBackendAsyncPutWrapper::GetCachedData(const TCHAR* CacheKey, TA
 void FDerivedDataBackendAsyncPutWrapper::PutCachedData(const TCHAR* CacheKey, TArrayView<const uint8> InData, bool bPutEvenIfExists)
 {
 	COOK_STAT(auto Timer = PutSyncUsageStats.TimePut());
+
+	// this is an async put triggered as a backfill from a get on another async put, just early out
+	if (bReentrantAsyncPut)
+	{
+		return;
+	}
 	if (!InnerBackend->IsWritable())
 	{
 		return; // no point in continuing down the chain

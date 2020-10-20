@@ -254,7 +254,8 @@ public:
 								// only backfill to fast caches (todo - need a way to put data that was created locally into the cache for other people)
 								bool bFastCache = PutBackend->GetSpeedClass() >= ESpeedClass::Fast;
 
-								if (bFastCache && PutBackend->IsWritable() && !PutBackend->CachedDataProbablyExists(CacheKey))
+								// No need to validate that the cache data might exist since the check can be expensive, the async put will do the check and early out in that case
+								if (bFastCache && PutBackend->IsWritable())
 								{								
 									AsyncPutInnerBackends[PutCacheIndex]->PutCachedData(CacheKey, OutData, false); // we do not need to force a put here
 									UE_LOG(LogDerivedDataCache, Verbose, TEXT("Back-filling cache %s with: %s (%d bytes) (force=%d)"), *PutBackend->GetName(), CacheKey, OutData.Num(), false);
