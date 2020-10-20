@@ -8,6 +8,7 @@
 #include "PostProcessing.h"
 #include "SceneTextureParameters.h"
 #include "PixelShaderUtils.h"
+#include "RendererModule.h"
 
 namespace
 {
@@ -971,6 +972,13 @@ static void AddGen5MainTemporalAAPasses(
 {
 	const FTemporalAAHistory& InputHistory = View.PrevViewInfo.TemporalAAHistory;
 	FTemporalAAHistory* OutputHistory = &View.ViewState->PrevFrameViewInfo.TemporalAAHistory;
+
+	// Gen5 Temporal AA no longer use the view.
+	{
+		static IConsoleVariable* CVarShowTransitions = IConsoleManager::Get().FindConsoleVariable(TEXT("r.UsePreExposure"));
+		const bool bUsePreExposure = CVarShowTransitions->GetInt() != 0;
+		ensureMsgf(bUsePreExposure, TEXT("r.TemporalAA.Algorithm=1 requires r.UsePreExposure=1"));
+	}
 
 	// Whether to use camera cut shader permutation or not.
 	bool bCameraCut = !InputHistory.IsValid() || View.bCameraCut;
