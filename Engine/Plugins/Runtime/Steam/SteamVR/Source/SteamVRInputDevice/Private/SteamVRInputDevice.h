@@ -61,8 +61,11 @@ public:
 	// End of IInput Device Interface
 
 	// FXRMotionControllerBase
-	virtual bool GetControllerOrientationAndPosition(const int32 ControllerIndex, const EControllerHand DeviceHand, FRotator& OutOrientation, FVector& OutPosition, float WorldToMetersScale) const;
-	virtual ETrackingStatus GetControllerTrackingStatus(const int32 ControllerIndex, const EControllerHand DeviceHand) const;
+	virtual bool GetControllerOrientationAndPosition(const int32 ControllerIndex, const FName MotionSource, FRotator& OutOrientation, FVector& OutPosition, float WorldToMetersScale) const override;
+	virtual bool GetControllerOrientationAndPosition(const int32 ControllerIndex, const EControllerHand DeviceHand, FRotator& OutOrientation, FVector& OutPosition, float WorldToMetersScale) const override;
+	virtual ETrackingStatus GetControllerTrackingStatus(const int32 ControllerIndex, const FName MotionSource) const override;
+	virtual ETrackingStatus GetControllerTrackingStatus(const int32 ControllerIndex, const EControllerHand DeviceHand) const override;
+	virtual void EnumerateSources(TArray<FMotionControllerSource>& SourcesOut) const override;
 	// End of FXRMotionControllerBase
 	
 	// IMotionController Interface
@@ -79,6 +82,12 @@ public:
 
 	// Pointer to currently active SteamVR HMD Module
 	ISteamVRPlugin* SteamVRHMDModule = nullptr;
+
+	/** Retrieve Motion Source Name
+	* @param MotionSource - The EControllerHand equivalent of the Motion Source
+	* @return The name of the motion source
+	*/
+	FName GetMotionSourceName(const EControllerHand MotionSource) const;
 
 	/** Initialize the SteamVR System. Will cause a reconnect if one is already active  */
 	void InitSteamVRSystem();
@@ -215,29 +224,71 @@ public:
 	/** The raw pose handle for the right controller  */
 	VRActionHandle_t VRControllerHandleRight;
 
-	/** The tracker pose tagged as Special1 in UE  */
-	VRActionHandle_t VRSpecial1;
+	/** The tracker pose for Camera  */
+	VRActionHandle_t VRTRackerCamera;
 
-	/** The tracker pose tagged as Special2 in UE  */
-	VRActionHandle_t VRSpecial2;
+	/** The tracker pose for Chest  */
+	VRActionHandle_t VRTrackerChest;
 
-	/** The tracker pose tagged as Special3 in UE  */
-	VRActionHandle_t VRSpecial3;
+	/** The tracker pose for Handed - Back (Left)  */
+	VRActionHandle_t VRTrackerHandedBackL;
 
-	/** The tracker pose tagged as Special4 in UE  */
-	VRActionHandle_t VRSpecial4;
+	/** The tracker pose for Handed - Back (Right)  */
+	VRActionHandle_t VRTrackerHandedBackR;
 
-	/** The tracker pose tagged as Special5 in UE  */
-	VRActionHandle_t VRSpecial5;
+	/** The tracker pose for Handed - Front (Left)  */
+	VRActionHandle_t VRTrackerHandedFrontL;
 
-	/** The tracker pose tagged as Special6 in UE  */
-	VRActionHandle_t VRSpecial6;
+	/** The tracker pose for Handed - Front (Right)  */
+	VRActionHandle_t VRTrackerHandedFrontR;
 
-	/** The tracker pose tagged as Special7 in UE  */
-	VRActionHandle_t VRSpecial7;
+	/** The tracker pose for Handed - Front Rolled (Left)  */
+	VRActionHandle_t VRTrackerHandedFrontRL;
 
-	/** The tracker pose tagged as Special8 in UE  */
-	VRActionHandle_t VRSpecial8;
+	/** The tracker pose for Handed - Front Rolled (Right)  */
+	VRActionHandle_t VRTrackerHandedFrontRR;
+
+	/** The tracker pose for Handed - Pistol Grip (Left)  */
+	VRActionHandle_t VRTrackerHandedGripL;
+
+	/** The tracker pose for Handed - Pistol Grip (Right)  */
+	VRActionHandle_t VRTrackerHandedGripR;
+
+	/** The tracker pose for Handed - Raw Pose (Left)  */
+	VRActionHandle_t VRTrackerHandedPoseL;
+
+	/** The tracker pose for Handed - Raw Pose (Right)  */
+	VRActionHandle_t VRTrackerHandedPoseR;
+
+	/** The tracker pose for Foot (Left)  */
+	VRActionHandle_t VRTrackerFootL;
+
+	/** The tracker pose for Foot (Right)  */
+	VRActionHandle_t VRTrackerFootR;
+
+	/** The tracker pose for Shoulder (Right)  */
+	VRActionHandle_t VRTrackerShoulderL;
+
+	/** The tracker pose for Shoulder (Left)  */
+	VRActionHandle_t VRTrackerShoulderR;
+
+	/** The tracker pose for Elbow (Right)  */
+	VRActionHandle_t VRTrackerElbowL;
+
+	/** The tracker pose for Elbow (Left)  */
+	VRActionHandle_t VRTrackerElbowR;
+
+	/** The tracker pose for Knee (Right)  */
+	VRActionHandle_t VRTrackerKneeL;
+
+	/** The tracker pose for Knee (Left)  */
+	VRActionHandle_t VRTrackerKneeR;
+
+	/** The tracker pose for Keyboard  */
+	VRActionHandle_t VRTrackerKeyboard;
+
+	/** The tracker pose for Waist  */
+	VRActionHandle_t VRTrackerWaist;
 
 	/** The handle for the skeletal input of the left hand  */
 	VRActionHandle_t VRSkeletalHandleLeft;
@@ -316,6 +367,17 @@ private:
 	 * @param bDeleteIfExists - Flag of whether or not to overwrite an existing controller binding
 	 */
 	void GenerateControllerBindings(const FString& BindingsPath, TArray<FControllerType>& InOutControllerTypes, TArray<TSharedPtr<FJsonValue>>& InOutDefaultBindings, TArray<FSteamVRInputAction>& InActionsArray, TArray<FInputMapping>& InInputMapping, bool bDeleteIfExists = false);
+
+	/**
+	 * Set the tracker pose
+	 * @param TrackerType - The tracker type to generate the pose for
+	 * @param ActionSetJsonObject - Action set json to put the generated pose to
+	 * @param TrackerOutput - The string to put on the "output" field for this tracker pose (the action to map to)
+	 * @param TrackerPath - The string to put on the "path" field for this tracker pose (the tracker's raw pose)
+	 * @param bDeleteIfExists - Flag of whether or not to overwrite an existing controller binding
+	 */
+	void SetTrackerPose( FControllerType& TrackerType, TSharedRef<FJsonObject> ActionSetJsonObject, const FString& TrackerOutput, const FString& TrackerPath );
+
 
 	/**
 	* Generate the SteamVR specific action bindings that will generated for a controller
