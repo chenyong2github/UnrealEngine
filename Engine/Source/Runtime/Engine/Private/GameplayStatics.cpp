@@ -1352,7 +1352,7 @@ void UGameplayStatics::SetGlobalListenerFocusParameters(const UObject* WorldCont
 	}
 }
 
-void UGameplayStatics::PlaySound2D(const UObject* WorldContextObject, USoundBase* Sound, float VolumeMultiplier, float PitchMultiplier, float StartTime, USoundConcurrency* ConcurrencySettings, AActor* OwningActor)
+void UGameplayStatics::PlaySound2D(const UObject* WorldContextObject, USoundBase* Sound, float VolumeMultiplier, float PitchMultiplier, float StartTime, USoundConcurrency* ConcurrencySettings, AActor* OwningActor, bool bIsUISound)
 {
 	if (!Sound || !GEngine || !GEngine->UseSound())
 	{
@@ -1376,7 +1376,7 @@ void UGameplayStatics::PlaySound2D(const UObject* WorldContextObject, USoundBase
 
 		NewActiveSound.RequestedStartTime = FMath::Max(0.f, StartTime);
 
-		NewActiveSound.bIsUISound = true;
+		NewActiveSound.bIsUISound = bIsUISound;
 		NewActiveSound.bAllowSpatialization = false;
 
 		if (ConcurrencySettings)
