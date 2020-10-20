@@ -106,7 +106,7 @@ struct TDefaultNumericTypeInterface : INumericTypeInterface<NumericType>
 			bool FallbackResult = FastDecimalFormat::StringToNumber(*InString, InString.Len(), FastDecimalFormat::GetCultureAgnosticFormattingRules(), ParsingOption, FallbackValue, &FallbackParsedLen);
 			if (FallbackResult && FallbackParsedLen == InString.Len())
 			{
-				return FallbackResult;
+				return FallbackValue;
 			}
 		}
 
