@@ -96,7 +96,10 @@ void UE::Interchange::FImportAsyncHelper::ReleaseTranslatorsSource()
 {
 	for (UInterchangeTranslatorBase* BaseTranslator : Translators)
 	{
-		BaseTranslator->ReleaseSource();
+		if (BaseTranslator)
+		{
+			BaseTranslator->ReleaseSource();
+		}
 	}
 }
 
