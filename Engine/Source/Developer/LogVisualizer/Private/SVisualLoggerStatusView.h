@@ -9,6 +9,7 @@
 #include "Widgets/Views/STableViewBase.h"
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/Views/STreeView.h"
+#include "SVisualLoggerBaseWidget.h"
 
 struct FLogStatusItem;
 struct FVisualLoggerDBRow;
