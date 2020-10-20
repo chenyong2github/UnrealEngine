@@ -1910,6 +1910,8 @@ void FD3D11DynamicRHI::InitD3DDevice()
 		// We should get the feature level we asked for as earlier we checked to ensure it is supported.
 		check(ActualFeatureLevel == FeatureLevel);
 
+		GRHIPersistentThreadGroupCount = 1440; // TODO: Revisit based on vendor/adapter/perf query
+
 		StateCache.Init(Direct3DDeviceIMContext);
 
 #if (UE_BUILD_SHIPPING && WITH_EDITOR) && PLATFORM_WINDOWS && !PLATFORM_64BITS

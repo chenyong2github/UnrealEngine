@@ -59,9 +59,11 @@ class RHI_API FRHICommandList;
  * RHI capabilities.
  */
 
+/** Optimal number of persistent thread groups to fill the GPU. */
+extern RHI_API int32 GRHIPersistentThreadGroupCount;
 
-/** The maximum number of mip-maps that a texture can contain. 	*/
-extern	RHI_API int32		GMaxTextureMipCount;
+ /** The maximum number of mip-maps that a texture can contain. */
+extern RHI_API int32 GMaxTextureMipCount;
 
 /** Does the RHI implements CopyToTexture() with FRHICopyTextureInfo::NumMips > 1 */
 extern RHI_API bool GRHISupportsCopyToTextureMultipleMips;

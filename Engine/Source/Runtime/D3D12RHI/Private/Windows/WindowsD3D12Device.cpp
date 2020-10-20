@@ -683,6 +683,8 @@ void FD3D12DynamicRHI::Init()
 	}
 #endif
 
+	GRHIPersistentThreadGroupCount = 1440; // TODO: Revisit based on vendor/adapter/perf query
+
 	GTexturePoolSize = 0;
 
 	GRHIAdapterName = AdapterDesc.Description;

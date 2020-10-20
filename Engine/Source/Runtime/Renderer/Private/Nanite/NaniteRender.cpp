@@ -42,9 +42,6 @@
 #define DEBUG_FLAG_CULL_FRUSTUM_BOX					0x8
 #define DEBUG_FLAG_CULL_FRUSTUM_SPHERE				0x10
 
-// TODO: Query from RHI per platform
-#define NUM_PERSISTENT_THREADS	1440				// TODO: Find a better way to estimate the number of threads we will need
-
 DECLARE_GPU_STAT_NAMED(NaniteInstanceCull,		TEXT("Nanite Instance Cull"));
 DECLARE_GPU_STAT_NAMED(NaniteInstanceCullVSM,	TEXT("Nanite Instance Cull VSM"));
 
@@ -2308,6 +2305,8 @@ void AddPass_InstanceHierarchyAndClusterCull(
 {
 	LLM_SCOPE_BYTAG(Nanite);
 
+	checkf(GRHIPersistentThreadGroupCount > 0, TEXT("GRHIPersistentThreadGroupCount must be configured correctly in the RHI."));
+
 	// Currently only occlusion free multi-view routing.
 	ensure(!VirtualShadowMapArray || CullingPass == CULLING_PASS_NO_OCCLUSION);
 	// TODO: if we need this emulation feature by going through the view we can probably pass in the shader map as part of the context and get it out of the view at context-creation time
@@ -2507,8 +2506,8 @@ void AddPass_InstanceHierarchyAndClusterCull(
 			RDG_EVENT_NAME( "Post Pass: PersistentHierarchicalCull" ),
 			ComputeShader,
 			PassParameters,
-			FIntVector( NUM_PERSISTENT_THREADS, 1, 1 )
-			);
+			FIntVector(GRHIPersistentThreadGroupCount, 1, 1)
+		);
 	}
 
 	{
