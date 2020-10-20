@@ -172,13 +172,17 @@ public:
 	bool bMatchTranslation;
 
 	UPROPERTY()
-	bool bMatchRotation;
-
-	UPROPERTY()
 	bool bMatchIncludeZHeight;
 
 	UPROPERTY()
-	bool bMatchIncludePitchRotation;
+	bool bMatchRotationYaw;
+
+	UPROPERTY()
+	bool bMatchRotationPitch;
+
+	UPROPERTY()
+	bool bMatchRotationRoll;
+
 #if WITH_EDITORONLY_DATA
 	/** Whether to show the underlying skeleton for this section. */
 	UPROPERTY(EditAnywhere, Category = "Root Motions")
@@ -206,15 +210,20 @@ public:
 
 	MOVIESCENETRACKS_API void ToggleMatchTranslation();
 
-	MOVIESCENETRACKS_API void ToggleMatchRotation();
-
 	MOVIESCENETRACKS_API void ToggleMatchIncludeZHeight();
 
+	MOVIESCENETRACKS_API void ToggleMatchIncludeYawRotation();
+
 	MOVIESCENETRACKS_API void ToggleMatchIncludePitchRotation();
+
+	MOVIESCENETRACKS_API void ToggleMatchIncludeRollRotation();
 
 #if WITH_EDITORONLY_DATA
 	MOVIESCENETRACKS_API void ToggleShowSkeleton();
 #endif
+
+private:
+	void MultiplyOutInverseOnNextClips(FVector PreviousMatchedLocationOffset, FRotator PreviousMatchedRotationOffset);
 
 
 };
