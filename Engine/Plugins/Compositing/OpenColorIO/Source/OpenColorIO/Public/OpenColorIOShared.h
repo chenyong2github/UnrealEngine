@@ -426,8 +426,7 @@ public:
 
 	const FString& GetFriendlyName()	const { return FriendlyName; }
 
-
-	void SetupResource(ERHIFeatureLevel::Type InFeatureLevel, const FString& InShaderCodeHash, const FString& InShadercode, const FString& InFriendlyName);
+	void SetupResource(ERHIFeatureLevel::Type InFeatureLevel, const FString& InShaderCodeHash, const FString& InShadercode, const FString& InFriendlyName, const FString& InAssetPath);
 
 	void SetCompileErrors(TArray<FString> &InErrors)
 	{
@@ -534,6 +533,11 @@ private:
 
 
 	FString FriendlyName;
+
+#if WITH_EDITOR
+	/** Asset using this resource */
+	FString AssetPath;
+#endif // WITH_EDITOR
 
 	friend class FOpenColorIOShaderMap;
 	friend class FShaderCompilingManager;

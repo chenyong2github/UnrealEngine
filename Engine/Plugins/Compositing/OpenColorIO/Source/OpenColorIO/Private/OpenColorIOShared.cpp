@@ -192,6 +192,9 @@ void FOpenColorIOTransformResource::SerializeShaderMap(FArchive& Ar)
 				// Toss the loaded shader data if this is a server only instance (@todo - don't cook it in the first place) or if it's for a different RHI than the current one
 				if (bSuccessfullyLoaded && FApp::CanEverRender())
 				{
+#if WITH_EDITOR
+					GameThreadShaderMap->AssociateWithAsset(AssetPath);
+#endif
 					GameThreadShaderMap = RenderingThreadShaderMap = LoadedShaderMap;
 				}
 			}
@@ -199,11 +202,14 @@ void FOpenColorIOTransformResource::SerializeShaderMap(FArchive& Ar)
 	}
 }
 
-void FOpenColorIOTransformResource::SetupResource(ERHIFeatureLevel::Type InFeatureLevel, const FString& InShaderCodeHash, const FString& InShadercode, const FString& InFriendlyName)
+void FOpenColorIOTransformResource::SetupResource(ERHIFeatureLevel::Type InFeatureLevel, const FString& InShaderCodeHash, const FString& InShadercode, const FString& InFriendlyName, const FString& InAssetPath)
 {
 	ShaderCodeHash = InShaderCodeHash;
 	ShaderCode = InShadercode;
 	FriendlyName = InFriendlyName;
+#if WITH_EDITOR
+	AssetPath = InAssetPath;
+#endif // WITH_EDITOR
 
 	SetFeatureLevel(InFeatureLevel);
 }
@@ -283,6 +289,14 @@ bool FOpenColorIOTransformResource::CacheShaders(const FOpenColorIOShaderMapId& 
 #if UE_BUILD_SHIPPING || UE_BUILD_TEST
 	bAssumeShaderMapIsComplete = (bContainsInlineShaders || FPlatformProperties::RequiresCookedData());
 #endif
+
+#if WITH_EDITOR
+	// maintain asset association for newly loaded shader maps
+	if (GameThreadShaderMap)
+	{
+		GameThreadShaderMap->AssociateWithAsset(AssetPath);
+	}
+#endif // WITH_EDITOR
 
 	if (GameThreadShaderMap && GameThreadShaderMap->TryToAddToExistingCompilationTask(this))
 	{
@@ -388,6 +402,9 @@ bool FOpenColorIOTransformResource::BeginCompileShaderMap(const FOpenColorIOShad
 	SCOPE_SECONDS_COUNTER(OpenColorIOCompileTime);
 
 	TRefCountPtr<FOpenColorIOShaderMap> NewShaderMap = new FOpenColorIOShaderMap();
+#if WITH_EDITOR
+	NewShaderMap->AssociateWithAsset(AssetPath);
+#endif
 
 	// Create a shader compiler environment for the material that will be shared by all jobs from this material
 	TRefCountPtr<FShaderCompilerEnvironment> MaterialEnvironment = new FShaderCompilerEnvironment();
