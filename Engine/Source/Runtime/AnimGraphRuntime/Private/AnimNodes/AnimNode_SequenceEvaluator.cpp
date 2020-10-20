@@ -38,7 +38,7 @@ void FAnimNode_SequenceEvaluator::UpdateAssetPlayer(const FAnimationUpdateContex
 		// Clamp input to a valid position on this sequence's time line.
 		ExplicitTime = FMath::Clamp(ExplicitTime, 0.f, Sequence->SequenceLength);
 
-		if ((!bTeleportToExplicitTime || (GroupIndex != INDEX_NONE)) && (Context.AnimInstanceProxy->IsSkeletonCompatible(Sequence->GetSkeleton())))
+		if ((!bTeleportToExplicitTime || (GroupName != NAME_None)) && (Context.AnimInstanceProxy->IsSkeletonCompatible(Sequence->GetSkeleton())))
 		{
 			if (bReinitialized)
 			{

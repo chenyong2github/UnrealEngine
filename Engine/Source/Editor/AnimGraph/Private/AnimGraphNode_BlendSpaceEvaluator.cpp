@@ -136,7 +136,8 @@ void UAnimGraphNode_BlendSpaceEvaluator::ValidateAnimNodeDuringCompilation(class
 void UAnimGraphNode_BlendSpaceEvaluator::BakeDataDuringCompilation(class FCompilerResultsLog& MessageLog)
 {
 	UAnimBlueprint* AnimBlueprint = GetAnimBlueprint();
-	Node.GroupIndex = AnimBlueprint->FindOrAddGroup(SyncGroup.GroupName);
+	AnimBlueprint->FindOrAddGroup(SyncGroup.GroupName);
+	Node.GroupName = SyncGroup.GroupName;
 	Node.GroupRole = SyncGroup.GroupRole;
 	Node.GroupScope = SyncGroup.GroupScope;
 }
