@@ -473,3 +473,87 @@ void FGlobalActorReplicationInfoMap::AddDependentActor(AActor* Parent, AActor* C
 	}
 }
 
+bool FActorRepListStatCollector::WasNodeVisited(const UReplicationGraphNode* NodeToVisit)
+{
+	const bool* Visited = VisitedNodes.Find(NodeToVisit);
+	return (Visited != nullptr);
+}
+
+void FActorRepListStatCollector::FlagNodeVisited(const UReplicationGraphNode* NodeToVisit)
+{
+	VisitedNodes.Add(NodeToVisit, true);
+}
+
+void FActorRepListStatCollector::VisitRepList(const UReplicationGraphNode* NodeToVisit, const FActorRepListRefView& RepList)
+{
+	if (WasNodeVisited(NodeToVisit))
+	{
+		return;
+	}
+
+	FRepListStats& ClassStats = PerClassStats.FindOrAdd(NodeToVisit->GetClass()->GetFName());
+
+	ClassStats.NumLists++;
+	const uint32 ListSize = (uint32)RepList.RepList.Num();
+	ClassStats.NumActors += ListSize;
+	ClassStats.NumSlack += RepList.RepList.GetSlack();
+	ClassStats.NumBytes += RepList.RepList.GetAllocatedSize();
+	ClassStats.MaxListSize = FMath::Max(ClassStats.MaxListSize, ListSize);
+}
+
+void FActorRepListStatCollector::VisitStreamingLevelCollection(const UReplicationGraphNode* NodeToVisit, const FStreamingLevelActorListCollection& StreamingLevelList)
+{
+	if (WasNodeVisited(NodeToVisit))
+	{
+		return;
+	}
+
+	FRepListStats& ClassStats = PerClassStats.FindOrAdd(NodeToVisit->GetClass()->GetFName());
+
+	// Collect the StreamingLevel stats
+	for (const FStreamingLevelActorListCollection::FStreamingLevelActors& LevelList : StreamingLevelList.StreamingLevelLists)
+	{
+		const uint32 ListSize = (uint32)LevelList.ReplicationActorList.RepList.Num();
+		const uint32 ListSlack = LevelList.ReplicationActorList.RepList.GetSlack();
+		const uint32 ListBytes = LevelList.ReplicationActorList.RepList.GetAllocatedSize();
+
+		{
+			FRepListStats& StreamingLevelStats = PerStreamingLevelStats.FindOrAdd(LevelList.StreamingLevelName);
+
+			StreamingLevelStats.NumLists++;
+			StreamingLevelStats.NumActors += ListSize;
+			StreamingLevelStats.NumSlack += ListSlack;
+			StreamingLevelStats.NumBytes += ListBytes;
+			StreamingLevelStats.MaxListSize = FMath::Max(StreamingLevelStats.MaxListSize, ListSize);
+		}
+
+		{
+			ClassStats.NumLists++;
+			ClassStats.NumActors += ListSize;
+			ClassStats.NumSlack += ListSlack;
+			ClassStats.NumBytes += ListBytes;
+			ClassStats.MaxListSize = FMath::Max(ClassStats.MaxListSize, ListSize);
+		}
+	}
+}
+
+void FActorRepListStatCollector::VisitExplicitStreamingLevelList(FName ListOwnerName, FName StreamingLevelName, const FActorRepListRefView& RepList)
+{
+	const uint32 ListSize = (uint32)RepList.RepList.Num();
+	const uint32 ListSlack = RepList.RepList.GetSlack();
+	const uint32 ListBytes = RepList.RepList.GetAllocatedSize();
+
+	FRepListStats& ClassStats = PerClassStats.FindOrAdd(ListOwnerName);
+	ClassStats.NumLists++;
+	ClassStats.NumActors += ListSize;
+	ClassStats.NumSlack += ListSlack;
+	ClassStats.NumBytes += ListBytes;
+	ClassStats.MaxListSize = FMath::Max(ClassStats.MaxListSize, ListSize);
+	
+	FRepListStats& StreamingLevelStats = PerStreamingLevelStats.FindOrAdd(StreamingLevelName);
+	StreamingLevelStats.NumLists++;
+	StreamingLevelStats.NumActors += ListSize;
+	StreamingLevelStats.NumSlack += ListSlack;
+	StreamingLevelStats.NumBytes += ListBytes;
+	StreamingLevelStats.MaxListSize = FMath::Max(StreamingLevelStats.MaxListSize, ListSize);
+}

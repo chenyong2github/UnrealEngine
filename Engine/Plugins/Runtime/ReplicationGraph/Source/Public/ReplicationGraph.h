@@ -108,6 +108,8 @@ public:
 
 	virtual FString GetDebugString() const { return GetName(); }
 
+	void DoCollectActorRepListStats(struct FActorRepListStatCollector& StatsCollector) const;
+
 	/** Allocates and initializes ChildNode of a specific type T. This is what you will want to call in your FCreateChildNodeFuncs.  */
 	template< class T >
 	T* CreateChildNode()
@@ -130,6 +132,13 @@ public:
 
 	/** Remove all null and about to be destroyed nodes from our list */
 	void CleanChildNodes(UReplicationGraphNode::NodeOrdering NodeOrder);
+
+protected:
+
+	/**
+	 * Implement this to visit any FActorRepListRefView and FStreamingLevelActorListCollection your node implemented.
+	 */
+	virtual void OnCollectActorRepListStats(struct FActorRepListStatCollector& StatsCollector) const {}
 
 protected:
 
@@ -217,6 +226,8 @@ protected:
 	/** Just logs our ReplicationActorList and StreamingLevelCollection (not our child nodes). Useful when subclasses override LogNode */
 	void LogActorList(FReplicationGraphDebugInfo& DebugInfo) const;
 
+	virtual void OnCollectActorRepListStats(struct FActorRepListStatCollector& StatsCollector) const override;
+
 	/** The base list that most actors will go in */
 	FActorRepListRefView ReplicationActorList;
 
@@ -277,6 +288,8 @@ public:
 	virtual void TearDown() override;
 
 	virtual void GetAllActorsInNode_Debugging(TArray<FActorRepListType>& OutArray) const override;
+
+	virtual void OnCollectActorRepListStats(struct FActorRepListStatCollector& StatsCollector) const override;
 
 	void SetNonStreamingCollectionSize(const int32 NewSize);
 
@@ -752,6 +765,11 @@ public:
 	/** List of previously (or currently if nothing changed last tick) focused actor data per connection */
 	UPROPERTY()
 	TArray<FAlwaysRelevantActorInfo> PastRelevantActors;
+
+protected:
+
+	virtual void OnCollectActorRepListStats(struct FActorRepListStatCollector& StatsCollector) const override;
+
 };
 
 // -----------------------------------
@@ -793,6 +811,10 @@ public:
 	TArray<FTearOffActorInfo> TearOffActors;
 
 	FActorRepListRefView ReplicationActorList;
+
+protected:
+
+	virtual void OnCollectActorRepListStats(struct FActorRepListStatCollector& StatsCollector) const override;
 };
 
 // -----------------------------------
@@ -892,6 +914,8 @@ public:
 	virtual void LogGraph(FReplicationGraphDebugInfo& DebugInfo) const;
 	virtual void LogGlobalGraphNodes(FReplicationGraphDebugInfo& DebugInfo) const;
 	virtual void LogConnectionGraphNodes(FReplicationGraphDebugInfo& DebugInfo) const;
+
+	virtual void CollectRepListStats(struct FActorRepListStatCollector& StatCollector) const;
 
 	const TSharedPtr<FReplicationGraphGlobalData>& GetGraphGlobals() const { return GraphGlobals; }
 

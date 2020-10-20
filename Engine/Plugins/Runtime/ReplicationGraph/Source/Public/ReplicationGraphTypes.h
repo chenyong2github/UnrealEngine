@@ -370,6 +370,8 @@ struct REPLICATIONGRAPH_API FActorRepListRefView
 
 private:
 
+	friend struct FActorRepListStatCollector;
+
 	TArray<FActorRepListType> RepList;
 };
 
@@ -1804,3 +1806,50 @@ struct FActorConnectionPair
 
 // Generic/global pair that can be set by debug commands etc for extra logging/debugging functionality
 extern FActorConnectionPair DebugActorConnectionPair;
+
+/**
+ * This struct will passed to all nodes in the repgraph and collect information on every ActorRepList
+ */
+struct REPLICATIONGRAPH_API FActorRepListStatCollector
+{
+public:
+	FActorRepListStatCollector() {}
+
+	/** Collect stats on a single FActorRepList */
+	void VisitRepList(const class UReplicationGraphNode* NodeToVisit, const FActorRepListRefView& RepList);
+
+	/** Collect stats on a collection of FActorRepLists */
+	void VisitStreamingLevelCollection(const class UReplicationGraphNode* NodeToVisit, const struct FStreamingLevelActorListCollection& StreamingLevelList);
+
+	/** Collect stats for FActorRepLists not held by a node */
+	void VisitExplicitStreamingLevelList(FName ListOwnerName, FName StreamLevelName, const FActorRepListRefView& RepList);
+
+	/** Prevents the node from being visited twice in case it's shared multiple times */
+	void FlagNodeVisited(const class UReplicationGraphNode* NodeToVisit);
+
+	/** Print the statistics previously collected */
+	void PrintCollectedData(FOutputDevice& Ar);
+
+private:
+
+	bool WasNodeVisited(const class UReplicationGraphNode* NodeToVisit);
+
+private:
+
+	struct FRepListStats
+	{
+		uint32 NumLists = 0;
+		uint32 NumActors = 0;
+		uint32 MaxListSize = 0;
+		uint32 NumSlack = 0;
+		uint64 NumBytes = 0;
+	};
+
+	TMap<FName, FRepListStats> PerClassStats;
+
+	TMap<FName, FRepListStats> PerStreamingLevelStats;
+
+	/** Keeps track if a node was already collected since the same node can be shared across connections and visited multiple times */
+	TMap<const UObject*, bool> VisitedNodes;
+	
+};

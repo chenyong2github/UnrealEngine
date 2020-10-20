@@ -2800,6 +2800,21 @@ void UReplicationGraphNode::TearDown()
 	MarkPendingKill();
 }
 
+void UReplicationGraphNode::DoCollectActorRepListStats(FActorRepListStatCollector& StatsCollector) const
+{
+	// Visit lists owned by this node
+	OnCollectActorRepListStats(StatsCollector);
+
+	// Flag the node as visited so we don't collect it twice
+	StatsCollector.FlagNodeVisited(this);
+
+	// Collect stats on all child nodes too
+	for (const UReplicationGraphNode* Node : AllChildNodes)
+	{
+		Node->DoCollectActorRepListStats(StatsCollector);
+	}
+}
+
 // --------------------------------------------------------------------------------------------------------------------------------------------
 void FStreamingLevelActorListCollection::AddActor(const FNewReplicatedActorInfo& ActorInfo)
 {
@@ -3024,6 +3039,14 @@ void UReplicationGraphNode_ActorList::TearDown()
 	StreamingLevelCollection.TearDown();
 }
 
+void UReplicationGraphNode_ActorList::OnCollectActorRepListStats(FActorRepListStatCollector& StatsCollector) const
+{
+	StatsCollector.VisitRepList(this, ReplicationActorList);
+	StatsCollector.VisitStreamingLevelCollection(this, StreamingLevelCollection);
+
+	Super::OnCollectActorRepListStats(StatsCollector);
+}
+
 void UReplicationGraphNode_ActorList::LogNode(FReplicationGraphDebugInfo& DebugInfo, const FString& NodeName) const
 {
 	DebugInfo.Log(NodeName);
@@ -3234,6 +3257,17 @@ void UReplicationGraphNode_ActorListFrequencyBuckets::GetAllActorsInNode_Debuggi
 	{
 		ChildNode->GetAllActorsInNode_Debugging(OutArray);
 	}
+}
+
+void UReplicationGraphNode_ActorListFrequencyBuckets::OnCollectActorRepListStats(FActorRepListStatCollector& StatsCollector) const
+{
+	for (const FActorRepListRefView& List : NonStreamingCollection)
+	{
+		StatsCollector.VisitRepList(this, List);
+	}
+	StatsCollector.VisitStreamingLevelCollection(this, StreamingLevelCollection);
+	
+	Super::OnCollectActorRepListStats(StatsCollector);
 }
 
 void UReplicationGraphNode_ActorListFrequencyBuckets::LogNode(FReplicationGraphDebugInfo& DebugInfo, const FString& NodeName) const
@@ -5402,7 +5436,7 @@ UReplicationGraphNode_AlwaysRelevant::UReplicationGraphNode_AlwaysRelevant()
 
 void UReplicationGraphNode_AlwaysRelevant::PrepareForReplication()
 {
-	RG_QUICK_SCOPE_CYCLE_COUNTER(UReplicationGraphNode_AlwaysRelevant_PrepareForReplication);
+	QUICK_SCOPE_CYCLE_COUNTER(UReplicationGraphNode_AlwaysRelevant_PrepareForReplication);
 
 	if (ChildNode == nullptr)
 	{
@@ -5580,6 +5614,13 @@ void UReplicationGraphNode_AlwaysRelevant_ForConnection::TearDown()
 	Super::TearDown();
 
 	ReplicationActorList.TearDown();
+}
+
+void UReplicationGraphNode_AlwaysRelevant_ForConnection::OnCollectActorRepListStats(FActorRepListStatCollector& StatsCollector) const
+{
+	StatsCollector.VisitRepList(this, ReplicationActorList);
+
+	Super::OnCollectActorRepListStats(StatsCollector);
 }
 
 // -------------------------------------------------------
