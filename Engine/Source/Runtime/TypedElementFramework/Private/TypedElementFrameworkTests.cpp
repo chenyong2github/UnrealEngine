@@ -122,7 +122,7 @@ bool FTypedElementRegistrySmokeTest::RunTest(const FString& Parameters)
 		TestInterfaceAccess(ElementHandle);
 	}
 	
-	for (const TTypedElement<UTestTypedElementInterfaceA>& ElementHandle : ElementList->InterateInterface<UTestTypedElementInterfaceA>())
+	for (const TTypedElement<UTestTypedElementInterfaceA>& ElementHandle : ElementList->IterateInterface<UTestTypedElementInterfaceA>())
 	{
 		TestInterfaceAHandle(ElementHandle);
 	}
@@ -213,7 +213,7 @@ bool FTypedElementRegistryPerfTest::RunTest(const FString& Parameters)
 	// Iterate all elements that implement an interface
 	{
 		FScopedDurationTimeLogger Timer(FString::Printf(TEXT("Iterating %d elements in list"), ElementList->Num()));
-		for (const TTypedElement<UTestTypedElementInterfaceA>& ElementHandle : ElementList->InterateInterface<UTestTypedElementInterfaceA>())
+		for (const TTypedElement<UTestTypedElementInterfaceA>& ElementHandle : ElementList->IterateInterface<UTestTypedElementInterfaceA>())
 		{
 		}
 	}

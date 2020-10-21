@@ -583,7 +583,7 @@ public:
 	 * Get an iterator for elements that implement the given element interface.
 	 */
 	template <typename BaseInterfaceType>
-	FORCEINLINE TypedElementList_Private::TTypedElementListInterfaceIteratorProxy<BaseInterfaceType> InterateInterface() const
+	FORCEINLINE TypedElementList_Private::TTypedElementListInterfaceIteratorProxy<BaseInterfaceType> IterateInterface() const
 	{
 		return TypedElementList_Private::TTypedElementListInterfaceIteratorProxy<BaseInterfaceType>(Registry.Get(), ElementHandles);
 	}
