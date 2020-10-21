@@ -163,7 +163,10 @@ public:
 	virtual int32 OnGetNumberOfTrackedFacesSupported() const { return 1; }
 
 	/** @return the AR texture for the specified type */
-	virtual UARTexture* OnGetARTexture(EARTextureType TextureType) const { return nullptr; }
+	virtual UARTexture* OnGetARTexture(EARTextureType TextureType) const;
+
+	virtual bool OnToggleARCapture(const bool bOnOff, const EARCaptureType CaptureType) override;
+	virtual bool OnGetCameraIntrinsics(FARCameraIntrinsics& OutCameraIntrinsics) const override;
 
 	// ARPin Local Store support.
 	// Some Platforms/Devices have the ability to persist AR Anchors (real world positiosn) to the device or user account.
@@ -246,6 +249,9 @@ private:
 	void ARTrackedGeometryAdded_GameThread(FOpenXRARTrackedGeometryData* InData);
 	void ARTrackedGeometryUpdated_GameThread(FOpenXRARTrackedGeometryData* InData);
 	void ARTrackedGeometryRemoved_GameThread(FOpenXRARTrackedGeometryData* InData);
+
+	class IOpenXRCustomCaptureSupport* QRCapture = nullptr;
+	class IOpenXRCustomCaptureSupport* CamCapture = nullptr;
 };
 
 
