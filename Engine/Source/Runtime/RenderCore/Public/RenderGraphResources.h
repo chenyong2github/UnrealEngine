@@ -1114,6 +1114,12 @@ class FRDGPooledBuffer
 public:
 	const FRDGBufferDesc Desc;
 
+	/** Finds a UAV matching the descriptor in the cache or creates a new one and updates the cache. */
+	FRHIUnorderedAccessView* GetOrCreateUAV(FRDGBufferUAVDesc UAVDesc);
+
+	/** Finds a SRV matching the descriptor in the cache or creates a new one and updates the cache. */
+	FRHIShaderResourceView* GetOrCreateSRV(FRDGBufferSRVDesc SRVDesc);
+
 	FRHIVertexBuffer* GetVertexBufferRHI() const
 	{
 		return VertexBuffer;

@@ -300,3 +300,57 @@ FRDGTextureRef FRDGTexture::GetPassthrough(const TRefCountPtr<IPooledRenderTarge
 	}
 	return nullptr;
 }
+
+FRHIShaderResourceView* FRDGPooledBuffer::GetOrCreateSRV(FRDGBufferSRVDesc SRVDesc)
+{
+	if (const auto* FoundPtr = SRVs.Find(SRVDesc))
+	{
+		return FoundPtr->GetReference();
+	}
+
+	FShaderResourceViewRHIRef RHIShaderResourceView;
+
+	if (Desc.UnderlyingType == FRDGBufferDesc::EUnderlyingType::VertexBuffer)
+	{
+		RHIShaderResourceView = RHICreateShaderResourceView(VertexBuffer, SRVDesc.BytesPerElement, SRVDesc.Format);
+	}
+	else if (Desc.UnderlyingType == FRDGBufferDesc::EUnderlyingType::StructuredBuffer)
+	{
+		RHIShaderResourceView = RHICreateShaderResourceView(StructuredBuffer);
+	}
+	else
+	{
+		checkNoEntry();
+	}
+
+	FRHIShaderResourceView* View = RHIShaderResourceView.GetReference();
+	SRVs.Emplace(SRVDesc, MoveTemp(RHIShaderResourceView));
+	return View;
+}
+
+FRHIUnorderedAccessView* FRDGPooledBuffer::GetOrCreateUAV(FRDGBufferUAVDesc UAVDesc)
+{
+	if (const auto* FoundPtr = UAVs.Find(UAVDesc))
+	{
+		return FoundPtr->GetReference();
+	}
+
+	FUnorderedAccessViewRHIRef RHIUnorderedAccessView;
+
+	if (Desc.UnderlyingType == FRDGBufferDesc::EUnderlyingType::VertexBuffer)
+	{
+		RHIUnorderedAccessView = RHICreateUnorderedAccessView(VertexBuffer, UAVDesc.Format);
+	}
+	else if (Desc.UnderlyingType == FRDGBufferDesc::EUnderlyingType::StructuredBuffer)
+	{
+		RHIUnorderedAccessView = RHICreateUnorderedAccessView(StructuredBuffer, UAVDesc.bSupportsAtomicCounter, UAVDesc.bSupportsAppendBuffer);
+	}
+	else
+	{
+		checkNoEntry();
+	}
+
+	FRHIUnorderedAccessView* View = RHIUnorderedAccessView.GetReference();
+	UAVs.Emplace(UAVDesc, MoveTemp(RHIUnorderedAccessView));
+	return View;
+}
