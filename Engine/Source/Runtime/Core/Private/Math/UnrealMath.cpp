@@ -3282,9 +3282,6 @@ PrecLoop:
 		UE_LOG(LogUnrealMath, Log, TEXT("Expression Error : Unrecognized Operator"));
 		return 0;
 	}
-
-	*pResult = V;
-	return 1;
 }
 
 bool FMath::Eval( FString Str, float& OutValue )
