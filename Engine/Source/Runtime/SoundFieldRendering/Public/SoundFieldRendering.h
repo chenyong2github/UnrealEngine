@@ -82,7 +82,7 @@ private:
 	Audio::AlignedFloatBuffer CurrentSpeakerGains;
 	Audio::AlignedFloatBuffer MixdownGainsMap;
 	Audio::FBufferLinearEase SpeakerGainLerper;
-	FVector2D LastListenerRotationSphericalCoord{ 0.0f, 0.0f };
+	FVector2D LastListenerRotationSphericalCoord{ -999.f, -999.f }; // force interpolation on first callback
 
 	static FSphericalHarmonicCalculator SphereHarmCalc;
 	static TArray<Audio::FChannelPositionInfo> VirtualSpeakerLocationsHorzOnly;
