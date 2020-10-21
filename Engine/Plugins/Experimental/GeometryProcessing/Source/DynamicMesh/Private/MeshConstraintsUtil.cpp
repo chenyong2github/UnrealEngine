@@ -61,13 +61,14 @@ FMeshConstraintsUtil::ConstrainAllBoundariesAndSeams(FMeshConstraints& Constrain
 	FCriticalSection ConstraintSetLock;
 
 	int32 NumEdges = Mesh.MaxEdgeID();
+	bool bHaveGroups = Mesh.HasTriangleGroups();
 	ParallelFor(NumEdges, [&](int EdgeID)
 	{
 		bool bIsEdge = Mesh.IsEdge(EdgeID);
 		if (Mesh.IsEdge(EdgeID))
 		{
 			const bool bIsMeshBoundary = Mesh.IsBoundaryEdge(EdgeID);
-			const bool bIsGroupBoundary = Mesh.IsGroupBoundaryEdge(EdgeID);
+			const bool bIsGroupBoundary = bHaveGroups && Mesh.IsGroupBoundaryEdge(EdgeID);
 			const bool bIsMaterialBoundary = Attributes && Attributes->IsMaterialBoundaryEdge(EdgeID);
 			const bool bIsSeam = Attributes && Attributes->IsSeamEdge(EdgeID);
 			FVertexConstraint VtxConstraint = FVertexConstraint::Unconstrained();
