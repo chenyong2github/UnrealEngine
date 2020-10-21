@@ -346,7 +346,7 @@ void FSoundFieldDecoder::DecodeAudioToSevenOneAndDownmixToDevice(const FAmbisoni
 		CurrentSpeakerGains = TargetSpeakerGains;
 		TargetSpeakerGains = FoaVirtualSpeakerWordLockedGains;
 		FVector ListenerRot = RelativeRotation.Euler();
-		FoaRotationInPlace(TargetSpeakerGains, ListenerRot.X, -ListenerRot.Y, ListenerRot.Z);
+		FoaRotationInPlace(TargetSpeakerGains, ListenerRot.X, ListenerRot.Y, ListenerRot.Z);
 
 		// If we just switched to this decode method (from direct to device), we need to initialize CurrentSpeakerGains size
 		if (CurrentSpeakerGains.Num() != TargetSpeakerGains.Num())
@@ -662,7 +662,7 @@ void FSoundFieldDecoder::FoaRotationInPlace(Audio::AlignedFloatBuffer& InOutBuff
 	VectorRegister InputAmbiFrame = VectorRegister();
 
 	FMatrix RotationMatrix;
-	SphereHarmCalc.GenerateFirstOrderRotationMatrixGivenDegrees(XRotDegrees - 180.0f, YRotDegrees, ZRotDegrees, RotationMatrix);
+	SphereHarmCalc.GenerateFirstOrderRotationMatrixGivenDegrees(-XRotDegrees + 180.0f, -YRotDegrees, ZRotDegrees, RotationMatrix);
 
 	VectorRegister RotMatrixRow0 = VectorLoadAligned(RotationMatrix.M[0]);
 	VectorRegister RotMatrixRow1 = VectorLoadAligned(RotationMatrix.M[1]);
