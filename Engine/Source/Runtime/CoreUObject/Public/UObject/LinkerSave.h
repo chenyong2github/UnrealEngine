@@ -64,6 +64,15 @@ public:
 	};
 	TArray<FBulkDataStorageInfo> BulkDataToAppend;
 
+	// TODO: Look into removing BulkDataToAppend and use AdditionalDataToAppend instead.
+
+	using AdditionalDataCallback = TUniqueFunction<void(FArchive& Ar)>;
+	/** 
+	 * Array of callbacks that will be invoked when it is possible to serialize out data 
+	 * to the end of the output file.
+	 */
+	TArray<AdditionalDataCallback> AdditionalDataToAppend;
+
 	/** A mapping of package name to generated script SHA keys */
 	COREUOBJECT_API static TMap<FString, TArray<uint8> > PackagesToScriptSHAMap;
 

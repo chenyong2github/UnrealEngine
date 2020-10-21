@@ -32,7 +32,7 @@ void USequencerSectionBP::ImportEntityImpl(UMovieSceneEntitySystemLinker* Entity
 		FGuid ObjectBindingID = Params.GetObjectBindingID();
 		OutImportedEntity->AddBuilder(
 			FEntityBuilder()
-			.Add(BuiltInComponents->TrackInstance, FMovieSceneTrackInstanceComponent{ this, CustomTrack->TrackInstanceType })
+			.Add(BuiltInComponents->TrackInstance, FMovieSceneTrackInstanceComponent{ decltype(FMovieSceneTrackInstanceComponent::Owner)(this), CustomTrack->TrackInstanceType })
 			.AddConditional(BuiltInComponents->GenericObjectBinding, ObjectBindingID, ObjectBindingID.IsValid())
 		);
 	}

@@ -57,6 +57,8 @@
 #include "Misc/CoreDelegates.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
+#include "Misc/PackageAccessTracking.h"
+#include "Misc/PackageAccessTracking.h"
 
 DEFINE_LOG_CATEGORY(LogUObjectGlobals);
 
@@ -1119,6 +1121,7 @@ UPackage* LoadPackageInternal(UPackage* InOuter, const TCHAR* InLongPackageNameO
 		}
 
 		FName PackageFName(*InPackageName);
+		UE_TRACK_REFERENCING_PACKAGE_SCOPED(PackageFName, PackageAccessTrackingOps::NAME_Load);
 
 		{
 			if (FCoreDelegates::OnSyncLoadPackage.IsBound())
@@ -1249,6 +1252,7 @@ UPackage* LoadPackageInternal(UPackage* InOuter, const TCHAR* InLongPackageNameO
 
 		Result = Linker->LinkerRoot;
 		checkf(Result, TEXT("LinkerRoot is null"));
+		UE_TRACK_REFERENCING_PACKAGE_SCOPED(Result, PackageAccessTrackingOps::NAME_Load);
 
 		auto EndLoadAndCopyLocalizationGatherFlag = [&]
 		{
@@ -1579,6 +1583,7 @@ void EndLoad(FUObjectSerializeContext* LoadContext)
 			// Finish loading everything.
 			{
 				SCOPED_LOADTIMER(PreLoadAndSerialize);
+				UE_TRACK_REFERENCING_PACKAGE_DELAYED_SCOPED(AccessRefScope, PackageAccessTrackingOps::NAME_PreLoad);
 				for (int32 i = 0; i < ObjLoaded.Num(); i++)
 				{
 					// Preload.
@@ -1586,6 +1591,7 @@ void EndLoad(FUObjectSerializeContext* LoadContext)
 					if (Obj->HasAnyFlags(RF_NeedLoad))
 					{
 						check(Obj->GetLinker());
+						UE_TRACK_REFERENCING_PACKAGE_DELAYED(AccessRefScope, Obj->GetOutermost());
 						Obj->GetLinker()->Preload(Obj);
 					}
 				}
@@ -3485,6 +3491,18 @@ protected:
 		return *this;
 	}
 
+	virtual FArchive& operator<<(FObjectPtr& Object) override
+	{
+		if (Object && IsObjectHandleResolved(Object.GetHandle()))
+		{
+			FReferenceCollector& CurrentCollector = GetCollector();
+			FProperty* OldCollectorSerializedProperty = CurrentCollector.GetSerializedProperty();
+			CurrentCollector.SetSerializedProperty(GetSerializedProperty());
+			CurrentCollector.AddReferencedObject(Object.ToTObjectPtr(), GetSerializingObject(), GetSerializedProperty());
+			CurrentCollector.SetSerializedProperty(OldCollectorSerializedProperty);
+		}
+		return *this;
+	}
 
 };
 
@@ -3596,6 +3614,18 @@ FReferenceCollector::~FReferenceCollector()
 {
 	delete DefaultReferenceCollectorArchive;
 	delete PersistentFrameReferenceCollectorArchive;
+}
+
+void FReferenceCollector::HandleObjectReferences(FObjectPtr* InObjects, const int32 ObjectNum, const UObject* InReferencingObject, const FProperty* InReferencingProperty)
+{
+	for (int32 ObjectIndex = 0; ObjectIndex < ObjectNum; ++ObjectIndex)
+	{
+		FObjectPtr& Object = InObjects[ObjectIndex];
+		if (IsObjectHandleResolved(Object.GetHandle()))
+		{
+			HandleObjectReference(*reinterpret_cast<UObject**>(&Object), InReferencingObject, InReferencingProperty);
+		}
+	}
 }
 
 void FReferenceCollector::CreateVerySlowReferenceCollectorArchive()
@@ -4286,13 +4316,26 @@ namespace UE4CodeGen_Private
 
 			case EPropertyGenFlags::Object:
 			{
-				const FObjectPropertyParams* Prop = (const FObjectPropertyParams*)PropBase;
-				NewProp = new FObjectProperty(Outer, UTF8_TO_TCHAR(Prop->NameUTF8), Prop->ObjectFlags, Prop->Offset, Prop->PropertyFlags, Prop->ClassFunc ? Prop->ClassFunc() : nullptr);
+				if (EnumHasAllFlags(PropBase->Flags, EPropertyGenFlags::ObjectPtr))
+				{
+					const FObjectPtrPropertyParams* Prop = (const FObjectPtrPropertyParams*)PropBase;
+					NewProp = new FObjectPtrProperty(Outer, UTF8_TO_TCHAR(Prop->NameUTF8), Prop->ObjectFlags, Prop->Offset, Prop->PropertyFlags, Prop->ClassFunc ? Prop->ClassFunc() : nullptr);
 
 #if WITH_METADATA
-				MetaDataArray = Prop->MetaDataArray;
-				NumMetaData   = Prop->NumMetaData;
+					MetaDataArray = Prop->MetaDataArray;
+					NumMetaData   = Prop->NumMetaData;
 #endif
+				}
+				else
+				{
+					const FObjectPropertyParams* Prop = (const FObjectPropertyParams*)PropBase;
+					NewProp = new FObjectProperty(Outer, UTF8_TO_TCHAR(Prop->NameUTF8), Prop->ObjectFlags, Prop->Offset, Prop->PropertyFlags, Prop->ClassFunc ? Prop->ClassFunc() : nullptr);
+
+#if WITH_METADATA
+					MetaDataArray = Prop->MetaDataArray;
+					NumMetaData   = Prop->NumMetaData;
+#endif
+				}
 			}
 			break;
 

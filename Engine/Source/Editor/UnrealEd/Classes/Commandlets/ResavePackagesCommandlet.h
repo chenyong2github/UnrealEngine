@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Templates/PimplPtr.h"
 #include "UObject/ObjectMacros.h"
 #include "Commandlets/Commandlet.h"
 #include "Engine/EngineTypes.h"
@@ -71,6 +72,9 @@ protected:
 	/** if we should auto checkout packages that need to be saved**/
 	bool bAutoCheckOut;
 
+	/** if we should batch together source control operations rather than submit them one at a time */
+	bool bBatchSourceControl;
+
 	/** if we should simply skip checked out files rather than error-ing out */
 	bool bSkipCheckedOutFiles;
 
@@ -122,6 +126,7 @@ protected:
 	/** Running count of packages that got modified and will need to be resaved */
 	int32 PackagesConsideredForResave;
 	int32 PackagesResaved;
+	int32 PackagesDeleted;
 
 	/** Only collect garbage after N packages */
 	int32 GarbageCollectionFrequency;
@@ -138,6 +143,9 @@ protected:
 	/** List of redirector packages that should be fixed up at the end */
 	TArray<FString> RedirectorsToFixup;
 
+	/** A queue containing source control operations to be performed in batches. */
+	TPimplPtr<class FQueuedSourceControlOperations> SourceControlQueue;
+
 	/**
 	 * Evaluates the command-line to determine which maps to check.  By default all maps are checked
 	 * Provides child classes with a chance to initialize any variables, parse the command line, etc.
@@ -148,6 +156,8 @@ protected:
 	 * @return	0 to indicate that the commandlet should continue; otherwise, the error code that should be returned by Main()
 	 */
 	virtual int32 InitializeResaveParameters( const TArray<FString>& Tokens, TArray<FString>& MapPathNames );
+
+	void ParseSourceControlOptions(const TArray<FString>& Tokens);
 
 	/** Loads and saves a single package */
 	virtual void LoadAndSaveOnePackage(const FString& Filename);
@@ -211,6 +221,26 @@ protected:
 	bool CanCheckoutFile(const FString& Filename, FString& CheckedOutUser);
 	void CheckoutAndSavePackage(UPackage* Package, TArray<FString>& SublevelFilenames, bool bIgnoreAlreadyCheckedOut = false);
 	void CheckInFiles(const TArray<FString>& InFilesToSubmit, const FText& InDescription) const;
+
+	/**
+	 * Creates and returns a unique filename in the temporary file directory.
+	 *
+	 * @return	A unique temporary filename
+	 */
+	FString CreateTempFilename();
+
+	/**
+	 * Returns the path of the directory we use to store all temporary files for
+	 * this commandlet.
+	 *
+	 * @return Path to the temporary file directory
+	 */
+	FString GetTempFilesDirectory();
+
+	/**
+	 * Delete the remaining files in the temporary files directory for the commandlet.
+	 */
+	void CleanTempFiles();	
 
 	// Print out a message only if running in very verbose mode
 	void VerboseMessage(const FString& Message);

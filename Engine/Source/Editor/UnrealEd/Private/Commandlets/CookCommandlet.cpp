@@ -51,6 +51,8 @@ DEFINE_LOG_CATEGORY_STATIC(LogCookCommandlet, Log, All);
 #include "IAnalyticsProviderET.h"
 #include "AnalyticsET.h"
 
+ASSETREGISTRY_API void DumpBuildDependencyTrackerData();
+
 namespace DetailedCookStats
 {
 	FString CookProject;
@@ -342,6 +344,8 @@ namespace DetailedCookStats
 				UE_LOG(LogCookCommandlet, Display, TEXT("%-34s  %16.2f  %21.2f  %12d  %12.2f"), *Stat.AssetType, Stat.TotalTimeSec, Stat.GameThreadTimeSec, Stat.AssetsBuilt, Stat.SizeMB);
 			}
 		}
+
+		DumpBuildDependencyTrackerData();
 	}
 }
 #endif

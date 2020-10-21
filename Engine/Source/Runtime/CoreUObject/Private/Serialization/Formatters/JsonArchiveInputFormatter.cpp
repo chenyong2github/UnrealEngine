@@ -10,6 +10,7 @@
 #include "UObject/SoftObjectPtr.h"
 #include "UObject/WeakObjectPtr.h"
 #include "UObject/LazyObjectPtr.h"
+#include "UObject/ObjectPtr.h"
 
 #if WITH_TEXT_ARCHIVE_SUPPORT
 
@@ -436,6 +437,20 @@ void FJsonArchiveInputFormatter::Serialize(FLazyObjectPtr& Value)
 	else
 	{
 		Value.Reset();
+	}
+}
+
+void FJsonArchiveInputFormatter::Serialize(FObjectPtr& Value)
+{
+	FString StringValue;
+	const TCHAR Prefix[] = TEXT("Object:");
+	if (ValueStack.Top()->TryGetString(StringValue) && StringValue.StartsWith(Prefix))
+	{
+		Value = ResolveObjectName(*StringValue + UE_ARRAY_COUNT(Prefix) - 1);
+	}
+	else
+	{
+		Value = nullptr;
 	}
 }
 

@@ -98,7 +98,7 @@ void UTextureThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uint32 W
 		{
 			// If using alpha, draw a checkerboard underneath first.
 			const int32 CheckerDensity = 8;
-			auto* Checker = UThumbnailManager::Get().CheckerboardTexture;
+			auto Checker = UThumbnailManager::Get().CheckerboardTexture;
 			Canvas->DrawTile(
 				0.0f, 0.0f, Width, Height,							// Dimensions
 				0.0f, 0.0f, CheckerDensity, CheckerDensity,			// UVs

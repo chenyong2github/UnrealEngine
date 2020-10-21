@@ -989,7 +989,7 @@ void FMaterialEditor::CollapseNodesIntoGraph(UEdGraphNode* InGatewayNode, UMater
 						UMaterialExpressionPinBase* PinBase = CastChecked<UMaterialExpressionPinBase>(LocalPort->MaterialExpression);
 
 						GatewayRerouteExpression->SubgraphExpression = CompositeNode->MaterialExpression;
-						PinBase->ReroutePins.Add(FCompositeReroute{UniquePortName, GatewayReroutePin});
+						PinBase->ReroutePins.Add(FCompositeReroute{UniquePortName, decltype(FCompositeReroute::Expression)(GatewayReroutePin)});
 						PinBase->Modify();
 					}
 				}
@@ -6316,9 +6316,9 @@ void FMaterialEditor::DeepCopyExpressions(UMaterialGraph* CopyGraph, UMaterialEx
 				NewPinBase->ReroutePins.Empty();
 				for (FCompositeReroute& Reroute : OldPinBase->ReroutePins)
 				{
-					UMaterialExpressionReroute* DupReroute = DuplicateExpression(Reroute.Expression);
+					UMaterialExpressionReroute* DupReroute = DuplicateExpression(ToRawPtr(Reroute.Expression));
 					DupReroute->SubgraphExpression = NewSubgraphExpression;
-					NewPinBase->ReroutePins.Add({ Reroute.Name, DupReroute });
+					NewPinBase->ReroutePins.Add({ Reroute.Name, decltype(FCompositeReroute::Expression)(DupReroute) });
 				}
 
 				UMaterialExpressionComposite* SubGraphComposite = CastChecked<UMaterialExpressionComposite>(NewSubgraphExpression);
@@ -6333,7 +6333,7 @@ void FMaterialEditor::DeepCopyExpressions(UMaterialGraph* CopyGraph, UMaterialEx
 			}
 			else
 			{
-				MaterialNode->MaterialExpression = DuplicateExpression(MaterialNode->MaterialExpression);
+				MaterialNode->MaterialExpression = DuplicateExpression(ToRawPtr(MaterialNode->MaterialExpression));
 				MaterialNode->MaterialExpression->SubgraphExpression = NewSubgraphExpression;
 			}
 			
@@ -6346,7 +6346,7 @@ void FMaterialEditor::DeepCopyExpressions(UMaterialGraph* CopyGraph, UMaterialEx
 		{
 			Comment->Modify();
 			Comment->Rename(/*NewName=*/ NULL, /*NewOuter=*/ CopyGraph);
-			Comment->MaterialExpressionComment = DuplicateExpression(Comment->MaterialExpressionComment);
+			Comment->MaterialExpressionComment = DuplicateExpression(ToRawPtr(Comment->MaterialExpressionComment));
 			Comment->MaterialExpressionComment->SubgraphExpression = NewSubgraphExpression;
 
 			// GraphNode is transient so it won't be duplicated. 

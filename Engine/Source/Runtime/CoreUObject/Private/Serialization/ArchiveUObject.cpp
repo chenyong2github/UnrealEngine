@@ -58,6 +58,22 @@ FArchive& FArchiveUObject::SerializeLazyObjectPtr(FArchive& Ar, FLazyObjectPtr& 
 	return Ar;
 }
 
+FArchive& FArchiveUObject::SerializeObjectPtr(FArchive& Ar, FObjectPtr& Value)
+{
+	// Default behavior is to fully resolve the reference and send it through
+	// the raw UObject* serialization codepath and ensure that the result is saved back into
+	// the FObjectPtr afterwards.  There will be many use cases where this is
+	// not what we want to do, but this should be a reasonable default that
+	// allows FObjectPtrs to be treated like raw UObject*'s by default.
+	UObject* Object = Value.Get();
+	Ar << Object;
+	if (Ar.IsLoading() || (Object && Ar.IsModifyingWeakAndStrongReferences()))
+	{
+		Value = Object;
+	}
+	return Ar;
+}
+
 FArchive& FArchiveUObject::SerializeSoftObjectPtr(FArchive& Ar, FSoftObjectPtr& Value)
 {
 	if (Ar.IsSaving() || Ar.IsLoading())

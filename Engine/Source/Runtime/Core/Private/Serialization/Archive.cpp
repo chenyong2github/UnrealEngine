@@ -457,6 +457,13 @@ FArchive& FArchive::operator<<(struct FLazyObjectPtr& Value)
 	return *this;
 }
 
+FArchive& FArchive::operator<<(struct FObjectPtr& Value)
+{
+	// The base FArchive does not implement this method. Use FArchiveUObject instead.
+	UE_LOG(LogSerialization, Fatal, TEXT("FArchive does not support FObjectPtr serialization. Use FArchiveUObject instead."));
+	return *this;
+}
+
 FArchive& FArchive::operator<<(struct FSoftObjectPtr& Value)
 {
 	// The base FArchive does not implement this method. Use FArchiveUObject instead.
@@ -678,6 +685,7 @@ public:
 
 void FArchive::SerializeCompressed(void* V, int64 Length, FName CompressionFormat, ECompressionFlags Flags, bool bTreatBufferAsFileReader)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FArchive::SerializeCompressed);
 	if( IsLoading() )
 	{
 		if (CompressionFormat == NAME_Zlib && FPlatformProperties::GetZlibReplacementFormat() != nullptr)

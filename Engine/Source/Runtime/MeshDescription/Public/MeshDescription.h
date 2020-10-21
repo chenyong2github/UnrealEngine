@@ -19,6 +19,7 @@
 #include "Serialization/BulkData.h"
 #include "Serialization/CustomVersion.h"
 #include "Containers/StaticArray.h"
+#include "Virtualization/VirtualizedBulkData.h"
 #include "MeshDescription.generated.h"
 
 enum
@@ -1289,6 +1290,7 @@ private:
 	mutable FMeshElementIndexer PolygonGroupToPolygons;
 };
 
+#if WITH_EDITORONLY_DATA
 
 /**
  * Bulk data storage for FMeshDescription
@@ -1300,10 +1302,13 @@ public:
 		: bBulkDataUpdated(false)
 		, bGuidIsHash(false)
 	{
+#if UE_USE_VIRTUALBULKDATA
+		BulkData.EnableDataCompression(true);
+#else
 		BulkData.SetBulkDataFlags(BULKDATA_SerializeCompressed | BULKDATA_SerializeCompressedBitWindow);
+#endif //UE_USE_VIRTUALBULKDATA
 	}
 
-#if WITH_EDITORONLY_DATA
 	/** Serialization */
 	void Serialize(FArchive& Ar, UObject* Owner);
 
@@ -1324,11 +1329,10 @@ public:
 
 	/** Uses a hash as the GUID, useful to prevent recomputing content already in cache. */
 	void UseHashAsGuid();
-#endif
 
 private:
 	/** Internally store bulk data as bytes */
-	FByteBulkData BulkData;
+	TChooseClass<UE_USE_VIRTUALBULKDATA, FByteVirtualizedBulkData, FByteBulkData>::Result BulkData;
 
 	/** GUID associated with the data stored herein. */
 	FGuid Guid;
@@ -1343,3 +1347,4 @@ private:
 	bool bGuidIsHash;
 };
 
+#endif //WITH_EDITORONLY_DATA

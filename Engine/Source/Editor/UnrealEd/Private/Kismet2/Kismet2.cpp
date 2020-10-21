@@ -449,7 +449,7 @@ UBlueprint* FKismetEditorUtilities::CreateBlueprint(UClass* ParentClass, UObject
 
 		NewBP->SimpleConstructionScript = NewObject<USimpleConstructionScript>(NewClass);
 		NewBP->SimpleConstructionScript->SetFlags(RF_Transactional);
-		NewBP->LastEditedDocuments.Add(NewBP->SimpleConstructionScript);
+		NewBP->LastEditedDocuments.Add(ToRawPtr(NewBP->SimpleConstructionScript));
 
 		UEdGraph* UCSGraph = FBlueprintEditorUtils::CreateNewGraph(NewBP, UEdGraphSchema_K2::FN_UserConstructionScript, UEdGraph::StaticClass(), UEdGraphSchema_K2::StaticClass());
 		FBlueprintEditorUtils::AddFunctionGraph(NewBP, UCSGraph, /*bIsUserCreated=*/ false, AActor::StaticClass());

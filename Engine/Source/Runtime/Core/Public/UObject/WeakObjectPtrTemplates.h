@@ -10,6 +10,8 @@
 #include "Templates/LosesQualifiersFromTo.h"
 #include "Containers/Map.h"
 
+#include <type_traits>
+
 /**
  * FWeakObjectPtr is a weak pointer to a UObject. 
  * It can return nullptr later if the object is garbage collected.
@@ -55,9 +57,9 @@ public:
 	 */
 	template <
 		typename U,
-		typename = decltype(ImplicitConv<T*>((U*)nullptr))
+		decltype(ImplicitConv<T*>(std::declval<U>()))* = nullptr
 	>
-	FORCEINLINE TWeakObjectPtr(U* Object) :
+	FORCEINLINE TWeakObjectPtr(U Object) :
 		TWeakObjectPtrBase((const UObject*)Object)
 	{
 		// This static assert is in here rather than in the body of the class because we want

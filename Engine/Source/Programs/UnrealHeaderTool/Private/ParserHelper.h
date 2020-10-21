@@ -203,8 +203,8 @@ public:
 	{
 	}
 
-	explicit FPropertyBase(UClass* InClass, bool bIsWeak = false, bool bWeakIsAuto = false, bool bIsLazy = false, bool bIsSoft = false)
-	: Type                (CPT_ObjectReference)
+	explicit FPropertyBase(UClass* InClass, EPropertyType InType, bool bWeakIsAuto = false)
+	: Type                (InType)
 	, ArrayType           (EArrayType::None)
 	, PropertyFlags       (CPF_None)
 	, ImpliedPropertyFlags(CPF_None)
@@ -218,26 +218,9 @@ public:
 	, PointerType         (EPointerType::None)
 	, IntType             (EIntType::None)
 	{
-		// if this is an interface class, we use the FInterfaceProperty class instead of FObjectProperty
-		if ( InClass->HasAnyClassFlags(CLASS_Interface) )
+		if ((Type == CPT_WeakObjectReference) && bWeakIsAuto)
 		{
-			Type = CPT_Interface;
-		}
-		if (bIsLazy)
-		{
-			Type = CPT_LazyObjectReference;
-		}
-		else if (bIsSoft)
-		{
-			Type = CPT_SoftObjectReference;
-		}
-		else if (bIsWeak)
-		{
-			Type = CPT_WeakObjectReference;
-			if (bWeakIsAuto)
-			{
-				PropertyFlags |= CPF_AutoWeak;
-			}
+			PropertyFlags |= CPF_AutoWeak;
 		}
 	}
 
@@ -413,6 +396,11 @@ public:
 			*this = FPropertyBase(CPT_LazyObjectReference);
 			PropertyClass = CastField<FLazyObjectProperty>(Property)->PropertyClass;
 		}
+		else if( ClassOfProperty==FObjectPtrProperty::StaticClass() )
+		{
+			*this = FPropertyBase(CPT_ObjectPtrReference);
+			PropertyClass = CastField<FObjectPtrProperty>(Property)->PropertyClass;
+		}
 		else if( ClassOfProperty==FSoftClassProperty::StaticClass() )
 		{
 			*this = FPropertyBase(CPT_SoftObjectReference);
@@ -499,7 +487,7 @@ public:
 	 */
 	bool IsObject() const
 	{
-		return Type == CPT_ObjectReference || Type == CPT_Interface || Type == CPT_WeakObjectReference || Type == CPT_LazyObjectReference || Type == CPT_SoftObjectReference;
+		return Type == CPT_ObjectReference || Type == CPT_Interface || Type == CPT_WeakObjectReference || Type == CPT_LazyObjectReference || Type == CPT_ObjectPtrReference || Type == CPT_SoftObjectReference;
 	}
 
 	bool IsContainer() const
@@ -569,7 +557,7 @@ public:
 				return false;
 			}
 		}
-		else if ((Type == CPT_ObjectReference || Type == CPT_WeakObjectReference || Type == CPT_LazyObjectReference || Type == CPT_SoftObjectReference) && Other.Type != CPT_Interface && (PropertyFlags & CPF_ReturnParm))
+		else if ((Type == CPT_ObjectReference || Type == CPT_WeakObjectReference || Type == CPT_LazyObjectReference || Type == CPT_ObjectPtrReference || Type == CPT_SoftObjectReference) && Other.Type != CPT_Interface && (PropertyFlags & CPF_ReturnParm))
 		{
 			bReverseClassChainCheck = false;
 		}

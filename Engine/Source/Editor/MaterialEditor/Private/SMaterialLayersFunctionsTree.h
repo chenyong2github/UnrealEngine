@@ -17,8 +17,9 @@
 #include "PropertyCustomizationHelpers.h"
 
 class IPropertyHandle;
-class UMaterialEditorInstanceConstant;
 class SMaterialLayersFunctionsInstanceTree;
+class UDEditorParameterValue;
+class UMaterialEditorInstanceConstant;
 
 class SMaterialLayersFunctionsInstanceTreeItem : public STableRow< TSharedPtr<FSortedParamData> >
 {
@@ -74,6 +75,7 @@ public:
 
 	FReply OnLayerDrop(const FDragDropEvent& DragDropEvent);
 	void OnOverrideParameter(bool NewValue, class UDEditorParameterValue* Parameter);
+	void OnOverrideParameter(bool NewValue, TObjectPtr<UDEditorParameterValue> Parameter);
 	/**
 	* Construct the widget
 	*
@@ -166,6 +168,7 @@ public:
 	void UpdateThumbnailMaterial(TEnumAsByte<EMaterialParameterAssociation> InAssociation, int32 InIndex, bool bAlterBlendIndex = false);
 	FReply OnThumbnailDoubleClick(const FGeometry& Geometry, const FPointerEvent& MouseEvent, EMaterialParameterAssociation InAssociation, int32 InIndex);
 	bool IsOverriddenExpression(class UDEditorParameterValue* Parameter, int32 InIndex);
+	bool IsOverriddenExpression(TObjectPtr<UDEditorParameterValue> Parameter, int32 InIndex);
 
 	FGetShowHiddenParameters GetShowHiddenDelegate() const;
 protected:

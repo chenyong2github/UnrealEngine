@@ -41,6 +41,7 @@
 #include "Engine/Brush.h"
 #include "Editor.h"
 #include "FileHelpers.h"
+#include "CommandletSourceControlUtils.h"
 
 #include "PackageHelperFunctions.h"
 #include "PackageTools.h"
@@ -97,11 +98,13 @@ UResavePackagesCommandlet::UResavePackagesCommandlet(const FObjectInitializer& O
 	: Super(ObjectInitializer)
 	, bForceUATEnvironmentVariableSet(false)
 {
-}
 
+}
 
 int32 UResavePackagesCommandlet::InitializeResaveParameters( const TArray<FString>& Tokens, TArray<FString>& PackageNames )
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UResavePackagesCommandlet::InitializeResaveParameters);
+
 	Verbosity = VERY_VERBOSE;
 
 	TArray<FString> Unused;
@@ -118,8 +121,15 @@ int32 UResavePackagesCommandlet::InitializeResaveParameters( const TArray<FStrin
 		if( FParse::Value( *CurrentSwitch, TEXT( "PACKAGE="), Package ) )
 		{
 			FString PackageFile;
-			FPackageName::SearchForPackageOnDisk( Package, NULL, &PackageFile );
-			PackageNames.Add( *PackageFile );
+			if (FPackageName::SearchForPackageOnDisk(Package, NULL, &PackageFile))
+			{
+				PackageNames.Add( *PackageFile );
+			}
+			else
+			{
+				UE_LOG(LogContentCommandlet, Error, TEXT("Failed to find the package given by the cmdline: PACKAGE=%s"), *Package);
+			}
+			
 			bExplicitPackages = true;
 		}
 		else if( FParse::Value( *CurrentSwitch, TEXT( "PACKAGEFOLDER="), PackageFolder ) )
@@ -133,10 +143,6 @@ int32 UResavePackagesCommandlet::InitializeResaveParameters( const TArray<FStrin
 				PackageNames.Add( *PackageFile );
 			}
 			bExplicitPackages = true;
-		}
-		else if (FParse::Value(*CurrentSwitch, TEXT("GCFREQ="), GarbageCollectionFrequency))
-		{
-			UE_LOG(LogContentCommandlet, Display, TEXT("Setting garbage collection to happen every %d packages."), GarbageCollectionFrequency);
 		}
 		else if (FParse::Value(*CurrentSwitch, TEXT("MAP="), Maps))
 		{
@@ -192,7 +198,15 @@ int32 UResavePackagesCommandlet::InitializeResaveParameters( const TArray<FStrin
 				UE_LOG(LogContentCommandlet, Error, TEXT("Failed to load file %s"), *File);
 			}
 		}
+	}
 
+	// Check for numeric settings
+	for (const FString& CurrentSwitch : Switches)
+	{
+		if (FParse::Value(*CurrentSwitch, TEXT("GCFREQ="), GarbageCollectionFrequency))
+		{
+			UE_LOG(LogContentCommandlet, Display, TEXT("Setting garbage collection to happen every %d packages."), GarbageCollectionFrequency);
+		}
 	}
 
 	if ((bShouldBuildLighting || bShouldBuildReflectionCaptures) && !bExplicitPackages)
@@ -282,9 +296,11 @@ int32 UResavePackagesCommandlet::InitializeResaveParameters( const TArray<FStrin
 			PackageFilter |= NORMALIZE_ExcludeNonDeveloperPackages;
 		}
 
-		bool bAnyFound = NormalizePackageNames(Unused, PackageNames, *FString::Printf(TEXT("*%s"), *FPackageName::GetAssetPackageExtension()), 
-											   PackageFilter);
-		bAnyFound = NormalizePackageNames(Unused, PackageNames, *FString::Printf(TEXT("*%s"), *FPackageName::GetMapPackageExtension()), PackageFilter) || bAnyFound;
+		const FString AssetSearch = TEXT("*") + FPackageName::GetAssetPackageExtension();
+		const FString MapSearch = TEXT("*") + FPackageName::GetMapPackageExtension();
+
+		bool bAnyFound = NormalizePackageNames(Unused, PackageNames, AssetSearch, PackageFilter);
+		bAnyFound |= NormalizePackageNames(Unused, PackageNames, MapSearch, PackageFilter);
 		
 		if (!bAnyFound)
 		{
@@ -488,6 +504,55 @@ int32 UResavePackagesCommandlet::InitializeResaveParameters( const TArray<FStrin
 	return 0;
 }
 
+void UResavePackagesCommandlet::ParseSourceControlOptions(const TArray<FString>& Tokens)
+{
+	if (SourceControlQueue == nullptr)
+	{
+		return; // No point parsing the options if we don't have anything enabled
+	}
+
+	int32 QueuedPackageFlushLimit = INDEX_NONE;
+	int64 QueueFileSizeFlushLimit = INDEX_NONE;
+
+	for (const FString& CurrentSwitch : Tokens)
+	{
+		if (FParse::Value(*CurrentSwitch, TEXT("BatchPackageLimit="), QueuedPackageFlushLimit))
+		{
+			if (QueuedPackageFlushLimit >= 0)
+			{
+				UE_LOG(LogContentCommandlet, Display, TEXT("Setting source control batches to be limited to %d package(s) at a time."), QueuedPackageFlushLimit);
+				SourceControlQueue->SetMaxNumQueuedPackages(QueuedPackageFlushLimit);
+			}
+			else
+			{
+				// Negative values mean we will not flush the source control batch based on the number of packages
+				UE_LOG(LogContentCommandlet, Display, TEXT("Setting source control batches to have no package limit!"));
+			}
+		}
+		else  if (FParse::Value(*CurrentSwitch, TEXT("BatchFileSizeLimit="), QueueFileSizeFlushLimit))
+		{
+			const int64 SizeLimit = TNumericLimits<int64>::Max() / (1024 * 1024);
+			if (QueueFileSizeFlushLimit > SizeLimit)
+			{
+				UE_LOG(LogContentCommandlet, Display, TEXT("-BatchFileSizeLimit=%lld is too large! The max value allowed is %lld, clamping..."), QueueFileSizeFlushLimit, SizeLimit);
+				QueueFileSizeFlushLimit = SizeLimit;
+			}
+
+			if (QueueFileSizeFlushLimit >= 0)
+			{
+				UE_LOG(LogContentCommandlet, Display, TEXT("Setting source control batches to be limited to %lld MB."), QueueFileSizeFlushLimit);
+
+				SourceControlQueue->SetMaxTemporaryFileTotalSize(QueueFileSizeFlushLimit);
+			}
+			else
+			{
+				// Negative values mean we will not flush the source control batch based on the disk space taken by temp files
+				UE_LOG(LogContentCommandlet, Display, TEXT("Setting source control batches to have no disk space limit!"));
+			}
+		}
+	}
+}
+
 bool UResavePackagesCommandlet::ShouldSkipPackage(const FString& Filename)
 {
 	return false;
@@ -495,6 +560,8 @@ bool UResavePackagesCommandlet::ShouldSkipPackage(const FString& Filename)
 
 void UResavePackagesCommandlet::LoadAndSaveOnePackage(const FString& Filename)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UResavePackagesCommandlet::LoadAndSaveOnePackage);
+
 	// Check to see if a derived commandlet wants to skip this package for one reason or another
 	if (ShouldSkipPackage(Filename))
 	{
@@ -611,7 +678,12 @@ void UResavePackagesCommandlet::LoadAndSaveOnePackage(const FString& Filename)
 			GStaticMeshPackageNameToRebuild = FName(*FPackageName::FilenameToLongPackageName(Filename));
 
 			// Assert if package couldn't be opened so we have no chance of messing up saving later packages.
-			UPackage* Package = LoadPackage( NULL, *Filename, 0 );
+			UPackage* Package = nullptr;
+			{
+				TRACE_CPUPROFILER_EVENT_SCOPE(UResavePackagesCommandlet::LoadAndSaveOnePackage::LoadPackage);
+				Package = LoadPackage(NULL, *Filename, 0);
+			}
+
 			if (Package == NULL)
 			{
 				if (bCanIgnoreFails == true)
@@ -658,13 +730,10 @@ void UResavePackagesCommandlet::LoadAndSaveOnePackage(const FString& Filename)
 			VerboseMessage(TEXT("Post PerformAdditionalOperations"));
 
 			// Check for any special per object operations
-			for( FObjectIterator ObjectIt; ObjectIt; ++ObjectIt )
+			ForEachObjectWithOuter(Package, [this, &bSavePackage](UObject* Object)
 			{
-				if( ObjectIt->IsIn( Package ) )
-				{
-					PerformAdditionalOperations( *ObjectIt, bSavePackage );
-				}
-			}
+				PerformAdditionalOperations(Object, bSavePackage);
+			});
 			
 			VerboseMessage(TEXT("Post PerformAdditionalOperations Loop"));
 
@@ -717,9 +786,11 @@ void UResavePackagesCommandlet::LoadAndSaveOnePackage(const FString& Filename)
 				}
 				else
 				{
-					// check to see if we need to check this package out
-					if ( bAutoCheckOut )
+					// Check to see if we need to check this package out (but do not check out here if SourceControlQueue is enabled)
+					const bool bAttemptCheckoutNow = bAutoCheckOut && SourceControlQueue == nullptr;
+					if (bAttemptCheckoutNow)
 					{
+						TRACE_CPUPROFILER_EVENT_SCOPE(UResavePackagesCommandlet::LoadAndSaveOnePackage::AutoCheckOut);
 						if( bIsReadOnly )
 						{
 							VerboseMessage(TEXT("Pre ForceGetStatus1"));
@@ -751,9 +822,12 @@ void UResavePackagesCommandlet::LoadAndSaveOnePackage(const FString& Filename)
 						}
 					}
 
-					// so now we need to see if we actually were able to check this file out
-					// if the file is still read only then we failed and need to emit an error and go to the next package
-					if (IFileManager::Get().IsReadOnly( *Filename ) == true)
+					// Update the readonly state now that source control has had a chance to run
+					bIsReadOnly = IFileManager::Get().IsReadOnly(*Filename);
+
+					// If we tried to check out the file but it is still read only then we failed and 
+					// need to emit an error and go to the next package			
+					if (bAttemptCheckoutNow && bIsReadOnly)
 					{
 						if (bSkipCheckedOutFiles)
 						{
@@ -775,12 +849,29 @@ void UResavePackagesCommandlet::LoadAndSaveOnePackage(const FString& Filename)
 
 					const static bool bKeepPackageGUIDOnSave = FParse::Param(FCommandLine::Get(), TEXT("KeepPackageGUIDOnSave"));
 					ESaveFlags SaveFlags = bKeepPackageGUIDOnSave ? SAVE_KeepGUID : SAVE_None;
-					if( SavePackageHelper(Package, Filename, RF_Standalone, GWarn, nullptr, SaveFlags) )
+					
+					if (bIsReadOnly == false || SourceControlQueue == nullptr)
 					{
-						PackagesResaved++;
-						if (Verbosity == VERY_VERBOSE)
+						TRACE_CPUPROFILER_EVENT_SCOPE(UResavePackagesCommandlet::LoadAndSaveOnePackage::SavePackage);
+
+						if (SavePackageHelper(Package, Filename, RF_Standalone, GWarn, nullptr, SaveFlags))
 						{
-							UE_LOG(LogContentCommandlet, Display, TEXT("Correctly saved:  [%s]."), *Filename );
+							PackagesResaved++;
+							if (Verbosity == VERY_VERBOSE)
+							{
+								UE_LOG(LogContentCommandlet, Display, TEXT("Correctly saved:  [%s]."), *Filename);
+							}
+						}
+					}
+					else
+					{
+						// The target file is still read only and we have SourceControlQueue enabled so we
+						// need to save to a temporary file first, and then queue the result.
+						const FString TempFilename = CreateTempFilename();
+
+						if (SavePackageHelper(Package, TempFilename, RF_Standalone, GWarn, nullptr, SaveFlags))
+						{
+							SourceControlQueue->QueueCheckoutAndReplaceOperation(Filename, TempFilename, Package);
 						}
 					}
 				}
@@ -806,6 +897,8 @@ void UResavePackagesCommandlet::LoadAndSaveOnePackage(const FString& Filename)
 
 void UResavePackagesCommandlet::DeleteOnePackage(const FString& Filename)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UResavePackagesCommandlet::DeleteOnePackage);
+
 	bool bIsReadOnly = IFileManager::Get().IsReadOnly(*Filename);
 
 	if (bVerifyContent)
@@ -819,6 +912,14 @@ void UResavePackagesCommandlet::DeleteOnePackage(const FString& Filename)
 		{
 			UE_LOG(LogContentCommandlet, Warning, TEXT("Skipping read-only file %s"), *Filename);
 		}
+		return;
+	}
+
+	if (SourceControlQueue != nullptr)
+	{
+		// All files (read only and non read only) need to query their source control status so
+		// they should all be queued if avaliable.
+		SourceControlQueue->QueueDeleteOperation(Filename);
 		return;
 	}
 
@@ -849,12 +950,16 @@ void UResavePackagesCommandlet::DeleteOnePackage(const FString& Filename)
 		UE_LOG(LogContentCommandlet, Display, TEXT("Deleting '%s' from source control..."), *Filename);
 		SourceControlProvider.Execute(ISourceControlOperation::Create<FDelete>(), PackageFilename);
 
+		PackagesDeleted++;
+
 		FilesToSubmit.AddUnique(Filename);
 	}
 	else if (SourceControlState.IsValid() && SourceControlState->CanCheckout())
 	{
 		UE_LOG(LogContentCommandlet, Display, TEXT("Deleting '%s' from source control..."), *Filename);
 		SourceControlProvider.Execute(ISourceControlOperation::Create<FDelete>(), PackageFilename);
+
+		PackagesDeleted++;
 
 		FilesToSubmit.AddUnique(Filename);
 	}
@@ -865,7 +970,11 @@ void UResavePackagesCommandlet::DeleteOnePackage(const FString& Filename)
 	else if (SourceControlState.IsValid() && !SourceControlState->IsSourceControlled())
 	{
 		UE_LOG(LogContentCommandlet, Warning, TEXT("'%s' is not in source control, attempting to delete from disk..."), *Filename);
-		if (!IFileManager::Get().Delete(*Filename, false, true))
+		if (IFileManager::Get().Delete(*Filename, false, true) == true)
+		{
+			PackagesDeleted++;
+		}
+		else
 		{
 			UE_LOG(LogContentCommandlet, Warning, TEXT("  ... failed to delete from disk."), *Filename);
 		}
@@ -873,7 +982,11 @@ void UResavePackagesCommandlet::DeleteOnePackage(const FString& Filename)
 	else
 	{
 		UE_LOG(LogContentCommandlet, Warning, TEXT("'%s' is in an unknown source control state, attempting to delete from disk..."), *Filename);
-		if (!IFileManager::Get().Delete(*Filename, false, true))
+		if (IFileManager::Get().Delete(*Filename, false, true)== true)
+		{
+			PackagesDeleted++;
+		}
+		else
 		{
 			UE_LOG(LogContentCommandlet, Warning, TEXT("  ... failed to delete from disk."), *Filename);
 		}
@@ -882,6 +995,8 @@ void UResavePackagesCommandlet::DeleteOnePackage(const FString& Filename)
 
 int32 UResavePackagesCommandlet::Main( const FString& Params )
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UResavePackagesCommandlet);
+
 	const TCHAR* Parms = *Params;
 	TArray<FString> Tokens;
 	ParseCommandLine(Parms, Tokens, Switches);
@@ -899,6 +1014,8 @@ int32 UResavePackagesCommandlet::Main( const FString& Params )
 	bOnlySaveDirtyPackages = Switches.Contains(TEXT("OnlySaveDirtyPackages"));
 	/** if we should auto checkout packages that need to be saved**/
 	bAutoCheckOut = Switches.Contains(TEXT("AutoCheckOutPackages")) || Switches.Contains(TEXT("AutoCheckOut"));
+	/** if we should batch source control operations*/
+	bBatchSourceControl = Switches.Contains(TEXT("BatchSourceControl"));
 	/** if we should simply skip checked out files rather than error-ing out */
 	bSkipCheckedOutFiles = Switches.Contains(TEXT("SkipCheckedOutPackages"));
 	/** if we should auto checkin packages that were checked out**/
@@ -1036,6 +1153,7 @@ int32 UResavePackagesCommandlet::Main( const FString& Params )
 	int32 GCIndex = 0;
 	PackagesConsideredForResave = 0;
 	PackagesResaved = 0;
+	PackagesDeleted = 0;
 
 	// allow for an option to restart at a given package name (in case it dies during a run, etc)
 	bool bCanProcessPackage = true;
@@ -1058,6 +1176,32 @@ int32 UResavePackagesCommandlet::Main( const FString& Params )
 	{
 		GShaderCompilingManager->ProcessAsyncResults(true, false);
 	}
+
+	if (bBatchSourceControl)
+	{
+		// Convert the commandlets verbosity to that of FQueuedSourceControlOperations
+		FQueuedSourceControlOperations::EVerbosity LogVerbosity = FQueuedSourceControlOperations::EVerbosity::All;
+		switch (Verbosity)
+		{
+		case VERY_VERBOSE:
+			LogVerbosity = FQueuedSourceControlOperations::EVerbosity::All;
+			break;
+		case INFORMATIVE:
+			LogVerbosity = FQueuedSourceControlOperations::EVerbosity::Info;
+			break;
+		case ONLY_ERRORS:
+			LogVerbosity = FQueuedSourceControlOperations::EVerbosity::ErrorsOnly;
+			break;
+		default:
+			UE_LOG(LogContentCommandlet, Warning, TEXT("Unknown verbosity to pass to FQueuedSourceControlOperations!"));
+		}
+
+		SourceControlQueue = MakePimpl<FQueuedSourceControlOperations>(LogVerbosity);	
+		ParseSourceControlOptions(Switches);
+	}
+
+	// Make sure any remaining temp files from previous runs are removed
+	CleanTempFiles();
 
 	// Iterate over all packages.
 	for( int32 PackageIndex = 0; PackageIndex < PackageNames.Num(); PackageIndex++ )
@@ -1085,6 +1229,12 @@ int32 UResavePackagesCommandlet::Main( const FString& Params )
 		// Load and save this package
 		LoadAndSaveOnePackage(Filename);
 
+		// Check if we need to flush any source control operations yet
+		if (SourceControlQueue != nullptr)
+		{
+			SourceControlQueue->FlushPendingOperations(false);
+		}
+
 		// Tick shader compiler if we are rendering
 		if(IsAllowCommandletRendering() && GShaderCompilingManager)
 		{
@@ -1097,6 +1247,22 @@ int32 UResavePackagesCommandlet::Main( const FString& Params )
 			UE_LOG(LogContentCommandlet, Warning, TEXT( "Attempting to resave more than MaxPackagesToResave; exiting" ) );
 			break;
 		}
+	}
+	
+	if (SourceControlQueue != nullptr)
+	{
+		// Flush any remaining source control operations
+		SourceControlQueue->FlushPendingOperations(true);
+
+		// Fix up the stats
+		PackagesDeleted += SourceControlQueue->GetNumDeletedFiles();
+		PackagesResaved += SourceControlQueue->GetNumReplacedFiles();
+
+		// Add files that the source control queue modified to the list of files that 
+		// will need to be submitted to source control
+		FilesToSubmit.Append(SourceControlQueue->GetModifiedFiles());
+
+		SourceControlQueue.Reset();
 	}
 
 	// Force a directory watcher and asset registry tick
@@ -1144,6 +1310,7 @@ int32 UResavePackagesCommandlet::Main( const FString& Params )
 
 	UE_LOG(LogContentCommandlet, Display, TEXT("[REPORT] %d/%d packages were considered for resaving"), PackagesConsideredForResave, PackageNames.Num());
 	UE_LOG(LogContentCommandlet, Display, TEXT("[REPORT] %d/%d packages were resaved"), PackagesResaved, PackagesConsideredForResave);
+	UE_LOG(LogContentCommandlet, Display, TEXT("[REPORT] %d/%d packages were deleted"), PackagesDeleted, PackagesConsideredForResave);
 
 
 	return 0;
@@ -1914,6 +2081,29 @@ void UResavePackagesCommandlet::VerboseMessage(const FString& Message)
 	{
 		UE_LOG(LogContentCommandlet, Verbose, TEXT("%s"), *Message);
 	}
+}
+
+FString UResavePackagesCommandlet::CreateTempFilename()
+{
+	return FPaths::CreateTempFilename(*GetTempFilesDirectory());
+}
+
+void UResavePackagesCommandlet::CleanTempFiles()
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(UResavePackagesCommandlet::CleanTempFiles);
+	const FString DirPath = GetTempFilesDirectory();
+
+	UE_LOG(LogContentCommandlet, Display, TEXT("Cleaning temp file directory"), *DirPath);
+
+	if (!IFileManager::Get().DeleteDirectory(*DirPath, false, true))
+	{
+		UE_LOG(LogContentCommandlet, Warning, TEXT("Failed to clean temp file directory:  %s"), *DirPath);
+	}
+}
+
+FString UResavePackagesCommandlet::GetTempFilesDirectory()
+{
+	return FPaths::ProjectSavedDir() / TEXT("Temp/ResavePackages");
 }
 
 /*-----------------------------------------------------------------------------
@@ -2954,4 +3144,3 @@ int32 UListStaticMeshesImportedFromSpeedTreesCommandlet::Main(const FString& Par
 	}
 	return 0;
 }
-

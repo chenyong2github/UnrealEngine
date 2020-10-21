@@ -46,6 +46,12 @@ public:
 		return *this;
 	}
 
+	virtual FArchive& operator<<(FObjectPtr& Value) override
+	{
+		InnerArchive << Value;
+		return *this;
+	}
+
 	virtual FArchive& operator<<(FLazyObjectPtr& Value) override
 	{
 		InnerArchive << Value;

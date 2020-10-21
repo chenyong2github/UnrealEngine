@@ -7,6 +7,7 @@
 #include "HAL/ThreadSafeCounter.h"
 #include "HAL/ThreadSingleton.h"
 #include "UObject/Class.h"
+#include "UObject/ObjectPtr.h"
 
 /**
  * A struct that contains a string reference to an object, either a top level asset or a subobject.
@@ -49,6 +50,20 @@ struct COREUOBJECT_API FSoftObjectPath
 	
 	/** Construct from an existing object in memory */
 	FSoftObjectPath(const UObject* InObject);
+
+	/** Construct from a FObjectHandle/FObjectPtr/TObjectPtr which may or may not have the referenced object in memory */
+	explicit FSoftObjectPath(FObjectHandle InObjectHandle);
+
+	FSoftObjectPath(FObjectPtr InObject)
+		: FSoftObjectPath(InObject.GetHandle())
+	{
+	}
+
+	template <typename T>
+	FSoftObjectPath(const TObjectPtr<T>& InObject)
+		: FSoftObjectPath(InObject.GetHandle())
+	{
+	}
 
 	~FSoftObjectPath() {}
 	

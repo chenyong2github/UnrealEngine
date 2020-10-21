@@ -464,13 +464,13 @@ void AVREditorAvatarActor::TickManually( const float DeltaTime )
 			UPostProcessComponent* PostProcess = PostProcessComponent;
 			if ( bShouldDrawWorldMovementPostProcess )
 			{
-				PostProcess->AddOrUpdateBlendable( WorldMovementPostProcessMaterial );
+				PostProcess->AddOrUpdateBlendable( ToRawPtr(WorldMovementPostProcessMaterial) );
 				bIsDrawingWorldMovementPostProcess = true;
 			}
 			else
 			{
 				bIsDrawingWorldMovementPostProcess = false;
-				PostProcess->Settings.RemoveBlendable( WorldMovementPostProcessMaterial );
+				PostProcess->Settings.RemoveBlendable( ToRawPtr(WorldMovementPostProcessMaterial) );
 			}
 		}
 

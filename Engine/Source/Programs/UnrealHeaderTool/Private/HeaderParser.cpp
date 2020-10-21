@@ -107,6 +107,7 @@ const FName FHeaderParserNames::NAME_IsConversionRoot(TEXT("IsConversionRoot"));
 const FName FHeaderParserNames::NAME_AdvancedClassDisplay(TEXT("AdvancedClassDisplay"));
 
 EGeneratedCodeVersion FHeaderParser::DefaultGeneratedCodeVersion = EGeneratedCodeVersion::V1;
+ENativePointerMemberBehavior FHeaderParser::NativePointerMemberBehavior = ENativePointerMemberBehavior::AllowSilently;
 TArray<FString> FHeaderParser::StructsWithNoPrefix;
 TArray<FString> FHeaderParser::StructsWithTPrefix;
 FRigVMStructMap FHeaderParser::StructRigVMMap;
@@ -868,6 +869,15 @@ namespace
 				return Result;
 			}
 
+			case CPT_ObjectPtrReference:
+			{
+				check(VarProperty.PropertyClass);
+
+				FObjectPtrProperty* Result = new FObjectPtrProperty(Scope, Name, ObjectFlags);
+				Result->PropertyClass = VarProperty.PropertyClass;
+				return Result;
+			}
+
 			case CPT_SoftObjectReference:
 				check(VarProperty.PropertyClass);
 
@@ -1222,6 +1232,7 @@ namespace
 			|| Property->IsA<FClassProperty>()
 			|| Property->IsA<FSoftObjectProperty>()
 			|| Property->IsA<FObjectProperty>()
+			|| Property->IsA<FObjectPtrProperty>()
 			|| Property->IsA<FFloatProperty>()
 			|| Property->IsA<FDoubleProperty>()
 			|| Property->IsA<FIntProperty>()
@@ -1292,6 +1303,27 @@ namespace
 		SkipAlignasIfNecessary(Parser);
 	}
 
+	inline ENativePointerMemberBehavior ToNativePointerMemberBehavior(const FString& InString)
+	{
+		if (InString.Compare(TEXT("Disallow")) == 0)
+		{
+			return ENativePointerMemberBehavior::Disallow;
+		}
+
+		if (InString.Compare(TEXT("AllowSilently")) == 0)
+		{
+			return ENativePointerMemberBehavior::AllowSilently;
+		}
+
+		if (InString.Compare(TEXT("AllowAndLog")) == 0)
+		{
+			return ENativePointerMemberBehavior::AllowAndLog;
+		}
+
+		FError::Throwf(TEXT("Unrecognized native pointer member behavior: %s"), *InString );
+		return ENativePointerMemberBehavior::Disallow;
+	}
+
 	static const TCHAR* GLayoutMacroNames[] = {
 		TEXT("LAYOUT_ARRAY"),
 		TEXT("LAYOUT_ARRAY_EDITORONLY"),
@@ -1319,15 +1351,18 @@ FScriptLocation::FScriptLocation()
 /////////////////////////////////////////////////////
 // FHeaderParser
 
-FString FHeaderParser::GetContext()
+FString FHeaderParser::GetSourceFileContext() const
 {
 	FFileScope* FileScope = GetCurrentFileScope();
 	FUnrealSourceFile* SourceFile = FileScope ? FileScope->GetSourceFile() : GetCurrentSourceFile();
-	FString ScopeFilename = SourceFile
+	return SourceFile
 		? IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*SourceFile->GetFilename())
 		: TEXT("UNKNOWN");
+}
 
-	return FString::Printf(TEXT("%s(%i)"), *ScopeFilename, InputLine);
+FString FHeaderParser::GetContext()
+{
+	return FString::Printf(TEXT("%s(%i)"), *GetSourceFileContext(), InputLine);
 }
 
 /*-----------------------------------------------------------------------------
@@ -4185,16 +4220,18 @@ void FHeaderParser::GetVarType(
 		}
 	}
 
+	if (MatchIdentifier(TEXT("mutable"), ESearchCase::CaseSensitive))
+	{
+		//@TODO: Should flag as settable from a const context, but this is at least good enough to allow use for C++ land
+	}
+
+	const int32 VarStartPos = InputPos;
+
 	if (MatchIdentifier(TEXT("const"), ESearchCase::CaseSensitive))
 	{
 		//@TODO: UCREMOVAL: Should use this to set the new (currently non-existent) CPF_Const flag appropriately!
 		bUnconsumedConstKeyword = true;
 		bNativeConst = true;
-	}
-
-	if (MatchIdentifier(TEXT("mutable"), ESearchCase::CaseSensitive))
-	{
-		//@TODO: Should flag as settable from a const context, but this is at least good enough to allow use for C++ land
 	}
 
 	if (MatchIdentifier(TEXT("struct"), ESearchCase::CaseSensitive))
@@ -4767,16 +4804,9 @@ void FHeaderParser::GetVarType(
 			// An object reference of some type (maybe a restricted class?)
 			UClass* TempClass = NULL;
 
-			const bool bIsLazyPtrTemplate        = VarType.Matches(TEXT("TLazyObjectPtr"), ESearchCase::CaseSensitive);
+			EPropertyType PropertyType = CPT_ObjectReference;
 			const bool bIsSoftObjectPtrTemplate  = VarType.Matches(TEXT("TSoftObjectPtr"), ESearchCase::CaseSensitive);
-			const bool bIsSoftClassPtrTemplate   = VarType.Matches(TEXT("TSoftClassPtr"), ESearchCase::CaseSensitive);
-			const bool bIsWeakPtrTemplate        = VarType.Matches(TEXT("TWeakObjectPtr"), ESearchCase::CaseSensitive);
-			const bool bIsAutoweakPtrTemplate    = VarType.Matches(TEXT("TAutoWeakObjectPtr"), ESearchCase::CaseSensitive);
-			const bool bIsScriptInterfaceWrapper = VarType.Matches(TEXT("TScriptInterface"), ESearchCase::CaseSensitive);
 
-			bool bIsWeak     = false;
-			bool bIsLazy     = false;
-			bool bIsSoft     = false;
 			bool bWeakIsAuto = false;
 
 			if (VarType.Matches(TEXT("TSubclassOf"), ESearchCase::CaseSensitive))
@@ -4788,71 +4818,97 @@ void FHeaderParser::GetVarType(
 				TempClass = UInterface::StaticClass();
 				Flags |= CPF_UObjectWrapper;
 			}
-			else if (bIsSoftClassPtrTemplate)
+			else if (VarType.Matches(TEXT("TSoftClassPtr"), ESearchCase::CaseSensitive))
 			{
 				TempClass = UClass::StaticClass();
-				bIsSoft = true;
-			}
-			else if (bIsLazyPtrTemplate || bIsWeakPtrTemplate || bIsAutoweakPtrTemplate || bIsScriptInterfaceWrapper || bIsSoftObjectPtrTemplate)
-			{
-				RequireSymbol(TEXT('<'), VarType.Identifier);
-
-				// Consume a forward class declaration 'class' if present
-				MatchIdentifier(TEXT("class"), ESearchCase::CaseSensitive);
-
-				// Also consume const
-				bNativeConstTemplateArg |= MatchIdentifier(TEXT("const"), ESearchCase::CaseSensitive);
-				
-				// Find the lazy/weak class
-				FToken InnerClass;
-				if (GetIdentifier(InnerClass))
-				{
-					RedirectTypeIdentifier(InnerClass);
-
-					TempClass = AllClasses.FindScriptClass(InnerClass.Identifier);
-					if (TempClass == nullptr)
-					{
-						FError::Throwf(TEXT("Unrecognized type '%s' (in expression %s<%s>) - type must be a UCLASS"), InnerClass.Identifier, VarType.Identifier, InnerClass.Identifier);
-					}
-
-					if (bIsAutoweakPtrTemplate)
-					{
-						bIsWeak = true;
-						bWeakIsAuto = true;
-					}
-					else if (bIsLazyPtrTemplate)
-					{
-						bIsLazy = true;
-					}
-					else if (bIsWeakPtrTemplate)
-					{
-						bIsWeak = true;
-					}
-					else if (bIsSoftObjectPtrTemplate)
-					{
-						bIsSoft = true;
-					}
-
-					Flags |= CPF_UObjectWrapper;
-				}
-				else
-				{
-					FError::Throwf(TEXT("%s: Missing template type"), VarType.Identifier);
-				}
-
-				RequireSymbol(TEXT('>'), VarType.Identifier, ESymbolParseOption::CloseTemplateBracket);
+				PropertyType = CPT_SoftObjectReference;
 			}
 			else
 			{
-				TempClass = AllClasses.FindScriptClass(VarType.Identifier);
+				const bool bIsLazyPtrTemplate        = VarType.Matches(TEXT("TLazyObjectPtr"), ESearchCase::CaseSensitive);
+				const bool bIsObjectPtrTemplate      = VarType.Matches(TEXT("TObjectPtr"), ESearchCase::CaseSensitive);
+				const bool bIsWeakPtrTemplate        = VarType.Matches(TEXT("TWeakObjectPtr"), ESearchCase::CaseSensitive);
+				const bool bIsAutoweakPtrTemplate    = VarType.Matches(TEXT("TAutoWeakObjectPtr"), ESearchCase::CaseSensitive);
+				const bool bIsScriptInterfaceWrapper = VarType.Matches(TEXT("TScriptInterface"), ESearchCase::CaseSensitive);
+
+				if (bIsLazyPtrTemplate || bIsObjectPtrTemplate || bIsWeakPtrTemplate || bIsAutoweakPtrTemplate || bIsScriptInterfaceWrapper || bIsSoftObjectPtrTemplate)
+				{
+					RequireSymbol(TEXT('<'), VarType.Identifier);
+
+					// Also consume const
+					bNativeConstTemplateArg |= MatchIdentifier(TEXT("const"), ESearchCase::CaseSensitive);
+
+					// Consume a forward class declaration 'class' if present
+					MatchIdentifier(TEXT("class"), ESearchCase::CaseSensitive);
+					
+					// Find the lazy/weak class
+					FToken InnerClass;
+					if (GetIdentifier(InnerClass))
+					{
+						RedirectTypeIdentifier(InnerClass);
+
+						TempClass = AllClasses.FindScriptClass(InnerClass.Identifier);
+						if (TempClass == nullptr)
+						{
+							FError::Throwf(TEXT("Unrecognized type '%s' (in expression %s<%s>) - type must be a UCLASS"), InnerClass.Identifier, VarType.Identifier, InnerClass.Identifier);
+						}
+
+						if (bIsAutoweakPtrTemplate)
+						{
+							PropertyType = CPT_WeakObjectReference;
+							bWeakIsAuto = true;
+						}
+						else if (bIsLazyPtrTemplate)
+						{
+							PropertyType = CPT_LazyObjectReference;
+						}
+						else if (bIsObjectPtrTemplate)
+						{
+							PropertyType = CPT_ObjectPtrReference;
+						}
+						else if (bIsWeakPtrTemplate)
+						{
+							PropertyType = CPT_WeakObjectReference;
+						}
+						else if (bIsSoftObjectPtrTemplate)
+						{
+							PropertyType = CPT_SoftObjectReference;
+						}
+
+						Flags |= CPF_UObjectWrapper;
+					}
+					else
+					{
+						FError::Throwf(TEXT("%s: Missing template type"), VarType.Identifier);
+					}
+
+					// Const after template argument type but before end of template symbol
+					bNativeConstTemplateArg |= MatchIdentifier(TEXT("const"), ESearchCase::CaseSensitive);
+
+					RequireSymbol(TEXT('>'), VarType.Identifier, ESymbolParseOption::CloseTemplateBracket);
+				}
+				else
+				{
+					TempClass = AllClasses.FindScriptClass(VarType.Identifier);
+				}
 			}
 
 			if (TempClass != NULL)
 			{
 				bHandledType = true;
 
-				bool bAllowWeak = !(Disallow & CPF_AutoWeak); // if it is not allowing anything, force it strong. this is probably a function arg
-				VarProperty = FPropertyBase(TempClass, bAllowWeak && bIsWeak, bWeakIsAuto, bIsLazy, bIsSoft);
+				if ((PropertyType == CPT_WeakObjectReference) && (Disallow & CPF_AutoWeak)) // if it is not allowing anything, force it strong. this is probably a function arg
+				{
+					PropertyType = CPT_ObjectReference;
+				}
+
+				// if this is an interface class, we use the FInterfaceProperty class instead of FObjectProperty
+				if ((PropertyType == CPT_ObjectReference) && TempClass->HasAnyClassFlags(CLASS_Interface))
+				{
+					PropertyType = CPT_Interface;
+				}
+
+				VarProperty = FPropertyBase(TempClass, PropertyType, bWeakIsAuto);
 				if (TempClass->IsChildOf(UClass::StaticClass()))
 				{
 					if ( MatchSymbol(TEXT('<')) )
@@ -4880,12 +4936,11 @@ void FHeaderParser::GetVarType(
 						VarProperty.MetaClass = UObject::StaticClass();
 					}
 
-					if (bIsWeak)
+					if (PropertyType == CPT_WeakObjectReference)
 					{
 						FError::Throwf(TEXT("Class variables cannot be weak, they are always strong."));
 					}
-
-					if (bIsLazy)
+					else if (PropertyType == CPT_LazyObjectReference)
 					{
 						FError::Throwf(TEXT("Class variables cannot be lazy, they are always strong."));
 					}
@@ -4910,9 +4965,35 @@ void FHeaderParser::GetVarType(
 
 					RequireSymbol(TEXT('*'), TEXT("Expected a pointer type"));
 
-					// Swallow trailing 'const' after pointer properties
+					// Optionally emit messages about native pointer members and swallow trailing 'const' after pointer properties
 					if (VariableCategory == EVariableCategory::Member)
 					{
+						switch (NativePointerMemberBehavior)
+						{
+							case ENativePointerMemberBehavior::Disallow:
+							{
+								FString TypeName = FString(InputPos - VarStartPos, Input + VarStartPos).TrimStartAndEnd().ReplaceCharWithEscapedChar();
+								UE_LOG(LogCompile, Error, TEXT("Native pointer usage in member declaration detected in '%s', line %d [[%s]]"), *GetSourceFileContext(), InputLine, *TypeName);
+							}
+							break;
+							case ENativePointerMemberBehavior::AllowAndLog:
+							{
+								FString TypeName = FString(InputPos - VarStartPos, Input + VarStartPos).TrimStartAndEnd().ReplaceCharWithEscapedChar();
+								UE_LOG(LogCompile, Log, TEXT("Native pointer usage in member declaration detected in '%s', line %d [[%s]]"), *GetSourceFileContext(), InputLine, *TypeName);
+							}
+							break;
+							case ENativePointerMemberBehavior::AllowSilently:
+							{
+								// Do nothing
+							}
+							break;
+							default:
+							{
+								checkf(false, TEXT("Unhandled case"));
+							}
+							break;
+						}
+
 						MatchIdentifier(TEXT("const"), ESearchCase::CaseSensitive);
 					}
 
@@ -5062,7 +5143,7 @@ void FHeaderParser::GetVarType(
 	// Perform some more specific validation on the property flags
 	if (VarProperty.PropertyFlags & CPF_PersistentInstance)
 	{
-		if (VarProperty.Type == CPT_ObjectReference)
+		if ((VarProperty.Type == CPT_ObjectReference) || (VarProperty.Type == CPT_ObjectPtrReference))
 		{
 			if (VarProperty.PropertyClass->IsChildOf<UClass>())
 			{
@@ -5432,6 +5513,11 @@ FProperty* FHeaderParser::GetVarNameAndDim
 		if (VarProperty.Type == CPT_LazyObjectReference)
 		{
 			FError::Throwf(TEXT("UFunctions cannot take a lazy pointer as a parameter."));
+		}
+		else if (VarProperty.Type == CPT_ObjectPtrReference)
+		{
+			// @TODO: OBJPTR: Investigate TObjectPtr support for UFunction parameters.
+			FError::Throwf(TEXT("UFunctions cannot take a TObjectPtr as a parameter."));
 		}
 	}
 
@@ -7995,7 +8081,7 @@ void FHeaderParser::ValidatePropertyIsDeprecatedIfNecessary(const FPropertyBase&
 
 	// check to see if we have a FObjectProperty using a deprecated class.
 	// PropertyClass is part of a union, so only check PropertyClass if this token represents an object property
-	if ( (VarProperty.Type == CPT_ObjectReference || VarProperty.Type == CPT_WeakObjectReference || VarProperty.Type == CPT_LazyObjectReference || VarProperty.Type == CPT_SoftObjectReference) && VarProperty.PropertyClass != NULL
+	if ( (VarProperty.Type == CPT_ObjectReference || VarProperty.Type == CPT_WeakObjectReference || VarProperty.Type == CPT_LazyObjectReference || VarProperty.Type == CPT_ObjectPtrReference || VarProperty.Type == CPT_SoftObjectReference) && VarProperty.PropertyClass != NULL
 		&&	VarProperty.PropertyClass->HasAnyClassFlags(CLASS_Deprecated)	// and the object class being used has been deprecated
 		&& (VarProperty.PropertyFlags&CPF_Deprecated) == 0					// and this property isn't marked deprecated as well
 		&& (OuterPropertyType == NULL || !(OuterPropertyType->PropertyFlags & CPF_Deprecated)) ) // and this property isn't in an array that was marked deprecated either
@@ -8019,6 +8105,7 @@ struct FExposeOnSpawnValidator
 		case CPT_Bool:
 		case CPT_Bool8:
 		case CPT_ObjectReference:
+		case CPT_ObjectPtrReference:
 		case CPT_String:
 		case CPT_Text:
 		case CPT_Name:
@@ -8834,6 +8921,7 @@ FHeaderParser::FHeaderParser(FFeedbackContext* InWarn, const FManifestModule& In
 		const FName StructsWithTPrefixKey(TEXT("StructsWithTPrefix"));
 		const FName DelegateParameterCountStringsKey(TEXT("DelegateParameterCountStrings"));
 		const FName GeneratedCodeVersionKey(TEXT("GeneratedCodeVersion"));
+		const FName NativePointerMemberBehaviorKey(TEXT("NativePointerMemberBehavior"));
 
 		FConfigSection* ConfigSection = GConfig->GetSectionPrivate(TEXT("UnrealHeaderTool"), false, true, GEngineIni);
 		if (ConfigSection)
@@ -8865,6 +8953,10 @@ FHeaderParser::FHeaderParser(FFeedbackContext* InWarn, const FManifestModule& In
 				else if (It.Key() == GeneratedCodeVersionKey)
 				{
 					DefaultGeneratedCodeVersion = ToGeneratedCodeVersion(It.Value().GetValue());
+				}
+				else if (It.Key() == NativePointerMemberBehaviorKey)
+				{
+					NativePointerMemberBehavior = ToNativePointerMemberBehavior(It.Value().GetValue());
 				}
 			}
 		}

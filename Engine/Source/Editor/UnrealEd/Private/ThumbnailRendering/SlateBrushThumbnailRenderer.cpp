@@ -24,7 +24,7 @@ void USlateBrushThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uint3
 
 		// Draw the background checkboard pattern
 		const int32 CheckerDensity = 8;
-		auto* Checker = UThumbnailManager::Get().CheckerboardTexture;
+		auto Checker = ToRawPtr(UThumbnailManager::Get().CheckerboardTexture);
 		Canvas->DrawTile(
 			0.0f, 0.0f, Width, Height,							// Dimensions
 			0.0f, 0.0f, CheckerDensity, CheckerDensity,			// UVs

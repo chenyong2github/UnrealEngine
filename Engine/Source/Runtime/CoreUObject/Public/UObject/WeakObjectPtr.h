@@ -10,6 +10,8 @@
 #include "UObject/UObjectArray.h"
 #include "UObject/FastReferenceCollectorOptions.h"
 
+#include <type_traits>
+
 /**
  * FWeakObjectPtr is a weak pointer to a UObject. 
  * It can return nullptr later if the object is garbage collected.
@@ -31,13 +33,27 @@ public:
 	{
 		Reset();
 	}
-	/**  
-	 * Construct from an object pointer
+
+	/**
+	 * Construct from nullptr or something that can be implicitly converted to nullptr (eg: NULL)
 	 * @param Object object to create a weak pointer to
 	 */
-	FORCEINLINE FWeakObjectPtr(const class UObject* Object)
+	FORCEINLINE FWeakObjectPtr(TYPE_OF_NULLPTR)
 	{
-		(*this)=Object;
+		(*this) = nullptr;
+	}
+
+	/**  
+	 * Construct from an object pointer or something that can be implicitly converted to an object pointer
+	 * @param Object object to create a weak pointer to
+	 */
+	template <
+		typename U,
+		decltype(ImplicitConv<const UObject*>(std::declval<U>()))* = nullptr
+	>
+	FORCEINLINE FWeakObjectPtr(U&& Object)
+	{
+		(*this) = ImplicitConv<const UObject*>(Object);
 	}
 
 	/**  

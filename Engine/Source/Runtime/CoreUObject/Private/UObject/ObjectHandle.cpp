@@ -1,0 +1,421 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "UObject/ObjectHandle.h"
+#include "HAL/CriticalSection.h"
+#include "HAL/PlatformAtomics.h"
+#include "Misc/PackageName.h"
+#include "Misc/ScopeRWLock.h"
+#include "UObject/Class.h"
+#include "UObject/Linker.h"
+#include "UObject/LinkerLoad.h"
+#include "UObject/Package.h"
+
+bool operator==(const FObjectHandleDataClassDescriptor& Lhs, const FObjectHandleDataClassDescriptor& Rhs)
+{
+	return (Lhs.PackageName == Rhs.PackageName) && (Lhs.ClassName == Rhs.ClassName);
+}
+
+namespace ObjectHandle_Private
+{
+	class FPackageId
+	{
+		static constexpr uint32 InvalidId = ~uint32(0u);
+		uint32 Id = InvalidId;
+
+		inline explicit FPackageId(int32 InId) : Id(InId) {}
+
+	public:
+		FPackageId() = default;
+
+		inline static FPackageId FromIndex(uint32 Index)
+		{
+			return FPackageId(Index);
+		}
+
+		inline bool IsValid() const
+		{
+			return Id != InvalidId;
+		}
+
+		inline uint32 ToIndex() const
+		{
+			check(Id != InvalidId);
+			return Id;
+		}
+
+		inline bool operator==(FPackageId Other) const
+		{
+			return Id == Other.Id;
+		}
+	};
+	enum class EObjectId: uint32
+	{
+		Invalid = 0,
+	};
+
+	union FObjectId
+	{
+	private:
+		uint32 RawData;
+	public:
+		struct
+		{
+			uint32 DataClassDescriptorId : 8;
+			uint32 ObjectPathId : 24;
+		} Components;
+
+		FObjectId() = default;
+		FObjectId(EObjectId Id) : RawData(static_cast<uint32>(Id)) {}
+
+		bool operator==(EObjectId Id) { return RawData == static_cast<uint32>(Id); }
+		bool operator!=(EObjectId Id) { return RawData != static_cast<uint32>(Id); }
+	};
+
+	static_assert(sizeof(FObjectId) == sizeof(uint32), "FObjectId type must always compile to something equivalent to a uint32 size.");
+
+	struct FObjectHandlePackageData
+	{
+		FMinimalName PackageName;
+		TArray<FObjectPathId> ObjectPaths;
+		TArray<FObjectHandleDataClassDescriptor> DataClassDescriptors;
+		TMap<FObjectPathId, FObjectId> PathToObjectId;
+		FRWLock Lock;
+	};
+
+	static_assert(offsetof(FObjectHandlePackageData, PackageName) == offsetof(FObjectHandlePackageDebugData, PackageName), "FObjectHandlePackageData and FObjectHandlePackageDebugData must match in position of PackageNameField.");
+	static_assert(offsetof(FObjectHandlePackageData, ObjectPaths) == offsetof(FObjectHandlePackageDebugData, ObjectPaths), "FObjectHandlePackageData and FObjectHandlePackageDebugData must match in position of ObjectPaths.");
+	static_assert(offsetof(FObjectHandlePackageData, DataClassDescriptors) == offsetof(FObjectHandlePackageDebugData, DataClassDescriptors), "FObjectHandlePackageData and FObjectHandlePackageDebugData must match in position of DataClassDescriptors.");
+	static_assert(sizeof(FObjectHandlePackageData) == sizeof(FObjectHandlePackageDebugData), "FObjectHandlePackageData and FObjectHandlePackageDebugData must match in size.");
+
+	struct FObjectHandleIndex
+	{
+		FRWLock Lock; // @TODO: OBJPTR: Want to change this to a striped lock per object bucket to allow more concurrency when adding and looking up objects in a package
+		TMap<uint32, FPackageId> NameHashToPackageId;
+		TArray<FObjectHandlePackageData> PackageData;
+	} GObjectHandleIndex;
+
+	static inline FPackedObjectRef Pack(FPackageId PackageId, FObjectId ObjectId)
+	{
+#if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE || UE_WITH_OBJECT_HANDLE_TRACKING
+		checkf(PackageId.ToIndex() <= 0x7FFFFFFF, TEXT("Package count exceeded the space permitted within packed object references.  This implies over 2 billion packages are in use."));
+		return {static_cast<UPTRINT>(PackageId.ToIndex()) << PackageIdShift |
+				static_cast<UPTRINT>(ObjectId.Components.DataClassDescriptorId) << DataClassDescriptorIdShift |
+				static_cast<UPTRINT>(ObjectId.Components.ObjectPathId) << ObjectPathIdShift |
+				1};
+#else
+		unimplemented();
+		return {0};
+#endif
+	}
+
+	static inline void Unpack(FPackedObjectRef PackedObjectRef, FPackageId& OutPackageId, FObjectId& OutObjectId)
+	{
+#if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE || UE_WITH_OBJECT_HANDLE_TRACKING
+		checkf((PackedObjectRef.EncodedRef & 1) == 1, TEXT("Packed object reference is malformed."));
+		OutObjectId.Components.ObjectPathId = (static_cast<uint32>((PackedObjectRef.EncodedRef >> ObjectPathIdShift) & ObjectPathIdMask));
+		OutObjectId.Components.DataClassDescriptorId = (static_cast<uint32>((PackedObjectRef.EncodedRef >> DataClassDescriptorIdShift) & DataClassDescriptorIdMask));
+		OutPackageId = FPackageId::FromIndex(static_cast<uint32>((PackedObjectRef.EncodedRef >> PackageIdShift) & PackageIdMask));
+#else
+		unimplemented();
+		OutPackageId = FPackageId();
+		OutObjectId = FObjectId(EObjectId::Invalid);
+#endif
+	}
+
+	static void MakeReferenceIds(FName PackageName, FName ClassPackageName, FName ClassName, FObjectPathId ObjectPath, FPackageId& OutPackageId, FObjectId& OutObjectId)
+	{
+		uint32 NameHash = GetTypeHash(PackageName);
+
+		//Biases for read-only locking by default at the expense of having to do a second map search if a write is necessary
+		//Doing one search with either a read or locked write seems impossible with the TMap interface at the moment.
+		FRWScopeLock GlobalLockScope(GObjectHandleIndex.Lock, SLT_ReadOnly);
+		FPackageId* FoundPackageId = GObjectHandleIndex.NameHashToPackageId.Find(NameHash);
+		FObjectHandlePackageData* PackageData = nullptr;
+		if (!FoundPackageId)
+		{
+			GlobalLockScope.ReleaseReadOnlyLockAndAcquireWriteLock_USE_WITH_CAUTION();
+			//Has to be FindOrAdd, as the NameHashToPackageId may have changed between relinquishing the read lock
+			//and acquiring the write lock.
+			FPackageId NextId = FPackageId::FromIndex(GObjectHandleIndex.PackageData.Num());
+			FoundPackageId = &GObjectHandleIndex.NameHashToPackageId.FindOrAdd(NameHash, NextId);
+			if (*FoundPackageId == NextId)
+			{
+				PackageData = &GObjectHandleIndex.PackageData.AddDefaulted_GetRef();
+				PackageData->PackageName = NameToMinimalName(PackageName);
+				GCoreObjectHandlePackageDebug = reinterpret_cast<FObjectHandlePackageDebugData*>(GObjectHandleIndex.PackageData.GetData());
+			}
+			else
+			{
+				PackageData = &GObjectHandleIndex.PackageData[FoundPackageId->ToIndex()];
+			}
+			//Can't reasonably switch back to a read lock here because the downgrade would have a window where 
+			//the global map could be modified and invalidate the pointer we're holding to an element in it.
+		}
+		else
+		{
+			PackageData = &GObjectHandleIndex.PackageData[FoundPackageId->ToIndex()];
+		}
+		checkf(NameToMinimalName(PackageName) == PackageData->PackageName,
+			TEXT("Package name collision detected in ObjectHandle system.  '%s' and '%s' both produce a hash of %d"), *PackageName.ToString(), *MinimalNameToName(PackageData->PackageName).ToString(), NameHash);
+
+		OutPackageId = *FoundPackageId;
+
+		FRWScopeLock LocalLockScope(PackageData->Lock, SLT_ReadOnly);
+		FObjectId* FoundId = PackageData->PathToObjectId.Find(ObjectPath);
+
+		if (FoundId)
+		{
+			check(*FoundId != EObjectId::Invalid);
+			OutObjectId = *FoundId;
+			return;
+		}
+
+		LocalLockScope.ReleaseReadOnlyLockAndAcquireWriteLock_USE_WITH_CAUTION();
+		//The PathToObjectId could have been modified when the read lock was released and the write
+		//lock was acquired, so we must check and see if the ObjectPath was added in that window.
+		FoundId = &PackageData->PathToObjectId.FindOrAdd(ObjectPath, EObjectId::Invalid);
+		if (*FoundId != EObjectId::Invalid)
+		{
+			OutObjectId = *FoundId;
+			return;
+		}
+		uint32 PathIndex = PackageData->ObjectPaths.Emplace(ObjectPath);
+		checkf(((PathIndex + 1) & ~ObjectHandle_Private::ObjectPathIdMask) == 0, TEXT("Path id overflowed space in ObjectHandle"));
+		FoundId->Components.ObjectPathId = PathIndex + 1;
+
+		if (!ClassName.IsNone() && !ClassPackageName.IsNone())
+		{
+			// @TODO: OBJPTR: This could be inefficient if there are a high number of references to blueprint data instances
+			//		or references to unique blueprints in a single package.  Evaluate whether that's likely to be
+			//		the case in practice.
+			FObjectHandleDataClassDescriptor DataClassDesc{NameToMinimalName(ClassPackageName), NameToMinimalName(ClassName)};
+			uint32 DataClassDescriptorIndex = PackageData->DataClassDescriptors.AddUnique(DataClassDesc);
+			checkf(((DataClassDescriptorIndex + 1) & ~ObjectHandle_Private::DataClassDescriptorIdMask) == 0, TEXT("Data class descriptor id overflowed space in ObjectHandle"));
+			FoundId->Components.DataClassDescriptorId = DataClassDescriptorIndex + 1;
+		}
+		OutObjectId = *FoundId;
+	}
+
+	static inline FPackedObjectRef MakePackedObjectRef(FName PackageName, FName ClassPackageName, FName ClassName, FObjectPathId ObjectPath)
+	{
+		FPackageId PackageId;
+		FObjectId ObjectId;
+		MakeReferenceIds(PackageName, ClassPackageName, ClassName, ObjectPath, PackageId, ObjectId);
+		return Pack(PackageId, ObjectId);
+	}
+
+	static void GetObjectDataFromId(FPackageId PackageId, FObjectId ObjectId, FMinimalName& OutPackageName, FObjectPathId& OutPathId, FMinimalName& OutClassPackageName, FMinimalName& OutClassName)
+	{
+		if (ObjectId == EObjectId::Invalid)
+		{
+			return;
+		}
+
+		FRWScopeLock GlobalLockScope(GObjectHandleIndex.Lock, SLT_ReadOnly);
+		FObjectHandlePackageData& FoundPackageData = GObjectHandleIndex.PackageData[PackageId.ToIndex()];
+
+		FRWScopeLock LocalLockScope(FoundPackageData.Lock, SLT_ReadOnly);
+		OutPackageName = FoundPackageData.PackageName;
+		check(static_cast<uint32>(FoundPackageData.ObjectPaths.Num()) >= ObjectId.Components.ObjectPathId);
+		OutPathId = FoundPackageData.ObjectPaths[ObjectId.Components.ObjectPathId - 1];
+
+		if (ObjectId.Components.DataClassDescriptorId > 0)
+		{
+			check(static_cast<uint32>(FoundPackageData.DataClassDescriptors.Num()) >= ObjectId.Components.DataClassDescriptorId);
+			FObjectHandleDataClassDescriptor& Desc = FoundPackageData.DataClassDescriptors[ObjectId.Components.DataClassDescriptorId - 1];
+			OutClassPackageName = Desc.PackageName;
+			OutClassName = Desc.ClassName;
+		}
+	}
+
+	static inline FObjectRef MakeObjectRef(FPackedObjectRef PackedObjectRef)
+	{
+		FObjectId ObjectId;
+		FPackageId PackageId;
+		Unpack(PackedObjectRef, PackageId, ObjectId);
+
+		FMinimalName PackageName;
+		FObjectPathId PathId;
+		FMinimalName ClassPackageName;
+		FMinimalName ClassName;
+		GetObjectDataFromId(PackageId, ObjectId, PackageName, PathId, ClassPackageName, ClassName);
+		return FObjectRef{MinimalNameToName(PackageName), MinimalNameToName(ClassPackageName), MinimalNameToName(ClassName), PathId};
+	}
+};
+
+static inline FName GetNameOrNone(UObject* Object)
+{
+	return Object ? Object->GetFName() : NAME_None;
+}
+
+FObjectRef MakeObjectRef(const UObject* Object)
+{
+	if (!Object)
+	{
+		return {NAME_None, NAME_None, NAME_None, FObjectPathId()};
+	}
+	
+	UObject* ClassGeneratedBy = Object->GetClass()->ClassGeneratedBy;
+	UPackage* ClassGeneratedByPackage = ClassGeneratedBy ? ClassGeneratedBy->GetOutermost() : nullptr;
+	return FObjectRef {GetNameOrNone(Object->GetOutermost()), GetNameOrNone(ClassGeneratedByPackage), GetNameOrNone(ClassGeneratedBy), FObjectPathId(Object)};
+}
+
+FObjectRef MakeObjectRef(FPackedObjectRef PackedObjectRef)
+{
+	if (IsPackedObjectRefNull(PackedObjectRef))
+	{
+		return {NAME_None, NAME_None, NAME_None, FObjectPathId()};
+	}
+
+	return ObjectHandle_Private::MakeObjectRef(PackedObjectRef);
+}
+
+FPackedObjectRef MakePackedObjectRef(const UObject* Object)
+{
+	if (!Object)
+	{
+		return {0};
+	}
+
+	FName PackageName = GetNameOrNone(Object->GetOutermost());
+	UObject* ClassGeneratedBy = Object->GetClass()->ClassGeneratedBy;
+	UPackage* ClassGeneratedByPackage = ClassGeneratedBy ? ClassGeneratedBy->GetOutermost() : nullptr;
+	return ObjectHandle_Private::MakePackedObjectRef(PackageName, GetNameOrNone(ClassGeneratedByPackage), GetNameOrNone(ClassGeneratedBy), FObjectPathId(Object));
+}
+
+FPackedObjectRef MakePackedObjectRef(const FObjectRef& ObjectRef)
+{
+	if (IsObjectRefNull(ObjectRef))
+	{
+		return {0};
+	}
+
+	return ObjectHandle_Private::MakePackedObjectRef(ObjectRef.PackageName, ObjectRef.ClassPackageName, ObjectRef.ClassName, ObjectRef.ObjectPath);
+}
+
+static inline UPackage* FindOrLoadPackage(FName PackageName, int32 LoadFlags)
+{
+	// @TODO: OBJPTR: Want to replicate the functional path of an import here.  See things like FindImportFast in BlueprintSupport.cpp
+	// 		 for additional behavior that we're not handling here yet.
+	FName* ScriptPackageName = FPackageName::FindScriptPackageName(PackageName);
+	UPackage* TargetPackage = (UPackage*)StaticFindObjectFast(UPackage::StaticClass(), nullptr, PackageName);
+	if (!ScriptPackageName && !TargetPackage)
+	{
+		// @TODO: OBJPTR: This seems like it will do a search on disk every time instead of leveraging known missing packages
+		// @TODO: OBJPTR: Instancing context may be important to consider when loading the package.
+		LoadFlags |= LOAD_NoWarn | LOAD_NoVerify; //This does nothing? | LOAD_DisableDependencyPreloading;
+		TargetPackage = LoadPackage(nullptr, *PackageName.ToString(), LoadFlags);
+	}
+	return TargetPackage;
+}
+
+UClass* ResolveObjectRefClass(const FObjectRef& ObjectRef, uint32 LoadFlags /*= LOAD_None*/)
+{
+	UClass* ClassObject = nullptr;
+	UPackage* ClassPackage = nullptr;
+	if (!ObjectRef.ClassPackageName.IsNone())
+	{
+		ClassPackage = FindOrLoadPackage(ObjectRef.ClassPackageName, LoadFlags);
+
+		if (!ObjectRef.ClassName.IsNone())
+		{
+			ClassObject = (UClass*)StaticFindObjectFast(UClass::StaticClass(), ClassPackage, ObjectRef.ClassName);
+			if (ClassObject)
+			{
+				if (ClassObject->HasAnyFlags(RF_NeedLoad) && ClassPackage->LinkerLoad)
+				{
+					ClassPackage->LinkerLoad->Preload(ClassObject);
+				}
+				ClassObject->GetDefaultObject(); // build the CDO if it isn't already built
+			}
+		}
+	}
+
+	ObjectHandle_Private::OnClassReferenceResolved(ObjectRef, ClassPackage, ClassObject);
+	return ClassObject;
+}
+
+UObject* ResolveObjectRef(const FObjectRef& ObjectRef, uint32 LoadFlags /*= LOAD_None*/)
+{
+	//NOTE: Written with the assumption that there's no partial loading of packages.
+	//		A package when loaded is fully loaded, so there's no possibility of needing
+	//		to do additional loading work up the outer chain for a target object.
+
+	if (IsObjectRefNull(ObjectRef))
+	{
+		ObjectHandle_Private::OnReferenceResolved(ObjectRef, nullptr, nullptr);
+		return nullptr;
+	}
+
+#if USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
+	// @TODO: OBJPTR: Do we need something equivalent for handling circular dependencies during lazy load?
+	//DeferPotentialCircularImport(Index);
+#endif // USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
+
+	ResolveObjectRefClass(ObjectRef, LoadFlags);
+
+	UPackage* TargetPackage = FindOrLoadPackage(ObjectRef.PackageName, LoadFlags);
+
+	if (!TargetPackage)
+	{
+		ObjectHandle_Private::OnReferenceResolved(ObjectRef, nullptr, nullptr);
+		return nullptr;
+	}
+
+	FObjectPathId::ResolvedNameContainerType ResolvedNames;
+	ObjectRef.ObjectPath.Resolve(ResolvedNames);
+
+	// @TODO: OBJPTR: This seems like a silly way to find objects in a hierarchy, investigate better options.
+	//		 Normal import resolving walks up the outer hierarchy and each outer can have a resolved
+	//		 result cached avoiding any further walking up the hierarchy. Is that something that
+	//		 could/should be emulated here?
+	UObject* CurrentObject = TargetPackage;
+	for (int32 ObjectPathIndex = 0; ObjectPathIndex < ResolvedNames.Num(); ++ObjectPathIndex)
+	{
+		CurrentObject = StaticFindObjectFast(nullptr, CurrentObject, ResolvedNames[ObjectPathIndex]);
+		if (!CurrentObject)
+		{
+			ObjectHandle_Private::OnReferenceResolved(ObjectRef, TargetPackage, nullptr);
+			return nullptr;
+		}
+	}
+
+	if (CurrentObject->HasAnyFlags(RF_NeedLoad) && TargetPackage->LinkerLoad)
+	{
+		TargetPackage->LinkerLoad->Preload(CurrentObject);
+	}
+	ObjectHandle_Private::OnReferenceResolved(ObjectRef, TargetPackage, CurrentObject);
+
+	return CurrentObject;
+}
+
+UClass* ResolvePackedObjectRefClass(FPackedObjectRef PackedObjectRef, uint32 LoadFlags /*= LOAD_None*/)
+{
+	return ResolveObjectRefClass(MakeObjectRef(PackedObjectRef), LoadFlags);
+}
+
+UObject* ResolvePackedObjectRef(FPackedObjectRef PackedObjectRef, uint32 LoadFlags /*= LOAD_None*/)
+{
+	return ResolveObjectRef(MakeObjectRef(PackedObjectRef), LoadFlags);
+}
+
+#if UE_WITH_OBJECT_HANDLE_TRACKING
+COREUOBJECT_API ObjectHandleReadFunction* ObjectHandle_Private::ObjectHandleReadCallback = nullptr;
+COREUOBJECT_API ObjectHandleClassResolvedFunction* ObjectHandle_Private::ObjectHandleClassResolvedCallback = nullptr;
+COREUOBJECT_API ObjectHandleReferenceResolvedFunction* ObjectHandle_Private::ObjectHandleReferenceResolvedCallback = nullptr;
+
+ObjectHandleReadFunction* SetObjectHandleReadCallback(ObjectHandleReadFunction* Function)
+{
+	return (ObjectHandleReadFunction*)FPlatformAtomics::InterlockedExchangePtr((void**)&ObjectHandle_Private::ObjectHandleReadCallback, (void*)Function);
+}
+
+ObjectHandleClassResolvedFunction* SetObjectHandleClassResolvedCallback(ObjectHandleClassResolvedFunction* Function)
+{
+	return (ObjectHandleClassResolvedFunction*)FPlatformAtomics::InterlockedExchangePtr((void**)&ObjectHandle_Private::ObjectHandleClassResolvedCallback, (void*)Function);
+}
+
+ObjectHandleReferenceResolvedFunction* SetObjectHandleReferenceResolvedCallback(ObjectHandleReferenceResolvedFunction* Function)
+{
+	return (ObjectHandleReferenceResolvedFunction*)FPlatformAtomics::InterlockedExchangePtr((void**)&ObjectHandle_Private::ObjectHandleReferenceResolvedCallback, (void*)Function);
+}
+#endif // UE_WITH_OBJECT_HANDLE_TRACKING

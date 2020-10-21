@@ -7,7 +7,9 @@
 #include "Serialization/BulkDataReader.h"
 #include "Serialization/BulkDataWriter.h"
 #include "UObject/EnterpriseObjectVersion.h"
+#include "UObject/UE5CookerObjectVersion.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
+#include "Virtualization/VirtualizationUtilities.h"
 
 
 FName FMeshDescription::VerticesName("Vertices");
@@ -1916,7 +1918,6 @@ void FMeshDescription::RemapPolygonGroups(const TMap<FPolygonGroupID, FPolygonGr
 }
 
 
-
 #if WITH_EDITORONLY_DATA
 
 void FMeshDescriptionBulkData::Serialize( FArchive& Ar, UObject* Owner )
@@ -1925,6 +1926,9 @@ void FMeshDescriptionBulkData::Serialize( FArchive& Ar, UObject* Owner )
 	Ar.UsingCustomVersion( FReleaseObjectVersion::GUID );
 	Ar.UsingCustomVersion( FEnterpriseObjectVersion::GUID );
 	Ar.UsingCustomVersion( FUE5MainStreamObjectVersion::GUID );
+#if UE_USE_VIRTUALBULKDATA
+	Ar.UsingCustomVersion(FUE5CookerObjectVersion::GUID);
+#endif //UE_USE_VIRTUALBULKDATA
 
 	if( Ar.IsTransacting() )
 	{
@@ -1953,7 +1957,20 @@ void FMeshDescriptionBulkData::Serialize( FArchive& Ar, UObject* Owner )
 		}
 	}
 
-	BulkData.Serialize( Ar, Owner );
+#if UE_USE_VIRTUALBULKDATA
+	bool bSerializedOldDataTypes = false;
+	FByteBulkData TempBulkData;
+	if (Ar.IsLoading() && Ar.CustomVer(FUE5CookerObjectVersion::GUID) < FUE5CookerObjectVersion::MeshDescriptionVirtualization)
+	{
+		// Serialize the old BulkData format and mark that we require a conversion after the guid has been serialized
+		TempBulkData.Serialize(Ar, Owner);
+		bSerializedOldDataTypes = true;
+	}
+	else
+#endif //UE_USE_VIRTUALBULKDATA	
+	{
+		BulkData.Serialize(Ar, Owner);
+	}
 
 	if( Ar.IsLoading() && Ar.CustomVer( FEditorObjectVersion::GUID ) < FEditorObjectVersion::MeshDescriptionBulkDataGuid )
 	{
@@ -1973,6 +1990,14 @@ void FMeshDescriptionBulkData::Serialize( FArchive& Ar, UObject* Owner )
 	{
 		Ar << bGuidIsHash;
 	}
+
+#if UE_USE_VIRTUALBULKDATA
+	// Needs to be after the guid is serialized
+	if (bSerializedOldDataTypes)
+	{
+		BulkData.CreateFromBulkData(TempBulkData, Guid);
+	}
+#endif //UE_USE_VIRTUALBULKDATA
 }
 
 
@@ -1980,12 +2005,21 @@ void FMeshDescriptionBulkData::SaveMeshDescription( FMeshDescription& MeshDescri
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FMeshDescriptionBulkData::SaveMeshDescription);
 
+#if UE_USE_VIRTUALBULKDATA
+	BulkData.Reset();
+#else
 	BulkData.RemoveBulkData();
+#endif //UE_USE_VIRTUALBULKDATA
 
 	if( !MeshDescription.IsEmpty() )
 	{
 		const bool bIsPersistent = true;
-		FBulkDataWriter Ar( BulkData, bIsPersistent );
+#if UE_USE_VIRTUALBULKDATA
+		FVirtualizedBulkDataWriter Ar(BulkData, bIsPersistent);
+#else
+		FBulkDataWriter Ar(BulkData, bIsPersistent);
+#endif //UE_USE_VIRTUALBULKDATA
+
 		Ar << MeshDescription;
 
 		// Preserve CustomVersions at save time so we can reuse the same ones when reloading direct from memory
@@ -2011,12 +2045,16 @@ void FMeshDescriptionBulkData::LoadMeshDescription( FMeshDescription& MeshDescri
 {
 	MeshDescription.Empty();
 
-	if( BulkData.GetElementCount() > 0 )
+	if (BulkData.GetBulkDataSize() > 0)
 	{
 		// Get a lock on the bulk data and read it into the mesh description
 		{
 			const bool bIsPersistent = true;
-			FBulkDataReader Ar( BulkData, bIsPersistent );
+#if UE_USE_VIRTUALBULKDATA
+			FVirtualizedBulkDataReader Ar(BulkData, bIsPersistent);
+#else
+			FBulkDataReader Ar(BulkData, bIsPersistent);
+#endif //UE_USE_VIRTUALBULKDATA
 
 			// Propagate the custom version information from the package to the bulk data, so that the MeshDescription
 			// is serialized with the same versioning.
@@ -2027,16 +2065,20 @@ void FMeshDescriptionBulkData::LoadMeshDescription( FMeshDescription& MeshDescri
 
 		// Throw away the bulk data allocation as we don't need it now we have its contents as a FMeshDescription
 		// @todo: revisit this
-//		BulkData.UnloadBulkData();
+#if UE_USE_VIRTUALBULKDATA
+		BulkData.UnloadData();
+#endif //UE_USE_VIRTUALBULKDATA
 	}
 }
 
-
 void FMeshDescriptionBulkData::Empty()
 {
+#if UE_USE_VIRTUALBULKDATA
+	BulkData.Reset();
+#else
 	BulkData.RemoveBulkData();
+#endif //UE_USE_VIRTUALBULKDATA
 }
-
 
 FString FMeshDescriptionBulkData::GetIdString() const
 {
@@ -2051,17 +2093,26 @@ FString FMeshDescriptionBulkData::GetIdString() const
 
 void FMeshDescriptionBulkData::UseHashAsGuid()
 {
-	uint32 Hash[5] = {};
-
 	if (BulkData.GetBulkDataSize() > 0)
 	{
 		bGuidIsHash = true;
-		void* Buffer = BulkData.Lock(LOCK_READ_ONLY);
+
+#if UE_USE_VIRTUALBULKDATA
+		Guid = BulkData.GetKey();
+#else
+		uint32 Hash[5] = {};
+
+		const void* Buffer = BulkData.LockReadOnly();
 		FSHA1::HashBuffer(Buffer, BulkData.GetBulkDataSize(), (uint8*)Hash);
 		BulkData.Unlock();
-	}
 
-	Guid = FGuid(Hash[0] ^ Hash[4], Hash[1], Hash[2], Hash[3]);
+		Guid = FGuid(Hash[0] ^ Hash[4], Hash[1], Hash[2], Hash[3]);
+#endif //UE_USE_VIRTUALBULKDATA
+	}
+	else
+	{
+		Guid.Invalidate();
+	}	
 }
 
 #endif // #if WITH_EDITORONLY_DATA

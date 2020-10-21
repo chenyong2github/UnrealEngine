@@ -362,7 +362,7 @@ void UAnimStreamable::PostLoad()
 	Super::PostLoad();
 
 #if WITH_EDITOR
-	if (UAnimSequence* NonConstSeq = const_cast<UAnimSequence*>(SourceSequence))
+	if (UAnimSequence* NonConstSeq = const_cast<UAnimSequence*>(ToRawPtr(SourceSequence)))
 	{
 		if (FLinkerLoad* Linker = NonConstSeq->GetLinker())
 		{

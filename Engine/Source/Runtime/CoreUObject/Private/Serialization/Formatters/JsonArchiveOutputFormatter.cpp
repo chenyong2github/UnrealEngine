@@ -9,6 +9,7 @@
 #include "UObject/SoftObjectPtr.h"
 #include "UObject/SoftObjectPath.h"
 #include "UObject/LazyObjectPtr.h"
+#include "UObject/ObjectPtr.h"
 
 #if WITH_TEXT_ARCHIVE_SUPPORT
 
@@ -395,6 +396,19 @@ void FJsonArchiveOutputFormatter::Serialize(FLazyObjectPtr& Value)
 	if (Value.IsValid() && IsObjectAllowed(Value.Get()))
 	{
 		SerializeStringInternal(FString::Printf(TEXT("Lazy:%s"), *Value.GetUniqueID().ToString()));
+	}
+	else
+	{
+		WriteValue(TEXT("null"));
+	}
+}
+
+void FJsonArchiveOutputFormatter::Serialize(FObjectPtr& Value)
+{
+	if (!Value.IsNull() && IsObjectAllowed(Value.Get()))
+	{
+		FString FullObjectName = Value->GetFullName(nullptr, EObjectFullNameFlags::IncludeClassPackage);
+		SerializeStringInternal(FString::Printf(TEXT("Object:%s"), *FullObjectName));
 	}
 	else
 	{

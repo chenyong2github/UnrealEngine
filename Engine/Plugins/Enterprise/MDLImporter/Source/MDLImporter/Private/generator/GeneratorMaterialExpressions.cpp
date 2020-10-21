@@ -394,6 +394,19 @@ namespace Generator
 		}
 	}
 
+	void CheckedConnect(UObject* Parent, const FMaterialExpressionConnection& Connection, FExpressionInput& Input, TObjectPtr<UTexture>* OutTexturePtr)
+	{
+		if (Connection.ConnectionType == EConnectionType::Texture)
+		{
+			check(OutTexturePtr && Connection.Texture);
+			*OutTexturePtr = Connection.Texture;
+		}
+		else
+		{
+			CheckedConnect(Parent, Connection, Input);
+		}
+	}
+
 	uint32 ComponentCount(const FMaterialExpressionConnection& Input)
 	{
 		switch (Input.ConnectionType)

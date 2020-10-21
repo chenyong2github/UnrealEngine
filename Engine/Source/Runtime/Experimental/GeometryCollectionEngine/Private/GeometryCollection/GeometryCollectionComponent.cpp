@@ -1738,7 +1738,7 @@ void UGeometryCollectionComponent::OnCreatePhysicsState()
 		if (RestCollection)
 		{
 			//hack: find a better place for this
-			UGeometryCollection* RestCollectionMutable = const_cast<UGeometryCollection*>(RestCollection);
+			UGeometryCollection* RestCollectionMutable = const_cast<UGeometryCollection*>(ToRawPtr(RestCollection));
 			RestCollectionMutable->EnsureDataIsCooked();
 		}
 #endif
@@ -2154,7 +2154,7 @@ UGeometryCollection* FGeometryCollectionEdit::GetRestCollection()
 {
 	if (Component)
 	{
-		return const_cast<UGeometryCollection*>(Component->RestCollection);	//const cast is ok here since we are explicitly in edit mode. Should all this editor code be in an editor module?
+		return const_cast<UGeometryCollection*>(ToRawPtr(Component->RestCollection));	//const cast is ok here since we are explicitly in edit mode. Should all this editor code be in an editor module?
 	}
 	return nullptr;
 }

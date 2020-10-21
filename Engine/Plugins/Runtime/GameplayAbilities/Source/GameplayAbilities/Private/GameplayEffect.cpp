@@ -33,11 +33,11 @@ DECLARE_CYCLE_STAT(TEXT("MakeQuery"), STAT_MakeGameplayEffectQuery, STATGROUP_Ab
 
 #if WITH_EDITOR
 #define GETCURVE_REPORTERROR_WITHPOSTLOAD(Handle) \
-	if (Handle.CurveTable) const_cast<UCurveTable*>(Handle.CurveTable)->ConditionalPostLoad(); \
+	if (Handle.CurveTable) const_cast<UCurveTable*>(ToRawPtr(Handle.CurveTable))->ConditionalPostLoad(); \
 	GETCURVE_REPORTERROR(Handle);
 
 #define GETCURVE_REPORTERROR_WITHPATHNAME_WITHPOSTLOAD(Handle, PathNameString) \
-	if (Handle.CurveTable) const_cast<UCurveTable*>(Handle.CurveTable)->ConditionalPostLoad(); \
+	if (Handle.CurveTable) const_cast<UCurveTable*>(ToRawPtr(Handle.CurveTable))->ConditionalPostLoad(); \
 	GETCURVE_REPORTERROR_WITHPATHNAME(Handle, PathNameString);
 #endif // WITH_EDITOR
 

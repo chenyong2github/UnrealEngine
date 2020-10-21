@@ -210,6 +210,11 @@ bool SMaterialLayersFunctionsInstanceTree::IsOverriddenExpression(class UDEditor
 	return FMaterialPropertyHelpers::IsOverriddenExpression(Parameter) && FunctionInstance->LayerStates[InIndex];
 }
 
+bool SMaterialLayersFunctionsInstanceTree::IsOverriddenExpression(TObjectPtr<UDEditorParameterValue> Parameter, int32 InIndex)
+{
+	return IsOverriddenExpression(Parameter.Get(), InIndex);
+}
+
 FGetShowHiddenParameters SMaterialLayersFunctionsInstanceTree::GetShowHiddenDelegate() const
 {
 	return ShowHiddenDelegate;
@@ -219,6 +224,11 @@ void  SMaterialLayersFunctionsInstanceTreeItem::OnOverrideParameter(bool NewValu
 {
 	FMaterialPropertyHelpers::OnOverrideParameter(NewValue, Parameter, MaterialEditorInstance);
 	Tree->GetWrapper()->Refresh();
+}
+
+void  SMaterialLayersFunctionsInstanceTreeItem::OnOverrideParameter(bool NewValue, TObjectPtr<UDEditorParameterValue> Parameter)
+{
+	OnOverrideParameter(NewValue, Parameter.Get());
 }
 
 void SMaterialLayersFunctionsInstanceTreeItem::Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView)

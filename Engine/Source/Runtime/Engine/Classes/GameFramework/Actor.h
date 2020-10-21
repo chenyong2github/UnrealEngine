@@ -1886,31 +1886,31 @@ public:
 	/** Returns the transform of the RootComponent of this Actor*/ 
 	FORCEINLINE const FTransform& GetActorTransform() const
 	{
-		return TemplateGetActorTransform(RootComponent);
+		return TemplateGetActorTransform(ToRawPtr(RootComponent));
 	}
 
 	/** Returns the location of the RootComponent of this Actor*/ 
 	FORCEINLINE FVector GetActorLocation() const
 	{
-		return TemplateGetActorLocation(RootComponent);
+		return TemplateGetActorLocation(ToRawPtr(RootComponent));
 	}
 
 	/** Returns the rotation of the RootComponent of this Actor */
 	FORCEINLINE FRotator GetActorRotation() const
 	{
-		return TemplateGetActorRotation(RootComponent);
+		return TemplateGetActorRotation(ToRawPtr(RootComponent));
 	}
 
 	/** Returns the scale of the RootComponent of this Actor */
 	FORCEINLINE FVector GetActorScale() const
 	{
-		return TemplateGetActorScale(RootComponent);
+		return TemplateGetActorScale(ToRawPtr(RootComponent));
 	}
 
 	/** Returns the quaternion of the RootComponent of this Actor */
 	FORCEINLINE FQuat GetActorQuat() const
 	{
-		return TemplateGetActorQuat(RootComponent);
+		return TemplateGetActorQuat(ToRawPtr(RootComponent));
 	}
 
 #if WITH_EDITOR
@@ -3690,17 +3690,17 @@ FORCEINLINE_DEBUGGABLE USceneComponent* AActor::K2_GetRootComponent() const
 
 FORCEINLINE_DEBUGGABLE FVector AActor::GetActorForwardVector() const
 {
-	return TemplateGetActorForwardVector(RootComponent);
+	return TemplateGetActorForwardVector(ToRawPtr(RootComponent));
 }
 
 FORCEINLINE_DEBUGGABLE FVector AActor::GetActorUpVector() const
 {
-	return TemplateGetActorUpVector(RootComponent);
+	return TemplateGetActorUpVector(ToRawPtr(RootComponent));
 }
 
 FORCEINLINE_DEBUGGABLE FVector AActor::GetActorRightVector() const
 {
-	return TemplateGetActorRightVector(RootComponent);
+	return TemplateGetActorRightVector(ToRawPtr(RootComponent));
 }
 
 

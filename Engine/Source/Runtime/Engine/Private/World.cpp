@@ -7399,16 +7399,18 @@ void UWorld::CopyGameState(AGameModeBase* FromGameMode, AGameStateBase* FromGame
 	SetGameState(FromGameState);
 }
 
-void UWorld::GetLightMapsAndShadowMaps(ULevel* Level, TArray<UTexture2D*>& OutLightMapsAndShadowMaps)
+void UWorld::GetLightMapsAndShadowMaps(ULevel* Level, TArray<UTexture2D*>& OutLightMapsAndShadowMaps, bool bForceLazyLoad /*= true*/)
 {
 	class FFindLightmapsArchive : public FArchiveUObject
 	{
 		/** The array of textures discovered */
 		TArray<UTexture2D*>& TextureList;
+		bool bForceLazyLoad;
 
 	public:
-		FFindLightmapsArchive(UObject* InSearch, TArray<UTexture2D*>& OutTextureList)
+		FFindLightmapsArchive(UObject* InSearch, TArray<UTexture2D*>& OutTextureList, bool bInForceLazyLoad)
 			: TextureList(OutTextureList)
+			, bForceLazyLoad(bInForceLazyLoad)
 		{
 			ArIsObjectReferenceCollector = true;
 			ArIsModifyingWeakAndStrongReferences = true; // While we are not modifying them, we want to follow weak references as well
@@ -7443,6 +7445,33 @@ void UWorld::GetLightMapsAndShadowMaps(ULevel* Level, TArray<UTexture2D*>& OutLi
 
 			return *this;
 		}
+
+		FArchive& operator<<(FObjectPtr& Obj)
+		{
+			// @TODO: OBJPTR: Could some or all of this behavior be generalized for use in other reference collectors?
+			//			Could add another Ar* flag to control whether lazy loads get resolved.  Could add a derivative
+			//			of FArchiveUObject that filters references by type.
+
+			// Don't check null references or objects already visited. Also, skip UWorlds as they will pull in more levels than desired
+			if (!Obj.IsNull() && !Obj.IsA<UWorld>())
+			{
+				if (Obj.IsA<ULightMapTexture2D>() ||
+					Obj.IsA<UShadowMapTexture2D>() ||
+					Obj.IsA<ULightMapVirtualTexture2D>())
+				{
+					UTexture2D* Tex = Cast<UTexture2D>(Obj.Get());
+					if (ensure(Tex))
+					{
+						TextureList.Add(Tex);
+					}
+				}
+				else if (IsObjectHandleResolved(Obj.GetHandle()) || bForceLazyLoad)
+				{
+					return FArchiveUObject::operator<<(Obj);
+				}
+			}
+			return *this;
+		}
 	};
 
 	UObject* SearchObject = Level;
@@ -7451,7 +7480,7 @@ void UWorld::GetLightMapsAndShadowMaps(ULevel* Level, TArray<UTexture2D*>& OutLi
 		SearchObject = PersistentLevel;
 	}
 
-	FFindLightmapsArchive FindArchive(SearchObject, OutLightMapsAndShadowMaps);
+	FFindLightmapsArchive FindArchive(SearchObject, OutLightMapsAndShadowMaps, bForceLazyLoad);
 }
 
 void UWorld::CreateFXSystem()

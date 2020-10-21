@@ -310,6 +310,16 @@ template< class T, class U > FORCEINLINE T* Cast       ( const TWeakObjectPtr<U>
 template< class T, class U > FORCEINLINE T* ExactCast  ( const TWeakObjectPtr<U>& Src                                                                   ) { return ExactCast  <T>(Src.Get()); }
 template< class T, class U > FORCEINLINE T* CastChecked( const TWeakObjectPtr<U>& Src, ECastCheckedType::Type CheckType = ECastCheckedType::NullChecked ) { return CastChecked<T>(Src.Get(), CheckType); }
 
+// object ptr versions
+template <class T, class U> FORCEINLINE TObjectPtr<T> Cast       ( const TObjectPtr<U>& Src                                                                   ) { return TObjectPtr<T>(Cast       <T>(Src.Get())); }
+template <class T, class U> FORCEINLINE TObjectPtr<T> ExactCast  ( const TObjectPtr<U>& Src                                                                   ) { return TObjectPtr<T>(ExactCast  <T>(Src.Get())); }
+template <class T, class U> FORCEINLINE TObjectPtr<T> CastChecked( const TObjectPtr<U>& Src, ECastCheckedType::Type CheckType = ECastCheckedType::NullChecked ) { return TObjectPtr<T>(CastChecked<T>(Src.Get(), CheckType)); }
+
+// const object ptr versions
+template <class T, class U> FORCEINLINE TObjectPtr<const T> Cast       ( const TObjectPtr<const U>& Src                                                                   ) { return TObjectPtr<const T>(Cast       <T>(Src.Get())); }
+template <class T, class U> FORCEINLINE TObjectPtr<const T> ExactCast  ( const TObjectPtr<const U>& Src                                                                   ) { return TObjectPtr<const T>(ExactCast  <T>(Src.Get())); }
+template <class T, class U> FORCEINLINE TObjectPtr<const T> CastChecked( const TObjectPtr<const U>& Src, ECastCheckedType::Type CheckType = ECastCheckedType::NullChecked ) { return TObjectPtr<const T>(CastChecked<T>(Src.Get(), CheckType)); }
+
 // TSubclassOf versions
 template< class T, class U > FORCEINLINE T* Cast       ( const TSubclassOf<U>& Src                                                                   ) { return Cast       <T>(*Src); }
 template< class T, class U > FORCEINLINE T* CastChecked( const TSubclassOf<U>& Src, ECastCheckedType::Type CheckType = ECastCheckedType::NullChecked ) { return CastChecked<T>(*Src, CheckType); }
@@ -350,6 +360,7 @@ DECLARE_CAST_BY_FLAG(UClass)							\
 DECLARE_CAST_BY_FLAG(FProperty)							\
 DECLARE_CAST_BY_FLAG(FObjectPropertyBase)				\
 DECLARE_CAST_BY_FLAG(FObjectProperty)					\
+DECLARE_CAST_BY_FLAG(FObjectPtrProperty)				\
 DECLARE_CAST_BY_FLAG(FWeakObjectProperty)				\
 DECLARE_CAST_BY_FLAG(FLazyObjectProperty)				\
 DECLARE_CAST_BY_FLAG(FSoftObjectProperty)				\

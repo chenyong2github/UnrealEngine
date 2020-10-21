@@ -18,7 +18,8 @@ public:
 	FBindingObject()
 		: bIsUObject(false)
 	{}
-	FBindingObject(UObject* InObject)
+	template <typename T, decltype(ImplicitConv<UObject*>(DeclVal<T>()))* = nullptr>
+	FBindingObject(T InObject)
 		: Object(InObject)
 		, bIsUObject(true)
 	{}
@@ -38,9 +39,10 @@ public:
 			Property = InFieldOrObject.ToField();
 		}
 	}
-	FBindingObject& operator=(UObject* InObject)
+	template <typename T, decltype(ImplicitConv<UObject*>(DeclVal<T>()))* = nullptr>
+	FBindingObject& operator=(T InObject)
 	{
-		Object = InObject;
+		Object = ImplicitConv<UObject*>(InObject);
 		Property = nullptr;
 		bIsUObject = true;
 		return *this;

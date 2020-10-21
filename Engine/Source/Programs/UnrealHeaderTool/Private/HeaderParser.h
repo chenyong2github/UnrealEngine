@@ -417,6 +417,13 @@ struct FDocumentationPolicy
 	bool bFloatRangesRequired = UHT_DOCUMENTATION_POLICY_DEFAULT;
 };
 
+enum class ENativePointerMemberBehavior
+{
+	Disallow,
+	AllowSilently,
+	AllowAndLog,
+};
+
 /////////////////////////////////////////////////////
 // FHeaderParser
 
@@ -429,6 +436,8 @@ class FHeaderParser : public FBaseParser, public FContextSupplier
 public:
 	// Default version of generated code. Defaults to oldest possible, unless specified otherwise in config.
 	static EGeneratedCodeVersion DefaultGeneratedCodeVersion;
+
+	static ENativePointerMemberBehavior NativePointerMemberBehavior;
 
 	// Compute the function parameter size and save the return offset
 	static void ComputeFunctionParametersSize(UClass* InClass);
@@ -768,6 +777,8 @@ protected:
 		bool bAllowSaveExportedHeaders,
 		const FManifestModule& Module
 	);
+
+	FString GetSourceFileContext() const;
 
 	// FContextSupplier interface.
 	virtual FString GetContext() override;

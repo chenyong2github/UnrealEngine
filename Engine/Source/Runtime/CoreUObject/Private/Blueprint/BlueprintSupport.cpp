@@ -2,6 +2,7 @@
 
 #include "Blueprint/BlueprintSupport.h"
 #include "Misc/ScopeLock.h"
+#include "Misc/CommandLine.h"
 #include "Misc/CoreMisc.h"
 #include "Misc/ConfigCacheIni.h"
 #include "UObject/UObjectHash.h"
@@ -1765,7 +1766,14 @@ void FLinkerLoad::FinalizeBlueprint(UClass* LoadClass)
 	// do, otherwise other linkers could want to finish this off when they don't
 	// have to)... we do however need it here in FinalizeBlueprint(), because
 	// we need it ran for any super-classes before we regen
-	ResolveAllImports();
+
+#if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
+	if (!FParse::Param(FCommandLine::Get(), TEXT("DisableLoadingAllImports")))
+#endif
+	{
+		// @TODO: OBJPTR: Need to find other options for solving this issue of placeholder classes during blueprint compile without forcing all imports to resolve always
+		ResolveAllImports();
+	}
 
 	// Now that imports have been resolved we optionally flush the compilation
 	// queue. This is only done for level blueprints, which will have instances

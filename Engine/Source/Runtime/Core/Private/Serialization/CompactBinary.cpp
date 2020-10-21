@@ -1,0 +1,1054 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "Serialization/CompactBinary.h"
+
+#include "Math/UnrealMathUtility.h"
+#include "Misc/ByteSwap.h"
+#include "Misc/DateTime.h"
+#include "Misc/Guid.h"
+#include "Misc/Timespan.h"
+#include "Serialization/VarInt.h"
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+namespace CbObjectPrivate
+{
+	static constexpr const uint8 EmptyObjectPayload[] = { 0x00 };
+	static constexpr const uint8 EmptyArrayPayload[] = { 0x01, 0x00 };
+
+	template <typename T>
+	static constexpr FORCEINLINE T ReadUnaligned(const void* const Memory)
+	{
+	#if PLATFORM_SUPPORTS_UNALIGNED_LOADS
+		return *static_cast<const T*>(Memory);
+	#else
+		T Value;
+		FMemory::Memcpy(&Value, Memory, sizeof(Value));
+		return Value;
+	#endif
+	}
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FCbFieldType::StaticAssertTypeConstants()
+{
+	constexpr ECbFieldType AllFlags = ECbFieldType::HasFieldName | ECbFieldType::HasFieldType;
+	static_assert(!(TypeMask & AllFlags), "TypeMask is invalid!");
+
+	static_assert(ObjectBase == ECbFieldType::Object, "ObjectBase is invalid!");
+	static_assert((ObjectMask & (AllFlags | ECbFieldType::UniformObject)) == ECbFieldType::Object, "ObjectMask is invalid!");
+	static_assert(!(ObjectMask & (ObjectBase ^ ECbFieldType::UniformObject)), "ObjectMask or ObjectBase is invalid!");
+	static_assert(TypeMask == (ObjectMask | (ObjectBase ^ ECbFieldType::UniformObject)), "ObjectMask or ObjectBase is invalid!");
+
+	static_assert(ArrayBase == ECbFieldType::Array, "ArrayBase is invalid!");
+	static_assert((ArrayMask & (AllFlags | ECbFieldType::UniformArray)) == ECbFieldType::Array, "ArrayMask is invalid!");
+	static_assert(!(ArrayMask & (ArrayBase ^ ECbFieldType::UniformArray)), "ArrayMask or ArrayBase is invalid!");
+	static_assert(TypeMask == (ArrayMask | (ArrayBase ^ ECbFieldType::UniformArray)), "ArrayMask or ArrayBase is invalid!");
+
+	static_assert(IntegerBase == ECbFieldType::IntegerPositive, "IntegerBase is invalid!");
+	static_assert((IntegerMask & (AllFlags | ECbFieldType::IntegerNegative)) == ECbFieldType::IntegerPositive, "IntegerMask is invalid!");
+	static_assert(!(IntegerMask & (IntegerBase ^ ECbFieldType::IntegerNegative)), "IntegerMask or IntegerBase is invalid!");
+	static_assert(TypeMask == (IntegerMask | (IntegerBase ^ ECbFieldType::IntegerNegative)), "IntegerMask or IntegerBase is invalid!");
+
+	static_assert(FloatBase == ECbFieldType::IntegerPositive, "FloatBase is invalid!");
+	static_assert((FloatMask & (AllFlags | ECbFieldType::IntegerPositive)) == ECbFieldType::IntegerPositive, "FloatMask is invalid!");
+	static_assert(!(FloatMask & (FloatBase ^ ECbFieldType::Float64)), "FloatMask or FloatBase is invalid!");
+	static_assert(TypeMask == (FloatMask | (FloatBase ^ ECbFieldType::Float64)), "FloatMask or FloatBase is invalid!");
+
+	static_assert(BoolBase == ECbFieldType::BoolFalse, "BoolBase is invalid!");
+	static_assert((BoolMask & (AllFlags | ECbFieldType::BoolTrue)) == ECbFieldType::BoolFalse, "BoolMask is invalid!");
+	static_assert(!(BoolMask & (BoolBase ^ ECbFieldType::BoolTrue)), "BoolMask or BoolBase is invalid!");
+	static_assert(TypeMask == (BoolMask | (BoolBase ^ ECbFieldType::BoolTrue)), "BoolMask or BoolBase is invalid!");
+
+	static_assert(ExternHashBase == ECbFieldType::BinaryHash, "ExternHashBase is invalid!");
+	static_assert((ExternHashMask & (AllFlags | ECbFieldType::FieldHash)) == ECbFieldType::BinaryHash, "ExternHashMask is invalid!");
+	static_assert(!(ExternHashMask & (ExternHashBase ^ ECbFieldType::FieldHash)), "ExternHashMask or ExternHashBase is invalid!");
+	static_assert(TypeMask == (ExternHashMask | (ExternHashBase ^ ECbFieldType::FieldHash)), "ExternHashMask or ExternHashBase is invalid!");
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FCbField::FCbField(const void* const InData, const ECbFieldType InType)
+{
+	const uint8* Bytes = static_cast<const uint8*>(InData);
+	const ECbFieldType LocalType = FCbFieldType::HasFieldType(InType) ? (ECbFieldType(*Bytes++) | ECbFieldType::HasFieldType) : InType;
+	uint32 NameLenByteCount = 0;
+	const uint64 NameLen64 = FCbFieldType::HasFieldName(LocalType) ? ReadVarUInt(Bytes, NameLenByteCount) : 0;
+	Bytes += NameLen64 + NameLenByteCount;
+
+	Type = LocalType;
+	NameLen = uint32(FMath::Clamp<uint64>(NameLen64, 0, ~uint32(0)));
+	Payload = Bytes;
+}
+
+FConstMemoryView FCbField::AsMemoryView() const
+{
+	const uint32 TypeSize = FCbFieldType::HasFieldType(Type) ? sizeof(ECbFieldType) : 0;
+	const uint32 NameSize = FCbFieldType::HasFieldName(Type) ? NameLen + MeasureVarUInt(NameLen) : 0;
+	const uint64 LocalPayloadSize = PayloadSize();
+	return MakeMemoryView(static_cast<const uint8*>(Payload) - TypeSize - NameSize, TypeSize + NameSize + PayloadSize());
+}
+
+uint64 FCbField::Size() const
+{
+	return AsMemoryView().Size();
+}
+
+uint64 FCbField::PayloadSize() const
+{
+	switch (FCbFieldType::GetType(Type))
+	{
+	case ECbFieldType::None:
+	case ECbFieldType::Null:
+		return 0;
+	case ECbFieldType::Object:
+	case ECbFieldType::UniformObject:
+	case ECbFieldType::Array:
+	case ECbFieldType::UniformArray:
+	case ECbFieldType::Binary:
+	case ECbFieldType::String:
+	{
+		uint32 PayloadSizeByteCount;
+		const uint64 PayloadSize = ReadVarUInt(Payload, PayloadSizeByteCount);
+		return PayloadSize + PayloadSizeByteCount;
+	}
+	case ECbFieldType::IntegerPositive:
+	case ECbFieldType::IntegerNegative:
+		return MeasureVarUInt(Payload);
+	case ECbFieldType::Float32:
+		return 4;
+	case ECbFieldType::Float64:
+		return 8;
+	case ECbFieldType::BoolFalse:
+	case ECbFieldType::BoolTrue:
+		return 0;
+	case ECbFieldType::BinaryHash:
+	case ECbFieldType::FieldHash:
+		return 32;
+	case ECbFieldType::Uuid:
+		return 16;
+	case ECbFieldType::DateTime:
+	case ECbFieldType::TimeSpan:
+		return 8;
+	default:
+		return 0;
+	}
+}
+
+bool FCbField::Equals(const FCbField& Other) const
+{
+	return Type == Other.Type && AsMemoryView().EqualBytes(Other.AsMemoryView());
+}
+
+FCbObject FCbField::AsObject()
+{
+	const ECbFieldType LocalType = Type;
+	if (FCbFieldType::IsObject(LocalType))
+	{
+		Error = ECbFieldError::None;
+		return FCbObject(Payload, FCbFieldType::GetType(LocalType));
+	}
+	else
+	{
+		Error = ECbFieldError::TypeError;
+		return FCbObject();
+	}
+}
+
+FCbArray FCbField::AsArray()
+{
+	const ECbFieldType LocalType = Type;
+	if (FCbFieldType::IsArray(LocalType))
+	{
+		Error = ECbFieldError::None;
+		return FCbArray(Payload, FCbFieldType::GetType(LocalType));
+	}
+	else
+	{
+		Error = ECbFieldError::TypeError;
+		return FCbArray();
+	}
+}
+
+FConstMemoryView FCbField::AsBinary(const FConstMemoryView Default)
+{
+	if (FCbFieldType::IsBinary(Type))
+	{
+		const uint8* const PayloadBytes = static_cast<const uint8*>(Payload);
+		uint32 ValueSizeByteCount;
+		const uint64 ValueSize = ReadVarUInt(PayloadBytes, ValueSizeByteCount);
+
+		Error = ECbFieldError::None;
+		return MakeMemoryView(PayloadBytes + ValueSizeByteCount, ValueSize);
+	}
+	else
+	{
+		Error = ECbFieldError::TypeError;
+		return Default;
+	}
+}
+
+FAnsiStringView FCbField::AsString(const FAnsiStringView Default)
+{
+	if (FCbFieldType::IsString(Type))
+	{
+		const ANSICHAR* const PayloadChars = static_cast<const ANSICHAR*>(Payload);
+		uint32 ValueSizeByteCount;
+		const uint64 ValueSize = ReadVarUInt(PayloadChars, ValueSizeByteCount);
+
+		if (ValueSize >= (uint64(1) << 31))
+		{
+			Error = ECbFieldError::RangeError;
+			return Default;
+		}
+
+		Error = ECbFieldError::None;
+		return FAnsiStringView(PayloadChars + ValueSizeByteCount, int32(ValueSize));
+	}
+	else
+	{
+		Error = ECbFieldError::TypeError;
+		return Default;
+	}
+}
+
+uint64 FCbField::AsInteger(const uint64 Default, const FIntegerParams Params)
+{
+	const ECbFieldType LocalType = Type;
+	if (FCbFieldType::IsInteger(LocalType))
+	{
+		// A shift of a 64-bit value by 64 is undefined so shift by one less because magnitude is never zero.
+		const uint64 OutOfRangeMask = uint64(-2) << (Params.MagnitudeBits - 1);
+		const uint64 IsNegative = uint8(Type) & 1;
+
+		uint32 MagnitudeByteCount;
+		const uint64 Magnitude = ReadVarUInt(Payload, MagnitudeByteCount);
+		const uint64 Value = Magnitude ^ -int64(IsNegative);
+
+		const uint64 IsInRange = (!(Magnitude & OutOfRangeMask)) & ((!IsNegative) | Params.IsSigned);
+		Error = IsInRange ? ECbFieldError::None : ECbFieldError::RangeError;
+
+		const uint64 UseValueMask = -int64(IsInRange);
+		return (Value & UseValueMask) | (Default & ~UseValueMask);
+	}
+	else
+	{
+		Error = ECbFieldError::TypeError;
+		return Default;
+	}
+}
+
+float FCbField::AsFloat(const float Default)
+{
+	switch (FCbFieldType::GetType(Type))
+	{
+	case ECbFieldType::IntegerPositive:
+	case ECbFieldType::IntegerNegative:
+	{
+		const uint64 IsNegative = uint8(Type) & 1;
+		constexpr uint64 OutOfRangeMask = ~((uint64(1) << /*FLT_MANT_DIG*/ 24) - 1);
+
+		uint32 MagnitudeByteCount;
+		const int64 Magnitude = ReadVarUInt(Payload, MagnitudeByteCount) + IsNegative;
+		const uint64 IsInRange = !(Magnitude & OutOfRangeMask);
+		Error = IsInRange ? ECbFieldError::None : ECbFieldError::RangeError;
+		return IsInRange ? float(IsNegative ? -Magnitude : Magnitude) : Default;
+	}
+	case ECbFieldType::Float32:
+	{
+		Error = ECbFieldError::None;
+		const uint32 Value = NETWORK_ORDER32(CbObjectPrivate::ReadUnaligned<uint32>(Payload));
+		return reinterpret_cast<const float&>(Value);
+	}
+	case ECbFieldType::Float64:
+		Error = ECbFieldError::RangeError;
+		return Default;
+	default:
+		Error = ECbFieldError::TypeError;
+		return Default;
+	}
+}
+
+double FCbField::AsDouble(const double Default)
+{
+	switch (FCbFieldType::GetType(Type))
+	{
+	case ECbFieldType::IntegerPositive:
+	case ECbFieldType::IntegerNegative:
+	{
+		const uint64 IsNegative = uint8(Type) & 1;
+		constexpr uint64 OutOfRangeMask = ~((uint64(1) << /*DBL_MANT_DIG*/ 53) - 1);
+
+		uint32 MagnitudeByteCount;
+		const int64 Magnitude = ReadVarUInt(Payload, MagnitudeByteCount) + IsNegative;
+		const uint64 IsInRange = !(Magnitude & OutOfRangeMask);
+		Error = IsInRange ? ECbFieldError::None : ECbFieldError::RangeError;
+		return IsInRange ? double(IsNegative ? -Magnitude : Magnitude) : Default;
+	}
+	case ECbFieldType::Float32:
+	{
+		Error = ECbFieldError::None;
+		const uint32 Value = NETWORK_ORDER32(CbObjectPrivate::ReadUnaligned<uint32>(Payload));
+		return reinterpret_cast<const float&>(Value);
+	}
+	case ECbFieldType::Float64:
+	{
+		Error = ECbFieldError::None;
+		const uint64 Value = NETWORK_ORDER64(CbObjectPrivate::ReadUnaligned<uint64>(Payload));
+		return reinterpret_cast<const double&>(Value);
+	}
+	default:
+		Error = ECbFieldError::TypeError;
+		return Default;
+	}
+}
+
+bool FCbField::AsBool(const bool bDefault)
+{
+	const ECbFieldType LocalType = Type;
+	const bool bIsBool = FCbFieldType::IsBool(LocalType);
+	Error = bIsBool ? ECbFieldError::None : ECbFieldError::TypeError;
+	return (uint8(bIsBool) & uint8(LocalType) & 1) | ((!bIsBool) & bDefault);
+}
+
+FBlake3Hash FCbField::AsBinaryHash(const FBlake3Hash& Default)
+{
+	if (FCbFieldType::IsBinaryHash(Type))
+	{
+		Error = ECbFieldError::None;
+		return FBlake3Hash(*static_cast<const FBlake3Hash::ByteArray*>(Payload));
+	}
+	else
+	{
+		Error = ECbFieldError::TypeError;
+		return Default;
+	}
+}
+
+FBlake3Hash FCbField::AsFieldHash(const FBlake3Hash& Default)
+{
+	if (FCbFieldType::IsFieldHash(Type))
+	{
+		Error = ECbFieldError::None;
+		return FBlake3Hash(*static_cast<const FBlake3Hash::ByteArray*>(Payload));
+	}
+	else
+	{
+		Error = ECbFieldError::TypeError;
+		return Default;
+	}
+}
+
+FGuid FCbField::AsUuid()
+{
+	return AsUuid(FGuid());
+}
+
+FGuid FCbField::AsUuid(const FGuid& Default)
+{
+	if (FCbFieldType::IsUuid(Type))
+	{
+		Error = ECbFieldError::None;
+		FGuid Value;
+		FMemory::Memcpy(&Value, Payload, sizeof(FGuid));
+		Value.A = NETWORK_ORDER32(Value.A);
+		Value.B = NETWORK_ORDER32(Value.B);
+		Value.C = NETWORK_ORDER32(Value.C);
+		Value.D = NETWORK_ORDER32(Value.D);
+		return Value;
+	}
+	else
+	{
+		Error = ECbFieldError::TypeError;
+		return Default;
+	}
+}
+
+int64 FCbField::AsDateTimeTicks(const int64 Default)
+{
+	if (FCbFieldType::IsDateTime(Type))
+	{
+		Error = ECbFieldError::None;
+		return NETWORK_ORDER64(CbObjectPrivate::ReadUnaligned<int64>(Payload));
+	}
+	else
+	{
+		Error = ECbFieldError::TypeError;
+		return Default;
+	}
+}
+
+FDateTime FCbField::AsDateTime()
+{
+	return FDateTime(AsDateTimeTicks(0));
+}
+
+FDateTime FCbField::AsDateTime(FDateTime Default)
+{
+	return FDateTime(AsDateTimeTicks(Default.GetTicks()));
+}
+
+int64 FCbField::AsTimeSpanTicks(const int64 Default)
+{
+	if (FCbFieldType::IsTimeSpan(Type))
+	{
+		Error = ECbFieldError::None;
+		return NETWORK_ORDER64(CbObjectPrivate::ReadUnaligned<int64>(Payload));
+	}
+	else
+	{
+		Error = ECbFieldError::TypeError;
+		return Default;
+	}
+}
+
+FTimespan FCbField::AsTimeSpan()
+{
+	return FTimespan(AsTimeSpanTicks(0));
+}
+
+FTimespan FCbField::AsTimeSpan(FTimespan Default)
+{
+	return FTimespan(AsTimeSpanTicks(Default.GetTicks()));
+}
+
+void FCbField::CopyTo(const FMutableMemoryView Buffer) const
+{
+	const FConstMemoryView Source = AsMemoryView();
+	FMemory::Memcpy(Buffer.GetData(), Source.GetData(), FMath::Min(Buffer.Size(), Source.Size()));
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FCbArray::FCbArray()
+	: Payload(CbObjectPrivate::EmptyArrayPayload)
+	, Type(ECbFieldType::Array)
+{
+}
+
+FCbArray::FCbArray(const void* const InData, const ECbFieldType InType)
+{
+	const uint8* Bytes = static_cast<const uint8*>(InData);
+	const ECbFieldType LocalType = FCbFieldType::HasFieldType(InType) ? (ECbFieldType(*Bytes++) | ECbFieldType::HasFieldType) : InType;
+	uint32 NameLenByteCount = 0;
+	const uint64 NameLen = FCbFieldType::HasFieldName(LocalType) ? ReadVarUInt(Bytes, NameLenByteCount) : 0;
+	Bytes += NameLen + NameLenByteCount;
+
+	Type = LocalType;
+	Payload = Bytes;
+}
+
+FConstMemoryView FCbArray::AsMemoryView() const
+{
+	uint32 PayloadSizeByteCount;
+	const uint64 PayloadSize = ReadVarUInt(Payload, PayloadSizeByteCount);
+	return MakeMemoryView(Payload, PayloadSizeByteCount + PayloadSize);
+}
+
+uint64 FCbArray::Size() const
+{
+	return sizeof(ECbFieldType) + AsMemoryView().Size();
+}
+
+uint64 FCbArray::Num() const
+{
+	const uint8* PayloadBytes = static_cast<const uint8*>(Payload);
+	PayloadBytes += MeasureVarUInt(PayloadBytes);
+	uint32 NumByteCount;
+	return ReadVarUInt(PayloadBytes, NumByteCount);
+}
+
+FCbFieldIterator FCbArray::CreateIterator() const
+{
+	const uint8* PayloadBytes = static_cast<const uint8*>(Payload);
+	uint32 PayloadSizeByteCount;
+	const uint64 PayloadSize = ReadVarUInt(PayloadBytes, PayloadSizeByteCount);
+	PayloadBytes += PayloadSizeByteCount;
+	if (PayloadSize > PayloadSizeByteCount)
+	{
+		const void* const PayloadEnd = PayloadBytes + PayloadSize;
+		PayloadBytes += MeasureVarUInt(PayloadBytes);
+		const ECbFieldType UniformType = FCbFieldType::GetType(Type) == ECbFieldType::UniformArray ?
+			ECbFieldType(*PayloadBytes++) : ECbFieldType::HasFieldType;
+		return FCbFieldIterator(FCbField(PayloadBytes, UniformType), PayloadEnd);
+	}
+	return FCbFieldIterator();
+}
+
+bool FCbArray::Equals(const FCbArray& Other) const
+{
+	return FCbFieldType::GetType(Type) == FCbFieldType::GetType(Other.Type) && AsMemoryView().EqualBytes(Other.AsMemoryView());
+}
+
+void FCbArray::CopyTo(const FMutableMemoryView Buffer) const
+{
+	uint8* BufferBytes = static_cast<uint8*>(Buffer.GetData());
+	*BufferBytes++ = uint8(FCbFieldType::GetType(Type));
+	const FConstMemoryView Source = AsMemoryView();
+	FMemory::Memcpy(BufferBytes, Source.GetData(), FMath::Min(Buffer.Size() - 1, Source.Size()));
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FCbObject::FCbObject()
+	: Payload(CbObjectPrivate::EmptyObjectPayload)
+	, Type(ECbFieldType::Object)
+{
+}
+
+FCbObject::FCbObject(const void* const InData, const ECbFieldType InType)
+{
+	const uint8* Bytes = static_cast<const uint8*>(InData);
+	const ECbFieldType LocalType = FCbFieldType::HasFieldType(InType) ? (ECbFieldType(*Bytes++) | ECbFieldType::HasFieldType) : InType;
+	uint32 NameLenByteCount = 0;
+	const uint64 NameLen = FCbFieldType::HasFieldName(LocalType) ? ReadVarUInt(Bytes, NameLenByteCount) : 0;
+	Bytes += NameLen + NameLenByteCount;
+
+	Type = LocalType;
+	Payload = Bytes;
+}
+
+FConstMemoryView FCbObject::AsMemoryView() const
+{
+	uint32 PayloadSizeByteCount;
+	const uint64 PayloadSize = ReadVarUInt(Payload, PayloadSizeByteCount);
+	return MakeMemoryView(Payload, PayloadSizeByteCount + PayloadSize);
+}
+
+uint64 FCbObject::Size() const
+{
+	return sizeof(ECbFieldType) + AsMemoryView().Size();
+}
+
+FCbFieldIterator FCbObject::CreateIterator() const
+{
+	const uint8* PayloadBytes = static_cast<const uint8*>(Payload);
+	uint32 PayloadSizeByteCount;
+	const uint64 PayloadSize = ReadVarUInt(PayloadBytes, PayloadSizeByteCount);
+	PayloadBytes += PayloadSizeByteCount;
+	if (PayloadSize)
+	{
+		const void* const PayloadEnd = PayloadBytes + PayloadSize;
+		const ECbFieldType UniformType = FCbFieldType::GetType(Type) == ECbFieldType::UniformObject ?
+			ECbFieldType(*PayloadBytes++) : ECbFieldType::HasFieldType;
+		return FCbFieldIterator(FCbField(PayloadBytes, UniformType), PayloadEnd);
+	}
+	return FCbFieldIterator();
+}
+
+bool FCbObject::Equals(const FCbObject& Other) const
+{
+	return FCbFieldType::GetType(Type) == FCbFieldType::GetType(Other.Type) && AsMemoryView().EqualBytes(Other.AsMemoryView());
+}
+
+FCbField FCbObject::Find(const FAnsiStringView Name) const
+{
+	for (const FCbField Field : *this)
+	{
+		if (Name.Equals(Field.Name(), ESearchCase::CaseSensitive))
+		{
+			return Field;
+		}
+	}
+	return FCbField();
+}
+
+FCbField FCbObject::FindIgnoreCase(const FAnsiStringView Name) const
+{
+	for (const FCbField Field : *this)
+	{
+		if (Name.Equals(Field.Name(), ESearchCase::IgnoreCase))
+		{
+			return Field;
+		}
+	}
+	return FCbField();
+}
+
+void FCbObject::CopyTo(const FMutableMemoryView Buffer) const
+{
+	uint8* BufferBytes = static_cast<uint8*>(Buffer.GetData());
+	*BufferBytes++ = uint8(FCbFieldType::GetType(Type));
+	const FConstMemoryView Source = AsMemoryView();
+	FMemory::Memcpy(BufferBytes, Source.GetData(), FMath::Min(Buffer.Size() - 1, Source.Size()));
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/**
+ * Adds the given error(s) to the error mask.
+ *
+ * This function exists to make validation errors easier to debug by providing one location to set a breakpoint.
+ */
+FORCENOINLINE static void AddError(ECbValidateError& OutError, const ECbValidateError InError)
+{
+	OutError |= InError;
+}
+
+/**
+ * Validate and read a field type from the view.
+ *
+ * A type argument with the HasFieldType flag indicates that the type will not be read from the view.
+ */
+static ECbFieldType ValidateCbFieldType(FConstMemoryView& View, ECbValidateMode Mode, ECbValidateError& Error, ECbFieldType Type = ECbFieldType::HasFieldType)
+{
+	if (FCbFieldType::HasFieldType(Type))
+	{
+		if (View.Size() >= 1)
+		{
+			Type = *static_cast<const ECbFieldType*>(View.GetData());
+			View += 1;
+			if (FCbFieldType::HasFieldType(Type))
+			{
+				AddError(Error, ECbValidateError::InvalidType);
+			}
+		}
+		else
+		{
+			AddError(Error, ECbValidateError::OutOfBounds);
+			View.Reset();
+			return ECbFieldType::None;
+		}
+	}
+
+	if (FCbFieldType::GetType(Type) > ECbFieldType::TimeSpan)
+	{
+		AddError(Error, ECbValidateError::InvalidType);
+		View.Reset();
+	}
+
+	return Type;
+}
+
+/**
+ * Validate and read an unsigned integer from the view.
+ *
+ * Modifies the view to start at the end of the value, and adds error flags if applicable.
+ */
+static uint64 ValidateCbUInt(FConstMemoryView& View, ECbValidateMode Mode, ECbValidateError& Error)
+{
+	if (View.Size() > 0 && View.Size() >= MeasureVarUInt(View.GetData()))
+	{
+		uint32 ValueByteCount;
+		const uint64 Value = ReadVarUInt(View.GetData(), ValueByteCount);
+		if (EnumHasAnyFlags(Mode, ECbValidateMode::Format) && ValueByteCount > MeasureVarUInt(Value))
+		{
+			AddError(Error, ECbValidateError::InvalidInteger);
+		}
+		View += ValueByteCount;
+		return Value;
+	}
+	else
+	{
+		AddError(Error, ECbValidateError::OutOfBounds);
+		View.Reset();
+		return 0;
+	}
+}
+
+/**
+ * Validate a 64-bit floating point value from the view.
+ *
+ * Modifies the view to start at the end of the value, and adds error flags if applicable.
+ */
+static void ValidateCbFloat64(FConstMemoryView& View, ECbValidateMode Mode, ECbValidateError& Error)
+{
+	if (View.Size() >= sizeof(double))
+	{
+		if (EnumHasAnyFlags(Mode, ECbValidateMode::Format))
+		{
+			const uint64 RawValue = NETWORK_ORDER64(CbObjectPrivate::ReadUnaligned<uint64>(View.GetData()));
+			const double Value = reinterpret_cast<const double&>(RawValue);
+			if (Value == double(float(Value)))
+			{
+				AddError(Error, ECbValidateError::InvalidFloat);
+			}
+		}
+		View += sizeof(double);
+	}
+	else
+	{
+		AddError(Error, ECbValidateError::OutOfBounds);
+		View.Reset();
+	}
+}
+
+/**
+ * Validate and read a string from the view.
+ *
+ * Modifies the view to start at the end of the string, and adds error flags if applicable.
+ */
+static FAnsiStringView ValidateCbString(FConstMemoryView& View, ECbValidateMode Mode, ECbValidateError& Error)
+{
+	const uint64 NameSize = ValidateCbUInt(View, Mode, Error);
+	if (View.Size() >= NameSize)
+	{
+		const FAnsiStringView Name(static_cast<const ANSICHAR*>(View.GetData()), static_cast<int32>(NameSize));
+		View += NameSize;
+		return Name;
+	}
+	else
+	{
+		AddError(Error, ECbValidateError::OutOfBounds);
+		View.Reset();
+		return FAnsiStringView();
+	}
+}
+
+static FCbField ValidateCbField(FConstMemoryView& View, ECbValidateMode Mode, ECbValidateError& Error, ECbFieldType ExternalType);
+
+/** A type that checks whether all validated fields are of the same type. */
+class FCbUniformFieldsValidator
+{
+public:
+	inline explicit FCbUniformFieldsValidator(ECbFieldType InExternalType)
+		: ExternalType(InExternalType)
+	{
+	}
+
+	inline FCbField ValidateField(FConstMemoryView& View, ECbValidateMode Mode, ECbValidateError& Error)
+	{
+		const void* const FieldData = View.GetData();
+		if (FCbField Field = ValidateCbField(View, Mode, Error, ExternalType))
+		{
+			++FieldCount;
+			if (FCbFieldType::HasFieldType(ExternalType))
+			{
+				const ECbFieldType FieldType = *static_cast<const ECbFieldType*>(FieldData);
+				if (FieldCount == 1)
+				{
+					FirstType = FieldType;
+				}
+				else if (FieldType != FirstType)
+				{
+					bUniform = false;
+				}
+			}
+			return Field;
+		}
+
+		// It may not safe to check for uniformity if the field was invalid.
+		bUniform = false;
+		return FCbField();
+	}
+
+	inline bool IsUniform() const { return FieldCount > 0 && bUniform; }
+
+private:
+	uint32 FieldCount = 0;
+	bool bUniform = true;
+	ECbFieldType FirstType = ECbFieldType::None;
+	ECbFieldType ExternalType;
+};
+
+static void ValidateCbObject(FConstMemoryView& View, ECbValidateMode Mode, ECbValidateError& Error, ECbFieldType ObjectType)
+{
+	const uint64 Size = ValidateCbUInt(View, Mode, Error);
+	FConstMemoryView ObjectView = View.Left(Size);
+	View += Size;
+
+	if (Size > 0)
+	{
+		TArray<FAnsiStringView, TInlineAllocator<16>> Names;
+
+		const bool bUniformObject = FCbFieldType::GetType(ObjectType) == ECbFieldType::UniformObject;
+		const ECbFieldType ExternalType = bUniformObject ? ValidateCbFieldType(ObjectView, Mode, Error) : ECbFieldType::HasFieldType;
+		FCbUniformFieldsValidator UniformValidator(ExternalType);
+		do
+		{
+			if (FCbField Field = UniformValidator.ValidateField(ObjectView, Mode, Error))
+			{
+				if (EnumHasAnyFlags(Mode, ECbValidateMode::Names))
+				{
+					if (Field.HasName())
+					{
+						Names.Add(Field.Name());
+					}
+					else
+					{
+						AddError(Error, ECbValidateError::MissingName);
+					}
+				}
+			}
+		}
+		while (!ObjectView.IsEmpty());
+
+		if (EnumHasAnyFlags(Mode, ECbValidateMode::Names) && Names.Num() > 1)
+		{
+			Algo::Sort(Names, [](FAnsiStringView L, FAnsiStringView R) { return L.Compare(R) < 0; });
+			for (const FAnsiStringView* NamesIt = Names.GetData(), *NamesEnd = NamesIt + Names.Num() - 1; NamesIt != NamesEnd; ++NamesIt)
+			{
+				if (NamesIt[0].Equals(NamesIt[1]))
+				{
+					AddError(Error, ECbValidateError::DuplicateName);
+					break;
+				}
+			}
+		}
+
+		if (!bUniformObject && EnumHasAnyFlags(Mode, ECbValidateMode::Format) && UniformValidator.IsUniform())
+		{
+			AddError(Error, ECbValidateError::NonUniformObject);
+		}
+	}
+}
+
+static void ValidateCbArray(FConstMemoryView& View, ECbValidateMode Mode, ECbValidateError& Error, ECbFieldType ArrayType)
+{
+	const uint64 Size = ValidateCbUInt(View, Mode, Error);
+	FConstMemoryView ArrayView = View.Left(Size);
+	View += Size;
+
+	const uint64 Count = ValidateCbUInt(ArrayView, Mode, Error);
+	const uint64 FieldsSize = ArrayView.Size();
+	const bool bUniformArray = FCbFieldType::GetType(ArrayType) == ECbFieldType::UniformArray;
+	const ECbFieldType ExternalType = bUniformArray ? ValidateCbFieldType(ArrayView, Mode, Error) : ECbFieldType::HasFieldType;
+	FCbUniformFieldsValidator UniformValidator(ExternalType);
+
+	for (uint64 Index = 0; Index < Count; ++Index)
+	{
+		if (FCbField Field = UniformValidator.ValidateField(ArrayView, Mode, Error))
+		{
+			if (Field.HasName() && EnumHasAnyFlags(Mode, ECbValidateMode::Names))
+			{
+				AddError(Error, ECbValidateError::ArrayName);
+			}
+		}
+	}
+
+	if (!bUniformArray && EnumHasAnyFlags(Mode, ECbValidateMode::Format) && UniformValidator.IsUniform() && FieldsSize > Count)
+	{
+		AddError(Error, ECbValidateError::NonUniformArray);
+	}
+}
+
+static FCbField ValidateCbField(FConstMemoryView& View, ECbValidateMode Mode, ECbValidateError& Error, const ECbFieldType ExternalType = ECbFieldType::HasFieldType)
+{
+	const FConstMemoryView FieldView = View;
+	const ECbFieldType Type = ValidateCbFieldType(View, Mode, Error, ExternalType);
+	const FAnsiStringView Name = FCbFieldType::HasFieldName(Type) ? ValidateCbString(View, Mode, Error) : FAnsiStringView();
+
+	auto ValidateFixedPayload = [&View, &Error](uint32 PayloadSize)
+	{
+		if (View.Size() >= PayloadSize)
+		{
+			View += PayloadSize;
+		}
+		else
+		{
+			AddError(Error, ECbValidateError::OutOfBounds);
+			View.Reset();
+		}
+	};
+
+	if (EnumHasAnyFlags(Error, ECbValidateError::OutOfBounds | ECbValidateError::InvalidType))
+	{
+		return FCbField();
+	}
+
+	switch (FCbFieldType::GetType(Type))
+	{
+	default:
+	case ECbFieldType::None:
+		AddError(Error, ECbValidateError::InvalidType);
+		View.Reset();
+		break;
+	case ECbFieldType::Null:
+	case ECbFieldType::BoolFalse:
+	case ECbFieldType::BoolTrue:
+		if (FieldView == View)
+		{
+			// Reset the view because a zero-sized field can cause infinite field iteration.
+			AddError(Error, ECbValidateError::InvalidType);
+			View.Reset();
+		}
+		break;
+	case ECbFieldType::Object:
+	case ECbFieldType::UniformObject:
+		ValidateCbObject(View, Mode, Error, FCbFieldType::GetType(Type));
+		break;
+	case ECbFieldType::Array:
+	case ECbFieldType::UniformArray:
+		ValidateCbArray(View, Mode, Error, FCbFieldType::GetType(Type));
+		break;
+	case ECbFieldType::Binary:
+	{
+		const uint64 ValueSize = ValidateCbUInt(View, Mode, Error);
+		if (View.Size() < ValueSize)
+		{
+			AddError(Error, ECbValidateError::OutOfBounds);
+			View.Reset();
+		}
+		else
+		{
+			View += ValueSize;
+		}
+		break;
+	}
+	case ECbFieldType::String:
+		ValidateCbString(View, Mode, Error);
+		break;
+	case ECbFieldType::IntegerPositive:
+		ValidateCbUInt(View, Mode, Error);
+		break;
+	case ECbFieldType::IntegerNegative:
+		ValidateCbUInt(View, Mode, Error);
+		break;
+	case ECbFieldType::Float32:
+		ValidateFixedPayload(4);
+		break;
+	case ECbFieldType::Float64:
+		ValidateCbFloat64(View, Mode, Error);
+		break;
+	case ECbFieldType::BinaryHash:
+	case ECbFieldType::FieldHash:
+		ValidateFixedPayload(32);
+		break;
+	case ECbFieldType::Uuid:
+		ValidateFixedPayload(16);
+		break;
+	case ECbFieldType::DateTime:
+	case ECbFieldType::TimeSpan:
+		ValidateFixedPayload(8);
+		break;
+	}
+
+	if (EnumHasAnyFlags(Error, ECbValidateError::OutOfBounds | ECbValidateError::InvalidType))
+	{
+		return FCbField();
+	}
+
+	return FCbField(FieldView.GetData(), ExternalType);
+}
+
+ECbValidateError ValidateCompactBinary(FConstMemoryView View, ECbValidateMode Mode, ECbFieldType Type)
+{
+	ECbValidateError Error = ECbValidateError::None;
+	ValidateCbField(View, Mode, Error, Type);
+	if (!View.IsEmpty() && EnumHasAnyFlags(Mode, ECbValidateMode::Padding))
+	{
+		AddError(Error, ECbValidateError::Padding);
+	}
+	return Error;
+}
+
+ECbValidateError ValidateCompactBinaryRange(FConstMemoryView View, ECbValidateMode Mode)
+{
+	ECbValidateError Error = ECbValidateError::None;
+	while (!View.IsEmpty())
+	{
+		ValidateCbField(View, Mode, Error);
+	}
+	return Error;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+uint64 MeasureCompactBinary(FConstMemoryView View, ECbFieldType Type)
+{
+	uint64 Size = 0;
+
+	if (FCbFieldType::HasFieldType(Type))
+	{
+		if (View.Size() == 0)
+		{
+			return 0;
+		}
+
+		Type = *static_cast<const ECbFieldType*>(View.GetData());
+		View += 1;
+		Size += 1;
+	}
+
+	bool bVariableSize = false;
+	switch (FCbFieldType::GetType(Type))
+	{
+	case ECbFieldType::None:
+	case ECbFieldType::Null:
+		break;
+	case ECbFieldType::Object:
+	case ECbFieldType::UniformObject:
+	case ECbFieldType::Array:
+	case ECbFieldType::UniformArray:
+	case ECbFieldType::Binary:
+	case ECbFieldType::String:
+	case ECbFieldType::IntegerPositive:
+	case ECbFieldType::IntegerNegative:
+		bVariableSize = true;
+		break;
+	case ECbFieldType::Float32:
+		Size += 4;
+		break;
+	case ECbFieldType::Float64:
+		Size += 8;
+		break;
+	case ECbFieldType::BoolFalse:
+	case ECbFieldType::BoolTrue:
+		break;
+	case ECbFieldType::BinaryHash:
+	case ECbFieldType::FieldHash:
+		Size += 32;
+		break;
+	case ECbFieldType::Uuid:
+		Size += 16;
+		break;
+	case ECbFieldType::DateTime:
+	case ECbFieldType::TimeSpan:
+		Size += 8;
+		break;
+	default:
+		return 0;
+	}
+
+	if (FCbFieldType::HasFieldName(Type))
+	{
+		if (View.Size() == 0 || View.Size() < MeasureVarUInt(View.GetData()))
+		{
+			return 0;
+		}
+
+		uint32 NameLenByteCount;
+		const uint64 NameLen = ReadVarUInt(View.GetData(), NameLenByteCount);
+		const uint64 NameSize = NameLen + NameLenByteCount;
+
+		if (bVariableSize && View.Size() < NameSize)
+		{
+			return 0;
+		}
+
+		View += NameSize;
+		Size += NameSize;
+	}
+
+	switch (FCbFieldType::GetType(Type))
+	{
+	case ECbFieldType::Object:
+	case ECbFieldType::UniformObject:
+	case ECbFieldType::Array:
+	case ECbFieldType::UniformArray:
+	case ECbFieldType::Binary:
+	case ECbFieldType::String:
+		if (View.Size() == 0 || View.Size() < MeasureVarUInt(View.GetData()))
+		{
+			return 0;
+		}
+		else
+		{
+			uint32 PayloadSizeByteCount;
+			const uint64 PayloadSize = ReadVarUInt(View.GetData(), PayloadSizeByteCount);
+			return Size + PayloadSize + PayloadSizeByteCount;
+		}
+	case ECbFieldType::IntegerPositive:
+	case ECbFieldType::IntegerNegative:
+		if (View.Size() == 0)
+		{
+			return 0;
+		}
+		return Size + MeasureVarUInt(View.GetData());
+	default:
+		return Size;
+	}
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

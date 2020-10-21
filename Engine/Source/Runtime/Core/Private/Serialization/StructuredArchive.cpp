@@ -529,6 +529,13 @@ void FStructuredArchiveSlot::operator<< (FLazyObjectPtr& Value)
 	Ar.LeaveSlot();
 }
 
+void FStructuredArchiveSlot::operator<< (FObjectPtr& Value)
+{
+	Ar.EnterSlot(*this);
+	Ar.Formatter.Serialize(Value);
+	Ar.LeaveSlot();
+}
+
 void FStructuredArchiveSlot::operator<< (FSoftObjectPtr& Value)
 {
 	Ar.EnterSlot(*this);

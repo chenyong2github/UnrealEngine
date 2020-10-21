@@ -27,7 +27,7 @@ void UMovieSceneLevelVisibilitySection::ImportEntityImpl(UMovieSceneEntitySystem
 {
 	using namespace UE::MovieScene;
 
-	FLevelVisibilityComponentData LevelVisibilityData{ this };
+	FLevelVisibilityComponentData LevelVisibilityData{decltype(FLevelVisibilityComponentData::Section)(this) };
 
 	OutImportedEntity->AddBuilder(
 		FEntityBuilder()

@@ -535,6 +535,15 @@ public:
 	 * @return	ObjectName for the FObjectResource at ResourceIndex, or NAME_None if not found
 	 */
 	FName ResolveResourceName( FPackageIndex ResourceIndex );
+
+	/**
+	 * Returns the Object associated with the resource indicated.
+	 *
+	 * @param	ResourceIndex	location of the object resource
+	 *
+	 * @return	The UObject at ResourceIndex, or nullptr if not found
+	 */
+	UObject* ResolveResource(FPackageIndex ResourceIndex);
 	
 	int32 FindExportIndex( FName ClassName, FName ClassPackage, FName ObjectName, FPackageIndex ExportOuterIndex );
 	
@@ -841,6 +850,8 @@ private:
 		LazyObjectPtr = ID;
 		return Ar;
 	}
+
+	virtual FArchive& operator<<(FObjectPtr& ObjectPtr) override;
 
 	FORCEINLINE virtual FArchive& operator<<(FSoftObjectPtr& Value) override
 	{

@@ -2,6 +2,7 @@
 
 #include "Serialization/ObjectWriter.h"
 #include "UObject/LazyObjectPtr.h"
+#include "UObject/ObjectPtr.h"
 #include "UObject/SoftObjectPtr.h"
 
 ///////////////////////////////////////////////////////
@@ -21,6 +22,12 @@ FArchive& FObjectWriter::operator<<( class FName& N )
 FArchive& FObjectWriter::operator<<( class UObject*& Res )
 {
 	ByteOrderSerialize(&Res, sizeof(Res));
+	return *this;
+}
+
+FArchive& FObjectWriter::operator<<(FObjectPtr& Value)
+{
+	ByteOrderSerialize(&Value, sizeof(Value));
 	return *this;
 }
 

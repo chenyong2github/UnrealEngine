@@ -14,6 +14,8 @@
 #include "UObject/UObjectAllocator.h"
 #include "UObject/UObjectBase.h"
 #include "UObject/Object.h"
+#include "UObject/ObjectHandle.h"
+#include "UObject/ObjectPtr.h"
 #include "UObject/Class.h"
 #include "UObject/UObjectIterator.h"
 #include "UObject/UnrealType.h"
@@ -791,19 +793,19 @@ public:
 	*/
 	FORCEINLINE void HandleObjectReference(TArray<UObject*>& ObjectsToSerialize, const UObject * const ReferencingObject, UObject*& Object, const bool bAllowReferenceElimination)
 	{
+		if (Object == nullptr)
+		{
+			return;
+		}
+
 		// Disregard NULL objects and perform very fast check to see whether object is part of permanent
 		// object pool and should therefore be disregarded. The check doesn't touch the object and is
 		// cache friendly as it's just a pointer compare against to globals.
-		const bool IsInPermanentPool = GUObjectAllocator.ResidesInPermanentPool(Object);
-
+		if (GUObjectAllocator.ResidesInPermanentPool(Object))
+		{
 #if PERF_DETAILED_PER_CLASS_GC_STATS
-		if (IsInPermanentPool)
-		{
 			GCurrentObjectDisregardedObjectRefs++;
-		}
 #endif
-		if (Object == nullptr || IsInPermanentPool)
-		{
 			return;
 		}
 
@@ -925,7 +927,7 @@ public:
 	FORCEINLINE void HandleTokenStreamObjectReference(TArray<UObject*>& ObjectsToSerialize, UObject* ReferencingObject, UObject*& Object, const int32 TokenIndex, bool bAllowReferenceElimination)
 	{
 #if ENABLE_GC_OBJECT_CHECKS
-		if (Object)
+		if (Object && IsObjectHandleResolved(*reinterpret_cast<FObjectHandle*>(&Object)))
 		{
 			if (
 #if DO_POINTER_CHECKS_ON_GC
@@ -2421,6 +2423,16 @@ void FMulticastDelegateProperty::EmitReferenceInfo(UClass& OwnerClass, int32 Bas
  * Emits tokens used by realtime garbage collection code to passed in OwnerClass' ReferenceTokenStream. The offset emitted is relative
  * to the passed in BaseOffset which is used by e.g. arrays of structs.
  */
+void FObjectPtrProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps)
+{
+	FGCReferenceFixedArrayTokenHelper FixedArrayHelper(OwnerClass, BaseOffset + GetOffset_ForGC(), ArrayDim, sizeof(FObjectPtr), *this);
+	OwnerClass.EmitObjectReference(BaseOffset + GetOffset_ForGC(), GetFName(), GCRT_Object);
+}
+
+/**
+ * Emits tokens used by realtime garbage collection code to passed in OwnerClass' ReferenceTokenStream. The offset emitted is relative
+ * to the passed in BaseOffset which is used by e.g. arrays of structs.
+ */
 void FArrayProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps)
 {
 	if (Inner->ContainsObjectReference(EncounteredStructProps, EPropertyObjectReferenceType::Strong | EPropertyObjectReferenceType::Weak))
@@ -2437,7 +2449,7 @@ void FArrayProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TAr
 			const uint32 SkipIndex = OwnerClass.ReferenceTokenStream.EmitReturn();
 			OwnerClass.ReferenceTokenStream.UpdateSkipIndexPlaceholder(SkipIndexIndex, SkipIndex);
 		}
-		else if( Inner->IsA(FObjectProperty::StaticClass()) )
+		else if( Inner->IsA(FObjectProperty::StaticClass()) || Inner->IsA(FObjectPtrProperty::StaticClass()) )
 		{
 			OwnerClass.EmitObjectReference(BaseOffset + GetOffset_ForGC(), GetFName(), bUsesFreezableAllocator ? GCRT_ArrayObjectFreezable : GCRT_ArrayObject);
 		}

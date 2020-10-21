@@ -71,6 +71,7 @@ struct FWindowsPlatformMath : public TUnrealPlatformMathSSE4Base<FGenericPlatfor
 
 		return 0;
 	}
+
 	static FORCEINLINE uint8 CountLeadingZeros8(uint8 Value)
 	{
 		unsigned long Log2;

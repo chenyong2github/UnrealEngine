@@ -1143,6 +1143,16 @@ public:
 	 * @return This instance.
 	 */
 	virtual FArchive& operator<<(struct FLazyObjectPtr& Value);
+
+	/**
+	 * Serializes a wrapped object pointer value from or into this archive.
+	 *
+	 * Most of the time, FObjectPtrs are serialized as UObject*, but some archives need to override this.
+	 *
+	 * @param Value The value to serialize.
+	 * @return This instance.
+	 */
+	virtual FArchive& operator<<(struct FObjectPtr& Value);
 	
 	/**
 	 * Serializes asset pointer from or into this archive.

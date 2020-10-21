@@ -81,7 +81,13 @@ struct FPaintableTexture
 	UTexture*	Texture;
 	int32		UVChannelIndex;
 
-	FPaintableTexture(UTexture* InTexture = nullptr, uint32 InUVChannelIndex = 0)
+	FPaintableTexture()
+		: Texture(nullptr)
+		, UVChannelIndex(0)
+	{}
+
+	template<typename T, decltype(ImplicitConv<UTexture*>(DeclVal<T>()))* = nullptr>
+	FPaintableTexture(T InTexture, uint32 InUVChannelIndex = 0)
 		: Texture(InTexture)
 		, UVChannelIndex(InUVChannelIndex)
 	{}

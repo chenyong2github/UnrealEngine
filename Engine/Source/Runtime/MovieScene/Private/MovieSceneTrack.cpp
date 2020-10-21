@@ -385,7 +385,7 @@ void UMovieSceneTrack::UpdateEvaluationTree()
 			for (const FMovieSceneTrackEvaluationData& TrackData : TrackDataIt)
 			{
 				UMovieSceneSection* Section = TrackData.Section.Get();
-				SectionToEntry.FindOrAdd(Section).Add(FMovieSceneTrackEvaluationFieldEntry{ Section, Range, TrackData.ForcedTime, TrackData.Flags, TrackData.SortOrder });
+				SectionToEntry.FindOrAdd(Section).Add(FMovieSceneTrackEvaluationFieldEntry{decltype(FMovieSceneTrackEvaluationFieldEntry::Section)(Section), Range, TrackData.ForcedTime, TrackData.Flags, TrackData.SortOrder });
 			}
 		}
 		else

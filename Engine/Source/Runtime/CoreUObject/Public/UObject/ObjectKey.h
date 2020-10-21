@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "UObject/WeakObjectPtr.h"
 
+#include <type_traits>
+
 /** FObjectKey is an immutable, copyable key which can be used to uniquely identify an object for the lifetime of the application */
 struct FObjectKey
 {
@@ -27,6 +29,14 @@ public:
 			ObjectIndex = Weak.ObjectIndex;
 			ObjectSerialNumber = Weak.ObjectSerialNumber;
 		}
+	}
+	template <
+		typename U,
+		decltype(ImplicitConv<const UObject*>(std::declval<U>()))* = nullptr
+	>
+	FORCEINLINE FObjectKey(U Object)
+		: FObjectKey(ImplicitConv<const UObject*>(Object))
+	{
 	}
 
 	/** Compare this key with another */

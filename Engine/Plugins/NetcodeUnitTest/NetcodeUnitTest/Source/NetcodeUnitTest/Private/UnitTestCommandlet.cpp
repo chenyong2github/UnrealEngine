@@ -35,7 +35,7 @@
 
 
 // Enable access to the private UGameEngine.GameInstance value, using the GET_PRIVATE macro
-IMPLEMENT_GET_PRIVATE_VAR(UGameEngine, GameInstance, UGameInstance*);
+IMPLEMENT_GET_PRIVATE_VAR(UGameEngine, GameInstance, decltype(UGameEngine::GameInstance));
 
 /** The exit-confirmation dialog, displayed to the user when all unit tests are complete */
 static TSharedPtr<SWindow> ConfirmDialog=NULL;

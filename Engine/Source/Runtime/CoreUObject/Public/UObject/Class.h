@@ -14,6 +14,8 @@
 #include "Misc/FallbackStruct.h"
 #include "Misc/Guid.h"
 #include "Misc/Optional.h"
+#include "Misc/PackageAccessTracking.h"
+#include "Misc/PackageAccessTrackingOps.h"
 #include "Misc/ScopeRWLock.h"
 #include "Templates/IsAbstract.h"
 #include "Templates/IsEnum.h"
@@ -2865,6 +2867,7 @@ public:
 	{
 		if (ClassDefaultObject == nullptr && bCreateIfNeeded)
 		{
+			UE_TRACK_REFERENCING_PACKAGE_SCOPED((GetOutermost()), PackageAccessTrackingOps::NAME_CreateDefaultObject);
 			const_cast<UClass*>(this)->CreateDefaultObject();
 		}
 

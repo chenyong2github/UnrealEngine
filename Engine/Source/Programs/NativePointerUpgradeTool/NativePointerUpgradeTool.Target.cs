@@ -1,0 +1,24 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+using UnrealBuildTool;
+using System.Collections.Generic;
+
+[SupportedPlatforms(UnrealPlatformClass.Desktop)]
+public class NativePointerUpgradeToolTarget : TargetRules
+{
+	public NativePointerUpgradeToolTarget(TargetInfo Target) : base(Target)
+	{
+		Type = TargetType.Program;
+		LinkType = TargetLinkType.Modular;
+		LaunchModuleName = "NativePointerUpgradeTool";
+
+		bBuildDeveloperTools			= false;
+		bUseMallocProfiler				= false;
+		bBuildWithEditorOnlyData		= false;
+		bCompileAgainstEngine			= false;
+		bCompileAgainstCoreUObject		= false;
+		bCompileAgainstApplicationCore	= false;
+		bUsesSlate = false;
+		bIsBuildingConsoleApplication	= true;
+	}
+}

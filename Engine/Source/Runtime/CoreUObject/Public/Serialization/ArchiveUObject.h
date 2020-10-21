@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 
 struct FLazyObjectPtr;
+struct FObjectPtr;
 struct FSoftObjectPtr;
 struct FSoftObjectPath;
 struct FWeakObjectPtr;
@@ -17,6 +18,7 @@ class COREUOBJECT_API FArchiveUObject : public FArchive
 public:
 
 	static FArchive& SerializeLazyObjectPtr(FArchive& Ar, FLazyObjectPtr& Value);
+	static FArchive& SerializeObjectPtr(FArchive& Ar, FObjectPtr& Value);
 	static FArchive& SerializeSoftObjectPtr(FArchive& Ar, FSoftObjectPtr& Value);
 	static FArchive& SerializeSoftObjectPath(FArchive& Ar, FSoftObjectPath& Value);
 	static FArchive& SerializeWeakObjectPtr(FArchive& Ar, FWeakObjectPtr& Value);
@@ -25,6 +27,7 @@ public:
 
 	//~ Begin FArchive Interface
 	virtual FArchive& operator<<(FLazyObjectPtr& Value) override { return SerializeLazyObjectPtr(*this, Value); }
+	virtual FArchive& operator<<(FObjectPtr& Value) override { return SerializeObjectPtr(*this, Value); }
 	virtual FArchive& operator<<(FSoftObjectPtr& Value) override { return SerializeSoftObjectPtr(*this, Value); }
 	virtual FArchive& operator<<(FSoftObjectPath& Value) override { return SerializeSoftObjectPath(*this, Value); }
 	virtual FArchive& operator<<(FWeakObjectPtr& Value) override { return SerializeWeakObjectPtr(*this, Value); }

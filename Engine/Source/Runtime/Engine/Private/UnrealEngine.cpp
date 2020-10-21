@@ -2482,6 +2482,20 @@ static void LoadEngineTexture(TextureType*& InOutTexture, const TCHAR* InName)
 	}
 }
 
+template <typename TextureType>
+static void LoadEngineTexture(TObjectPtr<TextureType>& InOutTexture, const TCHAR* InName)
+{
+	// Fully copied from specialization above to allow for mutable pointer access without relying on deprecated explicit cast to mutable
+	if (!InOutTexture)
+	{
+		InOutTexture = LoadObject<TextureType>(nullptr, InName, nullptr, LOAD_None, nullptr);
+	}
+	if (FPlatformProperties::RequiresCookedData() && InOutTexture)
+	{
+		InOutTexture->AddToRoot();
+	}
+}
+
 static void LoadCustomTimeStep(UEngine* Engine)
 {
 	if (Engine->CustomTimeStepClassName.IsValid())

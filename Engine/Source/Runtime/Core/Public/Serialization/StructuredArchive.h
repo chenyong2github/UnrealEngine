@@ -261,6 +261,7 @@ public:
 	void operator << (FSoftObjectPtr& Value);
 	void operator << (FSoftObjectPath& Value);
 	void operator << (FLazyObjectPtr& Value);
+	void operator << (FObjectPtr& Value);
 
 	template <typename T>
 	FORCEINLINE void operator<<(TEnumAsByte<T>& Value)
@@ -959,6 +960,11 @@ typename TEnableIf<
 	}
 
 	FORCEINLINE void FStructuredArchiveSlot::operator<< (FLazyObjectPtr& Value)
+	{
+		Ar.Formatter.Serialize(Value);
+	}
+
+	FORCEINLINE void FStructuredArchiveSlot::operator<< (FObjectPtr& Value)
 	{
 		Ar.Formatter.Serialize(Value);
 	}

@@ -2517,7 +2517,15 @@ UObject* FLinkerLoad::FindExistingImport(int32 ImportIndex)
 
 void FLinkerLoad::Verify()
 {
-	if(!FApp::IsGame() || GIsEditor || IsRunningCommandlet())
+#if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
+	if (FParse::Param(FCommandLine::Get(), TEXT("DisableLoadingAllImports")) == true)
+	{
+		bHaveImportsBeenVerified = true;
+		return;
+	}
+#endif
+
+	if (!FApp::IsGame() || GIsEditor || IsRunningCommandlet())
 	{
 		if (!bHaveImportsBeenVerified)
 		{
@@ -3663,6 +3671,64 @@ FName FLinkerLoad::ResolveResourceName( FPackageIndex ResourceIndex )
 		return NAME_None;
 	}
 	return ImpExp(ResourceIndex).ObjectName;
+}
+
+UObject* FLinkerLoad::ResolveResource(FPackageIndex Index)
+{
+	FArchive& Ar = *this;
+
+	if (GEventDrivenLoaderEnabled && bForceSimpleIndexToObject)
+	{
+		check(Ar.IsLoading() && AsyncRoot);
+
+		if (Index.IsNull())
+		{
+			return nullptr;
+		}
+		else if (Index.IsExport())
+		{
+			return Exp(Index).Object;
+		}
+		else
+		{
+			return Imp(Index).XObject;
+		}
+	}
+
+	UObject* Temporary = NULL;
+	Temporary = IndexToObject(Index);
+
+#if WITH_EDITORONLY_DATA	
+	// When loading mark all packages that are accessed by non editor-only properties as being required at runtime.
+	if (Ar.IsLoading() && Temporary && !Ar.IsEditorOnlyPropertyOnTheStack())
+	{
+		const bool bReferenceFromOutsideOfThePackage = Temporary->GetOutermost() != LinkerRoot;
+		const bool bIsAClass = Temporary->IsA(UClass::StaticClass());
+		const bool bReferencingPackageIsNotEditorOnly = bReferenceFromOutsideOfThePackage && !LinkerRoot->IsLoadedByEditorPropertiesOnly();
+		if (bReferencingPackageIsNotEditorOnly || bIsAClass)
+		{
+			// The package that caused this object to be loaded is not marked as editor-only, neighter is any of the referencing properties.
+			Temporary->GetOutermost()->SetLoadedByEditorPropertiesOnly(false);
+		}
+		else if (bReferenceFromOutsideOfThePackage && !bIsAClass)
+		{
+			// In this case the object is being accessed by object property from a package that's marked as editor-only, however
+			// since we're in the middle of loading, we can't be sure that the editor-only package will still be marked as editor-only
+			// after loading has finished (this is due to the fact how objects are being processed in EndLoad).
+			// So we need to remember which packages have been kept marked as editor-only by which package so that after all
+			// objects have been serialized we can go back and make sure the LinkerRoot package is still marked as editor-only and if not,
+			// remove the flag from all packages that are marked as such because of it.
+			FUObjectThreadContext& ThreadContext = FUObjectThreadContext::Get();
+			TSet<FName>& PackagesMarkedEditorOnly = ThreadContext.PackagesMarkedEditorOnlyByOtherPackage.FindOrAdd(LinkerRoot->GetFName());
+			if (!PackagesMarkedEditorOnly.Contains(Temporary->GetOutermost()->GetFName()))
+			{
+				PackagesMarkedEditorOnly.Add(Temporary->GetOutermost()->GetFName());
+			}
+		}
+	}
+#endif
+
+	return Temporary;
 }
 
 // Find the index of a specified object without regard to specific package.
@@ -5264,60 +5330,36 @@ FArchive& FLinkerLoad::operator<<( UObject*& Object )
 	FArchive& Ar = *this;
 	Ar << Index;
 
-	if (GEventDrivenLoaderEnabled && bForceSimpleIndexToObject)
+	Object = ResolveResource(Index);
+
+	return *this;
+}
+
+FArchive& FLinkerLoad::operator<<( FObjectPtr& ObjectPtr )
+{
+	FPackageIndex Index;
+	FArchive& Ar = *this;
+	Ar << Index;
+
+#if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
+	if (Index.IsImport())
 	{
-		check(Ar.IsLoading() && AsyncRoot);
+		const FObjectImport& Import = Imp(Index);
+		if (!Import.bImportSearchedFor)
+		{
+			FObjectPathId ObjectPath;
+			FName PackageName = FObjectPathId::MakeImportPathIdAndPackageName(Import, *this, ObjectPath);
+			FObjectRef ImportRef{PackageName, Import.ClassPackage, Import.ClassName, ObjectPath};
 
-		if (Index.IsNull())
-		{
-			Object = nullptr;
-		}
-		else if (Index.IsExport())
-		{
-			Object = Exp(Index).Object;
-		}
-		else
-		{
-			Object = Imp(Index).XObject;
-		}
+			ObjectPtr = FObjectPtr(ImportRef);
 
-		return *this;
-	}
-
-	UObject* Temporary = NULL;
-	Temporary = IndexToObject( Index );
-
-#if WITH_EDITORONLY_DATA	
-	// When loading mark all packages that are accessed by non editor-only properties as being required at runtime.
-	if (Ar.IsLoading() && Temporary && !Ar.IsEditorOnlyPropertyOnTheStack())
-	{
-		const bool bReferenceFromOutsideOfThePackage = Temporary->GetOutermost() != LinkerRoot;
-		const bool bIsAClass = Temporary->IsA(UClass::StaticClass());
-		const bool bReferencingPackageIsNotEditorOnly = bReferenceFromOutsideOfThePackage && !LinkerRoot->IsLoadedByEditorPropertiesOnly();
-		if (bReferencingPackageIsNotEditorOnly || bIsAClass)
-		{
-			// The package that caused this object to be loaded is not marked as editor-only, neighter is any of the referencing properties.
-			Temporary->GetOutermost()->SetLoadedByEditorPropertiesOnly(false);
-		}
-		else if (bReferenceFromOutsideOfThePackage && !bIsAClass)
-		{
-			// In this case the object is being accessed by object property from a package that's marked as editor-only, however
-			// since we're in the middle of loading, we can't be sure that the editor-only package will still be marked as editor-only
-			// after loading has finished (this is due to the fact how objects are being processed in EndLoad).
-			// So we need to remember which packages have been kept marked as editor-only by which package so that after all
-			// objects have been serialized we can go back and make sure the LinkerRoot package is still marked as editor-only and if not,
-			// remove the flag from all packages that are marked as such because of it.
-			FUObjectThreadContext& ThreadContext = FUObjectThreadContext::Get();
-			TSet<FName>& PackagesMarkedEditorOnly = ThreadContext.PackagesMarkedEditorOnlyByOtherPackage.FindOrAdd(LinkerRoot->GetFName());
-			if (!PackagesMarkedEditorOnly.Contains(Temporary->GetOutermost()->GetFName()))
-			{
-				PackagesMarkedEditorOnly.Add(Temporary->GetOutermost()->GetFName());
-			}
+			return *this;
 		}
 	}
 #endif
 
-	Object = Temporary;
+	ObjectPtr = FObjectPtr(ResolveResource(Index));
+	
 	return *this;
 }
 

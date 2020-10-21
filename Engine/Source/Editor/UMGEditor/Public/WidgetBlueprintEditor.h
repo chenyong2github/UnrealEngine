@@ -284,6 +284,9 @@ private:
 	/** Add an animation track for the supplied slot to the current animation. */
 	void AddSlotTrack( UPanelSlot* Slot );
 
+	/** Add an animation track for the supplied slot to the current animation. */
+	void AddSlotTrack(TObjectPtr<UPanelSlot> Slot) { return AddSlotTrack(Slot.Get()); }
+
 	/** Add an animation track for the supplied material property path to the current animation. */
 	void AddMaterialTrack( UWidget* Widget, TArray<FProperty*> MaterialPropertyPath, FText MaterialPropertyDisplayName );
 

@@ -106,7 +106,7 @@ static void BuildZeroLookupTable( FDistributionLookupTable* OutTable, int32 Valu
  * @param Distribution - The distribution for which to build a lookup table.
  */
 template <typename DistributionType>
-void BuildLookupTable( FDistributionLookupTable* OutTable, const DistributionType* Distribution )
+void BuildLookupTable( FDistributionLookupTable* OutTable, const DistributionType& Distribution )
 {
 	check(IsInGameThread() || IsInAsyncLoadingThread());
 	check(Distribution);

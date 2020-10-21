@@ -265,6 +265,8 @@ class ANIMGRAPH_API UAnimGraphNode_Base : public UK2Node
 	// Helper function for ReplaceReferredAnimations	
 	template<class AssetType>
 	void HandleAnimReferenceReplacement(AssetType*& OriginalAsset, const TMap<UAnimationAsset*, UAnimationAsset*>& AnimAssetReplacementMap);
+	template<class AssetType>
+	void HandleAnimReferenceReplacement(TObjectPtr<AssetType>& OriginalAsset, const TMap<UAnimationAsset*, UAnimationAsset*>& AnimAssetReplacementMap);
 
 	/**
 	 * Selection notification callback.
@@ -401,4 +403,10 @@ void UAnimGraphNode_Base::HandleAnimReferenceReplacement(AssetType*& OriginalAss
 	{
 		OriginalAsset = Cast<AssetType>(*ReplacementAsset);
 	}
+}
+
+template<class AssetType>
+void UAnimGraphNode_Base::HandleAnimReferenceReplacement(TObjectPtr<AssetType>& OriginalAsset, const TMap<UAnimationAsset*, UAnimationAsset*>& AnimAssetReplacementMap)
+{
+	HandleAnimReferenceReplacement(static_cast<AssetType*&>(OriginalAsset), AnimAssetReplacementMap);
 }

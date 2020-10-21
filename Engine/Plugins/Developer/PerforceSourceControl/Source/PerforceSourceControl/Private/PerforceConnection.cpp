@@ -310,6 +310,8 @@ bool FPerforceConnection::Login(const FPerforceConnectionInfo& InConnectionInfo)
 
 bool FPerforceConnection::EnsureValidConnection(FString& InOutServerName, FString& InOutUserName, FString& InOutWorkspaceName, const FPerforceConnectionInfo& InConnectionInfo)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FPerforceConnection::EnsureValidConnection);
+
 	bool bIsUnicodeServer = false;
 	bool bConnectionOK = false;
 #if USE_P4_API

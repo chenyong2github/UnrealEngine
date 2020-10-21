@@ -200,7 +200,7 @@ UObject* UDataTableFactory::FactoryCreateNew(UClass* Class, UObject* InParent, F
 		DataTable = MakeNewDataTable(InParent, Name, Flags);
 		if (DataTable)
 		{
-			DataTable->RowStruct = const_cast<UScriptStruct*>(Struct);
+			DataTable->RowStruct = const_cast<UScriptStruct*>(ToRawPtr(Struct));
 		}
 	}
 	return DataTable;

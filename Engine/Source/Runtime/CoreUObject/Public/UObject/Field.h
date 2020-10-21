@@ -23,6 +23,8 @@ Field.h: Declares FField property system fundamentals
 #include "Misc/CoreMiscDefines.h"
 #include "HAL/ThreadSafeCounter.h"
 
+#include <type_traits>
+
 class FProperty;
 class FField;
 class FFieldVariant;
@@ -222,10 +224,15 @@ public:
 	{
 		Container.Field = const_cast<FField*>(InField);
 	}
-	FFieldVariant(const UObject* InObject)
+
+	template <
+		typename T,
+		decltype(ImplicitConv<const UObject*>(std::declval<T>()))* = nullptr
+	>
+	FFieldVariant(T&& InObject)
 		: bIsUObject(true)
 	{
-		Container.Object = const_cast<UObject*>(InObject);
+		Container.Object = const_cast<UObject*>(ImplicitConv<const UObject*>(InObject));
 	}
 
 	FFieldVariant(TYPE_OF_NULLPTR)

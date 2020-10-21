@@ -69,6 +69,7 @@ public:
 	virtual void Serialize(FSoftObjectPtr& Value) override;
 	virtual void Serialize(FSoftObjectPath& Value) override;
 	virtual void Serialize(FLazyObjectPtr& Value) override;
+	virtual void Serialize(FObjectPtr& Value) override;
 	virtual void Serialize(TArray<uint8>& Value) override;
 	virtual void Serialize(void* Data, uint64 DataSize) override;
 
@@ -287,6 +288,11 @@ inline void FBinaryArchiveFormatter::Serialize(FSoftObjectPath& Value)
 }
 
 inline void FBinaryArchiveFormatter::Serialize(FLazyObjectPtr& Value)
+{
+	Inner << Value;
+}
+
+inline void FBinaryArchiveFormatter::Serialize(FObjectPtr& Value)
 {
 	Inner << Value;
 }

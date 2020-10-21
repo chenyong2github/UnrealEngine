@@ -66,6 +66,8 @@
 #include "UObject/AsyncWorkSequence.h"
 #include "Serialization/BulkDataManifest.h"
 #include "Misc/ScopeExit.h"
+#include "Misc/PackageAccessTracking.h"
+#include "Misc/PackageAccessTrackingOps.h"
 
 #if ENABLE_COOK_STATS
 #include "ProfilingDebugging/ScopedTimers.h"
@@ -85,6 +87,18 @@ static FCriticalSection InitializeCoreClassesCritSec;
 
 // bring the UObectGlobal declaration visible to non editor
 bool IsEditorOnlyObject(const UObject* InObject, bool bCheckRecursive, bool bCheckMarks);
+
+static void AppendAdditionalData(FLinkerSave& Linker)
+{
+	FArchive& Ar = Linker;
+
+	for (FLinkerSave::AdditionalDataCallback& Callback : Linker.AdditionalDataToAppend)
+	{
+		Callback(Ar);
+	}
+
+	Linker.AdditionalDataToAppend.Empty();
+}
 
 static bool EndSavingIfCancelled() 
 {
@@ -2151,6 +2165,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 		return UPackage::Save2(InOuter, Base, Filename, SaveArgs);
 	}
 
+	UE_TRACK_REFERENCING_PACKAGE_SCOPED(InOuter, PackageAccessTrackingOps::NAME_Save);
 	COOK_STAT(FScopedDurationTimer FuncSaveTimer(FSavePackageStats::SavePackageTimeSec));
 	COOK_STAT(FSavePackageStats::NumPackagesSaved++);
 	SCOPED_SAVETIMER(UPackage_Save);
@@ -4267,6 +4282,8 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 
 				SavePackageUtilities::SaveBulkData(Linker.Get(), InOuter, Filename, TargetPlatform, SavePackageContext, bTextFormat, bDiffing,
 							 bComputeHash, AsyncWriteAndHashSequence, TotalPackageSizeUncompressed );
+
+				AppendAdditionalData(*Linker);
 
 #if WITH_EDITOR
 				if (bIsCooking && AdditionalFilesFromExports.Num() > 0)

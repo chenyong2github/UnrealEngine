@@ -642,3 +642,11 @@ void CORE_API EnableEmitDrawEventsOnlyOnCommandlist();
 /** Array to help visualize weak pointers in the debugger */
 class FChunkedFixedUObjectArray;
 extern CORE_API FChunkedFixedUObjectArray* GCoreObjectArrayForDebugVisualizers;
+
+/** Array to help visualize object paths in the debugger */
+extern template class TArray<FMinimalName, TInlineAllocator<3>>;
+extern CORE_API TArray<FMinimalName, TInlineAllocator<3>>* GCoreComplexObjectPathDebug;
+
+/** Array to help visualize object handles in the debugger */
+struct FObjectHandlePackageDebugData;
+extern CORE_API FObjectHandlePackageDebugData* GCoreObjectHandlePackageDebug;

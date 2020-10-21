@@ -128,7 +128,7 @@ FBlueprintNodeSignature UBlueprintEventNodeSpawner::GetSpawnerSignature() const
 	}
 	else
 	{
-		SpawnerSignature.AddSubObject(const_cast<UFunction*>(EventFunc));
+		SpawnerSignature.AddSubObject(const_cast<UFunction*>(ToRawPtr(EventFunc)));
 	}
 	return SpawnerSignature;
 }
@@ -203,7 +203,7 @@ UEdGraphNode* UBlueprintEventNodeSpawner::Invoke(UEdGraph* ParentGraph, FBinding
 			UserDelegate.ExecuteIfBound(NewNode, bInIsTemplateNode);
 		};
 
-		FCustomizeNodeDelegate PostSpawnDelegate = FCustomizeNodeDelegate::CreateStatic(PostSpawnLambda, EventFunc, EventName, CustomizeNodeDelegate);
+		FCustomizeNodeDelegate PostSpawnDelegate = FCustomizeNodeDelegate::CreateStatic(PostSpawnLambda, ToRawPtr(EventFunc), EventName, CustomizeNodeDelegate);
 		EventNode = Super::SpawnNode<UK2Node_Event>(NodeClass, ParentGraph, Bindings, Location, PostSpawnDelegate);
 	}
 	// else, a node for this event already exists, and we should return that 

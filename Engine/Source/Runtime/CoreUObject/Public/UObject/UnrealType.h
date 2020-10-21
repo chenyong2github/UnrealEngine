@@ -24,6 +24,7 @@
 #include "UObject/LazyObjectPtr.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
 #include "UObject/PropertyPortFlags.h"
 #include "UObject/PropertyTag.h"
 #include "UObject/ScriptInterface.h"
@@ -2280,6 +2281,46 @@ public:
 	virtual void SetObjectPropertyValue(void* PropertyValueAddress, UObject* Value) const override;
 	virtual FString GetCPPTypeCustom(FString* ExtendedTypeText, uint32 CPPExportFlags, const FString& InnerNativeTypeName)  const override;
 	// End of FObjectPropertyBase interface
+};
+
+//
+// Describes a reference variable to another object which may be nil.
+//
+class COREUOBJECT_API FObjectPtrProperty : public TFObjectPropertyBase<FObjectPtr>
+{
+	DECLARE_FIELD(FObjectPtrProperty, TFObjectPropertyBase<FObjectPtr>, CASTCLASS_FObjectPtrProperty)
+
+	using Super::Super;
+
+#if WITH_EDITORONLY_DATA
+	explicit FObjectPtrProperty(UField* InField)
+		: TFObjectPropertyBase(InField)
+	{
+	}
+#endif // WITH_EDITORONLY_DATA
+
+	// UHT interface
+	virtual FString GetCPPMacroType( FString& ExtendedTypeText ) const  override;
+	virtual FString GetCPPType( FString* ExtendedTypeText, uint32 CPPExportFlags ) const override;
+	// End of UHT interface
+
+	// FProperty interface
+	virtual FName GetID() const override;
+	virtual bool SameType(const FProperty* Other) const override;
+	virtual bool Identical(const void* A, const void* B, uint32 PortFlags) const override;
+	virtual void SerializeItem(FStructuredArchive::FSlot Slot, void* Value, void const* Defaults) const override;
+	virtual void EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps) override;
+	virtual EConvertFromTypeResult ConvertFromType(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot, uint8* Data, UStruct* DefaultsStruct) override;
+	// End of FProperty interface
+
+	// FObjectProperty interface
+	virtual UObject* GetObjectPropertyValue(const void* PropertyValueAddress) const override;
+	virtual void SetObjectPropertyValue(void* PropertyValueAddress, UObject* Value) const override;
+	virtual bool AllowCrossLevel() const override;
+private:
+	virtual uint32 GetValueTypeHashInternal(const void* Src) const override;
+public:
+	// End of FObjectProperty interface
 };
 
 //

@@ -352,6 +352,15 @@ struct FMinimalName
 		return !Index && Number == NAME_NO_NUMBER_INTERNAL;
 	}
 
+	friend FORCEINLINE FArchive& operator<<(FArchive& Ar, FMinimalName& E)
+	{
+		Ar << E.Index;
+		Ar << E.Number;
+		return Ar;
+	}
+
+	FORCEINLINE bool operator<(FMinimalName Rhs) const { return Index == Rhs.Index ? Number < Rhs.Number : Index < Rhs.Index; };
+
 	/** Index into the Names array (used to find String portion of the string/number pair) */
 	FNameEntryId	Index;
 	/** Number portion of the string/number pair (stored internally as 1 more than actual, so zero'd memory will be the default, no-instance case) */

@@ -145,7 +145,7 @@ void FLuminARImplementation::RemoveHandleIf(TUniqueFunction<bool(const FGuid&)> 
 	for (TMap<FGuid, FTrackedGeometryGroup>::TIterator Iterator = TrackedGeometryGroups.CreateIterator(); Iterator; ++Iterator)
 	{
 		FTrackedGeometryGroup& TrackedGeoemtryGroup = Iterator->Value;
-		auto* DerivedPointer = Cast<T>(TrackedGeoemtryGroup.TrackedGeometry);
+		auto* DerivedPointer = Cast<T>(ToRawPtr(TrackedGeoemtryGroup.TrackedGeometry));
 		if (DerivedPointer && HandleOperator(Iterator->Key))
 		{
 			DerivedPointer->SetTrackingState(EARTrackingState::StoppedTracking);

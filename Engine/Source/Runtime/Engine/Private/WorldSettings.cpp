@@ -359,7 +359,7 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	{
 		if (Ar.CustomVer(FEnterpriseObjectVersion::GUID) < FEnterpriseObjectVersion::BookmarkExtensibilityUpgrade)
 		{
-			UBookmarkBase** LocalBookmarks = reinterpret_cast<UBookmarkBase**>(static_cast<UBookMark**>(BookMarks)); //-V777
+			UBookmarkBase** LocalBookmarks = reinterpret_cast<UBookmarkBase**>(static_cast<UBookMark**>(ToRawPtrArrayUnsafe(BookMarks))); //-V777
 			const int32 NumBookmarks = sizeof(BookMarks) / sizeof(UBookMark*);
 			BookmarkArray = TArray<UBookmarkBase*>(LocalBookmarks, NumBookmarks);
 			AdjustNumberOfBookmarks();

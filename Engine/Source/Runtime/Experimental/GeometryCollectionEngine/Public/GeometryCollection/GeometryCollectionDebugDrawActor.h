@@ -5,6 +5,8 @@
 #include "GameFramework/Actor.h"
 #include "Components/BillboardComponent.h"
 
+#include <type_traits>
+
 #include "GeometryCollectionDebugDrawActor.generated.h"
 
 class AChaosSolverActor;
@@ -503,6 +505,10 @@ private:
 	/** Property update function helper. */
 	template<typename T1, typename T2>
 	void UpdatePropertyValue(T1& PropertyValue, const TAutoConsoleVariable<T2>& ConsoleVariable, bool& bHasChanged);
+
+	/** Property update function helper. */
+	template<typename T, decltype(ImplicitConv<AChaosSolverActor*>(std::declval<T>()))* = nullptr>
+	void UpdatePropertyValue(T& PropertyValue, const TAutoConsoleVariable<FString>& ConsoleVariable, bool& bHasChanged);
 
 	/** Callback on console variable. */
 	void OnCVarsChanged();

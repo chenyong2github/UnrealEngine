@@ -4268,9 +4268,12 @@ void UStaticMesh::ClearMeshDescriptions()
 // If static mesh derived data needs to be rebuilt (new format, serialization
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
-// and set this new GUID as the version.                                       
+// and set this new GUID as the version.
+#if UE_USE_VIRTUALBULKDATA
+	#define MESHDATAKEY_STATICMESH_DERIVEDDATA_VER TEXT("1F22FDD3B8C54996AAD54400037B85DF")
+#else
 #define MESHDATAKEY_STATICMESH_DERIVEDDATA_VER TEXT("BEDE1E3CC35D4D8FA944458825A18AFB")
-
+#endif
 
 static const FString& GetMeshDataKeyStaticMeshDerivedDataVersion()
 {

@@ -885,19 +885,19 @@ void UClothingAssetCommon::PostLoad()
 				}
 			}
 			// And keep the old config too
-			SetClothConfig(ClothSimConfig_DEPRECATED);
+			SetClothConfig(ToRawPtr(ClothSimConfig_DEPRECATED));
 			ClothSimConfig_DEPRECATED = nullptr;
 			bMigrateSharedConfigToConfig = false;
 		}
 		if (ChaosClothSimConfig_DEPRECATED)
 		{
-			SetClothConfig(ChaosClothSimConfig_DEPRECATED);
+			SetClothConfig(ToRawPtr(ChaosClothSimConfig_DEPRECATED));
 			ChaosClothSimConfig_DEPRECATED = nullptr;
 			bMigrateSharedConfigToConfig = false;
 		}
 		if (ClothSharedSimConfig_DEPRECATED)
 		{
-			SetClothConfig(ClothSharedSimConfig_DEPRECATED);
+			SetClothConfig(ToRawPtr(ClothSharedSimConfig_DEPRECATED));
 			ClothSharedSimConfig_DEPRECATED = nullptr;
 			bMigrateSharedConfigToConfig = false;
 		}

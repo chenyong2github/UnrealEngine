@@ -497,8 +497,8 @@ void AGeometryCollectionDebugDrawActor::UpdatePropertyValue(T1& PropertyValue, c
 	}
 }
 
-template<>
-void AGeometryCollectionDebugDrawActor::UpdatePropertyValue<AChaosSolverActor*, FString>(AChaosSolverActor*& PropertyValue, const TAutoConsoleVariable<FString>& ConsoleVariable, bool& bHasChanged)
+template<typename T, decltype(ImplicitConv<AChaosSolverActor*>(std::declval<T>()))*>
+void AGeometryCollectionDebugDrawActor::UpdatePropertyValue(T& PropertyValue, const TAutoConsoleVariable<FString>& ConsoleVariable, bool& bHasChanged)
 {
 	AChaosSolverActor* NewValue = nullptr;
 

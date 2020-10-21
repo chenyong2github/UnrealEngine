@@ -230,6 +230,9 @@
 #include "UObject/UnrealType.h"
 #include "Factories/TextureFactory.h"
 #include "Engine/TextureCube.h"
+#include "Misc/PackageAccessTracking.h"
+#include "Misc/PackageAccessTrackingOps.h"
+
 #if WITH_CHAOS
 #include "ChaosSolversModule.h"
 #endif
@@ -4461,6 +4464,7 @@ FSavePackageResultStruct UEditorEngine::Save( UPackage* InOuter, UObject* InBase
 				 FSavePackageContext* SavePackageContext)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UEditorEngine::Save);
+	UE_TRACK_REFERENCING_PACKAGE_SCOPED(InOuter, PackageAccessTrackingOps::NAME_Save); // Needs to be here in addition to UPackage::Save so that InitializePhysicsSceneForSaveIfNecessary and OnPreSaveWorld have appropriate referencing package info
 
 	FScopedSlowTask SlowTask(100, FText(), bSlowTask);
 

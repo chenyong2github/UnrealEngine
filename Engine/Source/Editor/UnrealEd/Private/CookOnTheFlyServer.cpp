@@ -5514,6 +5514,8 @@ void UCookOnTheFlyServer::SaveGlobalShaderMapFiles(const TArrayView<const ITarge
 
 		FString OutputDir = GetSandboxDirectory(RecompileData.PlatformName);
 
+		UE_LOG(LogCook, Display, TEXT("Checking global shaders for platform %s"), *RecompileData.PlatformName);
+
 		RecompileShadersForRemote
 			(RecompileData.PlatformName, 
 			RecompileData.ShaderPlatform == -1 ? SP_NumPlatforms : (EShaderPlatform)RecompileData.ShaderPlatform, //-V547

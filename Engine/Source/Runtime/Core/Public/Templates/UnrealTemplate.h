@@ -71,18 +71,18 @@ FORCEINLINE void Move(T& A,typename TMoveSupportTraits<T>::Move B)
  * Generically gets the data pointer of a contiguous container
  */
 template<typename T, typename = typename TEnableIf<TIsContiguousContainer<T>::Value>::Type>
-auto GetData(T&& Container) -> decltype(Container.GetData())
+constexpr auto GetData(T&& Container) -> decltype(Container.GetData())
 {
 	return Container.GetData();
 }
 
-template <typename T, SIZE_T N> CONSTEXPR       T* GetData(      T (& Container)[N]) { return Container; }
-template <typename T, SIZE_T N> CONSTEXPR       T* GetData(      T (&&Container)[N]) { return Container; }
-template <typename T, SIZE_T N> CONSTEXPR const T* GetData(const T (& Container)[N]) { return Container; }
-template <typename T, SIZE_T N> CONSTEXPR const T* GetData(const T (&&Container)[N]) { return Container; }
+template <typename T, SIZE_T N> constexpr T* GetData(      T (& Container)[N]) { return Container; }
+template <typename T, SIZE_T N> constexpr T* GetData(      T (&&Container)[N]) { return Container; }
+template <typename T, SIZE_T N> constexpr const T* GetData(const T (& Container)[N]) { return Container; }
+template <typename T, SIZE_T N> constexpr const T* GetData(const T (&&Container)[N]) { return Container; }
 
 template <typename T>
-CONSTEXPR const T* GetData(std::initializer_list<T> List)
+constexpr const T* GetData(std::initializer_list<T> List)
 {
 	return List.begin();
 }
@@ -91,15 +91,15 @@ CONSTEXPR const T* GetData(std::initializer_list<T> List)
 * Generically gets the number of items in a contiguous container
 */
 template<typename T, typename = typename TEnableIf<TIsContiguousContainer<T>::Value>::Type>
-auto GetNum(T&& Container) -> decltype(Container.Num())
+constexpr auto GetNum(T&& Container) -> decltype(Container.Num())
 {
 	return Container.Num();
 }
 
-template <typename T, SIZE_T N> CONSTEXPR SIZE_T GetNum(      T (& Container)[N]) { return N; }
-template <typename T, SIZE_T N> CONSTEXPR SIZE_T GetNum(      T (&&Container)[N]) { return N; }
-template <typename T, SIZE_T N> CONSTEXPR SIZE_T GetNum(const T (& Container)[N]) { return N; }
-template <typename T, SIZE_T N> CONSTEXPR SIZE_T GetNum(const T (&&Container)[N]) { return N; }
+template <typename T, SIZE_T N> constexpr SIZE_T GetNum(      T (& Container)[N]) { return N; }
+template <typename T, SIZE_T N> constexpr SIZE_T GetNum(      T (&&Container)[N]) { return N; }
+template <typename T, SIZE_T N> constexpr SIZE_T GetNum(const T (& Container)[N]) { return N; }
+template <typename T, SIZE_T N> constexpr SIZE_T GetNum(const T (&&Container)[N]) { return N; }
 
 /**
  * Gets the number of items in an initializer list.
@@ -108,7 +108,7 @@ template <typename T, SIZE_T N> CONSTEXPR SIZE_T GetNum(const T (&&Container)[N]
  * Realistically, an initializer list should not exceed the limits of int32.
  */
 template <typename T>
-CONSTEXPR int32 GetNum(std::initializer_list<T> List)
+constexpr int32 GetNum(std::initializer_list<T> List)
 {
 	return static_cast<int32>(List.size());
 }

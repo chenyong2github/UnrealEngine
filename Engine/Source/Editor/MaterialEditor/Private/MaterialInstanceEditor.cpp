@@ -1538,7 +1538,7 @@ bool FMaterialInstanceEditor::ApproveSetPreviewAsset(UObject* InAsset)
 void FMaterialInstanceEditor::Refresh()
 {
 	int32 TempIndex;
-	const bool bParentChanged = !MaterialParentList.Find( MaterialEditorInstance->Parent, TempIndex );
+	const bool bParentChanged = !MaterialParentList.Find( ToRawPtr(MaterialEditorInstance->Parent), TempIndex );
 
 	PreviewVC->RefreshViewport();
 

@@ -438,7 +438,7 @@ public:
 	/** this will set the material to be analyzed by this class */
 	/** TMaterial should be UMaterial or UMaterialInstance */
 	template <typename TMaterial>
-	void SetMaterial(TMaterial *InMaterial);
+	void SetMaterial(TMaterial& InMaterial);
 
 	// end Update Functions
 	///////////////////////////////////////////
@@ -512,7 +512,7 @@ FORCEINLINE TSharedPtr<class SMaterialEditorStatsWidget> FMaterialStats::GetGrid
 
 //TMaterial should be UMaterial or UMaterialInstance
 template <typename TMaterial>
-void FMaterialStats::SetMaterial(TMaterial *MaterialPtr)
+void FMaterialStats::SetMaterial(TMaterial& MaterialPtr)
 {
 	if (MaterialInterface != MaterialPtr)
 	{

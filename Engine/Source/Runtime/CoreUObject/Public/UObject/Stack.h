@@ -50,6 +50,7 @@ enum EPropertyType
 	CPT_MulticastDelegate,
 	CPT_WeakObjectReference,
 	CPT_LazyObjectReference,
+	CPT_ObjectPtrReference,
 	CPT_SoftObjectReference,
 	CPT_Double,
 	CPT_Map,

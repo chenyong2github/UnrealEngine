@@ -129,6 +129,7 @@ public:
 	virtual void Serialize(struct FSoftObjectPtr& Value) = 0;
 	virtual void Serialize(struct FSoftObjectPath& Value) = 0;
 	virtual void Serialize(struct FLazyObjectPtr& Value) = 0;
+	virtual void Serialize(struct FObjectPtr& Value) = 0;
 	virtual void Serialize(TArray<uint8>& Value) = 0;
 	virtual void Serialize(void* Data, uint64 DataSize) = 0;
 };

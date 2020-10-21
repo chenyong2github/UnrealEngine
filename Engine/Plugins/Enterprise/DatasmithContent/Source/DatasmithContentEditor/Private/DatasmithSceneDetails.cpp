@@ -31,7 +31,7 @@ void FDatasmithSceneDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilde
 	check( DatasmithScene );
 	DatasmithScenePtr = DatasmithScene;
 
-	static_assert( TIsSame< TRemovePointer< decltype( UDatasmithScene::AssetImportData ) >::Type, UDatasmithSceneImportData >::Value, "Please update this details customization" );
+	static_assert( TIsSame< typename TRemovePointer< typename TRemoveObjectPointer<decltype( UDatasmithScene::AssetImportData )>::Type >::Type, UDatasmithSceneImportData >::Value, "Please update this details customization" );
 	static_assert( TIsDerivedFrom < UDatasmithSceneImportData, UAssetImportData >::IsDerived, "Please update this details customization" );
 
 	TSharedRef< IPropertyHandle > AssetImportDataPropertyHandle = DetailBuilder.GetProperty( GET_MEMBER_NAME_CHECKED( UDatasmithScene, AssetImportData ) );

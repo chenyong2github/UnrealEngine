@@ -7,6 +7,14 @@
 #include "UObject/Field.h"
 #include "Templates/ChooseClass.h"
 
+#include <type_traits>
+
+template <typename T>
+struct TIsTSubclassOf
+{
+	enum { Value = false };
+};
+
 /**
  * Template to allow TClassType's to be passed around with type safety 
  */
@@ -36,6 +44,19 @@ public:
 	{
 	}
 
+	/** Constructor that takes a UClass and does a runtime check to make sure this is a compatible class */
+	template <
+		typename U,
+		std::enable_if_t<
+			!TIsTSubclassOf<std::decay_t<U>>::Value,
+			decltype(ImplicitConv<TClassType*>(std::declval<U>()))
+		>* = nullptr
+	>
+	FORCEINLINE TSubclassOf(U&& From)
+		: Class(From)
+	{
+	}
+
 	/** Copy Constructor, will only compile if types are compatible */
 	template <class TClassA, class = decltype(ImplicitConv<TClass*>((TClassA*)nullptr))>
 	FORCEINLINE TSubclassOf(const TSubclassOf<TClassA>& From) :
@@ -53,6 +74,20 @@ public:
 	
 	/** Assignment operator from UClass, the type is checked on get not on set */
 	FORCEINLINE TSubclassOf& operator=(TClassType* From)
+	{
+		Class = From;
+		return *this;
+	}
+	
+	/** Assignment operator from UClass, the type is checked on get not on set */
+	template <
+		typename U,
+		std::enable_if_t<
+			!TIsTSubclassOf<std::decay_t<U>>::Value,
+			decltype(ImplicitConv<TClassType*>(std::declval<U>()))
+		>* = nullptr
+	>
+	FORCEINLINE TSubclassOf& operator=(U&& From)
 	{
 		Class = From;
 		return *this;
@@ -124,4 +159,10 @@ public:
 
 private:
 	TClassType* Class;
+};
+
+template <typename T>
+struct TIsTSubclassOf<TSubclassOf<T>>
+{
+	enum { Value = true };
 };

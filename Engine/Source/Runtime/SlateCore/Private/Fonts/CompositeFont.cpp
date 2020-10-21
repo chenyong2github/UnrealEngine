@@ -214,7 +214,7 @@ bool FFontData::Serialize(FArchive& Ar)
 	if (bIsCooked)
 	{
 		// Cooked data uses a more compact format
-		UObject* LocalFontFaceAsset = const_cast<UObject*>(FontFaceAsset);
+		UObject* LocalFontFaceAsset = const_cast<UObject*>(ToRawPtr(FontFaceAsset));
 		Ar << LocalFontFaceAsset;
 		FontFaceAsset = LocalFontFaceAsset;
 		
