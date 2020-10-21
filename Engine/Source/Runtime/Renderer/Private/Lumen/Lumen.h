@@ -22,6 +22,8 @@ namespace Lumen
 	float GetMaxTraceDistance();
 	bool UseHardwareRayTracedShadows(const FViewInfo& View);
 	bool UseHardwareRayTracedScreenProbeGather();
+	bool UseIrradianceAtlas();
+	bool UseIndirectIrradianceAtlas();
 	bool AnyLumenHardwareRayTracingPassEnabled();
 	int32 GetGlobalDFResolution();
 	float GetGlobalDFClipmapExtent();

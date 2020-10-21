@@ -16,6 +16,7 @@
 #include "Rendering/NaniteResources.h"
 #include "Nanite/NaniteRender.h"
 #include "PixelShaderUtils.h"
+#include "Lumen.h"
 #include "LumenCubeMapTree.h"
 #include "LumenSceneUtils.h"
 #include "DistanceFieldAmbientOcclusion.h"
@@ -915,6 +916,14 @@ void ClearAtlasesToDebugValues(FRHICommandListImmediate& RHICmdList, FLumenScene
 	// Clear to debug values to make out of bounds reads obvious
 	ClearAtlas(RHICmdList, LumenSceneData.DepthAtlas);
 	ClearAtlas(RHICmdList, LumenSceneData.FinalLightingAtlas);
+	if (Lumen::UseIrradianceAtlas())
+	{
+		ClearAtlas(RHICmdList, LumenSceneData.IrradianceAtlas);
+	}
+	if (Lumen::UseIndirectIrradianceAtlas())
+	{
+		ClearAtlas(RHICmdList, LumenSceneData.IndirectIrradianceAtlas);
+	}
 	ClearAtlas(RHICmdList, LumenSceneData.RadiosityAtlas);
 	ClearAtlas(RHICmdList, LumenSceneData.OpacityAtlas);
 }
@@ -925,7 +934,7 @@ FIntPoint GetDesiredAtlasSize()
 	return FIntPoint(Pow2, Pow2);
 }
 
-void AllocateCardAtlasses(FRHICommandListImmediate& RHICmdList, FLumenSceneData& LumenSceneData)
+void AllocateCardAtlases(FRHICommandListImmediate& RHICmdList, FLumenSceneData& LumenSceneData)
 {
 	LLM_SCOPE_BYTAG(Lumen);
 
@@ -959,6 +968,35 @@ void AllocateCardAtlasses(FRHICommandListImmediate& RHICmdList, FLumenSceneData&
 	GRenderTargetPool.FindFreeElement(RHICmdList, OpacityDesc, LumenSceneData.OpacityAtlas, TEXT("LumenSceneOpacity"), ERenderTargetTransience::NonTransient);
 
 	ClearAtlasesToDebugValues(RHICmdList, LumenSceneData);
+}
+
+// @todo Fold into AllocateCardAtlases after changing reallocation boolean to respect optional card atlas state settings
+void AllocateOptionalCardAtlases(FRHICommandListImmediate& RHICmdList, FLumenSceneData& LumenSceneData, bool bReallocateAtlas)
+{
+	FClearValueBinding CrazyGreen(FLinearColor(0.0f, 10000.0f, 0.0f, 1.0f));
+	const int32 NumMips = FMath::CeilLogTwo(FMath::Max(LumenSceneData.MaxAtlasSize.X, LumenSceneData.MaxAtlasSize.Y)) + 1;
+	FPooledRenderTargetDesc LightingDesc(FPooledRenderTargetDesc::Create2DDesc(LumenSceneData.MaxAtlasSize, PF_FloatR11G11B10, CrazyGreen, TexCreate_None, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_NoFastClear, false, NumMips));
+	LightingDesc.AutoWritable = false;
+
+	const bool bUseIrradianceAtlas = Lumen::UseIrradianceAtlas();
+	if (bUseIrradianceAtlas && (bReallocateAtlas || !LumenSceneData.IrradianceAtlas))
+	{
+		GRenderTargetPool.FindFreeElement(RHICmdList, LightingDesc, LumenSceneData.IrradianceAtlas, TEXT("LumenSceneIrradiance"), ERenderTargetTransience::NonTransient);
+	}
+	else if (!bUseIrradianceAtlas)
+	{
+		LumenSceneData.IrradianceAtlas = nullptr;
+	}
+
+	const bool bUseIndirectIrradianceAtlas = Lumen::UseIndirectIrradianceAtlas();
+	if (bUseIndirectIrradianceAtlas && (bReallocateAtlas || !LumenSceneData.IndirectIrradianceAtlas))
+	{
+		GRenderTargetPool.FindFreeElement(RHICmdList, LightingDesc, LumenSceneData.IndirectIrradianceAtlas, TEXT("LumenSceneIndirectIrradiance"), ERenderTargetTransience::NonTransient);
+	}
+	else if (!bUseIndirectIrradianceAtlas)
+	{
+		LumenSceneData.IndirectIrradianceAtlas = nullptr;
+	}
 }
 
 struct FCardAllocationSorter
@@ -1152,7 +1190,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenCardAtlasAllocation(FRHICommandLi
 
 	if (bReallocateAtlas || !LumenSceneData.AlbedoAtlas)
 	{
-		AllocateCardAtlasses(RHICmdList, LumenSceneData);
+		AllocateCardAtlases(RHICmdList, LumenSceneData);
 	}
 
 	if (GLumenSceneRecaptureLumenSceneEveryFrame || bRecaptureLumenSceneOnce)
@@ -1608,6 +1646,7 @@ void FDeferredShadingSceneRenderer::BeginUpdateLumenSceneTasks(FRHICommandListIm
 			}
 		}
 
+		AllocateOptionalCardAtlases(RHICmdList, LumenSceneData, bReallocateAtlas);
 		if (CardsToRender.Num() > 0)
 		{
 			UpdateLumenCardAtlasAllocation(RHICmdList, MainView, bReallocateAtlas, bRecaptureLumenSceneOnce);

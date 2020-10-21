@@ -320,21 +320,17 @@ uint NumCones;
 float SampleWeight;
 float4 RadiosityConeDirections[32];
 
-Texture2D AlbedoAtlas;
 Texture2D NormalAtlas;
 Texture2D DepthBufferAtlas;
 Texture2D CurrentOpacityAtlas;
 
 float3 RadiosityTraceFromTexel(float2 AtlasUV, int2 AtlasCoord, uint ProbeIndex, FLumenCardData LumenCardData, uint ConeStartIndex, uint ConeEndIndex)
 {
-	float3 AlbedoSqr = Texture2DSampleLevel(AlbedoAtlas, GlobalBilinearClampedSampler, AtlasUV, 0).xyz;
-	float3 DiffuseColor = AlbedoSqr * AlbedoSqr;
-
 	float Opacity = Texture2DSampleLevel(CurrentOpacityAtlas, GlobalBilinearClampedSampler, AtlasUV, 0).x;
 
 	float3 Lighting = 0;
 
-	if (Opacity > 0 && Luminance(DiffuseColor) > .1f)
+	if (Opacity > 0)
 	{
 		float Depth = Texture2DSampleLevel(DepthBufferAtlas, GlobalBilinearClampedSampler, AtlasUV, 0).x;
 
@@ -414,7 +410,7 @@ float3 RadiosityTraceFromTexel(float2 AtlasUV, int2 AtlasCoord, uint ProbeIndex,
 		}
 	}
 
-	Lighting *= PI * Diffuse_Lambert(DiffuseColor) / (float)NumCones;
+	Lighting *= PI / (float)NumCones;
 	return Lighting;
 }
 

@@ -289,6 +289,8 @@ BEGIN_SHADER_PARAMETER_STRUCT(FLumenCardTracingParameters, )
 	SHADER_PARAMETER_STRUCT_REF(FReflectionUniformParameters, ReflectionStruct)
 	SHADER_PARAMETER_STRUCT_REF(FLumenCardScene, LumenCardScene)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, FinalLightingAtlas)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, IrradianceAtlas)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, IndirectIrradianceAtlas)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, OpacityAtlas)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DilatedDepthAtlas)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture3D, VoxelLighting)
@@ -305,6 +307,8 @@ public:
 	void ExtractToScene(FRDGBuilder& GraphBuilder, FScene* Scene, FViewInfo& View);
 
 	FRDGTextureRef FinalLightingAtlas;
+	FRDGTextureRef IrradianceAtlas;
+	FRDGTextureRef IndirectIrradianceAtlas;
 	FRDGTextureRef OpacityAtlas;
 	FRDGTextureRef DilatedDepthAtlas;
 	FRDGTextureRef VoxelLighting;

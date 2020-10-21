@@ -65,7 +65,7 @@ void LumenCardDirectLightingPS(
 	out float4 OutColor : SV_Target0)
 {
 	float Opacity = Texture2DSampleLevel(OpacityAtlas, GlobalBilinearClampedSampler, CardInterpolants.AtlasCoord, 0).x;
-	float3 DirectLighting = 0;
+	float3 Irradiance = 0;
 
 	if (Opacity > 0)
 	{
@@ -215,15 +215,12 @@ void LumenCardDirectLightingPS(
 				#endif
 
 				float NoL = saturate(dot(WorldNormal, L));
-
-				float3 AlbedoSqr = Texture2DSampleLevel(LumenCardScene.AlbedoAtlas, GlobalBilinearClampedSampler, CardInterpolants.AtlasCoord, 0).xyz;
-				float3 DiffuseColor = AlbedoSqr * AlbedoSqr;
-				DirectLighting = LightColor * (CombinedAttenuation * NoL * ShadowFactor) * Diffuse_Lambert(DiffuseColor);
-				//DirectLighting = bShadowFactorValid ? float3(0, 1, 0) : float3(.2f, 0, 0);
+				Irradiance = LightColor * (CombinedAttenuation * NoL * ShadowFactor);
+				//Irradiance = bShadowFactorValid ? float3(0, 1, 0) : float3(.2f, 0, 0);
 			}
 		}
 	}
 		
-	OutColor = float4(DirectLighting, 0);
+	OutColor = float4(Irradiance, 0);
 }
 

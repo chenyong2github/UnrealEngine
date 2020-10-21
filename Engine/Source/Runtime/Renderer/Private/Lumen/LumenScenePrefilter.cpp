@@ -472,10 +472,16 @@ class FLumenCardPrefilterLightingPS : public FGlobalShader
 	DECLARE_GLOBAL_SHADER(FLumenCardPrefilterLightingPS);
 	SHADER_USE_PARAMETER_STRUCT(FLumenCardPrefilterLightingPS, FGlobalShader);
 
+	class FUseIrradianceAtlas : SHADER_PERMUTATION_INT("USE_IRRADIANCE_ATLAS", 2);
+	class FUseIndirectIrradianceAtlas : SHADER_PERMUTATION_INT("USE_INDIRECTIRRADIANCE_ATLAS", 2);
+	using FPermutationDomain = TShaderPermutationDomain<FUseIrradianceAtlas, FUseIndirectIrradianceAtlas>;
+
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_STRUCT_REF(FLumenCardScene, LumenCardScene)
 		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, ParentFinalLightingAtlas)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, ParentIrradianceAtlas)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, ParentIndirectIrradianceAtlas)
 		SHADER_PARAMETER(FVector2D, InvSize)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -519,6 +525,20 @@ void FDeferredShadingSceneRenderer::PrefilterLumenSceneLighting(
 
 			FLumenCardPrefilterLighting* PassParameters = GraphBuilder.AllocParameters<FLumenCardPrefilterLighting>();
 			PassParameters->RenderTargets[0] = FRenderTargetBinding(TracingInputs.FinalLightingAtlas, ERenderTargetLoadAction::ENoAction, MipIndex);
+			bool bUseIrradianceAtlas = Lumen::UseIrradianceAtlas();
+			bool bUseIndirectIrradianceAtlas = Lumen::UseIndirectIrradianceAtlas();
+			if (bUseIrradianceAtlas)
+			{
+				PassParameters->RenderTargets[1] = FRenderTargetBinding(TracingInputs.IrradianceAtlas, ERenderTargetLoadAction::ENoAction, MipIndex);
+				if (bUseIndirectIrradianceAtlas)
+				{
+					PassParameters->RenderTargets[2] = FRenderTargetBinding(TracingInputs.IndirectIrradianceAtlas, ERenderTargetLoadAction::ENoAction, MipIndex);
+				}
+			}
+			else if (bUseIndirectIrradianceAtlas)
+			{
+				PassParameters->RenderTargets[1] = FRenderTargetBinding(TracingInputs.IndirectIrradianceAtlas, ERenderTargetLoadAction::ENoAction, MipIndex);
+			}
 			PassParameters->VS.LumenCardScene = LumenSceneData.UniformBuffer;
 			PassParameters->VS.CardScatterParameters = VisibleCardScatterContext.Parameters;
 			PassParameters->VS.ScatterInstanceIndex = 0;
@@ -526,6 +546,14 @@ void FDeferredShadingSceneRenderer::PrefilterLumenSceneLighting(
 			PassParameters->PS.View = View.ViewUniformBuffer;
 			PassParameters->PS.LumenCardScene = LumenSceneData.UniformBuffer;
 			PassParameters->PS.ParentFinalLightingAtlas = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateForMipLevel(TracingInputs.FinalLightingAtlas, MipIndex - 1));
+			if (bUseIrradianceAtlas)
+			{
+				PassParameters->PS.ParentIrradianceAtlas = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateForMipLevel(TracingInputs.IrradianceAtlas, MipIndex - 1));
+			}
+			if (bUseIndirectIrradianceAtlas)
+			{
+				PassParameters->PS.ParentIndirectIrradianceAtlas = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateForMipLevel(TracingInputs.IndirectIrradianceAtlas, MipIndex - 1));
+			}
 			PassParameters->PS.InvSize = FVector2D(1.0f / SrcSize.X, 1.0f / SrcSize.Y);
 
 			FScene* LocalScene = Scene;
@@ -534,9 +562,12 @@ void FDeferredShadingSceneRenderer::PrefilterLumenSceneLighting(
 				RDG_EVENT_NAME("PrefilterMip"),
 				PassParameters,
 				ERDGPassFlags::Raster,
-				[LocalScene, PassParameters, DestSize, GlobalShaderMap](FRHICommandListImmediate& RHICmdList)
+				[LocalScene, PassParameters, DestSize, GlobalShaderMap, bUseIrradianceAtlas, bUseIndirectIrradianceAtlas](FRHICommandListImmediate& RHICmdList)
 			{
-				auto PixelShader = GlobalShaderMap->GetShader< FLumenCardPrefilterLightingPS >();
+				FLumenCardPrefilterLightingPS::FPermutationDomain PermutationVector;
+				PermutationVector.Set<FLumenCardPrefilterLightingPS::FUseIrradianceAtlas>(bUseIrradianceAtlas != 0);
+				PermutationVector.Set<FLumenCardPrefilterLightingPS::FUseIndirectIrradianceAtlas>(bUseIndirectIrradianceAtlas != 0);
+				auto PixelShader = GlobalShaderMap->GetShader< FLumenCardPrefilterLightingPS >(PermutationVector);
 				DrawQuadsToAtlas(DestSize, PixelShader, PassParameters, GlobalShaderMap, TStaticBlendState<>::GetRHI(), RHICmdList);
 			});
 

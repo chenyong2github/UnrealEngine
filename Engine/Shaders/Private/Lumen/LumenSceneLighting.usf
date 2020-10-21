@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "../Common.ush"
+#include "../BRDF.ush"
 #include "LumenCardCommon.ush"
 
 RWBuffer<uint> RWQuadAllocator;
@@ -440,12 +441,24 @@ void LumenCardPrefilterOpacityPS(
 }
 
 Texture2D ParentFinalLightingAtlas;
+Texture2D ParentIrradianceAtlas;
+Texture2D ParentIndirectIrradianceAtlas;
 
 void LumenCardPrefilterLightingPS(
 	FCardVSToPS CardInterpolants,
-	out float4 OutLighting : SV_Target0)
+	out float4 OutLighting : SV_Target0,
+	out float4 OutColor1 : SV_Target1,
+	out float4 OutColor2 : SV_Target2)
 {
 	OutLighting = Texture2DSampleLevel(ParentFinalLightingAtlas, GlobalBilinearClampedSampler, CardInterpolants.AtlasCoord, 0);
+#if USE_IRRADIANCE_ATLAS
+	OutColor1 = Texture2DSampleLevel(ParentIrradianceAtlas, GlobalBilinearClampedSampler, CardInterpolants.AtlasCoord, 0);
+	#if USE_INDIRECTIRRADIANCE_ATLAS
+		OutColor2 = Texture2DSampleLevel(ParentIndirectIrradianceAtlas, GlobalBilinearClampedSampler, CardInterpolants.AtlasCoord, 0);
+	#endif
+#elif USE_INDIRECTIRRADIANCE_ATLAS
+	OutColor1 = Texture2DSampleLevel(ParentIndirectIrradianceAtlas, GlobalBilinearClampedSampler, CardInterpolants.AtlasCoord, 0);
+#endif
 }
 
 Texture2D RadiosityAtlas;
@@ -461,6 +474,27 @@ void LumenCardLightingCombinePS(
 	Radiosity = max(MakeFinite(Radiosity), float3(0.0f, 0.0f, 0.0f));
 
 	OutColor = float4(Radiosity, 0);
+}
+
+Texture2D SrcAtlas;
+
+void LumenCardCopyAtlasPS(
+	FCardVSToPS CardInterpolants,
+	out float4 OutValue : SV_Target0)
+{
+	float3 Value = Texture2DSampleLevel(SrcAtlas, GlobalBilinearClampedSampler, CardInterpolants.AtlasCoord, 0).xyz;
+	OutValue = float4(Value, 0);
+}
+
+Texture2D AlbedoAtlas;
+
+void LumenCardBlendAlbedoPS(
+	FCardVSToPS CardInterpolants,
+	out float4 OutColor : SV_Target0)
+{
+	float3 AlbedoSqr = Texture2DSampleLevel(AlbedoAtlas, GlobalBilinearClampedSampler, CardInterpolants.AtlasCoord, 0).xyz;
+	float3 DiffuseColor = AlbedoSqr * AlbedoSqr;
+	OutColor = float4(Diffuse_Lambert(DiffuseColor), 0);
 }
 
 void ClearLumenCardsPS(

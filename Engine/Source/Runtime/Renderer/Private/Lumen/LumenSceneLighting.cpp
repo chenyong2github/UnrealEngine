@@ -30,6 +30,21 @@ FAutoConsoleVariableRef CVarLumenSceneCardLightingUpdateMinFrequency(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
+namespace Lumen
+{
+	bool UseIrradianceAtlas()
+	{
+		//@todo UseHardwareRayTracedReflections();
+		return false;
+	}
+
+	bool UseIndirectIrradianceAtlas()
+	{
+		//@todo UseHardwareRayTracedReflections();
+		return false;
+	}
+}
+
 FLumenCardTracingInputs::FLumenCardTracingInputs(FRDGBuilder& GraphBuilder, const FScene* Scene, const FViewInfo& View)
 {
 	LLM_SCOPE_BYTAG(Lumen);
@@ -43,10 +58,16 @@ FLumenCardTracingInputs::FLumenCardTracingInputs(FRDGBuilder& GraphBuilder, cons
 		FinalLightingAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.FinalLightingAtlas);
 		OpacityAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.OpacityAtlas);
 		DilatedDepthAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.DepthAtlas);
+
+		auto RegisterOptionalAtlas = [&GraphBuilder](bool (*UseAtlas)(), TRefCountPtr<IPooledRenderTarget> Atlas) {
+			return UseAtlas() ? GraphBuilder.RegisterExternalTexture(Atlas) : GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
+		};
+		IrradianceAtlas = RegisterOptionalAtlas(Lumen::UseIrradianceAtlas, LumenSceneData.IrradianceAtlas);
+		IndirectIrradianceAtlas = RegisterOptionalAtlas(Lumen::UseIndirectIrradianceAtlas, LumenSceneData.IndirectIrradianceAtlas);
 	}
 	else
 	{
-		FinalLightingAtlas = OpacityAtlas = DilatedDepthAtlas = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
+		FinalLightingAtlas = IrradianceAtlas = IndirectIrradianceAtlas = OpacityAtlas = DilatedDepthAtlas = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
 	}
 
 	if (View.ViewState && View.ViewState->Lumen.VoxelLighting)
@@ -83,6 +104,14 @@ void FLumenCardTracingInputs::ExtractToScene(FRDGBuilder& GraphBuilder, FScene* 
 
 	ConvertToExternalTexture(GraphBuilder, OpacityAtlas, LumenSceneData.OpacityAtlas);
 	ConvertToExternalTexture(GraphBuilder, FinalLightingAtlas, LumenSceneData.FinalLightingAtlas);
+	if (Lumen::UseIrradianceAtlas())
+	{
+		ConvertToExternalTexture(GraphBuilder, IrradianceAtlas, LumenSceneData.IrradianceAtlas);
+	}
+	if (Lumen::UseIndirectIrradianceAtlas())
+	{
+		ConvertToExternalTexture(GraphBuilder, IndirectIrradianceAtlas, LumenSceneData.IndirectIrradianceAtlas);
+	}
 	ConvertToExternalTexture(GraphBuilder, DilatedDepthAtlas, LumenSceneData.DepthAtlas);
 
 	if (View.ViewState)
@@ -138,6 +167,8 @@ void GetLumenCardTracingParameters(const FViewInfo& View, const FLumenCardTracin
 	TracingParameters.LumenCardScene = TracingInputs.LumenCardScene;
 	TracingParameters.ReflectionStruct = CreateReflectionUniformBuffer(View, UniformBuffer_MultiFrame);
 	TracingParameters.FinalLightingAtlas = TracingInputs.FinalLightingAtlas;
+	TracingParameters.IrradianceAtlas = TracingInputs.IrradianceAtlas;
+	TracingParameters.IndirectIrradianceAtlas = TracingInputs.IndirectIrradianceAtlas;
 	TracingParameters.OpacityAtlas = TracingInputs.OpacityAtlas;
 	TracingParameters.DilatedDepthAtlas = TracingInputs.DilatedDepthAtlas;
 
@@ -319,6 +350,60 @@ BEGIN_SHADER_PARAMETER_STRUCT(FLumenCardLightingCombine, )
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 
+class FLumenCardCopyAtlasPS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FLumenCardCopyAtlasPS);
+	SHADER_USE_PARAMETER_STRUCT(FLumenCardCopyAtlasPS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_STRUCT_REF(FLumenCardScene, LumenCardScene)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SrcAtlas)
+	END_SHADER_PARAMETER_STRUCT()
+
+	using FPermutationDomain = TShaderPermutationDomain<>;
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return DoesPlatformSupportLumenGI(Parameters.Platform);
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FLumenCardCopyAtlasPS, "/Engine/Private/Lumen/LumenSceneLighting.usf", "LumenCardCopyAtlasPS", SF_Pixel);
+
+BEGIN_SHADER_PARAMETER_STRUCT(FLumenCardCopyAtlas, )
+SHADER_PARAMETER_STRUCT_INCLUDE(FRasterizeToCardsVS::FParameters, VS)
+SHADER_PARAMETER_STRUCT_INCLUDE(FLumenCardCopyAtlasPS::FParameters, PS)
+RENDER_TARGET_BINDING_SLOTS()
+END_SHADER_PARAMETER_STRUCT()
+
+class FLumenCardBlendAlbedoPS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FLumenCardBlendAlbedoPS);
+	SHADER_USE_PARAMETER_STRUCT(FLumenCardBlendAlbedoPS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_STRUCT_REF(FLumenCardScene, LumenCardScene)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, AlbedoAtlas)
+	END_SHADER_PARAMETER_STRUCT()
+
+	using FPermutationDomain = TShaderPermutationDomain<>;
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return DoesPlatformSupportLumenGI(Parameters.Platform);
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FLumenCardBlendAlbedoPS, "/Engine/Private/Lumen/LumenSceneLighting.usf", "LumenCardBlendAlbedoPS", SF_Pixel);
+
+BEGIN_SHADER_PARAMETER_STRUCT(FLumenCardBlendAlbedo, )
+SHADER_PARAMETER_STRUCT_INCLUDE(FRasterizeToCardsVS::FParameters, VS)
+SHADER_PARAMETER_STRUCT_INCLUDE(FLumenCardBlendAlbedoPS::FParameters, PS)
+RENDER_TARGET_BINDING_SLOTS()
+END_SHADER_PARAMETER_STRUCT()
+
 void CombineLumenSceneLighting(
 	FScene* Scene, 
 	FViewInfo& View,
@@ -367,6 +452,88 @@ void CombineLumenSceneLighting(
 			DrawQuadsToAtlas(MaxAtlasSize, PixelShader, PassParameters, GlobalShaderMap, TStaticBlendState<>::GetRHI(), RHICmdList);
 		});
 	}
+}
+
+void CopyLumenCardAtlas(
+	FScene* Scene,
+	FViewInfo& View,
+	FRDGBuilder& GraphBuilder,
+	FRDGTextureRef SrcAtlas,
+	FRDGTextureRef DstAtlas,
+	FGlobalShaderMap* GlobalShaderMap,
+	const FLumenCardScatterContext& VisibleCardScatterContext
+)
+{
+	LLM_SCOPE_BYTAG(Lumen);
+	FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
+
+	FLumenCardCopyAtlas* PassParameters = GraphBuilder.AllocParameters<FLumenCardCopyAtlas>();
+	PassParameters->RenderTargets[0] = FRenderTargetBinding(DstAtlas, ERenderTargetLoadAction::ENoAction);
+	PassParameters->VS.LumenCardScene = LumenSceneData.UniformBuffer;
+	PassParameters->VS.CardScatterParameters = VisibleCardScatterContext.Parameters;
+	PassParameters->VS.ScatterInstanceIndex = 0;
+	PassParameters->VS.CardUVSamplingOffset = FVector2D::ZeroVector;
+	PassParameters->PS.View = View.ViewUniformBuffer;
+	PassParameters->PS.LumenCardScene = LumenSceneData.UniformBuffer;
+	PassParameters->PS.SrcAtlas = SrcAtlas;
+
+	GraphBuilder.AddPass(
+		RDG_EVENT_NAME("CopyLumenCardAtlas"),
+		PassParameters,
+		ERDGPassFlags::Raster,
+		[MaxAtlasSize = Scene->LumenSceneData->MaxAtlasSize, PassParameters, GlobalShaderMap](FRHICommandListImmediate& RHICmdList)
+	{
+		FLumenCardCopyAtlasPS::FPermutationDomain PermutationVector;
+		auto PixelShader = GlobalShaderMap->GetShader< FLumenCardCopyAtlasPS >(PermutationVector);
+
+		DrawQuadsToAtlas(MaxAtlasSize,
+			PixelShader,
+			PassParameters,
+			GlobalShaderMap,
+			TStaticBlendState<>::GetRHI(),
+			RHICmdList);
+	});
+}
+
+void ApplyLumenCardAlbedo(
+	FScene* Scene,
+	FViewInfo& View,
+	FRDGBuilder& GraphBuilder,
+	FRDGTextureRef FinalLightingAtlas,
+	FRDGTextureRef AlbedoAtlas,
+	FGlobalShaderMap* GlobalShaderMap,
+	const FLumenCardScatterContext& VisibleCardScatterContext
+)
+{
+	LLM_SCOPE_BYTAG(Lumen);
+	FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
+
+	FLumenCardBlendAlbedo* PassParameters = GraphBuilder.AllocParameters<FLumenCardBlendAlbedo>();
+	PassParameters->RenderTargets[0] = FRenderTargetBinding(FinalLightingAtlas, ERenderTargetLoadAction::ENoAction);
+	PassParameters->VS.LumenCardScene = LumenSceneData.UniformBuffer;
+	PassParameters->VS.CardScatterParameters = VisibleCardScatterContext.Parameters;
+	PassParameters->VS.ScatterInstanceIndex = 0;
+	PassParameters->VS.CardUVSamplingOffset = FVector2D::ZeroVector;
+	PassParameters->PS.View = View.ViewUniformBuffer;
+	PassParameters->PS.LumenCardScene = LumenSceneData.UniformBuffer;
+	PassParameters->PS.AlbedoAtlas = AlbedoAtlas;
+
+	GraphBuilder.AddPass(
+		RDG_EVENT_NAME("ApplyLumenCardAlbedo"),
+		PassParameters,
+		ERDGPassFlags::Raster,
+		[MaxAtlasSize = Scene->LumenSceneData->MaxAtlasSize, PassParameters, GlobalShaderMap](FRHICommandListImmediate& RHICmdList)
+	{
+		FLumenCardCopyAtlasPS::FPermutationDomain PermutationVector;
+		auto PixelShader = GlobalShaderMap->GetShader< FLumenCardBlendAlbedoPS >(PermutationVector);
+
+		DrawQuadsToAtlas(MaxAtlasSize,
+			PixelShader,
+			PassParameters,
+			GlobalShaderMap,
+			TStaticBlendState<CW_RGB, BO_Add, BF_Zero, BF_SourceColor>::GetRHI(),
+			RHICmdList);
+	});
 }
 
 TGlobalResource<FTileTexCoordVertexBuffer> GLumenTileTexCoordVertexBuffer(NumLumenQuadsInBuffer);
@@ -447,6 +614,14 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneLighting(
 		if (GLumenSceneRecaptureLumenSceneEveryFrame)
 		{
 			ClearAtlasRDG(GraphBuilder, TracingInputs.FinalLightingAtlas);
+			if (Lumen::UseIrradianceAtlas())
+			{
+				ClearAtlasRDG(GraphBuilder, TracingInputs.IrradianceAtlas);
+			}
+			if (Lumen::UseIndirectIrradianceAtlas())
+			{
+				ClearAtlasRDG(GraphBuilder, TracingInputs.IndirectIrradianceAtlas);
+			}
 		}
 
 		CombineLumenSceneLighting(
@@ -459,7 +634,17 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneLighting(
 			GlobalShaderMap, 
 			DirectLightingCardScatterContext);
 
-		LumenSceneData.bFinalLightingAtlasContentsValid = true;
+		if (Lumen::UseIndirectIrradianceAtlas())
+		{
+			CopyLumenCardAtlas(
+				Scene,
+				View,
+				GraphBuilder,
+				TracingInputs.FinalLightingAtlas,
+				TracingInputs.IndirectIrradianceAtlas,
+				GlobalShaderMap,
+				DirectLightingCardScatterContext);
+		}
 
 		RenderDirectLightingForLumenScene(
 			GraphBuilder,
@@ -467,6 +652,30 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneLighting(
 			TracingInputs.OpacityAtlas,
 			GlobalShaderMap,
 			DirectLightingCardScatterContext);
+
+		if (Lumen::UseIrradianceAtlas())
+		{
+			CopyLumenCardAtlas(
+				Scene,
+				View,
+				GraphBuilder,
+				TracingInputs.FinalLightingAtlas,
+				TracingInputs.IrradianceAtlas,
+				GlobalShaderMap,
+				DirectLightingCardScatterContext);
+		}
+
+		FRDGTextureRef AlbedoAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.AlbedoAtlas, TEXT("AlbedoAtlas"));
+		ApplyLumenCardAlbedo(
+			Scene,
+			View,
+			GraphBuilder,
+			TracingInputs.FinalLightingAtlas,
+			AlbedoAtlas,
+			GlobalShaderMap,
+			DirectLightingCardScatterContext);
+
+		LumenSceneData.bFinalLightingAtlasContentsValid = true;
 
 		PrefilterLumenSceneLighting(GraphBuilder, View, TracingInputs, GlobalShaderMap, DirectLightingCardScatterContext);
 
