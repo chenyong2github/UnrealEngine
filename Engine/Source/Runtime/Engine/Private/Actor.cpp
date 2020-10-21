@@ -16,6 +16,7 @@
 #include "Engine/Engine.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/PropertyPortFlags.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
 #include "Kismet/GameplayStatics.h"
 #include "Engine/BlueprintGeneratedClass.h"
 #include "Engine/LocalPlayer.h"
@@ -808,6 +809,8 @@ bool AActor::IsReadyForFinishDestroy()
 
 void AActor::Serialize(FArchive& Ar)
 {
+	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
+
 #if WITH_EDITOR
 	// Prior to load, map natively-constructed component instances for Blueprint-generated class types to any serialized properties that might reference them.
 	// We'll use this information post-load to determine if any owned components may not have been serialized through the reference property (i.e. in case the serialized property value ends up being NULL).
@@ -900,6 +903,16 @@ void AActor::PostLoad()
 	{
 		bExchangedRoles = false;
 	}
+
+#if WITH_EDITOR
+	if (GetLinkerCustomVersion(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::ExternalActorsMapDataPackageFlag)
+	{
+		if (IsPackageExternal())
+		{
+			GetExternalPackage()->SetPackageFlags(PKG_ContainsMapData);
+		}
+	}
+#endif
 
 #if WITH_EDITORONLY_DATA
 	if (AActor* ParentActor = ParentComponentActor_DEPRECATED.Get())

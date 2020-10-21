@@ -2389,7 +2389,7 @@ UPackage* ULevel::CreateActorPackage(UPackage* InLevelPackage, const FString& In
 	ActorPackageName.Append(*GuidBase36 + 4);
 
 	UPackage* ActorPackage = CreatePackage(*ActorPackageName);
-	ActorPackage->SetPackageFlags(PKG_EditorOnly);
+	ActorPackage->SetPackageFlags(PKG_EditorOnly | PKG_ContainsMapData);
 	return ActorPackage;
 }
 

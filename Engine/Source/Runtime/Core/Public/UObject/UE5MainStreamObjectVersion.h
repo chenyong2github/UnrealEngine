@@ -28,6 +28,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Serialize GridGuid in PartitionActorDesc
 		PartitionActorDescSerializeGridGuid,
 
+		// Set PKG_ContainsMapData on external actor packages
+		ExternalActorsMapDataPackageFlag,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
