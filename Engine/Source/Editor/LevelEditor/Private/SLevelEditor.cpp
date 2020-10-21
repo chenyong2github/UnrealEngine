@@ -340,7 +340,10 @@ SLevelEditor::~SLevelEditor()
 	}
 	if (UObjectInitialized())
 	{
-		SelectedElements->ClearSelection(FTypedElementSelectionOptions());
+		if (!SelectedElements->HasAnyFlags(RF_BeginDestroyed | RF_FinishDestroyed))
+		{
+			SelectedElements->ClearSelection(FTypedElementSelectionOptions());
+		}
 		SelectedElements->RemoveFromRoot();
 		SelectedElements = nullptr;
 	}

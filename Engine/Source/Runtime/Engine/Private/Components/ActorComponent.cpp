@@ -13,9 +13,7 @@
 #include "Components/PrimitiveComponent.h"
 #include "AI/NavigationSystemBase.h"
 #include "Engine/BlueprintGeneratedClass.h"
-#include "TypedElementRegistry.h"
-#include "TypedElementOwnerStore.h"
-#include "Elements/Component/ComponentElementData.h"
+#include "Elements/EngineElementsLibrary.h"
 #include "ContentStreaming.h"
 #include "ComponentReregisterContext.h"
 #include "Engine/AssetUserData.h"
@@ -77,7 +75,6 @@ FAutoConsoleVariableRef GTickComponentLatentActionsWithTheComponentCVar(
 
 #if WITH_EDITOR
 FUObjectAnnotationSparseBool GSelectedComponentAnnotation;
-TTypedElementOwnerStore<FComponentElementData, const UActorComponent*> GComponentElementOwnerStore;
 #endif
 
 /** Static var indicating activity of reregister context */
@@ -296,10 +293,7 @@ void UActorComponent::PostInitProperties()
 	Super::PostInitProperties();
 
 #if WITH_EDITOR
-	if (GIsEditor && !HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))
-	{
-		GComponentElementOwnerStore.RegisterElementOwner(this, CreateComponentElement());
-	}
+	UEngineElementsLibrary::CreateEditorComponentElement(this);
 #endif	// WITH_EDITOR
 
 	// Instance components will be added during the owner's initialization
@@ -345,50 +339,6 @@ void UActorComponent::PostInitProperties()
 		}
 	}
 }
-
-TTypedElementOwner<FComponentElementData> UActorComponent::CreateComponentElement() const
-{
-	UTypedElementRegistry* Registry = UTypedElementRegistry::GetInstance();
-
-	TTypedElementOwner<FComponentElementData> ComponentElement;
-	if (ensureMsgf(Registry, TEXT("Typed element was requested for '%s' before the registry was available! This usually means that NewObject was used instead of CreateDefaultSubobject during CDO construction."), *GetPathName()))
-	{
-		ComponentElement = Registry->CreateElement<FComponentElementData>(NAME_Components);
-		ComponentElement.GetDataChecked().Component = const_cast<UActorComponent*>(this);
-	}
-
-	return ComponentElement;
-}
-
-void UActorComponent::DestroyComponentElement(TTypedElementOwner<FComponentElementData>& InOutComponentElement) const
-{
-	if (InOutComponentElement)
-	{
-		checkf(InOutComponentElement.GetDataChecked().Component == this, TEXT("Component element was not for this component instance! %s"), *GetPathName());
-		UTypedElementRegistry::GetInstance()->DestroyElement(InOutComponentElement);
-	}
-}
-
-#if WITH_EDITOR
-FTypedElementHandle UActorComponent::AcquireEditorElementHandle(const bool bAllowCreate) const
-{
-	if (GIsEditor)
-	{
-		if (TTypedElementOwnerScopedAccess<FComponentElementData> EditorElementScopedAccess = GComponentElementOwnerStore.FindElementOwner(this))
-		{
-			return EditorElementScopedAccess->AcquireHandle();
-		}
-
-		if (bAllowCreate)
-		{
-			TTypedElementOwnerScopedAccess<FComponentElementData> EditorElementScopedAccess = GComponentElementOwnerStore.RegisterElementOwner(this, CreateComponentElement());
-			return EditorElementScopedAccess->AcquireHandle();
-		}
-	}
-
-	return FTypedElementHandle();
-}
-#endif
 
 void UActorComponent::PostLoad()
 {
@@ -725,10 +675,7 @@ void UActorComponent::BeginDestroy()
 	}
 
 #if WITH_EDITOR
-	if (TTypedElementOwner<FComponentElementData> EditorElement = GComponentElementOwnerStore.UnregisterElementOwner(this))
-	{
-		DestroyComponentElement(EditorElement);
-	}
+	UEngineElementsLibrary::DestroyEditorComponentElement(this);
 #endif	// WITH_EDITOR
 
 	Super::BeginDestroy();

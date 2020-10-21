@@ -146,6 +146,40 @@ public:
 	}
 
 	/**
+	 * Unregister any given element owners that match the given predicate, transferring ownership of the owner instance to the given callback.
+	 */
+	void UnregisterElementOwners(TFunctionRef<bool(const TTypedElementOwner<ElementDataType>&)> InShouldUnregisterElement, TFunctionRef<void(TTypedElementOwner<ElementDataType>&&)> InOnUnregisterElement)
+	{
+		FScopeLock Lock(&ElementOwnerMapCS);
+		for (auto It = ElementOwnerMap.CreateIterator(); It; ++It)
+		{
+			if (InShouldUnregisterElement(It->Value))
+			{
+				InOnUnregisterElement(MoveTemp(It->Value));
+				It.RemoveCurrent();
+			}
+		}
+	}
+
+	/**
+	 * Find the given element owner, or call the register callback to create one if none is found.
+	 * @note This must be paired with a call to UnregisterElementOwner.
+	 */
+	TTypedElementOwnerScopedAccess<ElementDataType> FindOrRegisterElementOwner(const KeyDataType& InKey, TFunctionRef<TTypedElementOwner<ElementDataType>()> InCreateElement)
+	{
+		TTypedElementOwnerScopedAccess<ElementDataType> ScopedAccess(&ElementOwnerMapCS);
+		if (const TTypedElementOwner<ElementDataType>* ExistingElement = ElementOwnerMap.Find(InKey))
+		{
+			ScopedAccess.Private_SetElementOwner(ExistingElement);
+		}
+		else
+		{
+			ScopedAccess.Private_SetElementOwner(&ElementOwnerMap.Add(InKey, InCreateElement()));
+		}
+		return ScopedAccess;
+	}
+
+	/**
 	 * Provide const access to the given element owner.
 	 * @note This will lock the store for writes until the scoped access struct is no longer being used. The returned struct may be unset if the key was not registered.
 	 */

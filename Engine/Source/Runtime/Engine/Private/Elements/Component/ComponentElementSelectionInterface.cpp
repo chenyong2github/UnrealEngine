@@ -5,12 +5,6 @@
 #include "Components/ActorComponent.h"
 #include "TypedElementList.h"
 
-UObject* UComponentElementSelectionInterface::Legacy_GetSelectionObject(const FTypedElementHandle& InElementHandle)
-{
-	const FComponentElementData* ComponentData = InElementHandle.GetData<FComponentElementData>();
-	return ComponentData ? ComponentData->Component : nullptr;
-}
-
 int32 UComponentElementSelectionInterface::GetNumSelectedComponents(const UTypedElementList* InCurrentSelection)
 {
 	int32 NumSelected = 0;

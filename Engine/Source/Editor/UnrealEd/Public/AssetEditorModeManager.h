@@ -6,7 +6,6 @@
 #include "EditorModeManager.h"
 
 class FPreviewScene;
-class UTypedElementList;
 
 //////////////////////////////////////////////////////////////////////////
 // FAssetEditorModeManager
@@ -32,5 +31,4 @@ protected:
 	class USelection* ObjectSet = nullptr;
 	class USelection* ComponentSet = nullptr;
 	class FPreviewScene* PreviewScene = nullptr;
-	UTypedElementList* SelectedElements = nullptr;
 };

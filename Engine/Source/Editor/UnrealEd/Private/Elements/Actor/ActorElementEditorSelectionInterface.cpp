@@ -4,6 +4,7 @@
 #include "Elements/Actor/ActorElementData.h"
 #include "GameFramework/Actor.h"
 #include "TypedElementList.h"
+#include "Elements/EngineElementsLibrary.h"
 
 bool UActorElementEditorSelectionInterface::IsElementSelected(const FTypedElementHandle& InElementHandle, const UTypedElementList* InSelectionSet, const FTypedElementIsSelectedOptions& InSelectionOptions)
 {
@@ -18,7 +19,7 @@ bool UActorElementEditorSelectionInterface::IsActorSelected(const AActor* InActo
 		return false;
 	}
 
-	if (InSelectionSet->Contains(InActor->AcquireEditorElementHandle()))
+	if (InSelectionSet->Contains(UEngineElementsLibrary::AcquireEditorActorElementHandle(InActor)))
 	{
 		return true;
 	}
@@ -27,7 +28,7 @@ bool UActorElementEditorSelectionInterface::IsActorSelected(const AActor* InActo
 	{
 		if (const AActor* RootSelectionActor = InActor->GetRootSelectionParent())
 		{
-			return InSelectionSet->Contains(RootSelectionActor->AcquireEditorElementHandle());
+			return InSelectionSet->Contains(UEngineElementsLibrary::AcquireEditorActorElementHandle(RootSelectionActor));
 		}
 	}
 

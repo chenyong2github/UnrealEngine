@@ -11,8 +11,6 @@ class ENGINE_API UComponentElementSelectionInterface : public UTypedElementSelec
 	GENERATED_BODY()
 
 public:
-	virtual UObject* Legacy_GetSelectionObject(const FTypedElementHandle& InElementHandle) override;
-
 	static int32 GetNumSelectedComponents(const UTypedElementList* InCurrentSelection);
 	static bool HasSelectedComponents(const UTypedElementList* InCurrentSelection);
 };

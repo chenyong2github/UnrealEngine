@@ -29,6 +29,7 @@
 #include "Subsystems/BrushEditingSubsystem.h"
 #include "TypedElementList.h"
 #include "Elements/TypedElementSelectionSet.h"
+#include "Elements/EngineElementsLibrary.h"
 
 #define LOCTEXT_NAMESPACE "EditorSelectUtils"
 
@@ -256,24 +257,24 @@ void UUnrealEdEngine::ResetPivot()
 	Selection.
 -----------------------------------------------------------------------------*/
 
-void UUnrealEdEngine::OnEditorSelectionElementListPtrChanged(USelection* Selection, UTypedElementList* OldElementList, UTypedElementList* NewElementList)
+void UUnrealEdEngine::OnEditorElementSelectionPtrChanged(USelection* Selection, UTypedElementSelectionSet* OldSelectionSet, UTypedElementSelectionSet* NewSelectionSet)
 {
 	if (Selection == GetSelectedActors())
 	{
-		if (OldElementList)
+		if (OldSelectionSet)
 		{
-			OldElementList->OnChanged().RemoveAll(this);
+			OldSelectionSet->OnChanged().RemoveAll(this);
 		}
 
-		if (NewElementList)
+		if (NewSelectionSet)
 		{
-			NewElementList->OnChanged().AddUObject(this, &UUnrealEdEngine::OnEditorSelectionElementListChanged);
+			NewSelectionSet->OnChanged().AddUObject(this, &UUnrealEdEngine::OnEditorElementSelectionChanged);
 		}
 	}
 }
 
 
-void UUnrealEdEngine::OnEditorSelectionElementListChanged(const UTypedElementList* ElementList)
+void UUnrealEdEngine::OnEditorElementSelectionChanged(const UTypedElementSelectionSet* SelectionSet)
 {
 	NoteSelectionChange();
 }
@@ -429,15 +430,24 @@ void UUnrealEdEngine::SelectGroup(AGroupActor* InGroupActor, bool bForceSelectio
 		// Select/deselect all actors within the group (if locked or forced)
 		if (bForceSelection || InGroupActor->IsLocked())
 		{
-			FTypedElementListLegacySyncScopedBatch LegacySyncBatch(SelectionSet->GetMutableElementList(), SelectionOptions.AllowLegacyNotifications());
-
 			TArray<AActor*> GroupActors;
 			InGroupActor->GetGroupActors(GroupActors);
+
+			TArray<FTypedElementHandle, TInlineAllocator<256>> GroupElements;
+			GroupElements.Reserve(GroupActors.Num());
 			for (AActor* Actor : GroupActors)
 			{
+				if (FTypedElementHandle ElementHandle = UEngineElementsLibrary::AcquireEditorActorElementHandle(Actor))
+				{
+					GroupElements.Add(MoveTemp(ElementHandle));
+				}
+			}
+
+			if (GroupElements.Num() > 0)
+			{
 				bSelectionChanged |= bInSelected
-					? SelectionSet->SelectElement(Actor->AcquireEditorElementHandle(), SelectionOptions)
-					: SelectionSet->DeselectElement(Actor->AcquireEditorElementHandle(), SelectionOptions);
+					? SelectionSet->SelectElements(GroupElements, SelectionOptions)
+					: SelectionSet->DeselectElements(GroupElements, SelectionOptions);
 			}
 		}
 
@@ -445,11 +455,11 @@ void UUnrealEdEngine::SelectGroup(AGroupActor* InGroupActor, bool bForceSelectio
 		{
 			if (bNotify)
 			{
-				SelectionSet->GetMutableElementList()->NotifyPendingChanges();
+				SelectionSet->NotifyPendingChanges();
 			}
 			else
 			{
-				SelectionSet->GetMutableElementList()->ClearPendingChanges();
+				SelectionSet->ClearPendingChanges();
 			}
 		}
 	}
@@ -471,8 +481,8 @@ bool UUnrealEdEngine::CanSelectActor(AActor* Actor, bool bInSelected, bool bSele
 			.SetWarnIfLocked(bWarnIfLevelLocked);
 
 		return bInSelected
-			? SelectionSet->CanSelectElement(Actor->AcquireEditorElementHandle(), SelectionOptions)
-			: SelectionSet->CanDeselectElement(Actor->AcquireEditorElementHandle(), SelectionOptions);
+			? SelectionSet->CanSelectElement(UEngineElementsLibrary::AcquireEditorActorElementHandle(Actor), SelectionOptions)
+			: SelectionSet->CanDeselectElement(UEngineElementsLibrary::AcquireEditorActorElementHandle(Actor), SelectionOptions);
 	}
 
 	return false;
@@ -495,18 +505,18 @@ void UUnrealEdEngine::SelectActor(AActor* Actor, bool bInSelected, bool bNotify,
 			.SetAllowLegacyNotifications(false);
 
 		const bool bSelectionChanged = bInSelected
-			? SelectionSet->SelectElement(Actor->AcquireEditorElementHandle(), SelectionOptions)
-			: SelectionSet->DeselectElement(Actor->AcquireEditorElementHandle(), SelectionOptions);
+			? SelectionSet->SelectElement(UEngineElementsLibrary::AcquireEditorActorElementHandle(Actor), SelectionOptions)
+			: SelectionSet->DeselectElement(UEngineElementsLibrary::AcquireEditorActorElementHandle(Actor), SelectionOptions);
 
 		if (bSelectionChanged)
 		{
 			if (bNotify)
 			{
-				SelectionSet->GetMutableElementList()->NotifyPendingChanges();
+				SelectionSet->NotifyPendingChanges();
 			}
 			else
 			{
-				SelectionSet->GetMutableElementList()->ClearPendingChanges();
+				SelectionSet->ClearPendingChanges();
 			}
 		}
 		else if (bNotify || bForceRefresh)
@@ -534,18 +544,18 @@ void UUnrealEdEngine::SelectComponent(UActorComponent* Component, bool bInSelect
 			.SetAllowLegacyNotifications(false);
 
 		const bool bSelectionChanged = bInSelected
-			? SelectionSet->SelectElement(Component->AcquireEditorElementHandle(), SelectionOptions)
-			: SelectionSet->DeselectElement(Component->AcquireEditorElementHandle(), SelectionOptions);
+			? SelectionSet->SelectElement(UEngineElementsLibrary::AcquireEditorComponentElementHandle(Component), SelectionOptions)
+			: SelectionSet->DeselectElement(UEngineElementsLibrary::AcquireEditorComponentElementHandle(Component), SelectionOptions);
 
 		if (bSelectionChanged)
 		{
 			if (bNotify)
 			{
-				SelectionSet->GetMutableElementList()->NotifyPendingChanges();
+				SelectionSet->NotifyPendingChanges();
 			}
 			else
 			{
-				SelectionSet->GetMutableElementList()->ClearPendingChanges();
+				SelectionSet->ClearPendingChanges();
 			}
 		}
 	}
@@ -557,7 +567,7 @@ bool UUnrealEdEngine::IsComponentSelected(const UPrimitiveComponent* PrimCompone
 
 	if (UTypedElementSelectionSet* SelectionSet = ComponentSelection->GetElementSelectionSet())
 	{
-		return SelectionSet->IsElementSelected(PrimComponent->AcquireEditorElementHandle(), FTypedElementIsSelectedOptions().SetAllowIndirect(true));
+		return SelectionSet->IsElementSelected(UEngineElementsLibrary::AcquireEditorComponentElementHandle(PrimComponent), FTypedElementIsSelectedOptions().SetAllowIndirect(true));
 	}
 
 	return false;
@@ -677,11 +687,11 @@ void UUnrealEdEngine::SelectNone(bool bNoteSelectionChange, bool bDeselectBSPSur
 		{
 			if (bNoteSelectionChange)
 			{
-				SelectionSet->GetMutableElementList()->NotifyPendingChanges();
+				SelectionSet->NotifyPendingChanges();
 			}
 			else
 			{
-				SelectionSet->GetMutableElementList()->ClearPendingChanges();
+				SelectionSet->ClearPendingChanges();
 			}
 		}
 	}

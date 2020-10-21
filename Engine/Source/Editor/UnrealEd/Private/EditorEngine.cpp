@@ -129,6 +129,9 @@
 
 #include "Editor/ActorPositioning.h"
 
+#include "Elements/TypedElementSelectionSet.h"
+#include "Elements/Object/ObjectElementEditorSelectionProxy.h"
+
 #include "IDirectoryWatcher.h"
 #include "DirectoryWatcherModule.h"
 
@@ -243,77 +246,55 @@ DEFINE_LOG_CATEGORY_STATIC(LogEditor, Log, All);
 //////////////////////////////////////////////////////////////////////////
 // Globals
 
-static inline USelection*& PrivateGetSelectedActors()
+namespace PrivateEditorSelection
 {
-	static USelection* SSelectedActors = NULL;
-	return SSelectedActors;
-};
 
-static inline USelection*& PrivateGetSelectedComponents()
+static USelection* GActorSelection = nullptr;
+static USelection* GComponentSelection = nullptr;
+static USelection* GObjectSelection = nullptr;
+
+void InitSelectionSets()
 {
-	static USelection* SSelectedComponents = NULL;
-	return SSelectedComponents;
+	// Note: The actor and component typed element selection set is set and owned by the level editor, so it is deliberately left null here
+	GActorSelection = USelection::CreateActorSelection(GetTransientPackage(), TEXT("SelectedActors"), RF_Transactional);
+	GActorSelection->AddToRoot();
+
+	GComponentSelection = USelection::CreateComponentSelection(GetTransientPackage(), TEXT("SelectedComponents"), RF_Transactional);
+	GComponentSelection->AddToRoot();
+
+	GObjectSelection = USelection::CreateObjectSelection(GetTransientPackage(), TEXT("SelectedObjects"), RF_Transactional);
+	GObjectSelection->AddToRoot();
+
+	UTypedElementSelectionSet* ObjectSelectionSet = NewObject<UTypedElementSelectionSet>(GObjectSelection);
+	ObjectSelectionSet->RegisterAssetEditorSelectionProxy(NAME_Object, NewObject<UObjectElementEditorSelectionProxy>());
+	GObjectSelection->SetElementSelectionSet(ObjectSelectionSet);
 }
 
-static inline USelection*& PrivateGetSelectedObjects()
+void DestroySelectionSets()
 {
-	static USelection* SSelectedObjects = NULL;
-	return SSelectedObjects;
-};
-
-static void OnObjectSelected(UObject* Object)
-{
-	// Whenever an actor is unselected we must remove its components from the components selection
-	if (!Object->IsSelected())
+	// We may be destroyed after the UObject system has already shutdown, 
+	// which would mean that these instances will be garbage
+	if (UObjectInitialized())
 	{
-		TArray<UActorComponent*> ComponentsToDeselect;
-		for (FSelectionIterator It(*PrivateGetSelectedComponents()); It; ++It)
+		GActorSelection->RemoveFromRoot();
+		GComponentSelection->RemoveFromRoot();
+		GObjectSelection->RemoveFromRoot();
+
+		if (!GObjectSelection->HasAnyFlags(RF_BeginDestroyed | RF_FinishDestroyed))
 		{
-			UActorComponent* Component = CastChecked<UActorComponent>(*It);
-			if (Component->GetOwner() == Object)
+			if (UTypedElementSelectionSet* ObjectSelectionSet = GObjectSelection->GetElementSelectionSet())
 			{
-				ComponentsToDeselect.Add(Component);
+				ObjectSelectionSet->ClearSelection(FTypedElementSelectionOptions());
 			}
-		}
-		if (ComponentsToDeselect.Num() > 0)
-		{
-			PrivateGetSelectedComponents()->Modify();
-			PrivateGetSelectedComponents()->BeginBatchSelectOperation();
-			for (UActorComponent* Component : ComponentsToDeselect)
-			{
-				PrivateGetSelectedComponents()->Deselect(Component);
-			}
-			PrivateGetSelectedComponents()->EndBatchSelectOperation();
 		}
 	}
+
+	GActorSelection = nullptr;
+	GComponentSelection = nullptr;
+	GObjectSelection = nullptr;
 }
 
-static void PrivateInitSelectedSets()
-{
-	PrivateGetSelectedActors() = USelection::CreateActorSelection(&GSelectedActorAnnotation, GetTransientPackage(), TEXT("SelectedActors"), RF_Transactional);
-	PrivateGetSelectedActors()->AddToRoot();
-	PrivateGetSelectedActors()->SelectObjectEvent.AddStatic(&OnObjectSelected);
-
-	PrivateGetSelectedComponents() = USelection::CreateComponentSelection(&GSelectedComponentAnnotation, GetTransientPackage(), TEXT("SelectedComponents"), RF_Transactional);
-	PrivateGetSelectedComponents()->AddToRoot();
-
-	PrivateGetSelectedObjects() = USelection::CreateObjectSelection(&GSelectedObjectAnnotation, GetTransientPackage(), TEXT("SelectedObjects"), RF_Transactional);
-	PrivateGetSelectedObjects()->AddToRoot();
-}
-
-static void PrivateDestroySelectedSets()
-{
-#if 0
-	PrivateGetSelectedActors()->RemoveFromRoot();
-	PrivateGetSelectedActors() = NULL;
-
-	PrivateGetSelectedComponents()->RemoveFromRoot();
-	PrivateGetSelectedComponents() = NULL;
-
-	PrivateGetSelectedObjects()->RemoveFromRoot();
-	PrivateGetSelectedObjects() = NULL;
-#endif
-}
+} // namespace PrivateEditorSelection
 
 /**
 * A mapping of all startup packages to whether or not we have warned the user about editing them
@@ -404,7 +385,7 @@ int32 UEditorEngine::GetSelectedActorCount() const
 
 USelection* UEditorEngine::GetSelectedActors() const
 {
-	return PrivateGetSelectedActors();
+	return PrivateEditorSelection::GActorSelection;
 }
 
 bool UEditorEngine::IsWorldSettingsSelected() 
@@ -454,12 +435,12 @@ FSelectedEditableComponentIterator UEditorEngine::GetSelectedEditableComponentIt
 
 USelection* UEditorEngine::GetSelectedComponents() const
 {
-	return PrivateGetSelectedComponents();
+	return PrivateEditorSelection::GComponentSelection;
 }
 
 USelection* UEditorEngine::GetSelectedObjects() const
 {
-	return PrivateGetSelectedObjects();
+	return PrivateEditorSelection::GObjectSelection;
 }
 
 void UEditorEngine::GetContentBrowserSelectionClasses(TArray<UClass*>& Selection) const
@@ -647,7 +628,7 @@ void UEditorEngine::InitEditor(IEngineLoop* InEngineLoop)
 	}
 
 	// Create selection sets.
-	PrivateInitSelectedSets();
+	PrivateEditorSelection::InitSelectionSets();
 
 	// Set slate options
 	FMultiBoxSettings::UseSmallToolBarIcons = TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateStatic(&GetSmallToolBarIcons));
@@ -1262,7 +1243,7 @@ void UEditorEngine::FinishDestroy()
 		}
 
 		// Destroy selection sets.
-		PrivateDestroySelectedSets();
+		PrivateEditorSelection::DestroySelectionSets();
 
 		extern void TearDownDistanceFieldBuildNotification();
 		TearDownDistanceFieldBuildNotification();

@@ -5,6 +5,7 @@
 #include "Components/SceneComponent.h"
 #include "GameFramework/Actor.h"
 #include "TypedElementList.h"
+#include "Elements/EngineElementsLibrary.h"
 
 bool UComponentElementEditorSelectionInterface::IsElementSelected(const FTypedElementHandle& InElementHandle, const UTypedElementList* InSelectionSet, const FTypedElementIsSelectedOptions& InSelectionOptions)
 {
@@ -19,7 +20,7 @@ bool UComponentElementEditorSelectionInterface::IsComponentSelected(const UActor
 		return false;
 	}
 
-	if (InSelectionSet->Contains(InComponent->AcquireEditorElementHandle()))
+	if (InSelectionSet->Contains(UEngineElementsLibrary::AcquireEditorComponentElementHandle(InComponent)))
 	{
 		return true;
 	}
@@ -44,7 +45,7 @@ bool UComponentElementEditorSelectionInterface::IsComponentSelected(const UActor
 
 		if (ConsideredComponent)
 		{
-			return InSelectionSet->Contains(ConsideredComponent->AcquireEditorElementHandle());
+			return InSelectionSet->Contains(UEngineElementsLibrary::AcquireEditorComponentElementHandle(ConsideredComponent));
 		}
 	}
 

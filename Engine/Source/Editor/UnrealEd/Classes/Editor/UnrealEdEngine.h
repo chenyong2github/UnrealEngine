@@ -28,7 +28,7 @@ class UPrimitiveComponent;
 class UTexture2D;
 class UUnrealEdOptions;
 class USelection;
-class UTypedElementList;
+class UTypedElementSelectionSet;
 class FName;
 typedef FName FEditorModeID;
 struct FTypedElementSelectionOptions;
@@ -803,11 +803,11 @@ protected:
 	/** Called when global editor selection changes */
 	void OnEditorSelectionChanged(UObject* SelectionThatChanged);
 
-	/** Called when the element list pointer set on the global editor selection changes */
-	void OnEditorSelectionElementListPtrChanged(USelection* Selection, UTypedElementList* OldElementList, UTypedElementList* NewElementList);
+	/** Called when the element selection set pointer set on the global editor selection changes */
+	void OnEditorElementSelectionPtrChanged(USelection* Selection, UTypedElementSelectionSet* OldSelectionSet, UTypedElementSelectionSet* NewSelectionSet);
 
-	/** Called when the element list associated with the global editor selection changes */
-	void OnEditorSelectionElementListChanged(const UTypedElementList* ElementList);
+	/** Called when the element selection set associated with the global editor selection changes */
+	void OnEditorElementSelectionChanged(const UTypedElementSelectionSet* SelectionSet);
 
 	/** The package auto-saver instance used by the editor */
 	TUniquePtr<IPackageAutoSaver> PackageAutoSaver;

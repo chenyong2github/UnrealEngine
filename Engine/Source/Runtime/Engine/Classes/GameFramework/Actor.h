@@ -15,7 +15,6 @@
 #include "ComponentInstanceDataCache.h"
 #include "Components/ChildActorComponent.h"
 #include "RenderCommandFence.h"
-#include "TypedElementHandle.h"
 #include "Misc/ITransaction.h"
 #include "Engine/Level.h"
 
@@ -3301,14 +3300,6 @@ public:
 
 	/** Returns the instance components array */
 	const TArray<UActorComponent*>& GetInstanceComponents() const;
-
-public:
-	TTypedElementOwner<struct FActorElementData> CreateActorElement() const;
-	void DestroyActorElement(TTypedElementOwner<struct FActorElementData>& InOutActorElement) const;
-#if WITH_EDITOR
-	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category="TypedElementFramework|Actor")
-	FTypedElementHandle AcquireEditorElementHandle(const bool bAllowCreate = true) const;
-#endif
 
 	//~=============================================================================
 	// Navigation/AI related functions

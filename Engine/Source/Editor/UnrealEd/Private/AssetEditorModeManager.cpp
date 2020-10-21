@@ -3,26 +3,28 @@
 #include "AssetEditorModeManager.h"
 #include "Engine/Selection.h"
 #include "PreviewScene.h"
-#include "TypedElementRegistry.h"
+#include "Elements/TypedElementSelectionSet.h"
 
 //////////////////////////////////////////////////////////////////////////
 // FAssetEditorModeManager
 
 FAssetEditorModeManager::FAssetEditorModeManager()
 {
-	SelectedElements = UTypedElementRegistry::GetInstance()->CreateElementList();
-	SelectedElements->AddToRoot();
+	{
+		UTypedElementSelectionSet* ActorAndComponentsSelectionSet = NewObject<UTypedElementSelectionSet>();
 
-	ActorSet = USelection::CreateActorSelection(nullptr, GetTransientPackage(), NAME_None, RF_Transactional);
-	ActorSet->SetElementList(SelectedElements);
-	ActorSet->AddToRoot();
+		ActorSet = USelection::CreateActorSelection(GetTransientPackage(), NAME_None, RF_Transactional);
+		ActorSet->SetElementSelectionSet(ActorAndComponentsSelectionSet);
+		ActorSet->AddToRoot();
 
-	ObjectSet = USelection::CreateObjectSelection(nullptr, GetTransientPackage(), NAME_None, RF_Transactional);
+		ComponentSet = USelection::CreateComponentSelection(GetTransientPackage(), NAME_None, RF_Transactional);
+		ComponentSet->SetElementSelectionSet(ActorAndComponentsSelectionSet);
+		ComponentSet->AddToRoot();
+	}
+
+	ObjectSet = USelection::CreateObjectSelection(GetTransientPackage(), NAME_None, RF_Transactional);
+	ObjectSet->SetElementSelectionSet(NewObject<UTypedElementSelectionSet>(ObjectSet));
 	ObjectSet->AddToRoot();
-
-	ComponentSet = USelection::CreateComponentSelection(nullptr, GetTransientPackage(), NAME_None, RF_Transactional);
-	ComponentSet->SetElementList(SelectedElements);
-	ComponentSet->AddToRoot();
 }
 
 FAssetEditorModeManager::~FAssetEditorModeManager()
@@ -33,20 +35,31 @@ FAssetEditorModeManager::~FAssetEditorModeManager()
 	// which would mean that these instances will be garbage
 	if (UObjectInitialized())
 	{
-		ActorSet->SetElementList(nullptr);
+		if (!ActorSet->HasAnyFlags(RF_BeginDestroyed | RF_FinishDestroyed))
+		{
+			check(ActorSet->GetElementSelectionSet() == ComponentSet->GetElementSelectionSet());
+			if (UTypedElementSelectionSet* ActorAndComponentsSelectionSet = ActorSet->GetElementSelectionSet())
+			{
+				ActorAndComponentsSelectionSet->ClearSelection(FTypedElementSelectionOptions());
+			}
+		}
+
 		ActorSet->RemoveFromRoot();
 		ActorSet = nullptr;
 
-		ObjectSet->RemoveFromRoot();
-		ObjectSet = nullptr;
-
-		ComponentSet->SetElementList(nullptr);
 		ComponentSet->RemoveFromRoot();
 		ComponentSet = nullptr;
 
-		SelectedElements->Empty();
-		SelectedElements->RemoveFromRoot();
-		SelectedElements = nullptr;
+		if (!ObjectSet->HasAnyFlags(RF_BeginDestroyed | RF_FinishDestroyed))
+		{
+			if (UTypedElementSelectionSet* ObjectSelectionSet = ObjectSet->GetElementSelectionSet())
+			{
+				ObjectSelectionSet->ClearSelection(FTypedElementSelectionOptions());
+			}
+		}
+
+		ObjectSet->RemoveFromRoot();
+		ObjectSet = nullptr;
 	}
 }
 

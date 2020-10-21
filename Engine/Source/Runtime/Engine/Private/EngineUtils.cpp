@@ -11,6 +11,7 @@
 #include "Misc/EngineVersion.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/LightWeightInstanceSubsystem.h"
+#include "Elements/EngineElementsLibrary.h"
 #include "EngineGlobals.h"
 #include "Components/PrimitiveComponent.h"
 #include "Engine/Engine.h"
@@ -46,11 +47,11 @@ FTypedElementHandle HActor::GetElementHandle() const
 #if WITH_EDITOR
 	if (PrimComponent)
 	{
-		return PrimComponent->AcquireEditorElementHandle();
+		return UEngineElementsLibrary::AcquireEditorComponentElementHandle(PrimComponent);
 	}
 	if (Actor)
 	{
-		return Actor->AcquireEditorElementHandle();
+		return UEngineElementsLibrary::AcquireEditorActorElementHandle(Actor);
 	}
 #endif	// WITH_EDITOR
 	return FTypedElementHandle();

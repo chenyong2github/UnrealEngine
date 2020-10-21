@@ -111,13 +111,6 @@ public:
 	 */
 	UFUNCTION(BlueprintPure, Category="TypedElementInterfaces|Selection")
 	virtual FTypedElementHandle GetSelectionElement(const FTypedElementHandle& InElementHandle, const UTypedElementList* InCurrentSelection, const ETypedElementSelectionMethod InSelectionMethod) { return InElementHandle; }
-
-	/**
-	 * Retreive the object instance that should be selected via this handle.
-	 * @note This exists to allow the legacy USelection to bridge to an UTypedElementList instance. It should not be used in new code!
-	 */
-	UFUNCTION(BlueprintPure, Category="TypedElementInterfaces|Selection", DisplayName="GetSelectionObject (Legacy)")
-	virtual UObject* Legacy_GetSelectionObject(const FTypedElementHandle& InElementHandle) { return nullptr; }
 };
 
 template <>
@@ -130,5 +123,4 @@ struct TTypedElement<UTypedElementSelectionInterface> : public TTypedElementBase
 	bool DeselectElement(UTypedElementList* InSelectionSet, const FTypedElementSelectionOptions& InSelectionOptions) const { return InterfacePtr->DeselectElement(*this, InSelectionSet, InSelectionOptions); }
 	bool AllowSelectionModifiers(const UTypedElementList* InSelectionSet) const { return InterfacePtr->AllowSelectionModifiers(*this, InSelectionSet); }
 	FTypedElementHandle GetSelectionElement(const UTypedElementList* InCurrentSelection, const ETypedElementSelectionMethod InSelectionMethod) const { return InterfacePtr->GetSelectionElement(*this, InCurrentSelection, InSelectionMethod); }
-	UObject* Legacy_GetSelectionObject() const { return InterfacePtr->Legacy_GetSelectionObject(*this); }
 };

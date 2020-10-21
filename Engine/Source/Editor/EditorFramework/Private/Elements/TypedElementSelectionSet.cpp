@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Elements/TypedElementSelectionSet.h"
-#include "TypedElementList.h"
 #include "TypedElementRegistry.h"
 
 UTypedElementSelectionSet::UTypedElementSelectionSet()
@@ -9,6 +8,8 @@ UTypedElementSelectionSet::UTypedElementSelectionSet()
 	if (!HasAnyFlags(RF_ClassDefaultObject))
 	{
 		ElementList = UTypedElementRegistry::GetInstance()->CreateElementList();
+		ElementList->OnPreChange().AddUObject(this, &UTypedElementSelectionSet::OnElementListPreChange);
+		ElementList->OnChanged().AddUObject(this, &UTypedElementSelectionSet::OnElementListChanged);
 	}
 }
 

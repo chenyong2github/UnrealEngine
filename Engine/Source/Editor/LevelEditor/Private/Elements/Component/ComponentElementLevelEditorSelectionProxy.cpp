@@ -5,6 +5,7 @@
 #include "GameFramework/Actor.h"
 #include "Components/ActorComponent.h"
 #include "TypedElementList.h"
+#include "Elements/EngineElementsLibrary.h"
 
 #include "Elements/Actor/ActorElementSelectionInterface.h"
 #include "Elements/Component/ComponentElementSelectionInterface.h"
@@ -55,7 +56,7 @@ FTypedElementHandle UComponentElementLevelEditorSelectionProxy::GetSelectionElem
 				ConsideredComponent = ConsideredComponent->GetAttachParent();
 			}
 
-			const FTypedElementHandle ConsideredActorHandle = ConsideredActor->AcquireEditorElementHandle();
+			const FTypedElementHandle ConsideredActorHandle = UEngineElementsLibrary::AcquireEditorActorElementHandle(ConsideredActor);
 
 			// We want to process the click on the component only if:
 			// 1. The actor clicked is already selected and is the only actor selected
@@ -71,7 +72,7 @@ FTypedElementHandle UComponentElementLevelEditorSelectionProxy::GetSelectionElem
 
 			if (bSelectComponent && ConsideredComponent)
 			{
-				return ConsideredComponent->AcquireEditorElementHandle();
+				return UEngineElementsLibrary::AcquireEditorComponentElementHandle(ConsideredComponent);
 			}
 			else
 			{
@@ -109,6 +110,9 @@ bool UComponentElementLevelEditorSelectionProxy::SelectComponentElement(const TT
 
 	UE_LOG(LogComponentLevelEditorSelection, Verbose, TEXT("Selected Component: %s"), *Component->GetClass()->GetName());
 	
+	// Update the annotation state
+	GSelectedComponentAnnotation.Set(Component);
+	
 	// Make sure the override delegate is bound properly
 	if (USceneComponent* SceneComponent = Cast<USceneComponent>(Component))
 	{
@@ -118,7 +122,7 @@ bool UComponentElementLevelEditorSelectionProxy::SelectComponentElement(const TT
 	if (AActor* ComponentOwner = Component->GetOwner())
 	{
 		// Selecting a component requires that its owner actor be selected too
-		TTypedElement<UTypedElementSelectionInterface> ActorSelectionHandle = InSelectionSet->GetElement<UTypedElementSelectionInterface>(ComponentOwner->AcquireEditorElementHandle());
+		TTypedElement<UTypedElementSelectionInterface> ActorSelectionHandle = InSelectionSet->GetElement<UTypedElementSelectionInterface>(UEngineElementsLibrary::AcquireEditorActorElementHandle(ComponentOwner));
 		ActorSelectionHandle.SelectElement(InSelectionSet, InSelectionOptions);
 
 		// Update the selection visualization
@@ -145,10 +149,13 @@ bool UComponentElementLevelEditorSelectionProxy::DeselectComponentElement(const 
 
 	UE_LOG(LogComponentLevelEditorSelection, Verbose, TEXT("Deselected Component: %s"), *Component->GetClass()->GetName());
 
+	// Update the annotation state
+	GSelectedComponentAnnotation.Clear(Component);
+	
 	// Update the selection visualization
 	if (AActor* ComponentOwner = Component->GetOwner())
 	{
-		TTypedElement<UTypedElementSelectionInterface> ActorSelectionHandle = InSelectionSet->GetElement<UTypedElementSelectionInterface>(ComponentOwner->AcquireEditorElementHandle());
+		TTypedElement<UTypedElementSelectionInterface> ActorSelectionHandle = InSelectionSet->GetElement<UTypedElementSelectionInterface>(UEngineElementsLibrary::AcquireEditorActorElementHandle(ComponentOwner));
 		if (!ActorSelectionHandle.IsElementSelected(InSelectionSet, FTypedElementIsSelectedOptions().SetAllowIndirect(true)))
 		{
 			// Make sure the override delegate is unbound properly

@@ -5,12 +5,6 @@
 #include "GameFramework/Actor.h"
 #include "TypedElementList.h"
 
-UObject* UActorElementSelectionInterface::Legacy_GetSelectionObject(const FTypedElementHandle& InElementHandle)
-{
-	const FActorElementData* ActorData = InElementHandle.GetData<FActorElementData>();
-	return ActorData ? ActorData->Actor : nullptr;
-}
-
 int32 UActorElementSelectionInterface::GetNumSelectedActors(const UTypedElementList* InCurrentSelection)
 {
 	int32 NumSelected = 0;

@@ -5,6 +5,7 @@
 #include "GameFramework/Actor.h"
 #include "Components/ActorComponent.h"
 #include "TypedElementList.h"
+#include "Elements/EngineElementsLibrary.h"
 
 #include "Elements/Actor/ActorElementSelectionInterface.h"
 #include "Elements/Component/ComponentElementSelectionInterface.h"
@@ -55,7 +56,7 @@ FTypedElementHandle UActorElementLevelEditorSelectionProxy::GetSelectionElement(
 		{
 			ConsideredActor = ConsideredActor->GetParentActor();
 		}
-		return ConsideredActor->AcquireEditorElementHandle();
+		return UEngineElementsLibrary::AcquireEditorActorElementHandle(ConsideredActor);
 	}
 	return InElementSelectionHandle;
 }
@@ -155,7 +156,7 @@ bool UActorElementLevelEditorSelectionProxy::SelectActorElement(const TTypedElem
 
 	// Select the desired actor
 	{
-		TTypedElement<UTypedElementSelectionInterface> ActorSelectionHandle = InSelectionSet->GetElement<UTypedElementSelectionInterface>(Actor->AcquireEditorElementHandle());
+		TTypedElement<UTypedElementSelectionInterface> ActorSelectionHandle = InSelectionSet->GetElement<UTypedElementSelectionInterface>(UEngineElementsLibrary::AcquireEditorActorElementHandle(Actor));
 		if (!ActorSelectionHandle.SelectElement(InSelectionSet, InSelectionOptions))
 		{
 			return bSelectionChanged;
@@ -164,6 +165,9 @@ bool UActorElementLevelEditorSelectionProxy::SelectActorElement(const TTypedElem
 
 	UE_LOG(LogActorLevelEditorSelection, Verbose, TEXT("Selected Actor: %s"), *Actor->GetClass()->GetName());
 
+	// Update the annotation state
+	GSelectedActorAnnotation.Set(Actor);
+	
 	// Bind the override delegates for the components on the selected actor
 	for (UActorComponent* Component : Actor->GetComponents())
 	{
@@ -211,7 +215,7 @@ bool UActorElementLevelEditorSelectionProxy::DeselectActorElement(const TTypedEl
 
 	// Deselect the desired actor
 	{
-		TTypedElement<UTypedElementSelectionInterface> ActorSelectionHandle = InSelectionSet->GetElement<UTypedElementSelectionInterface>(Actor->AcquireEditorElementHandle());
+		TTypedElement<UTypedElementSelectionInterface> ActorSelectionHandle = InSelectionSet->GetElement<UTypedElementSelectionInterface>(UEngineElementsLibrary::AcquireEditorActorElementHandle(Actor));
 		if (!ActorSelectionHandle.DeselectElement(InSelectionSet, InSelectionOptions))
 		{
 			return bSelectionChanged;
@@ -220,13 +224,16 @@ bool UActorElementLevelEditorSelectionProxy::DeselectActorElement(const TTypedEl
 	
 	UE_LOG(LogActorLevelEditorSelection, Verbose, TEXT("Deselected Actor: %s"), *Actor->GetClass()->GetName());
 	
+	// Update the annotation state
+	GSelectedActorAnnotation.Clear(Actor);
+	
 	// Deselect and unbind the override delegates for the components on the selected actor
 	{
 		FTypedElementListLegacySyncScopedBatch LegacySyncBatch(InSelectionSet, InSelectionOptions.AllowLegacyNotifications());
 
 		for (UActorComponent* Component : Actor->GetComponents())
 		{
-			TTypedElement<UTypedElementSelectionInterface> ComponentSelectionHandle = InSelectionSet->GetElement<UTypedElementSelectionInterface>(Component->AcquireEditorElementHandle());
+			TTypedElement<UTypedElementSelectionInterface> ComponentSelectionHandle = InSelectionSet->GetElement<UTypedElementSelectionInterface>(UEngineElementsLibrary::AcquireEditorComponentElementHandle(Component));
 			ComponentSelectionHandle.DeselectElement(InSelectionSet, InSelectionOptions);
 
 			if (USceneComponent* SceneComponent = Cast<USceneComponent>(Component))
@@ -261,7 +268,7 @@ bool UActorElementLevelEditorSelectionProxy::SelectActorGroup(AGroupActor* InGro
 		InGroupActor->GetGroupActors(GroupActors);
 		for (AActor* Actor : GroupActors)
 		{
-			TTypedElement<UTypedElementSelectionInterface> ActorSelectionHandle = InSelectionSet->GetElement<UTypedElementSelectionInterface>(Actor->AcquireEditorElementHandle());
+			TTypedElement<UTypedElementSelectionInterface> ActorSelectionHandle = InSelectionSet->GetElement<UTypedElementSelectionInterface>(UEngineElementsLibrary::AcquireEditorActorElementHandle(Actor));
 			if (CanSelectActorElement(ActorSelectionHandle, GroupSelectionOptions))
 			{
 				bSelectionChanged |= SelectActorElement(ActorSelectionHandle, InSelectionSet, GroupSelectionOptions);
@@ -288,7 +295,7 @@ bool UActorElementLevelEditorSelectionProxy::DeselectActorGroup(AGroupActor* InG
 		InGroupActor->GetGroupActors(GroupActors);
 		for (AActor* Actor : GroupActors)
 		{
-			TTypedElement<UTypedElementSelectionInterface> ActorSelectionHandle = InSelectionSet->GetElement<UTypedElementSelectionInterface>(Actor->AcquireEditorElementHandle());
+			TTypedElement<UTypedElementSelectionInterface> ActorSelectionHandle = InSelectionSet->GetElement<UTypedElementSelectionInterface>(UEngineElementsLibrary::AcquireEditorActorElementHandle(Actor));
 			if (CanDeselectActorElement(ActorSelectionHandle, GroupSelectionOptions))
 			{
 				bSelectionChanged |= DeselectActorElement(ActorSelectionHandle, InSelectionSet, GroupSelectionOptions);
