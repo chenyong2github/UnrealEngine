@@ -3791,44 +3791,63 @@ void FKismetCompilerContext::ProcessOneFunctionGraph(UEdGraph* SourceGraph, bool
 	// If a function in the graph cannot be overridden/placed as event make sure that it is not.
 	VerifyValidOverrideFunction(FunctionGraph);
 
-	// First do some cursory validation (pin types match, inputs to outputs, pins never point to their parent node, etc...)
-	// If this fails we don't proceed any further to avoid crashes or infinite loops
-	// When compiling only the skeleton class, we want the UFunction to be generated and processed so it contains all the local variables, this is unsafe to do during any other compilation mode
-	//
-	// NOTE: the order of this conditional check is intentional, and should not
-	//       be rearranged; we do NOT want ValidateGraphIsWellFormed() ran for 
-	//       skeleton-only compiles (that's why we have that check second) 
-	//       because it would most likely result in errors (the function hasn't
-	//       been added to the class yet, etc.)
+	// NOTE: The Blueprint compilation manager generates the skeleton class using a different
+	// code path. We do NOT want ValidateGraphIsWellFormed() ran for skeleton-only compiles here
+	// because it can result in errors (the function hasn't been added to the class yet, etc.)
 	check(CompileOptions.CompileType != EKismetCompileType::SkeletonOnly);
-	if ((CompileOptions.CompileType == EKismetCompileType::SkeletonOnly) || ValidateGraphIsWellFormed(FunctionGraph))
+
+	// First do some cursory validation (pin types match, inputs to outputs, pins never point to their parent node, etc...)
+	// If this fails we will "stub" the function graph (if callable) or stop altogether to avoid crashes or infinite loops
+	const bool bIsInvalidFunctionGraph = !ValidateGraphIsWellFormed(FunctionGraph);
+	if (bIsInvalidFunctionGraph)
 	{
-		const UEdGraphSchema_K2* FunctionGraphSchema = CastChecked<const UEdGraphSchema_K2>(FunctionGraph->GetSchema());
-		FKismetFunctionContext& Context = *new FKismetFunctionContext(MessageLog, FunctionGraphSchema, NewClass, Blueprint, CompileOptions.DoesRequireCppCodeGeneration());
-		FunctionList.Add(&Context);
-		Context.SourceGraph = FunctionGraph;
-
-		if(FBlueprintEditorUtils::IsDelegateSignatureGraph(SourceGraph))
+		if(bInternalFunction)
 		{
-			Context.SetDelegateSignatureName(SourceGraph->GetFName());
+			// Internal functions that are not well-formed can be culled, since they're not exposed or callable.
+			return;
 		}
-
-		// If this is an interface blueprint, mark the function contexts as stubs
-		if (FBlueprintEditorUtils::IsInterfaceBlueprint(Blueprint))
+		else
 		{
-			Context.MarkAsInterfaceStub();
+			// Break all links to the entry point in the cloned graph to create a "stub" context that's still exposed
+			// as a callable function. This way external dependencies can still rely on the public interface if they're
+			// not themselves being fully recompiled as a dependency of this Blueprint class.
+			TArray<UK2Node_FunctionEntry*> EntryNodes;
+			FunctionGraph->GetNodesOfClass<UK2Node_FunctionEntry>(EntryNodes);
+			for (UK2Node_FunctionEntry* EntryNode : EntryNodes)
+			{
+				if (EntryNode)
+				{
+					EntryNode->BreakAllNodeLinks();
+				}
+			}
 		}
+	}
 
-		bool bEnforceConstCorrectness = true;
-		if (FBlueprintEditorUtils::IsBlueprintConst(Blueprint) || Context.Schema->IsConstFunctionGraph(Context.SourceGraph, &bEnforceConstCorrectness))
-		{
-			Context.MarkAsConstFunction(bEnforceConstCorrectness);
-		}
+	const UEdGraphSchema_K2* FunctionGraphSchema = CastChecked<const UEdGraphSchema_K2>(FunctionGraph->GetSchema());
+	FKismetFunctionContext& Context = *new FKismetFunctionContext(MessageLog, FunctionGraphSchema, NewClass, Blueprint, CompileOptions.DoesRequireCppCodeGeneration());
+	FunctionList.Add(&Context);
+	Context.SourceGraph = FunctionGraph;
 
-		if ( bInternalFunction )
-		{
-			Context.MarkAsInternalOrCppUseOnly();
-		}
+	if (FBlueprintEditorUtils::IsDelegateSignatureGraph(SourceGraph))
+	{
+		Context.SetDelegateSignatureName(SourceGraph->GetFName());
+	}
+
+	// If this is an interface blueprint, mark the function contexts as stubs
+	if (FBlueprintEditorUtils::IsInterfaceBlueprint(Blueprint))
+	{
+		Context.MarkAsInterfaceStub();
+	}
+
+	bool bEnforceConstCorrectness = true;
+	if (FBlueprintEditorUtils::IsBlueprintConst(Blueprint) || Context.Schema->IsConstFunctionGraph(Context.SourceGraph, &bEnforceConstCorrectness))
+	{
+		Context.MarkAsConstFunction(bEnforceConstCorrectness);
+	}
+
+	if (bInternalFunction)
+	{
+		Context.MarkAsInternalOrCppUseOnly();
 	}
 }
 
