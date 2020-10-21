@@ -701,6 +701,11 @@ void FLowLevelMemTracker::UpdateStatsPerFrame(const TCHAR* LogName)
 	int64 FMallocAmount = Trackers[(int32)ELLMTracker::Default]->GetAllocTypeAmount(ELLMAllocType::FMalloc);
 	int64 FMallocPlatformAmount = Trackers[(int32)ELLMTracker::Platform]->GetTagAmount(ELLMTag::FMalloc);
 	int64 FMallocUnused = FMallocPlatformAmount - FMallocAmount;
+	if (FMallocPlatformAmount == 0)
+	{
+		// We do not have instrumentation for this allocator, and so can not calculate how much memory it is using internally. Set unused to 0 for this case.
+		FMallocUnused = 0;
+	}
 	Trackers[(int32)ELLMTracker::Default]->SetTagAmount(ELLMTag::FMallocUnused, FMallocUnused, true);
 
 	// update totals for all trackers
