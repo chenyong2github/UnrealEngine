@@ -686,6 +686,11 @@ void FMaterialParameterCollectionInstanceResource::GameThread_Destroy()
 	ENQUEUE_RENDER_COMMAND(DestroyCollectionCommand)(
 		[Resource](FRHICommandListImmediate& RHICmdList)
 		{
+			// Flush the RHI thread so that any queued work referencing the
+			// resource's uniform buffer layout is completed before it is
+			// destructed.
+			RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
+
 			delete Resource;
 		}
 	);
