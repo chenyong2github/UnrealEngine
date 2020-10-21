@@ -86,6 +86,7 @@ public:
 			if( ActiveHandles[ HandleSlot ] == this )
 			{
 				TRACE_PLATFORMFILE_BEGIN_CLOSE(FileHandle);
+				flock(FileHandle, LOCK_UN | LOCK_NB);
 				int CloseResult = close(FileHandle);
 				if (CloseResult >= 0)
 				{
@@ -111,6 +112,7 @@ public:
 				}
             }
 			TRACE_PLATFORMFILE_BEGIN_CLOSE(FileHandle);
+			flock(FileHandle, LOCK_UN | LOCK_NB);
 			int CloseResult = close(FileHandle);
 			if (CloseResult >= 0)
 			{
@@ -325,6 +327,7 @@ private:
 
 			int32 OldestFileHandle = ActiveHandles[ Oldest ]->FileHandle;
 			TRACE_PLATFORMFILE_BEGIN_CLOSE(OldestFileHandle);
+			flock(OldestFileHandle, LOCK_UN | LOCK_NB);
 			int CloseResult = close(OldestFileHandle);
 #if PLATFORMFILETRACE_ENABLED
 			if (CloseResult >= 0)
