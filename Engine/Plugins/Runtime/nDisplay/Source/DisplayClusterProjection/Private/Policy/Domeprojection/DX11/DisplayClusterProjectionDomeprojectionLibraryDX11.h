@@ -7,13 +7,17 @@
 #include "RHI.h"
 #include "RHIResources.h"
 
+#if PLATFORM_WINDOWS
 #include "Windows/AllowWindowsPlatformTypes.h"
 #include "DirectX/Include/DXGI.h"
 #include "Windows/HideWindowsPlatformTypes.h"
+#endif
 
 #include "D3D11RHI/Private/Windows/D3D11RHIBasePrivate.h"
 
+THIRD_PARTY_INCLUDES_START
 #include "dpTypes.h"
+THIRD_PARTY_INCLUDES_END
 
 
 struct DisplayClusterProjectionDomeprojectionLibraryDX11

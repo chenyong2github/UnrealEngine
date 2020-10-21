@@ -144,9 +144,12 @@ extern "C" {
             dimX = mesh.dimX;
             dimY = mesh.dimY;
             vertices = (dpVec3f*)malloc(dimX * dimY * sizeof(dpVec3f));
-            memcpy(vertices, mesh.vertices, dimX * dimY * sizeof(dpVec3f));
             texcoords = (dpVec2f*)malloc(dimX * dimY * sizeof(dpVec2f));
-            memcpy(texcoords, mesh.texcoords, dimX * dimY * sizeof(dpVec2f));
+			if(vertices && texcoords)
+			{
+				memcpy(vertices,  mesh.vertices,  dimX * dimY * sizeof(dpVec3f));
+				memcpy(texcoords, mesh.texcoords, dimX * dimY * sizeof(dpVec2f));
+			}
         }
 		inline ~dpMesh()
 		{
