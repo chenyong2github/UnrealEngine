@@ -466,3 +466,14 @@ void FVulkanDynamicRHI::RHITransferIndexBufferUnderlyingResource(FRHIIndexBuffer
 		Dest->Swap(*Src);
 	}
 }
+
+void FVulkanResourceMultiBuffer::Evict(FVulkanDevice& Device_)
+{
+	checkNoEntry();//Not Implemented, should never be called
+}
+void FVulkanResourceMultiBuffer::Move(FVulkanDevice& Device_, VulkanRHI::FVulkanAllocation& NewAllocation)
+{
+	checkNoEntry();//Not Implemented, should never be called
+}
+
+

@@ -5,7 +5,7 @@
 #include "ClearReplacementShaders.h"
 
 FVulkanShaderResourceView::FVulkanShaderResourceView(FVulkanDevice* Device, FRHIResource* InRHIBuffer, FVulkanResourceMultiBuffer* InSourceBuffer, uint32 InSize, EPixelFormat InFormat, uint32 InOffset)
-	: VulkanRHI::FDeviceChild(Device)
+	: VulkanRHI::FVulkanViewBase(Device)
 	, BufferViewFormat(InFormat)
 	, SourceTexture(nullptr)
 	, SourceStructuredBuffer(nullptr)
@@ -25,7 +25,7 @@ FVulkanShaderResourceView::FVulkanShaderResourceView(FVulkanDevice* Device, FRHI
 
 
 FVulkanShaderResourceView::FVulkanShaderResourceView(FVulkanDevice* Device, FRHITexture* InSourceTexture, const FRHITextureSRVCreateInfo& InCreateInfo)
-	: VulkanRHI::FDeviceChild(Device)
+	: VulkanRHI::FVulkanViewBase(Device)
 	, BufferViewFormat((EPixelFormat)InCreateInfo.Format)
 	, SRGBOverride(InCreateInfo.SRGBOverride)
 	, SourceTexture(InSourceTexture)
@@ -43,7 +43,7 @@ FVulkanShaderResourceView::FVulkanShaderResourceView(FVulkanDevice* Device, FRHI
 }
 
 FVulkanShaderResourceView::FVulkanShaderResourceView(FVulkanDevice* Device, FVulkanStructuredBuffer* InStructuredBuffer, uint32 InOffset)
-	: VulkanRHI::FDeviceChild(Device)
+	: VulkanRHI::FVulkanViewBase(Device)
 	, BufferViewFormat(PF_Unknown)
 	, SourceTexture(nullptr)
 	, SourceStructuredBuffer(InStructuredBuffer)
@@ -103,7 +103,7 @@ void FVulkanShaderResourceView::Rename(FRHIResource* InRHIBuffer, FVulkanResourc
 	VolatileBufferHandle = VK_NULL_HANDLE;
 	VolatileLockCounter = MAX_uint32;
 }
-void FVulkanShaderResourceView::InvalidateView()
+void FVulkanShaderResourceView::Invalidate()
 {
 	TextureView.Destroy(*Device);
 }
@@ -201,10 +201,59 @@ void FVulkanShaderResourceView::UpdateView()
 		}
 	}
 }
+FVulkanUnorderedAccessView::FVulkanUnorderedAccessView(FVulkanDevice* Device, FVulkanStructuredBuffer* StructuredBuffer, bool bUseUAVCounter, bool bAppendBuffer)
+	: VulkanRHI::FVulkanViewBase(Device)
+	, SourceStructuredBuffer(StructuredBuffer)
+	, MipLevel(0)
+	, BufferViewFormat(PF_Unknown)
+	, VolatileLockCounter(MAX_uint32)
+{
+}
 
+FVulkanUnorderedAccessView::FVulkanUnorderedAccessView(FVulkanDevice* Device, FRHITexture* TextureRHI, uint32 MipLevel)
+	: VulkanRHI::FVulkanViewBase(Device)
+	, SourceTexture(TextureRHI)
+	, MipLevel(MipLevel)
+	, BufferViewFormat(PF_Unknown)
+	, VolatileLockCounter(MAX_uint32)
+{
+	FVulkanTextureBase* VulkanTexture = FVulkanTextureBase::Cast(TextureRHI);
+	VulkanTexture->AttachView(this);
+}
+
+
+FVulkanUnorderedAccessView::FVulkanUnorderedAccessView(FVulkanDevice* Device, FVulkanVertexBuffer* VertexBuffer, EPixelFormat Format)
+	: VulkanRHI::FVulkanViewBase(Device)
+	, MipLevel(0)
+	, BufferViewFormat(Format)
+	, VolatileLockCounter(MAX_uint32)
+{
+	SourceVertexBuffer = VertexBuffer;
+}
+
+FVulkanUnorderedAccessView::FVulkanUnorderedAccessView(FVulkanDevice* Device, FVulkanIndexBuffer* IndexBuffer, EPixelFormat Format)
+	: VulkanRHI::FVulkanViewBase(Device)
+	, MipLevel(0)
+	, BufferViewFormat(Format)
+	, VolatileLockCounter(MAX_uint32)
+{
+	SourceIndexBuffer = IndexBuffer;
+}
+
+void FVulkanUnorderedAccessView::Invalidate()
+{
+	check(SourceTexture);
+	TextureView.Destroy(*Device);
+}
 
 FVulkanUnorderedAccessView::~FVulkanUnorderedAccessView()
 {
+	if (SourceTexture)
+	{
+		FVulkanTextureBase* VulkanTexture = FVulkanTextureBase::Cast(SourceTexture);
+		VulkanTexture->DetachView(this);
+	}
+
 	TextureView.Destroy(*Device);
 	BufferView = nullptr;
 	SourceVertexBuffer = nullptr;
@@ -292,20 +341,13 @@ FUnorderedAccessViewRHIRef FVulkanDynamicRHI::RHICreateUnorderedAccessView(FRHIS
 {
 	FVulkanStructuredBuffer* StructuredBuffer = ResourceCast(StructuredBufferRHI);
 
-	FVulkanUnorderedAccessView* UAV = new FVulkanUnorderedAccessView(Device);
-	// delay the shader view create until we use it, so we just track the source info here
-	UAV->SourceStructuredBuffer = StructuredBuffer;
-
-	//#todo-rco: bUseUAVCounter and bAppendBuffer
-
+	FVulkanUnorderedAccessView* UAV = new FVulkanUnorderedAccessView(Device, StructuredBuffer, bUseUAVCounter, bAppendBuffer);
 	return UAV;
 }
 
 FUnorderedAccessViewRHIRef FVulkanDynamicRHI::RHICreateUnorderedAccessView(FRHITexture* TextureRHI, uint32 MipLevel)
 {
-	FVulkanUnorderedAccessView* UAV = new FVulkanUnorderedAccessView(Device);
-	UAV->SourceTexture = TextureRHI;
-	UAV->MipLevel = MipLevel;
+	FVulkanUnorderedAccessView* UAV = new FVulkanUnorderedAccessView(Device, TextureRHI, MipLevel);
 	return UAV;
 }
 
@@ -313,11 +355,7 @@ FUnorderedAccessViewRHIRef FVulkanDynamicRHI::RHICreateUnorderedAccessView(FRHIV
 {
 	FVulkanVertexBuffer* VertexBuffer = ResourceCast(VertexBufferRHI);
 
-	FVulkanUnorderedAccessView* UAV = new FVulkanUnorderedAccessView(Device);
-	// delay the shader view create until we use it, so we just track the source info here
-	UAV->BufferViewFormat = (EPixelFormat)Format;
-	UAV->SourceVertexBuffer = VertexBuffer;
-
+	FVulkanUnorderedAccessView* UAV = new FVulkanUnorderedAccessView(Device, VertexBuffer, (EPixelFormat)Format);
 	return UAV;
 }
 
@@ -325,11 +363,7 @@ FUnorderedAccessViewRHIRef FVulkanDynamicRHI::RHICreateUnorderedAccessView(FRHII
 {
 	FVulkanIndexBuffer* IndexBuffer = ResourceCast(IndexBufferRHI);
 
-	FVulkanUnorderedAccessView* UAV = new FVulkanUnorderedAccessView(Device);
-	// delay the shader view create until we use it, so we just track the source info here
-	UAV->BufferViewFormat = (EPixelFormat)Format;
-	UAV->SourceIndexBuffer = IndexBuffer;
-
+	FVulkanUnorderedAccessView* UAV = new FVulkanUnorderedAccessView(Device, IndexBuffer, (EPixelFormat)Format);
 	return UAV;
 }
 

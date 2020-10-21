@@ -92,6 +92,7 @@ namespace VulkanRHI
 			ShaderModule,
 			Event,
 			ResourceAllocation,
+			DeviceMemoryAllocation,
 			BufferSuballocation,
 		};
 
@@ -104,6 +105,7 @@ namespace VulkanRHI
 
 
 		void EnqueueResourceAllocation(FVulkanAllocation& Allocation);
+		void EnqueueDeviceAllocation(FDeviceMemoryAllocation* DeviceMemoryAllocation);
 
 		void ReleaseResources(bool bDeleteImmediately = false);
 
@@ -125,7 +127,7 @@ namespace VulkanRHI
 
 			uint64 Handle;
 			FVulkanAllocation Allocation;
-
+			FDeviceMemoryAllocation* DeviceMemoryAllocation;
 		};
 		FCriticalSection CS;
 		TArray<FEntry> Entries;
