@@ -1197,6 +1197,9 @@ void UNiagaraSystem::CacheFromCompiledData()
 	EmitterExecutionStateAccessors.Reset();
 	EmitterSpawnInfoAccessors.SetNum(GetNumEmitters());
 
+	// reset the MaxDeltaTime so we get the most up to date values from the emitters
+	MaxDeltaTime.Reset();
+
 	TStringBuilder<128> ExecutionStateNameBuilder;
 	for (int32 i=0; i < EmitterHandles.Num(); ++i)
 	{
