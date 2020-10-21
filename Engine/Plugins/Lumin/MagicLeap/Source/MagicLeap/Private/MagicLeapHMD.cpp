@@ -128,12 +128,9 @@ public:
 
 			FString CommandLine = FCommandLine::Get();
 #if !PLATFORM_MAC
-			const FString GLFlag(" -opengl4 ");
 			const FString VKFlag(" -vulkan ");
-			const FString GLToken = GLFlag.TrimStartAndEnd();
 			const FString VKToken = VKFlag.TrimStartAndEnd();
 
-			CommandLine.ReplaceInline(*(GLToken.TrimEnd()), TEXT(""));
 			CommandLine.ReplaceInline(*(VKToken.TrimEnd()), TEXT(""));
 #endif // !PLATFORM_MAC
 
@@ -146,14 +143,6 @@ public:
 			{
 				UE_LOG(LogMagicLeap, Log, TEXT("ML VDZI mode enabled. Using Vulkan renderer."));
 				ExtraCommandLineFlags = VKFlag;
-			}
-			else
-			{
-				// DirectX, which is currently not supported by MagicLeap, is default API on Windows.
-				// OpenGL is forced by loading module in PostConfigInit phase and passing in command line.
-				// -opengl will force editor to use OpenGL3/SM4 feature level. Fwd VR path requires SM5 feature level, thus passing -opengl here will break editor preview window with Fwd VR path
-				// The cmd arg for OpenGL4/SM5 feature level is -opengl4 in Windows.
-				ExtraCommandLineFlags = GLFlag;
 			}
 #endif // !PLATFORM_MAC
 

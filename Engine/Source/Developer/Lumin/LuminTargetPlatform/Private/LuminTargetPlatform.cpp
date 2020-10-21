@@ -105,11 +105,9 @@ void FLuminTargetPlatform::RefreshSettings()
 	static FName NAME_VULKAN_ES31(TEXT("SF_VULKAN_ES31_LUMIN"));
 	static FName NAME_VULKAN_ES31_NOUB(TEXT("SF_VULKAN_ES31_LUMIN_NOUB"));
 	static FName NAME_GLSL_ES3_1_ANDROID(TEXT("GLSL_ES3_1_ANDROID"));
-	static FName NAME_GLSL_SM5(TEXT("GLSL_430"));
 	bRequiresEncodedHDRReflectionCaptures = TargetedShaderFormats.Contains(NAME_VULKAN_ES31)
 		|| TargetedShaderFormats.Contains(NAME_VULKAN_ES31_NOUB)
-		|| TargetedShaderFormats.Contains(NAME_GLSL_ES3_1_ANDROID)
-		|| TargetedShaderFormats.Contains(NAME_GLSL_SM5);
+		|| TargetedShaderFormats.Contains(NAME_GLSL_ES3_1_ANDROID);
 
 #if WITH_EDITOR
 	//ensure that we wipe out the material cached data before we begin serializing.  It is cleared *after* a serialize, but changes made ini files will not be taken into account for materials without this
@@ -178,8 +176,6 @@ void FLuminTargetPlatform::GetAllPossibleShaderFormats( TArray<FName>& OutFormat
 {
 	// @todo Lumin: re-use Android version? Make sure Android has VULKAN_SM5
 	static FName NAME_GLSL_ES3_1_ANDROID(TEXT("GLSL_ES3_1_ANDROID"));
-//	static FName NAME_GLSL_310_ES_EXT(TEXT("GLSL_310_ES_EXT"));
-	static FName NAME_GLSL_SM5(TEXT("GLSL_430"));
 	static FName NAME_VULKAN_SM5_LUMIN(TEXT("SF_VULKAN_SM5_LUMIN"));
 	static FName NAME_VULKAN_SM5_LUMIN_NOUB(TEXT("SF_VULKAN_SM5_LUMIN_NOUB"));
 	static FName NAME_VULKAN_ES31_LUMIN(TEXT("SF_VULKAN_ES31_LUMIN"));
@@ -205,10 +201,6 @@ void FLuminTargetPlatform::GetAllPossibleShaderFormats( TArray<FName>& OutFormat
 		if (LuminSupportsVulkan(LuminEngineSettings))
 		{
 			OutFormats.AddUnique(bUseNOUB ? NAME_VULKAN_SM5_LUMIN_NOUB : NAME_VULKAN_SM5_LUMIN);
-		}
-		else
-		{
-			OutFormats.AddUnique(NAME_GLSL_SM5);
 		}
 	}
 }

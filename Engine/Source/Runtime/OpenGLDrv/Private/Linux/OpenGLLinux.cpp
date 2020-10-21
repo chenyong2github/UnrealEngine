@@ -142,42 +142,6 @@ void Linux_PlatformCreateDummyGLWindow( FPlatformOpenGLContext *OutContext )
 }
 
 /**
- * Determine OpenGL Context version based on command line arguments
- */
-
-bool IsOpenGL3Forced()
-{
-	return FParse::Param(FCommandLine::Get(),TEXT("opengl3"));
-}
-
-bool IsOpenGL4Forced()
-{
-	return FParse::Param(FCommandLine::Get(),TEXT("opengl4"));
-}
-
-void PlatformOpenGLVersionFromCommandLine(int& OutMajorVersion, int& OutMinorVersion)
-{
-	bool bGL3 = IsOpenGL3Forced();
-	bool bGL4 = IsOpenGL4Forced();
-	if (!bGL3 && !bGL4)
-	{
-		bGL4 = true;
-	}
-
-	// between GL3 and GL4, prefer GL3 since it might have been forced as a safety measure.
-	if (bGL4)
-	{
-		OutMajorVersion = 4;
-		OutMinorVersion = 3;
-	}
-	else
-	{
-		OutMajorVersion = 3;
-		OutMinorVersion = 2;
-	}
-}
-
-/**
  * Enable/Disable debug context from the commandline
  */
 bool Linux_PlatformOpenGLDebugCtx()
@@ -185,7 +149,7 @@ bool Linux_PlatformOpenGLDebugCtx()
 #if UE_BUILD_DEBUG
 	return ! FParse::Param(FCommandLine::Get(),TEXT("openglNoDebug"));
 #else
-	return FParse::Param(FCommandLine::Get(),TEXT("openglDebug"));;
+	return FParse::Param(FCommandLine::Get(),TEXT("openglDebug"));
 #endif
 }
 
@@ -807,8 +771,8 @@ bool PlatformInitOpenGL()
 			return false;
 		}
 
-		int MajorVersion = 0;
-		int MinorVersion = 0;
+		const int MajorVersion = 4;
+		const int MinorVersion = 3;
 
 		int DebugFlag = 0;
 
@@ -817,7 +781,6 @@ bool PlatformInitOpenGL()
 			DebugFlag = SDL_GL_CONTEXT_DEBUG_FLAG;
 		}
 	
-		PlatformOpenGLVersionFromCommandLine(MajorVersion, MinorVersion);
 		if (SDL_GL_SetAttribute( SDL_GL_CONTEXT_MAJOR_VERSION, MajorVersion) != 0)
 		{
 			UE_LOG(LogLinux, Fatal, TEXT("SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, %d) failed: %s"), MajorVersion, UTF8_TO_TCHAR(SDL_GetError()));

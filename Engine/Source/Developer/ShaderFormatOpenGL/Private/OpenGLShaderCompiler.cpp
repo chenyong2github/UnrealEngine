@@ -85,7 +85,7 @@ bool FOpenGLFrontend::SupportsSeparateShaderObjects(GLSLVersion Version)
 	// Only desktop shader platforms can use separable shaders for now,
 	// the generated code relies on macros supplied at runtime to determine whether
 	// shaders may be separable and/or linked.
-	return Version == GLSL_150_ES3_1 || Version == GLSL_430;
+	return Version == GLSL_150_ES3_1;
 }
 
 /*------------------------------------------------------------------------------
@@ -1007,11 +1007,6 @@ void FOpenGLFrontend::ConvertOpenGLVersionFromGLSLVersion(GLSLVersion InVersion,
 {
 	switch(InVersion)
 	{
-		case GLSL_310_ES_EXT:
-		case GLSL_430:
-			OutMajorVersion = 4;
-			OutMinorVersion = 3;
-			break;
 		case GLSL_150_ES3_1:
 			OutMajorVersion = 3;
 			OutMinorVersion = 2;
@@ -1126,27 +1121,13 @@ void FOpenGLFrontend::PrecompileShader(FShaderCompilerOutput& ShaderOutput, cons
 }
 
 void FOpenGLFrontend::SetupPerVersionCompilationEnvironment(GLSLVersion Version, FShaderCompilerDefinitions& AdditionalDefines, EHlslCompileTarget& HlslCompilerTarget)
-	{
+{
 	switch (Version)
 	{
 		case GLSL_ES3_1_ANDROID:
 			AdditionalDefines.SetDefine(TEXT("COMPILER_GLSL_ES3_1"), 1);
 			AdditionalDefines.SetDefine(TEXT("ES3_1_PROFILE"), 1);
 			HlslCompilerTarget = HCT_FeatureLevelES3_1;
-			break;
-
-		case GLSL_310_ES_EXT:
-			AdditionalDefines.SetDefine(TEXT("COMPILER_GLSL"), 1);
-			AdditionalDefines.SetDefine(TEXT("COMPILER_GLSL_ES3_1_EXT"), 1);
-			AdditionalDefines.SetDefine(TEXT("ESDEFERRED_PROFILE"), 1);
-			AdditionalDefines.SetDefine(TEXT("GL4_PROFILE"), 1);
-			HlslCompilerTarget = HCT_FeatureLevelES3_1Ext;
-			break;
-
-		case GLSL_430:
-			AdditionalDefines.SetDefine(TEXT("COMPILER_GLSL"), 1);
-			AdditionalDefines.SetDefine(TEXT("GL4_PROFILE"), 1);
-			HlslCompilerTarget = HCT_FeatureLevelSM5;
 			break;
 
 		case GLSL_150_ES3_1:
@@ -1165,15 +1146,7 @@ void FOpenGLFrontend::SetupPerVersionCompilationEnvironment(GLSLVersion Version,
 
 uint32 FOpenGLFrontend::GetMaxSamplers(GLSLVersion Version)
 {
-	switch (Version)
-	{
-		// Assume that GL4.3 targets support 32 samplers as we don't currently support separate sampler objects
-		case GLSL_430:
-			return 32;
-
-		default:
-			return 16;
-	}
+	return 16;
 }
 
 uint32 FOpenGLFrontend::CalculateCrossCompilerFlags(GLSLVersion Version, const TArray<uint32>& CompilerFlags)
@@ -1222,10 +1195,6 @@ public:
 
 FGlslLanguageSpec* FOpenGLFrontend::CreateLanguageSpec(GLSLVersion Version, bool bDefaultPrecisionIsHalf)
 {
-	if (Version == GLSL_430)
-	{
-		return new FGlsl430LanguageSpec(bDefaultPrecisionIsHalf);
-	}
 	return new FGlslLanguageSpec(bDefaultPrecisionIsHalf);
 }
 
@@ -2043,12 +2012,10 @@ static void CompileShaderDXC(FShaderCompilerInput const& Input, FShaderCompilerO
 			TargetDesc.version = "320";
 			TargetDesc.language = ShaderConductor::ShadingLanguage::Essl;
 			break;
-		case GLSL_430:
 		case GLSL_SWITCH:
 			TargetDesc.version = "430";
 			TargetDesc.language = ShaderConductor::ShadingLanguage::Glsl;
 			break;
-		case GLSL_310_ES_EXT:
 		case GLSL_ES3_1_ANDROID:
 		default:
 			TargetDesc.version = "310";
@@ -2580,11 +2547,9 @@ inline bool OpenGLShaderPlatformSeparable(const GLSLVersion InShaderPlatform)
 {
 	switch (InShaderPlatform)
 	{
-		case GLSL_430:
 		case GLSL_150_ES3_1:
 			return true;
 
-		case GLSL_310_ES_EXT:
 		case GLSL_ES3_1_ANDROID:
 			return false;
 
@@ -2686,9 +2651,7 @@ bool FOpenGLFrontend::PlatformSupportsOfflineCompilation(const GLSLVersion Shade
 	switch (ShaderVersion)
 	{
 		// desktop
-		case GLSL_430:
 		case GLSL_150_ES3_1:
-		case GLSL_310_ES_EXT:
 		// switch
 		case GLSL_SWITCH:
 		case GLSL_SWITCH_FORWARD:

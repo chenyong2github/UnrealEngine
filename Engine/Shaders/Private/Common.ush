@@ -345,7 +345,7 @@ float4 PseudoVolumeTexture(Texture2D Tex, SamplerState TexSampler, float3 inPos,
 	float2 uvCurFrame = uv + curframe;
 	float2 uvNextFrame = uv + nextframe;
 
-	#if (COMPILER_GLSL_ES3_1 || COMPILER_GLSL_ES3_1_EXT)
+	#if COMPILER_GLSL_ES3_1
 	uvCurFrame.y = 1.0 - uvCurFrame.y;
 	uvNextFrame.y = 1.0 - uvNextFrame.y;
 	#endif

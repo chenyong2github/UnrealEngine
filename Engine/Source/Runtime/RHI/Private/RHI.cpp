@@ -1042,7 +1042,6 @@ FName ShaderPlatformToPlatformName(EShaderPlatform Platform)
 	switch (Platform)
 	{
 	case SP_PCD3D_SM5:
-	case SP_OPENGL_SM5:
 	case SP_PCD3D_ES3_1:
 	case SP_OPENGL_PCES3_1:
 	case SP_VULKAN_PCES3_1:
@@ -1052,7 +1051,6 @@ FName ShaderPlatformToPlatformName(EShaderPlatform Platform)
 		return NAME_PLATFORM_PS4;
 	case SP_XBOXONE_D3D12:
 		return NAME_PLATFORM_XBOXONE;
-	case SP_OPENGL_ES31_EXT:
 	case SP_VULKAN_ES3_1_ANDROID:
 	case SP_VULKAN_SM5_ANDROID:
 	case SP_OPENGL_ES3_1_ANDROID:
@@ -1194,7 +1192,7 @@ RHI_API bool RHISupportsTessellation(const FStaticShaderPlatform Platform)
 {
 	if (IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5))
 	{
-		return (Platform == SP_PCD3D_SM5) || (Platform == SP_XBOXONE_D3D12) || (Platform == SP_OPENGL_SM5) || (Platform == SP_OPENGL_ES31_EXT) || (Platform == SP_METAL_SM5) || (IsVulkanSM5Platform(Platform));
+		return (Platform == SP_PCD3D_SM5) || (Platform == SP_XBOXONE_D3D12) || (Platform == SP_METAL_SM5) || (IsVulkanSM5Platform(Platform));
 	}
 	return false;
 }
@@ -1434,9 +1432,7 @@ FString LexToString(EShaderPlatform Platform)
 	{
 	case SP_PCD3D_SM5: return TEXT("PCD3D_SM5");
 	case SP_PCD3D_ES3_1: return TEXT("PCD3D_ES3_1");
-	case SP_OPENGL_SM5: return TEXT("OPENGL_SM5");
 	case SP_OPENGL_PCES3_1: return TEXT("OPENGL_PCES3_1");
-	case SP_OPENGL_ES31_EXT: return TEXT("OPENGL_ES31_EXT");
 	case SP_OPENGL_ES3_1_ANDROID: return TEXT("OPENGL_ES3_1_ANDROID");
 	case SP_PS4: return TEXT("PS4");
 	case SP_XBOXONE_D3D12: return TEXT("XBOXONE_D3D12");
@@ -1466,6 +1462,8 @@ FString LexToString(EShaderPlatform Platform)
 	case SP_PCD3D_ES2_REMOVED:
 	case SP_OPENGL_PCES2_REMOVED:
 	case SP_METAL_MACES2_REMOVED:
+	case SP_OPENGL_SM5_REMOVED:
+	case SP_OPENGL_ES31_EXT_REMOVED:
 		return TEXT("");
 
 	default:
