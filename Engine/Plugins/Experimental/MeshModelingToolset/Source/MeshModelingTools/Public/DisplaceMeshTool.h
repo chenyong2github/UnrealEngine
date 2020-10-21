@@ -74,7 +74,7 @@ public:
 	UFUNCTION()
 	TArray<FString> GetWeightMapsFunc();
 
-	UPROPERTY()
+	UPROPERTY(meta = (TransientToolProperty))
 	TArray<FString> WeightMapsList;
 
 	UPROPERTY(EditAnywhere, Category = Options)
