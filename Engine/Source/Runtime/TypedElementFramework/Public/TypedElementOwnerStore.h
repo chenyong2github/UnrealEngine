@@ -91,7 +91,8 @@ using TTypedElementOwnerScopedAccess = TTypedElementOwnerScopedAccessImpl<const 
 template <typename ElementDataType>
 using TTypedElementOwnerScopedMutableAccess = TTypedElementOwnerScopedAccessImpl<TTypedElementOwner<ElementDataType>>;
 
-inline FString GetTypedElementOwnerStoreKeyDebugString(const void* InKey)
+template <typename KeyDataType>
+inline FString GetTypedElementOwnerStoreKeyDebugString(const KeyDataType& InKey)
 {
 	return TEXT("<GetTypedElementOwnerStoreKeyDebugString not implemented for key type>");
 }
