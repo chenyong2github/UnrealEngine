@@ -441,7 +441,7 @@ TSharedRef<SWidget> SMemTagTreeView::ConstructTagsFilteringWidgetArea()
 	//.AutoWidth()
 	//[
 	//	SNew(SCheckBox)
-	//	.Style(FEditorStyle::Get(), "ToggleButtonCheckbox")
+	//	.Style(FCoreStyle::Get(), "ToggleButtonCheckbox")
 	//	.HAlign(HAlign_Center)
 	//	.Padding(2.0f)
 	//	.OnCheckStateChanged(this, &SMemTagTreeView::FilterOutZeroCountMemTags_OnCheckStateChanged)
@@ -450,7 +450,6 @@ TSharedRef<SWidget> SMemTagTreeView::ConstructTagsFilteringWidgetArea()
 	//	[
 	//		SNew(STextBlock)
 	//		.Text(LOCTEXT("FilterOutZeroCountMemTags_Button", " !0 "))
-	//		.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Caption"))
 	//	]
 	//]
 
@@ -461,7 +460,7 @@ TSharedRef<SWidget> SMemTagTreeView::ConstructTagsFilteringWidgetArea()
 	.AutoWidth()
 	[
 		SNew(SCheckBox)
-		.Style(FEditorStyle::Get(), "ToggleButtonCheckbox")
+		.Style(FCoreStyle::Get(), "ToggleButtonCheckbox")
 		.HAlign(HAlign_Center)
 		.Padding(2.0f)
 		.OnCheckStateChanged(this, &SMemTagTreeView::FilterByTracker_OnCheckStateChanged)
@@ -470,7 +469,6 @@ TSharedRef<SWidget> SMemTagTreeView::ConstructTagsFilteringWidgetArea()
 		[
 			SNew(STextBlock)
 			.Text(LOCTEXT("FilterByTracker_Button", " T "))
-			.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Caption"))
 		]
 	];
 

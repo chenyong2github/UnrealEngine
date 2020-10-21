@@ -116,17 +116,15 @@ void SNetStatsView::Construct(const FArguments& InArgs, TSharedPtr<SNetworkingPr
 					.AutoWidth()
 					[
 						SNew(SCheckBox)
-						.Style(FEditorStyle::Get(), "ToggleButtonCheckbox")
+						.Style(FCoreStyle::Get(), "ToggleButtonCheckbox")
 						.HAlign(HAlign_Center)
 						.Padding(2.0f)
 						.OnCheckStateChanged(this, &SNetStatsView::FilterOutZeroCountEvents_OnCheckStateChanged)
 						.IsChecked(this, &SNetStatsView::FilterOutZeroCountEvents_IsChecked)
 						.ToolTipText(LOCTEXT("FilterOutZeroCountEvents_Tooltip", "Filter out the net event types having zero total instance count (aggregated stats)."))
 						[
-							//TODO: SNew(SImage)
 							SNew(STextBlock)
 							.Text(LOCTEXT("FilterOutZeroCountEvents_Button", " !0 "))
-							.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Caption"))
 						]
 					]
 				]
@@ -746,7 +744,7 @@ void SNetStatsView::HandleItemToStringArray(const FNetEventNodePtr& FNetEventNod
 TSharedRef<SWidget> SNetStatsView::GetToggleButtonForNetEventType(const ENetEventNodeType NodeType)
 {
 	return SNew(SCheckBox)
-		.Style(FEditorStyle::Get(), "ToggleButtonCheckbox")
+		.Style(FCoreStyle::Get(), "ToggleButtonCheckbox")
 		.HAlign(HAlign_Center)
 		.Padding(2.0f)
 		.OnCheckStateChanged(this, &SNetStatsView::FilterByNetEventType_OnCheckStateChanged, NodeType)
@@ -756,21 +754,20 @@ TSharedRef<SWidget> SNetStatsView::GetToggleButtonForNetEventType(const ENetEven
 			SNew(SHorizontalBox)
 
 			+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.VAlign(VAlign_Center)
-				[
-					SNew(SImage)
-						.Image(NetEventNodeTypeHelper::GetIconForNetEventNodeType(NodeType))
-				]
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			[
+				SNew(SImage)
+				.Image(NetEventNodeTypeHelper::GetIconForNetEventNodeType(NodeType))
+			]
 
 			+ SHorizontalBox::Slot()
-				.Padding(2.0f, 0.0f, 0.0f, 0.0f)
-				.VAlign(VAlign_Center)
-				[
-					SNew(STextBlock)
-						.Text(NetEventNodeTypeHelper::ToText(NodeType))
-						.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Caption"))
-				]
+			.Padding(2.0f, 0.0f, 0.0f, 0.0f)
+			.VAlign(VAlign_Center)
+			[
+				SNew(STextBlock)
+				.Text(NetEventNodeTypeHelper::ToText(NodeType))
+			]
 		];
 }
 

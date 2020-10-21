@@ -164,32 +164,30 @@ void STimingView::Construct(const FArguments& InArgs)
 		[
 			// Tracks Filter
 			SNew(SComboButton)
-			.ComboButtonStyle(FEditorStyle::Get(), "GenericFilters.ComboButtonStyle")
-			.ForegroundColor(FLinearColor::White)
+			.ComboButtonStyle(FCoreStyle::Get(), "ComboButton")
+			.ButtonColorAndOpacity(FLinearColor::Transparent)
 			.ToolTipText(LOCTEXT("TracksFilterToolTip", "Filter timing tracks."))
 			.OnGetMenuContent(this, &STimingView::MakeTracksFilterMenu)
 			.HasDownArrow(true)
-			.ContentPadding(FMargin(1.0f, 1.0f, 1.0f, 1.0f))
+			.ContentPadding(FMargin(-4.0f, 0.0f, -5.0f, 0.0f))
 			.ButtonContent()
 			[
 				SNew(SHorizontalBox)
 
 				+ SHorizontalBox::Slot()
-				.Padding(0.0f)
+				.Padding(FMargin(0.0f, 2.0f, 0.0f, 0.0f))
 				.AutoWidth()
 				[
 					SNew(STextBlock)
-					.TextStyle(FEditorStyle::Get(), "GenericFilters.TextStyle")
 					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.9"))
 					.Text(FText::FromString(FString(TEXT("\xf0b0"))) /*fa-filter*/)
 				]
 
 				+ SHorizontalBox::Slot()
-				.Padding(FMargin(2.0f, 0.0f, 0.0f, 0.0f))
+				.Padding(FMargin(3.0f, 0.0f, -7.0f, 0.0f))
 				.AutoWidth()
 				[
 					SNew(STextBlock)
-					.TextStyle(FEditorStyle::Get(), "GenericFilters.TextStyle")
 					.Text(LOCTEXT("TracksFilter", "Tracks"))
 				]
 			]
@@ -203,20 +201,19 @@ void STimingView::Construct(const FArguments& InArgs)
 			SNew(SHorizontalBox)
 
 			+ SHorizontalBox::Slot()
-			.Padding(0.0f)
+			.Padding(FMargin(0.0f, 1.0f, 0.0f, 1.0f))
 			.AutoWidth()
 			[
 				SNew(SCheckBox)
-				.Style(FEditorStyle::Get(), "ToggleButtonCheckbox")
+				.Style(FCoreStyle::Get(), "ToggleButtonCheckbox")
 				.HAlign(HAlign_Center)
-				.Padding(FMargin(0.0f, 2.0f, 1.0f, 4.0f))
+				.Padding(FMargin(4.0f, 2.0f, 4.0f, 2.0f))
 				.OnCheckStateChanged(this, &STimingView::AutoScroll_OnCheckStateChanged)
 				.IsChecked(this, &STimingView::AutoScroll_IsChecked)
 				.ToolTipText(LOCTEXT("AutoScroll_Tooltip", "Auto Scroll"))
 				[
 					SNew(STextBlock)
-					.Text(LOCTEXT("AutoScroll_Button", " >> "))
-					.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Caption"))
+					.Text(LOCTEXT("AutoScroll_Button", ">>"))
 				]
 			]
 
@@ -225,12 +222,11 @@ void STimingView::Construct(const FArguments& InArgs)
 			.AutoWidth()
 			[
 				SNew(SComboButton)
-				.ComboButtonStyle(FEditorStyle::Get(), "GenericFilters.ComboButtonStyle")
-				.ForegroundColor(FLinearColor::White)
-				//.ToolTipText(LOCTEXT("AutoScrollOptions_ToolTip", "Auto-scroll options"))
+				.ComboButtonStyle(FCoreStyle::Get(), "ComboButton")
+				.ButtonColorAndOpacity(FLinearColor::Transparent)
 				.OnGetMenuContent(this, &STimingView::MakeAutoScrollOptionsMenu)
 				.HasDownArrow(true)
-				.ContentPadding(FMargin(0.0f, 0.0f, 0.0f, 0.0f))
+				.ContentPadding(FMargin(-14.0f, 0.0f, -6.0f, 0.0f))
 				.ButtonContent()
 				[
 					SNew(SBorder)
@@ -1319,10 +1315,10 @@ int32 STimingView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 	Tooltip.Draw(DrawContext);
 
 	// Fill background for the "Tracks" filter combobox.
-	DrawContext.DrawBox(0.0f, 0.0f, 66.0f, 24.0f, WhiteBrush, FLinearColor(0.05f, 0.05f, 0.05f, 1.0f));
+	DrawContext.DrawBox(0.0f, 0.0f, 73.0f, 24.0f, WhiteBrush, FLinearColor(0.06f, 0.06f, 0.06f, 1.0f));
 
 	// Fill background for the "Auto-scroll" toggle button.
-	DrawContext.DrawBox(ViewWidth - 40.0f, 0.0f, 40.0f, 24.0f, WhiteBrush, FLinearColor(0.05f, 0.05f, 0.05f, 1.0f));
+	DrawContext.DrawBox(ViewWidth - 39.0f, 0.0f, 39.0f, 24.0f, WhiteBrush, FLinearColor(0.06f, 0.06f, 0.06f, 1.0f));
 
 	//////////////////////////////////////////////////
 	// Draw the overscroll indication lines.

@@ -156,17 +156,15 @@ void STimersView::Construct(const FArguments& InArgs)
 					.AutoWidth()
 					[
 						SNew(SCheckBox)
-						.Style(FEditorStyle::Get(), "ToggleButtonCheckbox")
+						.Style(FCoreStyle::Get(), "ToggleButtonCheckbox")
 						.HAlign(HAlign_Center)
 						.Padding(2.0f)
 						.OnCheckStateChanged(this, &STimersView::FilterOutZeroCountTimers_OnCheckStateChanged)
 						.IsChecked(this, &STimersView::FilterOutZeroCountTimers_IsChecked)
 						.ToolTipText(LOCTEXT("FilterOutZeroCountTimers_Tooltip", "Filter out the timers having zero total instance count (aggregated stats)."))
 						[
-							//TODO: SNew(SImage)
 							SNew(STextBlock)
 							.Text(LOCTEXT("FilterOutZeroCountTimers_Button", " !0 "))
-							.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Caption"))
 						]
 					]
 				]
@@ -894,7 +892,7 @@ void STimersView::HandleItemToStringArray(const FTimerNodePtr& FTimerNodePtr, TA
 TSharedRef<SWidget> STimersView::GetToggleButtonForTimerType(const ETimerNodeType NodeType)
 {
 	return SNew(SCheckBox)
-		.Style(FEditorStyle::Get(), "ToggleButtonCheckbox")
+		.Style(FCoreStyle::Get(), "ToggleButtonCheckbox")
 		.HAlign(HAlign_Center)
 		.Padding(2.0f)
 		.OnCheckStateChanged(this, &STimersView::FilterByTimerType_OnCheckStateChanged, NodeType)
@@ -903,22 +901,21 @@ TSharedRef<SWidget> STimersView::GetToggleButtonForTimerType(const ETimerNodeTyp
 		[
 			SNew(SHorizontalBox)
 
-			+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.VAlign(VAlign_Center)
-				[
-					SNew(SImage)
-						.Image(TimerNodeTypeHelper::GetIconForTimerNodeType(NodeType))
-				]
+			//+ SHorizontalBox::Slot()
+			//.AutoWidth()
+			//.VAlign(VAlign_Center)
+			//[
+			//	SNew(SImage)
+			//	.Image(TimerNodeTypeHelper::GetIconForTimerNodeType(NodeType))
+			//]
 
 			+ SHorizontalBox::Slot()
-				.Padding(2.0f, 0.0f, 0.0f, 0.0f)
-				.VAlign(VAlign_Center)
-				[
-					SNew(STextBlock)
-						.Text(TimerNodeTypeHelper::ToText(NodeType))
-						.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Caption"))
-				]
+			.Padding(2.0f, 0.0f, 0.0f, 0.0f)
+			.VAlign(VAlign_Center)
+			[
+				SNew(STextBlock)
+				.Text(TimerNodeTypeHelper::ToText(NodeType))
+			]
 		];
 }
 
