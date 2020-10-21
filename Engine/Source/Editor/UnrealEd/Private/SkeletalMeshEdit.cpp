@@ -1553,14 +1553,15 @@ bool UnFbx::FFbxImporter::ImportAnimation(USkeleton* Skeleton, UAnimSequence * D
 
 void UnFbx::FFbxImporter::ImportBlendShapeCurves(FAnimCurveImportSettings& AnimImportSettings, FbxAnimStack* CurAnimStack, int32& OutKeyCount)
 {
-	FScopedSlowTask SlowTaskNode(AnimImportSettings.NodeArray.Num(), LOCTEXT("BeginImportMorphTargetCurves", "Importing Morph Target Curves"));
+	FText CurrentExportMessage = LOCTEXT("BeginImportMorphTargetCurves", "Importing Morph Target Curves");
+	FScopedSlowTask SlowTaskNode(AnimImportSettings.NodeArray.Num(), CurrentExportMessage);
 	SlowTaskNode.MakeDialog();
 
 	OutKeyCount = 0;
 	USkeleton* MySkeleton = AnimImportSettings.DestSeq->GetSkeleton();
 	for (int32 NodeIndex = 0; NodeIndex < AnimImportSettings.NodeArray.Num(); NodeIndex++)
 	{
-		SlowTaskNode.EnterProgressFrame(1);
+		SlowTaskNode.EnterProgressFrame(1, CurrentExportMessage);
 
 		// consider blendshape animation curve
 		FbxGeometry* Geometry = (FbxGeometry*)AnimImportSettings.NodeArray[NodeIndex]->GetNodeAttribute();
@@ -1580,7 +1581,7 @@ void UnFbx::FFbxImporter::ImportBlendShapeCurves(FAnimCurveImportSettings& AnimI
 
 				// see below where this is used for explanation...
 				const bool bMightBeBadMAXFile = (BlendShapeName == FString("Morpher"));
-				FScopedSlowTask SlowTaskChannel(BlendShapeChannelCount, LOCTEXT("BeginImportMorphTargetCurves", "Importing Morph Target Curves"));
+				FScopedSlowTask SlowTaskChannel(BlendShapeChannelCount);
 				for (int32 ChannelIndex = 0; ChannelIndex < BlendShapeChannelCount; ++ChannelIndex)
 				{
 					FbxBlendShapeChannel* Channel = BlendShape->GetBlendShapeChannel(ChannelIndex);
@@ -1611,8 +1612,9 @@ void UnFbx::FFbxImporter::ImportBlendShapeCurves(FAnimCurveImportSettings& AnimI
 						{
 							FFormatNamedArguments Args;
 							Args.Add(TEXT("BlendShape"), FText::FromString(ChannelName));
-							const FText StatusUpate = FText::Format(LOCTEXT("ImportingMorphTargetCurvesDetail", "Importing Morph Target Curves [{BlendShape}]"), Args);
-							SlowTaskChannel.EnterProgressFrame(1, StatusUpate);
+							CurrentExportMessage = FText::Format(LOCTEXT("ImportingMorphTargetCurvesDetail", "Importing Morph Target Curves [{BlendShape}]"), Args);
+							SlowTaskNode.FrameMessage = CurrentExportMessage;
+							SlowTaskChannel.EnterProgressFrame(1);
 							bUpdatedProgress = true;
 							// now see if we have one already exists. If so, just overwrite that. if not, add new one. 
 
