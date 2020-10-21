@@ -78,6 +78,9 @@ struct FLandscapeImportData
 using FLandscapeHeightmapImportData = FLandscapeImportData<uint16>;
 using FLandscapeWeightmapImportData = FLandscapeImportData<uint8>;
 
+using FLandscapeHeightmapInfo = FLandscapeFileInfo;
+using FLandscapeWeightmapInfo = FLandscapeFileInfo;
+
 // Interface
 template< class T >
 class ILandscapeFileFormat
@@ -97,6 +100,8 @@ public:
 	 */
 	virtual FLandscapeFileInfo Validate(const TCHAR* Filename, FName LayerName) const = 0;
 
+	virtual FLandscapeFileInfo Validate(const TCHAR* Filename) const { return Validate(Filename, NAME_None); }
+
 	/** Import a file
 	 * @param Filename path to the file to import
 	 * @param LayerName name of layer being imported (in case of Heightmap this will be NAME_None)
@@ -104,6 +109,8 @@ public:
 	 * @return imported data and (optional) error message
 	 */
 	virtual FLandscapeImportData<T> Import(const TCHAR* Filename, FName LayerName, FLandscapeFileResolution ExpectedResolution) const = 0;
+
+	virtual FLandscapeImportData<T> Import(const TCHAR* Filename, FLandscapeFileResolution ExpectedResolution) const { return Import(Filename, NAME_None, ExpectedResolution); }
 
 	/** Export a file (if supported)
 	 * @param Filename path to the file to export to
@@ -115,6 +122,11 @@ public:
 	virtual void Export(const TCHAR* Filename, FName LayerName, TArrayView<const T> Data, FLandscapeFileResolution DataResolution, FVector Scale) const
 	{
 		checkf(0, TEXT("File type hasn't implemented support for export - %s"), *FPaths::GetExtension(Filename, true));
+	}
+
+	virtual void Export(const TCHAR* Filename, TArrayView<const T> Data, FLandscapeFileResolution DataResolution, FVector Scale)
+	{
+		Export(Filename, NAME_None, Data, DataResolution, Scale);
 	}
 
 	/**
