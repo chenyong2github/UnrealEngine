@@ -125,7 +125,7 @@ public:
 		}
 
 		TArray<FVector3d> MCSeeds;
-		for (int VertIdx = 0; VertIdx < Source->MaxVertexID(); VertIdx++)
+		for ( int32 VertIdx : Source->VertexIndicesItr() )
 		{
 			MCSeeds.Add(Source->GetVertex(VertIdx));
 		}
