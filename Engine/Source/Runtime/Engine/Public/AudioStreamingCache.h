@@ -23,6 +23,8 @@ AudioStreaming.h: Definitions of classes used for audio streaming.
 
 #define DEBUG_STREAM_CACHE !UE_BUILD_SHIPPING
 
+ENGINE_API DECLARE_LOG_CATEGORY_EXTERN(LogAudioStreamCaching, Display, All);
+
 // Basic fixed-size LRU cache for retaining chunks of compressed audio data.
 class FAudioChunkCache
 {
@@ -65,7 +67,7 @@ public:
 	// This function will reclaim memory by freeing as many chunks as needed to free BytesToFree.
 	// returns the amount of bytes we were actually able to free.
 	// It's important to note that this will block any chunk requests.
-	uint64 TrimMemory(uint64 BytesToFree);
+	uint64 TrimMemory(uint64 BytesToFree, bool bAllowRetainedChunkTrimming);
 
 	// Returns an array of the USoundwaves retaining the least recently used retained chunks in the cache.
 	// This can potentially return soundwaves for chunks that are retained by a currently playing sound, if the cache is thrashed enough.
