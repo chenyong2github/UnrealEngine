@@ -53,9 +53,8 @@ public:
 	 *
 	 * @param Context				Evaluation context containing the time (or range) to evaluate
 	 * @param Player				The player responsible for playback
-	 * @param OverrideRootID		The ID of the sequence from which to evaluate.
 	 */
-	MOVIESCENE_API void Evaluate(FMovieSceneContext Context, IMovieScenePlayer& Player, FMovieSceneSequenceID OverrideRootID = MovieSceneSequenceID::Root);
+	MOVIESCENE_API void Evaluate(FMovieSceneContext Context, IMovieScenePlayer& Player);
 
 	/**
 	 * Indicate that we're not going to evaluate this instance again, and that we should tear down any current state

@@ -1004,6 +1004,9 @@ void FSequencer::FocusSequenceInstance(UMovieSceneSubSection& InSubSection)
 	if (Settings->ShouldEvaluateSubSequencesInIsolation())
 	{
 		RestorePreAnimatedState();
+
+		UMovieSceneEntitySystemLinker* Linker = RootTemplateInstance.GetEntitySystemLinker();
+		RootTemplateInstance.FindInstance(MovieSceneSequenceID::Root)->OverrideRootSequence(Linker, ActiveTemplateIDs.Top());
 	}
 
 	UpdateSubSequenceData();
@@ -1208,6 +1211,12 @@ void FSequencer::PopToSequenceInstance(FMovieSceneSequenceIDRef SequenceID)
 		else
 		{
 			SequencerWidget->UpdateBreadcrumbs();
+		}
+
+		if (Settings->ShouldEvaluateSubSequencesInIsolation())
+		{
+			UMovieSceneEntitySystemLinker* Linker = RootTemplateInstance.GetEntitySystemLinker();
+			RootTemplateInstance.FindInstance(MovieSceneSequenceID::Root)->OverrideRootSequence(Linker, ActiveTemplateIDs.Top());
 		}
 
 		UpdateSequencerCustomizations();
@@ -3096,8 +3105,8 @@ void FSequencer::EvaluateInternal(FMovieSceneEvaluationRange InRange, bool bHasJ
 	{
 		RootOverride = ActiveTemplateIDs.Top();
 	}
-	
-	RootTemplateInstance.Evaluate(Context, *this, RootOverride);
+
+	RootTemplateInstance.Evaluate(Context, *this);
 	SuppressAutoEvalSignature.Reset();
 
 	if (RootTemplateInstance.GetEntitySystemRunner().IsAttachedToLinker())
@@ -12272,10 +12281,16 @@ void FSequencer::BindCommands()
 	SequencerCommandBindings->MapAction(
 		Commands.ToggleEvaluateSubSequencesInIsolation,
 		FExecuteAction::CreateLambda( [this]{
-			Settings->SetEvaluateSubSequencesInIsolation( !Settings->ShouldEvaluateSubSequencesInIsolation() );
+			const bool bNewValue = !Settings->ShouldEvaluateSubSequencesInIsolation();
+			Settings->SetEvaluateSubSequencesInIsolation( bNewValue );
+
+			FMovieSceneSequenceID NewOverrideRoot = bNewValue ? ActiveTemplateIDs.Top() : MovieSceneSequenceID::Root;
+			UMovieSceneEntitySystemLinker* Linker = RootTemplateInstance.GetEntitySystemLinker();
+			RootTemplateInstance.FindInstance(MovieSceneSequenceID::Root)->OverrideRootSequence(Linker, NewOverrideRoot);
+
 			ForceEvaluate();
 		} ),
-		FCanExecuteAction::CreateLambda( [this]{ return ActiveTemplateIDs.Num() > 1; } ),
+		FCanExecuteAction::CreateLambda( [this]{ return true; } ),
 		FIsActionChecked::CreateLambda( [this]{ return Settings->ShouldEvaluateSubSequencesInIsolation(); } ) );
 
 	SequencerCommandBindings->MapAction(

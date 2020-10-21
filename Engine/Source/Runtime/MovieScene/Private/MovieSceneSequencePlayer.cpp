@@ -976,13 +976,13 @@ void UMovieSceneSequencePlayer::UpdateMovieSceneInstance(FMovieSceneEvaluationRa
 	if (!Args.bIsAsync)
 	{
 		// Evaluate the sequence synchronously.
-		RootTemplateInstance.Evaluate(Context, *this, MovieSceneSequenceID::Root);
+		RootTemplateInstance.Evaluate(Context, *this);
 	}
 	else
 	{
 		// Queue an evaluation on the tick manager.
 		FMovieSceneEntitySystemRunner& Runner = TickManager->GetRunner();
-		Runner.QueueUpdate(Context, RootTemplateInstance.GetRootInstanceHandle(), MovieSceneSequenceID::Root);
+		Runner.QueueUpdate(Context, RootTemplateInstance.GetRootInstanceHandle());
 	}
 }
 

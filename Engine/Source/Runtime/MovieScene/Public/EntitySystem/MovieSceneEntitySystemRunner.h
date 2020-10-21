@@ -48,10 +48,10 @@ public:
 	/** Returns whether the given instance is queued for any updates. */
 	bool HasQueuedUpdates(FInstanceHandle Instance) const;
 	/** Queue the given instance for an update with the given context. */
-	void QueueUpdate(const FMovieSceneContext& Context, FInstanceHandle Instance, FMovieSceneSequenceID InOverrideRootID);
+	void QueueUpdate(const FMovieSceneContext& Context, FInstanceHandle Instance);
 
 	/** Updates the given instance with the given context immediately. This doesn't affect the current update queue. */
-	void Update(const FMovieSceneContext& Context, FInstanceHandle Instance, FMovieSceneSequenceID InOverrideRootID);
+	void Update(const FMovieSceneContext& Context, FInstanceHandle Instance);
 
 	/** Flushes the update queue, blocking the current thread until all queued updates have run. */
 	void Flush();

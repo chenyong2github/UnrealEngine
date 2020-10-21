@@ -102,7 +102,7 @@ void FMovieSceneRootEvaluationTemplateInstance::Initialize(UMovieSceneSequence& 
 	}
 }
 
-void FMovieSceneRootEvaluationTemplateInstance::Evaluate(FMovieSceneContext Context, IMovieScenePlayer& Player, FMovieSceneSequenceID OverrideRootID)
+void FMovieSceneRootEvaluationTemplateInstance::Evaluate(FMovieSceneContext Context, IMovieScenePlayer& Player)
 {
 	SCOPE_CYCLE_COUNTER(MovieSceneEval_EntireEvaluationCost);
 
@@ -110,7 +110,7 @@ void FMovieSceneRootEvaluationTemplateInstance::Evaluate(FMovieSceneContext Cont
 
 	if (EntitySystemRunner.IsAttachedToLinker())
 	{
-		EntitySystemRunner.Update(Context, RootInstanceHandle, OverrideRootID);
+		EntitySystemRunner.Update(Context, RootInstanceHandle);
 	}
 }
 
