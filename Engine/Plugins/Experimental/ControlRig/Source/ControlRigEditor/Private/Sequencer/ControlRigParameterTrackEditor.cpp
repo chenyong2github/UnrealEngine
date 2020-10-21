@@ -1874,7 +1874,9 @@ void FControlRigParameterTrackEditor::AddControlKeys(USceneComponent *InSceneCom
 		FFrameNumber LocalTime = Time;
 		if (InLocalTime != FLT_MAX)
 		{
-			LocalTime = GetSequencer()->GetFocusedTickResolution().AsFrameNumber((double)InLocalTime);
+			//convert from frame time since conversion may give us one frame less, e.g 1.53333330 * 24000.0/1.0 = 36799.999199999998
+			FFrameTime LocalFrameTime = GetSequencer()->GetFocusedTickResolution().AsFrameTime((double)InLocalTime);
+			LocalTime = LocalFrameTime.RoundToFrame();
 		}
 		return this->AddKeysToControlRig(InSceneComp, InControlRig, LocalTime, *GeneratedKeys, KeyMode, UMovieSceneControlRigParameterTrack::StaticClass(), ControlRigName, RigControlName);
 	};
