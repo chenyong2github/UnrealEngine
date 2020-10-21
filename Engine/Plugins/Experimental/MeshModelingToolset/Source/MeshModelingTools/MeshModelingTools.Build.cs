@@ -72,6 +72,7 @@ public class MeshModelingTools : ModuleRules
 
 				"CoreUObject",
 				"Engine",
+				"RenderCore",
 				"ModelingOperators",
 				"InputCore",
 				"PhysicsCore"
