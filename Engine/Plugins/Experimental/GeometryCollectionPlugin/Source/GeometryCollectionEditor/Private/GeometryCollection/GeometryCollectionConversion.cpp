@@ -244,9 +244,9 @@ void FGeometryCollectionConversion::AppendStaticMesh(const UStaticMesh* StaticMe
 	}
 
 	TArray<UMaterialInterface*> Materials;
-	Materials.Reserve(StaticMesh->StaticMaterials.Num());
+	Materials.Reserve(StaticMesh->GetStaticMaterials().Num());
 
-	for (int32 Index = 0; Index < StaticMesh->StaticMaterials.Num(); ++Index)
+	for (int32 Index = 0; Index < StaticMesh->GetStaticMaterials().Num(); ++Index)
 	{
 		UMaterialInterface* CurrMaterial = StaticMeshComponent ? StaticMeshComponent->GetMaterial(Index) : StaticMesh->GetMaterial(Index);
 		Materials.Add(CurrMaterial);
