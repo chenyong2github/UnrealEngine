@@ -297,6 +297,16 @@ UNiagaraStackEntry::EStackRowStyle UNiagaraStackEntry::GetStackRowStyle() const
 	return EStackRowStyle::None;
 }
 
+bool UNiagaraStackEntry::HasFrontDivider() const
+{
+	UNiagaraStackEntry* Outer = Cast<UNiagaraStackEntry>(GetOuter());
+	if (Outer == nullptr)
+	{
+		return false;
+	}
+	return Outer->HasFrontDivider();
+}
+
 bool UNiagaraStackEntry::GetShouldShowInStack() const
 {
 	return true;
@@ -515,7 +525,7 @@ TOptional<UNiagaraStackEntry::FDropRequestResponse> UNiagaraStackEntry::ChildReq
 	return TOptional<FDropRequestResponse>();
 }
 
-void UNiagaraStackEntry::ChlildStructureChangedInternal()
+void UNiagaraStackEntry::ChildStructureChangedInternal()
 {
 }
 
@@ -732,7 +742,7 @@ int32 UNiagaraStackEntry::GetChildIndentLevel() const
 
 void UNiagaraStackEntry::ChildStructureChanged()
 {
-	ChlildStructureChangedInternal();
+	ChildStructureChangedInternal();
 	StructureChangedDelegate.Broadcast();
 }
 

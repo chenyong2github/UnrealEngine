@@ -618,7 +618,6 @@ void UNiagaraStackFunctionInput::RefreshChildrenInternal(const TArray<UNiagaraSt
 						true));
 				}
 			}
-
 			NewChildren.Add(DynamicInputEntry);
 		}
 		else
@@ -1987,6 +1986,21 @@ bool UNiagaraStackFunctionInput::IsScratchDynamicInput() const
 	return bIsScratchDynamicInputCache.GetValue();
 }
 
+bool UNiagaraStackFunctionInput::IsSemanticChild() const
+{
+	return bIsSemanticChild;
+}
+
+void UNiagaraStackFunctionInput::SetSemanticChild(bool IsSemanticChild)
+{
+	//GetUnfilteredChildren()
+	bIsSemanticChild = IsSemanticChild;
+	for (UNiagaraStackFunctionInput* Child : GetChildInputs())
+	{
+		Child->SetSemanticChild(bIsSemanticChild);
+	}
+}
+
 void UNiagaraStackFunctionInput::GetSearchItems(TArray<FStackSearchItem>& SearchItems) const
 {
 	if (GetShouldPassFilterForVisibleCondition() && GetIsInlineEditConditionToggle() == false)
@@ -2024,6 +2038,11 @@ void UNiagaraStackFunctionInput::GetSearchItems(TArray<FStackSearchItem>& Search
 			SearchItems.Add({ FName("LinkedExpressionText"), InputValues.ExpressionNode->GetHlslText() });
 		}
 	}
+}
+
+bool UNiagaraStackFunctionInput::HasFrontDivider() const
+{
+	return IsSemanticChild() || Super::HasFrontDivider();
 }
 
 void UNiagaraStackFunctionInput::OnGraphChanged(const struct FEdGraphEditAction& InAction)

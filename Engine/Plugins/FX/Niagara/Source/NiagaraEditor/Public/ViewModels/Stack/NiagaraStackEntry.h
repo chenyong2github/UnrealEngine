@@ -12,6 +12,7 @@ class FNiagaraScriptViewModel;
 class UNiagaraStackEditorData;
 class UNiagaraStackErrorItem;
 class UNiagaraClipboardContent;
+class UNiagaraStackEntry;
 
 UENUM()
 enum class EStackIssueSeverity : uint8
@@ -270,6 +271,7 @@ public:
 	FName GetExecutionSubcategoryName() const;
 
 	virtual EStackRowStyle GetStackRowStyle() const;
+	virtual bool HasFrontDivider() const;
 
 	int32 GetIndentLevel() const;
 
@@ -426,7 +428,7 @@ protected:
 
 	virtual TOptional<FDropRequestResponse> ChildRequestDropInternal(const UNiagaraStackEntry& TargetChild, const FDropRequest& DropRequest);
 
-	virtual void ChlildStructureChangedInternal();
+	virtual void ChildStructureChangedInternal();
 
 	virtual void FinalizeInternal();
 
@@ -447,7 +449,6 @@ private:
 
 	void IssueModified();
 	
-private:
 	TWeakPtr<FNiagaraSystemViewModel> SystemViewModel;
 	TWeakPtr<FNiagaraEmitterViewModel> EmitterViewModel;
 
