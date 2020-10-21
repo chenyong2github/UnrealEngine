@@ -5,6 +5,7 @@
 #if USE_USD_SDK
 
 #include "CoreMinimal.h"
+#include "Engine/TextureDefines.h"
 #include "Materials/MaterialInterface.h"
 #include "UObject/WeakObjectPtr.h"
 
@@ -61,7 +62,7 @@ namespace UsdUtils
 	USDUTILITIES_API FString GetResolvedTexturePath( const pxr::UsdAttribute& TextureAssetPathAttr );
 
 	/** Creates a texture from a pxr::SdfAssetPath attribute. PrimPath is optional, and should point to the source shadematerial prim path. It will be placed in its UUsdAssetImportData */
-	USDUTILITIES_API UTexture* CreateTexture( const pxr::UsdAttribute& TextureAssetPathAttr, const FString& PrimPath = FString() );
+	USDUTILITIES_API UTexture* CreateTexture( const pxr::UsdAttribute& TextureAssetPathAttr, const FString& PrimPath = FString(), TextureGroup LODGroup = TEXTUREGROUP_World );
 }
 
 #endif // #if USE_USD_SDK
