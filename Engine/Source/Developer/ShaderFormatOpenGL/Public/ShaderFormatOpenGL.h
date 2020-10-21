@@ -16,14 +16,14 @@ struct FShaderCompilerOutput;
 enum GLSLVersion 
 {
 	GLSL_150_REMOVED,
-	GLSL_430,
+	GLSL_430_REMOVED,
 	GLSL_ES2_REMOVED,
 	GLSL_ES2_WEBGL_REMOVED,
 	GLSL_150_ES2_DEPRECATED,	// ES2 Emulation
 	GLSL_150_ES2_NOUB_DEPRECATED,	// ES2 Emulation with NoUBs
 	GLSL_150_ES3_1,	// ES3.1 Emulation
 	GLSL_ES2_IOS_REMOVED,
-	GLSL_310_ES_EXT,
+	GLSL_310_ES_EXT_REMOVED,
 	GLSL_ES3_1_ANDROID,
 	GLSL_SWITCH,
 	GLSL_SWITCH_FORWARD,
@@ -53,7 +53,7 @@ protected:
 
 	virtual bool IsSM5(GLSLVersion Version)
 	{
-		return Version == GLSL_430 || Version == GLSL_310_ES_EXT;
+		return false;
 	}
 
 	// what is the max number of samplers the shader platform can use?

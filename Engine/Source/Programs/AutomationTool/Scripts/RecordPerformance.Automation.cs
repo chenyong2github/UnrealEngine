@@ -126,7 +126,7 @@ class RecordPerformance : BuildCommand
 		}
 		else if (PlatformName == "Linux")
 		{
-			return new string[] { "opengl4", "vulkan" };
+			return new string[] { "vulkan" };
 		}
 		else
 		{

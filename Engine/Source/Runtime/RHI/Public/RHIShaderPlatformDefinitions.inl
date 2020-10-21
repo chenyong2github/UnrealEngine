@@ -11,10 +11,8 @@ static const FText& GetFriendlyShaderPlatformName(const EShaderPlatform InShader
 	switch (InShaderPlatform)
 	{
 	case SP_PCD3D_SM5:
-	case SP_OPENGL_SM5:
 	case SP_METAL_SM5:
 	case SP_VULKAN_SM5:
-	case SP_OPENGL_ES31_EXT:
 	{
 		static const FText Description = NSLOCTEXT("FriendlyShaderPlatformNames", "Generic_SM5_loc", "SM5");
 		return Description;

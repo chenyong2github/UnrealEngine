@@ -11,9 +11,7 @@
 static FName NAME_PCD3D_SM5(TEXT("PCD3D_SM5"));
 static FName NAME_PCD3D_ES3_1(TEXT("PCD3D_ES31"));
 
-static FName NAME_GLSL_430(TEXT("GLSL_430"));
 static FName NAME_GLSL_150_ES31(TEXT("GLSL_150_ES31"));
-static FName NAME_GLSL_310_ES_EXT(TEXT("GLSL_310_ES_EXT"));
 static FName NAME_GLSL_ES3_1_ANDROID(TEXT("GLSL_ES3_1_ANDROID"));
 
 static FName NAME_SF_PS4(TEXT("SF_PS4"));
@@ -55,12 +53,8 @@ static FName ShaderPlatformToShaderFormatName(EShaderPlatform Platform)
 	case SP_PCD3D_ES3_1:
 		return NAME_PCD3D_ES3_1;
 
-	case SP_OPENGL_SM5:
-		return NAME_GLSL_430;
 	case SP_OPENGL_PCES3_1:
 		return NAME_GLSL_150_ES31;
-	case SP_OPENGL_ES31_EXT:
-		return NAME_GLSL_310_ES_EXT;
 	case SP_OPENGL_ES3_1_ANDROID:
 		return NAME_GLSL_ES3_1_ANDROID;
 
@@ -141,9 +135,7 @@ static EShaderPlatform ShaderFormatNameToShaderPlatform(FName ShaderFormat)
 	if (ShaderFormat == NAME_PCD3D_SM5)					return SP_PCD3D_SM5;
 	if (ShaderFormat == NAME_PCD3D_ES3_1)				return SP_PCD3D_ES3_1;
 
-	if (ShaderFormat == NAME_GLSL_430)					return SP_OPENGL_SM5;
 	if (ShaderFormat == NAME_GLSL_150_ES31)				return SP_OPENGL_PCES3_1;
-	if (ShaderFormat == NAME_GLSL_310_ES_EXT)			return SP_OPENGL_ES31_EXT;
 	if (ShaderFormat == NAME_GLSL_ES3_1_ANDROID)		return SP_OPENGL_ES3_1_ANDROID;
 
 	if (ShaderFormat == NAME_SF_PS4)					return SP_PS4;
