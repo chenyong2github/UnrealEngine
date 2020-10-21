@@ -6008,7 +6008,15 @@ bool UEditorEngine::HandleTestPropsCommand( const TCHAR* Str, FOutputDevice& Ar 
 		DetailsView->SetObjects( Objects );
 	}
 
-	FSlateApplication::Get().AddWindow( Window );
+	// Parent to the main frame window
+	if (FModuleManager::Get().IsModuleLoaded("MainFrame"))
+	{
+		IMainFrameModule& MainFrame = FModuleManager::LoadModuleChecked<IMainFrameModule>("MainFrame");
+		TSharedPtr<SWindow> ParentWindow = MainFrame.GetParentWindow();
+
+		FSlateApplication::Get().AddWindowAsNativeChild(Window, ParentWindow.ToSharedRef());
+	}
+
 
 	return true;
 }

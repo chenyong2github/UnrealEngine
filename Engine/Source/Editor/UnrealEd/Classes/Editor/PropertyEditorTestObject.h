@@ -660,6 +660,12 @@ class UPropertyEditorTestObject : public UObject
 	UPROPERTY(EditAnywhere, Category=DateTime)
 	FDateTime DateTime;
 
+	UPROPERTY(EditAnywhere, Category = DateTime)
+	FTimespan Timespan;
+
+	UPROPERTY(EditAnywhere, Category = AdvancedProperties)
+	FGuid Guid;
+
 	UPROPERTY()
 	bool bInlineEditConditionWithoutMetaToggle;
 
