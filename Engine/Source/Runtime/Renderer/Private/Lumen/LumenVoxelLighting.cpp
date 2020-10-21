@@ -756,7 +756,7 @@ void AddUpdateBoundsForAxis(FIntVector MovementInTiles,
 	}
 }
 
-BEGIN_SHADER_PARAMETER_STRUCT(FUpdateBoundsUploadParameters, )
+BEGIN_SHADER_PARAMETER_STRUCT(FUploadVoxelLightingUpdateBoundsParameters, )
 	RDG_BUFFER_ACCESS(UpdateBoundsBuffer, ERHIAccess::CopyDest)
 END_SHADER_PARAMETER_STRUCT()
 
@@ -898,7 +898,7 @@ void UpdateVoxelVisBuffer(
 					FRDGBufferDesc::CreateUploadDesc(sizeof(FVector4), FMath::RoundUpToPowerOfTwo(FMath::Max(UpdateBoundsData.Num(), 2))),
 					TEXT("UpdateBoundsBuffer"));
 
-				FUpdateBoundsUploadParameters* PassParameters = GraphBuilder.AllocParameters<FUpdateBoundsUploadParameters>();
+				FUploadVoxelLightingUpdateBoundsParameters* PassParameters = GraphBuilder.AllocParameters<FUploadVoxelLightingUpdateBoundsParameters>();
 				PassParameters->UpdateBoundsBuffer = UpdateBoundsBuffer;
 
 				const uint32 UploadBytes = UpdateBoundsData.Num() * sizeof(FVector4);
