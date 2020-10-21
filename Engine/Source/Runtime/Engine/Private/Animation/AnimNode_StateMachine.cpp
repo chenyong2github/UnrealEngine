@@ -33,6 +33,7 @@ FAnimationActiveTransitionEntry::FAnimationActiveTransitionEntry()
 	, EndNotify(INDEX_NONE)
 	, InterruptNotify(INDEX_NONE)
 	, BlendProfile(nullptr)
+	, BlendProfileMode(EBlendProfileMode::TimeFactor)
 	, BlendOption(EAlphaBlendOption::HermiteCubic)
 	, LogicType(ETransitionLogicType::TLT_StandardBlend)
 	, bActive(false)
@@ -48,6 +49,7 @@ FAnimationActiveTransitionEntry::FAnimationActiveTransitionEntry(int32 NextState
 	, EndNotify(ReferenceTransitionInfo.EndNotify)
 	, InterruptNotify(ReferenceTransitionInfo.InterruptNotify)
 	, BlendProfile(ReferenceTransitionInfo.BlendProfile)
+	, BlendProfileMode(ReferenceTransitionInfo.BlendProfileMode)
 	, BlendOption(ReferenceTransitionInfo.BlendMode)
 	, LogicType(ReferenceTransitionInfo.LogicType)
 	, bActive(true)
@@ -111,6 +113,72 @@ void FAnimationActiveTransitionEntry::InitializeCustomGraphLinks(const FAnimatio
 	}
 }
 
+
+void FAnimationActiveTransitionEntry::ProcessBlendProfile(int32 TransitionDirectionIndex)
+{
+	const bool bForwards = (TransitionDirectionIndex == 0);
+	FBlendSampleData& CurrentData = StateBlendData[TransitionDirectionIndex];
+
+	switch (BlendProfileMode)
+	{
+		// The per bone value is a factor of the transition time, where 0.5 means half the transition time, 0.1 means one tenth of the transition time, etc.
+		case EBlendProfileMode::TimeFactor:
+		{
+			for (int32 PerBoneIndex = 0; PerBoneIndex < CurrentData.PerBoneBlendData.Num(); ++PerBoneIndex)
+			{
+				// Calculate the blend weight for this bone.
+				const float BoneTimeScaleFactor = FMath::Clamp(BlendProfile->GetEntryBlendScale(PerBoneIndex), 0.0f, 1.0f);
+				const float BoneTransitionDuration = BoneTimeScaleFactor * CrossfadeDuration;
+				float NormalizedBoneWeight = (BoneTransitionDuration > ZERO_ANIMWEIGHT_THRESH) ? ElapsedTime / BoneTransitionDuration : 1.0f;
+				NormalizedBoneWeight = FMath::Clamp(NormalizedBoneWeight, 0.0f, 1.0f);
+				NormalizedBoneWeight = FAlphaBlend::AlphaToBlendOption(NormalizedBoneWeight, Blend.GetBlendOption(), Blend.GetCustomCurve());
+				if (NormalizedBoneWeight < ZERO_ANIMWEIGHT_THRESH)
+				{
+					NormalizedBoneWeight = ZERO_ANIMWEIGHT_THRESH;
+				}
+
+				// Reverse the weight when we go backward.
+				if (!bForwards)
+				{
+					NormalizedBoneWeight = 1.0f - NormalizedBoneWeight;
+				}
+
+				CurrentData.PerBoneBlendData[PerBoneIndex] = NormalizedBoneWeight;
+			}
+		}
+		break;
+
+		// The per bone value is a factor of the transition blend weight.
+		case EBlendProfileMode::WeightFactor:
+		{
+			for (int32 PerBoneIndex = 0; PerBoneIndex < CurrentData.PerBoneBlendData.Num(); ++PerBoneIndex)
+			{
+				// Get the bone weight factor from the profile.
+				float BoneWeightFactor = BlendProfile->GetEntryBlendScale(PerBoneIndex);
+				if (!bForwards)
+				{
+					BoneWeightFactor = (BoneWeightFactor > ZERO_ANIMWEIGHT_THRESH) ? 1.0f / BoneWeightFactor : 1.0f;
+				}
+
+				// Multiply it with the transition weight and make sure it isn't zero, as this can cause normalization issues.
+				BoneWeightFactor *= CurrentData.TotalWeight;
+				if (BoneWeightFactor < ZERO_ANIMWEIGHT_THRESH)
+				{
+					BoneWeightFactor = ZERO_ANIMWEIGHT_THRESH;
+				}
+
+				CurrentData.PerBoneBlendData[PerBoneIndex] = BoneWeightFactor;
+			}
+		}
+		break;
+
+		default:
+			checkf(false, TEXT("The selected Blend Profile Mode is not supported (Mode=%d)"), BlendProfileMode);
+			break;
+	}
+}
+
+
 void FAnimationActiveTransitionEntry::Update(const FAnimationUpdateContext& Context, int32 CurrentStateIndex, bool& bOutFinished)
 {
 	bOutFinished = false;
@@ -121,9 +189,8 @@ void FAnimationActiveTransitionEntry::Update(const FAnimationUpdateContext& Cont
 		ElapsedTime += Context.GetDeltaTime();
 		Blend.Update(Context.GetDeltaTime());
 
-		float QueryAlpha = 1.0f;
-
 		// If non-zero, calculate the query alpha
+		float QueryAlpha = 0.0f;
 		if (CrossfadeDuration > 0.0f)
 		{
 			QueryAlpha = ElapsedTime / CrossfadeDuration;
@@ -131,34 +198,20 @@ void FAnimationActiveTransitionEntry::Update(const FAnimationUpdateContext& Cont
 
 		Alpha = FAlphaBlend::AlphaToBlendOption(QueryAlpha, Blend.GetBlendOption(), Blend.GetCustomCurve());
 
-		if(Blend.IsComplete())
+		if (Blend.IsComplete())
 		{
 			bActive = false;
 			bOutFinished = true;
 		}
 
 		// Update state blend data (only when we're using per-bone)
-		if(BlendProfile)
+		if (BlendProfile)
 		{
-			for(int32 Idx = 0 ; Idx < 2 ; ++Idx)
+			for (int32 Idx = 0 ; Idx < 2 ; ++Idx)
 			{
-				bool bForwards = Idx == 0;
-				FBlendSampleData& CurrentData = StateBlendData[Idx];
-
-				CurrentData.TotalWeight = (bForwards) ? Alpha : 1.0f - Alpha;
-
-				for(int32 PerBoneIndex = 0 ; PerBoneIndex < CurrentData.PerBoneBlendData.Num() ; ++PerBoneIndex)
-				{
-					float& BoneBlend = CurrentData.PerBoneBlendData[PerBoneIndex];
-					float WeightScale = BlendProfile->GetEntryBlendScale(PerBoneIndex);
-
-					if(!bForwards)
-					{
-						WeightScale = 1.0f / WeightScale;
-					}
-
-					BoneBlend = CurrentData.TotalWeight * WeightScale;
-				}
+				const bool bForwards = (Idx == 0);
+				StateBlendData[Idx].TotalWeight = bForwards ? Alpha : 1.0f - Alpha;
+				ProcessBlendProfile(Idx);
 			}
 
 			FBlendSampleData::NormalizeDataWeight(StateBlendData);

@@ -17,6 +17,7 @@
 #include "Kismet2/Kismet2NameValidators.h"
 #include "ScopedTransaction.h"
 #include "Animation/BlendProfile.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
 
 //////////////////////////////////////////////////////////////////////////
 // IAnimStateTransitionNodeSharedDataHelper
@@ -80,6 +81,7 @@ UAnimStateTransitionNode::UAnimStateTransitionNode(const FObjectInitializer& Obj
 	Bidirectional = false;
 	PriorityOrder = 1;
 	LogicType = ETransitionLogicType::TLT_StandardBlend;
+	BlendProfileMode = EBlendProfileMode::TimeFactor;
 }
 
 void UAnimStateTransitionNode::AllocateDefaultPins()
@@ -195,7 +197,7 @@ void UAnimStateTransitionNode::PostPasteNode()
 	Super::PostPasteNode();
 
 	// We don't want to paste nodes in that aren't fully linked (transition nodes have fixed pins as they
-	// really describle the connection between two other nodes). If we find one missing link, get rid of the node.
+	// really describe the connection between two other nodes). If we find one missing link, get rid of the node.
 	for(UEdGraphPin* Pin : Pins)
 	{
 		if(Pin->LinkedTo.Num() == 0)
@@ -318,7 +320,8 @@ void UAnimStateTransitionNode::PostEditChangeProperty(struct FPropertyChangedEve
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(UAnimStateTransitionNode, CrossfadeDuration) || 
 		PropertyName == GET_MEMBER_NAME_CHECKED(UAnimStateTransitionNode, BlendMode) ||
 		PropertyName == GET_MEMBER_NAME_CHECKED(UAnimStateTransitionNode, CustomBlendCurve) ||
-		PropertyName == GET_MEMBER_NAME_CHECKED(UAnimStateTransitionNode, BlendProfile))
+		PropertyName == GET_MEMBER_NAME_CHECKED(UAnimStateTransitionNode, BlendProfile) ||
+		PropertyName == GET_MEMBER_NAME_CHECKED(UAnimStateTransitionNode, BlendProfileMode))
 	{
 		PropagateCrossfadeSettings();
 	}
@@ -465,6 +468,7 @@ void UAnimStateTransitionNode::CopyCrossfadeSettings(const UAnimStateTransitionN
 	BlendMode = SrcNode->BlendMode;
 	CustomBlendCurve = SrcNode->CustomBlendCurve;
 	BlendProfile = SrcNode->BlendProfile;
+	BlendProfileMode = SrcNode->BlendProfileMode;
 	SharedCrossfadeIdx = SrcNode->SharedCrossfadeIdx;
 	SharedCrossfadeName = SrcNode->SharedCrossfadeName;
 	SharedCrossfadeGuid = SrcNode->SharedCrossfadeGuid;
@@ -546,6 +550,13 @@ void UAnimStateTransitionNode::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);
 	Ar.UsingCustomVersion(FAnimPhysObjectVersion::GUID);
+	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
+
+	// Make sure we use the old behavior on Blend Profiles for older files.
+	if (Ar.IsLoading() && Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::AnimationAddedBlendProfileModes)
+	{
+		BlendProfileMode = EBlendProfileMode::WeightFactor;
+	}
 }
 
 void UAnimStateTransitionNode::DestroyNode()

@@ -259,6 +259,23 @@ void FAnimTransitionNodeDetails::CustomizeDetails( IDetailLayoutBuilder& DetailB
 				[
 					SkeletonEditorModule.CreateBlendProfilePicker(TargetSkeleton, Args)
 				];
+
+			// Blend Profile Mode
+			auto BlendProfileEnabled = [BlendProfileHandle, BlendSettingsEnabledAttribute]()
+			{
+				if (BlendProfileHandle->IsValidHandle())
+				{
+					UObject* BlendProfilePropertyValueInternal = nullptr;
+					BlendProfileHandle->GetValue(BlendProfilePropertyValueInternal);
+					UBlendProfile* SelectedProfile = Cast<UBlendProfile>(BlendProfilePropertyValueInternal);
+					return (SelectedProfile != nullptr) && BlendSettingsEnabledAttribute.Get(false);
+				}
+				return false;
+			};
+			auto BlendProfileEnabledAttribute = TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateLambda(BlendProfileEnabled));
+			CrossfadeCategory.AddProperty(GET_MEMBER_NAME_CHECKED(UAnimStateTransitionNode, BlendProfileMode))
+				.DisplayName(LOCTEXT("BlendProfileModeLabel", "Blend Profile Mode"))
+				.IsEnabled(BlendProfileEnabledAttribute);
 		}
 
 		//////////////////////////////////////////////////////////////////////////

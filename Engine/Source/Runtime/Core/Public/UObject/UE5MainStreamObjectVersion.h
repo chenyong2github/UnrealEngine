@@ -31,6 +31,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Set PKG_ContainsMapData on external actor packages
 		ExternalActorsMapDataPackageFlag,
 
+		// Added a new configurable BlendProfileMode that the user can setup to control the behavior of blend profiles.
+		AnimationAddedBlendProfileModes,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

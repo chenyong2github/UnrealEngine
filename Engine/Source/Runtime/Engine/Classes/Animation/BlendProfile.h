@@ -9,6 +9,25 @@
 #include "AnimationRuntime.h"
 #include "BlendProfile.generated.h"
 
+/** The mode in which the blend profile should be applied. */
+UENUM()
+enum class EBlendProfileMode : uint8
+{
+	// The bone's transition time is a factor based on the transition time. 
+	// For example 0.5 means it takes half the time of the transition.
+	// Values should be between 0 and 1. They will be clamped if they go out of this range.
+	// A bone value of 0 means the bone will instantly transition into the target state.
+	TimeFactor = 0,
+
+	// The bone's transition weight is multiplied by this factor.
+	// For example 2.0 means the bone's blend weight is twice as high as the transition's blend weight.
+	// Values should typically be equal or greater than 1.0.
+	// If you want certain bones to instantly transition into the target state
+	// the Time Factor based method might be a better choice.
+	WeightFactor
+};
+
+
 /** A single entry for a blend scale within a profile, mapping a bone to a blendscale */
 USTRUCT()
 struct FBlendProfileBoneEntry

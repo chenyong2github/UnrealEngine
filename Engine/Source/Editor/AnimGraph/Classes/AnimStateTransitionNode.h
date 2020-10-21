@@ -7,11 +7,11 @@
 #include "Misc/Guid.h"
 #include "Animation/AnimTypes.h"
 #include "Animation/AnimStateMachineTypes.h"
+#include "Animation/BlendProfile.h"
 #include "AnimStateNodeBase.h"
 
 #include "AnimStateTransitionNode.generated.h"
 
-class UBlendProfile;
 class UCurveFloat;
 class UEdGraph;
 class UEdGraphPin;
@@ -51,6 +51,10 @@ class UAnimStateTransitionNode : public UAnimStateNodeBase
 	// The blend profile to use to evaluate this transition per-bone
 	UPROPERTY(EditAnywhere, Category=Transition)
 	UBlendProfile* BlendProfile;
+
+	// The blend profile mode to use. This determines how the per bone blend weights are calculated when transitioning.
+	UPROPERTY(EditAnywhere, Category = Transition)
+	EBlendProfileMode BlendProfileMode;
 
 	// Try setting the rule automatically based on most relevant player node's remaining time and the CrossfadeDuration of the transition, ignoring the internal time
 	UPROPERTY(EditAnywhere, Category=Transition)
