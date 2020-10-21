@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "Features/IModularFeatures.h"
+#include "ARTypes.h"
+#include "ARTextures.h"
 
 #include <openxr/openxr.h>
 
@@ -53,6 +55,43 @@ public:
 	{
 	}
 };
+
+class IOpenXRCustomCaptureSupport
+{
+public:
+
+	virtual bool OnGetCameraIntrinsics(struct FARCameraIntrinsics& OutCameraIntrinsics) const 
+	{ 
+		return false; 
+	}
+
+	/** @return the AR texture for the specified type */
+	virtual class UARTexture* OnGetARTexture(EARTextureType TextureType) const
+	{ 
+		return nullptr; 
+	}
+
+	virtual bool OnToggleARCapture(const bool bOnOff) 
+	{ 
+		return false; 
+	}
+
+	virtual FTransform GetCameraTransform() const
+	{ 
+		return FTransform::Identity; 
+	}
+
+	virtual FVector GetWorldSpaceRayFromCameraPoint(FVector2D pixelCoordinate) const
+	{
+		return FVector::ZeroVector;
+	}
+
+	virtual bool IsEnabled() const
+	{
+		return false;
+	}
+};
+
 
 class IOpenXRExtensionPlugin : public IModularFeature
 {
@@ -127,6 +166,8 @@ public:
 	/** Get custom anchor interface if provided by this extension. */
 	virtual IOpenXRCustomAnchorSupport* GetCustomAnchorSupport() { return nullptr; }
 
+	/** Get custom capture interface if provided by this extension. */
+	virtual IOpenXRCustomCaptureSupport* GetCustomCaptureSupport(const EARCaptureType CaptureType) { return nullptr; }
 	/**
 	* Callback to provide extra view configurations that should be rendered in the main render pass
 	*/

@@ -47,10 +47,19 @@ void FOpenXRARSystem::SetTrackingSystem(TSharedPtr<FXRTrackingSystemBase, ESPMod
 
 	for (auto Plugin : TrackingSystem->GetExtensionPlugins())
 	{
-		CustomAnchorSupport = Plugin->GetCustomAnchorSupport();
-		if (CustomAnchorSupport != nullptr)
+		if (CustomAnchorSupport == nullptr)
 		{
-			break;
+			CustomAnchorSupport = Plugin->GetCustomAnchorSupport();
+		}
+
+		if (QRCapture == nullptr)
+		{
+			QRCapture = Plugin->GetCustomCaptureSupport(EARCaptureType::QRCode);
+		}
+
+		if (CamCapture == nullptr)
+		{
+			CamCapture = Plugin->GetCustomCaptureSupport(EARCaptureType::Camera);
 		}
 	}
 
@@ -637,6 +646,47 @@ void FOpenXRARSystem::ARTrackedGeometryRemoved_GameThread(FOpenXRARTrackedGeomet
 
 
 //=========== End of Tracked Geometries =============================================
+
+//=========== AR Capture =============================================
+
+UARTexture* FOpenXRARSystem::OnGetARTexture(EARTextureType TextureType) const 
+{
+	if (CamCapture)
+	{
+		return CamCapture->OnGetARTexture(TextureType);
+	}
+	return nullptr; 
+}
+
+bool FOpenXRARSystem::OnToggleARCapture(const bool bOnOff, const EARCaptureType CaptureType) 
+{
+	switch (CaptureType)
+	{
+	case EARCaptureType::Camera:
+		if (CamCapture)
+		{
+			return CamCapture->OnToggleARCapture(bOnOff);
+		}
+	case EARCaptureType::QRCode:
+		if (QRCapture)
+		{
+			return QRCapture->OnToggleARCapture(bOnOff);
+		}
+	}
+
+	return false;
+}
+
+bool FOpenXRARSystem::OnGetCameraIntrinsics(FARCameraIntrinsics& OutCameraIntrinsics) const
+{
+	if (CamCapture)
+	{
+		return CamCapture->OnGetCameraIntrinsics(OutCameraIntrinsics);
+	}
+	return false;
+}
+
+//=========== End of AR Capture =============================================
 
 
 bool FOpenXRARSystem::OnStartARGameFrame(FWorldContext& WorldContext)
