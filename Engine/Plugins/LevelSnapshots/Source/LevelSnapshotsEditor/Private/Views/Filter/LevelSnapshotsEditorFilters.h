@@ -16,8 +16,18 @@ public:
 	virtual TSharedRef<FLevelSnapshotsEditorViewBuilder> GetBuilder() const override { return BuilderPtr.Pin().ToSharedRef(); }
 	//~ End ILevelSnapshotsEditorView Interface
 
+	//~ Begin ILevelSnapshotsEditorView Interface
+	virtual FOnSetActiveFilter& GetOnSetActiveFilter() override;
+	virtual void SetActiveFilter(ULevelSnapshotFilter* InFilter) override;
+	virtual const ULevelSnapshotFilter* GetActiveFilter() const override;
+	//~ End ILevelSnapshotsEditorView Interface
+
 private:
 	TSharedPtr<SLevelSnapshotsEditorFilters> EditorFiltersWidget;
 
 	TWeakPtr<FLevelSnapshotsEditorViewBuilder> BuilderPtr;
+
+	FOnSetActiveFilter OnSetActiveFilter;
+
+	TWeakObjectPtr<ULevelSnapshotFilter> ActiveFilterPtr;
 };

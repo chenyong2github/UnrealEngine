@@ -73,6 +73,20 @@ TSharedRef< FSlateStyleSet > FLevelSnapshotsEditorStyle::Create()
 	Style->Set("LevelSnapshotsEditor.GroupBorder", new BOX_BRUSH("Common/DarkGroupBorder", FMargin(4.0f / 16.0f)));
 	Style->Set("LevelSnapshotsEditor.BrightBorder", new FSlateColorBrush(FColor(112, 112, 112, 100)));
 
+	// Buttons
+	FButtonStyle RemoveFilterButtonStyle = FEditorStyle::Get().GetWidgetStyle<FButtonStyle>("FlatButton");
+	RemoveFilterButtonStyle.Normal = FSlateNoResource();
+	RemoveFilterButtonStyle.NormalPadding = FMargin(0, 1.5f);
+	RemoveFilterButtonStyle.PressedPadding = FMargin(0, 1.5f);
+	Style->Set("LevelSnapshotsEditor.RemoveFilterButton", RemoveFilterButtonStyle);
+
+	FTextBlockStyle ButtonTextStyle = FEditorStyle::Get().GetWidgetStyle<FTextBlockStyle>("ContentBrowser.TopBar.Font");
+	FLinearColor ButtonTextColor = ButtonTextStyle.ColorAndOpacity.GetSpecifiedColor();
+	ButtonTextColor.A /= 2;
+	ButtonTextStyle.ColorAndOpacity = ButtonTextColor;
+	ButtonTextStyle.ShadowColorAndOpacity.A /= 2;
+	Style->Set("LevelSnapshotsEditor.Button.TextStyle", ButtonTextStyle);
+
 	return Style;
 }
 

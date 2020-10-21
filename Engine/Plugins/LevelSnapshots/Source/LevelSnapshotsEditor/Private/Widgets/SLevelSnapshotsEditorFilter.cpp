@@ -2,6 +2,10 @@
 
 #include "Widgets/SLevelSnapshotsEditorFilter.h"
 
+#include "LevelSnapshotFilters.h"
+
+#include "Views/Filter/LevelSnapshotsEditorFilters.h"
+
 #include "EditorStyleSet.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Layout/SBorder.h"
@@ -12,6 +16,11 @@
 class SFilterCheckBox : public SCheckBox
 {
 public:
+	void SetEditorFilter(const TSharedRef<SLevelSnapshotsEditorFilter>& InFilter)
+	{
+		SnapshotFilterPtr = InFilter;
+	}
+
 	void SetOnFilterCtrlClicked(const FOnClicked& NewFilterCtrlClicked)
 	{
 		OnFilterCtrlClicked = NewFilterCtrlClicked;
@@ -44,6 +53,12 @@ public:
 		}
 	}
 
+	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override
+	{
+		SnapshotFilterPtr.Pin()->OnClick();
+		return SCheckBox::OnMouseButtonUp(MyGeometry, MouseEvent);
+	}
+
 	virtual FReply OnMouseButtonUp( const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent ) override
 	{
 		if (InMouseEvent.IsControlDown() && OnFilterCtrlClicked.IsBound())
@@ -70,6 +85,8 @@ private:
 	FOnClicked OnFilterAltClicked;
 	FOnClicked OnFilterDoubleClicked;
 	FOnClicked OnFilterMiddleButtonClicked;
+
+	TWeakPtr<SLevelSnapshotsEditorFilter> SnapshotFilterPtr;
 };
 
 
@@ -77,8 +94,17 @@ SLevelSnapshotsEditorFilter::~SLevelSnapshotsEditorFilter()
 {
 }
 
-void SLevelSnapshotsEditorFilter::Construct(const FArguments& InArgs)
+void SLevelSnapshotsEditorFilter::Construct(const FArguments& InArgs, ULevelSnapshotFilter* InFilter, const TSharedRef<FLevelSnapshotsEditorFilters>& InFilters)
 {
+	// TODO. For now we can initialize the UObject here
+	// Outer the Editor UObject
+
+	//UBlueprint* const Blueprint = LoadObject<UBlueprint>(GetTransientPackage(), TEXT("Blueprint'/Game/LevelSnapshots/TestFilter.TestFilter'"));
+	//UObject* const NewObj = NewObject<UObject>(GetTransientPackage(), Blueprint->GeneratedClass, Blueprint->GeneratedClass->GetFName());
+
+	SnapshotFilter = InFilter;
+	FiltersModelPtr = InFilters;
+
 	TAttribute<FText> FilterToolTip;
 
 	Name = InArgs._Text;
@@ -91,7 +117,7 @@ void SLevelSnapshotsEditorFilter::Construct(const FArguments& InArgs)
 			.BorderBackgroundColor( FLinearColor(0.2f, 0.2f, 0.2f, 0.2f) )
 			.BorderImage(FEditorStyle::GetBrush("ContentBrowser.FilterButtonBorder"))
 			[
-				SAssignNew( ToggleButtonPtr, SFilterCheckBox )
+				SAssignNew( ToggleButtonPtr, SFilterCheckBox)
 				.Style(FEditorStyle::Get(), "ContentBrowser.FilterButton")
 				.ToolTipText(FilterToolTip)
 				.Padding(this, &SLevelSnapshotsEditorFilter::GetFilterNamePadding)
@@ -108,6 +134,8 @@ void SLevelSnapshotsEditorFilter::Construct(const FArguments& InArgs)
 				]
 			]
 		];
+
+	ToggleButtonPtr->SetEditorFilter(SharedThis(this));
 }
 
 ECheckBoxState SLevelSnapshotsEditorFilter::IsChecked() const
@@ -163,6 +191,11 @@ FSlateColor SLevelSnapshotsEditorFilter::GetFilterNameColorAndOpacity() const
 FText SLevelSnapshotsEditorFilter::GetFilterName() const
 {
 	return Name.Get();
+}
+
+void SLevelSnapshotsEditorFilter::OnClick() const
+{
+	FiltersModelPtr.Pin()->SetActiveFilter(SnapshotFilter.Get());
 }
 
 #undef LOCTEXT_NAMESPACE

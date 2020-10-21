@@ -5,7 +5,11 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
+struct FLevelSnapshotsEditorFilterRowGroup;
 class SSearchBox;
+class SLevelSnapshotsEditorFilters;
+class SLevelSnapshotsEditorFilterList;
+class ULevelSnapshotFilter;
 
 class SLevelSnapshotsEditorFilterRow : public SCompoundWidget
 {
@@ -17,23 +21,30 @@ public:
 
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs);
+	void Construct(const FArguments& InArgs, const TSharedRef<SLevelSnapshotsEditorFilters>& InEditorFilters, const TSharedRef<FLevelSnapshotsEditorFilterRowGroup>& InFieldGroup);
 
 private:
 	/** Makes the filters menu */
 	TSharedRef<SWidget> MakeAddFilterMenu();
 
 	/** Called when reset filters option is pressed */
-	void OnResetFilters();
+	void OnAddFilter(TSubclassOf<ULevelSnapshotFilter> InClass, FName InName);
 
-	void CreateFiltersMenuCategory(FMenuBuilder& MenuBuilder, TArray<FText> AdvancedFilter);
+	void CreateFiltersMenuCategory(FMenuBuilder& MenuBuilder, TArray<TPair<UClass*, TSharedPtr<FLevelSnapshotsEditorFilterClass>>> Filters);
 
 	void FilterByTypeCategoryClicked(FText ParentCategory);
 
 	bool IsFilterTypeCategoryInUse(FText ParentCategory);
 
+	FReply RemoveFilter();
 
 private:
 	TSharedPtr<SSearchBox> SearchBox;
+
+	TWeakPtr<SLevelSnapshotsEditorFilters> EditorFiltersPtr;
+
+	TSharedPtr<SLevelSnapshotsEditorFilterList> FilterList;
+
+	TWeakPtr<FLevelSnapshotsEditorFilterRowGroup> FieldGroupPtr;
 };
 

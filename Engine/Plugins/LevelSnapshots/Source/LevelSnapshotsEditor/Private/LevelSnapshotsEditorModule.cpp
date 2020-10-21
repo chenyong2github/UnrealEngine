@@ -80,19 +80,6 @@ ULevelSnapshotsEditorData* FLevelSnapshotsEditorModule::AllocateTransientPreset(
 		NewPreset = NewObject<ULevelSnapshotsEditorData>(NewPackage, DesiredName, RF_Transient | RF_Transactional | RF_Standalone);
 	}
 
-	if (NewPreset->EditorDataResults != nullptr)
-	{
-		NewPreset->EditorDataResults->Modify();
-
-		FName UniqueName = MakeUniqueObjectName(GetTransientPackage(), ULevelSnapshotsEditorDataResults::StaticClass(), "LevelSnapshotsEditorDataResults");
-		NewPreset->EditorDataResults->Rename(*UniqueName.ToString());
-		NewPreset->EditorDataResults = nullptr;
-
-		// Copy the transient and transactional flags from the parent
-		EObjectFlags SequenceFlags = NewPreset->GetFlags() & (RF_Transient | RF_Transactional);
-		NewPreset->EditorDataResults = NewObject<ULevelSnapshotsEditorDataResults>(NewPreset, "LevelSnapshotsEditorDataResults", SequenceFlags);
-	}
-
 	return NewPreset;
 }
 

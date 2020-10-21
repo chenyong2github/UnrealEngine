@@ -36,6 +36,7 @@ void FLevelSnapshotsEditorToolkit::Initialize(const EToolkitMode::Type Mode, con
 	EditorContext = MakeShared<FLevelSnapshotsEditorContext>();
 	ViewBuilder = MakeShared<FLevelSnapshotsEditorViewBuilder>();
 	ViewBuilder->EditorContextPtr = EditorContext;
+	ViewBuilder->EditorDataPtr = InEditorData;
 
 	// Initialize views
 	EditorInput		= MakeShared<FLevelSnapshotsEditorInput>(ViewBuilder.ToSharedRef());

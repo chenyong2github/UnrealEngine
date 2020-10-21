@@ -3,9 +3,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "UObject/WeakObjectPtr.h"
 
 class UWorld;
 class ILevelSnapshotsEditorContext;
+class ULevelSnapshotsEditorData;
 class ULevelSnapshot;
 
 struct FLevelSnapshotsEditorViewBuilder
@@ -17,6 +19,8 @@ struct FLevelSnapshotsEditorViewBuilder
 	TWeakPtr<ILevelSnapshotsEditorContext> EditorContextPtr;
 
 	FOnSnapshotSelected OnSnapshotSelected;
+
+	TWeakObjectPtr<ULevelSnapshotsEditorData> EditorDataPtr = nullptr;
 };
 
 class SWidget;

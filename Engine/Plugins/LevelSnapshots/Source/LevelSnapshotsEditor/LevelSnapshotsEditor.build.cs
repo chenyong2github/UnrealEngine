@@ -32,7 +32,7 @@ public class LevelSnapshotsEditor : ModuleRules
 				"AssetTools",
 				"ToolMenus",
 				"Projects",
-				"EditorStyle"
+				"EditorStyle",
 			}
 			);
 	}

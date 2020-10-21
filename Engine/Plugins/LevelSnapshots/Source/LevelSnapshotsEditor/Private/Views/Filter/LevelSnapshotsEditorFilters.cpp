@@ -13,8 +13,25 @@ TSharedRef<SWidget> FLevelSnapshotsEditorFilters::GetOrCreateWidget()
 {
 	if (!EditorFiltersWidget.IsValid())
 	{
-		SAssignNew(EditorFiltersWidget, SLevelSnapshotsEditorFilters);
+		SAssignNew(EditorFiltersWidget, SLevelSnapshotsEditorFilters, SharedThis(this));
 	}
 
 	return EditorFiltersWidget.ToSharedRef();
+}
+
+FLevelSnapshotsEditorFilters::FOnSetActiveFilter& FLevelSnapshotsEditorFilters::GetOnSetActiveFilter()
+{
+	return OnSetActiveFilter;
+}
+
+void FLevelSnapshotsEditorFilters::SetActiveFilter(ULevelSnapshotFilter* InFilter)
+{
+	ActiveFilterPtr = InFilter;
+
+	OnSetActiveFilter.Broadcast(InFilter);
+}
+
+const ULevelSnapshotFilter* FLevelSnapshotsEditorFilters::GetActiveFilter() const
+{
+	return ActiveFilterPtr.Get();
 }

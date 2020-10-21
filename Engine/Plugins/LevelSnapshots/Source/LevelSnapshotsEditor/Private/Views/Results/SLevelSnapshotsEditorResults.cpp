@@ -365,56 +365,10 @@ void SLevelSnapshotsEditorResults::OnSnapshotSelected(ULevelSnapshot* InLevelSna
 			TSharedPtr<FLevelSnapshotsEditorResultsRowGroup> NewGroup = MakeShared<FLevelSnapshotsEditorResultsRowGroup>(ActorSnapshotPair.Key, ActorSnapshotPair.Value);
 
 			{
-				// That showld be in parent tree item
-				//UObject* ActorObject = FindObject<UObject>(Builder->EditorContextPtr.Pin()->Get(), *ActorSnapshotPair.Key);
-				//UObject* ActorObject = FindObject<UObject>(nullptr, *ActorSnapshotPair.Key);
-				//if (ActorObject == nullptr)
-				//{
-				//	ActorObject = LoadObject<UObject>(nullptr, *ActorSnapshotPair.Key);
-				//}
-
-
 				UObject* ActorObject = ActorSnapshotPair.Value.GetDeserializedActor();
 
 				TStrongObjectPtr<UObject> ActorObjectPtr = TStrongObjectPtr<UObject>(ActorObject);
-
-				TStrongObjectPtr<ULevelSnapshotsEditorDataResults> TestDataResults = 
-					TStrongObjectPtr<ULevelSnapshotsEditorDataResults>(NewObject<ULevelSnapshotsEditorDataResults>(Builder->EditorContextPtr.Pin()->Get(), "MyMagicObject", RF_Transactional | RF_DefaultSubObject | RF_WasLoaded | RF_LoadCompleted));
-				ActorObjects.Add(TestDataResults);
 				ActorObjects.Add(ActorObjectPtr);
-
-
-				// Test details view
-				//{
-				//	// Create a property view
-				//	FPropertyEditorModule& EditModule = FModuleManager::Get().GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
-
-				//	FDetailsViewArgs DetailsViewArgs(
-				//		/*bUpdateFromSelection=*/ false,
-				//		/*bLockable=*/ false,
-				//		/*bAllowSearch=*/ true,
-				//		FDetailsViewArgs::HideNameArea,
-				//		/*bHideSelectionTip=*/ true,
-				//		/*InNotifyHook=*/ nullptr,
-				//		/*InSearchInitialKeyFocus=*/ false,
-				//		/*InViewIdentifier=*/ NAME_None);
-				//	DetailsViewArgs.DefaultsOnlyVisibility = EEditDefaultsOnlyNodeVisibility::Automatic;
-
-				//	TSharedRef<IDetailsView> PropertyView = EditModule.CreateDetailView(DetailsViewArgs);
-				//	PropertyView->SetObject(ActorObject);
-				//	NewGroup->Fields.Add(SNew(SLevelSnapshotsEditorResultsField, PropertyView));
-				//}
-
-
-				//for (const TPair<FName, FInternalPropertySnapshot>& PropertyPair : ActorSnapshotPair.Value.Properties)
-				//{
-				//	TSharedPtr<ISinglePropertyView> SinglePropertyView = PropertyEditorModule.CreateSingleProperty(ActorObject, PropertyPair.Key, FSinglePropertyParams());
-				//	if (SinglePropertyView.IsValid())
-				//	{
-				//		NewGroup->Fields.Add(SNew(SLevelSnapshotsEditorResultsField, SinglePropertyView.ToSharedRef()));
-				//	}
-				//}
-
 
 				FPropertyRowGeneratorArgs GeneratorArgs;
 				TSharedPtr<IPropertyRowGenerator> RowGenerator = PropertyEditorModule.CreatePropertyRowGenerator(GeneratorArgs);
@@ -441,21 +395,6 @@ void SLevelSnapshotsEditorResults::OnSnapshotSelected(ULevelSnapshot* InLevelSna
 						UE_LOG(LogTemp, Warning, TEXT("Not in the list"));
 					}
 				}
-
-
-
-				//const TArray<TSharedRef<IDetailTreeNode>>& RootNodes = RowGenerator->GetRootTreeNodes();
-
-				//for (const TSharedRef<IDetailTreeNode>& CategoryNode : RootNodes)
-				//{
-				//	TArray<TSharedRef<IDetailTreeNode>> ChildNodes;
-				//	CategoryNode->GetChildren(ChildNodes);
-
-				//	for (const TSharedRef<IDetailTreeNode>& ChildNode : ChildNodes)
-				//	{
-				//		CreatePropertyWidget(NewGroup, ChildNode, true);
-				//	}
-				//}
 			}
 
 			FieldGroups.Add(NewGroup);

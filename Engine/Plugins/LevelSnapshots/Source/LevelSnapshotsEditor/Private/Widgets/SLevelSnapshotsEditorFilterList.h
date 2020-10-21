@@ -7,6 +7,8 @@
 
 class SWrapBox;
 
+class FLevelSnapshotsEditorFilters;
+
 class SLevelSnapshotsEditorFilterList : public SCompoundWidget
 {
 public:
@@ -17,9 +19,13 @@ public:
 
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs);
+	void Construct(const FArguments& InArgs, const TSharedRef<FLevelSnapshotsEditorFilters>& InFilters);
+
+	void AddFilter(const FName& InName,  ULevelSnapshotFilter* InFilter);
 
 private:
 	/** The horizontal box which contains all the filters */
 	TSharedPtr<SWrapBox> FilterBox;
+
+	TWeakPtr<FLevelSnapshotsEditorFilters> FiltersModelPtr;
 };

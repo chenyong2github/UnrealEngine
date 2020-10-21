@@ -8,8 +8,14 @@
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/Views/STreeView.h"
 
+class IDetailsView;
 class SLevelSnapshotsEditorFilters;
+class FLevelSnapshotsEditorFilters;
+class ULevelSnapshotsEditorData;
+class ULevelSnapshotFilter;
+class ULevelSnapshotEditorFilterGroup;
 struct FLevelSnapshotsEditorFilterRowGroup;
+class FLevelSnapshotsEditorFilterClass;
 
 struct FLevelSnapshotsEditorFilterRow
 {
@@ -33,8 +39,8 @@ struct FLevelSnapshotsEditorFilterRow
 
 struct FLevelSnapshotsEditorFilterRowGroup : public FLevelSnapshotsEditorFilterRow, public TSharedFromThis<FLevelSnapshotsEditorFilterRowGroup>
 {
-	FLevelSnapshotsEditorFilterRowGroup(FName InName, const TSharedRef<SLevelSnapshotsEditorFilters>& InOwnerPanel)
-		: Name(InName)
+	FLevelSnapshotsEditorFilterRowGroup(ULevelSnapshotEditorFilterGroup* InFilterGroup, const TSharedRef<SLevelSnapshotsEditorFilters>& InOwnerPanel)
+		: FilterGroupPtr(InFilterGroup)
 		, EditorFiltersPtr(InOwnerPanel)
 	{}
 
@@ -45,9 +51,10 @@ struct FLevelSnapshotsEditorFilterRowGroup : public FLevelSnapshotsEditorFilterR
 
 	virtual TSharedPtr<FLevelSnapshotsEditorFilterRowGroup> AsGroup() override;
 
-public:
-	/** Name of the group. */
-	FName Name;
+	ULevelSnapshotEditorFilterGroup* GetFilterGroupObject() const;
+
+private:
+	TWeakObjectPtr<ULevelSnapshotEditorFilterGroup> FilterGroupPtr;
 
 	/** This field's owner panel. */
 	TWeakPtr<SLevelSnapshotsEditorFilters> EditorFiltersPtr;
@@ -76,7 +83,15 @@ public:
 
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs);
+	void Construct(const FArguments& InArgs, const TSharedRef<FLevelSnapshotsEditorFilters>& InFilters);
+
+	const TMap<UClass*, TSharedPtr<FLevelSnapshotsEditorFilterClass>>& GetFilterClasses() const { return FilterClasses; }
+
+	ULevelSnapshotsEditorData* GetEditorData() const;
+
+	TSharedRef<FLevelSnapshotsEditorFilters> GetFiltersModel() const;
+
+	void RemoveFilterRow(TSharedPtr<FLevelSnapshotsEditorFilterRowGroup> InRowGroup);
 
 private:
 	/** Generates a tree row. */
@@ -93,8 +108,19 @@ private:
 	/** Generate the groups using the preset's layout data. */
 	void RefreshGroups();
 
+	FReply AddFilterClick();
+
+	void OnSetActiveFilter(ULevelSnapshotFilter* InFilter);
+
 private:
 	TSharedPtr<STreeView<TSharedPtr<FLevelSnapshotsEditorFilterRow>>> FilterRowsList;
 
 	TArray<TSharedPtr<FLevelSnapshotsEditorFilterRowGroup>> FilterRowGroups;
+
+	/** Filter input details view*/
+	TSharedPtr<IDetailsView> FilterInputDetailsView;
+
+	TMap<UClass*, TSharedPtr<FLevelSnapshotsEditorFilterClass>> FilterClasses;
+
+	TWeakPtr<FLevelSnapshotsEditorFilters> FiltersModelPtr;
 };

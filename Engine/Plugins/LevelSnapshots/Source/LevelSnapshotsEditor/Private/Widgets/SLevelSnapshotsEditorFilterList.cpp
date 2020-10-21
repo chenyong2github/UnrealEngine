@@ -3,6 +3,7 @@
 #include "Widgets/SLevelSnapshotsEditorFilterList.h"
 
 #include "Widgets/SLevelSnapshotsEditorFilter.h"
+#include "Views/Filter/LevelSnapshotsEditorFilters.h"
 
 #include "Widgets/Layout/SWrapBox.h"
 
@@ -12,34 +13,28 @@ SLevelSnapshotsEditorFilterList::~SLevelSnapshotsEditorFilterList()
 {
 }
 
-void SLevelSnapshotsEditorFilterList::Construct(const FArguments& InArgs)
+void SLevelSnapshotsEditorFilterList::Construct(const FArguments& InArgs, const TSharedRef<FLevelSnapshotsEditorFilters>& InFilters)
 {
+	FiltersModelPtr = InFilters;
+
 	FilterBox = SNew(SWrapBox)
 		.UseAllottedSize(true);
-
-	// TODO. Add test Filters
-	FilterBox->AddSlot()
-		.Padding(3, 3)
-		[
-			SNew(SLevelSnapshotsEditorFilter).Text(LOCTEXT("Location", "Location")).FilterColor(FLinearColor::Blue)
-		];
-
-	FilterBox->AddSlot()
-		.Padding(3, 3)
-		[
-			SNew(SLevelSnapshotsEditorFilter).Text(LOCTEXT("Rotation", "Rotation")).FilterColor(FLinearColor::Red)
-		];
-
-	FilterBox->AddSlot()
-		.Padding(3, 3)
-		[
-			SNew(SLevelSnapshotsEditorFilter).Text(LOCTEXT("Scale", "Scale")).FilterColor(FLinearColor::Green)
-		];
 
 	ChildSlot
 	[
 		FilterBox.ToSharedRef()
 	];
+}
+
+void SLevelSnapshotsEditorFilterList::AddFilter(const FName& InName,  ULevelSnapshotFilter* InFilter)
+{
+	FilterBox->AddSlot()
+		.Padding(3, 3)
+		[
+			SNew(SLevelSnapshotsEditorFilter, InFilter, FiltersModelPtr.Pin().ToSharedRef())
+				.Text(FText::FromName(InName))
+				.FilterColor(FLinearColor::Green)
+		];
 }
 
 #undef LOCTEXT_NAMESPACE

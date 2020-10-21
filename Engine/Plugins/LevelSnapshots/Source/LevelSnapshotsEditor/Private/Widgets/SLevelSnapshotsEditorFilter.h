@@ -5,7 +5,11 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
+#include "UObject/WeakObjectPtr.h"
+
 class SFilterCheckBox;
+class ULevelSnapshotFilter;
+class FLevelSnapshotsEditorFilters;
 
 enum class ECheckBoxState : uint8;
 
@@ -14,6 +18,8 @@ struct FSlateColor;
 class SLevelSnapshotsEditorFilter : public SCompoundWidget
 {
 public:
+	friend class SFilterCheckBox;
+
 	~SLevelSnapshotsEditorFilter();
 
 	SLATE_BEGIN_ARGS(SLevelSnapshotsEditorFilter)
@@ -25,7 +31,7 @@ public:
 
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs);
+	void Construct(const FArguments& InArgs, ULevelSnapshotFilter* InFilter, const TSharedRef<FLevelSnapshotsEditorFilters>& InFilters);
 
 private:
 	ECheckBoxState IsChecked() const;
@@ -42,6 +48,8 @@ private:
 
 	FText GetFilterName() const;
 
+	void OnClick() const;
+
 private:
 	/** The button to toggle the filter on or off */
 	TSharedPtr<SFilterCheckBox> ToggleButtonPtr;
@@ -49,4 +57,8 @@ private:
 	TAttribute<FText> Name;
 
 	TAttribute<FLinearColor> FilterColor;
+
+	TWeakObjectPtr<ULevelSnapshotFilter> SnapshotFilter;
+
+	TWeakPtr<FLevelSnapshotsEditorFilters> FiltersModelPtr;
 };

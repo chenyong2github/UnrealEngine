@@ -7,17 +7,19 @@
 
 #include "LevelSnapshotsEditorData.generated.h"
 
+class ULevelSnapshotFilter;
+
 UCLASS()
-class LEVELSNAPSHOTSEDITOR_API ULevelSnapshotsEditorDataResults : public UObject
+class ULevelSnapshotEditorFilterGroup : public UObject
 {
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditAnywhere, Category = "EditorSnapshots")
-	TArray<FString> Tags;
+	ULevelSnapshotFilter* AddOrFindFilter(TSubclassOf<ULevelSnapshotFilter> InClass, const FName& InName);
 
-	UPROPERTY(EditAnywhere, Category = "EditorSnapshots")
-	FString Version;
+public:
+	UPROPERTY()
+	TMap<FName, ULevelSnapshotFilter*> Filters;
 };
 
 UCLASS()
@@ -26,8 +28,9 @@ class LEVELSNAPSHOTSEDITOR_API ULevelSnapshotsEditorData : public UObject
 	GENERATED_BODY()
 
 public:
+	ULevelSnapshotEditorFilterGroup* AddOrFindGroup(const FName& InName);
 
-	/** Instanced, for testing now*/
-	UPROPERTY(Instanced)
-	ULevelSnapshotsEditorDataResults* EditorDataResults;
+public:
+	UPROPERTY()
+	TMap<FName, ULevelSnapshotEditorFilterGroup*> FilterGroups;
 };
