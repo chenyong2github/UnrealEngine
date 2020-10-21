@@ -45,6 +45,11 @@ void FRemesher::BasicRemeshPass()
 		return;
 	}
 
+	if (Mesh->HasAttributes() && GetConstraints().IsSet() == false)
+	{
+		ensureMsgf(false, TEXT("Input Mesh has Attribute overlays but no Constraints are configured. Use FMeshConstraintsUtil::ConstrainAllBoundariesAndSeams() to create a Constraint Set for Attribute seams."));
+	}
+
 	ProfileBeginPass();
 
 	// Iterate over all edges in the mesh at start of pass.
