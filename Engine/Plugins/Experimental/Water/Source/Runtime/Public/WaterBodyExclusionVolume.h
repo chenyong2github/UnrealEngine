@@ -48,7 +48,7 @@ public:
 	UPROPERTY(meta = (DeprecatedProperty))
 	AWaterBody* WaterBodyToIgnore_DEPRECATED;
 
-	UPROPERTY()
+	UPROPERTY(Transient)
 	class UBillboardComponent* ActorIcon;
 #endif // WITH_EDITORONLY_DATA
 };
