@@ -125,6 +125,9 @@ protected:
 
 	/** The lifetime of this SceneViewExtension is only during the rendering process. It is destroyed as part of TearDown. */
 	TSharedPtr<FOpenColorIODisplayExtension, ESPMode::ThreadSafe> OCIOSceneViewExtension;
+
+	// Cache the custom stencil value. Only has meaning if they have stencil layers.
+	TOptional<int32> PreviousCustomDepthValue;
 };
 
 
