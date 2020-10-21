@@ -418,6 +418,7 @@ struct UE_DEPRECATED(4.27, "Replace this struct with the new FActorRepListConstV
 #endif
 
 /** To be called by projects to preallocate replication lists. This isn't strictly necessary: lists will be allocated on demand as well. */
+UE_DEPRECATED(4.27, "The RepList allocator is not used anymore so preallocating is not needed.")
 REPLICATIONGRAPH_API void PreAllocateRepList(int32 ListSize, int32 NumLists);
 
 // --------------------------------------------------------------------------------------------------------------------------------------------
