@@ -27,7 +27,7 @@ bool FHairGroupsMeshesSourceDescription::HasMeshChanged() const
 	if (ImportedMesh)
 	{
 		ImportedMesh->ConditionalPostLoad();
-		return ImportedMeshKey == ImportedMesh->RenderData->DerivedDataKey;
+		return ImportedMeshKey == ImportedMesh->GetRenderData()->DerivedDataKey;
 	}
 #endif
 	return false;
@@ -39,7 +39,7 @@ void FHairGroupsMeshesSourceDescription::UpdateMeshKey()
 	if (ImportedMesh)
 	{
 		ImportedMesh->ConditionalPostLoad();
-		ImportedMeshKey = ImportedMesh->RenderData->DerivedDataKey;
+		ImportedMeshKey = ImportedMesh->GetRenderData()->DerivedDataKey;
 	}
 #endif
 }
