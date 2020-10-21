@@ -745,6 +745,10 @@ void FLowLevelMemTracker::TickInternal()
 	if (FMallocPlatformAmount == 0)
 	{
 		// We do not have instrumentation for this allocator, and so can not calculate how much memory it is using internally. Set unused to 0 for this case.
+		FMallocUnused = 0;
+	}
+	{
+		// We do not have instrumentation for this allocator, and so can not calculate how much memory it is using internally. Set unused to 0 for this case.
 		FMallocUnused = 0; 
 	}
 	DefaultTracker.SetTagAmountInUpdate(FindOrAddTagData(ELLMTag::FMallocUnused), FMallocUnused, true);
