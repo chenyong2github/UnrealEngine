@@ -14,7 +14,7 @@ FRigUnit_GetRelativeBoneTransform_Execute()
 			case EControlRigState::Init:
 			{
 				CachedBone.Reset();
-				CachedSpaceIndex.Reset();
+				CachedSpace.Reset();
 			}
 			case EControlRigState::Update:
 			{
@@ -22,13 +22,13 @@ FRigUnit_GetRelativeBoneTransform_Execute()
 				{
 					UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("Bone '%s' is not valid."), *Bone.ToString());
 				}
-				else if (!CachedSpaceIndex.UpdateCache(Space, Hierarchy))
+				else if (!CachedSpace.UpdateCache(Space, Hierarchy))
 				{
 					UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("Space '%s' is not valid."), *Space.ToString());
 				}
 				else
 				{
-					const FTransform SpaceTransform = Hierarchy->GetGlobalTransform(CachedSpaceIndex);
+					const FTransform SpaceTransform = Hierarchy->GetGlobalTransform(CachedSpace);
 					const FTransform BoneTransform = Hierarchy->GetGlobalTransform(CachedBone);
 					Transform = BoneTransform.GetRelativeTransform(SpaceTransform);
 				}
