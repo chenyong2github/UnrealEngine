@@ -132,6 +132,14 @@ void FOpenGLDynamicRHI::RHIEndDrawingViewport(FRHIViewport* ViewportRHI,bool bPr
 
 	FOpenGLTexture2D* BackBuffer = Viewport->GetBackBuffer();
 
+	FOpenGLContextState& ContextState = GetContextStateForCurrentContext();
+
+	if (ContextState.bScissorEnabled)
+	{
+		ContextState.bScissorEnabled = false;
+		glDisable(GL_SCISSOR_TEST);
+	}
+
 	bool bNeedFinishFrame = PlatformBlitToViewport(PlatformDevice,
 		*Viewport, 
 		BackBuffer->GetSizeX(),
