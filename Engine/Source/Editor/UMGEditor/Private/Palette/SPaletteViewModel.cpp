@@ -410,9 +410,13 @@ void FPaletteViewModel::BuildClassWidgetList()
 				WidgetBPClass = *LoadedWidgetBPClass;
 			}
 
-			auto Template = MakeShareable(new FWidgetTemplateBlueprintClass(WidgetBPAssetData, WidgetBPClass));
+			uint32 BPFlags = WidgetBPAssetData.GetTagValueRef<uint32>(FBlueprintTags::ClassFlags);
+			if (!(BPFlags & (CLASS_Abstract | CLASS_Deprecated)))
+			{
+				auto Template = MakeShareable(new FWidgetTemplateBlueprintClass(WidgetBPAssetData, WidgetBPClass));
 
-			AddWidgetTemplate(Template);
+				AddWidgetTemplate(Template);
+			}
 		}
 	}
 }
