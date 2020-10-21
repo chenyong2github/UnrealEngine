@@ -218,6 +218,10 @@ public:
 	 */
 	void DestroyImmediately(UMovieSceneEntitySystemLinker* Linker);
 
+	/**
+	 * Called to override the simulated root sequence ID for this instance. Only valid for IsRootSequence() instances.
+	 */
+	void OverrideRootSequence(UMovieSceneEntitySystemLinker* Linker, FMovieSceneSequenceID NewRootSequenceID);
 
 public:
 
@@ -262,6 +266,8 @@ private:
 	FMovieSceneCompiledDataID CompiledDataID;
 	/** This sequence instances sequence ID, or MovieSceneSequenceID::Root for top-level sequences. */
 	FMovieSceneSequenceID SequenceID;
+	/** When SequenceID != MovieSceneSequenceID::Root, specifies an ID to override as a simulated root. */
+	FMovieSceneSequenceID RootOverrideSequenceID;
 	/** The index of this instance's IMovieScenePlayer retrievable through IMovieScenePlayer::Get(). */
 	int32 PlayerIndex;
 	/** This instance's handle. */
