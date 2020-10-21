@@ -573,16 +573,19 @@ void UOpenColorIOColorTransform::BeginCacheForCookedPlatformData(const ITargetPl
 bool UOpenColorIOColorTransform::IsCachedCookedPlatformDataLoaded(const ITargetPlatform* TargetPlatform)
 {
 	const TArray<FOpenColorIOTransformResource*>* CachedColorTransformResourcesForPlatform = CachedColorTransformResourcesForCooking.Find(TargetPlatform);
-	check(CachedColorTransformResourcesForPlatform != nullptr)
-	
-	for (const FOpenColorIOTransformResource* const TransformResource : *CachedColorTransformResourcesForPlatform)
+
+	if (CachedColorTransformResourcesForPlatform)
 	{
-		if (TransformResource->IsCompilationFinished() == false)
+		for (const FOpenColorIOTransformResource* const TransformResource : *CachedColorTransformResourcesForPlatform)
 		{
-			return false;
+			if (TransformResource->IsCompilationFinished() == false)
+			{
+				return false;
+			}
 		}
+		return true;
 	}
-	return true;
+	return false;
 }
 
 void UOpenColorIOColorTransform::ClearCachedCookedPlatformData(const ITargetPlatform *TargetPlatform)
