@@ -509,8 +509,7 @@ void FOpenXRInputPlugin::FOpenXRInput::Tick(float DeltaTime)
 	}
 
 	XrSession Session = OpenXRHMD->GetSession();
-
-	if (OpenXRHMD->IsRunning())
+	if (Session != XR_NULL_HANDLE)
 	{
 		if (!bActionsBound)
 		{
