@@ -60,10 +60,6 @@
 #define COMPILER_GLSL_ES3_1 0
 #endif
 
-#ifndef COMPILER_GLSL_ES3_1_EXT
-#define COMPILER_GLSL_ES3_1_EXT 0
-#endif
-
 #ifndef COMPILER_METAL
 #define COMPILER_METAL 0
 #endif
@@ -241,15 +237,6 @@
 	#define FEATURE_LEVEL FEATURE_LEVEL_SM5
 	#define STENCIL_COMPONENT_SWIZZLE .x
 
-#elif GL4_PROFILE
-	#define FEATURE_LEVEL FEATURE_LEVEL_SM5
-
-	// A8 textures when sampled have their component in R.
-	#define A8_SAMPLE_MASK .r
-
-	// hacks until the shader compiler supports those
-	#define class struct
-
 #elif METAL_PROFILE
 	#define FEATURE_LEVEL  FEATURE_LEVEL_ES3_1
 	// @todo metal: remove this and make sure all uses handle METAL_PROFILE
@@ -341,7 +328,7 @@
 
 // non-editor platforms generally never want development/editor features.
 #ifndef PLATFORM_SUPPORTS_DEVELOPMENT_SHADERS
-#define PLATFORM_SUPPORTS_DEVELOPMENT_SHADERS !ESDEFERRED_PROFILE
+#define PLATFORM_SUPPORTS_DEVELOPMENT_SHADERS 1
 #endif
 
 #ifndef MOBILE_EMULATION
@@ -359,7 +346,7 @@
 // Whether the platform supports a global clip plane through SV_ClipDistance
 // Ideally this would just be enabled for all SM4 and above feature level platforms, but not tested everywhere yet
 #ifndef PLATFORM_SUPPORTS_GLOBAL_CLIP_PLANE
-#define PLATFORM_SUPPORTS_GLOBAL_CLIP_PLANE (PS4_PROFILE || SM5_PROFILE || SM4_PROFILE || METAL_PROFILE || METAL_MRT_PROFILE || METAL_SM5_NOTESS_PROFILE || METAL_SM5_PROFILE || GL4_PROFILE || VULKAN_PROFILE_SM5)
+#define PLATFORM_SUPPORTS_GLOBAL_CLIP_PLANE (PS4_PROFILE || SM5_PROFILE || SM4_PROFILE || METAL_PROFILE || METAL_MRT_PROFILE || METAL_SM5_NOTESS_PROFILE || METAL_SM5_PROFILE || VULKAN_PROFILE_SM5)
 #endif
 
 // Whether the platform support pixel coverage on MSAA targets (SV_Coverage).

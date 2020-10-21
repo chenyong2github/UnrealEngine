@@ -108,7 +108,7 @@
 
 //Platforms that don't run the editor shouldn't need editor features in the shaders.
 #ifndef PLATFORM_SUPPORTS_EDITOR_SHADERS
-#define PLATFORM_SUPPORTS_EDITOR_SHADERS !ESDEFERRED_PROFILE
+#define PLATFORM_SUPPORTS_EDITOR_SHADERS 1
 #endif
 
 //Tie Editor features to platform support and the COMPILE_SHADERS_FOR_DEVELOPMENT which is set via CVAR.
@@ -1989,7 +1989,7 @@ half3 GetMaterialNormal(FMaterialPixelParameters Parameters, FPixelMaterialInput
 
 	RetNormal = GetMaterialNormalRaw(PixelMaterialInputs);
 		
-	#if (USE_EDITOR_SHADERS && !(ES3_1_PROFILE || ESDEFERRED_PROFILE)) || MOBILE_EMULATION
+	#if (USE_EDITOR_SHADERS && !ES3_1_PROFILE) || MOBILE_EMULATION
 	{
 		// this feature is only needed for development/editor - we can compile it out for a shipping build (see r.CompileShadersForDevelopment cvar help)
 		half3 OverrideNormal = ResolvedView.NormalOverrideParameter.xyz;
@@ -2082,7 +2082,7 @@ half GetMaterialRoughness(FPixelMaterialInputs PixelMaterialInputs)
 #endif
 	half Roughness = saturate(GetMaterialRoughnessRaw(PixelMaterialInputs));
 	
-	#if (USE_EDITOR_SHADERS && !ESDEFERRED_PROFILE) || MOBILE_EMULATION
+	#if (USE_EDITOR_SHADERS && !ES3_1_PROFILE) || MOBILE_EMULATION
 	{
 		// this feature is only needed for development/editor - we can compile it out for a shipping build (see r.CompileShadersForDevelopment cvar help)
 		Roughness = Roughness * ResolvedView.RoughnessOverrideParameter.y + ResolvedView.RoughnessOverrideParameter.x;

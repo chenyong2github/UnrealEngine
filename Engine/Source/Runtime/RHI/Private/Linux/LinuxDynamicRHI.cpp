@@ -9,28 +9,23 @@
 
 FDynamicRHI* PlatformCreateDynamicRHI()
 {
-	/*
-	VulkanShaders && Vulkan = Vulkan
-
-	VulkanShaders && !Vulkan && GLShader && OpenGL     = OpenGL
-	VulkanShaders && !Vulkan && (!GLShader || !OpenGL) = FAIL
-
-	!VulkanShaders && GLShader && OpenGL     = OpenGL
-	!VulkanShaders && (!GLShader || !OpenGL) = FAIL
-
-	ForceVulkan && VulkanShaders  && Vulkan    = Vulkan
-	ForceVulkan && (!VulkanShaders || !Vulkan) = FAIL
-
-	ForceGL && GLShaders && OpenGL     = OpenGL
-	ForceGL && (!GLShaders || !OpenGL) = FAIL
-	*/
-
-	ERHIFeatureLevel::Type RequestedFeatureLevel = ERHIFeatureLevel::SM5;	// SM4 is a dead level walking
+	ERHIFeatureLevel::Type RequestedFeatureLevel = ERHIFeatureLevel::SM5;
 	FDynamicRHI* DynamicRHI = nullptr;
 
 	const bool bForceVulkan = FParse::Param(FCommandLine::Get(), TEXT("vulkan"));
-	const bool bForceOpenGL = FParse::Param(FCommandLine::Get(), TEXT("opengl")) || FParse::Param(FCommandLine::Get(), TEXT("opengl4"))
-																				 || FParse::Param(FCommandLine::Get(), TEXT("opengl3"));
+	bool bForceOpenGL = false;
+	if (!bForceVulkan)
+	{
+		// OpenGL can only be used for mobile preview.
+		bForceOpenGL = FParse::Param(FCommandLine::Get(), TEXT("opengl"));
+		ERHIFeatureLevel::Type PreviewFeatureLevel;
+		bool bUsePreviewFeatureLevel = RHIGetPreviewFeatureLevel(PreviewFeatureLevel);
+		if (bForceOpenGL && !bUsePreviewFeatureLevel)
+		{
+			FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("LinuxDynamicRHI", "OpenGLRemoved", "Warning: OpenGL is no longer supported for desktop platforms. Vulkan will be used instead."));
+			bForceOpenGL = false;
+		}
+	}
 
 	bool bVulkanFailed = false;
 	bool bOpenGLFailed = false;
@@ -76,11 +71,6 @@ FDynamicRHI* PlatformCreateDynamicRHI()
 				FApp::SetGraphicsRHI(TEXT("OpenGL"));
 				FPlatformApplicationMisc::UsingOpenGL();
 
-				if (!UE_BUILD_SHIPPING)
-				{
-					FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("LinuxDynamicRHI", "OpenGLDeprecated", "Warning: OpenGL is deprecated, please use Vulkan."));
-				}
-
 				FName ShaderFormatName(*TargetedShaderFormats[SfIdx]);
 				EShaderPlatform TargetedPlatform = ShaderFormatToLegacyShaderPlatform(ShaderFormatName);
 				RequestedFeatureLevel = GetMaxSupportedFeatureLevel(TargetedPlatform);
@@ -115,7 +105,7 @@ FDynamicRHI* PlatformCreateDynamicRHI()
 		{
 			if (bOpenGLFailed)
 			{
-				FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("LinuxDynamicRHI", "RequiredOpenGL", "OpenGL 3.2 is required to run the engine."));
+				FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("LinuxDynamicRHI", "RequiredOpenGL", "OpenGL 4.3 is required to run the engine."));
 			}
 			else
 			{
@@ -130,7 +120,7 @@ FDynamicRHI* PlatformCreateDynamicRHI()
 		{
 			if (bVulkanFailed && bOpenGLFailed)
 			{
-				FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("LinuxDynamicRHI", "NoVulkanNoGL", "Vulkan or OpenGL (3.2) support is required to run the engine."));
+				FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("LinuxDynamicRHI", "NoVulkanNoGL", "Vulkan or OpenGL (4.3) support is required to run the engine."));
 			}
 			else
 			{

@@ -778,8 +778,8 @@ void AddSubsurfaceViewPass(
 
 	const uint32 ScaleFactor = bHalfRes ? 2 : 1;
 	
-	//We run in separable mode under three conditions: 1) Run Burley fallback mode. 2) when the screen is in half resolution. 3) OpenGL
-	const bool bForceRunningInSeparable = CVarSSSBurleyQuality.GetValueOnRenderThread() == 0|| bHalfRes || View.GetShaderPlatform() == SP_OPENGL_SM5;
+	//We run in separable mode under two conditions: 1) Run Burley fallback mode. 2) when the screen is in half resolution.
+	const bool bForceRunningInSeparable = CVarSSSBurleyQuality.GetValueOnRenderThread() == 0 || bHalfRes;
 
 	const bool bUseProfileIdCache = !bForceRunningInSeparable && IsProfileIdCacheEnabled();
 
