@@ -679,7 +679,7 @@ FScreenPassTexture AddTonemapPass(FRDGBuilder& GraphBuilder, const FViewInfo& Vi
 		Output = FScreenPassRenderTarget(
 			GraphBuilder.CreateTexture(OutputDesc, TEXT("Tonemap")),
 			Inputs.SceneColor.ViewRect,
-			View.IsFirstInFamily() || View.GetFeatureLevel() <= ERHIFeatureLevel::ES3_1 ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad);
+			ERenderTargetLoadAction::EClear);
 	}
 
 	const FScreenPassTextureViewport OutputViewport(Output);
