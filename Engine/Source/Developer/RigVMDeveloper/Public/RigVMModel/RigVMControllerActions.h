@@ -1100,3 +1100,30 @@ public:
 	UPROPERTY()
 	FName NewCPPTypeObjectPath;
 };
+
+/**
+ * An action changing a pin's bound variable
+ */
+USTRUCT()
+struct FRigVMSetPinBoundVariableAction : public FRigVMBaseAction
+{
+	GENERATED_BODY()
+
+public:
+
+	FRigVMSetPinBoundVariableAction() {}
+	FRigVMSetPinBoundVariableAction(URigVMPin* InPin, const FName& InNewBoundVariableName);
+	virtual ~FRigVMSetPinBoundVariableAction() {};
+	virtual bool Merge(const FRigVMBaseAction* Other);
+	virtual bool Undo(URigVMController* InController) override;
+	virtual bool Redo(URigVMController* InController) override;
+
+	UPROPERTY()
+	FString PinPath;
+
+	UPROPERTY()
+	FName OldBoundVariableName;
+
+	UPROPERTY()
+	FName NewBoundVariableName;
+};

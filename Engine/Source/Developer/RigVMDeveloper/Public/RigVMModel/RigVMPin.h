@@ -288,6 +288,15 @@ public:
 	// Returns the injected nodes this pin contains.
 	const TArray<URigVMInjectionInfo*> GetInjectedNodes() const { return InjectionInfos; }
 
+	// Returns the variable bound to this pin (or NAME_None)
+	const FName& GetBoundVariableName() const { return BoundVariableName; }
+
+	// Returns true if this pin is bound to a variable
+	bool IsBoundToVariable() const { return !GetBoundVariableName().IsNone(); }
+
+	// Returns true if the pin can be bound to a given variable
+	bool CanBeBoundToVariable(const FRigVMExternalVariable& InExternalVariable) const;
+
 	// helper function to retrieve an object from a path
 	static UObject* FindObjectFromCPPTypeObjectPath(const FString& InObjectPath);
 	template<class T>
@@ -351,6 +360,9 @@ private:
 
 	UPROPERTY()
 	TArray<URigVMInjectionInfo*> InjectionInfos;
+
+	UPROPERTY()
+	FName BoundVariableName;
 
 	friend class URigVMController;
 	friend class URigVMGraph;

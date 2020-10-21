@@ -43,6 +43,7 @@ enum class ERigVMGraphNotifType : uint8
 	InteractionBracketOpened, // A bracket has been opened (Subject == nullptr)
 	InteractionBracketClosed, // A bracket has been opened (Subject == nullptr)
 	InteractionBracketCanceled, // A bracket has been canceled (Subject == nullptr)
+	PinBoundVariableChanged, // A pin has been bound or unbound to / from a variable (Subject == URigVMPin)
 	Invalid // The max for this enum (used for guarding)
 };
 

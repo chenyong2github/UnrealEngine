@@ -460,7 +460,7 @@ void URigVMController::RefreshVariableNode(const FName& InNodeName, const FName&
 	}
 }
 
-void URigVMController::RemoveVariableNodes(const FName& InVarName, bool bUndo)
+void URigVMController::OnExternalVariableRemoved(const FName& InVarName, bool bUndo)
 {
 	if (!IsValidGraph())
 	{
@@ -489,7 +489,17 @@ void URigVMController::RemoveVariableNodes(const FName& InVarName, bool bUndo)
 				if (VariablePin->GetDefaultValue() == VarNameStr)
 				{
 					RemoveNode(Node, bUndo, true);
+					continue;
 				}
+			}
+		}
+
+		TArray<URigVMPin*> AllPins = Node->GetAllPinsRecursively();
+		for (URigVMPin* Pin : AllPins)
+		{
+			if (Pin->GetBoundVariableName() == InVarName)
+			{
+				BindPinToVariable(Pin, NAME_None, true);
 			}
 		}
 	}
@@ -500,7 +510,7 @@ void URigVMController::RemoveVariableNodes(const FName& InVarName, bool bUndo)
 	}
 }
 
-void URigVMController::RenameVariableNodes(const FName& InOldVarName, const FName& InNewVarName, bool bUndo)
+void URigVMController::OnExternalVariableRenamed(const FName& InOldVarName, const FName& InNewVarName, bool bUndo)
 {
 	if (!IsValidGraph())
 	{
@@ -529,7 +539,17 @@ void URigVMController::RenameVariableNodes(const FName& InOldVarName, const FNam
 				if (VariablePin->GetDefaultValue() == VarNameStr)
 				{
 					RefreshVariableNode(Node->GetFName(), InNewVarName, FString(), nullptr, bUndo);
+					continue;
 				}
+			}
+		}
+
+		TArray<URigVMPin*> AllPins = Node->GetAllPinsRecursively();
+		for (URigVMPin* Pin : AllPins)
+		{
+			if (Pin->GetBoundVariableName() == InOldVarName)
+			{
+				BindPinToVariable(Pin, InNewVarName, true);
 			}
 		}
 	}
@@ -540,7 +560,7 @@ void URigVMController::RenameVariableNodes(const FName& InOldVarName, const FNam
 	}
 }
 
-void URigVMController::ChangeVariableNodesType(const FName& InVarName, const FString& InCPPType, UObject* InCPPTypeObject, bool bUndo)
+void URigVMController::OnExternalVariableTypeChanged(const FName& InVarName, const FString& InCPPType, UObject* InCPPTypeObject, bool bUndo)
 {
 	if (!IsValidGraph())
 	{
@@ -569,7 +589,19 @@ void URigVMController::ChangeVariableNodesType(const FName& InVarName, const FSt
 				if (VariablePin->GetDefaultValue() == VarNameStr)
 				{
 					RefreshVariableNode(Node->GetFName(), InVarName, InCPPType, InCPPTypeObject, bUndo);
+					continue;
 				}
+			}
+		}
+
+		TArray<URigVMPin*> AllPins = Node->GetAllPinsRecursively();
+		for (URigVMPin* Pin : AllPins)
+		{
+			if (Pin->GetBoundVariableName() == InVarName)
+			{
+				BindPinToVariable(Pin, NAME_None, true);
+				// try to bind it again - maybe it can be bound (due to cast rules etc)
+				BindPinToVariable(Pin, InVarName, true);
 			}
 		}
 	}
@@ -2940,6 +2972,88 @@ bool URigVMController::SetArrayPinSize(const FString& InArrayPinPath, int32 InSi
 	return RemovedPins > 0 || AddedPins > 0;
 }
 
+bool URigVMController::BindPinToVariable(const FString& InPinPath, const FName& InNewBoundVariableName, bool bUndo)
+{
+	if (!IsValidGraph())
+	{
+		return false;
+	}
+
+	URigVMPin* Pin = Graph->FindPin(InPinPath);
+	if (Pin == nullptr)
+	{
+		ReportErrorf(TEXT("Cannot find pin '%s'."), *InPinPath);
+		return false;
+	}
+
+	return BindPinToVariable(Pin, InNewBoundVariableName, bUndo);
+}
+
+bool URigVMController::UnbindPinFromVariable(const FString& InPinPath, bool bUndo)
+{
+	return BindPinToVariable(InPinPath, NAME_None, bUndo);
+}
+
+bool URigVMController::BindPinToVariable(URigVMPin* InPin, const FName& InNewBoundVariableName, bool bUndo)
+{
+	if (!IsValidPinForGraph(InPin))
+	{
+		return false;
+	}
+
+	if (InPin->GetBoundVariableName() == InNewBoundVariableName)
+	{
+		return false;
+	}
+
+	// check that the variable is compatible
+	if (!InNewBoundVariableName.IsNone())
+	{
+		FRigVMExternalVariable ExternalVariable = GetExternalVariableByName(InNewBoundVariableName);
+		if (!InPin->CanBeBoundToVariable(ExternalVariable))
+		{
+			return false;
+		}
+	}
+
+	FRigVMBaseAction Action;
+	if (bUndo)
+	{
+		if (InNewBoundVariableName.IsNone())
+		{
+			Action.Title = TEXT("Unbind pin from variable");
+		}
+		else
+		{
+			Action.Title = TEXT("Bind pin to variable");
+		}
+		ActionStack->BeginAction(Action);
+	}
+
+	if (!InPin->IsBoundToVariable() && bUndo)
+	{
+		// break all links on pin towards parent + children
+		BreakAllLinks(InPin, true, bUndo);
+		BreakAllLinksRecursive(InPin, true, true, bUndo);
+		BreakAllLinksRecursive(InPin, true, false, bUndo);
+	}
+
+	if (bUndo)
+	{
+		ActionStack->AddAction(FRigVMSetPinBoundVariableAction(InPin, InNewBoundVariableName));
+	}
+
+	InPin->BoundVariableName = InNewBoundVariableName;
+	Notify(ERigVMGraphNotifType::PinBoundVariableChanged, InPin);
+
+	if (bUndo)
+	{
+		ActionStack->EndAction(Action);
+	}
+
+	return true;
+}
+
 bool URigVMController::AddLink(const FString& InOutputPinPath, const FString& InInputPinPath, bool bUndo)
 {
 	if(!IsValidGraph())
@@ -2997,11 +3111,19 @@ bool URigVMController::AddLink(URigVMPin* OutputPin, URigVMPin* InputPin, bool b
 		return false;
 	}
 
-	FString FailureReason;
-	if (!Graph->CanLink(OutputPin, InputPin, &FailureReason))
 	{
-		ReportErrorf(TEXT("Cannot link '%s' to '%s': %s."), *OutputPin->GetPinPath(), *InputPin->GetPinPath(), *FailureReason);
-		return false;
+		// Temporarily remove the bound variable from the pin
+		// if it exists, so that link validation can work.
+		// BreakAllPins will remove the bound variable for real later.
+		TGuardValue<FName> OutputBoundVariableGuard(OutputPin->BoundVariableName, NAME_None);
+		TGuardValue<FName> InputBoundVariableGuard(InputPin->BoundVariableName, NAME_None);
+
+		FString FailureReason;
+		if (!Graph->CanLink(OutputPin, InputPin, &FailureReason))
+		{
+			ReportErrorf(TEXT("Cannot link '%s' to '%s': %s."), *OutputPin->GetPinPath(), *InputPin->GetPinPath(), *FailureReason);
+			return false;
+		}
 	}
 
 	ensure(!OutputPin->IsLinkedTo(InputPin));
@@ -3174,6 +3296,12 @@ bool URigVMController::BreakAllLinks(URigVMPin* Pin, bool bAsInput, bool bUndo)
 	}
 
 	int32 LinksBroken = 0;
+	if (Pin->IsBoundToVariable() && bAsInput && bUndo)
+	{
+		BindPinToVariable(Pin, NAME_None, bUndo);
+		LinksBroken++;
+	}
+
 	TArray<URigVMLink*> Links = Pin->GetLinks();
 	for (int32 LinkIndex = Links.Num() - 1; LinkIndex >= 0; LinkIndex--)
 	{
@@ -5064,4 +5192,26 @@ void URigVMController::DestroyObject(UObject* InObjectToDestroy)
 {
 	InObjectToDestroy->Rename(nullptr, GetTransientPackage(), REN_ForceNoResetLoaders | REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional);
 	InObjectToDestroy->RemoveFromRoot();
+}
+
+FRigVMExternalVariable URigVMController::GetExternalVariableByName(const FName& InExternalVariableName)
+{
+	TArray<FRigVMExternalVariable> ExternalVariables = GetExternalVariables();
+	for (const FRigVMExternalVariable& ExternalVariable : ExternalVariables)
+	{
+		if (ExternalVariable.Name == InExternalVariableName)
+		{
+			return ExternalVariable;
+		}
+	}
+	return FRigVMExternalVariable();
+}
+
+TArray<FRigVMExternalVariable> URigVMController::GetExternalVariables()
+{
+	if (GetExternalVariablesDelegate.IsBound())
+	{
+		return GetExternalVariablesDelegate.Execute();
+	}
+	return TArray<FRigVMExternalVariable>();
 }

@@ -18,6 +18,7 @@
 class URigVMActionStack;
 
 DECLARE_DELEGATE_RetVal_OneParam(bool, FRigVMController_ShouldStructUnfoldDelegate, const UStruct*)
+DECLARE_DELEGATE_RetVal(TArray<FRigVMExternalVariable>, FRigVMController_GetExternalVariablesDelegate)
 
 /**
  * The Controller is the sole authority to perform changes
@@ -111,15 +112,15 @@ public:
 
 	// Removes all nodes related to a given variable
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	void RemoveVariableNodes(const FName& InVarName, bool bUndo);
+	void OnExternalVariableRemoved(const FName& InVarName, bool bUndo);
 
 	// Renames the variable name in all relevant nodes
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	void RenameVariableNodes(const FName& InOldVarName, const FName& InNewVarName, bool bUndo);
+	void OnExternalVariableRenamed(const FName& InOldVarName, const FName& InNewVarName, bool bUndo);
 
 	// Changes the data type of all nodes matching a given variable name
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	void ChangeVariableNodesType(const FName& InVarName, const FString& InCPPType, UObject* InCPPTypeObject, bool bUndo);
+	void OnExternalVariableTypeChanged(const FName& InVarName, const FString& InCPPType, UObject* InCPPTypeObject, bool bUndo);
 
 	// Refreshes the variable node with the new data
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
@@ -407,6 +408,16 @@ public:
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
 	bool SetArrayPinSize(const FString& InArrayPinPath, int32 InSize, const FString& InDefaultValue = TEXT(""), bool bUndo = true);
 
+	// Binds a pin to a variable (or removes the binding given NAME_None)
+	// This causes a PinBoundVariableChanged modified event.
+	UFUNCTION(BlueprintCallable, Category = RigVMController)
+	bool BindPinToVariable(const FString& InPinPath, const FName& InNewBoundVariableName, bool bUndo = true);
+
+	// Removes the binging of a pin to a variable
+	// This causes a PinBoundVariableChanged modified event.
+	UFUNCTION(BlueprintCallable, Category = RigVMController)
+	bool UnbindPinFromVariable(const FString& InPinPath, bool bUndo = true);
+
 	// Adds a link to the graph.
 	// This causes a LinkAdded modified event.
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
@@ -427,6 +438,9 @@ public:
 
 	// A delegate that can be set to change the struct unfolding behaviour
 	FRigVMController_ShouldStructUnfoldDelegate UnfoldStructDelegate;
+
+	// A delegate to retrieve the list of external variables
+	FRigVMController_GetExternalVariablesDelegate GetExternalVariablesDelegate;
 
 	int32 DetachLinksFromPinObjects();
 	int32 ReattachLinksToPinObjects(bool bFollowCoreRedirectors = false);
@@ -470,6 +484,7 @@ private:
 	URigVMPin* InsertArrayPin(URigVMPin* ArrayPin, int32 InIndex, const FString& InDefaultValue, bool bUndo);
 	bool RemovePin(URigVMPin* InPinToRemove, bool bUndo);
 	FProperty* FindPropertyForPin(const FString& InPinPath);
+	bool BindPinToVariable(URigVMPin* InPin, const FName& InNewBoundVariableName, bool bUndo);
 	bool AddLink(URigVMPin* OutputPin, URigVMPin* InputPin, bool bUndo);
 	bool BreakLink(URigVMPin* OutputPin, URigVMPin* InputPin, bool bUndo);
 	bool BreakAllLinks(URigVMPin* Pin, bool bAsInput, bool bUndo);
@@ -512,6 +527,9 @@ private:
 #endif
 
 	void DestroyObject(UObject* InObjectToDestroy);
+
+	FRigVMExternalVariable GetExternalVariableByName(const FName& InExternalVariableName);
+	TArray<FRigVMExternalVariable> GetExternalVariables();
 
 	UPROPERTY(transient)
 	URigVMGraph* Graph;

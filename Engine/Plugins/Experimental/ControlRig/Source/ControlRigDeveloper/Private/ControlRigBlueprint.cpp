@@ -1898,7 +1898,7 @@ void UControlRigBlueprint::OnVariableRemoved(const FName& InVarName)
 {
 	if (Controller)
 	{
-		Controller->RemoveVariableNodes(InVarName, true);
+		Controller->OnExternalVariableRemoved(InVarName, true);
 	}
 	BroadcastExternalVariablesChangedEvent();
 }
@@ -1907,7 +1907,7 @@ void UControlRigBlueprint::OnVariableRenamed(const FName& InOldVarName, const FN
 {
 	if (Controller)
 	{
-		Controller->RenameVariableNodes(InOldVarName, InNewVarName, true);
+		Controller->OnExternalVariableRenamed(InOldVarName, InNewVarName, true);
 	}
 	BroadcastExternalVariablesChangedEvent();
 }
@@ -1919,11 +1919,11 @@ void UControlRigBlueprint::OnVariableTypeChanged(const FName& InVarName, FEdGrap
 		FRigVMExternalVariable NewVariable = UControlRig::GetExternalVariableFromPinType(InVarName, InNewPinType);
 		if (NewVariable.IsValid(true)) // allow nullptr
 		{
-			Controller->ChangeVariableNodesType(InVarName, NewVariable.TypeName.ToString(), NewVariable.TypeObject, true);
+			Controller->OnExternalVariableTypeChanged(InVarName, NewVariable.TypeName.ToString(), NewVariable.TypeObject, true);
 		}
 		else
 		{
-			Controller->RemoveVariableNodes(InVarName, true);
+			Controller->OnExternalVariableRemoved(InVarName, true);
 		}
 	}
 	BroadcastExternalVariablesChangedEvent();

@@ -1239,3 +1239,42 @@ bool FRigVMChangePinTypeAction::Redo(URigVMController* InController)
 	}
 	return FRigVMBaseAction::Redo(InController);
 }
+
+FRigVMSetPinBoundVariableAction::FRigVMSetPinBoundVariableAction(URigVMPin* InPin, const FName& InNewBoundVariableName)
+	: PinPath(InPin->GetPinPath())
+	, OldBoundVariableName(InPin->GetBoundVariableName())
+	, NewBoundVariableName(InNewBoundVariableName)
+{
+}
+
+bool FRigVMSetPinBoundVariableAction::Merge(const FRigVMBaseAction* Other)
+{
+	if (!FRigVMBaseAction::Merge(Other))
+	{
+		return false;
+	}
+
+	const FRigVMSetPinBoundVariableAction* Action = (const FRigVMSetPinBoundVariableAction*)Other;
+	if (PinPath != Action->PinPath)
+	{
+		return false;
+	}
+
+	NewBoundVariableName = Action->NewBoundVariableName;
+	return true;
+}
+
+bool FRigVMSetPinBoundVariableAction::Undo(URigVMController* InController)
+{
+	if (!FRigVMBaseAction::Undo(InController))
+	{
+		return false;
+	}
+	return InController->BindPinToVariable(PinPath, OldBoundVariableName, false);
+}
+
+bool FRigVMSetPinBoundVariableAction::Redo(URigVMController* InController)
+{
+	InController->BindPinToVariable(PinPath, NewBoundVariableName, false);
+	return FRigVMBaseAction::Redo(InController);
+}

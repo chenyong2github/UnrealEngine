@@ -82,6 +82,7 @@ URigVMPin::URigVMPin()
 	, CPPTypeObject(nullptr)
 	, CPPTypeObjectPath(NAME_None)
 	, DefaultValue(FString())
+	, BoundVariableName(NAME_None)
 {
 }
 
@@ -390,6 +391,49 @@ UObject* URigVMPin::FindObjectFromCPPTypeObjectPath(const FString& InObjectPath)
 	}
 
 	return FindObject<UObject>(ANY_PACKAGE, *InObjectPath);
+}
+
+bool URigVMPin::CanBeBoundToVariable(const FRigVMExternalVariable& InExternalVariable) const
+{
+	if (!InExternalVariable.IsValid())
+	{
+		return false;
+	}
+
+	if (bIsConstant)
+	{
+		return false;
+	}
+
+	// only allow to bind variables to input pins for now
+	if (Direction == ERigVMPinDirection::Output)
+	{
+		return false;
+	}
+
+	// check type validity
+	if (IsArray() != InExternalVariable.bIsArray)
+	{
+		return false;
+	}
+
+	if (GetCPPTypeObject() != nullptr)
+	{
+		if (GetCPPTypeObject() != InExternalVariable.TypeObject)
+		{
+			return false;
+		}
+	}
+	else
+	{
+		FString CPPBaseType = IsArray() ? GetArrayElementCppType() : GetCPPType();
+		if (CPPBaseType != InExternalVariable.TypeName.ToString())
+		{
+			return false;
+		}
+	}
+
+	return true;
 }
 
 FName URigVMPin::GetSliceContext(const FRigVMUserDataArray& InUserData)
@@ -715,6 +759,15 @@ bool URigVMPin::CanLink(URigVMPin* InSourcePin, URigVMPin* InTargetPin, FString*
 		if (OutFailureReason)
 		{
 			*OutFailureReason = TEXT("Source and target pins are the same.");
+		}
+		return false;
+	}
+	
+	if (InTargetPin->IsBoundToVariable())
+	{
+		if (OutFailureReason)
+		{
+			*OutFailureReason = TEXT("Target pin is bound to a variable.");
 		}
 		return false;
 	}

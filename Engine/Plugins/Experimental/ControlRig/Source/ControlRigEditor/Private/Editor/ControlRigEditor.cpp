@@ -1808,6 +1808,7 @@ void FControlRigEditor::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, UR
 			break;
 		}
 		case ERigVMGraphNotifType::PinArraySizeChanged:
+		case ERigVMGraphNotifType::PinBoundVariableChanged:
 		{
 			URigVMPin* Pin = Cast<URigVMPin>(InSubject);
 
