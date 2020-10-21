@@ -48,6 +48,9 @@ protected:
 	UPROPERTY()
 	TArray<UPhysicsObjectToolPropertySet*> ObjectData;
 
+	UPROPERTY()
+	UMaterialInterface* LineMaterial = nullptr;
+
 protected:
 	UPROPERTY()
 	TArray<UPreviewGeometry*> PreviewElements;

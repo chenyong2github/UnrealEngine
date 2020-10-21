@@ -88,7 +88,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = Options)
 	bool bEnableMaxCount = true;
 
-	UPROPERTY(EditAnywhere, Category = Options, meta = (UIMin = "4", UIMax = "100", ClampMin = "4", ClampMax = "9999999", EditCondition = "bEnableMaxCount"))
+	UPROPERTY(EditAnywhere, Category = Options, meta = (UIMin = "1", UIMax = "100", ClampMin = "4", ClampMax = "9999999", EditCondition = "bEnableMaxCount"))
 	int32 MaxCount = 50;
 
 	UPROPERTY(EditAnywhere, Category = Options, AdvancedDisplay)
@@ -160,6 +160,9 @@ protected:
 
 	UPROPERTY()
 	UPhysicsObjectToolPropertySet* CollisionProps;
+
+	UPROPERTY()
+	UMaterialInterface* LineMaterial = nullptr;
 
 protected:
 	UPROPERTY()

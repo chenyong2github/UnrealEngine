@@ -129,6 +129,9 @@ public:
 	float LineThickness = 3.0f;
 
 	UPROPERTY(EditAnywhere, Category = Visualization)
+	bool bShowHidden = false;
+
+	UPROPERTY(EditAnywhere, Category = Visualization)
 	FColor Color = FColor::Red;
 };
 
