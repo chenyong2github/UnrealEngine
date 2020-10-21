@@ -333,6 +333,7 @@ void FVulkanDynamicRHI::Shutdown()
 
 #if UE_BUILD_DEBUG || UE_BUILD_DEVELOPMENT
 	IConsoleManager::Get().UnregisterConsoleObject(DumpMemoryCmd);
+	IConsoleManager::Get().UnregisterConsoleObject(DumpMemoryFullCmd);
 	IConsoleManager::Get().UnregisterConsoleObject(DumpStagingMemoryCmd);
 	IConsoleManager::Get().UnregisterConsoleObject(DumpLRUCmd);
 	IConsoleManager::Get().UnregisterConsoleObject(TrimLRUCmd);
@@ -776,6 +777,12 @@ void FVulkanDynamicRHI::InitInstance()
 			FConsoleCommandDelegate::CreateStatic(DumpMemory),
 			ECVF_Default
 			);
+		DumpMemoryFullCmd = IConsoleManager::Get().RegisterConsoleCommand(
+			TEXT("r.Vulkan.DumpMemoryFull"),
+			TEXT("Dumps full memory map."),
+			FConsoleCommandDelegate::CreateStatic(DumpMemoryFull),
+			ECVF_Default
+		);
 		DumpStagingMemoryCmd = IConsoleManager::Get().RegisterConsoleCommand(
 			TEXT("r.Vulkan.DumpStagingMemory"),
 			TEXT("Dumps staging memory map."),
@@ -1836,7 +1843,11 @@ void FVulkanDynamicRHI::SaveValidationCache()
 #if UE_BUILD_DEBUG || UE_BUILD_DEVELOPMENT
 void FVulkanDynamicRHI::DumpMemory()
 {
-	GVulkanRHI->Device->GetMemoryManager().DumpMemory();
+	GVulkanRHI->Device->GetMemoryManager().DumpMemory(false);
+}
+void FVulkanDynamicRHI::DumpMemoryFull()
+{
+	GVulkanRHI->Device->GetMemoryManager().DumpMemory(true);
 }
 void FVulkanDynamicRHI::DumpStagingMemory()
 {
