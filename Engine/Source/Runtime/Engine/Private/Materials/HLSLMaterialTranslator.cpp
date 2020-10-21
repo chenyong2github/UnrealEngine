@@ -4839,27 +4839,28 @@ int32 FHLSLMaterialTranslator::SceneTextureLookup(int32 ViewportUV, uint32 InSce
 
 	AddEstimatedTextureSample();
 
+	int32 LookUp = INDEX_NONE;
+
 	if (FeatureLevel >= ERHIFeatureLevel::SM5)
 	{
-		int32 LookUp = AddCodeChunk(
+		LookUp = AddCodeChunk(
 			MCT_Float4,
 			TEXT("SceneTextureLookup(%s, %d, %s)"),
 			*CoerceParameter(BufferUV, MCT_Float2), (int)SceneTextureId, bFiltered ? TEXT("true") : TEXT("false")
 		);
-
-		if (SceneTextureId == PPI_PostProcessInput0 && Material->GetMaterialDomain() == MD_PostProcess && Material->GetBlendableLocation() != BL_AfterTonemapping)
-		{
-			return AddInlinedCodeChunk(MCT_Float4, TEXT("(float4(View.OneOverPreExposure.xxx, 1) * %s)"), *CoerceParameter(LookUp, MCT_Float4));
-		}
-		else
-		{
-			return LookUp;
-		}
 	}
 	else // mobile
 	{
-		int32 UV = BufferUV;
-		return AddCodeChunk(MCT_Float4,	TEXT("MobileSceneTextureLookup(Parameters, %d, %s)"), (int32)SceneTextureId, *CoerceParameter(UV, MCT_Float2));
+		LookUp = AddCodeChunk(MCT_Float4, TEXT("MobileSceneTextureLookup(Parameters, %d, %s)"), (int32)SceneTextureId, *CoerceParameter(BufferUV, MCT_Float2));
+	}
+
+	if (SceneTextureId == PPI_PostProcessInput0 && Material->GetMaterialDomain() == MD_PostProcess && Material->GetBlendableLocation() != BL_AfterTonemapping)
+	{
+		return AddInlinedCodeChunk(MCT_Float4, TEXT("(float4(View.OneOverPreExposure.xxx, 1) * %s)"), *CoerceParameter(LookUp, MCT_Float4));
+	}
+	else
+	{
+		return LookUp;
 	}
 }
 
