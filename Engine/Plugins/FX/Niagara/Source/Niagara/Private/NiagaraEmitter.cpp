@@ -625,6 +625,23 @@ bool UNiagaraEmitter::IsEditorOnly() const
 
 bool UNiagaraEmitter::NeedsLoadForTargetPlatform(const ITargetPlatform* TargetPlatform)const
 {
+	// Don't load disabled emitters.
+	// Awkwardly, this requires us to look for ourselves in the owning system.
+	if (const UNiagaraSystem* OwnerSystem = GetTypedOuter<const UNiagaraSystem>())
+	{
+		for (const FNiagaraEmitterHandle& EmitterHandle : OwnerSystem->GetEmitterHandles())
+		{
+			if (EmitterHandle.GetInstance() == this)
+			{
+				if (!EmitterHandle.GetIsEnabled())
+				{
+					return false;
+				}
+				break;
+			}
+		}
+	}
+
 	if (!FNiagaraPlatformSet::ShouldPruneEmittersOnCook(TargetPlatform->IniPlatformName()))
 	{
 		return true;
