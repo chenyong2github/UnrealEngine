@@ -311,7 +311,9 @@ bool FStringFromStringViewTest::RunTest(const FString& Parameters)
 	// Verify basic construction and assignment from a string view.
 	{
 		const TCHAR* Literal = TEXT("Literal");
+		const ANSICHAR* AnsiLiteral = "Literal";
 		TestEqual(TEXT("String(StringView)"), FString(FStringView(Literal)), Literal);
+		TestEqual(TEXT("String(AnsiStringView)"), FString(FAnsiStringView(AnsiLiteral)), Literal);
 		TestEqual(TEXT("String = StringView"), FString(TEXT("Temp")) = FStringView(Literal), Literal);
 
 		FStringView EmptyStringView;
@@ -342,6 +344,37 @@ bool FStringFromStringViewTest::RunTest(const FString& Parameters)
 		FString AssignMiddleOfString(TEXT("AssignMiddleOfString"));
 		AssignMiddleOfString = FStringView(AssignMiddleOfString).Mid(6, 6);
 		TestEqual(TEXT("String = StringView(String).Mid"), AssignMiddleOfString, TEXT("Middle"));
+	}
+
+	// Verify operators taking string views and character arrays
+	{
+		FStringView RhsStringView = FStringView(TEXT("RhsNotSZ"), 3);
+		FString MovePlusSVResult = FString(TEXT("Lhs")) + RhsStringView;
+		TestEqual(TEXT("Move String + StringView"), MovePlusSVResult, TEXT("LhsRhs"));
+
+		FString CopyLhs(TEXT("Lhs"));
+		FString CopyPlusSVResult = CopyLhs + RhsStringView;
+		TestEqual(TEXT("Copy String + StringView"), CopyPlusSVResult, TEXT("LhsRhs"));
+
+		FString MovePlusTCHARsResult = FString(TEXT("Lhs")) + TEXT("Rhs");
+		TestEqual(TEXT("Move String + TCHAR*"), MovePlusTCHARsResult, TEXT("LhsRhs"));
+
+		FString CopyPlusTCHARsResult = CopyLhs + TEXT("Rhs");
+		TestEqual(TEXT("Copy String + TCHAR*"), CopyPlusTCHARsResult, TEXT("LhsRhs"));
+
+		FStringView LhsStringView = FStringView(TEXT("LhsNotSZ"), 3);
+		FString SVPlusMoveResult = LhsStringView + FString(TEXT("Rhs"));
+		TestEqual(TEXT("StringView + Move String"), SVPlusMoveResult, TEXT("LhsRhs"));
+
+		FString CopyRhs(TEXT("Rhs"));
+		FString SVPlusCopyResult = LhsStringView + CopyRhs;
+		TestEqual(TEXT("StringView + Copy String"), SVPlusCopyResult, TEXT("LhsRhs"));
+
+		FString TCHARsPlusMoveResult = TEXT("Lhs") + FString(TEXT("Rhs"));
+		TestEqual(TEXT("TCHAR* + Move String"), TCHARsPlusMoveResult, TEXT("LhsRhs"));
+
+		FString TCHARsPlusCopyResult = TEXT("Lhs") + CopyRhs;
+		TestEqual(TEXT("TCHAR* + Copy String"), TCHARsPlusCopyResult, TEXT("LhsRhs"));
 	}
 
 	return true;
