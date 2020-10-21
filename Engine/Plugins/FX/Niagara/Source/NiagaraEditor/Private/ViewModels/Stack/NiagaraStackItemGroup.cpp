@@ -113,9 +113,9 @@ int32 UNiagaraStackItemGroup::GetChildIndentLevel() const
 	return GetIndentLevel();
 }
 
-void UNiagaraStackItemGroup::ChlildStructureChangedInternal()
+void UNiagaraStackItemGroup::ChildStructureChangedInternal()
 {
-	Super::ChlildStructureChangedInternal();
+	Super::ChildStructureChangedInternal();
 	RecursiveStackIssuesCount.Reset();
 	HighestIssueSeverity.Reset();
 }

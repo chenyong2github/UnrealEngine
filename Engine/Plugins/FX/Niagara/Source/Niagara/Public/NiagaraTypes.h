@@ -15,12 +15,6 @@ class UNiagaraDataInterfaceBase;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogNiagara, Log, Verbose);
 
-// helper methods for basic struct definitions
-struct NIAGARA_API FNiagaraTypeUtilities
-{
-	static FString GetNamespaceStringForScriptParameterScope(const ENiagaraParameterScope& InScope);
-};
-
 // basic type struct definitions
 
 USTRUCT(meta = (DisplayName = "float"))
@@ -530,6 +524,12 @@ enum class ENiagaraParameterScope : uint32
 	Num UMETA(Hidden)
 };
 
+// helper methods for basic struct definitions
+struct NIAGARA_API FNiagaraTypeUtilities
+{
+	static FString GetNamespaceStringForScriptParameterScope(const ENiagaraParameterScope& InScope);
+};
+
 UENUM()
 enum class ENiagaraScriptParameterUsage : uint32
 {
@@ -686,6 +686,9 @@ struct NIAGARA_API FNiagaraVariableMetaData
 
 	UPROPERTY(EditAnywhere, Category = "Variable", DisplayName = "Property Metadata", meta = (ToolTip = "Property Metadata", SkipForCompileHash = "true"))
 	TMap<FName, FString> PropertyMetaData;
+
+	UPROPERTY(EditAnywhere, Category = "Variable", meta = (ToolTip = "If set, this attribute is visually displayed as a child under the given parent attribute. Currently, only static switches are supported as parent attributes!", SkipForCompileHash = "true"))
+	FName ParentAttribute;
 
 	const FName& GetScopeName() const { return ScopeName; };
 	void SetScopeName(const FName& InScopeName) { ScopeName = InScopeName; };

@@ -42,6 +42,8 @@ public:
 
 	void GetChildInputs(TArray<UNiagaraStackFunctionInput*>& OutResult) const;
 
+	static FText UncategorizedName;
+
 protected:
 	virtual void FinalizeInternal() override;
 
@@ -56,6 +58,8 @@ private:
 
 	UNiagaraStackEntry::FStackIssueFix GetResetPinFix(UEdGraphPin* PinToReset, FText FixDescription);
 
+	void AddInvalidChildStackIssue(FName PinName, TArray<FStackIssue>& OutIssues);
+
 	struct FInputData
 	{
 		const UEdGraphPin* Pin;
@@ -64,7 +68,12 @@ private:
 		FText Category;
 		bool bIsStatic;
 		bool bIsVisible;
+
+		TArray<FInputData*> Children;
+		bool bIsChild = false;
 	};
+
+	void AddInputToCategory(const FInputData& InputData, const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren);
 
 	UNiagaraNodeFunctionCall* ModuleNode;
 	UNiagaraNodeFunctionCall* InputFunctionCallNode;
