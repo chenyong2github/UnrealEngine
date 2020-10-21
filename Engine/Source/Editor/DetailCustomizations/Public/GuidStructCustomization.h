@@ -67,7 +67,7 @@ private:
 	void HandleGuidActionClicked( EPropertyEditorGuidActions::Type Action );
 
 	/** Handles getting the text color of the editable text box. */
-	FSlateColor HandleTextBoxForegroundColor( ) const;
+	FSlateColor HandleTextBoxForegroundColor() const;
 
 	/** Handles getting the text to be displayed in the editable text box. */
 	FText HandleTextBoxText( ) const;

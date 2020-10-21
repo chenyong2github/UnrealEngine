@@ -44,8 +44,9 @@ void FGuidStructCustomization::CustomizeHeader( TSharedRef<class IPropertyHandle
 			QuickSetMenuBuilder.AddMenuEntry(LOCTEXT("InvalidateAction", "Invalidate"), LOCTEXT("InvalidateActionHint", "Set an invalid globally unique identifier (GUID)."), FSlateIcon(), InvalidateAction);
 		}
 
-		QuickSetSlotContent = SNew(SComboButton)
-			.ContentPadding(FMargin(6.0, 2.0))
+		QuickSetSlotContent = 
+			SNew(SComboButton)
+			.ComboButtonStyle(FAppStyle::Get(), "SimpleComboButton")
 			.MenuContent()
 			[
 				QuickSetMenuBuilder.MakeWidget()
@@ -75,6 +76,7 @@ void FGuidStructCustomization::CustomizeHeader( TSharedRef<class IPropertyHandle
 						.OnTextChanged(this, &FGuidStructCustomization::HandleTextBoxTextChanged)
 						.OnTextCommitted(this, &FGuidStructCustomization::HandleTextBoxTextCommited)
 						.SelectAllTextOnCommit(true)
+						.Font(IPropertyTypeCustomizationUtils::GetRegularFont())
 						.Text(this, &FGuidStructCustomization::HandleTextBoxText)
 				]
 
@@ -114,23 +116,27 @@ void FGuidStructCustomization::HandleGuidActionClicked( EPropertyEditorGuidActio
 	if (Action == EPropertyEditorGuidActions::Generate)
 	{
 		SetGuidValue(FGuid::NewGuid());
+		InputValid = true;
 	}
 	else if (Action == EPropertyEditorGuidActions::Invalidate)
 	{
 		SetGuidValue(FGuid());
+		InputValid = true;
 	}
 }
 
 
-FSlateColor FGuidStructCustomization::HandleTextBoxForegroundColor( ) const
+FSlateColor FGuidStructCustomization::HandleTextBoxForegroundColor() const
 {
 	if (InputValid)
 	{
-		static const FName InvertedForegroundName("InvertedForeground");
-		return FEditorStyle::GetSlateColor(InvertedForegroundName);
+		static const FName DefaultForeground("Colors.Foreground");
+		return FAppStyle::Get().GetSlateColor(DefaultForeground);
 	}
 
-	return FLinearColor::Red;
+	static const FName Red("Colors.AccentRed");
+
+	return FAppStyle::Get().GetSlateColor(Red);
 }
 
 
