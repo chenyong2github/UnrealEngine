@@ -2119,7 +2119,6 @@ namespace VulkanRHI
 					auto& PageSizeBuckets = ResourceTypeHeaps[Index]->PageSizeBuckets;
 
 #if PLATFORM_ANDROID
-					auto& PageSizeBuckets = ResourceTypeHeaps[Index]->PageSizeBuckets;
 					FVulkanPageSizeBucket BucketImage= { UINT64_MAX, (uint32)ANDROID_MAX_HEAP_IMAGE_PAGE_SIZE, FVulkanPageSizeBucket::BUCKET_MASK_IMAGE };
 					FVulkanPageSizeBucket BucketBuffer = { UINT64_MAX, (uint32)ANDROID_MAX_HEAP_BUFFER_PAGE_SIZE, FVulkanPageSizeBucket::BUCKET_MASK_BUFFER };
 					PageSizeBuckets.Add(BucketImage);
