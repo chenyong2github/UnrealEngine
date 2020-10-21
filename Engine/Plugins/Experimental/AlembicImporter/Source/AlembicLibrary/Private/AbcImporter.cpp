@@ -663,6 +663,15 @@ TArray<UObject*> FAbcImporter::ImportAsSkeletalMesh(UObject* InParent, EObjectFl
 			// while preventing any call to that within the scope
 			FScopedSkeletalMeshPostEditChange ScopedPostEditChange(SkeletalMesh);
 #endif
+
+			// Morph target delta offsets can be enabled only when uncompressed because it computes an offset for each frame and with one mesh object
+			bool bEnableMorphTargetDeltaOffset = 
+				ImportSettings->CompressionSettings.BaseCalculationType == EBaseCalculationType::NoCompression &&
+				(ImportSettings->CompressionSettings.bMergeMeshes || 
+				(!ImportSettings->CompressionSettings.bMergeMeshes && CompressedMeshData.Num() == 1));
+			
+			TArray<FVector> DeltaOffsets;
+
 			for (FCompressedAbcData& CompressedData : CompressedMeshData)
 			{
 				FAbcMeshSample* AverageSample = CompressedData.AverageSample;
@@ -671,6 +680,7 @@ TArray<UObject*> FAbcImporter::ImportAsSkeletalMesh(UObject* InParent, EObjectFl
 				{
 					const int32 NumBases = CompressedData.BaseSamples.Num();
 					int32 NumUsedBases = 0;
+					DeltaOffsets.SetNum(NumBases);
 
 					const int32 NumIndices = CompressedData.AverageSample->Indices.Num();
 
@@ -685,8 +695,11 @@ TArray<UObject*> FAbcImporter::ImportAsSkeletalMesh(UObject* InParent, EObjectFl
 
 						// Setup morph target vertices directly
 						TArray<FMorphTargetDelta> MorphDeltas;
-						GenerateMorphTargetVertices(BaseSample, MorphDeltas, AverageSample, WedgeOffset, MorphTargetVertexRemapping, UsedVertexIndicesForMorphs, VertexOffset, WedgeOffset);
-						MorphTarget->PopulateDeltas(MorphDeltas, 0, LODModel.Sections);
+						FVector Offset;
+						GenerateMorphTargetVertices(BaseSample, MorphDeltas, AverageSample, WedgeOffset, MorphTargetVertexRemapping, UsedVertexIndicesForMorphs, VertexOffset, WedgeOffset, bEnableMorphTargetDeltaOffset, Offset);
+						// In case the delta offset is enabled, the pos delta is 0 for vertex 0, so tangent delta comparison must be enabled
+						MorphTarget->PopulateDeltas(MorphDeltas, 0, LODModel.Sections, bEnableMorphTargetDeltaOffset);
+						DeltaOffsets[BaseIndex] = Offset;
 
 						const float PercentageOfVerticesInfluences = ((float)MorphTarget->MorphLODModels[0].Vertices.Num() / (float)NumIndices) * 100.0f;
 						if (PercentageOfVerticesInfluences > ImportSettings->CompressionSettings.MinimumNumberOfVertexInfluencePercentage)
@@ -709,6 +722,25 @@ TArray<UObject*> FAbcImporter::ImportAsSkeletalMesh(UObject* InParent, EObjectFl
 							MorphTarget->MarkPendingKill();
 						}
 					}
+				}
+
+				// Add a track for translating the RootBone by the morph target delta offsets
+				if (bEnableMorphTargetDeltaOffset && DeltaOffsets.Num() > 0)
+				{
+					const int32 NumFrames = CompressedData.BaseSamples.Num();
+
+					FRawAnimSequenceTrack RootBoneTrack;
+					RootBoneTrack.PosKeys.Reserve(NumFrames);
+					RootBoneTrack.RotKeys.Add(FQuat::Identity); // At least one rotation key is required for the track to be valid
+
+					for (int32 FrameIndex = 0; FrameIndex < NumFrames; ++FrameIndex)
+					{
+						RootBoneTrack.PosKeys.Add(DeltaOffsets[FrameIndex]);
+					}
+
+					const FReferenceSkeleton& RefSkeleton = SkeletalMesh->RefSkeleton;
+					const TArray<FMeshBoneInfo>& BonesInfo = RefSkeleton.GetRawRefBoneInfo();
+					Sequence->AddNewRawTrack(BonesInfo[0].Name, &RootBoneTrack);
 				}
 
 				Sequence->RawCurveData.RemoveRedundantKeys();
@@ -1597,10 +1629,11 @@ bool FAbcImporter::BuildSkeletalMesh( FSkeletalMeshLODModel& LODModel, const FRe
 	return true;
 }
 
-void FAbcImporter::GenerateMorphTargetVertices(FAbcMeshSample* BaseSample, TArray<FMorphTargetDelta> &MorphDeltas, FAbcMeshSample* AverageSample, uint32 WedgeOffset, const TArray<int32>& RemapIndices, const TArray<int32>& UsedVertexIndicesForMorphs, const uint32 VertexOffset, const uint32 IndexOffset)
+void FAbcImporter::GenerateMorphTargetVertices(FAbcMeshSample* BaseSample, TArray<FMorphTargetDelta> &MorphDeltas, FAbcMeshSample* AverageSample, uint32 WedgeOffset, const TArray<int32>& RemapIndices, const TArray<int32>& UsedVertexIndicesForMorphs, const uint32 VertexOffset, const uint32 IndexOffset, bool bEnableDeltaOffset, FVector& OutOffset)
 {
 	FMorphTargetDelta MorphVertex;
 	const uint32 NumberOfUsedVertices = UsedVertexIndicesForMorphs.Num();	
+	FVector Offset(FVector::ZeroVector);
 	for (uint32 VertIndex = 0; VertIndex < NumberOfUsedVertices; ++VertIndex)
 	{
 		const int32 UsedVertexIndex = UsedVertexIndicesForMorphs[VertIndex] - VertexOffset;
@@ -1610,6 +1643,21 @@ void FAbcImporter::GenerateMorphTargetVertices(FAbcMeshSample* BaseSample, TArra
 		{			
 			// Position delta
 			MorphVertex.PositionDelta = BaseSample->Vertices[UsedVertexIndex] - AverageSample->Vertices[UsedVertexIndex];
+
+			if (bEnableDeltaOffset)
+			{
+				if (VertIndex == 0)
+				{
+					Offset = MorphVertex.PositionDelta;
+					MorphVertex.PositionDelta = FVector::ZeroVector;
+					OutOffset = Offset;
+				}
+				else
+				{
+					MorphVertex.PositionDelta -= Offset;
+				}
+			}
+
 			// Tangent delta
 			MorphVertex.TangentZDelta = BaseSample->Normals[UsedNormalIndex] - AverageSample->Normals[UsedNormalIndex];
 			// Index of base mesh vert this entry is to modify
