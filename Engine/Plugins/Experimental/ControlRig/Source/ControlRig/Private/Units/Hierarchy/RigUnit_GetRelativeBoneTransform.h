@@ -15,7 +15,7 @@ struct FRigUnit_GetRelativeBoneTransform : public FRigUnit
 
 	FRigUnit_GetRelativeBoneTransform()
 		: CachedBone(FCachedRigElement())
-		, CachedSpaceIndex(FCachedRigElement())
+		, CachedSpace(FCachedRigElement())
 	{}
 
 	virtual FRigElementKey DetermineSpaceForPin(const FString& InPinPath, void* InUserContext) const override
@@ -52,5 +52,5 @@ struct FRigUnit_GetRelativeBoneTransform : public FRigUnit
 
 	// Used to cache the internally used space index
 	UPROPERTY(transient)
-	FCachedRigElement CachedSpaceIndex;
+	FCachedRigElement CachedSpace;
 };
