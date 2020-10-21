@@ -142,11 +142,7 @@ public:
 	FCriticalSection RenderPassesCS;
 
 	void NotifyDeletedRenderTarget(FVulkanDevice& InDevice, VkImage Image);
-
-	inline void NotifyDeletedImage(VkImage Image)
-	{
-		Layouts.Remove(Image);
-	}
+	void NotifyDeletedImage(VkImage Image);
 
 	FVulkanImageLayout* GetFullLayout(VkImage Image)
 	{

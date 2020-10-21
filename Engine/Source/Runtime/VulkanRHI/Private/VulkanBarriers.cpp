@@ -1610,8 +1610,14 @@ void FVulkanLayoutManager::EndRenderPass(FVulkanCmdBuffer* CmdBuffer)
 	VulkanRHI::DebugHeavyWeightBarrier(CmdBuffer->GetHandle(), 1);
 }
 
+void FVulkanLayoutManager::NotifyDeletedImage(VkImage Image)
+{
+	Layouts.Remove(Image);
+}
+
 void FVulkanLayoutManager::NotifyDeletedRenderTarget(FVulkanDevice& InDevice, VkImage Image)
 {
+	Layouts.Remove(Image);
 	for (auto It = Framebuffers.CreateIterator(); It; ++It)
 	{
 		FFramebufferList* List = It->Value;
