@@ -538,7 +538,6 @@ self.accessibilityElements = @[Window.accessibilityContainer];
 	TArray<TouchInput> TouchesArray;
 	for (UITouch* Touch in Touches)
 	{
-#if (UE4_HAS_IOS14 || UE4_HAS_TVOS14)
         // ignore mouse-produced touches, these will be handled by FIOSInputInterface
         if (@available(iOS 14, *))
         {
@@ -547,7 +546,6 @@ self.accessibilityElements = @[Window.accessibilityContainer];
                 continue;
             }
         }
-#endif
 		// get info from the touch
 		CGPoint Loc = [Touch locationInView:self];
 		CGPoint PrevLoc = [Touch previousLocationInView:self];

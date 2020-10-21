@@ -30,49 +30,49 @@ UTexture2D* FIOSGamepadUtils::GetGamepadButtonGlyph(const FGamepadKeyNames::Type
     check(InputInterface);
 
     ControllerType ControllerType = InputInterface->GetControllerType(ControllerIndex);
-    
-#if (UE4_HAS_TVOS14 || UE4_HAS_IOS14 || UE4_HAS_MACOS15)
-    for (int32 Index = 0; Index != GlyphsArray.Num(); ++Index)
+
+    if (@available(iOS 14, tvOS 14, *))
     {
-        if (GlyphsArray[Index].ButtonName == ButtonKey && GlyphsArray[Index].ControllerType == ControllerType)
+        for (int32 Index = 0; Index != GlyphsArray.Num(); ++Index)
         {
-           return GlyphsArray[Index].ButtonTexture;
+            if (GlyphsArray[Index].ButtonName == ButtonKey && GlyphsArray[Index].ControllerType == ControllerType)
+            {
+                return GlyphsArray[Index].ButtonTexture;
+            }
+        }
+
+        NSData* RawData = InputInterface->GetGamepadGlyphRawData(ButtonKey, ControllerIndex);
+        UInt8 Buf[RawData.length];
+        [RawData getBytes:Buf length:RawData.length];
+        const uint8_t* Bytes = (const uint8_t*)[RawData bytes];
+        long Length = [RawData length];
+        IImageWrapperModule& ImageWrapperModule = FModuleManager::LoadModuleChecked<IImageWrapperModule>(FName("ImageWrapper"));
+        TSharedPtr<IImageWrapper> ImageWrapper = ImageWrapperModule.CreateImageWrapper(EImageFormat::PNG);
+
+        if (ImageWrapper != nullptr && Length > 0)
+        {
+            TArray<uint8> RawImageData;
+            ImageWrapper->SetCompressed(Bytes, Length);
+
+                if (ImageWrapper->GetRaw(ERGBFormat::BGRA, 8, RawImageData))
+                {
+                    NewTexture = UTexture2D::CreateTransient(ImageWrapper->GetWidth(), ImageWrapper->GetHeight(), PF_B8G8R8A8);
+
+                    if (NewTexture != nullptr)
+                    {
+                        void* TextureData = NewTexture->PlatformData->Mips[0].BulkData.Lock(LOCK_READ_WRITE);
+                        FMemory::Memcpy(TextureData, RawImageData.GetData(), RawImageData.Num());
+                        NewTexture->PlatformData->Mips[0].BulkData.Unlock();
+                        NewTexture->UpdateResource();
+                        GamepadGlyph GamepadGlyph;
+                        GamepadGlyph.ControllerType = ControllerType;
+                        GamepadGlyph.ButtonName = ButtonKey;
+                        GamepadGlyph.ButtonTexture = NewTexture;
+                        GamepadGlyph.ButtonTexture->AddToRoot();
+                        GlyphsArray.Add(GamepadGlyph);
+                    }
+                }
         }
     }
-
-	NSData* RawData = InputInterface->GetGamepadGlyphRawData(ButtonKey, ControllerIndex);
-    UInt8 Buf[RawData.length];
-    [RawData getBytes:Buf length:RawData.length];
-    const uint8_t* Bytes = (const uint8_t*)[RawData bytes];
-    long Length = [RawData length];
-    IImageWrapperModule& ImageWrapperModule = FModuleManager::LoadModuleChecked<IImageWrapperModule>(FName("ImageWrapper"));
-    TSharedPtr<IImageWrapper> ImageWrapper = ImageWrapperModule.CreateImageWrapper(EImageFormat::PNG);
-
-    if (ImageWrapper != nullptr && Length > 0)
-    {
-        TArray<uint8> RawImageData;
-        ImageWrapper->SetCompressed(Bytes, Length);
-
-            if (ImageWrapper->GetRaw(ERGBFormat::BGRA, 8, RawImageData))
-            {
-                NewTexture = UTexture2D::CreateTransient(ImageWrapper->GetWidth(), ImageWrapper->GetHeight(), PF_B8G8R8A8);
-
-                if (NewTexture != nullptr)
-                {
-                    void* TextureData = NewTexture->PlatformData->Mips[0].BulkData.Lock(LOCK_READ_WRITE);
-                    FMemory::Memcpy(TextureData, RawImageData.GetData(), RawImageData.Num());
-                    NewTexture->PlatformData->Mips[0].BulkData.Unlock();
-                    NewTexture->UpdateResource();
-                    GamepadGlyph GamepadGlyph;
-                    GamepadGlyph.ControllerType = ControllerType;
-                    GamepadGlyph.ButtonName = ButtonKey;
-                    GamepadGlyph.ButtonTexture = NewTexture;
-                    GamepadGlyph.ButtonTexture->AddToRoot();
-                    GlyphsArray.Add(GamepadGlyph);
-                }
-            }
-    }
-    
-#endif
     return NewTexture;
 }

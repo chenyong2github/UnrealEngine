@@ -15,37 +15,12 @@ DECLARE_LOG_CATEGORY_EXTERN(LogIOSInput, Log, All);
 
 #define APPLE_CONTROLLER_DEBUG 0
 
-@interface GCExtendedGamepad()
-#if (UE4_HAS_IOS121|| UE4_HAS_TVOS121 || UE4_HAS_MACOS1401)
-@property (nonatomic, readwrite, nullable) GCControllerButtonInput *leftThumbstickButton;
-@property (nonatomic, readwrite, nullable) GCControllerButtonInput *rightThumbstickButton;
-#endif
-
-#if (!UE4_HAS_IOS13 && !UE4_HAS_TVOS13 && !UE4_HAS_MACOS15)
-@property (nonatomic, readwrite, nullable) GCControllerButtonInput *buttonMenu;
-@property (nonatomic, readwrite, nullable) GCControllerButtonInput *buttonOptions;
-#endif
-
-#if (UE4_HAS_IOS14 && UE4_HAS_TVOS14)
-@property(nonatomic, strong, readonly) GCPhysicalInputProfile *physicalInputProfile;
-@property(nonatomic, strong) NSString *sfSymbolsName;
-#endif
-#if (!UE4_HAS_IOS13 && !UE4_HAS_TVOS13)
-@property(class, atomic, strong, readonly) GCController *current;
-#endif
-@end
-#if (!UE4_HAS_IOS13 && !UE4_HAS_TVOS13)
-@interface GCController (capture)
-- (GCController *)capture;
-@end
-#endif
-
 static TAutoConsoleVariable<float> CVarHapticsKickHeavy(TEXT("ios.VibrationHapticsKickHeavyValue"), 0.65f, TEXT("Vibation values higher than this will kick a haptics heavy Impact"));
 static TAutoConsoleVariable<float> CVarHapticsKickMedium(TEXT("ios.VibrationHapticsKickMediumValue"), 0.5f, TEXT("Vibation values higher than this will kick a haptics medium Impact"));
 static TAutoConsoleVariable<float> CVarHapticsKickLight(TEXT("ios.VibrationHapticsKickLightValue"), 0.3f, TEXT("Vibation values higher than this will kick a haptics light Impact"));
 static TAutoConsoleVariable<float> CVarHapticsRest(TEXT("ios.VibrationHapticsRestValue"), 0.2f, TEXT("Vibation values lower than this will allow haptics to Kick again when going over ios.VibrationHapticsKickValue"));
 
-#if (UE4_HAS_IOS14 || UE4_HAS_TVOS14)
+#if __IPHONE_OS_VERSION_MAX_ALLOWED >= 140000
 uint32 TranslateGCKeyCodeToASCII(GCKeyCode KeyCode)
 {
     uint32 c = '?';
@@ -161,10 +136,10 @@ FIOSInputInterface::FIOSInputInterface( const TSharedRef< FGenericApplicationMes
     {
         HandleDisconnect(Notification.object);
     }];
-
-    if (@available(iOS 14, *))
+    
+#if __IPHONE_OS_VERSION_MAX_ALLOWED >= 140000
+    if (@available(iOS 14, tvOS 14, *))
     {
-#if (UE4_HAS_IOS14 || UE4_HAS_TVOS14)
         [notificationCenter addObserverForName:GCMouseDidConnectNotification object:nil queue:currentQueue usingBlock:^(NSNotification* Notification)
         {
             HandleMouseConnection(Notification.object);
@@ -202,9 +177,9 @@ FIOSInputInterface::FIOSInputInterface( const TSharedRef< FGenericApplicationMes
                 SetCurrentController(Notification.object);
             }];
         }
-#endif
     }
     else
+#endif
     {
         [notificationCenter addObserverForName:GCControllerDidConnectNotification object:nil queue:currentQueue usingBlock:^(NSNotification* Notification)
          {
@@ -278,10 +253,10 @@ static inline void HandleButtons(GCControllerButtonInput* _Nonnull eventButton, 
     DeferredEvents.Add(DeferredEvent);
 }
 
-#if (UE4_HAS_IOS14 || UE4_HAS_TVOS14)
+#if __IPHONE_OS_VERSION_MAX_ALLOWED >= 140000
 void FIOSInputInterface::HandleMouseConnection(GCMouse* Mouse)
 {
-    if ( @available( iOS 14, * ) )
+    if (@available(iOS 14, tvOS 14, *))
     {
         bHaveMouse = true;
         MouseDeltaX = 0.f;
@@ -330,12 +305,15 @@ void FIOSInputInterface::HandleMouseConnection(GCMouse* Mouse)
 
 void FIOSInputInterface::HandleMouseDisconnect(GCMouse* Mouse)
 {
-    bHaveMouse = false;
+    if (@available(iOS 14, tvOS 14, *))
+    {
+        bHaveMouse = false;
+    }
 }
 
 void FIOSInputInterface::HandleKeyboardConnection(GCKeyboard* Keyboard)
 {
-    if ( @available( iOS 14, * ) )
+    if (@available(iOS 14, tvOS 14, *))
     {
         Keyboard.keyboardInput.keyChangedHandler = ^(GCKeyboardInput * _Nonnull keyboard, GCControllerButtonInput * _Nonnull key, GCKeyCode keyCode, BOOL pressed) {
             if ( !(FIOSInputInterface::IsKeyboardInhibited()) )
@@ -353,7 +331,6 @@ void FIOSInputInterface::HandleKeyboardConnection(GCKeyboard* Keyboard)
 
 void FIOSInputInterface::HandleKeyboardDisconnect(GCKeyboard* Keyboard)
 {
-
 }
 #endif
 
@@ -725,12 +702,15 @@ void FIOSInputInterface::SendControllerEvents()
         GCController* Cont = Controllers[i].Controller;
         
         GCExtendedGamepad* ExtendedGamepad = nil;
-#if (UE4_HAS_TVOS13  || UE4_HAS_IOS13)
-        ExtendedGamepad = [Cont capture].extendedGamepad;
-#else
-        ExtendedGamepad = [Cont.extendedGamepad saveSnapshot];
-#endif
-        
+
+        if (@available(iOS 13, tvOS 13, *))
+        {
+            ExtendedGamepad = [Cont capture].extendedGamepad;
+        }
+        else
+        {
+            ExtendedGamepad = [Cont.extendedGamepad saveSnapshot];
+        }
 #if PLATFORM_TVOS
         GCMicroGamepad* MicroGamepad = [Cont capture].microGamepad;
 #endif
@@ -752,8 +732,8 @@ void FIOSInputInterface::SendControllerEvents()
 		
         if (Controller.bPauseWasPressed)
         {
-            MessageHandler->OnControllerButtonPressed(FGamepadKeyNames::SpecialRight, i, false);
-            MessageHandler->OnControllerButtonReleased(FGamepadKeyNames::SpecialRight, i, false);
+            MessageHandler->OnControllerButtonPressed(FGamepadKeyNames::SpecialRight, Controllers[i].PlayerIndex, false);
+            MessageHandler->OnControllerButtonReleased(FGamepadKeyNames::SpecialRight, Controllers[i].PlayerIndex, false);
             
             Controller.bPauseWasPressed = false;
         }
@@ -789,11 +769,9 @@ void FIOSInputInterface::SendControllerEvents()
             HandleVirtualButtonGamepad(FGamepadKeyNames::LeftStickDown, FGamepadKeyNames::LeftStickUp, i);
             HandleVirtualButtonGamepad(FGamepadKeyNames::RightStickLeft, FGamepadKeyNames::RightStickRight, i);
             HandleVirtualButtonGamepad(FGamepadKeyNames::RightStickDown, FGamepadKeyNames::RightStickUp, i);
-                    
-#if (UE4_HAS_TVOS121 || UE4_HAS_IOS121 || UE4_HAS_MACOS1401)
             HandleButtonGamepad(FGamepadKeyNames::LeftThumb, i);
             HandleButtonGamepad(FGamepadKeyNames::RightThumb, i);
-#endif
+
             [Controller.PreviousExtendedGamepad release];
             Controller.PreviousExtendedGamepad = ExtendedGamepad;
             [Controller.PreviousExtendedGamepad retain];
@@ -1105,13 +1083,15 @@ NSData* FIOSInputInterface::GetGamepadGlyphRawData(const FGamepadKeyNames::Type&
 
     GCControllerButtonInput *ButtonToReturnGlyphOf = GetGCControllerButton(ButtonKey, ControllerIndex);
 
-//    UIImage* Image = nullptr;
-// #if (UE4_HAS_TVOS14 || UE4_HAS_IOS14 || UE4_HAS_MACOS15)
-//    NSString *ButtonStringName = ButtonToReturnGlyphOf.sfSymbolsName;
-//    Image = [UIImage systemImageNamed:ButtonStringName];
-//#endif
-//     return UIImagePNGRepresentation(Image);
-    return nullptr;
+    UIImage* Image = nullptr;
+#if __IPHONE_OS_VERSION_MAX_ALLOWED >= 140000
+    if (@available(iOS 14, tvOS 14, *))
+    {
+        NSString *ButtonStringName = ButtonToReturnGlyphOf.sfSymbolsName;
+        Image = [UIImage systemImageNamed:ButtonStringName];
+    }
+#endif
+    return UIImagePNGRepresentation(Image);
 }
 
 
