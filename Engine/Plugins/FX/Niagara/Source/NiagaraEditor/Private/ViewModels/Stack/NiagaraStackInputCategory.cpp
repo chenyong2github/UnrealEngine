@@ -34,9 +34,9 @@ void UNiagaraStackInputCategory::ResetInputs()
 	Inputs.Empty();
 }
 
-void UNiagaraStackInputCategory::AddInput(FName InInputParameterHandle, FNiagaraTypeDefinition InInputType, EStackParameterBehavior InParameterBehavior, bool bIsVisible)
+void UNiagaraStackInputCategory::AddInput(FName InInputParameterHandle, FNiagaraTypeDefinition InInputType, EStackParameterBehavior InParameterBehavior, bool bIsVisible, bool bIsChildInput)
 {
-	Inputs.Add({ InInputParameterHandle, InInputType, InParameterBehavior, bIsVisible });
+	Inputs.Add({ InInputParameterHandle, InInputType, InParameterBehavior, bIsVisible, bIsChildInput });
 }
 
 void UNiagaraStackInputCategory::RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues)
@@ -55,6 +55,7 @@ void UNiagaraStackInputCategory::RefreshChildrenInternal(const TArray<UNiagaraSt
 				Input.ParameterHandle, Input.Type, Input.ParameterBehavior, GetOwnerStackItemEditorDataKey());
 		}
 		InputChild->bIsVisible = Input.bIsVisible;
+		InputChild->SetSemanticChild(Input.bIsChildInput);
 		NewChildren.Add(InputChild);
 	}
 }

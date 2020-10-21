@@ -249,9 +249,12 @@ public:
 
 	bool IsScratchDynamicInput() const;
 
-public:
+	virtual bool IsSemanticChild() const;
+	void SetSemanticChild(bool IsSemanticChild);
+
 	//~ UNiagaraStackEntry interface
 	virtual void GetSearchItems(TArray<FStackSearchItem>& SearchItems) const override;
+	virtual bool HasFrontDivider() const override;
 
 	/** If false then the stack parameter is not visible */
 	bool bIsVisible = true;
@@ -461,4 +464,7 @@ private:
 	TArray<FStackIssue> MessageManagerIssues;
 
 	FGuid MessageLogGuid;
+
+	// If true then this stack entry is the semantic child of another stack entry
+	bool bIsSemanticChild = false;
 };
