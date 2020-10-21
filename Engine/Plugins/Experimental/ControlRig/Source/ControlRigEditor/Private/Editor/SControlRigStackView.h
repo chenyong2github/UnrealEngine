@@ -103,6 +103,9 @@ private:
 	void HandleControlRigInitializedEvent(UControlRig* InControlRig, const EControlRigState InState, const FName& InEventName);
 	void HandlePreviewControlRigUpdated(FControlRigEditor* InEditor);
 
+	/** Populate the execution stack with descriptive names for each instruction */
+	void PopulateStackView(URigVM* InVM);
+
 	TSharedPtr<STreeView<TSharedPtr<FRigStackEntry>>> TreeView;
 
 	/** Command list we bind to */

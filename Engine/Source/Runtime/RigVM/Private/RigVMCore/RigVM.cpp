@@ -1361,7 +1361,7 @@ void URigVM::SetRegisterValueFromString(const FRigVMOperand& InOperand, const FS
 
 #if WITH_EDITOR
 
-TArray<FString> URigVM::DumpByteCodeAsTextArray(const TArray<int32>& InInstructionOrder, bool bIncludeLineNumbers)
+TArray<FString> URigVM::DumpByteCodeAsTextArray(const TArray<int32>& InInstructionOrder, bool bIncludeLineNumbers, TFunction<FString(const FString& RegisterName, const FString& RegisterOffsetName)> OperandFormatFunction)
 {
 	RefreshInstructionsIfRequired();
 	const FRigVMByteCode& ByteCode = GetByteCode();
@@ -1458,7 +1458,7 @@ TArray<FString> URigVM::DumpByteCodeAsTextArray(const TArray<int32>& InInstructi
 				TArray<FString> Labels;
 				for (const FRigVMOperand& Operand : Operands)
 				{
-					Labels.Add(GetOperandLabel(Operand));
+					Labels.Add(GetOperandLabel(Operand, OperandFormatFunction));
 				}
 
 				ResultLine = FString::Printf(TEXT("%s(%s)"), *FunctionName, *FString::Join(Labels, TEXT(",")));
@@ -1467,49 +1467,49 @@ TArray<FString> URigVM::DumpByteCodeAsTextArray(const TArray<int32>& InInstructi
 			case ERigVMOpCode::Zero:
 			{
 				const FRigVMUnaryOp& Op = ByteCode.GetOpAt<FRigVMUnaryOp>(Instructions[InstructionIndex]);
-				ResultLine = FString::Printf(TEXT("Set %s to 0"), *GetOperandLabel(Op.Arg));
+				ResultLine = FString::Printf(TEXT("Set %s to 0"), *GetOperandLabel(Op.Arg, OperandFormatFunction));
 				break;
 			}
 			case ERigVMOpCode::BoolFalse:
 			{
 				const FRigVMUnaryOp& Op = ByteCode.GetOpAt<FRigVMUnaryOp>(Instructions[InstructionIndex]);
-				ResultLine = FString::Printf(TEXT("Set %s to False"), *GetOperandLabel(Op.Arg));
+				ResultLine = FString::Printf(TEXT("Set %s to False"), *GetOperandLabel(Op.Arg, OperandFormatFunction));
 				break;
 			}
 			case ERigVMOpCode::BoolTrue:
 			{
 				const FRigVMUnaryOp& Op = ByteCode.GetOpAt<FRigVMUnaryOp>(Instructions[InstructionIndex]);
-				ResultLine = FString::Printf(TEXT("Set %s to True"), *GetOperandLabel(Op.Arg));
+				ResultLine = FString::Printf(TEXT("Set %s to True"), *GetOperandLabel(Op.Arg, OperandFormatFunction));
 				break;
 			}
 			case ERigVMOpCode::Increment:
 			{
 				const FRigVMUnaryOp& Op = ByteCode.GetOpAt<FRigVMUnaryOp>(Instructions[InstructionIndex]);
-				ResultLine = FString::Printf(TEXT("Inc %s ++"), *GetOperandLabel(Op.Arg));
+				ResultLine = FString::Printf(TEXT("Inc %s ++"), *GetOperandLabel(Op.Arg, OperandFormatFunction));
 				break;
 			}
 			case ERigVMOpCode::Decrement:
 			{
 				const FRigVMUnaryOp& Op = ByteCode.GetOpAt<FRigVMUnaryOp>(Instructions[InstructionIndex]);
-				ResultLine = FString::Printf(TEXT("Dec %s --"), *GetOperandLabel(Op.Arg));
+				ResultLine = FString::Printf(TEXT("Dec %s --"), *GetOperandLabel(Op.Arg, OperandFormatFunction));
 				break;
 			}
 			case ERigVMOpCode::Copy:
 			{
 				const FRigVMCopyOp& Op = ByteCode.GetOpAt<FRigVMCopyOp>(Instructions[InstructionIndex]);
-				ResultLine = FString::Printf(TEXT("Copy %s to %s"), *GetOperandLabel(Op.Source), *GetOperandLabel(Op.Target));
+				ResultLine = FString::Printf(TEXT("Copy %s to %s"), *GetOperandLabel(Op.Source, OperandFormatFunction), *GetOperandLabel(Op.Target, OperandFormatFunction));
 				break;
 			}
 			case ERigVMOpCode::Equals:
 			{
 				const FRigVMComparisonOp& Op = ByteCode.GetOpAt<FRigVMComparisonOp>(Instructions[InstructionIndex]);
-				ResultLine = FString::Printf(TEXT("Set %s to %s == %s "), *GetOperandLabel(Op.Result), *GetOperandLabel(Op.A), *GetOperandLabel(Op.B));
+				ResultLine = FString::Printf(TEXT("Set %s to %s == %s "), *GetOperandLabel(Op.Result, OperandFormatFunction), *GetOperandLabel(Op.A, OperandFormatFunction), *GetOperandLabel(Op.B, OperandFormatFunction));
 				break;
 			}
 			case ERigVMOpCode::NotEquals:
 			{
 				const FRigVMComparisonOp& Op = ByteCode.GetOpAt<FRigVMComparisonOp>(Instructions[InstructionIndex]);
-				ResultLine = FString::Printf(TEXT("Set %s to %s != %s"), *GetOperandLabel(Op.Result), *GetOperandLabel(Op.A), *GetOperandLabel(Op.B));
+				ResultLine = FString::Printf(TEXT("Set %s to %s != %s"), *GetOperandLabel(Op.Result, OperandFormatFunction), *GetOperandLabel(Op.A, OperandFormatFunction), *GetOperandLabel(Op.B, OperandFormatFunction));
 				break;
 			}
 			case ERigVMOpCode::JumpAbsolute:
@@ -1535,11 +1535,11 @@ TArray<FString> URigVM::DumpByteCodeAsTextArray(const TArray<int32>& InInstructi
 				const FRigVMJumpIfOp& Op = ByteCode.GetOpAt<FRigVMJumpIfOp>(Instructions[InstructionIndex]);
 				if (Op.Condition)
 				{
-					ResultLine = FString::Printf(TEXT("Jump to instruction %d if %s"), Op.InstructionIndex, *GetOperandLabel(Op.Arg));
+					ResultLine = FString::Printf(TEXT("Jump to instruction %d if %s"), Op.InstructionIndex, *GetOperandLabel(Op.Arg, OperandFormatFunction));
 				}
 				else
 				{
-					ResultLine = FString::Printf(TEXT("Jump to instruction %d if !%s"), Op.InstructionIndex, *GetOperandLabel(Op.Arg));
+					ResultLine = FString::Printf(TEXT("Jump to instruction %d if !%s"), Op.InstructionIndex, *GetOperandLabel(Op.Arg, OperandFormatFunction));
 				}
 				break;
 			}
@@ -1548,11 +1548,11 @@ TArray<FString> URigVM::DumpByteCodeAsTextArray(const TArray<int32>& InInstructi
 				const FRigVMJumpIfOp& Op = ByteCode.GetOpAt<FRigVMJumpIfOp>(Instructions[InstructionIndex]);
 				if (Op.Condition)
 				{
-					ResultLine = FString::Printf(TEXT("Jump %d instructions forwards if %s"), Op.InstructionIndex, *GetOperandLabel(Op.Arg));
+					ResultLine = FString::Printf(TEXT("Jump %d instructions forwards if %s"), Op.InstructionIndex, *GetOperandLabel(Op.Arg, OperandFormatFunction));
 				}
 				else
 				{
-					ResultLine = FString::Printf(TEXT("Jump %d instructions forwards if !%s"), Op.InstructionIndex, *GetOperandLabel(Op.Arg));
+					ResultLine = FString::Printf(TEXT("Jump %d instructions forwards if !%s"), Op.InstructionIndex, *GetOperandLabel(Op.Arg, OperandFormatFunction));
 				}
 				break;
 			}
@@ -1561,18 +1561,18 @@ TArray<FString> URigVM::DumpByteCodeAsTextArray(const TArray<int32>& InInstructi
 				const FRigVMJumpIfOp& Op = ByteCode.GetOpAt<FRigVMJumpIfOp>(Instructions[InstructionIndex]);
 				if (Op.Condition)
 				{
-					ResultLine = FString::Printf(TEXT("Jump %d instructions backwards if %s"), Op.InstructionIndex, *GetOperandLabel(Op.Arg));
+					ResultLine = FString::Printf(TEXT("Jump %d instructions backwards if %s"), Op.InstructionIndex, *GetOperandLabel(Op.Arg, OperandFormatFunction));
 				}
 				else
 				{
-					ResultLine = FString::Printf(TEXT("Jump %d instructions backwards if !%s"), Op.InstructionIndex, *GetOperandLabel(Op.Arg));
+					ResultLine = FString::Printf(TEXT("Jump %d instructions backwards if !%s"), Op.InstructionIndex, *GetOperandLabel(Op.Arg, OperandFormatFunction));
 				}
 				break;
 			}
 			case ERigVMOpCode::ChangeType:
 			{
 				const FRigVMChangeTypeOp& Op = ByteCode.GetOpAt<FRigVMChangeTypeOp>(Instructions[InstructionIndex]);
-				ResultLine = FString::Printf(TEXT("Change type of %s"), *GetOperandLabel(Op.Arg));
+				ResultLine = FString::Printf(TEXT("Change type of %s"), *GetOperandLabel(Op.Arg, OperandFormatFunction));
 				break;
 			}
 			case ERigVMOpCode::Exit:
@@ -1620,7 +1620,7 @@ FString URigVM::DumpByteCodeAsText(const TArray<int32>& InInstructionOrder, bool
 	return FString::Join(DumpByteCodeAsTextArray(InInstructionOrder, bIncludeLineNumbers), TEXT("\n"));
 }
 
-FString URigVM::GetOperandLabel(const FRigVMOperand& InOperand) const
+FString URigVM::GetOperandLabel(const FRigVMOperand& InOperand, TFunction<FString(const FString& RegisterName, const FString& RegisterOffsetName)> FormatFunction) const
 {
 	const FRigVMMemoryContainer* MemoryPtr = nullptr;
 
@@ -1635,21 +1635,33 @@ FString URigVM::GetOperandLabel(const FRigVMOperand& InOperand) const
 
 	const FRigVMMemoryContainer& Memory = *MemoryPtr;
 
-	FString OperandLabel;
+	FString RegisterName;
 	if (InOperand.GetMemoryType() == ERigVMMemoryType::External)
 	{
 		const FRigVMExternalVariable& ExternalVariable = ExternalVariables[InOperand.GetRegisterIndex()];
-		OperandLabel = FString::Printf(TEXT("Variable::%s"), *ExternalVariable.Name.ToString());
+		RegisterName = FString::Printf(TEXT("Variable::%s"), *ExternalVariable.Name.ToString());
 	}
 	else
 	{
 		FRigVMRegister Register = Memory[InOperand];
-		OperandLabel = Register.Name.ToString();
+		RegisterName = Register.Name.ToString();
 	}
 
+	FString OperandLabel;
+	OperandLabel = RegisterName;
+	
+	// append an offset name if it exists
+	FString RegisterOffsetName;
 	if (InOperand.GetRegisterOffset() != INDEX_NONE)
 	{
-		return FString::Printf(TEXT("%s.%s"), *OperandLabel, *Memory.RegisterOffsets[InOperand.GetRegisterOffset()].CachedSegmentPath);
+		RegisterOffsetName = Memory.RegisterOffsets[InOperand.GetRegisterOffset()].CachedSegmentPath;
+		OperandLabel = FString::Printf(TEXT("%s.%s"), *OperandLabel, *RegisterOffsetName);
+	}
+
+	// caller can provide an alternative format to override the default format(optional)
+	if (FormatFunction)
+	{
+		OperandLabel = FormatFunction(RegisterName, RegisterOffsetName);
 	}
 
 	return OperandLabel;

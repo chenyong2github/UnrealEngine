@@ -297,33 +297,100 @@ void SControlRigStackView::HandleGetChildrenForTree(TSharedPtr<FRigStackEntry> I
 	OutChildren = InItem->Children;
 }
 
-void SControlRigStackView::RefreshTreeView(URigVM* InVM)
+void SControlRigStackView::PopulateStackView(URigVM* InVM)
 {
-	Operators.Reset();
-	
 	if (InVM)
 	{
-		TArray<FString> Labels = InVM->DumpByteCodeAsTextArray(TArray<int32>(), false);
 		FRigVMInstructionArray Instructions = InVM->GetInstructions();
-		ensure(Labels.Num() == Instructions.Num());
+		const TArray<URigVMNode*>& Nodes = ControlRigBlueprint->Model->GetNodes();
+		
+		// 1. cache information about instructions/nodes, which will be used later 
+		TArray<int32> InstructionIndexToNodeIndex;
+		InstructionIndexToNodeIndex.Init(-1, Instructions.Num());
+		TMap<FString, FString> NodeNameToDisplayName;
+		for (int32 NodeIndex = 0; NodeIndex < Nodes.Num(); NodeIndex++)
+		{
+			URigVMNode* Node = Nodes[NodeIndex];
+			// only struct nodes among all nodes has StaticExecute() that generates actual instructions
+			if (URigVMStructNode* StructNode = Cast<URigVMStructNode>(Node))
+			{
+				int32 InstructionIndex = StructNode->GetInstructionIndex();
+				// only active nodes are assigned a valid instruction index, hence the check here
+				if (InstructionIndex >= 0 && InstructionIndex < InstructionIndexToNodeIndex.Num())
+				{
+					InstructionIndexToNodeIndex[InstructionIndex] = NodeIndex;
+				}
+				FString DisplayName = StructNode->GetNodeTitle();
+#if WITH_EDITOR
+				UScriptStruct* Struct = StructNode->GetScriptStruct();
+				FString MenuDescSuffixMetadata;
+				if (Struct)
+				{
+					Struct->GetStringMetaDataHierarchical(FRigVMStruct::MenuDescSuffixMetaName, &MenuDescSuffixMetadata);
+				}
+				if (!MenuDescSuffixMetadata.IsEmpty())
+				{
+					DisplayName = FString::Printf(TEXT("%s %s"), *StructNode->GetNodeTitle(), *MenuDescSuffixMetadata);
+				}
+#endif
+				// this is needed for name replacement later
+				NodeNameToDisplayName.Add(StructNode->GetName(), DisplayName);
+			}
+		}
 
+		// 2. replace raw operand names with NodeTitle.PinName/PropertyName.OffsetName
+		TArray<FString> Labels = InVM->DumpByteCodeAsTextArray(TArray<int32>(), false, [NodeNameToDisplayName](const FString& RegisterName, const FString& RegisterOffsetName)
+		{
+			FString NewRegisterName = RegisterName;
+			FString NodeName;
+			FString PinName;
+			if (RegisterName.Split(TEXT("."), &NodeName, &PinName))
+			{
+				const FString* NodeTitle = NodeNameToDisplayName.Find(NodeName);
+				NewRegisterName = FString::Printf(TEXT("%s.%s"), NodeTitle ? **NodeTitle : *NodeName, *PinName);
+			}
+			FString OperandLabel;
+			OperandLabel = NewRegisterName;
+			if (!RegisterOffsetName.IsEmpty())
+			{
+				OperandLabel = FString::Printf(TEXT("%s.%s"), *OperandLabel, *RegisterOffsetName);
+			}
+			return OperandLabel;
+		});
+
+		ensure(Labels.Num() == Instructions.Num());
+		
+		// 3. replace instruction names with node titles
 		for (int32 InstructionIndex = 0; InstructionIndex < Labels.Num(); InstructionIndex++)
 		{
-			const FRigVMInstruction& Instruction = Instructions[InstructionIndex];
 			FString Label = Labels[InstructionIndex];
-			FString Left, Right;
-			if (Label.Split(TEXT("("), &Left, &Right))
+			int32 NodeIndex = InstructionIndexToNodeIndex[InstructionIndex];
+			// note that some instructions don't map to a node, hence the check here
+			if (NodeIndex >= 0 && NodeIndex < Nodes.Num())
 			{
-				Label = FString::Printf(TEXT("%s(...)"), *Left);
+				URigVMNode* Node = Nodes[NodeIndex];
+				Label = NodeNameToDisplayName[Node->GetName()];
 			}
-
+			// add the entry with the new label to the stack view
+			const FRigVMInstruction& Instruction = Instructions[InstructionIndex];
 			if (FilterText.IsEmpty() || Label.Contains(FilterText.ToString()))
-			{ 
+			{
 				TSharedPtr<FRigStackEntry> NewEntry = MakeShared<FRigStackEntry>(InstructionIndex, ERigStackEntry::Operator, InstructionIndex, Instruction.OpCode, Label);
 				Operators.Add(NewEntry);
 			}
 		}
+	}
+}
 
+void SControlRigStackView::RefreshTreeView(URigVM* InVM)
+{
+	Operators.Reset();
+
+	// populate the stack with node names/instruction names
+	PopulateStackView(InVM);
+	
+	if (InVM)
+	{
 		// fill the children from the log
 		if (ControlRigEditor.IsValid())
 		{
