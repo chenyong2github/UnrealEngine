@@ -299,6 +299,8 @@ END_SHADER_PARAMETER_STRUCT()
 
 void AddClearUAVPass(FRDGBuilder& GraphBuilder, FRDGBufferUAVRef BufferUAV, uint32 Value)
 {
+	check(BufferUAV);
+
 	FClearBufferUAVParameters* Parameters = GraphBuilder.AllocParameters<FClearBufferUAVParameters>();
 	Parameters->BufferUAV = BufferUAV;
 
