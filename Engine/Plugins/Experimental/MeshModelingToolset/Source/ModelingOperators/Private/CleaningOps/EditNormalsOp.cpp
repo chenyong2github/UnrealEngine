@@ -95,6 +95,14 @@ void FEditNormalsOp::CalculateResult(FProgressCancel* Progress)
 				return Normals[TA].Dot(Normals[TB]) > NormalDotProdThreshold;
 			}, 0);
 		}
+		else if (SplitNormalMethod == ESplitNormalMethod::PerTriangle)
+		{
+			FMeshNormals::InitializeMeshToPerTriangleNormals(ResultMesh.Get());
+		}
+		else if (SplitNormalMethod == ESplitNormalMethod::PerVertex)
+		{
+			FMeshNormals::InitializeOverlayToPerVertexNormals(ResultMesh->Attributes()->PrimaryNormals(), false);
+		}
 		else // SplitNormalMethod == ESplitNormalMethod::FaceGroupID
 		{
 			ResultMesh->Attributes()->PrimaryNormals()->CreateFromPredicate([this](int VID, int TA, int TB)
