@@ -156,6 +156,8 @@ void UBaseCreateFromSelectedTool::SetTransformGizmos()
 		UTransformGizmo* Gizmo = TransformGizmos.Add_GetRef(GizmoManager->Create3AxisTransformGizmo(this));
 		Gizmo->SetActiveTarget(Proxy, GetToolManager());
 		FTransform InitialTransform = Target->GetWorldTransform();
+		TransformInitialScales.Add(InitialTransform.GetScale3D());
+		InitialTransform.SetScale3D(FVector::OneVector);
 		Gizmo->ReinitializeGizmoTransform(InitialTransform);
 		Proxy->OnTransformChanged.AddUObject(this, &UBaseCreateFromSelectedTool::TransformChanged);
 	}
@@ -245,15 +247,6 @@ void UBaseCreateFromSelectedTool::UpdateAsset(const FDynamicMeshOpResult& Result
 			FDynamicMeshToMeshDescription Converter;
 			Converter.Convert(Result.Mesh.Get(), *CommitParams.MeshDescription);
 		});
-
-		//FVector3d Center = Result.Mesh->GetCachedBounds().Center();
-		//double Rescale = Result.Transform.GetScale().X;
-		//FTransform3d LocalTransform(-Center * Rescale);
-		//LocalTransform.SetScale(FVector3d(Rescale, Rescale, Rescale));
-		//MeshTransforms::ApplyTransform(*Result.Mesh, LocalTransform);
-		//NewTransform = Result.Transform;
-		//NewTransform.SetScale(FVector3d::One());
-		//NewTransform.SetTranslation(NewTransform.GetTranslation() + NewTransform.TransformVector(Center * Rescale));
 	}
 
 	FComponentMaterialSet MaterialSet;
