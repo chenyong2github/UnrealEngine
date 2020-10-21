@@ -3830,7 +3830,7 @@ namespace VulkanRHI
 							return false;
 						}
 
-						SMoveAllocation M = { Index, AlignedOffset, AllocatedOffset, AllocatedSize } ;
+						SMoveAllocation M = { (uint32)Index, AlignedOffset, AllocatedOffset, AllocatedSize } ;
 						Moves.Add(M);
 					}
 					break;
