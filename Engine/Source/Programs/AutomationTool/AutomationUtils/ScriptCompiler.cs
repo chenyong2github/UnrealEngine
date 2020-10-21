@@ -411,7 +411,7 @@ namespace AutomationTool
 			else
 			{
 				NewHashes.SaveToFile(DependencyFile);
-				Log.TraceVerbose("Wrote depencencies to {0}", DependencyFile);
+				Log.TraceVerbose("Wrote dependencies to {0}", DependencyFile);
 			}
 		}
 
