@@ -138,10 +138,11 @@ public:
 protected:
 
 	bool StartSession();
+	bool StopSession();
 	bool OnStereoStartup();
 	bool OnStereoTeardown();
 	bool ReadNextEvent(XrEventDataBuffer* buffer);
-	void CloseSession();
+	void DestroySession();
 
 	void BuildOcclusionMeshes();
 	bool BuildOcclusionMesh(XrVisibilityMaskTypeKHR Type, int View, FHMDViewMesh& Mesh);
@@ -249,7 +250,6 @@ private:
 	bool					bIsRunning;
 	bool					bIsReady;
 	bool					bIsRendering;
-	bool					bRunRequested;
 	bool					bDepthExtensionSupported;
 	bool					bHiddenAreaMaskSupported;
 	bool					bViewConfigurationFovSupported;
