@@ -18,9 +18,9 @@ FLandscapeHeightmapFileFormat_Png::FLandscapeHeightmapFileFormat_Png()
 	FileTypeInfo.bSupportsExport = true;
 }
 
-FLandscapeHeightmapInfo FLandscapeHeightmapFileFormat_Png::Validate(const TCHAR* HeightmapFilename) const
+FLandscapeFileInfo FLandscapeHeightmapFileFormat_Png::Validate(const TCHAR* HeightmapFilename, FName LayerName) const
 {
-	FLandscapeHeightmapInfo Result;
+	FLandscapeFileInfo Result;
 
 	TArray64<uint8> ImportData;
 	if (!FFileHelper::LoadFileToArray(ImportData, HeightmapFilename, FILEREAD_Silent))
@@ -64,9 +64,9 @@ FLandscapeHeightmapInfo FLandscapeHeightmapFileFormat_Png::Validate(const TCHAR*
 	return Result;
 }
 
-FLandscapeHeightmapImportData FLandscapeHeightmapFileFormat_Png::Import(const TCHAR* HeightmapFilename, FLandscapeFileResolution ExpectedResolution) const
+FLandscapeImportData<uint16> FLandscapeHeightmapFileFormat_Png::Import(const TCHAR* HeightmapFilename, FName LayerName, FLandscapeFileResolution ExpectedResolution) const
 {
-	FLandscapeHeightmapImportData Result;
+	FLandscapeImportData<uint16> Result;
 
 	TArray<uint8> TempData;
 	if (!FFileHelper::LoadFileToArray(TempData, HeightmapFilename, FILEREAD_Silent))
@@ -136,7 +136,7 @@ FLandscapeHeightmapImportData FLandscapeHeightmapFileFormat_Png::Import(const TC
 	return Result;
 }
 
-void FLandscapeHeightmapFileFormat_Png::Export(const TCHAR* HeightmapFilename, TArrayView<const uint16> Data, FLandscapeFileResolution DataResolution, FVector Scale) const
+void FLandscapeHeightmapFileFormat_Png::Export(const TCHAR* HeightmapFilename, FName LayerName, TArrayView<const uint16> Data, FLandscapeFileResolution DataResolution, FVector Scale) const
 {
 	IImageWrapperModule& ImageWrapperModule = FModuleManager::LoadModuleChecked<IImageWrapperModule>("ImageWrapper");
 	TSharedPtr<IImageWrapper> ImageWrapper = ImageWrapperModule.CreateImageWrapper(EImageFormat::PNG);
@@ -157,9 +157,9 @@ FLandscapeWeightmapFileFormat_Png::FLandscapeWeightmapFileFormat_Png()
 	FileTypeInfo.bSupportsExport = true;
 }
 
-FLandscapeWeightmapInfo FLandscapeWeightmapFileFormat_Png::Validate(const TCHAR* WeightmapFilename, FName LayerName) const
+FLandscapeFileInfo FLandscapeWeightmapFileFormat_Png::Validate(const TCHAR* WeightmapFilename, FName LayerName) const
 {
-	FLandscapeWeightmapInfo Result;
+	FLandscapeFileInfo Result;
 
 	TArray64<uint8> ImportData;
 	if (!FFileHelper::LoadFileToArray(ImportData, WeightmapFilename, FILEREAD_Silent))
@@ -194,9 +194,9 @@ FLandscapeWeightmapInfo FLandscapeWeightmapFileFormat_Png::Validate(const TCHAR*
 	return Result;
 }
 
-FLandscapeWeightmapImportData FLandscapeWeightmapFileFormat_Png::Import(const TCHAR* WeightmapFilename, FName LayerName, FLandscapeFileResolution ExpectedResolution) const
+FLandscapeImportData<uint8> FLandscapeWeightmapFileFormat_Png::Import(const TCHAR* WeightmapFilename, FName LayerName, FLandscapeFileResolution ExpectedResolution) const
 {
-	FLandscapeWeightmapImportData Result;
+	FLandscapeImportData<uint8> Result;
 
 	TArray64<uint8> TempData;
 	if (!FFileHelper::LoadFileToArray(TempData, WeightmapFilename, FILEREAD_Silent))
@@ -237,7 +237,7 @@ FLandscapeWeightmapImportData FLandscapeWeightmapFileFormat_Png::Import(const TC
 	return Result;
 }
 
-void FLandscapeWeightmapFileFormat_Png::Export(const TCHAR* WeightmapFilename, FName LayerName, TArrayView<const uint8> Data, FLandscapeFileResolution DataResolution) const
+void FLandscapeWeightmapFileFormat_Png::Export(const TCHAR* WeightmapFilename, FName LayerName, TArrayView<const uint8> Data, FLandscapeFileResolution DataResolution, FVector Scale) const
 {
 	IImageWrapperModule& ImageWrapperModule = FModuleManager::LoadModuleChecked<IImageWrapperModule>("ImageWrapper");
 	TSharedPtr<IImageWrapper> ImageWrapper = ImageWrapperModule.CreateImageWrapper(EImageFormat::PNG);

@@ -45,9 +45,9 @@ FLandscapeHeightmapFileFormat_Raw::FLandscapeHeightmapFileFormat_Raw()
 	FileTypeInfo.bSupportsExport = true;
 }
 
-FLandscapeHeightmapInfo FLandscapeHeightmapFileFormat_Raw::Validate(const TCHAR* HeightmapFilename) const
+FLandscapeFileInfo FLandscapeHeightmapFileFormat_Raw::Validate(const TCHAR* HeightmapFilename, FName LayerName) const
 {
-	FLandscapeHeightmapInfo Result;
+	FLandscapeFileInfo Result;
 
 	int64 ImportFileSize = IFileManager::Get().FileSize(HeightmapFilename);
 
@@ -75,9 +75,9 @@ FLandscapeHeightmapInfo FLandscapeHeightmapFileFormat_Raw::Validate(const TCHAR*
 	return Result;
 }
 
-FLandscapeHeightmapImportData FLandscapeHeightmapFileFormat_Raw::Import(const TCHAR* HeightmapFilename, FLandscapeFileResolution ExpectedResolution) const
+FLandscapeImportData<uint16> FLandscapeHeightmapFileFormat_Raw::Import(const TCHAR* HeightmapFilename, FName LayerName, FLandscapeFileResolution ExpectedResolution) const
 {
-	FLandscapeHeightmapImportData Result;
+	FLandscapeImportData<uint16> Result;
 
 	TArray<uint8> TempData;
 	if (!FFileHelper::LoadFileToArray(TempData, HeightmapFilename, FILEREAD_Silent))
@@ -100,7 +100,7 @@ FLandscapeHeightmapImportData FLandscapeHeightmapFileFormat_Raw::Import(const TC
 	return Result;
 }
 
-void FLandscapeHeightmapFileFormat_Raw::Export(const TCHAR* HeightmapFilename, TArrayView<const uint16> Data, FLandscapeFileResolution DataResolution, FVector Scale) const
+void FLandscapeHeightmapFileFormat_Raw::Export(const TCHAR* HeightmapFilename, FName LayerName, TArrayView<const uint16> Data, FLandscapeFileResolution DataResolution, FVector Scale) const
 {
 	TArray<uint8> TempData;
 	TempData.Empty(DataResolution.Width * DataResolution.Height * 2);
@@ -120,9 +120,9 @@ FLandscapeWeightmapFileFormat_Raw::FLandscapeWeightmapFileFormat_Raw()
 	FileTypeInfo.bSupportsExport = true;
 }
 
-FLandscapeWeightmapInfo FLandscapeWeightmapFileFormat_Raw::Validate(const TCHAR* WeightmapFilename, FName LayerName) const
+FLandscapeFileInfo FLandscapeWeightmapFileFormat_Raw::Validate(const TCHAR* WeightmapFilename, FName LayerName) const
 {
-	FLandscapeWeightmapInfo Result;
+	FLandscapeFileInfo Result;
 
 	int64 ImportFileSize = IFileManager::Get().FileSize(WeightmapFilename);
 
@@ -145,9 +145,9 @@ FLandscapeWeightmapInfo FLandscapeWeightmapFileFormat_Raw::Validate(const TCHAR*
 	return Result;
 }
 
-FLandscapeWeightmapImportData FLandscapeWeightmapFileFormat_Raw::Import(const TCHAR* WeightmapFilename, FName LayerName, FLandscapeFileResolution ExpectedResolution) const
+FLandscapeImportData<uint8> FLandscapeWeightmapFileFormat_Raw::Import(const TCHAR* WeightmapFilename, FName LayerName, FLandscapeFileResolution ExpectedResolution) const
 {
-	FLandscapeWeightmapImportData Result;
+	FLandscapeImportData<uint8> Result;
 
 	TArray<uint8> TempData;
 	if (!FFileHelper::LoadFileToArray(TempData, WeightmapFilename, FILEREAD_Silent))
@@ -168,7 +168,7 @@ FLandscapeWeightmapImportData FLandscapeWeightmapFileFormat_Raw::Import(const TC
 	return Result;
 }
 
-void FLandscapeWeightmapFileFormat_Raw::Export(const TCHAR* WeightmapFilename, FName LayerName, TArrayView<const uint8> Data, FLandscapeFileResolution DataResolution) const
+void FLandscapeWeightmapFileFormat_Raw::Export(const TCHAR* WeightmapFilename, FName LayerName, TArrayView<const uint8> Data, FLandscapeFileResolution DataResolution, FVector Scale) const
 {
 	FFileHelper::SaveArrayToFile(Data, WeightmapFilename);
 }

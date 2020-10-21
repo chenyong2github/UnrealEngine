@@ -1483,7 +1483,7 @@ static bool ReadHeightmapFile(TArray<uint16>& Result, const FString& Filename, i
 	ILandscapeEditorModule& LandscapeEditorModule = FModuleManager::GetModuleChecked<ILandscapeEditorModule>("LandscapeEditor");
 	const ILandscapeHeightmapFileFormat* HeightmapFormat = LandscapeEditorModule.GetHeightmapFormatByExtension(*FPaths::GetExtension(Filename, true));
 
-	FLandscapeHeightmapImportData ImportData = HeightmapFormat->Import(*Filename, {(uint32)ExpectedWidth, (uint32)ExpectedHeight});
+	FLandscapeHeightmapImportData ImportData = HeightmapFormat->Import(*Filename, NAME_None, {(uint32)ExpectedWidth, (uint32)ExpectedHeight});
 	if (ImportData.ResultCode != ELandscapeImportResult::Error)
 	{
 		Result = MoveTemp(ImportData.Data);

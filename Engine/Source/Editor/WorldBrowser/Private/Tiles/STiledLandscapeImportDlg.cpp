@@ -537,7 +537,7 @@ FReply STiledLandscapeImportDlg::OnClickedSelectHeightmapTiles()
 						break;
 					}
 
-					FLandscapeHeightmapInfo HeightmapInfo = HeightmapFormat->Validate(*Filename);
+					FLandscapeFileInfo HeightmapInfo = HeightmapFormat->Validate(*Filename, NAME_None);
 					if (HeightmapInfo.ResultCode != ELandscapeImportResult::Success)
 					{
 						StatusMessage = HeightmapInfo.ErrorMessage;

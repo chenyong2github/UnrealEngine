@@ -119,7 +119,7 @@ void FNewLandscapeUtils::ImportLandscapeData( ULandscapeEditorObject* UISettings
 
 		if(HeightmapFormat)
 		{
-			FLandscapeHeightmapInfo HeightmapImportInfo = HeightmapFormat->Validate(*UISettings->ImportLandscape_HeightmapFilename);
+			FLandscapeFileInfo HeightmapImportInfo = HeightmapFormat->Validate(*UISettings->ImportLandscape_HeightmapFilename, NAME_None);
 			UISettings->ImportLandscape_HeightmapImportResult = HeightmapImportInfo.ResultCode;
 			UISettings->ImportLandscape_HeightmapErrorMessage = HeightmapImportInfo.ErrorMessage;
 			ImportResolutions = MoveTemp(HeightmapImportInfo.PossibleResolutions);
@@ -132,7 +132,7 @@ void FNewLandscapeUtils::ImportLandscapeData( ULandscapeEditorObject* UISettings
 		else
 		{
 			UISettings->ImportLandscape_HeightmapImportResult = ELandscapeImportResult::Error;
-			UISettings->ImportLandscape_HeightmapErrorMessage = LOCTEXT("Import_UnknownFileType", "File type not recognised");
+			UISettings->ImportLandscape_HeightmapErrorMessage = LOCTEXT("Import_UnknownFileType", "File type not recognized");
 		}
 	}
 
@@ -218,7 +218,7 @@ TOptional< TArray< FLandscapeImportLayerInfo > > FNewLandscapeUtils::CreateImpor
 				else
 				{
 					UIImportLayer.ImportResult = ELandscapeImportResult::Error;
-					UIImportLayer.ErrorMessage = LOCTEXT("Import_UnknownFileType", "File type not recognised");
+					UIImportLayer.ErrorMessage = LOCTEXT("Import_UnknownFileType", "File type not recognized");
 				}
 
 				if(UIImportLayer.ImportResult == ELandscapeImportResult::Error)

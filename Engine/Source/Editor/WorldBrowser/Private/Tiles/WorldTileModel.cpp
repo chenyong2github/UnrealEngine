@@ -350,7 +350,7 @@ bool FWorldTileModel::CanReimportHeightmap() const
 		const FString TargetExtension = FPaths::GetExtension(GetLandscape()->ReimportHeightmapFilePath, true);
 		const ILandscapeHeightmapFileFormat* HeightmapFormat = LandscapeEditorModule.GetHeightmapFormatByExtension(*TargetExtension);
 
-		FLandscapeHeightmapInfo HeightmapInfo = HeightmapFormat->Validate(*GetLandscape()->ReimportHeightmapFilePath);
+		FLandscapeFileInfo HeightmapInfo = HeightmapFormat->Validate(*GetLandscape()->ReimportHeightmapFilePath, NAME_None);
 		if (HeightmapInfo.ResultCode != ELandscapeImportResult::Error)
 		{
 			FIntRect ComponentsRect = GetLandscape()->GetBoundingRect();

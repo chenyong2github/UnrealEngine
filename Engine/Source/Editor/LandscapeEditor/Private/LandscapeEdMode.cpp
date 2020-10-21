@@ -3309,7 +3309,7 @@ void FEdModeLandscape::ImportData(const FLandscapeTargetListInfo& TargetInfo, co
 
 			FLandscapeFileResolution ImportResolution = {0, 0};
 
-			const FLandscapeHeightmapInfo HeightmapInfo = HeightmapFormat->Validate(*Filename);
+			const FLandscapeFileInfo HeightmapInfo = HeightmapFormat->Validate(*Filename, NAME_None);
 
 			// display error message if there is one, and abort the import
 			if (HeightmapInfo.ResultCode == ELandscapeImportResult::Error)
@@ -3373,7 +3373,7 @@ void FEdModeLandscape::ImportData(const FLandscapeTargetListInfo& TargetInfo, co
 				}
 			}
 
-			FLandscapeHeightmapImportData ImportData = HeightmapFormat->Import(*Filename, ImportResolution);
+			FLandscapeHeightmapImportData ImportData = HeightmapFormat->Import(*Filename, NAME_None, ImportResolution);
 
 			if (ImportData.ResultCode == ELandscapeImportResult::Error)
 			{
@@ -3425,7 +3425,7 @@ void FEdModeLandscape::ImportData(const FLandscapeTargetListInfo& TargetInfo, co
 
 			FLandscapeFileResolution ImportResolution = {0, 0};
 
-			const FLandscapeWeightmapInfo WeightmapInfo = WeightmapFormat->Validate(*Filename, TargetInfo.LayerName);
+			const FLandscapeFileInfo WeightmapInfo = WeightmapFormat->Validate(*Filename, TargetInfo.LayerName);
 
 			// display error message if there is one, and abort the import
 			if (WeightmapInfo.ResultCode == ELandscapeImportResult::Error)

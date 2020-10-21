@@ -542,7 +542,7 @@ void ULandscapeEditorObject::ImportLandscapeData()
 	
 	if (HeightmapFormat)
 	{
-		FLandscapeHeightmapImportData HeightmapImportData = HeightmapFormat->Import(*ImportLandscape_HeightmapFilename, {ImportLandscape_Width, ImportLandscape_Height});
+		FLandscapeHeightmapImportData HeightmapImportData = HeightmapFormat->Import(*ImportLandscape_HeightmapFilename, NAME_None, {ImportLandscape_Width, ImportLandscape_Height});
 		ImportLandscape_HeightmapImportResult = HeightmapImportData.ResultCode;
 		ImportLandscape_HeightmapErrorMessage = HeightmapImportData.ErrorMessage;
 		ImportLandscape_Data = MoveTemp(HeightmapImportData.Data);
@@ -612,7 +612,7 @@ void ULandscapeEditorObject::RefreshImportLayersList()
 
 					if (WeightmapFormat)
 					{
-						FLandscapeWeightmapInfo WeightmapImportInfo = WeightmapFormat->Validate(*NewImportLayer.SourceFilePath, NewImportLayer.LayerName);
+						FLandscapeFileInfo WeightmapImportInfo = WeightmapFormat->Validate(*NewImportLayer.SourceFilePath, NewImportLayer.LayerName);
 						NewImportLayer.ImportResult = WeightmapImportInfo.ResultCode;
 						NewImportLayer.ErrorMessage = WeightmapImportInfo.ErrorMessage;
 
@@ -626,7 +626,7 @@ void ULandscapeEditorObject::RefreshImportLayersList()
 					else
 					{
 						NewImportLayer.ImportResult = ELandscapeImportResult::Error;
-						NewImportLayer.ErrorMessage = NSLOCTEXT("LandscapeEditor.NewLandscape", "Import_UnknownFileType", "File type not recognised");
+						NewImportLayer.ErrorMessage = NSLOCTEXT("LandscapeEditor.NewLandscape", "Import_UnknownFileType", "File type not recognized");
 					}
 				}
 			}

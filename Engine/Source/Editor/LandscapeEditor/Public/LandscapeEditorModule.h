@@ -5,9 +5,8 @@
 #include "CoreMinimal.h"
 #include "Modules/ModuleInterface.h"
 #include "Templates/SharedPointer.h"
+#include "LandscapeFileFormatInterface.h"
 
-class ILandscapeHeightmapFileFormat;
-class ILandscapeWeightmapFileFormat;
 class FUICommandList;
 
 /**
