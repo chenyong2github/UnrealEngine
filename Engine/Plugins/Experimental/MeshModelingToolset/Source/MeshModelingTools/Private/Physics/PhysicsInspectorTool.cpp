@@ -60,6 +60,7 @@ void UPhysicsInspectorTool::Setup()
 	AddToolPropertySource(VizSettings);
 	VizSettings->WatchProperty(VizSettings->LineThickness, [this](float NewValue) { bVisualizationDirty = true; });
 	VizSettings->WatchProperty(VizSettings->Color, [this](FColor NewValue) { bVisualizationDirty = true; });
+	VizSettings->WatchProperty(VizSettings->bShowHidden, [this](bool bNewValue) { bVisualizationDirty = true; });
 
 	for (TUniquePtr<FPrimitiveComponentTarget>& ComponentTarget : ComponentTargets)
 	{
@@ -125,6 +126,8 @@ void UPhysicsInspectorTool::UpdateVisualization()
 {
 	float UseThickness = VizSettings->LineThickness;
 	FColor UseColor = VizSettings->Color;
+	LineMaterial = ToolSetupUtil::GetDefaultLineComponentMaterial(GetToolManager(), !VizSettings->bShowHidden);
+
 	for (UPreviewGeometry* Preview : PreviewElements)
 	{
 		Preview->UpdateAllLineSets([&](ULineSetComponent* LineSet)
@@ -132,6 +135,7 @@ void UPhysicsInspectorTool::UpdateVisualization()
 			LineSet->SetAllLinesThickness(UseThickness);
 			LineSet->SetAllLinesColor(UseColor);
 		});
+		Preview->SetAllLineSetsMaterial(LineMaterial);
 	}
 }
 

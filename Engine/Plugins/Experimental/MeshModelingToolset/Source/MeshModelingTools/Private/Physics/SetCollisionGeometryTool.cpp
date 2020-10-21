@@ -114,8 +114,9 @@ void USetCollisionGeometryTool::Setup()
 	VizSettings = NewObject<UCollisionGeometryVisualizationProperties>(this);
 	VizSettings->RestoreProperties(this);
 	AddToolPropertySource(VizSettings);
-	Settings->WatchProperty(VizSettings->LineThickness, [this](float NewValue) { bVisualizationDirty = true; });
-	Settings->WatchProperty(VizSettings->Color, [this](FColor NewValue) { bVisualizationDirty = true; });
+	VizSettings->WatchProperty(VizSettings->LineThickness, [this](float NewValue) { bVisualizationDirty = true; });
+	VizSettings->WatchProperty(VizSettings->Color, [this](FColor NewValue) { bVisualizationDirty = true; });
+	VizSettings->WatchProperty(VizSettings->bShowHidden, [this](bool bNewValue) { bVisualizationDirty = true; });
 
 	// add option for collision properties
 	CollisionProps = NewObject<UPhysicsObjectToolPropertySet>(this);
@@ -144,9 +145,12 @@ void USetCollisionGeometryTool::Shutdown(EToolShutdownType ShutdownType)
 
 	if (ShutdownType == EToolShutdownType::Accept)
 	{
+		// Make sure rendering is done so that we are not changing data being used by collision drawing.
+		FlushRenderingCommands();
+
 		GetToolManager()->BeginUndoTransaction(LOCTEXT("UpdateCollision", "Update Collision"));
 
-		// code below derived from FStaticMeshEditor::DuplicateSelectedPrims()
+		// code below derived from FStaticMeshEditor::DuplicateSelectedPrims(), FStaticMeshEditor::OnCollisionSphere(), and GeomFitUtils.cpp::GenerateSphylAsSimpleCollision()
 
 		TUniquePtr<FPrimitiveComponentTarget>& CollisionTarget = ComponentTargets[ComponentTargets.Num() - 1];
 		UStaticMeshComponent* StaticMeshComponent = CastChecked<UStaticMeshComponent>(CollisionTarget->GetOwnerComponent());
@@ -156,27 +160,44 @@ void USetCollisionGeometryTool::Shutdown(EToolShutdownType ShutdownType)
 		// mark the BodySetup for modification. Do we need to modify the UStaticMesh??
 		BodySetup->Modify();
 
-		//Clear the cache (PIE may have created some data), create new GUID    (comment from StaticMeshEditor)
-		BodySetup->InvalidatePhysicsData();
-
+		// clear existing simple collision. This will call BodySetup->InvalidatePhysicsData()
 		BodySetup->RemoveSimpleCollision();
+
+		// set new collision geometry
 		BodySetup->AggGeom = GeneratedCollision->AggGeom;
+
 		// update collision type
 		BodySetup->CollisionTraceFlag = (ECollisionTraceFlag)(int32)Settings->SetCollisionType;
-		// rebuild physics data
-		BodySetup->InvalidatePhysicsData();
+
+		// rebuild physics meshes
 		BodySetup->CreatePhysicsMeshes();
+
+		// rebuild nav collision (? StaticMeshEditor does this)
+		StaticMesh->CreateNavCollision(/*bIsUpdate=*/true);
+
+		// update physics state on all components using this StaticMesh
+		for (FObjectIterator Iter(UStaticMeshComponent::StaticClass()); Iter; ++Iter)
+		{
+			UStaticMeshComponent* SMComponent = Cast<UStaticMeshComponent>(*Iter);
+			if (SMComponent->GetStaticMesh() == StaticMesh)
+			{
+				if (SMComponent->IsPhysicsStateCreated())
+				{
+					SMComponent->RecreatePhysicsState();
+				}
+			}
+		}
 
 		// do we need to do a post edit change here??
 
-		// is this necessary? 
-		StaticMesh->CreateNavCollision(/*bIsUpdate=*/true);
+		// mark static mesh as dirty so it gets resaved?
+		StaticMesh->MarkPackageDirty();
+
+		// mark the static mesh as having customized collision so it is not regenerated on reimport
+		StaticMesh->bCustomizedCollision = true;
 
 		// post the undo transaction
 		GetToolManager()->EndUndoTransaction();
-
-		// mark static mesh as dirty so it gets resaved?
-		StaticMesh->MarkPackageDirty();
 	}
 
 }
@@ -216,6 +237,9 @@ void USetCollisionGeometryTool::UpdateVisualization()
 		LineSet->SetAllLinesThickness(UseThickness);
 		LineSet->SetAllLinesColor(UseColor);
 	});
+
+	LineMaterial = ToolSetupUtil::GetDefaultLineComponentMaterial(GetToolManager(), !VizSettings->bShowHidden);
+	PreviewGeom->SetAllLineSetsMaterial(LineMaterial);
 }
 
 

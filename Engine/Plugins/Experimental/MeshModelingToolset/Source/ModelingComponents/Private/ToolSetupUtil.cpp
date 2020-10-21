@@ -191,9 +191,11 @@ UMaterialInterface* ToolSetupUtil::GetDefaultPointComponentMaterial(bool bRoundP
 	return Material;
 }
 
-UMaterialInterface* ToolSetupUtil::GetDefaultLineComponentMaterial(UInteractiveToolManager* ToolManager)
+UMaterialInterface* ToolSetupUtil::GetDefaultLineComponentMaterial(UInteractiveToolManager* ToolManager, bool bDepthTested)
 {
-	UMaterialInterface* Material = LoadObject<UMaterial>(nullptr, TEXT("/MeshModelingToolset/Materials/LineSetComponentMaterial"));
+	UMaterialInterface* Material = (bDepthTested) ?
+		LoadObject<UMaterial>(nullptr, TEXT("/MeshModelingToolset/Materials/LineSetComponentMaterial"))
+		: LoadObject<UMaterial>(nullptr, TEXT("/MeshModelingToolset/Materials/LineSetOverlaidComponentMaterial"));
 	if (Material == nullptr && ToolManager != nullptr)
 	{
 		// We don't seem to have a default line material to use here.
