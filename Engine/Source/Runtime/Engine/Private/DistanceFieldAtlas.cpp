@@ -967,8 +967,6 @@ void FDistanceFieldVolumeData::CacheDerivedData(const FString& InDDCKey, const I
 			if (!MeshBuilderModule.BuildMesh(Mesh, NewTask->SourceMeshData.Vertices, NewTask->SourceMeshData.Indices, NewTask->SourceMeshData.Sections, /* bBuildOnlyPosition */ true, NumTexCoords, bHasColors))
 			{
 				UE_LOG(LogStaticMesh, Error, TEXT("Failed to build static mesh. See previous line(s) for details."));
-				delete NewTask;
-				return;
 			}
 		}
 
