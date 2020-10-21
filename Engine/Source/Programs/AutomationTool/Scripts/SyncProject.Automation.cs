@@ -178,15 +178,18 @@ class SyncProject : BuildCommand
 		else
 		{
 			// See if the engine is in P4 too by checking the p4 location of a local file
-			string LocalEngineFile = CommandUtils.CombinePaths(CmdEnv.LocalRoot, "Engine", "Source", "UE4Editor.target.cs");
-			P4WhereRecord EngineRecord = P4.Where(LocalEngineFile, AllowSpew: false).FirstOrDefault(x => x.DepotFile != null && !x.bUnmap);
-
-			if (!ProjectOnly && P4.FileExistsInDepot(EngineRecord.DepotFile))
+			if (!ProjectOnly)
 			{
-				// make sure to sync with //workspace/path as it cleans up files if the user has stream switched
-				P4EnginePath = EngineRecord.ClientFile.Replace("Engine/Source/UE4Editor.target.cs", "");
-				SyncPaths.Add(CommandUtils.CombinePaths(PathSeparator.Slash, P4EnginePath + "*"));
-				SyncPaths.Add(CommandUtils.CombinePaths(PathSeparator.Slash, P4EnginePath, "Engine", "..."));
+				string LocalEngineFile = CommandUtils.CombinePaths(CmdEnv.LocalRoot, "Engine", "Source", "UE4Editor.target.cs");
+				P4WhereRecord EngineRecord = P4.Where(LocalEngineFile, AllowSpew: false).FirstOrDefault(x => x.DepotFile != null && !x.bUnmap);
+
+				if (P4.FileExistsInDepot(EngineRecord.DepotFile))
+				{
+					// make sure to sync with //workspace/path as it cleans up files if the user has stream switched
+					P4EnginePath = EngineRecord.ClientFile.Replace("Engine/Source/UE4Editor.target.cs", "");
+					SyncPaths.Add(CommandUtils.CombinePaths(PathSeparator.Slash, P4EnginePath + "*"));
+					SyncPaths.Add(CommandUtils.CombinePaths(PathSeparator.Slash, P4EnginePath, "Engine", "..."));
+				}
 			}
 
 			if (!string.IsNullOrEmpty(P4ProjectPath))
