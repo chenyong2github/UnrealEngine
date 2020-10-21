@@ -302,6 +302,7 @@ public:
 
 	bool operator == (const FRigVMRegisterOffset& InOther) const;
 
+	FORCEINLINE_DEBUGGABLE bool IsValid() const { return Type != ERigVMRegisterType::Invalid; }
 	FORCEINLINE_DEBUGGABLE ERigVMRegisterType GetType() const { return Type; }
 	FORCEINLINE_DEBUGGABLE FName GetCPPType() const { return CPPType; }
 	uint16 GetElementSize() const;
@@ -1104,6 +1105,9 @@ public:
 
 	void SetRegisterValueFromString(const FRigVMOperand& InOperand, const FString& InCPPType, const UObject* InCPPTypeObject, const TArray<FString>& InDefaultValues);
 	TArray<FString> GetRegisterValueAsString(const FRigVMOperand& InOperand, const FString& InCPPType, const UObject* InCPPTypeObject);
+
+	// Returns the register offset for a given operand
+	const FRigVMRegisterOffset GetRegisterOffsetForOperand(const FRigVMOperand& InOperand) const;
 
 	// returns the statistics information
 	FRigVMMemoryStatistics GetStatistics() const

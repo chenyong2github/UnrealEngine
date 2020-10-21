@@ -1808,6 +1808,19 @@ TArray<FString> FRigVMMemoryContainer::GetRegisterValueAsString(const FRigVMOper
 	return DefaultValues;
 }
 
+const FRigVMRegisterOffset FRigVMMemoryContainer::GetRegisterOffsetForOperand(const FRigVMOperand& InOperand) const
+{
+	ensure(InOperand.GetMemoryType() == MemoryType);
+
+	int32 RegisterOffsetIndex = InOperand.GetRegisterOffset();
+	if (RegisterOffsets.IsValidIndex(RegisterOffsetIndex))
+	{
+		return RegisterOffsets[RegisterOffsetIndex];
+	}
+
+	return FRigVMRegisterOffset();
+}
+
 void FRigVMMemoryContainer::UpdateRegisters()
 {
 	int32 AlignmentShift = 0;
