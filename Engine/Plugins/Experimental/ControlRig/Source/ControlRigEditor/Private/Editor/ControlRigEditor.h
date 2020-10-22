@@ -93,6 +93,7 @@ public:
 	virtual FText GetToolkitToolTipText() const override;
 	virtual FString GetWorldCentricTabPrefix() const override;
 	virtual FLinearColor GetWorldCentricTabColorScale() const override;	
+	virtual bool UsesCustomToolbarPlacement() const override { return true; }
 	virtual FString GetDocumentationLink() const override
 	{
 		return FString(TEXT("Engine/Animation/ControlRig"));
