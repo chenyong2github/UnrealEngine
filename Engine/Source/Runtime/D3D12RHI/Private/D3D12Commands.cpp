@@ -372,7 +372,15 @@ void FD3D12CommandContext::RHIEndTransitions(TArrayView<const FRHITransition*> T
 
 				if (Info.AccessAfter != ERHIAccess::ERWBarrier)
 				{
-					if (EnumHasAnyFlags(Info.AccessAfter, ERHIAccess::EWritable))
+					if (Info.AccessAfter == ERHIAccess::ResolveSrc)
+					{
+						State |= D3D12_RESOURCE_STATE_RESOLVE_SOURCE;
+					}
+					else if (Info.AccessAfter == ERHIAccess::ResolveDst)
+					{
+						State |= D3D12_RESOURCE_STATE_RESOLVE_DEST;
+					}
+					else if (EnumHasAnyFlags(Info.AccessAfter, ERHIAccess::EWritable))
 					{
 						if (bIsAsyncComputeContext)
 						{
