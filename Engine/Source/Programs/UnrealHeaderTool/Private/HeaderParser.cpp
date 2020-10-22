@@ -4426,6 +4426,11 @@ void FHeaderParser::GetVarType(
 		{
 			FError::Throwf(TEXT("FText is not currently supported as a key type."));
 		}
+		
+		if (EnumHasAnyFlags(Flags, CPF_Net))
+		{
+			UE_LOG_ERROR_UHT(TEXT("Replicated maps are not supported."));
+		}
 
 		FToken CommaToken;
 		if (!GetToken(CommaToken, /*bNoConsts=*/ true) || CommaToken.TokenType != TOKEN_Symbol || !CommaToken.Matches(TEXT(',')))
@@ -4473,11 +4478,6 @@ void FHeaderParser::GetVarType(
 
 			if (FCString::Strcmp(AllocatorToken.Identifier, TEXT("FMemoryImageSetAllocator")) == 0)
 			{
-				if (EnumHasAnyFlags(Flags, CPF_Net))
-				{
-					FError::Throwf(TEXT("Replicated maps with MemoryImageSetAllocators are not yet supported"));
-				}
-
 				RequireSymbol(TEXT('>'), TEXT("TMap template arguments"), ESymbolParseOption::CloseTemplateBracket);
 
 				VarProperty.AllocatorType = EAllocatorType::MemoryImage;
@@ -4509,6 +4509,11 @@ void FHeaderParser::GetVarType(
 		if (VarProperty.Type == CPT_Text)
 		{
 			FError::Throwf(TEXT("FText is not currently supported as an element type."));
+		}
+
+		if (EnumHasAnyFlags(Flags, CPF_Net))
+		{
+			UE_LOG_ERROR_UHT(TEXT("Replicated sets are not supported."));
 		}
 
 		VarType.PropertyFlags = VarProperty.PropertyFlags & (CPF_ContainsInstancedReference | CPF_InstancedReference); // propagate these to the set, we will fix them later
@@ -6921,6 +6926,21 @@ void FHeaderParser::ParseParameterList(FClasses& AllClasses, UFunction* Function
 		// Check parameters.
 		if ((Function->FunctionFlags & FUNC_Net))
 		{
+			if (Property.MapKeyProp.IsValid())
+			{
+				if (!(Function->FunctionFlags & FUNC_NetRequest || Function->FunctionFlags & FUNC_NetResponse))
+				{
+					UE_LOG_ERROR_UHT(TEXT("Maps are not supported in an RPC."));
+				}
+			}
+			else if (Property.ArrayType == EArrayType::Set)
+			{
+				if (!(Function->FunctionFlags & FUNC_NetRequest || Function->FunctionFlags & FUNC_NetResponse))
+				{
+					UE_LOG_ERROR_UHT(TEXT("Sets are not supported in an RPC."));
+				}
+			}
+
 			if (!(Function->FunctionFlags & FUNC_NetRequest))
 			{
 				if (Property.PropertyFlags & CPF_OutParm)
