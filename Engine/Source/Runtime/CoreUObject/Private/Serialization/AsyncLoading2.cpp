@@ -2219,8 +2219,7 @@ public:
 	/** Returns true if packages are currently being loaded on the async thread */
 	inline virtual bool IsAsyncLoadingPackages() override
 	{
-		FPlatformMisc::MemoryBarrier();
-		return QueuedPackagesCounter != 0 || ExistingAsyncPackagesCounter.GetValue() != 0 || !DeferredDeletePackages.IsEmpty();
+		return QueuedPackagesCounter != 0 || ExistingAsyncPackagesCounter.GetValue() != 0;
 	}
 
 	/** Returns true this codes runs on the async loading thread */
@@ -2525,6 +2524,7 @@ private:
 		Data.PackageNodes = MakeArrayView(reinterpret_cast<FEventLoadNode2*>(MemoryBuffer + AsyncPackageMemSize + ExportBundlesMetaMemSize + ExportsMemSize + ImportedPackagesMemSize), NodeCount);
 		Data.ExportBundleNodes = MakeArrayView(&Data.PackageNodes[EEventLoadNode2::Package_NumPhases], ExportBundleNodeCount);
 
+		ExistingAsyncPackagesCounter.Increment();
 		return new (MemoryBuffer) FAsyncPackage2(Desc, Data, *this, GraphAllocator, EventSpecs.GetData());
 	}
 
@@ -2534,6 +2534,7 @@ private:
 		UE_ASYNC_PACKAGE_DEBUG(Package->Desc);
 		Package->~FAsyncPackage2();
 		FMemory::Free(Package);
+		ExistingAsyncPackagesCounter.Decrement();
 	}
 
 	/** Number of times we re-entered the async loading tick, mostly used by singlethreaded ticking. Debug purposes only. */
@@ -2641,7 +2642,6 @@ FAsyncPackage2* FAsyncLoadingThread2::FindOrInsertPackage(FAsyncPackageDesc2* De
 			Package = CreateAsyncPackage(*Desc);
 			checkf(Package, TEXT("Failed to create async package %s"), *Desc->DiskPackageName.ToString());
 			Package->AddRef();
-			ExistingAsyncPackagesCounter.Increment();
 			AsyncPackageLookup.Add(Desc->GetAsyncPackageId(), Package);
 			bInserted = true;
 		}
@@ -4391,11 +4391,6 @@ EAsyncPackageState::Type FAsyncLoadingThread2::ProcessLoadedPackagesFromGameThre
 			// Remove the package from the list before we trigger the callbacks, 
 			// this is to ensure we can re-enter FlushAsyncLoading from any of the callbacks
 			LoadedPackagesToProcess.RemoveAt(PackageIndex--);
-
-			// Incremented on the Async Thread, now decrement as we're done with this package				
-			const int32 NewExistingAsyncPackagesCounterValue = ExistingAsyncPackagesCounter.Decrement();
-
-			UE_CLOG(NewExistingAsyncPackagesCounterValue < 0, LogStreaming, Fatal, TEXT("ExistingAsyncPackagesCounter is negative, this means we loaded more packages then requested so there must be a bug in async loading code."));
 
 			TRACE_LOADTIME_END_LOAD_ASYNC_PACKAGE(Package);
 
