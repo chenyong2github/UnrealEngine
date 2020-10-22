@@ -309,7 +309,6 @@ void FVulkanDynamicRHI::RHIReadSurfaceData(FRHITexture* TextureRHI, FIntRect Rec
 	FVulkanTexture2D* Texture2D = (FVulkanTexture2D*)TextureRHI2D;
 	FVulkanSurface* Surface = &Texture2D->Surface;
 
-	check((Surface->UEFlags & TexCreate_CPUReadback) == TexCreate_CPUReadback);
 	Device->PrepareForCPURead();
 
 	FVulkanCommandListContext& ImmediateContext = Device->GetImmediateContext();
@@ -328,14 +327,74 @@ void FVulkanDynamicRHI::RHIReadSurfaceData(FRHITexture* TextureRHI, FIntRect Rec
 		break;
 	}
 	const uint32 Size = NumPixels * sizeof(FColor) * (bIs8Bpp ? 2 : 1);
+
+	uint8* MappedPointer = nullptr;
+	VulkanRHI::FStagingBuffer* StagingBuffer = nullptr;
+	FVulkanCmdBuffer* CmdBuffer = nullptr;
+	bool bCPUReadback = (Surface->UEFlags & TexCreate_CPUReadback) == TexCreate_CPUReadback;
+	if(!bCPUReadback) //this function supports reading back arbitrary rendertargets, so if its not a cpu readback surface, we do a copy.
+	{
+		ImmediateContext.GetCommandBufferManager()->GetUploadCmdBuffer();
+		CmdBuffer = ImmediateContext.GetCommandBufferManager()->GetUploadCmdBuffer();
+		StagingBuffer = Device->GetStagingManager().AcquireBuffer(Size, VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
+		VkBufferImageCopy CopyRegion;
+		FMemory::Memzero(CopyRegion);
+		uint32 MipLevel = InFlags.GetMip();
+		uint32 SizeX = FMath::Max(TextureRHI2D->GetSizeX() >> MipLevel, 1u);
+		uint32 SizeY = FMath::Max(TextureRHI2D->GetSizeY() >> MipLevel, 1u);
+		CopyRegion.bufferRowLength = SizeX;
+		CopyRegion.bufferImageHeight = SizeY;
+		CopyRegion.imageSubresource.aspectMask = Texture2D->Surface.GetFullAspectMask();
+		CopyRegion.imageSubresource.mipLevel = MipLevel;
+		CopyRegion.imageSubresource.layerCount = 1;
+		CopyRegion.imageExtent.width = SizeX;
+		CopyRegion.imageExtent.height = SizeY;
+		CopyRegion.imageExtent.depth = 1;
+
+		VkImageLayout& CurrentLayout = Device->GetImmediateContext().GetLayoutManager().FindOrAddLayoutRW(Texture2D->Surface, VK_IMAGE_LAYOUT_UNDEFINED);
+		bool bHadLayout = (CurrentLayout != VK_IMAGE_LAYOUT_UNDEFINED);
+		if (CurrentLayout != VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL)
+		{
+			VulkanSetImageLayoutAllMips(CmdBuffer->GetHandle(), Texture2D->Surface.Image, CurrentLayout, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+		}
+
+		VulkanRHI::vkCmdCopyImageToBuffer(CmdBuffer->GetHandle(), Texture2D->Surface.Image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, StagingBuffer->GetHandle(), 1, &CopyRegion);
+		if (bHadLayout && CurrentLayout != VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL)
+		{
+			VulkanSetImageLayoutAllMips(CmdBuffer->GetHandle(), Texture2D->Surface.Image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, CurrentLayout);
+		}
+		else
+		{
+			CurrentLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+		}
+		ensure(StagingBuffer->GetSize() >= Size);
+
+		VkMemoryBarrier Barrier = { VK_STRUCTURE_TYPE_MEMORY_BARRIER , nullptr, VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_HOST_READ_BIT };
+		VulkanRHI::vkCmdPipelineBarrier(CmdBuffer->GetHandle(), VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_HOST_BIT, 0, 1, &Barrier, 0, nullptr, 0, nullptr);
+
+		// Force upload
+		ImmediateContext.GetCommandBufferManager()->SubmitUploadCmdBuffer();
+
+	}
+	else
+	{
+		MappedPointer = (uint8*)Surface->GetMappedPointer();
+	}
+
+
+
 	Device->WaitUntilIdle();
+	if(!bCPUReadback)
+	{
+		StagingBuffer->InvalidateMappedMemory();
+		MappedPointer = (uint8*)StagingBuffer->GetMappedPointer();
+	}
 
 	OutData.SetNum(NumPixels);
 	FColor* Dest = OutData.GetData();
 
 	uint32 DestWidth = Rect.Max.X - Rect.Min.X;
 	uint32 DestHeight = Rect.Max.Y - Rect.Min.Y;
-	uint8* MappedPointer = (uint8*)Surface->GetMappedPointer();
 	if (Texture2D->Surface.StorageFormat == VK_FORMAT_R16G16B16A16_SFLOAT)
 	{
 		uint32 PixelByteSize = 8u;
@@ -370,6 +429,11 @@ void FVulkanDynamicRHI::RHIReadSurfaceData(FRHITexture* TextureRHI, FIntRect Rec
 		uint8* In = MappedPointer + (Rect.Min.Y * TextureRHI2D->GetSizeX() + Rect.Min.X) * PixelByteSize;
 		uint32 SrcPitch = TextureRHI2D->GetSizeX() * PixelByteSize;
 		ConvertRawB8G8R8A8DataToFColor(DestWidth, DestHeight, In, SrcPitch, Dest);
+	}
+
+	if (!bCPUReadback)
+	{
+		Device->GetStagingManager().ReleaseBuffer(CmdBuffer, StagingBuffer);
 	}
 
 	ImmediateContext.GetCommandBufferManager()->PrepareForNewActiveCommandBuffer();
