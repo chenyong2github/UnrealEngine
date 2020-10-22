@@ -90,6 +90,8 @@ DEFINE_LOG_CATEGORY(LogEditorViewport);
 
 static const float MIN_ACTOR_BOUNDS_EXTENT	= 1.0f;
 
+const FLevelViewportActorLock FLevelViewportActorLock::None(nullptr);
+
 TArray< TWeakObjectPtr< AActor > > FLevelEditorViewportClient::DropPreviewActors;
 TMap< TObjectKey< AActor >, TWeakObjectPtr< UActorComponent > > FLevelEditorViewportClient::ViewComponentForActorCache;
 
@@ -1793,8 +1795,6 @@ FLevelEditorViewportClient::FLevelEditorViewportClient(const TSharedPtr<SLevelVi
 	, DropPreviewMouseX(0)
 	, DropPreviewMouseY(0)
 	, bWasControlledByOtherViewport(false)
-	, ActorLockedByMatinee(nullptr)
-	, ActorLockedToCamera(nullptr)
 	, bEditorCameraCut(false)
 	, bWasEditorCameraCut(false)
 	, bApplyCameraSpeedScaleByDistance(true)
@@ -1935,7 +1935,7 @@ FSceneView* FLevelEditorViewportClient::CalcSceneView(FSceneViewFamily* ViewFami
 
 	FSceneView* View = FEditorViewportClient::CalcSceneView(ViewFamily, StereoPass);
 
-	View->ViewActor = ActorLockedByMatinee.IsValid() ? ActorLockedByMatinee.Get() : ActorLockedToCamera.Get();
+	View->ViewActor = ActorLocks.GetLock().GetLockedActor();
 	View->SpriteCategoryVisibility = SpriteCategoryVisibility;
 	View->bCameraCut = bEditorCameraCut;
 	View->bHasSelectedComponents = GEditor->GetSelectedComponentCount() > 0;
@@ -2361,17 +2361,19 @@ void FLevelEditorViewportClient::Tick(float DeltaTime)
 void FLevelEditorViewportClient::UpdateViewForLockedActor(float DeltaTime)
 {
 	// We can't be locked to a matinee actor if this viewport doesn't allow matinee control
-	if ( !bAllowCinematicControl && ActorLockedByMatinee.IsValid() )
+	if (!bAllowCinematicControl && ActorLocks.CinematicActorLock.HasValidLockedActor())
 	{
-		ActorLockedByMatinee = nullptr;
+		ActorLocks.CinematicActorLock = FLevelViewportActorLock::None;
 	}
 
 	bUseControllingActorViewInfo = false;
 	ControllingActorViewInfo = FMinimalViewInfo();
+	ControllingActorAspectRatioAxisConstraint.Reset();
 	ControllingActorExtraPostProcessBlends.Empty();
 	ControllingActorExtraPostProcessBlendWeights.Empty();
 
-	AActor* Actor = ActorLockedByMatinee.IsValid() ? ActorLockedByMatinee.Get() : ActorLockedToCamera.Get();
+	const FLevelViewportActorLock& ActiveLock = ActorLocks.GetLock();
+	AActor* Actor = ActiveLock.GetLockedActor();
 	if( Actor != NULL )
 	{
 		// Check if the viewport is transitioning
@@ -2406,6 +2408,9 @@ void FLevelEditorViewportClient::UpdateViewForLockedActor(float DeltaTime)
 						{
 							CameraComponent->GetExtraPostProcessBlends(ControllingActorExtraPostProcessBlends, ControllingActorExtraPostProcessBlendWeights);
 						}
+
+						// Axis constraint for aspect ratio
+						ControllingActorAspectRatioAxisConstraint = ActiveLock.AspectRatioAxisConstraint;
 						
 						// Post processing is handled by OverridePostProcessingSettings
 						ViewFOV = ControllingActorViewInfo.FOV;
@@ -3955,20 +3960,30 @@ UActorComponent* FLevelEditorViewportClient::FindViewComponentForActor(AActor co
 
 void FLevelEditorViewportClient::SetActorLock(AActor* Actor)
 {
-	if (ActorLockedToCamera != Actor)
-	{
-		SetIsCameraCut();
-	}
-	ActorLockedToCamera = Actor;
+	SetActorLock(FLevelViewportActorLock(Actor));
 }
 
-void FLevelEditorViewportClient::SetMatineeActorLock(AActor* Actor)
+void FLevelEditorViewportClient::SetActorLock(const FLevelViewportActorLock& InActorLock)
 {
-	if (ActorLockedByMatinee != Actor)
+	if (ActorLocks.ActorLock.LockedActor != InActorLock.LockedActor)
 	{
 		SetIsCameraCut();
 	}
-	ActorLockedByMatinee = Actor;
+	ActorLocks.ActorLock = InActorLock;
+}
+
+void FLevelEditorViewportClient::SetCinematicActorLock(AActor* Actor)
+{
+	SetCinematicActorLock(FLevelViewportActorLock(Actor));
+}
+
+void FLevelEditorViewportClient::SetCinematicActorLock(const FLevelViewportActorLock& InActorLock)
+{
+	if (ActorLocks.CinematicActorLock.LockedActor != InActorLock.LockedActor)
+	{
+		SetIsCameraCut();
+	}
+	ActorLocks.CinematicActorLock = InActorLock;
 }
 
 bool FLevelEditorViewportClient::IsActorLocked(const TWeakObjectPtr<const AActor> InActor) const
@@ -5089,7 +5104,7 @@ void FLevelEditorViewportClient::CopyLayoutFromViewport( const FLevelEditorViewp
 	ViewFOV = InViewport.ViewFOV;
 	ViewportType = InViewport.ViewportType;
 	SetOrthoZoom( InViewport.GetOrthoZoom() );
-	ActorLockedToCamera = InViewport.ActorLockedToCamera;
+	ActorLocks = InViewport.ActorLocks;
 	bAllowCinematicControl = InViewport.bAllowCinematicControl;
 }
 

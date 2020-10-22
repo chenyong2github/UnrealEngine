@@ -572,7 +572,7 @@ void F3DTransformTrackEditor::OnLockCameraClicked(ECheckBoxState CheckBoxState, 
 			}
 
 			GetSequencer()->SetPerspectiveViewportCameraCutEnabled(false);
-			LevelVC->SetMatineeActorLock(nullptr);
+			LevelVC->SetCinematicActorLock(nullptr);
 			LevelVC->SetActorLock(CameraActor.Get());
 			LevelVC->bLockedCameraView = true;
 			LevelVC->UpdateViewForLockedActor();
@@ -594,7 +594,7 @@ void F3DTransformTrackEditor::ClearLockedCameras(AActor* LockedActor)
 		{
 			if (LevelVC->IsActorLocked(LockedActor))
 			{
-				LevelVC->SetMatineeActorLock(nullptr);
+				LevelVC->SetCinematicActorLock(nullptr);
 				LevelVC->SetActorLock(nullptr);
 				LevelVC->bLockedCameraView = false;
 				LevelVC->ViewFOV = LevelVC->FOVAngle;
