@@ -641,34 +641,202 @@ const FPlatformAudioCookOverrides* USoundWave::GetPlatformCompressionOverridesFo
 	return FPlatformCompressionUtilities::GetCookOverrides();
 }
 
-#if WITH_EDITOR
-bool USoundWave::GetImportedSoundWaveData(TArray<uint8>& OutRawPCMData, uint32& OutSampleRate, uint16& OutNumChannels)
+namespace SoundWavePrivate
 {
-	// Can only get sound wave data if there is bulk data and if we don't have some weird munging of multi-channel files (e.g. mono stereo only)
-	if (RawData.GetBulkDataSize() > 0)
+	struct FBulkDataReadScopeLock
 	{
-		FWaveModInfo WaveInfo;
-
-		const uint8* RawWaveData = (const uint8*)RawData.LockReadOnly();
-		int32 RawDataSize = RawData.GetBulkDataSize();
-
-		// parse the wave data
-		if (!WaveInfo.ReadWaveHeader(RawWaveData, RawDataSize, 0))
+		FBulkDataReadScopeLock(const FUntypedBulkData& InBulkData)
+		:	BulkData(InBulkData)
 		{
-			UE_LOG(LogAudio, Warning, TEXT("Only mono or stereo 16 bit waves allowed: %s."), *GetFullName());
-			RawData.Unlock();
-			return false;
+			RawPtr = BulkData.LockReadOnly();
 		}
 
-		// Copy the raw PCM data and the header info that was parsed
-		OutRawPCMData.Reset();
-		OutRawPCMData.AddUninitialized(WaveInfo.SampleDataSize);
-		FMemory::Memcpy(OutRawPCMData.GetData(), WaveInfo.SampleDataStart, WaveInfo.SampleDataSize);
+		template<typename T>
+		const T* GetData() const
+		{
+			return static_cast<const T*>(RawPtr);
+		}
+			
+		~FBulkDataReadScopeLock()
+		{
+			if (BulkData.IsLocked())
+			{
+				BulkData.Unlock();
+			}
+		}
 
-		OutSampleRate = *WaveInfo.pSamplesPerSec;
-		OutNumChannels = *WaveInfo.pChannels;
+		private:
+			const FUntypedBulkData& BulkData;
+			const void* RawPtr = nullptr;
+	};
+}
 
-		RawData.Unlock();
+#if WITH_EDITOR
+bool USoundWave::GetImportedSoundWaveData(TArray<uint8>& OutRawPCMData, uint32& OutSampleRate, uint16& OutNumChannels) const
+{
+	TArray<EAudioSpeakers> ChannelOrder;
+
+	bool bResult = GetImportedSoundWaveData(OutRawPCMData, OutSampleRate, ChannelOrder);
+	
+	if (bResult)
+	{
+		OutNumChannels = ChannelOrder.Num();
+	}
+	else
+	{
+		OutNumChannels = 0;
+	}
+
+	return bResult;
+}
+
+bool USoundWave::GetImportedSoundWaveData(TArray<uint8>& OutRawPCMData, uint32& OutSampleRate, TArray<EAudioSpeakers>& OutChannelOrder) const
+{
+	using namespace SoundWavePrivate;
+
+	OutRawPCMData.Reset();
+	OutSampleRate = 0;
+	OutChannelOrder.Reset();
+
+	// Can only get sound wave data if there is bulk data 
+	if (RawData.GetBulkDataSize() > 0)
+	{
+		FBulkDataReadScopeLock LockedBulkData(RawData);
+		const uint8* Data = LockedBulkData.GetData<uint8>();
+		int32 DataSize = RawData.GetBulkDataSize();
+
+		if (NumChannels > 2)
+		{
+			static const EAudioSpeakers DefaultChannelOrder[SPEAKER_Count] = 
+			{
+				SPEAKER_FrontLeft,
+				SPEAKER_FrontRight,
+				SPEAKER_FrontCenter,
+				SPEAKER_LowFrequency,
+				SPEAKER_LeftSurround,
+				SPEAKER_RightSurround,
+				SPEAKER_LeftBack,
+				SPEAKER_RightBack
+			};
+
+			check(ChannelOffsets.Num() == ChannelSizes.Num());
+			check(ChannelOffsets.Num() == SPEAKER_Count);
+
+			// Multichannel audio with more than 2 channels must be accessed by
+			// inspecting the channel offsets and channel sizes of the USoundWave.
+
+			bool bIsOutputInitialized = false;
+
+			int32 NumFrames = 0;
+			int32 NumSamples = 0;
+			OutSampleRate = 0;
+
+
+			// Determine which channels have data and Interleave channel data
+			for (int32 ChannelIndex = 0; ChannelIndex < ChannelOffsets.Num(); ChannelIndex++)
+			{
+				if (ChannelSizes[ChannelIndex] <= 0)
+				{
+					continue;
+				}
+
+				FWaveModInfo WaveInfo;
+
+				// parse the wave data for a single channel
+				if (!WaveInfo.ReadWaveHeader(Data, ChannelSizes[ChannelIndex], ChannelOffsets[ChannelIndex]))
+				{
+					UE_LOG(LogAudio, Warning, TEXT("Failed to read wave data: %s."), *GetFullName());
+					return false;
+				}
+
+				// Check for valid channel count
+				if (1 != *WaveInfo.pChannels)
+				{
+					UE_LOG(LogAudio, Warning, TEXT("Cannot audio handle format. Expected single channel audio but read %d channels"), *WaveInfo.pChannels);
+					return false;
+				}
+
+				// Check for valid bit depth
+				if (16 != *WaveInfo.pBitsPerSample)
+				{
+					UE_LOG(LogAudio, Warning, TEXT("Cannot audio handle format. Expected 16bit audio but found %d bit audio"), *WaveInfo.pBitsPerSample);
+					return false;
+				}
+
+				// Set output channel type
+				OutChannelOrder.Add(DefaultChannelOrder[ChannelIndex]);
+
+				// The output info needs to be initialized from the first channel's wave info.
+				if (!bIsOutputInitialized)
+				{
+					OutSampleRate = *WaveInfo.pSamplesPerSec;
+
+					NumFrames = WaveInfo.SampleDataSize / sizeof(int16);
+					NumSamples = NumFrames * NumChannels;
+
+					if (NumSamples > 0)
+					{
+						// Translate NumSamples to bytes because OutRawPCMData is in bytes. 
+						const int32 NumBytes = NumSamples * sizeof(int16);
+						OutRawPCMData.AddZeroed(NumBytes);
+					}
+					
+					bIsOutputInitialized = true;
+				}
+
+
+				check(OutSampleRate == *WaveInfo.pSamplesPerSec);
+				const int32 ThisChannelNumFrames = WaveInfo.SampleDataSize / sizeof(int16);
+
+				if (ensureMsgf(ThisChannelNumFrames == NumFrames, TEXT("Audio channels contain varying number of frames (%d vs %d)"), NumFrames, ThisChannelNumFrames))
+				{
+					TArrayView<int16> OutPCM(reinterpret_cast<int16*>(OutRawPCMData.GetData()), NumSamples);
+					TArrayView<const int16> ChannelArrayView(reinterpret_cast<const int16*>(WaveInfo.SampleDataStart), NumFrames);
+
+					int32 DestSamplePos = OutChannelOrder.Num() - 1;
+					int32 SourceSamplePos = 0;
+
+					while (DestSamplePos < NumSamples)
+					{
+						OutPCM[DestSamplePos] = ChannelArrayView[SourceSamplePos];
+
+						SourceSamplePos++;
+						DestSamplePos += NumChannels;
+					}
+				}
+				else
+				{
+					return false;
+				}
+			}
+		}
+		else
+		{
+			FWaveModInfo WaveInfo;
+
+			// parse the wave data
+			if (!WaveInfo.ReadWaveHeader(Data, DataSize, 0))
+			{
+				UE_LOG(LogAudio, Warning, TEXT("Only mono or stereo 16 bit waves allowed: %s."), *GetFullName());
+				return false;
+			}
+
+			// Copy the raw PCM data and the header info that was parsed
+			OutRawPCMData.AddUninitialized(WaveInfo.SampleDataSize);
+			FMemory::Memcpy(OutRawPCMData.GetData(), WaveInfo.SampleDataStart, WaveInfo.SampleDataSize);
+
+			OutSampleRate = *WaveInfo.pSamplesPerSec;
+			
+			if (1 == *WaveInfo.pChannels)
+			{
+				OutChannelOrder.Add(SPEAKER_FrontLeft);
+			}
+			else if (2 == *WaveInfo.pChannels)
+			{
+				OutChannelOrder.Append({SPEAKER_FrontLeft, SPEAKER_FrontRight});
+			}
+		}
+
 		return true;
 	}
 

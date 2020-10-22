@@ -184,26 +184,50 @@ Audio::FConvolutionReverbInitData FSubmixEffectConvolutionReverb::CreateConvolut
 	ConvReverbInitData.OutputAudioFormat.NumChannels = NumOutputChannelsLocal;
 	ConvReverbInitData.TargetSampleRate = SampleRate;
 
-	// Determine correct channel counts for reverb algorithm dependent upon 
-	// mixing.
+	// Mono to true stereo is a special case where we have the true stereo flag
+	// checked but only have 2 IRs
+	bool bIsMonoToTrueStereo = ConvReverbInitData.bIsImpulseTrueStereo && (ConvReverbInitData.AlgorithmSettings.NumImpulseResponses == 2);
+
+	// Determine correct input channel counts 
 	if (ConvReverbInitData.bMixInputChannelFormatToImpulseResponseFormat)
 	{
-		ConvReverbInitData.AlgorithmSettings.NumInputChannels = ConvReverbInitData.AlgorithmSettings.NumImpulseResponses;
+		if (bIsMonoToTrueStereo)
+		{
+			// Force mono input.
+			ConvReverbInitData.AlgorithmSettings.NumInputChannels = 1;
+		}
+		else if (ConvReverbInitData.bIsImpulseTrueStereo)
+		{
+			// If performing true stereo, force input to be stereo
+			ConvReverbInitData.AlgorithmSettings.NumInputChannels = 2;
+		}
+		else
+		{
+			ConvReverbInitData.AlgorithmSettings.NumInputChannels = ConvReverbInitData.AlgorithmSettings.NumImpulseResponses;
+		}
 	}
 	else
 	{
 		ConvReverbInitData.AlgorithmSettings.NumInputChannels = NumInputChannelsLocal;
 	}
 
-	if (ConvReverbInitData.bMixReverbOutputToOutputChannelFormat)
+
+	// Determine correct output channel count
+	if (bIsMonoToTrueStereo)
 	{
-		ConvReverbInitData.AlgorithmSettings.NumOutputChannels = ConvReverbInitData.AlgorithmSettings.NumImpulseResponses;
+		ConvReverbInitData.AlgorithmSettings.NumOutputChannels = 2;
+	}
+	else if (ConvReverbInitData.bIsImpulseTrueStereo)
+	{
+		// If IRs are true stereo, divide output channel count in half.
+		ConvReverbInitData.AlgorithmSettings.NumOutputChannels = ConvReverbInitData.AlgorithmSettings.NumImpulseResponses / 2;
 	}
 	else
 	{
-		ConvReverbInitData.AlgorithmSettings.NumOutputChannels = NumOutputChannelsLocal;
+		ConvReverbInitData.AlgorithmSettings.NumOutputChannels = ConvReverbInitData.AlgorithmSettings.NumImpulseResponses;
 	}
 
+	// Determine longest IR
 	ConvReverbInitData.AlgorithmSettings.MaxNumImpulseResponseSamples = 0;
 
 	if (ConvReverbInitData.AlgorithmSettings.NumImpulseResponses > 0)
@@ -218,15 +242,37 @@ Audio::FConvolutionReverbInitData FSubmixEffectConvolutionReverb::CreateConvolut
 		ConvReverbInitData.AlgorithmSettings.MaxNumImpulseResponseSamples = FMath::CeilToInt(SampleRateRatio * ConvReverbInitData.Samples.Num() / ConvReverbInitData.AlgorithmSettings.NumImpulseResponses) + 256;
 	}
 
+	// Setup gain matrix.
+	ConvReverbInitData.GainMatrix.Reset();
 
-	// Setup gain matrix. Currently we are only setting up a 1-to-1 mapping. But this 
-	// could be enhanced by adding info to the IR asset or Preset to express different
-	// desired mappings.
-	int32 MinChannelCount = FMath::Min3(ConvReverbInitData.AlgorithmSettings.NumInputChannels, ConvReverbInitData.AlgorithmSettings.NumOutputChannels, ConvReverbInitData.AlgorithmSettings.NumImpulseResponses);
-
-	for (int32 i = 0; i < MinChannelCount; i++)
+	if (bIsMonoToTrueStereo)
 	{
-		ConvReverbInitData.GainMatrix.Emplace(i, i, i, 1.f);
+		ConvReverbInitData.GainMatrix.Emplace(0, 0, 0, 1.f);
+		ConvReverbInitData.GainMatrix.Emplace(0, 1, 1, 1.f);
+	}
+	else if (ConvReverbInitData.bIsImpulseTrueStereo)
+	{
+		// True stereo treats first group of IRs 
+		int32 NumPairs = ConvReverbInitData.AlgorithmSettings.NumImpulseResponses / 2;
+
+		for (int32 PairIndex = 0; PairIndex < NumPairs; PairIndex++)
+		{
+			int32 LeftImpulseIndex = PairIndex;
+			int32 RightImpulseIndex = NumPairs + PairIndex;
+
+			ConvReverbInitData.GainMatrix.Emplace(0, LeftImpulseIndex,  PairIndex, 1.f);
+			ConvReverbInitData.GainMatrix.Emplace(1, RightImpulseIndex, PairIndex, 1.f);
+		}
+	}
+	else
+	{
+		// Set up a 1-to-1 mapping. 
+		int32 MinChannelCount = FMath::Min3(ConvReverbInitData.AlgorithmSettings.NumInputChannels, ConvReverbInitData.AlgorithmSettings.NumOutputChannels, ConvReverbInitData.AlgorithmSettings.NumImpulseResponses);
+
+		for (int32 i = 0; i < MinChannelCount; i++)
+		{
+			ConvReverbInitData.GainMatrix.Emplace(i, i, i, 1.f);
+		}
 	}
 
 	return ConvReverbInitData;
@@ -358,10 +404,10 @@ FSubmixEffectConvolutionReverb::FVersionData FSubmixEffectConvolutionReverb::Upd
 void FSubmixEffectConvolutionReverb::UpdateParameters()
 {
 	// Call on the audio render thread to update parameters.
-    Audio::FConvolutionReverbSettings NewSettings;
-    if (Params.GetParams(&NewSettings))
-    {
-		if (ConvolutionReverb.IsValid())
+	if (ConvolutionReverb.IsValid())
+	{
+		Audio::FConvolutionReverbSettings NewSettings;
+		if (Params.GetParams(&NewSettings))
 		{
 			ConvolutionReverb->SetSettings(NewSettings);
 		}
@@ -371,6 +417,7 @@ void FSubmixEffectConvolutionReverb::UpdateParameters()
 FSubmixEffectConvolutionReverb::FVersionData FSubmixEffectConvolutionReverb::UpdateConvolutionReverb(const USubmixEffectConvolutionReverbPreset* InPreset)
 {
 	using namespace Audio;
+
 	// Copy data from preset into internal FConvolutionReverbInitData
 	
 	// TODO: Need to update AudioMixerSubmix initialization. Some initializations
@@ -391,6 +438,7 @@ FSubmixEffectConvolutionReverb::FVersionData FSubmixEffectConvolutionReverb::Upd
 				ConvReverbInitData.Samples = IR->ImpulseResponse;
 				ConvReverbInitData.AlgorithmSettings.NumImpulseResponses = IR->NumChannels;
 				ConvReverbInitData.ImpulseSampleRate = IR->SampleRate;
+				ConvReverbInitData.bIsImpulseTrueStereo = IR->bTrueStereo && (IR->NumChannels % 2 == 0);
 			}
 
 			switch (InPreset->BlockSize)
@@ -431,6 +479,12 @@ void FSubmixEffectConvolutionReverb::SetConvolutionReverbIfCurrent(TUniquePtr<Au
 	if (bIsCurrent)
 	{
 		ConvolutionReverb = MoveTemp(InReverb);
+
+		if (ConvolutionReverb.IsValid())
+		{
+			ConvolutionReverb->SetSettings(GetParameters());
+
+		}
 	}
 }
 
@@ -513,10 +567,10 @@ void USubmixEffectConvolutionReverbPreset::SetSettings(const FSubmixEffectConvol
 void USubmixEffectConvolutionReverbPreset::SetImpulseResponse(UAudioImpulseResponse* InImpulseResponse)
 {
 	ImpulseResponse = InImpulseResponse;
-	UpdateEffectConvolutionReverb();
+	RebuildConvolutionReverb();
 }
 
-void USubmixEffectConvolutionReverbPreset::UpdateEffectConvolutionReverb()
+void USubmixEffectConvolutionReverbPreset::RebuildConvolutionReverb()
 {
 	using namespace AudioConvReverbIntrinsics;
 	using FEffectWeakPtr = TWeakPtr<FSoundEffectBase, ESPMode::ThreadSafe>;
@@ -584,6 +638,8 @@ void USubmixEffectConvolutionReverbPreset::PreEditChange(FProperty* PropertyAbou
 			{
 				ImpulseResponse->OnObjectPropertyChanged.Remove(DelegateHandle);
 			}
+
+			DelegateHandles.Remove(ImpulseResponse);
 		}
 	}
 }
@@ -604,7 +660,7 @@ void USubmixEffectConvolutionReverbPreset::PostEditChangeProperty(FPropertyChang
 			GET_MEMBER_NAME_CHECKED(USubmixEffectConvolutionReverbPreset, bEnableHardwareAcceleration),
 			GET_MEMBER_NAME_CHECKED(USubmixEffectConvolutionReverbPreset, BlockSize),
 			GET_MEMBER_NAME_CHECKED(FSubmixEffectConvolutionReverbSettings, bMixInputChannelFormatToImpulseResponseFormat),
-			GET_MEMBER_NAME_CHECKED(FSubmixEffectConvolutionReverbSettings, bMixReverbOutputToOutputChannelFormat)
+			GET_MEMBER_NAME_CHECKED(FSubmixEffectConvolutionReverbSettings, bMixReverbOutputToOutputChannelFormat),
 		}
 	);
 
@@ -614,11 +670,7 @@ void USubmixEffectConvolutionReverbPreset::PostEditChangeProperty(FPropertyChang
 		{
 			const FName& Name = PropertyThatChanged->GetFName();
 
-			if (ConvolutionReverbProperties.Contains(Name))
-			{
-				UpdateEffectConvolutionReverb();
-			}
-
+			// Need to update impulse reponse bindings and normalization before rebuilding convolution reverb
 			if (Name == ImpulseResponseFName)
 			{
 				BindToImpulseResponseObjectChange();
@@ -629,6 +681,11 @@ void USubmixEffectConvolutionReverbPreset::PostEditChangeProperty(FPropertyChang
 					UpdateSettings();
 				}
 			}
+
+			if (ConvolutionReverbProperties.Contains(Name))
+			{
+				RebuildConvolutionReverb();
+			}
 		}
 	}
 }
@@ -636,6 +693,7 @@ void USubmixEffectConvolutionReverbPreset::PostEditChangeProperty(FPropertyChang
 void USubmixEffectConvolutionReverbPreset::PostEditChangeImpulseProperty(FPropertyChangedEvent& PropertyChangedEvent) 
 {
 	const FName NormalizationVolumeFName = GET_MEMBER_NAME_CHECKED(UAudioImpulseResponse, NormalizationVolumeDb);
+	const FName TrueStereoFName = GET_MEMBER_NAME_CHECKED(UAudioImpulseResponse, bTrueStereo);
 
 	if (!HasAnyFlags(RF_ClassDefaultObject))
 	{
@@ -650,6 +708,10 @@ void USubmixEffectConvolutionReverbPreset::PostEditChangeImpulseProperty(FProper
 					Settings.NormalizationVolumeDb = ImpulseResponse->NormalizationVolumeDb;
 					UpdateSettings();
 				}
+			}
+			else if (Name == TrueStereoFName)
+			{
+				RebuildConvolutionReverb();
 			}
 		}
 	}

@@ -850,7 +850,10 @@ public:
 
 #if WITH_EDITOR
 	/** Utility which returns imported PCM data and the parsed header for the file. Returns true if there was data, false if there wasn't. */
-	bool GetImportedSoundWaveData(TArray<uint8>& OutRawPCMData, uint32& OutSampleRate, uint16& OutNumChannels);
+	bool GetImportedSoundWaveData(TArray<uint8>& OutRawPCMData, uint32& OutSampleRate, uint16& OutNumChannels) const;
+
+	/** Utility which returns imported PCM data and the parsed header for the file. Returns true if there was data, false if there wasn't. */
+	bool GetImportedSoundWaveData(TArray<uint8>& OutRawPCMData, uint32& OutSampleRate, TArray<EAudioSpeakers>& OutChannelOrder) const;
 
 	/**
 	 * This function can be called before playing or using a SoundWave to check if any cook settings have been modified since this SoundWave was last cooked.
