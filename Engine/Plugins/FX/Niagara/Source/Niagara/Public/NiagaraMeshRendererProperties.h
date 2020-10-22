@@ -28,6 +28,18 @@ enum class ENiagaraMeshFacingMode : uint8
 };
 
 UENUM()
+enum class ENiagaraMeshPivotOffsetSpace : uint8 {
+	/** The pivot offset is in the mesh's local space (default) */
+	Mesh,
+	/** The pivot offset is in the emitter's local space if the emitter is marked as local-space, or in world space otherwise */
+	Simulation,
+	/** The pivot offset is in world space */
+	World,
+	/** The pivot offset is in the emitter's local space */
+	Local
+};
+
+UENUM()
 enum class ENiagaraMeshLockedAxisSpace : uint8 {
 	/** The locked axis is in the emitter's local space if the emitter is marked as local-space, or in world space otherwise */
 	Simulation,
@@ -176,10 +188,14 @@ public:
 	/** Specifies what space the locked axis is in */
 	UPROPERTY(EditAnywhere, Category = "Mesh Rendering", meta = (EditCondition = "bLockedAxisEnable"))
 	ENiagaraMeshLockedAxisSpace LockedAxisSpace;
-
-	/** Local offset of the mesh pivot */
+	
+	/** Offset of the mesh pivot */
 	UPROPERTY(EditAnywhere, Category = "Mesh Rendering")
 	FVector PivotOffset;
+
+	/** What space is the pivot offset in? */
+	UPROPERTY(EditAnywhere, Category = "Mesh Rendering")
+	ENiagaraMeshPivotOffsetSpace PivotOffsetSpace;
 	
 	/** Enables frustum culling of individual mesh particles */
 	UPROPERTY(EditAnywhere, Category = "Visibility")

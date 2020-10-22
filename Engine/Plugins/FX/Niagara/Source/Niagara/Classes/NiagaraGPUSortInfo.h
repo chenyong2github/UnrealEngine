@@ -58,6 +58,7 @@ struct FNiagaraGPUSortInfo
 	int32 RendererVisTagAttributeOffset = INDEX_NONE;
 	int32 RendererVisibility = 0;
 	FSphere LocalBSphere = FSphere(0);
+	FVector CullingWorldSpaceOffset = FVector(0, 0, 0);
 	FVector2D DistanceCullRange { 0.0f, FLT_MAX };
 	TArray<FPlane, TFixedAllocator<MaxCullPlanes>> CullPlanes;
 

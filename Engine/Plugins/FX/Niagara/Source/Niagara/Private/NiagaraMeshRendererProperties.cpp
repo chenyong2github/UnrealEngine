@@ -87,8 +87,42 @@ FNiagaraBoundsCalculator* UNiagaraMeshRendererProperties::CreateBoundsCalculator
 {
 	if (ParticleMesh)
 	{
+		FBox LocalBounds = ParticleMesh->GetBounds().GetBox();
+		FVector MeshOffset(ForceInitToZero);
+		ENiagaraBoundsMeshOffsetTransform MeshOffsetTransform = ENiagaraBoundsMeshOffsetTransform::None;
+		if (PivotOffsetSpace == ENiagaraMeshPivotOffsetSpace::Mesh)
+		{
+			// Offset the local bounds
+			LocalBounds = LocalBounds.ShiftBy(PivotOffset);
+		}
+		else
+		{
+			// Offset is in either system-local or world space, and we need to decide how to transform it, if at all
+			MeshOffset = PivotOffset;
+
+			if (PivotOffsetSpace != ENiagaraMeshPivotOffsetSpace::Simulation)
+			{
+				bool bLocalSpace = false;
+				if (UNiagaraEmitter* Emitter = Cast<UNiagaraEmitter>(GetOuter()))
+				{
+					bLocalSpace = Emitter->bLocalSpace;
+				}
+
+				if (bLocalSpace && PivotOffsetSpace == ENiagaraMeshPivotOffsetSpace::World)
+				{
+					MeshOffsetTransform = ENiagaraBoundsMeshOffsetTransform::WorldToLocal;
+				}
+				else if (!bLocalSpace && PivotOffsetSpace == ENiagaraMeshPivotOffsetSpace::Local)
+				{
+					MeshOffsetTransform = ENiagaraBoundsMeshOffsetTransform::LocalToWorld;
+				}
+			}			
+		}
+
+		// Take the bounding center into account with the extents, as it may not be at the origin
+		const FVector Extents = LocalBounds.Max.GetAbs().ComponentMax(LocalBounds.Min.GetAbs());
 		FNiagaraBoundsCalculatorHelper<false, true, false>* BoundsCalculator
-			= new FNiagaraBoundsCalculatorHelper<false, true, false>(ParticleMesh->GetBounds().BoxExtent);
+			= new FNiagaraBoundsCalculatorHelper<false, true, false>(Extents, MeshOffset, MeshOffsetTransform);
 		return BoundsCalculator;
 	}
 
