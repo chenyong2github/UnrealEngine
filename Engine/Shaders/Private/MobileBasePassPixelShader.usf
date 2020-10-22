@@ -894,8 +894,8 @@ void Main(
 		OutColor.rgb = Color * VertexFog.a + VertexFog.rgb;
 
 		#if !MATERIAL_USE_ALPHA_TO_COVERAGE
-			// Scene color alpha is not used yet so we set it to 0
-			OutColor.a = 0.0;
+			// Scene color alpha is not used yet so we set it to 1
+			OutColor.a = 1.0;
 
 			#if OUTPUT_MOBILE_HDR 
 				// Store depth in FP16 alpha. This depth value can be fetched during translucency or sampled in post-processing
