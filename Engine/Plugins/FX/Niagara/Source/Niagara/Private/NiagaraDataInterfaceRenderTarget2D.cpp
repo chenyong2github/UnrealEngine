@@ -6,6 +6,7 @@
 #include "TextureResource.h"
 #include "Engine/Texture2D.h"
 #include "NiagaraEmitterInstanceBatcher.h"
+#include "NiagaraSettings.h"
 #include "NiagaraSystemInstance.h"
 #include "NiagaraRenderer.h"
 #if WITH_EDITOR
@@ -236,7 +237,9 @@ bool UNiagaraDataInterfaceRenderTarget2D::Equals(const UNiagaraDataInterface* Ot
 		OtherTyped->bPreviewRenderTarget == bPreviewRenderTarget &&
 #endif
 		OtherTyped->RenderTargetUserParameter == RenderTargetUserParameter &&
-		OtherTyped->Size == Size;
+		OtherTyped->Size == Size &&
+		OtherTyped->OverrideRenderTargetFormat == OverrideRenderTargetFormat &&
+		OtherTyped->bOverrideFormat == bOverrideFormat;
 }
 
 bool UNiagaraDataInterfaceRenderTarget2D::CopyToInternal(UNiagaraDataInterface* Destination) const
@@ -253,6 +256,8 @@ bool UNiagaraDataInterfaceRenderTarget2D::CopyToInternal(UNiagaraDataInterface* 
 	}
 
 	DestinationTyped->Size = Size;
+	DestinationTyped->OverrideRenderTargetFormat = OverrideRenderTargetFormat;
+	DestinationTyped->bOverrideFormat = bOverrideFormat;
 #if WITH_EDITORONLY_DATA
 	DestinationTyped->bPreviewRenderTarget = bPreviewRenderTarget;
 #endif
@@ -338,6 +343,7 @@ bool UNiagaraDataInterfaceRenderTarget2D::InitPerInstanceData(void* PerInstanceD
 	FRenderTarget2DRWInstanceData_GameThread* InstanceData = new (PerInstanceData) FRenderTarget2DRWInstanceData_GameThread();
 	InstanceData->Size.X = FMath::Clamp<int>(Size.X, 1, GMaxTextureDimensions);
 	InstanceData->Size.Y = FMath::Clamp<int>(Size.Y, 1, GMaxTextureDimensions);
+	InstanceData->Format = bOverrideFormat ? OverrideRenderTargetFormat : GetDefault<UNiagaraSettings>()->DefaultRenderTargetFormat;
 	InstanceData->RTUserParamBinding.Init(SystemInstance->GetInstanceParameters(), RenderTargetUserParameter.Parameter);
 #if WITH_EDITORONLY_DATA
 	InstanceData->bPreviewTexture = bPreviewRenderTarget;
@@ -362,7 +368,7 @@ bool UNiagaraDataInterfaceRenderTarget2D::InitPerInstanceData(void* PerInstanceD
 	}
 	InstanceData->TargetTexture->bCanCreateUAV = true;
 	InstanceData->TargetTexture->bAutoGenerateMips = false;
-	InstanceData->TargetTexture->RenderTargetFormat = RTF_RGBA16f;
+	InstanceData->TargetTexture->RenderTargetFormat = InstanceData->Format;
 	InstanceData->TargetTexture->ClearColor = FLinearColor(0.0, 0, 0, 0);
 	InstanceData->TargetTexture->InitAutoFormat(InstanceData->Size.X, InstanceData->Size.Y);
 	InstanceData->TargetTexture->UpdateResourceImmediate(true);
@@ -502,12 +508,12 @@ bool UNiagaraDataInterfaceRenderTarget2D::PerInstanceTickPostSimulate(void* PerI
 		// Do we need to update the texture?
 		if (InstanceData->TargetTexture)
 		{
-			if (InstanceData->TargetTexture->SizeX != InstanceData->Size.X || InstanceData->TargetTexture->SizeY != InstanceData->Size.Y || InstanceData->TargetTexture->RenderTargetFormat != RTF_RGBA16f || !InstanceData->TargetTexture->bCanCreateUAV || InstanceData->TargetTexture->bAutoGenerateMips)
+			if (InstanceData->TargetTexture->SizeX != InstanceData->Size.X || InstanceData->TargetTexture->SizeY != InstanceData->Size.Y || InstanceData->TargetTexture->RenderTargetFormat != InstanceData->Format || !InstanceData->TargetTexture->bCanCreateUAV || InstanceData->TargetTexture->bAutoGenerateMips)
 			{
 				// resize RT to match what we need for the output
 				InstanceData->TargetTexture->bCanCreateUAV = true;
 				InstanceData->TargetTexture->bAutoGenerateMips = false;
-				InstanceData->TargetTexture->RenderTargetFormat = RTF_RGBA16f;
+				InstanceData->TargetTexture->RenderTargetFormat = InstanceData->Format;
 				InstanceData->TargetTexture->InitAutoFormat(InstanceData->Size.X, InstanceData->Size.Y);
 				InstanceData->TargetTexture->UpdateResourceImmediate(true);
 				bUpdateRT = true;
