@@ -42,7 +42,7 @@ namespace
 		}
 
 		FTransform LocalTransform(Instance.TransformMatrix);
-		FTransform LocalUETransform = FDatasmithUtils::ConvertTransform((FDatasmithUtils::EModelCoordSystem) ImportParameters.ModelCoordSys, LocalTransform);
+		FTransform LocalUETransform = FDatasmithUtils::ConvertTransform(ImportParameters.ModelCoordSys, LocalTransform);
 
 		Actor->SetTranslation(LocalUETransform.GetTranslation() * ImportParameters.ScaleFactor);
 		Actor->SetScale(LocalUETransform.GetScale3D());
