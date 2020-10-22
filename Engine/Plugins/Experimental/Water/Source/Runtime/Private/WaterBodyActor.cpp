@@ -93,7 +93,7 @@ AWaterBody::AWaterBody(const FObjectInitializer& ObjectInitializer)
 	TargetWaveMaskDepth = 2048.f;
 
 #if WITH_EDITOR
-	if (!HasAnyFlags(RF_ClassDefaultObject))
+	if (!IsTemplate())
 	{
 		SplineComp->OnSplineDataChanged().AddUObject(this, &AWaterBody::OnSplineDataChanged);
 	}
@@ -1005,6 +1005,47 @@ void AWaterBody::OnWavesDataUpdated(UWaterWavesBase* InWaterWaves, EPropertyChan
 	// Waves data affect the navigation : 
 	OnWaterBodyChanged(/*bShapeOrPositionChanged = */true);
 }
+
+void AWaterBody::OnWaterSplineMetadataChanged(UWaterSplineMetadata* InWaterSplineMetadata, FPropertyChangedEvent& PropertyChangedEvent)
+{
+	bool bShapeOrPositionChanged = false;
+
+	FName ChangedProperty = PropertyChangedEvent.GetPropertyName();
+	if ((ChangedProperty == NAME_None)
+		|| (ChangedProperty == GET_MEMBER_NAME_CHECKED(UWaterSplineMetadata, Depth))
+		|| (ChangedProperty == GET_MEMBER_NAME_CHECKED(UWaterSplineMetadata, RiverWidth))
+		|| (ChangedProperty == GET_MEMBER_NAME_CHECKED(UWaterSplineMetadata, WaterVelocityScalar)))
+	{
+		// Those changes require an update of the water brush (except in interactive mode, where we only apply the change once the value is actually set): 
+		bShapeOrPositionChanged = true;
+	}
+
+	if ((ChangedProperty == NAME_None)
+		|| (ChangedProperty == GET_MEMBER_NAME_CHECKED(UWaterSplineMetadata, RiverWidth)))
+	{ 
+		// River Width is driving the spline shape, make sure the spline component is aware of the change : 
+		SplineComp->SynchronizeWaterProperties();
+	}
+
+	// Waves data affect the navigation : 
+	OnWaterBodyChanged(bShapeOrPositionChanged);
+}
+
+void AWaterBody::RegisterOnChangeWaterSplineMetadata(UWaterSplineMetadata* InWaterSplineMetadata, bool bRegister)
+{
+	if (InWaterSplineMetadata != nullptr)
+	{
+		if (bRegister)
+		{
+			InWaterSplineMetadata->OnChangeData.AddUObject(this, &AWaterBody::OnWaterSplineMetadataChanged);
+		}
+		else
+		{
+			InWaterSplineMetadata->OnChangeData.RemoveAll(this);
+		}
+	}
+}
+
 #endif
 
 void AWaterBody::ApplyNavigationSettings() const
@@ -1201,6 +1242,9 @@ void AWaterBody::PostRegisterAllComponents()
 	Super::PostRegisterAllComponents();
 
 #if WITH_EDITOR
+	// Register to data changes on the spline metadata (we only do it here because WaterSplineMetadata shouldn't ever change after creation/load/duplication)
+	RegisterOnChangeWaterSplineMetadata(WaterSplineMetadata, /*bRegister = */true);
+
 	FixupOnPostRegisterAllComponents();
 
 	// make sure existing collision components are marked as net-addressable (their names should already be deterministic) :
@@ -1322,6 +1366,7 @@ void AWaterBody::Destroyed()
 	Super::Destroyed();
 
 #if WITH_EDITOR
+	RegisterOnChangeWaterSplineMetadata(WaterSplineMetadata, /*bRegister = */false);
 	RegisterOnUpdateWavesData(WaterWaves, /*bRegister = */false);
 #endif // WITH_EDITOR		
 }
