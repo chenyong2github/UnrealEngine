@@ -466,7 +466,7 @@ FOpenGLStructuredBufferUnorderedAccessView::FOpenGLStructuredBufferUnorderedAcce
 	this->Resource = TextureID;
 	this->BufferResource = InStructuredBuffer->Resource;
 	this->Format = GLFormat.InternalFormat[0];
-	this->UnrealFormat = Format;
+	this->UnrealFormat = InFormat;
 }
 
 uint32 FOpenGLStructuredBufferUnorderedAccessView::GetBufferSize()
