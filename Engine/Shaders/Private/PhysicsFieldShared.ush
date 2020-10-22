@@ -10,28 +10,25 @@
 
 #define MAX_TARGETS_ARRAY 16
 
-float3 PhysicsField_ComputeSampleUV(in float3 WorldPosition, in int ClipmapIndex, in float3 ClipmapCenter, in float ClipmapDistance, in int ClipmapExponent, in int ClipmapCount)
+float3 PhysicsField_ComputeSampleUV(in float3 LocalPosition, in int ClipmapIndex, in float ClipmapDistance, in int ClipmapExponent, in int ClipmapCount)
 {
-	const float ClipmapExtent = ClipmapDistance * pow(ClipmapExponent, ClipmapIndex + 1 - ClipmapCount);
-	return (WorldPosition - ClipmapCenter) / (float3(2.0 * ClipmapExtent, 2.0 * ClipmapExtent, 2.0 * ClipmapExtent)) + float3(0.5, 0.5, 0.5);
+	const float ClipmapExtent = 2.0 * ClipmapDistance * pow((float) ClipmapExponent, (float) (ClipmapIndex + 1 - ClipmapCount));
+	return LocalPosition / ClipmapExtent + 0.5;
 }
 
-float4 PhysicsField_ComputeTargetOffsets(in int ClipmapIndex, in int TargetIndex, in int TargetCount, in int ClipmapCount, in int ClipmapResolution)
+int2 PhysicsField_ComputeTargetOffsets(in int ClipmapIndex, in int TargetIndex, in int TargetCount, in int ClipmapCount, in int ClipmapResolution)
 {
 	const int ExtentedResolution = ClipmapResolution + 1;
-	const float DatasIndex = ClipmapCount * TargetIndex + ClipmapIndex;
-	const float DatasCount = ClipmapCount * TargetCount;
+	const int DatasIndex = ClipmapCount * TargetIndex + ClipmapIndex;
+	const int DatasCount = ClipmapCount * TargetCount;
 	
-	const float ShiftIndex = DatasIndex * ExtentedResolution;
-	const float ShiftCount = DatasCount * ExtentedResolution - 1;
-	
-	return float4(ShiftIndex, ShiftIndex + ExtentedResolution * ClipmapCount, ShiftIndex + 2 * ExtentedResolution * ClipmapCount, ShiftCount);
+	return int2(DatasIndex * ExtentedResolution, DatasCount * ExtentedResolution - 1);
 }
 
-int PhysicsField_GetClipmapIndex(in float3 WorldPosition, in float3 ClipmapCenter, in float ClipmapDistance, in int ClipmapExponent, in int ClipmapCount)
+int PhysicsField_GetClipmapIndex(in float3 LocalPosition, in float ClipmapDistance, in int ClipmapExponent, in int ClipmapCount)
 {
-	const int3 ClipmapIndices = floor(log(abs(WorldPosition - ClipmapCenter) / float(ClipmapDistance)) / log(float(ClipmapExponent)) + int3(ClipmapCount, ClipmapCount, ClipmapCount));
-	int ClipmapIndex = max(max(ClipmapIndices[0], ClipmapIndices[1]), ClipmapIndices[2]);
+	const int3 ClipmapIndices = floor(log(abs(LocalPosition) / ClipmapDistance) / log((float) (ClipmapExponent)) + int3(ClipmapCount, ClipmapCount, ClipmapCount));
+	const int ClipmapIndex = max(max(ClipmapIndices[0], ClipmapIndices[1]), ClipmapIndices[2]);
 	
 	return clamp(ClipmapIndex, 0, ClipmapCount - 1);
 }
@@ -39,18 +36,20 @@ int PhysicsField_GetClipmapIndex(in float3 WorldPosition, in float3 ClipmapCente
 float3 PhysicsField_SamplePhysicsVectorField(in float3 WorldPosition, in int VectorTarget, in int VectorTargets[MAX_TARGETS_ARRAY], in int TargetCount, in float3 ClipmapCenter,
 			in float ClipmapDistance, in int ClipmapExponent, in int ClipmapCount, in int ClipmapResolution, in Texture3D<float4> ClipmapTexture, in SamplerState ClipmapSampler)
 {
+	const float3 LocalPosition = WorldPosition - ClipmapCenter;
+	
 	float3 FieldValue = float3(0, 0, 0);
-	if (VectorTarget != -1 && VectorTarget < MAX_TARGETS_ARRAY)
+	if (VectorTarget != -1 && VectorTarget < MAX_TARGETS_ARRAY && all(abs(LocalPosition) < float3(ClipmapDistance, ClipmapDistance, ClipmapDistance)))
 	{
 		const int TargetIndex = VectorTargets[VectorTarget];
 		if (TargetIndex != -1)
 		{
-			const int ClipmapIndex = PhysicsField_GetClipmapIndex(WorldPosition, ClipmapCenter, ClipmapDistance, ClipmapExponent, ClipmapCount);
-			float3 SampleUV = PhysicsField_ComputeSampleUV(WorldPosition, ClipmapIndex, ClipmapCenter, ClipmapDistance, ClipmapExponent, ClipmapCount);
+			const int ClipmapIndex = PhysicsField_GetClipmapIndex(LocalPosition, ClipmapDistance, ClipmapExponent, ClipmapCount);
+			float3 SampleUV = PhysicsField_ComputeSampleUV(LocalPosition, ClipmapIndex, ClipmapDistance, ClipmapExponent, ClipmapCount);
 			float SampleOffset = SampleUV.z * ClipmapResolution;
 			
-			const int4 TargetOffsets = PhysicsField_ComputeTargetOffsets(ClipmapIndex, TargetIndex, TargetCount, ClipmapCount, ClipmapResolution);
-			SampleUV.z = (TargetOffsets.w != 0) ? (SampleOffset + TargetOffsets.x) / TargetOffsets.w : 0.5;
+			const int2 TargetOffsets = PhysicsField_ComputeTargetOffsets(ClipmapIndex, TargetIndex, TargetCount, ClipmapCount, ClipmapResolution);
+			SampleUV.z = (TargetOffsets.y != 0) ? (SampleOffset + TargetOffsets.x) / TargetOffsets.y : 0.5;
 			FieldValue = ClipmapTexture.SampleLevel(ClipmapSampler, SampleUV, 0).xyz;
 		}
 	}
@@ -60,18 +59,20 @@ float3 PhysicsField_SamplePhysicsVectorField(in float3 WorldPosition, in int Vec
 float PhysicsField_SamplePhysicsScalarField(in float3 WorldPosition, in int ScalarTarget, in int ScalarTargets[MAX_TARGETS_ARRAY], in int TargetCount, in float3 ClipmapCenter,
 			in float ClipmapDistance, in int ClipmapExponent, in int ClipmapCount, in int ClipmapResolution, in Texture3D<float4> ClipmapTexture, in SamplerState ClipmapSampler)
 {
+	const float3 LocalPosition = WorldPosition - ClipmapCenter;
+	
 	float FieldValue = 0.0;
-	if (ScalarTarget != -1 && ScalarTarget < MAX_TARGETS_ARRAY)
+	if (ScalarTarget != -1 && ScalarTarget < MAX_TARGETS_ARRAY && all(abs(LocalPosition) < float3(ClipmapDistance, ClipmapDistance, ClipmapDistance)))
 	{
 		const int TargetIndex = ScalarTargets[ScalarTarget];
 		if (TargetIndex != -1)
 		{
-			const int ClipmapIndex = PhysicsField_GetClipmapIndex(WorldPosition, ClipmapCenter, ClipmapDistance, ClipmapExponent, ClipmapCount);
-			float3 SampleUV = PhysicsField_ComputeSampleUV(WorldPosition, ClipmapIndex, ClipmapCenter, ClipmapDistance, ClipmapExponent, ClipmapCount);
+			const int ClipmapIndex = PhysicsField_GetClipmapIndex(LocalPosition, ClipmapDistance, ClipmapExponent, ClipmapCount);
+			float3 SampleUV = PhysicsField_ComputeSampleUV(LocalPosition, ClipmapIndex, ClipmapDistance, ClipmapExponent, ClipmapCount);
 			float SampleOffset = SampleUV.z * ClipmapResolution;
 			
-			const int4 TargetOffsets = PhysicsField_ComputeTargetOffsets(ClipmapIndex, TargetIndex, TargetCount, ClipmapCount, ClipmapResolution);
-			SampleUV.z = (TargetOffsets.w != 0) ? (SampleOffset + TargetOffsets.x) / TargetOffsets.w : 0.5;
+			const int2 TargetOffsets = PhysicsField_ComputeTargetOffsets(ClipmapIndex, TargetIndex, TargetCount, ClipmapCount, ClipmapResolution);
+			SampleUV.z = (TargetOffsets.y != 0) ? (SampleOffset + TargetOffsets.x) / TargetOffsets.y : 0.5;
 			FieldValue = ClipmapTexture.SampleLevel(ClipmapSampler, SampleUV, 0).w;
 		}
 	}
@@ -81,20 +82,23 @@ float PhysicsField_SamplePhysicsScalarField(in float3 WorldPosition, in int Scal
 int PhysicsField_SamplePhysicsIntegerField(in float3 WorldPosition, in int IntegerTarget, in int IntegerTargets[MAX_TARGETS_ARRAY], in int TargetCount, in float3 ClipmapCenter,
 			in float ClipmapDistance, in int ClipmapExponent, in int ClipmapCount, in int ClipmapResolution, in Texture3D<float4> ClipmapTexture, in SamplerState ClipmapSampler)
 {
+	const float3 LocalPosition = WorldPosition - ClipmapCenter;
+	
 	int FieldValue = 0.0;
-	if (IntegerTarget != -1 && IntegerTarget < MAX_TARGETS_ARRAY)
+	if (IntegerTarget != -1 && IntegerTarget < MAX_TARGETS_ARRAY && all(abs(LocalPosition) < float3(ClipmapDistance, ClipmapDistance, ClipmapDistance)))
 	{
 		const int TargetIndex = IntegerTargets[IntegerTarget];
 		if (TargetIndex != -1)
 		{
-			const int ClipmapIndex = PhysicsField_GetClipmapIndex(WorldPosition, ClipmapCenter, ClipmapDistance, ClipmapExponent, ClipmapCount);
-			float3 SampleUV = PhysicsField_ComputeSampleUV(WorldPosition, ClipmapIndex, ClipmapCenter, ClipmapDistance, ClipmapExponent, ClipmapCount);
+			const int ClipmapIndex = PhysicsField_GetClipmapIndex(LocalPosition, ClipmapDistance, ClipmapExponent, ClipmapCount);
+			float3 SampleUV = PhysicsField_ComputeSampleUV(LocalPosition, ClipmapIndex, ClipmapDistance, ClipmapExponent, ClipmapCount);
 			float SampleOffset = SampleUV.z * ClipmapResolution;
 			
-			const int4 TargetOffsets = PhysicsField_ComputeTargetOffsets(ClipmapIndex, TargetIndex, TargetCount, ClipmapCount, ClipmapResolution);
-			SampleUV.z = (TargetOffsets.w != 0) ? (SampleOffset + TargetOffsets.x) / TargetOffsets.w : 0.5;
+			const int2 TargetOffsets = PhysicsField_ComputeTargetOffsets(ClipmapIndex, TargetIndex, TargetCount, ClipmapCount, ClipmapResolution);
+			SampleUV.z = (TargetOffsets.y != 0) ? (SampleOffset + TargetOffsets.x) / TargetOffsets.y : 0.5;
 			FieldValue = ClipmapTexture.SampleLevel(ClipmapSampler, SampleUV, 0).w;
 		}
 	}
 	return FieldValue;
 }
+

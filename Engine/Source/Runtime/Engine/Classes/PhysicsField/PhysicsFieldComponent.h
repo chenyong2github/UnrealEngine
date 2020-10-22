@@ -131,7 +131,7 @@ public:
 	 * Update the datas based on the new bounds and commands
 	 * @param FieldCommands - Field commands to be sampled
 	 */
-	void UpdateInstance(const TArray<FFieldSystemCommand>& FieldCommands, const float TimeSeconds);
+	void UpdateInstance(const float TimeSeconds);
 
 	/** Update the offsets and paramsgiven a node */
 	void BuildNodeParams(FFieldNodeBase* FieldNode);
