@@ -20,9 +20,9 @@ private:
 	virtual void CustomizeDetails(IDetailLayoutBuilder& InDetailLayout) override;
 	//~ Begin IDetailCustomization Interface
 
-	FReply ExposeFunctionsClicked();
+	FReply ExposeAttributesClicked();
 
-	FReply ResetFunctionsClicked();
+	FReply ResetAttributesClicked();
 
 	UK2Node_CastPatchToType* GetK2Node_CastPatchToType() const;
 
