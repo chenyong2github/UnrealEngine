@@ -56,7 +56,6 @@ public class RigLogicLib : ModuleRules
         if (Target.Platform == UnrealTargetPlatform.Win32 ||
                 Target.Platform == UnrealTargetPlatform.Win64 ||
                 Target.Platform == UnrealTargetPlatform.Linux ||
-                Target.Platform == UnrealTargetPlatform.LinuxAArch64 ||
                 Target.Platform == UnrealTargetPlatform.Mac ||
                 Target.Platform == UnrealTargetPlatform.PS4 ||
                 Target.Platform == UnrealTargetPlatform.XboxOne)
