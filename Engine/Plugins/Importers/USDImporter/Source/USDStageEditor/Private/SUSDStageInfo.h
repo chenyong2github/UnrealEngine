@@ -34,6 +34,7 @@ private:
 	FText GetRootLayerDisplayName() const { return StageInfos.RootLayerDisplayName; }
 	FText GetMetersPerUnit() const;
 
+	void OnStageInfoChanged( const TArray<FString>& ChangedFields );
 	void OnMetersPerUnitCommitted( const FText& InUnitsPerMeterText, ETextCommit::Type InCommitInfo );
 };
 
