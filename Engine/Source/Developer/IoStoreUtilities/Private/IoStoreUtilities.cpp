@@ -5203,25 +5203,22 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 
 	ParseSizeArgument(CmdLine, TEXT("-alignformemorymapping="), GeneralIoWriterSettings.MemoryMappingAlignment, DefaultMemoryMappingAlignment);
 	ParseSizeArgument(CmdLine, TEXT("-compressionblocksize="), GeneralIoWriterSettings.CompressionBlockSize, DefaultCompressionBlockSize);
-	bool bUseDefaultCompressionBlockAlignment = true;
-	if (ParseSizeArgument(CmdLine, TEXT("-blocksize="), GeneralIoWriterSettings.CompressionBlockAlignment))
+		
+	GeneralIoWriterSettings.CompressionBlockAlignment = DefaultCompressionBlockAlignment;
+	
+	uint64 BlockAlignment = 0;
+	if (ParseSizeArgument(CmdLine, TEXT("-blocksize="), BlockAlignment))
 	{
-		bUseDefaultCompressionBlockAlignment = false;
+		GeneralIoWriterSettings.CompressionBlockAlignment = BlockAlignment;
 	}
-
+	
 	uint64 PatchPaddingAlignment = 0;
-	if (ParseSizeArgument(CmdLine, TEXT("-patchpaddingalign"), PatchPaddingAlignment))
+	if (ParseSizeArgument(CmdLine, TEXT("-patchpaddingalign="), PatchPaddingAlignment))
 	{
-		bUseDefaultCompressionBlockAlignment = false;
-		if (!GeneralIoWriterSettings.CompressionBlockAlignment || PatchPaddingAlignment < GeneralIoWriterSettings.CompressionBlockAlignment)
+		if (PatchPaddingAlignment < GeneralIoWriterSettings.CompressionBlockAlignment)
 		{
 			GeneralIoWriterSettings.CompressionBlockAlignment = PatchPaddingAlignment;
 		}
-	}
-
-	if (bUseDefaultCompressionBlockAlignment)
-	{
-		GeneralIoWriterSettings.CompressionBlockAlignment = DefaultCompressionBlockAlignment;
 	}
 
 	UE_LOG(LogIoStore, Display, TEXT("Using memory mapping alignment '%ld'"), GeneralIoWriterSettings.MemoryMappingAlignment);
