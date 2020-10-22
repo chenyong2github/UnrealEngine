@@ -4,102 +4,95 @@
 
 #include "AudioMixerDevice.h"
 #include "CoreMinimal.h"
-#include "DSP/AudioChannelFormatConverter.h"
 #include "DSP/BufferVectorOperations.h"
 #include "DSP/ConvolutionAlgorithm.h"
 #include "DSP/SampleRateConverter.h"
+#include "SubmixChannelFormatConverter.h"
 #include "SynthesisModule.h"
 
 namespace Audio
 {
 	namespace ConvolutionReverbIntrinsics
 	{
-		/** Factory for creating downmixers based on the AC3 downmixing gain values. */
-		struct FAC3DownmixerFactory
+		// Reverb output formats by # of channels.
+		static const TArray<TArray<EAudioMixerChannel::Type>> ReverbOutputFormats = 
 		{
-			using FChannelMixEntry = FBaseChannelFormatConverter::FChannelMixEntry;
-			using FInputFormat = IChannelFormatConverter::FInputFormat;
-			using FOutputFormat = IChannelFormatConverter::FOutputFormat;
+			// Zero channels (none)
+			{},
 
-			/** Populate an array of mix entries to go from an input format to an output format using AC3 conforming gains. 
-			 *
-			 * @param InInputFormat - The format of the input audio.
-			 * @param InOutputFormat - The desired output audio format.
-			 * @param OutMixEntries - An array of channel mix entries. 
-			 *
-			 * @return True on success, false on failure. 
-			 */
-			static bool GetAC3DownmixEntries(const FInputFormat& InInputFormat, const FOutputFormat& InOutputFormat, TArray<FChannelMixEntry>& OutMixEntries)
+			// One channel (mono)
+			{ EAudioMixerChannel::FrontCenter },
+
+			// Two channels (stereo)
+			{ EAudioMixerChannel::FrontLeft, EAudioMixerChannel::FrontRight },
+
+			// Three channels (fronts)
+			{ EAudioMixerChannel::FrontLeft, EAudioMixerChannel::FrontCenter, EAudioMixerChannel::FrontRight },
+
+			// Four channels (quad)
 			{
-				OutMixEntries.Reset();
+				EAudioMixerChannel::Type::FrontLeft,
+				EAudioMixerChannel::Type::FrontRight,
+				EAudioMixerChannel::Type::SideLeft,
+				EAudioMixerChannel::Type::SideRight
+			},
 
-				if ((InInputFormat.NumChannels < 1) || (InOutputFormat.NumChannels < 1))
-				{
-					return false;
-				}
+			// Five channels (5.0)
+			{
+				EAudioMixerChannel::Type::FrontLeft,
+				EAudioMixerChannel::Type::FrontRight,
+				EAudioMixerChannel::Type::FrontCenter,
+				EAudioMixerChannel::Type::SideLeft,
+				EAudioMixerChannel::Type::SideRight
+			},
 
-				static const bool bIsVorbis = false;
-				static const bool bIsCenterChannelOnly = false;
+			// Six channels (5.1)
+			{
+				EAudioMixerChannel::Type::FrontLeft,
+				EAudioMixerChannel::Type::FrontRight,
+				EAudioMixerChannel::Type::FrontCenter,
+				EAudioMixerChannel::Type::LowFrequency,
+				EAudioMixerChannel::Type::SideLeft,
+				EAudioMixerChannel::Type::SideRight
+			},
 
-				// Get channel map from FMixerDevice
-				AlignedFloatBuffer ChannelMap;
+			// Seven channels (7.0)
+			{
+				EAudioMixerChannel::Type::FrontLeft,
+				EAudioMixerChannel::Type::FrontRight,
+				EAudioMixerChannel::Type::FrontCenter,
+				EAudioMixerChannel::Type::BackLeft,
+				EAudioMixerChannel::Type::BackRight,
+				EAudioMixerChannel::Type::SideLeft,
+				EAudioMixerChannel::Type::SideRight
+			},
 
-				FMixerDevice::Get2DChannelMap(bIsVorbis, InInputFormat.NumChannels, InOutputFormat.NumChannels, bIsCenterChannelOnly, ChannelMap);
+			// Eight channels (7.1)
+			{
+				EAudioMixerChannel::Type::FrontLeft,
+				EAudioMixerChannel::Type::FrontRight,
+				EAudioMixerChannel::Type::FrontCenter,
+				EAudioMixerChannel::Type::LowFrequency,
+				EAudioMixerChannel::Type::BackLeft,
+				EAudioMixerChannel::Type::BackRight,
+				EAudioMixerChannel::Type::SideLeft,
+				EAudioMixerChannel::Type::SideRight
+			}
+		};
 
-				const int32 ExpectedChannelMapSize = InInputFormat.NumChannels * InOutputFormat.NumChannels;
-			
-				if (ChannelMap.Num() != ExpectedChannelMapSize)
-				{
-					UE_LOG(LogSynthesis, Error, TEXT("Unexpected channel map size of %d. Expected %d"), ChannelMap.Num(), ExpectedChannelMapSize);
-					return false;
-				}
+		bool GetReverbOutputChannelTypesForNumChannels(int32 InNumChannels, TArray<EAudioMixerChannel::Type>& OutChannelTypes)
+		{
+			OutChannelTypes.Reset();
 
-				// Build array of FChannelMixEntry's from ChannelMap.
-				TArray<FChannelMixEntry> ChannelMixEntries;
-
-				for (int32 InputIndex = 0; InputIndex < InInputFormat.NumChannels; InputIndex++)
-				{
-					for (int32 OutputIndex = 0; OutputIndex < InOutputFormat.NumChannels; OutputIndex++)
-					{
-						int32 Index = InputIndex * InOutputFormat.NumChannels + OutputIndex;
-
-						if (ChannelMap[Index] != 0.f)
-						{
-							FChannelMixEntry& Entry = OutMixEntries.AddDefaulted_GetRef();
-
-							Entry.InputChannelIndex = InputIndex;
-							Entry.OutputChannelIndex = OutputIndex;
-							Entry.Gain = ChannelMap[Index];
-						}
-					}
-				}
+			if ((InNumChannels >= 0) && (InNumChannels < ReverbOutputFormats.Num()))
+			{
+				OutChannelTypes = ReverbOutputFormats[InNumChannels];
 
 				return true;
 			}
 
-			/** Creates an FBaseChannelFormatConverter using AC3 downmixing weights
-			 * to convert the InInputFormat to the InOutputFormat.
-			 *
-			 * @param InInputFormat - The format of the input audio.
-			 * @param InOutputFormat - The desired output audio format.
-			 * @param InNumFramesPerCall - The number of frames used for each call to ProcessAudio.
-			 *
-			 * @return A TUniquePtr to a FBaseChannelFormatConverter.
-			 */
-			static TUniquePtr<FBaseChannelFormatConverter> CreateAC3Downmixer(const FInputFormat& InInputFormat, const FOutputFormat& InOutputFormat, int32 InNumFramesPerCall)
-			{
-				TArray<FChannelMixEntry> ChannelMixEntries;
-
-				bool bSuccess = GetAC3DownmixEntries(InInputFormat, InOutputFormat, ChannelMixEntries);
-
-				if (!bSuccess)
-				{
-					return TUniquePtr<FBaseChannelFormatConverter>(nullptr);	
-				}
-
-				return FBaseChannelFormatConverter::CreateBaseFormatConverter(InInputFormat, InOutputFormat, ChannelMixEntries, InNumFramesPerCall);
-			}
-		};
+			return false;
+		}
 
 		// Sets impulse response on convolution algorithm. Handles resampling and deinterleaving.
 		bool SetImpulseResponse(IConvolutionAlgorithm& InAlgo, const TArray<float>& InSamples, int32 InNumImpulseResponses, float InImpulseSampleRate, float InTargetSampleRate)
@@ -335,15 +328,6 @@ namespace Audio
 			return TUniquePtr<FConvolutionReverb>();
 		}
 
-		const bool bMatchingOutputFormat = InInitData.bMixReverbOutputToOutputChannelFormat ||
-			(OutputAudioFormat.NumChannels == AlgoSettings.NumOutputChannels);
-
-		if (!bMatchingOutputFormat)
-		{
-			UE_LOG(LogSynthesis, Error, TEXT("Mismatched output format. Producing %d output channels. Expected %d."), AlgoSettings.NumOutputChannels, OutputAudioFormat.NumChannels);
-			return TUniquePtr<FConvolutionReverb>();
-		}
-
 		// Create convolution algorithm
 		TUniquePtr<IConvolutionAlgorithm> ConvolutionAlgorithm = FConvolutionFactory::NewConvolutionAlgorithm(AlgoSettings);
 
@@ -387,22 +371,46 @@ namespace Audio
 
 		FChannelFormatConverterWrapper OutputConverter;
 
-		// Crate output audio channel format conveter for output audio.
-		if (InInitData.bMixReverbOutputToOutputChannelFormat && (OutputAudioFormat.NumChannels != AlgoSettings.NumOutputChannels))
+
+		// Create output audio channel format conveter for output audio.
+		const bool bDownmixReverbToOutput = InInitData.bMixReverbOutputToOutputChannelFormat && (AlgoSettings.NumOutputChannels > OutputAudioFormat.NumChannels);
+		const bool bUpmixReverbToOutput = InInitData.bMixReverbOutputToOutputChannelFormat && (AlgoSettings.NumOutputChannels < OutputAudioFormat.NumChannels);
+		const bool bRouteReverbToOutput = !bDownmixReverbToOutput && !bUpmixReverbToOutput && (OutputAudioFormat.NumChannels != AlgoSettings.NumOutputChannels);
+
+		if (bDownmixReverbToOutput)
 		{
 			FInputFormat AlgoFormat;
 			AlgoFormat.NumChannels = AlgoSettings.NumOutputChannels;
-
-			if (AlgoSettings.NumOutputChannels > OutputAudioFormat.NumChannels)
+			OutputConverter = FChannelFormatConverterWrapper(FAC3DownmixerFactory::CreateAC3Downmixer(AlgoFormat, OutputAudioFormat, AlgoSettings.BlockNumSamples));
+		}
+		else if (bUpmixReverbToOutput || bRouteReverbToOutput)
+		{
+			// Get channel info for reverb output
+			TArray<EAudioMixerChannel::Type> ReverbChannelTypes;
+			if (!GetReverbOutputChannelTypesForNumChannels(AlgoSettings.NumOutputChannels, ReverbChannelTypes))
 			{
-				OutputConverter = FChannelFormatConverterWrapper(FAC3DownmixerFactory::CreateAC3Downmixer(AlgoFormat, OutputAudioFormat, AlgoSettings.BlockNumSamples));
+				UE_LOG(LogSynthesis, Warning, TEXT("Failed to handle reverb output channel count [%d]"), AlgoSettings.NumOutputChannels);
+				return TUniquePtr<FConvolutionReverb>();
 			}
-			else
+
+			// Get channel info for output audio
+			TArray<EAudioMixerChannel::Type> OutputAudioChannelTypes;
+			if (!GetSubmixChannelOrderForNumChannels(OutputAudioFormat.NumChannels, OutputAudioChannelTypes))
 			{
-				OutputConverter = FChannelFormatConverterWrapper(FSimpleUpmixer::CreateSimpleUpmixer(AlgoFormat, OutputAudioFormat, AlgoSettings.BlockNumSamples));
+				UE_LOG(LogSynthesis, Warning, TEXT("Failed to handle output audio channel count [%d]"), OutputAudioFormat.NumChannels);
+				return TUniquePtr<FConvolutionReverb>();
+			}
+
+			if (bUpmixReverbToOutput)
+			{
+				OutputConverter = FChannelFormatConverterWrapper(FSimpleUpmixer::CreateSimpleUpmixer(ReverbChannelTypes, OutputAudioChannelTypes, AlgoSettings.BlockNumSamples));
+			}
+			else if (bRouteReverbToOutput)
+			{
+				OutputConverter = FChannelFormatConverterWrapper(FSimpleRouter::CreateSimpleRouter(ReverbChannelTypes, OutputAudioChannelTypes, AlgoSettings.BlockNumSamples));
 			}
 		}
-		
+
 		return TUniquePtr<FConvolutionReverb>(new FConvolutionReverb(MoveTemp(ConvolutionAlgorithm), MoveTemp(InputConverter), MoveTemp(OutputConverter), InSettings));
 	}
 

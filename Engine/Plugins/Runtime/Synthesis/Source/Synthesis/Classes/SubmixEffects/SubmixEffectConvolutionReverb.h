@@ -54,6 +54,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SubmixEffectPreset, meta = (ClamMin = "-60.0", ClampMax = "15.0"))
 	float NormalizationVolumeDb;
 
+	/* If true, impulse response channels are interpreted as true stereo which allows channel crosstalk. If false, impulse response channels are interpreted as independent channel impulses. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SubmixEffectPreset, meta = (EditCondition = "(NumChannels > 0) && (NumChannels % 2 == 0)"))
+	bool bTrueStereo;
+
 	UPROPERTY(meta = ( DeprecatedProperty ) )
 	TArray<float> IRData_DEPRECATED;
 
@@ -283,7 +287,7 @@ private:
 	// This method requires that the submix effect is registered with a preset.  If this 
 	// submix effect is not registered with a preset, then this will not update the convolution
 	// algorithm.
-	void UpdateEffectConvolutionReverb();
+	void RebuildConvolutionReverb();
 
 	mutable FCriticalSection SettingsCritSect; 
 	FSubmixEffectConvolutionReverbSettings SettingsCopy; 
