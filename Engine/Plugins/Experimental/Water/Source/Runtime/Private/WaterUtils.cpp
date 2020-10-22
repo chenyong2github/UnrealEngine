@@ -26,7 +26,7 @@ UMaterialInstanceDynamic* FWaterUtils::GetOrCreateTransientMID(UMaterialInstance
 		else
 		{
 			// If it's not a UMaterialInstanceDynamic, it's a UMaterialInstanceConstant or a UMaterial, both of which can be used to create a MID : 
-			ResultMID = UMaterialInstanceDynamic::Create(InMaterialInterface, nullptr, InMIDName);
+			ResultMID = UMaterialInstanceDynamic::Create(InMaterialInterface, nullptr, MakeUniqueObjectName(GetTransientPackage(), UMaterialInstanceDynamic::StaticClass(), InMIDName));
 		}
 	}
 	check(ResultMID != nullptr);
