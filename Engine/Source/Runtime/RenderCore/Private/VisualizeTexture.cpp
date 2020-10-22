@@ -379,7 +379,7 @@ void FVisualizeTexture::DebugLog(EDebugLogVerbosity Verbosity)
 
 		TArray<FString> Entries;
 		Entries.Reserve(VersionCountMap.Num());
-		for (const auto KV : VersionCountMap)
+		for (auto KV : VersionCountMap)
 		{
 			Entries.Add(KV.Key);
 		}
