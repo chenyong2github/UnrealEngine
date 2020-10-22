@@ -172,13 +172,14 @@ namespace DatasmithRhino
 	{
 		public Texture RhinoTexture { get; private set; }
 		public string Name { get; private set; }
-		public string Label { get { return Name; } }
+		public string Label { get; private set; }
 		public string FilePath { get; private set; }
 
 		public RhinoTextureInfo(Texture InRhinoTexture, string InName, string InFilePath)
 		{
 			RhinoTexture = InRhinoTexture;
-			Name = InName;
+			Name = FDatasmithFacadeElement.GetStringHash(InName);
+			Label = InName;
 			FilePath = InFilePath;
 		}
 
@@ -686,11 +687,11 @@ namespace DatasmithRhino
 
 				if (!TextureHashToTextureInfo.ContainsKey(TextureHash))
 				{
-					string TextureName, TexturePath;
-					FDatasmithRhinoUtilities.GetRhinoTextureNameAndPath(RhinoTexture, out TextureName, out TexturePath);
-					TextureName = TextureLabelGenerator.GenerateUniqueNameFromBaseName(TextureName);
-
-					TextureHashToTextureInfo.Add(TextureHash, new RhinoTextureInfo(RhinoTexture, TextureName, TexturePath));
+					if (FDatasmithRhinoUtilities.GetRhinoTextureNameAndPath(RhinoTexture, out string TextureName, out string TexturePath))
+					{
+						TextureName = TextureLabelGenerator.GenerateUniqueNameFromBaseName(TextureName);
+						TextureHashToTextureInfo.Add(TextureHash, new RhinoTextureInfo(RhinoTexture, TextureName, TexturePath));
+					}
 				}
 			}
 		}
