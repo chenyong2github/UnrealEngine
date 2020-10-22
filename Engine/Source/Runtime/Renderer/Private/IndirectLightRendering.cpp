@@ -191,6 +191,11 @@ class FReflectionEnvironmentSkyLightingPS : public FGlobalShader
 			PermutationVector.Set<FSkyShadowing>(false);
 		}
 
+		if (PermutationVector.Get<FStrata>() && !Strata::IsStrataEnabled())
+		{
+			PermutationVector.Set<FStrata>(false);
+		}
+
 		return PermutationVector;
 	}
 

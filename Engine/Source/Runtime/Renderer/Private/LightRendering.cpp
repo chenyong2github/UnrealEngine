@@ -492,6 +492,11 @@ class FDeferredLightPS : public FGlobalShader
 			}
 		}
 
+		if (PermutationVector.Get<FStrata>() && !Strata::IsStrataEnabled())
+		{
+			return false;
+		}
+
 		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
 	}
 
