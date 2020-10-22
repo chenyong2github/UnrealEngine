@@ -3335,6 +3335,11 @@ dtStatus dtNavMeshQuery::findPolysAroundCircle(dtPolyRef startRef, const float* 
 	dtAssert(m_nodePool);
 	dtAssert(m_openList);
 
+//@UE4 BEGIN
+	if (!resultCount)
+		return DT_FAILURE | DT_INVALID_PARAM;
+//@UE4 END
+
 	*resultCount = 0;
 	
 	// Validate input
