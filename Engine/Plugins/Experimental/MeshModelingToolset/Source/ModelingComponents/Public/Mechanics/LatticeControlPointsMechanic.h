@@ -6,7 +6,7 @@
 
 #include "BaseBehaviors/BehaviorTargetInterfaces.h"
 #include "FrameTypes.h"
-#include "InteractionMechanic.h"
+#include "RectangleMarqueeMechanic.h"
 #include "InteractiveToolChange.h"
 #include "Snapping/PointPlanarSnapSolver.h"
 #include "Spatial/GeometrySet3.h"
@@ -28,7 +28,7 @@ class UTransformProxy;
 
 UCLASS()
 class MODELINGCOMPONENTS_API ULatticeControlPointsMechanic : 
-	public UInteractionMechanic, public IClickBehaviorTarget, public IHoverBehaviorTarget, public IClickDragBehaviorTarget
+	public URectangleMarqueeMechanic, public IClickBehaviorTarget, public IHoverBehaviorTarget
 {
 	GENERATED_BODY()
 
@@ -68,19 +68,10 @@ public:
 	virtual void OnEndHover() override;
 	virtual void OnUpdateModifierState(int ModifierID, bool bIsOn) override;
 
-	// IClickDragBehaviorTarget
-	FInputRayHit CanBeginClickDragSequence(const FInputDeviceRay& PressPos) override;
-	void OnClickPress(const FInputDeviceRay& PressPos) override;
-	void OnClickDrag(const FInputDeviceRay& DragPos) override;
-	void OnClickRelease(const FInputDeviceRay& ReleasePos) override;
-	void OnTerminateDragSequence() override;
-
-	// Marquee/rectangle select support
-	FVector2D DragStartScreenPosition;
-	FRay DragStartWorldRay;
-	FVector2D DragCurrentScreenPosition;
-	FRay DragCurrentWorldRay;
-	bool bIsDragging;
+	// URectangleMarqueeMechanic implementation
+	void OnDragRectangleStarted() final;
+	void OnDragRectangleChanged(const FCameraRectangle& Rectangle) final;
+	void OnDragRectangleFinished() final;
 
 	bool bHasChanged = false;
 
@@ -134,9 +125,6 @@ protected:
 	void GizmoTransformChanged(UTransformProxy* Proxy, FTransform Transform);
 	void GizmoTransformStarted(UTransformProxy* Proxy);
 	void GizmoTransformEnded(UTransformProxy* Proxy);
-
-	// Cached render information for viewport/scene interaction
-	FViewCameraState CachedCameraState;
 
 	// Support for hovering
 	TFunction<bool(const FVector3d&, const FVector3d&)> GeometrySetToleranceTest;

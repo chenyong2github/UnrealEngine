@@ -25,7 +25,7 @@ static const FText LatticePointMovementTransactionText = LOCTEXT("LatticePointMo
 
 void ULatticeControlPointsMechanic::Setup(UInteractiveTool* ParentToolIn)
 {
-	UInteractionMechanic::Setup(ParentToolIn);
+	URectangleMarqueeMechanic::Setup(ParentToolIn);
 
 	USingleClickInputBehavior* ClickBehavior = NewObject<USingleClickInputBehavior>();
 	ClickBehavior->Initialize(this);
@@ -40,11 +40,6 @@ void ULatticeControlPointsMechanic::Setup(UInteractiveTool* ParentToolIn)
 	HoverBehavior->Initialize(this);
 	HoverBehavior->Modifiers.RegisterModifier(AddToSelectionModifierId, ShiftOrCtrlDown);
 	ParentTool->AddInputBehavior(HoverBehavior);
-
-	UClickDragInputBehavior* ClickDragBehavior = NewObject<UClickDragInputBehavior>(this);
-	ClickDragBehavior->Initialize(this);
-	// TODO: Add CTRL support for drag selection?
-	ParentTool->AddInputBehavior(ClickDragBehavior);
 
 	DrawnControlPoints = NewObject<UPointSetComponent>();
 	DrawnControlPoints->SetPointMaterial(
@@ -378,7 +373,6 @@ void ULatticeControlPointsMechanic::OnClicked(const FInputDeviceRay& ClickPos)
 		ParentTool->GetToolManager()->EndUndoTransaction();
 	}
 
-	bIsDragging = false;
 }
 
 void ULatticeControlPointsMechanic::ChangeSelection(int32 NewPointID, bool bAddToSelection)
@@ -553,34 +547,15 @@ void ULatticeControlPointsMechanic::OnUpdateModifierState(int ModifierID, bool b
 }
 
 
-// ==================== IClickDragBehaviorTarget ====================
+// =========================== URectangleMarqueeMechanic ===========================
 
-FInputRayHit ULatticeControlPointsMechanic::CanBeginClickDragSequence(const FInputDeviceRay& PressPos)
+void ULatticeControlPointsMechanic::OnDragRectangleStarted()
 {
-	FInputRayHit Dummy;
-
-	// This is the boolean that is checked to see if a drag sequence can be started. In our case we want to begin the 
-	// drag sequence even if the first ray doesn't hit anything, so set this to true.
-	Dummy.bHit = true;
-
-	return Dummy;
-}
-
-void ULatticeControlPointsMechanic::OnClickPress(const FInputDeviceRay& PressPos)
-{
-	if (!PressPos.bHas2D)
-	{
-		return;
-	}
-
 	for (int32& PointID : SelectedPointIDs)
 	{
 		DrawnControlPoints->SetPointColor(PointID, NormalPointColor);
 	}
 	CurrentDragSelection.Empty();
-
-	DragStartScreenPosition = PressPos.ScreenPosition;
-	DragStartWorldRay = PressPos.WorldRay;
 
 	// Hide gizmo while dragging
 	if (PointTransformGizmo)
@@ -589,69 +564,14 @@ void ULatticeControlPointsMechanic::OnClickPress(const FInputDeviceRay& PressPos
 	}
 }
 
-
-static FVector2D PlaneCoordinates(const FVector& Point, const FPlane& Plane, const FVector& UBasisVector, const FVector& VBasisVector)
+void ULatticeControlPointsMechanic::OnDragRectangleChanged(const FCameraRectangle& Rectangle)
 {
-	float U = FVector::DotProduct(Point - Plane.GetOrigin(), UBasisVector);
-	float V = FVector::DotProduct(Point - Plane.GetOrigin(), VBasisVector);
-	return FVector2D{ U,V };
-}
-
-void ULatticeControlPointsMechanic::OnClickDrag(const FInputDeviceRay& DragPos)
-{
-	if (!DragPos.bHas2D)
-	{
-		return;
-	}
-
-	bIsDragging = true;
-	DragCurrentScreenPosition = DragPos.ScreenPosition;
-	DragCurrentWorldRay = DragPos.WorldRay;
-
-	// Intersect the drag rays and and project lattice points all to the same plane in 3D. Then compute 2D coordinates 
-	// and use an AABB test to determine which points are in the drag rectangle.
-
-	FViewCameraState CameraState;
-	GetParentTool()->GetToolManager()->GetContextQueriesAPI()->GetCurrentViewState(CameraState);
-
-	// Create plane in front of camera
-	FPlane CameraPlane(CameraState.Position + CameraState.Forward(), CameraState.Forward());
-
-	FVector UBasisVector = CameraState.Right();
-	FVector VBasisVector = CameraState.Up();
-
-	FVector StartIntersection = FMath::RayPlaneIntersection(DragStartWorldRay.Origin, 
-															DragStartWorldRay.Direction, 
-															CameraPlane);
-	FVector2D Start2D = PlaneCoordinates(StartIntersection, CameraPlane, UBasisVector, VBasisVector);
-
-	FVector CurrentIntersection = FMath::RayPlaneIntersection(DragCurrentWorldRay.Origin, 
-															  DragCurrentWorldRay.Direction, 
-															  CameraPlane);
-	FVector2D Current2D = PlaneCoordinates(CurrentIntersection, CameraPlane, UBasisVector, VBasisVector);
-
-	FBox2D DragBox(Start2D, Start2D);
-	DragBox += Current2D;	// Initialize this way so we don't have to care about min/max
-
+	CurrentDragSelection.Empty();
 	for (int32 PointID = 0; PointID < ControlPoints.Num(); ++PointID)
 	{
 		FVector PointPosition = DrawnControlPoints->GetPoint(PointID).Position;
-		FVector PointIntersection;
-		if (CameraState.bIsOrthographic)
-		{
-			// project directly to plane
-			PointIntersection = FVector::PointPlaneProject(PointPosition, CameraPlane);
-		}
-		else
-		{
-			// intersect along the eye-to-point ray
-			PointIntersection = FMath::RayPlaneIntersection(CameraState.Position, 
-															PointPosition - CameraState.Position,
-															CameraPlane);
-		}
 
-		FVector2D Point2D = PlaneCoordinates(PointIntersection, CameraPlane, UBasisVector, VBasisVector);
-		if (DragBox.IsInside(Point2D))
+		if (Rectangle.IsProjectedPointInRectangle(PointPosition) )
 		{
 			CurrentDragSelection.Add(PointID);
 			DrawnControlPoints->SetPointColor(PointID, SelectedColor);
@@ -663,7 +583,7 @@ void ULatticeControlPointsMechanic::OnClickDrag(const FInputDeviceRay& DragPos)
 	}
 }
 
-void ULatticeControlPointsMechanic::OnClickRelease(const FInputDeviceRay& ReleasePos)
+void ULatticeControlPointsMechanic::OnDragRectangleFinished()
 {
 	// Deselect previous SelectedPointIDs and replace it with "drag selection" points. Do this in one Undo transaction.
 
@@ -691,16 +611,6 @@ void ULatticeControlPointsMechanic::OnClickRelease(const FInputDeviceRay& Releas
 	ParentTool->GetToolManager()->EndUndoTransaction();
 
 	CurrentDragSelection.Empty();
-	bIsDragging = false;
-}
-
-
-void ULatticeControlPointsMechanic::OnTerminateDragSequence()
-{
-	// Not sure how this can happen. Pressing escape quits the tool altogether.
-	CurrentDragSelection.Empty();
-	bIsDragging = false;
-	UpdateGizmoLocation();
 }
 
 const TArray<FVector3d>& ULatticeControlPointsMechanic::GetControlPoints() const

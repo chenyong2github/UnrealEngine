@@ -17,8 +17,6 @@
 #include "DynamicMeshToMeshDescription.h"
 #include "MeshTransforms.h"
 #include "Algo/ForEach.h"
-#include "CanvasItem.h"
-#include "CanvasTypes.h"
 #include "Operations/FFDLattice.h"
 
 #define LOCTEXT_NAMESPACE "ULatticeDeformerTool"
@@ -76,15 +74,10 @@ void ULatticeDeformerTool::DrawHUD(FCanvas* Canvas, IToolsContextRenderAPI* Rend
 	EViewInteractionState State = RenderAPI->GetViewInteractionState();
 	bool bThisViewHasFocus = !!(State & EViewInteractionState::Focused);
 
-	// Draw the drag rectangle if it's active
-	if (bThisViewHasFocus && ControlPointsMechanic->bIsDragging)
+	if (bThisViewHasFocus)
 	{		
-		FVector2D Start = ControlPointsMechanic->DragStartScreenPosition;
-		FVector2D Curr = ControlPointsMechanic->DragCurrentScreenPosition;
-
-		FCanvasBoxItem BoxItem(Start / Canvas->GetDPIScale(), (Curr - Start) / Canvas->GetDPIScale());
-		BoxItem.SetColor(FLinearColor::White);
-		Canvas->DrawItem(BoxItem);
+		// Draw the drag rectangle if it's active
+		ControlPointsMechanic->DrawHUD(Canvas, RenderAPI);
 	}
 }
 
