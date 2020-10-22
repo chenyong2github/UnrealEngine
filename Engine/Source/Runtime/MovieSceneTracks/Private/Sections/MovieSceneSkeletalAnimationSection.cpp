@@ -59,9 +59,10 @@ UMovieSceneSkeletalAnimationSection::UMovieSceneSkeletalAnimationSection( const 
 	MatchedRotationOffset = FRotator::ZeroRotator;
 
 	bMatchTranslation = true;
-	bMatchRotation = true;
+	bMatchRotationYaw = true;
+	bMatchRotationRoll = false;
+	bMatchRotationPitch = false;
 	bMatchIncludeZHeight = false;
-	bMatchIncludePitchRotation = false;
 
 #if WITH_EDITOR
 
@@ -436,15 +437,20 @@ bool UMovieSceneSkeletalAnimationSection::GetRootMotionTransform(FFrameTime Curr
 {
 	UAnimSequence* AnimSequence = Cast<UAnimSequence>(Params.Animation);
 	FTransform OffsetTransform = GetOffsetTransform();
-	if (AnimSequence && AnimSequence->bForceRootLock == false)
+	if (AnimSequence)
 	{
 		float ManualWeight = 1.f;
 		Params.Weight.Evaluate(CurrentTime, ManualWeight);
 		OutWeight = ManualWeight * EvaluateEasing(CurrentTime);
 
 		float CurrentTimeSeconds = MapTimeToAnimation(CurrentTime, FrameRate);
+		if (AnimSequence->bForceRootLock) //if root lock is on just get the first frame since ExtractRootTrackTransform will still extract(it ignores the flag)
+		{
+			CurrentTimeSeconds = 0.0f;
+		}
 		OutTransform = AnimSequence->ExtractRootTrackTransform(CurrentTimeSeconds,nullptr);
 		OutTransform = OutTransform * OffsetTransform;
+
 		return true;
 	}
 	//for safety always return true for now
@@ -461,17 +467,59 @@ void UMovieSceneSkeletalAnimationSection::FindBestBlendPoint(USkeletalMeshCompon
 	}
 }
 
+void UMovieSceneSkeletalAnimationSection::MultiplyOutInverseOnNextClips(FVector PreviousMatchedLocationOffset, FRotator PreviousMatchedRotationOffset)
+{
+	UMovieSceneSkeletalAnimationTrack* Track = GetTypedOuter<UMovieSceneSkeletalAnimationTrack>();
+	if (Track)
+	{
+		bool bMultiplyOutInverse = false;
+		//calculate the diff here....
+		FTransform Previous(PreviousMatchedRotationOffset.Quaternion(), PreviousMatchedLocationOffset);
+		FTransform Matched(MatchedRotationOffset.Quaternion(), MatchedLocationOffset);
+		FTransform Inverse = Previous.GetRelativeTransformReverse(Matched);
+		for (UMovieSceneSection* Section : Track->AnimationSections)
+		{
+			if (bMultiplyOutInverse)
+			{
+				UMovieSceneSkeletalAnimationSection* AnimSection = Cast<UMovieSceneSkeletalAnimationSection>(Section);
+				if (AnimSection)
+				{
+					//then for all of the next sections we need to multiply that diff through.
+					FTransform CurrentMatched(AnimSection->MatchedRotationOffset, AnimSection->MatchedLocationOffset);
+					FTransform NewMatched = Inverse.GetRelativeTransformReverse(CurrentMatched);
+					AnimSection->MatchedLocationOffset = NewMatched.GetTranslation();
+					AnimSection->MatchedRotationOffset = NewMatched.GetRotation().Rotator();
+				}
+				break;
+			}
+			if (Section == this) //next ones we multiply out
+			{
+				bMultiplyOutInverse = true;
+			}
+		}
+	}
+}
+
 void UMovieSceneSkeletalAnimationSection::ClearMatchedOffsetTransforms()
 {
-	bMatchWithPrevious = true;
-	MatchedBoneName = NAME_None;
+	//need to store the previous since we may need to apply the change we made to the next clips so they don't move
+	FVector PreviousMatchedLocationOffset = MatchedLocationOffset;
+	FRotator PreviousMatchedRotationOffset = MatchedRotationOffset;
 	MatchedLocationOffset = FVector::ZeroVector;
 	MatchedRotationOffset = FRotator::ZeroRotator;
+	if (bMatchWithPrevious == false)
+	{
+		MultiplyOutInverseOnNextClips(PreviousMatchedLocationOffset, PreviousMatchedRotationOffset);
+	}
+	bMatchWithPrevious = true;
+	MatchedBoneName = NAME_None;
 	if (GetRootMotionParams())
 	{
 		GetRootMotionParams()->bRootMotionsDirty = true;
 	}
 }
+
+
 void UMovieSceneSkeletalAnimationSection::MatchSectionByBoneTransform(USkeletalMeshComponent* SkelMeshComp, FFrameTime CurrentFrame, FFrameRate FrameRate,
 	const FName& BoneName)
 {
@@ -481,63 +529,25 @@ void UMovieSceneSkeletalAnimationSection::MatchSectionByBoneTransform(USkeletalM
 	{
 		FTransform DiffTransform;
 		FVector DiffTranslate;
-		FQuat DiffRotate;
+		FQuat DiffRotate; 
+		//need to store the previous since we may need to apply the change we made to the next clips so they don't move
+		FVector PreviousMatchedLocationOffset = MatchedLocationOffset;
+		FRotator PreviousMatchedRotationOffset = MatchedRotationOffset;
+
 		Track->MatchSectionByBoneTransform(bMatchWithPrevious,SkelMeshComp, this, CurrentFrame, FrameRate, BoneName, DiffTransform,DiffTranslate,DiffRotate);
 
-		/*
-		StartLocationOffset = bMatchTranslation ? DiffTranslate : FVector::ZeroVector;
-		if (!bMatchIncludeZHeight)
-		{
-			StartLocationOffset.Z = 0.0f;
-		}
-
-		StartRotationOffset = bMatchRotation ? DiffRotate.Rotator() : FRotator::ZeroRotator;
-		if (!bMatchIncludePitchRotation)
-		{
-			StartRotationOffset.Pitch = 0.0f;
-		}
-		*/
-		
-		
-		
 		MatchedLocationOffset = bMatchTranslation ? DiffTranslate : FVector::ZeroVector;
-		if (!bMatchIncludeZHeight)
-		{
-			MatchedLocationOffset.Z = 0.0f;
-		}
-
-		MatchedRotationOffset = bMatchRotation ? DiffRotate.Rotator() : FRotator::ZeroRotator;
-		if (!bMatchIncludePitchRotation)
-		{
-			MatchedRotationOffset.Pitch = 0.0f;
-		}
+		MatchedRotationOffset = DiffRotate.Rotator();
 		
-		//if we previous we need to multiply the inverses of these out so they stay at their current locations
 		if (bMatchWithPrevious == false)
 		{
-			bool bMultiplyOutInverse = false;
-			FVector InverseLoc(-MatchedLocationOffset);
-			FQuat InverseRot(MatchedRotationOffset.Quaternion().Inverse());
-			for (UMovieSceneSection* Section : Track->AnimationSections)
-			{
-				if (bMultiplyOutInverse)
-				{
-					UMovieSceneSkeletalAnimationSection* AnimSection = Cast<UMovieSceneSkeletalAnimationSection>(Section);
-					if (AnimSection)
-					{
-						AnimSection->MatchedLocationOffset += InverseLoc;
-						AnimSection->MatchedRotationOffset = (AnimSection->MatchedRotationOffset.Quaternion() * InverseRot).Rotator();
-					}
-					break;
-				}
-				if (Section == this) //next ones we multily out
-				{
-					bMultiplyOutInverse = true;
-				}
-			}
+			MultiplyOutInverseOnNextClips(PreviousMatchedLocationOffset, PreviousMatchedRotationOffset);
 		}
 		
-		GetRootMotionParams()->bRootMotionsDirty = true;
+		if (GetRootMotionParams())
+		{
+			GetRootMotionParams()->bRootMotionsDirty = true;
+		}
 	}
 }
 
@@ -548,21 +558,27 @@ void UMovieSceneSkeletalAnimationSection::ToggleMatchTranslation()
 	GetRootMotionParams()->bRootMotionsDirty = true;
 }
 
-void UMovieSceneSkeletalAnimationSection::ToggleMatchRotation()
-{
-	bMatchRotation = bMatchRotation ? false : true;
-	GetRootMotionParams()->bRootMotionsDirty = true;
-}
-
 void UMovieSceneSkeletalAnimationSection::ToggleMatchIncludeZHeight()
 {
 	bMatchIncludeZHeight = bMatchIncludeZHeight ? false : true;
 	GetRootMotionParams()->bRootMotionsDirty = true;
 }
 
+void UMovieSceneSkeletalAnimationSection::ToggleMatchIncludeYawRotation()
+{
+	bMatchRotationYaw = bMatchRotationYaw ? false : true;
+	GetRootMotionParams()->bRootMotionsDirty = true;
+}
+
 void UMovieSceneSkeletalAnimationSection::ToggleMatchIncludePitchRotation()
 {
-	bMatchIncludePitchRotation = bMatchIncludePitchRotation ? false : true;
+	bMatchRotationPitch = bMatchRotationPitch ? false : true;
+	GetRootMotionParams()->bRootMotionsDirty = true;
+}
+
+void UMovieSceneSkeletalAnimationSection::ToggleMatchIncludeRollRotation()
+{
+	bMatchRotationRoll = bMatchRotationRoll ? false : true;
 	GetRootMotionParams()->bRootMotionsDirty = true;
 }
 
