@@ -14,6 +14,8 @@
 #include "AI/Navigation/NavigationTypes.h"
 #include "NavMesh/RecastNavMesh.h"
 #include "NavMesh/RecastQueryFilter.h"
+#include "AI/NavigationSystemBase.h"
+#include "VisualLogger/VisualLogger.h"
 
 #if RECAST_INTERNAL_DEBUG_DATA
 #include "NavMesh/RecastInternalDebugData.h"
@@ -84,6 +86,9 @@ public:
 
 	/** Check if path exists */
 	ENavigationQueryResult::Type TestPath(const FVector& StartLoc, const FVector& EndLoc, const FNavigationQueryFilter& Filter, const UObject* Owner, int32* NumVisitedNodes = 0) const;
+
+	template< typename TRecastAStar, typename TRecastAStartGraph, typename TRecastGraphAStarFilter, typename TRecastAStarResult >
+	ENavigationQueryResult::Type FindPathCustomAStar(TRecastAStartGraph& RecastGraphWrapper, TRecastAStar& AStarAlgo, const FVector& StartLoc, const FVector& EndLoc, const float CostLimit, FNavMeshPath& Path, const FNavigationQueryFilter& Filter, const UObject* Owner) const;
 
 	/** Checks if the whole segment is in navmesh */
 	void Raycast(const FVector& StartLoc, const FVector& EndLoc, const FNavigationQueryFilter& InQueryFilter, const UObject* Owner,
@@ -269,6 +274,55 @@ protected:
 	 *	@param ForbiddenFlags polys with flags matching the fillter will get added to 
 	 */
 	int32 GetTilesDebugGeometry(const FRecastNavMeshGenerator* Generator, const dtMeshTile& Tile, int32 VertBase, FRecastDebugGeometry& OutGeometry, int32 TileIdx = INDEX_NONE, uint16 ForbiddenFlags = 0) const;
+
+	ENavigationQueryResult::Type PostProcessPathInternal(dtStatus FindPathStatus, FNavMeshPath& Path, 
+		const dtNavMeshQuery& NavQuery, const dtQueryFilter* QueryFilter, 
+		NavNodeRef StartPolyID, NavNodeRef EndPolyID, 
+		const FVector& RecastStartPos, const FVector& RecastEndPos, 
+		dtQueryResult& PathResult) const;
 };
+
+template< typename TRecastAStar, typename TRecastAStartGraph, typename TRecastGraphAStarFilter, typename TRecastAStarResult >
+ENavigationQueryResult::Type FPImplRecastNavMesh::FindPathCustomAStar(TRecastAStartGraph& RecastGraphWrapper, TRecastAStar& AStarAlgo, const FVector& StartLoc, const FVector& EndLoc, const float CostLimit, FNavMeshPath& Path, const FNavigationQueryFilter& InQueryFilter, const UObject* Owner) const
+{
+	const FRecastQueryFilter* FilterImplementation = (const FRecastQueryFilter*)(InQueryFilter.GetImplementation());
+	if (FilterImplementation == nullptr)
+	{
+		UE_VLOG(NavMeshOwner, LogNavigation, Error, TEXT("FPImplRecastNavMesh::FindPath failed due to passed filter having NULL implementation!"));
+		return ENavigationQueryResult::Error;
+	}
+
+	const dtQueryFilter* QueryFilter = FilterImplementation->GetAsDetourQueryFilter();
+	if (QueryFilter == nullptr)
+	{
+		UE_VLOG(NavMeshOwner, LogNavigation, Warning, TEXT("FPImplRecastNavMesh::FindPath failing due to QueryFilter == NULL"));
+		return ENavigationQueryResult::Error;
+	}
+
+	// initialize recast wrapper with the NavMeshOwner, not multithread safe!
+	RecastGraphWrapper.Initialize(NavMeshOwner);
+	TRecastGraphAStarFilter AStarFilter(RecastGraphWrapper, *FilterImplementation, InQueryFilter.GetMaxSearchNodes(), CostLimit, Owner);
+
+	FVector RecastStartPos, RecastEndPos;
+	NavNodeRef StartPolyID, EndPolyID;
+	const bool bCanSearch = InitPathfinding(StartLoc, EndLoc, RecastGraphWrapper.GetRecastQuery(), QueryFilter, RecastStartPos, StartPolyID, RecastEndPos, EndPolyID);
+	if (!bCanSearch)
+	{
+		return ENavigationQueryResult::Error;
+	}
+
+	typename TRecastAStar::FSearchNode StartNode(StartPolyID, RecastStartPos);
+	typename TRecastAStar::FSearchNode EndNode(EndPolyID, RecastEndPos);
+	StartNode.Initialize(RecastGraphWrapper);
+	EndNode.Initialize(RecastGraphWrapper);
+	TRecastAStarResult PathResult;
+	auto AStarResult = AStarAlgo.FindPath(StartNode, EndNode, AStarFilter, PathResult);
+
+	dtStatus FindPathStatus = RecastGraphWrapper.ConvertToRecastStatus(AStarAlgo, AStarFilter, AStarResult);
+	return PostProcessPathInternal(FindPathStatus, Path, RecastGraphWrapper.GetRecastQuery(), FilterImplementation, StartNode.NodeRef, EndNode.NodeRef, 
+		FVector(StartNode.Position[0], StartNode.Position[1], StartNode.Position[2]), 
+		FVector(EndNode.Position[0], EndNode.Position[1], EndNode.Position[2]),
+		PathResult);
+}
 
 #endif	// WITH_RECAST
