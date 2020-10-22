@@ -94,6 +94,6 @@ private:
 	
 	FCombinedProgress CurrentCombinedProgress;
 	
-	IInstallBundleManager* InstallBundleManager = nullptr;
+	TWeakPtr<IInstallBundleManager> InstallBundleManager;
 	FDelegateHandle TickHandle;
 };

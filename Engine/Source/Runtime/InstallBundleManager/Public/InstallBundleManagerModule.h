@@ -30,16 +30,17 @@ class IInstallBundleManagerModule : public IModuleInterface
 public:
 	virtual void PreUnloadCallback() override
 	{
-		InstallBundleManager.Reset();
+		InstallBundleManager = nullptr;
 	}
 
-	IInstallBundleManager* GetInstallBundleManager()
+	TSharedPtr<IInstallBundleManager> GetInstallBundleManager()
 	{
-		return InstallBundleManager.Get();
+		return InstallBundleManager;
 	}
 
 protected:
-	TUniquePtr<IInstallBundleManager> InstallBundleManager;
+	TSharedPtr<IInstallBundleManager> InstallBundleManager;
+	TWeakPtr<IInstallBundleManager> LastInstallBundleManager;
 };
 
 /**
@@ -61,7 +62,9 @@ public:
 
 		if (FModuleManager::Get().GetModule(*ModuleName) == this)
 		{
-			InstallBundleManager = MakeUnique<InstallBundleManagerModuleImpl>();
+			check(LastInstallBundleManager == nullptr);
+			InstallBundleManager = MakeShared<InstallBundleManagerModuleImpl>();
+			LastInstallBundleManager = InstallBundleManager;
 		}
 	}
 };
