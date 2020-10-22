@@ -1753,6 +1753,15 @@ struct FThreadSafeStaticStatInner<TStatData, false>
 template<class TStatData>
 struct FThreadSafeStaticStat : public FThreadSafeStaticStatInner<TStatData, TStatData::TGroup::CompileTimeEnable>
 {
+	FThreadSafeStaticStat()
+	{
+		//This call will result in registering the Group if it's compile time enabled. 
+		//It fixes a bug when a StatGroup only has counters that are using the INC_\DEC_ macros. 
+		//Those macros are guarded for the stats collection to be active which prevented the registration of the stat group.
+		//It was not possible to activate the stat group unless another was already active.
+		//Most groups are registered when a FScopeCycleCounter is declared as GetStatId is called as the constructor parameter.
+		FThreadSafeStaticStatInner<TStatData, TStatData::TGroup::CompileTimeEnable>::GetStatId();
+	}
 };
 
 #define DECLARE_STAT_GROUP(Description, StatName, StatCategory, InDefaultEnable, InCompileTimeEnable, InSortByName) \
