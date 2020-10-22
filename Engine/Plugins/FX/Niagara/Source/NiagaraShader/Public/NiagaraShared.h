@@ -634,6 +634,8 @@ public:
 	NIAGARASHADER_API bool GetUsesSimulationStages() const;
 	NIAGARASHADER_API bool GetUsesOldShaderStages() const;
 
+	NIAGARASHADER_API bool GetUsesCompressedAttributes() const;
+
 	/**
 	 * Should the shader for this script with the given platform, shader type and vertex
 	 * factory type combination be compiled

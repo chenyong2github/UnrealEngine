@@ -368,6 +368,8 @@ void FNiagaraShaderType::BeginCompileShader(
 		NewJob->Input.Environment.SetDefine(TEXT("USE_SIMULATION_STAGES"), bUsesOldShaderStages ? 1 : 0);
 	}
 
+	NewJob->Input.Environment.SetDefine(TEXT("NIAGARA_COMPRESSED_ATTRIBUTES_ENABLED"), Script->GetUsesCompressedAttributes() ? 1 : 0);
+
 	AddReferencedUniformBufferIncludes(NewJob->Input.Environment, NewJob->Input.SourceFilePrefix, (EShaderPlatform)Target.Platform);
 	
 	FShaderCompilerEnvironment& ShaderEnvironment = NewJob->Input.Environment;

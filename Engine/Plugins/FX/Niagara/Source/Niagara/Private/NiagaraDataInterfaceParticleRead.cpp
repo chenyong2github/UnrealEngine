@@ -365,7 +365,7 @@ struct FNiagaraDataInterfaceParametersCS_ParticleRead : public FNiagaraDataInter
 					else if (CheckHalfVariableType(Var.GetType(), AttributeType))
 					{
 						const FNiagaraVariableLayoutInfo& Layout = SourceEmitterVariableLayouts[VarIdx];
-						InstanceData->AttributeIndices[AttrNameIdx] = Layout.FloatComponentStart;
+						InstanceData->AttributeIndices[AttrNameIdx] = Layout.HalfComponentStart;
 						InstanceData->AttributeCompressed[AttrNameIdx] = 1;
 					}
 					else
@@ -1648,7 +1648,7 @@ void UNiagaraDataInterfaceParticleRead::GetParameterDefinitionHLSL(const FNiagar
 		"Buffer<int> {IDToIndexTableName};\n"
 		"Buffer<float> {InputFloatBufferName};\n"
 		"Buffer<int> {InputIntBufferName};\n"
-		"Buffer<float> {InputHalfBufferName};\n"
+		"Buffer<half> {InputHalfBufferName};\n"
 		"int4 {AttributeIndicesName}[{AttributeInt4Count}];\n"
 		"int4 {AttributeCompressedName}[{AttributeInt4Count}];\n\n"
 	);
@@ -1775,16 +1775,18 @@ static bool GenerateGetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& Par
 		FString FetchHalfCode = GenerateFetchValueHLSL(NumComponents, VectorComponentNames, ComponentTypeName, InputHalfBufferName, ParticleStrideHalfName, true);
 		FetchValueCode = FString(
 			TEXT(
+			"#if NIAGARA_COMPRESSED_ATTRIBUTES_ENABLED\n"
 			"        BRANCH\n"
-			"        if (!{AttributeCompressedName}[{AttributeIndexGroup}]{AttributeIndexComponent})\n"
+			"        if ({AttributeCompressedName}[{AttributeIndexGroup}]{AttributeIndexComponent})\n"
 			"        {\n"
 			)) +
-			FetchFloatCode + TEXT(
+			FetchHalfCode + TEXT(
 			"        }\n"
 			"        else\n"
+			"#endif //NIAGARA_COMPRESSED_ATTRIBUTES_ENABLED\n"
 			"        {\n"
 			) +
-			FetchHalfCode + TEXT(
+			FetchFloatCode + TEXT(
 			"        }\n"
 			);
 	}
