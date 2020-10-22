@@ -255,7 +255,7 @@ public:
 		bRun = true;
 		Singleton.GetOrInitializeWaitEvent();
 		check(Thread == nullptr);
-		Thread = FRunnableThread::Create(&Singleton, TEXT("RHIFrameOffsetThread"), 0, TPri_AboveNormal);
+		Thread = FRunnableThread::Create(&Singleton, TEXT("RHIFrameOffsetThread"), 0, TPri_AboveNormal, FPlatformAffinity::GetRHIFrameOffsetThreadMask());
 	}
 
 	static void Shutdown()

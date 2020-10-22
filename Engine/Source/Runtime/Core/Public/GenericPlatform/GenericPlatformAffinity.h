@@ -57,6 +57,11 @@ public:
 		return 0xFFFFFFFFFFFFFFFF;
 	}
 
+	static const CORE_API uint64 GetRHIFrameOffsetThreadMask()
+	{
+		return 0xFFFFFFFFFFFFFFFF;
+	}
+
 	static const CORE_API uint64 GetRTHeartBeatMask()
 	{
 		return 0xFFFFFFFFFFFFFFFF;
@@ -98,6 +103,16 @@ public:
 	}
 
 	static const CORE_API uint64 GetAsyncLoadingThreadMask()
+	{
+		return 0xFFFFFFFFFFFFFFFF;
+	}
+
+	static const CORE_API uint64 GetIoDispatcherThreadMask()
+	{
+		return 0xFFFFFFFFFFFFFFFF;
+	}
+
+	static const CORE_API uint64 GetTraceThreadMask()
 	{
 		return 0xFFFFFFFFFFFFFFFF;
 	}
