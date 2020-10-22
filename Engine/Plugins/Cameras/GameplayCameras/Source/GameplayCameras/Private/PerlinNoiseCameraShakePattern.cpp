@@ -25,9 +25,12 @@ void UPerlinNoiseCameraShakePattern::StartShakePatternImpl(const FCameraShakeSta
 {
 	if (!Params.bIsRestarting)
 	{
-		LocationOffset = FVector::ZeroVector;	
-		RotationOffset = FVector::ZeroVector;
-		FOVOffset = 0.f;
+		// All offsets are random. This is because the core perlin noise implementation
+		// uses permutation tables, so if two shakers have the same initial offset and the same
+		// frequency, they will have the same exact values.
+		LocationOffset = FVector((float)FMath::RandHelper(255), (float)FMath::RandHelper(255), (float)FMath::RandHelper(255));
+		RotationOffset = FVector((float)FMath::RandHelper(255), (float)FMath::RandHelper(255), (float)FMath::RandHelper(255));
+		FOVOffset = (float)FMath::RandHelper(255);
 	}
 }
 
