@@ -14,6 +14,8 @@
 #include "SceneUtils.h"
 #include "Logging/MessageLog.h"
 #include "Engine/TextureRenderTarget2D.h"
+#include "Engine/TextureRenderTarget2DArray.h"
+#include "Engine/TextureRenderTargetVolume.h"
 #include "ImageUtils.h"
 #include "OneColorShader.h"
 #include "PipelineStateCache.h"
@@ -77,6 +79,40 @@ UTextureRenderTarget2D* UKismetRenderingLibrary::CreateRenderTarget2D(UObject* W
 		NewRenderTarget2D->UpdateResourceImmediate(true);
 
 		return NewRenderTarget2D; 
+	}
+
+	return nullptr;
+}
+
+UTextureRenderTarget2DArray* UKismetRenderingLibrary::CreateRenderTarget2DArray(UObject* WorldContextObject, int32 Width, int32 Height, int32 Slices, ETextureRenderTargetFormat Format, FLinearColor ClearColor, bool bAutoGenerateMipMaps)
+{
+	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
+
+	if (Width > 0 && Height > 0 && Slices > 0 && World)
+	{
+		UTextureRenderTarget2DArray* NewRenderTarget = NewObject<UTextureRenderTarget2DArray>(WorldContextObject);
+		check(NewRenderTarget);
+		NewRenderTarget->ClearColor = ClearColor;
+		NewRenderTarget->Init(Width, Height, Slices, GetPixelFormatFromRenderTargetFormat(Format));
+		NewRenderTarget->UpdateResourceImmediate(true);
+		return NewRenderTarget;
+	}
+
+	return nullptr;
+}
+
+UTextureRenderTargetVolume* UKismetRenderingLibrary::CreateRenderTargetVolume(UObject* WorldContextObject, int32 Width, int32 Height, int32 Depth, ETextureRenderTargetFormat Format, FLinearColor ClearColor, bool bAutoGenerateMipMaps)
+{
+	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
+
+	if (Width > 0 && Height > 0 && Depth > 0 && World)
+	{
+		UTextureRenderTargetVolume* NewRenderTarget = NewObject<UTextureRenderTargetVolume>(WorldContextObject);
+		check(NewRenderTarget);
+		NewRenderTarget->ClearColor = ClearColor;
+		NewRenderTarget->Init(Width, Height, Depth, GetPixelFormatFromRenderTargetFormat(Format));
+		NewRenderTarget->UpdateResourceImmediate(true);
+		return NewRenderTarget;
 	}
 
 	return nullptr;
