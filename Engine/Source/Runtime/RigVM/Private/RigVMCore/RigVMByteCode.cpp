@@ -575,7 +575,11 @@ uint64 FRigVMByteCode::GetOpNumBytesAt(uint64 InByteCodeIndex, bool bIncludeOper
 			if(bIncludeOperands)
 			{
 				FRigVMExecuteOp ExecuteOp;
-				FMemory::Memcpy(&ExecuteOp, &ByteCode[InByteCodeIndex], sizeof(FRigVMExecuteOp));
+				uint8* ExecuteOpPtr = (uint8*)&ExecuteOp;
+				for (int32 ByteIndex = 0; ByteIndex < sizeof(FRigVMExecuteOp); ByteIndex++)
+				{
+					ExecuteOpPtr[ByteIndex] = ByteCode[InByteCodeIndex + ByteIndex];
+				}
 
 				if (bByteCodeIsAligned)
 				{
@@ -1113,7 +1117,10 @@ void FRigVMByteCode::AlignByteCode()
 		}
 
 		uint64 NumBytesToCopy = GetOpNumBytesAt(OriginalByteCodeIndex, false);
-		FMemory::Memcpy(&AlignedByteCode[AlignedByteCodeIndex], &ByteCode[OriginalByteCodeIndex], NumBytesToCopy);
+		for (int32 ByteIndex = 0; ByteIndex < NumBytesToCopy; ByteIndex++)
+		{
+			AlignedByteCode[AlignedByteCodeIndex + ByteIndex] = ByteCode[OriginalByteCodeIndex + ByteIndex];
+		}
 
 		if (Instruction.OpCode >= ERigVMOpCode::Execute_0_Operands && Instruction.OpCode < ERigVMOpCode::Execute_64_Operands)
 		{
@@ -1131,12 +1138,19 @@ void FRigVMByteCode::AlignByteCode()
 			}
 
 			FRigVMExecuteOp ExecuteOp;
-			FMemory::Memcpy(&ExecuteOp, &ByteCode[OriginalByteCodeIndex], sizeof(FRigVMExecuteOp));
+			uint8* ExecuteOpPtr = (uint8*)&ExecuteOp;
+			for (int32 ByteIndex = 0; ByteIndex < sizeof(FRigVMExecuteOp); ByteIndex++)
+			{
+				ExecuteOpPtr[ByteIndex] = ByteCode[OriginalByteCodeIndex + ByteIndex];
+			}
 
 			OriginalByteCodeIndex += NumBytesToCopy;
 			NumBytesToCopy = sizeof(FRigVMOperand) * ExecuteOp.GetOperandCount();
 
-			FMemory::Memcpy(&AlignedByteCode[AlignedByteCodeIndex], &ByteCode[OriginalByteCodeIndex], NumBytesToCopy);
+			for (int32 ByteIndex = 0; ByteIndex < NumBytesToCopy; ByteIndex++)
+			{
+				AlignedByteCode[AlignedByteCodeIndex + ByteIndex] = ByteCode[OriginalByteCodeIndex + ByteIndex];
+			}
 		}
 	}
 
