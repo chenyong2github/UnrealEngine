@@ -1757,7 +1757,7 @@ FText SDMXEntityList::CheckForPatchError(UDMXEntityFixturePatch* FixturePatch) c
 {
 	const TArray<UDMXEntityController*> Controllers = GetDMXLibrary()->GetEntitiesTypeCast<UDMXEntityController>();
 
-	if (FixturePatch->ParentFixtureTypeTemplate->Modes.Num() == 0)
+	if (FixturePatch->ParentFixtureTypeTemplate == nullptr || FixturePatch->ParentFixtureTypeTemplate->Modes.Num() == 0)
 	{
 		return LOCTEXT("DMXEntityList.FixtureTypeHasNoModes", "This patch's fixture type has no modes.");
 	}
