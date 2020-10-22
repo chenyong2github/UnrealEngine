@@ -2,6 +2,7 @@
 
 #include "Misc/LevelSequencePlaybackContext.h"
 #include "Misc/LevelSequenceEditorSettings.h"
+#include "LevelSequenceActor.h"
 #include "LevelSequencePlayer.h"
 #include "Engine/World.h"
 
@@ -28,15 +29,20 @@ class SLevelSequenceContextPicker : public SCompoundWidget
 {
 public:
 
-	DECLARE_DELEGATE_OneParam(FOnSetValue, UWorld*);
+	using FContextAndClient = TTuple<UWorld*, ALevelSequenceActor*>;
+
+	DECLARE_DELEGATE_TwoParams(FOnSetPlaybackContextAndClient, UWorld*, ALevelSequenceActor*);
 
 	SLATE_BEGIN_ARGS(SLevelSequenceContextPicker){}
 
-		/** Attribute for retrieving the current context */
-		SLATE_ATTRIBUTE(UWorld*, Value)
+		/** Attribute for retrieving the bound level sequence */
+		SLATE_ATTRIBUTE(ULevelSequence*, Owner)
 
-		/** Called when the user explicitly chooses a new context world. */
-		SLATE_EVENT(FOnSetValue, OnSetValue)
+		/** Attribute for retrieving the current context and client */
+		SLATE_ATTRIBUTE(FContextAndClient, OnGetPlaybackContextAndClient)
+
+		/** Called when the user explicitly chooses a new context and client */
+		SLATE_EVENT(FOnSetPlaybackContextAndClient, OnSetPlaybackContextAndClient)
 
 	SLATE_END_ARGS()
 
@@ -46,18 +52,19 @@ private:
 
 	TSharedRef<SWidget> BuildWorldPickerMenu();
 
-	static FText GetWorldDescription(UWorld* World);
+	static FText GetContextAndClientDescription(const UWorld* Context, const ALevelSequenceActor* Client);
+	static FText GetWorldDescription(const UWorld* World);
 
-	FText GetCurrentContextText() const
+	FText GetCurrentContextAndClientText() const
 	{
-		UWorld* CurrentWorld = ValueAttribute.Get();
-		check(CurrentWorld);
-		return GetWorldDescription(CurrentWorld);
+		const FContextAndClient CurrentContextAndClient = PlaybackContextAndClientAttribute.Get();
+		check(CurrentContextAndClient.Key);
+		return GetContextAndClientDescription(CurrentContextAndClient.Key, CurrentContextAndClient.Value);
 	}
 
 	const FSlateBrush* GetBorderBrush() const
 	{
-		UWorld* CurrentWorld = ValueAttribute.Get();
+		const UWorld* CurrentWorld = PlaybackContextAndClientAttribute.Get().Key;
 		check(CurrentWorld);
 
 		if (CurrentWorld->WorldType == EWorldType::PIE)
@@ -76,7 +83,7 @@ private:
 		Settings->bAutoBindToPIE = !Settings->bAutoBindToPIE;
 		Settings->SaveConfig();
 
-		OnSetValueEvent.ExecuteIfBound(nullptr);
+		OnSetPlaybackContextAndClientEvent.ExecuteIfBound(nullptr, nullptr);
 	}
 
 	bool IsAutoPIEChecked() const
@@ -90,7 +97,7 @@ private:
 		Settings->bAutoBindToSimulate = !Settings->bAutoBindToSimulate;
 		Settings->SaveConfig();
 
-		OnSetValueEvent.ExecuteIfBound(nullptr);
+		OnSetPlaybackContextAndClientEvent.ExecuteIfBound(nullptr, nullptr);
 	}
 
 	bool IsAutoSimulateChecked() const
@@ -98,27 +105,60 @@ private:
 		return GetDefault<ULevelSequenceEditorSettings>()->bAutoBindToSimulate;
 	}
 
-	void OnSetValue(TWeakObjectPtr<UWorld> InWorld)
+	void OnSetPlaybackContextAndClient(TWeakObjectPtr<UWorld> InContext, TWeakObjectPtr<ALevelSequenceActor> InClient)
 	{
-		if (UWorld* NewContext = InWorld.Get())
+		if (UWorld* NewContext = InContext.Get())
 		{
-			OnSetValueEvent.ExecuteIfBound(NewContext);
+			ALevelSequenceActor* NewClient = InClient.Get();
+			OnSetPlaybackContextAndClientEvent.ExecuteIfBound(NewContext, NewClient);
 		}
 	}
 
-	bool IsWorldCurrentValue(TWeakObjectPtr<UWorld> InWorld)
+	bool IsCurrentPlaybackContextAndClient(TWeakObjectPtr<UWorld> InContext, TWeakObjectPtr<ALevelSequenceActor> InClient)
 	{
-		return InWorld == ValueAttribute.Get();
+		FContextAndClient ContextAndClient = PlaybackContextAndClientAttribute.Get();
+		return (InContext == ContextAndClient.Key && InClient == ContextAndClient.Value);
 	}
 
 private:
-	TAttribute<UWorld*> ValueAttribute;
-	FOnSetValue OnSetValueEvent;
+	TAttribute<ULevelSequence*> OwnerAttribute;
+	TAttribute<FContextAndClient> PlaybackContextAndClientAttribute;
+	FOnSetPlaybackContextAndClient OnSetPlaybackContextAndClientEvent;
 };
 
+namespace UE
+{
+namespace MovieScene
+{
 
+/**
+ * Finds all level sequence actors in the given world, and return those that point to the given sequence.
+ */
+static void FindLevelSequenceActors(const UWorld* InWorld, const ULevelSequence* InLevelSequence, TArray<ALevelSequenceActor*>& OutActors)
+{
+	for (const ULevel* Level : InWorld->GetLevels())
+	{
+		for (AActor* Actor : Level->Actors)
+		{
+			ALevelSequenceActor* LevelSequenceActor = Cast<ALevelSequenceActor>(Actor);
+			if (!LevelSequenceActor)
+			{
+				continue;
+			}
 
-FLevelSequencePlaybackContext::FLevelSequencePlaybackContext()
+			if (LevelSequenceActor->GetSequence() == InLevelSequence)
+			{
+				OutActors.Add(LevelSequenceActor);
+			}
+		}
+	}
+}
+
+}
+}
+
+FLevelSequencePlaybackContext::FLevelSequencePlaybackContext(ULevelSequence* InLevelSequence)
+	: LevelSequence(InLevelSequence)
 {
 	FEditorDelegates::MapChange.AddRaw(this, &FLevelSequencePlaybackContext::OnMapChange);
 	FEditorDelegates::PreBeginPIE.AddRaw(this, &FLevelSequencePlaybackContext::OnPieEvent);
@@ -148,46 +188,57 @@ void FLevelSequencePlaybackContext::OnMapChange(uint32)
 	WeakCurrentContext = nullptr;
 }
 
-UWorld* FLevelSequencePlaybackContext::Get() const
+ULevelSequence* FLevelSequencePlaybackContext::GetLevelSequence() const
 {
-	UWorld* Context = WeakCurrentContext.Get();
-	if (Context)
-	{
-		return Context;
-	}
-
-	Context = ComputePlaybackContext();
-	check(Context);
-	WeakCurrentContext = Context;
-	return Context;
+	return LevelSequence.Get();
 }
 
-UObject* FLevelSequencePlaybackContext::GetAsObject() const
+UWorld* FLevelSequencePlaybackContext::GetPlaybackContext() const
 {
-	return Get();
+	UpdateCachedContextAndClient();
+	return WeakCurrentContext.Get();
+}
+
+UObject* FLevelSequencePlaybackContext::GetPlaybackContextAsObject() const
+{
+	return GetPlaybackContext();
+}
+
+ALevelSequenceActor* FLevelSequencePlaybackContext::GetPlaybackClient() const
+{
+	UpdateCachedContextAndClient();
+	return WeakCurrentClient.Get();
+}
+
+IMovieScenePlaybackClient* FLevelSequencePlaybackContext::GetPlaybackClientAsInterface() const
+{
+	return GetPlaybackClient();
 }
 
 TArray<UObject*> FLevelSequencePlaybackContext::GetEventContexts() const
 {
 	TArray<UObject*> Contexts;
-	ULevelSequencePlayer::GetEventContexts(*Get(), Contexts);
+	UWorld* ContextWorld = GetPlaybackContext();
+	ULevelSequencePlayer::GetEventContexts(*ContextWorld, Contexts);
 	return Contexts;
 }
 
-void FLevelSequencePlaybackContext::OverrideWith(UWorld* InNewContext)
+void FLevelSequencePlaybackContext::OverrideWith(UWorld* InNewContext, ALevelSequenceActor* InNewClient)
 {
 	// InNewContext may be null to force an auto update
 	WeakCurrentContext = InNewContext;
+	WeakCurrentClient = InNewClient;
 }
 
 TSharedRef<SWidget> FLevelSequencePlaybackContext::BuildWorldPickerCombo()
 {
 	return SNew(SLevelSequenceContextPicker)
-		.Value(this, &FLevelSequencePlaybackContext::Get)
-		.OnSetValue(this, &FLevelSequencePlaybackContext::OverrideWith);
+		.Owner(this, &FLevelSequencePlaybackContext::GetLevelSequence)
+		.OnGetPlaybackContextAndClient(this, &FLevelSequencePlaybackContext::GetPlaybackContextAndClient)
+		.OnSetPlaybackContextAndClient(this, &FLevelSequencePlaybackContext::OverrideWith);
 }
 
-UWorld* FLevelSequencePlaybackContext::ComputePlaybackContext()
+FLevelSequencePlaybackContext::FContextAndClient FLevelSequencePlaybackContext::ComputePlaybackContextAndClient(const ULevelSequence* InLevelSequence)
 {
 	const ULevelSequenceEditorSettings* Settings            = GetDefault<ULevelSequenceEditorSettings>();
 	IMovieSceneCaptureDialogModule*     CaptureDialogModule = FModuleManager::GetModulePtr<IMovieSceneCaptureDialogModule>("MovieSceneCaptureDialog");
@@ -217,7 +268,9 @@ UWorld* FLevelSequencePlaybackContext::ComputePlaybackContext()
 			UWorld* ThisWorld = Context.World();
 			if (bIsPIEValid && bAllowPlaybackContextBinding && RecordingWorld != ThisWorld)
 			{
-				return ThisWorld;
+				TArray<ALevelSequenceActor*> LevelSequenceActors;
+				UE::MovieScene::FindLevelSequenceActors(ThisWorld, InLevelSequence, LevelSequenceActors);
+				return FContextAndClient(ThisWorld, (LevelSequenceActors.Num() > 0 ? LevelSequenceActors[0] : nullptr));
 			}
 		}
 		else if (Context.WorldType == EWorldType::Editor)
@@ -226,18 +279,43 @@ UWorld* FLevelSequencePlaybackContext::ComputePlaybackContext()
 		}
 	}
 
-	check(EditorWorld);
-	return EditorWorld;
+	if (ensure(EditorWorld))
+	{
+		TArray<ALevelSequenceActor*> LevelSequenceActors;
+		UE::MovieScene::FindLevelSequenceActors(EditorWorld, InLevelSequence, LevelSequenceActors);
+		return FContextAndClient(EditorWorld, (LevelSequenceActors.Num() > 0 ? LevelSequenceActors[0] : nullptr));
+	}
+
+	return FContextAndClient(nullptr, nullptr);
 }
 
+void FLevelSequencePlaybackContext::UpdateCachedContextAndClient() const
+{
+	if (WeakCurrentContext.Get() != nullptr)
+	{
+		return;
+	}
+
+	FContextAndClient ContextAndClient = ComputePlaybackContextAndClient(LevelSequence.Get());
+	check(ContextAndClient.Key);
+	WeakCurrentContext = ContextAndClient.Key;
+	WeakCurrentClient = ContextAndClient.Value;
+}
+
+FLevelSequencePlaybackContext::FContextAndClient FLevelSequencePlaybackContext::GetPlaybackContextAndClient() const
+{
+	return FContextAndClient(WeakCurrentContext.Get(), WeakCurrentClient.Get());
+}
 
 void SLevelSequenceContextPicker::Construct(const FArguments& InArgs)
 {
-	ValueAttribute = InArgs._Value;
-	OnSetValueEvent = InArgs._OnSetValue;
+	OwnerAttribute = InArgs._Owner;
+	PlaybackContextAndClientAttribute = InArgs._OnGetPlaybackContextAndClient;
+	OnSetPlaybackContextAndClientEvent = InArgs._OnSetPlaybackContextAndClient;
 	
-	check(ValueAttribute.IsSet());
-	check(OnSetValueEvent.IsBound());
+	check(OwnerAttribute.IsSet());
+	check(PlaybackContextAndClientAttribute.IsSet());
+	check(OnSetPlaybackContextAndClientEvent.IsBound());
 
 	ChildSlot
 	.Padding(0.0f)
@@ -251,7 +329,7 @@ void SLevelSequenceContextPicker::Construct(const FArguments& InArgs)
 			.ForegroundColor(FSlateColor::UseForeground())
 			.ButtonStyle(FEditorStyle::Get(), "ToggleButton")
 			.OnGetMenuContent(this, &SLevelSequenceContextPicker::BuildWorldPickerMenu)
-			.ToolTipText(FText::Format(LOCTEXT("WorldPickerTextFomrat", "'{0}': The world context that sequencer should be bound to, and playback within."), GetCurrentContextText()))
+			.ToolTipText(FText::Format(LOCTEXT("WorldPickerTextFomrat", "'{0}': The world context and playback client that sequencer should be bound to, and playback within."), GetCurrentContextAndClientText()))
 			.ButtonContent()
 			[
 				SNew(SImage)
@@ -261,7 +339,25 @@ void SLevelSequenceContextPicker::Construct(const FArguments& InArgs)
 	];
 }
 
-FText SLevelSequenceContextPicker::GetWorldDescription(UWorld* World)
+FText SLevelSequenceContextPicker::GetContextAndClientDescription(const UWorld* Context, const ALevelSequenceActor* Client)
+{
+	const FText WorldDescription = GetWorldDescription(Context);
+	if (Client)
+	{
+		return FText::Format(
+				LOCTEXT("PlaybackContextDescription", "{0} ({1})"), 
+				WorldDescription,
+				FText::FromString(Client->GetName()));
+	}
+	else
+	{
+		return FText::Format(
+				LOCTEXT("PlaybackContextDescriptionNoActor", "{0} (no actor)"), 
+				WorldDescription);
+	}
+}
+
+FText SLevelSequenceContextPicker::GetWorldDescription(const UWorld* World)
 {
 	FText PostFix;
 	if (World->WorldType == EWorldType::PIE)
@@ -278,6 +374,8 @@ FText SLevelSequenceContextPicker::GetWorldDescription(UWorld* World)
 		case NM_Standalone:
 			PostFix = GEditor->bIsSimulatingInEditor ? LOCTEXT("SimulateInEditorPostfix", " (Simulate)") : LOCTEXT("PlayInEditorPostfix", " (PIE)");
 			break;
+		default:
+			break;
 		}
 	}
 	else if (World->WorldType == EWorldType::Editor)
@@ -292,8 +390,10 @@ TSharedRef<SWidget> SLevelSequenceContextPicker::BuildWorldPickerMenu()
 {
 	FMenuBuilder MenuBuilder(true, nullptr);
 
+	ULevelSequence* LevelSequence = OwnerAttribute.Get();
+
 	const ULevelSequenceEditorSettings* Settings = GetDefault<ULevelSequenceEditorSettings>();
-	MenuBuilder.BeginSection(NAME_None, LOCTEXT("WorldsHeader", "Worlds"));
+	MenuBuilder.BeginSection(NAME_None, LOCTEXT("ActorsHeader", "Actors"));
 	{
 		for (const FWorldContext& Context : GEngine->GetWorldContexts())
 		{
@@ -303,18 +403,57 @@ TSharedRef<SWidget> SLevelSequenceContextPicker::BuildWorldPickerMenu()
 				continue;
 			}
 
-			MenuBuilder.AddMenuEntry(
-				GetWorldDescription(World),
-				FText(),
-				FSlateIcon(),
-				FUIAction(
-					FExecuteAction::CreateSP(this, &SLevelSequenceContextPicker::OnSetValue, MakeWeakObjectPtr(World)),
-					FCanExecuteAction(),
-					FIsActionChecked::CreateSP(this, &SLevelSequenceContextPicker::IsWorldCurrentValue, MakeWeakObjectPtr(World))
-				),
-				NAME_None,
-				EUserInterfaceActionType::RadioButton
-			);
+			bool bFoundActors = false;
+			if (LevelSequence)
+			{
+				TArray<ALevelSequenceActor*> LevelSequenceActors;
+				UE::MovieScene::FindLevelSequenceActors(World, LevelSequence, LevelSequenceActors);
+				bFoundActors = LevelSequenceActors.Num() > 0;
+
+				for (ALevelSequenceActor* LevelSequenceActor : LevelSequenceActors)
+				{
+					MenuBuilder.AddMenuEntry(
+							GetContextAndClientDescription(World, LevelSequenceActor),
+							FText(),
+							FSlateIcon(),
+							FUIAction(
+								FExecuteAction::CreateSP(
+									this, 
+									&SLevelSequenceContextPicker::OnSetPlaybackContextAndClient, 
+									MakeWeakObjectPtr(World), MakeWeakObjectPtr(LevelSequenceActor)),
+								FCanExecuteAction(),
+								FIsActionChecked::CreateSP(
+									this, 
+									&SLevelSequenceContextPicker::IsCurrentPlaybackContextAndClient, 
+									MakeWeakObjectPtr(World), MakeWeakObjectPtr(LevelSequenceActor))
+								),
+							NAME_None,
+							EUserInterfaceActionType::RadioButton
+							);
+				}
+			}
+			
+			if (!bFoundActors)
+			{
+				MenuBuilder.AddMenuEntry(
+						GetContextAndClientDescription(World, nullptr),
+						FText(),
+						FSlateIcon(),
+						FUIAction(
+							FExecuteAction::CreateSP(
+								this, 
+								&SLevelSequenceContextPicker::OnSetPlaybackContextAndClient, 
+								MakeWeakObjectPtr(World), MakeWeakObjectPtr<ALevelSequenceActor>(nullptr)),
+							FCanExecuteAction(),
+							FIsActionChecked::CreateSP(
+								this, 
+								&SLevelSequenceContextPicker::IsCurrentPlaybackContextAndClient, 
+								MakeWeakObjectPtr(World), MakeWeakObjectPtr<ALevelSequenceActor>(nullptr))
+							),
+						NAME_None,
+						EUserInterfaceActionType::RadioButton
+						);
+			}
 		}
 	}
 	MenuBuilder.EndSection();
