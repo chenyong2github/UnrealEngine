@@ -43,7 +43,7 @@ UChaosVehicleWheel::UChaosVehicleWheel(const FObjectInitializer& ObjectInitializ
 	SuspensionMaxDrop = 10.0f;
 	SuspensionDampingRatio = 0.5f;
 	SuspensionSmoothing = 6;
-	WheelLoadRatio = 1.f;
+	WheelLoadRatio = 0.5f;
 	RollbarScaling = 0.15f;
 	SweepType = ESweepType::SimpleSweep;
 }
