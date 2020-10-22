@@ -25,6 +25,8 @@ class USocialDebugTools;
 
 enum ETravelType;
 
+#define ABORT_DURING_SHUTDOWN()  if (bShutdownPending) { UE_LOG(LogParty, Log, TEXT("%s - Received callback after bShutdownPending."), ANSI_TO_TCHAR(__FUNCTION__)); return; }
+
 /** Singleton manager at the top of the social framework */
 UCLASS(Within = GameInstance, Config = Game)
 class PARTY_API USocialManager : public UObject, public FExec
@@ -198,6 +200,9 @@ protected:
 
 	/** The desired type of SocialToolkit to create for each local player */
 	TSubclassOf<USocialToolkit> ToolkitClass;
+
+	// Set during shutdown, used to early-out of lingering OnlineSubsystem callbacks that are pending
+	bool bShutdownPending = false;
 
 private:
 	UGameInstance& GetGameInstance() const;
