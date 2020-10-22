@@ -305,6 +305,7 @@ public:
 	FORCEINLINE_DEBUGGABLE bool IsValid() const { return Type != ERigVMRegisterType::Invalid; }
 	FORCEINLINE_DEBUGGABLE ERigVMRegisterType GetType() const { return Type; }
 	FORCEINLINE_DEBUGGABLE FName GetCPPType() const { return CPPType; }
+	FORCEINLINE_DEBUGGABLE FString GetCachedSegmentPath() const { return CachedSegmentPath; }
 	uint16 GetElementSize() const;
 	UScriptStruct* GetScriptStruct() const;
 
