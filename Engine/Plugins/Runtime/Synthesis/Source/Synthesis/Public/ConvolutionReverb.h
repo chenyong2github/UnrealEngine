@@ -86,6 +86,11 @@ namespace Audio
 		 */
 		bool bMixReverbOutputToOutputChannelFormat = true;
 
+		/* If true, impulse response channels are interpreted as true stereo. If
+		 * false, impulse response channels are interpreted as individual channel filters.
+		 */
+		bool bIsImpulseTrueStereo = false;
+
 		/* Array of gain values for convolution algorithm. */
 		TArray<FConvolutionReverbGainEntry> GainMatrix;
 	};
