@@ -1384,10 +1384,7 @@ FOpenXRHMD::FOpenXRHMD(const FAutoRegister& AutoRegister, XrInstance InInstance,
 
 FOpenXRHMD::~FOpenXRHMD()
 {
-	if (Session)
-	{
-		XR_ENSURE(xrDestroySession(Session));
-	}
+	DestroySession();
 
 	FPlatformProcess::ReturnSynchEventToPool(FrameEventRHI);
 }
@@ -1762,10 +1759,7 @@ void FOpenXRHMD::DestroySession()
 		DepthSwapchain.Reset();
 
 		// Clear up device spaces
-		for (FDeviceSpace& DeviceSpace : DeviceSpaces)
-		{
-			DeviceSpace.DestroySpace();
-		}
+		DeviceSpaces.Empty();
 
 		// Close the session now we're allowed to.
 		XR_ENSURE(xrDestroySession(Session));
@@ -2430,6 +2424,11 @@ FOpenXRHMD::FDeviceSpace::FDeviceSpace(XrAction InAction)
 	: Action(InAction)
 	, Space(XR_NULL_HANDLE)
 {
+}
+
+FOpenXRHMD::FDeviceSpace::~FDeviceSpace()
+{
+	DestroySpace();
 }
 
 bool FOpenXRHMD::FDeviceSpace::CreateSpace(XrSession InSession)
