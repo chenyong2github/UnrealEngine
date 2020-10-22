@@ -799,7 +799,8 @@ void USkeletalMesh::InitResources()
 					const FSkelMeshSourceSectionUserData& SectionUserData = ImportLODModel.UserSectionsData.FindChecked(ImportSection.OriginalDataSectionIndex);
 					bool bImportDataInSync = SectionUserData.bDisabled == ImportSection.bDisabled &&
 						SectionUserData.bCastShadow == ImportSection.bCastShadow &&
-						SectionUserData.bRecomputeTangent == ImportSection.bRecomputeTangent;
+						SectionUserData.bRecomputeTangent == ImportSection.bRecomputeTangent &&
+						SectionUserData.RecomputeTangentsVertexMaskChannel == ImportSection.RecomputeTangentsVertexMaskChannel;
 					//Check the cloth only for parent section, since chunked section should not have cloth
 					if (bImportDataInSync && ImportSection.ChunkedParentSectionIndex == INDEX_NONE)
 					{
@@ -813,6 +814,7 @@ void USkeletalMesh::InitResources()
 					bool bRenderDataInSync = SectionUserData.bDisabled == RenderSection.bDisabled &&
 						SectionUserData.bCastShadow == RenderSection.bCastShadow &&
 						SectionUserData.bRecomputeTangent == RenderSection.bRecomputeTangent &&
+						SectionUserData.RecomputeTangentsVertexMaskChannel == RenderSection.RecomputeTangentsVertexMaskChannel &&
 						SectionUserData.CorrespondClothAssetIndex == RenderSection.CorrespondClothAssetIndex &&
 						SectionUserData.ClothingData.AssetGuid == RenderSection.ClothingData.AssetGuid &&
 						SectionUserData.ClothingData.AssetLodIndex == RenderSection.ClothingData.AssetLodIndex;
