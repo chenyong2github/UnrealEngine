@@ -7,6 +7,7 @@
 #include "NiagaraEmitterInstanceBatcher.h"
 #include "NiagaraSystemInstance.h"
 #include "NiagaraRenderer.h"
+#include "NiagaraSettings.h"
 #if WITH_EDITOR
 #include "NiagaraGpuComputeDebug.h"
 #endif
@@ -232,7 +233,9 @@ bool UNiagaraDataInterfaceRenderTargetVolume::Equals(const UNiagaraDataInterface
 		OtherTyped->bPreviewRenderTarget == bPreviewRenderTarget &&
 #endif
 		OtherTyped->RenderTargetUserParameter == RenderTargetUserParameter &&
-		OtherTyped->Size == Size;
+		OtherTyped->Size == Size &&
+		OtherTyped->OverrideRenderTargetFormat == OverrideRenderTargetFormat &&
+		OtherTyped->bOverrideFormat == bOverrideFormat;
 }
 
 bool UNiagaraDataInterfaceRenderTargetVolume::CopyToInternal(UNiagaraDataInterface* Destination) const
@@ -249,6 +252,8 @@ bool UNiagaraDataInterfaceRenderTargetVolume::CopyToInternal(UNiagaraDataInterfa
 	}
 
 	DestinationTyped->Size = Size;
+	DestinationTyped->OverrideRenderTargetFormat = OverrideRenderTargetFormat;
+	DestinationTyped->bOverrideFormat = bOverrideFormat;
 #if WITH_EDITORONLY_DATA
 	DestinationTyped->bPreviewRenderTarget = bPreviewRenderTarget;
 #endif
@@ -336,6 +341,7 @@ bool UNiagaraDataInterfaceRenderTargetVolume::InitPerInstanceData(void* PerInsta
 	InstanceData->Size.X = FMath::Clamp<int>(Size.X, 1, GMaxVolumeTextureDimensions);
 	InstanceData->Size.Y = FMath::Clamp<int>(Size.Y, 1, GMaxVolumeTextureDimensions);
 	InstanceData->Size.Z = FMath::Clamp<int>(Size.Z, 1, GMaxVolumeTextureDimensions);
+	InstanceData->Format = GetPixelFormatFromRenderTargetFormat(bOverrideFormat ? OverrideRenderTargetFormat : GetDefault<UNiagaraSettings>()->DefaultRenderTargetFormat);
 	InstanceData->RTUserParamBinding.Init(SystemInstance->GetInstanceParameters(), RenderTargetUserParameter.Parameter);
 #if WITH_EDITORONLY_DATA
 	InstanceData->bPreviewTexture = bPreviewRenderTarget;
@@ -361,7 +367,7 @@ bool UNiagaraDataInterfaceRenderTargetVolume::InitPerInstanceData(void* PerInsta
 
 	InstanceData->TargetTexture->bCanCreateUAV = true;
 	InstanceData->TargetTexture->ClearColor = FLinearColor(0.0, 0, 0, 0);
-	InstanceData->TargetTexture->Init(InstanceData->Size.X, InstanceData->Size.Y, InstanceData->Size.Z, EPixelFormat::PF_A16B16G16R16);
+	InstanceData->TargetTexture->Init(InstanceData->Size.X, InstanceData->Size.Y, InstanceData->Size.Z, InstanceData->Format);
 	InstanceData->TargetTexture->UpdateResourceImmediate(true);
 
 	// Push Updates to Proxy
@@ -501,10 +507,10 @@ bool UNiagaraDataInterfaceRenderTargetVolume::PerInstanceTickPostSimulate(void* 
 	// Do we need to update the texture?
 	if (InstanceData->TargetTexture != nullptr)
 	{
-		if ((InstanceData->TargetTexture->SizeX != InstanceData->Size.X) || (InstanceData->TargetTexture->SizeY != InstanceData->Size.Y) || (InstanceData->TargetTexture->SizeZ != InstanceData->Size.Z) || (InstanceData->TargetTexture->OverrideFormat != EPixelFormat::PF_A16B16G16R16) || !InstanceData->TargetTexture->bCanCreateUAV)
+		if ((InstanceData->TargetTexture->SizeX != InstanceData->Size.X) || (InstanceData->TargetTexture->SizeY != InstanceData->Size.Y) || (InstanceData->TargetTexture->SizeZ != InstanceData->Size.Z) || (InstanceData->TargetTexture->OverrideFormat != InstanceData->Format) || !InstanceData->TargetTexture->bCanCreateUAV)
 		{
 			InstanceData->TargetTexture->bCanCreateUAV = true;
-			InstanceData->TargetTexture->Init(InstanceData->Size.X, InstanceData->Size.Y, InstanceData->Size.Z, EPixelFormat::PF_A16B16G16R16);
+			InstanceData->TargetTexture->Init(InstanceData->Size.X, InstanceData->Size.Y, InstanceData->Size.Z, InstanceData->Format);
 			InstanceData->TargetTexture->UpdateResourceImmediate(true);
 			bUpdateRT = true;
 		}

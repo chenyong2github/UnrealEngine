@@ -6,8 +6,9 @@
 #include "TextureResource.h"
 #include "Engine/Texture2DArray.h"
 #include "NiagaraEmitterInstanceBatcher.h"
-#include "NiagaraSystemInstance.h"
 #include "NiagaraRenderer.h"
+#include "NiagaraSystemInstance.h"
+#include "NiagaraSettings.h"
 #if WITH_EDITOR
 #include "NiagaraGpuComputeDebug.h"
 #endif
@@ -813,7 +814,8 @@ bool UNiagaraDataInterfaceGrid2DCollection::Equals(const UNiagaraDataInterface* 
 		OtherTyped->PreviewAttribute == PreviewAttribute &&
 #endif
 		OtherTyped->RenderTargetUserParameter == RenderTargetUserParameter &&
-		OtherTyped->BufferFormat == BufferFormat;
+		OtherTyped->OverrideBufferFormat == OverrideBufferFormat &&
+		OtherTyped->bOverrideFormat == bOverrideFormat;
 }
 
 void UNiagaraDataInterfaceGrid2DCollection::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
@@ -1440,7 +1442,8 @@ bool UNiagaraDataInterfaceGrid2DCollection::CopyToInternal(UNiagaraDataInterface
 
 	UNiagaraDataInterfaceGrid2DCollection* OtherTyped = CastChecked<UNiagaraDataInterfaceGrid2DCollection>(Destination);
 	OtherTyped->RenderTargetUserParameter = RenderTargetUserParameter;
-	OtherTyped->BufferFormat = BufferFormat;
+	OtherTyped->OverrideBufferFormat = OverrideBufferFormat;
+	OtherTyped->bOverrideFormat = bOverrideFormat;
 #if WITH_EDITOR
 	OtherTyped->bPreviewGrid = bPreviewGrid;
 	OtherTyped->PreviewAttribute = PreviewAttribute;
@@ -1468,12 +1471,13 @@ bool UNiagaraDataInterfaceGrid2DCollection::InitPerInstanceData(void* PerInstanc
 
 	InstanceData->WorldBBoxSize = WorldBBoxSize;
 
-	InstanceData->PixelFormat = FNiagaraUtilities::BufferFormatToPixelFormat(BufferFormat);
-
-	if (GNiagaraGrid2DOverrideFormat >= int32(ENiagaraGpuBufferFormat::Float) && (GNiagaraGrid2DOverrideFormat < int32(ENiagaraGpuBufferFormat::Max)) )
+	ENiagaraGpuBufferFormat BufferFormat = bOverrideFormat ? OverrideBufferFormat : GetDefault<UNiagaraSettings>()->DefaultGridFormat;
+	if (GNiagaraGrid2DOverrideFormat >= int32(ENiagaraGpuBufferFormat::Float) && (GNiagaraGrid2DOverrideFormat < int32(ENiagaraGpuBufferFormat::Max)))
 	{
-		InstanceData->PixelFormat = FNiagaraUtilities::BufferFormatToPixelFormat(ENiagaraGpuBufferFormat(GNiagaraGrid2DOverrideFormat));
+		BufferFormat = ENiagaraGpuBufferFormat(GNiagaraGrid2DOverrideFormat);
 	}
+
+	InstanceData->PixelFormat = FNiagaraUtilities::BufferFormatToPixelFormat(BufferFormat);
 
 	if (!FMath::IsNearlyEqual(GNiagaraGrid2DResolutionMultiplier, 1.0f))
 	{
@@ -1615,6 +1619,12 @@ void UNiagaraDataInterfaceGrid2DCollection::DestroyPerInstanceData(void* PerInst
 bool UNiagaraDataInterfaceGrid2DCollection::PerInstanceTick(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds)
 {	
 	FGrid2DCollectionRWInstanceData_GameThread* InstanceData = SystemInstancesToProxyData_GT.FindRef(SystemInstance->GetId());
+
+	ENiagaraGpuBufferFormat BufferFormat = bOverrideFormat ? OverrideBufferFormat : GetDefault<UNiagaraSettings>()->DefaultGridFormat;
+	if (GNiagaraGrid2DOverrideFormat >= int32(ENiagaraGpuBufferFormat::Float) && (GNiagaraGrid2DOverrideFormat < int32(ENiagaraGpuBufferFormat::Max)))
+	{
+		BufferFormat = ENiagaraGpuBufferFormat(GNiagaraGrid2DOverrideFormat);
+	}
 
 	bool NeedsReset = InstanceData->UpdateTargetTexture(BufferFormat);
 
@@ -2030,6 +2040,12 @@ bool UNiagaraDataInterfaceGrid2DCollection::PerInstanceTickPostSimulate(void* Pe
 
 		if (InstanceData->TargetTexture)
 		{
+			ENiagaraGpuBufferFormat BufferFormat = bOverrideFormat ? OverrideBufferFormat : GetDefault<UNiagaraSettings>()->DefaultGridFormat;
+			if (GNiagaraGrid2DOverrideFormat >= int32(ENiagaraGpuBufferFormat::Float) && (GNiagaraGrid2DOverrideFormat < int32(ENiagaraGpuBufferFormat::Max)))
+			{
+				BufferFormat = ENiagaraGpuBufferFormat(GNiagaraGrid2DOverrideFormat);
+			}
+
 			InstanceData->UpdateTargetTexture(BufferFormat);
 		}
 

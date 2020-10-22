@@ -21,6 +21,7 @@ struct FRenderTarget2DRWInstanceData_GameThread
 	}
 
 	FIntPoint Size = FIntPoint(EForceInit::ForceInitToZero);
+	ETextureRenderTargetFormat Format = RTF_RGBA16f;
 	
 	UTextureRenderTarget2D* TargetTexture = nullptr;
 #if WITH_EDITORONLY_DATA
@@ -119,6 +120,13 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "Render Target")
 	FIntPoint Size;
+
+	/** When enabled overrides the format of the render target, otherwise uses the project default setting. */
+	UPROPERTY(EditAnywhere, Category = "Render Target", meta = (EditCondition = "bOverrideFormat"))
+	TEnumAsByte<ETextureRenderTargetFormat> OverrideRenderTargetFormat;
+
+	UPROPERTY(EditAnywhere, Category = "Render Target", meta=(PinHiddenByDefault, InlineEditConditionToggle))
+	uint8 bOverrideFormat : 1;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(Transient, EditAnywhere, Category = "Render Target")

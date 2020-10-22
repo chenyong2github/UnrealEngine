@@ -120,8 +120,12 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Grid2DCollection")
 	FNiagaraUserParameterBinding RenderTargetUserParameter;
 
-	UPROPERTY(EditAnywhere, Category = "Grid2DCollection", meta = (ToolTip = "Changes the format used to store data inside the grid, low bit formats save memory and performance."))
-	ENiagaraGpuBufferFormat BufferFormat;
+	/** When enabled overrides the format used to store data inside the grid, otherwise uses the project default setting.  Lower bit depth formats will save memory and performance at the cost of precision. */
+	UPROPERTY(EditAnywhere, Category = "Grid2DCollection", meta = (EditCondition = "bOverrideFormat"))
+	ENiagaraGpuBufferFormat OverrideBufferFormat;
+
+	UPROPERTY(EditAnywhere, Category = "Grid2DCollection", meta = (PinHiddenByDefault, InlineEditConditionToggle))
+	uint8 bOverrideFormat : 1;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(Transient, EditAnywhere, Category = "Grid2DCollection", meta = (PinHiddenByDefault, InlineEditConditionToggle))
