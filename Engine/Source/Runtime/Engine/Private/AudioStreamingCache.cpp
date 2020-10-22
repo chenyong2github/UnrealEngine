@@ -95,6 +95,22 @@ FAutoConsoleVariableRef CVarNumSoundWavesToClearOnCacheOverflow(
 	TEXT("0: reset all retained sounds on cache overflow, >0: evict this many sounds on any cache overflow."),
 	ECVF_Default);
 
+static int32 EnableTrimmingRetainedAudioCVar = 1;
+FAutoConsoleVariableRef CVarEnableTrimmingRetainedAudio(
+	TEXT("au.streamcaching.EnableTrimmingRetainedAudio"),
+	EnableTrimmingRetainedAudioCVar,
+	TEXT("When set > 0, we will trim retained audio when the stream cache goes over the memory limit.\n")
+	TEXT("0: never trims retained audio, >0: will trim retained audio."),
+	ECVF_Default);
+	
+static float MemoryLimitTrimPercentageCVar = 0.1f;
+FAutoConsoleVariableRef CVarMemoryLimitTrimPercentage(
+	TEXT("au.streamcaching.MemoryLimitTrimPercentage"),
+	MemoryLimitTrimPercentageCVar,
+	TEXT("When set > 0.0, we will trim percentage of memory cache audio per trim call audio when the stream cache goes over the memory limit.\n")
+	TEXT("0.0: trims only the amount needed to allocate a single chunk, >0: that percentage of memory limit."),
+	ECVF_Default);
+
 static float StreamCacheSizeOverrideMBCVar = 0.0f;
 FAutoConsoleVariableRef CVarStreamCacheSizeOverrideMB(
 	TEXT("au.streamcaching.StreamCacheSizeOverrideMB"),
@@ -722,7 +738,17 @@ uint64 FAudioChunkCache::AddOrTouchChunk(const FChunkKey& InKey, TFunction<void(
 
 		if (TrimCacheWhenOverBudgetCVar != 0 && (MemoryCounterBytes + ChunkDataSize) > MemoryLimitBytes)
 		{
-			TrimMemory(MemoryCounterBytes + ChunkDataSize - MemoryLimitBytes);
+			uint64 MemoryToTrim = 0;
+			if (MemoryLimitTrimPercentageCVar > 0.0f)
+			{	
+				MemoryToTrim = MemoryLimitBytes * FMath::Min(MemoryLimitTrimPercentageCVar, 1.0f);
+			}
+			else
+			{
+				MemoryToTrim = MemoryCounterBytes + ChunkDataSize - MemoryLimitBytes;
+			}
+
+			TrimMemory(MemoryToTrim, true);
 		}
 
 		KickOffAsyncLoad(CacheElement, InKey, OnLoadCompleted, CallbackThread, bNeededForPlayback);
@@ -876,6 +902,8 @@ void FAudioChunkCache::ClearCache()
 	FScopeLock ScopeLock(&CacheMutationCriticalSection);
 	const uint32 NumChunks = CachePool.Num();
 
+	UE_LOG(LogAudioStreamCaching, Verbose, TEXT("Clearing Cache"));
+
 	CachePool.Reset(NumChunks);
 	check(NumberOfLoadsInFlight.GetValue() == 0);
 
@@ -889,7 +917,7 @@ void FAudioChunkCache::ClearCache()
 	ChunksInUse = 0;
 }
 
-uint64 FAudioChunkCache::TrimMemory(uint64 BytesToFree)
+uint64 FAudioChunkCache::TrimMemory(uint64 BytesToFree, bool bInAllowRetainedChunkTrimming)
 {
 	FScopeLock ScopeLock(&CacheMutationCriticalSection);
 
@@ -903,21 +931,22 @@ uint64 FAudioChunkCache::TrimMemory(uint64 BytesToFree)
 	// In order to avoid cycles, we always leave at least two chunks in the cache.
 	const FCacheElement* ElementToStopAt = MostRecentElement->LessRecentElement;
 
+	int32 NumElementsEvicted = 0;
 	uint64 BytesFreed = 0;
 	while (CurrentElement != ElementToStopAt && BytesFreed < BytesToFree)
 	{
-		if (CurrentElement->CanEvictChunk())
+		if (CurrentElement->CanEvictChunk() && CurrentElement->ChunkDataSize != 0)
 		{
-			BytesFreed += CurrentElement->ChunkDataSize;
-			MemoryCounterBytes -= CurrentElement->ChunkDataSize;
-			// Empty the chunk data and invalidate the key.
-			if(CurrentElement->ChunkData)
-			{
-				LLM_SCOPE(ELLMTag::AudioStreamCacheCompressedData);
-				FMemory::Free(CurrentElement->ChunkData);
-				CurrentElement->ChunkData = nullptr;
-			}
+			uint32 ChunkSize = CurrentElement->ChunkDataSize;
+			BytesFreed += ChunkSize;
+			MemoryCounterBytes -= ChunkSize;
 
+			// Empty the chunk data and invalidate the key.
+			check(CurrentElement->ChunkData);
+			LLM_SCOPE(ELLMTag::AudioStreamCacheCompressedData);
+			FMemory::Free(CurrentElement->ChunkData);
+
+			CurrentElement->ChunkData = nullptr;
 			CurrentElement->ChunkDataSize = 0;
 			CurrentElement->Key = FChunkKey();
 
@@ -925,12 +954,55 @@ uint64 FAudioChunkCache::TrimMemory(uint64 BytesToFree)
 			// Reset debug info:
 			CurrentElement->DebugInfo.Reset();
 #endif
+			NumElementsEvicted++;
 		}
 
 		// Important to note that we don't actually relink chunks here,
 		// So by trimming memory we are not moving chunks up the recency list.
 		CurrentElement = CurrentElement->MoreRecentElement;
 	}
+
+	uint64 RetainedBytesFreed = 0;
+	// If we have run out of non-retained and in-flight load audio chunks to trim, eat into the 
+	if (bInAllowRetainedChunkTrimming && EnableTrimmingRetainedAudioCVar > 0 && BytesFreed < BytesToFree)
+	{
+		CurrentElement = LeastRecentElement;
+		ElementToStopAt = MostRecentElement->LessRecentElement;
+		while (CurrentElement != ElementToStopAt && BytesFreed < BytesToFree)
+		{
+			if (CurrentElement->ChunkDataSize != 0 && CurrentElement->Key.SoundWave && CurrentElement->Key.SoundWave->IsRetainingAudio())
+			{
+				// Directly release the retained audio (TODO: this is on the audio thread right?)
+				CurrentElement->Key.SoundWave->ReleaseCompressedAudio();
+				if (CurrentElement->CanEvictChunk())
+				{
+					uint32 ChunkSize = CurrentElement->ChunkDataSize;
+					BytesFreed += ChunkSize;
+					RetainedBytesFreed += ChunkSize;
+					MemoryCounterBytes -= ChunkSize;
+
+					// Empty the chunk data and invalidate the key.
+					check(CurrentElement->ChunkData);
+
+					LLM_SCOPE(ELLMTag::AudioStreamCacheCompressedData);
+					FMemory::Free(CurrentElement->ChunkData);
+					CurrentElement->ChunkData = nullptr;
+					CurrentElement->ChunkDataSize = 0;
+					CurrentElement->Key = FChunkKey();
+					
+#if DEBUG_STREAM_CACHE
+					// Reset debug info:
+					CurrentElement->DebugInfo.Reset();
+#endif
+					NumElementsEvicted++;
+				}
+			}
+
+			CurrentElement = CurrentElement->MoreRecentElement;
+		}
+	}
+
+	UE_LOG(LogAudioStreamCaching, Display, TEXT("TrimMemory: NumElements Evicted: %d. Bytes Freed: %d"), NumElementsEvicted, BytesFreed);
 
 	return BytesFreed;
 }
@@ -1283,6 +1355,9 @@ FAudioChunkCache::FCacheElement* FAudioChunkCache::EvictLeastRecentChunk(bool bB
 
 	if (bIsChunkEvictable)
 	{
+		check(CacheElement->MoreRecentElement != nullptr);
+		check(CacheElement->LessRecentElement == nullptr);
+
 		FCacheElement* NewLeastRecentElement = CacheElement->MoreRecentElement;
 		check(NewLeastRecentElement);
 
@@ -1709,7 +1784,7 @@ uint64 FCachedAudioStreamingManager::TrimMemory(uint64 NumBytesToFree)
 	// Freeing longer chunks will get us bigger gains and (presumably) have lower churn.
 	for (FAudioChunkCache& Cache : CacheArray)
 	{
-		uint64 NumBytesFreed = Cache.TrimMemory(NumBytesLeftToFree);
+		uint64 NumBytesFreed = Cache.TrimMemory(NumBytesLeftToFree, false);
 
 		// NumBytesFreed could potentially be more than what we requested to free (since we delete whole chunks at once).
 		NumBytesLeftToFree -= FMath::Min(NumBytesFreed, NumBytesLeftToFree);
