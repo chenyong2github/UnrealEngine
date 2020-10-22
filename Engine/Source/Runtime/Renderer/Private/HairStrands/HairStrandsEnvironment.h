@@ -10,6 +10,7 @@
 #include "RendererInterface.h"
 #include "RenderGraphResources.h"
 
+class FScene;
 class FViewInfo;
 struct FHairStrandsRenderingData;
 

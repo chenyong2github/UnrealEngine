@@ -1,9 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CoreMinimal.h"
+#include "Editor.h"
 #include "Editor/Blutility/Classes/EditorUtilityObject.h"
 #include "EditorUtilitySubsystem.h"
 #include "ISettingsModule.h"
+#include "Misc/CoreDelegates.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 #include "SwitchboardEditorSettings.h"
