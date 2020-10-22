@@ -31,6 +31,10 @@
 			"Enabled": true
 		},
 		{
+			"Name": "Takes",
+			"Enabled": true
+		},
+		{
 			"Name": "VirtualProductionUtilities",
 			"Enabled": true
 		}
