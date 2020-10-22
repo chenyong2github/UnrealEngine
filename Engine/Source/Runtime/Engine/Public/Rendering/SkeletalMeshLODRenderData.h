@@ -37,6 +37,9 @@ struct FSkelMeshRenderSection
 	/** This section will cast shadow */
 	bool bCastShadow;
 
+	/** Which channel for masking the recompute tangents */
+	ESkinVertexColorChannel RecomputeTangentsVertexMaskChannel;
+
 	/** The offset into the LOD's vertex buffer of this section's vertices. */
 	uint32 BaseVertexIndex;
 
@@ -71,6 +74,7 @@ struct FSkelMeshRenderSection
 		, NumTriangles(0)
 		, bRecomputeTangent(false)
 		, bCastShadow(true)
+		, RecomputeTangentsVertexMaskChannel(ESkinVertexColorChannel::Green)
 		, BaseVertexIndex(0)
 		, NumVertices(0)
 		, MaxBoneInfluences(4)
