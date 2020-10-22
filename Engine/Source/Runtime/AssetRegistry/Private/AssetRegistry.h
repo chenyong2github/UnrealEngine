@@ -421,10 +421,6 @@ private:
 	/** Handles to all registered OnDirectoryChanged delegates */
 	TMap<FString, FDelegateHandle> OnDirectoryChangedDelegateHandles;
 
-	/** Handle to the registered OnDirectoryChanged delegate for the OnContentPathMounted handler */
-	FDelegateHandle OnContentPathMountedOnDirectoryChangedDelegateHandle;
-
-
 	struct FAssetRegistryPackageRedirect
 	{
 	public:
