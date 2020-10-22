@@ -251,6 +251,12 @@ namespace Chaos
 		{
 			FImplicitObject::SerializeImp(Ar);
 			AABB.Serialize(Ar);
+
+			Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
+			if (Ar.CustomVer(FReleaseObjectVersion::GUID) >= FReleaseObjectVersion::MarginAddedToConvexAndBox)
+			{
+				Ar << FImplicitObject::Margin;
+			}
 		}
 
 		// Some older classes used to use a TBox as a bounding box, but now use a TAABB. However we still need
