@@ -309,7 +309,7 @@ inline void ExtractParameterMapFromD3DShader(
 				ParameterType = EShaderParameterType::Sampler;
 				NumSamplers = FMath::Max(NumSamplers, BindDesc.BindPoint + BindCount);
 			}
-			else if (BindDesc.Type == D3D_SIT_TEXTURE)
+			else // D3D_SIT_TEXTURE
 			{
 				ParameterType = EShaderParameterType::SRV;
 				NumSRVs = FMath::Max(NumSRVs, BindDesc.BindPoint + BindCount);
