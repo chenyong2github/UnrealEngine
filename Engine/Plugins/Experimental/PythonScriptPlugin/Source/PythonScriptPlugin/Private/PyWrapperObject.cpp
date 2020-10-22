@@ -1483,16 +1483,17 @@ public:
 			// Check for a malformed function rather than assert in the remove
 			if (FuncArgNames.Num() > 0 && FuncArgDefaults.Num() > 0)
 			{
-			// Strip the zero'th 'self' argument when processing a non-static function
-			FuncArgNames.RemoveAt(0, 1, /*bAllowShrinking*/false);
-			FuncArgDefaults.RemoveAt(0, 1, /*bAllowShrinking*/false);
-		}
+				// Strip the zero'th 'self' argument when processing a non-static function
+				FuncArgNames.RemoveAt(0, 1, /*bAllowShrinking*/false);
+				FuncArgDefaults.RemoveAt(0, 1, /*bAllowShrinking*/false);
+			}
 			else
 			{
 				PyUtil::SetPythonError(PyExc_Exception, PyType, *FString::Printf(TEXT("Incorrect number of arguments specified for '%s' (missing self?)"), *InFieldName));
 				return false;
 			}
 		}
+		// Build the arguments struct if not overriding a function
 		if (!SuperFunc)
 		{
 			// Make sure the number of function arguments matches the number of argument types specified
@@ -1503,25 +1504,7 @@ public:
 				return false;
 			}
 
-			{			
-				// Adding properties to a function inserts them into a linked list, so we loop backwards to get the order right
-				int32 ArgIndex = FuncArgNames.Num() - 1;
-				while (ArgIndex >= 0)
-				{
-					PyObject* ArgTypeObj = PySequence_GetItem(InPyFuncDef->FuncParamTypes, ArgIndex);
-					FProperty* ArgProp = PyUtil::CreateProperty(ArgTypeObj, 1, Func, *FuncArgNames[ArgIndex]);
-					if (!ArgProp)
-					{
-						PyUtil::SetPythonError(PyExc_Exception, PyType, *FString::Printf(TEXT("Failed to create property (%s) for function '%s' argument '%s'"), *PyUtil::GetFriendlyTypename(ArgTypeObj), *InFieldName, *FuncArgNames[ArgIndex]));
-						return false;
-					}
-					ArgProp->PropertyFlags |= CPF_Parm;
-					Func->AddCppProperty(ArgProp);
-					ArgIndex--;
-				}
-			}
-
-			// Build the arguments struct if not overriding a function
+			// Adding properties to a function inserts them into a linked list, so we add the return and output values first so that they appear at the end
 			if (InPyFuncDef->FuncRetType && InPyFuncDef->FuncRetType != Py_None)
 			{
 				// If we have a tuple, then we actually want to return a bool but add every type within the tuple as output parameters
@@ -1553,6 +1536,24 @@ public:
 						Func->AddCppProperty(ArgProp);
 						Func->FunctionFlags |= FUNC_HasOutParms;
 					}
+				}
+			}
+
+			// Adding properties to a function inserts them into a linked list, so we loop backwards to get the order right
+			{
+				int32 ArgIndex = FuncArgNames.Num() - 1;
+				while (ArgIndex >= 0)
+				{
+					PyObject* ArgTypeObj = PySequence_GetItem(InPyFuncDef->FuncParamTypes, ArgIndex);
+					FProperty* ArgProp = PyUtil::CreateProperty(ArgTypeObj, 1, Func, *FuncArgNames[ArgIndex]);
+					if (!ArgProp)
+					{
+						PyUtil::SetPythonError(PyExc_Exception, PyType, *FString::Printf(TEXT("Failed to create property (%s) for function '%s' argument '%s'"), *PyUtil::GetFriendlyTypename(ArgTypeObj), *InFieldName, *FuncArgNames[ArgIndex]));
+						return false;
+					}
+					ArgProp->PropertyFlags |= CPF_Parm;
+					Func->AddCppProperty(ArgProp);
+					ArgIndex--;
 				}
 			}
 		}
