@@ -6,6 +6,8 @@
 #include "Interfaces/ITargetPlatform.h"
 #include "PlatformInfo.h"
 #include "HAL/PlatformFilemanager.h"
+#include "GenericPlatform/GenericPlatformFile.h"
+#include "Misc/Paths.h"
 
 /**
  * Base class for target platforms.
