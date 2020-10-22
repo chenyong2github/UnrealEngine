@@ -40,4 +40,11 @@ struct FBounds
 		FVector Size = Max - Min;
 		return 0.5f * ( Size.X * Size.Y + Size.X * Size.Z + Size.Y * Size.Z );
 	}
+
+	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, FBounds& Bounds)
+	{
+		Ar << Bounds.Min;
+		Ar << Bounds.Max;
+		return Ar;
+	}
 };

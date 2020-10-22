@@ -19,6 +19,8 @@ struct FClusterGroup
 	uint32				PageIndexStart;
 	uint32				PageIndexNum;
 	TArray<uint32>		Children;
+
+	friend FArchive& operator<<(FArchive& Ar, FClusterGroup& Group);
 };
 
 struct FHierarchyNode

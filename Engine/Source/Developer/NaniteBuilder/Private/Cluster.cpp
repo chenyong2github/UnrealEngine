@@ -750,4 +750,71 @@ void FCluster::Bound()
 #endif
 }
 
+FArchive& operator<<(FArchive& Ar, FMaterialRange& Range)
+{
+	Ar << Range.RangeStart;
+	Ar << Range.RangeLength;
+	Ar << Range.MaterialIndex;
+	return Ar;
+}
+
+FArchive& operator<<(FArchive& Ar, FStripDesc& Desc)
+{
+	for (uint32 i = 0; i < 4; i++)
+	{
+		for (uint32 j = 0; j < 3; j++)
+		{
+			Ar << Desc.Bitmasks[i][j];
+		}
+	}
+	Ar << Desc.NumPrevRefVerticesBeforeDwords;
+	Ar << Desc.NumPrevNewVerticesBeforeDwords;
+	return Ar;
+}
+
+FArchive& operator<<(FArchive& Ar, FCluster& Cluster)
+{
+	Ar << Cluster.NumVerts;
+	Ar << Cluster.NumTris;
+	Ar << Cluster.NumTexCoords;
+	Ar << Cluster.bHasColors;
+
+	Ar << Cluster.Verts;
+	Ar << Cluster.Indexes;
+	Ar << Cluster.MaterialIndexes;
+	Ar << Cluster.BoundaryEdges;
+	Ar << Cluster.ExternalEdges;
+	Ar << Cluster.NumExternalEdges;
+
+	Ar << Cluster.AdjacentClusters;
+
+	Ar << Cluster.Bounds;
+	Ar << Cluster.SurfaceArea;
+	Ar << Cluster.GUID;
+	Ar << Cluster.MipLevel;
+
+	Ar << Cluster.QuantizedPosStart;
+	Ar << Cluster.QuantizedPosShift;
+
+	Ar << Cluster.MeshBoundsMin;
+	Ar << Cluster.MeshBoundsDelta;
+
+	Ar << Cluster.EdgeLength;
+	Ar << Cluster.LODError;
+
+	Ar << Cluster.SphereBounds;
+	Ar << Cluster.LODBounds;
+
+	Ar << Cluster.GroupIndex;
+	Ar << Cluster.GroupPartIndex;
+	Ar << Cluster.GeneratingGroupIndex;
+
+	Ar << Cluster.MaterialRanges;
+	Ar << Cluster.QuantizedPositions;
+
+	Ar << Cluster.StripDesc;
+	Ar << Cluster.StripIndexData;
+	return Ar;
+}
+
 } // namespace Nanite

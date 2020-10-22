@@ -102,6 +102,14 @@ struct FUIntVector
 	{
 		return X == V.X && Y == V.Y && Z == V.Z;
 	}
+
+	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, FUIntVector& V)
+	{
+		Ar << V.X;
+		Ar << V.Y;
+		Ar << V.Z;
+		return Ar;
+	}
 };
 
 struct FPackedHierarchyNode

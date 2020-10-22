@@ -378,4 +378,18 @@ void FClusterDAG::CompleteCluster( uint32 Index )
 	MeshBounds			+= Cluster.Bounds;
 }
 
+FArchive& operator<<(FArchive& Ar, FClusterGroup& Group)
+{
+	Ar << Group.Bounds;
+	Ar << Group.LODBounds;
+	Ar << Group.MinLODError;
+	Ar << Group.MaxParentLODError;
+	Ar << Group.MipLevel;
+
+	Ar << Group.PageIndexStart;
+	Ar << Group.PageIndexNum;
+	Ar << Group.Children;
+	return Ar;
+}
+
 } // namespace Nanite

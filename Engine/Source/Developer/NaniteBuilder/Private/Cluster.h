@@ -16,6 +16,8 @@ struct FMaterialRange
 	uint32 RangeStart;
 	uint32 RangeLength;
 	uint32 MaterialIndex;
+
+	friend FArchive& operator<<(FArchive& Ar, FMaterialRange& Range);
 };
 
 struct FStripDesc
@@ -23,6 +25,8 @@ struct FStripDesc
 	uint32 Bitmasks[4][3];
 	uint32 NumPrevRefVerticesBeforeDwords;
 	uint32 NumPrevNewVerticesBeforeDwords;
+
+	friend FArchive& operator<<(FArchive& Ar, FStripDesc& Desc);
 };
 
 class FCluster
@@ -59,6 +63,8 @@ public:
 	const FLinearColor&	GetColor( uint32 VertIndex ) const;
 	const FVector2D*	GetUVs( uint32 VertIndex ) const;
 
+	friend FArchive& operator<<(FArchive& Ar, FCluster& Cluster);
+
 	static const uint32	ClusterSize = 128;
 
 	uint32		NumVerts = 0;
@@ -80,7 +86,7 @@ public:
 	uint32		GUID = 0;
 	int32		MipLevel = 0;
 
-	FUIntVector	QuantizedPosStart = { 0u, 0u, 0u };	//TODO: seed this with something sensible like floor(log2(range)), so we can skip testing a lot of quantization levels
+	FUIntVector	QuantizedPosStart = { 0u, 0u, 0u };
 	uint32		QuantizedPosShift;
 	
 	FVector		MeshBoundsMin;
