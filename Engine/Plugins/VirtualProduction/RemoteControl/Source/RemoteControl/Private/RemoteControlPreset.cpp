@@ -13,6 +13,10 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/StructOnScope.h"
 
+#if WITH_EDITOR
+#include "Editor.h"
+#endif
+
 #define LOCTEXT_NAMESPACE "RemoteControlPreset" 
 
 namespace
@@ -456,6 +460,15 @@ TArray<UObject*> FRemoteControlTarget::ResolveBoundObjects() const
 	{
 		if (UObject* Obj = Path.ResolveObject())
 		{
+#if WITH_EDITOR
+			if (Obj->IsA<AActor>() && GEditor && GEditor->PlayWorld)
+			{
+				if (AActor* SimWorldActor = EditorUtilities::GetSimWorldCounterpartActor(Cast<AActor>(Obj)))
+				{
+					Obj = SimWorldActor;
+				}
+			}
+#endif		
 			ResolvedObjects.Add(Obj);
 		}
 	}

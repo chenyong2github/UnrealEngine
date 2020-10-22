@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "IRemoteControlModule.h"
+#include "Misc/CoreMisc.h"
 #include "UObject/UnrealType.h"
 #include "UObject/Class.h"
 
@@ -239,7 +240,8 @@ public:
 		{
 			if (Object)
 			{
-				const bool bObjectInGame = !GIsEditor || Object->GetOutermost()->HasAnyPackageFlags(PKG_PlayInEditor);
+				const bool bObjectInGame = !GIsEditor || IsRunningGame();
+
 				if (!PropertyName.IsEmpty())
 				{
 					//Build a FieldPathInfo using property name to facilitate resolving

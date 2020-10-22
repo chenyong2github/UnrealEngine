@@ -640,6 +640,12 @@ void SRCPanelExposedField::GetBoundObjects(TSet<UObject*>& OutBoundObjects) cons
 }
 
 
+void SRCPanelExposedField::SetBoundObjects(const TArray<UObject*>& InObjects)
+{
+	RowGenerator->SetObjects(InObjects);
+	ChildSlot.AttachWidget(ConstructWidget());
+}
+
 TSharedRef<SWidget> SRCPanelExposedField::ConstructWidget()
 {
 	if (FieldType == EExposedFieldType::Property)
@@ -964,6 +970,25 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 	Refresh();
 }
 
+void SRemoteControlPanel::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
+{
+	if (bTriggerRefreshForPIE)
+	{
+		for (TSharedRef<SRemoteControlTarget>& Target : RemoteControlTargets)
+		{
+			for (TSharedPtr<SRCPanelExposedField> Field : Target->GetFieldWidgets())
+			{
+				if (TOptional<FExposedProperty> Property = Preset->ResolveExposedProperty(Field->GetFieldLabel()))
+				{
+					Field->SetBoundObjects(Property->OwnerObjects);
+				}
+			}
+		}
+
+		bTriggerRefreshForPIE = false;
+	}
+}
+
 SRemoteControlPanel::~SRemoteControlPanel()
 {
 	UnregisterEvents();
@@ -1048,6 +1073,9 @@ void SRemoteControlPanel::RegisterEvents()
 
 	if (GEditor)
 	{
+		FEditorDelegates::PostPIEStarted.AddSP(this, &SRemoteControlPanel::OnPieEvent);
+		FEditorDelegates::EndPIE.AddSP(this, &SRemoteControlPanel::OnPieEvent);
+
 		GEditor->OnObjectsReplaced().AddSP(this, &SRemoteControlPanel::OnObjectsReplaced);
 		GEditor->OnBlueprintReinstanced().AddSP(this, &SRemoteControlPanel::RefreshBlueprintLibraryNodes);
 	}
@@ -1059,6 +1087,9 @@ void SRemoteControlPanel::UnregisterEvents()
 	{
 		GEditor->OnBlueprintReinstanced().RemoveAll(this);
 		GEditor->OnObjectsReplaced().RemoveAll(this);
+
+		FEditorDelegates::EndPIE.RemoveAll(this);
+		FEditorDelegates::PostPIEStarted.RemoveAll(this);
 	}
 
 	GEngine->OnLevelActorDeleted().RemoveAll(this);
@@ -1652,6 +1683,12 @@ void SRemoteControlPanel::UnregisterPresetDelegates()
 		Layout.OnFieldDeleted().RemoveAll(this);
 		Layout.OnFieldOrderChanged().RemoveAll(this);
 	}
+}
+
+void SRemoteControlPanel::OnPieEvent(bool)
+{
+	// Trigger the refresh on the next tick to make sure the PIE world exists when starting and doesn't exist when stopping.
+	bTriggerRefreshForPIE = true;
 }
 
 void SRemoteControlPanel::OnGroupAdded(const FRemoteControlPresetGroup& Group)
