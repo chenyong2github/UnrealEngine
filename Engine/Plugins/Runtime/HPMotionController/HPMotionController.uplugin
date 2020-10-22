@@ -2,8 +2,8 @@
 	"FileVersion": 3,
 	"Version": 1,
 	"VersionName": "1.0",
-	"FriendlyName": "OpenXRHPController",
-	"Description": "OpenXR controller mappings for XR_EXT_hp_mixed_reality_controller support.",
+	"FriendlyName": "HP Motion Controller",
+	"Description": "Controller mappings for the HP Reverb G2 motion controller in OpenXR and SteamVR",
 	"Category": "Virtual Reality",
 	"CreatedBy": "Microsoft Corporation",
 	"CreatedByURL": "http://www.microsoft.com",
@@ -20,7 +20,7 @@
 	],
 	"Modules": [
 		{
-			"Name": "OpenXRHPController",
+			"Name": "HPMotionController",
 			"Type": "Runtime",
 			"LoadingPhase": "PostConfigInit",
 			"WhitelistPlatforms": [

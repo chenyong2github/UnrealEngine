@@ -5,9 +5,9 @@ using System.IO;
 
 namespace UnrealBuildTool.Rules
 {
-    public class OpenXRHPController : ModuleRules
+    public class HPMotionController : ModuleRules
     {
-        public OpenXRHPController(ReadOnlyTargetRules Target) 
+        public HPMotionController(ReadOnlyTargetRules Target) 
 				: base(Target)
         {
 			var EngineDir = Path.GetFullPath(Target.RelativeEnginePath);

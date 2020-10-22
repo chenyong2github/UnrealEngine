@@ -3,14 +3,13 @@
 #pragma once
 
 #include "IOpenXRExtensionPlugin.h"
-#include "Modules/ModuleManager.h"
 
-class FOpenXRHPControllerModule :
+class FHPMotionControllerModule :
 	public IModuleInterface,
 	public IOpenXRExtensionPlugin
 {
 public:
-	FOpenXRHPControllerModule() { }
+	FHPMotionControllerModule() { }
 
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
