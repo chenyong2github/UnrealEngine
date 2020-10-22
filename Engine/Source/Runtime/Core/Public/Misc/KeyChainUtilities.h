@@ -6,6 +6,7 @@
 #include "Misc/AES.h"
 #include "Misc/IEngineCrypto.h"
 #include "Misc/CoreDelegates.h"
+#include "Misc/Base64.h"
 #include "Serialization/Archive.h"
 #include "Serialization/JsonSerializer.h"
 #include "RSA.h"
