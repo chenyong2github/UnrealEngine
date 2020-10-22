@@ -19,6 +19,15 @@ public:
 
 	/**
 	*  Appends a static mesh to a GeometryCollectionComponent.
+	*  @param StaticMesh : Const mesh to read vertex/normals/index data from
+	*  @param Materials : Materials fetched from the StaticMeshComponent used to configure this geometry
+	*  @param StaticMeshTransform : Mesh transform.
+	*  @param GeometryCollection  : Collection to append the mesh into.
+	*/
+	static void AppendStaticMesh(const UStaticMesh* StaticMesh, const TArray<UMaterialInterface*> Materials, const FTransform& StaticMeshTransform, UGeometryCollection* GeometryCollectionObject, bool ReindexMaterials = true);
+
+	/**
+	*  Appends a static mesh to a GeometryCollectionComponent.
 	*  @param StaticMeshComponent : Const mesh to read vertex/normals/index data from
 	*  @param StaticMeshTransform : Mesh transform.
 	*  @param GeometryCollection  : Collection to append the mesh into.

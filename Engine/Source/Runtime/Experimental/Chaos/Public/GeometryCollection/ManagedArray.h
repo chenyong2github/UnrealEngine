@@ -160,6 +160,12 @@ public:
 	virtual void Swap(int32 Index1, int32 Index2) = 0;
 #endif
 
+	/** Empty the array. */
+	virtual void Empty()
+	{
+		check(false);
+	}
+
 };
 
 template <typename T>
@@ -464,6 +470,15 @@ private:
 	void Reserve(const int32 Size)
 	{
 		Array.Reserve(Size);
+	}
+
+	/**
+	* Protected clear to prevent external clearing of the array
+	*
+	*/
+	void Empty()
+	{
+		Array.Empty();
 	}
 
 	void Reorder(const TArray<int32>& NewOrder) override
