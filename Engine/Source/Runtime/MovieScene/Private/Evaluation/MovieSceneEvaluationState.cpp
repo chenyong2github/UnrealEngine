@@ -169,7 +169,7 @@ void FMovieSceneObjectCache::InvalidateExpiredObjects()
 		{
 			if (!Ptr.Get())
 			{
-				Invalidate(Pair.Key);
+				InvalidateInternal(Pair.Key);
 				break;
 			}
 		}
@@ -182,12 +182,23 @@ void FMovieSceneObjectCache::InvalidateExpiredObjects()
 
 		for (const FGuid& ObjectID : InvalidObjectIDs)
 		{
-			Invalidate(ObjectID);
+			InvalidateInternal(ObjectID);
 		}
 	}
+
+	UpdateSerialNumber();
 }
 
 void FMovieSceneObjectCache::InvalidateIfValid(const FGuid& InGuid)
+{
+	const bool bInvalidated = InvalidateIfValidInternal(InGuid);
+	if (bInvalidated)
+	{
+		UpdateSerialNumber();
+	}
+}
+
+bool FMovieSceneObjectCache::InvalidateIfValidInternal(const FGuid& InGuid)
 {
 	// Don't manipulate the actual map structure, since this can be called from inside an iterator
 	FBoundObjects* Cache = BoundObjects.Find(InGuid);
@@ -201,15 +212,25 @@ void FMovieSceneObjectCache::InvalidateIfValid(const FGuid& InGuid)
 		{
 			for (const FGuid& Child : *Children)
 			{
-				InvalidateIfValid(Child);
+				InvalidateIfValidInternal(Child);
 			}
 		}
 
 		OnBindingInvalidated.Broadcast(InGuid);
+
+		return true;
 	}
+
+	return false;
 }
 
 void FMovieSceneObjectCache::Invalidate(const FGuid& InGuid)
+{
+	InvalidateInternal(InGuid);
+	UpdateSerialNumber();
+}
+
+bool FMovieSceneObjectCache::InvalidateInternal(const FGuid& InGuid)
 {
 	// Don't manipulate the actual map structure, since this can be called from inside an iterator
 	FBoundObjects* Cache = BoundObjects.Find(InGuid);
@@ -222,18 +243,22 @@ void FMovieSceneObjectCache::Invalidate(const FGuid& InGuid)
 		{
 			for (const FGuid& Child : *Children)
 			{
-				Invalidate(Child);
+				InvalidateInternal(Child);
 			}
 		}
 	}
 
 	OnBindingInvalidated.Broadcast(InGuid);
+
+	return true;
 }
 
 void FMovieSceneObjectCache::Clear(IMovieScenePlayer& Player)
 {
 	BoundObjects.Reset();
 	ChildBindings.Reset();
+
+	UpdateSerialNumber();
 
 	Player.NotifyBindingsChanged();
 	OnBindingInvalidated.Broadcast(FGuid());
@@ -257,11 +282,14 @@ void FMovieSceneObjectCache::UpdateBindings(const FGuid& InGuid, IMovieScenePlay
 	FBoundObjects* Bindings = &BoundObjects.FindOrAdd(InGuid);
 	Bindings->Objects.Reset();
 
+	// Update our serial now so it's done before any early returns.
+	UpdateSerialNumber();
+
 	if (auto* Children = ChildBindings.Find(InGuid))
 	{
 		for (const FGuid& Child : *Children)
 		{
-			InvalidateIfValid(Child);
+			InvalidateIfValidInternal(Child);
 		}
 	}
 
@@ -368,27 +396,33 @@ void FMovieSceneObjectCache::UpdateBindings(const FGuid& InGuid, IMovieScenePlay
 		{
 			for (const FGuid& Child : *Children)
 			{
-				InvalidateIfValid(Child);
+				InvalidateIfValidInternal(Child);
 			}
 		}
 		ChildBindings.Remove(InGuid);
 	}
 }
 
+void FMovieSceneObjectCache::UpdateSerialNumber()
+{
+	// Ok to overflow.
+	++SerialNumber;
+}
+
 void FMovieSceneEvaluationState::InvalidateExpiredObjects()
 {
 	for (auto& Pair : ObjectCaches)
 	{
-		Pair.Value.InvalidateExpiredObjects();
+		Pair.Value.ObjectCache.InvalidateExpiredObjects();
 	}
 }
 
 void FMovieSceneEvaluationState::Invalidate(const FGuid& InGuid, FMovieSceneSequenceIDRef SequenceID)
 {
-	FMovieSceneObjectCache* Cache = ObjectCaches.Find(SequenceID);
+	FVersionedObjectCache* Cache = ObjectCaches.Find(SequenceID);
 	if (Cache)
 	{
-		Cache->Invalidate(InGuid);
+		Cache->ObjectCache.Invalidate(InGuid);
 	}
 }
 
@@ -396,7 +430,7 @@ void FMovieSceneEvaluationState::ClearObjectCaches(IMovieScenePlayer& Player)
 {
 	for (auto& Pair : ObjectCaches)
 	{
-		Pair.Value.Clear(Player);
+		Pair.Value.ObjectCache.Clear(Player);
 	}
 }
 
@@ -407,15 +441,15 @@ void FMovieSceneEvaluationState::AssignSequence(FMovieSceneSequenceIDRef InSeque
 
 UMovieSceneSequence* FMovieSceneEvaluationState::FindSequence(FMovieSceneSequenceIDRef InSequenceID) const
 {
-	const FMovieSceneObjectCache* Cache = ObjectCaches.Find(InSequenceID);
-	return Cache ? Cache->GetSequence() : nullptr;
+	const FVersionedObjectCache* Cache = ObjectCaches.Find(InSequenceID);
+	return Cache ? Cache->ObjectCache.GetSequence() : nullptr;
 }
 
 FMovieSceneSequenceID FMovieSceneEvaluationState::FindSequenceId(UMovieSceneSequence* InSequence) const
 {
 	for (auto& Pair : ObjectCaches)
 	{
-		if (Pair.Value.GetSequence() == InSequence)
+		if (Pair.Value.ObjectCache.GetSequence() == InSequence)
 		{
 			return Pair.Key;
 		}
@@ -426,22 +460,40 @@ FMovieSceneSequenceID FMovieSceneEvaluationState::FindSequenceId(UMovieSceneSequ
 
 FGuid FMovieSceneEvaluationState::FindObjectId(UObject& Object, FMovieSceneSequenceIDRef InSequenceID, IMovieScenePlayer& Player)
 {
-	FMovieSceneObjectCache* Cache = ObjectCaches.Find(InSequenceID);
-	return Cache ? Cache->FindObjectId(Object, Player) : FGuid();
+	FVersionedObjectCache* Cache = ObjectCaches.Find(InSequenceID);
+	return Cache ? Cache->ObjectCache.FindObjectId(Object, Player) : FGuid();
 }
 
 FGuid FMovieSceneEvaluationState::FindCachedObjectId(UObject& Object, FMovieSceneSequenceIDRef InSequenceID, IMovieScenePlayer& Player)
 {
-	FMovieSceneObjectCache* Cache = ObjectCaches.Find(InSequenceID);
-	return Cache ? Cache->FindCachedObjectId(Object, Player) : FGuid();
+	FVersionedObjectCache* Cache = ObjectCaches.Find(InSequenceID);
+	return Cache ? Cache->ObjectCache.FindCachedObjectId(Object, Player) : FGuid();
 }
 
 void FMovieSceneEvaluationState::FilterObjectBindings(UObject* PredicateObject, IMovieScenePlayer& Player, TArray<FMovieSceneObjectBindingID>* OutBindings)
 {
 	check(OutBindings);
 
-	for (TTuple<FMovieSceneSequenceID, FMovieSceneObjectCache>& Cache : ObjectCaches)
+	for (TTuple<FMovieSceneSequenceID, FVersionedObjectCache>& Cache : ObjectCaches)
 	{
-		Cache.Value.FilterObjectBindings(PredicateObject, Player, OutBindings);
+		Cache.Value.ObjectCache.FilterObjectBindings(PredicateObject, Player, OutBindings);
 	}
 }
+
+uint32 FMovieSceneEvaluationState::GetSerialNumber()
+{
+	bool bUpdateSerial = false;
+	for (TTuple<FMovieSceneSequenceID, FVersionedObjectCache>& Cache : ObjectCaches)
+	{
+		const uint32 CurrentCacheSerial = Cache.Value.ObjectCache.GetSerialNumber();
+		bUpdateSerial = bUpdateSerial || (CurrentCacheSerial != Cache.Value.LastKnownSerial);
+		Cache.Value.LastKnownSerial = CurrentCacheSerial;
+	}
+	if (bUpdateSerial)
+	{
+		// Ok to overflow.
+		++SerialNumber;
+	}
+	return SerialNumber;
+}
+
