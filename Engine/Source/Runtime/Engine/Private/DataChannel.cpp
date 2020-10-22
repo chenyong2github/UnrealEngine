@@ -238,6 +238,11 @@ bool UChannel::CleanUp(const bool bForDestroy, EChannelCloseReason CloseReason)
 		InPartialBunch = NULL;
 	}
 
+	if (ChIndex != INDEX_NONE && Connection->IsReservingDestroyedChannels())
+	{
+		Connection->AddReservedChannel(ChIndex);
+	}
+
 	// Remove from connection's channel table.
 	verifySlow(Connection->OpenChannels.Remove(this) == 1);
 	Connection->StopTickingChannel(this);
@@ -426,7 +431,7 @@ bool UChannel::ReceivedSequencedBunch( FInBunch& Bunch )
 			UE_LOG(LogNet, Log, TEXT("UChannel::ReceivedSequencedBunch: Bunch.bClose == true. ChIndex == 0. Calling ConditionalCleanUp.") );
 		}
 
-		UE_LOG(LogNetTraffic, Log, TEXT("UChannel::ReceivedSequencedBunch: Bunch.bClose == true. Calling ConditionalCleanUp. ChIndex: %i"), ChIndex );
+		UE_LOG(LogNetTraffic, Log, TEXT("UChannel::ReceivedSequencedBunch: Bunch.bClose == true. Calling ConditionalCleanUp. ChIndex: %i Reason: %s"), ChIndex, LexToString(Bunch.CloseReason));
 
 		ConditionalCleanUp(false, Bunch.CloseReason);
 		return true;
