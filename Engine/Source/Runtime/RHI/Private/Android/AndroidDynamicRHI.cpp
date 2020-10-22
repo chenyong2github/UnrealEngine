@@ -11,6 +11,7 @@ FDynamicRHI* PlatformCreateDynamicRHI()
 	// Load the dynamic RHI module.
 	IDynamicRHIModule* DynamicRHIModule = NULL;
 	ERHIFeatureLevel::Type RequestedFeatureLevel = ERHIFeatureLevel::Num;
+	FString GraphicsRHI;
 
 	if (FPlatformMisc::ShouldUseVulkan() || FPlatformMisc::ShouldUseDesktopVulkan())
 	{
@@ -21,15 +22,18 @@ FDynamicRHI* PlatformCreateDynamicRHI()
 		if (!DynamicRHIModule->IsSupported())
 		{
 			DynamicRHIModule = &FModuleManager::LoadModuleChecked<IDynamicRHIModule>(TEXT("OpenGLDrv"));
+			GraphicsRHI = TEXT("OpenGL");
 		}
 		else
 		{
 			RequestedFeatureLevel = FPlatformMisc::ShouldUseDesktopVulkan() ? ERHIFeatureLevel::SM5 : ERHIFeatureLevel::ES3_1;
+			GraphicsRHI = TEXT("Vulkan");
 		}
 	}
 	else
 	{
 		DynamicRHIModule = &FModuleManager::LoadModuleChecked<IDynamicRHIModule>(TEXT("OpenGLDrv"));
+		GraphicsRHI = TEXT("OpenGL");
 	}
 
 	if (!DynamicRHIModule->IsSupported()) 
@@ -42,6 +46,7 @@ FDynamicRHI* PlatformCreateDynamicRHI()
 
 	if (DynamicRHIModule)
 	{
+		FApp::SetGraphicsRHI(GraphicsRHI);
 		// Create the dynamic RHI.
 		DynamicRHI = DynamicRHIModule->CreateRHI(RequestedFeatureLevel);
 	}
