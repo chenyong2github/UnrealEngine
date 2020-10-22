@@ -2,6 +2,7 @@
 
 #include "DatasmithMaterialExpressions.h"
 
+#include "DatasmithAssetUserData.h"
 #include "DatasmithImportContext.h"
 #include "DatasmithMaterialElements.h"
 #include "DatasmithScene.h"
@@ -3179,6 +3180,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	UnrealMaterial->UpdateCachedExpressionData();
 
 	UMaterialEditingLibrary::LayoutMaterialExpressions( UnrealMaterial );
+	UDatasmithAssetUserData::SetDatasmithUserDataValueForKey( UnrealMaterial, UDatasmithAssetUserData::UniqueIdMetaDataKey, MaterialElement->GetName() );
 
 	return UnrealMaterial;
 }
