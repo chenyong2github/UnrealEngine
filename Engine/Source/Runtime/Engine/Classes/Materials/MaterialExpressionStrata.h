@@ -8,6 +8,17 @@
 #include "MaterialExpressionStrata.generated.h"
 
 
+/**
+ * Compile a special blend function for strata when blending material attribute
+ *
+ * @param Compiler				The compiler to add code to
+ * @param Foreground			Entry A, has a bigger impact when Alpha is close to 1
+ * @param Background			Entry B, has a bigger impact when Alpha is close to 0
+ * @param Alpha					Blend factor [0..1], when 0
+ * @return						Index to a new code chunk
+ */
+extern int32 CompileStrataBlendFunction(FMaterialCompiler* Compiler, int32 Foreground, int32 Background, int32 Alpha);
+
 
 ///////////////////////////////////////////////////////////////////////////////
 // BSDF nodes
