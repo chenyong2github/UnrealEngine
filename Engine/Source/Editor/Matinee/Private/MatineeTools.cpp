@@ -3781,7 +3781,7 @@ void FMatinee::LockCamToGroup(class UInterpGroup* InGroup, const bool bResetView
 					LevelVC->ViewFOV = LevelVC->FOVAngle;
 					LevelVC->bEnableFading = false;
 					LevelVC->bEnableColorScaling = false;
-					LevelVC->SetMatineeActorLock(nullptr);
+					LevelVC->SetCinematicActorLock(nullptr);
 				}
 			}
 		}
@@ -3923,7 +3923,7 @@ void FMatinee::UpdateLevelViewport(AActor* InActor, FLevelEditorViewportClient* 
 	}
 
 	// Set the actor lock.
-	InViewportClient->SetMatineeActorLock(InActor);
+	InViewportClient->SetCinematicActorLock(InActor);
 
 	// If viewing through a camera - enforce aspect ratio.
 	if(Cam)
@@ -3988,7 +3988,7 @@ void FMatinee::RestoreLevelViewports()
 			FLevelEditorViewportClient* LevelVC = GEditor->GetLevelViewportClients()[ SavedData.ViewIndex ];
 			if ( LevelVC && LevelVC->IsPerspective() && LevelVC->AllowsCinematicControl() )
 			{
-				LevelVC->SetMatineeActorLock( nullptr );
+				LevelVC->SetCinematicActorLock( nullptr );
 				LevelVC->SetViewRotation( SavedData.ViewRotation );
 				LevelVC->SetViewLocation( SavedData.ViewLocation );				
 			}
