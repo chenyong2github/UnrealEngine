@@ -428,21 +428,40 @@ namespace DatasmithRuntime
 	{
 		using namespace DirectLink;
 
+		// Used to store local destinations with active connections
+		TSet<FGuid> FoundActiveConnections;
+
 		FRWScopeLock _(RawInfoCopyLock, SLT_Write);
 
 		for ( const FRawInfo::FStreamInfo& StreamInfo : RawInfo.StreamsInfo)
 		{
-			if (!StreamInfo.bIsActive || !StreamInfo.CommunicationStatus.IsTransmitting())
+			if (!StreamInfo.bIsActive)
 			{
 				continue;
 			}
 
 			if (TSharedPtr<FDestinationProxy>* DestinationProxyPtr = DestinationList.Find(StreamInfo.Destination))
 			{
-				int32 IsTransmitting = StreamInfo.CommunicationStatus.IsTransmitting() ? 1 : 0;
-				float Progress = StreamInfo.CommunicationStatus.GetProgress() * 100.f;
+				FoundActiveConnections.Add(StreamInfo.Destination);
 
-				UE_LOG(LogDatasmithRuntime, Log, TEXT("%s : Transmitting = %d, Progress = %.2f %"), *StreamInfo.Destination.ToString(), IsTransmitting, Progress);
+				if (StreamInfo.CommunicationStatus.IsTransmitting())
+				{
+					int32 IsTransmitting = StreamInfo.CommunicationStatus.IsTransmitting() ? 1 : 0;
+					float Progress = StreamInfo.CommunicationStatus.GetProgress() * 100.f;
+				}
+			}
+		}
+
+		// Repair any destinations which have lost its connection
+		for (TPair<DirectLink::FDestinationHandle, TSharedPtr<FDestinationProxy>>& Entry : DestinationList)
+		{
+			if (Entry.Value->IsConnected() && !FoundActiveConnections.Contains(Entry.Key))
+			{
+				// Try to restore connection. Reset if restoration failed
+				if(!OpenConnection(Entry.Value->GetConnectedSourceHandle(), Entry.Key))
+				{
+					Entry.Value->ResetConnection();
+				}
 			}
 		}
 
@@ -455,17 +474,6 @@ namespace DatasmithRuntime
 
 		// Something has changed with the sources, check what exactly
 		LastHash = NewHash;
-
-		// Check to see if existing connections are still valid
-		for (TPair<FDestinationHandle, TSharedPtr<FDestinationProxy>>& Entry : DestinationList)
-		{
-			TSharedPtr<FDestinationProxy>& DestinationProxy = Entry.Value;
-
-			if (DestinationProxy->IsConnected() && !RawInfo.DataPointsInfo.Contains(DestinationProxy->GetConnectedSourceHandle()))
-			{
-				DestinationProxy->ResetConnection();
-			}
-		}
 
 		// Rebuild list of available public sources
 		LastSources.Reset();
