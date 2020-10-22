@@ -563,6 +563,7 @@ FVulkanSurface::FVulkanSurface(FVulkanDevice& InDevice, FVulkanTextureBase* Owne
 	, NumSamples(InNumSamples)
 	, FullAspectMask(0)
 	, PartialAspectMask(0)
+	, CpuReadbackBuffer(nullptr) // for readback textures we use a staging buffer. this is because vulkan only requires implentations to support 1 mip level(which is useless), so we emulate using a buffer
 {
 	FImageCreateInfo ImageCreateInfo;
 	FVulkanSurface::GenerateImageCreateInfo(ImageCreateInfo,
@@ -570,6 +571,45 @@ FVulkanSurface::FVulkanSurface(FVulkanDevice& InDevice, FVulkanTextureBase* Owne
 		InFormat, Width, Height, Depth,
 		ArraySize, NumMips, NumSamples, UEFlags,
 		&StorageFormat, &ViewFormat);
+	if(UEFlags & TexCreate_CPUReadback)
+	{
+		check(NumSamples == 1);	//not implemented
+		check(Depth == 1);		//not implemented
+		check(ArraySize == 1);	//not implemented
+		CpuReadbackBuffer = new FVulkanCpuReadbackBuffer;
+		uint32 Size = 0;
+		for(uint32 Mip = 0; Mip < NumMips; ++Mip)
+		{
+			uint32 LocalSize;
+			GetMipSize(Mip, LocalSize);
+			CpuReadbackBuffer->MipOffsets[Mip] = Size;
+			CpuReadbackBuffer->MipSize[Mip] = LocalSize;
+			Size += LocalSize;
+		}
+
+		VkDevice VulkanDevice = InDevice.GetInstanceHandle();
+		VkMemoryPropertyFlags BufferMemFlags = (VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+		
+		VkBufferCreateInfo BufferCreateInfo;
+		ZeroVulkanStruct(BufferCreateInfo, VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO);
+		BufferCreateInfo.size = Size;
+		BufferCreateInfo.usage = BufferMemFlags;
+
+		VERIFYVULKANRESULT(VulkanRHI::vkCreateBuffer(VulkanDevice, &BufferCreateInfo, VULKAN_CPU_ALLOCATOR, &CpuReadbackBuffer->Buffer));
+		VkMemoryRequirements MemReqs;
+		VulkanRHI::vkGetBufferMemoryRequirements(VulkanDevice, CpuReadbackBuffer->Buffer, &MemReqs);
+		// Set minimum alignment to 16 bytes, as some buffers are used with CPU SIMD instructions
+		MemReqs.alignment = FMath::Max<VkDeviceSize>(16, MemReqs.alignment);
+		if (!InDevice.GetMemoryManager().AllocateBufferMemory(Allocation, Owner, MemReqs, BufferMemFlags, EVulkanAllocationMetaBufferStaging, __FILE__, __LINE__))
+		{
+			InDevice.GetMemoryManager().HandleOOM();
+		}
+		Allocation.BindBuffer(Device, CpuReadbackBuffer->Buffer);
+		void* Memory = Allocation.GetMappedPointer(Device);
+		FMemory::Memzero(Memory, MemReqs.size);
+		FMemory::Memset(&Image, 0xff, sizeof(Image));
+		return;
+	}
 
 	VERIFYVULKANRESULT(VulkanRHI::vkCreateImage(InDevice.GetInstanceHandle(), &ImageCreateInfo.ImageCreateInfo, VULKAN_CPU_ALLOCATOR, &Image));
 
@@ -660,6 +700,7 @@ FVulkanSurface::FVulkanSurface(FVulkanDevice& InDevice, FVulkanTextureBase* Owne
 
 void FVulkanSurface::EvictSurface(FVulkanDevice& InDevice)
 {
+	check(0 == CpuReadbackBuffer);
 	FImageCreateInfo ImageCreateInfo;
 	FVulkanSurface::GenerateImageCreateInfo(ImageCreateInfo,
 		InDevice, ViewType,
@@ -809,6 +850,7 @@ FVulkanSurface::FVulkanSurface(FVulkanDevice& InDevice, VkImageViewType Resource
 	, NumSamples(InNumSamples)
 	, FullAspectMask(0)
 	, PartialAspectMask(0)
+	, CpuReadbackBuffer(nullptr)
 {
 	StorageFormat = UEToVkTextureFormat(PixelFormat, false);
 
@@ -885,7 +927,14 @@ void FVulkanSurface::Destroy()
 	// An image can be instances.
 	// - Instances VkImage has "bIsImageOwner" set to "false".
 	// - Owner of VkImage has "bIsImageOwner" set to "true".
-	if (bIsImageOwner)
+	if(CpuReadbackBuffer)
+	{
+		Device->GetDeferredDeletionQueue().EnqueueResource(VulkanRHI::FDeferredDeletionQueue2::EType::Buffer, CpuReadbackBuffer->Buffer);
+		Device->GetMemoryManager().FreeVulkanAllocation(Allocation);
+		delete CpuReadbackBuffer;
+
+	}
+	else if (bIsImageOwner)
 	{
 		FRHICommandList& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 		if (!IsInRenderingThread() || (RHICmdList.Bypass() || !IsRunningRHIInSeparateThread()))
@@ -1926,6 +1975,11 @@ FVulkanTextureBase::FVulkanTextureBase(FVulkanDevice& Device, VkImageViewType Re
 {
 	VULKAN_TRACK_OBJECT_CREATE(FVulkanTextureBase, this);
 
+	if(UEFlags & TexCreate_CPUReadback)
+	{
+		return;
+	}
+
 	LLM_SCOPE_VULKAN(ELLMTagVulkan::VulkanTextures);
 	const bool bArray = ResourceType == VK_IMAGE_VIEW_TYPE_1D_ARRAY || ResourceType == VK_IMAGE_VIEW_TYPE_2D_ARRAY || ResourceType == VK_IMAGE_VIEW_TYPE_CUBE_ARRAY;
 	if (Surface.ViewFormat == VK_FORMAT_UNDEFINED)
@@ -2117,7 +2171,7 @@ void FVulkanTextureBase::DestroyViews()
 	{
 		DefaultView.Destroy(*Surface.Device);
 
-		if (PartialView != &DefaultView)
+		if (PartialView != &DefaultView && PartialView != nullptr)
 		{
 			PartialView->Destroy(*Surface.Device);
 		}
@@ -2553,54 +2607,107 @@ void FVulkanCommandListContext::RHICopyTexture(FRHITexture* SourceTexture, FRHIT
 	FVulkanSurface& DstSurface = Dest->Surface;
 
 	VkImageLayout SrcLayout = LayoutManager.FindLayoutChecked(SrcSurface.Image);
-	VkImageLayout DstLayout = LayoutManager.FindLayoutChecked(DstSurface.Image);
 	ensureMsgf(SrcLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, TEXT("Expected source texture to be in VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, actual layout is %d"), SrcLayout);
-	ensureMsgf(DstLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, TEXT("Expected destination texture to be in VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, actual layout is %d"), DstLayout);
 
 	FVulkanCmdBuffer* InCmdBuffer = CommandBufferManager->GetActiveCmdBuffer();
 	check(InCmdBuffer->IsOutsideRenderPass());
-
 	VkCommandBuffer CmdBuffer = InCmdBuffer->GetHandle();
 
-	VkImageCopy Region;
-	FMemory::Memzero(Region);
-	if (CopyInfo.Size == FIntVector::ZeroValue)
+
+	check((SrcSurface.UEFlags & TexCreate_CPUReadback) == 0);
+	if((DstSurface.UEFlags & TexCreate_CPUReadback) == TexCreate_CPUReadback)
 	{
-		// Copy whole texture when zero vector is specified for region size
-		ensure(SrcSurface.Width <= DstSurface.Width && SrcSurface.Height <= DstSurface.Height);
-		Region.extent.width = FMath::Max(1u, SrcSurface.Width >> CopyInfo.SourceMipIndex);
-		Region.extent.height = FMath::Max(1u, SrcSurface.Height >> CopyInfo.SourceMipIndex);
+		check(CopyInfo.DestSliceIndex == 0); //slices not supported in TexCreate_CPUReadback textures.
+		FIntVector Size = CopyInfo.Size;
+		if(Size == FIntVector::ZeroValue)
+		{
+			ensure(SrcSurface.Width <= DstSurface.Width && SrcSurface.Height <= DstSurface.Height);
+			Size.X = FMath::Max(1u, SrcSurface.Width >> CopyInfo.SourceMipIndex);
+			Size.Y = FMath::Max(1u, SrcSurface.Height >> CopyInfo.SourceMipIndex);
+		}		
+		VkBufferImageCopy CopyRegion[MAX_TEXTURE_MIP_COUNT];
+		FMemory::Memzero(CopyRegion);
+
+		const FVulkanCpuReadbackBuffer* CpuReadbackBuffer = DstSurface.GetCpuReadbackBuffer();
+		uint32 SourceSliceIndex = CopyInfo.SourceSliceIndex;
+		uint32 SourceMipIndex = CopyInfo.SourceMipIndex;
+		uint32 DestMipIndex = CopyInfo.DestMipIndex;
+		for (uint32 Index = 0; Index < CopyInfo.NumMips; ++Index)
+		{
+			CopyRegion[Index].bufferOffset = CpuReadbackBuffer->MipOffsets[DestMipIndex + Index];
+			CopyRegion[Index].bufferRowLength = Size.X;
+			CopyRegion[Index].bufferImageHeight = Size.Y;
+			CopyRegion[Index].imageSubresource.aspectMask = SrcSurface.GetFullAspectMask();
+			CopyRegion[Index].imageSubresource.mipLevel = SourceMipIndex;
+			CopyRegion[Index].imageSubresource.baseArrayLayer = SourceSliceIndex;
+			CopyRegion[Index].imageSubresource.layerCount = 1;
+			CopyRegion[Index].imageExtent.width = Size.X;
+			CopyRegion[Index].imageExtent.height = Size.Y;
+			CopyRegion[Index].imageExtent.depth = 1;
+
+			Size.X = FMath::Max(1, Size.X / 2);
+			Size.Y = FMath::Max(1, Size.Y / 2);
+		}
+
+
+		VulkanRHI::vkCmdCopyImageToBuffer(CmdBuffer, SrcSurface.Image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, CpuReadbackBuffer->Buffer, CopyInfo.NumMips, &CopyRegion[0]);
+
+		FVulkanPipelineBarrier BarrierMemory;
+		BarrierMemory.MemoryBarrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+		BarrierMemory.MemoryBarrier.pNext = nullptr;
+		BarrierMemory.MemoryBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+		BarrierMemory.MemoryBarrier.dstAccessMask = VK_ACCESS_HOST_READ_BIT;
+		BarrierMemory.SrcStageMask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+		BarrierMemory.DstStageMask = VK_PIPELINE_STAGE_HOST_BIT;
+
+		BarrierMemory.Execute(CmdBuffer);
 	}
 	else
 	{
-		ensure(CopyInfo.Size.X > 0 && (uint32)CopyInfo.Size.X <= DstSurface.Width && CopyInfo.Size.Y > 0 && (uint32)CopyInfo.Size.Y <= DstSurface.Height);
-		Region.extent.width = CopyInfo.Size.X;
-		Region.extent.height = CopyInfo.Size.Y;
-	}
-	Region.extent.depth = 1;
-	Region.srcSubresource.aspectMask = SrcSurface.GetFullAspectMask();
-	Region.srcSubresource.baseArrayLayer = CopyInfo.SourceSliceIndex;
-	Region.srcSubresource.layerCount = CopyInfo.NumSlices;
-	Region.srcSubresource.mipLevel = CopyInfo.SourceMipIndex;
-	Region.srcOffset.x = CopyInfo.SourcePosition.X;
-	Region.srcOffset.y = CopyInfo.SourcePosition.Y;
-	Region.dstSubresource.aspectMask = DstSurface.GetFullAspectMask();
-	Region.dstSubresource.baseArrayLayer = CopyInfo.DestSliceIndex;
-	Region.dstSubresource.layerCount = CopyInfo.NumSlices;
-	Region.dstSubresource.mipLevel = CopyInfo.DestMipIndex;
-	Region.dstOffset.x = CopyInfo.DestPosition.X;
-	Region.dstOffset.y = CopyInfo.DestPosition.Y;
+		VkImageLayout DstLayout = LayoutManager.FindLayoutChecked(DstSurface.Image);
+		ensureMsgf(DstLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, TEXT("Expected destination texture to be in VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, actual layout is %d"), DstLayout);
 
-	for (uint32 Index = 0; Index < CopyInfo.NumMips; ++Index)
-	{
-		VulkanRHI::vkCmdCopyImage(CmdBuffer,
-			SrcSurface.Image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-			DstSurface.Image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-			1, &Region);
-		Region.extent.width = FMath::Max(1u, Region.extent.width / 2);
-		Region.extent.height = FMath::Max(1u, Region.extent.height / 2);
-		++Region.srcSubresource.mipLevel;
-		++Region.dstSubresource.mipLevel;
+
+		VkImageCopy Region;
+		FMemory::Memzero(Region);
+		if (CopyInfo.Size == FIntVector::ZeroValue)
+		{
+			// Copy whole texture when zero vector is specified for region size
+			ensure(SrcSurface.Width <= DstSurface.Width && SrcSurface.Height <= DstSurface.Height);
+			Region.extent.width = FMath::Max(1u, SrcSurface.Width >> CopyInfo.SourceMipIndex);
+			Region.extent.height = FMath::Max(1u, SrcSurface.Height >> CopyInfo.SourceMipIndex);
+		}
+		else
+		{
+			ensure(CopyInfo.Size.X > 0 && (uint32)CopyInfo.Size.X <= DstSurface.Width && CopyInfo.Size.Y > 0 && (uint32)CopyInfo.Size.Y <= DstSurface.Height);
+			Region.extent.width = CopyInfo.Size.X;
+			Region.extent.height = CopyInfo.Size.Y;
+		}
+		Region.extent.depth = 1;
+		Region.srcSubresource.aspectMask = SrcSurface.GetFullAspectMask();
+		Region.srcSubresource.baseArrayLayer = CopyInfo.SourceSliceIndex;
+		Region.srcSubresource.layerCount = CopyInfo.NumSlices;
+		Region.srcSubresource.mipLevel = CopyInfo.SourceMipIndex;
+		Region.srcOffset.x = CopyInfo.SourcePosition.X;
+		Region.srcOffset.y = CopyInfo.SourcePosition.Y;
+		Region.dstSubresource.aspectMask = DstSurface.GetFullAspectMask();
+		Region.dstSubresource.baseArrayLayer = CopyInfo.DestSliceIndex;
+		Region.dstSubresource.layerCount = CopyInfo.NumSlices;
+		Region.dstSubresource.mipLevel = CopyInfo.DestMipIndex;
+		Region.dstOffset.x = CopyInfo.DestPosition.X;
+		Region.dstOffset.y = CopyInfo.DestPosition.Y;
+
+		for (uint32 Index = 0; Index < CopyInfo.NumMips; ++Index)
+		{
+			VulkanRHI::vkCmdCopyImage(CmdBuffer,
+				SrcSurface.Image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+				DstSurface.Image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+				1, &Region);
+			Region.extent.width = FMath::Max(1u, Region.extent.width / 2);
+			Region.extent.height = FMath::Max(1u, Region.extent.height / 2);
+			++Region.srcSubresource.mipLevel;
+			++Region.dstSubresource.mipLevel;
+		}
 	}
 }
 
