@@ -1392,6 +1392,15 @@ void UNiagaraComponent::OnRegister()
 		SavedAutoAttachRelativeRotation = GetRelativeRotation();
 		SavedAutoAttachRelativeScale3D = GetRelativeScale3D();
 	}
+
+#if WITH_EDITOR
+	if (Asset && !AssetExposedParametersChangedHandle.IsValid())
+	{
+		AssetExposedParametersChangedHandle = Asset->GetExposedParameters().AddOnChangedHandler(
+			FNiagaraParameterStore::FOnChanged::FDelegate::CreateUObject(this, &UNiagaraComponent::AssetExposedParametersChanged));
+	}
+#endif
+
 	Super::OnRegister();
 }
 
@@ -2301,9 +2310,6 @@ void UNiagaraComponent::PostLoad()
 		}
 #endif
 		SynchronizeWithSourceSystem();
-
-		AssetExposedParametersChangedHandle = Asset->GetExposedParameters().AddOnChangedHandler(
-			FNiagaraParameterStore::FOnChanged::FDelegate::CreateUObject(this, &UNiagaraComponent::AssetExposedParametersChanged));
 	}
 #endif
 }
