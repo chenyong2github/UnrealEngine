@@ -215,6 +215,24 @@ void UVCamOutputProviderBase::NotifyWidgetOfComponentChange() const
 	}
 }
 
+UVCamOutputProviderBase* UVCamOutputProviderBase::GetOtherOutputProviderByIndex(int32 Index) const
+{
+	if (UVCamComponent* OuterComponent = GetTypedOuter<UVCamComponent>())
+	{
+		if (UVCamOutputProviderBase* Provider = OuterComponent->GetOutputProviderByIndex(Index))
+		{
+			return Provider;
+		}
+		else
+		{
+			UE_LOG(LogVCamOutputProvider, Warning, TEXT("GetOtherOutputProviderByIndex - specified index is out of range"));
+		}
+	}
+
+	return nullptr;
+}
+
+
 TSharedPtr<FSceneViewport> UVCamOutputProviderBase::GetTargetSceneViewport() const
 {
 	TSharedPtr<FSceneViewport> SceneViewport;

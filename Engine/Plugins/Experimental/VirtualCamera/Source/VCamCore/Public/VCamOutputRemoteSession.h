@@ -3,7 +3,6 @@
 #pragma once
 
 #include "VCamOutputProviderBase.h"
-#include "VCamOutputComposure.h"
 #include "ImageProviders/RemoteSessionMediaOutput.h"
 #include "IRemoteSessionRole.h"
 #include "RemoteSession.h"
@@ -40,7 +39,7 @@ public:
 
 	// If using the output from a Composure Output Provider, specify it here
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Output")
-	int32 FromComposureOutputProviderIndex = -1;
+	int32 FromComposureOutputProviderIndex = INDEX_NONE;
 
 protected:
 
@@ -59,8 +58,6 @@ private:
 
 	void CreateRemoteSession();
 	void DestroyRemoteSession();
-
-	UVCamOutputComposure* GetComposureProvider();
 
 	void OnRemoteSessionChannelChange(IRemoteSessionRole* Role, TWeakPtr<IRemoteSessionChannel> Channel, ERemoteSessionChannelChange Change);
 	void OnImageChannelCreated(TWeakPtr<IRemoteSessionChannel> Instance);

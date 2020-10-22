@@ -28,6 +28,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Output")
 	UMediaOutput* OutputConfig;
 
+	// If using the output from a Composure Output Provider, specify it here
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Output")
+	int32 FromComposureOutputProviderIndex = INDEX_NONE;
+
 protected:
 	UPROPERTY(Transient)
 	UMediaCapture* MediaCapture = nullptr;

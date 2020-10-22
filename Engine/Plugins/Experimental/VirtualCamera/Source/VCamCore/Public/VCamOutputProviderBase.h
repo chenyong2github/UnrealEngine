@@ -101,6 +101,8 @@ protected:
 	void DisplayUMG();
 	void DestroyUMG();
 
+	UVCamOutputProviderBase* GetOtherOutputProviderByIndex(int32 Index) const;
+
 	TSharedPtr<FSceneViewport> GetTargetSceneViewport() const;
 	TWeakPtr<SWindow> GetTargetInputWindow() const;
 
