@@ -118,6 +118,9 @@ public:
 	/** Returns nearest navmesh polygon to Loc, or INVALID_NAVMESHREF if Loc is not on the navmesh. */
 	NavNodeRef FindNearestPoly(FVector const& Loc, FVector const& Extent, const FNavigationQueryFilter& Filter, const UObject* Owner) const;
 
+	/** Finds the polygons along the navigation graph that touch the specified circle. Return true if found any. */
+	bool FindPolysAroundCircle(const FVector& CenterPos, const NavNodeRef CenterNodeRef, const float Radius, const FNavigationQueryFilter& Filter, const UObject* Owner, TArray<NavNodeRef>* OutPolys = nullptr, TArray<NavNodeRef>* OutPolysParent = nullptr, TArray<float>* OutPolysCost = nullptr, int32* OutPolysCount = nullptr) const;
+
 	/** Retrieves all polys within given pathing distance from StartLocation.
 	 *	@NOTE query is not using string-pulled path distance (for performance reasons),
 	 *		it measured distance between middles of portal edges, do you might want to 

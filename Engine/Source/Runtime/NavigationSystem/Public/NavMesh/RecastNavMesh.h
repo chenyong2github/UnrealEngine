@@ -927,6 +927,9 @@ public:
 
 	FColor GetAreaIDColor(uint8 AreaID) const;
 
+	/** Finds the polygons along the navigation graph that touch the specified circle. */
+	bool FindPolysAroundCircle(const FVector& CenterPos, const NavNodeRef CenterNodeRef, const float Radius, const FSharedConstNavQueryFilter& Filter, const UObject* QueryOwner, TArray<NavNodeRef>* OutPolys = nullptr, TArray<NavNodeRef>* OutPolysParent = nullptr, TArray<float>* OutPolysCost = nullptr, int32* OutPolysCount = nullptr) const;
+
 	/** Returns nearest navmesh polygon to Loc, or INVALID_NAVMESHREF if Loc is not on the navmesh. */
 	NavNodeRef FindNearestPoly(FVector const& Loc, FVector const& Extent, FSharedConstNavQueryFilter Filter = NULL, const UObject* Querier = NULL) const;
 
