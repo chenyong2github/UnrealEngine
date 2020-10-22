@@ -335,10 +335,7 @@ FText FSkeletonTreeBoneItem::GetBoneToolTip()
 
 void FSkeletonTreeBoneItem::OnBlendSliderCommitted(float NewValue, ETextCommit::Type CommitType)
 {
-	if(CommitType == ETextCommit::OnEnter)
-	{
-		SetBoneBlendProfileScale(NewValue, false);
-	}
+	SetBoneBlendProfileScale(NewValue, false);
 }
 
 void FSkeletonTreeBoneItem::HandleDragEnter(const FDragDropEvent& DragDropEvent)
