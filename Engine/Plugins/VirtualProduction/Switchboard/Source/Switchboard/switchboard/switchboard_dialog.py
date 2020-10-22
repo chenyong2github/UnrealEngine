@@ -105,7 +105,13 @@ class SwitchboardDialog(QtCore.QObject):
         self.device_manager.signal_device_removed.connect(CONFIG.on_device_removed)
 
         # DeviceManager initialize with from the config
+        #
+        CONFIG.push_saving_allowed(False)
+
+        self.device_manager.reset_plugins_settings(CONFIG)
         self.device_manager.add_devices(CONFIG._device_data_from_config)
+
+        CONFIG.pop_saving_allowed()
 
         # add menu for adding new devices
         self.device_add_menu = QtWidgets.QMenu()
@@ -186,9 +192,6 @@ class SwitchboardDialog(QtCore.QObject):
         if not CONFIG.file_path:
             self.menu_new_config()
 
-        # todo-dara: find a way to avoid doing this. we want to be sure that we don't keep stale data around once everything is loaded.
-        CONFIG._device_data_from_config = {}
-
     def show_device_add_menu(self):
         self.device_add_menu.clear()
         plugins = sorted(self.device_manager.available_device_plugins(), key=str.lower)
@@ -251,16 +254,25 @@ class SwitchboardDialog(QtCore.QObject):
         SETTINGS.CONFIG = config_name
         SETTINGS.save()
 
-        # Remove all devices
-        self.device_manager.clear_device_list()
-        self.device_list_widget.clear_widgets()
-
         # Update to the new config
         config_name = CONFIG.config_file_name_to_name(SETTINGS.CONFIG)
         CONFIG.init_with_file_name(CONFIG.name_to_config_file_name(config_name))
 
+        # Disable saving while loading
+        CONFIG.push_saving_allowed(False)
+
+        # Remove all devices
+        self.device_manager.clear_device_list()
+        self.device_list_widget.clear_widgets()
+
+        # Reset plugin settings
+        self.device_manager.reset_plugins_settings(CONFIG)
+
         # Add new devices
         self.device_manager.add_devices(CONFIG._device_data_from_config)
+
+        # Re-enable saving after loading.
+        CONFIG.pop_saving_allowed()
 
         self.p4_refresh_cl()
         self.refresh_levels()
@@ -277,11 +289,21 @@ class SwitchboardDialog(QtCore.QObject):
         dialog.exec()
 
         if dialog.result() == QtWidgets.QDialog.Accepted:
+
+            CONFIG.init_new_config(dialog.config_name, dialog.uproject, dialog.engine_dir)
+
+            # Disable saving while loading
+            CONFIG.push_saving_allowed(False)
+
             # Remove all devices
             self.device_manager.clear_device_list()
             self.device_list_widget.clear_widgets()
 
-            CONFIG.init_new_config(dialog.config_name, dialog.uproject, dialog.engine_dir)
+            # Reset plugin settings
+            self.device_manager.reset_plugins_settings(CONFIG)
+
+            # Re-enable saving after loading
+            CONFIG.pop_saving_allowed()
 
             # Update the config menu
             self.update_configs_menu()
@@ -347,8 +369,15 @@ class SwitchboardDialog(QtCore.QObject):
             device_settings = [(device.name, device.device_settings(), device.setting_overrides()) for device in device_instances]
             settings_dialog.add_section_for_plugin(plugin_name, self.device_manager.plugin_settings(plugin_name), device_settings)
 
-        # RUN
+
+        # avoid saving the config all the time while in the settings dialog
+        CONFIG.push_saving_allowed(False)
+
+        # Show the Settings Dialog
         settings_dialog.ui.exec()
+
+        # Restore saving, which should happen at the end of this function
+        CONFIG.pop_saving_allowed()
 
         new_config_name = settings_dialog.config_name()
         if config_name != new_config_name:
