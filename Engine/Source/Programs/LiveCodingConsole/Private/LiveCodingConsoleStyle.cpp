@@ -47,6 +47,9 @@ TSharedRef< FSlateStyleSet > FLiveCodingConsoleStyle::Create()
 	TSharedRef<FSlateStyleSet> StyleRef = MakeShareable(new FSlateStyleSet("LiveCodingServerStyle"));
 	FSlateStyleSet& Style = StyleRef.Get();
 
+	Style.SetParentStyleName("CoreStyle");
+
+
 	Style.Set( "AppIcon", new IMAGE_BRUSH( "Icons/DefaultAppIcon", FVector2D(20,20)) );
 
 	const FTextBlockStyle DefaultText = FTextBlockStyle()
