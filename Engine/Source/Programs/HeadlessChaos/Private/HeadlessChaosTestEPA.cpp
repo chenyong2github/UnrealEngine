@@ -1195,7 +1195,7 @@ namespace ChaosTest
 				{-50.0999985, 50.1250000, 50.1250000},
 				});
 
-			FConvex ConvexBox(MoveTemp(ConvexBoxSurfaceParticles));
+			FConvex ConvexBox(MoveTemp(ConvexBoxSurfaceParticles), 0.0f);
 
 			TParticles<FReal, 3> TrimeshParticles(
 				{
