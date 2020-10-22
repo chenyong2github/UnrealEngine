@@ -383,16 +383,30 @@ void UVCamComponent::Update()
 
 void UVCamComponent::SetEnabled(bool bNewEnabled)
 {
-	bEnabled = bNewEnabled;
-
 	// Disable all outputs if we're no longer enabled
-	if (!bEnabled)
+	// NOTE this must be done BEFORE setting the actual bEnabled variable because OutputProviderBase now checks the component enabled state
+	if (!bNewEnabled)
 	{
 		for (UVCamOutputProviderBase* Provider : OutputProviders)
 		{
 			if (Provider)
 			{
 				Provider->Deinitialize();
+			}
+		}
+	}
+
+	bEnabled = bNewEnabled;
+
+	// Enable any outputs that are set to active
+	// NOTE this must be done AFTER setting the actual bEnabled variable because OutputProviderBase now checks the component enabled state
+	if (bNewEnabled)
+	{
+		for (UVCamOutputProviderBase* Provider : OutputProviders)
+		{
+			if (Provider)
+			{
+				Provider->Initialize();
 			}
 		}
 	}
