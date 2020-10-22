@@ -5680,6 +5680,10 @@ uint32 UMaterialExpressionMakeMaterialAttributes::GetInputType(int32 InputIndex)
 	{
 		return MCT_ShadingModel;
 	}
+	else if (GetInputName(InputIndex).IsEqual("FrontMaterial"))
+	{
+		return MCT_Strata;
+	}
 	else
 	{
 		return UMaterialExpression::GetInputType(InputIndex);
@@ -6005,6 +6009,10 @@ uint32 UMaterialExpressionGetMaterialAttributes::GetOutputType(int32 OutputIndex
 		ensure(OutputIndex < AttributeGetTypes.Num() + 1);
 		EMaterialValueType PinType = FMaterialAttributeDefinitionMap::GetValueType(AttributeGetTypes[OutputIndex - 1]);
 		if (PinType == MCT_ShadingModel)
+		{
+			OutputType = PinType;
+		}
+		else if (PinType == MCT_Strata)
 		{
 			OutputType = PinType;
 		}
