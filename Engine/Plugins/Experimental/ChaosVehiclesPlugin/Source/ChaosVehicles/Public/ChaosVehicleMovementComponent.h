@@ -36,7 +36,7 @@ struct FVehicleDebugParams
 	bool DisableAerodynamics = false;
 	bool DisableAerofoils = false;
 	bool DisableThrusters = false;
-	bool BatchQueries = true;
+	bool BatchQueries = false;	// Turned off due to Issue with Overlap Queries on scaled terrain
 	float ForceDebugScaling = 0.0006f;
 	float SleepCounterThreshold = 15;
 	bool DisableVehicleSleep = true;
