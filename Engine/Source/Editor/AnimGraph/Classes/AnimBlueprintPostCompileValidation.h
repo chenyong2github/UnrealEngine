@@ -52,10 +52,11 @@ protected:
 	struct FPCV_GatherParams
 	{
 		bool bFilterBySyncGroup;
-		int32 SyncGroupIndex;
+		FName SyncGroupName;
 		bool bFilterByLoopingCondition;
 		bool bLoopingCondition;
 
+		UE_DEPRECATED(4.26, "Please use the constructor that takes an FName for the sync group")
 		FPCV_GatherParams
 		(
 			bool InbFilterBySyncGroup = false,
@@ -64,7 +65,20 @@ protected:
 			bool InbLoopingCondition = false
 		)
 			: bFilterBySyncGroup(InbFilterBySyncGroup)
-			, SyncGroupIndex(InSyncGroupIndex)
+			, SyncGroupName(NAME_None)
+			, bFilterByLoopingCondition(InbFilterByLoopingCondition)
+			, bLoopingCondition(InbLoopingCondition)
+		{}
+
+		FPCV_GatherParams
+		(
+			bool InbFilterBySyncGroup = false,
+			FName InSyncGroupName = NAME_None,
+			bool InbFilterByLoopingCondition = false,
+			bool InbLoopingCondition = false
+		)
+			: bFilterBySyncGroup(InbFilterBySyncGroup)
+			, SyncGroupName(InSyncGroupName)
 			, bFilterByLoopingCondition(InbFilterByLoopingCondition)
 			, bLoopingCondition(InbLoopingCondition)
 		{}
