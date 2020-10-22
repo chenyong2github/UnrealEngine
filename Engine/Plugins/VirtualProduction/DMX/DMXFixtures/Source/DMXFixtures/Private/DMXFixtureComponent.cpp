@@ -145,5 +145,15 @@ TArray<FLinearColor> UDMXFixtureComponent::GetTextureCenterColors(UTexture2D* Te
 		Fence.Wait();
 	}
 
+
+	// to linear space for the light
+	for (auto& Pixel : PixelColorArray)
+	{
+		Pixel.R = FMath::Pow(Pixel.R, 0.4545f);
+		Pixel.G = FMath::Pow(Pixel.G, 0.4545f);
+		Pixel.B = FMath::Pow(Pixel.B, 0.4545f);
+	}
+
+
 	return PixelColorArray;
 }
