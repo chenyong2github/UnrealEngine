@@ -82,6 +82,10 @@ public:
 
 	void ForceUpdate();
 
+#if WITH_EDITOR
+	virtual void CheckForErrors() override;
+#endif // WITH_EDITOR
+
 private:
 	template<class T>
 	friend class FGetActorsOfType;

@@ -52,6 +52,8 @@ public:
 	void GetBlueprintRenderDependencies(TArray<UObject*>& OutStreamableAssets);
 
 #if WITH_EDITOR
+	virtual void CheckForErrors() override;
+
 	virtual void GetRenderDependencies(TSet<UObject*>& OutDependencies);
 
 	virtual void SetOwningLandscape(class ALandscape* InOwningLandscape);

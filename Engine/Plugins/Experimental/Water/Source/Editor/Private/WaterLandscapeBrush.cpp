@@ -19,6 +19,10 @@
 #include "Editor.h"
 #include "WaterEditorSubsystem.h"
 #include "Algo/AnyOf.h"
+#include "Misc/MapErrors.h"
+#include "Misc/UObjectToken.h"
+#include "Logging/MessageLog.h"
+#include "Logging/TokenizedMessage.h"
 
 #define LOCTEXT_NAMESPACE "WaterLandscapeBrush"
 
@@ -486,6 +490,7 @@ void AWaterLandscapeBrush::ForceUpdate()
 	OnActorsAffectingLandscapeChanged();
 }
 
+
 void AWaterLandscapeBrush::BlueprintOnRenderTargetTexturesUpdated_Implementation(UTexture2D* VelocityTexture)
 {
 	BlueprintOnRenderTargetTexturesUpdated_Native(VelocityTexture);
@@ -495,5 +500,28 @@ void AWaterLandscapeBrush::ForceWaterTextureUpdate()
 {
 	MarkDirty();
 }
+
+#if WITH_EDITOR
+
+void AWaterLandscapeBrush::CheckForErrors()
+{
+	Super::CheckForErrors();
+
+	if (GetWorld() && !IsTemplate())
+	{
+		if (ALandscape* Landscape = GetOwningLandscape())
+		{
+			if (!Landscape->CanHaveLayersContent())
+			{
+				FMessageLog("MapCheck").Error()
+					->AddToken(FUObjectToken::Create(this))
+					->AddToken(FTextToken::Create(LOCTEXT("MapCheck_Message_NonEditLayersLandscape", "The water brush requires a Landscape with Edit Layers enabled. Otherwise, it will erase the existing landscape anytime a water body is modified. Please enable Edit Layers on the landscape. ")))
+					->AddToken(FMapErrorToken::Create(TEXT("WaterBrushNonEditLayersLandscape")));
+			}
+		}
+	}
+}
+
+#endif // WITH_EDITOR
 
 #undef LOCTEXT_NAMESPACE
