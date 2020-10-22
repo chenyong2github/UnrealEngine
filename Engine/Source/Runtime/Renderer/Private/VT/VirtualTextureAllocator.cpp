@@ -64,12 +64,12 @@ void FVirtualTextureAllocator::Grow()
 	AddressBlocks[RootIndex] = RootBlock;
 
 	// Reparent old root block
+	int32 NextSibling = AcquireBlock();
 	AddressBlocks[OldRootIndex].Parent = RootIndex;
 	AddressBlocks[OldRootIndex].FirstSibling = OldRootIndex;
-	AddressBlocks[OldRootIndex].NextSibling = AcquireBlock();
+	AddressBlocks[OldRootIndex].NextSibling = NextSibling;
 
 	// Add new siblings for old root block
-	int32 NextSibling = AddressBlocks[OldRootIndex].NextSibling;
 	const int32 NumChildren = (1 << vDimensions);
 	for (int32 Sibling = 1; Sibling < NumChildren; Sibling++)
 	{
@@ -118,11 +118,11 @@ int32 FVirtualTextureAllocator::AcquireBlock()
 	}
 
 	int32 FreeBlock = GlobalFreeList;
-	
+
 	GlobalFreeList = AddressBlocks[GlobalFreeList].NextFree;
 	if (GlobalFreeList != 0xffff)
 	{
-		AddressBlocks[GlobalFreeList].PrevFree = 0;
+		AddressBlocks[GlobalFreeList].PrevFree = 0xffff;
 	}
 
 	return FreeBlock;
@@ -184,8 +184,8 @@ bool FVirtualTextureAllocator::TryAlloc(uint32 InLogSize)
 uint32 FVirtualTextureAllocator::Alloc(FAllocatedVirtualTexture* VT)
 {
 	// Pad out to square power of 2
-	const uint32 BlockSize = FMath::Max( VT->GetWidthInTiles(), VT->GetHeightInTiles() );
-	const uint8 vLogSize = FMath::CeilLogTwo( BlockSize );
+	const uint32 BlockSize = FMath::Max(VT->GetWidthInTiles(), VT->GetHeightInTiles());
+	const uint8 vLogSize = FMath::CeilLogTwo(BlockSize);
 
 	// Find smallest free that fits
 	for (int i = vLogSize; i < FreeList.Num(); i++)
@@ -216,7 +216,7 @@ uint32 FVirtualTextureAllocator::Alloc(FAllocatedVirtualTexture* VT)
 				// Create child blocks
 				const int32 FirstChildIndex = AcquireBlock();
 				int32 NextSibling = AcquireBlock();
-				
+
 				AllocBlock = &AddressBlocks[AllocIndex];
 				AllocBlock->FirstChild = FirstChildIndex;
 
@@ -231,7 +231,7 @@ uint32 FVirtualTextureAllocator::Alloc(FAllocatedVirtualTexture* VT)
 				{
 					const int32 BlockIndex = NextSibling;
 					NextSibling = (Sibling + 1 < NumChildren) ? AcquireBlock() : 0xffff;
-					
+
 					FAddressBlock Block(FirstChildBlock, Sibling, vDimensions);
 					Block.NextSibling = NextSibling;
 					AddressBlocks[BlockIndex] = Block;
@@ -287,7 +287,7 @@ uint32 FVirtualTextureAllocator::Alloc(FAllocatedVirtualTexture* VT)
 						Index = AddressBlock.NextSibling;
 						Sibling++;
 					}
-					
+
 					// Now handle child siblings
 					ParentBlock = &AddressBlocks[ParentBlock->FirstChild];
 					DepthCount++;
@@ -426,9 +426,9 @@ void FVirtualTextureAllocator::FreeAddressBlock(uint32 Index)
 
 void FVirtualTextureAllocator::DumpToConsole(bool verbose)
 {
-	for (int32 BlockID = SortedIndices.Num()-1; BlockID >= 0 ; BlockID--)
+	for (int32 BlockID = SortedIndices.Num() - 1; BlockID >= 0; BlockID--)
 	{
-		FAddressBlock &Block = AddressBlocks[SortedIndices[BlockID]];
+		FAddressBlock& Block = AddressBlocks[SortedIndices[BlockID]];
 		uint32 X = FMath::ReverseMortonCode2(Block.vAddress);
 		uint32 Y = FMath::ReverseMortonCode2(Block.vAddress >> 1);
 		uint32 Size = 1 << Block.vLogSize;
@@ -451,4 +451,3 @@ void FVirtualTextureAllocator::DumpToConsole(bool verbose)
 		}
 	}
 }
-
