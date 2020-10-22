@@ -60,9 +60,73 @@ inline TStringView<CharType> TStringView<CharType>::TrimStartAndEnd() const
 }
 
 template <typename CharType>
-inline bool TStringView<CharType>::Equals(ViewType Other, ESearchCase::Type SearchCase) const
+template <typename OtherCharType>
+inline bool TStringView<CharType>::Equals(TStringView<OtherCharType> Other, ESearchCase::Type SearchCase) const
 {
-	return Size == Other.Size && Compare(Other, SearchCase) == 0;
+	return Len() == Other.Len() && Compare(Other, SearchCase) == 0;
+}
+
+template <typename CharType>
+template <typename OtherCharType>
+inline bool TStringView<CharType>::Equals(const OtherCharType* const Other, ESearchCase::Type SearchCase) const
+{
+	if (SearchCase == ESearchCase::CaseSensitive)
+	{
+		return FPlatformString::Strncmp(GetData(), Other, Len()) == 0 && !Other[Len()];
+	}
+	else
+	{
+		return FPlatformString::Strnicmp(GetData(), Other, Len()) == 0 && !Other[Len()];
+	}
+}
+
+template <typename CharType>
+template <typename OtherCharType>
+inline int32 TStringView<CharType>::Compare(TStringView<OtherCharType> Other, ESearchCase::Type SearchCase) const
+{
+	const SizeType SelfLen = Len();
+	const SizeType OtherLen = Other.Len();
+	const SizeType MinLen = FMath::Min(SelfLen, OtherLen);
+
+	int Result;
+	if (SearchCase == ESearchCase::CaseSensitive)
+	{
+		Result = FPlatformString::Strncmp(GetData(), Other.GetData(), MinLen);
+	}
+	else
+	{
+		Result = FPlatformString::Strnicmp(GetData(), Other.GetData(), MinLen);
+	}
+
+	if (Result != 0)
+	{
+		return Result;
+	}
+
+	return SelfLen - OtherLen;
+}
+
+template <typename CharType>
+template <typename OtherCharType>
+inline int32 TStringView<CharType>::Compare(const OtherCharType* const Other, ESearchCase::Type SearchCase) const
+{
+	int Result;
+	if (SearchCase == ESearchCase::CaseSensitive)
+	{
+		Result = FPlatformString::Strncmp(GetData(), Other, Len());
+	}
+	else
+	{
+		Result = FPlatformString::Strnicmp(GetData(), Other, Len());
+	}
+
+	if (Result != 0)
+	{
+		return Result;
+	}
+
+	// Equal if Other[Len()] is '\0' and less otherwise. !!Other[Len()] is 0 for '\0' and 1 otherwise.
+	return -!!Other[Len()];
 }
 
 template <typename CharType>

@@ -3,31 +3,6 @@
 #include "Containers/StringView.h"
 
 template <typename CharType>
-int32 TStringView<CharType>::Compare(const ViewType Rhs, const ESearchCase::Type SearchCase) const
-{
-	const SizeType LhsLen = Len();
-	const SizeType RhsLen = Rhs.Len();
-	const SizeType MinLen = FMath::Min(LhsLen, RhsLen);
-
-	int Result;
-	if (SearchCase == ESearchCase::CaseSensitive)
-	{
-		Result = TCString<ElementType>::Strncmp(GetData(), Rhs.GetData(), MinLen);
-	}
-	else
-	{
-		Result = TCString<ElementType>::Strnicmp(GetData(), Rhs.GetData(), MinLen);
-	}
-
-	if (Result != 0 || LhsLen == RhsLen)
-	{
-		return Result;
-	}
-
-	return LhsLen < RhsLen ? -1 : 1;
-}
-
-template <typename CharType>
 bool TStringView<CharType>::FindChar(const ElementType InChar, SizeType& OutIndex) const
 {
 	for (SizeType i = 0; i < Size; ++i)
