@@ -3656,6 +3656,15 @@ public:
 	}
 
 	/**
+	 * Reinitialize all subsystems
+	 */
+	void ReinitializeSubSystems()
+	{
+		SubsystemCollection.Deinitialize();
+		SubsystemCollection.Initialize(this);
+	}
+
+	/**
 	 * Get a Subsystem of specified type
 	 */
 	UWorldSubsystem* GetSubsystemBase(TSubclassOf<UWorldSubsystem> SubsystemClass) const
