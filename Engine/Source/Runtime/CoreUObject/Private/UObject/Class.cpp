@@ -5244,6 +5244,8 @@ void UClass::AssembleReferenceTokenStreams()
 
 const FString UClass::GetConfigName() const
 {
+	static const FName NAME_DeviceProfiles("DeviceProfiles");
+
 	if( ClassConfigName == NAME_Engine )
 	{
 		return GEngineIni;
@@ -5271,6 +5273,10 @@ const FString UClass::GetConfigName() const
 	else if ( ClassConfigName == NAME_EditorKeyBindings )
 	{
 		return GEditorKeyBindingsIni;
+	}
+	else if (ClassConfigName == NAME_DeviceProfiles)
+	{
+		return GDeviceProfilesIni;
 	}
 	else if( ClassConfigName == NAME_None )
 	{
