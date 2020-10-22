@@ -572,6 +572,12 @@ public:
 	bool LoadBulkDataWithFileReader();
 
 	/**
+	 * Test if it is possible to load the bulk data using a file reader, even when no archive is attached to the bulk data.
+	 * @return Whether the operation is allowed.
+	 */
+	bool CanLoadBulkDataWithFileReader() const;
+
+	/**
 	 * Forces the bulk data to be resident in memory and detaches the archive.
 	 */
 	void ForceBulkDataResident();

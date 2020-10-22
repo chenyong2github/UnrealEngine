@@ -99,6 +99,10 @@ RAWMESH_API FArchive& operator<<(FArchive& Ar, FRawMesh& RawMesh);
  */
 class FRawMeshBulkData
 {
+#if WITH_EDITOR
+	/** Protects simultaneous access to BulkData */
+	FRWLock       BulkDataLock;
+#endif
 	/** Internally store bulk data as bytes. */
 	FByteBulkData BulkData;
 	/** GUID associated with the data stored herein. */

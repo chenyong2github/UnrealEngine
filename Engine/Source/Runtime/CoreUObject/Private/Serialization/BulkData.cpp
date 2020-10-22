@@ -699,7 +699,7 @@ public:
 bool FUntypedBulkData::LoadBulkDataWithFileReader()
 {
 #if WITH_EDITOR
-	if (!BulkData && GIsEditor && !GEventDrivenLoaderEnabled && !SerializeFuture.IsValid())
+	if (!BulkData && CanLoadBulkDataWithFileReader() && !SerializeFuture.IsValid())
 	{
 		SerializeFuture = TFuture<bool>(TSharedPtr<TFutureState<bool>, ESPMode::ThreadSafe>(new FStateComplete([=]() 
 		{ 
@@ -710,6 +710,15 @@ bool FUntypedBulkData::LoadBulkDataWithFileReader()
 	}
 #endif
 	return false;
+}
+
+bool FUntypedBulkData::CanLoadBulkDataWithFileReader() const
+{
+#if WITH_EDITOR
+	return !Filename.IsEmpty() && GIsEditor && !GEventDrivenLoaderEnabled;
+#else
+	return false;
+#endif
 }
 
 /**
@@ -1205,7 +1214,7 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 						// if the payload is NOT stored inline ...
 						if (BulkDataFlags & BULKDATA_PayloadInSeperateFile)
 						{
-							// open seperate bulk data file
+							// open separate bulk data file
 							UE_CLOG(GEventDrivenLoaderEnabled, LogSerialization, Error, TEXT("Attempt to sync load bulk data with EDL enabled (separate file). This is not desireable. File %s"), *Filename);
 
 							if (GEventDrivenLoaderEnabled && (Filename.EndsWith(TEXT(".uasset")) || Filename.EndsWith(TEXT(".umap"))))

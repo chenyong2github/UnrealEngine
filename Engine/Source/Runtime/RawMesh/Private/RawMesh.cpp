@@ -5,6 +5,7 @@
 #include "UObject/Object.h"
 #include "Misc/SecureHash.h"
 #include "Modules/ModuleManager.h"
+#include "Serialization/BulkDataReader.h"
 
 IMPLEMENT_MODULE(FDefaultModuleImpl, RawMesh);
 
@@ -268,12 +269,37 @@ void FRawMeshBulkData::LoadRawMesh(FRawMesh& OutMesh)
 	OutMesh.Empty();
 	if (BulkData.GetElementCount() > 0)
 	{
-		FBufferReader Ar(
-			BulkData.Lock(LOCK_READ_ONLY), BulkData.GetElementCount(),
-			/*bInFreeOnClose=*/ false, /*bIsPersistent=*/ true
-			);
-		Ar << OutMesh;
-		BulkData.Unlock();
+#if WITH_EDITOR
+		// A lock is required so we can safely load the raw data from multiple threads
+		FRWScopeLock ScopeLock(BulkDataLock, SLT_Write);
+
+		// This allows any thread to be able to deserialize from the RawMesh directly
+		// from disk so we can unload bulk data from memory.
+		bool bHasBeenLoadedFromFileReader = false;
+		if (BulkData.IsAsyncLoadingComplete() && !BulkData.IsBulkDataLoaded())
+		{
+			// This can't be called in -game mode because we're not allowed to load bulk data outside of EDL.
+			bHasBeenLoadedFromFileReader = BulkData.LoadBulkDataWithFileReader();
+		}
+#endif
+
+		// This is in a scope because the FBulkDataReader need to be destroyed in order
+		// to unlock the BulkData and allow UnloadBulkData to actually do its job.
+		{
+			const bool bIsPersistent = true;
+			FBulkDataReader Ar(BulkData, bIsPersistent);
+			Ar << OutMesh;
+		}
+
+#if WITH_EDITOR
+		// Throw away the bulk data allocation only in the case we can safely reload it from disk
+		// and if BulkData.LoadBulkDataWithFileReader() is allowed to work from any thread.
+		// This saves a significant amount of memory during map loading of Nanite Meshes.
+		if (bHasBeenLoadedFromFileReader)
+		{
+			verify(BulkData.UnloadBulkData());
+		}
+#endif
 	}
 }
 

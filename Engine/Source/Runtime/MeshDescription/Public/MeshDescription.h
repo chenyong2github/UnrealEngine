@@ -1331,6 +1331,10 @@ public:
 	void UseHashAsGuid();
 
 private:
+#if WITH_EDITOR
+	/** Protects simultaneous access to BulkData */
+	FRWLock       BulkDataLock;
+#endif
 	/** Internally store bulk data as bytes */
 	TChooseClass<UE_USE_VIRTUALBULKDATA, FByteVirtualizedBulkData, FByteBulkData>::Result BulkData;
 
