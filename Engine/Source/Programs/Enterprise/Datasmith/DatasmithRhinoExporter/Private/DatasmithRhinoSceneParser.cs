@@ -448,9 +448,10 @@ namespace DatasmithRhino
 
 		private static bool IsUnsupportedObject(RhinoObject InObject)
 		{
-			// Geometry objects without meshes are currently not supported.
+			// Geometry objects without meshes are currently not supported, unless they are points.
 			return InObject.ComponentType == ModelComponentType.ModelGeometry 
-				&& !InObject.IsMeshable(MeshType.Render);
+				&& !InObject.IsMeshable(MeshType.Render)
+				&& InObject.ObjectType != ObjectType.Point;
 		}
 
 		private void InstanciateDefinition(RhinoSceneHierarchyNode ParentNode, RhinoSceneHierarchyNode DefinitionNode)
