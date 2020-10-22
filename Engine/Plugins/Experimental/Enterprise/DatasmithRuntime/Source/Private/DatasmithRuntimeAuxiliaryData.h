@@ -93,7 +93,7 @@ public:
 	UPROPERTY(VisibleAnywhere, Category = "DatasmithRuntime Internal")
 	UObject* Auxiliary;
 
-	TSet<DatasmithRuntime::FAssetData*> Referencers;
+	TSet<uint64> Referencers;
 
 	std::atomic_bool bIsCompleted;
 };

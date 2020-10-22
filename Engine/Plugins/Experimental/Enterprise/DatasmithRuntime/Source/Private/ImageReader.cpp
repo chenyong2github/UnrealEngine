@@ -417,7 +417,7 @@ namespace DatasmithRuntime
 		if (BitsPerPixel == 32)
 		{
 			TextureData.ImageData = (uint8*)FMemory::Malloc(TextureData.Height * TextureData.Pitch, 0x20);
-			TextureData.Requirements = EPixelFormat::PF_B8G8R8A8;
+			TextureData.PixelFormat = EPixelFormat::PF_B8G8R8A8;
 
 #if FREEIMAGE_COLORORDER != FREEIMAGE_COLORORDER_BGR
 			ProcessPixels = [Width = TextureData.Width](const BYTE *FIBytes, uint8* Buffer) -> void
@@ -436,7 +436,7 @@ namespace DatasmithRuntime
 		{
 			TextureData.Pitch = TextureData.Width * 4;
 			TextureData.ImageData = (uint8*)FMemory::Malloc(TextureData.Height * TextureData.Pitch, 0x20);
-			TextureData.Requirements = EPixelFormat::PF_B8G8R8A8;
+			TextureData.PixelFormat = EPixelFormat::PF_B8G8R8A8;
 
 			FMemory::Memzero(TextureData.ImageData, TextureData.Height * TextureData.Pitch);
 
@@ -472,14 +472,14 @@ namespace DatasmithRuntime
 		{
 			TextureData.Pitch = Pitch;
 			TextureData.ImageData = (uint8*)FMemory::Malloc(TextureData.Height * TextureData.Pitch, 0x20);
-			TextureData.Requirements = EPixelFormat::PF_G16;
+			TextureData.PixelFormat = EPixelFormat::PF_G16;
 		}
 		else
 		{
 			ensure(BitsPerPixel == 8);
 			TextureData.Pitch = ((TextureData.Width + 3) / 4 ) * 4;
 			TextureData.ImageData = (uint8*)FMemory::Malloc(TextureData.Height * TextureData.Pitch, 0x20);
-			TextureData.Requirements = EPixelFormat::PF_G8;
+			TextureData.PixelFormat = EPixelFormat::PF_G8;
 		}
 
 		uint8* Buffer = TextureData.ImageData;
@@ -507,7 +507,7 @@ namespace DatasmithRuntime
 		const int32 Pitch = FreeImage_GetPitch(Image);
 		const bool bIsSigned = FreeImage_GetImageType(Image) == FIT_INT16;
 
-		TextureData.Requirements = EPixelFormat::PF_G16;
+		TextureData.PixelFormat = EPixelFormat::PF_G16;
 		TextureData.Pitch = Pitch;
 
 		TextureData.ImageData = (uint8*)FMemory::Malloc(TextureData.Height * Pitch, 0x20);
@@ -544,7 +544,7 @@ namespace DatasmithRuntime
 		const int32 Pitch = FreeImage_GetPitch(Image);
 		const bool bIsUnsigned = FreeImage_GetImageType(Image) == FIT_UINT32;
 
-		TextureData.Requirements = EPixelFormat::PF_G16;
+		TextureData.PixelFormat = EPixelFormat::PF_G16;
 		TextureData.Pitch = ((TextureData.Width * sizeof(uint16) + 3) / 4) * 4;
 
 		TextureData.ImageData = (uint8*)FMemory::Malloc(TextureData.Height * TextureData.Pitch, 0x20);
@@ -583,7 +583,7 @@ namespace DatasmithRuntime
 
 		const bool bIsDouble = FreeImage_GetImageType(Image) == FIT_DOUBLE;
 
-		TextureData.Requirements = EPixelFormat::PF_R16F;
+		TextureData.PixelFormat = EPixelFormat::PF_R16F;
 		TextureData.Pitch = (((TextureData.Width * sizeof(FFloat16)) + 3) / 4) * 4;
 
 		TextureData.ImageData = (uint8*)FMemory::Malloc(TextureData.Height * TextureData.Pitch, 0x20);
@@ -622,7 +622,7 @@ namespace DatasmithRuntime
 		const int32 Pitch = FreeImage_GetPitch(Image);
 		const bool bHasAlpha = FreeImage_GetImageType(Image) == FIT_RGBA16;
 
-		TextureData.Requirements = EPixelFormat::PF_R16G16B16A16_UINT;
+		TextureData.PixelFormat = EPixelFormat::PF_R16G16B16A16_UINT;
 		TextureData.Pitch = bHasAlpha ? Pitch : TextureData.Width * 4 * sizeof(uint16);
 
 		TextureData.ImageData = (uint8*)FMemory::Malloc(TextureData.Height * TextureData.Pitch, 0x20);
@@ -659,7 +659,7 @@ namespace DatasmithRuntime
 		const int32 Pitch = FreeImage_GetPitch(Image);
 		const bool bHasAlpha = FreeImage_GetImageType(Image) == FIT_RGBAF;
 
-		TextureData.Requirements = EPixelFormat::PF_A32B32G32R32F;
+		TextureData.PixelFormat = EPixelFormat::PF_A32B32G32R32F;
 		TextureData.Pitch = TextureData.Width * 4 * sizeof(float);
 
 		TextureData.ImageData = (uint8*)FMemory::Malloc(TextureData.Height * TextureData.Pitch, 0x20);

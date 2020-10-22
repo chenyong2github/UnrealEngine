@@ -22,8 +22,8 @@ public:
 	public:
 		virtual void OnOpenDelta() = 0;
 		virtual void OnNewScene(const DirectLink::FSceneIdentifier& SceneId) = 0;
-		virtual void OnAddElement(TSharedPtr<IDatasmithElement> Element) = 0;
-		virtual void OnChangedElement(TSharedPtr<IDatasmithElement> Element) = 0;
+		virtual void OnAddElement(DirectLink::FSceneGraphId, TSharedPtr<IDatasmithElement> Element) = 0;
+		virtual void OnChangedElement(DirectLink::FSceneGraphId, TSharedPtr<IDatasmithElement> Element) = 0;
 		virtual void OnRemovedElement(DirectLink::FSceneGraphId ElementId) = 0;
 		virtual void OnCloseDelta() = 0;
 	};
@@ -59,11 +59,18 @@ private:
 
 	ISceneChangeListener* ChangeListener = nullptr;
 
+	struct FSceneHashTable
+	{
+		TMap<DirectLink::FSceneGraphId, DirectLink::FElementHash> ElementHashes;
+		static FSceneHashTable FromSceneSnapshot(const DirectLink::FSceneSnapshot& SceneSnapshot);
+	};
+
 	struct FSceneState
 	{
 		DirectLink::FSceneIdentifier SceneId;
 		TSharedPtr<IDatasmithScene> Scene;
 		FDatasmithElementPointers Elements;
+		FSceneHashTable HashTable;
 	};
 
 	TUniquePtr<FSceneState> Current;

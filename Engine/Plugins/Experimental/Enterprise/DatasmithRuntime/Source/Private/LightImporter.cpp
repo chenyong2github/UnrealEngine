@@ -231,7 +231,7 @@ namespace DatasmithRuntime
 			SceneComponent->AttachToComponent(Parent, FAttachmentTransformRules::KeepRelativeTransform);
 			SceneComponent->RegisterComponentWithWorld(Parent->GetOwner()->GetWorld());
 
-			ActorData.Object = TStrongObjectPtr<UObject>(SceneComponent);
+			ActorData.Object = TWeakObjectPtr<UObject>(SceneComponent);
 		}
 
 		if (SceneComponent->GetAttachParent() != Parent)
@@ -359,6 +359,7 @@ namespace DatasmithRuntime
 		LightComponent->bUseTemperature = LightElement->GetUseTemperature();
 		LightComponent->Temperature = LightElement->GetTemperature();
 
+		// #ue_datasmithruntime: material function not supported yet
 		//if ( LightElement->GetLightFunctionMaterial().IsValid() )
 		//{
 		//	FString BaseName = LightElement->GetLightFunctionMaterial()->GetName();
@@ -394,5 +395,14 @@ namespace DatasmithRuntime
 		LightComponent->UpdateColorAndBrightness();
 
 		LightComponent->SetRelativeTransform(ActorData.WorldTransform);
+
+		if (LightElement->GetTagsCount() > 0)
+		{
+			LightComponent->ComponentTags.Reserve(LightElement->GetTagsCount());
+			for (int32 Index = 0; Index < LightElement->GetTagsCount(); ++Index)
+			{
+				LightComponent->ComponentTags.Add(LightElement->GetTag(Index));
+			}
+		}
 	}
 } // End of namespace DatasmithRuntime
