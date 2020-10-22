@@ -7,7 +7,7 @@
 #include "K2Node_EditablePinBase.h"
 #include "K2Node_AddPinInterface.h"
 
-#include "K2Node_GetDMXActiveModeFunctionValues.generated.h"
+#include "K2Node_GetDMXAttributeValues.generated.h"
 
 class FBlueprintActionDatabaseRegistrar;
 class UBlueprint;
@@ -19,13 +19,13 @@ struct FDMXFixtureMode;
 struct FDMXFixtureFunction;
 
 UCLASS()
-class DMXBLUEPRINTGRAPH_API UK2Node_GetDMXActiveModeFunctionValues
+class DMXBLUEPRINTGRAPH_API UK2Node_GetDMXAttributeValues
 	: public UK2Node_EditablePinBase
 {
 	GENERATED_BODY()
 
 public:
-	UK2Node_GetDMXActiveModeFunctionValues();
+	UK2Node_GetDMXAttributeValues();
 
 	//~ Begin UEdGraphNode Interface
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
@@ -69,16 +69,15 @@ public:
 	UDMXEntityFixturePatch* GetFixturePatchFromPin() const;
 
 	UEdGraphPin* GetInputDMXFixturePatchPin() const;
-	//UEdGraphPin* GetInputDMXProtocolPin() const;
-	UEdGraphPin* GetOutputFunctionsMapPin() const;
+	UEdGraphPin* GetOutputAttributesMapPin() const;
 	UEdGraphPin* GetOutputIsSuccessPin() const;
 	UEdGraphPin* GetThenPin() const;
 
 	/** Expose DMX function pins from fixture patch active mode */
-	void ExposeFunctions();
+	void ExposeAttributes();
 
 	/** Removes DMX function node pins */
-	void ResetFunctions();
+	void ResetAttributes();
 
 private:
 	/** Get pin name based on FixtureFunction input */
@@ -92,9 +91,7 @@ private:
 
 public:
 	static const FName InputDMXFixturePatchPinName;
-	//static const FName InputDMXProtocolPinName;
-
-	static const FName OutputFunctionsMapPinName;
+	static const FName OutputAttributesMapPinName;
 	static const FName OutputIsSuccessPinName;
 
 public:

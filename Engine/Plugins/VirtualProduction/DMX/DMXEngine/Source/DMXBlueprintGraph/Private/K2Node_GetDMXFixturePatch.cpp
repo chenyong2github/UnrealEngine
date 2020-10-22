@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "K2Node_GetDMXFixturePatch.h"
-#include "K2Node_GetDMXActiveModeFunctionValues.h"
+#include "K2Node_GetDMXAttributeValues.h"
 #include "Library/DMXEntityFixturePatch.h"
 #include "DMXSubsystem.h"
 #include "DMXProtocolConstants.h"
@@ -218,9 +218,9 @@ void UK2Node_GetDMXFixturePatch::NotifyInputChanged()
 	const TArray<UEdGraphPin*>& OutputConnections = GetOutputDMXFixturePatchPin()->LinkedTo;
 	for (const UEdGraphPin* ConnectedPin : OutputConnections)
 	{
-		if (UK2Node_GetDMXActiveModeFunctionValues* ModeFunctionsNode = Cast<UK2Node_GetDMXActiveModeFunctionValues>(ConnectedPin->GetOwningNode()))
+		if (UK2Node_GetDMXAttributeValues* K2Node_GetDMXAttributeValues = Cast<UK2Node_GetDMXAttributeValues>(ConnectedPin->GetOwningNode()))
 		{
-			ModeFunctionsNode->OnFixturePatchChanged();
+			K2Node_GetDMXAttributeValues->OnFixturePatchChanged();
 		}
 	}
 
