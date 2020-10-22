@@ -41,7 +41,9 @@ public:
 UENUM()
 enum class ENDIExport_GPUAllocationMode : uint8
 {
+	/** Use a fixed number of elements to write into per frame. */
 	FixedSize,
+	/** Use a variable number of elements to write into per frame based on number of emitter property particle count multiplied by the modifier. */
 	PerParticle,
 };
 
@@ -59,14 +61,14 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Export")
 	FNiagaraUserParameterBinding CallbackHandlerParameter;
 
-	UPROPERTY(EditAnywhere, Category = "Export GPU")
+	UPROPERTY(EditAnywhere, Category = "Export GPU", meta = (Tooltip = "Sets the allocation scheme for the number of elements we reserve for the GPU.  The number of elements reserved should be as low as possible to improve performance."))
 	ENDIExport_GPUAllocationMode GPUAllocationMode = ENDIExport_GPUAllocationMode::FixedSize;
 
-	/** When using fixed size allocation this is how many particles can export data per tick. */
+	/** Reserve a fixed number of elements we can write per frame.  Once the limit is reached we ignore further writes. */
 	UPROPERTY(EditAnywhere, Category = "Export GPU", meta = (EditCondition = "GPUAllocationMode == ENDIExport_GPUAllocationMode::FixedSize"))
 	int GPUAllocationFixedSize = 64;
 
-	/** When using per particle allocation we use the current particle count * this value to determine how many particles can export data per tick. */
+	/** Uses the emitter property particle count * this to determine the number of elements we reserve for write per frame.  The console variable fx.Niagara.NDIExport.GPUMaxReadbackCount is used to cap the maximum.  Once the limit is reached we ignore further writes. */
 	UPROPERTY(EditAnywhere, Category = "Export GPU", meta = (EditCondition = "GPUAllocationMode == ENDIExport_GPUAllocationMode::PerParticle", UIMin="0.0", ClampMin="0.0"))
 	float GPUAllocationPerParticleSize = 1.0f;
 
