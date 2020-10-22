@@ -408,7 +408,7 @@ public:
 
 	/** Clamps X to be between Min and Max, inclusive */
 	template< class T > 
-	static FORCEINLINE T Clamp( const T X, const T Min, const T Max )
+	UE_NODISCARD static FORCEINLINE T Clamp( const T X, const T Min, const T Max )
 	{
 		return X<Min ? Min : X<Max ? X : Max;
 	}
