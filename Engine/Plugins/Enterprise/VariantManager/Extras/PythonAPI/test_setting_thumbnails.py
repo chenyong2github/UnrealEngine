@@ -22,7 +22,7 @@ if __name__ == "__main__":
     lvs = unreal.VariantManagerLibrary.create_level_variant_sets_asset("LVS", "/Game/")
     lvs_actor = unreal.VariantManagerLibrary.create_level_variant_sets_actor(lvs)
     if lvs is None or lvs_actor is None:
-        print "Failed to spawn either the LevelVariantSets asset or the LevelVariantSetsActor!"
+        print ("Failed to spawn either the LevelVariantSets asset or the LevelVariantSetsActor!")
         quit()
 
     var_set1 = unreal.VariantSet()
