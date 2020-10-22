@@ -19,12 +19,8 @@
 #define LOCTEXT_NAMESPACE "UDrawAndRevolveTool"
 
 
-const FText InitializationModeMessage = LOCTEXT("CurveInitialization", "Draw and a profile curve and it will be revolved around the purple draw plane axis. "
-	"Ctrl+click repositions draw plane and axis. The curve is ended by clicking the end again or connecting to its start. Holding shift toggles snapping to "
-	"be opposite the EnableSnapping setting.");
-const FText EditModeMessage = LOCTEXT("CurveEditing", "Click points to select them, Shift+click to add/remove points to selection. Ctrl+click a segment "
-	"to add a point, or select an endpoint and Ctrl+click somewhere on the plane to add to the ends. Backspace deletes selected points. Holding Shift "
-	"toggles snapping to be opposite the EnableSnapping setting.");
+const FText InitializationModeMessage = LOCTEXT("CurveInitialization", "Draw and a profile curve and it will be revolved around the purple draw plane axis. Ctrl+click repositions draw plane and axis. The curve is ended by clicking the end again or connecting to its start. Holding shift toggles snapping to be opposite the EnableSnapping setting.");
+const FText EditModeMessage = LOCTEXT("CurveEditing", "Click points to select them, Shift+click to add/remove points to selection. Ctrl+click a segment to add a point, or select an endpoint and Ctrl+click somewhere on the plane to add to the ends. Backspace deletes selected points. Holding Shift toggles snapping to be opposite the EnableSnapping setting.");
 
 
 // Tool builder

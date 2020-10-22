@@ -1052,15 +1052,30 @@ TSharedPtr<IDatasmithLightActorElement> FDatasmithC4DImporter::ImportLight(melan
 		IESPath = SearchForFile(IESFilename, C4dDocumentFilename);
 		if (IESPath.IsEmpty())
 		{
+			bUseIES = false;
 			UE_LOG(LogDatasmithC4DImport, Warning, TEXT("Could not find IES file '%s' used by light '%s'"), *IESFilename, *MelangeObjectName(InC4DLightPtr));
 		}
+		else
+		{
+			// Create IES texture
+			const FString BaseFilename = FPaths::GetBaseFilename(IESPath);
+			FString TextureName = FDatasmithUtils::SanitizeObjectName(BaseFilename + TEXT("_IES"));
+			TSharedPtr<IDatasmithTextureElement> Texture = FDatasmithSceneFactory::CreateTexture(*TextureName);
+			Texture->SetTextureMode(EDatasmithTextureMode::Ies);
+			Texture->SetLabel(*BaseFilename);
+			Texture->SetFile(*IESPath);
+			DatasmithScene->AddTexture(Texture);
+
+			// Set IES attributes
+			LightActor->SetUseIesBrightness(Units == EDatasmithLightUnits::Unitless);
+			LightActor->SetIesTexturePathName(*TextureName);
+		}
+
 	}
 
 	// Set common parameters for all lights (including directional lights)
 	LightActor->SetIntensity(Intensity);
-	LightActor->SetIesFile(*IESPath);
-	LightActor->SetUseIes(bUseIES && !IESPath.IsEmpty());
-	LightActor->SetUseIesBrightness(Units == EDatasmithLightUnits::Unitless);
+	LightActor->SetUseIes(bUseIES);
 	LightActor->SetTemperature(Temperature);
 	LightActor->SetUseTemperature(bUseTemperature);
 	LightActor->SetColor(Color);
@@ -1758,7 +1773,7 @@ TSharedPtr<IDatasmithMeshActorElement> FDatasmithC4DImporter::ImportPolygon(mela
 		{
 			TargetMaterial = ImportSimpleColorMaterial(PolyObject, UseColor);
 		}
-		else // Automatic or Off
+		else if (UseColor == melange::ID_BASEOBJECT_USECOLOR_AUTOMATIC)
 		{
 			if (MaterialName.IsEmpty())
 			{

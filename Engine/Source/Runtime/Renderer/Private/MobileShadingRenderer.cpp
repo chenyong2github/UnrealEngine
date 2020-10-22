@@ -134,15 +134,14 @@ static bool UsesCustomDepthStencilLookup(const FViewInfo& View)
 				FMaterialRenderProxy* Proxy = DataPtr->GetMaterialInterface()->GetRenderProxy();
 				check(Proxy);
 
-				const FMaterial* Material = Proxy->GetMaterial(View.GetFeatureLevel());
-				check(Material);
-				if (Material->IsStencilTestEnabled())
+				const FMaterial& Material = Proxy->GetIncompleteMaterialWithFallback(View.GetFeatureLevel());
+				if (Material.IsStencilTestEnabled())
 				{
 					bUsesCustomDepthStencil = true;
 					break;
 				}
 
-				const FMaterialShaderMap* MaterialShaderMap = Material->GetRenderingThreadShaderMap();
+				const FMaterialShaderMap* MaterialShaderMap = Material.GetRenderingThreadShaderMap();
 				if (MaterialShaderMap->UsesSceneTexture(PPI_CustomDepth) || MaterialShaderMap->UsesSceneTexture(PPI_CustomStencil))
 				{
 					bUsesCustomDepthStencil = true;
@@ -646,7 +645,7 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 	if (bRequriesAmbientOcclusionPass)
 	{
-		RenderAmbientOcclusion(RHICmdList, SceneContext.SceneDepthZ);
+		RenderAmbientOcclusion(RHICmdList, View.PrevViewInfo.MobileSceneDepthZ.IsValid() ? View.PrevViewInfo.MobileSceneDepthZ : GSystemTextures.DepthDummy);
 	}
 	
 	FRHITexture* SceneColor = nullptr;
@@ -780,6 +779,11 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	
 	RenderFinish(GraphBuilder, ViewFamilyTexture);
 	GraphBuilder.Execute();
+
+	if (bRequriesAmbientOcclusionPass)
+	{
+		CacheSceneDepthZ(RHICmdList, View, SceneContext.SceneDepthZ);
+	}
 
 	FRHICommandListExecutor::GetImmediateCommandList().PollOcclusionQueries();
 	FRHICommandListExecutor::GetImmediateCommandList().ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);

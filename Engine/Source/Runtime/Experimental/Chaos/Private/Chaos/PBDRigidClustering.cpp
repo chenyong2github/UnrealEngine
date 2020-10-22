@@ -1809,7 +1809,6 @@ namespace Chaos
 				continue;
 			}
 			TRigidTransform<T, d> TM1 = TRigidTransform<T, d>(Child1X, Child1->R());
-			TBox<T, d> Box1 = Child1->Geometry()->BoundingBox();
 
 			const int32 Offset = i + 1;
 			const int32 NumRemainingChildren = Children.Num() - Offset;

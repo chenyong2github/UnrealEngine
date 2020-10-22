@@ -33,11 +33,6 @@
 
 #define LOCTEXT_NAMESPACE "MoviePipeline"
 
-TArray<UMoviePipelineRenderPass*> UMoviePipeline::GetAllRenderPasses(const UMoviePipelineExecutorShot* InShot)
-{
-	return FindSettings<UMoviePipelineRenderPass>(InShot);
-}
-
 void UMoviePipeline::SetupRenderingPipelineForShot(UMoviePipelineExecutorShot* InShot)
 {
 	/*
@@ -53,8 +48,8 @@ void UMoviePipeline::SetupRenderingPipelineForShot(UMoviePipelineExecutorShot* I
 	* LeftOffset = floor((1925-1920)/2) = 2
 	* RightOffset = (1925-1920-LeftOffset)
 	*/
-	UMoviePipelineAntiAliasingSetting* AccumulationSettings = FindOrAddSetting<UMoviePipelineAntiAliasingSetting>(InShot);
-	UMoviePipelineHighResSetting* HighResSettings = FindOrAddSetting<UMoviePipelineHighResSetting>(InShot);
+	UMoviePipelineAntiAliasingSetting* AccumulationSettings = FindOrAddSettingForShot<UMoviePipelineAntiAliasingSetting>(InShot);
+	UMoviePipelineHighResSetting* HighResSettings = FindOrAddSettingForShot<UMoviePipelineHighResSetting>(InShot);
 	UMoviePipelineOutputSetting* OutputSettings = GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>();
 	check(OutputSettings);
 
@@ -82,7 +77,7 @@ void UMoviePipeline::SetupRenderingPipelineForShot(UMoviePipelineExecutorShot* I
 
 	// Initialize out output passes
 	int32 NumOutputPasses = 0;
-	for (UMoviePipelineRenderPass* RenderPass : GetAllRenderPasses(InShot))
+	for (UMoviePipelineRenderPass* RenderPass : FindSettingsForShot<UMoviePipelineRenderPass>(InShot))
 	{
 		RenderPass->Setup(RenderPassInitSettings);
 		NumOutputPasses++;
@@ -93,9 +88,19 @@ void UMoviePipeline::SetupRenderingPipelineForShot(UMoviePipelineExecutorShot* I
 
 void UMoviePipeline::TeardownRenderingPipelineForShot(UMoviePipelineExecutorShot* InShot)
 {
-	for (UMoviePipelineRenderPass* RenderPass : GetAllRenderPasses(InShot))
+	for (UMoviePipelineRenderPass* RenderPass : FindSettingsForShot<UMoviePipelineRenderPass>(InShot))
 	{
 		RenderPass->Teardown();
+	}
+
+	if (OutputBuilder->GetNumOutstandingFrames() > 1)
+	{
+		// The intention behind this warning is to catch when you've created a render pass that doesn't submit as many render passes as you expect. Unfortunately,
+		// it also catches the fact that temporal sampling tends to render an extra frame. When we are submitting frames we only check if the actual evaluation point
+		// surpasses the upper bound, at which point we don't submit anything more. We could check a whole frame in advance and never submit any temporal samples for
+		// the extra frame, but then this would not work with slow-motion. Instead, we will just comprimise here and only warn if there's multiple frames that are missing.
+		// This is going to be true if you have set up your rendering wrong (and are rendering more than one frame) so it will catch enough of the cases to be worth it.
+		UE_LOG(LogMovieRenderPipeline, Error, TEXT("Not all frames were fully submitted by the time rendering was torn down! Frames will be missing from output!"));
 	}
 }
 
@@ -135,9 +140,9 @@ void UMoviePipeline::RenderFrame()
 	// 
 	// In short, for each output frame, for each accumulation frame, for each tile X/Y, for each jitter, we render a pass. This setup is
 	// designed to maximize the likely hood of deterministic rendering and that different passes line up with each other.
-	UMoviePipelineAntiAliasingSetting* AntiAliasingSettings = FindOrAddSetting<UMoviePipelineAntiAliasingSetting>(ActiveShotList[CurrentShotIndex]);
-	UMoviePipelineCameraSetting* CameraSettings = FindOrAddSetting<UMoviePipelineCameraSetting>(ActiveShotList[CurrentShotIndex]);
-	UMoviePipelineHighResSetting* HighResSettings = FindOrAddSetting<UMoviePipelineHighResSetting>(ActiveShotList[CurrentShotIndex]);
+	UMoviePipelineAntiAliasingSetting* AntiAliasingSettings = FindOrAddSettingForShot<UMoviePipelineAntiAliasingSetting>(ActiveShotList[CurrentShotIndex]);
+	UMoviePipelineCameraSetting* CameraSettings = FindOrAddSettingForShot<UMoviePipelineCameraSetting>(ActiveShotList[CurrentShotIndex]);
+	UMoviePipelineHighResSetting* HighResSettings = FindOrAddSettingForShot<UMoviePipelineHighResSetting>(ActiveShotList[CurrentShotIndex]);
 	UMoviePipelineOutputSetting* OutputSettings = GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>();
 	
 	// Color settings are optional, so we don't need to do any assertion checks.
@@ -211,7 +216,7 @@ void UMoviePipeline::RenderFrame()
 		NumWarmupSamples = AntiAliasingSettings->RenderWarmUpCount;
 	}
 
-	TArray<UMoviePipelineRenderPass*> InputBuffers = GetAllRenderPasses(ActiveShotList[CurrentShotIndex]);
+	TArray<UMoviePipelineRenderPass*> InputBuffers = FindSettingsForShot<UMoviePipelineRenderPass>(ActiveShotList[CurrentShotIndex]);
 
 	// If this is the first sample for a new frame, we want to notify the output builder that it should expect data to accumulate for this frame.
 	if (CachedOutputState.IsFirstTemporalSample())

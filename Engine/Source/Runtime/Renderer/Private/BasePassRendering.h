@@ -552,7 +552,7 @@ public:
  */
 
 template <typename LightMapPolicyType>
-void GetBasePassShaders(
+bool GetBasePassShaders(
 	const FMaterial& Material, 
 	FVertexFactoryType* VertexFactoryType, 
 	LightMapPolicyType LightMapPolicy, 
@@ -573,18 +573,22 @@ void GetBasePassShaders(
 		&& VertexFactoryType->SupportsTessellationShaders() 
 		&& MaterialTessellationMode != MTM_NoTessellation;
 
+	FMaterialShaderTypes ShaderTypes;
 	if (bNeedsHSDS)
 	{
-		*DomainShader = Material.GetShader<TBasePassDS<LightMapPolicyType > >(VertexFactoryType);
+		ShaderTypes.AddShaderType<TBasePassDS<LightMapPolicyType>>();
+		//DomainShader = Material.GetShader<TBasePassDS<LightMapPolicyType > >(VertexFactoryType, 0, false);
 		
 		// Metal requires matching permutations, but no other platform should worry about this complication.
-		if (bEnableAtmosphericFog && (*DomainShader).IsValid() && IsMetalPlatform(EShaderPlatform((*DomainShader)->GetTarget().Platform)))
+		if (bEnableAtmosphericFog && DomainShader->IsValid() && IsMetalPlatform((*DomainShader)->GetTarget().GetPlatform()))
 		{
-			*HullShader = Material.GetShader<TBasePassHS<LightMapPolicyType, true > >(VertexFactoryType);
+			ShaderTypes.AddShaderType<TBasePassHS<LightMapPolicyType, true>>();
+			//HullShader = Material.GetShader<TBasePassHS<LightMapPolicyType, true > >(VertexFactoryType, 0, false);
 		}
 		else
 		{
-			*HullShader = Material.GetShader<TBasePassHS<LightMapPolicyType, false > >(VertexFactoryType);
+			ShaderTypes.AddShaderType<TBasePassHS<LightMapPolicyType, false>>();
+			//HullShader = Material.GetShader<TBasePassHS<LightMapPolicyType, false > >(VertexFactoryType, 0, false);
 		}
 	}
 
@@ -592,29 +596,44 @@ void GetBasePassShaders(
 	{
 		if (bEnableAtmosphericFog)
 		{
-			*VertexShader = Material.GetShader<TBasePassVS<LightMapPolicyType, true> >(VertexFactoryType);
+			ShaderTypes.AddShaderType<TBasePassVS<LightMapPolicyType, true>>();
+			//VertexShader = Material.GetShader<TBasePassVS<LightMapPolicyType, true> >(VertexFactoryType, 0, false);
 		}
 		else
 		{
-			*VertexShader = Material.GetShader<TBasePassVS<LightMapPolicyType, false> >(VertexFactoryType);
+			ShaderTypes.AddShaderType<TBasePassVS<LightMapPolicyType, false>>();
+			//VertexShader = Material.GetShader<TBasePassVS<LightMapPolicyType, false> >(VertexFactoryType, 0, false);
 		}
 	}
-
 	if (PixelShader)
 	{
 		if (bEnableSkyLight)
 		{
-			*PixelShader = Material.GetShader<TBasePassPS<LightMapPolicyType, true> >(VertexFactoryType);
+			ShaderTypes.AddShaderType<TBasePassPS<LightMapPolicyType, true>>();
+			//PixelShader = Material.GetShader<TBasePassPS<LightMapPolicyType, true> >(VertexFactoryType, 0, false);
 		}
 		else
 		{
-			*PixelShader = Material.GetShader<TBasePassPS<LightMapPolicyType, false> >(VertexFactoryType);
+			ShaderTypes.AddShaderType<TBasePassPS<LightMapPolicyType, false>>();
+			//PixelShader = Material.GetShader<TBasePassPS<LightMapPolicyType, false> >(VertexFactoryType, 0, false);
 		}
 	}
+
+	FMaterialShaders Shaders;
+	if (!Material.TryGetShaders(ShaderTypes, VertexFactoryType, Shaders))
+	{
+		return false;
+	}
+
+	Shaders.TryGetVertexShader(VertexShader);
+	Shaders.TryGetPixelShader(PixelShader);
+	Shaders.TryGetHullShader(HullShader);
+	Shaders.TryGetDomainShader(DomainShader);
+	return true;
 }
 
 template <>
-void GetBasePassShaders<FUniformLightMapPolicy>(
+bool GetBasePassShaders<FUniformLightMapPolicy>(
 	const FMaterial& Material, 
 	FVertexFactoryType* VertexFactoryType, 
 	FUniformLightMapPolicy LightMapPolicy, 
@@ -665,7 +684,9 @@ public:
 
 private:
 
-	void AddMeshBatchForSimpleForwardShading(
+	bool TryAddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId, const FMaterialRenderProxy& MaterialRenderProxy, const FMaterial& Material);
+
+	bool AddMeshBatchForSimpleForwardShading(
 		const FMeshBatch& RESTRICT MeshBatch,
 		uint64 BatchElementMask,
 		int32 StaticMeshId,
@@ -681,7 +702,7 @@ private:
 		ERasterizerCullMode MeshCullMode);
 
 	template<typename LightMapPolicyType>
-	void Process(
+	bool Process(
 		const FMeshBatch& RESTRICT MeshBatch,
 		uint64 BatchElementMask,
 		int32 StaticMeshId,

@@ -54,6 +54,18 @@ private:
 	WordT Storage[WordCount];
 };
 
+template<SIZE_T HistorySize>
+constexpr SIZE_T TSequenceHistory<HistorySize>::BitsPerWord;
+
+template<SIZE_T HistorySize>
+constexpr SIZE_T TSequenceHistory<HistorySize>::WordCount;
+
+template<SIZE_T HistorySize>
+constexpr SIZE_T TSequenceHistory<HistorySize>::MaxSizeInBits;
+
+template<SIZE_T HistorySize>
+constexpr SIZE_T TSequenceHistory<HistorySize>::Size;
+
 template <SIZE_T HistorySize>
 TSequenceHistory<HistorySize>::TSequenceHistory()
 {

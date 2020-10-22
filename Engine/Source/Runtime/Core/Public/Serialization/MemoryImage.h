@@ -215,7 +215,7 @@ public:
 	inline T& operator*() const { return *GetChecked(); }
 	inline operator T*() const { return Get(); }
 
-	void SafeDelete(FPointerTableBase* PtrTable = nullptr)
+	void SafeDelete(const FPointerTableBase* PtrTable = nullptr)
 	{
 		T* RawPtr = Get();
 		if (RawPtr)

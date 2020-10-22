@@ -341,15 +341,11 @@ void UAssetGuideline::PostLoad()
 		{
 			FText AssetName = FText::AsCultureInvariant(GetOuter() ? GetOuter()->GetFName().ToString() : GetFName().ToString());
 
-			FText MissingPlugins = FText::Format(LOCTEXT("MissingPlugins",
-				"Needed plugins: \n{0}"), NeededPlugins.IsEmpty() ? FText::GetEmpty() : FText::AsCultureInvariant(NeededPlugins));
-			FText PluginWarning = FText::Format(LOCTEXT("PluginWarning",
-				"	Asset '{0}' needs the above plugins. Assets related to '{0}' may not display properly.\n	Attemping to save '{0}' or related assets may result in irreverisble modification due to missing plugins. \n"), AssetName);
+			FText MissingPlugins = FText::Format(LOCTEXT("MissingPlugins", "Needed plugins: \n{0}"), NeededPlugins.IsEmpty() ? FText::GetEmpty() : FText::AsCultureInvariant(NeededPlugins));
+			FText PluginWarning = FText::Format(LOCTEXT("PluginWarning", "Asset '{0}' needs the above plugins. Assets related to '{0}' may not display properly.\n	Attemping to save '{0}' or related assets may result in irreverisble modification due to missing plugins. \n"), AssetName);
 
-			FText MissingProjectSettings = FText::Format(LOCTEXT("MissingProjectSettings",
-				"Needed project settings: \n{0}"), NeededProjectSettings.IsEmpty() ? FText::GetEmpty() : FText::AsCultureInvariant(NeededProjectSettings));
-			FText ProjectSettingWarning = FText::Format(LOCTEXT("ProjectSettingWarning",
-				"	Asset '{0}' needs the above project settings. Assets related to '{0}' may not display properly."), AssetName);
+			FText MissingProjectSettings = FText::Format(LOCTEXT("MissingProjectSettings", "Needed project settings: \n{0}"), NeededProjectSettings.IsEmpty() ? FText::GetEmpty() : FText::AsCultureInvariant(NeededProjectSettings));
+			FText ProjectSettingWarning = FText::Format(LOCTEXT("ProjectSettingWarning", "Asset '{0}' needs the above project settings. Assets related to '{0}' may not display properly."), AssetName);
 
 			FFormatNamedArguments WarningHyperlinkArgs;
 			WarningHyperlinkArgs.Add("PluginHyperlink", NeededPlugins.IsEmpty() ? FText::GetEmpty() : FText::Format(FText::AsCultureInvariant("{0}{1}\n"), MissingPlugins, PluginWarning));

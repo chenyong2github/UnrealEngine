@@ -209,6 +209,13 @@ bool UNiagaraNode::ReallocatePins(bool bMarkNeedsResynchronizeOnChange)
 			
 			// This copies the existing default values, pin linkages, advanced pin view, pin splitting, etc.
 			(*MatchingNewPin)->MovePersistentDataFromOldPin(*OldPin);
+			
+			// Somehow this pin was considered orphaned before, but now exists, so it is orphaned no longer.
+			if (OldPin->bOrphanedPin)
+			{
+				OldPin->bOrphanedPin = false;
+				UE_LOG(LogNiagaraEditor, Log, TEXT("Pin \"%s\" in node \"%s\" was orphaned, but is now matched. De-orphaning."), *OldPin->GetName(), *GetFullName());
+			}
 
 			// The prior call would have clobbered our default values, which causes a crash down the line when we attempt to compile.
 			// This resets to the default values prior to copying over the persistent data.

@@ -223,6 +223,7 @@ if (botname === '__TEST__') {
 			defaultFlow: options.defaultFlow || [],
 			blockAssetTargets: new Set<string>(),
 			enabled: !options.disabled,
+			allowDeadend: !options.disallowDeadend,
 			whitelist: options.whitelist || [],
 			resolver: options.resolver || null,
 			convertIntegratesToEdits: (options.integrationMethod || this.config.defaultIntegrationMethod) === IntegrationMethod.CONVERT_TO_EDIT,

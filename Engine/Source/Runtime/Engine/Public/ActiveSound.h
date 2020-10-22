@@ -15,6 +15,7 @@
 #include "Sound/AudioVolume.h"
 #include "Sound/SoundConcurrency.h"
 #include "Sound/SoundSourceBus.h"
+#include "Sound/QuartzQuantizationUtilities.h"
 
 class FAudioDevice;
 class USoundBase;
@@ -522,6 +523,9 @@ public:
 	FVector LastLocation;
 
 	FSoundAttenuationSettings AttenuationSettings;
+
+	/** Quantization information */
+	Audio::FQuartzQuantizedRequestData QuantizedRequestData;
 
 	/** Cache what volume settings we had last time so we don't have to search again if we didn't move */
 	FInteriorSettings InteriorSettings;

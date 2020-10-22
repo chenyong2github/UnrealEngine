@@ -216,6 +216,112 @@ namespace ChaosTest {
 		EXPECT_EQ(Scene.GetSpacialAcceleration()->GetSyncTimestamp(),4);
 	}
 
+	GTEST_TEST(EngineInterface, PullFromPhysicsState_MultiFrameDelay)
+	{
+		// This test is designed to verify pulldata is being timestamped correctly, and that we will not write to a deleted GT particle 
+		// in this case. 
+
+		FChaosScene Scene(nullptr);
+		Scene.GetSolver()->SetThreadingMode_External(EThreadingModeTemp::SingleThread);
+		Scene.GetSolver()->SetStealAdvanceTasks_ForTesting(true); // prevents execution on StartFrame so we can execute task manually.
+
+		FVec3 Grav(0,0,-1);
+		Scene.SetUpForFrame(&Grav, 1,99999,99999,10,false);
+
+		FActorCreationParams Params;
+		Params.Scene = &Scene;
+		Params.bSimulatePhysics = true;
+		Params.bEnableGravity = true;
+		Params.bStartAwake = true;
+
+
+		// Create two particles, one to remove for test, the other to ensure we have > 0 proxies to hit the pull physics data path.
+		TGeometryParticle<FReal,3>* Particle = nullptr;
+		FChaosEngineInterface::CreateActor(Params,Particle);
+		EXPECT_NE(Particle,nullptr);
+		{
+			auto Sphere = MakeUnique<TSphere<FReal,3>>(FVec3(0),3);
+			Particle->SetGeometry(MoveTemp(Sphere));
+		}
+		TGeometryParticle<FReal,3>* Particle2 = nullptr;
+		FChaosEngineInterface::CreateActor(Params,Particle2);
+		EXPECT_NE(Particle2,nullptr);
+		{
+			auto Sphere = MakeUnique<TSphere<FReal,3>>(FVec3(0),3);
+			Particle2->SetGeometry(MoveTemp(Sphere));
+		}
+		TArray<TGeometryParticle<FReal,3>*> Particles ={Particle, Particle2};
+		Scene.AddActorsToScene_AssumesLocked(Particles);
+
+		// verify external timestamps are as expected.
+		auto& MarshallingManager = Scene.GetSolver()->GetMarshallingManager();
+		EXPECT_EQ(MarshallingManager.GetExternalTimestamp_External(), 1);
+		EXPECT_EQ(MarshallingManager.GetExternalTimestampConsumed_External(), 0);
+
+		// Execute a frame such that particles should be initialized in physics thread and game thread.
+		Scene.StartFrame();
+		EXPECT_EQ(MarshallingManager.GetExternalTimestamp_External(), 2);
+		EXPECT_EQ(MarshallingManager.GetExternalTimestampConsumed_External(), 1);
+		Scene.GetSolver()->PopAndExecuteStolenAdvanceTask_ForTesting();
+		Scene.EndFrame();
+
+		// run GT frame, no PT task executed.
+		Scene.StartFrame();
+		EXPECT_EQ(MarshallingManager.GetExternalTimestamp_External(), 3);
+		EXPECT_EQ(MarshallingManager.GetExternalTimestampConsumed_External(), 2);
+		Scene.EndFrame();
+
+		// enqueue another frame.
+		Scene.StartFrame();
+		EXPECT_EQ(MarshallingManager.GetExternalTimestamp_External(), 4);
+		EXPECT_EQ(MarshallingManager.GetExternalTimestampConsumed_External(), 3);
+		
+		// Remove particle, is stamped with external time 4. PT needs to run 3 frames before this will be removed,
+		// as we are two PT tasks behind, and this has not been enqueued yet.
+		auto* Proxy = Particle->GetProxy();
+		FChaosEngineInterface::ReleaseActor(Particle,&Scene);
+		EXPECT_EQ(Particle,nullptr);
+		EXPECT_EQ(*Proxy->GetSyncTimestamp().Get(), 4); // was removed on external timestamp 4.
+
+		// Run PT task for internal timestamp 2.
+		Scene.GetSolver()->PopAndExecuteStolenAdvanceTask_ForTesting();
+
+		// Particle should not get touched in Pull, as timestamp from removal should be greater than pulldata timestamp. (4 > 2).
+		// (if it was touched we'd crash as it is now deleted).
+		Scene.EndFrame();
+
+
+		Scene.StartFrame();
+		EXPECT_EQ(MarshallingManager.GetExternalTimestamp_External(), 5);
+		EXPECT_EQ(MarshallingManager.GetExternalTimestampConsumed_External(), 4);
+		EXPECT_EQ(*Proxy->GetSyncTimestamp().Get(), 4);
+
+		// run pt task for internal timestamp 3. Particle still not removed on PT.
+		Scene.GetSolver()->PopAndExecuteStolenAdvanceTask_ForTesting();
+		EXPECT_EQ(Scene.GetSolver()->GetEvolution()->GetParticles().GetAllParticlesView().Num(), 2); // none have been removed on pt, still 2 particles.
+
+		// particle should not get touched in pull, as timestamp from removal is less than pulldata timestamp (3 < 4)
+		// If this crashes in pull, that means this test has regressed. (Pulldata timestamp is likely wrong).
+		Scene.EndFrame();
+
+
+		Scene.StartFrame();
+		EXPECT_EQ(MarshallingManager.GetExternalTimestamp_External(), 6);
+		EXPECT_EQ(MarshallingManager.GetExternalTimestampConsumed_External(), 5);
+		EXPECT_EQ(*Proxy->GetSyncTimestamp().Get(), 4);
+		EXPECT_EQ(Scene.GetSolver()->GetEvolution()->GetParticles().GetAllParticlesView().Num(), 2); // particles not yet removed on pt, still 2.
+
+
+		// This is PT task that should remove particle (internal timestamp 4, matching stamp on removed particle's dirty data).
+		Scene.GetSolver()->PopAndExecuteStolenAdvanceTask_ForTesting();
+		EXPECT_EQ(Scene.GetSolver()->GetEvolution()->GetParticles().GetAllParticlesView().Num(), 1); // one particle removed on pt, one remaining.
+
+		// This PT task catches up to gamethread.
+		Scene.GetSolver()->PopAndExecuteStolenAdvanceTask_ForTesting();
+		Scene.EndFrame();
+	}
+
+
 
 
 	GTEST_TEST(EngineInterface,CreateActorPostFlush)

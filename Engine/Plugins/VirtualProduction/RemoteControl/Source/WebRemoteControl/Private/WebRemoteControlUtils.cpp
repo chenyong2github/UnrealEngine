@@ -80,9 +80,10 @@ namespace RemotePayloadSerializer
 			WrappedHttpRequest->Headers.Add(TEXT("Content-Type"), { TEXT("application/json") });
 		}
 
+		WebRemoteControlUtils::AddWrappedRequestHeader(*WrappedHttpRequest);
 		WrappedHttpRequest->RelativePath = Wrapper.URL;
 		WrappedHttpRequest->Verb = ParseHttpVerb(Wrapper.Verb);
-		WrappedHttpRequest->Body = Wrapper.BodyData;
+		WrappedHttpRequest->Body = Wrapper.TCHARBody;
 
 		return WrappedHttpRequest;
 	}
@@ -96,7 +97,15 @@ namespace RemotePayloadSerializer
 		JsonWriter->WriteValue(TEXT("RequestId"), RequestId);
 		JsonWriter->WriteValue(TEXT("ResponseCode"), static_cast<int32>(Response->Code));
 		JsonWriter->WriteIdentifierPrefix(TEXT("ResponseBody"));
-		Writer.Serialize((void*)Response->Body.GetData(), Response->Body.Num());
+		if (Response->Body.Num())
+		{
+			Writer.Serialize((void*)Response->Body.GetData(), Response->Body.Num());
+		}
+		else
+		{
+			JsonWriter->WriteNull();
+		}
+
 		JsonWriter->WriteObjectEnd();
 	}
 
@@ -135,9 +144,6 @@ namespace RemotePayloadSerializer
 	bool DeserializeCall(const FHttpServerRequest& InRequest, FRCCall& OutCall, const FHttpResultCallback& InCompleteCallback)
 	{
 		// Create Json reader to read the payload, the payload will already be validated as being in TCHAR
-		TArray<uint8> WorkingBuffer;
-		WebRemoteControlUtils::ConvertToTCHAR(InRequest.Body, WorkingBuffer);
-
 		FRCCallRequest CallRequest;
 		if (!WebRemoteControlUtils::DeserializeRequest(InRequest, &InCompleteCallback, CallRequest))
 		{
@@ -156,7 +162,7 @@ namespace RemotePayloadSerializer
 			const FBlockDelimiters& ParametersDelimiters = CallRequest.GetStructParameters().FindChecked(FRCCallRequest::ParametersLabel());
 			if (ParametersDelimiters.BlockStart > 0)
 			{
-				FMemoryReader Reader(WorkingBuffer);
+				FMemoryReader Reader(CallRequest.TCHARBody);
 				Reader.Seek(ParametersDelimiters.BlockStart);
 				Reader.SetLimitSize(ParametersDelimiters.BlockEnd + 1);
 
@@ -224,9 +230,6 @@ namespace RemotePayloadSerializer
 
 	bool DeserializeObjectRef(const FHttpServerRequest& InRequest, FRCObjectReference& OutObjectRef, FRCObjectRequest& OutDeserializedRequest, const FHttpResultCallback& InCompleteCallback)
 	{
-		TArray<uint8> WorkingBuffer;
-		WebRemoteControlUtils::ConvertToTCHAR(InRequest.Body, WorkingBuffer);
-
 		if (!WebRemoteControlUtils::DeserializeRequest(InRequest, &InCompleteCallback, OutDeserializedRequest))
 		{
 			return false;
@@ -313,7 +316,9 @@ bool WebRemoteControlUtils::GetStructParametersDelimiters(TConstArrayView<uint8>
 			if (FBlockDelimiters* Delimiters = InOutStructParameters.Find(JsonReader->GetIdentifier()))
 			{
 				Delimiters->BlockStart = Reader.Tell() - sizeof(PayloadCharType);
-				if (JsonReader->SkipObject())
+				
+				auto Skip = [&JsonReader, &Notation] () { return Notation == EJsonNotation::ObjectStart ? JsonReader->SkipObject() : JsonReader->SkipArray(); };
+				if (Skip())
 				{
 					Delimiters->BlockEnd = Reader.Tell();
 				}
@@ -322,16 +327,74 @@ bool WebRemoteControlUtils::GetStructParametersDelimiters(TConstArrayView<uint8>
 					ErrorText = FString::Printf(TEXT("%s object improperly formatted."), *JsonReader->GetIdentifier());
 				}
 			}
-			else
+			break;
+		case EJsonNotation::Error:
+			ErrorText = JsonReader->GetErrorMessage();
+			break;
+		default:
+			// Ignore any other fields
+			break;
+		}
+	}
+
+	if (!ErrorText.IsEmpty())
+	{
+		UE_LOG(LogRemoteControl, Error, TEXT("Web Remote Control deserialization error: %s"), *ErrorText);
+		if (OutErrorText)
+		{
+			*OutErrorText = MoveTemp(ErrorText);
+		}
+		return false;
+	}
+
+	return true;
+}
+
+bool WebRemoteControlUtils::GetBatchRequestStructDelimiters(TConstArrayView<uint8> InTCHARPayload, TMap<int32, FBlockDelimiters>& OutStructParameters, FString* OutErrorText)
+{
+	typedef UCS2CHAR PayloadCharType;
+	FMemoryReaderView Reader(InTCHARPayload);
+	TSharedRef<TJsonReader<PayloadCharType>> JsonReader = TJsonReader<PayloadCharType>::Create(&Reader);
+
+	EJsonNotation Notation;
+
+	FString ErrorText;
+	// The payload should be an object
+	JsonReader->ReadNext(Notation);
+	if (Notation != EJsonNotation::ObjectStart)
+	{
+		ErrorText = TEXT("Expected json object.");
+	}
+	
+	int32 LastEncounteredRequestId = -1;
+
+	// Mark the start/end of the param object in the payload
+	while (JsonReader->ReadNext(Notation) && ErrorText.IsEmpty())
+	{
+		switch (Notation)
+		{
+
+		case EJsonNotation::Number:
+			if (JsonReader->GetIdentifier() == TEXT("RequestId"))
 			{
-				ErrorText = TEXT("Unexpected object field.");
+				LastEncounteredRequestId = JsonReader->GetValueAsNumber();
 			}
 			break;
-			// This means we should be done with the request object
-		case EJsonNotation::ObjectEnd:
-		case EJsonNotation::ArrayEnd:
+		case EJsonNotation::ObjectStart:
+			if (JsonReader->GetIdentifier() == TEXT("Body"))
+			{
+				FBlockDelimiters& Delimiters = OutStructParameters.Add(LastEncounteredRequestId, FBlockDelimiters{});
+				Delimiters.BlockStart = Reader.Tell() - sizeof(PayloadCharType);
+				if (JsonReader->SkipObject())
+				{
+					Delimiters.BlockEnd = Reader.Tell();
+				}
+				else
+				{
+					ErrorText = FString::Printf(TEXT("%s object improperly formatted."), *JsonReader->GetIdentifier());
+				}
+			}
 			break;
-			// Read the reset to default property
 		case EJsonNotation::Error:
 			ErrorText = JsonReader->GetErrorMessage();
 			break;
@@ -370,6 +433,16 @@ bool WebRemoteControlUtils::ValidateContentType(const FHttpServerRequest& InRequ
 void WebRemoteControlUtils::AddContentTypeHeaders(FHttpServerResponse* InOutResponse, FString InContentType)
 {
 	InOutResponse->Headers.Add(TEXT("content-type"), { MoveTemp(InContentType) });
+}
+
+void WebRemoteControlUtils::AddWrappedRequestHeader(FHttpServerRequest& Request)
+{
+	Request.Headers.Add(WrappedRequestHeader, {});
+}
+
+bool WebRemoteControlUtils::IsWrappedRequest(const FHttpServerRequest& Request)
+{
+	return Request.Headers.Contains(WrappedRequestHeader);
 }
 
 void WebRemoteControlUtils::AddCORSHeaders(FHttpServerResponse* InOutResponse)

@@ -170,7 +170,8 @@ public:
 		return InNext;
 	}
 
-	virtual const void* OnWaitFrame(XrSession InSession, const void* InNext)
+	// OpenXRHMD::OnBeginRendering_GameThread
+	virtual void* OnWaitFrame(XrSession InSession, void* InNext)
 	{
 		return InNext;
 	}

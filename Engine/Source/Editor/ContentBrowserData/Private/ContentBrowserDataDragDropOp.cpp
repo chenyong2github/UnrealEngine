@@ -1,13 +1,26 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ContentBrowserDataDragDropOp.h"
+#include "ContentBrowserDataSubsystem.h"
 #include "AssetThumbnail.h"
+#include "Editor.h"
+#include "Editor/EditorEngine.h"
 
 TSharedRef<FContentBrowserDataDragDropOp> FContentBrowserDataDragDropOp::New(TArrayView<const FContentBrowserItem> InDraggedItems)
 {
 	TSharedRef<FContentBrowserDataDragDropOp> Operation = MakeShared<FContentBrowserDataDragDropOp>();
 
 	Operation->Init(MoveTemp(InDraggedItems));
+
+	Operation->Construct();
+	return Operation;
+}
+
+TSharedRef<FContentBrowserDataDragDropOp> FContentBrowserDataDragDropOp::Legacy_New(TArrayView<const FAssetData> InAssetData, TArrayView<const FString> InAssetPaths, UActorFactory* InActorFactory)
+{
+	TSharedRef<FContentBrowserDataDragDropOp> Operation = MakeShared<FContentBrowserDataDragDropOp>();
+
+	Operation->LegacyInit(InAssetData, InAssetPaths, InActorFactory);
 
 	Operation->Construct();
 	return Operation;
@@ -46,6 +59,51 @@ void FContentBrowserDataDragDropOp::Init(TArrayView<const FContentBrowserItem> I
 	}
 
 	FAssetDragDropOp::Init(MoveTemp(DraggedAssets), MoveTemp(DraggedPackagePaths), nullptr);
+}
+
+void FContentBrowserDataDragDropOp::LegacyInit(TArrayView<const FAssetData> InAssetData, TArrayView<const FString> InAssetPaths, UActorFactory* InActorFactory)
+{
+	UContentBrowserDataSubsystem* ContentBrowserData = GEditor->GetEditorSubsystem<UContentBrowserDataSubsystem>();
+
+	for (const FAssetData& Asset : InAssetData)
+	{
+		TArray<FName, TInlineAllocator<2>> VirtualAssetPaths;
+		ContentBrowserData->Legacy_TryConvertAssetDataToVirtualPaths(Asset, /*bUseFolderPaths*/false, [&VirtualAssetPaths](FName InPath)
+		{
+			VirtualAssetPaths.Add(InPath);
+			return true;
+		});
+
+		for (const FName& VirtualAssetPath : VirtualAssetPaths)
+		{
+			FContentBrowserItem AssetItem = ContentBrowserData->GetItemAtPath(VirtualAssetPath, EContentBrowserItemTypeFilter::IncludeFiles);
+			if (AssetItem.IsValid())
+			{
+				DraggedItems.Add(MoveTemp(AssetItem));
+			}
+		}
+	}
+
+	for (const FString& Path : InAssetPaths)
+	{
+		TArray<FName, TInlineAllocator<2>> VirtualFolderPaths;
+		ContentBrowserData->Legacy_TryConvertPackagePathToVirtualPaths(*Path, [&VirtualFolderPaths](FName InPath)
+		{
+			VirtualFolderPaths.Add(InPath);
+			return true;
+		});
+
+		for (const FName& VirtualFolderPath : VirtualFolderPaths)
+		{
+			FContentBrowserItem FolderItem = ContentBrowserData->GetItemAtPath(VirtualFolderPath, EContentBrowserItemTypeFilter::IncludeFolders);
+			if (FolderItem.IsValid())
+			{
+				DraggedItems.Add(MoveTemp(FolderItem));
+			}
+		}
+	}
+
+	FAssetDragDropOp::Init(TArray<FAssetData>(InAssetData), TArray<FString>(InAssetPaths), InActorFactory);
 }
 
 void FContentBrowserDataDragDropOp::InitThumbnail()

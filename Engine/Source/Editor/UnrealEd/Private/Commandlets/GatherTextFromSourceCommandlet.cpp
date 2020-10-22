@@ -1522,10 +1522,10 @@ bool UGatherTextFromSourceCommandlet::FMacroDescriptor::ParseArgsFromMacro(const
 		{
 			Args.Add(FString(Cursor - ArgStart - 1, ArgStart));
 		}
-		else
-		{
-			Args.Add(FString(ArgStart));
-		}
+		//else
+		//{
+		//	Args.Add(FString(ArgStart));
+		//}
 
 		Success = 0 < Args.Num() ? true : false;	
 	}
@@ -1668,7 +1668,7 @@ void UGatherTextFromSourceCommandlet::FStringMacroDescriptor::TryParse(const FSt
 
 			if (NumArgs != Arguments.Num())
 			{
-				UE_LOG(LogGatherTextFromSourceCommandlet, Warning, TEXT("Too many arguments in %s macro in %s(%d):%s"), *GetToken(), *Context.Filename, Context.LineNumber, *FLocTextHelper::SanitizeLogOutput(Context.LineText));
+				UE_LOG(LogGatherTextFromSourceCommandlet, Warning, TEXT("Unexpected number of arguments in %s macro in %s(%d):%s"), *GetToken(), *Context.Filename, Context.LineNumber, *FLocTextHelper::SanitizeLogOutput(Context.LineText));
 			}
 			else
 			{

@@ -590,14 +590,14 @@ bool FFbxImportAssetsAutomationTest::RunTest(const FString& Parameters)
 					if (Object->IsA(UStaticMesh::StaticClass()))
 					{
 						UStaticMesh *Mesh = Cast<UStaticMesh>(Object);
-						if (Mesh->StaticMaterials.Num() <= MaterialSlotIndex)
+						if (Mesh->GetStaticMaterials().Num() <= MaterialSlotIndex)
 						{
 							BadSlotIndex = true;
-							MeshMaterialNumber = Mesh->StaticMaterials.Num();
+							MeshMaterialNumber = Mesh->GetStaticMaterials().Num();
 						}
 						else
 						{
-							MaterialImportedName = Mesh->StaticMaterials[MaterialSlotIndex].ImportedMaterialSlotName.ToString();
+							MaterialImportedName = Mesh->GetStaticMaterials()[MaterialSlotIndex].ImportedMaterialSlotName.ToString();
 						}
 					}
 					else if (Object->IsA(USkeletalMesh::StaticClass()))
@@ -745,7 +745,7 @@ bool FFbxImportAssetsAutomationTest::RunTest(const FString& Parameters)
 					if (Object->IsA(UStaticMesh::StaticClass()))
 					{
 						UStaticMesh *Mesh = Cast<UStaticMesh>(Object);
-						MaterialIndexNumber = Mesh->StaticMaterials.Num();
+						MaterialIndexNumber = Mesh->GetStaticMaterials().Num();
 					}
 					else if (Object->IsA(USkeletalMesh::StaticClass()))
 					{
@@ -785,7 +785,7 @@ bool FFbxImportAssetsAutomationTest::RunTest(const FString& Parameters)
 						}
 						else
 						{
-							SectionNumber = Mesh->RenderData->LODResources[LODIndex].Sections.Num();
+							SectionNumber = Mesh->GetRenderData()->LODResources[LODIndex].Sections.Num();
 						}
 					}
 					else if (Object->IsA(USkeletalMesh::StaticClass()))
@@ -843,14 +843,14 @@ bool FFbxImportAssetsAutomationTest::RunTest(const FString& Parameters)
 						}
 						else
 						{
-							SectionNumber = Mesh->RenderData->LODResources[LODIndex].Sections.Num();
+							SectionNumber = Mesh->GetRenderData()->LODResources[LODIndex].Sections.Num();
 							if (SectionIndex < 0 || SectionIndex >= SectionNumber)
 							{
 								BadSectionIndex = true;
 							}
 							else
 							{
-								SectionVertexNumber = Mesh->RenderData->LODResources[LODIndex].Sections[SectionIndex].NumTriangles * 3;
+								SectionVertexNumber = Mesh->GetRenderData()->LODResources[LODIndex].Sections[SectionIndex].NumTriangles * 3;
 							}
 						}
 					}
@@ -922,14 +922,14 @@ bool FFbxImportAssetsAutomationTest::RunTest(const FString& Parameters)
 						}
 						else
 						{
-							SectionNumber = Mesh->RenderData->LODResources[LODIndex].Sections.Num();
+							SectionNumber = Mesh->GetRenderData()->LODResources[LODIndex].Sections.Num();
 							if (SectionIndex < 0 || SectionIndex >= SectionNumber)
 							{
 								BadSectionIndex = true;
 							}
 							else
 							{
-								SectionTriangleNumber = Mesh->RenderData->LODResources[LODIndex].Sections[SectionIndex].NumTriangles;
+								SectionTriangleNumber = Mesh->GetRenderData()->LODResources[LODIndex].Sections[SectionIndex].NumTriangles;
 							}
 						}
 					}
@@ -1001,17 +1001,17 @@ bool FFbxImportAssetsAutomationTest::RunTest(const FString& Parameters)
 						}
 						else
 						{
-							SectionNumber = Mesh->RenderData->LODResources[LODIndex].Sections.Num();
+							SectionNumber = Mesh->GetRenderData()->LODResources[LODIndex].Sections.Num();
 							if (SectionIndex < 0 || SectionIndex >= SectionNumber)
 							{
 								BadSectionIndex = true;
 							}
 							else
 							{
-								int32 MaterialIndex = Mesh->RenderData->LODResources[LODIndex].Sections[SectionIndex].MaterialIndex;
-								if (MaterialIndex >= 0 && MaterialIndex < Mesh->StaticMaterials.Num() && Mesh->StaticMaterials[MaterialIndex].MaterialInterface != nullptr)
+								int32 MaterialIndex = Mesh->GetRenderData()->LODResources[LODIndex].Sections[SectionIndex].MaterialIndex;
+								if (MaterialIndex >= 0 && MaterialIndex < Mesh->GetStaticMaterials().Num() && Mesh->GetStaticMaterials()[MaterialIndex].MaterialInterface != nullptr)
 								{
-									MaterialName = Mesh->StaticMaterials[MaterialIndex].MaterialInterface->GetName();
+									MaterialName = Mesh->GetStaticMaterials()[MaterialIndex].MaterialInterface->GetName();
 								}
 							}
 						}
@@ -1088,14 +1088,14 @@ bool FFbxImportAssetsAutomationTest::RunTest(const FString& Parameters)
 						}
 						else
 						{
-							SectionNumber = Mesh->RenderData->LODResources[LODIndex].Sections.Num();
+							SectionNumber = Mesh->GetRenderData()->LODResources[LODIndex].Sections.Num();
 							if (SectionIndex < 0 || SectionIndex >= SectionNumber)
 							{
 								BadSectionIndex = true;
 							}
 							else
 							{
-								MaterialIndex = Mesh->RenderData->LODResources[LODIndex].Sections[SectionIndex].MaterialIndex;
+								MaterialIndex = Mesh->GetRenderData()->LODResources[LODIndex].Sections[SectionIndex].MaterialIndex;
 							}
 						}
 					}
@@ -1167,17 +1167,17 @@ bool FFbxImportAssetsAutomationTest::RunTest(const FString& Parameters)
 						}
 						else
 						{
-							SectionNumber = Mesh->RenderData->LODResources[LODIndex].Sections.Num();
+							SectionNumber = Mesh->GetRenderData()->LODResources[LODIndex].Sections.Num();
 							if (SectionIndex < 0 || SectionIndex >= SectionNumber)
 							{
 								BadSectionIndex = true;
 							}
 							else
 							{
-								int32 MaterialIndex = Mesh->RenderData->LODResources[LODIndex].Sections[SectionIndex].MaterialIndex;
-								if (MaterialIndex >= 0 && MaterialIndex < Mesh->StaticMaterials.Num())
+								int32 MaterialIndex = Mesh->GetRenderData()->LODResources[LODIndex].Sections[SectionIndex].MaterialIndex;
+								if (MaterialIndex >= 0 && MaterialIndex < Mesh->GetStaticMaterials().Num())
 								{
-									MaterialName = Mesh->StaticMaterials[MaterialIndex].ImportedMaterialSlotName.ToString();
+									MaterialName = Mesh->GetStaticMaterials()[MaterialIndex].ImportedMaterialSlotName.ToString();
 								}
 							}
 						}
@@ -1261,14 +1261,14 @@ bool FFbxImportAssetsAutomationTest::RunTest(const FString& Parameters)
 						}
 						else
 						{
-							VertexNumber = Mesh->RenderData->LODResources[LODIndex].VertexBuffers.PositionVertexBuffer.GetNumVertices();
+							VertexNumber = Mesh->GetRenderData()->LODResources[LODIndex].VertexBuffers.PositionVertexBuffer.GetNumVertices();
 							if (VertexIndex < 0 || VertexIndex >= VertexNumber)
 							{
 								BadVertexIndex = true;
 							}
 							else
 							{
-								VertexPosition = Mesh->RenderData->LODResources[LODIndex].VertexBuffers.PositionVertexBuffer.VertexPosition(VertexIndex);
+								VertexPosition = Mesh->GetRenderData()->LODResources[LODIndex].VertexBuffers.PositionVertexBuffer.VertexPosition(VertexIndex);
 							}
 						}
 					}
@@ -1347,14 +1347,14 @@ bool FFbxImportAssetsAutomationTest::RunTest(const FString& Parameters)
 						}
 						else
 						{
-							VertexNumber = Mesh->RenderData->LODResources[LODIndex].VertexBuffers.StaticMeshVertexBuffer.GetNumVertices();
+							VertexNumber = Mesh->GetRenderData()->LODResources[LODIndex].VertexBuffers.StaticMeshVertexBuffer.GetNumVertices();
 							if (VertexIndex < 0 || VertexIndex >= VertexNumber)
 							{
 								BadVertexIndex = true;
 							}
 							else
 							{
-								VertexNormal = Mesh->RenderData->LODResources[LODIndex].VertexBuffers.StaticMeshVertexBuffer.VertexTangentZ(VertexIndex);
+								VertexNormal = Mesh->GetRenderData()->LODResources[LODIndex].VertexBuffers.StaticMeshVertexBuffer.VertexTangentZ(VertexIndex);
 							}
 						}
 					}
@@ -1424,7 +1424,7 @@ bool FFbxImportAssetsAutomationTest::RunTest(const FString& Parameters)
 						}
 						else
 						{
-							UVChannelNumber = Mesh->RenderData->LODResources[LODIndex].GetNumTexCoords();
+							UVChannelNumber = Mesh->GetRenderData()->LODResources[LODIndex].GetNumTexCoords();
 						}
 					}
 					else if (Object->IsA(USkeletalMesh::StaticClass()))

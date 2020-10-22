@@ -10,6 +10,7 @@
 #include "HAL/FileManager.h"
 #include "HAL/Event.h"
 #include "HAL/RunnableThread.h"
+#include "HAL/PlatformMisc.h"
 #include "Misc/ScopeLock.h"
 #include "Stats/StatsMisc.h"
 #include "Misc/CoreStats.h"
@@ -609,7 +610,7 @@ class FLoadedPackageRef
 {
 	UPackage* Package = nullptr;
 	int32 RefCount = 0;
-	bool bIsLoaded = false;
+	bool bAreAllPublicExportsLoaded = false;
 	bool bIsMissing = false;
 
 public:
@@ -621,8 +622,8 @@ public:
 	inline bool AddRef()
 	{
 		++RefCount;
-		// is this the first reference to an already fully loaded package?
-		return RefCount == 1 && bIsLoaded;
+		// is this the first reference to a package that has been loaded earlier?
+		return RefCount == 1 && Package;
 	}
 
 	inline bool ReleaseRef()
@@ -630,18 +631,18 @@ public:
 		check(RefCount > 0);
 		--RefCount;
 #if DO_CHECK
-		check(bIsLoaded || bIsMissing);
-		if (bIsLoaded)
+		check(bAreAllPublicExportsLoaded || bIsMissing);
+		if (bAreAllPublicExportsLoaded)
 		{
 			check(!bIsMissing);
 		}
 		if (bIsMissing)
 		{
-			check(!bIsLoaded);
+			check(!bAreAllPublicExportsLoaded);
 		}
 #endif
-		// is this the last reference to a fully loaded package?
-		return RefCount == 0 && bIsLoaded;
+		// is this the last reference to a loaded package?
+		return RefCount == 0 && Package;
 	}
 
 	inline UPackage* GetPackage() const
@@ -654,7 +655,7 @@ public:
 		}
 		else
 		{
-			check(!bIsLoaded);
+			check(!bAreAllPublicExportsLoaded);
 		}
 #endif
 		return Package;
@@ -662,7 +663,7 @@ public:
 
 	inline void SetPackage(UPackage* InPackage)
 	{
-		check(!bIsLoaded);
+		check(!bAreAllPublicExportsLoaded);
 		check(!bIsMissing);
 		check(!Package);
 		Package = InPackage;
@@ -670,7 +671,7 @@ public:
 
 	inline bool AreAllPublicExportsLoaded() const
 	{
-		return bIsLoaded;
+		return bAreAllPublicExportsLoaded;
 	}
 
 	inline void SetAllPublicExportsLoaded()
@@ -678,7 +679,7 @@ public:
 		check(!bIsMissing);
 		check(Package);
 		bIsMissing = false;
-		bIsLoaded = true;
+		bAreAllPublicExportsLoaded = true;
 	}
 
 	inline void ClearAllPublicExportsLoaded()
@@ -686,7 +687,7 @@ public:
 		check(!bIsMissing);
 		check(Package);
 		bIsMissing = false;
-		bIsLoaded = false;
+		bAreAllPublicExportsLoaded = false;
 	}
 
 	inline bool IsMissingPackage() const
@@ -696,18 +697,18 @@ public:
 
 	inline void SetIsMissingPackage()
 	{
-		check(!bIsLoaded);
+		check(!bAreAllPublicExportsLoaded);
 		check(!Package);
 		bIsMissing = true;
-		bIsLoaded = false;
+		bAreAllPublicExportsLoaded = false;
 	}
 
 	inline void ClearIsMissingPackage()
 	{
-		check(!bIsLoaded);
+		check(!bAreAllPublicExportsLoaded);
 		check(!Package);
 		bIsMissing = false;
-		bIsLoaded = false;
+		bAreAllPublicExportsLoaded = false;
 	}
 };
 
@@ -739,13 +740,18 @@ public:
 		return Packages.FindOrAdd(PackageId);
 	}
 
-	inline bool Remove(FPackageId PackageId)
+	inline bool RemovePackage(FPackageId PackageId, UPackage* Package)
 	{
-#if DO_CHECK
-		FLoadedPackageRef* Ref = Packages.Find(PackageId);
-		check(!Ref || Ref->GetRefCount() == 0);
-#endif
-		return Packages.Remove(PackageId) > 0;
+		FLoadedPackageRef Ref;
+		bool bRemoved = Packages.RemoveAndCopyValue(PackageId, Ref);
+		if (bRemoved && Ref.GetRefCount() > 0)
+		{
+			UE_LOG(LogStreaming, Error,
+				TEXT("Package '%s' (flags=0x%x) with disk package id '0x%llX' is being destroyed while having RefCount %d > 0"),
+				*Package->GetName(), Package->GetInternalFlags(), PackageId.Value(), Ref.GetRefCount());
+			check(false);
+		}
+		return bRemoved;
 	}
 
 #if ALT2_VERIFY_ASYNC_FLAGS
@@ -1063,22 +1069,32 @@ public:
 		}
 
 		FPackageId PackageId = Package->GetPackageId();
-		bool bRemoved = LoadedPackageStore.Remove(PackageId);
+		bool bRemoved = LoadedPackageStore.RemovePackage(PackageId, Package);
 		if (!bRemoved)
 		{
 			FPackageId* RedirectedId = RedirectsPackageMap.Find(PackageId);
 			if (RedirectedId)
 			{
-				bRemoved = LoadedPackageStore.Remove(*RedirectedId);
-				checkf(bRemoved, TEXT("Redirected package '%s' with disk package id '0x%llX' and source package id '0x%llX') is being destroyed, ")
-					TEXT("and should have been known by LoadedPackageStore. Was it never added, or was it removed too early?"),
-					*Package->GetFullName(), PackageId.Value(), RedirectedId->Value());
+				bRemoved = LoadedPackageStore.RemovePackage(*RedirectedId, Package);
 			}
-			else
+
+			if (!bRemoved)
 			{
-				checkf(bRemoved, TEXT("Normal package '%s' with disk package id '0x%llX' is being destroyed, ")
-					TEXT("and should have been known by LoadedPackageStore. Was it never added, or was it removed too early?"),
-					*Package->GetFullName(), PackageId.Value());
+				if (RedirectedId)
+				{
+					UE_LOG(LogStreaming, Error,
+						TEXT("Redirected package '%s' (flags=0x%x) with disk package id '0x%llX' and source package id '0x%llX') is being destroyed, ")
+						TEXT("and should have been known by LoadedPackageStore. Was it never added, or was it removed too early?"),
+						*Package->GetName(), Package->GetInternalFlags(), PackageId.Value(), RedirectedId->Value());
+				}
+				else
+				{
+					UE_LOG(LogStreaming, Error,
+						TEXT("Normal package '%s' (flags=0x%x) with disk package id '0x%llX' is being destroyed, ")
+						TEXT("and should have been known by LoadedPackageStore. Was it never added, or was it removed too early?"),
+						*Package->GetName(), Package->GetInternalFlags(), PackageId.Value());
+				}
+				check(false);
 			}
 		}
 	}
@@ -1220,6 +1236,8 @@ private:
 				Object->SetInternalFlags(EInternalObjectFlags::Async);
 			}
 		}, /* bIncludeNestedObjects*/ true);
+		checkf(!ImportedPackage->HasAnyInternalFlags(EInternalObjectFlags::Async), TEXT("%s"), *ImportedPackage->GetFullName());
+		ImportedPackage->SetInternalFlags(EInternalObjectFlags::Async);
 	}
 
 	void ClearAsyncFlags(UPackage* ImportedPackage)
@@ -1240,6 +1258,8 @@ private:
 				Object->AtomicallyClearInternalFlags(EInternalObjectFlags::Async);
 			}
 		}, /* bIncludeNestedObjects*/ true);
+		checkf(ImportedPackage->HasAnyInternalFlags(EInternalObjectFlags::Async), TEXT("%s"), *ImportedPackage->GetFullName());
+		ImportedPackage->AtomicallyClearInternalFlags(EInternalObjectFlags::Async);
 	}
 
 	void AddPackageReferences()
@@ -3851,6 +3871,7 @@ bool FAsyncPackage2::EventDrivenSerializeExport(int32 LocalExportIndex, FExportA
 
 EAsyncPackageState::Type FAsyncPackage2::Event_ExportsDone(FAsyncPackage2* Package, int32)
 {
+	FGCScopeGuard GCGuard;
 	TRACE_CPUPROFILER_EVENT_SCOPE(Event_ExportsDone);
 	UE_ASYNC_PACKAGE_DEBUG(Package->Desc);
 	check(Package->AsyncPackageLoadingState == EAsyncPackageLoadingState2::ExportsDone);
@@ -4274,6 +4295,8 @@ EAsyncPackageState::Type FAsyncLoadingThread2::ProcessLoadedPackagesFromGameThre
 	FAsyncLoadingThreadState2& ThreadState = *FAsyncLoadingThreadState2::Get();
 	for (;;)
 	{
+		FPlatformMisc::PumpEssentialAppMessages();
+
 		if (ThreadState.IsTimeLimitExceeded(TEXT("ProcessAsyncLoadingFromGameThread")))
 		{
 			Result = EAsyncPackageState::TimeOut;
@@ -4808,6 +4831,7 @@ uint32 FAsyncLoadingThread2::Run()
 
 				if (!DeferredDeletePackages.IsEmpty())
 				{
+					FGCScopeGuard GCGuard;
 					TRACE_CPUPROFILER_EVENT_SCOPE(AsyncLoadingTime);
 					FAsyncPackage2* Package = nullptr;
 					int32 Count = 0;
@@ -5173,8 +5197,7 @@ void FAsyncPackage2::ClearConstructedObjects()
 	{
 		if (Object->HasAnyFlags(RF_WasLoaded))
 		{
-			// the upackage itself is handled in FinishUObject,
-			// while package exports are are handled below
+			// exports and the upackage itself are are handled below
 			continue;
 		}
 		Object->AtomicallyClearInternalFlags(EInternalObjectFlags::AsyncLoading | EInternalObjectFlags::Async);
@@ -5202,6 +5225,18 @@ void FAsyncPackage2::ClearConstructedObjects()
 		else
 		{
 			Object->AtomicallyClearInternalFlags(EInternalObjectFlags::AsyncLoading);
+		}
+	}
+
+	if (LinkerRoot)
+	{
+		if (bShouldClearAsyncFlagForPublicExports)
+		{
+			LinkerRoot->AtomicallyClearInternalFlags(EInternalObjectFlags::AsyncLoading | EInternalObjectFlags::Async);
+		}
+		else
+		{
+			LinkerRoot->AtomicallyClearInternalFlags(EInternalObjectFlags::AsyncLoading);
 		}
 	}
 }
@@ -5279,28 +5314,47 @@ void FAsyncPackage2::CreateUPackage(const FPackageSummary* PackageSummary)
 {
 	check(!LinkerRoot);
 
-	// temp packages are never stored and never found
+	// temp packages are never stored or found in loaded package store
 	FLoadedPackageRef* PackageRef = nullptr;
 
 	// Try to find existing package or create it if not already present.
+	UPackage* ExistingPackage = nullptr;
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(UPackageFind);
 		if (Desc.CanBeImported())
 		{
 			PackageRef = ImportStore.GlobalPackageStore.LoadedPackageStore.FindPackageRef(Desc.DiskPackageId);
-			check(PackageRef);
+			UE_ASYNC_PACKAGE_CLOG(!PackageRef, Fatal, Desc, TEXT("CreateUPackage"), TEXT("Package has been destroyed by GC."));
 			LinkerRoot = PackageRef->GetPackage();
-			check(LinkerRoot == FindObjectFast<UPackage>(nullptr, Desc.GetUPackageName()));
+#if DO_CHECK
+			if (LinkerRoot)
+			{
+				UPackage* FoundPackage = FindObjectFast<UPackage>(nullptr, Desc.GetUPackageName());
+				checkf(LinkerRoot == FoundPackage,
+					TEXT("LinkerRoot '%s' (%p) is different from FoundPackage '%s' (%p)"),
+					*LinkerRoot->GetName(), LinkerRoot, *FoundPackage->GetName(), FoundPackage);
+			}
+#endif
 		}
-		else
+		if (!LinkerRoot)
 		{
-			LinkerRoot = FindObjectFast<UPackage>(nullptr, Desc.GetUPackageName());
+			// Packages can be created outside the loader, i.e from ResolveName via StaticLoadObject
+			ExistingPackage = FindObjectFast<UPackage>(nullptr, Desc.GetUPackageName());
 		}
 	}
 	if (!LinkerRoot)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(UPackageCreate);
-		LinkerRoot = NewObject<UPackage>(/*Outer*/nullptr, Desc.GetUPackageName(), RF_Public | RF_WasLoaded);
+		if (ExistingPackage)
+		{
+			LinkerRoot = ExistingPackage;
+		}
+		else 
+		{
+			LinkerRoot = NewObject<UPackage>(/*Outer*/nullptr, Desc.GetUPackageName());
+			bCreatedLinkerRoot = true;
+		}
+		LinkerRoot->SetFlags(RF_Public | RF_WasLoaded);
 		LinkerRoot->FileName = Desc.DiskPackageName;
 		LinkerRoot->SetCanBeImportedFlag(Desc.CanBeImported());
 		LinkerRoot->SetPackageId(Desc.DiskPackageId);
@@ -5312,7 +5366,6 @@ void FAsyncPackage2::CreateUPackage(const FPackageSummary* PackageSummary)
 		{
 			PackageRef->SetPackage(LinkerRoot);
 		}
-		bCreatedLinkerRoot = true;
 	}
 	else
 	{
@@ -5388,7 +5441,6 @@ void FAsyncPackage2::FinishUPackage()
 {
 	if (LinkerRoot)
 	{
-		LinkerRoot->AtomicallyClearInternalFlags(EInternalObjectFlags::AsyncLoading | EInternalObjectFlags::Async);
 		if (!bLoadHasFailed)
 		{
 			// Mark package as having been fully loaded and update load time.

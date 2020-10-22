@@ -1520,6 +1520,15 @@ void FRigVMParserAST::FoldAssignments()
 			}
 		}
 
+		// if this node is a variable node and the pin requires a watch... skip this
+		if (Cast<URigVMVariableNode>(AssignExpr->GetSourcePin()->GetNode()))
+		{
+			if(AssignExpr->GetSourcePin()->RequiresWatch())
+			{
+				continue;
+			}
+		}
+
 		FRigVMExprAST* Parent = AssignExpr->Parents[0];
 		if (!Parent->IsA(FRigVMExprAST::EType::Var))
 		{

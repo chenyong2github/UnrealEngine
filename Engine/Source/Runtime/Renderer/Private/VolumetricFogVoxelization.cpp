@@ -486,7 +486,7 @@ void VoxelizeVolumePrimitive(FVoxelizeVolumeMeshProcessor& PassMeshProcessor,
 	const FPrimitiveSceneProxy* PrimitiveSceneProxy,
 	const FMeshBatch& OriginalMesh)
 {
-	const FMaterial& Material = *OriginalMesh.MaterialRenderProxy->GetMaterial(View.GetFeatureLevel());
+	const FMaterial& Material = OriginalMesh.MaterialRenderProxy->GetIncompleteMaterialWithFallback(View.GetFeatureLevel());
 
 	if (Material.GetMaterialDomain() == MD_Volume)
 	{

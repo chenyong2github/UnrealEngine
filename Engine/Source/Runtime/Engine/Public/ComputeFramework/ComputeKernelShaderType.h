@@ -57,10 +57,11 @@ public:
 	{
 	}
 
-	TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe> BeginCompileShader(
+	void BeginCompileShader(
+		uint32 ShaderMapId,
 		EShaderPlatform ShaderPlatform,
 		FComputeKernelResource* KernelShader,
-		TArray<TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>>& InOutNewJobs
+		TArray<FShaderCommonCompileJobPtr>& InOutNewJobs
 		);
 
 	bool ShouldCache(EShaderPlatform ShaderPlatform, const FComputeKernelResource* KernelShader) const

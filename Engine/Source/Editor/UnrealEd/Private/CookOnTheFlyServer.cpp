@@ -610,7 +610,7 @@ void UCookOnTheFlyServer::AddCookOnTheFlyPlatformFromGameThread(ITargetPlatform*
 		return;
 	}
 
-	TArrayView<ITargetPlatform* const> NewTargetPlatforms{ TargetPlatform };
+	TArrayView<ITargetPlatform* const> NewTargetPlatforms(&TargetPlatform,1);
 
 	RefreshPlatformAssetRegistries(NewTargetPlatforms);
 	InitializeSandbox(NewTargetPlatforms);
@@ -5521,6 +5521,7 @@ void UCookOnTheFlyServer::SaveGlobalShaderMapFiles(const TArrayView<const ITarge
 			RecompileData.ShaderPlatform == -1 ? SP_NumPlatforms : (EShaderPlatform)RecompileData.ShaderPlatform, //-V547
 			OutputDir, 
 			RecompileData.MaterialsToLoad, 
+			RecompileData.ShadersToRecompile,
 			RecompileData.MeshMaterialMaps, 
 			RecompileData.ModifiedFiles);
 	}
@@ -5784,7 +5785,6 @@ void UCookOnTheFlyServer::SaveShaderCodeLibrary(FString const& Name)
 		// Save shader code map - cleaning directories is deliberately a separate loop here as we open the cache once per shader platform and we don't assume that they can't be shared across target platforms.
 		for (const ITargetPlatform* TargetPlatform : PlatformManager->GetSessionPlatforms())
 		{
-		   
 			FString BasePath = !IsCookingDLC() ? FPaths::ProjectContentDir() : GetContentDirectoryForDLC();
 			
 			FString ShaderCodeDir = ConvertToFullSandboxPath(*BasePath, true, TargetPlatform->PlatformName());
@@ -5893,19 +5893,21 @@ void UCookOnTheFlyServer::CookByTheBookFinished()
 		// Save modified asset registry with all streaming chunk info generated during cook
 		const FString& SandboxRegistryFilename = GetSandboxAssetRegistryFilename();
 
-	   	if (bCacheShaderLibraries && PackagingSettings->bShareMaterialShaderCode)
+		if (bCacheShaderLibraries && PackagingSettings->bShareMaterialShaderCode)
 		{
 			// Save shader code map
 			FString LibraryName = !IsCookingDLC() ? FApp::GetProjectName() : CookByTheBookOptions->DlcName;
-			SaveShaderCodeLibrary(LibraryName);
-			
-			// Don't clean Saved/Shaders/<LibraryPlatform(s)>/ at the end as we might iterate next time - Next cook at startup will decide if clean on iterate flag
-            // /*CleanShaderCodeLibraries();*/
-			ProcessShaderCodeLibraries(LibraryName);
-            
+
+			if (LibraryName.Len() > 0)
+			{
+				SaveShaderCodeLibrary(LibraryName);
+
+				ProcessShaderCodeLibraries(LibraryName);
+			}
+
 			FShaderCodeLibrary::Shutdown();
-		}				
-		
+		}
+
 		{
 			UE_SCOPED_HIERARCHICAL_COOKTIMER(SavingCurrentIniSettings)
 			for (const ITargetPlatform* TargetPlatform : PlatformManager->GetSessionPlatforms() )
@@ -6897,7 +6899,10 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 	// Open the shader code library for the current project or the current DLC pack, depending on which we are cooking
     {
 		FString LibraryName = !IsCookingDLC() ? FApp::GetProjectName() : CookByTheBookOptions->DlcName;
-		OpenShaderCodeLibrary(LibraryName);
+		if (LibraryName.Len() > 0)
+		{
+			OpenShaderCodeLibrary(LibraryName);
+		}
 	}
 
 	TArray<FName> FilesInPath;
@@ -7365,6 +7370,7 @@ void UCookOnTheFlyServer::HandleNetworkFileServerRecompileShaders(const FShaderR
 		RecompileData.ShaderPlatform == -1 ? SP_NumPlatforms : (EShaderPlatform)RecompileData.ShaderPlatform,
 		OutputDir, 
 		RecompileData.MaterialsToLoad, 
+		RecompileData.ShadersToRecompile,
 		RecompileData.MeshMaterialMaps, 
 		RecompileData.ModifiedFiles,
 		RecompileData.bCompileChangedShaders);

@@ -159,7 +159,8 @@ void UBaseBrushTool::RegisterActions(FInteractiveToolActionSet& ActionSet)
 
 void UBaseBrushTool::RecalculateBrushRadius()
 {
-	CurrentBrushRadius = 0.5 * BrushRelativeSizeRange.Interpolate(BrushProperties->BrushSize);
+	TInterval<float> ScaledBrushSizeRange(BrushRelativeSizeRange.Min/WorldToLocalScale, BrushRelativeSizeRange.Max/WorldToLocalScale);
+	CurrentBrushRadius = 0.5 * ScaledBrushSizeRange.Interpolate(BrushProperties->BrushSize);
 	if (BrushProperties->bSpecifyRadius)
 	{
 		CurrentBrushRadius = BrushProperties->BrushRadius;

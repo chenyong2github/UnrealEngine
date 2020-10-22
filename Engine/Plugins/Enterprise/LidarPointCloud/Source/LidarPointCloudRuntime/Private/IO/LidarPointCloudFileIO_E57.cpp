@@ -129,8 +129,7 @@ public:
 	{		
 		if (ImageFile)
 		{
-			typedef std::function<bool(uint32, uint32, bool, bool, FE57PoseTransform)> FBatchCallback;
-			LOADFUNC(void, ReadPoints, void*, void*, uint32, FBatchCallback);
+			LOADFUNC(void, ReadPoints, void*, void*, uint32, TFunction<bool(uint32, uint32, bool, bool, FE57PoseTransform)>);
 			hReadPoints(ImageFile, Buffer, BatchSize, MoveTemp(BatchCallback));
 		}
 	}

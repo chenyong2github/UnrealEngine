@@ -638,6 +638,22 @@ void FActiveSound::UpdateWaveInstances(TArray<FWaveInstance*> &InWaveInstances, 
 			}
 		}
 
+
+		// each wave instance needs its own copy of the quantization command
+		for (FWaveInstance* WaveInstance : ThisSoundsWaveInstances)
+		{
+			check(WaveInstance);
+
+			if (!WaveInstance->QuantizedRequestData && QuantizedRequestData.QuantizedCommandPtr)
+			{
+				// shallow copy of the FQuartzQuantizedRequestData struct
+				WaveInstance->QuantizedRequestData = MakeUnique<Audio::FQuartzQuantizedRequestData>(QuantizedRequestData);
+
+				// manually deep copy the QuantizedCommandPtr object itself
+				WaveInstance->QuantizedRequestData->QuantizedCommandPtr = QuantizedRequestData.QuantizedCommandPtr->GetDeepCopyOfDerivedObject();
+			}
+		}
+
 		// If the concurrency volume is negative (as set by ConcurrencyManager on creation),
 		// skip updating as its been deemed unnecessary
 		if (VolumeConcurrency >= 0.0f)

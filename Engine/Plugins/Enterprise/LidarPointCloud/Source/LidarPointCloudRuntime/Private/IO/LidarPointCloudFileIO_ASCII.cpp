@@ -270,7 +270,7 @@ bool ULidarPointCloudFileIO_ASCII::HandleExport(const FString& Filename, class U
 		{
 			const FDoubleVector Location = (LocationOffset + Data->Location) * ExportScale;
 			const FVector Normal = Data->Normal.ToVector();
-			Lines.Emplace(FString::Printf(TEXT("%f,%f,%f,%f,%f,%f,%d,%d,%d,%d"), Location.X, -Location.Y, Location.Z, Normal.X, Normal.Y, Normal.Z, Data->Color.A, Data->Color.R, Data->Color.G, Data->Color.B));
+			Lines.Emplace(FString::Printf(TEXT("%f,%f,%f,%d,%d,%d,%d,%f,%f,%f"), Location.X, -Location.Y, Location.Z, Data->Color.R, Data->Color.G, Data->Color.B, Data->Color.A, Normal.X, Normal.Y, Normal.Z));
 		}
 
 		FFileHelper::SaveStringArrayToFile(Lines, *Filename, FFileHelper::EEncodingOptions::ForceAnsi, &IFileManager::Get(), EFileWrite::FILEWRITE_Append);

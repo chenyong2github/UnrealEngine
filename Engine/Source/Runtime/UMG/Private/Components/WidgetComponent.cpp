@@ -706,6 +706,8 @@ void UWidgetComponent::UpdateMaterialInstance()
 		MaterialInstance->AddToCluster(this);
 	}
 	UpdateMaterialInstanceParameters();
+
+	MarkRenderStateDirty();
 }
 
 FPrimitiveSceneProxy* UWidgetComponent::CreateSceneProxy()

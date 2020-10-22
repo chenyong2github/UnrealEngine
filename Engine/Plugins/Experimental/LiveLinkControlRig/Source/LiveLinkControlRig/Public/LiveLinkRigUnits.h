@@ -18,6 +18,9 @@ struct LIVELINKCONTROLRIG_API FRigUnit_LiveLinkBase : public FRigUnit
 	GENERATED_BODY()
 };
 
+/**
+ * Evaluate current Live Link Animation associated with supplied subject
+ */
 USTRUCT(meta = (DisplayName = "Evaluate Live Link Frame (Animation)", Category = "Live Link"))
 struct LIVELINKCONTROLRIG_API FRigUnit_LiveLinkEvaluteFrameAnimation : public FRigUnit_LiveLinkBase
 {
@@ -43,6 +46,9 @@ struct LIVELINKCONTROLRIG_API FRigUnit_LiveLinkEvaluteFrameAnimation : public FR
 	FSubjectFrameHandle SubjectFrame;
 };
 
+/**
+ * Get the transform value with supplied subject frame
+ */
 USTRUCT(meta = (DisplayName = "Get Transform By Name", Category = "Live Link"))
 struct LIVELINKCONTROLRIG_API FRigUnit_LiveLinkGetTransformByName : public FRigUnit_LiveLinkBase
 {
@@ -65,6 +71,9 @@ struct LIVELINKCONTROLRIG_API FRigUnit_LiveLinkGetTransformByName : public FRigU
 	FTransform Transform;
 };
 
+/**
+ * Get the parameter value with supplied subject frame 
+ */
 USTRUCT(meta = (DisplayName = "Get Parameter Value By Name", Category = "Live Link"))
 struct LIVELINKCONTROLRIG_API FRigUnit_LiveLinkGetParameterValueByName : public FRigUnit_LiveLinkBase
 {
@@ -84,6 +93,9 @@ struct LIVELINKCONTROLRIG_API FRigUnit_LiveLinkGetParameterValueByName : public 
 	float Value;
 };
 
+/**
+ * Evaluate current Live Link Transform associated with supplied subject
+ */
 USTRUCT(meta = (DisplayName = "Evaluate Live Link Frame (Transform)", Category = "Live Link"))
 struct LIVELINKCONTROLRIG_API FRigUnit_LiveLinkEvaluteFrameTransform : public FRigUnit_LiveLinkBase
 {

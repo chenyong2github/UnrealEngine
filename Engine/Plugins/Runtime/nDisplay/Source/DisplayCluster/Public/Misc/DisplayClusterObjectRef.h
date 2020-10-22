@@ -9,6 +9,10 @@
 #include "Engine/GameEngine.h"
 #include "EngineUtils.h"
 
+#if WITH_EDITOR
+#include "Editor.h"
+#endif
+
 class FDisplayClusterActorRef
 {
 public:
@@ -95,7 +99,7 @@ private:
 		{
 			UWorld* CurrentWorld = nullptr;
 
-#if WITH_EDITORONLY_DATA
+#if WITH_EDITOR
 			if (GIsEditor)
 			{
 				CurrentWorld = GEditor->GetEditorWorldContext().World();

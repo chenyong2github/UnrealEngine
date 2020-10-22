@@ -172,4 +172,16 @@ struct FSyncStatus
 
 	UPROPERTY()
 	TArray<FString> FlipModeHistory;
+
+	UPROPERTY()
+	TArray<FString> ProgramLayers;
+
+	UPROPERTY()
+	uint32 DriverVersion;
+
+	UPROPERTY()
+	FString DriverBranch;
+
+	UPROPERTY()
+	FString Taskbar;
 };

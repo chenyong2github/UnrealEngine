@@ -1,21 +1,23 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Views/Viewport/DisplayClusterConfiguratorEditorViewportClient.h"
+#include "Views/Viewport/DisplayClusterConfiguratorPreviewScene.h"
 #include "Views/Viewport/SDisplayClusterConfiguratorViewport.h"
-#include "DisplayClusterConfiguratorEditorViewportClient.h"
+
 #include "DisplayClusterConfiguratorToolkit.h"
-#include "DisplayClusterConfiguratorPreviewScene.h"
-#include "Views/Viewport/DisplayClusterConfiguratorActor.h"
+
+#include "Components/DisplayClusterSceneComponent.h"
+#include "DisplayClusterRootActor.h"
 
 #include "EngineUtils.h"
 
 
 FDisplayClusterConfiguratorEditorViewportClient::FDisplayClusterConfiguratorEditorViewportClient(const TSharedRef<FDisplayClusterConfiguratorPreviewScene>& InPreviewScene, const TSharedRef<SDisplayClusterConfiguratorViewport>& InEditorViewport, const TSharedRef<FDisplayClusterConfiguratorToolkit>& InToolkit)
 	: FEditorViewportClient(nullptr, &InPreviewScene.Get(), StaticCastSharedRef<SEditorViewport>(InEditorViewport))
+	, PreviewScenePtr(InPreviewScene)
+	, ToolkitPtr(InToolkit)
 {
 	EngineShowFlags.SetSelectionOutline(true);
-	PreviewScenePtr = InPreviewScene;
-	ToolkitPtr = InToolkit;
 }
 
 void FDisplayClusterConfiguratorEditorViewportClient::Build()
@@ -43,24 +45,28 @@ void FDisplayClusterConfiguratorEditorViewportClient::ProcessClick(FSceneView& V
 {
 	ToolkitPtr.Pin()->ClearViewportSelection();
 
-	if (HitProxy)
+	if (HitProxy && HitProxy->IsA(HActor::StaticGetType()))
 	{
-		if (HitProxy->IsA(HActor::StaticGetType()))
+		HActor* ActorProxy = (HActor*)HitProxy;
+		if (ActorProxy && ActorProxy->Actor && ActorProxy->PrimComponent)
 		{
-			HActor* ActorProxy = (HActor*)HitProxy;
-			if (ActorProxy && ActorProxy->Actor && ActorProxy->PrimComponent)
+			if (UDisplayClusterSceneComponent* SelectComp = Cast<UDisplayClusterSceneComponent>(ActorProxy->PrimComponent->GetAttachParent()))
 			{
-				if (ADisplayClusterConfiguratorActor* ConfiguratorActor = Cast<ADisplayClusterConfiguratorActor>(ActorProxy->Actor))
+				if (ADisplayClusterRootActor* RootActor = Cast<ADisplayClusterRootActor>(ActorProxy->Actor))
 				{
-					ConfiguratorActor->SetNodeSelection(true);
+					RootActor->SelectComponent(SelectComp->GetName());
 				}
-			}
 
-			Invalidate();
-			return;
+				TArray<UObject*> NewSelection;
+				NewSelection.Add(SelectComp->GetObject());
+				ToolkitPtr.Pin()->SelectObjects(NewSelection);
+			}
 		}
+
+		Invalidate();
+		return;
 	}
-	
+
 	FEditorViewportClient::ProcessClick(View, HitProxy, Key, Event, HitX, HitY);
 }
 

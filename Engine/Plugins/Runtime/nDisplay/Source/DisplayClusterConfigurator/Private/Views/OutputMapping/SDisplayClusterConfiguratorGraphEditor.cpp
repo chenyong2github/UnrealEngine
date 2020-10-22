@@ -7,6 +7,7 @@
 #include "DisplayClusterConfigurationTypes.h"
 #include "Interfaces/IDisplayClusterConfigurator.h"
 #include "Views/OutputMapping/DisplayClusterConfiguratorGraph.h"
+#include "Views/OutputMapping/DisplayClusterConfiguratorOutputMappingBuilder.h"
 #include "Views/OutputMapping/DisplayClusterConfiguratorViewOutputMapping.h"
 #include "Views/OutputMapping/GraphNodes/SDisplayClusterConfiguratorBaseNode.h"
 #include "Views/OutputMapping/GraphNodes/SDisplayClusterConfiguratorCanvasNode.h"
@@ -15,10 +16,12 @@
 #include "Views/OutputMapping/EdNodes/DisplayClusterConfiguratorWindowNode.h"
 #include "Views/OutputMapping/EdNodes/DisplayClusterConfiguratorCanvasNode.h"
 #include "Interfaces/Views/OutputMapping/IDisplayClusterConfiguratorOutputMappingSlot.h"
-#include "SDisplayClusterConfiguratorGraphEditor.h"
 
 #include "Framework/Commands/GenericCommands.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+
+#include "Interfaces/Views/OutputMapping/IDisplayClusterConfiguratorViewOutputMapping.h"
+
 
 #define LOCTEXT_NAMESPACE "FDisplayClusterConfiguratorOutputMappingWindowSlot"
 FDisplayClusterConfiguratorWindowNodeFactory::FDisplayClusterConfiguratorWindowNodeFactory(const TSharedRef<FDisplayClusterConfiguratorToolkit>& InToolkit, const TSharedRef<SDisplayClusterConfiguratorGraphEditor>& InGraphEditor)
@@ -34,11 +37,41 @@ TSharedPtr<SGraphNode> FDisplayClusterConfiguratorWindowNodeFactory::CreateNodeW
 		TSharedPtr<SDisplayClusterConfiguratorCanvasNode> GraphCanvasNode = SNew(SDisplayClusterConfiguratorCanvasNode, CanvasNode, ToolkitPtr.Pin().ToSharedRef());
 		GraphEditorPtr.Pin()->SetRootNode(GraphCanvasNode.ToSharedRef());
 
+		TSharedPtr<IDisplayClusterConfiguratorViewOutputMapping> OutputMappingView = ToolkitPtr.Pin()->GetViewOutputMapping();
+		if (OutputMappingView)
+		{
+			OutputMappingView->GetOnOutputMappingBuiltDelegate().Broadcast();
+		}
+
 		return GraphCanvasNode;
 	}
 
 	return FGraphNodeFactory::CreateNodeWidget(InNode);
 }
+
+void SDisplayClusterConfiguratorGraphEditor::SetViewportPreviewTexture(const FString& NodeId, const FString& ViewportId, UTexture* InTexture)
+{
+	if (TSharedPtr<SDisplayClusterConfiguratorCanvasNode> CanvasNode = CanvasNodePtr.Pin())
+	{
+		for (const TSharedPtr<IDisplayClusterConfiguratorOutputMappingSlot>& Slot : CanvasNode->GetAllSlots())
+		{
+			if (Slot->GetType() == FDisplayClusterConfiguratorOutputMappingBuilder::FSlot::Viewport)
+			{
+				if (TSharedPtr<IDisplayClusterConfiguratorOutputMappingSlot> ParentSlot = Slot->GetParentSlot())
+				{
+					if (ParentSlot->GetName().Equals(NodeId) && Slot->GetName().Equals(ViewportId))
+					{
+						Slot->SetPreviewTexture(InTexture);
+						
+						// Found, we can break
+						break;
+					}
+				}
+			}
+		}
+	}
+}
+
 void SDisplayClusterConfiguratorGraphEditor::OnSelectedNodesChanged(const TSet<UObject*>& NewSelection)
 {
 	SelectedNodes = NewSelection;

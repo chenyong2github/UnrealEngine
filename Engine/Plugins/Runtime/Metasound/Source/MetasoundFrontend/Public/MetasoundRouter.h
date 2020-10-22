@@ -355,7 +355,7 @@ namespace Metasound
 		bool SetDelay(float InSeconds)
 		{
 			Params.DelayTimeInSeconds = InSeconds;
-			NumElementsToDelayBy = FMath::Min(InSeconds * Params.OperatorSettings.GetActualBlockRate(), 1);
+			NumElementsToDelayBy = FMath::Min(InSeconds * Params.OperatorSettings.GetActualBlockRate(), 1.f);
 
 			if (NumElementsToDelayBy >= SenderBuffer.GetCapacity())
 			{

@@ -2000,6 +2000,9 @@ namespace UnrealBuildTool
 			// Also track the version file
 			Makefile.ExternalDependencies.Add(FileItem.GetItemByFileReference(BuildVersion.GetDefaultFileName()));
 
+			// Add any toolchain dependencies
+			TargetToolChain.GetExternalDependencies(Makefile.ExternalDependencies);
+
 			// Add any leaf dependencies (eg. response files) to the dependencies list
 			IEnumerable<FileItem> LeafPrerequisiteItems = Makefile.Actions.SelectMany(x => x.PrerequisiteItems).Except(Makefile.Actions.SelectMany(x => x.ProducedItems));
 			foreach (FileItem LeafPrerequisiteItem in LeafPrerequisiteItems)
@@ -3713,17 +3716,6 @@ namespace UnrealBuildTool
 			else
 			{
 				GlobalCompileEnvironment.Definitions.Add("WITH_LIVE_CODING=0");
-			}
-
-			if (Rules.bUseXGEController &&
-				Rules.Type == TargetType.Editor &&
-				(Platform == UnrealTargetPlatform.Win32 || Platform == UnrealTargetPlatform.Win64))
-			{
-				GlobalCompileEnvironment.Definitions.Add("WITH_XGE_CONTROLLER=1");
-			}
-			else
-			{
-				GlobalCompileEnvironment.Definitions.Add("WITH_XGE_CONTROLLER=0");
 			}
 
 			// Whether C++20 modules are enabled

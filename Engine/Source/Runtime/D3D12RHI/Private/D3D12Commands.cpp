@@ -405,12 +405,20 @@ void FD3D12CommandContext::RHIEndTransitions(TArrayView<const FRHITransition*> T
 				}
 
 				D3D12_RESOURCE_STATES State = D3D12_RESOURCE_STATE_COMMON;
-				if (EnumHasAnyFlags(Info.Flags, EResourceTransitionFlags::MaintainCompression))
+				if (EnumHasAnyFlags(Info.Flags, EResourceTransitionFlags::MaintainCompression) && IsReadOnlyAccess(Info.AccessAfter))
 				{
 					State |= SkipFastClearEliminateState;
 				}
 
-				if (EnumHasAnyFlags(Info.AccessAfter, ERHIAccess::WritableMask))
+				if (Info.AccessAfter == ERHIAccess::ResolveSrc)
+				{
+					State |= D3D12_RESOURCE_STATE_RESOLVE_SOURCE;
+				}
+				else if (Info.AccessAfter == ERHIAccess::ResolveDst)
+				{
+					State |= D3D12_RESOURCE_STATE_RESOLVE_DEST;
+				}
+				else if (EnumHasAnyFlags(Info.AccessAfter, ERHIAccess::WritableMask))
 				{
 					if (bUAVAccess || bIsAsyncComputeContext)
 					{

@@ -235,26 +235,14 @@ namespace UnrealBuildTool
 		/// <returns>List of project files</returns>
 		public static IEnumerable<FileReference> EnumeratePlugins(FileReference ProjectFile)
 		{
-			DirectoryReference EnginePluginsDir = DirectoryReference.Combine(UnrealBuildTool.EngineDirectory, "Plugins");
-			foreach(FileReference PluginFile in EnumeratePlugins(EnginePluginsDir))
-			{
-				yield return PluginFile;
-			}
-
+			List<DirectoryReference> BaseDirs = new List<DirectoryReference>();
+			BaseDirs.AddRange(UnrealBuildTool.GetExtensionDirs(UnrealBuildTool.EngineDirectory, "Plugins"));
 			if(ProjectFile != null)
 			{
-				DirectoryReference ProjectPluginsDir = DirectoryReference.Combine(ProjectFile.Directory, "Plugins");
-				foreach(FileReference PluginFile in EnumeratePlugins(ProjectPluginsDir))
-				{
-					yield return PluginFile;
-				}
-
-				DirectoryReference ProjectModsDir = DirectoryReference.Combine(ProjectFile.Directory, "Mods");
-				foreach(FileReference PluginFile in EnumeratePlugins(ProjectModsDir))
-				{
-					yield return PluginFile;
-				}
+				BaseDirs.AddRange(UnrealBuildTool.GetExtensionDirs(ProjectFile.Directory, "Plugins"));
+				BaseDirs.AddRange(UnrealBuildTool.GetExtensionDirs(ProjectFile.Directory, "Mods"));
 			}
+			return BaseDirs.SelectMany(x => EnumeratePlugins(x)).ToList();
 		}
 
 		/// <summary>

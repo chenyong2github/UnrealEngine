@@ -4,6 +4,8 @@
 #include "ToolSceneQueriesUtil.h"
 #include "VectorUtil.h"
 #include "Quaternion.h"
+#include "GameFramework/Actor.h"
+#include "Components/PrimitiveComponent.h"
 
 
 static double VISUAL_ANGLE_SNAP_THRESHOLD_DEG = 1.0;
@@ -203,4 +205,87 @@ bool ToolSceneQueriesUtil::FindWorldGridSnapPoint(const UInteractiveTool* Tool, 
 		return true;
 	};
 	return false;
+}
+
+
+
+
+
+bool ToolSceneQueriesUtil::IsVisibleObjectHit(const FHitResult& HitResult)
+{
+	AActor* Actor = HitResult.GetActor();
+	if (Actor != nullptr)
+	{
+#if WITH_EDITOR
+		if (Actor->IsHidden() || Actor->IsHiddenEd())
+		{
+			return false;
+		}
+#else
+		if (Actor->IsHidden())
+		{
+			return false;
+		}
+#endif
+	}
+
+	UPrimitiveComponent* Component = HitResult.GetComponent();
+	if (Component != nullptr)
+	{
+#if WITH_EDITOR
+		if (Component->IsVisible() == false && Component->IsVisibleInEditor() == false)
+		{
+			return false;
+		}
+#else
+		if (Component->IsVisible() == false)
+		{
+			return false;
+		}
+#endif
+	}
+
+	return true;
+}
+
+
+
+
+bool ToolSceneQueriesUtil::FindNearestVisibleObjectHit(UWorld* World, FHitResult& HitResultOut, const FVector& Start, const FVector& End,
+	const TArray<UPrimitiveComponent*>* IgnoreComponents)
+{
+	FCollisionObjectQueryParams ObjectQueryParams(FCollisionObjectQueryParams::AllObjects);
+	FCollisionQueryParams QueryParams = FCollisionQueryParams::DefaultQueryParam;
+	QueryParams.bTraceComplex = true;
+
+	TArray<FHitResult> OutHits;
+	if (World->LineTraceMultiByObjectType(OutHits, Start, End, ObjectQueryParams, QueryParams) == false)
+	{
+		return false;
+	}
+
+	float NearestVisible = TNumericLimits<float>::Max();
+	for (const FHitResult& CurResult : OutHits)
+	{
+		if (CurResult.Distance < NearestVisible)
+		{
+			if (IsVisibleObjectHit(CurResult))
+			{
+				if (IgnoreComponents == nullptr || IgnoreComponents->Contains(CurResult.GetComponent()) == false)
+				{
+					HitResultOut = CurResult;
+					NearestVisible = CurResult.Distance;
+				}
+			}
+		}
+	}
+
+	return NearestVisible < TNumericLimits<float>::Max();
+}
+
+
+bool ToolSceneQueriesUtil::FindNearestVisibleObjectHit(UWorld* World, FHitResult& HitResultOut, const FRay& Ray,
+	const TArray<UPrimitiveComponent*>* IgnoreComponents)
+{
+	return FindNearestVisibleObjectHit(World, HitResultOut, Ray.Origin, Ray.PointAt(HALF_WORLD_MAX), IgnoreComponents);
 }

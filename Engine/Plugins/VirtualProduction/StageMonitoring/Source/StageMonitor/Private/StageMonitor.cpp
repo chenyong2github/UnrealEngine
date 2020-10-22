@@ -102,7 +102,7 @@ bool FStageMonitor::Tick(float DeltaTime)
 
 void FStageMonitor::UpdateProviderState()
 {
-	const TArray<FStageSessionProviderEntry>& Providers = Session->GetProviders();
+	const TConstArrayView<FStageSessionProviderEntry> Providers = Session->GetProviders();
 	for (const FStageSessionProviderEntry& Provider : Providers)
 	{
 		if (Provider.State == EStageDataProviderState::Active)
@@ -204,24 +204,7 @@ void FStageMonitor::HandleProviderDiscoveryResponse(const FStageProviderDiscover
 	const UStageMonitoringSettings* Settings = GetDefault<UStageMonitoringSettings>();
 	if (!Settings->bUseSessionId || Settings->GetStageSessionId() == Message.Descriptor.SessionId)
 	{
-		const FGuid ProviderIdentifier = Message.Identifier;
-		const TArray<FStageSessionProviderEntry>& Providers = Session->GetProviders();
-		const FStageSessionProviderEntry* Provider = Providers.FindByPredicate([ProviderIdentifier](const FStageSessionProviderEntry& Other) { return Other.Identifier == ProviderIdentifier; });
-		if (Provider)
-		{
-			//In case a provider was closed, listen back to its discovery response to update its status
-			if (Provider->State == EStageDataProviderState::Closed)
-			{
-				//Need to update data about a closed provider. Its address will certainly have changed and descriptor could also have
-				Session->UpdateProviderDescription(ProviderIdentifier, Message.Descriptor, Context->GetSender());
-				Session->SetProviderState(ProviderIdentifier, EStageDataProviderState::Active);
-			}
-		}
-		else
-		{
-			UE_LOG(LogStageMonitor, VeryVerbose, TEXT("Provider found, %s"), *Message.Descriptor.FriendlyName.ToString());
-			Session->AddProvider(ProviderIdentifier, Message.Descriptor, Context->GetSender());
-		}
+		Session->HandleDiscoveredProvider(Message.Identifier, Message.Descriptor, Context->GetSender());
 	}
 	else if (!InvalidDataProviders.Contains(Message.Identifier))
 	{
@@ -239,7 +222,7 @@ void FStageMonitor::HandleProviderDiscoveryResponse(const FStageProviderDiscover
 void FStageMonitor::HandleProviderCloseMessage(const FStageProviderCloseMessage& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context)
 {
 	const FGuid ProviderIdentifier = Message.Identifier;
-	const TArray<FStageSessionProviderEntry>& Providers = Session->GetProviders();
+	const TConstArrayView<FStageSessionProviderEntry> Providers = Session->GetProviders();
 	const FStageSessionProviderEntry* Provider = Providers.FindByPredicate([ProviderIdentifier](const FStageSessionProviderEntry& Other) { return Other.Identifier == ProviderIdentifier; });
 	if (Provider)
 	{

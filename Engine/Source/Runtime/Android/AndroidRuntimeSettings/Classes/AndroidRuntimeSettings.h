@@ -85,6 +85,9 @@ namespace EOculusMobileDevice
 
 		/** Package for Oculus Quest */
 		Quest = 1 UMETA(DisplayName = "Oculus Quest"),
+
+		/** Package for Oculus Quest 2*/
+		Quest2 = 2 UMETA(DisplayName = "Oculus Quest 2"),
 	};
 }
 

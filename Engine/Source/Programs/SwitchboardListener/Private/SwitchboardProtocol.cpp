@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SwitchboardProtocol.h"
+
+#include "SwitchboardPacket.h"
 #include "SwitchboardTasks.h"
 #include "SyncStatus.h"
 
@@ -126,12 +128,12 @@ FString CreateSendFileToClientFailedMessage(const FString& InSourcePath, const F
 	return CreateMessage(TEXT("receive file complete"), false, { { TEXT("source"), InSourcePath }, { TEXT("error"), InError } });
 }
 
-
-bool CreateTaskFromCommand(const FString& InCommand, const FIPv4Endpoint& InEndpoint, TUniquePtr<FSwitchboardTask>& OutTask)
+bool CreateTaskFromCommand(const FString& InCommand, const FIPv4Endpoint& InEndpoint, TUniquePtr<FSwitchboardTask>& OutTask, bool& bOutEcho)
 {
 	TSharedRef<TJsonReader<TCHAR>> Reader = FJsonStringReader::Create(InCommand);
 
 	TSharedPtr<FJsonObject> JsonData;
+
 	if (!FJsonSerializer::Deserialize(Reader, JsonData))
 	{
 		return false;
@@ -139,15 +141,23 @@ bool CreateTaskFromCommand(const FString& InCommand, const FIPv4Endpoint& InEndp
 
 	TSharedPtr<FJsonValue> CommandField = JsonData->TryGetField(TEXT("command"));
 	TSharedPtr<FJsonValue> IdField = JsonData->TryGetField(TEXT("id"));
+
 	if (!CommandField.IsValid() || !IdField.IsValid())
 	{
 		return false;
 	}
 
 	FGuid MessageID;
+
 	if (!FGuid::Parse(IdField->AsString(), MessageID))
 	{
 		return false;
+	}
+
+	// Should we echo this command in the output log?
+	{
+		TSharedPtr<FJsonValue> EchoField = JsonData->TryGetField(TEXT("bEcho"));
+		bOutEcho = EchoField.IsValid() ? EchoField->AsBool() : true;
 	}
 
 	const FString CommandName = CommandField->AsString().ToLower();
@@ -155,8 +165,10 @@ bool CreateTaskFromCommand(const FString& InCommand, const FIPv4Endpoint& InEndp
 	{
 		TSharedPtr<FJsonValue> ExeField = JsonData->TryGetField(TEXT("exe"));
 		TSharedPtr<FJsonValue> ArgsField = JsonData->TryGetField(TEXT("args"));
+		TSharedPtr<FJsonValue> NameField = JsonData->TryGetField(TEXT("name"));
+		TSharedPtr<FJsonValue> CallerField = JsonData->TryGetField(TEXT("caller"));
 
-		OutTask = MakeUnique<FSwitchboardStartTask>(MessageID, InEndpoint, ExeField->AsString(), ArgsField->AsString());
+		OutTask = MakeUnique<FSwitchboardStartTask>(MessageID, InEndpoint, ExeField->AsString(), ArgsField->AsString(), NameField->AsString(), CallerField->AsString());
 		return true;
 	}
 	else if (CommandName == TEXT("kill"))

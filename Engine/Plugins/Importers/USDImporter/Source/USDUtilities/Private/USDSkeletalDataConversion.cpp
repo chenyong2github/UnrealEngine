@@ -1752,7 +1752,7 @@ bool UsdToUnreal::ConvertSkelAnim( const pxr::UsdSkelSkeletonQuery& InUsdSkeleto
 			// Since we may need to switch variants to parse LODs, we could invalidate references to SkinningQuery objects, so we need
 			// to keep track of these by path and construct one whenever we need them
 			TArray<pxr::SdfPath> PathsToSkinnedPrims;
-			for ( const pxr::UsdSkelSkinningQuery SkinningQuery : *InSkinningTargets )
+			for ( const pxr::UsdSkelSkinningQuery& SkinningQuery : *InSkinningTargets )
 			{
 				// In USD, the skinning target need not be a mesh, but for Unreal we are only interested in skinning meshes
 				if ( pxr::UsdGeomMesh SkinningMesh = pxr::UsdGeomMesh( SkinningQuery.GetPrim() ) )

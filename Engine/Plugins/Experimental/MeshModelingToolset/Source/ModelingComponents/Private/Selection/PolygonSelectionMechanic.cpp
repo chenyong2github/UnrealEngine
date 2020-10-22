@@ -60,7 +60,7 @@ void UPolygonSelectionMechanic::Initialize(
 	TopoSelector.Initialize(Mesh, Topology);
 	this->GetSpatialFunc = GetSpatialSourceFuncIn;
 	TopoSelector.SetSpatialSource(GetSpatialFunc);
-	TopoSelector.PointsWithinToleranceTest = [this](const FVector3d& Position1, const FVector3d& Position2) {
+	TopoSelector.PointsWithinToleranceTest = [this](const FVector3d& Position1, const FVector3d& Position2, double TolScale) {
 		if (CameraState.bIsOrthographic)
 		{
 			// We could just always use ToolSceneQueriesUtil::PointSnapQuery. But in ortho viewports, we happen to know
@@ -71,14 +71,15 @@ void UPolygonSelectionMechanic::Initialize(
 			// As in PointSnapQuery, we convert our angle-based tolerance to one we can use in an ortho viewport (instead of
 			// dividing our field of view into 90 visual angle degrees, we divide the plane into 90 units).
 			float OrthoTolerance = ToolSceneQueriesUtil::GetDefaultVisualAngleSnapThreshD() * CameraState.OrthoWorldCoordinateWidth / 90.0;
+			OrthoTolerance *= TolScale;
 			return TargetTransform.TransformPosition(Position1).DistanceSquared(TargetTransform.TransformPosition(Position2)) < OrthoTolerance * OrthoTolerance;
 		}
 		else
 		{
 			return ToolSceneQueriesUtil::PointSnapQuery(CameraState,
-				TargetTransform.TransformPosition(Position1), TargetTransform.TransformPosition(Position2));
+				TargetTransform.TransformPosition(Position1), TargetTransform.TransformPosition(Position2),
+				ToolSceneQueriesUtil::GetDefaultVisualAngleSnapThreshD() * TolScale);
 		}
-		
 	};
 
 	GetAddToSelectionModifierStateFunc = GetAddToSelectionModifierStateFuncIn;

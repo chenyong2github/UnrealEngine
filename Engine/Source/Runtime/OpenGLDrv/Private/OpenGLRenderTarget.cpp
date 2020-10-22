@@ -135,7 +135,7 @@ GLuint FOpenGLDynamicRHI::GetOpenGLFramebuffer(uint32 NumSimultaneousRenderTarge
 	// Allocate mobile multi-view frame buffer if enabled and supported.
 	// Multi-view doesn't support read buffers, explicitly disable and only bind GL_DRAW_FRAMEBUFFER
 	// TODO: We can't reliably use packed depth stencil?
-	const bool bRenderTargetsDefined = RenderTargets[0];
+	const bool bRenderTargetsDefined = (RenderTargets != nullptr) && RenderTargets[0];
 	const bool bValidMultiViewDepthTarget = !DepthStencilTarget || DepthStencilTarget->Target == GL_TEXTURE_2D_ARRAY;
 	const bool bUsingArrayTextures = (bRenderTargetsDefined) ? (RenderTargets[0]->Target == GL_TEXTURE_2D_ARRAY && bValidMultiViewDepthTarget) : false;
 	const bool bMultiViewCVar = CVarMobileMultiView && CVarMobileMultiView->GetValueOnAnyThread() != 0;
@@ -637,7 +637,7 @@ void FOpenGLDynamicRHI::ReadSurfaceDataRaw(FOpenGLContextState& ContextState, FR
 	check( !bDepthFormat || FOpenGL::SupportsDepthStencilReadSurface() );
 	check( !bFloatFormat || FOpenGL::SupportsFloatReadSurface() );
 	const GLenum Attachment = bDepthFormat ? (bDepthStencilFormat ? GL_DEPTH_STENCIL_ATTACHMENT : GL_DEPTH_ATTACHMENT) : GL_COLOR_ATTACHMENT0;
-	const bool bIsColorBuffer = Texture->Attachment == GL_COLOR_ATTACHMENT0;
+	const bool bIsColorBuffer = (Texture->Attachment == GL_COLOR_ATTACHMENT0) || (Texture->Attachment == 0);
 
 	const uint32 MipmapLevel = InFlags.GetMip();
 	GLuint SourceFramebuffer = bIsColorBuffer ? GetOpenGLFramebuffer(1, &Texture, NULL, &MipmapLevel, NULL) : GetOpenGLFramebuffer(0, NULL, NULL, NULL, Texture);
@@ -800,36 +800,45 @@ void FOpenGLDynamicRHI::ReadSurfaceDataRaw(FOpenGLContextState& ContextState, FR
 #if PLATFORM_ANDROID && !PLATFORM_LUMINGL4
 	else
 	{
-		// OpenGL ES is limited in what it can do with ReadPixels
-		int32 PixelComponentCount = 4 * SizeX * SizeY;
-		int32 RGBADataSize = sizeof(GLubyte)* PixelComponentCount;
-		GLubyte* RGBAData = (GLubyte*)FMemory::Malloc(RGBADataSize);
+		// Flip texture data only for render targets, textures loaded from disk have Attachment set to 0 and don't need flipping.
+		const bool bFlipTextureData = Texture->Attachment != 0;
+		GLubyte* RGBAData = TargetBuffer;
+		if (bFlipTextureData)
+		{
+			// OpenGL ES is limited in what it can do with ReadPixels
+			const int32 PixelComponentCount = 4 * SizeX * SizeY;
+			const int32 RGBADataSize = sizeof(GLubyte) * PixelComponentCount;
+			RGBAData = (GLubyte*)FMemory::Malloc(RGBADataSize);
+		}
 
 		glReadPixels(Rect.Min.X, Rect.Min.Y, SizeX, SizeY, GL_RGBA, GL_UNSIGNED_BYTE, RGBAData);
 
-		//OpenGL ES reads the pixels "upside down" from what we're expecting (flipped vertically), so we need to transfer the data from the bottom up.
-		uint8* TargetPtr = TargetBuffer;
-		int32 Stride = SizeX * 4;
-		int32 FlipHeight = SizeY;
-		GLubyte* LinePtr = RGBAData + (SizeY - 1) * Stride;
-
-		while (FlipHeight--)
+		if (bFlipTextureData)
 		{
-			GLubyte* DataPtr = LinePtr;
-			int32 Pixels = SizeX;
-			while (Pixels--)
-			{
-				TargetPtr[0] = DataPtr[2];
-				TargetPtr[1] = DataPtr[1];
-				TargetPtr[2] = DataPtr[0];
-				TargetPtr[3] = DataPtr[3];
-				DataPtr += 4;
-				TargetPtr += 4;
-			}
-			LinePtr -= Stride;
-		}
+			//OpenGL ES reads the pixels "upside down" from what we're expecting (flipped vertically), so we need to transfer the data from the bottom up.
+			uint8* TargetPtr = TargetBuffer;
+			int32 Stride = SizeX * 4;
+			int32 FlipHeight = SizeY;
+			GLubyte* LinePtr = RGBAData + (SizeY - 1) * Stride;
 
-		FMemory::Free(RGBAData);
+			while (FlipHeight--)
+			{
+				GLubyte* DataPtr = LinePtr;
+				int32 Pixels = SizeX;
+				while (Pixels--)
+				{
+					TargetPtr[0] = DataPtr[2];
+					TargetPtr[1] = DataPtr[1];
+					TargetPtr[2] = DataPtr[0];
+					TargetPtr[3] = DataPtr[3];
+					DataPtr += 4;
+					TargetPtr += 4;
+				}
+				LinePtr -= Stride;
+			}
+
+			FMemory::Free(RGBAData);
+		}
 	}
 #else
 	else

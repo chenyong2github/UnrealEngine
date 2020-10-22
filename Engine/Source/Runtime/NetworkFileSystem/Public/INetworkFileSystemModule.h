@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Modules/ModuleInterface.h"
+#include "ShaderCompiler.h"
 
 class INetworkFileServer;
 
@@ -25,6 +26,8 @@ struct FShaderRecompileData
 	TArray<FString> MaterialsToLoad;
 	bool bCompileChangedShaders;
 
+	TArray<FODSCRequestPayload> ShadersToRecompile;
+
 	FShaderRecompileData() :
 		ShaderPlatform(-1),
 		bCompileChangedShaders(true)
@@ -38,6 +41,8 @@ struct FShaderRecompileData
 		MeshMaterialMaps = Other.MeshMaterialMaps;
 		MaterialsToLoad = Other.MaterialsToLoad;
 		bCompileChangedShaders = Other.bCompileChangedShaders;
+
+		ShadersToRecompile = Other.ShadersToRecompile;
 
 		return *this;
 	}

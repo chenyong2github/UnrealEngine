@@ -598,6 +598,11 @@ namespace Audio
 			SetCapacity(InCapacity);
 		}
 
+		void Reset(uint32 InCapacity = 0)
+		{
+			SetCapacity(InCapacity);
+		}
+
 		void SetCapacity(uint32 InCapacity)
 		{
 			checkf(InCapacity < (uint32)TNumericLimits<int32>::Max(), TEXT("Max capacity for this buffer is 2,147,483,647 samples. Otherwise our index arithmetic will not work."));
@@ -619,13 +624,32 @@ namespace Audio
 
 			int32 NumToCopy = FMath::Min<int32>(NumSamples, Remainder());
 			const int32 NumToWrite = FMath::Min<int32>(NumToCopy, Capacity - WriteIndex);
+
 			FMemory::Memcpy(&DestBuffer[WriteIndex], InBuffer, NumToWrite * sizeof(SampleType));
-					
 			FMemory::Memcpy(&DestBuffer[0], &InBuffer[NumToWrite], (NumToCopy - NumToWrite) * sizeof(SampleType));
 
 			WriteCounter.Set((WriteIndex + NumToCopy) % Capacity);
 
 			return NumToCopy;
+		}
+
+		// Pushes some amount of zeros into the circular buffer.
+		// Useful when acting as a blocked, mono/interleaved delay line
+		int32 PushZeros(uint32 NumSamplesOfZeros)
+		{
+			SampleType* DestBuffer = InternalBuffer.GetData();
+			const uint32 ReadIndex = ReadCounter.GetValue();
+			const uint32 WriteIndex = WriteCounter.GetValue();
+
+			int32 NumToZeroEnd = FMath::Min<int32>(NumSamplesOfZeros, Remainder());
+			const int32 NumToZeroBegin = FMath::Min<int32>(NumToZeroEnd, Capacity - WriteIndex);
+
+			FMemory::Memzero(&DestBuffer[WriteIndex], NumToZeroBegin * sizeof(SampleType));
+			FMemory::Memzero(&DestBuffer[0], (NumToZeroEnd - NumToZeroBegin) * sizeof(SampleType));
+
+			WriteCounter.Set((WriteIndex + NumToZeroEnd) % Capacity);
+
+			return NumToZeroEnd;
 		}
 
 		// Push a single sample onto this buffer.

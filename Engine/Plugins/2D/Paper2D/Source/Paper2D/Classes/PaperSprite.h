@@ -327,6 +327,8 @@ public:
 	virtual bool ContainsPhysicsTriMeshData(bool InUseAllTriData) const override;
 	// End of IInterface_CollisionDataProvider
 
+protected:
+	void RefreshBakedData();
 
 	//@TODO: HACKERY:
 	friend class FSpriteEditorViewportClient;

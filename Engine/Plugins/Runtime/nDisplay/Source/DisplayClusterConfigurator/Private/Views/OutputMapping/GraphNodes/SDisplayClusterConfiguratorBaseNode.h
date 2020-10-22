@@ -10,7 +10,7 @@ class FDisplayClusterConfiguratorToolkit;
 class IDisplayClusterConfiguratorTreeItem;
 class SBox;
 class UDisplayClusterConfiguratorBaseNode;
-
+class UTexture;
 struct FSlateColor;
 
 class SDisplayClusterConfiguratorBaseNode
@@ -53,6 +53,17 @@ public:
 	 * Selected Item Cleared handler function. Fires when the item has been deselected in the tree view
 	 */
 	virtual void OnSelectedItemCleared();
+
+	/** Sets the default background brush for node */
+	virtual void SetBackgroundDefaultBrush() {};
+
+	/**
+	 * Sets the background brush from texture
+	 *
+	 * @param InTexture					Texture input
+	 *
+	 */
+	virtual void SetBackgroundBrushFromTexture(UTexture* InTexture) {};
 
 	//~ Begin SWidget interface
 	virtual bool SupportsKeyboardFocus() const override;

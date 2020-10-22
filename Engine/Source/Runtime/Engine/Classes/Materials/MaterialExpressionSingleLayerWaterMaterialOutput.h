@@ -25,6 +25,10 @@ class UMaterialExpressionSingleLayerWaterMaterialOutput : public UMaterialExpres
 	UPROPERTY()
 	FExpressionInput PhaseG;
 
+	/** Input for custom color multiplier for scene color behind water. Can be used for caustics textures etc. Defaults to 1.0. Valid range is [0,+inf[. */
+	UPROPERTY()
+	FExpressionInput ColorScaleBehindWater;
+
 public:
 #if WITH_EDITOR
 	//~ Begin UMaterialExpression Interface

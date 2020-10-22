@@ -72,9 +72,6 @@ namespace Chaos
 	float CollisionRestitutionThresholdOverride = -1.0f;
 	FAutoConsoleVariableRef CVarDefaultCollisionRestitutionThreshold(TEXT("p.CollisionRestitutionThreshold"), CollisionRestitutionThresholdOverride, TEXT("Collision restitution threshold override if >= 0 (units of acceleration)"));
 
-	float CollisionShapePaddingOverride = -1.0f;
-	FAutoConsoleVariableRef CVarDefaultCollisionShapePadding(TEXT("p.CollisionShapePadding"), CollisionShapePaddingOverride, TEXT("Collision shape padding override if >= 0"));
-
 	float CollisionCullDistanceOverride = -1.0f;
 	FAutoConsoleVariableRef CVarDefaultCollisionCullDistance(TEXT("p.CollisionCullDistance"), CollisionCullDistanceOverride, TEXT("Collision culling distance override if >= 0"));
 
@@ -108,7 +105,6 @@ namespace Chaos
 		const int32 InApplyPairIterations /*= 1*/,
 		const int32 InApplyPushOutPairIterations /*= 1*/,
 		const FReal InCullDistance /*= (FReal)0*/,
-		const FReal InShapePadding /*= (FReal)0*/,
 		const FReal InRestitutionThreshold /*= (FReal)0*/)
 		: Particles(InParticles)
 		, NumActivePointConstraints(0)
@@ -120,7 +116,6 @@ namespace Chaos
 		, MApplyPairIterations(InApplyPairIterations)
 		, MApplyPushOutPairIterations(InApplyPushOutPairIterations)
 		, MCullDistance(InCullDistance)
-		, MShapePadding(InShapePadding)
 		, RestitutionThreshold(InRestitutionThreshold)	// @todo(chaos): expose as property
 		, bUseCCD(false)
 		, bEnableCollisions(true)
@@ -527,7 +522,7 @@ namespace Chaos
 
 		for (FRigidBodyPointContactConstraint& Contact : Constraints.SinglePointConstraints)
 		{
-			Collisions::Update(Contact, MCullDistance, MShapePadding);
+			Collisions::Update(Contact, MCullDistance);
 			if (Contact.GetPhi() < MCullDistance)
 			{
 				Contact.Timestamp = LifespanCounter;
@@ -546,12 +541,12 @@ namespace Chaos
 		//{
 		//	FPBDCollisionConstraintHandle* ConstraintHandle = Handles[ConstraintHandleIndex];
 		//	check(ConstraintHandle != nullptr);
-		//	Collisions::Update(MCullDistance, MShapePadding, ConstraintHandle->GetContact());
+		//	Collisions::Update(MCullDistance, ConstraintHandle->GetContact());
 		//}, bDisableCollisionParallelFor);
 
 		for (FRigidBodyMultiPointContactConstraint& Contact : Constraints.MultiPointConstraints)
 		{
-			Collisions::UpdateManifold(Contact, MCullDistance, MShapePadding);
+			Collisions::UpdateManifold(Contact, MCullDistance);
 			if (Contact.GetPhi() < MCullDistance)
 			{
 				Contact.Timestamp = LifespanCounter;
@@ -563,7 +558,6 @@ namespace Chaos
 	{
 		return { 
 			(CollisionCullDistanceOverride >= 0.0f) ? CollisionCullDistanceOverride : MCullDistance,
-			(CollisionShapePaddingOverride >= 0.0f) ? CollisionShapePaddingOverride : MShapePadding,
 			(CollisionRestitutionThresholdOverride >= 0.0f) ? CollisionRestitutionThresholdOverride * Dt : RestitutionThreshold * Dt,
 			CollisionCanAlwaysDisableContacts ? true : (CollisionCanNeverDisableContacts ? false : bCanDisableContacts),
 			&MCollided,

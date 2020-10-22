@@ -89,6 +89,7 @@ namespace DataTableUtils
 	 * Util to get the all variants for export names for backwards compatibility.
 	 */
 	ENGINE_API TArray<FString> GetPropertyImportNames(const FProperty* Prop);
+	ENGINE_API void GetPropertyImportNames(const FProperty* Prop, TArray<FString>& OutResult);
 
 	/**
 	 * Util to get the localized display name of a given property.

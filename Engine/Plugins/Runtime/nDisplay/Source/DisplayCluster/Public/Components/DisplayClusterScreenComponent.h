@@ -10,37 +10,38 @@ class UStaticMeshComponent;
 
 
 /**
- * Projection screen component
+ * Simple projection screen component
  */
-UCLASS(ClassGroup = (Custom), Blueprintable, meta = (BlueprintSpawnableComponent))
+UCLASS(ClassGroup = (DisplayCluster))
 class DISPLAYCLUSTER_API UDisplayClusterScreenComponent
 	: public UDisplayClusterSceneComponent
 {
+	friend class FDisplayClusterProjectionSimplePolicy;
+
 	GENERATED_BODY()
 
 public:
 	UDisplayClusterScreenComponent(const FObjectInitializer& ObjectInitializer);
 
 public:
-	FVector2D GetScreenSize() const
-	{
-		return Size;
-	}
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get screen size"), Category = "DisplayCluster")
+	FVector2D GetScreenSize() const;
 
-	void SetScreenSize(const FVector2D& InSize)
-	{
-		Size = InSize;
-	}
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set screen size"), Category = "DisplayCluster")
+	void SetScreenSize(const FVector2D& Size);
 
-public:
-	virtual void BeginPlay() override;
-	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
-	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
+protected:
+	virtual void ApplyConfigurationData();
 
 protected:
 	UPROPERTY(EditAnywhere, Category = "DisplayCluster")
 	FVector2D Size;
 
 	UPROPERTY(VisibleAnywhere, Category = "DisplayCluster")
-	UStaticMeshComponent* ScreenGeometryComponent = nullptr;
+	UStaticMeshComponent* VisScreenComponent = nullptr;
+
+#if WITH_EDITOR 
+public:
+	virtual void SetNodeSelection(bool bSelect) override;
+#endif
 };

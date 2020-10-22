@@ -123,7 +123,7 @@ extern RHI_API TAutoConsoleVariable<int32> CVarRHICmdFlushRenderThreadTasks;
 #if RHI_RAYTRACING
 struct FRayTracingShaderBindings
 {
-	FRHITexture* Textures[32] = {};
+	FRHITexture* Textures[64] = {};
 	FRHIShaderResourceView* SRVs[64] = {};
 	FRHIUniformBuffer* UniformBuffers[16] = {};
 	FRHISamplerState* Samplers[16] = {};

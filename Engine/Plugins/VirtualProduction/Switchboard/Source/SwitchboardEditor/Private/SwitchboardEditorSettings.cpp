@@ -23,3 +23,8 @@ USwitchboardEditorSettings::USwitchboardEditorSettings()
 	DefaultListenerPath /= (TEXT("SwitchboardListener") + ExeExt);
 	ListenerPath = { DefaultListenerPath };
 }
+
+USwitchboardEditorSettings* USwitchboardEditorSettings::GetSwitchboardEditorSettings()
+{
+	return GetMutableDefault<USwitchboardEditorSettings>();
+}

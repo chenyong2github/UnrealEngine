@@ -4,14 +4,14 @@
 
 #include "CoreMinimal.h"
 
-#include "DirectLink/DirectLinkCommon.h"
+#include "DirectLinkCommon.h"
+#include "DirectLinkEndpoint.h"
 
 #include "Async/AsyncWork.h"
 #include "Async/Future.h"
 #include "Containers/Queue.h"
 #include "HAL/ThreadSafeBool.h"
 #include "HAL/ThreadSafeCounter.h"
-#include "Misc/SecureHash.h"
 #include "PixelFormat.h"
 #include "RHI.h"
 #include "Templates/Casts.h"
@@ -53,26 +53,36 @@ namespace EDatasmithRuntimeWorkerTask
 	{
 		NoTask					= 0x0000,
 		CollectSceneData		= 0x0002,
-		UpdateElement			= 0x4000,
-		SetupTasks				= 0x0004,
-		PreMeshCreate			= 0x8000,
-		MeshCreate				= 0x0200,
-		MaterialCreate			= 0x0008,
-		TextureLoad				= 0x0010,
+		LightComponentCreate	= 0x0004,
+		MaterialAssign			= 0x0008,
+		MaterialCreate			= 0x0010,
 		MeshComponentCreate		= 0x0020,
-		LightComponentCreate	= 0x1000,
-		ComponentFinalize		= 0x0040,
-		MaterialFinalize		= 0x0080,
-		MaterialAssign			= 0x0400,
-		TextureCreate			= 0x0100,
-		TextureAssign			= 0x0800,
-		DeleteElement			= 0x2000,
-		ResetScene				= 0x4000,
+		MeshCreate				= 0x0040,
+		ResetScene				= 0x0080,
+		SetupTasks				= 0x0100,
+		TextureCreate			= 0x0200,
+		TextureAssign			= 0x0400,
+		TextureLoad				= 0x0800,
+		UpdateElement			= 0x1000,
 		AllTasks				= 0xffff
 	};
 }
 
 ENUM_CLASS_FLAGS(EDatasmithRuntimeWorkerTask::Type);
+
+namespace EDatasmithRuntimeAssetState
+{
+	enum Type : uint8
+	{
+		Unknown		= 0x00,
+		Processed	= 0x01,
+		Completed	= 0x02,
+		Building	= 0x04,
+		AllStates	= 0xff
+	};
+}
+
+ENUM_CLASS_FLAGS(EDatasmithRuntimeAssetState::Type);
 
 namespace DatasmithRuntime
 {
@@ -98,7 +108,7 @@ namespace DatasmithRuntime
 	{
 		enum Type : uint8
 		{
-			None		= 0,
+			None = 0,
 			Texture,
 			Material,
 			PbrMaterial,
@@ -107,6 +117,9 @@ namespace DatasmithRuntime
 		};
 	};
 
+	/**
+	 * Utility structure to track elements referencing an asset
+	 */
 	struct FReferencer
 	{
 		uint32 Type:4;
@@ -144,38 +157,76 @@ namespace DatasmithRuntime
 		FSceneGraphId GetId() const { return (FSceneGraphId)ElementId; }
 	};
 
+	typedef std::atomic<EDatasmithRuntimeAssetState::Type> FDataState;
+
+	/**
+	 * Utility structure to hold onto information used during the import process
+	 */
 	struct FBaseData
 	{
+		/** Identifier of the associated Datasmith element */
 		FSceneGraphId ElementId;
 
+		/** UObject associated with the element */
 		TStrongObjectPtr< UObject > Object;
 
-		FThreadSafeBool bCompleted;
+		/** State in which the element is within the import process */
+		FDataState DataState;
 
-		bool bProcessed;
-
+		/** Array of elements referencing this element */
 		TArray< FReferencer > Referencers;
 
 		FBaseData(FSceneGraphId InElementId)
 			: ElementId(InElementId)
-			, bCompleted(false)
-			, bProcessed(false)
 		{
+			DataState.store(EDatasmithRuntimeAssetState::Unknown);
 		}
 
-		template< typename T = UObject>
+		FBaseData(const FBaseData& Other)
+		{
+			ElementId = Other.ElementId;
+			Object = Other.Object;
+			DataState.store(Other.DataState.load());
+			Referencers = Other.Referencers;
+		}
+
+		bool HasState(EDatasmithRuntimeAssetState::Type Value)
+		{
+			return !!(DataState.load() & Value);
+		}
+
+		void AddState(EDatasmithRuntimeAssetState::Type Value)
+		{
+			DataState.store(DataState.load() | Value);
+		}
+
+		void ClearState(EDatasmithRuntimeAssetState::Type Value)
+		{
+			DataState.store(DataState.load() & ~Value);
+		}
+
+		void SetState(EDatasmithRuntimeAssetState::Type Value)
+		{
+			DataState.store(Value);
+		}
+
+		template<typename T = UObject>
 		T* GetObject()
 		{
 			return Cast< T >(Object.Get());
 		}
 	};
 
+	/**
+	 * Utility structure to hold onto additional information used for assets
+	 */
 	struct FAssetData : public FBaseData
 	{
 		/** Build settings requirements defined by materials, used by static meshes */
 		int32 Requirements;
 
-		FMD5Hash Hash;
+		/** Hash of associated element used to prevent the duplication of assets */
+		DirectLink::FElementHash Hash;
 
 		FAssetData(FSceneGraphId InElementId)
 			: FBaseData(InElementId)
@@ -187,7 +238,7 @@ namespace DatasmithRuntime
 		{
 			ElementId = Source.ElementId;
 			Object = Source.Object;
-			bCompleted = (bool)Source.bCompleted;
+			DataState.store(Source.DataState.load());
 			Referencers = Source.Referencers;
 
 			Requirements = Source.Requirements;
@@ -199,6 +250,9 @@ namespace DatasmithRuntime
 		static FAssetData EmptyAsset;
 	};
 
+	/**
+	 * Utility structure to hold onto additional information used for actors
+	 */
 	struct FActorData : public FBaseData
 	{
 		/** Index of parent actor in FSceneImporter's array of FActorData */
@@ -231,7 +285,7 @@ namespace DatasmithRuntime
 		{
 			ElementId = Source.ElementId;
 			Object = Source.Object;
-			bCompleted = (bool)Source.bCompleted;
+			DataState.store(Source.DataState.load());
 			Referencers = Source.Referencers;
 
 			ParentId = Source.ParentId;
@@ -243,10 +297,12 @@ namespace DatasmithRuntime
 		}
 	};
 
-	// Texture assets can only be created and built on the main thread
-	// Consequently, their creation has been divided in two steps:
-	//		- Asynchronously load the data of the texture
-	//		- At each tick create a texture from its data until all required textures are done
+	/**
+	 * Texture assets can only be created and built on the main thread
+	 * Consequently, their creation has been divided in two steps:
+	 *		- Asynchronously load the data of the texture
+	 *		- At each tick create a texture from its data until all required textures are done
+	 */ 
 	struct FTextureData : public FAssetData
 	{
 		int32 Width;
@@ -280,21 +336,6 @@ namespace DatasmithRuntime
 		}
 	};
 
-	namespace EActionType
-	{
-		enum Type : uint8
-		{
-			Unknown				= 0,
-			CreateComponent		= 1,
-			AssignMaterial		= 2,
-			AssignTexture		= 3,
-			CreateTexture		= 4,
-			CreateLight			= 5,
-			DeleteElement		= 6,
-			UpdateElement		= 7,
-		};
-	};
-
 	namespace EActionResult
 	{
 		enum Type : uint8
@@ -306,24 +347,21 @@ namespace DatasmithRuntime
 		};
 	};
 
-	using FActionTaskBase = TTuple< EActionType::Type, UObject*, FReferencer >;
-
 	using FActionTaskFunction = TFunction<EActionResult::Type(UObject* Object, const FReferencer& Referencer)>;
 
-	class FNewActionTask
+	class FActionTask
 	{
 	public:
-		~FNewActionTask()
+		~FActionTask()
 		{
-			//ensure(Executed > bCheck || (AssetId == DirectLink::InvalidId && Referencer.GetId() == DirectLink::InvalidId));
 		}
 
-		FNewActionTask()
+		FActionTask()
 			: AssetId(DirectLink::InvalidId)
 		{
 		}
 
-		FNewActionTask(FActionTaskFunction&& Function, const FReferencer& InReferencer)
+		FActionTask(FActionTaskFunction&& Function, const FReferencer& InReferencer)
 			: AssetId(DirectLink::InvalidId)
 			, bIsTexture(false)
 			, Referencer(InReferencer)
@@ -331,7 +369,7 @@ namespace DatasmithRuntime
 		{
 		}
 
-		FNewActionTask(const FActionTaskFunction& Function, const FReferencer& InReferencer)
+		FActionTask(const FActionTaskFunction& Function, const FReferencer& InReferencer)
 			: AssetId(DirectLink::InvalidId)
 			, bIsTexture(false)
 			, Referencer(InReferencer)
@@ -339,7 +377,7 @@ namespace DatasmithRuntime
 		{
 		}
 
-		FNewActionTask(FActionTaskFunction&& Function, FSceneGraphId InAssetId, const FReferencer& InReferencer)
+		FActionTask(FActionTaskFunction&& Function, FSceneGraphId InAssetId, const FReferencer& InReferencer)
 			: AssetId(InAssetId)
 			, bIsTexture(false)
 			, Referencer(InReferencer)
@@ -347,7 +385,7 @@ namespace DatasmithRuntime
 		{
 		}
 
-		FNewActionTask(const FActionTaskFunction& Function, FSceneGraphId InAssetId, const FReferencer& InReferencer)
+		FActionTask(const FActionTaskFunction& Function, FSceneGraphId InAssetId, const FReferencer& InReferencer)
 			: AssetId(InAssetId)
 			, bIsTexture(false)
 			, Referencer(InReferencer)
@@ -355,7 +393,7 @@ namespace DatasmithRuntime
 		{
 		}
 
-		FNewActionTask(FActionTaskFunction&& Function, FSceneGraphId InAssetId, bool bInIsTexture, const FReferencer& InReferencer)
+		FActionTask(FActionTaskFunction&& Function, FSceneGraphId InAssetId, bool bInIsTexture, const FReferencer& InReferencer)
 			: AssetId(InAssetId)
 			, bIsTexture(bInIsTexture)
 			, Referencer(InReferencer)
@@ -363,7 +401,7 @@ namespace DatasmithRuntime
 		{
 		}
 
-		FNewActionTask(const FActionTaskFunction& Function, FSceneGraphId InAssetId, bool bInIsTexture, const FReferencer& InReferencer)
+		FActionTask(const FActionTaskFunction& Function, FSceneGraphId InAssetId, bool bInIsTexture, const FReferencer& InReferencer)
 			: AssetId(InAssetId)
 			, bIsTexture(bInIsTexture)
 			, Referencer(InReferencer)
@@ -379,9 +417,9 @@ namespace DatasmithRuntime
 
 		EActionResult::Type Execute(FAssetData& AssetData)
 		{
-			return AssetData.bCompleted ? ActionFunc(AssetData.GetObject<>(), Referencer) : EActionResult::Retry;
+			return AssetData.HasState(EDatasmithRuntimeAssetState::Completed) ? ActionFunc(AssetData.GetObject<>(), Referencer) : EActionResult::Retry;
 		}
-	
+
 	private:
 		FSceneGraphId AssetId;
 		bool bIsTexture;
@@ -398,29 +436,42 @@ namespace DatasmithRuntime
 	#define MESH_QUEUE		2
 	#define MATERIAL_QUEUE	3
 	#define TEXTURE_QUEUE	4
-	#define NONASYNC_QUEUE		5
+	#define NONASYNC_QUEUE	5
 	#define MAX_QUEUES		6
 
+	/**
+	 * Helper class to incrementally load a Datasmith scene at runtime
+	 * The creation of the assets and components is incrementally done on the tick of the object.
+	 * At each tick, a budget of 10 ms is allocated to perform as much tasks as possible
+	 * The load process is completely interruptible.
+	 * Datasmith actor elements are added as component to the root component of the associated ADatasmithRuntimeActor.
+	 * @note: Only assets used by Datasmith actor elements are created.
+	 * The creation is phased as followed:
+	 *		- Collection of the assets and actors to be added
+	 *		- Launch of asynchronous build of static meshes
+	 *		- Launch of asynchronous load of images used by textures
+	 *		- Creation of Materials, textures, components and resolution of referencing
+	 *		  (i.e material assignment, ...) are synchronously done on the Game thread.
+	 */
 	class FSceneImporter : public FTickableGameObject
 	{
 	public:
-		FSceneImporter() = delete;
-		FSceneImporter(const FSceneImporter&) = delete;
-		FSceneImporter& operator=(const FSceneImporter&) = delete;
+		explicit FSceneImporter(ADatasmithRuntimeActor* InDatasmithRuntimeActor);
 
-		FSceneImporter(ADatasmithRuntimeActor* InDatasmithRuntimeActor);
 		virtual ~FSceneImporter();
 
-		void StartImport(TSharedRef< IDatasmithScene > InSceneElement);
+		/**
+		 * Start the import process of a scene
+		 * @param InSceneElement: Datasmith scene to import
+		 * @param SourceHandle: DirectLink source associated with the incoming scene
+		 * The SourceHandle is used to update or not the camera contained in the scene
+		 */
+		void StartImport(TSharedRef< IDatasmithScene > InSceneElement, const DirectLink::FSourceHandle& SourceHandle);
 
+		/** Abort the on going import process then delete all created assets and actors */
 		void Reset(bool bIsNewScene);
 
-		int32 GetElementIdFromName(const FString& PrefixedName)
-		{
-			FSceneGraphId* ElementIdPtr = AssetElementMapping.Find(PrefixedName);
-			return ElementIdPtr ? *ElementIdPtr : INDEX_NONE;
-		}
-
+		/** Returns the Datasmith element associated to a given asset name */
 		TSharedPtr< IDatasmithElement > GetElementFromName(const FString& PrefixedName)
 		{
 			FSceneGraphId* ElementIdPtr = AssetElementMapping.Find(PrefixedName);
@@ -433,16 +484,7 @@ namespace DatasmithRuntime
 			return {};
 		}
 
-		TSharedPtr< IDatasmithElement > GetElement(FSceneGraphId ElementId)
-		{
-			if (Elements.Contains(ElementId))
-			{
-				return Elements[ElementId];
-			}
-
-			return {};
-		}
-
+		/** Start the incremental update of the elements contained in the given context */
 		bool IncrementalUpdate(FUpdateContext& UpdateContext);
 
 	protected:
@@ -454,60 +496,101 @@ namespace DatasmithRuntime
 
 	private:
 
+		/** Delete all the assets and components created during the previous import process */
 		void DeleteData();
 
+		/** Delete the asset or component associated with the Datasmith element associated with the ElementId */
 		EActionResult::Type DeleteElement(FSceneGraphId ElementId);
 
+		/** Delete the component created from the given FActorData */
 		bool DeleteComponent(FActorData& ActorData);
 
+		/** Delete the asset created from the given FAssetData */
 		bool DeleteAsset(FAssetData& AssetData);
 
+		/**
+		 * Creates the FAssetData and FActorData required to import the associated Datasmith scene
+		 * This is the first task  after StartImport has been called
+		 */
 		void CollectSceneData();
 
+		/** Sets up all counters and data required to proceed with a full import or an incremental update */
 		void SetupTasks();
 
+		/** Add an FAssetData object associated with the element's id to the map */
 		void AddAsset(TSharedPtr<IDatasmithElement>&& ElementPtr, const FString& Prefix);
 
+		/**
+		 * Recursive helper method to visit the children of an Datasmith actor element
+		 * @param ActorElement: Datasmith actor element to visit
+		 * @param ParentId: Identifier of the incoming actor's parent
+		 * @param Callback: function called on incoming actor
+		 */
 		void ParseScene(const TSharedPtr<IDatasmithActorElement>& ActorElement, FSceneGraphId ParentId, FParsingCallback Callback);
 
+		/** Add and populate the FActorData created for the incoming Datasmith actor element */
 		void ProcessActorElement(const TSharedPtr< IDatasmithActorElement >& ActorElement, FSceneGraphId ParentId);
 
+		/** Populate the FActorData created for the incoming Datasmith mesh actor element */
 		bool ProcessMeshActorData(FActorData& ActorData, IDatasmithMeshActorElement* MeshActorElement);
 
+		/** Populate the FActorData created for the incoming Datasmith light actor element */
 		bool ProcessLightActorData(FActorData& ActorData, IDatasmithLightActorElement* LightActorElement);
 
+		/** Populate the FActorData created for the incoming Datasmith camera actor element */
 		bool ProcessCameraActorData(FActorData& ActorData, IDatasmithCameraActorElement* CameraActorElement);
 
+		/**
+		 * Populate the FAssetData based on the associated Datasmith mesh element
+		 * @note: A static mesh is created at this stage to be used in the asynchronous build process
+		 */
+		bool ProcessMeshData(FAssetData& MeshData);
+
+		/** Populate the FAssetData based on the associated Datasmith material element */
 		void ProcessMaterialData(FAssetData& MaterialData);
 
+		/** Create the FAssetData based on the associated Datasmith material element */
 		EActionResult::Type ProcessMaterial(FSceneGraphId MaterialId);
 
-		/** Mesh element section */
-		void MeshPreProcessing();
-
-		bool CreateStaticMesh(FSceneGraphId ElementId, float LightmapWeight);
-
-		void ProcessMeshData(FAssetData& MeshData);
-
-		EActionResult::Type CreateMeshComponent(FSceneGraphId ActorId, UStaticMesh* StaticMesh);
-
-		EActionResult::Type AssignMaterial(const FReferencer& Referencer, UMaterialInstanceDynamic* Material);
-
-		bool LoadTexture(FSceneGraphId ElementId);
-
-		EActionResult::Type CreateTexture(FSceneGraphId ElementId);
-
+		/** Add and populate a FTextureData associated with the incoming Datasmith texture element */
 		void ProcessTextureData(FSceneGraphId TextureId);
 
+		/** 
+		 * Queue up all the tasks to create the required static meshes
+		 * The LightmapWeights map is updated with the relative weight of each required static mesh against all of them
+		 * @note: On an incremental update, the newly created Datasmith actors are visited to collect the static meshes to create
+		 */
+		void MeshPreProcessing();
+
+		/** Asynchronous build of a static mesh */
+		bool CreateStaticMesh(FSceneGraphId ElementId, float LightmapWeight);
+
+		/** Create and add a static mesh component to the root component */
+		EActionResult::Type CreateMeshComponent(FSceneGraphId ActorId, UStaticMesh* StaticMesh);
+
+		/** Assign the given material to the object associated to the referencer, static mesh or static mesh component */
+		EActionResult::Type AssignMaterial(const FReferencer& Referencer, UMaterialInstanceDynamic* Material);
+
+		/** Asynchronous load of the image or IES file required to build a texture */
+		bool LoadTexture(FSceneGraphId ElementId);
+
+		/** Create the UTexture object associated with the given element identifier */
+		EActionResult::Type CreateTexture(FSceneGraphId ElementId);
+
+		/** Assign the given 2D texture to the object associated to the referencer, a material */
 		EActionResult::Type AssignTexture(const FReferencer& Referencer, UTexture2D* Texture);
 
+		/** Assign the given IES texture to the object associated to the referencer, a light component */
 		EActionResult::Type AssignProfileTexture(const FReferencer& Referencer, UTextureLightProfile* TextureProfile);
 
+		/** Create and add a light component to the root component based on the type of the identified Datasmith element */
 		EActionResult::Type CreateLightComponent(FSceneGraphId ActorId);
 
+		/** Helper method to set up the properties common to all types of light components */
 		void SetupLightComponent(FActorData& ActorData, ULightComponent* LightComponent, IDatasmithLightActorElement* LightElement);
 
-		void AddToQueue(int32 WhichQueue, FNewActionTask&& ActionTask)
+		/** Add a new task to the given queue */
+		void AddToQueue(int32 WhichQueue, FActionTask&& ActionTask)
 		{
 			++QueuedTaskCount;
 			if (ActionTask.GetAssetId() != DirectLink::InvalidId)
@@ -518,9 +601,10 @@ namespace DatasmithRuntime
 			ActionQueues[WhichQueue].Enqueue(MoveTemp(ActionTask));
 		}
 
+		/** Helper method to dequeue a given queue for a given amount of time */
 		void ProcessQueue(int32 Which, double EndTime, EDatasmithRuntimeWorkerTask::Type TaskCompleted = EDatasmithRuntimeWorkerTask::NoTask, EDatasmithRuntimeWorkerTask::Type TaskFollowing = EDatasmithRuntimeWorkerTask::NoTask)
 		{
-			FNewActionTask ActionTask;
+			FActionTask ActionTask;
 			while (FPlatformTime::Seconds() < EndTime)
 			{
 				if (!ActionQueues[Which].Dequeue(ActionTask))
@@ -538,47 +622,66 @@ namespace DatasmithRuntime
 		}
 
 	private:
-		/** DatasmithRuntime actor associated with this model */
+		/** DatasmithRuntime actor associated with this importer */
 		TWeakObjectPtr<USceneComponent> RootComponent;
 
 		/** IDatasmithScene associated with DatasmithRuntime actor */
 		TSharedPtr<IDatasmithScene> SceneElement;
 
-		/** Flatten list of all elements in the IDatasmithScene */
+		/** Map of all elements in the IDatasmithScene */
 		TMap< FSceneGraphId, TSharedPtr< IDatasmithElement > > Elements;
 
 		/** Mapping between prefixed asset element's name and index of element in flatten element list */
 		TMap< FString, FSceneGraphId > AssetElementMapping;
 
+		/** Mapping between Datasmith element's identifiers and their associated FAssetData object */
 		TMap< FSceneGraphId, FAssetData > AssetDataList;
 
-		FCriticalSection MeshCriticalSection;
-
-		TSet< FSceneGraphId > MeshElementSet;
-
-		TSet< FSceneGraphId > MaterialElementSet;
-		TArray< FSceneGraphId > MaterialElementArray;
-
-		TSet< FSceneGraphId > TextureElementSet;
-
+		/** Mapping between Datasmith actor element's identifiers and their associated FActorData object */
 		TMap< FSceneGraphId, FActorData > ActorDataList;
 
+		/** Mapping between Datasmith texture element's identifiers and their associated FActorData object */
 		TMap< FSceneGraphId, FTextureData > TextureDataList;
 
+		/** Set of Datasmith mesh element's identifiers to process */
+		TSet< FSceneGraphId > MeshElementSet;
+
+		/** Set of Datasmith material element's identifiers to process */
+		TSet< FSceneGraphId > MaterialElementSet;
+
+		/** Set of Datasmith material element's identifiers to process */
+		TSet< FSceneGraphId > TextureElementSet;
+
+		/** Mapping between Datasmith mesh element's identifiers and their lightmap weights */
 		TMap< FSceneGraphId, float > LightmapWeights;
 
-		TQueue< FNewActionTask, EQueueMode::Mpsc > ActionQueues[MAX_QUEUES];
+		/** Array of queues dequeued during the import process */
+		TQueue< FActionTask, EQueueMode::Mpsc > ActionQueues[MAX_QUEUES];
 
-		int32 QueuedTaskCount;
+		TArray<TFuture<bool>> OnGoingTasks;
 
+		/** Flag used to properly sequence the import process */
 		EDatasmithRuntimeWorkerTask::Type TasksToComplete;
 
+		/** Indicates if a garbage collect is required */
 		uint8 bGarbageCollect:1;
+
+		/** Indicated a incremental update has been requested */
 		uint8 bIncrementalUpdate:1;
 
+		/** Miscellaneous counters used to report progress */
 		float& OverallProgress;
 		FThreadSafeCounter ActionCounter;
 		double ProgressStep;
+		int32 QueuedTaskCount;
+
+		/**
+		 * Last scene's identified and its associated DirectLink source
+		 * Used to update or not the game's viewpoint
+		 */
+		FSceneGraphId LastSceneId;
+		DirectLink::FSourceHandle LastSourceHandle;
+		DirectLink::FSourceHandle CurrentSourceHandle;
 
 	#ifdef LIVEUPDATE_TIME_LOGGING
 		double GlobalStartTime;

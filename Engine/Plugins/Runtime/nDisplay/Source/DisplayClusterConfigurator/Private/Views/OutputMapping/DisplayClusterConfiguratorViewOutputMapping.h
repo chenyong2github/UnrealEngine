@@ -38,6 +38,13 @@ public:
 
 	virtual void UnregisterOnShowOutsideViewports(FDelegateHandle DelegateHandle) override;
 
+	virtual FOnOutputMappingBuilt& GetOnOutputMappingBuiltDelegate() override
+	{ return OnOutputMappingBuilt; }
+
+	virtual FDelegateHandle RegisterOnOutputMappingBuilt(const FOnOutputMappingBuiltDelegate& Delegate) override;
+
+	virtual void UnregisterOnOutputMappingBuilt(FDelegateHandle DelegateHandle) override;
+
 	virtual bool IsShowOutsideViewports() const override
 	{ return bShowOutsideViewports; }
 
@@ -46,6 +53,8 @@ public:
 
 	virtual bool IsShowWindowCornerImage() const override
 	{ return bShowWindowCornerImage; }
+
+	virtual void SetViewportPreviewTexture(const FString& NodeId, const FString& ViewportId, UTexture* InTexture) override;
 	//~ End IDisplayClusterConfiguratorView Interface
 
 	void ToggleShowWindowInfo();
@@ -74,4 +83,6 @@ private:
 	FOnShowWindowCornerImage OnShowWindowCornerImage;
 
 	FOnShowOutsideViewports OnShowOutsideViewports;
+
+	FOnOutputMappingBuilt OnOutputMappingBuilt;
 };

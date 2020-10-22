@@ -2179,7 +2179,7 @@ void FMacCrashContext::AddThreadContext(
 		FString CallstackStr;
 		for (const FCrashStackFrame& StFrame : PortableCallStack)
 		{
-			CallstackStr += FString::Printf(TEXT("%-*s 0x%016x + %-8x"), MaxModuleNameLen + 1, *StFrame.ModuleName, StFrame.BaseAddress, StFrame.Offset);
+			CallstackStr += FString::Printf(TEXT("%-*s 0x%016llx + %-16llx"), MaxModuleNameLen + 1, *StFrame.ModuleName, StFrame.BaseAddress, StFrame.Offset);
 			CallstackStr += LINE_TERMINATOR;
 		}
 		AppendEscapedXMLString(AllThreadContexts, *CallstackStr);

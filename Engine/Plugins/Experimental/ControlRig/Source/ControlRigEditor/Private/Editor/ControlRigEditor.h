@@ -181,6 +181,8 @@ protected:
 	void OnHierarchyChanged();
 	void OnControlsSettingsChanged();
 
+	void SynchronizeViewportBoneSelection();
+
 	// FBlueprintEditor Interface
 	virtual void CreateDefaultCommands() override;
 	virtual void OnCreateGraphEditorCommands(TSharedPtr<FUICommandList> GraphEditorCommandsList);

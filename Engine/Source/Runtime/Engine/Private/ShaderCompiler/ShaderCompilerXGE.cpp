@@ -34,6 +34,14 @@ namespace XGEShaderCompilerVariables
 
 	/** Xml Interface specific CVars */
 
+	int32 MinBatchSize = 20;
+	FAutoConsoleVariableRef CVarXGEShaderCompileXMLMinBatchSize(
+        TEXT("r.XGEShaderCompileXMLInterface.MinBatchSize"),
+        MinBatchSize,
+        TEXT("Minimum number of shaders to compile with XGE.\n")
+        TEXT("Smaller number of shaders will compile locally."),
+        ECVF_Default);
+
 	/** The maximum number of shaders to group into a single XGE task. */
 	int32 BatchSize = 16;
 	FAutoConsoleVariableRef CVarXGEShaderCompileBatchSize(
@@ -268,18 +276,20 @@ void FShaderCompileXGEThreadRunnable_XmlInterface::PostCompletedJobsForBatch(FSh
 {
 	// Enter the critical section so we can access the input and output queues
 	FScopeLock Lock(&Manager->CompileQueueSection);
-	for (auto Job : Batch->GetJobs())
+	for (const auto& Job : Batch->GetJobs())
 	{
-		FShaderMapCompileResults& ShaderMapResults = Manager->ShaderMapJobs.FindChecked(Job->Id);
+		FShaderMapCompileResults& ShaderMapResults = *Job->PendingShaderMap;
 		ShaderMapResults.FinishedJobs.Add(Job);
 		ShaderMapResults.bAllJobsSucceeded = ShaderMapResults.bAllJobsSucceeded && Job->bSucceeded;
+
+		const int32 NumPendingJobs = ShaderMapResults.NumPendingJobs.Decrement();
+		check(NumPendingJobs >= 0);
 	}
 
-	// Using atomics to update NumOutstandingJobs since it is read outside of the critical section
-	FPlatformAtomics::InterlockedAdd(&Manager->NumOutstandingJobs, -Batch->NumJobs());
+	Manager->AllJobs.SubtractNumOutstandingJobs(Batch->NumJobs());
 }
 
-void FShaderCompileXGEThreadRunnable_XmlInterface::FShaderBatch::AddJob(TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe> Job)
+void FShaderCompileXGEThreadRunnable_XmlInterface::FShaderBatch::AddJob(FShaderCommonCompileJobPtr Job)
 {
 	// We can only add jobs to a batch which hasn't been written out yet.
 	if (bTransferFileWritten)
@@ -580,22 +590,25 @@ int32 FShaderCompileXGEThreadRunnable_XmlInterface::CompilingLoop()
 	}
 
 	// Try to prepare more shader jobs (even if a build is in flight).
-	TArray<TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>> JobQueue;
+	TArray<FShaderCommonCompileJobPtr> JobQueue;
 	{
-		// Enter the critical section so we can access the input and output queues
-		FScopeLock Lock(&Manager->CompileQueueSection);
-
 		// Grab as many jobs from the job queue as we can.
-		int32 NumNewJobs = Manager->CompileQueue.Num();
-		if (NumNewJobs > 0)
+		for (int32 PriorityIndex = MaxPriorityIndex; PriorityIndex >= MinPriorityIndex; --PriorityIndex)
 		{
-			int32 DestJobIndex = JobQueue.AddUninitialized(NumNewJobs);
-			for (int32 SrcJobIndex = 0; SrcJobIndex < NumNewJobs; SrcJobIndex++, DestJobIndex++)
+			const EShaderCompileJobPriority Priority = (EShaderCompileJobPriority)PriorityIndex;
+			const int32 MinBatchSize = (Priority == EShaderCompileJobPriority::Low) ? 1 : XGEShaderCompilerVariables::MinBatchSize;
+			const int32 NumJobs = Manager->AllJobs.GetPendingJobs(EShaderCompilerWorkerType::XGE, Priority, MinBatchSize, INT32_MAX, JobQueue);
+			if (NumJobs > 0)
 			{
-				JobQueue[DestJobIndex] = Manager->CompileQueue[SrcJobIndex];
+				UE_LOG(LogShaderCompilers, Display, TEXT("Started %d 'XGE' shader compile jobs with '%s' priority"),
+					NumJobs,
+					ShaderCompileJobPriorityToString((EShaderCompileJobPriority)PriorityIndex));
 			}
-
-			Manager->CompileQueue.RemoveAt(0, NumNewJobs);
+			if (JobQueue.Num() >= XGEShaderCompilerVariables::MinBatchSize)
+			{
+				// Kick a batch with just the higher priority jobs, if it's large enough
+				break;
+			}
 		}
 	}
 
@@ -651,306 +664,6 @@ int32 FShaderCompileXGEThreadRunnable_XmlInterface::CompilingLoop()
 	}
 
 	return bWorkRemaining ? 1 : 0;
-}
-
-// --------------------------------------------------------------------------
-//                         XGE Interception interface                        
-// --------------------------------------------------------------------------
-
-#if WITH_XGE_CONTROLLER
-	#include "XGEControllerInterface.h"
-#endif
-
-bool FShaderCompileXGEThreadRunnable_InterceptionInterface::IsSupported()
-{
-#if WITH_XGE_CONTROLLER
-
-	XGEShaderCompilerVariables::Init();
-
-	return
-		(XGEShaderCompilerVariables::Enabled == 1) && // XGE is enabled by CVar or command line.
-		(XGEShaderCompilerVariables::Mode    != 0) && // XGE intercept mode is allowed.
-		IXGEController::Get().IsSupported();   // XGE controller is supported.
-
-#else
-	return false;
-#endif
-}
-
-#if WITH_XGE_CONTROLLER
-class FXGEShaderCompilerTask
-{
-public:
-	TFuture<FXGETaskResult> Future;
-	TArray<TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>> ShaderJobs;
-	FString InputFilePath;
-	FString OutputFilePath;
-
-	FXGEShaderCompilerTask(TFuture<FXGETaskResult>&& Future, TArray<TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>>&& ShaderJobs, FString&& InputFilePath, FString&& OutputFilePath)
-		: Future(MoveTemp(Future))
-		, ShaderJobs(MoveTemp(ShaderJobs))
-		, InputFilePath(MoveTemp(InputFilePath))
-		, OutputFilePath(MoveTemp(OutputFilePath))
-	{}
-};
-#endif
-
-/** Initialization constructor. */
-FShaderCompileXGEThreadRunnable_InterceptionInterface::FShaderCompileXGEThreadRunnable_InterceptionInterface(class FShaderCompilingManager* InManager)
-	: FShaderCompileThreadRunnableBase(InManager)
-	, NumDispatchedJobs(0)
-{
-}
-
-FShaderCompileXGEThreadRunnable_InterceptionInterface::~FShaderCompileXGEThreadRunnable_InterceptionInterface()
-{
-}
-
-void FShaderCompileXGEThreadRunnable_InterceptionInterface::DispatchShaderCompileJobsBatch(TArray<TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>>& JobsToSerialize)
-{
-#if WITH_XGE_CONTROLLER
-	FString InputFilePath = IXGEController::Get().CreateUniqueFilePath();
-	FString OutputFilePath = IXGEController::Get().CreateUniqueFilePath();
-
-	FString WorkingDirectory = FPaths::GetPath(InputFilePath);
-	FString InputFileName = FPaths::GetCleanFilename(InputFilePath);
-	FString OutputFileName = FPaths::GetCleanFilename(OutputFilePath);
-
-	FString WorkerParameters = FString::Printf(TEXT("\"%s/\" %d 0 \"%s\" \"%s\" -xge_int %s"),
-		*WorkingDirectory,
-		Manager->ProcessId,
-		*InputFileName,
-		*OutputFileName,
-		*FCommandLine::GetSubprocessCommandline());
-
-	// Serialize the jobs to the input file
-	FArchive* InputFileAr = IFileManager::Get().CreateFileWriter(*InputFilePath, FILEWRITE_EvenIfReadOnly | FILEWRITE_NoFail);
-	FShaderCompileUtilities::DoWriteTasks(JobsToSerialize, *InputFileAr);
-	delete InputFileAr;
-
-	// Kick off the job
-	NumDispatchedJobs += JobsToSerialize.Num();
-
-	DispatchedTasks.Add(
-		new FXGEShaderCompilerTask(
-			IXGEController::Get().EnqueueTask(Manager->ShaderCompileWorkerName, WorkerParameters),
-			MoveTemp(JobsToSerialize),
-			MoveTemp(InputFilePath),
-			MoveTemp(OutputFilePath)
-		)
-	);
-#endif
-}
-
-int32 FShaderCompileXGEThreadRunnable_InterceptionInterface::CompilingLoop()
-{
-#if WITH_XGE_CONTROLLER
-	TArray<TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>> PendingJobs;
-
-	// Try to prepare more shader jobs.
-	{
-		// Enter the critical section so we can access the input and output queues
-		FScopeLock Lock(&Manager->CompileQueueSection);
-
-		// Grab as many jobs from the job queue as we can.
-		int32 NumNewJobs = Manager->CompileQueue.Num();
-		if (NumNewJobs > 0)
-		{
-			Swap(PendingJobs, Manager->CompileQueue);
-		}
-	}
-
-	if (PendingJobs.Num() > 0)
-	{
-		// Increase the batch size when more jobs are queued/in flight.
-		const uint32 JobsPerBatch = FMath::Max(1, FMath::FloorToInt(FMath::LogX(2, PendingJobs.Num() + NumDispatchedJobs)));
-		UE_LOG(LogShaderCompilers, Verbose, TEXT("Current jobs: %d, Batch size: %d, Num Already Dispatched: %d"), PendingJobs.Num(), JobsPerBatch, NumDispatchedJobs);
-
-
-		struct FJobBatch
-		{
-			TArray<TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>> Jobs;
-			TSet<const FShaderType*> UniquePointers;
-
-			bool operator == (const FJobBatch& B) const
-			{
-				return Jobs == B.Jobs;
-			}
-		};
-
-
-		// Different batches.
-		TArray<FJobBatch> JobBatches;
-
-
-		for (int32 i = 0; i < PendingJobs.Num(); i++)
-		{
-			// Randomize the shader compile jobs a little.
-			{
-				int32 PickedUpIndex = FMath::RandRange(i, PendingJobs.Num() - 1);
-				if (i != PickedUpIndex)
-				{
-					Swap(PendingJobs[i], PendingJobs[PickedUpIndex]);
-				}
-			}
-
-			// Avoid to have multiple of permutation of same global shader in same batch, to avoid pending on long shader compilation
-			// of batches that tries to compile permutation of a global shader type that is giving a hard time to the shader compiler.
-			const FShaderType* OptionalUniqueShaderType = nullptr;
-			if (FShaderCompileJob* ShaderCompileJob = PendingJobs[i]->GetSingleShaderJob())
-			{
-				if (ShaderCompileJob->ShaderType->GetGlobalShaderType())
-				{
-					OptionalUniqueShaderType = ShaderCompileJob->ShaderType;
-				}
-			}
-
-			// Find a batch this compile job can be packed with.
-			FJobBatch* SelectedJobBatch = nullptr;
-			{
-				if (JobBatches.Num() == 0)
-				{
-					SelectedJobBatch = &JobBatches[JobBatches.Emplace()];
-				}
-				else if (OptionalUniqueShaderType)
-				{
-					for (FJobBatch& PendingJobBatch : JobBatches)
-					{
-						if (!PendingJobBatch.UniquePointers.Contains(OptionalUniqueShaderType))
-						{
-							SelectedJobBatch = &PendingJobBatch;
-							break;
-						}
-					}
-
-					if (!SelectedJobBatch)
-					{
-						SelectedJobBatch = &JobBatches[JobBatches.Emplace()];
-					}
-				}
-				else
-				{
-					SelectedJobBatch = &JobBatches[0];
-				}
-			}
-
-			// Assign compile job to job batch.
-			{
-				SelectedJobBatch->Jobs.Add(PendingJobs[i]);
-				if (OptionalUniqueShaderType)
-				{
-					SelectedJobBatch->UniquePointers.Add(OptionalUniqueShaderType);
-				}
-			}
-
-			// Kick off compile job batch.
-			if (SelectedJobBatch->Jobs.Num() == JobsPerBatch)
-			{
-				DispatchShaderCompileJobsBatch(SelectedJobBatch->Jobs);
-				JobBatches.RemoveSingleSwap(*SelectedJobBatch);
-			}
-		}
-
-		// Kick off remaining compile job batches.
-		for (FJobBatch& PendingJobBatch : JobBatches)
-		{
-			DispatchShaderCompileJobsBatch(PendingJobBatch.Jobs);
-		}
-	}
-
-	for (auto Iter = DispatchedTasks.CreateIterator(); Iter; ++Iter)
-	{
-		bool bOutputFileReadFailed = true;
-
-		FXGEShaderCompilerTask* Task = *Iter;
-		if (!Task->Future.IsReady())
-		{
-			continue;
-		}
-
-		FXGETaskResult Result = Task->Future.Get();
-		NumDispatchedJobs -= Task->ShaderJobs.Num();
-
-		if (Result.ReturnCode != 0)
-		{
-			UE_LOG(LogShaderCompilers, Error, TEXT("Shader compiler returned a non-zero error code (%d)."), Result.ReturnCode);
-		}
-
-		if (Result.bCompleted)
-		{
-			// Check the output file exists. If it does, attempt to open it and serialize in the completed jobs.
-			if (IFileManager::Get().FileExists(*Task->OutputFilePath))
-			{
-				FArchive* OutputFileAr = IFileManager::Get().CreateFileReader(*Task->OutputFilePath, FILEREAD_Silent);
-				if (OutputFileAr)
-				{
-					bOutputFileReadFailed = false;
-					FShaderCompileUtilities::DoReadTaskResults(Task->ShaderJobs, *OutputFileAr);
-					delete OutputFileAr;
-				}
-			}
-
-			if (bOutputFileReadFailed)
-			{
-				// Reading result from XGE job failed, so recompile shaders in current job batch locally
-				UE_LOG(LogShaderCompilers, Log, TEXT("Rescheduling shader compilation to run locally after XGE job failed: %s"), *Task->OutputFilePath);
-
-				for (TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe> Job : Task->ShaderJobs)
-				{
-					FShaderCompileUtilities::ExecuteShaderCompileJob(*Job);
-				}
-			}
-
-			// Enter the critical section so we can access the input and output queues
-			{
-				FScopeLock Lock(&Manager->CompileQueueSection);
-				for (TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe> Job : Task->ShaderJobs)
-				{
-					FShaderMapCompileResults& ShaderMapResults = Manager->ShaderMapJobs.FindChecked(Job->Id);
-					ShaderMapResults.FinishedJobs.Add(Job);
-					ShaderMapResults.bAllJobsSucceeded = ShaderMapResults.bAllJobsSucceeded && Job->bSucceeded;
-				}
-			}
-
-			// Using atomics to update NumOutstandingJobs since it is read outside of the critical section
-			FPlatformAtomics::InterlockedAdd(&Manager->NumOutstandingJobs, -Task->ShaderJobs.Num());
-		}
-		else
-		{
-			// The compile job was canceled. Return the jobs to the manager's compile queue.
-			FScopeLock Lock(&Manager->CompileQueueSection);
-			Manager->CompileQueue.Append(Task->ShaderJobs);
-		}
-
-		// Delete input and output files, if they exist.
-		while (!IFileManager::Get().Delete(*Task->InputFilePath, false, true, true))
-		{
-			FPlatformProcess::Sleep(0.01f);
-		}
-
-		if (!bOutputFileReadFailed)
-		{
-			while (!IFileManager::Get().Delete(*Task->OutputFilePath, false, true, true))
-			{
-				FPlatformProcess::Sleep(0.01f);
-			}
-		}
-
-		Iter.RemoveCurrent();
-		delete Task;
-	}
-
-	// Yield for a short while to stop this thread continuously polling the disk.
-	FPlatformProcess::Sleep(0.01f);
-
-	// Return true if there is more work to be done.
-	return FPlatformAtomics::InterlockedAdd(&Manager->NumOutstandingJobs, 0) > 0;
-
-#else
-
-	return 0;
-
-#endif
 }
 
 #endif // PLATFORM_WINDOWS

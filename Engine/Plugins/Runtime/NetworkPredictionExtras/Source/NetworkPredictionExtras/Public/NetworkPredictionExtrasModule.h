@@ -6,8 +6,6 @@
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 
-
-
 class INetworkPredictionExtrasModule : public IModuleInterface
 {
 
@@ -15,12 +13,12 @@ public:
 	
 	static inline INetworkPredictionExtrasModule& Get()
 	{
-		return FModuleManager::LoadModuleChecked< INetworkPredictionExtrasModule >( "NetworkExtrasPrediction" );
+		return FModuleManager::LoadModuleChecked< INetworkPredictionExtrasModule >( "NetworkPredictionExtras" );
 	}
 	
 	static inline bool IsAvailable()
 	{
-		return FModuleManager::Get().IsModuleLoaded( "NetworkExtrasPrediction" );
+		return FModuleManager::Get().IsModuleLoaded( "NetworkPredictionExtras" );
 	}
 };
 

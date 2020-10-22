@@ -8,6 +8,7 @@
 #include "Misc/Guid.h"
 #include "UObject/WeakObjectPtr.h"
 #include "MovieSceneSequence.h"
+#include "MovieSceneSequenceID.h"
 
 /**
  * An annotation that's added to spawned objects from movie scene spawnables
@@ -20,7 +21,7 @@ struct FMovieSceneSpawnableAnnotation
 	/**
 	 * Add the annotation to the specified spawned object, allowing a back-reference to the sequence and binding ID
 	 */
-	MOVIESCENE_API static void Add(UObject* SpawnedObject, const FGuid& ObjectBindingID, UMovieSceneSequence* InOriginatingSequence);
+	MOVIESCENE_API static void Add(UObject* SpawnedObject, const FGuid& ObjectBindingID, FMovieSceneSequenceID SequenceID, UMovieSceneSequence* InOriginatingSequence);
 
 	/**
 	 * Attempt to find an annotation for the specified object
@@ -37,6 +38,9 @@ struct FMovieSceneSpawnableAnnotation
 
 	/** Sequence that contains the object binding that spawned the object */
 	TWeakObjectPtr<UMovieSceneSequence> OriginatingSequence;
+
+	/** The sequence ID that spawned this object */
+	FMovieSceneSequenceID SequenceID;
 };
 
 

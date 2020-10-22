@@ -107,7 +107,7 @@ private:
 
 	/** Whether noticeable network traffic has occured in this session. Used to discard it.			*/
 	bool									bHasNoticeableNetworkTrafficOccured;
-	/** Whether tracking is enabled.																*/
+	/** Whether tracking is enabled. Set after a session change.									*/
 	bool									bIsTrackingEnabled;	
 	/** Whether tracking should be enabled.															*/
 	bool									bShouldTrackingBeEnabled;

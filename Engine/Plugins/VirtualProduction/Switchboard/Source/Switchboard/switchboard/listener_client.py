@@ -2,12 +2,10 @@
 from . import message_protocol
 from .switchboard_logging import LOGGER
 
+import datetime, select, socket, uuid, traceback
+
 from collections import deque
-import datetime
-import select
-import socket
 from threading import Thread
-import uuid
 
 
 class ListenerClient(object):
@@ -47,6 +45,11 @@ class ListenerClient(object):
         self.receive_file_completed_delegate = None
         self.receive_file_failed_delegate = None
         self.get_sync_status_delegate = None
+
+        self.delegates = {
+            "state" : None,
+            "get sync status" : None,
+        }
 
         self.last_activity = datetime.datetime.now()
 
@@ -115,9 +118,14 @@ class ListenerClient(object):
         buffer = []
         while self.is_connected:
             try:
-                read_sockets, write_sockets, _ = select.select([self.socket], [self.socket], [], 0)
+                rlist = [self.socket]
+                wlist = [self.socket] if len(self.message_queue) > 0 else []
+                xlist = []
+                timeout = 0.1
 
-                if len(self.message_queue) > 0:
+                read_sockets, write_sockets, _ = select.select(rlist, wlist, xlist, timeout)
+
+                if len(self.message_queue) and len(write_sockets):
                     message_bytes = self.message_queue.pop()
                     for ws in write_sockets:
                         ws.send(message_bytes)
@@ -155,6 +163,91 @@ class ListenerClient(object):
                     self.disconnect_delegate(unexpected=True, exception=e)
                 return
 
+    def route_message(self, message):
+        ''' Routes the received message to its delegate
+        '''
+
+        delegate = self.delegates.get(message['command'], None)
+
+        if delegate:
+            delegate(message)
+            return
+
+        if "command accepted" in message:
+            message_id = uuid.UUID(message['id'])
+            if message['command accepted'] == True:
+                if self.command_accepted_delegate:
+                    self.command_accepted_delegate(message_id)
+            else:
+                if self.command_declined_delegate:
+                    self.command_declined_delegate(message_id, message["error"])
+
+        elif "program started" in message:
+            message_id = uuid.UUID(message['message id'])
+            if message['program started'] == True:
+                program_id = uuid.UUID(message['program id'])
+                if self.program_started_delegate:
+                    self.program_started_delegate(program_id, message_id)
+            else:
+                if self.program_start_failed_delegate:
+                    self.program_start_failed_delegate(message['error'], message_id)
+
+        elif "program ended" in message:
+            program_id = uuid.UUID(message['program id'])
+            if self.program_ended_delegate:
+                self.program_ended_delegate(program_id, message['returncode'], message['output'])
+
+        elif "program killed" in message:
+            program_id = uuid.UUID(message['program id'])
+            if message['program killed'] == True:
+                if self.program_killed_delegate:
+                    self.program_killed_delegate(program_id)
+            else:
+                if self.program_kill_failed_delegate:
+                    self.program_kill_failed_delegate(program_id, message['error'])
+
+        elif "vcs init complete" in message:
+            if message['vcs init complete'] == True:
+                if self.vcs_init_completed_delegate:
+                    self.vcs_init_completed_delegate()
+            else:
+                if self.vcs_init_failed_delegate:
+                    self.vcs_init_failed_delegate(message['error'])
+
+        elif "vcs report revision complete" in message:
+            if message['vcs report revision complete'] == True:
+                if self.vcs_report_revision_completed_delegate:
+                    self.vcs_report_revision_completed_delegate(message['revision'])
+            else:
+                if self.vcs_report_revision_failed_delegate:
+                    self.vcs_report_revision_failed_delegate(message['error'])
+
+        elif "vcs sync complete" in message:
+            if message['vcs sync complete'] == True:
+                if self.vcs_sync_completed_delegate:
+                    self.vcs_sync_completed_delegate(message['revision'])
+            else:
+                if self.vcs_sync_failed_delegate:
+                    self.vcs_sync_failed_delegate(message['error'])
+
+        elif "send file complete" in message:
+            if message['send file complete'] == True:
+                if self.send_file_completed_delegate:
+                    self.send_file_completed_delegate(message['destination'])
+            else:
+                if self.send_file_failed_delegate:
+                    self.send_file_failed_delegate(message['destination'], message['error'])
+                    
+        elif "receive file complete" in message:
+            if message['receive file complete'] == True:
+                if self.receive_file_completed_delegate:
+                    self.receive_file_completed_delegate(message['source'], message['content'])
+            else:
+                if self.receive_file_failed_delegate:
+                    self.receive_file_failed_delegate(message['source'], message['error'])
+        else:
+            raise ValueError
+
     def process_received_data(self, buffer, received_data):
 
         for symbol in received_data:
@@ -165,82 +258,14 @@ class ListenerClient(object):
 
                 buffer.pop() # remove terminator
                 message = message_protocol.decode_message(buffer)
-
-                #TODO: Convert messages to have 'cmd' parameter intead of checking for a key with the command.
-                #      Something like delegates.get(message['cmd'], self.deadend)(message) could replace all if-else below.
-                #      And the client should be agnostic to the message contents and only pass them to the subscriber.
-
-                #TODO: Consider adding exception handling.
-
-                if "command accepted" in message:
-                    message_id = uuid.UUID(message['id'])
-                    if message['command accepted'] == True:
-                        if self.command_accepted_delegate:
-                            self.command_accepted_delegate(message_id)
-                    else:
-                        if self.command_declined_delegate:
-                            self.command_declined_delegate(message_id, message["error"])
-                elif "program started" in message:
-                    if message['program started'] == True:
-                        message_id = uuid.UUID(message['message id'])
-                        program_id = uuid.UUID(message['program id'])
-                        if self.program_started_delegate:
-                            self.program_started_delegate(program_id, message_id)
-                    else:
-                        if self.program_start_failed_delegate:
-                            self.program_start_failed_delegate(message['error'], message_id)
-                elif "program ended" in message:
-                    program_id = uuid.UUID(message['program id'])
-                    if self.program_ended_delegate:
-                        self.program_ended_delegate(program_id, message['returncode'], message['output'])
-                elif "program killed" in message:
-                    program_id = uuid.UUID(message['program id'])
-                    if message['program killed'] == True:
-                        if self.program_killed_delegate:
-                            self.program_killed_delegate(program_id)
-                    else:
-                        if self.program_kill_failed_delegate:
-                            self.program_kill_failed_delegate(program_id, message['error'])
-                elif "vcs init complete" in message:
-                    if message['vcs init complete'] == True:
-                        if self.vcs_init_completed_delegate:
-                            self.vcs_init_completed_delegate()
-                    else:
-                        if self.vcs_init_failed_delegate:
-                            self.vcs_init_failed_delegate(message['error'])
-                elif "vcs report revision complete" in message:
-                    if message['vcs report revision complete'] == True:
-                        if self.vcs_report_revision_completed_delegate:
-                            self.vcs_report_revision_completed_delegate(message['revision'])
-                    else:
-                        if self.vcs_report_revision_failed_delegate:
-                            self.vcs_report_revision_failed_delegate(message['error'])
-                elif "vcs sync complete" in message:
-                    if message['vcs sync complete'] == True:
-                        if self.vcs_sync_completed_delegate:
-                            self.vcs_sync_completed_delegate(message['revision'])
-                    else:
-                        if self.vcs_sync_failed_delegate:
-                            self.vcs_sync_failed_delegate(message['error'])
-                elif "send file complete" in message:
-                    if message['send file complete'] == True:
-                        if self.send_file_completed_delegate:
-                            self.send_file_completed_delegate(message['destination'])
-                    else:
-                        if self.send_file_failed_delegate:
-                            self.send_file_failed_delegate(message['destination'], message['error'])
-                elif "receive file complete" in message:
-                    if message['receive file complete'] == True:
-                        if self.receive_file_completed_delegate:
-                            self.receive_file_completed_delegate(message['source'], message['content'])
-                    else:
-                        if self.receive_file_failed_delegate:
-                            self.receive_file_failed_delegate(message['source'], message['error'])
-                elif "get sync status" in message:
-                    if self.get_sync_status_delegate:
-                        self.get_sync_status_delegate(message)
-
                 buffer.clear()
+
+                # route message to its assigned delegate
+                try:
+                    self.route_message(message)
+                except:
+                    LOGGER.error(f"Error while parsing message: \n\n=== Traceback BEGIN ===\n{traceback.format_exc()}=== Traceback END ===\n")
+
 
     def send_message(self, message_bytes):
         if self.is_connected:

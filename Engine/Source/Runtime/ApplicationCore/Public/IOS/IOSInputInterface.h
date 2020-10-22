@@ -39,6 +39,15 @@ enum ControllerType
     DualShockGamepad
 };
 
+enum PlayerIndex
+{
+    PlayerOne,
+    PlayerTwo,
+    PlayerThree,
+    PlayerFour,
+    PlayerUnset
+};
+
 struct TouchInput
 {
 	int Handle;
@@ -176,6 +185,8 @@ private:
         GCController* Controller;
         
         ControllerType ControllerType;
+        
+        PlayerIndex PlayerIndex;
 
         GCExtendedGamepad* PreviousExtendedGamepad;
         GCMicroGamepad* PreviousMicroGamepad;

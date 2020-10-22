@@ -2740,11 +2740,11 @@ void FEdModeFoliage::ApplyPaintBucket_Add(AActor* Actor)
 	{
 		UMaterialInterface* Material = StaticMeshComponent->GetMaterial(0);
 
-		if (UISettings.bFilterStaticMesh && StaticMeshComponent->GetStaticMesh() && StaticMeshComponent->GetStaticMesh()->RenderData &&
+		if (UISettings.bFilterStaticMesh && StaticMeshComponent->GetStaticMesh() && StaticMeshComponent->GetStaticMesh()->GetRenderData() &&
 			(UISettings.bFilterTranslucent || !Material || !IsTranslucentBlendMode(Material->GetBlendMode())))
 		{
 			UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh();
-			FStaticMeshLODResources& LODModel = StaticMesh->RenderData->LODResources[0];
+			FStaticMeshLODResources& LODModel = StaticMesh->GetRenderData()->LODResources[0];
 			TArray<FFoliagePaintBucketTriangle>& PotentialTriangles = ComponentPotentialTriangles.Add(StaticMeshComponent, TArray<FFoliagePaintBucketTriangle>());
 
 			bool bHasInstancedColorData = false;
@@ -2895,12 +2895,12 @@ bool FEdModeFoliage::GetStaticMeshVertexColorForHit(const UStaticMeshComponent* 
 {
 	const UStaticMesh* StaticMesh = InStaticMeshComponent->GetStaticMesh();
 
-	if (StaticMesh == nullptr || StaticMesh->RenderData == nullptr)
+	if (StaticMesh == nullptr || StaticMesh->GetRenderData() == nullptr)
 	{
 		return false;
 	}
 
-	const FStaticMeshLODResources& LODModel = StaticMesh->RenderData->LODResources[0];
+	const FStaticMeshLODResources& LODModel = StaticMesh->GetRenderData()->LODResources[0];
 	bool bHasInstancedColorData = false;
 	const FStaticMeshComponentLODInfo* InstanceMeshLODInfo = nullptr;
 	if (InStaticMeshComponent->LODData.Num() > 0)

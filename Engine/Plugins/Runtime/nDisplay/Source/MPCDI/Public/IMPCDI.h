@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 
+#include "Blueprints/MPCDIContainers.h"
+
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 
@@ -367,4 +369,16 @@ public:
 	*/
 	virtual void ReloadAll() = 0;
 	virtual void ReloadAll_RenderThread() = 0;
+
+	/**
+	* Exports mesh data of a specified file#buffer#region
+	*
+	* @param MPCDIFile - .mpcdi file path
+	* @param BufferName - Buffer ID
+	* @param RegionName - Region ID
+	* @param MeshData - (out) Requested mesh data
+	*
+	* @return - true if success
+	*/
+	virtual bool GetMPCDIMeshData(const FString& MPCDIFile, const FString& BufferName, const FString& RegionName, FMPCDIGeometryExportData& MeshData) = 0;
 };

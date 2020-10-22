@@ -6,8 +6,10 @@
 #include "Game/IDisplayClusterGameManager.h"
 #include "Misc/DisplayClusterHelpers.h"
 
-#include "Components/DisplayClusterRootComponent.h"
+#include "DisplayClusterRootActor.h"
+#include "Components/DisplayClusterCameraComponent.h"
 #include "Components/DisplayClusterScreenComponent.h"
+#include "Components/MeshComponent.h"
 
 #include "DisplayClusterProjectionLog.h"
 #include "DisplayClusterProjectionStrings.h"
@@ -55,7 +57,7 @@ bool FDisplayClusterProjectionSimplePolicy::HandleAddViewport(const FIntPoint& V
 	}
 
 	ViewData.Empty();
-	ViewData.AddUninitialized(ViewsAmount);
+	ViewData.AddDefaulted(ViewsAmount);
 	
 	return true;
 }
@@ -163,7 +165,7 @@ void FDisplayClusterProjectionSimplePolicy::InitializeMeshData()
 	}
 
 	// Get our VR root
-	UDisplayClusterRootComponent* const Root = GameMgr->GetRootComponent();
+	ADisplayClusterRootActor* const Root = GameMgr->GetRootActor();
 	if (!Root)
 	{
 		UE_LOG(LogDisplayClusterProjectionSimple, Error, TEXT("Couldn't get a VR root object"));

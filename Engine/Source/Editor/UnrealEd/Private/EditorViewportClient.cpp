@@ -442,7 +442,6 @@ FEditorViewportClient::FEditorViewportClient(FEditorModeTools* InModeTools, FPre
 	, MovingPreviewLightTimer(0.0f)
 	, bLockFlightCamera(false)
 	, PreviewResolutionFraction(1.0f)
-	, bPreviewCustomTemporalUpscaler(false)
 	, SceneDPIMode(ESceneDPIMode::EditorDefault)
 	, PerspViewModeIndex(DefaultPerspectiveViewMode)
 	, OrthoViewModeIndex(DefaultOrthoViewMode)
@@ -2171,7 +2170,7 @@ void FEditorViewportClient::HandleViewportStatDisableAll(const bool bInAnyViewpo
 	{
 		SetShowStats(false);
 		SetStatEnabled(NULL, false, true);
-		RemoveRealtimeOverride(LOCTEXT("RealtimeOverrideMessage_Stats", "Stats Display"));
+		RemoveRealtimeOverride(LOCTEXT("RealtimeOverrideMessage_Stats", "Stats Display"), /*bCheckMissingOverride*/false);
 	}
 }
 
@@ -2691,16 +2690,6 @@ int32 FEditorViewportClient::GetPreviewScreenPercentage() const
 void FEditorViewportClient::SetPreviewScreenPercentage(int32 PreviewScreenPercentage)
 {
 	PreviewResolutionFraction = PreviewScreenPercentage / 100.0f;
-}
-
-bool FEditorViewportClient::GetPreviewCustomTemporalUpscaler() const
-{
-	return bPreviewCustomTemporalUpscaler;
-}
-
-void FEditorViewportClient::SetPreviewCustomTemporalUpscaler(bool PreviewCustomTemporalUpscaler)
-{
-	bPreviewCustomTemporalUpscaler = PreviewCustomTemporalUpscaler;
 }
 
 bool FEditorViewportClient::SupportsLowDPIPreview() const
@@ -3794,8 +3783,6 @@ void FEditorViewportClient::Draw(FViewport* InViewport, FCanvas* Canvas)
 
 	ViewFamily.bIsHDR = Viewport->IsHDRViewport();
 
-	UpdateDebugViewModeShaders();
-
 	if( ModeTools->GetActiveMode( FBuiltinEditorModes::EM_InterpEdit ) == 0 || !AllowsCinematicControl() )
 	{
 		if( !UseEngineShowFlags.Game )
@@ -3850,7 +3837,7 @@ void FEditorViewportClient::Draw(FViewport* InViewport, FCanvas* Canvas)
 		// Setup custom upscaler and screen percentage.
 		if (GCustomEditorStaticScreenPercentage && ViewFamily.ViewMode == EViewModeIndex::VMI_Lit)
 		{
-			GCustomEditorStaticScreenPercentage->SetupEditorViewFamily(ViewFamily, PreviewResolutionFraction, bPreviewCustomTemporalUpscaler);
+			GCustomEditorStaticScreenPercentage->SetupEditorViewFamily(ViewFamily, this);
 		}
 
 		// If a screen percentage interface was not set by one of the view extension, then set the legacy one.

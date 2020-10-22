@@ -40,21 +40,6 @@ namespace DatasmithRuntime
 	extern const FString MaterialPrefix;
 	extern const FString MeshPrefix;
 
-	UMaterialInstanceDynamic* GetDefaultMaterial()
-	{
-		// #ue_liveupdate: Find a suitable default material
-		static UMaterialInstanceDynamic* DefaultMaterial = nullptr;
-
-		if (DefaultMaterial == nullptr)
-		{
-			FSoftObjectPath SoftObject(TEXT("/Engine/MapTemplates/Materials/BasicAsset01.BasicAsset01"));
-			UMaterial* ParentMaterial = Cast<UMaterial>(SoftObject.TryLoad());
-			DefaultMaterial = UMaterialInstanceDynamic::Create(ParentMaterial, nullptr);
-		}
-
-		return DefaultMaterial;
-	}
-
 	static TMap< UMaterial*, FMaterialParameters > MaterialParametersCache;
 
 	bool /*FDatasmithStaticMeshImporter::*/ShouldRecomputeNormals(const FMeshDescription& MeshDescription, int32 BuildRequirements)
@@ -202,13 +187,13 @@ namespace DatasmithRuntime
 #if WITH_EDITORONLY_DATA
 			StaticMesh->bCustomizedCollision = true;
 #endif
-			if (!ensure(StaticMesh->BodySetup))
+			if (!ensure(StaticMesh->GetBodySetup()))
 			{
 				return;
 			}
 
 			// Convex elements must be removed first since the re-import process uses the same flow
-			FKAggregateGeom& AggGeom = StaticMesh->BodySetup->AggGeom;
+			FKAggregateGeom& AggGeom = StaticMesh->GetBodySetup()->AggGeom;
 			AggGeom.ConvexElems.Reset();
 			FKConvexElem& ConvexElem = AggGeom.ConvexElems.AddDefaulted_GetRef();
 
@@ -443,14 +428,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		const FMaterialParameters& MaterialParameters = GetMaterialParameters(MasterMaterial);
 
-#if WITH_EDITOR
-		bool bUpdateStaticParameters = false;
-		FStaticParameterSet StaticParameters;
-		MaterialInstance->GetStaticParameterValues( StaticParameters );
-
-		TArray<FStaticSwitchParameter>& StaticSwitchParameters = StaticParameters.StaticSwitchParameters;
-#endif
-
 		for (int Index = 0; Index < MaterialElement->GetPropertiesCount(); ++Index)
 		{
 			const TSharedPtr< IDatasmithKeyValueProperty > Property = MaterialElement->GetProperty(Index);
@@ -474,34 +451,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 					MaterialInstance->SetScalarParameterValue(PropertyName, Value);
 				}
 			}
-#if WITH_EDITOR
-			// Bool Params
-			else if (MaterialParameters.BoolParams.Contains(PropertyName))
-			{
-				bool bValue;
-				if ( MaterialSelector->GetBool( Property, bValue ) )
-				{
-					for (FStaticSwitchParameter& Switch : StaticSwitchParameters)
-					{
-						if (Switch.ParameterInfo.Name == PropertyName)
-						{
-							Switch.Value = bValue;
-							bUpdateStaticParameters = true;
-							break;
-						}
-					}
-				}
-			}
-#endif
 		}
-
-#if WITH_EDITOR
-		if ( bUpdateStaticParameters )
-		{
-			// #ue_liveupdate: Find solution for permutations
-			MaterialInstance->UpdateStaticPermutation( StaticParameters );
-		}
-#endif
 
 		return true;
 	}
@@ -518,7 +468,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	{
 		if (MaterialExpression)
 		{
-			// #ue_liveupdate: Improve check to stop as early as possible, i.e. based on input's type
 			if (InputValue.Color.IsSet() && InputValue.Scalar.IsSet())
 			{
 				return;
@@ -596,5 +545,137 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		//UpdateMaterial(MaterialElement->GetWorldDisplacement().GetExpression(), TEXT(""), TEXT(""), EDatasmithMaterialExpressionType::ConstantColor);
 
 		return true;
+	}
+
+	static TMap<DirectLink::FElementHash, UObject*> RegistrationMap;
+
+	void RegisterAssetData(UObject* Asset, FAssetData* AssetData)
+	{
+		check(IsInGameThread());
+
+		if (IInterface_AssetUserData* AssetUserData = Cast< IInterface_AssetUserData >(Asset))
+		{
+			UDatasmithRuntimeAuxiliaryData* AuxillaryData = AssetUserData->GetAssetUserData<UDatasmithRuntimeAuxiliaryData>();
+
+			if(AuxillaryData == nullptr)
+			{
+				AuxillaryData = NewObject<UDatasmithRuntimeAuxiliaryData>(Asset, NAME_None, RF_NoFlags);
+				AssetUserData->AddAssetUserData(AuxillaryData);
+			}
+
+			if (AuxillaryData->Referencers.Num() == 0)
+			{
+				RegistrationMap.Add(AssetData->Hash, Asset);
+			}
+
+			AuxillaryData->Referencers.Add(AssetData);
+
+			if (AuxillaryData->bIsCompleted)
+			{
+				AssetData->AddState(EDatasmithRuntimeAssetState::Completed);
+			}
+			else
+			{
+				AssetData->ClearState(EDatasmithRuntimeAssetState::Completed);
+			}
+		}
+	}
+
+	int32 UnregisterAssetData(UObject* Asset, FAssetData* AssetData)
+	{
+		check(IsInGameThread());
+
+		if (IInterface_AssetUserData* AssetUserData = Cast< IInterface_AssetUserData >(Asset))
+		{
+			if (UDatasmithRuntimeAuxiliaryData* AuxillaryData = AssetUserData->GetAssetUserData<UDatasmithRuntimeAuxiliaryData>())
+			{
+				if (AuxillaryData->Referencers.Contains(AssetData))
+				{
+					AuxillaryData->Referencers.Remove(AssetData);
+
+					if (AuxillaryData->Referencers.Num() == 0)
+					{
+						RegistrationMap.Remove(AssetData->Hash);
+					}
+
+					return AuxillaryData->Referencers.Num();
+				}
+			}
+		}
+
+		ensure(false);
+		return -1;
+	}
+
+	void SetObjectCompletion(UObject* Asset, bool bIsCompleted)
+	{
+		if (IInterface_AssetUserData* AssetUserData = Cast< IInterface_AssetUserData >(Asset))
+		{
+			if (UDatasmithRuntimeAuxiliaryData* AuxillaryData = AssetUserData->GetAssetUserData<UDatasmithRuntimeAuxiliaryData>())
+			{
+				AuxillaryData->bIsCompleted.store(bIsCompleted);
+
+				if (bIsCompleted)
+				{
+					for (FAssetData* AssetData : AuxillaryData->Referencers)
+					{
+						AssetData->AddState(EDatasmithRuntimeAssetState::Completed);
+					}
+				}
+				else
+				{
+					for (FAssetData* AssetData : AuxillaryData->Referencers)
+					{
+						AssetData->ClearState(EDatasmithRuntimeAssetState::Completed);
+					}
+				}
+
+				return;
+			}
+		}
+
+		ensure(false);
+	}
+
+	bool IsObjectCompleted(UObject* Asset)
+	{
+		bool bIsCompleted = false;
+
+		if (IInterface_AssetUserData* AssetUserData = Cast< IInterface_AssetUserData >(Asset))
+		{
+			if (UDatasmithRuntimeAuxiliaryData* AuxillaryData = AssetUserData->GetAssetUserData<UDatasmithRuntimeAuxiliaryData>())
+			{
+				for (FAssetData* AssetData : AuxillaryData->Referencers)
+				{
+					bIsCompleted |= AssetData->HasState(EDatasmithRuntimeAssetState::Completed);
+				}
+
+				return bIsCompleted;
+			}
+		}
+
+		return bIsCompleted;
+	}
+
+	const TSet<FAssetData*>& GetRegisteredAssetData(UObject* Asset)
+	{
+		static TSet<FAssetData*> EmptySet;
+
+		if (IInterface_AssetUserData* AssetUserData = Cast< IInterface_AssetUserData >(Asset))
+		{
+			if (UDatasmithRuntimeAuxiliaryData* AuxillaryData = AssetUserData->GetAssetUserData<UDatasmithRuntimeAuxiliaryData>())
+			{
+				return AuxillaryData->Referencers;
+			}
+		}
+
+		ensure(false);
+		return EmptySet;
+	}
+
+	UObject* FindObjectFromHash(DirectLink::FElementHash ElementHash)
+	{
+		UObject** AssetPtr = RegistrationMap.Find(ElementHash);
+		return AssetPtr ? *AssetPtr : nullptr;
 	}
 } // End of namespace DatasmithRuntime

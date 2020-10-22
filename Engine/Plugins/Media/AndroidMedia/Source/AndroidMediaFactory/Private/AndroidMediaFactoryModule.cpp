@@ -7,6 +7,7 @@
 #include "Containers/UnrealString.h"
 #include "Internationalization/Internationalization.h"
 #include "Misc/Paths.h"
+#include "Misc/Guid.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 #include "IMediaModule.h"
@@ -92,6 +93,12 @@ public:
 	{
 		static FName PlayerName(TEXT("AndroidMedia"));
 		return PlayerName;
+	}
+
+	virtual FGuid GetPlayerPluginGUID() const override
+	{
+		static FGuid PlayerPluginGUID(0x894a9ab3, 0xb44d4373, 0x87a7dd0c, 0x9cbd9613);
+		return PlayerPluginGUID;
 	}
 
 	virtual const TArray<FString>& GetSupportedPlatforms() const override

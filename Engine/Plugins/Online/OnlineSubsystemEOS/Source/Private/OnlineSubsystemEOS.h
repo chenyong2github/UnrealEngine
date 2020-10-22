@@ -69,6 +69,7 @@ public:
 	virtual IOnlinePresencePtr GetPresenceInterface() const override;
 	virtual FText GetOnlineServiceName() const override;
 	virtual IOnlineStatsPtr GetStatsInterface() const override;
+	virtual bool Exec(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
 
 	virtual IOnlineGroupsPtr GetGroupsInterface() const override { return nullptr; }
 	virtual IOnlinePartyPtr GetPartyInterface() const override { return nullptr; }
@@ -81,10 +82,11 @@ public:
 	virtual IOnlineTournamentPtr GetTournamentInterface() const override { return nullptr; }
 //~IOnlineSubsystem
 
-	virtual bool Init() override;
+	virtual bool Init() override { return true; }
 	virtual bool Shutdown() override;
 	virtual FString GetAppId() const override;
-	virtual bool Exec(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
+
+	bool DeferredInit();
 
 // FTickerObjectBase
 	virtual bool Tick(float DeltaTime) override;

@@ -11,7 +11,10 @@ struct FRigUnit_NameBase : public FRigUnit
 	GENERATED_BODY()
 };
 
-USTRUCT(meta = (DisplayName = "Concat", Keywords = "Add,+,Combine,Merge"))
+/**
+ * Concatenates two strings together to make a new string
+ */
+USTRUCT(meta = (DisplayName = "Concat", Keywords = "Add,+,Combine,Merge,Append"))
 struct FRigUnit_NameConcat : public FRigUnit_NameBase
 {
 	GENERATED_BODY()
@@ -34,7 +37,10 @@ struct FRigUnit_NameConcat : public FRigUnit_NameBase
 	FName Result;
 };
 
-USTRUCT(meta = (DisplayName = "Chop", Keywords = "Truncate,-,Remove,Subtract"))
+/**
+ * Returns the left or right most characters from the string chopping the given number of characters from the start or the end
+ */
+USTRUCT(meta = (DisplayName = "Chop", Keywords = "Truncate,-,Remove,Subtract,Split"))
 struct FRigUnit_NameTruncate : public FRigUnit_NameBase
 {
 	GENERATED_BODY()
@@ -69,6 +75,9 @@ struct FRigUnit_NameTruncate : public FRigUnit_NameBase
 	FName Chopped;
 };
 
+/**
+ * Replace all occurrences of a substring in this string
+ */
 USTRUCT(meta = (DisplayName = "Replace", Keywords = "Search,Emplace,Find"))
 struct FRigUnit_NameReplace : public FRigUnit_NameBase
 {
@@ -95,6 +104,9 @@ struct FRigUnit_NameReplace : public FRigUnit_NameBase
 	FName Result;
 };
 
+/**
+ * Tests whether this string ends with given string
+ */
 USTRUCT(meta = (DisplayName = "Ends With", Keywords = "Right"))
 struct FRigUnit_EndsWith : public FRigUnit_NameBase
 {
@@ -119,6 +131,9 @@ struct FRigUnit_EndsWith : public FRigUnit_NameBase
 	bool Result;
 };
 
+/**
+ * Tests whether this string starts with given string
+ */
 USTRUCT(meta = (DisplayName = "Starts With", Keywords = "Left"))
 struct FRigUnit_StartsWith : public FRigUnit_NameBase
 {
@@ -143,7 +158,10 @@ struct FRigUnit_StartsWith : public FRigUnit_NameBase
 	bool Result;
 };
 
-USTRUCT(meta = (DisplayName = "Contains", Keywords = "Contains,Find"))
+/**
+ * Returns true or false if a given name exists in another given name
+ */
+USTRUCT(meta = (DisplayName = "Contains", Keywords = "Contains,Find,Has,Search"))
 struct FRigUnit_Contains : public FRigUnit_NameBase
 {
 	GENERATED_BODY()

@@ -31,18 +31,15 @@ protected:
 	bool 			ProcessStateChange(const ConnectionState NewState, const ConnectionState OldState) override;
 
 
-	virtual void 	BindEndpoints(TBackChannelSharedPtr<IBackChannelConnection> InConnection);
+	virtual void 	BindEndpoints(TBackChannelSharedPtr<IBackChannelConnection> InConnection) override;
 
 	void			SendChannelListToConnection();
 	
 	bool			ProcessIncomingConnection(TSharedRef<IBackChannelSocketConnection> NewConnection);
 
-	void			OnChangeChannel(IBackChannelPacket& Message);
 
 
 	TSharedPtr<IBackChannelSocketConnection> Listener;
-
-	TArray<FRemoteSessionChannelInfo> SupportedChannels;
 
 	/** Saved information about the editor and viewport we possessed, so we can restore it after exiting VR mode */
 	float SavedEditorDragTriggerDistance;

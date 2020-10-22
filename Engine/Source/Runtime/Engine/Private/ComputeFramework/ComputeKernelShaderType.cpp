@@ -5,13 +5,15 @@
 #include "RHI.h"
 #include "ComputeFramework/ComputeKernelResource.h"
 
-TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe> FComputeKernelShaderType::BeginCompileShader(
+void FComputeKernelShaderType::BeginCompileShader(
+	uint32 ShaderMapId,
 	EShaderPlatform ShaderPlatform,
 	FComputeKernelResource* KernelShader,
-	TArray<TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>>& InOutNewJobs
+	TArray<FShaderCommonCompileJobPtr>& InOutNewJobs
 	)
 {
-	FShaderCompileJob* NewJob = new FShaderCompileJob(FShaderCommonCompileJob::GetNextJobId(), nullptr, this, KernelShader->GetPermutationId());
+	FShaderCompileJob* NewJob = GShaderCompilingManager->PrepareShaderCompileJob(ShaderMapId, FShaderCompileJobKey(this, nullptr, KernelShader->GetPermutationId()), EShaderCompileJobPriority::Low);
+	if (NewJob)
 	{
 		NewJob->Input.Target = FShaderTarget(SF_Compute, ShaderPlatform);
 		NewJob->Input.ShaderFormat = LegacyShaderPlatformToShaderFormat(ShaderPlatform);
@@ -25,21 +27,18 @@ TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe> FComputeKernelShaderTyp
 		//NewJob->Input.Environment.IncludeVirtualPathToContentsMap.Add(TEXT("/Engine/Generated/NiagaraEmitterInstance.ush"), Script->HlslOutput);
 
 		SetupCompileEnvironment(ShaderPlatform, KernelShader, NewJob->Input.Environment);
-	}
 
-	TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe> SharedJob(NewJob);
-	
-	::GlobalBeginCompileShader(
-		KernelShader->GetFriendlyName(),
-		nullptr,
-		this,
-		nullptr,
-		KernelShader->GetSourceFileName(),
-		KernelShader->GetEntryPointName(),
-		FShaderTarget(SF_Compute, ShaderPlatform),
-		SharedJob,
-		InOutNewJobs
+		::GlobalBeginCompileShader(
+			KernelShader->GetFriendlyName(),
+			nullptr,
+			this,
+			nullptr,
+			KernelShader->GetPermutationId(),
+			KernelShader->GetSourceFileName(),
+			KernelShader->GetEntryPointName(),
+			FShaderTarget(SF_Compute, ShaderPlatform),
+			NewJob->Input
 		);
-
-	return SharedJob;
+		InOutNewJobs.Add(FShaderCommonCompileJobPtr(NewJob));
+	}
 }

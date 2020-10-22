@@ -485,6 +485,13 @@ void FUnrealEdMisc::OnInit()
 		InitOptions.bShowFilters = true;
 		MessageLogModule.RegisterLogListing("SlateStyleLog", LOCTEXT("SlateStyleLog", "Slate Style Log"), InitOptions );
 	}
+
+	{
+		FMessageLogInitializationOptions InitOptions;
+		InitOptions.bShowFilters = true;
+		MessageLogModule.RegisterLogListing("HLODResults", LOCTEXT("HLODResults", "HLOD Results"), InitOptions);
+	}
+
 	FCompilerResultsLog::Register();
 	{
 		FMessageLogInitializationOptions InitOptions;
@@ -960,6 +967,7 @@ void FUnrealEdMisc::OnExit()
 	MessageLogModule.UnregisterLogListing("LightingResults");
 	MessageLogModule.UnregisterLogListing("PackagingResults");
 	MessageLogModule.UnregisterLogListing("MapCheck");
+	MessageLogModule.UnregisterLogListing("HLODResults");
 	FCompilerResultsLog::Unregister();
 	MessageLogModule.UnregisterLogListing("PIE");
 

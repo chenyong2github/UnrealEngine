@@ -1,5 +1,5 @@
 # Copyright Epic Games, Inc. All Rights Reserved.
-from .config import CONFIG, SETTINGS
+from .config import CONFIG, SETTINGS, DEFAULT_MAP_TEXT
 from . import config
 from . import config_osc as osc
 from . import p4_utils
@@ -105,7 +105,13 @@ class SwitchboardDialog(QtCore.QObject):
         self.device_manager.signal_device_removed.connect(CONFIG.on_device_removed)
 
         # DeviceManager initialize with from the config
+        #
+        CONFIG.push_saving_allowed(False)
+
+        self.device_manager.reset_plugins_settings(CONFIG)
         self.device_manager.add_devices(CONFIG._device_data_from_config)
+
+        CONFIG.pop_saving_allowed()
 
         # add menu for adding new devices
         self.device_add_menu = QtWidgets.QMenu()
@@ -171,10 +177,8 @@ class SwitchboardDialog(QtCore.QObject):
 
         # Update the UI
         self.p4_refresh_cl()
-        CONFIG.P4_PATH.signal_setting_changed.connect(lambda: self.p4_refresh_cl())
         self.refresh_levels()
-        CONFIG.MAPS_PATH.signal_setting_changed.connect(lambda: self.refresh_levels())
-        CONFIG.MAPS_FILTER.signal_setting_changed.connect(lambda: self.refresh_levels())
+        self.set_config_hooks()
 
         self.update_configs_menu()
         self.set_multiuser_session_name(f'{SETTINGS.MUSERVER_SESSION_NAME}')
@@ -186,8 +190,10 @@ class SwitchboardDialog(QtCore.QObject):
         if not CONFIG.file_path:
             self.menu_new_config()
 
-        # todo-dara: find a way to avoid doing this. we want to be sure that we don't keep stale data around once everything is loaded.
-        CONFIG._device_data_from_config = {}
+    def set_config_hooks(self):
+        CONFIG.P4_PATH.signal_setting_changed.connect(lambda: self.p4_refresh_cl())
+        CONFIG.MAPS_PATH.signal_setting_changed.connect(lambda: self.refresh_levels())
+        CONFIG.MAPS_FILTER.signal_setting_changed.connect(lambda: self.refresh_levels())
 
     def show_device_add_menu(self):
         self.device_add_menu.clear()
@@ -248,37 +254,70 @@ class SwitchboardDialog(QtCore.QObject):
                 config_action.setEnabled(False)
 
     def set_current_config(self, config_name):
+
         SETTINGS.CONFIG = config_name
         SETTINGS.save()
 
-        # Remove all devices
-        self.device_manager.clear_device_list()
-        self.device_list_widget.clear_widgets()
         # Update to the new config
         config_name = CONFIG.config_file_name_to_name(SETTINGS.CONFIG)
         CONFIG.init_with_file_name(CONFIG.name_to_config_file_name(config_name))
 
+        # Disable saving while loading
+        CONFIG.push_saving_allowed(False)
+
+        # Remove all devices
+        self.device_manager.clear_device_list()
+        self.device_list_widget.clear_widgets()
+
+        # Reset plugin settings
+        self.device_manager.reset_plugins_settings(CONFIG)
+
+        # Set hooks to this dialog's UI
+        self.set_config_hooks()
+
         # Add new devices
         self.device_manager.add_devices(CONFIG._device_data_from_config)
+
+        # Re-enable saving after loading.
+        CONFIG.pop_saving_allowed()
 
         self.p4_refresh_cl()
         self.refresh_levels()
         self.update_configs_menu()
 
     def menu_new_config(self):
+
         uproject_search_path = os.path.dirname(CONFIG.UPROJECT_PATH.get_value())
+
         if not os.path.exists(uproject_search_path):
             uproject_search_path = SETTINGS.LAST_BROWSED_PATH
+            
         dialog = AddConfigDialog(self.stylesheet, uproject_search_path=uproject_search_path, previous_engine_dir=CONFIG.ENGINE_DIR.get_value(), parent=self.window)
         dialog.exec()
+
         if dialog.result() == QtWidgets.QDialog.Accepted:
+
+            CONFIG.init_new_config(dialog.config_name, dialog.uproject, dialog.engine_dir)
+
+            # Disable saving while loading
+            CONFIG.push_saving_allowed(False)
+
             # Remove all devices
             self.device_manager.clear_device_list()
             self.device_list_widget.clear_widgets()
 
-            CONFIG.init_new_config(dialog.config_name, dialog.uproject, dialog.engine_dir)
+            # Reset plugin settings
+            self.device_manager.reset_plugins_settings(CONFIG)
 
-            # Update the config menu
+            # Set hooks to this dialog's UI
+            self.set_config_hooks()
+
+            # Re-enable saving after loading
+            CONFIG.pop_saving_allowed()
+
+            # Update the UI
+            self.p4_refresh_cl()
+            self.refresh_levels()
             self.update_configs_menu()
 
     def menu_delete_config(self):
@@ -342,8 +381,15 @@ class SwitchboardDialog(QtCore.QObject):
             device_settings = [(device.name, device.device_settings(), device.setting_overrides()) for device in device_instances]
             settings_dialog.add_section_for_plugin(plugin_name, self.device_manager.plugin_settings(plugin_name), device_settings)
 
-        # RUN
+
+        # avoid saving the config all the time while in the settings dialog
+        CONFIG.push_saving_allowed(False)
+
+        # Show the Settings Dialog
         settings_dialog.ui.exec()
+
+        # Restore saving, which should happen at the end of this function
+        CONFIG.pop_saving_allowed()
 
         new_config_name = settings_dialog.config_name()
         if config_name != new_config_name:
@@ -690,11 +736,13 @@ class SwitchboardDialog(QtCore.QObject):
         self._set_level(value)
 
     def _set_level(self, value):
+        ''' Called when level dropdown text changes
+        '''
         self._level = value
 
-        if SETTINGS.CURRENT_LEVEL != value:
-            SETTINGS.CURRENT_LEVEL = value
-            SETTINGS.save()
+        if CONFIG.CURRENT_LEVEL != value:
+            CONFIG.CURRENT_LEVEL = value
+            CONFIG.save()
 
         if self.window.level_combo_box.currentText() != self._level:
             self.window.level_combo_box.setCurrentText(self._level)
@@ -926,14 +974,13 @@ class SwitchboardDialog(QtCore.QObject):
             self.window.changelist_combo_box.setCurrentIndex(0)
 
     def refresh_levels(self):
-        current_level = SETTINGS.CURRENT_LEVEL
+        current_level = CONFIG.CURRENT_LEVEL
 
         self.window.level_combo_box.clear()
-        self.window.level_combo_box.addItems(CONFIG.maps())
+        self.window.level_combo_box.addItems([DEFAULT_MAP_TEXT] + CONFIG.maps())
 
         if current_level and current_level in CONFIG.maps():
             self.level = current_level
-            #self.window.changelist_combo_box.setCurrentText(SETTINGS.CURRENT_LEVEL)
 
     def osc_take(self, ip_address, command, value):
         device = self._device_from_ip_address(ip_address, command, value=value)

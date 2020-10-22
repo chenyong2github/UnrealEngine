@@ -1281,15 +1281,13 @@ void SDMXEntityList::OnDeleteNodes()
 		// Confirmation text for a single entity in use
 		if (EntitiesInUse.Num() == 1)
 		{
-			ConfirmDelete = FText::Format(LOCTEXT("ConfirmDeleteEntityInUse",
-				"Entity \"{0}\" is in use! Do you really want to delete it?"),
+			ConfirmDelete = FText::Format(LOCTEXT("ConfirmDeleteEntityInUse", "Entity \"{0}\" is in use! Do you really want to delete it?"),
 				FText::FromString(EntitiesInUse[0]->GetDisplayName()));
 		}
 		// Confirmation text for when all of the selected entities are in use
 		else if (EntitiesInUse.Num() == EntitiesToDelete.Num())
 		{
-			ConfirmDelete = LOCTEXT("ConfirmDeleteAllEntitiesInUse",
-				"All selected entities are in use! Do you really want to delete them?");
+			ConfirmDelete = LOCTEXT("ConfirmDeleteAllEntitiesInUse", "All selected entities are in use! Do you really want to delete them?");
 		}
 		// Confirmation text for multiple entities, but not so much that would make the dialog huge
 		else if (EntitiesInUse.Num() > 1 && EntitiesInUse.Num() <= 10)
@@ -1300,17 +1298,13 @@ void SDMXEntityList::OnDeleteNodes()
 				EntitiesNames += TEXT("\t") + Entity->GetDisplayName() + TEXT("\n");
 			}
 
-			ConfirmDelete = FText::Format(LOCTEXT("ConfirmDeleteSomeEntitiesInUse",
-				"The Entities below are in use!\n"
-				"{0}" // no line break here because EntitiesNames will have one at the end already
-				"\nDo you really want to delete them?"),
+			ConfirmDelete = FText::Format(LOCTEXT("ConfirmDeleteSomeEntitiesInUse", "The Entities below are in use!\n{0}\nDo you really want to delete them?"),
 				FText::FromString(EntitiesNames));
 		}
 		// Confirmation text for several entities. Displaying each of their names would make a huge dialog
 		else
 		{
-			ConfirmDelete = FText::Format(LOCTEXT("ConfirmDeleteManyEntitiesInUse",
-				"{0} of the selected entities are in use!\nDo you really want to delete them?"),
+			ConfirmDelete = FText::Format(LOCTEXT("ConfirmDeleteManyEntitiesInUse", "{0} of the selected entities are in use!\nDo you really want to delete them?"),
 				FText::AsNumber(EntitiesInUse.Num()));
 		}
 
@@ -1781,12 +1775,12 @@ FText SDMXEntityList::CheckForPatchError(UDMXEntityFixturePatch* FixturePatch) c
 	}();
 	if (!bHasAnyFunctions)
 	{
-		return LOCTEXT("DMXEntityList.FixtureTypeHasNoModes", "This patch's fixture type has no functions.");
+		return LOCTEXT("DMXEntityList.FixtureTypeHasNoFunctions", "This patch's fixture type has no functions.");
 	}
 	
 	if (FixturePatch->GetChannelSpan() == 0)
 	{
-		return LOCTEXT("DMXEntityList.FixtureTypeHasNoModes", "This patch has a channel span of 0.");
+		return LOCTEXT("DMXEntityList.FixtureTypeHasNoChannelSpan", "This patch has a channel span of 0.");
 	}
 
 	
@@ -1869,6 +1863,12 @@ TSubclassOf<UDMXEntity> SDMXEntityList::GetListType() const
 
 void SDMXEntityList::PostUndo(bool bSuccess)
 {
+	UDMXLibrary* Library = GetDMXLibrary();
+	if (Library)
+	{
+		Library->Modify();
+	}
+
 	UpdateTree();
 }
 

@@ -81,6 +81,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = Options)
 	ESimplifyType SimplifierType = ESimplifyType::UE4Standard;
 
+	/** Output LOD Assets will be numbered starting at this number */
+	UPROPERTY(EditAnywhere, Category = Options)
+	int NameIndexBase = 0;
+
 	/** Target percentage of original triangle count */
 	//UPROPERTY(EditAnywhere, Category = Options, meta = (UIMin = "0", UIMax = "100", EditCondition = "TargetMode == ESimplifyTargetType::Percentage"))
 	UPROPERTY()

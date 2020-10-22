@@ -27,10 +27,6 @@ public:
 	SLATE_END_ARGS()
 
 public:
-	SDisplayClusterConfiguratorViewBase();
-	~SDisplayClusterConfiguratorViewBase();
-
-public:
 	void Construct(const FArguments& InArgs, const TSharedRef<FDisplayClusterConfiguratorToolkit>& InToolkit);
 
 	virtual void ConstructChildren(const TAttribute<FMargin>& InPadding, const TSharedRef<SWidget>& InContent) override;

@@ -8,6 +8,7 @@
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceRW"
 
 // Global HLSL variable base names, used by HLSL.
+NIAGARA_API extern const FString NumAttributesName(TEXT("NumAttributes_"));
 NIAGARA_API extern const FString NumCellsName(TEXT("NumCells_"));
 NIAGARA_API extern const FString CellSizeName(TEXT("CellSize_"));
 NIAGARA_API extern const FString WorldBBoxSizeName(TEXT("WorldBBoxSize_"));

@@ -35,6 +35,9 @@ UDMXPixelMappingMatrixCellComponent::UDMXPixelMappingMatrixCellComponent()
 	SizeY = 100.f;
 
 #if WITH_EDITOR
+	RelativePositionX = 0.f;
+	RelativePositionY = 0.f;
+
 	Slot = nullptr;
 
 	bLockInDesigner = true;
@@ -67,23 +70,33 @@ void UDMXPixelMappingMatrixCellComponent::PostEditChangeChainProperty(FPropertyC
 
 	FName&& PropertyName = PropertyChangedChainEvent.GetPropertyName();
 
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixCellComponent, SizeX) ||
-		PropertyName == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixCellComponent, SizeY))
-	{
-		SetSizeWithinBoundaryBox(FVector2D(SizeX, SizeY));
-	}
-	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixCellComponent, PositionX) ||
-		PropertyName == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixCellComponent, PositionY))
-	{
-		SetPositionInBoundaryBox(FVector2D(PositionX, PositionY));
-	}
-	else if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixCellComponent, bVisibleInDesigner))
+	if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixCellComponent, bVisibleInDesigner))
 	{
 		UpdateWidget();
 	}
 	else if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, EditorColor))
 	{
 		Brush.TintColor = EditorColor;
+	}
+	
+	if (PropertyChangedChainEvent.ChangeType != EPropertyChangeType::Interactive)
+	{
+		if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixCellComponent, SizeX) ||
+			PropertyName == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixCellComponent, SizeY))
+		{
+			SetSizeWithinBoundaryBox(FVector2D(SizeX, SizeY));
+		}
+		else if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixCellComponent, PositionX) ||
+			PropertyName == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixCellComponent, PositionY))
+		{
+			if (UDMXPixelMappingOutputDMXComponent* ParentOutputComponent = Cast<UDMXPixelMappingOutputDMXComponent>(Parent))
+			{
+				float NewPositionX = ParentOutputComponent->GetPosition().X + RelativePositionX;
+				float NewPositionY = ParentOutputComponent->GetPosition().Y + RelativePositionY;
+
+				SetPositionInBoundaryBox(FVector2D(NewPositionX, NewPositionY));
+			}
+		}
 	}
 }
 #endif // WITH_EDITOR
@@ -134,6 +147,12 @@ void UDMXPixelMappingMatrixCellComponent::UpdateWidget()
 {
 	if (UDMXPixelMappingMatrixComponent* MatrixComponent = Cast<UDMXPixelMappingMatrixComponent>(Parent))
 	{
+		// Make sure this always is on top of its parent
+		if (ZOrder < MatrixComponent->GetZOrder())
+		{
+			ZOrder = MatrixComponent->GetZOrder() + 1;
+		}
+
 		// Hide in designer view
 		if (!MatrixComponent->IsVisibleInDesigner() || !bVisibleInDesigner)
 		{
@@ -238,7 +257,7 @@ void UDMXPixelMappingMatrixCellComponent::SendDMX()
 					}
 					else if (MatrixComponent->ColorMode == EDMXColorMode::CM_Monochrome)
 					{
-						if (MatrixComponent->MonochromeExpose)
+						if (MatrixComponent->bMonochromeExpose)
 						{
 							// https://www.w3.org/TR/AERT/#color-contrast
 							uint8 Intensity = (0.299 * Color.R + 0.587 * Color.G + 0.114 * Color.B);
@@ -309,8 +328,8 @@ void UDMXPixelMappingMatrixCellComponent::RendererOutputTexture()
 			{
 				static const FVector4 Expose(1.f, 1.f, 1.f, 1.f);
 				static const FVector4 NoExpose(0.f, 0.f, 0.f, 0.f);
-				ExposeFactor = FVector4(MatrixComponent->MonochromeExpose ? Expose : NoExpose);
-				InvertFactor = FIntVector4(MatrixComponent->MonochromeInvert, MatrixComponent->MonochromeInvert, MatrixComponent->MonochromeInvert, 0);
+				ExposeFactor = FVector4(MatrixComponent->bMonochromeExpose ? Expose : NoExpose);
+				InvertFactor = FIntVector4(MatrixComponent->bMonochromeInvert, MatrixComponent->bMonochromeInvert, MatrixComponent->bMonochromeInvert, 0);
 			}
 
 			Renderer->DownsampleRender_GameThread(
@@ -347,7 +366,7 @@ UTextureRenderTarget2D* UDMXPixelMappingMatrixCellComponent::GetOutputTexture()
 	return OutputTarget;
 }
 
-FVector2D UDMXPixelMappingMatrixCellComponent::GetSize()
+FVector2D UDMXPixelMappingMatrixCellComponent::GetSize() const
 {
 	return FVector2D(SizeX, SizeY);
 }
@@ -373,9 +392,6 @@ void UDMXPixelMappingMatrixCellComponent::SetPosition(const FVector2D& InPositio
 	}
 	else
 	{
-		PositionX = FMath::RoundHalfToZero(InPosition.X);
-		PositionY = FMath::RoundHalfToZero(InPosition.Y);
-
 		SetPositionInBoundaryBox(InPosition);
 	}
 #else
@@ -400,6 +416,9 @@ void UDMXPixelMappingMatrixCellComponent::SetPositionInBoundaryBox(const FVector
 {
 	if (UDMXPixelMappingMatrixComponent* MatrixComponent = Cast<UDMXPixelMappingMatrixComponent>(Parent))
 	{
+		PositionX = InPosition.X;
+		PositionY = InPosition.Y;
+
 		// Left Border
 		float LeftBorderPosition = MatrixComponent->PositionX;
 		float PositionXLeftBorder = InPosition.X;
@@ -423,6 +442,9 @@ void UDMXPixelMappingMatrixCellComponent::SetPositionInBoundaryBox(const FVector
 		{
 			Slot->Offset(FMargin(PositionX, PositionY, 0.f, 0.f));
 		}
+
+		RelativePositionX = PositionX - MatrixComponent->GetPosition().X;
+		RelativePositionY = PositionY - MatrixComponent->GetPosition().Y;
 #endif // WITH_EDITOR
 	}
 }

@@ -38,11 +38,13 @@ private:
 	/** Getters to populate the UI */
 	FText GetStateGlyphs() const;
 	FSlateColor GetStateColorAndOpacity() const;
+	FText GetTimecode() const;
 	FText GetMachineName() const;
 	FText GetProcessId() const;
 	FText GetStageName() const;
 	FText GetRoles() const;
 	FText GetAverageFPS() const;
+	FText GetIdleTime() const;
 	FText GetGameThreadTiming() const;
 	FText GetRenderThreadTiming() const;
 	FText GetGPUTiming() const;

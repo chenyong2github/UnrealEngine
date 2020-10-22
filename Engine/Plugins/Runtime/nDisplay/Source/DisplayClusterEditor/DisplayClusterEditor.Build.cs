@@ -12,7 +12,12 @@ public class DisplayClusterEditor : ModuleRules
 				"Core",
 				"CoreUObject",
 				"DisplayCluster",
+				"DisplayClusterConfiguration",
 				"Engine",
+				"EditorWidgets",
+				"PropertyEditor",
+				"Slate",
+				"SlateCore",
 				"UnrealEd"
 			});
 	}

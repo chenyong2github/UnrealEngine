@@ -197,10 +197,10 @@ FString FAndroidMediaPlayer::GetInfo() const
 }
 
 
-FName FAndroidMediaPlayer::GetPlayerName() const
+FGuid FAndroidMediaPlayer::GetPlayerPluginGUID() const
 {
-	static FName PlayerName(TEXT("AndroidMedia"));
-	return PlayerName;
+	static FGuid PlayerPluginGUID(0x894a9ab3, 0xb44d4373, 0x87a7dd0c, 0x9cbd9613);
+	return PlayerPluginGUID;
 }
 
 
@@ -270,7 +270,7 @@ bool FAndroidMediaPlayer::Open(const FString& Url, const IMediaOptions* /*Option
 
 			FPakFile* PakFile = NULL;
 			FPakEntry FileEntry;
-			if (!PakPlatformFile->FindFileInPakFiles(*FilePath, &PakFile, &FileEntry))
+			if (PakPlatformFile == nullptr || !PakPlatformFile->FindFileInPakFiles(*FilePath, &PakFile, &FileEntry))
 			{
 				UE_LOG(LogAndroidMedia, Warning, TEXT("File doesn't exist %s."), *FilePath);
 				return false;

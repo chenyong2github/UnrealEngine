@@ -474,12 +474,16 @@ public:
 #endif
 
 	NIAGARA_API void ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id) const;
+	NIAGARA_API const FNiagaraVMExecutableDataId& GetComputedVMCompilationId() const
+	{
 #if WITH_EDITORONLY_DATA
-	NIAGARA_API const FNiagaraVMExecutableDataId& GetComputedVMCompilationId() const { return LastGeneratedVMId; }
-#else
-	NIAGARA_API const FNiagaraVMExecutableDataId& GetComputedVMCompilationId() const { return CachedScriptVMId; }
+		if (!IsCooked)
+		{
+			return LastGeneratedVMId;
+		}
 #endif
-
+		return CachedScriptVMId;
+	}
 
 	void SetUsage(ENiagaraScriptUsage InUsage) { Usage = InUsage; }
 	ENiagaraScriptUsage GetUsage() const { return Usage; }
@@ -549,7 +553,7 @@ public:
 
 	NIAGARA_API bool CanBeRunOnGpu() const;
 	NIAGARA_API bool IsReadyToRun(ENiagaraSimTarget SimTarget) const;
-	NIAGARA_API bool ShouldCacheShadersForCooking() const;
+	NIAGARA_API bool ShouldCacheShadersForCooking(const ITargetPlatform* TargetPlatform) const;
 
 #if WITH_EDITORONLY_DATA
 	class UNiagaraScriptSourceBase *GetSource() { return Source; }
@@ -638,6 +642,9 @@ public:
 		gather up the results with. The function returns whether or not any compiles were actually issued. */
 	NIAGARA_API bool RequestExternallyManagedAsyncCompile(const TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe>& RequestData, FNiagaraVMExecutableDataId& OutCompileId, uint32& OutAsyncHandle);
 
+	/** Builds the DDC string for the derived data cache using the supplied CompiledId */
+	static FString BuildNiagaraDDCKeyString(const FNiagaraVMExecutableDataId& CompileId);
+
 	/** Creates a string key for the derived data cache */
 	FString GetNiagaraDDCKeyString();
 
@@ -686,6 +693,15 @@ public:
 
 	const FNiagaraScriptExecutionParameterStore* GetExecutionReadyParameterStore(ENiagaraSimTarget SimTarget);
 	void InvalidateExecutionReadyParameterStores();
+
+	bool IsScriptCooked() const
+	{
+#if WITH_EDITORONLY_DATA
+		return IsCooked;
+#else
+		return true;
+#endif
+	}
 
 private:
 	bool OwnerCanBeRunOnGpu() const;
@@ -773,6 +789,9 @@ private:
 
 	UPROPERTY(Transient)
 	TArray<UObject*> ActiveCompileRoots;
+
+	/* Flag set on load based on whether the serialized data includes editor only data */
+	bool IsCooked;
 #endif
 
 	/** Compiled VM bytecode and data necessary to run this script.*/

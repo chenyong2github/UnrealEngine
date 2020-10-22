@@ -168,10 +168,10 @@ FString FMagicLeapCameraPreviewPlayer::GetInfo() const
 	return FString();
 }
 
-FName FMagicLeapCameraPreviewPlayer::GetPlayerName() const
+FGuid FMagicLeapCameraPreviewPlayer::GetPlayerPluginGUID() const
 {
-	static FName PlayerName(TEXT("MagicLeapCameraPreview"));
-	return PlayerName;
+	static FGuid PlayerPluginGUID(0x6b44ddae, 0x35784afb, 0x891e074e, 0xad4db8de);
+	return PlayerPluginGUID;
 }
 
 IMediaSamples& FMagicLeapCameraPreviewPlayer::GetSamples()

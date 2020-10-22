@@ -263,13 +263,6 @@ void FGeometryModeToolkit::UnregisterTabSpawners(const TSharedRef<class FTabMana
 void FGeometryModeToolkit::Init(const TSharedPtr< class IToolkitHost >& InitToolkitHost)
 {
 	GeomWidget = SNew(SGeometryModeControls, SharedThis(this));
-
-	bHasBrushActorSelected = false;
-
-	USelection::SelectionChangedEvent.AddSP(this, &FGeometryModeToolkit::OnActorSelectionChanged);
-
-	OnActorSelectionChanged(GEditor->GetSelectedActors());
-
 	FModeToolkit::Init(InitToolkitHost);
 }
 
@@ -291,16 +284,6 @@ class FEdMode* FGeometryModeToolkit::GetEditorMode() const
 void FGeometryModeToolkit::OnGeometrySelectionChanged()
 {
 	GeomWidget->SelectionChanged();
-}
-
-void FGeometryModeToolkit::OnActorSelectionChanged(UObject* SelectionContainer)
-{
-	// Make sure the selection set that changed is relevant to us
-	USelection* Selection = Cast<USelection>(SelectionContainer);
-	if (Selection == GEditor->GetSelectedActors())
-	{
-		bHasBrushActorSelected = Selection->CountSelections<ABrush>() > 0;
-	}
 }
 
 class FModeTool_GeometryModify* FGeometryModeToolkit::GetGeometryModeTool() const
@@ -359,7 +342,7 @@ void FGeometryModeToolkit::OnModifierClicked(UGeomModifier* Modifier)
 
 bool FGeometryModeToolkit::IsModifierEnabled(UGeomModifier* Modifier) const
 {
-	return bHasBrushActorSelected && Modifier->SupportsCurrentSelection();
+	return Modifier->SupportsCurrentSelection();
 }
 
 
@@ -437,10 +420,10 @@ FText FGeometryModeToolkit::GetActiveToolDisplayName() const
 
 FText FGeometryModeToolkit::GetActiveToolMessage() const
 {
-	return bHasBrushActorSelected ? GetGeometryModeTool()->GetCurrentModifier()->GetModifierTooltip() : LOCTEXT("GeometryMode_NoBrushSelectedMessage", "Select a brush actor to begin editing its geometry");
+	UGeomModifier* CurrentModifier = GetGeometryModeTool()->GetCurrentModifier();
+	return ( CurrentModifier && CurrentModifier->SupportsCurrentSelection() )
+		? CurrentModifier->GetModifierTooltip()
+		: LOCTEXT("GeometryMode_NoBrushSelectedMessage", "Select a brush actor to begin editing its geometry");
 }
-
-
-
 
 #undef LOCTEXT_NAMESPACE

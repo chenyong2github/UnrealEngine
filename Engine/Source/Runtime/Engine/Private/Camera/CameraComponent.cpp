@@ -274,7 +274,7 @@ void UCameraComponent::GetCameraView(float DeltaTime, FMinimalViewInfo& DesiredV
 
 		if (XRCamera.IsValid())
 		{
-			if (XRSystem->IsHeadTrackingAllowed())
+			if (XRSystem->IsHeadTrackingAllowedForWorld(*GetWorld()))
 			{
 				const FTransform ParentWorld = CalcNewComponentToWorld(FTransform());
 

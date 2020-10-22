@@ -853,7 +853,7 @@ void FNiagaraMaterialAttributeBindingCustomization::CollectAllNiagaraActions(FGr
 	{
 		FText CategoryName = FText();
 		const FText NameText = MakeCurrentText(ParamPair.Key, ParamPair.Value);
-		const FText TooltipDesc = FText::Format(LOCTEXT("BindToParameter", "Bind to the Niagara Variable \"{0}\" "), NameText);
+		const FText TooltipDesc = FText::Format(LOCTEXT("BindToNiagaraParameter", "Bind to the Niagara Variable \"{0}\" "), NameText);
 		FNiagaraStackAssetAction_VarBind* VarBind = new FNiagaraStackAssetAction_VarBind(ParamPair.Key.GetName(), CategoryName, NameText,
 			TooltipDesc, 0, FText());
 		VarBind->BaseVar = ParamPair.Key;
@@ -1053,7 +1053,7 @@ void FNiagaraMaterialAttributeBindingCustomization::CollectAllMaterialActions(FG
 		FText CategoryName = FText();
 		FString DisplayNameString = FName::NameToDisplayString(ParamName.ToString(), false);
 		const FText NameText = FText::FromString(DisplayNameString);
-		const FText TooltipDesc = FText::Format(LOCTEXT("BindToParameter", "Bind to the Material Variable \"{0}\" "), FText::FromString(DisplayNameString));
+		const FText TooltipDesc = FText::Format(LOCTEXT("BindToMaterialParameter", "Bind to the Material Variable \"{0}\" "), FText::FromString(DisplayNameString));
 		TSharedPtr<FNiagaraStackAssetAction_VarBind> NewNodeAction(new FNiagaraStackAssetAction_VarBind(ParamName, CategoryName, NameText,
 			TooltipDesc, 0, FText()));
 		OutAllActions.AddAction(NewNodeAction);

@@ -1014,11 +1014,43 @@ void USocialToolkit::HandlePartyInviteReceived(const FUniqueNetId& LocalUserId, 
 	{
 		// We really should know about the sender of the invite already, but queue it up in case we receive it during initial setup
 		QueueUserDependentActionInternal(SenderId.AsShared(), ESocialSubsystem::Primary,
-			[this] (USocialUser& User)
+			[this, PartyId = PartyId.AsShared(), SenderId = SenderId.AsShared()] (USocialUser& User)
 			{
 				if (User.IsFriend(ESocialSubsystem::Primary))
 				{
+#if PARTY_PLATFORM_INVITE_PERMISSIONS
+					if (IOnlineSubsystem* Oss = GetSocialOss(ESocialSubsystem::Primary))
+					{
+						if (IOnlinePartyPtr PartyInterface = Oss->GetPartyInterface())
+						{
+							TArray<IOnlinePartyJoinInfoConstRef> PendingInvites;
+							PartyInterface->GetPendingInvites(*GetLocalUserNetId(ESocialSubsystem::Primary), PendingInvites);
+							for (const IOnlinePartyJoinInfoConstRef& PendingInvite : PendingInvites)
+							{
+								if (*PendingInvite->GetPartyId() == *PartyId &&
+									*PendingInvite->GetSourceUserId() == *SenderId)
+								{
+									CanReceiveInviteFrom(User, PendingInvite, [this, PendingInvite, UserId = User.GetUserId(ESocialSubsystem::Primary)](const bool bResult)
+									{
+										UE_LOG(LogParty, Log, TEXT("USocialToolkit::HandlePartyInviteReceived LocalUser=[%s] Inviter=[%s] CanReceiveInviteFrom=[%s]"),
+											*GetLocalUserNetId(ESocialSubsystem::Primary).ToDebugString(), *UserId.ToDebugString(), *LexToString(bResult));
+
+										if (bResult)
+										{
+											QueueUserDependentActionInternal(UserId, ESocialSubsystem::Primary,
+												[this](USocialUser& User)
+											{
+												OnPartyInviteReceived().Broadcast(User);
+											});
+										}
+									});
+								}
+							}
+						}
+					}
+#else
 					OnPartyInviteReceived().Broadcast(User);
+#endif
 				}
 			});
 	}

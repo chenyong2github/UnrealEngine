@@ -1037,7 +1037,7 @@ ALandscapeProxy::ALandscapeProxy(const FObjectInitializer& ObjectInitializer)
 #if !WITH_EDITORONLY_DATA
 	, LandscapeMaterialCached(nullptr)
 	, LandscapeGrassTypes()
-	, GrassMaxSquareDiscardDistance(0.0f)
+	, GrassMaxDiscardDistance(0.0f)
 #endif
 	, bHasLandscapeGrass(true)
 {

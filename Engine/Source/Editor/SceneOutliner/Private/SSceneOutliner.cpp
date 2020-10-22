@@ -1317,7 +1317,7 @@ void SSceneOutliner::DuplicateFoldersHierarchy()
 		{
 			OutlinerTreeView->SetItemSelection(Item, true);
 		}
-		for (const TWeakPtr<ISceneOutlinerTreeItem> Child : Item->GetChildren())
+		for (const TWeakPtr<ISceneOutlinerTreeItem>& Child : Item->GetChildren())
 		{
 			RecursiveFolderSelect(Child.Pin());
 		}

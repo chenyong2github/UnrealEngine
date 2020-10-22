@@ -12,6 +12,34 @@
 #include "IStageMonitorSession.generated.h"
 
 /**
+ * Flags controlling the behavior of struct serializer backends.
+ */
+enum class EGetProviderFlags
+{
+	/**
+	 * Nothing special
+	 */
+	None = 0,
+
+	/**
+	 * Include cleared provider in the search
+	 * @note This is required to correctly support localization
+	 */
+	UseClearedProviders = 1 << 0,
+
+	 /**
+	  * Use Identifier mapping if Identifier isn't found in list.
+	  */
+	 UseIdentifierMapping = 1 << 1,
+
+	/**
+	 * Default.
+	 */
+	 Default = UseClearedProviders | UseIdentifierMapping,
+};
+ENUM_CLASS_FLAGS(EGetProviderFlags);
+
+/**
  * Entry corresponding to a provider we are monitoring
  * Contains information related to the provider so we can communicate with it
  * and more dynamic information like last communication received
@@ -64,15 +92,16 @@ public:
 
 	virtual ~IStageMonitorSession() {}
 
-	/** 
-	 * Adds a new provider to the ones we're handling data for 
+	/**
+	 * Handles discovery response of a provider. Might already be found, unresponsive or a new one
 	 */
-	virtual void AddProvider(const FGuid& Identifier, const FStageInstanceDescriptor& Descriptor, const FMessageAddress& Address) = 0;
+	virtual void HandleDiscoveredProvider(const FGuid& Identifier, const FStageInstanceDescriptor& Descriptor, const FMessageAddress& Address) = 0;
 
-	/** 
-	 * Updates a provider's description. Can happen if was closed and discovered again. 
+	/**
+	 * Adds a new provider to the ones we're handling data for.
+	 * Returns true if a provider was added
 	 */
-	virtual void UpdateProviderDescription(const FGuid& Identifier, const FStageInstanceDescriptor& NewDescriptor, const FMessageAddress& NewAddress) = 0;
+	virtual bool AddProvider(const FGuid& Identifier, const FStageInstanceDescriptor& Descriptor, const FMessageAddress& Address) = 0;
 
 	/** Returns the addresses of the providers currently monitored */
 	virtual TArray<FMessageAddress> GetProvidersAddress() const = 0;
@@ -90,17 +119,27 @@ public:
 	/**
 	 * Get all providers that have been connected to the monitor
 	 */
-	virtual const TArray<FStageSessionProviderEntry>& GetProviders() const = 0;
+	virtual TConstArrayView<FStageSessionProviderEntry> GetProviders() const = 0;
+
+	/**
+	 * Get providers that were connected at some point but got cleared
+	 */
+	virtual TConstArrayView<FStageSessionProviderEntry> GetClearedProviders() const = 0;
 
 	/**
 	 * Get ProviderEntry associated to an identifier
 	 */
-	virtual bool GetProvider(const FGuid& Identifier, FStageSessionProviderEntry& OutProviderEntry) const = 0;
+	virtual bool GetProvider(const FGuid& Identifier, FStageSessionProviderEntry& OutProviderEntry, EGetProviderFlags  Flags = EGetProviderFlags::Default) const = 0;
 
 	/**
 	 * Clear every activities of the session
 	 */
 	virtual void ClearAll() = 0;
+
+	/**
+	 * Clear unresponsive providers from active list
+	 */
+	virtual void ClearUnresponsiveProviders() = 0;
 
 	/**
 	 * Returns all entries that have been received
@@ -166,4 +205,10 @@ public:
 	 */
 	DECLARE_MULTICAST_DELEGATE(FOnStageDataProviderListChanged);
 	virtual FOnStageDataProviderListChanged& OnStageDataProviderListChanged() = 0;
+
+	/**
+	 * Callback triggered when provider state has changed
+	 */
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnStageDataProviderStateChanged, const FGuid& /*Identifier*/, EStageDataProviderState /*NewState*/);
+	virtual FOnStageDataProviderStateChanged& OnStageDataProviderStateChanged() = 0;
 };

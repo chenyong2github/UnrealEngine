@@ -208,7 +208,11 @@ void UK2Node_VariableSetRef::CoerceTypeFromPin(const UEdGraphPin* Pin)
 
 	check(TargetPin && ValuePin);
 
-	if( Pin && Pin->PinType.PinCategory != UEdGraphSchema_K2::PC_Wildcard )
+	if( Pin && 
+		(Pin->PinType.PinCategory != UEdGraphSchema_K2::PC_Wildcard ||
+		(	Pin->PinType.PinCategory == TargetPin->PinType.PinCategory &&
+			Pin->PinType.PinCategory == ValuePin->PinType.PinCategory )
+		) )
 	{
 		check((Pin != TargetPin) || (Pin->PinType.bIsReference && !Pin->PinType.IsContainer()));
 

@@ -63,20 +63,25 @@ struct FSwitchboardGetSyncStatusTask : public FSwitchboardTask
 
 struct FSwitchboardStartTask : public FSwitchboardTask
 {
-	FSwitchboardStartTask(const FGuid& InTaskId, const FIPv4Endpoint& InEndpoint, const FString& InCommand, const FString& InArgs)
+	FSwitchboardStartTask(const FGuid& InTaskId, const FIPv4Endpoint& InEndpoint, const FString& InCommand, const FString& InArgs, const FString& InName, const FString& InCaller)
 		: FSwitchboardTask{ ESwitchboardTaskType::Start, TEXT("start"), InTaskId, InEndpoint }
 		, Command(InCommand)
 		, Arguments(InArgs)
+		, Name(InName)
+		, Caller(InCaller)
 	{
 	}
 
 	FString Command;
 	FString Arguments;
+	FString Name;
+	FString Caller;
 
 	//~ Begin FSwitchboardTask interface
 	virtual uint32 GetEquivalenceHash() const override
 	{
 		uint32 Hash = HashCombine(FSwitchboardTask::GetEquivalenceHash(), GetTypeHash(Command));
+		Hash = HashCombine(Hash, GetTypeHash(Caller));
 		return HashCombine(Hash, GetTypeHash(Arguments));
 	}
 	//~ End FSwitchboardTask interface

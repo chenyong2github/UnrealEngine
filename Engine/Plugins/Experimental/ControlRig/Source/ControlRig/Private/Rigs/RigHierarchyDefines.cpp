@@ -39,7 +39,7 @@ FRigElementKeyCollection FRigElementKeyCollection::MakeFromChildren(
 
 	for (int32 ParentIndex = 0; ParentIndex < ParentKeys.Num(); ParentIndex++)
 	{
-		const FRigElementKey& ParentKey = ParentKeys[ParentIndex];
+		const FRigElementKey ParentKey = ParentKeys[ParentIndex];
 		switch (ParentKey.Type)
 		{
 			case ERigElementType::Bone:

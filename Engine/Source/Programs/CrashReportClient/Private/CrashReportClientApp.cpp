@@ -1035,36 +1035,46 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 
 			// Try to persist an exit code in session summary.
 			FEditorAnalyticsSession MonitoredSession;
-			FTimespan Timeout = FTimespan::FromMinutes(2);
-			if (FEditorAnalyticsSession::Lock(Timeout))
+			double WaitEndTime = FPlatformTime::Seconds() + 60;
+			FTimespan LockTimeout = FTimespan::FromMilliseconds(5);
+			bool bSessionLockAcquired = false;
+			while (FPlatformTime::Seconds() <= WaitEndTime)
 			{
-				if (FEditorAnalyticsSession::FindSession(MonitorPid, MonitoredSession))
+				if (FEditorAnalyticsSession::Lock(LockTimeout)) // Don't block for a long time to keep ticking the diagnostic logger regularly.
 				{
-					bMonitoredSessionLoaded = true; // Were able to acquire lock and load the session.
-
-					if (MonitoredProcessExitCode.IsSet())
+					bSessionLockAcquired = true;
+					if (FEditorAnalyticsSession::FindSession(MonitorPid, MonitoredSession))
 					{
-						// Persist the real Editor exit code.
-						MonitoredSession.SaveExitCode(MonitoredProcessExitCode.GetValue());
-					}
-					else if (!bMonitoredProcessExited)
-					{
-						// Persist a custom exit code - Editor is still running, but CRC was requested to exit. (ex. The user clicked the 'Close Without Sending' but the Editor is not exited yet)
-						MonitoredSession.SaveExitCode(ECrashExitCodes::MonitoredApplicationStillRunning);
+						bMonitoredSessionLoaded = true;
+						if (MonitoredProcessExitCode.IsSet())
+						{
+							// Persist the real Editor exit code.
+							MonitoredSession.SaveExitCode(MonitoredProcessExitCode.GetValue());
+						}
+						else if (!bMonitoredProcessExited)
+						{
+							// Persist a custom exit code - Editor is still running, but CRC was requested to exit. (ex. The user clicked the 'Close Without Sending' but the Editor is not exited yet)
+							MonitoredSession.SaveExitCode(ECrashExitCodes::MonitoredApplicationStillRunning);
+						}
+						else
+						{
+							// Persist the custom exit code - Editor is not running anymore, but CRC could not read it.
+							MonitoredSession.SaveExitCode(ECrashExitCodes::MonitoredApplicationExitCodeNotAvailable);
+						}
 					}
 					else
 					{
-						// Persist the custom exit code - Editor is not running anymore, but CRC could not read it.
-						MonitoredSession.SaveExitCode(ECrashExitCodes::MonitoredApplicationExitCodeNotAvailable);
+						FDiagnosticLogger::Get().LogEvent(TEXT("MTBF/NoSessionFound"));
 					}
+					FEditorAnalyticsSession::Unlock();
+					break;
 				}
-				else
-				{
-					FDiagnosticLogger::Get().LogEvent(TEXT("MTBF/NoSessionFound"));
-				}
-				FEditorAnalyticsSession::Unlock();
+
+				// Periodically timestamp the mini-log and check if the application is about to die (user logging off/shutting down the computer).
+				FDiagnosticLogger::Get().Tick();
 			}
-			else
+
+			if (!bSessionLockAcquired) // Too much contention on the session lock (or the lock is corrupted).
 			{
 				FDiagnosticLogger::Get().LogEvent(TEXT("MTBF/LockSessionFail"));
 			}

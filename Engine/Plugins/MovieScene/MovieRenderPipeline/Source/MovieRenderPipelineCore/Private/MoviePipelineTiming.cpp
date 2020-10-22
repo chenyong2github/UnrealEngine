@@ -40,7 +40,7 @@ void UMoviePipeline::TickProducingFrames()
 			if (!OutputFuture.Get())
 			{
 				UE_LOG(LogMovieRenderPipeline, Error, TEXT("Error exporting frame, canceling movie export."));
-				RequestShutdown();
+				RequestShutdown(true);
 				break;
 			}
 		}
@@ -110,7 +110,7 @@ void UMoviePipeline::TickProducingFrames()
 		// This means that the camera will be in the correct location for warm-up frames to allow any systems
 		// dependent on camera position to properly warm up. If motion blur fixes are enabled, then we'll jump 
 		// again after the warm-up frames.
-		UMoviePipelineAntiAliasingSetting* AntiAliasingSettings = FindOrAddSetting<UMoviePipelineAntiAliasingSetting>(CurrentCameraCut);
+		UMoviePipelineAntiAliasingSetting* AntiAliasingSettings = FindOrAddSettingForShot<UMoviePipelineAntiAliasingSetting>(CurrentCameraCut);
 
 		if (!CurrentCameraCut->ShotInfo.bEmulateFirstFrameMotionBlur)
 		{
@@ -170,9 +170,11 @@ void UMoviePipeline::TickProducingFrames()
 		CachedOutputState.bDiscardRenderResult = true;
 
 		// We only render a warm up frame if this is the last engine warmup frame and there are render warmup frames to do.
-		UMoviePipelineAntiAliasingSetting* AntiAliasingSettings = FindOrAddSetting<UMoviePipelineAntiAliasingSetting>(CurrentCameraCut);
+		UMoviePipelineAntiAliasingSetting* AntiAliasingSettings = FindOrAddSettingForShot<UMoviePipelineAntiAliasingSetting>(CurrentCameraCut);
 		check(AntiAliasingSettings);
-		const bool bRenderFrame = CurrentCameraCut->ShotInfo.NumEngineWarmUpFramesRemaining == 0 && AntiAliasingSettings->RenderWarmUpCount > 0;
+		// Some features (such as GPU particles) need to be rendered to warm up
+		const bool bRenderFrame = (CurrentCameraCut->ShotInfo.NumEngineWarmUpFramesRemaining == 0 && AntiAliasingSettings->RenderWarmUpCount > 0) || AntiAliasingSettings->bRenderWarmUpFrames;
+
 		CachedOutputState.bSkipRendering = !bRenderFrame;
 
 		// Render the next frame at a reasonable frame rate to pass time in the world.
@@ -213,7 +215,7 @@ void UMoviePipeline::TickProducingFrames()
 		FFrameTime TicksToEndOfPreviousFrame;
 		float WorldTimeDilation = GetWorld()->GetWorldSettings()->GetEffectiveTimeDilation();
 
-		UMoviePipelineAntiAliasingSetting* AntiAliasing = FindOrAddSetting<UMoviePipelineAntiAliasingSetting>(CurrentCameraCut);
+		UMoviePipelineAntiAliasingSetting* AntiAliasing = FindOrAddSettingForShot<UMoviePipelineAntiAliasingSetting>(CurrentCameraCut);
 		if (AntiAliasing->TemporalSampleCount == 1)
 		{
 			TicksToEndOfPreviousFrame = FrameMetrics.TicksPerOutputFrame;
@@ -287,7 +289,7 @@ void UMoviePipeline::TickProducingFrames()
 		// engine delta time at the end.
 		FFrameTime DeltaFrameTime = FFrameTime();
 
-		UMoviePipelineAntiAliasingSetting* AntiAliasingSettings = FindOrAddSetting<UMoviePipelineAntiAliasingSetting>(CurrentCameraCut);
+		UMoviePipelineAntiAliasingSetting* AntiAliasingSettings = FindOrAddSettingForShot<UMoviePipelineAntiAliasingSetting>(CurrentCameraCut);
 		check(AntiAliasingSettings);
 
 		// If we've rendered the last sample and wrapped around, then we're going to be
@@ -538,10 +540,13 @@ void UMoviePipeline::TickProducingFrames()
 			LevelSequenceActor->GetSequencePlayer()->Play();
 		}
 
-		
-		// If the user doesn't want to render every frame we need to increase the delta time so that enough
-		// time passes in the world. The framerate of the output media will be adjusted to match.
-		// FrameDeltaTime = FrameDeltaTime * 1.0 / (double)Config->OutputFrameStep.Value;
+		if (DeltaFrameTime.GetFrame() == FFrameNumber(0))
+		{
+			// Too many temporal samples for the given shutter angle.
+			UE_LOG(LogMovieRenderPipeline, Error, TEXT("Too many temporal samples for the given shutter angle/tick rate combination. Temporal Samples: %d Shutter Angle: %f TicksPerOutputFrame: %s TicksPerSample: %s. Consider converting to Spatial Samples instead!"),
+				AntiAliasingSettings->TemporalSampleCount, FrameMetrics.ShutterAnglePercentage, *LexToString(FrameMetrics.TicksPerOutputFrame), *LexToString(FrameMetrics.TicksPerSample));
+			DeltaFrameTime = FFrameTime(FFrameNumber(1));
+		}
 
 		double FrameDeltaTime = FrameMetrics.TickResolution.AsSeconds(FFrameTime(DeltaFrameTime.GetFrame()));
 		CachedOutputState.TimeData.FrameDeltaTime = FrameDeltaTime;

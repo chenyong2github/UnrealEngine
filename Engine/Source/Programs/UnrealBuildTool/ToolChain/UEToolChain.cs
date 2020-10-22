@@ -23,6 +23,10 @@ namespace UnrealBuildTool
 		{
 		}
 
+		public virtual void GetExternalDependencies(HashSet<FileItem> ExternalDependencies)
+		{
+		}
+
 		public static DirectoryReference GetModuleInterfaceDir(DirectoryReference OutputDir)
 		{
 			return DirectoryReference.Combine(OutputDir, "Ifc");

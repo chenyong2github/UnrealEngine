@@ -132,9 +132,9 @@ namespace UE
 								else
 								{
 									// use random color because there may be multiple materials, then they can be different 
-									ColorData[0] = 0.5f + (0.5f * FMath::Rand()) / RAND_MAX;
-									ColorData[1] = 0.5f + (0.5f * FMath::Rand()) / RAND_MAX;
-									ColorData[2] = 0.5f + (0.5f * FMath::Rand()) / RAND_MAX;
+									ColorData[0] = 0.5f + (0.5f * FMath::Rand()) / static_cast<float>(RAND_MAX);
+									ColorData[1] = 0.5f + (0.5f * FMath::Rand()) / static_cast<float>(RAND_MAX);
+									ColorData[2] = 0.5f + (0.5f * FMath::Rand()) / static_cast<float>(RAND_MAX);
 								}
 								MaterialNode->AddVectorParameterData(MaterialParameterName, ColorData);
 								bSetMaterial = true;

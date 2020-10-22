@@ -13,6 +13,8 @@
 
 DECLARE_LOG_CATEGORY_EXTERN(LogIOSInput, Log, All);
 
+#define APPLE_CONTROLLER_DEBUG 0
+
 @interface GCExtendedGamepad()
 #if (UE4_HAS_IOS121|| UE4_HAS_TVOS121 || UE4_HAS_MACOS1401)
 @property (nonatomic, readwrite, nullable) GCControllerButtonInput *leftThumbstickButton;
@@ -154,22 +156,15 @@ FIOSInputInterface::FIOSInputInterface( const TSharedRef< FGenericApplicationMes
     
     NSNotificationCenter* notificationCenter = [NSNotificationCenter defaultCenter];
     NSOperationQueue* currentQueue = [NSOperationQueue currentQueue];
-        
-#if (!UE4_HAS_IOS14 && !UE4_HAS_TVOS14)
-    [notificationCenter addObserverForName:GCControllerDidConnectNotification object:nil queue:currentQueue usingBlock:^(NSNotification* Notification)
-    {
-        HandleConnection(Notification.object);
-    }];
-#endif
 
     [notificationCenter addObserverForName:GCControllerDidDisconnectNotification object:nil queue:currentQueue usingBlock:^(NSNotification* Notification)
     {
         HandleDisconnect(Notification.object);
     }];
 
-#if (UE4_HAS_IOS14 || UE4_HAS_TVOS14)
     if (@available(iOS 14, *))
     {
+#if (UE4_HAS_IOS14 || UE4_HAS_TVOS14)
         [notificationCenter addObserverForName:GCMouseDidConnectNotification object:nil queue:currentQueue usingBlock:^(NSNotification* Notification)
         {
             HandleMouseConnection(Notification.object);
@@ -207,8 +202,15 @@ FIOSInputInterface::FIOSInputInterface( const TSharedRef< FGenericApplicationMes
                 SetCurrentController(Notification.object);
             }];
         }
-    }
 #endif
+    }
+    else
+    {
+        [notificationCenter addObserverForName:GCControllerDidConnectNotification object:nil queue:currentQueue usingBlock:^(NSNotification* Notification)
+         {
+            HandleConnection(Notification.object);
+        }];
+    }
     
 	dispatch_async(dispatch_get_main_queue(), ^
 	   {
@@ -401,12 +403,11 @@ void FIOSInputInterface::HandleConnection(GCController* Controller)
             continue;
         }
         
-        Controller.playerIndex = (GCControllerPlayerIndex)ControllerIndex;
-
+        Controllers[ControllerIndex].PlayerIndex = (PlayerIndex)ControllerIndex;
         Controllers[ControllerIndex].Controller = Controller;
         SetControllerType(ControllerIndex);
 
-        // Deprecated but buttonMenu in iOS 14 is not working in current Beta (August 2020).
+        // Deprecated but buttonMenu behavior is unreliable in iOS/tvOS 14.0.1
         Controllers[ControllerIndex].bPauseWasPressed = false;
         Controller.controllerPausedHandler = ^(GCController* Cont)
         {
@@ -419,7 +420,7 @@ void FIOSInputInterface::HandleConnection(GCController* Controller)
                Controllers[ControllerIndex].ControllerType == ControllerType::ExtendedGamepad ||
                Controllers[ControllerIndex].ControllerType == ControllerType::XboxGamepad ||
                Controllers[ControllerIndex].ControllerType == ControllerType::DualShockGamepad
-               ? TEXT("Gamepad") : TEXT("Remote"), Controller.playerIndex);
+               ? TEXT("Gamepad") : TEXT("Remote"), Controllers[ControllerIndex].PlayerIndex);
         break;
 	}
 	checkf(bFoundSlot, TEXT("Used a fifth controller somehow!"));
@@ -429,18 +430,19 @@ void FIOSInputInterface::HandleConnection(GCController* Controller)
 void FIOSInputInterface::HandleDisconnect(GCController* Controller)
 {
 	// if we don't allow controllers, there could be unset player index here
-	if (!bAllowControllers && Controller.playerIndex == GCControllerPlayerIndexUnset)
+	if (!bAllowControllers)
 	{
         return;
 	}
 	
-	UE_LOG(LogIOS, Log, TEXT("Controller for playerIndex %d was removed"), Controller.playerIndex);
+
 
     for (int32 ControllerIndex = 0; ControllerIndex < UE_ARRAY_COUNT(Controllers); ControllerIndex++)
     {
         if (Controllers[ControllerIndex].Controller == Controller)
         {
             FMemory::Memzero(&Controllers[ControllerIndex], sizeof(Controllers[ControllerIndex]));
+            UE_LOG(LogIOS, Log, TEXT("Controller for playerIndex %d was removed"), Controllers[ControllerIndex].PlayerIndex);
             return;
             
         }
@@ -468,11 +470,11 @@ void FIOSInputInterface::SetCurrentController(GCController* Controller)
     {
         if (Controllers[ControllerIndex].Controller == Controller)
         {
-            Controllers[ControllerIndex].Controller.playerIndex = GCControllerPlayerIndex1;
+            Controllers[ControllerIndex].PlayerIndex = PlayerIndex::PlayerOne;
         }
-        else if (Controllers[ControllerIndex].Controller.playerIndex == GCControllerPlayerIndex1)
+        else if (Controllers[ControllerIndex].PlayerIndex == PlayerIndex::PlayerOne)
         {
-            Controllers[ControllerIndex].Controller.playerIndex = GCControllerPlayerIndexUnset;
+            Controllers[ControllerIndex].PlayerIndex = PlayerIndex::PlayerUnset;
         }
     }
 }
@@ -741,17 +743,17 @@ void FIOSInputInterface::SendControllerEvents()
 		}
 		
 		// make sure the connection handler has run on this guy
-		if (Cont.playerIndex == GCControllerPlayerIndexUnset)
+		if (Controllers[i].PlayerIndex == PlayerIndex::PlayerUnset)
 		{
             continue;
 		}
 
-		FUserController& Controller = Controllers[Cont.playerIndex];
+		FUserController& Controller = Controllers[i];
 		
         if (Controller.bPauseWasPressed)
         {
-            MessageHandler->OnControllerButtonPressed(FGamepadKeyNames::SpecialRight, Cont.playerIndex, false);
-            MessageHandler->OnControllerButtonReleased(FGamepadKeyNames::SpecialRight, Cont.playerIndex, false);
+            MessageHandler->OnControllerButtonPressed(FGamepadKeyNames::SpecialRight, i, false);
+            MessageHandler->OnControllerButtonReleased(FGamepadKeyNames::SpecialRight, i, false);
             
             Controller.bPauseWasPressed = false;
         }
@@ -1154,22 +1156,24 @@ void FIOSInputInterface::HandleInputInternal(const FGamepadKeyNames::Type& UEBut
 
     if (bWasPressed != bIsPressed)
     {
-    NSLog(@"%@ button %s on controller %d", bIsPressed ? @"Pressed" : @"Released", TCHAR_TO_ANSI(*UEButton.ToString()), (int32)Cont.playerIndex);
-    bIsPressed ? MessageHandler->OnControllerButtonPressed(UEButton, Cont.playerIndex, false) : MessageHandler->OnControllerButtonReleased(UEButton, Cont.playerIndex, false);
-    NextKeyRepeatTime.FindOrAdd(UEButton) = CurrentTime + InitialRepeatDelay;
+#if APPLE_CONTROLLER_DEBUG
+        NSLog(@"%@ button %s on controller %d", bIsPressed ? @"Pressed" : @"Released", TCHAR_TO_ANSI(*UEButton.ToString()), Controllers[ControllerIndex].PlayerIndex);
+#endif
+        bIsPressed ? MessageHandler->OnControllerButtonPressed(UEButton, Controllers[ControllerIndex].PlayerIndex, false) : MessageHandler->OnControllerButtonReleased(UEButton, Controllers[ControllerIndex].PlayerIndex, false);
+        NextKeyRepeatTime.FindOrAdd(UEButton) = CurrentTime + InitialRepeatDelay;
     }
     else if(bIsPressed)
     {
-    double* NextRepeatTime = NextKeyRepeatTime.Find(UEButton);
-    if(NextRepeatTime && *NextRepeatTime <= CurrentTime)
-    {
-        MessageHandler->OnControllerButtonPressed(UEButton, Cont.playerIndex, true);
-    *NextRepeatTime = CurrentTime + RepeatDelay;
-    }
+        double* NextRepeatTime = NextKeyRepeatTime.Find(UEButton);
+        if(NextRepeatTime && *NextRepeatTime <= CurrentTime)
+        {
+            MessageHandler->OnControllerButtonPressed(UEButton, Controllers[ControllerIndex].PlayerIndex, true);
+            *NextRepeatTime = CurrentTime + RepeatDelay;
+        }
     }
     else
     {
-    NextKeyRepeatTime.Remove(UEButton);
+        NextKeyRepeatTime.Remove(UEButton);
     }
 }
 
@@ -1337,6 +1341,8 @@ void FIOSInputInterface::HandleAnalogGamepad(const FGamepadKeyNames::Type& UEAxi
                                                                   (MicroGamepad.dpad.yAxis.value < -RepeatDeadzone || MicroGamepad.dpad.yAxis.value > RepeatDeadzone)){axisValue = MicroGamepad.dpad.yAxis.value;}}
             break;
     }
+#if APPLE_CONTROLLER_DEBUG
     NSLog(@"Axis %s is %f", TCHAR_TO_ANSI(*UEAxis.ToString()), axisValue);
-    MessageHandler->OnControllerAnalog(UEAxis, Cont.playerIndex, axisValue);
+#endif
+    MessageHandler->OnControllerAnalog(UEAxis, Controllers[ControllerIndex].PlayerIndex, axisValue);
 }

@@ -322,8 +322,9 @@ bool FRigUnit_RigLogic_Data::IsRigLogicInitialized()
 
 void FRigUnit_RigLogic_Data::InitializeRigLogic(IBehaviorReader* DNABehavior )
 {
-	if (DNABehavior == nullptr)
+	if (DNABehavior == nullptr || DNABehavior->GetJointCount() == 0u)
 	{
+		UE_LOG(LogRigLogicUnit, Warning, TEXT("Empty DNA file detected, abort initialization."));
 		return;
 	}
 

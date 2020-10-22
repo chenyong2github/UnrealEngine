@@ -11,11 +11,8 @@
 #include "DisplayClusterRootActor.h"
 #include "DisplayClusterConfigurationTypes.h"
 
-#include "Config/IPDisplayClusterConfigManager.h"
 #include "Game/IPDisplayClusterGameManager.h"
 #include "Misc/DisplayClusterGlobals.h"
-#include "Misc/DisplayClusterHelpers.h"
-#include "Misc/DisplayClusterStrings.h"
 
 
 UDisplayClusterScreenComponent::UDisplayClusterScreenComponent(const FObjectInitializer& ObjectInitializer)
@@ -24,65 +21,65 @@ UDisplayClusterScreenComponent::UDisplayClusterScreenComponent(const FObjectInit
 	// Children of UDisplayClusterSceneComponent must always Tick to be able to process VRPN tracking
 	PrimaryComponentTick.bCanEverTick = true;
 
-	// Create visual mesh component as a child
-	ScreenGeometryComponent = CreateDefaultSubobject<UStaticMeshComponent>(FName(*(GetName() + FString("_impl"))));
-	if (ScreenGeometryComponent)
+#if WITH_EDITOR
+	if (GIsEditor)
 	{
-		static ConstructorHelpers::FObjectFinder<UStaticMesh> ScreenMesh(TEXT("StaticMesh'/Engine/BasicShapes/Cube.Cube'"));
+		// Create visual mesh component as a child
+		VisScreenComponent = CreateDefaultSubobject<UStaticMeshComponent>(FName(*(GetName() + FString("_impl"))));
+		if (VisScreenComponent)
+		{
+			static ConstructorHelpers::FObjectFinder<UStaticMesh> ScreenMesh(TEXT("/nDisplay/Meshes/plane_1x1"));
 
-		ScreenGeometryComponent->AttachToComponent(this, FAttachmentTransformRules(EAttachmentRule::KeepRelative, false));
-		ScreenGeometryComponent->SetRelativeLocationAndRotation(FVector::ZeroVector, FRotator::ZeroRotator, false);
-		ScreenGeometryComponent->SetStaticMesh(ScreenMesh.Object);
-		ScreenGeometryComponent->SetMobility(EComponentMobility::Movable);
-		ScreenGeometryComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-		ScreenGeometryComponent->SetVisibility(false);
+			VisScreenComponent->SetFlags(EObjectFlags::RF_DuplicateTransient | RF_Transient | RF_TextExportTransient);
+			VisScreenComponent->AttachToComponent(this, FAttachmentTransformRules(EAttachmentRule::KeepRelative, false));
+			VisScreenComponent->RegisterComponentWithWorld(GetWorld());
+
+			VisScreenComponent->SetRelativeLocationAndRotation(FVector::ZeroVector, FRotator::ZeroRotator);
+			VisScreenComponent->SetRelativeScale3D(FVector::OneVector);
+			VisScreenComponent->SetStaticMesh(ScreenMesh.Object);
+			VisScreenComponent->SetMobility(EComponentMobility::Movable);
+			VisScreenComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			VisScreenComponent->SetVisibility(true);
+		}
 	}
+#endif
 }
 
-
-void UDisplayClusterScreenComponent::BeginPlay()
+void UDisplayClusterScreenComponent::ApplyConfigurationData()
 {
-	Super::BeginPlay();
+	Super::ApplyConfigurationData();
 
 	const UDisplayClusterConfigurationSceneComponentScreen* CfgScreen = Cast<UDisplayClusterConfigurationSceneComponentScreen>(GetConfigParameters());
 	if (CfgScreen)
 	{
-		Size = CfgScreen->Size;
-	}
-
-	// Register visual mesh component
-	if (ScreenGeometryComponent)
-	{
-		ScreenGeometryComponent->RegisterComponent();
+		SetScreenSize(CfgScreen->Size);
 	}
 }
 
-void UDisplayClusterScreenComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+FVector2D UDisplayClusterScreenComponent::GetScreenSize() const
 {
-	Super::EndPlay(EndPlayReason);
+	return Size;
 }
 
-void UDisplayClusterScreenComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+void UDisplayClusterScreenComponent::SetScreenSize(const FVector2D& InSize)
 {
-	// Update projection screen material
-	static const IPDisplayClusterGameManager* const GameMgr = GDisplayCluster->GetPrivateGameMgr();
-	if (GameMgr)
+	Size = InSize;
+
+#if WITH_EDITOR
+	if (VisScreenComponent)
 	{
-		ADisplayClusterRootActor* const RootActor = GameMgr->GetRootActor();
-		if (RootActor)
-		{
-			if (RootActor->GetProjectionScreenMaterial())
-			{
-				ScreenGeometryComponent->SetMaterial(0, RootActor->GetProjectionScreenMaterial());
-			}
-
-			const bool bScreenVisible = RootActor->GetShowProjectionScreens();
-			ScreenGeometryComponent->SetVisibility(bScreenVisible);
-		}
+		VisScreenComponent->SetRelativeScale3D(FVector(1.f, Size.X, Size.Y));
 	}
-
-	// Update screen size
-	SetRelativeScale3D(FVector(0.005f, Size.X / 100.f, Size.Y / 100.f));
-
-	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+#endif
 }
+
+#if WITH_EDITOR
+void UDisplayClusterScreenComponent::SetNodeSelection(bool bSelect)
+{
+	if (VisScreenComponent)
+	{
+		VisScreenComponent->bDisplayVertexColors = bSelect;
+		VisScreenComponent->PushSelectionToProxy();
+	}
+}
+#endif

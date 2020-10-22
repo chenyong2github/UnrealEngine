@@ -254,6 +254,8 @@ bool FDMXEntityDragDropOperation::HandleDropOnEntityRow(const TSharedPtr<SDMXEnt
 					if (UDMXEntityFixturePatch* FixturePatch = Cast<UDMXEntityFixturePatch>(Entity))
 					{
 						FixturePatch->Modify();
+
+						FixturePatch->bAutoAssignAddress = false;
 						FixturePatch->UniverseID = UniverseID;
 					}
 				}

@@ -38,7 +38,7 @@
 #include "EditorWidgetsModule.h"
 #include "Styling/SlateIconFinder.h"
 #include "DragAndDrop/ClassDragDropOp.h"
-#include "DragAndDrop/AssetDragDropOp.h"
+#include "ContentBrowserDataDragDropOp.h"
 
 #include "IAssetTools.h"
 #include "ARFilter.h"
@@ -53,7 +53,6 @@
 
 #include "AssetRegistryModule.h"
 #include "AssetToolsModule.h"
-
 
 #include "ClassViewerNode.h"
 
@@ -2128,9 +2127,8 @@ FReply SClassViewer::OnDragDetected( const FGeometry& Geometry, const FPointerEv
 				// Spawn a loaded blueprint just like any other asset from the Content Browser.
 				if ( Item->Blueprint.IsValid() )
 				{
-					TArray<FAssetData> InAssetData;
-					InAssetData.Add(FAssetData(Item->Blueprint.Get()));
-					return FReply::Handled().BeginDragDrop(FAssetDragDropOp::New(InAssetData));
+					const FAssetData AssetData(Item->Blueprint.Get());
+					return FReply::Handled().BeginDragDrop(FContentBrowserDataDragDropOp::Legacy_New(MakeArrayView(&AssetData, 1)));
 				}
 				else
 				{
@@ -2143,9 +2141,8 @@ FReply SClassViewer::OnDragDetected( const FGeometry& Geometry, const FPointerEv
 				FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 
 				// Pull asset data out of asset registry
-				TArray<FAssetData> InAssetData;
-				InAssetData.Add(AssetRegistryModule.Get().GetAssetByObjectPath(Item->BlueprintAssetPath));
-				return FReply::Handled().BeginDragDrop(FAssetDragDropOp::New(InAssetData));
+				const FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(Item->BlueprintAssetPath);
+				return FReply::Handled().BeginDragDrop(FContentBrowserDataDragDropOp::Legacy_New(MakeArrayView(&AssetData, 1)));
 			}
 		}
 	}

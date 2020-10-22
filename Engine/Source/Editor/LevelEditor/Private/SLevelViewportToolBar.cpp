@@ -684,13 +684,6 @@ void SLevelViewportToolBar::FillOptionsMenu(UToolMenu* Menu)
 
 			if (bAddDefaultScreenPercentageSlider)
 			{
-				// if we have a custom screen percentage, but it's not active currently then we need to clamp the screen percentage to the range of the built-in TAA
-				if (GCustomStaticScreenPercentage)
-				{
-					const int32 PreviewScreenPercentageMin = FSceneViewScreenPercentageConfig::kMinTAAUpsampleResolutionFraction * 100.0f;
-					const int32 PreviewScreenPercentageMax = FSceneViewScreenPercentageConfig::kMaxTAAUpsampleResolutionFraction * 100.0f;
-					this->OnScreenPercentageValueChanged(FMath::Clamp(this->OnGetScreenPercentageValue(), PreviewScreenPercentageMin, PreviewScreenPercentageMax));
-				}
 				Section.AddEntry(FToolMenuEntry::InitWidget("ScreenPercentage", GenerateScreenPercentageMenu(), LOCTEXT("ScreenPercentage", "Screen Percentage")));
 			}
 		}

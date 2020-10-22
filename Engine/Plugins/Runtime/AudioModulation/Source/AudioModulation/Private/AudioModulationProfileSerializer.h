@@ -163,6 +163,19 @@ namespace AudioModulation
 						StageValueToFloat(*ConfigSection, GET_MEMBER_NAME_CHECKED(FSoundModulationMixValue, AttackTime), Stage.Value.AttackTime);
 						StageValueToFloat(*ConfigSection, GET_MEMBER_NAME_CHECKED(FSoundModulationMixValue, ReleaseTime), Stage.Value.ReleaseTime);
 						StageValueToFloat(*ConfigSection, GET_MEMBER_NAME_CHECKED(FSoundModulationMixValue, TargetValue), Stage.Value.TargetValue);
+
+#if WITH_EDITORONLY_DATA
+						if (USoundModulationParameter* Parameter = Stage.Bus->Parameter)
+						{
+							const float UnitValue = Parameter->ConvertNormalizedToUnit(Stage.Value.TargetValue);
+							Stage.Value.TargetUnitValue = UnitValue;
+						}
+						else
+						{
+							Stage.Value.TargetUnitValue = Stage.Value.TargetValue;
+						}
+#endif // WITH_EDITORONLY_DATA
+
 						SectionsProcessed.Emplace(MoveTemp(PathName));
 						bMarkDirty = true;
 					}

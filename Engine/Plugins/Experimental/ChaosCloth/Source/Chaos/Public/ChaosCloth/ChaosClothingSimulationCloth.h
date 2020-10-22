@@ -5,6 +5,7 @@
 #include "Chaos/TriangleMesh.h"
 #include "Chaos/AABB.h"
 #include "Containers/ContainersFwd.h"
+#include "ChaosCloth/ChaosClothConstraints.h"
 
 namespace Chaos
 {
@@ -23,6 +24,8 @@ namespace Chaos
 			Density
 		};
 
+		typedef FClothConstraints::ETetherMode ETetherMode;
+
 		FClothingSimulationCloth(
 			FClothingSimulationMesh* InMesh,
 			TArray<FClothingSimulationCollider*>&& InColliders,
@@ -38,7 +41,7 @@ namespace Chaos
 			bool bInUseThinShellVolumeConstraints,
 			float InStrainLimitingStiffness,
 			float InLimitScale,
-			bool bInUseGeodesicDistance,
+			ETetherMode InTetherMode,
 			float InMaxDistancesMultiplier,
 			float InAnimDriveSpringStiffness,
 			float InShapeTargetStiffness,
@@ -172,7 +175,7 @@ namespace Chaos
 		bool bUseThinShellVolumeConstraints;
 		float StrainLimitingStiffness;
 		float LimitScale;
-		bool bUseGeodesicDistance;
+		ETetherMode TetherMode;
 		float MaxDistancesMultiplier;  // Animatable
 		float AnimDriveSpringStiffness;  // Animatable
 		float ShapeTargetStiffness;

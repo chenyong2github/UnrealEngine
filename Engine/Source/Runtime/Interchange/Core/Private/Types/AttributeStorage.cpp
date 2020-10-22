@@ -198,7 +198,7 @@ namespace UE
 			//Lock the storage
 			FScopeLock ScopeLockBase(&BaseStorage.StorageMutex);
 
-			for (const auto KvpBase : BaseStorage.AttributeAllocationTable)
+			for (const auto& KvpBase : BaseStorage.AttributeAllocationTable)
 			{
 				FAttributeKey KeyBase = KvpBase.Key;
 				const FAttributeAllocationInfo* AttributeAllocationInfoVersion = VersionStorage.AttributeAllocationTable.Find(KeyBase);
@@ -214,7 +214,7 @@ namespace UE
 				}
 			}
 
-			for (const auto KvpVersion : VersionStorage.AttributeAllocationTable)
+			for (const auto& KvpVersion : VersionStorage.AttributeAllocationTable)
 			{
 				FAttributeKey KeyVersion = KvpVersion.Key;
 				const FAttributeAllocationInfo* AttributeAllocationInfoBase = BaseStorage.AttributeAllocationTable.Find(KeyVersion);

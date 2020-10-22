@@ -163,10 +163,13 @@ static USkeleton* AcquireSkeletonFromObjectGuid(const FGuid& Guid, UObject** Obj
 FControlRigParameterTrackEditor::FControlRigParameterTrackEditor(TSharedRef<ISequencer> InSequencer)
 	: FKeyframeTrackEditor<UMovieSceneControlRigParameterTrack>(InSequencer), bIsDoingSelection(false),  bFilterAssetBySkeleton(true)
 {
+	UMovieScene* MovieScene = InSequencer->GetFocusedMovieSceneSequence()->GetMovieScene();
+
 	SelectionChangedHandle = InSequencer->GetSelectionChangedTracks().AddRaw(this, &FControlRigParameterTrackEditor::OnSelectionChanged);
 	SequencerChangedHandle = InSequencer->OnMovieSceneDataChanged().AddRaw(this, &FControlRigParameterTrackEditor::OnSequencerDataChanged);
 	CurveChangedHandle = InSequencer->GetCurveDisplayChanged().AddRaw(this, &FControlRigParameterTrackEditor::OnCurveDisplayChanged);
-	OnPreRefreshImmediateHandle = InSequencer->OnPreRefreshImmediate().AddRaw(this, &FControlRigParameterTrackEditor::OnPreRefreshImmediate);
+	OnChannelChangedHandle = InSequencer->OnChannelChanged().AddRaw(this, &FControlRigParameterTrackEditor::OnChannelChanged);
+	OnMovieSceneChannelChangedHandle = MovieScene->OnChannelChanged().AddRaw(this, &FControlRigParameterTrackEditor::OnChannelChanged);
 	OnActorAddedToSequencerHandle = InSequencer->OnActorAddedToSequencer().AddRaw(this, &FControlRigParameterTrackEditor::HandleActorAdded);
 
 	InSequencer->GetObjectChangeListener().GetOnPropagateObjectChanges().AddRaw(this, &FControlRigParameterTrackEditor::OnPropagateObjectChanges);
@@ -260,10 +263,7 @@ FControlRigParameterTrackEditor::FControlRigParameterTrackEditor(TSharedRef<ISeq
 		});
 		AcquiredResources.Add([=] { GEditor->OnObjectsReplaced().Remove(OnObjectsReplacedHandle); });
 	}
-
-
 	//register all modified/selections for control rigs
-	UMovieScene* MovieScene = InSequencer->GetFocusedMovieSceneSequence()->GetMovieScene();
 	const TArray<FMovieSceneBinding>& Bindings = MovieScene->GetBindings();
 	for (const FMovieSceneBinding& Binding : Bindings)
 	{
@@ -317,14 +317,18 @@ void FControlRigParameterTrackEditor::OnRelease()
 		{
 			GetSequencer()->OnActorAddedToSequencer().Remove(OnActorAddedToSequencerHandle);
 		}
-		if (OnPreRefreshImmediateHandle.IsValid())
+		if (OnChannelChangedHandle.IsValid())
 		{
-			GetSequencer()->OnPreRefreshImmediate().Remove(OnPreRefreshImmediateHandle);
+			GetSequencer()->OnChannelChanged().Remove(OnChannelChangedHandle);
 		}
-
+		
 		if (GetSequencer()->GetFocusedMovieSceneSequence() && GetSequencer()->GetFocusedMovieSceneSequence()->GetMovieScene())
 		{
 			UMovieScene* MovieScene = GetSequencer()->GetFocusedMovieSceneSequence()->GetMovieScene();
+			if (OnMovieSceneChannelChangedHandle.IsValid())
+			{
+				MovieScene->OnChannelChanged().Remove(OnMovieSceneChannelChangedHandle);
+			}
 			const TArray<FMovieSceneBinding>& Bindings = MovieScene->GetBindings();
 			for (const FMovieSceneBinding& Binding : Bindings)
 			{
@@ -381,35 +385,38 @@ void FControlRigParameterTrackEditor::BuildObjectBindingContextMenu(FMenuBuilder
 		USkeleton* Skeleton = AcquireSkeletonFromObjectGuid(ObjectBindings[0], &BoundObject, ParentSequencer);
 		USkeletalMeshComponent*  SkelMeshComp = AcquireSkeletalMeshFromObject(BoundObject, ParentSequencer);
 
-		MenuBuilder.BeginSection("Control Rig", LOCTEXT("ControlRig", "Control Rig"));
+		if (Skeleton && SkelMeshComp)
 		{
-			MenuBuilder.AddMenuEntry(
-				LOCTEXT("EditWithFKControlRig", "Edit With FK Control Rig"),
-				LOCTEXT("ConvertToFKControlRigTooltip", "Convert To FK Control Rig and Add Track For It."),
-				FSlateIcon(),
-				FUIAction(FExecuteAction::CreateRaw(this, &FControlRigParameterTrackEditor::ConvertToFKControlRig, ObjectBindings[0], BoundObject, SkelMeshComp, Skeleton)),
-				NAME_None,
-				EUserInterfaceActionType::Button);
+			MenuBuilder.BeginSection("Control Rig", LOCTEXT("ControlRig", "Control Rig"));
+			{
+				MenuBuilder.AddMenuEntry(
+					LOCTEXT("EditWithFKControlRig", "Edit With FK Control Rig"),
+					LOCTEXT("ConvertToFKControlRigTooltip", "Convert to FK Control Rig and add a track for it"),
+					FSlateIcon(),
+					FUIAction(FExecuteAction::CreateRaw(this, &FControlRigParameterTrackEditor::ConvertToFKControlRig, ObjectBindings[0], BoundObject, SkelMeshComp, Skeleton)),
+					NAME_None,
+					EUserInterfaceActionType::Button);
 
-			MenuBuilder.AddMenuEntry(
-				NSLOCTEXT("Sequencer", "FilterAssetBySkeleton", "Filter Asset By Skeleton"),
-				NSLOCTEXT("Sequencer", "FilterAssetBySkeletonTooltip", "Filters Control Rig Assets To Match Current Skeleton"),
-				FSlateIcon(),
-				FUIAction(
-					FExecuteAction::CreateSP(this, &FControlRigParameterTrackEditor::ToggleFilterAssetBySkeleton),
-					FCanExecuteAction(),
-					FIsActionChecked::CreateSP(this, &FControlRigParameterTrackEditor::IsToggleFilterAssetBySkeleton)
-				),
-				NAME_None,
-				EUserInterfaceActionType::ToggleButton);
+				MenuBuilder.AddMenuEntry(
+					NSLOCTEXT("Sequencer", "FilterAssetBySkeleton", "Filter Asset By Skeleton"),
+					NSLOCTEXT("Sequencer", "FilterAssetBySkeletonTooltip", "Filters Control Rig assets to match current skeleton"),
+					FSlateIcon(),
+					FUIAction(
+						FExecuteAction::CreateSP(this, &FControlRigParameterTrackEditor::ToggleFilterAssetBySkeleton),
+						FCanExecuteAction(),
+						FIsActionChecked::CreateSP(this, &FControlRigParameterTrackEditor::IsToggleFilterAssetBySkeleton)
+					),
+					NAME_None,
+					EUserInterfaceActionType::ToggleButton);
 
-			MenuBuilder.AddSubMenu(
-				LOCTEXT("BakeToControlRig", "Bake To Control Rig"),
-				LOCTEXT("BakeToControlRigTooltip", "Bake To An Invertable Control Rig that matches this Skeleton."),
-				FNewMenuDelegate::CreateRaw(this, &FControlRigParameterTrackEditor::BakeToControlRigSubMenu, ObjectBindings[0], BoundObject, SkelMeshComp, Skeleton)
-			);
+				MenuBuilder.AddSubMenu(
+					LOCTEXT("BakeToControlRig", "Bake To Control Rig"),
+					LOCTEXT("BakeToControlRigTooltip", "Bake to an invertible Control Rig that matches this skeleton"),
+					FNewMenuDelegate::CreateRaw(this, &FControlRigParameterTrackEditor::BakeToControlRigSubMenu, ObjectBindings[0], BoundObject, SkelMeshComp, Skeleton)
+				);
+			}
+			MenuBuilder.EndSection();
 		}
-		MenuBuilder.EndSection();
 	}
 }
 
@@ -679,7 +686,7 @@ void FControlRigParameterTrackEditor::BuildObjectBindingTrackMenu(FMenuBuilder& 
 			{
 				MenuBuilder.AddMenuEntry(
 					LOCTEXT("AddControlRig", "Animation ControlRig"),
-					NSLOCTEXT("Sequencer", "AddControlRigTooltip", "Adds an animation ControlRig track."),
+					NSLOCTEXT("Sequencer", "AddControlRigTooltip", "Adds an animation Control Rig track"),
 					FSlateIcon(),
 					FUIAction(
 						FExecuteAction::CreateSP(this, &FControlRigParameterTrackEditor::AddControlRigFromComponent, ObjectBindings[0]),
@@ -704,7 +711,7 @@ void FControlRigParameterTrackEditor::BuildObjectBindingTrackMenu(FMenuBuilder& 
 				{
 					MenuBuilder.AddMenuEntry(
 						LOCTEXT("AddFKControlRig", "FK Control Rig"),
-						NSLOCTEXT("Sequencer", "AddFKControlRigTooltip", "Adds an FK ControlRig track."),
+						NSLOCTEXT("Sequencer", "AddFKControlRigTooltip", "Adds an FK Control Rig track"),
 						FSlateIcon(),
 						FUIAction(
 							FExecuteAction::CreateSP(this, &FControlRigParameterTrackEditor::AddFKControlRig, ObjectBindings),
@@ -714,7 +721,7 @@ void FControlRigParameterTrackEditor::BuildObjectBindingTrackMenu(FMenuBuilder& 
 
 					MenuBuilder.AddMenuEntry(
 						NSLOCTEXT("Sequencer", "FilterAssetBySkeleton", "Filter Asset By Skeleton"),
-						NSLOCTEXT("Sequencer", "FilterAssetBySkeletonTooltip", "Filters Control Rig Assets To Match Current Skeleton"),
+						NSLOCTEXT("Sequencer", "FilterAssetBySkeletonTooltip", "Filters Control Rig assets to match current skeleton"),
 						FSlateIcon(),
 						FUIAction(
 							FExecuteAction::CreateSP(this, &FControlRigParameterTrackEditor::ToggleFilterAssetBySkeleton),
@@ -726,7 +733,7 @@ void FControlRigParameterTrackEditor::BuildObjectBindingTrackMenu(FMenuBuilder& 
 
 					MenuBuilder.AddSubMenu(
 						LOCTEXT("AddAssetControlRig", "Asset-Based ControlRig"),
-						NSLOCTEXT("Sequencer", "AddAsetControlRigTooltip", "Adds an asset based ControlRig track."),
+						NSLOCTEXT("Sequencer", "AddAsetControlRigTooltip", "Adds an asset based Control Rig track"),
 						FNewMenuDelegate::CreateRaw(this, &FControlRigParameterTrackEditor::AddControlRigSubMenu, ObjectBindings, Track)
 					);
 				}
@@ -1024,44 +1031,32 @@ void FControlRigParameterTrackEditor::OnAddTransformKeysForSelectedObjects(EMovi
 	}
 }
 
-void FControlRigParameterTrackEditor::OnPreRefreshImmediate()
+void FControlRigParameterTrackEditor::OnChannelChanged(const FMovieSceneChannelMetaData* MetaData, UMovieSceneSection* InSection)
 {
-	//we don't really know what's causing this change,it can be any control rig selected or not so this is pretty heavy.
-	UMovieScene* MovieScene = GetFocusedMovieScene();
-	if (MovieScene)
+	UMovieSceneControlRigParameterSection* Section = Cast<UMovieSceneControlRigParameterSection>(InSection);
+	if (Section && Section->ControlRig && MetaData)
 	{
-		const TArray<FMovieSceneBinding>& Bindings = MovieScene->GetBindings();
-		TArray<UControlRig*> ControlRigs;
-		for (const FMovieSceneBinding& Binding : Bindings)
+		Section->ControlsToSet.Empty();
+		TArray<FString> StringArray;
+		FString String = MetaData->Name.ToString();
+		String.ParseIntoArray(StringArray, TEXT("."));
+		if (StringArray.Num() > 0)
 		{
-			UMovieSceneControlRigParameterTrack* Track = Cast<UMovieSceneControlRigParameterTrack>(MovieScene->FindTrack(UMovieSceneControlRigParameterTrack::StaticClass(), Binding.GetObjectGuid(), NAME_None));
-			if (Track && Track->GetControlRig())
-			{
-				UControlRig* ControlRig = Track->GetControlRig();
-				if (ControlRig)
-				{
-					ControlRig->SetInteractOn();
-					ControlRigs.Add(ControlRig);
-				}
-			}
-		}
-
-		if (ControlRigs.Num() > 0)
-		{
+			FName ControlName(*StringArray[0]);
+			Section->ControlsToSet.Add(ControlName);
+			FControlRigInteractionScope InteractionScope(Section->ControlRig);
 			GetSequencer()->ForceEvaluate(); //now run sequencer...
-			for (UControlRig* ControlRig : ControlRigs)
-			{
-				ControlRig->Evaluate_AnyThread();
-				ControlRig->SetInteractOff();
-			}
+			Section->ControlRig->Evaluate_AnyThread();
+			Section->ControlsToSet.Empty();
 		}
 	}
 }
+
 void FControlRigParameterTrackEditor::AddTrackForComponent(USceneComponent* InComponent)
 {
 	if (USkeletalMeshComponent* SkelMeshComp = Cast<USkeletalMeshComponent>(InComponent))
 	{
-		if (SkelMeshComp->SkeletalMesh && SkelMeshComp->SkeletalMesh->DefaultAnimatingRig.IsValid())
+		if (SkelMeshComp->SkeletalMesh && !SkelMeshComp->SkeletalMesh->DefaultAnimatingRig.IsNull())
 		{
 			UObject* Object = SkelMeshComp->SkeletalMesh->DefaultAnimatingRig.LoadSynchronous();
 			if (Object != nullptr && Object->IsA<UControlRigBlueprint>())
@@ -1348,6 +1343,8 @@ void FControlRigParameterTrackEditor::OnSelectionChanged(TArray<UMovieSceneTrack
 		}
 	}
 }
+
+
 FMovieSceneTrackEditor::FFindOrCreateHandleResult FControlRigParameterTrackEditor::FindOrCreateHandleToSceneCompOrOwner(USceneComponent* InComp)
 {
 
@@ -2041,7 +2038,7 @@ void FControlRigParameterTrackEditor::BuildTrackContextMenu(FMenuBuilder& MenuBu
 	{
 		MenuBuilder.AddMenuEntry(
 			NSLOCTEXT("Sequencer", "ImportControlRigFBX", "Import Control Rig FBX"),
-			NSLOCTEXT("Sequencer", "ImportControlRigFBXTooltip", "Import Control Rig FBX."),
+			NSLOCTEXT("Sequencer", "ImportControlRigFBXTooltip", "Import Control Rig FBX"),
 			FSlateIcon(),
 			FUIAction(
 				FExecuteAction::CreateRaw(this, &FControlRigParameterTrackEditor::ImportFBX, Track, SectionToKey, NodeAndChannels)));
@@ -2057,7 +2054,7 @@ void FControlRigParameterTrackEditor::BuildTrackContextMenu(FMenuBuilder& MenuBu
 
 			MenuBuilder.AddMenuEntry(
 				NSLOCTEXT("Sequencer", "SelectBonesToAnimate", "Select Bones Or Curves To Animate"),
-				NSLOCTEXT("Sequencer", "SelectBonesToAnimateToolTip", "Select Which Bones or Curves You Want To Directly Animate."),
+				NSLOCTEXT("Sequencer", "SelectBonesToAnimateToolTip", "Select which bones or curves you want to directly animate"),
 				FSlateIcon(),
 				FUIAction(
 					FExecuteAction::CreateRaw(this, &FControlRigParameterTrackEditor::SelectFKBonesToAnimate, AutoRig)));

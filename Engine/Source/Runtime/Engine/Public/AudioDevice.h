@@ -558,6 +558,11 @@ public:
 	 */
 	void Flush(UWorld* WorldToFlush, bool bClearActivatedReverb = true);
 
+	/*
+	* Derived classes can override this method to do their own cleanup. Called at the end of FAudioDevice::Flush()
+	*/
+	virtual void FlushExtended(UWorld* WorldToFlush, bool bClearActivatedReverb);
+
 	/**
 	 * Allows audio rendering command queue to flush during audio device flush.
 	 * @param bPumpSynchronously must be called in situations where the audio render thread is not being called.
@@ -782,11 +787,12 @@ public:
 
 	struct FAudioVolumeSettings
 	{
-		uint32 AudioVolumeID;
-		float Priority;
+		uint32 AudioVolumeID = INDEX_NONE;
+		float Priority = 0.0f;
 		FReverbSettings ReverbSettings;
 		FInteriorSettings InteriorSettings;
 		TArray<FAudioVolumeSubmixSendSettings> SubmixSendSettings;
+		TArray<FAudioVolumeSubmixOverrideSettings> SubmixOverrideSettings;
 	};
 
 	void GetAudioVolumeSettings(const uint32 WorldID, const FVector& Location, FAudioVolumeSettings& OutSettings) const;
@@ -1316,6 +1322,18 @@ public:
 		UE_LOG(LogAudio, Error, TEXT("Submixes are only supported in audio mixer."));
 	}
 
+	/** Sets a submix effect chain override for the given submix */
+	virtual void SetSubmixEffectChainOverride(USoundSubmix* InSoundSubmix, const TArray<FSoundEffectSubmixPtr>& InSubmixEffectChain, float InCrossfadeTime)
+	{
+		UE_LOG(LogAudio, Error, TEXT("Submixes are only supported in audio mixer."));
+	}
+
+	/** Clears all submix effect chain overrides from the submix. */
+	virtual void ClearSubmixEffectChainOverride(USoundSubmix* InSoundSubmix, float InCrossfadeTime)
+	{
+		UE_LOG(LogAudio, Error, TEXT("Submixes are only supported in audio mixer."));
+	}
+
 	/** Adds an envelope follower delegate to the submix for this audio device. */
 	virtual void AddEnvelopeFollowerDelegate(USoundSubmix* InSubmix, const FOnSubmixEnvelopeBP& OnSubmixEnvelopeBP);
 
@@ -1494,6 +1512,9 @@ private:
 
 	/** Allow platforms to optionally specify low-level audio platform settings. */
 	virtual FAudioPlatformSettings GetPlatformSettings() const { return FAudioPlatformSettings(); }
+
+	/** Updates audio volume effects. */
+	void UpdateAudioVolumeEffects();
 
 public:
 
@@ -1849,6 +1870,9 @@ private:
 
 	/** The activated reverb that currently has the highest priority - Audio Thread owned */
 	FActivatedReverb HighestPriorityActivatedReverb;
+
+	/** The current audio volume settings the listener is in. */
+	FAudioVolumeSettings CurrentAudioVolumeSettings;
 
 	/** Gamethread representation of whether HRTF is enabled for all 3d sounds. (not bitpacked to avoid thread issues) */
 	bool bHRTFEnabledForAll_OnGameThread;

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "RenderResource.h"
+#include "MeshBatch.h"
 
 #if RHI_RAYTRACING
 

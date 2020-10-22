@@ -14,32 +14,35 @@ struct FShaderDrawElement
 	float4 Color1;
 };
 
+// Note: Unaligned structures used for structured buffers is an unsupported and/or sparsely
+//         supported feature in VK (VK_EXT_scalar_block_layout) and Metal. Consequently, we do
+//         manual packing in order to accommodate.
 struct FPackedShaderDrawElement 
 {
-	float3 Pos0;
-	float3 Pos1;
-	uint2 Color01;
+	float4 Pos0_ColorX;		// float3 Pos0 + Color.x
+	float4 Pos1_ColorY;		// float3 Pos1 + Color.y
 };
 
 FPackedShaderDrawElement PackShaderElement(FShaderDrawElement E)
 {
-	FPackedShaderDrawElement PackedE;
-	PackedE.Pos0 = E.Pos0;
-	PackedE.Pos1 = E.Pos1;
 	uint4 PackedC0 = 255.0f * saturate(E.Color0);
 	uint4 PackedC1 = 255.0f * saturate(E.Color1);
-	PackedE.Color01.x = (PackedC0.x << 24) | (PackedC0.y << 16) | (PackedC0.z << 8) | (PackedC0.w);
-	PackedE.Color01.y = (PackedC1.x << 24) | (PackedC1.y << 16) | (PackedC1.z << 8) | (PackedC1.w);
+
+	FPackedShaderDrawElement PackedE;
+	PackedE.Pos0_ColorX = float4(E.Pos0, asfloat((PackedC0.x << 24) | (PackedC0.y << 16) | (PackedC0.z << 8) | (PackedC0.w)));
+	PackedE.Pos1_ColorY = float4(E.Pos1, asfloat((PackedC1.x << 24) | (PackedC1.y << 16) | (PackedC1.z << 8) | (PackedC1.w)));
 	return PackedE;
 }
 
 FShaderDrawElement UnpackShaderElement(FPackedShaderDrawElement PackedE)
 {
+	uint2 PackedColor01 = uint2(asuint(PackedE.Pos0_ColorX.w), asuint(PackedE.Pos1_ColorY.w));
+
 	FShaderDrawElement E;
-	E.Pos0 = PackedE.Pos0;
-	E.Pos1 = PackedE.Pos1;
-	E.Color0 = float4((PackedE.Color01.x >> 24) & 0xFF, (PackedE.Color01.x >> 16) & 0xFF, (PackedE.Color01.x >> 8) & 0xFF, (PackedE.Color01.x) & 0xFF) / 255.0f;
-	E.Color1 = float4((PackedE.Color01.y >> 24) & 0xFF, (PackedE.Color01.y >> 16) & 0xFF, (PackedE.Color01.y >> 8) & 0xFF, (PackedE.Color01.y) & 0xFF) / 255.0f;
+	E.Pos0 = PackedE.Pos0_ColorX.xyz;
+	E.Pos1 = PackedE.Pos1_ColorY.xyz;
+	E.Color0 = float4((PackedColor01.x >> 24) & 0xFF, (PackedColor01.x >> 16) & 0xFF, (PackedColor01.x >> 8) & 0xFF, (PackedColor01.x) & 0xFF) / 255.0f;
+	E.Color1 = float4((PackedColor01.y >> 24) & 0xFF, (PackedColor01.y >> 16) & 0xFF, (PackedColor01.y >> 8) & 0xFF, (PackedColor01.y) & 0xFF) / 255.0f;
 	return E;
 }
 

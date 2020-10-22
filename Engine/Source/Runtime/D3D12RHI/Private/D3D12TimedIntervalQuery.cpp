@@ -136,6 +136,8 @@ public:
 				}
 				else
 				{
+					BatchIdOut = Batch.Id;
+					bDeferredOut = Batch.bDeferred;
 					QueryResultsOut.SetNum(0);
 					Batches.RemoveAt(0);
 					return true;

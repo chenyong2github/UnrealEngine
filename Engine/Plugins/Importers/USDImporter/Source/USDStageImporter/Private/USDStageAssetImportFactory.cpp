@@ -141,6 +141,14 @@ EReimportResult::Type UUsdStageAssetImportFactory::Reimport(UObject* Obj)
 		return EReimportResult::Failed;
 	}
 
+	if ( UUsdStageImportOptions* ReimportOptions = Cast<UUsdStageImportOptions>( ImportData->ImportOptions ) )
+	{
+		// Duplicate this as we may update these options on the Init call below, and if we just imported a scene and
+		// all assets are in memory (sharing the same import options object), that update would otherwise affect all the UUsdAssetImportData objects,
+		// which is not what we would expect
+		ImportContext.ImportOptions = DuplicateObject( ReimportOptions, ImportData );
+	}
+
 	const bool bIsReimport = true;
 	const bool bAllowActorImport = false;
 	if (!ImportContext.Init(Obj->GetName(), ImportData->GetFirstFilename(), Obj->GetName(), Obj->GetFlags(), IsAutomatedImport(), bIsReimport, bAllowActorImport))
@@ -165,11 +173,6 @@ EReimportResult::Type UUsdStageAssetImportFactory::Reimport(UObject* Obj)
 int32 UUsdStageAssetImportFactory::GetPriority() const
 {
 	return ImportPriority;
-}
-
-void UUsdStageAssetImportFactory::ParseFromJson(TSharedRef<class FJsonObject> ImportSettingsJson)
-{
-	FJsonObjectConverter::JsonObjectToUStruct(ImportSettingsJson, ImportOptions->GetClass(), ImportOptions, 0, CPF_InstancedReference);
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -5,7 +5,7 @@
 #include "Rendering/Texture2DResource.h"
 #include "Components/StaticMeshComponent.h"
 
-void UpdateMatrixTexture(uint8* MatrixData, UTexture2D* DynamicTexture, int32 MipIndex, uint32 NumRegions, FUpdateTextureRegion2D Region, uint32 SrcPitch, uint32 SrcBpp)//, TFunction<void(uint8* SrcData)> DataCleanupFunc = [](uint8*) {})
+void UpdateMatrixTexture(uint8* MatrixData, UTexture2D* DynamicTexture, int32 MipIndex, uint32 NumRegions, FUpdateTextureRegion2D Region, uint32 SrcPitch, uint32 SrcBpp)
 {
 	if (DynamicTexture->Resource)
 	{
@@ -23,7 +23,6 @@ void UpdateMatrixTexture(uint8* MatrixData, UTexture2D* DynamicTexture, int32 Mi
 					+ Region.SrcX * SrcBpp
 				);
 
-				//DataCleanupFunc();
 			});
 
 	}
@@ -60,7 +59,6 @@ ADMXFixtureActorMatrix::~ADMXFixtureActorMatrix()
 }
 
 #if WITH_EDITOR
-// Support in-editor and PIE
 void ADMXFixtureActorMatrix::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);

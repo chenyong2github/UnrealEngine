@@ -85,16 +85,14 @@ namespace WindowsMixedReality
 			}
 			else
 			{
-				FText ErrorText = NSLOCTEXT("WindowsMixedRealityHMD", "MixedRealityInteropLibraryError",
-					"Failed to load Windows Mixed Reality Interop Library!  Windows Mixed Reality cannot function.");
+				FText ErrorText = NSLOCTEXT("WindowsMixedRealityHMD", "MixedRealityInteropLibraryError", "Failed to load Windows Mixed Reality Interop Library!  Windows Mixed Reality cannot function.");
 				FMessageDialog::Open(EAppMsgType::Ok, ErrorText);
 				UE_LOG(LogWmrHmd, Error, TEXT("%s"), *ErrorText.ToString());
 			}
 		}
 		else
 		{
-			FText ErrorText = FText::Format(FTextFormat(NSLOCTEXT("WindowsMixedRealityHMD", "MixedRealityInteropLibraryError",
-				"Windows Mixed Reality is not supported on this Windows version. \nNote: UE4 only supports Windows Mixed Reality on Windows 10 Release {0} or higher. Current version: {1}")),
+			FText ErrorText = FText::Format(FTextFormat(NSLOCTEXT("WindowsMixedRealityHMD", "MixedRealityInteropLibraryNotSupported", "Windows Mixed Reality is not supported on this Windows version. \nNote: UE4 only supports Windows Mixed Reality on Windows 10 Release {0} or higher. Current version: {1}")),
 				FText::FromString(FString::FromInt(MIN_WIN_10_VERSION_FOR_WMR)), FText::FromString(OSVersionLabel));
 			FMessageDialog::Open(EAppMsgType::Ok, ErrorText);
 			if (IsRunningCommandlet())

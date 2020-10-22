@@ -75,6 +75,14 @@ private:
 	/** Sends a message containing information about the frame performane */
 	void UpdateFramePerformance();
 
+	/** Triggered when a stage monitor settings has changed */
+#if WITH_EDITOR
+	void OnStageSettingsChanged(UObject* Object, struct FPropertyChangedEvent& PropertyChangedEvent);
+#endif //WITH_EDITOR
+
+	/** Enables/disables hitch detection */
+	void EnableHitchDetection(bool bShouldEnable);
+
 private:
 
 	/** Timestamp when last frame performance message was sent */
@@ -82,4 +90,6 @@ private:
 
 	/** Cached settings for hitch detection since it's called on another thread, we can't access UObject */
 	FStageHitchDetectionSettings CachedHitchSettings;
+
+	bool bIsHitchDetectionEnabled = false;
 };

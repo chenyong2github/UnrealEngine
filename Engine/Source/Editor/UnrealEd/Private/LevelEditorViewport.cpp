@@ -2206,12 +2206,14 @@ void FLevelEditorViewportClient::ProcessClick(FSceneView& View, HHitProxy* HitPr
 				const bool bWasDoubleClick = (Click.GetEvent() == IE_DoubleClick);
 
 				const bool bSelectComponent = bActorAlreadySelectedExclusively && bActorIsBlueprintable && (bComponentAlreadySelected != bWasDoubleClick);
+				bool bComponentSelected = false;
 
 				if (bSelectComponent)
 				{
-					LevelViewportClickHandlers::ClickComponent(this, ActorHitProxy, Click);
+					bComponentSelected = LevelViewportClickHandlers::ClickComponent(this, ActorHitProxy, Click);
 				}
-				else
+				
+				if (!bComponentSelected)
 				{
 					LevelViewportClickHandlers::ClickActor(this, ConsideredActor, Click, true);
 				}
@@ -4601,8 +4603,6 @@ void FLevelEditorViewportClient::DrawBrushDetails(const FSceneView* View, FPrimi
 	{
 		// Draw translucent polygons on brushes and volumes
 
-		PDI->SetHitProxy(nullptr);
-
 		for (TActorIterator<ABrush> It(GetWorld()); It; ++It)
 		{
 			ABrush* Brush = *It;
@@ -4644,7 +4644,7 @@ void FLevelEditorViewportClient::DrawBrushDetails(const FSceneView* View, FPrimi
 				PDI->RegisterDynamicResource(MaterialProxy);
 
 				// Flush the mesh triangles.
-				MeshBuilder.Draw(PDI, Brush->ActorToWorld().ToMatrixWithScale(), MaterialProxy, SDPG_World);
+				MeshBuilder.Draw(PDI, Brush->ActorToWorld().ToMatrixWithScale(), MaterialProxy, SDPG_World, false, true, FHitProxyId::InvisibleHitProxyId);
 			}
 		}
 	}

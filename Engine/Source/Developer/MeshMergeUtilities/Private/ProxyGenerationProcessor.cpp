@@ -188,7 +188,7 @@ void FProxyGenerationProcessor::ProcessJob(const FGuid& JobGuid, FProxyGeneratio
 	FString OutputPath = StaticMesh->GetPathName();
 
 	// make sure it has a new lighting guid
-	StaticMesh->LightingGuid = FGuid::NewGuid();
+	StaticMesh->SetLightingGuid();
 
 	// Set it to use textured lightmaps. Note that Build Lighting will do the error-checking (texcoordindex exists for all LODs, etc).
 	StaticMesh->LightMapResolution = Data->MergeData->InProxySettings.LightMapResolution;
@@ -243,7 +243,7 @@ void FProxyGenerationProcessor::ProcessJob(const FGuid& JobGuid, FProxyGeneratio
 				{
 					NewMaterial.ImportedMaterialSlotName = PolygonGroupMaterialSlotName[MeshDescription->PolygonGroups().GetFirstValidID()];
 				}
-				StaticMesh->StaticMaterials.Add(NewMaterial);
+				StaticMesh->GetStaticMaterials().Add(NewMaterial);
 			}
 
 			StaticMesh->CommitMeshDescription(SourceModelIndex);
@@ -275,7 +275,7 @@ void FProxyGenerationProcessor::ProcessJob(const FGuid& JobGuid, FProxyGeneratio
 			{
 				NewMaterial.ImportedMaterialSlotName = PolygonGroupMaterialSlotName[Data->RawMesh.PolygonGroups().GetFirstValidID()];
 			}
-			StaticMesh->StaticMaterials.Add(NewMaterial);
+			StaticMesh->GetStaticMaterials().Add(NewMaterial);
 		}
 	}
 	else
@@ -295,16 +295,16 @@ void FProxyGenerationProcessor::ProcessJob(const FGuid& JobGuid, FProxyGeneratio
 		FName PolygonGroupName = PolygonGroupImportedMaterialSlotNames[PolygonGroupID];
 		if (PolygonGroupName != NAME_None)
 		{
-			for (int32 MaterialIndex = 0; MaterialIndex < StaticMesh->StaticMaterials.Num(); ++MaterialIndex)
+			for (int32 MaterialIndex = 0; MaterialIndex < StaticMesh->GetStaticMaterials().Num(); ++MaterialIndex)
 			{
-				if (StaticMesh->StaticMaterials[MaterialIndex].ImportedMaterialSlotName == PolygonGroupName)
+				if (StaticMesh->GetStaticMaterials()[MaterialIndex].ImportedMaterialSlotName == PolygonGroupName)
 				{
 					PolygonGroupMaterialIndex = MaterialIndex;
 					break;
 				}
 			}
 		}
-		if (!StaticMesh->StaticMaterials.IsValidIndex(PolygonGroupMaterialIndex))
+		if (!StaticMesh->GetStaticMaterials().IsValidIndex(PolygonGroupMaterialIndex))
 		{
 			PolygonGroupMaterialIndex = 0;
 		}

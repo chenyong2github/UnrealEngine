@@ -256,7 +256,7 @@ namespace UnrealBuildTool
 		/// <returns>True if the file is part of this module</returns>
 		public virtual bool ContainsFile(FileReference Location)
 		{
-			return Location.IsUnderDirectory(ModuleDirectory);
+			return ModuleDirectories.Any(x => Location.IsUnderDirectory(x));
 		}
 
 		/// <summary>

@@ -5,6 +5,9 @@
 #include "Units/Math/RigUnit_MathBase.h"
 #include "RigUnit_Random.generated.h"
 
+/**
+ * Generates a random float between a min and a max
+ */
 USTRUCT(meta=(DisplayName="Random (Float)", Category="Math|Random", PrototypeName="Random"))
 struct FRigUnit_RandomFloat : public FRigUnit_MathBase
 {
@@ -48,6 +51,9 @@ struct FRigUnit_RandomFloat : public FRigUnit_MathBase
 	float TimeLeft;
 };
 
+/**
+ * Generates a random vector between a min and a max
+ */
 USTRUCT(meta = (DisplayName = "Random (Vector)", Category = "Math|Random", PrototypeName = "Random"))
 struct FRigUnit_RandomVector: public FRigUnit_MathBase
 {

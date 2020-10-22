@@ -24,6 +24,12 @@ struct FMovieSceneTimeController;
 class UMovieSceneFolder;
 class UMovieSceneSection;
 class UMovieSceneTrack;
+struct FMovieSceneChannelMetaData;
+
+//delegates for use when some data in the MovieScene changes, WIP right now, hopefully will replace delegates on ISequencer
+//and be used for moving towards a true MVC system
+DECLARE_MULTICAST_DELEGATE_TwoParams(FMovieSceneOnChannelChanged, const FMovieSceneChannelMetaData* MetaData, UMovieSceneSection*)
+
 
 /** @todo: remove this type when support for intrinsics on TMap values is added? */
 USTRUCT()
@@ -690,6 +696,7 @@ public:
 	{
 		return ObjectBindings.FindByPredicate([ForGuid](const FMovieSceneBinding& Binding) { return Binding.GetObjectGuid() == ForGuid; });
 	}
+
 public:
 
 	// @todo sequencer: the following methods really shouldn't be here
@@ -886,6 +893,11 @@ public:
 	 */
 	TArray<FString>& GetMuteNodes() { return MuteNodes; }
 	
+	//WIP Set of Delegates
+	/** Gets a multicast delegate which is executed whenever a channel is changed, currently only set by Python/BP actions.
+	*
+	*/
+	FMovieSceneOnChannelChanged& OnChannelChanged() { return OnChannelChangedDelegate; }
 #endif
 
 	/**
@@ -1249,5 +1261,10 @@ private:
 	UPROPERTY()
 	float FixedFrameInterval_DEPRECATED;
 
+	//delegates
+	private:
+	FMovieSceneOnChannelChanged OnChannelChangedDelegate;
 #endif
+
+		
 };

@@ -1086,7 +1086,9 @@ bool ULocalPlayer::GetProjectionData(FViewport* Viewport, EStereoscopicPass Ster
 
 	// If stereo rendering is enabled, update the size and offset appropriately for this pass
 	const bool bNeedStereo = IStereoRendering::IsStereoEyePass(StereoPass) && GEngine->IsStereoscopic3D();
-	const bool bIsHeadTrackingAllowed = GEngine->XRSystem.IsValid() && GEngine->XRSystem->IsHeadTrackingAllowed();
+	const bool bIsHeadTrackingAllowed =
+		GEngine->XRSystem.IsValid() &&
+		(GetWorld() != nullptr ? GEngine->XRSystem->IsHeadTrackingAllowedForWorld(*GetWorld()) : GEngine->XRSystem->IsHeadTrackingAllowed());
 	if (bNeedStereo)
 	{
 		GEngine->StereoRenderingDevice->AdjustViewRect(StereoPass, X, Y, SizeX, SizeY);

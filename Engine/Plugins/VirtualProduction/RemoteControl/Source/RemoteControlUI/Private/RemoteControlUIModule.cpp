@@ -158,13 +158,9 @@ const FSlateBrush* FRemoteControlUIModule::OnGetExposedIcon(TSharedPtr<IProperty
 			{
 				return FEditorStyle::GetBrush(TEXT("Level.VisibleIcon16x"));
 			}
-			else if (Status == EPropertyExposeStatus::Unexposed)
-			{
-				return FEditorStyle::GetBrush(TEXT("Level.NotVisibleIcon16x"));
-			}
 			else
 			{
-				return FEditorStyle::GetBrush("GenericLock");
+				return FEditorStyle::GetBrush(TEXT("Level.NotVisibleIcon16x"));
 			}
 		}
 	}
@@ -178,7 +174,16 @@ EVisibility FRemoteControlUIModule::OnGetExposeButtonVisibility(TSharedPtr<IProp
 	{
 		if (Panel->GetPreset() && Panel->IsInEditMode())
 		{
-			return EVisibility::Visible;
+			EPropertyExposeStatus ExposeStatus = GetPropertyExposeStatus(Handle);
+			if (ExposeStatus == EPropertyExposeStatus::Exposed || ExposeStatus == EPropertyExposeStatus::Unexposed)
+			{
+				return EVisibility::Visible;
+			}
+			else
+			{
+				// Show no icon when property is unexposable.
+				return EVisibility::Hidden;
+			}
 		}
 	}
 	return EVisibility::Collapsed;

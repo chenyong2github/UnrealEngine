@@ -40,6 +40,12 @@ namespace AutomationTool.Tasks
 		/// </summary>
 		[TaskParameter(Optional = true)]
 		public FileReference EditorExe;
+
+		/// <summary>
+		/// The minimum exit code, which is treated as an error.
+		/// </summary>
+		[TaskParameter(Optional = true)]
+		public int ErrorLevel = 1;
 	}
 
 	/// <summary>
@@ -107,7 +113,7 @@ namespace AutomationTool.Tasks
 			}
 
 			// Run the commandlet
-			CommandUtils.RunCommandlet(ProjectFile, EditorExe.FullName, Parameters.Name, Parameters.Arguments);
+			CommandUtils.RunCommandlet(ProjectFile, EditorExe.FullName, Parameters.Name, Parameters.Arguments, Parameters.ErrorLevel);
 		}
 
 		/// <summary>

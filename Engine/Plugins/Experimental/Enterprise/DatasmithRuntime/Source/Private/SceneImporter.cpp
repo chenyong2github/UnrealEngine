@@ -59,13 +59,14 @@ namespace DatasmithRuntime
 		: RootComponent( InDatasmithRuntimeActor->GetRootComponent() )
 		, TasksToComplete( EDatasmithRuntimeWorkerTask::NoTask )
 		, OverallProgress(InDatasmithRuntimeActor->Progress)
+		, LastSceneId(-1)
 	{
-		FAssetData::EmptyAsset.bCompleted = true;
+		FAssetData::EmptyAsset.SetState(EDatasmithRuntimeAssetState::Processed | EDatasmithRuntimeAssetState::Completed);
 	}
 
 	FSceneImporter::~FSceneImporter()
 	{
-		Reset(true);
+		DeleteData();
 	}
 
 	TStatId FSceneImporter::GetStatId() const
@@ -85,11 +86,12 @@ namespace DatasmithRuntime
 		}
 	}
 
-	void FSceneImporter::StartImport(TSharedRef<IDatasmithScene> InSceneElement)
+	void FSceneImporter::StartImport(TSharedRef<IDatasmithScene> InSceneElement, const DirectLink::FSourceHandle& SourceHandle)
 	{
 		Reset(true);
 
 		SceneElement = InSceneElement;
+		CurrentSourceHandle = SourceHandle;
 
 		TasksToComplete |= SceneElement.IsValid() ? EDatasmithRuntimeWorkerTask::CollectSceneData : EDatasmithRuntimeWorkerTask::NoTask;
 
@@ -130,12 +132,13 @@ namespace DatasmithRuntime
 			ParseScene( SceneElement->GetActor(Index), DirectLink::InvalidId, CountingCallback );
 		}
 
-		ActorDataList.Empty( ActorElementCount );
-
 		int32 AssetElementCount = SceneElement->GetTexturesCount() + SceneElement->GetMaterialsCount() +
 			SceneElement->GetMeshesCount() + SceneElement->GetLevelSequencesCount();
 
+		// Make sure to pre-allocate enough memory as pointer on values in those maps are used
+		TextureDataList.Empty( SceneElement->GetTexturesCount() );
 		AssetDataList.Empty( AssetElementCount );
+		ActorDataList.Empty( ActorElementCount );
 		Elements.Empty( AssetElementCount + ActorElementCount );
 
 		AssetElementMapping.Empty( AssetElementCount );
@@ -206,7 +209,6 @@ namespace DatasmithRuntime
 	{
 		LIVEUPDATE_LOG_TIME;
 
-		// #ue_liveupdate: parallel_for?
 		for ( TPair<FSceneGraphId, FActorData>& Pair : ActorDataList)
 		{
 			FActorData& ActorData = Pair.Value;
@@ -241,6 +243,8 @@ namespace DatasmithRuntime
 
 		MeshPreProcessing();
 
+		OnGoingTasks.Reserve(TextureElementSet.Num() + MeshElementSet.Num());
+
 		if (TextureElementSet.Num() > 0)
 		{
 			ImageReaderInitialize();
@@ -266,7 +270,7 @@ namespace DatasmithRuntime
 		ensure(ActorDataList.Contains(ElementId));
 		FActorData& ActorData = ActorDataList[ElementId];
 
-		if (ActorData.bProcessed)
+		if (ActorData.HasState(EDatasmithRuntimeAssetState::Processed))
 		{
 			return;
 		}
@@ -297,7 +301,7 @@ namespace DatasmithRuntime
 		}
 		else
 		{
-			ActorData.bCompleted = false;
+			ActorData.ClearState(EDatasmithRuntimeAssetState::Completed);
 		}
 	}
 
@@ -313,6 +317,14 @@ namespace DatasmithRuntime
 		// Full reset of the world. Resume tasks on next tick
 		if (TasksToComplete & EDatasmithRuntimeWorkerTask::ResetScene)
 		{
+			// Wait for ongoing tasks to be completed
+			for (TFuture<bool>& OnGoingTask : OnGoingTasks)
+			{
+				OnGoingTask.Wait();
+			}
+
+			OnGoingTasks.Empty();
+
 			DeleteData();
 
 			Elements.Empty();
@@ -383,7 +395,7 @@ namespace DatasmithRuntime
 
 		if (bContinue && !ActionQueues[MATERIAL_QUEUE].IsEmpty())
 		{
-			FNewActionTask ActionTask;
+			FActionTask ActionTask;
 			while (FPlatformTime::Seconds() < EndTime)
 			{
 				if (!ActionQueues[MATERIAL_QUEUE].Dequeue(ActionTask))
@@ -411,7 +423,7 @@ namespace DatasmithRuntime
 
 		if (bContinue && !ActionQueues[NONASYNC_QUEUE].IsEmpty())
 		{
-			FNewActionTask ActionTask;
+			FActionTask ActionTask;
 			while (FPlatformTime::Seconds() < EndTime)
 			{
 				if (!ActionQueues[NONASYNC_QUEUE].Dequeue(ActionTask))
@@ -445,7 +457,7 @@ namespace DatasmithRuntime
 
 		if (bContinue && !ActionQueues[DELETE_QUEUE].IsEmpty())
 		{
-			FNewActionTask ActionTask;
+			FActionTask ActionTask;
 			while (FPlatformTime::Seconds() < EndTime)
 			{
 				if (!ActionQueues[DELETE_QUEUE].Dequeue(ActionTask))
@@ -474,7 +486,12 @@ namespace DatasmithRuntime
 		{
 			TRACE_BOOKMARK(TEXT("Load complete - %s"), *SceneElement->GetName());
 
-			Cast<ADatasmithRuntimeActor>(RootComponent->GetOwner())->bBuilding = false;
+			OnGoingTasks.Empty();
+
+			LastSceneId = SceneElement->GetNodeId();
+			LastSourceHandle = CurrentSourceHandle;
+
+			Cast<ADatasmithRuntimeActor>(RootComponent->GetOwner())->OnImportEnd();
 #ifdef LIVEUPDATE_TIME_LOGGING
 			double ElapsedSeconds = FPlatformTime::Seconds() - GlobalStartTime;
 
@@ -496,6 +513,8 @@ namespace DatasmithRuntime
 		if (bIsNewScene)
 		{
 			SceneElement.Reset();
+			LastSourceHandle = DirectLink::FSourceHandle();
+			LastSceneId = -1;
 
 			TasksToComplete = EDatasmithRuntimeWorkerTask::ResetScene;
 		}
@@ -520,7 +539,7 @@ namespace DatasmithRuntime
 		MeshElementSet.Empty();
 		TextureElementSet.Empty();
 		MaterialElementSet.Empty();
-		// #ue_liveupdate: What about lightmap weights on incremental update?
+		// #ue_datasmithruntime: What about lightmap weights on incremental update?
 		LightmapWeights.Empty();
 
 		// Empty tasks queues
@@ -618,11 +637,13 @@ namespace DatasmithRuntime
 
 					if (ElementPtr->IsA(EDatasmithElementType::BaseMaterial))
 					{
-						AssetDataList[ElementId].bProcessed = false;
-
 						TaskFunc = [this, ElementId](UObject*, const FReferencer&) -> EActionResult::Type
 						{
-							this->ProcessMaterialData(this->AssetDataList[ElementId]);
+							FAssetData& MaterialData = this->AssetDataList[ElementId];
+
+							MaterialData.SetState(EDatasmithRuntimeAssetState::Unknown);
+
+							this->ProcessMaterialData(MaterialData);
 
 							return EActionResult::Succeeded;
 						};
@@ -633,9 +654,7 @@ namespace DatasmithRuntime
 						{
 							FAssetData& MeshData = this->AssetDataList[ElementId];
 
-							// Check whether, the associated geometry has changed
-							IDatasmithMeshElement* MeshElement = static_cast<IDatasmithMeshElement*>(this->Elements[ElementId].Get());
-							MeshData.bProcessed = MeshData.Hash != MeshElement->GetFileHash();
+							MeshData.SetState(EDatasmithRuntimeAssetState::Unknown);
 
 							this->ProcessMeshData(MeshData);
 
@@ -650,9 +669,7 @@ namespace DatasmithRuntime
 						{
 							FTextureData& TextureData = this->TextureDataList[ElementId];
 
-							// Check whether, the associated file has changed
-							IDatasmithTextureElement* TextureElement = static_cast<IDatasmithTextureElement*>(this->Elements[ElementId].Get());
-							TextureData.bProcessed = TextureData.Hash != TextureElement->GetFileHash();
+							TextureData.SetState(EDatasmithRuntimeAssetState::Unknown);
 
 							this->ProcessTextureData(ElementId);
 
@@ -664,7 +681,7 @@ namespace DatasmithRuntime
 						ensure(ActorDataList.Contains(ElementId));
 						FActorData& ActorData = ActorDataList[ElementId];
 
-						ActorData.bProcessed = false;
+						ActorData.SetState(EDatasmithRuntimeAssetState::Unknown);
 
 						TaskFunc = [this, ElementId, ParentId = ActorData.ParentId](UObject*, const FReferencer&) -> EActionResult::Type
 						{
@@ -675,7 +692,6 @@ namespace DatasmithRuntime
 						};
 					}
 
-					// #ue_liveupdate: Remove ElementUpdateCount
 					AddToQueue(UPDATE_QUEUE, { MoveTemp(TaskFunc), FReferencer() } );
 
 					TasksToComplete |= EDatasmithRuntimeWorkerTask::SetupTasks;
@@ -716,7 +732,6 @@ namespace DatasmithRuntime
 			{
 				if (Elements.Contains(ElementId))
 				{
-					// #ue_liveupdate: Remove ElementDeletionCount
 					AddToQueue(DELETE_QUEUE, { TaskFunc, FReferencer(ElementId) } );
 				}
 			}
@@ -742,6 +757,11 @@ namespace DatasmithRuntime
 			bGarbageCollect |= DeleteAsset(Entry.Value);
 		}
 
+		for (TPair< FSceneGraphId, FTextureData >& Entry : TextureDataList)
+		{
+			bGarbageCollect |= DeleteAsset(Entry.Value);
+		}
+		
 		bGarbageCollect &= !IsGarbageCollecting();
 
 		if (bGarbageCollect)
@@ -820,11 +840,6 @@ namespace DatasmithRuntime
 				SceneComponent->Rename(nullptr, nullptr, REN_NonTransactional | REN_DontCreateRedirectors);
 				SceneComponent->MarkPendingKill();
 			}
-			// #ue_liveupdate: Must remove actor owning camera component
-			//else
-			//{
-			//	SceneComponent->GetOwner()->GetWorld()->DestroyActor(SceneComponent->GetOwner());
-			//}
 
 			ActorData.Object.Reset();
 
@@ -840,10 +855,13 @@ namespace DatasmithRuntime
 		{
 			AssetData.Object.Reset();
 
-			Asset->ClearFlags(RF_AllFlags);
-			Asset->SetFlags(RF_Transient);
-			Asset->Rename(nullptr, nullptr, REN_NonTransactional | REN_DontCreateRedirectors);
-			Asset->MarkPendingKill();
+			if (UnregisterAssetData(Asset, &AssetData) == 0)
+			{
+				Asset->ClearFlags(RF_Public);
+				Asset->SetFlags(RF_Transient);
+				Asset->Rename(nullptr, nullptr, REN_NonTransactional | REN_DontCreateRedirectors | REN_ForceNoResetLoaders);
+				//Asset->MarkPendingKill();
+			}
 
 			return true;
 		}
@@ -853,17 +871,45 @@ namespace DatasmithRuntime
 
 	bool FSceneImporter::ProcessCameraActorData(FActorData& ActorData, IDatasmithCameraActorElement* CameraElement)
 	{
-		if (ActorData.bProcessed)
+		if (ActorData.HasState(EDatasmithRuntimeAssetState::Processed))
 		{
 			return true;
 		}
+		
+		// Check to see if the camera must be updated or not
+		// Update if only the current actor is the only one with a valid source and the source has changed
+		bool bUpdateCamera = true;
 
-		if (APlayerController* PlayerController = UGameplayStatics::GetPlayerController(RootComponent->GetOwner()->GetWorld(), 0))
+		TArray<AActor*> Actors;
+		UGameplayStatics::GetAllActorsOfClass(RootComponent->GetOwner()->GetWorld(), ADatasmithRuntimeActor::StaticClass(), Actors);
+
+		if (Actors.Num() > 1)
 		{
-			PlayerController->SetControlRotation(ActorData.WorldTransform.GetRotation().Rotator());
-			if (APawn* Pawn = PlayerController->GetPawn())
+			for (AActor* Actor : Actors)
 			{
-				Pawn->SetActorLocationAndRotation(ActorData.WorldTransform.GetLocation(), ActorData.WorldTransform.GetRotation(), false);
+				if (Actor == RootComponent->GetOwner())
+				{
+					continue;
+				}
+
+				if (ADatasmithRuntimeActor* RuntimeActor = Cast<ADatasmithRuntimeActor>(Actor))
+				{
+					bUpdateCamera &= RuntimeActor->GetSourceName() == TEXT("None");
+				}
+			}
+		}
+
+		bUpdateCamera &= LastSceneId != SceneElement->GetNodeId() || LastSourceHandle != CurrentSourceHandle;
+
+		if (bUpdateCamera)
+		{
+			if (APlayerController* PlayerController = UGameplayStatics::GetPlayerController(RootComponent->GetOwner()->GetWorld(), 0))
+			{
+				PlayerController->SetControlRotation(ActorData.WorldTransform.GetRotation().Rotator());
+				if (APawn* Pawn = PlayerController->GetPawn())
+				{
+					Pawn->SetActorLocationAndRotation(ActorData.WorldTransform.GetLocation(), ActorData.WorldTransform.GetRotation(), false);
+				}
 			}
 		}
 
@@ -954,8 +1000,7 @@ namespace DatasmithRuntime
 			}
 		}
 #endif
-		ActorData.bProcessed = true;
-		ActorData.bCompleted = true;
+		ActorData.SetState(EDatasmithRuntimeAssetState::Processed | EDatasmithRuntimeAssetState::Completed);
 
 		return true;
 	}

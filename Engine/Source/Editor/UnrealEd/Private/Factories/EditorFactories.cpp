@@ -200,8 +200,8 @@
 
 #include "DDSLoader.h"
 #include "HDRLoader.h"
-#include "Factories/IESLoader.h"
 #include "Factories/TIFFLoader.h"
+#include "IESConverter.h"
 #include "IImageWrapper.h"
 #include "IImageWrapperModule.h"
 #include "TgaImageSupport.h"
@@ -1975,16 +1975,15 @@ bool UPhysicalMaterialFactoryNew::ConfigureProperties()
 }
 UObject* UPhysicalMaterialFactoryNew::FactoryCreateNew(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn)
 {
-	if (PhysicalMaterialClass != nullptr)
-	{
-		return NewObject<UPhysicalMaterial>(InParent, PhysicalMaterialClass, Name, Flags | RF_Transactional);
-	}
-	else
-	{
-		// if we have no data asset class, use the passed-in class instead
-		check(Class->IsChildOf(UPhysicalMaterial::StaticClass()));
-		return NewObject<UPhysicalMaterial>(InParent, Class, Name, Flags);
-	}
+	EObjectFlags MaterialFlags = PhysicalMaterialClass.Get() ? Flags | RF_Transactional : Flags;
+	UClass* ClassToUse = PhysicalMaterialClass.Get() ? PhysicalMaterialClass.Get() : Class;
+	
+	check(ClassToUse->IsChildOf(UPhysicalMaterial::StaticClass()));
+
+	UPhysicalMaterial* NewMaterial = NewObject<UPhysicalMaterial>(InParent, ClassToUse, Name, MaterialFlags);
+	// A call to get will ensure any physics-engine specific data is built
+	NewMaterial->GetPhysicsMaterial();
+	return NewMaterial;
 }
 
 /*------------------------------------------------------------------------------
@@ -3819,31 +3818,28 @@ UTexture* UTextureFactory::ImportTexture(UClass* Class, UObject* InParent, FName
 	if(!FCString::Stricmp(Type, TEXT("ies")))
 	{
 		// checks for .IES extension to avoid wasting loading large assets just to reject them during header parsing
-		FIESLoadHelper IESLoadHelper(Buffer, Length);
+		FIESConverter IESConverter(Buffer, Length);
 
-		if(IESLoadHelper.IsValid())
+		if(IESConverter.IsValid())
 		{
-			TArray<uint8> RAWData;
-			float Multiplier = IESLoadHelper.ExtractInRGBA16F(RAWData);
-
 			UTextureLightProfile* Texture = Cast<UTextureLightProfile>( CreateOrOverwriteAsset(UTextureLightProfile::StaticClass(), InParent, Name, Flags) );
 			if ( Texture )
 			{
 				Texture->Source.Init(
-					IESLoadHelper.GetWidth(),
-					IESLoadHelper.GetHeight(),
+					IESConverter.GetWidth(),
+					IESConverter.GetHeight(),
 					/*NumSlices=*/ 1,
 					1,
 					TSF_RGBA16F,
-					RAWData.GetData()
+					IESConverter.GetRawData().GetData()
 					);
 
 				Texture->AddressX = TA_Clamp;
 				Texture->AddressY = TA_Clamp;
 				Texture->CompressionSettings = TC_HDR;
 				MipGenSettings = TMGS_NoMipmaps;
-				Texture->Brightness = IESLoadHelper.GetBrightness();
-				Texture->TextureMultiplier = Multiplier;
+				Texture->Brightness = IESConverter.GetBrightness();
+				Texture->TextureMultiplier = IESConverter.GetMultiplier();
 			}
 
 			return Texture;
@@ -5858,8 +5854,8 @@ EReimportResult::Type UReimportFbxStaticMeshFactory::Reimport( UObject* Obj )
 			}
 
 			// preserve settings in navcollision subobject
-			UNavCollisionBase* NavCollision = Mesh->NavCollision ? 
-				(UNavCollisionBase*)StaticDuplicateObject(Mesh->NavCollision, GetTransientPackage()) :
+			UNavCollisionBase* NavCollision = Mesh->GetNavCollision() ? 
+				(UNavCollisionBase*)StaticDuplicateObject(Mesh->GetNavCollision(), GetTransientPackage()) :
 				nullptr;
 
 			bool bAddedNavCollisionDupToRoot = false;
@@ -5897,7 +5893,7 @@ EReimportResult::Type UReimportFbxStaticMeshFactory::Reimport( UObject* Obj )
 						//if the duplicated temporary UObject was add to root, we must remove it from the root
 						NavCollision->RemoveFromRoot();
 					}
-					Mesh->NavCollision = NavCollision;
+					Mesh->SetNavCollision(NavCollision);
 					NavCollision->Rename(NULL, Mesh, REN_DontCreateRedirectors | REN_DoNotDirty);
 				}
 

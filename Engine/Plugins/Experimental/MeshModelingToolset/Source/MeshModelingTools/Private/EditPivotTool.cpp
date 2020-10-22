@@ -12,12 +12,12 @@
 #include "MeshDescriptionAdapter.h"
 #include "MeshTransforms.h"
 #include "BaseBehaviors/ClickDragBehavior.h"
+#include "ToolSceneQueriesUtil.h"
 
 #include "BaseGizmos/GizmoComponents.h"
 #include "BaseGizmos/TransformGizmo.h"
 
 #include "Components/PrimitiveComponent.h"
-#include "CollisionQueryParams.h"
 #include "Engine/World.h"
 
 #define LOCTEXT_NAMESPACE "UEditPivotTool"
@@ -361,9 +361,6 @@ void UEditPivotTool::OnClickPress(const FInputDeviceRay& PressPos)
 
 void UEditPivotTool::OnClickDrag(const FInputDeviceRay& DragPos)
 {
-	FCollisionObjectQueryParams ObjectQueryParams(FCollisionObjectQueryParams::AllObjects);
-	FCollisionQueryParams CollisionParams = FCollisionQueryParams::DefaultQueryParam;
-
 	//bool bApplyToPivot = true;
 	//if (bApplyToPivot == false)
 	//{
@@ -382,7 +379,7 @@ void UEditPivotTool::OnClickDrag(const FInputDeviceRay& DragPos)
 	float NormalSign = (TransformProps->RotationMode == EEditPivotSnapDragRotationMode::AlignFlipped) ? -1.0f : 1.0f;
 
 	FHitResult Result;
-	bool bWorldHit = TargetWorld->LineTraceSingleByObjectType(Result, DragPos.WorldRay.Origin, DragPos.WorldRay.PointAt(999999), ObjectQueryParams, CollisionParams);
+	bool bWorldHit = ToolSceneQueriesUtil::FindNearestVisibleObjectHit(TargetWorld, Result, DragPos.WorldRay);
 	if (bWorldHit == false)
 	{
 		return;

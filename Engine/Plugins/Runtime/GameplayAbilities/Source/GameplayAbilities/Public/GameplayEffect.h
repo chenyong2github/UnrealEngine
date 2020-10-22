@@ -1531,7 +1531,7 @@ struct GAMEPLAYABILITIES_API FActiveGameplayEffectsContainer : public FFastArray
 	typedef FActiveGameplayEffectIterator<FActiveGameplayEffect, FActiveGameplayEffectsContainer> Iterator;
 
 	FActiveGameplayEffectsContainer();
-	virtual ~FActiveGameplayEffectsContainer();
+	~FActiveGameplayEffectsContainer();
 
 	UAbilitySystemComponent* Owner;
 	bool OwnerIsNetAuthority;
@@ -1837,9 +1837,6 @@ private:
 	
 	/** Helper function to handle the case of same-effect stacking overflow; Returns true if the overflow application should apply, false if it should not */
 	bool HandleActiveGameplayEffectStackOverflow(const FActiveGameplayEffect& ActiveStackableGE, const FGameplayEffectSpec& OldSpec, const FGameplayEffectSpec& OverflowingSpec);
-
-	/** After application has gone through, give stacking rules a chance to do something as the source of the gameplay effect (E.g., remove an old version) */
-	virtual void ApplyStackingLogicPostApplyAsSource(UAbilitySystemComponent* Target, const FGameplayEffectSpec& SpecApplied, FActiveGameplayEffectHandle ActiveHandle) { }
 
 	bool ShouldUseMinimalReplication();
 

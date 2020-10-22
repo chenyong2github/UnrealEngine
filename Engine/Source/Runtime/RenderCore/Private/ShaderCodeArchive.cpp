@@ -2,11 +2,13 @@
 
 #include "ShaderCodeArchive.h"
 #include "ShaderCodeLibrary.h"
-#include "Shader.h"
 #include "Stats/Stats.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
 #include "Misc/ScopeRWLock.h"
 #include "Misc/MemStack.h"
+#include "Policies/PrettyJsonPrintPolicy.h"
+#include "Serialization/JsonSerializer.h"
+#include "Misc/FileHelper.h"
 
 int32 GShaderCodeLibraryAsyncLoadingPriority = int32(AIOP_Normal);
 static FAutoConsoleVariableRef CVarShaderCodeLibraryAsyncLoadingPriority(
@@ -45,7 +47,7 @@ int32 FSerializedShaderArchive::FindShaderMap(const FSHAHash& Hash) const
 	return FindShaderMapWithKey(Hash, Key);
 }
 
-bool FSerializedShaderArchive::FindOrAddShaderMap(const FSHAHash& Hash, int32& OutIndex)
+bool FSerializedShaderArchive::FindOrAddShaderMap(const FSHAHash& Hash, int32& OutIndex, const FShaderMapAssetPaths* AssociatedAssets)
 {
 	const uint32 Key = GetTypeHash(Hash);
 	int32 Index = FindShaderMapWithKey(Hash, Key);
@@ -56,7 +58,32 @@ bool FSerializedShaderArchive::FindOrAddShaderMap(const FSHAHash& Hash, int32& O
 		ShaderMapEntries.AddDefaulted();
 		check(ShaderMapEntries.Num() == ShaderMapHashes.Num());
 		ShaderMapHashTable.Add(Key, Index);
+#if WITH_EDITOR
+		if (AssociatedAssets && AssociatedAssets->Num() > 0)
+		{
+			ShaderCodeToAssets.Add(Hash, *AssociatedAssets);
+		}
+#endif
 		bAdded = true;
+	}
+	else
+	{
+#if WITH_EDITOR
+		// check if we need to replace or merge assets
+		if (AssociatedAssets && AssociatedAssets->Num())
+		{
+			FShaderMapAssetPaths* PrevAssets = ShaderCodeToAssets.Find(Hash);
+			if (PrevAssets)
+			{
+				int PrevAssetsNum = PrevAssets->Num();
+				PrevAssets->Append(*AssociatedAssets);
+			}
+			else
+			{
+				ShaderCodeToAssets.Add(Hash, *AssociatedAssets);
+			}
+		}
+#endif
 	}
 
 	OutIndex = Index;
@@ -199,6 +226,141 @@ void FSerializedShaderArchive::Serialize(FArchive& Ar)
 		}
 	}
 }
+
+#if WITH_EDITOR
+void FSerializedShaderArchive::SaveAssetInfo(FArchive& Ar)
+{
+	if (Ar.IsSaving())
+	{
+		FString JsonTcharText;
+		{
+			TSharedRef<TJsonWriter<TCHAR, TPrettyJsonPrintPolicy<TCHAR>>> Writer = TJsonWriterFactory<TCHAR, TPrettyJsonPrintPolicy<TCHAR>>::Create(&JsonTcharText);
+			Writer->WriteObjectStart();
+
+			Writer->WriteValue(TEXT("AssetInfoVersion"), static_cast<int32>(EAssetInfoVersion::CurrentVersion));
+
+			Writer->WriteArrayStart(TEXT("ShaderCodeToAssets"));
+			for (TMap<FSHAHash, FShaderMapAssetPaths>::TConstIterator Iter(ShaderCodeToAssets); Iter; ++Iter)
+			{
+				Writer->WriteObjectStart();
+				const FSHAHash& Hash = Iter.Key();
+				Writer->WriteValue(TEXT("ShaderMapHash"), Hash.ToString());
+				const FShaderMapAssetPaths& Assets = Iter.Value();
+				Writer->WriteArrayStart(TEXT("Assets"));
+				for (FShaderMapAssetPaths::TConstIterator AssetIter(Assets); AssetIter; ++AssetIter)
+				{
+					Writer->WriteValue((*AssetIter));
+				}
+				Writer->WriteArrayEnd();
+				Writer->WriteObjectEnd();
+			}
+			Writer->WriteArrayEnd();
+
+			Writer->WriteObjectEnd();
+			Writer->Close();
+		}
+
+		FTCHARToUTF8 JsonUtf8(*JsonTcharText);
+		Ar.Serialize(const_cast<void *>(reinterpret_cast<const void*>(JsonUtf8.Get())), JsonUtf8.Length() * sizeof(UTF8CHAR));
+	}
+}
+
+bool FSerializedShaderArchive::LoadAssetInfo(const FString& Filename)
+{
+	TArray<uint8> FileData;
+	if (!FFileHelper::LoadFileToArray(FileData, *Filename))
+	{
+		return false;
+	}
+
+	FString JsonText;
+	FFileHelper::BufferToString(JsonText, FileData.GetData(), FileData.Num());
+
+	TSharedPtr<FJsonObject> JsonObject;
+	TSharedRef<TJsonReader<TCHAR>> Reader = TJsonReaderFactory<TCHAR>::Create(JsonText);
+
+	// Attempt to deserialize JSON
+	if (!FJsonSerializer::Deserialize(Reader, JsonObject) || !JsonObject.IsValid())
+	{
+		return false;
+	}
+
+	TSharedPtr<FJsonValue> AssetInfoVersion = JsonObject->Values.FindRef(TEXT("AssetInfoVersion"));
+	if (!AssetInfoVersion.IsValid())
+	{
+		UE_LOG(LogShaderLibrary, Warning, TEXT("Rejecting asset info file %s: missing AssetInfoVersion (damaged file?)"), 
+			*Filename);
+		return false;
+	}
+	
+	const EAssetInfoVersion FileVersion = static_cast<EAssetInfoVersion>(static_cast<int64>(AssetInfoVersion->AsNumber()));
+	if (FileVersion != EAssetInfoVersion::CurrentVersion)
+	{
+		UE_LOG(LogShaderLibrary, Warning, TEXT("Rejecting asset info file %s: expected version %d, got unsupported version %d."),
+			*Filename, static_cast<int32>(EAssetInfoVersion::CurrentVersion), static_cast<int32>(FileVersion));
+		return false;
+	}
+
+	TSharedPtr<FJsonValue> AssetInfoArrayValue = JsonObject->Values.FindRef(TEXT("ShaderCodeToAssets"));
+	if (!AssetInfoArrayValue.IsValid())
+	{
+		UE_LOG(LogShaderLibrary, Warning, TEXT("Rejecting asset info file %s: missing ShaderCodeToAssets array (damaged file?)"),
+			*Filename);
+		return false;
+	}
+	
+	TArray<TSharedPtr<FJsonValue>> AssetInfoArray = AssetInfoArrayValue->AsArray();
+	UE_LOG(LogShaderLibrary, Display, TEXT("Reading asset info file %s: found %d existing mappings"),
+		*Filename, AssetInfoArray.Num());
+
+	for (int32 IdxPair = 0, NumPairs = AssetInfoArray.Num(); IdxPair < NumPairs; ++IdxPair)
+	{
+		TSharedPtr<FJsonObject> Pair = AssetInfoArray[IdxPair]->AsObject();
+		if (UNLIKELY(!Pair.IsValid()))
+		{
+			UE_LOG(LogShaderLibrary, Warning, TEXT("Rejecting asset info file %s: ShaderCodeToAssets array contains unreadable mapping #%d (damaged file?)"),
+				*Filename,
+				IdxPair
+				);
+			return false;
+		}
+
+		TSharedPtr<FJsonValue> ShaderMapHashJson = Pair->Values.FindRef(TEXT("ShaderMapHash"));
+		if (UNLIKELY(!ShaderMapHashJson.IsValid()))
+		{
+			UE_LOG(LogShaderLibrary, Warning, TEXT("Rejecting asset info file %s: ShaderCodeToAssets array contains unreadable ShaderMapHash for mapping %d (damaged file?)"),
+				*Filename,
+				IdxPair
+				);
+			return false;
+		}
+
+		FSHAHash ShaderMapHash;
+		ShaderMapHash.FromString(ShaderMapHashJson->AsString());
+
+		TSharedPtr<FJsonValue> AssetPathsArrayValue = Pair->Values.FindRef(TEXT("Assets"));
+		if (UNLIKELY(!AssetPathsArrayValue.IsValid()))
+		{
+			UE_LOG(LogShaderLibrary, Warning, TEXT("Rejecting asset info file %s: ShaderCodeToAssets array contains unreadable Assets array for mapping %d (damaged file?)"),
+				*Filename,
+				IdxPair
+			);
+			return false;
+		}
+			
+		FShaderMapAssetPaths Paths;
+		TArray<TSharedPtr<FJsonValue>> AssetPathsArray = AssetPathsArrayValue->AsArray();
+		for (int32 IdxAsset = 0, NumAssets = AssetPathsArray.Num(); IdxAsset < NumAssets; ++IdxAsset)
+		{
+			Paths.Add(AssetPathsArray[IdxAsset]->AsString());
+		}
+
+		ShaderCodeToAssets.Add(ShaderMapHash, Paths);
+	}
+
+	return true;
+}
+#endif // WITH_EDITOR
 
 FShaderCodeArchive* FShaderCodeArchive::Create(EShaderPlatform InPlatform, FArchive& Ar, const FString& InDestFilePath, const FString& InLibraryDir, const FString& InLibraryName)
 {

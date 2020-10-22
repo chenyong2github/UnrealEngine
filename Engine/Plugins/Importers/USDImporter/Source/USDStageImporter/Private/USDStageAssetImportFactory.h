@@ -13,7 +13,7 @@
 
 /** Factory to import USD files that gets called when we hit Import in the Content Browser, as well as during reimport */
 UCLASS(hidecategories=Object)
-class UUsdStageAssetImportFactory : public UFactory, public IImportSettingsParser, public FReimportHandler
+class UUsdStageAssetImportFactory : public UFactory, public FReimportHandler
 {
 	GENERATED_UCLASS_BODY()
 
@@ -24,7 +24,6 @@ public:
 	virtual UObject* FactoryCreateFile(UClass* InClass, UObject* InParent, FName InName, EObjectFlags Flags, const FString& Filename, const TCHAR* Parms, FFeedbackContext* Warn, bool& bOutOperationCanceled) override;
 	virtual bool FactoryCanImport(const FString& Filename) override;
 	virtual void CleanUp() override;
-	virtual IImportSettingsParser* GetImportSettingsParser() override { return this; }
 
 	/** FReimportHandler interface */
 	virtual bool CanReimport(UObject* Obj, TArray<FString>& OutFilenames);
@@ -32,13 +31,7 @@ public:
 	virtual EReimportResult::Type Reimport(UObject* Obj);
 	virtual int32 GetPriority() const override;
 
-	/** IImportSettingsParser interface */
-	virtual void ParseFromJson(TSharedRef<class FJsonObject> ImportSettingsJson) override;
-
 private:
 	UPROPERTY()
 	FUsdStageImportContext ImportContext;
-
-	UPROPERTY()
-	UUsdStageImportOptions* ImportOptions;
 };

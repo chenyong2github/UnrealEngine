@@ -6,12 +6,50 @@
 
 #include "IMPCDI.h"
 
-#include "RHI.h"
-#include "RHICommandList.h"
-#include "RHIResources.h"
-#include "RHIUtilities.h"
+#include "DisplayClusterProjectionMPCDIPolicy.generated.h"
 
 class USceneComponent;
+class UDisplayClusterSceneComponent;
+class UDisplayClusterConfigurationViewport;
+
+
+UCLASS()
+class DISPLAYCLUSTERPROJECTION_API UDisplayClusterProjectionPolicyMPCDIParameters
+	: public UDisplayClusterProjectionPolicyParameters
+{
+	GENERATED_BODY()
+
+public:
+	UDisplayClusterProjectionPolicyMPCDIParameters();
+
+#if WITH_EDITOR
+public:
+	virtual bool Parse(ADisplayClusterRootActor* RootActor, const FDisplayClusterConfigurationProjection& ConfigData) override;
+#endif
+
+#if WITH_EDITORONLY_DATA
+public:
+	UPROPERTY(EditAnywhere, Category = "MPCDI")
+	ADisplayClusterRootActor* RootActor;
+
+	UPROPERTY(EditAnywhere, Category = "MPCDI")
+	FString File;
+
+	UPROPERTY(EditAnywhere, Category = "MPCDI")
+	FString Buffer;
+
+	UPROPERTY(EditAnywhere, Category = "MPCDI")
+	FString Region;
+
+	UPROPERTY(EditAnywhere, Category = "MPCDI")
+	USceneComponent* Origin;
+
+	IMPCDI::FRegionLocator MPCDILocator;
+	FCriticalSection InternalsSyncScope;
+#endif
+};
+
+
 
 /**
  * MPCDI projection policy
@@ -32,7 +70,9 @@ public:
 
 public:
 	virtual EWarpType GetWarpType() const
-	{ return EWarpType::mpcdi; }
+	{
+		return EWarpType::mpcdi;
+	}
 
 public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
@@ -69,4 +109,26 @@ protected:
 
 	mutable bool bIsRenderResourcesInitialized;
 	FCriticalSection RenderingResourcesInitializationCS;
+
+
+#if WITH_EDITOR
+protected:
+	//////////////////////////////////////////////////////////////////////////////////////////////
+	// IDisplayClusterProjectionPolicyPreview
+	//////////////////////////////////////////////////////////////////////////////////////////////
+	virtual bool HasMeshPreview() override
+	{
+		return true;
+	}
+
+	virtual bool HasPreviewRendering() override
+	{
+		return true;
+	}
+
+	virtual UDisplayClusterProjectionPolicyParameters* CreateParametersObject(UObject* Owner) override;
+	virtual void InitializePreview(UDisplayClusterProjectionPolicyParameters* PolicyParameters) override;
+	virtual UMeshComponent* BuildMeshPreview(UDisplayClusterProjectionPolicyParameters* PolicyParameters) override;
+	virtual void RenderFrame(USceneComponent* Camera, UDisplayClusterProjectionPolicyParameters* PolicyParameters, FTextureRenderTargetResource* RenderTarget, FIntRect RenderRegion, bool bApplyWarpBlend) override;
+#endif
 };

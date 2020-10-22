@@ -1671,7 +1671,6 @@ void UAbilitySystemComponent::OnGameplayEffectAppliedToTarget(UAbilitySystemComp
 	SCOPE_CYCLE_COUNTER(STAT_AbilitySystemComp_OnGameplayEffectAppliedToTarget);
 #endif
 	OnGameplayEffectAppliedDelegateToTarget.Broadcast(Target, SpecApplied, ActiveHandle);
-	ActiveGameplayEffects.ApplyStackingLogicPostApplyAsSource(Target, SpecApplied, ActiveHandle);
 }
 
 void UAbilitySystemComponent::OnGameplayEffectAppliedToSelf(UAbilitySystemComponent* Source, const FGameplayEffectSpec& SpecApplied, FActiveGameplayEffectHandle ActiveHandle)

@@ -33,13 +33,14 @@ Invokes an AutomationTool child process to run the given command.
 
 Spawns the editor to run a commandlet.
 
-|           |               |          |                                                                                                          |
-| --------- | ------------- | -------- | -------------------------------------------------------------------------------------------------------- |
-| Name      | String        | Required | The commandlet name to execute.                                                                          |
-| Project   | File Spec     | Optional | The project to run the editor with.                                                                      |
-| Arguments | String        | Optional | Arguments to be passed to the commandlet.                                                                |
-| EditorExe | FileReference | Optional | The editor executable to use. Defaults to the development UE4Editor executable for the current platform. |
-| If        | Condition     | Optional | Whether to execute this task. It is ignored if this condition evaluates to false.                        |
+|            |               |          |                                                                                                          |
+| ---------- | ------------- | -------- | -------------------------------------------------------------------------------------------------------- |
+| Name       | String        | Required | The commandlet name to execute.                                                                          |
+| Project    | File Spec     | Optional | The project to run the editor with.                                                                      |
+| Arguments  | String        | Optional | Arguments to be passed to the commandlet.                                                                |
+| EditorExe  | FileReference | Optional | The editor executable to use. Defaults to the development UE4Editor executable for the current platform. |
+| ErrorLevel | Int32         | Optional | The minimum exit code, which is treated as an error.                                                     |
+| If         | Condition     | Optional | Whether to execute this task. It is ignored if this condition evaluates to false.                        |
 
 ### Compile
 

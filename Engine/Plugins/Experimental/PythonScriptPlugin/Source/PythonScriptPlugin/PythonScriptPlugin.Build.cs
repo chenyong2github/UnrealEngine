@@ -21,7 +21,7 @@ namespace UnrealBuildTool.Rules
 					"AssetRegistry",
 					"EditorStyle",
 					"Projects",
-					"Python",
+					"Python3",
 					"Slate",
 					"SlateCore",
 					"InputCore",

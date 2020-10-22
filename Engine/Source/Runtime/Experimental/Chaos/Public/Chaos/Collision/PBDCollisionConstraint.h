@@ -40,6 +40,7 @@ namespace Chaos
 			, PrevCoMContactPoint1(0)
 			, NetImpulse(0)
 			, NetPushOut(0)
+			, NetPushOutImpulse(0)
 			, InitialContactVelocity(0)
 			, InitialPhi(0)
 			, bPotentialRestingContact(false)
@@ -55,6 +56,7 @@ namespace Chaos
 			, PrevCoMContactPoint1(0)
 			, NetImpulse(0)
 			, NetPushOut(0)
+			, NetPushOutImpulse(0)
 			, InitialContactVelocity(0)
 			, InitialPhi(0)
 			, bPotentialRestingContact(false)
@@ -69,6 +71,7 @@ namespace Chaos
 		FVec3 PrevCoMContactPoint1;			// CoM-space contact point on second body at previous transforms (used for static friction)
 		FVec3 NetImpulse;					// Total impulse applied by this contact point
 		FVec3 NetPushOut;					// Total pushout applied at this contact point
+		FReal NetPushOutImpulse;			// Total pushout impulse along normal (for final velocity correction) applied at this contact point
 		FReal InitialContactVelocity;		// Contact velocity at start of frame (used for restitution)
 		FReal InitialPhi;					// Contact separation at first contact (used for pushout restitution)
 		bool bPotentialRestingContact;		// Whether this may be a resting contact (used for static fricton)

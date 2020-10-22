@@ -10,6 +10,7 @@
 #include "SceneUtils.h"
 #include "Stats/Stats.h"
 #include "VirtualTexturing.h"
+#include "VT/AdaptiveVirtualTexture.h"
 #include "VT/TexturePagePool.h"
 #include "VT/UniquePageList.h"
 #include "VT/UniqueRequestList.h"
@@ -30,6 +31,9 @@ DECLARE_CYCLE_STAT(TEXT("Merge Unique Pages"), STAT_ProcessRequests_MergePages, 
 DECLARE_CYCLE_STAT(TEXT("Merge Requests"), STAT_ProcessRequests_MergeRequests, STATGROUP_VirtualTexturing);
 DECLARE_CYCLE_STAT(TEXT("Submit Tasks"), STAT_ProcessRequests_SubmitTasks, STATGROUP_VirtualTexturing);
 DECLARE_CYCLE_STAT(TEXT("Wait Tasks"), STAT_ProcessRequests_WaitTasks, STATGROUP_VirtualTexturing);
+
+DECLARE_CYCLE_STAT(TEXT("Queue Adaptive Requests"), STAT_ProcessRequests_QueueAdaptiveRequests, STATGROUP_VirtualTexturing);
+DECLARE_CYCLE_STAT(TEXT("Finalize Adaptive Requests"), STAT_ProcessRequests_FinalizeAdaptiveRequests, STATGROUP_VirtualTexturing);
 
 DECLARE_CYCLE_STAT(TEXT("Feedback Map"), STAT_FeedbackMap, STATGROUP_VirtualTexturing);
 DECLARE_CYCLE_STAT(TEXT("Feedback Analysis"), STAT_FeedbackAnalysis, STATGROUP_VirtualTexturing);
@@ -553,6 +557,24 @@ void FVirtualTextureSystem::DestroyPendingVirtualTextures()
 	}
 }
 
+IAdaptiveVirtualTexture* FVirtualTextureSystem::AllocateAdaptiveVirtualTexture(const FAdaptiveVTDescription& AdaptiveVTDesc, const FAllocatedVTDescription& AllocatedVTDesc)
+{
+	check(IsInRenderingThread());
+	FAdaptiveVirtualTexture* AdaptiveVT = new FAdaptiveVirtualTexture(AdaptiveVTDesc, AllocatedVTDesc);
+	AdaptiveVT->Init(this);
+	check(AdaptiveVTs[AdaptiveVT->GetSpaceID()] == nullptr);
+	AdaptiveVTs[AdaptiveVT->GetSpaceID()] = AdaptiveVT;
+	return AdaptiveVT;
+}
+
+void FVirtualTextureSystem::DestroyAdaptiveVirtualTexture(IAdaptiveVirtualTexture* AdaptiveVT)
+{
+	check(IsInRenderingThread());
+	check(AdaptiveVTs[AdaptiveVT->GetSpaceID()] == AdaptiveVT);
+	AdaptiveVTs[AdaptiveVT->GetSpaceID()] = nullptr;
+	AdaptiveVT->Destroy(this);
+}
+
 FVirtualTextureProducerHandle FVirtualTextureSystem::RegisterProducer(const FVTProducerDescription& InDesc, IVirtualTexture* InProducer)
 {
 	return Producers.RegisterProducer(this, InDesc, InProducer);
@@ -578,53 +600,62 @@ FVirtualTextureProducer* FVirtualTextureSystem::FindProducer(const FVirtualTextu
 	return Producers.FindProducer(Handle);
 }
 
-FVirtualTextureSpace* FVirtualTextureSystem::AcquireSpace(const FVTSpaceDescription& InDesc, FAllocatedVirtualTexture* AllocatedVT)
+FVirtualTextureSpace* FVirtualTextureSystem::AcquireSpace(const FVTSpaceDescription& InDesc, uint8 InForceSpaceID, FAllocatedVirtualTexture* AllocatedVT)
 {
 	LLM_SCOPE(ELLMTag::VirtualTextureSystem);
 
-	// If InDesc requests a private space, don't reuse any existing spaces
 	uint32 NumFailedAllocations = 0u;
-	if (!InDesc.bPrivateSpace)
+
+	// If InDesc requests a private space, don't reuse any existing spaces (unless it is a forced space)
+	if (!InDesc.bPrivateSpace || InForceSpaceID != 0xff)
 	{
 		for (uint32 SpaceIndex = 0u; SpaceIndex < MaxSpaces; ++SpaceIndex)
 		{
-			FVirtualTextureSpace* Space = Spaces[SpaceIndex].Get();
-			if (Space && Space->GetDescription() == InDesc)
+			if (SpaceIndex == InForceSpaceID || InForceSpaceID == 0xff)
 			{
-				const uint32 vAddress = Space->AllocateVirtualTexture(AllocatedVT);
-				if (vAddress != ~0u)
+				FVirtualTextureSpace* Space = Spaces[SpaceIndex].Get();
+				if (Space && Space->GetDescription() == InDesc)
 				{
-					AllocatedVT->VirtualAddress = vAddress;
-					Space->AddRef();
-					return Space;
-				}
-				else
-				{
-					++NumFailedAllocations;
+					const uint32 vAddress = Space->AllocateVirtualTexture(AllocatedVT);
+					if (vAddress != ~0u)
+					{
+						AllocatedVT->VirtualAddress = vAddress;
+						Space->AddRef();
+						return Space;
+					}
+					else
+					{
+						++NumFailedAllocations;
+					}
 				}
 			}
 		}
 	}
 
-	for (uint32 SpaceIndex = 0u; SpaceIndex < MaxSpaces; ++SpaceIndex)
+	// Try to allocate a new space
+	if (InForceSpaceID == 0xff)
 	{
-		if (!Spaces[SpaceIndex])
+		for (uint32 SpaceIndex = 0u; SpaceIndex < MaxSpaces; ++SpaceIndex)
 		{
-			FVirtualTextureSpace* Space = new FVirtualTextureSpace(this, SpaceIndex, InDesc, FMath::Max(AllocatedVT->GetWidthInTiles(), AllocatedVT->GetHeightInTiles()));
-			Spaces[SpaceIndex].Reset(Space);
-			INC_MEMORY_STAT_BY(STAT_TotalPagetableMemory, Space->GetSizeInBytes());
-			BeginInitResource(Space);
+			if (!Spaces[SpaceIndex])
+			{
+				const uint32 InitialPageTableSize = InDesc.bPrivateSpace ? InDesc.MaxSpaceSize : FMath::Max(AllocatedVT->GetWidthInTiles(), AllocatedVT->GetHeightInTiles());
+				FVirtualTextureSpace* Space = new FVirtualTextureSpace(this, SpaceIndex, InDesc, InitialPageTableSize);
+				Spaces[SpaceIndex].Reset(Space);
+				INC_MEMORY_STAT_BY(STAT_TotalPagetableMemory, Space->GetSizeInBytes());
+				BeginInitResource(Space);
 
-			const uint32 vAddress = Space->AllocateVirtualTexture(AllocatedVT);
-			check(vAddress != ~0u);
-			AllocatedVT->VirtualAddress = vAddress;
+				const uint32 vAddress = Space->AllocateVirtualTexture(AllocatedVT);
+				check(vAddress != ~0u);
+				AllocatedVT->VirtualAddress = vAddress;
 
-			Space->AddRef();
-			return Space;
+				Space->AddRef();
+				return Space;
+			}
 		}
 	}
 
-	// out of space slots
+	// Out of space slots
 	checkf(false, TEXT("Failed to acquire space for VT (%d x %d), failed to allocate from %d existing matching spaces"),
 		AllocatedVT->GetWidthInTiles(), AllocatedVT->GetHeightInTiles(), NumFailedAllocations);
 	return nullptr;
@@ -960,6 +991,18 @@ void FVirtualTextureSystem::Update(FRHICommandListImmediate& RHICmdList, ERHIFea
 		}
 	}
 
+	// Update Adaptive VTs
+	{
+		SCOPE_CYCLE_COUNTER(STAT_ProcessRequests_FinalizeAdaptiveRequests);
+		for (uint32 ID = 0; ID < MaxSpaces; ID++)
+		{
+			if (AdaptiveVTs[ID])
+			{
+				AdaptiveVTs[ID]->UpdateAllocations(this, Frame);
+			}
+		}
+	}
+
 	FMemStack& MemStack = FMemStack::Get();
 	FMemMark Mark(MemStack);
 	FUniquePageList* MergedUniquePageList = new(MemStack) FUniquePageList;
@@ -1115,6 +1158,12 @@ void FVirtualTextureSystem::Update(FRHICommandListImmediate& RHICmdList, ERHIFea
 	if (Frame >= PendingFrameDelay)
 	{
 		GatherRequests(MergedRequestList, MergedUniquePageList, Frame - PendingFrameDelay, MemStack);
+	}
+
+	if (MergedRequestList->GetNumAdaptiveAllocationRequests() > 0)
+	{
+		SCOPE_CYCLE_COUNTER(STAT_ProcessRequests_QueueAdaptiveRequests);
+		FAdaptiveVirtualTexture::QueuePackedAllocationRequests(this, &MergedRequestList->GetAdaptiveAllocationRequest(0), MergedRequestList->GetNumAdaptiveAllocationRequests(), Frame);
 	}
 
 	{
@@ -1310,13 +1359,24 @@ void FVirtualTextureSystem::GatherRequestsTask(const FGatherRequestsParameters& 
 
 		const uint32 vPageX = PageEncoded & 0xfff;
 		const uint32 vPageY = (PageEncoded >> 12) & 0xfff;
-		const uint32 vLevel = (PageEncoded >> 24) & 0x0f;
+		const uint32 vLevelPlusOne = ((PageEncoded >> 24) & 0x0f);
+		const uint32 vLevel = FMath::Max(vLevelPlusOne, 1u) - 1;
 		const uint32 vPosition = FMath::MortonCode2(vPageX) | (FMath::MortonCode2(vPageY) << 1);
 
 		// vPosition holds morton interleaved tileX/Y position, shifted down relative to current mip
 		// vAddress is the same quantity, but shifted to be relative to mip0
 		const uint32 vDimensions = Space->GetDimensions();
 		const uint32 vAddress = vPosition << (vLevel * vDimensions);
+
+		const FAdaptiveVirtualTexture* RESTRICT AdaptiveVT = AdaptiveVTs[ID];
+		if (AdaptiveVT != nullptr && vLevelPlusOne <= 1)
+		{
+			uint32 AdaptiveAllocationRequest = AdaptiveVT->GetPackedAllocationRequest(vAddress, vLevelPlusOne, Frame);
+			if (AdaptiveAllocationRequest != 0)
+			{
+				RequestList->AddAdaptiveAllocationRequest(AdaptiveAllocationRequest);
+			}
+		}
 
 		uint32 PageTableLayersToLoad[VIRTUALTEXTURE_SPACE_MAXLAYERS] = { 0 };
 		uint32 NumPageTableLayersToLoad = 0u;

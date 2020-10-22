@@ -48,7 +48,7 @@ FAdvancedPreviewScene::FAdvancedPreviewScene(ConstructionValues CVS, float InFlo
 	const FTransform SphereTransform(FRotator(0, 0, 0), FVector(0, 0, 0), FVector(2000));
 	SkyComponent = NewObject<UStaticMeshComponent>(GetTransientPackage());
 
-	// Set up sky sphere showing hte same cube map as used by the sky light
+	// Set up sky sphere showing the same cube map as used by the sky light
 	UStaticMesh* SkySphere = LoadObject<UStaticMesh>(NULL, TEXT("/Engine/EditorMeshes/AssetViewer/Sphere_inversenormals.Sphere_inversenormals"), NULL, LOAD_None, NULL);
 	check(SkySphere);
 	SkyComponent->SetStaticMesh(SkySphere);
@@ -144,12 +144,17 @@ void FAdvancedPreviewScene::UpdateScene(FPreviewSceneProfile& Profile, bool bUpd
 		static const float OneOver360 = 1.0f / 360.0f;
 		float Rotation = Profile.LightingRigRotation;
 		InstancedSkyMaterial->GetScalarParameterValue(CubeMapRotationName, Rotation);
-		if (!FMath::IsNearlyEqual(Rotation, Profile.LightingRigRotation, 0.05f))
+		const bool bLightRighRotationChanged = !FMath::IsNearlyEqual(Rotation, Profile.LightingRigRotation, 0.05f);
+
+		// We also test any change of light direction because the default profile light orientation might not match the LightingRigRotation.
+		FRotator LightDir = GetLightDirection();
+		const bool bLightDirChanged = LightDir != Profile.DirectionalLightRotation;
+
+		if (bLightRighRotationChanged || bLightDirChanged)
 		{			
 			InstancedSkyMaterial->SetScalarParameterValueEditorOnly(CubeMapRotationName, Profile.LightingRigRotation * OneOver360);
 
 			// Update light direction as well
-			FRotator LightDir = GetLightDirection();
 			LightDir.Yaw = -Profile.LightingRigRotation;
 			SetLightDirection(LightDir);
 			DefaultSettings->Profiles[CurrentProfileIndex].DirectionalLightRotation = LightDir;

@@ -8,6 +8,8 @@
 #include "PhysXVehicleManager.h"
 #endif // WITH_PHYSX
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 void USimpleWheeledVehicleMovementComponent::SetBrakeTorque(float BrakeTorque, int32 WheelIndex)
 {
 #if WITH_PHYSX_VEHICLES
@@ -111,3 +113,5 @@ void USimpleWheeledVehicleMovementComponent::SetupVehicleDrive(PxVehicleWheelsSi
 }
 
 #endif // WITH_PHYSX_VEHICLES
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

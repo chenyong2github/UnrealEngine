@@ -9,6 +9,7 @@
 #include "MeshOpPreviewHelpers.h"
 #include "DynamicMesh3.h"
 #include "BaseTools/SingleClickTool.h"
+#include "PropertySets/OnAcceptProperties.h"
 #include "CombineMeshesTool.generated.h"
 
 
@@ -38,6 +39,16 @@ public:
 
 
 
+
+UENUM()
+enum class ECombineTargetType
+{
+	NewAsset,
+	FirstInputAsset,
+	LastInputAsset
+};
+
+
 /**
  * Standard properties
  */
@@ -47,13 +58,23 @@ class MESHMODELINGTOOLS_API UCombineMeshesToolProperties : public UInteractiveTo
 	GENERATED_BODY()
 
 public:
-	UCombineMeshesToolProperties();
+	UPROPERTY(meta = (TransientToolProperty))
+	bool bIsDuplicateMode = false;
 
-	/** Delete original actors after creating combined actor */
-	UPROPERTY(EditAnywhere, Category = Options)
-	bool bDeleteSourceActors = true;
+	UPROPERTY(EditAnywhere, Category = AssetOptions, meta = (EditCondition = "bIsDuplicateMode == false", EditConditionHides, HideEditConditionToggle))
+	ECombineTargetType WriteOutputTo = ECombineTargetType::NewAsset;
 
+	/** Base name for newly-generated asset */
+	UPROPERTY(EditAnywhere, Category = AssetOptions, meta = (TransientToolProperty, EditCondition = "bIsDuplicateMode || WriteOutputTo == ECombineTargetType::NewAsset", EditConditionHides))
+	FString OutputName;
+
+	/** Name of asset that will be updated */
+	UPROPERTY(VisibleAnywhere, Category = AssetOptions, meta = (TransientToolProperty, EditCondition = "bIsDuplicateMode == false && WriteOutputTo != ECombineTargetType::NewAsset", EditConditionHides))
+	FString OutputAsset;
 };
+
+
+
 
 
 
@@ -66,8 +87,6 @@ class MESHMODELINGTOOLS_API UCombineMeshesTool : public UMultiSelectionTool
 	GENERATED_BODY()
 
 public:
-	UCombineMeshesTool();
-
 	virtual void SetDuplicateMode(bool bDuplicateMode);
 
 	virtual void Setup() override;
@@ -85,11 +104,15 @@ protected:
 	UPROPERTY()
 	UCombineMeshesToolProperties* BasicProperties;
 
+	UPROPERTY()
+	UOnAcceptHandleSourcesProperties* HandleSourceProperties;
+
 protected:
 	UWorld* TargetWorld;
 	IAssetGenerationAPI* AssetAPI;
 
 	bool bDuplicateMode;
 
-	void UpdateAssets();
+	void CreateNewAsset();
+	void UpdateExistingAsset();
 };

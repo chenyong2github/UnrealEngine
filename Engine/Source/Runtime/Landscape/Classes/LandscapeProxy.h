@@ -512,8 +512,8 @@ public:
 	/** Cached grass types from GetGrassTypes */
 	TArray<ULandscapeGrassType*> LandscapeGrassTypes;
 
-	/** Cached grass max square discard distance for all grass in GetGrassTypes */
-	float GrassMaxSquareDiscardDistance;
+	/** Cached grass max discard distance for all grass in GetGrassTypes */
+	float GrassMaxDiscardDistance;
 #endif
 
 	/** Material used to render landscape components with holes. If not set, LandscapeMaterial will be used (blend mode will be overridden to Masked if it is set to Opaque) */

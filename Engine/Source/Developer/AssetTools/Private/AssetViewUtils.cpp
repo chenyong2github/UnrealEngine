@@ -1242,8 +1242,7 @@ bool AssetViewUtils::IsValidObjectPathForCreate(const FString& ObjectPath, const
 	if (ObjectPath.Len() > (FPlatformMisc::GetMaxPathLength() - MAX_CLASS_NAME_LENGTH))
 	{
 		// The full path for the asset is too long
-		OutErrorMessage = FText::Format(LOCTEXT("ObjectPathTooLong",
-			"The object path for the asset is too long, the maximum is '{0}'. \nPlease choose a shorter name for the asset or create it in a shallower folder structure."),
+		OutErrorMessage = FText::Format(LOCTEXT("ObjectPathTooLong", "The object path for the asset is too long, the maximum is '{0}'. \nPlease choose a shorter name for the asset or create it in a shallower folder structure."),
 			FText::AsNumber((FPlatformMisc::GetMaxPathLength() - MAX_CLASS_NAME_LENGTH)));
 		// Return false to indicate that the user should enter a new name
 		return false;
@@ -1252,8 +1251,7 @@ bool AssetViewUtils::IsValidObjectPathForCreate(const FString& ObjectPath, const
 	if (FullPath.Len() > CVarMaxFullPathLength->GetValueOnGameThread() )
 	{
 		// The full path for the asset is too long
-		OutErrorMessage = FText::Format(LOCTEXT("AssetPathTooLong",
-			"The absolute file path for the asset is too long, the maximum is '{0}'. \nPlease choose a shorter name for the asset or create it in a shallower folder structure."),
+		OutErrorMessage = FText::Format(LOCTEXT("AssetPathTooLong", "The absolute file path for the asset is too long, the maximum is '{0}'. \nPlease choose a shorter name for the asset or create it in a shallower folder structure."),
 			FText::AsNumber(CVarMaxFullPathLength->GetValueOnGameThread()));
 		// Return false to indicate that the user should enter a new name
 		return false;
@@ -1304,8 +1302,7 @@ bool AssetViewUtils::IsValidFolderPathForCreate(const FString& InFolderPath, con
 	if (NewFolderPath.Len() > FPlatformMisc::GetMaxPathLength() - MAX_CLASS_NAME_LENGTH)
 	{
 		// The full path for the folder is too long
-		OutErrorMessage = FText::Format(LOCTEXT("RenameFolderPathTooLong",
-			"The full path for the folder is too deep, the maximum is '{0}'. Please choose a shorter name for the folder or create it in a shallower folder structure."),
+		OutErrorMessage = FText::Format(LOCTEXT("RenameFolderPathTooLong", "The full path for the folder is too deep, the maximum is '{0}'. Please choose a shorter name for the folder or create it in a shallower folder structure."),
 			FText::AsNumber(FPlatformMisc::GetMaxPathLength()));
 		// Return false to indicate that the user should enter a new name for the folder
 		return false;

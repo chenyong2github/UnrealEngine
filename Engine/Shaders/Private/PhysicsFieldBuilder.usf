@@ -27,102 +27,97 @@ int ClipmapExponent;
 int TargetCount;
 int PhysicsTargets[MAX_TARGETS_ARRAY];
 
+float TimeSeconds;
+
 /* -----------------------------------------------------------------
  * Reandom Vector + Perlin Noise
  * -----------------------------------------------------------------
  */
-
-static int P[512] =
+ 
+static const int p[512] =
 {
 	151, 160, 137, 91, 90, 15,
-			131, 13, 201, 95, 96, 53, 194, 233, 7, 225, 140, 36, 103, 30, 69, 142, 8, 99, 37, 240, 21, 10, 23,
-			190, 6, 148, 247, 120, 234, 75, 0, 26, 197, 62, 94, 252, 219, 203, 117, 35, 11, 32, 57, 177, 33,
-			88, 237, 149, 56, 87, 174, 20, 125, 136, 171, 168, 68, 175, 74, 165, 71, 134, 139, 48, 27, 166,
-			77, 146, 158, 231, 83, 111, 229, 122, 60, 211, 133, 230, 220, 105, 92, 41, 55, 46, 245, 40, 244,
-			102, 143, 54, 65, 25, 63, 161, 1, 216, 80, 73, 209, 76, 132, 187, 208, 89, 18, 169, 200, 196,
-			135, 130, 116, 188, 159, 86, 164, 100, 109, 198, 173, 186, 3, 64, 52, 217, 226, 250, 124, 123,
-			5, 202, 38, 147, 118, 126, 255, 82, 85, 212, 207, 206, 59, 227, 47, 16, 58, 17, 182, 189, 28, 42,
-			223, 183, 170, 213, 119, 248, 152, 2, 44, 154, 163, 70, 221, 153, 101, 155, 167, 43, 172, 9,
-			129, 22, 39, 253, 19, 98, 108, 110, 79, 113, 224, 232, 178, 185, 112, 104, 218, 246, 97, 228,
-			251, 34, 242, 193, 238, 210, 144, 12, 191, 179, 162, 241, 81, 51, 145, 235, 249, 14, 239, 107,
-			49, 192, 214, 31, 181, 199, 106, 157, 184, 84, 204, 176, 115, 121, 50, 45, 127, 4, 150, 254,
-			138, 236, 205, 93, 222, 114, 67, 29, 24, 72, 243, 141, 128, 195, 78, 66, 215, 61, 156, 180,
-			151, 160, 137, 91, 90, 15,
-			131, 13, 201, 95, 96, 53, 194, 233, 7, 225, 140, 36, 103, 30, 69, 142, 8, 99, 37, 240, 21, 10, 23,
-			190, 6, 148, 247, 120, 234, 75, 0, 26, 197, 62, 94, 252, 219, 203, 117, 35, 11, 32, 57, 177, 33,
-			88, 237, 149, 56, 87, 174, 20, 125, 136, 171, 168, 68, 175, 74, 165, 71, 134, 139, 48, 27, 166,
-			77, 146, 158, 231, 83, 111, 229, 122, 60, 211, 133, 230, 220, 105, 92, 41, 55, 46, 245, 40, 244,
-			102, 143, 54, 65, 25, 63, 161, 1, 216, 80, 73, 209, 76, 132, 187, 208, 89, 18, 169, 200, 196,
-			135, 130, 116, 188, 159, 86, 164, 100, 109, 198, 173, 186, 3, 64, 52, 217, 226, 250, 124, 123,
-			5, 202, 38, 147, 118, 126, 255, 82, 85, 212, 207, 206, 59, 227, 47, 16, 58, 17, 182, 189, 28, 42,
-			223, 183, 170, 213, 119, 248, 152, 2, 44, 154, 163, 70, 221, 153, 101, 155, 167, 43, 172, 9,
-			129, 22, 39, 253, 19, 98, 108, 110, 79, 113, 224, 232, 178, 185, 112, 104, 218, 246, 97, 228,
-			251, 34, 242, 193, 238, 210, 144, 12, 191, 179, 162, 241, 81, 51, 145, 235, 249, 14, 239, 107,
-			49, 192, 214, 31, 181, 199, 106, 157, 184, 84, 204, 176, 115, 121, 50, 45, 127, 4, 150, 254,
-			138, 236, 205, 93, 222, 114, 67, 29, 24, 72, 243, 141, 128, 195, 78, 66, 215, 61, 156, 180
+    131, 13, 201, 95, 96, 53, 194, 233, 7, 225, 140, 36, 103, 30, 69, 142, 8, 99, 37, 240, 21, 10, 23,
+    190, 6, 148, 247, 120, 234, 75, 0, 26, 197, 62, 94, 252, 219, 203, 117, 35, 11, 32, 57, 177, 33,
+    88, 237, 149, 56, 87, 174, 20, 125, 136, 171, 168, 68, 175, 74, 165, 71, 134, 139, 48, 27, 166,
+    77, 146, 158, 231, 83, 111, 229, 122, 60, 211, 133, 230, 220, 105, 92, 41, 55, 46, 245, 40, 244,
+    102, 143, 54, 65, 25, 63, 161, 1, 216, 80, 73, 209, 76, 132, 187, 208, 89, 18, 169, 200, 196,
+    135, 130, 116, 188, 159, 86, 164, 100, 109, 198, 173, 186, 3, 64, 52, 217, 226, 250, 124, 123,
+    5, 202, 38, 147, 118, 126, 255, 82, 85, 212, 207, 206, 59, 227, 47, 16, 58, 17, 182, 189, 28, 42,
+    223, 183, 170, 213, 119, 248, 152, 2, 44, 154, 163, 70, 221, 153, 101, 155, 167, 43, 172, 9,
+    129, 22, 39, 253, 19, 98, 108, 110, 79, 113, 224, 232, 178, 185, 112, 104, 218, 246, 97, 228,
+    251, 34, 242, 193, 238, 210, 144, 12, 191, 179, 162, 241, 81, 51, 145, 235, 249, 14, 239, 107,
+    49, 192, 214, 31, 181, 199, 106, 157, 184, 84, 204, 176, 115, 121, 50, 45, 127, 4, 150, 254,
+    138, 236, 205, 93, 222, 114, 67, 29, 24, 72, 243, 141, 128, 195, 78, 66, 215, 61, 156, 180,
+ 
+    151, 160, 137, 91, 90, 15,
+    131, 13, 201, 95, 96, 53, 194, 233, 7, 225, 140, 36, 103, 30, 69, 142, 8, 99, 37, 240, 21, 10, 23,
+    190, 6, 148, 247, 120, 234, 75, 0, 26, 197, 62, 94, 252, 219, 203, 117, 35, 11, 32, 57, 177, 33,
+    88, 237, 149, 56, 87, 174, 20, 125, 136, 171, 168, 68, 175, 74, 165, 71, 134, 139, 48, 27, 166,
+    77, 146, 158, 231, 83, 111, 229, 122, 60, 211, 133, 230, 220, 105, 92, 41, 55, 46, 245, 40, 244,
+    102, 143, 54, 65, 25, 63, 161, 1, 216, 80, 73, 209, 76, 132, 187, 208, 89, 18, 169, 200, 196,
+    135, 130, 116, 188, 159, 86, 164, 100, 109, 198, 173, 186, 3, 64, 52, 217, 226, 250, 124, 123,
+    5, 202, 38, 147, 118, 126, 255, 82, 85, 212, 207, 206, 59, 227, 47, 16, 58, 17, 182, 189, 28, 42,
+    223, 183, 170, 213, 119, 248, 152, 2, 44, 154, 163, 70, 221, 153, 101, 155, 167, 43, 172, 9,
+    129, 22, 39, 253, 19, 98, 108, 110, 79, 113, 224, 232, 178, 185, 112, 104, 218, 246, 97, 228,
+    251, 34, 242, 193, 238, 210, 144, 12, 191, 179, 162, 241, 81, 51, 145, 235, 249, 14, 239, 107,
+    49, 192, 214, 31, 181, 199, 106, 157, 184, 84, 204, 176, 115, 121, 50, 45, 127, 4, 150, 254,
+    138, 236, 205, 93, 222, 114, 67, 29, 24, 72, 243, 141, 128, 195, 78, 66, 215, 61, 156, 180
 };
-
-float Fade(float X)
+ 
+float FadeValue(float t)
 {
-	return X * X * X * (X * (X * 6 - 15) + 10);
+	return t * t * t * (t * (t * 6 - 15) + 10);
 }
-
-float Grad(int hash, float x, float y, float z)
+ 
+float LerpValue(float t, float a, float b)
 {
-	hash &= 15;
-	float u = (hash < 8) ? x : y;
-	float v = (hash < 4) ? y : ((hash == 12 || hash == 14) ? x : z);
-	return ((hash & 1) == 0 ? u : -u) + ((hash & 2) == 0 ? v : -v);
+	return a + t * (b - a);
 }
-
-float Lerp(float X, float A, float B)
+ 
+float GradientDirection(int hash, float x, float y, float z)
 {
-	return A + X * (B - A);
+    // CONVERT LO 4 BITS OF HASH CODE INTO 12 GRADIENT DIRECTIONS.
+	int h = hash & 15;
+	float u = h < 8 ? x : y;
+	float v = h < 4 ? y : h == 12 || h == 14 ? x : z;
+	return ((h & 1) == 0 ? u : -u) + ((h & 2) == 0 ? v : -v);
 }
-
-float PerlinNoise(inout  float X, inout float Y, inout float Z)
+ 
+float PerlinNoise(float3 pos)
 {
-	float Xfl = floor(X);
-	float Yfl = floor(Y);
-	float Zfl = floor(Z);
-	int Xi = (int) (Xfl) & 255;
-	int Yi = (int) (Yfl) & 255;
-	int Zi = (int) (Zfl) & 255;
-	X -= Xfl;
-	Y -= Yfl;
-	Z -= Zfl;
-	float Xm1 = X - 1.0f;
-	float Ym1 = Y - 1.0f;
-	float Zm1 = Z - 1.0f;
-
-	int A = P[Xi] + Yi;
-	int AA = P[A] + Zi;
-	int AB = P[A + 1] + Zi;
-
-	int B = P[Xi + 1] + Yi;
-	int BA = P[B] + Zi;
-	int BB = P[B + 1] + Zi;
-	
-	
-	float U = Fade(X);
-	float V = Fade(Y);
-	float W = Fade(Z);
-	
-	return Lerp(W,
-					Lerp(V,
-						Lerp(U,
-							Grad(P[AA], X, Y, Z),
-							Grad(P[BA], Xm1, Y, Z)),
-						Lerp(U,
-							Grad(P[AB], X, Ym1, Z),
-							Grad(P[BB], Xm1, Ym1, Z))),
-					Lerp(V,
-						Lerp(U,
-							Grad(P[AA + 1], X, Y, Zm1),
-							Grad(P[BA + 1], Xm1, Y, Zm1)),
-						Lerp(U,
-							Grad(P[AB + 1], X, Ym1, Zm1),
-							Grad(P[BB + 1], Xm1, Ym1, Zm1))));
+    // FIND UNIT CUBE THAT CONTAINS POINT.
+	int X = (int) floor(pos.x) & 255;
+	int Y = (int) floor(pos.y) & 255;
+	int Z = (int) floor(pos.z) & 255;
+   
+    // FIND RELATIVE X,Y,Z OF POINT IN CUBE.
+	float x = pos.x - floor(pos.x);
+	float y = pos.y - floor(pos.y);
+	float z = pos.z - floor(pos.z);
+   
+    // COMPUTE FADE CURVES FOR EACH OF X,Y,Z.
+	float u = FadeValue(x);
+	float v = FadeValue(y);
+	float w = FadeValue(z);
+   
+    // HASH COORDINATES OF THE 8 CUBE CORNERS
+	int A = p[X] + Y;
+	int AA = p[A] + Z;
+	int AB = p[A + 1] + Z;
+	int B = p[X + 1] + Y;
+	int BA = p[B] + Z;
+	int BB = p[B + 1] + Z;
+ 
+    // AND ADD BLENDED RESULTS FROM  8 CORNERS OF CUBE
+	return clamp(0.97 * LerpValue(w, LerpValue(v, LerpValue(u, GradientDirection(p[AA], x, y, z), // CORNER 0      
+           GradientDirection(p[BA], x - 1, y, z)), // CORNER 1                              
+           LerpValue(u, GradientDirection(p[AB], x, y - 1, z), // CORNER 2                        
+           GradientDirection(p[BB], x - 1, y - 1, z))), // CORNER 3                      
+           LerpValue(v, LerpValue(u, GradientDirection(p[AA + 1], x, y, z - 1), // CORNER 4            
+           GradientDirection(p[BA + 1], x - 1, y, z - 1)), // CORNER 5                  
+           LerpValue(u, GradientDirection(p[AB + 1], x, y - 1, z - 1), // CORNER 6  
+           GradientDirection(p[BB + 1], x - 1, y - 1, z - 1)))), -1.0, 1.0); // CORNER 7
 }
 
 uint3 RandomVector(int3 p)
@@ -165,6 +160,7 @@ uint3 RandomVector(int3 p)
  */
 
 #define MAX_DATAS 64
+#define MAX_COUNT 8
 
 #define NONE_TYPE 0
 #define RESULTS_TYPE 1
@@ -205,6 +201,7 @@ uint3 RandomVector(int3 p)
 #define SUM_VECTOR 12
 #define CONVERSION_FIELD 13
 #define CULLING_FIELD 14
+#define WAVE_SCALAR 15
 
 #define SET_ALWAYS 0
 #define SET_IFF_NOT_INTERIOR 1
@@ -223,6 +220,11 @@ uint3 RandomVector(int3 p)
 
 #define CULLING_INSIDE 0
 #define CULLING_OUTSIDE 1
+
+#define WAVE_COSINE 0
+#define WAVE_GAUSSIAN 1
+#define WAVE_FALLOFF 2
+#define WAVE_DECAY 3
 
 /* -----------------------------------------------------------------
  * Quat utils
@@ -276,9 +278,9 @@ void EvaluateRadialMaskInteger(in float3 SamplePosition, in int NodeOffset,
 	const float DistanceSquared = dot(DeltaPosition, DeltaPosition);
 	const int DeltaResult = (DistanceSquared < NodesParams[NodeOffset + RADIAL_MASK_INTEGER_RADIUS] *
 											 NodesParams[NodeOffset + RADIAL_MASK_INTEGER_RADIUS]) ?
-											 NodesParams[NodeOffset + RADIAL_MASK_INTEGER_INTERIOR_VALUE] :
-											 NodesParams[NodeOffset + RADIAL_MASK_INTEGER_EXTERIOR_VALUE];
-	const int MaskCondition = NodesParams[NodeOffset + RADIAL_MASK_INTEGER_SET_MASK_CONDITION];
+											 (int)NodesParams[NodeOffset + RADIAL_MASK_INTEGER_INTERIOR_VALUE]:
+											 (int)NodesParams[NodeOffset + RADIAL_MASK_INTEGER_EXTERIOR_VALUE];
+	const int MaskCondition = (int)NodesParams[NodeOffset + RADIAL_MASK_INTEGER_SET_MASK_CONDITION];
 	
 	ContextDatas[LocalIndex++] = (MaskCondition == SET_ALWAYS) ? DeltaResult :
 					 ((MaskCondition == SET_IFF_NOT_INTERIOR) && (ContextDatas[LocalIndex] != NodesParams[NodeOffset + RADIAL_MASK_INTEGER_INTERIOR_VALUE])) ? DeltaResult :
@@ -332,6 +334,70 @@ void SetFalloffValue(in int FieldFalloff, in float FieldMagnitude, in float Delt
 }
 
 /* -----------------------------------------------------------------
+ * Wave Scalar Field
+ * -----------------------------------------------------------------
+ */
+
+#define WAVE_SCALAR_MAGNITUDE 0
+#define WAVE_SCALAR_POSITIONX 1
+#define WAVE_SCALAR_POSITIONY 2
+#define WAVE_SCALAR_POSITIONZ 3
+#define WAVE_SCALAR_WAVELENGTH 4
+#define WAVE_SCALAR_PERIOD 5
+#define WAVE_SCALAR_TIME 6
+#define WAVE_SCALAR_FUNCTION 7
+#define WAVE_SCALAR_FALLOFF 8
+
+static const float WAVE_PI = 3.14159265f;
+
+void EvaluateWaveScalar(in float3 SamplePosition, in int NodeOffset,
+					inout float ContextDatas[MAX_DATAS], inout int LocalIndex, in float ClipmapExtent)
+{
+	const float Distance = length(float3(NodesParams[NodeOffset + WAVE_SCALAR_POSITIONX],
+										 NodesParams[NodeOffset + WAVE_SCALAR_POSITIONY],
+										 NodesParams[NodeOffset + WAVE_SCALAR_POSITIONZ]) - SamplePosition);
+	
+	const float Wavelength = NodesParams[NodeOffset + WAVE_SCALAR_WAVELENGTH];
+	const float Velocity = Wavelength / NodesParams[NodeOffset + WAVE_SCALAR_PERIOD];
+	
+	const float Wavenumber = 2.0 * WAVE_PI / max(Wavelength, ClipmapDistance * 8 / ClipmapResolution);
+	const float DeltaTime = max(TimeSeconds - NodesParams[NodeOffset + WAVE_SCALAR_TIME], 0.0);
+	const float Radius = Velocity * DeltaTime;
+	const float Phase = Wavenumber * (Distance - Radius);
+	
+	float Result = 0.0;
+	
+	const int Function = (int) NodesParams[NodeOffset + WAVE_SCALAR_FUNCTION];
+	const float Magnitude = NodesParams[NodeOffset + WAVE_SCALAR_MAGNITUDE];
+	
+	if (Function == WAVE_GAUSSIAN)
+	{
+		Result = Magnitude * exp(-Phase * Phase);
+	}
+	else if (Function == WAVE_COSINE)
+	{
+		Result = Magnitude * cos(Phase);
+	}
+	else if (Function == WAVE_FALLOFF)
+	{
+		const int Falloff = (int) NodesParams[NodeOffset + WAVE_SCALAR_FALLOFF];
+		
+		if ((Distance < Radius) && (Radius > 0.0))
+		{
+			const float Fraction = (1.0 - Distance / Radius);
+			SetFalloffValue(Falloff, Magnitude, Fraction, Result);
+		}
+	}
+	else if (Function == WAVE_DECAY)
+	{
+		const float Decay = DeltaTime / NodesParams[NodeOffset + WAVE_SCALAR_PERIOD];
+		Result = Magnitude * exp(-Decay * Decay);
+
+	}
+	ContextDatas[LocalIndex++] = Result;
+}
+
+/* -----------------------------------------------------------------
  * Radial Falloff Field
  * -----------------------------------------------------------------
  */
@@ -362,7 +428,7 @@ void EvaluateRadialFalloffScalar(in float3 SamplePosition, in int NodeOffset,
 	{
 		const float DeltaDistance = 1.0 - LocalDistance / FieldRadius;
 
-		SetFalloffValue(NodesParams[NodeOffset + RADIAL_FALLOFF_FALLOFF],
+		SetFalloffValue((int)NodesParams[NodeOffset + RADIAL_FALLOFF_FALLOFF],
 						1.0, DeltaDistance, ScalarDatas);
 		ScalarDatas = NodesParams[NodeOffset + RADIAL_FALLOFF_MAGNITUDE] * (NodesParams[NodeOffset + RADIAL_FALLOFF_MIN_RANGE] + ScalarDatas * DeltaRange);
 	}
@@ -410,7 +476,7 @@ void EvaluatePlaneFalloffScalar(in float3 SamplePosition, in int NodeOffset,
 	{
 		const float DeltaDistance = 1.0 + LocalDistance / PlaneDistance;
 		
-		SetFalloffValue(NodesParams[NodeOffset + PLANE_FALLOFF_FALLOFF],
+		SetFalloffValue((int)NodesParams[NodeOffset + PLANE_FALLOFF_FALLOFF],
 						1.0, DeltaDistance, ScalarDatas);
 		ScalarDatas = NodesParams[NodeOffset + PLANE_FALLOFF_MAGNITUDE] * (NodesParams[NodeOffset + PLANE_FALLOFF_MIN_RANGE] + ScalarDatas * DeltaRange);
 	}
@@ -474,7 +540,7 @@ void EvaluateBoxFalloffScalar(in float3 SamplePosition, in int NodeOffset,
 	{
 		const float DeltaDistance = -LocalDistance / 50.0;
 		
-		SetFalloffValue(NodesParams[NodeOffset + BOX_FALLOFF_FALLOFF],
+		SetFalloffValue((int)NodesParams[NodeOffset + BOX_FALLOFF_FALLOFF],
 						1.0,DeltaDistance, ScalarDatas);
 		ScalarDatas = NodesParams[NodeOffset + BOX_FALLOFF_MAGNITUDE] * (NodesParams[NodeOffset + BOX_FALLOFF_MIN_RANGE] + ScalarDatas * DeltaRange);
 	}
@@ -499,7 +565,7 @@ void EvaluateBoxFalloffScalar(in float3 SamplePosition, in int NodeOffset,
 #define NOISE_SCALEY 10
 #define NOISE_SCALEZ 11
  
-void EvaluateNoiseScalar(in float3 SamplePosition, in int NodeOffset, inout float ContextDatas[MAX_DATAS], inout int LocalIndex)
+void EvaluateNoiseScalar(in float3 SamplePosition, in int NodeOffset, inout float ContextDatas[MAX_DATAS], inout int LocalIndex, in float ClipmapExtent)
 {
 	const float4 NoiseRotation = float4(NodesParams[NodeOffset + NOISE_ROTATIONX],
 								        NodesParams[NodeOffset + NOISE_ROTATIONY],
@@ -510,21 +576,20 @@ void EvaluateNoiseScalar(in float3 SamplePosition, in int NodeOffset, inout floa
 								           NodesParams[NodeOffset + NOISE_TRANSLATIONY],
 								           NodesParams[NodeOffset + NOISE_TRANSLATIONZ]);
 
-	const float3 NoiseScale = float3(NodesParams[NodeOffset + NOISE_SCALEX],
+	float3 NoiseScale = float3(NodesParams[NodeOffset + NOISE_SCALEX],
 							         NodesParams[NodeOffset + NOISE_SCALEY],
 								     NodesParams[NodeOffset + NOISE_SCALEZ]);
+	
+	NoiseScale = 0.5 * max(NoiseScale, float3(ClipmapExtent, ClipmapExtent, ClipmapExtent) * 2 * 256 * 4 / ClipmapResolution );
+	
+	const float3 InverseScale = float3(NoiseScale.x != 0.0 ? 1.0 / NoiseScale.x : 0.0,
+										NoiseScale.y != 0.0 ? 1.0 / NoiseScale.y : 0.0,
+										NoiseScale.z != 0.0 ? 1.0 / NoiseScale.z : 0.0);
 
-	const float3 DeltaBound = ClipmapDistance * 2;
-	const float3 MinBounds = NoiseTranslation - ClipmapDistance;
-	const float3 LocalVector = FieldRotateVectorByQuat((SamplePosition - MinBounds) * NoiseScale, NoiseRotation);
+	float3 LocalPosition = fmod(FieldUnRotateVectorByQuat(SamplePosition - NoiseTranslation, NoiseRotation), NoiseScale) * InverseScale;
+	LocalPosition = (clamp(LocalPosition, float3(-1.0,-1.0,-1.0), float3(1.0,1.0,1.0)) * 0.5 + float3(0.5,0.5,0.5)) * 255;
 
-	const float3 LocalCoord = float3((DeltaBound.x != 0.0) ? LocalVector.x / DeltaBound.x : 0.0,
-									  (DeltaBound.y != 0.0) ? LocalVector.y / DeltaBound.y : 0.0,
-									  (DeltaBound.z != 0.0) ? LocalVector.z / DeltaBound.z : 0.0);
-
-	float3 ReducedCoord = saturate(LocalCoord);
-
-	const float NoiseValue = PerlinNoise(ReducedCoord.x, ReducedCoord.y, ReducedCoord.z); //FastGradientPerlinNoise3D_TEX(ReducedCoord);
+	const float NoiseValue = PerlinNoise(LocalPosition) * 0.5 + 0.5; 
 	ContextDatas[LocalIndex++] = NoiseValue * (NodesParams[NodeOffset + NOISE_MAX_RANGE] -
 								  NodesParams[NodeOffset + NOISE_MIN_RANGE]) 
 				+ NodesParams[NodeOffset + NOISE_MIN_RANGE];
@@ -614,12 +679,12 @@ void EvaluateRandomVector(in float3 SamplePosition, in int NodeOffset,
 void EvaluateSumScalar(in float3 SamplePosition, in int NodeOffset,
 				inout float ContextDatas[MAX_DATAS], inout int LocalIndex)
 {
-	const int HasRight = NodesParams[NodeOffset + SUM_SCALAR_RIGHT];
-	const int HasLeft = NodesParams[NodeOffset + SUM_SCALAR_LEFT];
+	const int HasRight = (int)NodesParams[NodeOffset + SUM_SCALAR_RIGHT];
+	const int HasLeft = (int)NodesParams[NodeOffset + SUM_SCALAR_LEFT];
 
 	LocalIndex -= HasRight + HasLeft;
 
-	const int FieldOperation = NodesParams[NodeOffset + SUM_SCALAR_OPERATION];
+	const int FieldOperation = (int)NodesParams[NodeOffset + SUM_SCALAR_OPERATION];
 	const bool UnitOperation = (FieldOperation == MULTIPLY_OP) || (FieldOperation == DIVIDE_OP);
 
 	int OffsetIndex = LocalIndex;
@@ -661,13 +726,13 @@ void EvaluateSumScalar(in float3 SamplePosition, in int NodeOffset,
 void EvaluateSumVector(in float3 SamplePosition, in int NodeOffset,
 				inout float ContextDatas[MAX_DATAS], inout int LocalIndex)
 {
-	const int HasScalar = NodesParams[NodeOffset + SUM_VECTOR_SCALAR];
-	const int HasRight = NodesParams[NodeOffset + SUM_VECTOR_RIGHT];
-	const int HasLeft = NodesParams[NodeOffset + SUM_VECTOR_LEFT];
+	const int HasScalar = (int)NodesParams[NodeOffset + SUM_VECTOR_SCALAR];
+	const int HasRight = (int)NodesParams[NodeOffset + SUM_VECTOR_RIGHT];
+	const int HasLeft = (int)NodesParams[NodeOffset + SUM_VECTOR_LEFT];
 
 	LocalIndex -= HasScalar + HasRight * 3 + HasLeft * 3;
 
-	const int FieldOperation = NodesParams[NodeOffset + SUM_VECTOR_OPERATION];
+	const int FieldOperation = (int)NodesParams[NodeOffset + SUM_VECTOR_OPERATION];
 	const bool UnitOperation = (FieldOperation == MULTIPLY_OP) || (FieldOperation == DIVIDE_OP);
 
 	int OffsetIndex = LocalIndex;
@@ -737,21 +802,21 @@ void EvaluateConversionInteger(in float3 SamplePosition, in int NodeOffset,
 void EvaluateCullingInteger(in float3 SamplePosition, in int NodeOffset,
 				inout float ContextDatas[MAX_DATAS], inout int LocalIndex)
 {
-	const int HasScalar = NodesParams[NodeOffset + CULLING_SCALAR];
-	const int HasInput = NodesParams[NodeOffset + CULLING_INPUT];
+	const int HasScalar = (int)NodesParams[NodeOffset + CULLING_SCALAR];
+	const int HasInput = (int)NodesParams[NodeOffset + CULLING_INPUT];
 
 	LocalIndex -= HasScalar + HasInput;
 
 	int OffsetIndex = LocalIndex;
 	const float CullingScalar = HasScalar ? ContextDatas[OffsetIndex] : 0.0;
-	OffsetIndex += CullingScalar;
-	const int InputInteger = HasInput ? ContextDatas[OffsetIndex] : 0.0;
+	OffsetIndex += (int)CullingScalar;
+	const int InputInteger = HasInput ? (int)ContextDatas[OffsetIndex] : 0.0;
 
-	const int CullingOperation = NodesParams[NodeOffset + CULLING_OPERATION];
+	const int CullingOperation = (int)NodesParams[NodeOffset + CULLING_OPERATION];
 	const bool ValidSample = ((CullingOperation == CULLING_OUTSIDE) && (CullingScalar != 0.0)) ||
 							 ((CullingOperation == CULLING_INSIDE) && (CullingScalar == 0.0));
 
-	ContextDatas[LocalIndex++] = ValidSample ? InputInteger : 0;
+	ContextDatas[LocalIndex++] = (float) (ValidSample ? InputInteger : 0);
 }
 
 /* -----------------------------------------------------------------
@@ -762,17 +827,17 @@ void EvaluateCullingInteger(in float3 SamplePosition, in int NodeOffset,
 void EvaluateCullingScalar(in float3 SamplePosition, in int NodeOffset,
 				inout float ContextDatas[MAX_DATAS], inout int LocalIndex)
 {
-	const int HasScalar = NodesParams[NodeOffset + CULLING_SCALAR];
-	const int HasInput = NodesParams[NodeOffset + CULLING_INPUT];
+	const int HasScalar = (int)NodesParams[NodeOffset + CULLING_SCALAR];
+	const int HasInput = (int) NodesParams[NodeOffset + CULLING_INPUT];
 
 	LocalIndex -= HasScalar + HasInput;
 
 	int OffsetIndex = LocalIndex;
 	const float CullingScalar = HasScalar ? ContextDatas[OffsetIndex] : 0.0;
-	OffsetIndex += CullingScalar;
+	OffsetIndex += (int)CullingScalar;
 	const float InputScalar = HasInput ? ContextDatas[OffsetIndex] : 0.0;
 
-	const int CullingOperation = NodesParams[NodeOffset + CULLING_OPERATION];
+	const int CullingOperation = (int)NodesParams[NodeOffset + CULLING_OPERATION];
 	const bool ValidSample = ((CullingOperation == CULLING_OUTSIDE) && (CullingScalar != 0.0)) ||
 							 ((CullingOperation == CULLING_INSIDE) && (CullingScalar == 0.0));
 
@@ -787,17 +852,17 @@ void EvaluateCullingScalar(in float3 SamplePosition, in int NodeOffset,
 void EvaluateCullingVector(in float3 SamplePosition, in int NodeOffset,
 				inout float ContextDatas[MAX_DATAS], inout int LocalIndex)
 {
-	const int HasScalar = NodesParams[NodeOffset + CULLING_SCALAR];
-	const int HasInput = NodesParams[NodeOffset + CULLING_INPUT];
+	const int HasScalar = (int)NodesParams[NodeOffset + CULLING_SCALAR];
+	const int HasInput = (int)NodesParams[NodeOffset + CULLING_INPUT];
 
 	LocalIndex -= HasScalar + HasInput * 3;
 
 	int OffsetIndex = LocalIndex;
 	const float CullingScalar = HasScalar ? ContextDatas[OffsetIndex] : 0.0;
-	OffsetIndex += CullingScalar;
+	OffsetIndex += (int)CullingScalar;
 	const float3 InputVector = HasInput ? float3(ContextDatas[OffsetIndex], ContextDatas[OffsetIndex + 1], ContextDatas[OffsetIndex + 2]) : float3(0, 0, 0);
 
-	const int CullingOperation = NodesParams[NodeOffset + CULLING_OPERATION];
+	const int CullingOperation = (int)NodesParams[NodeOffset + CULLING_OPERATION];
 	const bool ValidSample = ((CullingOperation == CULLING_OUTSIDE) && (CullingScalar != 0.0)) ||
 							 ((CullingOperation == CULLING_INSIDE) && (CullingScalar == 0.0));
 
@@ -812,9 +877,9 @@ void EvaluateCullingVector(in float3 SamplePosition, in int NodeOffset,
  */
 
 void EvaluateFieldNodeInteger(in float3 SamplePosition, in int NodeOffset,
-		inout float ContextDatas[MAX_DATAS], inout int LocalIndex)
+		inout float ContextDatas[MAX_DATAS], inout int LocalIndex, in float ClipmapExtent)
 {
-	const int NodeType = NodesParams[NodeOffset];
+	const int NodeType = (int)NodesParams[NodeOffset];
 
 	[branch]
 	if (NodeType == UNIFORM_INTEGER)
@@ -835,14 +900,19 @@ void EvaluateFieldNodeInteger(in float3 SamplePosition, in int NodeOffset,
 	}
 }
 
-void EvaluateFieldNodeScalar(in float3 SamplePosition, in int NodeOffset, inout float ContextDatas[MAX_DATAS], inout int LocalIndex)
+void EvaluateFieldNodeScalar(in float3 SamplePosition, in int NodeOffset,
+		inout float ContextDatas[MAX_DATAS], inout int LocalIndex, in float ClipmapExtent)
 {
-	const int NodeType = NodesParams[NodeOffset];
+	const int NodeType = (int)NodesParams[NodeOffset];
 
 	[branch]
 	if (NodeType == UNIFORM_SCALAR)
 	{
 		EvaluateUniformScalar(SamplePosition, NodeOffset + 1, ContextDatas, LocalIndex);
+	}
+	else if (NodeType == WAVE_SCALAR)
+	{
+		EvaluateWaveScalar(SamplePosition, NodeOffset + 1, ContextDatas, LocalIndex, ClipmapExtent);
 	}
 	else if (NodeType == RADIAL_FALLOFF_SCALAR)
 	{
@@ -858,7 +928,7 @@ void EvaluateFieldNodeScalar(in float3 SamplePosition, in int NodeOffset, inout 
 	}
 	else if (NodeType == NOISE_SCALAR)
 	{
-		EvaluateNoiseScalar(SamplePosition, NodeOffset + 1, ContextDatas, LocalIndex);
+		EvaluateNoiseScalar(SamplePosition, NodeOffset + 1, ContextDatas, LocalIndex, ClipmapExtent);
 	}
 	else if (NodeType == SUM_SCALAR)
 	{
@@ -875,9 +945,9 @@ void EvaluateFieldNodeScalar(in float3 SamplePosition, in int NodeOffset, inout 
 }
 
 void EvaluateFieldNodeVector(in float3 SamplePosition, in int NodeOffset,
-				 inout float ContextDatas[MAX_DATAS], inout int LocalIndex)
+		inout float ContextDatas[MAX_DATAS], inout int LocalIndex, in float ClipmapExtent)
 {
-	const int NodeType = NodesParams[NodeOffset];
+	const int NodeType = (int)NodesParams[NodeOffset];
 
 	[branch]
 	if (NodeType == UNIFORM_VECTOR)
@@ -902,26 +972,26 @@ void EvaluateFieldNodeVector(in float3 SamplePosition, in int NodeOffset,
 	}
 }
 
-void EvaluateFieldNodeDatas(in float3 SamplePosition, in int NodeOffset, inout float ContextDatas[MAX_DATAS], inout int LocalIndex)
+void EvaluateFieldNodeDatas(in float3 SamplePosition, in int NodeOffset, inout float ContextDatas[MAX_DATAS], inout int LocalIndex, in float ClipmapExtent)
 {
-	const int DatasType = NodesParams[NodeOffset];
+	const int DatasType = (int)NodesParams[NodeOffset];
 
 	[branch]
 	if (DatasType == SCALAR_TYPE)
 	{
-		EvaluateFieldNodeScalar(SamplePosition, NodeOffset + 1, ContextDatas, LocalIndex);
+		EvaluateFieldNodeScalar(SamplePosition, NodeOffset + 1, ContextDatas, LocalIndex, ClipmapExtent);
 	}
 	else if (DatasType == INTEGER_TYPE)
 	{
-		EvaluateFieldNodeInteger(SamplePosition, NodeOffset + 1, ContextDatas, LocalIndex);
+		EvaluateFieldNodeInteger(SamplePosition, NodeOffset + 1, ContextDatas, LocalIndex, ClipmapExtent);
 	}
 	else if (DatasType == VECTOR_TYPE)
 	{
-		EvaluateFieldNodeVector(SamplePosition, NodeOffset + 1, ContextDatas, LocalIndex);
+		EvaluateFieldNodeVector(SamplePosition, NodeOffset + 1, ContextDatas, LocalIndex, ClipmapExtent);
 	}
 }
 
-void SampleFieldDatas(in float3 SamplePosition, inout float ContextDatas[MAX_DATAS], inout int LocalIndex, in int LocalTargetType)
+void SampleFieldDatas(in float3 SamplePosition, inout float ContextDatas[MAX_DATAS], inout int LocalIndex, in int LocalTargetType, in float ClipmapExtent)
 {
 	const int NodesBegin = TargetsOffsets[LocalTargetType];
 	const int NodesEnd = TargetsOffsets[LocalTargetType + 1];
@@ -938,7 +1008,7 @@ void SampleFieldDatas(in float3 SamplePosition, inout float ContextDatas[MAX_DAT
 		for (int NodeIndex = NodesBegin; NodeIndex < NodesEnd; ++NodeIndex)
 		{
 			const int NodeOffset = NodesOffsets[NodeIndex];
-			EvaluateFieldNodeDatas(SamplePosition, NodeOffset, ContextDatas, LocalIndex);
+			EvaluateFieldNodeDatas(SamplePosition, NodeOffset, ContextDatas, LocalIndex, ClipmapExtent);
 		}
 	}
 }
@@ -949,8 +1019,14 @@ void BuildPhysicsFieldClipmapCS(
 	uint3 DispatchThreadId : SV_DispatchThreadID,
     uint3 GroupThreadId : SV_GroupThreadID)
 {
-	if (all(DispatchThreadId.xyz < int3(ClipmapResolution, ClipmapResolution, ClipmapResolution)))
+	if (all(DispatchThreadId.xyz < int3(ClipmapResolution, ClipmapResolution, ClipmapResolution)) && (TargetCount < MAX_COUNT))
 	{
+		float4 ResultsDatas[MAX_COUNT];
+		[unroll]
+		for (int ResultsIndex = 0; ResultsIndex < MAX_COUNT; ++ResultsIndex)
+		{
+			ResultsDatas[ResultsIndex] = float4(0, 0, 0, 0);
+		}
 		for (int ClipmapIndex = 0; ClipmapIndex < ClipmapCount; ++ClipmapIndex)
 		{
 			const float ClipmapExtent = ClipmapDistance * pow(ClipmapExponent, ClipmapIndex + 1 - ClipmapCount);
@@ -958,42 +1034,33 @@ void BuildPhysicsFieldClipmapCS(
 			const float3 SampleUV = (DispatchThreadId.xyz + 0.5) / ClipmapResolution;
 			const float3 SamplePosition = ClipmapCenter + (SampleUV - 0.5) * 2.0 * ClipmapExtent;
 			
-			for (int TargetIndex = 0; TargetIndex < TargetCount; ++TargetIndex)
-			{
-				const int DatasOffset = ClipmapIndex + TargetIndex * ClipmapCount;
-					
-				uint3 TextureCoordinates = DispatchThreadId;
-				TextureCoordinates.z += ClipmapResolution * DatasOffset + DatasOffset;
-				
-				//FieldClipmap[TextureCoordinates] = float4(0, 0, 0, 0);
-			}
-			
 			for (int TargetType = 0; TargetType < MAX_TARGETS_ARRAY; ++TargetType)
 			{
 				const int TargetIndex = PhysicsTargets[TargetType];
 				
 				[branch]
-				if (TargetIndex != -1)
+				if ((TargetIndex != -1) && (TargetIndex < TargetCount))
 				{
-					const int DatasOffset = ClipmapIndex + TargetIndex * ClipmapCount;
-					
-					uint3 TextureCoordinates = DispatchThreadId;
-					TextureCoordinates.z += ClipmapResolution * DatasOffset + DatasOffset;
-		
 					float ContextDatas[MAX_DATAS];
 					int LocalIndex = 0;
 
-					SampleFieldDatas(SamplePosition, ContextDatas, LocalIndex, TargetType + 1);
+					SampleFieldDatas(SamplePosition, ContextDatas, LocalIndex, TargetType + 1, ClipmapExtent);
 		
 					if (LocalIndex == 3)
 					{
-						//FieldClipmap[TextureCoordinates] += float4(ContextDatas[0], ContextDatas[1], ContextDatas[2], 0);
+						ResultsDatas[TargetIndex].xyz = float3(ContextDatas[0], ContextDatas[1], ContextDatas[2]);
 					}
 					else if (LocalIndex == 1)
 					{
-						//FieldClipmap[TextureCoordinates] += float4(0,0,0, ContextDatas[0]);
+						ResultsDatas[TargetIndex].w = ContextDatas[0];
 					}
 				}
+			}
+			for (int TargetIndex = 0; TargetIndex < TargetCount; ++TargetIndex)
+			{
+				const int DatasOffset = ClipmapIndex + TargetIndex * ClipmapCount;
+				const uint3 TextureCoordinates = uint3(DispatchThreadId.x, DispatchThreadId.y, DispatchThreadId.z + ClipmapResolution * DatasOffset + DatasOffset);
+				FieldClipmap[TextureCoordinates] = ResultsDatas[TargetIndex];
 			}
 		}
 	}

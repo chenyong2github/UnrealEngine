@@ -8,6 +8,7 @@
 #include "Async/Future.h"
 #include "Async/AsyncFileHandle.h"
 #include "GenericPlatform/GenericPlatformFile.h"
+#include "Serialization/FileRegions.h"
 #include "BulkDataCommon.h"
 #include "BulkData2.h"
 
@@ -620,8 +621,9 @@ public:
 	 * @param Owner	Object owning the bulk data
 	 * @param Idx	Index of bulk data item being serialized
 	 * @param bAttemptFileMapping	If true, attempt to map this instead of loading it into malloc'ed memory
+	 * @param FileRegionType	When cooking, a hint describing the type of data, used by some platforms to improve compression ratios
 	 */
-	void Serialize( FArchive& Ar, UObject* Owner, int32 Idx=INDEX_NONE, bool bAttemptFileMapping = false);
+	void Serialize( FArchive& Ar, UObject* Owner, int32 Idx=INDEX_NONE, bool bAttemptFileMapping = false, EFileRegionType FileRegionType = EFileRegionType::None );
 
 	FOwnedBulkDataPtr* StealFileMapping()
 	{

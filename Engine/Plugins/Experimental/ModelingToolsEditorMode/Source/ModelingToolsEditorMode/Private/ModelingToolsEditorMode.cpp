@@ -835,11 +835,8 @@ void FModelingToolsEditorMode::FocusCameraAtCursorHotkey()
 {
 	FRay Ray = ToolsContext->GetLastWorldRay();
 
-	FCollisionObjectQueryParams ObjectQueryParams(FCollisionObjectQueryParams::AllObjects);
-	FCollisionQueryParams QueryParams = FCollisionQueryParams::DefaultQueryParam;
-	QueryParams.bTraceComplex = true;
 	FHitResult HitResult;
-	bool bHitWorld = GetWorld()->LineTraceSingleByObjectType(HitResult, Ray.Origin, Ray.PointAt(HALF_WORLD_MAX), ObjectQueryParams, QueryParams);
+	bool bHitWorld = ToolSceneQueriesUtil::FindNearestVisibleObjectHit(GetWorld(), HitResult, Ray.Origin, Ray.PointAt(HALF_WORLD_MAX));
 	if (bHitWorld)
 	{
 		FVector HitPoint = HitResult.ImpactPoint;

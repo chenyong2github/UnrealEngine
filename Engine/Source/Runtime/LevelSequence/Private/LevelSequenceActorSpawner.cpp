@@ -10,6 +10,10 @@
 #include "Engine/LevelStreaming.h"
 #include "LevelUtils.h"
 
+#include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
+#include "EntitySystem/MovieSceneEntitySystemLinker.h"
+#include "Systems/MovieSceneDeferredComponentMovementSystem.h"
+
 #if WITH_EDITOR
 #include "Editor.h"
 #endif
@@ -218,6 +222,20 @@ UObject* FLevelSequenceActorSpawner::SpawnObject(FMovieSceneSpawnable& Spawnable
 		}
 	}	
 #endif
+
+	if (UMovieSceneEntitySystemLinker* Linker = Player.GetEvaluationTemplate().GetEntitySystemLinker())
+	{
+		if (UMovieSceneDeferredComponentMovementSystem* DeferredMovementSystem = Linker->FindSystem<UMovieSceneDeferredComponentMovementSystem>())
+		{
+			for (UActorComponent* ActorComponent : SpawnedActor->GetComponents())
+			{
+				if (USceneComponent* SceneComponent = Cast<USceneComponent>(ActorComponent))
+				{
+					DeferredMovementSystem->DeferMovementUpdates(SceneComponent);
+				}
+			}
+		}
+	}
 
 	const bool bIsDefaultTransform = true;
 	SpawnedActor->FinishSpawning(SpawnTransform, bIsDefaultTransform);

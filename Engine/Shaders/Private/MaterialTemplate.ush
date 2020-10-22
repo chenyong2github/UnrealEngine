@@ -358,6 +358,17 @@ struct FMaterialPixelParameters
 #endif
 };
 
+/**
+ * Compile out calls to StoreTexCoordScale if we're not doing texcoord scale analysis
+ */
+#if TEX_COORD_SCALE_ANALYSIS
+#define MaterialStoreTexCoordScale(Parameters, UV, TextureReferenceIndex) StoreTexCoordScale(Parameters.TexCoordScalesParams, UV, TextureReferenceIndex)
+#define MaterialStoreTexSample(Parameters, UV, TextureReferenceIndex) StoreTexSample(Parameters.TexCoordScalesParams, UV, TextureReferenceIndex)
+#else
+#define MaterialStoreTexCoordScale(Parameters, UV, TextureReferenceIndex) 1.0f
+#define MaterialStoreTexSample(Parameters, UV, TextureReferenceIndex) 1.0f
+#endif
+
 // @todo compat hack
 FMaterialPixelParameters MakeInitializedMaterialPixelParameters()
 {

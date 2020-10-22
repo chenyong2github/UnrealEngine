@@ -46,7 +46,8 @@ enum class ESampleReadFlags : uint8
 	UVs = 1 << 3,
 	Normals = 1 << 4,
 	Colors = 1 << 5,
-	MaterialIndices = 1 << 6
+	MaterialIndices = 1 << 6,
+	Velocities = 1 << 7
 };
 ENUM_CLASS_FLAGS(ESampleReadFlags);
 
@@ -298,10 +299,10 @@ namespace AbcImporterUtilities
 	void PropogateMatrixTransformationToSample(FAbcMeshSample* Sample, const FMatrix& Matrix);
 
 	/** Generates the delta frame data for the given average and frame vertex data */
-	void GenerateDeltaFrameDataMatrix(const TArray<FVector>& FrameVertexData, TArray<FVector>& AverageVertexData, const int32 SampleOffset, const int32 AverageVertexOffset, TArray<float>& OutGeneratedMatrix);
+	void GenerateDeltaFrameDataMatrix(const TArray<FVector>& FrameVertexData, const TArray<FVector>& AverageVertexData, const int32 SampleOffset, const int32 AverageVertexOffset, TArray<float>& OutGeneratedMatrix);
 
 	/** Populates compressed data structure from the result PCA compression bases and weights */
-	void GenerateCompressedMeshData(FCompressedAbcData& CompressedData, const uint32 NumUsedSingularValues, const uint32 NumSamples, const TArray<float>& BasesMatrix, const TArray<float>& BasesWeights, const float SampleTimeStep, const float StartTime);
+	void GenerateCompressedMeshData(FCompressedAbcData& CompressedData, const uint32 NumUsedSingularValues, const uint32 NumSamples, const TArrayView<float>& BasesMatrix, const TArray<float>& BasesWeights, const float SampleTimeStep, const float StartTime);
 
 	void CalculateNewStartAndEndFrameIndices(const float FrameStepRatio, int32& InOutStartFrameIndex, int32& InOutEndFrameIndex );
 
@@ -327,20 +328,24 @@ namespace AbcImporterUtilities
 	bool IsObjectVisibilityConstant(const Alembic::Abc::IObject& Object);
 
 	/** Generates and populates a FGeometryCacheMeshData instance from and for the given mesh sample */
-	void GeometryCacheDataForMeshSample(FGeometryCacheMeshData &OutMeshData, const FAbcMeshSample* MeshSample, const uint32 MaterialOffset);
+	void GeometryCacheDataForMeshSample(FGeometryCacheMeshData &OutMeshData, const FAbcMeshSample* MeshSample, const uint32 MaterialOffset, const float SecondsPerFrame, const bool bUseVelocitiesAsMotionVectors);
 
 	/**
 	 * Merges the given PolyMeshes at the given FrameIndex into a GeometryCacheMeshData
 	 *
-	 * @param FrameIndex	The frame index to merge the PolyMeshes at
-	 * @param FrameStart	The starting frame number of the range being processed
-	 * @param PolyMeshes	The PolyMeshes to merge, which will be sampled at FrameIndex
+	 * @param FrameIndex			The frame index to merge the PolyMeshes at
+	 * @param FrameStart			The starting frame number of the range being processed
+	 * @param SecondsPerFrame		The time step of the Abc file
+	 * @param bUseVelocitiesAsMotionVectors		Converts the AbcPolyMesh velocities to motion vectors
+	 * @param PolyMeshes			The PolyMeshes to merge, which will be sampled at FrameIndex
 	 * @param UniqueFaceSetNames	The array of unique face set names of the PolyMeshes
-	 * @param MeshData		The GeometryCacheMeshData where to output the merged PolyMeshes
+	 * @param MeshData				The GeometryCacheMeshData where to output the merged PolyMeshes
 	 * @param PreviousNumVertices	The number of vertices in the merged PolyMeshes, used to determine if its topology is constant between 2 frames
 	 * @param bConstantTopology		Flag to indicate if the merged PolyMeshes has constant topology
 	 */
-	void MergePolyMeshesToMeshData(int32 FrameIndex, int32 FrameStart, const TArray<FAbcPolyMesh*>& PolyMeshes, const TArray<FString>& UniqueFaceSetNames, FGeometryCacheMeshData& MeshData, int32& PreviousNumVertices, bool& bConstantTopology);
+	void MergePolyMeshesToMeshData(int32 FrameIndex, int32 FrameStart, float SecondsPerFrame, bool bUseVelocitiesAsMotionVectors,
+		const TArray<FAbcPolyMesh*>& PolyMeshes, const TArray<FString>& UniqueFaceSetNames,
+		FGeometryCacheMeshData& MeshData, int32& PreviousNumVertices, bool& bConstantTopology);
 
 	/** Retrieves a material from an AbcFile according to the given name and resaves it into the parent package */
 	UMaterialInterface* RetrieveMaterial(FAbcFile& AbcFile, const FString& MaterialName, UObject* InParent, EObjectFlags Flags);

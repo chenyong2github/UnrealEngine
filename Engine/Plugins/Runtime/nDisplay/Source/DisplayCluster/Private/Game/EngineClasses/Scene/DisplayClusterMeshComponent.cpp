@@ -2,10 +2,12 @@
 
 #include "Components/DisplayClusterMeshComponent.h"
 
-#include "Config/IPDisplayClusterConfigManager.h"
-#include "DisplayClusterConfigurationTypes.h"
+#include "Engine/StaticMesh.h"
+#include "Materials/MaterialInterface.h"
+#include "Materials/Material.h"
+#include "UObject/ConstructorHelpers.h"
 
-#include "Misc/DisplayClusterGlobals.h"
+#include "DisplayClusterConfigurationTypes.h"
 
 
 UDisplayClusterMeshComponent::UDisplayClusterMeshComponent(const FObjectInitializer& ObjectInitializer)
@@ -14,26 +16,35 @@ UDisplayClusterMeshComponent::UDisplayClusterMeshComponent(const FObjectInitiali
 	// Children of UDisplayClusterSceneComponent must always Tick to be able to process VRPN tracking
 	PrimaryComponentTick.bCanEverTick = true;
 
-	const UDisplayClusterConfigurationSceneComponentMesh* CfgMesh = Cast<UDisplayClusterConfigurationSceneComponentMesh>(GetConfigParameters());
-	if (CfgMesh)
+	// Create visual mesh component as a child
+	WarpMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(FName(*(GetName() + FString("_impl"))));
+	if (WarpMeshComponent)
 	{
-		AssetPath = CfgMesh->AssetPath;
+		WarpMeshComponent->SetFlags(EObjectFlags::RF_DuplicateTransient | RF_Transient | RF_TextExportTransient);
+		WarpMeshComponent->AttachToComponent(this, FAttachmentTransformRules(EAttachmentRule::KeepRelative, false));
+		WarpMeshComponent->SetRelativeLocationAndRotation(FVector::ZeroVector, FRotator::ZeroRotator);
+		WarpMeshComponent->SetRelativeScale3D(FVector::OneVector);
+		WarpMeshComponent->SetMobility(EComponentMobility::Movable);
+		WarpMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		WarpMeshComponent->SetVisibility(true);
 	}
 }
 
-void UDisplayClusterMeshComponent::BeginPlay()
+void UDisplayClusterMeshComponent::ApplyConfigurationData()
 {
-	Super::BeginPlay();
+	Super::ApplyConfigurationData();
 
-	// todo mesh initialization
+	const UDisplayClusterConfigurationSceneComponentMesh* CfgMesh = Cast<UDisplayClusterConfigurationSceneComponentMesh>(GetConfigParameters());
+	if (CfgMesh && !CfgMesh->AssetPath.IsEmpty())
+	{
+		//@todo Load and assign mesh asset
+	}
 }
 
-void UDisplayClusterMeshComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+#if WITH_EDITOR
+void UDisplayClusterMeshComponent::SetNodeSelection(bool bSelect)
 {
-	Super::EndPlay(EndPlayReason);
+	WarpMeshComponent->bDisplayVertexColors = bSelect;
+	WarpMeshComponent->PushSelectionToProxy();
 }
-
-void UDisplayClusterMeshComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
-{
-	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
-}
+#endif

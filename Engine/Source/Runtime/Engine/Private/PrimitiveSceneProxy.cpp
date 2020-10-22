@@ -55,8 +55,8 @@ bool SupportsCachingMeshDrawCommands(const FMeshBatch& MeshBatch, ERHIFeatureLev
 	{
 		// External textures get mapped to immutable samplers (which are part of the PSO); the mesh must go through the dynamic path, as the media player might not have
 		// valid textures/samplers the first few calls; once they're available the PSO needs to get invalidated and recreated with the immutable samplers.
-		const FMaterial* Material = MeshBatch.MaterialRenderProxy->GetMaterial(FeatureLevel);
-		const FMaterialShaderMap* ShaderMap = Material->GetRenderingThreadShaderMap();
+		const FMaterial& Material = MeshBatch.MaterialRenderProxy->GetIncompleteMaterialWithFallback(FeatureLevel);
+		const FMaterialShaderMap* ShaderMap = Material.GetRenderingThreadShaderMap();
 		if (ShaderMap)
 		{
 			const FUniformExpressionSet& ExpressionSet = ShaderMap->GetUniformExpressionSet();
@@ -82,11 +82,11 @@ bool SupportsNaniteRendering(const FVertexFactory* RESTRICT VertexFactory, const
 {
 	if (FeatureLevel >= ERHIFeatureLevel::SM5 && SupportsNaniteRendering(VertexFactory, PrimitiveSceneProxy))
 	{
-		const FMaterial* Material = MaterialRenderProxy->GetMaterial(FeatureLevel);
-		const FMaterialShaderMap* ShaderMap = Material->GetRenderingThreadShaderMap();
+		const FMaterial& Material = MaterialRenderProxy->GetIncompleteMaterialWithFallback(FeatureLevel);
+		const FMaterialShaderMap* ShaderMap = Material.GetRenderingThreadShaderMap();
 
-		return Material->GetBlendMode() == BLEND_Opaque &&
-			Material->GetMaterialDomain() == MD_Surface &&
+		return Material.GetBlendMode() == BLEND_Opaque &&
+			Material.GetMaterialDomain() == MD_Surface &&
 			!ShaderMap->UsesWorldPositionOffset();
 	}
 

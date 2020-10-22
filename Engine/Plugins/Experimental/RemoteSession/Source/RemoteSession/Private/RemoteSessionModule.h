@@ -4,6 +4,7 @@
 
 #include "RemoteSession.h"
 #include "RemoteSessionRole.h"
+#include "Tickable.h"
 
 class FRemoteSessionHost;
 class FRemoteSessionClient;

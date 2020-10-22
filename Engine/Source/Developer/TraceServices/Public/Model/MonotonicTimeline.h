@@ -805,7 +805,7 @@ private:
 		uint64 LastPageIndex = DetailLevel.ScopeEntries.NumPages() - 1;
 		if (LastPageIndex != DetailLevel.InsertionState.CurrentScopeEntryPageIndex)
 		{
-			// At the very first call, CurrentScopeEntryPage will be nullptr
+			// At the very first call, CurrentScopeEntryPage will be -1
 			if (DetailLevel.InsertionState.CurrentScopeEntryPageIndex != (uint64) -1)
 			{
 				FEventScopeEntryPage* CurrentScopeEntryPage = DetailLevel.ScopeEntries.GetPage(DetailLevel.InsertionState.CurrentScopeEntryPageIndex);

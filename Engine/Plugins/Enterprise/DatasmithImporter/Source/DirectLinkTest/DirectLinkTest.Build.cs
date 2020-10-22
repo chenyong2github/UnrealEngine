@@ -11,6 +11,7 @@ namespace UnrealBuildTool.Rules
 				"Core",
 				"DatasmithCore",
 				"DatasmithTranslator",
+				"DirectLink",
 			});
 
 			PrivateDependencyModuleNames.AddRange(new string[]{

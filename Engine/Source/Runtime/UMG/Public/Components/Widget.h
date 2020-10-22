@@ -221,7 +221,7 @@ class UMG_API UWidget : public UVisual
 
 public:
 
-	// Common Bindings - If you add any new common binding, you must provide a FPropertyBinder for it.
+	// Common Bindings - If you add any new common binding, you must provide a UPropertyBinding for it.
 	//                   all primitive binding in UMG goes through native binding evaluators to prevent
 	//                   thunking through the VM.
 	DECLARE_DYNAMIC_DELEGATE_RetVal(bool, FGetBool);

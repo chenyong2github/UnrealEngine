@@ -69,12 +69,11 @@ namespace Chaos
 	public:
 		using FAccelerationStructure = ISpatialAcceleration<TAccelerationStructureHandle<FReal, 3>, FReal, 3>;
 
-		FSpatialAccelerationBroadPhase(const TPBDRigidsSOAs<FReal, 3>& InParticles, const FReal InBoundsExpansion, const FReal InVelocityInflation, const FReal InCullDistance, const FReal InShapePadding)
+		FSpatialAccelerationBroadPhase(const TPBDRigidsSOAs<FReal, 3>& InParticles, const FReal InBoundsExpansion, const FReal InVelocityInflation, const FReal InCullDistance)
 			: FBroadPhase(InBoundsExpansion, InVelocityInflation)
 			, Particles(InParticles)
 			, SpatialAcceleration(nullptr)
 			, CullDistance(InCullDistance)
-			, ShapePadding(InShapePadding)
 		{
 		}
 
@@ -86,11 +85,6 @@ namespace Chaos
 		void SetCullDistance(FReal InCullDistance)
 		{
 			CullDistance = InCullDistance;
-		}
-
-		void SetShapePadding(FReal InShapePadding)
-		{
-			ShapePadding = InShapePadding;
 		}
 
 		/**
@@ -297,7 +291,7 @@ namespace Chaos
 						
 						// Generate constraints for the potentially overlapping shape pairs. Also run collision detection to generate
 						// the contact position and normal (for contacts within CullDistance) for use in collision callbacks.
-						NarrowPhase.GenerateCollisions(NewConstraints, Dt, Particle1.Handle(), Particle2.Handle(), CullDistance, ShapePadding, StatData);
+						NarrowPhase.GenerateCollisions(NewConstraints, Dt, Particle1.Handle(), Particle2.Handle(), CullDistance, StatData);
 					}
 
 					{
@@ -316,7 +310,6 @@ namespace Chaos
 		const TPBDRigidsSOAs<FReal, 3>& Particles;
 		const FAccelerationStructure* SpatialAcceleration;
 		FReal CullDistance;
-		FReal ShapePadding;
 
 		FIgnoreCollisionManager IgnoreCollisionManager;
 	};

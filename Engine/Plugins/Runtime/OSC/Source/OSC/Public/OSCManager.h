@@ -26,12 +26,12 @@ public:
 	// attempts to use LocalHost IP address. If StartListening set,
 	// immediately begins listening on creation.
 	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
-	static UOSCServer* CreateOSCServer(FString ReceiveIPAddress, int32 Port, bool bMulticastLoopback, bool bStartListening, FString ServerName);
+	static UOSCServer* CreateOSCServer(FString ReceiveIPAddress, int32 Port, bool bMulticastLoopback, bool bStartListening, FString ServerName, UObject* Outer = nullptr);
 
 	// Creates an OSC Client.  If SendIPAddress left empty (or '0'), attempts to use
 	// attempts to use LocalHost IP address.
 	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
-	static UOSCClient* CreateOSCClient(FString SendIPAddress, int32 Port, FString ClientName);
+	static UOSCClient* CreateOSCClient(FString SendIPAddress, int32 Port, FString ClientName, UObject* Outer = nullptr);
 
 	/** Adds provided message packet to bundle. */
 	UFUNCTION(BlueprintCallable, Category = "Audio|OSC", meta = (DisplayName = "Add OSC Message to Bundle", Keywords = "osc message bundle"))

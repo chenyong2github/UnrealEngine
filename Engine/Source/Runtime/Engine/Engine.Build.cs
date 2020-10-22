@@ -136,14 +136,6 @@ public class Engine : ModuleRules
 
 		DynamicallyLoadedModuleNames.Add("EyeTracker");
 
-		
-		if (Target.bUseXGEController &&
-			Target.Type == TargetType.Editor &&
-			(Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32))
-		{
-			PrivateDependencyModuleNames.Add("XGEController");
-		}
-
 		if (Target.Configuration != UnrealTargetConfiguration.Shipping)
 		{
 			PrivateIncludePathModuleNames.Add("Localization");
@@ -341,7 +333,7 @@ public class Engine : ModuleRules
 					"UnrealEd",
 					"Kismet"
 				}
-			);	// @todo api: Only public because of WITH_EDITOR and UNREALED_API
+			);  // @todo api: Only public because of WITH_EDITOR and UNREALED_API
 
 			CircularlyReferencedDependentModules.AddRange(
 				new string[] {
@@ -390,8 +382,8 @@ public class Engine : ModuleRules
 			(Target.Platform == UnrealTargetPlatform.Win32))
 		{
 			// Head Mounted Display support
-//			PrivateIncludePathModuleNames.AddRange(new string[] { "HeadMountedDisplay" });
-//			DynamicallyLoadedModuleNames.AddRange(new string[] { "HeadMountedDisplay" });
+			//			PrivateIncludePathModuleNames.AddRange(new string[] { "HeadMountedDisplay" });
+			//			DynamicallyLoadedModuleNames.AddRange(new string[] { "HeadMountedDisplay" });
 		}
 
 		if (Target.Platform == UnrealTargetPlatform.Mac)
@@ -441,6 +433,15 @@ public class Engine : ModuleRules
 		if (Target.bBuildEditor || Target.Configuration != UnrealTargetConfiguration.Shipping)
 		{
 			RuntimeDependencies.Add("$(EngineDir)/Content/Stats/...", StagedFileType.UFS);
+		}
+
+		if (Target.bBuildEditor == false && Target.Configuration != UnrealTargetConfiguration.Shipping)
+		{
+			PublicDefinitions.Add("WITH_ODSC=1");
+		}
+        else
+        {
+			PublicDefinitions.Add("WITH_ODSC=0");
 		}
 	}
 }

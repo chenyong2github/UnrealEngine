@@ -108,16 +108,13 @@ public class ResonanceAudio : ModuleRules
 		}
         else if (Target.Platform == UnrealTargetPlatform.Mac)
         {
-            string SDKDir = Target.UEThirdPartySourceDirectory + "Intel/Embree/Embree2140/MacOSX/";
-
-            PublicIncludePaths.Add(SDKDir + "include");
-            PublicAdditionalLibraries.Add(SDKDir + "lib/libembree.2.14.0.dylib");
-            RuntimeDependencies.Add("$(TargetOutputDir)/libembree.2.14.0.dylib", SDKDir + "lib/libembree.2.14.0.dylib");
-            RuntimeDependencies.Add("$(TargetOutputDir)/libtbb.dylib", IntelTBBLibs + "Mac/libtbb.dylib");
-            RuntimeDependencies.Add("$(TargetOutputDir)/libtbbmalloc.dylib", IntelTBBLibs + "Mac/libtbbmalloc.dylib");
-            PrivateDefinitions.Add("USE_EMBREE=1");
-        }
-        else
+			// In platforms that don't support Embree, we implement no-op versions of the functions.
+			string SDKDir = Target.UEThirdPartySourceDirectory + "Intel/Embree/Embree2140/";
+			PublicIncludePaths.Add(SDKDir + "include");
+			PrivateDefinitions.Add("USE_EMBRE_FOR_RESONANCE=0");
+			PrivateDefinitions.Add("EMBREE_STATIC_LIB=1");
+		}
+		else
         {
             // In platforms that don't support Embree, we implement no-op versions of the functions.
             string SDKDir = Target.UEThirdPartySourceDirectory + "Intel/Embree/Embree2140/";

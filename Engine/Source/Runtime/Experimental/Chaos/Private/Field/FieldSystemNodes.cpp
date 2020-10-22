@@ -15,6 +15,8 @@ FFieldNodeBase * FieldNodeFactory(FFieldNodeBase::EFieldType BaseType,FFieldNode
 		return new FRadialIntMask();
 	case FFieldNodeBase::ESerializationType::FieldNode_FUniformScalar:
 		return new FUniformScalar();
+	case FFieldNodeBase::ESerializationType::FieldNode_FWaveScalar:
+		return new FWaveScalar();
 	case FFieldNodeBase::ESerializationType::FieldNode_FRadialFalloff:
 		return new FRadialFalloff();
 	case FFieldNodeBase::ESerializationType::FieldNode_FPlaneFalloff:
@@ -213,6 +215,98 @@ bool FUniformScalar::operator==(const FFieldNodeBase& Node)
 	}
 	return false;
 }
+
+/**
+* FWaveScalar
+*/
+void FWaveScalar::Evaluate(FFieldContext& Context, TArrayView<float>& Results) const
+{
+	const float Wavenumber = 2.0 * PI / Wavelength;
+	const float Frequency = 2.0 * PI / Period;
+
+	const float Radius = Wavenumber * Time / Frequency;
+	const float Decay = Time / Period;
+
+	int32 NumSamples = Context.SampleIndices.Num();
+	for (int32 SampleIndex = 0; SampleIndex < NumSamples; SampleIndex++)
+	{
+		const ContextIndex& Index = Context.SampleIndices[SampleIndex];
+
+		const float Distance = (Context.Samples[Index.Sample] - Position).Size();
+		const float Phase = Wavenumber * Distance - Frequency * Time;
+
+		if (Function == EWaveFunctionType::Field_Wave_Cosine)
+		{
+			Results[Index.Result] = Magnitude * FMath::Cos(Phase);
+		}
+		else if (Function == EWaveFunctionType::Field_Wave_Gaussian)
+		{
+			Results[Index.Result] = Magnitude * FMath::Exp(-Phase * Phase);
+		}
+		else if (Function == EWaveFunctionType::Field_Wave_Falloff)
+		{
+			if (Distance < Radius)
+			{
+				const float Fraction = (1.0 - Distance / Radius);
+				if (Falloff == EFieldFalloffType::Field_FallOff_None)
+				{
+					Results[Index.Result] = Magnitude;
+				}
+				else if (Falloff == EFieldFalloffType::Field_Falloff_Linear)
+				{
+					Results[Index.Result] = Magnitude * Fraction;
+				}
+				else if (Falloff == EFieldFalloffType::Field_Falloff_Squared)
+				{
+					Results[Index.Result] =  Magnitude * Fraction * Fraction;
+				}
+				else if (Falloff == EFieldFalloffType::Field_Falloff_Inverse && Fraction > 0.0)
+				{
+					Results[Index.Result] =  Magnitude / Fraction;
+				}
+				else if (Falloff == EFieldFalloffType::Field_Falloff_Logarithmic)
+				{
+					Results[Index.Result] = Magnitude * FMath::Loge(Fraction + 1.0) / FMath::Loge(10.0);
+				}
+			}
+			else
+			{
+				Results[Index.Result] = 0.0;
+			}
+		}
+		else if (Function == EWaveFunctionType::Field_Wave_Decay)
+		{
+			Results[Index.Result] = Magnitude * FMath::Exp( - Decay * Decay );
+		}
+	}
+}
+void FWaveScalar::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+	Ar << Magnitude;
+	Ar << Position;
+	Ar << Wavelength;
+	Ar << Period;
+	Ar << Time;
+	SerializeInternal<EWaveFunctionType>(Ar, Function);
+	SerializeInternal<EFieldFalloffType>(Ar, Falloff);
+}
+bool FWaveScalar::operator==(const FFieldNodeBase& Node)
+{
+	if (Node.SerializationType() == SerializationType())
+	{
+		return Super::operator==(Node)
+			&& Magnitude == static_cast<const FWaveScalar*>(&Node)->Magnitude
+			&& Position == static_cast<const FWaveScalar*>(&Node)->Position
+			&& Wavelength == static_cast<const FWaveScalar*>(&Node)->Wavelength
+			&& Period == static_cast<const FWaveScalar*>(&Node)->Period
+			&& Time == static_cast<const FWaveScalar*>(&Node)->Time
+			&& Function == static_cast<const FWaveScalar*>(&Node)->Function
+			&& Falloff == static_cast<const FWaveScalar*>(&Node)->Falloff;
+	}
+	return false;
+}
+
 
 
 /**

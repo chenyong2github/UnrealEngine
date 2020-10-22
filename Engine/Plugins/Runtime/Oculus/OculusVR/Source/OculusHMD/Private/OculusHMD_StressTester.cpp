@@ -417,8 +417,7 @@ static void StressGPUCmdHandler(const TArray<FString>& Args, UWorld* World, FOut
 
 static FAutoConsoleCommand CStressGPUCmd(
 	TEXT("vr.oculus.Stress.GPU"),
-	*NSLOCTEXT("OculusRift", "CCommandText_StressGPU",
-		"Initiates a GPU stress test.\n Usage: vr.oculus.Stress.GPU [LoadMultiplier [TimeLimit]]").ToString(),
+	*NSLOCTEXT("OculusRift", "CCommandText_StressGPU", "Initiates a GPU stress test.\n Usage: vr.oculus.Stress.GPU [LoadMultiplier [TimeLimit]]").ToString(),
 	FConsoleCommandWithWorldArgsAndOutputDeviceDelegate::CreateStatic(StressGPUCmdHandler));
 
 static void StressCPUCmdHandler(const TArray<FString>& Args, UWorld* World, FOutputDevice& Ar)
@@ -439,8 +438,7 @@ static void StressCPUCmdHandler(const TArray<FString>& Args, UWorld* World, FOut
 
 static FAutoConsoleCommand CStressCPUCmd(
 	TEXT("vr.oculus.Stress.CPU"),
-	*NSLOCTEXT("OculusRift", "CCommandText_StressCPU",
-		"Initiates a CPU stress test.\n Usage: vr.oculus.Stress.CPU [PerFrameTime [TotalTimeLimit]]").ToString(),
+	*NSLOCTEXT("OculusRift", "CCommandText_StressCPU", "Initiates a CPU stress test.\n Usage: vr.oculus.Stress.CPU [PerFrameTime [TotalTimeLimit]]").ToString(),
 	FConsoleCommandWithWorldArgsAndOutputDeviceDelegate::CreateStatic(StressCPUCmdHandler));
 
 static void StressPDCmdHandler(const TArray<FString>& Args, UWorld* World, FOutputDevice& Ar)
@@ -456,8 +454,7 @@ static void StressPDCmdHandler(const TArray<FString>& Args, UWorld* World, FOutp
 
 static FAutoConsoleCommand CStressPDCmd(
 	TEXT("vr.oculus.Stress.PD"),
-	*NSLOCTEXT("OculusRift", "CCommandText_StressPD",
-		"Initiates a pixel density stress test wher pixel density is changed every frame for TotalTimeLimit seconds.\n Usage: vr.oculus.Stress.PD [TotalTimeLimit]").ToString(),
+	*NSLOCTEXT("OculusRift", "CCommandText_StressPD", "Initiates a pixel density stress test wher pixel density is changed every frame for TotalTimeLimit seconds.\n Usage: vr.oculus.Stress.PD [TotalTimeLimit]").ToString(),
 	FConsoleCommandWithWorldArgsAndOutputDeviceDelegate::CreateStatic(StressPDCmdHandler));
 
 static void StressResetCmdHandler(const TArray<FString>& Args, UWorld* World, FOutputDevice& Ar)
@@ -468,8 +465,7 @@ static void StressResetCmdHandler(const TArray<FString>& Args, UWorld* World, FO
 
 static FAutoConsoleCommand CStressResetCmd(
 	TEXT("vr.oculus.Stress.Reset"),
-	*NSLOCTEXT("OculusRift", "CCommandText_StressReset",
-		"Resets the stress tester and stops all currently running stress tests.\n Usage: vr.oculus.Stress.Reset").ToString(),
+	*NSLOCTEXT("OculusRift", "CCommandText_StressReset", "Resets the stress tester and stops all currently running stress tests.\n Usage: vr.oculus.Stress.Reset").ToString(),
 	FConsoleCommandWithWorldArgsAndOutputDeviceDelegate::CreateStatic(StressResetCmdHandler));
 
 

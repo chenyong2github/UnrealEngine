@@ -58,7 +58,11 @@ public:
 	/* Returns true if running in the background */
 	bool IsThreaded() const;
 
-	void ReceivePackets(const float MaxTime = 0);
+    /*
+        Checks for and dispatches any incoming messages. MaxTime is how long to wait if no data is ready to be read.
+        This function is thread-safe and be called from a backfround thread manually or by calling StartReceiveThread()
+    */
+	void ReceiveAndDispatchMessages(const float MaxTime = 0);
 
 	/* Send the provided OSC packet */
 	bool SendPacket(FBackChannelOSCPacket& Packet);
@@ -88,7 +92,7 @@ protected:
 
 	void RemoveMessagesWithPath(const TCHAR* Path, const int32 Num = 0);
 
-	void ReceiveData(const float MaxTime = 0);
+	void ReceiveMessages(const float MaxTime = 0);
 
 	/* Dispatch all queued messages */
 	void DispatchMessages();

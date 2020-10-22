@@ -3,12 +3,20 @@
 #pragma once
 
 #include "Components/DMXPixelMappingExtraAttribute.h"
+
 #include "Components/DMXPixelMappingOutputDMXComponent.h"
+#include "Components/DMXPixelMappingFixtureGroupComponent.h"
+#include "Components/DMXPixelMappingMatrixCellComponent.h"
 #include "Library/DMXEntityReference.h"
+
+#include "Misc/Attribute.h"
+
 #include "DMXPixelMappingFixtureGroupItemComponent.generated.h"
 
 class UTextureRenderTarget2D;
 enum class EDMXColorMode : uint8;
+
+class STextBlock;
 
 /**
  * Fixture Item pixel component
@@ -22,6 +30,7 @@ public:
 	/** Default Constructor */
 	UDMXPixelMappingFixtureGroupItemComponent();
 
+protected:
 	//~ Begin UObject implementation
 	virtual void PostLoad() override;
 
@@ -30,6 +39,7 @@ public:
 #endif // WITH_EDITOR
 	//~ End UObject implementation
 
+public:
 	//~ Begin UDMXPixelMappingBaseComponent implementation
 	virtual const FName& GetNamePrefix() override;
 	virtual void ResetDMX() override;
@@ -53,7 +63,7 @@ public:
 #endif // WITH_EDITOR	
 
 	virtual UTextureRenderTarget2D* GetOutputTexture() override;
-	virtual FVector2D GetSize() override;
+	virtual FVector2D GetSize() const override;
 	virtual FVector2D GetPosition() override;
 	virtual void SetPosition(const FVector2D& InPosition) override;
 	virtual void SetSize(const FVector2D& InSize) override;
@@ -76,6 +86,10 @@ private:
 	/** Set size of Fixture Pixel inside Fixture Group Boundary Box */
 	void SetSizeWithinBoundaryBox(const FVector2D& InSize);
 
+#if WITH_EDITOR
+	FMargin GetLabelPadding() const;
+#endif
+
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Selected Patch")
 	FDMXEntityFixturePatchRef FixturePatchRef;
@@ -93,7 +107,7 @@ public:
 	bool AttributeBExpose;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Output Settings", meta = (DisplayName = "Expose"))
-	bool MonochromeExpose;
+	bool bMonochromeExpose;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Output Settings", meta = (DisplayName = "Invert R"))
 	bool AttributeRInvert;
@@ -105,7 +119,7 @@ public:
 	bool AttributeBInvert;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Output Settings", meta = (DisplayName = "Invert"))
-	bool MonochromeInvert;
+	bool bMonochromeInvert;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Output Settings", meta = (DisplayName = "R Attribute"))
 	FDMXAttributeName AttributeR;
@@ -122,8 +136,22 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Output Settings", meta = (DisplayAfter = "MonochromeIntensity"))
 	TArray<FDMXPixelMappingExtraAttribute> ExtraAttributes;
 
+#if WITH_EDITORONLY_DATA
+	/** The X position relative to the parent group */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Common Settings")
+	float RelativePositionX;
+
+	/** The Y position relative to the parent group */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Common Settings")
+	float RelativePositionY;
+#endif // WITH_EDITORONLY_DATA
 
 private:
+#if WITH_EDITOR
+	/** Maps attributes that exist in the patch to the attributes of the group items. Clears those that don't exist. */
+	void AutoMapAttributes();
+#endif // WITH_EDITOR
+
 	UPROPERTY(Transient)
 	UTextureRenderTarget2D* OutputTarget;
 
@@ -131,7 +159,7 @@ private:
 	FSlateBrush Brush;
 
 	TSharedPtr<STextBlock> PatchNameWidget;
-#endif
+#endif // WITH_EDITORONLY_DATA
 
 private:
 	static const FVector2D MixPixelSize;

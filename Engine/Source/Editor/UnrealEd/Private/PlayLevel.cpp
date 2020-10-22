@@ -2420,30 +2420,31 @@ void UEditorEngine::StartPlayInEditorSession(FRequestPlaySessionParams& InReques
 	const double PIEStartTime = FStudioAnalytics::GetAnalyticSeconds();
 	const FScopedBusyCursor BusyCursor;
 
-	// Block PIE when there is a transaction recording into the undo buffer. This is generally avoided
+	// Cancel the transaction if one is opened when PIE is requested. This is generally avoided
 	// because we buffer the request for the PIE session until the start of the next frame, but sometimes
 	// transactions can get stuck open due to implementation errors so it's important that we check.
 	if (GEditor->IsTransactionActive())
 	{
 		FFormatNamedArguments Args;
 		Args.Add(TEXT("TransactionName"), GEditor->GetTransactionName());
-
-		FText NotificationText;
 		if (InRequestParams.WorldType == EPlaySessionWorldType::SimulateInEditor)
 		{
-			NotificationText = FText::Format(NSLOCTEXT("UnrealEd", "SIECantStartDuringTransaction", "Can't Simulate when performing {TransactionName} operation"), Args);
+			Args.Add(TEXT("PlaySession"), NSLOCTEXT("UnrealEd", "SimulatePlaySession", "Simulate"));
 		}
 		else
 		{
-			NotificationText = FText::Format(NSLOCTEXT("UnrealEd", "PIECantStartDuringTransaction", "Can't Play In Editor when performing {TransactionName} operation"), Args);
+			Args.Add(TEXT("PlaySession"), NSLOCTEXT("UnrealEd", "PIEPlaySession", "Play In Editor"));
 		}
+
+		FText NotificationText;
+		NotificationText = FText::Format(NSLOCTEXT("UnrealEd", "CancellingTransactionForPIE", "Cancelling open '{TransactionName}' operation to start {PlaySession}"), Args);
 
 		FNotificationInfo Info(NotificationText);
 		Info.ExpireDuration = 5.0f;
 		Info.bUseLargeFont = true;
 		FSlateNotificationManager::Get().AddNotification(Info);
-		CancelRequestPlaySession();
-		return;
+		GEditor->CancelTransaction(0);
+		UE_LOG(LogPlayLevel, Warning, TEXT("Cancelling Open Transaction '%s' to start PIE session."), *GEditor->GetTransactionName().ToString());
 	}
 
 	// Prompt the user that Matinee must be closed before PIE can occur. If they don't want

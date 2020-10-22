@@ -178,7 +178,7 @@ void FBackChannelConnection::SetBufferSizes(int32 DesiredSendSize, int32 Desired
 	// If we have a socket, apply it now
 	if (Socket != nullptr)
 	{
-		SetSocketBufferSizes(Socket, DesiredSendSize, DesiredReceiveSize);
+		SetSocketBufferSizes(Socket, SendBufferSize, SendBufferSize);
 	}
 }
 
@@ -192,14 +192,16 @@ void FBackChannelConnection::SetSocketBufferSizes(FSocket* NewSocket, int32 Desi
 	bool bWasSet = false;
 		
 	// Send Buffer
-	while (AllocatedSendSize != RequestedSendSize && !bWasSet)
+	while (AllocatedSendSize < RequestedSendSize && !bWasSet)
 	{
+		// note - it's possible for AllocatedSize to change and bWasSet = false if the socket has already had a buffer
+		// size set that's the mac supported.
 		bWasSet = NewSocket->SetSendBufferSize(RequestedSendSize, AllocatedSendSize);
 
 		// If we didn't get what we want assume failure could mean
 		// no change (unsupported size), an OS default, or an OS max so
 		// try again if its less than 50% of what we asked for
-		if (!bWasSet && AllocatedSendSize < RequestedSendSize/2)
+		if (!bWasSet && AllocatedSendSize < RequestedSendSize)
 		{
 			RequestedSendSize = RequestedSendSize / 2;
 		}
@@ -217,14 +219,14 @@ void FBackChannelConnection::SetSocketBufferSizes(FSocket* NewSocket, int32 Desi
 	bWasSet = false;
 
 	// Set Receive buffer
-	while (AllocatedReceiveSize != RequestedReceiveSize && !bWasSet)
+	while (AllocatedReceiveSize < RequestedReceiveSize && !bWasSet)
 	{
 		bWasSet = NewSocket->SetReceiveBufferSize(RequestedReceiveSize, AllocatedReceiveSize);
 		
 		// If we didn't get what we want assume failure could mean
 		// no change (unsupported size), an OS default, or an OS max so
 		// try again if its less than 50% of what we asked for
-		if (!bWasSet && AllocatedReceiveSize < (RequestedReceiveSize/2))
+		if (!bWasSet && AllocatedReceiveSize < RequestedReceiveSize)
 		{
 			RequestedReceiveSize = RequestedReceiveSize / 2;
 		}
@@ -374,7 +376,7 @@ bool FBackChannelConnection::WaitForConnection(double InTimeout, TFunction<bool(
 					}
 					else
 					{
-						UE_LOG(LogBackChannel, Log, TEXT("Accepted connection on %s"), *Socket->GetDescription());
+						UE_LOG(LogBackChannel, Log, TEXT("Accepted connection from %s on %s"), *RemoteAddress->ToString(true),  *Socket->GetDescription());
 					}
 				}
 			}

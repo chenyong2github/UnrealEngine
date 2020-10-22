@@ -18,8 +18,7 @@ namespace CADLibrary
 		CheckedCTError Result = CTKIO_UnloadModel();
 
 		// recreate the Main Object
-		CT_OBJECT_ID NullParent = 0;
-		Result = CT_COMPONENT_IO::Create(MainObjectId, NullParent);
+		Result = CTKIO_CreateModel(MainObjectId);
 	}
 
 	CheckedCTError CTSession::SaveBrep(const FString& FilePath)

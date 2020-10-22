@@ -6,6 +6,7 @@
 #include "Containers/Array.h"
 #include "Containers/UnrealString.h"
 #include "Internationalization/Internationalization.h"
+#include "Misc/Guid.h"
 #include "Misc/Paths.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
@@ -92,6 +93,12 @@ public:
 	{
 		static FName PlayerName(TEXT("AndroidCamera"));
 		return PlayerName;
+	}
+
+	virtual FGuid GetPlayerPluginGUID() const override
+	{
+		static FGuid PlayerPluginGUID(0x94f59418, 0xb93d4f40, 0xa441b4fd, 0x2ac7c313);
+		return PlayerPluginGUID;
 	}
 
 	virtual const TArray<FString>& GetSupportedPlatforms() const override

@@ -24,6 +24,10 @@ public:
 
 	virtual ~FOnlineSubsystemEOSModule() {}
 
+	static void PossiblyDeferredInit();
+	void OnPostEngineInit();
+	void OnPreExit();
+
 	// IModuleInterface
 
 	virtual void StartupModule() override;

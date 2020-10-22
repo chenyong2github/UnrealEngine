@@ -16,10 +16,13 @@
 
 namespace RemotePayloadSerializer
 {
+	/**
+	 * Replaces the first occurrence of a string in a TCHAR binary payload.
+	 */
 	void ReplaceFirstOccurence(TConstArrayView<uint8> InPayload, const FString& From, const FString& To, TArray<uint8>& OutModifiedPayload);
 
 	/**
-	 * Convers a string verb to the enum representation.
+	 * Converts a string verb to the enum representation.
 	 */
 	EHttpServerRequestVerbs ParseHttpVerb(FName InVerb);
 
@@ -59,6 +62,8 @@ namespace RemotePayloadSerializer
 
 namespace WebRemoteControlUtils
 {
+	static const TCHAR* WrappedRequestHeader = TEXT("UE-Wrapped-Request");
+
 	/**
 	 * Convert a UTF-8 payload to a TCHAR payload.
 	 * @param InUTF8Payload The UTF-8 payload in binary format.
@@ -132,23 +137,112 @@ namespace WebRemoteControlUtils
 			return false;
 		}
 
-		if (OutDeserializedRequest.GetStructParameters().Num() > 0)
+		if (!GetStructParametersDelimiters(InTCHARPayload, OutDeserializedRequest.GetStructParameters(), nullptr))
 		{
-			FString ErrorText;
-			if (!GetStructParametersDelimiters(InTCHARPayload, OutDeserializedRequest.GetStructParameters(), &ErrorText))
+			if (InCompleteCallback)
 			{
-				if (InCompleteCallback)
-				{
-					TUniquePtr<FHttpServerResponse> Response = CreateHttpResponse();
-					CreateUTF8ErrorMessage(TEXT("Unable to deserialize request."), Response->Body);
-					(*InCompleteCallback)(MoveTemp(Response));
-				}
-				return false;
+				TUniquePtr<FHttpServerResponse> Response = CreateHttpResponse();
+				CreateUTF8ErrorMessage(TEXT("Unable to deserialize request."), Response->Body);
+				(*InCompleteCallback)(MoveTemp(Response));
+			}
+			return false;
+		}
+
+		return true;
+	}
+
+	/**
+	 * Deserialize a wrapped request into a wrapper struct.
+	 * @param InTCHARPayload The json payload to deserialize.
+	 * @param InCompleteCallback The callback to call error.
+	 * @param The wrapper structure to populate with the request's content.
+	 * @return Whether the deserialization was successful.
+	 */
+	UE_NODISCARD inline bool DeserializeWrappedRequestPayload(TConstArrayView<uint8> InTCHARPayload, const FHttpResultCallback* InCompleteCallback, FRCRequestWrapper& Wrapper)
+	{
+		if (!DeserializeRequestPayload(InTCHARPayload, InCompleteCallback, Wrapper))
+		{
+			return false;
+		}
+
+		FBlockDelimiters& BodyDelimiters = Wrapper.GetParameterDelimiters(FRCRequestWrapper::BodyLabel());
+		if (BodyDelimiters.BlockStart != BodyDelimiters.BlockEnd)
+		{
+			Wrapper.TCHARBody = InTCHARPayload.Slice(BodyDelimiters.BlockStart, BodyDelimiters.BlockEnd - BodyDelimiters.BlockStart);
+		}
+
+		return true;
+	}
+
+	/**
+	 * Get the struct delimiters for all the batched requests.
+	 * @param InTCHARPayload The json payload to deserialize.
+	 * @param OutStructParameters A mapping of Request Id to their respective struct delimiters.
+	 * @param OutErrorText If set, the string pointer will be populated with an error message on error.
+	 * @return Whether the delimiters were able to be found.
+	 */
+	UE_NODISCARD bool GetBatchRequestStructDelimiters(TConstArrayView<uint8> InTCHARPayload, TMap<int32, FBlockDelimiters>& OutStructParameters, FString* OutErrorText = nullptr);
+	
+	/**
+	 * Specialization of DeserializeRequestPayload that handles Batch requests.
+	 * This will populate the TCHARBody of all the wrapped requests.
+	 * @param InTCHARPayload The json payload to deserialize.
+	 * @param InCompleteCallback The callback to call error.
+	 * @param The structure to serialize using the request's content.
+	 * @return Whether the deserialization was successful.
+	 *
+	 * @note InCompleteCallback will be called with an appropriate http response if the deserialization fails.
+	 */
+	template <>
+	UE_NODISCARD inline bool DeserializeRequestPayload(TConstArrayView<uint8> InTCHARPayload, const FHttpResultCallback* InCompleteCallback, FRCBatchRequest& OutDeserializedRequest)
+	{
+		FMemoryReaderView Reader(InTCHARPayload);
+		FJsonStructDeserializerBackend DeserializerBackend(Reader);
+		
+		if (!FStructDeserializer::Deserialize(&OutDeserializedRequest, *FRCBatchRequest::StaticStruct(), DeserializerBackend, FStructDeserializerPolicies()))
+		{
+			if (InCompleteCallback)
+			{
+				TUniquePtr<FHttpServerResponse> Response = CreateHttpResponse();
+				CreateUTF8ErrorMessage(TEXT("Unable to deserialize request."), Response->Body);
+				(*InCompleteCallback)(MoveTemp(Response));
+			}
+			return false;
+		}
+
+		TMap<int32, FBlockDelimiters> Delimiters;
+		if (!GetBatchRequestStructDelimiters(InTCHARPayload, Delimiters, nullptr))
+		{
+			if (InCompleteCallback)
+			{
+				TUniquePtr<FHttpServerResponse> Response = CreateHttpResponse();
+				CreateUTF8ErrorMessage(TEXT("Unable to deserialize request."), Response->Body);
+				(*InCompleteCallback)(MoveTemp(Response));
+			}
+			return false;
+		}
+
+		for (FRCRequestWrapper& Wrapper : OutDeserializedRequest.Requests)
+		{
+			if (FBlockDelimiters* BodyDelimiters = Delimiters.Find(Wrapper.RequestId))
+			{
+				Wrapper.GetParameterDelimiters(FRCRequestWrapper::BodyLabel()) = MoveTemp(*BodyDelimiters);
+				Wrapper.TCHARBody = InTCHARPayload.Slice(BodyDelimiters->BlockStart, BodyDelimiters->BlockEnd - BodyDelimiters->BlockStart);
 			}
 		}
 
 		return true;
 	}
+
+	/**
+	 * Adds a header indicating that the request is a wrapped request that originated from the engine itself.
+	 */
+	void AddWrappedRequestHeader(FHttpServerRequest& Request);
+
+	/**
+	 * Get whether the request is a wrapped request.
+	 */
+	bool IsWrappedRequest(const FHttpServerRequest& Request);
 
 	/**
 	 * Deserialize a request into a UStruct.
@@ -163,10 +257,19 @@ namespace WebRemoteControlUtils
 	UE_NODISCARD bool DeserializeRequest(const FHttpServerRequest& InRequest, const FHttpResultCallback* InCompleteCallback, RequestType& OutDeserializedRequest)
 	{
 		static_assert(TIsDerivedFrom<RequestType, FRCRequest>::IsDerived, "Argument OutDeserializedRequest must derive from FRCRequest");
-		TArray<uint8> WorkingBuffer;
-		ConvertToTCHAR(InRequest.Body, WorkingBuffer);
+		
+		if (IsWrappedRequest(InRequest))
+		{
+			// If the request is wrapped, the body should already be encoded in UCS2.
+			OutDeserializedRequest.TCHARBody = InRequest.Body;
+		}
+		
+		if (!OutDeserializedRequest.TCHARBody.Num())
+		{
+			ConvertToTCHAR(InRequest.Body, OutDeserializedRequest.TCHARBody);
+		}
 
-		return DeserializeRequestPayload(WorkingBuffer, InCompleteCallback, OutDeserializedRequest);
+		return DeserializeRequestPayload(OutDeserializedRequest.TCHARBody, InCompleteCallback, OutDeserializedRequest);
 	}
 
 	/**
@@ -201,7 +304,7 @@ namespace WebRemoteControlUtils
 	 * @param InContentType The content type header to add.
 	 */
 	void AddContentTypeHeaders(FHttpServerResponse* InOutResponse, FString InContentType);
-
+	
 	/**
 	* Add CORS headers to a http response.
 	* @param InOutResponse The http response to add the CORS headers to.

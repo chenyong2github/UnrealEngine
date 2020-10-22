@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Views/SDMXPixelMappingDetailsView.h"
+
 #include "Toolkits/DMXPixelMappingToolkit.h"
 #include "DMXPixelMappingComponentReference.h"
 #include "Components/DMXPixelMappingRootComponent.h"
@@ -8,12 +9,14 @@
 #include "Components/DMXPixelMappingFixtureGroupItemComponent.h"
 #include "Components/DMXPixelMappingScreenComponent.h"
 #include "Components/DMXPixelMappingMatrixComponent.h"
+#include "Components/DMXPixelMappingMatrixCellComponent.h"
 #include "Components/DMXPixelMappingRendererComponent.h"
 #include "Customizations/DMXPixelMappingDetailCustomization_FixtureGroup.h"
 #include "Customizations/DMXPixelMappingDetailCustomization_FixtureGroupItem.h"
 #include "Customizations/DMXPixelMappingDetailCustomization_Screen.h"
 #include "Customizations/DMXPixelMappingDetailCustomization_Renderer.h"
 #include "Customizations/DMXPixelMappingDetailCustomization_Matrix.h"
+#include "Customizations/DMXPixelMappingDetailCustomization_MatrixCell.h"
 
 #include "PropertyEditorModule.h"
 #include "Modules/ModuleManager.h"
@@ -127,4 +130,7 @@ void SDMXPixelMappingDetailsView::RegisterCustomizations()
 
 	FOnGetDetailCustomizationInstance MatrixCustomizationInstance = FOnGetDetailCustomizationInstance::CreateStatic(&FDMXPixelMappingDetailCustomization_Matrix::MakeInstance, ToolkitWeakPtr);
 	PropertyView->RegisterInstancedCustomPropertyLayout(UDMXPixelMappingMatrixComponent::StaticClass(), MatrixCustomizationInstance);
+
+	FOnGetDetailCustomizationInstance MatrixCellCustomizationInstance = FOnGetDetailCustomizationInstance::CreateStatic(&FDMXPixelMappingDetailCustomization_MatrixCell::MakeInstance, ToolkitWeakPtr);
+	PropertyView->RegisterInstancedCustomPropertyLayout(UDMXPixelMappingMatrixCellComponent::StaticClass(), MatrixCellCustomizationInstance);
 }

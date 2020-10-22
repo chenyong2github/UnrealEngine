@@ -242,7 +242,7 @@ namespace
 	}
 
 	// A helper function for getting the right shader.
-	TShaderMapRef<FColorCorrectRegionMaterialPS> GetRegionShader(const FGlobalShaderMap* GlobalShaderMap, EColorCorrectRegionsType RegionType, bool bIsAdvanced)
+	TShaderMapRef<FColorCorrectRegionMaterialPS> GetRegionShader(const FGlobalShaderMap* GlobalShaderMap, EColorCorrectRegionsType RegionType, bool bIsAdvanced, bool bSampleOpacityFromGbuffer)
 	{
 		FColorCorrectRegionMaterialPS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FColorCorrectRegionMaterialPS::FAdvancedShader>(bIsAdvanced);
@@ -253,6 +253,8 @@ namespace
 #if CLIP_PIXELS_OUTSIDE_AABB
 		PermutationVector.Set<FColorCorrectRegionMaterialPS::FClipPixelsOutsideAABB>(true);
 #endif
+		PermutationVector.Set<FColorCorrectRegionMaterialPS::FSampleOpacityFromGbuffer>(bSampleOpacityFromGbuffer);
+		
 		return TShaderMapRef<FColorCorrectRegionMaterialPS>(GlobalShaderMap, PermutationVector);
 		;
 	}
@@ -307,6 +309,11 @@ void FColorCorrectRegionsSceneViewExtension::PrePostProcessPass_RenderThread(FRD
 
 		// Reusing the same output description for our back buffer as SceneColor
 		FRDGTextureDesc ColorCorrectRegionsOutputDesc = SceneColor.Texture->Desc;
+		bool bSampleOpacityFromGbuffer = false;
+		if (ColorCorrectRegionsOutputDesc.Format != PF_FloatRGBA)
+		{
+			bSampleOpacityFromGbuffer = true;
+		}
 		ColorCorrectRegionsOutputDesc.Format = PF_FloatRGBA;
 		FLinearColor ClearColor(0., 0., 0., 0.);
 		ColorCorrectRegionsOutputDesc.ClearValue = FClearValueBinding(ClearColor);
@@ -442,7 +449,7 @@ void FColorCorrectRegionsSceneViewExtension::PrePostProcessPass_RenderThread(FRD
 			PostProcessMaterialParameters->View = View.ViewUniformBuffer;
 
 			TShaderMapRef<FColorCorrectRegionMaterialVS> VertexShader(GlobalShaderMap);
-			TShaderMapRef<FColorCorrectRegionMaterialPS> PixelShader = GetRegionShader(GlobalShaderMap, Region->Type, bIsAdvanced);
+			TShaderMapRef<FColorCorrectRegionMaterialPS> PixelShader = GetRegionShader(GlobalShaderMap, Region->Type, bIsAdvanced, bSampleOpacityFromGbuffer);
 
 			ClearUnusedGraphResources(VertexShader, PixelShader, PostProcessMaterialParameters);
 

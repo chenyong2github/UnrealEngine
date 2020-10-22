@@ -655,6 +655,8 @@ protected:
 	int32 ModifiedTopologyCounter = 0;
 	bool bWasTopologyEdited = false;
 
+	void SetActionButtonPanelsVisible(bool bVisible);
+
 	friend class FEditPolygonsTopologyPreEditChange;
 	friend class FEditPolygonsTopologyPostEditChange;
 	friend class FBeginInteractivePolyEditChange;

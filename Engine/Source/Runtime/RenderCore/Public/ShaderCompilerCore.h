@@ -165,7 +165,7 @@ struct FShaderCompilerInput
 
 	// Compilation Environment
 	FShaderCompilerEnvironment Environment;
-	TRefCountPtr<FShaderCompilerEnvironment> SharedEnvironment;
+	TRefCountPtr<FSharedShaderCompilerEnvironment> SharedEnvironment;
 
 
 	struct FRootParameterBinding
@@ -227,45 +227,45 @@ struct FShaderCompilerInput
 		return FPaths::GetCleanFilename(VirtualSourceFilePath);
 	}
 
-	void GatherSharedInputs(TMap<FString,FString>& ExternalIncludes, TArray<FShaderCompilerEnvironment*>& SharedEnvironments)
+	void GatherSharedInputs(TMap<FString,FString>& ExternalIncludes, TArray<TRefCountPtr<FSharedShaderCompilerEnvironment>>& SharedEnvironments)
 	{
 		check(!SharedEnvironment || SharedEnvironment->IncludeVirtualPathToExternalContentsMap.Num() == 0);
 
-		for (TMap<FString, TSharedPtr<FString>>::TConstIterator It(Environment.IncludeVirtualPathToExternalContentsMap); It; ++It)
+		for (const auto& It : Environment.IncludeVirtualPathToExternalContentsMap)
 		{
-			FString* FoundEntry = ExternalIncludes.Find(It.Key());
+			FString* FoundEntry = ExternalIncludes.Find(It.Key);
 
 			if (!FoundEntry)
 			{
-				ExternalIncludes.Add(It.Key(), *It.Value());
+				ExternalIncludes.Add(It.Key, *It.Value);
 			}
 		}
 
 		if (SharedEnvironment)
 		{
-			SharedEnvironments.AddUnique(SharedEnvironment.GetReference());
+			SharedEnvironments.AddUnique(SharedEnvironment);
 		}
 	}
 
-	void SerializeSharedInputs(FArchive& Ar, const TArray<FShaderCompilerEnvironment*>& SharedEnvironments)
+	void SerializeSharedInputs(FArchive& Ar, const TArray<TRefCountPtr<FSharedShaderCompilerEnvironment>>& SharedEnvironments)
 	{
 		check(Ar.IsSaving());
 
 		TArray<FString> ReferencedExternalIncludes;
 		ReferencedExternalIncludes.Empty(Environment.IncludeVirtualPathToExternalContentsMap.Num());
 
-		for (TMap<FString, TSharedPtr<FString>>::TConstIterator It(Environment.IncludeVirtualPathToExternalContentsMap); It; ++It)
+		for (const auto& It : Environment.IncludeVirtualPathToExternalContentsMap)
 		{
-			ReferencedExternalIncludes.Add(It.Key());
+			ReferencedExternalIncludes.Add(It.Key);
 		}
 
 		Ar << ReferencedExternalIncludes;
 
-		int32 SharedEnvironmentIndex = SharedEnvironments.Find(SharedEnvironment.GetReference());
+		int32 SharedEnvironmentIndex = SharedEnvironments.Find(SharedEnvironment);
 		Ar << SharedEnvironmentIndex;
 	}
 
-	void DeserializeSharedInputs(FArchive& Ar, const TMap<FString,TSharedPtr<FString>>& ExternalIncludes, const TArray<FShaderCompilerEnvironment>& SharedEnvironments)
+	void DeserializeSharedInputs(FArchive& Ar, const TMap<FString, FThreadSafeSharedStringPtr>& ExternalIncludes, const TArray<FShaderCompilerEnvironment>& SharedEnvironments)
 	{
 		check(Ar.IsLoading());
 

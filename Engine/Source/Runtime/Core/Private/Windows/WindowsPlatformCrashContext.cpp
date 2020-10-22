@@ -178,6 +178,8 @@ void FWindowsPlatformCrashContext::GetProcModuleHandles(const FProcHandle& Proce
 		DWORD RequiredBufferSize = 0;
 		if (!EnumProcessModulesEx(ProcessHandle.IsValid() ? ProcessHandle.Get() : GetCurrentProcess(), (HMODULE*)OutHandles.GetData(), BufferSize, &RequiredBufferSize, LIST_MODULES_ALL))
 		{
+			// We do not want partial set of modules in case this fails.
+			OutHandles.Empty();
 			return;
 		}
 		if (RequiredBufferSize <= BufferSize)
@@ -286,7 +288,7 @@ void FWindowsPlatformCrashContext::AddThreadContextString(
 		FString CallstackStr;
 		for (const FCrashStackFrame& StFrame : StackFrames)
 		{
-			CallstackStr += FString::Printf(TEXT("%-*s 0x%016x + %-8x"), MaxModuleNameLen + 1, *StFrame.ModuleName, StFrame.BaseAddress, StFrame.Offset);
+			CallstackStr += FString::Printf(TEXT("%-*s 0x%016llx + %-16llx"), MaxModuleNameLen + 1, *StFrame.ModuleName, StFrame.BaseAddress, StFrame.Offset);
 			CallstackStr += LINE_TERMINATOR;
 		}
 		AppendEscapedXMLString(OutStr, *CallstackStr);
@@ -409,9 +411,11 @@ bool CreateCrashReportClientPath(TCHAR* OutClientPath, int32 MaxLength)
 #if WITH_EDITOR
 	const TCHAR CrashReportClientShippingName[] = TEXT("CrashReportClientEditor.exe");
 	const TCHAR CrashReportClientDevelopmentName[] = TEXT("CrashReportClientEditor-Win64-Development.exe");
+	const TCHAR CrashReportClientDebugName[] = TEXT("CrashReportClientEditor-Win64-Debug.exe");
 #else
 	const TCHAR CrashReportClientShippingName[] = TEXT("CrashReportClient.exe");
 	const TCHAR CrashReportClientDevelopmentName[] = TEXT("CrashReportClient-Win64-Development.exe");
+	const TCHAR CrashReportClientDebugName[] = TEXT("CrashReportClient-Win64-Debug.exe");
 #endif
 
 	if (CreateCrashReportClientPathImpl(CrashReportClientShippingName))
@@ -421,6 +425,10 @@ bool CreateCrashReportClientPath(TCHAR* OutClientPath, int32 MaxLength)
 
 #if !(UE_BUILD_TEST || UE_BUILD_SHIPPING)
 	if (CreateCrashReportClientPathImpl(CrashReportClientDevelopmentName))
+	{
+		return true;
+	}
+	if (CreateCrashReportClientPathImpl(CrashReportClientDebugName))
 	{
 		return true;
 	}
@@ -1259,6 +1267,7 @@ public:
 		{
 			FWindowsPlatformCrashContext CrashContext(ECrashContextType::Ensure, ErrorMessage);
 			CrashContext.SetCrashedProcess(FProcHandle(::GetCurrentProcess()));
+			CrashContext.SetCrashedThreadId(GetCurrentThreadId());
 			void* ContextWrapper = FWindowsPlatformStackWalk::MakeThreadContextWrapper(InExceptionInfo->ContextRecord, GetCurrentThread());
 			CrashContext.CapturePortableCallStack(NumStackFramesToIgnore, ContextWrapper);
 

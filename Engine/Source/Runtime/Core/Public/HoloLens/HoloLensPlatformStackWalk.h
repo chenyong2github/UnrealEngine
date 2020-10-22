@@ -7,4 +7,10 @@
 #pragma once
 #include "GenericPlatform/GenericPlatformStackWalk.h"
 
-typedef FGenericPlatformStackWalk FPlatformStackWalk;
+struct CORE_API FHololensPlatformStackWalk
+	: public FGenericPlatformStackWalk
+{
+	static TArray<FProgramCounterSymbolInfo> GetStack(int32 IgnoreCount, int32 MaxDepth = 100, void* Context = nullptr);
+};
+
+typedef FHololensPlatformStackWalk FPlatformStackWalk;

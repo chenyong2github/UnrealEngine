@@ -367,6 +367,12 @@ FNvVideoEncoder::FEncoderDevice::FEncoderDevice()
 		{
 			UE_LOG(LogAVEncoder, Fatal, TEXT("Failed to create a D3D 11.1 device. This is needed when using the D3D12 renderer."));
 		}
+
+		// Work-around for the EOS overlay to get an unwrapped, raw ID3D11Device
+		TRefCountPtr<ID3D11Device> UnwrappedDevice;
+		DeviceContext->GetDevice(UnwrappedDevice.GetInitReference());
+		Device = MoveTemp(UnwrappedDevice);
+
 	}
 	else
 	{

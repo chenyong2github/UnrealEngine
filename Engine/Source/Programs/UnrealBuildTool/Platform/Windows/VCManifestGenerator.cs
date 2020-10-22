@@ -274,12 +274,10 @@ namespace UnrealBuildTool
 			return DefaultValue;
 		}
 
-        protected bool CopyAndReplaceBinaryIntermediate(string ResourceFileName, bool AllowEngineFallback = true)
+		protected bool FindResourceBinaryFile( out string SourcePath, string ResourceFileName, bool AllowEngineFallback = true)
 		{
-			string TargetPath = Path.Combine(IntermediatePath, BuildResourceSubPath);
-
 			// look in project normal Build location
-			string SourcePath = Path.Combine(ProjectPath, "Build", Platform.ToString(), BuildResourceSubPath);
+			SourcePath = Path.Combine(ProjectPath, "Build", Platform.ToString(), BuildResourceSubPath);
 			bool bFileExists = File.Exists(Path.Combine(SourcePath, ResourceFileName));
 
 			// look in Platform Extensions next
@@ -302,6 +300,21 @@ namespace UnrealBuildTool
 					bFileExists = File.Exists(Path.Combine(SourcePath, ResourceFileName));
 				}
 			}
+
+			return bFileExists;
+		}
+
+		protected bool DoesResourceBinaryFileExist(string ResourceFileName, bool AllowEngineFallback = true)
+		{
+			string SourcePath;
+			return FindResourceBinaryFile( out SourcePath, ResourceFileName, AllowEngineFallback );
+		}
+
+        protected bool CopyAndReplaceBinaryIntermediate(string ResourceFileName, bool AllowEngineFallback = true)
+		{
+			string TargetPath = Path.Combine(IntermediatePath, BuildResourceSubPath);
+			string SourcePath;
+			bool bFileExists = FindResourceBinaryFile( out SourcePath, ResourceFileName, AllowEngineFallback );
 
 			// At least the default culture entry for any resource binary must always exist
 			if (!bFileExists)

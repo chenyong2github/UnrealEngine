@@ -102,7 +102,7 @@ namespace Private
 	{
 		TArray<FStaticMaterial> OldMaterials;
 	
-		OldMaterials = Mesh.StaticMaterials;
+		OldMaterials = Mesh.GetStaticMaterials();
 		UMaterialInterface* DefaultMaterial = UMaterial::GetDefaultMaterial(MD_Surface);
 		for (int32 i = 0; i < OldMaterials.Num(); ++i)
 		{
@@ -1622,7 +1622,7 @@ static void CopySpeedTreeWind8(const GameEngine8::SWindConfig* Wind, TSharedPtr<
 static void MakeBodyFromCollisionObjects7(UStaticMesh* StaticMesh, const SpeedTree::SCollisionObject* CollisionObjects, int32 NumCollisionObjects)
 {
 	StaticMesh->CreateBodySetup();
-	FKAggregateGeom& AggGeo = StaticMesh->BodySetup->AggGeom;
+	FKAggregateGeom& AggGeo = StaticMesh->GetBodySetup()->AggGeom;
 
 	for (int32 CollisionObjectIndex = 0; CollisionObjectIndex < NumCollisionObjects; ++CollisionObjectIndex)
 	{
@@ -1652,8 +1652,8 @@ static void MakeBodyFromCollisionObjects7(UStaticMesh* StaticMesh, const SpeedTr
 		}
 	}
 
-	StaticMesh->BodySetup->ClearPhysicsMeshes();
-	StaticMesh->BodySetup->InvalidatePhysicsData();
+	StaticMesh->GetBodySetup()->ClearPhysicsMeshes();
+	StaticMesh->GetBodySetup()->InvalidatePhysicsData();
 	RefreshCollisionChange(*StaticMesh);
 }
 
@@ -1662,11 +1662,11 @@ static void MakeBodyFromCollisionObjects8(UStaticMesh* StaticMesh, SpeedTreeData
 	if (aObjects.Count() > 0)
 	{
 		StaticMesh->CreateBodySetup();
-		StaticMesh->BodySetup->ClearPhysicsMeshes();
-		StaticMesh->BodySetup->RemoveSimpleCollision();
-		StaticMesh->BodySetup->CollisionTraceFlag = CTF_UseSimpleAsComplex;
+		StaticMesh->GetBodySetup()->ClearPhysicsMeshes();
+		StaticMesh->GetBodySetup()->RemoveSimpleCollision();
+		StaticMesh->GetBodySetup()->CollisionTraceFlag = CTF_UseSimpleAsComplex;
 
-		FKAggregateGeom& AggGeo = StaticMesh->BodySetup->AggGeom;
+		FKAggregateGeom& AggGeo = StaticMesh->GetBodySetup()->AggGeom;
 
 		for (uint32 CollisionObjectIndex = 0; CollisionObjectIndex < aObjects.Count(); ++CollisionObjectIndex)
 		{
@@ -1696,7 +1696,7 @@ static void MakeBodyFromCollisionObjects8(UStaticMesh* StaticMesh, SpeedTreeData
 			}
 		}
 		
-		StaticMesh->BodySetup->InvalidatePhysicsData();
+		StaticMesh->GetBodySetup()->InvalidatePhysicsData();
 		RefreshCollisionChange(*StaticMesh);
 	}
 }
@@ -1706,11 +1706,11 @@ static void MakeBodyFromCollisionObjects9(UStaticMesh* StaticMesh, SpeedTreeData
 	if (aObjects.Count() > 0)
 	{
 		StaticMesh->CreateBodySetup();
-		StaticMesh->BodySetup->ClearPhysicsMeshes();
-		StaticMesh->BodySetup->RemoveSimpleCollision();
-		StaticMesh->BodySetup->CollisionTraceFlag = CTF_UseSimpleAsComplex;
+		StaticMesh->GetBodySetup()->ClearPhysicsMeshes();
+		StaticMesh->GetBodySetup()->RemoveSimpleCollision();
+		StaticMesh->GetBodySetup()->CollisionTraceFlag = CTF_UseSimpleAsComplex;
 
-		FKAggregateGeom& AggGeo = StaticMesh->BodySetup->AggGeom;
+		FKAggregateGeom& AggGeo = StaticMesh->GetBodySetup()->AggGeom;
 
 		for (uint32 CollisionObjectIndex = 0; CollisionObjectIndex < aObjects.Count(); ++CollisionObjectIndex)
 		{
@@ -1740,7 +1740,7 @@ static void MakeBodyFromCollisionObjects9(UStaticMesh* StaticMesh, SpeedTreeData
 			}
 		}
 
-		StaticMesh->BodySetup->InvalidatePhysicsData();
+		StaticMesh->GetBodySetup()->InvalidatePhysicsData();
 		RefreshCollisionChange(*StaticMesh);
 	}
 }
@@ -1987,10 +1987,10 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary7(UClass* InClass, UObject*
 				StaticMesh->SetNumSourceModels(0);
 				StaticMesh->GetSectionInfoMap().Clear();
 				StaticMesh->GetOriginalSectionInfoMap().Clear();
-				StaticMesh->StaticMaterials.Empty();
+				StaticMesh->GetStaticMaterials().Empty();
 
 				// Lightmap data
-				StaticMesh->LightingGuid = FGuid::NewGuid();
+				StaticMesh->SetLightingGuid();
 				StaticMesh->LightMapResolution = 128;
 				StaticMesh->LightMapCoordinateIndex = 1;
 
@@ -2142,8 +2142,8 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary7(UClass* InClass, UObject*
 
 								UMaterialInterface* Material = CreateSpeedTreeMaterial7(InParent, MaterialName, RenderState, SpeedTreeImportData, WindType, SpeedTreeGeometry->m_sVertBBs.m_nNumBillboards, LoadedPackages, ImportContext);
 								
-								RenderStateIndexToStaticMeshIndex.Add(DrawCall->m_nRenderStateIndex, StaticMesh->StaticMaterials.Num());
-								MaterialIndex = StaticMesh->StaticMaterials.Add(FStaticMaterial(Material, FName(*MaterialName), FName(*MaterialName)));
+								RenderStateIndexToStaticMeshIndex.Add(DrawCall->m_nRenderStateIndex, StaticMesh->GetStaticMaterials().Num());
+								MaterialIndex = StaticMesh->GetStaticMaterials().Add(FStaticMaterial(Material, FName(*MaterialName), FName(*MaterialName)));
 							}
 							else
 							{
@@ -2154,7 +2154,7 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary7(UClass* InClass, UObject*
 							if (!CurrentPolygonGroupIDPtr)
 							{
 								const FPolygonGroupID PolygonGroupID = MeshDescription->CreatePolygonGroup();
-								PolygonGroupImportedMaterialSlotNames[PolygonGroupID] = StaticMesh->StaticMaterials[MaterialIndex].ImportedMaterialSlotName;
+								PolygonGroupImportedMaterialSlotNames[PolygonGroupID] = StaticMesh->GetStaticMaterials()[MaterialIndex].ImportedMaterialSlotName;
 								CurrentPolygonGroupIDPtr = &MaterialToPolygonGroup.Add(MaterialIndex, PolygonGroupID);
 							}
 
@@ -2214,7 +2214,7 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary7(UClass* InClass, UObject*
 						LODModel.ScreenSize.Default = 0.1f / FMath::Pow(2.0f, StaticMesh->GetNumSourceModels() - 1);
 						StaticMesh->CommitMeshDescription(LODIndex);
 
-						for (int32 MaterialIndex = 0; MaterialIndex < StaticMesh->StaticMaterials.Num(); ++MaterialIndex)
+						for (int32 MaterialIndex = 0; MaterialIndex < StaticMesh->GetStaticMaterials().Num(); ++MaterialIndex)
 						{
 							FMeshSectionInfo Info = StaticMesh->GetSectionInfoMap().Get(LODIndex, MaterialIndex);
 							Info.MaterialIndex = MaterialIndex;
@@ -2246,10 +2246,10 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary7(UClass* InClass, UObject*
 
 					FString MaterialName = MeshName + "_Billboard";
 					UMaterialInterface* Material = CreateSpeedTreeMaterial7(InParent, MaterialName, &SpeedTreeGeometry->m_aBillboardRenderStates[SpeedTree::RENDER_PASS_MAIN], SpeedTreeImportData, WindType, SpeedTreeGeometry->m_sVertBBs.m_nNumBillboards, LoadedPackages, ImportContext);
-					int32 MaterialIndex = StaticMesh->StaticMaterials.Add(FStaticMaterial(Material, FName(*MaterialName), FName(*MaterialName)));
+					int32 MaterialIndex = StaticMesh->GetStaticMaterials().Add(FStaticMaterial(Material, FName(*MaterialName), FName(*MaterialName)));
 
 					const FPolygonGroupID CurrentPolygonGroupID = MeshDescription->CreatePolygonGroup();
-					PolygonGroupImportedMaterialSlotNames[CurrentPolygonGroupID] = StaticMesh->StaticMaterials[MaterialIndex].ImportedMaterialSlotName;
+					PolygonGroupImportedMaterialSlotNames[CurrentPolygonGroupID] = StaticMesh->GetStaticMaterials()[MaterialIndex].ImportedMaterialSlotName;
 					
 					// fill out triangles
 					float BillboardWidth = SpeedTreeGeometry->m_sVertBBs.m_fWidth;
@@ -2359,9 +2359,9 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary7(UClass* InClass, UObject*
 					StaticMesh->GetOriginalSectionInfoMap().Set(LODIndex, MaterialIndex, Info);
 				}
 
-				if (OldMaterials.Num() == StaticMesh->StaticMaterials.Num())
+				if (OldMaterials.Num() == StaticMesh->GetStaticMaterials().Num())
 				{
-					StaticMesh->StaticMaterials = OldMaterials;
+					StaticMesh->SetStaticMaterials(OldMaterials);
 				}
 
 				//Set the Imported version before calling the build
@@ -2488,7 +2488,7 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary8(UClass* InClass, UObject*
 
 		// clear out any old data
 		StaticMesh->GetSectionInfoMap().Clear();
-		StaticMesh->StaticMaterials.Empty();
+		StaticMesh->GetStaticMaterials().Empty();
 		if (StaticMesh->GetNumSourceModels() != SpeedTree.Lods().Count())
 		{
 			StaticMesh->SetNumSourceModels(0);
@@ -2518,7 +2518,7 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary8(UClass* InClass, UObject*
 		}
 
 		// Lightmap data
-		StaticMesh->LightingGuid = FGuid::NewGuid();
+		StaticMesh->SetLightingGuid();
 		StaticMesh->LightMapResolution = SpeedTree.LightmapSize();
 		StaticMesh->LightMapCoordinateIndex = 1;		
 
@@ -2605,8 +2605,8 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary8(UClass* InClass, UObject*
 					FString MaterialName = FString(SpeedTreeMaterial.Name().Data());
 					MaterialName.InsertAt(MaterialName.Len() - 4, GeomString);
 					UMaterialInterface* Material = CreateSpeedTreeMaterial8(InParent, MaterialName, SpeedTreeMaterial, SpeedTreeImportData, WindType, GeomType, LoadedPackages, bCrossfadeLOD, ImportContext);
-					MaterialMap.Add(MaterialKey, StaticMesh->StaticMaterials.Num());
-					StaticMesh->StaticMaterials.Add(FStaticMaterial(Material, FName(*MaterialName), FName(*MaterialName)));
+					MaterialMap.Add(MaterialKey, StaticMesh->GetStaticMaterials().Num());
+					StaticMesh->GetStaticMaterials().Add(FStaticMaterial(Material, FName(*MaterialName), FName(*MaterialName)));
 				}
 
 				const int32 MaterialIndex = MaterialMap[MaterialKey];
@@ -2617,7 +2617,7 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary8(UClass* InClass, UObject*
 				{
 					const FPolygonGroupID PolygonGroupID = MeshDescription->CreatePolygonGroup();
 					CurrentPolygonGroupIDPtr = &PolygonGroupIDMap.Add(MaterialKey, PolygonGroupID);
-					PolygonGroupImportedMaterialSlotNames[PolygonGroupID] = StaticMesh->StaticMaterials[MaterialIndex].ImportedMaterialSlotName;
+					PolygonGroupImportedMaterialSlotNames[PolygonGroupID] = StaticMesh->GetStaticMaterials()[MaterialIndex].ImportedMaterialSlotName;
 				}
 
 				const FPolygonGroupID CurrentPolygonGroupID = *CurrentPolygonGroupIDPtr;
@@ -2738,9 +2738,9 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary8(UClass* InClass, UObject*
 		}
 
 		// replace materials if they've been switched out
-		if (OldMaterials.Num() == StaticMesh->StaticMaterials.Num())
+		if (OldMaterials.Num() == StaticMesh->GetStaticMaterials().Num())
 		{
-			StaticMesh->StaticMaterials = OldMaterials;
+			StaticMesh->SetStaticMaterials(OldMaterials);
 		}
 
 		//Set the Imported version before calling the build
@@ -2755,9 +2755,9 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary8(UClass* InClass, UObject*
 		else
 		{
 			StaticMesh->CreateBodySetup();
-			StaticMesh->BodySetup->RemoveSimpleCollision();
-			StaticMesh->BodySetup->ClearPhysicsMeshes();
-			StaticMesh->BodySetup->InvalidatePhysicsData();
+			StaticMesh->GetBodySetup()->RemoveSimpleCollision();
+			StaticMesh->GetBodySetup()->ClearPhysicsMeshes();
+			StaticMesh->GetBodySetup()->InvalidatePhysicsData();
 			RefreshCollisionChange(*StaticMesh);
 		}
 	}
@@ -2846,7 +2846,7 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary9(UClass* InClass, UObject*
 
 		// clear out any old data
 		StaticMesh->GetSectionInfoMap().Clear();
-		StaticMesh->StaticMaterials.Empty();
+		StaticMesh->GetStaticMaterials().Empty();
 		if (StaticMesh->GetNumSourceModels() != SpeedTree.Lods().Count())
 		{
 			StaticMesh->SetNumSourceModels(0);
@@ -2898,7 +2898,7 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary9(UClass* InClass, UObject*
 		}
 
 		// Lightmap data
-		StaticMesh->LightingGuid = FGuid::NewGuid();
+		StaticMesh->SetLightingGuid();
 		StaticMesh->LightMapResolution = SpeedTree.LightmapSize();
 		StaticMesh->LightMapCoordinateIndex = (NumUVs - 1);
 
@@ -2921,10 +2921,10 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary9(UClass* InClass, UObject*
 
 			VertexInstanceUVs.SetNumChannels(NumUVs);
 
-			for (int32 MatIndex = 0; MatIndex < StaticMesh->StaticMaterials.Num(); ++MatIndex)
+			for (int32 MatIndex = 0; MatIndex < StaticMesh->GetStaticMaterials().Num(); ++MatIndex)
 			{
 				const FPolygonGroupID& PolygonGroupID = MeshDescription->CreatePolygonGroup();
-				PolygonGroupImportedMaterialSlotNames[PolygonGroupID] = StaticMesh->StaticMaterials[MatIndex].ImportedMaterialSlotName;
+				PolygonGroupImportedMaterialSlotNames[PolygonGroupID] = StaticMesh->GetStaticMaterials()[MatIndex].ImportedMaterialSlotName;
 			}
 
 			for (uint32 VertexIndex = 0; VertexIndex < LOD.Vertices().Count(); ++VertexIndex)
@@ -2949,10 +2949,10 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary9(UClass* InClass, UObject*
 					GameEngine9::CMaterial SpeedTreeMaterial = SpeedTree.Materials()[DrawCall.m_uiMaterialIndex];
 					FString MaterialName = FString(SpeedTreeMaterial.Name().Data());
 					UMaterialInterface* Material = CreateSpeedTreeMaterial9(InParent, MaterialName, SpeedTreeMaterial, Master, SpeedTree.Wind(), bHasFacingData, SpeedTree.BillboardInfo().SideViewCount(), LoadedPackages, ImportContext);
-					MaterialMap.Add(DrawCall.m_uiMaterialIndex, StaticMesh->StaticMaterials.Num());
-					int32 AddedMaterialIndex = StaticMesh->StaticMaterials.Add(FStaticMaterial(Material, FName(*MaterialName), FName(*MaterialName)));
+					MaterialMap.Add(DrawCall.m_uiMaterialIndex, StaticMesh->GetStaticMaterials().Num());
+					int32 AddedMaterialIndex = StaticMesh->GetStaticMaterials().Add(FStaticMaterial(Material, FName(*MaterialName), FName(*MaterialName)));
 					const FPolygonGroupID& PolygonGroupID = MeshDescription->CreatePolygonGroup();
-					PolygonGroupImportedMaterialSlotNames[PolygonGroupID] = StaticMesh->StaticMaterials[AddedMaterialIndex].ImportedMaterialSlotName;
+					PolygonGroupImportedMaterialSlotNames[PolygonGroupID] = StaticMesh->GetStaticMaterials()[AddedMaterialIndex].ImportedMaterialSlotName;
 				}
 				const int32 MaterialIndex = MaterialMap[DrawCall.m_uiMaterialIndex];
 				const FPolygonGroupID CurrentPolygonGroupID(MaterialIndex);
@@ -3040,9 +3040,9 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary9(UClass* InClass, UObject*
 		}
 
 		// replace materials if they've been switched out
-		if (OldMaterials.Num() == StaticMesh->StaticMaterials.Num())
+		if (OldMaterials.Num() == StaticMesh->GetStaticMaterials().Num())
 		{
-			StaticMesh->StaticMaterials = OldMaterials;
+			StaticMesh->SetStaticMaterials(OldMaterials);
 		}
 
 		//Set the Imported version before calling the build

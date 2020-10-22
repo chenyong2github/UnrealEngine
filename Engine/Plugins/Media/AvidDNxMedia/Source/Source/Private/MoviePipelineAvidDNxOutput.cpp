@@ -14,7 +14,11 @@
 
 TUniquePtr<MovieRenderPipeline::IVideoCodecWriter> UMoviePipelineAvidDNxOutput::Initialize_GameThread(const FString& InFileName, FIntPoint InResolution, EImagePixelType InPixelType, ERGBFormat InPixelFormat, uint8 InBitDepth, uint8 InNumChannels)
 {
-	const UMoviePipelineOutputSetting* OutputSettings = GetPipeline()->GetPipelineMasterConfig()->FindOrAddSetting<UMoviePipelineOutputSetting>();
+	UMoviePipelineOutputSetting* OutputSettings = GetPipeline()->GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>();
+	if (!OutputSettings)
+	{
+		return nullptr;
+	}
 		
 	 
 	FAvidDNxEncoderOptions Options;

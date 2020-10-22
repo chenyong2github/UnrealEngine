@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#pragma once
 #include "SBakeToControlRigDialog.h"
 #include "CoreMinimal.h"
 #include "Widgets/SWidget.h"

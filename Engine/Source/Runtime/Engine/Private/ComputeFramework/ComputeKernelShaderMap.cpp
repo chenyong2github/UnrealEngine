@@ -78,8 +78,8 @@ void FComputeKernelShaderMap::Compile(
 	NewContent->ShaderMapId = ShaderMapId;
 	AssignContent(NewContent);
 	
-	TArray<TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>> NewJobs;
-	TMap<TShaderTypePermutation<const FShaderType>, TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>> SharedShaderJobs;
+	TArray<TRefCountPtr<FShaderCommonCompileJob>> NewJobs;
+	//TMap<TShaderTypePermutation<const FShaderType>, TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>> SharedShaderJobs;
 
 	const TArray<FShaderType*>& ComputeKernelShaderTypeCollection = FShaderType::GetSortedTypes(FShaderType::EShaderTypeForDynamicCast::ComputeKernel);
 	for (auto* ShaderType : ComputeKernelShaderTypeCollection)
@@ -90,18 +90,17 @@ void FComputeKernelShaderMap::Compile(
 			continue;
 		}
 
-		TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe> Job = ComputeKernelShaderType->BeginCompileShader(
+		CompilationRequestId = FShaderCommonCompileJob::GetNextJobId();
+		ComputeKernelShaderType->BeginCompileShader(
+			CompilationRequestId,
 			ShaderPlatform,
 			KernelResource,
 			NewJobs
 			);
 
 		TShaderTypePermutation<const FShaderType> ShaderTypePermutation(ComputeKernelShaderType, KernelResource->GetPermutationId());
-		check(!SharedShaderJobs.Find(ShaderTypePermutation));
-
-		SharedShaderJobs.Add(ShaderTypePermutation, Job);
-
-		CompilationRequestId = Job->Id;
+		//check(!SharedShaderJobs.Find(ShaderTypePermutation));
+		//SharedShaderJobs.Add(ShaderTypePermutation, Job);
 	}
 
 	/**

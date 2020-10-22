@@ -4,6 +4,7 @@
 #include "Chaos/Vector.h"
 #include "Containers/ContainersFwd.h"
 #include "Templates/SharedPointer.h"
+#include "Chaos/PBDLongRangeConstraints.h"
 
 namespace Chaos
 {
@@ -15,7 +16,6 @@ namespace Chaos
 	class FPBDAxialSpringConstraints;
 	template<typename T, int d> class TXPBDAxialSpringConstraints;
 	template<typename T> class TPBDVolumeConstraint;
-	template<typename T, int d> class TPBDLongRangeConstraints;
 	template<typename T, int d> class TXPBDLongRangeConstraints;
 	template<typename T, int d> class TPBDSphericalConstraint;
 	template<typename T, int d> class TPBDSphericalBackstopConstraint;
@@ -25,6 +25,8 @@ namespace Chaos
 	class FClothConstraints final
 	{
 	public:
+		typedef TPBDLongRangeConstraints<float, 3>::EMode ETetherMode;
+
 		FClothConstraints();
 		~FClothConstraints();
 
@@ -45,7 +47,7 @@ namespace Chaos
 		void SetAreaConstraints(TArray<TVector<int32, 3>>&& SurfaceElements, float AreaStiffness, bool bUseXPBDConstraints);
 		void SetVolumeConstraints(TArray<TVector<int32, 2>>&& DoubleBendingEdges, float VolumeStiffness);
 		void SetVolumeConstraints(TArray<TVector<int32, 3>>&& SurfaceElements, float VolumeStiffness);
-		void SetLongRangeConstraints(const TMap<int32, TSet<uint32>>& PointToNeighborsMap, float StrainLimitingStiffness, float LimitScale, bool bUseGeodesicDistance, bool bUseXPBDConstraints);
+		void SetLongRangeConstraints(const TMap<int32, TSet<uint32>>& PointToNeighborsMap, float StrainLimitingStiffness, float LimitScale, ETetherMode TetherMode, bool bUseXPBDConstraints);
 		void SetMaximumDistanceConstraints(const TConstArrayView<float>& MaxDistances);
 		void SetBackstopConstraints(const TConstArrayView<float>& BackstopDistances, const TConstArrayView<float>& BackstopRadiuses, bool bUseLegacyBackstop);
 		void SetAnimDriveConstraints(const TConstArrayView<float>& AnimDriveMultipliers);

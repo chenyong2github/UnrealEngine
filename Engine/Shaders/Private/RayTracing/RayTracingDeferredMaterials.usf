@@ -11,3 +11,10 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(DeferredMaterialCHS,
 	Payload.SortKey = GetHitGroupUserData();
 	Payload.HitT    = RayTCurrent();
 }
+
+RAY_TRACING_ENTRY_MISS(DeferredMaterialMS, 
+	FDeferredMaterialPayload, Payload)
+{
+	Payload.SetMiss();
+}
+

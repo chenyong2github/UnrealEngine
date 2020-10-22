@@ -68,9 +68,8 @@ public:
 		SHADER_PARAMETER_EX(FVector4, DepthBufferSizeAndInvSize, EShaderPrecisionModifier::Half)
 		SHADER_PARAMETER_EX(FVector4, BufferSizeAndInvSize, EShaderPrecisionModifier::Half)
 		SHADER_PARAMETER_EX(FVector4, ViewSizeAndInvSize, EShaderPrecisionModifier::Half)
-		SHADER_PARAMETER(FVector4, FadeRadiusMulAdd_FadeDistance)
-		SHADER_PARAMETER(FVector4, Power_Intensity_WorldRadiusAdj_AttenFactor)
-		SHADER_PARAMETER(FVector4, NumAngles_SinDeltaAngle_CosDeltaAngle_Thickness)
+		SHADER_PARAMETER(FVector4, FadeRadiusMulAdd_FadeDistance_AttenFactor)
+		SHADER_PARAMETER(FVector4, WorldRadiusAdj_SinDeltaAngle_CosDeltaAngle_Thickness)
 
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneDepthTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, SceneDepthSampler)
@@ -105,7 +104,7 @@ public:
 		return PermutationVector;
 	}
 
-	static void SetupShaderParameters(FParameters& ShaderParameters, FRDGBuilder& GraphBuilder, const FViewInfo& View, const FIntRect& ViewRect, const FIntPoint& DepthBufferSize, const FIntPoint& BufferSize, const FVector4& FallOffStartEndScaleBias, const FVector4& NumAngleSinCosDeltaAngleThickness, FRDGTextureRef SceneDepthTexture)
+	static void SetupShaderParameters(FParameters& ShaderParameters, FRDGBuilder& GraphBuilder, const FViewInfo& View, const FIntRect& ViewRect, const FIntPoint& DepthBufferSize, const FIntPoint& BufferSize, const FVector4& FallOffStartEndScaleBias, const FVector4& WorldRadiusAdjSinCosDeltaAngleThickness, FRDGTextureRef SceneDepthTexture)
 	{
 		const FFinalPostProcessSettings& Settings = View.FinalPostProcessSettings;
 
@@ -117,9 +116,8 @@ public:
 		ShaderParameters.DepthBufferSizeAndInvSize = FVector4(DepthBufferSize.X, DepthBufferSize.Y, 1.0f / DepthBufferSize.X, 1.0f / DepthBufferSize.Y);
 		ShaderParameters.BufferSizeAndInvSize = FVector4(BufferSize.X, BufferSize.Y, 1.0f / BufferSize.X, 1.0f / BufferSize.Y);
 		ShaderParameters.ViewSizeAndInvSize = FVector4(ViewRect.Width(), ViewRect.Height(), 1.0f / ViewRect.Width(), 1.0f / ViewRect.Height());
-		ShaderParameters.FadeRadiusMulAdd_FadeDistance = FVector4(InvFadeRadius, -(Settings.AmbientOcclusionFadeDistance - FadeRadius) * InvFadeRadius, Settings.AmbientOcclusionFadeDistance, 0.0f);
-		ShaderParameters.Power_Intensity_WorldRadiusAdj_AttenFactor = FVector4(Settings.AmbientOcclusionPower * 0.5f, Settings.AmbientOcclusionIntensity, FallOffStartEndScaleBias.Y * DepthBufferSize.Y * View.ViewMatrices.GetProjectionMatrix().M[0][0], 2.0f / (FallOffStartEndScaleBias.Y * FallOffStartEndScaleBias.Y));
-		ShaderParameters.NumAngles_SinDeltaAngle_CosDeltaAngle_Thickness = NumAngleSinCosDeltaAngleThickness;
+		ShaderParameters.FadeRadiusMulAdd_FadeDistance_AttenFactor = FVector4(InvFadeRadius, -(Settings.AmbientOcclusionFadeDistance - FadeRadius) * InvFadeRadius, Settings.AmbientOcclusionFadeDistance, 2.0f / (FallOffStartEndScaleBias.Y * FallOffStartEndScaleBias.Y));
+		ShaderParameters.WorldRadiusAdj_SinDeltaAngle_CosDeltaAngle_Thickness = WorldRadiusAdjSinCosDeltaAngleThickness;
 
 		ShaderParameters.SceneDepthTexture = SceneDepthTexture;
 		ShaderParameters.SceneDepthSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
@@ -156,6 +154,7 @@ public:
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FGTAOMobile_HorizonSearchIntegral::FParameters, Common)
+		SHADER_PARAMETER_EX(FVector4, Power_Intensity_ScreenPixelsToSearch, EShaderPrecisionModifier::Half)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<half4>, OutTexture)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -412,6 +411,20 @@ void FMobileSceneRenderer::InitAmbientOcclusionOutputs(FRHICommandListImmediate&
 	}
 }
 
+void FMobileSceneRenderer::CacheSceneDepthZ(FRHICommandListImmediate& RHICmdList, const FViewInfo& View, TRefCountPtr<IPooledRenderTarget>& InOutSceneDepthZ)
+{
+	if (View.ViewState && !View.bStatePrevViewInfoIsReadOnly)
+	{
+		FPooledRenderTargetDesc SceneDepthZDesc = InOutSceneDepthZ->GetDesc();
+
+		View.ViewState->PrevFrameViewInfo.MobileSceneDepthZ = InOutSceneDepthZ;
+
+		InOutSceneDepthZ.SafeRelease();
+
+		GRenderTargetPool.FindFreeElement(RHICmdList, SceneDepthZDesc, InOutSceneDepthZ, TEXT("SceneDepthZ"));
+	}
+}
+
 void FMobileSceneRenderer::ReleaseAmbientOcclusionOutputs()
 {
 	GAmbientOcclusionMobileOutputs.Release();
@@ -469,8 +482,6 @@ void FMobileSceneRenderer::RenderAmbientOcclusion(FRDGBuilder& GraphBuilder, FRD
 	float SinDeltaAngle, CosDeltaAngle;
 	FMath::SinCos(&SinDeltaAngle, &CosDeltaAngle, PI / NumAngles);
 
-	FVector4 NumAngleSinCosDeltaAngleThickness(NumAngles, SinDeltaAngle, CosDeltaAngle, ThicknessBlend);
-
 	ETextureCreateFlags TextureCreateFlags = TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV;
 	FRDGTextureRef HorizonSearchIntegralTexture = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(BufferSize, PF_R8G8B8A8, FClearValueBinding::Black, TextureCreateFlags), TEXT("HorizonSearchIntegralTexture"));
 	FRDGTextureUAVRef HorizonSearchIntegralTextureUAV = GraphBuilder.CreateUAV(HorizonSearchIntegralTexture);
@@ -479,12 +490,18 @@ void FMobileSceneRenderer::RenderAmbientOcclusion(FRDGBuilder& GraphBuilder, FRD
 	{
 		const FViewInfo& View = Views[ViewIndex];
 
+		const FFinalPostProcessSettings& Settings = View.FinalPostProcessSettings;
+
 		const FIntRect& ViewRect = FIntRect::DivideAndRoundUp(View.ViewRect, DownsampleFactor);
+
+		FVector4 WorldRadiusAdjSinCosDeltaAngleThickness(FallOffStartEndScaleBias.Y * DepthBufferSize.Y * View.ViewMatrices.GetProjectionMatrix().M[0][0], SinDeltaAngle, CosDeltaAngle, ThicknessBlend);
 
 		if (GetMaxWorkGroupInvocations() >= 1024 && CVarMobileAmbientOcclusionShaderType.GetValueOnRenderThread() == 0)
 		{
 			FGTAOMobile_HorizonSearchIntegralSpatialFilterCS::FParameters* HorizonSearchIntegralSpatialFilterParameters = GraphBuilder.AllocParameters<FGTAOMobile_HorizonSearchIntegralSpatialFilterCS::FParameters>();
-			FGTAOMobile_HorizonSearchIntegral::SetupShaderParameters(HorizonSearchIntegralSpatialFilterParameters->Common, GraphBuilder, View, ViewRect, DepthBufferSize, BufferSize, FallOffStartEndScaleBias, NumAngleSinCosDeltaAngleThickness, SceneDepthTexture);
+			FGTAOMobile_HorizonSearchIntegral::SetupShaderParameters(HorizonSearchIntegralSpatialFilterParameters->Common, GraphBuilder, View, ViewRect, DepthBufferSize, BufferSize, FallOffStartEndScaleBias, WorldRadiusAdjSinCosDeltaAngleThickness, SceneDepthTexture);
+			
+			HorizonSearchIntegralSpatialFilterParameters->Power_Intensity_ScreenPixelsToSearch = FVector4(Settings.AmbientOcclusionPower * 0.5f, Settings.AmbientOcclusionIntensity, 0.0f, 0.0f);
 
 			HorizonSearchIntegralSpatialFilterParameters->OutTexture = AmbientOcclusionTextureUAV;
 
@@ -505,7 +522,7 @@ void FMobileSceneRenderer::RenderAmbientOcclusion(FRDGBuilder& GraphBuilder, FRD
 			FScreenPassRenderTarget HorizonSearchIntegralRT(HorizonSearchIntegralTexture, ViewRect, ERenderTargetLoadAction::EClear);
 
 			FGTAOMobile_HorizonSearchIntegralPS::FParameters* HorizonSearchIntegralParameters = GraphBuilder.AllocParameters<FGTAOMobile_HorizonSearchIntegralPS::FParameters>();
-			FGTAOMobile_HorizonSearchIntegral::SetupShaderParameters(HorizonSearchIntegralParameters->Common, GraphBuilder, View, ViewRect, DepthBufferSize, BufferSize, FallOffStartEndScaleBias, NumAngleSinCosDeltaAngleThickness, SceneDepthTexture);
+			FGTAOMobile_HorizonSearchIntegral::SetupShaderParameters(HorizonSearchIntegralParameters->Common, GraphBuilder, View, ViewRect, DepthBufferSize, BufferSize, FallOffStartEndScaleBias, WorldRadiusAdjSinCosDeltaAngleThickness, SceneDepthTexture);
 
 			HorizonSearchIntegralParameters->RenderTargets[0] = HorizonSearchIntegralRT.GetRenderTargetBinding();
 
@@ -599,7 +616,7 @@ void FMobileSceneRenderer::RenderAmbientOcclusion(FRDGBuilder& GraphBuilder, FRD
 		else
 		{
 			FGTAOMobile_HorizonSearchIntegralCS::FParameters* HorizonSearchIntegralParameters = GraphBuilder.AllocParameters<FGTAOMobile_HorizonSearchIntegralCS::FParameters>();
-			FGTAOMobile_HorizonSearchIntegral::SetupShaderParameters(HorizonSearchIntegralParameters->Common, GraphBuilder, View, ViewRect, DepthBufferSize, BufferSize, FallOffStartEndScaleBias, NumAngleSinCosDeltaAngleThickness, SceneDepthTexture);
+			FGTAOMobile_HorizonSearchIntegral::SetupShaderParameters(HorizonSearchIntegralParameters->Common, GraphBuilder, View, ViewRect, DepthBufferSize, BufferSize, FallOffStartEndScaleBias, WorldRadiusAdjSinCosDeltaAngleThickness, SceneDepthTexture);
 
 			HorizonSearchIntegralParameters->OutTexture = HorizonSearchIntegralTextureUAV;
 

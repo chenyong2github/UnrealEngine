@@ -192,7 +192,15 @@ bool UDMXSubsystem::SetMatrixCellValue(UDMXEntityFixturePatch* FixturePatch, FIn
 					IDMXProtocolPtr Protocol = Controller->DeviceProtocol.GetProtocol();
 					if (Protocol.IsValid())
 					{
+						// If sent DMX will not be looped back via network, input it directly
+						bool bCanLoopback = Protocol->IsReceiveDMXEnabled() && Protocol->IsSendDMXEnabled();
+						if (!bCanLoopback)
+						{
+							Protocol->InputDMXFragment(Universe + Controller->RemoteOffset, DMXFragmentMap);
+						}
+
 						Results.Add(Protocol->SendDMXFragment(Universe + Controller->RemoteOffset, DMXFragmentMap));
+
 						UniversesUsed.Add(RemoteUniverse); // Avoid setting values in the same Universe more than once
 					}
 				}
@@ -364,8 +372,15 @@ bool UDMXSubsystem::GetMatrixCellChannelsRelative(UDMXEntityFixturePatch* Fixtur
 			}
 
 			check(Channels.IsValidIndex(0));
+			
+			if (Channels[0] > DMX_MAX_ADDRESS)
+			{
+				break;
+			}
+
 			AttributeChannelMap.Add(CellAttribute.Attribute, Channels[0]);
 		}
+
 		return true;
 	}
 
@@ -384,7 +399,13 @@ bool UDMXSubsystem::GetMatrixCellChannelsAbsolute(UDMXEntityFixturePatch* Fixtur
 	{
 		for (TPair<FDMXAttributeName, int32>& AttributeChannelKvp : AttributeChannelMap)
 		{
-			AttributeChannelKvp.Value += PatchStartingChannelOffset;
+			int32 Channel = AttributeChannelKvp.Value + PatchStartingChannelOffset;
+			if (Channel > DMX_MAX_ADDRESS)
+			{
+				break;
+			}
+
+			AttributeChannelKvp.Value = Channel;
 		}
 
 		return true;
@@ -400,14 +421,14 @@ bool UDMXSubsystem::GetMatrixProperties(UDMXEntityFixturePatch* FixturePatch, FD
 		return false;
 	}
 
-	if (!FixturePatch->ParentFixtureTypeTemplate->bFixtureMatrixEnabled)
-	{
-		UE_LOG(DMXSubsystemLog, Error, TEXT("Fixture Patch is not a Matrix Fixture"));
-		return false;
-	}
-
 	if (const UDMXEntityFixtureType* ParentType = FixturePatch->ParentFixtureTypeTemplate)
 	{
+		if (!ParentType->bFixtureMatrixEnabled)
+		{
+			UE_LOG(DMXSubsystemLog, Error, TEXT("Fixture Patch is not a Matrix Fixture"));
+			return false;
+		}
+
 		if (ParentType->Modes.Num() < 1)
 		{
 			UE_LOG(DMXSubsystemLog, Error, TEXT("Tried to use Fixture Patch but Parent Fixture Type has no Modes set up."));
@@ -781,6 +802,14 @@ bool UDMXSubsystem::GetFunctionsMap(UDMXEntityFixturePatch* InFixturePatch, TMap
 
 		return false;
 	}
+
+	if (InFixturePatch->GetRelevantControllers().Num() == 0)
+	{
+		UE_LOG(DMXSubsystemLog, Warning, TEXT("%s has no controller to receive DMX from."), *InFixturePatch->GetDisplayName());
+
+		return false;
+	}
+
 	FDMXProtocolName FixturePatchProtocol = InFixturePatch->GetRelevantControllers()[0]->DeviceProtocol;
 	IDMXProtocolPtr Protocol = FixturePatchProtocol.GetProtocol();
 	if (!Protocol.IsValid())
@@ -949,7 +978,7 @@ TArray<UDMXEntityFixturePatch*> UDMXSubsystem::GetAllFixturesWithTag(const UDMXL
 TArray<UDMXEntityFixturePatch*> UDMXSubsystem::GetAllFixturesInLibrary(const UDMXLibrary* DMXLibrary)
 {
 	TArray<UDMXEntityFixturePatch*> FoundPatches;
-
+	
 	if (DMXLibrary != nullptr)
 	{
 		DMXLibrary->ForEachEntityOfType<UDMXEntityFixturePatch>([&](UDMXEntityFixturePatch* Patch)
@@ -957,6 +986,23 @@ TArray<UDMXEntityFixturePatch*> UDMXSubsystem::GetAllFixturesInLibrary(const UDM
 			FoundPatches.Add(Patch);
 		});
 	}
+
+	// Sort patches by universes and channels
+	FoundPatches.Sort([](const UDMXEntityFixturePatch& FixturePatchA, const UDMXEntityFixturePatch& FixturePatchB) {
+
+		if (FixturePatchA.UniverseID < FixturePatchB.UniverseID)
+		{
+			return true;
+		}
+
+		bool bSameUniverse = FixturePatchA.UniverseID == FixturePatchB.UniverseID;
+		if (bSameUniverse)
+		{
+			return FixturePatchA.GetStartingChannel() <= FixturePatchB.GetStartingChannel();
+		}
+	
+		return false;
+	});
 
 	return FoundPatches;
 }

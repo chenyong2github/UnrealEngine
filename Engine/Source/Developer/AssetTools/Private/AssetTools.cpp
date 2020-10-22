@@ -443,31 +443,9 @@ TWeakPtr<IClassTypeActions> UAssetToolsImpl::GetClassTypeActionsForClass( UClass
 	return MostDerivedClassTypeActions;
 }
 
-struct FRootedOnScope
-{
-	UObject* Obj;
-
-	FRootedOnScope(UObject* InObj) : Obj(nullptr)
-	{
-		if (InObj && !InObj->IsRooted())
-		{
-			Obj = InObj;
-			Obj->AddToRoot();
-		}
-	}
-
-	~FRootedOnScope()
-	{
-		if (Obj)
-		{
-			Obj->RemoveFromRoot();
-		}
-	}
-};
-
 UObject* UAssetToolsImpl::CreateAsset(const FString& AssetName, const FString& PackagePath, UClass* AssetClass, UFactory* Factory, FName CallingContext)
 {
-	FRootedOnScope DontGCFactory(Factory);
+	FGCObjectScopeGuard DontGCFactory(Factory);
 
 	// Verify the factory class
 	if ( !ensure(AssetClass || Factory) )
@@ -551,6 +529,7 @@ UObject* UAssetToolsImpl::CreateAssetWithDialog(UClass* AssetClass, UFactory* Fa
 
 UObject* UAssetToolsImpl::CreateAssetWithDialog(const FString& AssetName, const FString& PackagePath, UClass* AssetClass, UFactory* Factory, FName CallingContext)
 {
+	FGCObjectScopeGuard DontGCFactory(Factory);
 	if(Factory)
 	{
 		FSaveAssetDialogConfig SaveAssetDialogConfig;

@@ -7362,7 +7362,7 @@ void UEditorEngine::InitializeNewlyCreatedInactiveWorld(UWorld* World)
 			// it calls internally FNavigationSystem::AddNavigationSystemToWorld() with bInitializeForWorld=false.
 			// That does not gather nav bounds. When cooking, the nav system and nav bounds are needed on the navmesh serialize-save for tiles to be added to the archive.
 			// Also this call needs to occur after World->UpdateWorldComponents() else no bounds are found.
-			FNavigationSystem::AddNavigationSystemToWorld(*World, FNavigationSystemRunMode::EditorMode);
+			FNavigationSystem::AddNavigationSystemToWorld(*World, FNavigationSystemRunMode::InferFromWorldMode);
 		}
 
 		// Need to restore the dirty state as registering components dirties the world
@@ -7715,12 +7715,6 @@ void UEditorEngine::SetPreviewPlatform(const FPreviewPlatformInfo& NewPreviewPla
 
 		DefaultWorldFeatureLevel = EffectiveFeatureLevel;
 		PreviewFeatureLevelChanged.Broadcast(EffectiveFeatureLevel);
-
-		// The feature level changed, so existing debug view materials are invalid and need to be rebuilt.
-		// This process must follow the PreviewFeatureLevelChanged event, because any listeners need
-		// opportunity to switch to the new feature level first.
-		void ClearDebugViewMaterials(UMaterialInterface*);
-		ClearDebugViewMaterials(nullptr);
 	}
 	else if (bChangedPreviewShaderPlatform)
 	{

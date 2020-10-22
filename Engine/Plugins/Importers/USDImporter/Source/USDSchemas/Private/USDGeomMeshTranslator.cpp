@@ -84,7 +84,7 @@ namespace UsdGeomMeshTranslatorImpl
 		bool bMaterialAssignementsHaveChanged = false;
 
 		TArray<UMaterialInterface*> ExistingAssignments;
-		for ( const FStaticMaterial& StaticMaterial : StaticMesh.StaticMaterials )
+		for ( const FStaticMaterial& StaticMaterial : StaticMesh.GetStaticMaterials() )
 		{
 			ExistingAssignments.Add(StaticMaterial.MaterialInterface);
 		}
@@ -113,14 +113,14 @@ namespace UsdGeomMeshTranslatorImpl
 
 				// Create and set the static material
 				FStaticMaterial StaticMaterial( Material, *LexToString( StaticMeshSlotIndex ) );
-				if ( !StaticMesh.StaticMaterials.IsValidIndex( StaticMeshSlotIndex ) )
+				if ( !StaticMesh.GetStaticMaterials().IsValidIndex( StaticMeshSlotIndex ) )
 				{
-					StaticMesh.StaticMaterials.Add( MoveTemp( StaticMaterial ) );
+					StaticMesh.GetStaticMaterials().Add( MoveTemp( StaticMaterial ) );
 					bMaterialAssignementsHaveChanged = true;
 				}
-				else if ( !( StaticMesh.StaticMaterials[ StaticMeshSlotIndex ] == StaticMaterial ) )
+				else if ( !( StaticMesh.GetStaticMaterials()[ StaticMeshSlotIndex ] == StaticMaterial ) )
 				{
-					StaticMesh.StaticMaterials[ StaticMeshSlotIndex ] = MoveTemp( StaticMaterial );
+					StaticMesh.GetStaticMaterials()[ StaticMeshSlotIndex ] = MoveTemp( StaticMaterial );
 					bMaterialAssignementsHaveChanged = true;
 				}
 
@@ -454,13 +454,13 @@ namespace UsdGeomMeshTranslatorImpl
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE( UsdGeomMeshTranslatorImpl::PreBuildStaticMesh );
 
-		if ( StaticMesh.RenderData )
+		if ( StaticMesh.GetRenderData())
 		{
 			StaticMesh.ReleaseResources();
 			StaticMesh.ReleaseResourcesFence.Wait();
 		}
 
-		StaticMesh.RenderData = MakeUnique< FStaticMeshRenderData >();
+		StaticMesh.SetRenderData(MakeUnique< FStaticMeshRenderData >());
 		StaticMesh.CreateBodySetup();
 	}
 
@@ -473,11 +473,11 @@ namespace UsdGeomMeshTranslatorImpl
 		check(RunningPlatform);
 
 		const FStaticMeshLODSettings& LODSettings = RunningPlatform->GetStaticMeshLODSettings();
-		StaticMesh.RenderData->Cache(RunningPlatform, &StaticMesh, LODSettings );
+		StaticMesh.GetRenderData()->Cache(RunningPlatform, &StaticMesh, LODSettings );
 
-		if ( StaticMesh.BodySetup )
+		if ( StaticMesh.GetBodySetup())
 		{
-			StaticMesh.BodySetup->CreatePhysicsMeshes();
+			StaticMesh.GetBodySetup()->CreatePhysicsMeshes();
 		}
 
 		return true;
@@ -491,7 +491,7 @@ namespace UsdGeomMeshTranslatorImpl
 
 		if ( const FMeshDescription* MeshDescription = StaticMesh.GetMeshDescription( 0 ) )
 		{
-			StaticMesh.RenderData->Bounds = MeshDescription->GetBounds();
+			StaticMesh.GetRenderData()->Bounds = MeshDescription->GetBounds();
 		}
 
 		StaticMesh.CalculateExtendedBounds();
@@ -857,7 +857,7 @@ void FBuildStaticMeshTaskChain::SetupTasks()
 					}
 				}
 
-				for ( FStaticMaterial& StaticMaterial : StaticMesh->StaticMaterials )
+				for ( FStaticMaterial& StaticMaterial : StaticMesh->GetStaticMaterials())
 				{
 					Context->CurrentlyUsedAssets.Add( StaticMaterial.MaterialInterface );
 				}
@@ -1111,7 +1111,7 @@ USceneComponent* FUsdGeomMeshTranslator::CreateComponents()
 				if ( UsdImportData->PrimPath != PrimPath.GetString() )
 				{
 					TArray<UMaterialInterface*> ExistingAssignments;
-					for ( FStaticMaterial& StaticMaterial : StaticMesh->StaticMaterials )
+					for ( FStaticMaterial& StaticMaterial : StaticMesh->GetStaticMaterials())
 					{
 						ExistingAssignments.Add( StaticMaterial.MaterialInterface );
 					}

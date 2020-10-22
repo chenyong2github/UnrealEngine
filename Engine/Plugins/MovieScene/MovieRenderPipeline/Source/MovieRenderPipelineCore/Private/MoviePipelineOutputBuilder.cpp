@@ -99,7 +99,7 @@ void FMoviePipelineOutputMerger::OnCompleteRenderPassDataAvailable_AnyThread(TUn
 	{
 		// Sort the output frames. This is only really important for multi-channel formats like EXR, but it lets passes
 		// specify which one should be the thumbnail/default rgba channels instead of a first-come-first-serve.
-		OutputFrame->ImageOutputData.ValueSort([](const TUniquePtr<FImagePixelData>& First, const TUniquePtr<FImagePixelData>& Second) -> bool
+		OutputFrame->ImageOutputData.ValueStableSort([](const TUniquePtr<FImagePixelData>& First, const TUniquePtr<FImagePixelData>& Second) -> bool
 				{
 					FImagePixelDataPayload* FirstPayload = First->GetPayload<FImagePixelDataPayload>();
 					FImagePixelDataPayload* SecondPayload = Second->GetPayload<FImagePixelDataPayload>();

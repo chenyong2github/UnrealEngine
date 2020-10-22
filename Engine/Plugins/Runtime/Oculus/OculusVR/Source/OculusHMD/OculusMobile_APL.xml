@@ -22,10 +22,11 @@
 			section="/Script/OculusHMD.OculusHMDRuntimeSettings" property="bFocusAware" 
 			default="true"/>
 		<setBoolFromPropertyContains result="bPackageForOculusQuest" ini="Engine" section="/Script/AndroidRuntimeSettings.AndroidRuntimeSettings" property="PackageForOculusMobile" contains="Quest"/>
+		<setBoolFromPropertyContains result="bPackageForOculusQuest2" ini="Engine" section="/Script/AndroidRuntimeSettings.AndroidRuntimeSettings" property="PackageForOculusMobile" contains="Quest2"/>
 		<setBoolFromProperty result="bRequiresSystemKeyboard" ini="Engine" section="/Script/OculusHMD.OculusHMDRuntimeSettings" property="bRequiresSystemKeyboard" default="false"/>
 		<setStringFromProperty result="HandTrackingSupport" ini="Engine" section="/Script/OculusHMD.OculusHMDRuntimeSettings" property="HandTrackingSupport" default="ControllersOnly"/>
-		<setBool result="bPackageForOculusMobile" 
-			value="$B(bPackageForOculusQuest)" />
+		<setBoolOr result="bPackageForOculusMobile" 
+			arg1="$B(bPackageForOculusQuest)" arg2="$B(bPackageForOculusQuest2)"/>
 		<if condition="bPackageForOculusMobile">
 			<true>
 				<if condition="bSupported">
@@ -110,7 +111,7 @@
 				</loopElements>
 			</true>
 		</if>
-		<setBool result="bOculus6Dof" value="$B(bPackageForOculusQuest)" />
+		<setBool result="bOculus6Dof" value="$B(bPackageForOculusMobile)" />
 		
 		<!-- Add Quest Specific Flags -->
 		<if condition="bOculus6Dof">
@@ -172,6 +173,31 @@
 				</true>
 			</if>
 		</loopElements>
+
+		<!-- Add Application Specific Flags -->
+		<loopElements tag="application">
+			<!-- Add SupportedDevices Tag -->
+			<setElement result ="supportedDevices" value="meta-data" />
+			<addAttribute tag="$supportedDevices" name="android:name" value="com.oculus.supportedDevices" />
+			<setBoolAnd result="bPackageForOculusQuestAndQuest2" arg1="$B(bPackageForOculusQuest)" arg2="$B(bPackageForOculusQuest2)"/>
+			<if condition="bPackageForOculusQuestAndQuest2">
+				<true>
+					<addAttribute tag="$supportedDevices" name="android:value" value="quest|delmar" />
+				</true>
+				<false>
+					<if condition="bPackageForOculusQuest2">
+						<true>
+							<addAttribute tag="$supportedDevices" name="android:value" value="delmar" />
+						</true>
+						<false>
+							<addAttribute tag="$supportedDevices" name="android:value" value="quest" />
+						</false>
+					</if>
+				</false>
+			</if>
+			<addElement tag="application" name="supportedDevices"/>
+		</loopElements>
+		
 	</androidManifestUpdates>
 
 	<!-- optional additions to proguard -->

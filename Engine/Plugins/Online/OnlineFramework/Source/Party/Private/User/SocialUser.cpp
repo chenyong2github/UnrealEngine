@@ -652,19 +652,21 @@ FString USocialUser::GetPlatformIconMarkupTag(EPlatformIconDisplayRule DisplayRu
 	const FUserPlatform LocalPlatform = FUserPlatform(IOnlineSubsystem::GetLocalPlatformName());
 
 	OutLegacyString = UserPlatform;
+	FString MarkupTag = GetMarkupTagForPlatform(UserPlatform);
+
 	switch (DisplayRule)
 	{
 	case EPlatformIconDisplayRule::Always:
-		UE_LOG(LogOnline, VeryVerbose, TEXT("    %s - User: %s - Returning TypeName %s due to ALWAYS"), ANSI_TO_TCHAR(__FUNCTION__), *GetDisplayName(), *UserPlatform.ToString());
-		return UserPlatform;
+		UE_LOG(LogOnline, VeryVerbose, TEXT("    %s - User: %s - Returning Platform Tag %s due to ALWAYS"), ANSI_TO_TCHAR(__FUNCTION__), *GetDisplayName(), *MarkupTag);
+		return MarkupTag;
 	case EPlatformIconDisplayRule::AlwaysIfDifferent:
-		UE_LOG(LogOnline, VeryVerbose, TEXT("    %s - User: %s - CrossplayLocalPlatform? %d Returning %s due to ALWAYSIFDIFFERENT"), ANSI_TO_TCHAR(__FUNCTION__), *GetDisplayName(), UserPlatform.IsCrossplayWithLocalPlatform(), UserPlatform.IsCrossplayWithLocalPlatform() ? *UserPlatform.ToString() : TEXT(""));
+		UE_LOG(LogOnline, VeryVerbose, TEXT("    %s - User: %s - CrossplayLocalPlatform? %d Returning %s due to ALWAYSIFDIFFERENT"), ANSI_TO_TCHAR(__FUNCTION__), *GetDisplayName(), UserPlatform.IsCrossplayWithLocalPlatform(), UserPlatform.IsCrossplayWithLocalPlatform() ? *MarkupTag : TEXT(""));
 		if (!UserPlatform.IsCrossplayWithLocalPlatform())
 		{
 			OutLegacyString = TEXT("");
 			return TEXT("");
 		}
-		return UserPlatform;
+		return MarkupTag;
 	case EPlatformIconDisplayRule::Never:
 		UE_LOG(LogOnline, VeryVerbose, TEXT("    %s - User: %s - Returning nothing due to NEVER"), ANSI_TO_TCHAR(__FUNCTION__), *GetDisplayName());
 		OutLegacyString = TEXT("");
@@ -689,9 +691,8 @@ FString USocialUser::GetPlatformIconMarkupTag(EPlatformIconDisplayRule DisplayRu
 	if (DisplayRule == EPlatformIconDisplayRule::AlwaysWhenInCrossplayParty ||
 		(DisplayRule == EPlatformIconDisplayRule::AlwaysIfDifferentWhenInCrossplayParty && bIsCrossplayWithMe))
 	{
-		FString TypeName = UserPlatform;
-		UE_LOG(LogOnline, VeryVerbose, TEXT("    %s - User: %s - Returning TypeName %s, DisplayRule: %d, bIsCrossplayWithMe: %d"), ANSI_TO_TCHAR(__FUNCTION__), *GetDisplayName(), *TypeName, (int32)DisplayRule, bIsCrossplayWithMe);
-		return TypeName;
+		UE_LOG(LogOnline, VeryVerbose, TEXT("    %s - User: %s - Returning Platform Tag %s, DisplayRule: %d, bIsCrossplayWithMe: %d"), ANSI_TO_TCHAR(__FUNCTION__), *GetDisplayName(), *MarkupTag, (int32)DisplayRule, bIsCrossplayWithMe);
+		return MarkupTag;
 	}
 
 	UE_LOG(LogOnline, VeryVerbose, TEXT("    %s - User: %s - Returning nothing, likely due to AlwaysIfDifferentWhenInCrossplayParty and not being different, being in a Crossplay Party, and not being Different"), ANSI_TO_TCHAR(__FUNCTION__), *GetDisplayName());

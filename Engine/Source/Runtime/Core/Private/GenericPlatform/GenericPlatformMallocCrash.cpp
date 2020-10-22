@@ -291,7 +291,7 @@ void* FGenericPlatformMallocCrash::Malloc( SIZE_T Size, uint32 Alignment )
 				PtrInfo->Size = Size32;
 				PtrInfo->Ptr = LargeMemoryPool+ReturnMemoryPoolOffset+PER_ALLOC_OVERHEAD;
 
-				FPlatformMisc::LowLevelOutputDebugStringf( TEXT( "Malloc Size=%u LargeMemoryPoolOffset=%u \n" ), Size32, LargeMemoryPoolOffset );
+				FPlatformMisc::LowLevelOutputDebugStringf( TEXT( "Malloc Size=%d LargeMemoryPoolOffset=%d \n" ), Size32, LargeMemoryPoolOffset );
 				return (void*)PtrInfo->Ptr;
 			}
 			else

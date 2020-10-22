@@ -25,6 +25,7 @@ public class StructViewer : ModuleRules
                 "EditorStyle",
 				"EditorFramework",
 				"UnrealEd",
+				"ContentBrowserData",
                 "Settings",
             }
 		);

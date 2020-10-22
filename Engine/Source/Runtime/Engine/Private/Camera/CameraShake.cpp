@@ -317,7 +317,11 @@ void UMatineeCameraShake::DoUpdateShake(const FCameraShakeUpdateParams& Params, 
 			RotOffset.Roll = FFOscillator::UpdateOffset(RotOscillation.Roll, RotSinOffset.Z, DeltaTime) * OscillationScale;
 
 			// Don't allow shake to flip pitch past vertical, if not using a headset (where we can't limit the camera locked to your head).
-			if (!GEngine->XRSystem.IsValid() || !GEngine->XRSystem->IsHeadTrackingAllowed())
+			APlayerCameraManager* CameraOwner = GetCameraManager();
+			AActor * WorldActor = (CameraOwner ? CameraOwner : TempCameraActorForCameraAnims);
+			UWorld * World = (WorldActor ? WorldActor->GetWorld() : nullptr);
+			if (!GEngine->XRSystem.IsValid() ||
+				!(World != nullptr ? GEngine->XRSystem->IsHeadTrackingAllowedForWorld(*World) : GEngine->XRSystem->IsHeadTrackingAllowed()))
 			{
 				// Find normalized result when combined, and remove any offset that would push it past the limit.
 				const float NormalizedInputPitch = FRotator::NormalizeAxis(Params.POV.Rotation.Pitch);

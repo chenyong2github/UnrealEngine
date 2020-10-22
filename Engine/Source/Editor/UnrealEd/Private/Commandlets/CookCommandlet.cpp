@@ -402,6 +402,11 @@ bool UCookCommandlet::CookOnTheFly( FGuid InstanceId, int32 Timeout, bool bForce
 		}
 	}
 
+	if (bNoShaderCooking)
+	{
+		GShaderCompilingManager->SkipShaderCompilation(true);
+	}
+
 	// Garbage collection should happen when either
 	//	1. We have cooked a map (configurable asset type)
 	//	2. We have cooked non-map packages and...
@@ -553,6 +558,11 @@ bool UCookCommandlet::CookOnTheFly( FGuid InstanceId, int32 Timeout, bool bForce
 		}
 	}
 
+	if (bNoShaderCooking)
+	{
+		GShaderCompilingManager->SkipShaderCompilation(false);
+	}
+
 	CookOnTheFlyServer->EndNetworkFileServer();
 	return true;
 }
@@ -581,6 +591,7 @@ int32 UCookCommandlet::Main(const FString& CmdLineParams)
 	bPartialGC = Switches.Contains(TEXT("Partialgc"));
 	ShowErrorCount = !Switches.Contains(TEXT("DIFFONLY"));
 	ShowProgress = !Switches.Contains(TEXT("DIFFONLY"));
+	bNoShaderCooking = bCookOnTheFly; // Do not cook any shaders into the shader maps. Always true if we are running w/ cook on the fly
 
 	COOK_STAT(DetailedCookStats::CookProject = FApp::GetProjectName());
 

@@ -2,15 +2,17 @@
 
 #include "DirectLink/DatasmithSceneReceiver.h"
 
-#include "DirectLink/DirectLinkCommon.h"
-#include "DirectLink/DirectLinkLog.h"
-#include "DirectLink/Misc.h"
-#include "DirectLink/SceneSnapshot.h"
 
 #include "DatasmithCore.h"
 #include "DatasmithSceneFactory.h"
 #include "DatasmithSceneGraphSharedState.h"
 #include "IDatasmithSceneElements.h"
+#include "DirectLink/DatasmithDirectLinkTools.h"
+
+#include "DirectLinkCommon.h"
+#include "DirectLinkLog.h"
+#include "DirectLinkMisc.h"
+#include "DirectLinkSceneSnapshot.h"
 
 
 /* #ue_directlink_design
@@ -45,7 +47,7 @@ TSharedPtr<IDatasmithScene> FDatasmithSceneReceiver::GetScene()
 void FDatasmithSceneReceiver::FinalSnapshot(const DirectLink::FSceneSnapshot& SceneSnapshot)
 {
 	Current = MakeUnique<FSceneState>();
-	TArray<FFinalizableNode2> Nodes;
+	TArray<FFinalizableNode> Nodes;
 	Nodes.Reserve(SceneSnapshot.Elements.Num());
 
 	TSharedPtr<FDatasmithSceneGraphSharedState> SceneSharedState = MakeShared<FDatasmithSceneGraphSharedState>(SceneSnapshot.SceneId);
@@ -84,28 +86,28 @@ void FDatasmithSceneReceiver::FinalSnapshot(const DirectLink::FSceneSnapshot& Sc
 		Current->Elements.Add(NodeId, Element);
 
 		const TCHAR* ElementTypeName = GetElementTypeName(Element.Get());
-		UE_LOG(LogDatasmith, Display, TEXT("OnAddElement -> %s'%s' id=%d"), ElementTypeName, *Name, NodeId);
+// 		UE_LOG(LogDatasmith, Display, TEXT("OnAddElement -> %s'%s' id=%d"), ElementTypeName, *Name, NodeId);
 		check(Element);
 
-		FFinalizableNode2& Node = Nodes.AddDefaulted_GetRef();
+		FFinalizableNode& Node = Nodes.AddDefaulted_GetRef();
 		Node.Element = Element;
 		Node.Snapshot = &Snap;
 	}
 
 	// all nodes are created, link refs
-	for (FFinalizableNode2& Node : Nodes)
+	for (FFinalizableNode& Node : Nodes)
 	{
 		Node.Element->UpdateRefs(Current->Elements, Node.Snapshot->RefSnapshot);
 	}
 
 	// set data
-	for (FFinalizableNode2& Node : Nodes)
+	for (FFinalizableNode& Node : Nodes)
 	{
 		Node.Element->GetStore().Update(Node.Snapshot->DataSnapshot);
 	}
 
 	// detect graph root
-	for (FFinalizableNode2& Node : Nodes)
+	for (FFinalizableNode& Node : Nodes)
 	{
 		if (Node.Element->IsA(EDatasmithElementType::Scene))
 		{

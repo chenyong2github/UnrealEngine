@@ -275,6 +275,19 @@ void FEditorSessionSummarySender::SendSessionSummaryEvent(const FEditorAnalytics
 					}
 				}
 			}
+
+			// Because lock contention, CRC doesn't always have time to save the exit code in the session when the user close the Editor and logoff very quickly, especially if the
+			// user has several Editors opened, but it usually have time to write it to the mini log. Try to parse it.
+			if (!Session.ExitCode.IsSet())
+			{
+				// Search for a pattern like: "Editor/ExitCode:0"
+				FRegexPattern ExitCodePattern(TEXT(R"(Editor\/ExitCode:([-0-9]+).*)")); // Need help with regex? Try https://regex101.com/
+				FRegexMatcher ExitCodeMatcher(ExitCodePattern, MonitorLog->Get<0>());
+				if (ExitCodeMatcher.FindNext())
+				{
+					AnalyticsAttributes.Emplace(TEXT("ExitCode"), ExitCodeMatcher.GetCaptureGroup(1));
+				}
+			}
 		}
 	}
 

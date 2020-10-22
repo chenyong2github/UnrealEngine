@@ -942,14 +942,14 @@ void FDistanceFieldVolumeData::CacheDerivedData(const FString& InDDCKey, const I
 		NewTask->GeneratedVolumeData = new FDistanceFieldVolumeData();
 		NewTask->GeneratedVolumeData->bAsyncBuilding = true;
 
-		for (int32 MaterialIndex = 0; MaterialIndex < Mesh->StaticMaterials.Num(); MaterialIndex++)
+		for (int32 MaterialIndex = 0; MaterialIndex < Mesh->GetStaticMaterials().Num(); MaterialIndex++)
 		{
 			// Default material blend mode
 			EBlendMode BlendMode = BLEND_Opaque;
 
-			if (Mesh->StaticMaterials[MaterialIndex].MaterialInterface)
+			if (Mesh->GetStaticMaterials()[MaterialIndex].MaterialInterface)
 			{
-				BlendMode = Mesh->StaticMaterials[MaterialIndex].MaterialInterface->GetBlendMode();
+				BlendMode = Mesh->GetStaticMaterials()[MaterialIndex].MaterialInterface->GetBlendMode();
 			}
 
 			NewTask->MaterialBlendModes.Add(BlendMode);
@@ -1116,7 +1116,7 @@ void FDistanceFieldAsyncQueue::Build(FAsyncDistanceFieldTask* Task, FQueuedThrea
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FDistanceFieldAsyncQueue::Build)
 
-		const FStaticMeshLODResources& LODModel = Task->GenerateSource->RenderData->LODResources[0];
+		const FStaticMeshLODResources& LODModel = Task->GenerateSource->GetRenderData()->LODResources[0];
 
 		MeshUtilities->GenerateSignedDistanceFieldVolumeData(
 			Task->StaticMesh->GetName(),
@@ -1124,7 +1124,7 @@ void FDistanceFieldAsyncQueue::Build(FAsyncDistanceFieldTask* Task, FQueuedThrea
 			LODModel,
 			BuildThreadPool,
 			Task->MaterialBlendModes,
-			Task->GenerateSource->RenderData->Bounds,
+			Task->GenerateSource->GetRenderData()->Bounds,
 			Task->DistanceFieldResolutionScale,
 			Task->bGenerateDistanceFieldAsIfTwoSided,
 			*Task->GeneratedVolumeData);
@@ -1179,21 +1179,21 @@ void FDistanceFieldAsyncQueue::ProcessAsyncTasks(bool bLimitExecutionTime)
 		{
 			Task->GeneratedVolumeData->bAsyncBuilding = false;
 			Task->GeneratedVolumeData->VolumeTexture.Initialize(Task->StaticMesh);
-			FDistanceFieldVolumeData* OldVolumeData = Task->StaticMesh->RenderData->LODResources[0].DistanceFieldData;
+			FDistanceFieldVolumeData* OldVolumeData = Task->StaticMesh->GetRenderData()->LODResources[0].DistanceFieldData;
 
 			// Renderstates are not initialized between UStaticMesh::PreEditChange() and UStaticMesh::PostEditChange()
-			if (Task->StaticMesh->RenderData->IsInitialized())
+			if (Task->StaticMesh->GetRenderData()->IsInitialized())
 			{
 				// Cause all components using this static mesh to get re-registered, which will recreate their proxies and primitive uniform buffers
 				FStaticMeshComponentRecreateRenderStateContext RecreateRenderStateContext(Task->StaticMesh, false);
 
 				// Assign the new volume data
-				Task->StaticMesh->RenderData->LODResources[0].DistanceFieldData = Task->GeneratedVolumeData;
+				Task->StaticMesh->GetRenderData()->LODResources[0].DistanceFieldData = Task->GeneratedVolumeData;
 			}
 			else
 			{
 				// Assign the new volume data
-				Task->StaticMesh->RenderData->LODResources[0].DistanceFieldData = Task->GeneratedVolumeData;
+				Task->StaticMesh->GetRenderData()->LODResources[0].DistanceFieldData = Task->GeneratedVolumeData;
 			}
 
 			OldVolumeData->VolumeTexture.Release();
@@ -1205,12 +1205,12 @@ void FDistanceFieldAsyncQueue::ProcessAsyncTasks(bool bLimitExecutionTime)
 				TArray<uint8> DerivedData;
 				// Save built distance field volume to DDC
 				FMemoryWriter Ar(DerivedData, /*bIsPersistent=*/ true);
-				Ar << *(Task->StaticMesh->RenderData->LODResources[0].DistanceFieldData);
+				Ar << *(Task->StaticMesh->GetRenderData()->LODResources[0].DistanceFieldData);
 				GetDerivedDataCacheRef().Put(*Task->DDCKey, DerivedData, Task->StaticMesh->GetPathName());
 				COOK_STAT(Timer.AddMiss(DerivedData.Num()));
 			}
 
-			BeginCacheMeshCardRepresentation(Task->TargetPlatform, Task->StaticMesh, *Task->StaticMesh->RenderData, Task->DDCKey, &Task->SourceMeshData);
+			BeginCacheMeshCardRepresentation(Task->TargetPlatform, Task->StaticMesh, *Task->StaticMesh->GetRenderData(), Task->DDCKey, &Task->SourceMeshData);
 		}
 
 		delete Task;

@@ -41,6 +41,7 @@ FDataprepDragDropOp::FDataprepDragDropOp()
 	, HoveredDataprepActionContext()
 {
 	bDropTargetValid = false;
+	bDropTargetItself = false;
 }
 
 TSharedRef<FDataprepDragDropOp> FDataprepDragDropOp::New(TSharedRef<FDataprepSchemaAction> InAction)
@@ -104,6 +105,8 @@ void FDataprepDragDropOp::Construct()
 void FDataprepDragDropOp::HoverTargetChanged()
 {
 	FText DrapDropText;
+
+	bDropTargetItself = false;
 
 	if(DraggedNodeWidgets.Num() > 0)
 	{
@@ -235,7 +238,9 @@ FReply FDataprepDragDropOp::DroppedOnDataprepActionContext(const FDataprepSchema
 
 void FDataprepDragDropOp::HoverTargetChangedWithNodes()
 {
-	bDropTargetValid = GetHoveredNode() && DraggedNodeWidgets[0]->GetNodeObj() != GetHoveredNode();
+	bDropTargetItself = DraggedNodeWidgets[0]->GetNodeObj() == GetHoveredNode();
+	bDropTargetValid = GetHoveredNode() && !bDropTargetItself;
+
 	const FSlateBrush* Icon = FEditorStyle::GetBrush( TEXT("Graph.ConnectorFeedback.OK") );
 
 	TAttribute<FText> MessageText = TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateSP(this, &FDataprepDragDropOp::GetMessageText));
@@ -302,7 +307,7 @@ FText FDataprepDragDropOp::GetMessageText()
 	}
 	else if(GetHoveredNode() != nullptr)
 	{
-		LastMessageText = LOCTEXT("DataprepActionStepNode_NoSelfMove", "Cannot move to itself");
+		LastMessageText = LOCTEXT("DataprepActionStepNode_Move", "Move step to location");
 	}
 	else
 	{
@@ -320,7 +325,9 @@ const FSlateBrush* FDataprepDragDropOp::GetIcon() const
 	FModifierKeysState ModifierKeyState = FSlateApplication::Get().GetModifierKeys();
 	const bool bCopyRequested = ModifierKeyState.IsControlDown() || ModifierKeyState.IsCommandDown();
 
-	return bDropTargetValid || (GetHoveredNode() != nullptr && bCopyRequested) ? IconOK : IconError;
+	return bDropTargetValid || (GetHoveredNode() != nullptr && bCopyRequested) 
+		? IconOK 
+		: (bDropTargetItself ? nullptr : IconError);
 }
 
 void FDataprepDragDropOp::SetPreDropConfirmation(FDataprepPreDropConfirmation && Confirmation)

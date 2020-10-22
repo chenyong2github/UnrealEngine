@@ -12,16 +12,22 @@ class IStructDeserializerBackend;
 class URemoteControlPreset;
 struct FRemoteControlPresetLayout;
 
-namespace RemoteControlPreset
+/**
+ * Data cached for every exposed field.
+ */
+USTRUCT()
+struct FRCCachedFieldData
 {
-	struct FCachedFieldData
-	{
-		FGuid LayoutGroupId;
-		FName OwnerObjectAlias;
-	};
+	GENERATED_BODY()
 
-	typedef TMap<FGuid, FCachedFieldData> FRemoteControlCache;
-}
+	/** The group the field is in. */
+	UPROPERTY()
+	FGuid LayoutGroupId;
+
+	/** The target that owns this field. */
+	UPROPERTY()
+	FName OwnerObjectAlias;
+};
 
 /**
  * Holds an exposed property and owner objects.
@@ -143,6 +149,12 @@ struct REMOTECONTROL_API FRemoteControlPresetLayout
 
 	/** Get this layout's groups. */
 	const TArray<FRemoteControlPresetGroup>& GetGroups() const;
+
+	/** 
+	 * Non-Const getter for this layout's groups. 
+	 * @Note Use carefully, as adding/removing groups should be done using their respective methods.
+	 */
+	TArray<FRemoteControlPresetGroup>& AccessGroups();
 
 	/** Append a field to the group's field list. */
 	void AddField(FGuid GroupId, FGuid FieldId);
@@ -540,7 +552,8 @@ private:
 	TMap<FName, FRemoteControlTarget> RemoteControlTargets;
 
 	/** The cache for information about an exposed field. */
-	RemoteControlPreset::FRemoteControlCache FieldCache;
+	UPROPERTY(Transient)
+	TMap<FGuid, FRCCachedFieldData> FieldCache;
 
 	/** Delegate triggered when an exposed property value has changed. */
 	FOnPresetExposedPropertyChanged OnPropertyChangedDelegate;
@@ -564,6 +577,7 @@ private:
 	TMap<FGuid, FPreObjectModifiedCache> PreObjectModifiedCache;
 
 	/** Map of Field Name to GUID. */
+	UPROPERTY(Transient)
 	TMap<FName, FGuid> NameToGuidMap;
 
 	friend FRemoteControlTarget;

@@ -259,6 +259,7 @@ public:
 		FieldNode_FSumVector,
 		FieldNode_FConversionField,
 		FieldNode_FCullingField,
+		FieldNode_FWaveScalar,
 		FieldNode_FReturnResultsTerminal
 	};
 

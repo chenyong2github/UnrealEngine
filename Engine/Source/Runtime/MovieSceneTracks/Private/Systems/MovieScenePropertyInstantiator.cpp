@@ -125,7 +125,7 @@ void UMovieScenePropertyInstantiatorSystem::DiscoverInvalidatedProperties(TBitAr
 
 		for (int32 Index = 0; Index < Allocation->Num(); ++Index)
 		{
-			const int32 PropertyIndex = this->ResolveProperty(CustomAccessors, ObjectPtrs[Index], PropertyPtrs[Index]);
+			const int32 PropertyIndex = this->ResolveProperty(CustomAccessors, ObjectPtrs[Index], PropertyPtrs[Index], PropertyDefinitionIndex);
 			
 			// If the property did not resolve, we still add it to the LUT
 			// So that the ensure inside VisitExpiredEntities only fires
@@ -134,9 +134,6 @@ void UMovieScenePropertyInstantiatorSystem::DiscoverInvalidatedProperties(TBitAr
 
 			if (PropertyIndex != INDEX_NONE)
 			{
-				++PropertyStats[PropertyDefinitionIndex].NumProperties;
-
-				this->ResolvedProperties[PropertyIndex].PropertyDefinitionIndex = PropertyDefinitionIndex;
 				this->Contributors.Add(PropertyIndex, EntityIDs[Index]);
 				this->NewContributors.Add(PropertyIndex, EntityIDs[Index]);
 
@@ -329,8 +326,8 @@ void UMovieScenePropertyInstantiatorSystem::UpdatePropertyInfo(const FPropertyPa
 	// We do not do this if there are no contributors to ensure that stale properties are restored correctly
 	if (NumContributors > 0)
 	{
-		const bool bWasPartial = Params.PropertyInfo->EmptyChannels.Find(false) != INDEX_NONE;
-		const bool bIsPartial  = EmptyChannels.Find(false) != INDEX_NONE;
+		const bool bWasPartial = Params.PropertyInfo->EmptyChannels.Find(true) != INDEX_NONE;
+		const bool bIsPartial  = EmptyChannels.Find(true) != INDEX_NONE;
 
 		if (bWasPartial != bIsPartial)
 		{
@@ -581,7 +578,7 @@ TOptional<uint16> UMovieScenePropertyInstantiatorSystem::ComputeFastPropertyPtrO
 	return TOptional<uint16>();
 }
 
-int32 UMovieScenePropertyInstantiatorSystem::ResolveProperty(UE::MovieScene::FCustomAccessorView CustomAccessors, UObject* Object, const FMovieScenePropertyBinding& PropertyBinding)
+int32 UMovieScenePropertyInstantiatorSystem::ResolveProperty(UE::MovieScene::FCustomAccessorView CustomAccessors, UObject* Object, const FMovieScenePropertyBinding& PropertyBinding, int32 PropertyDefinitionIndex)
 {
 	using namespace UE::MovieScene;
 
@@ -596,6 +593,7 @@ int32 UMovieScenePropertyInstantiatorSystem::ResolveProperty(UE::MovieScene::FCu
 
 	NewInfo.BoundObject  = Object;
 	NewInfo.PropertyPath = PropertyBinding.PropertyPath;
+	NewInfo.PropertyDefinitionIndex = PropertyDefinitionIndex;
 
 	UClass* Class = Object->GetClass();
 
@@ -638,6 +636,8 @@ int32 UMovieScenePropertyInstantiatorSystem::ResolveProperty(UE::MovieScene::FCu
 	const int32 NewPropertyIndex = ResolvedProperties.Add(NewInfo);
 
 	ObjectPropertyToResolvedIndex.Add(Key, NewPropertyIndex);
+
+	++PropertyStats[PropertyDefinitionIndex].NumProperties;
 
 	return NewPropertyIndex;
 }

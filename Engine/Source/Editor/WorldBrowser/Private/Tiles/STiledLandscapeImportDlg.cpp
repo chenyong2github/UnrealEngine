@@ -518,7 +518,7 @@ FReply STiledLandscapeImportDlg::OnClickedSelectHeightmapTiles()
 					FIntPoint TileCoordinate = ExtractTileCoordinates(BaseFilename);
 					if (TileCoordinate.GetMin() < 0)
 					{
-						StatusMessage = FText::Format(LOCTEXT("TiledLandscapeImport_HeightmapTileInvalidName", "File name ({FileName}) should match pattern: <name>_X<number>_Y<number>.<extension>"), Arguments);
+						StatusMessage = FText::Format(LOCTEXT("TiledLandscapeImport_HeightmapTileInvalidPattern", "File name ({FileName}) should match pattern: <name>_X<number>_Y<number>.<extension>"), Arguments);
 						bValidTiles = false;
 						break;
 					}

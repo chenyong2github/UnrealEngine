@@ -591,61 +591,76 @@ namespace Chaos
 		return IsHole(Index);
 	}
 
-	FReal Chaos::FHeightField::GetHeightAt(const TVector<FReal, 2>& InGridLocationLocal) const
+	struct FHeightNormalResult
 	{
-		if(CHAOS_ENSURE(InGridLocationLocal == FlatGrid.Clamp(InGridLocationLocal)))
-		{
-			TVector<int32, 2> CellCoord = FlatGrid.Cell(InGridLocationLocal);
+		Chaos::FReal Height = TNumericLimits<Chaos::FReal>::Max();
+		Chaos::FVec3 Normal = Chaos::FVec3(0);
+	};
 
-			const int32 SingleIndex = CellCoord[1] * (GeomData.NumCols) + CellCoord[0];
+	template<bool bFillHeight, bool bFillNormal>
+	FHeightNormalResult GetHeightNormalAt(const TVector<FReal, 2>& InGridLocationLocal, const Chaos::FHeightField::FDataType& InGeomData, const TUniformGrid<Chaos::FReal, 2>& InGrid)
+	{
+		FHeightNormalResult Result;
+
+		if(CHAOS_ENSURE(InGridLocationLocal == InGrid.Clamp(InGridLocationLocal)))
+		{
+			TVector<int32, 2> CellCoord = InGrid.Cell(InGridLocationLocal);
+
+			const int32 SingleIndex = CellCoord[1] * (InGeomData.NumCols) + CellCoord[0];
 			FVec3 Pts[4];
-			GeomData.GetPoints(SingleIndex, Pts);
+			InGeomData.GetPointsScaled(SingleIndex, Pts);
 
 			float FractionX = FMath::Frac(InGridLocationLocal[0]);
 			float FractionY = FMath::Frac(InGridLocationLocal[1]);
 
 			if(FractionX > FractionY)
 			{
-				// In the second triangle (0,3,2)
-#if 0
-				// Reduced form of Bary calculation - TODO confirm working
-				float U = -1.0f * (FractionY - 1);
-				float V = FractionX;
-				float W = 1.0f - U - V;
-#endif
+				if(bFillHeight)
+				{
+					const static FVector Tri[3] = {FVector(0.0f, 0.0f, 0.0f), FVector(1.0f, 1.0f, 0.0f), FVector(0.0f, 1.0f, 0.0f)};
+					FVector Bary = FMath::GetBaryCentric2D({ FractionX, FractionY, 0.0f }, Tri[0], Tri[1], Tri[2]);
 
-				FVector Tri[3];
-				Tri[0] = FVector(0.0f, 0.0f, 0.0f);
-				Tri[1] = FVector(1.0f, 1.0f, 0.0f);
-				Tri[2] = FVector(0.0f, 1.0f, 0.0f);
-				
-				FVector Bary = FMath::GetBaryCentric2D({ FractionX, FractionY, 0.0f }, Tri[0], Tri[1], Tri[2]);
+					Result.Height = Pts[0].Z * Bary[0] + Pts[3].Z * Bary[1] + Pts[2].Z * Bary[2];
+				}
 
-				return Pts[0].Z * Bary[0] + Pts[3].Z * Bary[1] + Pts[2].Z * Bary[2];
+				if(bFillNormal)
+				{
+					const FVec3 AB = Pts[3] - Pts[0];
+					const FVec3 AC = Pts[2] - Pts[0];
+					Result.Normal = FVec3::CrossProduct(AB, AC).GetUnsafeNormal();
+				}
 			}
 			else
 			{
-				// In the first triangle (0,1,3)
+				if(bFillHeight)
+				{
+					const static FVector Tri[3] = {FVector(0.0f, 0.0f, 0.0f), FVector(1.0f, 0.0f, 0.0f), FVector(1.0f, 1.0f, 0.0f)};
+					FVector Bary = FMath::GetBaryCentric2D({ FractionX, FractionY, 0.0f }, Tri[0], Tri[1], Tri[2]);
 
-#if 0
-				// Reduced form of Bary calculation - TODO confirm working
-				float U = ((-1) * (FractionX - 1));
-				float V = ((FractionX - 1) - (FractionY - 1));
-				float W = 1.0f - U - V;
-#endif
+					Result.Height = Pts[0].Z * Bary[0] + Pts[1].Z * Bary[1] + Pts[3].Z * Bary[2];
+				}
 
-				FVector Tri[3];
-				Tri[0] = FVector(0.0f, 0.0f, 0.0f);
-				Tri[1] = FVector(1.0f, 0.0f, 0.0f);
-				Tri[2] = FVector(1.0f, 1.0f, 0.0f);
-
-				FVector Bary = FMath::GetBaryCentric2D({FractionX, FractionY, 0.0f}, Tri[0], Tri[1], Tri[2]);
-
-				return Pts[0].Z * Bary[0] + Pts[1].Z * Bary[1] + Pts[3].Z * Bary[2];
+				if(bFillNormal)
+				{
+					const FVec3 AB = Pts[1] - Pts[0];
+					const FVec3 AC = Pts[3] - Pts[0];
+					Result.Normal = FVec3::CrossProduct(AB, AC).GetUnsafeNormal();
+				}
 			}
 		}
 
-		return 0.0f;
+		return Result;
+	}
+
+	Chaos::FVec3 Chaos::FHeightField::GetNormalAt(const TVector<FReal, 2>& InGridLocationLocal) const
+	{
+		return GetHeightNormalAt<false, true>(InGridLocationLocal, GeomData, FlatGrid).Normal;
+
+	}
+
+	FReal Chaos::FHeightField::GetHeightAt(const TVector<FReal, 2>& InGridLocationLocal) const
+	{
+		return GetHeightNormalAt<true, false>(InGridLocationLocal, GeomData, FlatGrid).Height;
 	}
 
 	bool Chaos::FHeightField::GetCellBounds3D(const TVector<int32, 2> InCoord, FVec3& OutMin, FVec3& OutMax, const FVec3& InInflate /*= {0}*/) const
@@ -1608,6 +1623,71 @@ namespace Chaos
 		return MostOpposingFace;
 	}
 
+	FHeightField::FClosestFaceData FHeightField::FindClosestFace(const FVec3& Position, FReal SearchDist) const
+	{
+		FClosestFaceData Result;
+
+		auto TestInSphere = [](const FVec3& Origin, const FReal Radius2, const FVec3& TestPosition) -> bool
+		{
+			return (TestPosition - Origin).SizeSquared() <= Radius2;
+		};
+
+		const FReal SearchDist2 = SearchDist * SearchDist;
+
+		TAABB<FReal, 3> QueryBounds(Position - FVec3(SearchDist), Position + FVec3(SearchDist));
+		const FBounds2D FlatBounds(QueryBounds);
+		TArray<TVector<int32, 2>> PotentialIntersections;
+		GetGridIntersections(FlatBounds, PotentialIntersections);
+
+		auto CheckTriangle = [&](int32 FaceIndex, const FVec3& A, const FVec3& B, const FVec3& C)
+		{
+			if(TestInSphere(Position, SearchDist2, A) || TestInSphere(Position, SearchDist2, B) || TestInSphere(Position, SearchDist2, C))
+			{
+
+				const FVec3 AB = B - A;
+				const FVec3 AC = C - A;
+				FVec3 Normal = FVec3::CrossProduct(AB, AC);
+
+				const FReal NormalLength = Normal.SafeNormalize();
+				if(!ensure(NormalLength > KINDA_SMALL_NUMBER))
+				{
+					//hitting degenerate triangle - should be fixed before we get to this stage
+					return;
+				}
+
+				const TPlane<FReal, 3> TriPlane{ A, Normal };
+				const FVec3 ClosestPointOnTri = FindClosestPointOnTriangle(TriPlane, A, B, C, Position);
+				const FReal Distance2 = (ClosestPointOnTri - Position).SizeSquared();
+				if(Distance2 < SearchDist2 && Distance2 < Result.DistanceToFaceSq)
+				{
+					Result.DistanceToFaceSq = Distance2;
+					Result.FaceIndex = FaceIndex;
+
+					const FVec3 ToTriangle = ClosestPointOnTri - Position;
+					Result.bWasSampleBehind = FVec3::DotProduct(ToTriangle, Normal) > 0.0f;
+				}
+			}
+		};
+
+		for(const TVector<int32, 2> & CellCoord : PotentialIntersections)
+		{
+			const int32 CellIndex = CellCoord[1] * (GeomData.NumCols - 1) + CellCoord[0];
+			const int32 SubX = CellIndex % (GeomData.NumCols - 1);
+			const int32 SubY = CellIndex / (GeomData.NumCols - 1);
+
+			const int32 FullIndex = CellIndex + SubY;
+
+			FVec3 Points[4];
+
+			GeomData.GetPointsScaled(FullIndex, Points);
+
+			CheckTriangle(CellIndex * 2, Points[0], Points[1], Points[3]);
+			CheckTriangle(CellIndex * 2 + 1, Points[0], Points[3], Points[2]);
+		}
+
+		return Result;
+	}
+
 	FVec3 FHeightField::FindGeometryOpposingNormal(const FVec3& DenormDir, int32 FaceIndex, const FVec3& OriginalNormal) const
 	{
 		if(ensure(FaceIndex != INDEX_NONE))
@@ -1673,4 +1753,27 @@ namespace Chaos
 		FlatGrid = TUniformGrid<FReal, 2>(MinCorner, MaxCorner, Cells);
 	}
 
+	Chaos::FReal FHeightField::PhiWithNormal(const FVec3& x, FVec3& Normal) const
+	{
+		Chaos::FVec2 HeightField2DPosition(x.X / GeomData.Scale.X, x.Y / GeomData.Scale.Y);
+
+		FHeightNormalResult HeightNormal = GetHeightNormalAt<true, true>(HeightField2DPosition, GeomData, FlatGrid);
+
+		// Assume the cell below us is the correct result initially
+		const Chaos::FReal& HeightAtPoint = HeightNormal.Height;
+		Normal = HeightNormal.Normal;
+		FReal OutPhi = x.Z - HeightAtPoint;
+
+		// Need to sample all cells in a HeightAtPoint radius circle on the 2D grid. Large cliffs mean that the actual
+		// Phi could be in an entirely different cell.
+		const FClosestFaceData ClosestFace = FindClosestFace(x, HeightAtPoint);
+
+		if(ClosestFace.FaceIndex > INDEX_NONE)
+		{
+			Normal = FindGeometryOpposingNormal(FVec3(0.0f), ClosestFace.FaceIndex, FVec3(0.0f));
+			OutPhi = ClosestFace.bWasSampleBehind ? -FMath::Sqrt(ClosestFace.DistanceToFaceSq) : FMath::Sqrt(ClosestFace.DistanceToFaceSq);
+		}
+
+		return OutPhi;
+	}
 }

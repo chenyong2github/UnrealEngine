@@ -253,9 +253,7 @@ FReply SAndroidLicenseDialog::OnAgree()
 		}
 		else
 		{
-			FText ErrorText = FText::Format(LOCTEXT("CouldntWriteLicense",
-				"Couldn't write license file {0}. Make sure you have the permissions to modify the file and try again."),
-				FText::FromString(LicenseFilename));
+			FText ErrorText = FText::Format(LOCTEXT("CouldntWriteLicense", "Couldn't write license file {0}. Make sure you have the permissions to modify the file and try again."), FText::FromString(LicenseFilename));
 			FPlatformMisc::MessageBoxExt(EAppMsgType::Ok, *ErrorText.ToString(), TEXT("Error"));
 		}
 	}

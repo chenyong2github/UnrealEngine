@@ -190,6 +190,10 @@ class SettingsDialog(QtCore.QObject):
 
         # add widgets for settings shared by all devices of a plugin
         for setting in plugin_settings:
+
+            if not setting.show_ui:
+                continue
+
             value_type = type(setting.get_value())
 
             if value_type is list:
@@ -214,6 +218,10 @@ class SettingsDialog(QtCore.QObject):
 
             # regular "instance" settings
             for setting in settings:
+
+                if not setting.show_ui:
+                    continue
+
                 value_type = type(setting.get_value(device_name))
 
                 if value_type is list:
@@ -226,6 +234,10 @@ class SettingsDialog(QtCore.QObject):
                     self.create_device_setting_checkbox(setting, layout)
 
             for setting in overrides:
+
+                if not setting.show_ui:
+                    continue
+                
                 value_type = type(setting.get_value(device_name))
 
                 if value_type in [str, int]:
@@ -332,6 +344,18 @@ class SettingsDialog(QtCore.QObject):
 
         line_edit.editingFinished.connect(lambda field=line_edit, setting=setting, device_name=device_name: self._on_line_edit_override_editingFinished(field, setting, device_name))
 
+        def on_base_value_changed(setting, device_name, line_edit):
+            new_base_value = setting.get_value()
+            if not setting.is_overriden(device_name):
+                line_edit.setText(str(new_base_value))
+                line_edit.setCursorPosition(0)
+                if new_base_value == setting.get_value(device_name):
+                    # if the setting was overriden but the new base value happens to be the same as the override we can remove the override
+                    sb_widgets.set_qt_property(line_edit, "override", False)
+                    setting.remove_override(device_name)
+
+        setting.signal_setting_changed.connect(lambda old, new, setting=setting, device_name=device_name, widget=line_edit: on_base_value_changed(setting, device_name, widget))
+
     def _on_line_edit_override_editingFinished(self, widget, setting, device_name):
         old_value = setting.get_value(device_name)
         new_value = widget.text()
@@ -343,6 +367,7 @@ class SettingsDialog(QtCore.QObject):
             sb_widgets.set_qt_property(widget, "override", True)
         else:
             sb_widgets.set_qt_property(widget, "override", False)
+            setting.remove_override(device_name)
 
     def create_device_setting_override_checkbox(self, setting, device_name, layout):
         check_box = QtWidgets.QCheckBox()
@@ -358,12 +383,22 @@ class SettingsDialog(QtCore.QObject):
 
         check_box.stateChanged.connect(lambda state, widget=check_box, setting=setting, device_name=device_name: self._on_checkbox_override_stateChanged(widget, setting, device_name))
 
+        def on_base_value_changed(new_value, check_box):
+            check_box.setChecked(new_value)
+            # reset checkbox override state, as the checkbox has only two states there is no override anymore when the base value changes
+            sb_widgets.set_qt_property(check_box, "override", False)
+            setting.remove_override(device_name)
+
+        setting.signal_setting_changed.connect(lambda old, new, widget=check_box: on_base_value_changed(new, widget))
+
     def _on_checkbox_override_stateChanged(self, widget, setting, device_name):
         old_value = setting.get_value(device_name)
         new_value = bool(widget.checkState())
         if new_value != old_value:
             setting.override_value(device_name, new_value)
+
         if setting.is_overriden(device_name):
             sb_widgets.set_qt_property(widget, "override", True)
         else:
             sb_widgets.set_qt_property(widget, "override", False)
+            setting.remove_override(device_name)

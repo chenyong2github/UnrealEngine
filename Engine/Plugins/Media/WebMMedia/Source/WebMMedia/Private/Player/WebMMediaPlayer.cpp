@@ -78,10 +78,10 @@ FString FWebMMediaPlayer::GetInfo() const
 	return TEXT("WebMMedia information not implemented yet");
 }
 
-FName FWebMMediaPlayer::GetPlayerName() const
+FGuid FWebMMediaPlayer::GetPlayerPluginGUID() const
 {
-	static FName PlayerName(TEXT("WebMMedia"));
-	return PlayerName;
+	static FGuid PlayerPluginGUID(0xdfbb4e57, 0x07dc4b4a, 0xa25b5cba, 0x0f963ac3);
+	return PlayerPluginGUID;
 }
 
 IMediaSamples& FWebMMediaPlayer::GetSamples()

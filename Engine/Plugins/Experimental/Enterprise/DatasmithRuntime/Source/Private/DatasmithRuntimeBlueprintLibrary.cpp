@@ -3,12 +3,13 @@
 #include "DatasmithRuntimeBlueprintLibrary.h"
 
 #include "DatasmithRuntime.h"
+#include "DirectLinkUtils.h"
 
 #include "DatasmithSceneFactory.h"
 #include "DatasmithTranslatableSource.h"
 #include "DatasmithTranslator.h"
-#include "DirectLink/SceneSnapshot.h"
 #include "IDatasmithSceneElements.h"
+#include "DirectLinkSceneSnapshot.h"
 
 #if WITH_EDITOR
 #include "DesktopPlatformModule.h"
@@ -40,7 +41,7 @@ bool UDatasmithRuntimeLibrary::LoadDatasmithScene(ADatasmithRuntimeActor* Datasm
 		return false;
 	}
 
-	DatasmithRuntimeActor->bReceiving = true;
+	DatasmithRuntimeActor->OnOpenDelta();
 
 
 	FDatasmithSceneSource Source;
@@ -88,7 +89,7 @@ bool UDatasmithRuntimeLibrary::LoadDatasmithScene(ADatasmithRuntimeActor* Datasm
 
 		DirectLink::BuildIndexForScene(&SceneElement.Get());
 
-		DatasmithRuntimeActor->bReceiving = false;
+		DatasmithRuntimeActor->OnCloseDelta();
 
 		DatasmithRuntimeActor->SetScene(SceneElement);
 
@@ -216,14 +217,7 @@ void UDatasmithRuntimeLibrary::ResetActor(ADatasmithRuntimeActor* DatasmithRunti
 	}
 }
 
-UDirectLinkProxy * UDatasmithRuntimeLibrary::GetDirectLinkProxy()
+UDirectLinkProxy* UDatasmithRuntimeLibrary::GetDirectLinkProxy()
 {
-	static TStrongObjectPtr<UDirectLinkProxy> DirectLinkProxy;
-
-	if (!DirectLinkProxy.IsValid())
-	{
-		DirectLinkProxy = TStrongObjectPtr<UDirectLinkProxy>(NewObject<UDirectLinkProxy>());
-	}
-
-	return DirectLinkProxy.Get();
+	return DatasmithRuntime::GetDirectLinkProxy();
 }

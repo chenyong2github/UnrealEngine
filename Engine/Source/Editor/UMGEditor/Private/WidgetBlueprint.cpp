@@ -463,6 +463,21 @@ bool FDelegateEditorBinding::IsBindingValid(UClass* BlueprintGeneratedClass, UWi
 					return false;
 				}
 
+				// We allow for widget delegates to have deprecated metadata without fully deprecating.
+				// Since full deprecation breaks existing widgets, checking as below allows for slow deprecation.
+				FString DeprecationWarning = DelegateProperty->GetMetaData("DeprecationMessage");
+				if (!DeprecationWarning.IsEmpty())
+				{
+					MessageLog.Warning(
+						*FText::Format(
+							LOCTEXT("BindingWarningDeprecated", "Binding: Deprecated property '@@' on Widget '@@': {0}"),
+							FText::FromString(DeprecationWarning)
+						).ToString(),
+						DelegateProperty,
+						TargetWidget
+					);
+				}
+
 				return true;
 			}
 			else
@@ -1051,6 +1066,11 @@ UPackage* UWidgetBlueprint::GetWidgetTemplatePackage() const
 
 static bool HasLatentActions(UEdGraph* Graph)
 {
+	if (!Graph)
+	{
+		return false;
+	}
+
 	for (const UEdGraphNode* Node : Graph->Nodes)
 	{
 		if (const UK2Node_CallFunction* CallFunctionNode = Cast<UK2Node_CallFunction>(Node))

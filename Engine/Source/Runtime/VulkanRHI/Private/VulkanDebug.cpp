@@ -526,7 +526,8 @@ static void ValidationFail()
 	ensure(0);
 }
 
-#if VULKAN_ENABLE_DUMP_LAYER
+
+#if VULKAN_ENABLE_DUMP_LAYER || VULKAN_ENABLE_IMAGE_TRACKING_LAYER
 #include "Misc/OutputDeviceRedirector.h"
 namespace VulkanRHI
 {
@@ -1801,7 +1802,7 @@ void FWrapLayer::EnumeratePhysicalDevices(VkResult Result, VkInstance Instance, 
 	}
 }
 
-#if VULKAN_ENABLE_DUMP_LAYER
+#if VULKAN_ENABLE_DUMP_LAYER || VULKAN_ENABLE_IMAGE_TRACKING_LAYER
 static void DumpImageMemoryBarriers(uint32 ImageMemoryBarrierCount, const VkImageMemoryBarrier* ImageMemoryBarriers)
 {
 	for (uint32 Index = 0; Index < ImageMemoryBarrierCount; ++Index)
@@ -4155,6 +4156,10 @@ namespace VulkanRHI
 {
 	void BindDebugLabelName(VkImage Image, const TCHAR* Name)
 	{
+		if(Image == VK_NULL_HANDLE)
+		{
+			return;
+		}
 		FScopeLock ScopeLock(&GTrackingCS);
 		FTrackingImage* Found = GVulkanTrackingImageLayouts.Find(Image);
 		if (Found)

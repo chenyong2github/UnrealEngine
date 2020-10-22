@@ -3,8 +3,12 @@
 #include "IGeometryCacheStreamer.h"
 #include "Async/TaskGraphInterfaces.h"
 #include "Containers/Ticker.h"
+#include "Framework/Notifications/NotificationManager.h"
 #include "GeometryCacheMeshData.h"
 #include "IGeometryCacheStream.h"
+#include "Widgets/Notifications/SNotificationList.h"
+
+#define LOCTEXT_NAMESPACE "GeometryCacheStreamer"
 
 class FGeometryCacheStreamer : public IGeometryCacheStreamer
 {
@@ -32,6 +36,8 @@ private:
 	const int32 MaxReads;
 	int32 NumReads;
 	int32 CurrentIndex;
+
+	TSharedPtr<SNotificationItem> StreamingNotification;
 };
 
 FGeometryCacheStreamer::FGeometryCacheStreamer()
@@ -64,12 +70,14 @@ void FGeometryCacheStreamer::Tick(float Time)
 
 	// First step is to process the results from the previously scheduled read requests
 	// to figure out the number of reads still in progress
+	int32 NumFramesToStream = 0;
 	for (FTracksToStreams::TIterator Iterator = TracksToStreams.CreateIterator(); Iterator; ++Iterator)
 	{
 		TArray<int32> FramesCompleted;
 		IGeometryCacheStream* Stream = Iterator->Value;
 		Stream->UpdateRequestStatus(FramesCompleted);
 		NumReads -= FramesCompleted.Num();
+		NumFramesToStream += Stream->GetFramesNeeded().Num();
 	}
 
 	// Now, schedule new read requests according to the number of concurrent reads available
@@ -120,6 +128,40 @@ void FGeometryCacheStreamer::Tick(float Time)
 			}
 		}
 	}
+
+	// Display a streaming progress notification if there are any frames to stream
+	if (!StreamingNotification.IsValid() && NumFramesToStream > 0)
+	{
+		FText UpdateText = FText::Format(LOCTEXT("GeoCacheStreamingUpdate", "Streaming GeometryCache: {0} frames remaining"), FText::AsNumber(NumFramesToStream));
+		FNotificationInfo Info(UpdateText);
+		Info.bFireAndForget = false;
+		Info.bUseSuccessFailIcons = false;
+		Info.bUseLargeFont = false;
+
+		StreamingNotification = FSlateNotificationManager::Get().AddNotification(Info);
+		if (StreamingNotification.IsValid())
+		{
+			StreamingNotification->SetCompletionState(SNotificationItem::CS_Pending);
+		}
+	}
+
+	if (StreamingNotification.IsValid())
+	{
+		// Update or remove the progress notification
+		if (NumFramesToStream > 0)
+		{
+			FText UpdateText = FText::Format(LOCTEXT("GeoCacheStreamingUpdate", "Streaming GeometryCache: {0} frames remaining"), FText::AsNumber(NumFramesToStream));
+			StreamingNotification->SetText(UpdateText);
+		}
+		else
+		{
+			FText CompletedText = LOCTEXT("GeoCacheStreamingFinished", "Finished streaming GeometryCache");
+			StreamingNotification->SetText(CompletedText);
+			StreamingNotification->SetCompletionState(SNotificationItem::CS_Success);
+			StreamingNotification->ExpireAndFadeout();
+			StreamingNotification = nullptr;
+		}
+	}
 }
 
 void FGeometryCacheStreamer::RegisterTrack(UGeometryCacheTrack* AbcTrack, IGeometryCacheStream* Stream)
@@ -163,3 +205,5 @@ IGeometryCacheStreamer& IGeometryCacheStreamer::Get()
 	static FGeometryCacheStreamer Streamer;
 	return Streamer;
 }
+
+#undef LOCTEXT_NAMESPACE

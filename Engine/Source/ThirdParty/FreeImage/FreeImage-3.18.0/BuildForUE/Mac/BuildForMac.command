@@ -60,8 +60,12 @@ saveFileStates ${LIBFILES[@]}
 ## Begin lib specific build steps
 make clean && make -j$(get_core_count)
 
-# Move the output file into the expected place
 LIBOUTPUT=dist/libfreeimage-3.18.0.dylib
+
+# Set the install name to the one unreal expect
+install_name_tool -id @rpath/libfreeimage-3.18.0.dylib ${LIBOUTPUT}
+
+# Move the output file into the expected place
 echo "Copying ${LIBOUTPUT} to ${LIBFILES[0]}"
 cp ${LIBOUTPUT} ${LIBFILES[0]}
 

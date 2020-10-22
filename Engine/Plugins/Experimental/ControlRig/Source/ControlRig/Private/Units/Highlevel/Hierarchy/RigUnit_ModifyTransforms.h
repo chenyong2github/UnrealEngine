@@ -64,7 +64,7 @@ struct FRigUnit_ModifyTransforms_WorkData
 };
 
 /**
- * ModifyBonetransforms is used to perform a change in the hierarchy by setting one or more bones' transforms.
+ * Modify Transforms is used to perform a change in the hierarchy by setting one or more bones' transforms
  */
 USTRUCT(meta=(DisplayName="Modify Transforms", Category="Hierarchy", DocumentationPolicy="Strict", Keywords = "ModifyBone"))
 struct FRigUnit_ModifyTransforms : public FRigUnit_HighlevelBaseMutable

@@ -876,6 +876,11 @@ void FD3D11DynamicRHI::RHIReadSurfaceFloatData(FRHITexture* TextureRHI,FIntRect 
 		uint32 D3DFace = GetD3D11CubeFace(CubeFace);
 		Subresource = D3D11CalcSubresource(MipIndex, ArrayIndex * 6 + D3DFace, TextureDesc.MipLevels);
 	}
+	else
+	{
+		const bool bIsTextureArray = TextureRHI->GetTexture2DArray() != nullptr;
+		Subresource = D3D11CalcSubresource(MipIndex, bIsTextureArray ? ArrayIndex : 0, TextureDesc.MipLevels);
+	}
 	Direct3DDeviceIMContext->CopySubresourceRegion(TempTexture2D,0,0,0,0,Texture->GetResource(),Subresource,&Rect);
 
 	// Lock the staging resource.

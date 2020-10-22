@@ -62,7 +62,6 @@ public:
 		const int32 ApplyPairIterations = 1, 
 		const int32 ApplyPushOutPairIterations = 1, 
 		const FReal CullDistance = (FReal)0, 
-		const FReal ShapePadding = (FReal)0,
 		const FReal RestitutionThreshold = 2000.0f);
 
 	virtual ~FPBDCollisionConstraints() {}
@@ -225,16 +224,6 @@ public:
 		return bCanDisableContacts;
 	}
 
-	void SetShapePadding(FReal InShapePadding)
-	{
-		MShapePadding = InShapePadding;
-	}
-
-	FReal GetShapePadding() const
-	{
-		return MShapePadding;
-	}
-
 	void SetRestitutionThreshold(FReal InRestitutionThreshold)
 	{
 		RestitutionThreshold = InRestitutionThreshold;
@@ -327,7 +316,6 @@ private:
 	int32 MApplyPairIterations;
 	int32 MApplyPushOutPairIterations;
 	FReal MCullDistance;
-	FReal MShapePadding;
 	FReal RestitutionThreshold;
 	bool bUseCCD;
 	bool bEnableCollisions;

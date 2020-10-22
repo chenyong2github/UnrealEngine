@@ -43,12 +43,12 @@ static bool HasBadNTB(UStaticMesh* Mesh, bool &bZeroNormals, bool &bZeroTangents
 	bZeroNormals = false;
 	bZeroBinormals = false;
 	bool bBadTangents = false;
-	if (Mesh && Mesh->RenderData)
+	if (Mesh && Mesh->GetRenderData())
 	{
 		int32 NumLODs = Mesh->GetNumLODs();
 		for (int32 LODIndex = 0; LODIndex < NumLODs; ++LODIndex)
 		{
-			FStaticMeshLODResources& LOD = Mesh->RenderData->LODResources[LODIndex];
+			FStaticMeshLODResources& LOD = Mesh->GetRenderData()->LODResources[LODIndex];
 			int32 NumVerts = LOD.VertexBuffers.PositionVertexBuffer.GetNumVertices();
 			for (int32 VertIndex = 0; VertIndex < NumVerts; ++VertIndex)
 			{
@@ -158,7 +158,7 @@ void UStaticMesh::BatchBuild(const TArray<UStaticMesh*>& InStaticMeshes, bool bI
 
 		for (UStaticMesh* StaticMesh : StaticMeshesToProcess)
 		{
-			if (StaticMesh->RenderData)
+			if (StaticMesh->GetRenderData())
 			{
 				// Finish any previous async builds before modifying RenderData
 				// This can happen during import as the mesh is rebuilt redundantly
@@ -254,7 +254,7 @@ void UStaticMesh::PreBuildInternal()
 
 	// Ensure we have a bodysetup.
 	CreateBodySetup();
-	check(BodySetup != NULL);
+	check(GetBodySetup() != nullptr);
 
 	// Release the static mesh's resources.
 	ReleaseResources();
@@ -279,10 +279,10 @@ bool UStaticMesh::BuildInternal(bool bInSilent, TArray<FText> * OutErrors)
 	StaticMeshBuildingSlowTask.EnterProgressFrame(1);
 
 	// Remember the derived data key of our current render data if any.
-	FString ExistingDerivedDataKey = RenderData ? RenderData->DerivedDataKey : TEXT("");
+	FString ExistingDerivedDataKey = GetRenderData() ? GetRenderData()->DerivedDataKey : TEXT("");
 
 	// Regenerating UVs for lightmaps, use the latest version
-	LightmapUVVersion = (int32)ELightmapUVVersion::Latest;
+	SetLightmapUVVersion((int32)ELightmapUVVersion::Latest);
 
 	// Free existing render data and recache.
 	CacheDerivedData();
@@ -298,17 +298,17 @@ bool UStaticMesh::BuildInternal(bool bInSilent, TArray<FText> * OutErrors)
 	if( GetNumSourceModels() )
 	{
 		// Rescale simple collision if the user changed the mesh build scale
-		BodySetup->RescaleSimpleCollision( GetSourceModel(0).BuildSettings.BuildScale3D );
+		GetBodySetup()->RescaleSimpleCollision( GetSourceModel(0).BuildSettings.BuildScale3D );
 	}
 
 	// Invalidate physics data if this has changed.
 	// TODO_STATICMESH: Not necessary any longer?
-	BodySetup->InvalidatePhysicsData();
-	BodySetup->CreatePhysicsMeshes();
+	GetBodySetup()->InvalidatePhysicsData();
+	GetBodySetup()->CreatePhysicsMeshes();
 
 	// Compare the derived data keys to see if renderable mesh data has actually changed.
-	check(RenderData);
-	bool bHasRenderDataChanged = RenderData->DerivedDataKey != ExistingDerivedDataKey;
+	check(GetRenderData());
+	bool bHasRenderDataChanged = GetRenderData()->DerivedDataKey != ExistingDerivedDataKey;
 
 	if (bHasRenderDataChanged)
 	{
@@ -705,23 +705,23 @@ struct FFragmentRange
 
 void UStaticMesh::FixupZeroTriangleSections()
 {
-	if (RenderData->MaterialIndexToImportIndex.Num() > 0 && RenderData->LODResources.Num())
+	if (GetRenderData()->MaterialIndexToImportIndex.Num() > 0 && GetRenderData()->LODResources.Num())
 	{
 		TArray<int32> MaterialMap;
 		FMeshSectionInfoMap NewSectionInfoMap;
 
 		// Iterate over all sections of all LODs and identify all material indices that need to be remapped.
-		for (int32 LODIndex = 0; LODIndex < RenderData->LODResources.Num(); ++ LODIndex)
+		for (int32 LODIndex = 0; LODIndex < GetRenderData()->LODResources.Num(); ++ LODIndex)
 		{
-			FStaticMeshLODResources& LOD = RenderData->LODResources[LODIndex];
+			FStaticMeshLODResources& LOD = GetRenderData()->LODResources[LODIndex];
 			int32 NumSections = LOD.Sections.Num();
 
 			for (int32 SectionIndex = 0; SectionIndex < NumSections; ++SectionIndex)
 			{
 				FMeshSectionInfo DefaultSectionInfo(SectionIndex);
-				if (RenderData->MaterialIndexToImportIndex.IsValidIndex(SectionIndex))
+				if (GetRenderData()->MaterialIndexToImportIndex.IsValidIndex(SectionIndex))
 				{
-					int32 ImportIndex = RenderData->MaterialIndexToImportIndex[SectionIndex];
+					int32 ImportIndex = GetRenderData()->MaterialIndexToImportIndex[SectionIndex];
 					FMeshSectionInfo SectionInfo = GetSectionInfoMap().Get(LODIndex, ImportIndex);
 					int32 OriginalMaterialIndex = SectionInfo.MaterialIndex;
 
@@ -751,7 +751,7 @@ void UStaticMesh::FixupZeroTriangleSections()
 		}
 
 		// Compact the materials array.
-		for (int32 i = RenderData->LODResources[0].Sections.Num(); i < MaterialMap.Num(); ++i)
+		for (int32 i = GetRenderData()->LODResources[0].Sections.Num(); i < MaterialMap.Num(); ++i)
 		{
 			if (MaterialMap[i] == INDEX_NONE)
 			{
@@ -797,8 +797,8 @@ void UStaticMesh::FixupZeroTriangleSections()
 		if (bRemapMaterials)
 		{
 			TArray<FStaticMaterial> OldMaterials;
-			Exchange(StaticMaterials,OldMaterials);
-			StaticMaterials.Empty(MaterialMap.Num());
+			Exchange(GetStaticMaterials(),OldMaterials);
+			GetStaticMaterials().Empty(MaterialMap.Num());
 			for (int32 MaterialIndex = 0; MaterialIndex < MaterialMap.Num(); ++MaterialIndex)
 			{
 				FStaticMaterial StaticMaterial;
@@ -807,7 +807,7 @@ void UStaticMesh::FixupZeroTriangleSections()
 				{
 					StaticMaterial = OldMaterials[OldMaterialIndex];
 				}
-				StaticMaterials.Add(StaticMaterial);
+				GetStaticMaterials().Add(StaticMaterial);
 			}
 		}
 	}
@@ -818,11 +818,11 @@ void UStaticMesh::FixupZeroTriangleSections()
 		
 		// Find the maximum material index that is used by the mesh
 		// Also keep track of which materials are actually used in the array
-		for(int32 LODIndex = 0; LODIndex < RenderData->LODResources.Num(); ++LODIndex)
+		for(int32 LODIndex = 0; LODIndex < GetRenderData()->LODResources.Num(); ++LODIndex)
 		{
-			if (RenderData->LODResources.IsValidIndex(LODIndex))
+			if (GetRenderData()->LODResources.IsValidIndex(LODIndex))
 			{
-				FStaticMeshLODResources& LOD = RenderData->LODResources[LODIndex];
+				FStaticMeshLODResources& LOD = GetRenderData()->LODResources[LODIndex];
 				int32 NumSections = LOD.Sections.Num();
 				for (int32 SectionIndex = 0; SectionIndex < NumSections; ++SectionIndex)
 				{
@@ -839,19 +839,19 @@ void UStaticMesh::FixupZeroTriangleSections()
 
 		// NULL references to materials in indices that are not used by any LOD.
 		// This is to fix up an import bug which caused more materials to be added to this array than needed.
-		for ( int32 MaterialIdx = 0; MaterialIdx < StaticMaterials.Num(); ++MaterialIdx )
+		for ( int32 MaterialIdx = 0; MaterialIdx < GetStaticMaterials().Num(); ++MaterialIdx )
 		{
 			if ( !DiscoveredMaterialIndices.Contains(MaterialIdx) )
 			{
 				// Materials that are not used by any LOD resource should not be in this array.
-				StaticMaterials[MaterialIdx].MaterialInterface = nullptr;
+				GetStaticMaterials()[MaterialIdx].MaterialInterface = nullptr;
 			}
 		}
 
 		// Remove entries at the end of the materials array.
-		if (StaticMaterials.Num() > (FoundMaxMaterialIndex + 1))
+		if (GetStaticMaterials().Num() > (FoundMaxMaterialIndex + 1))
 		{
-			StaticMaterials.RemoveAt(FoundMaxMaterialIndex+1, StaticMaterials.Num() - FoundMaxMaterialIndex - 1);
+			GetStaticMaterials().RemoveAt(FoundMaxMaterialIndex+1, GetStaticMaterials().Num() - FoundMaxMaterialIndex - 1);
 		}
 	}
 }

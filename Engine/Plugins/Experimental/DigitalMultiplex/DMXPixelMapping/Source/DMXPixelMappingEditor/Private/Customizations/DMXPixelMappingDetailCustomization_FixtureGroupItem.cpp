@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Customizations/DMXPixelMappingDetailCustomization_FixtureGroupItem.h"
+
 #include "Toolkits/DMXPixelMappingToolkit.h"
 #include "Components/DMXPixelMappingFixtureGroupItemComponent.h"
 #include "DMXPixelMappingTypes.h"
@@ -31,8 +32,14 @@ void FDMXPixelMappingDetailCustomization_FixtureGroupItem::CustomizeDetails(IDet
 	// Get editing categories
 	IDetailCategoryBuilder& OutputSettingsCategory = DetailLayout->EditCategory("Output Settings", FText::GetEmpty(), ECategoryPriority::Important);
 
+	// Hide absolute postition property handles
+	TSharedPtr<IPropertyHandle> PositionXPropertyHandle = DetailLayout->GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupItemComponent, PositionX), UDMXPixelMappingOutputComponent::StaticClass());
+	DetailLayout->HideProperty(PositionXPropertyHandle);
+	TSharedPtr<IPropertyHandle> PositionYPropertyHandle = DetailLayout->GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupItemComponent, PositionY), UDMXPixelMappingOutputComponent::StaticClass());
+	DetailLayout->HideProperty(PositionYPropertyHandle);
+
 	// Add Function and ColorMode properties at the beginning
-	TSharedPtr<IPropertyHandle> ColorModePropertyHandle = DetailLayout->GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupItemComponent, ColorMode), UDMXPixelMappingFixtureGroupItemComponent::StaticClass());
+	TSharedPtr<IPropertyHandle> ColorModePropertyHandle = DetailLayout->GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupItemComponent, ColorMode));
 	OutputSettingsCategory.AddProperty(ColorModePropertyHandle);
 
 	// Register attributes
@@ -58,8 +65,8 @@ void FDMXPixelMappingDetailCustomization_FixtureGroupItem::CustomizeDetails(IDet
 	// Register Monochrome attribute
 	TSharedPtr<FFunctionAttribute> MonochromeAttribute = MakeShared<FFunctionAttribute>();
 	MonochromeAttribute->Handle = DetailLayout->GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupItemComponent, MonochromeIntensity));
-	MonochromeAttribute->ExposeHandle = DetailLayout->GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupItemComponent, MonochromeExpose));
-	MonochromeAttribute->InvertHandle = DetailLayout->GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupItemComponent, MonochromeInvert));
+	MonochromeAttribute->ExposeHandle = DetailLayout->GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupItemComponent, bMonochromeExpose));
+	MonochromeAttribute->InvertHandle = DetailLayout->GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupItemComponent, bMonochromeInvert));
 	MonochromeAttributes.Add(MonochromeAttribute);
 
 	// Generate all RGB Expose and Invert rows
@@ -111,7 +118,7 @@ void FDMXPixelMappingDetailCustomization_FixtureGroupItem::CustomizeDetails(IDet
 			.AddProperty(Attribute->Handle)
 			.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(this, &FDMXPixelMappingDetailCustomization_FixtureGroupItem::GetMonochromeRowVisibilty, Attribute.Get())));
 	}
-
+	
 	TSharedPtr<IPropertyHandle> ExtraAttributesHandle = DetailLayout->GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupItemComponent, ExtraAttributes), UDMXPixelMappingFixtureGroupItemComponent::StaticClass());
 	OutputSettingsCategory.AddProperty(ExtraAttributesHandle);
 }

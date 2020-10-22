@@ -154,6 +154,7 @@ protected:
 	//virtual void OnAttachmentChanged() override;
 
 	void UpdateEmitterMaterials(bool bForceUpdateEmitterMaterials = false);
+
 public:
 	/**
 	* True if we should automatically attach to AutoAttachParent when activated, and detach from our parent when completed.
@@ -209,7 +210,7 @@ public:
 	void UnregisterWithScalabilityManager();
 
 	void PostSystemTick_GameThread();
-	void OnSystemComplete();
+	void OnSystemComplete(bool bExternalCompletion);
 
 	public:
 
@@ -392,6 +393,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Niagara Variable (Material)"))
 	void SetVariableMaterial(FName InVariableName, UMaterialInterface* Object);
+
+	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Niagara Variable (TextureRenderTarget)"))
+	void SetVariableTextureRenderTarget(FName InVariableName, class UTextureRenderTarget* TextureRenderTarget);
 
 	/** Debug accessors for getting positions in blueprints. */
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Get Niagara Emitter Positions", DeprecatedFunction, DeprecationMessage = "Get Niagara Emitter Positions is deprecated, use the particle export DI inside your emitter instead."))
@@ -615,6 +619,9 @@ private:
 	/** True if UpdateEmitterMaterials needs to be called*/
 	uint32 bNeedsUpdateEmitterMaterials : 1;
 
+	/** True if we need to force our materials to recache */
+	uint32 bNeedsMaterialRecache : 1;
+
 	/** Restore relative transform from auto attachment and optionally detach from parent (regardless of whether it was an auto attachment). */
 	void CancelAutoAttachment(bool bDetachFromParent);
 
@@ -688,12 +695,13 @@ private:
 
 	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const override;
 
-	/*
+	
 	virtual bool CanBeOccluded() const override
 	{
-	return !MaterialRelevance.bDisableDepthTest;
+		// TODO account for MaterialRelevance.bDisableDepthTest as well
+		return !ShouldRenderCustomDepth();
 	}
-	*/
+	
 
 	/** Callback from the renderer to gather simple lights that this proxy wants renderered. */
 	virtual void GatherSimpleLights(const FSceneViewFamily& ViewFamily, FSimpleLightArray& OutParticleLights) const override;

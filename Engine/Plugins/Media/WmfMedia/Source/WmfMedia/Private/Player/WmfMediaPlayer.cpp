@@ -80,12 +80,11 @@ FString FWmfMediaPlayer::GetInfo() const
 }
 
 
-FName FWmfMediaPlayer::GetPlayerName() const
+FGuid FWmfMediaPlayer::GetPlayerPluginGUID() const
 {
-	static FName PlayerName(TEXT("WmfMedia"));
-	return PlayerName;
+	static FGuid PlayerPluginGUID(0x82f2a4c0, 0x225448c6, 0x853ff0a3, 0x0a2b08b7);
+	return PlayerPluginGUID;
 }
-
 
 IMediaSamples& FWmfMediaPlayer::GetSamples()
 {

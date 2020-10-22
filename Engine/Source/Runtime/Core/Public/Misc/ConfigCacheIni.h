@@ -480,7 +480,7 @@ public:
 	CORE_API static void OverrideFromCommandline(FConfigFile* File, const FString& Filename);
 
 	/** Checks the command line for any overridden config file settings */
-	CORE_API static void OverrideFileFromCommandline(FString& Filename);
+	CORE_API static bool OverrideFileFromCommandline(FString& Filename);
 
 	/** Appends a new INI file to the SourceIniHierarchy and combines it */
 	CORE_API void AddDynamicLayerToHeirarchy(const FString& Filename);

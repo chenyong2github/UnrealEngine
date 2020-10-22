@@ -307,7 +307,7 @@ void RenderDirectLightIntoLumenCards(
 	bool bUseLightFunction = true;
 
 	if (!LightFunctionMaterialProxy
-		|| !LightFunctionMaterialProxy->GetMaterial(Scene->GetFeatureLevel())->IsLightFunction()
+		|| !LightFunctionMaterialProxy->GetIncompleteMaterialWithFallback(Scene->GetFeatureLevel()).IsLightFunction()
 		|| !EngineShowFlags.LightFunctions)
 	{
 		bUseLightFunction = false;
@@ -324,8 +324,8 @@ void RenderDirectLightIntoLumenCards(
 	
 	PermutationVector = FLumenCardDirectLightingPS::RemapPermutation(PermutationVector);
 
-	const FMaterial* Material = LightFunctionMaterialProxy->GetMaterial(Scene->GetFeatureLevel());
-	const FMaterialShaderMap* MaterialShaderMap = Material->GetRenderingThreadShaderMap();
+	const FMaterial& Material = LightFunctionMaterialProxy->GetMaterialWithFallback(Scene->GetFeatureLevel(), LightFunctionMaterialProxy);
+	const FMaterialShaderMap* MaterialShaderMap = Material.GetRenderingThreadShaderMap();
 	auto PixelShader = MaterialShaderMap->GetShader<FLumenCardDirectLightingPS>(PermutationVector);
 
 	const uint32 CardIndirectArgOffset = CardScatterContext.GetIndirectArgOffset(ScatterInstanceIndex);
@@ -334,7 +334,7 @@ void RenderDirectLightIntoLumenCards(
 		RDG_EVENT_NAME("%s %s", *LightName, bDynamicallyShadowed ? TEXT("Shadowmap") : TEXT("")),
 		PassParameters,
 		ERDGPassFlags::Raster,
-		[MaxAtlasSize = LumenSceneData.MaxAtlasSize, PassParameters, LightSceneInfo, VertexShader, PixelShader, GlobalShaderMap = View.ShaderMap, LightFunctionMaterialProxy, Material, &View, CardIndirectArgOffset](FRHICommandListImmediate& RHICmdList)
+		[MaxAtlasSize = LumenSceneData.MaxAtlasSize, PassParameters, LightSceneInfo, VertexShader, PixelShader, GlobalShaderMap = View.ShaderMap, LightFunctionMaterialProxy, &Material, &View, CardIndirectArgOffset](FRHICommandListImmediate& RHICmdList)
 		{
 			DrawQuadsToAtlas(
 				MaxAtlasSize,
@@ -344,9 +344,9 @@ void RenderDirectLightIntoLumenCards(
 				GlobalShaderMap,
 				TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_One>::GetRHI(),
 				RHICmdList,
-				[LightFunctionMaterialProxy, Material, &View](FRHICommandListImmediate& RHICmdList, TShaderRefBase<FLumenCardDirectLightingPS, FShaderMapPointerTable> Shader, FRHIPixelShader* ShaderRHI, const FLumenCardDirectLightingPS::FParameters& Parameters)
+				[LightFunctionMaterialProxy, &Material, &View](FRHICommandListImmediate& RHICmdList, TShaderRefBase<FLumenCardDirectLightingPS, FShaderMapPointerTable> Shader, FRHIPixelShader* ShaderRHI, const FLumenCardDirectLightingPS::FParameters& Parameters)
 				{
-					Shader->SetParameters(RHICmdList, ShaderRHI, LightFunctionMaterialProxy, *Material, View);
+					Shader->SetParameters(RHICmdList, ShaderRHI, LightFunctionMaterialProxy, Material, View);
 				},
 				CardIndirectArgOffset);
 		});

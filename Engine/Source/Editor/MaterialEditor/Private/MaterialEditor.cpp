@@ -251,6 +251,7 @@ void FMatExpressionPreview::NotifyCompilationFinished()
 	{
 		CastChecked<UMaterialGraphNode>(Expression->GraphNode)->bPreviewNeedsUpdate = true;
 	}
+	FMaterialRenderProxy::CacheUniformExpressions_GameThread(true);
 }
 
 /////////////////////
@@ -782,9 +783,8 @@ FMaterialEditor::~FMaterialEditor()
 	MaterialDetailsView.Reset();
 
 	{
-		SCOPED_SUSPEND_RENDERING_THREAD(true);
-	
-		ExpressionPreviews.Empty();
+		//SCOPED_SUSPEND_RENDERING_THREAD(true);
+		FMaterial::DeferredDeleteArray(ExpressionPreviews);
 	}
 	
 	check( !ScopedTransaction );
@@ -3063,9 +3063,9 @@ void FMaterialEditor::AddReferencedObjects( FReferenceCollector& Collector )
 	Collector.AddReferencedObject(EmptyMaterial);
 	Collector.AddReferencedObject(MaterialEditorInstance);
 	Collector.AddReferencedObject(PreviewExpression);
-	for (FMatExpressionPreview& ExpressionPreview : ExpressionPreviews)
+	for (FMatExpressionPreview* ExpressionPreview : ExpressionPreviews)
 	{
-		ExpressionPreview.AddReferencedObjects(Collector);
+		ExpressionPreview->AddReferencedObjects(Collector);
 	}
 }
 
@@ -5917,10 +5917,10 @@ void FMaterialEditor::RefreshExpressionPreviews(bool bForceRefreshAll /*= false*
 	if ( bAlwaysRefreshAllPreviews || bForceRefreshAll)
 	{
 		// we need to make sure the rendering thread isn't drawing these tiles
-		SCOPED_SUSPEND_RENDERING_THREAD(true);
+		//SCOPED_SUSPEND_RENDERING_THREAD(true);
 
 		// Refresh all expression previews.
-		ExpressionPreviews.Empty();
+		FMaterial::DeferredDeleteArray(ExpressionPreviews);
 
 		for (int32 ExpressionIndex = 0; ExpressionIndex < Material->Expressions.Num(); ++ExpressionIndex)
 		{
@@ -5968,11 +5968,12 @@ void FMaterialEditor::RefreshExpressionPreview(UMaterialExpression* MaterialExpr
 	{
 		for( int32 PreviewIndex = 0 ; PreviewIndex < ExpressionPreviews.Num() ; ++PreviewIndex )
 		{
-			FMatExpressionPreview& ExpressionPreview = ExpressionPreviews[PreviewIndex];
-			if( ExpressionPreview.GetExpression() == MaterialExpression )
+			FMatExpressionPreview* ExpressionPreview = ExpressionPreviews[PreviewIndex];
+			if( ExpressionPreview->GetExpression() == MaterialExpression )
 			{
 				// we need to make sure the rendering thread isn't drawing this tile
-				SCOPED_SUSPEND_RENDERING_THREAD(true);
+				//SCOPED_SUSPEND_RENDERING_THREAD(true);
+				FMaterial::DeferredDelete(ExpressionPreview);
 				ExpressionPreviews.RemoveAt( PreviewIndex );
 				MaterialExpression->bNeedToUpdatePreview = false;
 
@@ -5999,13 +6000,13 @@ FMatExpressionPreview* FMaterialEditor::GetExpressionPreview(UMaterialExpression
 	bNewlyCreated = false;
 	if (!MaterialExpression->bHidePreviewWindow && !MaterialExpression->bCollapsed)
 	{
-		FMatExpressionPreview*	Preview = NULL;
+		FMatExpressionPreview* Preview = NULL;
 		for( int32 PreviewIndex = 0 ; PreviewIndex < ExpressionPreviews.Num() ; ++PreviewIndex )
 		{
-			FMatExpressionPreview& ExpressionPreview = ExpressionPreviews[PreviewIndex];
-			if( ExpressionPreview.GetExpression() == MaterialExpression )
+			FMatExpressionPreview* ExpressionPreview = ExpressionPreviews[PreviewIndex];
+			if( ExpressionPreview->GetExpression() == MaterialExpression )
 			{
-				Preview = &ExpressionPreviews[PreviewIndex];
+				Preview = ExpressionPreviews[PreviewIndex];
 				break;
 			}
 		}
@@ -6015,7 +6016,7 @@ FMatExpressionPreview* FMaterialEditor::GetExpressionPreview(UMaterialExpression
 			bNewlyCreated = true;
 			Preview = new FMatExpressionPreview(MaterialExpression);
 			ExpressionPreviews.Add(Preview);
-			Preview->CacheShaders(GMaxRHIShaderPlatform);
+			Preview->CacheShaders(GMaxRHIShaderPlatform, EMaterialShaderPrecompileMode::None);
 		}
 		return Preview;
 	}

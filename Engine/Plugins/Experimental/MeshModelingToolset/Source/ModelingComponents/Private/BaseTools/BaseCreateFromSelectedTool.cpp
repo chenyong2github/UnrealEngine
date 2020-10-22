@@ -79,7 +79,8 @@ void UBaseCreateFromSelectedTool::Setup()
 	TransformProperties = NewObject<UTransformInputsToolProperties>(this);
 	TransformProperties->RestoreProperties(this);
 	AddToolPropertySource(TransformProperties);
-	HandleSourcesProperties = NewObject<UOnAcceptHandleSourcesProperties>(this);
+	
+	HandleSourcesProperties = NewObject<UBaseCreateFromSelectedHandleSourceProperties>(this);
 	HandleSourcesProperties->RestoreProperties(this);
 	AddToolPropertySource(HandleSourcesProperties);
 
@@ -91,6 +92,21 @@ void UBaseCreateFromSelectedTool::Setup()
 	SetTransformGizmos();
 
 	ConvertInputsAndSetPreviewMaterials(true);
+
+	// output name fields
+	HandleSourcesProperties->OutputName = PrefixWithSourceNameIfSingleSelection(GetCreatedAssetName());
+	HandleSourcesProperties->WatchProperty(HandleSourcesProperties->WriteOutputTo, [&](EBaseCreateFromSelectedTargetType NewType)
+	{
+		if (NewType == EBaseCreateFromSelectedTargetType::NewAsset)
+		{
+			HandleSourcesProperties->OutputAsset = TEXT("");
+		}
+		else
+		{
+			int32 Index = (HandleSourcesProperties->WriteOutputTo == EBaseCreateFromSelectedTargetType::FirstInputAsset) ? 0 : ComponentTargets.Num() - 1;
+			HandleSourcesProperties->OutputAsset = AssetGenerationUtil::GetComponentAssetBaseName(ComponentTargets[Index]->GetOwnerComponent(), false);
+		}
+	});
 
 	Preview->InvalidateResult();
 }
@@ -169,7 +185,6 @@ void UBaseCreateFromSelectedTool::GenerateAsset(const FDynamicMeshOpResult& Resu
 {
 	check(Result.Mesh.Get() != nullptr);
 
-
 	FTransform3d NewTransform;
 	if (ComponentTargets.Num() == 1) // in the single-selection case, shove the result back into the original component space
 	{
@@ -201,11 +216,59 @@ void UBaseCreateFromSelectedTool::GenerateAsset(const FDynamicMeshOpResult& Resu
 }
 
 
+
+void UBaseCreateFromSelectedTool::UpdateAsset(const FDynamicMeshOpResult& Result, TUniquePtr<FPrimitiveComponentTarget>& UpdateTarget)
+{
+	check(Result.Mesh.Get() != nullptr);
+
+	FTransform3d TargetToWorld = (FTransform3d)UpdateTarget->GetWorldTransform();
+	FTransform3d WorldToTarget = TargetToWorld.Inverse();
+
+	FTransform3d NewTransform;
+	if (ComponentTargets.Num() == 1) // in the single-selection case, shove the result back into the original component space
+	{
+		MeshTransforms::ApplyTransform(*Result.Mesh, WorldToTarget);
+		UpdateTarget->CommitMesh([&](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
+		{
+			FDynamicMeshToMeshDescription Converter;
+			Converter.Convert(Result.Mesh.Get(), *CommitParams.MeshDescription);
+		});
+	}
+	else // in the multi-selection case, center the pivot for the combined result
+	{
+		FTransform3d ResultTransform = Result.Transform;
+		MeshTransforms::ApplyTransform(*Result.Mesh, ResultTransform);
+		MeshTransforms::ApplyTransform(*Result.Mesh, WorldToTarget);
+
+		UpdateTarget->CommitMesh([&](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
+		{
+			FDynamicMeshToMeshDescription Converter;
+			Converter.Convert(Result.Mesh.Get(), *CommitParams.MeshDescription);
+		});
+
+		//FVector3d Center = Result.Mesh->GetCachedBounds().Center();
+		//double Rescale = Result.Transform.GetScale().X;
+		//FTransform3d LocalTransform(-Center * Rescale);
+		//LocalTransform.SetScale(FVector3d(Rescale, Rescale, Rescale));
+		//MeshTransforms::ApplyTransform(*Result.Mesh, LocalTransform);
+		//NewTransform = Result.Transform;
+		//NewTransform.SetScale(FVector3d::One());
+		//NewTransform.SetTranslation(NewTransform.GetTranslation() + NewTransform.TransformVector(Center * Rescale));
+	}
+
+	FComponentMaterialSet MaterialSet;
+	MaterialSet.Materials = GetOutputMaterials();
+	UpdateTarget->CommitMaterialSetUpdate(MaterialSet, true);
+
+}
+
+
 FString UBaseCreateFromSelectedTool::PrefixWithSourceNameIfSingleSelection(const FString& AssetName) const
 {
 	if (ComponentTargets.Num() == 1)
 	{
-		return FString::Printf(TEXT("%s_%s"), *ComponentTargets[0]->GetOwnerActor()->GetName(), *AssetName);
+		FString CurName = AssetGenerationUtil::GetComponentAssetBaseName(ComponentTargets[0]->GetOwnerComponent());
+		return FString::Printf(TEXT("%s_%s"), *CurName, *AssetName);
 	}
 	else
 	{
@@ -251,14 +314,36 @@ void UBaseCreateFromSelectedTool::Shutdown(EToolShutdownType ShutdownType)
 		GetToolManager()->BeginUndoTransaction(GetActionName());
 
 		// Generate the result
-		GenerateAsset(Result);
+		AActor* KeepActor = nullptr;
+		if (HandleSourcesProperties->WriteOutputTo == EBaseCreateFromSelectedTargetType::NewAsset)
+		{
+			GenerateAsset(Result);
+		}
+		else
+		{
+			int32 TargetIndex = (HandleSourcesProperties->WriteOutputTo == EBaseCreateFromSelectedTargetType::FirstInputAsset) ? 0 : (ComponentTargets.Num() - 1);
+			TUniquePtr<FPrimitiveComponentTarget>& UpdateTarget = ComponentTargets[TargetIndex];
+			KeepActor = UpdateTarget->GetOwnerActor();
+
+			UpdateAsset(Result, ComponentTargets[TargetIndex]);
+		}
 
 		TArray<AActor*> Actors;
 		for (auto& ComponentTarget : ComponentTargets)
 		{
-			Actors.Add(ComponentTarget->GetOwnerActor());
+			AActor* Actor = ComponentTarget->GetOwnerActor();
+			if (Actor != KeepActor)
+			{
+				Actors.Add(ComponentTarget->GetOwnerActor());
+			}
 		}
 		HandleSourcesProperties->ApplyMethod(Actors, GetToolManager());
+
+		if (KeepActor != nullptr)
+		{
+			// select the actor we kept
+			ToolSelectionUtil::SetNewActorSelection(GetToolManager(), KeepActor);
+		}
 
 		GetToolManager()->EndUndoTransaction();
 	}

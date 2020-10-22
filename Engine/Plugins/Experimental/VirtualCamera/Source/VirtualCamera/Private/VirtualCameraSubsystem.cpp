@@ -3,6 +3,7 @@
 #include "VirtualCameraSubsystem.h"
 #include "LevelSequencePlaybackController.h"
 #include "Engine/Selection.h"
+#include "GameFramework/Actor.h"
 
 UVirtualCameraSubsystem::UVirtualCameraSubsystem()
 	: bIsStreaming(false)

@@ -48,6 +48,8 @@ public:
 
 	HRESULT STDMETHODCALLTYPE OnDefaultDeviceChanged(EDataFlow InFlow, ERole InRole, LPCWSTR pwstrDeviceId) override
 	{
+		FScopeLock ScopeLock(&ListenerArrayMutationLock);
+
 		if (Audio::IAudioMixer::ShouldLogDeviceSwaps())
 		{
 			UE_LOG(LogAudioMixer, Warning, TEXT("OnDefaultDeviceChanged: %d, %d, %s"), InFlow, InRole, pwstrDeviceId);
@@ -102,6 +104,8 @@ public:
 
 	HRESULT STDMETHODCALLTYPE OnDeviceAdded(LPCWSTR pwstrDeviceId) override
 	{
+		FScopeLock ScopeLock(&ListenerArrayMutationLock);
+
 		if (Audio::IAudioMixer::ShouldLogDeviceSwaps())
 		{
 			UE_LOG(LogAudioMixer, Warning, TEXT("OnDeviceAdded: %s"), pwstrDeviceId);
@@ -121,6 +125,8 @@ public:
 
 	HRESULT STDMETHODCALLTYPE OnDeviceRemoved(LPCWSTR pwstrDeviceId) override
 	{
+		FScopeLock ScopeLock(&ListenerArrayMutationLock);
+
 		if (Audio::IAudioMixer::ShouldLogDeviceSwaps())
 		{
 			UE_LOG(LogAudioMixer, Warning, TEXT("OnDeviceRemoved: %s"), pwstrDeviceId);
@@ -140,6 +146,8 @@ public:
 
 	HRESULT STDMETHODCALLTYPE OnDeviceStateChanged(LPCWSTR pwstrDeviceId, DWORD dwNewState) override
 	{
+		FScopeLock ScopeLock(&ListenerArrayMutationLock);
+
 		if (Audio::IAudioMixer::ShouldLogDeviceSwaps())
 		{
 			UE_LOG(LogAudioMixer, Warning, TEXT("OnDeviceStateChanged: %s, %d"), pwstrDeviceId, dwNewState);
@@ -176,6 +184,8 @@ public:
 
 	HRESULT STDMETHODCALLTYPE OnPropertyValueChanged(LPCWSTR pwstrDeviceId, const PROPERTYKEY key)
 	{
+		FScopeLock ScopeLock(&ListenerArrayMutationLock);
+
 		if (Audio::IAudioMixer::ShouldLogDeviceSwaps())
 		{
 			UE_LOG(LogAudioMixer, Warning, TEXT("OnPropertyValueChanged: %s, %d"), pwstrDeviceId, key.pid);
@@ -224,17 +234,20 @@ public:
 
 	void RegisterDeviceChangedListener(Audio::IAudioMixerDeviceChangedLister* DeviceChangedListener)
 	{
+		FScopeLock ScopeLock(&ListenerArrayMutationLock);
 		Listeners.Add(DeviceChangedListener);
 	}
 
 	void UnRegisterDeviceDeviceChangedListener(Audio::IAudioMixerDeviceChangedLister* DeviceChangedListener)
 	{
+		FScopeLock ScopeLock(&ListenerArrayMutationLock);
 		Listeners.Remove(DeviceChangedListener);
 	}
 
 private:
 	LONG Ref;
 	TSet<Audio::IAudioMixerDeviceChangedLister*> Listeners;
+	FCriticalSection ListenerArrayMutationLock;
 	IMMDeviceEnumerator* DeviceEnumerator;
 	bool bComInitialized;
 };

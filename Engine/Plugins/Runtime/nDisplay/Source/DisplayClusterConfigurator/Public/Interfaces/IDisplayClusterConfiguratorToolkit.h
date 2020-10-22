@@ -54,10 +54,6 @@ public:
 
 	virtual void UnregisterOnInvalidateViews(FDelegateHandle DelegateHandle) = 0;
 
-	virtual FDelegateHandle RegisterOnClearViewportSelection(const FOnClearViewportSelectionDelegate& Delegate) = 0;
-
-	virtual void UnregisterOnClearViewportSelection(FDelegateHandle DelegateHandle) = 0;
-
 	virtual TSharedRef<IDisplayClusterConfiguratorViewOutputMapping> GetViewOutputMapping() const = 0;
 
 	virtual TSharedRef<IDisplayClusterConfiguratorViewTree> GetViewCluster() const = 0;

@@ -2962,6 +2962,11 @@ void USkinnedMeshComponent::SetSyncLOD(int32 LODIndex)
 	SetForcedLOD(LODIndex + 1);
 }
 
+int32 USkinnedMeshComponent::GetCurrentSyncLOD() const
+{
+	return GetForcedLOD() - 1; // Weird API for forced LOD where 0 means auto, 1 means force to 0 etc
+}
+
 int32 USkinnedMeshComponent::GetNumSyncLODs() const
 {
 	return GetNumLODs();

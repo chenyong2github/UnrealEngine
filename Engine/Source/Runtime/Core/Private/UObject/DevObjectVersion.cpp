@@ -31,6 +31,7 @@
 #include "UObject/VirtualProductionObjectVersion.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
 #include "UObject/UE5CookerObjectVersion.h"
+#include "UObject/MediaFrameWorkObjectVersion.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogDevObjectVersion, Log, All);
 
@@ -206,3 +207,10 @@ FDevVersionRegistration GRegisterUE5MainStreamObjectVersion(FUE5MainStreamObject
 const FGuid FUE5CookerObjectVersion::GUID(0x26075A32, 0x730F4708, 0x88E98C32, 0xF1599D05);
 // Register Cooker custom version with Core
 FDevVersionRegistration GRegisterCookerObjectVersion(FUE5CookerObjectVersion::GUID, FUE5CookerObjectVersion::LatestVersion, TEXT("UE5-Dev-Cooker"));
+
+// Unique MediaFramework Object version id
+const FGuid FMediaFrameworkObjectVersion::GUID(0x6f0ed827, 0xa6094895, 0x9c91998d, 0x90180ea4);
+// Register MediaFramework custom version with Core
+FDevVersionRegistration GRegisterMediaFrameworkObjectVersion(FMediaFrameworkObjectVersion::GUID, FMediaFrameworkObjectVersion::LatestVersion, TEXT("Dev-MediaFramework"));
+
+

@@ -7,6 +7,7 @@
 #include "OnlineLeaderboardsEOS.h"
 #include "OnlineAchievementsEOS.h"
 #include "OnlineStoreEOS.h"
+#include "EOSSettings.h"
 
 #include "Misc/NetworkVersion.h"
 
@@ -40,6 +41,11 @@ void* EOS_CALL EOSRealloc(void* Ptr, size_t Size, size_t Alignment)
 
 void EOS_CALL EOSLog(const EOS_LogMessage* InMsg)
 {
+	if (GLog == nullptr)
+	{
+		return;
+	}
+
 	switch (InMsg->Level)
 	{
 		case EOS_ELogLevel::EOS_LOG_Fatal:
@@ -147,41 +153,45 @@ void FOnlineSubsystemEOS::ModuleInit()
 
 }
 
-bool FOnlineSubsystemEOS::Init()
+bool FOnlineSubsystemEOS::DeferredInit()
 {
-	FString ClientId;
-	FString ClientSecret;
-	FString ProductId;
-	FString SandboxId;
-	FString DeploymentId;
-	FString EncryptionKey;
-
-	// Pull values off the command line
-	FParse::Value(FCommandLine::Get(), TEXT("ClientId="), ClientId);
-	FParse::Value(FCommandLine::Get(), TEXT("ClientSecret="), ClientSecret);
-	FParse::Value(FCommandLine::Get(), TEXT("ProductId="), ProductId);
-	FParse::Value(FCommandLine::Get(), TEXT("SandboxId="), SandboxId);
-	FParse::Value(FCommandLine::Get(), TEXT("DeploymentId="), DeploymentId);
-	FParse::Value(FCommandLine::Get(), TEXT("EncryptionKey="), EncryptionKey);
+	FString ArtifactName;
+	FParse::Value(FCommandLine::Get(), TEXT("EpicApp="), ArtifactName);
+	const UEOSSettings* EOSSettings = GetDefault<UEOSSettings>();
+	// Find the settings for this artifact
+	const UEOSArtifactSettings* ArtifactSettings = EOSSettings->GetSettingsForArtifact(ArtifactName);
+	if (ArtifactSettings == nullptr)
+	{
+		UE_LOG_ONLINE(Error, TEXT("FOnlineSubsystemEOS::DeferredInit() failed to find artifact settings object for artifact (%s)"), *ArtifactName);
+		return false;
+	}
 
 	// Check for being launched by EGS
 	bWasLaunchedByEGS = FParse::Param(FCommandLine::Get(), TEXT("EpicPortal"));
 
 	// Create platform instance
 	FEOSPlatformOptions PlatformOptions;
-	FCStringAnsi::Strncpy(PlatformOptions.ClientIdAnsi, TCHAR_TO_UTF8(*ClientId), EOS_OSS_STRING_BUFFER_LENGTH);
-	FCStringAnsi::Strncpy(PlatformOptions.ClientSecretAnsi, TCHAR_TO_UTF8(*ClientSecret), EOS_OSS_STRING_BUFFER_LENGTH);
-	FCStringAnsi::Strncpy(PlatformOptions.ProductIdAnsi, TCHAR_TO_UTF8(*ProductId), EOS_OSS_STRING_BUFFER_LENGTH);
-	FCStringAnsi::Strncpy(PlatformOptions.SandboxIdAnsi, TCHAR_TO_UTF8(*SandboxId), EOS_OSS_STRING_BUFFER_LENGTH);
-	FCStringAnsi::Strncpy(PlatformOptions.DeploymentIdAnsi, TCHAR_TO_UTF8(*DeploymentId), EOS_OSS_STRING_BUFFER_LENGTH);
+	FCStringAnsi::Strncpy(PlatformOptions.ClientIdAnsi, TCHAR_TO_UTF8(*ArtifactSettings->ClientId), EOS_OSS_STRING_BUFFER_LENGTH);
+	FCStringAnsi::Strncpy(PlatformOptions.ClientSecretAnsi, TCHAR_TO_UTF8(*ArtifactSettings->ClientSecret), EOS_OSS_STRING_BUFFER_LENGTH);
+	FCStringAnsi::Strncpy(PlatformOptions.ProductIdAnsi, TCHAR_TO_UTF8(*ArtifactSettings->ProductId), EOS_OSS_STRING_BUFFER_LENGTH);
+	FCStringAnsi::Strncpy(PlatformOptions.SandboxIdAnsi, TCHAR_TO_UTF8(*ArtifactSettings->SandboxId), EOS_OSS_STRING_BUFFER_LENGTH);
+	FCStringAnsi::Strncpy(PlatformOptions.DeploymentIdAnsi, TCHAR_TO_UTF8(*ArtifactSettings->DeploymentId), EOS_OSS_STRING_BUFFER_LENGTH);
 	PlatformOptions.bIsServer = IsRunningDedicatedServer() ? EOS_TRUE : EOS_FALSE;
 	PlatformOptions.Reserved = nullptr;
-	PlatformOptions.Flags = IsRunningGame() ? 0 : EOS_PF_DISABLE_OVERLAY;
+	uint64 OverlayFlags = 0;
+	if (!EOSSettings->bEnableOverlay)
+	{
+		OverlayFlags |= EOS_PF_DISABLE_OVERLAY;
+	}
+	if (!EOSSettings->bEnableSocialOverlay)
+	{
+		OverlayFlags |= EOS_PF_DISABLE_SOCIAL_OVERLAY;
+	}
+	PlatformOptions.Flags = IsRunningGame() ? OverlayFlags : EOS_PF_DISABLE_OVERLAY;
 	// Make the cache directory be in the user's writable area
-	FString CacheDir = FPlatformProcess::UserDir();
-	CacheDir /= TEXT("CacheDirectory");
+	FString CacheDir = FPlatformProcess::UserDir() / ArtifactName / EOSSettings->CacheDir;
 	FCStringAnsi::Strncpy(PlatformOptions.CacheDirectoryAnsi, TCHAR_TO_UTF8(*CacheDir), EOS_OSS_STRING_BUFFER_LENGTH);
-	FCStringAnsi::Strncpy(PlatformOptions.EncryptionKeyAnsi, TCHAR_TO_UTF8(*EncryptionKey), EOS_ENCRYPTION_KEY_MAX_BUFFER_LEN);
+	FCStringAnsi::Strncpy(PlatformOptions.EncryptionKeyAnsi, TCHAR_TO_UTF8(*ArtifactSettings->EncryptionKey), EOS_ENCRYPTION_KEY_MAX_BUFFER_LEN);
 
 	EOSPlatformHandle = EOS_Platform_Create(&PlatformOptions);
 	if (EOSPlatformHandle == nullptr)
@@ -313,6 +323,7 @@ bool FOnlineSubsystemEOS::Shutdown()
 	DESTRUCT_INTERFACE(StatsInterfacePtr);
 	DESTRUCT_INTERFACE(LeaderboardsInterfacePtr);
 	DESTRUCT_INTERFACE(AchievementsInterfacePtr);
+	DESTRUCT_INTERFACE(StoreInterfacePtr);
 
 #undef DESTRUCT_INTERFACE
 
@@ -321,9 +332,9 @@ bool FOnlineSubsystemEOS::Shutdown()
 
 bool FOnlineSubsystemEOS::Tick(float DeltaTime)
 {
-	if (EOSPlatformHandle == nullptr || !SessionInterfacePtr.IsValid())
+	if (EOSPlatformHandle == nullptr)
 	{
-		return false;
+			return false;
 	}
 	{
 		FScopeCycleCounter Scope(GET_STATID(STAT_EOS_Tick), true);
@@ -344,7 +355,16 @@ bool FOnlineSubsystemEOS::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice&
 	{
 		return true;
 	}
-	return false;
+
+	bool bWasHandled = false;
+	if (FParse::Command(&Cmd, TEXT("EOS")))
+	{
+		if (StoreInterfacePtr != nullptr && FParse::Command(&Cmd, TEXT("ECOM")))
+		{
+			bWasHandled = StoreInterfacePtr->HandleEcomExec(InWorld, Cmd, Ar);
+		}
+	}
+	return bWasHandled;
 }
 
 FString FOnlineSubsystemEOS::GetAppId() const
@@ -418,8 +438,7 @@ IOnlineStoreV2Ptr FOnlineSubsystemEOS::GetStoreV2Interface() const
 
 IOnlinePurchasePtr FOnlineSubsystemEOS::GetPurchaseInterface() const
 {
-	UE_LOG_ONLINE(Error, TEXT("Purchase Interface Requested"));
-	return nullptr;
+	return StoreInterfacePtr;
 }
 
 IOnlineAchievementsPtr FOnlineSubsystemEOS::GetAchievementsInterface() const

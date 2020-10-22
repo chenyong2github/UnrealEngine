@@ -24,10 +24,13 @@ static float GHairVoxelizationAABBScale = 1.0f;
 static FAutoConsoleVariableRef CVarHairVoxelizationAABBScale(TEXT("r.HairStrands.Voxelization.AABBScale"), GHairVoxelizationAABBScale, TEXT("Scale the hair macro group bounding box"));
 
 static float GHairVoxelizationDensityScale = 2.0f;
-static float GHairVoxelizationDepthBiasScale_Light = 3.0f;
+static float GHairVoxelizationDepthBiasScale_Shadow = 2.0f;
+static float GHairVoxelizationDepthBiasScale_Transmittance = 3.0f;
 static float GHairVoxelizationDepthBiasScale_Environment = 1.8f;
 static FAutoConsoleVariableRef CVarHairVoxelizationDensityScale(TEXT("r.HairStrands.Voxelization.DensityScale"), GHairVoxelizationDensityScale, TEXT("Scale the hair density when computing voxel transmittance. Default value is 2 (arbitraty)"));
-static FAutoConsoleVariableRef CVarHairVoxelizationDepthBiasScale_Light(TEXT("r.HairStrands.Voxelization.DepthBiasScale.Light"), GHairVoxelizationDepthBiasScale_Light, TEXT("Set depth bias for voxel ray marching for analyticaly light. Offset the origin position towards the light"));
+static FAutoConsoleVariableRef CVarHairVoxelizationDepthBiasScale_Shadow(TEXT("r.HairStrands.Voxelization.DepthBiasScale.Shadow"), GHairVoxelizationDepthBiasScale_Shadow, TEXT("Set depth bias for voxel ray marching for analyticaly light. Offset the origin position towards the light for shadow computation"));
+static FAutoConsoleVariableRef CVarHairVoxelizationDepthBiasScale_Light(TEXT("r.HairStrands.Voxelization.DepthBiasScale.Light"), GHairVoxelizationDepthBiasScale_Transmittance, TEXT("Set depth bias for voxel ray marching for analyticaly light. Offset the origin position towards the light for transmittance computation"));
+static FAutoConsoleVariableRef CVarHairVoxelizationDepthBiasScale_Transmittance(TEXT("r.HairStrands.Voxelization.DepthBiasScale.Transmittance"), GHairVoxelizationDepthBiasScale_Transmittance, TEXT("Set depth bias for voxel ray marching for analyticaly light. Offset the origin position towards the light for transmittance computation"));
 static FAutoConsoleVariableRef CVarHairVoxelizationDepthBiasScale_Environment(TEXT("r.HairStrands.Voxelization.DepthBiasScale.Environment"), GHairVoxelizationDepthBiasScale_Environment, TEXT("Set depth bias for voxel ray marching for environement lights. Offset the origin position towards the light"));
 
 static int32 GHairVoxelInjectOpaqueDepthEnable = 1;
@@ -39,10 +42,19 @@ static FAutoConsoleVariableRef CVarHairStransVoxelInjectOpaqueBiasCount(TEXT("r.
 static FAutoConsoleVariableRef CVarHairStransVoxelInjectOpaqueMarkCount(TEXT("r.HairStrands.Voxelization.InjectOpaque.MarkCount"), GHairStransVoxelInjectOpaqueMarkCount, TEXT("Number of voxel marked as opaque starting along the view direction beneath the opaque surface."));
 
 static float GHairStransVoxelRaymarchingSteppingScale = 1.15f;
-static FAutoConsoleVariableRef CVarHairStransVoxelRaymarchingSteppingScale(TEXT("r.HairStrands.Voxelization.Raymarching.SteppingScale"), GHairStransVoxelRaymarchingSteppingScale, TEXT("Stepping scale used for raymarching the voxel structure."));
+static float GHairStransVoxelRaymarchingSteppingScale_Shadow = -1;
+static float GHairStransVoxelRaymarchingSteppingScale_Transmittance = -1;
+static float GHairStransVoxelRaymarchingSteppingScale_Environment = -1;
+static float GHairStransVoxelRaymarchingSteppingScale_Raytracing = -1;
+static FAutoConsoleVariableRef CVarHairStransVoxelRaymarchingSteppingScale(TEXT("r.HairStrands.Voxelization.Raymarching.SteppingScale"), GHairStransVoxelRaymarchingSteppingScale, TEXT("Stepping scale used for raymarching the voxel structure for shadow."));
+static FAutoConsoleVariableRef CVarHairStransVoxelRaymarchingSteppingScale_Shadow(TEXT("r.HairStrands.Voxelization.Raymarching.SteppingScale.Shadow"), GHairStransVoxelRaymarchingSteppingScale_Shadow, TEXT("Stepping scale used for raymarching the voxel structure, override scale for shadow (default -1)."));
+static FAutoConsoleVariableRef CVarHairStransVoxelRaymarchingSteppingScale_Transmittance(TEXT("r.HairStrands.Voxelization.Raymarching.SteppingScale.Transmission"), GHairStransVoxelRaymarchingSteppingScale_Transmittance, TEXT("Stepping scale used for raymarching the voxel structure, override scale for transmittance (default -1)."));
+static FAutoConsoleVariableRef CVarHairStransVoxelRaymarchingSteppingScale_Environment(TEXT("r.HairStrands.Voxelization.Raymarching.SteppingScale.Environment"), GHairStransVoxelRaymarchingSteppingScale_Environment, TEXT("Stepping scale used for raymarching the voxel structure, override scale for env. lighting (default -1)."));
+static FAutoConsoleVariableRef CVarHairStransVoxelRaymarchingSteppingScale_Raytracing(TEXT("r.HairStrands.Voxelization.Raymarching.SteppingScale.Raytracing"), GHairStransVoxelRaymarchingSteppingScale_Raytracing, TEXT("Stepping scale used for raymarching the voxel structure, override scale for raytracing (default -1)."));
 
 static float GetHairStrandsVoxelizationDensityScale() { return FMath::Max(0.0f, GHairVoxelizationDensityScale); }
-static float GetHairStrandsVoxelizationDepthBiasScale_Light() { return FMath::Max(0.0f, GHairVoxelizationDepthBiasScale_Light); }
+static float GetHairStrandsVoxelizationDepthBiasScale_Shadow() { return FMath::Max(0.0f, GHairVoxelizationDepthBiasScale_Shadow); }
+static float GetHairStrandsVoxelizationDepthBiasScale_Transmittance() { return FMath::Max(0.0f, GHairVoxelizationDepthBiasScale_Transmittance); }
 static float GetHairStrandsVoxelizationDepthBiasScale_Environment() { return FMath::Max(0.0f, GHairVoxelizationDepthBiasScale_Environment); }
 
 static int32 GHairForVoxelTransmittanceAndShadow = 0;
@@ -216,7 +228,7 @@ class FVoxelMarkValidPageIndex_PrepareCS : public FGlobalShader
 		SHADER_PARAMETER_SRV(Buffer, ClusterAABBsBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, MacroGroupAABBBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, PageIndexResolutionAndOffsetBuffer)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(Buffer<uint>, OutValidPageIndexBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, OutValidPageIndexBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, OutDeferredScatterCounter)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint2>, OutDeferredScatterBuffer)
 	END_SHADER_PARAMETER_STRUCT()
@@ -289,7 +301,7 @@ class FVoxelMarkValidPageIndexCS : public FGlobalShader
 		SHADER_PARAMETER_SRV(Buffer, ClusterAABBsBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, MacroGroupAABBBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, PageIndexResolutionAndOffsetBuffer)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(Buffer<uint>, OutValidPageIndexBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, OutValidPageIndexBuffer)
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
@@ -390,7 +402,7 @@ class FVoxelIndPageClearBufferGenCS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, PageIndexGlobalCounter)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(Buffer, OutIndirectArgsBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, OutIndirectArgsBuffer)
 		SHADER_PARAMETER(uint32, PageResolution)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -410,7 +422,7 @@ class FVoxelIndPageClearCS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT(FVirtualVoxelCommonParameters, VirtualVoxelParams)
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(Texture3D, OutPageTexture)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D, OutPageTexture)
 		SHADER_PARAMETER_RDG_BUFFER(Buffer, IndirectDispatchBuffer)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -816,9 +828,15 @@ FVirtualVoxelResources AllocateVirtualVoxelResources(
 	Out.Parameters.Common.PageResolution			= FMath::RoundUpToPowerOfTwo(FMath::Clamp(GHairVirtualVoxel_PageResolution, 2, 256));
 	Out.Parameters.Common.PageTextureResolution		= Out.Parameters.Common.PageCountResolution * Out.Parameters.Common.PageResolution;
 	Out.Parameters.Common.DensityScale				= GetHairStrandsVoxelizationDensityScale();
-	Out.Parameters.Common.DepthBiasScale_Light		= GetHairStrandsVoxelizationDepthBiasScale_Light();
+	Out.Parameters.Common.DepthBiasScale_Shadow		= GetHairStrandsVoxelizationDepthBiasScale_Shadow();
+	Out.Parameters.Common.DepthBiasScale_Transmittance= GetHairStrandsVoxelizationDepthBiasScale_Transmittance();
 	Out.Parameters.Common.DepthBiasScale_Environment= GetHairStrandsVoxelizationDepthBiasScale_Environment();
-	Out.Parameters.Common.SteppingScale				= FMath::Clamp(GHairStransVoxelRaymarchingSteppingScale, 1.f, 10.f);
+
+	Out.Parameters.Common.SteppingScale_Shadow		  = FMath::Clamp(GHairStransVoxelRaymarchingSteppingScale_Shadow			>= 0 ? GHairStransVoxelRaymarchingSteppingScale_Shadow			: GHairStransVoxelRaymarchingSteppingScale, 1.f, 10.f);
+	Out.Parameters.Common.SteppingScale_Transmittance = FMath::Clamp(GHairStransVoxelRaymarchingSteppingScale_Transmittance		>= 0 ? GHairStransVoxelRaymarchingSteppingScale_Transmittance	: GHairStransVoxelRaymarchingSteppingScale, 1.f, 10.f);
+	Out.Parameters.Common.SteppingScale_Environment	  = FMath::Clamp(GHairStransVoxelRaymarchingSteppingScale_Environment		>= 0 ? GHairStransVoxelRaymarchingSteppingScale_Environment		: GHairStransVoxelRaymarchingSteppingScale, 1.f, 10.f);
+	Out.Parameters.Common.SteppingScale_Raytracing	  = FMath::Clamp(GHairStransVoxelRaymarchingSteppingScale_Raytracing		>= 0 ? GHairStransVoxelRaymarchingSteppingScale_Raytracing		: GHairStransVoxelRaymarchingSteppingScale, 1.f, 10.f);
+
 	Out.Parameters.Common.NodeDescCount				= MacroGroups.Datas.Num();
 	Out.Parameters.Common.IndirectDispatchGroupSize = 64;	
 	Out.Parameters.Common.Raytracing_ShadowOcclusionThreshold	= FMath::Max(0.f, GHairVirtualVoxelRaytracing_ShadowOcclusionThreshold);

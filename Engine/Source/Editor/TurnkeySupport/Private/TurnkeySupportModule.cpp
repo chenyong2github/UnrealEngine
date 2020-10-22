@@ -780,7 +780,7 @@ static void MakeTurnkeyPlatformMenu(FMenuBuilder& MenuBuilder, FName IniPlatform
 		TArray<TSharedPtr<ITargetDeviceProxy>> DeviceProxies;
 		TargetDeviceServicesModule->GetDeviceProxyManager()->GetAllProxies(IniPlatformName, DeviceProxies);
 
-		for (const TSharedPtr<ITargetDeviceProxy> Proxy : DeviceProxies)
+		for (const TSharedPtr<ITargetDeviceProxy>& Proxy : DeviceProxies)
 		{
 			FString DeviceName = Proxy->GetName();
 			FString DeviceId = Proxy->GetTargetDeviceId(NAME_None);
@@ -1098,7 +1098,7 @@ TSharedRef<SWidget> FTurnkeySupportModule::MakeTurnkeyMenu() const
 
 	MenuBuilder.BeginSection("LevelEditorLaunchDevices", LOCTEXT("TurnkeySection_LaunchButtonDevices", "Quick Launch"));
 	{
-		for (const auto Pair : FDataDrivenPlatformInfoRegistry::GetAllPlatformInfos())
+		for (const auto& Pair : FDataDrivenPlatformInfoRegistry::GetAllPlatformInfos())
 		{
 			if (Pair.Value.bIsFakePlatform)
 			{
@@ -1145,7 +1145,7 @@ TSharedRef<SWidget> FTurnkeySupportModule::MakeTurnkeyMenu() const
 							TArray<TSharedPtr<ITargetDeviceProxy>> DeviceProxies;
 							TargetDeviceServicesModule->GetDeviceProxyManager()->GetAllProxies(PlatformName, DeviceProxies);
 							// for each one, put an entry (even the one that was in the outer menu, for less confusion)
-							for (const TSharedPtr<ITargetDeviceProxy> Proxy : DeviceProxies)
+							for (const TSharedPtr<ITargetDeviceProxy>& Proxy : DeviceProxies)
 							{
 								FUIAction SubAction;
 								FText SubTooltip;
@@ -1171,7 +1171,7 @@ TSharedRef<SWidget> FTurnkeySupportModule::MakeTurnkeyMenu() const
 
 				ITurnkeySupportModule& TurnkeySupport = ITurnkeySupportModule::Get();
 				// gath	er any unknown status devices to query at the end
-				for (const TSharedPtr<ITargetDeviceProxy> Proxy : DeviceProxies)
+				for (const TSharedPtr<ITargetDeviceProxy>& Proxy : DeviceProxies)
 				{
 					FString DeviceId = Proxy->GetTargetDeviceId(NAME_None);
 					if (TurnkeySupport.GetSdkInfoForDeviceId(DeviceId).Status == ETurnkeyPlatformSdkStatus::Unknown)

@@ -412,8 +412,21 @@ TSharedPtr<IDatasmithActorElement> FDatasmithDeltaGenImporter::ConvertNode(const
 		LightActor->SetColor(Light->DiffuseColor);
 		LightActor->SetTemperature(Light->Temperature);
 		LightActor->SetUseTemperature(Light->UseTemperature);
-		LightActor->SetIesFile(*Light->IESPath);
 		LightActor->SetUseIes(Light->UseIESProfile);
+		if (Light->UseIESProfile && !Light->IESPath.IsEmpty())
+		{
+			// Create IES texture
+			const FString BaseFilename = FPaths::GetBaseFilename(Light->IESPath);
+			FString TextureName = FDatasmithUtils::SanitizeObjectName(BaseFilename + TEXT("_IES"));
+			TSharedPtr<IDatasmithTextureElement> Texture = FDatasmithSceneFactory::CreateTexture(*TextureName);
+			Texture->SetTextureMode(EDatasmithTextureMode::Ies);
+			Texture->SetLabel(*BaseFilename);
+			Texture->SetFile(*Light->IESPath);
+			DatasmithScene->AddTexture(Texture);
+
+			// Assign IES texture to light
+			LightActor->SetIesTexturePathName(*TextureName);
+		}
 
 		ActorElement = LightActor;
 	}

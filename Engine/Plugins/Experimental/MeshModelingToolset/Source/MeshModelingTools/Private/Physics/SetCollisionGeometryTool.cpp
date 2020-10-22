@@ -151,7 +151,7 @@ void USetCollisionGeometryTool::Shutdown(EToolShutdownType ShutdownType)
 		TUniquePtr<FPrimitiveComponentTarget>& CollisionTarget = ComponentTargets[ComponentTargets.Num() - 1];
 		UStaticMeshComponent* StaticMeshComponent = CastChecked<UStaticMeshComponent>(CollisionTarget->GetOwnerComponent());
 		UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh();
-		UBodySetup* BodySetup = StaticMesh->BodySetup;
+		UBodySetup* BodySetup = StaticMesh->GetBodySetup();
 
 		// mark the BodySetup for modification. Do we need to modify the UStaticMesh??
 		BodySetup->Modify();

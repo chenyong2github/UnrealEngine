@@ -130,12 +130,12 @@ namespace Chaos
 			}
 			if (bIgnoreAnalyticCollisions)
 			{
-				Implicit->SetCollsionType(Chaos::ImplicitObjectType::LevelSet);
+				Implicit->SetCollisionType(Chaos::ImplicitObjectType::LevelSet);
 				//Implicit->SetConvex(false);
 			}
 			else
 			{
-				Implicit->SetCollsionType(Implicit->GetType());
+				Implicit->SetCollisionType(Implicit->GetType());
 				// @todo (mlentine): Need to in theory set convex properly here
 			}
 		}

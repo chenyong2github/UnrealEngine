@@ -118,6 +118,9 @@ struct CORE_API FReleaseObjectVersion
 		// Serialized rigvm offset segment paths
 		SerializeRigVMOffsetSegmentPaths,
 
+		// Upgrade AbcGeomCacheImportSettings for velocities
+		AbcVelocitiesSupport,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

@@ -187,10 +187,8 @@ void FRendererModule::DrawTileMesh(FRHICommandListImmediate& RHICmdList, FMeshPa
 			View.MobileDirectionalLightUniformBuffers[0] = TUniformBufferRef<FMobileDirectionalLightShaderParameters>::CreateUniformBufferImmediate(FMobileDirectionalLightShaderParameters(), UniformBuffer_SingleFrame);
 		}
 
-		const FMaterial* Material = Mesh.MaterialRenderProxy->GetMaterial(FeatureLevel);
-
 		//get the blend mode of the material
-		const EBlendMode MaterialBlendMode = Material->GetBlendMode();
+		const EBlendMode MaterialBlendMode = Mesh.MaterialRenderProxy->GetIncompleteMaterialWithFallback(FeatureLevel).GetBlendMode();
 
 		GSystemTextures.InitializeTextures(RHICmdList, FeatureLevel);
 		FMemMark Mark(FMemStack::Get());

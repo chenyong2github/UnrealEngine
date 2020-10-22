@@ -71,15 +71,26 @@ void UMenuAnchor::HandleMenuOpenChanged(bool bIsOpen)
 TSharedRef<SWidget> UMenuAnchor::HandleGetMenuContent()
 {
 	TSharedPtr<SWidget> SlateMenuWidget;
-
-	if ( OnGetMenuContentEvent.IsBound() )
+	
+	if ( OnGetUserMenuContentEvent.IsBound() )
 	{
+		UWidget* MenuWidget = OnGetUserMenuContentEvent.Execute();
+		if ( MenuWidget )
+		{
+			SlateMenuWidget = MenuWidget->TakeWidget();
+		}
+	}
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	else if ( OnGetMenuContentEvent.IsBound() )
+	{
+		// Remove when OnGetMenuContentEvent is fully deprecated.
 		UWidget* MenuWidget = OnGetMenuContentEvent.Execute();
 		if ( MenuWidget )
 		{
 			SlateMenuWidget = MenuWidget->TakeWidget();
 		}
 	}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	else
 	{
 		if ( MenuClass != nullptr && !MenuClass->HasAnyClassFlags(CLASS_Abstract) )

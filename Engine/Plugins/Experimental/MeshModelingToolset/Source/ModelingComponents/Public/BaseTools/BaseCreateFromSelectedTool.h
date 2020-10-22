@@ -36,6 +36,40 @@ public:
 };
 
 
+UENUM()
+enum class EBaseCreateFromSelectedTargetType
+{
+	/** Create a new asset containing the result mesh */
+	NewAsset,
+	/** Store the result mesh in the first selected input asset */
+	FirstInputAsset,
+	/** Store the result mesh in the last selected input asset */
+	LastInputAsset
+};
+
+
+UCLASS()
+class MODELINGCOMPONENTS_API UBaseCreateFromSelectedHandleSourceProperties : public UOnAcceptHandleSourcesProperties
+{
+	GENERATED_BODY()
+public:
+	/** Where should the output mesh produced by this operation be stored */
+	UPROPERTY(EditAnywhere, Category = ToolOutputOptions)
+	EBaseCreateFromSelectedTargetType WriteOutputTo = EBaseCreateFromSelectedTargetType::NewAsset;
+
+	/** Base name for newly-generated asset */
+	UPROPERTY(EditAnywhere, Category = ToolOutputOptions, meta = (TransientToolProperty, EditCondition = "WriteOutputTo == EBaseCreateFromSelectedTargetType::NewAsset", EditConditionHides))
+	FString OutputName;
+
+	/** Name of asset that will be updated */
+	UPROPERTY(VisibleAnywhere, Category = ToolOutputOptions, meta = (TransientToolProperty, EditCondition = "WriteOutputTo != EBaseCreateFromSelectedTargetType::NewAsset", EditConditionHides))
+	FString OutputAsset;
+};
+
+
+
+
+
 /**
  * Properties of UI to adjust input meshes
  */
@@ -144,14 +178,16 @@ protected:
 	// Helper to generate assets when a result is accepted; typically does not need to be overloaded
 	virtual void GenerateAsset(const FDynamicMeshOpResult& Result);
 
-	
+	// Helper to generate assets when a result is accepted; typically does not need to be overloaded
+	virtual void UpdateAsset(const FDynamicMeshOpResult& Result, TUniquePtr<FPrimitiveComponentTarget>& Target);
+
 protected:
 
 	UPROPERTY()
 	UTransformInputsToolProperties* TransformProperties;
 
 	UPROPERTY()
-	UOnAcceptHandleSourcesProperties* HandleSourcesProperties;
+	UBaseCreateFromSelectedHandleSourceProperties* HandleSourcesProperties;
 
 	UPROPERTY()
 	UMeshOpPreviewWithBackgroundCompute* Preview;

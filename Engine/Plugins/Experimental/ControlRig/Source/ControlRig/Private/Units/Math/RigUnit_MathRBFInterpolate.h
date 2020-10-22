@@ -181,7 +181,7 @@ struct FMathRBFInterpolateQuatFloat_Target
 	float Value = 0.0f;
 };
 
-USTRUCT(meta = (DisplayName="Quaternion to Float", PrototypeName="RBFInterpolateQuatToFloat"))
+USTRUCT(meta = (Abstract, DisplayName="Quaternion to Float", PrototypeName="RBFInterpolateQuatToFloat"))
 struct FRigUnit_MathRBFInterpolateQuatFloat : 
 	public FRigUnit_MathRBFInterpolateQuatBase
 {
@@ -210,7 +210,7 @@ struct FMathRBFInterpolateQuatVector_Target
 	FVector Value = FVector::ZeroVector;
 };
 
-USTRUCT(meta = (DisplayName = "Quaternion to Vector", PrototypeName = "RBFInterpolateQuatToVector"))
+USTRUCT(meta = (Abstract, DisplayName = "Quaternion to Vector", PrototypeName = "RBFInterpolateQuatToVector"))
 struct FRigUnit_MathRBFInterpolateQuatVector :
 	public FRigUnit_MathRBFInterpolateQuatBase
 {
@@ -239,7 +239,7 @@ struct FMathRBFInterpolateQuatColor_Target
 	FLinearColor Value = FLinearColor::Transparent;
 };
 
-USTRUCT(meta = (DisplayName = "Quaternion to Color", PrototypeName = "RBFInterpolateQuatToColor"))
+USTRUCT(meta = (Abstract, DisplayName = "Quaternion to Color", PrototypeName = "RBFInterpolateQuatToColor"))
 struct FRigUnit_MathRBFInterpolateQuatColor :
 	public FRigUnit_MathRBFInterpolateQuatBase
 {
@@ -268,7 +268,7 @@ struct FMathRBFInterpolateQuatQuat_Target
 	FQuat Value = FQuat::Identity;
 };
 
-USTRUCT(meta = (DisplayName = "Quaternion to Quaternion", PrototypeName = "RBFInterpolateQuatToQuat"))
+USTRUCT(meta = (Abstract, DisplayName = "Quaternion to Quaternion", PrototypeName = "RBFInterpolateQuatToQuat"))
 struct FRigUnit_MathRBFInterpolateQuatQuat :
 	public FRigUnit_MathRBFInterpolateQuatBase
 {
@@ -297,7 +297,7 @@ struct FMathRBFInterpolateQuatXform_Target
 	FTransform Value = FTransform::Identity;
 };
 
-USTRUCT(meta = (DisplayName = "Quaternion to Transform", PrototypeName = "RBFInterpolateQuatToXform"))
+USTRUCT(meta = (Abstract, DisplayName = "Quaternion to Transform", PrototypeName = "RBFInterpolateQuatToXform"))
 struct FRigUnit_MathRBFInterpolateQuatXform :
 	public FRigUnit_MathRBFInterpolateQuatBase
 {
@@ -328,7 +328,7 @@ struct FMathRBFInterpolateVectorFloat_Target
 	float Value = 0.0f;
 };
 
-USTRUCT(meta = (DisplayName = "Vector to Float", PrototypeName = "RBFInterpolateVectorToFloat", Keywords = "RBF,Interpolate,Vector"))
+USTRUCT(meta = (Abstract, DisplayName = "Vector to Float", PrototypeName = "RBFInterpolateVectorToFloat", Keywords = "RBF,Interpolate,Vector"))
 struct FRigUnit_MathRBFInterpolateVectorFloat :
 	public FRigUnit_MathRBFInterpolateVectorBase
 {
@@ -357,7 +357,7 @@ struct FMathRBFInterpolateVectorVector_Target
 	FVector Value = FVector::ZeroVector;
 };
 
-USTRUCT(meta = (DisplayName = "Vector to Vector", PrototypeName = "RBFInterpolateVectorToVector", Keywords = "RBF,Interpolate,Vector"))
+USTRUCT(meta = (Abstract, DisplayName = "Vector to Vector", PrototypeName = "RBFInterpolateVectorToVector", Keywords = "RBF,Interpolate,Vector"))
 struct FRigUnit_MathRBFInterpolateVectorVector :
 	public FRigUnit_MathRBFInterpolateVectorBase
 {
@@ -386,7 +386,7 @@ struct FMathRBFInterpolateVectorColor_Target
 	FLinearColor Value = FLinearColor::Transparent;
 };
 
-USTRUCT(meta = (DisplayName = "Vector to Color", PrototypeName = "RBFInterpolateVectorToColor", Keywords = "RBF,Interpolate,Vector"))
+USTRUCT(meta = (Abstract, DisplayName = "Vector to Color", PrototypeName = "RBFInterpolateVectorToColor", Keywords = "RBF,Interpolate,Vector"))
 struct FRigUnit_MathRBFInterpolateVectorColor :
 	public FRigUnit_MathRBFInterpolateVectorBase
 {
@@ -416,7 +416,7 @@ struct FMathRBFInterpolateVectorQuat_Target
 	FQuat Value = FQuat::Identity;
 };
 
-USTRUCT(meta = (DisplayName = "Vector to Quat", PrototypeName = "RBFInterpolateVectorToQuat", Keywords = "RBF,Interpolate,Vector"))
+USTRUCT(meta = (Abstract, DisplayName = "Vector to Quat", PrototypeName = "RBFInterpolateVectorToQuat", Keywords = "RBF,Interpolate,Vector"))
 struct FRigUnit_MathRBFInterpolateVectorQuat :
 	public FRigUnit_MathRBFInterpolateVectorBase
 {
@@ -444,7 +444,7 @@ struct FMathRBFInterpolateVectorXform_Target
 	FTransform Value = FTransform::Identity;
 };
 
-USTRUCT(meta = (DisplayName = "Vector to Transform", PrototypeName = "RBFInterpolateVectorToXform", Keywords = "RBF,Interpolate,Vector"))
+USTRUCT(meta = (Abstract, DisplayName = "Vector to Transform", PrototypeName = "RBFInterpolateVectorToXform", Keywords = "RBF,Interpolate,Vector"))
 struct FRigUnit_MathRBFInterpolateVectorXform :
 	public FRigUnit_MathRBFInterpolateVectorBase
 {

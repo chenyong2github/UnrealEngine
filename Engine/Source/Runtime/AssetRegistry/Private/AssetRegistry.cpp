@@ -23,6 +23,7 @@
 #include "Serialization/LargeMemoryReader.h"
 #include "Misc/ScopeExit.h"
 #include "HAL/ThreadHeartBeat.h"
+#include "HAL/PlatformMisc.h"
 #include "AssetRegistryConsoleCommands.h"
 
 #if WITH_EDITOR
@@ -898,6 +899,8 @@ bool UAssetRegistryImpl::EnumerateAssets(const FARCompiledFilter& InFilter, TFun
 				{
 					return true;
 				}
+
+				FPlatformMisc::PumpEssentialAppMessages();
 			}
 		}
 	}
@@ -3302,7 +3305,11 @@ void UAssetRegistryImpl::SetManageReferences(const TMultiMap<FAssetIdentifier, F
 
 					SourceNode->IterateOverDependencies([&IterateFunction, SourceNode](FDependsNode* TargetNode, EDependencyCategory DependencyCategory, EDependencyProperty DependencyProperties, bool bDuplicate)
 						{
-							IterateFunction(SourceNode, TargetNode, DependencyCategory, DependencyProperties);
+							// Skip editor-only properties
+							if (!!(DependencyProperties & EDependencyProperty::Game))
+							{
+								IterateFunction(SourceNode, TargetNode, DependencyCategory, DependencyProperties);
+							}
 						}, RecurseType);
 				}
 			}

@@ -38,6 +38,7 @@ public:
 		, _StartingAngle(0.f)
 		, _bDistributeItemsEvenly(true)
 		, _AngleBetweenItems(0.f)
+		, _SectorCentralAngle(360.f)
 	{
 			_Visibility = EVisibility::SelfHitTestInvisible;
 		}
@@ -59,6 +60,9 @@ public:
 
 		/** How many degrees apart should the elements be? */
 		SLATE_ARGUMENT(float, AngleBetweenItems)
+
+		/** If we need a section of a radial (for example half-a-radial) we can define a central angle < 360 (180 in case of half-a-radial). Used when bDistributeItemsEvenly is enabled. */
+		SLATE_ARGUMENT(float, SectorCentralAngle)
 
 	SLATE_END_ARGS()
 
@@ -90,8 +94,12 @@ public:
 	void SetStartingAngle(float InStartingAngle) { StartingAngle = InStartingAngle; }
 	void SetAngleBetweenItems(float InAngleBetweenItems) { AngleBetweenItems = InAngleBetweenItems; }
 	void SetDistributeItemsEvenly(bool bInDistributeItemsEvenly) { bDistributeItemsEvenly = bInDistributeItemsEvenly; }
+	void SetSectorCentralAngle(float InSectorCentralAngle) { SectorCentralAngle = InSectorCentralAngle; }
 
 	void SetUseAllottedWidth(bool bInUseAllottedWidth);
+
+	/** Mods the angle so it's between 0-360 */
+	int32 NormalizeAngle(int32 Angle) const;
 
 private:
 
@@ -106,6 +114,9 @@ private:
 
 	/** Offset of the first element in the circle in degrees */
 	float StartingAngle;
+
+	/** If we need a section of a radial (for example half-a-radial) we can define a central angle < 360 (180 in case of half-a-radial). Used when bDistributeItemsEvenly is enabled. */
+	float SectorCentralAngle;
 
 	/** Ignore AngleBetweenItems and distribute items evenly inside the whole circle */
 	bool bDistributeItemsEvenly;

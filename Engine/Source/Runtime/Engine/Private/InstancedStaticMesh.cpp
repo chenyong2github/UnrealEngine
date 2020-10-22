@@ -891,7 +891,6 @@ void FInstancedStaticMeshSceneProxy::GetDynamicMeshElements(const TArray<const F
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_InstancedStaticMeshSceneProxy_GetMeshElements);
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	const bool bSelectionRenderEnabled = GIsEditor && ViewFamily.EngineShowFlags.Selection;
 
 	// If the first pass rendered selected instances only, we need to render the deselected instances in a second pass
@@ -920,7 +919,7 @@ void FInstancedStaticMeshSceneProxy::GetDynamicMeshElements(const TArray<const F
 			for (int32 SelectionGroupIndex = 0; SelectionGroupIndex < NumSelectionGroups; SelectionGroupIndex++)
 			{
 				const int32 LODIndex = GetLOD(View);
-				const FStaticMeshLODResources& LODModel = StaticMesh->RenderData->LODResources[LODIndex];
+				const FStaticMeshLODResources& LODModel = StaticMesh->GetRenderData()->LODResources[LODIndex];
 
 				for (int32 SectionIndex = 0; SectionIndex < LODModel.Sections.Num(); SectionIndex++)
 				{
@@ -955,7 +954,6 @@ void FInstancedStaticMeshSceneProxy::GetDynamicMeshElements(const TArray<const F
 			}
 		}
 	}
-#endif
 }
 
 int32 FInstancedStaticMeshSceneProxy::CollectOccluderElements(FOccluderElementsCollector& Collector) const
@@ -1004,7 +1002,7 @@ void FInstancedStaticMeshSceneProxy::SetupProxy(UInstancedStaticMeshComponent* I
 	}
 
 	// Copy the parameters for LOD - all instances
-	UserData_AllInstances.MeshRenderData = InComponent->GetStaticMesh()->RenderData.Get();
+	UserData_AllInstances.MeshRenderData = InComponent->GetStaticMesh()->GetRenderData();
 	UserData_AllInstances.StartCullDistance = InComponent->InstanceStartCullDistance;
 	UserData_AllInstances.EndCullDistance = InComponent->InstanceEndCullDistance;
 	UserData_AllInstances.InstancingOffset = InComponent->GetStaticMesh()->GetBoundingBox().GetCenter();
@@ -1497,7 +1495,7 @@ FPrimitiveSceneProxy* UInstancedStaticMeshComponent::CreateSceneProxy()
 		ProxySize = PerInstanceRenderData->ResourceSize;
 
 		// TODO: Abstract with a common helper
-		if (UseNanite(GetScene()->GetShaderPlatform()) && GetStaticMesh()->RenderData->NaniteResources.PageStreamingStates.Num())
+		if (UseNanite(GetScene()->GetShaderPlatform()) && GetStaticMesh()->GetRenderData()->NaniteResources.PageStreamingStates.Num())
 		{
 			return ::new Nanite::FSceneProxy(this);
 		}
@@ -1861,7 +1859,7 @@ void UInstancedStaticMeshComponent::GetStaticLightingInfo(FStaticLightingPrimiti
 
 		for (int32 LODIndex = 0; LODIndex < NumLODs; LODIndex++)
 		{
-			const FStaticMeshLODResources& LODRenderData = GetStaticMesh()->RenderData->LODResources[LODIndex];
+			const FStaticMeshLODResources& LODRenderData = GetStaticMesh()->GetRenderData()->LODResources[LODIndex];
 
 			for (int32 InstanceIndex = 0; InstanceIndex < PerInstanceSMData.Num(); InstanceIndex++)
 			{
@@ -2965,10 +2963,10 @@ void UInstancedStaticMeshComponent::PartialNavigationUpdate(int32 InstanceIdx)
 
 bool UInstancedStaticMeshComponent::DoCustomNavigableGeometryExport(FNavigableGeometryExport& GeomExport) const
 {
-	if (GetStaticMesh() && GetStaticMesh()->NavCollision)
+	if (GetStaticMesh() && GetStaticMesh()->GetNavCollision())
 	{
-		UNavCollisionBase* NavCollision = GetStaticMesh()->NavCollision;
-		if (GetStaticMesh()->NavCollision->IsDynamicObstacle())
+		UNavCollisionBase* NavCollision = GetStaticMesh()->GetNavCollision();
+		if (NavCollision->IsDynamicObstacle())
 		{
 			return false;
 		}
@@ -2983,7 +2981,7 @@ bool UInstancedStaticMeshComponent::DoCustomNavigableGeometryExport(FNavigableGe
 		}
 		else
 		{
-			UBodySetup* BodySetup = GetStaticMesh()->BodySetup;
+			UBodySetup* BodySetup = GetStaticMesh()->GetBodySetup();
 			if (BodySetup)
 			{
 				GeomExport.ExportRigidBodySetup(*BodySetup, FTransform::Identity);
@@ -3000,9 +2998,9 @@ bool UInstancedStaticMeshComponent::DoCustomNavigableGeometryExport(FNavigableGe
 
 void UInstancedStaticMeshComponent::GetNavigationData(FNavigationRelevantData& Data) const
 {
-	if (GetStaticMesh() && GetStaticMesh()->NavCollision)
+	if (GetStaticMesh() && GetStaticMesh()->GetNavCollision())
 	{
-		UNavCollisionBase* NavCollision = GetStaticMesh()->NavCollision;
+		UNavCollisionBase* NavCollision = GetStaticMesh()->GetNavCollision();
 		if (NavCollision->IsDynamicObstacle())
 		{
 			Data.Modifiers.MarkAsPerInstanceModifier();

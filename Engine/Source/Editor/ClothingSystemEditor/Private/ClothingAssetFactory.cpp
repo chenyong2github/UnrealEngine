@@ -1313,8 +1313,7 @@ bool UClothingAssetFactory::ImportToLodInternal(
 	int32 LODVertexBudget;
 	if (GConfig->GetInt(TEXT("ClothSettings"), TEXT("LODVertexBudget"), LODVertexBudget, GEditorIni) && LODVertexBudget > 0 && NumUniqueVerts > LODVertexBudget)
 	{
-		LogAndToastWarning(FText::Format(LOCTEXT("LODVertexBudgetWarning", 
-			"This cloth LOD has {0} more vertices than what is budgeted on this project (current={1}, budget={2})"), 
+		LogAndToastWarning(FText::Format(LOCTEXT("LODVertexBudgetWarning", "This cloth LOD has {0} more vertices than what is budgeted on this project (current={1}, budget={2})"), 
 			NumUniqueVerts - LODVertexBudget, 
 			NumUniqueVerts,
 			LODVertexBudget));

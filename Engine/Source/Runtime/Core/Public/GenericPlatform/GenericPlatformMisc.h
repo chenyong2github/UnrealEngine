@@ -1422,6 +1422,13 @@ public:
 	static void PumpMessagesForSlowTask()
 	{
 	}
+	/**
+	 *  Pumps app messages only if there are essential keep-alive messages pending. This function called from time-sensitive 
+	 *  parts of the code and should take minimal time if there are no essential messages waiting
+	 */
+	static void PumpEssentialAppMessages()
+	{
+	}
 
 	static void HidePlatformStartupScreen()
 	{

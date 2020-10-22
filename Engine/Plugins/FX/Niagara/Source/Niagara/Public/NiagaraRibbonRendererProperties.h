@@ -263,75 +263,75 @@ public:
 	bool bScreenSpaceTessellation;
 
 	/** Which attribute should we use for position when generating ribbons?*/
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Bindings")
+	UPROPERTY(EditAnywhere, Category = "Bindings")
 	FNiagaraVariableAttributeBinding PositionBinding;
 
 	/** Which attribute should we use for color when generating ribbons?*/
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Bindings")
+	UPROPERTY(EditAnywhere, Category = "Bindings")
 	FNiagaraVariableAttributeBinding ColorBinding;
 
 	/** Which attribute should we use for velocity when generating ribbons?*/
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Bindings")
+	UPROPERTY(EditAnywhere, Category = "Bindings")
 	FNiagaraVariableAttributeBinding VelocityBinding;
 
 	/** Which attribute should we use for normalized age when generating ribbons?*/
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Bindings")
+	UPROPERTY(EditAnywhere, Category = "Bindings")
 	FNiagaraVariableAttributeBinding NormalizedAgeBinding;
 
 	/** Which attribute should we use for ribbon twist when generating ribbons?*/
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Bindings")
+	UPROPERTY(EditAnywhere, Category = "Bindings")
 	FNiagaraVariableAttributeBinding RibbonTwistBinding;
 
 	/** Which attribute should we use for ribbon width when generating ribbons?*/
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Bindings")
+	UPROPERTY(EditAnywhere, Category = "Bindings")
 	FNiagaraVariableAttributeBinding RibbonWidthBinding;
 
 	/** Which attribute should we use for ribbon facing when generating ribbons?*/
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Bindings")
+	UPROPERTY(EditAnywhere, Category = "Bindings")
 	FNiagaraVariableAttributeBinding RibbonFacingBinding;
 	
 	/** Which attribute should we use for ribbon id when generating ribbons?*/
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Bindings")
+	UPROPERTY(EditAnywhere, Category = "Bindings")
 	FNiagaraVariableAttributeBinding RibbonIdBinding;
 
 	/** Which attribute should we use for RibbonLinkOrder when generating ribbons?*/
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Bindings")
+	UPROPERTY(EditAnywhere, Category = "Bindings")
 	FNiagaraVariableAttributeBinding RibbonLinkOrderBinding;
 
 	/** Which attribute should we use for MaterialRandom when generating ribbons?*/
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Bindings")
+	UPROPERTY(EditAnywhere, Category = "Bindings")
 	FNiagaraVariableAttributeBinding MaterialRandomBinding;
 
 	/** Which attribute should we use for dynamic material parameters when generating ribbons?*/
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Bindings")
+	UPROPERTY(EditAnywhere, Category = "Bindings")
 	FNiagaraVariableAttributeBinding DynamicMaterialBinding;
 
 	/** Which attribute should we use for dynamic material parameters when generating ribbons?*/
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Bindings")
+	UPROPERTY(EditAnywhere, Category = "Bindings")
 	FNiagaraVariableAttributeBinding DynamicMaterial1Binding;
 
 	/** Which attribute should we use for dynamic material parameters when generating ribbons?*/
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Bindings")
+	UPROPERTY(EditAnywhere, Category = "Bindings")
 	FNiagaraVariableAttributeBinding DynamicMaterial2Binding;
 
 	/** Which attribute should we use for dynamic material parameters when generating ribbons?*/
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Bindings")
+	UPROPERTY(EditAnywhere, Category = "Bindings")
 	FNiagaraVariableAttributeBinding DynamicMaterial3Binding;
 
 	/** Which attribute should we use for UV0 U when generating ribbons?*/
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Bindings")
+	UPROPERTY(EditAnywhere, Category = "Bindings")
 	FNiagaraVariableAttributeBinding U0OverrideBinding;
 
 	/** Which attribute should we use for UV0 V when generating ribbons?*/
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Bindings")
+	UPROPERTY(EditAnywhere, Category = "Bindings")
 	FNiagaraVariableAttributeBinding V0RangeOverrideBinding;
 
 	/** Which attribute should we use for UV1 U when generating ribbons?*/
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Bindings")
+	UPROPERTY(EditAnywhere, Category = "Bindings")
 	FNiagaraVariableAttributeBinding U1OverrideBinding;
 
 	/** Which attribute should we use for UV1 V when generating ribbons?*/
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Bindings")
+	UPROPERTY(EditAnywhere, Category = "Bindings")
 	FNiagaraVariableAttributeBinding V1RangeOverrideBinding;
 
 	bool								bSortKeyDataSetAccessorIsAge = false;

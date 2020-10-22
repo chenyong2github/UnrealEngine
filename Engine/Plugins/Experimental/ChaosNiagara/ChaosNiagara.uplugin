@@ -18,8 +18,7 @@
 		{
 			"Name": "ChaosNiagara",
 			"Type": "Runtime",
-			"LoadingPhase": "Default",
-			"WhitelistPlatforms": [ "Win64", "Win32", "PS4", "XboxOne", "Mac", "Linux" ]
+			"LoadingPhase": "Default"
 		}
 	],
 	"Plugins": [

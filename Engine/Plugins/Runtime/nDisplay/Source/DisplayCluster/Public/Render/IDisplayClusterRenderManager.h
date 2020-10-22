@@ -118,6 +118,13 @@ public:
 	virtual TSharedPtr<IDisplayClusterProjectionPolicyFactory> GetProjectionPolicyFactory(const FString& ProjectionType) = 0;
 
 	/**
+	* Returns all registered projection policy types
+	*
+	* @param OutPolicyIDs - (out) array to put registered IDs
+	*/
+	virtual void GetRegisteredProjectionPolicies(TArray<FString>& OutPolicyIDs) const = 0;
+
+	/**
 	* Registers a post process operation
 	*
 	* @param Name      - A unique PP operation name

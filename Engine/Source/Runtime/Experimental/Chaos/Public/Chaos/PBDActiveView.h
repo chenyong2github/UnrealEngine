@@ -37,11 +37,17 @@ namespace Chaos
 		// Execute the specified function in parallel on all active items. Set MinParallelSize to run sequential on the smaller ranges.
 		void ParallelFor(TFunctionRef<void(TItemsType&, int32)> Function, int32 MinParallelSize = TNumericLimits<int32>::Max()) const;
 
+		// Execute the specified function on all active items. Callee responsible for inner loop.
+		void RangeFor(TFunctionRef<void(TItemsType&, int32, int32)> Function) const;
+
 		// Remove all ranges above the current given size.
 		void Reset(int32 Offset = 0);
 
 		// Return whether there is any active range in the view.
 		bool HasActiveRange() const;
+
+		// Return internal ranges
+		TConstArrayView<int32> GetRanges() const { return Ranges;  }
 
 	private:
 		TItemsType& Items;
@@ -122,6 +128,26 @@ namespace Chaos
 				{
 					Function(Items, Offset + Index);
 				}, /*bForceSingleThreaded =*/ RangeSize < MinParallelBatchSize);
+				Offset = Range;
+			}
+			else
+			{
+				// Inactive range
+				Offset = -Range;
+			}
+		}
+	}
+
+	template <class TItemsType>
+	void TPBDActiveView<TItemsType>::RangeFor(TFunctionRef<void(TItemsType&, int32, int32)> Function) const
+	{
+		int32 Offset = 0;
+		for (int32 Range : Ranges)
+		{
+			if (Range > 0)
+			{
+				// Active Range
+				Function(Items, Offset, Range);
 				Offset = Range;
 			}
 			else

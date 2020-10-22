@@ -3,10 +3,9 @@
 #include "Mechanics/PlaneDistanceFromHitMechanic.h"
 #include "ToolSceneQueriesUtil.h"
 #include "MeshQueries.h"
-#include "SceneManagement.h"
 #include "MeshTransforms.h"
 #include "Distance/DistLine3Ray3.h"
-
+#include "ToolDataVisualizer.h"
 
 
 
@@ -50,6 +49,8 @@ void UPlaneDistanceFromHitMechanic::UpdateCurrentDistance(const FRay& WorldRay)
 	FFrame3d NearestHitFrameWorld;
 	bool bFoundHit = false;
 
+	bCurrentHitIsWorldHit = false;
+
 	// cast ray at target object
 	FRay3d LocalRay = PreviewHeightFrame.ToFrame(WorldRay);
 	int HitTID = PreviewHeightTargetAABB.FindNearestHitTriangle(LocalRay);
@@ -84,7 +85,9 @@ void UPlaneDistanceFromHitMechanic::UpdateCurrentDistance(const FRay& WorldRay)
 				FVector3d HitPosLocal = PreviewHeightFrame.ToFramePoint(FVector3d(WorldHitResult.ImpactPoint));
 				NearestHitHeight = HitPosLocal.Z;
 				NearestHitDist = WorldHitDist;
+				LastActiveWorldHit = WorldHitResult;
 				bFoundHit = true;
+				bCurrentHitIsWorldHit = true;
 			}
 		}
 	}
@@ -99,6 +102,7 @@ void UPlaneDistanceFromHitMechanic::UpdateCurrentDistance(const FRay& WorldRay)
 		NearestHitHeight = HitPosLocal.Z;
 		NearestHitDist = WorldHitDist;
 		bFoundHit = true;
+		bCurrentHitIsWorldHit = false;
 	}
 
 	if (bFoundHit)
@@ -130,30 +134,41 @@ void UPlaneDistanceFromHitMechanic::Render(IToolsContextRenderAPI* RenderAPI)
 {
 	FViewCameraState CameraState = RenderAPI->GetCameraState();
 	float PDIScale = CameraState.GetPDIScalingFactor();
-	FPrimitiveDrawInterface* PDI = RenderAPI->GetPrimitiveDrawInterface();
 
-	float Length = 10*PDIScale; float Thickness = 2*PDIScale;
+	FToolDataVisualizer Renderer;
+	Renderer.BeginFrame(RenderAPI, CameraState);
+
+	float TickLength = (float)ToolSceneQueriesUtil::CalculateDimensionFromVisualAngleD(CameraState, CurrentHitPosFrameWorld.Origin, 0.8);
+	float TickThickness = 2.0;
 	FColor HitFrameColor(0, 128, 128);
-	PDI->DrawLine(
-		(FVector)CurrentHitPosFrameWorld.PointAt(-Length, -Length, 0), (FVector)CurrentHitPosFrameWorld.PointAt(Length, Length, 0),
-		HitFrameColor, 1, Thickness, 0.0f, true);
-	PDI->DrawLine(
-		(FVector)CurrentHitPosFrameWorld.PointAt(-Length, Length, 0), (FVector)CurrentHitPosFrameWorld.PointAt(Length, -Length, 0),
-		HitFrameColor, 1, Thickness, 0.0f, true);
-
-	FVector PreviewOrigin = (FVector)PreviewHeightFrame.Origin;
-
-	FVector DrawPlaneNormal(PreviewHeightFrame.Z()); // DrawPlaneOrientation.GetAxisZ();
-
 	FColor AxisColor(128, 128, 0);
-	PDI->DrawLine(
-		PreviewOrigin - 1000 * DrawPlaneNormal, PreviewOrigin + 1000 * DrawPlaneNormal,
-		AxisColor, 1, 1.0f*PDIScale, 0.0f, true);
-
 	FColor HeightPosColor(128, 0, 128);
-	PDI->DrawLine(
-		PreviewOrigin + CurrentHeight * DrawPlaneNormal, (FVector)CurrentHitPosFrameWorld.Origin,
-		HeightPosColor, 1, 1.0f*PDIScale, 0.0f, true);
+
+	if (bCurrentHitIsWorldHit)
+	{
+		HitFrameColor = FColor(255, 128, 0);
+		TickThickness = 4 * PDIScale;
+	}
+	Renderer.DrawLine(
+		CurrentHitPosFrameWorld.PointAt(-TickLength, -TickLength, 0),
+		CurrentHitPosFrameWorld.PointAt(TickLength, TickLength, 0), HitFrameColor, TickThickness, false);
+	Renderer.DrawLine(
+		CurrentHitPosFrameWorld.PointAt(-TickLength, TickLength, 0),
+		CurrentHitPosFrameWorld.PointAt(TickLength, -TickLength, 0), HitFrameColor, TickThickness, false);
+	if (bCurrentHitIsWorldHit)
+	{
+		Renderer.DrawCircle(
+			CurrentHitPosFrameWorld.Origin, CurrentHitPosFrameWorld.Z(), 2.0*TickLength, 8, HitFrameColor, 1.0, false);
+	}
 
 
+	FVector3d PreviewOrigin = PreviewHeightFrame.Origin;
+	FVector3d DrawPlaneNormal = PreviewHeightFrame.Z();
+
+	Renderer.DrawLine(
+		PreviewOrigin - 1000*DrawPlaneNormal, PreviewOrigin + 1000*DrawPlaneNormal, AxisColor, 1.0, false);
+	Renderer.DrawLine(
+		PreviewOrigin + CurrentHeight*DrawPlaneNormal, CurrentHitPosFrameWorld.Origin, HeightPosColor, 1.0, false);
+
+	Renderer.EndFrame();
 }

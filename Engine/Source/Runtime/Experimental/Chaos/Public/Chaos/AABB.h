@@ -508,7 +508,7 @@ namespace Chaos
 
 		FORCEINLINE static TRotation<T, d> GetRotationOfMass()
 		{
-			return TRotation<T, d>::FromElements(TVector<T, d>(0), 1);
+			return TRotation<T, d>::FromIdentity();
 		}
 
 		FORCEINLINE constexpr bool IsConvex() const { return true; }

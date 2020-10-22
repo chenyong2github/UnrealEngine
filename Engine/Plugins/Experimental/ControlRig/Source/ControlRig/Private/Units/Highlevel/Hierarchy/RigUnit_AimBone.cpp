@@ -17,8 +17,8 @@ FRigUnit_AimBoneMath_Execute()
 
 	if (Context.State == EControlRigState::Init)
 	{
-		PrimaryCachedSpaceIndex.Reset();
-		SecondaryCachedSpaceIndex.Reset();
+		PrimaryCachedSpace.Reset();
+		SecondaryCachedSpace.Reset();
 		return;
 	}
 
@@ -31,9 +31,9 @@ FRigUnit_AimBoneMath_Execute()
 	{
 		FVector Target = Primary.Target;
 
-		if (PrimaryCachedSpaceIndex.UpdateCache(Primary.Space, Hierarchy))
+		if (PrimaryCachedSpace.UpdateCache(Primary.Space, Hierarchy))
 		{
-			FTransform Space = Hierarchy->GetGlobalTransform(PrimaryCachedSpaceIndex);
+			FTransform Space = Hierarchy->GetGlobalTransform(PrimaryCachedSpace);
 			if (Primary.Kind == EControlRigVectorKind::Direction)
 			{
 				Target = Space.TransformVectorNoScale(Target);
@@ -85,9 +85,9 @@ FRigUnit_AimBoneMath_Execute()
 	{
 		FVector Target = Secondary.Target;
 
-		if (SecondaryCachedSpaceIndex.UpdateCache(Secondary.Space, Hierarchy))
+		if (SecondaryCachedSpace.UpdateCache(Secondary.Space, Hierarchy))
 		{
-			FTransform Space = Hierarchy->GetGlobalTransform(SecondaryCachedSpaceIndex);
+			FTransform Space = Hierarchy->GetGlobalTransform(SecondaryCachedSpace);
 			if (Secondary.Kind == EControlRigVectorKind::Direction)
 			{
 				Target = Space.TransformVectorNoScale(Target);
@@ -167,8 +167,8 @@ FRigUnit_AimBone_Execute()
 		Weight,
 		DebugSettings,
 		BoneIndex,
-		PrimaryCachedSpaceIndex,
-		SecondaryCachedSpaceIndex,
+		PrimaryCachedSpace,
+		SecondaryCachedSpace,
 		ExecuteContext,
 		Context);
 }
@@ -185,8 +185,8 @@ FRigUnit_AimItem_Execute()
 	if (Context.State == EControlRigState::Init)
 	{
 		CachedItem.Reset();
-		PrimaryCachedSpaceIndex.Reset();
-		SecondaryCachedSpaceIndex.Reset();
+		PrimaryCachedSpace.Reset();
+		SecondaryCachedSpace.Reset();
 		return;
 	}
 
@@ -211,8 +211,8 @@ FRigUnit_AimItem_Execute()
 		Weight,
 		Transform,
 		DebugSettings,
-		PrimaryCachedSpaceIndex,
-		SecondaryCachedSpaceIndex,
+		PrimaryCachedSpace,
+		SecondaryCachedSpace,
 		Context);
 
 	Hierarchy->SetGlobalTransform(CachedItem, Transform);

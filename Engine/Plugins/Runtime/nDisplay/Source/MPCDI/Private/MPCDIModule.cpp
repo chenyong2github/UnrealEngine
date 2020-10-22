@@ -2,6 +2,7 @@
 
 #include "MPCDIModule.h"
 
+#include "MPCDICommon.h"
 #include "MPCDIData.h"
 #include "MPCDILog.h"
 #include "MPCDIRegion.h"
@@ -523,6 +524,28 @@ bool FMPCDIModule::LoadConfig(const TMap<FString, FString>& InConfigParameters, 
 	}
 
 	return true;
+}
+
+bool FMPCDIModule::GetMPCDIMeshData(const FString& MPCDIFile, const FString& BufferName, const FString& RegionName, FMPCDIGeometryExportData& MeshData)
+{
+	IMPCDI::FRegionLocator RegionLocator;
+	const bool bResult = GetRegionLocator(MPCDIFile, BufferName, RegionName, RegionLocator);
+	if (bResult)
+	{
+		IMPCDI::FShaderInputData ShaderInputData;
+		ShaderInputData.RegionLocator = RegionLocator;
+		
+		TSharedPtr<FMPCDIData> MpcdiData = GetMPCDIData(ShaderInputData);
+		if (MpcdiData.IsValid())
+		{
+			if (FMPCDIRegion* Region = MpcdiData.Get()->GetRegion(RegionLocator))
+			{
+				return ExportMeshData(Region, MeshData);
+			}
+		}
+	}
+
+	return false;
 }
 
 IMPLEMENT_MODULE(FMPCDIModule, MPCDI);

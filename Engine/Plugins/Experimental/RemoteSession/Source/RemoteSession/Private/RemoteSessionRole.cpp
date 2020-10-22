@@ -61,7 +61,8 @@ void FRemoteSessionRole::Close()
 {
 	// order is specific since OSC uses the connection, and
 	// dispatches to channels
-	StopBackgroundThread();
+	ConnectionChangeDelegate.Broadcast(this, ERemoteSessionConnectionChange::Disconnected);
+
 	OSCConnection = nullptr;
 	Connection = nullptr;
 	ClearChannels();
@@ -95,6 +96,7 @@ void FRemoteSessionRole::Tick(float DeltaTime)
 			{
 				UE_LOG(LogRemoteSession, Log, TEXT("Starting OSC receive thread for future messages"));
 				OSCConnection->StartReceiveThread();
+				ConnectionChangeDelegate.Broadcast(this, ERemoteSessionConnectionChange::Connected);
 			}
 		}
 		else
@@ -115,9 +117,9 @@ void FRemoteSessionRole::Tick(float DeltaTime)
 		}
 		else
 		{
-			if (ThreadRunning == false && OSCConnection->IsThreaded() == false)
+			if (OSCConnection->IsThreaded() == false)
 			{
-				OSCConnection->ReceivePackets();
+				OSCConnection->ReceiveAndDispatchMessages();
 			}
 
 			if (GetCurrentState() == ConnectionState::Connected)
@@ -136,29 +138,6 @@ void FRemoteSessionRole::Tick(float DeltaTime)
 	}
 }
 
-void FRemoteSessionRole::SetReceiveInBackground(bool bValue)
-{
-	if (bValue && !ThreadRunning)
-	{
-		StartBackgroundThread();
-	}
-	else if (!bValue && ThreadRunning)
-	{
-		StopBackgroundThread();
-	}
-}
-
-void FRemoteSessionRole::StartBackgroundThread()
-{
-	check(ThreadRunning == false);
-	ThreadExitRequested = false;
-	ThreadRunning = true;
-
-	FRunnableThread* Thread = FRunnableThread::Create(this, TEXT("RemoteSessionClientThread"), 
-		1024 * 1024, 
-		TPri_AboveNormal);
-}
-
 bool FRemoteSessionRole::IsConnected() const
 {
 	// just check this is valid, when it's actually disconnected we do some error
@@ -172,49 +151,18 @@ bool FRemoteSessionRole::HasError() const
 	return ErrorMessage.Len() > 0;
 }
 
+bool FRemoteSessionRole::IsLegacyConnection() const
+{
+	return RemoteVersion == IRemoteSessionModule::GetLastSupportedVersion();
+}
+
+
 FString FRemoteSessionRole::GetErrorMessage() const
 {
 	FScopeLock Tmp(&CriticalSectionForMainThread);
 	return ErrorMessage;
 }
 
-uint32 FRemoteSessionRole::Run()
-{
-	/* Not used and likely to be removed! */
-	double LastTick = FPlatformTime::Seconds();
-	
-	while (ThreadExitRequested == false)
-	{
-		const double DeltaTime = FPlatformTime::Seconds() - LastTick;
-
-		if (OSCConnection.IsValid() == false || OSCConnection->IsConnected() == false)
-		{
-			FPlatformProcess::SleepNoStats(0);
-			continue;
-		}
-
-		OSCConnection->ReceivePackets(1);
-		LastTick = FPlatformTime::Seconds();
-	}
-
-	ThreadRunning = false;
-	return 0;
-}
-
-void FRemoteSessionRole::StopBackgroundThread()
-{
-	if (ThreadRunning == false)
-	{
-		return;
-	}
-
-	ThreadExitRequested = true;
-
-	while (ThreadRunning)
-	{
-		FPlatformProcess::SleepNoStats(0);
-	}
-}
 
 void FRemoteSessionRole::CreateOSCConnection(TSharedRef<IBackChannelSocketConnection> InConnection)
 {
@@ -226,9 +174,42 @@ void FRemoteSessionRole::CreateOSCConnection(TSharedRef<IBackChannelSocketConnec
 	OSCConnection->SetConnectionTimeout(Settings->ConnectionTimeout, Settings->ConnectionTimeoutWhenDebugging);
 }
 
-bool FRemoteSessionRole::IsLegacyConnection() const
+/* Registers a delegate for notifications of connection changes*/
+FDelegateHandle FRemoteSessionRole::RegisterConnectionChangeDelegate(FOnRemoteSessionConnectionChange::FDelegate InDelegate)
 {
-	return RemoteVersion == IRemoteSessionModule::GetLastSupportedVersion();
+	return ConnectionChangeDelegate.Add(InDelegate);
+}
+
+
+FDelegateHandle FRemoteSessionRole::RegisterChannelChangeDelegate(FOnRemoteSessionChannelChange::FDelegate InDelegate)
+{
+	return ChannelChangeDelegate.Add(InDelegate);
+}
+
+/* Register for notifications when the host sends a list of available channels */
+FDelegateHandle FRemoteSessionRole::RegisterChannelListDelegate(FOnRemoteSessionReceiveChannelList::FDelegate InDelegate)
+{
+	return ReceiveChannelListDelegate.Add(InDelegate);
+}
+
+void FRemoteSessionRole::RemoveAllDelegates(void* UserObject)
+{
+	ConnectionChangeDelegate.RemoveAll(UserObject);
+	ChannelChangeDelegate.RemoveAll(UserObject);
+	ReceiveChannelListDelegate.RemoveAll(UserObject);
+}
+
+
+void FRemoteSessionRole::BindEndpoints(TBackChannelSharedPtr<IBackChannelConnection> InConnection)
+{
+	auto Delegate = FBackChannelRouteDelegate::FDelegate::CreateRaw(this, &FRemoteSessionRole::OnReceiveHello);
+	InConnection->AddRouteDelegate(kHelloEndPoint, Delegate);
+
+	Delegate = FBackChannelRouteDelegate::FDelegate::CreateRaw(this, &FRemoteSessionRole::OnReceiveLegacyVersion);
+	InConnection->AddRouteDelegate(kLegacyVersionEndPoint, Delegate);
+
+	Delegate = FBackChannelRouteDelegate::FDelegate::CreateRaw(this, &FRemoteSessionRole::OnReceiveChangeChannel);
+	InConnection->AddRouteDelegate(kChangeChannelEndPoint, Delegate);
 }
 
 void FRemoteSessionRole::SendLegacyVersionCheck()
@@ -358,41 +339,21 @@ void FRemoteSessionRole::OnReceiveHello(IBackChannelPacket& Message)
 	}
 }
 
-void FRemoteSessionRole::RegisterChannelChangeDelegate(FOnRemoteSessionChannelChange InDelegate)
+
+void FRemoteSessionRole::OnReceiveChannelChanged(IBackChannelPacket& Message)
 {
-	ChangeDelegates.Add(InDelegate);
+	FString ChannelName;
+	FString ChannelMode;
+
+	Message.Read(TEXT("Name"), ChannelName);
+	Message.Read(TEXT("Mode"), ChannelMode);
+
+	UE_LOG(LogRemoteSession, Log, TEXT("Peer created Channel %s with mode %s"), *ChannelName, *ChannelMode);
+
+	TSharedPtr<IRemoteSessionChannel> NewChannel = GetChannel(*ChannelName);
+	ChannelChangeDelegate.Broadcast(this, NewChannel, ERemoteSessionChannelChange::Created);
 }
 
-void FRemoteSessionRole::UnregisterChannelChangeDelegate(void* UserObject)
-{
-	ChangeDelegates.RemoveAll([UserObject](FOnRemoteSessionChannelChange& Delegate) {
-		return Delegate.IsBoundToObject(UserObject);
-	});
-}
-
-
-void FRemoteSessionRole::CreateChannel(const FRemoteSessionChannelInfo& InChannel)
-{
-	TSharedPtr<IRemoteSessionChannel> NewChannel;
-	IRemoteSessionModule& RemoteSession = FModuleManager::GetModuleChecked<IRemoteSessionModule>("RemoteSession");
-
-	NewChannel = FRemoteSessionChannelRegistry::Get().CreateChannel(*InChannel.Type, InChannel.Mode, OSCConnection);
-
-	if (NewChannel.IsValid())
-	{
-		UE_LOG(LogRemoteSession, Log, TEXT("Created Channel %s with mode %d"), *InChannel.Type, (int32)InChannel.Mode);
-		Channels.Add(NewChannel);
-
-		for (auto& Delegate : ChangeDelegates)
-		{
-			Delegate.ExecuteIfBound(this, NewChannel, ERemoteSessionChannelChange::Created);
-		}
-	}
-	else
-	{
-		UE_LOG(LogRemoteSession, Error, TEXT("Requested Channel %s was not recognized"), *InChannel.Type);
-	}
-}
 
 void FRemoteSessionRole::CreateChannels(const TArray<FRemoteSessionChannelInfo>& InChannels)
 {
@@ -400,13 +361,8 @@ void FRemoteSessionRole::CreateChannels(const TArray<FRemoteSessionChannelInfo>&
 	
 	for (const FRemoteSessionChannelInfo& Channel : InChannels)
 	{
-		CreateChannel(Channel);
+		OpenChannel(Channel);
 	}
-}
-
-void FRemoteSessionRole::AddChannel(const TSharedPtr<IRemoteSessionChannel>& InChannel)
-{
-	Channels.Add(InChannel);
 }
 
 void FRemoteSessionRole::ClearChannels()
@@ -430,6 +386,119 @@ TSharedPtr<IRemoteSessionChannel> FRemoteSessionRole::GetChannel(const TCHAR* In
 
 	return Channel;
 }
+
+
+bool FRemoteSessionRole::OpenChannel(const FRemoteSessionChannelInfo& Info)
+{
+	bool ChannelExists = Channels.ContainsByPredicate([&Info](auto& Channel) {
+		return Channel->GetType() == Info.Type;
+	});
+
+	if (ChannelExists)
+	{
+		UE_LOG(LogRemoteSession, Warning, TEXT("OpenChannel: OpenChannel called for %s that already exists"), *Info.Type);
+		return false;
+	}
+
+	bool IsSupported = SupportedChannels.Num() == 0 || SupportedChannels.ContainsByPredicate([&Info](FRemoteSessionChannelInfo& Elem) {
+		return Elem.Type == Info.Type;
+		});
+
+	if (!IsSupported)
+	{
+		UE_LOG(LogRemoteSession, Display, TEXT("OpenChannel: OpenChannel called for %s is not supported"), *Info.Type);
+		return false;
+	}
+		
+	// Try to create the channel
+	TSharedPtr<IRemoteSessionChannel> NewChannel;
+	IRemoteSessionModule& RemoteSession = FModuleManager::GetModuleChecked<IRemoteSessionModule>("RemoteSession");
+
+	NewChannel = FRemoteSessionChannelRegistry::Get().CreateChannel(*Info.Type, Info.Mode, OSCConnection);
+
+	// If it's valid, send a notice to our peer that we opened this channel
+	if (NewChannel.IsValid())
+	{
+		FString ModeString = ::LexToString(Info.Mode);
+
+		UE_LOG(LogRemoteSession, Log, TEXT("OpenChannel: Created Channel %s with mode %s"), *Info.Type, *ModeString);
+		Channels.Add(NewChannel);
+
+		TBackChannelSharedPtr<IBackChannelPacket> Packet = OSCConnection->CreatePacket();
+
+		Packet->SetPath(kChangeChannelEndPoint);			
+
+		// We want our peer to open a channel with the opposite mode to us.
+		ERemoteSessionChannelMode RequiredMode = Info.Mode == ERemoteSessionChannelMode::Read ? ERemoteSessionChannelMode::Write : ERemoteSessionChannelMode::Read;
+		FString RequiredModeString = ::LexToString(RequiredMode);
+
+		Packet->Write(TEXT("ChannelName"), Info.Type);
+		Packet->Write(TEXT("ChannelMode"), RequiredModeString);
+		Packet->Write(TEXT("Enabled"), 1);
+
+		UE_LOG(LogRemoteSession, Log, TEXT("OpenChannel: Requesting channel %s with mode %s from peer"), *Info.Type, *RequiredModeString);
+
+		OSCConnection->SendPacket(Packet);
+	}
+	else
+	{
+		UE_LOG(LogRemoteSession, Error, TEXT("OpenChannel: Requested Channel %s was not recognized"), *Info.Type);
+	}		
+
+	return true;
+}
+
+void FRemoteSessionRole::OnReceiveChangeChannel(IBackChannelPacket& Message)
+{
+	FString ChannelName;
+	FString ChannelMode;
+	int32 Enabled(0);
+
+	Message.Read(TEXT("Name"), ChannelName);
+	Message.Read(TEXT("Mode"), ChannelMode);
+	Message.Read(TEXT("Enabled"), Enabled);
+
+	ERemoteSessionChannelMode Mode = ERemoteSessionChannelMode::Unknown;
+	::LexFromString(Mode, *ChannelMode);
+
+	if (ChannelName.Len() == 0 || Mode == ERemoteSessionChannelMode::Unknown)
+	{
+		UE_LOG(LogRemoteSession, Error, TEXT("OnReceiveChangeChannel: Invalid channel details. Name=%s, Mode=%s"), *ChannelName, *ChannelMode);
+	}
+	else
+	{
+		TSharedPtr<IRemoteSessionChannel>* ExistingChannel = Channels.FindByPredicate([&ChannelName](auto& Channel) {
+			return Channel->GetType() == ChannelName;
+		});
+
+		if (ExistingChannel != nullptr && ExistingChannel->IsValid())
+		{
+			// this is a response to us creating a channe; so broadcast the delegate now it exists at both ends
+			UE_LOG(LogRemoteSession, Log, TEXT("OnReceiveChangeChannel: Channel %s exists. Assuming peer response and broadcasting channel creation with mode %s"), *ChannelName, *ChannelMode);
+			ChannelChangeDelegate.Broadcast(this, *ExistingChannel, ERemoteSessionChannelChange::Created);
+		}
+		else
+		{				
+			// Need to create channels on the main thread
+			AsyncTask(ENamedThreads::GameThread, [this, ChannelName, ChannelMode, Mode] {
+
+				UE_LOG(LogRemoteSession, Log, TEXT("OnReceiveChangeChannel: Received request for %s with mode=%s"), *ChannelName, *ChannelMode);
+				FRemoteSessionChannelInfo Info(ChannelName, Mode);
+				
+				if (OpenChannel(Info))
+				{
+					TSharedPtr<IRemoteSessionChannel> Channel = GetChannel(*ChannelName);
+					check(Channel.IsValid());
+					// Since we received a request the channel should exist on the other end and we can send to it now.
+					UE_LOG(LogRemoteSession, Log, TEXT("OnReceiveChangeChannel: Broadcasting channel creation with mode %s"), *ChannelName, *ChannelMode);
+					ChannelChangeDelegate.Broadcast(this, Channel, ERemoteSessionChannelChange::Created);
+				}
+			});	
+		}
+
+	}
+}
+
 
 /* Queues the next state to be processed on the next tick. It's an error to call this when there is another state pending */
 void FRemoteSessionRole::SetPendingState(const ConnectionState InState)

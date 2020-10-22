@@ -1391,7 +1391,7 @@ void FHierarchicalStaticMeshSceneProxy::FillDynamicMeshElements(FMeshElementColl
 									LODIndex, InstancedRenderData.VertexFactories.Num(), SelectionGroupIndex, SectionIndex, LODModel.Sections.Num(), RunArray.Num() / 2, 
 									RemainingInstances, Tris, (int)MeshElement.CastShadow, ElementParams.ShadowFrustum,
 									*StaticMesh->GetPathName(),
-									*MeshElement.MaterialRenderProxy->GetMaterial(ElementParams.FeatureLevel)->GetFriendlyName());
+									*MeshElement.MaterialRenderProxy->GetIncompleteMaterialWithFallback(ElementParams.FeatureLevel).GetFriendlyName());
 							}
 							else
 							{
@@ -1399,7 +1399,7 @@ void FHierarchicalStaticMeshSceneProxy::FillDynamicMeshElements(FMeshElementColl
 									LODIndex, InstancedRenderData.VertexFactories.Num(), SelectionGroupIndex, SectionIndex, LODModel.Sections.Num(), RunArray.Num() / 2, 
 									RemainingInstances, Tris, (int)MeshElement.CastShadow, ElementParams.FinalCullDistance, ElementParams.ShadowFrustum,
 									*StaticMesh->GetPathName(),
-									*MeshElement.MaterialRenderProxy->GetMaterial(ElementParams.FeatureLevel)->GetFriendlyName());
+									*MeshElement.MaterialRenderProxy->GetIncompleteMaterialWithFallback(ElementParams.FeatureLevel).GetFriendlyName());
 							}
 						}
 #endif
@@ -3035,7 +3035,7 @@ FPrimitiveSceneProxy* UHierarchicalInstancedStaticMeshComponent::CreateSceneProx
 		INC_DWORD_STAT_BY(STAT_FoliageInstanceBuffers, ProxySize);
 
 		// TODO: Abstract with a common helper
-		if (UseNanite(GetScene()->GetShaderPlatform()) && GetStaticMesh()->RenderData->NaniteResources.PageStreamingStates.Num())
+		if (UseNanite(GetScene()->GetShaderPlatform()) && GetStaticMesh()->GetRenderData()->NaniteResources.PageStreamingStates.Num())
 		{
 			return ::new Nanite::FSceneProxy(this);
 		}

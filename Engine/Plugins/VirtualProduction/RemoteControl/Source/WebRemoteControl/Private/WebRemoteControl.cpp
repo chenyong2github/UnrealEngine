@@ -488,9 +488,6 @@ bool FWebRemoteControlModule::HandleObjectPropertyRoute(const FHttpServerRequest
 		return true;
 	}
 
-	TArray<uint8> WorkingBuffer;
-	WebRemoteControlUtils::ConvertToTCHAR(Request.Body, WorkingBuffer);
-
 	FRCObjectReference ObjectRef;
 	bool bResetToDefault = false;
 	FString ErrorText;
@@ -514,7 +511,7 @@ bool FWebRemoteControlModule::HandleObjectPropertyRoute(const FHttpServerRequest
 	{
 	case ERCAccess::READ_ACCESS:
 	{
-		WorkingBuffer.Empty();
+		TArray<uint8> WorkingBuffer;
 		FMemoryWriter Writer(WorkingBuffer);
 		FJsonStructSerializerBackend SerializerBackend(Writer, EStructSerializerBackendFlags::Default);
 		if (IRemoteControlModule::Get().GetObjectProperties(ObjectRef, SerializerBackend))
@@ -538,7 +535,7 @@ bool FWebRemoteControlModule::HandleObjectPropertyRoute(const FHttpServerRequest
 		}
 		else if (PropertyValueDelimiters.BlockStart > 0)
 		{
-			FMemoryReader Reader(WorkingBuffer);
+			FMemoryReader Reader(DeserializedRequest.TCHARBody);
 			Reader.Seek(PropertyValueDelimiters.BlockStart);
 			Reader.SetLimitSize(PropertyValueDelimiters.BlockEnd + 1);
 			FJsonStructDeserializerBackend DeserializerBackend(Reader);
@@ -576,18 +573,15 @@ bool FWebRemoteControlModule::HandlePresetCallFunctionRoute(const FHttpServerReq
 		return true;
 	}
 
-	TArray<uint8> WorkingBuffer;
-	WebRemoteControlUtils::ConvertToTCHAR(Request.Body, WorkingBuffer);
-
 	FRCPresetCallRequest CallRequest;
-	if (!WebRemoteControlUtils::DeserializeRequestPayload(WorkingBuffer, &OnComplete, CallRequest))
+	if (!WebRemoteControlUtils::DeserializeRequest(Request, &OnComplete, CallRequest))
 	{
 		return true;
 	}
 
 	FBlockDelimiters Delimiters = CallRequest.GetParameterDelimiters(FRCPresetCallRequest::ParametersLabel());
 
-	FMemoryReader Reader{ WorkingBuffer };
+	FMemoryReader Reader{ CallRequest.TCHARBody };
 	FJsonStructDeserializerBackend ReaderBackend{ Reader };
 
 	TArray<uint8> OutputBuffer;
@@ -685,11 +679,8 @@ bool FWebRemoteControlModule::HandlePresetSetPropertyRoute(const FHttpServerRequ
 		return true;
 	}
 
-	TArray<uint8> WorkingBuffer;
-	WebRemoteControlUtils::ConvertToTCHAR(Request.Body, WorkingBuffer);
-
 	FRCPresetSetPropertyRequest SetPropertyRequest;
-	if (!WebRemoteControlUtils::DeserializeRequestPayload(WorkingBuffer, &OnComplete, SetPropertyRequest))
+	if (!WebRemoteControlUtils::DeserializeRequest(Request, &OnComplete, SetPropertyRequest))
 	{
 		return true;
 	}
@@ -722,7 +713,7 @@ bool FWebRemoteControlModule::HandlePresetSetPropertyRoute(const FHttpServerRequ
 
 	// Replace PropertyValue with the underlying property name.
 	TArray<uint8> NewPayload;
-	RemotePayloadSerializer::ReplaceFirstOccurence(WorkingBuffer, TEXT("PropertyValue"), ExposedProperty->Property->GetName(), NewPayload);
+	RemotePayloadSerializer::ReplaceFirstOccurence(SetPropertyRequest.TCHARBody, TEXT("PropertyValue"), ExposedProperty->Property->GetName(), NewPayload);
 
 	// Then deserialize the payload onto all the bound objects.
 	FMemoryReader NewPayloadReader(NewPayload);
@@ -737,8 +728,15 @@ bool FWebRemoteControlModule::HandlePresetSetPropertyRoute(const FHttpServerRequ
 	{
 		IRemoteControlModule::Get().ResolveObjectProperty(ObjectRef.Access, Object, RemoteControlProperty->FieldPathInfo.ToString(), ObjectRef);
 
-		NewPayloadReader.Seek(0);
-		bSuccess &= IRemoteControlModule::Get().SetObjectProperties(ObjectRef, Backend);
+		if (SetPropertyRequest.ResetToDefault)
+		{
+			bSuccess &= IRemoteControlModule::Get().ResetObjectProperties(ObjectRef);
+		}
+		else
+		{
+			NewPayloadReader.Seek(0);
+			bSuccess &= IRemoteControlModule::Get().SetObjectProperties(ObjectRef, Backend);
+		}
 	}
 
 	if (bSuccess)
@@ -1057,27 +1055,16 @@ void FWebRemoteControlModule::HandleWebSocketHttpMessage(const FRemoteControlWeb
 	}
 
 	FRCRequestWrapper Wrapper;
-	if (!WebRemoteControlUtils::DeserializeRequestPayload(WebSocketMessage.RequestPayload, nullptr, Wrapper))
+	if (!WebRemoteControlUtils::DeserializeWrappedRequestPayload(WebSocketMessage.RequestPayload, nullptr, Wrapper))
 	{
 		return;
 	}
 
 	FMemoryWriter Writer(UTF8Response);
-	
-	// @todo: Allow sending requests already encoded in TCHAR instead of doing this.
-	FBlockDelimiters Delimiters = Wrapper.GetParameterDelimiters(FRCRequestWrapper::BodyLabel());
-	if (Delimiters.BlockStart != Delimiters.BlockEnd)
-	{
-		TConstArrayView<uint8> BodyArrayView = TConstArrayView<uint8>(WebSocketMessage.RequestPayload).Slice(Delimiters.BlockStart, Delimiters.BlockEnd - Delimiters.BlockStart);
-		WebRemoteControlUtils::ConvertToUTF8(BodyArrayView, Wrapper.BodyData);
-	}
-
 	InvokeWrappedRequest(Wrapper, Writer);
 
 	WebSocketServer.Send(WebSocketMessage.ClientId, MoveTemp(UTF8Response));
 }
-
-
 
 void FWebRemoteControlModule::InvokeWrappedRequest(const FRCRequestWrapper& Wrapper, FMemoryWriter& OutUTF8PayloadWriter, const FHttpServerRequest* TemplateRequest)
 {

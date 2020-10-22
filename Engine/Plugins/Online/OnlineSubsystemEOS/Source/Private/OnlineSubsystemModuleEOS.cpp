@@ -4,6 +4,19 @@
 #include "OnlineSubsystemModule.h"
 #include "OnlineSubsystemNames.h"
 #include "OnlineSubsystemEOS.h"
+#include "EOSSettings.h"
+
+#include "Features/IModularFeature.h"
+#include "Features/IModularFeatures.h"
+
+#include "Misc/CoreDelegates.h"
+
+#if WITH_EDITOR
+	#include "ISettingsModule.h"
+	#include "ISettingsSection.h"
+#endif
+
+#define LOCTEXT_NAMESPACE "EOS"
 
 IMPLEMENT_MODULE(FOnlineSubsystemEOSModule, OnlineSubsystemEOS);
 
@@ -44,13 +57,59 @@ void FOnlineSubsystemEOSModule::StartupModule()
 	// Have to call this as early as possible in order to hook the rendering device
 	FOnlineSubsystemEOS::ModuleInit();
 #endif
+
+	FCoreDelegates::OnPostEngineInit.AddRaw(this, &FOnlineSubsystemEOSModule::OnPostEngineInit);
+	FCoreDelegates::OnPreExit.AddRaw(this, &FOnlineSubsystemEOSModule::OnPreExit);
+}
+
+void FOnlineSubsystemEOSModule::PossiblyDeferredInit()
+{
+#if WITH_EOS_SDK
+	static bool bHasDeferredInit = false;
+	if (!bHasDeferredInit)
+	{
+		bHasDeferredInit = true;
+		static_cast<FOnlineSubsystemEOS*>(IOnlineSubsystem::Get(EOS_SUBSYSTEM))->DeferredInit();
+	}
+#endif
+}
+
+void FOnlineSubsystemEOSModule::OnPostEngineInit()
+{
+#if WITH_EDITOR
+	ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings");
+	if (SettingsModule != nullptr)
+	{
+		SettingsModule->RegisterSettings("Project", "Plugins", "Epic Online Services",
+			LOCTEXT("EOSSettingsName", "Epic Online Services"),
+			LOCTEXT("EOSSettingsDescription", "Configure the Epic Online Services"),
+			GetMutableDefault<UEOSSettings>());
+	}
+#endif
+}
+
+void FOnlineSubsystemEOSModule::OnPreExit()
+{
+#if WITH_EDITOR
+	ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings");
+	if (SettingsModule)
+	{
+		SettingsModule->UnregisterSettings("Project", "Plugins", "Epic Online Services");
+	}
+#endif
 }
 
 void FOnlineSubsystemEOSModule::ShutdownModule()
 {
+	FCoreDelegates::OnInit.RemoveAll(this);
+	FCoreDelegates::OnPostEngineInit.RemoveAll(this);
+	FCoreDelegates::OnPreExit.RemoveAll(this);
+
 	FOnlineSubsystemModule& OSS = FModuleManager::GetModuleChecked<FOnlineSubsystemModule>("OnlineSubsystem");
 	OSS.UnregisterPlatformService(EOS_SUBSYSTEM);
 
 	delete EOSFactory;
 	EOSFactory = nullptr;
 }
+
+#undef LOCTEXT_NAMESPACE

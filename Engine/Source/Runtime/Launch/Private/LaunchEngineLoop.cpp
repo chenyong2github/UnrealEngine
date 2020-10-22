@@ -173,6 +173,10 @@
 #if WITH_AUTOMATION_WORKER
 	#include "IAutomationWorkerModule.h"
 #endif
+
+#if WITH_ODSC
+	#include "ODSC/ODSCManager.h"
+#endif
 #endif  //WITH_ENGINE
 
 #include "Misc/EmbeddedCommunication.h"
@@ -1143,9 +1147,13 @@ private:
 	}
 
 	TSet<FFileInPakFileHistory> History;
+	FCriticalSection HistoryLock;
 
 	void OnFileOpenedForRead(const TCHAR* PakFileName, const TCHAR* FileName)
 	{
+		//UE_LOG(LogInit, Warning, TEXT("OnFileOpenedForRead %u: %s - %s"), FPlatformTLS::GetCurrentThreadId(), PakFileName, FileName);
+
+		FScopeLock ScopeLock(&HistoryLock);
 		History.Emplace(FFileInPakFileHistory{ PakFileName, FileName });
 	}
 
@@ -1162,6 +1170,18 @@ public:
 
 	void DumpHistory()
 	{
+		FScopeLock ScopeLock(&HistoryLock);
+
+		History.Sort([](const FFileInPakFileHistory& A, const FFileInPakFileHistory& B)
+		{
+			if (A.PakFileName == B.PakFileName)
+			{
+				return A.FileName < B.FileName;
+			}
+
+			return A.PakFileName < B.PakFileName;
+		});
+
 		const FString SavePath = FPaths::ProjectLogDir() / TEXT("FilesLoadedFromPakFiles.csv");
 
 		FArchive* Writer = IFileManager::Get().CreateFileWriter(*SavePath, FILEWRITE_NoFail);
@@ -2604,6 +2624,10 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 	}
 
+#if WITH_ODSC
+	check(!GODSCManager);
+	GODSCManager = new FODSCManager();
+#endif
 
 	bool bEnableShaderCompile = !FParse::Param(FCommandLine::Get(), TEXT("NoShaderCompile"));
 
@@ -4343,7 +4367,14 @@ void DumpEarlyReads(bool bDumpEarlyConfigReads, bool bDumpEarlyPakFileReads, boo
 	if (bForceQuitAfterEarlyReads)
 	{
 		GLog->Flush();
-		GEngine->DeferredCommands.Emplace(TEXT("Quit force"));
+		if (GEngine)
+		{
+			GEngine->DeferredCommands.Emplace(TEXT("Quit force"));
+		}
+		else
+		{
+			FPlatformMisc::RequestExit(true);
+		}
 	}
 }
 
@@ -5793,6 +5824,15 @@ void FEngineLoop::AppPreExit( )
 		delete GShaderCompilerStats;
 		GShaderCompilerStats = nullptr;
 	}
+
+#if WITH_ODSC
+	if (GODSCManager)
+	{
+		delete GODSCManager;
+		GODSCManager = nullptr;
+	}
+#endif
+
 #endif
 
 #if !(IS_PROGRAM || WITH_EDITOR)

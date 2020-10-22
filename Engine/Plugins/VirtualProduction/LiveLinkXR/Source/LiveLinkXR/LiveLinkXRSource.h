@@ -13,6 +13,8 @@
 
 #include "IXRTrackingSystem.h"		// for GEngine->XRSystem and EXRTrackedDeviceType
 
+#include "HAL/Runnable.h"
+
 struct FLiveLinkXRSettings;
 
 class ILiveLinkClient;

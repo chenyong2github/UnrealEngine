@@ -1463,8 +1463,11 @@ HRESULT FD3D12TextureAllocatorPool::AllocateTexture(D3D12_RESOURCE_DESC Desc, co
 	const D3D12_HEAP_PROPERTIES HeapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT, GetGPUMask().GetNative(), GetVisibilityMask().GetNative());
 	HRESULT hr = Adapter->CreateCommittedResource(Desc, GetGPUMask(), HeapProps, InitialState, ClearValue, &Resource, Name, false);
 
-	TextureLocation.SetType(FD3D12ResourceLocation::ResourceLocationType::eStandAlone);
-	TextureLocation.SetResource(Resource);
+	if (SUCCEEDED(hr))
+	{
+		TextureLocation.SetType(FD3D12ResourceLocation::ResourceLocationType::eStandAlone);
+		TextureLocation.SetResource(Resource);
+	}
 
 	return hr;
 }

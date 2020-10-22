@@ -63,7 +63,7 @@ bool FDMXPixelMappingEditorUtils::VerifyComponentRename(TSharedRef<FDMXPixelMapp
 		// check for redirectors too
 		if (FindObject<UObject>(ComponentToRename->GetOuter(), *NewNameSlug.ToString()))
 		{
-			OutErrorMessage = LOCTEXT("ExistingComponentName", "Existing Old Component Name");
+			OutErrorMessage = LOCTEXT("ExistingOldComponentName", "Existing Old Component Name");
 			return false;
 		}
 	}
@@ -88,12 +88,16 @@ void FDMXPixelMappingEditorUtils::RenameComponent(TSharedRef<FDMXPixelMappingToo
 	InToolkit->OnComponentRenamed(ComponentToRename);
 }
 
-void FDMXPixelMappingEditorUtils::DeleteComponents(TSharedRef<FDMXPixelMappingToolkit> InToolkit, UDMXPixelMapping* InDMXPixelMapping, const TSet<FDMXPixelMappingComponentReference>& InComponents)
+void FDMXPixelMappingEditorUtils::DeleteComponents(TSharedRef<FDMXPixelMappingToolkit> InToolkit, UDMXPixelMapping* InDMXPixelMapping, const TSet<FDMXPixelMappingComponentReference>& InComponents, bool bCreateTransaction)
 {
 	if (InComponents.Num() > 0)
 	{
-		const FScopedTransaction Transaction(LOCTEXT("RemoveComponent", "Remove Component"));
-		InDMXPixelMapping->SetFlags(RF_Transactional);
+		if (bCreateTransaction)
+		{
+			const FScopedTransaction Transaction(LOCTEXT("RemoveComponent", "Remove Component"));
+			InDMXPixelMapping->SetFlags(RF_Transactional);
+		}
+
 		InDMXPixelMapping->Modify();
 
 		bool bRemoved = false;

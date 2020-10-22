@@ -19,6 +19,11 @@
 			"Name": "NetworkPredictionExtras",
 			"Type": "Runtime",
 			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "NetworkPredictionExtrasLatentLoad",
+			"Type": "Runtime",
+			"LoadingPhase": "None"
 		}
 	],
 	"Plugins": [

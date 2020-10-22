@@ -575,7 +575,7 @@ void FCachedRayTracingSceneData::SetupFromSceneRenderState(FSceneRenderState& Sc
 				{
 					int32 InstanceIndex = RayTracingGeometryInstances.AddDefaulted(1);
 					FRayTracingGeometryInstance& RayTracingInstance = RayTracingGeometryInstances[InstanceIndex];
-					RayTracingInstance.GeometryRHI = InstanceGroup.ComponentUObject->GetStaticMesh()->RenderData->LODResources[0].RayTracingGeometry.RayTracingGeometryRHI;
+					RayTracingInstance.GeometryRHI = InstanceGroup.ComponentUObject->GetStaticMesh()->GetRenderData()->LODResources[0].RayTracingGeometry.RayTracingGeometryRHI;
 
 					RayTracingInstance.Transforms.AddZeroed(InstanceGroup.InstancedRenderData->PerInstanceRenderData->InstanceBuffer.GetNumInstances());
 
@@ -2114,7 +2114,6 @@ void FLightmapRenderer::Finalize(FRHICommandListImmediate& RHICmdList)
 					TransferTexture(5);
 					TransferTexture(6);
 					TransferTexture(7);
-					TransferTexture(8);
 				}
 			}
 		}

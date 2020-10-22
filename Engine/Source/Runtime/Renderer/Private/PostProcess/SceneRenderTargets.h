@@ -585,10 +585,10 @@ private:
 	FIntPoint ComputeDesiredSize(const FSceneViewFamily& ViewFamily);
 
 	/** Allocates the mobile multi-view scene color texture array render target. */
-	void AllocMobileMultiViewSceneColor(FRHICommandList& RHICmdList, const int32 ScaleFactor);
+	void AllocMobileMultiViewSceneColor(FRHICommandList& RHICmdList);
 
 	/** Allocates the mobile multi-view depth (no stencil) texture array render target. */
-	void AllocMobileMultiViewDepth(FRHICommandList& RHICmdList, const int32 ScaleFactor);
+	void AllocMobileMultiViewDepth(FRHICommandList& RHICmdList);
 
 	// internal method, used by AdjustGBufferRefCount()
 	void ReleaseGBufferTargets();

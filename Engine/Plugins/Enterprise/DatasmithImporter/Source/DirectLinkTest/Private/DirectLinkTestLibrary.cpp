@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DirectLinkTestLibrary.h"
+
 #include "DirectLinkTestLog.h"
 #include "TestSceneProvider.h"
 
@@ -8,12 +9,12 @@
 #include "DatasmithSceneFactory.h"
 #include "DatasmithSceneXmlWriter.h"
 #include "DatasmithTranslatableSource.h"
-
 #include "DirectLink/DatasmithSceneReceiver.h"
-#include "DirectLink/DirectLinkCommon.h"
-#include "DirectLink/Network/DirectLinkEndpoint.h"
-#include "DirectLink/Network/DirectLinkScenePipe.h"
-#include "DirectLink/SceneSnapshot.h"
+
+#include "DirectLinkCommon.h"
+#include "DirectLinkEndpoint.h"
+#include "DirectLinkScenePipe.h"
+#include "DirectLinkSceneSnapshot.h"
 
 #include "HAL/FileManager.h"
 #include "HAL/PlatformProcess.h"

@@ -50,13 +50,7 @@ public:
 	TArray<UMoviePipelineSetting*> GetTransientSettings() const { return TransientSettings; }
 
 	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
-	TArray<UMoviePipelineSetting*> GetAllSettings() const
-	{
-		TArray<UMoviePipelineSetting*> CombinedSettings;
-		CombinedSettings.Append(GetUserSettings());
-		CombinedSettings.Append(GetTransientSettings());
-		return CombinedSettings;
-	}
+	TArray<UMoviePipelineSetting*> GetAllSettings(const bool bIncludeDisabledSettings = false, const bool bIncludeTransientSettings = false) const;
 public:
 
 	/** Returns a pointer to the config specified for the shot, otherwise the default for this pipeline. */

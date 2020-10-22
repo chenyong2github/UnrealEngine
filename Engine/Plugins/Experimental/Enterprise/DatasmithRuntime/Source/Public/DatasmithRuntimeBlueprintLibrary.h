@@ -50,6 +50,7 @@ class DATASMITHRUNTIME_API UDirectLinkProxy : public UObject
 
 public:
 	UDirectLinkProxy();
+	~UDirectLinkProxy();
 
 	UFUNCTION(BlueprintCallable, Category = "DirectLink")
 	FString GetEndPointName();
@@ -73,9 +74,6 @@ public:
 	// a change in the DirectLink network
 	UPROPERTY(BlueprintAssignable)
 	FDatasmithRuntimeChangeEvent OnDirectLinkChange;
-
-private:
-	TSharedPtr<DatasmithRuntime::FDirectLinkProxyImpl> Impl;
 
 	friend class UDatasmithRuntimeLibrary;
 };

@@ -3716,9 +3716,7 @@ void FBlueprintEditor::DeleteUnusedVariables_OnClicked()
 			.AutoHeight()
 			[
 				SNew(STextBlock)
-				.Text(LOCTEXT("VariableDialog_Message", "These variables are not used in the graph."
-					"\nThey may be used in other places."
-					"\nYou may use 'Find in Blueprint' or the 'Asset Search' to find out if they are referenced elsewhere."))
+				.Text(LOCTEXT("VariableDialog_Message", "These variables are not used in the graph.\nThey may be used in other places.\nYou may use 'Find in Blueprint' or the 'Asset Search' to find out if they are referenced elsewhere."))
 				.AutoWrapText(true)
 			]
 			+ SVerticalBox::Slot().FillHeight(0.8)
@@ -6444,44 +6442,47 @@ void FBlueprintEditor::DeleteSelectedNodes()
 		FocusedGraphEd->ClearSelectionSet();
 	}
 
-	// this closes all the document that is outered by this node
-	// this is used by AnimBP statemachines/states that can create subgraph
-	auto CloseAllDocumentsTab = [this](const UEdGraphNode* InNode)
-	{
-		TArray<UObject*> NodesToClose;
-		GetObjectsWithOuter(InNode, NodesToClose);
-		for (UObject* Node : NodesToClose)
-		{
-			UEdGraph* NodeGraph = Cast<UEdGraph>(Node);
-			if (NodeGraph)
-			{
-				CloseDocumentTab(NodeGraph);
-			}
-		}
-	};
-
+	// Some nodes have sub-objects that are represented as other tabs.
+	// Close them here as a pre-pass before we remove their nodes. If the documents are left open they
+	// may reference dangling data and function incorrectly in cases such as FindBlueprintforNodeChecked
 	for (FGraphPanelSelectionSet::TConstIterator NodeIt( SelectedNodes ); NodeIt; ++NodeIt)
 	{
 		if (UEdGraphNode* Node = Cast<UEdGraphNode>(*NodeIt))
 		{
 			if (Node->CanUserDeleteNode())
 			{
-				// if it's state based anim node, make sure we close the sub graph first
-				// otherwise, we leave the orphan graph around
-				UAnimStateNodeBase* StateNode = Cast<UAnimStateNodeBase>(Node);
-				if (StateNode)
+				auto CloseAllDocumentsTab = [this](const UEdGraphNode* InNode)
 				{
-					CloseAllDocumentsTab(StateNode);
-				}
-				else
-				{
-					const UAnimGraphNode_StateMachineBase* SMNode = Cast<UAnimGraphNode_StateMachineBase>(Node);
-					if (SMNode)
+					TArray<UObject*> NodesToClose;
+					GetObjectsWithOuter(InNode, NodesToClose);
+					for (UObject* Node : NodesToClose)
 					{
-						CloseAllDocumentsTab(SMNode);
+						UEdGraph* NodeGraph = Cast<UEdGraph>(Node);
+						if (NodeGraph)
+						{
+							CloseDocumentTab(NodeGraph);
+						}
 					}
-				}
+				};
 
+
+				if (Node->IsA<UAnimStateNodeBase>() || 
+					Node->IsA<UAnimGraphNode_StateMachineBase>() ||
+					Node->IsA<UK2Node_Composite>())
+				{
+					CloseAllDocumentsTab(Node);
+				}
+			}
+		}
+	}
+
+	// Now remove the selected nodes
+	for (FGraphPanelSelectionSet::TConstIterator NodeIt( SelectedNodes ); NodeIt; ++NodeIt)
+	{
+		if (UEdGraphNode* Node = Cast<UEdGraphNode>(*NodeIt))
+		{
+			if (Node->CanUserDeleteNode())
+			{
 				UK2Node* K2Node = Cast<UK2Node>(Node);
 				if (K2Node != nullptr && K2Node->NodeCausesStructuralBlueprintChange())
 				{
@@ -8956,14 +8957,15 @@ void FBlueprintEditor::NotifyPostChange(const FPropertyChangedEvent& PropertyCha
 
 void FBlueprintEditor::OnFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent)
 {
-	FName PropertyName = (PropertyChangedEvent.Property != NULL) ? PropertyChangedEvent.Property->GetFName() : NAME_None;
+	FName PropertyName = PropertyChangedEvent.GetPropertyName();
+	FName MemberPropertyName = PropertyChangedEvent.MemberProperty ? PropertyChangedEvent.MemberProperty->GetFName() : PropertyName;
 
-	if (PropertyName.IsValid())
+	if (MemberPropertyName.IsValid())
 	{
 		UBlueprint* Blueprint = GetBlueprintObj();
 		if (Blueprint)
 		{
-			int32 VarIndex = FBlueprintEditorUtils::FindNewVariableIndex(Blueprint, PropertyName);
+			int32 VarIndex = FBlueprintEditorUtils::FindNewVariableIndex(Blueprint, MemberPropertyName);
 			if (VarIndex != INDEX_NONE)
 			{
 				Blueprint->Modify();

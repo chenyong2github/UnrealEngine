@@ -8,8 +8,10 @@
 #include "GameFramework/Actor.h"
 #include "IDetailTreeNode.h"
 #include "Input/Reply.h"
+#include "Layout/Visibility.h"
 #include "RemoteControlField.h"
 #include "RemoteControlPreset.h"
+#include "SSearchableTreeView.h"
 #include "Templates/SubclassOf.h"
 #include "UObject/SoftObjectPath.h"
 #include "UObject/StrongObjectPtr.h"
@@ -28,8 +30,20 @@ struct SRCPanelExposedField;
 class SRemoteControlPanel;
 class SRemoteControlTarget;
 class URemoteControlPreset;
+class UBlueprintFunctionLibrary;
 
 DECLARE_DELEGATE_TwoParams(FOnEditModeChange, TSharedPtr<SRemoteControlPanel> /* Panel */, bool /* bEditModeChange */);
+
+/** A node in the blueprint picker tree view. */
+struct FRCBlueprintPickerTreeNode
+{
+	virtual ~FRCBlueprintPickerTreeNode() = default;
+	virtual const FString& GetName() const = 0;
+	virtual bool IsFunctionNode() const = 0;
+	virtual UBlueprintFunctionLibrary* GetLibrary() const = 0;
+	virtual UFunction* GetFunction() const = 0;
+	virtual void GetChildNodes(TArray<TSharedPtr<FRCBlueprintPickerTreeNode>>& OutNodes) const = 0;
+};
 
 /** A node in the panel tree view. */
 struct FRCPanelTreeNode 
@@ -251,7 +265,7 @@ private:
 	/** Get the border image according to the current selection. */
 	const FSlateBrush* GetBorderImage() const;
 	/** Get the visibility according to the panel's current mode. */
-	EVisibility GetVisibilityAccordingToEditMode() const;
+	EVisibility GetVisibilityAccordingToEditMode(EVisibility DefaultHiddenVisibility) const;
 
 	bool OnVerifyItemLabelChanged(const FText& InLabel, FText& OutErrorMessage);
 
@@ -443,8 +457,10 @@ private:
 	};
 
 private:
-	/** Register events needed to handle reloading objets and blueprint libraries. */
+	/** Register editor events needed to handle reloading objects and blueprint libraries. */
 	void RegisterEvents();
+	/** Unregister editor events */
+	void UnregisterEvents();
 
 	/** Re-create the sections of the panel. */
 	void Refresh();
@@ -456,6 +472,9 @@ private:
 
 	/** Unexpose a field from the preset. */
 	void Unexpose(const TSharedPtr<IPropertyHandle>& Handle);
+	
+	/** Regenerates the list of available blueprint libraries. */
+	void RefreshBlueprintLibraryNodes();
 
 	/** Create a blueprint library picker widget. */
 	TSharedRef<SWidget> CreateBlueprintLibraryPicker();
@@ -496,6 +515,8 @@ private:
 	/** Exposes a function  */
 	void ExposeFunction(UObject* Object, UFunction* Function);
 
+	void OnActorDeleted(AActor* Actor);
+
 	//~ Handlers for drag/drop events.
 	FReply OnDropOnGroup(const TSharedPtr<FDragDropOperation>& DragDropOperation, const TSharedPtr<SRCPanelExposedField>& TargetField, const TSharedPtr<FRCPanelGroup>& DragTargetGroup);
 	
@@ -520,13 +541,17 @@ private:
 	/** Holds the section widgets. */
 	TArray<TSharedRef<SRemoteControlTarget>> RemoteControlTargets;
 	/** Whether the panel is in edit mode. */
-	bool bIsInEditMode;
-	/** Holds the blueprint library picker widget. */
-	TSharedPtr<class SMenuAnchor> BlueprintLibraryPicker;
+	bool bIsInEditMode = true;
+	/** Holds the blueprint library picker tree view. */
+	TSharedPtr<SSearchableTreeView<TSharedPtr<FRCBlueprintPickerTreeNode>>> BlueprintLibrariesTreeView;
+	/** Holds the blueprint library nodes. */
+	TArray<TSharedPtr<FRCBlueprintPickerTreeNode>> BlueprintLibraryNodes;
 	/** Delegate called when the edit mode changes. */
 	FOnEditModeChange OnEditModeChange;
 	/** Handle to the delegate called when an object property change is detected. */
 	FDelegateHandle OnPropertyChangedHandle;
+	/** Handle to the delegate called when the map changes. */
+	FDelegateHandle MapChangedHandle;
 	/** Map of field ids to field widgets. */
 	TMap<FGuid, TSharedPtr<SRCPanelExposedField>> FieldWidgetMap;
 

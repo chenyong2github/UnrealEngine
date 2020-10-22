@@ -52,6 +52,58 @@ static float SnapToIncrement(float fValue, float fIncrement, float offset = 0)
 	return sign * (float)nInc * fIncrement + offset;
 }
 
+
+
+
+static bool IsVisibleObjectHit_Internal(const FHitResult& HitResult)
+{
+	AActor* Actor = HitResult.GetActor();
+	if (Actor != nullptr && (Actor->IsHidden() || Actor->IsHiddenEd()) )
+	{
+		return false;
+	}
+	UPrimitiveComponent* Component = HitResult.GetComponent();
+	if (Component != nullptr && (Component->IsVisible() == false && Component->IsVisibleInEditor() == false))
+	{
+		return false;
+	}
+	return true;
+}
+
+static bool FindNearestVisibleObjectHit_Internal(UWorld* World, FHitResult& HitResultOut, const FVector& Start, const FVector& End, bool bIsSceneGeometrySnapQuery)
+{
+	FCollisionObjectQueryParams ObjectQueryParams(FCollisionObjectQueryParams::AllObjects);
+	FCollisionQueryParams QueryParams = FCollisionQueryParams::DefaultQueryParam;
+	QueryParams.bTraceComplex = true;
+	QueryParams.bReturnFaceIndex = bIsSceneGeometrySnapQuery;
+
+	TArray<FHitResult> OutHits;
+	if (World->LineTraceMultiByObjectType(OutHits, Start, End, ObjectQueryParams, QueryParams) == false)
+	{
+		return false;
+	}
+
+	float NearestVisible = TNumericLimits<float>::Max();
+	for (const FHitResult& CurResult : OutHits)
+	{
+		if (CurResult.Distance < NearestVisible)
+		{
+			if (IsVisibleObjectHit_Internal(CurResult))
+			{
+				HitResultOut = CurResult;
+				NearestVisible = CurResult.Distance;
+			}
+		}
+	}
+
+	return NearestVisible < TNumericLimits<float>::Max();
+}
+
+
+
+
+
+
 class FEdModeToolsContextQueriesImpl : public IToolsContextQueriesAPI
 {
 public:
@@ -184,13 +236,9 @@ public:
 		// cast ray into world
 		FVector RayStart = CachedViewState.Position;
 		FVector RayDirection = Request.Position - RayStart; RayDirection.Normalize();
-		FVector RayEnd = RayStart + 9999999 * RayDirection;
-		FCollisionObjectQueryParams ObjectQueryParams(FCollisionObjectQueryParams::AllObjects);
-		FCollisionQueryParams QueryParams = FCollisionQueryParams::DefaultQueryParam;
-		QueryParams.bTraceComplex = true;
-		QueryParams.bReturnFaceIndex = true;
+		FVector RayEnd = RayStart + HALF_WORLD_MAX * RayDirection;
 		FHitResult HitResult;
-		bool bHitWorld = EditorModeManager->GetWorld()->LineTraceSingleByObjectType(HitResult, RayStart, RayEnd, ObjectQueryParams, QueryParams);
+		bool bHitWorld = FindNearestVisibleObjectHit_Internal(EditorModeManager->GetWorld(), HitResult, RayStart, RayEnd, true);
 		if (bHitWorld && HitResult.FaceIndex >= 0)
 		{
 			float VisualAngle = OpeningAngleDeg(Request.Position, HitResult.ImpactPoint, RayStart);
@@ -215,7 +263,7 @@ public:
 					// (note: this may be incorrect if there are multiple sections...in that case I think we have to
 					//  first find section whose accumulated index range would contain .FaceIndexX)
 					UStaticMesh* StaticMesh = Cast<UStaticMeshComponent>(Component)->GetStaticMesh();
-					FStaticMeshLODResources& LOD = StaticMesh->RenderData->LODResources[0];
+					FStaticMeshLODResources& LOD = StaticMesh->GetRenderData()->LODResources[0];
 					FIndexArrayView Indices = LOD.IndexBuffer.GetArrayView();
 					int32 TriIdx = 3 * HitResult.FaceIndex;
 					FVector Positions[3];

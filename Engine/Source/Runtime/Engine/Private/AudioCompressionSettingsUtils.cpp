@@ -86,7 +86,8 @@ void CacheAudioCookOverrides(FPlatformAudioCookOverrides& OutOverrides, const TC
 	FString PlatformName = InPlatformName ? FString(InPlatformName) : FString(FPlatformProperties::IniPlatformName());
 	
 	// now use that platform name to get the ini section out of DDPI
-	FString CategoryName = FDataDrivenPlatformInfoRegistry::GetPlatformInfo(PlatformName).AudioCompressionSettingsIniSectionName;
+	const FDataDrivenPlatformInfo& PlatformInfo = FDataDrivenPlatformInfoRegistry::GetPlatformInfo(PlatformName);
+	const FString& CategoryName = PlatformInfo.AudioCompressionSettingsIniSectionName;
 
 	// if we don't support platform overrides, then return 
 	if (CategoryName.Len() == 0)

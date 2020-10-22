@@ -2,35 +2,45 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Components/SceneComponent.h"
+#include "CoreMinimal.h"
 
 #include "DisplayClusterConfigurationTypes.h"
 
-#include "DisplayClusterSceneComponent.generated.h"
+#if WITH_EDITOR
+#include "Interfaces/Views/Viewport/IDisplayClusterConfiguratorViewportItem.h"
+#endif
 
+#include "DisplayClusterSceneComponent.generated.h"
 
 class UDisplayClusterSceneComponentSync;
 class UDisplayClusterConfigurationSceneComponent;
 
 
+#if WITH_EDITOR
+typedef IDisplayClusterConfiguratorViewportItem IDisplayClusterEditorFeatureInterface;
+#else
+typedef struct {} IDisplayClusterEditorFeatureInterface;
+#endif
+
+
 /**
- * Extended scene component
+ * nDisplay scene component
  */
-UCLASS(ClassGroup = (Custom), Blueprintable, meta = (BlueprintSpawnableComponent))
+UCLASS(Abstract, ClassGroup = (DisplayCluster))
 class DISPLAYCLUSTER_API UDisplayClusterSceneComponent
 	: public USceneComponent
+	, public IDisplayClusterEditorFeatureInterface
 {
 	GENERATED_BODY()
 
-	friend class UDisplayClusterRootComponent;
+public:
+	friend class ADisplayClusterRootActor;
 
 public:
 	UDisplayClusterSceneComponent(const FObjectInitializer& ObjectInitializer);
 
 public:
-	virtual void BeginPlay() override;
-	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
 public:
@@ -55,17 +65,7 @@ public:
 	}
 
 protected:
-	void SetId(const FString& ComponentId)
-	{
-		CompId = ComponentId;
-	}
-
-	FString GetId() const
-	{
-		return CompId;
-	}
-
-	void SetConfigParameters(const UDisplayClusterConfigurationSceneComponent* InConfigData)
+	void SetConfigParameters(UDisplayClusterConfigurationSceneComponent* InConfigData)
 	{
 		ConfigData = InConfigData;
 	}
@@ -75,10 +75,9 @@ protected:
 		return ConfigData;
 	}
 
-protected:
-	UPROPERTY(BlueprintReadOnly, Category = "DisplayCluster")
-	FString CompId;
+	virtual void ApplyConfigurationData();
 
+protected:
 	UPROPERTY(BlueprintReadOnly, Category = "DisplayCluster")
 	FString SyncId;
 
@@ -86,9 +85,21 @@ protected:
 	FString TrackerId;
 	
 	UPROPERTY(EditAnywhere, Category = "DisplayCluster")
-	int TrackerChannel;
+	int32 TrackerChannel;
 
 protected:
-	TMap<FString, FString> ConfigParameters;
-	const UDisplayClusterConfigurationSceneComponent* ConfigData;
+	UDisplayClusterConfigurationSceneComponent* ConfigData;
+
+#if WITH_EDITOR 
+public:
+	virtual UObject* GetObject() const override;
+	virtual bool IsSelected() override;
+
+	virtual void OnSelection() override
+	{ }
+
+	virtual void SetNodeSelection(bool bSelect)
+	{ }
+
+#endif
 };

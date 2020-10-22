@@ -25,7 +25,7 @@ class UMaterialExpressionComment : public UMaterialExpression
 	FString Text;
 
 	/** Color to style comment with */
-	UPROPERTY(EditAnywhere, Category=MaterialExpressionComment, meta=(OnlyUpdateOnInteractionEnd))
+	UPROPERTY(EditAnywhere, Category=MaterialExpressionComment)
 	FLinearColor CommentColor;
 
 	/** Size of the text in the comment box */

@@ -217,8 +217,7 @@ FMeshBatchAndRelevance::FMeshBatchAndRelevance(const FMeshBatch& InMesh, const F
 	Mesh(&InMesh),
 	PrimitiveSceneProxy(InPrimitiveSceneProxy)
 {
-	const FMaterial* Material = InMesh.MaterialRenderProxy->GetMaterial(FeatureLevel);
-	EBlendMode BlendMode = Material->GetBlendMode();
+	EBlendMode BlendMode = InMesh.MaterialRenderProxy->GetIncompleteMaterialWithFallback(FeatureLevel).GetBlendMode();
 	bHasOpaqueMaterial = (BlendMode == BLEND_Opaque);
 	bHasMaskedMaterial = (BlendMode == BLEND_Masked);
 	bRenderInMainPass = PrimitiveSceneProxy->ShouldRenderInMainPass();

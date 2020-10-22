@@ -551,7 +551,14 @@ FGPUSortManager::FGPUSortManager(ERHIFeatureLevel::Type InFeatureLevel)
 
 FGPUSortManager::~FGPUSortManager()
 {
-	check(!SortBatches.Num());
+	for (FSortBatch& SortBatch : SortBatches)
+	{
+		if (SortBatch.SortBuffers)
+		{
+			SortBuffersPool.Push(SortBatch.SortBuffers);
+			SortBatch.SortBuffers = nullptr;
+		}
+	}
 
 	ReleaseSortBuffers();
 }

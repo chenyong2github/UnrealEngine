@@ -42,9 +42,10 @@ Or,
 Etc.
 
 (2.)
-Then include this file,
+Then include this file using the include directive,
 
-  # include "Fxaa3_11.h"
+
+"Fxaa3_11.h"
 
 (3.)
 Then call the FXAA pixel shader from within your desired shader.

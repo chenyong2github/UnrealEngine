@@ -81,31 +81,31 @@ The client should save this list and use it to enable channels by sending the fo
 Once a connection to the FRemoteSessionFrameBufferChannel channel is established via the ChangeChannel API the client will receive a stream of images that represent the framebuffer.
 
     Address: /Screen
-    tag: i,i,i,b,i
-    param: Width, Height, ByteCount, Data, ImageNum
-    Example: 800,600,100000,<blob>,45
+    tag: i,i,b,i
+    param: Width, Height, Data, ImageNum
+    Example: 800,600,<blob>,45
 
     Note -
-    * The length of the data is in both ByteCount and the first four bytes of the blob as per the OSC spec.
+    * The length of the data is in the first four bytes of the blob as per the OSC spec.
     * Data is JPEG encoded.
     * ImageNum is simply an always-incrementing number.
 
 ### FRemoteSessionInputChannel Channel API
 
     Address: /MessageHandler/OnTouchStarted
-    tag: i,b
-    param: ByteCount, Data
-    Data is little endian f,f,i,i (X,Y,ID,Force)
+    tag: b
+    param: Data
+    The first four bytes of data is the size, then iittle endian f,f,i,i (X,Y,ID,Force)
 
     Address: /MessageHandler/OnTouchMoved
-    tag: i,b
-    param: ByteCount, Data
-    Data is little endian f,f,i,i (X,Y,ID,Force)
+    tag: b
+    param: Data
+    The first four bytes of data is the size, then little endian f,f,i,i (X,Y,ID,Force)
 
     Address: /MessageHandler/OnTouchEnded
-    tag: i,b
-    param: ByteCount, Data
-    Data is little endian f,f,i,i (X,Y,ID,Force)
+    tag: b
+    param: Data
+    The first four bytes of data is the size, then little endian f,f,i,i (X,Y,ID,Force)
 
 ## Tips
 

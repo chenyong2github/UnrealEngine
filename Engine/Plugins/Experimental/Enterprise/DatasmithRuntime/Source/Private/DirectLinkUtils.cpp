@@ -4,14 +4,13 @@
 
 #include "DatasmithRuntime.h"
 #include "DatasmithRuntimeBlueprintLibrary.h"
+#include "LogCategory.h"
 
 #include "DatasmithCore.h"
 #include "DatasmithTranslatorModule.h"
-#include "DirectLink/DirectLinkCommon.h"
-#include "DirectLink/DirectLinkLog.h"
-#include "DirectLink/Network/DirectLinkISceneProvider.h"
-#include "MasterMaterials/DatasmithMasterMaterialManager.h"
-#include "MaterialSelectors/DatasmithRevitLiveMaterialSelector.h"
+#include "DirectLinkCommon.h"
+#include "DirectLinkLog.h"
+#include "DirectLinkSceneProvider.h"
 
 #include "HAL/CriticalSection.h"
 #include "Misc/SecureHash.h"
@@ -21,39 +20,60 @@ const TCHAR* EndPointName = TEXT("DatasmithRuntime");
 
 namespace DatasmithRuntime
 {
-	class FDirectLinkProxyImpl : public FTickableGameObject, public DirectLink::IEndpointObserver
+	// UDirectLinkProxy object used by the game's UI
+	static TStrongObjectPtr<UDirectLinkProxy> DirectLinkProxy;
+
+	UDirectLinkProxy* GetDirectLinkProxy()
+	{
+		return DirectLinkProxy.Get();
+	}
+
+	// Helper class to expose some functionalities of the DirectLink end point
+	// This is a tickable object in order to update the Game on changes happening on the DirectLink network
+	class FDirectLinkEndpointProxy : public DirectLink::IEndpointObserver, public FTickableGameObject
 	{
 	public:
-		static TSharedRef<FDirectLinkProxyImpl> Get();
+		virtual ~FDirectLinkEndpointProxy();
 
-		virtual ~FDirectLinkProxyImpl();
-
-		bool RegisterSceneProvider(const TCHAR* StreamName, TSharedPtr<FDestinationProxy> DestinationProxy);
-
-		void UnregisterSceneProvider(TSharedPtr<FDestinationProxy> DestinationProxy);
-
-		FString GetEndPointName();
-
-		const TArray<FDatasmithRuntimeSourceInfo>& GetListOfSources() const;
-
-		bool OpenConnection(const DirectLink::FSourceHandle& SourceId, const DirectLink::FDestinationHandle& DestinationId);
-
-		void CloseConnection(const DirectLink::FSourceHandle& SourceId, const DirectLink::FDestinationHandle& DestinationId);
-
-		DirectLink::FSourceHandle GetSourceHandleFromHash(uint32 SourceHash);
-
-		uint32 GetSourceHandleHash(const DirectLink::FSourceHandle& SourceId);
-
-		FString GetSourceName(const DirectLink::FSourceHandle& SourceId);
-
-		DirectLink::FSourceHandle GetConnection(const DirectLink::FDestinationHandle& DestinationId);
-
+		// Begin DirectLink::IEndpointObserver interface
 		void OnStateChanged(const DirectLink::FRawInfo& RawInfo) override;
+		// End DirectLink::IEndpointObserver interface
 
+		/** Register a destination to the end point */
+		bool RegisterDestination(const TCHAR* StreamName, TSharedPtr<FDestinationProxy> DestinationProxy);
+
+		/** Unregister a destination to the end point */
+		void UnregisterDestination(TSharedPtr<FDestinationProxy> DestinationProxy);
+
+		/** Open a connection between a given source and a given destination */
+		bool OpenConnection(const DirectLink::FSourceHandle& SourceHandle, const DirectLink::FDestinationHandle& DestinationHandle);
+
+		/** Close a connection between a given source and a given destination */
+		void CloseConnection(const DirectLink::FSourceHandle& SourceHandle, const DirectLink::FDestinationHandle& DestinationHandle);
+
+		/** Returns a source handle based on a given UI identifier */
+		DirectLink::FSourceHandle GetSourceHandleFromIdentifier(uint32 SourceIdentifier);
+
+		/** Compute a UI identifier for a given source handle */
+		uint32 ComputeSourceIdentifier(const DirectLink::FSourceHandle& SourceHandle);
+
+		/** Returns the name of the source associated to a given handle */
+		FString GetSourceName(const DirectLink::FSourceHandle& SourceHandle);
+
+		/** Returns the source handle a give destination is connected to */
+		DirectLink::FSourceHandle GetConnection(const DirectLink::FDestinationHandle& DestinationHandle);
+
+		/** Set the delegate which will be called when there are changes on the DirectLink network */
 		void SetChangeNotifier(FDatasmithRuntimeChangeEvent* InNotifyChange)
 		{
 			NotifyChange = InNotifyChange;
 		}
+
+		/** Returns the name of the end point */
+		FString GetEndPointName();
+
+		/** Returns the list of public sources available on the DirectLink network */
+		const TArray<FDatasmithRuntimeSourceInfo>& GetListOfSources() const;
 
 	protected:
 		//~ Begin FTickableEditorObject interface
@@ -66,25 +86,38 @@ namespace DatasmithRuntime
 
 		virtual TStatId GetStatId() const override
 		{
-			RETURN_QUICK_DECLARE_CYCLE_STAT(FDirectLinkProxyImpl, STATGROUP_Tickables);
+			RETURN_QUICK_DECLARE_CYCLE_STAT(FDirectLinkEndpointProxy, STATGROUP_Tickables);
 		}
 		//~ End FTickableEditorObject interface
 
 	private:
-		FDirectLinkProxyImpl() : bIsDirty(false), NotifyChange(nullptr) {}
+		FDirectLinkEndpointProxy() : bIsDirty(false), NotifyChange(nullptr) {}
 
 	private:
+		/** Unique pointer to the DirectLink endpoint */
 		TUniquePtr<DirectLink::FEndpoint> ReceiverEndpoint;
-		TSet<TSharedPtr<FDestinationProxy>> DestinationList;
 
-		DirectLink::FRawInfo LastRawInfo;
+		/** Set of destinations registered to the DirectLink end point */
+		TMap<DirectLink::FDestinationHandle, TSharedPtr<FDestinationProxy>> DestinationList;
+
+		/**
+		 * Lock used when processing the FRawInfo provided by the DirectLink end point
+		 * The calls to Tick and OnStateChanged are happening on different threads.
+		 */
 		mutable FRWLock RawInfoCopyLock;
+
+		/** Hash of the last FRawInfo processed */
 		FMD5Hash LastHash;
 
 		TArray<FDatasmithRuntimeSourceInfo> LastSources;
 
 		std::atomic_bool bIsDirty;
+
+		/** Pointer to the delegate to call when there are changes on the DirectLink network */
 		FDatasmithRuntimeChangeEvent* NotifyChange;
+
+		friend FDestinationProxy;
+		friend UDirectLinkProxy;
 	};
 }
 
@@ -92,8 +125,17 @@ UDirectLinkProxy::UDirectLinkProxy()
 {
 	using namespace DatasmithRuntime;
 
-	Impl = FDirectLinkProxyImpl::Get();
-	Impl->SetChangeNotifier(&OnDirectLinkChange);
+	if (!HasAnyFlags(RF_ClassDefaultObject))
+	{
+		FDestinationProxy::GetEndpointProxy().SetChangeNotifier(&OnDirectLinkChange);
+	}
+}
+
+UDirectLinkProxy::~UDirectLinkProxy()
+{
+	using namespace DatasmithRuntime;
+
+	FDestinationProxy::GetEndpointProxy().SetChangeNotifier(nullptr);
 }
 
 FString UDirectLinkProxy::GetEndPointName()
@@ -103,7 +145,9 @@ FString UDirectLinkProxy::GetEndPointName()
 
 TArray<FDatasmithRuntimeSourceInfo> UDirectLinkProxy::GetListOfSources()
 {
-	return Impl->GetListOfSources();
+	using namespace DatasmithRuntime;
+
+	return FDestinationProxy::GetEndpointProxy().GetListOfSources();
 }
 
 FString UDirectLinkProxy::GetDestinationName(ADatasmithRuntimeActor* DatasmithRuntimeActor)
@@ -123,9 +167,11 @@ FString UDirectLinkProxy::GetSourcename(ADatasmithRuntimeActor* DatasmithRuntime
 
 void UDirectLinkProxy::ConnectToSource(ADatasmithRuntimeActor* DatasmithRuntimeActor, int32 SourceIndex)
 {
+	using namespace DatasmithRuntime;
+
 	if (DatasmithRuntimeActor)
 	{
-		const TArray<FDatasmithRuntimeSourceInfo>& SourcesList = Impl->GetListOfSources();
+		const TArray<FDatasmithRuntimeSourceInfo>& SourcesList = FDestinationProxy::GetEndpointProxy().GetListOfSources();
 
 		if (SourcesList.IsValidIndex(SourceIndex))
 		{
@@ -141,21 +187,34 @@ void UDirectLinkProxy::ConnectToSource(ADatasmithRuntimeActor* DatasmithRuntimeA
 
 namespace DatasmithRuntime
 {
-	TSharedRef<FDirectLinkProxyImpl> FDirectLinkProxyImpl::Get()
+	TSharedPtr<FDirectLinkEndpointProxy> FDestinationProxy::EndpointProxy;
+
+	void FDestinationProxy::InitializeEndpointProxy()
 	{
-		static TSharedRef<FDirectLinkProxyImpl> DirectLinkProxy(new FDirectLinkProxyImpl());
+		ensure(!EndpointProxy.IsValid());
+		EndpointProxy = TSharedPtr<FDirectLinkEndpointProxy>(new FDirectLinkEndpointProxy());
+		ensure(EndpointProxy.IsValid());
+
+		// Create associated UObject to access DirectLink features from the BP UI
+		DirectLinkProxy = TStrongObjectPtr<UDirectLinkProxy>(NewObject<UDirectLinkProxy>());
+
 
 #if !NO_LOGGING
 		LogDatasmith.SetVerbosity( ELogVerbosity::Error );
-		//LogDirectLink.SetVerbosity( ELogVerbosity::Error );
-		//LogDirectLinkIndexer.SetVerbosity( ELogVerbosity::Error );
-		//LogDirectLinkNet.SetVerbosity( ELogVerbosity::Error );
+#if !WITH_EDITOR
+		LogDirectLink.SetVerbosity( ELogVerbosity::Warning );
+		LogDirectLinkNet.SetVerbosity( ELogVerbosity::Warning );
 #endif
-
-		return DirectLinkProxy;
+#endif
 	}
 
-	FDirectLinkProxyImpl::~FDirectLinkProxyImpl()
+	void FDestinationProxy::ShutdownEndpointProxy()
+	{
+		DirectLinkProxy.Reset();
+		FDestinationProxy::EndpointProxy.Reset();
+	}
+
+	FDirectLinkEndpointProxy::~FDirectLinkEndpointProxy()
 	{
 		if (ReceiverEndpoint.IsValid())
 		{
@@ -164,7 +223,7 @@ namespace DatasmithRuntime
 		}
 	}
 
-	bool FDirectLinkProxyImpl::RegisterSceneProvider(const TCHAR* StreamName, TSharedPtr<FDestinationProxy> DestinationProxy)
+	bool FDirectLinkEndpointProxy::RegisterDestination(const TCHAR* StreamName, TSharedPtr<FDestinationProxy> DestinationProxy)
 	{
 		using namespace DirectLink;
 
@@ -196,7 +255,7 @@ namespace DatasmithRuntime
 
 			if (DestinationProxy->GetDestinationHandle().IsValid())
 			{
-				DestinationList.Add(DestinationProxy);
+				DestinationList.Add(DestinationProxy->GetDestinationHandle(), DestinationProxy);
 				return true;
 			}
 		}
@@ -204,22 +263,24 @@ namespace DatasmithRuntime
 		return false;
 	}
 
-	void FDirectLinkProxyImpl::UnregisterSceneProvider(TSharedPtr<FDestinationProxy> DestinationProxy)
+	void FDirectLinkEndpointProxy::UnregisterDestination(TSharedPtr<FDestinationProxy> DestinationProxy)
 	{
-		if (ReceiverEndpoint.IsValid() && DestinationList.Contains(DestinationProxy))
+		DirectLink::FDestinationHandle& DestinationHandle = DestinationProxy->GetDestinationHandle();
+
+		if (ReceiverEndpoint.IsValid() && DestinationList.Contains(DestinationHandle))
 		{
-			DestinationList.Remove(DestinationProxy);
-			ReceiverEndpoint->RemoveDestination(DestinationProxy->GetDestinationHandle());
+			DestinationList.Remove(DestinationHandle);
+			ReceiverEndpoint->RemoveDestination(DestinationHandle);
 		}
 	}
 
-	bool FDirectLinkProxyImpl::OpenConnection(const DirectLink::FSourceHandle& SourceId, const DirectLink::FDestinationHandle& DestinationId)
+	bool FDirectLinkEndpointProxy::OpenConnection(const DirectLink::FSourceHandle& SourceHandle, const DirectLink::FDestinationHandle& DestinationHandle)
 	{
 		using namespace DirectLink;
 
 		if (ReceiverEndpoint.IsValid())
 		{
-			FEndpoint::EOpenStreamResult Result = ReceiverEndpoint->OpenStream(SourceId, DestinationId);
+			FEndpoint::EOpenStreamResult Result = ReceiverEndpoint->OpenStream(SourceHandle, DestinationHandle);
 
 			return Result == FEndpoint::EOpenStreamResult::Opened || Result == FEndpoint::EOpenStreamResult::AlreadyOpened;
 		}
@@ -227,24 +288,24 @@ namespace DatasmithRuntime
 		return false;
 	}
 
-	void FDirectLinkProxyImpl::CloseConnection(const DirectLink::FSourceHandle& SourceId, const DirectLink::FDestinationHandle& DestinationId)
+	void FDirectLinkEndpointProxy::CloseConnection(const DirectLink::FSourceHandle& SourceHandle, const DirectLink::FDestinationHandle& DestinationHandle)
 	{
 		if (ReceiverEndpoint.IsValid())
 		{
-			ReceiverEndpoint->CloseStream(SourceId, DestinationId);
+			ReceiverEndpoint->CloseStream(SourceHandle, DestinationHandle);
 		}
 
 	}
 
-	FString FDirectLinkProxyImpl::GetSourceName(const DirectLink::FSourceHandle& SourceId)
+	FString FDirectLinkEndpointProxy::GetSourceName(const DirectLink::FSourceHandle& SourceHandle)
 	{
 		using namespace DirectLink;
 
-		if (ReceiverEndpoint.IsValid() && SourceId.IsValid())
+		if (ReceiverEndpoint.IsValid() && SourceHandle.IsValid())
 		{
 			FRawInfo RawInfo = ReceiverEndpoint->GetRawInfoCopy();
 
-			if (FRawInfo::FDataPointInfo* DataPointInfoPtr = RawInfo.DataPointsInfo.Find(SourceId))
+			if (FRawInfo::FDataPointInfo* DataPointInfoPtr = RawInfo.DataPointsInfo.Find(SourceHandle))
 			{
 				return DataPointInfoPtr->Name;
 			}
@@ -253,24 +314,20 @@ namespace DatasmithRuntime
 		return FString();
 	}
 
-	uint32 ComputeSourcesHash(const DirectLink::FSourceHandle& SourceId, const FMessageAddress& MessageAddress)
-	{
-		return HashCombine(GetTypeHash(SourceId), GetTypeHash(MessageAddress));
-	}
-
-	uint32 FDirectLinkProxyImpl::GetSourceHandleHash(const DirectLink::FSourceHandle& SourceId)
+	uint32 FDirectLinkEndpointProxy::ComputeSourceIdentifier(const DirectLink::FSourceHandle& SourceHandle)
 	{
 		using namespace DirectLink;
 
-		if (ReceiverEndpoint.IsValid() && SourceId.IsValid())
+		if (ReceiverEndpoint.IsValid() && SourceHandle.IsValid())
 		{
 			FRawInfo RawInfo = ReceiverEndpoint->GetRawInfoCopy();
 
-			if (FRawInfo::FDataPointInfo* DataPointInfoPtr = RawInfo.DataPointsInfo.Find(SourceId))
+			if (FRawInfo::FDataPointInfo* DataPointInfoPtr = RawInfo.DataPointsInfo.Find(SourceHandle))
 			{
 				if (FRawInfo::FEndpointInfo* EndPointInfoPtr = RawInfo.EndpointsInfo.Find(DataPointInfoPtr->EndpointAddress))
 				{
-					return ComputeSourcesHash(SourceId, DataPointInfoPtr->EndpointAddress);
+					
+					return HashCombine(GetTypeHash(SourceHandle), GetTypeHash(DataPointInfoPtr->EndpointAddress));
 				}
 			}
 		}
@@ -278,7 +335,7 @@ namespace DatasmithRuntime
 		return 0xffffffff;
 	}
 
-	DirectLink::FSourceHandle FDirectLinkProxyImpl::GetSourceHandleFromHash(uint32 SourceHash)
+	DirectLink::FSourceHandle FDirectLinkEndpointProxy::GetSourceHandleFromIdentifier(uint32 SourceIdentifier)
 	{
 		using namespace DirectLink;
 
@@ -288,7 +345,7 @@ namespace DatasmithRuntime
 
 			for (TPair<FGuid, FRawInfo::FDataPointInfo>& DataPointInfo : RawInfo.DataPointsInfo)
 			{
-				if (GetSourceHandleHash(DataPointInfo.Key) == SourceHash)
+				if (ComputeSourceIdentifier(DataPointInfo.Key) == SourceIdentifier)
 				{
 					return DataPointInfo.Key;
 				}
@@ -298,17 +355,17 @@ namespace DatasmithRuntime
 		return FSourceHandle();
 	}
 
-	FString FDirectLinkProxyImpl::GetEndPointName()
+	FString FDirectLinkEndpointProxy::GetEndPointName()
 	{
 		return ReceiverEndpoint.IsValid() ? EndPointName : TEXT("Invalid");
 	}
 
-	const TArray<FDatasmithRuntimeSourceInfo>& FDirectLinkProxyImpl::GetListOfSources() const
+	const TArray<FDatasmithRuntimeSourceInfo>& FDirectLinkEndpointProxy::GetListOfSources() const
 	{
 		return LastSources;
 	}
 
-	DirectLink::FSourceHandle FDirectLinkProxyImpl::GetConnection(const DirectLink::FDestinationHandle& DestinationId)
+	DirectLink::FSourceHandle FDirectLinkEndpointProxy::GetConnection(const DirectLink::FDestinationHandle& DestinationHandle)
 	{
 		using namespace DirectLink;
 
@@ -318,7 +375,7 @@ namespace DatasmithRuntime
 
 			for (FRawInfo::FStreamInfo& StreamInfo : RawInfo.StreamsInfo)
 			{
-				if (/*StreamInfo.bIsActive && */StreamInfo.Destination == DestinationId)
+				if (/*StreamInfo.bIsActive && */StreamInfo.Destination == DestinationHandle)
 				{
 					return StreamInfo.Source;
 				}
@@ -328,7 +385,7 @@ namespace DatasmithRuntime
 		return FSourceHandle();
 	}
 
-	FMD5Hash ComputeSourcesHash(const DirectLink::FRawInfo& RawInfo)
+	FMD5Hash ComputeRawInfoHash(const DirectLink::FRawInfo& RawInfo)
 	{
 		using namespace DirectLink;
 
@@ -367,31 +424,51 @@ namespace DatasmithRuntime
 		return Hash;
 	}
 
-	void FDirectLinkProxyImpl::OnStateChanged(const DirectLink::FRawInfo& RawInfo)
+	void FDirectLinkEndpointProxy::OnStateChanged(const DirectLink::FRawInfo& RawInfo)
 	{
 		using namespace DirectLink;
 
 		FRWScopeLock _(RawInfoCopyLock, SLT_Write);
 
-		FMD5Hash NewHash = ComputeSourcesHash(RawInfo);
+		for ( const FRawInfo::FStreamInfo& StreamInfo : RawInfo.StreamsInfo)
+		{
+			if (!StreamInfo.bIsActive || !StreamInfo.CommunicationStatus.IsTransmitting())
+			{
+				continue;
+			}
+
+			if (TSharedPtr<FDestinationProxy>* DestinationProxyPtr = DestinationList.Find(StreamInfo.Destination))
+			{
+				int32 IsTransmitting = StreamInfo.CommunicationStatus.IsTransmitting() ? 1 : 0;
+				float Progress = StreamInfo.CommunicationStatus.GetProgress() * 100.f;
+
+				UE_LOG(LogDatasmithRuntime, Log, TEXT("%s : Transmitting = %d, Progress = %.2f %"), *StreamInfo.Destination.ToString(), IsTransmitting, Progress);
+			}
+		}
+
+		FMD5Hash NewHash = ComputeRawInfoHash(RawInfo);
 
 		if (NewHash == LastHash)
 		{
 			return;
 		}
 
+		// Something has changed with the sources, check what exactly
 		LastHash = NewHash;
-		LastRawInfo = RawInfo;
-		LastSources.Reset();
 
-		for (TSharedPtr<FDestinationProxy>& DestinationProxy : DestinationList)
+		// Check to see if existing connections are still valid
+		for (TPair<FDestinationHandle, TSharedPtr<FDestinationProxy>>& Entry : DestinationList)
 		{
-			if (DestinationProxy->IsConnected() && !LastRawInfo.DataPointsInfo.Contains(DestinationProxy->GetConnectedSourceHandle()))
+			TSharedPtr<FDestinationProxy>& DestinationProxy = Entry.Value;
+
+			if (DestinationProxy->IsConnected() && !RawInfo.DataPointsInfo.Contains(DestinationProxy->GetConnectedSourceHandle()))
 			{
 				DestinationProxy->ResetConnection();
 			}
 		}
 
+		// Rebuild list of available public sources
+		LastSources.Reset();
 		for (const TPair<FGuid, FRawInfo::FDataPointInfo>& MapEntry : RawInfo.DataPointsInfo)
 		{
 			const FGuid& DataPointId = MapEntry.Key;
@@ -412,15 +489,15 @@ namespace DatasmithRuntime
 
 				FString SourceLabel = SourceName + TEXT("-") + EndPointInfo.ExecutableName + TEXT("-") + FString::FromInt((int32)EndPointInfo.ProcessId);
 
-				const uint32 SourceHash = ComputeSourcesHash(DataPointId, DataPointInfo.EndpointAddress);
-				LastSources.Emplace(*SourceLabel, SourceHash);
+				const uint32 SourceIdentifer = HashCombine(GetTypeHash(DataPointId), GetTypeHash(DataPointInfo.EndpointAddress));
+				LastSources.Emplace(*SourceLabel, SourceIdentifer);
 			}
 		}
 
 		bIsDirty = NotifyChange != nullptr;
 	}
 
-	void FDirectLinkProxyImpl::Tick(float DeltaSeconds)
+	void FDirectLinkEndpointProxy::Tick(float DeltaSeconds)
 	{
 		FRWScopeLock _(RawInfoCopyLock, SLT_Write);
 		NotifyChange->Broadcast();
@@ -429,27 +506,30 @@ namespace DatasmithRuntime
 
 	FDestinationProxy::FDestinationProxy(FDatasmithSceneReceiver_ISceneChangeListener* InChangeListener)
 		: ChangeListener(InChangeListener)
-		, DirectLinkProxy(FDirectLinkProxyImpl::Get().Get())
 	{
 	}
 
-	bool FDestinationProxy::OpenConnection(uint32 SourceHash)
+	FDestinationProxy::~FDestinationProxy()
 	{
-		return OpenConnection(DirectLinkProxy.GetSourceHandleFromHash(SourceHash));
+	}
+
+	bool FDestinationProxy::OpenConnection(uint32 SourceIdentifier)
+	{
+		return OpenConnection(EndpointProxy->GetSourceHandleFromIdentifier(SourceIdentifier));
 	}
 
 	void FDestinationProxy::CloseConnection()
 	{
 		if (ConnectedSource.IsValid() && Destination.IsValid())
 		{
-			DirectLinkProxy.CloseConnection(ConnectedSource, Destination);
+			EndpointProxy->CloseConnection(ConnectedSource, Destination);
 			ResetConnection();
 		}
 	}
 
 	FString FDestinationProxy::GetSourceName()
 	{
-		return ConnectedSource.IsValid() ? DirectLinkProxy.GetSourceName(ConnectedSource) : TEXT("None");
+		return ConnectedSource.IsValid() ? EndpointProxy->GetSourceName(ConnectedSource) : TEXT("None");
 	}
 
 	bool FDestinationProxy::RegisterDestination(const TCHAR* StreamName)
@@ -458,7 +538,7 @@ namespace DatasmithRuntime
 
 		UnregisterDestination();
 
-		DirectLinkProxy.RegisterSceneProvider(StreamName, this->AsShared() );
+		EndpointProxy->RegisterDestination(StreamName, this->AsShared() );
 
 		return Destination.IsValid();
 	}
@@ -471,7 +551,7 @@ namespace DatasmithRuntime
 		{
 			CloseConnection();
 
-			DirectLinkProxy.UnregisterSceneProvider(this->AsShared());
+			EndpointProxy->UnregisterDestination(this->AsShared());
 
 			Destination = FDestinationHandle();
 		}
@@ -479,17 +559,17 @@ namespace DatasmithRuntime
 		ConnectedSource = FSourceHandle();
 	}
 
-	bool FDestinationProxy::OpenConnection(const DirectLink::FSourceHandle& SourceId)
+	bool FDestinationProxy::OpenConnection(const DirectLink::FSourceHandle& SourceHandle)
 	{
 		using namespace DirectLink;
 
-		if (SourceId.IsValid())
+		if (SourceHandle.IsValid())
 		{
 			if (Destination.IsValid())
 			{
-				if (ConnectedSource.IsValid() && SourceId != ConnectedSource)
+				if (ConnectedSource.IsValid() && SourceHandle != ConnectedSource)
 				{
-					DirectLinkProxy.CloseConnection(ConnectedSource, Destination);
+					EndpointProxy->CloseConnection(ConnectedSource, Destination);
 					ConnectedSource = FSourceHandle();
 					SceneReceiver.Reset();
 				}
@@ -500,13 +580,13 @@ namespace DatasmithRuntime
 					SceneReceiver->SetChangeListener(ChangeListener);
 				}
 
-				if (DirectLinkProxy.OpenConnection(SourceId, Destination))
+				if (EndpointProxy->OpenConnection(SourceHandle, Destination))
 				{
-					ConnectedSource = SourceId;
+					ConnectedSource = SourceHandle;
 				}
 			}
 		}
 
-		return SourceId.IsValid() && SourceId == ConnectedSource;
+		return SourceHandle.IsValid() && SourceHandle == ConnectedSource;
 	}
 }

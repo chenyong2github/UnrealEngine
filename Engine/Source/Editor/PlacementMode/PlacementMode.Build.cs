@@ -19,6 +19,7 @@ public class PlacementMode : ModuleRules
 				"EditorFramework",
 				"UnrealEd",
                 "ContentBrowser",
+				"ContentBrowserData",
                 "CollectionManager",
                 "LevelEditor",
                 "AssetTools",

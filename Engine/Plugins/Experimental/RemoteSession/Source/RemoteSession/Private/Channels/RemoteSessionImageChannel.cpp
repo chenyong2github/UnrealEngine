@@ -115,13 +115,13 @@ FRemoteSessionImageChannel::FRemoteSessionImageChannel(ERemoteSessionChannelMode
 
 		StartBackgroundThread();
 
-		// Big bugger for reading. #agrant-todo - need a way to auto set this?
-		InConnection->SetBufferSizes(0, 8 * 1024 * 1024);
+		// Make sure this is something sensible
+		InConnection->SetBufferSizes(0, 2 * 1024 * 1024);
 	}
 	else
 	{
 		// Big bugger for writing. #agrant-todo - need a way to auto set this?
-		InConnection->SetBufferSizes(8 * 1024 * 1024, 0);
+		InConnection->SetBufferSizes(2 * 1024 * 1024, 0);
 		ImageSender = MakeShared<FRemoteSessionImageChannel::FImageSender, ESPMode::ThreadSafe>(InConnection);
 	}
 }
@@ -239,6 +239,9 @@ void FRemoteSessionImageChannel::Tick(const float InDeltaTime)
 			};
 
 			DecodedTextures[NextImage]->UpdateTextureRegions(0, 1, Region, 4 * QueuedImage->Width, sizeof(FColor), TextureData->GetData(), DataCleanupFunc);
+            
+            const double ProcessTime = FPlatformTime::Seconds() - QueuedImage->TimeCreated;
+            ReceiveStats.MaxImageProcessTime = FMath::Max(ReceiveStats.MaxImageProcessTime, ProcessTime);
 
 			UE_LOG(LogRemoteSession, VeryVerbose, TEXT("GT: Uploaded image %d"),
 				QueuedImage->ImageIndex);
@@ -249,6 +252,7 @@ void FRemoteSessionImageChannel::Tick(const float InDeltaTime)
 		{
 			SET_DWORD_STAT(STAT_RSWaitingFrames, ReceiveStats.FramesWaiting);
 			SET_DWORD_STAT(STAT_RSDiscardedFrames, ReceiveStats.FramesSkipped);
+            SET_DWORD_STAT(STAT_RSMaxImageProcessTime, int32(ReceiveStats.MaxImageProcessTime * 1000));
 
 			ReceiveStats = FRemoteSessionImageReceiveStats();
 			ReceiveStats.LastUpdateTime = TimeNow;
@@ -274,8 +278,8 @@ void FRemoteSessionImageChannel::SetFramebufferAsImageProvider()
 	{
 		const URemoteSessionSettings* Settings = URemoteSessionSettings::StaticClass()->GetDefaultObject<URemoteSessionSettings>();
 
-		NewImageProvider->SetCaptureFrameRate(Settings->ImageQuality);
-		SetCompressQuality(Settings->FrameRate);
+		NewImageProvider->SetCaptureFrameRate(Settings->FrameRate);
+		SetCompressQuality(Settings->ImageQuality);
 	}
 
 	{
@@ -304,16 +308,24 @@ void FRemoteSessionImageChannel::SetCompressQuality(int32 InQuality)
 
 void FRemoteSessionImageChannel::ReceiveHostImage(IBackChannelPacket& Message)
 {
-	int32 ImageIndex(0);
+    SCOPE_CYCLE_COUNTER(STAT_RSReceiveTime);
 
+    const double TimeNow = FPlatformTime::Seconds();
+
+    static double LastReceipt = TimeNow;
+    
+    const double Delta = TimeNow - LastReceipt;
+    LastReceipt = TimeNow;
+    
 	TUniquePtr<FImageData> ReceivedImage = MakeUnique<FImageData>();
 
 	Message.Read(TEXT("Width"), ReceivedImage->Width);
 	Message.Read(TEXT("Height"), ReceivedImage->Height);
 	Message.Read(TEXT("Data"), ReceivedImage->ImageData);
-	Message.Read(TEXT("ImageCount"), ImageIndex);
-
-	ReceivedImage->ImageIndex = ImageIndex;
+	Message.Read(TEXT("ImageCount"), ReceivedImage->ImageIndex);
+    ReceivedImage->TimeCreated = TimeNow;
+    
+    int32 Index = ReceivedImage->ImageIndex;
 
 	if (ReceivedImage->Width == 0 ||
 		ReceivedImage->Height == 0)
@@ -326,15 +338,17 @@ void FRemoteSessionImageChannel::ReceiveHostImage(IBackChannelPacket& Message)
 		FScopeLock Lock(&IncomingImageMutex);
 		IncomingEncodedImages.Add(MoveTemp(ReceivedImage));
 	}
+    
 
 	if (ScreenshotEvent)
 	{
+        SCOPE_CYCLE_COUNTER(STAT_RSWakeupWait);
+        
 		// wake up the background thread.
 		ScreenshotEvent->Trigger();
 	}
 
-	UE_LOG(LogRemoteSession, VeryVerbose, TEXT("Received Image %d, %d pending"),
-		ImageIndex, IncomingEncodedImages.Num());
+	UE_LOG(LogRemoteSession, VeryVerbose, TEXT("Received Next Image %d after %.03f secs. %d pending."),  Index, Delta, IncomingEncodedImages.Num());
 }
 
 void FRemoteSessionImageChannel::ProcessIncomingTextures()
@@ -381,6 +395,7 @@ void FRemoteSessionImageChannel::ProcessIncomingTextures()
 			QueuedImage->Height = Image->Height;
 			QueuedImage->ImageData = MoveTemp(RawData);
 			QueuedImage->ImageIndex = Image->ImageIndex;
+            QueuedImage->TimeCreated = Image->TimeCreated;
 
 			{
 				FScopeLock ImageLock(&DecodedImageMutex);

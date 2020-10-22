@@ -18,7 +18,7 @@ class FMarkHeightfieldPagesCS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(StructuredBuffer<uint>, RWMarkedHeightfieldPageBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWMarkedHeightfieldPageBuffer)
 		SHADER_PARAMETER_RDG_BUFFER(Buffer<uint>, PageUpdateIndirectArgBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, PageUpdateTileBuffer)
 		SHADER_PARAMETER(FVector, PageCoordToPageWorldCenterScale)
@@ -92,8 +92,8 @@ class FBuildHeightfieldComposeTilesCS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(Buffer<uint>, RWPageComposeHeightfieldIndirectArgBuffer)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(StructuredBuffer<uint>, RWPageComposeHeightfieldTileBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWPageComposeHeightfieldIndirectArgBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWPageComposeHeightfieldTileBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, PageUpdateTileBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, MarkedHeightfieldPageBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, PageUpdateIndirectArgBuffer)

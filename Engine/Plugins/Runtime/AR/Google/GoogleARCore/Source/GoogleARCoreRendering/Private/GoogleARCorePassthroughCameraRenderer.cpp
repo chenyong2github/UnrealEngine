@@ -159,12 +159,11 @@ public:
 		: FPostProcessMaterialShader(Initializer)
 	{}
 
-	void SetParameters(FRHICommandList& RHICmdList, const FSceneView View, const FMaterialRenderProxy* Material)
+	void SetParameters(FRHICommandList& RHICmdList, const FSceneView View, const FMaterialRenderProxy* MaterialProxy, const FMaterial& Material)
 	{
 		FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
 
-		FMaterialShader::SetViewParameters(RHICmdList, ShaderRHI, View, View.ViewUniformBuffer);
-		FMaterialShader::SetParameters(RHICmdList, ShaderRHI, Material, *Material->GetMaterial(View.GetFeatureLevel()), View);
+		FMaterialShader::SetParameters(RHICmdList, ShaderRHI, MaterialProxy, Material, View);
 	}
 };
 
@@ -196,8 +195,9 @@ void FGoogleARCorePassthroughCameraRenderer::RenderVideoOverlayWithMaterial(FRHI
 		FUniformBufferStaticBindings GlobalUniformBuffers(PassUniformBuffer);
 		SCOPED_UNIFORM_BUFFER_GLOBAL_BINDINGS(RHICmdList, GlobalUniformBuffers);
 
-		const FMaterial* CameraMaterial = OverlayMaterialToUse->GetRenderProxy()->GetMaterial(FeatureLevel);
-		const FMaterialShaderMap* MaterialShaderMap = CameraMaterial->GetRenderingThreadShaderMap();
+		const FMaterialRenderProxy* MaterialProxy = OverlayMaterialToUse->GetRenderProxy();
+		const FMaterial& CameraMaterial = MaterialProxy->GetMaterialWithFallback(FeatureLevel, MaterialProxy);
+		const FMaterialShaderMap* MaterialShaderMap = CameraMaterial.GetRenderingThreadShaderMap();
 
 		TShaderRef<FGoogleARCoreCameraOverlayPS> PixelShader = MaterialShaderMap->GetShader<FGoogleARCoreCameraOverlayPS>();
 		TShaderRef<FGoogleARCoreCameraOverlayVS> VertexShader = MaterialShaderMap->GetShader<FGoogleARCoreCameraOverlayVS>();
@@ -229,7 +229,7 @@ void FGoogleARCorePassthroughCameraRenderer::RenderVideoOverlayWithMaterial(FRHI
 		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 
 		VertexShader->SetParameters(RHICmdList, InView);
-		PixelShader->SetParameters(RHICmdList, InView, OverlayMaterialToUse->GetRenderProxy());
+		PixelShader->SetParameters(RHICmdList, InView, MaterialProxy, CameraMaterial);
 
 		FIntPoint ViewSize = InView.UnscaledViewRect.Size();
 

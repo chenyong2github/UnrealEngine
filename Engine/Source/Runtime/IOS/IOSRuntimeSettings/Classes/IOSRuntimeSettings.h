@@ -30,30 +30,14 @@ enum class EPowerUsageFrameRateLock : uint8
 UENUM()
 	enum class EIOSVersion : uint8
 {
-	/** iOS 6.1 */
-	IOS_61 = 6 UMETA(Hidden),
-
-	/** iOS 7 */
-	IOS_7 = 7 UMETA(Hidden),
-
-	/** iOS 8 */
-	IOS_8 = 8 UMETA(Hidden),
-
-	/** iOS 9 */
-	IOS_9 = 9 UMETA(Hidden),
-
-	/** iOS 10 */
-	IOS_10 = 10 UMETA(Hidden),
-
-	/** iOS 11 */
-	IOS_11 = 11 UMETA(DisplayName = "11.0"),
-
-	/** iOS 12 */
+    /** iOS 12 */
 	IOS_12 = 12 UMETA(DisplayName = "12.0"),
 
 	/** iOS 13 */
 	IOS_13 = 13 UMETA(DisplayName = "13.0"),
 
+    /** iOS 14 */
+    IOS_14 = 14 UMETA(DisplayName = "14.0"),
 };
 
 UENUM()
@@ -247,7 +231,7 @@ public:
     UPROPERTY(GlobalConfig, EditAnywhere, Category = Build, meta = (DisplayName = "Build project as a framework (Experimental)"))
     bool bBuildAsFramework;
 
-	UPROPERTY(GlobalConfig, EditAnywhere, Category = Build, meta = (EditCondition = "bUseLocalMetalToolchain", DisplayName = "Override location of Metal toolchain"))
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = Build, meta = (DisplayName = "Override location of Metal toolchain"))
 	FIOSBuildResourceDirectory WindowsMetalToolchainOverride;
 
 	// Enable generation of dSYM file

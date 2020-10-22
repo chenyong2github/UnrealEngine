@@ -24,7 +24,9 @@
 #include "DerivedDataCacheInterface.h"
 #include "Serialization/MemoryReader.h"
 #include "Serialization/MemoryWriter.h"
+#include "Serialization/FileRegions.h"
 #include "Misc/ICompressionFormat.h"
+#include "Misc/KeyChainUtilities.h"
 
 IMPLEMENT_MODULE(FDefaultModuleImpl, PakFileUtilities);
 
@@ -60,26 +62,6 @@ volatile int64 GDDCSyncWriteTime = 0;
 int64 GDDCHits = 0;
 int64 GDDCMisses = 0;
 #endif
-
-struct FNamedAESKey
-{
-	FString Name;
-	FGuid Guid;
-	FAES::FAESKey Key;
-
-	bool IsValid() const
-	{
-		return Key.IsValid();
-	}
-};
-
-struct FKeyChain
-{
-	FRSAKeyHandle SigningKey = InvalidRSAKeyHandle;
-	TMap<FGuid, FNamedAESKey> EncryptionKeys;
-	const FNamedAESKey* MasterEncryptionKey = nullptr;
-};
-
 
 class FThreadLocalScratchSpace
 {
@@ -484,6 +466,7 @@ struct FPakCommandLineParameters
 		, bAsyncCompression(false)
 		, bAlignFilesLargerThanBlock(false)
 		, bForceCompress(false)
+		, bFileRegions(false)
 	{
 	}
 
@@ -507,6 +490,7 @@ struct FPakCommandLineParameters
 	bool bAsyncCompression;
 	bool bAlignFilesLargerThanBlock;	// Align files that are larger than block size
 	bool bForceCompress; // Force all files that request compression to be compressed, even if that results in a larger file size
+	bool bFileRegions; // Enables the processing and output of cook file region metadata, used during packaging on some platforms.
 };
 
 struct FPakInputPair
@@ -642,9 +626,6 @@ struct FCompressedFileBuffer
 	int64				CompressedBufferSize;
 	TUniquePtr<uint8[]>		CompressedBuffer;
 };
-
-void LoadKeyChainFromFile(const FString& InFilename, FKeyChain& OutCryptoSettings);
-void ApplyEncryptionKeys(const FKeyChain& KeyChain);
 
 template <class T>
 bool ReadSizeParam(const TCHAR* CmdLine, const TCHAR* ParamStr, T& SizeOut)
@@ -871,7 +852,7 @@ bool FCompressedFileBuffer::CompressFileToWorkingBuffer(const FPakInputPair& InF
 	return true;
 }
 
-bool PrepareCopyFileToPak(const FString& InMountPoint, const FPakInputPair& InFile, uint8*& InOutPersistentBuffer, int64& InOutBufferSize, FPakEntryPair& OutNewEntry, uint8*& OutDataToWrite, int64& OutSizeToWrite, const FKeyChain& InKeyChain)
+bool PrepareCopyFileToPak(const FString& InMountPoint, const FPakInputPair& InFile, uint8*& InOutPersistentBuffer, int64& InOutBufferSize, FPakEntryPair& OutNewEntry, uint8*& OutDataToWrite, int64& OutSizeToWrite, const FKeyChain& InKeyChain, TArray<FFileRegion>* OutFileRegions)
 {	
 	TUniquePtr<FArchive> FileHandle(IFileManager::Get().CreateFileReader(*InFile.Source));
 	bool bFileExists = FileHandle.IsValid();
@@ -918,6 +899,16 @@ bool PrepareCopyFileToPak(const FString& InMountPoint, const FPakInputPair& InFi
 			// Calculate the buffer hash value
 			FSHA1::HashBuffer(InOutPersistentBuffer,FileSize,OutNewEntry.Info.Hash);			
 			OutDataToWrite = InOutPersistentBuffer;
+		}
+
+		if (OutFileRegions)
+		{
+			// Read the matching regions file, if it exists.
+			TUniquePtr<FArchive> RegionsFile(IFileManager::Get().CreateFileReader(*(InFile.Source + FFileRegion::RegionsFileExtension)));
+			if (RegionsFile.IsValid())
+			{
+				FFileRegion::SerializeFileRegions(*RegionsFile.Get(), *OutFileRegions);
+			}
 		}
 	}
 	return bFileExists;
@@ -1084,6 +1075,11 @@ void ProcessCommandLine(const TCHAR* CmdLine, const TArray<FString>& NonOptionAr
 		CmdLineParameters.bForceCompress = true;
 	}
 
+	if (FParse::Param(CmdLine, TEXT("FileRegions")))
+	{
+		CmdLineParameters.bFileRegions = true;
+	}
+
 	FString DesiredCompressionFormats;
 	// look for -compressionformats or -compressionformat on the commandline
 	if (FParse::Value(CmdLine, TEXT("-compressionformats="), DesiredCompressionFormats) || FParse::Value(CmdLine, TEXT("-compressionformat="), DesiredCompressionFormats))
@@ -1156,8 +1152,8 @@ void ProcessCommandLine(const TCHAR* CmdLine, const TArray<FString>& NonOptionAr
 			FKeyChain ExtractedPakKeys;
 			if ( FParse::Value(CmdLine, TEXT("extractedpakcryptokeys="), ExtractedPakKeysFile) )
 			{
-				LoadKeyChainFromFile(ExtractedPakKeysFile, ExtractedPakKeys);
-				ApplyEncryptionKeys(ExtractedPakKeys);
+				KeyChainUtilities::LoadKeyChainFromFile(ExtractedPakKeysFile, ExtractedPakKeys);
+				KeyChainUtilities::ApplyEncryptionKeys(ExtractedPakKeys);
 			}
 
 			TMap<FString, FFileInfo> FileHashes;
@@ -1514,93 +1510,6 @@ TEncryptionInt ParseEncryptionIntFromJson(TSharedPtr<FJsonObject> InObj, const T
 	}
 }
 
-FRSAKeyHandle ParseRSAKeyFromJson(TSharedPtr<FJsonObject> InObj)
-{
-	TSharedPtr<FJsonObject> PublicKey = InObj->GetObjectField(TEXT("PublicKey"));
-	TSharedPtr<FJsonObject> PrivateKey = InObj->GetObjectField(TEXT("PrivateKey"));
-
-	FString PublicExponentBase64, PrivateExponentBase64, PublicModulusBase64, PrivateModulusBase64;
-
-	if (   PublicKey->TryGetStringField("Exponent", PublicExponentBase64)
-		&& PublicKey->TryGetStringField("Modulus", PublicModulusBase64)
-		&& PrivateKey->TryGetStringField("Exponent", PrivateExponentBase64)
-		&& PrivateKey->TryGetStringField("Modulus", PrivateModulusBase64))
-	{
-		check(PublicModulusBase64 == PrivateModulusBase64);
-
-		TArray<uint8> PublicExponent, PrivateExponent, Modulus;
-		FBase64::Decode(PublicExponentBase64, PublicExponent);
-		FBase64::Decode(PrivateExponentBase64, PrivateExponent);
-		FBase64::Decode(PublicModulusBase64, Modulus);
-
-		return FRSA::CreateKey(PublicExponent, PrivateExponent, Modulus);
-	}
-	else
-	{
-		return nullptr;
-	}
-}
-
-void LoadKeyChainFromFile(const FString& InFilename, FKeyChain& OutCryptoSettings)
-{
-	FArchive* File = IFileManager::Get().CreateFileReader(*InFilename);
-	UE_CLOG(File == nullptr, LogPakFile, Fatal, TEXT("Specified crypto keys cache '%s' does not exist!"), *InFilename);
-	TSharedPtr<FJsonObject> RootObject;
-	TSharedRef<TJsonReader<char>> Reader = TJsonReaderFactory<char>::Create(File);
-	if (FJsonSerializer::Deserialize(Reader, RootObject))
-	{
-		const TSharedPtr<FJsonObject>* EncryptionKeyObject;
-		if (RootObject->TryGetObjectField(TEXT("EncryptionKey"), EncryptionKeyObject))
-		{
-			FString EncryptionKeyBase64;
-			if ((*EncryptionKeyObject)->TryGetStringField(TEXT("Key"), EncryptionKeyBase64))
-			{
-				if (EncryptionKeyBase64.Len() > 0)
-				{
-					TArray<uint8> Key;
-					FBase64::Decode(EncryptionKeyBase64, Key);
-					check(Key.Num() == sizeof(FAES::FAESKey::Key));
-					FNamedAESKey NewKey;
-					NewKey.Name = TEXT("Default");
-					NewKey.Guid = FGuid();
-					FMemory::Memcpy(NewKey.Key.Key, &Key[0], sizeof(FAES::FAESKey::Key));
-					OutCryptoSettings.EncryptionKeys.Add(NewKey.Guid, NewKey);
-				}
-			}
-		}
-
-		const TSharedPtr<FJsonObject>* SigningKey = nullptr;
-		if (RootObject->TryGetObjectField(TEXT("SigningKey"), SigningKey))
-		{
-			OutCryptoSettings.SigningKey = ParseRSAKeyFromJson(*SigningKey);
-		}
-
-		const TArray<TSharedPtr<FJsonValue>>* SecondaryEncryptionKeyArray = nullptr;
-		if (RootObject->TryGetArrayField(TEXT("SecondaryEncryptionKeys"), SecondaryEncryptionKeyArray))
-		{
-			for (TSharedPtr<FJsonValue> EncryptionKeyValue : *SecondaryEncryptionKeyArray)
-			{
-				FNamedAESKey NewKey;
-				TSharedPtr<FJsonObject> SecondaryEncryptionKeyObject = EncryptionKeyValue->AsObject();
-				FGuid::Parse(SecondaryEncryptionKeyObject->GetStringField(TEXT("Guid")), NewKey.Guid);
-				NewKey.Name = SecondaryEncryptionKeyObject->GetStringField(TEXT("Name"));
-				FString KeyBase64 = SecondaryEncryptionKeyObject->GetStringField(TEXT("Key"));
-
-				TArray<uint8> Key;
-				FBase64::Decode(KeyBase64, Key);
-				check(Key.Num() == sizeof(FAES::FAESKey::Key));
-				FMemory::Memcpy(NewKey.Key.Key, &Key[0], sizeof(FAES::FAESKey::Key));
-
-				check(!OutCryptoSettings.EncryptionKeys.Contains(NewKey.Guid) || OutCryptoSettings.EncryptionKeys[NewKey.Guid].Key == NewKey.Key);
-				OutCryptoSettings.EncryptionKeys.Add(NewKey.Guid, NewKey);
-			}
-		}
-	}
-	delete File;
-	FGuid EncryptionKeyOverrideGuid;
-	OutCryptoSettings.MasterEncryptionKey = OutCryptoSettings.EncryptionKeys.Find(EncryptionKeyOverrideGuid);
-}
-
 void LoadKeyChain(const TCHAR* CmdLine, FKeyChain& OutCryptoSettings)
 {
 	OutCryptoSettings.SigningKey = InvalidRSAKeyHandle;
@@ -1611,7 +1520,7 @@ void LoadKeyChain(const TCHAR* CmdLine, FKeyChain& OutCryptoSettings)
 	if (FParse::Value(CmdLine, TEXT("cryptokeys="), CryptoKeysCacheFilename))
 	{
 		UE_LOG(LogPakFile, Display, TEXT("Parsing crypto keys from a crypto key cache file"));
-		LoadKeyChainFromFile(CryptoKeysCacheFilename, OutCryptoSettings);
+		KeyChainUtilities::LoadKeyChainFromFile(CryptoKeysCacheFilename, OutCryptoSettings);
 	}
 	else if (FParse::Param(CmdLine, TEXT("encryptionini")))
 	{
@@ -1786,29 +1695,6 @@ void LoadKeyChain(const TCHAR* CmdLine, FKeyChain& OutCryptoSettings)
 	OutCryptoSettings.MasterEncryptionKey = OutCryptoSettings.EncryptionKeys.Find(EncryptionKeyOverrideGuid);
 }
 
-void ApplyEncryptionKeys(const FKeyChain& KeyChain)
-{
-	if (KeyChain.EncryptionKeys.Contains(FGuid()))
-	{
-		FAES::FAESKey DefaultKey = KeyChain.EncryptionKeys[FGuid()].Key;
-		FCoreDelegates::GetPakEncryptionKeyDelegate().BindLambda([DefaultKey](uint8 OutKey[32]) { FMemory::Memcpy(OutKey, DefaultKey.Key, sizeof(DefaultKey.Key)); });
-	}
-
-	for (const TMap<FGuid, FNamedAESKey>::ElementType& Key : KeyChain.EncryptionKeys)
-	{
-		if (Key.Key.IsValid())
-		{
-			// Deprecated version
-			PRAGMA_DISABLE_DEPRECATION_WARNINGS
-			FCoreDelegates::GetRegisterEncryptionKeyDelegate().ExecuteIfBound(Key.Key, Key.Value.Key);
-			PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
-			// New version
-			FCoreDelegates::GetRegisterEncryptionKeyMulticastDelegate().Broadcast(Key.Key, Key.Value.Key);
-		}
-	}
-}
-
 /**
  * Creates a pak file writer. This can be a signed writer if the encryption keys are specified in the command line
  */
@@ -1944,6 +1830,18 @@ bool CreatePakFile(const TCHAR* Filename, TArray<FPakInputPair>& FilesToAdd, con
 	{
 		UE_LOG(LogPakFile, Error, TEXT("Unable to create pak file \"%s\"."), Filename);
 		return false;
+	}
+
+	TUniquePtr<FArchive> PakFileRegionsHandle;
+	if (CmdLineParameters.bFileRegions)
+	{
+		FString RegionsFilename = FString(Filename) + FFileRegion::RegionsFileExtension;
+		PakFileRegionsHandle.Reset(IFileManager::Get().CreateFileWriter(*RegionsFilename));
+		if (!PakFileRegionsHandle)
+		{
+			UE_LOG(LogPakFile, Error, TEXT("Unable to create pak regions file \"%s\"."), *RegionsFilename);
+			return false;
+		}
 	}
 
 	FPakInfo Info;
@@ -2187,6 +2085,7 @@ bool CreatePakFile(const TCHAR* Filename, TArray<FPakInputPair>& FilesToAdd, con
 		}
 	}
 
+	TArray<FFileRegion> AllFileRegions;
 	for (int32 FileIndex = 0; FileIndex < FilesToAdd.Num(); FileIndex++)
 	{
 		bool bDeleted = FilesToAdd[FileIndex].bIsDeleteRecord;
@@ -2298,6 +2197,8 @@ bool CreatePakFile(const TCHAR* Filename, TArray<FPakInputPair>& FilesToAdd, con
 			}
 		}
 
+		TArray<FFileRegion> CurrentFileRegions;
+
 		bool bCopiedToPak;
 		int64 SizeToWrite = 0;
 		uint8* DataToWrite = nullptr;
@@ -2316,7 +2217,7 @@ bool CreatePakFile(const TCHAR* Filename, TArray<FPakInputPair>& FilesToAdd, con
 		}
 		else
 		{
-			bCopiedToPak = PrepareCopyFileToPak(MountPoint, FilesToAdd[FileIndex], ReadBuffer, BufferSize, NewEntry, DataToWrite, SizeToWrite, InKeyChain);
+			bCopiedToPak = PrepareCopyFileToPak(MountPoint, FilesToAdd[FileIndex], ReadBuffer, BufferSize, NewEntry, DataToWrite, SizeToWrite, InKeyChain, CmdLineParameters.bFileRegions ? &CurrentFileRegions : nullptr);
 			DataToWrite = ReadBuffer;
 		}
 
@@ -2393,6 +2294,11 @@ bool CreatePakFile(const TCHAR* Filename, TArray<FPakInputPair>& FilesToAdd, con
 			PakFileHandle->Serialize(DataToWrite, SizeToWrite);
 			int64 EndOffset = PakFileHandle->Tell();
 
+			if (CmdLineParameters.bFileRegions)
+			{
+				FFileRegion::AccumulateFileRegions(AllFileRegions, Offset, PayloadOffset, EndOffset, CurrentFileRegions);
+			}
+
 			UE_LOG(LogPakFile, Verbose, TEXT("%14llu [header] - %14llu - %14llu : %14llu header+file %s."), Offset, PayloadOffset, EndOffset, EndOffset - Offset, *NewEntry.Filename);
 
 			// Update offset now and store it in the index (and only in index)
@@ -2451,6 +2357,8 @@ bool CreatePakFile(const TCHAR* Filename, TArray<FPakInputPair>& FilesToAdd, con
 		}
 		AsyncCompressors[FileIndex].CleanUp();
 	}
+
+	uint64 LastEntryOffset = PakFileHandle->Tell();
 
 	FMemory::Free(PaddingBuffer);
 	FMemory::Free(ReadBuffer);
@@ -2622,6 +2530,12 @@ bool CreatePakFile(const TCHAR* Filename, TArray<FPakInputPair>& FilesToAdd, con
 	// Save the FPakInfo, which has offset, size, and hash value for the PrimaryIndex, at the end of the PakFile
 	Info.Serialize(*PakFileHandle, FPakInfo::PakFile_Version_Latest);
 
+	if (CmdLineParameters.bFileRegions)
+	{
+		// Add a final region to include the headers / data at the end of the .pak, after the last file payload.
+		FFileRegion::AccumulateFileRegions(AllFileRegions, LastEntryOffset, LastEntryOffset, PakFileHandle->Tell(), {});
+	}
+
 	UE_LOG(LogPakFile, Display, TEXT("Added %d files, %lld bytes total, time %.2lfs."), Index.Num(), PakFileHandle->TotalSize(), FPlatformTime::Seconds() - StartTime);
 	UE_LOG(LogPakFile, Display, TEXT("PrimaryIndex size: %d bytes"), PrimaryIndexData.Num());
 	UE_LOG(LogPakFile, Display, TEXT("PathHashIndex size: %d bytes"), PathHashIndexData.Num());
@@ -2672,8 +2586,22 @@ bool CreatePakFile(const TCHAR* Filename, TArray<FPakInputPair>& FilesToAdd, con
 		UE_LOG(LogPakFile, Display, TEXT("%d files requested encryption, but no AES key was supplied! Encryption was skipped for these files"), TotalRequestedEncryptedFiles);
 	}
 
+	if (CmdLineParameters.bSign)
+	{
+		TArray<uint8> SignatureData;
+		SignatureData.Append(Info.IndexHash.Hash, UE_ARRAY_COUNT(FSHAHash::Hash));
+		((FSignedArchiveWriter*)PakFileHandle.Get())->SetSignatureData(SignatureData);
+	}
+
 	PakFileHandle->Close();
 	PakFileHandle.Reset();
+
+	if (CmdLineParameters.bFileRegions)
+	{
+		FFileRegion::SerializeFileRegions(*PakFileRegionsHandle.Get(), AllFileRegions);
+		PakFileRegionsHandle->Close();
+		PakFileRegionsHandle.Reset();
+	}
 
 #if DETAILED_UNREALPAK_TIMING
 	UE_LOG(LogPakFile, Display, TEXT("Detailed timing stats"));
@@ -4813,7 +4741,7 @@ bool ExecuteUnrealPak(const TCHAR* CmdLine)
 
 	FKeyChain KeyChain;
 	LoadKeyChain(CmdLine, KeyChain);
-	ApplyEncryptionKeys(KeyChain);
+	KeyChainUtilities::ApplyEncryptionKeys(KeyChain);
 
 	bool IsTestCommand = FParse::Param(CmdLine, TEXT("Test"));
 	bool IsVerifyCommand = FParse::Param(CmdLine, TEXT("Verify"));
@@ -5199,8 +5127,8 @@ bool ExecuteUnrealPak(const TCHAR* CmdLine)
 
 			if (FParse::Value(FCommandLine::Get(), TEXT("PatchCryptoKeys="), PatchReferenceCryptoKeysFilename))
 			{
-				LoadKeyChainFromFile(PatchReferenceCryptoKeysFilename, PatchKeyChain);
-				ApplyEncryptionKeys(PatchKeyChain);
+				KeyChainUtilities::LoadKeyChainFromFile(PatchReferenceCryptoKeysFilename, PatchKeyChain);
+				KeyChainUtilities::ApplyEncryptionKeys(PatchKeyChain);
 			}
 			else
 			{
@@ -5223,7 +5151,7 @@ bool ExecuteUnrealPak(const TCHAR* CmdLine)
 				}
 			}
 
-			ApplyEncryptionKeys(KeyChain);
+			KeyChainUtilities::ApplyEncryptionKeys(KeyChain);
 
 
 			if (UsedEncryptionKeys.Num() == 1)

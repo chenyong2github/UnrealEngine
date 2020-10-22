@@ -38,6 +38,7 @@ TSharedRef< FSlateStyleSet > FWidgetReflectorStyle::Create()
 	StyleSet->SetContentRoot(FPaths::EngineContentDir() / TEXT("Editor/Slate"));
 	StyleSet->SetCoreContentRoot(FPaths::EngineContentDir() / TEXT("Slate"));
 
+#if WITH_EDITOR
 	{
 		FButtonStyle Button = FButtonStyle()
 			.SetNormal(FSlateBoxBrush(StyleSet->RootToContentDir("Common/ButtonHoverHint.png"), FMargin(4 / 16.0f), FLinearColor(1, 1, 1, 0.15f)))
@@ -78,6 +79,8 @@ TSharedRef< FSlateStyleSet > FWidgetReflectorStyle::Create()
 		StyleSet->Set("Symbols.UpArrow", new FSlateImageBrush(StyleSet->RootToContentDir("Common/UpArrow.png"), Icon24x24));
 		StyleSet->Set("Symbols.DownArrow", new FSlateImageBrush(StyleSet->RootToContentDir("Common/DownArrow.png"), Icon24x24));
 	}
+#endif
+
 	return StyleSet;
 }
 

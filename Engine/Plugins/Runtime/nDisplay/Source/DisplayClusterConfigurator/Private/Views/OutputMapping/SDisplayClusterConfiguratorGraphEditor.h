@@ -14,12 +14,13 @@ class FDisplayClusterConfiguratorViewOutputMapping;
 class FDisplayClusterConfiguratorToolkit;
 class FMenuBuilder;
 class FUICommandList;
-class SDisplayClusterConfiguratorCanvasNode;
 class SDisplayClusterConfiguratorGraphEditor;
+class SDisplayClusterConfiguratorCanvasNode;
 class SGraphNode;
 class UDisplayClusterConfiguratorGraph;
 class UEdGraph;
 class UEdGraphNode;
+class UTexture;
 
 struct FActionMenuContent;
 
@@ -62,6 +63,8 @@ public:
 	//~ Begin SWidget overrides
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 	//~ End SWidget overrides
+
+	void SetViewportPreviewTexture(const FString& NodeId, const FString& ViewportId, UTexture* InTexture);
 
 private:
 	void SetRootNode(const TSharedRef<SDisplayClusterConfiguratorCanvasNode>& InCanvasNode);

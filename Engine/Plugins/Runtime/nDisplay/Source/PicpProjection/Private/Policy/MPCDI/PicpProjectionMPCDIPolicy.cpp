@@ -5,9 +5,6 @@
 #include "PicpProjectionLog.h"
 #include "PicpProjectionStrings.h"
 
-#include "DisplayClusterProjectionLog.h"
-#include "DisplayClusterProjectionStrings.h"
-
 #include "IDisplayCluster.h"
 #include "Config/IDisplayClusterConfigManager.h"
 #include "Game/IDisplayClusterGameManager.h"

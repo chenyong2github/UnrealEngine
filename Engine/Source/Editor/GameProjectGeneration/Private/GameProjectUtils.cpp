@@ -3610,6 +3610,9 @@ void GameProjectUtils::UpdateProject_Impl(const FProjectDescriptorModifier* Modi
 	SNotificationItem::ECompletionState NewCompletionState;
 	if (UpdateGameProjectFile_Impl(ProjectFilename, FDesktopPlatformModule::Get()->GetCurrentEngineIdentifier(), Modifier, FailReason))
 	{
+		// Refresh the current in-memory project information from the new file on-disk.
+		IProjectManager::Get().LoadProjectFile(ProjectFilename);
+
 		// The project was updated successfully.
 		FFormatNamedArguments Args;
 		Args.Add( TEXT("ShortFilename"), FText::FromString( ShortFilename ) );

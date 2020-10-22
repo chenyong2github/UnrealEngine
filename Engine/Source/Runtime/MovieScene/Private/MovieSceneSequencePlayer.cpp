@@ -84,6 +84,7 @@ UMovieSceneSequencePlayer::UMovieSceneSequencePlayer(const FObjectInitializer& I
 	, bPendingOnStartedPlaying(false)
 	, bIsEvaluating(false)
 	, bIsMainLevelUpdate(false)
+	, bSkipNextUpdate(false)
 	, Sequence(nullptr)
 	, StartTime(0)
 	, DurationFrames(0)
@@ -756,13 +757,18 @@ void UMovieSceneSequencePlayer::Update(const float DeltaSeconds)
 			PlayRate *= World->GetWorldSettings()->GetEffectiveTimeDilation();
 		}
 
-		check(!bIsMainLevelUpdate && !bIsEvaluating);
-		bIsMainLevelUpdate = true;
+		if (!bSkipNextUpdate)
+		{
+			check(!bIsMainLevelUpdate && !bIsEvaluating);
+			bIsMainLevelUpdate = true;
 
-		FFrameTime NewTime = TimeController->RequestCurrentTime(GetCurrentTime(), PlayRate);
-		UpdateTimeCursorPosition(NewTime, EUpdatePositionMethod::Play);
+			FFrameTime NewTime = TimeController->RequestCurrentTime(GetCurrentTime(), PlayRate);
+			UpdateTimeCursorPosition(NewTime, EUpdatePositionMethod::Play);
 
-		bIsMainLevelUpdate = false;
+			bIsMainLevelUpdate = false;
+		}
+
+		bSkipNextUpdate = false;
 
 		// CAREFUL with stateful changes after this... in 95% of cases, the sequence evaluation was
 		// only queued up, and hasn't run yet!
@@ -964,6 +970,9 @@ void UMovieSceneSequencePlayer::UpdateMovieSceneInstance(FMovieSceneEvaluationRa
 	FQualifiedFrameTime CurrentTime = GetCurrentTime();
 	UE_LOG(LogMovieScene, VeryVerbose, TEXT("Evaluating sequence %s at frame %d, subframe %f (%f fps)."), *MovieSceneSequence->GetName(), CurrentTime.Time.FrameNumber.Value, CurrentTime.Time.GetSubFrame(), CurrentTime.Rate.AsDecimal());
 #endif
+
+	// Once we have updated we must no longer skip updates
+	bSkipNextUpdate = false;
 
 	// We shouldn't be asked to run an async update if we have a blocking sequence.
 	check(!Args.bIsAsync || !EnumHasAnyFlags(MovieSceneSequence->GetFlags(), EMovieSceneSequenceFlags::BlockingEvaluation));
@@ -1249,6 +1258,10 @@ void UMovieSceneSequencePlayer::PostNetReceive()
 	{
 		if (bHasChangedTime)
 		{
+			// Treat all net updates as the main level update - this ensures they get evaluated as part of the 
+			// main tick manager
+			bIsMainLevelUpdate = true;
+
 			// Make sure the client time matches the server according to the client's current status
 			if (Status == EMovieScenePlayerStatus::Playing)
 			{
@@ -1302,6 +1315,10 @@ void UMovieSceneSequencePlayer::PostNetReceive()
 						SetPlaybackPosition(FMovieSceneSequencePlaybackParams(NetSyncProps.LastKnownPosition + PingLag, EUpdatePositionMethod::Jump));
 					}
 				}
+
+				// When playing back we skip this sequence's ticked update to avoid queuing 2 updates this frame
+				//TODO: @AAndrew Rodham 
+				//bSkipNextUpdate = true;
 			}
 			else if (Status == EMovieScenePlayerStatus::Stopped)
 			{
@@ -1311,6 +1328,8 @@ void UMovieSceneSequencePlayer::PostNetReceive()
 			{
 				SetPlaybackPosition(FMovieSceneSequencePlaybackParams(NetSyncProps.LastKnownPosition, EUpdatePositionMethod::Scrub));
 			}
+
+			bIsMainLevelUpdate = false;
 		}
 
 		if (bHasChangedStatus)

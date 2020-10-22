@@ -19,58 +19,7 @@ namespace Chaos
 		virtual ~TPerParticleDampVelocity() {}
 
 		template<class T_PARTICLES>
-		inline void UpdatePositionBasedState(const TPBDActiveView<T_PARTICLES>& ParticlesActiveView)
-		{
-			static_assert(d == 3, "Damp Velocities currently only supports 3D vectors.");
-			
-			T_PARTICLES& Particles = ParticlesActiveView.GetItems();
-			
-			MXcm = TVector<T, d>(0.f, 0.f, 0.f);
-			MVcm = TVector<T, d>(0.f, 0.f, 0.f);
-			T Mcm = (T)0;
-
-			ParticlesActiveView.SequentialFor(
-				[this, &Mcm](T_PARTICLES& Particles, int32 Index)
-				{
-					if (!Particles.InvM(Index))
-					{
-						return;
-					}
-					MXcm += Particles.X(Index) * Particles.M(Index);
-					MVcm += Particles.V(Index) * Particles.M(Index);
-					Mcm += Particles.M(Index);
-				});
-
-			if (Mcm != 0.0f)
-			{
-				MXcm /= Mcm;
-				MVcm /= Mcm;
-			}
-
-			TVector<T, d> L = TVector<T, d>(0.f, 0.f, 0.f);
-			PMatrix<T, d, d> I(0);
-			ParticlesActiveView.SequentialFor(
-				[this, &L, &I](T_PARTICLES& Particles, int32 Index)
-				{
-					if (!Particles.InvM(Index))
-					{
-						return;
-					}
-					TVector<T, d> V = Particles.X(Index) - MXcm;
-					L += TVector<T, d>::CrossProduct(V, Particles.M(Index) * Particles.V(Index));
-					PMatrix<T, d, d> M(0, V[2], -V[1], -V[2], 0, V[0], V[1], -V[0], 0);
-					I += M.GetTransposed() * M * Particles.M(Index);
-				});
-
-#if COMPILE_WITHOUT_UNREAL_SUPPORT
-			MOmega = I.Determinant() > 1e-7 ? TRigidTransform<T, d>(I).InverseTransformVector(L) : TVector<T, d>(0);
-#else
-			const T Det = I.Determinant();
-			MOmega = Det < SMALL_NUMBER || !FGenericPlatformMath::IsFinite(Det) ?
-			    TVector<T, d>(0) :
-			    I.InverseTransformVector(L); // Calls FMatrix::InverseFast(), which tests against SMALL_NUMBER
-#endif
-		}
+		void UpdatePositionBasedState(const TPBDActiveView<T_PARTICLES>& ParticlesActiveView);
 
 		template<class T_PARTICLES>
 		UE_DEPRECATED(4.26, "Use TPBDActiveView instead")
@@ -177,3 +126,12 @@ namespace Chaos
 		TVector<T, d> MXcm, MVcm, MOmega;
 	};
 }
+
+// Support ISPC enable/disable in non-shipping builds
+#if !INTEL_ISPC
+const bool bChaos_DampVelocity_ISPC_Enabled = false;
+#elif UE_BUILD_SHIPPING
+const bool bChaos_DampVelocity_ISPC_Enabled = true;
+#else
+extern CHAOS_API bool bChaos_DampVelocity_ISPC_Enabled;
+#endif

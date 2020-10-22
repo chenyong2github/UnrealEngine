@@ -222,6 +222,14 @@ UNiagaraDataInterfaceVelocityGrid::UNiagaraDataInterfaceVelocityGrid(FObjectInit
 
 bool UNiagaraDataInterfaceVelocityGrid::InitPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance)
 {
+	const FIntVector ClampedSize = FIntVector(FMath::Clamp(GridSize.X, 0, 50), FMath::Clamp(GridSize.Y, 0, 50), FMath::Clamp(GridSize.Z, 0, 50));
+
+	if (GridSize != ClampedSize)
+	{
+		UE_LOG(LogVelocityGrid, Warning, TEXT("The grid size is beyond its maximum value (50)"));
+	}
+	GridSize = ClampedSize;
+
 	FNDIVelocityGridData* InstanceData = new (PerInstanceData) FNDIVelocityGridData();
 	check(InstanceData);
 

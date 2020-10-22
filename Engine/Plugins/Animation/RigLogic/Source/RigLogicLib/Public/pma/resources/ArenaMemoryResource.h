@@ -14,7 +14,7 @@ namespace pma {
     @brief Serves allocations from a preallocated memory region.
     @see MemoryResource
 */
-class PMAAPI ArenaMemoryResource : public MemoryResource {
+class ArenaMemoryResource : public MemoryResource {
     public:
         /**
             @brief Constructor
@@ -33,7 +33,7 @@ class PMAAPI ArenaMemoryResource : public MemoryResource {
             @param upstream
                 The backing memory region will be allocated using the given upstream MemoryResource.
         */
-        ArenaMemoryResource(std::size_t initialSize, std::size_t regionSize, float growthFactor, MemoryResource* upstream);
+        PMAAPI ArenaMemoryResource(std::size_t initialSize, std::size_t regionSize, float growthFactor, MemoryResource* upstream);
         /**
             @brief Constructor
             @param regionSize
@@ -49,7 +49,7 @@ class PMAAPI ArenaMemoryResource : public MemoryResource {
             @param upstream
                 The backing memory region will be allocated using the given upstream MemoryResource.
         */
-        ArenaMemoryResource(std::size_t regionSize, float growthFactor, MemoryResource* upstream);
+        PMAAPI ArenaMemoryResource(std::size_t regionSize, float growthFactor, MemoryResource* upstream);
         /**
             @brief Constructor
             @param regionSize
@@ -61,28 +61,28 @@ class PMAAPI ArenaMemoryResource : public MemoryResource {
             @param upstream
                 The backing memory region will be allocated using the given upstream MemoryResource.
         */
-        ArenaMemoryResource(std::size_t regionSize, MemoryResource* upstream);
+        PMAAPI ArenaMemoryResource(std::size_t regionSize, MemoryResource* upstream);
 
-        ~ArenaMemoryResource();
+        PMAAPI ~ArenaMemoryResource();
 
         ArenaMemoryResource(const ArenaMemoryResource&) = delete;
         ArenaMemoryResource& operator=(const ArenaMemoryResource&) = delete;
 
-        ArenaMemoryResource(ArenaMemoryResource&&);
-        ArenaMemoryResource& operator=(ArenaMemoryResource&&);
+        PMAAPI ArenaMemoryResource(ArenaMemoryResource&&);
+        PMAAPI ArenaMemoryResource& operator=(ArenaMemoryResource&&);
 
         /**
             @brief All allocations will be served from the currently active memory region.
         */
-        void* allocate(std::size_t size, std::size_t alignment) override;
+        PMAAPI void* allocate(std::size_t size, std::size_t alignment) override;
         /**
             @brief This is a no-op, and the regions are only freed when the arena itself is destroyed.
         */
-        void deallocate(void* ptr, std::size_t size, std::size_t alignment) override;
+        PMAAPI void deallocate(void* ptr, std::size_t size, std::size_t alignment) override;
         /**
             @brief The upstream memory resource was passed through the constructor and is backing all arena allocations.
         */
-        MemoryResource* getUpstreamMemoryResource() const;
+        PMAAPI MemoryResource* getUpstreamMemoryResource() const;
 
     private:
         class Impl;

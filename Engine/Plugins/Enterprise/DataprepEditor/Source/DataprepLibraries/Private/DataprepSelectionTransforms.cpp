@@ -42,7 +42,7 @@ void UDataprepReferenceSelectionTransform::OnExecution_Implementation(const TArr
 		}
 		else if (UStaticMesh* StaticMesh = Cast< UStaticMesh >(Object))
 		{
-			for (FStaticMaterial& StaticMaterial : StaticMesh->StaticMaterials)
+			for (FStaticMaterial& StaticMaterial : StaticMesh->GetStaticMaterials())
 			{
 				if (UMaterialInterface* MaterialInterface = StaticMaterial.MaterialInterface)
 				{

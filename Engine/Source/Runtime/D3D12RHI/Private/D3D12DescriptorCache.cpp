@@ -602,7 +602,8 @@ void FD3D12DescriptorCache::SetSRVs(const FD3D12RootSignature* RootSignature, FD
 			}
 			else if (SRVs[SlotIndex]->GetSkipFastClearFinalize())
 			{
-				FD3D12DynamicRHI::TransitionResource(CommandList, SRVs[SlotIndex], CmdContext->SkipFastClearEliminateState & ValidResourceStates);
+				D3D12_RESOURCE_STATES State = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | CmdContext->SkipFastClearEliminateState;
+				FD3D12DynamicRHI::TransitionResource(CommandList, SRVs[SlotIndex], State & ValidResourceStates);
 			}
 			else
 			{

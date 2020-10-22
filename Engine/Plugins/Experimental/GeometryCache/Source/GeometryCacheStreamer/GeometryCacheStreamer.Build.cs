@@ -10,7 +10,9 @@ namespace UnrealBuildTool.Rules
 				new string[]
 				{
 					"Core",
-					"GeometryCache"
+					"GeometryCache",
+					"Slate",
+					"SlateCore"
 				}
 			);
 		}

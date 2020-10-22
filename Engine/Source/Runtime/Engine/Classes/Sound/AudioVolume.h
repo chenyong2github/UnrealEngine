@@ -20,6 +20,7 @@
 
 class AAudioVolume;
 struct FBodyInstance;
+class USoundSubmix;
 
 // Enum describing the state of checking audio volume location
 UENUM(BlueprintType)
@@ -50,6 +51,25 @@ struct FAudioVolumeSubmixSendSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AudioVolumeSubmixSends)
 	TArray<FSoundSubmixSendInfo> SubmixSends;
 };
+
+USTRUCT(BlueprintType)
+struct FAudioVolumeSubmixOverrideSettings
+{
+	GENERATED_USTRUCT_BODY()
+
+	// The submix to override the effect chain of
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AudioVolumeSubmixSends)
+	USoundSubmix* Submix;
+
+	// The submix effect chain to overrideac
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = SoundSubmix)
+	TArray<USoundEffectSubmixPreset*> SubmixEffectChain;
+
+	// The amount of time to crossfade to the override for the submix chain
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = SoundSubmix)
+	float CrossfadeTime;
+};
+
 
 /** Struct encapsulating settings for interior areas. */
 USTRUCT(BlueprintType)
@@ -132,6 +152,7 @@ struct FAudioVolumeProxy
 	FReverbSettings ReverbSettings;
 	FInteriorSettings InteriorSettings;
 	TArray<FAudioVolumeSubmixSendSettings> SubmixSendSettings;
+	TArray<FAudioVolumeSubmixOverrideSettings> SubmixOverrideSettings;
 	FBodyInstance* BodyInstance; // This is scary
 };
 
@@ -161,8 +182,12 @@ private:
 	FInteriorSettings AmbientZoneSettings;
 
 	/** Submix send settings to use for this volume. Allows audio to dynamically send to submixes based on source and listener locations relative to this volume. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = SubmixSends, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Submixes, meta = (AllowPrivateAccess = "true"))
 	TArray<FAudioVolumeSubmixSendSettings> SubmixSendSettings;
+
+	/** Submix effect chain override settings. Will override the effect chains on the given submixes when the conditions are met. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Submixes, meta = (AllowPrivateAccess = "true"))
+	TArray<FAudioVolumeSubmixOverrideSettings> SubmixOverrideSettings;
 
 public:
 
@@ -190,6 +215,11 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = AudioVolume)
 	void SetSubmixSendSettings(const TArray<FAudioVolumeSubmixSendSettings>& NewSubmixSendSettings);
+
+	const TArray<FAudioVolumeSubmixOverrideSettings>& GetSubmixOverrideSettings() const { return SubmixOverrideSettings; }
+
+	UFUNCTION(BlueprintCallable, Category = AudioVolume)
+	void SetSubmixOverrideSettings(const TArray<FAudioVolumeSubmixOverrideSettings>& NewSubmixOverrideSettings);
 
 private:
 

@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using Tools.DotNETCommon;
@@ -10,6 +11,8 @@ namespace UnrealBuildTool
 {
 	internal class RiderProjectFile : ProjectFile
 	{
+		private static readonly XcrunRunner AppleHelper = new XcrunRunner();
+		
 		public DirectoryReference RootPath;
 		public HashSet<TargetType> TargetTypes;
 		public CommandLineArguments Arguments;
@@ -95,9 +98,17 @@ namespace UnrealBuildTool
 			}
 			foreach (Tuple<FileReference,UEBuildTarget> tuple in FileToTarget)
 			{
-				CurrentTarget = tuple.Item2;
-				CurrentTarget.PreBuildSetup();
-				SerializeTarget(tuple.Item1, CurrentTarget, Minimize);
+				try
+				{
+					CurrentTarget = tuple.Item2;
+					CurrentTarget.PreBuildSetup();
+					SerializeTarget(tuple.Item1, CurrentTarget, Minimize);
+				}
+				catch (Exception Ex)
+				{
+					Log.TraceWarning("Exception while generating include data for Target:{0}, Platform: {1}, Configuration: {2}", tuple.Item2.AppName, tuple.Item2.Platform.ToString(), tuple.Item2.Configuration.ToString());
+					Log.TraceWarning(Ex.ToString());
+				}
 			}
 			
 			return true;
@@ -124,10 +135,10 @@ namespace UnrealBuildTool
 			Writer.WriteValue("Name", Target.TargetName);
 			Writer.WriteValue("Configuration", Target.Configuration.ToString());
 			Writer.WriteValue("Platform", Target.Platform.ToString());
-			Writer.WriteValue("TargetFile", Target.TargetRulesFile.FullName );
+			Writer.WriteValue("TargetFile", Target.TargetRulesFile.FullName);
 			if (Target.ProjectFile != null)
 			{
-				Writer.WriteValue("ProjectFile", Target.ProjectFile.FullName );
+				Writer.WriteValue("ProjectFile", Target.ProjectFile.FullName);
 			}
 			
 			ExportEnvironmentToJson(Target, Writer);
@@ -234,12 +245,12 @@ namespace UnrealBuildTool
 
 			if (Module.Rules.PrivatePCHHeaderFile != null)
 			{
-				Writer.WriteValue("PrivatePCH", FileReference.Combine(Module.ModuleDirectory, Module.Rules.PrivatePCHHeaderFile).FullName );
+				Writer.WriteValue("PrivatePCH", FileReference.Combine(Module.ModuleDirectory, Module.Rules.PrivatePCHHeaderFile).FullName);
 			}
 
 			if (Module.Rules.SharedPCHHeaderFile != null)
 			{
-				Writer.WriteValue("SharedPCH", FileReference.Combine(Module.ModuleDirectory, Module.Rules.SharedPCHHeaderFile).FullName );
+				Writer.WriteValue("SharedPCH", FileReference.Combine(Module.ModuleDirectory, Module.Rules.SharedPCHHeaderFile).FullName);
 			}
 
 			ExportJsonModuleArray(Writer, "PublicDependencyModules", Module.PublicDependencyModules);
@@ -439,14 +450,25 @@ namespace UnrealBuildTool
 				Writer.WriteValue(Path.FullName );
 			}
 			
-			// TODO: get corresponding includes for specific platforms
 			if (UEBuildPlatform.IsPlatformInGroup(Target.Platform, UnrealPlatformGroup.Windows))
 			{
 				foreach (DirectoryReference Path in Target.Rules.WindowsPlatform.Environment.IncludePaths)
 				{
-					Writer.WriteValue(Path.FullName );
+					Writer.WriteValue(Path.FullName);
 				}
 			}
+			else if (UEBuildPlatform.IsPlatformInGroup(Target.Platform, UnrealPlatformGroup.Apple) &&
+			         UEBuildPlatform.IsPlatformInGroup(BuildHostPlatform.Current.Platform, UnrealPlatformGroup.Apple))
+			{
+				// Only generate Apple system include paths when host platform is Apple OS
+				// TODO: Fix case when working with MacOS on Windows host platform  
+				foreach (string Path in AppleHelper.GetAppleSystemIncludePaths(GlobalCompileEnvironment.Architecture, Target.Platform))
+				{
+					Writer.WriteValue(Path);
+				}
+			}
+			// TODO: get corresponding includes for Linux
+			
 			Writer.WriteArrayEnd();
 	
 			Writer.WriteArrayStart("EnvironmentDefinitions");
@@ -536,6 +558,114 @@ namespace UnrealBuildTool
 			}
 				
 			return ToolchainInfo; 
+		}
+
+		private class XcrunRunner
+		{
+			private readonly Dictionary<string, IList<string>> CachedIncludePaths =
+				new Dictionary<string, IList<string>>();
+
+			private string CurrentlyProcessedSDK = string.Empty;
+			private Process XcrunProcess;
+			private bool IsReadingIncludesSection;
+
+			public IList<string> GetAppleSystemIncludePaths(string Architecture, UnrealTargetPlatform Platform)
+			{
+				if (!UEBuildPlatform.IsPlatformInGroup(Platform, UnrealPlatformGroup.Apple))
+				{
+					throw new InvalidOperationException("xcrun can be run only for Apple's platforms");
+				}
+
+				string SDKPath = GetSDKPath(Architecture, Platform);
+				if (!CachedIncludePaths.ContainsKey(SDKPath))
+				{
+					CalculateSystemIncludePaths(SDKPath);
+				}
+
+				return CachedIncludePaths[SDKPath];
+			}
+
+			private void CalculateSystemIncludePaths(string SDKPath)
+			{
+				if (CurrentlyProcessedSDK != string.Empty)
+				{
+					throw new InvalidOperationException("Cannot calculate include paths for several platforms at once");
+				}
+
+				CurrentlyProcessedSDK = SDKPath;
+				CachedIncludePaths[SDKPath] = new List<string>();
+				using (XcrunProcess = new Process())
+				{
+					string AppName = "xcrun";
+					string Arguments = "clang++ -Wp,-v -x c++ - -fsyntax-only" +
+					                   (string.IsNullOrEmpty(SDKPath) ? string.Empty : (" -isysroot " + SDKPath));
+					XcrunProcess.StartInfo.FileName = AppName;
+					XcrunProcess.StartInfo.Arguments = Arguments;
+					XcrunProcess.StartInfo.UseShellExecute = false;
+					XcrunProcess.StartInfo.CreateNoWindow = true;
+					// For some weird reason output of this command is written to error channel so we're redirecting both channels
+					XcrunProcess.StartInfo.RedirectStandardOutput = true;
+					XcrunProcess.StartInfo.RedirectStandardError = true;
+					XcrunProcess.OutputDataReceived += OnOutputDataReceived;
+					XcrunProcess.ErrorDataReceived += OnOutputDataReceived;
+					XcrunProcess.Start();
+					XcrunProcess.BeginOutputReadLine();
+					XcrunProcess.BeginErrorReadLine();
+					// xcrun is not finished on it's own. It should be killed by OnOutputDataReceived when reading is finished. But we'll add timeout as a safeguard
+					XcrunProcess.WaitForExit(3000);
+				}
+
+				XcrunProcess = null;
+				IsReadingIncludesSection = false;
+				CurrentlyProcessedSDK = string.Empty;
+			}
+
+			private void OnOutputDataReceived(object Sender, DataReceivedEventArgs Args)
+			{
+				if (Args.Data != null)
+				{
+					if (IsReadingIncludesSection)
+					{
+						if (Args.Data.StartsWith("End of search"))
+						{
+							IsReadingIncludesSection = false;
+							XcrunProcess.Kill();
+						}
+						else
+						{
+							if (!Args.Data.EndsWith("(framework directory)"))
+							{
+								CachedIncludePaths[CurrentlyProcessedSDK].Add(Args.Data.Trim(' ', '"'));
+							}
+						}
+					}
+
+					if (Args.Data.StartsWith("#include <...>"))
+					{
+						IsReadingIncludesSection = true;
+					}
+				}
+			}
+
+			private string GetSDKPath(string Architecture, UnrealTargetPlatform Platform)
+			{
+				if (Platform == UnrealTargetPlatform.Mac)
+				{
+					return MacToolChain.SDKPath;
+				}
+
+				if (Platform == UnrealTargetPlatform.IOS)
+				{
+					return new IOSToolChainSettings().GetSDKPath(Architecture);
+				}
+
+				if (Platform == UnrealTargetPlatform.TVOS)
+				{
+					return new TVOSToolChainSettings().GetSDKPath(Architecture);
+				}
+
+				throw new NotImplementedException("Path to SDK has to be specified for each Apple's platform");
+			}
 		}
 	}
 }

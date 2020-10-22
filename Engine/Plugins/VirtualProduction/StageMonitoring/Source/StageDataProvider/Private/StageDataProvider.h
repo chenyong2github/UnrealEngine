@@ -42,8 +42,11 @@ private:
 	/** Used to verify if monitors have timedout */
 	bool Tick(float DeltaTime);
 
-	/** Verify if we haven't received any message from monitors for a while */
-	void VerifyTimeoutedMonitors();
+	/** Remove monitors for which we haven't received any message for a while */
+	void RemoveTimeoutedMonitors();
+
+	/** Verify if this message type is excluded using project settings */
+	bool IsMessageTypeExcluded(UScriptStruct* MessageType) const;
 
 
 private:

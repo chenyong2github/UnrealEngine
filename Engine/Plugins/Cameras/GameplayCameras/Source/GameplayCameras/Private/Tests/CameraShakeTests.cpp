@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CameraShakeTestObjects.h"
+#include "DefaultCameraShakeBase.h"
 #include "WaveOscillatorCameraShakePattern.h"
 #include "Misc/AutomationTest.h"
 
@@ -81,7 +82,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCameraShakeSingleInstanceRestartTest,
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 bool FCameraShakeSingleInstanceRestartTest::RunTest(const FString& Parameters)
 {
-	UCameraShakeBase* TestShake = NewObject<UCameraShakeBase>();
+	UCameraShakeBase* TestShake = NewObject<UDefaultCameraShakeBase>();
 	UWaveOscillatorCameraShakePattern* OscPattern = TestShake->ChangeRootShakePattern<UWaveOscillatorCameraShakePattern>();
 	OscPattern->BlendInTime = 1.f;
 	OscPattern->BlendOutTime = 2.f;

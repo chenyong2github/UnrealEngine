@@ -50,6 +50,7 @@ struct FInterpolationData
 
 	void SetTarget(float NewValue)
 	{
+		CurrentValue = NewValue;
 		TargetValue = NewValue;
 	}
 

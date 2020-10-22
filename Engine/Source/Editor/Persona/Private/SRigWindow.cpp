@@ -371,8 +371,7 @@ FReply SRigWindow::OnAutoMapping()
 		if (!Rig->IsSourceReferenceSkeletonAvailable())
 		{
 			//ask if they want to set up source skeleton
-			EAppReturnType::Type Response = FMessageDialog::Open(EAppMsgType::YesNo, LOCTEXT("TheRigNeedsSkeleton", 
-				"In order to attempt to auto-map bones, the rig should have the source skeleton. However, the current rig is missing the source skeleton. Would you like to choose one? It's best to select the skeleton this rig is from."));
+			EAppReturnType::Type Response = FMessageDialog::Open(EAppMsgType::YesNo, LOCTEXT("TheRigNeedsSkeleton", "In order to attempt to auto-map bones, the rig should have the source skeleton. However, the current rig is missing the source skeleton. Would you like to choose one? It's best to select the skeleton this rig is from."));
 
 			if (Response == EAppReturnType::No)
 			{

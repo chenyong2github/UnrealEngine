@@ -63,6 +63,9 @@ struct FTexture2DMipMap
 	/** Key if stored in the derived data cache. */
 	FString DerivedDataKey;
 
+	/** The file region type appropriate for this mip's pixel format. */
+	EFileRegionType FileRegionType = EFileRegionType::None;
+
 	/**
 	 * Place mip-map data in the derived data cache associated with the provided
 	 * key.

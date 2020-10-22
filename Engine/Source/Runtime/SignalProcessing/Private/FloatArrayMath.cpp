@@ -527,6 +527,99 @@ namespace Audio
 		}
 	}
 
+	void ArrayMultiplyAddInPlace(TArrayView<const float> InValues, float InMultiplier, TArrayView<float> InAccumulateValues)
+	{
+		check(InValues.Num() == InAccumulateValues.Num());
+		
+		const int32 Num = InValues.Num();
+
+		const float* InData = InValues.GetData();
+		float* InAccumulateData = InAccumulateValues.GetData();
+
+		for (int32 i = 0; i < Num; i++)
+		{
+			InAccumulateData[i] += InData[i] * InMultiplier;
+		}
+	}
+
+	void ArrayMultiplyAddInPlace(const AlignedFloatBuffer& InValues, float InMultiplier, AlignedFloatBuffer& InAccumulateValues)
+	{
+		check(InValues.Num() == InAccumulateValues.Num());
+
+		const int32 Num = InAccumulateValues.Num();
+		const int32 NumToSimd = Num & MathIntrinsics::SimdMask;
+		const int32 NumNotToSimd = Num & MathIntrinsics::NotSimdMask;
+
+		const float* InData = InValues.GetData();
+		float* InAccumulateData = InAccumulateValues.GetData();
+
+		MixInBufferFast(InData, InAccumulateData, NumToSimd, InMultiplier);
+
+		if (NumNotToSimd)
+		{
+			TArrayView<const float> ValuesView(&InData[NumToSimd],  NumNotToSimd);
+			TArrayView<float> AccumulateView(&InAccumulateData[NumToSimd], NumNotToSimd);
+
+			ArrayMultiplyAddInPlace(ValuesView, InMultiplier, AccumulateView);
+		}
+	}
+
+	void ArrayLerpAddInPlace(TArrayView<const float> InValues, float InStartMultiplier, float InEndMultiplier, TArrayView<float> InAccumulateValues)
+	{
+		check(InValues.Num() == InAccumulateValues.Num());
+
+		const int32 Num = InValues.Num();
+
+		const float* InData = InValues.GetData();
+		float* InAccumulateData = InAccumulateValues.GetData();
+
+		const float Delta = (InEndMultiplier - InStartMultiplier) / FMath::Max(1.f, static_cast<float>(Num - 1));
+		float Multiplier = InStartMultiplier;
+
+		for (int32 i = 0; i < Num; i++)
+		{
+			InAccumulateData[i] += InData[i] * Multiplier;
+			Multiplier += Delta;
+		}
+	}
+
+	void ArrayLerpAddInPlace(const AlignedFloatBuffer& InValues, float InStartMultiplier, float InEndMultiplier, AlignedFloatBuffer& InAccumulateValues)
+	{
+		check(InValues.Num() == InAccumulateValues.Num());
+
+		const int32 Num = InAccumulateValues.Num();
+		const int32 NumToSimd = Num & MathIntrinsics::SimdMask;
+		const int32 NumNotToSimd = Num & MathIntrinsics::NotSimdMask;
+
+		const float* InData = InValues.GetData();
+		float* InAccumulateData = InAccumulateValues.GetData();
+		
+		const float Delta = (InEndMultiplier - InStartMultiplier) / FMath::Max(1.f, static_cast<float>(Num - 1));
+
+		const float FourByDelta = 4.f * Delta;
+		VectorRegister VectorDelta = MakeVectorRegister(FourByDelta, FourByDelta, FourByDelta, FourByDelta);
+		VectorRegister VectorMultiplier = MakeVectorRegister(InStartMultiplier, InStartMultiplier + Delta, InStartMultiplier + 2.f * Delta, InStartMultiplier + 3.f * Delta);
+
+		for (int32 i = 0; i < NumToSimd; i += 4)
+		{
+			VectorRegister VectorData = VectorLoadAligned(&InData[i]);
+			VectorRegister VectorAccumData = VectorLoadAligned(&InAccumulateData[i]);
+
+			VectorRegister VectorOut = VectorMultiplyAdd(VectorData, VectorMultiplier, VectorAccumData);
+			VectorMultiplier = VectorAdd(VectorMultiplier, VectorDelta);
+
+			VectorStoreAligned(VectorOut, &InAccumulateData[i]);
+		}
+
+		if (NumNotToSimd)
+		{
+			TArrayView<const float> ValuesView(&InData[NumToSimd],  NumNotToSimd);
+			TArrayView<float> AccumulateView(&InAccumulateData[NumToSimd], NumNotToSimd);
+
+			ArrayLerpAddInPlace(ValuesView, InStartMultiplier + NumToSimd * Delta, InEndMultiplier, AccumulateView);
+		}
+	}
+
 	void ArraySubtractByConstantInPlace(TArrayView<float> InValues, float InSubtrahend)
 	{
 		const int32 Num = InValues.Num();

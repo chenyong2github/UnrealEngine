@@ -193,7 +193,7 @@ public:
 	static bool CanShowVROnlyActions();
 
 	static int32 GetNumberOfClients();
-	static void SetNumberOfClients(int32 NumClients, ETextCommit::Type CommitInfo);
+	static void SetNumberOfClients(int32 NumClients, ETextCommit::Type CommitInfo = ETextCommit::Default);
 
 	static int32 GetNetPlayMode();
 	static void SetNetPlayMode(int32 Value);
@@ -925,7 +925,8 @@ TSharedRef< SWidget > FPlayWorldCommands::GeneratePlayMenuContent(TSharedRef<FUI
 					.Delta(1)
 					.ToolTipText(LOCTEXT("NumberOfClientsToolTip", "How many client instances do you want to create? The first instance respects the Play Mode location (PIE/PINW) and additional instances respect the RunUnderOneProcess setting."))
 					.Value_Static(&FInternalPlayWorldCommandCallbacks::GetNumberOfClients)
-					.OnValueCommitted_Static(&FInternalPlayWorldCommandCallbacks::SetNumberOfClients);
+					.OnValueCommitted_Static(&FInternalPlayWorldCommandCallbacks::SetNumberOfClients)
+					.OnValueChanged_Lambda([](int32 InNumClients) { FInternalPlayWorldCommandCallbacks::SetNumberOfClients(InNumClients, ETextCommit::Default); });
 
 				Section.AddEntry(FToolMenuEntry::InitWidget("NumPlayers", NumPlayers, LOCTEXT("NumberOfClientsMenuWidget", "Number of Players")));
 			}

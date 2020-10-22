@@ -263,7 +263,7 @@ void FSkeletalMeshLODRenderData::ReleaseResources()
 #if RHI_RAYTRACING
 	if (IsRayTracingEnabled())
 	{
-		ensure(NumReferencingStaticSkeletalMeshObjects == 0);
+		BeginReleaseResource(&StaticRayTracingGeometry);
 	}
 #endif
 }

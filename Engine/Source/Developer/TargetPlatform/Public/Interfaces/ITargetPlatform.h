@@ -100,6 +100,9 @@ enum class ETargetPlatformFeatures
 
 	/** The platform supports hardware LZ decompression */
 	HardwareLZDecompression,
+
+	/* The platform makes use of extra cook-time file region metadata in its packaging process. */
+	CookFileRegionMetadata,
 };
 
 enum class EPlatformAuthentication
@@ -332,7 +335,14 @@ public:
 	*
 	* @return true if this platform can distribute shader compilation threads with XGE.
 	*/
-	virtual bool CanSupportXGEShaderCompile() const = 0;
+	virtual bool CanSupportRemoteShaderCompile() const = 0;
+
+	/**
+	* Provide platform specific file dependency patterns for SN-DBS shader compilation.
+	*
+	* @param OutDependencies Platform specific dependency file patterns are uniquely appended to this array.
+	*/
+	virtual void GetShaderCompilerDependencies(TArray<FString>& OutDependencies) const = 0;
 
 	/**
 	 * Checks whether the platform's SDK requirements are met so that we can do things like

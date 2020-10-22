@@ -1040,10 +1040,16 @@ void UUnrealEdEngine::MakeSelectedActorsLevelCurrent()
 		}
 	}
 
-	// Change the current level to something different
-	if ( LevelToMakeCurrent && !LevelToMakeCurrent->IsCurrentLevel() )
+	if (LevelToMakeCurrent)
 	{
-		EditorLevelUtils::MakeLevelCurrent( LevelToMakeCurrent );
+		if (!LevelToMakeCurrent->IsCurrentLevel())
+		{
+			// Change the current level to something different
+			EditorLevelUtils::MakeLevelCurrent(LevelToMakeCurrent);
+		}
+		// Set the Level tab's selected level.
+		TArray<class ULevel*> SelectedLevelsList(&LevelToMakeCurrent, 1);
+		LevelToMakeCurrent->GetWorld()->SetSelectedLevels(SelectedLevelsList);
 	}
 }
 
@@ -1373,41 +1379,86 @@ void UUnrealEdEngine::DrawComponentVisualizersHUD(const FViewport* Viewport, con
 	}
 }
 
-void UUnrealEdEngine::AddVisualizers(AActor* Actor, TArray<FCachedComponentVisualizer>& Visualizers, TFunctionRef<bool(const TSharedPtr<FComponentVisualizer>&)> Condition)
-		{
-				TInlineComponentArray<UActorComponent*> Components;
-				Actor->GetComponents(Components, true);
+void UUnrealEdEngine::OnEditorSelectionChanged(UObject* SelectionThatChanged)
+{
+	auto GetVisualizersForSelection = [&](AActor* Actor)
+	{
+		// Iterate over components of that actor (and recurse through child components)
+		TInlineComponentArray<UActorComponent*> Components;
+		Actor->GetComponents(Components, true);
 
-				for(int32 CompIdx = 0; CompIdx < Components.Num(); CompIdx++)
+		for (int32 CompIdx = 0; CompIdx < Components.Num(); CompIdx++)
+		{
+			UActorComponent* Comp = Components[CompIdx];
+			if (Comp->IsRegistered())
+			{
+				// Try and find a visualizer
+				TSharedPtr<FComponentVisualizer> Visualizer = FindComponentVisualizer(Comp->GetClass());
+				if (Visualizer.IsValid())
 				{
-					UActorComponent* Comp = Components[CompIdx];
-					if(Comp->IsRegistered())
+					VisualizersForSelection.Add(FCachedComponentVisualizer(Comp, Visualizer));
+				}
+			}
+		}
+	};
+
+	if (SelectionThatChanged == GetSelectedActors())
+	{
+		// actor selection changed.  Update the list of component visualizers
+		// This is expensive so we do not search for visualizers each time they want to draw
+		VisualizersForSelection.Empty();
+
+		// Iterate over all selected actors
+		for (FSelectionIterator It(GetSelectedActorIterator()); It; ++It)
+		{
+			AActor* Actor = Cast<AActor>(*It);
+			if (Actor != nullptr)
+			{
+				GetVisualizersForSelection(Actor);
+			}
+		}
+	}
+	else if (SelectionThatChanged == GetSelectedComponents())
+	{
+		if (USelection* Selection = Cast<USelection>(SelectionThatChanged))
+		{
+			// Do not proceed if the selection contains no components. This occurs when a component is
+			// deselected while selecting its owner actor. But a corresponding actor selection is not invoked
+			// so if the visualizers are cleared here, they will not be properly reset for the selected actor. 
+			if (Selection->Num() > 0)
+			{
+				VisualizersForSelection.Empty();
+
+				TArray<AActor*> ActorsProcessed;
+
+				// Iterate over all selected components
+				for (FSelectionIterator It(GetSelectedComponentIterator()); It; ++It)
+				{
+					if (UActorComponent* Comp = Cast<UActorComponent>(*It))
 					{
-						// Try and find a visualizer
-						TSharedPtr<FComponentVisualizer> Visualizer = FindComponentVisualizer(Comp->GetClass());
-			if(Visualizer.IsValid() && Condition(Visualizer))
+						if (AActor* Actor = Comp->GetOwner())
 						{
-				Visualizers.Add(FCachedComponentVisualizer(Comp, Visualizer));
+							if (!ActorsProcessed.Contains(Actor))
+							{
+								GetVisualizersForSelection(Actor);
+								ActorsProcessed.Emplace(Actor);
+							}
+						}
 					}
 				}
 			}
 		}
+	}
 
-void UUnrealEdEngine::OnEditorSelectionChanged(UObject* SelectionThatChanged)
-		{
-	if(SelectionThatChanged == GetSelectedActors())
-			{
-		// actor selection changed.  Update the list of component visualizers
-		// This is expensive so we do not search for visualizers each time they want to draw
-		VisualizersForSelection.Empty();
-				
-		// Iterate over all selected actors
-		for(FSelectionIterator It(GetSelectedActorIterator()); It; ++It)
+	// If there is an undo/redo operation in progress, restore the active component visualizer.
+	if (GIsTransacting)
 	{
-			AActor* Actor = Cast<AActor>(*It);
-			if(Actor != nullptr)
+		for (FCachedComponentVisualizer& CachedComponentVisualizer : VisualizersForSelection)
 		{
-				AddVisualizers(Actor, VisualizersForSelection, [](const TSharedPtr<FComponentVisualizer>& Visualizer) { return Visualizer->ShowWhenSelected(); });
+			if (CachedComponentVisualizer.Visualizer->GetEditedComponent() != nullptr)
+			{
+				ComponentVisManager.SetActiveComponentVis(GCurrentLevelEditingViewportClient, CachedComponentVisualizer.Visualizer);
+				break;
 			}
 		}
 	}

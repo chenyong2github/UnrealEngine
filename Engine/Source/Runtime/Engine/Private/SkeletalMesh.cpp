@@ -1672,6 +1672,9 @@ void USkeletalMesh::PostDuplicate(bool bDuplicateForPIE)
 			{
 				return;
 			}
+
+			LLM_SCOPE(ELLMTag::SkeletalMesh);
+
 			FSkeletalMeshLODModel& ThisLODModel = ImportedModels.LODModels[LODIndex];
 			FRawSkeletalMeshBulkData& SourceRawSkeletalMeshBulkData = SourceMeshEditorData->GetLODImportedData(LODIndex);
 			FSkeletalMeshImportData RawMesh;
@@ -5309,8 +5312,7 @@ void FSkeletalMeshSceneProxy::GetDynamicElementsSection(const TArray<const FScen
 			Mesh.VisualizeLODIndex = LODIndex;
 		#endif
 
-			if ( ensureMsgf(Mesh.MaterialRenderProxy, TEXT("GetDynamicElementsSection with invalid MaterialRenderProxy. Owner:%s LODIndex:%d UseMaterialIndex:%d"), *GetOwnerName().ToString(), LODIndex, SectionElementInfo.UseMaterialIndex) &&
-				 ensureMsgf(Mesh.MaterialRenderProxy->GetMaterial(FeatureLevel), TEXT("GetDynamicElementsSection with invalid FMaterial. Owner:%s LODIndex:%d UseMaterialIndex:%d"), *GetOwnerName().ToString(), LODIndex, SectionElementInfo.UseMaterialIndex) )
+			if (ensureMsgf(Mesh.MaterialRenderProxy, TEXT("GetDynamicElementsSection with invalid MaterialRenderProxy. Owner:%s LODIndex:%d UseMaterialIndex:%d"), *GetOwnerName().ToString(), LODIndex, SectionElementInfo.UseMaterialIndex))
 			{
 				Collector.AddMesh(ViewIndex, Mesh);
 			}

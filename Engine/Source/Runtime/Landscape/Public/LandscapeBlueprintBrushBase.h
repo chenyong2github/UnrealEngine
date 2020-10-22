@@ -49,10 +49,10 @@ public:
 	void RequestLandscapeUpdate();
 
 	UFUNCTION(BlueprintImplementableEvent)
-	void GetBlueprintRenderDependencies(TArray<UTexture2D*>& OutStreamableAssets);
+	void GetBlueprintRenderDependencies(TArray<UObject*>& OutStreamableAssets);
 
 #if WITH_EDITOR
-	virtual void GetRenderDependencies(TSet<UTexture2D*>& OutStreamableAssets);
+	virtual void GetRenderDependencies(TSet<UObject*>& OutDependencies);
 
 	virtual void SetOwningLandscape(class ALandscape* InOwningLandscape);
 	class ALandscape* GetOwningLandscape() const;

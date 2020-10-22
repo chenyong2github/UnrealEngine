@@ -22,7 +22,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogHairRendering, Log, All);
 static int32 GHairStrandsRaytracingEnable = 1;
 static FAutoConsoleVariableRef CVarHairStrandsRaytracingEnable(TEXT("r.HairStrands.Raytracing"), GHairStrandsRaytracingEnable, TEXT("Enable/Disable hair strands raytracing geometry. This is anopt-in option per groom asset/groom instance."));
 
-static int32 GHairStrandsGlobalEnable = 1;
+static int32 GHairStrandsGlobalEnable = 0;
 static FAutoConsoleVariableRef CVarHairStrandsGlobalEnable(TEXT("r.HairStrands.Enable"), GHairStrandsGlobalEnable, TEXT("Enable/Disable the entire hair strands system. This affects all geometric representations (i.e., strands, cards, and meshes)."));
 
 static int32 GHairStrandsEnable = 1;
@@ -33,6 +33,12 @@ static FAutoConsoleVariableRef CVarHairCardsEnable(TEXT("r.HairStrands.Cards"), 
 
 static int32 GHairMeshesEnable = 1;
 static FAutoConsoleVariableRef CVarHairMeshesEnable(TEXT("r.HairStrands.Meshes"), GHairMeshesEnable, TEXT("Enable/Disable hair meshes rendering. This variable needs to be turned on when the engine starts."));
+
+static int32 GHairStrandsBinding = 1;
+static FAutoConsoleVariableRef CVarHairStrandsBinding(TEXT("r.HairStrands.Binding"), GHairStrandsBinding, TEXT("Enable/Disable hair binding, i.e., hair attached to skeletal meshes."));
+
+static int32 GHairStrandsSimulation = 1;
+static FAutoConsoleVariableRef CVarHairStrandsSimulation(TEXT("r.HairStrands.Simulation"), GHairStrandsSimulation, TEXT("Enable/disable hair simulation"));
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -53,8 +59,11 @@ bool IsHairRayTracingEnabled()
 
 bool IsHairStrandsSupported(EHairStrandsShaderType Type, EShaderPlatform Platform)
 {
-	// For now cards/meshes have the same restriction than for hair strands + limited set of mobile
-	const bool Cards_Meshes_All = IsHairStrandsGeometrySupported(Platform) || (Platform == SP_PCD3D_ES3_1 || Platform == SP_METAL_SM5/* && GetMaxSupportedFeatureLevel(Platform) == ERHIFeatureLevel::SM5*/);
+	// Important:
+	// EHairStrandsShaderType::All: Mobile is excluded as we don't need any interpolation/simulation code for this. It only do rigid transformation. 
+	//                              The runtime setting in these case are r.HairStrands.Binding=0 & r.HairStrands.Simulation=0
+	const bool Cards_Meshes_All = true;
+	const bool bIsMobile = IsMobilePlatform(Platform) || Platform == SP_PCD3D_ES3_1;
 
 	switch (Type)
 	{
@@ -62,7 +71,7 @@ bool IsHairStrandsSupported(EHairStrandsShaderType Type, EShaderPlatform Platfor
 	case EHairStrandsShaderType::Cards:	  return Cards_Meshes_All;
 	case EHairStrandsShaderType::Meshes:  return Cards_Meshes_All;
 	case EHairStrandsShaderType::Tool:	  return (IsD3DPlatform(Platform, false) || IsVulkanSM5Platform(Platform)) && IsPCPlatform(Platform) && GetMaxSupportedFeatureLevel(Platform) == ERHIFeatureLevel::SM5;
-	case EHairStrandsShaderType::All:	  return Cards_Meshes_All;
+	case EHairStrandsShaderType::All:	  return Cards_Meshes_All && !bIsMobile;
 	}
 	return false;
 }
@@ -71,6 +80,10 @@ bool IsHairStrandsEnabled(EHairStrandsShaderType Type, EShaderPlatform Platform)
 {
 	if (GHairStrandsGlobalEnable <= 0) return false;
 
+	// Important:
+	// EHairStrandsShaderType::All: Mobile is excluded as we don't need any interpolation/simulation code for this. It only do rigid transformation. 
+	//                              The runtime setting in these case are r.HairStrands.Binding=0 & r.HairStrands.Simulation=0
+	const bool bIsMobile = Platform != EShaderPlatform::SP_NumPlatforms ? IsMobilePlatform(Platform) || Platform == SP_PCD3D_ES3_1 : false;
 	switch (Type)
 	{
 	case EHairStrandsShaderType::Strands:	return GHairStrandsEnable > 0 && (Platform != EShaderPlatform::SP_NumPlatforms ? IsHairStrandsGeometrySupported(Platform) : true);
@@ -81,9 +94,19 @@ bool IsHairStrandsEnabled(EHairStrandsShaderType Type, EShaderPlatform Platform)
 #else
 	case EHairStrandsShaderType::Tool:		return false;
 #endif
-	case EHairStrandsShaderType::All :		return GHairStrandsGlobalEnable > 0 && (GHairCardsEnable > 0 || GHairMeshesEnable > 0 || GHairStrandsEnable > 0);
+	case EHairStrandsShaderType::All :		return GHairStrandsGlobalEnable > 0 && (GHairCardsEnable > 0 || GHairMeshesEnable > 0 || GHairStrandsEnable > 0) && !bIsMobile;
 	}
 	return false;
+}
+
+bool IsHairStrandsBindingEnable()
+{
+	return GHairStrandsBinding > 0;
+}
+
+bool IsHairStrandsSimulationEnable()
+{
+	return GHairStrandsSimulation > 0;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -109,7 +132,7 @@ void FHairGroupPublicData::InitRHI()
 		return;
 
 	{
-		DrawIndirectBuffer.Initialize(sizeof(uint32), 4, PF_R32_UINT, BUF_DrawIndirect);
+		DrawIndirectBuffer.Initialize(sizeof(uint32), 4, PF_R32_UINT, BUF_DrawIndirect, TEXT("HairStrandsCluster_DrawIndirectBuffer"));
 		uint32* BufferData = (uint32*)RHILockVertexBuffer(DrawIndirectBuffer.Buffer, 0, sizeof(uint32) * 4, RLM_WriteOnly);
 		BufferData[0] = GroupControlTriangleStripVertexCount;
 		BufferData[1] = 1;
@@ -119,7 +142,7 @@ void FHairGroupPublicData::InitRHI()
 	}
 
 	{
-		DrawIndirectRasterComputeBuffer.Initialize(sizeof(uint32), 4, PF_R32_UINT, BUF_DrawIndirect);
+		DrawIndirectRasterComputeBuffer.Initialize(sizeof(uint32), 4, PF_R32_UINT, BUF_DrawIndirect, TEXT("HairStrandsCluster_DrawIndirectRasterComputeBuffer"));
 		uint32* BufferData = (uint32*)RHILockVertexBuffer(DrawIndirectRasterComputeBuffer.Buffer, 0, sizeof(uint32) * 4, RLM_WriteOnly);
 		BufferData[0] = 0;
 		BufferData[1] = 1;
@@ -128,11 +151,11 @@ void FHairGroupPublicData::InitRHI()
 		RHIUnlockVertexBuffer(DrawIndirectRasterComputeBuffer.Buffer);
 	}
 
-	ClusterAABBBuffer.Initialize(sizeof(int32), ClusterCount * 6, EPixelFormat::PF_R32_SINT, BUF_Static);
-	GroupAABBBuffer.Initialize(sizeof(int32), 6, EPixelFormat::PF_R32_SINT, BUF_Static);
+	ClusterAABBBuffer.Initialize(sizeof(int32), ClusterCount * 6, EPixelFormat::PF_R32_SINT, BUF_Static, TEXT("HairStrandsCluster_ClusterAABBBuffer"));
+	GroupAABBBuffer.Initialize(sizeof(int32), 6, EPixelFormat::PF_R32_SINT, BUF_Static, TEXT("HairStrandsCluster_GroupAABBBuffer"));
 
-	CulledVertexIdBuffer.Initialize(sizeof(int32), VertexCount, EPixelFormat::PF_R32_UINT, BUF_Static);
-	CulledVertexRadiusScaleBuffer.Initialize(sizeof(float), VertexCount, EPixelFormat::PF_R32_FLOAT, BUF_Static);
+	CulledVertexIdBuffer.Initialize(sizeof(int32), VertexCount, EPixelFormat::PF_R32_UINT, BUF_Static, TEXT("HairStrandsCluster_CulledVertexIdBuffer"));
+	CulledVertexRadiusScaleBuffer.Initialize(sizeof(float), VertexCount, EPixelFormat::PF_R32_FLOAT, BUF_Static, TEXT("HairStrandsCluster_CulledVertexRadiusScaleBuffer"));
 }
 
 void FHairGroupPublicData::ReleaseRHI()
@@ -206,6 +229,19 @@ FHairStrandsBookmarkParameters CreateHairStrandsBookmarkParameters(FViewInfo& Vi
 		GHairStrandsParameterFunction(Out);
 	}
 	Out.bHzbRequest = Out.bHasElements && Out.bStrandsGeometryEnabled && IsHairStrandsClusterCullingUseHzb();
+
+	return Out;
+}
+
+FHairStrandsBookmarkParameters CreateHairStrandsBookmarkParameters(TArray<FViewInfo>& Views)
+{
+	FHairStrandsBookmarkParameters Out;
+	Out = CreateHairStrandsBookmarkParameters(Views[0]);
+	Out.AllViews.Reserve(Views.Num());
+	for (const FViewInfo& View : Views)
+	{
+		Out.AllViews.Add(&View);
+	}
 
 	return Out;
 }

@@ -43,7 +43,7 @@ FDxcModuleWrapper::FDxcModuleWrapper()
 
 FDxcModuleWrapper::~FDxcModuleWrapper()
 {
-	GDxcHandle->Release();
+	GDxcHandle.SafeRelease();
 }
 
 
@@ -61,5 +61,5 @@ FShaderConductorModuleWrapper::FShaderConductorModuleWrapper()
 
 FShaderConductorModuleWrapper::~FShaderConductorModuleWrapper()
 {
-	GShaderConductorHandle->Release();
+	GShaderConductorHandle.SafeRelease();
 }

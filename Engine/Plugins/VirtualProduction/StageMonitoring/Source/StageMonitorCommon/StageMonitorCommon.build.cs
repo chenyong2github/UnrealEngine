@@ -12,6 +12,7 @@ public class StageMonitorCommon : ModuleRules
 			new string[]
 			{
 				"Core",
+				"DeveloperSettings",
 				"StageDataCore"
 			}
 		);

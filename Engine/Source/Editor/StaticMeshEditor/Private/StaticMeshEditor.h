@@ -447,6 +447,9 @@ private:
 	/** Redo Action **/
 	void RedoAction();
 
+	/** Callback when the mesh change **/
+	void OnMeshChanged();
+
 	/** Called when socket selection changes */
 	void OnSocketSelectionChanged();
 

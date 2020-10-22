@@ -99,9 +99,9 @@ public:
 
 	void Invalidate() {}
 
-	TRefCountPtr<FShaderCompilerEnvironment> CreateShaderCompilationEnvironment(EShaderPlatform ShaderPlatform) const 
+	TRefCountPtr<FSharedShaderCompilerEnvironment> CreateShaderCompilationEnvironment(EShaderPlatform ShaderPlatform) const 
 	{ 
-		return new FShaderCompilerEnvironment(); 
+		return new FSharedShaderCompilerEnvironment();
 	}
 
 	bool ShouldCache(EShaderPlatform ShaderPlatform, const FShaderType* ShaderType) const 

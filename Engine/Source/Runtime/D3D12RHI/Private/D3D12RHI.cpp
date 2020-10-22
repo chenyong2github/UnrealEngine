@@ -181,6 +181,7 @@ FD3D12DynamicRHI::FD3D12DynamicRHI(const TArray<TSharedPtr<FD3D12Adapter>>& Chos
 	GMaxShadowDepthBufferSizeY = GMaxTextureDimensions;
 	GRHISupportsResolveCubemapFaces = true;
 	GRHISupportsCopyToTextureMultipleMips = true;
+	GRHISupportsArrayIndexFromAnyShader = true;
 
 	GRHIMaxDispatchThreadGroupsPerDimension.X = D3D12_CS_DISPATCH_MAX_THREAD_GROUPS_PER_DIMENSION;
 	GRHIMaxDispatchThreadGroupsPerDimension.Y = D3D12_CS_DISPATCH_MAX_THREAD_GROUPS_PER_DIMENSION;
@@ -205,7 +206,7 @@ FD3D12DynamicRHI::FD3D12DynamicRHI(const TArray<TSharedPtr<FD3D12Adapter>>& Chos
 
 	// Enable async compute by default
 	// #FIXME: disabling D3D12 async compute to unblock Dev-RenderPlat-Staging copy-up. #JIRA UE-97888
-	GEnableAsyncCompute = false;
+	GEnableAsyncCompute = true;
 
 	// Manually enable Async BVH build for D3D12 RHI
 	GRHISupportsRayTracingAsyncBuildAccelerationStructure = true;

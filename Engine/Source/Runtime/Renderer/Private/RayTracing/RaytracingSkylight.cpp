@@ -371,11 +371,15 @@ void FDeferredShadingSceneRenderer::PrepareRayTracingSkyLight(const FViewInfo& V
 		{
 			for (uint32 DecoupleSampleGeneration = 0; DecoupleSampleGeneration < 2; ++DecoupleSampleGeneration)
 			{
-				PermutationVector.Set<FRayTracingSkyLightRGS::FEnableTwoSidedGeometryDim>(TwoSidedGeometryIndex != 0);
-				PermutationVector.Set<FRayTracingSkyLightRGS::FEnableMaterialsDim>(EnableMaterialsIndex != 0);
-				PermutationVector.Set<FRayTracingSkyLightRGS::FDecoupleSampleGeneration>(DecoupleSampleGeneration != 0);
-				TShaderMapRef<FRayTracingSkyLightRGS> RayGenerationShader(View.ShaderMap, PermutationVector);
-				OutRayGenShaders.Add(RayGenerationShader.GetRayTracingShader());
+				for (int32 HairLighting = 0; HairLighting < 2; ++HairLighting)
+				{
+					PermutationVector.Set<FRayTracingSkyLightRGS::FEnableTwoSidedGeometryDim>(TwoSidedGeometryIndex != 0);
+					PermutationVector.Set<FRayTracingSkyLightRGS::FEnableMaterialsDim>(EnableMaterialsIndex != 0);
+					PermutationVector.Set<FRayTracingSkyLightRGS::FDecoupleSampleGeneration>(DecoupleSampleGeneration != 0);
+					PermutationVector.Set<FRayTracingSkyLightRGS::FHairLighting>(HairLighting);
+					TShaderMapRef<FRayTracingSkyLightRGS> RayGenerationShader(View.ShaderMap, PermutationVector);
+					OutRayGenShaders.Add(RayGenerationShader.GetRayTracingShader());
+				}
 			}
 		}
 	}

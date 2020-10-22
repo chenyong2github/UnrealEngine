@@ -1780,7 +1780,11 @@ bool UNiagaraSystem::ProcessCompilationResult(FEmitterCompiledScriptPair& Script
 	if (UNiagaraScript::ExecToBinaryData(ScriptPair.CompiledScript, OutData, *ExeData))
 	{
 		COOK_STAT(Timer.AddMiss(OutData.Num()));
-		GetDerivedDataCacheRef().Put(*ScriptPair.CompiledScript->GetNiagaraDDCKeyString(), OutData, GetPathName());
+
+		// be sure to use the CompileId that is associated with the compilation
+		const FString DDCKey = UNiagaraScript::BuildNiagaraDDCKeyString(ScriptPair.CompileId);
+
+		GetDerivedDataCacheRef().Put(*DDCKey, OutData, GetPathName());
 		return true;
 	}
 

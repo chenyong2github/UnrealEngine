@@ -431,7 +431,7 @@ public:
 	NIAGARASHADER_API void Compile(
 		FNiagaraShaderScript* Script,
 		const FNiagaraShaderMapId& ShaderMapId,
-		TRefCountPtr<FShaderCompilerEnvironment> CompilationEnvironment,
+		TRefCountPtr<FSharedShaderCompilerEnvironment> CompilationEnvironment,
 		const FNiagaraComputeShaderCompilationOutput& InNiagaraCompilationOutput,
 		EShaderPlatform Platform,
 		bool bSynchronousCompile,
@@ -439,7 +439,7 @@ public:
 		);
 
 	/** Sorts the incoming compiled jobs into the appropriate mesh shader maps, and finalizes this shader map so that it can be used for rendering. */
-	bool ProcessCompilationResults(const TArray<TSharedRef<class FShaderCommonCompileJob, ESPMode::ThreadSafe>>& InCompilationResults, int32& ResultIndex, float& TimeBudget);
+	bool ProcessCompilationResults(const TArray<TRefCountPtr<class FShaderCommonCompileJob>>& InCompilationResults, int32& ResultIndex, float& TimeBudget);
 
 	/**
 	* Checks whether the shader map is missing any shader types necessary for the given script.
@@ -564,7 +564,7 @@ private:
 	/** Indicates whether the shader map should be stored in the shader cache. */
 	uint32 bIsPersistent : 1;
 
-	FShader* ProcessCompilationResultsForSingleJob(TSharedRef<class FShaderCommonCompileJob, ESPMode::ThreadSafe> SingleJob, const FSHAHash& ShaderMapHash);
+	FShader* ProcessCompilationResultsForSingleJob(const TRefCountPtr<class FShaderCommonCompileJob>& SingleJob, const FSHAHash& ShaderMapHash);
 
 	bool IsNiagaraShaderComplete(const FNiagaraShaderScript* Script, const FNiagaraShaderType* ShaderType, bool bSilent);
 
@@ -633,6 +633,8 @@ public:
 
 	NIAGARASHADER_API bool GetUsesSimulationStages() const;
 	NIAGARASHADER_API bool GetUsesOldShaderStages() const;
+
+	NIAGARASHADER_API bool GetUsesCompressedAttributes() const;
 
 	/**
 	 * Should the shader for this script with the given platform, shader type and vertex

@@ -1896,25 +1896,38 @@ void FBlueprintEditorUtils::PostDuplicateBlueprint(UBlueprint* Blueprint, bool b
 					Node->CreateNewGuid();
 				}
 
-				// Some variable nodes must be fixed up on duplicate, this cannot wait for individual 
+				// Some variable & delegate nodes must be fixed up on duplicate, this cannot wait for individual 
 				// node calls to PostDuplicate because it happens after compilation and will still result in errors
-				if(UK2Node_Variable* VariableNode = Cast<UK2Node_Variable>(Node))
+				UK2Node_Variable* VariableNode = Cast<UK2Node_Variable>(Node);
+				UK2Node_BaseMCDelegate* DelegateNode = Cast<UK2Node_BaseMCDelegate>(Node);
+
+				if(VariableNode || DelegateNode)
 				{
+					FMemberReference& OutdatedReference = VariableNode ? VariableNode->VariableReference : DelegateNode->DelegateReference;
+					UK2Node* OutdatedNode = Cast<UK2Node>(Node);
+
 					// Self context variable nodes need to be updated with the new Blueprint class
-					if(VariableNode->VariableReference.IsSelfContext())
+					if(OutdatedReference.IsSelfContext() || OutdatedReference.GetMemberParentClass() != OutdatedNode->GetBlueprintClassFromNode())
 					{
 						// update variable references with new Guids if necessary
-						if (FGuid* NewGuid = NewVarGuids.Find(VariableNode->VariableReference.GetMemberGuid()))
+						if (FGuid* NewGuid = NewVarGuids.Find(OutdatedReference.GetMemberGuid()))
 						{
-							VariableNode->VariableReference.SetSelfMember(VariableNode->VariableReference.GetMemberName(), *NewGuid);
+							if (OutdatedReference.IsSelfContext())
+							{
+								OutdatedReference.SetSelfMember(OutdatedReference.GetMemberName(), *NewGuid);
+							}
+							else
+							{
+								OutdatedReference.SetExternalMember(OutdatedReference.GetMemberName(), OutdatedNode->GetBlueprintClassFromNode());
+							}
 						}
 
 						const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
-						if(UEdGraphPin* SelfPin = K2Schema->FindSelfPin(*VariableNode, EGPD_Input))
+						if(UEdGraphPin* SelfPin = K2Schema->FindSelfPin(*OutdatedNode, EGPD_Input))
 						{
 							UClass* TargetClass = nullptr;
 
-							if(FProperty* Property = VariableNode->VariableReference.ResolveMember<FProperty>(VariableNode->GetBlueprintClassFromNode()))
+							if(FProperty* Property = OutdatedReference.ResolveMember<FProperty>(OutdatedNode->GetBlueprintClassFromNode()))
 							{
 								TargetClass = Property->GetOwnerClass()->GetAuthoritativeClass();
 							}
@@ -4925,8 +4938,7 @@ bool FBlueprintEditorUtils::VerifyUserWantsVariableTypeChanged(const FName& InVa
 	FFormatNamedArguments Args;
 	Args.Add(TEXT("VariableName"), FText::FromName(InVarName));
 
-	FText ConfirmDelete = FText::Format(LOCTEXT( "ConfirmChangeVarType",
-		"This could break connections, do you want to search all Variable '{VariableName}' instances, change its type, and recompile?"), Args );
+	FText ConfirmDelete = FText::Format(LOCTEXT( "ConfirmChangeVarType", "This could break connections, do you want to search all Variable '{VariableName}' instances, change its type, and recompile?"), Args );
 
 	// Warn the user that this may result in data loss
 	FSuppressableWarningDialog::FSetupInfo Info( ConfirmDelete, LOCTEXT("ChangeVariableType", "Change Variable Type"), "ChangeVariableType_Warning" );

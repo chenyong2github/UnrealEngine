@@ -2,14 +2,13 @@
 
 #include "DatasmithRuntimeModule.h"
 
-#include "DatasmithRuntimeBlueprintLibrary.h"
+#include "DirectLinkUtils.h"
 
 #include "DatasmithTranslatorModule.h"
-#include "DirectLink/Network/DirectLinkEndpoint.h"
 #include "MasterMaterials/DatasmithMasterMaterialManager.h"
-#include "MaterialSelectors/DatasmithRevitLiveMaterialSelector.h"
+#include "MaterialSelectors/DatasmithRuntimeRevitMaterialSelector.h"
 
-class FDatasmithRuntimeModule : public IDatasmithRuntimeModuleInterface, public DirectLink::IEndpointObserver
+class FDatasmithRuntimeModule : public IDatasmithRuntimeModuleInterface
 {
 public:
 	virtual void StartupModule() override
@@ -18,18 +17,19 @@ public:
 		check(IDatasmithTranslatorModule::IsAvailable());
 
 		// Overwrite Revit material selector with the one of DatasmithRuntime
-		FDatasmithMasterMaterialManager::Get().RegisterSelector(TEXT("Revit"), MakeShared< FDatasmithRevitLiveMaterialSelector >());
+		FDatasmithMasterMaterialManager::Get().RegisterSelector(TEXT("Revit"), MakeShared< FDatasmithRuntimeRevitMaterialSelector >());
 
-		FModuleManager::Get().LoadModule(TEXT("UdpMessaging"));
+		FModuleManager::Get().LoadModuleChecked(TEXT("UdpMessaging"));
+
+		DatasmithRuntime::FDestinationProxy::InitializeEndpointProxy();
 	}
 
 	virtual void ShutdownModule() override
 	{
 		FDatasmithMasterMaterialManager::Get().UnregisterSelector(TEXT("Revit"));
-	}
 
-private:
-	DirectLink::FRawInfo LastRawInfo;
+		DatasmithRuntime::FDestinationProxy::ShutdownEndpointProxy();
+	}
 };
 
 //////////////////////////////////////////////////////////////////////////

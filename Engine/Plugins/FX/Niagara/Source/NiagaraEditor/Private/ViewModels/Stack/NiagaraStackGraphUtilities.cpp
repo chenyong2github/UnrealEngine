@@ -856,54 +856,62 @@ void FNiagaraStackGraphUtilities::GetStackFunctionOutputVariables(UNiagaraNodeFu
 	}
 }
 
-void FNiagaraStackGraphUtilities::GetStackFunctionInputAndOutputVariables(UNiagaraNodeFunctionCall& FunctionCallNode, FCompileConstantResolver ConstantResolver, TArray<FNiagaraVariable>& OutVariables, TArray<FNiagaraVariable>& OutVariablesWithOriginalAliasesIntact)
+bool FNiagaraStackGraphUtilities::GetStackFunctionInputAndOutputVariables(UNiagaraNodeFunctionCall& FunctionCallNode, FCompileConstantResolver ConstantResolver, TArray<FNiagaraVariable>& OutVariables, TArray<FNiagaraVariable>& OutVariablesWithOriginalAliasesIntact)
 {
 	FNiagaraParameterMapHistoryBuilder Builder;
 	Builder.SetIgnoreDisabled(false);
 	Builder.ConstantResolver = ConstantResolver;
 	FunctionCallNode.BuildParameterMapHistory(Builder, false);
 
-	if (ensureMsgf(Builder.Histories.Num() == 1, TEXT("Invalid Stack Graph - Function call node has invalid history count!")))
+	if (Builder.Histories.Num() == 0)
+	{
+		// No builder histories; it is possible the script does not have a complete path from input to output node.
+		return false;
+	}
+	else if (ensureMsgf(Builder.Histories.Num() > 1, TEXT("Invalid Stack Graph - Function call node has invalid history count (more than one)!")))
+	{
+		return false;
+	}
+
+	for (int32 i = 0; i < Builder.Histories[0].Variables.Num(); ++i)
+	{
+		bool bHasParameterMapSetWrite = false;
+		for (const UEdGraphPin* WritePin : Builder.Histories[0].PerVariableWriteHistory[i])
+		{
+			if (WritePin != nullptr && WritePin->GetOwningNode() != nullptr &&
+				WritePin->GetOwningNode()->IsA<UNiagaraNodeParameterMapSet>())
+			{
+				bHasParameterMapSetWrite = true;
+				break;
+			}
+		}
+
+		if (bHasParameterMapSetWrite)
+		{
+			FNiagaraVariable& Variable = Builder.Histories[0].Variables[i];
+			FNiagaraVariable& VariableWithOriginalAliasIntact = Builder.Histories[0].VariablesWithOriginalAliasesIntact[i];
+			OutVariables.Add(Variable);
+			OutVariablesWithOriginalAliasesIntact.Add(VariableWithOriginalAliasIntact);
+		}
+	}
+
+	TArray<const UEdGraphPin*> InputPins;
+	ExtractInputPinsFromHistory(Builder.Histories[0], FunctionCallNode.GetCalledGraph(), FNiagaraStackGraphUtilities::ENiagaraGetStackFunctionInputPinsOptions::ModuleInputsOnly, InputPins);
+
+	for (const UEdGraphPin* Pin : InputPins)
 	{
 		for (int32 i = 0; i < Builder.Histories[0].Variables.Num(); ++i)
 		{
-			bool bHasParameterMapSetWrite = false;
-			for (const UEdGraphPin* WritePin : Builder.Histories[0].PerVariableWriteHistory[i])
-			{
-				if (WritePin != nullptr && WritePin->GetOwningNode() != nullptr && 
-					WritePin->GetOwningNode()->IsA<UNiagaraNodeParameterMapSet>())
-				{
-					bHasParameterMapSetWrite = true;
-					break;
-				}
-			}
-
-			if (bHasParameterMapSetWrite)
+			FNiagaraVariable& VariableWithOriginalAliasIntact = Builder.Histories[0].VariablesWithOriginalAliasesIntact[i];
+			if (VariableWithOriginalAliasIntact.GetName() == Pin->PinName)
 			{
 				FNiagaraVariable& Variable = Builder.Histories[0].Variables[i];
-				FNiagaraVariable& VariableWithOriginalAliasIntact = Builder.Histories[0].VariablesWithOriginalAliasesIntact[i];
-				OutVariables.Add(Variable);
-				OutVariablesWithOriginalAliasesIntact.Add(VariableWithOriginalAliasIntact);
-			}
-		}
-
-		TArray<const UEdGraphPin*> InputPins;
-		ExtractInputPinsFromHistory(Builder.Histories[0], FunctionCallNode.GetCalledGraph(), FNiagaraStackGraphUtilities::ENiagaraGetStackFunctionInputPinsOptions::ModuleInputsOnly, InputPins);
-
-		for (const UEdGraphPin* Pin : InputPins)
-		{
-			for (int32 i = 0; i < Builder.Histories[0].Variables.Num(); ++i)
-			{
-				FNiagaraVariable& VariableWithOriginalAliasIntact = Builder.Histories[0].VariablesWithOriginalAliasesIntact[i];
-				if (VariableWithOriginalAliasIntact.GetName() == Pin->PinName)
-				{
-					FNiagaraVariable& Variable = Builder.Histories[0].Variables[i];
-					OutVariables.AddUnique(Variable);
-					OutVariablesWithOriginalAliasesIntact.AddUnique(VariableWithOriginalAliasIntact);
-				}
+				OutVariables.AddUnique(Variable);
+				OutVariablesWithOriginalAliasesIntact.AddUnique(VariableWithOriginalAliasIntact);
 			}
 		}
 	}
+	return true;
 }
 
 UNiagaraNodeParameterMapSet* FNiagaraStackGraphUtilities::GetStackFunctionOverrideNode(UNiagaraNodeFunctionCall& FunctionCallNode)

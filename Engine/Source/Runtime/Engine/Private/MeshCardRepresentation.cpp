@@ -275,15 +275,15 @@ void FCardRepresentationAsyncQueue::Build(FAsyncCardRepresentationTask* Task, FQ
 	// Editor 'force delete' can null any UObject pointers which are seen by reference collecting (eg UProperty or serialized)
 	if (Task->StaticMesh && Task->GenerateSource)
 	{
-		const FStaticMeshLODResources& LODModel = Task->GenerateSource->RenderData->LODResources[0];
+		const FStaticMeshLODResources& LODModel = Task->GenerateSource->GetRenderData()->LODResources[0];
 
 		Task->bSuccess = MeshUtilities->GenerateCardRepresentationData(
 			Task->StaticMesh->GetName(),
 			Task->SourceMeshData,
 			LODModel,
 			BuildThreadPool,
-			Task->GenerateSource->RenderData->Bounds,
-			Task->GenerateSource->RenderData->LODResources[0].DistanceFieldData,
+			Task->GenerateSource->GetRenderData()->Bounds,
+			Task->GenerateSource->GetRenderData()->LODResources[0].DistanceFieldData,
 			*Task->GeneratedCardRepresentation);
 	}
 
@@ -334,14 +334,14 @@ void FCardRepresentationAsyncQueue::ProcessAsyncTasks(bool bLimitExecutionTime)
 		// Editor 'force delete' can null any UObject pointers which are seen by reference collecting (eg UProperty or serialized)
 		if (Task->StaticMesh && Task->bSuccess)
 		{
-			FCardRepresentationData* OldCardData = Task->StaticMesh->RenderData->LODResources[0].CardRepresentationData;
+			FCardRepresentationData* OldCardData = Task->StaticMesh->GetRenderData()->LODResources[0].CardRepresentationData;
 
 			{
 				// Cause all components using this static mesh to get re-registered, which will recreate their proxies and primitive uniform buffers
 				FStaticMeshComponentRecreateRenderStateContext RecreateRenderStateContext(Task->StaticMesh, false);
 
 				// Assign the new data
-				Task->StaticMesh->RenderData->LODResources[0].CardRepresentationData = Task->GeneratedCardRepresentation;
+				Task->StaticMesh->GetRenderData()->LODResources[0].CardRepresentationData = Task->GeneratedCardRepresentation;
 			}
 
 			// Rendering thread may still be referencing the old one, use the deferred cleanup interface to delete it next frame when it is safe
@@ -351,7 +351,7 @@ void FCardRepresentationAsyncQueue::ProcessAsyncTasks(bool bLimitExecutionTime)
 				TArray<uint8> DerivedData;
 				// Save built data to DDC
 				FMemoryWriter Ar(DerivedData, /*bIsPersistent=*/ true);
-				Ar << *(Task->StaticMesh->RenderData->LODResources[0].CardRepresentationData);
+				Ar << *(Task->StaticMesh->GetRenderData()->LODResources[0].CardRepresentationData);
 				GetDerivedDataCacheRef().Put(*Task->DDCKey, DerivedData, Task->StaticMesh->GetPathName());
 				COOK_STAT(Timer.AddMiss(DerivedData.Num()));
 			}

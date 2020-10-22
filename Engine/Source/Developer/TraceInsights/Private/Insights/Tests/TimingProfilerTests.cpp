@@ -279,7 +279,6 @@ void FTimingProfilerTests::RunEnumerateBenchmark(const FEnumerateTestParams& InP
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-
 void FTimingProfilerTests::RunEnumerateAsyncBenchmark(const FEnumerateTestParams& InParams, FCheckValues& OutCheckValues)
 {
 	UE_LOG(TimingProfilerTests, Log, TEXT("RUNNING ASYNC ENUMERATE BENCHMARK..."));
@@ -553,4 +552,3 @@ void FTimingProfilerTests::VerifyCheckValues(FAutomationTestBase& Test, FCheckVa
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#undef LOCTEXT_NAMESPACE

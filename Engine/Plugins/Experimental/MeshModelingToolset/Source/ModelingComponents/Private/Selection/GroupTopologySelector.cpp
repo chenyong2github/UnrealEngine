@@ -17,7 +17,7 @@ FGroupTopologySelector::FGroupTopologySelector()
 {
 	// initialize to sane values
 	PointsWithinToleranceTest =
-		[](const FVector3d& A, const FVector3d& B) { return A.Distance(B) < 1.0; };
+		[](const FVector3d& A, const FVector3d& B, double TolScale) { return A.Distance(B) < (TolScale*1.0); };
 	GetSpatial =
 		[]() { return nullptr; };
 }
@@ -113,32 +113,90 @@ bool FGroupTopologySelector::FindSelectedElement(const FSelectionSettings& Setti
 	{
 		SelectedNormalOut = FVector3d::UnitZ();
 	}
+	bool bHaveFaceHit = (bActuallyHitSurface && Settings.bEnableFaceHits);
 	
 	// Deal with corner hits first (and edges that project to a corner)
+	FGroupTopologySelection CornerResults;
+	FVector3d CornerPosition;
+	int32 CornerSegmentEdgeID = 0;
+	bool bHaveCornerHit = false;
+	double CornerAngle = TNumericLimits<double>::Max();
 	if (Settings.bEnableCornerHits || (Settings.bEnableEdgeHits && Settings.bPreferProjectedElement))
 	{
-		if (DoCornerBasedSelection(Settings, Ray, Spatial, TopoSpatial, ResultOut, SelectedPositionOut, EdgeSegmentIdOut))
+		if (DoCornerBasedSelection(Settings, Ray, Spatial, TopoSpatial, CornerResults, CornerPosition, &CornerSegmentEdgeID))
 		{
-			return true;
+			bHaveCornerHit = true;
+			CornerAngle = Ray.Direction.AngleD((CornerPosition - Ray.Origin).Normalized());
 		}
 	}
 
 	// If corner selection didn't yield results, try edge selection
+	FGroupTopologySelection EdgeResults;
+	FVector3d EdgePosition;
+	int32 EdgeSegmentEdgeID = 0;
+	bool bHaveEdgeHit = false;
+	double EdgeAngle = TNumericLimits<double>::Max();
 	if (Settings.bEnableEdgeHits || (Settings.bEnableFaceHits && Settings.bPreferProjectedElement))
 	{
-		if (DoEdgeBasedSelection(Settings, Ray, Spatial, TopoSpatial, ResultOut, SelectedPositionOut, EdgeSegmentIdOut))
+		if (DoEdgeBasedSelection(Settings, Ray, Spatial, TopoSpatial, EdgeResults, EdgePosition, &EdgeSegmentEdgeID))
 		{
-			return true;
+			bHaveEdgeHit = true;
+			EdgeAngle = Ray.Direction.AngleD((EdgePosition - Ray.Origin).Normalized());
 		}
 	}
 
-	// If we still haven't found a selection, go ahead and select the face that we found earlier
-	if (Settings.bEnableFaceHits && bActuallyHitSurface)
+	// if we have both corner and edge, want to keep the one we are closer to
+	if (bHaveCornerHit && bHaveEdgeHit)
 	{
+		if (PointsWithinToleranceTest(CornerPosition, Ray.NearestPoint(CornerPosition), 0.75))
+		{
+			bHaveEdgeHit = false;
+		}
+		else
+		{
+			bHaveCornerHit = false;
+		}
+	}
+
+	// if we have a corner or edge hit, and a face hit, pick face unless we are really close to corner/edge
+	if ((bHaveCornerHit || bHaveEdgeHit) && bHaveFaceHit)
+	{
+		FVector3d TestPos = (bHaveCornerHit) ? CornerPosition : EdgePosition;
+		if (!PointsWithinToleranceTest(TestPos, Ray.NearestPoint(TestPos), 0.15))
+		{
+			bHaveEdgeHit = bHaveCornerHit = false;
+		}
+	}
+
+
+	if (bHaveCornerHit)
+	{
+		ResultOut = CornerResults;
+		SelectedPositionOut = CornerPosition;
+		if (EdgeSegmentIdOut != nullptr)
+		{
+			*EdgeSegmentIdOut = CornerSegmentEdgeID;
+		}
+		return true;
+	}
+	else if (bHaveEdgeHit)
+	{
+		ResultOut = EdgeResults;
+		SelectedPositionOut = EdgePosition;
+		if (EdgeSegmentIdOut != nullptr)
+		{
+			*EdgeSegmentIdOut = EdgeSegmentEdgeID;
+		}
+		return true;
+	}
+	else if (bHaveFaceHit)
+	{
+		// If we still haven't found a selection, go ahead and select the face that we found earlier
 		ResultOut.SelectedGroupIDs.Add(Topology->GetGroupID(HitTriangleID));
 		SelectedPositionOut = TriangleHitPos;
 		return true;
 	}
+
 
 	return false;
 }
@@ -154,11 +212,13 @@ bool FGroupTopologySelector::DoCornerBasedSelection(const FSelectionSettings& Se
 	TArray<FGeometrySet3::FNearest> ElementsWithinTolerance;
 	TArray<int32> DownRayElements;
 
+	auto LocalTolTest = [this](const FVector3d& A, const FVector3d& B) { return PointsWithinToleranceTest(A, B, 1.0); };
+
 	// Start by getting the closest element
 	const FGeometrySet3::FNearest* ClosestElement = nullptr;
 	if (!Settings.bSelectDownRay)
 	{
-		if (TopoSpatial.FindNearestPointToRay(Ray, SingleElement, PointsWithinToleranceTest))
+		if (TopoSpatial.FindNearestPointToRay(Ray, SingleElement, LocalTolTest))
 		{
 			ClosestElement = &SingleElement;
 		}
@@ -166,7 +226,7 @@ bool FGroupTopologySelector::DoCornerBasedSelection(const FSelectionSettings& Se
 	else
 	{
 		// We're collecting all corners within tolerance, but we still need the closest element
-		if (TopoSpatial.CollectPointsNearRay(Ray, ElementsWithinTolerance, PointsWithinToleranceTest))
+		if (TopoSpatial.CollectPointsNearRay(Ray, ElementsWithinTolerance, LocalTolTest))
 		{
 			double MinRayT = TNumericLimits<double>::Max();
 			for (const FGeometrySet3::FNearest& Element : ElementsWithinTolerance)
@@ -318,11 +378,13 @@ bool FGroupTopologySelector::DoEdgeBasedSelection(const FSelectionSettings& Sett
 	TArray<FGeometrySet3::FNearest> ElementsWithinTolerance;
 	TArray<FIndex2i> DownRayElements;
 
+	auto LocalTolTest = [this](const FVector3d& A, const FVector3d& B) { return PointsWithinToleranceTest(A, B, 1.0); };
+
 	// Start by getting the closest element
 	const FGeometrySet3::FNearest* ClosestElement = nullptr;
 	if (!Settings.bSelectDownRay)
 	{
-		if (TopoSpatial.FindNearestCurveToRay(Ray, SingleElement, PointsWithinToleranceTest))
+		if (TopoSpatial.FindNearestCurveToRay(Ray, SingleElement, LocalTolTest))
 		{
 			ClosestElement = &SingleElement;
 		}
@@ -330,7 +392,7 @@ bool FGroupTopologySelector::DoEdgeBasedSelection(const FSelectionSettings& Sett
 	else
 	{
 		// Need all curves within tolerance, but also need to know the closest.
-		if (TopoSpatial.CollectCurvesNearRay(Ray, ElementsWithinTolerance, PointsWithinToleranceTest))
+		if (TopoSpatial.CollectCurvesNearRay(Ray, ElementsWithinTolerance, LocalTolTest))
 		{
 			double MinRayT = TNumericLimits<double>::Max();
 			for (const FGeometrySet3::FNearest& Element : ElementsWithinTolerance)

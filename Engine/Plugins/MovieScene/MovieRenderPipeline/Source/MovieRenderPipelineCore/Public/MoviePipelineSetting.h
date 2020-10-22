@@ -95,6 +95,11 @@ public:
 	virtual bool IsValidOnShots() const PURE_VIRTUAL(UMoviePipelineSetting::IsValidOnShots, return false; );
 	/** Can this configuration setting be added to the master configuration? If not, it will throw an error when trying to add it to the master configuration. */
 	virtual bool IsValidOnMaster() const PURE_VIRTUAL(UMoviePipelineSetting::IsValidOnMaster, return false; );
+	/**
+	* If true, then this setting will be included when searching for settings even if it was added transiently. This is used for the rare case where a setting
+	* needs to be run (to set reasonable default values) even if the user hasn't added it.
+	*/
+	virtual bool IgnoreTransientFilters() const { return false; }
 
 	// Validation
 	/** What is the result of the last validation? Only valid if the setting has had ValidateState() called on it. */
@@ -119,9 +124,6 @@ public:
 	virtual bool IsEnabled() const { return bEnabled; }
 	virtual void SetIsEnabled(bool bInEnabled) { bEnabled = bInEnabled; }
 
-	virtual void SetIsUserCustomized(bool bIsUserCustomized) { bUserCustomized = bIsUserCustomized; }
-	virtual bool GetIsUserCustomized() const { return bUserCustomized; }
-
 	/** Has this setting finished any export-related things it needs to do post-finalize? */
 	virtual bool HasFinishedExportingImpl() const { return true; }
 	/** Called once when all files have been finalized. */
@@ -134,11 +136,6 @@ private:
 	/** Is this setting currently enabled? Disabled settings are like they never existed. */
 	UPROPERTY()
 	bool bEnabled;
-
-	/** Was this setting added by the user (either through UI or the FindorAdd API) or false if it was transiently added. */
-	UPROPERTY()
-	bool bUserCustomized;
-
 protected:
 	/** What was the result of the last call to ValidateState() */
 	EMoviePipelineValidationState ValidationState;

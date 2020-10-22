@@ -1075,7 +1075,9 @@ FDatasmithImporterUtils::FDatasmithMaterialImportIterator::FDatasmithMaterialImp
 			{
 				if (UMaterialInstanceConstant* MaterialInstance = Cast< UMaterialInstanceConstant >(MatInterface->Get()))
 				{
-					return MaterialInstance->Parent && MaterialInstance->Parent->GetFName() == Mat->GetName();
+					const FString ParentDatasmithUniqueId = UDatasmithAssetUserData::GetDatasmithUserDataValueForKey(MaterialInstance->Parent, UDatasmithAssetUserData::UniqueIdMetaDataKey);
+
+					return MaterialInstance->Parent && ParentDatasmithUniqueId == Mat->GetName();
 				}
 			}
 

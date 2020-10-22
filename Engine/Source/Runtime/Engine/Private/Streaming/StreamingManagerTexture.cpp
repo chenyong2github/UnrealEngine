@@ -1890,6 +1890,39 @@ void FRenderAssetStreamingManager::PropagateLightingScenarioChange()
 	}
 }
 
+void FRenderAssetStreamingManager::AddRenderedTextureStats(TMap<FString, FRenderedTextureStats>& OutRenderedTextureStats)
+{
+	FScopeLock ScopeLock(&CriticalSection);
+	
+	for (const FStreamingRenderAsset& StreamingRenderAsset : StreamingRenderAssets)
+	{
+		if (!StreamingRenderAsset.RenderAsset || StreamingRenderAsset.bUseUnkownRefHeuristic
+			|| StreamingRenderAsset.RenderAssetType != EStreamableRenderAssetType::Texture || StreamingRenderAsset.LastRenderTime == MAX_FLT)
+		{
+			continue;
+		}
+
+		UStreamableRenderAsset* RenderAsset = StreamingRenderAsset.RenderAsset;
+		const FStreamableRenderResourceState ResourceState = RenderAsset->GetStreamableResourceState();
+		const FString TextureGroupName = UTexture::GetTextureGroupString(static_cast<TextureGroup>(StreamingRenderAsset.LODGroup));
+		const int32 CurrentMipIndex = FMath::Max(0, ResourceState.MaxNumLODs - StreamingRenderAsset.ResidentMips);
+		const int32 MaxAllowedMipIndex = FMath::Max(0, ResourceState.MaxNumLODs - StreamingRenderAsset.MaxAllowedMips);
+		const int32 MipIndexDifference = FMath::Max(0, MaxAllowedMipIndex - CurrentMipIndex);
+		const int32 MipArrayIndex = FMath::Max(0, -MipIndexDifference);
+
+		FRenderedTextureStats* Stats = OutRenderedTextureStats.Find(RenderAsset->GetName());
+		if(Stats != nullptr) {
+			// Keep max mip level ever shown
+			Stats->MaxMipLevelShown = MipArrayIndex < Stats->MaxMipLevelShown ? MipArrayIndex : Stats->MaxMipLevelShown;
+		} else {
+			FRenderedTextureStats NewStats;
+			NewStats.MaxMipLevelShown = MipArrayIndex;
+			NewStats.TextureGroup = TextureGroupName;
+			OutRenderedTextureStats.Add(RenderAsset->GetName(), NewStats);
+		}
+	}
+}
+
 #if !UE_BUILD_SHIPPING
 
 bool FRenderAssetStreamingManager::HandleDumpTextureStreamingStatsCommand( const TCHAR* Cmd, FOutputDevice& Ar )
@@ -1971,10 +2004,10 @@ bool FRenderAssetStreamingManager::HandleListStreamingRenderAssetsCommand( const
 			continue;
 		}
 
-		UE_LOG(LogContentStreaming, Log,  TEXT("%s [%d] : %s"),
+		UE_LOG(LogContentStreaming, Log, TEXT("%s [%d] : %s"),
 			FStreamingRenderAsset::GetStreamingAssetTypeStr(AssetType),
 			It.Value(),
-			*RenderAsset->GetFullName() );
+			*RenderAsset->GetFullName());
 
 		const int32 CurrentMipIndex = ResourceState.LODCountToAssetFirstLODIdx(ResourceState.NumResidentLODs);
 		const int32 WantedMipIndex = ResourceState.LODCountToAssetFirstLODIdx(StreamingRenderAsset.GetPerfectWantedMips());

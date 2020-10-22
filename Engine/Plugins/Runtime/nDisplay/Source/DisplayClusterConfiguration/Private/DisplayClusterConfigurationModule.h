@@ -24,6 +24,6 @@ public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// IDisplayClusterConfiguration
 	//////////////////////////////////////////////////////////////////////////////////////////////
-	virtual UDisplayClusterConfigurationData* LoadConfig(const FString& FilePath) override;
+	virtual UDisplayClusterConfigurationData* LoadConfig(const FString& FilePath, UObject* Owner = nullptr) override;
 	virtual bool SaveConfig(const UDisplayClusterConfigurationData* Config, const FString& FilePath) override;
 };

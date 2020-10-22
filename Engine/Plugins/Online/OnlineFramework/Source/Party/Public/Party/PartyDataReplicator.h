@@ -7,6 +7,7 @@
 #include "Containers/Ticker.h"
 #include "Interfaces/OnlinePartyInterface.h"
 #include "Stats/Stats.h"
+#include "PartyPackage.h"
 
 /** Util exclusively for use by TPartyDataReplicator to circumvent circular include header issues (we can't include SocialParty.h or PartyMember.h here) */
 class FPartyDataReplicatorHelper
@@ -58,7 +59,7 @@ public:
 		RepDataType->GetCppStructOps()->Construct(RepDataCopy);
 	}
 
-PACKAGE_SCOPE:
+PARTY_SCOPE:
 	void ProcessReceivedData(const FOnlinePartyData& IncomingPartyData, bool bCompareToPrevious = true)
 	{
 		// If the rep data can be edited locally, disregard any replication updates (they're the same at best or out of date at worst)

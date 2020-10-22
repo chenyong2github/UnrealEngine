@@ -15,8 +15,6 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogVirtualTextureSpace, Log, All);
 
-static const uint32 InitialPageTableSize = 32u;
-
 static TAutoConsoleVariable<int32> CVarVTRefreshEntirePageTable(
 	TEXT("r.VT.RefreshEntirePageTable"),
 	0,
@@ -52,6 +50,7 @@ FVirtualTextureSpace::FVirtualTextureSpace(FVirtualTextureSystem* InSystem, uint
 	, NumRefs(0u)
 	, ID(InID)
 	, bNeedToAllocatePageTable(true)
+	, bNeedToAllocatePageTableIndirection(true)
 	, bForceEntireUpdate(false)
 {
 	// Initialize page map with large enough capacity to handle largest possible physical texture
@@ -75,17 +74,10 @@ FVirtualTextureSpace::FVirtualTextureSpace(FVirtualTextureSystem* InSystem, uint
 		++PageTableIndex;
 	}
 
-	// If this is a private space, size it to fit the given AllocatedVT
-	// Otherwise use default size
-	PageTableSize = InSizeNeeded;
-	if (!InDesc.bPrivateSpace)
-	{
-		// minimum initial size for shared page table
-		PageTableSize = FMath::Max(PageTableSize, InitialPageTableSize);
-	}
+	PageTableSize = FMath::Max(InSizeNeeded, VIRTUALTEXTURE_MIN_PAGETABLE_SIZE);
 	PageTableSize = FMath::RoundUpToPowerOfTwo(PageTableSize);
-	check(PageTableSize > 0u);
-	check(PageTableSize <= VIRTUALTEXTURE_MAX_PAGETABLE_SIZE);
+	ensure(PageTableSize <= Description.MaxSpaceSize);
+	ensure(Description.MaxSpaceSize <= VIRTUALTEXTURE_MAX_PAGETABLE_SIZE);
 	NumPageTableLevels = FMath::FloorLog2(PageTableSize) + 1;
 	Allocator.Initialize(PageTableSize);
 }
@@ -97,7 +89,7 @@ FVirtualTextureSpace::~FVirtualTextureSpace()
 uint32 FVirtualTextureSpace::AllocateVirtualTexture(FAllocatedVirtualTexture* VirtualTexture)
 {
 	uint32 vAddress = Allocator.Alloc(VirtualTexture);
-	while (vAddress == ~0u && PageTableSize < VIRTUALTEXTURE_MAX_PAGETABLE_SIZE && !Description.bPrivateSpace)
+	while (vAddress == ~0u && PageTableSize < Description.MaxSpaceSize)
 	{
 		// Allocation failed, expand the size of page table texture and try again
 		PageTableSize *= 2u;
@@ -131,6 +123,8 @@ void FVirtualTextureSpace::ReleaseRHI()
 		TextureEntry.TextureReferenceRHI.SafeRelease();
 		GRenderTargetPool.FreeUnusedResource(TextureEntry.RenderTarget);
 	}
+
+	GRenderTargetPool.FreeUnusedResource(PageTableIndirection);
 
 	UpdateBuffer.SafeRelease();
 	UpdateBufferSRV.SafeRelease();
@@ -322,6 +316,26 @@ void FVirtualTextureSpace::AllocateTextures(FRHICommandList& RHICmdList)
 		}
 
 		bNeedToAllocatePageTable = false;
+	}
+
+	if (bNeedToAllocatePageTableIndirection)
+	{
+		if (Description.IndirectionTextureSize > 0)
+		{
+			const FPooledRenderTargetDesc Desc = FPooledRenderTargetDesc::Create2DDesc(
+				FIntPoint(Description.IndirectionTextureSize, Description.IndirectionTextureSize),
+				PF_R32_UINT,
+				FClearValueBinding::None,
+				TexCreate_None,
+				TexCreate_UAV | TexCreate_ShaderResource,
+				false);
+
+			GRenderTargetPool.FindFreeElement(RHICmdList, Desc, PageTableIndirection, TEXT("PageTableIndirection"));
+			FRHITexture* TextureRHI = PageTableIndirection->GetRenderTargetItem().ShaderResourceTexture;
+			RHICmdList.ClearUAVUint(RHICreateUnorderedAccessView(TextureRHI), FUintVector4(ForceInitToZero));
+		}
+
+		bNeedToAllocatePageTableIndirection = false;
 	}
 }
 
@@ -538,4 +552,13 @@ void FVirtualTextureSpace::DumpToConsole(bool verbose)
 {
 	UE_LOG(LogConsoleResponse, Display, TEXT("-= Space ID %i =-"), ID);
 	Allocator.DumpToConsole(verbose);
+}
+
+FRHITexture* FVirtualTextureSpace::GetPageTableIndirectionTexture() const
+{
+	if (PageTableIndirection.IsValid())
+	{
+		return PageTableIndirection->GetRenderTargetItem().TargetableTexture;
+	}
+	return GBlackUintTexture->TextureRHI;
 }

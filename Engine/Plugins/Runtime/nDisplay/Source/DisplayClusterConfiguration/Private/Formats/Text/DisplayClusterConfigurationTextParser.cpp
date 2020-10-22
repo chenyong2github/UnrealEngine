@@ -15,8 +15,10 @@
 #include "Misc/Paths.h"
 
 
-UDisplayClusterConfigurationData* FDisplayClusterConfigurationTextParser::LoadData(const FString& FilePath)
+UDisplayClusterConfigurationData* FDisplayClusterConfigurationTextParser::LoadData(const FString& FilePath, UObject* Owner)
 {
+	ConfigDataOwner = Owner;
+
 	// Parse the file first
 	if (!ParseTextFile(FilePath))
 	{
@@ -36,7 +38,7 @@ bool FDisplayClusterConfigurationTextParser::SaveData(const UDisplayClusterConfi
 
 UDisplayClusterConfigurationData* FDisplayClusterConfigurationTextParser::ConvertDataToInternalTypes()
 {
-	UDisplayClusterConfigurationData* Config = NewObject<UDisplayClusterConfigurationData>(GetTransientPackage(), NAME_None, RF_MarkAsRootSet);
+	UDisplayClusterConfigurationData* Config = NewObject<UDisplayClusterConfigurationData>(ConfigDataOwner ? ConfigDataOwner : GetTransientPackage(), NAME_None, RF_MarkAsRootSet);
 	check(Config && Config->Scene && Config->Input && Config->Cluster);
 
 	Config->Info.Version     = CfgInfo.Version;

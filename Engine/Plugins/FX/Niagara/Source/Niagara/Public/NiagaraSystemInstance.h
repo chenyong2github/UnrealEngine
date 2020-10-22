@@ -24,7 +24,7 @@ class NIAGARA_API FNiagaraSystemInstance
 
 public:
 	DECLARE_DELEGATE(FOnPostTick);
-	DECLARE_DELEGATE(FOnComplete);
+	DECLARE_DELEGATE_OneParam(FOnComplete, bool /*bExternalCompletion*/);
 
 #if WITH_EDITOR
 	DECLARE_MULTICAST_DELEGATE(FOnInitialized);
@@ -64,7 +64,7 @@ public:
 
 	void Activate(EResetMode InResetMode = EResetMode::ResetAll);
 	void Deactivate(bool bImmediate = false);
-	void Complete();
+	void Complete(bool bExternalCompletion);
 
 	void OnPooledReuse(UWorld& NewWorld);
 
@@ -191,6 +191,17 @@ public:
 	FORCEINLINE void SetOnPostTick(const FOnPostTick& InPostTickDelegate) { OnPostTickDelegate = InPostTickDelegate; }
 	/** Gets a multicast delegate which is called whenever this instance is complete. */
 	FORCEINLINE void SetOnComplete(const FOnComplete& InOnCompleteDelegate) { OnCompleteDelegate = InOnCompleteDelegate; }
+
+	//////////////////////////////////////////////////////////////////////////
+	//-TOFIX: Workaround FORT-315375 GT / RT Race
+	DECLARE_DELEGATE(FOnExecuteMaterialRecache)
+private:
+	FOnExecuteMaterialRecache OnExecuteMaterialRecacheDelegate;
+	bool bRequestMaterialRecache = false;
+public:
+	FORCEINLINE void SetOnExecuteMaterialRecache(const FOnExecuteMaterialRecache& InDelegate) { OnExecuteMaterialRecacheDelegate = InDelegate; }
+	FORCEINLINE void RequestMaterialRecache() { bRequestMaterialRecache = true; }
+	//////////////////////////////////////////////////////////////////////////
 
 #if WITH_EDITOR
 	/** Gets a multicast delegate which is called whenever this instance is initialized with an System asset. */

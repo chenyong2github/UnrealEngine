@@ -16,6 +16,7 @@
 #include <memory>
 #include <queue>
 #include <sstream>
+#include "Containers/RingBuffer.h"
 
 using namespace Chaos;
 
@@ -176,48 +177,91 @@ void FPBDConstraintColor::ComputeContactGraph(const int32 Island, const FPBDCons
 	const TArray<int32>& ConstraintDataIndices = ConstraintGraph.GetIslandConstraintData(Island);
 
 	IslandData[Island].MaxLevel = ConstraintDataIndices.Num() ? 0 : -1;
+	
+	struct FLevelNodePair
+	{
+	FLevelNodePair()
+		: Level(INDEX_NONE)
+		, NodeIndex(INDEX_NONE)
+	{}
+	FLevelNodePair(int32 InLevel, int32 InNodeIndex)
+		: Level(InLevel)
+		, NodeIndex(InNodeIndex)
+	{}
 
-	std::queue<std::pair<int32, int32>> QueueToProcess;
-	for (const TGeometryParticleHandle<FReal, 3>* Particle : ConstraintGraph.GetIslandParticles(Island))
+	int32 Level;
+	int32 NodeIndex;
+	};
+	TRingBuffer<FLevelNodePair> NodeQueue(100);
+
+	for(const TGeometryParticleHandle<FReal, 3> * Particle : ConstraintGraph.GetIslandParticles(Island))
 	{
 		const int32* NodeIndexPtr = ConstraintGraph.ParticleToNodeIndex.Find(Particle);
 		const bool bIsParticleDynamic = Particle->CastToRigidParticle() && Particle->ObjectState() == EObjectStateType::Dynamic;
-		if (bIsParticleDynamic == false && NodeIndexPtr)
+
+		// We're only interested in static particles here to generate the graph (graph of dynamic objects touching static)
+		if(bIsParticleDynamic == false && NodeIndexPtr)
 		{
 			const int32 NodeIndex = *NodeIndexPtr;
-			QueueToProcess.push(std::make_pair(0, NodeIndex));
+
+			const typename FPBDConstraintGraph::FGraphNode& GraphNode = ConstraintGraph.Nodes[NodeIndex];
+			
+			for(int32 EdgeIndex : GraphNode.Edges)
+			{
+				const typename FPBDConstraintGraph::FGraphEdge& GraphEdge = ConstraintGraph.Edges[EdgeIndex];
+
+				// If this is not from our rule, ignore it
+				if(GraphEdge.Data.GetContainerId() != ContainerId)
+				{
+					continue;
+				}
+
+				// Find adjacent node
+				int32 OtherNode = INDEX_NONE;
+				if(GraphEdge.FirstNode == NodeIndex)
+				{
+					OtherNode = GraphEdge.SecondNode;
+				}
+				else if(GraphEdge.SecondNode == NodeIndex)
+				{
+					OtherNode = GraphEdge.FirstNode;
+				}
+
+				// If we have a node, add it to the queue only if it matches our island. Statics have no island and can be touching dynamics of many islands
+				// so we need to pick out only the edges that lead to the requested island to correctly build the graph. Implicitly all further edges must
+				// be of the same island so we only need to do this check for level 1
+				if(OtherNode != INDEX_NONE && ConstraintGraph.Nodes[OtherNode].Island == Island)
+				{
+					Edges[EdgeIndex].Level = 0;
+					NodeQueue.Emplace(1, OtherNode);
+				}
+			}
 		}
 	}
 
-	while (!QueueToProcess.empty())
+	FLevelNodePair Current;
+	while(!NodeQueue.IsEmpty())
 	{
-		const std::pair<int32, int32> Elem = QueueToProcess.front();
-		QueueToProcess.pop();
+		Current = NodeQueue.First();
+		NodeQueue.PopFrontNoCheck();
 
-		int32 Level = Elem.first;
-		int32 NodeIndex = Elem.second;
+		int32 Level = Current.Level;
+		int32 NodeIndex = Current.NodeIndex;
 		const typename FPBDConstraintGraph::FGraphNode& GraphNode = ConstraintGraph.Nodes[NodeIndex];
 
-		for (int32 EdgeIndex : GraphNode.Edges)
+		for(int32 EdgeIndex : GraphNode.Edges)
 		{
 			const typename FPBDConstraintGraph::FGraphEdge& GraphEdge = ConstraintGraph.Edges[EdgeIndex];
 			FGraphEdgeColor& ColorEdge = Edges[EdgeIndex];
 
 			// If this is not from our rule, ignore it
-			if (GraphEdge.Data.GetContainerId() != ContainerId)
+			if(GraphEdge.Data.GetContainerId() != ContainerId)
 			{
 				continue;
 			}
 
 			// If we have already been assigned a level, move on
-			if (ColorEdge.Level >= 0)
-			{
-				continue;
-			}
-
-			// Does the node have edges that are not from this Island?
-			// @todo(ccaulfield): look into this - this should never happen I think? it's an O(N) check
-			if (!ConstraintDataIndices.Contains(EdgeIndex))
+			if(ColorEdge.Level >= 0)
 			{
 				continue;
 			}
@@ -228,30 +272,34 @@ void FPBDConstraintColor::ComputeContactGraph(const int32 Island, const FPBDCons
 
 			// Find adjacent node and recurse
 			int32 OtherNode = INDEX_NONE;
-			if (GraphEdge.FirstNode == NodeIndex)
+			if(GraphEdge.FirstNode == NodeIndex)
 			{
 				OtherNode = GraphEdge.SecondNode;
 			}
-			if (GraphEdge.SecondNode == NodeIndex)
+			else if(GraphEdge.SecondNode == NodeIndex)
 			{
 				OtherNode = GraphEdge.FirstNode;
 			}
-			if (OtherNode != INDEX_NONE)
+
+			// If we have a node, append it to our queue on the next level
+			if(OtherNode != INDEX_NONE)
 			{
-				QueueToProcess.push(std::make_pair(ColorEdge.Level + 1, OtherNode));
+				NodeQueue.Emplace(ColorEdge.Level + 1, OtherNode);
 			}
 		}
 	}
 
-	// @todo(ccaulfield): What is this for? Isolated particles with no constraints? 
-	// If so we should add them to some new islands, keeping the number of particles to each island in some reasonable range.
-	// Answer: If an island is only dynamics the above code would be skipped. This simply adds them all to level 0
-	for (const int32 EdgeIndex : ConstraintDataIndices)
+	// An isolated island that is only dynamics will not have been processed above, put everything without a level into level zero
+	// #BGTODO this can surely be done as we build the edges, after this function everything will be at least level 0 so we can probably construct them
+	//         in that level to avoid a potentially large iteration here.
 	{
-		check(Edges[EdgeIndex].Level <= IslandData[Island].MaxLevel);
-		if (Edges[EdgeIndex].Level < 0)
+		for(const int32 EdgeIndex : ConstraintDataIndices)
 		{
-			Edges[EdgeIndex].Level = 0;
+			check(Edges[EdgeIndex].Level <= IslandData[Island].MaxLevel);
+			if(Edges[EdgeIndex].Level < 0)
+			{
+				Edges[EdgeIndex].Level = 0;
+			}
 		}
 	}
 

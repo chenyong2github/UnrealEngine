@@ -45,16 +45,13 @@ namespace Chaos
 		uint8 GetMaterialIndex(int32 InX, int32 InY) const;
 		bool IsHole(int32 InIndex) const;
 		bool IsHole(int32 InCellX, int32 InCellY) const;
+		FVec3 GetNormalAt(const TVector<FReal, 2>& InGridLocationLocal) const;
 		FReal GetHeightAt(const TVector<FReal, 2>& InGridLocationLocal) const;
 
 		int32 GetNumRows() const { return GeomData.NumRows; }
 		int32 GetNumCols() const { return GeomData.NumCols; }
 
-		virtual FReal PhiWithNormal(const FVec3& x, FVec3& Normal) const
-		{
-			check(false);	//not supported yet - might support it in the future or we may change the interface
-			return (FReal)0;
-		}
+		virtual FReal PhiWithNormal(const FVec3& x, FVec3& Normal) const;
 
 		virtual bool Raycast(const FVec3& StartPoint, const FVec3& Dir, const FReal Length, const FReal Thickness, FReal& OutTime, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex) const override;
 		virtual bool Overlap(const FVec3& Point, const FReal Thickness) const override;
@@ -90,9 +87,15 @@ namespace Chaos
 		virtual int32 FindMostOpposingFace(const FVec3& Position, const FVec3& UnitDir, int32 HintFaceIndex, FReal SearchDist) const override;
 		virtual FVec3 FindGeometryOpposingNormal(const FVec3& DenormDir, int32 FaceIndex, const FVec3& OriginalNormal) const override;
 
+		struct FClosestFaceData
+		{
+			int32 FaceIndex = INDEX_NONE;
+			FReal DistanceToFaceSq = TNumericLimits<FReal>::Max();
+			bool bWasSampleBehind = false;
+		};
 
-
-
+		FClosestFaceData FindClosestFace(const FVec3& Position, FReal SearchDist) const;
+		
 		virtual uint16 GetMaterialIndex(uint32 HintIndex) const override
 		{
 			ensure(GeomData.MaterialIndices.Num() > 0);
@@ -545,7 +548,7 @@ namespace Chaos
 
 		void CalcBounds();
 		void BuildQueryData();
-		
+
 		// Needed for serialization
 		FHeightField() : FImplicitObject(EImplicitObject::HasBoundingBox, ImplicitObjectType::HeightField) {}
 		friend FImplicitObject;

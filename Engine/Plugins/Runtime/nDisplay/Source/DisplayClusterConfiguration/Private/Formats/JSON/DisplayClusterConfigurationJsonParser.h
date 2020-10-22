@@ -21,17 +21,19 @@ public:
 
 public:
 	// Load data from a specified file
-	virtual UDisplayClusterConfigurationData* LoadData(const FString& FilePath) override;
+	virtual UDisplayClusterConfigurationData* LoadData(const FString& FilePath, UObject* Owner = nullptr) override;
 	// Save data to a specified file
 	virtual bool SaveData(const UDisplayClusterConfigurationData* ConfigData, const FString& FilePath) override;
 
 protected:
-	// Fill generic data container with parsed information
+	// [import data] Fill generic data container with parsed information
 	UDisplayClusterConfigurationData* ConvertDataToInternalTypes();
-	// Fill generic data container with parsed information
+	// [export data] Extract data from generic container to specific containers
 	bool ConvertDataToExternalTypes(const UDisplayClusterConfigurationData* InData);
 
 private:
 	// Intermediate temporary data (Json types)
 	FDisplayClusterConfigurationJsonContainer JsonData;
+	// Owner for config data UObject we'll create on success
+	UObject* ConfigDataOwner = nullptr;
 };

@@ -93,6 +93,9 @@ public:
 	/** Enqueues a lambda command on a thread safe queue which is pumped from the audio render thread. */
 	void EffectCommand(TUniqueFunction<void()> Command);
 
+	/** Returns the unique ID of the parent preset. */
+	uint32 GetParentPresetId() const { return ParentPresetUniqueId; }
+
 protected:
 	FSoundEffectBase();
 

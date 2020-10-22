@@ -41,6 +41,32 @@ void USoundControlBus::PostEditChangeProperty(FPropertyChangedEvent& InPropertyC
 			Address = GetName();
 		}
 
+		if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(USoundControlBus, Parameter))
+		{
+			for (TObjectIterator<USoundControlBusMix> Iter; Iter; ++Iter)
+			{
+				if (USoundControlBusMix* Mix = *Iter)
+				{
+					for (FSoundControlBusMixStage& Stage : Mix->MixStages)
+					{
+						if (Stage.Bus == this)
+						{
+							float UnitValue = Stage.Value.TargetValue;
+							if (Parameter)
+							{
+								UnitValue = Parameter->ConvertNormalizedToUnit(Stage.Value.TargetValue);
+							}
+
+							if (!FMath::IsNearlyEqual(Stage.Value.TargetUnitValue, UnitValue, KINDA_SMALL_NUMBER))
+							{
+								Stage.Value.TargetUnitValue = UnitValue;
+							}
+						}
+					}
+				}
+			}
+		}
+
 		AudioModulation::IterateModulationImpl([this](AudioModulation::FAudioModulation& OutModSystem)
 		{
 			OutModSystem.UpdateModulator(*this);

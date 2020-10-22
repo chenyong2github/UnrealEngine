@@ -285,8 +285,7 @@ void FRiderSourceCodeAccessor::CachePathToSolution() const
 bool FRiderSourceCodeAccessor::TryGenerateSolutionFile() const
 {
 #if WITH_EDITOR
-	const FText Message = LOCTEXT("RSCA_AskGenerateSolutionFile",
-	                                              "Project file is not available.\nGenerate project file?");
+	const FText Message = LOCTEXT("RSCA_AskGenerateSolutionFile", "Project file is not available.\nGenerate project file?");
 	if (FMessageDialog::Open(EAppMsgType::YesNo, Message) == EAppReturnType::No)
 	{
 		return false;

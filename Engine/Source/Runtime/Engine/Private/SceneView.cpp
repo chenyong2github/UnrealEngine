@@ -794,7 +794,7 @@ FSceneView::FSceneView(const FSceneViewInitOptions& InitOptions)
 	bIsMultiViewEnabled = RHISupportsMultiView(ShaderPlatform) && bIsInstancedStereoEnabled;
 
 	static const auto MobileMultiViewCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("vr.MobileMultiView"));
-	bIsMobileMultiViewEnabled = bUsingMobileRenderer && bSkipPostprocessing && (MobileMultiViewCVar && MobileMultiViewCVar->GetValueOnAnyThread() != 0);
+	bIsMobileMultiViewEnabled = (GSupportsMobileMultiView || GRHISupportsArrayIndexFromAnyShader) && bUsingMobileRenderer && bSkipPostprocessing && (MobileMultiViewCVar && MobileMultiViewCVar->GetValueOnAnyThread() != 0);
 	if (bIsMobileMultiViewEnabled && !RHISupportsMobileMultiView(ShaderPlatform))
 	{
 		// Native mobile multi-view is not supported, attempt to fall back to instancing on compatible RHIs

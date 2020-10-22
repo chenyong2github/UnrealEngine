@@ -83,21 +83,7 @@ void UDMXPixelMappingScreenComponent::PostEditChangeChainProperty(FPropertyChang
 	{
 		ResizeOutputTarget(NumXCells, NumYCells);
 	}
-
-	if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingScreenComponent, PositionX) ||
-		PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingScreenComponent, PositionY))
-	{
-		Slot->Offset(FMargin(PositionX, PositionY, 0.f, 0.f));
-	}
-
-	if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingScreenComponent, SizeX) ||
-		PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingScreenComponent, SizeY))
-	{
-		CachedWidget->SetWidthOverride(SizeX);
-		CachedWidget->SetHeightOverride(SizeY);
-		CachedLabelBox->SetWidthOverride(SizeX);
-	}
-
+	
 	if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingScreenComponent, NumXCells) ||
 		PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingScreenComponent, NumYCells) ||
 		PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingScreenComponent, RemoteUniverse) ||
@@ -111,10 +97,27 @@ void UDMXPixelMappingScreenComponent::PostEditChangeChainProperty(FPropertyChang
 	{
 		bIsUpdateWidgetRequested = true;
 	}
-
-	if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, EditorColor))
+	else if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, EditorColor))
 	{
 		Brush.TintColor = EditorColor;
+	}
+
+	if (PropertyChangedChainEvent.ChangeType != EPropertyChangeType::Interactive)
+	{
+
+		if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingScreenComponent, PositionX) ||
+			PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingScreenComponent, PositionY))
+		{
+			Slot->Offset(FMargin(PositionX, PositionY, 0.f, 0.f));
+		}
+
+		if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingScreenComponent, SizeX) ||
+			PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingScreenComponent, SizeY))
+		{
+			CachedWidget->SetWidthOverride(SizeX);
+			CachedWidget->SetHeightOverride(SizeY);
+			CachedLabelBox->SetWidthOverride(SizeX);
+		}
 	}
 }
 #endif // WITH_EDITOR
@@ -468,7 +471,7 @@ void UDMXPixelMappingScreenComponent::RenderAndSendDMX()
 	SendDMX();
 }
 
-FVector2D UDMXPixelMappingScreenComponent::GetSize()
+FVector2D UDMXPixelMappingScreenComponent::GetSize() const
 {
 	return FVector2D(SizeX, SizeY);
 }

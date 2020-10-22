@@ -612,6 +612,11 @@ void FDatasmithImporterModule::ResetAssetFromTemplate( TArray< FAssetData > Sele
 		ResetFromTemplates( Asset );
 		Asset->PostEditChange();
 	}
+
+	if ( GEditor )
+	{
+		GEditor->RedrawAllViewports();
+	}
 }
 
 void FDatasmithImporterModule::DiffActorAgainstTemplate( TArray< AActor*> SelectedActors )

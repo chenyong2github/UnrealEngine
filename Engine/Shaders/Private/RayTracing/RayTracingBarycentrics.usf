@@ -6,12 +6,6 @@
 RWTexture2D<float4> Output;
 RaytracingAccelerationStructure TLAS;
 
-struct FBarycentricsPayload : FMinimalPayload
-{
-	float2 Barycentrics;
-};
-
-
 RAY_TRACING_ENTRY_RAYGEN(RayTracingBarycentricsMainRGS)
 {
 	uint2 PixelCoord = DispatchRaysIndex().xy + View.ViewRectMin;
@@ -23,7 +17,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingBarycentricsMainRGS)
 	              | RAY_FLAG_CULL_BACK_FACING_TRIANGLES      // use back face culling
 	              | RAY_FLAG_FORCE_OPAQUE;                   // don't run anyhit shader
 
-	FBarycentricsPayload Payload = (FBarycentricsPayload)0;
+	FDefaultPayload Payload = (FDefaultPayload)0;
 
 	TraceRay(
 		TLAS,   // AccelerationStructure
@@ -45,7 +39,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingBarycentricsMainRGS)
 }
 
 RAY_TRACING_ENTRY_CLOSEST_HIT(RayTracingBarycentricsMainCHS,
-	FBarycentricsPayload, Payload,
+	FDefaultPayload, Payload,
 	FDefaultAttributes, Attributes)
 {
 	Payload.Barycentrics = Attributes.Barycentrics;

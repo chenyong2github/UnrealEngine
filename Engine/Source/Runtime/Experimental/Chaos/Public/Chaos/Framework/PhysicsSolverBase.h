@@ -387,12 +387,15 @@ namespace Chaos
 		 */
 		const UObject* Owner = nullptr;
 		FRWLock QueryMaterialLock;
+		FRWLock SimMaterialLock;
 
 		friend FChaosSolversModule;
 		friend FPhysicsSolverAdvanceTask;
 
 		template<ELockType>
 		friend struct TSolverQueryMaterialScope;
+		template<ELockType>
+		friend struct TSolverSimMaterialScope;
 
 		ETraits TraitIdx;
 

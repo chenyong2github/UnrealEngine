@@ -105,6 +105,7 @@ public:
 	/**
 	 * Whether or not the mode toolbox (where mode details panels and some tools are) should be shown.
 	 */
+	UE_DEPRECATED(4.26, "Individual toolkit hosts, such as the level editor, should handle determining if they show a mode toolbox for hosted toolkits.")
 	bool ShouldShowModeToolbox() const;
 protected:
 	/** Deactivates the editor mode at the specified index */

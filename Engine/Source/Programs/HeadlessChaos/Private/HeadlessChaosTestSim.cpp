@@ -191,7 +191,7 @@ namespace ChaosTest {
 		TUniquePtr<FChaosPhysicsMaterial> PhysicsMaterial = MakeUnique<FChaosPhysicsMaterial>();
 		PhysicsMaterial->SleepingLinearThreshold = 20;
 		PhysicsMaterial->SleepingAngularThreshold = 20;
-		PhysicsMaterial->SleepCounterThreshold = 1;
+		PhysicsMaterial->SleepCounterThreshold = 5;
 
 		Static->X() = FVec3(10, 10, 10);
 		Dynamic1->X() = FVec3(10, 10, 120);

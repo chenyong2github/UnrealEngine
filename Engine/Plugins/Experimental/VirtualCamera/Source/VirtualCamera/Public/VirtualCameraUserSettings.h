@@ -26,8 +26,12 @@ public:
 	float FocusInterpSpeed = 8.0f;
 
 	/** Controls how fast the camera moves when using joysticks */
-	UPROPERTY(EditAnywhere, config, Category = "VirtualCamera", meta = (ClampMin = "0.0", ClampMax = "100.0", DisplayName = "Joysticks Speed"))
-	float JoysticksSpeed = 50.0f;
+	UPROPERTY(EditAnywhere, config, Category = "VirtualCamera", meta = (DisplayName = "Joysticks Speed"))
+	float JoysticksSpeed = 5.0f;
+
+	/** Sets the maximum possible joystick speed */
+	UPROPERTY(EditAnywhere, config, Category = "VirtualCamera", meta = (DisplayName = "Max Joysticks Speed"))
+	float MaxJoysticksSpeed = 10.0f;
 
 	/** Whether the map is displayed using grayscale or full color */
 	UPROPERTY(EditAnywhere, config, Category = "VirtualCamera", meta = (DisplayName = "Display Map In Grayscale"))
@@ -74,6 +78,14 @@ public:
 	/** Set JoysticksSpeed variable */
 	UFUNCTION(BlueprintCallable, Category = "VirtualCamera")
 	void SetJoysticksSpeed(const float InJoysticksSpeed);
+
+	/** Get MaxJoysticksSpeed variable */
+	UFUNCTION(BlueprintPure, Category = "VirtualCamera")
+	float GetMaxJoysticksSpeed();
+
+	/** Set MaxJoysticksSpeed variable */
+	UFUNCTION(BlueprintCallable, Category = "VirtualCamera")
+	void SetMaxJoysticksSpeed(const float InMaxJoysticksSpeed);
 
 	/** Get bIsMapGrayscale variable */
 	UFUNCTION(BlueprintPure, Category = "VirtualCamera")

@@ -76,6 +76,8 @@ FKeyHandle AddOrUpdateKey(FMovieSceneFloatChannel* Channel, UMovieSceneSection* 
 	// what the current object value.
 	float NewValue = Channel->GetDefault().Get(0.f);
 
+	const bool bWasEvaluated = Channel->Evaluate(InTime, NewValue);
+
 	if (CurrentBoundObjectValue.IsSet() && SectionToKey)
 	{
 		if (ExternalValue.OnGetCurrentValueAndWeight)
@@ -86,7 +88,6 @@ FKeyHandle AddOrUpdateKey(FMovieSceneFloatChannel* Channel, UMovieSceneSection* 
 			FMovieSceneRootEvaluationTemplateInstance& EvaluationTemplate = Sequencer.GetEvaluationTemplate();
 			ExternalValue.OnGetCurrentValueAndWeight(FirstBoundObject, SectionToKey, InTime, Sequencer.GetFocusedTickResolution(), EvaluationTemplate, CurrentValue, CurrentWeight);
 
-			bool bWasEvaluated = Channel->Evaluate(InTime, NewValue);
 			if (CurrentBoundObjectValue.IsSet()) //need to get the diff between Value(Global) and CurrentValue and apply that to the local
 			{
 				if (bWasEvaluated)

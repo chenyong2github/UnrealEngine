@@ -317,6 +317,8 @@ void FRHICommandListExecutor::ExecuteInner_DoExecute(FRHICommandListBase& CmdLis
 	CmdList.bExecuting = true;
 	check(CmdList.Context || CmdList.ComputeContext);
 
+	FMemMark Mark(FMemStack::Get());
+
 #if WITH_MGPU
 	// Set the initial GPU mask on the contexts before executing any commands.
     // This avoids having to ensure that every command list has an initial

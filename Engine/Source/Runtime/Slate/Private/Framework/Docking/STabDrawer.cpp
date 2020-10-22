@@ -358,7 +358,7 @@ EActiveTimerReturnType STabDrawer::UpdateAnimation(double CurrentTime, float Del
 
 static bool IsLegalWidgetFocused(const FWidgetPath& FocusPath, const TArrayView<TSharedRef<SWidget>> LegalFocusWidgets)
 {
-	for (const TSharedRef<const SWidget>& Widget : LegalFocusWidgets)
+	for (const TSharedRef<SWidget>& Widget : LegalFocusWidgets)
 	{
 		if (FocusPath.ContainsWidget(Widget))
 		{

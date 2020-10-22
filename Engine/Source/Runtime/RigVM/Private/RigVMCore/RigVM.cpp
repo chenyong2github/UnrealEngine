@@ -556,7 +556,30 @@ void URigVM::CacheMemoryHandlesIfRequired(FRigVMMemoryContainerPtrArray InMemory
 					NumBytes = TargetRegister.GetNumBytesPerSlice();
 
 					TargetType = TargetRegister.Type;
-					if (Op.Target.GetRegisterOffset() != INDEX_NONE)
+
+					if (Op.Target.GetRegisterOffset() == INDEX_NONE)
+					{
+						if (TargetRegister.IsArray())
+						{
+							const FRigVMRegister& SourceRegister = CachedMemory[Op.Source.GetContainerIndex()]->Registers[Op.Source.GetRegisterIndex()];
+							if (!SourceRegister.IsArray())
+							{
+								if (Op.Source.GetRegisterOffset() == INDEX_NONE)
+								{
+									NumBytes = TargetRegister.ElementSize;
+								}
+								else
+								{
+									const FRigVMRegisterOffset& SourceOffset = CachedMemory[Op.Source.GetContainerIndex()]->RegisterOffsets[Op.Source.GetRegisterOffset()];
+									if (SourceOffset.GetCPPType() != TEXT("TArray"))
+									{
+										NumBytes = SourceOffset.GetElementSize();
+									}
+								}
+							}
+						}
+					}
+					else
 					{
 						TargetType = CachedMemory[Op.Target.GetContainerIndex()]->RegisterOffsets[Op.Target.GetRegisterOffset()].GetType();
 						NumBytes = CachedMemory[Op.Target.GetContainerIndex()]->RegisterOffsets[Op.Target.GetRegisterOffset()].GetElementSize();

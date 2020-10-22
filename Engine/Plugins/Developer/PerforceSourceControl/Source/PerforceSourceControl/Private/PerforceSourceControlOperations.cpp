@@ -1137,7 +1137,7 @@ static void ParseHistoryResults(const FP4RecordSet& InRecords, const TArray<FPer
 				FString FileSize(TEXT("0"));
 
 				// Extract the file size
-				if(IsDeleteAction(Action)) //delete actions don't have a fileSize from PV4
+				if(!IsDeleteAction(Action)) //delete actions don't have a fileSize from PV4
 				{
 					VarName = FString::Printf(TEXT("fileSize%d"), RevisionNumbers);
 					check(ClientRecord.Contains(*VarName));

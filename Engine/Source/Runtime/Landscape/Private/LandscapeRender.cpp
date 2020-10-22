@@ -54,11 +54,24 @@ FAutoConsoleVariableRef CVarLandscapeMeshLODBias(
 	ECVF_Scalability
 );
 
+#if !UE_BUILD_SHIPPING
+static void OnLODDistributionScaleChanged(IConsoleVariable* CVar)
+{
+	for (auto* LandscapeComponent : TObjectRange<ULandscapeComponent>(RF_ClassDefaultObject | RF_ArchetypeObject, true, EInternalObjectFlags::PendingKill))
+	{
+		LandscapeComponent->MarkRenderStateDirty();
+	}
+}
+#endif
+
 float GLandscapeLOD0DistributionScale = 1.f;
 FAutoConsoleVariableRef CVarLandscapeLOD0DistributionScale(
 	TEXT("r.LandscapeLOD0DistributionScale"),
 	GLandscapeLOD0DistributionScale,
 	TEXT("Multiplier for the landscape LOD0DistributionSetting property"),
+#if !UE_BUILD_SHIPPING
+	FConsoleVariableDelegate::CreateStatic(&OnLODDistributionScaleChanged),
+#endif
 	ECVF_Scalability
 );
 
@@ -67,6 +80,9 @@ FAutoConsoleVariableRef CVarLandscapeLODDistributionScale(
 	TEXT("r.LandscapeLODDistributionScale"),
 	GLandscapeLODDistributionScale,
 	TEXT("Multiplier for the landscape LODDistributionSetting property"),
+#if !UE_BUILD_SHIPPING
+	FConsoleVariableDelegate::CreateStatic(&OnLODDistributionScaleChanged),
+#endif
 	ECVF_Scalability
 );
 
@@ -89,14 +105,6 @@ extern TAutoConsoleVariable<int32> CVarLandscapeShowDirty;
 #endif
 
 #if !UE_BUILD_SHIPPING
-static void OnLODDistributionScaleChanged(IConsoleVariable* CVar)
-{
-	for (auto* LandscapeComponent : TObjectRange<ULandscapeComponent>(RF_ClassDefaultObject | RF_ArchetypeObject, true, EInternalObjectFlags::PendingKill))
-	{
-		LandscapeComponent->MarkRenderStateDirty();
-	}
-}
-
 int32 GVarDumpLandscapeLODsCurrentFrame = 0;
 bool GVarDumpLandscapeLODs = false;
 
@@ -1231,18 +1239,6 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 	, LightMapResolution(InComponent->GetStaticLightMapResolution())
 #endif
 {
-#if !UE_BUILD_SHIPPING
-	{
-		static bool bStaticInit = false;
-		if (!bStaticInit)
-		{
-			bStaticInit = true;
-			CVarLandscapeLODDistributionScale->SetOnChangedCallback(FConsoleVariableDelegate::CreateStatic(&OnLODDistributionScaleChanged));
-			CVarLandscapeLOD0DistributionScale->SetOnChangedCallback(FConsoleVariableDelegate::CreateStatic(&OnLODDistributionScaleChanged));
-		}
-	}
-#endif
-
 	const auto FeatureLevel = GetScene().GetFeatureLevel();
 
 	if (FeatureLevel >= ERHIFeatureLevel::SM5)
@@ -2394,7 +2390,7 @@ void FLandscapeComponentSceneProxy::GetDynamicMeshElements(const TArray<const FS
 			case ELandscapeViewMode::LOD:
 			{
 
-				const bool bMaterialModifiesMeshPosition = Mesh.MaterialRenderProxy->GetMaterial(View->GetFeatureLevel())->MaterialModifiesMeshPosition_RenderThread();
+				const bool bMaterialModifiesMeshPosition = Mesh.MaterialRenderProxy->GetIncompleteMaterialWithFallback(View->GetFeatureLevel()).MaterialModifiesMeshPosition_RenderThread();
 
 				auto& TemplateMesh = bIsWireframe ? Mesh : MeshTools;
 				for (int32 i = 0; i < TemplateMesh.Elements.Num(); i++)
@@ -3608,6 +3604,9 @@ FLandscapeMaterialTextureStreamingInfo& ULandscapeMaterialInstanceConstant::Acqu
 
 void ULandscapeMaterialInstanceConstant::UpdateCachedTextureStreaming()
 {
+	// Remove outdated elements that no longer match the material's expressions.
+	TextureStreamingInfo.Empty();
+
 	const UMaterial* Material = GetMaterial();
 	if (Material)
 	{
@@ -4624,9 +4623,9 @@ void FLandscapeMeshProxySceneProxy::DestroyRenderThreadResources()
 FPrimitiveSceneProxy* ULandscapeMeshProxyComponent::CreateSceneProxy()
 {
 	if (GetStaticMesh() == NULL
-		|| GetStaticMesh()->RenderData == NULL
-		|| GetStaticMesh()->RenderData->LODResources.Num() == 0
-		|| GetStaticMesh()->RenderData->LODResources[0].VertexBuffers.StaticMeshVertexBuffer.GetNumVertices() == 0)
+		|| GetStaticMesh()->GetRenderData() == NULL
+		|| GetStaticMesh()->GetRenderData()->LODResources.Num() == 0
+		|| GetStaticMesh()->GetRenderData()->LODResources[0].VertexBuffers.StaticMeshVertexBuffer.GetNumVertices() == 0)
 	{
 		return NULL;
 	}

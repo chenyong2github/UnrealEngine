@@ -39,14 +39,14 @@ void UploadDataToBuffer(FRWBufferStructured& OutBuffer, uint32 DataSizeInBytes, 
 }
 
 template<typename FormatType>
-void CreateBuffer(const TArray<typename FormatType::Type>& InData, FRWBuffer& OutBuffer)
+void CreateBuffer(const TArray<typename FormatType::Type>& InData, FRWBuffer& OutBuffer, const TCHAR* DebugName, ERHIAccess InitialAccess = ERHIAccess::SRVMask)
 {
 	const uint32 DataCount = InData.Num();
 	const uint32 DataSizeInBytes = FormatType::SizeInByte*DataCount;
 
 	if (DataSizeInBytes == 0) return;
 
-	OutBuffer.Initialize(FormatType::SizeInByte, DataCount, FormatType::Format, BUF_Static);
+	OutBuffer.Initialize(FormatType::SizeInByte, DataCount, FormatType::Format, InitialAccess, BUF_Static, DebugName);
 	void* BufferData = RHILockVertexBuffer(OutBuffer.Buffer, 0, DataSizeInBytes, RLM_WriteOnly);
 
 	FMemory::Memcpy(BufferData, InData.GetData(), DataSizeInBytes);
@@ -54,17 +54,37 @@ void CreateBuffer(const TArray<typename FormatType::Type>& InData, FRWBuffer& Ou
 }
 
 template<typename FormatType>
-void CreateBuffer(uint32 InVertexCount, FRWBuffer& OutBuffer)
+void CreateBuffer(uint32 InVertexCount, FRWBuffer& OutBuffer, const TCHAR* DebugName)
 {
 	const uint32 DataCount = InVertexCount;
 	const uint32 DataSizeInBytes = FormatType::SizeInByte*DataCount;
 
 	if (DataSizeInBytes == 0) return;
 
-	OutBuffer.Initialize(FormatType::SizeInByte, DataCount, FormatType::Format, BUF_Static);
+	OutBuffer.Initialize(FormatType::SizeInByte, DataCount, FormatType::Format, ERHIAccess::UAVCompute, BUF_Static, DebugName);
 	void* BufferData = RHILockVertexBuffer(OutBuffer.Buffer, 0, DataSizeInBytes, RLM_WriteOnly);
 	FMemory::Memset(BufferData, 0, DataSizeInBytes);
 	RHIUnlockVertexBuffer(OutBuffer.Buffer);
+}
+
+template<typename FormatType>
+void CreateBuffer(const TArray<typename FormatType::Type>& InData, FHairCardsVertexBuffer& OutBuffer, const TCHAR* DebugName, ERHIAccess InitialAccess = ERHIAccess::SRVMask)
+{
+	const uint32 DataCount = InData.Num();
+	const uint32 DataSizeInBytes = FormatType::SizeInByte * DataCount;
+
+	if (DataSizeInBytes == 0) return;
+
+	FRHIResourceCreateInfo CreateInfo;
+	CreateInfo.DebugName = DebugName;
+	CreateInfo.ResourceArray = nullptr;
+
+	OutBuffer.VertexBufferRHI = RHICreateVertexBuffer(DataSizeInBytes, BUF_Static | BUF_ShaderResource, InitialAccess, CreateInfo);
+
+	void* BufferData = RHILockVertexBuffer(OutBuffer.VertexBufferRHI, 0, DataSizeInBytes, RLM_WriteOnly);
+	FMemory::Memcpy(BufferData, InData.GetData(), DataSizeInBytes);
+	RHIUnlockVertexBuffer(OutBuffer.VertexBufferRHI);
+	OutBuffer.ShaderResourceViewRHI = RHICreateShaderResourceView(OutBuffer.VertexBufferRHI, FormatType::SizeInByte, FormatType::Format);
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -135,9 +155,9 @@ FHairCardsRestResource::FHairCardsRestResource(const FHairCardsDatas::FRenderDat
 
 void FHairCardsRestResource::InitRHI()
 {
-	CreateBuffer<FHairCardsPositionFormat>(RenderData.Positions, RestPositionBuffer);
-	CreateBuffer<FHairCardsNormalFormat>(RenderData.Normals, NormalsBuffer);
-	CreateBuffer<FHairCardsUVFormat>(RenderData.UVs, UVsBuffer);
+	CreateBuffer<FHairCardsPositionFormat>(RenderData.Positions, RestPositionBuffer, TEXT("HairCardsRest_PositionBuffer"));
+	CreateBuffer<FHairCardsNormalFormat>(RenderData.Normals, NormalsBuffer, TEXT("HairCardsRest_NormalBuffer"));
+	CreateBuffer<FHairCardsUVFormat>(RenderData.UVs, UVsBuffer, TEXT("HairCardsRest_UVBuffer"));
 
 	FSamplerStateRHIRef DefaultSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	DepthSampler = DefaultSampler;
@@ -148,21 +168,24 @@ void FHairCardsRestResource::InitRHI()
 
 void FHairCardsRestResource::ReleaseRHI()
 {
-	RestPositionBuffer.Release();
-	NormalsBuffer.Release();
-	UVsBuffer.Release();
 }
 
 void FHairCardsRestResource::InitResource()
 {
 	FRenderResource::InitResource();
 	RestIndexBuffer.InitResource();
+	RestPositionBuffer.InitResource();
+	NormalsBuffer.InitResource();
+	UVsBuffer.InitResource();
 }
 
 void FHairCardsRestResource::ReleaseResource()
 {
 	FRenderResource::ReleaseResource();
 	RestIndexBuffer.ReleaseResource();
+	RestPositionBuffer.ReleaseResource();
+	NormalsBuffer.ReleaseResource();
+	UVsBuffer.ReleaseResource();
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -183,19 +206,19 @@ FHairCardsProceduralResource::FHairCardsProceduralResource(const FHairCardsProce
 
 void FHairCardsProceduralResource::InitRHI()
 {
-	CreateBuffer<FHairCardsAtlasRectFormat>(RenderData.CardsRect, AtlasRectBuffer);
-	CreateBuffer<FHairCardsDimensionFormat>(RenderData.CardsLengths, LengthBuffer);
+	CreateBuffer<FHairCardsAtlasRectFormat>(RenderData.CardsRect, AtlasRectBuffer, TEXT("HairCardsProcedural_AtlasRectBuffer"));
+	CreateBuffer<FHairCardsDimensionFormat>(RenderData.CardsLengths, LengthBuffer, TEXT("HairCardsProcedural_LengthBuffer"));
 
-	CreateBuffer<FHairCardsOffsetAndCount>(RenderData.CardItToCluster, CardItToClusterBuffer);
-	CreateBuffer<FHairCardsOffsetAndCount>(RenderData.ClusterIdToVertices, ClusterIdToVerticesBuffer);
-	CreateBuffer<FHairCardsBoundsFormat>(RenderData.ClusterBounds, ClusterBoundBuffer);
+	CreateBuffer<FHairCardsOffsetAndCount>(RenderData.CardItToCluster, CardItToClusterBuffer, TEXT("HairCardsProcedural_CardItToClusterBuffer"));
+	CreateBuffer<FHairCardsOffsetAndCount>(RenderData.ClusterIdToVertices, ClusterIdToVerticesBuffer, TEXT("HairCardsProcedural_ClusterIdToVerticesBuffer"));
+	CreateBuffer<FHairCardsBoundsFormat>(RenderData.ClusterBounds, ClusterBoundBuffer, TEXT("HairCardsProcedural_ClusterBoundBuffer"));
 
-	CreateBuffer<FHairCardsVoxelDensityFormat>(RenderData.VoxelDensity, CardVoxel.DensityBuffer);
-	CreateBuffer<FHairCardsVoxelTangentFormat>(RenderData.VoxelTangent, CardVoxel.TangentBuffer);
-	CreateBuffer<FHairCardsVoxelTangentFormat>(RenderData.VoxelNormal, CardVoxel.NormalBuffer);
+	CreateBuffer<FHairCardsVoxelDensityFormat>(RenderData.VoxelDensity, CardVoxel.DensityBuffer, TEXT("HairCardsProcedural_VoxelDensityBuffer"));
+	CreateBuffer<FHairCardsVoxelTangentFormat>(RenderData.VoxelTangent, CardVoxel.TangentBuffer, TEXT("HairCardsProcedural_VoxelTangentBuffer"));
+	CreateBuffer<FHairCardsVoxelTangentFormat>(RenderData.VoxelNormal, CardVoxel.NormalBuffer, TEXT("HairCardsProcedural_VoxelNormalBuffer"));
 
-	CreateBuffer<FHairCardsStrandsPositionFormat>(RenderData.CardsStrandsPositions, CardsStrandsPositions);
-	CreateBuffer<FHairCardsStrandsAttributeFormat>(RenderData.CardsStrandsAttributes, CardsStrandsAttributes);
+	CreateBuffer<FHairCardsStrandsPositionFormat>(RenderData.CardsStrandsPositions, CardsStrandsPositions, TEXT("HairCardsProcedural_CardsStrandsPositions"));
+	CreateBuffer<FHairCardsStrandsAttributeFormat>(RenderData.CardsStrandsAttributes, CardsStrandsAttributes, TEXT("HairCardsProcedural_CardsStrandsAttributes"));
 }
 
 void FHairCardsProceduralResource::ReleaseRHI()
@@ -216,8 +239,8 @@ void FHairCardsProceduralResource::ReleaseRHI()
 
 /////////////////////////////////////////////////////////////////////////////////////////
 
-FHairCardsDeformedResource::FHairCardsDeformedResource(const FHairCardsDatas::FRenderData& HairCardsRenderData, bool bInInitializedData) :
-	RenderData(HairCardsRenderData), bInitializedData(bInInitializedData)
+FHairCardsDeformedResource::FHairCardsDeformedResource(const FHairCardsDatas::FRenderData& HairCardsRenderData, bool bInInitializedData, bool bInDynamic) :
+	RenderData(HairCardsRenderData), bInitializedData(!bInDynamic || bInInitializedData), bDynamic(bInDynamic)
 {}
 
 void FHairCardsDeformedResource::InitRHI()
@@ -225,26 +248,35 @@ void FHairCardsDeformedResource::InitRHI()
 	const uint32 VertexCount = RenderData.Positions.Num();
 	if (bInitializedData)
 	{
-		CreateBuffer<FHairCardsPositionFormat>(RenderData.Positions, DeformedPositionBuffer[0]);
-		CreateBuffer<FHairCardsPositionFormat>(RenderData.Positions, DeformedPositionBuffer[1]);
+		CreateBuffer<FHairCardsPositionFormat>(RenderData.Positions, DeformedPositionBuffer[0], TEXT("HairCardsDeformed_Position0"));
+		if (bDynamic)
+		{
+			CreateBuffer<FHairCardsPositionFormat>(RenderData.Positions, DeformedPositionBuffer[1], TEXT("HairCardsDeformed_Position1"));
+		}
 	}
 	else
 	{
-		CreateBuffer<FHairCardsPositionFormat>(VertexCount, DeformedPositionBuffer[0]);
-		CreateBuffer<FHairCardsPositionFormat>(VertexCount, DeformedPositionBuffer[1]);
+		CreateBuffer<FHairCardsPositionFormat>(VertexCount, DeformedPositionBuffer[0], TEXT("HairCardsDeformed_Position0"));
+		if (bDynamic)
+		{
+			CreateBuffer<FHairCardsPositionFormat>(VertexCount, DeformedPositionBuffer[1], TEXT("HairCardsDeformed_Position1"));
+		}
 	}
 }
 
 void FHairCardsDeformedResource::ReleaseRHI()
 {
 	DeformedPositionBuffer[0].Release();
-	DeformedPositionBuffer[1].Release();
+	if (bDynamic)
+	{
+		DeformedPositionBuffer[1].Release();
+	}
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////
 
 FHairMeshesRestResource::FHairMeshesRestResource(const FHairMeshesDatas::FRenderData& InRenderData, uint32 InVertexCount, uint32 InPrimitiveCount) :
-	PositionBuffer(),
+	RestPositionBuffer(),
 	IndexBuffer(InRenderData.Indices),
 	VertexCount(InVertexCount),
 	PrimitiveCount(InPrimitiveCount),
@@ -258,35 +290,39 @@ FHairMeshesRestResource::FHairMeshesRestResource(const FHairMeshesDatas::FRender
 
 void FHairMeshesRestResource::InitRHI()
 {
-	CreateBuffer<FHairCardsPositionFormat>(RenderData.Positions, PositionBuffer);
-	CreateBuffer<FHairCardsNormalFormat>(RenderData.Normals, NormalsBuffer);
-	CreateBuffer<FHairCardsUVFormat>(RenderData.UVs, UVsBuffer);
+	CreateBuffer<FHairCardsPositionFormat>(RenderData.Positions, RestPositionBuffer, TEXT("HairMeshesRest_Positions"));
+	CreateBuffer<FHairCardsNormalFormat>(RenderData.Normals, NormalsBuffer, TEXT("HairMeshesRest_Normals"));
+	CreateBuffer<FHairCardsUVFormat>(RenderData.UVs, UVsBuffer, TEXT("HairMeshesRest_UVs"));
 }
 
 void FHairMeshesRestResource::ReleaseRHI()
 {
-	PositionBuffer.Release();
-	NormalsBuffer.Release();
-	UVsBuffer.Release();
+
 }
 
 void FHairMeshesRestResource::InitResource()
 {
 	FRenderResource::InitResource();
 	IndexBuffer.InitResource();
+	RestPositionBuffer.InitResource();
+	NormalsBuffer.InitResource();
+	UVsBuffer.InitResource();
 }
 
 void FHairMeshesRestResource::ReleaseResource()
 {
 	FRenderResource::ReleaseResource();
 	IndexBuffer.ReleaseResource();
+	RestPositionBuffer.ReleaseResource();
+	NormalsBuffer.ReleaseResource();
+	UVsBuffer.ReleaseResource();
 
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////
 
-FHairMeshesDeformedResource::FHairMeshesDeformedResource(const FHairMeshesDatas::FRenderData& HairMeshesData, bool bInInitializedData) :
-	RenderData(HairMeshesData), bInitializedData(bInInitializedData)
+FHairMeshesDeformedResource::FHairMeshesDeformedResource(const FHairMeshesDatas::FRenderData& HairMeshesData, bool bInInitializedData, bool bInDynamic) :
+	RenderData(HairMeshesData), bInitializedData(!bInDynamic || bInInitializedData), bDynamic(bInDynamic)
 {}
 
 void FHairMeshesDeformedResource::InitRHI()
@@ -294,20 +330,29 @@ void FHairMeshesDeformedResource::InitRHI()
 	const uint32 VertexCount = RenderData.Positions.Num();
 	if (bInitializedData)
 	{
-		CreateBuffer<FHairCardsPositionFormat>(RenderData.Positions, DeformedPositionBuffer[0]);
-		CreateBuffer<FHairCardsPositionFormat>(RenderData.Positions, DeformedPositionBuffer[1]);
+		CreateBuffer<FHairCardsPositionFormat>(RenderData.Positions, DeformedPositionBuffer[0], TEXT("HairMeshesDeformed_Positions0"));
+		if (bDynamic)
+		{
+			CreateBuffer<FHairCardsPositionFormat>(RenderData.Positions, DeformedPositionBuffer[1], TEXT("HairMeshesDeformed_Positions1"));
+		}
 	}
 	else
 	{
-		CreateBuffer<FHairCardsPositionFormat>(VertexCount, DeformedPositionBuffer[0]);
-		CreateBuffer<FHairCardsPositionFormat>(VertexCount, DeformedPositionBuffer[1]);
+		CreateBuffer<FHairCardsPositionFormat>(VertexCount, DeformedPositionBuffer[0], TEXT("HairMeshesDeformed_Positions0"));
+		if (bDynamic)
+		{
+			CreateBuffer<FHairCardsPositionFormat>(VertexCount, DeformedPositionBuffer[1], TEXT("HairMeshesDeformed_Positions1"));
+		}
 	}
 }
 
 void FHairMeshesDeformedResource::ReleaseRHI()
 {
 	DeformedPositionBuffer[0].Release();
-	DeformedPositionBuffer[1].Release();
+	if (bDynamic)
+	{
+		DeformedPositionBuffer[1].Release();
+	}
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -323,9 +368,9 @@ void FHairStrandsRestResource::InitRHI()
 	const TArray<FHairStrandsMaterialFormat::Type>& Materials = RenderData.Materials;
 	const TArray<FHairStrandsRootIndexFormat::Type>& RootIndices = RenderData.RootIndices;
 
-	CreateBuffer<FHairStrandsPositionFormat>(Positions, RestPositionBuffer);
-	CreateBuffer<FHairStrandsAttributeFormat>(Attributes, AttributeBuffer);
-	CreateBuffer<FHairStrandsMaterialFormat>(Materials, MaterialBuffer);
+	CreateBuffer<FHairStrandsPositionFormat>(Positions, RestPositionBuffer, TEXT("HairStrandsRest_RestPositionBuffer"));
+	CreateBuffer<FHairStrandsAttributeFormat>(Attributes, AttributeBuffer, TEXT("HairStrandsRest_AttributeBuffer"));
+	CreateBuffer<FHairStrandsMaterialFormat>(Materials, MaterialBuffer, TEXT("HairStrandsRest_MaterialBuffer"));
 }
 
 void FHairStrandsRestResource::ReleaseRHI()
@@ -337,8 +382,8 @@ void FHairStrandsRestResource::ReleaseRHI()
 
 /////////////////////////////////////////////////////////////////////////////////////////
 
-FHairStrandsDeformedResource::FHairStrandsDeformedResource(const FHairStrandsDatas::FRenderData& HairStrandRenderData, bool bInInitializedData) :
-	RenderData(HairStrandRenderData), bInitializedData(bInInitializedData)
+FHairStrandsDeformedResource::FHairStrandsDeformedResource(const FHairStrandsDatas::FRenderData& HairStrandRenderData, bool bInInitializedData, bool bInDynamic) :
+	RenderData(HairStrandRenderData), bInitializedData(bInInitializedData), bDynamic(bInDynamic)
 {}
 
 void FHairStrandsDeformedResource::InitRHI()
@@ -346,22 +391,45 @@ void FHairStrandsDeformedResource::InitRHI()
 	const uint32 VertexCount = RenderData.Positions.Num();
 	if (bInitializedData)
 	{
-		CreateBuffer<FHairStrandsPositionFormat>(RenderData.Positions, DeformedPositionBuffer[0]);
-		CreateBuffer<FHairStrandsPositionFormat>(RenderData.Positions, DeformedPositionBuffer[1]);
+		CreateBuffer<FHairStrandsPositionFormat>(RenderData.Positions, DeformedPositionBuffer[0], TEXT("HairStrandsDeformed_DeformedPositionBuffer0"), bDynamic ? ERHIAccess::UAVCompute : ERHIAccess::SRVMask);
+		if (bDynamic)
+		{
+			CreateBuffer<FHairStrandsPositionFormat>(RenderData.Positions, DeformedPositionBuffer[1], TEXT("HairStrandsDeformed_DeformedPositionBuffer1"), ERHIAccess::UAVCompute);
+		}
 	}
 	else
 	{
-		CreateBuffer<FHairStrandsPositionFormat>(VertexCount, DeformedPositionBuffer[0]);
-		CreateBuffer<FHairStrandsPositionFormat>(VertexCount, DeformedPositionBuffer[1]);
+		CreateBuffer<FHairStrandsPositionFormat>(VertexCount, DeformedPositionBuffer[0], TEXT("HairStrandsDeformed_DeformedPositionBuffer0"));
+		if (bDynamic)
+		{
+			CreateBuffer<FHairStrandsPositionFormat>(VertexCount, DeformedPositionBuffer[1], TEXT("HairStrandsDeformed_DeformedPositionBuffer1"));
+		}
 	}
-	CreateBuffer<FHairStrandsTangentFormat>(VertexCount * FHairStrandsTangentFormat::ComponentCount, TangentBuffer);
+	CreateBuffer<FHairStrandsTangentFormat>(VertexCount * FHairStrandsTangentFormat::ComponentCount, TangentBuffer, TEXT("HairStrandsDeformed_TangentBuffer"));
 }
 
 void FHairStrandsDeformedResource::ReleaseRHI()
 {
 	DeformedPositionBuffer[0].Release();
-	DeformedPositionBuffer[1].Release();
+	if (bDynamic)
+	{
+		DeformedPositionBuffer[1].Release();
+	}
 	TangentBuffer.Release();
+}
+
+bool FHairStrandsDeformedResource::NeedsToUpdateTangent()
+{ 
+	if (bDynamic)
+	{
+		return true;
+	}
+	else
+	{ 
+		const bool bInit = bInitializedTangent;
+		bInitializedTangent = false;
+		return bInit;
+	} 
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -453,9 +521,9 @@ void FHairStrandsRestRootResource::InitRHI()
 {
 	if (RootData.VertexToCurveIndexBuffer.Num() > 0)
 	{
-		CreateBuffer<FHairStrandsIndexFormat>(RootData.VertexToCurveIndexBuffer, VertexToCurveIndexBuffer);
-		CreateBuffer<FHairStrandsRootPositionFormat>(RootData.RootPositionBuffer, RootPositionBuffer);
-		CreateBuffer<FHairStrandsRootNormalFormat>(RootData.RootNormalBuffer, RootNormalBuffer);
+		CreateBuffer<FHairStrandsIndexFormat>(RootData.VertexToCurveIndexBuffer, VertexToCurveIndexBuffer, TEXT("HairStrandsRestRoot_VertexToCurveIndexBuffer"));
+		CreateBuffer<FHairStrandsRootPositionFormat>(RootData.RootPositionBuffer, RootPositionBuffer, TEXT("HairStrandsRestRoot_RootPositionBuffer"));
+		CreateBuffer<FHairStrandsRootNormalFormat>(RootData.RootNormalBuffer, RootNormalBuffer, TEXT("HairStrandsRestRoot_RootNormalBuffer"));
 		
 		check(LODs.Num() == RootData.MeshProjectionLODs.Num());
 		for (uint32 LODIt=0, LODCount = LODs.Num(); LODIt<LODCount; ++LODIt)
@@ -469,29 +537,29 @@ void FHairStrandsRestRootResource::InitRHI()
 				GPUData.Status = FLOD::EStatus::Completed;
 
 				check(CPUData.RootTriangleBarycentricBuffer.Num() > 0);
-				CreateBuffer<FHairStrandsCurveTriangleBarycentricFormat>(CPUData.RootTriangleBarycentricBuffer, GPUData.RootTriangleBarycentricBuffer);
+				CreateBuffer<FHairStrandsCurveTriangleBarycentricFormat>(CPUData.RootTriangleBarycentricBuffer, GPUData.RootTriangleBarycentricBuffer, TEXT("HairStrandsRestRoot_RootTriangleBarycentricBuffer"));
 
 				check(CPUData.RootTriangleIndexBuffer.Num() > 0);
-				CreateBuffer<FHairStrandsCurveTriangleIndexFormat>(CPUData.RootTriangleIndexBuffer, GPUData.RootTriangleIndexBuffer);
+				CreateBuffer<FHairStrandsCurveTriangleIndexFormat>(CPUData.RootTriangleIndexBuffer, GPUData.RootTriangleIndexBuffer, TEXT("HairStrandsRestRoot_RootTriangleIndexBuffer"));
 
 				check(CPUData.RestRootTrianglePosition0Buffer.Num() > 0);
 				check(CPUData.RestRootTrianglePosition1Buffer.Num() > 0);
 				check(CPUData.RestRootTrianglePosition2Buffer.Num() > 0);
-				CreateBuffer<FHairStrandsMeshTrianglePositionFormat>(CPUData.RestRootTrianglePosition0Buffer, GPUData.RestRootTrianglePosition0Buffer);
-				CreateBuffer<FHairStrandsMeshTrianglePositionFormat>(CPUData.RestRootTrianglePosition1Buffer, GPUData.RestRootTrianglePosition1Buffer);
-				CreateBuffer<FHairStrandsMeshTrianglePositionFormat>(CPUData.RestRootTrianglePosition2Buffer, GPUData.RestRootTrianglePosition2Buffer);
+				CreateBuffer<FHairStrandsMeshTrianglePositionFormat>(CPUData.RestRootTrianglePosition0Buffer, GPUData.RestRootTrianglePosition0Buffer, TEXT("HairStrandsRestRoot_RestRootTrianglePosition0Buffer"));
+				CreateBuffer<FHairStrandsMeshTrianglePositionFormat>(CPUData.RestRootTrianglePosition1Buffer, GPUData.RestRootTrianglePosition1Buffer, TEXT("HairStrandsRestRoot_RestRootTrianglePosition1Buffer"));
+				CreateBuffer<FHairStrandsMeshTrianglePositionFormat>(CPUData.RestRootTrianglePosition2Buffer, GPUData.RestRootTrianglePosition2Buffer, TEXT("HairStrandsRestRoot_RestRootTrianglePosition2Buffer"));
 			}
 			else
 			{
 				GPUData.Status = FLOD::EStatus::Initialized;
 
-				CreateBuffer<FHairStrandsCurveTriangleBarycentricFormat>(RootData.RootCount, GPUData.RootTriangleBarycentricBuffer);
-				CreateBuffer<FHairStrandsCurveTriangleIndexFormat>(RootData.RootCount, GPUData.RootTriangleIndexBuffer);
+				CreateBuffer<FHairStrandsCurveTriangleBarycentricFormat>(RootData.RootCount, GPUData.RootTriangleBarycentricBuffer, TEXT("HairStrandsRestRoot_RootTriangleBarycentricBuffer"));
+				CreateBuffer<FHairStrandsCurveTriangleIndexFormat>(RootData.RootCount, GPUData.RootTriangleIndexBuffer, TEXT("HairStrandsRestRoot_RootTriangleIndexBuffer"));
 
 				// Create buffers. Initialization will be done by render passes
-				CreateBuffer<FHairStrandsMeshTrianglePositionFormat>(RootData.RootCount, GPUData.RestRootTrianglePosition0Buffer);
-				CreateBuffer<FHairStrandsMeshTrianglePositionFormat>(RootData.RootCount, GPUData.RestRootTrianglePosition1Buffer);
-				CreateBuffer<FHairStrandsMeshTrianglePositionFormat>(RootData.RootCount, GPUData.RestRootTrianglePosition2Buffer);
+				CreateBuffer<FHairStrandsMeshTrianglePositionFormat>(RootData.RootCount, GPUData.RestRootTrianglePosition0Buffer, TEXT("HairStrandsRestRoot_RestRootTrianglePosition0Buffer"));
+				CreateBuffer<FHairStrandsMeshTrianglePositionFormat>(RootData.RootCount, GPUData.RestRootTrianglePosition1Buffer, TEXT("HairStrandsRestRoot_RestRootTrianglePosition1Buffer"));
+				CreateBuffer<FHairStrandsMeshTrianglePositionFormat>(RootData.RootCount, GPUData.RestRootTrianglePosition2Buffer, TEXT("HairStrandsRestRoot_RestRootTrianglePosition2Buffer"));
 			}
 
 			GPUData.SampleCount = CPUData.SampleCount;
@@ -502,15 +570,15 @@ void FHairStrandsRestRootResource::InitRHI()
 				check(CPUData.MeshSampleIndicesBuffer.Num() == CPUData.SampleCount);
 				check(CPUData.RestSamplePositionsBuffer.Num() == CPUData.SampleCount);
 
-				CreateBuffer<FHairStrandsWeightFormat>(CPUData.MeshInterpolationWeightsBuffer, GPUData.MeshInterpolationWeightsBuffer);
-				CreateBuffer<FHairStrandsIndexFormat>(CPUData.MeshSampleIndicesBuffer, GPUData.MeshSampleIndicesBuffer);
-				CreateBuffer<FHairStrandsMeshTrianglePositionFormat>(CPUData.RestSamplePositionsBuffer, GPUData.RestSamplePositionsBuffer);
+				CreateBuffer<FHairStrandsWeightFormat>(CPUData.MeshInterpolationWeightsBuffer, GPUData.MeshInterpolationWeightsBuffer, TEXT("HairStrandsRestRoot_MeshInterpolationWeightsBuffer"));
+				CreateBuffer<FHairStrandsIndexFormat>(CPUData.MeshSampleIndicesBuffer, GPUData.MeshSampleIndicesBuffer, TEXT("HairStrandsRestRoot_MeshSampleIndicesBuffer"));
+				CreateBuffer<FHairStrandsMeshTrianglePositionFormat>(CPUData.RestSamplePositionsBuffer, GPUData.RestSamplePositionsBuffer, TEXT("HairStrandsRestRoot_RestSamplePositionsBuffer"));
 			}
 			else
 			{
-				CreateBuffer<FHairStrandsWeightFormat>((CPUData.SampleCount+4) * (CPUData.SampleCount+4), GPUData.MeshInterpolationWeightsBuffer);
-				CreateBuffer<FHairStrandsIndexFormat>(CPUData.SampleCount, GPUData.MeshSampleIndicesBuffer);
-				CreateBuffer<FHairStrandsMeshTrianglePositionFormat>(CPUData.SampleCount, GPUData.RestSamplePositionsBuffer);
+				CreateBuffer<FHairStrandsWeightFormat>((CPUData.SampleCount+4) * (CPUData.SampleCount+4), GPUData.MeshInterpolationWeightsBuffer, TEXT("HairStrandsRestRoot_MeshInterpolationWeightsBuffer"));
+				CreateBuffer<FHairStrandsIndexFormat>(CPUData.SampleCount, GPUData.MeshSampleIndicesBuffer, TEXT("HairStrandsRestRoot_MeshSampleIndicesBuffer"));
+				CreateBuffer<FHairStrandsMeshTrianglePositionFormat>(CPUData.SampleCount, GPUData.RestSamplePositionsBuffer, TEXT("HairStrandsRestRoot_RestSamplePositionsBuffer"));
 			}
 		}
 	}
@@ -571,12 +639,12 @@ void FHairStrandsDeformedRootResource::InitRHI()
 		for (FLOD& LOD : LODs)
 		{		
 			LOD.Status = FLOD::EStatus::Initialized;
-			CreateBuffer<FHairStrandsMeshTrianglePositionFormat>(LOD.SampleCount, LOD.DeformedSamplePositionsBuffer);
-			CreateBuffer<FHairStrandsMeshTrianglePositionFormat>(LOD.SampleCount + 4, LOD.MeshSampleWeightsBuffer);
+			CreateBuffer<FHairStrandsMeshTrianglePositionFormat>(LOD.SampleCount, LOD.DeformedSamplePositionsBuffer, TEXT("HairStrandsRootDeformed_DeformedSamplePositionsBuffer"));
+			CreateBuffer<FHairStrandsMeshTrianglePositionFormat>(LOD.SampleCount + 4, LOD.MeshSampleWeightsBuffer, TEXT("HairStrandsRootDeformed_MeshSampleWeightsBuffer"));
 
-			CreateBuffer<FHairStrandsMeshTrianglePositionFormat>(RootCount, LOD.DeformedRootTrianglePosition0Buffer);
-			CreateBuffer<FHairStrandsMeshTrianglePositionFormat>(RootCount, LOD.DeformedRootTrianglePosition1Buffer);
-			CreateBuffer<FHairStrandsMeshTrianglePositionFormat>(RootCount, LOD.DeformedRootTrianglePosition2Buffer);
+			CreateBuffer<FHairStrandsMeshTrianglePositionFormat>(RootCount, LOD.DeformedRootTrianglePosition0Buffer, TEXT("HairStrandsRootDeformed_DeformedRootTrianglePosition0Buffer"));
+			CreateBuffer<FHairStrandsMeshTrianglePositionFormat>(RootCount, LOD.DeformedRootTrianglePosition1Buffer, TEXT("HairStrandsRootDeformed_DeformedRootTrianglePosition1Buffer"));
+			CreateBuffer<FHairStrandsMeshTrianglePositionFormat>(RootCount, LOD.DeformedRootTrianglePosition2Buffer, TEXT("HairStrandsRootDeformed_DeformedRootTrianglePosition2Buffer"));
 		}
 	}
 }
@@ -750,9 +818,9 @@ FHairStrandsInterpolationResource::FHairStrandsInterpolationResource(const FHair
 
 void FHairStrandsInterpolationResource::InitRHI()
 {
-	CreateBuffer<FHairStrandsInterpolation0Format>(RenderData.Interpolation0, Interpolation0Buffer);
-	CreateBuffer<FHairStrandsInterpolation1Format>(RenderData.Interpolation1, Interpolation1Buffer);
-	CreateBuffer<FHairStrandsRootIndexFormat>(SimRootPointIndex, SimRootPointIndexBuffer);
+	CreateBuffer<FHairStrandsInterpolation0Format>(RenderData.Interpolation0, Interpolation0Buffer, TEXT("HairStrandsInterpolation_Interpolation0Buffer"));
+	CreateBuffer<FHairStrandsInterpolation1Format>(RenderData.Interpolation1, Interpolation1Buffer, TEXT("HairStrandsInterpolation_Interpolation1Buffer"));
+	CreateBuffer<FHairStrandsRootIndexFormat>(SimRootPointIndex, SimRootPointIndexBuffer, TEXT("HairStrandsInterpolation_SimRootPointIndex"));
 	//SimRootPointIndex.SetNum(0);
 }
 
@@ -795,7 +863,7 @@ FHairCardsInterpolationResource::FHairCardsInterpolationResource(const FHairCard
 
 void FHairCardsInterpolationResource::InitRHI()
 {
-	CreateBuffer<FHairCardsInterpolationFormat>(RenderData.Interpolation, InterpolationBuffer);
+	CreateBuffer<FHairCardsInterpolationFormat>(RenderData.Interpolation, InterpolationBuffer, TEXT("HairCardsInterpolation_InterpolationBuffer"));
 }
 
 void FHairCardsInterpolationResource::ReleaseRHI()
@@ -823,7 +891,7 @@ FHairStrandsRaytracingResource::FHairStrandsRaytracingResource(const FHairMeshes
 void FHairStrandsRaytracingResource::InitRHI()
 {
 	check(IsInRenderingThread());
-	CreateBuffer<FHairStrandsRaytracingFormat>(VertexCount, PositionBuffer);
+	CreateBuffer<FHairStrandsRaytracingFormat>(VertexCount, PositionBuffer, TEXT("HairStrandsRaytracing_PositionBuffer"));
 }
 
 void FHairStrandsRaytracingResource::ReleaseRHI()

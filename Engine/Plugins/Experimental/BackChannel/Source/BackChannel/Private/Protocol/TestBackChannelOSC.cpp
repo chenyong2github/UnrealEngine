@@ -47,6 +47,8 @@ bool FBackChannelTestOSCMessage::RunTest(const FString& Parameters)
 	// #agrant todo - cleanup
 	// Message << IntValue << FloatValue << StringValue << AnswerArray;
 	Message.Write(TEXT("Int"), IntValue);
+	Message.Write(TEXT("true"), true);
+	Message.Write(TEXT("false"), false);
 	Message.Write(TEXT("Float"), FloatValue);
 	Message.Write(TEXT("String"), StringValue);
 	Message.Write(TEXT("Array"), AnswerArray);
@@ -63,7 +65,7 @@ bool FBackChannelTestOSCMessage::RunTest(const FString& Parameters)
 
 	// verify this address and tags...
 	check(Address == TEXT("/foo"));
-	check(Tags == TEXT("ifsib"));
+	check(Tags == TEXT("iTFfsb"));
 	check(ArgSize == ExpectedArgSize);
 
 	TArray<uint8> Buffer;
@@ -78,14 +80,14 @@ bool FBackChannelTestOSCMessage::RunTest(const FString& Parameters)
 	// read them back
 	int32 OutIntValue(0);
 	float OutFloatValue(0);
+	bool OutTrueValue(false);
+	bool OutFalseValue(true);
 	FString OutStringValue;
 	TArray<uint8> OutArray;
 
-	OutArray.AddUninitialized(kArraySize);
-
-	// #agrant cleanup
-	// *NewMessage << OutIntValue << OutFloatValue << OutStringValue << OutArray;
 	NewMessage->Read(TEXT("Int"), OutIntValue);
+	NewMessage->Read(TEXT("true"), OutTrueValue);
+	NewMessage->Read(TEXT("false"), OutFalseValue);
 	NewMessage->Read(TEXT("Float"), OutFloatValue);
 	NewMessage->Read(TEXT("String"), OutStringValue);
 	NewMessage->Read(TEXT("Array"), OutArray);
@@ -93,10 +95,13 @@ bool FBackChannelTestOSCMessage::RunTest(const FString& Parameters)
 	check(OutIntValue == IntValue);
 	check(OutFloatValue == OutFloatValue);
 	check(OutStringValue == OutStringValue);
+	check(OutTrueValue == true);
+	check(OutFalseValue == false);
+	check(OutArray.Num() == AnswerArray.Num());
 	
 	for (int i = 0; i < OutArray.Num(); i++)
 	{
-		check(OutArray[i] == kArrayValue);
+		check(OutArray[i] == AnswerArray[i]);
 	}
 
 	return true;

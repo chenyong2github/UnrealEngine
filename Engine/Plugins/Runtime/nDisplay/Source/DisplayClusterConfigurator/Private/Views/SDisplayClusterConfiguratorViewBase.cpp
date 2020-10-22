@@ -5,14 +5,6 @@
 #define LOCTEXT_NAMESPACE "SDisplayClusterConfiguratorViewBase"
 
 
-SDisplayClusterConfiguratorViewBase::SDisplayClusterConfiguratorViewBase()
-{
-}
-
-SDisplayClusterConfiguratorViewBase::~SDisplayClusterConfiguratorViewBase()
-{
-}
-
 void SDisplayClusterConfiguratorViewBase::Construct(const FArguments& InArgs, const TSharedRef<FDisplayClusterConfiguratorToolkit>& InToolkit)
 {
 	ToolkitPtr = InToolkit;

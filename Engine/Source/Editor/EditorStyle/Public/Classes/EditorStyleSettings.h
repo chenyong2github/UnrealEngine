@@ -105,6 +105,10 @@ public:
 	UPROPERTY(EditAnywhere, config, Category = Graphs, meta = (ClampMin = "1.0", ClampMax = "100.0", UIMin = "1.0", UIMax = "100.0"))
 	uint32 GridSnapSize;
 
+	/** Optional brush used for graph backgrounds */
+	UPROPERTY(EditAnywhere, config, Category = Graphs, meta = (DisplayName = "Background Brush"))
+	FSlateBrush GraphBackgroundBrush;
+
 	/** Enables animated transitions for certain menus and pop-up windows.  Note that animations may be automatically disabled at low frame rates in order to improve responsiveness. */
 	UPROPERTY(EditAnywhere, config, Category=UserInterface)
 	uint32 bEnableWindowAnimations:1;

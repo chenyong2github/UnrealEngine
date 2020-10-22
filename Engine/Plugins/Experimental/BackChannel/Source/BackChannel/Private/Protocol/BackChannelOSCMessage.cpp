@@ -103,21 +103,16 @@ int FBackChannelOSCMessage::Serialize(const TCHAR Code, void* InData, int32 InSi
 	}
 }
 
-int FBackChannelOSCMessage::WriteTagAndData(const TCHAR Code, const void* InData, int32 InSize)
+int FBackChannelOSCMessage::WriteTag(const TCHAR Code)
 {
 	TagString += Code;
 	TagIndex++;
+	return 0; 
+}
 
-	// in OSC every write must be a multiple of 32-bits
-	int32 RoundedSize = RoundedArgumentSize(InSize);
-
-	// for blobs we need to write out the size first
-	if (Code == TEXT('b') && !IsLegacyConnection())
-	{
-		int32 SwappedSize = ByteSwap(InSize);
-		WriteData(&SwappedSize, sizeof(int32));
-	}	
-
+int FBackChannelOSCMessage::WriteTagAndData(const TCHAR Code, const void* InData, int32 InSize)
+{
+	WriteTag(Code);
 	WriteData(InData, InSize);
 	return 0;
 }
@@ -135,45 +130,87 @@ int FBackChannelOSCMessage::WriteData(const void* InData, int32 InSize)
 	return 0;
 }
 
-int FBackChannelOSCMessage::ReadTagAndData(const TCHAR Code, void* InData, int32 InSize)
+TCHAR FBackChannelOSCMessage::ReadTag(const TCHAR ExpectedTag, bool SuppressWarning /*= false*/)
 {
 	if (TagIndex == TagString.Len())
 	{
-		UE_LOG(LogBackChannel, Error, TEXT("OSCMessage: Cannot read tag %c, no more tags!"), Code);
-		return 1;
+		UE_CLOG(!SuppressWarning, LogBackChannel, Error, TEXT("OSCMessage: Cannot read tag %c, no more tags!"), ExpectedTag);
+		return 0;
 	}
 
 	TCHAR CurrentTag = TagString[TagIndex];
 
-	if (CurrentTag != Code)
+	if (CurrentTag != ExpectedTag)
 	{
-		UE_LOG(LogBackChannel, Error, TEXT("OSCMessage: Requested tag %c but next tag was %c"), Code, CurrentTag);
-		return 1;
+		UE_CLOG(!SuppressWarning, LogBackChannel, Error, TEXT("OSCMessage: Requested tag %c but next tag was %c"), ExpectedTag, CurrentTag);
+		return 0;
 	}
 
-	if (CurrentTag == TEXT('b') && !IsLegacyConnection())
-	{
-		int32 BlobSize = 0;
-		ReadData(&BlobSize, sizeof(int32));
-		BlobSize = ByteSwap(BlobSize);
-		ReadData(InData, BlobSize);
-	}
-	else
-	{
-		ReadData(InData, InSize);
-	}
 	TagIndex++;
+	return CurrentTag;
+}
+
+int FBackChannelOSCMessage::ReadTagAndData(const TCHAR ExpectedTag, void* InData, int32 InSize)
+{
+	TCHAR CurrentTag = ReadTag(ExpectedTag);
+
+	if (CurrentTag == 0)
+	{
+		// readtag will generate errors
+		return 1;
+	}	
+	ReadData(InData, InSize);
 	return 0;
 }
 
 int FBackChannelOSCMessage::ReadData(void* InData, int32 InSize)
 {
 	FMemory::Memcpy(InData, Buffer.GetData() + BufferIndex, InSize);
-
 	// in OSC every write must be a multiple of 32-bits
 	BufferIndex += RoundedArgumentSize(InSize);
-
 	return 0;
+}
+
+/* Read a blob of data from our arguments */
+int FBackChannelOSCMessage::Read(const TCHAR* InName, void* OutBlob, int32 MaxBlobSize, int32& OutBlobSize)
+{
+	check(IsReading());
+
+	bool ReadWasSuccess = false;
+
+	if (ReadTag(TEXT('b')))
+	{
+		// take a copy here incase the user should use the same var for both args..
+		int PassedMaxSize = MaxBlobSize;
+
+		// read the blob size
+		ReadData(&OutBlobSize, sizeof(int32));
+
+		if (PassedMaxSize == 0)
+		{
+			// if MaxBlobSize was 0 then this was just a query so backout the tag and int that was read
+			TagIndex--;
+			BufferIndex -= sizeof(int32);
+			ReadWasSuccess = true; // still success
+		}
+		else
+		{
+			if (ensure(OutBlob) && PassedMaxSize >= OutBlobSize)
+			{
+				ReadData(OutBlob, OutBlobSize);
+			}
+			else
+			{
+				// don't read any data, just skip it all so subsequent reads don't access duff data
+				BufferIndex += RoundedArgumentSize(OutBlobSize);
+				UE_LOG(LogBackChannel, Error, TEXT("OSCMessage: buffer for reading blob was too small. Blob: %d bytes, buffer: %d"), OutBlobSize, MaxBlobSize);
+			}
+		}
+
+		ReadWasSuccess = (MaxBlobSize >= OutBlobSize || MaxBlobSize == 0);
+	}
+
+	return ReadWasSuccess ? 0 : 1;
 }
 
 int32 FBackChannelOSCMessage::GetSize() const 

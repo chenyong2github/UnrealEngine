@@ -1276,12 +1276,18 @@ void FGeomCacheIndexBuffer::Update(const TArray<uint32>& Indices)
 	}
 	else
 	{
-		// Copy the index data into the index buffer.
-		Buffer = RHILockIndexBuffer(IndexBufferRHI, 0, Indices.Num() * sizeof(uint32), RLM_WriteOnly);
+		if (Indices.Num() > 0)
+		{
+			// Copy the index data into the index buffer.
+			Buffer = RHILockIndexBuffer(IndexBufferRHI, 0, Indices.Num() * sizeof(uint32), RLM_WriteOnly);
+		}
 	}
 
-	FMemory::Memcpy(Buffer, Indices.GetData(), Indices.Num() * sizeof(uint32));
-	RHIUnlockIndexBuffer(IndexBufferRHI);
+	if (Buffer)
+	{
+		FMemory::Memcpy(Buffer, Indices.GetData(), Indices.Num() * sizeof(uint32));
+		RHIUnlockIndexBuffer(IndexBufferRHI);
+	}
 }
 
 void FGeomCacheIndexBuffer::UpdateSizeOnly(int32 NewNumIndices)

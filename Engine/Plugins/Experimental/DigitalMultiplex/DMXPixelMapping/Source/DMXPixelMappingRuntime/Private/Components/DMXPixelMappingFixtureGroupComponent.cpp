@@ -49,6 +49,28 @@ void UDMXPixelMappingFixtureGroupComponent::PostEditChangeChainProperty(FPropert
 		check(LibraryNameWidget.IsValid());
 		LibraryNameWidget->SetText(FText::FromString(GetUserFriendlyName()));
 	}
+	else if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupComponent, bVisibleInDesigner))
+	{
+		UpdateWidget();
+
+		// Update all children
+		ForEachComponentOfClass<UDMXPixelMappingFixtureGroupItemComponent>([](UDMXPixelMappingFixtureGroupItemComponent* InComponent)
+		{
+			InComponent->UpdateWidget();
+		}, false);
+	}
+	else if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupItemComponent, CellBlendingQuality))
+	{
+		// Update all children
+		ForEachComponentOfClass<UDMXPixelMappingFixtureGroupItemComponent>([&](UDMXPixelMappingFixtureGroupItemComponent* InComponent)
+		{
+			InComponent->CellBlendingQuality = CellBlendingQuality;
+		}, false);
+	}
+	else if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, EditorColor))
+	{
+		Brush.TintColor = EditorColor;
+	}
 
 	if (PropertyChangedChainEvent.ChangeType != EPropertyChangeType::Interactive)
 	{
@@ -67,31 +89,6 @@ void UDMXPixelMappingFixtureGroupComponent::PostEditChangeChainProperty(FPropert
 		{
 			SetSizeWithinMinBoundaryBox();
 		}
-	}
-
-	if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupComponent, bVisibleInDesigner))
-	{
-		UpdateWidget();
-
-		// Update all children
-		ForEachComponentOfClass<UDMXPixelMappingFixtureGroupItemComponent>([](UDMXPixelMappingFixtureGroupItemComponent* InComponent)
-		{
-			InComponent->UpdateWidget();
-		}, false);
-	}
-
-	if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupItemComponent, CellBlendingQuality))
-	{
-		// Update all children
-		ForEachComponentOfClass<UDMXPixelMappingFixtureGroupItemComponent>([&](UDMXPixelMappingFixtureGroupItemComponent* InComponent)
-		{
-			InComponent->CellBlendingQuality = CellBlendingQuality;
-		}, false);
-	}
-
-	if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, EditorColor))
-	{
-		Brush.TintColor = EditorColor;
 	}
 }
 #endif // WITH_EDITOR
@@ -304,7 +301,7 @@ UTextureRenderTarget2D* UDMXPixelMappingFixtureGroupComponent::GetOutputTexture(
 	return OutputTarget;
 }
 
-FVector2D UDMXPixelMappingFixtureGroupComponent::GetSize()
+FVector2D UDMXPixelMappingFixtureGroupComponent::GetSize() const
 {
 	return FVector2D(SizeX, SizeY);
 }

@@ -140,7 +140,7 @@ UDestructibleMesh* FDestructibleMeshEditorModule::CreateDestructibleMeshFromStat
 
 	// We can't use any speedtree materials for destructibles due to UV requirements, so check the graph here
 	TArray<UMaterial*> SpeedTreeMaterials;
-	for(FStaticMaterial& StaticMaterial : StaticMesh->StaticMaterials)
+	for(FStaticMaterial& StaticMaterial : StaticMesh->GetStaticMaterials())
 	{
 		if(UMaterialInterface* Mat = StaticMaterial.MaterialInterface)
 		{

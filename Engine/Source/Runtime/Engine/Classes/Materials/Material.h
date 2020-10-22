@@ -1501,7 +1501,7 @@ private:
 	 * The results will be applied to this FMaterial in the renderer when they are finished compiling.
 	 * Note: This modifies material variables used for rendering and is assumed to be called within a FMaterialUpdateContext!
 	 */
-	void CacheResourceShadersForRendering(bool bRegenerateId);
+	void CacheResourceShadersForRendering(bool bRegenerateId, EMaterialShaderPrecompileMode PrecompileMode = EMaterialShaderPrecompileMode::Default);
 
 	/**
 	 * Cache resource shaders for cooking on the given shader platform.
@@ -1513,7 +1513,7 @@ private:
 	void CacheResourceShadersForCooking(EShaderPlatform Platform, TArray<FMaterialResource*>& OutCachedMaterialResources, const ITargetPlatform* TargetPlatform = nullptr);
 
 	/** Caches shader maps for an array of material resources. */
-	void CacheShadersForResources(EShaderPlatform ShaderPlatform, const TArray<FMaterialResource*>& ResourcesToCache, const ITargetPlatform* TargetPlatform = nullptr);
+	void CacheShadersForResources(EShaderPlatform ShaderPlatform, const TArray<FMaterialResource*>& ResourcesToCache, EMaterialShaderPrecompileMode PrecompileMode = EMaterialShaderPrecompileMode::Default, const ITargetPlatform* TargetPlatform = nullptr);
 
 #if WITH_EDITOR
 	/**
@@ -1705,7 +1705,11 @@ public:
 	ENGINE_API virtual bool GetExpressionsInPropertyChain(EMaterialProperty InProperty, 
 		TArray<UMaterialExpression*>& OutExpressions, struct FStaticParameterSet* InStaticParameterSet,
 		ERHIFeatureLevel::Type InFeatureLevel = ERHIFeatureLevel::Num, EMaterialQualityLevel::Type InQuality = EMaterialQualityLevel::Num, ERHIShadingPath::Type InShadingPath = ERHIShadingPath::Num);
-#endif
+
+	/** Add to the set any texture referenced by expressions, including nested functions, as well as any overrides from parameters. */
+	ENGINE_API virtual void GetReferencedTexturesAndOverrides(TSet<const UTexture*>& InOutTextures) const;
+
+#endif // WITH_EDITOR
 
 	/** Appends textures referenced by expressions, including nested functions. */
 	ENGINE_API virtual TArrayView<UObject* const> GetReferencedTextures() const override final { return CachedExpressionData.ReferencedTextures; }

@@ -226,6 +226,21 @@ void FManagedArrayCollection::Reserve(int32 Size, FName Group)
 	}
 }
 
+void FManagedArrayCollection::EmptyGroup(FName Group)
+{
+	ensure(HasGroup(Group));
+
+	for (TTuple<FKeyType, FValueType>& Entry : Map)
+	{
+		if (Entry.Key.Get<1>() == Group)
+		{
+			Entry.Value.Value->Empty();
+		}
+	}
+
+	GroupInfo[Group].Size = 0;
+}
+
 void FManagedArrayCollection::ReorderElements(FName Group, const TArray<int32>& NewOrder)
 {
 	const int32 GroupSize = GroupInfo[Group].Size;

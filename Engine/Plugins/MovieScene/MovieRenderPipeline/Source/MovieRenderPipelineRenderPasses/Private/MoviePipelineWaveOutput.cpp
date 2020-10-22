@@ -64,11 +64,6 @@ static bool IsMoviePipelineAudioOutputSupported(const UObject* WorldContextObjec
 
 void UMoviePipelineWaveOutput::BeginFinalizeImpl()
 {
-	if (!IsEnabled() || !GetIsUserCustomized())
-	{
-		return;
-	}
-
 	if (!IsMoviePipelineAudioOutputSupported(this))
 	{
 		return;

@@ -237,14 +237,7 @@ private:
 	{
 		~TGPUsyncedDataDeleter()
 		{
-			ENQUEUE_RENDER_COMMAND(DestroyElectraTextureSample)([this](FRHICommandListImmediate& RHICmdList)
-			{
-				RHICmdList.EnqueueLambda([this](FRHICommandListImmediate& CmdList)
-				{
-					Flush();
-				});
-			});
-			FlushRenderingCommands();
+			Flush();
 		}
 
 		void Retire(const ObjectRefType& Object)

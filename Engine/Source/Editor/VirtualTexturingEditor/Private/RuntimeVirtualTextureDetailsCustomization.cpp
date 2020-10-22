@@ -100,6 +100,10 @@ void FRuntimeVirtualTextureDetailsCustomization::CustomizeDetails(IDetailLayoutB
 		return;
 	}
 
+	// Set UIMax dependent on adaptive page table setting
+	FString MaxTileCountString = FString::Printf(TEXT("%d"), URuntimeVirtualTexture::GetMaxTileCountLog2(VirtualTexture->GetAdaptivePageTable()));
+	DetailBuilder.GetProperty(FName(TEXT("TileCount")))->SetInstanceMetaData("UIMax", MaxTileCountString);
+
 	// Add size helpers
 	IDetailCategoryBuilder& SizeCategory = DetailBuilder.EditCategory("Size", FText::GetEmpty());
 	AddTextToProperty(DetailBuilder, SizeCategory, "TileCount", TileCountText);
@@ -108,8 +112,8 @@ void FRuntimeVirtualTextureDetailsCustomization::CustomizeDetails(IDetailLayoutB
 
 	// Add details block
 	IDetailCategoryBuilder& DetailsCategory = DetailBuilder.EditCategory("Details", FText::GetEmpty(), ECategoryPriority::Important);
-	static const FText RowText = LOCTEXT("Category_Details", "Details");
-	DetailsCategory.AddCustomRow(RowText)
+	static const FText CustomRowSizeText = LOCTEXT("Details_RowFilter_Size", "Virtual Size");
+	DetailsCategory.AddCustomRow(CustomRowSizeText)
 	.NameContent()
 	[
 		SNew(STextBlock)
@@ -121,30 +125,72 @@ void FRuntimeVirtualTextureDetailsCustomization::CustomizeDetails(IDetailLayoutB
 	[
 		SAssignNew(SizeText, STextBlock)
 	];
+	static const FText CustomRowPageTableSizeText = LOCTEXT("Details_RowFilter_PageTableSize", "Page Table Size");
+	DetailsCategory.AddCustomRow(CustomRowPageTableSizeText)
+	.NameContent()
+	[
+		SNew(STextBlock)
+		.Font(IDetailLayoutBuilder::GetDetailFont())
+		.Text(LOCTEXT("Details_PageTableSize", "Page Table Size"))
+		.ToolTipText(LOCTEXT("Details_PageTableSize_Tooltip", "Final page table size. This can vary according to the adaptive page table setting."))
+	]
+	.ValueContent()
+	[
+		SAssignNew(PageTableSizeText, STextBlock)
+	];
+
+	// Cache detail builder to refresh view updates
+	CachedDetailBuilder = &DetailBuilder;
 
 	// Add refresh callback for all properties 
-	DetailBuilder.GetProperty(FName(TEXT("TileCount")))->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FRuntimeVirtualTextureDetailsCustomization::RefreshDetails));
-	DetailBuilder.GetProperty(FName(TEXT("TileSize")))->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FRuntimeVirtualTextureDetailsCustomization::RefreshDetails));
-	DetailBuilder.GetProperty(FName(TEXT("TileBorderSize")))->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FRuntimeVirtualTextureDetailsCustomization::RefreshDetails));
-	DetailBuilder.GetProperty(FName(TEXT("MaterialType")))->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FRuntimeVirtualTextureDetailsCustomization::RefreshDetails));
-	DetailBuilder.GetProperty(FName(TEXT("bCompressTextures")))->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FRuntimeVirtualTextureDetailsCustomization::RefreshDetails));
-	DetailBuilder.GetProperty(FName(TEXT("RemoveLowMips")))->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FRuntimeVirtualTextureDetailsCustomization::RefreshDetails));
+	DetailBuilder.GetProperty(FName(TEXT("TileCount")))->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FRuntimeVirtualTextureDetailsCustomization::RefreshTextDetails));
+	DetailBuilder.GetProperty(FName(TEXT("TileSize")))->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FRuntimeVirtualTextureDetailsCustomization::RefreshTextDetails));
+	DetailBuilder.GetProperty(FName(TEXT("TileBorderSize")))->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FRuntimeVirtualTextureDetailsCustomization::RefreshTextDetails));
+	DetailBuilder.GetProperty(FName(TEXT("bAdaptive")))->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FRuntimeVirtualTextureDetailsCustomization::RefreshDetailsView));
 
 	// Initialize text blocks
-	RefreshDetails();
+	RefreshTextDetails();
 }
 
-void FRuntimeVirtualTextureDetailsCustomization::RefreshDetails()
+void FRuntimeVirtualTextureDetailsCustomization::RefreshTextDetails()
 {
 	FNumberFormattingOptions SizeOptions;
 	SizeOptions.UseGrouping = false;
 	SizeOptions.MaximumFractionalDigits = 0;
 
  	TileCountText->SetText(FText::Format(LOCTEXT("Details_Number", "{0}"), FText::AsNumber(VirtualTexture->GetTileCount(), &SizeOptions)));
- 	TileSizeText->SetText(FText::Format(LOCTEXT("Details_Number", "{0}"), FText::AsNumber(VirtualTexture->GetTileSize(), &SizeOptions)));
+	TileSizeText->SetText(FText::Format(LOCTEXT("Details_Number", "{0}"), FText::AsNumber(VirtualTexture->GetTileSize(), &SizeOptions)));
  	TileBorderSizeText->SetText(FText::Format(LOCTEXT("Details_Number", "{0}"), FText::AsNumber(VirtualTexture->GetTileBorderSize(), &SizeOptions)));
 
-	SizeText->SetText(FText::Format(LOCTEXT("Details_Number", "{0}"), FText::AsNumber(VirtualTexture->GetSize(), &SizeOptions)));
+	FString SizeUnits = TEXT("Texels");
+	int32 Size = VirtualTexture->GetSize();
+	int32 SizeLog2 = FMath::CeilLogTwo(Size);
+	if (SizeLog2 >= 30)
+	{
+		Size = Size >> 30;
+		SizeUnits = TEXT("GiTexels");
+	}
+	else if (SizeLog2 >= 20)
+	{
+		Size = Size >> 20;
+		SizeUnits = TEXT("MiTexels");
+	}
+	else if (SizeLog2 >= 10)
+	{
+		Size = Size >> 10;
+		SizeUnits = TEXT("KiTexels");
+	}
+	SizeText->SetText(FText::Format(LOCTEXT("Details_Number_Units", "{0} {1}"), FText::AsNumber(Size, &SizeOptions), FText::FromString(SizeUnits)));
+
+	PageTableSizeText->SetText(FText::Format(LOCTEXT("Details_Number", "{0}"), FText::AsNumber(VirtualTexture->GetPageTableSize(), &SizeOptions)));
+}
+
+void FRuntimeVirtualTextureDetailsCustomization::RefreshDetailsView()
+{
+	if (CachedDetailBuilder != nullptr)
+	{
+		CachedDetailBuilder->ForceRefreshDetails();
+	}
 }
 
 

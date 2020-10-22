@@ -48,6 +48,10 @@ public:
 	 */
 	static TSharedRef<ISequencerTrackEditor> CreateTrackEditor( TSharedRef<ISequencer> OwningSequencer );
 
+	/**
+	* Keeps track of how many skeletal animation track editors we have*
+	*/
+	static int32 NumberActive;
 public:
 
 	// ISequencerTrackEditor interface

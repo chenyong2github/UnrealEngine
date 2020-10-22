@@ -20,6 +20,38 @@ struct FLODMappingData
 	UPROPERTY(transient)
 	TArray<int32> InverseMapping;
 };
+
+UENUM(BlueprintType)
+enum class ESyncOption : uint8
+{
+	/** Drive LOD from this component. It will contribute to the change of LOD */
+	Drive,
+	/** It follows what's currently driven by other components. It doesn't contribute to the change of LOD*/
+	Passive,
+	/** It is disabled, it doesn't do anything */
+	Disabled, 
+};
+
+USTRUCT(BlueprintType)
+struct FComponentSync
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = FComponentSync)
+	FName Name;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = FComponentSync)
+	ESyncOption SyncOption;
+
+	FComponentSync()
+	: SyncOption(ESyncOption::Drive)
+	{}
+
+	FComponentSync(const FName& InName, ESyncOption InSyncOption)
+		: Name (InName)
+		, SyncOption(InSyncOption)
+	{}
+};
 /**
  * Implement an Actor component for LOD Sync of different components
  *
@@ -42,12 +74,16 @@ class ENGINE_API ULODSyncComponent : public UActorComponent
 	int32 ForcedLOD = -1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = LOD)
-	TArray<FName> ComponentsToSync;
+	TArray<FComponentSync> ComponentsToSync;
 
 	// by default, the mapping will be one to one
 // but if you want custom, add here. 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = LOD)
 	TMap<FName, FLODMappingData> CustomLODMapping;
+
+	/** Returns a string detailing  */
+	UFUNCTION(BlueprintCallable, Category = "Components|SkeletalMesh")
+	FString GetLODSyncDebugText() const;
 
 private:
 	UPROPERTY(transient)
@@ -57,6 +93,11 @@ private:
 	UPROPERTY(transient)
 	int32 CurrentNumLODs = 0;
 
+	// component that drives the LOD
+	UPROPERTY(transient)
+	TArray<UPrimitiveComponent*> DriveComponents;
+
+	// all the components that ticks
 	UPROPERTY(transient)
 	TArray<UPrimitiveComponent*> SubComponents;
 
@@ -74,5 +115,6 @@ private:
 	int32 GetSyncMappingLOD(const FName& ComponentName, int32 CurrentSourceLOD) const;
 	void InitializeSyncComponents();
 	void UninitializeSyncComponents();
+	const FComponentSync* GetComponentSync(const FName& InName) const;
 };
 

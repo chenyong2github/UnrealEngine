@@ -34,8 +34,11 @@ struct FNiagaraDataInterfaceProxyTexture : public FNiagaraDataInterfaceProxy
 
 	virtual void PreStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceStageArgs& Context) override
 	{
-		// Make sure the texture is readable, we don't know where it's coming from.
-		RHICmdList.Transition(FRHITransitionInfo(TextureReferenceRHI->GetReferencedTexture(), ERHIAccess::Unknown, ERHIAccess::SRVMask));
+		if (TextureReferenceRHI.IsValid())
+		{
+			// Make sure the texture is readable, we don't know where it's coming from.
+			RHICmdList.Transition(FRHITransitionInfo(TextureReferenceRHI->GetReferencedTexture(), ERHIAccess::Unknown, ERHIAccess::SRVMask));
+		}
 	}
 };
 
@@ -171,16 +174,7 @@ void UNiagaraDataInterfaceTexture::GetFunctions(TArray<FNiagaraFunctionSignature
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec2Def(), TEXT("DDX")));
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec2Def(), TEXT("DDY")));
 		
-		Sig.SetDescription(LOCTEXT("TextureSamplePseudoVolumeTextureDesc", "Return a pseudovolume texture sample.\n"
-			"Useful for simulating 3D texturing with a 2D texture or as a texture flipbook with lerped transitions.\n"
-			"Treats 2d layout of frames as a 3d texture and performs bilinear filtering by blending with an offset Z frame.\n"
-			"Texture = Input Texture Object storing Volume Data\n"
-			"UVW = Input float3 for Position, 0 - 1\n"
-			"XYNumFrames = Input float for num frames in x, y directions\n"
-			"TotalNumFrames = Input float for num total frames\n"
-			"MipMode = Sampling mode : 0 = use miplevel, 1 = use UV computed gradients, 2 = Use gradients(default = 0)\n"
-			"MipLevel = MIP level to use in mipmode = 0 (default 0)\n"
-			"DDX, DDY = Texture gradients in mipmode = 2\n"));
+		Sig.SetDescription(LOCTEXT("TextureSamplePseudoVolumeTextureDesc", "Return a pseudovolume texture sample.\nUseful for simulating 3D texturing with a 2D texture or as a texture flipbook with lerped transitions.\nTreats 2d layout of frames as a 3d texture and performs bilinear filtering by blending with an offset Z frame.\nTexture = Input Texture Object storing Volume Data\nUVW = Input float3 for Position, 0 - 1\nXYNumFrames = Input float for num frames in x, y directions\nTotalNumFrames = Input float for num total frames\nMipMode = Sampling mode : 0 = use miplevel, 1 = use UV computed gradients, 2 = Use gradients(default = 0)\nMipLevel = MIP level to use in mipmode = 0 (default 0)\nDDX, DDY = Texture gradients in mipmode = 2\n"));
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec4Def(), TEXT("Value")));
 		//Sig.Owner = *GetName();
 

@@ -25,11 +25,12 @@ enum class ERemoteSessionChannelChange : int32
 	Destroyed
 };
 
-
-const TCHAR* LexToString(ERemoteSessionChannelMode InMode);
-void LexFromString(ERemoteSessionChannelMode& Value, const TCHAR* String);
-
-DECLARE_DELEGATE_ThreeParams(FOnRemoteSessionChannelChange, IRemoteSessionRole* /*Role*/, TWeakPtr<IRemoteSessionChannel> /*Instance*/, ERemoteSessionChannelChange /*Mode*/);
+UENUM()
+enum class ERemoteSessionConnectionChange : int32
+{
+	Connected,
+	Disconnected
+};
 
 
 USTRUCT()
@@ -37,17 +38,26 @@ struct REMOTESESSION_API FRemoteSessionChannelInfo
 {
 	GENERATED_BODY()
 
-	UPROPERTY(config)
-	FString Type;
+		UPROPERTY(config)
+		FString Type;
 
 	UPROPERTY(config)
-	ERemoteSessionChannelMode Mode = ERemoteSessionChannelMode::Unknown;
+		ERemoteSessionChannelMode Mode = ERemoteSessionChannelMode::Unknown;
 
 	FRemoteSessionChannelInfo() = default;
 	FRemoteSessionChannelInfo(FString InType, ERemoteSessionChannelMode InMode)
 		: Type(InType), Mode(InMode)
 	{ }
 };
+
+
+const TCHAR* LexToString(ERemoteSessionChannelMode InMode);
+void LexFromString(ERemoteSessionChannelMode& Value, const TCHAR* String);
+
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnRemoteSessionConnectionChange, IRemoteSessionRole* /*Role*/, ERemoteSessionConnectionChange /*State*/);
+DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnRemoteSessionChannelChange, IRemoteSessionRole* /*Role*/, TWeakPtr<IRemoteSessionChannel> /*Instance*/, ERemoteSessionChannelChange /*State*/);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnRemoteSessionReceiveChannelList, IRemoteSessionRole* /*Role*/, TArrayView< FRemoteSessionChannelInfo> /*ChannelList*/);
+
 
 /** Settings for the Asset Management framework, which can be used to discover, load, and audit game-specific asset types */
 UCLASS(config = Engine)
@@ -83,7 +93,7 @@ public:
 
 	/* Image quality (1-100) */
 	UPROPERTY(config)
-	int32 ImageQuality = 85;
+	int32 ImageQuality = 80;
 
 	/* Framerate of images from the host (will be min of this value and the actual framerate of the game */
 	UPROPERTY(config)

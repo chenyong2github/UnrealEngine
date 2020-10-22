@@ -22,7 +22,6 @@
 #include "Misc/DisplayClusterStrings.h"
 
 #include "DisplayClusterRootActor.h"
-#include "Components/DisplayClusterRootComponent.h"
 #include "Components/DisplayClusterCameraComponent.h"
 #include "Components/DisplayClusterMeshComponent.h"
 #include "Components/DisplayClusterSceneComponent.h"
@@ -132,13 +131,6 @@ ADisplayClusterRootActor* UDisplayClusterBlueprintAPIImpl::GetRootActor() const
 	ADisplayClusterRootActor* const RootActor = IDisplayCluster::Get().GetGameMgr()->GetRootActor();
 	UE_LOG(LogDisplayClusterBlueprint, Verbose, TEXT("GetRootActor - %s"), RootActor ? *RootActor->GetHumanReadableName() : DisplayClusterStrings::log::NotFound);
 	return RootActor;
-}
-
-UDisplayClusterRootComponent* UDisplayClusterBlueprintAPIImpl::GetRootComponent() const
-{
-	UDisplayClusterRootComponent* const RootComp = IDisplayCluster::Get().GetGameMgr()->GetRootComponent();
-	UE_LOG(LogDisplayClusterBlueprint, Verbose, TEXT("GetRootComponent - %s"), RootComp ? *RootComp->GetReadableName() : DisplayClusterStrings::log::NotFound);
-	return RootComp;
 }
 
 

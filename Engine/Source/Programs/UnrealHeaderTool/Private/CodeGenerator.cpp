@@ -3746,8 +3746,15 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 			{
 				FString VariableType = Parameter.TypeVariableRef(true);
 				FString ExtractedType = Parameter.TypeOriginal();
-				
 				FString ParameterCast = FString::Printf(TEXT("*(%s*)"), *ExtractedType);
+
+				// if the parameter is a const enum we need to cast it slightly differently,
+				// we'll get the reference of the stored uint8 and cast it by value.
+				if (Parameter.bIsEnum && !Parameter.bOutput)
+				{
+					VariableType = Parameter.TypeOriginal();
+					ParameterCast = FString::Printf(TEXT("(%s)*(uint8*)"), *ExtractedType);
+				}
 
 				RigVMStubProlog.Add(FString::Printf(TEXT("%s %s = %sRigVMMemoryHandles[%d].GetData();"),
 				*VariableType,
@@ -3843,6 +3850,15 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 
 		const FString Macroized = Macroize(*MacroName, MoveTemp(CombinedLine));
 		OutGeneratedHeaderText.Log(Macroized);
+
+		// Inject static assert to verify that we do not add vtable
+		if (BaseStruct)
+		{
+			FString BaseStructNameCPP = *FNameLookupCPP::GetNameCPP(BaseStruct);
+
+			FString VerifyPolymorphicStructString = FString::Printf(TEXT("\r\nstatic_assert(std::is_polymorphic<%s>() == std::is_polymorphic<%s>(), \"USTRUCT %s cannot be polymorphic unless super %s is polymorphic\");\r\n\r\n"), *StructNameCPP, *BaseStructNameCPP, *StructNameCPP, *BaseStructNameCPP);			
+			Out.Log(VerifyPolymorphicStructString);
+		}
 
 		FString GetHashName = FString::Printf(TEXT("Get_%s_Hash"), *ChoppedSingletonName);
 

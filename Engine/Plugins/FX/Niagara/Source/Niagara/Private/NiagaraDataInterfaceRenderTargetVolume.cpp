@@ -67,7 +67,6 @@ public:
 					}
 
 					OutputUAV = ProxyData->UAV;
-
 					RHICmdList.Transition(FRHITransitionInfo(OutputUAV, InitialState, ERHIAccess::UAVCompute));
 				}
 			}
@@ -89,7 +88,7 @@ public:
 			OutputParam.UnsetUAV(RHICmdList, Context.Shader.GetComputeShader());
 			if (ProxyData && Context.IsOutputStage)
 			{
-				if ( FRHIUnorderedAccessView* OutputUAV = ProxyData->UAV )
+				if (FRHIUnorderedAccessView* OutputUAV = ProxyData->UAV)
 				{
 					RHICmdList.Transition(FRHITransitionInfo(OutputUAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask));
 				}
@@ -110,6 +109,9 @@ UNiagaraDataInterfaceRenderTargetVolume::UNiagaraDataInterfaceRenderTargetVolume
 	: Super(ObjectInitializer)
 {
 	Proxy.Reset(new FNiagaraDataInterfaceProxyRenderTargetVolumeProxy());
+
+	FNiagaraTypeDefinition Def(UTextureRenderTarget::StaticClass());
+	RenderTargetUserParameter.Parameter.SetType(Def);
 }
 
 void UNiagaraDataInterfaceRenderTargetVolume::PostInitProperties()
@@ -229,6 +231,7 @@ bool UNiagaraDataInterfaceRenderTargetVolume::Equals(const UNiagaraDataInterface
 #if WITH_EDITORONLY_DATA
 		OtherTyped->bPreviewRenderTarget == bPreviewRenderTarget &&
 #endif
+		OtherTyped->RenderTargetUserParameter == RenderTargetUserParameter &&
 		OtherTyped->Size == Size;
 }
 
@@ -249,6 +252,7 @@ bool UNiagaraDataInterfaceRenderTargetVolume::CopyToInternal(UNiagaraDataInterfa
 #if WITH_EDITORONLY_DATA
 	DestinationTyped->bPreviewRenderTarget = bPreviewRenderTarget;
 #endif
+	DestinationTyped->RenderTargetUserParameter = RenderTargetUserParameter;
 	return true;
 }
 
@@ -329,16 +333,36 @@ bool UNiagaraDataInterfaceRenderTargetVolume::InitPerInstanceData(void* PerInsta
 	check(Proxy);
 
 	FRenderTargetVolumeRWInstanceData_GameThread* InstanceData = new (PerInstanceData) FRenderTargetVolumeRWInstanceData_GameThread();
-	InstanceData->Size = Size;
-	InstanceData->TargetTexture = NewObject<UTextureRenderTargetVolume>(this);
-	InstanceData->TargetTexture->bCanCreateUAV = true;
-	InstanceData->TargetTexture->OverrideFormat = EPixelFormat::PF_A16B16G16R16;
-	InstanceData->TargetTexture->ClearColor = FLinearColor(0.0, 0, 0, 0);
+	InstanceData->Size.X = FMath::Clamp<int>(Size.X, 1, GMaxVolumeTextureDimensions);
+	InstanceData->Size.Y = FMath::Clamp<int>(Size.Y, 1, GMaxVolumeTextureDimensions);
+	InstanceData->Size.Z = FMath::Clamp<int>(Size.Z, 1, GMaxVolumeTextureDimensions);
+	InstanceData->RTUserParamBinding.Init(SystemInstance->GetInstanceParameters(), RenderTargetUserParameter.Parameter);
 #if WITH_EDITORONLY_DATA
 	InstanceData->bPreviewTexture = bPreviewRenderTarget;
 #endif
-	FNiagaraSystemInstanceID SysID = SystemInstance->GetId();
-	ManagedRenderTargets.Emplace(SysID, InstanceData->TargetTexture);
+
+	// Find or create the render target
+	if (UObject* UserParamObject = InstanceData->RTUserParamBinding.GetValue())
+	{
+		if (UTextureRenderTargetVolume* UserTargetTexture = Cast<UTextureRenderTargetVolume>(UserParamObject))
+		{
+			InstanceData->TargetTexture = UserTargetTexture;
+		}
+		else
+		{
+			UE_LOG(LogNiagara, Error, TEXT("RenderTarget UserParam is a '%s' but is expected to be a UTextureRenderTargetVolume"), *GetNameSafe(UserParamObject->GetClass()));
+		}
+	}
+	if (InstanceData->TargetTexture == nullptr)
+	{
+		InstanceData->TargetTexture = NewObject<UTextureRenderTargetVolume>(this);
+		ManagedRenderTargets.Add(SystemInstance->GetId()) = InstanceData->TargetTexture;
+	}
+
+	InstanceData->TargetTexture->bCanCreateUAV = true;
+	InstanceData->TargetTexture->ClearColor = FLinearColor(0.0, 0, 0, 0);
+	InstanceData->TargetTexture->Init(InstanceData->Size.X, InstanceData->Size.Y, InstanceData->Size.Z, EPixelFormat::PF_A16B16G16R16);
+	InstanceData->TargetTexture->UpdateResourceImmediate(true);
 
 	// Push Updates to Proxy
 	FNiagaraDataInterfaceProxyRenderTargetVolumeProxy* RT_Proxy = GetProxyAs<FNiagaraDataInterfaceProxyRenderTargetVolumeProxy>();
@@ -418,9 +442,9 @@ void UNiagaraDataInterfaceRenderTargetVolume::SetSize(FVectorVMContext& Context)
 		OutSuccess.SetAndAdvance(bSuccess);
 		if (bSuccess)
 		{
-			InstData->Size.X = SizeX;
-			InstData->Size.Y = SizeY;
-			InstData->Size.Z = SizeZ;
+			InstData->Size.X = FMath::Clamp<int>(SizeX, 1, GMaxVolumeTextureDimensions);
+			InstData->Size.Y = FMath::Clamp<int>(SizeY, 1, GMaxVolumeTextureDimensions);
+			InstData->Size.Z = FMath::Clamp<int>(SizeZ, 1, GMaxVolumeTextureDimensions);
 		}
 	}
 }
@@ -457,19 +481,37 @@ bool UNiagaraDataInterfaceRenderTargetVolume::PerInstanceTickPostSimulate(void* 
 	InstanceData->bPreviewTexture = bPreviewRenderTarget;
 #endif
 
+	// Update user parameter binding
+	if (UObject* UserParamObject = InstanceData->RTUserParamBinding.GetValue())
+	{
+		if (UTextureRenderTargetVolume* UserTargetTexture = Cast<UTextureRenderTargetVolume>(UserParamObject))
+		{
+			if (InstanceData->TargetTexture != UserTargetTexture)
+			{
+				InstanceData->TargetTexture = UserTargetTexture;
+				ManagedRenderTargets.Remove(SystemInstance->GetId());
+			}
+		}
+		else
+		{
+			UE_LOG(LogNiagara, Error, TEXT("RenderTarget UserParam is a '%s' but is expected to be a UTextureRenderTargetVolume"), *GetNameSafe(UserParamObject->GetClass()));
+		}
+	}
+
 	// Do we need to update the texture?
 	if (InstanceData->TargetTexture != nullptr)
 	{
-		FIntVector RTSize;
-		RTSize.X = FMath::Max(InstanceData->Size.X, 1);
-		RTSize.Y = FMath::Max(InstanceData->Size.Y, 1);
-		RTSize.Z = FMath::Max(InstanceData->Size.Z, 1);
-
-		if ((InstanceData->TargetTexture->SizeX != RTSize.X) || (InstanceData->TargetTexture->SizeY != RTSize.Y) || (InstanceData->TargetTexture->SizeZ != RTSize.Z) || (InstanceData->TargetTexture->OverrideFormat != EPixelFormat::PF_A16B16G16R16))
+		if ((InstanceData->TargetTexture->SizeX != InstanceData->Size.X) || (InstanceData->TargetTexture->SizeY != InstanceData->Size.Y) || (InstanceData->TargetTexture->SizeZ != InstanceData->Size.Z) || (InstanceData->TargetTexture->OverrideFormat != EPixelFormat::PF_A16B16G16R16) || !InstanceData->TargetTexture->bCanCreateUAV)
 		{
-			InstanceData->TargetTexture->Init(RTSize.X, RTSize.Y, RTSize.Z, EPixelFormat::PF_A16B16G16R16);
+			InstanceData->TargetTexture->bCanCreateUAV = true;
+			InstanceData->TargetTexture->Init(InstanceData->Size.X, InstanceData->Size.Y, InstanceData->Size.Z, EPixelFormat::PF_A16B16G16R16);
 			InstanceData->TargetTexture->UpdateResourceImmediate(true);
 			bUpdateRT = true;
+
+			//////////////////////////////////////////////////////////////////////////
+			//-TOFIX: Workaround FORT-315375 GT / RT Race
+			SystemInstance->RequestMaterialRecache();
+			//////////////////////////////////////////////////////////////////////////
 		}
 	}
 

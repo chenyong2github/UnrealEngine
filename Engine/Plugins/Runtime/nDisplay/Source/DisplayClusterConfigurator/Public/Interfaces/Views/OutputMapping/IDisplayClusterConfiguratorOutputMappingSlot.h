@@ -7,6 +7,7 @@
 class SGraphPanel;
 class SWidget;
 class UEdGraphNode;
+class UTexture;
 
 /**
  * The Interface for control the position and size of Graph node and holds the node widgets and UObject
@@ -61,9 +62,16 @@ public:
 	/**
 	 * Get name of the slot
 	 *
-	 * @return the FName
+	 * @return the FString
 	 */
-	virtual const FName& GetName() const = 0;
+	virtual const FString& GetName() const = 0;
+
+	/**
+	 * Get type of the slot
+	 *
+	 * @return the FString
+	 */
+	virtual const FName& GetType() const = 0;
 
 	/**
 	 * Calculate the local position of the child based on child cluster node coordinates
@@ -204,4 +212,12 @@ public:
 	 * @param InZOrder			New ZOrder
 	 */
 	virtual void SetZOrder(uint32 InZOrder) = 0;
+
+	/**
+	 * Set Texture Preivew for the Slot
+	 *
+	 * @param InTexture			Texture for the Preview
+	 *
+	 */
+	virtual void SetPreviewTexture(UTexture* InTexture) = 0;
 };

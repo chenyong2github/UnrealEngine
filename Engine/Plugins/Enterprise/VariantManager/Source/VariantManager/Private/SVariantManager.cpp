@@ -2742,7 +2742,7 @@ bool AutoCaptureProperty(FVariantManager* VarMan, AActor* TargetActor, const FSt
 	}
 
 	// Exception for switch actor, as FilterProperty will be nullptr because the "Selected Option" property doesn't really exist
-	bool bIsSelectedOption = Cast<ASwitchActor>(TargetActor) && PropertyPath == TEXT( "Selected Option" );
+	bool bIsSelectedOption = Cast<ASwitchActor>(TargetActor) && PropertyPath == SWITCH_ACTOR_SELECTED_OPTION_NAME;
 
 	// Update property captures
 	for (UVariantObjectBinding* Binding : Bindings)
@@ -2911,7 +2911,7 @@ void SVariantManager::OnObjectTransacted(UObject* Object, const class FTransacti
 				if (bAutoCaptureProperties)
 				{
 					TSharedPtr<FVariantManager> PinnedVarMan = VariantManagerPtr.Pin();
-					bool bDidSomething = AutoCaptureProperty(PinnedVarMan.Get(), SwitchActorParent, TEXT("Selected Option"), nullptr);
+					bool bDidSomething = AutoCaptureProperty(PinnedVarMan.Get(), SwitchActorParent, SWITCH_ACTOR_SELECTED_OPTION_NAME, nullptr);
 
 					if (bDidSomething && !bSwitchWasCapturedAlready)
 					{

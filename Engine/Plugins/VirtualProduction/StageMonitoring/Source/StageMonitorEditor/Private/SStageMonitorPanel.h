@@ -44,9 +44,18 @@ private:
 	/** Make the toolbar widgets */
 	TSharedRef<SWidget> MakeToolbarWidget();
 
-	/** HAndles clear entries button clicked */
-	FReply OnClearEntriesClicked();
+	/** Handles clear everything button clicked */
+	FReply OnClearClicked();
 	
+	/** Clears all entries from the current session */
+	void OnClearEntriesClicked();
+
+	/** Clears all unresponsive providers */
+	void OnClearUnresponsiveProvidersClicked();
+
+	/** Builds a menu for specific clearing option */
+	TSharedRef<SWidget> OnClearBuildMenu();
+
 	/** Handles StageMonitor settings button clicked */
 	FReply OnShowProjectSettingsClicked();
 

@@ -4,6 +4,8 @@
 
 #include "DatasmithFacadeScene.h"
 
+#include "Misc/SecureHash.h"
+
 FDatasmithFacadeTexture::FDatasmithFacadeTexture(const TCHAR* InElementName)
 	: FDatasmithFacadeElement(FDatasmithSceneFactory::CreateTexture(InElementName))
 {}
@@ -122,7 +124,15 @@ void FDatasmithFacadeTexture::SetSRGB( EColorSpace Option )
 
 void FDatasmithFacadeTexture::BuildScene( FDatasmithFacadeScene& SceneRef )
 {
-	SceneRef.GetScene()->AddTexture( GetDatasmithTextureElement() );
+	// Make sure ElementHash is valid
+	TSharedRef<IDatasmithTextureElement> TextureElement = GetDatasmithTextureElement();
+
+	FMD5Hash FileHash = FMD5Hash::HashFile(TextureElement->GetFile());
+	TextureElement->SetFileHash(FileHash);
+
+	TextureElement->CalculateElementHash(true);
+
+	SceneRef.GetScene()->AddTexture( TextureElement );
 }
 
 TSharedRef<IDatasmithTextureElement> FDatasmithFacadeTexture::GetDatasmithTextureElement() const

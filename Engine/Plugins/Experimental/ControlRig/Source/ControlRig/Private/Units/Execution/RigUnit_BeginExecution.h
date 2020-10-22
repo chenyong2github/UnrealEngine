@@ -6,6 +6,9 @@
 #include "ControlRigDefines.h"
 #include "RigUnit_BeginExecution.generated.h"
 
+/**
+ * Event for driving the skeleton hierarchy with variables and rig elements
+ */
 USTRUCT(meta=(DisplayName="Forwards Solve", Category="Execution", TitleColor="1 0 0", NodeColor="0.1 0.1 0.1", Keywords="Begin,Update,Tick,Forward,Event"))
 struct CONTROLRIG_API FRigUnit_BeginExecution : public FRigUnit
 {

@@ -48,8 +48,6 @@ public:
 	virtual void UnregisterOnObjectSelected(FDelegateHandle DelegateHandle) override;
 	virtual FDelegateHandle RegisterOnInvalidateViews(const FOnInvalidateViewsDelegate& Delegate) override;
 	virtual void UnregisterOnInvalidateViews(FDelegateHandle DelegateHandle) override;
-	virtual FDelegateHandle RegisterOnClearViewportSelection(const FOnClearViewportSelectionDelegate& Delegate) override;
-	virtual void UnregisterOnClearViewportSelection(FDelegateHandle DelegateHandle) override;
 	const TArray<UObject*>& GetSelectedObjects() const override;
 	virtual void SelectObjects(TArray<UObject*>& InSelectedObjects) override;
 	virtual void InvalidateViews() override;

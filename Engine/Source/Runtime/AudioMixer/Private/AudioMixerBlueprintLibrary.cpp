@@ -57,15 +57,13 @@ void UAudioMixerBlueprintLibrary::AddMasterSubmixEffect(const UObject* WorldCont
 		InitData.SampleRate = MixerDevice->GetSampleRate();
 		InitData.DeviceID = MixerDevice->DeviceID;
 		InitData.PresetSettings = nullptr;
+		InitData.ParentPresetUniqueId = SubmixEffectPreset->GetUniqueID();
 
 		// Immediately create a new sound effect base here before the object becomes potentially invalidated
 		TSoundEffectSubmixPtr SoundEffectSubmix = USoundEffectPreset::CreateInstance<FSoundEffectSubmixInitData, FSoundEffectSubmix>(InitData, *SubmixEffectPreset);
 		SoundEffectSubmix->SetEnabled(true);
 
-		// Get a unique id for the preset object on the game thread. Used to refer to the object on audio render thread.
-		uint32 SubmixPresetUniqueId = SubmixEffectPreset->GetUniqueID();
-
-		MixerDevice->AddMasterSubmixEffect(SubmixPresetUniqueId, SoundEffectSubmix);
+		MixerDevice->AddMasterSubmixEffect(SoundEffectSubmix);
 	}
 }
 
@@ -105,14 +103,12 @@ int32 UAudioMixerBlueprintLibrary::AddSubmixEffect(const UObject* WorldContextOb
 	{
 		FSoundEffectSubmixInitData InitData;
 		InitData.SampleRate = MixerDevice->GetSampleRate();
+		InitData.ParentPresetUniqueId = SubmixEffectPreset->GetUniqueID();
 
 		TSoundEffectSubmixPtr SoundEffectSubmix = USoundEffectPreset::CreateInstance<FSoundEffectSubmixInitData, FSoundEffectSubmix>(InitData, *SubmixEffectPreset);
 		SoundEffectSubmix->SetEnabled(true);
 
-		// Get a unique id for the preset object on the game thread. Used to refer to the object on audio render thread.
-		uint32 SubmixPresetUniqueId = SubmixEffectPreset->GetUniqueID();
-
-		return MixerDevice->AddSubmixEffect(InSoundSubmix, SubmixPresetUniqueId, SoundEffectSubmix);
+		return MixerDevice->AddSubmixEffect(InSoundSubmix, SoundEffectSubmix);
 	}
 
 	return 0;
@@ -150,10 +146,7 @@ void UAudioMixerBlueprintLibrary::ReplaceSoundEffectSubmix(const UObject* WorldC
 		TSoundEffectSubmixPtr SoundEffectSubmix = USoundEffectPreset::CreateInstance<FSoundEffectSubmixInitData, FSoundEffectSubmix>(InitData, *SubmixEffectPreset);
 		SoundEffectSubmix->SetEnabled(true);
 
-		// Get a unique id for the preset object on the game thread. Used to refer to the object on audio render thread.
-		uint32 SubmixPresetUniqueId = SubmixEffectPreset->GetUniqueID();
-
-		MixerDevice->ReplaceSoundEffectSubmix(InSoundSubmix, SubmixChainIndex, SubmixPresetUniqueId, SoundEffectSubmix);
+		MixerDevice->ReplaceSoundEffectSubmix(InSoundSubmix, SubmixChainIndex, SoundEffectSubmix);
 	}
 }
 
@@ -165,6 +158,35 @@ void UAudioMixerBlueprintLibrary::ClearSubmixEffects(const UObject* WorldContext
 	}
 }
 
+void UAudioMixerBlueprintLibrary::SetSubmixEffectChainOverride(const UObject* WorldContextObject, USoundSubmix* InSoundSubmix, TArray<USoundEffectSubmixPreset*> InSubmixEffectPresetChain, float InFadeTimeSec)
+{
+	if (Audio::FMixerDevice* MixerDevice = GetAudioMixerDeviceFromWorldContext(WorldContextObject))
+	{
+		TArray<FSoundEffectSubmixPtr> NewSubmixEffectPresetChain;
+
+		for (USoundEffectSubmixPreset* SubmixEffectPreset : InSubmixEffectPresetChain)
+		{
+			FSoundEffectSubmixInitData InitData;
+			InitData.SampleRate = MixerDevice->GetSampleRate();
+			InitData.ParentPresetUniqueId = SubmixEffectPreset->GetUniqueID();
+
+			TSoundEffectSubmixPtr SoundEffectSubmix = USoundEffectPreset::CreateInstance<FSoundEffectSubmixInitData, FSoundEffectSubmix>(InitData, *SubmixEffectPreset);
+			SoundEffectSubmix->SetEnabled(true);
+
+			NewSubmixEffectPresetChain.Add(SoundEffectSubmix);
+		}
+		
+		MixerDevice->SetSubmixEffectChainOverride(InSoundSubmix, NewSubmixEffectPresetChain, InFadeTimeSec);
+	}
+}
+
+void UAudioMixerBlueprintLibrary::ClearSubmixEffectChainOverride(const UObject* WorldContextObject, USoundSubmix* InSoundSubmix, float InFadeTimeSec)
+{
+	if (Audio::FMixerDevice* MixerDevice = GetAudioMixerDeviceFromWorldContext(WorldContextObject))
+	{
+		MixerDevice->ClearSubmixEffectChainOverride(InSoundSubmix, InFadeTimeSec);
+	}
+}
 
 void UAudioMixerBlueprintLibrary::StartRecordingOutput(const UObject* WorldContextObject, float ExpectedDuration, USoundSubmix* SubmixToRecord)
 {

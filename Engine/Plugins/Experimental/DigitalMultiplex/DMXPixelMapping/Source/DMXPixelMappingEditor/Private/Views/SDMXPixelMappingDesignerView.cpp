@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Views/SDMXPixelMappingDesignerView.h"
+
 #include "Widgets/SDMXPixelMappingDesignerCanvas.h"
 #include "Widgets/SDMXPixelMappingSourceTextureViewport.h"
 #include "Widgets/SDMXPixelMappingRuler.h"
@@ -32,56 +33,8 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Images/SImage.h"
 
+
 #define LOCTEXT_NAMESPACE "SDMXPixelMappingDesignerView"
-
-class FSelectedComponentDragDropOp 
-	: public FDecoratedDragDropOp
-{
-public:
-	DRAG_DROP_OPERATOR_TYPE(FSelectedComponentDragDropOp, FDecoratedDragDropOp)
-
-	virtual ~FSelectedComponentDragDropOp() {}
-
-	struct FDraggingWidgetReference
-	{
-		FDMXPixelMappingComponentReference ComponentReference;
-
-		FVector2D DraggedOffset = FVector2D::ZeroVector;
-	};
-
-	struct FItem
-	{
-		/** The component being dragged */
-		TWeakObjectPtr<UDMXPixelMappingBaseComponent> Component;
-
-		/** The original parent of the widget. */
-		FDMXPixelMappingComponentReference ComponentReference;
-
-		/** The offset of the original click location, as a percentage of the widget's size. */
-		FVector2D DraggedOffset = FVector2D::ZeroVector;
-	};
-
-	TArray<FItem> DraggedWidgets;
-
-	static TSharedRef<FSelectedComponentDragDropOp> New(TSharedPtr<FDMXPixelMappingToolkit> InToolkit, const TArray<FDraggingWidgetReference>& References);
-};
-
-TSharedRef<FSelectedComponentDragDropOp> FSelectedComponentDragDropOp::New(TSharedPtr<FDMXPixelMappingToolkit> InToolkit, const TArray<FDraggingWidgetReference>& References)
-{
-	TSharedRef<FSelectedComponentDragDropOp> Operation = MakeShared<FSelectedComponentDragDropOp>();
-
-	for (const FDraggingWidgetReference& Reference : References)
-	{
-		FItem DraggedWidget;
-		DraggedWidget.Component = Reference.ComponentReference.GetComponent();
-		DraggedWidget.DraggedOffset = Reference.DraggedOffset;
-		Operation->DraggedWidgets.Add(DraggedWidget);
-		Operation->SetDecoratorVisibility(false);
-	}
-
-	Operation->Construct();
-	return Operation;
-}
 
 void SDMXPixelMappingDesignerView::Construct(const FArguments& InArgs, const TSharedPtr<FDMXPixelMappingToolkit>& InToolkit)
 {
@@ -250,7 +203,7 @@ FReply SDMXPixelMappingDesignerView::OnMouseButtonDown(const FGeometry& MyGeomet
 		bFoundWidgetUnderCursor = FindComponentUnderCursor(MyGeometry, MouseEvent, UDMXPixelMappingOutputComponent::StaticClass(), HitResult);
 		if (bFoundWidgetUnderCursor)
 		{
-			SelectedWidgetContextMenuLocation = HitResult.WidgetArranged.Geometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
+			DragOffset = HitResult.WidgetArranged.Geometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
 			
 			if (UDMXPixelMappingMatrixCellComponent* MatrixPixelComponent = Cast<UDMXPixelMappingMatrixCellComponent>(HitResult.Component))
 			{
@@ -264,38 +217,45 @@ FReply SDMXPixelMappingDesignerView::OnMouseButtonDown(const FGeometry& MyGeomet
 		}
 	}
 
-	if (bFoundWidgetUnderCursor)
+	if (MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
 	{
-		if (MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
+		// Select and detect drag when something was clicked
+		if (bFoundWidgetUnderCursor && MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
 		{
 			ResolvePendingSelectedComponents(MouseEvent);
+
+			DraggingStartPositionScreenSpace = MouseEvent.GetScreenSpacePosition();
+
+			return
+				FReply::Handled()
+				.PreventThrottling()
+				.SetUserFocus(AsShared(), EFocusCause::Mouse)
+				.CaptureMouse(AsShared())
+				.DetectDrag(AsShared(), EKeys::LeftMouseButton);
 		}
 
-		DraggingStartPositionScreenSpace = MouseEvent.GetScreenSpacePosition();
-	}
-	else
-	{
-		// Clear the selection immediately if we didn't click anything.
-		if (MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
+
+		// We didn't click anything. Clear the selection.
+		PendingSelectedComponent = nullptr;
+
+		TSharedPtr<FDMXPixelMappingToolkit> ToolkitPtr = ToolkitWeakPtr.Pin();
+		check(ToolkitPtr.IsValid());
+
+		// Switch to parent renderer as a active component
+		if (UDMXPixelMappingRendererComponent* RendererComponent = ToolkitPtr->GetActiveRendererComponent())
 		{
-			// Clear any pending selected widgets
-			PendingSelectedComponent = nullptr;
-
-			TSharedPtr<FDMXPixelMappingToolkit> ToolkitPtr = ToolkitWeakPtr.Pin();
-			check(ToolkitPtr.IsValid());
-
-			// Switch to parent renderer as a active component
-			if (UDMXPixelMappingRendererComponent* RendererComponent = ToolkitPtr->GetActiveRendererComponent())
-			{
-				TSet<FDMXPixelMappingComponentReference> SelectedComponents;
-				SelectedComponents.Add(ToolkitWeakPtr.Pin()->GetReferenceFromComponent(RendererComponent));
-				ToolkitWeakPtr.Pin()->SelectComponents(SelectedComponents);
-			}
+			TSet<FDMXPixelMappingComponentReference> SelectedComponents;
+			SelectedComponents.Add(ToolkitWeakPtr.Pin()->GetReferenceFromComponent(RendererComponent));
+			ToolkitWeakPtr.Pin()->SelectComponents(SelectedComponents);
 		}
 	}
-
+	
 	// Capture mouse for the drag handle and general mouse actions
-	return FReply::Handled().PreventThrottling().SetUserFocus(AsShared(), EFocusCause::Mouse).CaptureMouse(AsShared());
+	return 
+		FReply::Handled()
+		.PreventThrottling()
+		.SetUserFocus(AsShared(), EFocusCause::Mouse)
+		.CaptureMouse(AsShared());
 }
 
 FReply SDMXPixelMappingDesignerView::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
@@ -345,7 +305,7 @@ FReply SDMXPixelMappingDesignerView::OnMouseMove(const FGeometry& MyGeometry, co
 		{
 			bMovingExistingWidget = true;
 			//Drag selected widgets
-			return FReply::Handled().DetectDrag(AsShared(), EKeys::LeftMouseButton);
+			return FReply::Handled();
 		}
 	}
 
@@ -419,49 +379,19 @@ FReply SDMXPixelMappingDesignerView::OnDragDetected(const FGeometry& MyGeometry,
 {
 	SDMXPixelMappingSurface::OnDragDetected(MyGeometry, MouseEvent);
 
-	using FDragWidget = FSelectedComponentDragDropOp::FDraggingWidgetReference;
-
 	const TSet<FDMXPixelMappingComponentReference>& SelectedComponents = GetSelectedComponents();
 
 	if (SelectedComponents.Num() > 0)
 	{
-		TArray<FDragWidget> DraggingWidgetCandidates;
-
 		// Clear any pending selected widgets, the user has already decided what widget they want.
 		PendingSelectedComponent = nullptr;
+		
+		TSharedRef<FDMXPixelMappingDragDropOp> DragDropOp = FDMXPixelMappingDragDropOp::New(SelectedComponents);
 
-		for (FDMXPixelMappingComponentReference SelectedComponent : SelectedComponents)
-		{
-			UDMXPixelMappingOutputComponent* OutputComponent = Cast<UDMXPixelMappingOutputComponent>(SelectedComponent.GetComponent());
-			if (OutputComponent != nullptr &&
-				OutputComponent->GetCachedWidget().IsValid())
-			{
-				FArrangedWidget ArrangedWidget = GetArrangedWidgetFromComponent(OutputComponent);
-				SelectedWidgetContextMenuLocation = ArrangedWidget.Geometry.AbsoluteToLocal(DraggingStartPositionScreenSpace);
+		DragDropOp->UpdateDragOffset(DraggingStartPositionScreenSpace);
+		DragDropOp->SetDecoratorVisibility(false);
 
-				FDragWidget DraggingWidget;
-				DraggingWidget.ComponentReference = SelectedComponent;
-				DraggingWidget.DraggedOffset = SelectedWidgetContextMenuLocation / ArrangedWidget.Geometry.GetLocalSize();
-				DraggingWidgetCandidates.Add(DraggingWidget);
-			}
-		}
-
-		TArray<FDragWidget> DraggingWidgets;
-
-		for (const FDragWidget& Candidate : DraggingWidgetCandidates)
-		{
-			DraggingWidgets.Add(Candidate);
-		}
-
-		ClearExtensionWidgets();
-
-		if (DraggingWidgets.Num())
-		{
-			TSharedRef<FSelectedComponentDragDropOp> DragOp = FSelectedComponentDragDropOp::New(ToolkitWeakPtr.Pin(), DraggingWidgets);
-			DragOp->SetDecoratorVisibility(false);
-
-			return FReply::Handled().BeginDragDrop(DragOp);
-		}
+		return FReply::Handled().BeginDragDrop(DragDropOp);
 	}
 
 	return FReply::Handled();
@@ -469,6 +399,12 @@ FReply SDMXPixelMappingDesignerView::OnDragDetected(const FGeometry& MyGeometry,
 
 void SDMXPixelMappingDesignerView::OnDragEnter(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)
 {
+	TSharedPtr<FDMXPixelMappingDragDropOp> TemplateDragDropOp = DragDropEvent.GetOperationAs<FDMXPixelMappingDragDropOp>();
+	if (TemplateDragDropOp.IsValid())
+	{
+		AddComponentFromPalette(MyGeometry, TemplateDragDropOp);
+	}
+
 	SDMXPixelMappingSurface::OnDragEnter(MyGeometry, DragDropEvent);
 }
 
@@ -481,8 +417,29 @@ FReply SDMXPixelMappingDesignerView::OnDragOver(const FGeometry& MyGeometry, con
 {
 	SDMXPixelMappingSurface::OnDragOver(MyGeometry, DragDropEvent);
 
-	const bool bIsPreview = true;
-	ProcessDropAndAddWidget(MyGeometry, DragDropEvent, bIsPreview);
+	if (bRequestTerminateDragDrop)
+	{
+		bRequestTerminateDragDrop = false;
+		return FReply::Handled().EndDragDrop();
+	}
+
+	if (DragDropEvent.GetOperation().IsValid() && DragDropEvent.GetOperation()->IsOfType<FDMXPixelMappingDragDropOp>())
+	{
+		TSharedPtr<FDMXPixelMappingDragDropOp> SelectedDragDropOp = DragDropEvent.GetOperationAs<FDMXPixelMappingDragDropOp>();
+
+		if (UDMXPixelMappingOutputComponent* OutputComponent = SelectedDragDropOp->TryGetOutputComponent())
+		{
+			FGeometry WidgetUnderCursorGeometry = PreviewSizeConstraint->GetTickSpaceGeometry();
+			FVector2D ScreenSpacePosition = DragDropEvent.GetScreenSpacePosition();
+			FVector2D LocalPosition = WidgetUnderCursorGeometry.AbsoluteToLocal(ScreenSpacePosition);
+
+			FVector2D Offset = SelectedDragDropOp->GetDragOffset();
+
+			FVector2D NewPosition = LocalPosition - Offset;
+
+			OutputComponent->SetPosition(NewPosition);
+		}
+	}
 
 	return FReply::Handled();
 }
@@ -493,75 +450,12 @@ FReply SDMXPixelMappingDesignerView::OnDrop(const FGeometry& MyGeometry, const F
 
 	bMovingExistingWidget = false;
 
-	if (TSharedPtr<FDMXPixelMappingToolkit> ToolkitPtr = ToolkitWeakPtr.Pin())
-	{
-		// Add 
-		if (UDMXPixelMapping* PixelMapping = ToolkitPtr->GetDMXPixelMapping())
-		{
-			using FDragWidget = FSelectedComponentDragDropOp::FDraggingWidgetReference;
-
-			TSharedPtr<FDMXPixelMappingDragDropOp> TemplateDragDropOp = DragDropEvent.GetOperationAs<FDMXPixelMappingDragDropOp>();
-
-			// Add from Palette
-			if (TemplateDragDropOp.IsValid() && TemplateDragDropOp->Component == nullptr)
-			{
-				// Try to get Active render component
-				UDMXPixelMappingBaseComponent* Target = (TemplateDragDropOp->Parent.IsValid()) ? TemplateDragDropOp->Parent.Get() : ToolkitPtr->GetActiveRendererComponent();
-
-				if (TemplateDragDropOp.IsValid())
-				{
-					if (Target != nullptr && PixelMapping->RootComponent != nullptr)
-					{
-						TSet<FDMXPixelMappingComponentReference> SelectedComponents;
-						// special case for fixture group as we want to allow
-						// multiple patches to be created on the fly by dragging
-						if (UDMXPixelMappingFixtureGroupComponent* FixtureGroupComponent = Cast<UDMXPixelMappingFixtureGroupComponent>(Target))
-						{
-							for (FDMXEntityFixturePatchRef SelectedFixturePatchRef : FixtureGroupComponent->SelectedFixturePatchRef)
-							{
-								UDMXPixelMappingFixtureGroupItemComponent* Component = Cast<UDMXPixelMappingFixtureGroupItemComponent>(TemplateDragDropOp->Template->Create(PixelMapping->RootComponent));
-								if (Component)
-								{
-									Component->FixturePatchRef = SelectedFixturePatchRef;
-									const FName UniqueName = MakeUniqueObjectName(Component->GetOuter(), Component->GetClass(), FName(Component->FixturePatchRef.GetFixturePatch()->GetDisplayName()));
-									const FString NewNameStr = UniqueName.ToString();
-									Component->Rename(*NewNameStr);
-
-									Target->AddChild(Component);
-									Component->PostParentAssigned();
-									SelectedComponents.Add(ToolkitWeakPtr.Pin()->GetReferenceFromComponent(Component));
-								}
-							}
-
-							// if multiple drop, select the group
-							if (SelectedComponents.Num() > 1)
-							{
-								SelectedComponents.Empty();
-								SelectedComponents.Add(ToolkitWeakPtr.Pin()->GetReferenceFromComponent(FixtureGroupComponent));
-							}
-						}
-						else
-						{
-							UDMXPixelMappingBaseComponent* Component = TemplateDragDropOp->Template->Create(PixelMapping->RootComponent);
-							Target->AddChild(Component);
-							Component->PostParentAssigned();
-
-							SelectedComponents.Add(ToolkitWeakPtr.Pin()->GetReferenceFromComponent(Component));							
-						}
-
-						ToolkitPtr->HandleAddComponent(true);
-						ToolkitPtr->SelectComponents(SelectedComponents);
-						CreateExtensionWidgetsForSelection();
-					}
-				}
-			}
-		}
-	}
+	DropComponent(MyGeometry, DragDropEvent);
 
 	CachedRendererComponent = nullptr;
 	UpdateOutput(false);
 
-	return FReply::Handled();
+	return FReply::Handled().EndDragDrop();
 }
 
 bool SDMXPixelMappingDesignerView::FindComponentUnderCursor(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent, TSubclassOf<UDMXPixelMappingOutputComponent> FindType, FComponentHitResult& HitResult)
@@ -638,32 +532,6 @@ bool SDMXPixelMappingDesignerView::FindComponentUnderCursor(const FGeometry& MyG
 	}
 	
 	return false;
-}
-
-FArrangedWidget SDMXPixelMappingDesignerView::GetArrangedWidgetFromComponent(UDMXPixelMappingOutputComponent* OutputComponent) const
-{
-	TSharedPtr<SWidget> WidgetToArrange;
-
-	// Use the parent component for group item and pixel components if they're locked in designer
-	if (OutputComponent->bLockInDesigner)
-	{
-		if (OutputComponent->GetClass() == UDMXPixelMappingFixtureGroupItemComponent::StaticClass() ||
-			OutputComponent->GetClass() == UDMXPixelMappingMatrixCellComponent::StaticClass())
-		{
-			UDMXPixelMappingOutputComponent* Parent = CastChecked<UDMXPixelMappingOutputComponent>(OutputComponent->Parent);
-			WidgetToArrange = Parent->GetCachedWidget();
-		}
-	}
-
-	if (!WidgetToArrange.IsValid())
-	{
-		WidgetToArrange = OutputComponent->GetCachedWidget();
-	}
-
-	FArrangedWidget ArrangedWidget(SNullWidget::NullWidget, FGeometry());
-	GetArrangedWidget(WidgetToArrange.ToSharedRef(), ArrangedWidget);
-
-	return ArrangedWidget;
 }
 
 void SDMXPixelMappingDesignerView::PopulateWidgetGeometryCache(FArrangedWidget& Root)
@@ -778,7 +646,7 @@ void SDMXPixelMappingDesignerView::UpdateOutput(bool bForceUpdate)
 void SDMXPixelMappingDesignerView::HandleChangeComponents(bool bIsSuccess)
 {
 	CachedRendererComponent = nullptr;
-	UpdateOutput(false);
+	UpdateOutput(true);
 }
 
 EVisibility SDMXPixelMappingDesignerView::GetRulerVisibility() const
@@ -991,42 +859,112 @@ void SDMXPixelMappingDesignerView::ResolvePendingSelectedComponents(const FPoint
 	}
 }
 
-bool SDMXPixelMappingDesignerView::GetArrangedWidget(TSharedRef<SWidget> Widget, FArrangedWidget& ArrangedWidget) const
+void SDMXPixelMappingDesignerView::AddComponentFromPalette(const FGeometry& MyGeometry, const TSharedPtr<FDMXPixelMappingDragDropOp>& TemplateDragDropOp)
 {
-	TSharedPtr<SWindow> WidgetWindow = FSlateApplication::Get().FindWidgetWindow(Widget);
-	if (!WidgetWindow.IsValid())
+	// Ignore calls where the component already exists
+	if (!TemplateDragDropOp.IsValid() || 
+		TemplateDragDropOp->TryGetBaseComponent())
 	{
-		return false;
+		return;
 	}
 
-	TSharedRef<SWindow> CurrentWindowRef = WidgetWindow.ToSharedRef();
-
-	FWidgetPath WidgetPath;
-	if (FSlateApplication::Get().GeneratePathToWidgetUnchecked(Widget, WidgetPath))
+	if (TSharedPtr<FDMXPixelMappingToolkit> ToolkitPtr = ToolkitWeakPtr.Pin())
 	{
-		ArrangedWidget = WidgetPath.FindArrangedWidget(Widget).Get(FArrangedWidget::GetNullWidget());
-		return true;
-	}
+		// Add from Palette
+		if (UDMXPixelMapping* PixelMapping = ToolkitPtr->GetDMXPixelMapping())
+		{
+			// Try to get Active render component
+			UDMXPixelMappingBaseComponent* Target = (TemplateDragDropOp->Parent.IsValid()) ? TemplateDragDropOp->Parent.Get() : ToolkitPtr->GetActiveRendererComponent();
 
-	return false;
+			if (Target != nullptr && PixelMapping->RootComponent != nullptr)
+			{
+				TSet<FDMXPixelMappingComponentReference> SelectedComponents;
+
+				if (UDMXPixelMappingFixtureGroupComponent* FixtureGroupComponent = Cast<UDMXPixelMappingFixtureGroupComponent>(Target))
+				{
+					// Special case for fixture group as we want to allow multiple patches to be created on the fly by dragging
+					// and we don't want to add the same patch twice
+					for (const FDMXEntityFixturePatchRef& SelectedFixturePatchRef : FixtureGroupComponent->SelectedFixturePatchRef)
+					{
+						// Don't add the same patch twice
+						if (UDMXPixelMappingBaseComponent* ExistingComponent = PixelMapping->FindComponent(SelectedFixturePatchRef.GetFixturePatch()))
+						{
+							SelectedComponents.Add(ToolkitWeakPtr.Pin()->GetReferenceFromComponent(ExistingComponent));
+							continue;
+						}
+						else
+						{
+							UDMXPixelMappingFixtureGroupItemComponent* Component = Cast<UDMXPixelMappingFixtureGroupItemComponent>(TemplateDragDropOp->Template->Create(PixelMapping->RootComponent));
+							if (Component)
+							{
+								Component->FixturePatchRef = SelectedFixturePatchRef;
+								const FName UniqueName = MakeUniqueObjectName(Component->GetOuter(), Component->GetClass(), FName(Component->FixturePatchRef.GetFixturePatch()->GetDisplayName()));
+								const FString NewNameStr = UniqueName.ToString();
+								Component->Rename(*NewNameStr);
+
+								Target->AddChild(Component);
+								Component->PostParentAssigned();
+								SelectedComponents.Add(ToolkitWeakPtr.Pin()->GetReferenceFromComponent(Component));
+							}
+						}
+					}
+
+					// If multi-drag drop terminate the drag drop op to not get akward behaviour
+					if (SelectedComponents.Num() > 1)
+					{
+						bRequestTerminateDragDrop = true;
+
+						SelectedComponents.Empty();
+					}
+				}
+				else if (UDMXPixelMappingMatrixComponent* MatrixComponent = Cast<UDMXPixelMappingMatrixComponent>(Target))
+				{
+					// Special case for matrices as we want don't want to add the same patch twice
+					if (UDMXPixelMappingBaseComponent* ExistingComponent = PixelMapping->FindComponent(MatrixComponent->FixturePatchMatrixRef.GetFixturePatch()))
+					{
+						SelectedComponents.Add(ToolkitWeakPtr.Pin()->GetReferenceFromComponent(ExistingComponent));
+					}
+					else
+					{
+						UDMXPixelMappingBaseComponent* Component = TemplateDragDropOp->Template->Create(PixelMapping->RootComponent);
+						Target->AddChild(Component);
+						Component->PostParentAssigned();
+
+						SelectedComponents.Add(ToolkitWeakPtr.Pin()->GetReferenceFromComponent(Component));
+					}
+				}
+				else
+				{
+					UDMXPixelMappingBaseComponent* Component = TemplateDragDropOp->Template->Create(PixelMapping->RootComponent);
+					Target->AddChild(Component);
+					Component->PostParentAssigned();
+
+					SelectedComponents.Add(ToolkitWeakPtr.Pin()->GetReferenceFromComponent(Component));
+				}
+
+				ToolkitPtr->HandleAddComponent(true);
+				ToolkitPtr->SelectComponents(SelectedComponents);
+				CreateExtensionWidgetsForSelection();
+
+				// Update the drag drop op with the newly selected components
+				TemplateDragDropOp->SetComponentReferences(SelectedComponents);
+			}
+		}
+	}
 }
 
-void SDMXPixelMappingDesignerView::ProcessDropAndAddWidget(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent, const bool bIsPreview)
+void SDMXPixelMappingDesignerView::DropComponent(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)
 {
-	TSharedPtr<FSelectedComponentDragDropOp> SelectedDragDropOp = DragDropEvent.GetOperationAs<FSelectedComponentDragDropOp>();
-	if (SelectedDragDropOp.IsValid() && SelectedDragDropOp->DraggedWidgets.Num() > 0)
+	TSharedPtr<FDMXPixelMappingDragDropOp> SelectedDragDropOp = DragDropEvent.GetOperationAs<FDMXPixelMappingDragDropOp>();
+	if (SelectedDragDropOp.IsValid())
 	{
-		const FSelectedComponentDragDropOp::FItem& DraggedWidget = SelectedDragDropOp->DraggedWidgets[0];
-
-		if (UDMXPixelMappingOutputComponent* OutputComponent = Cast<UDMXPixelMappingOutputComponent>(DraggedWidget.Component.Get()))
+		if (UDMXPixelMappingOutputComponent* OutputComponent = SelectedDragDropOp->TryGetOutputComponent())
 		{
 			FGeometry WidgetUnderCursorGeometry = PreviewSizeConstraint->GetTickSpaceGeometry();
 			FVector2D ScreenSpacePosition = DragDropEvent.GetScreenSpacePosition();
 			FVector2D LocalPosition = WidgetUnderCursorGeometry.AbsoluteToLocal(ScreenSpacePosition);
 
-			FArrangedWidget ArrangedWidget = GetArrangedWidgetFromComponent(OutputComponent);
-			FVector2D Offset = DraggedWidget.DraggedOffset * ArrangedWidget.Geometry.GetLocalSize();
-
+			FVector2D Offset = SelectedDragDropOp->GetDragOffset();
 			FVector2D NewPosition = LocalPosition - Offset;
 
 			OutputComponent->SetPosition(NewPosition);

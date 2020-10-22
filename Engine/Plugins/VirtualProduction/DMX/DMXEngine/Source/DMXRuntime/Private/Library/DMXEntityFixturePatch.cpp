@@ -451,7 +451,8 @@ const FDMXFixtureFunction* UDMXEntityFixturePatch::GetAttributeFunction(const FD
 
 UDMXEntityController* UDMXEntityFixturePatch::GetFirstRelevantController() const
 {
-	if (ParentLibrary != nullptr)
+	// Parent library may be null if the patch was deleted from the library but is still referenced elsewhere
+	if (ParentLibrary.IsValid())
 	{
 		UDMXEntityController* RelevantController = nullptr;
 		ParentLibrary->ForEachEntityOfType<UDMXEntityController>([&](UDMXEntityController* Controller)
@@ -464,17 +465,14 @@ UDMXEntityController* UDMXEntityFixturePatch::GetFirstRelevantController() const
 			});
 		return RelevantController;
 	}
-	else
-	{
-		UE_LOG(DMXEntityFixtureTypePatchLog, Fatal, TEXT("Parent library is null!"));
-	}
+
 	return nullptr;
 }
 
 TArray<UDMXEntityController*> UDMXEntityFixturePatch::GetRelevantControllers() const
 {
 	TArray<UDMXEntityController*> RetVal;
-	if (ParentLibrary != nullptr)
+	if (ParentLibrary.IsValid())
 	{
 		ParentLibrary->ForEachEntityOfType<UDMXEntityController>([&](UDMXEntityController* Controller)
 		{

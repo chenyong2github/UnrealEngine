@@ -419,7 +419,7 @@ EVisibility SMoviePipelineConfigEditor::IsValidationWarningVisible() const
 	for (const UMoviePipelineSetting* Setting : SelectedSettings)
 	{
 		// Don't show warnings for disabled settings as the invalid setting won't be used when rendering.
-		if (!Setting->IsEnabled() && Setting->GetIsUserCustomized())
+		if (!Setting->IsEnabled())
 		{
 			continue;
 		}

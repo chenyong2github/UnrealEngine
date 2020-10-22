@@ -6,6 +6,7 @@
 #include "RHI.h"
 #include "FileCache/FileCache.h"
 #include "Containers/HashTable.h"
+#include "Shader.h"
 
 struct FShaderMapEntry
 {
@@ -47,14 +48,39 @@ struct FShaderCodeEntry
 class RENDERCORE_API FSerializedShaderArchive
 {
 public:
+
+	/** Hashes of all shadermaps in the library */
 	TArray<FSHAHash> ShaderMapHashes;
+
+	/** Output hashes of all shaders in the library */
 	TArray<FSHAHash> ShaderHashes;
+
+	/** An array of a shadermap descriptors. Each shadermap can reference an arbitrary number of shaders */
 	TArray<FShaderMapEntry> ShaderMapEntries;
+
+	/** An array of all shaders descriptors, deduplicated */
 	TArray<FShaderCodeEntry> ShaderEntries;
+
+	/** An array of preload entries*/
 	TArray<FFileCachePreloadEntry> PreloadEntries;
+
+	/** Flat array of shaders referenced by all shadermaps. Each shadermap has a range in this array, beginning of which is
+	  * stored as ShaderIndicesOffset in the shadermap's descriptor (FShaderMapEntry).
+	  */
 	TArray<uint32> ShaderIndices;
+
 	FHashTable ShaderMapHashTable;
 	FHashTable ShaderHashTable;
+
+#if WITH_EDITOR
+	/** Mapping from shadermap hashes to an array of asset names. */
+	TMap<FSHAHash, FShaderMapAssetPaths> ShaderCodeToAssets;
+
+	enum class EAssetInfoVersion : uint8
+	{
+		CurrentVersion = 1
+	};
+#endif
 
 	FSerializedShaderArchive()
 	{
@@ -67,7 +93,11 @@ public:
 			ShaderMapHashes.GetAllocatedSize() +
 			ShaderMapEntries.GetAllocatedSize() +
 			PreloadEntries.GetAllocatedSize() +
-			ShaderIndices.GetAllocatedSize();
+			ShaderIndices.GetAllocatedSize()
+#if WITH_EDITOR
+			+ ShaderCodeToAssets.GetAllocatedSize()
+#endif
+			;
 	}
 
 	void Empty()
@@ -80,6 +110,9 @@ public:
 		ShaderIndices.Empty();
 		ShaderMapHashTable.Clear();
 		ShaderHashTable.Clear();
+#if WITH_EDITOR
+		ShaderCodeToAssets.Empty();
+#endif
 	}
 
 	int32 GetNumShaderMaps() const
@@ -94,7 +127,7 @@ public:
 
 	int32 FindShaderMapWithKey(const FSHAHash& Hash, uint32 Key) const;
 	int32 FindShaderMap(const FSHAHash& Hash) const;
-	bool FindOrAddShaderMap(const FSHAHash& Hash, int32& OutIndex);
+	bool FindOrAddShaderMap(const FSHAHash& Hash, int32& OutIndex, const FShaderMapAssetPaths* AssociatedAssets);
 
 	int32 FindShaderWithKey(const FSHAHash& Hash, uint32 Key) const;
 	int32 FindShader(const FSHAHash& Hash) const;
@@ -104,6 +137,10 @@ public:
 
 	void Finalize();
 	void Serialize(FArchive& Ar);
+#if WITH_EDITOR
+	void SaveAssetInfo(FArchive& Ar);
+	bool LoadAssetInfo(const FString& Filename);
+#endif
 
 	friend FArchive& operator<<(FArchive& Ar, FSerializedShaderArchive& Ref)
 	{

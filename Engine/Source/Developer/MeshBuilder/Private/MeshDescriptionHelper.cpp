@@ -93,7 +93,7 @@ void FMeshDescriptionHelper::SetupRenderMeshDescription(UObject* Owner, FMeshDes
 			BuildSettings->SrcLightmapIndex,
 			BuildSettings->DstLightmapIndex,
 			BuildSettings->MinLightmapResolution,
-			(ELightmapUVVersion)(StaticMesh->LightmapUVVersion),
+			(ELightmapUVVersion)StaticMesh->GetLightmapUVVersion(),
 			OverlappingCorners);
 	}
 }

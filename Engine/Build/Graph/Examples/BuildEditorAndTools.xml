@@ -29,6 +29,7 @@
 			-set:Licensee=true/false			Whether to mark the changelist number as being from a licensee Perforce server (this prevents conflicts with Epic CL's being a higher number)
 			-set:Versioned=true/false			Whether to embed version information in the compiled binaries. This is true by default for build machines.
 			-set:ArchiveStream=<Path>			Stream that will contain zip file of the compiled binaries, for use by UnrealGameSync.
+			-set:ForceSubmit=true/false			Whether to force submit to happen even if another change has been submitted (resolves in favor of local files)
 	-->
 
 	<Option Name="EditorTarget" Restrict="[^ ]+" DefaultValue="UnrealEditor" Description="Name of the editor target to be built"/>
@@ -37,7 +38,7 @@
 	<Option Name="OutputDir" DefaultValue="$(RootDir)\LocalBuilds\$(EditorTarget)Binaries" Description ="Output directory for compiled binaries"/>
 	<Option Name="Licensee" Restrict="true|false" DefaultValue="true" Description="Whether to treat the changelist number as being from a licensee Perforce server"/>
 	<Option Name="Versioned" Restrict="true|false" DefaultValue="$(IsBuildMachine)" Description="Whether to embed changelist number into binaries"/>
-	<Option Name="ArchiveStream" Restrict="(?://.*)?" DefaultValue="" Description="Whether to embed changelist number into binaries"/>
+	<Option Name="ArchiveStream" Restrict="(?://.*)?" DefaultValue="" Description="Stream path that will contain zip file of the compiled binaries, for use by UnrealGameSync"/>
 	<Option Name="ForceSubmit" Restrict="true|false" DefaultValue="false" Description="Forces the submit to happen even if another change has been submitted (resolves in favor of local files)"/>
 
 	<EnvVar Name="COMPUTERNAME"/>

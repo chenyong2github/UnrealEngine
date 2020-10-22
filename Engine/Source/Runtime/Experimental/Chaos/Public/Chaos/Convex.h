@@ -9,6 +9,7 @@
 #include "GJK.h"
 #include "ChaosCheck.h"
 #include "ChaosLog.h"
+#include "UObject/ReleaseObjectVersion.h"
 
 namespace Chaos
 {
@@ -199,8 +200,6 @@ namespace Chaos
 
 	
 		virtual int32 FindClosestFaceAndVertices(const FVec3& Position, TArray<FVec3>& FaceVertices, FReal SearchDist = 0.01) const override;
-
-		FORCEINLINE FReal GetMargin() const { return 0; }
 
 		FORCEINLINE FVec3 Support2(const FVec3& Direction) const { return Support(Direction, 0); }
 

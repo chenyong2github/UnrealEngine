@@ -322,9 +322,7 @@ void FLensDistortionCameraModel::DrawUVDisplacementToRenderTarget(
 
 	if (!OutputRenderTarget)
 	{
-		FMessageLog("Blueprint").Warning(
-			LOCTEXT("LensDistortionCameraModel_DrawUVDisplacementToRenderTarget",
-			"DrawUVDisplacementToRenderTarget: Output render target is required."));
+		FMessageLog("Blueprint").Warning(LOCTEXT("LensDistortionCameraModel_DrawUVDisplacementToRenderTarget", "DrawUVDisplacementToRenderTarget: Output render target is required."));
 		return;
 	}
 

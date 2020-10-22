@@ -910,6 +910,13 @@ public:
 	UFUNCTION(unreliable, client, BlueprintCallable, Category="Game|Feedback")
 	void ClientStartCameraShake(TSubclassOf<class UCameraShakeBase> Shake, float Scale = 1.f, ECameraShakePlaySpace PlaySpace = ECameraShakePlaySpace::CameraLocal, FRotator UserPlaySpaceRot = FRotator::ZeroRotator);
 
+	/** Backwards compatible method, for C++ code */
+	UE_DEPRECATED(4.26, "Please use ClientStartCameraShake")
+	void ClientPlayCameraShake(TSubclassOf<class UCameraShakeBase> Shake, float Scale = 1.f, ECameraShakePlaySpace PlaySpace = ECameraShakePlaySpace::CameraLocal, FRotator UserPlaySpaceRot = FRotator::ZeroRotator)
+	{
+		return ClientStartCameraShake(Shake, Scale, PlaySpace, UserPlaySpaceRot);
+	}
+
 	/** 
 	 * Play Camera Shake localized to a given source
 	 * @param Shake - Camera shake animation to play
@@ -917,6 +924,13 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category="Game|Feedback")
 	void ClientStartCameraShakeFromSource(TSubclassOf<class UCameraShakeBase> Shake, class UCameraShakeSourceComponent* SourceComponent);
+
+	/** Backwards compatible method, for C++ code */
+	UE_DEPRECATED(4.26, "Please use ClientStartCameraShakeFromSource")
+	void ClientPlayCameraShakeFromSource(TSubclassOf<class UCameraShakeBase> Shake, class UCameraShakeSourceComponent* SourceComponent)
+	{
+		return ClientStartCameraShakeFromSource(Shake, SourceComponent);
+	}
 
 	/**
 	 * Play sound client-side (so only the client will hear it)

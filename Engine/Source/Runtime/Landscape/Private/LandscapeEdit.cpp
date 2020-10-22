@@ -4571,6 +4571,11 @@ bool ALandscapeProxy::CanEditChange(const FProperty* InProperty) const
 		return false;
 	}
 
+	if (IsTemplate())
+	{
+		return true;
+	}
+
 	// Don't allow edition of properties that are shared with the parent landscape properties
 	// See  ALandscapeProxy::FixupSharedData(ALandscape* Landscape)
 	if (GetLandscapeActor() != this)

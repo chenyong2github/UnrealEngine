@@ -101,20 +101,20 @@ public:
 
 	/** Feature size as fraction of overall shape size, for shapes with secondary features like the rounded corners of a Rounded Rectangle */
 	UPROPERTY(EditAnywhere, NonTransactional, Category = Polygon, meta = (UIMin = "0.01", UIMax = "0.99", ClampMin = "0.01", ClampMax = "0.99",
-									EditCondition = "PolygonType == EDrawPolygonDrawMode::RoundedRectangle || PolygonType == EDrawPolygonDrawMode::HoleyCircle"))
+									EditCondition = "PolygonType == EDrawPolygonDrawMode::RoundedRectangle || PolygonType == EDrawPolygonDrawMode::HoleyCircle", EditConditionHides))
 	float FeatureSizeRatio = .25;
 
 	/** Extrusion Distance in non-interactive mode */
 	UPROPERTY(EditAnywhere, NonTransactional, Category = Polygon, meta = (UIMin = "-1000", UIMax = "1000", ClampMin = "-10000", ClampMax = "10000",
-									EditCondition = "OutputMode == EDrawPolygonOutputMode::ExtrudedConstant"))
+									EditCondition = "OutputMode == EDrawPolygonOutputMode::ExtrudedConstant", EditConditionHides))
 	float ExtrudeHeight = 100.0f;
 
 	/** Number of sections in round features */
 	UPROPERTY(EditAnywhere, NonTransactional, Category = Polygon, meta = (UIMin = "3", UIMax = "100", ClampMin = "3", ClampMax = "10000",
-				  EditCondition = "PolygonType == EDrawPolygonDrawMode::Circle || PolygonType == EDrawPolygonDrawMode::RoundedRectangle || PolygonType == EDrawPolygonDrawMode::HoleyCircle"))
+				  EditCondition = "PolygonType == EDrawPolygonDrawMode::Circle || PolygonType == EDrawPolygonDrawMode::RoundedRectangle || PolygonType == EDrawPolygonDrawMode::HoleyCircle", EditConditionHides))
 	int Steps = 16;
 
-	UPROPERTY(EditAnywhere, NonTransactional, Category = Polygon, meta = (EditCondition = "PolygonType == EDrawPolygonDrawMode::Freehand"))
+	UPROPERTY(EditAnywhere, NonTransactional, Category = Polygon, meta = (EditCondition = "PolygonType == EDrawPolygonDrawMode::Freehand", EditConditionHides))
 	bool bAllowSelfIntersections = false;
 
 	UPROPERTY(EditAnywhere, NonTransactional, Category = Polygon)
@@ -130,19 +130,19 @@ public:
 	UPROPERTY(EditAnywhere, NonTransactional, Category = Snapping)
 	bool bEnableSnapping = true;
 
-	UPROPERTY(EditAnywhere, NonTransactional, Category = Snapping, Meta = (EditCondition = "bEnableSnapping"))
+	UPROPERTY(EditAnywhere, NonTransactional, Category = Snapping, Meta = (EditCondition = "bEnableSnapping", EditConditionHides))
 	bool bSnapToWorldGrid = false;
 
-	UPROPERTY(EditAnywhere, NonTransactional, Category = Snapping, Meta = (EditCondition = "bEnableSnapping"))
+	UPROPERTY(EditAnywhere, NonTransactional, Category = Snapping, Meta = (EditCondition = "bEnableSnapping", EditConditionHides))
 	bool bSnapToVertices = true;
 
-	UPROPERTY(EditAnywhere, NonTransactional, Category = Snapping, Meta = (EditCondition = "bEnableSnapping"))
+	UPROPERTY(EditAnywhere, NonTransactional, Category = Snapping, Meta = (EditCondition = "bEnableSnapping", EditConditionHides))
 	bool bSnapToEdges = false;
 
-	UPROPERTY(EditAnywhere, NonTransactional, Category = Snapping, Meta = (EditCondition = "bEnableSnapping"))
+	UPROPERTY(EditAnywhere, NonTransactional, Category = Snapping, Meta = (EditCondition = "bEnableSnapping", EditConditionHides))
 	bool bSnapToAngles = true;
 
-	UPROPERTY(EditAnywhere, NonTransactional, Category = Snapping, Meta = (EditCondition = "bEnableSnapping"))
+	UPROPERTY(EditAnywhere, NonTransactional, Category = Snapping, Meta = (EditCondition = "bEnableSnapping", EditConditionHides))
 	bool bSnapToLengths = true;
 
 	UPROPERTY(VisibleAnywhere, NonTransactional, Category = Snapping, meta = (TransientToolProperty))
@@ -151,7 +151,7 @@ public:
 	UPROPERTY(EditAnywhere, NonTransactional, Category = Snapping)
 	bool bHitSceneObjects = false;
 
-	UPROPERTY(EditAnywhere, NonTransactional, Category = Snapping, Meta = (EditCondition = "bHitSceneObjects"))
+	UPROPERTY(EditAnywhere, NonTransactional, Category = Snapping, Meta = (EditCondition = "bHitSceneObjects", EditConditionHides))
 	float HitNormalOffset = 0.0f;
 };
 

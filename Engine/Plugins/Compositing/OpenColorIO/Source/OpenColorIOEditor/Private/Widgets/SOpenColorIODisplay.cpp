@@ -118,7 +118,7 @@ void SOpenColorIODisplay::SelectConfigSubMenu(UToolMenu* Menu)
 	TArray<const UClass*> ClassFilters;
 	ClassFilters.Add(UOpenColorIOConfiguration::StaticClass());
 
-	FToolMenuSection& AssetSelectionMenu = Menu->AddSection("OCIOAssetSelection", LOCTEXT("OCIOAssetSelection_Label", "Asset selection"));
+	FToolMenuSection& AssetSelectionMenu = Menu->AddSection("OCIOAssetSelection", LOCTEXT("OCIOAssetSelection_GenericLabel", "Asset selection"));
 	ClassPicker = PropertyCustomizationHelpers::MakeAssetPickerWithMenu(
 		CurrentAssetData,
 		Configuration.ColorConfiguration.ConfigurationSource != nullptr,

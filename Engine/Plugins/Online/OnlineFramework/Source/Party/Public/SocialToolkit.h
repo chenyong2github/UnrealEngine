@@ -6,6 +6,7 @@
 #include "SocialTypes.h"
 #include "User/ISocialUserList.h"
 #include "OnlineSubsystem.h"
+#include "Interfaces/OnlinePartyInterface.h"
 #include "Interfaces/OnlinePresenceInterface.h"
 
 #include "SocialToolkit.generated.h"
@@ -221,6 +222,9 @@ private:	// Handlers
 	void HandleAcceptFriendInviteComplete(int32 LocalUserNum, bool bWasSuccessful, const FUniqueNetId& InviterUserId, const FString& ListName, const FString& ErrorStr);
 
 	void HandlePartyInviteReceived(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const FUniqueNetId& SenderId);
+#if PARTY_PLATFORM_INVITE_PERMISSIONS
+	void CanReceiveInviteFrom(USocialUser& SocialUser, const IOnlinePartyJoinInfoConstRef& Invite, TFunction<void(const bool /*bResult*/)>&& CompletionFunc);
+#endif
 
 	void HandleBlockPlayerComplete(int32 LocalUserNum, bool bWasSuccessful, const FUniqueNetId& BlockedPlayerID, const FString& ListName, const FString& ErrorStr, ESocialSubsystem SubsystemType);
 	void HandleUnblockPlayerComplete(int32 LocalUserNum, bool bWasSuccessful, const FUniqueNetId& UnblockedPlayerID, const FString& ListName, const FString& ErrorStr, ESocialSubsystem SubsystemType);

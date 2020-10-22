@@ -32,6 +32,9 @@ struct FRCRequest
 		return StructParameters.FindChecked(ParameterName);
 	}
 
+	/** Holds the request's TCHAR payload. */
+	TArray<uint8> TCHARBody;
+
 protected:
 	void AddStructParameter(FString ParameterName)
 	{
@@ -66,8 +69,6 @@ struct FRCRequestWrapper : public FRCRequest
 
 	UPROPERTY()
 	int32 RequestId;
-
-	TArray<uint8> BodyData;
 };
 
 /**
@@ -262,6 +263,9 @@ struct FRCPresetSetPropertyRequest : public FRCRequest
 	 */
 	UPROPERTY()
 	bool GenerateTransaction = false;
+
+	UPROPERTY()
+	bool ResetToDefault = false;
 };
 
 /**

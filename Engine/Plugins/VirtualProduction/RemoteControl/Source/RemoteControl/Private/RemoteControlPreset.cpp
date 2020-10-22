@@ -95,8 +95,6 @@ FRemoteControlPresetGroup* FRemoteControlPresetLayout::GetGroupByName(FName Grou
 
 FRemoteControlPresetGroup& FRemoteControlPresetLayout::CreateGroup(FName GroupName, FGuid GroupId)
 {
-	Owner->Modify();
-
 	FRemoteControlPresetGroup& Group = Groups.Emplace_GetRef(GroupName, GroupId);
 	Owner->CacheLayoutData();
 	OnGroupAddedDelegate.Broadcast(Group);
@@ -111,7 +109,7 @@ FRemoteControlPresetGroup& FRemoteControlPresetLayout::CreateGroup()
 
 FRemoteControlPresetGroup* FRemoteControlPresetLayout::FindGroupFromField(FGuid FieldId)
 {
-	if (RemoteControlPreset::FCachedFieldData* CachedData = Owner->FieldCache.Find(FieldId))
+	if (FRCCachedFieldData* CachedData = Owner->FieldCache.Find(FieldId))
 	{
 		return GetGroup(CachedData->LayoutGroupId);
 	}
@@ -137,8 +135,6 @@ void FRemoteControlPresetLayout::SwapGroups(FGuid OriginGroupId, FGuid TargetGro
 		{
 			OriginGroupIndex += 1;
 		}
-
-		Owner->Modify();
 
 		Groups.Insert(FRemoteControlPresetGroup{ *OriginGroup }, TargetGroupIndex);
 		Groups.Swap(TargetGroupIndex, OriginGroupIndex);
@@ -180,8 +176,6 @@ void FRemoteControlPresetLayout::SwapFields(const FFieldSwapArgs& FieldSwapArgs)
 			DragOriginFieldIndex += 1;
 		}
 
-		Owner->Modify();
-	
 		// Here we don't want to trigger add/delete delegates since the fields just get moved around.
 		TArray<FGuid>& Fields = DragTargetGroup->AccessFields();
 		Fields.Insert(FieldSwapArgs.DraggedFieldId, DragTargetFieldIndex);
@@ -193,8 +187,6 @@ void FRemoteControlPresetLayout::SwapFields(const FFieldSwapArgs& FieldSwapArgs)
 	}
 	else
 	{
-		Owner->Modify();
-
 		DragOriginGroup->AccessFields().RemoveAt(DragOriginFieldIndex);
 
 		DragTargetFieldIndex = DragTargetFieldIndex == INDEX_NONE ? 0 : DragTargetFieldIndex;
@@ -212,7 +204,6 @@ void FRemoteControlPresetLayout::DeleteGroup(FGuid GroupId)
 	int32 Index = Groups.IndexOfByPredicate([GroupId](const FRemoteControlPresetGroup& Group) { return Group.Id == GroupId; });
 	if (Index != INDEX_NONE)
 	{
-		Owner->Modify();
 		FRemoteControlPresetGroup DeletedGroup = MoveTemp(Groups[Index]);
 		Groups.RemoveAt(Index);
 
@@ -231,7 +222,6 @@ void FRemoteControlPresetLayout::RenameGroup(FGuid GroupId, FName NewGroupName)
 {
 	if (FRemoteControlPresetGroup* Group = GetGroup(GroupId))
 	{
-		Owner->Modify();
 		Group->Name = NewGroupName;
 		OnGroupRenamedDelegate.Broadcast(GroupId, NewGroupName);
 	}
@@ -242,11 +232,15 @@ const TArray<FRemoteControlPresetGroup>& FRemoteControlPresetLayout::GetGroups()
 	return Groups;
 }
 
+TArray<FRemoteControlPresetGroup>& FRemoteControlPresetLayout::AccessGroups()
+{
+	return Groups;
+}
+
 void FRemoteControlPresetLayout::AddField(FGuid GroupId, FGuid FieldId)
 {
 	if (FRemoteControlPresetGroup* Group = GetGroup(GroupId))
 	{
-		Owner->Modify();
 		Group->AccessFields().Add(FieldId);
 		OnFieldAddedDelegate.Broadcast(GroupId, FieldId, Group->AccessFields().Num() - 1);
 	}
@@ -256,8 +250,6 @@ void FRemoteControlPresetLayout::InsertFieldAt(FGuid GroupId, FGuid FieldId, int
 {
 	if (FRemoteControlPresetGroup* Group = GetGroup(GroupId))
 	{
-		Owner->Modify();
-
 		Group->AccessFields().Insert(FieldId, Index);
 		OnFieldAddedDelegate.Broadcast(GroupId, FieldId, Index);
 	}
@@ -276,8 +268,7 @@ void FRemoteControlPresetLayout::RemoveFieldAt(FGuid GroupId, int32 Index)
 {
 	if (FRemoteControlPresetGroup* Group = GetGroup(GroupId))
 	{
-		Owner->Modify();
-
+		
 		TArray<FGuid>& Fields = Group->AccessFields();
 		if(!Fields.IsValidIndex(Index))
 		{
@@ -298,8 +289,6 @@ URemoteControlPreset* FRemoteControlPresetLayout::GetOwner()
 
 TOptional<FRemoteControlProperty> FRemoteControlTarget::ExposeProperty(FRCFieldPathInfo FieldPathInfo, TArray<FString> ComponentHierarchy, const FString& DesiredDisplayName, FGuid GroupId)
 {
-	Owner->Modify();
-
 	FName FieldLabel = Owner->GenerateUniqueFieldLabel(Alias, DesiredDisplayName);
 	FRemoteControlProperty RCField(FieldLabel, MoveTemp(FieldPathInfo), MoveTemp(ComponentHierarchy));
 	ExposedProperties.Add(MoveTemp(RCField));
@@ -324,8 +313,7 @@ TOptional<FRemoteControlFunction> FRemoteControlTarget::ExposeFunction(FString R
 		return RCFunction;
 	}
 
-	Owner->Modify();
-
+	
 	FRCFieldPathInfo Path{ MoveTemp(RelativeFieldPath) };
 	if (UFunction* Function = Class->FindFunctionByName(Path.GetFieldName()))
 	{
@@ -345,8 +333,6 @@ TOptional<FRemoteControlFunction> FRemoteControlTarget::ExposeFunction(FString R
 
 void FRemoteControlTarget::Unexpose(FGuid FieldId)
 {
-	Owner->Modify();
-
 	RemoveField<FRemoteControlProperty>(ExposedProperties, FieldId);
 	RemoveField<FRemoteControlFunction>(ExposedFunctions, FieldId);
 
@@ -472,10 +458,6 @@ TArray<UObject*> FRemoteControlTarget::ResolveBoundObjects() const
 		{
 			ResolvedObjects.Add(Obj);
 		}
-		else
-		{
-			UE_LOG(LogRemoteControl, Error, TEXT("Object %s could not be loaded."), *Path.ToString());
-		}
 	}
 
 	return ResolvedObjects;
@@ -599,7 +581,7 @@ void URemoteControlPreset::PostRename(UObject* OldOuter, const FName OldName)
 
 FName URemoteControlPreset::GetOwnerAlias(FGuid FieldId) const
 {
-	if (const RemoteControlPreset::FCachedFieldData* CachedData = FieldCache.Find(FieldId))
+	if (const FRCCachedFieldData* CachedData = FieldCache.Find(FieldId))
 	{
 		return CachedData->OwnerObjectAlias;
 	}
@@ -624,7 +606,7 @@ TOptional<FRemoteControlFunction> URemoteControlPreset::GetFunction(FName Functi
 TOptional<FRemoteControlFunction> URemoteControlPreset::GetFunction(FGuid FunctionId) const
 {
 	TOptional<FRemoteControlFunction> Function;
-	if (const RemoteControlPreset::FCachedFieldData* CachedData = FieldCache.Find(FunctionId))
+	if (const FRCCachedFieldData* CachedData = FieldCache.Find(FunctionId))
 	{
 		if (const FRemoteControlTarget* Target = RemoteControlTargets.Find(CachedData->OwnerObjectAlias))
 		{
@@ -643,7 +625,7 @@ TOptional<FRemoteControlProperty> URemoteControlPreset::GetProperty(FName Proper
 TOptional<FRemoteControlProperty> URemoteControlPreset::GetProperty(FGuid PropertyId) const
 {
 	TOptional<FRemoteControlProperty> Property;
-	if (const RemoteControlPreset::FCachedFieldData* CachedData = FieldCache.Find(PropertyId))
+	if (const FRCCachedFieldData* CachedData = FieldCache.Find(PropertyId))
 	{
 		if (const FRemoteControlTarget* Target = RemoteControlTargets.Find(CachedData->OwnerObjectAlias))
 		{
@@ -680,7 +662,7 @@ void URemoteControlPreset::RenameField(FName OldFieldLabel, FName NewFieldLabel)
 TOptional<FExposedProperty> URemoteControlPreset::ResolveExposedProperty(FName PropertyLabel) const
 {
 	TOptional<FExposedProperty> OptionalExposedProperty;
-	if (const RemoteControlPreset::FCachedFieldData* Data = FieldCache.Find(GetFieldId(PropertyLabel)))
+	if (const FRCCachedFieldData* Data = FieldCache.Find(GetFieldId(PropertyLabel)))
 	{
 		OptionalExposedProperty = RemoteControlTargets.FindChecked(Data->OwnerObjectAlias).ResolveExposedProperty(GetFieldId(PropertyLabel));
 	}
@@ -691,7 +673,7 @@ TOptional<FExposedProperty> URemoteControlPreset::ResolveExposedProperty(FName P
 TOptional<FExposedFunction> URemoteControlPreset::ResolveExposedFunction(FName FunctionLabel) const
 {
 	TOptional<FExposedFunction> OptionalExposedFunction;
-	if (const RemoteControlPreset::FCachedFieldData* Data = FieldCache.Find(GetFieldId(FunctionLabel)))
+	if (const FRCCachedFieldData* Data = FieldCache.Find(GetFieldId(FunctionLabel)))
 	{
 		OptionalExposedFunction = RemoteControlTargets.FindChecked(Data->OwnerObjectAlias).ResolveExposedFunction(GetFieldId(FunctionLabel));
 	}
@@ -707,7 +689,7 @@ void URemoteControlPreset::Unexpose(FName FieldLabel)
 
 void URemoteControlPreset::Unexpose(const FGuid& FieldId)
 {
-	if (RemoteControlPreset::FCachedFieldData* Data = FieldCache.Find(FieldId))
+	if (FRCCachedFieldData* Data = FieldCache.Find(FieldId))
 	{
 		RemoteControlTargets.FindChecked(Data->OwnerObjectAlias).Unexpose(FieldId);
 	}
@@ -757,7 +739,7 @@ void URemoteControlPreset::CacheLayoutData()
 
 TArray<UObject*> URemoteControlPreset::ResolvedBoundObjects(FName FieldLabel)
 {
-	if (const RemoteControlPreset::FCachedFieldData* Data = FieldCache.Find(GetFieldId(FieldLabel)))
+	if (const FRCCachedFieldData* Data = FieldCache.Find(GetFieldId(FieldLabel)))
 	{
 		FRemoteControlTarget& Target = RemoteControlTargets.FindChecked(Data->OwnerObjectAlias);
 		return Target.ResolveBoundObjects();
@@ -776,7 +758,7 @@ void URemoteControlPreset::NotifyExposedPropertyChanged(FName PropertyLabel)
 
 FRemoteControlField* URemoteControlPreset::GetFieldPtr(FGuid FieldId)
 {
-	if (const RemoteControlPreset::FCachedFieldData* CachedData = FieldCache.Find(FieldId))
+	if (const FRCCachedFieldData* CachedData = FieldCache.Find(FieldId))
 	{
 		if (FRemoteControlTarget* Target = RemoteControlTargets.Find(CachedData->OwnerObjectAlias))
 		{
@@ -839,7 +821,7 @@ FName URemoteControlPreset::GenerateUniqueFieldLabel(FName Alias, const FString&
 
 void URemoteControlPreset::OnExpose(const FExposeInfo& Info)
 {
-	RemoteControlPreset::FCachedFieldData CachedData;
+	FRCCachedFieldData CachedData;
 
 	FGuid FieldGroupId = !Info.LayoutGroupId.IsValid() ? DefaultGroupId : Info.LayoutGroupId;
 	FRemoteControlPresetGroup* Group = Layout.GetGroup(FieldGroupId);
@@ -862,7 +844,7 @@ void URemoteControlPreset::OnExpose(const FExposeInfo& Info)
 
 void URemoteControlPreset::OnUnexpose(FGuid UnexposedFieldId)
  {
-	RemoteControlPreset::FCachedFieldData CachedData = FieldCache.FindChecked(UnexposedFieldId);
+	FRCCachedFieldData CachedData = FieldCache.FindChecked(UnexposedFieldId);
 
 	Layout.RemoveField(CachedData.LayoutGroupId, UnexposedFieldId);
 
@@ -891,7 +873,7 @@ void URemoteControlPreset::CacheFieldsData()
 		FieldCache.Reserve(FieldCache.Num() + Target.Value.ExposedProperties.Num() + Target.Value.ExposedFunctions.Num());
 		auto CacheField = [this, TargetName = Target.Key](const FRemoteControlField& Field)
 		{
-			RemoteControlPreset::FCachedFieldData& CachedData = FieldCache.FindOrAdd(Field.Id);
+			FRCCachedFieldData& CachedData = FieldCache.FindOrAdd(Field.Id);
 			CachedData.OwnerObjectAlias = TargetName;
 			NameToGuidMap.Add(Field.Label, Field.Id);
 		};
@@ -903,12 +885,18 @@ void URemoteControlPreset::CacheFieldsData()
 
 void URemoteControlPreset::CacheFieldLayoutData()
 {
-	for (const FRemoteControlPresetGroup& Group : Layout.GetGroups())
+	for (FRemoteControlPresetGroup& Group : Layout.AccessGroups())
 	{
-		for (const FGuid& FieldId : Group.GetFields())
+		for (auto It = Group.AccessFields().CreateIterator(); It; ++It)
 		{
-			RemoteControlPreset::FCachedFieldData& CachedData = FieldCache.FindOrAdd(FieldId);
-			CachedData.LayoutGroupId = Group.Id;
+			if (FRCCachedFieldData* CachedData = FieldCache.Find(*It))
+			{
+				CachedData->LayoutGroupId = Group.Id;
+			}
+			else
+			{
+				//It.RemoveCurrent();
+			}
 		}
 	}
 }

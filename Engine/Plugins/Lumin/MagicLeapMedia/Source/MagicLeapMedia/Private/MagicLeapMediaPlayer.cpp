@@ -235,10 +235,10 @@ FString FMagicLeapMediaPlayer::GetInfo() const
 	return Info;
 }
 
-FName FMagicLeapMediaPlayer::GetPlayerName() const
+FGuid FMagicLeapMediaPlayer::GetPlayerPluginGUID() const
 {
-	static FName PlayerName(TEXT("MagicLeapMedia"));
-	return PlayerName;
+	static FGuid PlayerPluginGUID(0x9af3a209, 0xed2641e8, 0x9bcee61b, 0x2d529a06);
+	return PlayerPluginGUID;
 }
 
 IMediaSamples& FMagicLeapMediaPlayer::GetSamples()

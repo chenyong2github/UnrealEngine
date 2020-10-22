@@ -54,7 +54,7 @@ namespace Trace
 		int32 PendingDepth = -1;
 		FDetailLevelDepthState<EventType> DepthStates[SettingsType::MaxDepth];
 		FEventStackEntry EventStack[SettingsType::MaxDepth];
-		uint64 CurrentScopeEntryPageIndex = (uint64) -1;
+		uint64 CurrentScopeEntryPageIndex = (uint64)-1;
 	};
 
 	template<typename EventType, typename SettingsType>

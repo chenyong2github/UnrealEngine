@@ -513,29 +513,33 @@ namespace UsdStageImporterImpl
 		}
 	}
 
+	void UpdateAssetImportData( UObject* Asset, const FString& MainFilePath, UUsdStageImportOptions* ImportOptions )
+	{
+		if ( !Asset )
+		{
+			return;
+		}
+
+		UUsdAssetImportData* ImportData = UsdUtils::GetAssetImportData( Asset );
+		if ( !ImportData )
+		{
+			return;
+		}
+
+		// Don't force update as textures will already come with this preset to their actual texture path
+		if ( ImportData->SourceData.SourceFiles.Num() == 0 )
+		{
+			ImportData->UpdateFilenameOnly( MainFilePath );
+		}
+
+		ImportData->ImportOptions = ImportOptions;
+	}
+
 	void UpdateAssetImportData(const TMap<FString, UObject*>& AssetsCache, const FString& MainFilePath, UUsdStageImportOptions* ImportOptions)
 	{
-		for (const TPair<FString, UObject*>& AssetPair : AssetsCache)
+		for ( const TPair<FString, UObject*>& AssetPair : AssetsCache )
 		{
-			UObject* Asset = AssetPair.Value;
-			if (!Asset)
-			{
-				continue;
-			}
-
-			UUsdAssetImportData* ImportData = UsdUtils::GetAssetImportData(Asset);
-			if (!ImportData)
-			{
-				continue;
-			}
-
-			// Don't force update as textures will already come with this preset to their actual texture path
-			if (ImportData->SourceData.SourceFiles.Num() == 0)
-			{
-				ImportData->UpdateFilenameOnly(MainFilePath);
-			}
-
-			ImportData->ImportOptions = ImportOptions;
+			UpdateAssetImportData( AssetPair.Value, MainFilePath, ImportOptions );
 		}
 	}
 
@@ -974,21 +978,21 @@ namespace UsdStageImporterImpl
 
 		if (ExistingAsset && NewMesh)
 		{
-			int32 NumExistingMaterials = ExistingMesh->StaticMaterials.Num();
-			int32 NumNewMaterials = NewMesh->StaticMaterials.Num();
+			int32 NumExistingMaterials = ExistingMesh->GetStaticMaterials().Num();
+			int32 NumNewMaterials = NewMesh->GetStaticMaterials().Num();
 
 			for (int32 NewMaterialIndex = 0; NewMaterialIndex < NumNewMaterials; ++NewMaterialIndex)
 			{
 				UMaterialInterface* ExistingMaterial = ExistingMesh->GetMaterial(NewMaterialIndex);
 
 				// Can't use SetMaterial as it starts a scoped transaction that would hold on to our transient assets...
-				NewMesh->StaticMaterials[NewMaterialIndex].MaterialInterface = ExistingMaterial;
+				NewMesh->GetStaticMaterials()[NewMaterialIndex].MaterialInterface = ExistingMaterial;
 			}
 
 			// Clear out any other assignments we may have
 			for (int32 Index = NumNewMaterials; Index < NumExistingMaterials; ++Index)
 			{
-				NewMesh->StaticMaterials[Index].MaterialInterface = nullptr;
+				NewMesh->GetStaticMaterials()[Index].MaterialInterface = nullptr;
 			}
 
 			return;
@@ -1254,7 +1258,7 @@ bool UUsdStageImporter::ReimportSingleAsset(FUsdStageImportContext& ImportContex
 
 	if ( ReimportedObject )
 	{
-		UsdStageImporterImpl::UpdateAssetImportData( ImportContext.AssetsCache, ImportContext.FilePath, ImportContext.ImportOptions);
+		UsdStageImporterImpl::UpdateAssetImportData( ReimportedObject, ImportContext.FilePath, ImportContext.ImportOptions);
 
 		// Assign things from the original assets before we publish the reimported asset, overwriting it
 		UsdStageImporterImpl::CopyOriginalMaterialAssignment(ImportContext, OriginalAsset, ReimportedObject );

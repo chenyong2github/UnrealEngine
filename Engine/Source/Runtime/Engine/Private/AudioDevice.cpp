@@ -39,6 +39,7 @@
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
 #include "UObject/Package.h"
+#include "AudioMixerDevice.h"
 
 #if WITH_EDITOR
 #include "AudioEditorModule.h"
@@ -3296,6 +3297,7 @@ void FAudioDevice::GetAudioVolumeSettings(const uint32 WorldID, const FVector& L
 				OutSettings.ReverbSettings = Proxy.ReverbSettings;
 				OutSettings.InteriorSettings = Proxy.InteriorSettings;
 				OutSettings.SubmixSendSettings = Proxy.SubmixSendSettings;
+				OutSettings.SubmixOverrideSettings = Proxy.SubmixOverrideSettings;
 				return;
 			}
 		}
@@ -4305,32 +4307,7 @@ void FAudioDevice::Update(bool bGameTicking)
 		HandlePause(bGameTicking);
 	}
 
-	bool bHasVolumeSettings = false;
-	float AudioVolumePriority = 0.f;
-	FReverbSettings ReverbSettings;
-	bool bUsingDefaultReverb = true;
-
-	// Gets the current state of the interior settings
-	for (FListener& Listener : Listeners)
-	{
-		FAudioVolumeSettings PlayerAudioVolumeSettings;
-		GetAudioVolumeSettings(Listener.WorldID, Listener.Transform.GetLocation(), PlayerAudioVolumeSettings);
-
-		Listener.ApplyInteriorSettings(PlayerAudioVolumeSettings.AudioVolumeID, PlayerAudioVolumeSettings.InteriorSettings);
-		Listener.UpdateCurrentInteriorSettings();
-
-		if (!bHasVolumeSettings || (PlayerAudioVolumeSettings.AudioVolumeID > 0 && (bUsingDefaultReverb || PlayerAudioVolumeSettings.Priority > AudioVolumePriority)))
-		{
-			bHasVolumeSettings = true;
-			AudioVolumePriority = PlayerAudioVolumeSettings.Priority;
-			ReverbSettings = PlayerAudioVolumeSettings.ReverbSettings;
-
-			if (PlayerAudioVolumeSettings.AudioVolumeID > 0)
-			{
-				bUsingDefaultReverb = false;
-			}
-		}
-	}
+	UpdateAudioVolumeEffects();
 
 #if ENABLE_AUDIO_DEBUG
 	if (GEngine)
@@ -4348,22 +4325,6 @@ void FAudioDevice::Update(bool bGameTicking)
 		}
 	}
 #endif // ENABLE_AUDIO_DEBUG
-
-	if (bHasActivatedReverb)
-	{
-		if (HighestPriorityActivatedReverb.Priority > AudioVolumePriority || bUsingDefaultReverb)
-		{
-			ReverbSettings = HighestPriorityActivatedReverb.ReverbSettings;
-		}
-	}
-
-	if (Effects)
-	{
-		Effects->SetReverbSettings(ReverbSettings);
-
-		// Update the audio effects - reverb, EQ etc
-		Effects->Update();
-	}
 
 	// Gets the current state of the sound classes accounting for sound mix
 	UpdateSoundClassProperties(GetDeviceDeltaTime());
@@ -4432,6 +4393,107 @@ void FAudioDevice::Update(bool bGameTicking)
 	// send any needed information back to the game thread
 	SendUpdateResultsToGameThread(FirstActiveIndex);
 }
+
+void FAudioDevice::UpdateAudioVolumeEffects()
+{
+	bool bHasVolumeSettings = false;
+	FAudioVolumeSettings PlayerAudioVolumeSettings;
+	FAudioVolumeSettings PreviousPlayerAudioVolumeSettings;
+	bool bUsingDefaultReverb = true;
+	bool bAudioVolumeChanged = false;
+
+	// Gets the current state of the interior settings
+	for (FListener& Listener : Listeners)
+	{
+		FAudioVolumeSettings NewPlayerAudioVolumeSettings;
+		GetAudioVolumeSettings(Listener.WorldID, Listener.Transform.GetLocation(), NewPlayerAudioVolumeSettings);
+
+		Listener.ApplyInteriorSettings(NewPlayerAudioVolumeSettings.AudioVolumeID, NewPlayerAudioVolumeSettings.InteriorSettings);
+		Listener.UpdateCurrentInteriorSettings();
+
+		if (!bHasVolumeSettings || (NewPlayerAudioVolumeSettings.AudioVolumeID > 0 && (bUsingDefaultReverb || NewPlayerAudioVolumeSettings.Priority > PlayerAudioVolumeSettings.Priority)))
+		{
+			bHasVolumeSettings = true;
+			PlayerAudioVolumeSettings = NewPlayerAudioVolumeSettings;
+
+			if (NewPlayerAudioVolumeSettings.AudioVolumeID > 0)
+			{
+				bUsingDefaultReverb = false;
+			}
+		}
+	}
+
+	if (PlayerAudioVolumeSettings.AudioVolumeID != CurrentAudioVolumeSettings.AudioVolumeID)
+	{
+		PreviousPlayerAudioVolumeSettings = CurrentAudioVolumeSettings;
+		CurrentAudioVolumeSettings = PlayerAudioVolumeSettings;
+		bAudioVolumeChanged = true;
+	}
+
+	if (Effects)
+	{
+		// Update the master reverb
+		if (bHasActivatedReverb)
+		{
+			if (HighestPriorityActivatedReverb.Priority > PlayerAudioVolumeSettings.Priority || bUsingDefaultReverb)
+			{
+				CurrentAudioVolumeSettings.ReverbSettings = HighestPriorityActivatedReverb.ReverbSettings;
+			}
+		}
+
+		if (bAudioVolumeChanged)
+		{
+			Effects->SetReverbSettings(CurrentAudioVolumeSettings.ReverbSettings);
+		}
+
+		// Update the audio effects - reverb, EQ etc
+		Effects->Update();
+
+		// If we any submix override settings apply those overrides to the indicated submixes
+		if (IsAudioMixerEnabled() && bAudioVolumeChanged)
+		{
+			// Clear out any previous submix effect chain overrides if the audio volume changed
+			if (PreviousPlayerAudioVolumeSettings.SubmixOverrideSettings.Num() > 0)
+			{
+				for (FAudioVolumeSubmixOverrideSettings& OverrideSettings : PreviousPlayerAudioVolumeSettings.SubmixOverrideSettings)
+				{
+					ClearSubmixEffectChainOverride(OverrideSettings.Submix, OverrideSettings.CrossfadeTime);
+				}
+			}
+
+			if (CurrentAudioVolumeSettings.SubmixOverrideSettings.Num() > 0)
+			{
+				for (FAudioVolumeSubmixOverrideSettings& OverrideSettings : CurrentAudioVolumeSettings.SubmixOverrideSettings)
+				{
+					if (OverrideSettings.Submix && OverrideSettings.SubmixEffectChain.Num() > 0)
+					{
+
+						FSoundEffectSubmixInitData InitData;
+						InitData.SampleRate = GetSampleRate();
+
+						TArray<FSoundEffectSubmixPtr> SubmixEffectPresetChainOverride;
+
+						// Build the instances of the new submix preset chain override
+						for (USoundEffectSubmixPreset* SubmixEffectPreset : OverrideSettings.SubmixEffectChain)
+						{
+							if (SubmixEffectPreset)
+							{
+								InitData.ParentPresetUniqueId = SubmixEffectPreset->GetUniqueID();
+
+								TSoundEffectSubmixPtr SoundEffectSubmix = USoundEffectPreset::CreateInstance<FSoundEffectSubmixInitData, FSoundEffectSubmix>(InitData, *SubmixEffectPreset);
+								SoundEffectSubmix->SetEnabled(true);
+								SubmixEffectPresetChainOverride.Add(SoundEffectSubmix);
+							}
+						}
+
+						SetSubmixEffectChainOverride(OverrideSettings.Submix, SubmixEffectPresetChainOverride, OverrideSettings.CrossfadeTime);
+					}
+				}
+			}
+		}
+	}
+}
+
 
 void FAudioDevice::SendUpdateResultsToGameThread(const int32 FirstActiveIndex)
 {
@@ -5856,6 +5918,12 @@ void FAudioDevice::Flush(UWorld* WorldToFlush, bool bClearActivatedReverb)
 		// Make sure any in-flight audio rendering commands get executed.
 		FlushAudioRenderingCommands();
 	}
+
+	FlushExtended(WorldToFlush, bClearActivatedReverb);
+}
+
+void FAudioDevice::FlushExtended(UWorld* WorldToFlush, bool bClearActivatedReverb)
+{
 }
 
 /**

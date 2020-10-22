@@ -6233,9 +6233,7 @@ void SSCSEditor::OnDeleteNodes()
 			if (ensure(ScsNode))
 			{
 				FText VarNam = FText::FromName(ScsNode->GetVariableName());
-				FText ConfirmDelete = FText::Format(LOCTEXT("ConfirmDeleteDynamicDelegate",
-					"Component \"{0}\" has bound events in use! If you delete it then those nodes will become invalid. Are you sure you want to delete it?"),
-					VarNam);
+				FText ConfirmDelete = FText::Format(LOCTEXT("ConfirmDeleteDynamicDelegate", "Component \"{0}\" has bound events in use! If you delete it then those nodes will become invalid. Are you sure you want to delete it?"), VarNam);
 
 				// Warn the user that this may result in data loss
 				FSuppressableWarningDialog::FSetupInfo Info(ConfirmDelete, LOCTEXT("DeleteComponent", "Delete Component"), "DeleteComponentInUse_Warning");

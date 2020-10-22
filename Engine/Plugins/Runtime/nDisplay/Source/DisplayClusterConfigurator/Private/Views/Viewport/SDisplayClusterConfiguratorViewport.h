@@ -14,6 +14,7 @@ class FDisplayClusterConfiguratorEditorViewportClient;
 class FEditorViewportClient;
 class SOverlay;
 
+
 class SDisplayClusterConfiguratorViewport
 	: public FEditorUndoClient
 	, public SEditorViewport
@@ -26,11 +27,6 @@ public:
 	SLATE_END_ARGS()
 
 public:
-	SDisplayClusterConfiguratorViewport()
-	{}
-
-	~SDisplayClusterConfiguratorViewport();
-
 	void Construct(const FArguments& InArgs, const TSharedRef<FDisplayClusterConfiguratorToolkit>& InToolkit, const TSharedRef<FDisplayClusterConfiguratorPreviewScene>& InPreviewScene);
 
 protected:

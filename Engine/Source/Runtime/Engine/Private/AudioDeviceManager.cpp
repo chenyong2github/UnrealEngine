@@ -1413,9 +1413,8 @@ void FAudioDeviceManager::SetDynamicSoundVolume(ESoundType SoundType, const FNam
 		return;
 	}
 
-	FMath::Clamp(Volume, 0.0f, MAX_VOLUME);
 	TTuple<ESoundType, FName> Key(SoundType, SoundName);
-	DynamicSoundVolumes.FindOrAdd(Key) = Volume;
+	DynamicSoundVolumes.FindOrAdd(Key) = FMath::Clamp(Volume, 0.0f, MAX_VOLUME);;
 }
 
 #if ENABLE_AUDIO_DEBUG

@@ -2907,6 +2907,16 @@ void FStreamingLevelActorListCollection::Log(FReplicationGraphDebugInfo& DebugIn
 	}
 }
 
+void FStreamingLevelActorListCollection::TearDown()
+{
+	for (FStreamingLevelActors& StreamingLevelList : StreamingLevelLists)
+	{
+		StreamingLevelList.ReplicationActorList.TearDown();
+	}
+
+	StreamingLevelLists.Empty();
+}
+
 // --------------------------------------------------------------------------------------------------------------------------------------------
 
 void UReplicationGraphNode_ActorList::NotifyAddNetworkActor(const FNewReplicatedActorInfo& ActorInfo)
@@ -3004,6 +3014,14 @@ void UReplicationGraphNode_ActorList::GetAllActorsInNode_Debugging(TArray<FActor
 	{
 		ChildNode->GetAllActorsInNode_Debugging(OutArray);
 	}
+}
+
+void UReplicationGraphNode_ActorList::TearDown()
+{
+	Super::TearDown();
+
+	ReplicationActorList.TearDown();
+	StreamingLevelCollection.TearDown();
 }
 
 void UReplicationGraphNode_ActorList::LogNode(FReplicationGraphDebugInfo& DebugInfo, const FString& NodeName) const
@@ -3230,6 +3248,17 @@ void UReplicationGraphNode_ActorListFrequencyBuckets::LogNode(FReplicationGraphD
 	}
 	StreamingLevelCollection.Log(DebugInfo);
 	DebugInfo.PopIndent();
+}
+
+void UReplicationGraphNode_ActorListFrequencyBuckets::TearDown()
+{
+	Super::TearDown();
+
+	for (FActorRepListRefView& List : NonStreamingCollection)
+	{
+		List.TearDown();
+	}
+	StreamingLevelCollection.TearDown();
 }
 
 // --------------------------------------------------------------------------------------------------------------------------------------------
@@ -3987,8 +4016,6 @@ void UReplicationGraphNode_DormancyNode::CallFunctionOnValidConnectionNodes(FCon
 			bool bWasRemoved = RemoveChildNode(ConnectionNodeToDestroy, UReplicationGraphNode::NodeOrdering::IgnoreOrdering);
 			ensureMsgf(bWasRemoved, TEXT("DormancyNode did not find %s in it's child node."), *ConnectionNodeToDestroy->GetName());
 
-			//TODO: Release the ActorList in the Node ?
-			
 			It.RemoveCurrent();
 		}
 	}
@@ -5546,6 +5573,13 @@ void UReplicationGraphNode_AlwaysRelevant_ForConnection::GatherActorListsForConn
 	{
 		Params.OutGatheredReplicationLists.AddReplicationActorList(ReplicationActorList);
 	}
+}
+
+void UReplicationGraphNode_AlwaysRelevant_ForConnection::TearDown()
+{
+	Super::TearDown();
+
+	ReplicationActorList.TearDown();
 }
 
 // -------------------------------------------------------

@@ -16,11 +16,9 @@ FDisplayClusterConfiguratorPreviewScene::FDisplayClusterConfiguratorPreviewScene
 	// Reset Floor mesh
 	FVector FloorPos(0.f, 0.f, -50.f);
 	FloorMeshComponent->SetWorldTransform(FTransform(FRotator(0.f, 0.f, 0.f), FloorPos, FVector(3.0f, 3.0f, 1.0f)));
+	FloorMeshComponent->SetVisibility(false);
 }
 
-FDisplayClusterConfiguratorPreviewScene::~FDisplayClusterConfiguratorPreviewScene()
-{
-}
 
 void FDisplayClusterConfiguratorPreviewScene::Tick(float InDeltaTime)
 {

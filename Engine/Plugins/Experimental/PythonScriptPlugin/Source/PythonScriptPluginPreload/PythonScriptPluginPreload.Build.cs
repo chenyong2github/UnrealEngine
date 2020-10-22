@@ -17,7 +17,7 @@ namespace UnrealBuildTool.Rules
 			{
 				PrivateIncludePathModuleNames.AddRange(
 					new string[] {
-						"Python",
+						"Python3",
 					}
 				);
 			}

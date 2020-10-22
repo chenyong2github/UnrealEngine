@@ -96,6 +96,9 @@ namespace ChaosTest {
 	TPBDRigidParticleHandle<T, 3>* AppendDynamicParticleBox(TPBDRigidsSOAs<T, 3>& SOAs, const TVector<T, 3>& Scale = TVector<T, 3>(1), TArray<TVector<int32, 3>>* OutElements = nullptr);
 
 	template<class T>
+	TPBDRigidParticleHandle<T, 3>* AppendDynamicParticleBoxMargin(TPBDRigidsSOAs<T, 3>& SOAs, const TVector<T, 3>& Scale, FReal Margin, TArray<TVector<int32, 3>>* OutElements = nullptr);
+
+	template<class T>
 	TPBDRigidParticleHandle<T, 3>* AppendDynamicParticleSphere(TPBDRigidsSOAs<T, 3>& SOAs, const TVector<T, 3>& Scale = TVector<T, 3>(1), TArray<TVector<int32, 3>>* OutElements = nullptr);
 
 	template<class T>
@@ -126,10 +129,13 @@ namespace ChaosTest {
 
 	/**/
 	template<class T>
-	void AppendDynamicParticleConvexBox(TPBDRigidParticleHandle<T, 3> & InParticles, const TVector<T, 3>& Scale);
+	void AppendDynamicParticleConvexBox(TPBDRigidParticleHandle<T, 3> & InParticles, const TVector<T, 3>& Scale, FReal Margin);
 	
 	template<class T>
 	TPBDRigidParticleHandle<T, 3>* AppendDynamicParticleConvexBox(TPBDRigidsSOAs<T, 3>& SOAs, const TVector<T, 3>& Scale = TVector<T, 3>(1));
+
+	template<class T>
+	TPBDRigidParticleHandle<T, 3>* AppendDynamicParticleConvexBoxMargin(TPBDRigidsSOAs<T, 3>& SOAs, const TVector<T, 3>& Scale, FReal Margin);
 
 	/**/
 	template<class T>
@@ -202,9 +208,15 @@ namespace ChaosTest {
 	void InitEvolutionSettings(T_Evolution& Evolution)
 	{
 		// Settings used for unit tests
-		float ShapePadding = 0.0f;
-		Evolution.GetCollisionConstraints().SetShapePadding(ShapePadding);
-		Evolution.GetBroadPhase().SetShapePadding(ShapePadding);
+		const float CullDistance = 0.0f;
+		Evolution.GetCollisionConstraints().SetCullDistance(CullDistance);
+		Evolution.GetBroadPhase().SetBoundsThickness(CullDistance);
+	}
+
+	template<typename T_SOLVER>
+	void InitSolverSettings(T_SOLVER& Solver)
+	{
+		InitEvolutionSettings(*Solver->GetEvolution());
 	}
 
 }

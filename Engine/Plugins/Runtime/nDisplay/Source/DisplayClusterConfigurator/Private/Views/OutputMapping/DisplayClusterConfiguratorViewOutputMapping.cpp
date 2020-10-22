@@ -80,13 +80,30 @@ void FDisplayClusterConfiguratorViewOutputMapping::UnregisterOnShowOutsideViewpo
 	OnShowOutsideViewports.Remove(DelegateHandle);
 }
 
+FDelegateHandle FDisplayClusterConfiguratorViewOutputMapping::RegisterOnOutputMappingBuilt(const FOnOutputMappingBuiltDelegate& Delegate)
+{
+	return OnOutputMappingBuilt.Add(Delegate);
+}
+
+void FDisplayClusterConfiguratorViewOutputMapping::UnregisterOnOutputMappingBuilt(FDelegateHandle DelegateHandle)
+{
+	OnOutputMappingBuilt.Remove(DelegateHandle);
+}
+
+void FDisplayClusterConfiguratorViewOutputMapping::SetViewportPreviewTexture(const FString& NodeId, const FString& ViewportId, UTexture* InTexture)
+{
+	if (GraphEditor.IsValid())
+	{
+		GraphEditor->SetViewportPreviewTexture(NodeId, ViewportId, InTexture);
+	}
+}
+
 void FDisplayClusterConfiguratorViewOutputMapping::ToggleShowWindowInfo()
 {
 	bShowWindowInfo = !bShowWindowInfo;
 
 	OnShowWindowInfo.Broadcast(bShowWindowInfo);
 }
-
 void FDisplayClusterConfiguratorViewOutputMapping::ToggleShowWindowCornerImage()
 {
 	bShowWindowCornerImage  = !bShowWindowCornerImage;

@@ -448,7 +448,7 @@ static bool SupportsLandscapeMeshLODStreaming()
 	return bStreamLandscapeMeshLODs;
 }
 
-bool FIOSTargetPlatform::CanSupportXGEShaderCompile() const
+bool FIOSTargetPlatform::CanSupportRemoteShaderCompile() const
 {
 	// for 4.22 we are disabling support for XGE Shader compile on IOS
 	bool bRemoteCompilingEnabled = false;

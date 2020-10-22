@@ -23,7 +23,13 @@ bool FOpenXRRenderBridge::Present(int32& InOutSyncInterval)
 
 	InOutSyncInterval = 0; // VSync off
 
-	return true;
+#if PLATFORM_HOLOLENS
+	bool bNeedsNativePresent = false;
+#else
+	bool bNeedsNativePresent = !FPlatformMisc::IsStandaloneStereoOnlyDevice();
+#endif
+
+	return bNeedsNativePresent;
 }
 
 #ifdef XR_USE_GRAPHICS_API_D3D11

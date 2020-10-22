@@ -2087,9 +2087,9 @@ void ALandscapeProxy::FlushGrassComponents(const TSet<ULandscapeComponent*>* Onl
 	}
 }
 
-void ALandscapeProxy::GetGrassTypes(const UWorld* World, UMaterialInterface* LandscapeMat, TArray<ULandscapeGrassType*>& GrassTypesOut, float& OutMaxSquareDiscardDistance)
+void ALandscapeProxy::GetGrassTypes(const UWorld* World, UMaterialInterface* LandscapeMat, TArray<ULandscapeGrassType*>& GrassTypesOut, float& OutMaxDiscardDistance)
 {
-	float MaxDiscardDistance = 0.0f;
+	OutMaxDiscardDistance = 0.0f;
 	if (LandscapeMat)
 	{
 		GrassTypesOut.Append(LandscapeMat->GetMaterial()->GetCachedExpressionData().GrassTypes);
@@ -2101,16 +2101,14 @@ void ALandscapeProxy::GetGrassTypes(const UWorld* World, UMaterialInterface* Lan
 				for (auto& GrassVariety : GrassType->GrassVarieties)
 				{
 					const int32 EndCullDistance = GrassVariety.EndCullDistance.GetValue();
-					if (EndCullDistance > MaxDiscardDistance)
+					if (EndCullDistance > OutMaxDiscardDistance)
 					{
-						MaxDiscardDistance = EndCullDistance;
+						OutMaxDiscardDistance = EndCullDistance;
 					}
 				}
 			}
 		}
 	}
-
-	OutMaxSquareDiscardDistance = MaxDiscardDistance * MaxDiscardDistance;
 }
 
 static uint32 GGrassExclusionChangeTag = 1;
@@ -2255,8 +2253,8 @@ void ALandscapeProxy::UpdateGrassDataStatus(TSet<UTexture2D*>* OutCurrentForcedS
 	const bool bCheckStreamingState = OutDesiredForcedStreamedTextures || bInEnableForceResidentFlag;
 
 	TArray<ULandscapeGrassType*> GrassTypes;
-	float OutMaxSquareDiscardDistance = 0.0f;
-	GetGrassTypes(World, LandscapeMaterial, GrassTypes, OutMaxSquareDiscardDistance);
+	float OutMaxDiscardDistance = 0.0f;
+	GetGrassTypes(World, LandscapeMaterial, GrassTypes, OutMaxDiscardDistance);
 	const bool bHasGrassTypes = GrassTypes.Num() > 0;
 
 	const bool bIsOutermostPackageDirty = GetOutermost()->IsDirty();
@@ -2462,20 +2460,25 @@ void ALandscapeProxy::UpdateGrass(const TArray<FVector>& Cameras, int32& InOutNu
 		{
 #if WITH_EDITOR
 			TArray<ULandscapeGrassType*> LandscapeGrassTypes;
-			float GrassMaxSquareDiscardDistance = 0.0f;
-			GetGrassTypes(World, LandscapeMaterial, LandscapeGrassTypes, GrassMaxSquareDiscardDistance);
+			float GrassMaxDiscardDistance = 0.0f;
+			GetGrassTypes(World, LandscapeMaterial, LandscapeGrassTypes, GrassMaxDiscardDistance);
 #else
 			// In non editor builds, cache grass types for performance.
 			if (LandscapeMaterial != LandscapeMaterialCached)
 			{
 				LandscapeMaterialCached = LandscapeMaterial;
 				LandscapeGrassTypes.Reset();
-				GrassMaxSquareDiscardDistance = 0.0f;
-				GetGrassTypes(World, LandscapeMaterial, LandscapeGrassTypes, GrassMaxSquareDiscardDistance);
+				GrassMaxDiscardDistance = 0.0f;
+				GetGrassTypes(World, LandscapeMaterial, LandscapeGrassTypes, GrassMaxDiscardDistance);
 			}
 #endif
-			
+			// Cull grass max distance based on Cull Distance scale factor and on max GuardBand factor.
+			float GrassMaxCulledDiscardDistance = GrassMaxDiscardDistance * GGrassCullDistanceScale *
+			FMath::Max(GGuardBandDiscardMultiplier, GGuardBandMultiplier);
+			float GrassMaxSquareDiscardDistance = GrassMaxCulledDiscardDistance * GrassMaxCulledDiscardDistance;
 #if WITH_EDITOR
+
+
 			int32 RequiredTexturesNotStreamedIn = 0;
 			TSet<ULandscapeComponent*> ComponentsNeedingGrassMapRender;
 			TSet<ULandscapeComponent*> OutdatedComponents;

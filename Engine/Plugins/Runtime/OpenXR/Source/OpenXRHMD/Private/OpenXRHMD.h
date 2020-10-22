@@ -39,7 +39,7 @@ public:
 		XrSpace Space;
 	};
 
-	// The game and render threads each have a separate copy of this structure so that they don't stomp on each other or cause tearing
+	// The game and render threads each have a separate copy of these structures so that they don't stomp on each other or cause tearing
 	// when the game thread progresses to the next frame while the render thread is still working on the previous frame.
 	struct FPipelinedFrameState
 	{
@@ -51,12 +51,15 @@ public:
 		float WorldToMetersScale = 100.0f;
 
 		TArray<XrViewConfigurationView> ViewConfigs;
+		TArray<class IOpenXRExtensionPlugin*> PluginViews;
+	};
+
+	struct FPipelinedLayerState
+	{
 		TArray<XrCompositionLayerProjectionView> ProjectionLayers;
 		TArray<XrCompositionLayerDepthInfoKHR> DepthLayers;
 		TArray<XrSwapchainSubImage> ColorImages;
 		TArray<XrSwapchainSubImage> DepthImages;
-
-		TArray<class IOpenXRExtensionPlugin*> PluginViews;
 	};
 
 	class FVulkanExtensions : public IHeadMountedDisplayVulkanExtensions
@@ -145,6 +148,9 @@ protected:
 
 	const FPipelinedFrameState& GetPipelinedFrameStateForThread() const;
 	FPipelinedFrameState& GetPipelinedFrameStateForThread();
+	const FPipelinedLayerState& GetPipelinedLayerStateForThread() const;
+	FPipelinedLayerState& GetPipelinedLayerStateForThread();
+
 	void UpdateDeviceLocations();
 	void EnumerateViews(FPipelinedFrameState& PipelineState);
 
@@ -253,6 +259,8 @@ private:
 	float					WorldToMetersScale = 100.0f;
 
 	XrSessionState			CurrentSessionState;
+	FEvent*					FrameEventRHI;
+	FCriticalSection		BeginEndFrameMutex;
 
 	TArray<const char*>		EnabledExtensions;
 	TArray<class IOpenXRExtensionPlugin*> ExtensionPlugins;
@@ -266,7 +274,11 @@ private:
 	XrEnvironmentBlendMode  SelectedEnvironmentBlendMode;
 
 	FPipelinedFrameState	PipelinedFrameStateGame;
+	FPipelinedFrameState	PipelinedFrameStateRendering;
 	FPipelinedFrameState	PipelinedFrameStateRHI;
+
+	FPipelinedLayerState	PipelinedLayerStateRendering;
+	FPipelinedLayerState	PipelinedLayerStateRHI;
 
 	TArray<FDeviceSpace>	DeviceSpaces;
 

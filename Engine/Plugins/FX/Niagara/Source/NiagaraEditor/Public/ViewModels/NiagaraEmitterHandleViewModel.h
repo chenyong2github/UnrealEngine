@@ -46,8 +46,7 @@ public:
 	void SetSimulation(TWeakPtr<FNiagaraEmitterInstance, ESPMode::ThreadSafe> InSimulation);
 
 	/** Gets the id of the emitter handle. */
-	FGuid GetId() const;
-	FText GetIdText() const;
+	NIAGARAEDITOR_API FGuid GetId() const;
 
 	/** Gets the name of the emitter handle. */
 	FName GetName() const;

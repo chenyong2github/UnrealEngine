@@ -39,7 +39,7 @@ bool RunPackageFilters(const TArray<FPackageClassFilter>& InFilters, const FConc
 {
 	bool bMatchFilter = false;
 	FString PackageName = InPackageInfo.PackageName.ToString();
-	UClass* AssetClass = LoadClass<UClass>(nullptr, *InPackageInfo.AssetClass);
+	UClass* AssetClass = LoadClass<UObject>(nullptr, *InPackageInfo.AssetClass);
 	for (const FPackageClassFilter& PackageFilter : InFilters)
 	{
 		UClass* PackageAssetClass = PackageFilter.AssetClass.TryLoadClass<UObject>();

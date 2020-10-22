@@ -6,9 +6,15 @@
 
 #include "SceneImporter.h"
 
+#include "DirectLinkCommon.h"
+
+#include "Misc/SecureHash.h"
+
 class IDatasmithBaseMaterialElement;
 class IDatasmithElement;
 class IDatasmithMasterMaterialElement;
+class IDatasmithMeshElement;
+class IDatasmithTextureElement;
 class IDatasmithUEPbrMaterialElement;
 class FSceneImporter;
 class UClass;
@@ -45,6 +51,11 @@ namespace DatasmithRuntime
 
 	typedef TFunction<void(const FString&, int32)> FTextureCallback;
 
+	FORCEINLINE uint32 GetTypeHash(const FMD5Hash& Hash)
+	{
+		return FCrc::MemCrc32(Hash.GetBytes(),Hash.GetSize());
+	}
+
 	extern const TCHAR* PbrTexturePropertyNames[6];
 
 	extern void CalculateMeshesLightmapWeights(const TArray< FSceneGraphId >& MeshElementArray, const TMap< FSceneGraphId, TSharedPtr< IDatasmithElement > >& Elements, TMap< FSceneGraphId, float >& LightmapWeights);
@@ -73,4 +84,16 @@ namespace DatasmithRuntime
 	extern void ImageReaderInitialize();
 
 	extern bool GetTextureData(const TCHAR* Source, EDSResizeTextureMode Mode, uint32 MaxSize, bool bGenerateNormalMap, FTextureData& TextureData);
+
+	extern void RegisterAssetData(UObject* Asset, FAssetData* AssetData);
+
+	extern int32 UnregisterAssetData(UObject* Asset, FAssetData* AssetData);
+
+	extern const TSet<FAssetData*>& GetRegisteredAssetData(UObject* Asset);
+
+	extern void SetObjectCompletion(UObject* Asset, bool bIsCompleted);
+
+	extern bool IsObjectCompleted(UObject* Asset);
+
+	extern UObject* FindObjectFromHash(DirectLink::FElementHash ElementHash);
 }

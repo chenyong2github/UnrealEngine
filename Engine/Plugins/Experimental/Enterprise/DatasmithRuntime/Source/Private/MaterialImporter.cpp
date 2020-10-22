@@ -24,7 +24,6 @@ namespace DatasmithRuntime
 	TSharedPtr< IDatasmithElement > ValidatePbrMaterial( TSharedPtr< IDatasmithUEPbrMaterialElement > PbrMaterialElement, FSceneImporter& SceneImporter )
 	{
 		// Assuming Pbr materials using material attributes are layered materials
-		// #ue_liveupdate: Revisit this logic
 		if (PbrMaterialElement->GetUseMaterialAttributes())
 		{
 			for (int32 Index = 0; Index < PbrMaterialElement->GetExpressionsCount(); ++Index)
@@ -48,7 +47,7 @@ namespace DatasmithRuntime
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FSceneImporter::ProcessMaterialData);
 
-		if (MaterialData.bProcessed)
+		if (MaterialData.HasState(EDatasmithRuntimeAssetState::Processed))
 		{
 			return;
 		}
@@ -57,20 +56,34 @@ namespace DatasmithRuntime
 
 		FString MaterialName = FString(Element->GetLabel()) + TEXT("_LU_") + FString::FromInt(MaterialData.ElementId);
 
+		bool bUsingMaterialFromCache = false;
+
 		if ( !MaterialData.Object.IsValid() )
 		{
+			//MaterialData.Hash = Element->GetStore().Snapshot().Hash();
+			MaterialData.Hash = GetTypeHash(Element->CalculateElementHash(true));
+
+			if (UObject* Asset = FindObjectFromHash(MaterialData.Hash))
+			{
+				UMaterialInstanceDynamic* Material = Cast<UMaterialInstanceDynamic>(Asset);
+				check(Material);
+
+				MaterialData.Object = TStrongObjectPtr<UObject>(Material);
+
+				bUsingMaterialFromCache = true;
+			}
+			else
+			{
 #ifdef ASSET_DEBUG
-			MaterialName = FDatasmithUtils::SanitizeObjectName(MaterialName);
-			UPackage* Package = CreatePackage(*FPaths::Combine( TEXT("/Engine/Transient/LU"), MaterialName));
-			MaterialData.Object = TStrongObjectPtr<UObject>( UMaterialInstanceDynamic::Create( nullptr, Package, *MaterialName) );
-			MaterialData.Object->SetFlags(RF_Public);
+				MaterialName = FDatasmithUtils::SanitizeObjectName(MaterialName);
+				UPackage* Package = CreatePackage(*FPaths::Combine( TEXT("/Engine/Transient/LU"), MaterialName));
+				MaterialData.Object = TStrongObjectPtr<UObject>( UMaterialInstanceDynamic::Create( nullptr, Package, *MaterialName) );
+				MaterialData.Object->SetFlags(RF_Public);
 #else
-			MaterialData.Object = TStrongObjectPtr<UObject>( UMaterialInstanceDynamic::Create( nullptr, nullptr) );
+				MaterialData.Object = TStrongObjectPtr<UObject>( UMaterialInstanceDynamic::Create( nullptr, nullptr) );
 #endif
-		}
-		else if(MaterialName != MaterialData.Object->GetName())
-		{
-			// #ue_liveupdate: Rename
+				check(MaterialData.Object.IsValid());
+			}
 		}
 
 		if ( Element->IsA( EDatasmithElementType::UEPbrMaterial ) )
@@ -113,17 +126,26 @@ namespace DatasmithRuntime
 			MaterialData.Requirements = ProcessMaterialElement(StaticCastSharedPtr<IDatasmithMasterMaterialElement>(Element), *Host, TextureCallback);
 		}
 
-		MaterialData.bProcessed = true;
+		MaterialData.SetState(EDatasmithRuntimeAssetState::Processed);
 
-		FActionTaskFunction TaskFunc = [this](UObject*, const FReferencer& Referencer) -> EActionResult::Type
+		RegisterAssetData(MaterialData.GetObject<>(), &MaterialData);
+
+		if (!bUsingMaterialFromCache)
 		{
-			return this->ProcessMaterial(Referencer.GetId());
-		};
+			FActionTaskFunction TaskFunc = [this](UObject*, const FReferencer& Referencer) -> EActionResult::Type
+			{
+				return this->ProcessMaterial(Referencer.GetId());
+			};
 
-		AddToQueue(MATERIAL_QUEUE, { TaskFunc, {EDataType::Material, MaterialData.ElementId, 0 } });
-		TasksToComplete |= EDatasmithRuntimeWorkerTask::MaterialCreate;
+			AddToQueue(MATERIAL_QUEUE, { TaskFunc, {EDataType::Material, MaterialData.ElementId, 0 } });
+			TasksToComplete |= EDatasmithRuntimeWorkerTask::MaterialCreate;
 
-		MaterialElementSet.Add(MaterialData.ElementId);
+			MaterialElementSet.Add(MaterialData.ElementId);
+		}
+		else if(IsObjectCompleted(MaterialData.GetObject<>()))
+		{
+			MaterialData.AddState(EDatasmithRuntimeAssetState::Completed);
+		}
 	}
 
 	EActionResult::Type FSceneImporter::ProcessMaterial(FSceneGraphId ElementId)
@@ -136,6 +158,8 @@ namespace DatasmithRuntime
 
 		UMaterialInstanceDynamic* MaterialInstance = MaterialData.GetObject<UMaterialInstanceDynamic>();
 
+		bool bCreationSuccessful = false;
+
 		if ( Element->IsA( EDatasmithElementType::Material ) )
 		{
 			// Not supported
@@ -145,19 +169,28 @@ namespace DatasmithRuntime
 
 			TSharedPtr< IDatasmithMasterMaterialElement > MaterialElement = StaticCastSharedPtr< IDatasmithMasterMaterialElement >( Element );
 
-			MaterialData.bCompleted = LoadMasterMaterial(MaterialInstance, MaterialElement, SceneElement->GetHost());
+			bCreationSuccessful = LoadMasterMaterial(MaterialInstance, MaterialElement, SceneElement->GetHost());
 		}
 		else if ( Element->IsA( EDatasmithElementType::UEPbrMaterial ) )
 		{
 			IDatasmithUEPbrMaterialElement* MaterialElement = static_cast< IDatasmithUEPbrMaterialElement* >( Element.Get() );
 
-			MaterialData.bCompleted = LoadPbrMaterial(MaterialInstance, MaterialElement);
+			bCreationSuccessful = LoadPbrMaterial(MaterialInstance, MaterialElement);
 		}
 
-		if (MaterialData.bCompleted == false)
+		const TSet<FAssetData*>& RegisteredAssets = GetRegisteredAssetData(MaterialInstance);
+
+		for (FAssetData* AssetData : RegisteredAssets)
 		{
-			MaterialData.Object = nullptr;
-			MaterialData.bCompleted = true;
+			AssetData->AddState(EDatasmithRuntimeAssetState::Completed);
+		}
+
+		if (!bCreationSuccessful)
+		{
+			for (FAssetData* AssetData : RegisteredAssets)
+			{
+				AssetData->Object.Reset();
+			}
 
 			return EActionResult::Failed;
 		}
@@ -175,7 +208,7 @@ namespace DatasmithRuntime
 
 			FAssetData& MaterialData = AssetDataList[ ElementId ];
 
-			if (!MaterialData.bCompleted)
+			if (!MaterialData.HasState(EDatasmithRuntimeAssetState::Completed))
 			{
 				return EActionResult::Retry;
 			}

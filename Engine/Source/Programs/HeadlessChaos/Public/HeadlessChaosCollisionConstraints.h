@@ -61,11 +61,11 @@ public:
 	{
 		if (Constraint.GetType() == FPointContactConstraint::StaticType())
 		{
-			Collisions::Update(*Constraint.As<FPointContactConstraint>(), CullDistance, 0.0f);
+			Collisions::Update(*Constraint.As<FPointContactConstraint>(), CullDistance);
 		}
 		else if(Constraint.GetType() == FMultiPointContactConstraint::StaticType())
 		{
-			Collisions::Update(*Constraint.As<FMultiPointContactConstraint>(), CullDistance, 0.0f);
+			Collisions::Update(*Constraint.As<FMultiPointContactConstraint>(), CullDistance);
 		}
 	}
 
@@ -73,7 +73,7 @@ public:
 	{
 		if (Constraint.GetType() == FCollisionConstraintBase::FType::MultiPoint)
 		{
-			Collisions::UpdateManifold(*Constraint.As<FRigidBodyMultiPointContactConstraint>(), CullDistance, 0.0f);
+			Collisions::UpdateManifold(*Constraint.As<FRigidBodyMultiPointContactConstraint>(), CullDistance);
 		}
 	}
 

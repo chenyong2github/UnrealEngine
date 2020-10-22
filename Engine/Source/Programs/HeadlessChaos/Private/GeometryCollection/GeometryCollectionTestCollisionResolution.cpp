@@ -528,7 +528,12 @@ namespace GeometryCollectionTest
 			UnitTest.Advance();
 		}
 		{
+			// Expected resting distance depends on the collision solver implementation. The current implementation uses PushOut
+			// to set distance to 0 (see CollisionSolver.cpp ApplyPushOutManifold()), but real PBD would leave the distance at G.dt.dt
+			// Note: This is set to the true PBD distance for now until zero restitution bouncing is fixed
 			const FReal ExpectedRestingDistance = UnitTest.Solver->GetEvolution()->GetGravityForces().GetAcceleration().Size() * UnitTest.Dt * UnitTest.Dt;
+			//const FReal ExpectedRestingDistance = 0.0f;
+
 
 			// validate the tetahedron collides and moved away from the static floor
 			EXPECT_EQ(Collection->RestCollection->Transform[0].GetTranslation().Z, 0.f);

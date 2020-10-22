@@ -848,8 +848,8 @@ void FConcertWorkspaceUI::OnMarkPackageDirty(UPackage* InPackage, bool /*bWasDir
 {
 	TSharedPtr<IConcertClientWorkspace> ClientWorkspacePin = ClientWorkspace.Pin();
 	if (ClientWorkspacePin.IsValid()
-		&& !ClientWorkspacePin->ShouldIgnorePackageDirtyEvent(InPackage)
-		&& !ClientWorkspacePin->HasLiveTransactionSupport(InPackage))
+		&& !ClientWorkspacePin->HasLiveTransactionSupport(InPackage)
+		&& !ClientWorkspacePin->ShouldIgnorePackageDirtyEvent(InPackage))
 	{
 		FGuid ResourceLockId = ClientWorkspacePin->GetResourceLockId(InPackage->GetFName());
 

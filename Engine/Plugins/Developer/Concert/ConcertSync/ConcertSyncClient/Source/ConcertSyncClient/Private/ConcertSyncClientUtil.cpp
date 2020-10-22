@@ -503,7 +503,7 @@ void FillPackageInfo(UPackage* InPackage, UObject* InAsset, const EConcertPackag
 {
 	UObject* Asset = InAsset ? InAsset : FindAssetInPackage(InPackage);
 	OutPackageInfo.PackageName = InPackage->GetFName();
-	OutPackageInfo.AssetClass = Asset ? Asset->GetClass()->GetName() : FString();
+	OutPackageInfo.AssetClass = Asset ? Asset->GetClass()->GetPathName() : FString();
 	OutPackageInfo.PackageFileExtension = Asset && Asset->IsA<UWorld>()? FPackageName::GetMapPackageExtension() : FPackageName::GetAssetPackageExtension();
 	OutPackageInfo.PackageUpdateType = InPackageUpdateType;
 }

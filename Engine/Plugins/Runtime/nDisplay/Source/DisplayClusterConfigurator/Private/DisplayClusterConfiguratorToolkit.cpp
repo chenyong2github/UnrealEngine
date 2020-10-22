@@ -192,16 +192,6 @@ void FDisplayClusterConfiguratorToolkit::UnregisterOnInvalidateViews(FDelegateHa
 	OnInvalidateViews.Remove(DelegateHandle);
 }
 
-FDelegateHandle FDisplayClusterConfiguratorToolkit::RegisterOnClearViewportSelection(const FOnClearViewportSelectionDelegate& Delegate)
-{
-	return OnClearViewportSelection.Add(Delegate);
-}
-
-void FDisplayClusterConfiguratorToolkit::UnregisterOnClearViewportSelection(FDelegateHandle DelegateHandle)
-{
-	OnClearViewportSelection.Remove(DelegateHandle);
-}
-
 const TArray<UObject*>& FDisplayClusterConfiguratorToolkit::GetSelectedObjects() const
 {
 	return SelectedObjects;
@@ -283,7 +273,6 @@ void FDisplayClusterConfiguratorToolkit::OnReadOnlyChanged(bool bReadOnly)
 	ViewCluster->SetEnabled(!bReadOnly);
 	ViewScene->SetEnabled(!bReadOnly);
 	ViewInput->SetEnabled(!bReadOnly);
-	ViewViewport->SetEnabled(!bReadOnly);
 }
 
 void FDisplayClusterConfiguratorToolkit::BindCommands()
@@ -374,7 +363,6 @@ void FDisplayClusterConfiguratorToolkit::CreateWidgets()
 		ViewCluster->SetEnabled(!bReadOnly);
 		ViewScene->SetEnabled(!bReadOnly);
 		ViewInput->SetEnabled(!bReadOnly);
-		ViewViewport->SetEnabled(!bReadOnly);
 	}
 
 	// Refresh widgets of menus and toolbars being displayed right now
@@ -385,7 +373,7 @@ void FDisplayClusterConfiguratorToolkit::CreateWidgets()
 	// Add log
 	UDisplayClusterConfiguratorEditorData* EditorData = GetEditorData();
 	check(EditorData != nullptr);
-	ViewLog->Log(FText::Format(NSLOCTEXT("FDisplayClusterConfiguratorViewLog", "SuccessSaveToFile", "Successfully load latest with the path: {0}"), FText::FromString(EditorData->PathToConfig)));
+	ViewLog->Log(FText::Format(NSLOCTEXT("FDisplayClusterConfiguratorViewLog", "SuccessLoadFromFile", "Successfully load latest with the path: {0}"), FText::FromString(EditorData->PathToConfig)));
 }
 
 void FDisplayClusterConfiguratorToolkit::RegisterTabSpawners(const TSharedRef<FTabManager>& InTabManager)
@@ -432,7 +420,6 @@ void FDisplayClusterConfiguratorToolkit::RegisterTabSpawners(const TSharedRef<FT
 		.SetGroup(WorkspaceMenuCategory.ToSharedRef());
 
 	InTabManager->UnregisterTabSpawner(ViewportTabID);
-
 	InTabManager->RegisterTabSpawner(TabID_Viewport, FOnSpawnTab::CreateSP(this, &FDisplayClusterConfiguratorToolkit::SpawnTab_Viewport))
 		.SetDisplayName(LOCTEXT("ViewportTabTitle", "Viewport"))
 		.SetGroup(WorkspaceMenuCategory.ToSharedRef())
@@ -556,7 +543,7 @@ void FDisplayClusterConfiguratorToolkit::ImportConfig_Clicked()
 		// Add log
 		UDisplayClusterConfiguratorEditorData* EditorData = GetEditorData();
 		check(EditorData != nullptr);
-		ViewLog->Log(FText::Format(NSLOCTEXT("FDisplayClusterConfiguratorViewLog", "SuccessSaveToFile", "Successfully imported with the path: {0}"), FText::FromString(EditorData->PathToConfig)));
+		ViewLog->Log(FText::Format(NSLOCTEXT("FDisplayClusterConfiguratorViewLog", "SuccessImportFromFile", "Successfully imported with the path: {0}"), FText::FromString(EditorData->PathToConfig)));
 	}
 	else
 	{

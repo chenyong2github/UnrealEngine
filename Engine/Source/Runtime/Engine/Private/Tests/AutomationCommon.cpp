@@ -94,7 +94,11 @@ namespace AutomationCommon
 		FString PathName = TestName / FPlatformProperties::IniPlatformName();
 		PathName = PathName + TEXT("/") + GetRenderDetailsString();
 
-		return FString::Printf(TEXT("%s/%s.png"), *PathName, *FPlatformMisc::GetDeviceId());
+		// We need a unique ID for filenames from this run. We used to use GetDeviceId() but that is not guaranteed to return
+		// a valid string on some platforms.
+		static FString UUID = FGuid::NewGuid().ToString(EGuidFormats::Short).ToLower();
+
+		return FString::Printf(TEXT("%s/%s.png"), *PathName, *UUID);
 	}
 
 	FString GetLocalPathForScreenshot(const FString& InScreenshotName)

@@ -695,76 +695,79 @@ bool UARBlueprintLibrary::GetObjectClassificationAtLocation(const FVector& InWor
 }
 
 
-struct FSquareMatrix3
+namespace UARBlueprintLibraryNamespace
 {
-	float M[3][3];
-
-	FSquareMatrix3() = default;
-
-	FORCEINLINE void SetColumn(int32 Index, FVector Axis)
+	struct FSquareMatrix3
 	{
-		M[Index][0] = Axis.X;
-		M[Index][1] = Axis.Y;
-		M[Index][2] = Axis.Z;
-	};
+		float M[3][3];
 
-	FORCEINLINE FVector GetColumn(int32 Index) const
-	{
-		return FVector(M[Index][0], M[Index][1], M[Index][2]);
-	};
+		FSquareMatrix3() = default;
 
-	FORCEINLINE FSquareMatrix3 operator*(float Scale) const
-	{
-		FSquareMatrix3 ResultMat;
-
-		for (int32 X = 0; X < 3; X++)
+		FORCEINLINE void SetColumn(int32 Index, FVector Axis)
 		{
-			for (int32 Y = 0; Y < 3; Y++)
+			M[Index][0] = Axis.X;
+			M[Index][1] = Axis.Y;
+			M[Index][2] = Axis.Z;
+		};
+
+		FORCEINLINE FVector GetColumn(int32 Index) const
+		{
+			return FVector(M[Index][0], M[Index][1], M[Index][2]);
+		};
+
+		FORCEINLINE FSquareMatrix3 operator*(float Scale) const
+		{
+			FSquareMatrix3 ResultMat;
+
+			for (int32 X = 0; X < 3; X++)
 			{
-				ResultMat.M[X][Y] = M[X][Y] * Scale;
+				for (int32 Y = 0; Y < 3; Y++)
+				{
+					ResultMat.M[X][Y] = M[X][Y] * Scale;
+				}
 			}
+
+			return ResultMat;
 		}
-
-		return ResultMat;
-	}
-};
-
-
-FSquareMatrix3 Invert(const FSquareMatrix3& InMatrix)
-{
-	FSquareMatrix3 inverse;
-	bool invertible;
-	auto& M = InMatrix.M;
-	float c00 = M[1][1] * M[2][2] - M[1][2] * M[2][1];
-	float c10 = M[1][2] * M[2][0] - M[1][0] * M[2][2];
-	float c20 = M[1][0] * M[2][1] - M[1][1] * M[2][0];
-	float det = M[0][0] * c00 + M[0][1] * c10 + M[0][2] * c20;
-	if (FMath::Abs(det) > 0.000001f)
-	{
-		float invDet = 1.0f / det;
-		inverse.SetColumn(0, { c00*invDet, (M[0][2] * M[2][1] - M[0][1] * M[2][2])*invDet, (M[0][1] * M[1][2] - M[0][2] * M[1][1])*invDet });
-		inverse.SetColumn(1, { c10*invDet, (M[0][0] * M[2][2] - M[0][2] * M[2][0])*invDet, (M[0][2] * M[1][0] - M[0][0] * M[1][2])*invDet });
-		inverse.SetColumn(2, { c20*invDet, (M[0][1] * M[2][0] - M[0][0] * M[2][1])*invDet, (M[0][0] * M[1][1] - M[0][1] * M[1][0])*invDet });
-		invertible = true;
-	}
-	else
-	{
-		inverse.SetColumn(0, { 1,0,0 });
-		inverse.SetColumn(1, { 0,1,0 });
-		inverse.SetColumn(2, { 0,0,1 });
-		invertible = false;
-	}
-	return inverse;
-}
-
-FVector operator* (const FSquareMatrix3& InMatrix, const FVector& InVector)
-{
-	auto& M = InMatrix.M;
-	return {
-		M[0][0] * InVector.X + M[1][0] * InVector.Y + M[2][0] * InVector.Z,
-		M[0][1] * InVector.X + M[1][1] * InVector.Y + M[2][1] * InVector.Z,
-		M[0][2] * InVector.X + M[1][2] * InVector.Y + M[2][2] * InVector.Z
 	};
+
+
+	FSquareMatrix3 Invert(const FSquareMatrix3& InMatrix)
+	{
+		FSquareMatrix3 inverse;
+		bool invertible;
+		auto& M = InMatrix.M;
+		float c00 = M[1][1] * M[2][2] - M[1][2] * M[2][1];
+		float c10 = M[1][2] * M[2][0] - M[1][0] * M[2][2];
+		float c20 = M[1][0] * M[2][1] - M[1][1] * M[2][0];
+		float det = M[0][0] * c00 + M[0][1] * c10 + M[0][2] * c20;
+		if (FMath::Abs(det) > 0.000001f)
+		{
+			float invDet = 1.0f / det;
+			inverse.SetColumn(0, { c00 * invDet, (M[0][2] * M[2][1] - M[0][1] * M[2][2]) * invDet, (M[0][1] * M[1][2] - M[0][2] * M[1][1]) * invDet });
+			inverse.SetColumn(1, { c10 * invDet, (M[0][0] * M[2][2] - M[0][2] * M[2][0]) * invDet, (M[0][2] * M[1][0] - M[0][0] * M[1][2]) * invDet });
+			inverse.SetColumn(2, { c20 * invDet, (M[0][1] * M[2][0] - M[0][0] * M[2][1]) * invDet, (M[0][0] * M[1][1] - M[0][1] * M[1][0]) * invDet });
+			invertible = true;
+		}
+		else
+		{
+			inverse.SetColumn(0, { 1,0,0 });
+			inverse.SetColumn(1, { 0,1,0 });
+			inverse.SetColumn(2, { 0,0,1 });
+			invertible = false;
+		}
+		return inverse;
+	}
+
+	FVector operator* (const FSquareMatrix3& InMatrix, const FVector& InVector)
+	{
+		auto& M = InMatrix.M;
+		return {
+			M[0][0] * InVector.X + M[1][0] * InVector.Y + M[2][0] * InVector.Z,
+			M[0][1] * InVector.X + M[1][1] * InVector.Y + M[2][1] * InVector.Z,
+			M[0][2] * InVector.X + M[1][2] * InVector.Y + M[2][2] * InVector.Z
+		};
+	}
 }
 
 void UARBlueprintLibrary::CalculateClosestIntersection(const TArray<FVector>& StartPoints, const TArray<FVector>& EndPoints, FVector& ClosestIntersection)
@@ -812,14 +815,14 @@ void UARBlueprintLibrary::CalculateClosestIntersection(const TArray<FVector>& St
 			(StartPoints[PointIdx].Y * YZ) +
 			(StartPoints[PointIdx].Z * ZZ);
 	}
-	FSquareMatrix3 S;
+	UARBlueprintLibraryNamespace::FSquareMatrix3 S;
 	S.SetColumn(0, { SXX, SXY, SXZ });
 	S.SetColumn(1, { SXY, SYY, SYZ });
 	S.SetColumn(2, { SXZ, SYZ, SZZ });
 
 	FVector C(CX, CY, CZ);
 
-	ClosestIntersection = Invert(S) * C;
+	ClosestIntersection = UARBlueprintLibraryNamespace::Invert(S) * C;
 }
 
 void UARBlueprintLibrary::CalculateAlignmentTransform(const FTransform& TransformInFirstCoordinateSystem, const FTransform& TransformInSecondCoordinateSystem, FTransform& AlignmentTransform)

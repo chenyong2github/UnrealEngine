@@ -6,6 +6,7 @@
 #include "BaseBehaviors/MouseHoverBehavior.h"
 #include "Selection/ToolSelectionUtil.h"
 #include "AssetGenerationUtil.h"
+#include "ToolSceneQueriesUtil.h"
 
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
@@ -208,9 +209,9 @@ void UAddPrimitiveTool::UpdatePreviewPosition(const FInputDeviceRay& DeviceClick
 	// hit position (temp)
 	bool bHit = false;
 
+	FPlane DrawPlane(FVector::ZeroVector, FVector(0, 0, 1));
 	if (ShapeSettings->PlaceMode == EMakeMeshPlacementType::GroundPlane)
 	{
-		FPlane DrawPlane(FVector::ZeroVector, FVector(0, 0, 1));
 		FVector DrawPlanePos = FMath::RayPlaneIntersection(ClickPosWorldRay.Origin, ClickPosWorldRay.Direction, DrawPlane);
 		bHit = true;
 		ShapeFrame = FFrame3f(DrawPlanePos);
@@ -218,11 +219,8 @@ void UAddPrimitiveTool::UpdatePreviewPosition(const FInputDeviceRay& DeviceClick
 	else
 	{
 		// cast ray into scene
-		FVector RayStart = ClickPosWorldRay.Origin;
-		FVector RayEnd = ClickPosWorldRay.PointAt(999999);
-		FCollisionObjectQueryParams QueryParams(FCollisionObjectQueryParams::AllObjects);
 		FHitResult Result;
-		bHit = TargetWorld->LineTraceSingleByObjectType(Result, RayStart, RayEnd, QueryParams);
+		bHit = ToolSceneQueriesUtil::FindNearestVisibleObjectHit(TargetWorld, Result, ClickPosWorldRay);
 		if (bHit)
 		{
 			FVector3f Normal = Result.ImpactNormal;
@@ -232,6 +230,13 @@ void UAddPrimitiveTool::UpdatePreviewPosition(const FInputDeviceRay& DeviceClick
 			}
 			ShapeFrame = FFrame3f(Result.ImpactPoint, Normal);
 			ShapeFrame.ConstrainedAlignPerpAxes();
+		}
+		else
+		{
+			// fall back to ground plane if we don't have a scene hit
+			FVector DrawPlanePos = FMath::RayPlaneIntersection(ClickPosWorldRay.Origin, ClickPosWorldRay.Direction, DrawPlane);
+			bHit = true;
+			ShapeFrame = FFrame3f(DrawPlanePos);
 		}
 	}
 

@@ -67,6 +67,7 @@ public:
 	const float GetImportLength() const;
 	const int32 GetImportNumFrames() const;
 	const int32 GetFramerate() const;
+	const float GetSecondsPerFrame() const;
 	const FBoxSphereBounds& GetArchiveBounds() const;
 	const bool ContainsHeterogeneousMeshes() const;
 

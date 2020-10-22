@@ -8,10 +8,6 @@
 #include "Classes/Camera/PlayerCameraManager.h"
 #include "Classes/GameFramework/PlayerController.h"
 #include "Classes/Engine/LocalPlayer.h"
-#include "EngineUtils.h"
-#if WITH_EDITOR
-#include "ActorLayerUtilities.h"
-#endif
 
 #include "ComposureLayersEditor/Private/ICompElementManager.h"
 #include "ComposureLayersEditor/Private/CompElementManager.h"
@@ -100,29 +96,6 @@ void UComposureBlueprintLibrary::CopyCameraSettingsToSceneCapture(UCameraCompone
 		// But restore the original blendables
 		DstPPSettings.WeightedBlendables = DstWeightedBlendables;
 	}
-}
-
-TArray<AActor*> UComposureBlueprintLibrary::GetActors(UObject* WorldContextObject, const FComposureActorLayer& ActorLayer)
-{
-	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
-	if (!World)
-	{
-		return TArray<AActor*>();
-	}
-
-	TArray<AActor*> AllActors;
-
-	// Iterate over all actors, looking for actors in the specified layers.
-	for (const TWeakObjectPtr<AActor> WeakActor : FActorRange(World))
-	{
-		AActor* Actor = WeakActor.Get();
-		if (Actor && Actor->Layers.Contains(ActorLayer.Name))
-		{
-			AllActors.Add(Actor);
-		}
-	}
-
-	return AllActors;
 }
 
 ACompositingElement* UComposureBlueprintLibrary::CreateComposureElement(const FName CompName, TSubclassOf<ACompositingElement> ClassType, AActor* LevelContext)
@@ -218,20 +191,4 @@ void UComposureBlueprintLibrary::RefreshComposureElementList()
 	{
 		CompElementManager->RefreshElementsList();
 	}
-}
-
-bool FComposureActorLayer::SerializeFromMismatchedTag(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot)
-{
-#if WITH_EDITOR
-	static FName OldDataName("ActorLayer");
-	if (Tag.Type == NAME_StructProperty && Tag.StructName == OldDataName)
-	{
-		FActorLayer OldDataType;
-		FActorLayer::StaticStruct()->SerializeItem(Slot, &OldDataType, nullptr);
-	
-		Name = OldDataType.Name;
-		return true;
-	}
-#endif
-	return false;
 }

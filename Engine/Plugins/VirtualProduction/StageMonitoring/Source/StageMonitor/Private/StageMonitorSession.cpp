@@ -15,31 +15,116 @@ FStageMonitorSession::FStageMonitorSession(const FString& InSessionName)
 
 }
 
-void FStageMonitorSession::AddProvider(const FGuid& Identifier, const FStageInstanceDescriptor& Descriptor, const FMessageAddress& Address)
+void FStageMonitorSession::HandleDiscoveredProvider(const FGuid& Identifier, const FStageInstanceDescriptor& Descriptor, const FMessageAddress& Address)
 {
-	//Adds this provider if it's not being monitored
-	if (!Providers.ContainsByPredicate([Identifier](const FStageSessionProviderEntry& Other) { return Other.Identifier == Identifier; }))
+	//When a provider answers the discovery, it might 
+	// -already known
+	// -known in the passed but cleared
+	// -unknown but matchable to previous instance
+	
+	const auto FindProviderLambda = [Identifier, &Descriptor](const FStageSessionProviderEntry& Other)
 	{
-		FStageSessionProviderEntry NewProvider;
-		NewProvider.Identifier = Identifier;
-		NewProvider.Descriptor = Descriptor;
-		NewProvider.Address = Address;
-		NewProvider.State = EStageDataProviderState::Active;
-		Providers.Emplace(MoveTemp(NewProvider));
+		//Look for a matching lost/disconnected provider from the same machine + same stage
+		if (Other.Descriptor.MachineName == Descriptor.MachineName && Other.Descriptor.FriendlyName == Descriptor.FriendlyName && Other.Descriptor.RolesStringified == Descriptor.RolesStringified)
+		{
+			UE_LOG(LogStageMonitor, VeryVerbose, TEXT("Old provider recovered, %s - (%s (%d)) with roles '%s' on sessionId %d")
+				, *Descriptor.FriendlyName.ToString()
+				, *Descriptor.MachineName
+				, Descriptor.ProcessId
+				, *Descriptor.RolesStringified
+				, Descriptor.SessionId);
 
-		OnStageDataProviderListChanged().Broadcast();
+			return true;
+		}
+
+		return (Other.Identifier == Identifier);
+	};
+
+	//Verify if it's a cleared provider
+	const int32 ClearedProviderIndex = ClearedProviders.IndexOfByPredicate(FindProviderLambda);
+	if (ClearedProviderIndex != INDEX_NONE)
+	{
+		//If it was cleared, remove it from the cleared list and re-add it. 
+		//Then, update the identifier mapping to be able to link old identifiers to new one
+		const FGuid OldIdentifier = ClearedProviders[ClearedProviderIndex].Identifier;
+		ClearedProviders.RemoveAtSwap(ClearedProviderIndex);
+		AddProvider(Identifier, Descriptor, Address);
+		UpdateIdentifierMapping(OldIdentifier, Identifier);
+	}
+	else
+	{
+		const int32 ExistingProviderIndex = Providers.IndexOfByPredicate(FindProviderLambda);
+		if (ExistingProviderIndex != INDEX_NONE)
+		{
+			//In case of an existing provider, 
+			FStageSessionProviderEntry& Entry = Providers[ExistingProviderIndex];
+			if (Entry.State != EStageDataProviderState::Active)
+			{
+				//Need to update data about a closed provider. Its address will certainly have changed and descriptor could also have
+				const FGuid PreviousIdentifier = Entry.Identifier;
+				FillProviderDescription(Identifier, Descriptor, Address, Entry);
+
+				if (Identifier != PreviousIdentifier)
+				{
+					//If identifier change, make sure our mapping is up to date
+					UpdateIdentifierMapping(PreviousIdentifier, Identifier);
+
+					//If we're reslotting an old provider to a new one (same stagename / same machine) trigger a list change to let listeners know about it
+					OnStageDataProviderListChanged().Broadcast();
+				}
+			}
+		}
+		else
+		{
+			AddProvider(Identifier, Descriptor, Address);
+		}
 	}
 }
 
-void FStageMonitorSession::UpdateProviderDescription(const FGuid& Identifier, const FStageInstanceDescriptor& NewDescriptor, const FMessageAddress& NewAddress)
+bool FStageMonitorSession::AddProvider(const FGuid& Identifier, const FStageInstanceDescriptor& Descriptor, const FMessageAddress& Address)
 {
-	//Update this provider's information if we had it in our list
-	FStageSessionProviderEntry* Provider = Providers.FindByPredicate([Identifier](const FStageSessionProviderEntry& Other){ return Other.Identifier == Identifier; });
-	if (Provider)
+	if (Providers.ContainsByPredicate([Identifier](const FStageSessionProviderEntry& Other) { return Other.Identifier == Identifier; }))
 	{
-		Provider->Descriptor = NewDescriptor;
-		Provider->Address = NewAddress;
+		return false;
 	}
+
+	UE_LOG(LogStageMonitor, VeryVerbose, TEXT("Adding provider  %s - (%s (%d)) with roles '%s' on sessionId %d")
+		, *Descriptor.FriendlyName.ToString()
+		, *Descriptor.MachineName
+		, Descriptor.ProcessId
+		, *Descriptor.RolesStringified
+		, Descriptor.SessionId);
+	
+	FStageSessionProviderEntry& NewEntry = Providers.Emplace_GetRef();
+	FillProviderDescription(Identifier, Descriptor, Address, NewEntry);
+
+	//Let know a new provider was added to the list
+	OnStageDataProviderListChanged().Broadcast();
+
+	return true;
+}
+
+void FStageMonitorSession::FillProviderDescription(const FGuid& Identifier, const FStageInstanceDescriptor& NewDescriptor, const FMessageAddress& NewAddress, FStageSessionProviderEntry& OutEntry)
+{
+	OutEntry.Identifier = Identifier;
+	OutEntry.Descriptor = NewDescriptor;
+	OutEntry.Address = NewAddress;
+	OutEntry.State = EStageDataProviderState::Active;
+	OutEntry.LastReceivedMessageTime = FApp::GetCurrentTime();
+}
+
+void FStageMonitorSession::UpdateIdentifierMapping(const FGuid& OldIdentifier, const FGuid& NewIdentifier)
+{
+	//Go over old entries to update the value to the latest identifier an old one now points to
+	for (TPair<FGuid, FGuid>& Entry : IdentifierMapping)
+	{
+		if (Entry.Value == OldIdentifier)
+		{
+			Entry.Value = NewIdentifier;
+		}
+	}
+
+	IdentifierMapping.FindOrAdd(OldIdentifier) = NewIdentifier;
 }
 
 void FStageMonitorSession::AddProviderMessage(UScriptStruct* Type, const FStageProviderMessage* MessageData)
@@ -51,6 +136,16 @@ void FStageMonitorSession::AddProviderMessage(UScriptStruct* Type, const FStageP
 
 	//Only process messages coming from registered machines
 	FStageSessionProviderEntry* Provider = Providers.FindByPredicate([MessageData](const FStageSessionProviderEntry& Other) { return MessageData->Identifier == Other.Identifier; });
+	if (Provider == nullptr)
+	{
+		//Provider might have been cleared in the meantime and mapping needs to be used
+		if (IdentifierMapping.Contains(MessageData->Identifier))
+		{
+			const FGuid MappedIdentifier = IdentifierMapping[MessageData->Identifier];
+			Provider = Providers.FindByPredicate([MappedIdentifier](const FStageSessionProviderEntry& Other) { return MappedIdentifier == Other.Identifier; });
+		}
+	}
+
 	if (Provider == nullptr)
 	{
 		return;
@@ -102,16 +197,36 @@ void FStageMonitorSession::SetProviderState(const FGuid& Identifier, EStageDataP
 {
 	if (FStageSessionProviderEntry* Provider = Providers.FindByPredicate([Identifier](const FStageSessionProviderEntry& Other) { return Other.Identifier == Identifier; }))
 	{
+		if (State != Provider->State)
+		{
+			OnStageDataProviderStateChanged().Broadcast(Identifier, State);
+		}
+
 		Provider->State = State;
 	}
 }
 
-bool FStageMonitorSession::GetProvider(const FGuid& Identifier, FStageSessionProviderEntry& OutProviderEntry) const
+bool FStageMonitorSession::GetProvider(const FGuid& Identifier, FStageSessionProviderEntry& OutProviderEntry, EGetProviderFlags  Flags) const
 {
-	if (const FStageSessionProviderEntry* Provider = Providers.FindByPredicate([Identifier](const FStageSessionProviderEntry& Other) { return Other.Identifier == Identifier; }))
+	FGuid UsedIdentifier = Identifier;
+	if (EnumHasAnyFlags(Flags, EGetProviderFlags::UseIdentifierMapping) && IdentifierMapping.Contains(Identifier))
+	{
+		UsedIdentifier = IdentifierMapping[Identifier];
+	}
+
+	if (const FStageSessionProviderEntry* Provider = Providers.FindByPredicate([UsedIdentifier](const FStageSessionProviderEntry& Other) { return Other.Identifier == UsedIdentifier; }))
 	{
 		OutProviderEntry = *Provider;
 		return true;
+	}
+
+	if (EnumHasAnyFlags(Flags, EGetProviderFlags::UseClearedProviders))
+	{
+		if (const FStageSessionProviderEntry* Provider = ClearedProviders.FindByPredicate([UsedIdentifier](const FStageSessionProviderEntry& Other) { return Other.Identifier == UsedIdentifier; }))
+		{
+			OutProviderEntry = *Provider;
+			return true;
+		}
 	}
 
 	return false;
@@ -125,6 +240,20 @@ void FStageMonitorSession::ClearAll()
 	
 	//Let know our listeners that we have just been cleared
 	OnStageSessionDataClearedDelegate.Broadcast();
+}
+
+void FStageMonitorSession::ClearUnresponsiveProviders()
+{
+	for (auto Iter = Providers.CreateIterator(); Iter; Iter++)
+	{
+		if (Iter->State != EStageDataProviderState::Active)
+		{
+			ClearedProviders.Emplace(MoveTemp(*Iter));
+			Iter.RemoveCurrent();
+		}
+	}
+
+	OnStageDataProviderListChanged().Broadcast();
 }
 
 TSharedPtr<FStageDataEntry> FStageMonitorSession::GetLatest(const FGuid& Identifier, UScriptStruct* Type)
@@ -249,4 +378,14 @@ TArray<FName> FStageMonitorSession::GetCriticalStateSources(double TimeInSeconds
 FString FStageMonitorSession::GetSessionName() const
 {
 	return SessionName;
+}
+
+void FStageMonitorSession::GetIdentifierMapping(TMap<FGuid, FGuid>& OutMapping)
+{
+	OutMapping = IdentifierMapping;
+}
+
+void FStageMonitorSession::SetIdentifierMapping(const TMap<FGuid, FGuid>& NewMapping)
+{
+	IdentifierMapping = NewMapping;
 }

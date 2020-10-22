@@ -603,6 +603,9 @@ protected:
 	/** Set to true when the player is currently in the main level update */
 	uint32 bIsMainLevelUpdate : 1;
 
+	/** Flag that allows the player to tick its time controller without actually evaluating the sequence */
+	uint32 bSkipNextUpdate : 1;
+
 	/** The sequence to play back */
 	UPROPERTY(transient)
 	UMovieSceneSequence* Sequence;

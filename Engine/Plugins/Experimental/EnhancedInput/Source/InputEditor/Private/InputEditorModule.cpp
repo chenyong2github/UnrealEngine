@@ -465,8 +465,10 @@ void FInputEditorModule::ShutdownModule()
 	CreatedAssetTypeActions.Empty();
 
 	// Unregister input settings
-	ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings");
-	SettingsModule->UnregisterSettings("Project", "Engine", "Enhanced Input");
+	if (ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings"))
+	{
+		SettingsModule->UnregisterSettings("Project", "Engine", "Enhanced Input");
+	}
 
 	// Unregister customizations
 	FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");

@@ -405,6 +405,7 @@ FShaderParametersMetadata* FUniformExpressionSet::CreateBufferStruct()
 	static FString MediaTextureSamplerNames[128];
 	static FString VirtualTexturePageTableNames0[128];
 	static FString VirtualTexturePageTableNames1[128];
+	static FString VirtualTexturePageTableIndirectionNames[128];
 	static FString VirtualTexturePhysicalNames[128];
 	static FString VirtualTexturePhysicalSamplerNames[128];
 	static bool bInitializedTextureNames = false;
@@ -425,8 +426,9 @@ FShaderParametersMetadata* FUniformExpressionSet::CreateBufferStruct()
 			MediaTextureSamplerNames[i] = FString::Printf(TEXT("ExternalTexture_%dSampler"), i);
 			VirtualTexturePageTableNames0[i] = FString::Printf(TEXT("VirtualTexturePageTable0_%d"), i);
 			VirtualTexturePageTableNames1[i] = FString::Printf(TEXT("VirtualTexturePageTable1_%d"), i);
-			VirtualTexturePhysicalNames[i] = FString::Printf(TEXT("VirtualTexturePhysicalTable_%d"), i);
-			VirtualTexturePhysicalSamplerNames[i] = FString::Printf(TEXT("VirtualTexturePhysicalTable_%dSampler"), i);
+			VirtualTexturePageTableIndirectionNames[i] = FString::Printf(TEXT("VirtualTexturePageTableIndirection_%d"), i);
+			VirtualTexturePhysicalNames[i] = FString::Printf(TEXT("VirtualTexturePhysical_%d"), i);
+			VirtualTexturePhysicalSamplerNames[i] = FString::Printf(TEXT("VirtualTexturePhysical_%dSampler"), i);
 		}
 	}
 
@@ -492,6 +494,8 @@ FShaderParametersMetadata* FUniformExpressionSet::CreateBufferStruct()
 			new(Members) FShaderParametersMetadata::FMember(*VirtualTexturePageTableNames1[i], TEXT("Texture2D<uint4>"), __LINE__, NextMemberOffset, UBMT_TEXTURE, EShaderPrecisionModifier::Float, 1, 1, 0, NULL);
 			NextMemberOffset += SHADER_PARAMETER_POINTER_ALIGNMENT;
 		}
+		new(Members) FShaderParametersMetadata::FMember(*VirtualTexturePageTableIndirectionNames[i], TEXT("Texture2D<uint>"), __LINE__, NextMemberOffset, UBMT_TEXTURE, EShaderPrecisionModifier::Float, 1, 1, 0, NULL);
+		NextMemberOffset += SHADER_PARAMETER_POINTER_ALIGNMENT;
 	}
 
 	for (int32 i = 0; i < UniformTextureParameters[(uint32)EMaterialTextureParameterType::Virtual].Num(); ++i)
@@ -1179,9 +1183,11 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 #if DO_CHECK
 		{
 			uint32 NumPageTableTextures = 0u;
+			uint32 NumPageTableIndirectionTextures = 0u;
 			for (int i = 0; i < VTStacks.Num(); ++i)
 			{
 				NumPageTableTextures += VTStacks[i].GetNumLayers() > 4u ? 2: 1;
+				NumPageTableIndirectionTextures++;
 			}
 	
 			check(UniformBufferLayout.Resources.Num() == 
@@ -1192,6 +1198,7 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 				+ UniformExternalTextureParameters.Num() * 2
 				+ UniformTextureParameters[(uint32)EMaterialTextureParameterType::Virtual].Num() * 2
 				+ NumPageTableTextures
+				+ NumPageTableIndirectionTextures
 				+ 2);
 		}
 #endif // DO_CHECK
@@ -1458,6 +1465,9 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 				BufferCursor = ((uint8*)BufferCursor) + SHADER_PARAMETER_POINTER_ALIGNMENT;
 			}
 
+			void** ResourceTablePageIndirectionBuffer = (void**)((uint8*)BufferCursor + 0 * SHADER_PARAMETER_POINTER_ALIGNMENT);
+			BufferCursor = ((uint8*)BufferCursor) + SHADER_PARAMETER_POINTER_ALIGNMENT;
+
 			const IAllocatedVirtualTexture* AllocatedVT = UniformExpressionCache.AllocatedVTs[VTStackIndex];
 			if (AllocatedVT != nullptr)
 			{
@@ -1471,6 +1481,10 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 					ensure(PageTable1RHI);
 					*ResourceTablePageTexture1Ptr = PageTable1RHI;
 				}
+
+				FRHITexture* PageTableIndirectionRHI = AllocatedVT->GetPageTableIndirectionTexture();
+				ensure(PageTableIndirectionRHI);
+				*ResourceTablePageIndirectionBuffer = PageTableIndirectionRHI;
 			}
 			else
 			{
@@ -1480,6 +1494,7 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 				{
 					*ResourceTablePageTexture1Ptr = GBlackUintTexture->TextureRHI;
 				}
+				*ResourceTablePageIndirectionBuffer = GBlackUintTexture->TextureRHI;
 			}
 		}
 

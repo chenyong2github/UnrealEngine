@@ -7,7 +7,7 @@
 #include "DisplayClusterConfigurationTypes.h"
 #include "DisplayClusterCameraComponent.generated.h"
 
-class UCameraComponent;
+class UStaticMeshComponent;
 
 
 UENUM()
@@ -22,7 +22,7 @@ enum class EDisplayClusterEyeStereoOffset : uint8
 /**
  * Camera component
  */
-UCLASS( ClassGroup=(Custom), Blueprintable, meta = (BlueprintSpawnableComponent) )
+UCLASS(ClassGroup = (DisplayCluster))
 class DISPLAYCLUSTER_API UDisplayClusterCameraComponent
 	: public UDisplayClusterSceneComponent
 {
@@ -102,8 +102,8 @@ public:
 		StereoOffset = InStereoOffset;
 	}
 
-public:
-	virtual void BeginPlay() override;
+protected:
+	virtual void ApplyConfigurationData();
 
 protected:
 	UPROPERTY(EditAnywhere, Category = "DisplayCluster")
@@ -114,4 +114,12 @@ protected:
 	
 	UPROPERTY(EditAnywhere, Category = "DisplayCluster")
 	EDisplayClusterEyeStereoOffset StereoOffset;
+
+	UPROPERTY(VisibleAnywhere, Category = "DisplayCluster")
+	UStaticMeshComponent* VisCameraComponent = nullptr;
+
+#if WITH_EDITOR 
+public:
+	virtual void SetNodeSelection(bool bSelect) override;
+#endif
 };

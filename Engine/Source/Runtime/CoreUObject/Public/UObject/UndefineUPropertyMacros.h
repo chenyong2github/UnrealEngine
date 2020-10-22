@@ -112,6 +112,10 @@
 	#undef UStructProperty
 #endif
 
+#ifdef UDelegateProperty
+	#undef UDelegateProperty
+#endif
+
 #ifdef UMulticastDelegateProperty
 	#undef UMulticastDelegateProperty
 #endif

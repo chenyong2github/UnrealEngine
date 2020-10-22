@@ -93,6 +93,18 @@ void FSoftObjectPath::ToString(FStringBuilderBase& Builder) const
 	}
 }
 
+/** Helper function that adds info about the object currently being serialized when triggering an ensure about invalid soft object path */
+static FString GetObjectBeingSerializedForSoftObjectPath()
+{
+	FString Result;
+	FUObjectSerializeContext* SerializeContext = FUObjectThreadContext::Get().GetSerializeContext();
+	if (SerializeContext && SerializeContext->SerializedObject)
+	{
+		Result = FString::Printf(TEXT(" while serializing %s"), *SerializeContext->SerializedObject->GetFullName());
+	}
+	return Result;
+}
+
 void FSoftObjectPath::SetPath(FWideStringView Path)
 {
 	if (Path.IsEmpty() || Path.Equals(TEXT("None"), ESearchCase::CaseSensitive))
@@ -100,7 +112,7 @@ void FSoftObjectPath::SetPath(FWideStringView Path)
 		// Empty path, just empty the pathname.
 		Reset();
 	}
-	else if (ensureMsgf(!FPackageName::IsShortPackageName(Path), TEXT("Cannot create SoftObjectPath with short package name '%.*s'! You must pass in fully qualified package names"), Path.Len(), Path.GetData()))
+	else if (ensureMsgf(!FPackageName::IsShortPackageName(Path), TEXT("Cannot create SoftObjectPath with short package name '%.*s'%s! You must pass in fully qualified package names"), Path.Len(), Path.GetData(), *GetObjectBeingSerializedForSoftObjectPath()))
 	{
 		if (Path[0] != '/')
 		{
@@ -142,7 +154,7 @@ void FSoftObjectPath::SetPath(FName PathName)
 		TCHAR Buffer[FName::StringBufferSize];
 		FStringView Path(Buffer, PathName.ToString(Buffer));
 
-		if (ensureMsgf(!FPackageName::IsShortPackageName(Path), TEXT("Cannot create SoftObjectPath with short package name '%s'! You must pass in fully qualified package names"), Path.GetData()))
+		if (ensureMsgf(!FPackageName::IsShortPackageName(Path), TEXT("Cannot create SoftObjectPath with short package name '%s'%s! You must pass in fully qualified package names"), Path.GetData(), *GetObjectBeingSerializedForSoftObjectPath()))
 		{
 			if (Path[0] != '/')
 			{

@@ -76,10 +76,10 @@ FString FHLMediaPlayer::GetInfo() const
     return GetUrl();
 }
 
-FName FHLMediaPlayer::GetPlayerName() const
+FGuid FHLMediaPlayer::GetPlayerPluginGUID() const
 {
-    static FName PlayerName(TEXT("HLMediaPlayer"));
-    return PlayerName;
+	static FGuid PlayerPluginGUID(0x6505c26f, 0xec614c0e, 0xb5be5be1, 0x57fac58e);
+	return PlayerPluginGUID;
 }
 
 IMediaSamples& FHLMediaPlayer::GetSamples()
@@ -449,7 +449,7 @@ bool FHLMediaPlayer::InitializePlayer(const TSharedPtr<FArchive, ESPMode::Thread
                 }
                 else
                 {
-                    FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("HLMediaPlayerError", "Could not load Url."));
+                    FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("HLMediaPlayerError_UrlError", "Could not load Url."));
 
                     EventSink.ReceiveMediaEvent(EMediaEvent::MediaOpenFailed);
                 }
@@ -461,7 +461,7 @@ bool FHLMediaPlayer::InitializePlayer(const TSharedPtr<FArchive, ESPMode::Thread
         }
         else
         {
-            FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("HLMediaPlayerError", "Could not create Media Playback Engine component."));
+            FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("HLMediaPlayerError_EngineError", "Could not create Media Playback Engine component."));
 
             EventSink.ReceiveMediaEvent(EMediaEvent::MediaOpenFailed);
         }

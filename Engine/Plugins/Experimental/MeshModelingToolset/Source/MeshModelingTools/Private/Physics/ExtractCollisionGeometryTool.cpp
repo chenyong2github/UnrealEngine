@@ -83,7 +83,7 @@ void UExtractCollisionGeometryTool::Setup()
 
 	const UStaticMeshComponent* Component = CastChecked<UStaticMeshComponent>(ComponentTarget->GetOwnerComponent());
 	const UStaticMesh* StaticMesh = Component->GetStaticMesh();
-	if (ensure(StaticMesh && StaticMesh->BodySetup))
+	if (ensure(StaticMesh && StaticMesh->GetBodySetup()))
 	{
 		PhysicsInfo = MakeShared<FPhysicsDataCollection>();
 		PhysicsInfo->InitializeFromComponent(Component, true);

@@ -33,7 +33,9 @@ public:
 	virtual const FVector2D GetConfigSize() const override;
 	virtual const FVector2D GetConfigPostion() const override;
 
-	virtual const FName& GetName() const override;
+	virtual const FString& GetName() const override;
+
+	virtual const FName& GetType() const override;
 
 	virtual const FVector2D CalculateClildLocalPosition(FVector2D RealCoordinate) const override;
 
@@ -68,11 +70,13 @@ public:
 
 	virtual void SetLocalSize(FVector2D InLocalSize) override;
 
-	virtual void SetConfigPosition(FVector2D InConfigPosition) {}
+	virtual void SetConfigPosition(FVector2D InConfigPosition) override {}
 
-	virtual void SetConfigSize(FVector2D InConfigSize) {}
+	virtual void SetConfigSize(FVector2D InConfigSize) override {}
 
 	virtual void SetZOrder(uint32 InZOrder) override;
+
+	virtual void SetPreviewTexture(UTexture* InTexture) override {};
 	//~ End IDisplayClusterConfiguratorOutputMappingSlot Interface
 
 private:

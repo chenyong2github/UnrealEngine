@@ -123,13 +123,36 @@ void UMoviePipeline::Initialize(UMoviePipelineExecutorJob* InJob)
 		Shutdown(true);
 		return;
 	}
-	
+
 	if (!ensureAlwaysMsgf(InJob->GetConfiguration(), TEXT("MoviePipeline cannot be initialized with null configuration. Aborting.")))
 	{
 		Shutdown(true);
 		return;
 	}
 
+	{
+		// If they have a preset origin set, we  will attempt to load from it and copy it into our configuration.
+		// A preset origin is only set if they have not modified the preset using the UI, if they have it will have
+		// been copied into the local configuration when it was modified and the preset origin cleared. This resolves 
+		// an issue where if a preset asset is updated after this job is made, the job uses the wrong settings because
+		//  the UI is the one who updates the configuration from the preset.
+		if (InJob->GetPresetOrigin())
+		{
+			UE_LOG(LogMovieRenderPipeline, Log, TEXT("Job has a master preset specified, updating local master configuration from preset."));
+			InJob->GetConfiguration()->CopyFrom(InJob->GetPresetOrigin());
+		}
+
+		// Now we need to update each shot as well.
+		for (UMoviePipelineExecutorShot* Shot : InJob->ShotInfo)
+		{
+			if (Shot->GetShotOverridePresetOrigin())
+			{
+				UE_LOG(LogMovieRenderPipeline, Log, TEXT("Shot has a preset specified, updating local override configuraton from preset."));
+				Shot->GetShotOverrideConfiguration()->CopyFrom(Shot->GetShotOverridePresetOrigin());
+			}
+		}
+	}
+	
 	if (!ensureAlwaysMsgf(PipelineState == EMovieRenderPipelineState::Uninitialized, TEXT("Pipeline cannot be reused. Create a new pipeline to execute a job.")))
 	{
 		Shutdown(true);
@@ -196,10 +219,6 @@ void UMoviePipeline::Initialize(UMoviePipelineExecutorJob* InJob)
 		Setting->OnMoviePipelineInitialized(this);
 	}
 
-	// Allow master settings to modify the sequence. This can be useful when working with dynamic content, you might
-	// want to modify things in the sequence, or modify things in the world before rendering.
-	// @ToDo: ModifySequenceViaExtensions(TargetSequence);
-
 	// Now that we've fixed up the sequence, we're going to build a list of shots that we need
 	// to produce in a simplified data structure. The simplified structure makes the flow/debugging easier.
 	BuildShotListFromSequence();
@@ -214,7 +233,7 @@ void UMoviePipeline::Initialize(UMoviePipelineExecutorJob* InJob)
 	OutputMetadata.Shots.Empty(ActiveShotList.Num());
 	for (UMoviePipelineExecutorShot* Shot : ActiveShotList)
 	{
-		UMoviePipelineOutputSetting* OutputSettings = FindOrAddSetting<UMoviePipelineOutputSetting>(Shot);
+		UMoviePipelineOutputSetting* OutputSettings = FindOrAddSettingForShot<UMoviePipelineOutputSetting>(Shot);
 
 		FMovieSceneExportMetadataShot& ShotMetadata = OutputMetadata.Shots.AddDefaulted_GetRef();
 		ShotMetadata.MovieSceneShotSection = Cast<UMovieSceneCinematicShotSection>(Shot->OuterPathKey.TryLoad());
@@ -750,6 +769,19 @@ bool UMoviePipelineCustomTimeStep::UpdateTimeStep(UEngine* /*InEngine*/)
 	return false;
 }
 
+void UMoviePipelineCustomTimeStep::SetCachedFrameTiming(const MoviePipeline::FFrameTimeStepCache& InTimeCache)
+{ 
+	if (ensureMsgf(!FMath::IsNearlyZero(InTimeCache.DeltaTime), TEXT("An incorrect or uninitialized time step was used! Delta Time of 0 isn't allowed.")))
+	{
+		TimeCache = InTimeCache;
+	}
+	else
+	{
+		UE_LOG(LogMovieRenderPipeline, Error, TEXT("SetCachedFrameTiming called with zero delta time, falling back to 1/24"));
+		TimeCache = MoviePipeline::FFrameTimeStepCache(1 / 24.0);
+	}
+}
+
 void UMoviePipeline::ModifySequenceViaExtensions(ULevelSequence* InSequence)
 {
 }
@@ -909,9 +941,9 @@ void UMoviePipeline::BuildShotListFromSequence()
 		UE_LOG(LogMovieRenderPipeline, Log, TEXT("Expanding Shot %d/%d (Shot: %s Camera: %s)"), ShotIndex  + 1, ActiveShotList.Num(), *Shot->OuterName, *Shot->InnerName);
 		ShotIndex++;
 
-		UMoviePipelineOutputSetting* OutputSettings = FindOrAddSetting<UMoviePipelineOutputSetting>(Shot);
-		UMoviePipelineAntiAliasingSetting* AntiAliasingSettings = FindOrAddSetting<UMoviePipelineAntiAliasingSetting>(Shot);
-		UMoviePipelineHighResSetting* HighResSettings = FindOrAddSetting<UMoviePipelineHighResSetting>(Shot);
+		UMoviePipelineOutputSetting* OutputSettings = FindOrAddSettingForShot<UMoviePipelineOutputSetting>(Shot);
+		UMoviePipelineAntiAliasingSetting* AntiAliasingSettings = FindOrAddSettingForShot<UMoviePipelineAntiAliasingSetting>(Shot);
+		UMoviePipelineHighResSetting* HighResSettings = FindOrAddSettingForShot<UMoviePipelineHighResSetting>(Shot);
 
 		// Expand the shot to encompass handle frames. This will modify our Camera Cuts bounds.
 		ExpandShot(Shot, ModifiedSegment, OutputSettings->HandleFrameCount);
@@ -1070,7 +1102,7 @@ void UMoviePipeline::ExpandShot(UMoviePipelineExecutorShot* InShot, const FMovie
 	FFrameNumber LeftDeltaTicks = 0;
 	FFrameNumber RightDeltaTicks = 0;
 
-	UMoviePipelineAntiAliasingSetting* AntiAliasingSettings = FindOrAddSetting<UMoviePipelineAntiAliasingSetting>(InShot);
+	UMoviePipelineAntiAliasingSetting* AntiAliasingSettings = FindOrAddSettingForShot<UMoviePipelineAntiAliasingSetting>(InShot);
 	const bool bHasMultipleTemporalSamples = AntiAliasingSettings->TemporalSampleCount > 1;
 	if (bHasMultipleTemporalSamples)
 	{
@@ -1252,8 +1284,8 @@ MoviePipeline::FFrameConstantMetrics UMoviePipeline::CalculateShotFrameMetrics(c
 	Output.FrameRate = GetPipelineMasterConfig()->GetEffectiveFrameRate(TargetSequence);
 	Output.TicksPerOutputFrame = FFrameRate::TransformTime(FFrameTime(FFrameNumber(1)), Output.FrameRate, Output.TickResolution);
 
-	UMoviePipelineCameraSetting* CameraSettings = FindOrAddSetting<UMoviePipelineCameraSetting>(InShot);
-	UMoviePipelineAntiAliasingSetting* AntiAliasingSettings = FindOrAddSetting<UMoviePipelineAntiAliasingSetting>(InShot);
+	UMoviePipelineCameraSetting* CameraSettings = FindOrAddSettingForShot<UMoviePipelineCameraSetting>(InShot);
+	UMoviePipelineAntiAliasingSetting* AntiAliasingSettings = FindOrAddSettingForShot<UMoviePipelineAntiAliasingSetting>(InShot);
 
 	// We are overriding blur settings to account for how we sample multiple frames, so
 	// we need to process any camera and post process volume settings for motion blur manually
@@ -1264,29 +1296,6 @@ MoviePipeline::FFrameConstantMetrics UMoviePipeline::CalculateShotFrameMetrics(c
 	APlayerCameraManager* PlayerCameraManager = GetWorld()->GetFirstPlayerController()->PlayerCameraManager;
 	if (PlayerCameraManager)
 	{
-		// Grab the motion blur setting from the camera, if applicable.
-		ACameraActor* CameraActor = Cast<ACameraActor>(PlayerCameraManager->GetViewTarget());
-		if (CameraActor)
-		{
-			UCameraComponent* CameraComponent = CameraActor->GetCameraComponent();
-			if (CameraComponent)
-			{
-				Output.ShutterAnglePercentage = CameraComponent->PostProcessSettings.MotionBlurAmount;
-			}
-		}
-		
-		// Apply any motion blur settings from post processing blends attached to the camera manager
-		TArray<FPostProcessSettings> const* CameraAnimPPSettings;
-		TArray<float> const* CameraAnimPPBlendWeights;
-		PlayerCameraManager->GetCachedPostProcessBlends(CameraAnimPPSettings, CameraAnimPPBlendWeights);
-		for (int32 PPIdx = 0; PPIdx < CameraAnimPPBlendWeights->Num(); ++PPIdx)
-		{
-			if ((*CameraAnimPPSettings)[PPIdx].bOverride_MotionBlurAmount)
-			{
-				Output.ShutterAnglePercentage = FMath::Lerp(Output.ShutterAnglePercentage, (double)(*CameraAnimPPSettings)[PPIdx].MotionBlurAmount, (*CameraAnimPPBlendWeights)[PPIdx]);
-			}
-		}
-
 		// Apply any motion blur settings from post process volumes in the world
 		FVector ViewLocation = PlayerCameraManager->GetCameraLocation();
 		for (IInterface_PostProcessVolume* PPVolume : GetWorld()->PostProcessVolumes)
@@ -1300,7 +1309,7 @@ MoviePipeline::FFrameConstantMetrics UMoviePipeline::CalculateShotFrameMetrics(c
 			}
 
 			float LocalWeight = FMath::Clamp(VolumeProperties.BlendWeight, 0.0f, 1.0f);
-			
+
 			if (!VolumeProperties.bIsUnbound)
 			{
 				float DistanceToPoint = 0.0f;
@@ -1319,6 +1328,29 @@ MoviePipeline::FFrameConstantMetrics UMoviePipeline::CalculateShotFrameMetrics(c
 			if (LocalWeight > 0.0f)
 			{
 				Output.ShutterAnglePercentage = FMath::Lerp(Output.ShutterAnglePercentage, (double)VolumeProperties.Settings->MotionBlurAmount, LocalWeight);
+			}
+		}
+
+		// Now try from the camera, which takes priority over post processing volumes.
+		ACameraActor* CameraActor = Cast<ACameraActor>(PlayerCameraManager->GetViewTarget());
+		if (CameraActor)
+		{
+			UCameraComponent* CameraComponent = CameraActor->GetCameraComponent();
+			if (CameraComponent && CameraComponent->PostProcessSettings.bOverride_MotionBlurAmount)
+			{
+				Output.ShutterAnglePercentage = FMath::Lerp(Output.ShutterAnglePercentage, (double)CameraComponent->PostProcessSettings.MotionBlurAmount, (double)CameraComponent->PostProcessBlendWeight);
+			}
+		}
+		
+		// Apply any motion blur settings from post processing blends attached to the camera manager
+		TArray<FPostProcessSettings> const* CameraAnimPPSettings;
+		TArray<float> const* CameraAnimPPBlendWeights;
+		PlayerCameraManager->GetCachedPostProcessBlends(CameraAnimPPSettings, CameraAnimPPBlendWeights);
+		for (int32 PPIdx = 0; PPIdx < CameraAnimPPBlendWeights->Num(); ++PPIdx)
+		{
+			if ((*CameraAnimPPSettings)[PPIdx].bOverride_MotionBlurAmount)
+			{
+				Output.ShutterAnglePercentage = FMath::Lerp(Output.ShutterAnglePercentage, (double)(*CameraAnimPPSettings)[PPIdx].MotionBlurAmount, (*CameraAnimPPBlendWeights)[PPIdx]);
 			}
 		}
 	}
@@ -1385,7 +1417,7 @@ UMoviePipelineMasterConfig* UMoviePipeline::GetPipelineMasterConfig() const
 	return CurrentJob->GetConfiguration(); 
 }
 
-UMoviePipelineSetting* UMoviePipeline::FindOrAddSetting(TSubclassOf<UMoviePipelineSetting> InSetting, const UMoviePipelineExecutorShot* InShot) const
+UMoviePipelineSetting* UMoviePipeline::FindOrAddSettingForShot(TSubclassOf<UMoviePipelineSetting> InSetting, const UMoviePipelineExecutorShot* InShot) const
 {
 	// Check to see if this setting is in the shot override, if it is we'll use the shot version of that.
 	if (InShot->GetShotOverrideConfiguration())
@@ -1410,14 +1442,14 @@ UMoviePipelineSetting* UMoviePipeline::FindOrAddSetting(TSubclassOf<UMoviePipeli
 	return InSetting->GetDefaultObject<UMoviePipelineSetting>();
 }
 
-TArray<UMoviePipelineSetting*> UMoviePipeline::FindSettings(TSubclassOf<UMoviePipelineSetting> InSetting, const UMoviePipelineExecutorShot* InShot) const
+TArray<UMoviePipelineSetting*> UMoviePipeline::FindSettingsForShot(TSubclassOf<UMoviePipelineSetting> InSetting, const UMoviePipelineExecutorShot* InShot) const
 {
 	TArray<UMoviePipelineSetting*> FoundSettings;
 
 	// Find all enabled settings of given subclass in the shot override first
 	if (UMoviePipelineShotConfig* ShotOverride = InShot->GetShotOverrideConfiguration())
 	{
-		for (UMoviePipelineSetting* Setting : ShotOverride->FindSettings(InSetting))
+		for (UMoviePipelineSetting* Setting : ShotOverride->FindSettingsByClass(InSetting))
 		{
 			if (Setting && Setting->IsEnabled())
 			{
@@ -1427,7 +1459,7 @@ TArray<UMoviePipelineSetting*> UMoviePipeline::FindSettings(TSubclassOf<UMoviePi
 	}
 
 	// Add all enabled settings of given subclass not overridden by shot override
-	for (UMoviePipelineSetting* Setting : GetPipelineMasterConfig()->FindSettings(InSetting))
+	for (UMoviePipelineSetting* Setting : GetPipelineMasterConfig()->FindSettingsByClass(InSetting))
 	{
 		if (Setting && Setting->IsEnabled())
 		{
@@ -1465,7 +1497,13 @@ void UMoviePipeline::ResolveFilenameFormatArguments(const FString& InFormatStrin
 	OutFinalFormatArgs = FMoviePipelineFormatArgs();
 	OutFinalFormatArgs.InJob = CurrentJob;
 
-	// From Settings
+	// Copy the file metadata from our InOutputState
+	if (InOutputState)
+	{
+		OutFinalFormatArgs.FileMetadata = InOutputState->FileMetadata;
+	}
+
+	// Now get the settings from our config. This will expand the FileMetadata and assign the default values used in the UI.
 	GetPipelineMasterConfig()->GetFormatArguments(OutFinalFormatArgs, true);
 
 	// Ensure they used relative frame numbers in the output so they get the right number of output frames.
@@ -1479,7 +1517,8 @@ void UMoviePipeline::ResolveFilenameFormatArguments(const FString& InFormatStrin
 	// From Output State
 	if (InOutputState)
 	{
-		OutFinalFormatArgs.FileMetadata = InOutputState->FileMetadata;
+		// Now that the settings have been added from the configuration, we overwrite them with the ones in the output state. This is required so that
+		// things like frame number resolve to the actual output state correctly.
 		InOutputState->GetFilenameFormatArguments(OutFinalFormatArgs, OutputSettings->ZeroPadFrameNumbers, OutputSettings->FrameNumberOffset + InFrameNumberOffset, bForceRelativeFrameNumbers);
 	}
 
@@ -1495,6 +1534,8 @@ void UMoviePipeline::ResolveFilenameFormatArguments(const FString& InFormatStrin
 		OutFinalFormatArgs.FileMetadata.Add(TEXT("unreal/jobDate"), InitializationTime.ToString(TEXT("%Y.%m.%d")));
 		OutFinalFormatArgs.FileMetadata.Add(TEXT("unreal/jobTime"), InitializationTime.ToString(TEXT("%H.%M.%S")));
 		OutFinalFormatArgs.FileMetadata.Add(TEXT("unreal/jobVersion"), InitializationVersion);
+		OutFinalFormatArgs.FileMetadata.Add(TEXT("unreal/jobName"), CurrentJob->JobName);
+		OutFinalFormatArgs.FileMetadata.Add(TEXT("unreal/jobAuthor"), CurrentJob->Author);
 
 		// By default, we don't want to show frame duplication numbers. If we need to start writing them,
 		// they need to come before the frame number (so that tools recognize them as a sequence).

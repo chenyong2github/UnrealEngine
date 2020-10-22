@@ -328,6 +328,18 @@ UNiagaraEmitterEditorData& FNiagaraEmitterViewModel::GetOrCreateEditorData()
 	return *EditorData;
 }
 
+void FNiagaraEmitterViewModel::AddEventHandler(FNiagaraEventScriptProperties& EventScriptProperties, bool bResetGraphForOutput /*= false*/)
+{
+	EventScriptProperties.Script = NewObject<UNiagaraScript>(GetEmitter(), MakeUniqueObjectName(GetEmitter(), UNiagaraScript::StaticClass(), "EventScript"), EObjectFlags::RF_Transactional);
+	EventScriptProperties.Script->SetUsage(ENiagaraScriptUsage::ParticleEventScript);
+	EventScriptProperties.Script->SetUsageId(FGuid::NewGuid());
+	EventScriptProperties.Script->SetSource(GetSharedScriptViewModel()->GetGraphViewModel()->GetScriptSource());
+	Emitter->AddEventHandler(EventScriptProperties);
+	if (bResetGraphForOutput)
+	{
+		FNiagaraStackGraphUtilities::ResetGraphForOutput(*GetSharedScriptViewModel()->GetGraphViewModel()->GetGraph(), ENiagaraScriptUsage::ParticleEventScript, EventScriptProperties.Script->GetUsageId());
+	}
+}
 
 void FNiagaraEmitterViewModel::OnGPUCompiled(UNiagaraEmitter* InEmitter)
 {

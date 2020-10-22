@@ -772,11 +772,18 @@ namespace AutomationTool
 				string[] PathDirectories = Environment.GetEnvironmentVariable("PATH").Split(Path.PathSeparator);
 				foreach (string PathDirectory in PathDirectories)
 				{
-					string TryApp = Path.Combine(PathDirectory, App);
-					if (FileExists(Quiet, TryApp))
+					try
 					{
-						ResolvedPath = TryApp;
-						break;
+						string TryApp = Path.Combine(PathDirectory, App);
+						if (FileExists(Quiet, TryApp))
+						{
+							ResolvedPath = TryApp;
+							break;
+						}
+					}
+					catch(ArgumentException)	// Path.Combine can throw an exception
+					{
+						Log.TraceWarningOnce("PATH variable contains invalid characters.");
 					}
 				}
 			}

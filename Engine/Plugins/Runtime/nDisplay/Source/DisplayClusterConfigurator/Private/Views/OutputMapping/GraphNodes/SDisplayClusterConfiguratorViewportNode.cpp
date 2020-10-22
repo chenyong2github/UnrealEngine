@@ -16,6 +16,7 @@
 #include "Widgets/Layout/SScaleBox.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SOverlay.h"
+#include "Widgets/Images/SImage.h"
 #include "SGraphPanel.h"
 
 #define LOCTEXT_NAMESPACE "SDisplayClusterConfiguratorViewportNode"
@@ -41,7 +42,8 @@ void SDisplayClusterConfiguratorViewportNode::UpdateGraphNode()
 	UDisplayClusterConfigurationViewport* CfgViewport = CfgViewportPtr.Get();
 	check(CfgViewport != nullptr);
 
-	TAttribute<FSlateColor> BackgroundColor = TAttribute<FSlateColor>::Create(TAttribute<FSlateColor>::FGetter::CreateSP(this, &SDisplayClusterConfiguratorViewportNode::GetBackgroundColor));
+	BackgroundImage = SNew(SImage);
+	SetBackgroundDefaultBrush();
 
 	FVector2D ViewportSize(CfgViewport->Region.W, CfgViewport->Region.H);
 
@@ -72,7 +74,7 @@ void SDisplayClusterConfiguratorViewportNode::UpdateGraphNode()
 						.BorderImage(FDisplayClusterConfiguratorStyle::GetBrush("DisplayClusterConfigurator.Node.Window.Border.Brush"))
 						.Padding(FMargin(0.f))
 						[
-							CreateBackground(BackgroundColor)
+							BackgroundImage.ToSharedRef()
 						]
 					]
 
@@ -139,6 +141,39 @@ void SDisplayClusterConfiguratorViewportNode::UpdateGraphNode()
 	NodeSlot->SlotSize(ViewportSize);
 }
 
+void SDisplayClusterConfiguratorViewportNode::SetBackgroundDefaultBrush()
+{
+	BackgroundActiveBrush = *FDisplayClusterConfiguratorStyle::GetBrush("DisplayClusterConfigurator.Node.Body");
+
+	TAttribute<FSlateColor> BackgroundColor = TAttribute<FSlateColor>::Create(TAttribute<FSlateColor>::FGetter::CreateSP(this, &SDisplayClusterConfiguratorViewportNode::GetDefaultBackgroundColor));
+
+	if (BackgroundImage.IsValid())
+	{
+		BackgroundImage->SetImage(&BackgroundActiveBrush);
+		BackgroundImage->SetColorAndOpacity(BackgroundColor);
+	}
+}
+
+void SDisplayClusterConfiguratorViewportNode::SetBackgroundBrushFromTexture(UTexture* InTexture)
+{	
+	if (BackgroundActiveBrush.GetResourceObject() != InTexture && InTexture != nullptr)
+	{
+		// Reset the Brush
+		BackgroundActiveBrush = FSlateBrush();
+		BackgroundActiveBrush.SetResourceObject(InTexture);
+		BackgroundActiveBrush.ImageSize.X = InTexture->Resource->GetSizeX();
+		BackgroundActiveBrush.ImageSize.Y = InTexture->Resource->GetSizeY();
+
+		if (BackgroundImage.IsValid())
+		{
+			TAttribute<FSlateColor> BackgroundColorImage = TAttribute<FSlateColor>::Create(TAttribute<FSlateColor>::FGetter::CreateSP(this, &SDisplayClusterConfiguratorViewportNode::GetImageBackgroundColor));
+
+			BackgroundImage->SetImage(&BackgroundActiveBrush);
+			BackgroundImage->SetColorAndOpacity(BackgroundColorImage);
+		}
+	}
+}
+
 UObject* SDisplayClusterConfiguratorViewportNode::GetEditingObject() const
 {
 	return ViewportNodePtr->GetObject();
@@ -197,7 +232,7 @@ void SDisplayClusterConfiguratorViewportNode::OnSelectedItemSet(const TSharedRef
 	InNodeVisibile = false;
 }
 
-FSlateColor SDisplayClusterConfiguratorViewportNode::GetBackgroundColor() const
+FSlateColor SDisplayClusterConfiguratorViewportNode::GetDefaultBackgroundColor() const
 {
 	TSharedPtr<FDisplayClusterConfiguratorOutputMappingViewportSlot> ViewportSlot = ViewportSlotPtr.Pin();
 	check(ViewportSlot.IsValid());
@@ -229,6 +264,33 @@ FSlateColor SDisplayClusterConfiguratorViewportNode::GetBackgroundColor() const
 			// Regular case
 			return FDisplayClusterConfiguratorStyle::GetColor("DisplayClusterConfigurator.Node.Viewport.BackgroundColor.Regular");
 		}
+	}
+}
+
+FSlateColor SDisplayClusterConfiguratorViewportNode::GetImageBackgroundColor() const
+{
+	TSharedPtr<FDisplayClusterConfiguratorOutputMappingViewportSlot> ViewportSlot = ViewportSlotPtr.Pin();
+	check(ViewportSlot.IsValid());
+
+	const bool bIsSelected = GetOwnerPanel()->SelectionManager.SelectedNodes.Contains(GraphNode);
+
+	if (ViewportSlot->IsOutsideParentBoundary())
+	{
+		if (bIsSelected)
+		{
+			// Selected Case
+			return FDisplayClusterConfiguratorStyle::GetColor("DisplayClusterConfigurator.Node.Viewport.OutsideBackgroundColor.Selected");
+		}
+		else
+		{
+			// Regular case
+			return FDisplayClusterConfiguratorStyle::GetColor("DisplayClusterConfigurator.Node.Viewport.OutsideBackgroundColor.Regular");
+		}
+	}
+	else
+	{
+		// Regular case
+		return FLinearColor::White;
 	}
 }
 

@@ -938,7 +938,21 @@ bool URigVMPin::CanLink(URigVMPin* InSourcePin, URigVMPin* InTargetPin, FString*
 	{
 		for (int32 SourceNodeIndex = 0; SourceNodeIndex < SourceNodes.Num(); SourceNodeIndex++)
 		{
-			if (!SourceNodes[SourceNodeIndex]->IsA<URigVMRerouteNode>())
+			bool bNodeCanLinkAnywhere = SourceNodes[SourceNodeIndex]->IsA<URigVMRerouteNode>();
+			if (!bNodeCanLinkAnywhere)
+			{
+				if (URigVMStructNode* StructNode = Cast<URigVMStructNode>(SourceNodes[SourceNodeIndex]))
+				{
+					// pure / immutable nodes can be connected to any input in any order.
+					// since a new link is going to change the abstract syntax tree 
+					if (!StructNode->IsMutable())
+					{
+						bNodeCanLinkAnywhere = true;
+					}
+				}
+			}
+
+			if (!bNodeCanLinkAnywhere)
 			{
 				int32 SourceNodeInstructionIndex = SourceNodes[SourceNodeIndex]->GetInstructionIndex();
 				if (SourceNodeInstructionIndex != INDEX_NONE &&

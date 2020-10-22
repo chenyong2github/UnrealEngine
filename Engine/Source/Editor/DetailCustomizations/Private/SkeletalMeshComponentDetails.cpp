@@ -195,7 +195,8 @@ void FSkeletalMeshComponentDetails::UpdateAnimationCategory(IDetailLayoutBuilder
 				.MaxDesiredWidth(600)
 				[
 					PropWidget
-				];
+				]
+				.PropertyHandleList({ ChildHandle });
 		}
 		else
 		{

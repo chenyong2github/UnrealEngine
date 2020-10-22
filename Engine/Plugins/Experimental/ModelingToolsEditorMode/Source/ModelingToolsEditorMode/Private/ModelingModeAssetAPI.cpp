@@ -15,6 +15,48 @@
 
 
 
+/**
+ * Generate a N-letter GUID string that contains only hex digits,
+ * and contains at least one letter and one number
+ */
+static FString GenerateAssetRandomGUID(int32 NumChars = 8)
+{
+	int32 FailCount = 0;
+	while (FailCount++ < 10)
+	{
+		FGuid Guid = FGuid::NewGuid();
+		FString GuidString = Guid.ToString(EGuidFormats::UniqueObjectGuid).ToUpper();
+		FString Result;
+		int32 Digits = 0, Letters = 0;
+		for (int32 k = 0; k < GuidString.Len(); ++k)
+		{
+			TCHAR Character = GuidString[k];
+			if (FChar::IsHexDigit(Character))
+			{
+				Result.AppendChar(Character);
+				if (FChar::IsDigit(Character))
+				{
+					Digits++;
+				}
+				else
+				{
+					Letters++;
+				}
+			}
+			if (Result.Len() == NumChars)
+			{
+				if (Digits > 0 && Letters > 0)
+				{
+					return Result;
+				}
+				break;		// exit loop
+			}
+		}
+	}
+	return TEXT("BADGUID1");
+}
+
+
 
 FModelingModeAssetAPI::FModelingModeAssetAPI(IToolsContextAssetAPI* InAssetAPI)
 	: AssetAPI(InAssetAPI)
@@ -94,8 +136,7 @@ bool FModelingModeAssetAPI::GetNewActorPackagePath(
 	FString UseBaseName = ObjectBaseName;
 	if (Settings->bAppendRandomStringToName)
 	{
-		FGuid Guid = FGuid::NewGuid();
-		FString GuidString = Guid.ToString(EGuidFormats::Short).ToUpper().Left(8);
+		FString GuidString = GenerateAssetRandomGUID();
 		UseBaseName = FString::Printf(TEXT("%s_%s"), *UseBaseName, *GuidString);
 	}
 
@@ -227,8 +268,7 @@ bool FModelingModeAssetAPI::SaveGeneratedTexture2D(
 	FString UseBaseName = ObjectBaseName;
 	if (Settings->bAppendRandomStringToName)
 	{
-		FGuid Guid = FGuid::NewGuid();
-		FString GuidString = Guid.ToString(EGuidFormats::Short).ToUpper().Left(8);
+		FString GuidString = GenerateAssetRandomGUID();
 		UseBaseName = FString::Printf(TEXT("%s_%s"), *UseBaseName, *GuidString);
 	}
 

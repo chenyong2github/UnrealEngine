@@ -125,7 +125,7 @@ UWidgetBlueprintGeneratedClass::UWidgetBlueprintGeneratedClass(const FObjectInit
 
 void UWidgetBlueprintGeneratedClass::InitializeBindingsStatic(UUserWidget* UserWidget, const TArray< FDelegateRuntimeBinding >& InBindings)
 {
-	ensure(!UserWidget->HasAnyFlags(RF_ArchetypeObject));
+	check(!UserWidget->IsTemplate());
 
 	// Note: It's not safe to assume here that the UserWidget class type is a UWidgetBlueprintGeneratedClass!
 	// - @see InitializeWidgetStatic()
@@ -187,7 +187,7 @@ void UWidgetBlueprintGeneratedClass::InitializeWidgetStatic(UUserWidget* UserWid
 	// blueprint class, it will be a UDynamicClass instead, and this API will be invoked by the blueprint's C++ code that's generated at cook time.
 	// - @see FBackendHelperUMG::EmitWidgetInitializationFunctions()
 
-	if ( UserWidget->HasAllFlags(RF_ArchetypeObject) )
+	if ( UserWidget->IsTemplate() )
 	{
 		UE_LOG(LogUMG, Error, TEXT("Widget Class %s - Running Initialize On Archetype, %s."), *InClass->GetName(), *UserWidget->GetName());
 		return;
@@ -328,10 +328,8 @@ void UWidgetBlueprintGeneratedClass::PostLoad()
 
 	if (WidgetTree)
 	{
-		// Clear CDO flag on tree
-		WidgetTree->ClearFlags(RF_DefaultSubObject);
-		// We're going to use the widget tree as an archetype for widget construction.
-		WidgetTree->SetFlags(RF_ArchetypeObject);
+		// We don't want any of these flags to carry over from the WidgetBlueprint
+		WidgetTree->ClearFlags(RF_Public | RF_ArchetypeObject | RF_DefaultSubObject);
 
 #if !WITH_EDITOR
 		WidgetTree->AddToCluster(this, true);
@@ -393,6 +391,7 @@ void UWidgetBlueprintGeneratedClass::SetWidgetTreeArchetype(UWidgetTree* InWidge
 
 	if (WidgetTree)
 	{
+		// We don't want any of these flags to carry over from the WidgetBlueprint
 		WidgetTree->ClearFlags(RF_Public | RF_ArchetypeObject | RF_DefaultSubObject);
 	}
 }

@@ -573,9 +573,7 @@ void FDatasmithActorImporter::SetupHierarchicalInstancedStaticMeshComponent(FDat
 	{
 		ImportContext.LogWarning(FText::GetEmpty())
 			->AddToken(FUObjectToken::Create(HierarchicalInstancedStaticMeshComponent))
-			->AddToken(FTextToken::Create(FText::Format(LOCTEXT("HierarchicalInstancedStaticMeshComponentHasInvertedScale",
-				"{0} has instances with negative scaling producing unsupported inverted meshes."),
-				FText::FromString(HierarchicalInstancedStatictMeshActorElement->GetLabel()))));
+			->AddToken(FTextToken::Create(FText::Format(LOCTEXT("HierarchicalInstancedStaticMeshComponentHasInvertedScale", "{0} has instances with negative scaling producing unsupported inverted meshes."), FText::FromString(HierarchicalInstancedStatictMeshActorElement->GetLabel()))));
 	}
 
 	SetupStaticMeshComponent(ImportContext, HierarchicalInstancedStaticMeshComponent, HierarchicalInstancedStatictMeshActorElement);
@@ -658,7 +656,7 @@ void FDatasmithActorImporter::OverrideStaticMeshActorMaterials( const FDatasmith
 		 // if the material id is < 0, apply the material to all the material slots
 		if (OriginalSubMaterial->GetId() < 0)
 		{
-			for (int32 MeshSubMaterialIdx = 0; MeshSubMaterialIdx < StaticMesh->StaticMaterials.Num(); MeshSubMaterialIdx++)
+			for (int32 MeshSubMaterialIdx = 0; MeshSubMaterialIdx < StaticMesh->GetStaticMaterials().Num(); MeshSubMaterialIdx++)
 			{
 				OverrideStaticMeshActorMaterial( ImportContext, OriginalSubMaterial, StaticMeshComponentTemplate, MeshSubMaterialIdx );
 			}

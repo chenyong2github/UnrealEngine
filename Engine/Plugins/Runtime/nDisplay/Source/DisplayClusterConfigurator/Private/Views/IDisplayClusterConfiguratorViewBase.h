@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Widgets/SCompoundWidget.h"
 
+
 class IDisplayClusterConfiguratorViewBase
 	: public SCompoundWidget
 {

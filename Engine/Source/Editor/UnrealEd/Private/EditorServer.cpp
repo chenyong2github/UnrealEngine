@@ -6677,7 +6677,7 @@ bool IsComponentMergable(UStaticMeshComponent* Component)
 	}
 
 	// we need a static mesh to work
-	if (Component->GetStaticMesh() == NULL || Component->GetStaticMesh()->RenderData == NULL)
+	if (Component->GetStaticMesh() == NULL || Component->GetStaticMesh()->GetRenderData() == NULL)
 	{
 		return false;
 	}

@@ -460,9 +460,9 @@ void UKismetProceduralMeshLibrary::GetSectionFromStaticMesh(UStaticMesh* InMesh,
 				->AddToken(FTextToken::Create(LOCTEXT("GetSectionFromStaticMeshEnd", "but 'Allow CPU Access' is not enabled. This is required for converting StaticMesh to ProceduralMeshComponent in cooked builds.")));
 		}
 
-		if (InMesh->RenderData != nullptr && InMesh->RenderData->LODResources.IsValidIndex(LODIndex))
+		if (InMesh->GetRenderData() != nullptr && InMesh->GetRenderData()->LODResources.IsValidIndex(LODIndex))
 		{
-			const FStaticMeshLODResources& LOD = InMesh->RenderData->LODResources[LODIndex];
+			const FStaticMeshLODResources& LOD = InMesh->GetRenderData()->LODResources[LODIndex];
 			if (LOD.Sections.IsValidIndex(SectionIndex))
 			{
 				// Empty output buffers
@@ -531,14 +531,14 @@ void UKismetProceduralMeshLibrary::CopyProceduralMeshFromStaticMeshComponent(USt
 		// Clear any existing collision hulls
 		ProcMeshComponent->ClearCollisionConvexMeshes();
 
-		if (StaticMesh->BodySetup != nullptr)
+		if (StaticMesh->GetBodySetup() != nullptr)
 		{
 			// Iterate over all convex hulls on static mesh..
-			const int32 NumConvex = StaticMesh->BodySetup->AggGeom.ConvexElems.Num();
+			const int32 NumConvex = StaticMesh->GetBodySetup()->AggGeom.ConvexElems.Num();
 			for (int ConvexIndex = 0; ConvexIndex < NumConvex; ConvexIndex++)
 			{
 				// Copy convex verts to ProcMesh
-				FKConvexElem& MeshConvex = StaticMesh->BodySetup->AggGeom.ConvexElems[ConvexIndex];
+				FKConvexElem& MeshConvex = StaticMesh->GetBodySetup()->AggGeom.ConvexElems[ConvexIndex];
 				ProcMeshComponent->AddCollisionConvexMesh(MeshConvex.VertexData);
 			}
 		}

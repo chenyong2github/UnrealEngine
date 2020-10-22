@@ -1252,7 +1252,7 @@ static TArray<uint32> CalculateClusterGroupPermutation( const TArray< FClusterGr
 
 	FVector MinCenter = FVector( FLT_MAX, FLT_MAX, FLT_MAX );
 	FVector MaxCenter = FVector( -FLT_MAX, -FLT_MAX, -FLT_MAX );
-	for( const FClusterGroup ClusterGroup : ClusterGroups )
+	for( const FClusterGroup& ClusterGroup : ClusterGroups )
 	{
 		const FVector& Center = ClusterGroup.LODBounds.Center;
 		MinCenter = FVector::Min( MinCenter, Center );

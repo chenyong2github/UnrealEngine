@@ -185,11 +185,11 @@ void SetDebugLightmapSample(TArray<UActorComponent*>* Components, UModel* Model,
 		{
 			UStaticMesh* StaticMesh = SMComponent->GetStaticMesh();
 			check(StaticMesh);
-			check(StaticMesh->RenderData);
-			check(StaticMesh->RenderData->LODResources.Num());
+			check(StaticMesh->GetRenderData());
+			check(StaticMesh->GetRenderData()->LODResources.Num());
 			// Only supporting LOD0
 			const int32 LODIndex = 0;
-			FStaticMeshLODResources& LODModel = StaticMesh->RenderData->LODResources[LODIndex];
+			FStaticMeshLODResources& LODModel = StaticMesh->GetRenderData()->LODResources[LODIndex];
 			FIndexArrayView Indices = LODModel.IndexBuffer.GetArrayView();
 			const bool bHasStaticLighting = SMComponent->HasStaticLighting();
 

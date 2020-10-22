@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GroomAssetMeshes.h"
+#include "Engine/StaticMesh.h"
 
 FHairGroupsMeshesSourceDescription::FHairGroupsMeshesSourceDescription()
 {
@@ -17,4 +18,28 @@ bool FHairGroupsMeshesSourceDescription::operator==(const FHairGroupsMeshesSourc
 		LODIndex == A.LODIndex &&
 		MaterialSlotName == A.MaterialSlotName &&
 		ImportedMesh == A.ImportedMesh;
+}
+
+
+bool FHairGroupsMeshesSourceDescription::HasMeshChanged() const
+{
+#if WITH_EDITORONLY_DATA
+	if (ImportedMesh)
+	{
+		ImportedMesh->ConditionalPostLoad();
+		return ImportedMeshKey == ImportedMesh->GetRenderData()->DerivedDataKey;
+	}
+#endif
+	return false;
+}
+
+void FHairGroupsMeshesSourceDescription::UpdateMeshKey()
+{
+#if WITH_EDITORONLY_DATA
+	if (ImportedMesh)
+	{
+		ImportedMesh->ConditionalPostLoad();
+		ImportedMeshKey = ImportedMesh->GetRenderData()->DerivedDataKey;
+	}
+#endif
 }

@@ -22,14 +22,21 @@ UVCamOutputProviderBase::UVCamOutputProviderBase()
 
 UVCamOutputProviderBase::~UVCamOutputProviderBase()
 {
+	// Deinitialize can't be done here since the destruction order isn't guaranteed
+}
+
+void UVCamOutputProviderBase::BeginDestroy()
+{
 	Deinitialize();
+
+	Super::BeginDestroy();
 }
 
 void UVCamOutputProviderBase::Initialize()
 {
 	bool bWasInitialized = bInitialized;
 	bInitialized = true;
-	
+
 	// Reactivate the provider if it was previously set to active
 	if (!bWasInitialized && bIsActive)
 	{
@@ -42,14 +49,17 @@ void UVCamOutputProviderBase::Initialize()
 		else
 #endif
 		{
-			Activate();
+			if (IsOuterComponentEnabled())
+			{
+				Activate();
+			}
 		}
 	}
 }
 
 void UVCamOutputProviderBase::Deinitialize()
 {
-	if (bIsActive)
+	if (IsOuterComponentEnabled() && bIsActive)
 	{
 		Deactivate();
 	}
@@ -80,15 +90,29 @@ void UVCamOutputProviderBase::SetActive(const bool bInActive)
 {
 	bIsActive = bInActive;
 
-	if (bIsActive)
+	if (IsOuterComponentEnabled())
 	{
-		Activate();
-	}
-	else
-	{
-		Deactivate();
+		if (bIsActive)
+		{
+			Activate();
+		}
+		else
+		{
+			Deactivate();
+		}
 	}
 }
+
+bool UVCamOutputProviderBase::IsOuterComponentEnabled() const
+{
+	if (UVCamComponent* OuterComponent = GetTypedOuter<UVCamComponent>())
+	{
+		return OuterComponent->IsEnabled();
+	}
+
+	return false;
+}
+
 
 void UVCamOutputProviderBase::SetTargetCamera(const UCineCameraComponent* InTargetCamera)
 {

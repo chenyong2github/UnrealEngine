@@ -520,6 +520,9 @@ struct FRigUnit_MathQuaternionSwingTwist : public FRigUnit_MathQuaternionBase
 	FQuat Twist;
 };
 
+/**
+ * Enum of possible rotation orders
+ */
 USTRUCT(meta = (DisplayName = "Rotation Order", Category = "Math|Rotation", Constant))
 struct FRigUnit_MathQuaternionRotationOrder : public FRigUnit_MathBase
 {

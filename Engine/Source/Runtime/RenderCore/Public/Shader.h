@@ -19,6 +19,7 @@
 #include "Serialization/ArchiveProxy.h"
 #include "UObject/RenderingObjectVersion.h"
 #include "Serialization/MemoryImage.h"
+#include "HAL/ThreadSafeBool.h"
 #include <atomic>
 
 // For FShaderUniformBufferParameter
@@ -217,6 +218,11 @@ public:
 		return NumRHIShaders;
 	}
 
+	inline bool IsValidShaderIndex(int32 ShaderIndex) const
+	{
+		return ShaderIndex >= 0 && ShaderIndex < NumRHIShaders;
+	}
+
 	inline bool HasShader(int32 ShaderIndex) const
 	{
 		return RHIShaders[ShaderIndex].load(std::memory_order_acquire) != nullptr;
@@ -385,6 +391,8 @@ class RENDERCORE_API FShaderMapPointerTable : public FPointerTableBase
 public:
 	virtual int32 AddIndexedPointer(const FTypeLayoutDesc& TypeDesc, void* Ptr) override;
 	virtual void* GetIndexedPointer(const FTypeLayoutDesc& TypeDesc, uint32 i) const override;
+
+	virtual FShaderMapPointerTable* Clone() const { return new FShaderMapPointerTable(*this); }
 
 	virtual void SaveToArchive(FArchive& Ar, void* FrozenContent, bool bInlineShaderResources) const;
 	virtual void LoadFromArchive(FArchive& Ar, void* FrozenContent, bool bInlineShaderResources, bool bLoadedByCookedMaterial);
@@ -609,42 +617,71 @@ public:
 
 }; // FShaderParameterBindings
 
+// Flags that can specialize shader permutations compiled for specific platforms
+enum class EShaderPermutationFlags : uint32
+{
+	None = 0u,
+	HasEditorOnlyData = (1u << 0),
+};
+ENUM_CLASS_FLAGS(EShaderPermutationFlags);
+
+inline EShaderPermutationFlags GetCurrentShaderPermutationFlags()
+{
+	EShaderPermutationFlags Result = EShaderPermutationFlags::None;
+#if WITH_EDITORONLY_DATA
+	Result |= EShaderPermutationFlags::HasEditorOnlyData;
+#endif
+	return Result;
+}
+
+inline EShaderPermutationFlags GetShaderPermutationFlags(const FPlatformTypeLayoutParameters& LayoutParams)
+{
+	EShaderPermutationFlags Result = EShaderPermutationFlags::None;
+	if (LayoutParams.WithEditorOnly()) Result |= EShaderPermutationFlags::HasEditorOnlyData;
+	return Result;
+}
+
 struct FShaderPermutationParameters
 {
 	// Shader platform to compile to.
 	const EShaderPlatform Platform;
 
-	/** Unique permutation identifier of the material shader type. */
+	// Unique permutation identifier of the material shader type.
 	const int32 PermutationId;
 
-	explicit FShaderPermutationParameters(EShaderPlatform InPlatform, int32 InPermutationId = 0)
+	// Flags that describe the permutation
+	const EShaderPermutationFlags Flags;
+
+	// Default to include editor-only shaders, to maintain backwards-compatibility
+	explicit FShaderPermutationParameters(EShaderPlatform InPlatform, int32 InPermutationId = 0, EShaderPermutationFlags InFlags = EShaderPermutationFlags::HasEditorOnlyData)
 		: Platform(InPlatform)
 		, PermutationId(InPermutationId)
+		, Flags(InFlags)
 	{}
 };
 
 struct FShaderCompiledShaderInitializerType
 {
-	FShaderType* Type;
+	const FShaderType* Type;
 	FShaderTarget Target;
 	const TArray<uint8>& Code;
 	const FShaderParameterMap& ParameterMap;
 	const FSHAHash& OutputHash;
 	FSHAHash MaterialShaderMapHash;
 	const FShaderPipelineType* ShaderPipeline;
-	FVertexFactoryType* VertexFactoryType;
+	const FVertexFactoryType* VertexFactoryType;
 	uint32 NumInstructions;
 	uint32 NumTextureSamplers;
 	uint32 CodeSize;
 	int32 PermutationId;
 
 	RENDERCORE_API FShaderCompiledShaderInitializerType(
-		FShaderType* InType,
+		const FShaderType* InType,
 		int32 InPermutationId,
 		const FShaderCompilerOutput& CompilerOutput,
 		const FSHAHash& InMaterialShaderMapHash,
 		const FShaderPipelineType* InShaderPipeline,
-		FVertexFactoryType* InVertexFactoryType
+		const FVertexFactoryType* InVertexFactoryType
 	);
 };
 
@@ -834,7 +871,7 @@ class TShaderRefBase
 {
 public:
 	TShaderRefBase() : ShaderContent(nullptr), ShaderMap(nullptr) {}
-	TShaderRefBase(ShaderType* InShader, const FShaderMapBase& InShaderMap) : ShaderContent(InShader), ShaderMap(&InShaderMap) {}
+	TShaderRefBase(ShaderType* InShader, const FShaderMapBase& InShaderMap) : ShaderContent(InShader), ShaderMap(&InShaderMap) { checkSlow(InShader); }
 	TShaderRefBase(const TShaderRefBase&) = default;
 
 	template<typename OtherShaderType, typename OtherPointerTableType>
@@ -853,13 +890,13 @@ public:
 	template<typename OtherShaderType, typename OtherPointerTableType>
 	static TShaderRefBase<ShaderType, PointerTableType> Cast(const TShaderRefBase<OtherShaderType, OtherPointerTableType>& Rhs)
 	{
-		return TShaderRefBase<ShaderType, PointerTableType>(static_cast<ShaderType*>(Rhs.GetShader()), Rhs.GetShaderMapChecked());
+		return TShaderRefBase<ShaderType, PointerTableType>(static_cast<ShaderType*>(Rhs.GetShader()), Rhs.GetShaderMap());
 	}
 
 	template<typename OtherShaderType, typename OtherPointerTableType>
 	static TShaderRefBase<ShaderType, PointerTableType> ReinterpretCast(const TShaderRefBase<OtherShaderType, OtherPointerTableType>& Rhs)
 	{
-		return TShaderRefBase<ShaderType, PointerTableType>(reinterpret_cast<ShaderType*>(Rhs.GetShader()), Rhs.GetShaderMapChecked());
+		return TShaderRefBase<ShaderType, PointerTableType>(reinterpret_cast<ShaderType*>(Rhs.GetShader()), Rhs.GetShaderMap());
 	}
 
 	inline bool IsValid() const { return ShaderContent != nullptr; }
@@ -947,6 +984,12 @@ public:
 #endif // RHI_RAYTRACING
 
 private:
+	TShaderRefBase(ShaderType* InShader, const FShaderMapBase* InShaderMap)
+		: ShaderContent(InShader), ShaderMap(InShaderMap)
+	{
+		checkSlow((!InShader && !InShaderMap) || (InShader && InShaderMap));
+	}
+
 	ShaderType* ShaderContent;
 	const FShaderMapBase* ShaderMap;
 };
@@ -1110,6 +1153,36 @@ public:
 		return (ShaderTypeForDynamicCast == EShaderTypeForDynamicCast::ComputeKernel) ? reinterpret_cast<FComputeKernelShaderType*>(this) : nullptr;
 	}
 
+	FORCEINLINE const FGlobalShaderType* AsGlobalShaderType() const
+	{
+		checkf(ShaderTypeForDynamicCast == EShaderTypeForDynamicCast::Global, TEXT("ShaderType %s is not Global"), GetName());
+		return reinterpret_cast<const FGlobalShaderType*>(this);
+	}
+
+	FORCEINLINE const FMaterialShaderType* AsMaterialShaderType() const
+	{
+		checkf(ShaderTypeForDynamicCast == EShaderTypeForDynamicCast::Material, TEXT("ShaderType %s is not Material"), GetName());
+		return reinterpret_cast<const FMaterialShaderType*>(this);
+	}
+
+	FORCEINLINE const FMeshMaterialShaderType* AsMeshMaterialShaderType() const
+	{
+		checkf(ShaderTypeForDynamicCast == EShaderTypeForDynamicCast::MeshMaterial, TEXT("ShaderType %s is not MeshMaterial"), GetName());
+		return reinterpret_cast<const FMeshMaterialShaderType*>(this);
+	}
+
+	FORCEINLINE const FNiagaraShaderType* AsNiagaraShaderType() const
+	{
+		checkf(ShaderTypeForDynamicCast == EShaderTypeForDynamicCast::Niagara, TEXT("ShaderType %s is not Niagara"), GetName());
+		return reinterpret_cast<const FNiagaraShaderType*>(this);
+	}
+
+	FORCEINLINE const FOpenColorIOShaderType* AsOpenColorIOShaderType() const
+	{
+		checkf(ShaderTypeForDynamicCast == EShaderTypeForDynamicCast::OCIO, TEXT("ShaderType %s is not OCIO"), GetName());
+		return reinterpret_cast<const FOpenColorIOShaderType*>(this);
+	}
+
 	inline EShaderTypeForDynamicCast GetTypeForDynamicCast() const
 	{
 		return ShaderTypeForDynamicCast;
@@ -1176,14 +1249,9 @@ public:
 	}
 
 	/** Adds include statements for uniform buffers that this shader type references, and builds a prefix for the shader file with the include statements. */
-	void AddReferencedUniformBufferIncludes(FShaderCompilerEnvironment& OutEnvironment, FString& OutSourceFilePrefix, EShaderPlatform Platform);
+	void AddReferencedUniformBufferIncludes(FShaderCompilerEnvironment& OutEnvironment, FString& OutSourceFilePrefix, EShaderPlatform Platform) const;
 
-	void FlushShaderFileCache(const TMap<FString, TArray<const TCHAR*> >& ShaderFileToUniformBufferVariables)
-	{
-		ReferencedUniformBufferStructsCache.Empty();
-		GenerateReferencedUniformBuffers(SourceFilename, Name, ShaderFileToUniformBufferVariables, ReferencedUniformBufferStructsCache);
-		bCachedUniformBufferStructDeclarations = false;
-	}
+	void FlushShaderFileCache(const TMap<FString, TArray<const TCHAR*> >& ShaderFileToUniformBufferVariables);
 
 	void DumpDebugInfo();
 	void GetShaderStableKeyParts(struct FStableShaderKeyAndValue& SaveKeyVal);
@@ -1217,14 +1285,14 @@ private:
 
 protected:
 	/** Tracks what platforms ReferencedUniformBufferStructsCache has had declarations cached for. */
-	bool bCachedUniformBufferStructDeclarations;
+	mutable FThreadSafeBool bCachedUniformBufferStructDeclarations;
 
 	/**
 	* Cache of referenced uniform buffer includes.
 	* These are derived from source files so they need to be flushed when editing and recompiling shaders on the fly.
 	* FShaderType::Initialize will add an entry for each referenced uniform buffer, but the declarations are added on demand as shaders are compiled.
 	*/
-	TMap<const TCHAR*, FCachedUniformBufferDeclaration> ReferencedUniformBufferStructsCache;
+	mutable TMap<const TCHAR*, FCachedUniformBufferDeclaration> ReferencedUniformBufferStructsCache;
 
 };
 
@@ -1625,6 +1693,7 @@ public:
 	~FShaderPipeline();
 
 	void AddShader(FShader* Shader, int32 PermutationId);
+	FShader* FindOrAddShader(FShader* Shader, int32 PermutationId);
 
 	inline uint32 GetNumShaders() const
 	{
@@ -1711,7 +1780,7 @@ class FShaderPipelineRef
 {
 public:
 	FShaderPipelineRef() : ShaderPipeline(nullptr), ShaderMap(nullptr) {}
-	FShaderPipelineRef(FShaderPipeline* InPipeline, const FShaderMapBase& InShaderMap) : ShaderPipeline(InPipeline), ShaderMap(&InShaderMap) {}
+	FShaderPipelineRef(FShaderPipeline* InPipeline, const FShaderMapBase& InShaderMap) : ShaderPipeline(InPipeline), ShaderMap(&InShaderMap) { checkSlow(InPipeline); }
 
 	inline bool IsValid() const { return ShaderPipeline != nullptr; }
 	inline bool IsNull() const { return ShaderPipeline == nullptr; }
@@ -1760,12 +1829,12 @@ public:
 	/** Destructor ensures pipelines cleared up. */
 	~FShaderMapContent()
 	{
-		Empty();
+		Empty(nullptr);
 	}
 
 	EShaderPlatform GetShaderPlatform() const { return Platform; }
 
-	void Validate(const FShaderMapBase& InShaderMap);
+	void Validate(const FShaderMapBase& InShaderMap) const;
 
 	/** Finds the shader with the given type.  Asserts on failure. */
 	template<typename ShaderType>
@@ -1784,7 +1853,7 @@ public:
 	}
 
 	/** Finds the shader with the given type.  May return NULL. */
-	FShader* GetShader(FShaderType* ShaderType, int32 PermutationId = 0) const
+	FShader* GetShader(const FShaderType* ShaderType, int32 PermutationId = 0) const
 	{
 		return GetShader(ShaderType->GetHashedName(), PermutationId);
 	}
@@ -1868,7 +1937,7 @@ public:
 	}
 
 	/** clears out all shaders and deletes shader pipelines held in the map */
-	void Empty();
+	void Empty(const FPointerTableBase* PointerTable);
 
 	inline FShaderPipeline* GetShaderPipeline(const FHashedName& PipelineTypeName) const
 	{
@@ -1891,7 +1960,7 @@ public:
 	void UpdateHash(FSHA1& Hasher) const;
 
 protected:
-	void EmptyShaderPipelines();
+	void EmptyShaderPipelines(const FPointerTableBase* PointerTable);
 
 	using FMemoryImageHashTable = THashTable<FMemoryImageAllocator>;
 
@@ -1904,12 +1973,21 @@ protected:
 	LAYOUT_FIELD(TEnumAsByte<EShaderPlatform>, Platform);
 };
 
+namespace Freeze
+{
+	inline void CleanupObject(FShaderMapContent* Object, const FPointerTableBase* PtrTable)
+	{
+		Object->Empty(PtrTable);
+	}
+}
+
 class RENDERCORE_API FShaderMapBase
 {
 public:
 	virtual ~FShaderMapBase();
 
 	FShaderMapResourceCode* GetResourceCode();
+	void CopyResourceCode(const FShaderMapResourceCode& Source);
 
 	inline FShaderMapResource* GetResource() const { return Resource; }
 	inline FShaderMapResource* GetResourceChecked() const { check(Resource); return Resource; }
@@ -1925,7 +2003,7 @@ public:
 	inline uint32 GetFrozenContentSize() const { return FrozenContentSize; }
 
 	void AssignContent(FShaderMapContent* InContent);
-	void FinalizeContent();
+
 	void UnfreezeContent();
 	bool Serialize(FArchive& Ar, bool bInlineShaderResources, bool bLoadedByCookedMaterial, bool bInlineShaderCode=false);
 
@@ -1944,14 +2022,27 @@ public:
 	/** Associates a shadermap with an asset (note: one shadermap can be used by several assets, e.g. MIs). 
 	 * This helps cooker lay out the shadermaps (and shaders) in the file open order, if provided. Maps not associated with any assets
 	 * may be placed after all maps associated with known assets. Global shadermaps need to be associated with a "Global" asset */
-	void MarkAsAssociatedWithAsset(const FString& AssetPath)
+	void AssociateWithAsset(const FString& AssetPath)
 	{
-		AssociatedAssets.AddUnique(AssetPath);
+		AssociatedAssets.Add(AssetPath);
+	}
+
+	void AssociateWithAssets(const FShaderMapAssetPaths& AssetPaths)
+	{
+		AssociatedAssets.Append(AssetPaths);
+	}
+
+	const FShaderMapAssetPaths& GetAssociatedAssets() const
+	{
+		return AssociatedAssets;
 	}
 #endif // WITH_EDITOR
 
 protected:
 	explicit FShaderMapBase(const FTypeLayoutDesc& InContentTypeLayout);
+
+	void AssignAndFreezeContent(const FShaderMapContent* InContent);
+	void InitResource();
 	void DestroyContent();
 
 protected:
@@ -1960,7 +2051,7 @@ protected:
 private:
 #if WITH_EDITOR
 	/** List of the assets that are using this shadermap. This is only available in the editor (cooker) to influence ordering of shader libraries. */
-	TArray<FString> AssociatedAssets;
+	FShaderMapAssetPaths AssociatedAssets;
 #endif
 	const FTypeLayoutDesc& ContentTypeLayout;
 	TRefCountPtr<FShaderMapResource> Resource;
@@ -1984,7 +2075,9 @@ public:
 		ContentType* LocalContent = this->GetMutableContent();
 		check(LocalContent);
 		LocalContent->Finalize(this->GetResourceCode());
-		FShaderMapBase::FinalizeContent();
+		LocalContent->Validate(*this);
+		this->AssignAndFreezeContent(LocalContent);
+		this->InitResource();
 	}
 
 protected:

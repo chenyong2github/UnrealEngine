@@ -657,7 +657,7 @@ FName UNiagaraGraph::StandardizeName(FName Name, ENiagaraScriptUsage Usage, bool
 		}
 	}
 
-	checkf(Namespace != NAME_None, TEXT("No namespace picked."));
+	checkf(Namespace != NAME_None, TEXT("No namespace picked in %s."), *Name.ToString());
 
 	NameParts.Remove(FNiagaraConstants::ModuleNamespace);
 	if (NameParts.Num() == 0)

@@ -12,6 +12,10 @@
 
 class ULandscapeComponent;
 class ILandscapeEdModeInterface;
+class SNotificationItem;
+class UStreamableRenderAsset;
+class FMaterialResource;
+struct FNotificationInfo;
 
 namespace ELandscapeToolTargetType
 {
@@ -186,7 +190,7 @@ struct FLandscapeLayer
 struct FLandscapeLayersCopyTextureParams
 {
 	FLandscapeLayersCopyTextureParams(const FString& InSourceResourceDebugName, FTextureResource* InSourceResource, const FString& InDestResourceDebugName, FTextureResource* InDestResource, FTextureResource* InDestCPUResource,
-		const FIntPoint& InInitialPositionOffset, int32 InSubSectionSizeQuad, int32 InNumSubSections, uint8 InSourceCurrentMip, uint8 InDestCurrentMip, uint32 InSourceArrayIndex, uint32 InDestArrayIndex)
+		const FIntPoint& InInitialPositionOffset, int32 InSubSectionSizeQuad, int32 InNumSubSections, uint8 InSourceCurrentMip, uint8 InDestCurrentMip, uint32 InSourceArrayIndex, uint32 InDestArrayIndex, ERHIAccess SrcAccess = ERHIAccess::SRVMask, ERHIAccess DestAccess = ERHIAccess::SRVMask)
 		: SourceResourceDebugName(InSourceResourceDebugName)
 		, SourceResource(InSourceResource)
 		, DestResourceDebugName(InDestResourceDebugName)
@@ -199,6 +203,8 @@ struct FLandscapeLayersCopyTextureParams
 		, DestMip(InDestCurrentMip)
 		, SourceArrayIndex(InSourceArrayIndex)
 		, DestArrayIndex(InDestArrayIndex)
+		, SrcAccess(SrcAccess)
+		, DestAccess(DestAccess)
 	{}
 
 	FString SourceResourceDebugName;
@@ -213,6 +219,9 @@ struct FLandscapeLayersCopyTextureParams
 	uint8 DestMip;
 	uint32 SourceArrayIndex;
 	uint32 DestArrayIndex;
+	ERHIAccess SrcAccess;
+	ERHIAccess DestAccess;
+
 };
 
 UCLASS(MinimalAPI, showcategories=(Display, Movement, Collision, Lighting, LOD, Input), hidecategories=(Mobility))
@@ -352,8 +361,8 @@ private:
 	using FDirtyDelegate = TFunctionRef<void(UTexture2D*, FColor*, FColor*)>;
 	bool ResolveLayersTexture(class FLandscapeLayersTexture2DCPUReadBackResource* InCPUReadBackTexture, UTexture2D* InOutputTexture, FDirtyDelegate DirtyDelegate);
 		
-	bool AreLayersTextureResourcesReady(bool bInWaitForStreaming) const;
-	bool PrepareLayersBrushTextureResources(bool bInWaitForStreaming, bool bHeightmap) const;
+	bool AreLayersResourcesReady(bool bInWaitForStreaming) const;
+	bool PrepareLayersBrushResources(bool bInWaitForStreaming, bool bHeightmap) const;
 	bool PrepareLayersHeightmapTextureResources(bool bInWaitForStreaming) const;
 	bool PrepareLayersWeightmapTextureResources(bool bInWaitForStreaming) const;
 
@@ -397,8 +406,7 @@ private:
 	void AddDeferredCopyLayersTexture(UTexture* InSourceTexture, UTexture* InDestTexture, FTextureResource* InDestCPUResource = nullptr, const FIntPoint& InInitialPositionOffset = FIntPoint(0, 0), uint8 InSourceCurrentMip = 0, uint8 InDestCurrentMip = 0,
 									  uint32 InSourceArrayIndex = 0, uint32 InDestArrayIndex = 0);
 	void AddDeferredCopyLayersTexture(const FString& InSourceDebugName, FTextureResource* InSourceResource, const FString& InDestDebugName, FTextureResource* InDestResource, FTextureResource* InDestCPUResource = nullptr, const FIntPoint& InInitialPositionOffset = FIntPoint(0, 0),
-									  uint8 InSourceCurrentMip = 0, uint8 InDestCurrentMip = 0, uint32 InSourceArrayIndex = 0, uint32 InDestArrayIndex = 0);
-
+									  uint8 InSourceCurrentMip = 0, uint8 InDestCurrentMip = 0, uint32 InSourceArrayIndex = 0, uint32 InDestArrayIndex = 0, ERHIAccess SrcAccess = ERHIAccess::SRVMask, ERHIAccess DestAccess = ERHIAccess::SRVMask);
 	void CommitDeferredCopyLayersTexture();
 
 	void InitializeLayers();
@@ -410,6 +418,11 @@ private:
 
 	void UpdateWeightDirtyData(ULandscapeComponent* InLandscapeComponent, UTexture2D* Heightmap, FColor* InOldData, const FColor* InNewData, uint8 Channel);
 	void UpdateHeightDirtyData(ULandscapeComponent* InLandscapeComponent, UTexture2D* Heightmap, FColor* InOldData, const FColor* InNewData);
+
+	bool IsTextureReady(UTexture2D* InTexture, bool bInWaitForStreaming) const;
+	bool IsMaterialResourceCompiled(FMaterialResource* InMaterialResource, bool bInWaitForCompilation) const;
+	static void ShowEditLayersResourcesNotification(const FText& InText, TWeakPtr<SNotificationItem>& NotificationItem);
+	static void HideEditLayersResourcesNotification(TWeakPtr<SNotificationItem>& InNotificationItem);
 #endif
 
 public:
@@ -481,6 +494,12 @@ private:
 		
 	UPROPERTY(Transient)
 	bool bSplineLayerUpdateRequested;
+
+	/** Time since waiting for edit layers resources to be ready (for displaying a notification to the user) */
+	double WaitingForResourcesStartTime = -1.0;
+
+	/** User notification for when edit layer resources are not ready */
+	TWeakPtr<SNotificationItem> EditLayersResourcesNotification;
 
 	// Represent all the resolved paint layer, from all layers blended together (size of the landscape x material layer count)
 	class FLandscapeTexture2DArrayResource* CombinedLayersWeightmapAllMaterialLayersResource;

@@ -8,6 +8,7 @@
 #include "Misc/FileHelper.h"
 #include "Subsystems/SubsystemCollection.h"
 #include "UObject/UObjectGlobals.h"
+#include "Editor.h"
 
 #define LOCTEXT_NAMESPACE "ClassTemplateSubsystem"
 

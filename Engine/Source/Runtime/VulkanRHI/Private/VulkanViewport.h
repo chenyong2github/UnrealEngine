@@ -87,7 +87,14 @@ public:
 
 	inline VkImage GetBackBufferImage(uint32 Index)
 	{
-		return BackBufferImages[Index];
+		if (BackBufferImages.Num() > 0)
+		{
+			return BackBufferImages[Index];
+		}
+		else
+		{
+			return VK_NULL_HANDLE;
+		}
 	}
 
 	inline FVulkanSwapChain* GetSwapChain()

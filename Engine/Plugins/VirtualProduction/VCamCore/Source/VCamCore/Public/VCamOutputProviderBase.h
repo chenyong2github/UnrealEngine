@@ -29,6 +29,8 @@ public:
 	UVCamOutputProviderBase();
 	~UVCamOutputProviderBase();
 
+	virtual void BeginDestroy() override;
+
 	// Called when the provider is brought online such as after instantiating or loading a component containing this provider 
 	// Use Initialize for any setup logic that needs to survive between Start / Stop cycles such as spawning transient objects 
 	// 
@@ -82,6 +84,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Output", meta = (DisplayPriority = "4"), meta = (EditCondition = "bUseOverrideResolution", ClampMin = 1))
 	FIntPoint OverrideResolution = { 2048, 1536 };
 
+	UVPFullScreenUserWidget* GetUMGWidget() { return UMGWidget; };
+
 protected:
 	// If set, this output provider will execute every frame
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Output", meta = (DisplayPriority = "1"))
@@ -109,6 +113,8 @@ protected:
 
 private:
 	void NotifyWidgetOfComponentChange() const;
+
+	bool IsOuterComponentEnabled() const;
 
 	TSoftObjectPtr<UCineCameraComponent> TargetCamera;
 };

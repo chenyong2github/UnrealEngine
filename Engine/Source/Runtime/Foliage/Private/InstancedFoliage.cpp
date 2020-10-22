@@ -676,9 +676,9 @@ void UFoliageType_InstancedStaticMesh::UpdateBounds()
 	float MinX = FLT_MAX, MaxX = FLT_MIN, MinY = FLT_MAX, MaxY = FLT_MIN;
 	LowBoundOriginRadius = FVector::ZeroVector;
 
-	if (Mesh->RenderData)
+	if (Mesh->GetRenderData())
 	{
-		FPositionVertexBuffer& PositionVertexBuffer = Mesh->RenderData->LODResources[0].VertexBuffers.PositionVertexBuffer;
+		FPositionVertexBuffer& PositionVertexBuffer = Mesh->GetRenderData()->LODResources[0].VertexBuffers.PositionVertexBuffer;
 		for (uint32 Index = 0; Index < PositionVertexBuffer.GetNumVertices(); ++Index)
 		{
 			const FVector& Pos = PositionVertexBuffer.VertexPosition(Index);

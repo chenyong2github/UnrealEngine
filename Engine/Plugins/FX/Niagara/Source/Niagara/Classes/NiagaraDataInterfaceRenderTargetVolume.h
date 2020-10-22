@@ -25,6 +25,7 @@ struct FRenderTargetVolumeRWInstanceData_GameThread
 #if WITH_EDITORONLY_DATA
 	uint32 bPreviewTexture : 1;
 #endif
+	FNiagaraParameterDirectBinding<UObject*> RTUserParamBinding;
 };
 
 struct FRenderTargetVolumeRWInstanceData_RenderThread
@@ -111,6 +112,9 @@ public:
 	UPROPERTY(Transient, EditAnywhere, Category = "Render Target")
 	uint8 bPreviewRenderTarget : 1;
 #endif
+
+	UPROPERTY(EditAnywhere, Category = "Render Target", meta = (ToolTip = "When valid the user parameter is used as the render target rather than creating one internal, note that the input render target will be adjusted by the Niagara simulation"))
+	FNiagaraUserParameterBinding RenderTargetUserParameter;
 
 protected:
 	//~ UNiagaraDataInterface interface END

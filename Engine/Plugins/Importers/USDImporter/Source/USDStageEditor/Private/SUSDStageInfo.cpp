@@ -28,11 +28,7 @@ void SUsdStageInfo::Construct( const FArguments& InArgs, AUsdStageActor* InUsdSt
 
 	if ( InUsdStageActor )
 	{
-		// Just adapt the event signature as we don't use the ChangedFields yet
-		InUsdStageActor->GetUsdListener().GetOnStageInfoChanged().AddLambda( [ this, InUsdStageActor ]( const TArray<FString>& ChangedFields )
-		{
-			this->RefreshStageInfos( InUsdStageActor );
-		});
+		InUsdStageActor->GetUsdListener().GetOnStageInfoChanged().AddSP(this, &SUsdStageInfo::OnStageInfoChanged );
 	}
 
 	ChildSlot
@@ -70,6 +66,14 @@ void SUsdStageInfo::Construct( const FArguments& InArgs, AUsdStageActor* InUsdSt
 				SNew( SEditableTextBox )
 				.HintText( LOCTEXT( "Unset", "Unset" ) )
 				.Text( this, &SUsdStageInfo::GetMetersPerUnit )
+				.IsReadOnly_Lambda([this]()
+				{
+					if ( AUsdStageActor* StageActor = UsdStageActor.Get() )
+					{
+						return !( bool ) UsdStageActor->GetUsdStage();
+					}
+					return true;
+				})
 				.OnTextCommitted( this, &SUsdStageInfo::OnMetersPerUnitCommitted )
 			]
 		]
@@ -79,18 +83,19 @@ void SUsdStageInfo::Construct( const FArguments& InArgs, AUsdStageActor* InUsdSt
 void SUsdStageInfo::RefreshStageInfos( AUsdStageActor* InUsdStageActor )
 {
 	UsdStageActor = InUsdStageActor;
+
+	if ( InUsdStageActor )
+	{
+		if ( const UE::FUsdStage& UsdStage = UsdStageActor->GetUsdStage() )
+		{
+			StageInfos.RootLayerDisplayName = FText::FromString( UsdStage.GetRootLayer().GetDisplayName() );
+			StageInfos.MetersPerUnit = UsdUtils::GetUsdStageMetersPerUnit( UsdStage );
+			return;
+		}
+	}
+
 	StageInfos.RootLayerDisplayName = LOCTEXT( "NoUsdStage", "No Stage Available" );
-
-	if ( !InUsdStageActor )
-	{
-		return;
-	}
-
-	if ( const UE::FUsdStage& UsdStage = UsdStageActor->GetUsdStage() )
-	{
-		StageInfos.RootLayerDisplayName = FText::FromString( UsdStage.GetRootLayer().GetDisplayName() );
-		StageInfos.MetersPerUnit = UsdUtils::GetUsdStageMetersPerUnit( UsdStage );
-	}
+	StageInfos.MetersPerUnit.Reset();
 }
 
 SUsdStageInfo::~SUsdStageInfo()
@@ -110,6 +115,14 @@ FText SUsdStageInfo::GetMetersPerUnit() const
 	else
 	{
 		return FText();
+	}
+}
+
+void SUsdStageInfo::OnStageInfoChanged( const TArray<FString>& ChangedFields )
+{
+	if ( AUsdStageActor* StageActor = UsdStageActor.Get() )
+	{
+		RefreshStageInfos( StageActor );
 	}
 }
 

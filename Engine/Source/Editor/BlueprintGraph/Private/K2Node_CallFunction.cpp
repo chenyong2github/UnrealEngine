@@ -1703,10 +1703,8 @@ FString UK2Node_CallFunction::GetDefaultTooltipForFunction(const UFunction* Func
 		static const FString DoxygenNote(TEXT("@note"));
 		static const FString TooltipNote(TEXT("Note:"));
 
-		int32 Pos = Tooltip.Find(DoxygenParam, ESearchCase::IgnoreCase, ESearchDir::FromStart);
-		Tooltip.RightChopInline(Pos >= 0 ? Pos + DoxygenParam.Len() : Pos);
-		Pos = Tooltip.Find(DoxygenReturn, ESearchCase::IgnoreCase, ESearchDir::FromStart);
-		Tooltip.RightChopInline(Pos >= 0 ? Pos + DoxygenParam.Len() : Pos);
+		Tooltip.Split(DoxygenParam, &Tooltip, nullptr, ESearchCase::IgnoreCase, ESearchDir::FromStart);
+		Tooltip.Split(DoxygenReturn, &Tooltip, nullptr, ESearchCase::IgnoreCase, ESearchDir::FromStart);
 
 		Tooltip.ReplaceInline(*DoxygenSee, *TooltipSee);
 		Tooltip.ReplaceInline(*DoxygenNote, *TooltipNote);
@@ -3441,7 +3439,14 @@ bool UK2Node_CallFunction::IsConnectionDisallowed(const UEdGraphPin* MyPin, cons
 						continue;
 					}
 
-					const bool ConnectResponse = K2Schema->ArePinTypesCompatible(Pin->PinType, OtherPin->PinType, nullptr, /* bIgnoreArray = */ true);
+					UClass* Context = nullptr;
+					UBlueprint* Blueprint = GetBlueprint();
+					if (Blueprint)
+					{
+						Context = Blueprint->GeneratedClass;
+					}
+
+					const bool ConnectResponse = K2Schema->ArePinTypesCompatible(Pin->PinType, OtherPin->PinType, Context, /* bIgnoreArray = */ true);
 
 					if (!ConnectResponse)
 					{

@@ -434,6 +434,10 @@ TSharedPtr<FTreeItem> SPathView::AddFolderItem(FContentBrowserItemData&& InItem,
 					check(&ParentTreeItem->Children == CurrentTreeItems);
 					ParentTreeItem->RequestSortChildren();
 				}
+				else
+				{
+					SortRootItems();
+				}
 
 				// If we have pending initial paths, and this path added the path, we should select it now
 				if (PendingInitialPaths.Num() > 0 && PendingInitialPaths.Contains(CurrentTreeItem->GetItem().GetVirtualPath()))
@@ -470,6 +474,10 @@ TSharedPtr<FTreeItem> SPathView::AddFolderItem(FContentBrowserItemData&& InItem,
 			{
 				check(&ParentTreeItem->Children == CurrentTreeItems);
 				ParentTreeItem->RequestSortChildren();
+			}
+			else
+			{
+				SortRootItems();
 			}
 
 			// If we have pending initial paths, and this path added the path, we should select it now
@@ -1036,7 +1044,7 @@ void SPathView::TreeExpansionChanged( TSharedPtr< FTreeItem > TreeItem, bool bIs
 
 void SPathView::FilterUpdated()
 {
-	Populate();
+	Populate(/*bIsRefreshingFilter*/true);
 }
 
 void SPathView::SetSearchFilterText(const FText& InSearchText, TArray<FText>& OutErrors)
@@ -1055,13 +1063,13 @@ FText SPathView::GetHighlightText() const
 	return SearchBoxFolderFilter->GetRawFilterText();
 }
 
-void SPathView::Populate()
+void SPathView::Populate(const bool bIsRefreshingFilter)
 {
 	const bool bFilteringByText = !SearchBoxFolderFilter->GetRawFilterText().IsEmpty();
 
 	// Batch the selection changed event
 	// Only emit events when the user isn't filtering, as the selection may be artificially limited by the filter
-	FScopedSelectionChangedEvent ScopedSelectionChangedEvent(SharedThis(this), !bFilteringByText);
+	FScopedSelectionChangedEvent ScopedSelectionChangedEvent(SharedThis(this), !bFilteringByText && !bIsRefreshingFilter);
 
 	// Clear all root items and clear selection
 	TreeRootItems.Empty();
@@ -1622,7 +1630,7 @@ void SFavoritePathView::Construct(const FArguments& InArgs)
 	SPathView::Construct(InArgs);
 }
 
-void SFavoritePathView::Populate()
+void SFavoritePathView::Populate(const bool bIsRefreshingFilter)
 {
 	// Don't allow the selection changed delegate to be fired here
 	FScopedPreventTreeItemChangedDelegate DelegatePrevention(SharedThis(this));

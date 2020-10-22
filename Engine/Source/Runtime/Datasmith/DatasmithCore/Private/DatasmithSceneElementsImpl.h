@@ -5,7 +5,7 @@
 #include "DatasmithSceneFactory.h"
 #include "DatasmithSceneGraphSharedState.h"
 #include "DatasmithUtils.h"
-#include "DirectLink/ParameterStore.h"
+#include "DirectLinkParameterStore.h"
 #include "IDatasmithSceneElements.h"
 
 #include "Containers/Array.h"
@@ -1347,6 +1347,8 @@ public:
 	virtual const TSharedPtr< IDatasmithKeyValueProperty >& GetProperty( int32 InIndex ) const override;
 	virtual const TSharedPtr< IDatasmithKeyValueProperty >& GetPropertyByName( const TCHAR* InName ) const override;
 	virtual void AddProperty( const TSharedPtr< IDatasmithKeyValueProperty >& InProperty ) override;
+
+	virtual FMD5Hash CalculateElementHash(bool bForce) override;
 
 private:
 	TDatasmithReferenceArrayProxy<IDatasmithKeyValueProperty> Properties;

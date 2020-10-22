@@ -3813,7 +3813,7 @@ void FParticleMeshEmitterInstance::GetMeshMaterials(
 {
 	if (MeshTypeData && MeshTypeData->Mesh)
 	{
-		const FStaticMeshLODResources& LODModel = MeshTypeData->Mesh->RenderData->LODResources[0];
+		const FStaticMeshLODResources& LODModel = MeshTypeData->Mesh->GetRenderData()->LODResources[0];
 
 		// Gather the materials applied to the LOD.
 		for (int32 SectionIndex = 0; SectionIndex < LODModel.Sections.Num(); SectionIndex++)

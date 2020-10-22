@@ -73,7 +73,7 @@ float TraceAO(float3 WorldPosition, float3 WorldNormal, float4 SvPosition, float
 	TraversalSettings.CountThreshold = 1;
 	TraversalSettings.DistanceThreshold = AO_DistanceThreshold;
 	TraversalSettings.bDebugEnabled = bDebugEnabled;
-	TraversalSettings.SteppingScale = VirtualVoxel.SteppingScale;
+	TraversalSettings.SteppingScale = VirtualVoxel.SteppingScale_Environment;
 
 	const float VoxelAOMaxDistance = 1000.0;
 	float3 BentNormal = 0;

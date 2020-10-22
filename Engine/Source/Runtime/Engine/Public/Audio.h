@@ -11,6 +11,7 @@
 #include "Stats/Stats.h"
 #include "HAL/ThreadSafeBool.h"
 #include "Sound/AudioOutputTarget.h"
+#include "Sound/QuartzQuantizationUtilities.h"
 #include "Sound/SoundAttenuation.h"
 #include "Sound/SoundEffectSource.h"
 #include "Sound/SoundSubmixSend.h"
@@ -190,6 +191,9 @@ struct ENGINE_API FWaveInstance
 
 	/** Active Sound this wave instance belongs to */
 	FActiveSound* ActiveSound;
+
+	/** Quantized Request data */
+	TUniquePtr<Audio::FQuartzQuantizedRequestData> QuantizedRequestData;
 
 private:
 

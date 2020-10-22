@@ -842,10 +842,8 @@ void FOpenNurbsTranslatorImpl::ShowMessageLog(const FString& Filename)
 		LogListing->ClearMessages();
 
 		LogListing->AddMessage(FTokenizedMessage::Create(EMessageSeverity::Warning,
-			FText::Format(LOCTEXT("DatasmithOpenNurbsTranslator_NoMeshDataForAllMeshes",
-				"Rhino model \"{0}\" doesn't contain mesh data for all objects. \n"
-				"Either resave the 3dm file with a \"rendered view\" or change the import settings to \"Import as NURBS, Tessellate in Unreal\""),
-				FText::FromString(Filename))));
+			FText::Format(LOCTEXT("DatasmithOpenNurbsTranslator_NoMeshDataForAllMeshes", "Rhino model \"{0}\" doesn't contain mesh data for all objects. \nEither resave the 3dm file with a \"rendered view\" or change the import settings to \"Import as NURBS, Tessellate in Unreal\""), FText::FromString(Filename))
+		));
 
 		for (const FString& Name: MissingRenderMeshes)
 		{

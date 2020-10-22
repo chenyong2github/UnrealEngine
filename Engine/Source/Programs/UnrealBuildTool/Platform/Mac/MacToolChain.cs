@@ -138,6 +138,11 @@ namespace UnrealBuildTool
 			get { return SettingsPrivate.Value; }
 		}
 
+		public static string SDKPath
+		{
+			get { return Settings.BaseSDKDir + "/MacOSX" + Settings.MacOSSDKVersion + ".sdk"; }
+		}
+
 		/// <summary>
 		/// Which compiler frontend to use
 		/// </summary>
@@ -227,7 +232,7 @@ namespace UnrealBuildTool
 			// Pass through the list of architectures			
 			Result += string.Format(" -arch {0}", string.Join(" -arch ", Architectures));				
 
-			Result += " -isysroot " + Settings.BaseSDKDir + "/MacOSX" + Settings.MacOSSDKVersion + ".sdk";
+			Result += string.Format(" -isysroot \"{0}\"", SDKPath);
 			Result += " -mmacosx-version-min=" + (CompileEnvironment.bEnableOSX109Support ? "10.9" : Settings.MacOSVersion);
 
 			bool bStaticAnalysis = false;
@@ -377,7 +382,7 @@ namespace UnrealBuildTool
 			// Pass through the list of architectures			
 			Result += string.Format(" -arch {0}", string.Join(" ", Architectures));
 
-			Result += " -isysroot " + Settings.BaseSDKDir + "/MacOSX" + Settings.MacOSSDKVersion + ".sdk";
+			Result += string.Format(" -isysroot \"{0}\"", SDKPath);
 			Result += " -mmacosx-version-min=" + Settings.MacOSVersion;
 			Result += " -dead_strip";
 
@@ -799,7 +804,7 @@ namespace UnrealBuildTool
 					LinkCommand += string.Format(" -weak_library \"{0}\"", Path.GetFullPath(AdditionalLibrary));
 
 					AddLibraryPathToRPaths(AdditionalLibrary, AbsolutePath, ref RPaths, ref LinkCommand, bIsBuildingAppBundle);
-                }
+				}
 			}
 
 			// Add frameworks
@@ -1070,11 +1075,11 @@ namespace UnrealBuildTool
 					AppendMacLine(FinalizeAppBundleScript, FormatCopyCommand(InfoPlistFile, TempInfoPlist));
 
 					// Fix contents of Info.plist
-					AppendMacLine(FinalizeAppBundleScript, "sed -i \"\" -e \"s/\\${0}/{1}/g\" \"{2}\"", "{EXECUTABLE_NAME}", ExeName, TempInfoPlist);
-					AppendMacLine(FinalizeAppBundleScript, "sed -i \"\" -e \"s/\\${0}/{1}/g\" \"{2}\"", "{APP_NAME}", bBuildingEditor ? ("com.epicgames." + GameName) : (BundleIdentifier.Replace("[PROJECT_NAME]", GameName).Replace("_", "")), TempInfoPlist);
-					AppendMacLine(FinalizeAppBundleScript, "sed -i \"\" -e \"s/\\${0}/{1}/g\" \"{2}\"", "{MACOSX_DEPLOYMENT_TARGET}", Settings.MinMacOSVersion, TempInfoPlist);
-					AppendMacLine(FinalizeAppBundleScript, "sed -i \"\" -e \"s/\\${0}/{1}/g\" \"{2}\"", "{ICON_NAME}", GameName, TempInfoPlist);
-					AppendMacLine(FinalizeAppBundleScript, "sed -i \"\" -e \"s/\\${0}/{1}/g\" \"{2}\"", "{BUNDLE_VERSION}", BundleVersion, TempInfoPlist);
+					AppendMacLine(FinalizeAppBundleScript, "/usr/bin/sed -i \"\" -e \"s/\\${0}/{1}/g\" \"{2}\"", "{EXECUTABLE_NAME}", ExeName, TempInfoPlist);
+					AppendMacLine(FinalizeAppBundleScript, "/usr/bin/sed -i \"\" -e \"s/\\${0}/{1}/g\" \"{2}\"", "{APP_NAME}", bBuildingEditor ? ("com.epicgames." + GameName) : (BundleIdentifier.Replace("[PROJECT_NAME]", GameName).Replace("_", "")), TempInfoPlist);
+					AppendMacLine(FinalizeAppBundleScript, "/usr/bin/sed -i \"\" -e \"s/\\${0}/{1}/g\" \"{2}\"", "{MACOSX_DEPLOYMENT_TARGET}", Settings.MinMacOSVersion, TempInfoPlist);
+					AppendMacLine(FinalizeAppBundleScript, "/usr/bin/sed -i \"\" -e \"s/\\${0}/{1}/g\" \"{2}\"", "{ICON_NAME}", GameName, TempInfoPlist);
+					AppendMacLine(FinalizeAppBundleScript, "/usr/bin/sed -i \"\" -e \"s/\\${0}/{1}/g\" \"{2}\"", "{BUNDLE_VERSION}", BundleVersion, TempInfoPlist);
 
 					// Copy it into place
 					AppendMacLine(FinalizeAppBundleScript, FormatCopyCommand(TempInfoPlist, String.Format("{0}.app/Contents/Info.plist", ExeName)));

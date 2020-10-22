@@ -140,12 +140,6 @@ FGuid FNiagaraEmitterHandleViewModel::GetId() const
 	return FGuid();
 }
 
-FText FNiagaraEmitterHandleViewModel::GetIdText() const
-{
-	return FText::FromString( GetId().ToString() );
-}
-
-
 FText FNiagaraEmitterHandleViewModel::GetErrorText() const
 {
 	switch (EmitterViewModel->GetLatestCompileStatus())

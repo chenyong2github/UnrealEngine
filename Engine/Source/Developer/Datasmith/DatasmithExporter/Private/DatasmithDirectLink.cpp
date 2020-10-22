@@ -3,13 +3,14 @@
 #include "DatasmithDirectLink.h"
 
 #include "DatasmithExporterManager.h"
-#include "DirectLink/Network/DirectLinkEndpoint.h"
-#include "DirectLink/Misc.h"
 #include "IDatasmithSceneElements.h"
+#include "DirectLink/DatasmithDirectLinkTools.h"
+
+#include "DirectLinkEndpoint.h"
+#include "DirectLinkMisc.h"
 
 #include "Containers/Ticker.h"
 #include "MeshDescription.h"
-#include "MessageEndpointBuilder.h"
 #include "Misc/CommandLine.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
@@ -64,7 +65,7 @@ public:
 		}
 
 		Endpoint->SnapshotSource(Source);
-		DirectLink::DumpDatasmithScene(Scene, TEXT("send"));
+		DumpDatasmithScene(Scene, TEXT("send"));
 		return true;
 	}
 

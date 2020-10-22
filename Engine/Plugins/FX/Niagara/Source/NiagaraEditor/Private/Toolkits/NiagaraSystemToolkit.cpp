@@ -972,7 +972,7 @@ void FNiagaraSystemToolkit::ExtendToolbar()
 			{
 				ToolbarBuilder.AddToolBarButton(FNiagaraEditorCommands::Get().ToggleStatPerformance, NAME_None,
                     LOCTEXT("NiagaraShowPerformance", "Performance"),
-                    LOCTEXT("ShowBoundsTooltip", "Show runtime performance for particle scripts."),
+                    LOCTEXT("NiagaraShowPerformanceTooltip", "Show runtime performance for particle scripts."),
                     FSlateIcon(FEditorStyle::GetStyleSetName(), "MaterialEditor.ToggleMaterialStats"));
 				ToolbarBuilder.AddComboButton(
                     FUIAction(),

@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Serialization/ArchiveUObjectFromStructuredArchive.h"
+#include "UObject/LinkerSave.h"
+#include "Interfaces/ITargetPlatform.h"
 
 #if WITH_TEXT_ARCHIVE_SUPPORT
 
@@ -146,8 +148,38 @@ FArchive& FArchiveUObjectFromStructuredArchiveImpl::operator<<(FWeakObjectPtr& V
 	return *this;
 }
 
+void FArchiveUObjectFromStructuredArchiveImpl::PushFileRegionType(EFileRegionType Type)
+{
+	check(CurrentFileRegionType == EFileRegionType::None);
+	check(Type != EFileRegionType::None);
+
+	CurrentFileRegionType = Type;
+	FileRegionStart = Tell();
+}
+
+void FArchiveUObjectFromStructuredArchiveImpl::PopFileRegionType()
+{
+	check(CurrentFileRegionType != EFileRegionType::None);
+
+	if (IsCooking() && CookingTarget()->SupportsFeature(ETargetPlatformFeatures::CookFileRegionMetadata))
+	{
+		FLinkerSave* LinkerSave = Cast<FLinkerSave>(GetLinker());
+		check(LinkerSave);
+
+		int64 Length = Tell() - FileRegionStart;
+		if (Length > 0)
+		{
+			LinkerSave->FileRegions.Add(FFileRegion(FileRegionStart, Length, CurrentFileRegionType));
+		}
+	}
+
+	CurrentFileRegionType = EFileRegionType::None;
+}
+
 bool FArchiveUObjectFromStructuredArchiveImpl::Finalize(FStructuredArchive::FRecord Record)
 {
+	check(CurrentFileRegionType == EFileRegionType::None);
+
 	bool bShouldSerialize = Super::Finalize(Record);
 	if (bShouldSerialize)
 	{

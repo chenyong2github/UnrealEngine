@@ -290,11 +290,20 @@ FPrimitiveViewRelevance FNiagaraSceneProxy::GetViewRelevance(const FSceneView* V
 {
 	FPrimitiveViewRelevance Relevance;
 
-	if (bRenderingEnabled == false || !FNiagaraUtilities::SupportsNiagaraRendering(View->GetFeatureLevel()))
+	if (bRenderingEnabled == false ||
+		EmitterRenderers.Num() == 0 ||
+		!FNiagaraUtilities::SupportsNiagaraRendering(View->GetFeatureLevel()))
 	{
 		return Relevance;
 	}
 	Relevance.bDynamicRelevance = true;
+
+	Relevance.bRenderCustomDepth = ShouldRenderCustomDepth();
+	Relevance.bDrawRelevance = IsShown(View) && View->Family->EngineShowFlags.Particles;
+	Relevance.bShadowRelevance = IsShadowCast(View);
+	Relevance.bRenderInMainPass = ShouldRenderInMainPass();
+	Relevance.bUsesLightingChannels = GetLightingChannelMask() != GetDefaultLightingChannelMask();
+	Relevance.bTranslucentSelfShadow = bCastVolumetricTranslucentShadow;
 
 	for (FNiagaraRenderer* Renderer : EmitterRenderers)
 	{
@@ -856,6 +865,28 @@ bool UNiagaraComponent::InitializeSystem()
 		SystemInstance->Init(bForceSolo);
 		SystemInstance->SetOnPostTick(FNiagaraSystemInstance::FOnPostTick::CreateUObject(this, &UNiagaraComponent::PostSystemTick_GameThread));
 		SystemInstance->SetOnComplete(FNiagaraSystemInstance::FOnComplete::CreateUObject(this, &UNiagaraComponent::OnSystemComplete));
+
+		//////////////////////////////////////////////////////////////////////////
+		//-TOFIX: Workaround FORT-315375 GT / RT Race
+		SystemInstance->SetOnExecuteMaterialRecache(
+			FNiagaraSystemInstance::FOnExecuteMaterialRecache::CreateLambda(
+				[WeakComponent=TWeakObjectPtr<UNiagaraComponent>(this)]()
+				{
+					check(IsInGameThread());
+
+					auto Component = WeakComponent.Get();
+					if (Component)
+					{
+						for (const FNiagaraMaterialOverride& MaterialOverride : Component->EmitterMaterials)
+						{
+							MaterialOverride.Material->RecacheUniformExpressions(true);
+						}
+					}
+				}
+			)
+		);
+		//////////////////////////////////////////////////////////////////////////
+
 		if (bEnableGpuComputeDebug)
 		{
 			SystemInstance->SetGpuComputeDebug(bEnableGpuComputeDebug);
@@ -886,7 +917,7 @@ void UNiagaraComponent::ActivateInternal(bool bReset /* = false */, bool bIsScal
 	if (GbSuppressNiagaraSystems != 0)
 	{
 		UnregisterWithScalabilityManager();
-		OnSystemComplete();
+		OnSystemComplete(true);
 		return;
 	}
 
@@ -925,7 +956,7 @@ void UNiagaraComponent::ActivateInternal(bool bReset /* = false */, bool bIsScal
 	if (SystemInstance.IsValid() && SystemInstance->GetSystem() != Asset)
 	{
 		UnregisterWithScalabilityManager();
-		OnSystemComplete();
+		OnSystemComplete(true);
 	}
 
 #if WITH_EDITOR
@@ -964,7 +995,7 @@ void UNiagaraComponent::ActivateInternal(bool bReset /* = false */, bool bIsScal
 	if (ShouldPreCull())
 	{
 		//We have decided to pre cull the system.
-		OnSystemComplete();
+		OnSystemComplete(true);
 		return;
 	}
 
@@ -1029,7 +1060,7 @@ void UNiagaraComponent::ActivateInternal(bool bReset /* = false */, bool bIsScal
 
 	if (!SystemInstance)
 	{
-		OnSystemComplete();
+		OnSystemComplete(true);
 		return;
 	}
 
@@ -1099,7 +1130,7 @@ void UNiagaraComponent::DeactivateInternal(bool bIsScalabilityCull /* = false */
 
 		if(bWasCulledByScalabiltiy && !bIsCulledByScalability)//We were culled by scalability but no longer, ensure we've handled completion correctly. E.g. returned to the pool etc.
 		{
-			OnSystemComplete();
+			OnSystemComplete(true);
 		}
 		SetActiveFlag(false);
 	}
@@ -1140,7 +1171,7 @@ void UNiagaraComponent::DeactivateImmediateInternal(bool bIsScalabilityCull)
 	}
 	else if (bWasCulledByScalability && !bIsCulledByScalability)//We were culled by scalability but no longer, ensure we've handled completion correctly. E.g. returned to the pool etc.
 	{
-		OnSystemComplete();
+		OnSystemComplete(true);
 	}
 }
 
@@ -1227,7 +1258,7 @@ void UNiagaraComponent::PostSystemTick_GameThread()
 	}
 }
 
-void UNiagaraComponent::OnSystemComplete()
+void UNiagaraComponent::OnSystemComplete(bool bExternalCompletion)
 {
 	//UE_LOG(LogNiagara, Log, TEXT("OnSystemComplete: %p - %s"), SystemInstance.Get(), *Asset->GetName());
 	SetComponentTickEnabled(false);
@@ -1267,17 +1298,20 @@ void UNiagaraComponent::OnSystemComplete()
 
 		if (IsRegisteredWithScalabilityManager())
 		{
-			//Can we be sure this isn't going to spam erroneously?
-			if (UNiagaraEffectType* EffectType = GetAsset()->GetEffectType())
+			if (bExternalCompletion == false)
 			{
-				//Only trigger warning if we're not being deactivated/completed from the outside and this is a natural completion by the system itself.
-				if (EffectType->CullReaction == ENiagaraCullReaction::DeactivateImmediateResume || EffectType->CullReaction == ENiagaraCullReaction::DeactivateResume)
+				//Can we be sure this isn't going to spam erroneously?
+				if (UNiagaraEffectType* EffectType = GetAsset()->GetEffectType())
 				{
-					if (GNiagaraComponentWarnAsleepCullReaction == 1)
+					//Only trigger warning if we're not being deactivated/completed from the outside and this is a natural completion by the system itself.
+					if (EffectType->CullReaction == ENiagaraCullReaction::DeactivateImmediateResume || EffectType->CullReaction == ENiagaraCullReaction::DeactivateResume)
 					{
-						//If we're completing naturally, i.e. we're a burst/non-looping system then we shouldn't be using a mode reactivates the effect.
-						UE_LOG(LogNiagara, Warning, TEXT("Niagara Effect has completed naturally but has an effect type with the \"Asleep\" cull reaction. If an effect like this is culled before it can complete then it could leak into the scalability manager and be reactivated incorrectly. Please verify this is using the correct EffectType.\nComponent:%s\nSystem:%s")
-							, *GetFullName(), *GetAsset()->GetFullName());
+						if (GNiagaraComponentWarnAsleepCullReaction == 1)
+						{
+							//If we're completing naturally, i.e. we're a burst/non-looping system then we shouldn't be using a mode reactivates the effect.
+							UE_LOG(LogNiagara, Warning, TEXT("Niagara Effect has completed naturally but has an effect type with the \"Asleep\" cull reaction. If an effect like this is culled before it can complete then it could leak into the scalability manager and be reactivated incorrectly. Please verify this is using the correct EffectType.\nComponent:%s\nSystem:%s")
+								, *GetFullName(), *GetAsset()->GetFullName());
+						}
 					}
 				}
 			}
@@ -1692,16 +1726,13 @@ FBoxSphereBounds UNiagaraComponent::CalcBounds(const FTransform& LocalToWorld) c
 void UNiagaraComponent::UpdateEmitterMaterials(bool bForceUpdateEmitterMaterials)
 {
 	check(IsInRenderingThread() || IsInGameThread() || IsAsyncLoading() || GIsSavingPackage); // Same restrictions as MIDs
-	if (!bNeedsUpdateEmitterMaterials && !bForceUpdateEmitterMaterials)
-		return;
 
-	if (bForceUpdateEmitterMaterials)
+	if (!bNeedsUpdateEmitterMaterials && !bForceUpdateEmitterMaterials)
 	{
-		EmitterMaterials.Empty();
+		return;
 	}
 
 	TArray<FNiagaraMaterialOverride> NewEmitterMaterials;
-	
 	if (SystemInstance)
 	{
 		for (int32 i = 0; i < SystemInstance->GetEmitters().Num(); i++)
@@ -1709,48 +1740,65 @@ void UNiagaraComponent::UpdateEmitterMaterials(bool bForceUpdateEmitterMaterials
 			FNiagaraEmitterInstance* EmitterInst = &SystemInstance->GetEmitters()[i].Get();
 			if (UNiagaraEmitter* Emitter = EmitterInst->GetCachedEmitter())
 			{
-
 				Emitter->ForEachEnabledRenderer(
 					[&](UNiagaraRendererProperties* Properties)
 					{
+						// Nothing to do if we don't create MIDs for this material
+						if ( !Properties->NeedsMIDsForMaterials() )
+						{
+							return;
+						}
+
 						TArray<UMaterialInterface*> UsedMaterials;
 						Properties->GetUsedMaterials(EmitterInst, UsedMaterials);
-						bool bCreateMidsForUsedMaterials = Properties->NeedsMIDsForMaterials();
 
-						uint32 Index = 0;
-						for (UMaterialInterface*& Mat : UsedMaterials)
+						uint32 MaterialIndex = 0;
+						for (UMaterialInterface*& ExistingMaterial : UsedMaterials)
 						{
-							if (Mat && bCreateMidsForUsedMaterials && !Mat->IsA<UMaterialInstanceDynamic>())
+							if (ExistingMaterial)
 							{
-								bool bFoundMatch = false;
-								for (int32 i = 0; i < EmitterMaterials.Num(); i++)
+								bool bCreateMID = true;
+
+								if ( ExistingMaterial->IsA<UMaterialInstanceDynamic>() )
 								{
-									if (EmitterMaterials[i].EmitterRendererProperty == Properties && EmitterMaterials[i].Material )
+									if ( EmitterMaterials.FindByPredicate([&](const FNiagaraMaterialOverride& ExistingOverride) -> bool { return (ExistingOverride.Material == ExistingMaterial) && (ExistingOverride.EmitterRendererProperty == Properties) && (ExistingOverride.MaterialSubIndex == MaterialIndex); }) )
 									{
-										UMaterialInstanceDynamic* MatDyn = Cast< UMaterialInstanceDynamic>(EmitterMaterials[i].Material);
-										if (MatDyn && MatDyn->Parent == Mat)
+										if ( bForceUpdateEmitterMaterials )
 										{
-											bFoundMatch = true;
-											Mat = MatDyn;
-											NewEmitterMaterials.Add(EmitterMaterials[i]);
-											break;
+											// Forcing an update means create a new MID so grab the parent from the existing one
+											ExistingMaterial = CastChecked<UMaterialInstanceDynamic>(ExistingMaterial)->Parent;
+										}
+										else
+										{
+											// We found one so no need to create but make sure we keep it for tracking
+											FNiagaraMaterialOverride& NewOverride = NewEmitterMaterials.AddDefaulted_GetRef();
+											NewOverride.Material = ExistingMaterial;
+											NewOverride.EmitterRendererProperty = Properties;
+											NewOverride.MaterialSubIndex = MaterialIndex;
+											//////////////////////////////////////////////////////////////////////////
+											//-TOFIX: Workaround FORT-315375 GT / RT Race
+											NewOverride.Material->RecacheUniformExpressions(true);
+											//////////////////////////////////////////////////////////////////////////
+
+											bCreateMID = false;
 										}
 									}
 								}
 
-								if (!bFoundMatch)
+								// Create a new MID
+								if ( bCreateMID )
 								{
 									UE_LOG(LogNiagara, Log, TEXT("Create Dynamic Material for component %s"), *GetPathName());
-									Mat = UMaterialInstanceDynamic::Create(Mat, this);
+									ExistingMaterial = UMaterialInstanceDynamic::Create(ExistingMaterial, this);
 									FNiagaraMaterialOverride Override;
-									Override.Material = Mat;
+									Override.Material = ExistingMaterial;
 									Override.EmitterRendererProperty = Properties;
-									Override.MaterialSubIndex = Index;
+									Override.MaterialSubIndex = MaterialIndex;
 
 									NewEmitterMaterials.Add(Override);
 								}
 							}
-							Index++;
+							++MaterialIndex;
 						}
 					}
 				);				
@@ -1760,7 +1808,7 @@ void UNiagaraComponent::UpdateEmitterMaterials(bool bForceUpdateEmitterMaterials
 		bNeedsUpdateEmitterMaterials = false;
 	}
 
-	EmitterMaterials = NewEmitterMaterials;
+	EmitterMaterials = MoveTemp(NewEmitterMaterials);
 }
 
 FPrimitiveSceneProxy* UNiagaraComponent::CreateSceneProxy()
@@ -2032,6 +2080,15 @@ void UNiagaraComponent::SetVariableMaterial(FName InVariableName, UMaterialInter
 		UpdateEmitterMaterials(true); // Will need to update our internal tables. Maybe need a new MID. Can't easily defer this because we don't have another good sync point.
 		MarkRenderStateDirty(); // Materials might be using this on the system, so invalidate the render state to re-gather them.
 	}
+}
+
+void UNiagaraComponent::SetVariableTextureRenderTarget(FName InVariableName, class UTextureRenderTarget* TextureRenderTarget)
+{
+	const FNiagaraVariable VariableDesc(FNiagaraTypeDefinition::GetUTextureRenderTargetDef(), InVariableName);
+	OverrideParameters.SetUObject(TextureRenderTarget, VariableDesc);
+#if WITH_EDITOR
+	SetParameterOverride(VariableDesc, FNiagaraVariant(TextureRenderTarget));
+#endif
 }
 
 TArray<FVector> UNiagaraComponent::GetNiagaraParticlePositions_DebugOnly(const FString& InEmitterName)

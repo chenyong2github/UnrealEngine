@@ -22,7 +22,7 @@ class UReplicationGraph;
 
 struct FActorDestructionInfo;
 
-DECLARE_LOG_CATEGORY_EXTERN( LogReplicationGraph, Log, All );
+REPLICATIONGRAPH_API DECLARE_LOG_CATEGORY_EXTERN( LogReplicationGraph, Log, All );
 
 // Check aliases for within the system. The intention is that these can be flipped to checkSlow once the system is stable.
 
@@ -345,11 +345,17 @@ struct REPLICATIONGRAPH_API FActorRepListRefView
 	{ 
 		return RepList.Num(); 
 	}
-	
+
 	/** Resets the container and returns the memory it held */
+	void TearDown()
+	{
+		RepList.Empty();
+	}
+	
+	UE_DEPRECATED(4.27, "ResetToNull was renamed to TearDown")
 	void ResetToNull()
 	{ 
-		RepList.Empty();
+		TearDown();
 	}
 
 	int32 IndexOf(const FActorRepListType& Value) const

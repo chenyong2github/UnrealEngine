@@ -559,6 +559,21 @@ public:
 		}
 	}
 
+	/**
+	 * Collects UObjects referenced by bytecode
+	 * @param OutReferencedObjects buffer to store the referenced objects in (not cleared by this function)
+	 */
+	void CollectBytecodeReferencedObjects(TArray<UObject*>& OutReferencedObjects);
+	/**
+	 * Collects UObjects referenced by properties
+	 * @param OutReferencedObjects buffer to store the referenced objects in (not cleared by this function)
+	 */
+	void CollectPropertyReferencedObjects(TArray<UObject*>& OutReferencedObjects);
+	/**
+	 * Collects UObjects referenced by bytecode and properties for faster GC access
+	 */
+	void CollectBytecodeAndPropertyReferencedObjects();
+
 protected:
 
 	/** Returns the property name from the guid */

@@ -94,6 +94,7 @@ public:
 	void OnMerge(){}
 	void OnMoveUp();
 	void GenerateAsset();
+	void ResetAsset();
 
 	void ViewUpOneLevel();
 	void ViewDownOneLevel();

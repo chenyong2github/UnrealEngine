@@ -997,6 +997,34 @@ FText UMaterialExpression::GetCreationName() const
 	return FText::GetEmpty();
 }
 
+void UMaterialExpression::GetExpressionToolTip(TArray<FString>& OutToolTip)
+{
+	if (Desc.Len() > 0)
+	{
+		if (GraphNode)
+		{
+			GraphNode->GetNodeTitle(ENodeTitleType::FullTitle).ToString().ParseIntoArrayLines(OutToolTip, false);
+		}
+
+		TArray<FString> Multiline = TArray<FString>();
+		Desc.ParseIntoArrayLines(Multiline, false);
+
+		TArray<FString> CurrentLines = TArray<FString>();
+		for (FString Line : Multiline)
+		{
+			if (Line.IsEmpty())
+			{
+				OutToolTip.Add(Line);
+			}
+			else
+			{
+				ConvertToMultilineToolTip(Line, 40, CurrentLines);
+				OutToolTip.Append(CurrentLines);
+			}
+		}
+	}
+}
+
 bool UMaterialExpression::IsInputConnectionRequired(int32 InputIndex) const
 {
 	int32 Index = 0;
@@ -2118,6 +2146,8 @@ bool UMaterialExpressionRuntimeVirtualTextureSample::InitVirtualTextureDependent
 		MaterialType = VirtualTexture->GetMaterialType();
 		bChanged |= bSinglePhysicalSpace != VirtualTexture->GetSinglePhysicalSpace();
 		bSinglePhysicalSpace = VirtualTexture->GetSinglePhysicalSpace();
+		bChanged |= bAdaptive != VirtualTexture->GetAdaptivePageTable();
+		bAdaptive = VirtualTexture->GetAdaptivePageTable();
 	}
 	return bChanged;
 }
@@ -2203,6 +2233,15 @@ int32 UMaterialExpressionRuntimeVirtualTextureSample::Compile(class FMaterialCom
 		Compiler->Errorf(TEXT("%Page table packing is '%d', should be '%d' to match %s"),
 			bSinglePhysicalSpace ? 1 : 0,
 			VirtualTexture->GetSinglePhysicalSpace() ? 1 : 0,
+			*VirtualTexture->GetName());
+
+		bIsVirtualTextureValid = false;
+	}
+	else if ((VirtualTexture->GetAdaptivePageTable()) != bAdaptive)
+	{
+		Compiler->Errorf(TEXT("Adaptive page table is '%d', should be '%d' to match %s"),
+			bAdaptive ? 1 : 0,
+			VirtualTexture->GetAdaptivePageTable() ? 1 : 0,
 			*VirtualTexture->GetName());
 
 		bIsVirtualTextureValid = false;
@@ -2410,6 +2449,7 @@ int32 UMaterialExpressionRuntimeVirtualTextureSample::Compile(class FMaterialCom
 	}
 
 	// Compile the texture sample code
+	const bool bAutomaticMipViewBias = true;
 	int32 SampleCodeIndex[RuntimeVirtualTexture::MaxTextureLayers] = { INDEX_NONE };
 	for (int32 TexureLayerIndex = 0; TexureLayerIndex < TextureLayerCount; TexureLayerIndex++)
 	{
@@ -2419,7 +2459,7 @@ int32 UMaterialExpressionRuntimeVirtualTextureSample::Compile(class FMaterialCom
 			SAMPLERTYPE_VirtualMasks,
 			MipValueIndex, INDEX_NONE, TextureMipLevelMode, SamplerSourceMode,
 			TextureReferenceIndex[TexureLayerIndex],
-			true);
+			bAutomaticMipViewBias, bAdaptive);
 	}
 
 	// Compile any unpacking code
@@ -18522,6 +18562,10 @@ int32 UMaterialExpressionSingleLayerWaterMaterialOutput::Compile(class FMaterial
 	{
 		CodeInput = PhaseG.IsConnected() ? PhaseG.Compile(Compiler) : Compiler->Constant(0.f);
 	}
+	else if (OutputIndex == 3)
+	{
+		CodeInput = ColorScaleBehindWater.IsConnected() ? ColorScaleBehindWater.Compile(Compiler) : Compiler->Constant(1.f);
+	}
 
 	return Compiler->CustomOutput(this, OutputIndex, CodeInput);
 }
@@ -18535,7 +18579,7 @@ void UMaterialExpressionSingleLayerWaterMaterialOutput::GetCaption(TArray<FStrin
 
 int32 UMaterialExpressionSingleLayerWaterMaterialOutput::GetNumOutputs() const
 {
-	return 3;
+	return 4;
 }
 
 FString UMaterialExpressionSingleLayerWaterMaterialOutput::GetFunctionName() const

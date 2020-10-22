@@ -14,6 +14,39 @@
 
 UVariantSet::FOnVariantSetChanged UVariantSet::OnThumbnailUpdated;
 
+namespace VariantSetImpl
+{
+	/** Makes it so that all others variants that depend on 'Variant' have those particular dependencies reset to nullptr */
+	void ResetVariantDependents( UVariant* Variant )
+	{
+		if ( !Variant )
+		{
+			return;
+		}
+
+		ULevelVariantSets* LevelVariantSets = Variant->GetTypedOuter<ULevelVariantSets>();
+		if ( !LevelVariantSets )
+		{
+			return;
+		}
+
+		// Reset dependencies if we're being removed
+		const bool bOnlyEnabledDependencies = false;
+		for ( UVariant* Dependent : Variant->GetDependents( LevelVariantSets, bOnlyEnabledDependencies ) )
+		{
+			for ( int32 DependencyIndex = 0; DependencyIndex < Dependent->GetNumDependencies(); ++DependencyIndex )
+			{
+				FVariantDependency& Dependency = Dependent->GetDependency( DependencyIndex );
+				UVariant* TargetVariant = Dependency.Variant.Get();
+				if ( TargetVariant == Variant )
+				{
+					Dependency.Variant = nullptr;
+				}
+			}
+		}
+	}
+}
+
 UVariantSet::UVariantSet(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -151,6 +184,7 @@ void UVariantSet::AddVariants(const TArray<UVariant*>& NewVariants, int32 Index)
 					ParentsModified.Add(OldParent);
 				}
 				OldParent->Variants.RemoveSingle(NewVariant);
+				VariantSetImpl::ResetVariantDependents(NewVariant);
 			}
 			else
 			{
@@ -225,6 +259,7 @@ void UVariantSet::RemoveVariants(const TArray<UVariant*>& InVariants)
 	{
 		Variants.RemoveSingle(Variant);
 		Variant->Rename(nullptr, GetTransientPackage());
+		VariantSetImpl::ResetVariantDependents( Variant );
 	}
 }
 

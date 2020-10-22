@@ -43,6 +43,12 @@ struct FViewportConfigOptions
 	UPROPERTY(EditAnywhere, config, Category = "Viewport")
 	float ViewFOV;
 
+	UPROPERTY(EditAnywhere, config, Category = "Viewport")
+	int32 CameraSpeedSetting;
+
+	UPROPERTY(EditAnywhere, config, Category = "Viewport")
+	float CameraSpeedScalar;
+
 	/** Persisted camera follow mode for a viewport */
 	UPROPERTY(config)
 	EAnimationViewportCameraFollowMode CameraFollowMode;
@@ -53,6 +59,8 @@ struct FViewportConfigOptions
 	FViewportConfigOptions()
 		: ViewModeIndex(EViewModeIndex::VMI_Lit)
 		, ViewFOV(53.43)
+		, CameraSpeedSetting(4)
+		, CameraSpeedScalar(1.0)
 		, CameraFollowMode(EAnimationViewportCameraFollowMode::None)
 	{}
 
@@ -209,6 +217,8 @@ public:
 	void SetUseAudioAttenuation( bool bInUseAudioAttenuation );
 	void SetViewModeIndex( FName InContext, EViewModeIndex InViewModeIndex, int32 InViewportIndex );
 	void SetViewFOV( FName InContext, float InViewFOV, int32 InViewportIndex );
+	void SetCameraSpeed(FName InContext, int32 InCameraSpeed, int32 InViewportIndex);
+	void SetCameraSpeedScalar(FName InContext, float InCameraSpeedScalar, int32 InViewportIndex);
 	void SetViewCameraFollow( FName InContext, EAnimationViewportCameraFollowMode InCameraFollowMode, FName InCameraFollowBoneName, int32 InViewportIndex );
 	void SetDefaultLocalAxesSelection( uint32 InDefaultLocalAxesSelection );
 	void SetDefaultBoneDrawSelection(uint32 InDefaultBoneAxesSelection);

@@ -275,12 +275,14 @@ namespace Chaos
 					{
 						//QUICK_SCOPE_CYCLE_COUNTER(STAT_Box);
 						const TBox<float, 3>* Box = Object.GetObject<Chaos::TBox<float, 3>>();
+						const FVec3 BoxMin = Box->Min();
+						const FVec3 BoxMax = Box->Max();
 
 						if (NormalAveraging && UpdateType != ECollisionUpdateType::Any)
 						{
 							ispc::SampleBoxNormalAverage(
-								(ispc::FVector&)Box->Min(),
-								(ispc::FVector&)Box->Max(),
+								(ispc::FVector&)BoxMin,
+								(ispc::FVector&)BoxMax,
 								(ispc::FTransform&)SampleToObjectTM,
 								(ispc::FVector*)&SampleParticles.XArray()[0],
 								&PotentialParticles[0],
@@ -292,8 +294,8 @@ namespace Chaos
 						else
 						{
 							ispc::SampleBoxNoNormal(
-								(ispc::FVector&)Box->Min(),
-								(ispc::FVector&)Box->Max(),
+								(ispc::FVector&)BoxMin,
+								(ispc::FVector&)BoxMax,
 								(ispc::FTransform&)SampleToObjectTM,
 								(ispc::FVector*)&SampleParticles.XArray()[0],
 								&PotentialParticles[0],
@@ -448,12 +450,14 @@ namespace Chaos
 				else if (Object.GetType() == ImplicitObjectType::Box && NumParticles > 0)
 				{
 					const TBox<float, 3>* Box = Object.GetObject<Chaos::TBox<float, 3>>();
+					const FVec3 BoxMin = Box->Min();
+					const FVec3 BoxMax = Box->Max();
 
 					if (NormalAveraging && UpdateType != ECollisionUpdateType::Any)
 					{
 						ispc::SampleBoxNormalAverageAll(
-							(ispc::FVector&)Box->Min(),
-							(ispc::FVector&)Box->Max(),
+							(ispc::FVector&)BoxMin,
+							(ispc::FVector&)BoxMax,
 							(ispc::FTransform&)SampleToObjectTM,
 							(ispc::FVector*)&SampleParticles.XArray()[0],
 							CullingDistance,
@@ -464,8 +468,8 @@ namespace Chaos
 					else
 					{
 						ispc::SampleBoxNoNormalAll(
-							(ispc::FVector&)Box->Min(),
-							(ispc::FVector&)Box->Max(),
+							(ispc::FVector&)BoxMin,
+							(ispc::FVector&)BoxMax,
 							(ispc::FTransform&)SampleToObjectTM,
 							(ispc::FVector*)&SampleParticles.XArray()[0],
 							DeepestParticle,

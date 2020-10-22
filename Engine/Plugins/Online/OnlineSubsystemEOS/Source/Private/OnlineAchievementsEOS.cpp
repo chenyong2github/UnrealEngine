@@ -45,7 +45,7 @@ void FOnlineAchievementsEOS::QueryAchievements(const FUniqueNetId& PlayerId, con
 	Options.UserId = EOSSubsystem->UserManager->GetLocalProductUserId(LocalUserId);
 
 	FQueryProgressCallback* CallbackObj = new FQueryProgressCallback();
-	CallbackObj->CallbackLambda = [this, LambaPlayerId = FUniqueNetIdEOS(PlayerId), Delegate](const EOS_Achievements_OnQueryPlayerAchievementsCompleteCallbackInfo* Data)
+	CallbackObj->CallbackLambda = [this, LambaPlayerId = FUniqueNetIdEOS(PlayerId), OnComplete = FOnQueryAchievementsCompleteDelegate(Delegate)](const EOS_Achievements_OnQueryPlayerAchievementsCompleteCallbackInfo* Data)
 	{
 		bool bWasSuccessful = Data->ResultCode == EOS_EResult::EOS_Success;
 		if (bWasSuccessful)
@@ -95,7 +95,7 @@ void FOnlineAchievementsEOS::QueryAchievements(const FUniqueNetId& PlayerId, con
 		{
 			UE_LOG_ONLINE_ACHIEVEMENTS(Error, TEXT("EOS_Achievements_QueryPlayerAchievements() failed with error code (%s)"), ANSI_TO_TCHAR(EOS_EResult_ToString(Data->ResultCode)));
 		}
-		Delegate.ExecuteIfBound(LambaPlayerId, bWasSuccessful);
+		OnComplete.ExecuteIfBound(LambaPlayerId, bWasSuccessful);
 	};
 	EOS_Achievements_QueryPlayerAchievements(EOSSubsystem->AchievementsHandle, &Options, CallbackObj, CallbackObj->GetCallbackPtr());
 }
@@ -124,7 +124,7 @@ void FOnlineAchievementsEOS::QueryAchievementDescriptions(const FUniqueNetId& Pl
 	Options.LocalUserId = EOSSubsystem->UserManager->GetLocalProductUserId(LocalUserId);
 
 	FQueryDefinitionsCallback* CallbackObj = new FQueryDefinitionsCallback();
-	CallbackObj->CallbackLambda = [this, LambaPlayerId = FUniqueNetIdEOS(PlayerId), Delegate](const EOS_Achievements_OnQueryDefinitionsCompleteCallbackInfo* Data)
+	CallbackObj->CallbackLambda = [this, LambaPlayerId = FUniqueNetIdEOS(PlayerId), OnComplete = FOnQueryAchievementsCompleteDelegate(Delegate)](const EOS_Achievements_OnQueryDefinitionsCompleteCallbackInfo* Data)
 	{
 		bool bWasSuccessful = Data->ResultCode == EOS_EResult::EOS_Success;
 		if (bWasSuccessful)
@@ -172,7 +172,7 @@ void FOnlineAchievementsEOS::QueryAchievementDescriptions(const FUniqueNetId& Pl
 		{
 			UE_LOG_ONLINE_ACHIEVEMENTS(Error, TEXT("EOS_Achievements_QueryDefinitions() failed with error code (%s)"), ANSI_TO_TCHAR(EOS_EResult_ToString(Data->ResultCode)));
 		}
-		Delegate.ExecuteIfBound(LambaPlayerId, bWasSuccessful);
+		OnComplete.ExecuteIfBound(LambaPlayerId, bWasSuccessful);
 	};
 	EOS_Achievements_QueryDefinitions(EOSSubsystem->AchievementsHandle, &Options, CallbackObj, CallbackObj->GetCallbackPtr());
 }

@@ -263,12 +263,10 @@ export void BlendCurves(const uniform float SourceCurveWeights[],
 		SourceWeight = 1.0f;
 	}
 
-	uniform int CurveValidityArrayIndex = 0;
-
 	foreach (CurveID = 0 ... CurveLength)
 	{
 		// Skip if the source curve is not valid
-		const uniform int ValidityArrayIndex = CurveValidityArrayIndex >> 5; // floor(CurveID / 32.0f)
+		const varying int ValidityArrayIndex = CurveID >> 5; // floor(CurveID / 32.0f)
 		const varying int ValidityBitPosition = CurveID & 0x1F; // % 32;
 		const varying int ValidityBitMask = 0x1 << ValidityBitPosition;
 
@@ -289,7 +287,6 @@ export void BlendCurves(const uniform float SourceCurveWeights[],
 		}
 
 		OutCurveWeights[CurveID] = CurveWeight;
-		CurveValidityArrayIndex += programCount;
 	}
 
 	foreach (CurveID = 0 ... ceil(CurveLength / 32.0))

@@ -148,16 +148,12 @@ void FRemoteSessionClient::CheckConnection()
 
 void FRemoteSessionClient::BindEndpoints(TBackChannelSharedPtr<IBackChannelConnection> InConnection)
 {
-	auto Delegate = FBackChannelRouteDelegate::FDelegate::CreateRaw(this, &FRemoteSessionClient::OnReceiveLegacyVersion);
-	InConnection->AddRouteDelegate(kLegacyVersionEndPoint, Delegate);
-
+	FRemoteSessionRole::BindEndpoints(InConnection);
+		
 	// both legacy and new channel messages can go to the same delegate
-	Delegate = FBackChannelRouteDelegate::FDelegate::CreateRaw(this, &FRemoteSessionClient::OnReceiveChannelList);
+	auto Delegate = FBackChannelRouteDelegate::FDelegate::CreateRaw(this, &FRemoteSessionClient::OnReceiveChannelList);
 	InConnection->AddRouteDelegate(kLegacyChannelSelectionEndPoint, Delegate);
 	InConnection->AddRouteDelegate(kChannelListEndPoint, Delegate);
-
-	Delegate = FBackChannelRouteDelegate::FDelegate::CreateRaw(this, &FRemoteSessionClient::OnReceiveHello);
-	InConnection->AddRouteDelegate(kHelloEndPoint, Delegate);
 }
 
 bool FRemoteSessionClient::ProcessStateChange(const ConnectionState NewState, const ConnectionState OldState)
@@ -241,44 +237,16 @@ void FRemoteSessionClient::OnReceiveChannelList(IBackChannelPacket& Message)
 	if (IsLegacyConnection())
 	{
 		// Need to create channels on the main thread
-		AsyncTask(ENamedThreads::GameThread, [this]
-			{
+		AsyncTask(ENamedThreads::GameThread, [this] {
 				CreateChannels(AvailableChannels);
 			});
 		UE_LOG(LogRemoteSession, Log, TEXT("Creating all channels for legacy connection"));
 	}
 	else
 	{
-		// #agrant-todo hard code these for now
-		FRemoteSessionChannelInfo Info;
-		Info.Type = TEXT("FRemoteSessionImageChannel");
-		Info.Mode = ERemoteSessionChannelMode::Read;
-		RequestChannel(Info);
-
-		Info.Type = TEXT("FRemoteSessionInputChannel");
-		Info.Mode = ERemoteSessionChannelMode::Write;
-		RequestChannel(Info);
+		// broadcast the delegate on the main thread
+		AsyncTask(ENamedThreads::GameThread, [this] {
+			ReceiveChannelListDelegate.Broadcast(this, AvailableChannels);
+		});
 	}
-}
-
-void FRemoteSessionClient::RequestChannel(const FRemoteSessionChannelInfo& Info)
-{
-	AsyncTask(ENamedThreads::GameThread, [this, Info] {
-		// create the channel
-		CreateChannel(Info);
-
-		// Tell the host we want this channel
-		TBackChannelSharedPtr<IBackChannelPacket> Packet = OSCConnection->CreatePacket();
-
-		Packet->SetPath(kChangeChannelEndPoint);
-		FString Mode = ::LexToString(Info.Mode);
-
-		Packet->Write(TEXT("ChannelName"), Info.Type);
-		Packet->Write(TEXT("ChannelMode"), Mode);
-		Packet->Write(TEXT("Enabled"), 1);
-
-		UE_LOG(LogRemoteSession, Log, TEXT("Requesting channel %s with mode %s from host"), *Info.Type, *Mode);
-
-		OSCConnection->SendPacket(Packet);
-	});
 }

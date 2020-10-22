@@ -311,12 +311,12 @@ UNiagaraClipboardFunctionInput* UNiagaraClipboardEditorScriptingUtilities::Creat
 	);
 }
 
-UNiagaraClipboardFunctionInput* UNiagaraClipboardEditorScriptingUtilities::CreateEnumLocalValueInput(UObject* InOuter, FName InInputName, bool bInHasEditCondition, bool bInEditCoditionValue, UUserDefinedEnum* InEnumValue)
+UNiagaraClipboardFunctionInput* UNiagaraClipboardEditorScriptingUtilities::CreateEnumLocalValueInput(UObject* InOuter, FName InInputName, bool bInHasEditCondition, bool bInEditCoditionValue, UUserDefinedEnum* InEnumType, int32 InEnumValue)
 {
-	FNiagaraTypeDefinition InputType = FNiagaraTypeDefinition(Cast<UEnum>(InEnumValue));
+	FNiagaraTypeDefinition InputType = FNiagaraTypeDefinition(Cast<UEnum>(InEnumType));
 	TArray<uint8> EnumValue;
-	EnumValue.AddUninitialized(sizeof(int64));
-	FMemory::Memcpy(EnumValue.GetData(), InEnumValue, sizeof(int64));
+	EnumValue.AddUninitialized(sizeof(int32));
+	FMemory::Memcpy(EnumValue.GetData(), &InEnumValue, sizeof(int32));
 
 	return const_cast<UNiagaraClipboardFunctionInput*>(UNiagaraClipboardFunctionInput::CreateLocalValue(
 		InOuter != nullptr ? InOuter : GetTransientPackage(),

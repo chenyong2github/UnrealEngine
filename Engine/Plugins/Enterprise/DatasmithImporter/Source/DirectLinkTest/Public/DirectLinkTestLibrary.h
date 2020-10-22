@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "DirectLink/Network/DirectLinkEndpoint.h"
+#include "DirectLinkEndpoint.h"
 
 #include "Kismet/BlueprintFunctionLibrary.h"
 
@@ -41,7 +41,7 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "DirectLink")
 	static bool SendScene(const FString& InFilePath);
-	
+
 	UFUNCTION(BlueprintCallable, Category = "DirectLink")
 	static bool DumpReceivedScene();
 

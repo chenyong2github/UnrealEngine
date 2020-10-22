@@ -24,6 +24,8 @@ public:
 	void OnSingleSampleDataAvailable_AnyThread(TUniquePtr<FImagePixelData>&& InData);
 	void AbandonOutstandingWork();
 
+	int32 GetNumOutstandingFrames() const { return PendingData.Num(); }
+
 public:
 	TQueue<FMoviePipelineMergerOutputFrame> FinishedFrames;
 private:

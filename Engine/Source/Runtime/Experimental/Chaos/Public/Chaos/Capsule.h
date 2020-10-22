@@ -8,6 +8,8 @@
 #include "Chaos/Segment.h"
 #include "ChaosArchive.h"
 
+#include "UObject/ReleaseObjectVersion.h"
+
 namespace Chaos
 {
 	template<typename T>
@@ -26,22 +28,22 @@ namespace Chaos
 		TCapsule(const TVector<T, 3>& x1, const TVector<T, 3>& x2, const T Radius)
 		    : FImplicitObject(EImplicitObject::FiniteConvex, ImplicitObjectType::Capsule)
 			, MSegment(x1, x2)
-		    , MRadius(Radius)
 		{
+			SetRadius(Radius);
 		}
 
 		TCapsule(const TCapsule<T>& Other)
 		    : FImplicitObject(EImplicitObject::FiniteConvex, ImplicitObjectType::Capsule)
 			, MSegment(Other.MSegment)
-		    , MRadius(Other.MRadius)
 		{
+			SetRadius(Other.GetRadius());
 		}
 
 		TCapsule(TCapsule<T>&& Other)
 		    : FImplicitObject(EImplicitObject::FiniteConvex, ImplicitObjectType::Capsule)
 			, MSegment(MoveTemp(Other.MSegment))
-		    , MRadius(Other.MRadius)
 		{
+			SetRadius(Other.GetRadius());
 		}
 
 		TCapsule& operator=(TCapsule<T>&& InSteal)
@@ -52,7 +54,7 @@ namespace Chaos
 			this->bHasBoundingBox = InSteal.bHasBoundingBox;
 
 			MSegment = MoveTemp(InSteal.MSegment);
-			MRadius = InSteal.MRadius;
+			SetRadius(InSteal.GetRadius());
 
 			return *this;
 		}
@@ -113,13 +115,13 @@ namespace Chaos
 			auto Dot = FMath::Clamp(TVector<T, 3>::DotProduct(x - GetX1(), GetAxis()), (T)0., GetHeight());
 			TVector<T, 3> ProjectedPoint = Dot * GetAxis() + GetX1();
 			Normal = x - ProjectedPoint;
-			return Normal.SafeNormalize() - MRadius;
+			return Normal.SafeNormalize() - GetRadius();
 		}
 
 		virtual const TAABB<T, 3> BoundingBox() const override
 		{
 			TAABB<T,3> Box = MSegment.BoundingBox();
-			Box.Thicken(MRadius);
+			Box.Thicken(GetRadius());
 			return Box;
 		}
 
@@ -274,28 +276,26 @@ namespace Chaos
 
 		virtual bool Raycast(const TVector<T, 3>& StartPoint, const TVector<T, 3>& Dir, const T Length, const T Thickness, T& OutTime, TVector<T, 3>& OutPosition, TVector<T, 3>& OutNormal, int32& OutFaceIndex) const override
 		{
-			return RaycastFast(MRadius, GetHeight(), GetAxis(), GetX1(), GetX2(), StartPoint, Dir, Length, Thickness, OutTime, OutPosition, OutNormal, OutFaceIndex);
+			return RaycastFast(GetRadius(), GetHeight(), GetAxis(), GetX1(), GetX2(), StartPoint, Dir, Length, Thickness, OutTime, OutPosition, OutNormal, OutFaceIndex);
 		}
 
 		FORCEINLINE TVector<T,3> Support(const TVector<T, 3>& Direction, const T Thickness) const
 		{
-			return MSegment.Support(Direction, MRadius + Thickness);
+			return MSegment.Support(Direction, GetRadius() + Thickness);
 		}
 
 		FORCEINLINE TVector<T, 3> Support2(const TVector<T, 3>& Direction) const { return MSegment.Support2(Direction); }
-
-		FORCEINLINE T GetMargin() const
-		{
-			return MRadius;
-		}
 
 		FORCEINLINE void SerializeImp(FArchive& Ar)
 		{
 			Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
 			FImplicitObject::SerializeImp(Ar);
 			MSegment.Serialize(Ar);
-			Ar << MRadius;
 
+			// Radius is now stored in the base class Margin
+			FReal ArRadius = GetRadius();
+			Ar << ArRadius;
+			SetRadius(ArRadius);
 			
 			if(Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) < FExternalPhysicsCustomObjectVersion::CapsulesNoUnionOrAABBs)
 			{
@@ -322,12 +322,12 @@ namespace Chaos
 			return TUniquePtr<FImplicitObject>(new TCapsule<T>(*this));
 		}
 
-		const T& GetRadius() const { return MRadius; }
+		const T GetRadius() const { return GetMargin(); }
 		T GetHeight() const { return MSegment.GetLength(); }
 		/** Returns the bottommost point on the capsule. */
-		const TVector<T, 3> GetOrigin() const { return GetX1() + GetAxis() * -MRadius; }
+		const TVector<T, 3> GetOrigin() const { return GetX1() + GetAxis() * -GetRadius(); }
 		/** Returns the topmost point on the capsule. */
-		const TVector<T, 3> GetInsertion() const { return GetX1() + GetAxis() * (GetHeight() + MRadius); }
+		const TVector<T, 3> GetInsertion() const { return GetX1() + GetAxis() * (GetHeight() + GetRadius()); }
 		TVector<T, 3> GetCenter() const { return MSegment.GetCenter(); }
 		/** Returns the centroid (center of mass). */
 		TVector<T, 3> GetCenterOfMass() const { return GetCenter(); }
@@ -336,13 +336,13 @@ namespace Chaos
 		TVector<T, 3> GetX2() const { return MSegment.GetX2(); }
 		TSegment<T> GetSegment() const { return TSegment<T>(GetX1(), GetX2()); }
 
-		T GetArea() const { return GetArea(GetHeight(), MRadius); }
+		T GetArea() const { return GetArea(GetHeight(), GetRadius()); }
 		static T GetArea(const T Height, const T Radius) { static const T PI2 = 2. * PI; return PI2 * Radius * (Height + 2.*Radius); }
 
-		T GetVolume() const { return GetVolume(GetHeight(), MRadius); }
+		T GetVolume() const { return GetVolume(GetHeight(), GetRadius()); }
 		static T GetVolume(const T Height, const T Radius) { static const T FourThirds = 4. / 3; return PI * Radius*Radius * (Height + FourThirds * Radius); }
 
-		PMatrix<T, 3, 3> GetInertiaTensor(const T Mass) const { return GetInertiaTensor(Mass, GetHeight(), MRadius); }
+		PMatrix<T, 3, 3> GetInertiaTensor(const T Mass) const { return GetInertiaTensor(Mass, GetHeight(), GetRadius()); }
 		static PMatrix<T, 3, 3> GetInertiaTensor(const T Mass, const T Height, const T Radius)
 		{
 			// https://www.wolframalpha.com/input/?i=capsule&assumption=%7B%22C%22,+%22capsule%22%7D+-%3E+%7B%22Solid%22%7D
@@ -370,9 +370,9 @@ namespace Chaos
 		}
 
 	private:
+		void SetRadius(FReal InRadius) { SetMargin(InRadius); }
 
 		TSegment<T> MSegment;
-		T MRadius;
 	};
 
 	template<typename T>

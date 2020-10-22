@@ -16,13 +16,16 @@ namespace UnrealBuildTool.Rules
 				"Core",
 				"CoreUObject",
 				"Engine",
-				"Python",
+				"IntelTBB",
 				"USDClasses"
 				});
 			
 			if (EnableUsdSdk(Target))
 			{
+				PublicDependencyModuleNames.Add("Python3");
+
 				PublicDefinitions.Add("USE_USD_SDK=1");
+				PublicDefinitions.Add("BOOST_LIB_TOOLSET=\"vc141\"");
 
 				PublicIncludePaths.AddRange(
 					new string[] {
@@ -32,11 +35,12 @@ namespace UnrealBuildTool.Rules
 				var USDLibsDir = "";
 
 				var EngineDir = Path.GetFullPath(Target.RelativeEnginePath);
-				var PythonSourceTPSDir = Path.Combine(EngineDir, "Source", "ThirdParty", "Python");
-				var PythonBinaryTPSDir = Path.Combine(EngineDir, "Binaries", "ThirdParty", "Python");
+				var PythonSourceTPSDir = Path.Combine(EngineDir, "Source", "ThirdParty", "Python3");
+				var PythonBinaryTPSDir = Path.Combine(EngineDir, "Binaries", "ThirdParty", "Python3");
 
 				// Always use the official version of IntelTBB
 				string IntelTBBLibs = Target.UEThirdPartySourceDirectory + "Intel/TBB/IntelTBB-2019u8/lib/";
+				string IntelTBBIncludes = Target.UEThirdPartySourceDirectory + "Intel/TBB/IntelTBB-2019u8/include/";
 
 				if (Target.Platform == UnrealTargetPlatform.Win64)
 				{
@@ -72,7 +76,7 @@ namespace UnrealBuildTool.Rules
 					PublicAdditionalLibraries.Add(Path.Combine(IntelTBBLibs, "Win64/vc14/tbb.lib"));
 
 					PublicIncludePaths.Add(PythonSourceTPSDir + "/Win64/include");
-					PublicSystemLibraryPaths.Add(Path.Combine(EngineDir, "Source/ThirdParty/Python/" + Target.Platform.ToString() + "/libs"));
+					PublicSystemLibraryPaths.Add(Path.Combine(EngineDir, "Source/ThirdParty/Python3/" + Target.Platform.ToString() + "/libs"));
 				}
 				else if (Target.Platform == UnrealTargetPlatform.Linux)
 				{
@@ -84,7 +88,7 @@ namespace UnrealBuildTool.Rules
 					{
 							"libar.so",
 							"libarch.so",
-							"libboost_python.so",
+							"libboost_python37.so",
 							"libgf.so",
 							"libjs.so",
 							"libkind.so",
@@ -106,6 +110,7 @@ namespace UnrealBuildTool.Rules
 							"libwork.so",
 					};
 
+					PublicSystemIncludePaths.Add(IntelTBBIncludes);
 					PublicAdditionalLibraries.Add(Path.Combine(IntelTBBLibs, "Linux/libtbb.so"));
 					RuntimeDependencies.Add("$(EngineDir)/Binaries/Linux/libtbb.so.2", Path.Combine(IntelTBBLibs, "Linux/libtbb.so.2"));
 					PublicAdditionalLibraries.Add(Path.Combine(IntelTBBLibs, "Linux/libtbbmalloc.so"));
@@ -115,8 +120,7 @@ namespace UnrealBuildTool.Rules
 						PublicAdditionalLibraries.Add(Path.Combine(USDLibsDir, UsdLib));
 					}
 
-					PublicIncludePaths.Add(PythonSourceTPSDir + "/Linux/include/" + Target.Architecture);
-					PublicSystemLibraryPaths.Add(Path.Combine(EngineDir, "Source/ThirdParty/Python/" + Target.Platform.ToString() + "/lib"));
+					PublicSystemLibraryPaths.Add(Path.Combine(EngineDir, "Source/ThirdParty/Python3/" + Target.Platform.ToString() + "/lib"));
 				}
                 else if (Target.Platform == UnrealTargetPlatform.Mac)
                 {
@@ -128,7 +132,7 @@ namespace UnrealBuildTool.Rules
                     {
                         "libar",
                         "libarch",
-                        "libboost_python",
+                        "libboost_python37",
                         "libgf",
                         "libjs",
                         "libkind",
@@ -148,17 +152,12 @@ namespace UnrealBuildTool.Rules
                         "libwork",
                     };
 
-					PublicDependencyModuleNames.AddRange(
-						new string[] {
-						"IntelTBB",
-						});
-
                     foreach (string UsdLib in USDLibs)
                     {
                         PublicAdditionalLibraries.Add(Path.Combine(USDLibsDir, UsdLib + ".dylib"));
                     }
 
-                    PublicAdditionalLibraries.Add(Path.Combine(PythonBinaryTPSDir, "Mac", "libpython2.7.dylib"));
+                    PublicAdditionalLibraries.Add(Path.Combine(PythonBinaryTPSDir, "Mac", "libpython3.7.dylib"));
                     PublicIncludePaths.Add(PythonSourceTPSDir + "/Mac/include/");
                     PublicSystemLibraryPaths.Add(Path.Combine(PythonBinaryTPSDir, "Mac"));
                 }
@@ -174,10 +173,12 @@ namespace UnrealBuildTool.Rules
 
 		bool EnableUsdSdk(ReadOnlyTargetRules Target)
 		{
-			bool bEnableUsdSdk = ( Target.WindowsPlatform.Compiler != WindowsCompiler.Clang && Target.WindowsPlatform.StaticAnalyzer == WindowsStaticAnalyzer.None &&
-				Target.CppStandard < CppStandardVersion.Cpp17 && // Not currently compatible with C++17 due to old version of Boost
-				Target.LinkType != TargetLinkType.Monolithic ); // If you want to use USD in a monolithic target, you'll have to use the ANSI allocator and remove this condition
+			// USD SDK has been built against Python 3 and won't launch if the editor is using Python 2
 
+			bool bEnableUsdSdk = (Target.WindowsPlatform.Compiler != WindowsCompiler.Clang && Target.WindowsPlatform.StaticAnalyzer == WindowsStaticAnalyzer.None &&
+				Target.LinkType != TargetLinkType.Monolithic); // If you want to use USD in a monolithic target, you'll have to use the ANSI allocator and remove this condition
+
+			// Don't enable USD when running the include tool because it has issues parsing Boost headers
 			if (Target.GlobalDefinitions.Contains("UE_INCLUDE_TOOL=1"))
 			{
 				bEnableUsdSdk = false;

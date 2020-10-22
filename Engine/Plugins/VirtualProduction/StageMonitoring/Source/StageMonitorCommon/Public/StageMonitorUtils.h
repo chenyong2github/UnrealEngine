@@ -22,8 +22,8 @@ public:
 
 	FFramePerformanceProviderMessage() = default;
 
-	FFramePerformanceProviderMessage(float GameThreadTime, float RenderThreadTime, float GPUTime)
-		: GameThreadMS(GameThreadTime), RenderThreadMS(RenderThreadTime), GPU_MS(GPUTime)
+	FFramePerformanceProviderMessage(float GameThreadTime, float RenderThreadTime, float GPUTime, float IdleTime)
+		: GameThreadMS(GameThreadTime), RenderThreadMS(RenderThreadTime), GPU_MS(GPUTime), IdleTimeMS(IdleTime)
 	{
 		extern ENGINE_API float GAverageFPS;
 		AverageFPS = GAverageFPS;
@@ -44,6 +44,10 @@ public:
 	/** Current GPU time read from GGPUFrameTime in milliseconds */
 	UPROPERTY(VisibleAnywhere, Category = "Performance", meta = (Unit = "ms"))
 	float GPU_MS = 0.f;
+
+	/** Idle time (slept) in milliseconds during last frame */
+	UPROPERTY(VisibleAnywhere, Category = "Performance", meta = (Unit = "ms"))
+	float IdleTimeMS = 0.f;
 };
 
 

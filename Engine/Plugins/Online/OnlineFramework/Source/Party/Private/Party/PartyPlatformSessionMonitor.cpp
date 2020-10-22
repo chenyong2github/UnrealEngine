@@ -268,10 +268,10 @@ void FPartyPlatformSessionManager::HandleFindSessionByIdComplete(int32 LocalUser
 			Online::GetFriendsInterfaceChecked(SocialManager.GetWorld(), USocialManager::GetSocialOssName(ESocialSubsystem::Platform))->ReadFriendsList(LocalUserNum, EFriendsLists::ToString(EFriendsLists::Default), FOnReadFriendsListComplete::CreateSP(this, &FPartyPlatformSessionManager::HandleReadPSNFriendsListComplete, SessionId, SessionOwnerId, OnAttemptComplete));
 			return;
 		}
-		else
 #endif
+		if (IsTencentPlatform())
 		{
-			// Some subsystems can't search for sessions by ID directly, or may have stale data for a given user's current sessions, so try searching by friend instead
+			// Fallback to FindFriendSession on Tencent
 			const IOnlineSessionPtr& SessionInterface = GetSessionInterface();
 			SessionInterface->AddOnFindFriendSessionCompleteDelegate_Handle(LocalUserNum, FOnFindFriendSessionCompleteDelegate::CreateSP(this, &FPartyPlatformSessionManager::HandleFindFriendSessionsComplete, SessionId, SessionOwnerId, OnAttemptComplete));
 			SessionInterface->FindFriendSession(LocalUserNum, *SessionOwnerId);

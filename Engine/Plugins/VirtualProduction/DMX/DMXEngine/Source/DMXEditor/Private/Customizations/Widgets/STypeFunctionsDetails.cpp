@@ -452,6 +452,7 @@ void SDMXFunctionItemListViewBox::Construct(const FArguments& InArgs, const TSha
 			.VAlign(VAlign_Top)
 			[
 				SNew(SVerticalBox)
+
 				+ SVerticalBox::Slot()
 				.HAlign(HAlign_Fill)
 				.VAlign(VAlign_Top)
@@ -462,6 +463,7 @@ void SDMXFunctionItemListViewBox::Construct(const FArguments& InArgs, const TSha
 					.Visibility(this, &SDMXFunctionItemListViewBox::GetFixtureMatrixVisibility)
 					.Margin(FMargin(2.f, 15.f, 2.f, 5.f))
 				]
+
 				+ SVerticalBox::Slot()
 				.HAlign(HAlign_Fill)
 				.AutoHeight()
@@ -476,6 +478,18 @@ void SDMXFunctionItemListViewBox::Construct(const FArguments& InArgs, const TSha
 						.OnGenerateRow(this, &SDMXFunctionItemListViewBox::GenerateCellAttributeNameRow)
 						.SelectionMode(ESelectionMode::None)
 					]
+				]
+
+				+ SVerticalBox::Slot()
+				.HAlign(HAlign_Fill)
+				.AutoHeight()
+				[
+					SNew(STextBlock)
+					.Text(this, &SDMXFunctionItemListViewBox::GetFixtureMatrixWarning)
+					.Font(FCoreStyle::GetDefaultFontStyle("Regular", 10))
+					.ColorAndOpacity(FSlateColor(FLinearColor::Red))
+					.Visibility(this, &SDMXFunctionItemListViewBox::GetFixtureMatrixVisibility)
+					.Margin(FMargin(2.f, 15.f, 2.f, 5.f))
 				]
 			]
 		]
@@ -496,26 +510,9 @@ EVisibility SDMXFunctionItemListViewBox::GetFixtureMatrixVisibility() const
 		check(OuterObjects.Num() == 1);
 
 		UDMXEntityFixtureType* FixtureType = CastChecked<UDMXEntityFixtureType>(OuterObjects[0]);
-		if (!FixtureType->bFixtureMatrixEnabled)
+		if (FixtureType->bFixtureMatrixEnabled)
 		{
-			return EVisibility::Collapsed;
-		}
-
-		TSharedPtr<IPropertyHandle> FixtureMatrixConfigHandle = CurrentModeHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXFixtureMode, FixtureMatrixConfig));
-		check(FixtureMatrixConfigHandle.IsValid());
-
-		TSharedPtr<IPropertyHandle> CellAttributesHandle = FixtureMatrixConfigHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXFixtureMatrix, CellAttributes));
-		check(CellAttributesHandle.IsValid());
-		TSharedPtr<IPropertyHandleArray> CellAttributesHandleArray = CellAttributesHandle->AsArray();
-		check(CellAttributesHandleArray.IsValid());
-
-		uint32 NumCellFunctions = 0;
-		if (CellAttributesHandleArray->GetNumElements(NumCellFunctions) == FPropertyAccess::Success)
-		{
-			if (NumCellFunctions > 0)
-			{
-				return EVisibility::Visible;
-			}
+			return EVisibility::Visible;
 		}
 	}
 
@@ -523,8 +520,7 @@ EVisibility SDMXFunctionItemListViewBox::GetFixtureMatrixVisibility() const
 }
 
 FText SDMXFunctionItemListViewBox::GetCellAttributesHeader() const
-{
-	
+{	
 	if (CurrentModeHandle.IsValid())
 	{
 		TSharedPtr<IPropertyHandle> FixtureMatrixConfigHandle = CurrentModeHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXFixtureMode, FixtureMatrixConfig));
@@ -537,15 +533,9 @@ FText SDMXFunctionItemListViewBox::GetCellAttributesHeader() const
 		check(YCellsHandle.IsValid());
 
 		int32 XCells = 0;
-		if (XCellsHandle->GetValue(XCells) != FPropertyAccess::Success)
-		{
-			return LOCTEXT("DMXFixtureMatrix.ErrorAccessXCells", "Unable to retrieve FixtureMatrix XCells value.");
-		}
+		ensure(XCellsHandle->GetValue(XCells) == FPropertyAccess::Success);
 		int32 YCells = 0;
-		if (YCellsHandle->GetValue(YCells) != FPropertyAccess::Success)
-		{
-			return LOCTEXT("DMXFixtureMatrix.ErrorAccessYCellss", "Unable to retrieve FixtureMatrix YCells value.");
-		}
+		ensure(YCellsHandle->GetValue(YCells) == FPropertyAccess::Success);
 
 		TSharedPtr<IPropertyHandle> CellAttributesHandle = FixtureMatrixConfigHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXFixtureMatrix, CellAttributes));
 		check(CellAttributesHandle.IsValid());
@@ -569,6 +559,40 @@ FText SDMXFunctionItemListViewBox::GetCellAttributesHeader() const
 	}
 	
 	return FText();
+}
+
+FText SDMXFunctionItemListViewBox::GetFixtureMatrixWarning() const
+{
+	if (CurrentModeHandle.IsValid())
+	{
+		TSharedPtr<IPropertyHandle> FixtureMatrixConfigHandle = CurrentModeHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXFixtureMode, FixtureMatrixConfig));
+		
+		TSharedPtr<IPropertyHandle> XCellsHandle = FixtureMatrixConfigHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXFixtureMatrix, XCells));
+		TSharedPtr<IPropertyHandle> YCellsHandle = FixtureMatrixConfigHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXFixtureMatrix, YCells));
+
+		int32 XCells = 0;
+		ensure(XCellsHandle->GetValue(XCells) == FPropertyAccess::Success);
+		int32 YCells = 0;
+		ensure(YCellsHandle->GetValue(YCells) == FPropertyAccess::Success);
+
+		if (XCells == 0 || YCells == 0)
+		{
+			return LOCTEXT("DMXFixtureMatrix.NoFixtureMatrixCellsPresentWarning", "Invalid Fixture Matrix: 0 Cells");
+		}
+
+		TSharedPtr<IPropertyHandle> CellAttributesHandle = FixtureMatrixConfigHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXFixtureMatrix, CellAttributes));
+		TSharedPtr<IPropertyHandleArray> CellAttributesHandleArray = CellAttributesHandle->AsArray();
+		check(CellAttributesHandleArray.IsValid());
+
+		uint32 NumAttributes = 0;
+		CellAttributesHandleArray->GetNumElements(NumAttributes);
+		if (NumAttributes == 0)
+		{
+			return LOCTEXT("DMXFixtureMatrix.NoFixtureMatrixAttributesPresentWarning", "Invalid Fixture Matrix: No Attributes added");
+		}
+	}
+
+	return FText::GetEmpty();
 }
 
 FText SDMXFunctionItemListViewBox::GetCellChannelsStartChannel() const

@@ -932,7 +932,7 @@ static void RenderTranslucencyViewInner(
 
 	if (bRenderInParallel)
 	{
-		PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColorTexture.Target, bResolveColorTexture ? SceneColorTexture.Resolve : nullptr, ERenderTargetLoadAction::ELoad);
+		PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColorTexture.Target, nullptr, ERenderTargetLoadAction::ELoad);
 
 		if (SceneColorLoadAction == ERenderTargetLoadAction::EClear)
 		{
@@ -948,6 +948,11 @@ static void RenderTranslucencyViewInner(
 			FRDGParallelCommandListSet ParallelCommandListSet(RHICmdList, GET_STATID(STAT_CLP_Translucency), SceneRenderer, View, FParallelCommandListBindings(PassParameters), ViewportScale);
 			RenderViewTranslucencyInner(RHICmdList, SceneRenderer, View, Viewport, ViewportScale, TranslucencyPass, &ParallelCommandListSet);
 		});
+
+		if (bResolveColorTexture)
+		{
+			AddResolveSceneColorPass(GraphBuilder, View, SceneColorTexture);
+		}
 	}
 	else
 	{

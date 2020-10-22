@@ -3,43 +3,196 @@
 #include "DisplayClusterRootActor.h"
 
 #include "Components/SceneComponent.h"
+#include "Components/DisplayClusterOriginComponent.h"
+#include "Components/DisplayClusterCameraComponent.h"
+#include "Components/DisplayClusterMeshComponent.h"
+#include "Components/DisplayClusterScreenComponent.h"
+#include "Components/DisplayClusterXformComponent.h"
+#include "Components/DisplayClusterSceneComponentSyncParent.h"
+#include "Components/DisplayClusterPreviewComponent.h"
+#include "Components/DisplayClusterSyncTickComponent.h"
+
+#include "Config/IPDisplayClusterConfigManager.h"
+#include "DisplayClusterConfigurationStrings.h"
+
+#include "IDisplayClusterConfiguration.h"
+#include "DisplayClusterConfigurationTypes.h"
+
+#include "DisplayClusterPlayerInput.h"
+
 #include "GameFramework/PlayerController.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
 
 #include "HAL/IConsoleManager.h"
 
-#include "Config/IPDisplayClusterConfigManager.h"
-#include "DisplayClusterConfigurationStrings.h"
-#include "DisplayClusterConfigurationTypes.h"
-
 #include "Misc/DisplayClusterAppExit.h"
 #include "Misc/DisplayClusterGlobals.h"
+#include "Misc/DisplayClusterHelpers.h"
 #include "Misc/DisplayClusterLog.h"
-
-#include "Components/DisplayClusterRootComponent.h"
-#include "Components/DisplayClusterSceneComponentSyncParent.h"
-#include "DisplayClusterPlayerInput.h"
+#include "Misc/DisplayClusterStrings.h"
 
 
 ADisplayClusterRootActor::ADisplayClusterRootActor(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, bExitOnEsc(true)
-	, bShowProjectionScreens(false)
-	, ProjectionScreensMaterial(nullptr)
+	, OperationMode(EDisplayClusterOperationMode::Disabled)
 {
 	// Root component
-	RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("RootComponent"));
-
-	// DisplayCluster sync
-	DisplayClusterRootComponent = CreateDefaultSubobject<UDisplayClusterRootComponent>(TEXT("DisplayClusterRoot"));
-	DisplayClusterRootComponent->AttachToComponent(RootComponent, FAttachmentTransformRules(EAttachmentRule::KeepRelative, false));
+	RootComponent = CreateDefaultSubobject<UDisplayClusterOriginComponent>(TEXT("DisplayClusterOrigin"));
+	// A helper component to trigger nDisplay Tick() during Tick phase
+	SyncTickComponent = CreateDefaultSubobject<UDisplayClusterSyncTickComponent>(TEXT("DisplayClusterSyncTick"));
 
 	PrimaryActorTick.bCanEverTick = true;
 	PrimaryActorTick.TickGroup = ETickingGroup::TG_PostUpdateWork;
 	bFindCameraComponentWhenViewTarget = false;
 	bReplicates = false;
 	SpawnCollisionHandlingMethod = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+}
+
+void ADisplayClusterRootActor::InitializeFromConfig(UDisplayClusterConfigurationData* ConfigData)
+{
+	// Clean up current hierarchy before building a new one
+	CleanupHierarchy();
+
+	if (ConfigData)
+	{
+		BuildHierarchy(ConfigData);
+
+#if WITH_EDITOR
+		if (GIsEditor)
+		{
+			SetPreviewNodeId(ADisplayClusterRootActor::PreviewNodeNone);
+		}
+#endif
+	}
+}
+
+void ADisplayClusterRootActor::InitializeFromConfig(const FString& ConfigFile)
+{
+	// Clean up current hierarchy before building a new one
+	CleanupHierarchy();
+
+	// Update config data
+	UDisplayClusterConfigurationData* ConfigData = IDisplayClusterConfiguration::Get().LoadConfig(ConfigFile, this);
+	if (ConfigData)
+	{
+		InitializeFromConfig(ConfigData);
+	}
+}
+
+void ADisplayClusterRootActor::InitializeRootActor()
+{
+	const UWorld* World = GetWorld();
+
+	if (!World)
+	{
+		return;
+	}
+	
+	bool bIsPIE = false;
+
+#if WITH_EDITOR
+	bIsPIE = World->IsPlayInEditor();
+#endif
+
+	// Packaged, PIE and -game runtime
+	if (IsRunningGame() || bIsPIE)
+	{
+		IPDisplayClusterConfigManager* const ConfigMgr = (GDisplayCluster ? GDisplayCluster->GetPrivateConfigMgr() : nullptr);
+		if (ConfigMgr)
+		{
+			UDisplayClusterConfigurationData* ConfigData = ConfigMgr->GetConfig();
+			if (ConfigData)
+			{
+				InitializeFromConfig(ConfigData);
+			}
+		}
+	}
+#if WITH_EDITOR
+	// Initialize from file property by default in Editor
+	else
+	{
+		InitializeFromConfig(PreviewConfigPath.FilePath);
+	}
+#endif
+}
+
+bool ADisplayClusterRootActor::BuildHierarchy(UDisplayClusterConfigurationData* ConfigData)
+{
+	check(ConfigData);
+
+	// Store new config data object
+	CurrentConfigData = ConfigData;
+
+	// Spawn all components
+	SpawnComponents<UDisplayClusterXformComponent,  UDisplayClusterConfigurationSceneComponentXform> (ConfigData->Scene->Xforms,  XformComponents,  AllComponents);
+	SpawnComponents<UDisplayClusterCameraComponent, UDisplayClusterConfigurationSceneComponentCamera>(ConfigData->Scene->Cameras, CameraComponents, AllComponents);
+	SpawnComponents<UDisplayClusterScreenComponent, UDisplayClusterConfigurationSceneComponentScreen>(ConfigData->Scene->Screens, ScreenComponents, AllComponents);
+	SpawnComponents<UDisplayClusterMeshComponent,   UDisplayClusterConfigurationSceneComponentMesh>  (ConfigData->Scene->Meshes,  MeshComponents,   AllComponents);
+
+	ReregisterAllComponents();
+
+	// Let the components apply their individual config parameters (in-Editor and before BeginPlay in gameplay)
+	for (const TPair<FString, UDisplayClusterSceneComponent*>& Component : AllComponents)
+	{
+		Component.Value->ApplyConfigurationData();
+	}
+
+	// Check if default camera was specified in command line arguments
+	FString DefaultCamId;
+	if (FParse::Value(FCommandLine::Get(), DisplayClusterStrings::args::Camera, DefaultCamId))
+	{
+		DisplayClusterHelpers::str::TrimStringValue(DefaultCamId);
+		UE_LOG(LogDisplayClusterGame, Log, TEXT("Default camera from command line arguments: %s"), *DefaultCamId);
+		if (CameraComponents.Contains(DefaultCamId))
+		{
+			SetDefaultCamera(DefaultCamId);
+		}
+	}
+
+	// If no default camera set, try to set the first one
+	if (DefaultCameraComponent == nullptr)
+	{
+		if (CameraComponents.Num() > 0)
+		{
+			// There is no guarantee that default camera is the first one listed in a config file
+			SetDefaultCamera(CameraComponents.CreateConstIterator()->Key);
+		}
+		else
+		{
+			UE_LOG(LogDisplayClusterGame, Error, TEXT("No cameras found"));
+			return false;
+		}
+	}
+
+	return true;
+}
+
+void ADisplayClusterRootActor::CleanupHierarchy()
+{
+	{
+		FScopeLock Lock(&InternalsSyncScope);
+
+		// Delete all components except of the RootComponent
+		TArray<USceneComponent*> ChildrenComponents;
+		RootComponent->GetChildrenComponents(true, ChildrenComponents);
+		for (USceneComponent* ChildComponent : ChildrenComponents)
+		{
+			ChildComponent->DestroyComponent();
+		}
+
+		// Clean containers. We store only pointers so there is no need to do any additional
+		// operations. All components will be destroyed by the engine.
+		XformComponents.Reset();
+		CameraComponents.Reset();
+		ScreenComponents.Reset();
+		MeshComponents.Reset();
+		AllComponents.Reset();
+
+		// Invalidate current config as well
+		CurrentConfigData = nullptr;
+	}
 }
 
 void ADisplayClusterRootActor::BeginPlay()
@@ -74,6 +227,12 @@ void ADisplayClusterRootActor::BeginPlay()
 			}
 		}
 	}
+}
+
+void ADisplayClusterRootActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	CleanupHierarchy();
+	Super::EndPlay(EndPlayReason);
 }
 
 void ADisplayClusterRootActor::Tick(float DeltaSeconds)
@@ -120,4 +279,170 @@ void ADisplayClusterRootActor::Tick(float DeltaSeconds)
 	}
 
 	Super::Tick(DeltaSeconds);
+}
+
+void ADisplayClusterRootActor::PostLoad()
+{
+	InitializeRootActor();
+	Super::PostLoad();
+}
+
+void ADisplayClusterRootActor::PostActorCreated()
+{
+	InitializeRootActor();
+	Super::PostActorCreated();
+}
+
+int32 ADisplayClusterRootActor::GetScreensAmount() const
+{
+	FScopeLock Lock(&InternalsSyncScope);
+	return ScreenComponents.Num();
+}
+
+UDisplayClusterScreenComponent* ADisplayClusterRootActor::GetScreenById(const FString& ScreenId) const
+{
+	FScopeLock Lock(&InternalsSyncScope);
+	if (ScreenComponents.Contains(ScreenId))
+	{
+		return ScreenComponents[ScreenId];
+	}
+
+	return nullptr;
+}
+
+void ADisplayClusterRootActor::GetAllScreens(TMap<FString, UDisplayClusterScreenComponent*>& OutScreens) const
+{
+	FScopeLock Lock(&InternalsSyncScope);
+	OutScreens = ScreenComponents;
+}
+
+int32 ADisplayClusterRootActor::GetCamerasAmount() const
+{
+	FScopeLock Lock(&InternalsSyncScope);
+	return CameraComponents.Num();
+}
+
+UDisplayClusterCameraComponent* ADisplayClusterRootActor::GetCameraById(const FString& CameraId) const
+{
+	FScopeLock Lock(&InternalsSyncScope);
+	if (CameraComponents.Contains(CameraId))
+	{
+		return CameraComponents[CameraId];
+	}
+
+	return nullptr;
+}
+
+void ADisplayClusterRootActor::GetAllCameras(TMap<FString, UDisplayClusterCameraComponent*>& OutCameras) const
+{
+	FScopeLock Lock(&InternalsSyncScope);
+	OutCameras = CameraComponents;
+}
+
+UDisplayClusterCameraComponent* ADisplayClusterRootActor::GetDefaultCamera() const
+{
+	FScopeLock Lock(&InternalsSyncScope);
+	return DefaultCameraComponent;
+}
+
+void ADisplayClusterRootActor::SetDefaultCamera(const FString& CameraId)
+{
+	FScopeLock Lock(&InternalsSyncScope);
+
+	UDisplayClusterCameraComponent* NewDefaultCamera = GetCameraById(CameraId);
+	if (NewDefaultCamera)
+	{
+		DefaultCameraComponent = NewDefaultCamera;
+	}
+}
+
+int32 ADisplayClusterRootActor::GetMeshesAmount() const
+{
+	FScopeLock Lock(&InternalsSyncScope);
+	return MeshComponents.Num();
+}
+
+UDisplayClusterMeshComponent* ADisplayClusterRootActor::GetMeshById(const FString& MeshId) const
+{
+	FScopeLock Lock(&InternalsSyncScope);
+	if (MeshComponents.Contains(MeshId))
+	{
+		return MeshComponents[MeshId];
+	}
+
+	return nullptr;
+}
+
+void ADisplayClusterRootActor::GetAllMeshes(TMap<FString, UDisplayClusterMeshComponent*>& OutMeshes) const
+{
+	FScopeLock Lock(&InternalsSyncScope);
+	OutMeshes = MeshComponents;
+}
+
+int32 ADisplayClusterRootActor::GetXformsAmount() const
+{
+	FScopeLock Lock(&InternalsSyncScope);
+	return XformComponents.Num();
+}
+
+UDisplayClusterXformComponent* ADisplayClusterRootActor::GetXformById(const FString& XformId) const
+{
+	FScopeLock Lock(&InternalsSyncScope);
+	if (XformComponents.Contains(XformId))
+	{
+		return XformComponents[XformId];
+	}
+
+	return nullptr;
+}
+
+void ADisplayClusterRootActor::GetAllXforms(TMap<FString, UDisplayClusterXformComponent*>& OutXforms) const
+{
+	FScopeLock Lock(&InternalsSyncScope);
+	OutXforms = XformComponents;
+}
+
+int32 ADisplayClusterRootActor::GetComponentsAmount() const
+{
+	FScopeLock Lock(&InternalsSyncScope);
+	return AllComponents.Num();
+}
+
+UDisplayClusterSceneComponent* ADisplayClusterRootActor::GetComponentById(const FString& ComponentId) const
+{
+	FScopeLock Lock(&InternalsSyncScope);
+	if (AllComponents.Contains(ComponentId))
+	{
+		return AllComponents[ComponentId];
+	}
+
+	return nullptr;
+}
+
+void ADisplayClusterRootActor::GetAllComponents(TMap<FString, UDisplayClusterSceneComponent*>& OutComponents) const
+{
+	FScopeLock Lock(&InternalsSyncScope);
+	OutComponents = AllComponents;
+}
+
+template <typename TComp, typename TCfgData>
+void ADisplayClusterRootActor::SpawnComponents(const TMap<FString, TCfgData*>& InConfigData, TMap<FString, TComp*>& OutTypedMap, TMap<FString, UDisplayClusterSceneComponent*>& OutAllMap)
+{
+	for (const auto& it : InConfigData)
+	{
+		if (!OutAllMap.Contains(it.Key))
+		{
+			TComp* NewComponent = NewObject<TComp>(this, FName(*it.Key));
+			if (NewComponent)
+			{
+				NewComponent->SetFlags(EObjectFlags::RF_DuplicateTransient | RF_Transient | RF_TextExportTransient);
+				NewComponent->SetConfigParameters(it.Value);
+				NewComponent->AttachToComponent(RootComponent, FAttachmentTransformRules(EAttachmentRule::KeepRelative, false));
+
+				// Save references
+				OutAllMap.Emplace(it.Key, NewComponent);
+				OutTypedMap.Emplace(it.Key, NewComponent);
+			}
+		}
+	}
 }

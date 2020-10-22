@@ -122,11 +122,12 @@ public:
 		: FPostProcessMaterialShader(Initializer)
 	{}
 
-	void SetParameters(FRHICommandList& RHICmdList, const FSceneView& View, const FMaterialRenderProxy* Material)
+	void SetParameters(FRHICommandList& RHICmdList, const FSceneView& View, const FMaterialRenderProxy* MaterialProxy)
 	{
 		FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
+		const FMaterial& Material = MaterialProxy->GetMaterialWithFallback(View.GetFeatureLevel(), MaterialProxy);
 		FMaterialShader::SetViewParameters(RHICmdList, ShaderRHI, View, View.ViewUniformBuffer);
-		FMaterialShader::SetParameters(RHICmdList, ShaderRHI, Material, *Material->GetMaterial(View.GetFeatureLevel()), View);
+		FMaterialShader::SetParameters(RHICmdList, ShaderRHI, MaterialProxy, Material, View);
 	}
 };
 
@@ -258,9 +259,9 @@ void FARCameraSceneViewExtension::RenderARCamera_RenderThread(FRHICommandListImm
 		ESceneTextureSetupMode::None);
 	FUniformBufferStaticBindings GlobalUniformBuffers(PassUniformBuffer);
 	SCOPED_UNIFORM_BUFFER_GLOBAL_BINDINGS(RHICmdList, GlobalUniformBuffers);
-
-	const FMaterial* const CameraMaterial = PPMaterial->GetRenderProxy()->GetMaterial(FeatureLevel);
-	const FMaterialShaderMap* const MaterialShaderMap = CameraMaterial->GetRenderingThreadShaderMap();
+	const FMaterialRenderProxy* MaterialProxy = PPMaterial->GetRenderProxy();
+	const FMaterial& CameraMaterial = MaterialProxy->GetMaterialWithFallback(FeatureLevel, MaterialProxy);
+	const FMaterialShaderMap* const MaterialShaderMap = CameraMaterial.GetRenderingThreadShaderMap();
 
 	FGraphicsPipelineStateInitializer GraphicsPSOInit;
 	RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
@@ -288,7 +289,7 @@ void FARCameraSceneViewExtension::RenderARCamera_RenderThread(FRHICommandListImm
 
 	SetUniformBufferParameterImmediate(RHICmdList, VertexShader.GetVertexShader(), VertexShader->GetUniformBufferParameter<FDrawRectangleParameters>(), Parameters);
 	VertexShader->SetParameters(RHICmdList, InView);
-	PixelShader->SetParameters(RHICmdList, InView, PPMaterial->GetRenderProxy());
+	PixelShader->SetParameters(RHICmdList, InView, MaterialProxy);
 
 	if (VertexBufferRHI && IndexBufferRHI.IsValid())
 	{

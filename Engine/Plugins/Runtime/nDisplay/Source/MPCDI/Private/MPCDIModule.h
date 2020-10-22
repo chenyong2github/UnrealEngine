@@ -46,6 +46,8 @@ public:
 	virtual void ReloadAll() override;
 	virtual void ReloadAll_RenderThread()override;
 
+	virtual bool GetMPCDIMeshData(const FString& MPCDIFile, const FString& BufferName, const FString& RegionName, FMPCDIGeometryExportData& MeshData) override;
+
 private:
 	void ReleaseMPCDIData();
 

@@ -14,7 +14,7 @@ namespace CADLibrary
 	// Note: CTKIO_* functions are not functionally useful.
 	// This wrapping allows a correct profiling of the CT API.
 
-	CT_IO_ERROR CTKIO_InitalizationStatus = IO_ERROR_NOT_INITIALIZED;
+	double CTKIO_MetricUnit = -1;
 
 	CT_IO_ERROR CTKIO_InitializeKernel(double Unit, const TCHAR* EnginePluginsPath)
 	{
@@ -29,25 +29,41 @@ namespace CADLibrary
 			}
 		}
 
-		// Kernel_IO is already initialized, so it is stopped to be able to restart it with the good unit value
-		if (CTKIO_InitalizationStatus == IO_OK)
+		if (FMath::IsNearlyEqual(Unit, CTKIO_MetricUnit))
 		{
-			CT_KERNEL_IO::ShutdownKernel();
+			// Kernel_IO is already initialized with requested Unit value
+			return IO_OK;
 		}
 
+		// Kernel_IO is already initialized, so it is stopped to be able to restart it with the good unit value
+		CTKIO_ShutdownKernel();
+
 		CT_STR appName = CoreTechLicenseKey;
-		CTKIO_InitalizationStatus = CT_KERNEL_IO::InitializeKernel(appName, Unit, 0.00001 / Unit, *KernelIOPath);
-		return CTKIO_InitalizationStatus;
+		CT_IO_ERROR Status = CT_KERNEL_IO::InitializeKernel(appName, Unit, 0.00001 / Unit, *KernelIOPath);
+
+		if (Status == IO_OK)
+		{
+			CTKIO_MetricUnit = Unit;
+		}
+
+		return Status;
 	}
 
 	CT_IO_ERROR CTKIO_ShutdownKernel()
 	{
+		CTKIO_MetricUnit = -1;
 		return CT_KERNEL_IO::ShutdownKernel(); // ignorable. Just in case CT was not previously stopped
 	}
 
 	CT_IO_ERROR CTKIO_UnloadModel()
 	{
 		return CT_KERNEL_IO::UnloadModel();
+	}
+
+	CT_IO_ERROR CTKIO_CreateModel(CT_OBJECT_ID& OutMainObjectId)
+	{
+		CT_OBJECT_ID NullParent = 0;
+		return CT_COMPONENT_IO::Create(OutMainObjectId, NullParent);
 	}
 
 	CT_IO_ERROR CTKIO_AskNbObjectsType(CT_UINT32& object_count, CT_OBJECT_TYPE type)
@@ -226,7 +242,9 @@ namespace CADLibrary
 		// Create a main object to hold the BRep
 		CT_OBJECT_ID nullParent = 0;
 		Result = CT_COMPONENT_IO::Create(MainObjectId, nullParent);
+		ensure(Result == IO_OK);
 		Result = CTKIO_AskMainObject(MainObjectId); // not required, just a validation.
+		ensure(Result == IO_OK);
 	}
 
 	CoreTechSessionBase::~CoreTechSessionBase()

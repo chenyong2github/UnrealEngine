@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
+#include "NiagaraClipboard.h"
 #include "ViewModels/Stack/NiagaraStackItem.h"
 #include "NiagaraTypes.h"
 #include "ViewModels/Stack/NiagaraParameterHandle.h"
@@ -89,6 +90,16 @@ public:
 	/** Use an external asset instead of the local value object.*/
 	void ReplaceValueObject(UObject* Obj);
 
+	virtual bool SupportsCopy() const override { return true; }
+	virtual bool SupportsPaste() const override { return true; }
+	virtual bool TestCanCopyWithMessage(FText& OutMessage) const override;
+	virtual void Copy(UNiagaraClipboardContent* ClipboardContent) const override;
+	virtual bool TestCanPasteWithMessage(const UNiagaraClipboardContent* ClipboardContent, FText& OutMessage) const override;
+	virtual FText GetPasteTransactionText(const UNiagaraClipboardContent* ClipboardContent) const override;
+	virtual void Paste(const UNiagaraClipboardContent* ClipboardContent, FText& OutPasteWarning) override;
+	const UNiagaraClipboardFunctionInput* ToClipboardFunctionInput(UObject* InOuter) const;
+	void SetValueFromClipboardFunctionInput(const UNiagaraClipboardFunctionInput& ClipboardFunctionInput);
+
 protected:
 	//~ UNiagaraStackEntry interface
 	virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
@@ -96,6 +107,8 @@ protected:
 	void RefreshValueAndHandle();
 	TSharedPtr<FNiagaraVariable> GetCurrentValueVariable();
 	UObject* GetCurrentValueObject();
+
+	void NotifyDataInterfaceChanged();
 
 private:
 	void RemovePins(TArray<UEdGraphPin*> PinsToRemove);

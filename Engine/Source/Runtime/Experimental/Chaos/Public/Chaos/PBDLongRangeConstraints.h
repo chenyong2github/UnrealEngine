@@ -11,47 +11,49 @@ DECLARE_CYCLE_STAT(TEXT("Chaos PBD Long Range Constraint"), STAT_PBD_LongRange, 
 namespace Chaos
 {
 template<class T, int d>
-class TPBDLongRangeConstraints : public TPBDLongRangeConstraintsBase<T, d>, public FPBDConstraintContainer
+class CHAOS_API TPBDLongRangeConstraints : public TPBDLongRangeConstraintsBase<T, d>, public FPBDConstraintContainer
 {
+public:
 	typedef TPBDLongRangeConstraintsBase<T, d> Base;
-	using Base::MConstraints;
+	typedef typename Base::EMode EMode;
 
-  public:
+	using Base::GetMode;
+
 	TPBDLongRangeConstraints(
 		const TDynamicParticles<T, d>& InParticles,
 		const TMap<int32, TSet<uint32>>& PointToNeighbors,
 		const int32 NumberOfAttachments = 1,
 		const T Stiffness = (T)1,
 		const T LimitScale = (T)1,
-		const bool bUseGeodesicDistance = false)
-		: TPBDLongRangeConstraintsBase<T, d>(InParticles, PointToNeighbors, NumberOfAttachments, Stiffness, LimitScale, bUseGeodesicDistance) {}
+		const EMode Mode = EMode::AccurateTetherFastLength)
+		: TPBDLongRangeConstraintsBase<T, d>(InParticles, PointToNeighbors, NumberOfAttachments, Stiffness, LimitScale, Mode) {}
 	virtual ~TPBDLongRangeConstraints() {}
 
+	void Apply(TPBDParticles<T, d>& InParticles, const T Dt, const TArray<int32>& InConstraintIndices) const;
+	void Apply(TPBDParticles<T, d>& InParticles, const T Dt) const;
 
-	void Apply(TPBDParticles<T, d>& InParticles, const T Dt, int32 Index) const
+private:
+	using Base::MEuclideanConstraints;
+	using Base::MGeodesicConstraints;
+	using Base::MDists;
+	using Base::GetDelta;
+
+	template<class TConstraintType>
+	void Apply(const TConstraintType& Constraint, TPBDParticles<T, d>& InParticles, const T Dt, const T RefDist) const
 	{
-		const auto& Constraint = MConstraints[Index];
-		int32 i2 = Constraint[Constraint.Num() - 1];
-		check(InParticles.InvM(i2) > 0);
-		InParticles.P(i2) += Base::GetDelta(InParticles, Index);
+		const int32 i2 = Constraint[Constraint.Num() - 1];
+		checkSlow(InParticles.InvM(i2) > (T)0.);
+		InParticles.P(i2) += GetDelta(Constraint, InParticles, RefDist);
 	}
 
-	void Apply(TPBDParticles<T, d>& InParticles, const T Dt) const 
-	{
-		SCOPE_CYCLE_COUNTER(STAT_PBD_LongRange);
-		for (int32 i = 0; i < MConstraints.Num(); ++i)
-		{
-			Apply(InParticles, Dt, i);
-		}
-	}
-
-	void Apply(TPBDParticles<T, d>& InParticles, const T Dt, const TArray<int32>& InConstraintIndices) const
-	{
-		SCOPE_CYCLE_COUNTER(STAT_PBD_LongRange);
-		for (int32 i : InConstraintIndices)
-		{
-			Apply(InParticles, Dt, i);
-		}
-	}
 };
 }
+
+// Support ISPC enable/disable in non-shipping builds
+#if !INTEL_ISPC
+const bool bChaos_LongRange_ISPC_Enabled = false;
+#elif UE_BUILD_SHIPPING
+const bool bChaos_LongRange_ISPC_Enabled = true;
+#else
+extern CHAOS_API bool bChaos_LongRange_ISPC_Enabled;
+#endif

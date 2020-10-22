@@ -578,8 +578,7 @@ namespace BTGraphHelpers
 				CollectDecorators(BTAsset, GraphNode, DecoratorInstances, DecoratorOperations, true, RootNode, ExecutionIndex, TreeDepth, ChildIdx);
 
 				// store child data
-				ChildIdx = RootNode->Children.AddDefaulted();
-				FBTCompositeChild& ChildInfo = RootNode->Children[ChildIdx];
+				FBTCompositeChild& ChildInfo = RootNode->Children.AddDefaulted_GetRef();
 				ChildInfo.ChildComposite = CompositeInstance;
 				ChildInfo.ChildTask = TaskInstance;
 				ChildInfo.Decorators = DecoratorInstances;
@@ -627,6 +626,7 @@ namespace BTGraphHelpers
 				// assign execution index to child node
 				ChildNode->InitializeNode(RootNode, *ExecutionIndex, 0, TreeDepth);
 				*ExecutionIndex += 1;
+				ChildIdx++;
 
 				VerifyDecorators(GraphNode);
 

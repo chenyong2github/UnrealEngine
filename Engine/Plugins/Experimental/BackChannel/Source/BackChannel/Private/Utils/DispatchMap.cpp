@@ -48,9 +48,11 @@ FBackChannelRouteDelegate& FBackChannelDispatchMap::GetAddressHandler(const TCHA
 }
 */
 
-void FBackChannelDispatchMap::DispatchMessage(IBackChannelPacket& Message)
+bool FBackChannelDispatchMap::DispatchMessage(IBackChannelPacket& Message)
 {
 	FString LowerAddress = Message.GetPath().ToLower();
+
+	bool DidDispatch = true;
 
 	for (const auto& KV : DispatchMap)
 	{
@@ -59,6 +61,9 @@ void FBackChannelDispatchMap::DispatchMessage(IBackChannelPacket& Message)
 		if (LowerAddress.StartsWith(LowerPath))
 		{
 			KV.Value.Broadcast(Message);
+			DidDispatch = true;
 		}
 	}
+
+	return DidDispatch;
 }

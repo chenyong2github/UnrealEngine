@@ -53,6 +53,7 @@ static uint32 GShaderCodeArchiveVersion = 2;
 static uint32 GShaderPipelineArchiveVersion = 1;
 
 static FString ShaderExtension = TEXT(".ushaderbytecode");
+static FString ShaderAssetInfoExtension = TEXT(".assetinfo.json");
 static FString StableExtension = TEXT(".scl.csv");
 static FString PipelineExtension = TEXT(".ushaderpipelines");
 
@@ -101,6 +102,11 @@ static FString GetPipelinesArchiveFilename(const FString& BaseDir, const FString
 static FString GetShaderCodeFilename(const FString& BaseDir, const FString& LibraryName, FName Platform)
 {
 	return BaseDir / FString::Printf(TEXT("ShaderCode-%s-"), *LibraryName) + Platform.ToString() + ShaderExtension;
+}
+
+static FString GetShaderAssetInfoFilename(const FString& BaseDir, const FString& LibraryName, FName Platform)
+{
+	return BaseDir / FString::Printf(TEXT("ShaderAssetInfo-%s-"), *LibraryName) + Platform.ToString() + ShaderAssetInfoExtension;
 }
 
 static FString GetShaderDebugFolder(const FString& BaseDir, const FString& LibraryName, FName Platform)
@@ -819,13 +825,7 @@ struct FShaderCodeStats
 	int64 ShadersUniqueSize;
 	int32 NumShaders;
 	int32 NumUniqueShaders;
-	//int32 NumPipelines;
-	//int32 NumUniquePipelines;
-
 	int32 NumShaderMaps;
-	int32 NumShaderMapsWithUnknownAssets;
-	int32 NumUnnamedShaderMaps;
-	int32 TimesShadersMovedCloser;
 };
 
 struct FEditorShaderCodeArchive
@@ -834,7 +834,6 @@ struct FEditorShaderCodeArchive
 		: FormatName(InFormat)
 		, Format(nullptr)
 		, bNeedsDeterministicOrder(bInNeedsDeterministicOrder)
-		, bHasActiveShaderMap(false)
 	{
 		Format = GetTargetPlatformManagerRef().FindShaderFormat(InFormat);
 		check(Format);
@@ -870,69 +869,16 @@ struct FEditorShaderCodeArchive
 		return SerializedShaders.FindShaderMap(Hash) != INDEX_NONE;
 	}
 
-	void BeginShaderMap(const TArray<FString>& AssociatedAssets, const FName& InShaderMapName, const FPakOrderMap* OrderMap, FShaderCodeStats& CodeStats)
-	{
-		CodeStats.NumShaderMaps++;
-
-		if (bHasActiveShaderMap)
-		{
-			UE_LOG(LogShaderLibrary, Error, TEXT("Begin/EndShaderMap parity mismatch for shadermap '%s', currently active '%s'"), *InShaderMapName.ToString(), *ShaderMapName.ToString());
-			bHasActiveShaderMap = false;
-		}
-
-		ShaderMapName = InShaderMapName;
-		if (ShaderMapName == NAME_None)
-		{
-			UE_LOG(LogShaderLibrary, Warning, TEXT("Shadermap without a type name encountered"));
-			CodeStats.NumUnnamedShaderMaps++;
-		}
-
-		UE_LOG(LogInit, VeryVerbose, TEXT("BeginShaderMap, type name %s: Got %d associated assets"), *ShaderMapName.ToString(), AssociatedAssets.Num());
-
-		// unlikely special case for a global shadermap
-		static FName GlobalShaderMapName(TEXT("GlobalShaderMap"));
-		if (LIKELY(OrderMap && ShaderMapName != GlobalShaderMapName))
-		{
-			if (AssociatedAssets.Num())
-			{
-				uint64 MinAssetOrder = MAX_uint64;
-				for (const FString& AssetPath: AssociatedAssets)
-				{
-					uint64 ThisAssetOrder = OrderMap->GetFileOrder(AssetPath, false);
-					UE_LOG(LogInit, VeryVerbose, TEXT(" '%s', order %llu"), *AssetPath, ThisAssetOrder);
-					if (ThisAssetOrder < MinAssetOrder)
-					{
-						MinAssetOrder = ThisAssetOrder;
-						FirstAssociatedAsset = AssetPath;
-					}
-				}
-				FirstAssociatedAssetOrder = MinAssetOrder;
-			}
-			else
-			{
-				UE_LOG(LogShaderLibrary, Warning, TEXT("Shadermap '%s' has zero associated assets"), *ShaderMapName.ToString());
-				CodeStats.NumShaderMapsWithUnknownAssets++;
-			}
-		}
-		else
-		{
-			FirstAssociatedAssetOrder = 0;
-		}
-		UE_LOG(LogInit, VeryVerbose, TEXT(" Order for shaders from this ShaderMap will be %llu"), FirstAssociatedAssetOrder);
-
-		bHasActiveShaderMap = true;
-	}
-
-	void EndShaderMap()
-	{
-		UE_LOG(LogInit, VeryVerbose, TEXT("EndShaderMap"));
-		bHasActiveShaderMap = false;
-	}
-
-	int32 AddShaderCode(FShaderCodeStats& CodeStats, const FShaderMapResourceCode* Code)
+	int32 AddShaderCode(FShaderCodeStats& CodeStats, const FShaderMapResourceCode* Code, const FShaderMapAssetPaths& AssociatedAssets)
 	{
 		int32 ShaderMapIndex = INDEX_NONE;
-		if (SerializedShaders.FindOrAddShaderMap(Code->ResourceHash, ShaderMapIndex))
+
+		if (AssociatedAssets.Num() == 0 && LibraryName != TEXT("Global"))
+		{
+			UE_LOG(LogShaderLibrary, Warning, TEXT("Shadermap %s does not have assets associated with it, library layout may be inconsistent between builds"), *Code->ResourceHash.ToString());
+		}
+
+		if (SerializedShaders.FindOrAddShaderMap(Code->ResourceHash, ShaderMapIndex, &AssociatedAssets))
 		{
 			const int32 NumShaders = Code->ShaderEntries.Num();
 			FShaderMapEntry& ShaderMapEntry = SerializedShaders.ShaderMapEntries[ShaderMapIndex];
@@ -954,10 +900,15 @@ struct FEditorShaderCodeArchive
 
 					CodeStats.NumUniqueShaders++;
 					CodeStats.ShadersUniqueSize += SourceShaderEntry.Code.Num();
-					CodeStats.ShadersSize += SourceShaderEntry.Code.Num();
 				}
+				CodeStats.ShadersSize += Code->ShaderEntries[i].Code.Num();
 				SerializedShaders.ShaderIndices[ShaderMapEntry.ShaderIndicesOffset + i] = ShaderIndex;
 			}
+
+			// for total shaders, only count shaders when we're adding a new shadermap. AddShaderCode() for the same shadermap can be called several times during
+			// the cook because of serialization path being reused for other purposes than actual saving, so counting them every time artificially inflates number of shaders.
+			CodeStats.NumShaders += Code->ShaderEntries.Num();
+			CodeStats.NumShaderMaps++;
 		}
 		return ShaderMapIndex;
 	}
@@ -965,7 +916,8 @@ struct FEditorShaderCodeArchive
 	int32 AddShaderCode(int32 OtherShaderMapIndex, const FEditorShaderCodeArchive& OtherArchive)
 	{
 		int32 ShaderMapIndex = 0;
-		if (SerializedShaders.FindOrAddShaderMap(OtherArchive.SerializedShaders.ShaderMapHashes[OtherShaderMapIndex], ShaderMapIndex))
+		if (SerializedShaders.FindOrAddShaderMap(OtherArchive.SerializedShaders.ShaderMapHashes[OtherShaderMapIndex], ShaderMapIndex, 
+				OtherArchive.SerializedShaders.ShaderCodeToAssets.Find(OtherArchive.SerializedShaders.ShaderMapHashes[OtherShaderMapIndex])))
 		{
 			const FShaderMapEntry& PrevShaderMapEntry = OtherArchive.SerializedShaders.ShaderMapEntries[OtherShaderMapIndex];
 			FShaderMapEntry& ShaderMapEntry = SerializedShaders.ShaderMapEntries[ShaderMapIndex];
@@ -996,7 +948,8 @@ struct FEditorShaderCodeArchive
 		FArchive& Ar)
 	{
 		int32 ShaderMapIndex = 0;
-		if (SerializedShaders.FindOrAddShaderMap(OtherShaders.ShaderMapHashes[OtherShaderMapIndex], ShaderMapIndex))
+		if (SerializedShaders.FindOrAddShaderMap(OtherShaders.ShaderMapHashes[OtherShaderMapIndex], ShaderMapIndex, 
+				OtherShaders.ShaderCodeToAssets.Find(OtherShaders.ShaderMapHashes[OtherShaderMapIndex])))
 		{
 			const FShaderMapEntry& PrevShaderMapEntry = OtherShaders.ShaderMapEntries[OtherShaderMapIndex];
 			FShaderMapEntry& ShaderMapEntry = SerializedShaders.ShaderMapEntries[ShaderMapIndex];
@@ -1099,9 +1052,68 @@ struct FEditorShaderCodeArchive
 		return bOK;
 	}
 
+	void AddExistingShaderCodeLibrary(FString const& OutputDir)
+	{
+		check(LibraryName.Len() > 0);
+
+		const FString ShaderIntermediateLocation = FPaths::ProjectSavedDir() / TEXT("Shaders") / FormatName.ToString();
+
+		TArray<FString> ShaderFiles;
+		IFileManager::Get().FindFiles(ShaderFiles, *ShaderIntermediateLocation, *ShaderExtension);
+
+		for (const FString& ShaderFileName : ShaderFiles)
+		{
+			if (ShaderFileName.Contains(LibraryName + TEXT("-") + FormatName.ToString() + TEXT(".")))
+			{
+				FArchive* PrevCookedAr = IFileManager::Get().CreateFileReader(*GetCodeArchiveFilename(OutputDir, LibraryName, FormatName));
+
+				if (PrevCookedAr)
+				{
+					uint32 Version = 0;
+					*PrevCookedAr << Version;
+
+					if (Version == GShaderCodeArchiveVersion)
+					{
+						FSerializedShaderArchive PrevCookedShaders;
+
+						*PrevCookedAr << PrevCookedShaders;
+
+						// check if it also contains the asset info file
+						if (PrevCookedShaders.LoadAssetInfo(GetShaderAssetInfoFilename(OutputDir, LibraryName, FormatName)))
+						{
+							UE_LOG(LogShaderLibrary, Display, TEXT("Loaded asset info %s for the shader library %s: %d entries"),
+								*GetCodeArchiveFilename(OutputDir, LibraryName, FormatName),
+								*GetShaderAssetInfoFilename(OutputDir, LibraryName, FormatName),
+								PrevCookedShaders.ShaderCodeToAssets.Num()
+								);
+						}
+						else
+						{
+							UE_LOG(LogShaderLibrary, Warning, TEXT("Could not find or load asset info %s for the shader library %s"),
+								*GetCodeArchiveFilename(OutputDir, LibraryName, FormatName),
+								*GetShaderAssetInfoFilename(OutputDir, LibraryName, FormatName)
+							);
+						}
+
+						int64 PrevCookedShadersCodeStart = PrevCookedAr->Tell();
+						for (int32 PrevShaderMapIndex = 0; PrevShaderMapIndex < PrevCookedShaders.ShaderMapEntries.Num(); ++PrevShaderMapIndex)
+						{
+							AddShaderCode(PrevShaderMapIndex, PrevCookedShaders, PrevCookedShadersCodeStart, *PrevCookedAr);
+						}
+					}
+
+					PrevCookedAr->Close();
+					delete PrevCookedAr;
+				}
+			}
+		}
+	}
+
 	bool Finalize(FString OutputDir, const FString& MetaOutputDir, bool bNativeFormat)
 	{
 		check(LibraryName.Len() > 0);
+
+		AddExistingShaderCodeLibrary(OutputDir);
 
 		bool bSuccess = IFileManager::Get().MakeDirectory(*OutputDir, true);
 
@@ -1110,92 +1122,68 @@ struct FEditorShaderCodeArchive
 		{
 			// Write to a intermediate file
 			FString IntermediateFormatPath = GetShaderCodeFilename(FPaths::ProjectSavedDir() / TEXT("Shaders") / FormatName.ToString(), LibraryName, FormatName);
+			FString AssetInfoIntermediatePath = GetShaderAssetInfoFilename(FPaths::ProjectSavedDir() / TEXT("Shaders") / FormatName.ToString(), LibraryName, FormatName);
+
 			FArchive* FileWriter = IFileManager::Get().CreateFileWriter(*IntermediateFormatPath, FILEWRITE_NoFail);
 
 			if (FileWriter)
 			{
 				check(Format);
 
-				SerializedShaders.Finalize();
+				FArchive* AssetInfoWriter = IFileManager::Get().CreateFileWriter(*AssetInfoIntermediatePath, FILEWRITE_NoFail);
+				if (AssetInfoWriter)
+				{
+					SerializedShaders.Finalize();
 
-				*FileWriter << GShaderCodeArchiveVersion;
+					SerializedShaders.SaveAssetInfo(*AssetInfoWriter);
+					AssetInfoWriter->Close();
+					delete AssetInfoWriter;
 
-                // Write shader library
-                *FileWriter << SerializedShaders;
-                for (auto& Code : ShaderCode)
-                {
-                    FileWriter->Serialize(Code.GetData(), Code.Num());
-                }
+					*FileWriter << GShaderCodeArchiveVersion;
+
+					// Write shader library
+					*FileWriter << SerializedShaders;
+					for (auto& Code : ShaderCode)
+					{
+						FileWriter->Serialize(Code.GetData(), Code.Num());
+					}
+				}
 
 				FileWriter->Close();
 				delete FileWriter;
 
-				FString OutputFilePath = GetCodeArchiveFilename(OutputDir, LibraryName, FormatName);
-
-				// Copy to output location - support for iterative native library cooking
-				uint32 Result = IFileManager::Get().Copy(*OutputFilePath, *IntermediateFormatPath, true, true);
-				if (Result != COPY_OK)
+				auto CopyFile = [this](const FString& SourcePath, const FString& DestinationPath) -> bool
 				{
-					UE_LOG(LogShaderLibrary, Error, TEXT("FEditorShaderCodeArchive shader library copy failed to %s. Failed to finalize Shared Shader Library %s with format %s"), *OutputFilePath, *LibraryName, *FormatName.ToString());
-					bSuccess = false;
-				}
-				
-				if (MetaOutputDir.Len())
-				{
-					FString MetaFormatPath = GetCodeArchiveFilename(MetaOutputDir / TEXT("../ShaderLibrarySource"), LibraryName, FormatName);
-					Result = IFileManager::Get().Copy(*MetaFormatPath, *IntermediateFormatPath, true, true);
+					uint32 Result = IFileManager::Get().Copy(*DestinationPath, *SourcePath, true, true);
 					if (Result != COPY_OK)
 					{
-						UE_LOG(LogShaderLibrary, Error, TEXT("FEditorShaderCodeArchive shader library copy failed to %s. Failed to saved metadata copy of Shared Shader Library %s with format %s"), *OutputFilePath, *LibraryName, *FormatName.ToString());
+						UE_LOG(LogShaderLibrary, Error, TEXT("FEditorShaderCodeArchive copying %s to %s failed. Failed to finalize Shared Shader Library %s with format %s"),
+							*SourcePath, *DestinationPath, *LibraryName, *FormatName.ToString());
+						return false;
+					}
+					return true;
+				};
+
+				// Copy to output location - support for iterative native library cooking
+				if (!CopyFile(IntermediateFormatPath, GetCodeArchiveFilename(OutputDir, LibraryName, FormatName)))
+				{
+					bSuccess = false;
+				}
+
+				if (!CopyFile(AssetInfoIntermediatePath, GetShaderAssetInfoFilename(OutputDir, LibraryName, FormatName)))
+				{
+					bSuccess = false;
+				}
+
+				if (MetaOutputDir.Len())
+				{
+					if (!CopyFile(IntermediateFormatPath, GetCodeArchiveFilename(MetaOutputDir / TEXT("../ShaderLibrarySource"), LibraryName, FormatName)))
+					{
 						bSuccess = false;
 					}
 				}
-
 			}
 		}
-
-#if 0
-		// Pipelines
-		if (bSuccess && Pipelines.Num() > 0)
-		{
-			// Write to a temporary file
-			FString TempFilePath = GetPipelinesArchiveFilename(FPaths::ProjectSavedDir() / TEXT("Shaders"), LibraryName, FormatName);
-			FArchive* FileWriter = IFileManager::Get().CreateFileWriter(*TempFilePath, FILEWRITE_NoFail);
-
-			*FileWriter << GShaderPipelineArchiveVersion;
-
-			if (bNeedsDeterministicOrder)
-			{
-				Pipelines.Sort([](const FShaderCodeLibraryPipeline& A, const FShaderCodeLibraryPipeline& B){ return A.Hash <= B.Hash; });
-			}
-
-			*FileWriter << Pipelines;
-
-			FileWriter->Close();
-			delete FileWriter;
-
-			FString OutputFilePath = GetPipelinesArchiveFilename(OutputDir, LibraryName, FormatName);
-
-			// Copy to output location - support for iterative native library cooking
-			uint32 Result = IFileManager::Get().Copy(*OutputFilePath, *TempFilePath, true, true);
-			if (Result != COPY_OK)
-			{
-				UE_LOG(LogShaderLibrary, Error, TEXT("FEditorShaderCodeArchive pipeline copy failed to %s. Failed to finalize Shared Shader Library %s with format %s"), *OutputFilePath, *LibraryName, *FormatName.ToString());
-				bSuccess = false;
-			}
-                
-            if (MetaOutputDir.Len())
-            {
-                FString MetaFormatPath = GetPipelinesArchiveFilename(MetaOutputDir / TEXT("../ShaderLibrarySource"), LibraryName, FormatName);
-                Result = IFileManager::Get().Copy(*MetaFormatPath, *TempFilePath, true, true);
-                if (Result != COPY_OK)
-                {
-                    UE_LOG(LogShaderLibrary, Error, TEXT("FEditorShaderCodeArchive pipeline copy failed to %s. Failed to save metadata copy of Shared Shader Library %s with format %s"), *OutputFilePath, *LibraryName, *FormatName.ToString());
-                    bSuccess = false;
-                }
-            }
-		}
-#endif
 
 		return bSuccess;
 	}
@@ -1317,12 +1305,6 @@ private:
 	TArray<TArray<uint8>> ShaderCode;
 	const IShaderFormat* Format;
 	bool bNeedsDeterministicOrder;
-
-	// state
-	bool bHasActiveShaderMap;
-	uint64 FirstAssociatedAssetOrder;
-	FName ShaderMapName;
-	FString FirstAssociatedAsset;
 };
 
 struct FEditorShaderStableInfo
@@ -1359,10 +1341,42 @@ struct FEditorShaderStableInfo
 		StableMap.Add(StableKeyValue);
 	}
 
+	void AddExistingShaderCodeLibrary(FString const& OutputDir)
+	{
+		check(LibraryName.Len() > 0);
+
+		TMap<uint32, FName> NameCache;
+		NameCache.Reserve(2048);
+
+		const FString ShaderIntermediateLocation = FPaths::ProjectSavedDir() / TEXT("Shaders") / FormatName.ToString();
+
+		TArray<FString> ShaderFiles;
+		IFileManager::Get().FindFiles(ShaderFiles, *ShaderIntermediateLocation, *ShaderExtension);
+
+		for (const FString& ShaderFileName : ShaderFiles)
+		{
+			if (ShaderFileName.Contains(LibraryName + TEXT("-") + FormatName.ToString() + TEXT(".")))
+			{
+				TArray<FString> SourceFileContents;
+				if (FFileHelper::LoadFileToStringArray(SourceFileContents, *GetStableInfoArchiveFilename(OutputDir, LibraryName, FormatName)))
+				{
+					for (int32 Index = 1; Index < SourceFileContents.Num(); Index++)
+					{
+						FStableShaderKeyAndValue Item;
+						Item.ParseFromStringCached(SourceFileContents[Index], NameCache);
+						AddShader(Item);
+					}
+				}
+			}
+		}
+	}
+
 	bool Finalize(FString OutputDir, bool bNativeFormat, FString& OutSCLCSVPath)
 	{
 		check(LibraryName.Len() > 0);
 		OutSCLCSVPath = FString();
+
+		AddExistingShaderCodeLibrary(OutputDir);
 
 		bool bSuccess = IFileManager::Get().MakeDirectory(*OutputDir, true);
 
@@ -1830,51 +1844,19 @@ public:
 		return (bShaderFormatsThatNeedStableKeys & (uint64_t(1u) << (uint32_t) Platform)) != 0;
 	}
 
-	void BeginShaderMap(EShaderPlatform InShaderPlatform, const TArray<FString>& AssociatedAssets, const FName& ShaderMapTypeName)
-	{
-		// There are some TShaderMap-derived classes that can call this function with a bogus SP - just ignore if not created
-		if (InShaderPlatform < UE_ARRAY_COUNT(EditorShaderCodeArchive))
-		{
-			FScopeLock ScopeLock(&ShaderCodeCS);
-			FShaderCodeStats& CodeStats = EditorShaderCodeStats[InShaderPlatform];
-
-			FEditorShaderCodeArchive* CodeArchive = EditorShaderCodeArchive[InShaderPlatform];
-			if (CodeArchive)	// see the above comment about a bogus SP
-			{
-				CodeArchive->BeginShaderMap(AssociatedAssets, ShaderMapTypeName, OpenOrderMap, CodeStats);
-			}
-		}
-	}
-
-	void EndShaderMap(EShaderPlatform InShaderPlatform)
-	{
-		// There are some TShaderMap-derived classes that can call this function with a bogus SP - just ignore if not created
-		if (InShaderPlatform < UE_ARRAY_COUNT(EditorShaderCodeArchive))
-		{
-			FScopeLock ScopeLock(&ShaderCodeCS);
-
-			FEditorShaderCodeArchive* CodeArchive = EditorShaderCodeArchive[InShaderPlatform];
-			if (CodeArchive)	// see the above comment about a bogus SP
-			{
-				CodeArchive->EndShaderMap();
-			}
-		}
-	}
-
-	void AddShaderCode(EShaderPlatform Platform, const FShaderMapResourceCode* Code)
+	void AddShaderCode(EShaderPlatform Platform, const FShaderMapResourceCode* Code, const FShaderMapAssetPaths& AssociatedAssets)
 	{
 		FScopeLock ScopeLock(&ShaderCodeCS);
 		checkf(Platform < UE_ARRAY_COUNT(EditorShaderCodeStats), TEXT("FShaderCodeLibrary::AddShaderCode can only be called with a valid shader platform (expected no more than %d, passed: %d)"), 
 			static_cast<int32>(UE_ARRAY_COUNT(EditorShaderCodeStats)), static_cast<int32>(Platform));
 		FShaderCodeStats& CodeStats = EditorShaderCodeStats[Platform];
-		CodeStats.NumShaders += Code->ShaderEntries.Num();
 
 		checkf(Platform < UE_ARRAY_COUNT(EditorShaderCodeArchive), TEXT("FShaderCodeLibrary::AddShaderCode can only be called with a valid shader platform (expected no more than %d, passed: %d)"),
 			static_cast<int32>(UE_ARRAY_COUNT(EditorShaderCodeArchive)), static_cast<int32>(Platform));
 		FEditorShaderCodeArchive* CodeArchive = EditorShaderCodeArchive[Platform];
 		check(CodeArchive);
 
-		CodeArchive->AddShaderCode(CodeStats, Code);
+		CodeArchive->AddShaderCode(CodeStats, Code, AssociatedAssets);
 	}
 
 	void AddShaderStableKeyValue(EShaderPlatform InShaderPlatform, FStableShaderKeyAndValue& StableKeyValue)
@@ -1954,11 +1936,8 @@ public:
 				UE_LOG(LogShaderLibrary, Display, TEXT(""));
 				UE_LOG(LogShaderLibrary, Display, TEXT("Shader Code Stats: %s"), *LegacyShaderPlatformToShaderFormat((EShaderPlatform)PlatformId).ToString());
 				UE_LOG(LogShaderLibrary, Display, TEXT("================="));
-				UE_LOG(LogShaderLibrary, Display, TEXT("Unique Shaders: %d, Total Shaders: %d"), CodeStats.NumUniqueShaders, CodeStats.NumShaders);
+				UE_LOG(LogShaderLibrary, Display, TEXT("Unique Shaders: %d, Total Shaders: %d, Unique Shadermaps: %d"), CodeStats.NumUniqueShaders, CodeStats.NumShaders, CodeStats.NumShaderMaps);
 				UE_LOG(LogShaderLibrary, Display, TEXT("Unique Shaders Size: %.2fmb, Total Shader Size: %.2fmb"), UniqueSizeMB, TotalSizeMB);
-				UE_LOG(LogShaderLibrary, Display, TEXT("-- Layout details --"));
-				UE_LOG(LogShaderLibrary, Display, TEXT("Shadermaps: %d, of which belonging to unknown assets %d, unnamed %d"), CodeStats.NumShaderMaps, CodeStats.NumShaderMapsWithUnknownAssets, CodeStats.NumUnnamedShaderMaps);
-				UE_LOG(LogShaderLibrary, Display, TEXT("Times we moved shaders closer to the beginning of the file: %d"), CodeStats.TimesShadersMovedCloser);
 				UE_LOG(LogShaderLibrary, Display, TEXT("================="));
 			}
 
@@ -2215,28 +2194,12 @@ void FShaderCodeLibrary::CookShaderFormats(TArray<FShaderFormatDescriptor> const
 	}
 }
 
-void FShaderCodeLibrary::BeginShaderMap(EShaderPlatform ShaderPlatform, const TArray<FString>& AssociatedAssets, const FName& ShaderMapTypeName)
-{
-	if (FShaderCodeLibraryImpl::Impl)
-	{
-		FShaderCodeLibraryImpl::Impl->BeginShaderMap(ShaderPlatform, AssociatedAssets, ShaderMapTypeName);
-	}
-}
-
-void FShaderCodeLibrary::EndShaderMap(EShaderPlatform InShaderPlatform)
-{
-	if (FShaderCodeLibraryImpl::Impl)
-	{
-		FShaderCodeLibraryImpl::Impl->EndShaderMap(InShaderPlatform);
-	}
-}
-
-bool FShaderCodeLibrary::AddShaderCode(EShaderPlatform ShaderPlatform, const FShaderMapResourceCode* Code)
+bool FShaderCodeLibrary::AddShaderCode(EShaderPlatform ShaderPlatform, const FShaderMapResourceCode* Code, const FShaderMapAssetPaths& AssociatedAssets)
 {
 #if WITH_EDITOR
 	if (FShaderCodeLibraryImpl::Impl)
 	{
-		FShaderCodeLibraryImpl::Impl->AddShaderCode(ShaderPlatform, Code);
+		FShaderCodeLibraryImpl::Impl->AddShaderCode(ShaderPlatform, Code, AssociatedAssets);
 		return true;
 	}
 #endif// WITH_EDITOR

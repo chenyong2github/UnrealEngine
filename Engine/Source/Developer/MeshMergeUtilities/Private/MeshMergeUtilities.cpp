@@ -2720,7 +2720,7 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 		FString OutputPath = StaticMesh->GetPathName();
 
 		// make sure it has a new lighting guid
-		StaticMesh->LightingGuid = FGuid::NewGuid();
+		StaticMesh->SetLightingGuid();
 		if (InSettings.bGenerateLightMapUV)
 		{
 			StaticMesh->LightMapResolution = InSettings.TargetLightMapResolution;
@@ -2774,7 +2774,7 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 		
 		auto IsMaterialImportedNameUnique = [&StaticMesh](FName ImportedMaterialSlotName)
 		{
-			for (const FStaticMaterial& StaticMaterial : StaticMesh->StaticMaterials)
+			for (const FStaticMaterial& StaticMaterial : StaticMesh->GetStaticMaterials())
 			{
 #if WITH_EDITOR
 				if (StaticMaterial.ImportedMaterialSlotName == ImportedMaterialSlotName)
@@ -2803,7 +2803,7 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 				MaterialSlotName = *(DataTracker.GetMaterialSlotName(Material).ToString() + TEXT("_") + FString::FromInt(Counter++));
 			}
 
-			StaticMesh->StaticMaterials.Add(FStaticMaterial(Material, MaterialSlotName));
+			StaticMesh->GetStaticMaterials().Add(FStaticMaterial(Material, MaterialSlotName));
 		}
 
 		for(UMaterialInterface* ImposterMaterial : ImposterMaterials)
@@ -2815,7 +2815,7 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 			{
 				MaterialSlotName = *(ImposterMaterial->GetName() + TEXT("_") + FString::FromInt(Counter++));
 			}
-			StaticMesh->StaticMaterials.Add(FStaticMaterial(ImposterMaterial, MaterialSlotName));
+			StaticMesh->GetStaticMaterials().Add(FStaticMaterial(ImposterMaterial, MaterialSlotName));
 		}
 
 		if (InSettings.bMergePhysicsData)
@@ -2823,18 +2823,18 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 			StaticMesh->CreateBodySetup();
 			if (BodySetupSource)
 			{
-				StaticMesh->BodySetup->CopyBodyPropertiesFrom(BodySetupSource);
+				StaticMesh->GetBodySetup()->CopyBodyPropertiesFrom(BodySetupSource);
 			}
 
-			StaticMesh->BodySetup->AggGeom = FKAggregateGeom();
+			StaticMesh->GetBodySetup()->AggGeom = FKAggregateGeom();
 			// Copy collision from the source meshes
 			for (const FKAggregateGeom& Geom : PhysicsGeometry)
 			{
-				StaticMesh->BodySetup->AddCollisionFrom(Geom);
+				StaticMesh->GetBodySetup()->AddCollisionFrom(Geom);
 			}
 
 			// Bake rotation into verts of convex hulls, so they scale correctly after rotation
-			for (FKConvexElem& ConvexElem : StaticMesh->BodySetup->AggGeom.ConvexElems)
+			for (FKConvexElem& ConvexElem : StaticMesh->GetBodySetup()->AggGeom.ConvexElems)
 			{
 				ConvexElem.BakeTransformToVerts();
 			}
@@ -2876,7 +2876,7 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 			{
 				MaterialSlotName = *(MergedMaterial->GetName() + TEXT("_") + FString::FromInt(Counter++));
 			}
-			StaticMesh->StaticMaterials.Add(FStaticMaterial(MergedMaterial, MaterialSlotName));
+			StaticMesh->GetStaticMaterials().Add(FStaticMaterial(MergedMaterial, MaterialSlotName));
 			StaticMesh->UpdateUVChannelData(false);
 		}
 
@@ -3420,7 +3420,7 @@ void FMeshMergeUtilities::ExtractPhysicsDataFromComponents(const TArray<UPrimiti
 			UStaticMesh* SrcMesh = StaticMeshComp->GetStaticMesh();
 			if (SrcMesh)
 			{
-				BodySetup = SrcMesh->BodySetup;
+				BodySetup = SrcMesh->GetBodySetup();
 			}
 			ComponentToWorld = StaticMeshComp->GetComponentToWorld();
 		}

@@ -638,7 +638,6 @@ FMaterialInstanceEditor::~FMaterialInstanceEditor()
 		UPackage* Package = MaterialEditorInstance->SourceInstance->GetOutermost();
 		if (Package && Package->IsDirty() && Package != GetTransientPackage())
 		{
-			ClearDebugViewMaterials(MaterialEditorInstance->SourceInstance);
 			FMaterialEditorUtilities::BuildTextureStreamingData(MaterialEditorInstance->SourceInstance);
 		}
 	}
@@ -1357,6 +1356,20 @@ void FMaterialInstanceEditor::DrawSamplerWarningStrings(FCanvas* Canvas, int32& 
 										FText::FromName(RuntimeVirtualTextureParameterValue->ParameterInfo.Name),
 										FText::FromString(RuntimeVirtualTexture->GetSinglePhysicalSpace() ?  TEXT("true") : TEXT("false")),
 										FText::FromString(Expression->bSinglePhysicalSpace ? TEXT("true") : TEXT("false")),
+										FText::FromString(RuntimeVirtualTexture->GetPathName())),
+									FontToUse,
+									FLinearColor(1, 1, 0));
+
+								DrawPositionY += SpacingBetweenLines;
+							}
+							if (Expression && Expression->bAdaptive != RuntimeVirtualTexture->GetAdaptivePageTable())
+							{
+								Canvas->DrawShadowedText(
+									5, DrawPositionY,
+									FText::Format(LOCTEXT("VirtualTextureAdaptiveWarning", "Warning: '{0}' interprets the adaptive page table setting as {1} not {2}, {3}"),
+										FText::FromName(RuntimeVirtualTextureParameterValue->ParameterInfo.Name),
+										FText::FromString(RuntimeVirtualTexture->GetAdaptivePageTable() ? TEXT("true") : TEXT("false")),
+										FText::FromString(Expression->bAdaptive ? TEXT("true") : TEXT("false")),
 										FText::FromString(RuntimeVirtualTexture->GetPathName())),
 									FontToUse,
 									FLinearColor(1, 1, 0));

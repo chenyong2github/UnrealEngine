@@ -65,13 +65,10 @@ public:
 	bool bDrawRadiusCircle = true;
 
 	UPROPERTY()
-	bool bDrawFalloffCircle = true;
-
-	UPROPERTY()
 	int SampleStepCount = 32;
 
 	UPROPERTY()
-	FLinearColor LineColor = FLinearColor(0.96f, 0.06f, 0.06f);
+	FLinearColor LineColor = FLinearColor(0.06f, 0.96f, 0.06f);
 
 	UPROPERTY()
 	float LineThickness = 2.0f;

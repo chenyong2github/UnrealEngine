@@ -151,6 +151,8 @@ UMovieSceneComponentTransformSystem::UMovieSceneComponentTransformSystem(const F
 	{
 		DefineImplicitPrerequisite(UMovieScenePiecewiseFloatBlenderSystem::StaticClass(), GetClass());
 		DefineImplicitPrerequisite(UFloatChannelEvaluatorSystem::StaticClass(), GetClass());
+
+		DefineComponentConsumer(GetClass(), UE::MovieScene::FMovieSceneTracksComponentTypes::Get()->ComponentTransform.PropertyTag);
 	}
 }
 

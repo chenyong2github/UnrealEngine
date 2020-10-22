@@ -99,6 +99,8 @@ void USoundControlBusMix::LoadMixFromProfile()
 		FSlateNotificationManager::Get().AddNotification(Info);
 	}
 #endif // WITH_EDITOR
+
+	ActivateMix();
 }
 
 #if WITH_EDITOR
@@ -120,13 +122,24 @@ void USoundControlBusMix::OnPropertyChanged(FProperty* Property, EPropertyChange
 	{
 		if (InChangeType == EPropertyChangeType::Interactive || InChangeType == EPropertyChangeType::ValueSet)
 		{
-			if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(FSoundModulationMixValue, TargetValue))
+			if ((Property->GetFName() == GET_MEMBER_NAME_CHECKED(FSoundModulationMixValue, TargetValue))
+				|| (Property->GetFName() == GET_MEMBER_NAME_CHECKED(FSoundControlBusMixStage, Bus)))
 			{
 				for (FSoundControlBusMixStage& Stage : MixStages)
 				{
 					if (Stage.Bus)
 					{
 						Stage.Value.TargetValue = FMath::Clamp(Stage.Value.TargetValue, 0.0f, 1.0f);
+						float UnitValue = Stage.Value.TargetValue;
+						if (USoundModulationParameter* Parameter = Stage.Bus->Parameter)
+						{
+							UnitValue = Parameter->ConvertNormalizedToUnit(Stage.Value.TargetValue);
+						}
+
+						if (!FMath::IsNearlyEqual(Stage.Value.TargetUnitValue, UnitValue, KINDA_SMALL_NUMBER))
+						{
+							Stage.Value.TargetUnitValue = UnitValue;
+						}
 					}
 				}
 			}

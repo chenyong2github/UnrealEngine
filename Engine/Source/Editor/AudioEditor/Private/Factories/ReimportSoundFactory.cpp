@@ -42,9 +42,7 @@ bool UReimportSoundFactory::CanReimport(UObject* Obj, TArray<FString>& OutFilena
 			if (OverwriteOtherAssetTypes < 0)
 			{
 				EAppReturnType::Type ReturnValue = FMessageDialog::Open(EAppMsgType::YesNo, FText::Format(
-					NSLOCTEXT("ReimportSoundFactory", "ReImportOverwriteWarning",
-						"You are attempting to re-import over existing sound(s) that was/were previously imported "
-						"from a different source extension(s)/format(s).  Would you like to use the new extension(s)/format(s) instead?"),
+					NSLOCTEXT("ReimportSoundFactory", "ReImportOverwriteWarning", "You are attempting to re-import over existing sound(s) that was/were previously imported from a different source extension(s)/format(s).  Would you like to use the new extension(s)/format(s) instead?"),
 					FText::FromName(*SoundWave->GetName())));
 
 				OverwriteOtherAssetTypes = ReturnValue == EAppReturnType::Yes ? 1 : 0;

@@ -84,13 +84,24 @@ public:
 	{}
 };
 
-class FDefaultMainMS : public FBuiltInRayTracingShader
+class FDefaultPayloadMS : public FBuiltInRayTracingShader
 {
-	DECLARE_EXPORTED_SHADER_TYPE(FDefaultMainMS, Global, RENDERCORE_API);
+	DECLARE_EXPORTED_SHADER_TYPE(FDefaultPayloadMS, Global, RENDERCORE_API);
 public:
 
-	FDefaultMainMS() = default;
-	FDefaultMainMS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+	FDefaultPayloadMS() = default;
+	FDefaultPayloadMS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+		: FBuiltInRayTracingShader(Initializer)
+	{}
+};
+
+class FPackedMaterialClosestHitPayloadMS : public FBuiltInRayTracingShader
+{
+	DECLARE_EXPORTED_SHADER_TYPE(FPackedMaterialClosestHitPayloadMS, Global, RENDERCORE_API);
+public:
+
+	FPackedMaterialClosestHitPayloadMS() = default;
+	FPackedMaterialClosestHitPayloadMS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		: FBuiltInRayTracingShader(Initializer)
 	{}
 };

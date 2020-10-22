@@ -163,7 +163,7 @@ namespace ChaosTest {
 
 
 	template<class T>
-	void InitDynamicParticleBox2(TPBDRigidParticleHandle<T, 3>* Particle, const TVector<T, 3>& Scale, TArray<TVector<int32, 3>>* OutElements)
+	void InitDynamicParticleBox2(TPBDRigidParticleHandle<T, 3>* Particle, const TVector<T, 3>& Scale, FReal Margin, TArray<TVector<int32, 3>>* OutElements)
 	{
 		Particle->X() = TVector<T, 3>(0.f, 0.f, 0.f);
 		Particle->V() = TVector<T, 3>(0.f, 0.f, 0.f);
@@ -173,14 +173,15 @@ namespace ChaosTest {
 		Particle->P() = Particle->X();
 		Particle->Q() = Particle->R();
 
-		check(Scale.X == Scale.Y && Scale.X == Scale.Z);
-		T ScaleSq = Scale.X * Scale.X;
+		// Inertia assumes cube so is imcorrect for rectangular boxes
+		T MaxScale = Scale.GetMax();
+		T ScaleSq = MaxScale * MaxScale;
 		Particle->M() = 1.f;
 		Particle->InvM() = 1.f;
 		Particle->I() = PMatrix<T, 3, 3>(ScaleSq / 6.f, 0.f, 0.f, 0.f, ScaleSq / 6.f, 0.f, 0.f, 0.f, ScaleSq / 6.f);
 		Particle->InvI() = PMatrix<T, 3, 3>(6.f / ScaleSq, 0.f, 0.f, 0.f, 6.f / ScaleSq, 0.f, 0.f, 0.f, 6.f / ScaleSq);
 
-		Particle->SetDynamicGeometry(MakeUnique<TBox<T, 3>>(-Scale / 2.f, Scale / 2.f));
+		Particle->SetDynamicGeometry(MakeUnique<TBox<T, 3>>(-Scale / 2.f, Scale / 2.f, Margin));
 
 		int32 CollisionIndex = 0;
 		Particle->CollisionParticlesInitIfNeeded();
@@ -195,8 +196,8 @@ namespace ChaosTest {
 		Particle->CollisionParticles()->X(CollisionIndex++) = TVector<T, 3>(+Scale[0] / 2.f, +Scale[1] / 2.f, +Scale[2] / 2.f);
 
 		// This is needed for calculating contacts (Bounds are bigger than they need to be, even allowing for rotation)
-		Particle->SetLocalBounds(TAABB<T, 3>(TVector<T, 3>(-Scale[0]), TVector<T, 3>(Scale[0])));
-		Particle->SetWorldSpaceInflatedBounds(TAABB<T, 3>(TVector<T, 3>(-Scale[0]), TVector<T, 3>(Scale[0])));
+		Particle->SetLocalBounds(TAABB<T, 3>(TVector<T, 3>(-MaxScale), TVector<T, 3>(MaxScale)));
+		Particle->SetWorldSpaceInflatedBounds(TAABB<T, 3>(TVector<T, 3>(-MaxScale), TVector<T, 3>(MaxScale)));
 		Particle->SetHasBounds(true);
 
 		if (OutElements != nullptr)
@@ -376,10 +377,20 @@ namespace ChaosTest {
 	TPBDRigidParticleHandle<T, 3>* AppendDynamicParticleBox(TPBDRigidsSOAs<T, 3>& SOAs, const TVector<T, 3>& Scale, TArray<TVector<int32, 3>>* OutElements)
 	{
 		TArray<TPBDRigidParticleHandle<T, 3>*> Particles = SOAs.CreateDynamicParticles(1);
-		InitDynamicParticleBox2(Particles[0], Scale, OutElements);
+		InitDynamicParticleBox2(Particles[0], Scale, 0.0f, OutElements);
 		return Particles[0];
 	}
 	template TPBDRigidParticleHandle<float, 3>* AppendDynamicParticleBox(TPBDRigidsSOAs<float, 3>& Evolution, const TVector<float, 3>& Scale, TArray<Chaos::TVector<int32, 3>>* OutElements);
+
+	// Create a particle with box collision of specified size and margin (size includes margin)
+	template<class T>
+	TPBDRigidParticleHandle<T, 3>* AppendDynamicParticleBoxMargin(TPBDRigidsSOAs<T, 3>& SOAs, const TVector<T, 3>& Scale, FReal Margin, TArray<TVector<int32, 3>>* OutElements)
+	{
+		TArray<TPBDRigidParticleHandle<T, 3>*> Particles = SOAs.CreateDynamicParticles(1);
+		InitDynamicParticleBox2(Particles[0], Scale, Margin, OutElements);
+		return Particles[0];
+	}
+	template TPBDRigidParticleHandle<float, 3>* AppendDynamicParticleBoxMargin(TPBDRigidsSOAs<float, 3>& Evolution, const TVector<float, 3>& Scale, FReal Margin, TArray<Chaos::TVector<int32, 3>>* OutElements);
 
 	template<class T>
 	TPBDRigidParticleHandle<T, 3>* AppendDynamicParticleSphere(TPBDRigidsSOAs<T, 3>& SOAs, const TVector<T, 3>& Scale, TArray<TVector<int32, 3>>* OutElements)
@@ -412,7 +423,7 @@ namespace ChaosTest {
 	TPBDRigidParticleHandle<T, 3>* AppendClusteredParticleBox(TPBDRigidsSOAs<T, 3>& SOAs, const TVector<T, 3>& Scale, TArray<TVector<int32, 3>>* OutElements)
 	{
 		auto Particles = SOAs.CreateClusteredParticles(1);
-		InitDynamicParticleBox2(Particles[0], Scale, OutElements);
+		InitDynamicParticleBox2(Particles[0], Scale, 0.0f, OutElements);
 		return Particles[0];
 	}
 	template TPBDRigidParticleHandle<float, 3>* AppendClusteredParticleBox(TPBDRigidsSOAs<float, 3>& SOAs, const TVector<float, 3>& Scale, TArray<Chaos::TVector<int32, 3>>* OutElements);
@@ -581,7 +592,7 @@ namespace ChaosTest {
 
 	/**/
 	template<class T>
-	void AppendDynamicParticleConvexBox(TPBDRigidParticleHandle<T, 3> & InParticles, const TVector<T, 3>& Scale)
+	void AppendDynamicParticleConvexBox(TPBDRigidParticleHandle<T, 3> & InParticles, const TVector<T, 3>& Scale, FReal Margin)
 	{
 		Chaos::TParticles<T, 3> Cube;
 		Cube.AddParticles(9);
@@ -611,7 +622,7 @@ namespace ChaosTest {
 		InParticles.InvM() = 1.f;
 		InParticles.I() = PMatrix<T, 3, 3>(1.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 1.f);
 		InParticles.InvI() = PMatrix<T, 3, 3>(1.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 1.f);
-		InParticles.SetDynamicGeometry(MakeUnique<FConvex>(Cube));
+		InParticles.SetDynamicGeometry(MakeUnique<FConvex>(Cube));//, Margin));
 		InParticles.SetObjectStateLowLevel(EObjectStateType::Dynamic);
 
 		::ChaosTest::SetParticleSimDataToCollide({ &InParticles });
@@ -621,17 +632,25 @@ namespace ChaosTest {
 		//	Shape->SimData.Word1 = 1;
 		//}
 	}
-	template void AppendDynamicParticleConvexBox(TPBDRigidParticleHandle<float, 3> &, const TVector<float, 3>& Scale);
+	template void AppendDynamicParticleConvexBox(TPBDRigidParticleHandle<float, 3> &, const TVector<float, 3>& Scale, FReal Margin);
 
 	template<class T>
 	TPBDRigidParticleHandle<T, 3>* AppendDynamicParticleConvexBox(TPBDRigidsSOAs<T, 3>& SOAs, const TVector<T, 3>& Scale)
 	{
 		TArray<TPBDRigidParticleHandle<T, 3>*> Particles = SOAs.CreateDynamicParticles(1);
-		AppendDynamicParticleConvexBox(*Particles[0], Scale);
+		AppendDynamicParticleConvexBox(*Particles[0], Scale, 0.0f);
 		return Particles[0];
 	}
 	template TPBDRigidParticleHandle<float, 3>* AppendDynamicParticleConvexBox(TPBDRigidsSOAs<float, 3>& Evolution, const TVector<float, 3>& Scale);
 
+	template<class T>
+	TPBDRigidParticleHandle<T, 3>* AppendDynamicParticleConvexBoxMargin(TPBDRigidsSOAs<T, 3>& SOAs, const TVector<T, 3>& Scale, FReal Margin)
+	{
+		TArray<TPBDRigidParticleHandle<T, 3>*> Particles = SOAs.CreateDynamicParticles(1);
+		AppendDynamicParticleConvexBox(*Particles[0], Scale, Margin);
+		return Particles[0];
+	}
+	template TPBDRigidParticleHandle<float, 3>* AppendDynamicParticleConvexBoxMargin(TPBDRigidsSOAs<float, 3>& Evolution, const TVector<float, 3>& Scale, FReal Margin);
 
 	/**/
 	template<class T>

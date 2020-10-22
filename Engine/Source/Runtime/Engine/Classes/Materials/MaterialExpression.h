@@ -286,7 +286,7 @@ class ENGINE_API UMaterialExpression : public UObject
 	virtual void GetConnectorToolTip(int32 InputIndex, int32 OutputIndex, TArray<FString>& OutToolTip);
 
 	/** Get a tooltip for the expression itself. */
-	virtual void GetExpressionToolTip(TArray<FString>& OutToolTip) {}
+	virtual void GetExpressionToolTip(TArray<FString>& OutToolTip);
 	/**
 	 *	Returns the amount of padding to use for the label.
 	 *

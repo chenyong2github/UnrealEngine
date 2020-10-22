@@ -87,17 +87,24 @@ namespace DatasmithRevitExporter
 				return !(ElementActor is FDatasmithFacadeActorMesh || ElementActor is FDatasmithFacadeActorLight || ElementActor is FDatasmithFacadeActorCamera);
 			}
 
-			public void AddToScene(FDatasmithFacadeScene InScene, FBaseElementData InParent)
+			public void AddToScene(FDatasmithFacadeScene InScene, FBaseElementData InParent, bool bInSkipChildren, bool bInForceAdd = false)
 			{
-				foreach (FBaseElementData CurrentChild in ChildElements)
+				Element ThisElement = (this as FElementData)?.CurrentElement;
+
+				if (!bInSkipChildren)
 				{
-					CurrentChild.AddToScene(InScene, this);
+					foreach (FBaseElementData CurrentChild in ChildElements)
+					{
+						CurrentChild.AddToScene(InScene, this, false, (ThisElement == null) && bIsModified);
+					}
 				}
 
-				Element ThisElement = (this as FElementData)?.CurrentElement;
-				bool bIsThisElementCached = ThisElement != null && ThisElement.IsValidObject && (DocumentData.DirectLink?.IsElementCached(ThisElement) ?? false);
+				bool bIsCached = 
+					ThisElement != null && 
+					ThisElement.IsValidObject && 
+					(DocumentData.DirectLink?.IsElementCached(ThisElement) ?? false);
 
-				if (!bIsThisElementCached && bIsModified)
+				if ((!bIsCached && bIsModified) || bInForceAdd)
 				{
 					if (InParent == null)
 					{
@@ -218,7 +225,7 @@ namespace DatasmithRevitExporter
 
 			private Transform GetPivotTransform(Element InElement)
 			{
-				if (InElement.Location == null || (InElement as FamilyInstance) != null)
+				if ((InElement as FamilyInstance) != null)
 				{
 					return null;
 				}
@@ -230,19 +237,7 @@ namespace DatasmithRevitExporter
 
 				// Get pivot translation
 
-				if (InElement.Location.GetType() == typeof(LocationCurve))
-				{
-					LocationCurve CurveLocation = InElement.Location as LocationCurve;
-					if (CurveLocation.Curve != null && CurveLocation.Curve.IsBound)
-					{
-						Translation = CurveLocation.Curve.GetEndPoint(0);
-					}
-				}
-				else if (InElement.Location.GetType() == typeof(LocationPoint))
-				{
-					Translation = (InElement.Location as LocationPoint).Point;
-				}
-				else if (InElement.GetType() == typeof(Railing))
+				if (InElement.GetType() == typeof(Railing))
 				{
 					// Railings don't have valid location, so instead we need to get location from its path.
 					IList<Curve> Paths = (InElement as Railing).GetPath();
@@ -254,6 +249,21 @@ namespace DatasmithRevitExporter
 				else if (InElement.GetType() == typeof(StructuralConnectionHandler))
 				{
 					Translation = (InElement as StructuralConnectionHandler).GetOrigin();
+				}
+				else if (InElement.Location != null)
+				{
+					if (InElement.Location.GetType() == typeof(LocationCurve))
+					{
+						LocationCurve CurveLocation = InElement.Location as LocationCurve;
+						if (CurveLocation.Curve != null && CurveLocation.Curve.IsBound)
+						{
+							Translation = CurveLocation.Curve.GetEndPoint(0);
+						}
+					}
+					else if (InElement.Location.GetType() == typeof(LocationPoint))
+					{
+						Translation = (InElement.Location as LocationPoint).Point;
+					}
 				}
 
 				if (Translation == null)
@@ -851,53 +861,66 @@ namespace DatasmithRevitExporter
 
 			FElementData ElementData = null;
 
-			if (DirectLink?.IsElementCached(InElement) ?? false)
+			if (ActorMap.ContainsKey(InElement.Id))
 			{
-				ElementData = (FElementData)DirectLink.GetCachedElement(InElement);
-
-				if (DirectLink.IsElementModified(InElement))
+				if (DirectLink != null && DirectLink.IsElementCached(InElement))
 				{
-					
-					FDatasmithFacadeActor ExistingActor = ElementData.ElementActor;
+					return false;
+				}
+				ElementData = ActorMap[InElement.Id] as FElementData;
+			}
+			
+			if (ElementData == null)
+			{
+				if (DirectLink?.IsElementCached(InElement) ?? false)
+				{
+					ElementData = (FElementData)DirectLink.GetCachedElement(InElement);
 
-					// Remove children that are instances: they will be re-created;
-					// The reason is that we cannot uniquely identify family instances (no id) and when element changes,
-					// we need to export all of its child instances anew.
-					if (ExistingActor != null && ElementData.ChildElements.Count > 0)
+					if (DirectLink.IsElementModified(InElement))
 					{
-						List<FBaseElementData> ChildrenToRemove = new List<FBaseElementData>();
-						
-						for(int ChildIndex = 0; ChildIndex < ElementData.ChildElements.Count; ++ChildIndex)
+						FDatasmithFacadeActor ExistingActor = ElementData.ElementActor;
+
+						// Remove children that are instances: they will be re-created;
+						// The reason is that we cannot uniquely identify family instances (no id) and when element changes,
+						// we need to export all of its child instances anew.
+						if (ExistingActor != null && ElementData.ChildElements.Count > 0)
 						{
-							FBaseElementData ChildElement = ElementData.ChildElements[ChildIndex];
-
-							bool bIsFamilyIntance = ((ChildElement as FElementData) == null) && ChildElement.ElementActor.IsComponent();
-
-							if (bIsFamilyIntance)
+							List<FBaseElementData> ChildrenToRemove = new List<FBaseElementData>();
+					
+							for(int ChildIndex = 0; ChildIndex < ElementData.ChildElements.Count; ++ChildIndex)
 							{
-								ChildrenToRemove.Add(ChildElement);
+								FBaseElementData ChildElement = ElementData.ChildElements[ChildIndex];
+
+								bool bIsFamilyIntance = 
+									((ChildElement as FElementData) == null) && 
+									ChildElement.ElementActor.IsComponent();
+
+								if (bIsFamilyIntance)
+								{
+									ChildrenToRemove.Add(ChildElement);
+								}
+							}
+
+							foreach (FBaseElementData Child in ChildrenToRemove)
+							{
+								ExistingActor.RemoveChild(Child.ElementActor);
+								ElementData.ChildElements.Remove(Child);
 							}
 						}
 
-						foreach (FBaseElementData Child in ChildrenToRemove)
-						{
-							ExistingActor.RemoveChild(Child.ElementActor);
-							ElementData.ChildElements.Remove(Child);
-						}
+						ElementData.InitializePivotPlacement(ref InWorldTransform);
+						ElementData.InitializeElement(InWorldTransform, ElementData);
 					}
-
-					ElementData.InitializePivotPlacement(ref InWorldTransform);
-					ElementData.InitializeElement(InWorldTransform, ElementData);
+					else
+					{
+						ActorMap[InElement.Id] = ElementData;
+						return false; // We have up to date cache for this element.
+					}
 				}
 				else
 				{
-					ActorMap[InElement.Id] = ElementData;
-					return false; // We have up to date cache for this element.
+					ElementData = new FElementData(InElement, InWorldTransform, this);
 				}
-			}
-			else
-			{
-				ElementData = new FElementData(InElement, InWorldTransform, this);
 			}
 
 			ElementDataStack.Push(ElementData);
@@ -1132,8 +1155,6 @@ namespace DatasmithRevitExporter
 			HashSet<string> UniqueTextureNameSet
 		)
 		{
-			// TODO Cache collected actors!!!
-
 			// Add the collected meshes from the Datasmith mesh dictionary to the Datasmith scene.
 			AddCollectedMeshes(InDatasmithScene);
 
@@ -1162,7 +1183,6 @@ namespace DatasmithRevitExporter
 
 		public void WrapupScene(
 			FDatasmithFacadeScene InDatasmithScene,
-			bool bOptimizeHierarchy,
 			HashSet<string> UniqueTextureNameSet
 		)
 		{
@@ -1191,9 +1211,32 @@ namespace DatasmithRevitExporter
 			}
 
 			// Add the collected actors from the Datasmith actor dictionary to the Datasmith scene.
-			foreach (FBaseElementData CollectedActor in ActorMap.Values)
+			foreach (var ActorEntry in ActorMap)
 			{
-				CollectedActor.AddToScene(InDatasmithScene, null);
+				Element CollectedElement = CurrentDocument.GetElement(ActorEntry.Key);
+
+				if (DirectLink != null && CollectedElement.GetType() == typeof(RevitLinkInstance))
+				{
+					Document LinkedDoc = (CollectedElement as RevitLinkInstance).GetLinkDocument();
+					if (LinkedDoc != null)
+					{
+						DirectLink.OnBeginLinkedDocument(LinkedDoc);
+						foreach (FBaseElementData CurrentChild in ActorEntry.Value.ChildElements)
+						{
+							CurrentChild.AddToScene(InDatasmithScene, ActorEntry.Value, false);
+						}
+						DirectLink.OnEndLinkedDocument();
+						ActorEntry.Value.AddToScene(InDatasmithScene, null, true);
+					}
+					else
+					{
+						ActorEntry.Value.AddToScene(InDatasmithScene, null, false);
+					}
+				}
+				else
+				{
+					ActorEntry.Value.AddToScene(InDatasmithScene, null, false);
+				}
 			}
 
 			// Add the collected master materials from the material data dictionary to the Datasmith scene.
@@ -1475,8 +1518,11 @@ namespace DatasmithRevitExporter
 				HostElement = CurrentDocument.GetElement((SourceElement as InsulationLiningBase).HostElementId);
 			}
 
-			// DirectLink: if host is hidden, go up the hierarchy
-			if (DirectLink != null && HostElement != null && HostElement.IsHidden(CurrentDocument.ActiveView))
+			// DirectLink: if host is hidden, go up the hierarchy (NOTE this does not apply for linked documents)
+			if (DirectLink != null && 
+				HostElement != null && 
+				CurrentDocument.ActiveView != null && 
+				HostElement.IsHidden(CurrentDocument.ActiveView))
 			{
 				return GetHostElement(HostElement.Id);
 			}

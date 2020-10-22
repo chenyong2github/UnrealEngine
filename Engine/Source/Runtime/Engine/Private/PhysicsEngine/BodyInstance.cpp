@@ -1048,6 +1048,8 @@ void FBodyInstance::UpdatePhysicsFilterData()
 		{
 			PhysScene->UpdateActorInAccelerationStructure(Actor);
 		}
+		// Always wake actors up when collision filters change
+		FPhysicsInterface::WakeUp_AssumesLocked(Actor);
 #endif
 	});
 
@@ -2048,11 +2050,42 @@ bool FBodyInstance::UpdateBodyScale(const FVector& InScale3D, bool bForceUpdate)
 					// PhysX supports translation, we currently do not.
 					CHAOS_ENSURE(RelativeTM.GetTranslation() == FVector(0, 0, 0));
 
+					auto CreateTriGeomInstanced = [](auto InObject, TArray<TUniquePtr<FImplicitObject>>& OutGeoArray)
+					{
+						TUniquePtr<TImplicitObjectInstanced<FTriangleMeshImplicitObject>> NewTriangleMesh = MakeUnique<TImplicitObjectInstanced<FTriangleMeshImplicitObject>>(InObject);
+						OutGeoArray.Emplace(MoveTemp(NewTriangleMesh));
+					};
+
+					auto CreateTriGeomScaled = [](auto InObject, TArray<TUniquePtr<FImplicitObject>>& OutGeoArray, const FVec3& InScale)
+					{
+						TUniquePtr<TImplicitObjectScaled<FTriangleMeshImplicitObject>> NewTriangleMesh = MakeUnique<TImplicitObjectScaled<FTriangleMeshImplicitObject>>(MoveTemp(InObject), InScale);
+						OutGeoArray.Emplace(MoveTemp(NewTriangleMesh));
+					};
+
+					auto CreateTriGeomAuto = [&CreateTriGeomInstanced, &CreateTriGeomScaled](auto InObject, TArray<TUniquePtr<FImplicitObject>>& OutGeoArray, const FVec3& InScale)
+					{
+						if(InScale == FVec3(1.0f, 1.0f, 1.0f))
+						{
+							CreateTriGeomInstanced(InObject, OutGeoArray);
+						}
+						else
+						{
+							CreateTriGeomScaled(InObject, OutGeoArray, InScale);
+						}
+					};
+
 					TSharedPtr<FTriangleMeshImplicitObject, ESPMode::ThreadSafe> InnerTriangleMesh = nullptr;
 					if (IsScaled(ImplicitType))
 					{
 						const TImplicitObjectScaled<FTriangleMeshImplicitObject>* ScaledTriangleMesh = (static_cast<const TImplicitObjectScaled<FTriangleMeshImplicitObject>*>(&ImplicitObject));
 						InnerTriangleMesh = ScaledTriangleMesh->GetSharedObject();
+
+						if(!InnerTriangleMesh)
+						{
+							// While a body setup will instantiate the triangle mesh as a shared geometry, other methods might not (e.g. retopologized landscape)
+							TImplicitObjectScaled<FTriangleMeshImplicitObject>::ObjectType InnerObject = ScaledTriangleMesh->Object();
+							CreateTriGeomScaled(ScaledTriangleMesh->Object(), NewGeometry, AdjustedScale3D);
+						}
 					}
 					else if (IsInstanced(ImplicitType))
 					{
@@ -2065,17 +2098,10 @@ bool FBodyInstance::UpdateBodyScale(const FVector& InScale3D, bool bForceUpdate)
 						break;
 					}
 
-					if (AdjustedScale3D == FVec3(1.0f, 1.0f, 1.0f))
+					if(InnerTriangleMesh)
 					{
-						TUniquePtr<TImplicitObjectInstanced<FTriangleMeshImplicitObject>> NewTriangleMesh = MakeUnique<TImplicitObjectInstanced<FTriangleMeshImplicitObject>>(InnerTriangleMesh);
-						NewGeometry.Emplace(MoveTemp(NewTriangleMesh));
+						CreateTriGeomAuto(MoveTempIfPossible(InnerTriangleMesh), NewGeometry, AdjustedScale3D);
 					}
-					else
-					{
-						TUniquePtr<TImplicitObjectScaled<FTriangleMeshImplicitObject>> NewTriangleMesh = MakeUnique<TImplicitObjectScaled<FTriangleMeshImplicitObject>>(MoveTemp(InnerTriangleMesh), AdjustedScale3D);
-						NewGeometry.Emplace(MoveTemp(NewTriangleMesh));
-					}
-
 
 					bSuccess = true;
 

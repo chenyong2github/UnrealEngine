@@ -311,12 +311,20 @@ bool FAmfVideoEncoder::Initialize(const FVideoEncoderConfig& InConfig)
 		UE_LOG(LogAVEncoder, Fatal, TEXT("AMF not supported with a %s renderer"), *RHIName);
 	}
 
-	ID3D11Device* DxDevice = static_cast<ID3D11Device*>(GDynamicRHI->RHIGetNativeDevice());
+	TRefCountPtr<ID3D11Device> DxDevice(static_cast<ID3D11Device*>(GDynamicRHI->RHIGetNativeDevice()));
+	// Work-around for the EOS overlay to get an unwrapped, raw ID3D11Device
+	{
+		TRefCountPtr<ID3D11DeviceContext> DeviceContext;
+		DxDevice->GetImmediateContext(DeviceContext.GetInitReference());
+		TRefCountPtr<ID3D11Device> UnwrappedDevice;
+		DeviceContext->GetDevice(UnwrappedDevice.GetInitReference());
+		DxDevice = MoveTemp(UnwrappedDevice);
+	}
 
 	CHECK_AMF_RET(AmfFactory->CreateContext(&AmfContext));
 
 	checkf(DxDevice != nullptr, TEXT("Cannot initialize NvEnc with invalid device"));
-	CHECK_AMF_RET(AmfContext->InitDX11(DxDevice));
+	CHECK_AMF_RET(AmfContext->InitDX11(DxDevice.GetReference()));
 
 	CHECK_AMF_RET(AmfFactory->CreateComponent(AmfContext, AMFVideoEncoderVCE_AVC, &AmfEncoder));
 

@@ -12,7 +12,6 @@
 
 #include "Components/SceneComponent.h"
 #include "Components/DisplayClusterCameraComponent.h"
-#include "Components/DisplayClusterRootComponent.h"
 #include "Components/DisplayClusterSceneComponent.h"
 #include "Components/DisplayClusterScreenComponent.h"
 
@@ -119,18 +118,6 @@ ADisplayClusterRootActor* FDisplayClusterGameManager::GetRootActor() const
 	FScopeLock Lock(&InternalsSyncScope);
 	return DisplayClusterRootActor;
 }
-
-UDisplayClusterRootComponent* FDisplayClusterGameManager::GetRootComponent() const
-{
-	FScopeLock Lock(&InternalsSyncScope);
-	if (DisplayClusterRootActor)
-	{
-		return DisplayClusterRootActor->GetDisplayClusterRootComponent();
-	}
-
-	return nullptr;
-}
-
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 // FDisplayClusterGameManager

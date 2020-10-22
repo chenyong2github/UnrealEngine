@@ -44,6 +44,9 @@ struct FRigUnit_DebugLine : public FRigUnit_DebugBaseMutable
 	bool bEnabled;
 };
 
+/**
+ * Draws a line in the viewport given a start and end vector
+ */
 USTRUCT(meta=(DisplayName="Draw Line"))
 struct FRigUnit_DebugLineItemSpace : public FRigUnit_DebugBaseMutable
 {

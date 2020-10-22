@@ -425,6 +425,7 @@ namespace Chaos
 							FColor DiscColor = FColor(200, 0, 0);
 							FColor NormalColor = FColor(200, 0, 0);
 							FColor ImpulseColor = FColor(0, 0, 200);
+							FColor PushOutImpusleColor = FColor(100, 0, 0);
 							if (ManifoldPoint.bInsideStaticFrictionCone)
 							{
 								DiscColor = FColor(150, 200, 0);
@@ -439,6 +440,12 @@ namespace Chaos
 							}
 							DrawCollisionImpl(Location, Normal, ManifoldPoint.ContactPoint.Phi, ManifoldPoint.NetImpulse, DiscColor, NormalColor, ImpulseColor, ColorScale, Settings);
 							FDebugDrawQueue::GetInstance().DrawDebugLine(Location, OldLocation, FColor::White, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
+
+							if ((Settings.ImpulseScale > 0) && !FMath::IsNearlyZero(ManifoldPoint.NetPushOutImpulse))
+							{
+								FColor Color = (ColorScale * PushOutImpusleColor).ToFColor(false);
+								FDebugDrawQueue::GetInstance().DrawDebugLine(Location, Location + Settings.DrawScale * Settings.ImpulseScale * ManifoldPoint.NetPushOutImpulse * Normal, Color, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
+							}
 						}
 					}
 					else

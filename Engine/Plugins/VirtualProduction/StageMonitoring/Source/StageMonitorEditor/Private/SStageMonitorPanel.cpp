@@ -118,39 +118,44 @@ void SStageMonitorPanel::Construct(const FArguments& InArgs)
 			// Toolbar
 			+ SVerticalBox::Slot()
 			.AutoHeight()
-			.Padding(10.f, 10.f, 10.f, 10.f)
+			.Padding(5.f, 5.f, 5.f, 5.f)
 			[
 				MakeToolbarWidget()
 			]
-			// Data Provider List
 			+ SVerticalBox::Slot()
-			.FillHeight(.2)
-			.Padding(10.f, 0.f, 10.f, 10.f)
-			[
-				SNew(SBorder)
-				.HAlign(HAlign_Fill)
-				.VAlign(VAlign_Fill)
-				.Padding(FMargin(4.f, 4.f, 4.f, 4.f))
-				[
-					SAssignNew(DataProviderList, SDataProviderListView, CurrentSession)
-				]
-			]
-			// Data Provider Activities
-			+ SVerticalBox::Slot()
+			.Padding(5.f, 5.f, 5.f, 5.f)
 			.FillHeight(.8)
-			.Padding(10.f, 0.f, 10.f, 10.f)
 			[
-				SNew(SBorder)
-				.HAlign(HAlign_Fill)
-				.VAlign(VAlign_Fill)
-				.Padding(FMargin(4.f, 4.f, 4.f, 4.f))
+				SNew(SSplitter)
+				.Orientation(Orient_Vertical)
+				+ SSplitter::Slot()
+				.Value(.25f)
 				[
-					SAssignNew(DataProviderActivities, SDataProviderActivities, SharedThis<SStageMonitorPanel>(this), CurrentSession)
+					// Data Provider List
+					SNew(SBorder)
+					.HAlign(HAlign_Fill)
+					.VAlign(VAlign_Fill)
+					.Padding(FMargin(4.f, 4.f, 4.f, 4.f))
+					[
+						SAssignNew(DataProviderList, SDataProviderListView, CurrentSession)
+					]
+				]
+				+ SSplitter::Slot()
+				.Value(.75f)
+				[
+					// Data Provider Activities
+					SNew(SBorder)
+					.HAlign(HAlign_Fill)
+					.VAlign(VAlign_Fill)
+					.Padding(FMargin(4.f, 4.f, 4.f, 4.f))
+					[
+						SAssignNew(DataProviderActivities, SDataProviderActivities, SharedThis<SStageMonitorPanel>(this), CurrentSession)
+					]
 				]
 			]
-
 			// Monitor status
 			+ SVerticalBox::Slot()
+			.Padding(5.f, 5.f, 5.f, 5.f)
 			.AutoHeight()
 			[
 				SNew(SBorder)
@@ -227,7 +232,7 @@ void SStageMonitorPanel::Construct(const FArguments& InArgs)
 					.HAlign(HAlign_Center)
 					[
 						SNew(SButton)
-						.ContentPadding(FMargin(4, 2))
+						.ContentPadding(FMargin(4.f, 2.f))
 						.OnClicked(this, &SStageMonitorPanel::OnCancelRequest)
 						[
 							SNew(STextBlock)
@@ -272,7 +277,7 @@ TSharedRef<SWidget> SStageMonitorPanel::MakeToolbarWidget()
 			SNew(SButton)
 			.ButtonStyle(FEditorStyle::Get(), "ToggleButton")
 			.ToolTipText(LOCTEXT("LoadSession", "Loads a previous stage monitoring session."))
-			.ContentPadding(FMargin(4, 4))
+			.ContentPadding(FMargin(4.f, 4.f))
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Center)
 			.OnClicked(this, &SStageMonitorPanel::OnLoadSessionClicked)
@@ -293,7 +298,7 @@ TSharedRef<SWidget> SStageMonitorPanel::MakeToolbarWidget()
 			SNew(SButton)
 			.ButtonStyle(FEditorStyle::Get(), "ToggleButton")
 			.ToolTipText(LOCTEXT("SaveSession", "Save current stage monitoring session."))
-			.ContentPadding(FMargin(4, 4))
+			.ContentPadding(FMargin(4.f, 4.f))
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Center)
 			.OnClicked(this, &SStageMonitorPanel::OnSaveSessionClicked)
@@ -311,18 +316,32 @@ TSharedRef<SWidget> SStageMonitorPanel::MakeToolbarWidget()
 		.VAlign(VAlign_Center)
 		.Padding(4.f)
 		[
-			SNew(SButton)
-			.ButtonStyle(FEditorStyle::Get(), "ToggleButton")
-			.ToolTipText(LOCTEXT("ClearAllEntries", "Clear all entries received by the stage monitor."))
-			.ContentPadding(FMargin(4, 4))
-			.HAlign(HAlign_Center)
-			.VAlign(VAlign_Center)
-			.OnClicked(this, &SStageMonitorPanel::OnClearEntriesClicked)
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.FillWidth(1.f)
 			[
-				SNew(STextBlock)
-				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.14"))
-				.Text(FEditorFontGlyphs::Eraser)
-				.ColorAndOpacity(FLinearColor::White)
+				SNew(SButton)
+				.ButtonStyle(FEditorStyle::Get(), "ToggleButton")
+				.ToolTipText(LOCTEXT("ClearButton_ToolTip", "Clear unresponsive providers and all entries."))
+				.ContentPadding(FMargin(4.f, 4.f))
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
+				.OnClicked(this, &SStageMonitorPanel::OnClearClicked)
+				[
+					SNew(STextBlock)
+					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.14"))
+					.Text(FEditorFontGlyphs::Eraser)
+					.ColorAndOpacity(FLinearColor::White)
+				]
+			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			[
+				SNew(SComboButton)
+				.ButtonStyle(FEditorStyle::Get(), "ToggleButton")
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
+				.OnGetMenuContent(this, &SStageMonitorPanel::OnClearBuildMenu)
 			]
 		]
 		// todo : Show Message Viewer 
@@ -352,7 +371,7 @@ TSharedRef<SWidget> SStageMonitorPanel::MakeToolbarWidget()
 			SNew(SButton)
 			.ButtonStyle(FEditorStyle::Get(), "ToggleButton")
 			.ToolTipText(LOCTEXT("ShowProjectSettings_Tip", "Show the StageMonitor project settings"))
-			.ContentPadding(FMargin(4, 4))
+			.ContentPadding(FMargin(4.f, 4.f))
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Center)
 			.OnClicked(this, &SStageMonitorPanel::OnShowProjectSettingsClicked)
@@ -421,19 +440,63 @@ TSharedRef<SWidget> SStageMonitorPanel::MakeToolbarWidget()
 
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
-FReply SStageMonitorPanel::OnClearEntriesClicked()
+FReply SStageMonitorPanel::OnClearClicked()
+{
+	OnClearUnresponsiveProvidersClicked();
+	OnClearEntriesClicked();
+
+	return FReply::Handled();
+}
+
+void SStageMonitorPanel::OnClearEntriesClicked()
 {
 	if (CurrentSession.IsValid())
 	{
 		CurrentSession->ClearAll();
 	}
+}
 
-	return FReply::Handled();
+void SStageMonitorPanel::OnClearUnresponsiveProvidersClicked()
+{
+	if (CurrentSession.IsValid())
+	{
+		CurrentSession->ClearUnresponsiveProviders();
+	}
+}
+
+TSharedRef<SWidget> SStageMonitorPanel::OnClearBuildMenu()
+{
+	constexpr bool bShouldCloseMenuAfterSelection = true;
+	FMenuBuilder MenuBuilder(bShouldCloseMenuAfterSelection, nullptr);
+
+	//Reset the unresponsive sources and entries from the session
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("ClearUnresponsiveProvidersLabel", "Clear Unresponsive Providers"),
+		LOCTEXT("ClearUnresponsiveProvidersTooltip", "Clears providers that not communicating anymore."),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateSP(this, &SStageMonitorPanel::OnClearUnresponsiveProvidersClicked),
+			FCanExecuteAction(),
+			FIsActionChecked())
+	);
+
+	//Reset all entries currently logged for this session
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("ClearEntriesLabel", "Clear All Entries"),
+		LOCTEXT("ClearEntriesTooltip", "Clears all entries received during the session."),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateSP(this, &SStageMonitorPanel::OnClearEntriesClicked),
+			FCanExecuteAction(),
+			FIsActionChecked())
+	);
+
+	return MenuBuilder.MakeWidget();
 }
 
 FReply SStageMonitorPanel::OnShowProjectSettingsClicked()
 {
-	FModuleManager::LoadModuleChecked<ISettingsModule>("Settings").ShowViewer("Project", "Plugins", "Stage Monitor");
+	FModuleManager::LoadModuleChecked<ISettingsModule>("Settings").ShowViewer("Project", "Plugins", "StageMonitoringSettings");
 	return FReply::Handled();
 }
 

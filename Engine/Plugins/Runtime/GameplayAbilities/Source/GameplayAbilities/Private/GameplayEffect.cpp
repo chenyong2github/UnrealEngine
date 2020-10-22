@@ -2724,12 +2724,15 @@ bool FActiveGameplayEffectsContainer::InternalExecuteMod(FGameplayEffectSpec& Sp
 			}
 
 #if ENABLE_VISUAL_LOG
-			DebugExecutedGameplayEffectData DebugData;
-			DebugData.GameplayEffectName = Spec.Def->GetName();
-			DebugData.ActivationState = "INSTANT";
-			DebugData.Attribute = ModEvalData.Attribute;
-			DebugData.Magnitude = Owner->GetNumericAttribute(ModEvalData.Attribute) - OldValueOfProperty;
-			DebugExecutedGameplayEffects.Add(DebugData);
+			if (FVisualLogger::IsRecording())
+			{
+				DebugExecutedGameplayEffectData DebugData;
+				DebugData.GameplayEffectName = Spec.Def->GetName();
+				DebugData.ActivationState = "INSTANT";
+				DebugData.Attribute = ModEvalData.Attribute;
+				DebugData.Magnitude = Owner->GetNumericAttribute(ModEvalData.Attribute) - OldValueOfProperty;
+				DebugExecutedGameplayEffects.Add(DebugData);
+			}
 #endif // ENABLE_VISUAL_LOG
 
 			bExecuted = true;
@@ -3811,7 +3814,8 @@ bool FActiveGameplayEffectsContainer::HasApplicationImmunityToSpec(const FGamepl
 
 bool FActiveGameplayEffectsContainer::NetDeltaSerialize(FNetDeltaSerializeInfo& DeltaParms)
 {
-	if (Owner)
+	// these tests are only necessary when sending
+	if (DeltaParms.Writer != nullptr && Owner != nullptr)
 	{
 		EGameplayEffectReplicationMode ReplicationMode = Owner->ReplicationMode;
 		if (ReplicationMode == EGameplayEffectReplicationMode::Minimal)

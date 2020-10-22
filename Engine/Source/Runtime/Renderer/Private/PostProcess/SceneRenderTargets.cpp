@@ -1140,11 +1140,14 @@ void FSceneRenderTargets::AllocSceneColor(FRHICommandList& RHICmdList)
 	check(GetSceneColorForCurrentShadingPath());
 }
 
-void FSceneRenderTargets::AllocMobileMultiViewSceneColor(FRHICommandList& RHICmdList, const int32 ScaleFactor)
+void FSceneRenderTargets::AllocMobileMultiViewSceneColor(FRHICommandList& RHICmdList)
 {
 	// For mono support. 
 	// Ensure we clear alpha to 0. We use alpha to tag which pixels had objects rendered into them so we can mask them out for the mono pass
-	if (MobileMultiViewSceneColor && !(MobileMultiViewSceneColor->GetRenderTargetItem().TargetableTexture->GetClearBinding() == DefaultColorClear))
+	if (MobileMultiViewSceneColor && 
+		(!(MobileMultiViewSceneColor->GetRenderTargetItem().TargetableTexture->GetClearBinding() == DefaultColorClear) || 
+		   MobileMultiViewSceneColor->GetDesc().GetSize().X != BufferSize.X || 
+		   MobileMultiViewSceneColor->GetDesc().GetSize().Y != BufferSize.Y))
 	{
 		MobileMultiViewSceneColor.SafeRelease();
 	}
@@ -1154,9 +1157,8 @@ void FSceneRenderTargets::AllocMobileMultiViewSceneColor(FRHICommandList& RHICmd
 	if (!MobileMultiViewSceneColor)
 	{
 		const EPixelFormat SceneColorBufferFormat = GetSceneColorFormat();
-		const FIntPoint MultiViewBufferSize(BufferSize.X / ScaleFactor, BufferSize.Y);
 
-		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(MultiViewBufferSize, SceneColorBufferFormat, DefaultColorClear, TexCreate_None, TexCreate_RenderTargetable | TexCreate_ShaderResource, false));
+		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(BufferSize, SceneColorBufferFormat, DefaultColorClear, TexCreate_None, TexCreate_RenderTargetable | TexCreate_ShaderResource, false));
 		Desc.NumSamples = GetNumSceneColorMSAASamples(CurrentFeatureLevel);
 		Desc.ArraySize = 2;
 		Desc.bIsArray = true;
@@ -1166,20 +1168,21 @@ void FSceneRenderTargets::AllocMobileMultiViewSceneColor(FRHICommandList& RHICmd
 	check(MobileMultiViewSceneColor);
 }
 
-void FSceneRenderTargets::AllocMobileMultiViewDepth(FRHICommandList& RHICmdList, const int32 ScaleFactor)
+void FSceneRenderTargets::AllocMobileMultiViewDepth(FRHICommandList& RHICmdList)
 {
 	// For mono support. We change the default depth clear value to the mono clip plane to clip the stereo portion of the frustum.
-	if (MobileMultiViewSceneDepthZ && !(MobileMultiViewSceneDepthZ->GetRenderTargetItem().TargetableTexture->GetClearBinding() == DefaultDepthClear))
+	if (MobileMultiViewSceneDepthZ && 
+		(!(MobileMultiViewSceneDepthZ->GetRenderTargetItem().TargetableTexture->GetClearBinding() == DefaultDepthClear) || 
+		  MobileMultiViewSceneDepthZ->GetDesc().GetSize().X != BufferSize.X ||
+		  MobileMultiViewSceneDepthZ->GetDesc().GetSize().Y != BufferSize.Y))
 	{
 		MobileMultiViewSceneDepthZ.SafeRelease();
 	}
 
 	if (!MobileMultiViewSceneDepthZ)
 	{
-		const FIntPoint MultiViewBufferSize(BufferSize.X / ScaleFactor, BufferSize.Y);
-
 		// Using the result of GetDepthFormat() without stencil due to packed depth-stencil not working in array frame buffers.
-		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(MultiViewBufferSize, PF_D24, DefaultDepthClear, TexCreate_None, TexCreate_DepthStencilTargetable | TexCreate_ShaderResource | TexCreate_InputAttachmentRead, false));
+		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(BufferSize, PF_D24, DefaultDepthClear, TexCreate_None, TexCreate_DepthStencilTargetable | TexCreate_ShaderResource | TexCreate_InputAttachmentRead, false));
 		Desc.Flags |= TexCreate_FastVRAM;
 		Desc.NumSamples = GetNumSceneColorMSAASamples(CurrentFeatureLevel);
 		Desc.ArraySize = 2;
@@ -1657,14 +1660,8 @@ void FSceneRenderTargets::AllocateMobileRenderTargets(FRHICommandListImmediate& 
 
 	if (bIsUsingMobileMultiView)
 	{
-		// If the plugin uses separate render targets it is required to support mobile multi-view direct
-		IStereoRenderTargetManager* const StereoRenderTargetManager = GEngine->StereoRenderingDevice.IsValid() ? GEngine->StereoRenderingDevice->GetRenderTargetManager() : nullptr;
-		const bool bIsMobileMultiViewDirectEnabled = StereoRenderTargetManager && StereoRenderTargetManager->ShouldUseSeparateRenderTarget();
-
-		const int32 ScaleFactor = (bIsMobileMultiViewDirectEnabled) ? 1 : 2;
-
-		AllocMobileMultiViewSceneColor(RHICmdList, ScaleFactor);
-		AllocMobileMultiViewDepth(RHICmdList, ScaleFactor);
+		AllocMobileMultiViewSceneColor(RHICmdList);
+		AllocMobileMultiViewDepth(RHICmdList);
 	}
 
 	AllocateVirtualTextureFeedbackBuffer(RHICmdList);

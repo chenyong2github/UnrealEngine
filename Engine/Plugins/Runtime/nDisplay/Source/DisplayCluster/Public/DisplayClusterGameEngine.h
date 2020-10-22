@@ -7,9 +7,6 @@
 #include "DisplayClusterEnums.h"
 #include "DisplayClusterConfigurationTypes.h"
 
-#include "Tickable.h"
-#include "Stats/Stats2.h"
-
 #include "DisplayClusterGameEngine.generated.h"
 
 
@@ -18,27 +15,6 @@ class IPDisplayClusterInputManager;
 class IDisplayClusterNodeController;
 class IDisplayClusterClusterSyncObject;
 class UDisplayClusterConfigurationData;
-
-
-/**
- * This helper allows to properly synchronize objects on the current frame
- */
-UCLASS()
-class DISPLAYCLUSTER_API UDisplayClusterGameEngineTickableHelper
-	: public UObject
-	, public FTickableGameObject
-{
-	GENERATED_BODY()
-
-public:
-	virtual ETickableTickType GetTickableTickType() const override
-	{
-		return ETickableTickType::Always;
-	}
-
-	virtual TStatId GetStatId() const override;
-	virtual void Tick(float DeltaSeconds) override;
-};
 
 
 /**
@@ -76,6 +52,4 @@ private:
 	FDisplayClusterConfigurationDiagnostics Diagnostics;
 
 	EDisplayClusterOperationMode OperationMode = EDisplayClusterOperationMode::Disabled;
-
-	UDisplayClusterGameEngineTickableHelper* TickableHelper;
 };

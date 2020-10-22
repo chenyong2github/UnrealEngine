@@ -1140,6 +1140,7 @@ void UMovieSceneControlRigParameterSection::ReconstructChannelProxy(bool bForce)
 									case ERigControlType::Scale:
 									case ERigControlType::Rotator:
 									case ERigControlType::Transform:
+									case ERigControlType::EulerTransform:
 									case ERigControlType::TransformNoScale:
 									{
 										Group = FText::FromName(ParentControl.GetDisplayName());
@@ -1196,6 +1197,7 @@ void UMovieSceneControlRigParameterSection::ReconstructChannelProxy(bool bForce)
 									case ERigControlType::Scale:
 									case ERigControlType::Rotator:
 									case ERigControlType::Transform:
+									case ERigControlType::EulerTransform:
 									case ERigControlType::TransformNoScale:
 									{
 										Group = FText::FromName(ParentControl.GetDisplayName());
@@ -1255,6 +1257,7 @@ void UMovieSceneControlRigParameterSection::ReconstructChannelProxy(bool bForce)
 									case ERigControlType::Scale:
 									case ERigControlType::Rotator:
 									case ERigControlType::Transform:
+									case ERigControlType::EulerTransform:
 									case ERigControlType::TransformNoScale:
 									{
 										Group = FText::FromName(ParentControl.GetDisplayName());
@@ -1311,6 +1314,7 @@ void UMovieSceneControlRigParameterSection::ReconstructChannelProxy(bool bForce)
 									case ERigControlType::Scale:
 									case ERigControlType::Rotator:
 									case ERigControlType::Transform:
+									case ERigControlType::EulerTransform:
 									case ERigControlType::TransformNoScale:
 									{
 										Group = FText::FromName(ParentControl.GetDisplayName());
@@ -2077,17 +2081,14 @@ bool UMovieSceneControlRigParameterSection::LoadAnimSequenceIntoThisSection(UAni
 	FFrameNumber EndFrame = TickResolution.AsFrameNumber(Length);
 	FFrameNumber StartFrame(0);
 
-	if (HasStartFrame())
+	Modify();
+	if (HasStartFrame() && HasEndFrame())
 	{
 		StartFrame = GetInclusiveStartFrame();
 		EndFrame = StartFrame + EndFrame;
 		SetEndFrame(EndFrame);
 	}
-	else
-	{
-		SetStartFrame(StartFrame);
-		SetEndFrame(EndFrame);
-	}
+
 
 	int32 NumFrames = Length * FrameRate;
 	NumFrames = AnimSequence->GetNumberOfFrames();
@@ -2277,7 +2278,5 @@ FIntegerParameterNameAndCurve::FIntegerParameterNameAndCurve(FName InParameterNa
 {
 	ParameterName = InParameterName;
 }
-
-
 
 #undef LOCTEXT_NAMESPACE 

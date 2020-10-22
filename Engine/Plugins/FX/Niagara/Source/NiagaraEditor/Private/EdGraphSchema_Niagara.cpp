@@ -178,6 +178,9 @@ UEdGraphNode* FNiagaraSchemaAction_NewComment::PerformAction(class UEdGraph* Par
 		SpawnLocation.X = CommentTemplate->NodePosX;
 		SpawnLocation.Y = CommentTemplate->NodePosY;
 	}
+	CommentTemplate->bCommentBubbleVisible_InDetailsPanel = false;
+	CommentTemplate->bCommentBubbleVisible = false; 
+	CommentTemplate->bCommentBubblePinned = false;
 
 	UEdGraphNode* NewNode = FNiagaraSchemaAction_NewNode::SpawnNodeFromTemplate<UEdGraphNode_Comment>(ParentGraph, CommentTemplate, SpawnLocation, bSelectNewNode);
 	return NewNode;

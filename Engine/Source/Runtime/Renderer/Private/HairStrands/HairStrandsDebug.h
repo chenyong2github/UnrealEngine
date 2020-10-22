@@ -23,10 +23,10 @@ struct FHairStrandsDebugData
 	BEGIN_SHADER_PARAMETER_STRUCT(FReadParameters, )
 		SHADER_PARAMETER(uint32,							Debug_MaxShadingPointCount)
 		SHADER_PARAMETER(uint32,							Debug_MaxSampleCount)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(RWStructuredBuffer, Debug_ShadingPointBuffer)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(RWBuffer,			Debug_ShadingPointCounter)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(RWStructuredBuffer, Debug_SampleBuffer)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(RWBuffer,			Debug_SampleCounter)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer,	Debug_ShadingPointBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer,				Debug_ShadingPointCounter)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer,	Debug_SampleBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer,				Debug_SampleCounter)
 	END_SHADER_PARAMETER_STRUCT()
 
 	struct ShadingInfo

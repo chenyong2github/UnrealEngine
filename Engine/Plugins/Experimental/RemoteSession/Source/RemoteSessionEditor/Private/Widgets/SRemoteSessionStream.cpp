@@ -450,7 +450,7 @@ void SRemoteSessionStream::EnabledStreaming(bool bInStreaming)
 				SupportedChannels.Emplace(FRemoteSessionInputChannel::StaticType(), ERemoteSessionChannelMode::Read);
 				SupportedChannels.Emplace(FRemoteSessionImageChannel::StaticType(), ERemoteSessionChannelMode::Write);
 				RemoteSessionHost = RemoteSession->CreateHost(MoveTemp(SupportedChannels), WidgetUserData->Port);
-				RemoteSessionHost->RegisterChannelChangeDelegate(FOnRemoteSessionChannelChange::CreateSP(this, &SRemoteSessionStream::OnRemoteSessionChannelChange));
+				RemoteSessionHost->RegisterChannelChangeDelegate(FOnRemoteSessionChannelChange::FDelegate::CreateSP(this, &SRemoteSessionStream::OnRemoteSessionChannelChange));
 				RemoteSessionHost->Tick(0.f);
 			}
 

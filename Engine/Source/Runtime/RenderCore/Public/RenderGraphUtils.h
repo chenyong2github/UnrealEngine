@@ -608,25 +608,19 @@ FORCEINLINE void AddSetCurrentStatPass(FRDGBuilder& GraphBuilder, TStatId StatId
 	});
 }
 
-UE_DEPRECATED(4.26, "This version of AddBeginUAVOverlapPass() is deprecated. Use the overload which takes a UAV or array of UAVs to explicitly mark as safe for overlapped access.")
 FORCEINLINE void AddBeginUAVOverlapPass(FRDGBuilder& GraphBuilder)
 {
 	AddPass(GraphBuilder, [](FRHICommandListImmediate& RHICmdList)
 	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		RHICmdList.BeginUAVOverlap();
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	});
 }
 
-UE_DEPRECATED(4.26, "This version of AddEndUAVOverlapPass() is deprecated. Use the overload which takes a UAV or array of UAVs to explicitly mark as safe for overlapped access.")
 FORCEINLINE void AddEndUAVOverlapPass(FRDGBuilder& GraphBuilder)
 {
 	AddPass(GraphBuilder, [](FRHICommandListImmediate& RHICmdList)
 	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		RHICmdList.EndUAVOverlap();
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	});
 }
 

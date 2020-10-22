@@ -180,7 +180,7 @@ void ALightWeightInstanceStaticMeshManager::OnStaticMeshSet()
 		}
 
 		UStaticMesh* Mesh = StaticMesh.Get();
-		for (int32 Idx = 0; Idx < Mesh->StaticMaterials.Num(); ++Idx)
+		for (int32 Idx = 0; Idx < Mesh->GetStaticMaterials().Num(); ++Idx)
 		{
 			InstancedStaticMeshComponent->SetMaterial(Idx, Mesh->GetMaterial(Idx));
 		}

@@ -224,16 +224,20 @@ namespace ChaosInterface
 				HalfExtents.Y = FMath::Max(HalfExtents.Y, KINDA_SMALL_NUMBER);
 				HalfExtents.Z = FMath::Max(HalfExtents.Z, KINDA_SMALL_NUMBER);
 
+				const float CollisionMarginFraction = FMath::Max(0.0f, UPhysicsSettingsCore::Get()->SolverOptions.CollisionMarginFraction);
+				const float CollisionMarginMax = FMath::Max(0.0f, UPhysicsSettingsCore::Get()->SolverOptions.CollisionMarginMax);
+				const float CollisionMargin = FMath::Min(2.0f * HalfExtents.GetAbsMax() * CollisionMarginFraction, CollisionMarginMax);
+
 				// TAABB can handle translations internally but if we have a rotation we need to wrap it in a transform
 				TUniquePtr<Chaos::FImplicitObject> Implicit;
 				if (!BoxTransform.GetRotation().IsIdentity())
 				{
-					auto ImplicitBox = MakeUnique<Chaos::TBox<float, 3>>(-HalfExtents, HalfExtents);
+					auto ImplicitBox = MakeUnique<Chaos::TBox<float, 3>>(-HalfExtents, HalfExtents, CollisionMargin);
 					Implicit = TUniquePtr<Chaos::FImplicitObject>(new Chaos::TImplicitObjectTransformed<float, 3>(MoveTemp(ImplicitBox), BoxTransform));
 				}
 				else
 				{
-					Implicit = MakeUnique<Chaos::TBox<float, 3>>(BoxTransform.GetTranslation() - HalfExtents, BoxTransform.GetTranslation() + HalfExtents);
+					Implicit = MakeUnique<Chaos::TBox<float, 3>>(BoxTransform.GetTranslation() - HalfExtents, BoxTransform.GetTranslation() + HalfExtents, CollisionMargin);
 				}
 
 				TUniquePtr<Chaos::FPerShapeData> NewShape = NewShapeHelper(MakeSerializable(Implicit),Shapes.Num(), (void*)BoxElem.GetUserData(), BoxElem.GetCollisionEnabled());
@@ -311,6 +315,7 @@ namespace ChaosInterface
 					//}
 					//else
 					{
+						// @todo(chaos): handle InParams.CollisionMargin for convex
 						TUniquePtr<Chaos::FImplicitObject> Implicit;
 						if (Scale == FVector(1))
 						{

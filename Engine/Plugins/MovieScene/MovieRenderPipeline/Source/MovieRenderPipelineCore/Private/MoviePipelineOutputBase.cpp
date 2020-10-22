@@ -17,6 +17,8 @@ namespace MoviePipeline
 		{
 			if (!InOutFilenameFormatString.Contains(TEXT("{render_pass}"), ESearchCase::IgnoreCase))
 			{
+				UE_LOG(LogMovieRenderPipeline, Warning, TEXT("Multiple render passes exported but no {render_pass} format found. Automatically adding!"));
+				
 				// Search for a frame number in the output string
 				int32 FrameNumberIndex = INDEX_NONE;
 				for (const FString& Identifier : FrameNumberIdentifiers)

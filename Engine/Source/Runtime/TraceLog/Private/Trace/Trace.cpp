@@ -18,6 +18,7 @@ void	Writer_Shutdown();
 void	Writer_Update();
 bool	Writer_SendTo(const ANSICHAR*, uint32);
 bool	Writer_WriteTo(const ANSICHAR*);
+bool	Writer_IsTracing();
 
 } // namespace Private
 
@@ -73,6 +74,12 @@ bool WriteTo(const TCHAR* InPath)
 	char Path[512];
 	ToAnsiCheap(Path, InPath);
 	return Private::Writer_WriteTo(Path);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+bool IsTracing()
+{
+	return Private::Writer_IsTracing();
 }
 
 ////////////////////////////////////////////////////////////////////////////////

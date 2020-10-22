@@ -144,6 +144,7 @@
 
 #include "EntitySystem/MovieSceneEntitySystemLinker.h"
 
+
 #define LOCTEXT_NAMESPACE "Sequencer"
 
 DEFINE_LOG_CATEGORY(LogSequencer);
@@ -2416,7 +2417,6 @@ void FSequencer::NotifyMovieSceneDataChanged( EMovieSceneDataChangeType DataChan
 	else if (DataChangeType == EMovieSceneDataChangeType::TrackValueChangedRefreshImmediately)
 	{
 		// Evaluate now
-		OnPreRefreshImmediateDelagate.Broadcast();
 		EvaluateInternal(PlayPosition.GetCurrentPositionAsRange());
 	}
 	else if (DataChangeType == EMovieSceneDataChangeType::RefreshAllImmediately)
@@ -2424,7 +2424,6 @@ void FSequencer::NotifyMovieSceneDataChanged( EMovieSceneDataChangeType DataChan
 		RefreshTree();
 
 		// Evaluate now
-		OnPreRefreshImmediateDelagate.Broadcast();
 		EvaluateInternal(PlayPosition.GetCurrentPositionAsRange());
 	}
 	else
@@ -5239,16 +5238,6 @@ FGuid FSequencer::MakeNewSpawnable( UObject& Object, UActorFactory* ActorFactory
 	ESpawnOwnership SavedOwnership = Spawnable->GetSpawnOwnership();
 	Spawnable->SetSpawnOwnership(ESpawnOwnership::External);
 
-	// Spawn into the current level
-	FName LevelName;
-	UWorld* World = Cast<UWorld>(GetPlaybackContext());
-	if (World && World->GetCurrentLevel() && World->GetCurrentLevel() != World->PersistentLevel)
-	{
-		LevelName = FPackageName::GetShortFName(World->GetCurrentLevel()->GetOutermost()->GetFName());
-	}
-
-	Spawnable->SetLevelName(LevelName);
-
 	// Spawn the object so we can position it correctly, it's going to get spawned anyway since things default to spawned.
 	UObject* SpawnedObject = SpawnRegister->SpawnObject(NewGuid, *MovieScene, ActiveTemplateIDs.Top(), *this);
 
@@ -6293,7 +6282,7 @@ void FSequencer::AddNodesToExistingNodeGroup(const TArray<TSharedRef<FSequencerD
 
 void FSequencer::SynchronizeExternalSelectionWithSequencerSelection()
 {
-	if ( bUpdatingSequencerSelection || !IsLevelEditorSequencer() || ExactCast<ULevelSequence>(GetFocusedMovieSceneSequence()) == nullptr )
+	if ( bUpdatingSequencerSelection || !IsLevelEditorSequencer() )
 	{
 		return;
 	}
@@ -6492,7 +6481,7 @@ void FSequencer::SynchronizeSequencerSelectionWithExternalSelection()
 	}
 
 	UMovieSceneSequence* Sequence = GetFocusedMovieSceneSequence();
-	if( !IsLevelEditorSequencer() || ExactCast<ULevelSequence>(Sequence) == nullptr )
+	if( !IsLevelEditorSequencer() )
 	{
 		// Only level sequences have a full update here, but we still want filters to update for UMG animations
 		NodeTree->RequestFilterUpdate();
@@ -7063,6 +7052,11 @@ void FSequencer::SelectByChannels(UMovieSceneSection* Section, const TArray<FNam
 		TrackNode->GetChildKeyAreaNodesRecursively(KeyAreaNodes);
 		for (TSharedRef<FSequencerSectionKeyAreaNode> KeyAreaNode : KeyAreaNodes)
 		{
+			if (KeyAreaNode->GetParent().IsValid() && InChannelNames.Contains(*KeyAreaNode->GetParent()->AsShared()->GetDisplayName().ToString()))
+			{
+				Nodes.Add(KeyAreaNode->GetParent()->AsShared());
+			}
+
 			for (TSharedPtr<IKeyArea> KeyArea : KeyAreaNode->GetAllKeyAreas())
 			{
 				FMovieSceneChannelHandle ThisChannel = KeyArea->GetChannel();

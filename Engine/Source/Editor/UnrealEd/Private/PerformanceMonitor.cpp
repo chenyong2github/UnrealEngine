@@ -63,8 +63,7 @@ public:
 					.Padding(5.f)
 					[
 						SNew(STextBlock)
-						.Text(LOCTEXT("PerformanceWarningDescription",
-							"The current performance of the editor seems to be low.\nUse the options below to reduce the amount of detail and increase performance."))
+						.Text(LOCTEXT("PerformanceWarningDescription", "The current performance of the editor seems to be low.\nUse the options below to reduce the amount of detail and increase performance."))
 					]
 					
 					+ SVerticalBox::Slot()
@@ -87,8 +86,7 @@ public:
 							]
 						)
 						.AutoWrapText(true)
-						.Text(LOCTEXT("PerformanceWarningChangeLater",
-							"You can modify these settings in future via \"Quick Settings\" button on the level editor toolbar and choosing \"Engine Scalability Settings\"."))
+						.Text(LOCTEXT("PerformanceWarningChangeLater", "You can modify these settings in future via \"Quick Settings\" button on the level editor toolbar and choosing \"Engine Scalability Settings\"."))
 					]
 
 					+ SVerticalBox::Slot()

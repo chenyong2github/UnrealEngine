@@ -111,10 +111,10 @@ bool FPlayer::DestroyDXManagerAndDevice()
 	return FVideoDecoder::DestroyDXManagerAndDevice();
 }
 
-FName FPlayer::GetPlayerName() const
+FGuid FPlayer::GetPlayerPluginGUID() const
 {
-	static FName PlayerName(TEXT("PixelStreamingPlayer"));
-	return PlayerName;
+	static FGuid PlayerPluginGUID(0xe5d58cf8, 0xfa474530, 0x84b00d8d, 0x0f4d7160);
+	return PlayerPluginGUID;
 }
 
 IMediaSamples& FPlayer::GetSamples()

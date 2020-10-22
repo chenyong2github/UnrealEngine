@@ -57,7 +57,7 @@ public:
 		UDMXPixelMappingOutputComponent interface
 	----------------------------------*/
 #if WITH_EDITOR
-	/** Whether component should be part of palatte view */
+	/** Whether component should be part of Palette view */
 	virtual bool IsExposedToTemplate() { return false; }
 
 	/** Returns the text of palette category*/
@@ -84,7 +84,7 @@ public:
 #endif // WITH_EDITOR
 
 	/** Get rendering size of component */
-	virtual FVector2D GetSize();
+	virtual FVector2D GetSize() const;
 
 	/** Get rendering position of the component. Using for determining UV map input rendering offset */
 	virtual FVector2D GetPosition() { return FVector2D(0.f); }

@@ -118,6 +118,7 @@ protected:
 	bool bForceClusterGeneration;
 	bool bForceProxyGeneration;
 	bool bForceSingleClusterForLevel;
+	bool bSkipSubLevels;
 	bool bHLODMapCleanup;
 	FString ForceHLODSetupAsset;
 	FString HLODSkipToMap;

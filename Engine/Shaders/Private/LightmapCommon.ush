@@ -34,10 +34,8 @@ VTPageTableResult LightmapGetVTSampleInfo(float2 UV, uint LightmapDataIndex, flo
 	UV *= float2(1.0f, 2.0f); // Undo transform used to pack 2 lightmap coeffs in 1 texture for the non-VT default case
 
 	return TextureLoadVirtualPageTable(LightmapResourceCluster.LightmapVirtualTexturePageTable0, LightmapResourceCluster.LightmapVirtualTexturePageTable1,
-		UV, 0.0f,
-		SvPositionXY,
 		VTPageTableUniform_Unpack(GetLightmapData(LightmapDataIndex).LightmapVTPackedPageTableUniform[0], GetLightmapData(LightmapDataIndex).LightmapVTPackedPageTableUniform[1]),
-		LIGHTMAP_VTADDRESSMODE, LIGHTMAP_VTADDRESSMODE);
+		UV, LIGHTMAP_VTADDRESSMODE, LIGHTMAP_VTADDRESSMODE, 0, SvPositionXY);
 }
 
 half4 SampleLightmapVT(VTPageTableResult LightmapVTPageTableResult, uint LayerIndex, uint LightmapDataIndex, Texture2D CacheTexture, SamplerState CacheSampler)

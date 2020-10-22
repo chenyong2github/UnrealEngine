@@ -26,6 +26,7 @@ the same VectorVM byte code / compute shader code
 
 class FGPUSortManager;
 class FNiagaraGpuComputeDebug;
+class FNiagaraGpuReadbackManager;
 
 enum class ETickStage
 {
@@ -79,15 +80,6 @@ public:
 
 	virtual void Tick(float DeltaTime) override
 	{
-		BuildBatches();
-	}
-
-	// TODO: process queue, build batches from context with the same script
-	//  also need to figure out how to handle multiple sets of parameters across a batch
-	//	for now this executes every single sim in the queue individually, which is terrible 
-	//	in terms of overhead
-	void BuildBatches()
-	{
 	}
 
 	virtual void PostRenderOpaque(
@@ -96,6 +88,9 @@ public:
 		const class FShaderParametersMetadata* SceneTexturesUniformBufferStruct,
 		FRHIUniformBuffer* SceneTexturesUniformBuffer,
 		bool bAllowGPUParticleUpdate) override;
+
+	/** Processes all pending readbacks */
+	void ProcessDebugReadbacks(FRHICommandListImmediate& RHICmdList, bool bWaitCompletion);
 
 	/** 
 	 * Register work for GPU sorting (using the GPUSortManager). 
@@ -108,8 +103,6 @@ public:
 	bool AddSortedGPUSimulation(FNiagaraGPUSortInfo& SortInfo);
 
 	const FGlobalDistanceFieldParameterData& GetGlobalDistanceFieldParameters() const { return GlobalDistanceFieldParams; }
-
-	void ProcessDebugInfo(const FNiagaraComputeExecutionContext* Context) const;
 
 	void SetDataInterfaceParameters(const TArray<FNiagaraDataInterfaceProxy*>& DataInterfaceProxies, const FNiagaraShaderRef& Shader, FRHICommandList &RHICmdList, const FNiagaraComputeInstanceData* Instance, const FNiagaraGPUSystemTick& Tick, uint32 SimulationStageIndex) const;
 	void UnsetDataInterfaceParameters(const TArray<FNiagaraDataInterfaceProxy*>& DataInterfaceProxies, const FNiagaraShaderRef& Shader, FRHICommandList& RHICmdList, const FNiagaraComputeInstanceData* Instance, const FNiagaraGPUSystemTick& Tick, uint32 SimulationStageIndex) const;
@@ -128,8 +121,6 @@ public:
 				FNiagaraDataInterfaceProxy *IterationInterface = nullptr,
 				bool HasRunParticleStage = false
 			);
-
-	void ResizeCurrentBuffer(FRHICommandList &RHICmdList, FNiagaraComputeExecutionContext *Context, uint32 NewNumInstances, uint32 PrevNumInstances) const;
 
 	FORCEINLINE FNiagaraGPUInstanceCountManager& GetGPUInstanceCounterManager() { check(IsInRenderingThread()); return GPUInstanceCounterManager; }
 
@@ -157,10 +148,15 @@ public:
 	/** Get the shared SortManager, used in the rendering loop to call FGPUSortManager::OnPreRender() and FGPUSortManager::OnPostRenderOpaque() */
 	virtual FGPUSortManager* GetGPUSortManager() const override;
 
+#if WITH_EDITORONLY_DATA
+	void AddDebugReadback(FNiagaraSystemInstanceID InstanceID, TSharedPtr<struct FNiagaraScriptDebuggerInfo, ESPMode::ThreadSafe> DebugInfo, FNiagaraComputeExecutionContext* Context);
+#endif
+
 #if WITH_EDITOR
 	/** Get the Gpu Compute Debug class, useful for visualizing textures, etc. */
 	FNiagaraGpuComputeDebug* GetGpuComputeDebug() const { return GpuComputeDebugPtr.Get(); }
 #endif
+	FNiagaraGpuReadbackManager* GetGpuReadbackManager() const { return GpuReadbackManagerPtr.Get(); }
 
 private:
 	using FEmitterInstanceList = TArray<FNiagaraComputeInstanceData*>;
@@ -187,8 +183,6 @@ private:
 
 	void ExecuteAll(FRHICommandList& RHICmdList, FRHIUniformBuffer* ViewUniformBuffer, ETickStage TickStage);
 	void AddDestinationBufferTransitions(FDispatchGroup* Group, FNiagaraDataBuffer* DestinationData);
-	//void AddSimulationStageToGroup(FDispatchGroup* StageGroup, uint32 StageIndex, const FDispatchInstance& DispatchInstance, FRHICommandList& RHICmdList);
-	//void BuildSimulationStageGroups(FDispatchGroupList& DispatchGroups, FRHICommandList& RHICmdList, FDispatchInstanceList& EmittersWithStages, uint32& MaxStageCountForGroup);
 	void BuildDispatchGroups(FOverlappableTicks& OverlappableTick, FRHICommandList& RHICmdList, FDispatchGroupList& DispatchGroups, FEmitterInstanceList& InstancesWithPersistentIDs);
 	void DispatchStage(FDispatchInstance& DispatchInstance, uint32 StageIndex, FRHICommandList& RHICmdList, FRHIUniformBuffer* ViewUniformBuffer);
 	void DispatchAllOnCompute(FDispatchInstanceList& DispatchInstances, FRHICommandList& RHICmdList, FRHIUniformBuffer* ViewUniformBuffer);
@@ -213,8 +207,6 @@ private:
 	 * @param ValuesUAV - The UAV that holds the initial values (particle indices) to be sorted accordingly to the keys.
 	 */
 	void GenerateSortKeys(FRHICommandListImmediate& RHICmdList, int32 BatchId, int32 NumElementsInBatch, EGPUSortFlags Flags, FRHIUnorderedAccessView* KeysUAV, FRHIUnorderedAccessView* ValuesUAV);
-
-//	void SimStepReadback(const FNiagaraComputeInstanceData& Instance, FRHICommandList& RHICmdList) const;
 
 	inline uint32 UnpackEmitterDispatchCount(uint8* PackedData)
 	{
@@ -308,4 +300,14 @@ private:
 #if WITH_EDITOR
 	TUniquePtr<FNiagaraGpuComputeDebug> GpuComputeDebugPtr;
 #endif
+#if WITH_EDITORONLY_DATA
+	struct FDebugReadbackInfo
+	{
+		FNiagaraSystemInstanceID InstanceID;
+		TSharedPtr<struct FNiagaraScriptDebuggerInfo, ESPMode::ThreadSafe> DebugInfo;
+		FNiagaraComputeExecutionContext* Context;
+	};
+	TArray<FDebugReadbackInfo> GpuDebugReadbackInfos;
+#endif
+	TUniquePtr<FNiagaraGpuReadbackManager> GpuReadbackManagerPtr;
 };

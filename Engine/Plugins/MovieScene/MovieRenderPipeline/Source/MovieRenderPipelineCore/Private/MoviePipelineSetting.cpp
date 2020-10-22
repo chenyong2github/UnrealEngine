@@ -5,7 +5,6 @@
 
 UMoviePipelineSetting::UMoviePipelineSetting()
 	: bEnabled(true)
-	, bUserCustomized(true)
 {
 }
 void UMoviePipelineSetting::OnMoviePipelineInitialized(UMoviePipeline* InPipeline)

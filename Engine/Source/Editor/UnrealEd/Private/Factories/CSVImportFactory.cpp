@@ -193,7 +193,7 @@ UObject* UCSVImportFactory::FactoryCreateText(UClass* InClass, UObject* InParent
 			ParentFullPath = InParent->GetPathName();
 		}
 
-		DataTableImportOptions = NewObject<UDataTable>(this, UDataTable::StaticClass(), InName, Flags);
+		DataTableImportOptions = NewObject<UDataTable>(this);
 
 		Window->SetContent
 		(
@@ -241,11 +241,15 @@ UObject* UCSVImportFactory::FactoryCreateText(UClass* InClass, UObject* InParent
 
 		if (ImportSettings.ImportType == ECSVImportType::ECSV_DataTable)
 		{
-			UClass* DataTableClass = UDataTable::StaticClass();
-			UDataTable* TempImportDataTable = NewObject<UDataTable>(this, DataTableClass, InName, Flags);
+			UDataTable* TempImportDataTable = NewObject<UDataTable>(this);
+			if (DataTableImportOptions)
+			{
+				TempImportDataTable->CopyImportOptions(DataTableImportOptions);
+			}
 
 			// If there is an existing table, need to call this to free data memory before recreating object
 			UDataTable::FOnDataTableChanged OldOnDataTableChanged;
+			UClass* DataTableClass = UDataTable::StaticClass();
 			if (ExistingTable != nullptr)
 			{
 				TempImportDataTable->CopyImportOptions(ExistingTable);

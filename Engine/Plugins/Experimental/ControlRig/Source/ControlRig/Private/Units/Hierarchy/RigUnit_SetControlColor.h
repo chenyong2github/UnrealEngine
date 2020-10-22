@@ -6,7 +6,7 @@
 #include "RigUnit_SetControlColor.generated.h"
 
 /**
- * SetControlTransform is used to change the gizmo color on a control at runtime
+ * SetControlColor is used to change the gizmo's color on a control at runtime
  */
 USTRUCT(meta=(DisplayName="Set Control Color", Category="Hierarchy", DocumentationPolicy="Strict", Keywords = "SetControlColor,SetGizmoColor", PrototypeName = "SetControlColor"))
 struct FRigUnit_SetControlColor : public FRigUnitMutable

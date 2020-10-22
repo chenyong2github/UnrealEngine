@@ -836,13 +836,10 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	FVertexFactoryIntermediates Intermediates = (FVertexFactoryIntermediates)0;
 	uint ParticleID = GetInstanceId(Input.InstanceId); // NOTE: Handles instanced stereo
 
-#if !SHADOW_DEPTH_SHADER && !SPHERICAL_OPACITY_FOR_SHADOW_DEPTHS
-	// Don't use sort buffer in the shadow because they are only valid after opaque.
 	if(NiagaraSpriteVFLooseParameters.SortedIndicesOffset != 0xFFFFFFFF)
 	{
 		ParticleID = NiagaraSpriteVFLooseParameters.SortedIndices[NiagaraSpriteVFLooseParameters.SortedIndicesOffset + ParticleID];
 	}
-#endif
 
 	float2 ParticleSize = GetNiagaraParticleSize(ParticleID);
 	Intermediates.SizeRotSubImage = float4(ParticleSize.x, ParticleSize.y, GetNiagaraParticleRotation(ParticleID), GetNiagaraParticleSubimage(ParticleID));

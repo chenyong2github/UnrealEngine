@@ -262,10 +262,18 @@ void FSystemTextures::InitializeFeatureLevelDependentTextures(FRHICommandListImm
 
 	if (CurrentFeatureLevel < ERHIFeatureLevel::SM5 && InFeatureLevel >= ERHIFeatureLevel::SM5)
 	{
+		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::CreateVolumeDesc(1, 1, 1, PF_B8G8R8A8, FClearValueBinding::Transparent, TexCreate_HideInVisualizeTexture, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_NoFastClear, false));
+		Desc.AutoWritable = false;
+		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, HairLUT0, TEXT("HairLUT0"), ERenderTargetTransience::NonTransient);
+
 		// Init with dummy textures. The texture will be initialize with real values if needed
-		HairLUT0 = VolumetricBlackDummy;
-		HairLUT1 = VolumetricBlackDummy;
-		HairLUT2 = VolumetricBlackDummy;
+		const uint8 BlackBytes[4] = { 0, 0, 0, 0 };
+		FUpdateTextureRegion3D Region(0, 0, 0, 0, 0, 0, Desc.Extent.X, Desc.Extent.Y, Desc.Depth);
+		RHICmdList.UpdateTexture3D((FTexture3DRHIRef&)HairLUT0->GetRenderTargetItem().ShaderResourceTexture, 0, Region, Desc.Extent.X * sizeof(BlackBytes), Desc.Extent.X * Desc.Extent.Y * sizeof(BlackBytes), BlackBytes);
+
+		RHICmdList.Transition(FRHITransitionInfo(HairLUT0->GetRenderTargetItem().ShaderResourceTexture, ERHIAccess::RTV, ERHIAccess::SRVMask));
+		HairLUT1 = HairLUT0;
+		HairLUT2 = HairLUT0;
 	}
 
 	// The PreintegratedGF maybe used on forward shading inluding mobile platorm, intialize it anyway.
@@ -754,6 +762,7 @@ void FSystemTextures::ReleaseDynamicRHI()
 	PreintegratedGF.SafeRelease();
 	HairLUT0.SafeRelease();
 	HairLUT1.SafeRelease();
+	HairLUT2.SafeRelease();
 	LTCMat.SafeRelease();
 	LTCAmp.SafeRelease();
 	MaxFP16Depth.SafeRelease();

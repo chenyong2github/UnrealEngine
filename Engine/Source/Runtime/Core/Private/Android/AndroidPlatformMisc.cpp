@@ -2920,15 +2920,17 @@ void FAndroidMisc::UpdateOSMemoryStatus(EOSMemoryStatusCategory OSMemoryStatusCa
 	switch (OSMemoryStatusCategory)
 	{
 		case EOSMemoryStatusCategory::OSTrim:
-		{
 			GAndroidMemoryWarningContext.LastTrimMemoryState = value;
 			break;
-		}
-		case EOSMemoryStatusCategory::MemoryAdvisor:
-		{
+		case EOSMemoryStatusCategory::MemoryAdvisorState:
 			GAndroidMemoryWarningContext.LastNativeMemoryAdvisorState = value;
 			break;
-		}
+		case EOSMemoryStatusCategory::MemoryAdvisorEstimateMB:
+			GAndroidMemoryWarningContext.MemoryAdvisorEstimatedAvailableMemoryMB = value;
+			break;
+		case EOSMemoryStatusCategory::OomScore:
+			GAndroidMemoryWarningContext.OomScore = value;
+			break;
 		default:
 			checkNoEntry();
 	}
@@ -2947,7 +2949,9 @@ void FAndroidMisc::UpdateOSMemoryStatus(EOSMemoryStatusCategory OSMemoryStatusCa
 	}
 	else
 	{
-		UE_LOG(LogAndroid, Warning, TEXT("Not calling memory warning handler, received too early. %d, %d"), GAndroidMemoryWarningContext.LastTrimMemoryState, GAndroidMemoryWarningContext.LastNativeMemoryAdvisorState);
+		const FAndroidMemoryWarningContext& Context = GAndroidMemoryWarningContext;
+		UE_LOG(LogAndroid, Warning, TEXT("Not calling memory warning handler, received too early. %d, %d %d %d"), Context.LastTrimMemoryState
+			   , Context.LastNativeMemoryAdvisorState, Context.MemoryAdvisorEstimatedAvailableMemoryMB, Context.OomScore);
 	}
 }
 

@@ -41,9 +41,9 @@ void FDisplayClusterConfigurationModule::ShutdownModule()
 //////////////////////////////////////////////////////////////////////////////////////////////
 // IDisplayClusterConfiguration
 //////////////////////////////////////////////////////////////////////////////////////////////
-UDisplayClusterConfigurationData* FDisplayClusterConfigurationModule::LoadConfig(const FString& FilePath)
+UDisplayClusterConfigurationData* FDisplayClusterConfigurationModule::LoadConfig(const FString& FilePath, UObject* Owner)
 {
-	return FDisplayClusterConfigurationMgr::Get().LoadConfig(FilePath);
+	return FDisplayClusterConfigurationMgr::Get().LoadConfig(FilePath, Owner);
 }
 
 bool FDisplayClusterConfigurationModule::SaveConfig(const UDisplayClusterConfigurationData* Config, const FString& FilePath)
@@ -52,5 +52,3 @@ bool FDisplayClusterConfigurationModule::SaveConfig(const UDisplayClusterConfigu
 }
 
 IMPLEMENT_MODULE(FDisplayClusterConfigurationModule, DisplayClusterConfiguration);
-
-#undef LOCTEXT_NAMESPACE

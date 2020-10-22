@@ -7,6 +7,7 @@
 #include "DMXPixelMappingFixtureGroupComponent.generated.h"
 
 class UDMXLibrary;
+class STextBlock;
 class SUniformGridPanel;
 
 /**
@@ -54,7 +55,7 @@ public:
 #endif // WITH_EDITOR
 
 	virtual UTextureRenderTarget2D* GetOutputTexture() override;
-	virtual FVector2D GetSize() override;
+	virtual FVector2D GetSize() const override;
 	virtual FVector2D GetPosition() override;
 	virtual void SetPosition(const FVector2D& InPosition) override;
 	virtual void SetSize(const FVector2D& InSize) override;

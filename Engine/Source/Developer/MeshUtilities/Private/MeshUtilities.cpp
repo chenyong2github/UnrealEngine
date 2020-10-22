@@ -325,7 +325,7 @@ static void SkinnedMeshToRawMeshes(USkinnedMeshComponent* InSkinnedMeshComponent
 // Helper function for ConvertMeshesToStaticMesh
 static bool IsValidStaticMeshComponent(UStaticMeshComponent* InComponent)
 {
-	return InComponent && InComponent->GetStaticMesh() && InComponent->GetStaticMesh()->RenderData && InComponent->IsVisible();
+	return InComponent && InComponent->GetStaticMesh() && InComponent->GetStaticMesh()->GetRenderData() && InComponent->IsVisible();
 }
 
 // Helper function for ConvertMeshesToStaticMesh
@@ -333,7 +333,7 @@ static void StaticMeshToRawMeshes(UStaticMeshComponent* InStaticMeshComponent, i
 {
 	const int32 BaseMaterialIndex = OutMaterials.Num();
 
-	const int32 NumLODs = InStaticMeshComponent->GetStaticMesh()->RenderData->LODResources.Num();
+	const int32 NumLODs = InStaticMeshComponent->GetStaticMesh()->GetRenderData()->LODResources.Num();
 
 	for (int32 OverallLODIndex = 0; OverallLODIndex < InOverallMaxLODs; OverallLODIndex++)
 	{
@@ -341,7 +341,7 @@ static void StaticMeshToRawMeshes(UStaticMeshComponent* InStaticMeshComponent, i
 
 		FRawMesh& RawMesh = OutRawMeshes[OverallLODIndex];
 		FRawMeshTracker& RawMeshTracker = OutRawMeshTrackers[OverallLODIndex];
-		const FStaticMeshLODResources& LODResource = InStaticMeshComponent->GetStaticMesh()->RenderData->LODResources[LODIndexRead];
+		const FStaticMeshLODResources& LODResource = InStaticMeshComponent->GetStaticMesh()->GetRenderData()->LODResources[LODIndexRead];
 		const int32 BaseVertexIndex = RawMesh.VertexPositions.Num();
 
 		for (int32 VertIndex = 0; VertIndex < LODResource.GetNumVertices(); ++VertIndex)
@@ -467,7 +467,7 @@ UStaticMesh* FMeshUtilities::ConvertMeshesToStaticMesh(const TArray<UMeshCompone
 			}
 			else if(IsValidStaticMeshComponent(StaticMeshComponent))
 			{
-				OverallMaxLODs = FMath::Max(StaticMeshComponent->GetStaticMesh()->RenderData->LODResources.Num(), OverallMaxLODs);
+				OverallMaxLODs = FMath::Max(StaticMeshComponent->GetStaticMesh()->GetRenderData()->LODResources.Num(), OverallMaxLODs);
 			}
 		}
 		
@@ -539,7 +539,7 @@ UStaticMesh* FMeshUtilities::ConvertMeshesToStaticMesh(const TArray<UMeshCompone
 			StaticMesh = NewObject<UStaticMesh>(Package, *MeshName, RF_Public | RF_Standalone);
 			StaticMesh->InitResources();
 
-			StaticMesh->LightingGuid = FGuid::NewGuid();
+			StaticMesh->SetLightingGuid();
 
 			// Determine which texture coordinate map should be used for storing/generating the lightmap UVs
 			const uint32 LightMapIndex = FMath::Min(MaxInUseTextureCoordinate + 1, (uint32)MAX_MESH_TEXTURE_COORDS - 1);
@@ -565,7 +565,7 @@ UStaticMesh* FMeshUtilities::ConvertMeshesToStaticMesh(const TArray<UMeshCompone
 			// Copy materials to new mesh 
 			for(UMaterialInterface* Material : Materials)
 			{
-				StaticMesh->StaticMaterials.Add(FStaticMaterial(Material));
+				StaticMesh->GetStaticMaterials().Add(FStaticMaterial(Material));
 			}
 			
 			//Set the Imported version before calling the build
@@ -2482,7 +2482,7 @@ public:
 		check(Stage == EStage::Uninit);
 		check(StaticMesh != nullptr);
 		TArray<FStaticMeshSourceModel>& SourceModels = StaticMesh->GetSourceModels();
-		ELightmapUVVersion LightmapUVVersion = (ELightmapUVVersion)StaticMesh->LightmapUVVersion;
+		ELightmapUVVersion LightmapUVVersion = (ELightmapUVVersion)StaticMesh->GetLightmapUVVersion();
 
 		FMeshUtilities& MeshUtilities = FModuleManager::Get().LoadModuleChecked<FMeshUtilities>("MeshUtilities");
 
@@ -3050,7 +3050,7 @@ void FixupMaterialSlotNames_Implementation(TArray<MaterialSlotType>& MaterialSlo
 
 void FMeshUtilities::FixupMaterialSlotNames(UStaticMesh* StaticMesh) const
 {
-	FixupMaterialSlotNames_Implementation(StaticMesh->StaticMaterials);
+	FixupMaterialSlotNames_Implementation(StaticMesh->GetStaticMaterials());
 }
 
 void FMeshUtilities::FixupMaterialSlotNames(USkeletalMesh* SkeletalMesh) const
@@ -3061,7 +3061,7 @@ void FMeshUtilities::FixupMaterialSlotNames(USkeletalMesh* SkeletalMesh) const
 bool FMeshUtilities::BuildStaticMesh(FStaticMeshRenderData& OutRenderData, UStaticMesh* StaticMesh, const FStaticMeshLODGroup& LODGroup)
 {
 	TArray<FStaticMeshSourceModel>& SourceModels = StaticMesh->GetSourceModels();
-	int32 LightmapUVVersion = StaticMesh->LightmapUVVersion;
+	int32 LightmapUVVersion = StaticMesh->GetLightmapUVVersion();
 	int32 ImportVersion = StaticMesh->ImportVersion;
 
 	IMeshReductionManagerModule& Module = FModuleManager::Get().LoadModuleChecked<IMeshReductionManagerModule>("MeshReductionInterface");
@@ -3084,7 +3084,7 @@ bool FMeshUtilities::BuildStaticMesh(FStaticMeshRenderData& OutRenderData, UStat
 bool FMeshUtilities::GenerateStaticMeshLODs(UStaticMesh* StaticMesh, const FStaticMeshLODGroup& LODGroup)
 {
 	TArray<FStaticMeshSourceModel>& Models = StaticMesh->GetSourceModels();
-	int32 LightmapUVVersion = StaticMesh->LightmapUVVersion;
+	int32 LightmapUVVersion = StaticMesh->GetLightmapUVVersion();
 
 	FStaticMeshUtilityBuilder Builder(StaticMesh);
 	IMeshReductionManagerModule& Module = FModuleManager::Get().LoadModuleChecked<IMeshReductionManagerModule>("MeshReductionInterface");

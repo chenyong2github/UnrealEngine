@@ -28,6 +28,7 @@ public class ClassViewer : ModuleRules
 				"EditorFramework",
 				"UnrealEd",
 				"PropertyEditor",
+				"ContentBrowserData",
                 "Settings",
             }
 		);

@@ -55,6 +55,9 @@ public:
 	/** Retrieves the selected edge set. */
 	TSet< int32 >& GetSelectedEdges();
 
+	/** Called when the mesh changes **/
+	void OnMeshChanged();
+
 	/**
 	 * Called when the selected socket changes
 	 *
@@ -174,6 +177,10 @@ protected:
 	void OnAssetViewerSettingsChanged(const FName& InPropertyName);
 	/** Used to (re)-set the viewport show flags related to post processing*/
 	void SetAdvancedShowFlagsForScene(const bool bAdvancedShowFlags);
+	/** Used to update the display of simple collision **/
+	void UpdateSimpleCollisionDisplay();
+	/** Used to update the display of complex collision **/
+	void UpdateComplexCollisionDisplay();
 private:
 	bool IsCustomModeUsingWidget() const;
 

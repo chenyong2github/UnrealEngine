@@ -99,7 +99,7 @@ ESavePackageResult ValidatePackage(FSaveContext& SaveContext)
 		{
 			FFormatNamedArguments Arguments;
 			Arguments.Add(TEXT("Name"), FText::FromString(FilenameStr));
-			FText ErrorText = FText::Format(NSLOCTEXT("SavePackage", "AssetSaveNotInPackage", "The Asset '{Name}' being saved is not in the provided is not in the provided package."), Arguments);
+			FText ErrorText = FText::Format(NSLOCTEXT("SavePackage2", "AssetSaveNotInPackage", "The Asset '{Name}' being saved is not in the provided is not in the provided package."), Arguments);
 			SaveContext.GetError()->Logf(ELogVerbosity::Warning, TEXT("%s"), *ErrorText.ToString());
 		}
 		return ESavePackageResult::Error;
@@ -116,8 +116,8 @@ ESavePackageResult ValidatePackage(FSaveContext& SaveContext)
 				FFormatNamedArguments Arguments;
 				Arguments.Add(TEXT("Name"), FText::FromString(FilenameStr));
 				FText FormatText = SaveContext.GetPackage()->ContainsMap() 
-					? NSLOCTEXT("SavePackage", "MapSaveNotAllowed", "Map '{Name}' is not allowed to save (see log for reason)") 
-					: NSLOCTEXT("SavePackage", "AssetSaveNotAllowed", "Asset '{Name}' is not allowed to save (see log for reason");
+					? NSLOCTEXT("SavePackage2", "MapSaveNotAllowed", "Map '{Name}' is not allowed to save (see log for reason)") 
+					: NSLOCTEXT("SavePackage2", "AssetSaveNotAllowed", "Asset '{Name}' is not allowed to save (see log for reason");
 				FText ErrorText = FText::Format(FormatText, Arguments);
 				SaveContext.GetError()->Logf(ELogVerbosity::Warning, TEXT("%s"), *ErrorText.ToString());
 			}
@@ -134,8 +134,8 @@ ESavePackageResult ValidatePackage(FSaveContext& SaveContext)
 			FFormatNamedArguments Arguments;
 			Arguments.Add(TEXT("Name"), FText::FromString(FilenameStr));
 			FText FormatText = SaveContext.GetPackage()->ContainsMap()
-				? NSLOCTEXT("SavePackage", "CannotSaveMapPartiallyLoaded", "Map '{Name}' cannot be saved as it has only been partially loaded")
-				: NSLOCTEXT("SavePackage", "CannotSaveAssetPartiallyLoaded", "Asset '{Name}' cannot be saved as it has only been partially loaded");
+				? NSLOCTEXT("SavePackage2", "CannotSaveMapPartiallyLoaded", "Map '{Name}' cannot be saved as it has only been partially loaded")
+				: NSLOCTEXT("SavePackage2", "CannotSaveAssetPartiallyLoaded", "Asset '{Name}' cannot be saved as it has only been partially loaded");
 			FText ErrorText = FText::Format(FormatText, Arguments);
 			SaveContext.GetError()->Logf(ELogVerbosity::Warning, TEXT("%s"), *ErrorText.ToString());
 		}
@@ -1589,7 +1589,7 @@ ESavePackageResult WriteAdditionalExportFiles(FSaveContext& SaveContext)
 				{
 					WriteOptions |= EAsyncWriteOptions::WriteFileToDisk;
 				}
-				SavePackageUtilities::AsyncWriteFile(SaveContext.AsyncWriteAndHashSequence, MoveTemp(DataPtr), Size, *Writer.GetArchiveName(), WriteOptions);
+				SavePackageUtilities::AsyncWriteFile(SaveContext.AsyncWriteAndHashSequence, MoveTemp(DataPtr), Size, *Writer.GetArchiveName(), WriteOptions, {});
 			}
 		}
 		SaveContext.AdditionalFilesFromExports.Empty();
@@ -1771,12 +1771,13 @@ ESavePackageResult FinalizeFile(FStructuredArchive::FRecord& StructuredArchiveRo
 				const int32 ExportCount = Linker->ExportMap.Num();
 
 				ExportsInfo.Exports.Reserve(ExportCount);
+				ExportsInfo.RegionsOffset = HeaderSize;
 
 				for (const FObjectExport& Export : Linker->ExportMap)
 				{
 					ExportsInfo.Exports.Add(FIoBuffer(IoBuffer.Data() + Export.SerialOffset, Export.SerialSize, IoBuffer));
 				}
-				SavePackageContext->PackageStoreWriter->WriteExports(ExportsInfo, FIoBuffer(ExportsData, DataSize - HeaderSize, IoBuffer));
+				SavePackageContext->PackageStoreWriter->WriteExports(ExportsInfo, FIoBuffer(ExportsData, DataSize - HeaderSize, IoBuffer), Linker->FileRegions);
 			}
 			else
 			{
@@ -1787,11 +1788,11 @@ ESavePackageResult FinalizeFile(FStructuredArchive::FRecord& StructuredArchiveRo
 				}
 				if (SaveContext.IsCooking())
 				{
-					SavePackageUtilities::AsyncWriteFileWithSplitExports(SaveContext.AsyncWriteAndHashSequence, FLargeMemoryPtr(Writer->ReleaseOwnership()), DataSize, Linker->Summary.TotalHeaderSize, *PathToSave, WriteOptions);
+					SavePackageUtilities::AsyncWriteFileWithSplitExports(SaveContext.AsyncWriteAndHashSequence, FLargeMemoryPtr(Writer->ReleaseOwnership()), DataSize, Linker->Summary.TotalHeaderSize, *PathToSave, WriteOptions, Linker->FileRegions);
 				}
 				else
 				{
-					SavePackageUtilities::AsyncWriteFile(SaveContext.AsyncWriteAndHashSequence, FLargeMemoryPtr(Writer->ReleaseOwnership()), DataSize, *PathToSave, WriteOptions);
+					SavePackageUtilities::AsyncWriteFile(SaveContext.AsyncWriteAndHashSequence, FLargeMemoryPtr(Writer->ReleaseOwnership()), DataSize, *PathToSave, WriteOptions, Linker->FileRegions);
 				}
 			}
 			SaveContext.CloseLinkerArchives();

@@ -8,6 +8,8 @@ class AActor;
 class FDisplayClusterConfiguratorToolkit;
 class FDisplayClusterConfiguratorPreviewScene;
 class UActorComponent;
+class ADisplayClusterRootActor;
+
 
 class FDisplayClusterConfiguratorViewportBuilder
 	: public IDisplayClusterConfiguratorViewportBuilder
@@ -15,10 +17,17 @@ class FDisplayClusterConfiguratorViewportBuilder
 public:
 	FDisplayClusterConfiguratorViewportBuilder(const TSharedRef<FDisplayClusterConfiguratorToolkit>& InToolkit, const TSharedRef<FDisplayClusterConfiguratorPreviewScene>& InPreviewScene);
 
+public:
 	//~ Begin IDisplayClusterConfiguratorViewportBuilder Interface
 	virtual void BuildViewport() override;
 	virtual void ClearViewportSelection() override;
 	//~ End IDisplayClusterConfiguratorViewportBuilder Interface
+
+public:
+	void UpdateOutputMappingPreview();
+
+protected:
+	void ResetScene(UWorld* World);
 
 private:
 	void OnClearViewportSelection();
@@ -29,7 +38,6 @@ private:
 
 	TWeakPtr<FDisplayClusterConfiguratorPreviewScene> PreviewScenePtr;
 
-	TArray<UActorComponent*> Components;
-
-	TArray<AActor*> Actors;
+	ADisplayClusterRootActor* RootActor = nullptr;
+	TSharedPtr<TMap<UObject*, FString>> ObjectsNameMap;
 };

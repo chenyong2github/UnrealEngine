@@ -342,7 +342,7 @@ static FAutoConsoleCommand GOSCClientConnectById(
 	)
 );
 
-UOSCServer* UOSCManager::CreateOSCServer(FString InReceiveIPAddress, int32 InPort, bool bInMulticastLoopback, bool bInStartListening, FString ServerName)
+UOSCServer* UOSCManager::CreateOSCServer(FString InReceiveIPAddress, int32 InPort, bool bInMulticastLoopback, bool bInStartListening, FString ServerName, UObject* Outer)
 {
 	if (OSC::GetLocalHostAddress(InReceiveIPAddress))
 	{
@@ -354,7 +354,18 @@ UOSCServer* UOSCManager::CreateOSCServer(FString InReceiveIPAddress, int32 InPor
 		ServerName = FString::Printf(TEXT("OSCServer_%s"), *FGuid::NewGuid().ToString(EGuidFormats::Short));
 	}
 
-	if (UOSCServer* NewOSCServer = NewObject<UOSCServer>(GetTransientPackage(), FName(*ServerName)))
+	UOSCServer* NewOSCServer = nullptr;
+	if (Outer)
+	{
+		NewOSCServer = NewObject<UOSCServer>(Outer, *ServerName, RF_StrongRefOnFrame);
+	}
+	else
+	{
+		UE_LOG(LogOSC, Warning, TEXT("Outer object not set.  OSCServer may be garbage collected if not referenced."));
+		NewOSCServer = NewObject<UOSCServer>(GetTransientPackage(), *ServerName);
+	}
+
+	if (NewOSCServer)
 	{
 		NewOSCServer->SetMulticastLoopback(bInMulticastLoopback);
 		if (NewOSCServer->SetAddress(InReceiveIPAddress, InPort))
@@ -375,7 +386,7 @@ UOSCServer* UOSCManager::CreateOSCServer(FString InReceiveIPAddress, int32 InPor
 	return nullptr;
 }
 
-UOSCClient* UOSCManager::CreateOSCClient(FString InSendIPAddress, int32 InPort, FString ClientName)
+UOSCClient* UOSCManager::CreateOSCClient(FString InSendIPAddress, int32 InPort, FString ClientName, UObject* Outer)
 {
 	if (OSC::GetLocalHostAddress(InSendIPAddress))
 	{
@@ -387,7 +398,18 @@ UOSCClient* UOSCManager::CreateOSCClient(FString InSendIPAddress, int32 InPort, 
 		ClientName = FString::Printf(TEXT("OSCClient_%s"), *FGuid::NewGuid().ToString(EGuidFormats::Short));
 	}
 
-	if (UOSCClient* NewOSCClient = NewObject<UOSCClient>(GetTransientPackage(), FName(*ClientName)))
+	UOSCClient* NewOSCClient = nullptr;
+	if (Outer)
+	{
+		NewOSCClient = NewObject<UOSCClient>(Outer, *ClientName, RF_StrongRefOnFrame);
+	}
+	else
+	{
+		UE_LOG(LogOSC, Warning, TEXT("Outer object not set.  OSCClient '%s' may be garbage collected if not referenced."), *ClientName);
+		NewOSCClient = NewObject<UOSCClient>(GetTransientPackage(), *ClientName);
+	}
+
+	if (NewOSCClient)
 	{
 		NewOSCClient->Connect();
 		if (!NewOSCClient->SetSendIPAddress(InSendIPAddress, InPort))

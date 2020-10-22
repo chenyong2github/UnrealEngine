@@ -50,37 +50,37 @@ namespace Chaos
 		bool Chaos_Collision_CheckManifoldComplete = false;
 		FAutoConsoleVariableRef CVarChaosCollisionCheckManifoldComplete(TEXT("p.Chaos.Collision.CheckManifoldComplete"), Chaos_Collision_CheckManifoldComplete, TEXT(""));
 
-		extern void UpdateManifold(FRigidBodyMultiPointContactConstraint& Constraint, const FReal CullDistance, const FReal ShapePadding)
+		extern void UpdateManifold(FRigidBodyMultiPointContactConstraint& Constraint, const FReal CullDistance)
 		{
 			const FRigidTransform3 Transform0 = GetTransform(Constraint.Particle[0]);
 			const FRigidTransform3 Transform1 = GetTransform(Constraint.Particle[1]);
 
-			UpdateManifold(Constraint, Transform0, Transform1, CullDistance, ShapePadding);
+			UpdateManifold(Constraint, Transform0, Transform1, CullDistance);
 		}
 
-		void Update(FRigidBodyPointContactConstraint& Constraint, const FReal CullDistance, const FReal ShapePadding)
+		void Update(FRigidBodyPointContactConstraint& Constraint, const FReal CullDistance)
 		{
 			const FRigidTransform3 Transform0 = GetTransform(Constraint.Particle[0]);
 			const FRigidTransform3 Transform1 = GetTransform(Constraint.Particle[1]);
 
 			Constraint.ResetPhi(CullDistance);
-			UpdateConstraintFromGeometry<ECollisionUpdateType::Deepest>(Constraint, Transform0, Transform1, CullDistance, ShapePadding);
+			UpdateConstraintFromGeometry<ECollisionUpdateType::Deepest>(Constraint, Transform0, Transform1, CullDistance);
 		}
 
-		void Update(FRigidBodySweptPointContactConstraint& Constraint, const FReal CullDistance, const FReal ShapePadding)
+		void Update(FRigidBodySweptPointContactConstraint& Constraint, const FReal CullDistance)
 		{
 			// Update as a point constraint (base class).
 			Constraint.bShouldTreatAsSinglePoint = true;
-			Update(*Constraint.As<FRigidBodyPointContactConstraint>(), CullDistance, ShapePadding);
+			Update(*Constraint.As<FRigidBodyPointContactConstraint>(), CullDistance);
 		}
 
-		void Update(FRigidBodyMultiPointContactConstraint& Constraint, const FReal CullDistance, const FReal ShapePadding)
+		void Update(FRigidBodyMultiPointContactConstraint& Constraint, const FReal CullDistance)
 		{
 			const FRigidTransform3 Transform0 = GetTransform(Constraint.Particle[0]);
 			const FRigidTransform3 Transform1 = GetTransform(Constraint.Particle[1]);
 
 			Constraint.ResetPhi(CullDistance);
-			UpdateConstraintFromManifold(Constraint, Transform0, Transform1, CullDistance, ShapePadding);
+			UpdateConstraintFromManifold(Constraint, Transform0, Transform1, CullDistance);
 		}
 
 		void ApplyAngularFriction(
@@ -281,8 +281,7 @@ namespace Chaos
 
 				// Clipping impulses to be positive and contacts to be penetrating or touching
 				// non zero PenetrationBuffer avoids a small amount of jitter added by the ApplypushOut function.
-				// @todo(chaos): shapepadding is not appropriate here
-				const FReal PenetrationBuffer = Chaos_Collision_CollisionClipTolerance + ParticleParameters.ShapePadding;
+				const FReal PenetrationBuffer = Chaos_Collision_CollisionClipTolerance;
 				const bool bProcessContact = ((NewAccImpNormalSize > 0) && (Contact.Phi <= PenetrationBuffer));// || !AccImp.IsNearlyZero();
 
 				if (bProcessContact)
@@ -803,7 +802,7 @@ namespace Chaos
 				bool bRequiresCollisionUpdate = true;
 				if (bRequiresCollisionUpdate)
 				{
-					Collisions::Update(Constraint, ParticleParameters.CullDistance, ParticleParameters.ShapePadding);
+					Collisions::Update(Constraint, ParticleParameters.CullDistance);
 				}
 
 				// Permanently disable a constraint that is beyond the cull distance
@@ -883,7 +882,7 @@ namespace Chaos
 			const int32 PartialPairIterations = FMath::Max(IterationParameters.NumPairIterations, 2); // Do at least 2 pair iterations
 			const FContactIterationParameters IterationParametersPartialDT{ PartialDT, FakeIteration, IterationParameters.NumIterations, PartialPairIterations, IterationParameters.ApplyType, IterationParameters.NeedsAnotherIteration };
 			const FContactIterationParameters IterationParametersRemainingDT{ RemainingDT, FakeIteration, IterationParameters.NumIterations, IterationParameters.NumPairIterations, IterationParameters.ApplyType, IterationParameters.NeedsAnotherIteration };
-			const FContactParticleParameters CCDParticleParamaters{ ParticleParameters.CullDistance + TimeOfImpactErrorMargin, ParticleParameters.ShapePadding + TimeOfImpactErrorMargin, ParticleParameters.RestitutionVelocityThreshold, ParticleParameters.bCanDisableContacts, ParticleParameters.Collided };
+			const FContactParticleParameters CCDParticleParamaters{ ParticleParameters.CullDistance + TimeOfImpactErrorMargin, ParticleParameters.RestitutionVelocityThreshold, ParticleParameters.bCanDisableContacts, ParticleParameters.Collided };
 
 			// Rewind P to TOI and Apply
 			Particle0->P() = FMath::Lerp(Particle0->X(), Particle0->P(), Constraint.TimeOfImpact);
@@ -1169,7 +1168,7 @@ namespace Chaos
 				bool bRequiresCollisionUpdate = true;
 				if (bRequiresCollisionUpdate)
 				{
-					Update(Constraint, ParticleParameters.CullDistance, ParticleParameters.ShapePadding);
+					Update(Constraint, ParticleParameters.CullDistance);
 				}
 
 				// Permanently disable a constraint that is beyond the cull distance

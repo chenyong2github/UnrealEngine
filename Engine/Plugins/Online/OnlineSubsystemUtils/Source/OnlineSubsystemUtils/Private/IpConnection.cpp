@@ -76,6 +76,11 @@ void UIpConnection::InitBase(UNetDriver* InDriver, class FSocket* InSocket, cons
 	{
 		Socket = InSocket;
 	}
+
+	if (CVarNetEnableCongestionControl.GetValueOnAnyThread() > 0)
+	{
+		NetworkCongestionControl.Emplace(CurrentNetSpeed, FNetPacketNotify::SequenceHistoryT::Size);
+	}
 }
 
 void UIpConnection::InitLocalConnection(UNetDriver* InDriver, class FSocket* InSocket, const FURL& InURL, EConnectionState InState, int32 InMaxPacket, int32 InPacketOverhead)

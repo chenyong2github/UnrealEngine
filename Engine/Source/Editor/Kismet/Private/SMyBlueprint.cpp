@@ -2704,8 +2704,7 @@ void SMyBlueprint::OnDeleteEntry()
 	{
 		if(FBlueprintEditorUtils::IsVariableUsed(GetBlueprintObj(), VarAction->GetVariableName()))
 		{
-			FText ConfirmDelete = FText::Format(LOCTEXT( "ConfirmDeleteVariableInUse",
-				"Variable {0} is in use! Do you really want to delete it?"),
+			FText ConfirmDelete = FText::Format(LOCTEXT( "ConfirmDeleteVariableInUse", "Variable {0} is in use! Do you really want to delete it?"),
 				FText::FromName( VarAction->GetVariableName() ) );
 
 			// Warn the user that this may result in data loss
@@ -2729,8 +2728,7 @@ void SMyBlueprint::OnDeleteEntry()
 	{
 		if(FBlueprintEditorUtils::IsVariableUsed(GetBlueprintObj(), LocalVarAction->GetVariableName(), FBlueprintEditorUtils::FindScopeGraph(GetBlueprintObj(), LocalVarAction->GetVariableScope())))
 		{
-			FText ConfirmDelete = FText::Format(LOCTEXT( "ConfirmDeleteLocalVariableInUse",
-				"Local Variable {0} is in use! Do you really want to delete it?"),
+			FText ConfirmDelete = FText::Format(LOCTEXT( "ConfirmDeleteLocalVariableInUse", "Local Variable {0} is in use! Do you really want to delete it?"),
 				FText::FromName( LocalVarAction->GetVariableName() ) );
 
 			// Warn the user that this may result in data loss
@@ -3076,6 +3074,24 @@ void SMyBlueprint::OnMoveToParent()
 
 				FBPVariableDescription VarDesc = Blueprint->NewVariables[VarIndex];
 				Blueprint->NewVariables.RemoveAt(VarIndex);
+
+				// We need to manually pull the DefaultValue from the FProperty to set it on the new parent class variable
+				{
+					// Grab property off blueprint's current CDO
+					UClass* GeneratedClass = Blueprint->GeneratedClass;
+					UObject* GeneratedCDO = GeneratedClass->GetDefaultObject();
+
+					if (FProperty* TargetProperty = FindFProperty<FProperty>(GeneratedClass, VarDesc.VarName))
+					{
+						if (void* OldPropertyAddr = TargetProperty->ContainerPtrToValuePtr<void>(GeneratedCDO))
+						{
+							// If there is a property for variable, it means the original default value was already copied, so it can be safely overridden
+							VarDesc.DefaultValue.Empty();
+							TargetProperty->ExportTextItem(VarDesc.DefaultValue, OldPropertyAddr, OldPropertyAddr, nullptr, PPF_SerializedAsImportText);
+						}
+					}
+				}
+
 				ParentBlueprint->NewVariables.Add(VarDesc);
 
 				FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Blueprint);

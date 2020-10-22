@@ -15,6 +15,7 @@
 
 class SScrollBarTrack;
 class SSpacer;
+class SImage;
 
 DECLARE_DELEGATE_OneParam(
 	FOnUserScrolled,
@@ -82,6 +83,7 @@ public:
 	void SetState( float InOffsetFraction, float InThumbSizeFraction );
 
 	// SWidget
+	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 	virtual FReply OnMouseButtonDown( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
 	virtual FReply OnMouseButtonUp( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
 	virtual FReply OnMouseMove( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
@@ -153,6 +155,8 @@ protected:
 	/** The scrollbar's visibility as specified by the user. Will be compounded with internal visibility rules. */
 	TAttribute<EVisibility> UserVisibility;
 
+	TSharedPtr<SImage> TopImage;
+	TSharedPtr<SImage> BottomImage;
 	TSharedPtr<SBorder> DragThumb;
 	TSharedPtr<SSpacer> ThicknessSpacer;
 	bool bDraggingThumb;

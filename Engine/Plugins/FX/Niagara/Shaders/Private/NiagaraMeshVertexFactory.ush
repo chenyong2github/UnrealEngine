@@ -679,7 +679,11 @@ void CalculateTransforms(in FVertexFactoryIntermediates Intermediates, out float
 	
 	////////////////////////////////////////////////////////////////////////////////
 	// Translation
-	float3 Translation = WorldParticlePosition + mul(NiagaraMeshVF.PivotOffset, RotationMat);
+	float3 Translation = WorldParticlePosition;
+	if (!NiagaraMeshVF.bPivotOffsetIsWorldSpace)
+	{
+		Translation += mul(NiagaraMeshVF.PivotOffset * Scale, RotationMat);
+	}
 	
 	////////////////////////////////////////////////////////////////////////////////
 	// Compose Transforms
@@ -823,6 +827,20 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 		Intermediates.ParticleToWorld = ParticleToWorld;
 		Intermediates.ParticleToWorldNoScale = ParticleToWorldNoScale;
 		Intermediates.WorldToParticle = WorldToParticle;
+	}
+	
+	if (NiagaraMeshVF.bPivotOffsetIsWorldSpace)
+	{
+		Intermediates.ParticleToWorld[3].xyz += NiagaraMeshVF.PivotOffset;
+		Intermediates.PrevParticleToWorld[3].xyz += NiagaraMeshVF.PivotOffset;
+		
+		float4x4 OffsetMtx = float4x4(
+			float4(1, 0, 0, 0),
+			float4(0, 1, 0, 0),
+			float4(0, 0, 1, 0),
+			float4(-NiagaraMeshVF.PivotOffset, 1)
+		);
+		Intermediates.WorldToParticle = mul(OffsetMtx, Intermediates.WorldToParticle);		
 	}
 
 	Intermediates.ParticlePosition = Intermediates.ParticleToWorld[3].xyz;
@@ -1136,6 +1154,18 @@ float4 VertexFactoryGetTranslatedPrimitiveVolumeBounds(FVertexFactoryInterpolant
 #endif
 #if (DYNAMIC_PARAMETERS_MASK & 8)
 		TESSELLATION_INTERPOLATE_MEMBER(InterpolantsVSToPS.DynamicParameter3);
+#endif
+
+#if USE_PARTICLE_LOCAL_TO_WORLD
+		TESSELLATION_INTERPOLATE_MEMBER(InterpolantsVSToPS.ParticleToWorld[0]);
+		TESSELLATION_INTERPOLATE_MEMBER(InterpolantsVSToPS.ParticleToWorld[1]);
+		TESSELLATION_INTERPOLATE_MEMBER(InterpolantsVSToPS.ParticleToWorld[2]);
+#endif
+
+#if USE_PARTICLE_WORLD_TO_LOCAL
+		TESSELLATION_INTERPOLATE_MEMBER(InterpolantsVSToPS.WorldToParticle[0]);
+		TESSELLATION_INTERPOLATE_MEMBER(InterpolantsVSToPS.WorldToParticle[1]);
+		TESSELLATION_INTERPOLATE_MEMBER(InterpolantsVSToPS.WorldToParticle[2]);
 #endif
 
 		return O;

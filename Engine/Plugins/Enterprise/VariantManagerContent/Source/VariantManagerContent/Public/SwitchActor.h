@@ -8,6 +8,8 @@
 
 #include "SwitchActor.generated.h"
 
+#define SWITCH_ACTOR_SELECTED_OPTION_NAME TEXT("Selected Option")
+
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnSwitchActorSwitch, int32 /* new selected index */);
 
 /**

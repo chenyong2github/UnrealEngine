@@ -644,7 +644,7 @@ FText UEnum::GetToolTipTextByIndex(int32 NameIndex) const
 
 #endif
 
-#if WITH_EDITOR || HACK_HEADER_GENERATOR
+#if WITH_EDITORONLY_DATA
 
 bool UEnum::HasMetaData( const TCHAR* Key, int32 NameIndex/*=INDEX_NONE*/ ) const
 {

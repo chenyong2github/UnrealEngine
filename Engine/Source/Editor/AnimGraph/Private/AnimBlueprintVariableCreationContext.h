@@ -4,6 +4,8 @@
 
 #include "IClassVariableCreator.h"
 
+class FAnimBlueprintCompilerContext;
+
 class FAnimBlueprintVariableCreationContext : public IAnimBlueprintVariableCreationContext
 {
 private:

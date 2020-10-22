@@ -3,10 +3,13 @@
 #pragma once
 
 #include "DMXPixelMappingRuntimeCommon.h"
+
 #include "UObject/Object.h"
 #include "DMXPixelMapping.generated.h"
 
+class UDMXEntityFixturePatch;
 class UDMXPixelMappingBaseComponent;
+
 class SWidget;
 class UTexture;
 
@@ -39,6 +42,12 @@ public:
 
 	/** Recurcevly preload all components in tree. */
 	void PreloadWithChildren();
+
+	/** Destroys invalid components. Useful when fixture type or fixture patch changed */
+	void DestroyInvalidComponents();
+
+	/** Returns the first component that corresponds to the patch or null if none present */
+	UDMXPixelMappingBaseComponent* FindComponent(UDMXEntityFixturePatch* FixturePatch) const;
 
 	/** Find the component by name. */
 	UDMXPixelMappingBaseComponent* FindComponent(const FName& Name) const;

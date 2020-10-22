@@ -921,7 +921,7 @@ class FHairVisibilityDebugPPLLCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, PPLLCounter)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, PPLLNodeIndex)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, PPLLNodeData)
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(Texture2D, SceneColorTextureUAV)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, SceneColorTextureUAV)
 		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrintParameters)
 	END_SHADER_PARAMETER_STRUCT()
 

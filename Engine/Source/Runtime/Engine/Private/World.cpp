@@ -1596,11 +1596,6 @@ void UWorld::InitWorld(const InitializationValues IVS)
 #endif
 
 	bAllowAudioPlayback = IVS.bAllowAudioPlayback;
-#if WITH_EDITOR
-	// Disable audio playback on PIE dedicated server
-	bAllowAudioPlayback = bAllowAudioPlayback && (GetNetMode() != NM_DedicatedServer);
-#endif // WITH_EDITOR
-
 	bDoDelayedUpdateCullDistanceVolumes = false;
 
 #if WITH_EDITOR

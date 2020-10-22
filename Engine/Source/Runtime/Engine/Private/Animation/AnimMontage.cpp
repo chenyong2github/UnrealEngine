@@ -768,6 +768,25 @@ EAnimEventTriggerOffsets::Type UAnimMontage::CalculateOffsetFromSections(float T
 	return EAnimEventTriggerOffsets::NoOffset;
 }
 
+bool FAnimMontageInstance::ValidateInstanceAfterNotifyState(const TWeakObjectPtr<UAnimInstance>& InAnimInstance, const UAnimNotifyState* InNotifyStateClass)
+{
+	// An owning instance should never be invalid after a notify call, since it's where the montage instance lives
+	if (!InAnimInstance.IsValid())
+	{
+		ensureMsgf(false, TEXT("Invalid anim instance after triggering notify: %s"), *GetNameSafe(InNotifyStateClass));
+		return false;
+	}
+
+	// Montage instances array should never be empty after a notify state
+	if (InAnimInstance->MontageInstances.Num() == 0)
+	{
+		ensureMsgf(false, TEXT("Montage instances empty on AnimInstance(%s) after calling notify:  %s"), *GetNameSafe(InAnimInstance.Get()), *GetNameSafe(InNotifyStateClass));
+		return false;
+	}
+
+	return true;
+}
+
 #if WITH_EDITOR
 EAnimEventTriggerOffsets::Type UAnimMontage::CalculateOffsetForNotify(float NotifyDisplayTime) const
 {
@@ -1474,24 +1493,35 @@ void FAnimMontageInstance::Terminate()
 
 	UAnimMontage* OldMontage = Montage;
 	
-	UAnimInstance* Inst = AnimInstance.Get();
-	if (Inst)
+	if (AnimInstance.IsValid())
 	{
+		// Must grab a reference on the stack in case "this" is deleted during iteration
+		TWeakObjectPtr<UAnimInstance> AnimInstanceLocal = AnimInstance;
+
 		// End all active State BranchingPoints
 		for (int32 Index = ActiveStateBranchingPoints.Num() - 1; Index >= 0; Index--)
 		{
 			FAnimNotifyEvent& NotifyEvent = ActiveStateBranchingPoints[Index];
-			FBranchingPointNotifyPayload BranchingPointNotifyPayload(AnimInstance->GetSkelMeshComponent(), Montage, &NotifyEvent, InstanceID);
-			TRACE_ANIM_NOTIFY(Inst, NotifyEvent, End);
-			NotifyEvent.NotifyStateClass->BranchingPointNotifyEnd(BranchingPointNotifyPayload);
+
+			if (NotifyEvent.NotifyStateClass)
+			{
+				FBranchingPointNotifyPayload BranchingPointNotifyPayload(AnimInstance->GetSkelMeshComponent(), Montage, &NotifyEvent, InstanceID);
+				TRACE_ANIM_NOTIFY(AnimInstance.Get(), NotifyEvent, End);
+				NotifyEvent.NotifyStateClass->BranchingPointNotifyEnd(BranchingPointNotifyPayload);
+
+				if (!ValidateInstanceAfterNotifyState(AnimInstanceLocal, NotifyEvent.NotifyStateClass))
+				{
+					return;
+				}
+			}
 		}
 		ActiveStateBranchingPoints.Empty();
 
 		// terminating, trigger end
-		Inst->QueueMontageEndedEvent(FQueuedMontageEndedEvent(OldMontage, bInterrupted, OnMontageEnded));
+		AnimInstance->QueueMontageEndedEvent(FQueuedMontageEndedEvent(OldMontage, bInterrupted, OnMontageEnded));
 
 		// Clear references to this MontageInstance. Needs to happen before Montage is cleared to nullptr, as TMaps can use that as a key.
-		Inst->ClearMontageInstanceReferences(*this);
+		AnimInstance->ClearMontageInstanceReferences(*this);
 	}
 
 	// clear Blend curve
@@ -2291,7 +2321,16 @@ void FAnimMontageInstance::Advance(float DeltaTime, struct FRootMotionMovementPa
 					// Save position before firing events.
 					if (!bInterrupted)
 					{
+						// Must grab a reference on the stack in case "this" is deleted during iteration
+						TWeakObjectPtr<UAnimInstance> AnimInstanceLocal = AnimInstance;
+
 						HandleEvents(PreviousSubStepPosition, Position, BranchingPointMarker);
+
+						// Break out if we no longer have active montage instances. This may happen when we call UninitializeAnimation from a notify
+						if (AnimInstanceLocal.IsValid() && AnimInstanceLocal->MontageInstances.Num() == 0)
+						{
+							return;
+						}
 					}
 				}
 
@@ -2351,16 +2390,28 @@ void FAnimMontageInstance::Advance(float DeltaTime, struct FRootMotionMovementPa
 		return;
 	}
 
-	if (!bInterrupted)
+	if (!bInterrupted && AnimInstance.IsValid())
 	{
 		SCOPE_CYCLE_COUNTER(STAT_AnimMontageInstance_TickBranchPoints);
+
+		// Must grab a reference on the stack in case "this" is deleted during iteration
+		TWeakObjectPtr<UAnimInstance> AnimInstanceLocal = AnimInstance;
 
 		// Tick all active state branching points
 		for (int32 Index = 0; Index < ActiveStateBranchingPoints.Num(); Index++)
 		{
 			FAnimNotifyEvent& NotifyEvent = ActiveStateBranchingPoints[Index];
-			FBranchingPointNotifyPayload BranchingPointNotifyPayload(AnimInstance->GetSkelMeshComponent(), Montage, &NotifyEvent, InstanceID);
-			NotifyEvent.NotifyStateClass->BranchingPointNotifyTick(BranchingPointNotifyPayload, DeltaTime);
+			if (NotifyEvent.NotifyStateClass)
+			{
+				FBranchingPointNotifyPayload BranchingPointNotifyPayload(AnimInstance->GetSkelMeshComponent(), Montage, &NotifyEvent, InstanceID);
+				NotifyEvent.NotifyStateClass->BranchingPointNotifyTick(BranchingPointNotifyPayload, DeltaTime);
+
+				// Break out if we no longer have active montage instances. This may happen when we call UninitializeAnimation from a notify
+				if (!ValidateInstanceAfterNotifyState(AnimInstanceLocal, NotifyEvent.NotifyStateClass))
+				{
+					return;
+				}
+			}
 		}
 	}
 }
@@ -2403,7 +2454,11 @@ void FAnimMontageInstance::HandleEvents(float PreviousTrackPos, float CurrentTra
 
 	// Update active state branching points, before we handle the immediate tick marker.
 	// In case our position jumped on the timeline, we need to begin/end state branching points accordingly.
-	UpdateActiveStateBranchingPoints(CurrentTrackPos);
+	// If this fails, this montage instance is no longer valid. Return to avoid crash.
+	if (!UpdateActiveStateBranchingPoints(CurrentTrackPos))
+	{
+		return;
+	}
 
 	// Trigger ImmediateTickMarker event if we have one
 	if (BranchingPointMarker)
@@ -2412,26 +2467,40 @@ void FAnimMontageInstance::HandleEvents(float PreviousTrackPos, float CurrentTra
 	}
 }
 
-void FAnimMontageInstance::UpdateActiveStateBranchingPoints(float CurrentTrackPosition)
+bool FAnimMontageInstance::UpdateActiveStateBranchingPoints(float CurrentTrackPosition)
 {
 	int32 NumStateBranchingPoints = Montage->BranchingPointStateNotifyIndices.Num();
-	if (NumStateBranchingPoints > 0)
+
+	if (AnimInstance.IsValid() && NumStateBranchingPoints > 0)
 	{
+		// Must grab a reference on the stack in case "this" is deleted during iteration
+		TWeakObjectPtr<UAnimInstance> AnimInstanceLocal = AnimInstance;
+
 		// End no longer active events first. We want this to happen before we trigger NotifyBegin on newly active events.
 		for (int32 Index = ActiveStateBranchingPoints.Num() - 1; Index >= 0; Index--)
 		{
 			FAnimNotifyEvent& NotifyEvent = ActiveStateBranchingPoints[Index];
 
-			const float NotifyStartTime = NotifyEvent.GetTriggerTime();
-			const float NotifyEndTime = NotifyEvent.GetEndTriggerTime();
-			bool bNotifyIsActive = (CurrentTrackPosition > NotifyStartTime) && (CurrentTrackPosition <= NotifyEndTime);
-
-			if (!bNotifyIsActive)
+			if (NotifyEvent.NotifyStateClass)
 			{
-				FBranchingPointNotifyPayload BranchingPointNotifyPayload(AnimInstance->GetSkelMeshComponent(), Montage, &NotifyEvent, InstanceID);
-				TRACE_ANIM_NOTIFY(AnimInstance.Get(), NotifyEvent, End);
-				NotifyEvent.NotifyStateClass->BranchingPointNotifyEnd(BranchingPointNotifyPayload);
-				ActiveStateBranchingPoints.RemoveAt(Index, 1);
+				const float NotifyStartTime = NotifyEvent.GetTriggerTime();
+				const float NotifyEndTime = NotifyEvent.GetEndTriggerTime();
+				bool bNotifyIsActive = (CurrentTrackPosition > NotifyStartTime) && (CurrentTrackPosition <= NotifyEndTime);
+
+				if (!bNotifyIsActive)
+				{
+					FBranchingPointNotifyPayload BranchingPointNotifyPayload(AnimInstance->GetSkelMeshComponent(), Montage, &NotifyEvent, InstanceID);
+					TRACE_ANIM_NOTIFY(AnimInstance.Get(), NotifyEvent, End);
+					NotifyEvent.NotifyStateClass->BranchingPointNotifyEnd(BranchingPointNotifyPayload);
+
+					// Break out if we no longer have active montage instances. This may happen when we call UninitializeAnimation from a notify
+					if (!ValidateInstanceAfterNotifyState(AnimInstanceLocal, NotifyEvent.NotifyStateClass))
+					{
+						return false;
+					}
+
+					ActiveStateBranchingPoints.RemoveAt(Index, 1);
+				}
 			}
 		}
 
@@ -2441,25 +2510,40 @@ void FAnimMontageInstance::UpdateActiveStateBranchingPoints(float CurrentTrackPo
 			const int32 NotifyIndex = Montage->BranchingPointStateNotifyIndices[Index];
 			FAnimNotifyEvent& NotifyEvent = Montage->Notifies[NotifyIndex];
 
-			const float NotifyStartTime = NotifyEvent.GetTriggerTime();
-			const float NotifyEndTime = NotifyEvent.GetEndTriggerTime();
-
-			bool bNotifyIsActive = (CurrentTrackPosition > NotifyStartTime) && (CurrentTrackPosition <= NotifyEndTime);
-			if (bNotifyIsActive && !ActiveStateBranchingPoints.Contains(NotifyEvent))
+			if (NotifyEvent.NotifyStateClass)
 			{
-				FBranchingPointNotifyPayload BranchingPointNotifyPayload(AnimInstance->GetSkelMeshComponent(), Montage, &NotifyEvent, InstanceID);
-				TRACE_ANIM_NOTIFY(AnimInstance.Get(), NotifyEvent, Begin);
-				NotifyEvent.NotifyStateClass->BranchingPointNotifyBegin(BranchingPointNotifyPayload);
-				ActiveStateBranchingPoints.Add(NotifyEvent);
+				const float NotifyStartTime = NotifyEvent.GetTriggerTime();
+				const float NotifyEndTime = NotifyEvent.GetEndTriggerTime();
+
+				bool bNotifyIsActive = (CurrentTrackPosition > NotifyStartTime) && (CurrentTrackPosition <= NotifyEndTime);
+				if (bNotifyIsActive && !ActiveStateBranchingPoints.Contains(NotifyEvent))
+				{
+					FBranchingPointNotifyPayload BranchingPointNotifyPayload(AnimInstance->GetSkelMeshComponent(), Montage, &NotifyEvent, InstanceID);
+					TRACE_ANIM_NOTIFY(AnimInstance.Get(), NotifyEvent, Begin);
+					NotifyEvent.NotifyStateClass->BranchingPointNotifyBegin(BranchingPointNotifyPayload);
+
+					// Break out if we no longer have active montage instances. This may happen when we call UninitializeAnimation from a notify
+					if (!ValidateInstanceAfterNotifyState(AnimInstanceLocal, NotifyEvent.NotifyStateClass))
+					{
+						return false;
+					}
+
+					ActiveStateBranchingPoints.Add(NotifyEvent);
+				}
 			}
 		}
 	}
+
+	return true;
 }
 
 void FAnimMontageInstance::BranchingPointEventHandler(const FBranchingPointMarker* BranchingPointMarker)
 {
 	if (AnimInstance.IsValid() && Montage && BranchingPointMarker)
 	{
+		// Must grab a reference on the stack in case "this" is deleted during iteration
+		TWeakObjectPtr<UAnimInstance> AnimInstanceLocal = AnimInstance;
+
 		FAnimNotifyEvent* NotifyEvent = (BranchingPointMarker->NotifyIndex < Montage->Notifies.Num()) ? &Montage->Notifies[BranchingPointMarker->NotifyIndex] : NULL;
 		if (NotifyEvent)
 		{
@@ -2487,6 +2571,12 @@ void FAnimMontageInstance::BranchingPointEventHandler(const FBranchingPointMarke
 					FBranchingPointNotifyPayload BranchingPointNotifyPayload(AnimInstance->GetSkelMeshComponent(), Montage, NotifyEvent, InstanceID);
 					TRACE_ANIM_NOTIFY(AnimInstance.Get(), *NotifyEvent, Begin);
 					NotifyEvent->NotifyStateClass->BranchingPointNotifyBegin(BranchingPointNotifyPayload);
+
+					if (!ValidateInstanceAfterNotifyState(AnimInstanceLocal, NotifyEvent->NotifyStateClass))
+					{
+						return;
+					}
+
 					ActiveStateBranchingPoints.Add(*NotifyEvent);
 				}
 				else
@@ -2494,6 +2584,12 @@ void FAnimMontageInstance::BranchingPointEventHandler(const FBranchingPointMarke
 					FBranchingPointNotifyPayload BranchingPointNotifyPayload(AnimInstance->GetSkelMeshComponent(), Montage, NotifyEvent, InstanceID);
 					TRACE_ANIM_NOTIFY(AnimInstance.Get(), *NotifyEvent, End);
 					NotifyEvent->NotifyStateClass->BranchingPointNotifyEnd(BranchingPointNotifyPayload);
+
+					if (!ValidateInstanceAfterNotifyState(AnimInstanceLocal, NotifyEvent->NotifyStateClass))
+					{
+						return;
+					}
+
 					ActiveStateBranchingPoints.RemoveSingleSwap(*NotifyEvent);
 				}
 			}

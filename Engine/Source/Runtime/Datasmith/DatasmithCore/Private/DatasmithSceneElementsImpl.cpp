@@ -412,6 +412,37 @@ void FDatasmithMasterMaterialElementImpl::AddProperty( const TSharedPtr< IDatasm
 	}
 }
 
+FMD5Hash FDatasmithMasterMaterialElementImpl::CalculateElementHash(bool bForce)
+{
+	if (ElementHash.IsValid() && !bForce)
+	{
+		return ElementHash;
+	}
+
+	FMD5 MD5;
+	MD5.Update(reinterpret_cast<const uint8*>(&MaterialType), sizeof(MaterialType));
+	MD5.Update(reinterpret_cast<const uint8*>(&Quality), sizeof(Quality));
+
+	const FString& CustomName = CustomMaterialPathName;
+	if (!CustomName.IsEmpty())
+	{
+		MD5.Update(reinterpret_cast<const uint8*>(*CustomName), CustomName.Len() * sizeof(TCHAR));
+	}
+
+	for (const TSharedPtr<IDatasmithKeyValueProperty>& Property : Properties.View())
+	{
+		const TCHAR* PropertyName = Property->GetName();
+		MD5.Update(reinterpret_cast<const uint8*>(PropertyName), TCString<TCHAR>::Strlen(PropertyName) * sizeof(TCHAR));
+		const TCHAR* PropertyValue = Property->GetValue();
+		MD5.Update(reinterpret_cast<const uint8*>(PropertyValue), TCString<TCHAR>::Strlen(PropertyValue) * sizeof(TCHAR));
+		EDatasmithKeyValuePropertyType PropertyType = Property->GetPropertyType();
+		MD5.Update(reinterpret_cast<const uint8*>(&PropertyType), sizeof(PropertyType));
+	}
+
+	ElementHash.Set(MD5);
+	return ElementHash;
+}
+
 FDatasmithEnvironmentElementImpl::FDatasmithEnvironmentElementImpl(const TCHAR* InName)
 	: FDatasmithLightActorElementImpl(InName, EDatasmithElementType::EnvironmentLight)
 	, EnvironmentComp( MakeShared<FDatasmithCompositeTextureImpl>() )
@@ -479,7 +510,8 @@ FMD5Hash FDatasmithTextureElementImpl::CalculateElementHash(bool bForce)
 		return ElementHash;
 	}
 	FMD5 MD5;
-	MD5.Update(FileHash.Get(Store).GetBytes(), FileHash.Get(Store).GetSize());
+	const FMD5Hash& FileHashValue = FileHash.Get(Store);
+	MD5.Update(FileHashValue.GetBytes(), FileHashValue.GetSize());
 	MD5.Update(reinterpret_cast<uint8*>(&RGBCurve), sizeof(RGBCurve));
 	MD5.Update(reinterpret_cast<uint8*>(&TextureMode), sizeof(TextureMode));
 	MD5.Update(reinterpret_cast<uint8*>(&TextureFilter), sizeof(TextureFilter));

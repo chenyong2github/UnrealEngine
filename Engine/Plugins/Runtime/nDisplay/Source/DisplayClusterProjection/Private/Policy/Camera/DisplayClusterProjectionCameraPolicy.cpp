@@ -100,6 +100,7 @@ bool FDisplayClusterProjectionCameraPolicy::GetProjectionMatrix(const uint32 Vie
 	if (AssignedCamera)
 	{
 		OutPrjMatrix = ComposureSettings.GetProjectionMatrix(AssignedCamera->FieldOfView * CurrentFovMultiplier, AssignedCamera->AspectRatio);
+		return true;
 	}
 	else
 	{
@@ -115,11 +116,9 @@ bool FDisplayClusterProjectionCameraPolicy::GetProjectionMatrix(const uint32 Vie
 				}
 			}
 		}
-
-		return false;
 	}
 
-	return true;
+	return false;
 }
 
 

@@ -53,6 +53,7 @@ public:
 	virtual bool RegisterProjectionPolicyFactory(const FString& InProjectionType, TSharedPtr<IDisplayClusterProjectionPolicyFactory>& InFactory) override;
 	virtual bool UnregisterProjectionPolicyFactory(const FString& InProjectionType) override;
 	virtual TSharedPtr<IDisplayClusterProjectionPolicyFactory> GetProjectionPolicyFactory(const FString& InProjectionType) override;
+	virtual void GetRegisteredProjectionPolicies(TArray<FString>& OutPolicyIDs) const override;
 	// Post-process
 	virtual bool RegisterPostprocessOperation(const FString& InName, TSharedPtr<IDisplayClusterPostProcess>& InOperation, int InPriority = 0) override;
 	virtual bool RegisterPostprocessOperation(const FString& InName, IPDisplayClusterRenderManager::FDisplayClusterPPInfo& InPPInfo) override;

@@ -244,29 +244,38 @@ namespace Audio
 			FScopeLock ScopeLock(&EffectChainMutationCriticalSection);
 			{
     			NumSubmixEffects = 0;
-				for (USoundEffectSubmixPreset* EffectPreset : SoundSubmix->SubmixEffectChain)
+				EffectChains.Reset();
+
+				if (SoundSubmix->SubmixEffectChain.Num() > 0)
 				{
-					if (EffectPreset)
+					FSubmixEffectFadeInfo NewEffectFadeInfo;
+					NewEffectFadeInfo.FadeVolume = FDynamicParameter(1.0f);
+					NewEffectFadeInfo.bIsCurrentChain = true;
+					NewEffectFadeInfo.bIsBaseEffect = true;
+
+					for (USoundEffectSubmixPreset* EffectPreset : SoundSubmix->SubmixEffectChain)
 					{
-						++NumSubmixEffects;
+						if (EffectPreset)
+						{
+							++NumSubmixEffects;
 
 
-						FSoundEffectSubmixInitData InitData;
-						InitData.DeviceID = MixerDevice->DeviceID;
-						InitData.SampleRate = MixerDevice->GetSampleRate();
-						InitData.PresetSettings = nullptr;
+							FSoundEffectSubmixInitData InitData;
+							InitData.DeviceID = MixerDevice->DeviceID;
+							InitData.SampleRate = MixerDevice->GetSampleRate();
+							InitData.PresetSettings = nullptr;
+							InitData.ParentPresetUniqueId = EffectPreset->GetUniqueID();
 
-						// Create a new effect instance using the preset & enable
-						TSoundEffectSubmixPtr SubmixEffect = USoundEffectPreset::CreateInstance<FSoundEffectSubmixInitData, FSoundEffectSubmix>(InitData, *EffectPreset);
-						SubmixEffect->SetEnabled(true);
+							// Create a new effect instance using the preset & enable
+							TSoundEffectSubmixPtr SubmixEffect = USoundEffectPreset::CreateInstance<FSoundEffectSubmixInitData, FSoundEffectSubmix>(InitData, *EffectPreset);
+							SubmixEffect->SetEnabled(true);
 
-						FSubmixEffectInfo EffectInfo;
-						EffectInfo.PresetId = EffectPreset->GetUniqueID();
-						EffectInfo.EffectInstance = SubmixEffect;
-
-						// Add the effect to this submix's chain
-						EffectSubmixChain.Add(MoveTemp(EffectInfo));
+							// Add the effect to this submix's chain
+							NewEffectFadeInfo.EffectChain.Add(SubmixEffect);
+						}
 					}
+
+					EffectChains.Add(NewEffectFadeInfo);
 				}
 			}
 
@@ -443,7 +452,15 @@ namespace Audio
 
 	int32 FMixerSubmix::GetSizeOfSubmixChain() const
 	{
-		return EffectSubmixChain.Num();
+		// Return the base size
+		for (const FSubmixEffectFadeInfo& Info : EffectChains)
+		{
+			if (Info.bIsCurrentChain)
+			{
+				return Info.EffectChain.Num();
+			}
+		}
+		return 0;
 	}
 
 
@@ -474,29 +491,35 @@ namespace Audio
 		}
 	}
 
-	void FMixerSubmix::AddSoundEffectSubmix(uint32 SubmixPresetId, FSoundEffectSubmixPtr InSoundEffectSubmix)
+	void FMixerSubmix::AddSoundEffectSubmix(FSoundEffectSubmixPtr InSoundEffectSubmix)
 	{
 		FScopeLock ScopeLock(&EffectChainMutationCriticalSection);
 		AUDIO_MIXER_CHECK_AUDIO_PLAT_THREAD(MixerDevice);
 
+		uint32 SubmixPresetId = InSoundEffectSubmix->GetParentPresetId();
+
 		// Look to see if the submix preset ID is already present
-		for (int32 i = 0; i < EffectSubmixChain.Num(); ++i)
+		for (FSubmixEffectFadeInfo& FadeInfo : EffectChains)
 		{
-			if (EffectSubmixChain[i].PresetId == SubmixPresetId)
+			for (FSoundEffectSubmixPtr& Effect : FadeInfo.EffectChain)
 			{
-				// Already added.
-				return;
+				if (Effect.IsValid() && Effect->GetParentPresetId() == SubmixPresetId)
+				{
+					// Already added.
+					return;
+				}
 			}
 		}
 
-		// This is now owned by FMixerSubmix
-		FSubmixEffectInfo Info;
-		Info.PresetId = SubmixPresetId;
-		Info.EffectInstance = InSoundEffectSubmix;
-
 		++NumSubmixEffects;
-
-		EffectSubmixChain.Add(Info);
+		for (FSubmixEffectFadeInfo& FadeInfo : EffectChains)
+		{
+			if (FadeInfo.bIsCurrentChain)
+			{
+				FadeInfo.EffectChain.Add(InSoundEffectSubmix);
+				return;
+			}
+		}
 	}
 
 	void FMixerSubmix::RemoveSoundEffectSubmix(uint32 SubmixPresetId)
@@ -504,16 +527,16 @@ namespace Audio
 		FScopeLock ScopeLock(&EffectChainMutationCriticalSection);
 		AUDIO_MIXER_CHECK_AUDIO_PLAT_THREAD(MixerDevice);
 
-		for (FSubmixEffectInfo& Effect : EffectSubmixChain)
+		for (FSubmixEffectFadeInfo& FadeInfo : EffectChains)
 		{
-			// If the ID's match, delete and remove the effect instance but don't modify the effect submix chain array itself
-			if (Effect.PresetId == SubmixPresetId)
+			for (FSoundEffectSubmixPtr& EffectInstance : FadeInfo.EffectChain)
 			{
-				// Reset reference to the effect
-				Effect.EffectInstance.Reset();
-				Effect.PresetId = INDEX_NONE;
-
-				--NumSubmixEffects;
+				if (EffectInstance->GetParentPresetId() == SubmixPresetId)
+				{
+					EffectInstance.Reset();
+					--NumSubmixEffects;
+					return;
+				}
 			}
 		}
 	}
@@ -522,14 +545,20 @@ namespace Audio
 	{
 		AUDIO_MIXER_CHECK_AUDIO_PLAT_THREAD(MixerDevice);
 
-		if (InIndex >= 0 && InIndex < EffectSubmixChain.Num())
+		for (FSubmixEffectFadeInfo& FadeInfo : EffectChains)
 		{
-			FSubmixEffectInfo& Effect = EffectSubmixChain[InIndex];
-			if (Effect.EffectInstance.IsValid())
+			if (FadeInfo.bIsCurrentChain)
 			{
-				Effect.EffectInstance.Reset();
-				Effect.PresetId = INDEX_NONE;
-				--NumSubmixEffects;
+				if (InIndex >= 0 && InIndex < FadeInfo.EffectChain.Num())
+				{
+					FSoundEffectSubmixPtr& EffectInstance = FadeInfo.EffectChain[InIndex];
+					if (EffectInstance.IsValid())
+					{
+						EffectInstance.Reset();
+						--NumSubmixEffects;
+					}
+				}
+				return;
 			}
 		}
 	}
@@ -539,12 +568,18 @@ namespace Audio
 		FScopeLock ScopeLock(&EffectChainMutationCriticalSection);
 
 		TArray<TSoundEffectSubmixPtr> SubmixEffectsToReset;
-		for (FSubmixEffectInfo& Info : EffectSubmixChain)
+
+		for (FSubmixEffectFadeInfo& FadeInfo : EffectChains)
 		{
-			if (Info.EffectInstance.IsValid())
+			for (FSoundEffectSubmixPtr& EffectInstance : FadeInfo.EffectChain)
 			{
-				SubmixEffectsToReset.Add(Info.EffectInstance);
+				if (EffectInstance.IsValid())
+				{
+					SubmixEffectsToReset.Add(EffectInstance);
+				}
 			}
+
+			FadeInfo.EffectChain.Reset();
 		}
 
 		// Unregister these source effect instances from their owning USoundEffectInstance on the next audio thread tick.
@@ -557,17 +592,63 @@ namespace Audio
 		});
 
 		NumSubmixEffects = 0;
-		EffectSubmixChain.Reset();
+		EffectChains.Reset();
 	}
 
-	void FMixerSubmix::ReplaceSoundEffectSubmix(int32 InIndex, int32 InPresetId, FSoundEffectSubmixPtr InEffectInstance)
+	void FMixerSubmix::SetSubmixEffectChainOverride(const TArray<FSoundEffectSubmixPtr>& InSubmixEffectPresetChain, float InFadeTimeSec)
 	{
 		FScopeLock ScopeLock(&EffectChainMutationCriticalSection);
 
-		if (InEffectInstance->GetPreset() != nullptr && InIndex < EffectSubmixChain.Num())
+		// Set every existing override to NOT be the current override
+		for (FSubmixEffectFadeInfo& FadeInfo : EffectChains)
 		{
-			EffectSubmixChain[InIndex].PresetId = InPresetId;
-			EffectSubmixChain[InIndex].EffectInstance = InEffectInstance;
+			FadeInfo.bIsCurrentChain = false;
+			FadeInfo.FadeVolume.Set(0.0f, InFadeTimeSec);
+		}
+
+		FSubmixEffectFadeInfo& NewSubmixEffectChain = EffectChains.Add_GetRef(FSubmixEffectFadeInfo());
+		NewSubmixEffectChain.bIsCurrentChain = true;
+		NewSubmixEffectChain.FadeVolume = FDynamicParameter(0.0f);
+		NewSubmixEffectChain.FadeVolume.Set(1.0f, InFadeTimeSec);
+		NewSubmixEffectChain.EffectChain = InSubmixEffectPresetChain; 
+	}
+
+	void FMixerSubmix::ClearSubmixEffectChainOverride(float InFadeTimeSec)
+	{
+		FScopeLock ScopeLock(&EffectChainMutationCriticalSection);
+
+		// Set all non-base submix chains to fading out, set the base submix chain to fading in
+		for (FSubmixEffectFadeInfo& FadeInfo : EffectChains)
+		{
+			if (FadeInfo.bIsBaseEffect)
+			{
+				FadeInfo.bIsCurrentChain = true;
+				FadeInfo.FadeVolume.Set(1.0f, InFadeTimeSec);
+			}
+			else
+			{
+				FadeInfo.bIsCurrentChain = false;
+				FadeInfo.FadeVolume.Set(0.0f, InFadeTimeSec);
+			}
+		}
+	}
+
+	void FMixerSubmix::ReplaceSoundEffectSubmix(int32 InIndex, FSoundEffectSubmixPtr InEffectInstance)
+	{
+		FScopeLock ScopeLock(&EffectChainMutationCriticalSection);
+
+		uint32 ParentPresetId = InEffectInstance->GetParentPresetId();
+
+		for (FSubmixEffectFadeInfo& FadeInfo : EffectChains)
+		{
+			if (FadeInfo.bIsCurrentChain)
+			{
+				if (InIndex < FadeInfo.EffectChain.Num())
+				{
+					FadeInfo.EffectChain[InIndex] = InEffectInstance;
+				}
+				break;
+			}
 		}
 	}
 
@@ -1008,10 +1089,15 @@ namespace Audio
 
 		{
 			FScopeLock ScopeLock(&EffectChainMutationCriticalSection);
-			if (!BypassAllSubmixEffectsCVar && EffectSubmixChain.Num() > 0)
-			{
+
+			if (!BypassAllSubmixEffectsCVar && EffectChains.Num() > 0)
+			{		
 				CSV_SCOPED_TIMING_STAT(Audio, SubmixEffectProcessing);
 				SCOPE_CYCLE_COUNTER(STAT_AudioMixerSubmixEffectProcessing);
+
+				float SampleRate = MixerDevice->GetSampleRate();
+				check(SampleRate > 0.0f);
+				float DeltaTimeSec = NumOutputFrames / SampleRate;
 
 				// Setup the input data buffer
 				FSoundEffectSubmixInputData InputData;
@@ -1024,54 +1110,32 @@ namespace Audio
 				InputData.ListenerTransforms = MixerDevice->GetListenerTransforms();
 				InputData.AudioClock = MixerDevice->GetAudioClock();
 
-				FSoundEffectSubmixOutputData OutputData;
-				OutputData.AudioBuffer = &ScratchBuffer;
-				OutputData.NumChannels = NumChannels;
-
-				for (FSubmixEffectInfo& SubmixEffectInfo : EffectSubmixChain)
+				for (int32 EffectChainIndex = EffectChains.Num() - 1; EffectChainIndex >= 0; --EffectChainIndex)
 				{
-					FSoundEffectSubmixPtr SubmixEffect = SubmixEffectInfo.EffectInstance;
+					FSubmixEffectFadeInfo& FadeInfo = EffectChains[EffectChainIndex];
 
-					// SubmixEffectInfo.EffectInstance will be null if FMixerSubmix::RemoveSoundEffectSubmix was called earlier.
-					if (!SubmixEffect.IsValid())
+					// If we're not the current chain and we've finished fading out, lets remove it from the effect chains
+					if (!FadeInfo.bIsCurrentChain && FadeInfo.FadeVolume.IsDone())
 					{
+						// only remove effect chain if it's not the base effect chain
+						if (!FadeInfo.bIsBaseEffect)
+						{
+							EffectChains.RemoveAtSwap(EffectChainIndex, 1, true);
+						}
 						continue;
 					}
 
-					// Reset the output scratch buffer
-					ScratchBuffer.Reset(NumSamples);
-					ScratchBuffer.AddZeroed(NumSamples);
+					// Prepare the scratch buffer for effect chain processing
+					EffectChainOutputBuffer.SetNumUninitialized(NumSamples);
 
-					// Check to see if we need to down-mix our audio before sending to the submix effect
-					const uint32 ChannelCountOverride = SubmixEffect->GetDesiredInputChannelCountOverride();
+					// Generate the audio into the effect chain
+					GenerateEffectChainAudio(InputData, FadeInfo.EffectChain, EffectChainOutputBuffer);
 
-					if (ChannelCountOverride != INDEX_NONE && ChannelCountOverride != NumChannels)
-					{
-						// Perform the down-mix operation with the down-mixed scratch buffer
-						DownmixedBuffer.Reset();
-						DownmixedBuffer.AddUninitialized(NumOutputFrames * ChannelCountOverride);
-						DownmixBuffer(NumChannels, InputBuffer, ChannelCountOverride, DownmixedBuffer);
+					float StartFadeVolume = FadeInfo.FadeVolume.GetValue();
+					FadeInfo.FadeVolume.Update(DeltaTimeSec);
+					float EndFadeVolume = FadeInfo.FadeVolume.GetValue();
 
-						InputData.NumChannels = ChannelCountOverride;
-						InputData.AudioBuffer = &DownmixedBuffer;
-						SubmixEffect->ProcessAudio(InputData, OutputData);
-					}
-					else
-					{
-						// If we're not down-mixing, then just pass in the current wet buffer and our channel count is the same as the output channel count
-						InputData.NumChannels = NumChannels;
-						InputData.AudioBuffer = &InputBuffer;
-						SubmixEffect->ProcessAudio(InputData, OutputData);
-					}
-					
-					// Mix in the dry signal directly
-					const float DryLevel = SubmixEffect->GetDryLevel();
-					if (DryLevel > 0.0f)
-					{
-						Audio::MixInBufferFast(InputBuffer, ScratchBuffer, DryLevel);
-					}
-
-					FMemory::Memcpy((void*)BufferPtr, (void*)ScratchBuffer.GetData(), sizeof(float)* NumSamples);
+					MixInBufferFast(EffectChainOutputBuffer, InputBuffer, StartFadeVolume, EndFadeVolume);
 				}
 			}
 		}
@@ -1169,6 +1233,59 @@ namespace Audio
 			}
 		}
 	}
+
+	void FMixerSubmix::GenerateEffectChainAudio(FSoundEffectSubmixInputData& InputData, TArray<FSoundEffectSubmixPtr>& InEffectChain, AlignedFloatBuffer& OutBuffer)
+	{
+		FSoundEffectSubmixOutputData OutputData;
+		OutputData.AudioBuffer = &ScratchBuffer;
+		OutputData.NumChannels = NumChannels;
+
+		const int32 NumOutputFrames = OutBuffer.Num() / NumChannels;
+
+		for (FSoundEffectSubmixPtr& SubmixEffect : InEffectChain)
+		{
+			// SubmixEffectInfo.EffectInstance will be null if FMixerSubmix::RemoveSoundEffectSubmix was called earlier.
+			if (!SubmixEffect.IsValid())
+			{
+				continue;
+			}
+
+			// Reset the output scratch buffer
+			ScratchBuffer.Reset(NumSamples);
+			ScratchBuffer.AddZeroed(NumSamples);
+
+			// Check to see if we need to down-mix our audio before sending to the submix effect
+			const uint32 ChannelCountOverride = SubmixEffect->GetDesiredInputChannelCountOverride();
+
+			if (ChannelCountOverride != INDEX_NONE && ChannelCountOverride != NumChannels)
+			{
+				// Perform the down-mix operation with the down-mixed scratch buffer
+				DownmixedBuffer.SetNumUninitialized(NumOutputFrames * ChannelCountOverride);
+				DownmixBuffer(NumChannels, InputBuffer, ChannelCountOverride, DownmixedBuffer);
+
+				InputData.NumChannels = ChannelCountOverride;
+				InputData.AudioBuffer = &DownmixedBuffer;
+				SubmixEffect->ProcessAudio(InputData, OutputData);
+			}
+			else
+			{
+				// If we're not down-mixing, then just pass in the current wet buffer and our channel count is the same as the output channel count
+				InputData.NumChannels = NumChannels;
+				InputData.AudioBuffer = &InputBuffer;
+				SubmixEffect->ProcessAudio(InputData, OutputData);
+			}
+
+			// Mix in the dry signal directly
+			const float DryLevel = SubmixEffect->GetDryLevel();
+			if (DryLevel > 0.0f)
+			{
+				Audio::MixInBufferFast(InputBuffer, ScratchBuffer, DryLevel);
+			}
+
+			FMemory::Memcpy((void*)OutBuffer.GetData(), (void*)ScratchBuffer.GetData(), sizeof(float) * NumSamples);
+		}
+	}
+
 
 	void FMixerSubmix::ProcessAudio(ISoundfieldAudioPacket& OutputAudio)
 	{
@@ -1369,16 +1486,31 @@ namespace Audio
 		return MixerDevice->GetNumDeviceChannels();
 	}
 
-	int32 FMixerSubmix::GetNumChainEffects() const
+	int32 FMixerSubmix::GetNumChainEffects()
 	{
-		return EffectSubmixChain.Num();
+		FScopeLock ScopeLock(&EffectChainMutationCriticalSection);
+		for (const FSubmixEffectFadeInfo& FadeInfo : EffectChains)
+		{
+			if (FadeInfo.bIsCurrentChain)
+			{
+				return FadeInfo.EffectChain.Num();
+			}
+		}
+		return 0;
 	}
 
 	FSoundEffectSubmixPtr FMixerSubmix::GetSubmixEffect(const int32 InIndex)
 	{
-		if (InIndex < EffectSubmixChain.Num())
+		FScopeLock ScopeLock(&EffectChainMutationCriticalSection);
+		for (const FSubmixEffectFadeInfo& FadeInfo : EffectChains)
 		{
-			return EffectSubmixChain[InIndex].EffectInstance;
+			if (FadeInfo.bIsCurrentChain)
+			{
+				if (InIndex < FadeInfo.EffectChain.Num())
+				{
+					return FadeInfo.EffectChain[InIndex];
+				}
+			}
 		}
 		return nullptr;
 	}

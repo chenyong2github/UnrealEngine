@@ -30,6 +30,7 @@ struct FShaderCompilerEnvironment;
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FNiagaraMeshUniformParameters, NIAGARAVERTEXFACTORIES_API)
 	SHADER_PARAMETER(uint32, bLocalSpace)
 	SHADER_PARAMETER(FVector, PivotOffset)
+	SHADER_PARAMETER(int, bPivotOffsetIsWorldSpace)
 	SHADER_PARAMETER(FVector4, SubImageSize)
 	SHADER_PARAMETER(uint32, TexCoordWeightA)
 	SHADER_PARAMETER(uint32, TexCoordWeightB)

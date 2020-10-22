@@ -471,7 +471,9 @@ public:
 	TPanelChildren<SScrollBox::FSlot> Children;
 
 protected:
+	// Begin SWidget overrides.
 	virtual FVector2D ComputeDesiredSize(float) const override;
+	// End SWidget overrides.
 
 private:
 

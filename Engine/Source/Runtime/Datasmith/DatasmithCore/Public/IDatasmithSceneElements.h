@@ -4,7 +4,7 @@
 
 #include "DatasmithDefinitions.h"
 #include "DatasmithTypes.h"
-#include "DirectLink/SceneGraphNode.h"
+#include "DirectLinkSceneGraphNode.h"
 
 #include "Containers/Map.h"
 #include "Math/Color.h"

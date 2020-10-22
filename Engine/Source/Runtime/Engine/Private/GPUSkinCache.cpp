@@ -1102,14 +1102,14 @@ void FGPUSkinCache::DispatchUpdateSkinTangents(FRHICommandListImmediate& RHICmdL
 
 			TArray<FRHITransitionInfo, TInlineAllocator<4>> Transitions;
 			Transitions.Add(FRHITransitionInfo(StagingBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
-			Transitions.Add(FRHITransitionInfo(DispatchData.GetPositionRWBuffer()->UAV.GetReference(), ERHIAccess::UAVCompute, ERHIAccess::SRVCompute));
+			Transitions.Add(FRHITransitionInfo(DispatchData.GetPositionRWBuffer()->UAV.GetReference(), ERHIAccess::Unknown, ERHIAccess::SRVCompute));
 			if (!GBlendUsingVertexColorForRecomputeTangents)
 			{
-				Transitions.Add(FRHITransitionInfo(DispatchData.GetTangentRWBuffer()->UAV.GetReference(), ERHIAccess::UAVCompute, ERHIAccess::SRVCompute));
+				Transitions.Add(FRHITransitionInfo(DispatchData.GetTangentRWBuffer()->UAV.GetReference(), ERHIAccess::Unknown, ERHIAccess::SRVCompute));
 			}
 			else if (DispatchData.IntermediateTangentBuffer)
 			{
-				Transitions.Add(FRHITransitionInfo(DispatchData.IntermediateTangentBuffer->UAV.GetReference(), ERHIAccess::UAVCompute, ERHIAccess::SRVCompute));
+				Transitions.Add(FRHITransitionInfo(DispatchData.IntermediateTangentBuffer->UAV.GetReference(), ERHIAccess::Unknown, ERHIAccess::SRVCompute));
 			}
 			RHICmdList.Transition(Transitions);
 
@@ -1474,7 +1474,7 @@ void FGPUSkinCache::ProcessRayTracingGeometryToUpdate(
 				if (RayTracingGeometryMemoryPendingRelease >= GMemoryLimitForBatchedRayTracingGeometryUpdates * 1024ull * 1024ull)
 				{
 					RayTracingGeometryMemoryPendingRelease = 0;
-					FRHIResource::FlushPendingDeletes();
+					RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResources);
 					UE_LOG(LogSkinCache, Display, TEXT("Flushing RHI resource pending deletes due to %d MB limit"), GMemoryLimitForBatchedRayTracingGeometryUpdates);
 				}
 			}
@@ -1513,10 +1513,22 @@ void FGPUSkinCache::EndBatchDispatch(FRHICommandListImmediate& RHICmdList)
 #if RHI_RAYTRACING
 	if (IsRayTracingEnabled() && GEnableGPUSkinCache)
 	{
-		for (FDispatchEntry& DispatchItem : BatchDispatches)
+		TSet<FGPUSkinCacheEntry*> SkinCacheEntriesProcessed;
+
+		// Process batched dispatches in reverse order to filter out duplicated ones and keep the last one
+		for (int32 Index = BatchDispatches.Num() - 1; Index >= 0; Index--)
 		{
+			FDispatchEntry& DispatchItem = BatchDispatches[Index];
+
 			FGPUSkinCacheEntry* SkinCacheEntry = DispatchItem.SkinCacheEntry;
 			FSkeletalMeshLODRenderData& LODModel = *DispatchItem.LODModel;
+
+			if (SkinCacheEntriesProcessed.Contains(SkinCacheEntry))
+			{
+				continue;
+			}
+
+			SkinCacheEntriesProcessed.Add(SkinCacheEntry);
 
 			ProcessRayTracingGeometryToUpdate(RHICmdList, SkinCacheEntry, LODModel, DispatchItem.bRequireRecreatingRayTracingGeometry, DispatchItem.bAnySegmentUsesWorldPositionOffset);
 		}

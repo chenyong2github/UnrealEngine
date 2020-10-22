@@ -355,7 +355,7 @@ bool FNiagaraPlatformSet::IsEnabled(const UDeviceProfile* Profile, int32 Quality
 		for (const FNiagaraPlatformSetCVarCondition& CVarCondition : CVarConditions)
 		{
 			//Bail if any cvar condition isn't met.
-			if (CVarCondition.IsEnabledForDeviceProfile(Profile) == false)
+			if (CVarCondition.IsEnabledForDeviceProfile(Profile, bConsiderCurrentStateOnly) == false)
 			{
 				return false;
 			}
@@ -765,6 +765,7 @@ bool FDeviceProfileValueCache::GetValue(const UDeviceProfile* DeviceProfile, FNa
 //////////////////////////////////////////////////////////////////////////
 
 TMap<FName, FDelegateHandle> FNiagaraPlatformSetCVarCondition::CVarChangedDelegateHandles;
+FCriticalSection FNiagaraPlatformSetCVarCondition::ChangedDelegateHandlesCritSec;
 
 void FNiagaraPlatformSetCVarCondition::OnCVarChanged(IConsoleVariable* CVar)
 {
@@ -800,6 +801,7 @@ IConsoleVariable* FNiagaraPlatformSetCVarCondition::GetCVar()const
 		CachedCVar = CVarMan.FindConsoleVariable(*CVarName.ToString());
 		if(CachedCVar)
 		{
+			FScopeLock Lock(&ChangedDelegateHandlesCritSec);
 			FDelegateHandle* Handle = CVarChangedDelegateHandles.Find(CVarName);
 			if(!Handle)
 			{
@@ -825,7 +827,7 @@ bool FNiagaraPlatformSetCVarCondition::IsEnabledForPlatform(const FString& Platf
 		{
 			if (Profile->DeviceType == PlatformName)
 			{
-				if (IsEnabledForDeviceProfile(Profile) != 0)
+				if (IsEnabledForDeviceProfile(Profile, false) != 0)
 				{
 					return true;//At least one profile for this platform is enabled.
 				}
@@ -835,63 +837,43 @@ bool FNiagaraPlatformSetCVarCondition::IsEnabledForPlatform(const FString& Platf
 	return false;
 }
 
-#if WITH_EDITOR
+template<> bool FNiagaraPlatformSetCVarCondition::GetCVarValue<bool>(IConsoleVariable* CVar)const { return CVar->GetBool(); }
+template<> int32 FNiagaraPlatformSetCVarCondition::GetCVarValue<int32>(IConsoleVariable* CVar)const { return CVar->GetInt(); }
+template<> float FNiagaraPlatformSetCVarCondition::GetCVarValue<float>(IConsoleVariable* CVar)const { return CVar->GetFloat(); }
+
 template<typename T>
-bool FNiagaraPlatformSetCVarCondition::IsEnabledForDeviceProfile_Internal(const UDeviceProfile* DeviceProfile)const
+bool FNiagaraPlatformSetCVarCondition::IsEnabledForDeviceProfile_Internal(const UDeviceProfile* DeviceProfile, bool bCheckCurrentStateOnly)const
 {
+#if WITH_EDITOR
 	T ProfileValue;
-	if (FDeviceProfileValueCache::GetValue(DeviceProfile, CVarName, ProfileValue))
+	if (bCheckCurrentStateOnly == false && FDeviceProfileValueCache::GetValue(DeviceProfile, CVarName, ProfileValue))
 	{
 		return CheckValue(ProfileValue);
 	}
-	return false;
-}
-#else
-//When not in editor we just get the current value of the CVar.
-template<>
-bool FNiagaraPlatformSetCVarCondition::IsEnabledForDeviceProfile_Internal<bool>(const UDeviceProfile* DeviceProfile)const
-{
-	if(IConsoleVariable* CVar = GetCVar())
-	{
-		return CheckValue(CVar->GetBool());
-	}
-	return false;
-}
-template<>
-bool FNiagaraPlatformSetCVarCondition::IsEnabledForDeviceProfile_Internal<int32>(const UDeviceProfile* DeviceProfile)const
-{
-	if (IConsoleVariable* CVar = GetCVar())
-	{
-		return CheckValue(CVar->GetInt());
-	}
-	return false;
-}
-template<>
-bool FNiagaraPlatformSetCVarCondition::IsEnabledForDeviceProfile_Internal<float>(const UDeviceProfile* DeviceProfile)const
-{
-	if (IConsoleVariable* CVar = GetCVar())
-	{
-		return CheckValue(CVar->GetFloat());
-	}
-	return false;
-}
 #endif
 
-bool FNiagaraPlatformSetCVarCondition::IsEnabledForDeviceProfile(const UDeviceProfile* DeviceProfile)const
+	if (IConsoleVariable* CVar = GetCVar())
+	{
+		return CheckValue(GetCVarValue<T>(CVar));
+	}
+	return false;
+}
+
+bool FNiagaraPlatformSetCVarCondition::IsEnabledForDeviceProfile(const UDeviceProfile* DeviceProfile, bool bCheckCurrentStateOnly)const
 {
 	if (IConsoleVariable* CVar = GetCVar())
 	{
 		if (CVar->IsVariableBool())
 		{
-			return IsEnabledForDeviceProfile_Internal<bool>(DeviceProfile);
+			return IsEnabledForDeviceProfile_Internal<bool>(DeviceProfile, bCheckCurrentStateOnly);
 		}
 		else if (CVar->IsVariableInt())
 		{
-			return IsEnabledForDeviceProfile_Internal<int32>(DeviceProfile);
+			return IsEnabledForDeviceProfile_Internal<int32>(DeviceProfile, bCheckCurrentStateOnly);
 		}
 		else if (CVar->IsVariableFloat())
 		{
-			return IsEnabledForDeviceProfile_Internal<float>(DeviceProfile);
+			return IsEnabledForDeviceProfile_Internal<float>(DeviceProfile, bCheckCurrentStateOnly);
 		}
 		else
 		{

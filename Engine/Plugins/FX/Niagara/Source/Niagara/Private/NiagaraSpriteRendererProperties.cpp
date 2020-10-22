@@ -8,6 +8,8 @@
 #include "NiagaraBoundsCalculatorHelper.h"
 #include "NiagaraCustomVersion.h"
 #include "Modules/ModuleManager.h"
+#include "NiagaraEmitter.h"
+#include "NiagaraScriptSourceBase.h"
 
 #if WITH_EDITOR
 #include "DerivedDataCacheInterface.h"
@@ -357,6 +359,17 @@ void UNiagaraSpriteRendererProperties::PostEditChangeProperty(struct FPropertyCh
 		if (StructProp->Struct == FNiagaraVariableAttributeBinding::StaticStruct())
 		{
 			UpdateSourceModeDerivates(SourceMode, true);
+		}
+	}
+	else if (FArrayProperty* ArrayProp = CastField<FArrayProperty>(PropertyChangedEvent.Property))
+	{
+		if (ArrayProp->Inner)
+		{
+			FStructProperty* ChildStructProp = CastField<FStructProperty>(ArrayProp->Inner);
+			if (ChildStructProp->Struct == FNiagaraMaterialAttributeBinding::StaticStruct())
+			{
+				UpdateSourceModeDerivates(SourceMode, true);
+			}
 		}
 	}
 

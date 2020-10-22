@@ -24,6 +24,8 @@
 #include "HAL/PlatformFileManager.h"
 #include "Async/Async.h"
 
+#include "GenericPlatform/GenericPlatformFile.h"
+#include "IPlatformFilePak.h"
 
 /* FAVPlayerDelegate
  *****************************************************************************/
@@ -580,10 +582,10 @@ FString FAvfMediaPlayer::GetInfo() const
 }
 
 
-FName FAvfMediaPlayer::GetPlayerName() const
+FGuid FAvfMediaPlayer::GetPlayerPluginGUID() const
 {
-	static FName PlayerName(TEXT("AvfMedia"));
-	return PlayerName;
+	static FGuid PlayerPluginGUID(0xef660169, 0xa304472b, 0xb69e1281, 0xc1687654);
+	return PlayerPluginGUID;
 }
 
 
@@ -636,18 +638,18 @@ bool FAvfMediaPlayer::Open(const FString& Url, const IMediaOptions* /*Options*/)
 		Path = Url.Mid(7);
 		nsMediaUrl = [NSURL fileURLWithPath:Path.GetNSString() isDirectory:NO];
 		
-		// Is this from a Pak file - can't find a way to directly check - attempt to check the reverse logic
-		// as we don't want to change behaviour of normal files from a standard file URL
-		IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
-		if(PlatformFile.GetLowerLevel() && !PlatformFile.GetLowerLevel()->FileExists(*Path) && FPaths::FileExists(*Path))
+#if !WITH_EDITOR
+		// Check if this file is in a pak file - if it is, AV Player can't load this we need to handle the data load requests manually
+		FPakPlatformFile* PakFileMgr = (FPakPlatformFile*)(FPlatformFileManager::Get().FindPlatformFile(FPakPlatformFile::GetTypeName()));
+		if (PakFileMgr != nullptr && PakFileMgr->FindFileInPakFiles(*Path, nullptr, nullptr))
 		{
 			// Force the AV player to not be able to decode the scheme - this makes it use our ResourceLoader
 			NSString* formatString = [NSString stringWithFormat:@"UE4-Media://%@", [Path.GetNSString() stringByAddingPercentEncodingWithAllowedCharacters:[NSCharacterSet URLPathAllowedCharacterSet]]];
 			nsMediaUrl = [NSURL URLWithString:formatString];
-			[formatString release];
 
 			bPakResourceLoading = true;
 		}
+#endif
 	}
 	else
 	{

@@ -161,7 +161,7 @@ struct DMXRUNTIME_API FDMXFixtureMatrix
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayPriority = "60", DisplayName = "Cell Attributes"), Category = "DMX")
 	TArray<FDMXFixtureCellAttribute> CellAttributes;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayPriority = "20", DisplayName = "First Cell Channel", ClampMin = "1"), Category = "DMX")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayPriority = "20", DisplayName = "First Cell Channel", ClampMin = "1", ClampMax = "512"), Category = "DMX")
 	int32 FirstCellChannel;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayPriority = "30", DisplayName = "X Cells", ClampMin = "0"), Category = "DMX")

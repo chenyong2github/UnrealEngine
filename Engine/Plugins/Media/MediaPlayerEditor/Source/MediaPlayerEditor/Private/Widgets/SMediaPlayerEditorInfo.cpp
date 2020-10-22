@@ -144,7 +144,7 @@ void SMediaPlayerEditorInfo::HandleMediaPlayerMediaEvent(EMediaEvent Event)
 			}
 
 			InfoTextBlock->SetText(
-				FText::Format(LOCTEXT("InfoFormat",
+				FText::Format(INVTEXT(
 					"Player: {PlayerName}\n"
 					"\n"
 					"Play Rates\n"

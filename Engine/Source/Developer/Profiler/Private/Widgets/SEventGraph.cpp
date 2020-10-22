@@ -1149,8 +1149,7 @@ TSharedRef<SWidget> SEventGraph::GetWidgetBoxForOptions()
 		[
 			SNew( SButton )
 			.IsEnabled( this, &SEventGraph::ContextMenu_ExpandHotPath_CanExecute )
-			.ToolTipText( LOCTEXT("ContextMenu_Header_Expand_ExpandHotPath_Desc", 
-									"Expands hot path for the selected events, based on the inclusive time, also enables descending sorting by inclusive time") )
+			.ToolTipText( LOCTEXT("ContextMenu_Header_Expand_ExpandHotPath_Desc", "Expands hot path for the selected events, based on the inclusive time, also enables descending sorting by inclusive time") )
 			.HAlign( HAlign_Center )
 			.VAlign( VAlign_Center )
 			.OnClicked( this, &SEventGraph::ExpandHotPath_OnClicked )

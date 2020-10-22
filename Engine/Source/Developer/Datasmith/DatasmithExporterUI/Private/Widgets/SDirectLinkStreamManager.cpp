@@ -3,8 +3,8 @@
 #include "Widgets/SDirectLinkStreamManager.h"
 
 #include "DatasmithExporterManager.h"
-#include "DirectLink/Network/DirectLinkEndpoint.h"
-#include "DirectLink/Network/DirectLinkMessages.h"
+#include "DirectLinkEndpoint.h"
+#include "DirectLinkMessages.h"
 
 #include "DesktopPlatformModule.h"
 #include "Framework/Application/SlateApplication.h"
@@ -215,7 +215,7 @@ void SDirectLinkStreamManager::Construct(const FArguments& InArgs, const TShared
 		.DefaultLabel( LOCTEXT("DestinationColumnLabel", "Destination") )
 		.SortMode( this, &SDirectLinkStreamManager::GetColumnSortMode, SDirectLinkStreamManagerUtils::DestinationColumnId )
 		.OnSort( this, &SDirectLinkStreamManager::OnColumnSortModeChanged );
-		
+
 	ChildSlot
 	[
 		SNew( SVerticalBox )
@@ -227,10 +227,7 @@ void SDirectLinkStreamManager::Construct(const FArguments& InArgs, const TShared
 		[
 				SNew( STextBlock )
 				.Visibility( this, &SDirectLinkStreamManager::GetNoConnectionHintVisibility )
-				.Text( LOCTEXT("ConnectionHintText", "No connection found.\n\n\
-					Waiting for a Datasmith Direct Link connection to be established.\n\n\
-					Please start an application supporting Datasmith Direct Link such as Twinmotion or Unreal Engine."
-					) )
+				.Text( LOCTEXT("ConnectionHintText", "No connection found.\n\nWaiting for a Datasmith Direct Link connection to be established.\n\nPlease start an application supporting Datasmith Direct Link such as Twinmotion or Unreal Engine.") )
 				.AutoWrapText( true )
 				.Justification( ETextJustify::Center )
 				.Font( FCoreStyle::GetDefaultFontStyle( "Regular", 13 ) )
@@ -524,7 +521,7 @@ FReply SDirectLinkStreamManager::OnChangeCacheDirectoryClicked()
 		DirectLinkCacheDirectory = NewFolderSelected;
 		OnCacheDirectoryChanged.ExecuteIfBound( DirectLinkCacheDirectory );
 	}
-	
+
 	return FReply::Handled();
 }
 

@@ -1099,17 +1099,18 @@ void SetupPhysicsFieldUniformBufferParameters(const FScene* Scene, FEngineShowFl
 {
 	if (Scene && Scene->PhysicsField && Scene->PhysicsField->FieldResource)
 	{
-		ViewUniformShaderParameters.PhysicsFieldClipmapTexture = OrBlack3DIfNull(Scene->PhysicsField->FieldResource->FieldClipmap.Buffer);
+		FPhysicsFieldResource* FieldResource = Scene->PhysicsField->FieldResource;
+		ViewUniformShaderParameters.PhysicsFieldClipmapTexture = OrBlack3DIfNull(FieldResource->FieldClipmap.Buffer);
 		ViewUniformShaderParameters.PhysicsFieldClipmapSampler = TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-		ViewUniformShaderParameters.PhysicsFieldClipmapCenter = Scene->PhysicsField->FieldResource->FieldInfos.ClipmapCenter;
-		ViewUniformShaderParameters.PhysicsFieldClipmapDistance = Scene->PhysicsField->FieldResource->FieldInfos.ClipmapDistance;
-		ViewUniformShaderParameters.PhysicsFieldClipmapResolution = Scene->PhysicsField->FieldResource->FieldInfos.ClipmapResolution;
-		ViewUniformShaderParameters.PhysicsFieldClipmapExponent = Scene->PhysicsField->FieldResource->FieldInfos.ClipmapExponent;
-		ViewUniformShaderParameters.PhysicsFieldClipmapCount = Scene->PhysicsField->FieldResource->FieldInfos.ClipmapCount;
-		ViewUniformShaderParameters.PhysicsFieldTargetCount = Scene->PhysicsField->FieldResource->FieldInfos.TargetCount;
-		ViewUniformShaderParameters.PhysicsFieldVectorTargets = Scene->PhysicsField->FieldResource->FieldInfos.VectorTargets;
-		ViewUniformShaderParameters.PhysicsFieldScalarTargets = Scene->PhysicsField->FieldResource->FieldInfos.ScalarTargets;
-		ViewUniformShaderParameters.PhysicsFieldIntegerTargets = Scene->PhysicsField->FieldResource->FieldInfos.IntegerTargets;
+		ViewUniformShaderParameters.PhysicsFieldClipmapCenter = FieldResource->FieldInfos.ClipmapCenter;
+		ViewUniformShaderParameters.PhysicsFieldClipmapDistance = FieldResource->FieldInfos.ClipmapDistance;
+		ViewUniformShaderParameters.PhysicsFieldClipmapResolution = FieldResource->FieldInfos.ClipmapResolution;
+		ViewUniformShaderParameters.PhysicsFieldClipmapExponent = FieldResource->FieldInfos.ClipmapExponent;
+		ViewUniformShaderParameters.PhysicsFieldClipmapCount = FieldResource->FieldInfos.ClipmapCount;
+		ViewUniformShaderParameters.PhysicsFieldTargetCount = FieldResource->FieldInfos.TargetCount;
+		ViewUniformShaderParameters.PhysicsFieldVectorTargets = FieldResource->FieldInfos.VectorTargets;
+		ViewUniformShaderParameters.PhysicsFieldScalarTargets = FieldResource->FieldInfos.ScalarTargets;
+		ViewUniformShaderParameters.PhysicsFieldIntegerTargets = FieldResource->FieldInfos.IntegerTargets;
 	}
 	else
 	{
@@ -4079,6 +4080,16 @@ void FRendererModule::DestroyVirtualTexture(IAllocatedVirtualTexture* AllocatedV
 	FVirtualTextureSystem::Get().DestroyVirtualTexture(AllocatedVT);
 }
 
+IAdaptiveVirtualTexture* FRendererModule::AllocateAdaptiveVirtualTexture(const FAdaptiveVTDescription& AdaptiveVTDesc, const FAllocatedVTDescription& AllocatedVTDesc)
+{
+	return FVirtualTextureSystem::Get().AllocateAdaptiveVirtualTexture(AdaptiveVTDesc, AllocatedVTDesc);
+}
+
+void FRendererModule::DestroyAdaptiveVirtualTexture(IAdaptiveVirtualTexture* AdaptiveVT)
+{
+	FVirtualTextureSystem::Get().DestroyAdaptiveVirtualTexture(AdaptiveVT);
+}
+
 FVirtualTextureProducerHandle FRendererModule::RegisterVirtualTextureProducer(const FVTProducerDescription& Desc, IVirtualTexture* Producer)
 {
 	return FVirtualTextureSystem::Get().RegisterProducer(Desc, Producer);
@@ -4595,7 +4606,7 @@ void AddResolveSceneDepthPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, 
 				break;
 			}
 
-			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GScreenVertexDeclaration.VertexDeclarationRHI;
+			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GEmptyVertexDeclaration.VertexDeclarationRHI;
 			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = ResolveVertexShader.GetVertexShader();
 			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = ResolvePixelShader;
 			GraphicsPSOInit.PrimitiveType = PT_TriangleStrip;
@@ -4606,6 +4617,7 @@ void AddResolveSceneDepthPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, 
 
 			ResolveVertexShader->SetParameters(RHICmdList, ResolveRect, ResolveRect, DepthExtent.X, DepthExtent.Y);
 
+			RHICmdList.SetStreamSource(0, nullptr, 0);
 			RHICmdList.DrawPrimitive(0, 2, 1);
 		});
 	}

@@ -136,7 +136,7 @@ class FDeepTransmittanceMaskCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, HairVisibilityNodeCoord)
 		SHADER_PARAMETER_RDG_BUFFER(StructuredBuffer, IndirectArgsBuffer)
 
-		SHADER_PARAMETER_RDG_BUFFER_UAV(StructuredBuffer, OutputColor)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer, OutputColor)
 		SHADER_PARAMETER_SAMPLER(SamplerState, LinearSampler)
 		SHADER_PARAMETER_SAMPLER(SamplerState, ShadowSampler)
 

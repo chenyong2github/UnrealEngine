@@ -1560,14 +1560,8 @@ void UVREditorUISystem::MakeRadialBoxMenu(const TSharedRef<FMultiBox>& MultiBox,
 	}
 	MultiBox.Get().SetStyle(&FVREditorStyle::Get(), StyleName);
 
-	if (ButtonTypeOverride == FName(TEXT("SMenuEntryButton")))
-	{
-		QuickRadialMenu->SetNumberOfEntries(NumItems - 1);
-	}
-	else
-	{
-		QuickRadialMenu->SetNumberOfEntries(NumItems);
-	}
+	QuickRadialMenu->SetNumberOfEntries(NumItems);
+
 	for (const TSharedRef<const FMultiBlock>& MultiBlock : Blocks)
 	{
 		const TSharedRef<const FMultiBlock>& Block = MultiBlock;

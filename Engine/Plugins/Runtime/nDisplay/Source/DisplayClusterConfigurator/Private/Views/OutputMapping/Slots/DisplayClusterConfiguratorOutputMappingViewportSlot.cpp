@@ -110,7 +110,12 @@ const FVector2D FDisplayClusterConfiguratorOutputMappingViewportSlot::GetConfigP
 	return FVector2D(CfgViewport->Region.X, CfgViewport->Region.Y);
 }
 
-const FName& FDisplayClusterConfiguratorOutputMappingViewportSlot::GetName() const
+const FString& FDisplayClusterConfiguratorOutputMappingViewportSlot::GetName() const
+{
+	return ViewportName;
+}
+
+const FName& FDisplayClusterConfiguratorOutputMappingViewportSlot::GetType() const
 {
 	return FDisplayClusterConfiguratorOutputMappingBuilder::FSlot::Viewport;
 }
@@ -231,6 +236,18 @@ void FDisplayClusterConfiguratorOutputMappingViewportSlot::SetZOrder(uint32 InZO
 	ZOrder = InZOrder;
 
 	NodeSlot->ZOrder(ZOrder);
+}
+
+void FDisplayClusterConfiguratorOutputMappingViewportSlot::SetPreviewTexture(UTexture* InTexture)
+{
+	if (InTexture != nullptr)
+	{
+		NodeWidget->SetBackgroundBrushFromTexture(InTexture);
+	}
+	else
+	{
+		NodeWidget->SetBackgroundDefaultBrush();
+	}
 }
 
 void FDisplayClusterConfiguratorOutputMappingViewportSlot::OnShowOutsideViewports(bool bShow)

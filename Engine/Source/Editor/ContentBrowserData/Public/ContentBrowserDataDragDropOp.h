@@ -14,6 +14,8 @@ public:
 
 	static TSharedRef<FContentBrowserDataDragDropOp> New(TArrayView<const FContentBrowserItem> InDraggedItems);
 
+	static TSharedRef<FContentBrowserDataDragDropOp> Legacy_New(TArrayView<const FAssetData> InAssetData, TArrayView<const FString> InAssetPaths = TArrayView<const FString>(), UActorFactory* InActorFactory = nullptr);
+
 	const TArray<FContentBrowserItem>& GetDraggedItems() const
 	{
 		return DraggedItems;
@@ -31,6 +33,7 @@ public:
 
 private:
 	void Init(TArrayView<const FContentBrowserItem> InDraggedItems);
+	void LegacyInit(TArrayView<const FAssetData> InAssetData, TArrayView<const FString> InAssetPaths, UActorFactory* ActorFactory);
 	virtual void InitThumbnail() override;
 
 	virtual bool HasFiles() const override;

@@ -44,9 +44,6 @@ public class FreeImage : ModuleRules
 			LibraryFileName = "libfreeimage-3.18.0.dylib";
 			string DynLibPath = Path.Combine(BinaryLibraryFolder, LibraryFileName);
 
-			PublicRuntimeLibraryPaths.Add(BinaryLibraryFolder);
-			PublicAdditionalLibraries.Add(DynLibPath);
-
             PublicDelayLoadDLLs.Add(DynLibPath);   
 			RuntimeDependencies.Add(DynLibPath);
 

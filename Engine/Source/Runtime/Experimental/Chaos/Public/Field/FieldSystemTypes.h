@@ -16,6 +16,20 @@ enum ESetMaskConditionType
 	Field_MaskCondition_Max                 UMETA(Hidden)
 };
 
+/**
+*
+*/
+UENUM(BlueprintType)
+enum EWaveFunctionType
+{
+	Field_Wave_Cosine	 UMETA(DisplayName = "Cosine"),
+	Field_Wave_Gaussian  UMETA(DisplayName = "Gaussian"),
+	Field_Wave_Falloff  UMETA(DisplayName = "Falloff"),
+	Field_Wave_Decay  UMETA(DisplayName = "Decay"),
+	//~~~
+	//256th entry
+	Field_Wave_Max       UMETA(Hidden)
+};
 
 /**
 *

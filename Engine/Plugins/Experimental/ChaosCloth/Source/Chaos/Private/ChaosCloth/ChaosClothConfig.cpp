@@ -7,7 +7,6 @@
 #include "ClothingSimulationInteractor.h"
 
 // Legacy parameters not yet migrated to Chaos parameters:
-//  WindMethod
 //  VerticalConstraintConfig.CompressionLimit
 //  VerticalConstraintConfig.StretchLimit
 //  HorizontalConstraintConfig.CompressionLimit
@@ -18,7 +17,6 @@
 //  ShearConstraintConfig.StretchLimit
 //  SelfCollisionStiffness
 //  SelfCollisionCullScale
-//  WindLiftCoefficient
 //  LinearDrag
 //  AngularDrag
 //  StiffnessFrequency
@@ -125,7 +123,6 @@ void UChaosClothConfig::PostLoad()
 	if (ChaosClothConfigCustomVersion < FChaosClothConfigCustomVersion::RemoveInternalConfigParameters)
 	{
 		MinPerParticleMass = 0.0001f;  // Override these values in case they might have been accidentally
-		bUseGeodesicDistance = true;   // changed from their default at any point in time
 	}
 
 	if (ChaosClothConfigCustomVersion < FChaosClothConfigCustomVersion::AddLegacyBackstopParameter)

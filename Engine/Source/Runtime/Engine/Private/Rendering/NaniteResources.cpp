@@ -258,8 +258,8 @@ SIZE_T FSceneProxyBase::GetTypeHash() const
 FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 : FSceneProxyBase(Component)
 , MeshInfo(Component)
-, Resources(&Component->GetStaticMesh()->RenderData->NaniteResources)
-, RenderData(Component->GetStaticMesh()->RenderData.Get())
+, Resources(&Component->GetStaticMesh()->GetRenderData()->NaniteResources)
+, RenderData(Component->GetStaticMesh()->GetRenderData())
 , StaticMesh(Component->GetStaticMesh())
 #if NANITE_ENABLE_DEBUG_RENDERING
 , Owner(Component->GetOwner())
@@ -742,12 +742,12 @@ void FSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*>& Views,
 
 
 					// The simple nav geometry is only used by dynamic obstacles for now
-					if (StaticMesh->NavCollision && StaticMesh->NavCollision->IsDynamicObstacle())
+					if (StaticMesh->GetNavCollision() && StaticMesh->GetNavCollision()->IsDynamicObstacle())
 					{
 						// Draw the static mesh's body setup (simple collision)
 						FTransform GeomTransform(GetLocalToWorld());
 						FColor NavCollisionColor = FColor(118,84,255,255);
-						StaticMesh->NavCollision->DrawSimpleGeom(Collector.GetPDI(ViewIndex), GeomTransform, GetSelectionColor(NavCollisionColor, bProxyIsSelected, IsHovered()).ToFColor(true));
+						StaticMesh->GetNavCollision()->DrawSimpleGeom(Collector.GetPDI(ViewIndex), GeomTransform, GetSelectionColor(NavCollisionColor, bProxyIsSelected, IsHovered()).ToFColor(true));
 					}
 				}
 			}

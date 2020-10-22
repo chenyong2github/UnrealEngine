@@ -131,7 +131,7 @@ struct NIAGARA_API FNiagaraPlatformSetCVarCondition
 	bool IsEnabledForPlatform(const FString& PlatformName)const;
 
 	/** Return true if this is met by the given device profile. */
-	bool IsEnabledForDeviceProfile(const UDeviceProfile* DeviceProfile)const;
+	bool IsEnabledForDeviceProfile(const UDeviceProfile* DeviceProfile, bool bCheckCurrentStateOnly)const;
 
 	/** Returns the CVar for this condition. Can be null if the name give is not a valid CVar or the CVar is removed. */
 	IConsoleVariable* GetCVar()const;
@@ -179,11 +179,14 @@ struct NIAGARA_API FNiagaraPlatformSetCVarCondition
 	uint32 bUseMaxFloat : 1;
 
 	template<typename T>
-	bool IsEnabledForDeviceProfile_Internal(const UDeviceProfile* DeviceProfile)const;
+	FORCEINLINE bool IsEnabledForDeviceProfile_Internal(const UDeviceProfile* DeviceProfile, bool bCheckCurrentStateOnly)const;
 
 	FORCEINLINE bool CheckValue(bool CVarValue)const { return CVarValue == Value; }
 	FORCEINLINE bool CheckValue(int32 CVarValue)const { return (!bUseMinInt || CVarValue >= MinInt) && (!bUseMaxInt || CVarValue <= MaxInt); }
 	FORCEINLINE bool CheckValue(float CVarValue)const { return (!bUseMinFloat || CVarValue >= MinFloat) && (!bUseMaxFloat || CVarValue <= MaxFloat); }
+
+	template<typename T>
+	FORCEINLINE T GetCVarValue(IConsoleVariable* CVar)const;
 
 	static void OnCVarChanged(IConsoleVariable* CVar);
 private:
@@ -193,6 +196,7 @@ private:
 	Callbacks for any CVars Niagara has looked at during this run.
 	*/
 	static TMap<FName, FDelegateHandle> CVarChangedDelegateHandles;
+	static FCriticalSection ChangedDelegateHandlesCritSec;
 };
 
 USTRUCT()

@@ -228,7 +228,10 @@ struct FRigUnit_ChainHarmonics : public FRigUnit_HighlevelBaseMutable
 	FRigUnit_ChainHarmonics_WorkData WorkData;
 };
 
-USTRUCT(meta=(DisplayName="ChainHarmonics"))
+/**
+ * Performs chain based simulation
+ */
+USTRUCT(meta=(DisplayName="Chain Harmonics"))
 struct FRigUnit_ChainHarmonicsPerItem : public FRigUnit_HighlevelBaseMutable
 {
 	GENERATED_BODY()

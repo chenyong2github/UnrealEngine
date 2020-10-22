@@ -14,7 +14,11 @@
 
 TUniquePtr<MovieRenderPipeline::IVideoCodecWriter> UMoviePipelineAppleProResOutput::Initialize_GameThread(const FString& InFileName, FIntPoint InResolution, EImagePixelType InPixelType, ERGBFormat InPixelFormat, uint8 InBitDepth, uint8 InNumChannels)
 {
-	const UMoviePipelineOutputSetting* OutputSettings = GetPipeline()->GetPipelineMasterConfig()->FindOrAddSetting<UMoviePipelineOutputSetting>();
+	const UMoviePipelineOutputSetting* OutputSettings = GetPipeline()->GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>();
+	if (!OutputSettings)
+	{
+		return nullptr;
+	}
 	 
 	FAppleProResEncoderOptions Options;
 	Options.OutputFilename = InFileName;

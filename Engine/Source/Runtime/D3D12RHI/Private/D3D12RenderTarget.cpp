@@ -1645,6 +1645,11 @@ void FD3D12DynamicRHI::RHIReadSurfaceFloatData(FRHITexture* TextureRHI, FIntRect
 		uint32 D3DFace = GetD3D12CubeFace(InFlags.GetCubeFace());
 		Subresource = CalcSubresource(InFlags.GetMip(), InFlags.GetArrayIndex() * 6 + D3DFace, TextureDesc.MipLevels);
 	}
+	else
+	{
+		const bool bIsTextureArray = InTexture2DArray != nullptr;
+		Subresource = CalcSubresource(InFlags.GetMip(), bIsTextureArray ? InFlags.GetArrayIndex() : 0, TextureDesc.MipLevels);
+	}
 
 	uint32 BytesPerPixel = ComputeBytesPerPixel(TextureDesc.Format);
 	D3D12_SUBRESOURCE_FOOTPRINT DestSubresource;

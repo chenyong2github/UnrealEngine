@@ -175,7 +175,7 @@ void FCollisionStructureManager::UpdateImplicitFlags(
 {
 	if (ensure(Implicit))
 	{
-		Implicit->SetCollsionType(CollisionType == ECollisionTypeEnum::Chaos_Surface_Volumetric ? Chaos::ImplicitObjectType::LevelSet : Implicit->GetType());
+		Implicit->SetCollisionType(CollisionType == ECollisionTypeEnum::Chaos_Surface_Volumetric ? Chaos::ImplicitObjectType::LevelSet : Implicit->GetType());
 		if (Implicit && (CollisionType == ECollisionTypeEnum::Chaos_Surface_Volumetric) && Implicit->GetType() == Chaos::ImplicitObjectType::LevelSet)
 		{
 			Implicit->SetDoCollide(false);

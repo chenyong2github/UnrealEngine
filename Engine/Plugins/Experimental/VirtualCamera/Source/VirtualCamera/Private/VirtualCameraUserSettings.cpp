@@ -39,6 +39,17 @@ void UVirtualCameraUserSettings::SetJoysticksSpeed(const float InJoysticksSpeed)
 	SaveConfig();
 }
 
+float UVirtualCameraUserSettings::GetMaxJoysticksSpeed()
+{
+    return MaxJoysticksSpeed;
+}
+
+void UVirtualCameraUserSettings::SetMaxJoysticksSpeed(const float InMaxJoysticksSpeed)
+{
+	MaxJoysticksSpeed = InMaxJoysticksSpeed;
+	SaveConfig();
+}
+
 bool UVirtualCameraUserSettings::IsMapGrayscle()
 {
 	return bIsMapGrayscale;

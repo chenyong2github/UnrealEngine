@@ -342,7 +342,7 @@ void UGameEngine::DetermineGameWindowResolution( int32& ResolutionX, int32& Reso
 		{
 			ResolutionY = int32(ResolutionX / AspectRatio);
 		}
-		else if (UserSpecifiedHeight && !UserSpecifiedHeight)
+		else if (UserSpecifiedHeight && !UserSpecifiedWidth)
 		{
 			ResolutionX = int32(ResolutionY * AspectRatio);
 		}

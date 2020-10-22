@@ -24,7 +24,7 @@ class UGeomModifier_Edit : public UGeomModifier
 {
 	GENERATED_UCLASS_BODY()
 
-
+	virtual bool SupportsCurrentSelection() override;
 
 	//~ Begin UGeomModifier Interface
 	virtual bool InputDelta(class FEditorViewportClient* InViewportClient,FViewport* InViewport,FVector& InDrag,FRotator& InRot,FVector& InScale) override;	

@@ -1,11 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "VCamOutputRemoteSession.h"
+#include "VCamComponent.h"
 #include "Channels/RemoteSessionImageChannel.h"
 #include "Channels/RemoteSessionInputChannel.h"
 #include "GameFramework/PlayerController.h"
 #include "Engine/GameEngine.h"
 #include "Widgets/SVirtualWindow.h"
+#include "UObject/SoftObjectPath.h"
+#include "VPFullScreenUserWidget.h"
 
 #if WITH_EDITOR
 #include "IAssetViewport.h"
@@ -16,6 +19,7 @@
 namespace VCamOutputRemoteSession
 {
 	static const FName LevelEditorName(TEXT("LevelEditor"));
+	static const FSoftClassPath EmptyUMGSoftClassPath(TEXT("/VCamCore/Assets/VCam_EmptyVisibleUMG.VCam_EmptyVisibleUMG_C"));
 }
 
 void UVCamOutputRemoteSession::Initialize()
@@ -37,6 +41,13 @@ void UVCamOutputRemoteSession::Deinitialize()
 
 void UVCamOutputRemoteSession::Activate()
 {
+	// If we don't have a UMG assigned, we still need to create an empty 'dummy' UMG in order to properly route the input back from the RemoteSession device
+	if (UMGClass == nullptr)
+	{
+		bUsingDummyUMG = true;
+		UMGClass = VCamOutputRemoteSession::EmptyUMGSoftClassPath.TryLoadClass<UUserWidget>();
+	}
+
 	CreateRemoteSession();
 	
 	Super::Activate();
@@ -47,6 +58,12 @@ void UVCamOutputRemoteSession::Deactivate()
 	DestroyRemoteSession();
 
 	Super::Deactivate();
+
+	if (bUsingDummyUMG)
+	{
+		UMGClass = nullptr;
+		bUsingDummyUMG = false;
+	}
 }
 
 void UVCamOutputRemoteSession::Tick(const float DeltaTime)
@@ -77,7 +94,7 @@ void UVCamOutputRemoteSession::CreateRemoteSession()
 
 			RemoteSessionHost = RemoteSession->CreateHost(MoveTemp(SupportedChannels), PortNumber);
 
-			RemoteSessionHost->RegisterChannelChangeDelegate(FOnRemoteSessionChannelChange::CreateUObject(this, &UVCamOutputRemoteSession::OnRemoteSessionChannelChange));
+			RemoteSessionHost->RegisterChannelChangeDelegate(FOnRemoteSessionChannelChange::FDelegate::CreateUObject(this, &UVCamOutputRemoteSession::OnRemoteSessionChannelChange));
 			if (RemoteSessionHost.IsValid())
 			{
 				RemoteSessionHost->Tick(0.0f);
@@ -148,6 +165,33 @@ void UVCamOutputRemoteSession::DestroyRemoteSession()
 	}
 }
 
+UVCamOutputComposure* UVCamOutputRemoteSession::GetComposureProvider()
+{
+	if (FromComposureOutputProviderIndex > -1)
+	{
+		if (UVCamComponent* OuterComponent = GetTypedOuter<UVCamComponent>())
+		{
+			if (UVCamOutputProviderBase* Provider = OuterComponent->GetOutputProviderByIndex(FromComposureOutputProviderIndex))
+			{
+				if (UVCamOutputComposure* ComposureProvider = Cast<UVCamOutputComposure>(Provider))
+				{
+					return ComposureProvider;
+				}
+				else
+				{
+					UE_LOG(LogVCamOutputProvider, Warning, TEXT("GetComposureProvider - Composure usage was requested, but the specified index FromComposureOutputProvider does not refer to a ComposureOutputProvider"));
+				}
+			}
+			else
+			{
+				UE_LOG(LogVCamOutputProvider, Warning, TEXT("GetComposureProvider - Composure usage was requested, but the specified index FromComposureOutputProvider is out of range"));
+			}
+		}
+	}
+
+	return nullptr;
+}
+
 void UVCamOutputRemoteSession::OnRemoteSessionChannelChange(IRemoteSessionRole* Role, TWeakPtr<IRemoteSessionChannel> Channel, ERemoteSessionChannelChange Change)
 {
 	TSharedPtr<IRemoteSessionChannel> PinnedChannel = Channel.Pin();
@@ -176,16 +220,17 @@ void UVCamOutputRemoteSession::OnImageChannelCreated(TWeakPtr<IRemoteSessionChan
 		FMediaCaptureOptions Options;
 		Options.bResizeSourceBuffer = true;
 
-		if (bUseRenderTargetFromComposure)
+		// If we are rendering from a ComposureOutputProvider, get the requested render target and use that instead of the viewport
+		if (UVCamOutputComposure* ComposureProvider = GetComposureProvider())
 		{
-			if (ComposureRenderTarget)
+			if (ComposureProvider->FinalOutputRenderTarget)
 			{
-				MediaCapture->CaptureTextureRenderTarget2D(ComposureRenderTarget, Options);
+				MediaCapture->CaptureTextureRenderTarget2D(ComposureProvider->FinalOutputRenderTarget, Options);
 				UE_LOG(LogVCamOutputProvider, Log, TEXT("ImageChannel callback - MediaCapture set with ComposureRenderTarget"));
 			}
 			else
 			{
-				UE_LOG(LogVCamOutputProvider, Warning, TEXT("ImageChannel callback - Composure usage was requested, but there is no ComposureRenderTarget set"));
+				UE_LOG(LogVCamOutputProvider, Warning, TEXT("ImageChannel callback - Composure usage was requested, but the specified ComposureOutputProvider has no FinalOutputRenderTarget set"));
 			}
 		}
 		else
@@ -208,12 +253,30 @@ void UVCamOutputRemoteSession::OnInputChannelCreated(TWeakPtr<IRemoteSessionChan
 		// If we have a UMG, then use it
 		if (UMGClass && UMGWidget)
 		{
-			TSharedPtr<SVirtualWindow> InputWindow = UMGWidget->PostProcessDisplayType.GetSlateWindow();
+			TSharedPtr<SVirtualWindow> InputWindow;
+
+			// If we are rendering from a ComposureOutputProvider, we need to get the InputWindow from that UMG, not the one in the RemoteSessionOutputProvider
+			if (UVCamOutputComposure* ComposureProvider = GetComposureProvider())
+			{
+				if (UVPFullScreenUserWidget* ComposureUMGWidget = ComposureProvider->GetUMGWidget())
+				{
+					InputWindow = ComposureUMGWidget->PostProcessDisplayType.GetSlateWindow();
+					UE_LOG(LogVCamOutputProvider, Log, TEXT("InputChannel callback - Routing input to active viewport with Composure UMG"));
+				}
+				else
+				{
+					UE_LOG(LogVCamOutputProvider, Warning, TEXT("InputChannel callback - Composure usage was requested, but the specified ComposureOutputProvider has no UMG set"));
+				}
+			}
+			else
+			{
+				InputWindow = UMGWidget->PostProcessDisplayType.GetSlateWindow();
+				UE_LOG(LogVCamOutputProvider, Log, TEXT("InputChannel callback - Routing input to active viewport with UMG"));
+			}
+
 			InputChannel->SetPlaybackWindow(InputWindow, nullptr);
 			InputChannel->TryRouteTouchMessageToWidget(true);
 			InputChannel->GetOnRouteTouchDownToWidgetFailedDelegate()->AddUObject(this, &UVCamOutputRemoteSession::OnTouchEventOutsideUMG);
-
-			UE_LOG(LogVCamOutputProvider, Log, TEXT("InputChannel callback - Routing input to active viewport with UMG"));
 		}
 		else
 		{

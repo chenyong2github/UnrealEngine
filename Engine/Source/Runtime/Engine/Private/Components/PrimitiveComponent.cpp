@@ -1461,6 +1461,15 @@ void UPrimitiveComponent::SetCastShadow(bool NewCastShadow)
 	}
 }
 
+void UPrimitiveComponent::SetCastHiddenShadow(bool NewCastHiddenShadow)
+{
+	if (NewCastHiddenShadow != bCastHiddenShadow)
+	{
+		bCastHiddenShadow = NewCastHiddenShadow;
+		MarkRenderStateDirty();
+	}
+}
+
 void UPrimitiveComponent::SetCastInsetShadow(bool bInCastInsetShadow)
 {
 	if(bInCastInsetShadow != bCastInsetShadow)

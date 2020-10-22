@@ -5,14 +5,24 @@
 #include "ChaosStats.h"
 #include "Containers/ArrayView.h"
 #include "Containers/ContainersFwd.h"
+#include "Chaos/Framework/Parallel.h"
 
 DECLARE_CYCLE_STAT(TEXT("Chaos PBD Spherical Constraints"), STAT_PBD_Spherical, STATGROUP_Chaos);
 DECLARE_CYCLE_STAT(TEXT("Chaos PBD Spherical Backstop Constraints"), STAT_PBD_SphericalBackstop, STATGROUP_Chaos);
 
+// Support ISPC enable/disable in non-shipping builds
+#if !INTEL_ISPC
+const bool bChaos_Spherical_ISPC_Enabled = false;
+#elif UE_BUILD_SHIPPING
+const bool bChaos_Spherical_ISPC_Enabled = true;
+#else
+extern CHAOS_API bool bChaos_Spherical_ISPC_Enabled;
+#endif
+
 namespace Chaos
 {
 	template<typename T, int d>
-	class TPBDSphericalConstraint : public TParticleRule<T, d>
+	class CHAOS_API TPBDSphericalConstraint : public TParticleRule<T, d>
 	{
 	public:
 		TPBDSphericalConstraint(
@@ -30,36 +40,7 @@ namespace Chaos
 		}
 		virtual ~TPBDSphericalConstraint() {}
 
-		inline virtual void Apply(TPBDParticles<T, d>& Particles, const T Dt) const override
-		{
-			SCOPE_CYCLE_COUNTER(STAT_PBD_Spherical);
-
-			const int32 ParticleCount = SphereRadii.Num();
-
-			PhysicsParallelFor(ParticleCount, [&](int32 Index)  // TODO: profile need for parallel loop based on particle count
-			{
-				const int32 ParticleIndex = ParticleOffset + Index;
-
-				if (Particles.InvM(ParticleIndex) == 0)
-				{
-					return;
-				}
-			
-				const T Radius = SphereRadii[Index] * SphereRadiiMultiplier;
-				const TVector<T, d>& Center = AnimationPositions[ParticleIndex];
-
-				const TVector<T, d> CenterToParticle = Particles.P(ParticleIndex) - Center;
-				const T DistanceSquared = CenterToParticle.SizeSquared();
-
-				static const T DeadZoneSquareRadius = SMALL_NUMBER; // We will not push the particle away in the dead zone
-				if (DistanceSquared > FMath::Square(Radius) + DeadZoneSquareRadius)
-				{
-					const T Distance = sqrt(DistanceSquared);
-					const TVector<T, d> PositionOnSphere = (Radius / Distance) * CenterToParticle;
-					Particles.P(ParticleIndex) = Center + PositionOnSphere;
-				}
-			});
-		}
+		virtual void Apply(TPBDParticles<T, d>& Particles, const T Dt) const override;
 
 		inline void SetSphereRadiiMultiplier(const T InSphereRadiiMultiplier)
 		{
@@ -74,7 +55,7 @@ namespace Chaos
 	};
 
 	template<typename T, int d>
-	class TPBDSphericalBackstopConstraint : public TParticleRule<T, d>
+	class CHAOS_API TPBDSphericalBackstopConstraint : public TParticleRule<T, d>
 	{
 	public:
 		TPBDSphericalBackstopConstraint(
@@ -108,7 +89,14 @@ namespace Chaos
 				// SphereOffsetDistances includes the sphere radius
 				// This is harder to author, and does not follow the NvCloth specs.
 				// However, this is how it's been done in the Unreal Engine PhysX cloth implementation.
-				ApplyLegacyHelper(Particles, Dt);
+				if (bChaos_Spherical_ISPC_Enabled)
+				{
+					ApplyLegacyHelperISPC(Particles, Dt);
+				}
+				else
+				{
+					ApplyLegacyHelper(Particles, Dt);
+				}
 			}
 			else
 			{
@@ -206,6 +194,8 @@ namespace Chaos
 				// Else the particle is outside the sphere, and there is nothing to do
 			});
 		}
+
+		void ApplyLegacyHelperISPC(TPBDParticles<T, d>& Particles, const T Dt) const;
 
 	private:
 		const TArray<TVector<T, d>>& AnimationPositions;  // Positions of spheres, use global indexation (will need adding ParticleOffset)

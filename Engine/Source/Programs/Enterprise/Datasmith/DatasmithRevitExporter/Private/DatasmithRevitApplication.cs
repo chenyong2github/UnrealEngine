@@ -103,8 +103,7 @@ namespace DatasmithRevitExporter
 
 		static void OnDocumentClosing(object sender, DocumentClosingEventArgs e)
 		{
-			// Destroy current Direct Link instance.
-			FDirectLink.DestroyInstance(FDirectLink.Get(), e.Document.Application);
+			FDirectLink.DestroyInstance(FDirectLink.FindInstance(e.Document), e.Document.Application);
 		}
 
 		static void OnViewActivated(object sender, ViewActivatedEventArgs e)

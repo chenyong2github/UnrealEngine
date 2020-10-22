@@ -599,8 +599,9 @@ bool FPluginManager::ConfigureEnabledPlugins()
 			};
 
 			// Which extra plugins should be enabled?
+			bAllPluginsEnabledViaCommandLine = FParse::Param(FCommandLine::Get(), TEXT("EnableAllPlugins"));
 			TArray<FString> ExtraPluginsToEnable;
-			if (FParse::Param(FCommandLine::Get(), TEXT("EnableAllPlugins")))
+			if (bAllPluginsEnabledViaCommandLine)
 			{
 				ExtraPluginsToEnable = PluginsToConfigure.Array();
 			}
@@ -617,6 +618,11 @@ bool FPluginManager::ConfigureEnabledPlugins()
 					{
 						if (!ConfigureEnabledPluginForCurrentTarget(FPluginReferenceDescriptor(EnablePluginName, true), EnabledPlugins))
 						{
+							if (bAllPluginsEnabledViaCommandLine)
+							{
+								// Plugins may legitimately fail to enable when running with -EnableAllPlugins, but this shouldn't be considered a fatal error
+								continue;
+							}
 							return false;
 						}
 						ConfiguredPluginNames.Add(EnablePluginName);
@@ -1281,7 +1287,7 @@ TSharedPtr<FPlugin> FPluginManager::FindPluginInstance(const FString& Name)
 }
 
 
-static bool TryLoadModulesForPlugin( const FPlugin& Plugin, const ELoadingPhase::Type LoadingPhase )
+bool FPluginManager::TryLoadModulesForPlugin( const FPlugin& Plugin, const ELoadingPhase::Type LoadingPhase ) const
 {
 	TMap<FName, EModuleLoadResult> ModuleLoadFailures;
 	FModuleDescriptor::LoadModulesForPhase(LoadingPhase, Plugin.Descriptor.Modules, ModuleLoadFailures);
@@ -1326,8 +1332,15 @@ static bool TryLoadModulesForPlugin( const FPlugin& Plugin, const ELoadingPhase:
 
 	if( !FailureMessage.IsEmpty() )
 	{
-		FMessageDialog::Open(EAppMsgType::Ok, FailureMessage);
-		return false;
+		if (bAllPluginsEnabledViaCommandLine)
+		{
+			UE_LOG(LogPluginManager, Error, TEXT("%s"), *FailureMessage.ToString());
+		}
+		else
+		{
+			FMessageDialog::Open(EAppMsgType::Ok, FailureMessage);
+			return false;
+		}
 	}
 
 	return true;

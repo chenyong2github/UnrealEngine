@@ -116,7 +116,14 @@ const FVector2D FDisplayClusterConfiguratorOutputMappingCanvasSlot::GetConfigPos
 	return RealPosition;
 }
 
-const FName& FDisplayClusterConfiguratorOutputMappingCanvasSlot::GetName() const
+const FString& FDisplayClusterConfiguratorOutputMappingCanvasSlot::GetName() const
+{
+	static FString SlotName = "Canvas";
+	
+	return SlotName;
+}
+
+const FName& FDisplayClusterConfiguratorOutputMappingCanvasSlot::GetType() const
 {
 	return FDisplayClusterConfiguratorOutputMappingBuilder::FSlot::Canvas;
 }
@@ -257,7 +264,7 @@ void FDisplayClusterConfiguratorOutputMappingCanvasSlot::Tick(float InDeltaTime)
 	{
 		if (TSharedPtr<IDisplayClusterConfiguratorOutputMappingSlot> Child = ChildrenSlots[ChildIndex].Pin())
 		{
-			if (Child->GetName() == FDisplayClusterConfiguratorOutputMappingBuilder::FSlot::Window)
+			if (Child->GetType() == FDisplayClusterConfiguratorOutputMappingBuilder::FSlot::Window)
 			{
 				if (!Child->GetLocalSize().IsZero())
 				{
@@ -276,7 +283,7 @@ void FDisplayClusterConfiguratorOutputMappingCanvasSlot::Tick(float InDeltaTime)
 		{
 			if (TSharedPtr<IDisplayClusterConfiguratorOutputMappingSlot> Child = ChildrenSlots[ChildIndex].Pin())
 			{
-				if (Child->GetName() == FDisplayClusterConfiguratorOutputMappingBuilder::FSlot::Viewport)
+				if (Child->GetType() == FDisplayClusterConfiguratorOutputMappingBuilder::FSlot::Viewport)
 				{
 					ComputeCanvasSize(CanvasMargin, Child.ToSharedRef(), ChildIndex);
 				}

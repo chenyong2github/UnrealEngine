@@ -34,6 +34,28 @@
 #include "HAL/IConsoleManager.h"
 #endif  // #if CHAOS_DEBUG_DRAW
 
+#if INTEL_ISPC
+#include "ChaosClothingSimulation.ispc.generated.h"
+#endif
+
+#if INTEL_ISPC && !UE_BUILD_SHIPPING
+#include "Chaos/PBDCollisionConstraints.h"
+#include "Chaos/PBDSpringConstraints.h"
+#include "Chaos/PBDAxialSpringConstraints.h"
+#include "Chaos/PerParticleDampVelocity.h"
+#include "Chaos/PerParticlePBDCollisionConstraint.h"
+#include "HAL/IConsoleManager.h"
+
+bool bChaos_GetSimData_ISPC_Enabled = true;
+FAutoConsoleVariableRef CVarChaosGetSimDataISPCEnabled(TEXT("p.Chaos.GetSimData.ISPC"), bChaos_GetSimData_ISPC_Enabled, TEXT("Whether to use ISPC optimizations when getting simulation data"));
+#endif
+
+using namespace Chaos;
+
+DECLARE_CYCLE_STAT(TEXT("Chaos Cloth Simulate"), STAT_ChaosClothSimulate, STATGROUP_ChaosCloth);
+DECLARE_CYCLE_STAT(TEXT("Chaos Cloth Create Actor"), STAT_ChaosClothCreateActor, STATGROUP_ChaosCloth);
+DECLARE_CYCLE_STAT(TEXT("Chaos Cloth Get Simulation Data"), STAT_ChaosClothGetSimulationData, STATGROUP_ChaosCloth);
+
 #if CHAOS_DEBUG_DRAW
 namespace ChaosClothingSimulationConsoleVariables
 {
@@ -56,11 +78,76 @@ namespace ChaosClothingSimulationConsoleVariables
 }
 #endif  // #if CHAOS_DEBUG_DRAW
 
-using namespace Chaos;
+#if INTEL_ISPC && !UE_BUILD_SHIPPING
+#include "HAL/IConsoleManager.h"
 
-DECLARE_CYCLE_STAT(TEXT("Chaos Cloth Simulate"), STAT_ChaosClothSimulate, STATGROUP_ChaosCloth);
-DECLARE_CYCLE_STAT(TEXT("Chaos Cloth Create Actor"), STAT_ChaosClothCreateActor, STATGROUP_ChaosCloth);
-DECLARE_CYCLE_STAT(TEXT("Chaos Cloth Get Simulation Data"), STAT_ChaosClothGetSimulationData, STATGROUP_ChaosCloth);
+namespace ChaosClothingSimulationConsoleCommands
+{
+	class FConsoleCommands final
+	{
+	public:
+		FConsoleCommands()
+		{
+			// Register Ispc console command
+			ConsoleObjects.Add(IConsoleManager::Get().RegisterConsoleCommand(
+				TEXT("p.ChaosCloth.Ispc"),
+				TEXT("Enable or disable ISPC optimizations for cloth simulation."),
+				FConsoleCommandWithArgsDelegate::CreateRaw(this, &FConsoleCommands::Ispc),
+				ECVF_Cheat));
+		}
+
+		~FConsoleCommands()
+		{
+			for (IConsoleObject* ConsoleObject : ConsoleObjects)
+			{
+				IConsoleManager::Get().UnregisterConsoleObject(ConsoleObject);
+			}
+		}
+
+	private:
+		void Ispc(const TArray<FString>& Args)
+		{
+			bool bEnableISPC;
+			switch (Args.Num())
+			{
+			default:
+				break;  // Invalid arguments
+			case 1:
+				if (Args[0] == TEXT("1") || Args[0] == TEXT("true") || Args[0] == TEXT("on"))
+				{
+					bEnableISPC = true;
+				}
+				else if (Args[0] == TEXT("0") || Args[0] == TEXT("false") || Args[0] == TEXT("off"))
+				{
+					bEnableISPC = false;
+				}
+				else
+				{
+					break;  // Invalid arguments
+				}
+				bChaos_AxialSpring_ISPC_Enabled =
+				bChaos_LongRange_ISPC_Enabled =
+				bChaos_Spherical_ISPC_Enabled =
+				bChaos_Spring_ISPC_Enabled =
+				bChaos_DampVelocity_ISPC_Enabled =
+				bChaos_PerParticleCollision_ISPC_Enabled =
+				bChaos_VelocityField_ISPC_Enabled =
+				bChaos_GetSimData_ISPC_Enabled =
+					bEnableISPC;
+				return;
+			}
+			UE_LOG(LogChaosCloth, Display, TEXT("Invalid arguments."));
+			UE_LOG(LogChaosCloth, Display, TEXT("Usage:"));
+			UE_LOG(LogChaosCloth, Display, TEXT("  p.ChaosCloth.Ispc [0|1]|[true|false]|[on|off]"));
+			UE_LOG(LogChaosCloth, Display, TEXT("Example: p.Chaos.Ispc on"));
+		}
+
+	private:
+		TArray<IConsoleObject*> ConsoleObjects;
+	};
+	static TUniquePtr<FConsoleCommands> ConsoleCommands;
+}
+#endif  // #if INTEL_ISPC && !UE_BUILD_SHIPPING
 
 // Default parameters, will be overwritten when cloth assets are loaded
 namespace ChaosClothingSimulationDefault
@@ -82,6 +169,12 @@ FClothingSimulation::FClothingSimulation()
 	DebugClothMaterial = LoadObject<UMaterial>(nullptr, TEXT("/Engine/EditorMaterials/Cloth/CameraLitDoubleSided.CameraLitDoubleSided"), nullptr, LOAD_None, nullptr);  // LOAD_EditorOnly
 	DebugClothMaterialVertex = LoadObject<UMaterial>(nullptr, TEXT("/Engine/EditorMaterials/WidgetVertexColorMaterial"), nullptr, LOAD_None, nullptr);  // LOAD_EditorOnly
 #endif  // #if WITH_EDITOR
+#if INTEL_ISPC && !UE_BUILD_SHIPPING
+	if (!ChaosClothingSimulationConsoleCommands::ConsoleCommands)
+	{
+		ChaosClothingSimulationConsoleCommands::ConsoleCommands = MakeUnique<ChaosClothingSimulationConsoleCommands::FConsoleCommands>();
+	}
+#endif  // #if INTEL_ISPC && !UE_BUILD_SHIPPING
 }
 
 FClothingSimulation::~FClothingSimulation()
@@ -186,7 +279,7 @@ void FClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, 
 		ClothConfig->bUseThinShellVolumeConstraints,
 		ClothConfig->StrainLimitingStiffness,
 		ClothConfig->LimitScale,
-		ClothConfig->bUseGeodesicDistance,
+		(FClothingSimulationCloth::ETetherMode)ClothConfig->TetherMode,
 		/*MaxDistancesMultiplier =*/ 1.f,  // Animatable
 		AnimDriveSpringStiffness,  // Animatable
 		ClothConfig->ShapeTargetStiffness,
@@ -367,12 +460,26 @@ void FClothingSimulation::GetSimulationData(
 		Data.Positions = Cloth->GetParticlePositions(Solver.Get());
 		Data.Normals = Cloth->GetParticleNormals(Solver.Get());
 
-		for (int32 Index = 0; Index < Data.Positions.Num(); ++Index)
+		if (bChaos_GetSimData_ISPC_Enabled)
 		{
-			Data.Positions[Index] = OwnerTransform.InverseTransformPosition(Data.Positions[Index] + LocalSpaceLocation);  // Move into world space first
-			Data.Normals[Index] = OwnerTransform.InverseTransformVector(-Data.Normals[Index]);  // Normals are inverted due to how barycentric coordinates are calculated (see GetPointBaryAndDist in ClothingMeshUtils.cpp)
+#if INTEL_ISPC
+			ispc::GetClothingSimulationData(
+				(ispc::FVector*)Data.Positions.GetData(),
+				(ispc::FVector*)Data.Normals.GetData(),
+				(ispc::FTransform&)OwnerTransform,
+				(ispc::FVector&)LocalSpaceLocation,
+				Data.Positions.Num());
+#endif
 		}
-    }
+		else
+		{
+			for (int32 Index = 0; Index < Data.Positions.Num(); ++Index)
+			{
+				Data.Positions[Index] = OwnerTransform.InverseTransformPosition(Data.Positions[Index] + LocalSpaceLocation);  // Move into world space first
+				Data.Normals[Index] = OwnerTransform.InverseTransformVector(-Data.Normals[Index]);  // Normals are inverted due to how barycentric coordinates are calculated (see GetPointBaryAndDist in ClothingMeshUtils.cpp)
+			}
+		}
+	}
 }
 
 FBoxSphereBounds FClothingSimulation::GetBounds(const USkeletalMeshComponent* InOwnerComponent) const
@@ -464,7 +571,7 @@ void FClothingSimulation::RefreshClothConfig(const IClothingSimulationContext* I
 			ClothConfig->bUseThinShellVolumeConstraints,
 			ClothConfig->StrainLimitingStiffness,
 			ClothConfig->LimitScale,
-			ClothConfig->bUseGeodesicDistance,
+			(FClothingSimulationCloth::ETetherMode)ClothConfig->TetherMode,
 			/*MaxDistancesMultiplier =*/ 1.f,  // Animatable
 			AnimDriveSpringStiffness,  // Animatable
 			ClothConfig->ShapeTargetStiffness,
@@ -728,7 +835,7 @@ static void DrawSphere(FPrimitiveDrawInterface* PDI, const TSphere<float, 3>& Sp
 #endif
 }
 
-static void DrawBox(FPrimitiveDrawInterface* PDI, const TBox<float, 3>& Box, const FQuat& Rotation, const FVector& Position, const FLinearColor& Color)
+static void DrawBox(FPrimitiveDrawInterface* PDI, const FAABB3& Box, const FQuat& Rotation, const FVector& Position, const FLinearColor& Color)
 {
 #if CHAOS_DEBUG_DRAW
 	if (!PDI)
@@ -857,7 +964,7 @@ void FClothingSimulation::DebugDrawBounds() const
 	const FBoxSphereBounds Bounds = Solver->CalculateBounds();
 
 	// Draw bounds
-	DrawBox(nullptr, TBox<float, 3>(-Bounds.BoxExtent, Bounds.BoxExtent), FQuat::Identity, Bounds.Origin, FLinearColor(FColor::Purple));
+	DrawBox(nullptr, FAABB3(-Bounds.BoxExtent, Bounds.BoxExtent), FQuat::Identity, Bounds.Origin, FLinearColor(FColor::Purple));
 	DrawSphere(nullptr, TSphere<float, 3>(FVector::ZeroVector, Bounds.SphereRadius), FQuat::Identity, Bounds.Origin, FLinearColor(FColor::Orange));
 
 	// Draw individual cloth bounds
@@ -869,8 +976,8 @@ void FClothingSimulation::DebugDrawBounds() const
 			continue;
 		}
 
-		const TAABB<float, 3> BoundingBox = Cloth->CalculateBoundingBox(Solver.Get());
-		DrawBox(nullptr, TBox<float, 3>(BoundingBox), FQuat::Identity, Bounds.Origin, Color);
+		const FAABB3 BoundingBox = Cloth->CalculateBoundingBox(Solver.Get());
+		DrawBox(nullptr, BoundingBox, FQuat::Identity, Bounds.Origin, Color);
 	}
 }
 
@@ -1062,7 +1169,7 @@ void FClothingSimulation::DebugDrawCollision(FPrimitiveDrawInterface* PDI) const
 						break;
 
 					case ImplicitObjectType::Box:
-						DrawBox(PDI, Object->GetObjectChecked<TBox<float, 3>>(), Rotation, Position, Color);
+						DrawBox(PDI, Object->GetObjectChecked<TBox<float, 3>>().BoundingBox(), Rotation, Position, Color);
 						break;
 
 					case ImplicitObjectType::Capsule:
@@ -1359,29 +1466,73 @@ void FClothingSimulation::DebugDrawLongRangeConstraint(FPrimitiveDrawInterface* 
 
 		if (const TPBDLongRangeConstraints<float, 3>* const LongRangeConstraints = ClothConstraints.GetLongRangeConstraints().Get())
 		{
-			const TArray<TArray<uint32>>& Constraints = LongRangeConstraints->GetConstraints();
-
-			for (int32 ConstraintIndex = 0; ConstraintIndex < Constraints.Num(); ++ConstraintIndex)
+			switch (LongRangeConstraints->GetMode())
 			{
-				const TArray<uint32>& Path = Constraints[ConstraintIndex];
-				const uint32 KinematicIndex = Path[0];
-				const uint32 DynamicIndex = Path[Path.Num() - 1];
-
-				// Find Island
-				int32 ColorIndex = 0;
-				for (int32 IslandIndex = 0; IslandIndex < IslandElements.Num(); ++IslandIndex)
+			case TPBDLongRangeConstraints<float, 3>::EMode::FastTetherFastLength:
+			case TPBDLongRangeConstraints<float, 3>::EMode::AccurateTetherFastLength:
 				{
-					if (IslandElements[IslandIndex].Find(KinematicIndex) != INDEX_NONE)  // TODO: This is O(n^2), it'll be nice to make this faster, even if it is only debug viz. Maybe binary search if the kinematic indices are ordered?
+					const TArray<TVector<uint32, 2>>& Constraints = LongRangeConstraints->GetEuclideanConstraints();
+					for (int32 ConstraintIndex = 0; ConstraintIndex < Constraints.Num(); ++ConstraintIndex)
 					{
-						ColorIndex = ColorOffset + IslandIndex;
-						break;
+						const TVector<uint32, 2>& Path = Constraints[ConstraintIndex];
+						const uint32 KinematicIndex = Path[0];
+						const uint32 DynamicIndex = Path[Path.Num() - 1];
+
+						// Find Island
+						int32 ColorIndex = 0;
+						for (int32 IslandIndex = 0; IslandIndex < IslandElements.Num(); ++IslandIndex)
+						{
+							if (IslandElements[IslandIndex].Find(KinematicIndex) != INDEX_NONE)  // TODO: This is O(n^2), it'll be nice to make this faster, even if it is only debug viz. Maybe binary search if the kinematic indices are ordered?
+							{
+								ColorIndex = ColorOffset + IslandIndex;
+								break;
+							}
+						}
+
+						// Draw line
+						const TVector<float, 3> Pos0 = Positions[KinematicIndex - Offset] + LocalSpaceLocation;
+						const TVector<float, 3> Pos1 = Positions[DynamicIndex - Offset] + LocalSpaceLocation;
+						DrawLine(PDI, Pos0, Pos1, PseudoRandomColor(ColorIndex));
 					}
 				}
+				break;
+			case TPBDLongRangeConstraints<float, 3>::EMode::AccurateTetherAccurateLength:
+				{
+					const TArray<TArray<uint32>>& Constraints = LongRangeConstraints->GetGeodesicConstraints();
+					for (int32 ConstraintIndex = 0; ConstraintIndex < Constraints.Num(); ++ConstraintIndex)
+					{
+						const TArray<uint32>& Path = Constraints[ConstraintIndex];
+						const uint32 KinematicIndex = Path[0];
 
-				const TVector<float, 3> Pos0 = Positions[KinematicIndex - Offset] + LocalSpaceLocation;
-				const TVector<float, 3> Pos1 = Positions[DynamicIndex - Offset] + LocalSpaceLocation;
-				DrawLine(PDI, Pos0, Pos1, PseudoRandomColor(ColorIndex));
+						// Find Island
+						int32 ColorIndex = 0;
+						for (int32 IslandIndex = 0; IslandIndex < IslandElements.Num(); ++IslandIndex)
+						{
+							if (IslandElements[IslandIndex].Find(KinematicIndex) != INDEX_NONE)  // TODO: This is O(n^2), it'll be nice to make this faster, even if it is only debug viz. Maybe binary search if the kinematic indices are ordered?
+							{
+								ColorIndex = ColorOffset + IslandIndex;
+								break;
+							}
+						}
+						const FLinearColor Color = PseudoRandomColor(ColorIndex);
+
+						// Draw lines
+						TVector<float, 3> Pos0 = Positions[KinematicIndex - Offset] + LocalSpaceLocation;
+						for (int32 PathIndex = 1; PathIndex < Path.Num(); ++PathIndex)
+						{
+							const uint32 DynamicIndex = Path[PathIndex];
+							const TVector<float, 3> Pos1 = Positions[DynamicIndex - Offset] + LocalSpaceLocation;
+							DrawLine(PDI, Pos0, Pos1, Color);
+							Pos0 = Pos1;
+						}
+					}
+				}
+				break;
+			default:
+				unimplemented();
+				break;
 			}
+
 		}
 
 		// Draw islands

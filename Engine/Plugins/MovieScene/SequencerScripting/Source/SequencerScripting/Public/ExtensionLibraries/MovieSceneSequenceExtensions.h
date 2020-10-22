@@ -107,13 +107,22 @@ public:
 	static FFrameRate GetTickResolution(UMovieSceneSequence* Sequence);
 
 	/**
-	 * Sets this sequence's tick resolution
+	 * Sets this sequence's tick resolution and migrates frame times
 	 *
 	 * @param Sequence        The sequence to use
 	 * @param TickResolution The tick resolution of the sequence, defining the smallest unit of time representable on this sequence
 	 */
 	UFUNCTION(BlueprintCallable, Category="Sequence", meta=(ScriptMethod))
 	static void SetTickResolution(UMovieSceneSequence* Sequence, FFrameRate TickResolution);
+
+	/**
+	 * Sets this sequence's tick resolution directly without migrating frame times
+	 *
+	 * @param Sequence        The sequence to use
+	 * @param TickResolution The tick resolution of the sequence, defining the smallest unit of time representable on this sequence
+	 */
+	UFUNCTION(BlueprintCallable, Category="Sequence", meta=(ScriptMethod))
+	static void SetTickResolutionDirectly(UMovieSceneSequence* Sequence, FFrameRate TickResolution);
 
 	/**
 	 * Make a new range for this sequence in its display rate

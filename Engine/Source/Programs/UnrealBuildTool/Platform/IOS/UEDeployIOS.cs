@@ -313,40 +313,24 @@ namespace UnrealBuildTool
 			{
 				switch (MinVersion)
 				{
-				case "IOS_61":
-					Log.TraceWarning("IOS 6 is no longer supported in UE4 as of 4.11");
-					MinVersion = "7.0";
-					break;
-				case "IOS_7":
-					Log.TraceWarning("IOS 7 is no longer supported in UE4 as of 4.15");
-					MinVersion = "7.0";
-					break;
-				case "IOS_8":
-					Log.TraceWarning("IOS 8 is no longer supported in UE4 as of 4.18");
-					MinVersion = "8.0";
-					break;
-				case "IOS_9":
-					Log.TraceWarning("IOS 9 is no longer supported in UE4 as of 4.21");
-					MinVersion = "9.0";
-					break;
-				case "IOS_10":
-					Log.TraceWarning("IOS 10 is no longer supported in UE4 as of 4.23");
-					MinVersion = "10.0";
-					break;
-				case "IOS_11":
-					MinVersion = "11.0";
-					break;
 				case "IOS_12":
 					MinVersion = "12.0";
 					break;
 				case "IOS_13":
 					MinVersion = "13.0";
 					break;
+				case "IOS_14":
+					MinVersion = "14.0";
+					break;
+				default:
+					Log.TraceWarning("MinimumiOSVersion {0} specified in ini file is no longer supported, defaulting to 12.0", MinVersion);
+					MinVersion = "12.0";
+					break;
 				}
 			}
 			else
 			{
-				MinVersion = "11.0";
+				MinVersion = "12.0";
 			}
 
 			// Get Facebook Support details

@@ -59,9 +59,7 @@ void SRetargetManager::Construct(const FArguments& InArgs, const TSharedRef<IEdi
 																			DocLink,
 																			TEXT("RetargetSource")))
 			.Font(FEditorStyle::GetFontStyle(TEXT("Persona.RetargetManager.FilterFont")))
-			.Text(LOCTEXT("RetargetSource_Description", "You can add/rename/delete Retarget Sources. When you have different proportional meshes per skeleton, you can use this setting to indicate if this animation is from a different source." \
-														"For example, if your default skeleton is from a small guy, and if you have an animation for a big guy, you can create a Retarget Source from the big guy and set it for the animation." \
-														"The Retargeting system will use this information when extracting animation. "))
+			.Text(LOCTEXT("RetargetSource_Description", "You can add/rename/delete Retarget Sources. When you have different proportional meshes per skeleton, you can use this setting to indicate if this animation is from a different source. For example, if your default skeleton is from a small guy, and if you have an animation for a big guy, you can create a Retarget Source from the big guy and set it for the animation. The Retargeting system will use this information when extracting animation. "))
 		]
 
 		+ SVerticalBox::Slot()
@@ -147,8 +145,7 @@ void SRetargetManager::Construct(const FArguments& InArgs, const TSharedRef<IEdi
 																			DocLink,
 																			TEXT("SetupBasePose")))
 			.Font(FEditorStyle::GetFontStyle(TEXT("Persona.RetargetManager.FilterFont")))
-			.Text(LOCTEXT("BasePose_Description", "This information is used when retargeting assets to a different skeleton. You need to make sure the ref pose of both meshes is the same when retargeting, so you can see the pose and" \
-											" edit using the bone transform widget, and click the Save button below. "))
+			.Text(LOCTEXT("BasePose_Description", "This information is used when retargeting assets to a different skeleton. You need to make sure the ref pose of both meshes is the same when retargeting, so you can see the pose and edit using the bone transform widget, and click the Save button below. "))
 		]
 
 		+ SVerticalBox::Slot()

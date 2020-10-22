@@ -7,13 +7,23 @@
 #include "NiagaraDataSet.h"
 #include "NiagaraDataSetAccessor.h"
 
+enum class ENiagaraBoundsMeshOffsetTransform
+{
+	None,
+	WorldToLocal,
+	LocalToWorld
+};
+
 template<bool bUsedWithSprites, bool bUsedWithMeshes, bool bUsedWithRibbons>
 class FNiagaraBoundsCalculatorHelper : public FNiagaraBoundsCalculator
 {
 public:
+
 	FNiagaraBoundsCalculatorHelper() = default;
-	FNiagaraBoundsCalculatorHelper(const FVector& InMeshExtents)
+	FNiagaraBoundsCalculatorHelper(const FVector& InMeshExtents, const FVector& InMeshOffset, ENiagaraBoundsMeshOffsetTransform InMeshOffsetTransform)
 		: MeshExtents(InMeshExtents)
+		, MeshOffset(InMeshOffset)
+		, MeshOffsetTransform(InMeshOffsetTransform)
 	{}
 
 	virtual void InitAccessors(const FNiagaraDataSetCompiledData* CompiledData) override final
@@ -38,7 +48,7 @@ public:
 		}
 	}
 
-	virtual FBox CalculateBounds(const FNiagaraDataSet& DataSet, const int32 NumInstances) const override final
+	virtual FBox CalculateBounds(const FTransform& SystemTransform, const FNiagaraDataSet& DataSet, const int32 NumInstances) const override final
 	{
 		if (!NumInstances || !PositionAccessor.IsValid())
 		{
@@ -47,21 +57,51 @@ public:
 
 		constexpr float kDefaultSize = 50.0f;
 
-		FVector PositionMax;
-		FVector PositionMin;
-		PositionAccessor.GetReader(DataSet).GetMinMax(PositionMin, PositionMax);
+		FBox Bounds(ForceInitToZero);
+		PositionAccessor.GetReader(DataSet).GetMinMax(Bounds.Min, Bounds.Max);
 
 		float MaxSize = KINDA_SMALL_NUMBER;
 		if (bUsedWithMeshes)
 		{
-			FVector MaxScale = FVector(kDefaultSize, kDefaultSize, kDefaultSize);
+			FVector MaxScale(1.0f, 1.0f, 1.0f);
 			if (ScaleAccessor.IsValid())
 			{
 				MaxScale = ScaleAccessor.GetReader(DataSet).GetMax();
 			}
 
-			const FVector ScaledExtents = MeshExtents * (MaxScale.IsNearlyZero() ? FVector::OneVector : MaxScale);
-			MaxSize = FMath::Max(MaxSize, ScaledExtents.GetMax());
+			// NOTE: Since we're not taking particle rotation into account we have to treat the extents like a sphere,
+			// which is a little bit more conservative, but saves us having to rotate the extents per particle
+			const FVector ScaledExtents = MeshExtents * MaxScale;
+			MaxSize = FMath::Max(MaxSize, ScaledExtents.Size());
+			
+			// Apply a potentially transformed MeshOffset
+			FVector TransformedOffset;
+			switch (MeshOffsetTransform)
+			{
+			case ENiagaraBoundsMeshOffsetTransform::LocalToWorld:
+				TransformedOffset = SystemTransform.TransformVector(MeshOffset);
+				break;
+
+			case ENiagaraBoundsMeshOffsetTransform::WorldToLocal:
+				TransformedOffset = SystemTransform.InverseTransformVector(MeshOffset);
+				break;
+
+			default:
+				TransformedOffset = MeshOffset;
+				break;
+			}
+
+			if (!bUsedWithSprites && !bUsedWithRibbons)
+			{
+				// If it's only used with meshes, we can simply shift the min/max
+				Bounds = Bounds.ShiftBy(TransformedOffset);
+			}
+			else
+			{
+				// We have to extend the min/max by the offset
+				Bounds.Max = Bounds.Max.ComponentMax(Bounds.Max + TransformedOffset);
+				Bounds.Min = Bounds.Min.ComponentMin(Bounds.Min + TransformedOffset);
+			}
 		}
 
 		if (bUsedWithSprites)
@@ -87,7 +127,7 @@ public:
 			MaxSize = FMath::Max(MaxSize, FMath::IsNearlyZero(MaxRibbonWidth) ? 1.0f : MaxRibbonWidth);
 		}
 
-		return FBox(PositionMin, PositionMax).ExpandBy(MaxSize);
+		return Bounds.ExpandBy(MaxSize);
 	}
 
 	FNiagaraDataSetAccessor<FVector> PositionAccessor;
@@ -96,4 +136,6 @@ public:
 	FNiagaraDataSetAccessor<float> RibbonWidthAccessor;
 
 	const FVector MeshExtents = FVector::OneVector;
+	const FVector MeshOffset = FVector::ZeroVector;
+	const ENiagaraBoundsMeshOffsetTransform MeshOffsetTransform = ENiagaraBoundsMeshOffsetTransform::None;
 };

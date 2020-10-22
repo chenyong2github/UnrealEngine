@@ -6,12 +6,14 @@
 FRigUnit_AlphaInterp_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
+
+	ScaleBiasClamp.bMapRange = bMapRange;
+	ScaleBiasClamp.bClampResult = bClampResult;
+	ScaleBiasClamp.bInterpResult = bInterpResult;
+
 	if (Context.State == EControlRigState::Init)
 	{
 		ScaleBiasClamp.Reinitialize();
-		ScaleBiasClamp.bMapRange = bMapRange;
-		ScaleBiasClamp.bClampResult = bClampResult;
-		ScaleBiasClamp.bInterpResult = bInterpResult;
 	}
 	else
 	{
@@ -54,12 +56,14 @@ FString FRigUnit_AlphaInterp::ProcessPinLabelForInjection(const FString& InLabel
 FRigUnit_AlphaInterpVector_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
+
+	ScaleBiasClamp.bMapRange = bMapRange;
+	ScaleBiasClamp.bClampResult = bClampResult;
+	ScaleBiasClamp.bInterpResult = bInterpResult;
+
 	if (Context.State == EControlRigState::Init)
 	{
 		ScaleBiasClamp.Reinitialize();
-		ScaleBiasClamp.bMapRange = bMapRange;
-		ScaleBiasClamp.bClampResult = bClampResult;
-		ScaleBiasClamp.bInterpResult = bInterpResult;
 	}
 	else
 	{

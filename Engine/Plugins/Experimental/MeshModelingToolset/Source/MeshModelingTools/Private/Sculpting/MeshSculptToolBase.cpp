@@ -841,7 +841,6 @@ void UMeshSculptToolBase::InitializeIndicator()
 	BrushIndicator->LineThickness = 1.0;
 	BrushIndicator->bDrawIndicatorLines = true;
 	BrushIndicator->bDrawRadiusCircle = false;
-	BrushIndicator->bDrawFalloffCircle = true;
 	BrushIndicator->LineColor = FLinearColor(0.9f, 0.4f, 0.4f);
 }
 

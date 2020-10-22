@@ -420,7 +420,7 @@ public:
 		ensure(FMath::IsNearlyEqual(UnitDir.SizeSquared(), 1, KINDA_SMALL_NUMBER));
 
 		const TVector<T, d> UnscaledPosition = MInvScale * Position;
-		const TVector<T, d> UnscaledDirDenorm = MScale * UnitDir;
+		const TVector<T, d> UnscaledDirDenorm = MInvScale * UnitDir;
 		const float LengthScale = UnscaledDirDenorm.Size();
 		const TVector<T, d> UnscaledDir
 			= ensure(LengthScale > TNumericLimits<T>::Min())
@@ -436,8 +436,8 @@ public:
 		ensure(FMath::IsNearlyEqual(OriginalNormal.SizeSquared(), 1, KINDA_SMALL_NUMBER));
 
 		// Get unscaled dir and normal
-		const TVector<T, 3> LocalDenormDir = DenormDir * MScale;
-		const TVector<T, 3> LocalOriginalNormalDenorm = OriginalNormal * MScale;
+		const TVector<T, 3> LocalDenormDir = DenormDir * MInvScale;
+		const TVector<T, 3> LocalOriginalNormalDenorm = OriginalNormal * MInvScale;
 		const float NormalLengthScale = LocalOriginalNormalDenorm.Size();
 		const TVector<T, 3> LocalOriginalNormal
 			= ensure(NormalLengthScale > SMALL_NUMBER)
@@ -446,7 +446,7 @@ public:
 
 		// Compute final normal
 		const TVector<T, d> LocalNormal = MObject->FindGeometryOpposingNormal(LocalDenormDir, HintFaceIndex, LocalOriginalNormal);
-		TVector<T, d> Normal = LocalNormal * MInvScale;
+		TVector<T, d> Normal = LocalNormal;
 		if (CHAOS_ENSURE(Normal.SafeNormalize(TNumericLimits<T>::Min())) == 0)
 		{
 			Normal = TVector<T,3>(0,0,1);

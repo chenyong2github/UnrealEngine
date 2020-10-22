@@ -66,6 +66,7 @@ static TAutoConsoleVariable<int32> CVarProbeSamplePerPixel(
 
 DECLARE_GPU_STAT_NAMED(ReflectionEnvironment, TEXT("Reflection Environment"));
 DECLARE_GPU_STAT_NAMED(RayTracingReflections, TEXT("Ray Tracing Reflections"));
+DECLARE_GPU_STAT_NAMED(HairSkyLighting, TEXT("Hair Sky lighting"));
 DECLARE_GPU_STAT(SkyLightDiffuse);
 
 int GetReflectionEnvironmentCVar();
@@ -1473,7 +1474,8 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(
 		const bool bIsHairSkyLightingEnabled = HairDatas && (bSkyLight || bDynamicSkyLight || bReflectionEnv);
 		if (bIsHairSkyLightingEnabled)
 		{
-			RenderHairStrandsEnvironmentLighting(GraphBuilder, CurrentViewIndex, Views, HairDatas);
+			RDG_GPU_STAT_SCOPE(GraphBuilder, HairSkyLighting);
+			RenderHairStrandsEnvironmentLighting(GraphBuilder, Scene, CurrentViewIndex, Views, HairDatas);
 		}
 	}
 
@@ -1520,7 +1522,7 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLightingHair(
 		const bool bIsHairSkyLightingEnabled = HairDatas && (bSkyLight || bDynamicSkyLight || bReflectionEnv);
 		if (bIsHairSkyLightingEnabled)
 		{
-			RenderHairStrandsEnvironmentLighting(GraphBuilder, CurrentViewIndex, Views, HairDatas);
+			RenderHairStrandsEnvironmentLighting(GraphBuilder, Scene, CurrentViewIndex, Views, HairDatas);
 		}
 	}
 }

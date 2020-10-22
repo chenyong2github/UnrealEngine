@@ -121,8 +121,8 @@ RENDERER_API TAutoConsoleVariable<float> CVarStaticMeshLODDistanceScale(
 
 static TAutoConsoleVariable<float> CVarMinAutomaticViewMipBias(
 	TEXT("r.ViewTextureMipBias.Min"),
-	-1.0f,
-	TEXT("Automatic view mip bias's minimum value (default to -1)."),
+	-2.0f,
+	TEXT("Automatic view mip bias's minimum value (default to -2)."),
 	ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<float> CVarMinAutomaticViewMipBiasOffset(
@@ -3104,10 +3104,12 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdLis
 
 	RunGPUSkinCacheTransition(RHICmdList, Scene, EGPUSkinCacheTransition::FrameSetup);
 
-	if (IsHairStrandsEnabled(EHairStrandsShaderType::All, Scene->GetShaderPlatform()) && Views.Num() > 0)
+	if (IsHairStrandsEnabled(EHairStrandsShaderType::All, Scene->GetShaderPlatform()) && Views.Num() > 0 && !ViewFamily.EngineShowFlags.HitProxies)
 	{
 		FRDGBuilder GraphBuilder(RHICmdList);
-		FHairStrandsBookmarkParameters Parameters = CreateHairStrandsBookmarkParameters(Views[0]);
+
+		FHairStrandsBookmarkParameters Parameters = CreateHairStrandsBookmarkParameters(Views);
+		RunHairStrandsBookmark(GraphBuilder, EHairStrandsBookmark::ProcessLODSelection, Parameters);
 		RunHairStrandsBookmark(GraphBuilder, EHairStrandsBookmark::ProcessGuideInterpolation, Parameters);
 		GraphBuilder.Execute();
 	}

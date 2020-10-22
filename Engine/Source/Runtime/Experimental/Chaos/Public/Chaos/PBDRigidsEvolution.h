@@ -776,7 +776,6 @@ protected:
 	FAccelerationStructure* InternalAcceleration;
 	FAccelerationStructure* AsyncInternalAcceleration;
 	FAccelerationStructure* AsyncExternalAcceleration;
-	TArray<FUniqueIdx> UniqueIndicesPendingRelease;
 
 	//internal thread will push into this and external thread will consume
 	TQueue<FAccelerationStructure*,EQueueMode::Spsc> ExternalStructuresQueue;
@@ -792,6 +791,7 @@ protected:
 	// Allows us to tell evolution to stop starting async tasks if we are trying to cleanup solver/evo.
 	bool bCanStartAsyncTasks;
 
+	TArray<FUniqueIdx> UniqueIndicesPendingRelease;
 public:
 	//The latest external timestamp we consumed inputs from, assigned to evolution when solver task executes, is used to stamp output data.
 	int32 LatestExternalTimestampConsumed_Internal;	

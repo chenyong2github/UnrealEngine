@@ -236,11 +236,7 @@ void FMainFrameModule::CreateDefaultMainFrame( const bool bStartImmersive, const
 			{
 				// FMessageDialog - Notify the user that the layout version was updated and the current layout uses a deprecated one
 				const FText TextTitle = LOCTEXT("MainFrameModuleVersionErrorTitle", "Unreal Editor Layout Version Mismatch");
-				const FText TextBody = FText::Format(LOCTEXT("MainFrameModuleVersionErrorBody",
-					"The expected Unreal Editor layout version is \"{0}\", while only version \"{1}\" was found."
-					" I.e., the current layout was created with a previous version of Unreal that is deprecated and no longer compatible."
-					"\n\nUnreal will continue with the default layout for its current version, the deprecated one has been removed."
-					"\n\nYou can create and save your custom layouts with \"Window\"->\"Save Layout\"->\"Save Layout As...\"."),
+				const FText TextBody = FText::Format(LOCTEXT("MainFrameModuleVersionErrorBody", "The expected Unreal Editor layout version is \"{0}\", while only version \"{1}\" was found. I.e., the current layout was created with a previous version of Unreal that is deprecated and no longer compatible.\n\nUnreal will continue with the default layout for its current version, the deprecated one has been removed.\n\nYou can create and save your custom layouts with \"Window\"->\"Save Layout\"->\"Save Layout As...\"."),
 					FText::FromString(LayoutName.ToString()), FText::FromString(RemovedOlderLayoutVersions[0]));
 				FMessageDialog::Open(EAppMsgType::Ok, TextBody, &TextTitle);
 			}
@@ -258,8 +254,7 @@ void FMainFrameModule::CreateDefaultMainFrame( const bool bStartImmersive, const
 				FPlatformFileManager::Get().GetPlatformFile().MoveFile(*FaultyEditorLayoutPath, *GEditorLayoutIni);
 				GConfig->LoadFile(GEditorLayoutIni);
 				// Warn user/developer
-				const FString WarningMessage = FString::Format(TEXT("UnrealEd layout could not be loaded from the config file {0}, reseting this config file to the"
-					" default one."), { *GEditorLayoutIni });
+				const FString WarningMessage = FString::Format(TEXT("UnrealEd layout could not be loaded from the config file {0}, reseting this config file to the default one."), { *GEditorLayoutIni });
 				UE_LOG(LogMainFrame, Warning, TEXT("%s"), *WarningMessage);
 				ensureMsgf(false, TEXT("%s Some additional testing of that layout file should be done. Saved as %s."), *WarningMessage, *FaultyEditorLayoutPath);
 				// Reload default main frame

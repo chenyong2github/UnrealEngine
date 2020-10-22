@@ -27,7 +27,8 @@ class nDisplayMonitor(QAbstractTableModel):
         self.colnames = [
             'Node', 
             'Host', 
-            'Connected', 
+            'Connected',
+            'Driver',
             'FlipMode', 
             'Gpus', 
             'Displays', 
@@ -35,6 +36,8 @@ class nDisplayMonitor(QAbstractTableModel):
             'HouseSync',
             'SyncSource',
             'Mosaics',
+            'Taskbar',
+            'ExeFlags',
         ]
 
     def reset_device_data(self, device, data):
@@ -165,7 +168,8 @@ class nDisplayMonitor(QAbstractTableModel):
         # Sync Topology
         #
 
-        syncTopos = message['syncStatus']['syncTopos']
+        syncStatus = message['syncStatus']
+        syncTopos = syncStatus['syncTopos']
 
         # Build Gpus, informing which Gpus in each Sync group are in sync
 
@@ -220,7 +224,7 @@ class nDisplayMonitor(QAbstractTableModel):
         # Mosaic Topology
         #
 
-        mosaicTopos = message['syncStatus']['mosaicTopos']
+        mosaicTopos = syncStatus['mosaicTopos']
 
         mosaicTopoLines = []
 
@@ -240,7 +244,7 @@ class nDisplayMonitor(QAbstractTableModel):
 
         # Build FlipMode.
         #
-        flip_history = message['syncStatus']['flipModeHistory']
+        flip_history = syncStatus['flipModeHistory']
 
         if len(flip_history) > 0:
             data['FlipMode'] = flip_history[-1]
@@ -258,6 +262,15 @@ class nDisplayMonitor(QAbstractTableModel):
             if time_since_flip_glitch < 1*60:
                 data['FlipMode'] = data['FlipMode'].split('\n')[0] + '\n' + str(int(time_since_flip_glitch))
 
+        # Show Exe flags (like Disable Fullscreen Optimization)
+        data['ExeFlags'] = '\n'.join([layer for layer in syncStatus['programLayers'][1:]])
+
+        # Driver version
+        driver = syncStatus['driverVersion']
+        data['Driver'] = f'{int(driver/100)}.{driver % 100}'
+
+        # Taskbar visibility
+        data['Taskbar'] = syncStatus['taskbar']
 
     def on_get_sync_status(self, device, message):
         ''' Called when the listener has sent a message with the sync status

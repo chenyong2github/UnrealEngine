@@ -77,6 +77,8 @@ FRigUnit_CCDIKPerItem_Execute()
 	{
 		if (CachedItems.Num() == 0 && Items.Num() > 0)
 		{
+			CachedItems.Add(FCachedRigElement(Hierarchy->GetParentKey(Items[0]), Hierarchy));
+
 			for (FRigElementKey Item : Items)
 			{
 				CachedItems.Add(FCachedRigElement(Item, Hierarchy));

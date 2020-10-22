@@ -15,9 +15,22 @@
 #include "Field/FieldSystemNodes.h"
 
 /**
-*	Consolde variables
+*	Stats
+*
+*/
+
+DECLARE_STATS_GROUP(TEXT("PhysicsFields"), STATGROUP_PhysicsFields, STATCAT_Advanced);
+
+DECLARE_CYCLE_STAT(TEXT("Create Scene Proxy [GT]"), STAT_PhysicsFields_CreateSceneProxy, STATGROUP_PhysicsFields);
+DECLARE_CYCLE_STAT(TEXT("Send Render Data [GT]"), STAT_PhysicsFields_SendRenderData, STATGROUP_PhysicsFields);
+DECLARE_CYCLE_STAT(TEXT("UpdateResource [RT]"), STAT_PhysicsFields_UpdateResource_RT, STATGROUP_PhysicsFields);
+DECLARE_GPU_STAT(PhysicsFields);
+
+/**
+*	Console variables
 * 
 */
+DEFINE_LOG_CATEGORY_STATIC(LogGlobalField, Log, All);
 
 
 /** Clipmap enable/disable */
@@ -162,13 +175,14 @@ public:
 
 		PhysicsTargets.Bind(Initializer.ParameterMap, TEXT("PhysicsTargets"));
 		TargetCount.Bind(Initializer.ParameterMap, TEXT("TargetCount"));
+		TimeSeconds.Bind(Initializer.ParameterMap, TEXT("TimeSeconds"));
 	}
 
 	FBuildPhysicsFieldClipmapCS()
 	{
 	}
 
-	void SetParameters(FRHICommandList& RHICmdList, FPhysicsFieldResource* FieldResource)
+	void SetParameters(FRHICommandList& RHICmdList, FPhysicsFieldResource* FieldResource, const float InTimeSeconds)
 	{
 		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
 
@@ -189,6 +203,7 @@ public:
 
 			SetShaderValue(RHICmdList, ShaderRHI, PhysicsTargets, FieldResource->FieldInfos.PhysicsTargets);
 			SetShaderValue(RHICmdList, ShaderRHI, TargetCount, FieldResource->FieldInfos.TargetCount);
+			SetShaderValue(RHICmdList, ShaderRHI, TimeSeconds, InTimeSeconds);
 		}
 	}
 
@@ -216,6 +231,7 @@ private:
 
 	LAYOUT_FIELD(FShaderParameter, PhysicsTargets);
 	LAYOUT_FIELD(FShaderParameter, TargetCount);
+	LAYOUT_FIELD(FShaderParameter, TimeSeconds);
 };
 
 IMPLEMENT_SHADER_TYPE(, FBuildPhysicsFieldClipmapCS, TEXT("/Engine/Private/PhysicsFieldBuilder.usf"), TEXT("BuildPhysicsFieldClipmapCS"), SF_Compute);
@@ -241,10 +257,21 @@ FPhysicsFieldResource::FPhysicsFieldResource(const int32 TargetCount, const TArr
 	FieldInfos.ClipmapCount = GPhysicsFieldClipmapCount;
 	FieldInfos.ClipmapDistance = GPhysicsFieldClipmapDistance;
 	FieldInfos.ClipmapResolution = GPhysicsFieldClipmapResolution;
+
+	const int32 DatasCount = FieldInfos.ClipmapCount * FieldInfos.TargetCount;
+	const int32 TextureSize = FieldInfos.ClipmapResolution * DatasCount + DatasCount - 1;
+
+	if (TextureSize > 2048 && DatasCount > 0)
+	{
+		FieldInfos.ClipmapResolution = (2048 + 1 - DatasCount) / DatasCount;
+		UE_LOG(LogGlobalField, Warning, TEXT("Texture Size out of the 2048 limit. Clamping the resolution to : %d"), FieldInfos.ClipmapResolution);
+	}
 }
 
 void FPhysicsFieldResource::InitRHI()
 {
+	SCOPE_CYCLE_COUNTER(STAT_PhysicsFields_UpdateResource_RT);
+
 	const int32 DatasCount = FieldInfos.ClipmapCount * FieldInfos.TargetCount;
 	InitInternalTexture<float, 4, EPixelFormat::PF_A32B32G32R32F>(FieldInfos.ClipmapResolution, FieldInfos.ClipmapResolution, FieldInfos.ClipmapResolution * DatasCount + DatasCount-1, FieldClipmap);
 	InitInternalBuffer<int32, 1, EPixelFormat::PF_R32_SINT>(EFieldPhysicsType::Field_PhysicsType_Max + 1, TargetsOffsets);
@@ -259,9 +286,12 @@ void FPhysicsFieldResource::ReleaseRHI()
 }
 
 void FPhysicsFieldResource::UpdateResource(FRHICommandListImmediate& RHICmdList, const int32 NodesCount, const int32 ParamsCount,
-				const int32* TargetsOffsetsDatas, const int32* NodesOffsetsDatas, const float* NodesParamsDatas)
+				const int32* TargetsOffsetsDatas, const int32* NodesOffsetsDatas, const float* NodesParamsDatas, const float TimeSeconds)
 {
-	
+	SCOPE_CYCLE_COUNTER(STAT_PhysicsFields_UpdateResource_RT);
+	SCOPED_DRAW_EVENT(RHICmdList, PhysicsFields);
+	SCOPED_GPU_STAT(RHICmdList, PhysicsFields);
+
 	InitInternalBuffer<float, 1, EPixelFormat::PF_R32_FLOAT>(ParamsCount, NodesParams);
 	InitInternalBuffer<int32, 1, EPixelFormat::PF_R32_SINT>(NodesCount, NodesOffsets);
 
@@ -276,7 +306,7 @@ void FPhysicsFieldResource::UpdateResource(FRHICommandListImmediate& RHICmdList,
 
 	const uint32 NumGroups = FMath::DivideAndRoundUp<int32>(FieldInfos.ClipmapResolution, FBuildPhysicsFieldClipmapCS::ThreadGroupSize);
 
-	ComputeShader->SetParameters(RHICmdList, this);
+	ComputeShader->SetParameters(RHICmdList, this, TimeSeconds);
 	DispatchComputeShader(RHICmdList, ComputeShader.GetShader(), NumGroups, NumGroups, NumGroups);
 	ComputeShader->UnsetParameters(RHICmdList, this);
 }
@@ -350,10 +380,8 @@ void FPhysicsFieldInstance::ReleaseInstance()
 	NodesParams.Empty();
 }
 
-void FPhysicsFieldInstance::UpdateInstance(const TArray<FFieldSystemCommand>& InFieldCommands)
+void FPhysicsFieldInstance::UpdateInstance(const float TimeSeconds)
 {
-	FieldCommands = InFieldCommands;
-
 	NodesOffsets.Empty();
 	NodesParams.Empty();
 
@@ -440,13 +468,14 @@ void FPhysicsFieldInstance::UpdateInstance(const TArray<FFieldSystemCommand>& In
 
 		const int32 LocalNodesCount = NodesOffsets.Num();
 		const int32 LocalParamsCount = NodesParams.Num();
+		const float LocalTimeSeconds = TimeSeconds;
 
 		FPhysicsFieldResource* LocalFieldResource = FieldResource;
 		ENQUEUE_RENDER_COMMAND(FUpdateFieldInstanceCommand)(
-			[LocalFieldResource, LocalNodesCount, LocalParamsCount, LocalNodesParams, LocalNodesOffsets, LocalTargetsOffsets](FRHICommandListImmediate& RHICmdList)
+			[LocalFieldResource, LocalNodesCount, LocalParamsCount, LocalNodesParams, LocalNodesOffsets, LocalTargetsOffsets, LocalTimeSeconds](FRHICommandListImmediate& RHICmdList)
 			{
 				LocalFieldResource->UpdateResource(RHICmdList,LocalNodesCount, LocalParamsCount,
-					LocalTargetsOffsets, LocalNodesOffsets, LocalNodesParams);
+					LocalTargetsOffsets, LocalNodesOffsets, LocalNodesParams, LocalTimeSeconds);
 			});
 	}
 }
@@ -485,6 +514,22 @@ void FPhysicsFieldInstance::BuildNodeParams(FFieldNodeBase* FieldNode)
 			NodesParams.Add(FieldNode->Type());
 			NodesParams.Add(FFieldNodeBase::ESerializationType::FieldNode_FUniformScalar);
 			NodesParams.Add(LocalNode->Magnitude);
+		}
+		else if (FieldNode->SerializationType() == FFieldNodeBase::ESerializationType::FieldNode_FWaveScalar)
+		{
+			FWaveScalar* LocalNode = StaticCast<FWaveScalar*>(FieldNode);
+			NodesOffsets.Add(NodesParams.Num());
+			NodesParams.Add(FieldNode->Type());
+			NodesParams.Add(FFieldNodeBase::ESerializationType::FieldNode_FWaveScalar);
+			NodesParams.Add(LocalNode->Magnitude);
+			NodesParams.Add(LocalNode->Position.X);
+			NodesParams.Add(LocalNode->Position.Y);
+			NodesParams.Add(LocalNode->Position.Z);
+			NodesParams.Add(LocalNode->Wavelength);
+			NodesParams.Add(LocalNode->Period);
+			NodesParams.Add(LocalNode->Time);
+			NodesParams.Add(LocalNode->Function);
+			NodesParams.Add(LocalNode->Falloff);
 		}
 		else if (FieldNode->SerializationType() == FFieldNodeBase::ESerializationType::FieldNode_FRadialFalloff)
 		{
@@ -707,23 +752,20 @@ UPhysicsFieldComponent::UPhysicsFieldComponent()
 	PrimaryComponentTick.bStartWithTickEnabled = true;
 }
 
-FPrimitiveSceneProxy* UPhysicsFieldComponent::CreateSceneProxy()
-{
-	FPrimitiveSceneProxy* Proxy = NULL;
-	if (FieldInstance)
-	{
-		Proxy = new FPhysicsFieldSceneProxy(this);
-	}
-	return Proxy;
-}
-
 void UPhysicsFieldComponent::CreateRenderState_Concurrent(FRegisterComponentContext* Context)
 {
+	SCOPE_CYCLE_COUNTER(STAT_PhysicsFields_CreateSceneProxy);
+
 	Super::CreateRenderState_Concurrent(Context);
 
-	if (SceneProxy && GetWorld() && GetWorld()->Scene)
+	if (!FieldProxy)
 	{
-		GetWorld()->Scene->SetPhysicsField(StaticCast<FPhysicsFieldSceneProxy*>(SceneProxy));
+		FieldProxy = new FPhysicsFieldSceneProxy(this);
+	}
+
+	if (FieldProxy && GetWorld() && GetWorld()->Scene)
+	{
+		GetWorld()->Scene->SetPhysicsField(FieldProxy);
 	}
 }
 
@@ -731,32 +773,45 @@ void UPhysicsFieldComponent::DestroyRenderState_Concurrent()
 {
 	Super::DestroyRenderState_Concurrent();
 
-	if (SceneProxy && GetWorld() && GetWorld()->Scene)
+	if (FieldProxy && GetWorld() && GetWorld()->Scene)
 	{
 		GetWorld()->Scene->ResetPhysicsField();
+
+		FPhysicsFieldSceneProxy* SceneProxy = FieldProxy;
+		ENQUEUE_RENDER_COMMAND(FDestroySkyLightCommand)(
+			[SceneProxy](FRHICommandList& RHICmdList)
+			{
+				delete SceneProxy;
+			});
+
+		FieldProxy = nullptr;
 	}
 }
 
-FBoxSphereBounds UPhysicsFieldComponent::CalcBounds(const FTransform& LocalToWorld) const
+void UPhysicsFieldComponent::SendRenderDynamicData_Concurrent()
 {
-	FBoxSphereBounds NewBounds;
-	if (FieldInstance && FieldInstance->FieldResource)
-	{
-		NewBounds.Origin = FieldInstance->FieldResource->FieldInfos.ClipmapCenter;
-		NewBounds.BoxExtent = FVector(FieldInstance->FieldResource->FieldInfos.ClipmapDistance);
-	}
-	else
-	{
-		NewBounds.Origin = FVector::ZeroVector;
-		NewBounds.BoxExtent = FVector(1.0);
-	}
-	NewBounds.SphereRadius = NewBounds.BoxExtent.Size();
+	SCOPE_CYCLE_COUNTER(STAT_PhysicsFields_SendRenderData);
 
-	return NewBounds.TransformBy(LocalToWorld);
+	Super::SendRenderTransform_Concurrent();
+
+	if (FieldInstance)
+	{
+		const bool bPreviousUpdate = FieldInstance->FieldCommands.Num() > 0;
+
+		FieldInstance->FieldCommands.Empty();
+		FieldInstance->FieldCommands.Append(PersistentCommands);
+		FieldInstance->FieldCommands.Append(TransientCommands);
+		TransientCommands.Empty();
+
+		const bool bCurrentUpdate = FieldInstance->FieldCommands.Num() > 0;
+
+		if (bCurrentUpdate || bPreviousUpdate)
+		{
+			const float TimeSeconds = GetWorld() ? GetWorld()->TimeSeconds : 0.0;
+			FieldInstance->UpdateInstance(TimeSeconds);
+		}
+	}
 }
-
-void UPhysicsFieldComponent::GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials) const
-{}
 
 void UPhysicsFieldComponent::OnRegister()
 {
@@ -765,10 +820,6 @@ void UPhysicsFieldComponent::OnRegister()
 	if (!FieldInstance)
 	{
 		FieldInstance = new FPhysicsFieldInstance();
-
-		//static const TArray<EFieldPhysicsType> TargetTypes = {EFieldPhysicsType::Field_LinearForce};
-		/*static const TArray<EFieldPhysicsType> TargetTypes = { EFieldPhysicsType::Field_LinearForce,
-																EFieldPhysicsType::Field_LinearVelocity};*/
 
 		TArray<EFieldPhysicsType> TargetTypes = {  EFieldPhysicsType::Field_LinearForce,
 												   EFieldPhysicsType::Field_ExternalClusterStrain,
@@ -783,22 +834,6 @@ void UPhysicsFieldComponent::OnRegister()
 												   EFieldPhysicsType::Field_DynamicConstraint };
 		TargetTypes.Sort();
 
-		/*static const TArray<EFieldPhysicsType> TargetTypes = {	EFieldPhysicsType::Field_LinearForce,
-																EFieldPhysicsType::Field_LinearVelocity,
-																EFieldPhysicsType::Field_AngularVelociy,
-																EFieldPhysicsType::Field_AngularTorque,
-																EFieldPhysicsType::Field_PositionTarget, 
-																EFieldPhysicsType::Field_ExternalClusterStrain,
-																EFieldPhysicsType::Field_Kill,
-																EFieldPhysicsType::Field_DisableThreshold,
-																EFieldPhysicsType::Field_SleepingThreshold,
-																EFieldPhysicsType::Field_InternalClusterStrain,
-																EFieldPhysicsType::Field_DynamicConstraint,
-																EFieldPhysicsType::Field_DynamicState,
-																EFieldPhysicsType::Field_ActivateDisabled,
-																EFieldPhysicsType::Field_CollisionGroup,
-																EFieldPhysicsType::Field_PositionAnimated,
-																EFieldPhysicsType::Field_PositionStatic };*/
 		FieldInstance->InitInstance(TargetTypes);
 	}
 }
@@ -827,31 +862,33 @@ void UPhysicsFieldComponent::TickComponent(float DeltaTime, enum ELevelTick Tick
 	MarkRenderDynamicDataDirty();
 }
 
-void UPhysicsFieldComponent::SendRenderDynamicData_Concurrent()
+void UPhysicsFieldComponent::AddTransientCommand(const FFieldSystemCommand& FieldCommand)
 {
-	Super::SendRenderTransform_Concurrent();
-
-	if (FieldInstance && FieldCommands.Num() > 0)
-	{
-		FieldInstance->UpdateInstance(FieldCommands);
-		FieldCommands.Empty();
-	}
+	TransientCommands.Add(FieldCommand);
 }
 
-void UPhysicsFieldComponent::BufferCommand(const FFieldSystemCommand& FieldCommand)
+void UPhysicsFieldComponent::AddPersistentCommand(const FFieldSystemCommand& FieldCommand)
 {
-	FieldCommands.Add(FieldCommand);
+	PersistentCommands.Add(FieldCommand);
 }
 
+void UPhysicsFieldComponent::RemoveTransientCommand(const FFieldSystemCommand& FieldCommand)
+{
+	TransientCommands.Remove(FieldCommand);
+}
+
+void UPhysicsFieldComponent::RemovePersistentCommand(const FFieldSystemCommand& FieldCommand)
+{
+	PersistentCommands.Remove(FieldCommand);
+}
 
 /**
  * FPhysicsFieldSceneProxy.
  */
 
 FPhysicsFieldSceneProxy::FPhysicsFieldSceneProxy(UPhysicsFieldComponent* PhysicsFieldComponent)
-	: FPrimitiveSceneProxy(PhysicsFieldComponent)
 {
-	bWillEverBeLit = false;
+	//bWillEverBeLit = false;
 	if (PhysicsFieldComponent && PhysicsFieldComponent->FieldInstance)
 	{
 		FieldResource = PhysicsFieldComponent->FieldInstance->FieldResource;
@@ -860,30 +897,5 @@ FPhysicsFieldSceneProxy::FPhysicsFieldSceneProxy(UPhysicsFieldComponent* Physics
 
 FPhysicsFieldSceneProxy::~FPhysicsFieldSceneProxy()
 {}
-
-SIZE_T FPhysicsFieldSceneProxy::GetTypeHash() const
-{
-	static size_t UniquePointer;
-	return reinterpret_cast<size_t>(&UniquePointer);
-}
-
-void FPhysicsFieldSceneProxy::CreateRenderThreadResources()
-{}
-
-FPrimitiveViewRelevance FPhysicsFieldSceneProxy::GetViewRelevance(const FSceneView* View) const
-{
-	FPrimitiveViewRelevance Result;
-	Result.bDrawRelevance = IsShown(View);
-	Result.bDynamicRelevance = true;
-	Result.bOpaque = true;
-	return Result;
-}
-
-uint32 FPhysicsFieldSceneProxy::GetMemoryFootprint() const
-{
-	return sizeof(*this) + GetAllocatedSize();
-}
-
-
 
 

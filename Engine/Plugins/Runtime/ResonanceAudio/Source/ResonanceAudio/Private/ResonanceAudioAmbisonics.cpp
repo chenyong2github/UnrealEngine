@@ -36,8 +36,7 @@ namespace ResonanceAudio
 	class FEncoder : public ISoundfieldEncoderStream
 	{
 	private:
-		vraudio::ResonanceAudioApi* ResonanceSystem;
-		bool bShouldDestroyResonanceSystem;
+		FResonanceAudioApiSharedPtr ResonanceSystem;
 
 		TArray<vraudio::SourceId> SourceIdArray;
 		TArray<Audio::AlignedFloatBuffer> DeinterleavedBuffers;
@@ -66,9 +65,8 @@ namespace ResonanceAudio
 		}
 
 	public:
-		FEncoder(vraudio::ResonanceAudioApi* InResonanceSystem, bool bInShouldDestroyResonanceAPI, int32 InNumChannels, vraudio::RenderingMode InRenderingMode)
+		FEncoder(FResonanceAudioApiSharedPtr InResonanceSystem, int32 InNumChannels, vraudio::RenderingMode InRenderingMode)
 			: ResonanceSystem(InResonanceSystem)
-			, bShouldDestroyResonanceSystem(bInShouldDestroyResonanceAPI)
 			, NumChannels(InNumChannels)
 		{
 			check(ResonanceSystem);
@@ -88,13 +86,6 @@ namespace ResonanceAudio
 			{
 				ResonanceSystem->DestroySource(Source);
 			}
-
-			if (bShouldDestroyResonanceSystem)
-			{
-				FResonanceAudioPluginListener::RemoveResonanceAPIForAudioDevice(ResonanceSystem);
-				delete ResonanceSystem;
-				ResonanceSystem = nullptr;
-			}
 		}
 
 
@@ -109,7 +100,7 @@ namespace ResonanceAudio
 		{
 			check(ResonanceSystem);
 			FResonancePacket& OutPacket = DowncastSoundfieldRef<FResonancePacket>(OutputData);
-			OutPacket.SetResonanceApi(ResonanceSystem);
+			OutPacket.SetResonanceApi(ResonanceSystem.Get());
 
 			const FResonanceAmbisonicsSettingsProxy& Settings = DowncastSoundfieldRef<const FResonanceAmbisonicsSettingsProxy>(InputData.InputSettings);
 
@@ -200,8 +191,7 @@ namespace ResonanceAudio
 	class FAmbisonicsTranscoder : public ISoundfieldTranscodeStream
 	{
 	private:
-		vraudio::ResonanceAudioApi* ResonanceSystem;
-		bool bShouldDestroyResonanceSystem;
+		FResonanceAudioApiSharedPtr ResonanceSystem;
 		vraudio::SourceId AmbisonicsSourceId;
 		int32 NumChannels;
 
@@ -215,9 +205,8 @@ namespace ResonanceAudio
 		}
 
 	public:
-		FAmbisonicsTranscoder(vraudio::ResonanceAudioApi* InResonanceSystem, int32 InNumChannels, bool bInShouldDestroyResonanceSystem)
+		FAmbisonicsTranscoder(FResonanceAudioApiSharedPtr InResonanceSystem, int32 InNumChannels, bool bInShouldDestroyResonanceSystem)
 			: ResonanceSystem(InResonanceSystem)
-			, bShouldDestroyResonanceSystem(bInShouldDestroyResonanceSystem)
 			, NumChannels(InNumChannels)
 		{
 			check(ResonanceSystem);
@@ -228,13 +217,6 @@ namespace ResonanceAudio
 		{
 			check(ResonanceSystem);
 			ResonanceSystem->DestroySource(AmbisonicsSourceId);
-
-			if (bShouldDestroyResonanceSystem)
-			{
-				FResonanceAudioPluginListener::RemoveResonanceAPIForAudioDevice(ResonanceSystem);
-				delete ResonanceSystem;
-				ResonanceSystem = nullptr;
-			}
 		}
 
 		virtual void Transcode(const ISoundfieldAudioPacket& InputData, const ISoundfieldEncodingSettingsProxy& InputSettings, ISoundfieldAudioPacket& OutputData, const ISoundfieldEncodingSettingsProxy& OutputSettings) override
@@ -257,7 +239,7 @@ namespace ResonanceAudio
 
 			ResonanceSystem->SetInterleavedBuffer(AmbisonicsSourceId, AmbisonicsBuffer.AudioBuffer.GetData(), NumChannels, AmbisonicsBuffer.AudioBuffer.Num() / NumChannels);
 
-			OutPacket.SetResonanceApi(ResonanceSystem);
+			OutPacket.SetResonanceApi(ResonanceSystem.Get());
 		}
 
 	};
@@ -300,19 +282,17 @@ namespace ResonanceAudio
 
 		check(AudioDevice);
 
-		vraudio::ResonanceAudioApi* ResonanceApi = FResonanceAudioPluginListener::GetResonanceAPIForAudioDevice(AudioDevice);
+		FResonanceAudioApiSharedPtr ResonanceApi = FResonanceAudioPluginListener::GetResonanceAPIForAudioDevice(AudioDevice);
 
 		// If there's no globablly available Resonance api, spawn a new one.
-		if (!ResonanceApi)
+		if (!ResonanceApi.IsValid())
 		{
-			// TODO: Currently, we don't delete the resonance API we create here until the audio device is destroyed.
-			// If we're going to handle things like dynamic submix routing, the Resonance API lifecycle needs to be reworked to be more explicit.
 			ResonanceApi = CreateNewResonanceApiInstance(AudioDevice, InitInfo);
-			return TUniquePtr<ISoundfieldEncoderStream>(new FEncoder(ResonanceApi, false, InitInfo.NumOutputChannels, Settings.RenderingMode));
+			return TUniquePtr<ISoundfieldEncoderStream>(new FEncoder(ResonanceApi, InitInfo.NumOutputChannels, Settings.RenderingMode));
 		}
 		else
 		{
-			return TUniquePtr<ISoundfieldEncoderStream>(new FEncoder(ResonanceApi, false, InitInfo.NumOutputChannels, Settings.RenderingMode));
+			return TUniquePtr<ISoundfieldEncoderStream>(new FEncoder(ResonanceApi, InitInfo.NumOutputChannels, Settings.RenderingMode));
 		}
 	}
 
@@ -335,10 +315,10 @@ namespace ResonanceAudio
 
 		FAudioDevice* AudioDevice = InitInfo.AudioDevicePtr;
 		
-		vraudio::ResonanceAudioApi* ResonanceApi = FResonanceAudioPluginListener::GetResonanceAPIForAudioDevice(AudioDevice);
+		FResonanceAudioApiSharedPtr ResonanceApi = FResonanceAudioPluginListener::GetResonanceAPIForAudioDevice(AudioDevice);
 
 		// If there's no globabally available Resonance api, spawn a new one.
-		if (!ResonanceApi)
+		if (!ResonanceApi.IsValid())
 		{
 			ResonanceApi = CreateNewResonanceApiInstance(AudioDevice, InitInfo);
 			return TUniquePtr<ISoundfieldTranscodeStream>(new FAmbisonicsTranscoder(ResonanceApi, NumChannels, true));
@@ -393,12 +373,15 @@ namespace ResonanceAudio
 		return GetDefault<UResonanceAudioSoundfieldSettings>();
 	}
 
-	vraudio::ResonanceAudioApi* FAmbisonicsFactory::CreateNewResonanceApiInstance(FAudioDevice* AudioDevice, const FAudioPluginInitializationParams& InInitInfo)
+	FResonanceAudioApiSharedPtr FAmbisonicsFactory::CreateNewResonanceApiInstance(FAudioDevice* AudioDevice, const FAudioPluginInitializationParams& InInitInfo)
 	{
 		const size_t FramesPerBuffer = static_cast<size_t>(AudioDevice->GetBufferLength());
 		const int SampleRate = static_cast<int>(AudioDevice->GetSampleRate());
 
-		vraudio::ResonanceAudioApi* ResonanceApi = CreateResonanceAudioApi(FResonanceAudioModule::GetResonanceAudioDynamicLibraryHandle(), 2 /* num channels */, FramesPerBuffer, SampleRate);
+		vraudio::ResonanceAudioApi* ApiPtr = CreateResonanceAudioApi(FResonanceAudioModule::GetResonanceAudioDynamicLibraryHandle(), 2 /* num channels */, FramesPerBuffer, SampleRate);
+
+		FResonanceAudioApiSharedPtr ResonanceApi(ApiPtr);
+
 		FResonanceAudioPluginListener::SetResonanceAPIForAudioDevice(AudioDevice, ResonanceApi);
 
 		return ResonanceApi;

@@ -17,6 +17,22 @@ class FManagedArrayCollection;
 struct FGeometryCollectionSection;
 struct FSharedSimulationParameters;
 
+USTRUCT(BlueprintType)
+struct GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionSource
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "GeometrySource", meta=(AllowedClasses="StaticMesh, SkeletalMesh"))
+	FSoftObjectPath SourceGeometryObject;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "GeometrySource")
+	FTransform LocalTransform;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "GeometrySource")
+	TArray<UMaterialInterface*> SourceMaterial;
+};
+
+
 USTRUCT()
 struct GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionSizeSpecificData
 {
@@ -116,7 +132,7 @@ private:
 * UObject wrapper for the FGeometryCollection
 *
 */
-UCLASS(customconstructor)
+UCLASS(BlueprintType, customconstructor)
 class GEOMETRYCOLLECTIONENGINE_API UGeometryCollection : public UObject
 {
 	GENERATED_UCLASS_BODY()
@@ -144,6 +160,9 @@ public:
 	TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe>       GetGeometryCollection() { return GeometryCollection; }
 	const TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GetGeometryCollection() const { return GeometryCollection; }
 
+	/** Return collection to initial (ie. empty) state. */
+	void Reset();
+	
 	int32 AppendGeometry(const UGeometryCollection & Element, bool ReindexAllMaterials = false, const FTransform& TransformRoot = FTransform::Identity);
 	int32 NumElements(const FName& Group) const;
 	void RemoveElements(const FName& Group, const TArray<int32>& SortedDeletionList);
@@ -188,7 +207,10 @@ public:
 
 	/** Pointer to the data used to render this geometry collection with Nanite. */
 	TUniquePtr<class FGeometryCollectionNaniteData> NaniteData;
-
+	
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "GeometrySource")
+	TArray<FGeometryCollectionSource> GeometrySource;
+	
 	UPROPERTY(EditAnywhere, Category = "Materials")
 	TArray<UMaterialInterface*> Materials;
 

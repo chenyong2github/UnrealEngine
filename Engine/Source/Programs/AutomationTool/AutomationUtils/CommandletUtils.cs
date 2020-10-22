@@ -227,25 +227,27 @@ namespace AutomationTool
 		/// <summary>
 		/// Runs a commandlet using Engine/Binaries/Win64/UnrealEditor-Cmd.exe.
 		/// </summary>
-		/// <param name="ProjectFile">Project name.</param>
+		/// <param name="ProjectName">Project name.</param>
 		/// <param name="UE4Exe">The name of the UE4 Editor executable to use.</param>
 		/// <param name="Commandlet">Commandlet name.</param>
 		/// <param name="Parameters">Command line parameters (without -run=)</param>
-		public static void RunCommandlet(FileReference ProjectName, string UE4Exe, string Commandlet, string Parameters = null)
+		/// <param name="ErrorLevel">The minimum exit code, which is treated as an error.</param>
+		public static void RunCommandlet(FileReference ProjectName, string UE4Exe, string Commandlet, string Parameters = null, int ErrorLevel = 1)
 		{
 			string LogFile;
-			RunCommandlet(ProjectName, UE4Exe, Commandlet, Parameters, out LogFile);
+			RunCommandlet(ProjectName, UE4Exe, Commandlet, Parameters, out LogFile, ErrorLevel);
 		}
 
 		/// <summary>
 		/// Runs a commandlet using Engine/Binaries/Win64/UnrealEditor-Cmd.exe.
 		/// </summary>
-		/// <param name="ProjectFile">Project name.</param>
+		/// <param name="ProjectName">Project name.</param>
 		/// <param name="UE4Exe">The name of the UE4 Editor executable to use.</param>
 		/// <param name="Commandlet">Commandlet name.</param>
 		/// <param name="Parameters">Command line parameters (without -run=)</param>
 		/// <param name="DestLogFile">Log file after completion</param>
-		public static void RunCommandlet(FileReference ProjectName, string UE4Exe, string Commandlet, string Parameters, out string DestLogFile)
+		/// <param name="ErrorLevel">The minimum exit code, which is treated as an error.</param>
+		public static void RunCommandlet(FileReference ProjectName, string UE4Exe, string Commandlet, string Parameters, out string DestLogFile, int ErrorLevel = 1)
 		{
 			LogInformation("Running UnrealEditor {0} for project {1}", Commandlet, ProjectName);
 
@@ -405,7 +407,7 @@ namespace AutomationTool
 			CommandUtils.DeleteFile_NoExceptions(LocalLogFile);
 
 			// Throw an exception if the execution failed. Draw attention to signal exit codes on Posix systems, rather than just printing the exit code
-			if (RunResult.ExitCode != 0)
+			if (RunResult.ExitCode != 0 && (uint)RunResult.ExitCode >= (uint)ErrorLevel)
 			{
 				string ExitCodeDesc = "";
 				if(RunResult.ExitCode > 128 && RunResult.ExitCode < 128 + 32)

@@ -734,8 +734,7 @@ void FMaterialEditorUtilities::BuildTextureStreamingData(UMaterialInterface* Upd
 		TSet<UMaterialInterface*> Materials;
 		Materials.Add(UpdatedMaterial);
 
-		// Here we need a full rebuild since the shader changed. Although don't wait for previous shaders to fasten the process.
-		if (CompileDebugViewModeShaders(DVSM_OutputMaterialTextureScales, QualityLevel, FeatureLevel, true, false, Materials, &SlowTask))
+		if (CompileDebugViewModeShaders(DVSM_OutputMaterialTextureScales, QualityLevel, FeatureLevel, Materials, &SlowTask))
 		{
 			FMaterialUtilities::FExportErrorManager ExportErrors(FeatureLevel);
 			for (UMaterialInterface* MaterialInterface : Materials)

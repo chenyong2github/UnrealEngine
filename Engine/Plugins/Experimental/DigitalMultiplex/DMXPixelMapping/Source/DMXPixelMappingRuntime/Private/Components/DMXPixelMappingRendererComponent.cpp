@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Components/DMXPixelMappingRendererComponent.h"
+
 #include "IDMXPixelMappingRenderer.h"
 #include "IDMXPixelMappingRendererModule.h"
 #include "Library/DMXEntityFixtureType.h"
@@ -9,6 +10,7 @@
 #include "Components/DMXPixelMappingOutputDMXComponent.h"
 #include "Components/DMXPixelMappingRootComponent.h"
 
+#include "RHI.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "Materials/MaterialInterface.h"
 #include "Blueprint/UserWidget.h"
@@ -71,10 +73,33 @@ void UDMXPixelMappingRendererComponent::PostEditChangeChainProperty(FPropertyCha
 	if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingRendererComponent, SizeX) ||
 		PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingRendererComponent, SizeY))
 	{
+		// The target always needs be within GMaxTextureDimensions, larger dimensions are not supported by the engine
+		const uint32 MaxTextureDimensions = GetMax2DTextureDimension();
+
+		if (SizeX > MaxTextureDimensions ||
+			SizeY > MaxTextureDimensions)
+		{
+			SizeX = FMath::Clamp(SizeX, 0.0f, static_cast<float>(MaxTextureDimensions));
+			SizeY = FMath::Clamp(SizeY, 0.0f, static_cast<float>(MaxTextureDimensions));
+
+			UE_LOG(LogDMXPixelMappingRuntime, Warning, TEXT("Pixel mapping textures are limited to engine's max texture dimension %dx%d"), MaxTextureDimensions, MaxTextureDimensions);
+		}
+
 		ResizeMaterialRenderTarget(SizeX, SizeY);
 	} 
 	else if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingRendererComponent, InputWidget))
 	{
+		if (InputWidget && InputWidget->GetClass() != UserWidget->GetClass())
+		{
+			// UMG just tries to expand to the max possible size. Instead of using that we set a smaller, reasonable size here. 
+			// This doesn't offer a solution to the adaptive nature of UMG, but implies to the user how to deal with the issue.
+			constexpr float DefaultUMGSizeX = 1024.f;
+			constexpr float DefaultUMGSizeY = 768.f;
+
+			SetSize(FVector2D(DefaultUMGSizeX, DefaultUMGSizeY));
+			ResizeOutputTarget(DefaultUMGSizeX, DefaultUMGSizeY);
+		}
+
 		UpdateInputWidget(InputWidget);
 	}
 	else if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingRendererComponent, Brightness))
@@ -126,7 +151,7 @@ UTextureRenderTarget2D* UDMXPixelMappingRendererComponent::GetOutputTexture()
 	return OutputTarget;
 }
 
-FVector2D UDMXPixelMappingRendererComponent::GetSize()
+FVector2D UDMXPixelMappingRendererComponent::GetSize() const
 {
 	return ComponentsCanvas->GetDesiredSize();
 }

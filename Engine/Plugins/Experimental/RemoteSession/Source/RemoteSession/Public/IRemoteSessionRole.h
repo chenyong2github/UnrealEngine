@@ -19,10 +19,23 @@ public:
 	
 	virtual FString GetErrorMessage() const = 0;
 
-	virtual TSharedPtr<IRemoteSessionChannel> GetChannel(const TCHAR* Type) = 0;
+	/* Future versions will support querying the version type, at the moment we just have old & new */
+	virtual bool IsLegacyConnection() const = 0;
 
-	virtual void RegisterChannelChangeDelegate(FOnRemoteSessionChannelChange InDelegate) = 0;
-	virtual void UnregisterChannelChangeDelegate(void* UserObject) = 0;
+
+	/* Registers a delegate for notifications of connection changes*/
+	virtual FDelegateHandle RegisterConnectionChangeDelegate(FOnRemoteSessionConnectionChange::FDelegate InDelegate) = 0;
+
+	/* Register for notifications when the host sends a list of available channels */
+	virtual FDelegateHandle RegisterChannelListDelegate(FOnRemoteSessionReceiveChannelList::FDelegate InDelegate) = 0;
+
+	/* Register for notifications whenever a change in the state of a channel occurs */
+	virtual FDelegateHandle RegisterChannelChangeDelegate(FOnRemoteSessionChannelChange::FDelegate InDelegate) = 0;
+
+	/* Unregister all delegates for the specified object */
+	virtual void RemoveAllDelegates(void* UserObject) = 0;
+
+	virtual TSharedPtr<IRemoteSessionChannel> GetChannel(const TCHAR* Type) = 0;
 
 	template<class T>
 	TSharedPtr<T> GetChannel()
@@ -36,6 +49,9 @@ public:
 
 		return TSharedPtr<T>();
 	}
+
+	virtual bool OpenChannel(const FRemoteSessionChannelInfo& Info) = 0;
+
 };
 
 class REMOTESESSION_API IRemoteSessionUnmanagedRole : public IRemoteSessionRole

@@ -128,7 +128,7 @@ FReply FProceduralMeshComponentDetails::ClickedOnConvertToStaticMesh()
 				UStaticMesh* StaticMesh = NewObject<UStaticMesh>(Package, MeshName, RF_Public | RF_Standalone);
 				StaticMesh->InitResources();
 
-				StaticMesh->LightingGuid = FGuid::NewGuid();
+				StaticMesh->SetLightingGuid();
 
 				// Add source to new StaticMesh
 				FStaticMeshSourceModel& SrcModel = StaticMesh->AddSourceModel();
@@ -147,7 +147,7 @@ FReply FProceduralMeshComponentDetails::ClickedOnConvertToStaticMesh()
 				if (!ProcMeshComp->bUseComplexAsSimpleCollision )
 				{
 					StaticMesh->CreateBodySetup();
-					UBodySetup* NewBodySetup = StaticMesh->BodySetup;
+					UBodySetup* NewBodySetup = StaticMesh->GetBodySetup();
 					NewBodySetup->BodySetupGuid = FGuid::NewGuid();
 					NewBodySetup->AggGeom.ConvexElems = ProcMeshComp->ProcMeshBodySetup->AggGeom.ConvexElems;
 					NewBodySetup->bGenerateMirroredCollision = false;
@@ -169,7 +169,7 @@ FReply FProceduralMeshComponentDetails::ClickedOnConvertToStaticMesh()
 				// Copy materials to new mesh
 				for (auto* Material : UniqueMaterials)
 				{
-					StaticMesh->StaticMaterials.Add(FStaticMaterial(Material));
+					StaticMesh->GetStaticMaterials().Add(FStaticMaterial(Material));
 				}
 
 				//Set the Imported version before calling the build

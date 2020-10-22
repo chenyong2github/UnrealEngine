@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GroomAssetCards.h"
+#include "Engine/StaticMesh.h"
 
 FHairCardsClusterSettings::FHairCardsClusterSettings()
 {
@@ -112,4 +113,37 @@ bool FHairGroupsCardsSourceDescription::operator==(const FHairGroupsCardsSourceD
 		GroupIndex == A.GroupIndex &&
 		LODIndex == A.LODIndex &&
 		ImportedMesh == A.ImportedMesh;
+}
+
+bool FHairGroupsCardsSourceDescription::HasMeshChanged() const
+{
+#if WITH_EDITORONLY_DATA
+	if (SourceType == EHairCardsSourceType::Imported && ImportedMesh)
+	{
+		ImportedMesh->ConditionalPostLoad();
+		return ImportedMeshKey == ImportedMesh->GetRenderData()->DerivedDataKey;
+	}
+	else if (SourceType == EHairCardsSourceType::Procedural && ProceduralMesh)
+	{
+		ProceduralMesh->ConditionalPostLoad();
+		return ProceduralMeshKey == ProceduralMesh->GetRenderData()->DerivedDataKey;
+	}
+#endif
+	return false;
+}
+
+void FHairGroupsCardsSourceDescription::UpdateMeshKey()
+{
+#if WITH_EDITORONLY_DATA
+	if (SourceType == EHairCardsSourceType::Imported && ImportedMesh)
+	{
+		ImportedMesh->ConditionalPostLoad();
+		ImportedMeshKey = ImportedMesh->GetRenderData()->DerivedDataKey;
+	}
+	else if (SourceType == EHairCardsSourceType::Procedural && ProceduralMesh)
+	{
+		ProceduralMesh->ConditionalPostLoad();
+		ProceduralMeshKey = ProceduralMesh->GetRenderData()->DerivedDataKey;
+	}
+#endif
 }

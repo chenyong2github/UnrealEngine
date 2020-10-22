@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Serialization/ArchiveUObject.h"
+#include "Serialization/FileRegions.h"
 #include "UObject/ObjectResource.h"
 #include "UObject/Linker.h"
 #include "UObject/UObjectThreadContext.h"
@@ -59,10 +60,13 @@ public:
 		int64 BulkDataFlagsPos;
 		/** Bulk data flags at the time of serialization */
 		uint32 BulkDataFlags;
+		/** The file region type to apply to this bulk data */
+		EFileRegionType BulkDataFileRegionType;
 		/** The bulkdata */
 		FUntypedBulkData* BulkData;
 	};
 	TArray<FBulkDataStorageInfo> BulkDataToAppend;
+	TArray<FFileRegion> FileRegions;
 
 	// TODO: Look into removing BulkDataToAppend and use AdditionalDataToAppend instead.
 

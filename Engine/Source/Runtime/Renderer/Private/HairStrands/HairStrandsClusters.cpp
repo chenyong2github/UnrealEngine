@@ -45,11 +45,11 @@ class FHairIndBufferClearCS : public FGlobalShader
 	DECLARE_GLOBAL_SHADER(FHairIndBufferClearCS);
 	SHADER_USE_PARAMETER_STRUCT(FHairIndBufferClearCS, FGlobalShader);
 
-	class FSetIndirectDraw : SHADER_PERMUTATION_INT("PERMUTATION_SETINDIRECTDRAW", 2);
+	class FSetIndirectDraw : SHADER_PERMUTATION_BOOL("PERMUTATION_SETINDIRECTDRAW");
 	using FPermutationDomain = TShaderPermutationDomain<FSetIndirectDraw>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_RDG_BUFFER_UAV(Buffer, DispatchIndirectParametersClusterCount)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, DispatchIndirectParametersClusterCount)
 		SHADER_PARAMETER_UAV(Buffer, DrawIndirectParameters)
 		SHADER_PARAMETER(uint32, VertexCountPerInstance)
 	END_SHADER_PARAMETER_STRUCT()
@@ -123,9 +123,9 @@ class FMainClusterCullingPrepareIndirectDrawsCS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, DispatchIndirectParametersClusterCount)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(Buffer, DispatchIndirectParametersClusterCount2D)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(Buffer, DispatchIndirectParametersClusterCountDiv512)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(Buffer, DispatchIndirectParametersClusterCountDiv512Div512)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, DispatchIndirectParametersClusterCount2D)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, DispatchIndirectParametersClusterCountDiv512)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, DispatchIndirectParametersClusterCountDiv512Div512)
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
@@ -173,8 +173,8 @@ class FHairClusterCullingLocalBlockPreFixSumCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER(Buffer, DispatchIndirectParametersClusterCountDiv512)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, DispatchIndirectParametersClusterCount)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, GlobalIndexCountBuffer)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(Buffer, PerBlocklIndexCountPreFixSumBuffer)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(Buffer, PerBlocklTotalIndexCountBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, PerBlocklIndexCountPreFixSumBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, PerBlocklTotalIndexCountBuffer)
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
@@ -232,7 +232,7 @@ class FHairClusterCullingPreFixSumCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER(Buffer, DispatchIndirectParameters)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, DispatchIndirectParametersClusterCount)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, GlobalIndexCountBuffer)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(Buffer, GlobalIndexCountPreFixSumBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, GlobalIndexCountPreFixSumBuffer)
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
@@ -310,6 +310,14 @@ static void AddClusterCullingPass(
 	}
 #endif
 
+	{
+		FUnorderedAccessViewRHIRef OutputUAV = DrawIndirectParametersBuffer.UAV;
+		AddPass(GraphBuilder, [OutputUAV](FRHIComputeCommandList& RHICmdList)
+		{
+			RHICmdList.Transition(FRHITransitionInfo(OutputUAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute));
+		});
+	}
+
 	/// Initialise indirect buffers to be setup during the culling process
 	{
 		FHairIndBufferClearCS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairIndBufferClearCS::FParameters>();
@@ -317,7 +325,7 @@ static void AddClusterCullingPass(
 		Parameters->DrawIndirectParameters = DrawIndirectParametersBuffer.UAV;
 
 		FHairIndBufferClearCS::FPermutationDomain Permutation;
-		Permutation.Set<FHairIndBufferClearCS::FSetIndirectDraw>(0);
+		Permutation.Set<FHairIndBufferClearCS::FSetIndirectDraw>(false);
 		TShaderMapRef<FHairIndBufferClearCS> ComputeShader(ShaderMap, Permutation);
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
@@ -325,6 +333,14 @@ static void AddClusterCullingPass(
 			ComputeShader,
 			Parameters,
 			FIntVector(1, 1, 1));
+	}
+
+	{
+		FUnorderedAccessViewRHIRef OutputUAV = DrawIndirectParametersBuffer.UAV;
+		AddPass(GraphBuilder, [OutputUAV](FRHIComputeCommandList& RHICmdList)
+		{
+			RHICmdList.Transition(FRHITransitionInfo(OutputUAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute));
+		});
 	}
 
 	/// Cull cluster, generate indirect dispatch and prepare data to expand index buffer
@@ -547,7 +563,7 @@ static void AddClusterResetLod0(
 	Parameters->VertexCountPerInstance = ClusterData.HairGroupPublicPtr->GetGroupInstanceVertexCount();
 
 	FHairIndBufferClearCS::FPermutationDomain Permutation;
-	Permutation.Set<FHairIndBufferClearCS::FSetIndirectDraw>(1);
+	Permutation.Set<FHairIndBufferClearCS::FSetIndirectDraw>(true);
 	TShaderMapRef<FHairIndBufferClearCS> ComputeShader(ShaderMap, Permutation);
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,

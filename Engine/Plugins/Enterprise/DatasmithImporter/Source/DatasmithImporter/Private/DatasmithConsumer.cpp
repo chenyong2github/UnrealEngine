@@ -1572,9 +1572,9 @@ namespace DatasmithConsumerUtils
 				else if(UStaticMesh* StaticMesh = Cast<UStaticMesh>(Asset))
 				{
 					// Clean up static meshes which have incomplete render data.
-					if(StaticMesh->RenderData.IsValid() && !StaticMesh->RenderData->IsInitialized())
+					if(StaticMesh->GetRenderData() && !StaticMesh->GetRenderData()->IsInitialized())
 					{
-						StaticMesh->RenderData.Reset();
+						StaticMesh->SetRenderData(nullptr);
 					}
 
 					if(FDatasmithObjectTemplateUtils::GetObjectTemplate<UDatasmithStaticMeshTemplate>( StaticMesh ) == nullptr)

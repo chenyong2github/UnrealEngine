@@ -1030,6 +1030,9 @@ void APlayerCameraManager::DoUpdateCamera(float DeltaTime)
 			case VTBlend_EaseInOut:
 				BlendPct = FMath::InterpEaseInOut(0.f, 1.f, DurationPct, BlendParams.BlendExp);
 				break;
+			case VTBlend_PreBlended:
+				BlendPct = 1.0f;
+				break;
 			default:
 				break;
 			}
@@ -1163,7 +1166,10 @@ void APlayerCameraManager::ProcessViewRotation(float DeltaTime, FRotator& OutVie
 	OutViewRotation += OutDeltaRot;
 	OutDeltaRot = FRotator::ZeroRotator;
 
-	if(GEngine->XRSystem.IsValid() && GEngine->XRSystem->IsHeadTrackingAllowed())
+	const bool bIsHeadTrackingAllowed =
+		GEngine->XRSystem.IsValid() &&
+		(GetWorld() != nullptr ? GEngine->XRSystem->IsHeadTrackingAllowedForWorld(*GetWorld()) : GEngine->XRSystem->IsHeadTrackingAllowed());
+	if(bIsHeadTrackingAllowed)
 	{
 		// With the HMD devices, we can't limit the view pitch, because it's bound to the player's head.  A simple normalization will suffice
 		OutViewRotation.Normalize();
@@ -1206,7 +1212,7 @@ void APlayerCameraManager::DisplayDebug(class UCanvas* Canvas, const FDebugDispl
 	DisplayDebugManager.DrawString(FString::Printf(TEXT("   Camera Style:%s main ViewTarget:%s"), *CameraStyle.ToString(), *ViewTarget.Target->GetName()));
 	if (PendingViewTarget.Target)
 	{
-		DisplayDebugManager.DrawString(FString::Printf(TEXT("   PendingViewTarget:%s"), *CameraStyle.ToString(), *PendingViewTarget.Target->GetName()));
+		DisplayDebugManager.DrawString(FString::Printf(TEXT("   PendingViewTarget:%s"), *PendingViewTarget.Target->GetName()));
 	}
 	DisplayDebugManager.DrawString(FString::Printf(TEXT("   CamLoc:%s CamRot:%s FOV:%f"), *CurrentPOV.Location.ToCompactString(), *CurrentPOV.Rotation.ToCompactString(), CurrentPOV.FOV));
 	DisplayDebugManager.DrawString(FString::Printf(TEXT("   AspectRatio: %1.3f"), CurrentPOV.AspectRatio));

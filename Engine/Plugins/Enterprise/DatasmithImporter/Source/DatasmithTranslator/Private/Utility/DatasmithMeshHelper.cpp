@@ -150,15 +150,15 @@ namespace DatasmithMeshHelper
 		MaterialCount = FMath::Max(MaterialCount, 1);
 
 		// Don't touch the StaticMesh if it's not needed (would break the template system on reimport)
-		if (MaterialCount != StaticMesh->StaticMaterials.Num())
+		if (MaterialCount != StaticMesh->GetStaticMaterials().Num())
 		{
-			StaticMesh->StaticMaterials.Empty(MaterialCount);
+			StaticMesh->GetStaticMaterials().Empty(MaterialCount);
 			// Declare materials applied to the StaticMesh according to fit the logic in UDatasmithImportFactory::UpdateMaterials
 			for (int MaterialIndex = 0; MaterialIndex < MaterialCount; MaterialIndex++)
 			{
 				StaticMesh->GetSectionInfoMap().Set(0, MaterialIndex, FMeshSectionInfo(MaterialIndex));
 				FName SlotName = DefaultSlotName(MaterialIndex);
-				StaticMesh->StaticMaterials.Add(FStaticMaterial(nullptr, SlotName, SlotName));
+				StaticMesh->GetStaticMaterials().Add(FStaticMaterial(nullptr, SlotName, SlotName));
 			}
 		}
 	}
@@ -170,14 +170,14 @@ namespace DatasmithMeshHelper
 			return;
 		}
 
-		int32 MatCount = StaticMesh->StaticMaterials.Num();
+		int32 MatCount = StaticMesh->GetStaticMaterials().Num();
 		ensure(MatCount);
 		MaterialMap.Empty(MatCount);
 		MaterialMapInverse.Empty(MatCount);
 
 		for ( int32 MaterialIndex = 0; MaterialIndex < MatCount; ++MaterialIndex )
 		{
-			FName& MatName = StaticMesh->StaticMaterials[MaterialIndex].ImportedMaterialSlotName;
+			FName& MatName = StaticMesh->GetStaticMaterials()[MaterialIndex].ImportedMaterialSlotName;
 			MaterialMap.Add(MatName, MaterialIndex);
 			MaterialMapInverse.Add(MaterialIndex, MatName);
 		}

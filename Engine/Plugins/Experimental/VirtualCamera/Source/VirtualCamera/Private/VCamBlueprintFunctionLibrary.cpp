@@ -8,7 +8,6 @@
 #include "AssetData.h"
 #include "VirtualCameraUserSettings.h"
 #include "GameFramework/PlayerController.h"
-
 #if WITH_EDITOR
 #include "Editor.h"
 #include "EditorAssetLibrary.h"
@@ -87,6 +86,13 @@ int32 UVCamBlueprintFunctionLibrary::GetLevelSequenceLengthInFrames(const ULevel
 	}
 
 	return 0;
+}
+
+
+int32 UVCamBlueprintFunctionLibrary::TimecodeToFrameAmount(FTimecode Timecode, const FFrameRate& InFrameRate)
+{
+	return Timecode.ToFrameNumber(InFrameRate).Value; 
+
 }
 
 FTimecode UVCamBlueprintFunctionLibrary::GetLevelSequenceFrameAsTimecode(const ULevelSequence* LevelSequence, int32 InFrame)
@@ -364,6 +370,18 @@ void UVCamBlueprintFunctionLibrary::EnableDebugFocusPlane(UCineCameraComponent* 
 		return;
 	}
 	CineCamera->FocusSettings.bDrawDebugFocusPlane = bEnabled;
+}
+
+FString UVCamBlueprintFunctionLibrary::GetNextUndoDescription()
+{
+#if WITH_EDITOR
+	if (GEditor != nullptr && GEditor->Trans != nullptr)
+	{
+		return GEditor->Trans->GetUndoContext().Title.ToString();
+	}
+#endif
+
+	return "";
 }
 
 bool UVCamBlueprintFunctionLibrary::DeprojectScreenToWorld(const FVector2D& InScreenPosition, FVector& OutWorldPosition, FVector& OutWorldDirection)

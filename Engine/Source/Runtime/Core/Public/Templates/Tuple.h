@@ -12,6 +12,7 @@
 #include "Serialization/MemoryLayout.h"
 #include "Templates/TypeHash.h"
 #include "Templates/IsConstructible.h"
+#include <tuple>
 
 // This workaround exists because Visual Studio causes false positives for code like this during static analysis:
 //
@@ -32,9 +33,15 @@
 // - Key and Value are members of a base class.
 // - Dereferencing is done as part of a compound boolean expression (removing '&& Pair.Value != 15' removes the warning)
 #if defined(_MSC_VER) && USING_CODE_ANALYSIS
-	#define UE4_TUPLE_STATIC_ANALYSIS_WORKAROUND 1
+	#define UE_TUPLE_STATIC_ANALYSIS_WORKAROUND 1
 #else
-	#define UE4_TUPLE_STATIC_ANALYSIS_WORKAROUND 0
+	#define UE_TUPLE_STATIC_ANALYSIS_WORKAROUND 0
+#endif
+
+#if defined(__cpp_structured_bindings)
+	#define UE_TUPLE_STRUCTURED_BINDING_SUPPORT 1
+#else
+	#define UE_TUPLE_STRUCTURED_BINDING_SUPPORT 0
 #endif
 
 class FArchive;
@@ -136,7 +143,7 @@ namespace UE4Tuple_Private
 		}
 	};
 
-#if UE4_TUPLE_STATIC_ANALYSIS_WORKAROUND
+#if UE_TUPLE_STATIC_ANALYSIS_WORKAROUND
 	template <>
 	struct TTupleElementGetterByIndex<0, 2>
 	{
@@ -353,7 +360,7 @@ namespace UE4Tuple_Private
 		}
 	};
 
-#if UE4_TUPLE_STATIC_ANALYSIS_WORKAROUND
+#if UE_TUPLE_STATIC_ANALYSIS_WORKAROUND
 	template <typename KeyType, typename ValueType>
 	struct TTupleBase<TIntegerSequence<uint32, 0, 1>, KeyType, ValueType>
 	{
@@ -556,6 +563,17 @@ namespace UE4Tuple_Private
 		static constexpr uint32 Value = sizeof(Resolve(DeclVal<TTuple<TupleTypes...>*>())) - 1;
 	};
 
+#if UE_TUPLE_STATIC_ANALYSIS_WORKAROUND
+	template <typename Type, typename KeyType, typename ValueType>
+	struct TCVTupleIndex<Type, const volatile TTuple<KeyType, ValueType>>
+	{
+		static_assert(TTypeCountInParameterPack<Type, KeyType, ValueType>::Value >= 1, "TTupleIndex instantiated with a tuple which does not contain the type");
+		static_assert(TTypeCountInParameterPack<Type, KeyType, ValueType>::Value <= 1, "TTupleIndex instantiated with a tuple which contains multiple instances of the type");
+
+		static constexpr uint32 Value = std::is_same<Type, ValueType>::value ? 1 : 0;
+	};
+#endif
+
 	template <uint32 Index, typename TupleType>
 	struct TCVTupleElement
 	{
@@ -580,6 +598,16 @@ namespace UE4Tuple_Private
 		using Type = decltype(Resolve(DeclVal<TTuple<TupleTypes...>*>()));
 #endif
 	};
+
+#if UE_TUPLE_STATIC_ANALYSIS_WORKAROUND
+	template <uint32 Index, typename KeyType, typename ValueType>
+	struct TCVTupleElement<Index, const volatile TTuple<KeyType, ValueType>>
+	{
+		static_assert(Index < 2, "TTupleElement instantiated with an invalid index");
+
+		using Type = std::conditional_t<Index == 0, KeyType, ValueType>;
+	};
+#endif
 
 	template <uint32 ArgToCombine, uint32 ArgCount>
 	struct TGetTupleHashHelper
@@ -667,6 +695,18 @@ public:
 		UE4Tuple_Private::Assign(*this, MoveTemp(Other), TMakeIntegerSequence<uint32, sizeof...(OtherTypes)>{});
 		return *this;
 	}
+
+#if UE_TUPLE_STRUCTURED_BINDING_SUPPORT
+	// TTuple support for structured binding - not intended to be called directly
+	template <int N> friend decltype(auto) get(               TTuple&  val) { return static_cast<               TTuple& >(val).template Get<N>(); }
+	template <int N> friend decltype(auto) get(const          TTuple&  val) { return static_cast<const          TTuple& >(val).template Get<N>(); }
+	template <int N> friend decltype(auto) get(      volatile TTuple&  val) { return static_cast<      volatile TTuple& >(val).template Get<N>(); }
+	template <int N> friend decltype(auto) get(const volatile TTuple&  val) { return static_cast<const volatile TTuple& >(val).template Get<N>(); }
+	template <int N> friend decltype(auto) get(               TTuple&& val) { return static_cast<               TTuple&&>(val).template Get<N>(); }
+	template <int N> friend decltype(auto) get(const          TTuple&& val) { return static_cast<const          TTuple&&>(val).template Get<N>(); }
+	template <int N> friend decltype(auto) get(      volatile TTuple&& val) { return static_cast<      volatile TTuple&&>(val).template Get<N>(); }
+	template <int N> friend decltype(auto) get(const volatile TTuple&& val) { return static_cast<const volatile TTuple&&>(val).template Get<N>(); }
+#endif
 };
 
 template <typename... Types>
@@ -845,3 +885,18 @@ FORCEINLINE TTuple<Types&...> Tie(Types&... Args)
 {
 	return TTuple<Types&...>(Args...);
 }
+
+#if UE_TUPLE_STRUCTURED_BINDING_SUPPORT
+// TTuple support for structured bindings
+template <typename... ArgTypes>
+class std::tuple_size<TTuple<ArgTypes...>>
+	: public std::integral_constant<std::size_t, sizeof...(ArgTypes)>
+{
+};
+template <std::size_t N, typename... ArgTypes>
+class std::tuple_element<N, TTuple<ArgTypes...>>
+{
+public:
+	using type = typename TTupleElement<N, TTuple<ArgTypes...>>::Type;
+};
+#endif

@@ -28,6 +28,7 @@ namespace UnrealBuildTool.Rules
 					"EditorStyle",
 					"Engine",
 					"GeometryCache", // Just so that we can fetch its AssetImportData
+					"IntelTBB",
 					"MaterialBaking", // So that we can use the BakeMaterials function
 					"MaterialEditor",
 					"MeshDescription",
