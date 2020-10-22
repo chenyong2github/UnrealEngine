@@ -1317,7 +1317,8 @@ void UMovieSceneSequencePlayer::PostNetReceive()
 				}
 
 				// When playing back we skip this sequence's ticked update to avoid queuing 2 updates this frame
-				bSkipNextUpdate = true;
+				//TODO: @AAndrew Rodham 
+				//bSkipNextUpdate = true;
 			}
 			else if (Status == EMovieScenePlayerStatus::Stopped)
 			{
