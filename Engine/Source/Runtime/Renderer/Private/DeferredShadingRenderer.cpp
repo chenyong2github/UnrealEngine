@@ -1776,19 +1776,13 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		if (bDoInitViewAftersPrepass)
 		{
 			{
-				RDG_GPU_STAT_SCOPE(GraphBuilder, VisibilityCommands);
-				AddPass(GraphBuilder, [this, &ILCTaskData](FRHICommandListImmediate& RHICmdList)
-				{
-					InitViewsPossiblyAfterPrepass(RHICmdList, ILCTaskData);
-				});
+				SCOPED_GPU_STAT(GraphBuilder.RHICmdList, VisibilityCommands);
+				InitViewsPossiblyAfterPrepass(GraphBuilder.RHICmdList, ILCTaskData);
 			}
 
 			{
-				RDG_GPU_STAT_SCOPE(GraphBuilder, GPUSceneUpdate);
-				AddPass(GraphBuilder, [this](FRHICommandListImmediate& RHICmdList)
-				{
-					PrepareDistanceFieldScene(RHICmdList, false);
-				});
+				SCOPED_GPU_STAT(GraphBuilder.RHICmdList, GPUSceneUpdate);
+				PrepareDistanceFieldScene(GraphBuilder.RHICmdList, false);
 			}
 
 			{
