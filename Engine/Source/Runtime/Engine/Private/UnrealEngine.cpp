@@ -3007,11 +3007,10 @@ FAudioDeviceHandle UEngine::GetActiveAudioDevice()
 void UEngine::InitializeAudioDeviceManager()
 {
 	FAudioDeviceManager::Initialize();
-
 	AudioDeviceManager = FAudioDeviceManager::Get();
-
 	if (AudioDeviceManager)
 	{
+		AudioDeviceManager->CreateMainAudioDevice();
 		MainAudioDeviceHandle = AudioDeviceManager->GetMainAudioDeviceHandle();
 	}
 }
