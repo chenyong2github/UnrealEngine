@@ -7,6 +7,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Containers/ArrayView.h"
 #include "Containers/StringView.h"
 
 struct FFileStatData;
@@ -182,6 +183,18 @@ public:
 	static FName GetShortFName(const FString& LongName);
 	static FName GetShortFName(const FName& LongName);
 	static FName GetShortFName(const TCHAR* LongName);
+
+	/**
+	 * Tries to convert a file or directory in game-relative package name format to the corresponding local path
+	 * Game-relative package names can be a full package path (/Game/Folder/File, /Engine/Folder/File, /PluginName/Folder/File) or
+	 * a relative path (Folder/File).
+	 * Full package paths must be in a mounted directory to be successfully converted.
+	 *
+	 * @param RelativePackagePath The path in game-relative package format (allowed to have or not have an extension).
+	 * @param OutLocalPath The corresponding local-path file (with the extension or lack of extension from the input).
+	 * @return Whether the conversion was successful.
+	 */
+	static bool TryConvertGameRelativePackagePathToLocalPath(FStringView RelativePackagePath, FString& OutLocalPath);
 
 	/**
 	 * This will insert a mount point at the head of the search chain (so it can overlap an existing mount point and win).
@@ -398,11 +411,20 @@ public:
 	/**
 	 * This will recurse over a directory structure looking for packages.
 	 * 
-	 * @param	OutPackages			The output array that is filled out with a file paths
-	 * @param	RootDirectory		The root of the directory structure to recurse through
+	 * @param	OutPackages			The output array that is filled out with the discovered file paths
+	 * @param	RootDir				The root of the directory structure to recurse through
 	 * @return	Returns true if any packages have been found, otherwise false
 	 */
 	static bool FindPackagesInDirectory(TArray<FString>& OutPackages, const FString& RootDir);
+
+	/**
+	 * This will recurse over the given list of directory structures looking for packages.
+	 *
+	 * @param	OutPackages			The output array that is filled out with the discovered file paths
+	 * @param	RootDirss			The roots of the directory structures to recurse through
+	 * @return	Returns true if any packages have been found, otherwise false
+	 */
+	static bool FindPackagesInDirectories(TArray<FString>& OutPackages, const TArrayView<const FString>& RootDirs);
 
 	/**
 	 * This will recurse over a directory structure looking for packages.

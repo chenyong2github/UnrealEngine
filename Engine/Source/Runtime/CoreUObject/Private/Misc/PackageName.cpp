@@ -134,6 +134,23 @@ FName FPackageName::GetShortFName(const TCHAR* LongName)
 	return FName(LongName);
 }
 
+bool FPackageName::TryConvertGameRelativePackagePathToLocalPath(FStringView RelativePackagePath, FString& OutLocalPath)
+{
+	if (RelativePackagePath.StartsWith(TEXT("/"), ESearchCase::CaseSensitive))
+	{
+		// If this starts with /, this includes a root like /engine
+		return FPackageName::TryConvertLongPackageNameToFilename(FString(RelativePackagePath), OutLocalPath);
+	}
+	else
+	{
+		// This is relative to /game
+		const FString AbsoluteGameContentDir = FPaths::ConvertRelativePathToFull(FPaths::ProjectContentDir());
+		OutLocalPath = AbsoluteGameContentDir / FString(RelativePackagePath);
+		return true;
+	}
+}
+
+
 struct FPathPair
 {
 	// The virtual path (e.g., "/Engine/")
@@ -1393,10 +1410,17 @@ bool FPackageName::FindPackagesInDirectory( TArray<FString>& OutPackages, const 
 {
 	UE_CLOG(FIoDispatcher::IsInitialized(), LogPackageName, Error, TEXT("Can't search for packages using the filesystem when I/O dispatcher is enabled"));
 
+	FString LocalPathToRootDir;
+	if (!FPackageName::TryConvertLongPackageNameToFilename(RootDir / TEXT(""), LocalPathToRootDir))
+	{
+		LocalPathToRootDir = RootDir;
+	}
+	LocalPathToRootDir = FPaths::ConvertRelativePathToFull(MoveTemp(LocalPathToRootDir));
+
 	// Find all files in RootDir, then filter by extension (we have two package extensions so they can't
 	// be included in the search wildcard.
 	TArray<FString> AllFiles;
-	IFileManager::Get().FindFilesRecursive(AllFiles, *RootDir, TEXT("*.*"), true, false);
+	IFileManager::Get().FindFilesRecursive(AllFiles, *LocalPathToRootDir, TEXT("*.*"), true, false);
 	// Keep track if any package has been found. Can't rely only on OutPackages.Num() > 0 as it may not be empty.
 	const int32 PreviousPackagesCount = OutPackages.Num();
 	for (int32 FileIndex = 0; FileIndex < AllFiles.Num(); FileIndex++)
@@ -1409,6 +1433,28 @@ bool FPackageName::FindPackagesInDirectory( TArray<FString>& OutPackages, const 
 	}
 	return OutPackages.Num() > PreviousPackagesCount;
 }
+
+bool FPackageName::FindPackagesInDirectories(TArray<FString>& OutPackages, const TArrayView<const FString>& RootDirs)
+{
+	TSet<FString> Packages;
+	TArray<FString> DirPackages;
+	for (const FString& RootDir : RootDirs)
+	{
+		DirPackages.Reset();
+		FindPackagesInDirectory(DirPackages, RootDir);
+		for (FString& DirPackage : DirPackages)
+		{
+			Packages.Add(MoveTemp(DirPackage));
+		}
+	}
+	OutPackages.Reserve(Packages.Num() + OutPackages.Num());
+	for (FString& Package : Packages)
+	{
+		OutPackages.Add(MoveTemp(Package));
+	}
+	return Packages.Num() > 0;
+}
+
 
 void FPackageName::IteratePackagesInDirectory(const FString& RootDir, const FPackageNameVisitor& Callback)
 {

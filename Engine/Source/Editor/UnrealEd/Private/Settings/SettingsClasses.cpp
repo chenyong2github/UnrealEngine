@@ -1051,6 +1051,14 @@ void UProjectPackagingSettings::FixCookingPaths()
 			PathToFix.Path = FString::Printf(TEXT("/Game/%s"), *PathToFix.Path);
 		}
 	}
+
+	for (FDirectoryPath& PathToFix : TestDirectoriesToNotSearch)
+	{
+		if (!PathToFix.Path.IsEmpty() && !PathToFix.Path.StartsWith(TEXT("/"), ESearchCase::CaseSensitive))
+		{
+			PathToFix.Path = FString::Printf(TEXT("/Game/%s"), *PathToFix.Path);
+		}
+	}
 }
 
 void UProjectPackagingSettings::PostEditChangeProperty( FPropertyChangedEvent& PropertyChangedEvent )
@@ -1061,7 +1069,7 @@ void UProjectPackagingSettings::PostEditChangeProperty( FPropertyChangedEvent& P
 		? PropertyChangedEvent.MemberProperty->GetFName()
 		: NAME_None;
 
-	if (Name == FName(TEXT("DirectoriesToAlwaysCook")) || Name == FName(TEXT("DirectoriesToNeverCook")) || Name == NAME_None)
+	if (Name == FName(TEXT("DirectoriesToAlwaysCook")) || Name == FName(TEXT("DirectoriesToNeverCook")) || Name == FName(TEXT("TestDirectoriesToNotSearch")) || Name == NAME_None)
 	{
 		// We need to fix paths for no name updates to catch the reloadconfig call
 		FixCookingPaths();
