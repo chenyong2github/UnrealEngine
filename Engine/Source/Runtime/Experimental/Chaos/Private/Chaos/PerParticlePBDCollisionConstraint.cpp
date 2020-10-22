@@ -7,7 +7,7 @@
 #endif
 
 #if INTEL_ISPC && !UE_BUILD_SHIPPING
-bool bChaos_PerParticleCollision_ISPC_Enabled = false;  // TODO: Enable once ISPC collision works
+bool bChaos_PerParticleCollision_ISPC_Enabled = true;
 FAutoConsoleVariableRef CVarChaosPerParticleCollisionISPCEnabled(TEXT("p.Chaos.PerParticleCollision.ISPC"), bChaos_PerParticleCollision_ISPC_Enabled, TEXT("Whether to use ISPC optimizations in per particle collisions"));
 #endif
 
@@ -41,7 +41,7 @@ extern "C" void GetPhiWithNormal(const uint8* CollisionParticles, const float* I
 	
 	for (int32 Index = 0; Index < ProgramCount; ++Index)
 	{
-		if (Mask & 1 << Index)
+		if (Mask & (1 << Index))
 		{
 			TVector<float, 3> V;
 
@@ -92,7 +92,8 @@ void TPerParticlePBDCollisionConstraint<float, 3, EGeometryParticlesSimType::Oth
 					(const uint8*)&CollisionParticles,
 					(const uint8*)CollisionParticles.GetAllGeometry().GetData(),
 					sizeof(FImplicitObject),
-					CollisionParticles.Geometry(0)->GetOffsetOfType(),
+					FImplicitObject::GetOffsetOfType(),
+					FImplicitObject::GetOffsetOfMargin(),
 					Dt,
 					CollisionOffset,
 					CollisionRange,

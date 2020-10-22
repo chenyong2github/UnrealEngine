@@ -86,18 +86,16 @@ static inline FVector GetSafeNormal(const FVector &V)
 	return VectorSelect(SizeSqr <= FLT_MIN, ForwardVector, V / sqrt(SizeSqr));
 }
 
-static inline void PhiWithNormalSphere(const uniform uint8 *uniform TypedObjectPtr, const FVector &PhiWithNormalInput, FVector &Normal, float &Phi)
+static inline void PhiWithNormalSphere(const uniform uint8 *uniform TypedObjectPtr, const FVector &PhiWithNormalInput, FVector &Normal, float &Phi, const uniform float Radius)
 {
 	const uniform FVector Center = *((const uniform FVector *uniform)&TypedObjectPtr[0]);
-	const uniform float Radius = *((const uniform float *uniform)&TypedObjectPtr[sizeof(uniform FVector)]);
 	Normal = PhiWithNormalInput - Center;
 	Phi = SafeNormalize(Normal) - Radius;
 }
 
-static inline void PhiWithNormalCapsule(const uniform uint8 *uniform TypedObjectPtr, const FVector &PhiWithNormalInput, FVector &Normal, float &Phi)
+static inline void PhiWithNormalCapsule(const uniform uint8 *uniform TypedObjectPtr, const FVector &PhiWithNormalInput, FVector &Normal, float &Phi, const uniform float Radius)
 {
 	const uniform Segment MSegment = *((const uniform Segment *uniform)&TypedObjectPtr[0]);
-	const uniform float Radius = *((const uniform float *uniform)&TypedObjectPtr[sizeof(uniform Segment)]);
 
 	float Dot = clamp(VectorDot(PhiWithNormalInput - MSegment.Point, MSegment.Axis), 0.0f, MSegment.Length);
 	FVector ProjectedPoint = SetVector(Dot) * MSegment.Axis + MSegment.Point;
@@ -166,7 +164,7 @@ static inline void PhiWithNormalTaperedCapsule(const uniform uint8 *uniform Type
 	}
 }
 
-static inline void PhiWithNormalUnion(const uniform uint8 *uniform TypedPtr, const FVector &PhiWithNormalInput, FVector &Normal, float &Phi, const uniform int SizeofFImplicitObject)
+static inline void PhiWithNormalUnion(const uniform uint8 *uniform TypedPtr, const FVector &PhiWithNormalInput, FVector &Normal, float &Phi, const uniform int SizeofFImplicitObject, const uniform int OffsetOfMargin)
 {
 	const uniform UniquePtr *uniform MObjects = (const uniform UniquePtr *uniform)TypedPtr;
 	Phi = FLT_MAX;
@@ -193,9 +191,10 @@ static inline void PhiWithNormalUnion(const uniform uint8 *uniform TypedPtr, con
 	}
 
 	Object = MObjects->Data[1].Ptr;
+	uniform float Margin = *((const uniform float *uniform)(Object + OffsetOfMargin));
 	TypedObjectPtr = Object + SizeofFImplicitObject;
 
-	PhiWithNormalSphere(TypedObjectPtr, PhiWithNormalInput, NextNormal, NextPhi);
+	PhiWithNormalSphere(TypedObjectPtr, PhiWithNormalInput, NextNormal, NextPhi, Margin);
 
 	if (NextPhi < Phi)
 	{
@@ -210,9 +209,10 @@ static inline void PhiWithNormalUnion(const uniform uint8 *uniform TypedPtr, con
 	}
 
 	Object = MObjects->Data[2].Ptr;
+	Margin = *((const uniform float *uniform)(Object + OffsetOfMargin));
 	TypedObjectPtr = Object + SizeofFImplicitObject;
 
-	PhiWithNormalSphere(TypedObjectPtr, PhiWithNormalInput, NextNormal, NextPhi);
+	PhiWithNormalSphere(TypedObjectPtr, PhiWithNormalInput, NextNormal, NextPhi, Margin);
 
 	if (NextPhi < Phi)
 	{
@@ -249,6 +249,7 @@ export void ApplyPerParticleCollision(uniform FVector ParticlesP[],
 										const uniform uint8 *uniform Geometry,
 										const uniform int SizeofFImplicitObject,
 										const uniform int OffsetofGeometryType,
+										const uniform int OffsetOfMargin,
 										const uniform float Dt,
 										const uniform int InnerOffset,
 										const uniform int InnerRange,
@@ -310,17 +311,19 @@ export void ApplyPerParticleCollision(uniform FVector ParticlesP[],
 			{
 			case Sphere:
 				{
-					PhiWithNormalSphere(TypedPtr, PhiWithNormalInput, Normal, Phi);
+					const uniform float Margin = *((const uniform float *uniform)(Ptr + OffsetOfMargin));
+					PhiWithNormalSphere(TypedPtr, PhiWithNormalInput, Normal, Phi, Margin);
 					break;
 				}
 			case Capsule:
 				{
-					PhiWithNormalCapsule(TypedPtr, PhiWithNormalInput, Normal, Phi);
+					const uniform float Margin = *((const uniform float *uniform)(Ptr + OffsetOfMargin));
+					PhiWithNormalCapsule(TypedPtr, PhiWithNormalInput, Normal, Phi, Margin);
 					break;
 				}
 			case Union:
 				{
-					PhiWithNormalUnion(TypedPtr, PhiWithNormalInput, Normal, Phi, SizeofFImplicitObject);
+					PhiWithNormalUnion(TypedPtr, PhiWithNormalInput, Normal, Phi, SizeofFImplicitObject, OffsetOfMargin);
 					break;
 				}
 			default:
