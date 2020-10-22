@@ -50,7 +50,7 @@ void DIGBuffer_DecodeScreenVelocity(in float2 ScreenUV, out bool IsValid, out fl
 	IsValid = true;
 	if ( EncodedVelocity.x > 0 )
 	{
-		OutValue = DecodeVelocityFromTexture(EncodedVelocity);
+		OutValue.xy = DecodeVelocityFromTexture(EncodedVelocity).xy;
 	}
 #endif
 }
@@ -69,8 +69,23 @@ void DIGBuffer_DecodeWorldVelocity(in float2 ScreenUV, out bool IsValid, out flo
 	IsValid = true;
 	if ( EncodedVelocity.x > 0 )
 	{
-		OutValue = DecodeVelocityFromTexture(EncodedVelocity);
-		OutValue = mul(View.ClipToWorld, float4(OutValue, 0));
+		float2 ScreenVelocity = DecodeVelocityFromTexture(EncodedVelocity).xy;
+		ScreenVelocity.y = -ScreenVelocity.y;
+
+		{
+			float2 PrevScreenUV = ScreenUV - ScreenVelocity;
+
+			float SceneDepth = CalcSceneDepth(ScreenUV);
+			float2 ScreenPosition = (ScreenUV - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
+			float3 WorldPosition = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), View.ScreenToWorld).xyz;
+
+			// Ideally we would use CalcPrevSceneDepth(PrevScreenUV) here to get an accurate location, however we do not store PrevSceneDepth so this is a very rough approximation
+			float PrevSceneDepth = SceneDepth;	//CalcPrevSceneDepth(PrevScreenUV);
+			float2 PrevScreenPosition = (PrevScreenUV - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
+			float3 PrevWorldPosition = mul(float4(PrevScreenPosition * PrevSceneDepth, PrevSceneDepth, 1), View.ScreenToWorld).xyz;
+
+			OutValue = WorldPosition - PrevWorldPosition;
+		}
 	}
 #endif
 }

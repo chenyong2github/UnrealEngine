@@ -13,10 +13,11 @@ namespace NiagaraDataInterfaceGBufferLocal
 {
 	struct FGBufferAttribute
 	{
-		FGBufferAttribute(const TCHAR* InAttributeName, const TCHAR* InAttributeType, FNiagaraTypeDefinition InTypeDef)
+		FGBufferAttribute(const TCHAR* InAttributeName, const TCHAR* InAttributeType, FNiagaraTypeDefinition InTypeDef, FText InDescription)
 			: AttributeName(InAttributeName)
 			, AttributeType(InAttributeType)
 			, TypeDef(InTypeDef)
+			, Description(InDescription)
 		{
 			FString TempName;
 			TempName = TEXT("Decode");
@@ -28,24 +29,43 @@ namespace NiagaraDataInterfaceGBufferLocal
 		const TCHAR*			AttributeType;
 		FName					ScreenUVFunctionName;
 		FNiagaraTypeDefinition	TypeDef;
+		FText					Description;
 	};
+
+	static FText GetDescription_ScreenVelocity()
+	{
+#if WITH_EDITORONLY_DATA
+		return NSLOCTEXT("Niagara", "GBuffer_ScreenVelocity", "Get the screen space velocity in UV space.  This is a per frame value, to get per second you must divide by delta time.");
+#else
+		return FText::GetEmpty();
+#endif
+	}
+
+	static FText GetDescription_WorldVelocity()
+	{
+#if WITH_EDITORONLY_DATA
+		return NSLOCTEXT("Niagara", "GBuffer_WorldVelocity", "Get the world space velocity estimate (not accurate due to reconstrucion).  This is a per frame value, to get per second you must divide by delta time.");
+#else
+		return FText::GetEmpty();
+#endif
+	}
 
 	static TConstArrayView<FGBufferAttribute> GetGBufferAttributes()
 	{
 		static const TArray<FGBufferAttribute> GBufferAttributes =
 		{
-			FGBufferAttribute(TEXT("DiffuseColor"),		TEXT("float3"),	FNiagaraTypeDefinition::GetVec3Def()),
-			FGBufferAttribute(TEXT("WorldNormal"),		TEXT("float3"),	FNiagaraTypeDefinition::GetVec3Def()),
-			FGBufferAttribute(TEXT("ScreenVelocity"),	TEXT("float3"),	FNiagaraTypeDefinition::GetVec3Def()),
-			FGBufferAttribute(TEXT("WorldVelocity"),	TEXT("float3"),	FNiagaraTypeDefinition::GetVec3Def()),
-			FGBufferAttribute(TEXT("BaseColor"),		TEXT("float3"),	FNiagaraTypeDefinition::GetVec3Def()),
-			//FGBufferAttribute(TEXT("SpecularColor"),	TEXT("float3"),	FNiagaraTypeDefinition::GetVec3Def()),
-			FGBufferAttribute(TEXT("Metallic"),			TEXT("float"),	FNiagaraTypeDefinition::GetFloatDef()),
-			FGBufferAttribute(TEXT("Specular"),			TEXT("float"),	FNiagaraTypeDefinition::GetFloatDef()),
-			FGBufferAttribute(TEXT("Roughness"),		TEXT("float"),	FNiagaraTypeDefinition::GetFloatDef()),
-			//FGBufferAttribute(TEXT("CustomDepth"),	TEXT("float"),	FNiagaraTypeDefinition::GetFloatDef()),
-			//FGBufferAttribute(TEXT("CustomStencil"),	TEXT("uint"),	FNiagaraTypeDefinition::GetIntDef()),
-			FGBufferAttribute(TEXT("Depth"),			TEXT("float"),	FNiagaraTypeDefinition::GetFloatDef()),
+			FGBufferAttribute(TEXT("DiffuseColor"),		TEXT("float3"),	FNiagaraTypeDefinition::GetVec3Def(), FText::GetEmpty()),
+			FGBufferAttribute(TEXT("WorldNormal"),		TEXT("float3"),	FNiagaraTypeDefinition::GetVec3Def(), FText::GetEmpty()),
+			FGBufferAttribute(TEXT("ScreenVelocity"),	TEXT("float3"),	FNiagaraTypeDefinition::GetVec3Def(), GetDescription_ScreenVelocity()),
+			FGBufferAttribute(TEXT("WorldVelocity"),	TEXT("float3"),	FNiagaraTypeDefinition::GetVec3Def(), GetDescription_WorldVelocity()),
+			FGBufferAttribute(TEXT("BaseColor"),		TEXT("float3"),	FNiagaraTypeDefinition::GetVec3Def(), FText::GetEmpty()),
+			//FGBufferAttribute(TEXT("SpecularColor"),	TEXT("float3"),	FNiagaraTypeDefinition::GetVec3Def(), FText::GetEmpty()),
+			FGBufferAttribute(TEXT("Metallic"),			TEXT("float"),	FNiagaraTypeDefinition::GetFloatDef(), FText::GetEmpty()),
+			FGBufferAttribute(TEXT("Specular"),			TEXT("float"),	FNiagaraTypeDefinition::GetFloatDef(), FText::GetEmpty()),
+			FGBufferAttribute(TEXT("Roughness"),		TEXT("float"),	FNiagaraTypeDefinition::GetFloatDef(), FText::GetEmpty()),
+			//FGBufferAttribute(TEXT("CustomDepth"),	TEXT("float"),	FNiagaraTypeDefinition::GetFloatDef(), FText::GetEmpty()),
+			//FGBufferAttribute(TEXT("CustomStencil"),	TEXT("uint"),	FNiagaraTypeDefinition::GetIntDef(), FText::GetEmpty()),
+			FGBufferAttribute(TEXT("Depth"),			TEXT("float"),	FNiagaraTypeDefinition::GetFloatDef(), FText::GetEmpty()),
 		};
 
 		return MakeArrayView(GBufferAttributes);
@@ -123,6 +143,9 @@ void UNiagaraDataInterfaceGBuffer::GetFunctions(TArray<FNiagaraFunctionSignature
 	{
 		FNiagaraFunctionSignature& Signature = OutFunctions.AddDefaulted_GetRef();
 		Signature.Name = Attribute.ScreenUVFunctionName;
+#if WITH_EDITORONLY_DATA
+		Signature.Description = Attribute.Description;
+#endif
 		Signature.bMemberFunction = true;
 		Signature.bRequiresContext = false;
 		Signature.bSupportsCPU = false;
