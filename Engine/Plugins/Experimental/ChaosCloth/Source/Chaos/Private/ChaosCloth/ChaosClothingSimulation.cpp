@@ -44,6 +44,9 @@
 #include "Chaos/PBDAxialSpringConstraints.h"
 #include "Chaos/PerParticleDampVelocity.h"
 #include "Chaos/PerParticlePBDCollisionConstraint.h"
+#include "Chaos/PBDSphericalConstraint.h"
+#include "Chaos/PBDLongRangeConstraints.h"
+#include "Chaos/VelocityField.h"
 #include "HAL/IConsoleManager.h"
 
 bool bChaos_GetSimData_ISPC_Enabled = true;
