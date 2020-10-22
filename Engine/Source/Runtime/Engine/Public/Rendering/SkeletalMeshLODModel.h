@@ -77,6 +77,9 @@ struct FSkelMeshSection
 	/** This section will recompute tangent in runtime */
 	bool bRecomputeTangent;
 
+	/** Vertex color channel to mask recompute tangents. R=0,G=1 (default),B=2 */
+	ESkinVertexColorChannel RecomputeTangentsVertexMaskChannel;
+
 	/** This section will cast shadow */
 	bool bCastShadow;
 
@@ -152,6 +155,7 @@ struct FSkelMeshSection
 		, NumTriangles(0)
 		, bSelected(false)
 		, bRecomputeTangent(false)
+		, RecomputeTangentsVertexMaskChannel(ESkinVertexColorChannel::Green)
 		, bCastShadow(true)
 		, bLegacyClothingSection_DEPRECATED(false)
 		, CorrespondClothSectionIndex_DEPRECATED(-1)
@@ -227,6 +231,9 @@ struct FSkelMeshSourceSectionUserData
 {
 	/** This section will recompute tangent in runtime */
 	bool bRecomputeTangent;
+	
+	/** Vertex color channel to use to mask recompute tangent */
+	ESkinVertexColorChannel RecomputeTangentsVertexMaskChannel;
 
 	/** This section will cast shadow */
 	bool bCastShadow;
@@ -257,6 +264,7 @@ struct FSkelMeshSourceSectionUserData
 
 	FSkelMeshSourceSectionUserData()
 		: bRecomputeTangent(false)
+		, RecomputeTangentsVertexMaskChannel(ESkinVertexColorChannel::Green)
 		, bCastShadow(true)
 		, CorrespondClothAssetIndex(INDEX_NONE)
 		, bDisabled(false)
@@ -281,6 +289,7 @@ struct FSkelMeshSourceSectionUserData
 			UserSectionData->bCastShadow = Section.bCastShadow;
 			UserSectionData->bDisabled = Section.bDisabled;
 			UserSectionData->bRecomputeTangent = Section.bRecomputeTangent;
+			UserSectionData->RecomputeTangentsVertexMaskChannel = Section.RecomputeTangentsVertexMaskChannel;
 			UserSectionData->GenerateUpToLodIndex = Section.GenerateUpToLodIndex;
 			UserSectionData->CorrespondClothAssetIndex = Section.CorrespondClothAssetIndex;
 			UserSectionData->ClothingData.AssetGuid = Section.ClothingData.AssetGuid;

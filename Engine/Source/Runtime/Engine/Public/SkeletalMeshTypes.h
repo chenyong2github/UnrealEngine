@@ -84,6 +84,8 @@ struct FRecomputeTangentCustomVersion
 		BeforeCustomVersionWasAdded = 0,
 		// We serialize the RecomputeTangent Option
 		RuntimeRecomputeTangent = 1,
+		// Choose which Vertex Color channel to use as mask to blend tangents
+		RecomputeTangentVertexColorMask = 2,
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
@@ -129,6 +131,20 @@ struct ESkeletalMeshVertexFlags
 		BuildAdjacencyIndexBuffer = 0x8
 	};
 };
+
+/** Name of vertex color channels */
+enum class ESkinVertexColorChannel : uint8
+{
+	// 
+	Red = 0,
+	// 
+	Green = 1,
+	// 
+	Blue = 2,
+	//
+	Alpha = 3
+};
+
 
 
 /**
