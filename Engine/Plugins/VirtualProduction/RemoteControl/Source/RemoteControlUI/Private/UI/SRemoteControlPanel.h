@@ -138,6 +138,9 @@ struct SRCPanelExposedField : public SCompoundWidget, public FRCPanelTreeNode
 	/** Returns this widget's underlying objects. */
 	void GetBoundObjects(TSet<UObject*>& OutBoundObjects) const;
 
+	/** Set this widget's underlying objects. */
+	void SetBoundObjects(const TArray<UObject*>& InObjects);
+
 private:
 	/** Construct a property widget. */
 	TSharedRef<SWidget> ConstructWidget();
@@ -391,6 +394,7 @@ class SRemoteControlPanel : public SCompoundWidget, public FSelfRegisteringEdito
 
 public:
 	void Construct(const FArguments& InArgs, URemoteControlPreset* InPreset);
+	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 	~SRemoteControlPanel();
 
 	//~ FEditorUndoClient interface
@@ -520,8 +524,12 @@ private:
 	//~ Handlers for drag/drop events.
 	FReply OnDropOnGroup(const TSharedPtr<FDragDropOperation>& DragDropOperation, const TSharedPtr<SRCPanelExposedField>& TargetField, const TSharedPtr<FRCPanelGroup>& DragTargetGroup);
 	
+	//~ Preset specific delegates
 	void RegisterPresetDelegates();
 	void UnregisterPresetDelegates();
+
+	//~ PIE Start/Stop handler.
+	void OnPieEvent(bool);
 
 	void OnGroupAdded(const FRemoteControlPresetGroup& Group);
 	void OnGroupDeleted(FRemoteControlPresetGroup DeletedGroup);
@@ -542,6 +550,8 @@ private:
 	TArray<TSharedRef<SRemoteControlTarget>> RemoteControlTargets;
 	/** Whether the panel is in edit mode. */
 	bool bIsInEditMode = true;
+	/** Whether objects need to be re-resolved because PIE Started or ended. */
+	bool bTriggerRefreshForPIE = false;
 	/** Holds the blueprint library picker tree view. */
 	TSharedPtr<SSearchableTreeView<TSharedPtr<FRCBlueprintPickerTreeNode>>> BlueprintLibrariesTreeView;
 	/** Holds the blueprint library nodes. */
