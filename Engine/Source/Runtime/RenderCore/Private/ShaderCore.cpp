@@ -763,6 +763,26 @@ bool ReplaceVirtualFilePathForShaderPlatform(FString& InOutVirtualFilePath, ESha
 	return false;
 }
 
+bool ReplaceVirtualFilePathForShaderAutogen(FString& InOutVirtualFilePath, EShaderPlatform ShaderPlatform)
+{
+	// Tweak the autogen path
+	const FString ShaderAutogenStem = TEXT("/Engine/Generated/ShaderAutogen/");
+	const FString PlatformName = LegacyShaderPlatformToShaderFormat(ShaderPlatform).GetPlainNameString();
+	const FString ShaderAutogenPlatformStem = TEXT("/ShaderAutogen/") + PlatformName;
+
+	// for examples, if it starts with "/Engine/Generated/ShaderAutogen/" change it to "ShaderAutogen/PCD3D_SM5/"
+	if (InOutVirtualFilePath.StartsWith(ShaderAutogenStem))
+	{
+		// Parse the right side, after /ShaderAutogen/
+		FString RelativeShaderName = InOutVirtualFilePath.RightChop(ShaderAutogenStem.Len());
+		FString OutputShaderName = ShaderAutogenPlatformStem + TEXT("/") + RelativeShaderName;
+		InOutVirtualFilePath = OutputShaderName;
+		return true;
+	}
+
+	return false;
+}
+
 bool LoadShaderSourceFile(const TCHAR* InVirtualFilePath, EShaderPlatform ShaderPlatform, FString* OutFileContents, TArray<FShaderCompilerError>* OutCompileErrors) // TODO: const FString&
 {
 	// it's not expected that cooked platforms get here, but if they do, this is the final out
@@ -781,6 +801,9 @@ bool LoadShaderSourceFile(const TCHAR* InVirtualFilePath, EShaderPlatform Shader
 
 		// Always substitute virtual platform path before accessing GShaderFileCache to get platform-specific file.
 		ReplaceVirtualFilePathForShaderPlatform(VirtualFilePath, ShaderPlatform);
+
+		// Fixup autogen file
+		ReplaceVirtualFilePathForShaderAutogen(VirtualFilePath, ShaderPlatform);
 
 		// Protect GShaderFileCache from simultaneous access by multiple threads
 		FScopeLock ScopeLock(&FileCacheCriticalSection);
@@ -901,6 +924,9 @@ static void GetShaderIncludes(const TCHAR* EntryPointVirtualFilePath, const TCHA
 					}
 
 					ReplaceVirtualFilePathForShaderPlatform(ExtractedIncludeFilename, ShaderPlatform);
+
+					// Fixup autogen file
+					ReplaceVirtualFilePathForShaderAutogen(ExtractedIncludeFilename, ShaderPlatform);
 
 					// Ignore uniform buffer, vertex factory and instanced stereo includes
 					bool bIgnoreInclude = ExtractedIncludeFilename.StartsWith(TEXT("/Engine/Generated/"));
@@ -1310,3 +1336,4 @@ void AddShaderSourceDirectoryMapping(const FString& VirtualShaderDirectory, cons
 		*VirtualShaderDirectory, *RealShaderDirectory);
 	GShaderSourceDirectoryMappings.Add(VirtualShaderDirectory, RealShaderDirectory);
 }
+

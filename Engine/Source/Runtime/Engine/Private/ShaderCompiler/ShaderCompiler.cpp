@@ -45,6 +45,7 @@
 #include "SceneInterface.h"
 #include "ShaderCodeLibrary.h"
 #include "MeshMaterialShaderType.h"
+#include "GBufferInfo.h"
 #include "ShaderParameterMetadata.h"
 #include "ProfilingDebugging/DiagnosticTable.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
@@ -3459,6 +3460,7 @@ void GlobalBeginCompileShader(
 	COOK_STAT(FScopedDurationTimer DurationTimer(ShaderCompilerCookStats::GlobalBeginCompileShaderTimeSec));
 
 	EShaderPlatform ShaderPlatform = EShaderPlatform(Target.Platform);
+	FShaderCompileUtilities::GenerateBrdfHeaders(ShaderPlatform);
 
 	TSharedRef<FShaderCompileJob, ESPMode::ThreadSafe> Job = StaticCastSharedRef<FShaderCompileJob>(NewJob);
 	FShaderCompilerInput& Input = Job->Input;
@@ -4045,6 +4047,10 @@ void GlobalBeginCompileShader(
 	const IShaderFormat* Format = GetTargetPlatformManagerRef().FindShaderFormat(Input.ShaderFormat);
 	Format->ModifyShaderCompilerInput(Input);
 	
+	// Allow the GBuffer and other shader defines to cause dependend environment changes, but minimizing the #ifdef magic in the shaders, which
+	// is nearly impossible to debug when it goes wrong.
+	FShaderCompileUtilities::ApplyDerivedDefines(Input.Environment, Input.SharedEnvironment, (EShaderPlatform)Target.Platform);
+
 	NewJobs.Add(NewJob);
 }
 

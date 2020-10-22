@@ -189,7 +189,8 @@ void ComposeSamplePS(
 #if SHADER_DOFDEPTH
 #include "../CircleDOFCommon.ush"
 
-Texture2D<float>	SceneDepthTexture;
+// Included from DeferredLightingCommon now
+//Texture2D<float>	SceneDepthTexture;
 Texture2D<uint4>	HairCategorizationTexture;
 
 void DOFDepthPS(

@@ -47,7 +47,7 @@ Texture2D<float4>	RayMarchMaskTexture;
 Texture2D<float>	DeepShadow_FrontDepthTexture;
 Texture2D<float4>	DeepShadow_DomTexture;
 
-Texture2D<float>	SceneDepthTexture;
+//Texture2D<float>	SceneDepthTexture;
 Texture2D<uint4>	CategorizationTexture;
 RWTexture2D<float4>	OutputColor;
 

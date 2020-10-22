@@ -34,7 +34,9 @@ int CubeFace;
 Texture2D SceneColorTexture;
 SamplerState SceneColorSampler;
 
+#if !SHADING_PATH_DEFERRED
 Texture2D SceneDepthTexture;
+#endif
 SamplerState SceneDepthSampler;
 
 /** 

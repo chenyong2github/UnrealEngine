@@ -72,6 +72,9 @@ private:
 		// Substitute virtual platform path here to make sure that #line directives refer to the platform-specific file.
 		ReplaceVirtualFilePathForShaderPlatform(VirtualFilePath, This->ShaderInput.Target.GetPlatform());
 
+		// Fixup autogen file
+		ReplaceVirtualFilePathForShaderAutogen(VirtualFilePath, This->ShaderInput.Target.GetPlatform());
+
 		// Collapse any relative directories to allow #include "../MyFile.ush"
 		FPaths::CollapseRelativeDirectories(VirtualFilePath);
 

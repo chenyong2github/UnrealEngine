@@ -505,6 +505,10 @@ public:
 		OutEnvironment.SetDefine(TEXT("ENABLE_SKY_LIGHT"), bEnableSkyLight);
 		OutEnvironment.SetDefine(TEXT("PLATFORM_FORCE_SIMPLE_SKY_DIFFUSE"), ForceSimpleSkyDiffuse(Parameters.Platform));
 
+		// This define simply lets the compilation environment know that we are using BasePassPixelShader.usf, so that we can check for more
+		// complicated defines later in the compilation pipe.
+		OutEnvironment.SetDefine(TEXT("IS_BASE_PASS"), 1);
+
 		TBasePassPixelShaderBaseType<LightMapPolicyType>::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 	}
 	

@@ -2088,6 +2088,10 @@ bool FMaterial::BeginCompileShaderMap(
 
 		MaterialEnvironment->IncludeVirtualPathToContentsMap.Add(TEXT("/Engine/Generated/Material.ush"), MaterialShaderCode);
 
+		FShaderCompileUtilities::GenerateBrdfHeaders((EShaderPlatform)Platform);
+
+		FShaderCompileUtilities::ApplyDerivedDefines(*MaterialEnvironment, nullptr, (EShaderPlatform)Platform);
+
 		// Compile the shaders for the material.
 		NewShaderMap->Compile(this, ShaderMapId, MaterialEnvironment, NewCompilationOutput, Platform, bSynchronousCompile);
 

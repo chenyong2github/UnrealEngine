@@ -17,6 +17,9 @@
 #include "Templates/Atomic.h"
 #include "Templates/UniquePtr.h"
 #include "HAL/ThreadSafeCounter.h"
+#include "RHIDefinitions.h"
+#include "GBufferInfo.h"
+#include "ShaderMaterial.h"
 
 class FShaderCompileJob;
 class FShaderPipelineCompileJob;
@@ -230,6 +233,22 @@ namespace FShaderCompileUtilities
 
 	/** Execute the specified (single or pipeline) shader compile job. */
 	void ExecuteShaderCompileJob(FShaderCommonCompileJob& Job);
+
+	void GenerateBrdfHeaders(const EShaderPlatform Platform);
+	void ApplyDerivedDefines(FShaderCompilerEnvironment& OutEnvironment, FShaderCompilerEnvironment * SharedEnvironment, const EShaderPlatform Platform);
+	void AppendGBufferDDCKeyString(const EShaderPlatform Platform, FString& KeyString);
+	FGBufferInfo FetchGBufferInfoAndWriteAutogen(EShaderPlatform TargetPlatform, ERHIFeatureLevel::Type FeatureLevel);
+
+	void ApplyFetchEnvironment(FShaderMaterialPropertyDefines& DefineData, FShaderCompilerEnvironment& OutEnvironment);
+	void ApplyFetchEnvironment(FShaderGlobalDefines& DefineData, FShaderCompilerEnvironment& OutEnvironment);
+	void ApplyFetchEnvironment(FShaderLightmapPropertyDefines& DefineData, FShaderCompilerEnvironment& OutEnvironment);
+	void ApplyFetchEnvironment(FShaderCompilerDefines& DefineData, FShaderCompilerEnvironment& OutEnvironment);
+
+	void ApplyModifyEnvironment(const FShaderMaterialDerivedDefines& DefineData, FShaderCompilerEnvironment& OutEnvironment);
+
+	ENGINE_API FGBufferParams FetchGBufferParamsRuntime(EShaderPlatform Platform); // this function is called from renderer
+	FGBufferParams FetchGBufferParamsPipeline(EShaderPlatform Platform);
+
 }
 
 #if PLATFORM_WINDOWS // XGE shader compilation is only supported on Windows.

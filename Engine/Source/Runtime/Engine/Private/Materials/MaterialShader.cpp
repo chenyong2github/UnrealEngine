@@ -134,6 +134,8 @@ static FString GetMaterialShaderMapKeyString(const FMaterialShaderMapId& ShaderM
 	ShaderMapAppendKeyString(Platform, ShaderMapKeyString);
 	ShaderMapId.AppendKeyString(ShaderMapKeyString);
 	FMaterialAttributeDefinitionMap::AppendDDCKeyString(ShaderMapKeyString);
+	FShaderCompileUtilities::AppendGBufferDDCKeyString(Platform, ShaderMapKeyString);
+
 	return FDerivedDataCacheInterface::BuildCacheKey(TEXT("MATSM"), MATERIALSHADERMAP_DERIVEDDATA_VER, *ShaderMapKeyString);
 }
 #endif // WITH_EDITOR

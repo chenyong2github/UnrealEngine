@@ -821,11 +821,13 @@ void FDeferredShadingSceneRenderer::RenderDeferredPlanarReflections(FRDGBuilder&
 	PassParameters->SceneTextures.SceneDepthTexture = SceneTextures.SceneDepthTexture;
 	PassParameters->SceneTextures.GBufferATexture = SceneTextures.GBufferATexture;
 	PassParameters->SceneTextures.GBufferBTexture = SceneTextures.GBufferBTexture;
-	if (IsHlslccShaderPlatform(GMaxRHIShaderPlatform))
-	{
-		// hlslcc doesn't remove all unused parameters
-		PassParameters->SceneTextures.GBufferCTexture = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
-	}
+
+	PassParameters->SceneTextures.GBufferCTexture = SceneTextures.GBufferCTexture;
+	PassParameters->SceneTextures.GBufferDTexture = SceneTextures.GBufferDTexture;
+	PassParameters->SceneTextures.GBufferETexture = SceneTextures.GBufferETexture;
+	PassParameters->SceneTextures.GBufferFTexture = SceneTextures.GBufferFTexture;
+	PassParameters->SceneTextures.GBufferVelocityTexture = SceneTextures.GBufferVelocityTexture;
+
 	PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 	PassParameters->RenderTargets[0] = FRenderTargetBinding(
 		ReflectionsOutputTexture, bClearReflectionsOutputTexture ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad);

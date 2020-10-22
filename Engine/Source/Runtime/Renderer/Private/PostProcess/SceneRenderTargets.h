@@ -410,6 +410,8 @@ public:
 	void AdjustGBufferRefCount(FRHICommandList& RHICmdList, int Delta);
 
 	void PreallocGBufferTargets();
+	bool AllocateGBufferTarget(const FName& TargetName, ETextureCreateFlags TargetFlags) const;
+
 	EPixelFormat GetGBufferAFormat() const;
 	EPixelFormat GetGBufferBFormat() const;
 	EPixelFormat GetGBufferCFormat() const;

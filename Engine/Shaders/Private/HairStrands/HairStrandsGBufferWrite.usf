@@ -2,12 +2,14 @@
 
 #include "../Common.ush"
 
+// Note, this doesn't work after refactoring, undoing the workaround.
 // Workaround for DeferredShadingCommon.ush requiring SceneTexturesStruct resources which is not available, 
 // since we are writing into Gbuffer textures within this pass
-#if SHADING_PATH_DEFERRED
-	#undef SHADING_PATH_DEFERRED
-	#define SHADING_PATH_DEFERRED 0
-#endif
+//#if SHADING_PATH_DEFERRED
+//	#undef SHADING_PATH_DEFERRED
+//	#define SHADING_PATH_DEFERRED 0
+//#endif
+
 #include "../DeferredShadingCommon.ush"
 #include "HairStrandsGBufferCommon.ush"
 #include "HairStrandsVisibilityCommon.ush"

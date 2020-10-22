@@ -28,6 +28,14 @@
 #include "VT/VirtualTextureFeedback.h"
 #include "VisualizeTexture.h"
 #include "GpuDebugRendering.h"
+#include "GBufferInfo.h"
+#include "ShaderCompiler.h"
+
+static TAutoConsoleVariable<int32> CVarRSMResolution(
+	TEXT("r.LPV.RSMResolution"),
+	360,
+	TEXT("Reflective Shadow Map resolution (used for LPV) - higher values result in less aliasing artifacts, at the cost of performance"),
+	ECVF_Scalability | ECVF_RenderThreadSafe);
 
 /*-----------------------------------------------------------------------------
 FSceneRenderTargets
@@ -701,6 +709,187 @@ void FSceneRenderTargets::Allocate(FRHICommandListImmediate& RHICmdList, const F
 	AllocateRenderTargets(RHICmdList, ViewFamily.Views.Num());
 }
 
+static int32 FindGBufferTargetIndex(const FGBufferInfo& GBufferInfo, const FString& Name)
+{
+	for (int32 I = 0; I < GBufferInfo.NumTargets; I++)
+	{
+		if (GBufferInfo.Targets[I].TargetName.Compare(Name) == 0)
+		{
+			return I;
+		}
+	}
+
+	return -1;
+}
+
+// This code is copy/paste/modified from the existing logic. Where in the old code it would set the targets using this logic, now it's just checks and verifies.
+static void CheckLegacyGBufferFormat(const FGBufferInfo& GBufferInfo, EShaderPlatform ShaderPlatform, bool bAllocateVelocityGBuffer, bool bAllowTangentGBuffer, bool bAllowStaticLighting)
+{
+	const bool bUseGBuffer = IsUsingGBuffers(ShaderPlatform);
+
+	int32 TempOutVelocityRTIndex = -1;
+	int32 TempOutTangentRTIndex = -1;
+
+	// make sure that the GBuffer slots aligned with the old render target lobic
+	int32 MRTCount = 0;
+	MRTCount++;
+
+	if (bUseGBuffer)
+	{
+		check(GBufferInfo.Targets[MRTCount].TargetName.Compare(TEXT("GBufferA")) == 0);
+		MRTCount++;
+		check(GBufferInfo.Targets[MRTCount].TargetName.Compare(TEXT("GBufferB")) == 0);
+		MRTCount++;
+		check(GBufferInfo.Targets[MRTCount].TargetName.Compare(TEXT("GBufferC")) == 0);
+		MRTCount++;
+	}
+
+	// The velocity buffer needs to be bound before other optionnal rendertargets (when UseSelectiveBasePassOutputs() is true).
+	// Otherwise there is an issue on some AMD hardware where the target does not get updated. Seems to be related to the velocity buffer format as it works fine with other targets.
+	if (bAllocateVelocityGBuffer && !IsSimpleForwardShadingEnabled(ShaderPlatform))
+	{
+		TempOutVelocityRTIndex = MRTCount;
+		check(TempOutVelocityRTIndex == 4 || (!bUseGBuffer && TempOutVelocityRTIndex == 1)); // As defined in BasePassPixelShader.usf
+
+		check(GBufferInfo.Targets[MRTCount].TargetName.Compare(TEXT("Velocity")) == 0);
+		MRTCount++;
+	}
+	else
+	{
+		//OutVelocityRTIndex = -1;
+	}
+
+	if (bUseGBuffer && bAllowTangentGBuffer)
+	{
+		check(!bAllocateVelocityGBuffer);
+		TempOutTangentRTIndex = MRTCount;
+
+		check(GBufferInfo.Targets[MRTCount].TargetName.Compare(TEXT("GBufferF")) == 0);
+		MRTCount++;
+	}
+	else
+	{
+		TempOutTangentRTIndex = -1;
+	}
+
+	if (bUseGBuffer)
+	{
+		check(GBufferInfo.Targets[MRTCount].TargetName.Compare(TEXT("GBufferD")) == 0);
+		MRTCount++;
+
+		if (bAllowStaticLighting)
+		{
+			check(MRTCount == (bAllocateVelocityGBuffer || bAllowTangentGBuffer ? 6 : 5)); // As defined in BasePassPixelShader.usf
+			check(GBufferInfo.Targets[MRTCount].TargetName.Compare(TEXT("GBufferE")) == 0);
+			MRTCount++;
+		}
+	}
+}
+
+// temporary #if, keeping backup for emergency testing in case it's necessary briefly
+#if 1
+
+int32 FSceneRenderTargets::GetGBufferRenderTargets(const TRefCountPtr<IPooledRenderTarget>* OutRenderTargets[MaxSimultaneousRenderTargets], int32& OutVelocityRTIndex) const
+{
+	int32 OutTangentRTIndex = -1;
+	FGBufferInfo GBufferInfo = {};
+
+	const EShaderPlatform ShaderPlatform = GetFeatureLevelShaderPlatform(CurrentFeatureLevel);
+	const bool bUseGBuffer = IsUsingGBuffers(ShaderPlatform);
+
+	int32 NumTargets = 0;
+
+	if (!bUseGBuffer)
+	{
+		OutTangentRTIndex = -1; // no tangent allowed
+
+		if (bAllocateVelocityGBuffer && !IsSimpleForwardShadingEnabled(ShaderPlatform))
+		{
+			// if velocity buffer SceneColor is 0 and Velocity is 1
+			OutRenderTargets[0] = &GetSceneColor();
+			OutRenderTargets[1] = &SceneVelocity;
+			OutVelocityRTIndex = 1;
+			NumTargets = 2;
+		}
+		else
+		{
+			// otherwise, SceneColor is 0, with no velocity
+			OutRenderTargets[0] = &GetSceneColor();
+			OutVelocityRTIndex = -1;
+			NumTargets = 1;
+		}
+	}
+	else
+	{
+		{
+			FGBufferParams Params = FShaderCompileUtilities::FetchGBufferParamsRuntime(ShaderPlatform);
+			GBufferInfo = FetchFullGBufferInfo(Params);
+		}
+
+		// validate legacy GBuffer
+		bool bAllowTangentGBuffer = false; // in the past, this was an option, then it was taken out for 4.26, and now we're putting it back in
+		CheckLegacyGBufferFormat(GBufferInfo, ShaderPlatform, bAllocateVelocityGBuffer, bAllowTangentGBuffer, bAllowStaticLighting);
+
+		{
+			OutRenderTargets[0] = &GetSceneColor();
+
+			int32 IndexGBufferA = FindGBufferTargetByName(GBufferInfo, "GBufferA");
+			int32 IndexGBufferB = FindGBufferTargetByName(GBufferInfo, "GBufferB");
+			int32 IndexGBufferC = FindGBufferTargetByName(GBufferInfo, "GBufferC");
+			int32 IndexGBufferD = FindGBufferTargetByName(GBufferInfo, "GBufferD");
+			int32 IndexGBufferE = FindGBufferTargetByName(GBufferInfo, "GBufferE");
+			int32 IndexGBufferF = FindGBufferTargetByName(GBufferInfo, "GBufferF");
+			int32 IndexVelocity = FindGBufferTargetByName(GBufferInfo, "Velocity");
+
+			// sanity checks
+			if (bUseGBuffer)
+			{
+				check(IndexGBufferA >= 0);
+				check(IndexGBufferB >= 0);
+				check(IndexGBufferC >= 0);
+			}
+
+			if (bAllocateVelocityGBuffer && !IsSimpleForwardShadingEnabled(ShaderPlatform))
+			{
+				check(IndexVelocity >= 0);
+			}
+
+			if (bUseGBuffer && bAllowTangentGBuffer)
+			{
+				check(IndexGBufferF >= 0);
+			}
+
+			if (bUseGBuffer)
+			{
+				check(IndexGBufferD >= 0);
+
+				if (bAllowStaticLighting)
+				{
+					check(IndexGBufferE >= 0);
+				}
+			}
+
+			if (IndexGBufferA >= 0) OutRenderTargets[IndexGBufferA] = &GBufferA;
+			if (IndexGBufferB >= 0) OutRenderTargets[IndexGBufferB] = &GBufferB;
+			if (IndexGBufferC >= 0) OutRenderTargets[IndexGBufferC] = &GBufferC;
+			if (IndexGBufferD >= 0) OutRenderTargets[IndexGBufferD] = &GBufferD;
+			if (IndexGBufferE >= 0) OutRenderTargets[IndexGBufferE] = &GBufferE;
+			if (IndexGBufferF >= 0) OutRenderTargets[IndexGBufferF] = &GBufferF;
+			if (IndexVelocity >= 0) OutRenderTargets[IndexVelocity] = &SceneVelocity;
+
+			OutTangentRTIndex = IndexGBufferF;
+			OutVelocityRTIndex = IndexVelocity;
+		}
+
+		check(GBufferInfo.NumTargets <= MaxSimultaneousRenderTargets);
+		NumTargets = GBufferInfo.NumTargets;
+	}
+
+	return NumTargets;
+}
+
+#else
+
 int32 FSceneRenderTargets::GetGBufferRenderTargets(const TRefCountPtr<IPooledRenderTarget>* OutRenderTargets[MaxSimultaneousRenderTargets], int32& OutVelocityRTIndex) const
 {
 	int32 MRTCount = 0;
@@ -743,6 +932,9 @@ int32 FSceneRenderTargets::GetGBufferRenderTargets(const TRefCountPtr<IPooledRen
 	check(MRTCount <= MaxSimultaneousRenderTargets);
 	return MRTCount;
 }
+
+#endif
+
 
 int32 FSceneRenderTargets::FillGBufferRenderPassInfo(ERenderTargetLoadAction ColorLoadAction, FRHIRenderPassInfo& OutRenderPassInfo, int32& OutVelocityRTIndex) const
 {
@@ -1090,6 +1282,52 @@ void FSceneRenderTargets::AllocGBufferTargets(FRHICommandList& RHICmdList)
 	AllocGBufferTargets(RHICmdList, TexCreate_None);
 }
 
+static FPooledRenderTargetDesc GetDescFromRenderTarget(FIntPoint BufferSize, const FGBufferTarget& Target, ETextureCreateFlags AddTargetableFlags)
+{
+
+	EPixelFormat PixelFormat = PF_Unknown;
+	switch(Target.TargetType)
+	{
+	case GBT_Unorm_8_8_8_8:
+		PixelFormat = PF_B8G8R8A8;
+		break;
+	case GBT_Unorm_11_11_10:
+		PixelFormat = PF_FloatR11G11B10;
+		break;
+	case GBT_Unorm_10_10_10_2:
+		PixelFormat = PF_A2B10G10R10;
+		break;
+	case GBT_Float_16_16:
+		PixelFormat = PF_G16R16;
+		break;
+	case GBT_Float_16_16_16_16:
+		PixelFormat = PF_A16B16G16R16;
+		break;
+	case GBT_Invalid:
+	default:
+		check(0);
+		PixelFormat = PF_Unknown;
+		break;
+	}
+
+	ETextureCreateFlags Flags = Target.bIsSrgb ? TexCreate_SRGB : TexCreate_None;
+
+	ETextureCreateFlags TargetFlags = (Target.bIsUsingExtraFlags ? AddTargetableFlags : TexCreate_None);
+
+	if (Target.bIsRenderTargetable)
+	{
+		TargetFlags |= TexCreate_RenderTargetable;
+	}
+
+	if (Target.bIsShaderResource)
+	{
+		TargetFlags |= TexCreate_ShaderResource;
+	}
+
+	FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(BufferSize, PixelFormat, FClearValueBinding::Transparent, Flags, TargetFlags , false));
+	return Desc;
+}
+
 void FSceneRenderTargets::AllocGBufferTargets(FRHICommandList& RHICmdList, ETextureCreateFlags AddTargetableFlags)
 {	
 	// AdjustGBufferRefCount +1 doesn't match -1 (within the same frame)
@@ -1105,6 +1343,100 @@ void FSceneRenderTargets::AllocGBufferTargets(FRHICommandList& RHICmdList, EText
 	const EShaderPlatform ShaderPlatform = GetFeatureLevelShaderPlatform(CurrentFeatureLevel);
 	const bool bUseGBuffer = IsUsingGBuffers(ShaderPlatform);
 	const bool bCanReadGBufferUniforms = (bUseGBuffer || IsSimpleForwardShadingEnabled(ShaderPlatform)) && CurrentFeatureLevel >= ERHIFeatureLevel::SM5;
+
+#if 1
+	if (!bUseGBuffer)
+	{
+		// Uses SceneColor and possibly Velocity
+
+		// Create the world-space normal g-buffer.
+		{
+			FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(BufferSize, GetGBufferAFormat(), FClearValueBinding::Transparent, TexCreate_None, TexCreate_RenderTargetable | TexCreate_ShaderResource | AddTargetableFlags , false));
+			Desc.Flags |= GFastVRamConfig.GBufferA;
+			GRenderTargetPool.FindFreeElement(RHICmdList, Desc, GBufferA, TEXT("GBufferA"));
+		}
+
+		if (bAllocateVelocityGBuffer)
+		{
+			FPooledRenderTargetDesc VelocityRTDesc = Translate(FVelocityRendering::GetRenderTargetDesc(ShaderPlatform));
+			VelocityRTDesc.Flags |= GFastVRamConfig.GBufferVelocity;
+			GRenderTargetPool.FindFreeElement(RHICmdList, VelocityRTDesc, SceneVelocity, TEXT("GBufferVelocity"));
+		}
+	}
+	else
+	{
+		// TODO: clean this up later
+		FGBufferInfo GBufferInfo;
+		{
+			FGBufferParams Params = FShaderCompileUtilities::FetchGBufferParamsRuntime(ShaderPlatform);
+			GBufferInfo = FetchFullGBufferInfo(Params);
+		}
+
+		const int32 IndexA = FindGBufferTargetByName(GBufferInfo, "GBufferA");
+		const int32 IndexB = FindGBufferTargetByName(GBufferInfo, "GBufferB");
+		const int32 IndexC = FindGBufferTargetByName(GBufferInfo, "GBufferC");
+		const int32 IndexD = FindGBufferTargetByName(GBufferInfo, "GBufferD");
+		const int32 IndexE = FindGBufferTargetByName(GBufferInfo, "GBufferE");
+		const int32 IndexVelocity = FindGBufferTargetByName(GBufferInfo, "GBufferVelocity");
+
+		if (IndexA >= 0)
+		{
+			//FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(BufferSize, GetGBufferAFormat(), FClearValueBinding::Transparent, TexCreate_None, TexCreate_RenderTargetable | TexCreate_ShaderResource | AddTargetableFlags , false));
+			FPooledRenderTargetDesc Desc = GetDescFromRenderTarget(BufferSize, GBufferInfo.Targets[IndexA], AddTargetableFlags);
+			Desc.Flags |= GFastVRamConfig.GBufferA;
+			GRenderTargetPool.FindFreeElement(RHICmdList, Desc, GBufferA, TEXT("GBufferA"));
+		}
+
+		// Create the specular color and power g-buffer.
+		if (IndexB >= 0)
+		{
+			//FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(BufferSize, GetGBufferBFormat(), FClearValueBinding::Transparent, TexCreate_None, TexCreate_RenderTargetable | TexCreate_ShaderResource | AddTargetableFlags, false));
+			FPooledRenderTargetDesc Desc = GetDescFromRenderTarget(BufferSize, GBufferInfo.Targets[IndexB], AddTargetableFlags);
+			Desc.Flags |= GFastVRamConfig.GBufferB;
+			GRenderTargetPool.FindFreeElement(RHICmdList, Desc, GBufferB, TEXT("GBufferB"));
+		}
+
+		// Create the diffuse color g-buffer.
+		if (IndexC >= 0)
+		{
+			//FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(BufferSize, GetGBufferCFormat(), FClearValueBinding::Transparent, TexCreate_SRGB, TexCreate_RenderTargetable | TexCreate_ShaderResource | AddTargetableFlags, false));
+			FPooledRenderTargetDesc Desc = GetDescFromRenderTarget(BufferSize, GBufferInfo.Targets[IndexC], AddTargetableFlags);
+			Desc.Flags |= GFastVRamConfig.GBufferC;
+			GRenderTargetPool.FindFreeElement(RHICmdList, Desc, GBufferC, TEXT("GBufferC"));
+		}
+
+		// Create the mask g-buffer (e.g. SSAO, subsurface scattering, wet surface mask, skylight mask, ...).
+		if (IndexD >= 0)
+		{
+			//FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(BufferSize, GetGBufferDFormat(), FClearValueBinding::Transparent, TexCreate_None, TexCreate_RenderTargetable | TexCreate_ShaderResource | AddTargetableFlags, false));
+			FPooledRenderTargetDesc Desc = GetDescFromRenderTarget(BufferSize, GBufferInfo.Targets[IndexD], AddTargetableFlags);
+			Desc.Flags |= GFastVRamConfig.GBufferD;
+			GRenderTargetPool.FindFreeElement(RHICmdList, Desc, GBufferD, TEXT("GBufferD"));
+		}
+
+		if (IndexE >= 0)
+		{
+			//FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(BufferSize, GetGBufferEFormat(), FClearValueBinding::Transparent, TexCreate_None, TexCreate_RenderTargetable | TexCreate_ShaderResource, false));
+			FPooledRenderTargetDesc Desc = GetDescFromRenderTarget(BufferSize, GBufferInfo.Targets[IndexE], AddTargetableFlags);
+			Desc.Flags |= GFastVRamConfig.GBufferE;
+			GRenderTargetPool.FindFreeElement(RHICmdList, Desc, GBufferE, TEXT("GBufferE"));
+		}
+
+		// otherwise we have a severe problem
+		check(GBufferA);
+
+		if (IndexVelocity >= 0)
+		{
+			//FPooledRenderTargetDesc VelocityRTDesc = Translate(FVelocityRendering::GetRenderTargetDesc(ShaderPlatform));
+			FPooledRenderTargetDesc Desc = GetDescFromRenderTarget(BufferSize, GBufferInfo.Targets[IndexVelocity], AddTargetableFlags);
+			Desc.Flags |= GFastVRamConfig.GBufferVelocity;
+			GRenderTargetPool.FindFreeElement(RHICmdList, Desc, SceneVelocity, TEXT("GBufferVelocity"));
+		}
+
+	}
+
+	FVelocityRendering::GetRenderTargetDesc(ShaderPlatform);
+#else
 	if (bUseGBuffer)
 	{
 		// Create the world-space normal g-buffer.
@@ -1152,6 +1484,8 @@ void FSceneRenderTargets::AllocGBufferTargets(FRHICommandList& RHICmdList, EText
 		VelocityRTDesc.Flags |= GFastVRamConfig.GBufferVelocity;
 		GRenderTargetPool.FindFreeElement(RHICmdList, VelocityRTDesc, SceneVelocity, TEXT("GBufferVelocity"));
 	}
+#endif
+
 
 	GBufferRefCount = 1;
 }
@@ -1203,6 +1537,10 @@ void FSceneRenderTargets::AdjustGBufferRefCount(FRHICommandList& RHICmdList, int
 		}
 	}	
 }
+
+
+
+
 
 void FSceneRenderTargets::CleanUpEditorPrimitiveTargets()
 {

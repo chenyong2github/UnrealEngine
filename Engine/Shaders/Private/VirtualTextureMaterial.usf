@@ -108,15 +108,15 @@ void FPixelShaderInOut_MainPS(
 
 #define PIXELSHADEROUTPUT_INTERPOLANTS 1
 
-#if defined(OUT_BASECOLOR)
-#define PIXELSHADEROUTPUT_MRT0 1
-#elif defined(OUT_BASECOLOR_NORMAL_SPECULAR)
-#define PIXELSHADEROUTPUT_MRT0 1
-#define PIXELSHADEROUTPUT_MRT1 1
-#define PIXELSHADEROUTPUT_MRT2 1
-#elif defined(OUT_WORLDHEIGHT)
-#define PIXELSHADEROUTPUT_MRT0 1
-#endif
+//#if defined(OUT_BASECOLOR)
+//#define PIXELSHADEROUTPUT_MRT0 1
+//#elif defined(OUT_BASECOLOR_NORMAL_SPECULAR)
+//#define PIXELSHADEROUTPUT_MRT0 1
+//#define PIXELSHADEROUTPUT_MRT1 1
+//#define PIXELSHADEROUTPUT_MRT2 1
+//#elif defined(OUT_WORLDHEIGHT)
+//#define PIXELSHADEROUTPUT_MRT0 1
+//#endif
 
 // all PIXELSHADEROUTPUT_ and "void FPixelShaderInOut_MainPS()" need to be setup before this include
 // this include generates the wrapper code to call MainPS(inout FPixelShaderOutput PixelShaderOutput)

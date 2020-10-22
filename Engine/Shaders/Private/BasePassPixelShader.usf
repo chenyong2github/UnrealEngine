@@ -49,6 +49,12 @@
 #include "DBufferDecalShared.ush"
 #include "ShadingModelsSampling.ush"
 
+#include "SceneTexturesCommon.ush"
+#include "SceneTextureParameters.ush"
+#include "GBufferHelpers.ush"
+
+#include "/Engine/Generated/ShaderAutogen/AutogenShaderHeaders.ush"
+
 #define PREV_FRAME_COLOR	1
 #include "SSRT/SSRTRayCast.ush"
 
@@ -1589,11 +1595,66 @@ void FPixelShaderInOut_MainPS(
 	#endif
 
 	#if USES_GBUFFER
-		GBuffer.IndirectIrradiance = IndirectIrradiance;
-
 		// -0.5 .. 0.5, could be optimzed as lower quality noise would be sufficient
 		float QuantizationBias = PseudoRandom( MaterialParameters.SvPosition.xy ) - 0.5f;
-		EncodeGBuffer(GBuffer, Out.MRT[1], Out.MRT[2], Out.MRT[3], OutGBufferD, OutGBufferE, OutVelocity, QuantizationBias);
+
+		GBuffer.IndirectIrradiance = IndirectIrradiance;
+
+		// this is the new encode, the older encode is the #else, keeping it around briefly until the new version is confirmed stable.
+		#if 1
+		{
+			// change this so that we can pack everything into the gbuffer, but leave this for now
+			#if GBUFFER_HAS_DIFFUSE_SAMPLE_OCCLUSION
+				GBuffer.GenericAO = float(GBuffer.DiffuseIndirectSampleOcclusion) * rcp(255) + (0.5 / 255.0);
+			#elif ALLOW_STATIC_LIGHTING
+				// No space for AO. Multiply IndirectIrradiance by AO instead of storing.
+				GBuffer.GenericAO = EncodeIndirectIrradiance(GBuffer.IndirectIrradiance * GBuffer.GBufferAO) + QuantizationBias * (1.0 / 255.0);
+			#else
+				GBuffer.GenericAO = GBuffer.GBufferAO;
+			#endif
+
+			EncodeGBufferToMRT(Out, GBuffer, QuantizationBias);
+
+			if (GBuffer.ShadingModelID == SHADINGMODELID_UNLIT)
+			{
+				Out.MRT[1] = 0;
+				SetGBufferForUnlit(Out.MRT[2]);
+				Out.MRT[3] = 0;
+				Out.MRT[4] = 0;
+				Out.MRT[5] = 0;
+			}
+		}
+		#else
+		{
+			float4 OutGBufferA = 0;
+			float4 OutGBufferB = 0;
+			float4 OutGBufferC = 0;
+
+			EncodeGBuffer(GBuffer, OutGBufferA, OutGBufferB, OutGBufferC, OutGBufferD, OutGBufferE, OutVelocity, QuantizationBias);
+
+			Out.MRT[1] = OutGBufferA;
+			Out.MRT[2] = OutGBufferB;
+			Out.MRT[3] = OutGBufferC;
+
+			#if GBUFFER_HAS_VELOCITY
+				Out.MRT[4] = OutVelocity;
+			#endif
+
+			Out.MRT[GBUFFER_HAS_VELOCITY ? 5 : 4] = OutGBufferD;
+
+			#if GBUFFER_HAS_PRECSHADOWFACTOR
+				Out.MRT[GBUFFER_HAS_VELOCITY ? 6 : 5] = OutGBufferE;
+			#endif
+		}
+		#endif
+
+	#else
+
+		// If not using the full gbuffer (forward shading) the velocity buffer can still be written to in the basepass.
+		#if GBUFFER_HAS_VELOCITY
+			Out.MRT[1] = OutVelocity;
+		#endif
+
 	#endif 
 
 	if(bEditorWeightedZBuffering)
@@ -1621,23 +1682,6 @@ void FPixelShaderInOut_MainPS(
 			clip(Out.MRT[0].a - GetMaterialOpacityMaskClipValue());
 		#endif
 	}
-
-#if USES_GBUFFER
-	#if GBUFFER_HAS_VELOCITY
-		Out.MRT[4] = OutVelocity;
-	#endif
-
-	Out.MRT[GBUFFER_HAS_VELOCITY ? 5 : 4] = OutGBufferD;
-
-	#if GBUFFER_HAS_PRECSHADOWFACTOR
-		Out.MRT[GBUFFER_HAS_VELOCITY ? 6 : 5] = OutGBufferE;
-	#endif
-#else
-	// If not using the full gbuffer (forward shading) the velocity buffer can still be written to in the basepass.
-	#if GBUFFER_HAS_VELOCITY
-		Out.MRT[1] = OutVelocity;
-	#endif
-#endif
 
 #if !MATERIALBLENDING_MODULATE && USE_PREEXPOSURE
 #if MATERIAL_IS_SKY
@@ -1689,24 +1733,24 @@ void FPixelShaderInOut_MainPS(
 
 // the following needs to match to the code in FSceneRenderTargets::GetGBufferRenderTargets()
 #define PIXELSHADEROUTPUT_BASEPASS 1
-#if USES_GBUFFER
-#define PIXELSHADEROUTPUT_MRT0 (!SELECTIVE_BASEPASS_OUTPUTS || NEEDS_BASEPASS_VERTEX_FOGGING || USES_EMISSIVE_COLOR || ALLOW_STATIC_LIGHTING || MATERIAL_SHADINGMODEL_SINGLELAYERWATER)
-#define PIXELSHADEROUTPUT_MRT1 ((!SELECTIVE_BASEPASS_OUTPUTS || !MATERIAL_SHADINGMODEL_UNLIT))
-#define PIXELSHADEROUTPUT_MRT2 ((!SELECTIVE_BASEPASS_OUTPUTS || !MATERIAL_SHADINGMODEL_UNLIT))
-#define PIXELSHADEROUTPUT_MRT3 ((!SELECTIVE_BASEPASS_OUTPUTS || !MATERIAL_SHADINGMODEL_UNLIT))
-	#if GBUFFER_HAS_VELOCITY
-		#define PIXELSHADEROUTPUT_MRT4 WRITES_VELOCITY_TO_GBUFFER
-		#define PIXELSHADEROUTPUT_MRT5 (!SELECTIVE_BASEPASS_OUTPUTS || WRITES_CUSTOMDATA_TO_GBUFFER)
-		#define PIXELSHADEROUTPUT_MRT6 (GBUFFER_HAS_PRECSHADOWFACTOR && (!SELECTIVE_BASEPASS_OUTPUTS || WRITES_PRECSHADOWFACTOR_TO_GBUFFER && !MATERIAL_SHADINGMODEL_UNLIT))
-	#else //GBUFFER_HAS_VELOCITY
-		#define PIXELSHADEROUTPUT_MRT4 (!SELECTIVE_BASEPASS_OUTPUTS || WRITES_CUSTOMDATA_TO_GBUFFER)
-		#define PIXELSHADEROUTPUT_MRT5 (GBUFFER_HAS_PRECSHADOWFACTOR && (!SELECTIVE_BASEPASS_OUTPUTS || WRITES_PRECSHADOWFACTOR_TO_GBUFFER && !MATERIAL_SHADINGMODEL_UNLIT))
-	#endif //GBUFFER_HAS_VELOCITY
-#else //USES_GBUFFER
-	#define PIXELSHADEROUTPUT_MRT0 1
-	// we also need MRT for thin translucency due to dual blending if we are not on the fallback path
-	#define PIXELSHADEROUTPUT_MRT1 (WRITES_VELOCITY_TO_GBUFFER || (DUAL_SOURCE_COLOR_BLENDING_ENABLED && MATERIAL_WORKS_WITH_DUAL_SOURCE_COLOR_BLENDING))
-#endif //USES_GBUFFER
+//#if USES_GBUFFER
+//#define PIXELSHADEROUTPUT_MRT0 (!SELECTIVE_BASEPASS_OUTPUTS || NEEDS_BASEPASS_VERTEX_FOGGING || USES_EMISSIVE_COLOR || ALLOW_STATIC_LIGHTING || MATERIAL_SHADINGMODEL_SINGLELAYERWATER)
+//#define PIXELSHADEROUTPUT_MRT1 ((!SELECTIVE_BASEPASS_OUTPUTS || !MATERIAL_SHADINGMODEL_UNLIT))
+//#define PIXELSHADEROUTPUT_MRT2 ((!SELECTIVE_BASEPASS_OUTPUTS || !MATERIAL_SHADINGMODEL_UNLIT))
+//#define PIXELSHADEROUTPUT_MRT3 ((!SELECTIVE_BASEPASS_OUTPUTS || !MATERIAL_SHADINGMODEL_UNLIT))
+//	#if GBUFFER_HAS_VELOCITY
+//		#define PIXELSHADEROUTPUT_MRT4 WRITES_VELOCITY_TO_GBUFFER
+//		#define PIXELSHADEROUTPUT_MRT5 (!SELECTIVE_BASEPASS_OUTPUTS || WRITES_CUSTOMDATA_TO_GBUFFER)
+//		#define PIXELSHADEROUTPUT_MRT6 (GBUFFER_HAS_PRECSHADOWFACTOR && (!SELECTIVE_BASEPASS_OUTPUTS || WRITES_PRECSHADOWFACTOR_TO_GBUFFER && !MATERIAL_SHADINGMODEL_UNLIT))
+//	#else //GBUFFER_HAS_VELOCITY
+//		#define PIXELSHADEROUTPUT_MRT4 (!SELECTIVE_BASEPASS_OUTPUTS || WRITES_CUSTOMDATA_TO_GBUFFER)
+//		#define PIXELSHADEROUTPUT_MRT5 (GBUFFER_HAS_PRECSHADOWFACTOR && (!SELECTIVE_BASEPASS_OUTPUTS || WRITES_PRECSHADOWFACTOR_TO_GBUFFER && !MATERIAL_SHADINGMODEL_UNLIT))
+//	#endif //GBUFFER_HAS_VELOCITY
+//#else //USES_GBUFFER
+//	#define PIXELSHADEROUTPUT_MRT0 1
+//	// we also need MRT for thin translucency due to dual blending if we are not on the fallback path
+//	#define PIXELSHADEROUTPUT_MRT1 (WRITES_VELOCITY_TO_GBUFFER || (MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT && THIN_TRANSLUCENT_USE_DUAL_BLEND))
+//#endif //USES_GBUFFER
 #define PIXELSHADEROUTPUT_A2C ((EDITOR_ALPHA2COVERAGE) != 0)
 #define PIXELSHADEROUTPUT_COVERAGE (MATERIALBLENDING_MASKED_USING_COVERAGE && !EARLY_Z_PASS_ONLY_MATERIAL_MASKING)
 
