@@ -3,6 +3,7 @@
 #include "HPMotionController.h"
 #include "InputCoreTypes.h"
 #include "OpenXRCore.h"
+#include "Modules/ModuleManager.h"
 
 #define LOCTEXT_NAMESPACE "HPMotionControllerModule"
 
