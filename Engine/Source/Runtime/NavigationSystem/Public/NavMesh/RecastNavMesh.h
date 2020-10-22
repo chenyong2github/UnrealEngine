@@ -1072,6 +1072,7 @@ protected:
 	virtual FRecastNavMeshGenerator* CreateGeneratorInstance();
 
 private:
+	friend struct FRecastGraphWrapper;
 	friend FRecastNavMeshGenerator;
 	friend class FPImplRecastNavMesh;
 	// destroys FPImplRecastNavMesh instance if it has been created 
