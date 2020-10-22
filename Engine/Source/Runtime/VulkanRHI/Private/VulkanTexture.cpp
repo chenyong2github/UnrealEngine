@@ -609,7 +609,6 @@ FVulkanSurface::FVulkanSurface(FVulkanDevice& InDevice, FVulkanEvictable* Owner,
 		Allocation.BindBuffer(Device, CpuReadbackBuffer->Buffer);
 		void* Memory = Allocation.GetMappedPointer(Device);
 		FMemory::Memzero(Memory, MemReqs.size);
-		FMemory::Memset(&Image, 0xff, sizeof(Image));
 		return;
 	}
 
