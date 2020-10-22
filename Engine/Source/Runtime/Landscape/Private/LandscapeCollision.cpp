@@ -817,6 +817,14 @@ TArray<PxHeightFieldSample> ConvertHeightfieldDataForPhysx(
 		}
 	}
 
+	// Handle case where Component uses 100% Visibility layer
+	// Add the default material because PhysX running PX_CHECKED (Debug) will return a nullptr on CreateShape if the material list is empty
+	if (InOutMaterials.Num() == 0)
+	{
+		check(DefaultMaterialIndex == INDEX_NONE);
+		InOutMaterials.Add(DefMaterial);
+	}
+
 	return Samples;
 }
 #endif // WITH_PHYSX
