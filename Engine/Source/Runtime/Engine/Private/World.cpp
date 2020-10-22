@@ -882,12 +882,13 @@ void UWorld::BeginDestroy()
 		}
 	}
 
+#if WITH_CHAOS
 	if (PhysicsScene != nullptr)
 	{
 		// Tell PhysicsScene to stop kicking off async work so we can cleanup after pending work is complete.
 		PhysicsScene->BeginDestroy();
 	}
-
+#endif
 
 	if (Scene)
 	{
