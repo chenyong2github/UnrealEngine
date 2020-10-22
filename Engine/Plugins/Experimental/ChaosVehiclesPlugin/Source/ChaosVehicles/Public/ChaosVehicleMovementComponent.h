@@ -39,6 +39,7 @@ struct FVehicleDebugParams
 	bool BatchQueries = true;
 	float ForceDebugScaling = 0.0006f;
 	float SleepCounterThreshold = 15;
+	bool DisableVehicleSleep = true;
 };
 
 struct FBodyInstance;
