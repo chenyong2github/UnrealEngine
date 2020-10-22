@@ -250,7 +250,7 @@ void USocialManager::ShutdownSocialManager()
 	}
 
 	// We could have outstanding OSS queries and requests, and we are no longer interested in getting any callbacks triggered
-	MarkPendingKill();
+	bShutdownPending = true;
 }
 
 USocialToolkit& USocialManager::GetSocialToolkit(const ULocalPlayer& LocalPlayer) const
@@ -295,6 +295,8 @@ USocialToolkit* USocialManager::GetSocialToolkit(FUniqueNetIdRepl LocalUserId) c
 
 void USocialManager::HandlePlatformSessionInviteAccepted(const TSharedRef<const FUniqueNetId>& LocalUserId, const FOnlineSessionSearchResult& InviteResult)
 {
+	ABORT_DURING_SHUTDOWN();
+
 	UE_LOG(LogParty, Log, TEXT("LocalUser w/ ID [%s] has accepted platform party session invite. Attempting to join persistent party."), *LocalUserId->ToDebugString());
 
 	// Session invites are always for the persistent party
@@ -885,6 +887,8 @@ TSharedPtr<const IOnlinePartyJoinInfo> USocialManager::GetJoinInfoFromSession(co
 
 void USocialManager::HandleGameViewportInitialized()
 {
+	ABORT_DURING_SHUTDOWN();
+
 	UGameViewportClient::OnViewportCreated().RemoveAll(this);
 
 	UGameInstance& GameInstance = GetGameInstance();
@@ -906,11 +910,15 @@ void USocialManager::HandleGameViewportInitialized()
 
 void USocialManager::HandlePreClientTravel(const FString& PendingURL, ETravelType TravelType, bool bIsSeamlessTravel)
 {
+	ABORT_DURING_SHUTDOWN();
+
 	RefreshCanCreatePartyObjects();
 }
 
 void USocialManager::HandleWorldEstablished(UWorld* World)
 {
+	ABORT_DURING_SHUTDOWN();
+
 	RefreshCanCreatePartyObjects();
 
 	if (!OnFillJoinRequestInfoHandle.IsValid())
@@ -925,6 +933,8 @@ void USocialManager::HandleWorldEstablished(UWorld* World)
 
 void USocialManager::HandleLocalPlayerAdded(int32 LocalUserNum)
 {
+	ABORT_DURING_SHUTDOWN();
+
 	ULocalPlayer* NewLocalPlayer = GetGameInstance().GetLocalPlayerByIndex(LocalUserNum);
 	check(NewLocalPlayer);
 
@@ -933,6 +943,8 @@ void USocialManager::HandleLocalPlayerAdded(int32 LocalUserNum)
 
 void USocialManager::HandleLocalPlayerRemoved(int32 LocalUserNum)
 {
+	ABORT_DURING_SHUTDOWN();
+
 	//GetSocialToolkit accepts a ControllerId, not a player index, so we'll access it directly 
 	if (SocialToolkits.IsValidIndex(LocalUserNum))
 	{
@@ -946,6 +958,8 @@ void USocialManager::HandleLocalPlayerRemoved(int32 LocalUserNum)
 
 void USocialManager::HandleToolkitReset(int32 LocalUserNum)
 {
+	ABORT_DURING_SHUTDOWN();
+
 	JoinAttemptsByTypeId.Reset();
 }
 
@@ -971,6 +985,8 @@ void USocialManager::RestorePartyStateFromPartySystem(const FOnRestorePartyState
 
 void USocialManager::OnRestorePartiesComplete(const FUniqueNetId& LocalUserId, const FOnlineError& Result, const FOnRestorePartyStateFromPartySystemComplete OnRestoreComplete)
 {
+	ABORT_DURING_SHUTDOWN();
+
 	if (Result.WasSuccessful())
 	{
 		// Restore our parties
@@ -992,6 +1008,8 @@ void USocialManager::OnRestorePartiesComplete(const FUniqueNetId& LocalUserId, c
 
 void USocialManager::HandleQueryJoinabilityComplete(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, EJoinPartyCompletionResult Result, int32 NotApprovedReasonCode, FOnlinePartyTypeId PartyTypeId)
 {
+	ABORT_DURING_SHUTDOWN();
+
 	if (FJoinPartyAttempt* JoinAttempt = JoinAttemptsByTypeId.Find(PartyTypeId))
 	{
 		if (Result == EJoinPartyCompletionResult::Succeeded)
@@ -1020,6 +1038,8 @@ void USocialManager::HandleQueryJoinabilityComplete(const FUniqueNetId& LocalUse
 
 void USocialManager::HandleCreatePartyComplete(const FUniqueNetId& LocalUserId, const TSharedPtr<const FOnlinePartyId>& PartyId, ECreatePartyCompletionResult Result, FOnlinePartyTypeId PartyTypeId, FOnCreatePartyAttemptComplete CompletionDelegate)
 {
+	ABORT_DURING_SHUTDOWN();
+
 	ECreatePartyCompletionResult LocalCreationResult = Result;
 	if (Result == ECreatePartyCompletionResult::Succeeded)
 	{
@@ -1039,6 +1059,8 @@ void USocialManager::HandleCreatePartyComplete(const FUniqueNetId& LocalUserId, 
 
 void USocialManager::HandleJoinPartyComplete(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, EJoinPartyCompletionResult Result, int32 NotApprovedReasonCode, FOnlinePartyTypeId PartyTypeId)
 {
+	ABORT_DURING_SHUTDOWN();
+
 	UE_LOG(LogParty, Log, TEXT("Attempt to join party of type [%d] completed with result [%s] and reason code [%d] by user is [%s] "), PartyTypeId.GetValue(), ToString(Result), NotApprovedReasonCode, *LocalUserId.ToDebugString());
 
 	FJoinPartyResult JoinResult(Result, NotApprovedReasonCode);
@@ -1089,6 +1111,8 @@ void USocialManager::HandleJoinPartyComplete(const FUniqueNetId& LocalUserId, co
 
 void USocialManager::HandlePersistentPartyStateChanged(EPartyState NewState, EPartyState PreviousState, USocialParty* PersistentParty)
 {
+	ABORT_DURING_SHUTDOWN();
+
 	UE_LOG(LogParty, Verbose, TEXT("Persistent party state changed to %s"), ToString(NewState));
 
 	if (NewState == EPartyState::Disconnected)
@@ -1135,6 +1159,8 @@ void USocialManager::HandlePersistentPartyStateChanged(EPartyState NewState, EPa
 
 void USocialManager::HandleLeavePartyForJoinComplete(ELeavePartyCompletionResult LeaveResult, USocialParty* LeftParty)
 {
+	ABORT_DURING_SHUTDOWN();
+
 	if (LeftParty)
 	{
 		UE_LOG(LogParty, Verbose, TEXT("Attempt to leave party [%s] for pending join completed with result [%s]"), *LeftParty->ToDebugString(), ToString(LeaveResult));
@@ -1143,6 +1169,8 @@ void USocialManager::HandleLeavePartyForJoinComplete(ELeavePartyCompletionResult
 
 void USocialManager::HandlePartyDisconnected(USocialParty* DisconnectingParty)
 {
+	ABORT_DURING_SHUTDOWN();
+
 	if (DisconnectingParty)
 	{
 		const FOnlinePartyTypeId& PartyTypeId = DisconnectingParty->GetPartyTypeId();
@@ -1153,6 +1181,8 @@ void USocialManager::HandlePartyDisconnected(USocialParty* DisconnectingParty)
 
 void USocialManager::HandlePartyLeaveBegin(EMemberExitedReason Reason, USocialParty* LeavingParty)
 {
+	ABORT_DURING_SHUTDOWN();
+
 	if (LeavingParty)
 	{
 		const FOnlinePartyTypeId& PartyTypeId = LeavingParty->GetPartyTypeId();
@@ -1163,6 +1193,8 @@ void USocialManager::HandlePartyLeaveBegin(EMemberExitedReason Reason, USocialPa
 
 void USocialManager::HandlePartyLeft(EMemberExitedReason Reason, USocialParty* LeftParty)
 {
+	ABORT_DURING_SHUTDOWN();
+
 	if (LeftParty)
 	{
 		const FOnlinePartyTypeId& PartyTypeId = LeftParty->GetPartyTypeId();
@@ -1209,6 +1241,8 @@ void USocialManager::HandlePartyLeft(EMemberExitedReason Reason, USocialParty* L
 
 void USocialManager::HandleLeavePartyForMissingJoinAttempt(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, ELeavePartyCompletionResult LeaveResult, FOnlinePartyTypeId PartyTypeId)
 {
+	ABORT_DURING_SHUTDOWN();
+
 	if (PartyTypeId == IOnlinePartySystem::GetPrimaryPartyTypeId() && GetFirstLocalUserToolkit()->IsOwnerLoggedIn() && !GetPersistentPartyInternal(true))
 	{
 		// We just had to bail on the persistent party due to unforeseen shenanigans, so try to correct things and set another one back up
@@ -1218,11 +1252,15 @@ void USocialManager::HandleLeavePartyForMissingJoinAttempt(const FUniqueNetId& L
 
 void USocialManager::HandleFillPartyJoinRequestData(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, FOnlinePartyData& PartyData)
 {
+	ABORT_DURING_SHUTDOWN();
+
 	FillOutJoinRequestData(PartyId, PartyData);
 }
 
 void USocialManager::HandleFindSessionForJoinComplete(bool bWasSuccessful, const FOnlineSessionSearchResult& FoundSession, FOnlinePartyTypeId PartyTypeId)
 {
+	ABORT_DURING_SHUTDOWN();
+
 	if (FJoinPartyAttempt* JoinAttempt = JoinAttemptsByTypeId.Find(PartyTypeId))
 	{
 		JoinAttempt->ActionTimeTracker.CompleteStep(FJoinPartyAttempt::Step_FindPlatformSession);
