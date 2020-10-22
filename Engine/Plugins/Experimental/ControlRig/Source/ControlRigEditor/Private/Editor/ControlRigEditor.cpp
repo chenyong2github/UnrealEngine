@@ -600,6 +600,13 @@ void FControlRigEditor::SetEventQueue(EControlRigEditorEventQueue InEventQueue)
 		{
 			ToggleSetupMode();
 		}
+
+		// Reset transforms only for setup and forward solve to not inturrupt any animation that might be playing
+		if (InEventQueue == EControlRigEditorEventQueue::Setup ||
+			InEventQueue == EControlRigEditorEventQueue::Update)
+		{
+			ControlRig->Hierarchy.ResetTransforms();
+		}
 	}
 }
 
