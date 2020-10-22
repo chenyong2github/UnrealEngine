@@ -15,30 +15,7 @@
 	"IsExperimentalVersion": false,
 	"Installed": false,
 	"Modules": [
-		{
-			"Name": "VCamCore",
-			"Type": "Runtime",
-			"LoadingPhase": "Default",
-			"BlacklistPlatforms": [
-				"TVOS"
-			]
-		},
-		{
-			"Name": "VCamCoreEditor",
-			"Type": "Editor",
-			"LoadingPhase": "Default",
-			"BlacklistPlatforms": [
-				"TVOS"
-			]
-		},
-		{
-			"Name": "VCamInput",
-			"Type": "Runtime",
-			"LoadingPhase": "Default",
-			"BlacklistPlatforms": [
-				"TVOS"
-			]
-		}
+		
 	],
 	"Plugins": [
 		{
