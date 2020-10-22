@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "PlatformInfo.h"
+#include "Misc/ConfigCacheIni.h"
 
 /**
  * Base class for target platforms.
