@@ -24,6 +24,7 @@
 class FShaderCompileJob;
 class FShaderPipelineCompileJob;
 class FVertexFactoryType;
+class IDistributedBuildController;
 class FMaterialShaderMap;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogShaderCompilers, Log, All);
@@ -604,27 +605,34 @@ public:
 	static bool IsSupported();
 };
 
-class FShaderCompileXGEThreadRunnable_InterceptionInterface : public FShaderCompileThreadRunnableBase
+#endif // PLATFORM_WINDOWS
+
+class FShaderCompileDistributedThreadRunnable_Interface : public FShaderCompileThreadRunnableBase
 {
 	uint32 NumDispatchedJobs;
 
-	TSparseArray<class FXGEShaderCompilerTask*> DispatchedTasks;
+	TSparseArray<class FDistributedShaderCompilerTask*> DispatchedTasks;
 
 public:
 	/** Initialization constructor. */
-	FShaderCompileXGEThreadRunnable_InterceptionInterface(class FShaderCompilingManager* InManager);
-	virtual ~FShaderCompileXGEThreadRunnable_InterceptionInterface();
+	FShaderCompileDistributedThreadRunnable_Interface(class FShaderCompilingManager* InManager, class IDistributedBuildController& InController);
+	virtual ~FShaderCompileDistributedThreadRunnable_Interface();
 
 	/** Main work loop. */
 	virtual int32 CompilingLoop() override;
 
 	static bool IsSupported();
 
+protected:
+	
+	IDistributedBuildController& CachedController;
+	TMap<EShaderPlatform, TArray<FString> >	PlatformShaderInputFilesCache;
+
 private:
+
+	TArray<FString> GetDependencyFilesForJobs(TArray<FShaderCommonCompileJobPtr>& Jobs);
 	void DispatchShaderCompileJobsBatch(TArray<FShaderCommonCompileJobPtr>& JobsToSerialize);
 };
-
-#endif // PLATFORM_WINDOWS
 
 /** Results for a single compiled and finalized shader map. */
 using FShaderMapFinalizeResults = FShaderMapCompileResults;
@@ -684,8 +692,8 @@ class FShaderCompilingManager
 
 #if PLATFORM_WINDOWS
 	friend class FShaderCompileXGEThreadRunnable_XmlInterface;
-	friend class FShaderCompileXGEThreadRunnable_InterceptionInterface;
 #endif // PLATFORM_WINDOWS
+	friend class FShaderCompileDistributedThreadRunnable_Interface;
 
 private:
 
@@ -762,6 +770,12 @@ private:
 	 */
 	uint64 SuppressedShaderPlatforms;
 
+	/** Cached Engine loop initialization state */
+	bool bIsEngineLoopInitialized;
+
+	/** Interface to the build distribution controller (XGE/SN-DBS) */
+	IDistributedBuildController* BuildDistributionController;
+
 	/** Opt out of material shader compilation and instead place an empty shader map. */
 	bool bNoShaderCompilation;
 
@@ -785,6 +799,12 @@ private:
 
 	/** Recompiles shader jobs with errors if requested, and returns true if a retry was needed. */
 	bool HandlePotentialRetryOnError(TMap<int32, FShaderMapFinalizeResults>& CompletedShaderMaps);
+	
+	/** Checks if any target platform down't support remote shader compiling */
+	bool AllTargetPlatformSupportsRemoteShaderCompiling();
+	
+	/** Returns the first remote compiler controller found */
+	IDistributedBuildController* FindRemoteCompilerController() const;
 
 public:
 	
