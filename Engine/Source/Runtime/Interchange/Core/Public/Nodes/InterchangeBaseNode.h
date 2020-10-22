@@ -132,17 +132,17 @@ bool FillCustom##AttributeName##FromAsset(UObject* Asset)											\
 #endif //#if WITH_ENGINE
 
 #define IMPLEMENT_NODE_ATTRIBUTE_GETTER(AttributeName, AttributeType)																					\
-	FString OperationName = GetTypeName() + TEXT(".Get##AttributeName");																				\
+	FString OperationName = GetTypeName() + TEXT(".Get" #AttributeName);																				\
 	return InterchangePrivateNodeBase::GetCustomAttribute<AttributeType>(Attributes, Macro_Custom##AttributeName##Key, OperationName, AttributeValue);
 
 #define IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(AttributeName, AttributeType)															\
-	FString OperationName = GetTypeName() + TEXT(".Set##AttributeName");																				\
+	FString OperationName = GetTypeName() + TEXT(".Set" #AttributeName);																				\
 	return InterchangePrivateNodeBase::SetCustomAttribute<AttributeType>(Attributes, Macro_Custom##AttributeName##Key, OperationName, AttributeValue);
 
 #if WITH_ENGINE
 
 #define IMPLEMENT_NODE_ATTRIBUTE_SETTER(NodeClassName, AttributeName, AttributeType, AssetType)														\
-	FString OperationName = GetTypeName() + TEXT(".Set##AttributeName");																			\
+	FString OperationName = GetTypeName() + TEXT(".Set" #AttributeName);																			\
 	if(InterchangePrivateNodeBase::SetCustomAttribute<AttributeType>(Attributes, Macro_Custom##AttributeName##Key, OperationName, AttributeValue))	\
 	{																																				\
 		if(bAddApplyDelegate)																														\
@@ -159,7 +159,7 @@ bool FillCustom##AttributeName##FromAsset(UObject* Asset)											\
 #else //#if WITH_ENGINE
 
 #define IMPLEMENT_NODE_ATTRIBUTE_SETTER(NodeClassName, AttributeName, AttributeType, AssetType)															\
-	FString OperationName = GetTypeName() + TEXT(".Set##AttributeName");																				\
+	FString OperationName = GetTypeName() + TEXT(".Set" #AttributeName);																				\
 	return InterchangePrivateNodeBase::SetCustomAttribute<AttributeType>(Attributes, Macro_Custom##AttributeName##Key, OperationName, AttributeValue);
 
 #endif //#if WITH_ENGINE

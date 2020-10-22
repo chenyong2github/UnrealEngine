@@ -77,16 +77,21 @@ namespace UE
 			/* FGCObject interface */
 			virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 
+			//The following Arrays are per source data
 			TArray <TStrongObjectPtr<UInterchangeBaseNodeContainer>> BaseNodeContainers;
-
 			TArray<UInterchangeSourceData* > SourceDatas;
 			TArray<UInterchangeTranslatorBase* > Translators;
-			TArray<UInterchangePipelineBase* > Pipelines;
 			TArray<UInterchangeFactoryBase* > Factories;
 
+			//Pipelines array is not per source data 
+			TArray<UInterchangePipelineBase* > Pipelines;
+			
+
 			TArray<FGraphEventRef> TranslatorTasks;
-			TArray<FGraphEventRef> PipelineTasks;
+			TArray<FGraphEventRef> PipelinePreImportTasks;
+			TArray<FGraphEventRef> PipelinePostImportTasks;
 			FGraphEventRef ParsingTask;
+			TArray<FGraphEventRef> CreatePackageTasks;
 			TArray<FGraphEventRef> CreateAssetTasks;
 
 			FGraphEventRef CompletionTask;

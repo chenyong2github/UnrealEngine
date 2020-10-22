@@ -119,17 +119,25 @@ void UE::Interchange::FImportAsyncHelper::CancelAndWaitUntilDoneSynchronously()
 	{
 		TasksToComplete.Append(TranslatorTasks);
 	}
-	if (PipelineTasks.Num())
+	if (PipelinePreImportTasks.Num())
 	{
-		TasksToComplete.Append(PipelineTasks);
+		TasksToComplete.Append(PipelinePreImportTasks);
 	}
 	if (ParsingTask.GetReference())
 	{
 		TasksToComplete.Add(ParsingTask);
 	}
+	if (CreatePackageTasks.Num())
+	{
+		TasksToComplete.Append(CreatePackageTasks);
+	}
 	if (CreateAssetTasks.Num())
 	{
 		TasksToComplete.Append(CreateAssetTasks);
+	}
+	if (PipelinePostImportTasks.Num())
+	{
+		TasksToComplete.Append(PipelinePostImportTasks);
 	}
 	if (CompletionTask.GetReference())
 	{
@@ -420,9 +428,9 @@ UE::Interchange::FAsyncImportResult UInterchangeManager::ImportAssetAsync(const 
 		// Stack all pipelines, for this import proto. TODO: We need to be able to control which pipeline we use for the import
 		// It can be set in the project settings and can also be set by a UI where the user create the pipeline stack he want.
 		// This should be a list of available pipelines that can be drop into a stack where you can control the order.
-		for (int32 GraphPipelineNumber = 0; GraphPipelineNumber < PipelineCandidates.Num(); ++GraphPipelineNumber)
+		for (int32 GraphPipelineIndex = 0; GraphPipelineIndex < PipelineCandidates.Num(); ++GraphPipelineIndex)
 		{
-			UInterchangePipelineBase* GeneratedPipeline = NewObject<UInterchangePipelineBase>(GetTransientPackage(), PipelineCandidates[GraphPipelineNumber], NAME_None, RF_NoFlags);
+			UInterchangePipelineBase* GeneratedPipeline = NewObject<UInterchangePipelineBase>(GetTransientPackage(), PipelineCandidates[GraphPipelineIndex], NAME_None, RF_NoFlags);
 			AsyncHelper->Pipelines.Add(GeneratedPipeline);
 		}
 	}
@@ -446,13 +454,13 @@ UE::Interchange::FAsyncImportResult UInterchangeManager::ImportAssetAsync(const 
 		UInterchangePipelineBase* GraphPipeline = AsyncHelper->Pipelines[GraphPipelineIndex];
 		TWeakObjectPtr<UInterchangePipelineBase> WeakPipelinePtr = GraphPipeline;
 		int32 GraphPipelineTaskIndex = INDEX_NONE;
-		GraphPipelineTaskIndex = AsyncHelper->PipelineTasks.Add(TGraphTask<UE::Interchange::FTaskPipeline>::CreateTask(&PipelinePrerequistes).ConstructAndDispatchWhenReady(WeakPipelinePtr, WeakAsyncHelper));
+		GraphPipelineTaskIndex = AsyncHelper->PipelinePreImportTasks.Add(TGraphTask<UE::Interchange::FTaskPipelinePreImport>::CreateTask(&PipelinePrerequistes).ConstructAndDispatchWhenReady(WeakPipelinePtr, WeakAsyncHelper));
 		//Ensure we run the pipeline in the same order we create the task, since pipeline modify the node container, its important that its not process in parallel, Adding the one we start to the prerequisites
 		//is the way to go here
-		PipelinePrerequistes.Add(AsyncHelper->PipelineTasks[GraphPipelineTaskIndex]);
+		PipelinePrerequistes.Add(AsyncHelper->PipelinePreImportTasks[GraphPipelineTaskIndex]);
 
 		//Add pipeline to the graph parsing prerequisites
-		GraphParsingPrerequistes.Add(AsyncHelper->PipelineTasks[GraphPipelineTaskIndex]);
+		GraphParsingPrerequistes.Add(AsyncHelper->PipelinePreImportTasks[GraphPipelineTaskIndex]);
 	}
 
 	if (GraphParsingPrerequistes.Num() > 0)

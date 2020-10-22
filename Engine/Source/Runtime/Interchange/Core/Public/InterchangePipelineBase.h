@@ -10,6 +10,14 @@
 
 #include "InterchangePipelineBase.generated.h"
 
+UENUM(BlueprintType)
+enum class EInterchangePipelineTask : uint8
+{
+	PreFactoryImport,
+	PostFactoryImport,
+	Export
+};
+
 UCLASS(BlueprintType, Blueprintable)
 class INTERCHANGECORE_API UInterchangePipelineBase : public UObject
 {
@@ -18,16 +26,29 @@ class INTERCHANGECORE_API UInterchangePipelineBase : public UObject
 public:
 
 	/**
-	 * Non virtual helper to allow blueprint to implement event base function to implement a pipeline,
+	 * Non virtual helper to allow blueprint to implement event base function to implement a pre import pipeline,
 	 * the Interchange manager is calling this function not the virtual one that is call by the default implementation.
 	 */
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Interchange | Translator")
-	bool ScriptedExecuteImportPipeline(UInterchangeBaseNodeContainer* BaseNodeContainer);
+	bool ScriptedExecutePreImportPipeline(UInterchangeBaseNodeContainer* BaseNodeContainer);
 	/** The default implementation (call if the blueprint do not have any implementation) will call the virtual ExecuteImportPipeline */
-	bool ScriptedExecuteImportPipeline_Implementation(UInterchangeBaseNodeContainer* BaseNodeContainer)
+	bool ScriptedExecutePreImportPipeline_Implementation(UInterchangeBaseNodeContainer* BaseNodeContainer)
 	{
 		//By default we call the virtual import pipeline execution
-		return ExecuteImportPipeline(BaseNodeContainer);
+		return ExecutePreImportPipeline(BaseNodeContainer);
+	}
+
+	/**
+	 * Non virtual helper to allow blueprint to implement event base function to implement a post import pipeline,
+	 * the Interchange manager is calling this function not the virtual one that is call by the default implementation.
+	 */
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Interchange | Translator")
+	bool ScriptedExecutePostImportPipeline(const UInterchangeBaseNodeContainer* BaseNodeContainer, const FName& NodeKey, UObject* CreatedAsset);
+	/** The default implementation (call if the blueprint do not have any implementation) will call the virtual ExecuteImportPipeline */
+	bool ScriptedExecutePostImportPipeline_Implementation(const UInterchangeBaseNodeContainer* BaseNodeContainer, const FName& NodeKey, UObject* CreatedAsset)
+	{
+		//By default we call the virtual import pipeline execution
+		return ExecutePostImportPipeline(BaseNodeContainer, NodeKey, CreatedAsset);
 	}
 
 	/**
@@ -48,12 +69,12 @@ public:
 	 * the Interchange manager is calling this function not the virtual one that is call by the default implementation.
 	 */
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Interchange | Translator")
-	bool ScriptedCanExecuteOnAnyThread();
+	bool ScriptedCanExecuteOnAnyThread(EInterchangePipelineTask PipelineTask);
 
 	/** The default implementation (call if the blueprint do not have any implementation) will call the virtual CanExecuteAsync */
-	bool ScriptedCanExecuteOnAnyThread_Implementation()
+	bool ScriptedCanExecuteOnAnyThread_Implementation(EInterchangePipelineTask PipelineTask)
 	{
-		return CanExecuteOnAnyThread();
+		return CanExecuteOnAnyThread(PipelineTask);
 	}
 protected:
 
@@ -62,7 +83,17 @@ protected:
 	 * The interchange manager is not calling this function directly. It is calling the blueprint native event in case this object is a blueprint derive object.
 	 * By default the scripted implementation is calling this virtual pipeline.
 	 */
-	virtual bool ExecuteImportPipeline(UInterchangeBaseNodeContainer* BaseNodeContainer)
+	virtual bool ExecutePreImportPipeline(UInterchangeBaseNodeContainer* BaseNodeContainer)
+	{
+		return false;
+	}
+
+	/**
+	 * This function can read the node data and apply some change to the imported asset. This is call after the factory create the asset and configure the asset properties.
+	 * The interchange manager is not calling this function directly. It is calling the blueprint native event in case this object is a blueprint derive object.
+	 * By default the scripted implementation is calling this virtual pipeline.
+	 */
+	virtual bool ExecutePostImportPipeline(const UInterchangeBaseNodeContainer* BaseNodeContainer, const FName& NodeKey, UObject* CreatedAsset)
 	{
 		return false;
 	}
@@ -73,7 +104,7 @@ protected:
 	 * import process in same time.
 	 *
 	 */
-	virtual bool CanExecuteOnAnyThread()
+	virtual bool CanExecuteOnAnyThread(EInterchangePipelineTask PipelineTask)
 	{
 		return true;
 	}

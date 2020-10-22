@@ -382,7 +382,7 @@ UE::Interchange::FAsyncImportResult FDatasmithTextureImporter::CreateTextureAsyn
 	return FutureTexture;
 }
 
-bool UDatasmithTexturePipeline::ExecuteImportPipeline(UInterchangeBaseNodeContainer* BaseNodeContainer)
+bool UDatasmithTexturePipeline::ExecutePreImportPipeline(UInterchangeBaseNodeContainer* BaseNodeContainer)
 {
 	if ( !TextureElement.IsValid() )
 	{
