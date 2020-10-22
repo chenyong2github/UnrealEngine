@@ -5,6 +5,7 @@
 #pragma once
 
 #include "Async/ParallelFor.h"
+#include "Misc/ScopeLock.h"
 
 #include "Math/UnrealMathUtility.h"
 #include "MeshShapeGenerator.h"
