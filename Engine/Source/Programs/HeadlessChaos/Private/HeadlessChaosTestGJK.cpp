@@ -557,7 +557,7 @@ namespace ChaosTest
 			HullParticles.X(1) = { 1,-1,-1 };
 			HullParticles.X(2) = { 0,1,-1 };
 			HullParticles.X(3) = { 0,0,1 };
-			FConvex B(HullParticles);
+			FConvex B(HullParticles, 0.0f);
 
 			for (const TVector<T, 3>& InitialDir : InitialDirs)
 			{
@@ -591,7 +591,7 @@ namespace ChaosTest
 			TriangleParticles.X(0) = { -1,-1,-1 };
 			TriangleParticles.X(1) = { 1,-1,-1 };
 			TriangleParticles.X(2) = { 0,1,-1 };
-			FConvex B(TriangleParticles);
+			FConvex B(TriangleParticles, 0.0f);
 
 			//triangle
 			for (const TVector<T, 3>& InitialDir : InitialDirs)
@@ -936,7 +936,7 @@ namespace ChaosTest
 		HullParticles.X(1) = { 3,1,0 };
 		HullParticles.X(2) = { 3,-1,0 };
 		HullParticles.X(3) = { 4,0,2 };
-		FConvex A(HullParticles);
+		FConvex A(HullParticles, 0.0f);
 		TSphere<T, 3> B(TVector<T, 3>(0, 0, 0), 1);
 
 		TVector<T, 3> InitialDirs[] = { TVector<T,3>(1,0,0), TVector<T,3>(-1,0,0), TVector<T,3>(0,1,0), TVector<T,3>(0,-1,0), TVector<T,3>(0,0,1), TVector<T,3>(0,0,-1) };
@@ -1379,7 +1379,7 @@ namespace ChaosTest
 			ConvexParticles.X(9) = { -91008.5000, 33715.5625, -19199.9961 };
 
 
-			const FConvex A(ConvexParticles);
+			const FConvex A(ConvexParticles, 0.0f);
 			const TAABB<T, 3> B(TVec3<T>{ -6.00000000, -248.000000, -9.99999975e-05 }, TVec3<T>{ 6.00000000, 248.000000, 9.99999975e-05 });
 			const TRigidTransform<T, 3> BToATM(TVec3<T>{33470.5000, 41570.5000, -1161.00000}, TRotation<T, 3>::FromIdentity());
 			const TVec3<T> LocalDir(0, 0, -1);
@@ -1408,7 +1408,7 @@ namespace ChaosTest
 			ConvexParticles.X(6) ={256.000031,-11.9999399,6.10351563e-05};
 			ConvexParticles.X(7) ={256.000031,-11.9999399,384.000061};
 
-			TUniquePtr<FConvex> UniqueConvex = MakeUnique<FConvex>(ConvexParticles);
+			TUniquePtr<FConvex> UniqueConvex = MakeUnique<FConvex>(ConvexParticles, 0.0f);
 			TSerializablePtr<FConvex> AConv(UniqueConvex);
 			const TImplicitObjectScaled<FConvex> A(AConv,TVec3<T>(1.0,1.0,1.0));
 
@@ -1450,7 +1450,7 @@ namespace ChaosTest
 			ConvexParticles.X(14) ={-32.9052925,194.240204,194.534958};
 			ConvexParticles.X(15) ={108.595482,199.020599,160.910309};
 
-			auto Convex = MakeShared<FConvex, ESPMode::ThreadSafe>(ConvexParticles);
+			auto Convex = MakeShared<FConvex, ESPMode::ThreadSafe>(ConvexParticles, 0.0f);
 			const auto& A = *Convex;
 			//const TImplicitObjectInstanced<FConvex> A(Convex);
 
@@ -1504,7 +1504,7 @@ namespace ChaosTest
 			ConvexParticles.X(1) ={7500.00000, 12600.0000, 199.994904};
 			ConvexParticles.X(2) ={7500.00000, 12700.0000, 189.837433};
 			
-			TUniquePtr<FConvex> UniqueConvex = MakeUnique<FConvex>(ConvexParticles);
+			TUniquePtr<FConvex> UniqueConvex = MakeUnique<FConvex>(ConvexParticles, 0.0f);
 			TSerializablePtr<FConvex> AConv(UniqueConvex);
 			const TImplicitObjectScaled<FConvex> AConvScaled(AConv,TVec3<T>(1.0,1.0,1.0));
 
