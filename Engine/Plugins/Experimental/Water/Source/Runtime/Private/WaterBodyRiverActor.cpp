@@ -315,7 +315,7 @@ void URiverGenerator::UpdateSplineMesh(USplineMeshComponent* MeshComp, int32 Spl
 					const FVector& HullVert = Elem.VertexData[VertIndex];
 					ConvexParticles.X(VertIndex) = FVector(HullVert.X, HullVert.Y, HullVert.Z);
 				}
-				TSharedPtr<Chaos::FConvex, ESPMode::ThreadSafe> ChaosConvex = MakeShared<Chaos::FConvex, ESPMode::ThreadSafe>(ConvexParticles);
+				TSharedPtr<Chaos::FConvex, ESPMode::ThreadSafe> ChaosConvex = MakeShared<Chaos::FConvex, ESPMode::ThreadSafe>(ConvexParticles, 0.0f);
 				Elem.SetChaosConvexMesh(MoveTemp(ChaosConvex));
 			}
 

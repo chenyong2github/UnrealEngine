@@ -15,6 +15,7 @@
 
 #include "Serialization/Archive.h"
 #include "PhysicsEngine/BodySetup.h"
+#include "PhysicsEngine/PhysicsSettings.h"
 #include "Serialization/MemoryWriter.h"
 
 int32 EnableMeshClean = 1;
@@ -338,23 +339,42 @@ void FChaosDerivedDataCooker::BuildTriangleMeshes(TArray<TUniquePtr<Chaos::FTria
 
 void FChaosDerivedDataCooker::BuildConvexMeshes(TArray<TUniquePtr<Chaos::FImplicitObject>>& OutConvexMeshes, const FCookBodySetupInfo& InParams)
 {
+	using namespace Chaos;
 	auto BuildConvexFromVerts = [](TArray<TUniquePtr<Chaos::FImplicitObject>>& OutConvexes, const TArray<TArray<FVector>>& InMeshVerts, const bool bMirrored)
 	{
 		for(const TArray<FVector>& HullVerts : InMeshVerts)
 		{
-			Chaos::TParticles<Chaos::FReal, 3> ConvexParticles;
-
 			const int32 NumHullVerts = HullVerts.Num();
+			if (NumHullVerts == 0)
+			{
+				continue;
+			}
 
+			// Calculate the margin to apply to the convex - it depends on overall dimensions
+			FAABB3 Bounds = FAABB3::EmptyAABB();
+			for (int32 VertIndex = 0; VertIndex < NumHullVerts; ++VertIndex)
+			{
+				const FVector& HullVert = HullVerts[VertIndex];
+				Bounds.GrowToInclude(HullVert);
+			}
+
+			// @todo(chaos): dedupe - see ChaosInterfaceUtils.cpp CreateGeometry()
+			const float CollisionMarginFraction = FMath::Max(0.0f, UPhysicsSettingsCore::Get()->SolverOptions.CollisionMarginFraction);
+			const float CollisionMarginMax = FMath::Max(0.0f, UPhysicsSettingsCore::Get()->SolverOptions.CollisionMarginMax);
+			const float CollisionMargin = FMath::Min(Bounds.Extents().GetAbsMax() * CollisionMarginFraction, CollisionMarginMax);
+
+			// Create the surface particle for the convex
+			TParticles<FReal, 3> ConvexParticles;
 			ConvexParticles.AddParticles(NumHullVerts);
 
-			for(int32 VertIndex = 0; VertIndex < NumHullVerts; ++VertIndex)
+			for (int32 VertIndex = 0; VertIndex < NumHullVerts; ++VertIndex)
 			{
 				const FVector& HullVert = HullVerts[VertIndex];
 				ConvexParticles.X(VertIndex) = FVector(bMirrored ? -HullVert.X : HullVert.X, HullVert.Y, HullVert.Z);
 			}
 
-			OutConvexes.Emplace(new Chaos::FConvex(ConvexParticles));
+
+			OutConvexes.Emplace(new Chaos::FConvex(ConvexParticles, CollisionMargin));
 		}
 	};
 
