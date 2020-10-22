@@ -29,7 +29,7 @@ namespace Strata
 
 bool IsStrataEnabled()
 {
-	return CVarStrata.GetValueOnRenderThread() > 0;
+	return CVarStrata.GetValueOnAnyThread() > 0;
 }
 
 void InitialiseStrataFrameSceneData(FSceneRenderer& SceneRenderer, FRDGBuilder& GraphBuilder)
