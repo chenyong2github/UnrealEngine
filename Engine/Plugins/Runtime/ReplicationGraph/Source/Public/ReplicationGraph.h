@@ -65,6 +65,8 @@ UReplicationGraph::InitConnectionGraphNodes
 
 struct FReplicationGraphDestructionSettings;
 
+typedef TObjectKey<class UNetReplicationGraphConnection> FRepGraphConnectionKey;
+
 #define DO_ENABLE_REPGRAPH_DEBUG_ACTOR !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
 UCLASS(transient, config=Engine)
@@ -198,8 +200,6 @@ class REPLICATIONGRAPH_API UReplicationGraphNode_ActorList : public UReplication
 	GENERATED_BODY()
 
 public:
-	
-	UReplicationGraphNode_ActorList() { if (!HasAnyFlags(RF_ClassDefaultObject)) { ReplicationActorList.Reset(4); } }
 
 	virtual void NotifyAddNetworkActor(const FNewReplicatedActorInfo& ActorInfo) override;
 	
@@ -419,6 +419,26 @@ class REPLICATIONGRAPH_API UReplicationGraphNode_ConnectionDormancyNode : public
 {
 	GENERATED_BODY()
 public:
+
+	/** 
+	* This setting determines the number of frames from the last Gather call when we consider a node obsolete.
+	* The default value of 0 disables this condition.
+	* Enable this to reduce the memory footprint of the RepGraph and optimize the exponential cost of dormancy events (the more each connection moves around the grid cell the more each dormancy events is listened to).
+	* Inversely if clients go back and forth across the same cell multiple times the cost of the first Gather of newly created cell is very high (it rechecks all dormant actors in the cell before removing them).
+	* This means this optimization is ideal only if you know the clients can't go back to previously visited cells, or that they do so very infrequently.
+	*/
+	static void SetNumFramesUntilObsolete(uint32 NumFrames);
+
+public:
+
+	void InitConnectionNode(const FRepGraphConnectionKey& InConnectionOwner, uint32 CurrentFrame) 
+	{
+		ConnectionOwner = InConnectionOwner;
+		LastGatheredFrame = CurrentFrame;
+	}
+
+	virtual void TearDown() override;
+
 	virtual void GatherActorListsForConnection(const FConnectionGatherActorListParameters& Params) override;
 	virtual bool NotifyRemoveNetworkActor(const FNewReplicatedActorInfo& ActorInfo, bool WarnIfNotFound) override;
 	virtual void NotifyResetAllNetworkActors() override;
@@ -427,7 +447,18 @@ public:
 
 	void OnClientVisibleLevelNameAdd(FName LevelName, UWorld* World);
 
+	bool IsNodeObsolete(uint32 CurrentFrame) const;
+
 private:
+
+	static uint32 NumFramesUntilObsolete;
+
+private:
+
+	FRepGraphConnectionKey ConnectionOwner;
+
+	uint32 LastGatheredFrame = 0;
+
 	void ConditionalGatherDormantActorsForConnection(FActorRepListRefView& ConnectionRepList, const FConnectionGatherActorListParameters& Params, FActorRepListRefView* RemovedList);
 	
 	int32 TrickleStartCounter = 10;
@@ -445,7 +476,10 @@ class REPLICATIONGRAPH_API UReplicationGraphNode_DormancyNode : public UReplicat
 
 public:
 
-	static float MaxZForConnection; // Connection Z location has to be < this for ConnectionsNodes to be made.
+	/** Connection Z location has to be < this for ConnectionsNodes to be made. */
+	static float MaxZForConnection; 
+
+public:
 
 	virtual void NotifyAddNetworkActor(const FNewReplicatedActorInfo& ActorInfo) override { ensureMsgf(false, TEXT("UReplicationGraphNode_DormancyNode::NotifyAddNetworkActor not functional.")); }
 	virtual bool NotifyRemoveNetworkActor(const FNewReplicatedActorInfo& ActorInfo, bool bWarnIfNotFound=true) override { ensureMsgf(false, TEXT("UReplicationGraphNode_DormancyNode::NotifyRemoveNetworkActor not functional.")); return false; }
@@ -466,18 +500,19 @@ public:
 
 private:
 
+	UReplicationGraphNode_ConnectionDormancyNode* CreateConnectionNode(const FConnectionGatherActorListParameters& Params);
+
 	/** Function called on every ConnectionDormancyNode in our list */
 	typedef TFunction<void(UReplicationGraphNode_ConnectionDormancyNode*)> FConnectionDormancyNodeFunction;
 
 	/**
 	 * Iterates over all ConnectionDormancyNodes and calls the function on those still valid.
-	 * If a RepGraphConnection was torn down since the last iteration, it removes and destroys the ConnectionDormancyNode associated with the Connection.
+	 * If the node is considered obsolete, the function will destroy or skip over the ConnectionDormancyNode 
 	 */
 	void CallFunctionOnValidConnectionNodes(FConnectionDormancyNodeFunction Function);
 
 private:
 
-	typedef TObjectKey<UNetReplicationGraphConnection> FRepGraphConnectionKey;
 	typedef TSortedMap<FRepGraphConnectionKey, UReplicationGraphNode_ConnectionDormancyNode*> FConnectionDormancyNodeMap;
 	FConnectionDormancyNodeMap ConnectionNodes;
 };
