@@ -172,6 +172,9 @@ FMobileSceneRenderer::FMobileSceneRenderer(const FSceneViewFamily* InViewFamily,
 	bShouldRenderCustomDepth = false;
 	bRequiresPixelProjectedPlanarRelfectionPass = false;
 	bRequriesAmbientOcclusionPass = false;
+
+	static const auto CVarMobileMSAA = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MobileMSAA"));
+	NumMSAASamples = (CVarMobileMSAA ? CVarMobileMSAA->GetValueOnAnyThread() : 1);
 }
 
 class FMobileDirLightShaderParamsRenderResource : public FRenderResource
@@ -514,17 +517,21 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	const bool bForceDepthResolve = (CVarMobileForceDepthResolve.GetValueOnRenderThread() == 1);
 	const bool bSeparateTranslucencyActive = IsMobileSeparateTranslucencyActive(View); 
 	bRequiresMultiPass = RequiresMultiPass(RHICmdList, View);
-	bKeepDepthContent = bRequiresMultiPass || bForceDepthResolve ||  (bRenderToSceneColor &&
-		(bSeparateTranslucencyActive ||
-		 View.bIsReflectionCapture ||
-		 (View.bIsSceneCapture && (ViewFamily.SceneCaptureSource == ESceneCaptureSource::SCS_SceneColorHDR || ViewFamily.SceneCaptureSource == ESceneCaptureSource::SCS_SceneColorSceneDepth))));
+	bKeepDepthContent = 
+		bRequiresMultiPass || 
+		bForceDepthResolve ||
+		bRequriesAmbientOcclusionPass ||
+		bRequiresPixelProjectedPlanarRelfectionPass ||
+		(bRenderToSceneColor &&	(bSeparateTranslucencyActive || View.bIsReflectionCapture));
+	// never keep MSAA depth
+	bKeepDepthContent = (NumMSAASamples > 1 ? false : bKeepDepthContent);
 
 	// Initialize global system textures (pass-through if already initialized).
 	GSystemTextures.InitializeTextures(RHICmdList, ViewFeatureLevel);
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
 
 	// Allocate the maximum scene render target space for the current view family.
-	SceneContext.SetKeepDepthContent(bKeepDepthContent || bRequiresPixelProjectedPlanarRelfectionPass || bRequriesAmbientOcclusionPass);
+	SceneContext.SetKeepDepthContent(bKeepDepthContent);
 	SceneContext.Allocate(RHICmdList, this);
 	if (bDeferredShading)
 	{
@@ -797,7 +804,7 @@ FRHITexture* FMobileSceneRenderer::RenderForward(FRHICommandListImmediate& RHICm
 	FRHITexture* SceneDepth = nullptr;
 	ERenderTargetActions ColorTargetAction = ERenderTargetActions::Clear_Store;
 	EDepthStencilTargetActions DepthTargetAction = EDepthStencilTargetActions::ClearDepthStencil_DontStoreDepthStencil;
-	bool bMobileMSAA = SceneContext.GetSceneColorSurface()->GetNumSamples() > 1;
+	bool bMobileMSAA = NumMSAASamples > 1;
 	
 	if (bGammaSpace && !bRenderToSceneColor)
 	{
@@ -839,7 +846,7 @@ FRHITexture* FMobileSceneRenderer::RenderForward(FRHICommandListImmediate& RHICm
 			DepthTargetAction = EDepthStencilTargetActions::ClearDepthStencil_StoreDepthStencil;
 		}
 						
-		if ((bKeepDepthContent || bRequiresPixelProjectedPlanarRelfectionPass || bRequriesAmbientOcclusionPass) && !bMobileMSAA)
+		if (bKeepDepthContent)
 		{
 			// store depth if post-processing/capture needs it
 			DepthTargetAction = EDepthStencilTargetActions::ClearDepthStencil_StoreDepthStencil;
@@ -1263,9 +1270,7 @@ bool FMobileSceneRenderer::RequiresMultiPass(FRHICommandListImmediate& RHICmdLis
 	}
 
 	// MSAA depth can't be sampled or resolved, unless we are on PC (no vulkan)
-	static const auto CVarMobileMSAA = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MobileMSAA"));
-	const bool bMobileMSAA = (CVarMobileMSAA ? CVarMobileMSAA->GetValueOnAnyThread() > 1 : false);
-	if (bMobileMSAA && !IsSimulatedPlatform(ShaderPlatform))
+	if (NumMSAASamples > 1 && !IsSimulatedPlatform(ShaderPlatform))
 	{
 		return false;
 	}
@@ -1530,9 +1535,8 @@ IMPLEMENT_SHADER_TYPE(, FPreTonemapMSAA_Mobile,TEXT("/Engine/Private/PostProcess
 void FMobileSceneRenderer::PreTonemapMSAA(FRHICommandListImmediate& RHICmdList)
 {
 	// iOS only
-	static const auto CVarMobileMSAA = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MobileMSAA"));
 	bool bOnChipPP = GSupportsRenderTargetFormat_PF_FloatRGBA && GSupportsShaderFramebufferFetch &&	ViewFamily.EngineShowFlags.PostProcessing;
-	bool bOnChipPreTonemapMSAA = bOnChipPP && IsMetalMobilePlatform(ViewFamily.GetShaderPlatform()) && (CVarMobileMSAA ? CVarMobileMSAA->GetValueOnAnyThread() > 1 : false);
+	bool bOnChipPreTonemapMSAA = bOnChipPP && IsMetalMobilePlatform(ViewFamily.GetShaderPlatform()) && (NumMSAASamples > 1);
 	if (!bOnChipPreTonemapMSAA)
 	{
 		return;
