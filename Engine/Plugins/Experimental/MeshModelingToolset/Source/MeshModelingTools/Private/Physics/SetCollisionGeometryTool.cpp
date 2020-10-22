@@ -193,8 +193,10 @@ void USetCollisionGeometryTool::Shutdown(EToolShutdownType ShutdownType)
 		// mark static mesh as dirty so it gets resaved?
 		StaticMesh->MarkPackageDirty();
 
+#if WITH_EDITORONLY_DATA
 		// mark the static mesh as having customized collision so it is not regenerated on reimport
 		StaticMesh->bCustomizedCollision = true;
+#endif // WITH_EDITORONLY_DATA
 
 		// post the undo transaction
 		GetToolManager()->EndUndoTransaction();
