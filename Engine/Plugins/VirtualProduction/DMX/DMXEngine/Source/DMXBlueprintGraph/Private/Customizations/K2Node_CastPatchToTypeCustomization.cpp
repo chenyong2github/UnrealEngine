@@ -44,32 +44,32 @@ void K2Node_CastPatchToTypeCustomization::CustomizeDetails(IDetailLayoutBuilder&
 				+ SUniformGridPanel::Slot(0, 0)
 				[
 					SNew(SButton)
-					.OnClicked(this, &K2Node_CastPatchToTypeCustomization::ExposeFunctionsClicked)
-					.ToolTipText(LOCTEXT("ExposeFunctionsButtonTooltip", "Expose Functions to Node Pins"))
+					.OnClicked(this, &K2Node_CastPatchToTypeCustomization::ExposeAttributesClicked)
+					.ToolTipText(LOCTEXT("ExposeAttributesButtonTooltip", "Expose Attributes to Node Pins"))
 					.IsEnabled_Lambda([Node]() -> bool { return Node && !Node->IsExposed(); })
 					.HAlign(HAlign_Center)
 					[
 						SNew(STextBlock)
-						.Text(LOCTEXT("ExposeFunctionsButton", "Expose Functions"))
+						.Text(LOCTEXT("ExposeAttributesButton", "Expose Attributes"))
 					]
 				]
 				+ SUniformGridPanel::Slot(1, 0)
 				[
 					SNew(SButton)
-					.OnClicked(this, &K2Node_CastPatchToTypeCustomization::ResetFunctionsClicked)
-					.ToolTipText(LOCTEXT("ResetFunctionsButtonTooltip", "Resets Functions from Node Pins."))
+					.OnClicked(this, &K2Node_CastPatchToTypeCustomization::ResetAttributesClicked)
+					.ToolTipText(LOCTEXT("ResetAttributesButtonTooltip", "Resets Attributes from Node Pins."))
 					.IsEnabled_Lambda([Node]() -> bool { return Node && Node->IsExposed(); })
 					.HAlign(HAlign_Center)
 					[
 						SNew(STextBlock)
-						.Text(LOCTEXT("ResetEmitterButton", "Reset Functions"))
+						.Text(LOCTEXT("ResetEmitterButton", "Reset Attributes"))
 					]
 				]
 			]
 		];
 }
 
-FReply K2Node_CastPatchToTypeCustomization::ExposeFunctionsClicked()
+FReply K2Node_CastPatchToTypeCustomization::ExposeAttributesClicked()
 {
 	const TArray< TWeakObjectPtr<UObject> >& SelectedObjects = DetailLayout->GetSelectedObjects();
 
@@ -79,7 +79,7 @@ FReply K2Node_CastPatchToTypeCustomization::ExposeFunctionsClicked()
 		{
 			if (UK2Node_CastPatchToType* Node = Cast<UK2Node_CastPatchToType>(SelectedObjects[SelectedIndex].Get()))
 			{
-				Node->ExposeFunctions();
+				Node->ExposeAttributes();
 			}
 		}
 	}
@@ -87,11 +87,11 @@ FReply K2Node_CastPatchToTypeCustomization::ExposeFunctionsClicked()
 	return FReply::Handled();
 }
 
-FReply K2Node_CastPatchToTypeCustomization::ResetFunctionsClicked()
+FReply K2Node_CastPatchToTypeCustomization::ResetAttributesClicked()
 {
 	if (UK2Node_CastPatchToType* Node = GetK2Node_CastPatchToType())
 	{
-		Node->ResetFunctions();
+		Node->ResetAttributes();
 	}
 
 	return FReply::Handled();
