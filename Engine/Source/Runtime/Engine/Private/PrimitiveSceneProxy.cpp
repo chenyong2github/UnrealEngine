@@ -273,20 +273,21 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 			if (MaterialInterface)
 			{
 				UMaterial* Material = MaterialInterface->GetMaterial();
-				const FMaterialResource* MaterialResource = Material->GetMaterialResource(FeatureLevel);
+				if (const FMaterialResource* MaterialResource = Material->GetMaterialResource(FeatureLevel))
+				{
+					if (IsInGameThread())
+					{
+						bAlwaysHasVelocity = MaterialResource->MaterialModifiesMeshPosition_GameThread();
+					}
+					else
+					{
+						bAlwaysHasVelocity = MaterialResource->MaterialModifiesMeshPosition_RenderThread();
+					}
 
-				if (IsInGameThread())
-				{
-					bAlwaysHasVelocity = MaterialResource->MaterialModifiesMeshPosition_GameThread();
-				}
-				else
-				{
-					bAlwaysHasVelocity = MaterialResource->MaterialModifiesMeshPosition_RenderThread();
-				}
-
-				if (bAlwaysHasVelocity)
-				{
-					break;
+					if (bAlwaysHasVelocity)
+					{
+						break;
+					}
 				}
 			}
 		}
