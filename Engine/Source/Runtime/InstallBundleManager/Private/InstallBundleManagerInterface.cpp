@@ -13,18 +13,19 @@ FInstallBundleReleasedMultiDelegate IInstallBundleManager::RemovedDelegate;
 
 FInstallBundleManagerOnPatchCheckComplete IInstallBundleManager::PatchCheckCompleteDelegate;
 
-IInstallBundleManager* IInstallBundleManager::GetPlatformInstallBundleManager()
+TSharedPtr<IInstallBundleManager> IInstallBundleManager::GetPlatformInstallBundleManager()
 {
-	static IInstallBundleManager* Manager = nullptr;
+	static IInstallBundleManagerModule* Module = nullptr;
 	static bool bCheckedIni = false;
 
-	if (Manager)
-		return Manager;
+	if (Module)
+	{
+		return Module->GetInstallBundleManager();
+	}
 
 	if (!bCheckedIni && !GEngineIni.IsEmpty())
 	{
 		FString ModuleName;
-		IInstallBundleManagerModule* Module = nullptr;
 #if WITH_EDITOR
 		GConfig->GetString(TEXT("InstallBundleManager"), TEXT("EditorModuleName"), ModuleName, GEngineIni);
 #else
@@ -34,16 +35,17 @@ IInstallBundleManager* IInstallBundleManager::GetPlatformInstallBundleManager()
 		if (FModuleManager::Get().ModuleExists(*ModuleName))
 		{
 			Module = FModuleManager::LoadModulePtr<IInstallBundleManagerModule>(*ModuleName);
-			if (Module)
-			{
-				Manager = Module->GetInstallBundleManager();
-			}
 		}
 
 		bCheckedIni = true;
 	}
 
-	return Manager;
+	if (Module)
+	{
+		return Module->GetInstallBundleManager();
+	}
+
+	return {};
 }
 
 TValueOrError<FInstallBundleRequestInfo, EInstallBundleResult> IInstallBundleManager::RequestUpdateContent(FName BundleName, EInstallBundleRequestFlags Flags)
