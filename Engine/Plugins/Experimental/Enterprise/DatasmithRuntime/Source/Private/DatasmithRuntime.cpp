@@ -7,7 +7,10 @@
 #include "LogCategory.h"
 #include "SceneImporter.h"
 
+#include "DatasmithTranslatorModule.h"
 #include "IDatasmithSceneElements.h"
+#include "MasterMaterials/DatasmithMasterMaterialManager.h"
+#include "MaterialSelectors/DatasmithRuntimeRevitMaterialSelector.h"
 
 #include "Math/BoxSphereBounds.h"
 #include "Misc/Paths.h"
@@ -20,31 +23,38 @@ const TCHAR* EmptyScene = TEXT("Nothing Loaded");
 // Use to force sequential update of game content
 bool ADatasmithRuntimeActor::bImportingScene = false;
 
+TSharedPtr<FDatasmithMasterMaterialSelector> ADatasmithRuntimeActor::ExistingRevitSelector;
+TSharedPtr<FDatasmithMasterMaterialSelector> ADatasmithRuntimeActor::RuntimeRevitSelector;
+
 ADatasmithRuntimeActor::ADatasmithRuntimeActor()
 	: LoadedScene(EmptyScene)
 	, bNewScene(false)
+	, bReceivingStarted(false)
+	, bReceivingEnded(false)
 {
+	if (!RuntimeRevitSelector.IsValid())
+	{
+
+	}
+
 	RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("DatasmithRuntimeComponent"));
 	RootComponent->SetMobility(EComponentMobility::Movable);
 	RootComponent->Bounds = DefaultBounds;
 
 	PrimaryActorTick.bCanEverTick = true;
-	// Don't start ticking. Ticking if when receiving scene elements thru UDP
-	PrimaryActorTick.bStartWithTickEnabled = false;
-
+	PrimaryActorTick.bStartWithTickEnabled = true;
 	PrimaryActorTick.TickInterval = 0.1f;
 }
 
 void ADatasmithRuntimeActor::Tick(float DeltaTime)
 {
-	if (DirectLinkHelper.IsValid() && !bReceiving)
+	if (bReceivingStarted && bReceivingEnded)
 	{
-		UE_LOG(LogDatasmithRuntime, Log, TEXT("ADatasmithRuntimeActor::Tick"));
+		UE_LOG(LogDatasmithRuntime, Log, TEXT("ADatasmithRuntimeActor::Tick - Process scene's changes"));
 		if (!bImportingScene)
 		{
 			// Prevent any other DatasmithRuntime actors to import concurrently
 			bImportingScene = true;
-			SetActorTickEnabled(false);
 
 			if (bNewScene == true)
 			{
@@ -52,13 +62,21 @@ void ADatasmithRuntimeActor::Tick(float DeltaTime)
 			}
 			else
 			{
-				SceneImporter->IncrementalUpdate(UpdateContext);
+				EnableSelector(true);
+				bBuilding = true;
+
+				SceneImporter->IncrementalUpdate(DirectLinkHelper->GetScene().ToSharedRef(), UpdateContext);
 				UpdateContext.Additions.Empty();
 				UpdateContext.Deletions.Empty();
 				UpdateContext.Updates.Empty();
 			}
+
+			bReceivingStarted = false;
+			bReceivingEnded = false;
 		}
 	}
+
+	Super::Tick(DeltaTime);
 }
 
 void ADatasmithRuntimeActor::BeginPlay()
@@ -87,10 +105,17 @@ void ADatasmithRuntimeActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 void ADatasmithRuntimeActor::OnOpenDelta(/*int32 ElementsCount*/)
 {
+	// Should not happen
+	if (bReceivingStarted)
+	{
+		ensure(false);
+		return;
+	}
+
 	UE_LOG(LogDatasmithRuntime, Log, TEXT("ADatasmithRuntimeActor::OnOpenDelta"));
-	SetActorTickEnabled(true);
 	bNewScene = false;
-	bReceiving = true;
+	bReceivingStarted = DirectLinkHelper.IsValid();
+	bReceivingEnded = false;
 	ElementDeltaStep = /*ElementsCount > 0 ? 1.f / (float)ElementsCount : 0.f*/0.f;
 }
 
@@ -100,7 +125,7 @@ void ADatasmithRuntimeActor::OnNewScene(const DirectLink::FSceneIdentifier& Scen
 	bNewScene = true;
 }
 
-void ADatasmithRuntimeActor::OnAddElement(TSharedPtr<IDatasmithElement> Element)
+void ADatasmithRuntimeActor::OnAddElement(DirectLink::FSceneGraphId ElementId, TSharedPtr<IDatasmithElement> Element)
 {
 	UE_LOG(LogDatasmithRuntime, Log, TEXT("ADatasmithRuntimeActor::OnAddElement"));
 	Progress += ElementDeltaStep;
@@ -117,7 +142,7 @@ void ADatasmithRuntimeActor::OnRemovedElement(DirectLink::FSceneGraphId ElementI
 	UpdateContext.Deletions.Add(ElementId);
 }
 
-void ADatasmithRuntimeActor::OnChangedElement(TSharedPtr<IDatasmithElement> Element)
+void ADatasmithRuntimeActor::OnChangedElement(DirectLink::FSceneGraphId ElementId, TSharedPtr<IDatasmithElement> Element)
 {
 	Progress += ElementDeltaStep;
 	UE_LOG(LogDatasmithRuntime, Log, TEXT("ADatasmithRuntimeActor::OnUpdateElement"));
@@ -149,7 +174,14 @@ void ADatasmithRuntimeActor::CloseConnection()
 
 void ADatasmithRuntimeActor::OnCloseDelta()
 {
-	bReceiving = false;
+	// Something is wrong
+	if (!bReceivingStarted)
+	{
+		ensure(false);
+		return;
+	}
+
+	bReceivingEnded = DirectLinkHelper.IsValid();
 }
 
 void ADatasmithRuntimeActor::SetScene(TSharedPtr<IDatasmithScene> SceneElement)
@@ -160,9 +192,11 @@ void ADatasmithRuntimeActor::SetScene(TSharedPtr<IDatasmithScene> SceneElement)
 		TRACE_BOOKMARK(TEXT("Load started - %s"), *SceneElement->GetName());
 		Reset();
 
+		EnableSelector(true);
+
 		bBuilding = true;
 		LoadedScene = SceneElement->GetName();
-		SceneImporter->StartImport( SceneElement.ToSharedRef(), DirectLinkHelper->GetConnectedSourceHandle() );
+		SceneImporter->StartImport( SceneElement.ToSharedRef() );
 	}
 }
 
@@ -171,10 +205,18 @@ void ADatasmithRuntimeActor::Reset()
 	SceneImporter->Reset(true);
 
 	// Reset called while importing a scene, update flag accordingly
-	if (bBuilding)
+	if (bBuilding || bReceivingStarted)
 	{
+		if (bBuilding)
+		{
+			EnableSelector(false);
+		}
+
 		bImportingScene = false;
 	}
+
+	bReceivingStarted = false;
+	bReceivingEnded = false;
 
 	bBuilding = false;
 	Progress = 0.f;
@@ -185,8 +227,40 @@ void ADatasmithRuntimeActor::Reset()
 
 void ADatasmithRuntimeActor::OnImportEnd()
 {
+	EnableSelector(false);
+
 	bBuilding = false;
 
 	// Allow any other DatasmithRuntime actors to import concurrently
 	bImportingScene = false;
+
+	bReceivingStarted = false;
+	bReceivingEnded = false;
+}
+
+
+void ADatasmithRuntimeActor::EnableSelector(bool bEnable)
+{
+	if (bEnable)
+	{
+		// Overwrite Revit material selector with the one of DatasmithRuntime
+		ExistingRevitSelector = FDatasmithMasterMaterialManager::Get().GetSelector(TEXT("Revit"));
+		FDatasmithMasterMaterialManager::Get().RegisterSelector(TEXT("Revit"), RuntimeRevitSelector);
+	}
+	else
+	{
+		// Restore Revit material selector
+		FDatasmithMasterMaterialManager::Get().RegisterSelector(TEXT("Revit"), ExistingRevitSelector);
+	}
+}
+
+void ADatasmithRuntimeActor::OnStartupModule()
+{
+	RuntimeRevitSelector = MakeShared< FDatasmithRuntimeRevitMaterialSelector >();
+}
+
+void ADatasmithRuntimeActor::OnShutdownModule()
+{
+	ExistingRevitSelector.Reset();
+	RuntimeRevitSelector.Reset();
 }

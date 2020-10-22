@@ -65,14 +65,12 @@ namespace DatasmithRuntime
 		{
 			MeshData.Hash = GetTypeHash(MeshElement->CalculateElementHash(true));
 
-			if (UObject* AssetPtr = FindObjectFromHash(MeshData.Hash))
+			if (UObject* AssetPtr = FAssetRegistry::FindObjectFromHash(MeshData.Hash))
 			{
 				StaticMesh = Cast<UStaticMesh>(AssetPtr);
 				check(StaticMesh);
 
-				MeshData.Object = TStrongObjectPtr<UObject>(StaticMesh);
-
-				RegisterAssetData(StaticMesh, &MeshData);
+				MeshData.Object = TWeakObjectPtr<UObject>(StaticMesh);
 
 				bUsingStaticMeshFromCache = true;
 			}
@@ -88,9 +86,7 @@ namespace DatasmithRuntime
 #endif
 				check(StaticMesh);
 
-				RegisterAssetData(StaticMesh, &MeshData);
-
-				MeshData.Object = TStrongObjectPtr< UObject >(StaticMesh);
+				MeshData.Object = TWeakObjectPtr< UObject >(StaticMesh);
 			}
 		}
 
@@ -149,13 +145,15 @@ namespace DatasmithRuntime
 
 		MeshData.SetState(EDatasmithRuntimeAssetState::Processed);
 
+		FAssetRegistry::RegisterAssetData(StaticMesh, SceneKey, MeshData);
+
 		if (!bUsingStaticMeshFromCache)
 		{
 			MeshElementSet.Add(MeshData.ElementId);
 		}
 		else
 		{
-			MeshData.AddState(IsObjectCompleted(StaticMesh) ? EDatasmithRuntimeAssetState::Completed : EDatasmithRuntimeAssetState::Building);
+			MeshData.AddState(FAssetRegistry::IsObjectCompleted(StaticMesh) ? EDatasmithRuntimeAssetState::Completed : EDatasmithRuntimeAssetState::Building);
 		}
 
 		return true;
@@ -351,7 +349,10 @@ namespace DatasmithRuntime
 			AddToQueue(MESH_QUEUE, { TaskFunc, {EDataType::Mesh, MeshElementId, 0 } });
 		}
 
-		TasksToComplete |= EDatasmithRuntimeWorkerTask::MeshCreate;
+		if (MeshElementSet.Num() > 0)
+		{
+			TasksToComplete |=  EDatasmithRuntimeWorkerTask::MeshCreate;
+		}
 	}
 
 	bool FSceneImporter::CreateStaticMesh(FSceneGraphId ElementId, float LightmapWeight)
@@ -577,7 +578,7 @@ namespace DatasmithRuntime
 
 		check(StaticMesh->RenderData && StaticMesh->RenderData->IsInitialized());
 
-		SetObjectCompletion(StaticMesh, true);
+		FAssetRegistry::SetObjectCompletion(StaticMesh, true);
 
 		return true;
 	}
@@ -605,7 +606,7 @@ namespace DatasmithRuntime
 		{
 			MeshComponent = NewObject< UStaticMeshComponent >(RootComponent->GetOwner(), NAME_None);
 
-			ActorData.Object = TStrongObjectPtr<UObject>(MeshComponent);
+			ActorData.Object = TWeakObjectPtr<UObject>(MeshComponent);
 
 			MeshComponent->SetMobility(EComponentMobility::Movable);
 
@@ -645,6 +646,15 @@ namespace DatasmithRuntime
 		else if (OverrideMaterials.Num() > 0)
 		{
 			OverrideMaterials.Empty();
+		}
+
+		if (MeshActorElement->GetTagsCount() > 0)
+		{
+			MeshComponent->ComponentTags.Reserve(MeshActorElement->GetTagsCount());
+			for (int32 Index = 0; Index < MeshActorElement->GetTagsCount(); ++Index)
+			{
+				MeshComponent->ComponentTags.Add(MeshActorElement->GetTag(Index));
+			}
 		}
 
 		ActorData.AddState(EDatasmithRuntimeAssetState::Completed);
