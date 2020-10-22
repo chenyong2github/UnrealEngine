@@ -54,7 +54,7 @@ namespace Chaos
 			Volume = LocalBoundingBox.GetVolume();
 		}
 
-		FConvex(const TParticles<FReal, 3>& InParticles)
+		FConvex(const TParticles<FReal, 3>& InParticles, const FReal InMargin)
 		    : FImplicitObject(EImplicitObject::IsConvex | EImplicitObject::HasBoundingBox, ImplicitObjectType::Convex)
 		{
 			const uint32 NumParticles = InParticles.Size();
@@ -67,8 +67,15 @@ namespace Chaos
 			FConvexBuilder::Build(InParticles, Planes, FaceIndices, SurfaceParticles, LocalBoundingBox);
 			CHAOS_ENSURE(Planes.Num() == FaceIndices.Num());
 			CalculateVolumeAndCenterOfMass(SurfaceParticles, FaceIndices, Volume, CenterOfMass);
+
+			ApplyMargin(InMargin);
 		}
 
+	private:
+		void ApplyMargin(FReal InMargin);
+		void ShrinkCore(FReal InMargin);
+
+	public:
 		static constexpr EImplicitObjectType StaticType()
 		{
 			return ImplicitObjectType::Convex;
@@ -79,6 +86,7 @@ namespace Chaos
 			return LocalBoundingBox;
 		}
 
+		// Return the distance to the surface (including the margin)
 		virtual FReal PhiWithNormal(const FVec3& x, FVec3& Normal) const override
 		{
 			float Phi = PhiWithNormalInternal(x, Normal);
@@ -118,9 +126,11 @@ namespace Chaos
 					Normal = FVector::ForwardVector;
 				}
 			}
-			return Phi;
+			return Phi - GetMargin();
 		}
 
+	private:
+		// Distance to the core shape (excluding margin)
 		FReal PhiWithNormalInternal(const FVec3& x, FVec3& Normal) const
 		{
 			const int32 NumPlanes = Planes.Num();
@@ -146,6 +156,7 @@ namespace Chaos
 			return Planes[MaxPlane].PhiWithNormal(x, Normal);
 		}
 
+	public:
 		/** Calls \c GJKRaycast(), which may return \c true but 0 for \c OutTime, 
 		 * which means the bodies are touching, but not by enough to determine \c OutPosition 
 		 * and \c OutNormal should be.  The burden for detecting this case is deferred to the
@@ -156,11 +167,13 @@ namespace Chaos
 			OutFaceIndex = INDEX_NONE;	//finding face is expensive, should be called directly by user
 			const FRigidTransform3 StartTM(StartPoint, FRotation3::FromIdentity());
 			const TSphere<FReal, 3> Sphere(FVec3(0), Thickness);
-			return GJKRaycast(*this, Sphere, StartTM, Dir, Length, OutTime, OutPosition, OutNormal);
+			return GJKRaycast(*this, Sphere, StartTM, Dir, Length, OutTime, OutPosition, OutNormal, GetMargin());
 		}
 
 		virtual Pair<FVec3, bool> FindClosestIntersectionImp(const FVec3& StartPoint, const FVec3& EndPoint, const FReal Thickness) const override
 		{
+			// @todo(chaos): margin
+
 			const int32 NumPlanes = Planes.Num();
 			TArray<Pair<FReal, FVec3>> Intersections;
 			Intersections.Reserve(FMath::Min(static_cast<int32>(NumPlanes*.1), 16)); // Was NumPlanes, which seems excessive.
@@ -183,6 +196,7 @@ namespace Chaos
 			return MakePair(FVec3(0), false);
 		}
 
+		// @todo(chaos): margin
 		virtual int32 FindMostOpposingFace(const FVec3& Position, const FVec3& UnitDir, int32 HintFaceIndex, FReal SearchDist) const override;
 
 		FVec3 FindGeometryOpposingNormal(const FVec3& DenormDir, int32 FaceIndex, const FVec3& OriginalNormal) const
@@ -199,10 +213,13 @@ namespace Chaos
 		}
 
 	
+		// @todo(chaos): margin
 		virtual int32 FindClosestFaceAndVertices(const FVec3& Position, TArray<FVec3>& FaceVertices, FReal SearchDist = 0.01) const override;
 
+		// Return support point on the core shape (ignoring margin)
 		FORCEINLINE FVec3 Support2(const FVec3& Direction) const { return Support(Direction, 0); }
 
+		// Return support point on the core shape (ignoring margin)
 		FVec3 Support(const FVec3& Direction, const FReal Thickness) const
 		{
 			FReal MaxDot = TNumericLimits<FReal>::Lowest();
@@ -317,6 +334,12 @@ namespace Chaos
 				FConvexBuilder::Build(SurfaceParticles, Planes, FaceIndices, TempSurfaceParticles, LocalBoundingBox);
 				CalculateVolumeAndCenterOfMass(SurfaceParticles, FaceIndices, Volume, CenterOfMass);
 			}
+
+			Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
+			if (Ar.CustomVer(FReleaseObjectVersion::GUID) >= FReleaseObjectVersion::MarginAddedToConvexAndBox)
+			{
+				Ar << FImplicitObject::Margin;
+			}
 		}
 
 		virtual void Serialize(FChaosArchive& Ar) override
@@ -371,4 +394,6 @@ namespace Chaos
 		float Volume;
 		FVec3 CenterOfMass;
 	};
+
+	extern CHAOS_API int32 Chaos_Collision_ConvexMarginType;
 }

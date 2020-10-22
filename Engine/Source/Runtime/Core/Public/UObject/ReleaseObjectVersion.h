@@ -120,6 +120,9 @@ struct CORE_API FReleaseObjectVersion
 		// Upgrade AbcGeomCacheImportSettings for velocities
 		AbcVelocitiesSupport,
 
+		// Add margin support to Chaos Convex
+		MarginAddedToConvexAndBox,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
