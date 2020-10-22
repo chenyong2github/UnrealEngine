@@ -5209,21 +5209,17 @@ void UCookOnTheFlyServer::CollectFilesToCook(TArray<FName>& FilesInPath, const T
 
 		// Also append any cookdirs from the project ini files; these dirs are relative to the game content directory or start with a / root
 		{
-			const FString AbsoluteGameContentDir = FPaths::ConvertRelativePathToFull(FPaths::ProjectContentDir());
 			for (const FDirectoryPath& DirToCook : PackagingSettings->DirectoriesToAlwaysCook)
 			{
-				UE_LOG(LogCook, Verbose, TEXT("Loading directory to always cook %s"), *DirToCook.Path);
-
-				if (DirToCook.Path.StartsWith(TEXT("/"), ESearchCase::CaseSensitive))
+				FString LocalPath;
+				if (FPackageName::TryConvertGameRelativePackagePathToLocalPath(DirToCook.Path, LocalPath))
 				{
-					// If this starts with /, this includes a root like /engine
-					FString RelativePath = FPackageName::LongPackageNameToFilename(DirToCook.Path / TEXT(""));
-					CookDirectories.Add(FPaths::ConvertRelativePathToFull(RelativePath));
+					UE_LOG(LogCook, Verbose, TEXT("Loading directory to always cook %s"), *DirToCook.Path);
+					CookDirectories.Add(LocalPath);
 				}
 				else
 				{
-					// This is relative to /game
-					CookDirectories.Add(AbsoluteGameContentDir / DirToCook.Path);
+					UE_LOG(LogCook, Warning, TEXT("'ProjectSettings -> Directories to never cook -> Directories to always cook' has invalid element '%s'"), *DirToCook.Path);
 				}
 			}
 		}
@@ -6673,58 +6669,9 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 	}
 
 	PackageTracker->NeverCookPackageList.Empty();
+	for (FName NeverCookPackage : GetNeverCookPackages(CookByTheBookStartupOptions.NeverCookDirectories))
 	{
-		const FString AbsoluteGameContentDir = FPaths::ConvertRelativePathToFull(FPaths::ProjectContentDir());
-
-		TArray<FString> NeverCookDirectories = CookByTheBookStartupOptions.NeverCookDirectories;
-
-		for (const FDirectoryPath& DirToNotCook : PackagingSettings->DirectoriesToNeverCook)
-		{
-			if (DirToNotCook.Path.StartsWith(TEXT("/"), ESearchCase::CaseSensitive))
-			{
-				// If this starts with /, this includes a root like /engine
-				FString RelativePath = FPackageName::LongPackageNameToFilename(DirToNotCook.Path / TEXT(""));
-				NeverCookDirectories.Add(FPaths::ConvertRelativePathToFull(RelativePath));
-			}
-			else
-			{
-				// This is relative to /game
-				NeverCookDirectories.Add(AbsoluteGameContentDir / DirToNotCook.Path);
-			}
-
-		}
-
-		for (const FString& NeverCookDirectory : NeverCookDirectories)
-		{
-			// add the packages to the never cook package list
-			struct FNeverCookDirectoryWalker : public IPlatformFile::FDirectoryVisitor
-			{
-			private:
-				UE::Cook::FThreadSafeSet<FName>& NeverCookPackageList;
-			public:
-				FNeverCookDirectoryWalker(UE::Cook::FThreadSafeSet<FName> &InNeverCookPackageList) : NeverCookPackageList(InNeverCookPackageList) { }
-
-				// IPlatformFile::FDirectoryVisitor interface
-				virtual bool Visit(const TCHAR* FilenameOrDirectory, bool bIsDirectory)
-				{
-					if (bIsDirectory)
-					{
-						return true;
-					}
-					FString StandardFilename = FString(FilenameOrDirectory);
-					FPaths::MakeStandardFilename(StandardFilename);
-
-					NeverCookPackageList.Add(FName(*StandardFilename));
-					return true;
-				}
-
-			} NeverCookDirectoryWalker(PackageTracker->NeverCookPackageList);
-
-			IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
-
-			PlatformFile.IterateDirectoryRecursively(*NeverCookDirectory, NeverCookDirectoryWalker);
-		}
-
+		PackageTracker->NeverCookPackageList.Add(NeverCookPackage);
 	}
 
 	// use temp list of UBT platform strings to discover PlatformSpecificNeverCookPackages
@@ -7008,6 +6955,44 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 			}
 		}
 	}
+}
+
+TArray<FName> UCookOnTheFlyServer::GetNeverCookPackages(TArrayView<const FString> ExtraNeverCookDirectories)
+{
+	TArray<FString> NeverCookDirectories(ExtraNeverCookDirectories);
+
+	auto AddDirectoryPathArray = [&NeverCookDirectories](const TArray<FDirectoryPath>& DirectoriesToNeverCook, const TCHAR* SettingName)
+	{
+		for (const FDirectoryPath& DirToNotCook : DirectoriesToNeverCook)
+		{
+			FString LocalPath;
+			if (FPackageName::TryConvertGameRelativePackagePathToLocalPath(DirToNotCook.Path, LocalPath))
+			{
+				NeverCookDirectories.Add(LocalPath);
+			}
+			else
+			{
+				UE_LOG(LogCook, Warning, TEXT("'%s' has invalid element '%s'"), SettingName, *DirToNotCook.Path);
+			}
+		}
+
+	};
+	const UProjectPackagingSettings* const PackagingSettings = GetDefault<UProjectPackagingSettings>();
+	AddDirectoryPathArray(PackagingSettings->DirectoriesToNeverCook, TEXT("ProjectSettings -> Project -> Packaging -> Directories to never cook"));
+	AddDirectoryPathArray(PackagingSettings->TestDirectoriesToNotSearch, TEXT("ProjectSettings -> Project -> Packaging -> Test directories to not search"));
+
+	TArray<FName> NeverCookPackageNames;
+	TArray<FString> NeverCookPackagesPaths;
+	FPackageName::FindPackagesInDirectories(NeverCookPackagesPaths, NeverCookDirectories);
+	for (const FString& NeverCookPackagePath : NeverCookPackagesPaths)
+	{
+		FString PackageName;
+		if (FPackageName::TryConvertFilenameToLongPackageName(NeverCookPackagePath, PackageName))
+		{
+			NeverCookPackageNames.Add(FName(*PackageName));
+		}
+	}
+	return NeverCookPackageNames;
 }
 
 bool UCookOnTheFlyServer::RecompileChangedShaders(const TArray<const ITargetPlatform*>& TargetPlatforms)
