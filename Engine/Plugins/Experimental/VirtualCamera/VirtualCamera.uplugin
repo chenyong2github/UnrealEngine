@@ -40,6 +40,10 @@
 			"Enabled": true
 		},
 		{
+			"Name": "MediaFrameworkUtilities",
+			"Enabled": true
+		},
+		{
 			"Name": "RemoteSession",
 			"Enabled": true
 		},
