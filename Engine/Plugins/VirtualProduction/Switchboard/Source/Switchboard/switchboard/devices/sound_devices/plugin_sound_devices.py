@@ -23,8 +23,6 @@ class DeviceSoundDevices(Device):
 
         self.repeat_function = None
 
-        self.widget = DeviceWidgetSoundDevices(self.name, self.device_type, self.device_hash, self.ip_address)
-
     def connect(self):
         if not self._send_command('tmcode'):
             self.device_qt_handler.signal_device_connect_failed.emit(self)
