@@ -102,6 +102,11 @@ struct FMovieSceneObjectCache
 	UMovieSceneSequence* GetSequence() const { return WeakSequence.Get(); }
 
 	/**
+	 * Get the current serial number of this cache
+	 */
+	uint32 GetSerialNumber() const { return SerialNumber; }
+
+	/**
 	 * Filter all the object bindings in this object cache that contain the specified predicate object
 	 *
 	 * @param PredicateObject		The object to filter by. Any bindings referencing this object will be added to the output array.
@@ -118,6 +123,21 @@ private:
 	 * @param Player			The movie scene player that is playing back the sequence
 	 */
 	void UpdateBindings(const FGuid& InGuid, IMovieScenePlayer& Player);
+
+	/**
+	 * Invalidate the object bindings for a specific object binding ID
+	 */
+	bool InvalidateInternal(const FGuid& InGuid);
+
+	/**
+	 * Invalidate the object bindings for a specific object binding ID if they are not already invalidated
+	 */
+	bool InvalidateIfValidInternal(const FGuid& InGuid);
+
+	/**
+	 * Update the serial number of this instance.
+	 */
+	void UpdateSerialNumber();
 
 	struct FBoundObjects
 	{
@@ -159,6 +179,9 @@ private:
 	/** Map of child bindings for any given object binding */
 	typedef TArray<FGuid, TInlineAllocator<4>> FGuidArray;
 	TMap<FGuid, FGuidArray, FDefaultSetAllocator, TFastGuidKeyFuncs<FGuidArray>> ChildBindings;
+
+	/** Serial number for this cache */
+	uint32 SerialNumber = 0;
 };
 
 /**
@@ -224,7 +247,11 @@ struct FMovieSceneEvaluationState
 	 */
 	FORCEINLINE FMovieSceneObjectCache* FindObjectCache(FMovieSceneSequenceIDRef SequenceID)
 	{
-		return ObjectCaches.Find(SequenceID);
+		if (FVersionedObjectCache* Cache = ObjectCaches.Find(SequenceID))
+		{
+			return &Cache->ObjectCache;
+		}
+		return nullptr;
 	}
 
 	/**
@@ -234,12 +261,12 @@ struct FMovieSceneEvaluationState
 	 */
 	FORCEINLINE FMovieSceneObjectCache& GetObjectCache(FMovieSceneSequenceIDRef SequenceID)
 	{
-		FMovieSceneObjectCache* Cache = ObjectCaches.Find(SequenceID);
+		FVersionedObjectCache* Cache = ObjectCaches.Find(SequenceID);
 		if (!Cache)
 		{
-			Cache = &ObjectCaches.Add(SequenceID, FMovieSceneObjectCache());
+			Cache = &ObjectCaches.Add(SequenceID, FVersionedObjectCache());
 		}
-		return *Cache;
+		return Cache->ObjectCache;
 	}
 
 	/**
@@ -260,6 +287,11 @@ struct FMovieSceneEvaluationState
 	 */
 	MOVIESCENE_API void ClearObjectCaches(IMovieScenePlayer& Player);
 
+	/**
+	 * Get the serial number for this state.
+	 */
+	MOVIESCENE_API uint32 GetSerialNumber();
+
 	/** A map of persistent evaluation data mapped by movie scene evaluation entity (i.e, a given track or section) */
 	TMap<FMovieSceneEvaluationKey, TUniquePtr<IPersistentEvaluationData>> PersistentEntityData;
 
@@ -268,6 +300,16 @@ struct FMovieSceneEvaluationState
 
 private:
 
+	/** Object cache with a last known serial of it */
+	struct FVersionedObjectCache
+	{
+		FMovieSceneObjectCache ObjectCache;
+		uint32 LastKnownSerial = 0;
+	};
+
 	/** Maps of bound objects, arranged by template ID */
-	TMap<FMovieSceneSequenceID, FMovieSceneObjectCache> ObjectCaches;
+	TMap<FMovieSceneSequenceID, FVersionedObjectCache> ObjectCaches;
+
+	/** Current serial number of this collection of caches */
+	uint32 SerialNumber = 0;
 };
