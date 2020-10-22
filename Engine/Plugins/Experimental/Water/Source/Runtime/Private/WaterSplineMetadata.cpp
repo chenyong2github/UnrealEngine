@@ -32,6 +32,13 @@ bool UWaterSplineMetadata::CanEditVelocity() const
 {
 	return true;
 }
+
+void UWaterSplineMetadata::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	OnChangeData.Broadcast(this, PropertyChangedEvent);
+}
 #endif // WITH_EDITOR
 
 void UWaterSplineMetadata::InsertPoint(int32 Index, float t, bool bClosedLoop)
