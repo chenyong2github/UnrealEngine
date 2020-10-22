@@ -3392,6 +3392,11 @@ void FSlateApplication::EnterDebuggingMode()
 	GFirstFrameIntraFrameDebugging = true;
 #endif	//WITH_EDITORONLY_DATA
 
+	//Disable GPU Profiler during BluePrint Debugging to prevent leaking memory.
+	IConsoleVariable* CvarMaxQueriesPerFrame = IConsoleManager::Get().FindConsoleVariable(TEXT("r.GPUStatsMaxQueriesPerFrame"));
+	int MaxQueriesPerFrame = CvarMaxQueriesPerFrame->GetInt();
+	CvarMaxQueriesPerFrame->Set(0);
+
 	// Tick slate from here in the event that we should not return until the modal window is closed.
 	while (!bRequestLeaveDebugMode)
 	{
@@ -3416,6 +3421,8 @@ void FSlateApplication::EnterDebuggingMode()
 #endif	//WITH_EDITORONLY_DATA
 	}
 
+	CvarMaxQueriesPerFrame->Set(MaxQueriesPerFrame);
+	
 	Renderer->BeginFrame();
 	bRequestLeaveDebugMode = false;
 	
