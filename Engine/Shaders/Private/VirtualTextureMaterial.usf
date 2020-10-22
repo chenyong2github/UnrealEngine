@@ -1,9 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	VirtualTextureFillTest.usf: 
-	Material shader for runtime virtual texture
-=============================================================================*/
+// Material shader for runtime virtual texture
 
 #include "Common.ush"
 #include "/Engine/Generated/Material.ush"

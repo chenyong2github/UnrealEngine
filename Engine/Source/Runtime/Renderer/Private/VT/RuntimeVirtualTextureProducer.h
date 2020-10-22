@@ -30,7 +30,7 @@ public:
 	struct FTileEntry
 	{
 		FVTProduceTargetLayer Targets[RuntimeVirtualTexture::MaxTextureLayers];
-		uint32 vAddress = 0;
+		uint64 vAddress = 0;
 		uint8 vLevel = 0;
 	};
 
@@ -88,7 +88,7 @@ public:
 		const FVirtualTextureProducerHandle& ProducerHandle,
 		uint8 LayerMask,
 		uint8 vLevel,
-		uint32 vAddress,
+		uint64 vAddress,
 		EVTRequestPagePriority Priority
 	) override;
 
@@ -99,7 +99,7 @@ public:
 		const FVirtualTextureProducerHandle& ProducerHandle,
 		uint8 LayerMask,
 		uint8 vLevel,
-		uint32 vAddress,
+		uint64 vAddress,
 		uint64 RequestHandle,
 		const FVTProduceTargetLayer* TargetLayers
 	) override;

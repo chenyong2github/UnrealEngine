@@ -9,9 +9,9 @@
 #include "Interfaces/ITargetPlatform.h"
 #include "RendererInterface.h"
 #include "VT/RuntimeVirtualTextureNotify.h"
+#include "VT/UploadingVirtualTexture.h"
 #include "VT/VirtualTexture.h"
 #include "VT/VirtualTextureLevelRedirector.h"
-#include "VT/UploadingVirtualTexture.h"
 
 namespace
 {
@@ -40,7 +40,7 @@ namespace
 			const FVirtualTextureProducerHandle& ProducerHandle,
 			uint8 LayerMask,
 			uint8 vLevel,
-			uint32 vAddress,
+			uint64 vAddress,
 			EVTRequestPagePriority Priority
 		) override
 		{
@@ -54,7 +54,7 @@ namespace
 			const FVirtualTextureProducerHandle& ProducerHandle,
 			uint8 LayerMask,
 			uint8 vLevel,
-			uint32 vAddress,
+			uint64 vAddress,
 			uint64 RequestHandle,
 			const FVTProduceTargetLayer* TargetLayers
 		) override 
@@ -66,6 +66,38 @@ namespace
 }
 
 
+/**
+ * Helpers for setting up adaptive virtual texture PageTable and AdaptiveGrid sizes.
+ * We could expose these values directly to the user but it would require detailed knowledge of the underlying system to choose good settings.
+ */
+namespace
+{
+	/* First TileCount at which we start using adaptive virtual texture. */
+	static const int32 GMinAdaptiveSize = 11;
+	/* Maximum TileCount for adaptive virtual texture. */
+	static const int32 GMaxAdaptiveSize = 20;
+
+	/** Convert TileCount to PageTable size. This setup could be tweaked in future if necessary. */
+	static int32 GetPageTableTileCountLog2(int32 TileCountLog2)
+	{
+		check(TileCountLog2 <= GMaxAdaptiveSize);
+		if (TileCountLog2 < GMinAdaptiveSize) return TileCountLog2;
+
+		if (TileCountLog2 <= 14) return 10;
+		if (TileCountLog2 <= 17) return 11;
+		return 12;
+	}
+
+	/** Convert TileCount to Adaptive Grid size. This setup could be tweaked in future if necessary. */
+	static int32 GetAdaptiveGridSizeLog2(int32 TileCountLog2)
+	{
+		const int32 AdaptiveLevels = TileCountLog2 - GetPageTableTileCountLog2(TileCountLog2);
+		const int32 BaseAdaptiveLevels = 2; // Base value ensures that each allocated virtual texture takes a maximum of 1/16 of the full adaptive page table.
+		return AdaptiveLevels + BaseAdaptiveLevels;
+	}
+};
+
+
 /** 
  * Container for render thread resources created for a URuntimeVirtualTexture object. 
  * Any access to the resources should be on the render thread only so that access is serialized with the Init()/Release() render thread tasks.
@@ -75,6 +107,7 @@ class FRuntimeVirtualTextureRenderResource
 public:
 	FRuntimeVirtualTextureRenderResource()
 		: AllocatedVirtualTexture(nullptr)
+		, AdaptiveVirtualTexture(nullptr)
 	{
 	}
 
@@ -89,21 +122,38 @@ public:
 	IAllocatedVirtualTexture* GetAllocatedVirtualTexture() const 
 	{
 		checkSlow(IsInRenderingThread());
-		return AllocatedVirtualTexture;
+		return AdaptiveVirtualTexture != nullptr ? AdaptiveVirtualTexture->GetAllocatedVirtualTexture() : AllocatedVirtualTexture;
 	}
 
+	/** Structure for passing data to Init() that isn't in the producer description. */
+	struct FResourceInitDesc
+	{
+		bool bSinglePhysicalSpace = false;
+		bool bPrivateSpace = false;
+		bool bAdaptive = false;
+	};
+
 	/** Queues up render thread work to create resources and also releases any old resources. */
-	void Init(FVTProducerDescription const& InDesc, IVirtualTexture* InVirtualTextureProducer, bool InSinglePhysicalSpace, bool InPrivateSpace)
+	void Init(IVirtualTexture* InProducer, FVTProducerDescription const& InProducerDesc, FResourceInitDesc const& InInitDesc)
 	{
 		FRuntimeVirtualTextureRenderResource* Resource = this;
 		
 		ENQUEUE_RENDER_COMMAND(FRuntimeVirtualTextureRenderResource_Init)(
-			[Resource, InDesc, InVirtualTextureProducer, InSinglePhysicalSpace, InPrivateSpace](FRHICommandList& RHICmdList)
+			[Resource, InProducer, InProducerDesc, InInitDesc](FRHICommandList& RHICmdList)
 		{
 			FVirtualTextureProducerHandle OldProducerHandle = Resource->ProducerHandle;
 			ReleaseVirtualTexture(Resource->AllocatedVirtualTexture);
-			Resource->ProducerHandle = GetRendererModule().RegisterVirtualTextureProducer(InDesc, InVirtualTextureProducer);
-			Resource->AllocatedVirtualTexture = AllocateVirtualTexture(InDesc, Resource->ProducerHandle, InSinglePhysicalSpace, InPrivateSpace);
+			ReleaseVirtualTexture(Resource->AdaptiveVirtualTexture);
+			Resource->ProducerHandle = GetRendererModule().RegisterVirtualTextureProducer(InProducerDesc, InProducer);
+			
+			FAllocatedVTDescription AllocatedVTDesc;
+			FAdaptiveVTDescription AdaptiveVTDesc;
+			const bool bAdaptive = FillVTDescriptions(Resource->ProducerHandle, InProducerDesc, InInitDesc, AllocatedVTDesc, AdaptiveVTDesc);
+
+			// Only one or none of these should be allocated...
+			Resource->AllocatedVirtualTexture = !bAdaptive ? AllocateVirtualTexture(AllocatedVTDesc) : nullptr;
+			Resource->AdaptiveVirtualTexture = bAdaptive ? AllocateAdaptiveVirtualTexture(AllocatedVTDesc, AdaptiveVTDesc) : nullptr;
+
 			// Release old producer after new one is created so that any destroy callbacks can access the new producer
 			GetRendererModule().ReleaseVirtualTextureProducer(OldProducerHandle);
 		});
@@ -114,47 +164,68 @@ public:
 	{
 		FVirtualTextureProducerHandle ProducerHandleToRelease = ProducerHandle;
 		ProducerHandle = FVirtualTextureProducerHandle();
+		IAdaptiveVirtualTexture* AdaptiveVirtualTextureToRelease = AdaptiveVirtualTexture;
+		AdaptiveVirtualTexture = nullptr;
 		IAllocatedVirtualTexture* AllocatedVirtualTextureToRelease = AllocatedVirtualTexture;
 		AllocatedVirtualTexture = nullptr;
 
 		ENQUEUE_RENDER_COMMAND(FRuntimeVirtualTextureRenderResource_Release)(
-			[ProducerHandleToRelease, AllocatedVirtualTextureToRelease](FRHICommandList& RHICmdList)
+			[ProducerHandleToRelease, AdaptiveVirtualTextureToRelease, AllocatedVirtualTextureToRelease](FRHICommandList& RHICmdList)
 		{
 			ReleaseVirtualTexture(AllocatedVirtualTextureToRelease);
+			ReleaseVirtualTexture(AdaptiveVirtualTextureToRelease);
 			GetRendererModule().ReleaseVirtualTextureProducer(ProducerHandleToRelease);
 		});
 	}
 
 protected:
-	/** Allocate in the global virtual texture system. */
-	static IAllocatedVirtualTexture* AllocateVirtualTexture(FVTProducerDescription const& InDesc, FVirtualTextureProducerHandle const& InProducerHandle, bool InSinglePhysicalSpace, bool InPrivateSpace)
+	/** Fill the allocated VT descriptions from the producer description. Returns true if this should be allocated as an adaptive virtual texture. */
+	static bool FillVTDescriptions(
+		FVirtualTextureProducerHandle const& InProducerHandle, FVTProducerDescription const& InProducerDesc, FResourceInitDesc const& InInitDesc, 
+		FAllocatedVTDescription& OutAllocatedVTDesc, FAdaptiveVTDescription& OutAdaptiveVTDesc)
 	{
-		IAllocatedVirtualTexture* OutAllocatedVirtualTexture = nullptr;
+		const int32 MinTileCountLog2 = FMath::CeilLogTwo(FMath::Min(InProducerDesc.BlockWidthInTiles, InProducerDesc.BlockHeightInTiles));
+		const int32 MaxTileCountLog2 = FMath::CeilLogTwo(FMath::Max(InProducerDesc.BlockWidthInTiles, InProducerDesc.BlockHeightInTiles));
+		const bool bAdaptive = InInitDesc.bAdaptive && MaxTileCountLog2 >= GMinAdaptiveSize;
+		const int32 PageTableSizeLog2 = bAdaptive ? GetPageTableTileCountLog2(MaxTileCountLog2) : MaxTileCountLog2;
+		const int32 AdaptiveGridSizeLog2 = bAdaptive ? GetAdaptiveGridSizeLog2(MaxTileCountLog2) : 0;
+		const int32 MaxPrivateSpaceSize = FMath::Clamp<int32>(1 << PageTableSizeLog2, VIRTUALTEXTURE_MIN_PAGETABLE_SIZE, VIRTUALTEXTURE_MAX_PAGETABLE_SIZE);
+		const bool bPrivateSpace = bAdaptive || InInitDesc.bPrivateSpace;
 
-		// Check for NumLayers avoids allocating for the null producer
-		if (InDesc.NumTextureLayers > 0)
+		OutAllocatedVTDesc.Dimensions = InProducerDesc.Dimensions;
+		OutAllocatedVTDesc.TileSize = InProducerDesc.TileSize;
+		OutAllocatedVTDesc.TileBorderSize = InProducerDesc.TileBorderSize;
+		OutAllocatedVTDesc.NumTextureLayers = InProducerDesc.NumTextureLayers;
+		OutAllocatedVTDesc.bPrivateSpace = bPrivateSpace;
+		OutAllocatedVTDesc.bShareDuplicateLayers = InInitDesc.bSinglePhysicalSpace;
+		OutAllocatedVTDesc.MaxSpaceSize = bPrivateSpace ? MaxPrivateSpaceSize : 0;
+
+		for (uint32 LayerIndex = 0u; LayerIndex < InProducerDesc.NumTextureLayers; ++LayerIndex)
 		{
-			FAllocatedVTDescription VTDesc;
-			VTDesc.Dimensions = InDesc.Dimensions;
-			VTDesc.TileSize = InDesc.TileSize;
-			VTDesc.TileBorderSize = InDesc.TileBorderSize;
-			VTDesc.NumTextureLayers = InDesc.NumTextureLayers;
-			VTDesc.bPrivateSpace = InPrivateSpace;
-			VTDesc.bShareDuplicateLayers = InSinglePhysicalSpace;
-
-			for (uint32 LayerIndex = 0u; LayerIndex < VTDesc.NumTextureLayers; ++LayerIndex)
-			{
-				VTDesc.ProducerHandle[LayerIndex] = InProducerHandle;
-				VTDesc.ProducerLayerIndex[LayerIndex] = LayerIndex;
-			}
-
-			OutAllocatedVirtualTexture = GetRendererModule().AllocateVirtualTexture(VTDesc);
+			OutAllocatedVTDesc.ProducerHandle[LayerIndex] = InProducerHandle;
+			OutAllocatedVTDesc.ProducerLayerIndex[LayerIndex] = LayerIndex;
 		}
 
+		OutAdaptiveVTDesc.TileCountX = InProducerDesc.BlockWidthInTiles;
+		OutAdaptiveVTDesc.TileCountY = InProducerDesc.BlockHeightInTiles;
+		OutAdaptiveVTDesc.MaxAdaptiveLevel = FMath::Max(MaxTileCountLog2 - AdaptiveGridSizeLog2, 0);
+
+		return bAdaptive;
+	}
+
+	/** Allocate in the virtual texture system. */
+	static IAllocatedVirtualTexture* AllocateVirtualTexture(FAllocatedVTDescription const& InAllocatedVTDesc)
+	{
+		// Check for NumLayers avoids allocating for the null producer
+		IAllocatedVirtualTexture* OutAllocatedVirtualTexture = nullptr;
+		if (InAllocatedVTDesc.NumTextureLayers > 0)
+		{ 
+			OutAllocatedVirtualTexture = GetRendererModule().AllocateVirtualTexture(InAllocatedVTDesc);
+		}
 		return OutAllocatedVirtualTexture;
 	}
 
-	/** Release our virtual texture allocations  */
+	/** Release our virtual texture allocation. */
 	static void ReleaseVirtualTexture(IAllocatedVirtualTexture* InAllocatedVirtualTexture)
 	{
 		if (InAllocatedVirtualTexture != nullptr)
@@ -163,9 +234,31 @@ protected:
 		}
 	}
 
+	/** Allocate an adaptive virtual texture in the virtual texture system. */
+	static IAdaptiveVirtualTexture* AllocateAdaptiveVirtualTexture(FAllocatedVTDescription const& InAllocatedVTDesc, FAdaptiveVTDescription const& InAdaptiveVTDesc)
+	{
+		// Check for NumLayers avoids allocating for the null producer
+		IAdaptiveVirtualTexture* OutAdaptiveVirtualTexture = nullptr;
+		if (InAllocatedVTDesc.NumTextureLayers > 0)
+		{
+			OutAdaptiveVirtualTexture = GetRendererModule().AllocateAdaptiveVirtualTexture(InAdaptiveVTDesc, InAllocatedVTDesc);
+		}
+		return OutAdaptiveVirtualTexture;
+	}
+
+	/** Release our adaptive virtual texture allocation. */
+	static void ReleaseVirtualTexture(IAdaptiveVirtualTexture* InAdaptiveVirtualTexture)
+	{
+		if (InAdaptiveVirtualTexture != nullptr)
+		{
+			GetRendererModule().DestroyAdaptiveVirtualTexture(InAdaptiveVirtualTexture);
+		}
+	}
+
 private:
 	FVirtualTextureProducerHandle ProducerHandle;
 	IAllocatedVirtualTexture* AllocatedVirtualTexture;
+	IAdaptiveVirtualTexture* AdaptiveVirtualTexture;
 };
 
 
@@ -183,6 +276,16 @@ URuntimeVirtualTexture::~URuntimeVirtualTexture()
 	delete Resource;
 }
 
+int32 URuntimeVirtualTexture::GetMaxTileCountLog2(bool InAdaptive) 
+{
+	return InAdaptive ? GMaxAdaptiveSize : VIRTUALTEXTURE_LOG2_MAX_PAGETABLE_SIZE;
+}
+
+int32 URuntimeVirtualTexture::GetPageTableSize() const
+{
+	return 1 << GetPageTableTileCountLog2(FMath::Clamp(TileCount, 0, GetMaxTileCountLog2(bAdaptive)));
+}
+
 void URuntimeVirtualTexture::GetProducerDescription(FVTProducerDescription& OutDesc, FInitSettings const& InitSettings, FTransform const& VolumeToWorld) const
 {
 	OutDesc.Name = GetFName();
@@ -193,13 +296,13 @@ void URuntimeVirtualTexture::GetProducerDescription(FVTProducerDescription& OutD
 
 	// Apply LODGroup TileSize bias here.
 	const int32 TileSizeBias = UDeviceProfileManager::Get().GetActiveProfile()->GetTextureLODSettings()->GetTextureLODGroup(LODGroup).VirtualTextureTileSizeBias;
-	OutDesc.TileSize = GetTileSize(TileSize + TileSizeBias);
+	OutDesc.TileSize = GetClampedTileSize(TileSize + TileSizeBias);
 
 	OutDesc.TileBorderSize = GetTileBorderSize();
 
 	// Apply TileCount bias here.
 	const int32 TileCountBiasFromLodGroup = UDeviceProfileManager::Get().GetActiveProfile()->GetTextureLODSettings()->GetTextureLODGroup(LODGroup).VirtualTextureTileCountBias;
-	const int32 MaxSizeInTiles = GetTileCount(TileCount + TileCountBiasFromLodGroup + InitSettings.TileCountBias);
+	const int32 MaxSizeInTiles = GetClampedTileCount(TileCount + TileCountBiasFromLodGroup + InitSettings.TileCountBias, bAdaptive);
 
 	// Set width and height to best match the runtime virtual texture volume's aspect ratio.
 	const FVector VolumeSize = VolumeToWorld.GetScale3D();
@@ -371,22 +474,6 @@ bool URuntimeVirtualTexture::IsLayerYCoCg(int32 LayerIndex) const
 	return false;
 }
 
-#if WITH_EDITOR
-
-int32 URuntimeVirtualTexture::GetEstimatedPageTableTextureMemoryKb() const
-{
-	//todo[vt]: Estimate memory usage
-	return 0;
-}
-
-int32 URuntimeVirtualTexture::GetEstimatedPhysicalTextureMemoryKb() const
-{
-	//todo[vt]: Estimate memory usage
-	return 0;
-}
-
-#endif
-
 FVirtualTextureProducerHandle URuntimeVirtualTexture::GetProducerHandle() const
 {
 	return Resource->GetProducerHandle();
@@ -413,17 +500,17 @@ FVector4 URuntimeVirtualTexture::GetUniformParameter(int32 Index) const
 	return FVector4(ForceInitToZero);
 }
 
-void URuntimeVirtualTexture::Initialize(IVirtualTexture* InProducer, FInitSettings const& InitSettings, FTransform const& VolumeToWorld, FBox const& WorldBounds)
+void URuntimeVirtualTexture::Initialize(IVirtualTexture* InProducer, FVTProducerDescription const& InProducerDesc, FTransform const& InVolumeToWorld, FBox const& InWorldBounds)
 {
 	//todo[vt]: possible issues with precision in large worlds here it might be better to calculate/upload camera space relative transform per frame?
-	WorldToUVTransformParameters[0] = VolumeToWorld.GetTranslation();
-	WorldToUVTransformParameters[1] = VolumeToWorld.GetUnitAxis(EAxis::X) * 1.f / VolumeToWorld.GetScale3D().X;
-	WorldToUVTransformParameters[2] = VolumeToWorld.GetUnitAxis(EAxis::Y) * 1.f / VolumeToWorld.GetScale3D().Y;
+	WorldToUVTransformParameters[0] = InVolumeToWorld.GetTranslation();
+	WorldToUVTransformParameters[1] = InVolumeToWorld.GetUnitAxis(EAxis::X) * 1.f / InVolumeToWorld.GetScale3D().X;
+	WorldToUVTransformParameters[2] = InVolumeToWorld.GetUnitAxis(EAxis::Y) * 1.f / InVolumeToWorld.GetScale3D().Y;
 
-	const float HeightRange = FMath::Max(WorldBounds.Max.Z - WorldBounds.Min.Z, 1.f);
-	WorldHeightUnpackParameter = FVector4(HeightRange, WorldBounds.Min.Z, 0.f, 0.f);
+	const float HeightRange = FMath::Max(InWorldBounds.Max.Z - InWorldBounds.Min.Z, 1.f);
+	WorldHeightUnpackParameter = FVector4(HeightRange, InWorldBounds.Min.Z, 0.f, 0.f);
 
-	InitResource(InProducer, InitSettings, VolumeToWorld);
+	InitResource(InProducer, InProducerDesc);
 }
 
 void URuntimeVirtualTexture::Release()
@@ -431,19 +518,23 @@ void URuntimeVirtualTexture::Release()
 	InitNullResource();
 }
 
-void URuntimeVirtualTexture::InitResource(IVirtualTexture* InProducer, FInitSettings const& InitSettings, FTransform const& VolumeToWorld)
+void URuntimeVirtualTexture::InitResource(IVirtualTexture* InProducer, FVTProducerDescription const& InProducerDesc)
 {
-	FVTProducerDescription Desc;
-	GetProducerDescription(Desc, InitSettings, VolumeToWorld);
-	Resource->Init(Desc, InProducer, bSinglePhysicalSpace, bPrivateSpace);
+	FRuntimeVirtualTextureRenderResource::FResourceInitDesc InitDesc;
+	InitDesc.bSinglePhysicalSpace = bSinglePhysicalSpace;
+	InitDesc.bPrivateSpace = bPrivateSpace;
+	InitDesc.bAdaptive = bAdaptive;
+
+	Resource->Init(InProducer, InProducerDesc, InitDesc);
 }
 
 void URuntimeVirtualTexture::InitNullResource()
 {
-	FVTProducerDescription Desc;
-	FNullVirtualTextureProducer::GetNullProducerDescription(Desc);
 	FNullVirtualTextureProducer* Producer = new FNullVirtualTextureProducer;
-	Resource->Init(Desc, Producer, false, false);
+	FVTProducerDescription ProducerDesc;
+	FNullVirtualTextureProducer::GetNullProducerDescription(ProducerDesc);
+	FRuntimeVirtualTextureRenderResource::FResourceInitDesc InitDesc;
+	Resource->Init(Producer, ProducerDesc, InitDesc);
 }
 
 void URuntimeVirtualTexture::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
@@ -484,6 +575,12 @@ void URuntimeVirtualTexture::PostLoad()
 void URuntimeVirtualTexture::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	// Adjust TileCount when adaptive setting is toggled
+	if (PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(URuntimeVirtualTexture, bAdaptive))
+	{
+		TileCount = FMath::Min(TileCount, GetMaxTileCountLog2(bAdaptive));
+	}
 
 	RuntimeVirtualTexture::NotifyComponents(this);
 	RuntimeVirtualTexture::NotifyPrimitives(this);

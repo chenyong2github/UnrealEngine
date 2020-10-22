@@ -35,11 +35,12 @@ public:
 	inline uint32 GetFrameAllocated() const { return FrameAllocated; }
 
 	// begin IAllocatedVirtualTexture
+	virtual uint32 GetNumPageTableTextures() const override;
 	virtual FRHITexture* GetPageTableTexture(uint32 InPageTableIndex) const override;
+	virtual FRHITexture* GetPageTableIndirectionTexture() const override;
+	virtual uint32 GetPhysicalTextureSize(uint32 InLayerIndex) const override;
 	virtual FRHITexture* GetPhysicalTexture(uint32 InLayerIndex) const override;
 	virtual FRHIShaderResourceView* GetPhysicalTextureSRV(uint32 InLayerIndex, bool bSRGB) const override;
-	virtual uint32 GetPhysicalTextureSize(uint32 InLayerIndex) const override;
-	virtual uint32 GetNumPageTableTextures() const override;
 	virtual void GetPackedPageTableUniform(FUintVector4* OutUniform) const override;
 	virtual void GetPackedUniform(FUintVector4* OutUniform, uint32 LayerIndex) const override;
 	virtual void Destroy(FVirtualTextureSystem* System) override;

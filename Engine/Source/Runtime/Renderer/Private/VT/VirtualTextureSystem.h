@@ -10,6 +10,7 @@
 #include "VT/TexturePageLocks.h"
 #include "VirtualTexturing.h"
 
+class FAdaptiveVirtualTexture;
 class FAllocatedVirtualTexture;
 class FScene;
 class FUniquePageList;
@@ -49,12 +50,16 @@ public:
 	uint32 RemoveAllProducerDestroyedCallbacks(const void* Baton);
 	FVirtualTextureProducer* FindProducer(const FVirtualTextureProducerHandle& Handle);
 
-	FVirtualTextureSpace* AcquireSpace(const FVTSpaceDescription& InDesc, FAllocatedVirtualTexture* AllocatedVT);
+	IAdaptiveVirtualTexture* AllocateAdaptiveVirtualTexture(const FAdaptiveVTDescription& AdaptiveVTDesc, const FAllocatedVTDescription& AllocatedVTDesc);
+	void DestroyAdaptiveVirtualTexture(IAdaptiveVirtualTexture* AdaptiveVT);
+
+	FVirtualTextureSpace* AcquireSpace(const FVTSpaceDescription& InDesc, uint8 InForceSpaceID, FAllocatedVirtualTexture* AllocatedVT);
 	void ReleaseSpace(FVirtualTextureSpace* Space);
 
 	FVirtualTexturePhysicalSpace* AcquirePhysicalSpace(const FVTPhysicalSpaceDescription& InDesc);
 
 	FVirtualTextureSpace* GetSpace(uint8 ID) const { check(ID < MaxSpaces); return Spaces[ID].Get(); }
+	FAdaptiveVirtualTexture* GetAdaptiveVirtualTexture(uint8 ID) const { check(ID < MaxSpaces); return AdaptiveVTs[ID]; }
 	FVirtualTexturePhysicalSpace* GetPhysicalSpace(uint16 ID) const { check(PhysicalSpaces[ID]);  return PhysicalSpaces[ID]; }
 
 	void LockTile(const FVirtualTextureLocalTile& Tile);
@@ -108,6 +113,8 @@ private:
 	TArray<FAllocatedVirtualTexture*> PendingDeleteAllocatedVTs;
 
 	TMap<FAllocatedVTDescription, FAllocatedVirtualTexture*> AllocatedVTs;
+
+	FAdaptiveVirtualTexture* AdaptiveVTs[MaxSpaces] = { nullptr };
 
 	bool bFlushCaches;
 	void FlushCachesFromConsole();
