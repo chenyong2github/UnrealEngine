@@ -749,6 +749,12 @@ void UNetConnection::Serialize( FArchive& Ar )
 
 void UNetConnection::Close()
 {
+	if (IsInternalAck())
+	{
+		SetReserveDestroyedChannels(false);
+		SetIgnoreReservedChannels(false);
+	}
+
 	if (Driver != nullptr && State != USOCK_Closed)
 	{
 		NETWORK_PROFILER(GNetworkProfiler.TrackEvent(TEXT("CLOSE"), *(GetName() + TEXT(" ") + LowLevelGetRemoteAddress()), this));
@@ -2927,6 +2933,20 @@ void UNetConnection::SetIgnoreActorBunches(bool bInIgnoreActorBunches, TSet<FNet
 	}
 }
 
+void UNetConnection::SetReserveDestroyedChannels(bool bInReserveChannels)
+{
+	check(IsInternalAck());
+	bReserveDestroyedChannels = bInReserveChannels;
+}
+
+void UNetConnection::SetIgnoreReservedChannels(bool bInIgnoreReservedChannels)
+{
+	check(IsInternalAck());
+	bIgnoreReservedChannels = bInIgnoreReservedChannels;
+
+	ReservedChannels.Empty();
+}
+
 void UNetConnection::PrepareWriteBitsToSendBuffer(const int32 SizeInBits, const int32 ExtraSizeInBits)
 {
 	ValidateSendBuffer();
@@ -3204,7 +3224,9 @@ int32 UNetConnection::GetFreeChannelIndex(const FName& ChName) const
 	// Search the channel array for an available location
 	for (ChIndex = FirstChannel; ChIndex < Channels.Num(); ChIndex++)
 	{
-		if (!Channels[ChIndex])
+		const bool bIgnoreReserved = bIgnoreReservedChannels && ReservedChannels.Contains(ChIndex);
+
+		if (!Channels[ChIndex] && !bIgnoreReserved)
 		{
 			break;
 		}
