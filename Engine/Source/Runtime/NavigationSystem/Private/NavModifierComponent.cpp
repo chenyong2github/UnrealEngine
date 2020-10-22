@@ -83,11 +83,9 @@ void UNavModifierComponent::CalcAndCacheBounds() const
 					{
 						const FKConvexElem& ElemInfo = BodySetup->AggGeom.ConvexElems[ConvexIdx];
 						FTransform ElemTM = ElemInfo.GetTransform();
-						ElemTM.ScaleTranslation(Scale3D);
-						ElemTM *= ParentTM;
 
-						const FBox ConvexBounds = ElemInfo.CalcAABB(ElemTM, Scale3D);
-						ComponentBounds.Add(FRotatedBox(ConvexBounds, ElemTM.GetRotation()));
+						const FBox ConvexBounds = FBox::BuildAABB(ParentTM.TransformPosition(ElemInfo.ElemBox.GetCenter() * Scale3D), ElemInfo.ElemBox.GetExtent() * Scale3D);
+						ComponentBounds.Add(FRotatedBox(ConvexBounds, ElemTM.GetRotation() * ParentTM.GetRotation()));
 					}
 				}
 			}
