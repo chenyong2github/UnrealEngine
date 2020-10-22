@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Modules/ModuleInterface.h"
+#include "IWebRemoteControlModule.h"
 #include "IRemoteControlModule.h"
 #include "RemoteControlRequest.h"
 #include "HttpRouteHandle.h"
@@ -21,7 +21,7 @@ class FWebSocketMessageHandler;
 /**
  * A Remote Control module that expose remote function calls through http
  */
-class FWebRemoteControlModule : public IModuleInterface
+class FWebRemoteControlModule : public IWebRemoteControlModule
 {
 public:
 	/**
@@ -36,9 +36,14 @@ public:
 		return FModuleManager::LoadModuleChecked<FWebRemoteControlModule>(ModuleName);
 	}
 
-	//~ IModuleInterface
+	//~ Begin IWebRemoteControlModule Interface
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
+	FOnWebServerStarted& OnHttpServerStarted() override { return OnHttpServerStartedDelegate; }
+	FSimpleMulticastDelegate& OnHttpServerStopped() override { return OnHttpServerStoppedDelegate; }
+	FOnWebServerStarted& OnWebSocketServerStarted() override { return OnWebSocketServerStartedDelegate; }
+	FSimpleMulticastDelegate& OnWebSocketServerStopped() override { return OnWebSocketServerStoppedDelegate; }
+	//~ End IWebRemoteControlModule Interface
 
 	/**
 	 * Register a route to the API.
@@ -161,5 +166,10 @@ private:
 
 	/** Router used to dispatch websocket messages. */
 	TSharedPtr<FWebsocketMessageRouter> WebSocketRouter;
-	
+
+	//~ Server started stopped delegates.
+	FOnWebServerStarted OnHttpServerStartedDelegate;
+	FSimpleMulticastDelegate OnHttpServerStoppedDelegate;
+	FOnWebServerStarted OnWebSocketServerStartedDelegate;
+	FSimpleMulticastDelegate OnWebSocketServerStoppedDelegate;
 };

@@ -150,6 +150,8 @@ void FWebRemoteControlModule::StartHttpServer()
 		}
 
 		FHttpServerModule::Get().StartAllListeners();
+
+		OnHttpServerStartedDelegate.Broadcast(HttpServerPort);
 	}
 }
 
@@ -174,6 +176,7 @@ void FWebRemoteControlModule::StopHttpServer()
 	}
 
 	HttpRouter.Reset();
+	OnHttpServerStoppedDelegate.Broadcast();
 }
 
 void FWebRemoteControlModule::StartWebSocketServer()
@@ -185,12 +188,15 @@ void FWebRemoteControlModule::StartWebSocketServer()
 			UE_LOG(LogRemoteControl, Error, TEXT("Web Remote Call WebSocket server couldn't be started on port %d"), WebSocketServerPort);
 			return;
 		}
+
+		OnWebSocketServerStartedDelegate.Broadcast(WebSocketServerPort);
 	}
 }
 
 void FWebRemoteControlModule::StopWebSocketServer()
 {
 	WebSocketServer.Stop();
+	OnWebSocketServerStoppedDelegate.Broadcast();
 }
 
 void FWebRemoteControlModule::StartRoute(const FRemoteControlRoute& Route)
