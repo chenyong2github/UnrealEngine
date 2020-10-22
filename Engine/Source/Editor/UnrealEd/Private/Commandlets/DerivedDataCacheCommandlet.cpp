@@ -7,6 +7,7 @@ DerivedDataCacheCommandlet.cpp: Commandlet for DDC maintenence
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
 #include "UObject/Package.h"
+#include "Misc/ConfigCacheIni.h"
 #include "Misc/PackageName.h"
 #include "PackageHelperFunctions.h"
 #include "DerivedDataCacheInterface.h"
@@ -17,6 +18,10 @@ DerivedDataCacheCommandlet.cpp: Commandlet for DDC maintenence
 #include "DistanceFieldAtlas.h"
 #include "Misc/RedirectCollector.h"
 #include "Engine/Texture.h"
+#include "CookOnTheSide/CookOnTheFlyServer.h"
+#include "Algo/RemoveIf.h"
+#include "Algo/Transform.h"
+#include "Settings/ProjectPackagingSettings.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogDerivedDataCacheCommandlet, Log, All);
 
@@ -91,8 +96,6 @@ int32 UDerivedDataCacheCommandlet::Main( const FString& Params )
 	{
 		FCoreUObjectDelegates::PackageCreatedForLoad.AddUObject(this, &UDerivedDataCacheCommandlet::MaybeMarkPackageAsAlreadyLoaded);
 
-		TArray<FString> FilesInPath;
-
 		Tokens.Empty(2);
 		Tokens.Add(FString("*") + FPackageName::GetAssetPackageExtension());
 
@@ -131,16 +134,18 @@ int32 UDerivedDataCacheCommandlet::Main( const FString& Params )
 			PackageFilter |= NORMALIZE_ExcludeDeveloperPackages;
 		}
 
-		if( !Switches.Contains(TEXT("NOREDIST")) )
+		if ( !Switches.Contains(TEXT("NOREDIST")) )
 		{
 			PackageFilter |= NORMALIZE_ExcludeNoRedistPackages;
 		}
 
 		// assume the first token is the map wildcard/pathname
+		TArray<FString> FilesInPath;
 		TArray<FString> Unused;
+		TArray<FString> TokenFiles;
 		for ( int32 TokenIndex = 0; TokenIndex < Tokens.Num(); TokenIndex++ )
 		{
-			TArray<FString> TokenFiles;
+			TokenFiles.Reset();
 			if ( !NormalizePackageNames( Unused, TokenFiles, Tokens[TokenIndex], PackageFilter) )
 			{
 				UE_LOG(LogDerivedDataCacheCommandlet, Display, TEXT("No packages found for parameter %i: '%s'"), TokenIndex, *Tokens[TokenIndex]);
@@ -150,9 +155,52 @@ int32 UDerivedDataCacheCommandlet::Main( const FString& Params )
 			FilesInPath += TokenFiles;
 		}
 
-		if ( FilesInPath.Num() == 0 )
+		TArray<TPair<FString, FName>> PackagePaths;
+		PackagePaths.Reserve(FilesInPath.Num());
+		for (FString& Filename : FilesInPath)
 		{
-			UE_LOG(LogDerivedDataCacheCommandlet, Display, TEXT("No files found."));
+			FString PackageName;
+			FString FailureReason;
+			if (!FPackageName::TryConvertFilenameToLongPackageName(Filename, PackageName, &FailureReason))
+			{
+				UE_LOG(LogDerivedDataCacheCommandlet, Warning, TEXT("Unable to resolve filename %s to package name because: %s"), *Filename, *FailureReason);
+				continue;
+			}
+			PackagePaths.Emplace(MoveTemp(Filename), FName(*PackageName));
+		}
+
+		// Respect settings that instruct us not to enumerate some paths
+		TArray<FString> LocalDirsToNotSearch;
+		const UProjectPackagingSettings* const PackagingSettings = GetDefault<UProjectPackagingSettings>();
+		for (const FDirectoryPath& DirToNotSearch : PackagingSettings->TestDirectoriesToNotSearch)
+		{
+			FString LocalPath;
+			if (FPackageName::TryConvertGameRelativePackagePathToLocalPath(DirToNotSearch.Path, LocalPath))
+			{
+				LocalDirsToNotSearch.Add(LocalPath);
+			}
+			else
+			{
+				UE_LOG(LogCook, Warning, TEXT("'ProjectSettings -> Project -> Packaging -> Test directories to not search' has invalid element '%s'"), *DirToNotSearch.Path);
+			}
+		}
+
+		TArray<FString> LocalFilenamesToSkip;
+		if (FPackageName::FindPackagesInDirectories(LocalFilenamesToSkip, LocalDirsToNotSearch))
+		{
+			TSet<FName> PackageNamesToSkip;
+			Algo::Transform(LocalFilenamesToSkip, PackageNamesToSkip, [](const FString& Filename)
+				{
+					FString PackageName;
+					if (FPackageName::TryConvertFilenameToLongPackageName(Filename, PackageName))
+					{
+						return FName(*PackageName);
+					}
+					return FName(NAME_None);
+				});
+
+			int32 NewNum = Algo::StableRemoveIf(PackagePaths, [&PackageNamesToSkip](const TPair<FString,FName>& PackagePath) { return PackageNamesToSkip.Contains(PackagePath.Get<1>()); });
+			PackagePaths.SetNum(NewNum);
 		}
 
 		ITargetPlatformManagerModule* TPM = GetTargetPlatformManager();
@@ -175,39 +223,35 @@ int32 UDerivedDataCacheCommandlet::Main( const FString& Params )
 		int32 NumProcessedSinceLastGC = 0;
 		bool bLastPackageWasMap = false;
 
-		UE_LOG(LogDerivedDataCacheCommandlet, Display, TEXT("%d packages to load..."), FilesInPath.Num());
-
-		for( int32 FileIndex = FilesInPath.Num() - 1; ; FileIndex-- )
+		if (PackagePaths.Num() == 0)
 		{
-			if (FileIndex < 0)
-			{
-				break;
-			}
-			{
-				const FString& Filename = FilesInPath[FileIndex];
+			UE_LOG(LogDerivedDataCacheCommandlet, Display, TEXT("No packages found to load."));
+		}
+		else
+		{
+			UE_LOG(LogDerivedDataCacheCommandlet, Display, TEXT("%d packages to load..."), PackagePaths.Num());
+		}
 
-				FString PackageName; 
-				FString FailureReason;
-				if ( !FPackageName::TryConvertFilenameToLongPackageName(Filename, PackageName, &FailureReason) )
-				{
-					UE_LOG(LogDerivedDataCacheCommandlet, Warning, TEXT("Unable to resolve filename %s to package name because: %s"), *Filename, *FailureReason);
-					continue;
-				}
-
-				FName PackageFName( *PackageName );
+		for (int32 PackageIndex = PackagePaths.Num() - 1; PackageIndex >= 0; PackageIndex-- )
+		{
+			{
+				TPair<FString, FName>& PackagePath = PackagePaths[PackageIndex];
+				const FString& Filename = PackagePath.Get<0>();
+				FName PackageFName = PackagePath.Get<1>();
 				if (ProcessedPackages.Contains(PackageFName))
 				{
 					continue;
 				}
 				if (bDoSubset)
 				{
+					FString PackageName = PackageFName.ToString();
 					if (FCrc::StrCrc_DEPRECATED(*PackageName.ToUpper()) % SubsetMod != SubsetTarget)
 					{
 						continue;
 					}
 				}
 
-				UE_LOG(LogDerivedDataCacheCommandlet, Display, TEXT("Loading (%d) %s"), FilesInPath.Num() - FileIndex, *Filename);
+				UE_LOG(LogDerivedDataCacheCommandlet, Display, TEXT("Loading (%d) %s"), FilesInPath.Num() - PackageIndex, *Filename);
 
 				UPackage* Package = LoadPackage(NULL, *Filename, LOAD_None);
 				if (Package == NULL)
@@ -278,13 +322,13 @@ int32 UDerivedDataCacheCommandlet::Main( const FString& Params )
 			// Process any asynchronous shader compile results that are ready, limit execution time
 			GShaderCompilingManager->ProcessAsyncResults(true, false);
 
-			if (NumProcessedSinceLastGC >= GCInterval || FileIndex < 0 || bLastPackageWasMap)
+			if (NumProcessedSinceLastGC >= GCInterval || PackageIndex < 0 || bLastPackageWasMap)
 			{
 				WaitForCurrentShaderCompilationToFinish();
 				WaitForCurrentTextureBuildingToFinish();
 
 				const double StartGCTime = FPlatformTime::Seconds();
-				if (NumProcessedSinceLastGC >= GCInterval || FileIndex < 0)
+				if (NumProcessedSinceLastGC >= GCInterval || PackageIndex < 0)
 				{
 					UE_LOG(LogDerivedDataCacheCommandlet, Display, TEXT("GC (Full)..."));
 					CollectGarbage(RF_NoFlags);
