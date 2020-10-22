@@ -48,6 +48,7 @@ public:
 	virtual FText GetToolkitToolTipText() const override;
 	virtual FString GetWorldCentricTabPrefix() const override;
 	virtual FLinearColor GetWorldCentricTabColorScale() const override;
+	virtual bool UsesCustomToolbarPlacement() const override { return false; }
 	// End of IToolkit interface
 
 	/** @return the documentation location for this editor */
