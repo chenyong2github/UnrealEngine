@@ -45,6 +45,9 @@ private:
 	void HandleTimeMarkerChanged(Insights::ETimeChangedFlags InFlags, double InTimeMarker);
 	void HandleSelectionChanged(Insights::ETimeChangedFlags InFlags, double StartTime, double EndTime);
 	void HandleSelectionEventChanged(const TSharedPtr<const ITimingEvent> InEvent);
+	TSharedPtr<SWidget> HandleWidgetInvalidateListContextMenu();
+	bool CanWidgetInvalidateListGotoRootWidget();
+	void HandleWidgetInvalidateListGotoRootWidget();
 
 	void RefreshNodes();
 	void RefreshNodes_Invalidation(const FSlateProvider* SlateProvider);
