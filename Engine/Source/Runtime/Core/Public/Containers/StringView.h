@@ -48,6 +48,9 @@ namespace StringViewPrivate
  * string views then the caller is free to use FString, FStringBuilder, raw C strings,
  * or any other type which can be converted into a string view.
  *
+ * The UE::String namespace contains many functions that can operate on string views.
+ * Most of these can be found in String/___.h in Core.
+ *
  * @code
  *	void DoFoo(FStringView InString);
  *
@@ -131,10 +134,6 @@ public:
 	/** Returns a pointer to the start of the view. This is NOT guaranteed to be null-terminated! */
 	constexpr inline const CharType* GetData() const { return DataPtr; }
 
-	/** Returns a pointer to the start of the view. This is NOT guaranteed to be null-terminated! */
-	UE_DEPRECATED(4.25, "'Data' is deprecated. Please use 'GetData' instead!")
-	constexpr inline const CharType* Data() const { return DataPtr; }
-
 	// Capacity
 
 	/** Returns the length of the string view. */
@@ -209,7 +208,16 @@ public:
 	 *
 	 * @param SearchCase Whether the comparison should ignore case.
 	 */
-	inline bool Equals(ViewType Other, ESearchCase::Type SearchCase = ESearchCase::CaseSensitive) const;
+	template <typename OtherCharType>
+	inline bool Equals(TStringView<OtherCharType> Other, ESearchCase::Type SearchCase = ESearchCase::CaseSensitive) const;
+
+	/**
+	 * Check whether this view is lexicographically equivalent to another view.
+	 *
+	 * @param SearchCase Whether the comparison should ignore case.
+	 */
+	template <typename OtherCharType>
+	inline bool Equals(const OtherCharType* Other, ESearchCase::Type SearchCase = ESearchCase::CaseSensitive) const;
 
 	/**
 	 * Compare this view lexicographically with another view.
@@ -218,7 +226,18 @@ public:
 	 *
 	 * @return 0 is equal, negative if this view is less, positive if this view is greater.
 	 */
-	CORE_API int32 Compare(ViewType Other, ESearchCase::Type SearchCase = ESearchCase::CaseSensitive) const;
+	template <typename OtherCharType>
+	inline int32 Compare(TStringView<OtherCharType> Other, ESearchCase::Type SearchCase = ESearchCase::CaseSensitive) const;
+
+	/**
+	 * Compare this view lexicographically with another view.
+	 *
+	 * @param SearchCase Whether the comparison should ignore case.
+	 *
+	 * @return 0 is equal, negative if this view is less, positive if this view is greater.
+	 */
+	template <typename OtherCharType>
+	inline int32 Compare(const OtherCharType* Other, ESearchCase::Type SearchCase = ESearchCase::CaseSensitive) const;
 
 	/** Returns whether this view starts with the prefix character compared case-sensitively. */
 	inline bool StartsWith(CharType Prefix) const { return Size >= 1 && DataPtr[0] == Prefix; }

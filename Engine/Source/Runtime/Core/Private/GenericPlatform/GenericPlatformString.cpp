@@ -72,6 +72,37 @@ void FGenericPlatformString::LogBogusChars(const SourceEncoding* Src, int32 SrcS
 	}
 }
 
+namespace GenericPlatformStringPrivate
+{
+
+template<typename CharType1, typename CharType2>
+int32 StrncmpImpl(const CharType1* String1, const CharType2* String2, SIZE_T Count)
+{
+	for (; Count > 0; --Count)
+	{
+		CharType1 C1 = *String1++;
+		CharType2 C2 = *String2++;
+
+		if (C1 != C2)
+		{
+			return TChar<CharType1>::ToUnsigned(C1) - TChar<CharType2>::ToUnsigned(C2);
+		}
+		if (C1 == 0)
+		{
+			return 0;
+		}
+	}
+
+	return 0;
+}
+
+}
+
+int32 FGenericPlatformString::Strncmp(const ANSICHAR* Str1, const ANSICHAR* Str2, SIZE_T Count) { return GenericPlatformStringPrivate::StrncmpImpl(Str1, Str2, Count); }
+int32 FGenericPlatformString::Strncmp(const WIDECHAR* Str1, const WIDECHAR* Str2, SIZE_T Count) { return GenericPlatformStringPrivate::StrncmpImpl(Str1, Str2, Count); }
+int32 FGenericPlatformString::Strncmp(const ANSICHAR* Str1, const WIDECHAR* Str2, SIZE_T Count) { return GenericPlatformStringPrivate::StrncmpImpl(Str1, Str2, Count); }
+int32 FGenericPlatformString::Strncmp(const WIDECHAR* Str1, const ANSICHAR* Str2, SIZE_T Count) { return GenericPlatformStringPrivate::StrncmpImpl(Str1, Str2, Count); }
+
 #if !UE_BUILD_DOCS
 template CORE_API void FGenericPlatformString::LogBogusChars<ANSICHAR, WIDECHAR>(const WIDECHAR* Src, int32 SrcSize);
 template CORE_API void FGenericPlatformString::LogBogusChars<ANSICHAR, UCS2CHAR>(const UCS2CHAR* Src, int32 SrcSize);
