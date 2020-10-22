@@ -299,7 +299,7 @@ FHairTransmittanceMask ComputeTransmittanceVoxel(
 		#endif
 		
 		const float PositionBiasScale = 0.5f;
-		const float3 DepthBias = VirtualVoxel.VoxelWorldSize * (VirtualVoxel.DepthBiasScale_Light*LightDirection + PositionBiasScale*(SampleRandom*2-1));
+		const float3 DepthBias = VirtualVoxel.VoxelWorldSize * (VirtualVoxel.DepthBiasScale_Transmittance*LightDirection + PositionBiasScale*(SampleRandom*2-1));
 		const float3 SampleWorldPosition = WorldPosition + DepthBias;
 
 		FVirtualVoxelCommonDesc CommonDesc;
@@ -316,7 +316,7 @@ FHairTransmittanceMask ComputeTransmittanceVoxel(
 		TraversalSettings.CountThreshold = GetOpaqueVoxelValue();
 		TraversalSettings.DistanceThreshold = DistanceThreshold;
 		TraversalSettings.bDebugEnabled = bDebugEnabled;
-		TraversalSettings.SteppingScale = VirtualVoxel.SteppingScale;
+		TraversalSettings.SteppingScale = VirtualVoxel.SteppingScale_Transmittance;
 		TraversalSettings.Random = SampleRandom;
 		TraversalSettings.TanConeAngle = 0; // TanLightAngle; // Area light transmission is disabled as it is too noisy for now
 		TraversalSettings.PixelRadius = PixelRadius;

@@ -52,7 +52,7 @@ float InternalTraverseHair(uint2 PixelCoord, float3 RayOrigin, float3 RayDirecti
 		TraversalSettings.CountThreshold = InOcclusionThreshold;
 		TraversalSettings.DistanceThreshold = DistanceThreshold;
 		TraversalSettings.bDebugEnabled = bDebugEnabled;
-		TraversalSettings.SteppingScale = VirtualVoxel.SteppingScale;
+		TraversalSettings.SteppingScale = VirtualVoxel.SteppingScale_Raytracing;
 		TraversalSettings.Random = VoxelRandom;
 		TraversalSettings.bUseOpaqueVisibility = false;
 

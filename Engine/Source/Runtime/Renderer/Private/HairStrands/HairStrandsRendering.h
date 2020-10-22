@@ -49,3 +49,4 @@ void RunHairStrandsBookmark(
 	FHairStrandsBookmarkParameters& Parameters);
 
 FHairStrandsBookmarkParameters CreateHairStrandsBookmarkParameters(FViewInfo& View);
+FHairStrandsBookmarkParameters CreateHairStrandsBookmarkParameters(TArray<FViewInfo>& View);

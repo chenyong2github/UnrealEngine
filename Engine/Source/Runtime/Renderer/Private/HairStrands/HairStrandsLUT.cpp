@@ -331,13 +331,13 @@ FHairLUT GetHairLUT(FRDGBuilder& GraphBuilder, const FViewInfo& View)
 	if (bNeedGenerate)
 	{
 		FRDGTextureRef HairDualScatteringLUTTexture = AddHairLUTPass(GraphBuilder, View, HairLUTType_DualScattering);
-		ConvertToExternalTexture(GraphBuilder, HairDualScatteringLUTTexture, GSystemTextures.HairLUT0);
+		ConvertToUntrackedExternalTexture(GraphBuilder, HairDualScatteringLUTTexture, GSystemTextures.HairLUT0, ERHIAccess::SRVMask);
 
 		FRDGTextureRef HairMeanEnergyLUTTexture = AddHairLUTPass(GraphBuilder, View, HairLUTType_MeanEnergy);
-		ConvertToExternalTexture(GraphBuilder, HairMeanEnergyLUTTexture, GSystemTextures.HairLUT1);
+		ConvertToUntrackedExternalTexture(GraphBuilder, HairMeanEnergyLUTTexture, GSystemTextures.HairLUT1, ERHIAccess::SRVMask);
 
 		FRDGTextureRef HairCoverageLUTTexture = AddHairCoverageLUTPass(GraphBuilder, View);
-		ConvertToExternalTexture(GraphBuilder, HairCoverageLUTTexture, GSystemTextures.HairLUT2);
+		ConvertToUntrackedExternalTexture(GraphBuilder, HairCoverageLUTTexture, GSystemTextures.HairLUT2, ERHIAccess::SRVMask);
 
 		HairLUTData.Textures[HairLUTType_DualScattering] = HairDualScatteringLUTTexture;
 		HairLUTData.Textures[HairLUTType_MeanEnergy] = HairMeanEnergyLUTTexture;

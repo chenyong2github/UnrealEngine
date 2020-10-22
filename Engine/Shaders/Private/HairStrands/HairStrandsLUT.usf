@@ -90,10 +90,10 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 
 	FGBufferData GBufferData;
 	GBufferData.Specular  	= 0.5f;
-	GBufferData.BaseColor	= Absorption.xxx;		// Perceptual absorption
-	GBufferData.Metallic	= 0;		 			// This disable the fake multiple scattering
-	GBufferData.Roughness 	= Roughness; 			// Perceptual roughness
-	GBufferData.CustomData  = float4(0, 0, 1, 0); 	// Backlit
+	GBufferData.BaseColor	= ToLinearAbsorption(Absorption.xxx);	// Perceptual absorption
+	GBufferData.Metallic	= 0;		 							// This disable the fake multiple scattering
+	GBufferData.Roughness 	= Roughness; 							// Perceptual roughness
+	GBufferData.CustomData  = float4(0, 0, 1, 0); 					// Backlit
 
 	float FrontHemisphereOutput = 0;
 	float BackHemisphereOutput  = 0;
@@ -111,7 +111,7 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 	const float3 V = float3(CosAngle, 0, SinAngle);
 	const float OpaqueVisibility = 1;
 	FHairTransmittanceData TransmittanceData = InitHairStrandsTransmittanceData();
-	TransmittanceData.bUseSeparableR = false;
+	TransmittanceData.bUseSeparableR = true;
 
 	const float MaxCosThetaRadius = cos(0.25f * PI / float(ThetaCount)); // [0, Pi/2] / ThetaCount which is divided by 2 for getting the actual radius
 	float3x3 ToViewBasis = GetTangentBasis(V);
@@ -143,18 +143,21 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 		const float3 L = SampleDirection.xyz;
         const float3 BSDFValue = HairShading(GBufferData, L, JitteredV, N, OpaqueVisibility, TransmittanceData, Backlit, Area, 0);
 		
+		// As in the original paper "Dual scattering approximation for fast multiple-scattering in hair", the average front/back scatter are cos-weighted (eq. 12). 
+		const float CosL = 1.f;// abs(SampleDirection.x);
+
 		// The view direction is aligned with the positive X Axis. This means:
 		// * the back hemisphere (R / TRT) is on the positive side of X
 		// * the front hemisphere (TT) is on the negative side of X
 		const bool bIsBackHemisphere = SampleDirection.x > 0;
 		if (bIsBackHemisphere)
 		{
-			BackHemisphereOutput += BSDFValue.x / SamplePdf;
+			BackHemisphereOutput += CosL * BSDFValue.x / SamplePdf;
 			++BackHemisphereCount;
 		}
 		else
 		{
-			FrontHemisphereOutput += BSDFValue.x / SamplePdf;
+			FrontHemisphereOutput += CosL * BSDFValue.x / SamplePdf;
 			++FrontHemisphereCount;
 		}
 	}
@@ -201,10 +204,10 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 
 	FGBufferData GBufferData;
 	GBufferData.Specular = 0.5f;
-	GBufferData.BaseColor = Absorption.xxx;		// Perceptual absorption
-	GBufferData.Metallic = 0;		 			// This disable the fake multiple scattering
-	GBufferData.Roughness = Roughness; 			// Perceptual roughness
-	GBufferData.CustomData = float4(0,0,1,0); 	// Backlit
+	GBufferData.BaseColor = ToLinearAbsorption(Absorption.xxx);	// Perceptual absorption
+	GBufferData.Metallic = 0;		 							// This disable the fake multiple scattering
+	GBufferData.Roughness = Roughness; 							// Perceptual roughness
+	GBufferData.CustomData = float4(0,0,1,0); 					// Backlit
 
 	float R_Output = 0;
 	float TT_Output = 0;

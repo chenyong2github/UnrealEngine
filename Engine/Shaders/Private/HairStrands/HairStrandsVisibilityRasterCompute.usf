@@ -51,9 +51,9 @@ PackedType WriteVisibilityData(RWTexture2D<PackedType> OutTexture, uint2 Coords,
 	// TODO
 	return (PackedType)0;
 #elif PERMUTATION_RASTER_ATOMIC == RASTER_PLATFORM && COMPILER_SUPPORTS_UINT64_IMAGE_ATOMICS && COMPILER_SUPPORTS_ULONG_TYPES
-	//PackedType PrevData = ImageInterlockedMaxUInt64(OutTexture, Coords, PackedData);
-	//return PrevData;
-	return (PackedType)0;
+	ImageInterlockedMaxUInt64(OutTexture, Coords, Data);
+	// Need to expose the returned value version of ImageInterlockedMaxUInt64
+	return Data;
 #else
 	return (PackedType)0;
 #endif

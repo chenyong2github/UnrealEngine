@@ -222,6 +222,12 @@ struct HAIRSTRANDSCORE_API FHairGroupsCardsSourceDescription
 	UPROPERTY(VisibleAnywhere, Transient, Category = "CardsSource")
 	mutable FHairGroupCardsInfo CardsInfo;
 
+	UPROPERTY(Transient)
+	FString ImportedMeshKey;
+
 	bool operator==(const FHairGroupsCardsSourceDescription& A) const;
+
+	bool HasMeshChanged() const;
+	void UpdateMeshKey();
 };
 
