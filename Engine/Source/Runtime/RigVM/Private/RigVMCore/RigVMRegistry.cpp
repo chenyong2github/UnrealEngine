@@ -16,14 +16,14 @@ void FRigVMRegistry::Refresh()
 {
 }
 
-void FRigVMRegistry::Register(const TCHAR* InName, FRigVMFunctionPtr InFunctionPtr, UScriptStruct* InStruct)
+void FRigVMRegistry::Register(const TCHAR* InName, FRigVMFunctionPtr InFunctionPtr, UScriptStruct* InStruct, FString InHeaderFilePath)
 {
 	if (FindFunction(InName) != nullptr)
 	{
 		return;
 	}
 
-	FRigVMFunction Function(InName, InFunctionPtr, InStruct, Functions.Num());
+	FRigVMFunction Function(InName, InFunctionPtr, InStruct, Functions.Num(), InHeaderFilePath);
 	Functions.Add(Function);
 
 #if WITH_EDITOR
@@ -102,6 +102,19 @@ const FRigVMPrototype* FRigVMRegistry::FindPrototype(UScriptStruct* InStruct, co
 {
 	FName Notation = FRigVMPrototype::GetNotationFromStruct(InStruct, InPrototypeName);
 	return FindPrototype(Notation);
+}
+
+FRigVMFunction FRigVMRegistry::FindFunctionInfo(const TCHAR* InName) const
+{
+	for (const FRigVMFunction& Function : Functions)
+	{
+		if (FCString::Strcmp(Function.Name, InName) == 0)
+		{
+			return Function;
+		}
+	} 
+
+	return FRigVMFunction();
 }
 
 const TArray<FRigVMFunction>& FRigVMRegistry::GetFunctions() const

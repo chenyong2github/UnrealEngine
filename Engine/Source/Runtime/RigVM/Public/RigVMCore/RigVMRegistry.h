@@ -23,7 +23,7 @@ public:
 	// Registers a function given its name.
 	// The name will be the name of the struct and virtual method,
 	// for example "FMyStruct::MyVirtualMethod"
-	void Register(const TCHAR* InName, FRigVMFunctionPtr InFunctionPtr, UScriptStruct* InStruct = nullptr);
+	void Register(const TCHAR* InName, FRigVMFunctionPtr InFunctionPtr, UScriptStruct* InStruct = nullptr, FString InHeaderFilePath = FString());
 
 	// Refreshes the list and finds the function pointers
 	// based on the names.
@@ -37,6 +37,9 @@ public:
 
 	// Returns a prototype pointer given its notation (or nullptr)
 	const FRigVMPrototype* FindPrototype(UScriptStruct* InStruct, const FString& InPrototypeName) const;
+
+	// Returns registry info about a function given its name
+	FRigVMFunction FindFunctionInfo(const TCHAR* InName) const;
 
 	// Returns all current rigvm functions
 	const TArray<FRigVMFunction>& GetFunctions() const;
