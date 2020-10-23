@@ -4,9 +4,9 @@
         "name": "VK_LAYER_KHRONOS_validation",
         "type": "GLOBAL",
         "library_path": ".\\VkLayer_khronos_validation.dll",
-        "api_version": "1.1.121",
+        "api_version": "1.2.148",
         "implementation_version": "1",
-        "description": "LunarG Validation Layer",
+        "description": "Khronos Validation Layer",
         "instance_extensions": [
              {
                  "name": "VK_EXT_debug_report",
@@ -39,6 +39,12 @@
                          "vkDestroyValidationCacheEXT",
                          "vkGetValidationCacheDataEXT",
                          "vkMergeValidationCachesEXT"
+                        ]
+             },
+             {
+                 "name": "VK_EXT_tooling_info",
+                 "spec_version": "1",
+                 "entrypoints": ["vkGetPhysicalDeviceToolPropertiesEXT"
                         ]
              }
          ]
