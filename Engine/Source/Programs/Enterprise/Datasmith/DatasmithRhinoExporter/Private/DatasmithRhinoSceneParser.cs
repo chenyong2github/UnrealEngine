@@ -220,7 +220,13 @@ namespace DatasmithRhino
 	{
 		public RhinoDoc RhinoDocument { get; private set; }
 		public Rhino.FileIO.FileWriteOptions ExportOptions { get; private set; }
-		public bool bIsInWorksession { get { return RhinoDocument.Worksession != null && RhinoDocument.Worksession.ModelCount > 1; } }
+		public bool bIsInWorksession {
+			get {
+				return Environment.OSVersion.Platform != PlatformID.MacOSX //Worksession is not implemented on Mac, calling the API throws exception.
+					&& RhinoDocument.Worksession != null
+					&& RhinoDocument.Worksession.ModelCount > 1;
+			}
+		}
 
 		public RhinoSceneHierarchyNode SceneRoot = new RhinoSceneHierarchyNode(/*bInIsInstanceDefinition=*/false);
 		public Dictionary<InstanceDefinition, RhinoSceneHierarchyNode> InstanceDefinitionHierarchyNodeDictionary = new Dictionary<InstanceDefinition, RhinoSceneHierarchyNode>();
