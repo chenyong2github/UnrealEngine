@@ -45,8 +45,10 @@ static_assert(VK_API_VERSION >= UE_VK_API_VERSION, "Vulkan SDK is older than the
 	#error No VulkanSDK defines?
 #endif
 
+#if defined(VK_API_VERSION)
 #if defined(VK_HEADER_VERSION) && VK_HEADER_VERSION < 8 && (VK_API_VERSION < VK_MAKE_VERSION(1, 0, 3))
 	#include <vulkan/vk_ext_debug_report.h>
+#endif
 #endif
 
 ///////////////////////////////////////////////////////////////////////////////
