@@ -15,7 +15,7 @@
 
 Texture2D FinalLightingAtlas;
 Texture2D IrradianceAtlas;
-Texture2D IndirectrradianceAtlas;
+Texture2D IndirectIrradianceAtlas;
 #define FINAL_LIGHTING_ATLAS_ID 0
 #define IRRADIANCE_ATLAS_ID 1
 #define INDIRECT_IRRADIANCE_ATLAS_ID 2
@@ -816,7 +816,7 @@ void SampleLumenCubeMapFace(
 				}
 				else // if (AtlasId == INDIRECT_IRRADIANCE_ATLAS_ID)
 				{
-					CardLighting = Texture2DSampleLevel(IrradianceAtlas, TRACING_ATLAS_SAMPLER, AtlasUV, Mip).rgb;
+					CardLighting = Texture2DSampleLevel(IndirectIrradianceAtlas, TRACING_ATLAS_SAMPLER, AtlasUV, Mip).rgb;
 				}
 
 				//float3 CardLighting = Pow2(Texture2DSampleLevel(LumenCardScene.AlbedoAtlas, TRACING_ATLAS_SAMPLER, AtlasUV, Mip).rgb);
