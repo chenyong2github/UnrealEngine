@@ -176,6 +176,10 @@ public:
 		FRDGTextureRef* OutSceneColorHalfResTexture,
 		FIntRect* OutSceneColorHalfResViewRect) const = 0;
 
+
+	virtual float GetMinUpsampleResolutionFraction() const = 0;
+	virtual float GetMaxUpsampleResolutionFraction() const = 0;
+
 	static const ITemporalUpscaler* GetDefaultTemporalUpscaler();
 	static int GetTemporalUpscalerMode();
 }; 
