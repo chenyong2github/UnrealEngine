@@ -136,8 +136,39 @@ namespace Chaos
 		return BestMatchIndex;
 	}
 
+	void FRigidBodyPointContactConstraint::UpdateOneShotManifoldContacts()
+	{
+		for (int32 Index = 0; Index < ManifoldPoints.Num() ; Index++)
+		{
+			const FContactPoint& ContactPoint = ManifoldPoints[Index].ContactPoint;
+			UpdateManifoldPoint(Index, ContactPoint);
+
+			// Copy currently active point
+			if (ContactPoint.Phi < Manifold.Phi)
+			{
+				SetActiveContactPoint(ContactPoint);
+			}
+		}
+	}
+
+	void FRigidBodyPointContactConstraint::AddOneshotManifoldContact(const FContactPoint& ContactPoint, bool bInInitialize)
+	{
+		if (bUseOneShotManifold)
+		{
+			AddManifoldPoint(ContactPoint, bInInitialize);
+		}
+
+		// Copy currently active point
+		if (ContactPoint.Phi < Manifold.Phi)
+		{
+			SetActiveContactPoint(ContactPoint);
+		}
+	}
+
 	void FRigidBodyPointContactConstraint::UpdateManifold(const FContactPoint& ContactPoint)
 	{
+		ensure(bUseOneShotManifold == false);
+
 		if (bUseIncrementalManifold)
 		{
 			int32 ManifoldPointIndex = FindManifoldPoint(ContactPoint);
@@ -153,7 +184,7 @@ namespace Chaos
 			}
 		}
 
-		// Copy point currently active point
+		// Copy currently active point
 		if (ContactPoint.Phi < Manifold.Phi)
 		{
 			SetActiveContactPoint(ContactPoint);
@@ -204,7 +235,7 @@ namespace Chaos
 		ManifoldPoint.InitialPhi = ManifoldPoint.ContactPoint.Phi;
 	}
 
-	int32 FRigidBodyPointContactConstraint::AddManifoldPoint(const FContactPoint& ContactPoint)
+	int32 FRigidBodyPointContactConstraint::AddManifoldPoint(const FContactPoint& ContactPoint, bool bInInitialize)
 	{
 		// @todo(chaos): remove the least useful manifold point when we hit some point limit...
 		if (ManifoldPoints.Max() < Chaos_Manifold_MinArraySize)
@@ -213,7 +244,10 @@ namespace Chaos
 		}
 		int32 ManifoldPointIndex = ManifoldPoints.Add(ContactPoint);
 
-		InitManifoldPoint(ManifoldPoints[ManifoldPointIndex]);
+		if (bInInitialize)
+		{
+			InitManifoldPoint(ManifoldPoints[ManifoldPointIndex]);
+		}
 
 		return ManifoldPointIndex;
 	}
