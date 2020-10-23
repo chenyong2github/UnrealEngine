@@ -38,7 +38,10 @@ void SaveCrcCrashException(EXCEPTION_POINTERS* ExceptionInfo)
 				FEditorAnalyticsSession MonitoredSession;
 				if (FEditorAnalyticsSession::FindSession(MonitoredEditorPid, MonitoredSession))
 				{
-					MonitoredSession.SaveMonitorExceptCode(ExceptionInfo->ExceptionRecord->ExceptionCode);
+					if (!MonitoredSession.SaveMonitorExceptCode(ExceptionInfo->ExceptionRecord->ExceptionCode))
+					{
+						FDiagnosticLogger::Get().LogEvent("CRC/ExceptCodeNotSaved");
+					}
 				}
 				FEditorAnalyticsSession::Unlock();
 			}
