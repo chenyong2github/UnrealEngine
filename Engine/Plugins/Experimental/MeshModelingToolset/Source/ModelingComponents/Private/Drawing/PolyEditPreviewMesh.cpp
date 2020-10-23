@@ -37,17 +37,30 @@ void UPolyEditPreviewMesh::InitializeExtrudeType(
 	InitialEditPatch = EditPatch;
 	InitialEditPatchBVTree.SetMesh(&InitialEditPatch);
 
+	// save initial tri normals
+	InitialTriNormals.SetNum(InitialEditPatch.MaxTriangleID());
+	for ( int32 tid = 0; tid < InitialEditPatch.MaxTriangleID(); ++tid)
+	{
+		InitialTriNormals[tid] = InitialEditPatch.GetTriNormal(tid);
+	}
+
 	// extrude initial patch by a tiny amount so that we get normals
 	FExtrudeMesh Extruder(&EditPatch);
 	Extruder.DefaultExtrudeDistance = 0.01;
 	Extruder.Apply();
 
 	// get set of extrude vertices
+	ExtrudeToInitialVerts.Reset();
 	EditVertices.Reset();
 	FMeshVertexSelection Vertices(&EditPatch);
 	for (const FExtrudeMesh::FExtrusionInfo& Extrusion : Extruder.Extrusions)
 	{
 		Vertices.SelectTriangleVertices(Extrusion.OffsetTriangles);
+
+		for (TPair<int32, int32> pair : Extrusion.InitialToOffsetMapV)
+		{
+			ExtrudeToInitialVerts.Add(pair.Value, pair.Key);
+		}
 	}
 	EditVertices = Vertices.AsArray();
 
@@ -93,6 +106,13 @@ void UPolyEditPreviewMesh::InitializeExtrudeType(FDynamicMesh3&& BaseMesh,
 	// save copy of initial patch
 	InitialEditPatchBVTree.SetMesh(&InitialEditPatch);
 
+	// save initial tri normals
+	InitialTriNormals.SetNum(InitialEditPatch.MaxTriangleID());
+	for ( int32 tid : InitialEditPatch.TriangleIndicesItr() )
+	{
+		InitialTriNormals[tid] = InitialEditPatch.GetTriNormal(tid);
+	}
+
 	// extrude initial patch by a tiny amount so that we get normals
 	FDynamicMesh3 EditPatch(InitialEditPatch);
 	FExtrudeMesh Extruder(&EditPatch);
@@ -100,11 +120,17 @@ void UPolyEditPreviewMesh::InitializeExtrudeType(FDynamicMesh3&& BaseMesh,
 	Extruder.Apply();
 
 	// get set of extrude vertices
+	ExtrudeToInitialVerts.Reset();
 	EditVertices.Reset();
 	FMeshVertexSelection Vertices(&EditPatch);
 	for (const FExtrudeMesh::FExtrusionInfo& Extrusion : Extruder.Extrusions)
 	{
 		Vertices.SelectTriangleVertices(Extrusion.OffsetTriangles);
+
+		for (TPair<int32,int32> pair : Extrusion.InitialToOffsetMapV)
+		{
+			ExtrudeToInitialVerts.Add(pair.Value, pair.Key);
+		}
 	}
 	EditVertices = Vertices.AsArray();
 
@@ -149,6 +175,37 @@ void UPolyEditPreviewMesh::UpdateExtrudeType(double NewOffset, bool bUseNormalDi
 		}
 	});
 }
+
+
+
+void UPolyEditPreviewMesh::UpdateExtrudeType_FaceNormalAvg(double NewOffset)
+{
+	EditMesh([&](FDynamicMesh3& Mesh)
+	{
+		int32 NumVertices = EditVertices.Num();
+		TArray<FVector3d> NewPositions;
+		NewPositions.SetNum(NumVertices);
+		for (int32 k = 0; k < NumVertices; ++k)
+		{
+			int vid = EditVertices[k];
+			FVector3d InitialPos = InitialPositions[k];
+			FVector3d AccumV = FVector3d::Zero();
+			int32 Count = 0;
+			int32 InitialVID = ExtrudeToInitialVerts[vid];
+			InitialEditPatch.EnumerateVertexTriangles(InitialVID, [&](int32 InitialTID)
+			{
+				AccumV += (InitialPos + NewOffset * InitialTriNormals[InitialTID]);
+				Count++;
+			});
+			NewPositions[k] = (Count == 0) ? InitialPos : (AccumV / (double)Count);
+		}
+		for (int32 k = 0; k < NumVertices; ++k)
+		{
+			Mesh.SetVertex(EditVertices[k], NewPositions[k]);
+		}
+	});
+}
+
 
 
 void UPolyEditPreviewMesh::UpdateExtrudeType(TFunctionRef<void(FDynamicMesh3&)> UpdateMeshFunc, bool bFullRecalculate)

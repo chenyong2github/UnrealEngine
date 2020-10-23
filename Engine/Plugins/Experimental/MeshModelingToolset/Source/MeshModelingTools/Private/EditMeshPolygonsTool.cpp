@@ -210,6 +210,11 @@ void UEditMeshPolygonsTool::Setup()
 	ExtrudeProperties->WatchProperty(ExtrudeProperties->Direction,
 									 [this](EPolyEditExtrudeDirection){ RestartExtrude(); });
 
+	OffsetProperties = NewObject<UPolyEditOffsetProperties>();
+	OffsetProperties->RestoreProperties(this);
+	AddToolPropertySource(OffsetProperties);
+	SetToolPropertySourceEnabled(OffsetProperties, false);
+
 	InsetProperties = NewObject<UPolyEditInsetProperties>();
 	InsetProperties->RestoreProperties(this);
 	AddToolPropertySource(InsetProperties);
@@ -255,6 +260,7 @@ void UEditMeshPolygonsTool::Shutdown(EToolShutdownType ShutdownType)
 {
 	CommonProps->SaveProperties(this);
 	ExtrudeProperties->SaveProperties(this);
+	OffsetProperties->SaveProperties(this);
 	InsetProperties->SaveProperties(this);
 	CutProperties->SaveProperties(this);
 	SetUVProperties->SaveProperties(this);
@@ -783,7 +789,14 @@ void UEditMeshPolygonsTool::OnTick(float DeltaTime)
 		}
 		else if (CurrentToolMode == ECurrentToolMode::OffsetSelection)
 		{
-			EditPreview->UpdateExtrudeType(ExtrudeHeightMechanic->CurrentHeight, true);
+			if (OffsetProperties->bUseFaceNormals)
+			{
+				EditPreview->UpdateExtrudeType_FaceNormalAvg(ExtrudeHeightMechanic->CurrentHeight);
+			}
+			else
+			{
+				EditPreview->UpdateExtrudeType(ExtrudeHeightMechanic->CurrentHeight, true);
+			}
 		}
 		else if (CurrentToolMode == ECurrentToolMode::InsetSelection || CurrentToolMode == ECurrentToolMode::OutsetSelection)
 		{
@@ -980,6 +993,10 @@ void UEditMeshPolygonsTool::BeginExtrude(bool bIsNormalOffset)
 	{
 		SetToolPropertySourceEnabled(ExtrudeProperties, true);
 	}
+	else
+	{
+		SetToolPropertySourceEnabled(OffsetProperties, true);
+	}
 	SetActionButtonPanelsVisible(false);
 }
 
@@ -1001,7 +1018,8 @@ void UEditMeshPolygonsTool::ApplyExtrude(bool bIsOffset)
 		return Pos + ExtrudeDist * (bIsOffset ? (FVector3d)Normal : ExtrudeDir);
 	};
 	Extruder.bIsPositiveOffset = (ExtrudeDist > 0);
-	Extruder.bOffsetFullComponentsAsSolids = ExtrudeProperties->bShellsToSolids;
+	Extruder.bUseFaceNormals = (bIsOffset && OffsetProperties->bUseFaceNormals);
+	Extruder.bOffsetFullComponentsAsSolids = bIsOffset || ExtrudeProperties->bShellsToSolids;
 	Extruder.ChangeTracker = MakeUnique<FDynamicMeshChangeTracker>(Mesh);
 	Extruder.ChangeTracker->BeginChange();
 	Extruder.Apply();
@@ -1027,6 +1045,7 @@ void UEditMeshPolygonsTool::ApplyExtrude(bool bIsOffset)
 	CurrentToolMode = ECurrentToolMode::TransformSelection;
 
 	SetToolPropertySourceEnabled(ExtrudeProperties, false);
+	SetToolPropertySourceEnabled(OffsetProperties, false);
 	SetActionButtonPanelsVisible(true);
 }
 
@@ -2085,6 +2104,7 @@ void UEditMeshPolygonsTool::CancelMeshEditChange()
 
 	// hide properties that might be visible
 	SetToolPropertySourceEnabled(ExtrudeProperties, false);
+	SetToolPropertySourceEnabled(OffsetProperties, false);
 	SetToolPropertySourceEnabled(InsetProperties, false);
 	SetToolPropertySourceEnabled(OutsetProperties, false);
 	SetToolPropertySourceEnabled(CutProperties, false);

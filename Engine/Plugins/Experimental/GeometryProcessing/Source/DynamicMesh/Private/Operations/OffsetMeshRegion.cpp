@@ -173,13 +173,48 @@ bool FOffsetMeshRegion::ApplyOffset(FOffsetInfo& Region, FMeshNormals* UseNormal
 	// offset vertices
 	FMeshVertexSelection SelectionV(Mesh);
 	SelectionV.SelectTriangleVertices(Region.InitialTriangles);
-	for (int vid : SelectionV)
+	if (bUseFaceNormals)
 	{
-		FVector3d v = Mesh->GetVertex(vid);
-		FVector3f n = (UseNormals != nullptr) ? (FVector3f)(*UseNormals)[vid] : Mesh->GetVertexNormal(vid);
-		FVector3d newv = OffsetPositionFunc(v, n, vid);
-		Mesh->SetVertex(vid, newv);
+		TArray<int32> Vertices = SelectionV.AsArray();
+		TSet<int32> TriangleSet(Region.InitialTriangles);
+		int32 NumV = Vertices.Num();
+		TArray<FVector3d> NewPositions;
+		NewPositions.SetNum(NumV);
+		for (int32 k = 0; k < NumV; ++k)
+		{
+			int32 vid = Vertices[k];
+			FVector3d VertexPos = Mesh->GetVertex(vid);
+			FVector3d AccumV = FVector3d::Zero();
+			int32 Count = 0;
+			for (int32 tid : Mesh->VtxTrianglesItr(vid))
+			{
+				if (TriangleSet.Contains(tid))
+				{
+					FVector3f TriNormal = (FVector3f)Mesh->GetTriNormal(tid);
+					FVector3d TriNormalOffsetPos = OffsetPositionFunc(VertexPos, TriNormal, vid);
+					AccumV += TriNormalOffsetPos;
+					Count++;
+				}
+			}
+			NewPositions[k] = (Count == 0) ? VertexPos : (AccumV / (double)Count);
+		}
+		for (int32 k = 0; k < NumV; ++k)
+		{
+			Mesh->SetVertex(Vertices[k], NewPositions[k]);
+		}
 	}
+	else
+	{
+		for (int32 vid : SelectionV)
+		{
+			FVector3d v = Mesh->GetVertex(vid);
+			FVector3f n = (UseNormals != nullptr) ? (FVector3f)(*UseNormals)[vid] : Mesh->GetVertexNormal(vid);
+			FVector3d newv = OffsetPositionFunc(v, n, vid);
+			Mesh->SetVertex(vid, newv);
+		}
+	}
+
+
 
 	// stitch each loop
 	Region.BaseLoops.SetNum(NumInitialLoops);
