@@ -2,7 +2,7 @@ Availability: NoPublish
 Title: BuildGraph Predefined Tasks
 Crumbs: %ROOT%, Programming, Programming/Development, Programming/Development/BuildGraph, Programming/Development/BuildGraph/BuildGraphScriptTasks
 Description: This is a procedurally generated markdown page.
-version: 4.27
+version: 5.0
 parent:Programming/Development/BuildGraph/BuildGraphScriptTasks
 
 ### AgeStore
@@ -33,14 +33,14 @@ Invokes an AutomationTool child process to run the given command.
 
 Spawns the editor to run a commandlet.
 
-|            |               |          |                                                                                                          |
-| ---------- | ------------- | -------- | -------------------------------------------------------------------------------------------------------- |
-| Name       | String        | Required | The commandlet name to execute.                                                                          |
-| Project    | File Spec     | Optional | The project to run the editor with.                                                                      |
-| Arguments  | String        | Optional | Arguments to be passed to the commandlet.                                                                |
-| EditorExe  | FileReference | Optional | The editor executable to use. Defaults to the development UE4Editor executable for the current platform. |
-| ErrorLevel | Int32         | Optional | The minimum exit code, which is treated as an error.                                                     |
-| If         | Condition     | Optional | Whether to execute this task. It is ignored if this condition evaluates to false.                        |
+|            |               |          |                                                                                                             |
+| ---------- | ------------- | -------- | ----------------------------------------------------------------------------------------------------------- |
+| Name       | String        | Required | The commandlet name to execute.                                                                             |
+| Project    | File Spec     | Optional | The project to run the editor with.                                                                         |
+| Arguments  | String        | Optional | Arguments to be passed to the commandlet.                                                                   |
+| EditorExe  | FileReference | Optional | The editor executable to use. Defaults to the development UnrealEditor executable for the current platform. |
+| ErrorLevel | Int32         | Optional | The minimum exit code, which is treated as an error.                                                        |
+| If         | Condition     | Optional | Whether to execute this task. It is ignored if this condition evaluates to false.                           |
 
 ### Compile
 
@@ -66,7 +66,7 @@ Cook a selection of maps for a certain platform
 |           |           |          |                                                                                   |
 | --------- | --------- | -------- | --------------------------------------------------------------------------------- |
 | Project   | String    | Required | Project file to be cooked.                                                        |
-| Platform  | String    | Required | The cook platform to target (for example, WindowsNoEditor).                       |
+| Platform  | String    | Required | The cook platform to target (for example, Windows).                               |
 | Maps      | String    | Optional | List of maps to be cooked, separated by '+' characters.                           |
 | Versioned | Boolean   | Optional | Additional arguments to be passed to the cooker.                                  |
 | Arguments | String    | Optional | Additional arguments to be passed to the cooker.                                  |
@@ -96,6 +96,7 @@ Compiles C# project files, and their dependencies.
 | Configuration | String    | Optional | The configuration to compile.                                                                                                                       |
 | Platform      | String    | Optional | The platform to compile.                                                                                                                            |
 | Target        | String    | Optional | The target to build.                                                                                                                                |
+| Properties    | String    | Optional | Properties for the command                                                                                                                          |
 | Arguments     | String    | Optional | Additional options to pass to the compiler.                                                                                                         |
 | EnumerateOnly | Boolean   | Optional | Only enumerate build products -- do not actually compile the projects.                                                                              |
 | Tag           | Tag List  | Optional | Tag to be applied to build products of this task.                                                                                                   |
@@ -280,6 +281,7 @@ Creates a new changelist and submits a set of files to a Perforce stream.
 | RootDir         | DirectoryReference | Optional | Root directory for the stream. If not specified, defaults to the current root directory.                                                                                     |
 | RevertUnchanged | Boolean            | Optional | Whether to revert unchanged files before attempting to submit.                                                                                                               |
 | Force           | Boolean            | Optional | Force the submit to happen -- even if a resolve is needed (always accept current version).                                                                                   |
+| P4Verbose       | Boolean            | Optional | Allow verbose P4 output (spew).                                                                                                                                              |
 | If              | Condition          | Optional | Whether to execute this task. It is ignored if this condition evaluates to false.                                                                                            |
 
 ### SymStore
@@ -335,6 +337,25 @@ Extract files from a zip archive.
 | ToDir   | DirectoryReference | Required | Output directory for the extracted files.                                         |
 | Tag     | Tag List           | Optional | Tag to be applied to the extracted files.                                         |
 | If      | Condition          | Optional | Whether to execute this task. It is ignored if this condition evaluates to false. |
+
+### Upload
+
+Uploads a set of files to Jupiter for future retrival
+
+|                    |                    |          |                                                                                                                                                                                       |
+| ------------------ | ------------------ | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| FromDir            | DirectoryReference | Required | The directory to read compressed files from.                                                                                                                                          |
+| Files              | File Spec          | Optional | List of file specifications separated by semicolons (for example, *.cpp;Engine/.../*.bat), or the name of a tag set. Relative paths are taken from FromDir.                           |
+| JupiterNamespace   | String             | Required | The jupiter namespace used to upload the build. Used to control who has access to the build.                                                                                          |
+| JupiterKey         | String             | Required | The key of the build as will be used to download the build again. This has to be globally unique for this particular upload.                                                          |
+| ArchiveType        | String             | Required | The type of archive these files are from, will be added to the metadata                                                                                                               |
+| ProjectName        | String             | Required | The name of the project this set of files are associated with, will be added to the metadata                                                                                          |
+| Branch             | String             | Required | The source control branch these files were generated from, will be added to the metadata                                                                                              |
+| Changelist         | String             | Required | The source control revision these files were generated from, will be added to the metadata                                                                                            |
+| JupiterUrl         | String             | Required | Specify the url to the Jupiter instance to upload to                                                                                                                                  |
+| AdditionalMetadata | String             | Optional | Semi-colon separated list of '=' separated key value mappings to add to the metadata. E.g. Foo=bar;spam=eggs                                                                          |
+| LimitMemoryUsage   | Boolean            | Optional | If enabled file content is not kept in memory, results in lower memory usage but increased io as file contents needs to be read multiple times (for hashing as well as during upload) |
+| If                 | Condition          | Optional | Whether to execute this task. It is ignored if this condition evaluates to false.                                                                                                     |
 
 ### WriteTextFile
 

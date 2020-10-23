@@ -2,7 +2,7 @@ Availability: NoPublish
 Title: Build Configuration Properties Page
 Crumbs:
 Description: This is a procedurally generated markdown page.
-Version: 4.27
+Version: 5.0
 
 ### Read-Only Properties
 
@@ -34,7 +34,7 @@ $ bLegalToDistributeBinary (Boolean): Whether the output from this target can be
 
 $ UndecoratedConfiguration (UnrealTargetConfiguration): Specifies the configuration whose binaries do not require a "-Platform-Configuration" suffix.
 
-$ bBuildAllPlugins (Boolean): Build all the plugins that we can find, even if they're not enabled. This is particularly useful for content-only projects, where you're building the UE4Editor target but running it with a game that enables a plugin.
+$ bBuildAllPlugins (Boolean): Build all the plugins that we can find, even if they're not enabled. This is particularly useful for content-only projects, where you're building the UnrealEditor target but running it with a game that enables a plugin.
 
 $ bBuildAllModules (Boolean): Build all the modules that are valid for this target type. Used for CIS and making installed engine builds.
 
@@ -154,8 +154,6 @@ $ bIsBuildingConsoleApplication (Boolean): True if this is a console application
 
 $ bDisableSymbolCache (Boolean): True if debug symbols that are cached for some platforms should not be created.
 
-$ bUseUnityBuild (Boolean): Whether to unify C++ code into larger files for faster compilation.
-
 $ bForceUnityBuild (Boolean): Whether to force C++ source files to be combined into larger files for faster compilation.
 
 $ bUseAdaptiveUnityBuild (Boolean): Use a heuristic to determine which files are currently being iterated on and exclude them from unity blobs, result in faster incremental compile times. The current implementation uses the read-only flag to distinguish the working set, assuming that files will be made writable by the source control system if they are being modified. This is true for Perforce, but not for Git.
@@ -171,6 +169,8 @@ $ bAdaptiveUnityEnablesEditAndContinue (Boolean): Creates a dedicated PCH for ea
 $ MinGameModuleSourceFilesForUnityBuild (Int32): The number of source files in a game module before unity build will be activated for that module.  This allows small game modules to have faster iterative compile times for single files, at the expense of slower full rebuild times.  This setting can be overridden by the bFasterWithoutUnity option in a module's Build.cs file.
 
 $ ShadowVariableWarningLevel (WarningLevel): Forces shadow variable warnings to be treated as errors on platforms that support it.
+
+$ bWarningsAsErrors (Boolean): Whether to enable all warnings as errors. UE enables most warnings as errors already, but disables a few (such as deprecation warnings).
 
 $ UnsafeTypeCastWarningLevel (WarningLevel): Indicates what warning/error level to treat unsafe type casts as on platforms that support it (e.g., double->float or int64->int32)
 
@@ -213,6 +213,8 @@ $ bPGOOptimize (Boolean): Whether to optimize this build with Profile Guided Opt
 $ bSupportEditAndContinue (Boolean): Whether to support edit and continue.  Only works on Microsoft compilers.
 
 $ bOmitFramePointers (Boolean): Whether to omit frame pointers or not. Disabling is useful for e.g. memory profiling on the PC.
+
+$ bEnableCppModules (Boolean): Whether to enable support for C++20 modules
 
 $ bUseMallocProfiler (Boolean): If true, then enable memory profiling in the build (defines USE_MALLOC_PROFILER=1 and forces bOmitFramePointers=false).
 
