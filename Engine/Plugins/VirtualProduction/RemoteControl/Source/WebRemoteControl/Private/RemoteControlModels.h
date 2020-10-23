@@ -298,12 +298,10 @@ struct FRCShortPresetDescription
 
 	FRCShortPresetDescription() = default;
 
-	FRCShortPresetDescription(const URemoteControlPreset* Preset)
-
+	FRCShortPresetDescription(const TSoftObjectPtr<URemoteControlPreset>& Preset)
 	{
-		checkSlow(Preset);
-		Name = Preset->GetName();
-		Path =Preset->GetPathName();
+		Name = Preset.GetAssetName();
+		Path = Preset.GetLongPackageName() + TEXT(".") + Name;
 	}
 
 	UPROPERTY()
@@ -454,7 +452,8 @@ struct FRCAssetFilter
 		Filter.PackageNames = PackageNames;
 		Filter.ClassNames = ClassNames;
 		Filter.RecursiveClassesExclusionSet = RecursiveClassesExclusionSet;
-		Filter.bRecursiveClasses = bRecursiveClasses;
+		Filter.bRecursiveClasses = RecursiveClasses;
+		Filter.PackagePaths = PackagePaths;
 
 		// Default to a recursive search at root if no filter is specified.
 		if (Filter.PackageNames.Num() == 0
@@ -467,7 +466,7 @@ struct FRCAssetFilter
 		else
 		{
 			Filter.PackagePaths = PackagePaths;
-			Filter.bRecursivePaths = bRecursivePaths;
+			Filter.bRecursivePaths = RecursivePaths;
 		}
 
 		return Filter;
@@ -491,10 +490,10 @@ struct FRCAssetFilter
 
 	/** If true, subclasses of ClassNames will also be included and RecursiveClassesExclusionSet will be excluded. */
 	UPROPERTY()
-	bool bRecursiveClasses = false;
+	bool RecursiveClasses = false;
 
 	/** If true, PackagePath components will be recursive */
 	UPROPERTY()
-	bool bRecursivePaths = false;
+	bool RecursivePaths = false;
 };
 
