@@ -301,7 +301,7 @@ public:
 	 * Return an FImportAsynHelper pointer. The pointer is deleted when ReleaseAsyncHelper is call.
 	 * @param Data - The data we want to pass to the different import tasks
 	 */
-	TWeakPtr<UE::Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> CreateAsyncHelper(const UE::Interchange::FImportAsyncHelperData& Data);
+	TSharedPtr<UE::Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> CreateAsyncHelper(const UE::Interchange::FImportAsyncHelperData& Data);
 
 	/** Delete the specified AsyncHelper and remove it from the array that was holding it. */
 	void ReleaseAsyncHelper(TWeakPtr<UE::Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> AsyncHelper);
@@ -350,7 +350,23 @@ protected:
 	 */
 	void SetActiveMode(bool IsActive);
 
+	/**
+	 * Start task until we reach the taskgraph worker number.
+	 * @param bCancelAllTasks - If true we will start all task but with the cancel state set, so task will complete fast and call the completion task
+	 */
+	void StartQueuedTasks(bool bCancelAllTasks = false);
+
 private:
+	struct FQueuedTaskData
+	{
+		FString PackageBasePath;
+		TSharedPtr<UE::Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> AsyncHelper;
+	};
+	
+	//Queue all incomming tasks if there is more started task then we have cores
+	TQueue<FQueuedTaskData> QueuedTasks;
+	int32 QueueTaskCount = 0;
+
 	//By using pointer, there is no issue if the array get resize
 	TArray<TSharedPtr<UE::Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> > ImportTasks;
 
