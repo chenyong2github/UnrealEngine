@@ -432,7 +432,7 @@ float UChaosVehicleMovementComponent::GetForwardSpeed() const
 
 float UChaosVehicleMovementComponent::GetForwardSpeedMPH() const
 {
-	return CmSToMPH(GetForwardSpeed());
+	return Chaos::CmSToMPH(GetForwardSpeed());
 }
 
 
@@ -605,7 +605,7 @@ void UChaosVehicleMovementComponent::UpdateState(float DeltaTime)
 			}
 			else
 			{
-				if (PVehicle->GetTransmission().Setup().TransmissionType == ETransmissionType::Automatic
+				if (PVehicle->GetTransmission().Setup().TransmissionType == Chaos::ETransmissionType::Automatic
 					&& RawThrottleInput > KINDA_SMALL_NUMBER
 					&& PVehicle->GetTransmission().GetCurrentGear() == 0
 					&& PVehicle->GetTransmission().GetTargetGear() == 0)
@@ -670,7 +670,7 @@ void UChaosVehicleMovementComponent::ApplyInput(float DeltaTime)
 {
 	for (int AerofoilIdx = 0; AerofoilIdx < Aerofoils.Num(); AerofoilIdx++)
 	{
-		FAerofoil& Aerofoil = PVehicle->GetAerofoil(AerofoilIdx);
+		Chaos::FAerofoil& Aerofoil = PVehicle->GetAerofoil(AerofoilIdx);
 		switch (Aerofoil.Setup().Type)
 		{
 			case Chaos::EAerofoilType::Rudder:
@@ -696,7 +696,7 @@ void UChaosVehicleMovementComponent::ApplyInput(float DeltaTime)
 
 	for (int Thrusterdx = 0; Thrusterdx < Thrusters.Num(); Thrusterdx++)
 	{
-		FSimpleThrustSim& Thruster = PVehicle->GetThruster(Thrusterdx);
+		Chaos::FSimpleThrustSim& Thruster = PVehicle->GetThruster(Thrusterdx);
 
 		Thruster.SetThrottle(ThrottleInput);
 
@@ -748,7 +748,7 @@ void UChaosVehicleMovementComponent::ApplyAerodynamics(float DeltaTime)
 	{
 		// This force applied all the time whether the vehicle is on the ground or not
 		Chaos::FSimpleAerodynamicsSim& PAerodynamics = PVehicle->GetAerodynamics();
-		FVector LocalDragLiftForce = (PAerodynamics.GetCombinedForces(CmToM(VehicleState.ForwardSpeed))) * MToCmScaling();
+		FVector LocalDragLiftForce = (PAerodynamics.GetCombinedForces(Chaos::CmToM(VehicleState.ForwardSpeed))) * Chaos::MToCmScaling();
 		FVector WorldLiftDragForce = VehicleState.VehicleWorldTransform.TransformVector(LocalDragLiftForce);
 		AddForce(WorldLiftDragForce);
 	}
@@ -769,7 +769,7 @@ void UChaosVehicleMovementComponent::ApplyAerofoilForces(float DeltaTime)
 	// Work out velocity at each aerofoil before applying any forces so there's no bias on the first ones processed
 	for (int AerofoilIdx = 0; AerofoilIdx < PVehicle->Aerofoils.Num(); AerofoilIdx++)
 	{
-		FVector WorldLocation = VehicleState.VehicleWorldTransform.TransformPosition(PVehicle->GetAerofoil(AerofoilIdx).Setup().Offset * MToCmScaling());
+		FVector WorldLocation = VehicleState.VehicleWorldTransform.TransformPosition(PVehicle->GetAerofoil(AerofoilIdx).Setup().Offset * Chaos::MToCmScaling());
 		VelocityWorld[AerofoilIdx] = GetBodyInstance()->GetUnrealWorldVelocityAtPoint(WorldLocation);
 		VelocityLocal[AerofoilIdx] = VehicleState.VehicleWorldTransform.InverseTransformVector(VelocityWorld[AerofoilIdx]);
 	}
@@ -778,11 +778,11 @@ void UChaosVehicleMovementComponent::ApplyAerofoilForces(float DeltaTime)
 	{
 		Chaos::FAerofoil& Aerofoil = PVehicle->GetAerofoil(AerofoilIdx);
 
-		FVector LocalForce = Aerofoil.GetForce(VehicleState.VehicleWorldTransform, VelocityLocal[AerofoilIdx] * CmToMScaling(), CmToM(Altitude), DeltaTime);
+		FVector LocalForce = Aerofoil.GetForce(VehicleState.VehicleWorldTransform, VelocityLocal[AerofoilIdx] * Chaos::CmToMScaling(), Chaos::CmToM(Altitude), DeltaTime);
 
 		FVector WorldForce = VehicleState.VehicleWorldTransform.TransformVector(LocalForce);
-		FVector WorldLocation = VehicleState.VehicleWorldTransform.TransformPosition(Aerofoil.GetCenterOfLiftOffset() * MToCmScaling());
-		AddForceAtPosition(WorldForce * MToCmScaling(), WorldLocation);
+		FVector WorldLocation = VehicleState.VehicleWorldTransform.TransformPosition(Aerofoil.GetCenterOfLiftOffset() * Chaos::MToCmScaling());
+		AddForceAtPosition(WorldForce * Chaos::MToCmScaling(), WorldLocation);
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 		FVector WorldAxis = VehicleState.VehicleWorldTransform.TransformVector(FVector::CrossProduct(FVector(1,0,0), Aerofoil.Setup().UpAxis));
@@ -845,9 +845,9 @@ void UChaosVehicleMovementComponent::ApplyTorqueControl(float DeltaTime)
 
 			 
 			FVector TargetUp = FVector(0.f, 0.f, 1.f);
-			float RollMaxAngleRadians = DegToRad(TargetRotationControl.RollMaxAngle);
-			float PitchMaxAngleRadians = DegToRad(TargetRotationControl.PitchMaxAngle);
-			float Speed = FMath::Min(CmToM(VehicleState.ForwardSpeed), 20.0f); // cap here
+			float RollMaxAngleRadians = Chaos::DegToRad(TargetRotationControl.RollMaxAngle);
+			float PitchMaxAngleRadians = Chaos::DegToRad(TargetRotationControl.PitchMaxAngle);
+			float Speed = FMath::Min(Chaos::CmToM(VehicleState.ForwardSpeed), 20.0f); // cap here
 
 			float SpeeScaledRollAmount = 1.0f;
 			float TargetRoll = 0.f;
@@ -1189,9 +1189,9 @@ void UChaosVehicleMovementComponent::DrawDebug(UCanvas* Canvas, float& YL, float
 		Canvas->SetDrawColor(FColor::White);
 		YPos += 16;
 
-		float ForwardSpeedKmH = CmSToKmH(GetForwardSpeed());
-		float ForwardSpeedMPH = CmSToMPH(GetForwardSpeed());
-		float ForwardSpeedMSec = CmToM(GetForwardSpeed());
+		float ForwardSpeedKmH = Chaos::CmSToKmH(GetForwardSpeed());
+		float ForwardSpeedMPH = Chaos::CmSToMPH(GetForwardSpeed());
+		float ForwardSpeedMSec = Chaos::CmToM(GetForwardSpeed());
 
 		if (TargetInstance)
 		{
@@ -1201,7 +1201,7 @@ void UChaosVehicleMovementComponent::DrawDebug(UCanvas* Canvas, float& YL, float
 
 		YPos += Canvas->DrawText(RenderFont, FString::Printf(TEXT("Awake %d"), TargetInstance->IsInstanceAwake()), 4, YPos);
 		YPos += Canvas->DrawText(RenderFont, FString::Printf(TEXT("Speed (km/h): %.1f  (MPH): %.1f  (m/s): %.1f"), ForwardSpeedKmH, ForwardSpeedMPH, ForwardSpeedMSec), 4, YPos);
-		YPos += Canvas->DrawText(RenderFont, FString::Printf(TEXT("Acceleration (m/s-2): %.1f"), CmToM(VehicleState.LocalAcceleration.X)), 4, YPos);
+		YPos += Canvas->DrawText(RenderFont, FString::Printf(TEXT("Acceleration (m/s-2): %.1f"), Chaos::CmToM(VehicleState.LocalAcceleration.X)), 4, YPos);
 		YPos += Canvas->DrawText(RenderFont, FString::Printf(TEXT("GForce : %2.1f"), VehicleState.LocalGForce.X), 4, YPos);
 		YPos += Canvas->DrawText(RenderFont, FString::Printf(TEXT("Steering: %.1f (RAW %.1f)"), SteeringInput, RawSteeringInput), 4, YPos);
 		YPos += Canvas->DrawText(RenderFont, FString::Printf(TEXT("Throttle: %.1f (RAW %.1f)"), ThrottleInput, RawThrottleInput), 4, YPos);
@@ -1359,7 +1359,7 @@ void FVehicleThrustConfig::FillThrusterSetup(const UChaosVehicleMovementComponen
 	PThrusterConfig.Offset = MovementComponent.LocateBoneOffset(this->BoneName, this->Offset);
 	PThrusterConfig.Axis = this->ThrustAxis;
 	//	PThrusterConfig.ThrustCurve = this->ThrustCurve;
-	PThrusterConfig.MaxThrustForce = MToCm(this->MaxThrustForce);
+	PThrusterConfig.MaxThrustForce = Chaos::MToCm(this->MaxThrustForce);
 	PThrusterConfig.MaxControlAngle = this->MaxControlAngle;
 }
 
