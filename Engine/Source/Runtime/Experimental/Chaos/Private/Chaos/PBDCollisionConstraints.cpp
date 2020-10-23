@@ -377,18 +377,24 @@ namespace Chaos
 		bUseCCD = false;
 	}
 
-	void FPBDCollisionConstraints::ApplyCollisionModifier(const TFunction<ECollisionModifierResult(FPBDCollisionConstraintHandle* Handle)>& CollisionModifier)
+	void FPBDCollisionConstraints::ApplyCollisionModifier(const TFunction<void (const TArrayView<FPBDCollisionConstraintHandleModification>& Handle)>& CollisionModifier)
 	{
-		if (CollisionModifier)
+		if (CollisionModifier && Handles.Num())
 		{
-			TArray<FPBDCollisionConstraintHandle*> CopyOfHandles = Handles;
-
-			for (FPBDCollisionConstraintHandle* ContactHandle : CopyOfHandles)
+			TArray<FPBDCollisionConstraintHandleModification> ModificationResults;
+			ModificationResults.Reserve(Handles.Num());
+			for(FPBDCollisionConstraintHandle* Handle : Handles)
 			{
-				ECollisionModifierResult Result = CollisionModifier(ContactHandle);
-				if (Result == ECollisionModifierResult::Disabled)
+				ModificationResults.Emplace(Handle);
+			}
+
+			CollisionModifier(TArrayView<FPBDCollisionConstraintHandleModification>(ModificationResults.GetData(), ModificationResults.Num()));
+
+			for (const FPBDCollisionConstraintHandleModification& Modification : ModificationResults)
+			{
+				if(Modification.GetResult() == ECollisionModifierResult::Disabled)
 				{
-					RemoveConstraint(ContactHandle);
+					RemoveConstraint(Modification.GetHandle());
 				}
 			}
 		}
