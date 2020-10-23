@@ -46,6 +46,17 @@ DEFINE_STAT(STAT_PakFile_NumOpenHandles);
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(CORE_API, FileIO);
 CSV_DEFINE_CATEGORY(FileIOVerbose, false);
 
+
+#if CSV_PROFILER
+int64 GTotalLoaded = 0;
+int64 GTotalLoadedLastTick = 0;
+#endif
+
+
+
+
+
+
 #ifndef DISABLE_NONUFS_INI_WHEN_COOKED
 #define DISABLE_NONUFS_INI_WHEN_COOKED 0
 #endif
@@ -2479,6 +2490,7 @@ private: // below here we assume CachedFilesScopeLock until we get to the next s
 
 #if USE_PAK_PRECACHE && CSV_PROFILER
 		FPlatformAtomics::InterlockedAdd(&GPreCacheTotalLoaded, Block.Size);
+		FPlatformAtomics::InterlockedAdd(&GTotalLoaded, Block.Size);
 #endif
 
         // FORT HACK
@@ -4294,6 +4306,11 @@ public:
 		check(FileEntry.CompressionMethodIndex == 0);
 		check(Offset + BytesToRead + OffsetInPak <= PakFileSize);
 
+
+#if CSV_PROFILER
+		FPlatformAtomics::InterlockedAdd(&GTotalLoaded, BytesToRead);
+#endif
+
 		return LowerHandle->ReadRequest(Offset + OffsetInPak, BytesToRead, PriorityAndFlags, CompleteCallback, UserSuppliedMemory);
 	}
 	virtual bool UsesCache() override
@@ -4361,6 +4378,7 @@ void FPakPlatformFile::Tick()
 		CSV_CUSTOM_STAT(FileIO, PakPrecacherBlockMemoryMB, (int32)(FPakPrecacher::Get().GetBlockMemory() / (1024 * 1024)), ECsvCustomStatOp::Set);
 
 
+
 		if (GPreCacheTotalLoadedLastTick != 0)
 		{
 			int64 diff = GPreCacheTotalLoaded - GPreCacheTotalLoadedLastTick;
@@ -4374,6 +4392,7 @@ void FPakPlatformFile::Tick()
 		CSV_CUSTOM_STAT(FileIO, PakPrecacherContiguousReads, (int32)GPreCacheContiguousReads, ECsvCustomStatOp::Set);
 		
 		CSV_CUSTOM_STAT(FileIO, PakLoads, (int32)PakPrecacherSingleton->Get().GetLoads(), ECsvCustomStatOp::Set);
+
 }
 #endif
 #if TRACK_DISK_UTILIZATION && CSV_PROFILER
@@ -4381,6 +4400,19 @@ void FPakPlatformFile::Tick()
 	CSV_CUSTOM_STAT(DiskIO, BusyTime, float(GDiskUtilizationTracker.GetShortTermStats().GetTotalIOTimeInSeconds()), ECsvCustomStatOp::Set);
 	CSV_CUSTOM_STAT(DiskIO, IdleTime, float(GDiskUtilizationTracker.GetShortTermStats().GetTotalIdleTimeInSeconds()), ECsvCustomStatOp::Set);
 #endif
+
+#if CSV_PROFILER
+	int64 LocalTotalLoaded = GTotalLoaded;
+	CSV_CUSTOM_STAT(FileIO, TotalLoadedMB, (int32)(LocalTotalLoaded / (1024 * 1024)), ECsvCustomStatOp::Set);
+	if (GTotalLoadedLastTick != 0)
+	{
+		int64 diff = LocalTotalLoaded - GTotalLoadedLastTick;
+		diff /= 1024;
+		CSV_CUSTOM_STAT(FileIO, PerFrameKB, (int32)diff, ECsvCustomStatOp::Set);
+	}
+	GTotalLoadedLastTick = LocalTotalLoaded;
+#endif
+
 }
 
 class FMappedFilePakProxy final : public IMappedFileHandle
@@ -6833,6 +6865,7 @@ bool FPakPlatformFile::Initialize(IPlatformFile* Inner, const TCHAR* CmdLine)
 	ExcludedNonPakExtensions.Add(TEXT("ubulk"));
 	ExcludedNonPakExtensions.Add(TEXT("uexp"));
 	ExcludedNonPakExtensions.Add(TEXT("uptnl"));
+	ExcludedNonPakExtensions.Add(TEXT("ushaderbytecode"));
 #endif
 
 #if DISABLE_NONUFS_INI_WHEN_COOKED
