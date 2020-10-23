@@ -25,6 +25,18 @@ public:
 		return bUnhandledErrors;
 	}
 
+	void ReportLog(const TCHAR* ErrorMsg)
+	{
+		if(Prefix != "")
+		{
+			UE_LOG(LogChaos, Log, TEXT("ErrorReporter (%s): %s"), *Prefix, ErrorMsg);
+		}
+		else
+		{
+			UE_LOG(LogChaos, Log, TEXT("ErrorReporter: %s"), *Prefix, ErrorMsg);
+		}
+	}
+
 	void ReportWarning(const TCHAR* ErrorMsg)
 	{
 		if (Prefix != "")
