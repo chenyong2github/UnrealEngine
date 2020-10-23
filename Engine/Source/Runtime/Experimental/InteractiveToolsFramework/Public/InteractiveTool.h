@@ -101,18 +101,30 @@ public:
 			PropWatcher->SilentUpdate();
 		}
 	}
-
-	template <typename PropType>
-	void WatchProperty(const PropType& ValueIn,
-					   typename TPropertyWatcher<PropType>::FChangedCallback OnChangedIn)
+	/** 
+	 * Silently updates just a single watcher, using an index gotten from WatchProperty.
+	 * Useful when you want watching to still work for other properties changed in the
+	 * same tick.
+	 */
+	void SilentUpdateWatcherAtIndex(int32 i)
 	{
-		PropertyWatchers.Emplace(MakeUnique<TPropertyWatcher<PropType>>(ValueIn, OnChangedIn));
+		check(i >= 0 && i < PropertyWatchers.Num());
+		PropertyWatchers[i]->SilentUpdate();
 	}
+
+	/** @return Index of the watcher, which can be used in SilentUpdateWatcherAtIndex */
 	template <typename PropType>
-	void WatchProperty(typename TPropertyWatcher<PropType>::FValueGetter GetValueIn,
+	int32 WatchProperty(const PropType& ValueIn,
 					   typename TPropertyWatcher<PropType>::FChangedCallback OnChangedIn)
 	{
-		PropertyWatchers.Emplace(MakeUnique<TPropertyWatcher<PropType>>(GetValueIn, OnChangedIn));
+		return PropertyWatchers.Emplace(MakeUnique<TPropertyWatcher<PropType>>(ValueIn, OnChangedIn));
+	}
+	/** @return Index of the watcher, which can be used in SilentUpdateWatcherAtIndex */
+	template <typename PropType>
+	int32 WatchProperty(typename TPropertyWatcher<PropType>::FValueGetter GetValueIn,
+					   typename TPropertyWatcher<PropType>::FChangedCallback OnChangedIn)
+	{
+		return PropertyWatchers.Emplace(MakeUnique<TPropertyWatcher<PropType>>(GetValueIn, OnChangedIn));
 	}
 private:
 	TArray<TUniquePtr<FPropertyWatcher>> PropertyWatchers;

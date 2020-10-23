@@ -15,10 +15,18 @@ namespace RevolveUtil
 {
 	/** 
 	 * Generates a sweep curve with the initial frame at the origin and the rest rotated around the given axis.
+	 *
+	 * @param RevolutionAxisOrigin
+	 * @param RevolutionAxisDirection Should be normalized.
+	 * @param DegreesOffset Number of degrees to rotate the first frame.
+	 * @param DegreesPerStep Number of degrees each frame is rotated from the previous
+	 * @param DownAxisOffset Distance to move each frame up the axis from the previous (for spirals)
+	 * @param TotalNumFrames Number of frames to create, including the first frame
+	 * @param SweepCurveOut Output
 	 */
 	GEOMETRICOBJECTS_API
 	void GenerateSweepCurve(const FVector3d& RevolutionAxisOrigin, const FVector3d& RevolutionAxisDirection, double DegreesOffset,
-		double DegreesPerStep, int TotalNumFrames, bool bWeldFullRevolution, TArray<FFrame3d>& SweepCurveOut);
+		double DegreesPerStep, double DownAxisOffset, int TotalNumFrames, TArray<FFrame3d>& SweepCurveOut);
 
 	/**
 	 * Checks the profile curve for points that lie within a particular tolerance of the revolution axis. If they
