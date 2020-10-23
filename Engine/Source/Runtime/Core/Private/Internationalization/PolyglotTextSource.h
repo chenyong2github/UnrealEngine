@@ -55,5 +55,5 @@ private:
 	/**
 	 * Mapping from a "{Namespace}::{Key}" string to a polyglot text data instance.
 	 */
-	TMap<FLocKey, FPolyglotTextData> PolyglotTextDataMap;
+	TMap<FTextId, FPolyglotTextData> PolyglotTextDataMap;
 };
