@@ -21,8 +21,6 @@ class UPhysicalMaterial;
 class FChaosVehicleManager;
 class UChaosWheeledVehicleMovementComponent;
 
-using namespace Chaos;
-
 	UENUM()
 	enum class ESweepShape : uint8
 	{
@@ -360,8 +358,8 @@ using namespace Chaos;
 			PSuspensionConfig.SuspensionForceOffset = this->SuspensionForceOffset;
 			PSuspensionConfig.SuspensionMaxRaise = this->SuspensionMaxRaise;
 			PSuspensionConfig.SuspensionMaxDrop = this->SuspensionMaxDrop;
-			PSuspensionConfig.SpringRate = MToCm(this->SpringRate);
-			PSuspensionConfig.SpringPreload = MToCm(this->SpringPreload);
+			PSuspensionConfig.SpringRate = Chaos::MToCm(this->SpringRate);
+			PSuspensionConfig.SpringPreload = Chaos::MToCm(this->SpringPreload);
 
 			PSuspensionConfig.DampingRatio = this->SuspensionDampingRatio;
 			PSuspensionConfig.WheelLoadRatio = this->WheelLoadRatio;
