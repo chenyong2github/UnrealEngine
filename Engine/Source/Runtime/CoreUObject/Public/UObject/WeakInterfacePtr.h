@@ -44,6 +44,7 @@ struct TWeakInterfacePtr
 	 * @param Interface The interface pointer to create a weak pointer to. There must be a UObject behind the interface.
 	 */
 	TWeakInterfacePtr(T* Interface)
+		: InterfaceInstance(nullptr)
 	{
 		ObjectInstance = Cast<UObject>(Interface);
 		if (ObjectInstance != nullptr)
@@ -54,6 +55,7 @@ struct TWeakInterfacePtr
 
 	UE_DEPRECATED(4.27, "Please use the constructor that takes a pointer")
 	TWeakInterfacePtr(T& Interface)
+		: InterfaceInstance(nullptr)
 	{
 		ObjectInstance = Cast<UObject>(&Interface);
 		if (ObjectInstance != nullptr)
