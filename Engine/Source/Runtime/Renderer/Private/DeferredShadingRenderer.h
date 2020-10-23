@@ -655,14 +655,6 @@ private:
 		FRDGTextureUAV* OutRayHitDistanceUAV,
 		FRDGTextureUAV* SubPixelRayTracingShadowMaskUAV);
 
-	void RenderRayTracingStochasticRectLight(
-		FRDGBuilder& GraphBuilder,
-		FRDGTextureRef SceneColorTexture,
-		TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
-		const FLightSceneInfo& RectLightSceneInfo,
-		FRDGTextureRef& OutRectLightRT,
-		FRDGTextureRef& OutHitDistanceRT);
-
 	void CompositeRayTracingSkyLight(
 		FRDGBuilder& GraphBuilder,
 		FRDGTextureRef SceneColorTexture,
@@ -790,7 +782,6 @@ private:
 	static void PrepareRayTracingShadows(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders);
 	static void PrepareRayTracingAmbientOcclusion(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders);
 	static void PrepareRayTracingSkyLight(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders);
-	static void PrepareRayTracingRectLight(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders);
 	static void PrepareRayTracingGlobalIllumination(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders);
 	static void PrepareRayTracingTranslucency(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders);
 	static void PrepareRayTracingDebug(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders);
