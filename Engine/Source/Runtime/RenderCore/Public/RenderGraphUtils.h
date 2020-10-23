@@ -608,6 +608,14 @@ FORCEINLINE void AddSetCurrentStatPass(FRDGBuilder& GraphBuilder, TStatId StatId
 	});
 }
 
+FORCEINLINE void AddDispatchToRHIThreadPass(FRDGBuilder& GraphBuilder)
+{
+	AddPass(GraphBuilder, [](FRHICommandListImmediate& RHICmdList)
+	{
+		RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
+	});
+}
+
 FORCEINLINE void AddBeginUAVOverlapPass(FRDGBuilder& GraphBuilder)
 {
 	AddPass(GraphBuilder, [](FRHICommandListImmediate& RHICmdList)
@@ -673,6 +681,18 @@ void AddReadbackTexturePass(FRDGBuilder& GraphBuilder, FRDGEventName&& Name, FRD
 {
 	auto* PassParameters = GraphBuilder.AllocParameters<FReadbackTextureParameters>();
 	PassParameters->Texture = Texture;
+	GraphBuilder.AddPass(MoveTemp(Name), PassParameters, ERDGPassFlags::Readback, MoveTemp(ExecuteLambda));
+}
+
+BEGIN_SHADER_PARAMETER_STRUCT(FReadbackBufferParameters, )
+	RDG_BUFFER_ACCESS(Buffer, ERHIAccess::CopySrc)
+END_SHADER_PARAMETER_STRUCT()
+
+template <typename ExecuteLambdaType>
+void AddReadbackBufferPass(FRDGBuilder& GraphBuilder, FRDGEventName&& Name, FRDGBufferRef Buffer, ExecuteLambdaType&& ExecuteLambda)
+{
+	auto* PassParameters = GraphBuilder.AllocParameters<FReadbackBufferParameters>();
+	PassParameters->Buffer = Buffer;
 	GraphBuilder.AddPass(MoveTemp(Name), PassParameters, ERDGPassFlags::Readback, MoveTemp(ExecuteLambda));
 }
 

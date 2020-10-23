@@ -23,7 +23,7 @@
 class RENDERCORE_API FRDGUserValidation final
 {
 public:
-	FRDGUserValidation() = default;
+	FRDGUserValidation();
 	FRDGUserValidation(const FRDGUserValidation&) = delete;
 	~FRDGUserValidation();
 
@@ -72,6 +72,10 @@ private:
 
 	/** Whether the Execute() has already been called. */
 	bool bHasExecuted = false;
+
+	void MemStackGuard();
+
+	int32 ExpectedNumMarks;
 };
 
 /** This class validates and logs barriers submitted by the graph. */

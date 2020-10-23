@@ -60,18 +60,29 @@ const ERHIAccess AccessMaskRaster  = ERHIAccess::ResolveSrc | ERHIAccess::Resolv
 bool GRDGInExecutePassScope = false;
 } //! namespace
 
+FRDGUserValidation::FRDGUserValidation()
+	: ExpectedNumMarks(FMemStack::Get().GetNumMarks())
+{}
+
 FRDGUserValidation::~FRDGUserValidation()
 {
 	checkf(bHasExecuted, TEXT("Render graph execution is required to ensure consistency with immediate mode."));
 }
 
+void FRDGUserValidation::MemStackGuard()
+{
+	checkf(ExpectedNumMarks == FMemStack::Get().GetNumMarks(), TEXT("A MemStack mark was added during the FRDGBuilder lifetime. This is not allowed as it will free memory still used by the builder."));
+}
+
 void FRDGUserValidation::ExecuteGuard(const TCHAR* Operation, const TCHAR* ResourceName)
 {
 	checkf(!bHasExecuted, TEXT("Render graph operation '%s' with resource '%s' must be performed prior to graph execution."), Operation, ResourceName);
+	MemStackGuard();
 }
 
 void FRDGUserValidation::ValidateCreateTexture(FRDGTextureRef Texture)
 {
+	MemStackGuard();
 	check(Texture);
 	if (GRDGDebug)
 	{
@@ -81,6 +92,7 @@ void FRDGUserValidation::ValidateCreateTexture(FRDGTextureRef Texture)
 
 void FRDGUserValidation::ValidateCreateBuffer(FRDGBufferRef Buffer)
 {
+	MemStackGuard();
 	check(Buffer);
 	if (GRDGDebug)
 	{
@@ -102,6 +114,7 @@ void FRDGUserValidation::ValidateCreateExternalBuffer(FRDGBufferRef Buffer)
 
 void FRDGUserValidation::ValidateExtractResource(FRDGParentResourceRef Resource)
 {
+	MemStackGuard();
 	check(Resource);
 
 	checkf(Resource->ParentDebugData.bHasBeenProduced,
@@ -117,6 +130,7 @@ void FRDGUserValidation::ValidateExtractResource(FRDGParentResourceRef Resource)
 
 void FRDGUserValidation::RemoveUnusedWarning(FRDGParentResourceRef Resource)
 {
+	MemStackGuard();
 	check(Resource);
 
 	// Removes 'produced but not used' warning.
@@ -140,6 +154,7 @@ bool FRDGUserValidation::TryMarkForClobber(FRDGParentResourceRef Resource) const
 
 void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass, bool bSkipPassAccessMarking)
 {
+	MemStackGuard();
 	const FRenderTargetBindingSlots* RenderTargetBindingSlots = nullptr;
 
 	// Pass flags are validated as early as possible by the builder in AddPass.
@@ -462,11 +477,14 @@ void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass, bool bSkipPassAcc
 
 void FRDGUserValidation::ValidateExecuteBegin()
 {
+	MemStackGuard();
 	checkf(!bHasExecuted, TEXT("Render graph execution should only happen once to ensure consistency with immediate mode."));
 }
 
 void FRDGUserValidation::ValidateExecuteEnd()
 {
+	MemStackGuard();
+
 	bHasExecuted = true;
 
 	if (GRDGDebug)

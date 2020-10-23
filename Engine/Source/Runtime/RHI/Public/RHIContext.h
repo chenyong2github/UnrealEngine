@@ -188,7 +188,7 @@ public:
 
 	virtual void RHISetGlobalUniformBuffers(const FUniformBufferStaticBindings& InUniformBuffers)
 	{
-		checkNoEntry();
+		/** empty default implementation. */
 	}
 
 	virtual void RHIPushEvent(const TCHAR* Name, FColor Color) = 0;
