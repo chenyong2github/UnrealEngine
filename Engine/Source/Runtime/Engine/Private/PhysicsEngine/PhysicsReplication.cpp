@@ -35,7 +35,7 @@ namespace Chaos
 #if WITH_CHAOS
 	extern CHAOS_API int32 UseAsyncResults;
 #else
-	constexpr UseAsyncResults = 0;
+	constexpr int32 UseAsyncResults = 0;
 #endif
 }
 
