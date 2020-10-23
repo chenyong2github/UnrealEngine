@@ -29,7 +29,8 @@ class DeviceQtHandler(QtCore.QObject):
     signal_device_status_changed = QtCore.Signal(object, int)
     signal_device_connect_failed = QtCore.Signal(object)
     signal_device_client_disconnected = QtCore.Signal(object)
-    signal_device_changelist_changed = QtCore.Signal(object)
+    signal_device_project_changelist_changed = QtCore.Signal(object)
+    signal_device_engine_changelist_changed = QtCore.Signal(object)
     signal_device_sync_failed = QtCore.Signal(object)
     signal_device_is_recording_device_changed = QtCore.Signal(object, int)
 
@@ -61,7 +62,8 @@ class Device(QtCore.QObject):
                 override = kwargs[setting.attr_name]
                 setting.override_value(self.name, override)
 
-        self._changelist = None
+        self._project_changelist = None
+        self._engine_changelist = None
 
         self._status = DeviceStatus.DISCONNECTED
 
@@ -182,13 +184,22 @@ class Device(QtCore.QObject):
         self.device_qt_handler.signal_device_status_changed.emit(self, previous_status)
 
     @property
-    def changelist(self):
-        return self._changelist
+    def project_changelist(self):
+        return self._project_changelist
 
-    @changelist.setter
-    def changelist(self, value):
-        self._changelist = value
-        self.device_qt_handler.signal_device_changelist_changed.emit(self)
+    @project_changelist.setter
+    def project_changelist(self, value):
+        self._project_changelist = value
+        self.device_qt_handler.signal_device_project_changelist_changed.emit(self)
+
+    @property
+    def engine_changelist(self):
+        return self._engine_changelist
+
+    @engine_changelist.setter
+    def engine_changelist(self, value):
+        self._engine_changelist = value
+        self.device_qt_handler.signal_device_engine_changelist_changed.emit(self)
 
     def set_slate(self, value):
         pass
