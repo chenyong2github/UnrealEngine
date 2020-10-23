@@ -3,6 +3,7 @@
 #pragma once
 
 #include "IInputDeviceModule.h"
+#include "Rendering/IRenderCaptureProvider.h"
 
 /**
  * The RenderDoc plugin works as an input plugin. Regular plugins built upon
@@ -12,7 +13,7 @@
  * By responding to tick events, the RenderDoc plugin is able to intercept the entire frame
  * activity, including Editor (Slate) UI rendering and SceneCapture updates.
  */
-class IRenderDocPlugin : public IInputDeviceModule
+class IRenderDocPlugin : public IInputDeviceModule, public IRenderCaptureProvider
 {
 public:
 	static inline IRenderDocPlugin& Get()
