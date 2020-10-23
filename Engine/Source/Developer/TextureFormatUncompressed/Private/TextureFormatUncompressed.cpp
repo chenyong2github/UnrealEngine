@@ -86,7 +86,7 @@ class FTextureFormatUncompressed : public ITextureFormat
 			OutCompressedImage.SizeY = Image.SizeY;
 			OutCompressedImage.SizeZ = (BuildSettings.bVolume || BuildSettings.bTextureArray) ? Image.NumSlices : 1;
 			OutCompressedImage.PixelFormat = PF_G8;
-			OutCompressedImage.RawData = Image.RawData;
+			OutCompressedImage.RawData = MoveTemp(Image.RawData);
 
 			return true;
 		}
@@ -99,7 +99,7 @@ class FTextureFormatUncompressed : public ITextureFormat
 			OutCompressedImage.SizeY = Image.SizeY;
 			OutCompressedImage.SizeZ = BuildSettings.bVolume ? Image.NumSlices : 1;
 			OutCompressedImage.PixelFormat = PF_G16;
-			OutCompressedImage.RawData = Image.RawData;
+			OutCompressedImage.RawData = MoveTemp(Image.RawData);
 
 			return true;
 		}
@@ -137,7 +137,7 @@ class FTextureFormatUncompressed : public ITextureFormat
 			OutCompressedImage.SizeY = Image.SizeY;
 			OutCompressedImage.SizeZ = (BuildSettings.bVolume || BuildSettings.bTextureArray) ? Image.NumSlices : 1;
 			OutCompressedImage.PixelFormat = PF_B8G8R8A8;
-			OutCompressedImage.RawData = Image.RawData;
+			OutCompressedImage.RawData = MoveTemp(Image.RawData);
 
 			return true;
 		}
@@ -206,7 +206,7 @@ class FTextureFormatUncompressed : public ITextureFormat
 			OutCompressedImage.SizeY = Image.SizeY;
 			OutCompressedImage.SizeZ = (BuildSettings.bVolume || BuildSettings.bTextureArray) ? Image.NumSlices : 1;
 			OutCompressedImage.PixelFormat = PF_FloatRGBA;
-			OutCompressedImage.RawData = Image.RawData;
+			OutCompressedImage.RawData = MoveTemp(Image.RawData);
 
 			return true;
 		}
@@ -219,7 +219,7 @@ class FTextureFormatUncompressed : public ITextureFormat
 			OutCompressedImage.SizeY = Image.SizeY;
 			OutCompressedImage.SizeZ = BuildSettings.bVolume ? Image.NumSlices : 1;
 			OutCompressedImage.PixelFormat = PF_R16F;
-			OutCompressedImage.RawData = Image.RawData;
+			OutCompressedImage.RawData = MoveTemp(Image.RawData);
 
 			return true;
 		}
