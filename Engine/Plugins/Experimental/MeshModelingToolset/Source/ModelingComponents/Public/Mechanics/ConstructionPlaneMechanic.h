@@ -7,6 +7,8 @@
 #include "ToolDataVisualizer.h"
 #include "FrameTypes.h"
 #include "BaseBehaviors/BehaviorTargetInterfaces.h"
+#include "Selection/SelectClickedAction.h"
+
 #include "ConstructionPlaneMechanic.generated.h"
 
 class UTransformGizmo;
@@ -65,9 +67,15 @@ public:
 	UPROPERTY()
 	UTransformProxy* PlaneTransformProxy;
 
+	/** 
+	 * This is the behavior target used for the Ctrl+click behavior that sets the plane
+	 * in the world, exposed here so that the user can modify it after Setup() if needed.
+	 * By default, Setup() will have it call SetDrawPlaneFromWorldPos.
+	 */
+	TUniquePtr<FSelectClickedAction> SetPlaneCtrlClickBehaviorTarget;
+
 protected:
 	bool bEnableSnapToWorldGrid = false;
-	TUniquePtr<IClickBehaviorTarget> SetPointInWorldConnector = nullptr;
 
 	UPROPERTY()
 	USingleClickInputBehavior* ClickToSetPlaneBehavior;
