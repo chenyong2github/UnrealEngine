@@ -18,9 +18,8 @@ Buffer<int> NodesOffsets;
 Buffer<int> TargetsOffsets;
 RWTexture3D<float4> FieldClipmap;
 
-Buffer<int> CellsOffsets;
-Buffer<uint4> CellsMin;
-Buffer<uint4> CellsMax;
+Buffer<float4> BoundsMin;
+Buffer<float4> BoundsMax;
 
 int ClipmapResolution;
 float ClipmapDistance;
@@ -32,7 +31,6 @@ int TargetCount;
 int PhysicsTargets[MAX_TARGETS_ARRAY];
 
 float TimeSeconds;
-int NumCells;
 
 /* -----------------------------------------------------------------
  * Reandom Vector + Perlin Noise
@@ -1050,13 +1048,8 @@ void BuildPhysicsFieldClipmapCS(
 				[branch]
 				if ((TargetIndex != -1) && (TargetIndex < TargetCount))
 				{
-					const int CellIndex = (TargetType + 1) * ClipmapCount + ClipmapIndex;
-					
-					const uint3 LimitMin = CellsMin[CellIndex].xyz;
-					const uint3 LimitMax = CellsMax[CellIndex].xyz;
-					
 					[branch]
-					if (all(DispatchThreadId.xyz >= LimitMin) && all(DispatchThreadId.xyz < LimitMax))
+					if (all(SamplePosition >= BoundsMin[TargetType + 1].xyz) && all(SamplePosition < BoundsMax[TargetType + 1].xyz))
 					{
 						int LocalIndex = 0;
 						SampleFieldDatas(SamplePosition, ContextDatas, LocalIndex, TargetType + 1, ClipmapExtent);
@@ -1081,79 +1074,6 @@ void BuildPhysicsFieldClipmapCS(
 		}
 	}
 }
-
-
-
-//[numthreads(64, 1, 1)]
-//void BuildPhysicsFieldClipmapCS(
-//	uint3 GroupId : SV_GroupID,
-//	uint3 DispatchThreadId : SV_DispatchThreadID,
-//    uint3 GroupThreadId : SV_GroupThreadID)
-//{
-//	if (DispatchThreadId.x < NumCells)
-//	{
-//		int CellTarget = -1;
-//		int CellClipmap = -1;
-//		uint3 CellVoxel = uint3(0, 0, 0);
-//		for (int TargetType = 0; TargetType < MAX_TARGETS_ARRAY; ++TargetType)
-//		{
-//			const int TargetIndex = PhysicsTargets[TargetType];
-			
-//			if ((TargetIndex != -1) && (TargetIndex < TargetCount))
-//			{
-//				int CellIndex = (TargetType + 1) * ClipmapCount;
-//				for (int ClipmapIndex = 0; ClipmapIndex < ClipmapCount; ++ClipmapIndex, ++CellIndex)
-//				{
-//					if (DispatchThreadId.x >= CellsOffsets[CellIndex] && DispatchThreadId.x < CellsOffsets[CellIndex + 1])
-//					{
-//						CellTarget = TargetType;
-//						CellClipmap = ClipmapIndex;
-//						const int LocalIndex = DispatchThreadId.x - CellsOffsets[CellIndex];
-					
-//						const uint4 CellsDelta = CellsMax[CellIndex] - CellsMin[CellIndex];
-					
-//						const int IndexX = LocalIndex / (CellsDelta.y * CellsDelta.z);
-//						const int IndexT = LocalIndex % (CellsDelta.y * CellsDelta.z);
-//						const int IndexY = IndexT / CellsDelta.z;
-//						const int IndexZ = IndexT % CellsDelta.z;
-					
-//						CellVoxel = CellsMin[CellIndex].xyz + uint3(IndexX, IndexY, IndexZ);
-					
-//						break;
-//					}
-//				}
-//			}
-//		}
-//		if (CellTarget != -1 && CellClipmap != -1 && all(CellVoxel.xyz < int3(ClipmapResolution, ClipmapResolution, ClipmapResolution)) && (TargetCount < MAX_COUNT))
-//		{
-//			float4 ResultsDatas = float4(0, 0, 0, 0);
-//			const float ClipmapExtent = ClipmapDistance * pow(ClipmapExponent, CellClipmap + 1 - ClipmapCount);
-		
-//			const float3 SampleUV = (CellVoxel.xyz + 0.5) / ClipmapResolution;
-//			const float3 SamplePosition = ClipmapCenter + (SampleUV - 0.5) * 2.0 * ClipmapExtent;
-			
-//			float ContextDatas[MAX_DATAS];
-//			int LocalIndex = 0;
-
-//			SampleFieldDatas(SamplePosition, ContextDatas, LocalIndex, CellTarget + 1, ClipmapExtent);
-			
-//			const int TargetIndex = PhysicsTargets[CellTarget];
-		
-//			if (LocalIndex == 3)
-//			{
-//				ResultsDatas.xyz = float3(ContextDatas[0], ContextDatas[1], ContextDatas[2]);
-//			}
-//			else if (LocalIndex == 1)
-//			{
-//				ResultsDatas.w = ContextDatas[0];
-//			}
-			
-//			const int DatasOffset = CellClipmap + TargetIndex * ClipmapCount;
-//			const uint3 TextureCoordinates = uint3(CellVoxel.x, CellVoxel.y, CellVoxel.z + ClipmapResolution * DatasOffset + DatasOffset);
-//			FieldClipmap[TextureCoordinates] += ResultsDatas;
-//		}
-//	}
-//}
 
 //const int MemoryIndex = GGroupThreadId.x * 16 + GGroupThreadId.y * 4 + GGroupThreadId.z;
 //const int ParamsIndex = MemoryIndex % 32;
