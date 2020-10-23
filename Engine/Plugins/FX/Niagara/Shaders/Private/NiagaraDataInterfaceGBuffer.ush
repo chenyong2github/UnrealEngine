@@ -149,3 +149,28 @@ void DIGBuffer_DecodeDepth(in float2 ScreenUV, out bool IsValid, out float OutVa
 	OutValue = 0;
 #endif
 }
+
+void DIGBuffer_DecodeCustomDepth(in float2 ScreenUV, out bool IsValid, out float OutValue)
+{
+#if NDIGBUFFER_ENABLED
+	FGBufferData GBufferData = GetGBufferData(ScreenUV);
+	IsValid = true;
+	OutValue = GBufferData.CustomDepth;
+#else
+	IsValid = false;
+	OutValue = 0;
+#endif
+}
+
+void DIGBuffer_DecodeCustomStencil(in float2 ScreenUV, out bool IsValid, out int OutValue)
+{
+#if NDIGBUFFER_ENABLED
+	FGBufferData GBufferData = GetGBufferData(ScreenUV);
+	IsValid = true;
+	OutValue = GBufferData.CustomStencil;
+#else
+	IsValid = false;
+	OutValue = 0;
+#endif
+}
+
