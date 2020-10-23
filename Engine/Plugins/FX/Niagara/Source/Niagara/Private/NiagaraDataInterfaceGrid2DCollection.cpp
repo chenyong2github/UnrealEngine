@@ -374,7 +374,7 @@ void UNiagaraDataInterfaceGrid2DCollection::GetFunctions(TArray<FNiagaraFunction
 		Sig.bMemberFunction = true;
 		Sig.bRequiresContext = false;
 #if WITH_EDITORONLY_DATA
-		Sig.Description = NSLOCTEXT("Niagara", "NiagaraDataInterfaceGridColl2D_GetValueFunction", "Get the value at a specific index. Note that this is an older way of working with Grids. Consider using the SetFloat or other typed, named functions or parameter map variables with StageContext namespace instead.");
+		Sig.Description = NSLOCTEXT("Niagara", "NiagaraDataInterfaceGridColl2D_GetValueFunction", "Get the value at a specific index. Note that this is an older way of working with Grids. Consider using the SetFloat or other typed, named functions or parameter map variables with StackContext namespace instead.");
 #endif
 
 		OutFunctions.Add(Sig);
@@ -395,7 +395,7 @@ void UNiagaraDataInterfaceGrid2DCollection::GetFunctions(TArray<FNiagaraFunction
 		Sig.bRequiresContext = false;
 		Sig.bWriteFunction = true;
 #if WITH_EDITORONLY_DATA
-		Sig.Description = NSLOCTEXT("Niagara", "NiagaraDataInterfaceGridColl2D_SetValueFunction", "Set the value at a specific index. Note that this is an older way of working with Grids. Consider using the SetFloat or other typed, named functions or parameter map variables with StageContext namespace instead.");
+		Sig.Description = NSLOCTEXT("Niagara", "NiagaraDataInterfaceGridColl2D_SetValueFunction", "Set the value at a specific index. Note that this is an older way of working with Grids. Consider using the SetFloat or other typed, named functions or parameter map variables with StackContext namespace instead.");
 #endif
 		OutFunctions.Add(Sig);
 	}
@@ -1305,7 +1305,7 @@ bool UNiagaraDataInterfaceGrid2DCollection::GenerateIterationSourceNamespaceRead
 		{
 			if (TypeDefinitionToSetFunctionName(InAttributes[i].GetType()) == NAME_None)
 			{
-				FText Error = FText::Format(LOCTEXT("UnknownType", "Unsupported Type {0} , Attribute {1}"), InAttributes[i].GetType().GetNameText(), FText::FromName(InAttributes[i].GetName()));
+				FText Error = FText::Format(LOCTEXT("UnknownType", "Unsupported Type {0} , Attribute {1} for custom iteration source"), InAttributes[i].GetType().GetNameText(), FText::FromName(InAttributes[i].GetName()));
 				OutErrors.Add(Error);
 				continue;
 			}
@@ -1365,7 +1365,7 @@ bool UNiagaraDataInterfaceGrid2DCollection::GenerateIterationSourceNamespaceWrit
 		{
 			if (TypeDefinitionToSetFunctionName(InAttributes[i].GetType()) == NAME_None)
 			{
-				FText Error = FText::Format(LOCTEXT("UnknownType", "Unsupported Type {0} , Attribute {1}"), InAttributes[i].GetType().GetNameText(), FText::FromName(InAttributes[i].GetName()));
+				FText Error = FText::Format(LOCTEXT("UnknownType", "Unsupported Type {0} , Attribute {1} for custom iteration source"), InAttributes[i].GetType().GetNameText(), FText::FromName(InAttributes[i].GetName()));
 				OutErrors.Add(Error);
 				continue;
 			}
