@@ -305,6 +305,11 @@ void UPhysicalAnimationComponent::UpdateTargetActors(ETeleportType TeleportType)
 
 void UPhysicalAnimationComponent::OnTeleport()
 {
+	if (bPhysicsEngineNeedsUpdating)
+	{
+		UpdatePhysicsEngineImp();
+	}
+
 	UpdateTargetActors(ETeleportType::TeleportPhysics);
 }
 
