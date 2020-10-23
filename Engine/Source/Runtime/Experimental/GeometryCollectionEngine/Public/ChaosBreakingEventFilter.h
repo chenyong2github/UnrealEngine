@@ -7,8 +7,6 @@
 #include "EventsData.h"
 #include "ChaosBreakingEventFilter.generated.h"
 
-using namespace Chaos;
-
 // A breaking event data structure. 
 USTRUCT(BlueprintType)
 struct FChaosBreakingEventData
