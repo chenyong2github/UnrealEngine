@@ -456,13 +456,13 @@ namespace Chaos
 			ApplyParticlePendingData(PendingData, *AsyncExternalAcceleration, false);
 		}
 
-		//NOTE: This assumes that we are never creating a PT particle that is replicated to GT
-		//At the moment that is true, and it seems like we have enough mechanisms to avoid this direction
-		//If we want to support that, the UniqueIndex must be kept around until GT goes away
-		//This is hard to do, but would probably mean the ownership of the index is in the proxy
+				//NOTE: This assumes that we are never creating a PT particle that is replicated to GT
+				//At the moment that is true, and it seems like we have enough mechanisms to avoid this direction
+				//If we want to support that, the UniqueIndex must be kept around until GT goes away
+				//This is hard to do, but would probably mean the ownership of the index is in the proxy
 		for (FUniqueIdx UniqueIdx : UniqueIndicesPendingRelease)
 		{
-			Particles.GetUniqueIndices().ReleaseIdx(UniqueIdx);
+			ReleaseIdx(PendingData.UniqueIdx());
 		}
 		UniqueIndicesPendingRelease.Reset();
 		AsyncAccelerationQueue.Reset();
@@ -660,6 +660,23 @@ namespace Chaos
 
 		FlushSpatialAcceleration();
 	}
+
+	template <typename Traits>
+	void TPBDRigidsEvolutionBase<Traits>::ReleaseIdx(FUniqueIdx Idx)
+	{
+		PendingReleaseIndices.Add(Idx);
+	}
+
+	template <typename Traits>
+	void TPBDRigidsEvolutionBase<Traits>::ReleasePendingIndices()
+	{
+		for (FUniqueIdx Idx : PendingReleaseIndices)
+		{
+			Particles.GetUniqueIndices().ReleaseIdx(Idx);
+		}
+		PendingReleaseIndices.Reset();
+	}
+
 
 	template <typename Traits>
 	void TPBDRigidsEvolutionBase<Traits>::Serialize(FChaosArchive& Ar)
