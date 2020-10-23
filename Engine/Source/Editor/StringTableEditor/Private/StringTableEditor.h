@@ -42,7 +42,10 @@ public:
 	virtual FString GetWorldCentricTabPrefix() const override;
 	virtual FLinearColor GetWorldCentricTabColorScale() const override;
 
-	// FEditorUndoClient
+	//~ IStringTableEditor
+	virtual void RefreshStringTableEditor(const FString& NewSelection = FString()) override;
+
+	//~ FEditorUndoClient
 	virtual void PostUndo(bool bSuccess) override;
 	virtual void PostRedo(bool bSuccess) override;
 	void HandleUndoRedo();
