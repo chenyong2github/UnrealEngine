@@ -259,6 +259,29 @@ UDisplayClusterConfigurationData* FDisplayClusterConfigurationTextParser::Conver
 								Extractor(CfgProjection->Params, DisplayClusterProjectionStrings::cfg::manual::AngleB, Projection.Parameters);
 							}
 							else
+							if (Projection.Type.Equals(FString(DisplayClusterProjectionStrings::projection::VIOSO), ESearchCase::IgnoreCase))
+							{
+								auto Extractor = [](const FString& ParamsLine, const FString& Param, TMap<FString, FString>& OutMap)
+								{
+									FString Value;
+									if (DisplayClusterHelpers::str::ExtractValue(ParamsLine, Param, Value))
+									{
+										OutMap.Add(FString(Param), Value);
+									}
+								};
+
+								Extractor(CfgProjection->Params, DisplayClusterProjectionStrings::cfg::VIOSO::Origin, Projection.Parameters);
+
+								Extractor(CfgProjection->Params, DisplayClusterProjectionStrings::cfg::VIOSO::INIFile,      Projection.Parameters);
+								Extractor(CfgProjection->Params, DisplayClusterProjectionStrings::cfg::VIOSO::ChannelName,  Projection.Parameters);
+								
+								Extractor(CfgProjection->Params, DisplayClusterProjectionStrings::cfg::VIOSO::File,         Projection.Parameters);
+								Extractor(CfgProjection->Params, DisplayClusterProjectionStrings::cfg::VIOSO::CalibIndex,   Projection.Parameters);
+								Extractor(CfgProjection->Params, DisplayClusterProjectionStrings::cfg::VIOSO::CalibAdapter, Projection.Parameters);
+								Extractor(CfgProjection->Params, DisplayClusterProjectionStrings::cfg::VIOSO::Gamma,        Projection.Parameters);
+								Extractor(CfgProjection->Params, DisplayClusterProjectionStrings::cfg::VIOSO::BaseMatrix,   Projection.Parameters);
+							}
+							else
 							{
 								DisplayClusterHelpers::str::StrToMap(CfgProjection->Params, Projection.Parameters);
 							}

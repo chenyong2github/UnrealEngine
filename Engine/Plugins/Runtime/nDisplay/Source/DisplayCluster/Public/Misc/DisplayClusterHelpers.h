@@ -516,33 +516,40 @@ namespace DisplayClusterHelpers
 	{
 		static FMatrix GetProjectionMatrixFromOffsets(float l, float r, float t, float b, float n, float f)
 		{
-			const float LeftFOVRad   = FMath::Atan(l / n);
-			const float RightFOVRad  = FMath::Atan(r / n);
-			const float TopFOVRad    = FMath::Atan(t / n);
-			const float BottomFOVRad = FMath::Atan(b / n);
-
+			// Protect PrjMatrix from bad input values, and fix\clamp FOV to limits
 			{
-				const float MinFOVRad = FMath::DegreesToRadians(1.0f);   // min FOV = 1 degree
-				const float MaxFOVRad = FMath::DegreesToRadians(179.0f); // max FOV = 179 degree
+				static const float MinFOVRad = FMath::DegreesToRadians(1.0f);   // min FOV = 1 degree
+				static const float MaxFOVRad = FMath::DegreesToRadians(178.0f); // max FOV = 179 degree
+
+				// Protect from broken input data, return valid matrix
+				if (isnan(l) || isnan(r) || isnan(r) || isnan(b) || isnan(n) || isnan(f))
+				{
+					return FMatrix::Identity;
+				}
+
+				const float LeftFOVRad   = FMath::Atan(l / n);
+				const float RightFOVRad  = FMath::Atan(r / n);
+				const float TopFOVRad    = FMath::Atan(t / n);
+				const float BottomFOVRad = FMath::Atan(b / n);
+
 
 				// clamp FOV values:
-				const float FOVRadH  = (RightFOVRad - LeftFOVRad);
-				float NewRightFOVRad = (FOVRadH < MinFOVRad) ? (LeftFOVRad + MinFOVRad) : RightFOVRad;
-				NewRightFOVRad       = (FOVRadH > MaxFOVRad) ? (LeftFOVRad + MaxFOVRad) : NewRightFOVRad;
+				const float FOVRadH = (RightFOVRad - LeftFOVRad);
+				if ((FOVRadH < MinFOVRad) || (FOVRadH > MaxFOVRad))
+				{
+					const float fixValue = ((FOVRadH > MaxFOVRad) ? MaxFOVRad : MinFOVRad) * .5f;
+					const float CenterHFovRad = LeftFOVRad + (FOVRadH * 0.5f);
+					l = float(n * FMath::Tan(CenterHFovRad - fixValue));
+					r = float(n * FMath::Tan(CenterHFovRad + fixValue));
+				}
 
 				const float FOVRadV = (TopFOVRad - BottomFOVRad);
-				float NewTopFOVRad  = (FOVRadV < MinFOVRad) ? (BottomFOVRad + MinFOVRad) : TopFOVRad;
-				NewTopFOVRad        = (FOVRadV > MaxFOVRad) ? (BottomFOVRad + MaxFOVRad) : NewTopFOVRad;
-
-				if (RightFOVRad != NewRightFOVRad)
+				if ((FOVRadV < MinFOVRad) || (FOVRadV > MaxFOVRad))
 				{
-					r = float(n * FMath::Tan(NewRightFOVRad));
-					//! add LOG warning
-				}
-				if (TopFOVRad != NewTopFOVRad)
-				{
-					t = float(n * FMath::Tan(NewTopFOVRad));
-					//! add LOG warning
+					const float fixValue = ((FOVRadV > MaxFOVRad) ? MaxFOVRad : MinFOVRad) * .5f;
+					const float CenterVFovRad = BottomFOVRad + (FOVRadV * 0.5f);
+					b = float(n * FMath::Tan(CenterVFovRad - fixValue));
+					t = float(n * FMath::Tan(CenterVFovRad + fixValue));
 				}
 			}
 
