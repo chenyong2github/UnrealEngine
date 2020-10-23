@@ -230,7 +230,7 @@ const void* FOpenXRHandTracking::OnBeginSession(XrSession InSession, const void*
 	return InNext;
 }
 
-void FOpenXRHandTracking::PostSyncActions(XrSession InSession, XrTime DisplayTime, XrSpace TrackingSpace)
+void FOpenXRHandTracking::UpdateDeviceLocations(XrSession InSession, XrTime DisplayTime, XrSpace TrackingSpace)
 {
 	if (!bHandTrackingAvailable)
 	{

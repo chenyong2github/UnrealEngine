@@ -41,8 +41,8 @@ static IDynamicRHIModule* LoadDynamicRHIModule()
 	// Load the dynamic RHI module.
 	IDynamicRHIModule* DynamicRHIModule = NULL;
 
-	// Default to D3D11 until D3D12 support is stablized.
-	if (bForceD3D12 && !bForceD3D11)
+	// Default to D3D12
+	if (!bForceD3D11)
 	{
 		FApp::SetGraphicsRHI(TEXT("DirectX 12"));
 		DynamicRHIModule = FModuleManager::LoadModulePtr<IDynamicRHIModule>(TEXT("D3D12RHI"));

@@ -1449,7 +1449,7 @@ FOpenXRHMD::FPipelinedLayerState& FOpenXRHMD::GetPipelinedLayerStateForThread()
 	}
 }
 
-void FOpenXRHMD::UpdateDeviceLocations()
+void FOpenXRHMD::UpdateDeviceLocations(bool bUpdateOpenXRExtensionPlugins)
 {
 	FPipelinedFrameState& PipelineState = GetPipelinedFrameStateForThread();
 
@@ -1465,6 +1465,14 @@ void FOpenXRHMD::UpdateDeviceLocations()
 			DeviceLocation.type = XR_TYPE_SPACE_LOCATION;
 			DeviceLocation.next = nullptr;
 			XR_ENSURE(xrLocateSpace(DeviceSpace.Space, PipelineState.TrackingSpace, PipelineState.FrameState.predictedDisplayTime, &DeviceLocation));
+		}
+
+		if (bUpdateOpenXRExtensionPlugins)
+		{
+			for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
+			{
+				Module->UpdateDeviceLocations(Session, PipelineState.FrameState.predictedDisplayTime, PipelineState.TrackingSpace);
+			}
 		}
 	}
 }
@@ -1976,7 +1984,7 @@ void FOpenXRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdL
 	}
 
 	// Snapshot new poses for late update.
-	UpdateDeviceLocations();
+	UpdateDeviceLocations(false);
 }
 
 void FOpenXRHMD::OnLateUpdateApplied_RenderThread(const FTransform& NewRelativeTransform)
@@ -2162,7 +2170,7 @@ bool FOpenXRHMD::OnStartGameFrame(FWorldContext& WorldContext)
 	PipelineState.FrameState.predictedDisplayTime += PipelineState.FrameState.predictedDisplayPeriod;
 
 	// Snapshot new poses for game simulation.
-	UpdateDeviceLocations();
+	UpdateDeviceLocations(true);
 
 	return true;
 }
