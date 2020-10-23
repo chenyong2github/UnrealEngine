@@ -133,7 +133,7 @@ void FNiagaraRendererComponents::Initialize(const UNiagaraRendererProperties* In
 		return;
 	}
 
-	// Search for a setter functions if not already done before
+	// Search for a setter function if not already done before
 	for (const FNiagaraComponentPropertyBinding& PropertyBinding : Properties->PropertyBindings)
 	{
 		if (!SetterFunctionMapping.Contains(PropertyBinding.PropertyName))
@@ -241,7 +241,13 @@ FNiagaraDynamicDataBase* FNiagaraRendererComponents::GenerateDynamicData(const F
 		TArray<FNiagaraComponentPropertyBinding> BindingsCopy = Properties->PropertyBindings;
 		for (FNiagaraComponentPropertyBinding& PropertyBinding : BindingsCopy)
 		{
-			PropertyBinding.SetterFunction = SetterFunctionMapping[PropertyBinding.PropertyName].Function;
+			const FNiagaraPropertySetter* PropertySetter = SetterFunctionMapping.Find(PropertyBinding.PropertyName);
+			if (!PropertySetter)
+			{
+				// it's possible that Initialize wasn't called or the bindings changed in the meantime
+				continue;
+			}
+			PropertyBinding.SetterFunction = PropertySetter->Function;
 
 			FNiagaraVariable& DataVariable = PropertyBinding.WritableValue;
 			const FNiagaraVariableBase& FoundVar = PropertyBinding.AttributeBinding.GetDataSetBindableVariable();
@@ -254,7 +260,7 @@ FNiagaraDynamicDataBase* FNiagaraRendererComponents::GenerateDynamicData(const F
 			}
 			
 			SetVariableByType(DataVariable, Data, ParticleIndex);
-			if (PropertyBinding.PropertyType.IsValid() && DataVariable.GetType() != PropertyBinding.PropertyType && !SetterFunctionMapping[PropertyBinding.PropertyName].bIgnoreConversion)
+			if (PropertyBinding.PropertyType.IsValid() && DataVariable.GetType() != PropertyBinding.PropertyType && !PropertySetter->bIgnoreConversion)
 			{
 				FNiagaraVariable TargetVariable(PropertyBinding.PropertyType, DataVariable.GetName());
 				ConvertVariableToType(DataVariable, TargetVariable);
