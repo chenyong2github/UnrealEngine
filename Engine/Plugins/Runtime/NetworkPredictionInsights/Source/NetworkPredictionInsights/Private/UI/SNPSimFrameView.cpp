@@ -159,8 +159,8 @@ void FSimFrameViewDrawHelper::DrawCached(const FSimulationFrameView& View, float
 
 		if (W >= MinWidthForEmbeddedText)
 		{
-			const FString Text = FString::Printf(TEXT("%d"), Source.Tick.OutputFrame);
-			DrawContext.DrawText(X, Y, Text, Font, FLinearColor::Black);
+			const FString Text = View.ContentType == ESimFrameContentType::FrameNumber ? FString::Printf(TEXT("%d"), Source.Tick.OutputFrame) : FString::Printf(TEXT("%d"), Source.Tick.NumBufferedInputCmds);
+			DrawContext.DrawText(X+2, Y, Text, Font, FLinearColor::Black);
 		}
 	};
 
@@ -782,8 +782,16 @@ void SNPSimFrameView::BuildSimulationView_Tracks()
 				}
 				else
 				{
-					FrameStatus = ESimFrameStatus::Confirmed;
-					PulseFrameNum = Tick.EngineFrame;
+					if (Tick.bInputFault)
+					{
+						FrameStatus = ESimFrameStatus::Trashed;
+						PulseFrameNum = Tick.EngineFrame;
+					}
+					else
+					{
+						FrameStatus = ESimFrameStatus::Confirmed;
+						PulseFrameNum = Tick.EngineFrame;
+					}
 				}
 
 				const bool bPulseFrame = (PulseFrameNum == SimulationFrameView.HeadEngineFrame);
@@ -1055,15 +1063,17 @@ int32 SNPSimFrameView::OnPaint(const FPaintArgs& Args, const FGeometry& Allotted
 													"End Simulation MS: {2}\n"
 													"Delta Simulation MS: {3}\n"
 													"Repredict: {4}\n"
-													"Confirmed Engine Frame: {5}\n"
-													"Trashed Engine Frame: {6}\n"
-													"GFrameNumber: {7}\n\n"),
+													"Input Fault: {5}\n"
+													"Confirmed Engine Frame: {6}\n"
+													"Trashed Engine Frame: {7}\n"
+													"GFrameNumber: {8}\n\n"),
 					{
 						HoverView.Tick->OutputFrame,
 						HoverView.Tick->StartMS,
 						HoverView.Tick->EndMS,
 						(HoverView.Tick->EndMS - HoverView.Tick->StartMS),
 						HoverView.Tick->bRepredict,
+						HoverView.Tick->bInputFault,
 						HoverView.Tick->ConfirmedEngineFrame,
 						HoverView.Tick->TrashedEngineFrame,
 						HoverView.Tick->EngineFrame
@@ -1088,7 +1098,7 @@ int32 SNPSimFrameView::OnPaint(const FPaintArgs& Args, const FGeometry& Allotted
 						HoverView.NetRecv->EngineFrame
 					});
 
-				NumLines += 5;
+				NumLines += 6;
 			}
 
 			
@@ -1629,6 +1639,32 @@ void SNPSimFrameView::OnGetOptionsMenu(FMenuBuilder& Builder)
 					  FIsActionChecked::CreateSP(this, &SNPSimFrameView::LinearSimFrameView)),
 			NAME_None,
 			EUserInterfaceActionType::ToggleButton
+		);
+	}
+	Builder.EndSection();
+
+	Builder.BeginSection(NAME_None, LOCTEXT("SimulationFrameContentViewLabel", "Simulation Frame Contents"));
+	{
+		Builder.AddMenuEntry(
+			LOCTEXT("FrameViewLabel","Frame Number"), 
+			LOCTEXT("FrameViewLabelToolTip", "Display Simulation Frames number in the tick boxes."),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateSP(this, &SNPSimFrameView::SetFrameContentView_FrameNumber),
+					  FCanExecuteAction(),
+					  FIsActionChecked::CreateSP(this, &SNPSimFrameView::IsFrameContentView_FrameNumber)),
+			NAME_None,
+			EUserInterfaceActionType::RadioButton
+		);
+
+		Builder.AddMenuEntry(
+			LOCTEXT("BufferedInputCmdsViewLabel","Buffered InputCmds"), 
+			LOCTEXT("BufferedInputCmdsViewLabelToolTip", "Display number of buffered InputCmds in the tick boxes."),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateSP(this, &SNPSimFrameView::SetFrameContentView_NumBufferdInputCmds),
+					  FCanExecuteAction(),
+					  FIsActionChecked::CreateSP(this, &SNPSimFrameView::IsFrameContentView_BufferedInputCmds)),
+			NAME_None,
+			EUserInterfaceActionType::RadioButton
 		);
 	}
 	Builder.EndSection();

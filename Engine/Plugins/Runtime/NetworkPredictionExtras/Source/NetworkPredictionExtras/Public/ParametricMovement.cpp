@@ -7,6 +7,8 @@
 #include "NetworkPredictionProxyInit.h"
 #include "NetworkPredictionModelDef.h"
 #include "NetworkPredictionModelDefRegistry.h"
+#include "NetworkPredictionTrace.h"
+#include "NetworkPredictionTrace.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogParametricMovement, Log, All);
 
@@ -63,7 +65,8 @@ NP_MODEL_REGISTER(FParametricMovementModelDef);
 bool FParametricAuxState::ShouldReconcile(const FParametricAuxState& AuthorityState) const
 {
 	const float MultiplierDelta = FMath::Abs<float>(AuthorityState.Multiplier - Multiplier);
-	return (MultiplierDelta > ParametricMoverCVars::ErrorTolerance);
+	UE_NP_TRACE_RECONCILE(MultiplierDelta > ParametricMoverCVars::ErrorTolerance, "Multiplier:");
+	return false;
 }
 
 bool FParametricSyncState::ShouldReconcile(const FParametricSyncState& AuthorityState) const
@@ -71,7 +74,11 @@ bool FParametricSyncState::ShouldReconcile(const FParametricSyncState& Authority
 	const float PositionDelta = FMath::Abs<float>(AuthorityState.Position - Position);
 	const float PlayRateDelta = FMath::Abs<float>(AuthorityState.PlayRate - PlayRate);
 
-	return (PositionDelta > ParametricMoverCVars::ErrorTolerance) || (PlayRateDelta > ParametricMoverCVars::ErrorTolerance);
+
+	UE_NP_TRACE_RECONCILE(PositionDelta > ParametricMoverCVars::ErrorTolerance, "PositionDelta:");
+	UE_NP_TRACE_RECONCILE(PlayRateDelta > ParametricMoverCVars::ErrorTolerance, "PlayRateDelta:");
+
+	return false;
 }
 
 

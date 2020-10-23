@@ -20,6 +20,10 @@
 
 #if UE_NP_TRACE_ENABLED
 
+// Traces what caused a reconcile (added in user ShouldReconcile function)
+// Note this actually adds the 'return true' logic for reconciliation
+#define UE_NP_TRACE_RECONCILE(Condition, Str) if (Condition) { FNetworkPredictionTrace::TraceReconcile(Str); return true; }
+
 // General trace to push the active simulation's trace ID
 #define UE_NP_TRACE_SIM(TraceID) FNetworkPredictionTrace::TraceSimulationScope(TraceID)
 
@@ -42,7 +46,7 @@
 #define UE_NP_TRACE_WORLD_FRAME_START(GameInstance, DeltaSeconds) FNetworkPredictionTrace::TraceWorldFrameStart(GameInstance, DeltaSeconds)
 
 // Called to set the general tick state
-#define UE_NP_TRACE_PUSH_TICK(StartMS, DeltaMS, OutputFrame, LocalFrameOffset) FNetworkPredictionTrace::TraceTick(StartMS, DeltaMS, OutputFrame, LocalFrameOffset)
+#define UE_NP_TRACE_PUSH_TICK(StartMS, DeltaMS, OutputFrame) FNetworkPredictionTrace::TraceTick(StartMS, DeltaMS, OutputFrame)
 
 // Called when an actual instance ticks (after calling UE_NP_TRACE_TICK)
 #define UE_NP_TRACE_SIM_TICK(TraceID) FNetworkPredictionTrace::TraceSimTick(TraceID)
@@ -58,6 +62,9 @@
 
 // Called before running input producing services
 #define UE_NP_TRACE_PUSH_INPUT_FRAME(Frame) FNetworkPredictionTrace::TracePushInputFrame(Frame)
+
+// Traces current local frame # -> server frame # offset
+#define UE_NP_TRACE_FIXED_TICK_OFFSET(Offset, bChanged) FNetworkPredictionTrace::TraceFixedTickOffset(Offset, bChanged)
 
 // Called to trace buffered input state
 #define UE_NP_TRACE_BUFFERED_INPUT(NumBufferedFrames, bFault) FNetworkPredictionTrace::TraceBufferedInput(NumBufferedFrames, bFault)
@@ -75,12 +82,13 @@
 
 #define UE_NP_TRACE_PHYSICS_STATE_CURRENT(ModelDef, Driver) FNetworkPredictionTrace::TracePhysicsStateCurrent<ModelDef>(Driver)
 #define UE_NP_TRACE_PHYSICS_STATE_AT_FRAME(ModelDef, Frame, RewindData, Driver) FNetworkPredictionTrace::TracePhysicsStateAtFrame<ModelDef>(Frame, RewindData, Driver)
-#define UE_NP_TRACE_PHYSICS_STATE_RECV(ModelDef, NpPhysicsState) FNetworkPredictionTrace::TracePhysicsStateReceived<ModelDef>(NpPhysicsState)
+#define UE_NP_TRACE_PHYSICS_STATE_RECV(ModelDef, NpPhysicsState) FNetworkPredictionTrace::TracePhysicsStateRecv<ModelDef>(NpPhysicsState)
 
 #else
 
 
 // Compiled out
+#define UE_NP_TRACE_RECONCILE(Condition, Str) if (Condition) { return true; }
 #define UE_NP_TRACE_SIM(...)
 #define UE_NP_TRACE_SIM_CREATED(...)
 #define UE_NP_TRACE_SIM_CONFIG(...)
@@ -95,6 +103,7 @@
 #define UE_NP_TRACE_SHOULD_RECONCILE(...)
 #define UE_NP_TRACE_ROLLBACK_INJECT(...)
 #define UE_NP_TRACE_PUSH_INPUT_FRAME(...)
+#define UE_NP_TRACE_FIXED_TICK_OFFSET(...)
 #define UE_NP_TRACE_PRODUCE_INPUT(...)
 #define UE_NP_TRACE_BUFFERED_INPUT(...)
 #define UE_NP_TRACE_OOB_STATE_MOD(...)
@@ -188,15 +197,18 @@ public:
 
 	static void TraceSimulationScope(int32 TraceID);
 
-	static void TraceTick(int32 StartMS, int32 DeltaMS, int32 OutputFrame, int32 LocalFrameOffset);
+	static void TraceTick(int32 StartMS, int32 DeltaMS, int32 OutputFrame);
 	static void TraceSimTick(int32 TraceID);
 
 	static void TraceNetRecv(int32 Frame, int32 TimeMS);
+	
+	static void TraceReconcile(const FAnsiStringView& StrView); 
 
 	static void TraceShouldReconcile(int32 TraceID);
 	static void TraceRollbackInject(int32 TraceID);
 
 	static void TracePushInputFrame(int32 Frame);
+	static void TraceFixedTickOffset(int32 Offset, bool bChanged);
 	static void TraceBufferedInput(int32 NumBufferedFrames, bool bFault);
 	static void TraceProduceInput(int32 TraceID);
 
@@ -270,7 +282,7 @@ public:
 	}
 
 	template<typename ModelDef, typename PhysicsStateType>
-	static void TracePhysicsStateRecv(const PhysicsStateType* State)
+	static void TracePhysicsStateRecv(const PhysicsStateType& State)
 	{
 #if UE_NP_TRACE_USER_STATES_ENABLED
 
@@ -281,10 +293,10 @@ public:
 
 		if (UE_TRACE_CHANNELEXPR_IS_ENABLED(NetworkPredictionChannel))
 		{
-			npCheckSlow(State);
+			npCheckSlow(State.Get());
 
 			TAnsiStringBuilder<512> Builder;
-			FNetworkPredictionDriver<ModelDef>::TracePhysicsState(State, Builder);
+			FNetworkPredictionDriver<ModelDef>::TracePhysicsStateRecv(State, Builder);
 			TraceUserState_Internal(ETraceUserState::Physics, Builder);
 		}
 #endif

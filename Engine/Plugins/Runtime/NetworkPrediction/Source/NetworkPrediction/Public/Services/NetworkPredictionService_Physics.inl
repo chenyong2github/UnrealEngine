@@ -83,7 +83,7 @@ public:
 			// that is called after every Np fixed tick / Physics ticked frame, however that ends up looking.
 			// For now this gets us traced physics state which is super valuable.
 			const int32 ServerFrame = (TickState->PendingFrame-1) + TickState->Offset; // -1 because PendingFrame was already ++ this frame
-			UE_NP_TRACE_PUSH_TICK(ServerFrame * TickState->FixedStepMS, TickState->FixedStepMS, ServerFrame+1, TickState->Offset);
+			UE_NP_TRACE_PUSH_TICK(ServerFrame * TickState->FixedStepMS, TickState->FixedStepMS, ServerFrame+1);
 		}
 
 		for (TConstSetBitIterator<> BitIt(InstanceBitArray); BitIt; ++BitIt)
