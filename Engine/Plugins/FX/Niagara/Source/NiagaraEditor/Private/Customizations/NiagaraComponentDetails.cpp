@@ -253,7 +253,7 @@ private:
 	bool bResettingToDefault;
 };
 
-class FNiagaraComponentNodeBuilder : public IDetailCustomNodeBuilder
+class FNiagaraComponentNodeBuilder : public IDetailCustomNodeBuilder, public TSharedFromThis<FNiagaraComponentNodeBuilder>
 {
 public:
 	FNiagaraComponentNodeBuilder(UNiagaraComponent* InComponent, TArray<TSharedPtr<IPropertyHandle>> InOverridePropertyHandles) 
@@ -261,16 +261,17 @@ public:
 		OverridePropertyHandles = InOverridePropertyHandles;
 
 		Component = InComponent;
-		Component->OnSynchronizedWithAssetParameters().AddRaw(this, &FNiagaraComponentNodeBuilder::ComponentSynchronizedWithAssetParameters);
+		bDelegatesInitialized = false;
 
 		//UE_LOG(LogNiagaraEditor, Log, TEXT("FNiagaraComponentNodeBuilder %p Component %p"), this, Component.Get());
 	}
 
 	~FNiagaraComponentNodeBuilder()
 	{
-		if (Component.IsValid())
+		if (Component.IsValid() && bDelegatesInitialized)
 		{
 			Component->OnSynchronizedWithAssetParameters().RemoveAll(this);
+			Component->GetOverrideParameters().RemoveAllOnChangedHandlers(this);
 		}
 
 		//UE_LOG(LogNiagaraEditor, Log, TEXT("~FNiagaraComponentNodeBuilder %p Component %p"), this, Component.Get());
@@ -293,6 +294,14 @@ public:
 
 	virtual void GenerateChildContent(IDetailChildrenBuilder& ChildrenBuilder) override
 	{
+		if (bDelegatesInitialized == false)
+		{
+			Component->OnSynchronizedWithAssetParameters().AddSP(this, &FNiagaraComponentNodeBuilder::ComponentSynchronizedWithAssetParameters);
+			Component->GetOverrideParameters().AddOnChangedHandler(
+				FNiagaraParameterStore::FOnChanged::FDelegate::CreateSP(this, &FNiagaraComponentNodeBuilder::ParameterValueChanged));
+			bDelegatesInitialized = true;
+		}
+
 		check(Component.IsValid());
 
 		ParameterProxies.Reset();
@@ -310,6 +319,7 @@ public:
 
 		ParameterProxies.Reserve(UserParameters.Num());
 
+		ParameterNameToDisplayStruct.Empty();
 		for (const FNiagaraVariable& Parameter : UserParameters)
 		{
 			TSharedPtr<SWidget> NameWidget;
@@ -385,6 +395,10 @@ public:
 					.UniqueId(Parameter.GetName());
 
 				Row = ChildrenBuilder.AddExternalStructureProperty(StructOnScope.ToSharedRef(), NAME_None, Params);
+
+				FNiagaraVariable UserParameter = Parameter;
+				FNiagaraUserRedirectionParameterStore::MakeUserVariable(UserParameter);
+				ParameterNameToDisplayStruct.Add(UserParameter.GetName(), TWeakPtr<FStructOnScope>(StructOnScope));
 			}
 
 			check(Row && ParameterProxy.IsValid() && ParameterProxy->Value().IsValid());
@@ -459,11 +473,35 @@ private:
 		OnRebuildChildren.ExecuteIfBound();
 	}
 
+	void ParameterValueChanged()
+	{
+		if (Component.IsValid())
+		{
+			const FNiagaraParameterStore& OverrideParameters = Component->GetOverrideParameters();
+			TArray<FNiagaraVariable> UserParameters;
+			OverrideParameters.GetParameters(UserParameters);
+			for (const FNiagaraVariable& UserParameter : UserParameters)
+			{
+				if (UserParameter.IsUObject() == false)
+				{
+					TWeakPtr<FStructOnScope>* DisplayStructPtr = ParameterNameToDisplayStruct.Find(UserParameter.GetName());
+					if (DisplayStructPtr != nullptr && DisplayStructPtr->IsValid())
+					{
+						TSharedPtr<FStructOnScope> DisplayStruct = DisplayStructPtr->Pin();
+						FMemory::Memcpy(DisplayStruct->GetStructMemory(), OverrideParameters.GetParameterData(UserParameter), UserParameter.GetSizeInBytes());
+					}
+				}
+			}
+		}
+	}
+
 private:
+	bool bDelegatesInitialized;
 	TWeakObjectPtr<UNiagaraComponent> Component;
 	TArray<TSharedPtr<IPropertyHandle>> OverridePropertyHandles;
 	FSimpleDelegate OnRebuildChildren;
 	TArray<TSharedPtr<FNiagaraParameterProxy>> ParameterProxies;
+	TMap<FName, TWeakPtr<FStructOnScope>> ParameterNameToDisplayStruct;
 };
 
 TSharedRef<IDetailCustomization> FNiagaraComponentDetails::MakeInstance()
