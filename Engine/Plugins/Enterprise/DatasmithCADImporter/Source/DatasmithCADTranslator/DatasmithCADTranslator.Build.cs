@@ -8,7 +8,7 @@ namespace UnrealBuildTool.Rules
 	{
 		public DatasmithCADTranslator(ReadOnlyTargetRules Target) : base(Target)
 		{
-            PublicDependencyModuleNames.AddRange(
+			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{
 					"Core",
@@ -22,8 +22,8 @@ namespace UnrealBuildTool.Rules
 					"CADInterfaces",
 					"CADLibrary",
 					"CADTools",
+					"CoreTechSurface",
 					"DatasmithCore",
-					"DatasmithCoreTechParametricSurfaceData",
 					"DatasmithContent",
 					"DatasmithDispatcher",
 					"DatasmithTranslator",

@@ -6,7 +6,7 @@
 #ifdef USE_OPENNURBS // The whole translation unit is skipped without OpenNurbs TPS library
 
 #ifdef CAD_LIBRARY
-#include "CoreTechParametricSurfaceExtension.h"
+#include "CoreTechSurfaceExtension.h"
 #include "RhinoCoretechWrapper.h"
 #endif // CAD_LIBRARY
 
@@ -3514,7 +3514,7 @@ bool FDatasmithOpenNurbsTranslator::LoadStaticMesh(const TSharedRef<IDatasmithMe
 
 		CADLibrary::FMeshParameters MeshParameters;
 
-		DatasmithCoreTechParametricSurfaceData::AddCoreTechSurfaceDataForMesh(MeshElement, ImportParameters, MeshParameters, OpenNurbsOptions, OutMeshPayload);
+		CoreTechSurface::AddCoreTechSurfaceDataForMesh(MeshElement, ImportParameters, MeshParameters, OpenNurbsOptions, OutMeshPayload);
 #endif // CAD_LIBRARY
 
 	}

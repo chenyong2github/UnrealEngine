@@ -22,11 +22,11 @@ namespace UnrealBuildTool.Rules
 				{
                     "CADInterfaces",
                     "CADLibrary",
-					"Engine",
+                    "CoreTechSurface",
 					"DatasmithCore",
-                    "DatasmithCoreTechParametricSurfaceData",
 					"DatasmithContent",
 					"DatasmithTranslator",
+					"Engine",
 					"MeshDescription",
 					"StaticMeshDescription",
 				}

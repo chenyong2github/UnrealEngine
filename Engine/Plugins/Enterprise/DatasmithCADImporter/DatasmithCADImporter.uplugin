@@ -74,7 +74,7 @@
 			]
 		},
 		{
-			"Name": "DatasmithCoreTechExtension",
+			"Name": "CoreTechExtension",
 			"Type": "Editor",
 			"LoadingPhase": "Default",
 			"WhitelistPlatforms": [
@@ -82,7 +82,7 @@
 			]
 		},
 		{
-			"Name": "DatasmithCoreTechParametricSurfaceData",
+			"Name": "CoreTechSurface",
 			"Type": "Runtime",
 			"LoadingPhase": "Default",
 			"WhitelistPlatforms": [

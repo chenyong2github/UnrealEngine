@@ -30,7 +30,7 @@ namespace UnrealBuildTool.Rules
 					"CADInterfaces",
 					"CADLibrary",
 					"CADTools",
-					"DatasmithCoreTechParametricSurfaceData",
+					"CoreTechSurface",
 					"DatasmithCADTranslator", // for DatasmithMeshBuilder
                     "DatasmithTranslator",
                     "DatasmithDispatcher",
