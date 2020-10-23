@@ -234,21 +234,21 @@ void FPreLoadScreenSlateSynchMechanism::RunMainLoop_SlateThread()
 				{
 					WidgetRenderer->DrawWindow(DeltaTime);
 					++SlateDrawEnqueuedCounter;
-				}
 
-				//Queue up a render tick every time we tick on this sync thread.
-				FPreLoadScreenSlateSynchMechanism* SyncMech = this;
-				ENQUEUE_RENDER_COMMAND(PreLoadScreenRenderTick)(
-					[SyncMech, &SlateDrawEnqueuedCounter, EnqueueRenderEvent](FRHICommandListImmediate& RHICmdList)
-					{
-						if (SyncMech->IsSlateMainLoopRunning_AnyThread())
+					//Queue up a render tick every time we tick on this sync thread.
+					FPreLoadScreenSlateSynchMechanism* SyncMech = this;
+					ENQUEUE_RENDER_COMMAND(PreLoadScreenRenderTick)(
+						[SyncMech, &SlateDrawEnqueuedCounter, EnqueueRenderEvent](FRHICommandListImmediate& RHICmdList)
 						{
-							FPreLoadScreenManager::StaticRenderTick_RenderThread();
+							if (SyncMech->IsSlateMainLoopRunning_AnyThread())
+							{
+								FPreLoadScreenManager::StaticRenderTick_RenderThread();
+							}
+							--SlateDrawEnqueuedCounter;
+							EnqueueRenderEvent->Trigger();
 						}
-						--SlateDrawEnqueuedCounter;
-						EnqueueRenderEvent->Trigger();
-					}
-				);
+					);
+				}
 			}
 		}
 
