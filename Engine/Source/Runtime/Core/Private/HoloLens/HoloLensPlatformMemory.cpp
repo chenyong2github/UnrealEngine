@@ -11,7 +11,7 @@
 
 
 #if !FORCE_ANSI_ALLOCATOR
-#include "HAL/MallocBinned.h"
+#include "HAL/MallocBinned3.h"
 #endif
 
 #include "HoloLens/AllowWindowsPlatformTypes.h"
@@ -64,7 +64,7 @@ FMalloc* FHoloLensPlatformMemory::BaseAllocator()
 #elif (WITH_EDITORONLY_DATA || IS_PROGRAM) && TBB_ALLOCATOR_ALLOWED
 	return new FMallocTBB();
 #else
-	return new FMallocBinned((uint32)(GetConstants().PageSize&MAX_uint32), (uint64)MAX_uint32 + 1);
+	return new FMallocBinned3();
 #endif
 
 	//	_CrtSetAllocHook(HoloLensAllocHook); // Enable to track down windows allocs not handled by our wrapper
@@ -153,6 +153,7 @@ const FPlatformMemoryConstants& FHoloLensPlatformMemory::GetConstants()
 		MemoryConstants.PageSize = SystemInformation.dwPageSize;
 
 		MemoryConstants.TotalPhysicalGB = (MemoryConstants.TotalPhysical + 1024 * 1024 * 1024 - 1) / 1024 / 1024 / 1024;
+		MemoryConstants.OsAllocationGranularity = SystemInformation.dwAllocationGranularity;
 	}
 
 	return MemoryConstants;
