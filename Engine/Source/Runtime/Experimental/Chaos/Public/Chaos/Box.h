@@ -200,16 +200,16 @@ namespace Chaos
 			return AABB.FindGeometryOpposingNormal(DenormDir, FaceIndex, OriginalNormal);
 		}
 
-		// Note: Support returns a position on the core shape (you need to add Margin to Thickness to get the actual point on the surface)
+		// Returns a position on the outer shape including the margin
 		FORCEINLINE TVector<T, d> Support(const TVector<T, d>& Direction, const T Thickness) const
 		{
-			return AABB.Support(Direction, Thickness);
+			return AABB.Support(Direction, GetMargin() + Thickness);
 		}
 
-		// Note: Support2 returns a position on the core shape (you need to subtract Margin x Normal from the result to get the point on the surface)
-		FORCEINLINE TVector<T, d> Support2(const TVector<T, d>& Direction) const
+		// Returns a position on the core shape excluding the margin
+		FORCEINLINE TVector<T, d> SupportCore(const TVector<T, d>& Direction) const
 		{
-			return AABB.Support2(Direction);
+			return AABB.SupportCore(Direction);
 		}
 
 		FORCEINLINE TVector<T, d> Center() const { return AABB.Center(); }

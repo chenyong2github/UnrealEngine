@@ -49,9 +49,9 @@ namespace Chaos
 				break;	//if taking too long just stop. This should never happen
 			}
 			const TVector<T, 3> NegV = -V;
-			const TVector<T, 3> SupportA = A.Support2(NegV);
+			const TVector<T, 3> SupportA = A.SupportCore(NegV);
 			const TVector<T, 3> VInB = AToBRotation * V;
-			const TVector<T, 3> SupportBLocal = B.Support2(VInB);
+			const TVector<T, 3> SupportBLocal = B.SupportCore(VInB);
 			const TVector<T, 3> SupportB = BToATM.TransformPositionNoScale(SupportBLocal);
 			const TVector<T, 3> W = SupportA - SupportB;
 
@@ -94,7 +94,7 @@ namespace Chaos
 	{
 		auto SupportAFunc = [&A](const TVec3<T>& V)
 		{
-			return A.Support2(V);
+			return A.SupportCore(V);
 		};
 
 		const TRotation<T, 3> AToBRotation = BToATM.GetRotation().Inverse();
@@ -103,7 +103,7 @@ namespace Chaos
 		auto SupportBFunc = [&B, &BToATM, &AToBRotation](const TVec3<T>& V)
 		{
 			const TVector<T, 3> VInB = AToBRotation * V;
-			const TVector<T, 3> SupportBLocal = B.Support2(VInB);
+			const TVector<T, 3> SupportBLocal = B.SupportCore(VInB);
 			return BToATM.TransformPositionNoScale(SupportBLocal);
 		};
 
@@ -428,13 +428,13 @@ namespace Chaos
 
 		auto SupportAFunc = [&A](const TVec3<T>& V)
 		{
-			return A.Support2(V);
+			return A.SupportCore(V);
 		};
 
 		auto SupportBFunc = [&B, &AToBRotation, &BToARotation](const TVec3<T>& V)
 		{
 			const TVector<T, 3> VInB = AToBRotation * V;
-			const TVector<T, 3> SupportBLocal = B.Support2(VInB);
+			const TVector<T, 3> SupportBLocal = B.SupportCore(VInB);
 			return BToARotation * SupportBLocal;
 		};
 
@@ -620,7 +620,7 @@ namespace Chaos
 					auto SupportBAtOriginFunc = [&](const TVec3<T>& Dir)
 					{
 						const TVector<T, 3> DirInB = AToBRotation * Dir;
-						const TVector<T, 3> SupportBLocal = B.Support2(DirInB);
+						const TVector<T, 3> SupportBLocal = B.SupportCore(DirInB);
 						return StartTM.TransformPositionNoScale(SupportBLocal);
 					};
 
