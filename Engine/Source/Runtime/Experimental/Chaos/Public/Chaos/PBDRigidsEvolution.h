@@ -859,6 +859,11 @@ protected:
 
 	FAccelerationStructure* GetFreeSpatialAcceleration_Internal();
 	void FreeSpatialAcceleration_External(FAccelerationStructure* Structure);
+
+	void ReleaseIdx(FUniqueIdx Idx);
+	void ReleasePendingIndices();
+
+	TArray<FUniqueIdx> PendingReleaseIndices;	//for now just assume a one frame delay, but may need something more general
 };
 
 #define EVOLUTION_TRAIT(Trait) extern template class CHAOS_TEMPLATE_API TPBDRigidsEvolutionBase<Trait>;

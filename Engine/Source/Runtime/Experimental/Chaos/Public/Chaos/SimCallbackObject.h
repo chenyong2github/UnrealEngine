@@ -63,6 +63,21 @@ public:
 	}
 
 	/**
+	* Called after simulation interval has finished.
+	* Inputs passed in are ordered by time and are in the interval [SimStart, SimStart + DeltaSeconds]
+	*
+	* NOTE: (this currently requires contact modification to trigger), TODO: fix this
+	*/
+	void PostSimulate_Internal(const FReal SimTime, const FReal DeltaSeconds)
+	{
+		//const_cast needed because c++ doesn't automatically promote const when double ptr
+		//what we want is const T** = t where t = T**. As you can see this is becoming MORE const so it's safe
+		auto ConstInputs = const_cast<const FSimCallbackInput**>(IntervalData.GetData());
+		TArrayView<const FSimCallbackInput*> ConstInputsView(ConstInputs, IntervalData.Num());
+		OnPostSimulate_Internal(SimTime, DeltaSeconds, ConstInputsView);
+	}
+
+	/**
 	 * Free the output data. There is no API for allocating because that's done by the user directly in the callback.
 	 * Note that allocation is done on the internal thread, but freeing is done on the external thread.
 	 * A common pattern is to use a single producer single consumer thread safe queue to manage this.
@@ -104,6 +119,10 @@ private:
 	{
 		//registered for contact modification, but implementation is missing
 		check(false);
+	}
+
+	virtual void OnPostSimulate_Internal(const float SimTime, const float Dt, const TArrayView<const Chaos::FSimCallbackInput*>& IntervalInputs)
+	{
 	}
 
 	friend class FPhysicsSolverBase;

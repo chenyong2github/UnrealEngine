@@ -171,7 +171,7 @@ namespace Chaos
 
 		// Ensure callbacks actually get cleaned up, only necessary when solver is disabled.
 		InSolver.ApplyCallbacks_Internal(0, 0);
-		InSolver.FreeCallbacksData_Internal();
+		InSolver.FreeCallbacksData_Internal(0, 0);
 
 		// verify callbacks have been processed and we're not leaking.
 		// TODO: why is this still firing in 14.30? (Seems we're still leaking)
@@ -217,6 +217,26 @@ namespace Chaos
 	}
 #endif
 
+	void FPhysicsSolverBase::TrackGTParticle_External(TGeometryParticle<FReal, 3>& Particle)
+	{
+		const int32 Idx = Particle.UniqueIdx().Idx;
+		const int32 SlotsNeeded = Idx + 1 - UniqueIdxToGTParticles.Num();
+		if (SlotsNeeded > 0)
+		{
+			UniqueIdxToGTParticles.AddZeroed(SlotsNeeded);
+		}
+
+		UniqueIdxToGTParticles[Idx] = &Particle;
+	}
+
+	void FPhysicsSolverBase::ClearGTParticle_External(TGeometryParticle<FReal, 3>& Particle)
+	{
+		const int32 Idx = Particle.UniqueIdx().Idx;
+		if (ensure(Idx < UniqueIdxToGTParticles.Num()))
+		{
+			UniqueIdxToGTParticles[Idx] = nullptr;
+		}
+	}
 
 
 	//////////////////////////////////////////////////////////////////////////
