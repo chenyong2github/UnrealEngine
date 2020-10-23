@@ -784,6 +784,8 @@ class FSequenceRecorderModule : public ISequenceRecorder, private FSelfRegisteri
 	static UAnimSequence* HandleCaptureSingleFrameAnimSequence(USkeletalMeshComponent* Component)
 	{
 		FAnimationRecorder Recorder;
+		Recorder.bRecordTransforms = true;
+		Recorder.bRecordCurves = true;
 		if (Recorder.TriggerRecordAnimation(Component))
 		{
 			class UAnimSequence * Sequence = Recorder.GetAnimationObject();
