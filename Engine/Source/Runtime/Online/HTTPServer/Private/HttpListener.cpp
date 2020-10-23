@@ -7,7 +7,6 @@
 #include "HttpServerConfig.h"
 
 #include "Sockets.h"
-#include "SocketSubsystem.h"
 #include "IPAddress.h"
 
 DEFINE_LOG_CATEGORY(LogHttpListener)
@@ -21,7 +20,7 @@ FHttpListener::FHttpListener(uint32 InListenPort)
 
 FHttpListener::~FHttpListener() 
 { 
-	check(nullptr == ListenSocket);
+	check(!ListenSocket);
 	check(!bIsListening);
 
 	const bool bRequestGracefulExit = false;
@@ -37,7 +36,7 @@ FHttpListener::~FHttpListener()
 // --------------------------------------------------------------------------------------------
 bool FHttpListener::StartListening()
 {
-	check(nullptr == ListenSocket);
+	check(!ListenSocket);
 	check(!bIsListening);
 
 	ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
@@ -48,14 +47,15 @@ bool FHttpListener::StartListening()
 		return false;
 	}
 
-	ListenSocket = SocketSubsystem->CreateSocket(NAME_Stream, TEXT("HttpListenerSocket"));
-	if (nullptr == ListenSocket)
+	FUniqueSocket NewSocket = SocketSubsystem->CreateUniqueSocket(NAME_Stream, TEXT("HttpListenerSocket"));
+	if (!NewSocket)
 	{
 		UE_LOG(LogHttpListener, Error, 
 			TEXT("HttpListener - Unable to allocate stream socket"));
 		return false;
 	}
-	ListenSocket->SetNonBlocking(true);
+
+	NewSocket->SetNonBlocking(true);
 
 	// Bind to config-driven address
 	TSharedRef<FInternetAddr> BindAddress = SocketSubsystem->CreateInternetAddr();
@@ -78,7 +78,7 @@ bool FHttpListener::StartListening()
 	}
 
 	BindAddress->SetPort(ListenPort);
-	if (!ListenSocket->Bind(*BindAddress))
+	if (!NewSocket->Bind(*BindAddress))
 	{
 		UE_LOG(LogHttpListener, Error, 
 		TEXT("HttpListener unable to bind to %s"),
@@ -87,7 +87,7 @@ bool FHttpListener::StartListening()
 	}
 
 	int32 ActualBufferSize;
-	ListenSocket->SetSendBufferSize(Config.BufferSize, ActualBufferSize);
+	NewSocket->SetSendBufferSize(Config.BufferSize, ActualBufferSize);
 	if (ActualBufferSize < Config.BufferSize)
 	{
 		UE_LOG(LogHttpListener, Warning, 
@@ -95,7 +95,7 @@ bool FHttpListener::StartListening()
 			Config.BufferSize, ActualBufferSize);
 	}
 
-	if (!ListenSocket->Listen(Config.ConnectionsBacklogSize))
+	if (!NewSocket->Listen(Config.ConnectionsBacklogSize))
 	{
 		UE_LOG(LogHttpListener, Error, 
 			TEXT("HttpListener unable to listen on socket"));
@@ -103,6 +103,7 @@ bool FHttpListener::StartListening()
 	}
 
 	bIsListening = true;
+	ListenSocket = MoveTemp(NewSocket);
 	UE_LOG(LogHttpListener, Log, 
 		TEXT("Created new HttpListener on %s"), 
 		*BindAddress->ToString(true));
@@ -119,12 +120,7 @@ void FHttpListener::StopListening()
 		UE_LOG(LogHttpListener, Log,
 			TEXT("HttListener stopping listening on Port %u"), ListenPort);
 
-		ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
-		if (SocketSubsystem)
-		{
-			SocketSubsystem->DestroySocket(ListenSocket);
-		}
-		ListenSocket = nullptr;
+		ListenSocket.Reset();
 	}
 	bIsListening = false;
 
