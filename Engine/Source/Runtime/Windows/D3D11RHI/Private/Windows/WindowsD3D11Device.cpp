@@ -490,7 +490,7 @@ static void SetHDRMonitorModeAMD(uint32 IHVDisplayIndex, bool bEnableHDR, EDispl
 		AGSReturnCode AmdStatus = agsSetDisplayMode(AmdInfo.AmdAgsContext, AmdHDRDeviceIndex, AmdHDRDisplayIndex, &HDRDisplaySettings);
 
 		// Ignore expected failures caused by insufficient driver version
-		if (AmdStatus != AGS_SUCCESS && AmdStatus != AGS_ERROR_LEGACY_DRIVER)
+		if (AmdStatus != AGS_SUCCESS && AmdStatus != AGS_LEGACY_DRIVER)
 		{
 			UE_LOG(LogD3D11RHI, Warning, TEXT("agsSetDisplayMode returned (%x)"), int(AmdStatus));
 		}
@@ -1761,7 +1761,7 @@ void FD3D11DynamicRHI::InitD3DDevice()
 			check(AmdAgsContext == NULL);
 
 			// agsInit should be called before D3D device creation
-			if (agsInit(&AmdAgsContext, NULL, &AmdInfo.AmdGpuInfo) == AGS_SUCCESS)
+			if (agsInit(AGS_MAKE_VERSION(AMD_AGS_VERSION_MAJOR, AMD_AGS_VERSION_MINOR, AMD_AGS_VERSION_PATCH), nullptr, &AmdAgsContext, &AmdInfo.AmdGpuInfo) == AGS_SUCCESS)
 			{
 				AmdInfo.AmdAgsContext = AmdAgsContext;
 				bool bFoundMatchingDevice = false;
