@@ -39,7 +39,15 @@ namespace Chaos
 			BroadPhase.ProduceOverlaps(Dt, NarrowPhase, Receiver, StatData, ResimCache);
 			if(ResimCache)
 			{
-				Receiver.ReceiveCollisions(ResimCache->GetAndSanitizeConstraints());
+				// Push the resim constraints into slot zero with the first particle. Doesn't really matter where they go at this
+				// point as long as it is consistent so we don't need to sort the constraints in ProcessCollisions
+				if(Receiver.CacheNum() == 0)
+				{
+					// In case we have zero particles but somehow have constraints
+					Receiver.Prepare(1);
+				}
+
+				Receiver.AppendCollisions(ResimCache->GetAndSanitizeConstraints(), 0);
 			}
 			Receiver.ProcessCollisions();
 		}
