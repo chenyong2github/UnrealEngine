@@ -1398,7 +1398,7 @@ static FString CreateGBufferDecodeFunctionVariation(const FGBufferInfo& BufferIn
 				}
 				else if (DecodeType == SceneTextures || DecodeType == SceneTexturesLoad)
 				{
-					TargetName = TEXT("VelocityBuffer");
+					TargetName = TEXT("GBufferVelocity");
 				}
 			}
 
