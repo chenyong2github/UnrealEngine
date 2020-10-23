@@ -74,6 +74,8 @@ const TSharedPtr<FJsonObject>& FJsonValue::AsObject() const
 	return *Object;
 }
 
+// -----------------------------------
+
 template <typename T>
 bool TryConvertNumber(const FJsonValue& InValue, T& OutNumber)
 {
@@ -88,6 +90,35 @@ bool TryConvertNumber(const FJsonValue& InValue, T& OutNumber)
 
 	return false;
 }
+
+// Need special handling for int64/uint64, due to overflow in the numeric limits.
+// 2^63-1 and 2^64-1 cannot be exactly represented as a double, so TNumericLimits<>::Max() gets rounded up to exactly 2^63 or 2^64 by the compiler's implicit cast to double.
+// This breaks the overflow check in TryConvertNumber. We use "<" rather than "<=" along with the exact power-of-two double literal to fix this.
+template <> bool TryConvertNumber<uint64>(const FJsonValue& InValue, uint64& OutNumber)
+{
+	double Double;
+	if (InValue.TryGetNumber(Double) && Double >= 0.0 && Double < 18446744073709551616.0)
+	{
+		OutNumber = static_cast<uint64>(FMath::RoundHalfFromZero(Double));
+		return true;
+	}
+
+	return false;
+}
+
+template <> bool TryConvertNumber<int64>(const FJsonValue& InValue, int64& OutNumber)
+{
+	double Double;
+	if (InValue.TryGetNumber(Double) && Double >= -9223372036854775808.0 && Double < 9223372036854775808.0)
+	{
+		OutNumber = static_cast<int64>(FMath::RoundHalfFromZero(Double));
+		return true;
+	}
+
+	return false;
+}
+
+// -----------------------------------
 
 bool FJsonValue::TryGetNumber(float& OutNumber) const
 {

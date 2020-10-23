@@ -95,12 +95,12 @@ const UProceduralFoliageTile* UProceduralFoliageSpawner::GetRandomTile(int32 X, 
 		FRandomStream HashStream;	
 		
 		HashStream.Initialize(X);
-		const float XRand = HashStream.FRand();
+		const double XRand = HashStream.FRand();
 		
 		HashStream.Initialize(Y);
-		const float YRand = HashStream.FRand();
+		const double YRand = HashStream.FRand();
 		
-		const int32 RandomNumber = (static_cast<float>(RAND_MAX) * XRand / (YRand + 0.01f));
+		const int32 RandomNumber = (RAND_MAX * XRand / (YRand + 0.01));
 		const int32 Idx = FMath::Clamp(RandomNumber % PrecomputedTiles.Num(), 0, PrecomputedTiles.Num() - 1);
 		return PrecomputedTiles[Idx].Get();
 	}
@@ -171,7 +171,7 @@ void UProceduralFoliageSpawner::Simulate(int32 NumSteps)
 
 int32 UProceduralFoliageSpawner::GetRandomNumber()
 {
-	return RandomStream.FRand() * (float)RAND_MAX;
+	return RandomStream.FRand() * float(RAND_MAX);
 }
 
 #undef LOCTEXT_NAMESPACE
