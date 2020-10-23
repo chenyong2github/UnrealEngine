@@ -16,14 +16,14 @@ void FRigVMRegistry::Refresh()
 {
 }
 
-void FRigVMRegistry::Register(const TCHAR* InName, FRigVMFunctionPtr InFunctionPtr, UScriptStruct* InStruct, FString InHeaderFilePath)
+void FRigVMRegistry::Register(const TCHAR* InName, FRigVMFunctionPtr InFunctionPtr, UScriptStruct* InStruct)
 {
 	if (FindFunction(InName) != nullptr)
 	{
 		return;
 	}
 
-	FRigVMFunction Function(InName, InFunctionPtr, InStruct, Functions.Num(), InHeaderFilePath);
+	FRigVMFunction Function(InName, InFunctionPtr, InStruct, Functions.Num());
 	Functions.Add(Function);
 
 #if WITH_EDITOR

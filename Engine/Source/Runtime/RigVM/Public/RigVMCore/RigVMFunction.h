@@ -38,7 +38,6 @@ struct RIGVM_API FRigVMFunction
 	FRigVMFunctionPtr FunctionPtr;
 	int32 Index;
 	int32 PrototypeIndex;
-	FString HeaderFilePath;
 
 	FRigVMFunction()
 		: Name(nullptr)
@@ -46,19 +45,20 @@ struct RIGVM_API FRigVMFunction
 		, FunctionPtr(nullptr)
 		, Index(INDEX_NONE)
 		, PrototypeIndex(INDEX_NONE)
-		, HeaderFilePath()
 	{
 	}
 
-	FRigVMFunction(const TCHAR* InName, FRigVMFunctionPtr InFunctionPtr, UScriptStruct* InStruct = nullptr, int32 InIndex = INDEX_NONE, FString InHeaderFilePath = FString())
+	FRigVMFunction(const TCHAR* InName, FRigVMFunctionPtr InFunctionPtr, UScriptStruct* InStruct = nullptr, int32 InIndex = INDEX_NONE)
 		: Name(InName)
 		, Struct(InStruct)
 		, FunctionPtr(InFunctionPtr)
 		, Index(InIndex)
 		, PrototypeIndex(INDEX_NONE)
-		, HeaderFilePath(InHeaderFilePath)
 	{
 	}
 
+	FORCEINLINE bool IsValid() const { return Name != nullptr && FunctionPtr != nullptr; }
 	FName GetMethodName() const;
+	FString GetModuleName() const;
+	FString GetModuleRelativeHeaderPath() const;
 };
