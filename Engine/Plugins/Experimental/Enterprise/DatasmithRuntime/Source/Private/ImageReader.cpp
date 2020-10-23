@@ -484,7 +484,7 @@ namespace DatasmithRuntime
 
 		uint8* Buffer = TextureData.ImageData;
 
-		for(int32 Index = 0; Index < TextureData.Height; ++Index, Buffer += TextureData.Pitch)
+		for(int32 Index = TextureData.Height - 1; Index >= 0 ; --Index, Buffer += TextureData.Pitch)
 		{
 			const BYTE *FIBytes = (BYTE *)FreeImage_GetScanLine(Image, Index);
 			if (ProcessPixels)
@@ -514,7 +514,7 @@ namespace DatasmithRuntime
 
 		uint8* Buffer = TextureData.ImageData;
 
-		for(int32 Index = 0; Index < TextureData.Height; ++Index, Buffer += Pitch)
+		for(int32 Index = TextureData.Height - 1; Index >= 0 ; --Index, Buffer += TextureData.Pitch)
 		{
 			const BYTE *FIBytes = (BYTE *)FreeImage_GetScanLine(Image, Index);
 			if (bIsSigned)
@@ -551,7 +551,7 @@ namespace DatasmithRuntime
 
 		uint8* Buffer = TextureData.ImageData;
 
-		for(int32 Index = 0; Index < TextureData.Height; ++Index, Buffer += TextureData.Pitch)
+		for(int32 Index = TextureData.Height - 1; Index >= 0 ; --Index, Buffer += TextureData.Pitch)
 		{
 			const BYTE *FIBytes = (BYTE *)FreeImage_GetScanLine(Image, Index);
 			uint16* Pixels = (uint16*)Buffer;
@@ -590,7 +590,7 @@ namespace DatasmithRuntime
 
 		uint8* Buffer = TextureData.ImageData;
 
-		for(int32 Index = 0; Index < TextureData.Height; ++Index, Buffer += TextureData.Pitch)
+		for(int32 Index = TextureData.Height - 1; Index >= 0 ; --Index, Buffer += TextureData.Pitch)
 		{
 			const BYTE *FIBytes = (BYTE *)FreeImage_GetScanLine(Image, Index);
 			FFloat16* Pixels = (FFloat16*)Buffer;
@@ -629,7 +629,7 @@ namespace DatasmithRuntime
 
 		uint8* Buffer = TextureData.ImageData;
 
-		for(int32 Index = 0; Index < TextureData.Height; ++Index, Buffer += TextureData.Pitch)
+		for(int32 Index = TextureData.Height - 1; Index >= 0 ; --Index, Buffer += TextureData.Pitch)
 		{
 			const BYTE *FIBytes = (BYTE *)FreeImage_GetScanLine(Image, Index);
 			if (bHasAlpha)
@@ -666,7 +666,7 @@ namespace DatasmithRuntime
 
 		uint8* Buffer = TextureData.ImageData;
 
-		for(int32 Index = 0; Index < TextureData.Height; ++Index, Buffer += TextureData.Pitch)
+		for(int32 Index = TextureData.Height - 1; Index >= 0 ; --Index, Buffer += TextureData.Pitch)
 		{
 			const BYTE *FIBytes = (BYTE *)FreeImage_GetScanLine(Image, Index);
 			float* Pixels = (float*)Buffer;
