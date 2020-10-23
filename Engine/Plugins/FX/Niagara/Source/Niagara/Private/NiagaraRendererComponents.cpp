@@ -5,7 +5,6 @@
 #include "NiagaraDataSet.h"
 #include "NiagaraStats.h"
 #include "NiagaraComponentRendererProperties.h"
-#include "NiagaraRendererComponents.h"
 
 DECLARE_CYCLE_STAT(TEXT("Component renderer bind data"), STAT_NiagaraComponentRendererBind, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("Component renderer update data"), STAT_NiagaraComponentRendererUpdate, STATGROUP_Niagara);
@@ -215,20 +214,28 @@ FNiagaraDynamicDataBase* FNiagaraRendererComponents::GenerateDynamicData(const F
 	FNiagaraDataSetReaderInt32<int32> UniqueIDAccessor = FNiagaraDataSetAccessor<int32>::CreateReader(Data, FName("UniqueID"));
 	TSet<int32> ParticlesWithComponents = Properties->bOnlyCreateComponentsOnParticleSpawn ? SystemInstance->GetParticlesWithActiveComponents(Properties->TemplateComponent) : TSet<int32>();
 
-	int32 TaskLimitLeft = Properties->ComponentCountLimit;
 	int32 SmallestID = INT_MAX;
-	for (uint32 ParticleIndex = 0; ParticleIndex < ParticleData.GetNumInstances() && TaskLimitLeft > 0; ParticleIndex++)
+	if (Properties->bAssignComponentsOnParticleID)
 	{
-		int32 ParticleID = -1;
-		if (Properties->bAssignComponentsOnParticleID)
+		for (uint32 ParticleIndex = 0; ParticleIndex < ParticleData.GetNumInstances(); ParticleIndex++)
 		{
-			ParticleID = UniqueIDAccessor.GetSafe(ParticleIndex, -1);
+			// we need to read this for all particles instead of just the first few because in the case of parallel vm execution,
+			// the particles can shuffle around, which can result in a wrong SmallestID and a lot of flickering
+			// and component shuffling
+			int32 ParticleID = UniqueIDAccessor.GetSafe(ParticleIndex, -1);
 			SmallestID = FMath::Min<int32>(ParticleID, SmallestID);
 		}
-		if (!EnabledAccessor.GetSafe(ParticleIndex, true))
+	}
+
+	int32 TaskLimitLeft = Properties->ComponentCountLimit;
+	for (uint32 ParticleIndex = 0; ParticleIndex < ParticleData.GetNumInstances(); ParticleIndex++)
+	{
+		if (TaskLimitLeft <= 0 || !EnabledAccessor.GetSafe(ParticleIndex, true))
 		{
 			continue;
 		}
+		
+		int32 ParticleID = Properties->bAssignComponentsOnParticleID ? UniqueIDAccessor.GetSafe(ParticleIndex, -1) : -1;
 		if (Properties->bAssignComponentsOnParticleID && Properties->bOnlyCreateComponentsOnParticleSpawn)
 		{
 			bool bIsNewlySpawnedParticle = ParticleIndex >= ParticleData.GetNumInstances() - ParticleData.GetNumSpawnedInstances();
