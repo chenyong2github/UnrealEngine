@@ -461,9 +461,6 @@ namespace Chaos
 		CHAOS_API FUniqueIdx UniqueIdx(const int32 Index) const { return MUniqueIdx[Index]; }
 		CHAOS_API FUniqueIdx& UniqueIdx(const int32 Index) { return MUniqueIdx[Index]; }
 
-		CHAOS_API void*& UserData(const int32 Index) { return MUserData[Index]; }
-		CHAOS_API const void* UserData(const int32 Index) const { return MUserData[Index]; }
-
 		CHAOS_API ESyncState& SyncState(const int32 Index) { return MSyncState[Index].State; }
 		CHAOS_API ESyncState SyncState(const int32 Index) const { return MSyncState[Index].State; }
 
