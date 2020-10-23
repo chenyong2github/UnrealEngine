@@ -1873,7 +1873,7 @@ public:
 		StableArchive->AddShader(StableKeyValue);
 	}
 
-	bool SaveShaderCode(const FString& ShaderCodeDir, const FString& MetaOutputDir, const TArray<FName>& ShaderFormats, TArray<FString>& OutSCLCSVPath)
+	bool SaveShaderCode(const FString& ShaderCodeDir, const FString& MetaOutputDir, const TArray<FName>& ShaderFormats, TArray<FString>& OutSCLCSVPath, const TArray<TSet<FName>>* ChunkAssignments)
 	{
 		bool bOk = ShaderFormats.Num() > 0;
 
@@ -2228,11 +2228,11 @@ void FShaderCodeLibrary::AddShaderStableKeyValue(EShaderPlatform ShaderPlatform,
 #endif// WITH_EDITOR
 }
 
-bool FShaderCodeLibrary::SaveShaderCode(const FString& OutputDir, const FString& MetaOutputDir, const TArray<FName>& ShaderFormats, TArray<FString>& OutSCLCSVPath)
+bool FShaderCodeLibrary::SaveShaderCode(const FString& OutputDir, const FString& MetaOutputDir, const TArray<FName>& ShaderFormats, TArray<FString>& OutSCLCSVPath, const TArray<TSet<FName>>* ChunkAssignments)
 {
 	if (FShaderCodeLibraryImpl::Impl)
 	{
-		return FShaderCodeLibraryImpl::Impl->SaveShaderCode(OutputDir, MetaOutputDir, ShaderFormats, OutSCLCSVPath);
+		return FShaderCodeLibraryImpl::Impl->SaveShaderCode(OutputDir, MetaOutputDir, ShaderFormats, OutSCLCSVPath, ChunkAssignments);
 	}
 
 	return false;
