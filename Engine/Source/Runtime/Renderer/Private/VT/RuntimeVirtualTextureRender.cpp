@@ -105,6 +105,7 @@ namespace RuntimeVirtualTexture
 		{
 			FMeshMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 			OutEnvironment.SetDefine(TEXT("VIRTUAL_TEXTURE_PAGE_RENDER"), 1);
+			OutEnvironment.SetDefine(TEXT("IS_VIRTUAL_TEXTURE_MATERIAL"), 1);
 		}
 
 		FShader_VirtualTextureMaterialDraw()
