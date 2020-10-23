@@ -156,7 +156,7 @@ protected:
 
 	/** Validate that we are clear to try joining a party of the given type. If not, gives the reason why. */
 	virtual FJoinPartyResult ValidateJoinAttempt(const FOnlinePartyTypeId& PartyTypeId) const;
-
+	
 	/**
 	 * Gives child classes a chance to append any additional data to a join request that's about to be sent to another party.
 	 * This is where you'll add game-specific information that can affect whether you are eligible for the target party.
@@ -228,7 +228,6 @@ private:	// Handlers
 	void HandleToolkitReset(int32 LocalUserNum);
 	
 	void OnRestorePartiesComplete(const FUniqueNetId& LocalUserId, const FOnlineError& Result, const FOnRestorePartyStateFromPartySystemComplete OnRestoreComplete);
-	void HandleQueryJoinabilityComplete(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, EJoinPartyCompletionResult Result, int32 NotApprovedReasonCode, FOnlinePartyTypeId PartyTypeId);
 	void HandleCreatePartyComplete(const FUniqueNetId& LocalUserId, const TSharedPtr<const FOnlinePartyId>& PartyId, ECreatePartyCompletionResult Result, FOnlinePartyTypeId PartyTypeId, FOnCreatePartyAttemptComplete CompletionDelegate);
 	void HandleJoinPartyComplete(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, EJoinPartyCompletionResult Result, int32 NotApprovedReasonCode, FOnlinePartyTypeId PartyTypeId);
 	
@@ -241,6 +240,9 @@ private:	// Handlers
 
 	void HandleFillPartyJoinRequestData(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, FOnlinePartyData& PartyData);
 	void HandleFindSessionForJoinComplete(bool bWasSuccessful, const FOnlineSessionSearchResult& FoundSession, FOnlinePartyTypeId PartyTypeId);
+
+protected: // overridable handlers
+	virtual void HandleQueryJoinabilityComplete(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const FQueryPartyJoinabilityResult& Result, FOnlinePartyTypeId PartyTypeId);
 
 private:
 	static TArray<ESocialSubsystem> DefaultSubsystems;
