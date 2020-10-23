@@ -284,7 +284,10 @@ namespace Chaos
 			return MSegment.Support(Direction, GetRadius() + Thickness);
 		}
 
-		FORCEINLINE TVector<T, 3> Support2(const TVector<T, 3>& Direction) const { return MSegment.Support2(Direction); }
+		FORCEINLINE TVector<T, 3> SupportCore(const TVector<T, 3>& Direction) const
+		{
+			return MSegment.SupportCore(Direction);
+		}
 
 		FORCEINLINE void SerializeImp(FArchive& Ar)
 		{
