@@ -12,6 +12,15 @@
 #include <algorithm>
 #include <iostream>
 
+#if INTEL_ISPC
+#include "TriangleMesh.ispc.generated.h"
+#endif
+
+#if INTEL_ISPC && !UE_BUILD_SHIPPING
+bool bChaos_TriangleMesh_ISPC_Enabled = true;
+FAutoConsoleVariableRef CVarChaosTriangleMeshISPCEnabled(TEXT("p.Chaos.TriangleMesh.ISPC"), bChaos_TriangleMesh_ISPC_Enabled, TEXT("Whether to use ISPC optimizations in triangle mesh calculations"));
+#endif
+
 using namespace Chaos;
 
 template<class T>
@@ -287,12 +296,28 @@ void TTriangleMesh<T>::GetFaceNormals(TArray<TVector<T, 3>>& Normals, const TCon
 	}
 	else
 	{
-		for (const TVector<int32, 3>& Tri : MElements)
+		if (bChaos_TriangleMesh_ISPC_Enabled)
 		{
-			TVector<T, 3> p10 = Points[Tri[1]] - Points[Tri[0]];
-			TVector<T, 3> p20 = Points[Tri[2]] - Points[Tri[0]];
-			TVector<T, 3> Cross = TVector<T, 3>::CrossProduct(p20, p10);
-			Normals.Add(Cross.GetSafeNormal());
+			static_assert(std::is_same<T, float>::value == true, "ISPC only supports float template type");
+			Normals.SetNumUninitialized(MElements.Num());
+
+#if INTEL_ISPC
+			ispc::GetFaceNormals(
+				(ispc::FVector*)Normals.GetData(),
+				(ispc::FVector*)Points.GetData(),
+				(ispc::FIntVector*)MElements.GetData(),
+				MElements.Num());
+#endif
+		}
+		else
+		{
+			for (const TVector<int32, 3>& Tri : MElements)
+			{
+				TVector<T, 3> p10 = Points[Tri[1]] - Points[Tri[0]];
+				TVector<T, 3> p20 = Points[Tri[2]] - Points[Tri[0]];
+				TVector<T, 3> Cross = TVector<T, 3>::CrossProduct(p20, p10);
+				Normals.Add(Cross.GetSafeNormal());
+			}
 		}
 	}
 }
@@ -322,20 +347,38 @@ template<class T>
 void TTriangleMesh<T>::GetPointNormals(TArrayView<TVector<T, 3>> PointNormals, const TConstArrayView<TVector<T, 3>>& FaceNormals, const bool bUseGlobalArray) const
 {
 	check(MPointToTriangleMap.Num() != 0);
-	for (int32 Element = 0; Element < MNumIndices; ++Element)  // Iterate points with local indexes
+
+	if (bChaos_TriangleMesh_ISPC_Enabled)
 	{
-		const int32 NormalIndex = bUseGlobalArray ? LocalToGlobal(Element) : Element;  // Select whether the points normal indices match the points indices or start at 0
-		TVector<T, 3>& Normal = PointNormals[NormalIndex];
-		Normal = TVector<T, 3>(0);
-		const TArray<int32>& TriangleMap = MPointToTriangleMap[Element];  // Access MPointToTriangleMap with local index
-		for (int32 k = 0; k < TriangleMap.Num(); ++k)
+		static_assert(std::is_same<T, float>::value == true, "ISPC only supports float template type");
+
+#if INTEL_ISPC
+		ispc::GetPointNormals(
+			(ispc::FVector*)PointNormals.GetData(),
+			(const ispc::FVector*)FaceNormals.GetData(),
+			(const ispc::TArrayInt*)MPointToTriangleMap.GetData(),
+			bUseGlobalArray ? LocalToGlobal(0) : 0,
+			FaceNormals.Num(),
+			MNumIndices);
+#endif
+	}
+	else
+	{
+		for (int32 Element = 0; Element < MNumIndices; ++Element)  // Iterate points with local indexes
 		{
-			if (FaceNormals.IsValidIndex(TriangleMap[k]))
+			const int32 NormalIndex = bUseGlobalArray ? LocalToGlobal(Element) : Element;  // Select whether the points normal indices match the points indices or start at 0
+			TVector<T, 3>& Normal = PointNormals[NormalIndex];
+			Normal = TVector<T, 3>(0);
+			const TArray<int32>& TriangleMap = MPointToTriangleMap[Element];  // Access MPointToTriangleMap with local index
+			for (int32 k = 0; k < TriangleMap.Num(); ++k)
 			{
-				Normal += FaceNormals[TriangleMap[k]];
+				if (FaceNormals.IsValidIndex(TriangleMap[k]))
+				{
+					Normal += FaceNormals[TriangleMap[k]];
+				}
 			}
+			Normal = Normal.GetSafeNormal();
 		}
-		Normal = Normal.GetSafeNormal();
 	}
 }
 
