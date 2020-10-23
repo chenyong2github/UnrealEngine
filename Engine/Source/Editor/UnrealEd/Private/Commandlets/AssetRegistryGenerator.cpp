@@ -2134,6 +2134,37 @@ int32 FAssetRegistryGenerator::GetPakchunkIndex(int32 ChunkId) const
 	return ChunkId;
 }
 
+void FAssetRegistryGenerator::GetChunkAssignments(TArray<TSet<FName>>& OutAssignments) const
+{
+	if (ChunkManifests.Num())
+	{
+		// chunk 0 is special as it also contains startup packages
+		TSet<FName> PackagesInChunk0;
+
+		for(const FName& Package : StartupPackages)
+		{
+			PackagesInChunk0.Add(Package);
+		}
+
+		for (FChunkPackageSet::TConstIterator It(*ChunkManifests[0]); It; ++It)
+		{
+			PackagesInChunk0.Add(It.Key());
+		}
+		OutAssignments.Add(PackagesInChunk0);
+
+		for (uint32 ChunkIndex = 1, MaxChunk = ChunkManifests.Num(); ChunkIndex < MaxChunk; ++ChunkIndex)
+		{
+			TSet<FName> PackagesInChunk;
+			for (FChunkPackageSet::TConstIterator It(*ChunkManifests[ChunkIndex]); It; ++It)
+			{
+				PackagesInChunk.Add(It.Key());
+			}
+
+			OutAssignments.Add(PackagesInChunk);
+		}
+	}
+}
+
 void FAssetRegistryGenerator::InitializeChunkIdPakchunkIndexMapping()
 {
 	FConfigFile PlatformIniFile;
