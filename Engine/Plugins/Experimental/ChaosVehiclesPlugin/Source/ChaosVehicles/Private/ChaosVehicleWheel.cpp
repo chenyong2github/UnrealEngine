@@ -74,7 +74,7 @@ float UChaosVehicleWheel::GetRotationAngle() const
 float UChaosVehicleWheel::GetSuspensionOffset() const
 {
 	check(VehicleSim && VehicleSim->PhysicsVehicle());
-	FSimpleSuspensionSim& SimSuspension = VehicleSim->PhysicsVehicle()->Suspension[WheelIndex];
+	Chaos::FSimpleSuspensionSim& SimSuspension = VehicleSim->PhysicsVehicle()->Suspension[WheelIndex];
 	return SimSuspension.GetSuspensionOffset();
 }
 
