@@ -8,7 +8,7 @@
 
 #include "DirectLink/DatasmithSceneReceiver.h"
 #include "DirectLinkEndpoint.h"
-#include "DirectLinkSceneProvider.h"
+#include "DirectLinkConnectionRequestHandler.h"
 
 #include "Misc/ScopeRWLock.h"
 #include "Tickable.h"
@@ -27,13 +27,13 @@ namespace DatasmithRuntime
 	 * Helper class to manage a DirectLink destination and its connection
 	 * Used by the ADatasmithRuntimeActor
 	 */
-	class FDestinationProxy : public DirectLink::ISceneProvider, public TSharedFromThis<FDestinationProxy>
+	class FDestinationProxy : public DirectLink::IConnectionRequestHandler, public TSharedFromThis<FDestinationProxy>
 	{
 	public:
 		FDestinationProxy(FDatasmithSceneReceiver::ISceneChangeListener* InChangeListener);
 		~FDestinationProxy();
 
-		// Begin DirectLink::ISceneProvider interface
+		// Begin DirectLink::IConnectionRequestHandler interface
 		virtual bool CanOpenNewConnection(const FSourceInformation& /*SourceInfo*/) override
 		{
 			return true; // Always true
@@ -43,7 +43,7 @@ namespace DatasmithRuntime
 		{
 			return ChangeListener? SceneReceiver : nullptr;
 		}
-		// End DirectLink::ISceneProvider interface
+		// End DirectLink::IConnectionRequestHandler interface
 
 		/** Register as a scene provider to the associated end point */
 		bool RegisterDestination(const TCHAR* StreamName);

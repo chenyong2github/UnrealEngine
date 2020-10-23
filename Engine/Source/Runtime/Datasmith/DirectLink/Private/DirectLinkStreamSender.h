@@ -24,14 +24,14 @@ class FHaveListReceiver;
  * Some requests messages can be sent multiple times though, but with a unique
  * 'SyncCycle' value so that the receiver is able to ignore duplicated requests.
  */
-class FStreamSender : public IStreamCommunicationInterface
+class FStreamSender : public IStreamSender
 {
 public:
 	FStreamSender(TSharedPtr<FMessageEndpoint, ESPMode::ThreadSafe> ThisEndpoint, const FMessageAddress& DestinationAddress, FStreamPort ReceiverStreamPort);
 	~FStreamSender();
-	void SetSceneSnapshot(TSharedPtr<FSceneSnapshot> SceneSnapshot);
-	void Tick(double Now_s);
-	void HandleHaveListMessage(const FDirectLinkMsg_HaveListMessage& Message); // update RemoteView
+	virtual void SetSceneSnapshot(TSharedPtr<FSceneSnapshot> SceneSnapshot) override;
+	virtual void Tick(double Now_s) override;
+	virtual void HandleHaveListMessage(const FDirectLinkMsg_HaveListMessage& Message) override; // update RemoteView
 
 public: // IStreamCommunicationInterface API
 	virtual FCommunicationStatus GetCommunicationStatus() const override { return CurrentCommunicationStatus; }
