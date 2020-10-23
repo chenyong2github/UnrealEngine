@@ -13,6 +13,7 @@ public class SoundCueTemplatesEditor : ModuleRules
 			{
 				"Core",
 				"SoundCueTemplates",
+				"AudioEditor",
 				"ToolMenus"
 			}
 		);
