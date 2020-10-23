@@ -18,6 +18,10 @@ Buffer<int> NodesOffsets;
 Buffer<int> TargetsOffsets;
 RWTexture3D<float4> FieldClipmap;
 
+Buffer<int> CellsOffsets;
+Buffer<uint4> CellsMin;
+Buffer<uint4> CellsMax;
+
 int ClipmapResolution;
 float ClipmapDistance;
 float3 ClipmapCenter;
@@ -28,6 +32,7 @@ int TargetCount;
 int PhysicsTargets[MAX_TARGETS_ARRAY];
 
 float TimeSeconds;
+int NumCells;
 
 /* -----------------------------------------------------------------
  * Reandom Vector + Perlin Noise
@@ -370,6 +375,7 @@ void EvaluateWaveScalar(in float3 SamplePosition, in int NodeOffset,
 	const int Function = (int) NodesParams[NodeOffset + WAVE_SCALAR_FUNCTION];
 	const float Magnitude = NodesParams[NodeOffset + WAVE_SCALAR_MAGNITUDE];
 	
+	[branch]
 	if (Function == WAVE_GAUSSIAN)
 	{
 		Result = Magnitude * exp(-Phase * Phase);
@@ -508,6 +514,7 @@ void EvaluateBoxFalloffScalar(in float3 SamplePosition, in int NodeOffset,
 					inout float ContextDatas[MAX_DATAS], inout int LocalIndex)
 {
 	float ScalarDatas = NodesParams[NodeOffset + BOX_FALLOFF_DEFAULT];
+	const float HalfBox = 0.5;
 	
 	const float DeltaRange = NodesParams[NodeOffset + BOX_FALLOFF_MAX_RANGE] - NodesParams[NodeOffset + BOX_FALLOFF_MIN_RANGE];
 
@@ -530,7 +537,7 @@ void EvaluateBoxFalloffScalar(in float3 SamplePosition, in int NodeOffset,
 
 	const float3 LocalPosition = FieldUnRotateVectorByQuat(SamplePosition - BoxTranslation, BoxRotation) * InverseScale;
 	
-	const float3 DeltaPosition = abs(LocalPosition) - float3(50.0, 50.0, 50.0);
+	const float3 DeltaPosition = abs(LocalPosition) - float3(HalfBox, HalfBox, HalfBox);
 	const int ClosestAxis = ((DeltaPosition.x > DeltaPosition.y) && (DeltaPosition.x > DeltaPosition.z)) ? 0 : (DeltaPosition.y > DeltaPosition.z) ? 1 : 2;
 	const float OutsideDistance = length(max(DeltaPosition, 0.0));
 
@@ -538,7 +545,7 @@ void EvaluateBoxFalloffScalar(in float3 SamplePosition, in int NodeOffset,
 
 	if (LocalDistance < 0.0)
 	{
-		const float DeltaDistance = -LocalDistance / 50.0;
+		const float DeltaDistance = -LocalDistance / HalfBox;
 		
 		SetFalloffValue((int)NodesParams[NodeOffset + BOX_FALLOFF_FALLOFF],
 						1.0,DeltaDistance, ScalarDatas);
@@ -810,7 +817,7 @@ void EvaluateCullingInteger(in float3 SamplePosition, in int NodeOffset,
 	int OffsetIndex = LocalIndex;
 	const float CullingScalar = HasScalar ? ContextDatas[OffsetIndex] : 0.0;
 	OffsetIndex += (int)CullingScalar;
-	const int InputInteger = HasInput ? (int)ContextDatas[OffsetIndex] : 0.0;
+	const int InputInteger = HasInput ? (int)ContextDatas[OffsetIndex] : 0;
 
 	const int CullingOperation = (int)NodesParams[NodeOffset + CULLING_OPERATION];
 	const bool ValidSample = ((CullingOperation == CULLING_OUTSIDE) && (CullingScalar != 0.0)) ||
@@ -1022,13 +1029,15 @@ void BuildPhysicsFieldClipmapCS(
 	if (all(DispatchThreadId.xyz < int3(ClipmapResolution, ClipmapResolution, ClipmapResolution)) && (TargetCount < MAX_COUNT))
 	{
 		float4 ResultsDatas[MAX_COUNT];
-		[unroll]
-		for (int ResultsIndex = 0; ResultsIndex < MAX_COUNT; ++ResultsIndex)
-		{
-			ResultsDatas[ResultsIndex] = float4(0, 0, 0, 0);
-		}
+		float ContextDatas[MAX_DATAS];
+		
 		for (int ClipmapIndex = 0; ClipmapIndex < ClipmapCount; ++ClipmapIndex)
 		{
+			[unroll]
+			for (int ResultsIndex = 0; ResultsIndex < MAX_COUNT; ++ResultsIndex)
+			{
+				ResultsDatas[ResultsIndex] = float4(0, 0, 0, 0);
+			}
 			const float ClipmapExtent = ClipmapDistance * pow(ClipmapExponent, ClipmapIndex + 1 - ClipmapCount);
 		
 			const float3 SampleUV = (DispatchThreadId.xyz + 0.5) / ClipmapResolution;
@@ -1041,18 +1050,25 @@ void BuildPhysicsFieldClipmapCS(
 				[branch]
 				if ((TargetIndex != -1) && (TargetIndex < TargetCount))
 				{
-					float ContextDatas[MAX_DATAS];
-					int LocalIndex = 0;
-
-					SampleFieldDatas(SamplePosition, ContextDatas, LocalIndex, TargetType + 1, ClipmapExtent);
+					const int CellIndex = (TargetType + 1) * ClipmapCount + ClipmapIndex;
+					
+					const uint3 LimitMin = CellsMin[CellIndex].xyz;
+					const uint3 LimitMax = CellsMax[CellIndex].xyz;
+					
+					[branch]
+					if (all(DispatchThreadId.xyz >= LimitMin) && all(DispatchThreadId.xyz < LimitMax))
+					{
+						int LocalIndex = 0;
+						SampleFieldDatas(SamplePosition, ContextDatas, LocalIndex, TargetType + 1, ClipmapExtent);
 		
-					if (LocalIndex == 3)
-					{
-						ResultsDatas[TargetIndex].xyz = float3(ContextDatas[0], ContextDatas[1], ContextDatas[2]);
-					}
-					else if (LocalIndex == 1)
-					{
-						ResultsDatas[TargetIndex].w = ContextDatas[0];
+						if (LocalIndex == 3)
+						{
+							ResultsDatas[TargetIndex].xyz = float3(ContextDatas[0], ContextDatas[1], ContextDatas[2]);
+						}
+						else if (LocalIndex == 1)
+						{
+							ResultsDatas[TargetIndex].w = ContextDatas[0];
+						}
 					}
 				}
 			}
@@ -1065,3 +1081,85 @@ void BuildPhysicsFieldClipmapCS(
 		}
 	}
 }
+
+
+
+//[numthreads(64, 1, 1)]
+//void BuildPhysicsFieldClipmapCS(
+//	uint3 GroupId : SV_GroupID,
+//	uint3 DispatchThreadId : SV_DispatchThreadID,
+//    uint3 GroupThreadId : SV_GroupThreadID)
+//{
+//	if (DispatchThreadId.x < NumCells)
+//	{
+//		int CellTarget = -1;
+//		int CellClipmap = -1;
+//		uint3 CellVoxel = uint3(0, 0, 0);
+//		for (int TargetType = 0; TargetType < MAX_TARGETS_ARRAY; ++TargetType)
+//		{
+//			const int TargetIndex = PhysicsTargets[TargetType];
+			
+//			if ((TargetIndex != -1) && (TargetIndex < TargetCount))
+//			{
+//				int CellIndex = (TargetType + 1) * ClipmapCount;
+//				for (int ClipmapIndex = 0; ClipmapIndex < ClipmapCount; ++ClipmapIndex, ++CellIndex)
+//				{
+//					if (DispatchThreadId.x >= CellsOffsets[CellIndex] && DispatchThreadId.x < CellsOffsets[CellIndex + 1])
+//					{
+//						CellTarget = TargetType;
+//						CellClipmap = ClipmapIndex;
+//						const int LocalIndex = DispatchThreadId.x - CellsOffsets[CellIndex];
+					
+//						const uint4 CellsDelta = CellsMax[CellIndex] - CellsMin[CellIndex];
+					
+//						const int IndexX = LocalIndex / (CellsDelta.y * CellsDelta.z);
+//						const int IndexT = LocalIndex % (CellsDelta.y * CellsDelta.z);
+//						const int IndexY = IndexT / CellsDelta.z;
+//						const int IndexZ = IndexT % CellsDelta.z;
+					
+//						CellVoxel = CellsMin[CellIndex].xyz + uint3(IndexX, IndexY, IndexZ);
+					
+//						break;
+//					}
+//				}
+//			}
+//		}
+//		if (CellTarget != -1 && CellClipmap != -1 && all(CellVoxel.xyz < int3(ClipmapResolution, ClipmapResolution, ClipmapResolution)) && (TargetCount < MAX_COUNT))
+//		{
+//			float4 ResultsDatas = float4(0, 0, 0, 0);
+//			const float ClipmapExtent = ClipmapDistance * pow(ClipmapExponent, CellClipmap + 1 - ClipmapCount);
+		
+//			const float3 SampleUV = (CellVoxel.xyz + 0.5) / ClipmapResolution;
+//			const float3 SamplePosition = ClipmapCenter + (SampleUV - 0.5) * 2.0 * ClipmapExtent;
+			
+//			float ContextDatas[MAX_DATAS];
+//			int LocalIndex = 0;
+
+//			SampleFieldDatas(SamplePosition, ContextDatas, LocalIndex, CellTarget + 1, ClipmapExtent);
+			
+//			const int TargetIndex = PhysicsTargets[CellTarget];
+		
+//			if (LocalIndex == 3)
+//			{
+//				ResultsDatas.xyz = float3(ContextDatas[0], ContextDatas[1], ContextDatas[2]);
+//			}
+//			else if (LocalIndex == 1)
+//			{
+//				ResultsDatas.w = ContextDatas[0];
+//			}
+			
+//			const int DatasOffset = CellClipmap + TargetIndex * ClipmapCount;
+//			const uint3 TextureCoordinates = uint3(CellVoxel.x, CellVoxel.y, CellVoxel.z + ClipmapResolution * DatasOffset + DatasOffset);
+//			FieldClipmap[TextureCoordinates] += ResultsDatas;
+//		}
+//	}
+//}
+
+//const int MemoryIndex = GGroupThreadId.x * 16 + GGroupThreadId.y * 4 + GGroupThreadId.z;
+//const int ParamsIndex = MemoryIndex % 32;
+//const int SharedOffset = MemoryIndex >= 32 ? 32 : 0;
+//	if (ParamsIndex < 9)
+//	{
+//		SharedParams[MemoryIndex] = NodesParams[NodeOffset + ParamsIndex];
+//	}
+//	GroupMemoryBarrier();

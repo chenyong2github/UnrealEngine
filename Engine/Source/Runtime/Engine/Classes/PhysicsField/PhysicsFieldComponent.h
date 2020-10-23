@@ -75,8 +75,26 @@ public:
 	/** Field targets nodes buffer */
 	FRWBuffer TargetsOffsets;
 
+	/** Cells offsets buffer */
+	FRWBuffer CellsOffsets;
+
+	/** Cells Min buffer */
+	FRWBuffer CellsMin;
+
+	/** Cells max buffer */
+	FRWBuffer CellsMax;
+
 	/** Field infos that will be used to allocate memory and to transfer information */
 	FPhysicsFieldInfos FieldInfos;
+
+	/** Bounds Cells offsets */
+	TArray<int32> DatasOffsets;
+
+	/** Min Bounds for each target/clipmap */
+	TArray<FIntVector4> DatasMin;
+
+	/** Max Bounds for each target/clipmap */
+	TArray<FIntVector4> DatasMax;
 
 	/** Default constructor. */
 	FPhysicsFieldResource(const int32 TargetCount, const TArray<EFieldPhysicsType>& TargetTypes,
@@ -91,7 +109,11 @@ public:
 
 	/** Update RHI resources. */
 	void UpdateResource(FRHICommandListImmediate& RHICmdList, const int32 NodesCount, const int32 ParamsCount,
-		const int32* TargetsOffsetsDatas, const int32* NodesOffsetsDatas, const float* NodesParamsDatas, const float TimeSeconds);
+		const TStaticArray<int32, EFieldPhysicsType::Field_PhysicsType_Max + 1>& TargetsOffsetsDatas, const TArray<int32>& NodesOffsetsDatas, const TArray<float>& NodesParamsDatas,
+		const TArray<FVector>& MinBoundsDatas, const TArray<FVector>& MaxBoundsDatas, const float TimeSeconds);
+
+	/** Update Bounds. */
+	void UpdateBounds(const TArray<FVector>& MinBounds, const TArray<FVector>& MaxBounds);
 };
 
 
@@ -133,8 +155,11 @@ public:
 	 */
 	void UpdateInstance(const float TimeSeconds);
 
-	/** Update the offsets and paramsgiven a node */
+	/** Update the offsets and params given a node */
 	void BuildNodeParams(FFieldNodeBase* FieldNode);
+
+	/** Update the bounds given a node */
+	void BuildNodeBounds(FFieldNodeBase* FieldNode, FVector& MinBounds, FVector& MaxBounds);
 
 	/** The field system resource. */
 	FPhysicsFieldResource* FieldResource = nullptr;
@@ -150,6 +175,12 @@ public:
 
 	/** List of all the field commands in the world */
 	TArray<FFieldSystemCommand> FieldCommands;
+
+	/** Min Bounds for each target/clipmap */
+	TArray<FVector> BoundsMin;
+
+	/** Max Bounds for each target/clipmap */
+	TArray<FVector> BoundsMax;
 };
 
 /**
