@@ -248,7 +248,7 @@ void FVulkanWindowsPlatform::CheckDeviceDriver(uint32 DeviceIndex, EGpuVendorId 
 	{
 		AGSGPUInfo AmdGpuInfo;
 		AGSContext* AmdAgsContext = nullptr;
-		if (agsInit(&AmdAgsContext, nullptr, &AmdGpuInfo) == AGS_SUCCESS)
+		if (agsInit(AGS_MAKE_VERSION(AMD_AGS_VERSION_MAJOR, AMD_AGS_VERSION_MINOR, AMD_AGS_VERSION_PATCH), nullptr, &AmdAgsContext, &AmdGpuInfo) == AGS_SUCCESS)
 		{
 			const char* Version = AmdGpuInfo.radeonSoftwareVersion;
 			if (DeviceIndex < (uint32)AmdGpuInfo.numDevices && Version && *Version)
