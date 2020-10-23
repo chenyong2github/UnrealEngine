@@ -3003,12 +3003,11 @@ void FSceneRenderer::RenderFinish(FRDGBuilder& GraphBuilder, FRDGTextureRef View
 							Canvas.DrawShadowedText(10, Y, Message, GetStatsFont(), FLinearColor(1.0, 0.05, 0.05, 1.0));
 							Y += 14;
 						}
-
-						if (bFxDebugDraw)
-						{
-							//-TODO: Fix for RDG: FXInterface->DrawDebug_RenderThread(RHICmdList, &Canvas);
-						}
 					});
+					if (bFxDebugDraw)
+					{
+						FXInterface->DrawDebug_RenderThread(GraphBuilder, View, Output);
+					}
 				}
 				
 				// Software occlusion debug draw
