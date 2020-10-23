@@ -327,6 +327,8 @@ bool FStaticMeshBuilder::Build(FStaticMeshRenderData& StaticMeshRenderData, USta
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("FStaticMeshBuilder::Build::Nanite"));
 
+			WedgeMap.Empty();	// Make sure to not keep the large WedgeMap from the input mesh around.
+								// No need to calculate a new one for the coarse mesh, because Nanite meshes don't need it yet.
 			Nanite::IBuilderModule& NaniteBuilderModule = Nanite::IBuilderModule::Get();
 			if( !NaniteBuilderModule.Build( StaticMeshRenderData.NaniteResources, StaticMeshBuildVertices, CombinedIndices, StaticMeshLOD.Sections, NumTextureCoord, NaniteSettings ) )
 			{
