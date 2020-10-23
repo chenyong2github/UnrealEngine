@@ -598,13 +598,13 @@ int32 CompileShadingModelBlendFunction(FMaterialCompiler* Compiler, const int32 
 	return Compiler->If(Alpha, MidPoint, B, INDEX_NONE, A, INDEX_NONE);
 }
 
-int32 CompileStrataBlendFunction(FMaterialCompiler* Compiler, int32 Foreground, int32 Background, int32 Alpha)
+int32 CompileStrataBlendFunction(FMaterialCompiler* Compiler, const int32 A, const int32 B, const int32 Alpha)
 {
-	if (Foreground == INDEX_NONE || Background == INDEX_NONE || Alpha == INDEX_NONE)
+	if (A == INDEX_NONE || B == INDEX_NONE || Alpha == INDEX_NONE)
 	{
 		return INDEX_NONE;
 	}
-	return Compiler->StrataHorizontalMixing(Foreground, Background, Alpha);
+	return Compiler->StrataHorizontalMixing(B, A, Alpha); // B is foreground (fully visible when Alpha=1), and A is background (fully visible when Alpha=0)
 }
 
 UMaterialExpression::UMaterialExpression(const FObjectInitializer& ObjectInitializer)
