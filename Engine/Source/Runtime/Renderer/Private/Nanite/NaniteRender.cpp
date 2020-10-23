@@ -3400,8 +3400,8 @@ void ExtractStats(
 		// Extract main pass buffers
 		{
 			auto& MainPassBuffers = Nanite::GGlobalResources.GetMainPassBuffers();
-			GraphBuilder.QueueBufferExtraction(CullingContext.MainPass.RasterizeArgsSWHW, &MainPassBuffers.StatsRasterizeArgsSWHWBuffer);
-			GraphBuilder.QueueBufferExtraction(CullingContext.MainPass.CandidateClustersArgs, &MainPassBuffers.StatsCandidateClustersArgsBuffer);
+			ConvertToExternalBuffer(GraphBuilder, CullingContext.MainPass.RasterizeArgsSWHW, MainPassBuffers.StatsRasterizeArgsSWHWBuffer);
+			ConvertToExternalBuffer(GraphBuilder, CullingContext.MainPass.CandidateClustersArgs, MainPassBuffers.StatsCandidateClustersArgsBuffer);
 		}
 
 		// Extract post pass buffers
@@ -3412,13 +3412,13 @@ void ExtractStats(
 		{
 			check( CullingContext.PostPass.RasterizeArgsSWHW != nullptr );
 			check( CullingContext.PostPass.CandidateClustersArgs != nullptr );
-			GraphBuilder.QueueBufferExtraction(CullingContext.PostPass.RasterizeArgsSWHW, &PostPassBuffers.StatsRasterizeArgsSWHWBuffer);
-			GraphBuilder.QueueBufferExtraction(CullingContext.PostPass.CandidateClustersArgs, &PostPassBuffers.StatsCandidateClustersArgsBuffer);
+			ConvertToExternalBuffer(GraphBuilder, CullingContext.PostPass.RasterizeArgsSWHW, PostPassBuffers.StatsRasterizeArgsSWHWBuffer);
+			ConvertToExternalBuffer(GraphBuilder, CullingContext.PostPass.CandidateClustersArgs, PostPassBuffers.StatsCandidateClustersArgsBuffer);
 		}
 
 		// Extract calculated stats (so VisibleClustersSWHW isn't needed later)
 		{
-			GraphBuilder.QueueBufferExtraction(CullingContext.StatsBuffer, &Nanite::GGlobalResources.GetStatsBufferRef());
+			ConvertToExternalBuffer(GraphBuilder, CullingContext.StatsBuffer, Nanite::GGlobalResources.GetStatsBufferRef());
 		}
 
 		// Save out current render and debug flags.
