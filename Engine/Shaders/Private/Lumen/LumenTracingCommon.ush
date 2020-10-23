@@ -14,6 +14,12 @@
 #include "../DistanceFieldLightingShared.ush"
 
 Texture2D FinalLightingAtlas;
+Texture2D IrradianceAtlas;
+Texture2D IndirectrradianceAtlas;
+#define FINAL_LIGHTING_ATLAS_ID 0
+#define IRRADIANCE_ATLAS_ID 1
+#define INDIRECT_IRRADIANCE_ATLAS_ID 2
+
 Texture2D OpacityAtlas;
 Texture2D DilatedDepthAtlas;
 Texture3D<uint> CubeMapTreeLUTAtlas;
@@ -747,6 +753,7 @@ void SampleLumenCubeMapFace(
 	float CardWeight,
 	uint CardIndex,
 	float DepthVisibilityRadius,
+	uint AtlasId,
 	inout float3 Lighting,
 	inout float TotalWeight)
 {
@@ -798,7 +805,20 @@ void SampleLumenCubeMapFace(
 
 				float2 AtlasUV = CalculateAtlasUV(LocalSamplePosition.xy, ValidRegionScale, LumenCardData);
 
-				float3 CardLighting = Texture2DSampleLevel(FinalLightingAtlas, TRACING_ATLAS_SAMPLER, AtlasUV, Mip).rgb;
+				float3 CardLighting;
+				if (AtlasId == FINAL_LIGHTING_ATLAS_ID)
+				{
+					CardLighting = Texture2DSampleLevel(FinalLightingAtlas, TRACING_ATLAS_SAMPLER, AtlasUV, Mip).rgb;
+				}
+				else if (AtlasId == IRRADIANCE_ATLAS_ID)
+				{
+					CardLighting = Texture2DSampleLevel(IrradianceAtlas, TRACING_ATLAS_SAMPLER, AtlasUV, Mip).rgb;
+				}
+				else // if (AtlasId == INDIRECT_IRRADIANCE_ATLAS_ID)
+				{
+					CardLighting = Texture2DSampleLevel(IrradianceAtlas, TRACING_ATLAS_SAMPLER, AtlasUV, Mip).rgb;
+				}
+
 				//float3 CardLighting = Pow2(Texture2DSampleLevel(LumenCardScene.AlbedoAtlas, TRACING_ATLAS_SAMPLER, AtlasUV, Mip).rgb);
 				float OpacityWeight = Texture2DSampleLevel(OpacityAtlas, TRACING_ATLAS_SAMPLER, AtlasUV, Mip).x;
 				Weight *= OpacityWeight;
@@ -810,7 +830,7 @@ void SampleLumenCubeMapFace(
 	}
 }
 
-float4 SampleLumenCubeMapTreeWithWeight(uint DFObjectIndex, float3 SamplePosition, float3 SampleNormal, float SampleRadius, bool bAccurateHit, float CardInterpolateDepthVisibilityRadius)
+float4 SampleLumenCubeMapTreeWithWeight(uint DFObjectIndex, float3 SamplePosition, float3 SampleNormal, float SampleRadius, bool bAccurateHit, float CardInterpolateDepthVisibilityRadius, uint AtlasId)
 {
 	uint CubeMapTreeId = LumenCardScene.DFObjectToCubeMapTreeIndexBuffer.Load(4 * DFObjectIndex);
 
@@ -840,6 +860,7 @@ float4 SampleLumenCubeMapTreeWithWeight(uint DFObjectIndex, float3 SamplePositio
 		AxisWeights.x,
 		CardIndexX,
 		CardInterpolateDepthVisibilityRadius,
+		AtlasId,
 		Lighting,
 		TotalWeight);
 
@@ -850,6 +871,7 @@ float4 SampleLumenCubeMapTreeWithWeight(uint DFObjectIndex, float3 SamplePositio
 		AxisWeights.y,
 		CardIndexY,
 		CardInterpolateDepthVisibilityRadius,
+		AtlasId,
 		Lighting,
 		TotalWeight);
 
@@ -860,6 +882,7 @@ float4 SampleLumenCubeMapTreeWithWeight(uint DFObjectIndex, float3 SamplePositio
 		AxisWeights.z,
 		CardIndexZ,
 		CardInterpolateDepthVisibilityRadius,
+		AtlasId,
 		Lighting,
 		TotalWeight);
 
@@ -877,6 +900,7 @@ float4 SampleLumenCubeMapTreeWithWeight(uint DFObjectIndex, float3 SamplePositio
 			DistantCardWeight,
 			DistantCardIndex,
 			CardInterpolateDepthVisibilityRadius + 500.0f,
+			AtlasId,
 			Lighting,
 			TotalWeight);
 	}
@@ -885,9 +909,9 @@ float4 SampleLumenCubeMapTreeWithWeight(uint DFObjectIndex, float3 SamplePositio
 	return float4(Lighting, TotalWeight);
 }
 
-float3 SampleLumenCubeMapTree(uint DFObjectIndex, float3 SamplePosition, float3 SampleNormal, float SampleRadius, bool bAccurateHit, float CardInterpolateDepthVisibilityRadius)
+float3 SampleLumenCubeMapTree(uint DFObjectIndex, float3 SamplePosition, float3 SampleNormal, float SampleRadius, bool bAccurateHit, float CardInterpolateDepthVisibilityRadius, uint AtlasId)
 {
-	float4 LightingAndWeight = SampleLumenCubeMapTreeWithWeight(DFObjectIndex, SamplePosition, SampleNormal, SampleRadius, bAccurateHit, CardInterpolateDepthVisibilityRadius);
+	float4 LightingAndWeight = SampleLumenCubeMapTreeWithWeight(DFObjectIndex, SamplePosition, SampleNormal, SampleRadius, bAccurateHit, CardInterpolateDepthVisibilityRadius, AtlasId);
 
 	if (LightingAndWeight.w > 0)
 	{
@@ -938,7 +962,8 @@ void ConeTraceMeshSDFsAndInterpolateFromCards(
 		//OutResult.Lighting = TraceSDFData.HitNormal * .5f + .5f;
 		//OutResult.Lighting = frac(InterpolatePosition / 1000);
 	
-		OutResult.Lighting = SampleLumenCubeMapTree(TraceMeshSDFResult.HitObject, InterpolatePosition, TraceSDFData.HitNormal, InterpolateRadius, TraceSDFData.bAccurateHit, TraceInput.CardInterpolateDepthVisibilityRadius);
+		uint AtlasId = FINAL_LIGHTING_ATLAS_ID;
+		OutResult.Lighting = SampleLumenCubeMapTree(TraceMeshSDFResult.HitObject, InterpolatePosition, TraceSDFData.HitNormal, InterpolateRadius, TraceSDFData.bAccurateHit, TraceInput.CardInterpolateDepthVisibilityRadius, AtlasId);
 		OutResult.Transparency = 0;
 	}
 

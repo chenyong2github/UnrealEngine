@@ -472,6 +472,7 @@ struct FHitObjectResult
 
 	 float InterpolateRadius = HitDistance * tan(ConeHalfAngle);
 
+	 uint AtlasId = FINAL_LIGHTING_ATLAS_ID;
 	 RadianceAndOpacity.xyz +=
 		 SampleLumenCubeMapTree(
 			 HitObject,
@@ -479,7 +480,8 @@ struct FHitObjectResult
 			 HitNormal,
 			 InterpolateRadius,
 			 bAccurateHit,
-			 CardInterpolateDepthVisibilityRadius);
+			 CardInterpolateDepthVisibilityRadius,
+			 AtlasId);
 
 	 if (any(isnan(HitNormal)))
 	 {
