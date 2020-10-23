@@ -99,7 +99,7 @@ bool ShouldUseGPUFencesToLimitLatency()
 	return FAndroidPlatformRHIFramePacer::CVarDisableOpenGLGPUSync.GetValueOnAnyThread() == 0; // otherwise just based on the FAndroidPlatformRHIFramePacer::CVar; thought to be bad to use GPU fences on PowerVR
 }
 
-static uint32 NextFrameIDSlot = 0;
+static uint32 NextFrameIDSlot = 1;
 #define NUM_FRAMES_TO_MONITOR (4)
 static EGLuint64KHR FrameIDs[NUM_FRAMES_TO_MONITOR] = { 0 };
 
