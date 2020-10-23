@@ -6,11 +6,12 @@
 #include "ScreenRendering.h"
 #include "CommonRenderResources.h"
 
+struct FScreenPassRenderTarget;
 namespace NiagaraDebugShaders
 {
 	NIAGARASHADER_API void VisualizeTexture(
-		FRHICommandList& RHICmdList,
-		const FIntPoint& Location, const int32& DisplayHeight, const FIntPoint& RenderTargetSize,
+		class FRDGBuilder& GraphBuilder, const FViewInfo& View, const FScreenPassRenderTarget& Output,
+		const FIntPoint& Location, const int32& DisplayHeight,
 		const FIntVector4& AttributesToVisualize, FRHITexture* Texture, const FIntPoint& NumTextureAttributes, uint32 TickCounter
 	);
 }
