@@ -43,6 +43,8 @@ INT32_MAIN_INT32_ARGC_TCHAR_ARGV()
 	
 	while (!IsEngineExitRequested())
 	{
+		BeginExitIfRequested();
+
 		// let some time pass
 		FPlatformProcess::Sleep(1.0f);
 
