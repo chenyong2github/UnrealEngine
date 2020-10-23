@@ -5662,183 +5662,165 @@ static FString GenerateShaderCodeLibraryName(FString const& Name, bool bIsIterat
 	return ActualName;
 }
 
-void UCookOnTheFlyServer::OpenGlobalShaderLibrary()
+void UCookOnTheFlyServer::OpenShaderCodeLibrary(FString const& Name)
 {
 	const UProjectPackagingSettings* const PackagingSettings = GetDefault<UProjectPackagingSettings>();
 	bool const bCacheShaderLibraries = IsUsingShaderCodeLibrary();
-	if (bCacheShaderLibraries && PackagingSettings->bShareMaterialShaderCode)
-	{
-		const TCHAR* GlobalShaderLibName = TEXT("Global");
-		FString ActualName = GenerateShaderCodeLibraryName(GlobalShaderLibName, IsCookFlagSet(ECookInitializationFlags::IterateSharedBuild));
-
-		// The shader code library directory doesn't matter while cooking
-		FShaderCodeLibrary::OpenLibrary(ActualName, TEXT(""));
-	}
-}
-
-void UCookOnTheFlyServer::OpenShaderLibrary(FString const& Name)
-{
-	const UProjectPackagingSettings* const PackagingSettings = GetDefault<UProjectPackagingSettings>();
-	bool const bCacheShaderLibraries = IsUsingShaderCodeLibrary();
-	if (bCacheShaderLibraries && PackagingSettings->bShareMaterialShaderCode)
+    if (bCacheShaderLibraries && PackagingSettings->bShareMaterialShaderCode)
 	{
 		FString ActualName = GenerateShaderCodeLibraryName(Name, IsCookFlagSet(ECookInitializationFlags::IterateSharedBuild));
-
+		
 		// The shader code library directory doesn't matter while cooking
 		FShaderCodeLibrary::OpenLibrary(ActualName, TEXT(""));
 	}
 }
 
-void UCookOnTheFlyServer::CreatePipelineCache(const ITargetPlatform* TargetPlatform, const FString& LibraryName)
+void UCookOnTheFlyServer::ProcessShaderCodeLibraries(const FString& LibraryName)
 {
-	// make sure we have a registry generated for all the platforms 
-	const FString TargetPlatformName = TargetPlatform->PlatformName();
-	TArray<FString>* SCLCSVPaths = OutSCLCSVPaths.Find(FName(TargetPlatformName));
-	if (SCLCSVPaths && SCLCSVPaths->Num())
+	for (const ITargetPlatform* TargetPlatform : PlatformManager->GetSessionPlatforms())
 	{
-		TArray<FName> ShaderFormats;
-		TargetPlatform->GetAllTargetedShaderFormats(ShaderFormats);
-		for (FName ShaderFormat : ShaderFormats)
+		// make sure we have a registry generated for all the platforms 
+		const FString TargetPlatformName = TargetPlatform->PlatformName();
+		TArray<FString>* SCLCSVPaths = OutSCLCSVPaths.Find(FName(TargetPlatformName));
+		if (SCLCSVPaths && SCLCSVPaths->Num())
 		{
-			// *stablepc.csv or *stablepc.csv.compressed
-			const FString Filename = FString::Printf(TEXT("*%s_%s.stablepc.csv"), *LibraryName, *ShaderFormat.ToString());
-			const FString StablePCPath = FPaths::ProjectDir() / TEXT("Build") / TargetPlatform->IniPlatformName() / TEXT("PipelineCaches") / Filename;
-			const FString StablePCPathCompressed = StablePCPath + TEXT(".compressed");
-
-			TArray<FString> ExpandedFiles;
-			IFileManager::Get().FindFilesRecursive(ExpandedFiles, *FPaths::GetPath(StablePCPath), *FPaths::GetCleanFilename(StablePCPath), true, false, false);
-			IFileManager::Get().FindFilesRecursive(ExpandedFiles, *FPaths::GetPath(StablePCPathCompressed), *FPaths::GetCleanFilename(StablePCPathCompressed), true, false, false);
-			if (!ExpandedFiles.Num())
+			TArray<FName> ShaderFormats;
+			TargetPlatform->GetAllTargetedShaderFormats(ShaderFormats);
+			for (FName ShaderFormat : ShaderFormats)
 			{
-				UE_LOG(LogCook, Display, TEXT("---- NOT Running UShaderPipelineCacheToolsCommandlet for platform %s  shader format %s, no files found at %s"), *TargetPlatformName, *ShaderFormat.ToString(), *StablePCPath);
-			}
-			else
-			{
-				UE_LOG(LogCook, Display, TEXT("---- Running UShaderPipelineCacheToolsCommandlet for platform %s  shader format %s"), *TargetPlatformName, *ShaderFormat.ToString());
+				// *stablepc.csv or *stablepc.csv.compressed
+				const FString Filename = FString::Printf(TEXT("*%s_%s.stablepc.csv"), *LibraryName, *ShaderFormat.ToString());
+				const FString StablePCPath = FPaths::ProjectDir() / TEXT("Build") / TargetPlatform->IniPlatformName() / TEXT("PipelineCaches") / Filename;
+				const FString StablePCPathCompressed = StablePCPath + TEXT(".compressed");
 
-				const FString OutFilename = FString::Printf(TEXT("%s_%s.stable.upipelinecache"), *LibraryName, *ShaderFormat.ToString());
-				const FString PCUncookedPath = FPaths::ProjectDir() / TEXT("Content") / TEXT("PipelineCaches") / TargetPlatform->IniPlatformName() / OutFilename;
-
-				if (IFileManager::Get().FileExists(*PCUncookedPath))
+				TArray<FString> ExpandedFiles;
+				IFileManager::Get().FindFilesRecursive(ExpandedFiles, *FPaths::GetPath(StablePCPath), *FPaths::GetCleanFilename(StablePCPath), true, false, false);
+				IFileManager::Get().FindFilesRecursive(ExpandedFiles, *FPaths::GetPath(StablePCPathCompressed), *FPaths::GetCleanFilename(StablePCPathCompressed), true, false, false);
+				if (!ExpandedFiles.Num())
 				{
-					UE_LOG(LogCook, Warning, TEXT("Deleting %s, cooked data doesn't belong here."), *PCUncookedPath);
-					IFileManager::Get().Delete(*PCUncookedPath, false, true);
-				}
-
-				const FString PCCookedPath = ConvertToFullSandboxPath(*PCUncookedPath, true);
-				const FString PCPath = PCCookedPath.Replace(TEXT("[Platform]"), *TargetPlatformName);
-
-
-				FString Args(TEXT("build "));
-				Args += TEXT("\"");
-				Args += StablePCPath;
-				Args += TEXT("\"");
-
-				int32 NumMatched = 0;
-				for (int32 Index = 0; Index < SCLCSVPaths->Num(); Index++)
-				{
-					if (!(*SCLCSVPaths)[Index].Contains(ShaderFormat.ToString()))
-					{
-						continue;
-					}
-					NumMatched++;
-					Args += TEXT(" ");
-					Args += TEXT("\"");
-					Args += (*SCLCSVPaths)[Index];
-					Args += TEXT("\"");
-				}
-				if (!NumMatched)
-				{
-					UE_LOG(LogCook, Warning, TEXT("Shader format %s for platform %s had this file %s, but no .scl.csv files."), *ShaderFormat.ToString(), *TargetPlatformName, *StablePCPath);
-					for (int32 Index = 0; Index < SCLCSVPaths->Num(); Index++)
-					{
-						UE_LOG(LogCook, Warning, TEXT("    .scl.csv file: %s"), *((*SCLCSVPaths)[Index]));
-					}							
-					continue;
-				}
-
-				Args += TEXT(" ");
-				Args += TEXT("\"");
-				Args += PCPath;
-				Args += TEXT("\"");
-				UE_LOG(LogCook, Display, TEXT("  With Args: %s"), *Args);
-
-				int32 Result = UShaderPipelineCacheToolsCommandlet::StaticMain(Args);
-
-				if (Result)
-				{
-					LogCookerMessage(FString::Printf(TEXT("UShaderPipelineCacheToolsCommandlet failed %d"), Result), EMessageSeverity::Error);
+					UE_LOG(LogCook, Display, TEXT("---- NOT Running UShaderPipelineCacheToolsCommandlet for platform %s  shader format %s, no files found at %s"), *TargetPlatformName, *ShaderFormat.ToString(), *StablePCPath);
 				}
 				else
 				{
-					UE_LOG(LogCook, Display, TEXT("---- Done running UShaderPipelineCacheToolsCommandlet for platform %s"), *TargetPlatformName);
+					UE_LOG(LogCook, Display, TEXT("---- Running UShaderPipelineCacheToolsCommandlet for platform %s  shader format %s"), *TargetPlatformName, *ShaderFormat.ToString());
+
+					const FString OutFilename = FString::Printf(TEXT("%s_%s.stable.upipelinecache"), *LibraryName, *ShaderFormat.ToString());
+					const FString PCUncookedPath = FPaths::ProjectDir() / TEXT("Content") / TEXT("PipelineCaches") / TargetPlatform->IniPlatformName() / OutFilename;
+
+					if (IFileManager::Get().FileExists(*PCUncookedPath))
+					{
+						UE_LOG(LogCook, Warning, TEXT("Deleting %s, cooked data doesn't belong here."), *PCUncookedPath);
+						IFileManager::Get().Delete(*PCUncookedPath, false, true);
+					}
+
+					const FString PCCookedPath = ConvertToFullSandboxPath(*PCUncookedPath, true);
+					const FString PCPath = PCCookedPath.Replace(TEXT("[Platform]"), *TargetPlatformName);
+
+
+					FString Args(TEXT("build "));
+					Args += TEXT("\"");
+					Args += StablePCPath;
+					Args += TEXT("\"");
+
+					int32 NumMatched = 0;
+					for (int32 Index = 0; Index < SCLCSVPaths->Num(); Index++)
+					{
+						if (!(*SCLCSVPaths)[Index].Contains(ShaderFormat.ToString()))
+						{
+							continue;
+						}
+						NumMatched++;
+						Args += TEXT(" ");
+						Args += TEXT("\"");
+						Args += (*SCLCSVPaths)[Index];
+						Args += TEXT("\"");
+					}
+					if (!NumMatched)
+					{
+						UE_LOG(LogCook, Warning, TEXT("Shader format %s for platform %s had this file %s, but no .scl.csv files."), *ShaderFormat.ToString(), *TargetPlatformName, *StablePCPath);
+						for (int32 Index = 0; Index < SCLCSVPaths->Num(); Index++)
+						{
+							UE_LOG(LogCook, Warning, TEXT("    .scl.csv file: %s"), *((*SCLCSVPaths)[Index]));
+						}							
+						continue;
+					}
+
+					Args += TEXT(" ");
+					Args += TEXT("\"");
+					Args += PCPath;
+					Args += TEXT("\"");
+					UE_LOG(LogCook, Display, TEXT("  With Args: %s"), *Args);
+
+					int32 Result = UShaderPipelineCacheToolsCommandlet::StaticMain(Args);
+
+					if (Result)
+					{
+						LogCookerMessage(FString::Printf(TEXT("UShaderPipelineCacheToolsCommandlet failed %d"), Result), EMessageSeverity::Error);
+					}
+					else
+					{
+						UE_LOG(LogCook, Display, TEXT("---- Done running UShaderPipelineCacheToolsCommandlet for platform %s"), *TargetPlatformName);
+					}
 				}
 			}
 		}
 	}
 }
 
-void UCookOnTheFlyServer::SaveGlobalShaderLibrary()
-{
-	const TCHAR* GlobalShaderLibName = TEXT("Global");
-	FString ActualName = GenerateShaderCodeLibraryName(GlobalShaderLibName, IsCookFlagSet(ECookInitializationFlags::IterateSharedBuild));
 
+void UCookOnTheFlyServer::SaveShaderCodeLibrary(FString const& Name)
+{
 	const UProjectPackagingSettings* const PackagingSettings = GetDefault<UProjectPackagingSettings>();
-	bool const bCacheShaderLibraries = IsUsingShaderCodeLibrary();
+    bool const bCacheShaderLibraries = IsUsingShaderCodeLibrary();
 	if (bCacheShaderLibraries && PackagingSettings->bShareMaterialShaderCode)
 	{
+		FString ActualName = GenerateShaderCodeLibraryName(Name, IsCookFlagSet(ECookInitializationFlags::IterateSharedBuild));
+		
 		// Save shader code map - cleaning directories is deliberately a separate loop here as we open the cache once per shader platform and we don't assume that they can't be shared across target platforms.
 		for (const ITargetPlatform* TargetPlatform : PlatformManager->GetSessionPlatforms())
 		{
-			SaveShaderLibrary(TargetPlatform, GlobalShaderLibName, nullptr);
-		}
+			FString BasePath = !IsCookingDLC() ? FPaths::ProjectContentDir() : GetContentDirecctoryForDLC();
+			
+			FString ShaderCodeDir = ConvertToFullSandboxPath(*BasePath, true, TargetPlatform->PlatformName());
 
-		FShaderCodeLibrary::CloseLibrary(ActualName);
-	}
-}
+			const FString RootMetaDataPath = FPaths::ProjectDir() / TEXT("Metadata") / TEXT("PipelineCaches");
+			const FString MetaDataPathSB = ConvertToFullSandboxPath(*RootMetaDataPath, true);
+			const FString MetaDataPath = MetaDataPathSB.Replace(TEXT("[Platform]"), *TargetPlatform->PlatformName());
 
-void UCookOnTheFlyServer::SaveShaderLibrary(const ITargetPlatform* TargetPlatform, FString const& Name, const TArray<TSet<FName>>* ChunkAssignments)
-{
-	FString ActualName = GenerateShaderCodeLibraryName(Name, IsCookFlagSet(ECookInitializationFlags::IterateSharedBuild));
-	FString BasePath = !IsCookingDLC() ? FPaths::ProjectContentDir() : GetContentDirectoryForDLC();
-
-	FString ShaderCodeDir = ConvertToFullSandboxPath(*BasePath, true, TargetPlatform->PlatformName());
-
-	const FString RootMetaDataPath = FPaths::ProjectDir() / TEXT("Metadata") / TEXT("PipelineCaches");
-	const FString MetaDataPathSB = ConvertToFullSandboxPath(*RootMetaDataPath, true);
-	const FString MetaDataPath = MetaDataPathSB.Replace(TEXT("[Platform]"), *TargetPlatform->PlatformName());
-
-	// note that shader formats can be shared across the target platforms
-	TArray<FName> ShaderFormats;
-	TargetPlatform->GetAllTargetedShaderFormats(ShaderFormats);
-	if (ShaderFormats.Num() > 0)
-	{
-		FString TargetPlatformName = TargetPlatform->PlatformName();
-		TArray<FString>& PlatformSCLCSVPaths = OutSCLCSVPaths.FindOrAdd(FName(TargetPlatformName));
-		bool bSaved = FShaderCodeLibrary::SaveShaderCode(ShaderCodeDir, MetaDataPath, ShaderFormats, PlatformSCLCSVPaths, ChunkAssignments);
-
-		if (UNLIKELY(!bSaved))
-		{
-			LogCookerMessage(FString::Printf(TEXT("Saving shared material shader code library failed for %s."), *TargetPlatformName), EMessageSeverity::Error);
-		}
-		else
-		{
-			const UProjectPackagingSettings* const PackagingSettings = GetDefault<UProjectPackagingSettings>();
-			if (PackagingSettings->bSharedMaterialNativeLibraries)
+			TArray<FName> ShaderFormats;
+			TargetPlatform->GetAllTargetedShaderFormats(ShaderFormats);
+			if (ShaderFormats.Num() > 0)
 			{
-				bSaved = FShaderCodeLibrary::PackageNativeShaderLibrary(ShaderCodeDir, ShaderFormats);
-				if (!bSaved)
+				FString TargetPlatformName = TargetPlatform->PlatformName();
+				TArray<FString>& PlatformSCLCSVPaths = OutSCLCSVPaths.FindOrAdd(FName(TargetPlatformName));
+				bool bSaved = FShaderCodeLibrary::SaveShaderCode(ShaderCodeDir, MetaDataPath, ShaderFormats, PlatformSCLCSVPaths);
+				
+				if(!bSaved)
 				{
-					// This is fatal - In this case we should cancel any launch on device operation or package write but we don't want to assert and crash the editor
-					LogCookerMessage(FString::Printf(TEXT("Package Native Shader Library failed for %s."), *TargetPlatformName), EMessageSeverity::Error);
+					LogCookerMessage(FString::Printf(TEXT("Shared Material Shader Code Library failed for %s."),*TargetPlatformName), EMessageSeverity::Error);
+				}
+				else
+				{
+					if (PackagingSettings->bSharedMaterialNativeLibraries)
+					{
+						bSaved = FShaderCodeLibrary::PackageNativeShaderLibrary(ShaderCodeDir, ShaderFormats);
+						if (!bSaved)
+						{
+							// This is fatal - In this case we should cancel any launch on device operation or package write but we don't want to assert and crash the editor
+							LogCookerMessage(FString::Printf(TEXT("Package Native Shader Library failed for %s."), *TargetPlatformName), EMessageSeverity::Error);
+						}
+					}
+					for (const FString& Item : PlatformSCLCSVPaths)
+					{
+						UE_LOG(LogCook, Display, TEXT("Saved scl.csv %s for platform %s, %d bytes"), *Item, *TargetPlatformName,
+							IFileManager::Get().FileSize(*Item));
+					}
+
 				}
 			}
-			for (const FString& Item : PlatformSCLCSVPaths)
-			{
-				UE_LOG(LogCook, Display, TEXT("Saved scl.csv %s for platform %s, %d bytes"), *Item, *TargetPlatformName,
-					IFileManager::Get().FileSize(*Item));
-			}
 		}
+		
+		FShaderCodeLibrary::CloseLibrary(ActualName);
 	}
 }
 
@@ -5886,7 +5868,6 @@ void UCookOnTheFlyServer::CookByTheBookFinished()
 
 	const UProjectPackagingSettings* const PackagingSettings = GetDefault<UProjectPackagingSettings>();
 	bool const bCacheShaderLibraries = IsUsingShaderCodeLibrary();
-	FString LibraryName = !IsCookingDLC() ? FApp::GetProjectName() : CookByTheBookOptions->DlcName;
 
 	{
 		if (IBlueprintNativeCodeGenModule::IsNativeCodeGenModuleLoaded())
@@ -5906,7 +5887,20 @@ void UCookOnTheFlyServer::CookByTheBookFinished()
 		// Save modified asset registry with all streaming chunk info generated during cook
 		const FString& SandboxRegistryFilename = GetSandboxAssetRegistryFilename();
 
-		// previously shader library was saved at this spot, but it's too early to know the chunk assignments, we need to BuildChunkManifest in the asset registry first
+		if (bCacheShaderLibraries && PackagingSettings->bShareMaterialShaderCode)
+		{
+			// Save shader code map
+			FString LibraryName = !IsCookingDLC() ? FApp::GetProjectName() : CookByTheBookOptions->DlcName;
+
+			if (LibraryName.Len() > 0)
+			{
+				SaveShaderCodeLibrary(LibraryName);
+
+				ProcessShaderCodeLibraries(LibraryName);
+			}
+
+			FShaderCodeLibrary::Shutdown();
+		}
 
 		{
 			UE_SCOPED_HIERARCHICAL_COOKTIMER(SavingCurrentIniSettings)
@@ -6019,20 +6013,6 @@ void UCookOnTheFlyServer::CookByTheBookFinished()
 						Generator.WriteCookerOpenOrder(SandboxFile.Get());
 					}
 				}
-				// now that we have the asset registry and cooking open order, we have enough information to split the shader library
-				// into parts for each chunk and (possibly) lay out the code in accordance with the file order
-				if (bCacheShaderLibraries && PackagingSettings->bShareMaterialShaderCode)
-				{
-					// Save shader code map
-					if (LibraryName.Len() > 0)
-					{
-						TArray<TSet<FName>> ChunkAssignments;
-						Generator.GetChunkAssignments(ChunkAssignments);
-						SaveShaderLibrary(TargetPlatform, LibraryName, &ChunkAssignments);
-
-						CreatePipelineCache(TargetPlatform, LibraryName);
-					}
-				}
 				{
 					if (FParse::Param(FCommandLine::Get(), TEXT("fastcook")))
 					{
@@ -6055,10 +6035,6 @@ void UCookOnTheFlyServer::CookByTheBookFinished()
 			}
 		}
 	}
-
-	FString ActualLibraryName = GenerateShaderCodeLibraryName(LibraryName, IsCookFlagSet(ECookInitializationFlags::IterateSharedBuild));
-	FShaderCodeLibrary::CloseLibrary(ActualLibraryName);
-	FShaderCodeLibrary::Shutdown();
 
 	if (CookByTheBookOptions->bGenerateDependenciesForMaps)
 	{
@@ -6861,17 +6837,20 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 	// don't resave the global shader map files in dlc
 	if (!IsCookingDLC() && !(CookByTheBookStartupOptions.CookOptions & ECookByTheBookOptions::ForceDisableSaveGlobalShaders))
 	{
-		OpenGlobalShaderLibrary();
+		OpenShaderCodeLibrary(TEXT("Global"));
 
 		SaveGlobalShaderMapFiles(TargetPlatforms);
 
-		SaveGlobalShaderLibrary();
+		SaveShaderCodeLibrary(TEXT("Global"));
 	}
 	
 	// Open the shader code library for the current project or the current DLC pack, depending on which we are cooking
     {
 		FString LibraryName = !IsCookingDLC() ? FApp::GetProjectName() : CookByTheBookOptions->DlcName;
-		OpenShaderLibrary(LibraryName);
+		if (LibraryName.Len() > 0)
+		{
+			OpenShaderCodeLibrary(LibraryName);
+		}
 	}
 
 	TArray<FName> FilesInPath;
