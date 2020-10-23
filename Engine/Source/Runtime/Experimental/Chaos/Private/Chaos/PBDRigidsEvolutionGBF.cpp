@@ -285,7 +285,7 @@ void TPBDRigidsEvolutionGBF<Traits>::AdvanceOneTimeStepImpl(const FReal Dt,const
 	//for now we never allow solver to schedule more than two tasks back to back
 	//this means we only need to keep indices alive for one aditional frame
 	//TODO: make this more robust/general
-	ReleasePendingIndices();
+	Base::ReleasePendingIndices();
 
 #if !UE_BUILD_SHIPPING
 	if (SerializeEvolution)
