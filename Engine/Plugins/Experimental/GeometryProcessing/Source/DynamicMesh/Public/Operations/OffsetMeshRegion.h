@@ -51,6 +51,10 @@ public:
 	/** if offset is "negative" (ie negative distance, inset, etc) and inset is an entire mesh region, needs to  */
 	bool bIsPositiveOffset = true;
 
+	/** if true, offset each vertex along each face normal and average result, rather than using estimated vertex normal  */
+	bool bUseFaceNormals = false;
+
+
 	/** If set, change tracker will be updated based on edit */
 	TUniquePtr<FDynamicMeshChangeTracker> ChangeTracker;
 

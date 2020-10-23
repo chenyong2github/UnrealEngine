@@ -327,6 +327,20 @@ public:
 };
 
 
+
+UCLASS()
+class MESHMODELINGTOOLS_API UPolyEditOffsetProperties : public UInteractiveToolPropertySet
+{
+	GENERATED_BODY()
+
+public:
+	/** Offset by averaged face normals instead of per-vertex normals */
+	UPROPERTY(EditAnywhere, Category = Offset)
+	bool bUseFaceNormals = false;
+};
+
+
+
 /**
  * Settings for Inset operation
  */
@@ -488,6 +502,9 @@ protected:
 
 	UPROPERTY()
 	UPolyEditExtrudeProperties* ExtrudeProperties;
+
+	UPROPERTY()
+	UPolyEditOffsetProperties* OffsetProperties;
 
 	UPROPERTY()
 	UPolyEditInsetProperties* InsetProperties;

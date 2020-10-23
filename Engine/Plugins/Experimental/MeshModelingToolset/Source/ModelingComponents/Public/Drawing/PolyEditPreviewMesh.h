@@ -43,6 +43,8 @@ public:
 		bool bDeleteExtrudeBaseFaces = true);
 	/** Update extrude-type preview mesh by moving existing offset vertices */
 	void UpdateExtrudeType(double NewOffset, bool bUseNormalDirection = false);
+	/** Update extrude-type preview mesh by moving existing offset vertices along their connected triangle normals and then averaging positions  */
+	void UpdateExtrudeType_FaceNormalAvg(double NewOffset);
 	/** Update extrude-type preview mesh using external function. if bFullRecalculate, mesh is re-initialized w/ initial extrusion patch SourceMesh before calling function */
 	void UpdateExtrudeType(TFunctionRef<void(FDynamicMesh3&)> UpdateMeshFunc, bool bFullRecalculate);
 	/** Make a hit-target mesh that is an infinite extrusion along extrude direction. If bUseNormalDirection, use per-vertex normals instead */
@@ -71,6 +73,8 @@ protected:
 	TArray<int32> EditVertices;
 	TArray<FVector3d> InitialPositions;
 	TArray<FVector3d> InitialNormals;
+	TArray<FVector3d> InitialTriNormals;
+	TMap<int32,int32> ExtrudeToInitialVerts;
 
 	FVector3d InputDirection;
 
