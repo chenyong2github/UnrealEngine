@@ -65,6 +65,12 @@ struct FImageView2D
 	}
 
 	bool IsValid() const { return SliceColors != nullptr; }
+
+	static const FImageView2D ConstructConst(const FImage& Image, int32 SliceIndex)
+	{
+		return FImageView2D(const_cast<FImage&>(Image), SliceIndex);
+	}
+
 };
 
 // 2D sample lookup with input conversion
@@ -895,12 +901,32 @@ void ITextureCompressorModule::GenerateMipChain(
 	FVector4 AlphaScales(1, 1, 1, 1);
 	FVector4 AlphaCoverages(0, 0, 0, 0);
 
-	// space for one source mip and one destination mip
-	FImage IntermediateSrc(SrcWidth, SrcHeight, SrcNumSlices, ImageFormat);
-	FImage IntermediateDst(FMath::Max<uint32>( 1, SrcWidth >> 1 ), FMath::Max<uint32>( 1, SrcHeight >> 1 ), Settings.bVolume ? FMath::Max<uint32>( 1, SrcNumSlices >> 1 ) : SrcNumSlices, ImageFormat);
 
-	// copy base mip
-	BaseMip.CopyTo(IntermediateSrc, ERawImageFormat::RGBA32F, EGammaSpace::Linear);
+	const FImage* IntermediateSrcPtr;
+	FImage* IntermediateDstPtr;
+
+	// This will be used as a buffer for the mip processing
+	FImage FirstTempImage;
+
+	if (BaseMip.GammaSpace != EGammaSpace::Linear)
+	{
+		// copy base mip
+		BaseMip.CopyTo(FirstTempImage, ERawImageFormat::RGBA32F, EGammaSpace::Linear);
+
+		IntermediateSrcPtr = &FirstTempImage;
+	}
+	else
+	{
+		// It looks like the BaseMip can be reused for the intermediate source of the second Mip (assuming that the format was check earlier to be RGBA32F)
+		IntermediateSrcPtr = &BaseMip;
+
+		// This temp image will be first used as an intermediate destination for the third mip in the chain
+		FirstTempImage.Init( FMath::Max<uint32>( 1, SrcWidth >> 2 ), FMath::Max<uint32>( 1, SrcHeight >> 2 ), Settings.bVolume ? FMath::Max<uint32>( 1, SrcNumSlices >> 2 ) : SrcNumSlices, ImageFormat );
+	}
+
+	// The image for the first destination
+	FImage SecondTempImage(FMath::Max<uint32>( 1, SrcWidth >> 1 ), FMath::Max<uint32>( 1, SrcHeight >> 1 ), Settings.bVolume ? FMath::Max<uint32>( 1, SrcNumSlices >> 1 ) : SrcNumSlices, ImageFormat);
+	IntermediateDstPtr = &SecondTempImage;
 
 	// Filtering kernels.
 	FImageKernel2D KernelSimpleAverage;
@@ -920,7 +946,8 @@ void ITextureCompressorModule::GenerateMipChain(
 	// Calculate alpha coverage value to preserve along mip chain
 	if (Settings.AlphaCoverageThresholds != FVector4(0,0,0,0))
 	{
-		FImageView2D IntermediateSrcView(IntermediateSrc, 0);
+		check(IntermediateSrcPtr);
+		const FImageView2D IntermediateSrcView = FImageView2D::ConstructConst(*IntermediateSrcPtr, 0);
 		switch (AddressMode)
 		{
 		case MGTAM_Wrap:
@@ -940,13 +967,17 @@ void ITextureCompressorModule::GenerateMipChain(
 	// Generate mips
 	for (; MipChainDepth != 0 ; --MipChainDepth)
 	{
+		check(IntermediateSrcPtr && IntermediateDstPtr);
+		const FImage& IntermediateSrc = *IntermediateSrcPtr;
+		FImage& IntermediateDst = *IntermediateDstPtr;
+
 		FImage& DestImage = *new(OutMipChain) FImage(IntermediateDst.SizeX, IntermediateDst.SizeY, IntermediateDst.NumSlices, ImageFormat);
 		
 		for (int32 SliceIndex = 0; SliceIndex < IntermediateDst.NumSlices; ++SliceIndex)
 		{
 			const int32 SrcSliceIndex = Settings.bVolume ? (SliceIndex * 2) : SliceIndex;
-			FImageView2D IntermediateSrcView(IntermediateSrc, SrcSliceIndex);
-			FImageView2D IntermediateSrcView2 = Settings.bVolume ? FImageView2D(IntermediateSrc, SrcSliceIndex + 1) : FImageView2D(); // Volume texture mips take 2 slices
+			const FImageView2D IntermediateSrcView = FImageView2D::ConstructConst(IntermediateSrc, SrcSliceIndex);
+			const FImageView2D IntermediateSrcView2 = Settings.bVolume ?  FImageView2D::ConstructConst(IntermediateSrc, SrcSliceIndex + 1) : FImageView2D(); // Volume texture mips take 2 slices
 			FImageView2D DestView(DestImage, SliceIndex);
 			FImageView2D IntermediateDstView(IntermediateDst, SliceIndex);
 
@@ -992,7 +1023,7 @@ void ITextureCompressorModule::GenerateMipChain(
 		{
 			for (int32 SliceIndex = 0; SliceIndex < IntermediateDst.NumSlices; ++SliceIndex)
 			{
-				FImageView2D IntermediateSrcView(IntermediateSrc, SliceIndex);
+				const FImageView2D IntermediateSrcView = FImageView2D::ConstructConst(IntermediateSrc, SliceIndex);
 				FImageView2D DestView(DestImage, SliceIndex);
 				FImageView2D IntermediateDstView(IntermediateDst, SliceIndex);
 				GenerateMipBorder( IntermediateSrcView, DestView );
@@ -1007,17 +1038,21 @@ void ITextureCompressorModule::GenerateMipChain(
 		}
 
 		// last destination becomes next source
-		FMemory::Memcpy((&IntermediateSrc.AsRGBA32F()[0]), (&IntermediateDst.AsRGBA32F()[0]),
-			IntermediateDst.SizeX * IntermediateDst.SizeY * IntermediateDst.NumSlices * sizeof(FLinearColor));
+		if (IntermediateDstPtr == &SecondTempImage)
+		{
+			IntermediateDstPtr = &FirstTempImage;
+			IntermediateSrcPtr = &SecondTempImage;
+		}
+		else
+		{
+			IntermediateDstPtr = &SecondTempImage;
+			IntermediateSrcPtr = &FirstTempImage;
+		}
 
-		// Sizes for the next iteration.
-		IntermediateSrc.SizeX = FMath::Max<uint32>( 1, IntermediateSrc.SizeX >> 1 );
-		IntermediateSrc.SizeY = FMath::Max<uint32>( 1, IntermediateSrc.SizeY >> 1 );
-		IntermediateSrc.NumSlices = Settings.bVolume ? FMath::Max<uint32>( 1, IntermediateSrc.NumSlices >> 1 ) : IntermediateSrc.NumSlices;
-
-		IntermediateDst.SizeX = FMath::Max<uint32>( 1, IntermediateDst.SizeX >> 1 );
-		IntermediateDst.SizeY = FMath::Max<uint32>( 1, IntermediateDst.SizeY >> 1 );
-		IntermediateDst.NumSlices = Settings.bVolume ? FMath::Max<uint32>( 1, IntermediateDst.NumSlices >> 1 ) : IntermediateDst.NumSlices;
+		// Update the destination size for the next iteration.
+		IntermediateDstPtr->SizeX = FMath::Max<uint32>( 1, IntermediateSrcPtr->SizeX >> 1 );
+		IntermediateDstPtr->SizeY = FMath::Max<uint32>( 1, IntermediateSrcPtr->SizeY >> 1 );
+		IntermediateDstPtr->NumSlices = Settings.bVolume ? FMath::Max<uint32>( 1, IntermediateSrcPtr->NumSlices >> 1 ) : SrcNumSlices;
 	}
 }
 
@@ -1983,9 +2018,13 @@ public:
 		RETURN_QUICK_DECLARE_CYCLE_STAT(FAsyncCompressionWorker, STATGROUP_ThreadPoolAsyncTasks);
 	}
 
-	bool GetCompressionResults(FCompressedImage2D& OutCompressedImage) const
+	/**
+	 * Transfer the result of the compression to the OutCompressedImage
+	 * Can only be called once
+	 */
+	bool ConsumeCompressionResults(FCompressedImage2D& OutCompressedImage)
 	{
-		OutCompressedImage = CompressedImage;
+		OutCompressedImage = MoveTemp(CompressedImage);
 		return bCompressionResults;
 	}
 
@@ -2087,7 +2126,7 @@ static bool CompressMipChain(
 		FAsyncCompressionTask& AsynTask = AsyncCompressionTasks[TaskIndex];
 		AsynTask.EnsureCompletion();
 		FCompressedImage2D& DestMip = OutMips[TaskIndex];
-		bCompressionSucceeded = bCompressionSucceeded && AsynTask.GetTask().GetCompressionResults(DestMip);
+		bCompressionSucceeded = bCompressionSucceeded && AsynTask.GetTask().ConsumeCompressionResults(DestMip);
 	}
 
 	for (int32 MipIndex = FirstMipTailIndex + 1; MipIndex < MipCount; ++MipIndex)

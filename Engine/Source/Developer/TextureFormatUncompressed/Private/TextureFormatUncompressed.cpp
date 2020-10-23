@@ -123,7 +123,7 @@ class FTextureFormatUncompressed : public ITextureFormat
 			OutCompressedImage.SizeX = Image.SizeX;
 			OutCompressedImage.SizeY = Image.SizeY;
 			OutCompressedImage.SizeZ = (BuildSettings.bVolume || BuildSettings.bTextureArray) ? Image.NumSlices : 1;
-			OutCompressedImage.RawData = Image.RawData;
+			OutCompressedImage.RawData = MoveTemp(Image.RawData);
 
 			return true;
 		}
@@ -135,7 +135,7 @@ class FTextureFormatUncompressed : public ITextureFormat
 			OutCompressedImage.SizeX = Image.SizeX;
 			OutCompressedImage.SizeY = Image.SizeY;
 			OutCompressedImage.SizeZ = BuildSettings.bVolume ? Image.NumSlices : 1;
-			OutCompressedImage.RawData = Image.RawData;
+			OutCompressedImage.RawData = MoveTemp(Image.RawData);
 
 			return true;
 		}
@@ -171,7 +171,7 @@ class FTextureFormatUncompressed : public ITextureFormat
 			OutCompressedImage.SizeX = Image.SizeX;
 			OutCompressedImage.SizeY = Image.SizeY;
 			OutCompressedImage.SizeZ = (BuildSettings.bVolume || BuildSettings.bTextureArray) ? Image.NumSlices : 1;
-			OutCompressedImage.RawData = Image.RawData;
+			OutCompressedImage.RawData = MoveTemp(Image.RawData);
 
 			return true;
 		}
@@ -237,7 +237,7 @@ class FTextureFormatUncompressed : public ITextureFormat
 			OutCompressedImage.SizeX = Image.SizeX;
 			OutCompressedImage.SizeY = Image.SizeY;
 			OutCompressedImage.SizeZ = (BuildSettings.bVolume || BuildSettings.bTextureArray) ? Image.NumSlices : 1;
-			OutCompressedImage.RawData = Image.RawData;
+			OutCompressedImage.RawData = MoveTemp(Image.RawData);
 
 			return true;
 		}
@@ -249,7 +249,7 @@ class FTextureFormatUncompressed : public ITextureFormat
 			OutCompressedImage.SizeX = Image.SizeX;
 			OutCompressedImage.SizeY = Image.SizeY;
 			OutCompressedImage.SizeZ = BuildSettings.bVolume ? Image.NumSlices : 1;
-			OutCompressedImage.RawData = Image.RawData;
+			OutCompressedImage.RawData = MoveTemp(Image.RawData);
 
 			return true;
 		}
