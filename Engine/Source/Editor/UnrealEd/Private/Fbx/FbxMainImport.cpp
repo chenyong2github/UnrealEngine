@@ -661,6 +661,7 @@ int32 FFbxImporter::GetImportType(const FString& InFilename)
 	if (OpenFile(Filename))
 	{
 		bool bHasAnimation = false;
+		bool bHasAnimationOnSkeletalMesh = false;
 		FbxSceneInfo SceneInfo;
 		if (GetSceneInfo(Filename, SceneInfo, true))
 		{
@@ -674,6 +675,7 @@ int32 FFbxImporter::GetImportType(const FString& InFilename)
 			}
 
 			bHasAnimation = SceneInfo.bHasAnimation;
+			bHasAnimationOnSkeletalMesh = SceneInfo.bHasAnimationOnSkeletalMesh;
 		}
 
 		// In case no Geometry was found, check for animation (FBX can still contain mesh data though)
@@ -683,10 +685,17 @@ int32 FFbxImporter::GetImportType(const FString& InFilename)
 			{
 				Result = 2;
 			}
-			// by default detects as skeletalmesh since it has animation curves
 			else if (Result == 0)
 			{
-				Result = 1;
+				// by default detects as skeletalmesh since it has animation curves
+				if (bHasAnimationOnSkeletalMesh)
+				{
+					Result = 1;
+				}
+				else
+				{
+					Result = 0;
+				}
 			}
 		}
 	}
@@ -840,6 +849,7 @@ bool FFbxImporter::GetSceneInfo(FString Filename, FbxSceneInfo& SceneInfo, bool 
 		}
 		
 		SceneInfo.bHasAnimation = false;
+		SceneInfo.bHasAnimationOnSkeletalMesh = false;
 		int32 AnimCurveNodeCount = Scene->GetSrcObjectCount<FbxAnimCurveNode>();
 		// sadly Max export with animation curve node by default without any change, so 
 		// we'll have to skip the first two curves, which is translation/rotation
@@ -850,6 +860,17 @@ bool FFbxImporter::GetSceneInfo(FString Filename, FbxSceneInfo& SceneInfo, bool 
 			if (CurAnimCruveNode->IsAnimated(true))
 			{
 				SceneInfo.bHasAnimation = true;
+
+				const FbxProperty DstProperty = CurAnimCruveNode->GetDstProperty();
+				const FbxObject* AnimatedObject = DstProperty.GetFbxObject();
+				if (AnimatedObject && (AnimatedObject->Is<FbxGeometry>() || (AnimatedObject->Is<FbxNode>() && IsUnrealBone((FbxNode*)AnimatedObject))))
+				{
+					SceneInfo.bHasAnimationOnSkeletalMesh = true;
+				}
+			}
+
+			if (SceneInfo.bHasAnimation && SceneInfo.bHasAnimationOnSkeletalMesh)
+			{
 				break;
 			}
 		}
