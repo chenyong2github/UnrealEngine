@@ -884,8 +884,6 @@ class EdgeBotImpl extends PerforceStatefulBot {
 			status.targetStream = this.targetBranch.stream
 		}
 
-		status.disallowSkip = this.options.disallowSkip
-
 		status.rootPath = this.targetBranch.rootPath
 
 		status.last_cl = this.lastCl
@@ -917,6 +915,11 @@ class EdgeBotImpl extends PerforceStatefulBot {
 		if (!this.pauseState.isAvailable()) {
 			this.pauseState.applyStatus(status)
 		}
+
+		status.resolver = this.targetBranch.resolver
+		status.skipAllowed = !this.options.disallowSkip
+		status.incognitoMode = this.options.incognitoMode
+		status.excludeAuthors = this.options.excludeAuthors
 
 		return status
 	}
