@@ -291,6 +291,8 @@ static void DoRenderHitProxies(
 		{
 			Nanite::DrawHitProxies(RHICmdList, *SceneRenderer->Scene, Views[ViewIndex], NaniteRasterResults[ViewIndex], HitProxyRT, HitProxyDepthRT);
 		}
+
+		TransitionRenderPassTargets(RHICmdList, RPInfo);
 	}
 
 	const auto FeatureLevel = SceneRenderer->FeatureLevel;

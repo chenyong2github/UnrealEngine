@@ -817,7 +817,7 @@ void ScatterObjectsToShadowTiles(
 	TArray<FRHITransitionInfo> UAVTransitionInfos;
 	for (FRHIUnorderedAccessView* UAV : UAVs)
 	{
-		UAVTransitionInfos.Add(FRHITransitionInfo(UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
+		UAVTransitionInfos.Add(FRHITransitionInfo(UAV, ERHIAccess::Unknown, ERHIAccess::UAVMask));
 	}
 	RHICmdList.Transition(MakeArrayView(UAVTransitionInfos.GetData(), UAVTransitionInfos.Num()));
 
