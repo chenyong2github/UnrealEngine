@@ -531,7 +531,8 @@ struct FHitObjectResult
  void LumenSetMinimalPayload(inout FPackedMaterialClosestHitPayload Payload)
  {
 	 // Indicate that we only query geometry normal.
-	 Payload.SetLumenMinimalPayload();
+	 Payload.SetMinimalPayloadMode();
+	 Payload.SetLumenPayload();
  }
 
  void LumenSetMinimalPayload(FDefaultPayload Payload)
@@ -542,7 +543,7 @@ struct FHitObjectResult
  {
 	 float3 Normal = 0;
 
-	 if (Payload.IsLumenMinimalPayload())
+	 if (Payload.IsLumenPayload())
 	 {
 		 Normal = Payload.GetGeometryNormal();
 	 }

@@ -290,19 +290,19 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(MaterialCHS,
 
 #if USE_MATERIAL_CLOSEST_HIT_SHADER
 
+	bool bIsLumenPayload = PackedPayload.IsLumenPayload();
+	if (bIsLumenPayload)
+	{
+		float3 SurfaceNormal = GetLumenGeometryNormal();
+		PackedPayload.SetGeometryNormal(SurfaceNormal);
+		PackedPayload.SetInstanceID(GetInstanceUserData());//InstanceID
+	}
+
 	if (PackedPayload.IsMinimalPayloadMode())
 	{
 		// Minimal payload mode only fills FMinimalPayload::HitT, skipping actual material evaluation.
 		// This mode is used when tracing shadow rays against masked geometry.
 		// Dynamic branch is used to avoid compiling an extra shader permutation.
-		return;
-	}
-
-	if (PackedPayload.IsLumenMinimalPayload())
-	{
-		float3 SurfaceNormal = GetLumenGeometryNormal();
-		PackedPayload.SetGeometryNormal(SurfaceNormal);
-		PackedPayload.SetInstanceID(GetInstanceUserData());//InstanceID
 		return;
 	}
 
@@ -478,6 +478,12 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(MaterialCHS,
 #endif
 
 	PackedPayload = PackRayTracingPayload(Payload, PropagatedCone);
+
+	// Override packed payload with custom Lumen data
+	if (bIsLumenPayload)
+	{
+		PackedPayload.SetInstanceID(GetInstanceUserData());
+	}
 
 #endif // USE_MATERIAL_CLOSEST_HIT_SHADER
 }
