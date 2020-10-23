@@ -23,6 +23,7 @@
 #include "PostProcess/RenderingCompositionGraph.h"
 #include "PostProcess/PostProcessEyeAdaptation.h"
 #include "PostProcess/PostProcessSubsurface.h"
+#include "PostProcess/TemporalAA.h"
 #include "PostProcess/PostProcessing.h"
 #include "CompositionLighting/CompositionLighting.h"
 #include "LegacyScreenPercentageDriver.h"
@@ -446,11 +447,21 @@ public:
 
 	FScreenPercentageHellDriver(const FSceneViewFamily& InViewFamily)
 		: ViewFamily(InViewFamily)
-	{ }
+	{ 
+		if (InViewFamily.GetTemporalUpscalerInterface())
+		{
+			MinResolutionFraction = InViewFamily.GetTemporalUpscalerInterface()->GetMinUpsampleResolutionFraction();
+			MaxResolutionFraction = InViewFamily.GetTemporalUpscalerInterface()->GetMaxUpsampleResolutionFraction();
+		}
+
+		check(MinResolutionFraction <= MaxResolutionFraction);
+		check(MinResolutionFraction > 0.0f);
+		check(MaxResolutionFraction > 0.0f);
+	}
 
 	virtual float GetPrimaryResolutionFractionUpperBound() const override
 	{
-		return 1.0f;
+		return MaxResolutionFraction;
 	}
 
 	virtual ISceneViewFamilyScreenPercentage* Fork_GameThread(const class FSceneViewFamily& ForkedViewFamily) const override
@@ -463,7 +474,7 @@ public:
 		}
 
 		return new FLegacyScreenPercentageDriver(
-			ForkedViewFamily, /* GlobalResolutionFraction = */ 1.0f, /* AllowPostProcessSettingsScreenPercentage = */ false);
+			ForkedViewFamily, /* GlobalResolutionFraction = */ MaxResolutionFraction, /* AllowPostProcessSettingsScreenPercentage = */ false);
 	}
 
 	virtual void ComputePrimaryResolutionFractions_RenderThread(TArray<FSceneViewScreenPercentageConfig>& OutViewScreenPercentageConfigs) const override
@@ -483,9 +494,8 @@ public:
 		{
 			FrameId = ViewState->GetFrameIndex(8);
 		}
-
-		float ResolutionFraction = FrameId == 0 ? 1.f : (FMath::Cos((FrameId + 0.25) * PI / 8) * 0.25f + 0.75f);
-
+		float ResolutionFraction = FrameId == 0 ? MaxResolutionFraction : FMath::Lerp(MinResolutionFraction, MaxResolutionFraction, 0.5f + 0.5f * FMath::Cos((FrameId + 0.25) * PI / 8));
+	
 		for (int32 i = 0; i < ViewFamily.Views.Num(); i++)
 		{
 			OutViewScreenPercentageConfigs[i].PrimaryResolutionFraction = ResolutionFraction;
@@ -495,6 +505,8 @@ public:
 private:
 	// View family to take care of.
 	const FSceneViewFamily& ViewFamily;
+	float MinResolutionFraction = 0.5f;
+	float MaxResolutionFraction = 1.0f;
 
 };
 
