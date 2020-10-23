@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Features/IModularFeature.h"
+#include "Features/IModularFeatures.h"
 
 class IRenderCaptureProvider : public IModularFeature
 {
