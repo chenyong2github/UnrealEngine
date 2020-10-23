@@ -517,7 +517,7 @@
 				<SrcSrv BinaryFiles="#Build Tools Win64" SourceFiles="#SourceFiles" Branch="$(Branch)" Change="$(Change)"/>
 			</Do>
 
-			<Tag Files="cpp.hint" With="#Tools Win64 Complete"/>
+			<WriteTextFile File="ToolComplete.txt" Tag="#Tools Win64 Complete"/>
 		</Node>
 		<!-- Compile the C# tools. Copies files to a temporary directory first, to strip out all confidential folders and avoid sharing violations with the running version of UAT. -->
 		<Node Name="Build Tools CS" Requires="Update Version Files" Produces="#Build Tools CS Binaries;#SourceForDocumentation">
