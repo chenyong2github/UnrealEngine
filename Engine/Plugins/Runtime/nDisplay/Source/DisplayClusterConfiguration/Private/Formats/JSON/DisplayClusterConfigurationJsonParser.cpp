@@ -37,6 +37,8 @@ UDisplayClusterConfigurationData* FDisplayClusterConfigurationJsonParser::LoadDa
 		return nullptr;
 	}
 
+	ConfigFile = FilePath;
+
 	// Finally, convert the data to nDisplay internal types
 	return ConvertDataToInternalTypes();
 }
@@ -74,6 +76,10 @@ UDisplayClusterConfigurationData* FDisplayClusterConfigurationJsonParser::Conver
 {
 	UDisplayClusterConfigurationData* Config = NewObject<UDisplayClusterConfigurationData>(ConfigDataOwner ? ConfigDataOwner : GetTransientPackage(), NAME_None, RF_MarkAsRootSet);
 	check(Config && Config->Scene && Config->Input && Config->Cluster);
+
+	// Fill metadata
+	Config->Meta.DataSource = EDisplayClusterConfigurationDataSource::Json;
+	Config->Meta.FilePath   = ConfigFile;
 
 	const FDisplayClusterConfigurationJsonNdisplay& CfgJson = JsonData.nDisplay;
 
