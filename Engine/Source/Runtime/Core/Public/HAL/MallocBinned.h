@@ -117,7 +117,7 @@ class FMallocBinned : public FMalloc
 private:
 
 	// Counts.
-	enum { POOL_COUNT = 42 };
+	enum { POOL_COUNT = 41 };
 
 	/** Maximum allocation for the pooled allocator */
 	enum { EXTENDED_PAGE_POOL_ALLOCATION_COUNT = 2 };
