@@ -1303,12 +1303,10 @@ inline int32 SetShaderResourcesFromBuffer_Surface(FD3D12CommandContext& CmdConte
 
 			FD3D12TextureBase* TextureD3D12 = CmdContext.RetrieveTextureBase(TextureRHI);
 			FD3D12ShaderResourceView* D3D12Resource = TextureD3D12->GetShaderResourceView();
-			if (!ensure(D3D12Resource))
+			if (D3D12Resource == nullptr)
 			{
-				D3D12Resource = CmdContext.RetrieveTextureBase(GBlackTexture->TextureRHI)->GetShaderResourceView();
+				D3D12Resource = CmdContext.RetrieveTextureBase(GWhiteTexture->TextureRHI)->GetShaderResourceView();
 			}
-
-			check(D3D12Resource != nullptr);
 
 			SetResource<ShaderFrequency>(CmdContext, BindIndex, D3D12Resource);
 			NumSetCalls++;
