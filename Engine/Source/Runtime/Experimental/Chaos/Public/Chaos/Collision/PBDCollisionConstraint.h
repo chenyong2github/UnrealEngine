@@ -487,11 +487,12 @@ namespace Chaos
 
 	struct CHAOS_API FCollisionConstraintsArray
 	{
-		static const int32 InlineMaxConstraints = 8;
-
-		TArray<FRigidBodyPointContactConstraint, TInlineAllocator<InlineMaxConstraints>> SinglePointConstraints;
-		TArray<FRigidBodySweptPointContactConstraint, TInlineAllocator<InlineMaxConstraints>> SinglePointSweptConstraints;
-		TArray<FRigidBodyMultiPointContactConstraint, TInlineAllocator<InlineMaxConstraints>> MultiPointConstraints;
+		// Previous arrays using TInlineAllocator<8> changed to normal arrays. Profiling showed faster without and
+		// we are able to use a per particle async reciever cache and just MoveTemp all the constraints for a 
+		// speed improvement to collision detection/gather.
+		TArray<FRigidBodyPointContactConstraint> SinglePointConstraints;
+		TArray<FRigidBodySweptPointContactConstraint> SinglePointSweptConstraints;
+		TArray<FRigidBodyMultiPointContactConstraint> MultiPointConstraints;
 
 		int32 Num() const { return SinglePointConstraints.Num() + SinglePointSweptConstraints.Num() + MultiPointConstraints.Num(); }
 
