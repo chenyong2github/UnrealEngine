@@ -99,9 +99,11 @@ namespace Chaos
 			const TAABB<FReal, 3>& Box1 = ParticleB->WorldSpaceInflatedBounds();
 			if (Box0.Intersects(Box1))
 			{
-
-				NarrowPhase.GenerateCollisions(ConstraintsArray, Dt, ParticleA, ParticleB, CullDistance, StatData);
+				NarrowPhase.GenerateCollisions(ConstraintsArray, Dt, ParticleA, ParticleB, CullDistance);
 			}
+
+			CHAOS_COLLISION_STAT(if (ConstraintsArray.Num()) { StatData.IncrementCountNP(ConstraintsArray.Num()); });
+			CHAOS_COLLISION_STAT(if (!ConstraintsArray.Num()) { StatData.IncrementRejectedNP(); });
 		}
 
 		const TArray<FParticlePair>* ParticlePairs;
