@@ -1971,12 +1971,12 @@ bool NiagaraEmitterInstanceBatcher::ShouldDebugDraw_RenderThread() const
 	return false;
 }
 
-void NiagaraEmitterInstanceBatcher::DrawDebug_RenderThread(FRHICommandListImmediate& RHICmdList, FCanvas* Canvas)
+void NiagaraEmitterInstanceBatcher::DrawDebug_RenderThread(class FRDGBuilder& GraphBuilder, const class FViewInfo& View, const struct FScreenPassRenderTarget& Output)
 {
 #if WITH_EDITOR
 	if (FNiagaraGpuComputeDebug* GpuComputeDebug = GpuComputeDebugPtr.Get())
 	{
-		GpuComputeDebug->DrawDebug(RHICmdList, Canvas);
+		GpuComputeDebug->DrawDebug(GraphBuilder, View, Output);
 	}
 #endif
 }
