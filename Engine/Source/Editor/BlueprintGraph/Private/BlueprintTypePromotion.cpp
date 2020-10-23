@@ -52,6 +52,15 @@ FTypePromotion& FTypePromotion::Get()
 	return *Instance;
 }
 
+void FTypePromotion::Shutdown()
+{
+	if (Instance)
+	{
+		delete Instance;
+		Instance = nullptr;
+	}
+}
+
 FTypePromotion::FTypePromotion()
 {
 	CreatePromotionTable();
@@ -62,12 +71,6 @@ FTypePromotion::FTypePromotion()
 
 FTypePromotion::~FTypePromotion()
 {
-	if(Instance)
-	{
-		delete Instance;
-		Instance = nullptr;
-	}
-
 	FModuleManager::Get().OnModulesChanged().Remove(OnModulesChangedDelegateHandle);
 }
 

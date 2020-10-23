@@ -3,6 +3,7 @@
 #include "BlueprintGraphModule.h"
 
 #include "EdGraphSchema_K2.h"
+#include "BlueprintTypePromotion.h"
 #include "Modules/ModuleManager.h"
 
 IMPLEMENT_MODULE( FBlueprintGraphModule, BlueprintGraph );
@@ -10,5 +11,5 @@ IMPLEMENT_MODULE( FBlueprintGraphModule, BlueprintGraph );
 void FBlueprintGraphModule::ShutdownModule()
 {
 	UEdGraphSchema_K2::Shutdown();
+	FTypePromotion::Shutdown();
 }
-

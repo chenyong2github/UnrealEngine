@@ -13,7 +13,11 @@ class BLUEPRINTGRAPH_API FTypePromotion : private FNoncopyable
 {
 public:
 
+	/** Creates a new singleton instance of TypePromotion if there isn't one and returns a reference to it */
 	static FTypePromotion& Get();
+
+	/** Deletes the singleton instance of type promotion if there is one */
+	static void Shutdown();
 
 	/** 
 	* If given more than two input pins, this will just use the highest type
