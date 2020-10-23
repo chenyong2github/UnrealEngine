@@ -65,21 +65,10 @@ FTypePromotion::FTypePromotion()
 {
 	CreatePromotionTable();
 	CreateOpTable();
-
-	OnModulesChangedDelegateHandle = FModuleManager::Get().OnModulesChanged().AddStatic(&OnModulesChanged);
 }
 
 FTypePromotion::~FTypePromotion()
 {
-	FModuleManager::Get().OnModulesChanged().Remove(OnModulesChangedDelegateHandle);
-}
-
-void FTypePromotion::OnModulesChanged(FName ModuleThatChanged, EModuleChangeReason ReasonForChange)
-{
-	if (Instance)
-	{
-		Instance->CreateOpTable();
-	}
 }
 
 void FTypePromotion::CreatePromotionTable()
@@ -615,6 +604,7 @@ void FTypePromotion::GetAllFuncsForOp_Internal(const FString& Operation, TArray<
 
 bool FTypePromotion::GetOpNameFromFunction(UFunction const* const Func, FString& OutName)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FTypePromotion::GetOpNameFromFunction);
 	if(!Func)
 	{
 		return false;
