@@ -35,6 +35,8 @@ void FDisplayClusterProjectionDomeprojectionPolicyBase::StartScene(UWorld* World
 void FDisplayClusterProjectionDomeprojectionPolicyBase::EndScene()
 {
 	check(IsInGameThread());
+
+	ReleaseOriginComponent();
 }
 
 bool FDisplayClusterProjectionDomeprojectionPolicyBase::HandleAddViewport(const FIntPoint& ViewportSize, const uint32 ViewsAmount)

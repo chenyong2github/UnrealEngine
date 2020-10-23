@@ -6,11 +6,12 @@
 #include "GameFramework/Actor.h"
 #include "Camera/PlayerCameraManager.h"
 
+#include "Misc/DisplayClusterObjectRef.h"
 #include "DisplayClusterEnums.h"
 
 #include "DisplayClusterRootActor.generated.h"
 
-#if WITH_EDITOR 
+#if WITH_EDITOR
 class IDisplayClusterConfiguratorToolkit;
 class UDisplayClusterPreviewComponent;
 #endif
@@ -143,12 +144,12 @@ protected:
 	virtual void PostActorCreated() override;
 
 protected:
-	TMap<FString, UDisplayClusterSceneComponent*>  AllComponents;
-	TMap<FString, UDisplayClusterXformComponent*>  XformComponents;
-	TMap<FString, UDisplayClusterCameraComponent*> CameraComponents;
-	TMap<FString, UDisplayClusterScreenComponent*> ScreenComponents;
-	TMap<FString, UDisplayClusterMeshComponent*>   MeshComponents;
-	UDisplayClusterCameraComponent* DefaultCameraComponent;
+	TMap<FString, FDisplayClusterSceneComponentRef*> AllComponents;
+	TMap<FString, FDisplayClusterSceneComponentRef*> XformComponents;
+	TMap<FString, FDisplayClusterSceneComponentRef*> CameraComponents;
+	TMap<FString, FDisplayClusterSceneComponentRef*> ScreenComponents;
+	TMap<FString, FDisplayClusterSceneComponentRef*> MeshComponents;
+	FDisplayClusterSceneComponentRef DefaultCameraComponent;
 
 protected:
 	// Initializes the actor on spawn and load
@@ -160,7 +161,13 @@ protected:
 
 private:
 	template <typename TComp, typename TCfgData>
-	void SpawnComponents(const TMap<FString, TCfgData*>& InConfigData, TMap<FString, TComp*>& OutTypedMap, TMap<FString, UDisplayClusterSceneComponent*>& OutAllMap);
+	void SpawnComponents(const TMap<FString, TCfgData*>& InConfigData, TMap<FString, FDisplayClusterSceneComponentRef*>& OutTypedMap, TMap<FString, FDisplayClusterSceneComponentRef*>& OutAllMap);
+
+	template <typename TComp>
+	TComp* GetTypedComponentById(const FString& ComponentId, const TMap<FString, FDisplayClusterSceneComponentRef*>& InTypedMap) const;
+
+	template <typename TComp>
+	void GetTypedComponents(TMap<FString, TComp*>& OutTypedMap, const TMap<FString, FDisplayClusterSceneComponentRef*>& InTypedMap) const;
 
 protected:
 	UPROPERTY(EditAnywhere, Category = "DisplayCluster", meta = (DisplayName = "Exit when ESC pressed"))

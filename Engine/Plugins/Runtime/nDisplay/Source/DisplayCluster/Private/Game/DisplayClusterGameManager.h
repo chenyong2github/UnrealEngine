@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-
+#include "Misc/DisplayClusterObjectRef.h"
 #include "Game/IPDisplayClusterGameManager.h"
 
 class AActor;
@@ -56,7 +56,7 @@ private:
 
 private:
 	// Active DisplayCluster root
-	ADisplayClusterRootActor* DisplayClusterRootActor = nullptr;
+	FDisplayClusterActorRef DisplayClusterRootActorRef;
 
 	EDisplayClusterOperationMode CurrentOperationMode;
 	FString ConfigPath;

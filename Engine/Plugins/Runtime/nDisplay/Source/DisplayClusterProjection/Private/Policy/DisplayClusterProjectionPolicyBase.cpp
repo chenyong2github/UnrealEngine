@@ -27,7 +27,7 @@ void FDisplayClusterProjectionPolicyBase::InitializeOriginComponent(const FStrin
 	UE_LOG(LogDisplayClusterProjection, Log, TEXT("Looking for an origin component '%s'..."), *OriginCompId);
 
 	// Reset previous one
-	PolicyOriginComp = nullptr;
+	PolicyOriginComponentRef.ResetSceneComponent();
 
 	IDisplayClusterGameManager* const GameMgr = IDisplayCluster::Get().GetGameMgr();
 	if (!GameMgr)
@@ -36,6 +36,7 @@ void FDisplayClusterProjectionPolicyBase::InitializeOriginComponent(const FStrin
 		return;
 	}
 
+	USceneComponent* PolicyOriginComp = nullptr;
 	ADisplayClusterRootActor* const RootActor = GameMgr->GetRootActor();
 	if (RootActor)
 	{
@@ -58,4 +59,12 @@ void FDisplayClusterProjectionPolicyBase::InitializeOriginComponent(const FStrin
 		UE_LOG(LogDisplayClusterProjection, Error, TEXT("Couldn't set origin component"));
 		return;
 	}
+
+	PolicyOriginComponentRef.SetSceneComponent(PolicyOriginComp);
 }
+
+void FDisplayClusterProjectionPolicyBase::ReleaseOriginComponent()
+{
+	PolicyOriginComponentRef.ResetSceneComponent();
+}
+

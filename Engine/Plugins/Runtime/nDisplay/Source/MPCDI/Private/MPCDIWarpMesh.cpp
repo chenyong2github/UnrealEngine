@@ -213,7 +213,20 @@ void FMPCDIWarpMesh::BuildAABBox()
 
 bool FMPCDIWarpMesh::SetStaticMeshWarp(UStaticMeshComponent* InMeshComponent, USceneComponent* InOriginComponent)
 {
+	// Inside the BeginBuildFrustum() function, we always check for changes to the mesh components IsWarpMeshChanged(), and update the corresponding resources and data.
+	// No assignment needed when changing a mesh component
+	UStaticMeshComponent* MeshComponent = MeshComponentRef.GetOrFindWarpMeshComponent();
+	USceneComponent* OriginComponent = OriginComponentRef.GetOrFindSceneComponent();
+	if (MeshComponent == InMeshComponent && OriginComponent == InOriginComponent)
+	{
+		// Same values, use current warpmesh
+		return true;
+	}
+
+	// Reset previous one
 	ReleaseRHIResources();
+	MeshComponentRef.ResetMeshComponent();
+	OriginComponentRef.ResetSceneComponent();
 
 	FScopeLock lock(&MeshDataGuard);
 
@@ -360,17 +373,23 @@ UStaticMeshComponent* FDisplayClusterWarpMeshComponentRef::GetOrFindWarpMeshComp
 	return nullptr;
 }
 
-void FDisplayClusterWarpMeshComponentRef::ResetWarpMeshComponent()
+void FDisplayClusterWarpMeshComponentRef::ResetWarpMeshChangedFlag()
 {
 	bIsStaticMeshChanged = false;
 	StaticMeshName = FName();
+}
+
+void FDisplayClusterWarpMeshComponentRef::ResetMeshComponent()
+{
+	ResetWarpMeshChangedFlag();
+	ResetSceneComponent();
 }
 
 bool FDisplayClusterWarpMeshComponentRef::SetWarpMeshComponent(UStaticMeshComponent* StaticMeshComponent)
 {
 	FScopeLock lock(&DataGuard);
 
-	ResetWarpMeshComponent();
+	ResetWarpMeshChangedFlag();
 	if(SetSceneComponent(StaticMeshComponent))
 	{ 
 		// Store the name of the current mesh geometry
