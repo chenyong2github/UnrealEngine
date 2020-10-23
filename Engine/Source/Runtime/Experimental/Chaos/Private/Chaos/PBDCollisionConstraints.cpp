@@ -394,27 +394,32 @@ namespace Chaos
 		bUseCCD = false;
 	}
 
-	void FPBDCollisionConstraints::ApplyCollisionModifier(const TFunction<void (const TArrayView<FPBDCollisionConstraintHandleModification>& Handle)>& CollisionModifier)
+	void FPBDCollisionConstraints::ApplyCollisionModifier(const TArray<ISimCallbackObject*>& CollisionModifiers)
 	{
 		check(!bInAppendOperation);
-		if (CollisionModifier && Handles.Num())
+		if (Handles.Num())
+		{
+			for(ISimCallbackObject* Modifier : CollisionModifiers)
 		{
 			TArray<FPBDCollisionConstraintHandleModification> ModificationResults;
 			ModificationResults.Reserve(Handles.Num());
-			for(FPBDCollisionConstraintHandle* Handle : Handles)
+				for (FPBDCollisionConstraintHandle* Handle : Handles)
 			{
 				ModificationResults.Emplace(Handle);
 			}
 
-			CollisionModifier(TArrayView<FPBDCollisionConstraintHandleModification>(ModificationResults.GetData(), ModificationResults.Num()));
-
+				//TODO: fix dt and sim time
+				Modifier->ContactModification_Internal(0, 0, TArrayView<FPBDCollisionConstraintHandleModification>(ModificationResults.GetData(), ModificationResults.Num()));
+				
 			for (const FPBDCollisionConstraintHandleModification& Modification : ModificationResults)
 			{
-				if(Modification.GetResult() == ECollisionModifierResult::Disabled)
+					if (Modification.GetResult() == ECollisionModifierResult::Disabled)
 				{
 					RemoveConstraint(Modification.GetHandle());
 				}
 			}
+		}
+			
 		}
 	}
 

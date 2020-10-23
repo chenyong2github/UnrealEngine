@@ -171,6 +171,7 @@ namespace Chaos
 
 		// Ensure callbacks actually get cleaned up, only necessary when solver is disabled.
 		InSolver.ApplyCallbacks_Internal(0, 0);
+		InSolver.FreeCallbacksData_Internal();
 
 		// verify callbacks have been processed and we're not leaking.
 		// TODO: why is this still firing in 14.30? (Seems we're still leaking)
