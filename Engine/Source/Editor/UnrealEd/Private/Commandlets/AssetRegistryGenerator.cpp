@@ -2146,18 +2146,24 @@ void FAssetRegistryGenerator::GetChunkAssignments(TArray<TSet<FName>>& OutAssign
 			PackagesInChunk0.Add(Package);
 		}
 
-		for (FChunkPackageSet::TConstIterator It(*ChunkManifests[0]); It; ++It)
+		if (ChunkManifests[0])
 		{
-			PackagesInChunk0.Add(It.Key());
+			for (FChunkPackageSet::TConstIterator It(*ChunkManifests[0]); It; ++It)
+			{
+				PackagesInChunk0.Add(It.Key());
+			}
 		}
 		OutAssignments.Add(PackagesInChunk0);
 
 		for (uint32 ChunkIndex = 1, MaxChunk = ChunkManifests.Num(); ChunkIndex < MaxChunk; ++ChunkIndex)
 		{
 			TSet<FName> PackagesInChunk;
-			for (FChunkPackageSet::TConstIterator It(*ChunkManifests[ChunkIndex]); It; ++It)
+			if (ChunkManifests[ChunkIndex])
 			{
-				PackagesInChunk.Add(It.Key());
+				for (FChunkPackageSet::TConstIterator It(*ChunkManifests[ChunkIndex]); It; ++It)
+				{
+					PackagesInChunk.Add(It.Key());
+				}
 			}
 
 			OutAssignments.Add(PackagesInChunk);
