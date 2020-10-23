@@ -46,40 +46,12 @@ struct FSceneIdentifier
 };
 
 
-/**
- * Data shared by all element of a given scene.
- * The scene is uniquely identified by this element.
- * Within this scene, all elements ids are unique. To ensure this property,
- * this shared state is responsible for the id attribution.
- * Id 0 is considered invalid (see InvalidId).
- */
-class FSceneGraphSharedState
-{
-public:
-	FSceneGraphId MakeId() { return ++LastElementId; }
-	const FGuid& GetGuid() const { return SceneId.SceneGuid; }
-	const FSceneIdentifier& GetSceneId() const { return SceneId; }
-
-protected:
-	FSceneGraphId LastElementId = InvalidId;
-	FSceneIdentifier SceneId{FGuid::NewGuid(), FString()};
-};
-
-
-// this constant should never change, it's used as a marker in a byte stream
-static constexpr uint8 kMagic = 0xd1;
-
 // DirectLink exchanges messages between pairs. Those versions numbers helps making sure pairs are compatible
-static constexpr uint8 kCurrentProtocolVersion = 9;
-static constexpr uint8 kMinSupportedProtocolVersion = 9; // oldest supported version
+uint8 GetCurrentProtocolVersion();
 
-enum class ESerializationStatus
-{
-	Ok,
-	StreamError,
-	VersionMinNotRespected,
-	VersionMaxNotRespected,
-};
+// oldest supported version
+uint8 GetMinSupportedProtocolVersion();
+
 
 
 /** Used by data source and destination to describe how they are discovered by remote endpoints */
@@ -89,5 +61,18 @@ enum class EVisibility
 	Private,   // The connection point is not expected to be contacted from a remote
 };
 
+
+struct FCommunicationStatus
+{
+	bool IsTransmitting() const { return bIsSending || bIsReceiving; }
+	bool IsProgressKnown() const { return TaskTotal > 0; };
+	float GetProgress() const { return IsProgressKnown() ? float(FMath::Clamp(TaskCompleted, 0, TaskTotal)) / TaskTotal : 0.0f; };
+
+public:
+	bool bIsSending = false;
+	bool bIsReceiving = false;
+	int32 TaskTotal = 0;
+	int32 TaskCompleted = 0;
+};
 
 } // namespace DirectLink

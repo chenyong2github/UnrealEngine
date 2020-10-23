@@ -3,12 +3,12 @@
 #pragma once
 
 #include "DirectLinkCommon.h"
-#include "DirectLinkSceneProvider.h"
+#include "DirectLinkConnectionRequestHandler.h"
 
 
 class FDatasmithSceneReceiver;
 
-class FTestSceneProvider : public DirectLink::ISceneProvider
+class FTestSceneProvider : public DirectLink::IConnectionRequestHandler
 {
 public:
 	virtual bool CanOpenNewConnection(const FSourceInformation& Source) override;
