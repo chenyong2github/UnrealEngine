@@ -4279,26 +4279,26 @@ using DirectoryIndexVisitorFunction = TFunctionRef<bool(FString, const uint32)>;
 
 bool IterateDirectoryIndex(FIoDirectoryIndexHandle Directory, const FString& Path, const FIoDirectoryIndexReader& Reader, DirectoryIndexVisitorFunction Visit)
 {
+	FIoDirectoryIndexHandle File = Reader.GetFile(Directory);
+	while (File.IsValid())
+	{
+		const uint32 TocEntryIndex = Reader.GetFileData(File);
+		FStringView FileName = Reader.GetFileName(File);
+		FString FilePath = Reader.GetMountPoint() / Path / FString(FileName);
+
+		if (!Visit(MoveTemp(FilePath), TocEntryIndex))
+		{
+			return false;
+		}
+
+		File = Reader.GetNextFile(File);
+	}
+
 	FIoDirectoryIndexHandle ChildDirectory = Reader.GetChildDirectory(Directory);
 	while (ChildDirectory.IsValid())
 	{
 		FStringView DirectoryName = Reader.GetDirectoryName(ChildDirectory);
 		FString ChildDirectoryPath = Path / FString(DirectoryName);
-
-		FIoDirectoryIndexHandle File = Reader.GetFile(ChildDirectory);
-		while (File.IsValid())
-		{
-			const uint32 TocEntryIndex = Reader.GetFileData(File);
-			FStringView FileName = Reader.GetFileName(File);
-			FString FilePath = Reader.GetMountPoint() / ChildDirectoryPath / FString(FileName);
-
-			if (!Visit(MoveTemp(FilePath), TocEntryIndex))
-			{
-				return false;
-			}
-
-			File = Reader.GetNextFile(File);
-		}
 
 		if (!IterateDirectoryIndex(ChildDirectory, ChildDirectoryPath, Reader, Visit))
 		{
