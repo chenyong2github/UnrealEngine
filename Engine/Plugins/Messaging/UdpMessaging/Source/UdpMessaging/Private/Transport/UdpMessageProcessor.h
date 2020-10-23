@@ -467,6 +467,9 @@ private:
 	/** Holds a flag indicating that the thread is stopping. */
 	bool Stopping;
 
+	/** Holds a flag indicating if the processor is initialized. */
+	bool bIsInitialized;
+
 	/** Holds the thread object. */
 	FRunnableThread* Thread;
 

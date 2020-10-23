@@ -38,8 +38,11 @@ FUdpMessageProcessor::FUdpMessageProcessor(FSocket& InSocket, const FGuid& InNod
 	, Socket(&InSocket)
 	, SocketSender(nullptr)
 	, Stopping(false)
+	, bIsInitialized(false)
 	, MessageFormat(GetDefault<UUdpMessagingSettings>()->MessageFormat) // NOTE: When the message format changes (in the Udp Messaging settings panel), the service is restarted and the processor recreated.
 {
+	Init();
+
 	WorkEvent = MakeShareable(FPlatformProcess::GetSynchEventFromPool(), [](FEvent* EventToDelete)
 	{
 		FPlatformProcess::ReturnSynchEventToPool(EventToDelete);
@@ -173,18 +176,21 @@ FSingleThreadRunnable* FUdpMessageProcessor::GetSingleThreadInterface()
 
 bool FUdpMessageProcessor::Init()
 {
-	Beacon = new FUdpMessageBeacon(Socket, LocalNodeId, MulticastEndpoint);
-	SocketSender = new FUdpSocketSender(Socket, TEXT("FUdpMessageProcessor.Sender"));
+	if (!bIsInitialized)
+	{
+		Beacon = new FUdpMessageBeacon(Socket, LocalNodeId, MulticastEndpoint);
+		SocketSender = new FUdpSocketSender(Socket, TEXT("FUdpMessageProcessor.Sender"));
 
-	// Current protocol version 14
-	SupportedProtocolVersions.Add(UDP_MESSAGING_TRANSPORT_PROTOCOL_VERSION);
-	// Support Protocol version 10, 11, 12, 13
-	SupportedProtocolVersions.Add(13);
-	SupportedProtocolVersions.Add(12);
-	SupportedProtocolVersions.Add(11);
-	SupportedProtocolVersions.Add(10);
-
-	return true;
+		// Current protocol version 14
+		SupportedProtocolVersions.Add(UDP_MESSAGING_TRANSPORT_PROTOCOL_VERSION);
+		// Support Protocol version 10, 11, 12, 13
+		SupportedProtocolVersions.Add(13);
+		SupportedProtocolVersions.Add(12);
+		SupportedProtocolVersions.Add(11);
+		SupportedProtocolVersions.Add(10);
+		bIsInitialized = true;
+	}
+	return bIsInitialized;
 }
 
 
