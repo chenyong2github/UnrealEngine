@@ -70,5 +70,34 @@ namespace Chaos
 
 	//TODO: move into a better forward declare location
 	class FPBDCollisionConstraintHandle;
-	using FCollisionModifierCallback = TFunction<ECollisionModifierResult(FPBDCollisionConstraintHandle*)>;
+
+	/** Used to modify collision constraints via callback */
+	class CHAOS_API FPBDCollisionConstraintHandleModification
+	{
+	public:
+		FPBDCollisionConstraintHandleModification(FPBDCollisionConstraintHandle* InHandle)
+			: Handle(InHandle)
+			, Result(ECollisionModifierResult::Unchanged)
+		{
+		}
+
+		void DisableConstraint() { Result = ECollisionModifierResult::Disabled; }
+
+		//TODO: a better API would be to only return a mutable handle when this is set.
+		//The problem is the current callback logic makes this cumbersome
+		void ModifyConstraint()
+		{
+			Result = ECollisionModifierResult::Modified;
+		}
+
+		FPBDCollisionConstraintHandle* GetHandle() const { return Handle; }
+
+		ECollisionModifierResult GetResult() const { return Result; }
+
+	private:
+		FPBDCollisionConstraintHandle* Handle;
+		ECollisionModifierResult Result;
+	};
+
+	using FCollisionModifierCallback = TFunction<void(const TArrayView<FPBDCollisionConstraintHandleModification>& Handle)>;
 }
