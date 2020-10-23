@@ -177,6 +177,7 @@ void UMeshSpaceDeformerTool::Setup()
 	// add click to set plane behavior
 	SetPointInWorldConnector = MakePimpl<FSelectClickedAction>();
 	SetPointInWorldConnector->World = this->TargetWorld;
+	SetPointInWorldConnector->InvisibleComponentsToHitTest.Add(ComponentTarget->GetOwnerComponent());
 	SetPointInWorldConnector->OnClickedPositionFunc = [this](const FHitResult& Hit)
 	{
 		SetGizmoPlaneFromWorldPos(Hit.ImpactPoint, -Hit.ImpactNormal, false);
