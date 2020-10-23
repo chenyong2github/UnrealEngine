@@ -107,7 +107,9 @@ bool FXGEControllerModule::IsSupported()
 	{
 		XGEControllerVariables::Enabled = 1;
 	}
-	if (FParse::Param(FCommandLine::Get(), TEXT("noxgecontroller")))
+	if (FParse::Param(FCommandLine::Get(), TEXT("noxgecontroller")) ||
+		FParse::Param(FCommandLine::Get(), TEXT("noxgeshadercompile")) ||
+		FParse::Param(FCommandLine::Get(), TEXT("noshaderworker")))
 	{
 		XGEControllerVariables::Enabled = 0;
 	}
