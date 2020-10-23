@@ -267,6 +267,7 @@ namespace Chaos
 		FRigidBodyPointContactConstraint() 
 			: Base(Base::FType::SinglePoint)
 			, bUseIncrementalManifold(false)
+			, bUseOneShotManifold(false)
 		{}
 		FRigidBodyPointContactConstraint(
 			FGeometryParticleHandle* Particle0, 
@@ -278,14 +279,18 @@ namespace Chaos
 			const TBVHParticles<FReal, 3>* Simplicial1, 
 			const FRigidTransform3& Transform1,
 			const EContactShapesType ShapesType,
-			const bool bInUseIncrementalManifold)
+			const bool bInUseIncrementalManifold,
+			const bool bInUseOneshotManifolds)
 			: Base(Particle0, Implicit0, Simplicial0, Transform0, Particle1, Implicit1, Simplicial0, Transform1, Base::FType::SinglePoint, ShapesType)
 			, bUseIncrementalManifold(bInUseIncrementalManifold)
+			, bUseOneShotManifold(bInUseOneshotManifolds)
 		{}
 
 		static typename Base::FType StaticType() { return Base::FType::SinglePoint; };
 
 		bool UseIncrementalManifold() const { return bUseIncrementalManifold; }
+		bool UseOneShotManifold() const { return bUseOneShotManifold; }		
+		void SetUseOneShotManifold(bool bInUseOneShotManifold) { bUseOneShotManifold = bInUseOneShotManifold; };
 
 		TArrayView<FManifoldPoint> GetManifoldPoints() { return MakeArrayView(ManifoldPoints); }
 		TArrayView<const FManifoldPoint> GetManifoldPoints() const { return MakeArrayView(ManifoldPoints); }
@@ -296,6 +301,8 @@ namespace Chaos
 			const FVec3& P1,
 			const FRotation3& Q1);
 
+		void AddOneshotManifoldContact(const FContactPoint& ContactPoint, bool bInInitialize = true);
+		void UpdateOneShotManifoldContacts();
 		void UpdateManifold(const FContactPoint& ContactPoint);
 		void ClearManifold();
 
@@ -316,18 +323,20 @@ namespace Chaos
 			const EContactShapesType ShapesType)
 			: Base(Particle0, Implicit0, Simplicial0, Transform0, Particle1, Implicit1, Simplicial1, Transform1, InType, ShapesType)
 			, bUseIncrementalManifold(false)
+			, bUseOneShotManifold(false)
 		{}
 
 		bool AreMatchingContactPoints(const FContactPoint& A, const FContactPoint& B, FReal& OutScore) const;
 		int32 FindManifoldPoint(const FContactPoint& ContactPoint) const;
+		int32 AddManifoldPoint(const FContactPoint& ContactPoint, bool bInInitialize = true);
 		void InitManifoldPoint(FManifoldPoint& ManifoldPoint);
-		int32 AddManifoldPoint(const FContactPoint& ContactPoint);
 		void UpdateManifoldPoint(int32 ManifoldPointIndex, const FContactPoint& ContactPoint);
 		void SetActiveContactPoint(const FContactPoint& ContactPoint);
 
 		// @todo(chaos): inline array
 		TArray<FManifoldPoint> ManifoldPoints;
 		bool bUseIncrementalManifold;
+		bool bUseOneShotManifold;
 	};
 
 

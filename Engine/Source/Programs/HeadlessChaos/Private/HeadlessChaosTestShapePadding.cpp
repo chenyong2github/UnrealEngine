@@ -96,7 +96,7 @@ namespace ChaosTest {
 			Box1->Geometry().Get(),
 			nullptr,
 			FRigidTransform3(),
-			EContactShapesType::BoxBox, true);
+			EContactShapesType::BoxBox, true, false);
 
 		// Detect collisions
 		Collisions::Update(Constraint, Delta.Size());
@@ -203,7 +203,7 @@ namespace ChaosTest {
 			Box1->Geometry().Get(),
 			nullptr,
 			FRigidTransform3(),
-			EContactShapesType::ConvexConvex, true);
+			EContactShapesType::ConvexConvex, true, false);
 
 		// Detect collisions
 		Collisions::Update(Constraint, Delta.Size());

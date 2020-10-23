@@ -113,7 +113,11 @@ FAutoConsoleVariableRef CVarChaosSolverCollisionUseManifolds(TEXT("p.Chaos.Solve
 
 // New manifold system
 int32 ChaosSolverCollisionUseIncrememtalManifolds = 1;
-FAutoConsoleVariableRef CVarChaosUseIncrementalManifold(TEXT("p.Chaos.Solver.Collision.UseIncrementalManifolds"), ChaosSolverCollisionUseIncrememtalManifolds, TEXT("Enable/Disable use of incremental manifolds"));
+FAutoConsoleVariableRef CVarChaosUseIncrementalManifold(TEXT("p.Chaos.Solver.Collision.UseIncrementalManifolds"), ChaosSolverCollisionUseIncrememtalManifolds, TEXT("Enable/Disable use of incremental manifolds."));
+
+// New One-shot manifolds (only for boxes right now)
+int32 ChaosSolverCollisionUseOneShotManifolds = 0;
+FAutoConsoleVariableRef CVarChaosUseOneShotManifold(TEXT("p.Chaos.Solver.Collision.UseOneShotManifolds"), ChaosSolverCollisionUseOneShotManifolds, TEXT("Enable/Disable use of OneShot manifolds where available. If enabled Incremental manifold setting will be ignored"));
 
 int32 ChaosVisualDebuggerEnable = 1;
 FAutoConsoleVariableRef CVarChaosVisualDebuggerEnable(TEXT("p.Chaos.VisualDebuggerEnable"), ChaosVisualDebuggerEnable, TEXT("Enable/Disable pushing/saving data to the visual debugger"));
@@ -728,6 +732,7 @@ namespace Chaos
 		MEvolution->GetCollisionDetector().GetNarrowPhase().GetContext().bDeferUpdate = (ChaosSolverCollisionDeferNarrowPhase != 0);
 		MEvolution->GetCollisionDetector().GetNarrowPhase().GetContext().bAllowManifolds = (ChaosSolverCollisionUseManifolds != 0);
 		MEvolution->GetCollisionDetector().GetNarrowPhase().GetContext().bUseIncrementalManifold = (ChaosSolverCollisionUseIncrememtalManifolds != 0);
+		MEvolution->GetCollisionDetector().GetNarrowPhase().GetContext().bUseOneShotManifolds = (ChaosSolverCollisionUseOneShotManifolds != 0);
 
 		// Apply CVAR overrides if set
 		{
