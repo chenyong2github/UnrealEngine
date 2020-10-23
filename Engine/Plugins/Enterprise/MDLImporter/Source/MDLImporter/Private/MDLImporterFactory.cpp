@@ -117,6 +117,8 @@ UMDLImporterFactory::UMDLImporterFactory(const FObjectInitializer& ObjectInitial
 		FString Extension = ListOfExtensions[Index] + TEXT(";") + ListOfExtensionsInfo[Index];
 		Formats.Add(Extension);
 	}
+#else
+	UE_LOG(LogMDLImporter, Error, TEXT("MDL SDK was not available when plugin was build - MDL plugin won't be functional!"));
 #endif
 }
 
