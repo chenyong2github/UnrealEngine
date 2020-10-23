@@ -277,6 +277,8 @@ namespace Chaos
 				RewindData->FinishFrame();
 			}
 
+			MSolver->FreeCallbacksData_Internal();
+
 			MSolver->GetSolverTime() += MDeltaTime;
 			MSolver->GetCurrentFrame()++;
 			MSolver->PostTickDebugDraw();
@@ -314,7 +316,7 @@ namespace Chaos
 		, bHasFloor(true)
 		, bIsFloorAnalytic(false)
 		, FloorHeight(0.f)
-		, MEvolution(new FPBDRigidsEvolution(Particles, SimMaterials, BufferingModeIn == Chaos::EMultiBufferMode::Single))
+		, MEvolution(new FPBDRigidsEvolution(Particles, SimMaterials, &ContactModifiers, BufferingModeIn == Chaos::EMultiBufferMode::Single))
 		, MEventManager(new TEventManager<Traits>(BufferingModeIn))
 		, MSolverEventFilters(new FSolverEventFilters())
 		, MDirtyParticlesBuffer(new FDirtyParticlesBuffer(BufferingModeIn, BufferingModeIn == Chaos::EMultiBufferMode::Single))
@@ -685,7 +687,7 @@ namespace Chaos
 		MMaxDeltaTime = 1.f;
 		MMinDeltaTime = SMALL_NUMBER;
 		MMaxSubSteps = 1;
-		MEvolution = TUniquePtr<FPBDRigidsEvolution>(new FPBDRigidsEvolution(Particles, SimMaterials, BufferMode == EMultiBufferMode::Single)); 
+		MEvolution = TUniquePtr<FPBDRigidsEvolution>(new FPBDRigidsEvolution(Particles, SimMaterials, &ContactModifiers, BufferMode == EMultiBufferMode::Single)); 
 
 		PerSolverField = MakeUnique<FPerSolverFieldSystem>();
 
@@ -997,7 +999,15 @@ namespace Chaos
 		{
 			//update callbacks
 			{
-				SimCallbackObjects.Append(PushData->SimCallbackObjectsToAdd);
+				SimCallbackObjects.Reserve(SimCallbackObjects.Num() + PushData->SimCallbackObjectsToAdd.Num());
+				for(ISimCallbackObject* SimCallbackObject : PushData->SimCallbackObjectsToAdd)
+				{
+					SimCallbackObjects.Add(SimCallbackObject);
+					if(SimCallbackObject->bContactModification)
+					{
+						ContactModifiers.Add(SimCallbackObject);
+					}
+				}
 
 				for (int32 Idx = 0; Idx < PushData->SimCallbackObjectsToRemove.Num(); ++Idx)
 				{

@@ -117,10 +117,10 @@ namespace Chaos
 
 		/** Creates a new sim callback object of the type given. Caller expected to free using FreeSimCallbackObject_External*/
 		template <typename TSimCallbackObjectType>
-		TSimCallbackObjectType* CreateAndRegisterSimCallbackObject_External()
+		TSimCallbackObjectType* CreateAndRegisterSimCallbackObject_External(bool bContactModification = false)
 		{
 			auto NewCallbackObject = new TSimCallbackObjectType();
-			RegisterSimCallbackObject_External(NewCallbackObject);
+			RegisterSimCallbackObject_External(NewCallbackObject, bContactModification);
 			return NewCallbackObject;
 		}
 
@@ -270,13 +270,6 @@ namespace Chaos
 				{
 					Callback->PreSimulate_Internal(SimTime, Dt);
 					
-					//todo: split out for different sim phases, also wait for resim
-					//we do this here instead of in object because later on when we split data out, we'll need to steal the data
-					for (FSimCallbackInput* Input : Callback->IntervalData)
-					{
-						Callback->FreeInputData_Internal(Input);
-					}
-					Callback->IntervalData.Reset();
 
 					if (Callback->bRunOnceMore)
 					{
@@ -284,13 +277,34 @@ namespace Chaos
 					}
 				}
 			}
+		}
 
-			//todo: need to split up for different phases of sim (always free when entire sim phase is finished)
+		void FreeCallbacksData_Internal()
+		{
+			for (ISimCallbackObject* Callback : SimCallbackObjects)
+			{
+				for (FSimCallbackInput* Input : Callback->IntervalData)
+				{
+					Callback->FreeInputData_Internal(Input);
+				}
+				Callback->IntervalData.Reset();
+			}
+
 			//typically one shot callbacks are added to end of array, so removing in reverse order should be O(1)
 			//every so often a persistent callback is unregistered, so need to consider all callbacks
 			//might be possible to improve this, but number of callbacks is expected to be small
 			//one shot callbacks expect a FIFO so can't use RemoveAtSwap
 			//might be worth splitting into two different buffers if this is too slow
+
+			for (int32 Idx = ContactModifiers.Num() - 1; Idx >= 0; --Idx)
+			{
+				ISimCallbackObject* Callback = ContactModifiers[Idx];
+				if (Callback->bPendingDelete)
+				{
+					//will also be in SimCallbackObjects so we'll delete it in that loop
+					ContactModifiers.RemoveAt(Idx);
+				}
+			}
 
 			for (int32 Idx = SimCallbackObjects.Num() - 1; Idx >= 0; --Idx)
 			{
@@ -359,6 +373,7 @@ namespace Chaos
 	TArray<TFunction<void()>> CommandQueue;
 
 	TArray<ISimCallbackObject*> SimCallbackObjects;
+	TArray<ISimCallbackObject*> ContactModifiers;
 
 	FGraphEventRef PendingTasks;
 
@@ -366,10 +381,11 @@ namespace Chaos
 
 		//This is private because the user should never create their own callback object
 		//The lifetime management should always be done by solver to ensure callbacks are accessing valid memory on async tasks
-		void RegisterSimCallbackObject_External(ISimCallbackObject* SimCallbackObject)
+		void RegisterSimCallbackObject_External(ISimCallbackObject* SimCallbackObject, bool bContactModification = false)
 		{
 			ensure(SimCallbackObject->Solver == nullptr);	//double register?
 			SimCallbackObject->SetSolver_External(this);
+			SimCallbackObject->SetContactModification(bContactModification);
 			MarshallingManager.RegisterSimCallbackObject_External(SimCallbackObject);
 		}
 

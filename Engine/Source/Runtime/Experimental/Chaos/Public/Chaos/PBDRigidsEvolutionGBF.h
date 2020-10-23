@@ -102,7 +102,7 @@ namespace Chaos
 		// @todo(chaos): Required by clustering - clean up
 		using Base::ApplyPushOut;
 
-		CHAOS_API TPBDRigidsEvolutionGBF(TPBDRigidsSOAs<FReal, 3>& InParticles, THandleArray<FChaosPhysicsMaterial>& SolverPhysicsMaterials, bool InIsSingleThreaded = false);
+		CHAOS_API TPBDRigidsEvolutionGBF(TPBDRigidsSOAs<FReal, 3>& InParticles, THandleArray<FChaosPhysicsMaterial>& SolverPhysicsMaterials, const TArray<ISimCallbackObject*>* InCollisionModifiers = nullptr, bool InIsSingleThreaded = false);
 		CHAOS_API ~TPBDRigidsEvolutionGBF() {}
 
 		FORCEINLINE void SetPostIntegrateCallback(const FPBDRigidsEvolutionCallback& Cb)
@@ -113,11 +113,6 @@ namespace Chaos
 		FORCEINLINE void SetPostDetectCollisionsCallback(const FPBDRigidsEvolutionCallback& Cb)
 		{
 			PostDetectCollisionsCallback = Cb;
-		}
-
-		FORCEINLINE void SetCollisionModifierCallback(const FCollisionModifierCallback& Cb)
-		{
-			CollisionModifierCallback = Cb;
 		}
 
 		FORCEINLINE void SetPreApplyCallback(const FPBDRigidsEvolutionCallback& Cb)
@@ -268,12 +263,12 @@ namespace Chaos
 
 		FPBDRigidsEvolutionCallback PostIntegrateCallback;
 		FPBDRigidsEvolutionCallback PostDetectCollisionsCallback;
-		FCollisionModifierCallback CollisionModifierCallback;
 		FPBDRigidsEvolutionCallback PreApplyCallback;
 		FPBDRigidsEvolutionIslandCallback PostApplyCallback;
 		FPBDRigidsEvolutionIslandCallback PostApplyPushOutCallback;
 		FPBDRigidsEvolutionInternalHandleCallback InternalParticleInitilization;
 		FEvolutionResimCache* CurrentStepResimCacheImp;
+		const TArray<ISimCallbackObject*>* CollisionModifiers;
 	};
 
 #define EVOLUTION_TRAIT(Trait) extern template class CHAOS_TEMPLATE_API TPBDRigidsEvolutionGBF<Trait>;
