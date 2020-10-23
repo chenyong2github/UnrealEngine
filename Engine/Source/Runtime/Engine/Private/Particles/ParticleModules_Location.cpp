@@ -2930,7 +2930,7 @@ bool UParticleModuleLocationSkelVertSurface::VertInfluencedByActiveBone(FParticl
 			}
 		}
 
-		return VertInfluencedByActiveBoneTyped(LODData, 0, Section, VertIndex, InSkelMeshComponent, InstancePayload, OutBoneIndex);
+		return VertInfluencedByActiveBoneTyped(LODData, InstPayload->MeshMinLOD, Section, VertIndex, InSkelMeshComponent, InstancePayload, OutBoneIndex);
 	}
 	return false;
 }
