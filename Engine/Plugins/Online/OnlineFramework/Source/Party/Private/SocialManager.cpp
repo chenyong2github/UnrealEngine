@@ -311,7 +311,16 @@ void USocialManager::HandlePlatformSessionInviteAccepted(const TSharedRef<const 
 		JoinAttempt.JoinInfo = GetJoinInfoFromSession(InviteResult);
 		if (JoinAttempt.JoinInfo.IsValid())
 		{
-			QueryPartyJoinabilityInternal(JoinAttempt);
+			// We don't want to process an invitation to a party that we're already in
+			USocialParty* CurrentParty = GetPartyInternal(PersistentPartyTypeId);
+			if (CurrentParty && CurrentParty->GetPartyId() == *JoinAttempt.JoinInfo->GetPartyId())
+			{
+				FinishJoinPartyAttempt(JoinAttempt, FJoinPartyResult(EJoinPartyCompletionResult::AlreadyInParty));
+			}
+			else
+			{
+				QueryPartyJoinabilityInternal(JoinAttempt);
+			}			
 		}
 		else
 		{
