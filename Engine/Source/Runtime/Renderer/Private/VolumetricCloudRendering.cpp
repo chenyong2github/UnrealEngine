@@ -341,6 +341,13 @@ void GetCloudShadowAOData(FVolumetricCloudRenderSceneInfo* CloudInfo, FViewInfo&
 
 	OutData.bShouldSampleCloudSkyAO = CloudInfo && View.VolumetricCloudSkyAO.IsValid();
 	OutData.VolumetricCloudSkyAO = OutData.bShouldSampleCloudSkyAO ? GraphBuilder.RegisterExternalTexture(View.VolumetricCloudSkyAO) : GSystemTextures.GetBlackDummy(GraphBuilder);
+
+	// We also force disable shadows if the VolumetricCloud component itself has not initialised due to extra reasons in ShouldRenderVolumetricCloud().
+	// The below test is a simple way to check the fact that if ShouldRenderVolumetricCloud is false, then InitVolumetricCloudsForViews is not run
+	// and in this case the GetVolumetricCloudCommonShaderParametersUB has not been created, preventing the rendering of cloud shadow on SkyAtmosphere.
+	const bool bCloudComponentValid = CloudInfo && CloudInfo->GetVolumetricCloudCommonShaderParametersUB().IsValid();
+	OutData.bShouldSampleCloudShadow = OutData.bShouldSampleCloudShadow && bCloudComponentValid;
+	OutData.bShouldSampleCloudSkyAO  = OutData.bShouldSampleCloudSkyAO  && bCloudComponentValid;
 }
 
 
