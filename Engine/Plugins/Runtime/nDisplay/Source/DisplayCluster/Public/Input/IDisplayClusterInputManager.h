@@ -68,6 +68,5 @@ public:
 	//////////////////////////////////////////////////////////////////////////
 	// Tracking data access
 	virtual bool GetTrackerLocation(const FString& DeviceID, const int32 Tracker, FVector& Location) const = 0;
-	virtual bool GetTrackerQuat(const FString& DeviceID, const int32
- Tracker, FQuat& Rotation) const = 0;
+	virtual bool GetTrackerQuat(const FString& DeviceID,     const int32 Tracker, FQuat& Rotation) const = 0;
 };

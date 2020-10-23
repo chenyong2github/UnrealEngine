@@ -7,6 +7,8 @@
 
 #include "Config/IPDisplayClusterConfigManager.h"
 
+#include "DisplayClusterConfigurationTypes.h"
+
 #include "DisplayClusterRootActor.h"
 #include "Camera/CameraComponent.h"
 
@@ -47,18 +49,14 @@ void FDisplayClusterGameManager::Release()
 {
 }
 
-bool FDisplayClusterGameManager::StartSession(const FString& InConfigPath, const FString& InNodeId)
+bool FDisplayClusterGameManager::StartSession(const UDisplayClusterConfigurationData* InConfigData, const FString& InNodeId)
 {
-	ConfigPath = InConfigPath;
 	ClusterNodeId = InNodeId;
-
 	return true;
 }
 
 void FDisplayClusterGameManager::EndSession()
 {
-
-	ConfigPath.Reset();
 	ClusterNodeId.Reset();
 }
 

@@ -129,7 +129,7 @@ void FDisplayClusterRootActorDetailsCustomization::AddNodeIdRow()
 bool FDisplayClusterRootActorDetailsCustomization::RebuildNodeIdOptionsList()
 {
 	// Get current configuration data
-	UDisplayClusterConfigurationData* ConfigurationData = EditedObject->GetConfigData();
+	const UDisplayClusterConfigurationData* ConfigurationData = EditedObject->GetConfigData();
 	if (!ConfigurationData || !CategoryPreview)
 	{
 		return false;
@@ -219,7 +219,7 @@ void FDisplayClusterRootActorDetailsCustomization::AddDefaultCameraRow()
 bool FDisplayClusterRootActorDetailsCustomization::RebuildDefaultCameraOptionsList()
 {
 	// Get current configuration data
-	UDisplayClusterConfigurationData* ConfigurationData = EditedObject->GetConfigData();
+	const UDisplayClusterConfigurationData* ConfigurationData = EditedObject->GetConfigData();
 	if (!ConfigurationData || !CategoryPreview)
 	{
 		return false;

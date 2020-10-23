@@ -50,7 +50,7 @@ ADisplayClusterRootActor::ADisplayClusterRootActor(const FObjectInitializer& Obj
 	SpawnCollisionHandlingMethod = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
 }
 
-void ADisplayClusterRootActor::InitializeFromConfig(UDisplayClusterConfigurationData* ConfigData)
+void ADisplayClusterRootActor::InitializeFromConfig(const UDisplayClusterConfigurationData* ConfigData)
 {
 	// Clean up current hierarchy before building a new one
 	CleanupHierarchy();
@@ -76,7 +76,7 @@ void ADisplayClusterRootActor::InitializeFromConfig(const FString& ConfigFile)
 	if (!ConfigFile.IsEmpty())
 	{
 		// Update config data
-		UDisplayClusterConfigurationData* ConfigData = IDisplayClusterConfiguration::Get().LoadConfig(ConfigFile, this);
+		const UDisplayClusterConfigurationData* ConfigData = IDisplayClusterConfiguration::Get().LoadConfig(ConfigFile, this);
 		if (ConfigData)
 		{
 			InitializeFromConfig(ConfigData);
@@ -105,7 +105,7 @@ void ADisplayClusterRootActor::InitializeRootActor()
 		IPDisplayClusterConfigManager* const ConfigMgr = (GDisplayCluster ? GDisplayCluster->GetPrivateConfigMgr() : nullptr);
 		if (ConfigMgr)
 		{
-			UDisplayClusterConfigurationData* ConfigData = ConfigMgr->GetConfig();
+			const UDisplayClusterConfigurationData* ConfigData = ConfigMgr->GetConfig();
 			if (ConfigData)
 			{
 				InitializeFromConfig(ConfigData);
@@ -121,7 +121,7 @@ void ADisplayClusterRootActor::InitializeRootActor()
 #endif
 }
 
-bool ADisplayClusterRootActor::BuildHierarchy(UDisplayClusterConfigurationData* ConfigData)
+bool ADisplayClusterRootActor::BuildHierarchy(const UDisplayClusterConfigurationData* ConfigData)
 {
 	check(ConfigData);
 

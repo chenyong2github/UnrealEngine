@@ -34,6 +34,8 @@ protected:
 private:
 	// Intermediate temporary data (Json types)
 	FDisplayClusterConfigurationJsonContainer JsonData;
+	// Source file
+	FString ConfigFile;
 	// Owner for config data UObject we'll create on success
 	UObject* ConfigDataOwner = nullptr;
 };
