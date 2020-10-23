@@ -210,7 +210,7 @@ struct RENDERCORE_API FShaderCodeLibrary
 	static void AddShaderStableKeyValue(EShaderPlatform ShaderPlatform, FStableShaderKeyAndValue& StableKeyValue);
 
 	// Save collected shader code to a file for each specified shader platform
-	static bool SaveShaderCode(const FString& OutputDir, const FString& MetaOutputDir, const TArray<FName>& ShaderFormats, TArray<FString>& OutSCLCSVPath);
+	static bool SaveShaderCode(const FString& OutputDir, const FString& MetaOutputDir, const TArray<FName>& ShaderFormats, TArray<FString>& OutSCLCSVPath, const TArray<TSet<FName>>* ChunkAssignments);
 	
 	// Package the separate shader bytecode files into a single native shader library. Must be called by the master process.
 	static bool PackageNativeShaderLibrary(const FString& ShaderCodeDir, const TArray<FName>& ShaderFormats);
