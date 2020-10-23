@@ -25,6 +25,8 @@
 #include "NetworkPredictionProxyWrite.h"
 #include "NetworkPredictionModelDef.h"
 #include "NetworkPredictionModelDefRegistry.h"
+#include "Async/ParallelFor.h"
+#include "GameFramework/GameStateBase.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMockNetworkSim, Log, All);
 
@@ -41,6 +43,10 @@ static FAutoConsoleVariableRef CVarUseDrawDebug(TEXT("mns.Debug.UseDrawDebug"),
 static float DrawDebugDefaultLifeTime = 30.f;
 static FAutoConsoleVariableRef CVarDrawDebugDefaultLifeTime(TEXT("mns.Debug.UseDrawDebug.DefaultLifeTime"),
 	DrawDebugDefaultLifeTime, TEXT("Use built in DrawDebug* functions for visual logging"), ECVF_Default);
+
+static int32 UseParallelFor = 0;
+static FAutoConsoleVariableRef CVarParallelFor(TEXT("mns.ParallelFor"),
+	UseParallelFor,	TEXT("Use Parallel For test\n"),	ECVF_Default);
 
 // -------------------------------
 
@@ -237,6 +243,12 @@ FAutoConsoleCommandWithWorldAndArgs MockNetworkSimulationSpawnCmd(TEXT("mns.Spaw
 	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray< FString >& InArgs, UWorld* World) 
 {	
 	bool bFoundWorld = false;
+	int32 NumToSpawn = 1;
+	if (InArgs.Num() > 0)
+	{
+		LexFromString(NumToSpawn, *InArgs[0]);
+	}
+
 	for (TObjectIterator<UWorld> It; It; ++It)
 	{
 		if (It->WorldType == EWorldType::PIE && It->GetNetMode() != NM_Client)
@@ -246,12 +258,119 @@ FAutoConsoleCommandWithWorldAndArgs MockNetworkSimulationSpawnCmd(TEXT("mns.Spaw
 			{
 				if (APawn* Pawn = *ActorIt)
 				{
+					
 					UMockNetworkSimulationComponent* NewComponent = NewObject<UMockNetworkSimulationComponent>(Pawn);
 					NewComponent->RegisterComponent();
 				}
+			}
+
+			// why not
+			AGameStateBase* GameState = It->GetGameState();
+			for (int32 i=1; i < NumToSpawn; ++i)
+			{
+				UMockNetworkSimulationComponent* NewComponent = NewObject<UMockNetworkSimulationComponent>(GameState);
+				NewComponent->RegisterComponent();
 			}
 		}
 	}
 }));
 
 
+
+
+
+
+// ---------------------------------------------------------------------------------------
+// Proof of concept for a ParallelFor implementation of simulation tick
+//		-(Note: This is completely optional for using NP!)
+//		-Specialize TLocalTickService for the FMockNetworkModelDef to tick multiple sims in a ParallelFor
+//		-This is mainly a POC for doing custom batch ticking. The ParallelFor itself could be moved to TLocalTickServiceBase and be an option for anyone to use.
+//		-Right now still trying to understand if this is beneficial 
+// ---------------------------------------------------------------------------------------
+
+#define NP_MOCK_SIM_PARALLELFOR 1
+#if NP_MOCK_SIM_PARALLELFOR
+
+#include "Services/NetworkPredictionServiceRegistry.h"
+
+template<>
+class TLocalTickService<FMockNetworkModelDef> : public TLocalTickServiceBase<FMockNetworkModelDef>
+{
+public:
+
+	using ModelDef = FMockNetworkModelDef;
+	using StateTypes = typename FMockNetworkModelDef::StateTypes;
+	using InputType = typename StateTypes::InputType;
+	using SyncType = typename StateTypes::SyncType;
+	using AuxType = typename StateTypes::AuxType;
+
+	TLocalTickService(TModelDataStore<FMockNetworkModelDef>* InDataStore) : TLocalTickServiceBase<FMockNetworkModelDef>(InDataStore)
+	{
+
+	}
+
+	void RegisterInstance(FNetworkPredictionID ID)
+	{
+		TLocalTickServiceBase<FMockNetworkModelDef>::RegisterInstance(ID);
+	}
+
+	void UnregisterInstance(FNetworkPredictionID ID)
+	{
+		TLocalTickServiceBase<FMockNetworkModelDef>::UnregisterInstance(ID);
+	}
+
+	void Tick(const FNetSimTimeStep& Step, const FServiceTimeStep& ServiceStep) final override
+	{
+		SCOPE_CYCLE_COUNTER(STAT_NetworkPrediction_MockSimTick);
+
+		if (MockNetworkSimCVars::UseParallelFor)
+		{
+			const int32 InputFrame = ServiceStep.LocalInputFrame;
+			const int32 OutputFrame = ServiceStep.LocalOutputFrame;
+
+			const int32 StartTime = Step.TotalSimulationTime;
+			const int32 EndTime = ServiceStep.EndTotalSimulationTime;
+
+			TArray<FInstance> InstancesToTickTempArray;
+			InstancesToTick.GenerateValueArray(InstancesToTickTempArray);
+
+			ParallelFor(InstancesToTickTempArray.Num(), [&](int32 Index)
+			{
+				FInstance& InstanceToTick = InstancesToTickTempArray[Index];
+
+				TInstanceData<ModelDef>& Instance = DataStore->Instances.GetByIndexChecked(InstanceToTick.InstanceIdx);
+				TInstanceFrameState<ModelDef>& Frames = DataStore->Frames.GetByIndexChecked(InstanceToTick.FrameBufferIdx);
+
+				typename TInstanceFrameState<ModelDef>::FFrame& InputFrameData = Frames.Buffer[InputFrame];
+				typename TInstanceFrameState<ModelDef>::FFrame& OutputFrameData = Frames.Buffer[OutputFrame];
+
+				UE_NP_TRACE_SIM_TICK(InstanceToTick.TraceID);
+
+				// Copy current input into the output frame. This is redundant in the case where we are polling
+				// local input but is needed in the other cases. Simpler to just copy it always.
+				if (Instance.NetRole == ROLE_SimulatedProxy)
+				{
+					OutputFrameData.InputCmd = InputFrameData.InputCmd;
+				}
+
+				TTickUtil<ModelDef>::DoTick(Instance, InputFrameData, OutputFrameData, Step, EndTime, GetTickContext<false>(Instance.NetRole));
+			});
+		}
+		else
+		{
+			TLocalTickServiceBase<FMockNetworkModelDef>::Tick(Step, ServiceStep);
+		}
+	}
+
+	void TickResim(const FNetSimTimeStep& Step, const FServiceTimeStep& ServiceStep)
+	{
+		TLocalTickServiceBase<FMockNetworkModelDef>::TickResim(Step, ServiceStep);
+	}
+
+	void BeginRollback(const int32 LocalFrame, const int32 StartTimeMS, const int32 ServerFrame)
+	{
+		TLocalTickServiceBase<FMockNetworkModelDef>::BeginRollback(LocalFrame, StartTimeMS, ServerFrame);
+	}
+};
+
+#endif

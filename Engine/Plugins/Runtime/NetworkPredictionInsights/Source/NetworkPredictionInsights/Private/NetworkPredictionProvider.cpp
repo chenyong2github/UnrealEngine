@@ -4,6 +4,8 @@
 
 FName FNetworkPredictionProvider::ProviderName("NetworkPredictionProvider");
 
+DEFINE_LOG_CATEGORY_STATIC(LogNetworkPredictionTraceProvider, Log, All);
+
 // -----------------------------------------------------------------------------
 
 FNetworkPredictionProvider::FNetworkPredictionProvider(Trace::IAnalysisSession& InSession)
@@ -57,6 +59,11 @@ void FNetworkPredictionProvider::WriteSimulationTick(int32 TraceID, FSimulationD
 
 	NewTick.NumBufferedInputCmds = SimulationData.Analysis.NumBufferedInputCmds;
 	NewTick.bInputFault = SimulationData.Analysis.bInputFault;
+	NewTick.ReconcileStr = SimulationData.Analysis.PendingReconcileStr;
+	NewTick.bReconcileDueToOffsetChange = SimulationData.Analysis.bLocalFrameOffsetChanged;
+	NewTick.LocalOffsetFrame = SimulationData.Analysis.LocalFrameOffset;
+	SimulationData.Analysis.PendingReconcileStr = nullptr;
+	SimulationData.Analysis.bLocalFrameOffsetChanged = false;
 
 	// Repredict if we've already simulated past this time before
 	if (NewTick.StartMS < SimulationData.Analysis.MaxTickSimTimeMS)
@@ -340,6 +347,32 @@ void FNetworkPredictionProvider::WriteUserState(int32 TraceID, int32 Frame, uint
 void FNetworkPredictionProvider::WritePIEStart()
 {
 	PIESessionCounter++;
+}
+
+void FNetworkPredictionProvider::WriteReconcile(int32 TraceID, int32 LocalFrameOffset, bool bLocalOffsetFrameChanged)
+{
+	ensure(TraceID > 0);
+	FSimulationData& SimulationData = FindChecked(TraceID).Get();
+	ensureMsgf(SimulationData.ConstData.ID.PIESession >= 0, TEXT("Invalid PIE Session: %d"), SimulationData.ConstData.ID.PIESession);
+
+	SimulationData.Analysis.LocalFrameOffset = LocalFrameOffset;
+	SimulationData.Analysis.bLocalFrameOffsetChanged = bLocalOffsetFrameChanged;
+	
+	if (SimulationData.Analysis.PendingReconcileStr == nullptr)
+	{
+		UE_LOG(LogNetworkPredictionTraceProvider, Warning, TEXT("NP Reconcile happened without traced string. Use UE_NP_TRACE_RECONCILE"));
+	}
+}
+
+void FNetworkPredictionProvider::WriteReconcileStr(int32 TraceID, const TCHAR* UserStr)
+{
+	ensure(TraceID > 0);
+
+	FSimulationData& SimulationData = FindChecked(TraceID).Get();
+	ensureMsgf(SimulationData.ConstData.ID.PIESession >= 0, TEXT("Invalid PIE Session: %d"), SimulationData.ConstData.ID.PIESession);
+
+	ensure(SimulationData.Analysis.PendingReconcileStr == nullptr); // Not expected to get 2+ WriteReconcileStr before WriteReconcile
+	SimulationData.Analysis.PendingReconcileStr = UserStr;
 }
 
 TSharedRef<FSimulationData>& FNetworkPredictionProvider::FindOrAdd(int32 TraceID)

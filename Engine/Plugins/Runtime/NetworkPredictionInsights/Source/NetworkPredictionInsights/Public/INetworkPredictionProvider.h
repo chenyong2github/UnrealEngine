@@ -176,14 +176,6 @@ private:
 	uint64 EndItemIdx;
 };
 
-/*
-template<typename T>
-uint64 GetEngineFrame(const T& Element)
-{
-	return Element.EngineFrame;
-}
-*/
-
 template<typename T>
 typename TEnableIf<!TIsPointer<T>::Value, uint64>::Type GetEngineFrame(const T& Element)
 {
@@ -395,6 +387,9 @@ struct FSimulationData
 		uint64 ConfirmedEngineFrame = 0;	// Engine frame this became confirmed (we serialized a time past this)
 		uint64 TrashedEngineFrame = 0;		// Engine frame this became trashed (we resimulated this time in a later frame)
 		bool bRepredict = false;			// This tick was a repredict: we had already simulated up to this point before
+
+		bool bReconcileDueToOffsetChange = false;
+		const TCHAR* ReconcileStr = nullptr;
 	};
 
 	// Data that changes rarely over time about the simulation
@@ -629,6 +624,10 @@ struct FSimulationData
 		TArray<FUserState*> PendingCommitUserStates; // NetRecv'd state that hasn't been commited
 		TArray<FSystemFault> PendingSystemFaults;
 		const TCHAR* PendingOOBStr = nullptr;
+		const TCHAR* PendingReconcileStr = nullptr;
+
+		int32 LocalFrameOffset = 0;
+		bool bLocalFrameOffsetChanged = false;
 
 	} Analysis;
 };

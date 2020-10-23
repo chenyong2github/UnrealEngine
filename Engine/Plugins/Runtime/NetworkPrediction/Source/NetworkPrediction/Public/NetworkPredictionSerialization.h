@@ -313,6 +313,7 @@ public:
 		
 		UE_NP_TRACE_USER_STATE_SYNC(ModelDef, ClientRecvState.SyncState.Get());
 		UE_NP_TRACE_USER_STATE_AUX(ModelDef, ClientRecvState.AuxState.Get());
+		UE_NP_TRACE_PHYSICS_STATE_RECV(ModelDef, ClientRecvState.Physics);
 	}
 
 	static void NetSend(const FNetSerializeParams& P, TInstanceData<ModelDef>& InstanceData, typename TInstanceFrameState<ModelDef>::FFrame& FrameData)
@@ -494,6 +495,7 @@ public:
 		UE_NP_TRACE_USER_STATE_INPUT(ModelDef, ClientRecvState.InputCmd.Get());
 		UE_NP_TRACE_USER_STATE_SYNC(ModelDef, ClientRecvState.SyncState.Get());
 		UE_NP_TRACE_USER_STATE_AUX(ModelDef, ClientRecvState.AuxState.Get());
+		UE_NP_TRACE_PHYSICS_STATE_RECV(ModelDef, ClientRecvState.Physics);
 	}
 	
 	static void NetSend(const FNetSerializeParams& P, FNetworkPredictionID ID, TModelDataStore<ModelDef>* DataStore, TInstanceData<ModelDef>* InstanceData, int32 PendingFrame)

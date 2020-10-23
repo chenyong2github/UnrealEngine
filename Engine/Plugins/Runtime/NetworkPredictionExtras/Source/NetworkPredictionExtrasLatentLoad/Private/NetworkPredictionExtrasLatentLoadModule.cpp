@@ -12,6 +12,7 @@
 #include "NetworkPredictionStateTypes.h"
 #include "NetworkPredictionSimulation.h"
 #include "NetworkPredictionReplicationProxy.h"
+#include "NetworkPredictionTrace.h"
 
 #define LOCTEXT_NAMESPACE "FNetworkPredictionModuleLatentLoad"
 
@@ -133,7 +134,8 @@ struct FLatentSyncState
 	// Compare this state with AuthorityState. return true if a reconcile (correction) should happen
 	bool ShouldReconcile(const FLatentSyncState& AuthorityState) const
 	{
-		return FMath::Abs<float>(Total - AuthorityState.Total) > SMALL_NUMBER;
+		UE_NP_TRACE_RECONCILE(FMath::Abs<float>(Total - AuthorityState.Total) > SMALL_NUMBER, "Total:");
+		return false;
 	}
 
 	void ToString(FAnsiStringBuilderBase& Out) const
@@ -157,7 +159,8 @@ struct FLatentAuxState
 
 	bool ShouldReconcile(const FLatentAuxState& Authority) const
 	{
-		return Multiplier != Authority.Multiplier;
+		UE_NP_TRACE_RECONCILE(FMath::Abs<float>(Multiplier - Authority.Multiplier) > SMALL_NUMBER, "Multiplier:");
+		return false;
 	}
 
 	void ToString(FAnsiStringBuilderBase& Out) const

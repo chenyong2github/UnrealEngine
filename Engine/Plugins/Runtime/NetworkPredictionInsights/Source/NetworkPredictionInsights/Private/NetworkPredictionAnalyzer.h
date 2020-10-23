@@ -44,31 +44,13 @@ private:
 		RouteId_PhysicsState,
 		RouteId_NetRecv,
 		RouteId_ShouldReconcile,
+		RouteId_Reconcile,
 		RouteId_RollbackInject,
 		RouteId_PushInputFrame,
+		RouteId_FixedTickOffset,
 		RouteId_ProduceInput,
 		RouteId_BufferedInput,
 		RouteId_OOBStateMod
-
-		/*
-		RouteId_GameInstanceRegister,
-		RouteId_WorldFrameStart,
-		RouteId_SimulationCreated,
-		RouteId_SimulationNetRole,
-		RouteId_SimulationNetGUID,
-		RouteId_SimulationTick,
-		RouteId_OOBStateMod,
-		RouteId_OOBStateModStrSync,
-		RouteId_OOBStateModStrAux,
-		RouteId_ProduceInput,
-		RouteId_SynthInput,
-		RouteId_SimulationEOF,
-		RouteId_NetSerializeRecv,
-		RouteId_NetSerializeCommit,
-		
-		RouteId_PieBegin,
-		RouteId_SystemFault
-		*/
 	};
 
 
@@ -83,7 +65,8 @@ private:
 	int32 TickStartMS;
 	int32 TickDeltaMS;
 	int32 TickOutputFrame;
-	int32 TickLocalOffsetFrame;
+	int32 TickLocalOffsetFrame = 0;
+	bool bLocalOffsetFrameChanged = false;
 
 	int32 PendingWriteFrame;
 };

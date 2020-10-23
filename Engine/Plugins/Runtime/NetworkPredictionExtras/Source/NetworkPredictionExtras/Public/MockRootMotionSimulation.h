@@ -182,9 +182,8 @@ struct FMockRootMotionSyncState
 	bool ShouldReconcile(const FMockRootMotionSyncState& AuthorityState) const
 	{
 		const float TransformErrorTolerance = 1.f;
-		const bool bShouldReconcile = !Location.Equals(AuthorityState.Location, TransformErrorTolerance);
-
-		return bShouldReconcile;
+		UE_NP_TRACE_RECONCILE(!Location.Equals(AuthorityState.Location, TransformErrorTolerance), "Location:");
+		return false;
 	}
 };
 
@@ -209,7 +208,8 @@ struct FMockRootMotionAuxState
 
 	bool ShouldReconcile(const FMockRootMotionAuxState& AuthorityState) const
 	{
-		return this->Source != AuthorityState.Source;
+		UE_NP_TRACE_RECONCILE(this->Source != AuthorityState.Source, "EndTimeMS:");
+		return false;
 	}
 
 	void Interpolate(const FMockRootMotionAuxState* From, const FMockRootMotionAuxState* To, float PCT)
