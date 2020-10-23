@@ -8,14 +8,14 @@
 #undef USE_OPENMODEL
 #endif
 
-#include "DatasmithCoreTechTranslator.h"
+#include "CoreTechTranslator.h"
 #include "UObject/ObjectMacros.h"
 
 class FWireTranslatorImpl;
 class AlDagNode;
 
 
-class FDatasmithWireTranslator : public FDatasmithCoreTechTranslator
+class FDatasmithWireTranslator : public FCoreTechTranslator
 {
 public:
 	FDatasmithWireTranslator();

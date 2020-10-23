@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "DatasmithCoreTechTranslator.h"
+#include "CoreTechTranslator.h"
 
 #include "DatasmithImportOptions.h"
 
-void FDatasmithCoreTechTranslator::GetSceneImportOptions(TArray<TStrongObjectPtr<UDatasmithOptionsBase>>& Options)
+void FCoreTechTranslator::GetSceneImportOptions(TArray<TStrongObjectPtr<UDatasmithOptionsBase>>& Options)
 {
 	FString Extension = GetSource().GetSourceFileExtension();
 	if (Extension == "cgr" || Extension == "3dxml")
@@ -15,7 +15,7 @@ void FDatasmithCoreTechTranslator::GetSceneImportOptions(TArray<TStrongObjectPtr
 	Options.Add(GetCommonTessellationOptionsPtr());
 }
 
-void FDatasmithCoreTechTranslator::SetSceneImportOptions(TArray<TStrongObjectPtr<UDatasmithOptionsBase>>& Options)
+void FCoreTechTranslator::SetSceneImportOptions(TArray<TStrongObjectPtr<UDatasmithOptionsBase>>& Options)
 {
 	for (const TStrongObjectPtr<UDatasmithOptionsBase>& OptionPtr : Options)
 	{
@@ -26,7 +26,7 @@ void FDatasmithCoreTechTranslator::SetSceneImportOptions(TArray<TStrongObjectPtr
 	}
 }
 
-TStrongObjectPtr<UDatasmithCommonTessellationOptions>& FDatasmithCoreTechTranslator::GetCommonTessellationOptionsPtr()
+TStrongObjectPtr<UDatasmithCommonTessellationOptions>& FCoreTechTranslator::GetCommonTessellationOptionsPtr()
 {
 	if (!CommonTessellationOptionsPtr.IsValid())
 	{

@@ -14,7 +14,7 @@
 class UStaticMesh;
 
 UCLASS(Blueprintable, BlueprintType, meta = (DisplayName = "CAD Surface Operations Library"))
-class DATASMITHCORETECHEXTENSION_API UCoreTechBlueprintLibrary : public UBlueprintFunctionLibrary
+class CORETECHEXTENSION_API UCoreTechBlueprintLibrary : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
 

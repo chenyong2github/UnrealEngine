@@ -4,16 +4,16 @@
 
 #include "Modules/ModuleInterface.h"
 
-#define DATASMITHCORETECHPARAMETRICSURFACEDATA_MODULE_NAME TEXT("DatasmithCoreTechParametricSurfaceData")
+#define CORETECHSURFACE_MODULE_NAME TEXT("CoreTechSurface")
 
 /**
  * This module exposes additional features for assets containing CoreTech data.
  */
-class FDatasmithCoreTechParametricSurfaceDataModule : public IModuleInterface
+class FCoreTechSurfaceModule : public IModuleInterface
 {
 public:
 	virtual void StartupModule() override;
 
-	static FDatasmithCoreTechParametricSurfaceDataModule& Get();
+	static FCoreTechSurfaceModule& Get();
 	static bool IsAvailable();
 };

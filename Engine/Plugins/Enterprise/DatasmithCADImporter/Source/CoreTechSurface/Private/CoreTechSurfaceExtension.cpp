@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreTechParametricSurfaceExtension.h"
+#include "CoreTechSurfaceExtension.h"
 #include "DatasmithPayload.h"
 #include "IDatasmithSceneElements.h"
 #include "Misc/FileHelper.h"
@@ -28,7 +28,7 @@ void UCoreTechParametricSurfaceData::Serialize(FArchive& Ar)
 	}
 }
 
-namespace DatasmithCoreTechParametricSurfaceData
+namespace CoreTechSurface
 {
 	// TODO: convert to FCoreTechSceneParameters/FCoreTechMeshParameters ?
 	void AddCoreTechSurfaceDataForMesh(const TSharedRef<IDatasmithMeshElement>& InMeshElement, const CADLibrary::FImportParameters& InSceneParameters, const CADLibrary::FMeshParameters& InMeshParameters, const FDatasmithTessellationOptions& InTessellationOptions, FDatasmithMeshElementPayload& OutMeshPayload)

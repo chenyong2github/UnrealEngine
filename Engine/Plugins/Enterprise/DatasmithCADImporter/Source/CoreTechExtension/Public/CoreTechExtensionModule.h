@@ -4,15 +4,15 @@
 
 #include "Modules/ModuleInterface.h"
 
-#define DATASMITHCORETECHEXTENSION_MODULE_NAME TEXT("DatasmithCoreTechExtension")
+#define CORETECHEXTENSION_MODULE_NAME TEXT("CoreTechExtension")
 
 /**
  * This module exposes additional features for assets containing CoreTech data.
  */
-class FDatasmithCoreTechExtensionModule : public IModuleInterface
+class FCoreTechExtensionModule : public IModuleInterface
 {
 public:
-    static FDatasmithCoreTechExtensionModule& Get();
+    static FCoreTechExtensionModule& Get();
     static bool IsAvailable();
 
 private:

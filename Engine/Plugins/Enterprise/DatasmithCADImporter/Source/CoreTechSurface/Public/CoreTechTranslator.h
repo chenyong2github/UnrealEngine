@@ -11,10 +11,10 @@
 class UDatasmithCommonTessellationOptions;
 
 
-class DATASMITHCORETECHPARAMETRICSURFACEDATA_API FDatasmithCoreTechTranslator : public IDatasmithTranslator
+class CORETECHSURFACE_API FCoreTechTranslator : public IDatasmithTranslator
 {
 public:
-	virtual ~FDatasmithCoreTechTranslator() {}
+	virtual ~FCoreTechTranslator() {}
 
 	// Begin IDatasmithTranslator overrides
 	virtual void GetSceneImportOptions(TArray<TStrongObjectPtr<UDatasmithOptionsBase>>& Options) override;

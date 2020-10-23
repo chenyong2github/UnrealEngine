@@ -4,9 +4,9 @@ using System.IO;
 
 namespace UnrealBuildTool.Rules
 {
-	public class DatasmithCoreTechParametricSurfaceData : ModuleRules
+	public class CoreTechSurface : ModuleRules
 	{
-		public DatasmithCoreTechParametricSurfaceData(ReadOnlyTargetRules Target) : base(Target)
+		public CoreTechSurface(ReadOnlyTargetRules Target) : base(Target)
 		{
 			PublicDependencyModuleNames.AddRange(
 				new string[]

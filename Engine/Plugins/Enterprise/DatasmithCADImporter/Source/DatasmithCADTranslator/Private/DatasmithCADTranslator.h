@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 
-#include "DatasmithCoreTechTranslator.h"
+#include "CoreTechTranslator.h"
 
 #ifdef CAD_LIBRARY
 #include "CADOptions.h"
@@ -17,7 +17,7 @@
 
 class IDatasmithMeshElement;
 
-class FDatasmithCADTranslator : public FDatasmithCoreTechTranslator
+class FDatasmithCADTranslator : public FCoreTechTranslator
 {
 public:
 	virtual FName GetFName() const override { return "DatasmithCADTranslator"; };

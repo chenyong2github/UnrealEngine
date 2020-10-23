@@ -8,11 +8,11 @@
 #include "DatasmithAdditionalData.h"
 #include "DatasmithImportOptions.h"
 
-#include "CoreTechParametricSurfaceExtension.generated.h"
+#include "CoreTechSurfaceExtension.generated.h"
 
 
 USTRUCT(BlueprintType)
-struct DATASMITHCORETECHPARAMETRICSURFACEDATA_API FCoreTechSceneParameters
+struct CORETECHSURFACE_API FCoreTechSceneParameters
 {
 	GENERATED_BODY()
 
@@ -28,7 +28,7 @@ struct DATASMITHCORETECHPARAMETRICSURFACEDATA_API FCoreTechSceneParameters
 };
 
 USTRUCT()
-struct DATASMITHCORETECHPARAMETRICSURFACEDATA_API FCoreTechMeshParameters
+struct CORETECHSURFACE_API FCoreTechMeshParameters
 {
 	GENERATED_BODY()
 
@@ -47,7 +47,7 @@ struct DATASMITHCORETECHPARAMETRICSURFACEDATA_API FCoreTechMeshParameters
 
 
 UCLASS(meta = (DisplayName = "Parametric Surface Data"))
-class DATASMITHCORETECHPARAMETRICSURFACEDATA_API UCoreTechParametricSurfaceData : public UDatasmithAdditionalData
+class CORETECHSURFACE_API UCoreTechParametricSurfaceData : public UDatasmithAdditionalData
 {
 	GENERATED_BODY()
 
@@ -83,7 +83,7 @@ namespace CADLibrary
 	struct FMeshParameters;
 }
 
-namespace DatasmithCoreTechParametricSurfaceData
+namespace CoreTechSurface
 {
-	void DATASMITHCORETECHPARAMETRICSURFACEDATA_API AddCoreTechSurfaceDataForMesh(const TSharedRef<IDatasmithMeshElement>& InMeshElement, const CADLibrary::FImportParameters& InSceneParameters, const CADLibrary::FMeshParameters&, const FDatasmithTessellationOptions& InTessellationOptions, FDatasmithMeshElementPayload& OutMeshPayload);
+	void CORETECHSURFACE_API AddCoreTechSurfaceDataForMesh(const TSharedRef<IDatasmithMeshElement>& InMeshElement, const CADLibrary::FImportParameters& InSceneParameters, const CADLibrary::FMeshParameters&, const FDatasmithTessellationOptions& InTessellationOptions, FDatasmithMeshElementPayload& OutMeshPayload);
 }

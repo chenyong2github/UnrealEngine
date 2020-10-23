@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "DatasmithCoreTechExtensionModule.h"
+#include "CoreTechExtensionModule.h"
 
 #include "CoreTechRetessellateAction.h"
 
@@ -12,7 +12,7 @@
 #include "UObject/StrongObjectPtr.h"
 
 
-#define LOCTEXT_NAMESPACE "DatasmithCoreTechExtensionModule"
+#define LOCTEXT_NAMESPACE "CoreTechExtensionModule"
 
 
 /** UI extension that displays a Retessellate action in the StaticMeshEditor */
@@ -77,17 +77,17 @@ namespace StaticMeshEditorExtenser
 	}
 };
 
-FDatasmithCoreTechExtensionModule& FDatasmithCoreTechExtensionModule::Get()
+FCoreTechExtensionModule& FCoreTechExtensionModule::Get()
 {
-	return FModuleManager::LoadModuleChecked< FDatasmithCoreTechExtensionModule >(DATASMITHCORETECHEXTENSION_MODULE_NAME);
+	return FModuleManager::LoadModuleChecked< FCoreTechExtensionModule >(CORETECHEXTENSION_MODULE_NAME);
 }
 
-bool FDatasmithCoreTechExtensionModule::IsAvailable()
+bool FCoreTechExtensionModule::IsAvailable()
 {
-	return FModuleManager::Get().IsModuleLoaded(DATASMITHCORETECHEXTENSION_MODULE_NAME);
+	return FModuleManager::Get().IsModuleLoaded(CORETECHEXTENSION_MODULE_NAME);
 }
 
-void FDatasmithCoreTechExtensionModule::StartupModule()
+void FCoreTechExtensionModule::StartupModule()
 {
 	if (!IsRunningCommandlet())
 	{
@@ -95,7 +95,7 @@ void FDatasmithCoreTechExtensionModule::StartupModule()
 	}
 }
 
-IMPLEMENT_MODULE(FDatasmithCoreTechExtensionModule, DatasmithCoreTechExtension);
+IMPLEMENT_MODULE(FCoreTechExtensionModule, CoreTechExtension);
 
 #undef LOCTEXT_NAMESPACE // "DatasmithCoreTechExtensionModule"
 

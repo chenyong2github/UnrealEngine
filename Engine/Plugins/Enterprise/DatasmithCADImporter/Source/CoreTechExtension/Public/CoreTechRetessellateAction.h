@@ -4,14 +4,14 @@
 
 #include "CoreMinimal.h"
 
-#include "CoreTechParametricSurfaceExtension.h"
+#include "CoreTechSurfaceExtension.h"
 #include "DatasmithCustomAction.h"
 #include "DatasmithAdditionalData.h"
 #include "DatasmithImportOptions.h"
 
 #include "CoreTechRetessellateAction.generated.h"
 
-class DATASMITHCORETECHEXTENSION_API FCoreTechRetessellate_Impl
+class CORETECHEXTENSION_API FCoreTechRetessellate_Impl
 {
 public:
 	static const FText Label;
@@ -24,7 +24,7 @@ public:
 
 
 UCLASS()
-class DATASMITHCORETECHEXTENSION_API UCoreTechRetessellateAction : public UDatasmithCustomActionBase
+class CORETECHEXTENSION_API UCoreTechRetessellateAction : public UDatasmithCustomActionBase
 {
 	GENERATED_BODY()
 
@@ -45,7 +45,7 @@ public:
 
 
 UCLASS(config = Editor, Transient)
-class DATASMITHCORETECHEXTENSION_API UCoreTechRetessellateActionOptions : public UObject
+class CORETECHEXTENSION_API UCoreTechRetessellateActionOptions : public UObject
 {
 	GENERATED_BODY()
 

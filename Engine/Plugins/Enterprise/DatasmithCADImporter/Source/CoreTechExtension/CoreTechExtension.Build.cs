@@ -4,9 +4,9 @@ using System.IO;
 
 namespace UnrealBuildTool.Rules
 {
-	public class DatasmithCoreTechExtension : ModuleRules
+	public class CoreTechExtension : ModuleRules
 	{
-		public DatasmithCoreTechExtension(ReadOnlyTargetRules Target) : base(Target)
+		public CoreTechExtension(ReadOnlyTargetRules Target) : base(Target)
 		{
 			PublicDependencyModuleNames.AddRange(
 				new string[]
@@ -23,7 +23,7 @@ namespace UnrealBuildTool.Rules
 					"MeshDescription",
 					"DataprepCore",
 					"DatasmithContent",
-					"DatasmithCoreTechParametricSurfaceData",
+					"CoreTechSurface",
 					"DatasmithImporter",
 					"Engine",
 					"StaticMeshEditor",
