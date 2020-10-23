@@ -1473,7 +1473,7 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLights(
 
 				// Note: Skip shadow mask generation for rect light if direct illumination is computed
 				//		 stochastically (rather than analytically + shadow mask)
-				const bool bDrawShadows = SortedLightInfo.SortKey.Fields.bShadowed && !ShouldRenderRayTracingStochasticRectLight(LightSceneInfo);
+				const bool bDrawShadows = SortedLightInfo.SortKey.Fields.bShadowed;
 				const bool bDrawLightFunction = SortedLightInfo.SortKey.Fields.bLightFunction;
 				const bool bDrawPreviewIndicator = ViewFamily.EngineShowFlags.PreviewShadowsIndicator && !LightSceneInfo.IsPrecomputedLightingValid() && LightSceneProxy.HasStaticShadowing();
 				const bool bDrawHairShadow = bDrawShadows && bUseHairLighting;
@@ -1521,8 +1521,7 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLights(
 						const bool bWantsBatchedShadow = OcclusionType == FLightOcclusionType::Raytraced && 
 							bDoShadowBatching &&
 							bDenoiserCompatible &&
-							SortedLightInfo.SortKey.Fields.bShadowed && 
-							!ShouldRenderRayTracingStochasticRectLight(LightSceneInfo);
+							SortedLightInfo.SortKey.Fields.bShadowed;
 
 						// determine if this light doesn't yet have a precomuted shadow and execute a batch to amortize costs if one is needed
 						if (
@@ -1584,7 +1583,7 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLights(
 								const FLightSceneInfo& BatchLightSceneInfo = *BatchSortedLightInfo.LightSceneInfo;
 
 								// Denoiser do not support texture rect light important sampling.
-								const bool bBatchDrawShadows = BatchSortedLightInfo.SortKey.Fields.bShadowed && !ShouldRenderRayTracingStochasticRectLight(BatchLightSceneInfo);
+								const bool bBatchDrawShadows = BatchSortedLightInfo.SortKey.Fields.bShadowed;
 
 								if (!bBatchDrawShadows)
 									continue;
@@ -1995,39 +1994,22 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLights(
 					ScreenShadowMaskSubPixelTexture = nullptr;
 				}
 
-				if (ShouldRenderRayTracingStochasticRectLight(LightSceneInfo))
+				// Render the light to the scene color buffer, conditionally using the attenuation buffer or a 1x1 white texture as input 
+				if (bDirectLighting)
 				{
-					FRDGTextureRef RectLightRT = nullptr;
-					FRDGTextureRef HitDistanceRT = nullptr;
-					RenderRayTracingStochasticRectLight(GraphBuilder, SceneColorTexture, SceneTexturesUniformBuffer, LightSceneInfo, RectLightRT, HitDistanceRT);
-					// #dxr_todo: Denoise RectLight
-
-					CompositeRayTracingSkyLight(
-						GraphBuilder,
-						SceneColorTexture,
-						SceneColorTexture->Desc.Extent,
-						RectLightRT,
-						HitDistanceRT);
+					const bool bRenderOverlap = false;
+					RenderLight(GraphBuilder, SceneColorTexture, SceneDepthTexture, SceneTexturesUniformBuffer, &LightSceneInfo, ScreenShadowMaskTexture, LightingChannelsTexture, InHairVisibilityViews, bRenderOverlap);
 				}
-				else
+
+				if (bUseHairLighting)
 				{
-					// Render the light to the scene color buffer, conditionally using the attenuation buffer or a 1x1 white texture as input 
-					if (bDirectLighting)
+					FHairStrandsTransmittanceMaskData TransmittanceMaskData;
+					if (bDrawHairShadow)
 					{
-						const bool bRenderOverlap = false;
-						RenderLight(GraphBuilder, SceneColorTexture, SceneDepthTexture, SceneTexturesUniformBuffer, &LightSceneInfo, ScreenShadowMaskTexture, LightingChannelsTexture, InHairVisibilityViews, bRenderOverlap);
+						TransmittanceMaskData = RenderHairStrandsTransmittanceMask(GraphBuilder, Views, &LightSceneInfo, HairDatas, ScreenShadowMaskSubPixelTexture);
 					}
 
-					if (bUseHairLighting)
-					{
-						FHairStrandsTransmittanceMaskData TransmittanceMaskData;
-						if (bDrawHairShadow)
-						{
-							TransmittanceMaskData = RenderHairStrandsTransmittanceMask(GraphBuilder, Views, &LightSceneInfo, HairDatas, ScreenShadowMaskSubPixelTexture);
-						}
-
-						RenderLightForHair(GraphBuilder, SceneTexturesUniformBuffer, &LightSceneInfo, ScreenShadowMaskSubPixelTexture, LightingChannelsTexture, TransmittanceMaskData, InHairVisibilityViews);
-					}
+					RenderLightForHair(GraphBuilder, SceneTexturesUniformBuffer, &LightSceneInfo, ScreenShadowMaskSubPixelTexture, LightingChannelsTexture, TransmittanceMaskData, InHairVisibilityViews);
 				}
 			}
 		}
