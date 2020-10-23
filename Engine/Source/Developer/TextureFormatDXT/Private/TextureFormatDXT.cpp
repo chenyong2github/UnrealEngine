@@ -491,20 +491,38 @@ class FTextureFormatDXT : public ITextureFormat
 
 		bool bCompressionSucceeded = true;
 		int64 SliceSize = (int64)Image.SizeX * Image.SizeY;
-		for (int32 SliceIndex = 0; SliceIndex < Image.NumSlices && bCompressionSucceeded; ++SliceIndex)
+
+		if (Image.NumSlices == 1 && OutCompressedImage.RawData.Num() == 0)
 		{
-			TArray64<uint8> CompressedSliceData;
+			// Avoid using a temp buffer when it's not needed
 			bCompressionSucceeded = CompressImageUsingNVTT(
-				(&Image.AsBGRA8()[0]) + SliceIndex * SliceSize,
+				(&Image.AsBGRA8()[0]),
 				CompressedPixelFormat,
 				Image.SizeX,
 				Image.SizeY,
 				Image.IsGammaCorrected(),
 				bIsNormalMap,
 				false, // Daniel Lamb: Testing with this set to true didn't give large performance gain to lightmaps.  Encoding of 140 lightmaps was 19.2seconds with preview 20.1 without preview.  11/30/2015
-				CompressedSliceData
+				OutCompressedImage.RawData
 				);
-			OutCompressedImage.RawData.Append(CompressedSliceData);
+		}
+		else
+		{
+			for (int32 SliceIndex = 0; SliceIndex < Image.NumSlices && bCompressionSucceeded; ++SliceIndex)
+			{
+				TArray64<uint8> CompressedSliceData;
+				bCompressionSucceeded = CompressImageUsingNVTT(
+					(&Image.AsBGRA8()[0]) + SliceIndex * SliceSize,
+					CompressedPixelFormat,
+					Image.SizeX,
+					Image.SizeY,
+					Image.IsGammaCorrected(),
+					bIsNormalMap,
+					false, // Daniel Lamb: Testing with this set to true didn't give large performance gain to lightmaps.  Encoding of 140 lightmaps was 19.2seconds with preview 20.1 without preview.  11/30/2015
+					CompressedSliceData
+					);
+				OutCompressedImage.RawData.Append(MoveTemp(CompressedSliceData));
+			}
 		}
 
 		if (bCompressionSucceeded)
