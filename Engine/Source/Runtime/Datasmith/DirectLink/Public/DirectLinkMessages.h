@@ -33,8 +33,6 @@ T* NewMessage(ArgsType&&... Args)
 
 
 
-
-
 USTRUCT(meta=(Experimental))
 struct FDirectLinkMsg_EndpointLifecycle
 {
@@ -237,7 +235,7 @@ struct FDirectLinkMsg_HaveListMessage
 		None,
 		OpenHaveList, // see Payload
 		HaveListElement, // see NodeIds and Hashes
-		AckDeltaMessage, // trash hack... #ue_directlink_cleanup
+		AckDeltaMessage, // #ue_directlink_cleanup
 		CloseHaveList,
 	};
 

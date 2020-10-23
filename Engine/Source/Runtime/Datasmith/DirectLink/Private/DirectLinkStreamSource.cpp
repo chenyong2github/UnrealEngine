@@ -3,7 +3,10 @@
 #include "DirectLinkStreamSource.h"
 
 #include "DirectLinkMisc.h"
-#include "DirectLinkStreamSender.h"
+#include "DirectLinkSceneSnapshot.h"
+#include "DirectLinkStreamCommunicationInterface.h"
+#include "Misc/ScopeRWLock.h"
+
 
 namespace DirectLink
 {
@@ -27,7 +30,7 @@ void FStreamSource::Snapshot()
 
 	{
 		FRWScopeLock _(SendersLock, SLT_ReadOnly);
-		for (TSharedPtr<FStreamSender>& Sender : Senders)
+		for (TSharedPtr<IStreamSender>& Sender : Senders)
 		{
 			Sender->SetSceneSnapshot(NewSnapshot);
 		}
@@ -35,7 +38,7 @@ void FStreamSource::Snapshot()
 }
 
 
-void FStreamSource::LinkSender(const TSharedPtr<FStreamSender>& Sender)
+void FStreamSource::LinkSender(const TSharedPtr<IStreamSender>& Sender)
 {
 	if (ensure(Sender))
 	{

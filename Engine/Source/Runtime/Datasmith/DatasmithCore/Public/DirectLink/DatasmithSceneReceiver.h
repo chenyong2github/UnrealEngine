@@ -3,7 +3,7 @@
 #pragma once
 
 #include "DirectLinkDeltaConsumer.h"
-#include "DirectLinkElementSnapshot.h"
+#include "DirectLinkSceneGraphNode.h"
 
 
 class IDatasmithElement;

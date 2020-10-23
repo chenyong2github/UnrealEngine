@@ -10,8 +10,8 @@
 #include "DirectLink/DatasmithDirectLinkTools.h"
 
 #include "DirectLinkCommon.h"
+#include "DirectLinkElementSnapshot.h"
 #include "DirectLinkLog.h"
-#include "DirectLinkMisc.h"
 #include "DirectLinkSceneSnapshot.h"
 
 
