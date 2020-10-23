@@ -1,15 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================================
-PathTracingSpecularReflection.usf: Lambertian BRDF sampling functions
+PathTracingSpecularReflection.usf: Singular Mirror BRDF sampling functions
 ===============================================================================================*/
+
 #pragma once
+
+// NOTE: this is no longer used, keeping around as reference
 
 void SpecularReflection_SampleMaterial(
 	float3 RayDirection,
 	FMaterialClosestHitPayload Payload,
 	out float3 OutDirection,
-	out float3 OutThroughput,
+	out float3 OutWeight,
 	out float OutPdf)
 {
 	float3 N_World = GetWorldNormal(Payload);
@@ -18,20 +21,14 @@ void SpecularReflection_SampleMaterial(
 	float3 V_World = normalize(-RayDirection);
 	OutDirection = reflect(-V_World, N_World);
 
-	float NoV = saturate(dot(V_World, N_World));
-	float VoH = NoV;
-	OutThroughput = F_Schlick(SpecularColor, VoH);
+	float NoV = abs(dot(V_World, N_World));
 
-	OutPdf = 1.0;
+	OutWeight = F_Schlick(SpecularColor, NoV);
+	OutPdf = POSITIVE_INFINITY;
 }
 
-float SpecularReflection_Pdf()
+void SpecularReflection_EvalMaterial(out float3 OutWeight, out float OutPdf)
 {
-	return 0.0;
-}
-
-void SpecularReflection_EvalMaterial(out float3 OutThroughput, out float OutPdf)
-{
-	OutThroughput = float3(0.0, 0.0, 0.0);
-	OutPdf = SpecularReflection_Pdf();
+	OutWeight = 0;
+	OutPdf = 0;
 }

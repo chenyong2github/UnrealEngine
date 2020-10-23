@@ -68,6 +68,7 @@ void SkyLight_EstimateLight(
 	int LightId,
 	float3 WorldPos,
 	float3 WorldNormal,
+	bool IsTransmissiveMaterial,
 	out float OutIrradiance
 )
 {

@@ -73,7 +73,8 @@ float IntegratePdfInSphericalPatch(float Theta0, float Phi0, float Theta1, float
 			}
 			else if (BrdfType == 1)
 			{
-				PDF = Glossy_Pdf(Wo, Wi, Payload);
+				float3 Weight = 0;
+				DefaultLit_EvalMaterial(Wo, Wi, Payload, Weight, PDF);
 			}
 			else
 			{

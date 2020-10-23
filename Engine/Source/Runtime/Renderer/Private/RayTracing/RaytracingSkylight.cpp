@@ -154,7 +154,7 @@ struct FSkyLightVisibilityRays
 	FVector4 DirectionAndPdf;
 };
 
-void SetupSkyLightParameters(
+bool SetupSkyLightParameters(
 	const FScene& Scene,
 	FSkyLightData* SkyLightData)
 {
@@ -195,6 +195,9 @@ void SetupSkyLightParameters(
 		SkyLightData->MipTreePdfPosZ = Scene.SkyLight->ImportanceSamplingData->MipTreePdfPosZ.SRV;
 		SkyLightData->MipTreePdfNegZ = Scene.SkyLight->ImportanceSamplingData->MipTreePdfNegZ.SRV;
 		SkyLightData->SolidAnglePdf = Scene.SkyLight->ImportanceSamplingData->SolidAnglePdf.SRV;
+
+		// we prepared a valid SkyLight
+		return true;
 	}
 	else
 	{
@@ -223,6 +226,9 @@ void SetupSkyLightParameters(
 		SkyLightData->MipTreePdfPosZ = GBlackTextureWithSRV->ShaderResourceViewRHI;
 		SkyLightData->MipTreePdfNegZ = GBlackTextureWithSRV->ShaderResourceViewRHI;
 		SkyLightData->SolidAnglePdf = GBlackTextureWithSRV->ShaderResourceViewRHI;
+
+		// we returned a dummy SkyLight
+		return false;
 	}
 }
 

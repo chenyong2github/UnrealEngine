@@ -51,7 +51,6 @@ float GetClearCoatRoughness(FMaterialClosestHitPayload HitInfo)
 
 float3 GetClearCoatBottomNormal(FMaterialClosestHitPayload HitInfo)
 {
-	float3 N = HitInfo.WorldNormal;
 #ifdef PATH_TRACING
 	#if CLEAR_COAT_BOTTOM_NORMAL
 	// Functionally inverse of behavior in RayTracingMaterialHitShader.usf
@@ -59,26 +58,16 @@ float3 GetClearCoatBottomNormal(FMaterialClosestHitPayload HitInfo)
 	float2 oct3 = float2(HitInfo.CustomData.a, HitInfo.CustomData.z);
 	float2 oct1 = (oct3 - (128.0 / 255.0)) * 2.0 + oct2;
 
-	N = OctahedronToUnitVector(oct1);
+	return OctahedronToUnitVector(oct1);
 	#endif
 #endif
-	return N;
+	return HitInfo.WorldNormal;
 }
 
 float GetClearCoatThickness(FMaterialClosestHitPayload HitInfo)
 {
 	// Assume normalized thickness
 	return 1.0;
-}
-
-float GetClearCoatIor(FMaterialClosestHitPayload HitInfo)
-{
-	return 1.5;
-}
-
-float GetIor(FMaterialClosestHitPayload HitInfo)
-{
-	return DielectricF0ToIor(DielectricSpecularToF0(HitInfo.Specular));
 }
 
 float3 GetSubsurfaceColor(FMaterialClosestHitPayload HitInfo)
@@ -89,16 +78,6 @@ float3 GetSubsurfaceColor(FMaterialClosestHitPayload HitInfo)
 float3 GetWorldNormal(FMaterialClosestHitPayload HitInfo)
 {
 	return HitInfo.WorldNormal;
-}
-
-bool IsPureSpecular(FMaterialClosestHitPayload HitInfo)
-{
-	return GetRoughness(HitInfo) < GLOSSY_MIN_ROUGHNESS;
-}
-
-bool IsPureSpecularReflection(FMaterialClosestHitPayload HitInfo)
-{
-	return IsPureSpecular(HitInfo) && HitInfo.BlendingMode == 0 && HitInfo.Metallic == 1;
 }
 
 bool IsPureSpecularTransmission(FMaterialClosestHitPayload HitInfo)
@@ -136,19 +115,29 @@ bool IsMaterialTransmissive(FMaterialClosestHitPayload HitInfo)
 	return HitInfo.ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE;
 }
 
-bool BSDF_Refract(float3 V, float3 N, float Eta, out float3 L)
+// Takes as input the sample weight and pdf for a certain lobe of a mixed model, together with the probability of picking that lobe
+// This function then updates a running total Weight and Pdf value that represents the overall contribution of the BxDF
+// This function should be called when a BxDF is made up of multiple lobes combined with a sum to correctly account for the probability
+// of sampling directions via all lobes.
+// NOTE: this function also contains special logic to handle cases with infinite pdfs cleanly
+void AddLobeWithMIS(inout float3 Weight, inout float Pdf, float3 LobeWeight, float LobePdf, float LobeProb)
 {
-	const float CosThetaI = dot(V, N);
-	const float CosThetaT2 = 1.f - Eta * Eta * (1.0f - CosThetaI * CosThetaI);
-	if (CosThetaT2 < 0.0f)
+	const float MinLobeProb = 1.1754943508e-38; // smallest normal float
+	if (LobeProb > MinLobeProb)
 	{
-		// Total internal reflection
-		L = reflect(-V, N);
-		return false;
+		LobePdf *= LobeProb;
+		LobeWeight *= 1 / LobeProb;
+
+		// See discussion in MISWeightRobust for why this is better than LobePdf / (Pdf + LobePdf)
+		float MISWeight;
+		if (Pdf < LobePdf)
+			MISWeight = 1 / (1 + Pdf / LobePdf);
+		else if (LobePdf < Pdf)
+			MISWeight = 1 - 1 / (1 + LobePdf / Pdf);
+		else
+			MISWeight = 0.5f; // avoid (rare) inf/inf
+
+		Weight = lerp(Weight, LobeWeight, MISWeight);
+		Pdf += LobePdf;
 	}
-
-	const float CosThetaT = -(CosThetaI >= 0.0f ? 1.0f : -1.0f) * sqrt(CosThetaT2);
-	L = (Eta * CosThetaI + CosThetaT) * N - Eta * V;
-
-	return true;
 }

@@ -383,10 +383,10 @@ void PathTracingKernel(
 					EvalLight(LightId, LightUV, LightRay, Radiance);
 	
 					// Evaluate material
-					float Ior1 = 1.0;
-					float3 MaterialThroughput;
+					float3 MaterialEvalWeight = 0;
 					float MaterialEvalPdf = 0.0;
-					EvalMaterial(Ray.Direction, LightRay.Direction, RayHitInfo, Ior1, Bounces == 1, MaterialThroughput, MaterialEvalPdf);
+					EvalMaterial(Ray.Direction, LightRay.Direction, RayHitInfo, Bounces == 1, MaterialEvalWeight, MaterialEvalPdf);
+					float3 MaterialThroughput = MaterialEvalWeight * MaterialEvalPdf;
 	
 					// Apply material Pdf for correct MIS weight
 					float MisWeight = 1.0;
@@ -395,7 +395,7 @@ void PathTracingKernel(
 					#if 0
 						// DEBUG: Validate Material PDF
 						float MaterialPdfTmp;
-						PdfMaterial(Ray.Direction, LightRay, RayHitInfo, Ior1, Bounces == 1, MaterialPdfTmp);
+						PdfMaterial(Ray.Direction, LightRay, RayHitInfo, Bounces == 1, MaterialPdfTmp);
 						if (abs(MaterialPdf - MaterialPdfTmp) > 0.0001)
 						{
 							MaterialThroughput *= -1.f;
@@ -420,21 +420,21 @@ void PathTracingKernel(
 		}
 	
 		// Sample material
-		float Ior1 = 1.0;
 		float3 Direction;
-		float3 Throughput;
+		float3 Weight;
 		float4 RandSample = RandomSequence_GenerateSample4D(RandSequence, SampleIndex);
 		float SignedPositionBias;
 		float SamplePdf;
-		SampleMaterial(Ray.Direction, RayHitInfo, Ior1, RandSample, Bounces == 1, Direction, Throughput, SamplePdf, SignedPositionBias);
+		SampleMaterial(Ray.Direction, RayHitInfo, RandSample, Bounces == 1, Direction, Weight, SamplePdf, SignedPositionBias);
 		if (SamplePdf == 0.0)
 		{
 			break;
 		}
+		float3 Throughput = Weight * SamplePdf;
 	
-		PdfMaterial(Ray.Direction, Direction, Payload, Ior1, Bounces == 1, MaterialPdf);
+		PdfMaterial(Ray.Direction, Direction, Payload, Bounces == 1, MaterialPdf);
 		// Debug: Evaluation of a candidate sample direction should maintain energy balance with pathspace MIS
-		// EvalMaterial(Ray.Direction, Direction, RayHitInfo, Ior1, Bounces == 1, Throughput, MaterialPdf);
+		// EvalMaterial(Ray.Direction, Direction, RayHitInfo, Bounces == 1, Throughput, MaterialPdf);
 		// SamplePdf = MaterialPdf;
 
 		// Update ray

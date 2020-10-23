@@ -46,6 +46,11 @@ TAutoConsoleVariable<int32> CVarPathTracingVisibleLights(
 	TEXT("1: Make lights visible to camera\n")
 );
 
+TAutoConsoleVariable<int32> CVarPathTracingMaxPathIntensity(
+	TEXT("r.PathTracing.MaxPathIntensity"),
+	-1,
+	TEXT("When positive, light paths greater that this amount are clamped to prevent fireflies (default = -1 (off))")
+);
 
 TAutoConsoleVariable<int32> CVarPathTracingFrameIndependentTemporalSeed(
 	TEXT("r.PathTracing.FrameIndependentTemporalSeed"),
@@ -109,20 +114,6 @@ TAutoConsoleVariable<int32> CVarPathTracingWiperMode(
 	0,
 	TEXT("Enables wiper mode to render using the path tracer only in a region of the screen for debugging purposes (default = 0, wiper mode disabled)"),
 	ECVF_RenderThreadSafe 
-);
-
-TAutoConsoleVariable<int32> CVarPathTracingRussianRouletteStartingBounce(
-	TEXT("r.PathTracing.RussianRouletteStartingBounce"),
-	5,
-	TEXT("Determines the starting bounce condition for Russian Roulette"),
-	ECVF_RenderThreadSafe
-);
-
-TAutoConsoleVariable<float> CVarPathTracingFireFlyRejectionTreshold(
-	TEXT("r.PathTracing.FireFlyRejectionThreshold"),
-	1024.0,
-	TEXT("Defines the maximum energy off a sample, after which it is categorized as a firefly"),
-	ECVF_RenderThreadSafe
 );
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FPathTracingData, "PathTracingData");
@@ -196,14 +187,43 @@ public:
 
 			int32 PathTracingMaxBounces = GPathTracingMaxBounces > -1 ? GPathTracingMaxBounces : View.FinalPostProcessSettings.PathTracingMaxBounces;
 			PathTracingData.MaxBounces = PathTracingMaxBounces;
+			PathTracingData.MaxNormalBias = GetRaytracingMaxNormalBias();
+			PathTracingData.MISMode = CVarPathTracingMISMode.GetValueOnRenderThread();
+			PathTracingData.VisibleLights = CVarPathTracingVisibleLights.GetValueOnRenderThread();
+			PathTracingData.MaxPathIntensity = CVarPathTracingMaxPathIntensity.GetValueOnRenderThread();
+
+			// If any of the parameters above changed since last time -- reset the accumulation
 			static uint32 PrevMaxBounces = PathTracingMaxBounces;
 			if (PathTracingData.MaxBounces != PrevMaxBounces)
 			{
 				Scene->bPathTracingNeedsInvalidation = true;
 				PrevMaxBounces = PathTracingData.MaxBounces;
 			}
-			PathTracingData.RussianRouletteStartingBounce = CVarPathTracingRussianRouletteStartingBounce.GetValueOnRenderThread();
-			PathTracingData.FireFlyRejectionThreshold = CVarPathTracingFireFlyRejectionTreshold.GetValueOnRenderThread();
+
+			// Changing MIS mode requires starting over
+			static uint32 PreviousMISMode = PathTracingData.MISMode;
+			if (PreviousMISMode != PathTracingData.MISMode)
+			{
+				Scene->bPathTracingNeedsInvalidation = true;
+				PreviousMISMode = PathTracingData.MISMode;
+			}
+
+			// Changing VisibleLights requires starting over
+			static uint32 PreviousVisibleLights = PathTracingData.VisibleLights;
+			if (PreviousVisibleLights != PathTracingData.VisibleLights)
+			{
+				Scene->bPathTracingNeedsInvalidation = true;
+				PreviousVisibleLights = PathTracingData.VisibleLights;
+			}
+
+			// Changing MaxPathIntensity requires starting over
+			static float PreviousMaxPathIntensity = PathTracingData.MaxPathIntensity;
+			if (PreviousMaxPathIntensity != PathTracingData.MaxPathIntensity)
+			{
+				Scene->bPathTracingNeedsInvalidation = true;
+				PreviousMaxPathIntensity = PathTracingData.MaxPathIntensity;
+			}
+
 			PathTracingData.TileOffset = TileOffset;
 
 			FUniformBufferRHIRef PathTracingDataUniformBuffer = RHICreateUniformBuffer(&PathTracingData, FPathTracingData::StaticStructMetadata.GetLayout(), EUniformBufferUsage::UniformBuffer_SingleDraw);
@@ -212,8 +232,9 @@ public:
 
 		// Sky light
 		FSkyLightData SkyLightData;
+		bool IsSkyLightValid = false;
 		{
-			SetupSkyLightParameters(*Scene, &SkyLightData);
+			IsSkyLightValid = SetupSkyLightParameters(*Scene, &SkyLightData);
 
 			FUniformBufferRHIRef SkyLightUniformBuffer = RHICreateUniformBuffer(&SkyLightData, FSkyLightData::StaticStructMetadata.GetLayout(), EUniformBufferUsage::UniformBuffer_SingleDraw);
 			GlobalResources.Set(SkyLightParameters, SkyLightUniformBuffer);
@@ -224,15 +245,17 @@ public:
 			FPathTracingLightData LightData;
 			LightData.Count = 0;
 
-			// Prepend SkyLight to light buffer
-			// WARNING: Until ray payload encodes Light data buffer, the execution depends on this ordering!
-			uint32 SkyLightIndex = 0;
-			uint8 SkyLightLightingChannelMask = 0xFF;
-			LightData.Type[SkyLightIndex] = 0;
-			LightData.Color[SkyLightIndex] = FVector(SkyLightData.Color);
-			LightData.Flags[SkyLightIndex] = SkyLightData.bTransmission & 0x01;
-			LightData.Flags[SkyLightIndex] |= (SkyLightLightingChannelMask & 0x7) << 1;
-			LightData.Count++;
+			// Prepend SkyLight to light buffer since it is not part of the regular light list
+			if (IsSkyLightValid)
+			{
+				uint32 SkyLightIndex = 0;
+				uint8 SkyLightLightingChannelMask = 0xFF;
+				LightData.Type[SkyLightIndex] = 0;
+				LightData.Color[SkyLightIndex] = FVector(SkyLightData.Color);
+				LightData.Flags[SkyLightIndex] = SkyLightData.bTransmission & 0x01;
+				LightData.Flags[SkyLightIndex] |= (SkyLightLightingChannelMask & 0x7) << 1;
+				LightData.Count++;
+			}
 
 			for (auto Light : Lights)
 			{
@@ -250,7 +273,6 @@ public:
 				ELightComponentType LightComponentType = (ELightComponentType)Light.LightSceneInfo->Proxy->GetLightType();
 				switch (LightComponentType)
 				{
-					// TODO: LightType_Spot
 					case LightType_Directional:
 					{
 						LightData.Type[LightData.Count] = 2;
@@ -279,21 +301,24 @@ public:
 						LightData.Type[LightData.Count] = 4;
 						LightData.Position[LightData.Count] = LightParameters.Position;
 						LightData.Normal[LightData.Count] = -LightParameters.Direction;
-						// #dxr_todo: UE-72556  define these differences from Lit..
 						LightData.Color[LightData.Count] = LightParameters.Color;
 						LightData.Dimensions[LightData.Count] = FVector(LightParameters.SpotAngles, LightParameters.SourceRadius);
 						LightData.Attenuation[LightData.Count] = 1.0 / LightParameters.InvRadius;
 						break;
 					}
 					case LightType_Point:
-					default:
 					{
 						LightData.Type[LightData.Count] = 1;
 						LightData.Position[LightData.Count] = LightParameters.Position;
-						// #dxr_todo: UE-72556  define these differences from Lit..
 						LightData.Color[LightData.Count] = LightParameters.Color;
 						LightData.Dimensions[LightData.Count] = FVector(0.0, 0.0, LightParameters.SourceRadius);
 						LightData.Attenuation[LightData.Count] = 1.0 / LightParameters.InvRadius;
+						break;
+					}
+					default:
+					{
+						// Just in case someone adds a new light type one day ...
+						checkNoEntry();
 						break;
 					}
 				};
@@ -318,26 +343,15 @@ public:
 			}
 
 			FPathTracingAdaptiveSamplingData AdaptiveSamplingData;
-			AdaptiveSamplingData.MaxNormalBias = GetRaytracingMaxNormalBias();
 			AdaptiveSamplingData.UseAdaptiveSampling = CVarPathTracingAdaptiveSampling.GetValueOnRenderThread();
 			AdaptiveSamplingData.RandomSequence = CVarPathTracingRandomSequence.GetValueOnRenderThread();
-			AdaptiveSamplingData.MISMode = CVarPathTracingMISMode.GetValueOnRenderThread();
-			AdaptiveSamplingData.VisibleLights = CVarPathTracingVisibleLights.GetValueOnRenderThread();
 
-			// Changing MIS mode requires starting over
-			static uint32 PreviousMISMode = AdaptiveSamplingData.MISMode;
-			if (PreviousMISMode != AdaptiveSamplingData.MISMode)
+			// Changing Adaptive sampling mode requires starting over
+			static uint32 PreviousUseAdaptiveSampling = AdaptiveSamplingData.UseAdaptiveSampling;
+			if (PreviousUseAdaptiveSampling != AdaptiveSamplingData.UseAdaptiveSampling)
 			{
 				Scene->bPathTracingNeedsInvalidation = true;
-				PreviousMISMode = AdaptiveSamplingData.MISMode;
-			}
-
-			// Changing VisibleLights requires starting over
-			static uint32 PreviousVisibleLights = AdaptiveSamplingData.VisibleLights;
-			if (PreviousVisibleLights != AdaptiveSamplingData.VisibleLights)
-			{
-				Scene->bPathTracingNeedsInvalidation = true;
-				PreviousVisibleLights = AdaptiveSamplingData.VisibleLights;
+				PreviousUseAdaptiveSampling = AdaptiveSamplingData.UseAdaptiveSampling;
 			}
 
 			if (VarianceMipTree.NumBytes > 0)

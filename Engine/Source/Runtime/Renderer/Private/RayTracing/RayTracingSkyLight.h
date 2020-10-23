@@ -59,7 +59,7 @@ END_SHADER_PARAMETER_STRUCT()
 
 int32 GetRayTracingSkyLightDecoupleSampleGenerationCVarValue();
 
-extern RENDERER_API void SetupSkyLightParameters(const FScene& Scene, FSkyLightData* SkyLight);
+extern RENDERER_API bool SetupSkyLightParameters(const FScene& Scene, FSkyLightData* SkyLight);
 void SetupSkyLightQuasiRandomParameters(const FScene& Scene, const FViewInfo& View, FIntVector& OutBlueNoiseDimensions, FSkyLightQuasiRandomData* OutSkyLightQuasiRandomData);
 void SetupSkyLightVisibilityRaysParameters(FRDGBuilder& GraphBuilder, const FViewInfo& View, FSkyLightVisibilityRaysData* OutSkyLightVisibilityRaysData);
 

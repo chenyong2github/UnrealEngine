@@ -11,7 +11,7 @@ void SpecularRefraction_SampleMaterial(
 	FMaterialClosestHitPayload Payload,
 	float4 RandSample,
 	out float3 OutDirection,
-	out float3 OutThroughput,
+	out float3 OutWeight,
 	out float OutPdf,
 	out float OutPositionBiasSign)
 {
@@ -23,43 +23,24 @@ void SpecularRefraction_SampleMaterial(
 	// #dxr_todo Determine if parameterization from Specular is still the proper path forward
 	//float Ior = Payload.Ior;
 	float Ior = DielectricF0ToIor(DielectricSpecularToF0(Payload.Specular));
-	float N1 = bIsEntering ? 1.0 : Ior;
-	float N2 = bIsEntering ? Ior : 1.0;
-	float Fr = bIsEntering ? FresnelDielectric(dot(-RayDirection, WorldNormal), N1, N2) : 0.0;
+	float Eta = bIsEntering ? Ior : 1.0 / Ior;
 
-	// Stochastically choose to reflect/refract based on Fresnel term
-	float ProbReflect = bIsEntering ? Fr : 0.0;
-	if (RandSample.x < ProbReflect)
+	// Throughput is 1 since we pick reflect/refract according to the fresnel term
+	OutWeight = 1.0;
+	OutPdf = POSITIVE_INFINITY;
+
+	if (SampleRefraction(RayDirection, WorldNormal, Eta, RandSample.x, OutDirection))
 	{
-		OutDirection = reflect(RayDirection, WorldNormal);
-		OutThroughput = Fr;
-		OutPdf = ProbReflect;
-		OutPositionBiasSign = 1.0;
+		OutPositionBiasSign = -1;
 	}
 	else
 	{
-		float Eta = N1 / N2;
-		OutThroughput = 1.0 - Fr;
-		OutPdf = 1.0 - ProbReflect;
-		OutDirection = refract(RayDirection, WorldNormal, Eta);
-		OutPositionBiasSign = -1.0;
-
-		// Total internal reflection
-		if (!any(OutDirection))
-		{
-			OutDirection = reflect(RayDirection, WorldNormal);
-			OutPositionBiasSign = 1.0;
-		}
+		OutPositionBiasSign = 1;
 	}
 } 
 
-float SpecularTransmission_Pdf()
-{
-	return 0.0;
-}
-
 void SpecularTransmission_EvalMaterial(out float3 OutThroughput, out float OutPdf)
 {
-	OutThroughput = float3(0.0, 0.0, 0.0);
-	OutPdf = SpecularTransmission_Pdf();
+	OutThroughput = 0;
+	OutPdf = 0;
 }
