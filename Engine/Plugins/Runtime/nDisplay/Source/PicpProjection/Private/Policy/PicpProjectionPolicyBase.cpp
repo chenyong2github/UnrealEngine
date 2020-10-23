@@ -27,6 +27,9 @@ void FPicpProjectionPolicyBase::InitializeOriginComponent(const FString& OriginC
 {
 	UE_LOG(LogPicpProjectionMPCDI, Log, TEXT("Looking for an origin component '%s'..."), *OriginCompId);
 
+	// Reset previous one
+	PolicyOriginComponentRef.ResetSceneComponent();
+
 	IDisplayClusterGameManager* const GameMgr = IDisplayCluster::Get().GetGameMgr();
 	if (!GameMgr)
 	{
@@ -60,4 +63,9 @@ void FPicpProjectionPolicyBase::InitializeOriginComponent(const FString& OriginC
 	}
 
 	PolicyOriginComponentRef.SetSceneComponent(PolicyOriginComp);
+}
+
+void FPicpProjectionPolicyBase::ReleaseOriginComponent()
+{
+	PolicyOriginComponentRef.ResetSceneComponent();
 }
