@@ -366,6 +366,9 @@ void AdjustBaseColorAndSpecularColorForSubsurfaceProfileLightingCopyHack(inout f
 	}
 }
 
+#ifndef INDIRECT_SAMPLE_COUNT
+	#define INDIRECT_SAMPLE_COUNT 8
+#endif
 
 void GBufferPostDecode(inout FGBufferData Ret, bool bChecker, bool bGetNormalizedNormal)
 {
