@@ -644,6 +644,9 @@ static int32 GetBufferNumBits(EGBufferType Format, int32 Channel)
 	case GBT_Float_16_16:
 		Ret = 16;
 		break;
+	case GBT_Float_16_16_16_16:
+		Ret = 16;
+		break;
 	default:
 		check(0);
 		break;
@@ -672,6 +675,9 @@ static int32 GetTargetNumChannels(EGBufferType Type)
 		break;
 	case GBT_Float_16_16:
 		Ret = 2;
+		break;
+	case GBT_Float_16_16_16_16:
+		Ret = 4;
 		break;
 	default:
 		check(0);

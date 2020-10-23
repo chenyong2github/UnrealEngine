@@ -256,7 +256,7 @@ FGBufferInfo RENDERCORE_API FetchLegacyGBufferInfo(const FGBufferParams& Params)
 		TargetGBufferD = 5;
 
 		// note the false for use extra flags for velocity, not quite sure of all the ramifications, but this keeps it consistent with previous usage
-		Info.Targets[4].Init(GBT_Float_16_16,   TEXT("Velocity"), false,  true,  true, false);
+		Info.Targets[4].Init(Params.bUsesVelocityDepth ? GBT_Float_16_16_16_16 : GBT_Float_16_16,   TEXT("Velocity"), false,  true,  true, false);
 		Info.Targets[5].Init(GBT_Unorm_8_8_8_8, TEXT("GBufferD"), false,  true,  true,  true);
 
 		if (Params.bHasPrecShadowFactor)

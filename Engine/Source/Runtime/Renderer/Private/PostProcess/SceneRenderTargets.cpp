@@ -1380,7 +1380,7 @@ void FSceneRenderTargets::AllocGBufferTargets(FRHICommandList& RHICmdList, EText
 		const int32 IndexC = FindGBufferTargetByName(GBufferInfo, "GBufferC");
 		const int32 IndexD = FindGBufferTargetByName(GBufferInfo, "GBufferD");
 		const int32 IndexE = FindGBufferTargetByName(GBufferInfo, "GBufferE");
-		const int32 IndexVelocity = FindGBufferTargetByName(GBufferInfo, "GBufferVelocity");
+		const int32 IndexVelocity = FindGBufferTargetByName(GBufferInfo, "Velocity");
 
 		if (IndexA >= 0)
 		{
