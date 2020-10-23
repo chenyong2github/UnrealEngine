@@ -879,7 +879,8 @@ bool FWebRemoteControlModule::HandleGetPresetsRoute(const FHttpServerRequest& Re
 {
 	TUniquePtr<FHttpServerResponse> Response = WebRemoteControlUtils::CreateHttpResponse(EHttpServerResponseCodes::Ok);
 
-	TArray<URemoteControlPreset*> Presets = IRemoteControlModule::Get().GetPresets();
+	TArray<TSoftObjectPtr<URemoteControlPreset>> Presets;
+	IRemoteControlModule::Get().GetPresets(Presets);
 
 	WebRemoteControlUtils::SerializeResponse(FListPresetsResponse{ Presets }, Response->Body);
 

@@ -232,5 +232,5 @@ public:
 	/**
 	 * Get all the presets currently registered with the module.
 	 */
-	virtual TArray<URemoteControlPreset*> GetPresets() = 0;
+	virtual void GetPresets(TArray<TSoftObjectPtr<URemoteControlPreset>>& OutPresets) = 0;
 };

@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "IRemoteControlModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
+#include "AssetRegistry/IAssetRegistry.h"
 #include "Misc/CoreMisc.h"
 #include "UObject/UnrealType.h"
 #include "UObject/Class.h"
@@ -112,7 +114,6 @@ public:
 		check(Preset);
 		if (RegisteredPresetMap.Contains(Name))
 		{
-			UE_LOG(LogRemoteControl, Warning, TEXT("Could not register preset %s"), *Preset->GetPathName());
 			return false;
 		}
 
@@ -474,45 +475,51 @@ public:
 
 	virtual URemoteControlPreset* ResolvePreset(FName PresetName) const override
 	{
-		if (const TWeakObjectPtr<URemoteControlPreset>* Preset = RegisteredPresetMap.Find(PresetName))
+		if (const TSoftObjectPtr<URemoteControlPreset>* Preset = RegisteredPresetMap.Find(PresetName))
 		{
-			return Preset->Get();
+			return Preset->LoadSynchronous();
 		}
 
 		return nullptr;
 	}
 
-	virtual TArray<URemoteControlPreset*> GetPresets() override
+	virtual void GetPresets(TArray<TSoftObjectPtr<URemoteControlPreset>>& OutPresets) override
 	{
-		TArray<URemoteControlPreset*> Presets;
-		Presets.Reserve(RegisteredPresetMap.Num());
-
-		for (auto It = RegisteredPresetMap.CreateIterator(); It; ++It)
+		if (!bHasDoneInitialPresetSearch)
 		{
-			if (It.Value().IsValid())
-			{
+			bHasDoneInitialPresetSearch = true;
+			FAssetRegistryModule& AssetRegistryModule = FModuleManager::Get().LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+			IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
+			FARFilter Filter;
+			Filter.bIncludeOnlyOnDiskAssets = true;
+			Filter.ClassNames = { URemoteControlPreset::StaticClass()->GetFName() };
+			Filter.bRecursivePaths = true;
+			Filter.PackagePaths = { TEXT("/Game") };
+			TArray<FAssetData> Assets;
+			AssetRegistry.GetAssets(Filter, Assets);
 
-				Presets.Add(It.Value().Get());
-			}
-			else
+			for (const FAssetData& AssetData : Assets)
 			{
-				It.RemoveCurrent();
+				RegisteredPresetMap.Emplace(AssetData.AssetName, AssetData.ToSoftObjectPath());
 			}
 		}
 
-		return Presets;
+		return RegisteredPresetMap.GenerateValueArray(OutPresets);
 	}
 
 private:
 	
-	/** Map of all preset assets registed with the module and available for remote access */
-	TMap<FName, TWeakObjectPtr<URemoteControlPreset>> RegisteredPresetMap;
+	/** Map of all preset assets */
+	TMap<FName, TSoftObjectPtr<URemoteControlPreset>> RegisteredPresetMap;
 
 	/** Delegate for preset registration */
 	FOnPresetRegistered OnPresetRegisteredDelegate;
 
 	/** Delegate for preset unregistration */
 	FOnPresetUnregistered OnPresetUnregisteredDelegate;
+
+	/** Whether the module has already scanned for existing preset assets. */
+	bool bHasDoneInitialPresetSearch = false;
 };
 
 #undef LOCTEXT_NAMESPACE
