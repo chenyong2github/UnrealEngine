@@ -75,6 +75,7 @@
 
 // hair tools
 #include "Hair/GroomToMeshTool.h"
+#include "Hair/GroomCardsEditorTool.h"
 #include "GenerateLODMeshesTool.h"
 
 #include "EditorModeManager.h"
@@ -754,6 +755,8 @@ void FModelingToolsEditorMode::Enter()
 	UGroomToMeshToolBuilder* GroomToMeshToolBuilder = NewObject<UGroomToMeshToolBuilder>();
 	GroomToMeshToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
 	RegisterToolFunc(ToolManagerCommands.BeginGroomToMeshTool, TEXT("GroomToMeshTool"), GroomToMeshToolBuilder);
+
+	RegisterToolFunc(ToolManagerCommands.BeginGroomCardsEditorTool, TEXT("GroomCardsEditorTool"), NewObject<UGroomCardsEditorToolBuilder>());
 
 	UGenerateLODMeshesToolBuilder* GenerateLODMeshesToolBuilder = NewObject<UGenerateLODMeshesToolBuilder>();
 	GenerateLODMeshesToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();

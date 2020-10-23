@@ -40,23 +40,32 @@ struct MESHMODELINGTOOLSEDITORONLY_API FLODLevelGenerateSettings
 {
 	GENERATED_BODY()
 
+	/** Simplification Scheme  */
+	UPROPERTY(EditAnywhere, Category = Options)
+	ESimplifyType SimplifierType = ESimplifyType::UE4Standard;
+
+	/** Simplification Target Type  */
 	UPROPERTY(EditAnywhere, Category = Options)
 	ESimplifyTargetType TargetMode;
 
+	/** Target percentage */
 	UPROPERTY(EditAnywhere, Category = Options, meta = (UIMin = "0", UIMax = "100", EditConditionHides, EditCondition = "TargetMode == ESimplifyTargetType::Percentage"))
 	int32 TargetPercentage;
 
-	/** Target triangle count */
+	/** Target vertex/triangle count */
 	UPROPERTY(EditAnywhere, Category = Options, meta = (UIMin = "4", UIMax = "10000", ClampMin = "1", ClampMax = "9999999999", EditConditionHides, EditCondition = "TargetMode == ESimplifyTargetType::TriangleCount || TargetMode == ESimplifyTargetType::VertexCount"))
 	int32 TargetCount;
+
+	/** Target vertex/triangle count */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Options)
+	bool bReproject = false;
 
 	UPROPERTY(VisibleAnywhere, Category = Options)
 	FString Result;
 
-
 	bool operator!=(const FLODLevelGenerateSettings& Other)
 	{
-		return TargetMode != Other.TargetMode || TargetPercentage != Other.TargetPercentage || TargetCount != Other.TargetCount;
+		return SimplifierType != Other.SimplifierType || TargetMode != Other.TargetMode || TargetPercentage != Other.TargetPercentage || TargetCount != Other.TargetCount || bReproject != Other.bReproject;
 	}
 };
 
@@ -78,7 +87,8 @@ public:
 	ESimplifyTargetType TargetMode = ESimplifyTargetType::Percentage;
 
 	/** Simplification Scheme  */
-	UPROPERTY(EditAnywhere, Category = Options)
+	//UPROPERTY(EditAnywhere, Category = Options)
+	UPROPERTY()
 	ESimplifyType SimplifierType = ESimplifyType::UE4Standard;
 
 	/** Output LOD Assets will be numbered starting at this number */
