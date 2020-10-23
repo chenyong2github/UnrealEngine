@@ -43,5 +43,5 @@ public:
 
 private:
 	void AddNiagaraSystemTrack(TArray<FGuid> ObjectBindings);
-	void AddNiagaraParameterTrack(TArray<FGuid> ObjectBindings, FNiagaraVariable Parameter);
+	void AddNiagaraParameterTrack(TArray<FGuid> ObjectBindings, FNiagaraVariable Parameter, TArray<uint8> DefaultValue);
 };
