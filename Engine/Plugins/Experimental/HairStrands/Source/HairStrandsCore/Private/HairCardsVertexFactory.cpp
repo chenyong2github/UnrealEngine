@@ -143,15 +143,15 @@ public:
 		if (InstanceGeometryType == EHairGeometryType::Cards)
 		{
 			const FHairGroupInstance::FCards::FLOD& LOD = Instance->Cards.LODs[LODIndex];
-			check(LOD.UniformBuffer);
 			const uint32 UniformIndex = LOD.DeformedResource->GetIndex(FHairCardsDeformedResource::Current);
+			check(LOD.UniformBuffer[UniformIndex]);
 			VertexFactoryUniformBuffer = LOD.UniformBuffer[UniformIndex];
 		}
 		else if (InstanceGeometryType == EHairGeometryType::Meshes)
 		{
 			const FHairGroupInstance::FMeshes::FLOD& LOD = Instance->Meshes.LODs[LODIndex];
-			check(LOD.UniformBuffer);
 			const uint32 UniformIndex = LOD.DeformedResource->GetIndex(FHairMeshesDeformedResource::Current);
+			check(LOD.UniformBuffer[UniformIndex]);
 			VertexFactoryUniformBuffer = LOD.UniformBuffer[UniformIndex];
 		}
 		
