@@ -5928,9 +5928,10 @@ void UStaticMesh::CreateBodySetup()
 {
 	if (GetBodySetup() == nullptr)
 	{
-		SetBodySetup(NewObject<UBodySetup>(this));
-		GetBodySetup()->DefaultInstance.SetCollisionProfileName(UCollisionProfile::BlockAll_ProfileName);
-		GetBodySetup()->bSupportUVsAndFaceRemap = bSupportPhysicalMaterialMasks;
+		UBodySetup* NewBodySetup = NewObject<UBodySetup>(this);
+		NewBodySetup->DefaultInstance.SetCollisionProfileName(UCollisionProfile::BlockAll_ProfileName);
+		NewBodySetup->bSupportUVsAndFaceRemap = bSupportPhysicalMaterialMasks;
+		SetBodySetup(NewBodySetup);
 	}
 }
 

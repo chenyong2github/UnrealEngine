@@ -2051,11 +2051,10 @@ bool UStaticMeshComponent::UsesTextureLightmaps(int32 InWidth, int32 InHeight) c
 bool UStaticMeshComponent::HasLightmapTextureCoordinates() const
 {
 	const UStaticMesh* Mesh = GetStaticMesh();
-	if (Mesh != NULL &&
+	if (Mesh != nullptr &&
 		Mesh->LightMapCoordinateIndex >= 0 &&
-		Mesh->GetRenderData() != NULL &&
-		Mesh->GetRenderData()->LODResources.Num() > 0 &&
-		Mesh->LightMapCoordinateIndex >= 0)
+		Mesh->GetRenderData() != nullptr &&
+		Mesh->GetRenderData()->LODResources.Num() > 0)
 	{
 		int32 MeshMinLOD = Mesh->MinLOD.GetValue();
 		MeshMinLOD = FMath::Min(MeshMinLOD,  Mesh->GetRenderData()->LODResources.Num() - 1);
