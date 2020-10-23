@@ -18,6 +18,8 @@ ONLINESUBSYSTEM_API DECLARE_LOG_CATEGORY_EXTERN(LogOnlineTitleFile, Log, All);
 	UE_CLOG(Conditional, LogOnlineTitleFile, Verbosity, TEXT("%s%s"), ONLINE_LOG_PREFIX, *FString::Printf(Format, ##__VA_ARGS__)); \
 }
 
+struct FAnalyticsEventAttribute;
+
 /**
  * Delegate fired when the list of files has been returned from the network store
  *
@@ -46,6 +48,15 @@ typedef FOnReadFileProgress::FDelegate FOnReadFileProgressDelegate;
  */
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnReadFileComplete, bool, const FString&);
 typedef FOnReadFileComplete::FDelegate FOnReadFileCompleteDelegate;
+
+/**
+ * Delegate fired when we would like to report an event to an analytics provider.
+ * 
+ * @param EventName the name of the event
+ * @param Attributes the key/value pairs of analytics event attributes to include with the event
+ */
+ DECLARE_MULTICAST_DELEGATE_TwoParams(FOnTitleFileAnalyticsEvent, const FString& /* EventName */, const TArray<FAnalyticsEventAttribute>& /* Attributes */)
+ typedef FOnTitleFileAnalyticsEvent::FDelegate FOnTitleFileAnalyticsEventDelegate;
 
 class IOnlineTitleFile
 {
@@ -139,6 +150,14 @@ public:
 	 * @param NumBytes the number of bytes read so far
 	 */
 	DEFINE_ONLINE_DELEGATE_TWO_PARAM(OnReadFileProgress, const FString&, uint64);
+
+	/**
+	 * Delegate fired when we would like to report an event to an analytics provider.
+	 *
+	 * @param EventName the name of the event
+	 * @param Attributes the key/value pairs of analytics event attributes to include with the event
+	 */
+	DEFINE_ONLINE_DELEGATE_TWO_PARAM(OnTitleFileAnalyticsEvent, const FString& /* EventName */, const TArray<FAnalyticsEventAttribute>& /* Attributes */)
 };
 
 typedef TSharedPtr<IOnlineTitleFile, ESPMode::ThreadSafe> IOnlineTitleFilePtr;
