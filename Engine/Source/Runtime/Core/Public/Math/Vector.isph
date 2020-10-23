@@ -2730,4 +2730,12 @@ inline uniform FVector4 VectorReduceAdd(const FVector4& A)
 	return SetVector4(reduce_add(A.V[0]), reduce_add(A.V[1]), reduce_add(A.V[2]), reduce_add(A.V[3]));
 }
 
+inline FVector VectorGetSafeNormal(const FVector &V)
+{
+	//We want N / ||N|| and to avoid inf
+	//So we want N / ||N|| < 1 / eps => N eps < ||N||, but this is clearly true for all eps < 1 and N > 0
+	float SizeSqr = VectorSizeSquared(V);
+	return VectorSelect(SizeSqr <= FLT_MIN, ForwardVector, V / sqrt(SizeSqr));
+}
+
 #endif
