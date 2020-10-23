@@ -1523,7 +1523,13 @@ bool FMaterialResource::IsStrataMaterial() const
 {
 	// STRATA_TODO IsStrataMaterial should go away once Strata implementation is finished
 	const URendererSettings* RendererSettings = GetDefault<URendererSettings>();
-	return RendererSettings && RendererSettings->bEnableStrata ? Material->HasStrataFrontMaterialConnected() : false;
+	if (RendererSettings && RendererSettings->bEnableStrata)
+	{
+		return Material->bUseMaterialAttributes ?
+			Material->MaterialAttributes.IsConnected(MP_FrontMaterial) :
+			Material->HasStrataFrontMaterialConnected();
+	}
+	return false;
 }
 
 bool FMaterialResource::RequiresSynchronousCompilation() const
