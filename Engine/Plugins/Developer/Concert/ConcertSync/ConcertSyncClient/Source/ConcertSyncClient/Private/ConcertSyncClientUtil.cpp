@@ -485,23 +485,9 @@ UWorld* GetCurrentWorld()
 	return CurrentWorld;
 }
 
-UObject* FindAssetInPackage(const UPackage* InPackage)
-{
-	UObject* Asset = nullptr;
-	ForEachObjectWithOuter(InPackage, [&Asset](UObject* Object)
-		{
-			if (Object->IsAsset())
-			{
-				ensure(Asset == nullptr);
-				Asset = Object;
-			}
-		}, false);
-	return Asset;
-}
-
 void FillPackageInfo(UPackage* InPackage, UObject* InAsset, const EConcertPackageUpdateType InPackageUpdateType, FConcertPackageInfo& OutPackageInfo)
 {
-	UObject* Asset = InAsset ? InAsset : FindAssetInPackage(InPackage);
+	UObject* Asset = InAsset ? InAsset : InPackage->FindAssetInPackage();
 	OutPackageInfo.PackageName = InPackage->GetFName();
 	OutPackageInfo.AssetClass = Asset ? Asset->GetClass()->GetPathName() : FString();
 	OutPackageInfo.PackageFileExtension = Asset && Asset->IsA<UWorld>()? FPackageName::GetMapPackageExtension() : FPackageName::GetAssetPackageExtension();
