@@ -180,7 +180,7 @@ private:
 	TArray<uint8> ParameterData;
 	
 	/** Data interfaces for this script. Possibly overridden with externally owned interfaces. Also indexed by ParameterOffsets. */
-	UPROPERTY()
+	UPROPERTY(instanced)
 	TArray<UNiagaraDataInterface*> DataInterfaces;
 
 	/** UObjects referenced by this store. Also indexed by ParameterOffsets.*/
