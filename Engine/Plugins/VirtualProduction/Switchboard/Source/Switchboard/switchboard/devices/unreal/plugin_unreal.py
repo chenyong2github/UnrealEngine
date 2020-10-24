@@ -99,8 +99,7 @@ class DeviceUnreal(Device):
         self.unreal_client.delegates["state"] = self.on_listener_state
 
         self._remote_programs_start_queue = {} # key: message_id, name
-        self._running_remote_program_names = {} # key: program id, value: program name
-        self._running_remote_program_ids = {} # key: program name, value: program id
+        self._running_remote_programs = {} # key: program id, value: program name
 
     @classmethod
     def plugin_settings(cls):
@@ -277,26 +276,38 @@ class DeviceUnreal(Device):
             self.unreal_client.send_message(msg)
 
     def build(self):
+
         if self.status == DeviceStatus.SYNCING:
             self.start_build_after_sync = True
             LOGGER.info(f"{self.name}: Build scheduled to start after successful sync operation")
             return
+
         engine_path = CONFIG.ENGINE_DIR.get_value(self.name)
         build_tool = os.path.join(engine_path, "Binaries", "DotNET", "UnrealBuildTool")
         build_args = f'Win64 Development -project="{CONFIG.UPROJECT_PATH.get_value(self.name)}" -TargetType=Editor -Progress -NoHotReloadFromIDE' 
         program_name = "build"
+
         mid, msg = message_protocol.create_start_process_message(prog_path=build_tool, prog_args=build_args, prog_name=program_name, caller=self.name)
         self._remote_programs_start_queue[mid] = program_name
+
         LOGGER.info(f"{self.name}: Sending build command: {build_tool} {build_args}")
+
         self.unreal_client.send_message(msg)
         self.status = DeviceStatus.BUILDING
 
     def close(self, force=False):
-        try:
-            program_id = self._running_remote_program_ids["unreal"]
-            _, msg = message_protocol.create_kill_process_message(program_id)
-            self.unreal_client.send_message(msg)
-        except KeyError:
+
+        # This call only refers to "unreal" programs.
+
+        num_found = 0
+
+        for prog_id, prog_name in self._running_remote_programs.items(): 
+            if prog_name == 'unreal':
+                _, msg = message_protocol.create_kill_process_message(prog_id)
+                self.unreal_client.send_message(msg)
+                num_found += 1
+
+        if not num_found:
             self.status = DeviceStatus.CLOSED
 
     def generate_unreal_exe_path(self):
@@ -347,14 +358,20 @@ class DeviceUnreal(Device):
         if unexpected:
             self.device_qt_handler.signal_device_client_disconnected.emit(self)
 
+    def programs_ids_with_name(self, program_name):
+        return [prog_id for prog_id, prog_name in self._running_remote_programs.items() if prog_name == program_name]
+
+    def remove_program_ids(self, prog_ids):
+        for prog_id in prog_ids:
+            self._running_remote_programs.pop(prog_id)
+
     def do_program_running_update(self, program_name, program_id):
 
         if program_name == "unreal":
             self.status = DeviceStatus.OPEN
             self.send_osc_message(osc.OSC_ADD_SEND_TARGET, [SETTINGS.IP_ADDRESS, CONFIG.OSC_SERVER_PORT.get_value()])
 
-        self._running_remote_program_names[program_id] = program_name
-        self._running_remote_program_ids[program_name] = program_id
+        self._running_remote_programs[program_id] = program_name
 
     def on_program_started(self, program_id, message_id):
 
@@ -363,8 +380,11 @@ class DeviceUnreal(Device):
         self.do_program_running_update(program_name=program_name, program_id=program_id)
 
     def on_program_start_failed(self, error, message_id):
+
         program_name = self._remote_programs_start_queue.pop(message_id)
+
         LOGGER.error(f"Could not start {program_name}: {error}")
+        
         if program_name in ["sync", "build"]:
             self.status = DeviceStatus.CLOSED
             self.project_changelist = self.project_changelist # force to show existing project_changelist to hide building/syncing
@@ -373,8 +393,15 @@ class DeviceUnreal(Device):
 
         LOGGER.info(f"{self.name}: Program with id {program_id} exited with returncode {returncode}")
 
-        program_name = self._running_remote_program_names.pop(program_id)
-        self._running_remote_program_ids.pop(program_name)
+        try:
+            program_name = self._running_remote_programs.pop(program_id)
+        except KeyError:
+            LOGGER.error(f"{self.name}: on_program_ended with unknown id {program_id}")
+            return
+
+        # check if there are remaining programs named the same but with different ids, which is not normal.
+        for prog_id in self.programs_ids_with_name(program_name):
+            LOGGER.warning(f'{self.name}: But ({prog_id}) with the same name "{program_name}" is still in the list, which is unexpected')
 
         if program_name == "unreal":
             self.status = DeviceStatus.CLOSED
@@ -457,8 +484,11 @@ class DeviceUnreal(Device):
                 self.engine_changelist = current_changelist
 
     def on_program_kill_failed(self, program_id, error):
-        self._running_remote_program_ids["unreal"].pop(program_id)
-        LOGGER.error(f"Unable to close Unreal with id {str(program_id)}")
+
+        # remove from list of program_ids (if it exists)
+        program_name = self._running_remote_programs.pop(program_id, "unknown")
+
+        LOGGER.error(f"Unable to close program with id {str(program_id)} name {program_name}")
         LOGGER.error(f"Error: {error}")
         self.status = DeviceStatus.CLOSED
 
@@ -484,6 +514,8 @@ class DeviceUnreal(Device):
         It contains the state of the listener. Particularly useful when Switchboard reconnects.
         '''
         
+        self._running_remote_programs = {}
+
         for process in message['runningProcesses']:
             program_name = process['name']
             program_id = process['uuid']
