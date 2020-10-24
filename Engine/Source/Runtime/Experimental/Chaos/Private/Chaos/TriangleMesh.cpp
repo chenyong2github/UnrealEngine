@@ -4,6 +4,7 @@
 #include "Chaos/Box.h"
 #include "Chaos/Defines.h"
 #include "Chaos/Plane.h"
+#include "HAL/IConsoleManager.h"
 #include "Math/NumericLimits.h"
 #include "Math/RandomStream.h"
 #include "Templates/Sorting.h"
