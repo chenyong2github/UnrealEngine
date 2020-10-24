@@ -97,10 +97,13 @@
 			<graph title="Animation Budget" budget="1.5" />
 			<graph title="Log Counts" budget="0" />
 			<graph title="CSV Profiler" budget="0" />
-			<graph title="CSV Profiler" budget="0" />
 			<graph title="Android Memory" budget="0" />
 			<graph title="Android Thermals" budget="0" />
 			<graph title="Android CPU" budget="0" />
+			<graph title="GPU cycles / frame" budget="0" />
+			<graph title="Pixels / frame" budget="0" />
+			<graph title="Shader cycles / frame" budget="0" />
+			<graph title="GPU bandwidth / frame" budget="0" />
 		</reporttype>
 
 
@@ -156,6 +159,10 @@
 			<graph title="Android Memory" budget="0" />
 			<graph title="Android Thermals" budget="0" />
 			<graph title="Android CPU" budget="0" />
+			<graph title="GPU cycles / frame" budget="0" />
+			<graph title="Pixels / frame" budget="0" />
+			<graph title="Shader cycles / frame" budget="0" />
+			<graph title="GPU bandwidth / frame" budget="0" />
 		</reporttype>
 
 		<reporttype name="Memory" title="Physical Memory Report" vsync="1">
