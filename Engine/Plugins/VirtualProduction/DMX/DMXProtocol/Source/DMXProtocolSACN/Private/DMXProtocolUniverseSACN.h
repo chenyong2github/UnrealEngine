@@ -5,10 +5,13 @@
 #include "CoreMinimal.h"
 
 #include "DMXProtocolCommon.h"
+#include "DMXProtocolSACN.h"
 #include "Packets/DMXProtocolE131PDUPacket.h"
 #include "Interfaces/IPv4/IPv4Endpoint.h"
 #include "Interfaces/IDMXProtocolUniverse.h"
 #include "Interfaces/IDMXNetworkInterface.h"
+
+class FDMXProtocolSACN;
 
 class FInternetAddr;
 class FSocket;
@@ -23,7 +26,7 @@ class DMXPROTOCOLSACN_API FDMXProtocolUniverseSACN
 	, public IDMXNetworkInterface
 {
 public:
-	FDMXProtocolUniverseSACN(IDMXProtocolPtr InDMXProtocol, const FJsonObject& InSettings);
+	FDMXProtocolUniverseSACN(TWeakPtr<FDMXProtocolSACN, ESPMode::ThreadSafe> DMXProtocolSACN, const FJsonObject& InSettings);
 	virtual ~FDMXProtocolUniverseSACN();
 
 	//~ Begin IDMXProtocolUniverse implementation
@@ -86,7 +89,7 @@ private:
 	FSocket* GetOrCreateListeningSocket();
 
 private:
-	IDMXProtocolPtrWeak WeakDMXProtocol;
+	TWeakPtr<FDMXProtocolSACN, ESPMode::ThreadSafe> WeakDMXProtocol;
 	FDMXBufferPtr OutputDMXBuffer;
 	FDMXBufferPtr InputDMXBuffer;
 	uint8 Priority;

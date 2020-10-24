@@ -24,6 +24,7 @@ public:
 
 	//~ Begin IDMXProtocol implementation
 	virtual const FName& GetProtocolName() const override { return ProtocolName;  }
+	const IDMXUniverseSignalMap& GameThreadGetInboundSignals() const { return EmptyBufferDummy; }
 	virtual TSharedPtr<FJsonObject> GetSettings() const override { return Settings; }
 	virtual TSharedPtr<IDMXProtocolSender> GetSenderInterface() const override { return nullptr; }
 	virtual EDMXSendResult InputDMXFragment(uint16 UniverseID, const IDMXFragmentMap& DMXFragment) override { return EDMXSendResult::Success; }
@@ -47,7 +48,7 @@ public:
 	virtual uint16 GetMinUniverseID() const override { return 0; }
 	virtual uint16 GetMaxUniverses() const override { return 1; }
 	virtual void GetDefaultUniverseSettings(uint16 InUniverseID, FJsonObject& OutSettings) const {}
-	virtual void ZeroInputBuffers() override {};
+	virtual void ClearInputBuffers() override {};
 	virtual void ZeroOutputBuffers() override {};
 
 	DECLARE_DERIVED_EVENT(FDMXProtocolArtNet, IDMXProtocol::FOnUniverseInputBufferUpdated, FOnUniverseInputBufferUpdated);
@@ -85,6 +86,7 @@ private:
 	FOnPacketReceived OnPacketReceived;
 	FOnPacketSent OnPacketSent;
 
+	IDMXUniverseSignalMap EmptyBufferDummy;
 };
 
 
@@ -278,11 +280,9 @@ bool FDMXProtocolTransportTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Protocol not found"), DMXProtocol.IsValid());
 
 	UDMXProtocolSettings* ProtocolSettings = GetMutableDefault<UDMXProtocolSettings>();
-	const bool bReceiveThread = ProtocolSettings->bUseSeparateReceivingThread;
 	const int32 RefreshRate = ProtocolSettings->ReceivingRefreshRate;
 
 	// Test single thread with unlimited refresh.
-	ProtocolSettings->bUseSeparateReceivingThread = false;
 	ProtocolSettings->ReceivingRefreshRate = 0;
 
 	IDMXProtocol::FOnUniverseInputBufferUpdated& OnUniverseInputBufferUpdated = DMXProtocol->GetOnUniverseInputBufferUpdated();
@@ -367,7 +367,6 @@ bool FDMXProtocolTransportTest::RunTest(const FString& Parameters)
 
 			DMXProtocol->GetOnUniverseInputBufferUpdated().Remove(TransportHandle);
 		
-			ProtocolSettings->bUseSeparateReceivingThread = bReceiveThread;
 			ProtocolSettings->ReceivingRefreshRate = RefreshRate;
 		}, 0.2f));
 
@@ -448,10 +447,7 @@ bool FDMXProtocolPacketTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Protocol not found"), DMXProtocol.IsValid());
 
 	UDMXProtocolSettings* ProtocolSettings = GetMutableDefault<UDMXProtocolSettings>();
-	const bool bReceiveThread = ProtocolSettings->bUseSeparateReceivingThread;
 	const int32 RefreshRate = ProtocolSettings->ReceivingRefreshRate;
-
-	ProtocolSettings->bUseSeparateReceivingThread = false;
 	ProtocolSettings->ReceivingRefreshRate = 0;
 
 	DMXProtocol->Shutdown();
@@ -508,7 +504,6 @@ bool FDMXProtocolPacketTest::RunTest(const FString& Parameters)
 			DMXProtocol->RemoveUniverseById(UniverseID);
 			DMXProtocol->GetOnUniverseInputBufferUpdated().Remove(TransportHandle);
 
-			ProtocolSettings->bUseSeparateReceivingThread = bReceiveThread;
 			ProtocolSettings->ReceivingRefreshRate = RefreshRate;
 		}, 0.2f));
 

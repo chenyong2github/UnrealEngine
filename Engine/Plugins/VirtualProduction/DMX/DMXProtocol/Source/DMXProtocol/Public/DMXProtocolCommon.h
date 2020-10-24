@@ -14,6 +14,7 @@ class IDMXProtocolRDM;
 class IDMXProtocolUniverse;
 class IDMXProtocolSender;
 class IDMXProtocolReceiver;
+class FDMXSignal;
 
 template<class TUniverse>
 class FDMXProtocolUniverseManager;
@@ -23,8 +24,8 @@ struct FDMXBuffer;
 struct FDMXPacket;
 struct IDMXProtocolPacket;
 
-using FDataPtr = TSharedPtr<TArray<uint8>>;
 using IDMXFragmentMap = TMap<uint32, uint8>;
+using IDMXUniverseSignalMap = TMap<int32, TSharedPtr<FDMXSignal>>;
 
 using FArrayReaderPtr = TSharedPtr<FArrayReader, ESPMode::ThreadSafe>;
 using FDMXPacketPtr = TSharedPtr<FDMXPacket, ESPMode::ThreadSafe>;

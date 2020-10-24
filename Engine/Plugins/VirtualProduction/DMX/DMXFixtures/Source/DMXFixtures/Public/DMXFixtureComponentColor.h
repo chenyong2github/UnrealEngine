@@ -19,18 +19,17 @@ public:
 	unsigned int BitResolution;
 
 	UPROPERTY(EditAnywhere, Category = "DMX Channel")
-		FDMXAttributeName ChannelName1;
+	FDMXAttributeName ChannelName1;
 	UPROPERTY(EditAnywhere, Category = "DMX Channel")
-		FDMXAttributeName ChannelName2;
+	FDMXAttributeName ChannelName2;
 	UPROPERTY(EditAnywhere, Category = "DMX Channel")
-		FDMXAttributeName ChannelName3;
+	FDMXAttributeName ChannelName3;
 	UPROPERTY(EditAnywhere, Category = "DMX Channel")
-		FDMXAttributeName ChannelName4;
+	FDMXAttributeName ChannelName4;
 
 	TArray<FLinearColor> TargetColorArray;
 	FLinearColor* CurrentTargetColorRef;
 
-	FLinearColor RemapColor(int, int, int, int);
 	bool IsColorValid(FLinearColor NewColor);
 	void SetTargetColor(FLinearColor NewColor);
 
