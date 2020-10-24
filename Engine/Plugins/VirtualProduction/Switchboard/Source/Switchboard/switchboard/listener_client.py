@@ -142,7 +142,7 @@ class ListenerClient(object):
                     _, msg = message_protocol.create_keep_alive_message()
                     self.send_message(msg)
 
-                if self.close_socket:
+                if self.close_socket and (len(self.message_queue) == 0 or (len(write_sockets) == 0 and len(wlist) > 0)):
                     self.socket.shutdown(socket.SHUT_RDWR)
                     self.socket.close()
                     if self.disconnect_delegate:
