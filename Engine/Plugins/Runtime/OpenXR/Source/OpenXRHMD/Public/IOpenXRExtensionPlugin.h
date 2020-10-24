@@ -7,6 +7,7 @@
 #include "ARTypes.h"
 #include "ARTextures.h"
 #include "ARTraceResult.h"
+#include "DefaultSpectatorScreenController.h"
 
 #include <openxr/openxr.h>
 
@@ -155,6 +156,16 @@ public:
 	}
 
 	/**
+	* Set a spectator screen controller specific to the platform
+	* If true is returned and OutSpectatorScreenController is nullptr, spectator screen will be disabled
+	* If false is returned a default spectator screen controller will be created
+	*/
+	virtual bool GetSpectatorScreenController(FHeadMountedDisplayBase* InHMDBase, TUniquePtr<FDefaultSpectatorScreenController>& OutSpectatorScreenController)
+	{
+		return false;
+	}
+
+	/**
 	* Add any actions provided by the plugin to Actions with suggested bindings.
 	* This allows a plugin to 'hard code' an action so that the plugin can use it.
 	*/
@@ -239,7 +250,7 @@ public:
 		return InNext;
 	}
 
-	virtual const void* OnEndProjectionLayer(XrSession InSession, int32 InLayerIndex, const void* InNext)
+	virtual const void* OnEndProjectionLayer(XrSession InSession, int32 InLayerIndex, const void* InNext, XrCompositionLayerFlags& OutFlags)
 	{
 		return InNext;
 	}

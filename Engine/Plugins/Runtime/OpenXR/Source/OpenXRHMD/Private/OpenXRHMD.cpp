@@ -49,7 +49,7 @@ static TAutoConsoleVariable<int32> CVarEnableOpenXRValidationLayer(
 
 
 namespace {
-	static TSet<XrEnvironmentBlendMode> SupportedBlendModes{ XR_ENVIRONMENT_BLEND_MODE_ADDITIVE, XR_ENVIRONMENT_BLEND_MODE_ALPHA_BLEND, XR_ENVIRONMENT_BLEND_MODE_OPAQUE };
+	static TSet<XrEnvironmentBlendMode> SupportedBlendModes{ XR_ENVIRONMENT_BLEND_MODE_ADDITIVE, XR_ENVIRONMENT_BLEND_MODE_OPAQUE };
 	static TSet<XrViewConfigurationType> SupportedViewConfigurations{ XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO, XR_VIEW_CONFIGURATION_TYPE_PRIMARY_QUAD_VARJO };
 
 	/** Helper function for acquiring the appropriate FSceneViewport */
@@ -1306,13 +1306,14 @@ FOpenXRHMD::FOpenXRHMD(const FAutoRegister& AutoRegister, XrInstance InInstance,
 	bHiddenAreaMaskSupported = IsExtensionEnabled(XR_KHR_VISIBILITY_MASK_EXTENSION_NAME);
 	bViewConfigurationFovSupported = IsExtensionEnabled(XR_EPIC_VIEW_CONFIGURATION_FOV_EXTENSION_NAME);
 
-#if PLATFORM_HOLOLENS
 	static const auto CVarMobileMultiView = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("vr.MobileMultiView"));
 	static const auto CVarMobileHDR = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MobileHDR"));
 	const bool bMobileHDR = (CVarMobileHDR && CVarMobileHDR->GetValueOnAnyThread() != 0);
-	bIsMobileMultiViewEnabled = (GRHISupportsArrayIndexFromAnyShader && !bMobileHDR) && (CVarMobileMultiView && CVarMobileMultiView->GetValueOnAnyThread() != 0);
+	const bool bMobileMultiView = !bMobileHDR && (CVarMobileMultiView && CVarMobileMultiView->GetValueOnAnyThread() != 0);
+#if PLATFORM_HOLOLENS
+	bIsMobileMultiViewEnabled = bMobileMultiView && GRHISupportsArrayIndexFromAnyShader;
 #else
-	bIsMobileMultiViewEnabled = false;
+	bIsMobileMultiViewEnabled = bMobileMultiView && RHISupportsMobileMultiView(GShaderPlatformForFeatureLevel[GMaxRHIFeatureLevel]);
 #endif
 	// Enumerate the viewport configurations
 	uint32 ConfigurationCount;
@@ -1733,7 +1734,31 @@ bool FOpenXRHMD::OnStereoStartup()
 	static const FName RendererModuleName("Renderer");
 	RendererModule = FModuleManager::GetModulePtr<IRendererModule>(RendererModuleName);
 
-	SpectatorScreenController = MakeUnique<FDefaultSpectatorScreenController>(this);
+	bool bUseExtensionSpectatorScreenController = false;
+	for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
+	{
+		bUseExtensionSpectatorScreenController = Module->GetSpectatorScreenController(this, SpectatorScreenController);
+		if (bUseExtensionSpectatorScreenController)
+		{
+			break;
+		}
+	}
+	if (!bUseExtensionSpectatorScreenController)
+	{
+		SpectatorScreenController = MakeUnique<FDefaultSpectatorScreenController>(this);
+		UE_LOG(LogHMD, Verbose, TEXT("OpenXR using base spectator screen."));
+	}
+	else
+	{
+		if (SpectatorScreenController == nullptr)
+		{
+			UE_LOG(LogHMD, Verbose, TEXT("OpenXR disabling spectator screen."));
+		}
+		else
+		{
+			UE_LOG(LogHMD, Verbose, TEXT("OpenXR using extension spectator screen."));
+		}
+	}
 
 	StartSession();
 
@@ -1867,7 +1892,7 @@ bool FOpenXRHMD::AllocateRenderTargetTexture(uint32 Index, uint32 SizeX, uint32 
 	check(IsInRenderingThread());
 
 	// We need to ensure we can sample from the texture in CopyTexture
-	Flags |= TexCreate_ShaderResource;
+	Flags |= TexCreate_ShaderResource | TexCreate_SRGB;
 
 	const FRHITexture2D* const SwapchainTexture = Swapchain == nullptr ? nullptr : Swapchain->GetTexture2DArray() ? Swapchain->GetTexture2DArray() : Swapchain->GetTexture2D();
 	if (Swapchain == nullptr || SwapchainTexture == nullptr || Format != LastRequestedSwapchainFormat || SwapchainTexture->GetSizeX() != SizeX || SwapchainTexture->GetSizeY() != SizeY)
@@ -2197,12 +2222,13 @@ void FOpenXRHMD::OnFinishRendering_RHIThread()
 	XrCompositionLayerProjection Layer = {};
 	Layer.type = XR_TYPE_COMPOSITION_LAYER_PROJECTION;
 	Layer.next = nullptr;
+	Layer.layerFlags = 0;
 	Layer.space = PipelineState.TrackingSpace;
 	Layer.viewCount = LayerState.ProjectionLayers.Num();
 	Layer.views = LayerState.ProjectionLayers.GetData();
 	for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
 	{
-		Layer.next = Module->OnEndProjectionLayer(Session, 0, Layer.next);
+		Layer.next = Module->OnEndProjectionLayer(Session, 0, Layer.next, Layer.layerFlags);
 	}
 
 	if (bIsRendering)
