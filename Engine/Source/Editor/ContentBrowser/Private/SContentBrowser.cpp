@@ -104,6 +104,14 @@ SContentBrowser::~SContentBrowser()
 			ContentBrowserData->OnItemDataUpdated().RemoveAll(this);
 		}
 	}
+
+	if (bIsPrimaryBrowser && GEditor)
+	{
+		if (USelection* EditorSelection = GEditor->GetSelectedObjects())
+		{
+			EditorSelection->DeselectAll();
+		}
+	}
 }
 
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
