@@ -388,6 +388,8 @@ class DeviceUnreal(Device):
         if program_name in ["sync", "build"]:
             self.status = DeviceStatus.CLOSED
             self.project_changelist = self.project_changelist # force to show existing project_changelist to hide building/syncing
+        elif program_name == 'unreal':
+            self.status = DeviceStatus.CLOSED
 
     def on_program_ended(self, program_id, returncode, output):
 

@@ -176,9 +176,6 @@ class Device(QtCore.QObject):
 
     @status.setter
     def status(self, value):
-        if self._status == value:
-            return
-
         previous_status = self._status
         self._status = value
         self.device_qt_handler.signal_device_status_changed.emit(self, previous_status)
