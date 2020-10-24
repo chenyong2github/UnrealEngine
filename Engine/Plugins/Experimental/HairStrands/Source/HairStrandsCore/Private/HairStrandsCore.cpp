@@ -5,6 +5,8 @@
 #include "Interfaces/IPluginManager.h"
 #include "GroomManager.h"
 #include "Engine/StaticMesh.h"
+#include "GroomBindingAsset.h"
+#include "GroomAsset.h"
 
 IMPLEMENT_MODULE(FHairStrandsCore, HairStrandsCore);
 
@@ -153,6 +155,64 @@ UStaticMesh* FHairStrandsCore::CreateStaticMesh(const FString& InPackageName, co
 	}
 
 	return nullptr;
+}
+
+UGroomBindingAsset* FHairStrandsCore::CreateGroomBindingAsset(const FString& InPackageName, UObject* InParent, UGroomAsset* GroomAsset, USkeletalMesh* SourceSkelMesh, USkeletalMesh* TargetSkelMesh, const int32 NumInterpolationPoints)
+{
+#if WITH_EDITOR
+	if (!TargetSkelMesh || !GroomAsset)
+	{
+		return nullptr;
+	}
+
+	// If provided name is empty, then create an auto-generated (unique) filename
+	FString Name;
+	FString PackageName;
+	if (InPackageName.IsEmpty())
+	{
+		FString Suffix;
+		if (SourceSkelMesh)
+		{
+			Suffix += TEXT("_") + SourceSkelMesh->GetName();
+		}
+		if (TargetSkelMesh)
+		{
+			Suffix += TEXT("_") + TargetSkelMesh->GetName();
+		}
+		Suffix += TEXT("_Binding");
+		HairStrandsCore_AssetHelper.CreateFilename(GroomAsset->GetOutermost()->GetName(), Suffix, PackageName, Name);		
+	}
+
+	UPackage* Package = Cast<UPackage>(InParent);
+	if (InParent == nullptr && !PackageName.IsEmpty())
+	{
+		// Then find/create it.
+		Package = CreatePackage(*PackageName);
+		if (!ensure(Package))
+		{
+			// There was a problem creating the package
+			return nullptr;
+		}
+	}
+
+	if (UGroomBindingAsset* Out = NewObject<UGroomBindingAsset>(Package, *Name, RF_Public | RF_Standalone | RF_Transactional))
+	{
+		Out->Groom = GroomAsset;
+		Out->SourceSkeletalMesh = SourceSkelMesh;
+		Out->TargetSkeletalMesh = TargetSkelMesh;
+		Out->HairGroupDatas.Reserve(GroomAsset->HairGroupsData.Num());
+		Out->NumInterpolationPoints = NumInterpolationPoints;
+		Out->MarkPackageDirty();
+		HairStrandsCore_AssetHelper.RegisterAsset(Out);
+		return Out;
+	}
+#endif
+	return nullptr;
+}
+
+UGroomBindingAsset* FHairStrandsCore::CreateGroomBindingAsset(UGroomAsset* GroomAsset, USkeletalMesh* SourceSkelMesh, USkeletalMesh* TargetSkelMesh, const int32 NumInterpolationPoints)
+{
+	return CreateGroomBindingAsset(FString(), nullptr, GroomAsset, SourceSkelMesh, TargetSkelMesh, NumInterpolationPoints);
 }
 
 void FHairStrandsCore::SaveAsset(UObject* Object)

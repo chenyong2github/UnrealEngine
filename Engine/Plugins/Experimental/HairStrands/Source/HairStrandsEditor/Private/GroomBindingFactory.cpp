@@ -23,25 +23,3 @@ UObject* UGroomBindingFactory::FactoryCreateNew(UClass* InClass, UObject* InPare
 
 	return GroomBinding;
 }
-
-UGroomBindingAsset* CreateGroomBindinAsset(const FString& InDesiredPackagePath, class UGroomAsset* GroomAsset, class USkeletalMesh* SourceSkelMesh, class USkeletalMesh* TargetSkelMesh, const int32 NumInterpolationPoints);
-UGroomBindingAsset* UGroomBindingFactory::CreateNewGroomBindingAsset(
-	const FString& InDesiredPackagePath,
-	bool bInBuildAsset,
-	UGroomAsset* InGroomAsset,
-	USkeletalMesh* InSkeletalMesh,
-	int32 InNumInterpolationPoints,
-	USkeletalMesh* InSourceSkeletalMeshForTransfer)
-{
-	if (!InGroomAsset || !InSkeletalMesh)
-	{
-		return nullptr;
-	}
-
-	UGroomBindingAsset* BindingAsset = CreateGroomBindinAsset(InDesiredPackagePath, InGroomAsset, InSourceSkeletalMeshForTransfer, InSkeletalMesh, InNumInterpolationPoints);
-	if (bInBuildAsset)
-	{
-		BindingAsset->Build();
-	}
-	return BindingAsset;
-}
