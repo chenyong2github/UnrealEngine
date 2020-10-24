@@ -337,7 +337,13 @@ private:
 		{
 			const FTypedElementInternalData& ElementData = RegisteredElementType->GetDataForElement(InOutElementOwner.GetId().GetElementId());
 			const FTypedElementRefCount RefCount = ElementData.GetRefCount();
-			checkf(RefCount <= 1, TEXT("Element is still externally referenced when being destroyed! %s"), *ElementData.GetRefString());
+
+			const bool bIsExternallyReferenced = RefCount > 1;
+			if (bIsExternallyReferenced)
+			{
+				ElementData.LogReferences();
+				UE_LOG(LogCore, Fatal, TEXT("Element is still externally referenced when being destroyed! Ref-count: %d; see above for reference information (if available)."), RefCount);
+			}
 		}
 #endif	// DO_CHECK
 

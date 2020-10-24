@@ -24,7 +24,7 @@ constexpr SIZE_T TypedHandleMaxTypeId = ((SIZE_T)1 << TypedHandleTypeIdBits) - 1
 constexpr SIZE_T TypedHandleMaxElementId = ((SIZE_T)1 << TypedHandleElementIdBits) - 1;
 
 constexpr SIZE_T TypedHandleRefTrackingSkipCount = 1;
-constexpr SIZE_T TypedHandleRefTrackingDepth = 15;
+constexpr SIZE_T TypedHandleRefTrackingDepth = 31;
 
 using FTypedHandleTypeId = uint8;
 using FTypedHandleElementId = int32;

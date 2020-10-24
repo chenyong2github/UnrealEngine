@@ -44,27 +44,15 @@ public:
 	FTypedElementReference(FTypedElementReference&&) = default;
 	FTypedElementReference& operator=(FTypedElementReference&&) = default;
 
-	void AppendString(FString& OutStr) const
+	void LogReference() const
 	{
 		ANSICHAR CallstackText[4096];
 		for (uint32 CallstackIndex = TypedHandleRefTrackingSkipCount; CallstackIndex < CallstackDepth; ++CallstackIndex)
 		{
-			if (CallstackIndex > TypedHandleRefTrackingSkipCount)
-			{
-				OutStr.Append(LINE_TERMINATOR);
-			}
-
 			CallstackText[0] = 0;
 			FPlatformStackWalk::ProgramCounterToHumanReadableString(CallstackIndex - TypedHandleRefTrackingSkipCount, Callstack[CallstackIndex], CallstackText, UE_ARRAY_COUNT(CallstackText));
-			OutStr.Append(CallstackText);
+			UE_LOG(LogCore, Error, TEXT("%s"), ANSI_TO_TCHAR(CallstackText));
 		}
-	}
-
-	FString ToString() const
-	{
-		FString Str;
-		AppendString(Str);
-		return Str;
 	}
 
 private:
@@ -143,30 +131,22 @@ public:
 #endif	// UE_TYPED_ELEMENT_HAS_REFCOUNTING
 	}
 
-	void AppendRefString(FString& OutStr) const
+	void LogReferences() const
 	{
-#if UE_TYPED_ELEMENT_HAS_REFCOUNTING
-		OutStr.Appendf(TEXT("Ref-count: %d"), FPlatformAtomics::AtomicRead(&RefCount));
-#endif	// UE_TYPED_ELEMENT_HAS_REFCOUNTING
 #if UE_TYPED_ELEMENT_HAS_REFTRACKING
 		{
 			FScopeLock ReferencesLock(&ReferencesCS);
-			OutStr.Append(LINE_TERMINATOR TEXT("References:") LINE_TERMINATOR);
+			UE_LOG(LogCore, Error, TEXT("External Element References:"));
 			for (const FTypedElementReference& Reference : References)
 			{
-				OutStr.Append(TEXT("-----------------------------------------------") LINE_TERMINATOR);
-				Reference.AppendString(OutStr);
+				UE_LOG(LogCore, Error, TEXT("-----------------------------------------------"));
+				Reference.LogReference();
 			}
-			OutStr.Append(LINE_TERMINATOR TEXT("==============================================="));
+			UE_LOG(LogCore, Error, TEXT("==============================================="));
 		}
+#else	// UE_TYPED_ELEMENT_HAS_REFTRACKING
+		UE_LOG(LogCore, Error, TEXT("UE_TYPED_ELEMENT_HAS_REFTRACKING is disabled. Enable it and recompile to see reference tracking."));
 #endif	// UE_TYPED_ELEMENT_HAS_REFTRACKING
-	}
-
-	FString GetRefString() const
-	{
-		FString Str;
-		AppendRefString(Str);
-		return Str;
 	}
 
 	virtual const void* GetUntypedData() const
