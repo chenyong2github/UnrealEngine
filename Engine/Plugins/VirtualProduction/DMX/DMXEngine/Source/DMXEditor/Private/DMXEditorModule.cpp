@@ -329,7 +329,6 @@ TSharedRef<SDockTab> FDMXEditorModule::OnSpawnActivityMonitorTab(const FSpawnTab
 
 	return SNew(SDockTab)
 		.Label(LOCTEXT("ActivityMonitorTitle", "DMX Activity Monitor"))
-		.OnTabClosed( SDockTab::FOnTabClosedCallback::CreateSP(UniverseMonitorTab.ToSharedRef(), &SDMXActivityMonitor::CancelAsyncTasks))
 		.TabRole(ETabRole::NomadTab)
 		[
 			UniverseMonitorTab.ToSharedRef()

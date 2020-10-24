@@ -24,7 +24,7 @@ protected:
 
 public:
 
-	uint8* MatrixData;
+	TArray<uint8> MatrixData;
 	int MatrixDataSize;
 	int NbrTextureRows;
 	int QuadIndexCount;
@@ -53,7 +53,7 @@ public:
 	void AddQuad(FVector TL, FVector BL, FVector BR, FVector TR, FProcMeshTangent Tangent);
 	void UpdateDynamicTexture();
 	FLinearColor GetMatrixAverageColor();
-	void UpdateMatrixData(int RowIndex, int CellIndex, int ChannelIndex, uint8 Value);
+	void UpdateMatrixData(int32 RowIndex, int32 CellIndex, int32 ChannelIndex, float Value);
 
 	UFUNCTION(BlueprintCallable, Category = "DMX Matrix Fixture")
 	void PushFixtureMatrixCellData(TArray<FDMXCell> MatrixPixelData);

@@ -29,6 +29,7 @@ public:
 	/** Constructs the widget */
 	void Construct(const FArguments& InArgs);
 
+protected:
 	//~ Begin SWidget interface
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 	//~End of SWidget interface
@@ -44,9 +45,6 @@ private:
 	void SaveMonitorSettings() const;
 
 private:
-	/** Starts listening to a specific universe */
-	void StartListenToUniverse();
-
 	/** Copy current values of selected universe to channel widgets */
 	void UpdateBuffer();
 

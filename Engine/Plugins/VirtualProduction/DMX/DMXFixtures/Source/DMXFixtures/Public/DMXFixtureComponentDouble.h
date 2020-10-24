@@ -29,18 +29,18 @@ public:
 
 	// Functions-----------------------------------------
 	UFUNCTION(BlueprintPure, Category = "DMX")
-		float DMXInterpolatedStep(int ChannelIndex);
+	float DMXInterpolatedStep(int ChannelIndex);
 
 	UFUNCTION(BlueprintPure, Category = "DMX")
-		float DMXInterpolatedValue(int ChannelIndex);
+	float DMXInterpolatedValue(int ChannelIndex);
 
 	UFUNCTION(BlueprintPure, Category = "DMX")
-		float DMXTargetValue(int ChannelIndex);
+	float DMXTargetValue(int ChannelIndex);
 
 	UFUNCTION(BlueprintPure, Category = "DMX")
-		bool DMXIsInterpolationDone(int ChannelIndex);
+	bool DMXIsInterpolationDone(int ChannelIndex);
 
-	float RemapValue(int ChannelIndex, int Value);
+	float RemapValue(int ChannelIndex, float Alpha);
 	bool IsTargetValid(int ChannelIndex, float Target);
 	void Push(int ChannelIndex, float Target);
 	void SetTarget(int ChannelIndex, float Target);
@@ -48,10 +48,16 @@ public:
 	// Overrides
 	virtual void InitCells(int NCells) override;
 	virtual void SetRangeValue() override;
-	virtual void SetBitResolution(TMap<FDMXAttributeName, EDMXFixtureSignalFormat> Map) override;
 
-	// Blueprint event
+	// Sets both values of the component
+	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, Category = "DMX", Meta = (DeprecatedProperty, DeprecationMessage = "Deprecated 4.26. Use SetComponentChannel1 and SetComponentChannel2 instead."))
+	void SetComponent(float Channel1Value, float Channel2Value);
+
+	// Sets first value of the component
 	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, Category = "DMX")
-		void SetComponent(float Channel1Value, float Channel2Value);
+	void SetComponentChannel1(float Channel1Valuee);
 
+	// Sets second value of the component
+	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, Category = "DMX")
+	void SetComponentChannel2(float Channel2Value);
 };

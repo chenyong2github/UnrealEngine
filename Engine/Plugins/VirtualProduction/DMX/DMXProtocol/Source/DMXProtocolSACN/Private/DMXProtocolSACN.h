@@ -2,11 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "DMXProtocolSACNReceivingRunnable.h"
+#include "DMXProtocolSACNModule.h"
 #include "Interfaces/IDMXProtocol.h"
 #include "Interfaces/IDMXNetworkInterface.h"
-#include "DMXProtocolSACNModule.h"
 
+#include "CoreMinimal.h"
 #include "Interfaces/IPv4/IPv4Endpoint.h"
 #include "HAL/CriticalSection.h"
 #include "HAL/ThreadSafeCounter.h"
@@ -14,7 +15,7 @@
 class FInternetAddr;
 class FSocket;
 class FDMXProtocolUniverseSACN;
-class FDMXProtocolReceiverSACN;
+class FDMXProtocolSACNReceivingRunnable;
 
 template<class TUniverse>
 class FDMXProtocolUniverseManager;
@@ -36,6 +37,7 @@ public:
 
 	//~ Begin IDMXProtocol implementation
 	virtual const FName& GetProtocolName() const override;
+	virtual const IDMXUniverseSignalMap& GameThreadGetInboundSignals() const override;
 	virtual TSharedPtr<IDMXProtocolSender> GetSenderInterface() const override;
 	virtual TSharedPtr<FJsonObject> GetSettings() const override;
 	virtual bool IsEnabled() const override;
@@ -58,7 +60,7 @@ public:
 	virtual uint16 GetMinUniverseID() const override;
 	virtual uint16 GetMaxUniverses() const override;
 	virtual void GetDefaultUniverseSettings(uint16 InUniverseID, FJsonObject& OutSettings) const override;
-	virtual void ZeroInputBuffers() override;
+	virtual void ClearInputBuffers() override;
 	virtual void ZeroOutputBuffers() override;
 
 	DECLARE_DERIVED_EVENT(FDMXProtocolArtNet, IDMXProtocol::FOnUniverseInputBufferUpdated, FOnUniverseInputBufferUpdated);
@@ -79,6 +81,8 @@ public:
 	virtual bool RestartNetworkInterface(const FString& InInterfaceIPAddress, FString& OutErrorMessage) override;
 	virtual void ReleaseNetworkInterface() override;
 	//~ End IDMXNetworkInterface implementation
+
+	FORCEINLINE const TSharedPtr<FDMXProtocolSACNReceivingRunnable, ESPMode::ThreadSafe>& GetReceivingRunnable() const { return ReceivingRunnable; }
 
 private:
 	/** Creates a listener for DMX packets in each ProtocolUniverseSACN */
@@ -107,6 +111,7 @@ public:
 
 	//~ Only the factory makes instances
 	FDMXProtocolSACN() = delete;
+
 public:
 	static uint32 GetUniverseAddrByID(uint16 InUniverseID);
 
@@ -118,12 +123,6 @@ private:
 	/** Called each tick in LaunchEngineLoop */
 	void OnEndFrame();
 
-	/** Listening for the receiving thread setting changes */
-	void OnReceivingThreadChanged(int32 ReceivingRefreshRate, bool bInUseSeparateReceivingThread);
-
-	/** Release sacn listener if exists */
-	void ReleaseSACNReceiver();
-
 private:
 	FName ProtocolName;
 
@@ -132,8 +131,9 @@ private:
 	TSharedPtr<FDMXProtocolUniverseManager<FDMXProtocolUniverseSACN>> UniverseManager;
 
 	TSharedPtr<IDMXProtocolSender> SACNSender;
+	TSharedPtr<FDMXProtocolSACNReceivingRunnable, ESPMode::ThreadSafe> ReceivingRunnable;
 
-	TSharedPtr<FDMXProtocolReceiverSACN> SACNReceiver;
+	IDMXUniverseSignalMap EmptyBufferDummy;
 
 	/** Holds the network socket used to sender packages. */
 	FSocket* SenderSocket;
@@ -149,8 +149,6 @@ private:
 	FString InterfaceIPAddress;
 
 	FOnNetworkInterfaceChangedDelegate NetworkInterfaceChangedDelegate;
-
-	FOnReceivingThreadChangedDelegate ReceivingThreadChangedDelegate;
 
 	const TCHAR* NetworkErrorMessagePrefix;
 
