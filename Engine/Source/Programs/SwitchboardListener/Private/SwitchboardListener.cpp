@@ -20,6 +20,7 @@
 #include "Misc/Base64.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
+#include "Templates/Atomic.h"
 
 #if PLATFORM_WINDOWS
 
@@ -90,6 +91,27 @@ struct FRunningProcess
 	FString Path;
 	FString Name;
 	FString Caller;
+
+	TAtomic<bool> bPendingKill = false;
+
+	FRunningProcess()
+	{}
+
+	FRunningProcess(const FRunningProcess& InProcess)
+	{
+		PID       = InProcess.PID;
+		UUID      = InProcess.UUID;
+		Handle    = InProcess.Handle;
+		WritePipe = InProcess.WritePipe;
+		ReadPipe  = InProcess.ReadPipe;
+		Output    = InProcess.Output;
+		Recipient = InProcess.Recipient;
+		Path      = InProcess.Path;
+		Name      = InProcess.Name;
+		Caller    = InProcess.Caller;
+
+		bPendingKill.Store(InProcess.bPendingKill);
+	}
 };
 
 FSwitchboardListener::FSwitchboardListener(const FIPv4Endpoint& InEndpoint)
@@ -110,7 +132,7 @@ FSwitchboardListener::FSwitchboardListener(const FIPv4Endpoint& InEndpoint)
 
 FSwitchboardListener::~FSwitchboardListener()
 {
-	KillAllProcesses();
+	KillAllProcessesNow();
 }
 
 bool FSwitchboardListener::Init()
@@ -267,25 +289,12 @@ bool FSwitchboardListener::RunScheduledTask(const FSwitchboardTask& InTask)
 		case ESwitchboardTaskType::Kill:
 		{
 			const FSwitchboardKillTask& KillTask = static_cast<const FSwitchboardKillTask&>(InTask);
-			FRunningProcess* Process = RunningProcesses.FindByPredicate([&KillTask](const FRunningProcess& Process)
-			{
-				return Process.UUID == KillTask.ProgramID;
-			});
-
-			if (!KillProcess(Process))
-			{
-				const FString ProgramID = KillTask.ProgramID.ToString();
-				static const FString KillError = FString::Printf(TEXT("Could not find program with ID %s"), *ProgramID);
-				SendMessage(CreateProgramKillFailedMessage(ProgramID, KillError), InTask.Recipient);
-				UE_LOG(LogSwitchboard, Error, TEXT("%s"), *KillError);
-				return false;
-			}
-
-			return true;
+			return KillProcess(KillTask);
 		}
 		case ESwitchboardTaskType::KillAll:
 		{
-			return KillAllProcesses();
+			const FSwitchboardKillAllTask& KillAllTask = static_cast<const FSwitchboardKillAllTask&>(InTask);
+			return KillAllProcesses(KillAllTask);
 		}
 		case ESwitchboardTaskType::ReceiveFileFromClient:
 		{
@@ -370,36 +379,162 @@ bool FSwitchboardListener::StartProcess(const FSwitchboardStartTask& InRunTask)
 	UE_LOG(LogSwitchboard, Display, TEXT("Started process %d: %s %s"), NewProcess.PID, *InRunTask.Command, *InRunTask.Arguments);
 
 	FGenericPlatformMisc::CreateGuid(NewProcess.UUID);
-	RunningProcesses.Add(NewProcess);
+	RunningProcesses.Add(MoveTemp(NewProcess));
 
 	SendMessage(CreateProgramStartedMessage(NewProcess.UUID.ToString(), InRunTask.TaskID.ToString()), InRunTask.Recipient);
 	return true;
 
 }
 
-bool FSwitchboardListener::KillProcess(FRunningProcess* InProcess)
+bool FSwitchboardListener::KillProcess(const FSwitchboardKillTask& KillTask)
+{
+	if (EquivalentTaskFutureExists(KillTask.GetEquivalenceHash()))
+	{
+		SendMessage(CreateTaskDeclinedMessage(KillTask, "Duplicate"), KillTask.Recipient);
+		return false;
+	}
+
+	// Look in RunningProcesses
+
+	FRunningProcess* Process = RunningProcesses.FindByPredicate([&KillTask](const FRunningProcess& Process) 
+	{
+		return !Process.bPendingKill && (Process.UUID == KillTask.ProgramID);
+	});
+
+	if (Process)
+	{
+		Process->bPendingKill = true;
+	}
+
+	// Look in FlipModeMonitors
+
+	FRunningProcess* FlipModeMonitor = FlipModeMonitors.FindByPredicate([&](const FRunningProcess& FlipMonitor)
+	{
+		return !FlipMonitor.bPendingKill && (FlipMonitor.UUID == KillTask.ProgramID);
+	});
+
+	if (FlipModeMonitor)
+	{
+		FlipModeMonitor->bPendingKill = true;
+	}
+
+	// Create our future message
+
+	FSwitchboardMessageFuture MessageFuture;
+
+	MessageFuture.TaskType = KillTask.Type;
+	MessageFuture.InEndpoint = KillTask.Recipient;
+	MessageFuture.EquivalenceHash = KillTask.GetEquivalenceHash();
+
+	const FGuid UUID = KillTask.ProgramID;
+
+	MessageFuture.Future = Async(EAsyncExecution::Thread, [=]() {
+
+		const float SoftKillTimeout = 2.0f;
+
+		const bool bKilledProcess = KillProcessNow(Process, SoftKillTimeout);
+		KillProcessNow(FlipModeMonitor, SoftKillTimeout);
+
+		// Clear bPendingKill
+
+		Process->bPendingKill = false;
+
+		if (FlipModeMonitor)
+		{
+			FlipModeMonitor->bPendingKill = false;
+		}
+
+		// Return message
+
+		const FString ProgramID = UUID.ToString();
+
+		if (!bKilledProcess)
+		{
+			const FString KillError = FString::Printf(TEXT("Could not kill program with ID %s"), *ProgramID);
+			return CreateProgramKillFailedMessage(ProgramID, *KillError);
+		}
+
+		return CreateProgramKilledMessage(ProgramID);
+	});
+
+	// Queue it to be sent when ready
+	MessagesFutures.Emplace(MoveTemp(MessageFuture));
+
+	return true;
+}
+
+
+bool FSwitchboardListener::KillProcessNow(FRunningProcess* InProcess, float SoftKillTimeout)
 {
 	if (InProcess && InProcess->Handle.IsValid() && FPlatformProcess::IsProcRunning(InProcess->Handle))
 	{
 		UE_LOG(LogSwitchboard, Display, TEXT("Killing app with PID %d"), InProcess->PID);
-		FPlatformProcess::TerminateProc(InProcess->Handle);
+
+#if PLATFORM_WINDOWS
+		// try a soft kill first
+		if(SoftKillTimeout > 0)
+		{
+			const FString Params = FString::Printf(TEXT("/PID %d"), InProcess->PID);
+
+			FString OutStdOut;
+
+			FPlatformProcess::ExecProcess(TEXT("TASKKILL"), *Params, nullptr, &OutStdOut, nullptr);
+
+			const double TimeoutTime = FPlatformTime::Seconds() + SoftKillTimeout;
+			const float SleepTime = 0.050f;
+
+			while(FPlatformTime::Seconds() < TimeoutTime && FPlatformProcess::IsProcRunning(InProcess->Handle))
+			{
+				FPlatformProcess::Sleep(SleepTime);
+			}
+		}
+#endif // PLATFORM_WINDOWS
+
+		if (FPlatformProcess::IsProcRunning(InProcess->Handle))
+		{
+			const bool bKillTree = true;
+			FPlatformProcess::TerminateProc(InProcess->Handle, bKillTree);
+		}
 
 		// Pipes will be closed in HandleRunningProcesses
-
-		SendMessage(CreateProgramKilledMessage(InProcess->UUID.ToString()), InProcess->Recipient);
 		return true;
 	}
+
 	return false;
 }
 
-bool FSwitchboardListener::KillAllProcesses()
+void FSwitchboardListener::KillAllProcessesNow()
 {
-	bool bAllKilled = true;
 	for (FRunningProcess& Process : RunningProcesses)
 	{
-		bAllKilled &= KillProcess(&Process);
+		while (Process.bPendingKill)
+		{
+			FPlatformProcess::Sleep(0.050);
+		}
+
+		KillProcessNow(&Process);
 	}
-	return bAllKilled;
+
+	for (FRunningProcess& Process : FlipModeMonitors)
+	{
+		while (Process.bPendingKill)
+		{
+			FPlatformProcess::Sleep(0.050);
+		}
+
+		KillProcessNow(&Process);
+	}
+}
+
+bool FSwitchboardListener::KillAllProcesses(const FSwitchboardKillAllTask& KillAllTask)
+{
+	for (FRunningProcess& Process : RunningProcesses)
+	{
+		FSwitchboardKillTask Task(KillAllTask.TaskID, KillAllTask.Recipient, Process.UUID);
+		KillProcess(Task);
+	}
+
+	return true;
 }
 
 bool FSwitchboardListener::ReceiveFileFromClient(const FSwitchboardReceiveFileFromClientTask& InReceiveFileFromClientTask)
@@ -864,6 +999,7 @@ static void FillOutFlipMode(FSyncStatus& SyncStatus, FRunningProcess* FlipModeMo
 
 	for (const FString& Line : Lines)
 	{
+		//UE_LOG(LogSwitchboard, Warning, TEXT("PresentMon: %s"), *Line);
 		Line.ParseIntoArray(Fields, TEXT(","), false);
 		
 		if (Fields.Num() != 15)
@@ -1098,6 +1234,12 @@ void FSwitchboardListener::HandleRunningProcesses(TArray<FRunningProcess>& Proce
 	for (auto Iter = Processes.CreateIterator(); Iter; ++Iter)
 	{
 		FRunningProcess& Process = *Iter;
+
+		if (Process.bPendingKill)
+		{
+			continue;
+		}
+
 		if (Process.Handle.IsValid())
 		{
 			TArray<uint8> Output;
@@ -1125,9 +1267,24 @@ void FSwitchboardListener::HandleRunningProcesses(TArray<FRunningProcess>& Proce
 					UE_LOG(LogSwitchboard, Display, TEXT("Output:\n%s"), *ProcessOutput);
 				}
 
+				// Notify remote client, which implies that this is a program managed by it.
 				if (bNotifyThatProgramEnded)
 				{
 					SendMessage(CreateProgramEndedMessage(Process.UUID.ToString(), ReturnCode, ProcessOutput), Process.Recipient);
+
+					// Kill its monitor to avoid potential zombies (unless it is already pending kill)
+					{
+						FRunningProcess* FlipModeMonitor = FlipModeMonitors.FindByPredicate([&](const FRunningProcess& FlipMonitor)
+						{
+							return !FlipMonitor.bPendingKill && (FlipMonitor.UUID == Process.UUID);
+						});
+
+						if (FlipModeMonitor)
+						{
+							FSwitchboardKillTask Task(FGuid(), FlipModeMonitor->Recipient, FlipModeMonitor->UUID);
+							KillProcess(Task);
+						}
+					}
 				}
 
 				FPlatformProcess::CloseProc(Process.Handle);
