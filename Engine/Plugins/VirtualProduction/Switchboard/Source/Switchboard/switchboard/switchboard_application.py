@@ -82,7 +82,7 @@ class OscServer(object):
         self.dispatcher.map(command, method, needs_reply_address=True)
 
     def _default_callback(self, client_address, command, *args):
-        LOGGER.warning(f'Recieved unhandled OSC message: {command} {args}.')
+        LOGGER.warning(f'Received unhandled OSC message: {command} {args}.')
 
 
 class MultiUserApplication(ApplicationAbstract):
