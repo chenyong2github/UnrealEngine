@@ -2386,7 +2386,7 @@ void FNiagaraSystemInstance::ProcessComponentRendererTasks()
 
 	if (AttachedComponentCount > GNiagaraWarnComponentRenderCount)
 	{
-		UE_LOG(LogNiagara, Warning, TEXT("System %s has %i active components spawned from the effect. Either adjust the effect's component renderer or change the warning limit with fx.Niagara.WarnComponentRenderCount."), *GetSystem()->GetName(), GNiagaraWarnComponentRenderCount);
+		UE_LOG(LogNiagara, Warning, TEXT("System %s has over %i active components spawned from the effect. Either adjust the effect's component renderer or change the warning limit with fx.Niagara.WarnComponentRenderCount."), *GetSystem()->GetName(), GNiagaraWarnComponentRenderCount);
 	}
 
 	// go over the pooled components we didn't need this tick to see if we can destroy some and deactivate the rest
