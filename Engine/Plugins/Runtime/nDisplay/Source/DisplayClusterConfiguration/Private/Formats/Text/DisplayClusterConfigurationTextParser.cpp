@@ -28,6 +28,8 @@ UDisplayClusterConfigurationData* FDisplayClusterConfigurationTextParser::LoadDa
 		return nullptr;
 	}
 
+	ConfigFile = FilePath;
+
 	// Convert text based data to generic container
 	return ConvertDataToInternalTypes();
 }
@@ -42,6 +44,10 @@ UDisplayClusterConfigurationData* FDisplayClusterConfigurationTextParser::Conver
 {
 	UDisplayClusterConfigurationData* Config = NewObject<UDisplayClusterConfigurationData>(ConfigDataOwner ? ConfigDataOwner : GetTransientPackage(), NAME_None, RF_MarkAsRootSet);
 	check(Config && Config->Scene && Config->Input && Config->Cluster);
+
+	// Fill metadata
+	Config->Meta.DataSource = EDisplayClusterConfigurationDataSource::Text;
+	Config->Meta.FilePath   = ConfigFile;
 
 	Config->Info.Version     = CfgInfo.Version;
 	Config->Info.Description = FString("nDisplay configuration");
