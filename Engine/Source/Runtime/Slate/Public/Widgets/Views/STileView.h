@@ -504,10 +504,7 @@ protected:
 				return bHasWidgetForItem ? SListView<ItemType>::EScrollIntoViewResult::Success : SListView<ItemType>::EScrollIntoViewResult::Deferred;
 			}
 		}
-		else
-		{
-			return SListView<ItemType>::EScrollIntoViewResult::Deferred;
-		}
+
 		return SListView<ItemType>::EScrollIntoViewResult::Success;
 	}
 
