@@ -3,7 +3,7 @@ UE4_LAUNCH = '/UE4Launch'
 UE4_LAUNCH_QUERY = '/UE4LaunchQuery'
 UE4_LAUNCH_CONFIRM = '/UE4LaunchConfirm'
 
-# iPhone
+# Mobile
 BATTERY = '/Battery'
 BATTERY_QUERY = '/BatteryQuery'
 THERMALS = '/Thermals'

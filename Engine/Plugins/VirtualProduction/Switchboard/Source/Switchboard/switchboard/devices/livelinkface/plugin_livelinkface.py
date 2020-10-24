@@ -6,11 +6,12 @@ from switchboard.devices.device_widget_base import DeviceWidget
 from switchboard.switchboard_logging import LOGGER
 
 from PySide2 import QtCore, QtGui, QtWidgets
+from PySide2.QtCore import QDirIterator
 
 import datetime
 
-class DeviceiPhone(Device):
-    QUERY_IPHONE_TIME = 5
+class DeviceLiveLinkFace(Device):
+    QUERY_TIME = 5
 
     def __init__(self, name, ip_address, port=CONFIG.OSC_CLIENT_PORT.get_value(), **kwargs):
         super().__init__(name, ip_address, **kwargs)
@@ -20,11 +21,11 @@ class DeviceiPhone(Device):
         self._battery = 1.0
         self.look_for_device = True
 
-        self.iphone_query_timer = QtCore.QTimer(self)
-        self.iphone_query_timer.timeout.connect(self.query_iPhone)
+        self.query_timer = QtCore.QTimer(self)
+        self.query_timer.timeout.connect(self.query_mobile)
         sleep_time_in_ms = 1000 * 5
-        self.iphone_query_timer.start(sleep_time_in_ms)
-        self._query_iPhone_time = datetime.datetime.now()
+        self.query_timer.start(sleep_time_in_ms)
+        self._query_time = datetime.datetime.now()
 
     @property
     def battery(self):
@@ -34,8 +35,8 @@ class DeviceiPhone(Device):
     def battery(self, value):
         self._battery = value
 
-        # Keep track of when the iPhone battery was queried so the connection can time out
-        self._query_iPhone_time = datetime.datetime.now()
+        # Keep track of when the mobile battery was queried so the connection can time out
+        self._query_time = datetime.datetime.now()
 
     def set_take(self, value):
         self.send_osc_message(osc.TAKE, value)
@@ -77,14 +78,14 @@ class DeviceiPhone(Device):
         # Stop the arkit session
         self.send_osc_message(osc.ARSESSION_STOP, 1)
 
-    def query_iPhone(self):
+    def query_mobile(self):
         """
-        Poll the iPhone every 5 seconds by sending it two OSC commands osc.OSC_ADD_SEND_TARGET and osc.BATTERY_QUERY
-        osc.OSC_ADD_SEND_TARGET gives the iPhone an address to send OSC commands back to
+        Poll the mobile every 5 seconds by sending it two OSC commands osc.OSC_ADD_SEND_TARGET and osc.BATTERY_QUERY
+        osc.OSC_ADD_SEND_TARGET gives the mobile an address to send OSC commands back to
         osc.BATTERY_QUERY send the battery % but also is used to make sure the app is still alive by resetting a timer
-        The iPhone will not be connected until it recieves a osc.BATTERY command
+        The mobile will not be connected until it recieves a osc.BATTERY command
         """
-        if self.status > DeviceStatus.DISCONNECTED and (datetime.datetime.now() - self._query_iPhone_time) > datetime.timedelta(seconds=11):
+        if self.status > DeviceStatus.DISCONNECTED and (datetime.datetime.now() - self._query_time) > datetime.timedelta(seconds=11):
             self.disconnect_listener()
 
         if self.look_for_device:
@@ -98,18 +99,18 @@ class DeviceiPhone(Device):
                 LOGGER.warning(f'{self.name}: is trying to connect but the "Take Recorder" machine is not set in the Settings')
 
         if self.status == DeviceStatus.DELETE:
-            self.iphone_query_timer.stop()
+            self.query_timer.stop()
 
     # Send OSC message to ask for how much battery the phone has
     def battery_query(self):
         self.send_osc_message(osc.BATTERY_QUERY, 1, log=False)
 
-    # Tell the iPhone which ip_address is running Switchboard
+    # Tell the mobile which ip_address is running Switchboard
     def osc_add_send_target(self):
         self.send_osc_message(osc.OSC_ADD_SEND_TARGET, [SETTINGS.IP_ADDRESS, CONFIG.OSC_SERVER_PORT.get_value()], log=True)
 
     def osc_add_send_target_confirm(self):
-        # If the iPhone is left on and CP is relaunched the normal bootup sequence doesn't happen 
+        # If the mobile is left on and CP is relaunched the normal bootup sequence doesn't happen 
         if self.status == DeviceStatus.DISCONNECTED:
             #self.close() # Close the session if it was left open
             self.status = DeviceStatus.OPEN
@@ -127,7 +128,7 @@ class DeviceiPhone(Device):
         return device_config
 
 
-class DeviceWidgetiPhone(DeviceWidget):
+class DeviceWidgetLiveLinkFace(DeviceWidget):
     def __init__(self, name, device_hash, ip_address, icons, parent=None):
         super().__init__(name, device_hash, ip_address, icons, parent=parent)
 
@@ -139,18 +140,21 @@ class DeviceWidgetiPhone(DeviceWidget):
                                               icon_on=':/icons/images/icon_radar.png',
                                         icon_hover_on=':/icons/images/icon_radar_hover.png',
                                      icon_disabled_on=':/icons/images/icon_radar_disabled.png',
-                                             tool_tip='Look for iPhone',
+                                             tool_tip='Look for mobile',
                                              checkable=True, checked=True)
 
         self.look_for_button.clicked.connect(self.look_for_button_clicked)
 
     def set_battery(self, value):
-        rounded_value = int(round(value * 100 / 10.0)) * 10
 
-        if rounded_value == 0:
+        rounded_value = int(round(value * 100 / 10.0)) * 10
+        
+        qrc_path = f":/icons/images/icon_livelinkface_{rounded_value}.png"
+        pixmap = QtGui.QPixmap(qrc_path)
+
+        if pixmap.isNull():
             pixmap = self.icon_for_state("enabled").pixmap(QtCore.QSize(40, 40))
-        else:
-            pixmap = QtGui.QPixmap(f":/icons/images/icon_iphone_{rounded_value}.png")
+            
         self.device_icon.setPixmap(pixmap)
 
     def look_for_button_clicked(self):
