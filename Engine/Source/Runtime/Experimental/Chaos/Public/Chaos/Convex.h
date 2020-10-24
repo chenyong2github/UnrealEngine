@@ -216,11 +216,20 @@ namespace Chaos
 		// @todo(chaos): margin
 		virtual int32 FindClosestFaceAndVertices(const FVec3& Position, TArray<FVec3>& FaceVertices, FReal SearchDist = 0.01) const override;
 
-		// Return support point on the core shape (ignoring margin)
-		FORCEINLINE FVec3 Support2(const FVec3& Direction) const { return Support(Direction, 0); }
+		// Return support point on the core shape ignoring margin
+		FORCEINLINE FVec3 SupportCore(const FVec3& Direction) const
+		{
+			return SupportImpl(Direction, 0);
+		}
 
-		// Return support point on the core shape (ignoring margin)
-		FVec3 Support(const FVec3& Direction, const FReal Thickness) const
+		// Return support point on the outer shape including margin
+		FORCEINLINE FVec3 Support(const FVec3& Direction, const FReal Thickness) const
+		{
+			return SupportImpl(Direction, GetMargin() + Thickness);
+		}
+
+	private:
+		FVec3 SupportImpl(const FVec3& Direction, const FReal Thickness) const
 		{
 			FReal MaxDot = TNumericLimits<FReal>::Lowest();
 			int32 MaxVIdx = 0;
@@ -251,6 +260,7 @@ namespace Chaos
 			return SurfaceParticles.X(MaxVIdx);
 		}
 
+	public:
 		virtual FString ToString() const
 		{
 			return FString::Printf(TEXT("Convex"));
