@@ -331,7 +331,7 @@ static const FName PrototypesTabName(TEXT("Prototypes"));
 static const FName HairTabName(TEXT("Hair"));
 
 
-const TArray<FName> FModelingToolsEditorModeToolkit::PaletteNames_Standard = { PrimitiveTabName, CreateTabName, TransformTabName, DeformTabName, PolyGroupsTabName, TrianglesTabName, UVNormalTabName, VolumesTabName };
+const TArray<FName> FModelingToolsEditorModeToolkit::PaletteNames_Standard = { PrimitiveTabName, CreateTabName, TransformTabName, DeformTabName, PolyGroupsTabName, TrianglesTabName, UVNormalTabName, VolumesTabName, HairTabName };
 const TArray<FName> FModelingToolsEditorModeToolkit::PaletteNames_Experimental = { PrimitiveTabName, CreateTabName, TransformTabName, DeformTabName, PolyGroupsTabName, TrianglesTabName, UVNormalTabName, VolumesTabName, HairTabName, PrototypesTabName };
 
 
@@ -506,7 +506,18 @@ void FModelingToolsEditorModeToolkit::BuildToolPalette_Standard(FName PaletteInd
 		//ToolbarBuilder.AddToolBarButton(Commands.BeginEditCollisionGeometryTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginExtractCollisionGeometryTool);
 	}
-
+	else if (PaletteIndex == HairTabName)
+	{
+	ToolbarBuilder.AddToolBarButton(Commands.BeginTransformMeshesTool);
+	ToolbarBuilder.AddToolBarButton(Commands.BeginMeshSelectionTool);
+	ToolbarBuilder.AddSeparator();
+	ToolbarBuilder.AddToolBarButton(Commands.BeginGroomToMeshTool);
+	ToolbarBuilder.AddToolBarButton(Commands.BeginGroomCardsEditorTool);
+	ToolbarBuilder.AddToolBarButton(Commands.BeginGenerateLODMeshesTool);
+	ToolbarBuilder.AddSeparator();
+	ToolbarBuilder.AddToolBarButton(Commands.BeginAttributeEditorTool);
+	ToolbarBuilder.AddToolBarButton(Commands.BeginMeshInspectorTool);
+	}
 }
 
 
@@ -658,6 +669,7 @@ void FModelingToolsEditorModeToolkit::BuildToolPalette_Experimental(FName Palett
 		ToolbarBuilder.AddToolBarButton(Commands.BeginMeshSelectionTool);
 		ToolbarBuilder.AddSeparator();
 		ToolbarBuilder.AddToolBarButton(Commands.BeginGroomToMeshTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginGroomCardsEditorTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginGenerateLODMeshesTool);
 		ToolbarBuilder.AddSeparator();
 		ToolbarBuilder.AddToolBarButton(Commands.BeginAttributeEditorTool);
