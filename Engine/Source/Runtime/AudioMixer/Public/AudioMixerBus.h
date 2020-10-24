@@ -15,7 +15,6 @@ namespace Audio
 	struct FAudioBusSend
 	{
 		int32 SourceId = INDEX_NONE;
-		uint32 AudioBusId = INDEX_NONE;
 		float SendLevel = 0.0f;
 	};
 
