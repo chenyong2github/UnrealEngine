@@ -587,6 +587,24 @@ void UGroomBindingAsset::CacheDerivedDatas()
 			}
 		}
 
+		// Patch hair group info if it does not match the DDC-read/deserialized data
+		const uint32 GroupCount = HairGroupDatas.Num();
+		if (GroupInfos.Num() != GroupCount)
+		{
+			GroupInfos.SetNum(GroupCount);
+		}
+		for (uint32 GroupIt=0; GroupIt< GroupCount; ++GroupIt)
+		{
+			FGoomBindingGroupInfo& Info = GroupInfos[GroupIt];
+			const UGroomBindingAsset::FHairGroupData& Data = HairGroupDatas[GroupIt];
+			{
+				Info.SimRootCount = Data.SimRootData.RootCount;
+				Info.SimLODCount  = Data.SimRootData.MeshProjectionLODs.Num();
+				Info.RenRootCount = Data.RenRootData.RootCount;
+				Info.RenLODCount  = Data.RenRootData.MeshProjectionLODs.Num();
+			}
+		}
+
 		if (bIsValid)
 		{
 			CachedDerivedDataKey = DerivedDataKey;
