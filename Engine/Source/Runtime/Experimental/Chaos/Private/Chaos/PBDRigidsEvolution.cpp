@@ -462,7 +462,7 @@ namespace Chaos
 				//This is hard to do, but would probably mean the ownership of the index is in the proxy
 		for (FUniqueIdx UniqueIdx : UniqueIndicesPendingRelease)
 		{
-			ReleaseIdx(PendingData.UniqueIdx());
+			ReleaseIdx(UniqueIdx);
 		}
 		UniqueIndicesPendingRelease.Reset();
 		AsyncAccelerationQueue.Reset();
