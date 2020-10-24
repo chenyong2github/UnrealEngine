@@ -261,6 +261,7 @@ public:
 	virtual void PostLoad() override;
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual void PostDuplicate(EDuplicateMode::Type DuplicateMode) override;
 
 	/** Does this data interface need setup and teardown for each stage when working a sim stage sim source? */
 	virtual bool SupportsSetupAndTeardownHLSL() const { return false; }
