@@ -925,7 +925,7 @@ void FDMXEditorUtils::ZeroAllDMXBuffers()
 		IDMXProtocolPtr Protocol = IDMXProtocol::Get(ProtocolName);
 		check(Protocol.IsValid());
 
-		Protocol->ZeroInputBuffers();
+		Protocol->ClearInputBuffers();
 		Protocol->ZeroOutputBuffers();
 	}
 }

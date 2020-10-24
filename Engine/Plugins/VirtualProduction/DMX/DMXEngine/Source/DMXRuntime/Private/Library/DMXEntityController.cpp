@@ -7,27 +7,8 @@
 
 DECLARE_LOG_CATEGORY_CLASS(DMXEntityControllerLog, Log, All);
 
-FDMXBufferPtr UDMXEntityController::GetInputDMXBuffer(int32 LocalUniverseID) const
-{
-	if (!DeviceProtocol.IsValid())
-	{
-		return nullptr;
-	}
-
-	IDMXProtocolPtr Protocol = DeviceProtocol;
-
-	TSharedPtr<IDMXProtocolUniverse, ESPMode::ThreadSafe> Universe = Protocol->GetUniverseById(LocalUniverseID + RemoteOffset);
-	if (!Universe.IsValid())
-	{
-		UE_LOG(DMXEntityControllerLog, Warning, TEXT("%S: Universe Not Valid"), __FUNCTION__);
-		return nullptr;
-	}
-
-	return Universe->GetInputDMXBuffer();
-}
 
 #if WITH_EDITOR
-
 void UDMXEntityController::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	const FName&& PropertyName = PropertyChangedEvent.GetPropertyName();
@@ -45,7 +26,9 @@ void UDMXEntityController::PostEditChangeProperty(FPropertyChangedEvent& Propert
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
+#endif // WITH_EDITOR
 
+#if WITH_EDITOR
 bool UDMXEntityController::CanEditChange(const FProperty* InProperty) const
 {
 	if (InProperty != nullptr)
@@ -60,14 +43,15 @@ bool UDMXEntityController::CanEditChange(const FProperty* InProperty) const
 
 	return Super::CanEditChange(InProperty);
 }
+#endif // WITH_EDITOR
 
+#if WITH_EDITOR
 void UDMXEntityController::PostLoad()
 {
 	Super::PostLoad();
 	ValidateRangeValues();
 	UpdateUniversesFromRange();
 }
-
 #endif // WITH_EDITOR
 
 void UDMXEntityController::PostInitProperties()

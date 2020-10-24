@@ -14,6 +14,7 @@
 
 #include "MovieSceneDMXLibraryTrackRecorder.generated.h"
 
+class FDMXSignal;
 class UDMXSubsystem;
 class UMovieSceneDMXLibraryTrack;
 class UMovieSceneDMXLibrarySection;
@@ -21,18 +22,7 @@ class UMovieSceneDMXLibrarySection;
 class UMovieSceneSection;
 class UMovieSceneTrackRecorderSettings;
 
-
-class DMXEDITOR_API FDMXTrackRecorderSample
-	: public TSharedFromThis<FDMXTrackRecorderSample, ESPMode::ThreadSafe>
-{
-public:
-	int32 UniverseID = -1;
-
-	/** DMX Data recieved during a single frame */
-	TArray<uint8> Data;
-
-	FQualifiedFrameTime FrameTime;
-};
+struct FDMXNormalizedAttributeValueMap;
 
 /**
 * Track recorder implementation for DMX libraries
@@ -44,6 +34,10 @@ class DMXEDITOR_API UMovieSceneDMXLibraryTrackRecorder
 {
 	GENERATED_BODY()
 public:
+	UMovieSceneDMXLibraryTrackRecorder()
+		: LastProcessedTime(0.f)
+	{}
+
 	virtual ~UMovieSceneDMXLibraryTrackRecorder() = default;
 
 	// UMovieSceneTrackRecorder Interface
@@ -67,7 +61,7 @@ public:
 
 private:
 	/** Called from the network thread when a controller recevies DMX */
-	void OnReceiveDMX(FName ProtocolName, uint16 UniverseID, const TArray<uint8>& InputBuffer);
+	void OnReceiveDMX(UDMXEntityFixturePatch* FixturePatch, const FDMXNormalizedAttributeValueMap& NormalizedValuePerAttribute);
 
 	/** Name of Subject To Record */
 	FName SubjectName;
@@ -96,16 +90,13 @@ private:
 	/** Cached Key Reduction from DMX Source Properties*/
 	bool bReduceKeys;
 
-	/** Queue storing incoming dmx data */
-	TQueue<TSharedPtr<FDMXTrackRecorderSample, ESPMode::ThreadSafe>, EQueueMode::Mpsc> Buffer;
+	/** Incoming dmx data per patch */
+	TMap<UDMXEntityFixturePatch*, TSharedPtr<FDMXSignal>> Buffer;
 
-	/** Stores the previous samples to avoid buffering of unchanged data */
-	TMap<uint16, TArray<uint8>> PreviousSamplesPerUniverse;
+	/** Time when the next buffer will be read */
+	float LastProcessedTime;
 
 private:
-	/** Gets the frame time in a thread-safe way */
-	void GetFrameTimeThreadSafe(FQualifiedFrameTime& OutFrameTime);
-
 	/** Critical section used to get the frame time */
 	FCriticalSection FrameTimeCritSec;
 };

@@ -22,18 +22,18 @@ public:
 
 	// Functions-----------------------------------------
 	UFUNCTION(BlueprintPure, Category = "DMX")
-		float DMXInterpolatedStep();
+	float DMXInterpolatedStep();
 
 	UFUNCTION(BlueprintPure, Category = "DMX")
-		float DMXInterpolatedValue();
+	float DMXInterpolatedValue();
 
 	UFUNCTION(BlueprintPure, Category = "DMX")
-		float DMXTargetValue();
+	float DMXTargetValue();
 
 	UFUNCTION(BlueprintPure, Category = "DMX")
-		bool DMXIsInterpolationDone();
+	bool DMXIsInterpolationDone();
 	
-	float RemapValue(int);
+	float RemapValue(float Alpha);
 	bool IsTargetValid(float Target);
 	void Push(float Target);
 	void SetTarget(float Target);
@@ -41,10 +41,9 @@ public:
 	// Overrides
 	virtual void InitCells(int NCells) override;
 	virtual void SetRangeValue() override;
-	virtual void SetBitResolution(TMap<FDMXAttributeName, EDMXFixtureSignalFormat> Map) override;
 
 	// Blueprint event
 	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, Category = "DMX Component")
-		void SetComponent(float NewValue);
+	void SetComponent(float NewValue);
 
 };

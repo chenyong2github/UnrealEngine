@@ -4,6 +4,7 @@
 
 #include "DMXProtocolBlueprintLibrary.h"
 #include "DMXProtocolTransportSACN.h"
+#include "DMXProtocolSACNReceivingRunnable.h"
 #include "Common/UdpSocketBuilder.h"
 #include "Misc/CoreDelegates.h"
 #include "Misc/App.h"
@@ -46,12 +47,12 @@ bool FDMXProtocolSACN::Init()
 	bShouldSendDMX = ProtocolSettings->IsSendDMXEnabled();
 	bShouldReceiveDMX = ProtocolSettings->IsReceiveDMXEnabled();
 
+	ReceivingRunnable = FDMXProtocolSACNReceivingRunnable::CreateNew(ProtocolSettings->ReceivingRefreshRate);
+
 	// Set Delegates
 	NetworkInterfaceChangedDelegate = FOnNetworkInterfaceChangedDelegate::CreateRaw(this, &FDMXProtocolSACN::OnNetworkInterfaceChanged);
-	ReceivingThreadChangedDelegate = FOnReceivingThreadChangedDelegate::CreateRaw(this, &FDMXProtocolSACN::OnReceivingThreadChanged);
 
 	IDMXProtocol::OnNetworkInterfaceChanged.Add(NetworkInterfaceChangedDelegate);
-	IDMXProtocol::OnReceivingThreadChanged.Add(ReceivingThreadChangedDelegate);
 
 	// Set Network Interface
 	FString ErrorMessage;
@@ -70,11 +71,8 @@ bool FDMXProtocolSACN::Shutdown()
 {
 	ReleaseNetworkInterface();
 	IDMXProtocol::OnNetworkInterfaceChanged.Remove(NetworkInterfaceChangedDelegate.GetHandle());
-	IDMXProtocol::OnReceivingThreadChanged.Remove(ReceivingThreadChangedDelegate.GetHandle());
 
 	FCoreDelegates::OnEndFrame.Remove(OnEndFrameHandle);
-
-	ReleaseSACNReceiver();
 
 	return true;
 }
@@ -132,16 +130,7 @@ TSharedPtr<IDMXProtocolUniverse, ESPMode::ThreadSafe> FDMXProtocolSACN::AddUnive
 		Universe->CreateDMXListener();
 	}
 
-	// Lock the universe if we use separate thread
-	if (SACNReceiver.IsValid())
-	{
-		FScopeLock Lock(&SACNReceiver->GetListeningUniversesLock());
-		return UniverseManager->AddUniverse(Universe->GetUniverseID(), Universe);
-	}
-	else
-	{
-		return UniverseManager->AddUniverse(Universe->GetUniverseID(), Universe);
-	}
+	return UniverseManager->AddUniverse(Universe->GetUniverseID(), Universe);
 }
 
 void FDMXProtocolSACN::CollectUniverses(const TArray<FDMXCommunicationEndpoint>& Endpoints)
@@ -150,7 +139,6 @@ void FDMXProtocolSACN::CollectUniverses(const TArray<FDMXCommunicationEndpoint>&
 	{
 		FJsonObject UniverseSettings;
 		UniverseSettings.SetNumberField(DMXJsonFieldNames::DMXUniverseID, Endpoint.UniverseNumber);
-		
 		
 		TArray<TSharedPtr<FJsonValue>> IpAddresses;
 		if (Endpoint.ShouldBroadcastOnly()) 
@@ -218,11 +206,11 @@ void FDMXProtocolSACN::GetDefaultUniverseSettings(uint16 InUniverseID, FJsonObje
 	OutSettings.SetArrayField(DMXJsonFieldNames::DMXIpAddresses, IpAddresses); // Broadcast IP address
 }
 
-void FDMXProtocolSACN::ZeroInputBuffers()
+void FDMXProtocolSACN::ClearInputBuffers()
 {
-	for (const TPair<uint32, TSharedPtr<FDMXProtocolUniverseSACN, ESPMode::ThreadSafe>>& UniverseIDUniverseKvP : UniverseManager->GetAllUniverses())
+	if (ReceivingRunnable.IsValid())
 	{
-		UniverseIDUniverseKvP.Value->ZeroInputDMXBuffer();
+		ReceivingRunnable->ClearBuffers();
 	}
 }
 
@@ -239,6 +227,15 @@ const FName& FDMXProtocolSACN::GetProtocolName() const
 	return ProtocolName;
 }
 
+const IDMXUniverseSignalMap& FDMXProtocolSACN::GameThreadGetInboundSignals() const
+{
+	if (ReceivingRunnable.IsValid())
+	{
+		return ReceivingRunnable->GameThread_GetInputBuffer();
+	}
+
+	return EmptyBufferDummy;
+}
 
 TSharedPtr<IDMXProtocolSender> FDMXProtocolSACN::GetSenderInterface() const
 {
@@ -251,14 +248,11 @@ bool FDMXProtocolSACN::Tick(float DeltaTime)
 	{
 		const UDMXProtocolSettings* ProtocolSettings = GetDefault<UDMXProtocolSettings>();
 
-		if (!ProtocolSettings->bUseSeparateReceivingThread)
+		for (const TPair<uint32, FDMXProtocolUniverseSACNPtr>& UniversePair : UniverseManager->GetAllUniverses())
 		{
-			for (const TPair<uint32, FDMXProtocolUniverseSACNPtr>& UniversePair : UniverseManager->GetAllUniverses())
+			if (FDMXProtocolUniverseSACNPtr Universe = UniversePair.Value)
 			{
-				if (FDMXProtocolUniverseSACNPtr Universe = UniversePair.Value)
-				{
-					Universe->Tick(DeltaTime);
-				}
+				Universe->Tick(DeltaTime);
 			}
 		}
 	}
@@ -269,27 +263,6 @@ bool FDMXProtocolSACN::Tick(float DeltaTime)
 void FDMXProtocolSACN::OnEndFrame()
 {
 	Tick(FApp::GetDeltaTime());
-}
-
-void FDMXProtocolSACN::OnReceivingThreadChanged(int32 ReceivingRefreshRate, bool bInUseSeparateReceivingThread)
-{
-	if (bInUseSeparateReceivingThread)
-	{
-		SACNReceiver = MakeShared<FDMXProtocolReceiverSACN>(this, ReceivingRefreshRate);
-	}
-	else
-	{
-		ReleaseSACNReceiver();
-	}
-}
-
-void FDMXProtocolSACN::ReleaseSACNReceiver()
-{
-	if (SACNReceiver.IsValid())
-	{
-		SACNReceiver.Reset();
-		SACNReceiver = nullptr;
-	}
 }
 
 bool FDMXProtocolSACN::SendDiscovery(const TArray<uint16>& Universes)
@@ -329,19 +302,15 @@ EDMXSendResult FDMXProtocolSACN::InputDMXFragment(uint16 UniverseID, const IDMXF
 {
 	uint16 FinalInputUniverseID = GetFinalSendUniverseID(UniverseID);
 
-	TSharedPtr<IDMXProtocolUniverse, ESPMode::ThreadSafe> Universe = UniverseManager->GetUniverseById(FinalInputUniverseID);
-	if (!Universe.IsValid())
+	if (ReceivingRunnable.IsValid() && IsInGameThread())
 	{
-		return EDMXSendResult::ErrorGetUniverse;
+		ReceivingRunnable->GameThread_InputDMXFragment(UniverseID, DMXFragment);
 	}
-
-	const FDMXBufferPtr& InputBuffer = Universe->GetInputDMXBuffer();
-	check(InputBuffer.IsValid());
-
-	InputBuffer->AccessDMXData([this, InputBuffer, UniverseID, &DMXFragment](TArray<uint8>& Buffer) {
-		InputBuffer->SetDMXFragment(DMXFragment);
-		OnUniverseInputBufferUpdated.Broadcast(ProtocolName, UniverseID, Buffer);
-		});
+	else
+	{
+		// Only implemented for game thread
+		checkNoEntry();
+	}
 
 	return EDMXSendResult::Success;
 }
@@ -393,16 +362,7 @@ EDMXSendResult FDMXProtocolSACN::SendDMXFragmentCreate(uint16 InUniverseID, cons
 	uint16 FinalSendUniverseID = GetFinalSendUniverseID(InUniverseID);
 
 	// Lock the universe if we use separate thread
-	TSharedPtr<FDMXProtocolUniverseSACN, ESPMode::ThreadSafe> Universe;
-	if (SACNReceiver.IsValid())
-	{
-		FScopeLock Lock(&SACNReceiver->GetListeningUniversesLock());
-		Universe = UniverseManager->AddUniverseCreate(FinalSendUniverseID);
-	}
-	else
-	{
-		Universe = UniverseManager->AddUniverseCreate(FinalSendUniverseID);
-	}
+	TSharedPtr<FDMXProtocolUniverseSACN, ESPMode::ThreadSafe> Universe = UniverseManager->AddUniverseCreate(FinalSendUniverseID);
 
 	// Start listening instantly if we should receive DMX
 	if (bShouldReceiveDMX)
@@ -546,6 +506,10 @@ bool FDMXProtocolSACN::RestartNetworkInterface(const FString& InInterfaceIPAddre
 {
 	FScopeLock Lock(&SenderSocketCS);
 
+	// Depending on settings, create a receiver with its own thread
+	const UDMXProtocolSettings* ProtocolSettings = GetDefault<UDMXProtocolSettings>();
+	check(ProtocolSettings);
+
 	// Clean the error message
 	OutErrorMessage.Empty();
 
@@ -626,14 +590,6 @@ void FDMXProtocolSACN::CreateDMXListenersInUniverses()
 
 	const UDMXProtocolSettings* ProtocolSettings = GetDefault<UDMXProtocolSettings>();
 
-	bool bUseSeparateReceivingThread = ProtocolSettings->bUseSeparateReceivingThread;
-
-	if (bUseSeparateReceivingThread)
-	{
-		float ReceivingRefreshRate = ProtocolSettings->ReceivingRefreshRate;
-		SACNReceiver = MakeShared<FDMXProtocolReceiverSACN>(this, ReceivingRefreshRate);
-	}
-
 	// In any case the universe should listen for incoming DMX. Either the receiver polls its update, or this via Tick.
 	check(UniverseManager.IsValid());
 	for (const TPair<uint32, FDMXProtocolUniverseSACNPtr>& UniverseKvp : UniverseManager->GetAllUniverses())
@@ -648,8 +604,6 @@ void FDMXProtocolSACN::CreateDMXListenersInUniverses()
 void FDMXProtocolSACN::DestroyDMXListenersInUniverses()
 {
 	bShouldReceiveDMX = false;
-
-	ReleaseSACNReceiver();
 
 	check(UniverseManager.IsValid());
 

@@ -2,32 +2,58 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+
+#include "DMXTypes.h"
 #include "Library/DMXEntityReference.h"
+
+#include "CoreMinimal.h"
+#include "Templates/SharedPointer.h"
 
 #include "DMXComponent.generated.h"
 
-class FBufferUpdatedReceiver;
+struct FDMXAttributeName;
+class FDMXSharedListener;
 class UDMXLibrary;
 class UDMXEntityFixturePatch;
 
+/** 
+ * Component that receives DMX input each Tick from a fixture patch.  
+ * Only useful if updates are required each tick (otherwise use DMX Fixture Patch Ref variable and acess Data on demand from there).
+ */
 UCLASS( ClassGroup=(DMX), meta=(BlueprintSpawnableComponent), HideCategories = ("Variable", "Sockets", "Tags", "Activation", "Cooking", "ComponentReplication", "AssetUserData", "Collision", "Events"))
 class DMXRUNTIME_API UDMXComponent
 	: public UActorComponent
 {
 	GENERATED_BODY()
 
-	friend FBufferUpdatedReceiver;
+	friend FDMXSharedListener;
+
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FDMXComponentFixturePatchReceivedSignature, UDMXEntityFixturePatch*, FixturePatch, const FDMXNormalizedAttributeValueMap&, ValuePerAttribute);
+
+public:
+	UDMXComponent();
 
 protected:
-	//~ Begin UObject Interface
+	// ~Begin UActorComponent interface
+	virtual void OnRegister() override;
+	virtual void BeginPlay() override;
+	virtual void DestroyComponent(bool bPromoteChildren) override;
+
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
-	//~ End UObject Interface
+	// ~End UActorComponent interface
 
-	DECLARE_DYNAMIC_MULTICAST_SPARSE_DELEGATE_TwoParams(FDMXComponentFixturePatchReceivedSignature, UDMXComponent, OnFixturePatchReceived, UDMXEntityFixturePatch*, FixturePatch, const TArray<uint8>&, ChannelsArray);
+protected:
+	/** Called when the fixture patch received DMX */
+	UFUNCTION()
+	void OnFixturePatchReceivedDMX(UDMXEntityFixturePatch* FixturePatch, const FDMXNormalizedAttributeValueMap& NormalizedValuePerAttribute);
+
+	/** Broadcast when the component's fixture patch received DMX */
+	UPROPERTY(BlueprintAssignable, Category = "Components|DMX");
+	FDMXComponentFixturePatchReceivedSignature OnFixturePatchReceived;
+
 public:
 	UPROPERTY(EditAnywhere, Category = "DMX")
 	FDMXEntityFixturePatchRef FixturePatchRef;
@@ -39,25 +65,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "DMX")
 	void SetFixturePatch(UDMXEntityFixturePatch* InFixturePatch);
 
-	/** Called when the component has been activated, with parameter indicating if it was from a reset */
-	UPROPERTY(BlueprintAssignable, Category = "Components|DMX")
-	FDMXComponentFixturePatchReceivedSignature OnFixturePatchReceived;
-
-public:
-	UDMXComponent();
-
-	void RestartPacketReceiver();
-
-protected:
-	// ~Begin UActorComponentInterface	
-	virtual void BeginPlay() override;
-	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
-	// ~End UActorComponentInterface
-
 private:
-	TArray<uint8> ChannelBuffer;
-
-	TAtomic<bool> bBufferUpdated;
-
-	TSharedPtr<FBufferUpdatedReceiver> BufferUpdatedReceiver;
+	TSharedPtr<FDMXSharedListener> SharedListener;
 };

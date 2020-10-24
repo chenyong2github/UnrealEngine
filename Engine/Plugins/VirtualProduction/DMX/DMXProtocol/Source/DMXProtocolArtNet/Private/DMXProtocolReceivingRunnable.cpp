@@ -1,97 +1,158 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DMXProtocolReceivingRunnable.h"
+
+#include "DMXProtocolTypes.h"
 #include "DMXProtocolArtNet.h"
 #include "Interfaces/IDMXProtocolUniverse.h"
+#include "Packets/DMXProtocolArtNetPackets.h"
 
-FDMXProtocolReceivingRunnable::FDMXProtocolReceivingRunnable(FDMXProtocolArtNet* InProtocol, uint32 InReceivingRefreshRate)
-	: Stopping(false)
-	, Protocol(InProtocol)
+#include "Async/TaskGraphInterfaces.h"
+#include "Misc/ScopeLock.h"
+#include "Templates/SharedPointer.h"
+
+
+FDMXProtocolArtNetReceivingRunnable::FDMXProtocolArtNetReceivingRunnable(uint32 InReceivingRefreshRate)
+	: Thread(nullptr)
+	, bStopping(false)
 	, ReceivingRefreshRate(InReceivingRefreshRate)
 {
-	Thread = FRunnableThread::Create(this, TEXT("FDMXProtocolSenderArtNet"), 128 * 1024, TPri_BelowNormal, FPlatformAffinity::GetPoolThreadMask());
 }
 
-FDMXProtocolReceivingRunnable::~FDMXProtocolReceivingRunnable()
+FDMXProtocolArtNetReceivingRunnable::~FDMXProtocolArtNetReceivingRunnable()
 {
-	if (Thread != nullptr)
+	Stop();
+
+	if (Thread)
 	{
 		Thread->Kill(true);
 		delete Thread;
+
+		Thread = nullptr;
 	}
 }
 
-bool FDMXProtocolReceivingRunnable::Init()
+TSharedPtr<FDMXProtocolArtNetReceivingRunnable, ESPMode::ThreadSafe> FDMXProtocolArtNetReceivingRunnable::CreateNew(uint32 InReceivingRefreshRate)
+{
+	TSharedPtr<FDMXProtocolArtNetReceivingRunnable, ESPMode::ThreadSafe> NewReceivingRunnable = MakeShared<FDMXProtocolArtNetReceivingRunnable, ESPMode::ThreadSafe>(InReceivingRefreshRate);
+
+	NewReceivingRunnable->Thread = FRunnableThread::Create(static_cast<FRunnable*>(NewReceivingRunnable.Get()), TEXT("DMXProtocolArtNetReceivingRunnable"), 0U, TPri_TimeCritical, FPlatformAffinity::GetPoolThreadMask());
+
+	return NewReceivingRunnable;
+}
+
+void FDMXProtocolArtNetReceivingRunnable::ClearBuffers()
+{
+	FScopeLock Lock(&ClearBufferLock);
+
+	Queue.Empty();
+
+	ReceivingThreadOnlyBuffer.Reset();
+
+	TSharedPtr<FDMXProtocolArtNetReceivingRunnable, ESPMode::ThreadSafe> ThisSP = SharedThis(this);
+
+	constexpr ENamedThreads::Type GameThread = ENamedThreads::GameThread;
+	AsyncTask(GameThread, [ThisSP]() {
+		ThisSP->GameThreadOnlyBuffer.Reset();
+		});
+}
+
+void FDMXProtocolArtNetReceivingRunnable::PushDMXPacket(uint16 InUniverse, const FDMXProtocolArtNetDMXPacket& ArtNetDMXPacket)
+{
+	TSharedPtr<FDMXSignal> DMXSignal = MakeShared<FDMXSignal>(FApp::GetTimecode(), InUniverse, TArray<uint8>(ArtNetDMXPacket.Data, DMX_UNIVERSE_SIZE));
+
+	Queue.Enqueue(DMXSignal);
+}
+
+void FDMXProtocolArtNetReceivingRunnable::GameThread_InputDMXFragment(uint16 UniverseID, const IDMXFragmentMap& DMXFragment)
+{
+	check(IsInGameThread());
+
+	TArray<uint8> Channels;
+	Channels.AddZeroed(DMX_UNIVERSE_SIZE);
+
+	for (TPair<int32, uint8> ChannelValue : DMXFragment)
+	{
+		Channels[ChannelValue.Key] = ChannelValue.Value;
+	}
+
+	GameThreadOnlyBuffer.FindOrAdd(UniverseID) = MakeShared<FDMXSignal>(FApp::GetTimecode(), UniverseID, Channels);
+}
+
+void FDMXProtocolArtNetReceivingRunnable::SetRefreshRate(uint32 NewReceivingRefreshRate)
+{
+	FScopeLock Lock(&SetReceivingRateLock);
+
+	ReceivingRefreshRate = NewReceivingRefreshRate;
+}
+
+bool FDMXProtocolArtNetReceivingRunnable::Init()
 {
 	return true;
 }
 
-uint32 FDMXProtocolReceivingRunnable::Run()
+uint32 FDMXProtocolArtNetReceivingRunnable::Run()
 {
-	while (!Stopping)
+	while (!bStopping)
 	{
 		Update();
+
+		FPlatformProcess::SleepNoStats(1.f / (float)ReceivingRefreshRate);
 	}
 
 	return 0;
 }
 
-void FDMXProtocolReceivingRunnable::Stop()
+void FDMXProtocolArtNetReceivingRunnable::Stop()
 {
-	Stopping = true;
+	bStopping = true;
 }
 
-void FDMXProtocolReceivingRunnable::Exit()
+void FDMXProtocolArtNetReceivingRunnable::Exit()
 {
+
 }
 
-void FDMXProtocolReceivingRunnable::Tick()
-{
-	Update();
-}
-
-FSingleThreadRunnable* FDMXProtocolReceivingRunnable::GetSingleThreadInterface()
+FSingleThreadRunnable* FDMXProtocolArtNetReceivingRunnable::GetSingleThreadInterface()
 {
 	return this;
 }
 
-void FDMXProtocolReceivingRunnable::PushNewTask(uint16 InUniverse, const FArrayReaderPtr& InBufferPtr)
+void FDMXProtocolArtNetReceivingRunnable::Tick()
 {
-	FScopeLock Lock(&IncomingTasksLock);
-
-	IncomingMap.Add(InUniverse, InBufferPtr);
+	// Only called when platform is single-threaded
+	Update();
 }
 
-void FDMXProtocolReceivingRunnable::SetRefreshRate(uint32 InReceivingRefreshRate)
+void FDMXProtocolArtNetReceivingRunnable::Update()
 {
-	ReceivingRefreshRate = InReceivingRefreshRate;
-}
-
-void FDMXProtocolReceivingRunnable::Update()
-{
+	if (bStopping || IsEngineExitRequested())
 	{
-		// Copy incmping map
-		FScopeLock Lock(&IncomingTasksLock);
-		CompletedMap.Append(IncomingMap);
-		IncomingMap.Empty();
+		return;
 	}
 
-	for (const TPair<uint16, FArrayReaderPtr>& CompletedPair : CompletedMap)
-	{
-		if (TSharedPtr<IDMXProtocolUniverse, ESPMode::ThreadSafe> Universe = Protocol->GetUniverseByIdCreateDefault(CompletedPair.Key))
+	// Let the game thread capture This
+	TSharedPtr<FDMXProtocolArtNetReceivingRunnable, ESPMode::ThreadSafe> ThisSP = SharedThis(this);
+
+	constexpr ENamedThreads::Type GameThread = ENamedThreads::GameThread;
+	AsyncTask(GameThread, [ThisSP]() {
+		// Drop frames if they're more than one frame behind the current frame (2 frames)
+		FFrameRate FrameRate = FFrameRate(1.0f, ThisSP->ReceivingRefreshRate);
+		double TolerableFrameTimeSeconds = FApp::GetTimecode().ToTimespan(FrameRate).GetTotalSeconds() + FrameRate.AsDecimal() * 2.0f;
+
+		TSharedPtr<FDMXSignal> Signal;
+		while(ThisSP->Queue.Dequeue(Signal))
 		{
-			Universe->HandleReplyPacket(CompletedPair.Value);
+			double SignalFrameTimeSeconds = Signal->Timestamp.ToTimespan(FrameRate).GetTotalSeconds();
+			if (SignalFrameTimeSeconds > TolerableFrameTimeSeconds)
+			{
+				ThisSP->Queue.Empty();
+
+				UE_LOG(LogDMXProtocol, Warning, TEXT("DMX sACN Network Buffer overflow. Dropping DMX signal."));
+				break;
+			}
+
+			ThisSP->GameThreadOnlyBuffer.FindOrAdd(Signal->UniverseID) = Signal;
 		}
-	}
-
-	CompletedMap.Empty();
-
-	if (ReceivingRefreshRate > 0)
-	{
-		FPlatformProcess::SleepNoStats(1.f / ReceivingRefreshRate);
-	}
-	else
-	{
-		FPlatformProcess::SleepNoStats(0.f);
-	}
+	});
 }
