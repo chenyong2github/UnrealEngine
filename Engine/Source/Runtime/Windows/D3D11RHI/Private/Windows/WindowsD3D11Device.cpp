@@ -1609,14 +1609,14 @@ void FD3D11DynamicRHI::InitD3DDevice()
 {
 	check( IsInGameThread() );
 
-	// Wait for the rendering thread to go idle.
-	SCOPED_SUSPEND_RENDERING_THREAD(false);
-
 	// UE4 no longer supports clean-up and recovery on DEVICE_LOST.
 
 	// If we don't have a device yet, either because this is the first viewport, or the old device was removed, create a device.
 	if(!Direct3DDevice)
 	{
+		// Wait for the rendering thread to go idle.
+		SCOPED_SUSPEND_RENDERING_THREAD(false);
+
 		UE_LOG(LogD3D11RHI, Log, TEXT("Creating new Direct3DDevice"));
 		check(!GIsRHIInitialized);
 
