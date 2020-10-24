@@ -252,7 +252,7 @@ bool ToolSceneQueriesUtil::IsVisibleObjectHit(const FHitResult& HitResult)
 
 
 bool ToolSceneQueriesUtil::FindNearestVisibleObjectHit(UWorld* World, FHitResult& HitResultOut, const FVector& Start, const FVector& End,
-	const TArray<UPrimitiveComponent*>* IgnoreComponents)
+	const TArray<UPrimitiveComponent*>* IgnoreComponents, const TArray<UPrimitiveComponent*>* InvisibleComponentsToInclude)
 {
 	FCollisionObjectQueryParams ObjectQueryParams(FCollisionObjectQueryParams::AllObjects);
 	FCollisionQueryParams QueryParams = FCollisionQueryParams::DefaultQueryParam;
@@ -269,7 +269,8 @@ bool ToolSceneQueriesUtil::FindNearestVisibleObjectHit(UWorld* World, FHitResult
 	{
 		if (CurResult.Distance < NearestVisible)
 		{
-			if (IsVisibleObjectHit(CurResult))
+			if (IsVisibleObjectHit(CurResult) 
+				|| (InvisibleComponentsToInclude && InvisibleComponentsToInclude->Contains(CurResult.GetComponent())))
 			{
 				if (IgnoreComponents == nullptr || IgnoreComponents->Contains(CurResult.GetComponent()) == false)
 				{
@@ -285,7 +286,7 @@ bool ToolSceneQueriesUtil::FindNearestVisibleObjectHit(UWorld* World, FHitResult
 
 
 bool ToolSceneQueriesUtil::FindNearestVisibleObjectHit(UWorld* World, FHitResult& HitResultOut, const FRay& Ray,
-	const TArray<UPrimitiveComponent*>* IgnoreComponents)
+	const TArray<UPrimitiveComponent*>* IgnoreComponents, const TArray<UPrimitiveComponent*>* InvisibleComponentsToInclude)
 {
-	return FindNearestVisibleObjectHit(World, HitResultOut, Ray.Origin, Ray.PointAt(HALF_WORLD_MAX), IgnoreComponents);
+	return FindNearestVisibleObjectHit(World, HitResultOut, Ray.Origin, Ray.PointAt(HALF_WORLD_MAX), IgnoreComponents, InvisibleComponentsToInclude);
 }
