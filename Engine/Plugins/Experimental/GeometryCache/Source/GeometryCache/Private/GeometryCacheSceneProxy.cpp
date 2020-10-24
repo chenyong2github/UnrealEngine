@@ -141,6 +141,17 @@ FGeometryCacheSceneProxy::FGeometryCacheSceneProxy(UGeometryCacheComponent* Comp
 				NewSection->Materials.Add(Material);
 			}
 
+			if (NumTracks == 1)
+			{
+				// When there's only one track, it means there's one mesh (that might have been merged from other meshes and made up of multiple sections)
+				if (NewSection->Materials.Num() != Component->GetMaterials().Num())
+				{
+					// This means that the first frame does not contain all the materials used during the animation
+					// (eg. non-constant topology with increasing number of sections)
+					NewSection->Materials = Component->GetMaterials();
+				}
+			}
+
 			// Save ref to new section
 			Tracks.Add(NewSection);
 		}
