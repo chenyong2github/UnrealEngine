@@ -4,6 +4,7 @@
 #include "HttpConnectionTypes.h"
 #include "HttpRouter.h"
 #include "HttpServerConfig.h"
+#include "SocketSubsystem.h"
 
 struct FHttpConnection;
 struct FHttpPath;
@@ -100,7 +101,7 @@ private:
 	uint32 ListenPort = 0;
 
 	/** The binding socket which accepts incoming connections */
-	FSocket* ListenSocket = nullptr;
+	FUniqueSocket ListenSocket;
 
 	/** The mechanism that routes requests to respective handlers  */
 	TSharedPtr<FHttpRouter> Router = nullptr;
