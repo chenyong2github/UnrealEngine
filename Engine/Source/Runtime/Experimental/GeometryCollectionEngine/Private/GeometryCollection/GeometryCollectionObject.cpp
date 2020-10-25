@@ -108,7 +108,7 @@ void UGeometryCollection::GetSharedSimulationParams(FSharedSimulationParameters&
 
 	if(SelectedCollisionType == ECollisionTypeEnum::Chaos_Volumetric && ImplicitType == EImplicitTypeEnum::Chaos_Implicit_LevelSet)
 	{
-		UE_LOG(LogGeometryCollectionInternal, Warning, TEXT("LevelSet geometry selected but non-particle collisions selected. Forcing particle-implicit collisions for %s"), *GetPathName());
+		UE_LOG(LogGeometryCollectionInternal, Verbose, TEXT("LevelSet geometry selected but non-particle collisions selected. Forcing particle-implicit collisions for %s"), *GetPathName());
 		SelectedCollisionType = ECollisionTypeEnum::Chaos_Surface_Volumetric;
 	}
 
