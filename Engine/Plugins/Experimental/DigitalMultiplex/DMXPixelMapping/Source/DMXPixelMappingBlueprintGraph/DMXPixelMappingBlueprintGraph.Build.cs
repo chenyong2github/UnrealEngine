@@ -6,6 +6,8 @@ public class DMXPixelMappingBlueprintGraph : ModuleRules
 {
 	public DMXPixelMappingBlueprintGraph(ReadOnlyTargetRules Target) : base(Target)
 	{
+		ShortName = "DMXPxlMapBPGraph";
+		
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 		
 		PublicDependencyModuleNames.AddRange(
