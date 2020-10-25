@@ -225,11 +225,14 @@ private:
 	FCacheUserToken& operator=(FCacheUserToken&&) = delete;
 };
 
-UCLASS()
+UCLASS(Experimental)
 class CHAOSCACHING_API UChaosCache : public UObject
 {
 	GENERATED_BODY()
 public:
+
+	UChaosCache();
+
 	/**
 	 * As we record post-simulate of physics, we're almost always taking data from a non-main thread (physics thread).
 	 * Because of this we can't directly write into the cache, but instead into a pending frame queue that needs to be

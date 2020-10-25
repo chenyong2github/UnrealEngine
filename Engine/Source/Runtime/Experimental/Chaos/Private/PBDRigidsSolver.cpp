@@ -749,7 +749,6 @@ namespace Chaos
 		MLastDt = DeltaTime;
 		EventPreSolve.Broadcast(DeltaTime);
 		AdvanceOneTimeStepTask<Traits>(this, DeltaTime).DoWork();
-		EventPreBuffer.Broadcast(DeltaTime);
 	}
 
 	template <typename Traits>
@@ -1028,6 +1027,7 @@ namespace Chaos
 
 		if(HasActiveParticles())
 		{
+			EventPreBuffer.Broadcast(MLastDt);
 			GetDirtyParticlesBuffer()->CaptureSolverData(this);
 			BufferPhysicsResults();
 			FlipBuffers();
