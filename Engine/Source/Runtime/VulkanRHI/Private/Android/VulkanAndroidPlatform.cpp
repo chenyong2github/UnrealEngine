@@ -391,6 +391,11 @@ bool FVulkanAndroidPlatform::SupportsStandardSwapchain()
 	}
 }
 
+bool FVulkanAndroidPlatform::RequiresRenderingBackBuffer()
+{
+	return !FPlatformMisc::IsStandaloneStereoOnlyDevice();
+}
+
 EPixelFormat FVulkanAndroidPlatform::GetPixelFormatForNonDefaultSwapchain()
 {
 	if (FPlatformMisc::IsStandaloneStereoOnlyDevice())
