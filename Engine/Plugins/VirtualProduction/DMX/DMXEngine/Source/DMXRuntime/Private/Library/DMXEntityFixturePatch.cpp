@@ -53,25 +53,37 @@ bool UDMXEntityFixturePatch::UpdateCachedDMXValues()
 
 	// CachedRelevantController only exists to improve performance, profiler showed significant benefits.
 	// Since the controller may change in editor, in such builds we need to test each tick for relevant ones.
-	// In non-editor builds we can layout the API so that it prevents from any runtime changes -> @TODO.
+	// We generally assume in the plugin that no controllers can be added or removed at runtime.
+	// We still need to layout the API so that it prevents from runtime changes of controllers -> @TODO.
 	//
-	// Summary:
-	// In editor builds: CachedRelevantController is updated each tick
-	// In non-editor builds: CachedRelevantController is cached in the first tick only 
-	//
-	// This should help understand code below.
-	// @TODO cache relevant controllers at editor time so the clutter here is not needed. Then refactor into smaller parts.
-
-	bool bValuesChanged = false;
+	// This should help understand code below
 
 #if WITH_EDITOR
-	// In editor builds reset CachedRelevantController each tick to handle changes in the library and its controllers
 	CachedRelevantController = nullptr;
-#endif // WITH_EDITOR
+	for (UDMXEntityController* Controller : GetRelevantControllers())
+	{
+		// If several controllers are sending we let the user know of the conflict, but do not try to merge the signals.
+		if (CachedRelevantController)
+		{
+			UE_LOG(DMXEntityFixturePatchLog, Warning, TEXT("More than one controller sending data to %s. Using one arbitrarily, may differ for each run."), *GetDisplayName());
+			break;
+		}
+		CachedRelevantController = Controller;
+	}
+#endif
 
+	// Non-Editor builds cache the controller in the first call. Controllers aren't assumed to be changed at runtime
+#if !WITH_EDITOR
+	if (!CachedRelevantController)
+	{
+		CachedRelevantController = GetFirstRelevantController();
+	}
+#endif // !WITH_EDITOR
+
+
+	bool bValuesChanged = false;
 	if (CachedRelevantController)
 	{
-		// Runtime only, optimized for performance
 		const FName& Protocol = CachedRelevantController->GetProtocol();
 		if (IDMXProtocolPtr DMXProtocolPtr = IDMXProtocol::Get(Protocol))
 		{
@@ -86,13 +98,13 @@ bool UDMXEntityFixturePatch::UpdateCachedDMXValues()
 				const int32 StartingIndex = GetStartingChannel() - 1;
 				const int32 NumChannels = GetChannelSpan();
 
-				// In cases where the user changes the num channels of the fixutre type, we have to restart the receiver
+				// In cases where the num channel changes, update the Cache size. @TODO: Presumably can be editor only
 				if (NumChannels != CachedDMXValues.Num())
 				{
 					CachedDMXValues.SetNum(NumChannels, false);
 				}
 
-				// Copy the data to the dmx buffer
+				// Copy data relevant to the patch, to compare it with existing
 				TArray<uint8> NewValuesArray(&Signal->ChannelData[StartingIndex], NumChannels);
 
 				// Update only if values changed
@@ -102,60 +114,6 @@ bool UDMXEntityFixturePatch::UpdateCachedDMXValues()
 					CachedDMXValues = MoveTemp(NewValuesArray);
 
 					bValuesChanged = true;
-				}
-			}
-		}
-	}
-	else
-	{
-		UDMXEntityController* ControllerInUse = nullptr;
-		for (UDMXEntityController* Controller : GetRelevantControllers())
-		{
-#if !WITH_EDITOR
-			// Non-Editor builds cache the controller, then early out and rerun this tick function as if it was called with the CachedRelevantController
-			CachedRelevantController = Controller;
-			UpdateCachedDMXValues();
-#endif // !WITH_EDITOR
-
-			// If several controllers are sending we let the user know of the conflict, but do not try to merge the signals.
-			if (ControllerInUse)
-			{
-				UE_LOG(DMXEntityFixturePatchLog, Warning, TEXT("More than one controller sending data to %s. Using one arbitrarily, may differ for each run."), *GetDisplayName());
-				return false;
-			}
-			ControllerInUse = Controller;
-
-			FName Protocol = Controller->GetProtocol();
-			if (IDMXProtocolPtr DMXProtocolPtr = IDMXProtocol::Get(Protocol))
-			{
-				const IDMXUniverseSignalMap& InboundSignalMap = DMXProtocolPtr->GameThreadGetInboundSignals();
-				const int32 FixturePatchRemoteUniverse = Controller->RemoteOffset + UniverseID;
-
-				if (InboundSignalMap.Contains(FixturePatchRemoteUniverse))
-				{
-					const TSharedPtr<FDMXSignal>& Signal = InboundSignalMap[FixturePatchRemoteUniverse];
-					CachedLastDMXSignal = Signal;
-
-					const int32 StartingIndex = GetStartingChannel() - 1;
-					const int32 NumChannels = GetChannelSpan();
-
-					// In cases where the user changes the num channels of the fixutre type, we have to restart the receiver
-					if (NumChannels != CachedDMXValues.Num())
-					{
-						CachedDMXValues.SetNum(NumChannels, false);
-					}
-
-					// Copy the data to the dmx buffer
-					TArray<uint8> NewValuesArray(&Signal->ChannelData[StartingIndex], NumChannels);
-
-					// Update only if values changed
-					if (NewValuesArray != CachedDMXValues)
-					{
-						// Move the new values. Profiler shows benefits of MoveTemp in debug and development builds
-						CachedDMXValues = MoveTemp(NewValuesArray);
-
-						bValuesChanged = true;
-					}
 				}
 			}
 		}
@@ -199,7 +157,7 @@ TStatId UDMXEntityFixturePatch::GetStatId() const
 bool UDMXEntityFixturePatch::IsTickableInEditor() const
 {
 #if WITH_EDITOR
-	return bTickInEditor;
+	return bTickInEditor && !GIsPlayInEditorWorld;
 #endif // WITH_EDITOR
 
 #if !WITH_EDITOR
@@ -219,15 +177,10 @@ bool UDMXEntityFixturePatch::IsTickable() const
 
 int32 UDMXEntityFixturePatch::GetChannelSpan() const
 {
-	if (ParentFixtureTypeTemplate != nullptr)
+	if (ParentFixtureTypeTemplate && CanReadActiveMode())
 	{
-		// Check for existing modes before trying to read them
-		const int32 NumModes = ParentFixtureTypeTemplate->Modes.Num();
-		if (NumModes > 0 && ActiveMode < NumModes)
-		{
-			// Number of channels occupied by all of the Active Mode's functions
-			return ParentFixtureTypeTemplate->Modes[ActiveMode].ChannelSpan;
-		}
+		// Number of channels occupied by all of the Active Mode's functions
+		return ParentFixtureTypeTemplate->Modes[ActiveMode].ChannelSpan;
 	}
 
 	return 0;
