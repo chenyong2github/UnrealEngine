@@ -31,35 +31,35 @@ public:
 	* 
 	* @return	A function that matches a promoted type. Nullptr if no match is found
 	*/
-	static UFunction* GetOperatorFunction(const FString& Operation, const TArray<UEdGraphPin*>& WildcardPins);
+	static UFunction* GetOperatorFunction(FName Operation, const TArray<UEdGraphPin*>& WildcardPins);
 
-	static UFunction* GetOperatorFunction(const FString& Operation, const TArray<UEdGraphPin*>& InputPins, const UEdGraphPin* OutputPin);
+	static UFunction* GetOperatorFunction(FName Operation, const TArray<UEdGraphPin*>& InputPins, const UEdGraphPin* OutputPin);
 
 	/** 
 	* Find the function that has this input and the lowest matching other input.
 	* Ex: Given "Add" and "Vector" this function would return the "Add_VectorFloat" function
 	*/
-	static UFunction* FindLowestMatchingFunc(const FString& Operation, const FEdGraphPinType& InputType, TArray<UFunction*>& OutPossibleFunctions);
+	static UFunction* FindLowestMatchingFunc(FName Operation, const FEdGraphPinType& InputType, TArray<UFunction*>& OutPossibleFunctions);
 
 	/**
 	* Find the function that is the best match given the pins to consider. 
 	* Ex: Given "Add" operator and an array of two Vector pins, it will return "Add_VectorVector"
 	*/
-	static UFunction* FindBestMatchingFunc(const FString& Operation, const TArray<UEdGraphPin*>& PinsToConsider);
+	static UFunction* FindBestMatchingFunc(FName Operation, const TArray<UEdGraphPin*>& PinsToConsider);
 
 	/** Returns all functions for a specific operation. Will empty the given array and populate it with UFunction pointers */
-	static void GetAllFuncsForOp(const FString& Operation, TArray<UFunction*>& OutFuncs);
+	static void GetAllFuncsForOp(FName Operation, TArray<UFunction*>& OutFuncs);
 
 	/** Get a set of the supported operator names for type promo. Ex: "Add", "Subtract", "Multiply" */
-	static const TSet<FString>& GetAllOpNames();
+	static const TSet<FName>& GetAllOpNames();
 	
 	/** Set of comparison operator names (GreaterThan, LessThan, etc) */
-	static const TSet<FString>& GetComparisonOpNames();
+	static const TSet<FName>& GetComparisonOpNames();
 
 	/** Returns true if the given function is a comparison operator */
 	static bool IsComparisonFunc(UFunction const* const Func);
 
-	static bool GetOpNameFromFunction(UFunction const* const Func, FString& OutName);
+	static FName GetOpNameFromFunction(UFunction const* const Func);
 
 	/** Returns true if the given function is a candidate to handle type promotion */
 	static bool IsPromotableFunction(const UFunction* Function);
@@ -106,11 +106,11 @@ public:
 	static bool IsOperatorSpawnerRegistered(UFunction const* const Func);
 
 	/** Function node spawner associated with this operation */
-	static UBlueprintFunctionNodeSpawner* GetOperatorSpawner(const FString& OpName);
+	static UBlueprintFunctionNodeSpawner* GetOperatorSpawner(FName OpName);
 
 	/** keep track of the operator that this function provides so that we dont add multiple 
 	to the BP context menu */
-	static void RegisterOperatorSpawner(const FString& OpName, UBlueprintFunctionNodeSpawner* Spawner);
+	static void RegisterOperatorSpawner(FName OpName, UBlueprintFunctionNodeSpawner* Spawner);
 
 	static void ClearNodeSpawners();
 
@@ -122,19 +122,19 @@ private:
 	/** Callback that will rebuild the op table when hot reload is triggered */
 	static void OnModulesChanged(FName ModuleThatChanged, EModuleChangeReason ReasonForChange);
 
-	UFunction* GetOperatorFunction_Internal(const FString& Operation, const TArray<UEdGraphPin*>& WildcardPins) const;
+	UFunction* GetOperatorFunction_Internal(FName Operation, const TArray<UEdGraphPin*>& WildcardPins) const;
 
-	UFunction* GetOperatorFunction_Internal(const FString& Operation, const TArray<UEdGraphPin*>& InputPins, const UEdGraphPin* OutputPin) const;
+	UFunction* GetOperatorFunction_Internal(FName Operation, const TArray<UEdGraphPin*>& InputPins, const UEdGraphPin* OutputPin) const;
 
 	bool IsFunctionPromotionReady_Internal(const UFunction* const FuncToConsider) const;
 
 	FEdGraphPinType GetPromotedType_Internal(const TArray<UEdGraphPin*>& WildcardPins) const;
 
-	UFunction* FindLowestMatchingFunc_Internal(const FString& Operation, const FEdGraphPinType& InputType, TArray<UFunction*>& OutPossibleFunctions);
+	UFunction* FindLowestMatchingFunc_Internal(FName Operation, const FEdGraphPinType& InputType, TArray<UFunction*>& OutPossibleFunctions);
 	
-	UFunction* FindBestMatchingFunc_Internal(const FString& Operation, const TArray<UEdGraphPin*>& PinsToConsider);
+	UFunction* FindBestMatchingFunc_Internal(FName Operation, const TArray<UEdGraphPin*>& PinsToConsider);
 
-	void GetAllFuncsForOp_Internal(const FString& Operation, TArray<UFunction*>& OutFuncs);
+	void GetAllFuncsForOp_Internal(FName Operation, TArray<UFunction*>& OutFuncs);
 
 	bool PromotePin_Internal(FEdGraphPinType& InTypeA, const FEdGraphPinType& TypeB);
 
@@ -151,7 +151,7 @@ private:
 	/** Creates the table of what types can be promoted to others */
 	void CreatePromotionTable();
 
-	void AddOpFunction(const FString& OpName, UFunction* Function);
+	void AddOpFunction(FName OpName, UFunction* Function);
 
 	static FTypePromotion* Instance;
 
@@ -169,10 +169,10 @@ private:
 	 * A lookup table, mapping operator strings (like "Add", "Multiply", etc.) to a list
 	 * of associated functions.
 	 */
-	TMap<FString, FFunctionsList> OperatorTable;
+	TMap<FName, FFunctionsList> OperatorTable;
 
 	/** Map of operators to their node spawner so that we can clean up the context menu */
-	TMap<FString, UBlueprintFunctionNodeSpawner*> OperatorNodeSpawnerMap;
+	TMap<FName, UBlueprintFunctionNodeSpawner*> OperatorNodeSpawnerMap;
 };
 
 namespace TypePromoDebug

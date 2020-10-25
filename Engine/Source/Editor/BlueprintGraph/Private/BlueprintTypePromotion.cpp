@@ -9,18 +9,18 @@ FTypePromotion* FTypePromotion::Instance = nullptr;
 
 namespace OperatorNames
 {
-	static const FString NoOp		= TEXT("NO_OP");
+	static const FName NoOp			= TEXT("NO_OP");
 
-	static const FString Add		= TEXT("Add");
-	static const FString Multiply	= TEXT("Multiply");
-	static const FString Subtract	= TEXT("Subtract");
-	static const FString Divide		= TEXT("Divide");
-
-	static const FString Greater	= TEXT("Greater");
-	static const FString GreaterEq	= TEXT("GreaterEqual");
-	static const FString Less		= TEXT("Less");
-	static const FString LessEq		= TEXT("LessEqual");
-	static const FString NotEq		= TEXT("NotEqual");
+	static const FName Add			= TEXT("Add");
+	static const FName Multiply		= TEXT("Multiply");
+	static const FName Subtract		= TEXT("Subtract");
+	static const FName Divide		= TEXT("Divide");
+	
+	static const FName Greater		= TEXT("Greater");
+	static const FName GreaterEq	= TEXT("GreaterEqual");
+	static const FName Less			= TEXT("Less");
+	static const FName LessEq		= TEXT("LessEqual");
+	static const FName NotEq		= TEXT("NotEqual");
 }
 
 namespace TypePromoDebug
@@ -172,7 +172,7 @@ bool FTypePromotion::IsFunctionPromotionReady_Internal(const UFunction* const Fu
 {
 	// This could be better served as just keeping all known UFunctions in a TArray or TSet, and
 	// using that index in the Map so we don't need to iterate table pairs and arrays inside of them
-	for (const TPair<FString, FFunctionsList>& Pair : OperatorTable)
+	for (const TPair<FName, FFunctionsList>& Pair : OperatorTable)
 	{
 		for(const UFunction* const Func : Pair.Value)
 		{
@@ -234,17 +234,17 @@ bool FTypePromotion::PromotePin_Internal(FEdGraphPinType& InTypeA, const FEdGrap
 	return true;
 }
 
-UFunction* FTypePromotion::GetOperatorFunction(const FString& Operation, const TArray<UEdGraphPin*>& WildcardPins)
+UFunction* FTypePromotion::GetOperatorFunction(FName Operation, const TArray<UEdGraphPin*>& WildcardPins)
 {
 	return FTypePromotion::Get().GetOperatorFunction_Internal(Operation, WildcardPins);
 }
 
-UFunction* FTypePromotion::GetOperatorFunction(const FString& Operation, const TArray<UEdGraphPin*>& InputPins, const UEdGraphPin* OutputPin)
+UFunction* FTypePromotion::GetOperatorFunction(FName Operation, const TArray<UEdGraphPin*>& InputPins, const UEdGraphPin* OutputPin)
 {
 	return FTypePromotion::Get().GetOperatorFunction_Internal(Operation, InputPins, OutputPin);
 }
 
-UFunction* FTypePromotion::GetOperatorFunction_Internal(const FString& Operation, const TArray<UEdGraphPin*>& InputPins, const UEdGraphPin* OutputPin) const
+UFunction* FTypePromotion::GetOperatorFunction_Internal(FName Operation, const TArray<UEdGraphPin*>& InputPins, const UEdGraphPin* OutputPin) const
 {
 	check(InputPins.Num() > 0 && OutputPin);
 
@@ -303,7 +303,7 @@ UFunction* FTypePromotion::GetOperatorFunction_Internal(const FString& Operation
 	return MatchingFunction;
 }
 
-UFunction* FTypePromotion::GetOperatorFunction_Internal(const FString& Operation, const TArray<UEdGraphPin*>& WildcardPins) const
+UFunction* FTypePromotion::GetOperatorFunction_Internal(FName Operation, const TArray<UEdGraphPin*>& WildcardPins) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FTypePromotionTable::GetOperatorFunction);
 
@@ -361,12 +361,12 @@ UFunction* FTypePromotion::GetOperatorFunction_Internal(const FString& Operation
 	return MatchingFunction;
 }
 
-UFunction* FTypePromotion::FindLowestMatchingFunc(const FString& Operation, const FEdGraphPinType& InputType, TArray<UFunction*>& OutPossibleFunctions)
+UFunction* FTypePromotion::FindLowestMatchingFunc(FName Operation, const FEdGraphPinType& InputType, TArray<UFunction*>& OutPossibleFunctions)
 {
 	return FTypePromotion::Get().FindLowestMatchingFunc_Internal(Operation, InputType, OutPossibleFunctions);
 }
 
-UFunction* FTypePromotion::FindBestMatchingFunc(const FString& Operation, const TArray<UEdGraphPin*>& PinsToConsider)
+UFunction* FTypePromotion::FindBestMatchingFunc(FName Operation, const TArray<UEdGraphPin*>& PinsToConsider)
 {
 	return FTypePromotion::Get().FindBestMatchingFunc_Internal(Operation, PinsToConsider);
 }
@@ -387,7 +387,7 @@ static bool PropertyCompatibleWithPin(const FProperty* Param, FEdGraphPinType co
 	return false;
 }
 
-UFunction* FTypePromotion::FindLowestMatchingFunc_Internal(const FString& Operation, const FEdGraphPinType& InputType, TArray<UFunction*>& OutPossibleFunctions)
+UFunction* FTypePromotion::FindLowestMatchingFunc_Internal(FName Operation, const FEdGraphPinType& InputType, TArray<UFunction*>& OutPossibleFunctions)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FTypePromotionTable::FindLowestMatchingFunc_Internal);
 
@@ -452,7 +452,7 @@ UFunction* FTypePromotion::FindLowestMatchingFunc_Internal(const FString& Operat
 	return LowestFunc;
 }
 
-UFunction* FTypePromotion::FindBestMatchingFunc_Internal(const FString& Operation, const TArray<UEdGraphPin*>& PinsToConsider)
+UFunction* FTypePromotion::FindBestMatchingFunc_Internal(FName Operation, const TArray<UEdGraphPin*>& PinsToConsider)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FTypePromotionTable::FindBestMatchingFunc_Internal);
 
@@ -553,14 +553,14 @@ UFunction* FTypePromotion::FindBestMatchingFunc_Internal(const FString& Operatio
 	return BestFunc;
 }
 
-void FTypePromotion::GetAllFuncsForOp(const FString& Operation, TArray<UFunction*>& OutFuncs)
+void FTypePromotion::GetAllFuncsForOp(FName Operation, TArray<UFunction*>& OutFuncs)
 {
 	return FTypePromotion::Get().GetAllFuncsForOp_Internal(Operation, OutFuncs);
 }
 
-const TSet<FString>& FTypePromotion::GetAllOpNames()
+const TSet<FName>& FTypePromotion::GetAllOpNames()
 {
-	static const TSet<FString> OpsArray =
+	static const TSet<FName> OpsArray =
 	{
 		OperatorNames::Add,
 		OperatorNames::Multiply,
@@ -576,9 +576,9 @@ const TSet<FString>& FTypePromotion::GetAllOpNames()
 	return OpsArray;
 }
 
-const TSet<FString>& FTypePromotion::GetComparisonOpNames()
+const TSet<FName>& FTypePromotion::GetComparisonOpNames()
 {
-	static const TSet<FString> ComparisonOps =
+	static const TSet<FName> ComparisonOps =
 	{
 		OperatorNames::Greater,
 		OperatorNames::GreaterEq,
@@ -591,39 +591,35 @@ const TSet<FString>& FTypePromotion::GetComparisonOpNames()
 
 bool FTypePromotion::IsComparisonFunc(UFunction const* const Func)
 {
-	FString OpName;
-	return Func && GetOpNameFromFunction(Func, /* out */ OpName) && GetComparisonOpNames().Contains(OpName);
+	return Func && GetComparisonOpNames().Contains(GetOpNameFromFunction(Func));
 }
 
-void FTypePromotion::GetAllFuncsForOp_Internal(const FString& Operation, TArray<UFunction*>& OutFuncs)
+void FTypePromotion::GetAllFuncsForOp_Internal(FName Operation, TArray<UFunction*>& OutFuncs)
 {
 	OutFuncs.Empty();
 
 	OutFuncs.Append(OperatorTable[Operation]);
 }
 
-bool FTypePromotion::GetOpNameFromFunction(UFunction const* const Func, FString& OutName)
+FName FTypePromotion::GetOpNameFromFunction(UFunction const* const Func)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FTypePromotion::GetOpNameFromFunction);
 	if(!Func)
 	{
-		return false;
+		return OperatorNames::NoOp;
 	}
 
-	const FString& FuncName = Func->GetName();
+	FString FuncName = Func->GetName();
 	// Get everything before the "_"
 	int32 Index = FuncName.Find(TEXT("_"));
-	FString FuncNameChopped = FuncName.Mid(0, Index);
+	
+	FName FuncNameChopped(FuncName.Mid(0, Index));
 	if (GetAllOpNames().Contains(FuncNameChopped))
 	{
-		OutName = FuncNameChopped;
-		return true;
+		return FuncNameChopped;
 	}
-	else
-	{
-		OutName = OperatorNames::NoOp;
-		return false;
-	}
+
+	return OperatorNames::NoOp;
 }
 
 void FTypePromotion::CreateOpTable()
@@ -651,11 +647,9 @@ void FTypePromotion::CreateOpTable()
 			}
 
 			FEdGraphPinType FuncPinType;
-			FString OpName;
+			FName OpName = GetOpNameFromFunction(Function);
 
-			if (Schema->ConvertPropertyToPinType(Function->GetReturnProperty(), /* out */ FuncPinType) &&
-				GetOpNameFromFunction(Function, /* out */ OpName)
-				)
+			if (OpName != OperatorNames::NoOp && Schema->ConvertPropertyToPinType(Function->GetReturnProperty(), /* out */ FuncPinType))
 			{
 				AddOpFunction(OpName, Function);
 			}
@@ -663,7 +657,7 @@ void FTypePromotion::CreateOpTable()
 	}
 }
 
-void FTypePromotion::AddOpFunction(const FString& OpName, UFunction* Function)
+void FTypePromotion::AddOpFunction(FName OpName, UFunction* Function)
 {
 	OperatorTable.FindOrAdd(OpName).Add(Function);
 }
@@ -675,12 +669,10 @@ bool FTypePromotion::IsPromotableFunction(const UFunction* Function)
 
 bool FTypePromotion::IsOperatorSpawnerRegistered(UFunction const* const Func)
 {
-	FString OpName;
-	FTypePromotion::GetOpNameFromFunction(Func, OpName);
-	return FTypePromotion::GetOperatorSpawner(OpName) != nullptr;
+	return FTypePromotion::GetOperatorSpawner(FTypePromotion::GetOpNameFromFunction(Func)) != nullptr;
 }
 
-void FTypePromotion::RegisterOperatorSpawner(const FString& OpName, UBlueprintFunctionNodeSpawner* Spawner)
+void FTypePromotion::RegisterOperatorSpawner(FName OpName, UBlueprintFunctionNodeSpawner* Spawner)
 {
 	if(Instance && !Instance->OperatorNodeSpawnerMap.Contains(OpName) && OpName != OperatorNames::NoOp)
 	{
@@ -688,7 +680,7 @@ void FTypePromotion::RegisterOperatorSpawner(const FString& OpName, UBlueprintFu
 	}
 }
 
-UBlueprintFunctionNodeSpawner* FTypePromotion::GetOperatorSpawner(const FString& OpName)
+UBlueprintFunctionNodeSpawner* FTypePromotion::GetOperatorSpawner(FName OpName)
 {
 	if(Instance && Instance->OperatorNodeSpawnerMap.Contains(OpName))
 	{

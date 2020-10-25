@@ -111,7 +111,7 @@ private:
 	TArray<UEdGraphPin*> GetInputPins(bool bIncludeLinks = false) const;
 
 	/** The name that this operation uses ("Add", "Multiply", etc) */
-	FString OperationName;
+	FName OperationName;
 
 	/** Array of functions that we could possibly convert this node to via the right-click context menu */
 	UPROPERTY(Transient)
@@ -126,5 +126,5 @@ public:
 	/** Returns the first pin with the EGPD_Output direction */
 	BLUEPRINTGRAPH_API UEdGraphPin* GetOutputPin() const;
 
-	const FString& GetOperationName() const { return OperationName; }
+	const FName GetOperationName() const { return OperationName; }
 };

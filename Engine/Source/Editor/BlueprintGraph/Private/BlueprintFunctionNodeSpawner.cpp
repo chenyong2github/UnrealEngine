@@ -238,8 +238,7 @@ UBlueprintFunctionNodeSpawner* UBlueprintFunctionNodeSpawner::Create(TSubclassOf
 		TypePromoDebug::IsTypePromoEnabled() &&
 		FTypePromotion::IsFunctionPromotionReady(Function);
 
-	FString OpName;
-	FTypePromotion::GetOpNameFromFunction(Function, OpName);
+	FName OpName = FTypePromotion::GetOpNameFromFunction(Function);
 
 	// If a spawner for this operator has been created already, than just return that
 	if (bIsPromotableFunction && FTypePromotion::IsOperatorSpawnerRegistered(Function))
@@ -271,13 +270,13 @@ UBlueprintFunctionNodeSpawner* UBlueprintFunctionNodeSpawner::Create(TSubclassOf
 	if(bIsPromotableFunction)
 	{
 		FFormatNamedArguments Args;
-		Args.Add(TEXT("OpName"), FText::FromString(OpName));
+		Args.Add(TEXT("OpName"), FText::FromName(OpName));
 		MenuSignature.MenuName = FText::Format(LOCTEXT("OpName", "{OpName}"), Args);
 		MenuSignature.Category = LOCTEXT("UtilityOperatorCategory", "Utilities|Operators");
 		// Possibly generate some special tooltips for promotable operators?
 		MenuSignature.Tooltip = FText::FromString(TEXT(" "));
 		// add at least one character, so that PrimeDefaultUiSpec() doesn't attempt to query the template node
-		MenuSignature.Keywords = FText::FromString(OpName);
+		MenuSignature.Keywords = FText::FromString(OpName.ToString());
 		FTypePromotion::RegisterOperatorSpawner(OpName, NodeSpawner);
 	}
 	else
