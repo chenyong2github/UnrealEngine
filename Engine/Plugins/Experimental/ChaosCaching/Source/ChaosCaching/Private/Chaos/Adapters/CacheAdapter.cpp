@@ -55,7 +55,7 @@ namespace Chaos
 
 		if(bNewAdapterValid)
 		{
-			ModularFeatures.RegisterModularFeature(FComponentCacheAdapter::FeatureName, InAdapter);
+			ModularFeatures.RegisterModularFeature("ChaosCacheAdapter", InAdapter);
 		}
 	}
 

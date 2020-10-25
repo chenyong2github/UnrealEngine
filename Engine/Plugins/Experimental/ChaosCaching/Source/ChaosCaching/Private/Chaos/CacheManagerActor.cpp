@@ -328,7 +328,6 @@ void AChaosCacheManager::BeginPlay()
 
 						Observed.Cache = CacheCollection->FindOrAddCache(CacheName);
 						Observed.TickRecord.SetSpaceTransform(Comp->GetComponentToWorld());
-						Observed.Cache->BeginRecord(Observed.GetComponent(), CurrAdapter->GetGuid());
 						OpenRecordCaches.Add(TTuple<FCacheUserToken, UChaosCache*>(MoveTemp(Token), Observed.Cache));
 						CurrAdapter->InitializeForRecord(Component, Observed.Cache);
 
