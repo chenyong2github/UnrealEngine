@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "PlatformInfo.h"
+#include "GenericPlatform/GenericPlatformFile.h"
 #include "HAL/PlatformFileManager.h"
 #include "Misc/ConfigCacheIni.h"
 
