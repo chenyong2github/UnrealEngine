@@ -71,7 +71,7 @@ void FDMXProtocolArtNetReceivingRunnable::GameThread_InputDMXFragment(uint16 Uni
 	TArray<uint8> Channels;
 	Channels.AddZeroed(DMX_UNIVERSE_SIZE);
 
-	for (const TPair<int32, uint8>& ChannelValue : DMXFragment)
+	for (const TPair<uint32, uint8>& ChannelValue : DMXFragment)
 	{
 		Channels[ChannelValue.Key] = ChannelValue.Value;
 	}
