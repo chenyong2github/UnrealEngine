@@ -1712,6 +1712,12 @@ PyObject* IsEditor()
 	return PyConversion::Pythonize(GIsEditor);
 }
 
+PyObject* GetInterpreterExecutablePath()
+{
+	const FString PythonPath = PyUtil::GetInterpreterExecutablePath();
+	return PyConversion::Pythonize(PythonPath);
+}
+
 PyObject* RegisterPythonShutdownCallback(PyObject* InSelf, PyObject* InArgs)
 {
 	PyObject* PyObj = nullptr;
@@ -1787,6 +1793,7 @@ PyMethodDef PyCoreMethods[] = {
 	{ "NSLOCTEXT", PyCFunctionCast(&CreateLocalizedText), METH_VARARGS, "x.NSLOCTEXT(ns, key, source) -> Text -- create a localized Text from the given namespace, key, and source string" },
 	{ "LOCTABLE", PyCFunctionCast(&CreateLocalizedTextFromStringTable), METH_VARARGS, "x.LOCTABLE(id, key) -> Text -- get a localized Text from the given string table id and key" },
 	{ "is_editor", PyCFunctionCast(&IsEditor), METH_NOARGS, "x.is_editor() -> Bool -- tells if the editor is running or not" },
+	{ "get_interpreter_executable_path", PyCFunctionCast(&GetInterpreterExecutablePath), METH_NOARGS, "x.get_interpreter_executable_path() -> str -- get the path to the Python interpreter executable of the Python SDK this plugin was compiled against" },
 	{ nullptr, nullptr, 0, nullptr }
 };
 
