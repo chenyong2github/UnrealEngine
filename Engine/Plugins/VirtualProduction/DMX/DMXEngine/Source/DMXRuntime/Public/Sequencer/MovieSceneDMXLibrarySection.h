@@ -166,12 +166,6 @@ protected:
 	/** Update the displayed Patches and Function channels in the section */
 	void UpdateChannelProxy(bool bResetDefaultChannelValues = false);
 	
-	/**
-	 * Utility method to send a single DMX Function's default value when disabling
-	 * a function channel
-	 */
-	void SendDefaultFunctionValueToDMX(const FDMXFixturePatchChannel& PatchChannel, const FDMXFixtureFunctionChannel& FunctionChannel);
-
 protected:
 	/** The Fixture Patches being controlled by this section and their respective chosen mode */
 	UPROPERTY()

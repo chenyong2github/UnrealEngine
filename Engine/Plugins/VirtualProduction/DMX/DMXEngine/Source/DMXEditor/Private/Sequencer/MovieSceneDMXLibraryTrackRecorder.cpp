@@ -124,9 +124,6 @@ void UMovieSceneDMXLibraryTrackRecorder::CreateTrack(UMovieScene* InMovieScene, 
 
 void UMovieSceneDMXLibraryTrackRecorder::SetSectionStartTimecodeImpl(const FTimecode& InSectionStartTimecode, const FFrameNumber& InSectionFirstFrame)
 {
-	float Time = 0.0f;
-	// SecondsDiff = FPlatformTime::Seconds() - Time;
-
 	if (DMXLibrarySection.IsValid())
 	{
 		// Start listen to the patches
