@@ -380,7 +380,8 @@ bool FAsyncLoadingTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOn
 	{
 		Trace::FAnalysisSessionEditScope _(Session);
 		uint64 ClassPtr = EventData.GetValue<uint64>("Class");
-		const Trace::FClassInfo& ClassInfo = LoadTimeProfilerProvider.AddClassInfo(reinterpret_cast<const TCHAR*>(EventData.GetAttachment()));
+		FString Name = FTraceAnalyzerUtils::LegacyAttachmentString<TCHAR>("Name", Context);
+		const Trace::FClassInfo& ClassInfo = LoadTimeProfilerProvider.AddClassInfo(*Name);
 		ClassInfosMap.Add(ClassPtr, &ClassInfo);
 		break;
 	}

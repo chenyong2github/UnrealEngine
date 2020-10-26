@@ -10,12 +10,12 @@
 #if OBJECT_PROPERTY_TRACE_ENABLED
 UE_TRACE_CHANNEL(ObjectProperties)
 
-UE_TRACE_EVENT_BEGIN(Object, ClassPropertyStringId, Important)
+UE_TRACE_EVENT_BEGIN(Object, ClassPropertyStringId, NoSync|Important)
 	UE_TRACE_EVENT_FIELD(uint32, Id)
 	UE_TRACE_EVENT_FIELD(Trace::WideString, Value)
 UE_TRACE_EVENT_END()
 
-UE_TRACE_EVENT_BEGIN(Object, ClassProperty, Important)
+UE_TRACE_EVENT_BEGIN(Object, ClassProperty, NoSync|Important)
 	UE_TRACE_EVENT_FIELD(uint64, ClassId)
 	UE_TRACE_EVENT_FIELD(int32, Id)
 	UE_TRACE_EVENT_FIELD(int32, ParentId)
@@ -61,9 +61,9 @@ namespace ObjectPropertyTrace
 
 		uint32 NewId = StringIdMap.Add(InString, ++CurrentClassPropertyStringId);
 
-		UE_TRACE_LOG(Object, ClassPropertyStringId, ObjectProperties)
+		UE_TRACE_LOG(Object, ClassPropertyStringId, ObjectProperties, InString.Len() * sizeof(TCHAR))
 			<< ClassPropertyStringId.Id(NewId)
-			<< ClassPropertyStringId.Value(*InString);
+			<< ClassPropertyStringId.Value(*InString, InString.Len());
 
 		return NewId;
 	}

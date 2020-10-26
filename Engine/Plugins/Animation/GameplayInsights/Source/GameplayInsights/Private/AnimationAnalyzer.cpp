@@ -2,6 +2,7 @@
 
 #include "AnimationAnalyzer.h"
 #include "TraceServices/Model/AnalysisSession.h"
+#include "TraceServices/Utils.h"
 #include "AnimationProvider.h"
 #include "Containers/ArrayView.h"
 
@@ -118,7 +119,8 @@ bool FAnimationAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventCon
 	case RouteId_Name:
 	{
 		uint32 Id = EventData.GetValue<uint32>("Id");
-		AnimationProvider.AppendName(Id, reinterpret_cast<const TCHAR*>(EventData.GetAttachment()));
+		FString Name = FTraceAnalyzerUtils::LegacyAttachmentString<TCHAR>("Name", Context);
+		AnimationProvider.AppendName(Id, *Name);
 		break;
 	}
 	case RouteId_SkeletalMeshFrame:

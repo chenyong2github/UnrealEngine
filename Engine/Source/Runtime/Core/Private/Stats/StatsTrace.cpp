@@ -12,7 +12,7 @@
 
 UE_TRACE_CHANNEL(StatsChannel)
 
-UE_TRACE_EVENT_BEGIN(Stats, Spec, Important)
+UE_TRACE_EVENT_BEGIN(Stats, Spec, NoSync|Important)
 	UE_TRACE_EVENT_FIELD(uint32, Id)
 	UE_TRACE_EVENT_FIELD(bool, IsFloatingPoint)
 	UE_TRACE_EVENT_FIELD(bool, IsMemory)

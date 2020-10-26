@@ -39,7 +39,7 @@ UE_TRACE_EVENT_BEGIN(Animation, TickRecord)
 	UE_TRACE_EVENT_FIELD(bool, IsBlendSpace)
 UE_TRACE_EVENT_END()
 
-UE_TRACE_EVENT_BEGIN(Animation, SkeletalMesh2, Important)
+UE_TRACE_EVENT_BEGIN(Animation, SkeletalMesh2, NoSync|Important)
 	UE_TRACE_EVENT_FIELD(uint64, Id)
 	UE_TRACE_EVENT_FIELD(int32[], ParentIndices)
 UE_TRACE_EVENT_END()
@@ -189,8 +189,9 @@ UE_TRACE_EVENT_BEGIN(Animation, StateMachineState)
 	UE_TRACE_EVENT_FIELD(float, ElapsedTime)
 UE_TRACE_EVENT_END()
 
-UE_TRACE_EVENT_BEGIN(Animation, Name, Important)
+UE_TRACE_EVENT_BEGIN(Animation, Name, NoSync|Important)
 	UE_TRACE_EVENT_FIELD(uint32, Id)
+	UE_TRACE_EVENT_FIELD(Trace::WideString, Name)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(Animation, Notify)
@@ -433,7 +434,7 @@ void FAnimTrace::OutputSkeletalMesh(const USkeletalMesh* InMesh)
 		ParentIndices[BoneIndex++] = BoneInfo.ParentIndex;
 	}
 
-	UE_TRACE_LOG(Animation, SkeletalMesh2, AnimationChannel)
+	UE_TRACE_LOG(Animation, SkeletalMesh2, AnimationChannel, ParentIndices.Num() * sizeof(int32))
 		<< SkeletalMesh2.Id(FObjectTrace::GetObjectId(InMesh))
 		<< SkeletalMesh2.ParentIndices(ParentIndices.GetData(), ParentIndices.Num());
 
@@ -463,16 +464,12 @@ uint32 FAnimTrace::OutputName(const FName& InName)
 
 	if(bShouldTrace)
 	{
-		int32 NameStringLength = InName.GetStringLength() + 1;
-
-		auto StringCopyFunc = [NameStringLength, &InName](uint8* Out)
-		{
-			InName.ToString(reinterpret_cast<TCHAR*>(Out), NameStringLength);
-		};
+		TCHAR Buffer[256];
+		int32 NameStringLength = InName.ToString(Buffer);
 
 		UE_TRACE_LOG(Animation, Name, AnimationChannel, NameStringLength * sizeof(TCHAR))
 			<< Name.Id(NameId)
-			<< Name.Attachment(StringCopyFunc);
+			<< Name.Name(Buffer, NameStringLength);
 	}
 
 	return NameId;

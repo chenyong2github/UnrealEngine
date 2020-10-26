@@ -21,13 +21,13 @@
 
 UE_TRACE_CHANNEL(ObjectChannel)
 
-UE_TRACE_EVENT_BEGIN(Object, Class, Important)
+UE_TRACE_EVENT_BEGIN(Object, Class)
 	UE_TRACE_EVENT_FIELD(uint64, Id)
 	UE_TRACE_EVENT_FIELD(uint64, SuperId)
 	UE_TRACE_EVENT_FIELD(int32, ClassNameStringLength)
 UE_TRACE_EVENT_END()
 
-UE_TRACE_EVENT_BEGIN(Object, Object, Important)
+UE_TRACE_EVENT_BEGIN(Object, Object)
 	UE_TRACE_EVENT_FIELD(uint64, Id)
 	UE_TRACE_EVENT_FIELD(uint64, ClassId)
 	UE_TRACE_EVENT_FIELD(uint64, OuterId)
@@ -40,7 +40,7 @@ UE_TRACE_EVENT_BEGIN(Object, ObjectEvent)
 	UE_TRACE_EVENT_FIELD(uint8, Event)
 UE_TRACE_EVENT_END()
 
-UE_TRACE_EVENT_BEGIN(Object, World, Important)
+UE_TRACE_EVENT_BEGIN(Object, World)
 	UE_TRACE_EVENT_FIELD(uint64, Id)
 	UE_TRACE_EVENT_FIELD(int32, PIEInstanceId)
 	UE_TRACE_EVENT_FIELD(uint8, Type)

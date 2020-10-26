@@ -42,14 +42,24 @@ bool FCpuProfilerAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventC
 	case RouteId_EventSpec:
 	{
 		uint32 SpecId = EventData.GetValue<uint32>("Id");
-		uint8 CharSize = EventData.GetValue<uint8>("CharSize");
-		if (CharSize == sizeof(ANSICHAR))
+		
+		FString Name;
+		if (EventData.GetString("Name", Name))
 		{
-			DefineScope(SpecId, Session.StoreString(StringCast<TCHAR>(reinterpret_cast<const ANSICHAR*>(EventData.GetAttachment())).Get()));
+			const TCHAR* NamePtr = Session.StoreString(*Name);
+			DefineScope(SpecId, NamePtr);
 		}
-		else if (CharSize == 0 || CharSize == sizeof(TCHAR)) // 0 for backwards compatibility
+		else
 		{
-			DefineScope(SpecId, Session.StoreString(reinterpret_cast<const TCHAR*>(EventData.GetAttachment())));
+			uint8 CharSize = EventData.GetValue<uint8>("CharSize");
+			if (CharSize == sizeof(ANSICHAR))
+			{
+				DefineScope(SpecId, Session.StoreString(StringCast<TCHAR>(reinterpret_cast<const ANSICHAR*>(EventData.GetAttachment())).Get()));
+			}
+			else if (CharSize == 0 || CharSize == sizeof(TCHAR)) // 0 for backwards compatibility
+			{
+				DefineScope(SpecId, Session.StoreString(reinterpret_cast<const TCHAR*>(EventData.GetAttachment())));
+			}
 		}
 		break;
 	}

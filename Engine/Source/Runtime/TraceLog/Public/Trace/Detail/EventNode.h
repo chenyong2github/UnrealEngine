@@ -40,6 +40,7 @@ public:
 	};
 
 	static FIter			ReadNew();
+	static void				OnConnect();
 	TRACELOG_API uint32		Initialize(const FEventInfo* InInfo);
 	void					Describe() const;
 	uint32					GetUid() const { return Uid; }

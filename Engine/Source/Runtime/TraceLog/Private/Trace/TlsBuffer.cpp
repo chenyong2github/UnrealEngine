@@ -129,6 +129,27 @@ TRACELOG_API FWriteBuffer* Writer_NextBuffer(int32 Size)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+static bool Writer_DrainBuffer(uint32 ThreadId, FWriteBuffer* Buffer)
+{
+	uint8* Committed = AtomicLoadRelaxed((uint8**)&Buffer->Committed);
+
+	// Send as much as we can.
+	if (uint32 SizeToReap = uint32(Committed - Buffer->Reaped))
+	{
+#if TRACE_PRIVATE_PERF
+		BytesReaped += SizeToReap;
+		BytesSent += /*...*/
+#endif
+		Writer_SendData(ThreadId, Buffer->Reaped, SizeToReap);
+		Buffer->Reaped = Committed;
+	}
+
+	// Is this buffer still in use?
+	int32 EtxOffset = int32(AtomicLoadAcquire(&Buffer->EtxOffset));
+	return ((uint8*)Buffer - EtxOffset) > Committed;
+}
+
+////////////////////////////////////////////////////////////////////////////////
 void Writer_DrainBuffers()
 {
 	struct FRetireList
@@ -193,22 +214,7 @@ void Writer_DrainBuffers()
 			// For each of the thread's buffers...
 			for (FWriteBuffer* __restrict NextBuffer; Buffer != nullptr; Buffer = NextBuffer)
 			{
-				uint8* Committed = AtomicLoadRelaxed((uint8**)&Buffer->Committed);
-
-				// Send as much as we can.
-				if (uint32 SizeToReap = uint32(Committed - Buffer->Reaped))
-				{
-#if TRACE_PRIVATE_PERF
-					BytesReaped += SizeToReap;
-					BytesSent += /*...*/
-#endif
-					Writer_SendData(ThreadId, Buffer->Reaped, SizeToReap);
-					Buffer->Reaped = Committed;
-				}
-
-				// Is this buffer still in use?
-				int32 EtxOffset = int32(AtomicLoadAcquire(&Buffer->EtxOffset));
-				if ((uint8*)Buffer - EtxOffset > Committed)
+				if (Writer_DrainBuffer(ThreadId, Buffer))
 				{
 					break;
 				}

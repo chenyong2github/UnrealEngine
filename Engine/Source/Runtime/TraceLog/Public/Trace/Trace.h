@@ -26,12 +26,23 @@ struct FInitializeDesc
 	bool			bUseWorkerThread	= true;
 };
 
+struct FStatistics
+{
+	uint64		BytesSent;
+	uint64		BytesTraced;
+	uint32		MemoryUsed;
+	uint32		CacheUsed;
+	uint32		CacheWaste;
+};
+
 UE_TRACE_API void	Initialize(const FInitializeDesc& Desc) UE_TRACE_IMPL();
 UE_TRACE_API void	Shutdown() UE_TRACE_IMPL();
 UE_TRACE_API void	Update() UE_TRACE_IMPL();
+UE_TRACE_API void	GetStatistics(FStatistics& Out) UE_TRACE_IMPL();
 UE_TRACE_API bool	SendTo(const TCHAR* Host, uint32 Port=0) UE_TRACE_IMPL(false);
 UE_TRACE_API bool	WriteTo(const TCHAR* Path) UE_TRACE_IMPL(false);
 UE_TRACE_API bool	IsTracing() UE_TRACE_IMPL(false);
+UE_TRACE_API bool	Stop() UE_TRACE_IMPL(false);
 UE_TRACE_API bool	IsChannel(const TCHAR* ChanneName) UE_TRACE_IMPL(false);
 UE_TRACE_API bool	ToggleChannel(const TCHAR* ChannelName, bool bEnabled) UE_TRACE_IMPL(false);
 UE_TRACE_API void	ThreadRegister(const TCHAR* Name, uint32 SystemId, int32 SortHint) UE_TRACE_IMPL();

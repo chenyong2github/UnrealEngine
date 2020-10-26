@@ -76,9 +76,23 @@ bool FMiscTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventCon
 		uint64 BookmarkPoint = EventData.GetValue<uint64>("BookmarkPoint");
 		Trace::FBookmarkSpec& Spec = BookmarkProvider.GetSpec(BookmarkPoint);
 		Spec.Line = EventData.GetValue<int32>("Line");
-		const ANSICHAR* File = reinterpret_cast<const ANSICHAR*>(EventData.GetAttachment());
-		Spec.File = Session.StoreString(ANSI_TO_TCHAR(File));
-		Spec.FormatString = Session.StoreString(reinterpret_cast<const TCHAR*>(EventData.GetAttachment() + strlen(File) + 1));
+
+		FString FileName;
+		if (EventData.GetString("FileName", FileName))
+		{
+			Spec.File = Session.StoreString(*FileName);
+
+			FString FormatString;
+			EventData.GetString("FormatString", FormatString);
+			Spec.FormatString = Session.StoreString(*FormatString);
+		}
+		else
+		{
+			const ANSICHAR* File = reinterpret_cast<const ANSICHAR*>(EventData.GetAttachment());
+			Spec.File = Session.StoreString(ANSI_TO_TCHAR(File));
+			Spec.FormatString = Session.StoreString(reinterpret_cast<const TCHAR*>(EventData.GetAttachment() + strlen(File) + 1));
+		}
+
 
 		Trace::FLogMessageSpec& LogMessageSpec = LogProvider.GetMessageSpec(BookmarkPoint);
 		LogMessageSpec.Category = &LogProvider.GetCategory(Trace::FLogProvider::ReservedLogCategory_Bookmark);

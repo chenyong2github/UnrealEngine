@@ -13,16 +13,23 @@ namespace Private {
 ////////////////////////////////////////////////////////////////////////////////
 void					Writer_InternalInitialize();
 FEventNode* volatile	GNewEventList; // = nullptr;
+FEventNode*				GEventListHead;// = nullptr;
+FEventNode*				GEventListTail;// = nullptr;
 
 
 
 ////////////////////////////////////////////////////////////////////////////////
 const FEventNode* FEventNode::FIter::GetNext()
 {
-	auto* Ret = (const FEventNode*)Inner;
+	auto* Ret = (FEventNode*)Inner;
 	if (Ret != nullptr)
 	{
 		Inner = Ret->Next;
+
+		if (Inner == nullptr)
+		{
+			GEventListTail = Ret;
+		}
 	}
 	return Ret;
 }
@@ -42,6 +49,15 @@ FEventNode::FIter FEventNode::ReadNew()
 	{
 		PlatformYield();
 		EventList = AtomicLoadRelaxed(&GNewEventList);
+	}
+
+	if (GEventListHead == nullptr)
+	{
+		GEventListHead = EventList;
+	}
+	else
+	{
+		GEventListTail->Next = EventList;
 	}
 
 	return { EventList };
@@ -112,7 +128,13 @@ void FEventNode::Describe() const
 	EventSize += sizeof(FNewEventEvent::Fields[0]) * Info->FieldCount;
 	EventSize += NamesSize;
 
-	FLogScope LogScope = FLogScope::Enter<FEventInfo::Flag_NoSync>(EventUid, EventSize);
+	struct FNewEventDummy
+	{
+		static constexpr uint32 GetSize()	{ return 0; }
+		static constexpr uint32 GetUid()	{ return 0; }
+		enum { EventFlags = FEventInfo::Flag_NoSync };
+	};
+	FLogScope LogScope = FLogScope::Enter<FNewEventDummy>(EventSize);
 	auto& Event = *(FNewEventEvent*)(LogScope.GetPointer());
 
 	// Write event's main properties.
@@ -155,6 +177,27 @@ void FEventNode::Describe() const
 	}
 
 	LogScope.Commit();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void FEventNode::OnConnect()
+{
+	// Re-add known events back as new events so that they get described again
+	if (GEventListHead == nullptr)
+	{
+		return;
+	}
+
+	for (;; PlatformYield())
+	{
+		FEventNode* Node = AtomicLoadRelaxed(&GNewEventList);
+		if (AtomicCompareExchangeRelaxed(&GNewEventList, GEventListHead, Node))
+		{
+			break;
+		}
+	}
+
+	GEventListHead = GEventListTail = nullptr;
 }
 
 } // namespace Private

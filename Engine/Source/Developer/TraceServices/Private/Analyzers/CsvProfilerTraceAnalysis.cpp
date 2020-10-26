@@ -70,22 +70,24 @@ bool FCsvProfilerAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventC
 	case RouteId_RegisterCategory:
 	{
 		int32 CategoryIndex = EventData.GetValue<int32>("Index");
-		const TCHAR* Name = reinterpret_cast<const TCHAR*>(EventData.GetAttachment());
-		CategoryMap.Add(CategoryIndex, Session.StoreString(Name));;
+		FString Name = FTraceAnalyzerUtils::LegacyAttachmentString<TCHAR>("Name", Context);
+		CategoryMap.Add(CategoryIndex, Session.StoreString(*Name));;
 		break;
 	}
 	case RouteId_DefineInlineStat:
 	{
 		uint64 StatId = EventData.GetValue<uint64>("StatId");
 		int32 CategoryIndex = EventData.GetValue<int32>("CategoryIndex");
-		DefineStatSeries(StatId, ANSI_TO_TCHAR(reinterpret_cast<const ANSICHAR*>(EventData.GetAttachment())), CategoryIndex, true);
+		FString Name = FTraceAnalyzerUtils::LegacyAttachmentString<ANSICHAR>("Name", Context);
+		DefineStatSeries(StatId, *Name, CategoryIndex, true);
 		break;
 	}
 	case RouteId_DefineDeclaredStat:
 	{
 		uint64 StatId = EventData.GetValue<uint64>("StatId");
 		int32 CategoryIndex = EventData.GetValue<int32>("CategoryIndex");
-		DefineStatSeries(StatId, reinterpret_cast<const TCHAR*>(EventData.GetAttachment()), CategoryIndex, false);
+		FString Name = FTraceAnalyzerUtils::LegacyAttachmentString<TCHAR>("Name", Context);
+		DefineStatSeries(StatId, *Name, CategoryIndex, false);
 		break;
 	}
 	case RouteId_BeginStat:

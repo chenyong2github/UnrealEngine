@@ -14,7 +14,7 @@
 #include "UObject/UObjectGlobals.h"
 #include "Misc/CommandLine.h"
 
-UE_TRACE_EVENT_BEGIN(LoadTime, StartAsyncLoading, Important)
+UE_TRACE_EVENT_BEGIN(LoadTime, StartAsyncLoading, NoSync|Important)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
 UE_TRACE_EVENT_END()
 
@@ -101,8 +101,9 @@ UE_TRACE_EVENT_BEGIN(LoadTime, AsyncPackageImportDependency)
 	UE_TRACE_EVENT_FIELD(const void*, ImportedAsyncPackage)
 UE_TRACE_EVENT_END()
 
-UE_TRACE_EVENT_BEGIN(LoadTime, ClassInfo, Important)
+UE_TRACE_EVENT_BEGIN(LoadTime, ClassInfo, NoSync|Important)
 	UE_TRACE_EVENT_FIELD(const UClass*, Class)
+	UE_TRACE_EVENT_FIELD(Trace::AnsiString, Name)
 UE_TRACE_EVENT_END()
 
 void FLoadTimeProfilerTracePrivate::Init()
@@ -198,18 +199,18 @@ void FLoadTimeProfilerTracePrivate::OutputAsyncPackageImportDependency(const voi
 void FLoadTimeProfilerTracePrivate::OutputClassInfo(const UClass* Class, const FName& Name)
 {
 	TCHAR Buffer[FName::StringBufferSize];
-	uint16 NameSize = (Name.ToString(Buffer) + 1) * sizeof(TCHAR);
-	UE_TRACE_LOG(LoadTime, ClassInfo, LoadTimeChannel, NameSize)
+	uint16 NameLen = Name.ToString(Buffer);
+	UE_TRACE_LOG(LoadTime, ClassInfo, LoadTimeChannel, NameLen * sizeof(ANSICHAR))
 		<< ClassInfo.Class(Class)
-		<< ClassInfo.Attachment(Buffer, NameSize);
+		<< ClassInfo.Name(Buffer, NameLen);
 }
 
 void FLoadTimeProfilerTracePrivate::OutputClassInfo(const UClass* Class, const TCHAR* Name)
 {
-	uint16 NameSize = (FCString::Strlen(Name) + 1) * sizeof(TCHAR);
-	UE_TRACE_LOG(LoadTime, ClassInfo, LoadTimeChannel, NameSize)
+	uint16 NameLen = uint16(FCString::Strlen(Name));
+	UE_TRACE_LOG(LoadTime, ClassInfo, LoadTimeChannel, NameLen * sizeof(ANSICHAR))
 		<< ClassInfo.Class(Class)
-		<< ClassInfo.Attachment(Name, NameSize);
+		<< ClassInfo.Name(Name, NameLen);
 }
 
 FLoadTimeProfilerTracePrivate::FCreateExportScope::FCreateExportScope(const void* AsyncPackage, const UObject* const* InObject)

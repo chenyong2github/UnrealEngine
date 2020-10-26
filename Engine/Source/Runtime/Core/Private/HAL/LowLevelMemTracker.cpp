@@ -21,13 +21,13 @@
 
 UE_TRACE_CHANNEL(MemoryChannel, "Memory overview", true)
 
-UE_TRACE_EVENT_BEGIN(LLM, TagsSpec, Important)
+UE_TRACE_EVENT_BEGIN(LLM, TagsSpec, NoSync|Important)
 	UE_TRACE_EVENT_FIELD(const void*, TagId)
 	UE_TRACE_EVENT_FIELD(const void*, ParentId)
 	UE_TRACE_EVENT_FIELD(Trace::AnsiString, Name)
 UE_TRACE_EVENT_END()
 
-UE_TRACE_EVENT_BEGIN(LLM, TrackerSpec, Important)
+UE_TRACE_EVENT_BEGIN(LLM, TrackerSpec, NoSync|Important)
 	UE_TRACE_EVENT_FIELD(uint8, TrackerId)
 	UE_TRACE_EVENT_FIELD(Trace::AnsiString, Name)
 UE_TRACE_EVENT_END()
@@ -3701,11 +3701,18 @@ namespace LLMPrivate
 		if (!bTrackerSpecSent)
 		{
 			bTrackerSpecSent = true;
-			static const ANSICHAR* TrackerNames[] = {"Platform", "Default"};
+			static struct {
+				const ANSICHAR* Name;
+				uint32 Len;
+			} TrackerNames[] = {
+				{ "Platform", 8 },
+				{ "Default", 7 },
+			};
 			static_assert(UE_ARRAY_COUNT(TrackerNames) == int(ELLMTracker::Max), "");
-			UE_TRACE_LOG(LLM, TrackerSpec, MemoryChannel)
+			uint32 NameLen = TrackerNames[(uint8)Tracker].Len;
+			UE_TRACE_LOG(LLM, TrackerSpec, MemoryChannel, NameLen * sizeof(ANSICHAR))
 				<< TrackerSpec.TrackerId((uint8)Tracker)
-				<< TrackerSpec.Name(TrackerNames[(uint8)Tracker]);
+				<< TrackerSpec.Name(TrackerNames[(uint8)Tracker].Name, NameLen);
 		}
 
 		TStringBuilder<1024> NameBuffer;
@@ -3720,7 +3727,7 @@ namespace LLMPrivate
 			const FTagData* Parent = TagData->GetParent();
 			NameBuffer.Reset();
 			TagData->AppendDisplayPath(NameBuffer);
-			UE_TRACE_LOG(LLM, TagsSpec, MemoryChannel)
+			UE_TRACE_LOG(LLM, TagsSpec, MemoryChannel, NameBuffer.Len() * sizeof(ANSICHAR))
 				<< TagsSpec.TagId(GetTagId(TagData))
 				<< TagsSpec.ParentId(GetTagId(Parent))
 				<< TagsSpec.Name(*NameBuffer, NameBuffer.Len());
@@ -3792,10 +3799,10 @@ namespace LLMPrivate
 		{
 			const FTagData* TagData = LLMRef.FindTagData(static_cast<ELLMTag>(GenericTagIndex));
 			FString TagName = TagData->GetDisplayPath();
-			UE_TRACE_LOG(LLM, TagsSpec, MemoryChannel)
+			UE_TRACE_LOG(LLM, TagsSpec, MemoryChannel, TagName.Len() * sizeof(ANSICHAR))
 				<< TagsSpec.TagId(GetTagId(TagData))
 				<< TagsSpec.ParentId(GetTagId(TagData->GetParent()))
-				<< TagsSpec.Name(*TagName);
+				<< TagsSpec.Name(*TagName, TagName.Len());
 		}
 	}
 }

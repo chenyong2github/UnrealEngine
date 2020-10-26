@@ -30,10 +30,10 @@ struct
 
 static TSet<uint32> GEventNames;
 
-RHI_API UE_TRACE_CHANNEL_EXTERN(GpuChannel)
+UE_TRACE_CHANNEL_EXTERN(GpuChannel, RHI_API)
 UE_TRACE_CHANNEL_DEFINE(GpuChannel)
 
-UE_TRACE_EVENT_BEGIN(GpuProfiler, EventSpec, Important)
+UE_TRACE_EVENT_BEGIN(GpuProfiler, EventSpec, NoSync|Important)
 	UE_TRACE_EVENT_FIELD(uint32, EventType)
 	UE_TRACE_EVENT_FIELD(uint16[], Name)
 UE_TRACE_EVENT_END()
@@ -84,7 +84,7 @@ void FGpuProfilerTrace::SpecifyEventByName(const FName& Name)
 		uint32 NameLength = String.Len() + 1;
 		static_assert(sizeof(TCHAR) == sizeof(uint16), "");
 
-		UE_TRACE_LOG(GpuProfiler, EventSpec, GpuChannel)
+		UE_TRACE_LOG(GpuProfiler, EventSpec, GpuChannel, NameLength * sizeof(uint16))
 			<< EventSpec.EventType(Index)
 			<< EventSpec.Name((const uint16*)(*String), NameLength);
 	}

@@ -17,30 +17,32 @@ struct FWriteBuffer;
 class FLogScope
 {
 public:
-	template <uint32 Flags>
-	static FLogScope		Enter(uint32 Uid, uint32 Size);
-	uint8*					GetPointer() const;
+	template <typename EventType>
+	static FLogScope		Enter(uint32 ExtraSize=0);
+	template <typename EventType>
+	static FLogScope		ScopedEnter(uint32 ExtraSize=0);
+	template <typename EventType>
+	static FLogScope		ScopedStampedEnter(uint32 ExtraSize=0);
+	void*					GetPointer() const			{ return Ptr; }
 	void					Commit() const;
 	void					operator += (const FLogScope&) const;
 	const FLogScope&		operator << (bool) const	{ return *this; }
 	constexpr explicit		operator bool () const		{ return true; }
 
+	template <typename FieldMeta, typename Type>
+	struct FFieldSet;
+
 private:
+	template <uint32 Flags>
+	static FLogScope		EnterImpl(uint32 Uid, uint32 Size);
 	template <class T> void	EnterPrelude(uint32 Size, bool bMaybeHasAux);
 	void					Enter(uint32 Uid, uint32 Size, bool bMaybeHasAux);
 	void					EnterNoSync(uint32 Uid, uint32 Size, bool bMaybeHasAux);
-	struct
-	{
-		uint8*				Ptr;
-		FWriteBuffer*		Buffer;
-	}						Instance;
+	uint8*					Ptr;
+	FWriteBuffer*			Buffer;
 };
 
-////////////////////////////////////////////////////////////////////////////////
-class FImportantLogScope
-	: public FLogScope
-{
-};
+
 
 ////////////////////////////////////////////////////////////////////////////////
 class FScopedLogScope
@@ -58,17 +60,6 @@ public:
 			~FScopedStampedLogScope();
 	void	SetActive();
 	bool	bActive = false;
-};
-
-
-
-////////////////////////////////////////////////////////////////////////////////
-template <class T>
-struct TLogScope
-{
-	static auto			Enter(uint32 ExtraSize=0);
-	static FLogScope	ScopedEnter(uint32 ExtraSize=0);
-	static FLogScope	ScopedStampedEnter(uint32 ExtraSize=0);
 };
 
 } // namespace Private

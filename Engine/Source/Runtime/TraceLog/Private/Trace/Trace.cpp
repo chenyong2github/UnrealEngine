@@ -4,7 +4,9 @@
 
 #if UE_TRACE_ENABLED
 
+#include "Misc/CString.h"
 #include "Trace/Detail/Channel.h"
+
 
 namespace Trace
 {
@@ -19,6 +21,10 @@ void	Writer_Update();
 bool	Writer_SendTo(const ANSICHAR*, uint32);
 bool	Writer_WriteTo(const ANSICHAR*);
 bool	Writer_IsTracing();
+bool	Writer_Stop();
+uint32	Writer_GetThreadId();
+
+extern FStatistics GTraceStatistics;
 
 } // namespace Private
 
@@ -61,6 +67,12 @@ void Update()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+void GetStatistics(FStatistics& Out)
+{
+	Out = Private::GTraceStatistics;
+}
+
+////////////////////////////////////////////////////////////////////////////////
 bool SendTo(const TCHAR* InHost, uint32 Port)
 {
 	char Host[32];
@@ -80,6 +92,12 @@ bool WriteTo(const TCHAR* InPath)
 bool IsTracing()
 {
 	return Private::Writer_IsTracing();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+bool Stop()
+{
+	return Private::Writer_Stop();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -103,33 +121,38 @@ bool ToggleChannel(const TCHAR* ChannelName, bool bEnabled)
 ////////////////////////////////////////////////////////////////////////////////
 UE_TRACE_CHANNEL_EXTERN(TraceLogChannel)
 
-UE_TRACE_EVENT_BEGIN($Trace, ThreadInfo)
+UE_TRACE_EVENT_BEGIN($Trace, ThreadInfo, NoSync|Important)
+	UE_TRACE_EVENT_FIELD(uint32, ThreadId)
 	UE_TRACE_EVENT_FIELD(uint32, SystemId)
 	UE_TRACE_EVENT_FIELD(int32, SortHint)
 	UE_TRACE_EVENT_FIELD(Trace::AnsiString, Name)
 UE_TRACE_EVENT_END()
 
-UE_TRACE_EVENT_BEGIN($Trace, ThreadGroupBegin)
+UE_TRACE_EVENT_BEGIN($Trace, ThreadGroupBegin, NoSync|Important)
 	UE_TRACE_EVENT_FIELD(Trace::AnsiString, Name)
 UE_TRACE_EVENT_END()
 
-UE_TRACE_EVENT_BEGIN($Trace, ThreadGroupEnd)
+UE_TRACE_EVENT_BEGIN($Trace, ThreadGroupEnd, NoSync|Important)
 UE_TRACE_EVENT_END()
 
 ////////////////////////////////////////////////////////////////////////////////
 void ThreadRegister(const TCHAR* Name, uint32 SystemId, int32 SortHint)
 {
-	UE_TRACE_LOG($Trace, ThreadInfo, TraceLogChannel)
+	uint32 ThreadId = Private::Writer_GetThreadId();
+	uint32 NameLen = FCString::Strlen(Name);
+	UE_TRACE_LOG($Trace, ThreadInfo, TraceLogChannel, NameLen * sizeof(ANSICHAR))
+		<< ThreadInfo.ThreadId(ThreadId)
 		<< ThreadInfo.SystemId(SystemId)
 		<< ThreadInfo.SortHint(SortHint)
-		<< ThreadInfo.Name(Name);
+		<< ThreadInfo.Name(Name, NameLen);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 void ThreadGroupBegin(const TCHAR* Name)
 {
-	UE_TRACE_LOG($Trace, ThreadGroupBegin, TraceLogChannel)
-		<< ThreadGroupBegin.Name(Name);
+	uint32 NameLen = FCString::Strlen(Name);
+	UE_TRACE_LOG($Trace, ThreadGroupBegin, TraceLogChannel, NameLen * sizeof(ANSICHAR))
+		<< ThreadGroupBegin.Name(Name, NameLen);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

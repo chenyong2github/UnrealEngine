@@ -14,15 +14,15 @@
 
 UE_TRACE_CHANNEL_DEFINE(CpuChannel)
 
-UE_TRACE_EVENT_BEGIN(CpuProfiler, EventSpec, Important)
+UE_TRACE_EVENT_BEGIN(CpuProfiler, EventSpec, NoSync|Important)
 	UE_TRACE_EVENT_FIELD(uint32, Id)
-	UE_TRACE_EVENT_FIELD(uint8, CharSize)
+	UE_TRACE_EVENT_FIELD(Trace::AnsiString, Name)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(CpuProfiler, EventBatch, NoSync)
 UE_TRACE_EVENT_END()
 
-UE_TRACE_EVENT_BEGIN(CpuProfiler, EndCapture, Important)
+UE_TRACE_EVENT_BEGIN(CpuProfiler, EndCapture)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(CpuProfiler, EndThread, NoSync)
@@ -200,29 +200,27 @@ void FCpuProfilerTrace::OutputEndEvent()
 
 uint32 FCpuProfilerTraceInternal::GetNextSpecId()
 {
-	static TAtomic<uint32> NextSpecId(1);
-	return NextSpecId++;
+	static TAtomic<uint32> NextSpecId;
+	return (NextSpecId++) + 1;
 }
 
 uint32 FCpuProfilerTrace::OutputEventType(const TCHAR* Name)
 {
 	uint32 SpecId = FCpuProfilerTraceInternal::GetNextSpecId();
-	uint16 NameSize = (uint16)((FCString::Strlen(Name) + 1) * sizeof(TCHAR));
-	UE_TRACE_LOG(CpuProfiler, EventSpec, CpuChannel, NameSize)
+	uint16 NameLen = uint16(FCString::Strlen(Name));
+	UE_TRACE_LOG(CpuProfiler, EventSpec, CpuChannel, NameLen * sizeof(ANSICHAR))
 		<< EventSpec.Id(SpecId)
-		<< EventSpec.CharSize(uint8(sizeof(TCHAR)))
-		<< EventSpec.Attachment(Name, NameSize);
+		<< EventSpec.Name(Name, NameLen);
 	return SpecId;
 }
 
 uint32 FCpuProfilerTrace::OutputEventType(const ANSICHAR* Name)
 {
 	uint32 SpecId = FCpuProfilerTraceInternal::GetNextSpecId();
-	uint16 NameSize = (uint16)(strlen(Name) + 1);
-	UE_TRACE_LOG(CpuProfiler, EventSpec, CpuChannel, NameSize)
+	uint16 NameLen = uint16(strlen(Name));
+	UE_TRACE_LOG(CpuProfiler, EventSpec, CpuChannel, NameLen * sizeof(ANSICHAR))
 		<< EventSpec.Id(SpecId)
-		<< EventSpec.CharSize(uint8(1))
-		<< EventSpec.Attachment(Name, NameSize);
+		<< EventSpec.Name(Name, NameLen);
 	return SpecId;
 }
 

@@ -22,7 +22,7 @@ static void Field_WriteAuxData(uint32 Index, int32 Size, CallbackType&& Callback
 
 	auto* Header = (FAuxHeader*)(Buffer->Cursor - sizeof(FAuxHeader));
 	Header->Size = Size << 8;
-	Header->FieldIndex = uint8(0x80 | (Index & int(EIndexPack::FieldCountMask)));
+	Header->FieldIndex = uint8(0x80 | (Index & int(EIndexPack::NumFieldsMask)));
 
 	bool bCommit = ((uint8*)Header + bMaybeHasAux == Buffer->Committed);
 

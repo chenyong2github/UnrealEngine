@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "CountersTraceAnalysis.h"
+#include "Common/Utils.h"
 #include "TraceServices/Model/Counters.h"
 #include "ProfilingDebugging/CountersTrace.h"
 
@@ -40,7 +41,9 @@ bool FCountersAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventCont
 		{
 			Counter->SetDisplayHint(Trace::CounterDisplayHint_Memory);
 		}
-		Counter->SetName(Session.StoreString(reinterpret_cast<const TCHAR*>(EventData.GetAttachment())));
+		FString Name = FTraceAnalyzerUtils::LegacyAttachmentString<TCHAR>("Name", Context);
+		const TCHAR* NamePtr = Session.StoreString(*Name);
+		Counter->SetName(NamePtr);
 		CountersMap.Add(CounterId, Counter);
 		break;
 	}

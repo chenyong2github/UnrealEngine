@@ -6,10 +6,16 @@
 
 #if UE_TRACE_ENABLED
 
+#include <type_traits>
+
 namespace Trace
 {
-	class FChannel;
-};
+
+class FChannel;
+
+}; // namespace Trace
+
+#define TRACE_PRIVATE_STATISTICS (!UE_BUILD_TEST)
 
 #define TRACE_PRIVATE_CHANNEL_DEFAULT_ARGS false, "None"
 
@@ -61,10 +67,10 @@ namespace Trace
 		{ \
 			Important			= Trace::Private::FEventInfo::Flag_Important, \
 			NoSync				= Trace::Private::FEventInfo::Flag_NoSync, \
-			PartialEventFlags	= (0, ##__VA_ARGS__) & ~Important, \
+			PartialEventFlags	= (0, ##__VA_ARGS__), \
 		}; \
 		enum : bool { bIsImportant = ((0, ##__VA_ARGS__) & Important) != 0, }; \
-		static constexpr uint32 GetSize() { return decltype(EventProps_Private)::Size; } \
+		static constexpr uint32 GetSize() { return EventProps_Meta::Size; } \
 		static uint32 GetUid() { static uint32 Uid = 0; return (Uid = Uid ? Uid : Initialize()); } \
 		static uint32 FORCENOINLINE Initialize() \
 		{ \
@@ -84,27 +90,45 @@ namespace Trace
 			}(); \
 			return Uid_ThreadSafeInit; \
 		} \
-		Trace::TField<0 /*Index*/, 0 /*Offset*/,
+		typedef Trace::TField<0 /*Index*/, 0 /*Offset*/,
 
 #define TRACE_PRIVATE_EVENT_FIELD(FieldType, FieldName) \
-		FieldType> const FieldName##_Field = Trace::FLiteralName(#FieldName); \
-		template <typename... Ts> auto FieldName(Ts... ts) const { FieldName##_Field.Set((uint8*)this, Forward<Ts>(ts)...); return true; } \
-		Trace::TField< \
-			decltype(FieldName##_Field)::Index + 1, \
-			decltype(FieldName##_Field)::Offset + decltype(FieldName##_Field)::Size,
+		FieldType> FieldName##_Meta; \
+		FieldName##_Meta const FieldName##_Field = Trace::FLiteralName(#FieldName); \
+		template <typename... Ts> auto FieldName(Ts... ts) const { \
+			LogScopeType::FFieldSet<FieldName##_Meta, FieldType>::Impl((LogScopeType*)this, Forward<Ts>(ts)...); \
+			return true; \
+		} \
+		typedef Trace::TField< \
+			FieldName##_Meta::Index + 1, \
+			FieldName##_Meta::Offset + FieldName##_Meta::Size,
 
 #define TRACE_PRIVATE_EVENT_END() \
-		Trace::EventProps> const EventProps_Private = {}; \
-		Trace::TField<0, decltype(EventProps_Private)::Size, Trace::Attachment> const Attachment_Field = {}; \
-		template <typename... Ts> auto Attachment(Ts... ts) const { Attachment_Field.Set((uint8*)this, Forward<Ts>(ts)...); return true; } \
+		Trace::EventProps> EventProps_Meta; \
+		EventProps_Meta const EventProps_Private = {}; \
+		typedef Trace::TField<0, EventProps_Meta::Size, Trace::Attachment> Attachment_Meta; \
+		const Attachment_Meta Attachment_Field = {}; \
+		template <typename... Ts> auto Attachment(Ts... ts) const { \
+			AreAttachmentsAllowed<bIsImportant>(); \
+			LogScopeType::FFieldSet<Attachment_Meta, Trace::Attachment>::Impl((LogScopeType*)this, Forward<Ts>(ts)...); \
+			return true; \
+		} \
+		typedef std::conditional<bIsImportant, Trace::Private::FImportantLogScope, Trace::Private::FLogScope>::type LogScopeType; \
 		explicit operator bool () const { return true; } \
-		enum { EventFlags = PartialEventFlags|(decltype(EventProps_Private)::MaybeHasAux ? Trace::Private::FEventInfo::Flag_MaybeHasAux : 0), }; \
+		enum { EventFlags = PartialEventFlags|(EventProps_Meta::NumAuxFields ? Trace::Private::FEventInfo::Flag_MaybeHasAux : 0), }; \
+		template <bool bImportance> static void AreAttachmentsAllowed() { \
+			static_assert(!bImportance, "Important events cannot have attachments"); \
+		} \
+		static_assert( \
+			!bIsImportant || (EventFlags & Trace::Private::FEventInfo::Flag_NoSync), \
+			"Trace events flagged as Important events must be marked NoSync" \
+		); \
 	};
 
 #define TRACE_PRIVATE_LOG_PRELUDE(EnterFunc, LoggerName, EventName, ChannelsExpr, ...) \
 	if (TRACE_PRIVATE_CHANNELEXPR_IS_ENABLED(ChannelsExpr)) \
-		if (auto LogScope = Trace::Private::TLogScope<F##LoggerName##EventName##Fields>::EnterFunc(__VA_ARGS__)) \
-			if (const auto& __restrict EventName = *(F##LoggerName##EventName##Fields*)LogScope.GetPointer())
+		if (auto LogScope = F##LoggerName##EventName##Fields::LogScopeType::EnterFunc<F##LoggerName##EventName##Fields>(__VA_ARGS__)) \
+			if (const auto& __restrict EventName = *(F##LoggerName##EventName##Fields*)(&LogScope))
 
 #define TRACE_PRIVATE_LOG_EPILOG() \
 				LogScope += LogScope

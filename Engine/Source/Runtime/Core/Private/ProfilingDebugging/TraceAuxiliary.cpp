@@ -48,15 +48,15 @@ public:
 	template <class T> void	ReadChannels(T&& Callback) const;
 	void					AddChannels(const TCHAR* ChannelList);
 	bool					Connect(ETraceConnectType Type, const TCHAR* Parameter);
+	bool					Stop();
 	void					EnableChannels();
 	void					DisableChannels();
 
 private:
 	enum class EState : uint8
 	{
-		None,
-		Tracing,
 		Stopped,
+		Tracing,
 	};
 
 	struct FChannel
@@ -73,7 +73,7 @@ private:
 
 	TMap<uint32, FChannel>	Channels;
 	FString					TraceDest;
-	EState					State = EState::None;
+	EState					State = EState::Stopped;
 };
 
 static FTraceAuxiliaryImpl GTraceAuxiliary;
@@ -170,6 +170,19 @@ bool FTraceAuxiliaryImpl::Connect(ETraceConnectType Type, const TCHAR* Parameter
 	EnableChannels();
 
 	State = EState::Tracing;
+	return true;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+bool FTraceAuxiliaryImpl::Stop()
+{
+	if (!Trace::Stop())
+	{
+		return false;
+	}
+
+	DisableChannels();
+	State = EState::Stopped;
 	return true;
 }
 
@@ -335,8 +348,8 @@ static void TraceAuxiliaryStart(const TArray<FString>& Args)
 ////////////////////////////////////////////////////////////////////////////////
 static void TraceAuxiliaryStop()
 {
-	GTraceAuxiliary.DisableChannels();
-	UE_LOG(LogConsoleResponse, Log, TEXT("Tracing stopped. Use 'Trace.Start' to resume"));
+	GTraceAuxiliary.Stop();
+	UE_LOG(LogConsoleResponse, Log, TEXT("Tracing stopped."));
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -361,7 +374,7 @@ static FAutoConsoleCommand TraceAuxiliaryStopCmd(
 
 
 ////////////////////////////////////////////////////////////////////////////////
-UE_TRACE_EVENT_BEGIN(Diagnostics, Session2, Important)
+UE_TRACE_EVENT_BEGIN(Diagnostics, Session2, NoSync|Important)
 	UE_TRACE_EVENT_FIELD(Trace::AnsiString, Platform)
 	UE_TRACE_EVENT_FIELD(Trace::AnsiString, AppName)
 	UE_TRACE_EVENT_FIELD(Trace::WideString, CommandLine)
@@ -375,7 +388,11 @@ void FTraceAuxiliary::Initialize(const TCHAR* CommandLine)
 #if UE_TRACE_ENABLED
 	// Trace out information about this session. This is done before initialisation
 	// so that it is always sent (all channels are enabled prior to initialisation)
-	UE_TRACE_LOG(Diagnostics, Session2, Trace::TraceLogChannel)
+	uint32 DataSize = 
+		(UE_ARRAY_COUNT(PREPROCESSOR_TO_STRING(UBT_COMPILED_PLATFORM)) * sizeof(ANSICHAR)) +
+		(UE_ARRAY_COUNT(UE_APP_NAME) * sizeof(ANSICHAR)) +
+		(FCString::Strlen(CommandLine) * sizeof(TCHAR));
+	UE_TRACE_LOG(Diagnostics, Session2, Trace::TraceLogChannel, DataSize)
 		<< Session2.Platform(PREPROCESSOR_TO_STRING(UBT_COMPILED_PLATFORM))
 		<< Session2.AppName(UE_APP_NAME)
 		<< Session2.CommandLine(CommandLine)

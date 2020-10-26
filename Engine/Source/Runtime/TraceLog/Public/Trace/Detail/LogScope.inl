@@ -19,15 +19,8 @@ namespace Private {
 extern TRACELOG_API uint32 volatile	GLogSerial;
 
 ////////////////////////////////////////////////////////////////////////////////
-inline uint8* FLogScope::GetPointer() const
-{
-	return Instance.Ptr;
-}
-
-////////////////////////////////////////////////////////////////////////////////
 inline void FLogScope::Commit() const
 {
-	FWriteBuffer* Buffer = Instance.Buffer;
 	AtomicStoreRelease((uint8**) &(Buffer->Committed), Buffer->Cursor);
 }
 
@@ -39,7 +32,7 @@ inline void FLogScope::operator += (const FLogScope&) const
 
 ////////////////////////////////////////////////////////////////////////////////
 template <uint32 Flags>
-inline FLogScope FLogScope::Enter(uint32 Uid, uint32 Size)
+inline FLogScope FLogScope::EnterImpl(uint32 Uid, uint32 Size)
 {
 	FLogScope Ret;
 	bool bMaybeHasAux = (Flags & FEventInfo::Flag_MaybeHasAux) != 0;
@@ -58,9 +51,9 @@ inline FLogScope FLogScope::Enter(uint32 Uid, uint32 Size)
 template <class HeaderType>
 inline void FLogScope::EnterPrelude(uint32 Size, bool bMaybeHasAux)
 {
-	uint32 AllocSize = sizeof(HeaderType) + Size + int(bMaybeHasAux);
+	uint32 AllocSize = sizeof(HeaderType) + Size + int32(bMaybeHasAux);
 
-	FWriteBuffer* Buffer = Writer_GetBuffer();
+	Buffer = Writer_GetBuffer();
 	Buffer->Cursor += AllocSize;
 	if (UNLIKELY(Buffer->Cursor > (uint8*)Buffer))
 	{
@@ -73,8 +66,7 @@ inline void FLogScope::EnterPrelude(uint32 Size, bool bMaybeHasAux)
 		Buffer->Cursor[-1] = 0;
 	}
 
-	uint8* Cursor = Buffer->Cursor - Size - int(bMaybeHasAux);
-	Instance = {Cursor, Buffer};
+	Ptr = Buffer->Cursor - Size - int32(bMaybeHasAux);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -83,10 +75,10 @@ inline void FLogScope::Enter(uint32 Uid, uint32 Size, bool bMaybeHasAux)
 	EnterPrelude<FEventHeaderSync>(Size, bMaybeHasAux);
 
 	// Event header
-	auto* Header = (uint16*)(Instance.Ptr - sizeof(FEventHeaderSync::SerialHigh)); // FEventHeader1
+	auto* Header = (uint16*)(Ptr - sizeof(FEventHeaderSync::SerialHigh));
 	*(uint32*)(Header - 1) = uint32(AtomicAddRelaxed(&GLogSerial, 1u));
 	Header[-2] = uint16(Size);
-	Header[-3] = uint16(Uid)|int(EKnownEventUids::Flag_TwoByteUid);
+	Header[-3] = uint16(Uid)|int32(EKnownEventUids::Flag_TwoByteUid);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -95,9 +87,9 @@ inline void FLogScope::EnterNoSync(uint32 Uid, uint32 Size, bool bMaybeHasAux)
 	EnterPrelude<FEventHeader>(Size, bMaybeHasAux);
 
 	// Event header
-	auto* Header = (uint16*)(Instance.Ptr);
+	auto* Header = (uint16*)(Ptr);
 	Header[-1] = uint16(Size);
-	Header[-2] = uint16(Uid)|int(EKnownEventUids::Flag_TwoByteUid);
+	Header[-2] = uint16(Uid)|int32(EKnownEventUids::Flag_TwoByteUid);
 }
 
 
@@ -166,27 +158,18 @@ inline void FScopedStampedLogScope::SetActive()
 
 
 ////////////////////////////////////////////////////////////////////////////////
-template <bool>	struct TLogScopeSelector;
-template <>		struct TLogScopeSelector<false>	{ typedef FLogScope Type; };
-template <>		struct TLogScopeSelector<true>	{ typedef FImportantLogScope Type; };
-
-////////////////////////////////////////////////////////////////////////////////
 template <class T>
-auto TLogScope<T>::Enter(uint32 ExtraSize)
+FORCENOINLINE FLogScope FLogScope::Enter(uint32 ExtraSize)
 {
 	uint32 Size = T::GetSize() + ExtraSize;
 	uint32 Uid = T::GetUid();
-
-	using LogScopeType = typename TLogScopeSelector<T::bIsImportant>::Type;
-	return LogScopeType::template Enter<T::EventFlags>(Uid, Size);
+	return EnterImpl<T::EventFlags>(Uid, Size);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 template <class T>
-FLogScope TLogScope<T>::ScopedEnter(uint32 ExtraSize)
+FORCENOINLINE FLogScope FLogScope::ScopedEnter(uint32 ExtraSize)
 {
-	static_assert(!T::bIsImportant, "Important events cannot be logged with scope");
-
 	uint8 EnterUid = uint8(EKnownEventUids::EnterScope << EKnownEventUids::_UidShift);
 
 	FWriteBuffer* Buffer = Writer_GetBuffer();
@@ -200,15 +183,13 @@ FLogScope TLogScope<T>::ScopedEnter(uint32 ExtraSize)
 
 	AtomicStoreRelease((uint8**) &(Buffer->Committed), Buffer->Cursor);
 
-	return Enter(ExtraSize);
+	return Enter<T>(ExtraSize);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 template <class T>
-FLogScope TLogScope<T>::ScopedStampedEnter(uint32 ExtraSize)
+FORCENOINLINE FLogScope FLogScope::ScopedStampedEnter(uint32 ExtraSize)
 {
-	static_assert(!T::bIsImportant, "Important events cannot be logged with scope");
-
 	uint64 Stamp;
 
 	FWriteBuffer* Buffer = Writer_GetBuffer();
@@ -225,8 +206,104 @@ FLogScope TLogScope<T>::ScopedStampedEnter(uint32 ExtraSize)
 
 	AtomicStoreRelease((uint8**) &(Buffer->Committed), Buffer->Cursor);
 
-	return Enter(ExtraSize);
+	return Enter<T>(ExtraSize);
 }
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+template <typename FieldMeta, typename Type>
+struct FLogScope::FFieldSet
+{
+	static void Impl(FLogScope* Scope, const Type& Value)
+	{
+		uint8* Dest = (uint8*)(Scope->Ptr) + FieldMeta::Offset;
+		::memcpy(Dest, &Value, sizeof(Type));
+	}
+};
+
+////////////////////////////////////////////////////////////////////////////////
+template <typename FieldMeta, typename Type>
+struct FLogScope::FFieldSet<FieldMeta, Type[]>
+{
+	static void Impl(FLogScope*, Type const* Data, int32 Num)
+	{
+		static const uint32 Index = FieldMeta::Index & 0x7f;
+		int32 Size = (Num * sizeof(Type)) & (FAuxHeader::SizeLimit - 1) & ~(sizeof(Type) - 1);
+		Field_WriteAuxData(Index, (const uint8*)Data, Size);
+	}
+};
+
+#if STATICALLY_SIZED_ARRAY_FIELDS_SUPPORT
+////////////////////////////////////////////////////////////////////////////////
+template <typename FieldMeta, typename Type, int32 Count>
+struct FLogScope::FFieldSet<FieldMeta, Type[Count]>
+{
+	static void Impl(FLogScope*, Type const* Data, int32 Num=-1) = delete;
+};
+#endif // STATICALLY_SIZED_ARRAY_FIELDS_SUPPORT
+
+////////////////////////////////////////////////////////////////////////////////
+template <typename FieldMeta>
+struct FLogScope::FFieldSet<FieldMeta, AnsiString>
+{
+	static void Impl(FLogScope*, const ANSICHAR* String, int32 Length=-1)
+	{
+		if (Length < 0)
+		{
+			Length = int32(strlen(String));
+		}
+
+		static const uint32 Index = FieldMeta::Index & 0x7f;
+		Field_WriteStringAnsi(Index, String, Length);
+	}
+
+	static void Impl(FLogScope*, const TCHAR* String, int32 Length=-1)
+	{
+		if (Length < 0)
+		{
+			Length = 0;
+			for (const TCHAR* c = String; *c; ++c, ++Length);
+		}
+
+		static const uint32 Index = FieldMeta::Index & 0x7f;
+		Field_WriteStringAnsi(Index, String, Length);
+	}
+};
+
+////////////////////////////////////////////////////////////////////////////////
+template <typename FieldMeta>
+struct FLogScope::FFieldSet<FieldMeta, WideString>
+{
+	static void Impl(FLogScope*, const TCHAR* String, int32 Length=-1)
+	{
+		if (Length < 0)
+		{
+			Length = 0;
+			for (const TCHAR* c = String; *c; ++c, ++Length);
+		}
+
+		static const uint32 Index = FieldMeta::Index & 0x7f;
+		Field_WriteStringWide(Index, String, Length);
+	}
+};
+
+template <typename FieldMeta>
+struct FLogScope::FFieldSet<FieldMeta, Attachment>
+{
+	template <typename LambdaType>
+	static void Impl(FLogScope* Scope, LambdaType&& Lambda)
+	{
+		uint8* Dest = (uint8*)(Scope->Ptr) + FieldMeta::Offset;
+		Lambda(Dest);
+	}
+
+	static void Impl(FLogScope* Scope, const void* Data, uint32 Size)
+	{
+		uint8* Dest = (uint8*)(Scope->Ptr) + FieldMeta::Offset;
+		::memcpy(Dest, Data, Size);
+	}
+};
 
 } // namespace Private
 } // namespace Trace

@@ -938,6 +938,8 @@ void FAnalysisEngine::OnNewTrace(const FOnEventContext& Context)
 	Serial.Value = Hint|0x80000000;
 
 	UserUidBias = EventData.GetValue<uint32>("UserUidBias", uint32(Protocol3::EKnownEventUids::User));
+
+	OnTiming(Context);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1000,6 +1002,10 @@ void FAnalysisEngine::OnThreadInfoInternal(const FOnEventContext& Context)
 		}
 	}
 
+	// Implicit ThreadId detail is lost as these events are "important". Fake it
+	uint32 PrevThreadId = ThreadInfo->ThreadId;
+	ThreadInfo->ThreadId = EventData.GetValue<uint32>("ThreadId", PrevThreadId);
+
 	const auto* OuterInfo = (FThreadInfo*)ThreadInfo;
 	for (uint16 i = 0, n = Analyzers.Num(); i < n; ++i)
 	{
@@ -1008,6 +1014,8 @@ void FAnalysisEngine::OnThreadInfoInternal(const FOnEventContext& Context)
 			Analyzer->OnThreadInfo(*OuterInfo);
 		}
 	}
+
+	ThreadInfo->ThreadId = PrevThreadId;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1834,11 +1842,27 @@ int32 FAnalysisEngine::OnDataProtocol4Impl(
 	FAuxDataCollector AuxCollector;
 	if (Dispatch->Flags & FDispatch::Flag_MaybeHasAux)
 	{
+		// Important events' size may include their array data so we need to backtrack
+		auto NextMark = Reader.SaveMark();
+		if (Dispatch->Flags & FDispatch::Flag_Important)
+		{
+			Reader.RestoreMark(Mark);
+			Reader.Advance(sizeof(FEventHeader) + Dispatch->EventSize);
+		}
+
 		int AuxStatus = OnDataProtocol2Aux(Reader, AuxCollector);
 		if (AuxStatus == 0)
 		{
 			Reader.RestoreMark(Mark);
 			return 1;
+		}
+
+		// User error could have resulted in less space being used that was
+		// allocated for important events. So we can't assume that aux data
+		// reading has read all the way up to the next event. So we use marks
+		if (Dispatch->Flags & FDispatch::Flag_Important)
+		{
+			Reader.RestoreMark(NextMark);
 		}
 	}
 

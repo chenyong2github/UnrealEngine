@@ -31,6 +31,10 @@ namespace Private {
 ////////////////////////////////////////////////////////////////////////////////
 int32			Encode(const void*, int32, void*, int32);
 uint32			Writer_SendData(uint32, uint8* __restrict, uint32);
+void			Writer_InitializeSharedBuffers();
+void			Writer_ShutdownSharedBuffers();
+void			Writer_UpdateSharedBuffers();
+void			Writer_CacheOnConnect();
 void			Writer_InitializePool();
 void			Writer_ShutdownPool();
 void			Writer_DrainBuffers();
@@ -43,21 +47,19 @@ void			Writer_ShutdownControl();
 
 ////////////////////////////////////////////////////////////////////////////////
 UE_TRACE_EVENT_BEGIN($Trace, NewTrace, NoSync)
+	UE_TRACE_EVENT_FIELD(uint64, StartCycle)
+	UE_TRACE_EVENT_FIELD(uint64, CycleFrequency)
 	UE_TRACE_EVENT_FIELD(uint32, Serial)
 	UE_TRACE_EVENT_FIELD(uint16, UserUidBias)
 	UE_TRACE_EVENT_FIELD(uint16, Endian)
 	UE_TRACE_EVENT_FIELD(uint8, PointerSize)
 UE_TRACE_EVENT_END()
 
-UE_TRACE_EVENT_BEGIN($Trace, Timing, NoSync)
-	UE_TRACE_EVENT_FIELD(uint64, StartCycle)
-	UE_TRACE_EVENT_FIELD(uint64, CycleFrequency)
-UE_TRACE_EVENT_END()
-
 
 
 ////////////////////////////////////////////////////////////////////////////////
 static bool						GInitialized;		// = false;
+FStatistics						GTraceStatistics;	// = {};
 uint64							GStartCycle;		// = 0;
 TRACELOG_API uint32 volatile	GLogSerial;			// = 0;
 
@@ -147,6 +149,10 @@ void* Writer_MemoryAllocate(SIZE_T Size, uint32 Alignment)
 		Writer_SendData(ThreadId, TraceData.GetData(), TraceData.GetSize());
 	}
 
+#if !TRACE_PRIVATE_STATISTICS
+	AtomicIncrement(&GStatistics.MemoryUsed, Size);
+#endif
+
 	return Ret;
 }
 
@@ -181,6 +187,10 @@ void Writer_MemoryFree(void* Address, uint32 Size)
 		Writer_SendData(ThreadId, TraceData.GetData(), TraceData.GetSize());
 	}
 #endif // TRACE_PRIVATE_STOMP
+
+#if !TRACE_PRIVATE_STATISTICS
+	AtomicIncrement(&GStatistics.MemoryUsed, -int64(Size));
+#endif
 }
 
 
@@ -192,6 +202,10 @@ UPTRINT							GPendingDataHandle;	// = 0
 ////////////////////////////////////////////////////////////////////////////////
 void Writer_SendDataRaw(const void* Data, uint32 Size)
 {
+#if TRACE_PRIVATE_STATISTICS
+	GTraceStatistics.BytesSent += Size;
+#endif
+
 	if (!IoWrite(GDataHandle, Data, Size))
 	{
 		IoClose(GDataHandle);
@@ -202,6 +216,10 @@ void Writer_SendDataRaw(const void* Data, uint32 Size)
 ////////////////////////////////////////////////////////////////////////////////
 uint32 Writer_SendData(uint32 ThreadId, uint8* __restrict Data, uint32 Size)
 {
+#if TRACE_PRIVATE_STATISTICS
+	GTraceStatistics.BytesTraced += Size;
+#endif
+
 	if (!GDataHandle)
 	{
 		return 0;
@@ -303,8 +321,8 @@ static void Writer_DescribeAnnounce()
 		return;
 	}
 
-	Writer_DescribeEvents();
 	Writer_AnnounceChannels();
+	Writer_DescribeEvents();
 }
 
 
@@ -316,15 +334,9 @@ static void Writer_LogHeader()
 		<< NewTrace.Serial(uint32(GLogSerial)) // should really atomic-load-relaxed here...
 		<< NewTrace.UserUidBias(EKnownEventUids::User)
 		<< NewTrace.Endian(0x524d)
-		<< NewTrace.PointerSize(sizeof(void*));
-}
-
-////////////////////////////////////////////////////////////////////////////////
-static void Writer_LogTimingHeader()
-{
-	UE_TRACE_LOG($Trace, Timing, TraceLogChannel)
-		<< Timing.StartCycle(GStartCycle)
-		<< Timing.CycleFrequency(TimeGetFrequency());
+		<< NewTrace.PointerSize(sizeof(void*))
+		<< NewTrace.StartCycle(GStartCycle)
+		<< NewTrace.CycleFrequency(TimeGetFrequency());
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -333,6 +345,18 @@ static bool Writer_UpdateConnection()
 	if (!GPendingDataHandle)
 	{
 		return false;
+	}
+
+	// Is this a close request?
+	if (GPendingDataHandle == ~0ull)
+	{
+		if (GDataHandle)
+		{
+			IoClose(GDataHandle);
+		}
+
+		GDataHandle = 0;
+		GPendingDataHandle = 0;
 	}
 
 	// Reject the pending connection if we've already got a connection
@@ -364,15 +388,21 @@ static bool Writer_UpdateConnection()
 		return false;
 	}
 
+	// Reset statistics.
+	GTraceStatistics.BytesSent = 0;
+	GTraceStatistics.BytesTraced = 0;
+
 	// Send the header events
 	TWriteBufferRedirect<512> HeaderEvents;
 	Writer_LogHeader();
-	Writer_LogTimingHeader();
 	HeaderEvents.Close();
 
+	FEventNode::OnConnect();
 	Writer_DescribeEvents();
 
 	Writer_SendData(HeaderEvents.GetData(), HeaderEvents.GetSize());
+
+	Writer_CacheOnConnect();
 
 	return true;
 }
@@ -389,6 +419,7 @@ static void Writer_WorkerUpdate()
 	Writer_UpdateControl();
 	Writer_UpdateConnection();
 	Writer_DescribeAnnounce();
+	Writer_UpdateSharedBuffers();
 	Writer_DrainBuffers();
 }
 
@@ -448,6 +479,7 @@ static void Writer_InternalInitializeImpl()
 	GInitialized = true;
 	GStartCycle = TimeGetTimestamp();
 
+	Writer_InitializeSharedBuffers();
 	Writer_InitializePool();
 	Writer_InitializeControl();
 }
@@ -479,6 +511,7 @@ static void Writer_InternalShutdown()
 
 	Writer_ShutdownControl();
 	Writer_ShutdownPool();
+	Writer_ShutdownSharedBuffers();
 
 	GInitialized = false;
 }
@@ -586,6 +619,18 @@ bool Writer_WriteTo(const ANSICHAR* Path)
 bool Writer_IsTracing()
 {
 	return (GDataHandle != 0);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+bool Writer_Stop()
+{
+	if (GPendingDataHandle || !GDataHandle)
+	{
+		return false;
+	}
+
+	GPendingDataHandle = ~UPTRINT(0);
+	return true;
 }
 
 } // namespace Private
