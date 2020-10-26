@@ -30,13 +30,6 @@
 #include "PhysXPublic.h"
 #endif 
 
-namespace Chaos
-{
-#if WITH_CHAOS
-	extern CHAOS_API int32 UseAsyncResults;
-#endif
-}
-
 namespace CharacterMovementCVars
 {
 	extern int32 NetShowCorrections;
@@ -339,7 +332,7 @@ bool FPhysicsReplication::ApplyRigidBodyState(float DeltaSeconds, FBodyInstance*
 		{
 			// Small enough error to interpolate
 #if WITH_CHAOS
-			if (Chaos::UseAsyncResults == 0)	//sync case
+			if (AsyncCallback == nullptr)	//sync case
 #endif
 			{
 				const FVector NewLinVel = FVector(NewState.LinVel) + (LinDiff * LinearVelocityCoefficient * DeltaSeconds);
@@ -464,7 +457,7 @@ void FPhysicsReplication::OnTick(float DeltaSeconds, TMap<TWeakObjectPtr<UPrimit
 	const FRigidBodyErrorCorrection& PhysicErrorCorrection = UPhysicsSettings::Get()->PhysicErrorCorrection;
 #if WITH_CHAOS
 	using namespace Chaos;
-	if(UseAsyncResults)
+	if(AsyncCallback)
 	{
 		PrepareAsyncData_External(PhysicErrorCorrection);
 	}
@@ -545,7 +538,10 @@ FPhysicsReplication::FPhysicsReplication(FPhysScene* InPhysicsScene)
 	AsyncCallback = nullptr;
 	if (auto* Solver = PhysScene->GetSolver())
 	{
-		AsyncCallback = Solver->CreateAndRegisterSimCallbackObject_External<FPhysicsReplicationAsyncCallback>();
+		if(Solver->IsUsingAsyncResults())
+		{
+			AsyncCallback = Solver->CreateAndRegisterSimCallbackObject_External<FPhysicsReplicationAsyncCallback>();
+		}
 	}
 #endif
 }
