@@ -26,7 +26,7 @@ void TPerParticleDampVelocity<T, d>::UpdatePositionBasedState(const T_PARTICLES&
 	{
 		if (!Particles.InvM(Index))
 		{
-			return;
+			continue;
 		}
 		MXcm += Particles.X(Index) * Particles.M(Index);
 		MVcm += Particles.V(Index) * Particles.M(Index);
@@ -45,7 +45,7 @@ void TPerParticleDampVelocity<T, d>::UpdatePositionBasedState(const T_PARTICLES&
 	{
 		if (!Particles.InvM(Index))
 		{
-			return;
+			continue;
 		}
 		const TVector<T, d> V = Particles.X(Index) - MXcm;
 		L += TVector<T, d>::CrossProduct(V, Particles.M(Index) * Particles.V(Index));
@@ -92,7 +92,7 @@ void TPerParticleDampVelocity<float, 3>::UpdatePositionBasedState(const TPBDPart
 		{
 			if (!Particles.InvM(Index))
 			{
-				return;
+				continue;
 			}
 			MXcm += Particles.X(Index) * Particles.M(Index);
 			MVcm += Particles.V(Index) * Particles.M(Index);
@@ -111,7 +111,7 @@ void TPerParticleDampVelocity<float, 3>::UpdatePositionBasedState(const TPBDPart
 		{
 			if (!Particles.InvM(Index))
 			{
-				return;
+				continue;
 			}
 			const TVector<float, 3> V = Particles.X(Index) - MXcm;
 			L += TVector<float, 3>::CrossProduct(V, Particles.M(Index) * Particles.V(Index));
