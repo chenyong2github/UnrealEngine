@@ -1343,6 +1343,7 @@ void FRHIRenderPassInfo::ConvertToRenderTargetsInfo(FRHISetRenderTargetsInfo& Ou
 	OutRTInfo.bClearStencil = (StencilLoadAction == ERenderTargetLoadAction::EClear);
 
 	OutRTInfo.FoveationTexture = FoveationTexture;
+	OutRTInfo.MultiViewCount = MultiViewCount;
 }
 
 void FRHIRenderPassInfo::OnVerifyNumUAVsFailed(int32 InNumUAVs)

@@ -613,6 +613,7 @@ protected:
 		
 		ESubpassHint SubpassHint = ESubpassHint::None;
 		uint8 SubpassIndex = 0;
+		uint8 MultiViewCount = 0;
 		bool HasFragmentDensityAttachment = false;
 	} PSOContext;
 
@@ -645,7 +646,8 @@ protected:
 		uint32 NewNumSimultaneousRenderTargets,
 		const FRHIRenderTargetView* NewRenderTargetsRHI,
 		const FRHIDepthRenderTargetView* NewDepthStencilTargetRHI,
-		const bool HasFragmentDensityAttachment
+		const bool HasFragmentDensityAttachment,
+		const uint8 MultiViewCount
 		)
 	{
 		PSOContext.CachedNumSimultanousRenderTargets = NewNumSimultaneousRenderTargets;
@@ -657,13 +659,14 @@ protected:
 
 		PSOContext.CachedDepthStencilTarget = (NewDepthStencilTargetRHI) ? *NewDepthStencilTargetRHI : FRHIDepthRenderTargetView();
 		PSOContext.HasFragmentDensityAttachment = HasFragmentDensityAttachment;
+		PSOContext.MultiViewCount = MultiViewCount;
 	}
 
 	void CacheActiveRenderTargets(const FRHIRenderPassInfo& Info)
 	{
 		FRHISetRenderTargetsInfo RTInfo;
 		Info.ConvertToRenderTargetsInfo(RTInfo);
-		CacheActiveRenderTargets(RTInfo.NumColorRenderTargets, RTInfo.ColorRenderTarget, &RTInfo.DepthStencilRenderTarget, RTInfo.FoveationTexture != nullptr);
+		CacheActiveRenderTargets(RTInfo.NumColorRenderTargets, RTInfo.ColorRenderTarget, &RTInfo.DepthStencilRenderTarget, RTInfo.FoveationTexture != nullptr, RTInfo.MultiViewCount);
 	}
 
 	void IncrementSubpass()
@@ -3153,7 +3156,6 @@ public:
 				GraphicsPSOInit.RenderTargetFormats[i] = PSOContext.CachedRenderTargets[i].Texture->GetFormat();
 				GraphicsPSOInit.RenderTargetFlags[i] = PSOContext.CachedRenderTargets[i].Texture->GetFlags();
 				const FRHITexture2DArray* TextureArray = PSOContext.CachedRenderTargets[i].Texture->GetTexture2DArray();
-				GraphicsPSOInit.bMultiView = TextureArray && TextureArray->GetSizeZ() > 1;
 			}
 			else
 			{
@@ -3171,7 +3173,6 @@ public:
 			GraphicsPSOInit.DepthStencilTargetFormat = PSOContext.CachedDepthStencilTarget.Texture->GetFormat();
 			GraphicsPSOInit.DepthStencilTargetFlag = PSOContext.CachedDepthStencilTarget.Texture->GetFlags();
 			const FRHITexture2DArray* TextureArray = PSOContext.CachedDepthStencilTarget.Texture->GetTexture2DArray();
-			GraphicsPSOInit.bMultiView = TextureArray && TextureArray->GetSizeZ() > 1;
 		}
 		else
 		{
@@ -3191,6 +3192,7 @@ public:
 
 		GraphicsPSOInit.SubpassHint = PSOContext.SubpassHint;
 		GraphicsPSOInit.SubpassIndex = PSOContext.SubpassIndex;
+		GraphicsPSOInit.MultiViewCount = PSOContext.MultiViewCount;
 		GraphicsPSOInit.bHasFragmentDensityAttachment = PSOContext.HasFragmentDensityAttachment;
 	}
 
