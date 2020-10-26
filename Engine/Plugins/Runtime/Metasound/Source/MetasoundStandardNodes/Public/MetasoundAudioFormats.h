@@ -238,6 +238,12 @@ namespace Metasound
 				ReadableBuffers = ReadableBufferStorage;
 			}
 
+			TStaticChannelAudioFormat(const FOperatorSettings& InOperatorSettings)
+			:	TStaticChannelAudioFormat(InOperatorSettings.GetNumFramesPerBlock())
+			{
+			}
+
+
 			/** Return the number of audio channels. */
 			int32 GetNumChannels() const
 			{
@@ -468,13 +474,9 @@ namespace Metasound
 
 	DECLARE_METASOUND_DATA_REFERENCE_TYPES(FUnformattedAudio, METASOUNDSTANDARDNODES_API, FUnformattedAudioTypeInfo, FUnformattedAudioReadRef, FUnformattedAudioWriteRef);
 	
-
 	DECLARE_METASOUND_DATA_REFERENCE_TYPES(FMultichannelAudioFormat, METASOUNDSTANDARDNODES_API, FMultichannelAudioFormatTypeInfo, FMultichannelAudioFormatReadRef, FMultichannelAudioFormatWriteRef);
-	
 
 	DECLARE_METASOUND_DATA_REFERENCE_TYPES(FMonoAudioFormat, METASOUNDSTANDARDNODES_API, FMonoAudioFormatTypeInfo, FMonoAudioFormatReadRef, FMonoAudioFormatWriteRef);
 
 	DECLARE_METASOUND_DATA_REFERENCE_TYPES(FStereoAudioFormat, METASOUNDSTANDARDNODES_API, FStereoAudioFormatTypeInfo, FStereoAudioFormatReadRef, FStereoAudioFormatWriteRef);
-	
-	
 }

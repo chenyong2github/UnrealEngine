@@ -8,6 +8,7 @@
 #include "MetasoundDataReference.h"
 #include "MetasoundOutputNode.h"
 #include "MetasoundInputNode.h"
+#include "MetasoundPrimitives.h"
 #include "MetasoundOperatorInterface.h"
 #include "MetasoundFrontendRegistries.h"
 #include "MetasoundAutoConverterNode.h"
@@ -69,8 +70,10 @@ void AttemptToRegisterSendAndReceiveNodes()
 	// or it's not an audio buffer type, which we use Audio::FPatchMixerSplitter instances for.
 }
 
+
+
 // This utility function can be used to check to see if we can static cast between two types, and autogenerate a node for that static cast.
-template<typename TFromDataType, typename TToDataType, typename TEnableIf<std::is_convertible<TFromDataType, TToDataType>::value, bool>::Type = true>
+template<typename TFromDataType, typename TToDataType, typename std::enable_if<std::is_convertible<TFromDataType, TToDataType>::value, int>::type = 0>
 void AttemptToRegisterConverter()
 {
 	using FConverterNode = Metasound::TAutoConverterNode<TFromDataType, TToDataType>;
@@ -84,7 +87,7 @@ void AttemptToRegisterConverter()
 	}
 }
 
-template<typename TFromDataType, typename TToDataType, typename TEnableIf<!std::is_convertible<TFromDataType, TToDataType>::value, bool>::Type = true>
+template<typename TFromDataType, typename TToDataType, typename std::enable_if<!std::is_convertible<TFromDataType, TToDataType>::value, int>::type = 0>
 void AttemptToRegisterConverter()
 {
 	// This implementation intentionally noops, because static_cast<TFromDataType>(TToDataType&) is invalid.

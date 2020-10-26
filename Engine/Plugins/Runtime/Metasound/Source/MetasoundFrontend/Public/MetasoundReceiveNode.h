@@ -109,43 +109,15 @@ namespace Metasound
 				FDataReferenceCollection Outputs;
 		};
 
-		template<typename T>
-		struct TReceiverOperatorFactoryHelper
-		{
-			using FDataTypeInfo = TDataReferenceTypeInfo<T>;
-
-			static constexpr bool bUseDefaultCtor = FDataTypeInfo::bCanUseDefaultConstructor && !FDataTypeInfo::bIsConstructableWithSettings;
-			static constexpr bool bUseSettingsCtor = FDataTypeInfo::bIsConstructableWithSettings;
-		};
-
 		class FReceiverOperatorFactory : public IOperatorFactory
 		{
 			public:
 				FReceiverOperatorFactory() = default;
 
-				template<
-					typename U = TDataType,
-					typename std::enable_if< TReceiverOperatorFactoryHelper<U>::bUseDefaultCtor, int>::type = 0
-				>
-				TDataWriteReference<TDataType> CreateDefaultWriteReference(const FCreateOperatorParams& InParams) const
-				{
-					return TDataWriteReference<TDataType>::CreateNew();
-				}
-
-				template<
-					typename U = TDataType,
-					typename std::enable_if< TReceiverOperatorFactoryHelper<U>::bUseSettingsCtor, int>::type = 0
-				>
-				TDataWriteReference<TDataType> CreateDefaultWriteReference(const FCreateOperatorParams& InParams) const
-				{
-					return TDataWriteReference<TDataType>::CreateNew(InParams.OperatorSettings);
-				}
-
-
 				virtual TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors) override
 				{
 					return MakeUnique<TReceiverOperator>(
-						CreateDefaultWriteReference(InParams),
+						TDataReferenceFactory<TDataType>::CreateNewWriteReference(InParams.OperatorSettings),
 						InParams.InputDataReferences.GetDataReadReference<FSendAddress>(GetAddressInputName()),
 						InParams.OperatorSettings
 						);

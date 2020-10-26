@@ -476,5 +476,136 @@ namespace Metasound
 		 * const TArrayView<const FAudioBufferWriteRef> GetBuffers() { return WritableBuffers; }
 		 */
 	};
+
+
+	// TODO: add creation of data type from literal to TDataReferenceFactory by introducing TVariant interface. 
+	// TODO: swap FOperatorSettings and ArgType order in code which uses literals. 
+	
+	/** TDataReferenceFactory
+	 *
+	 * This factory provides a convenient interface for creating new data references. 
+	 * The factory prioritizes the available data reference constructors and chooses
+	 * the highest prioritized constructor which satisfies the provided constructor
+	 * arguments. This allows callers to construct with a consistent interface for 
+	 * varying data reference types. 
+	 *
+	 * The constructors are prioritized as follows
+	 * 1. A constructor which accepts an FOperatorSettings and provided arguments.
+	 * 2. A constructor which accepts the provided arguments.
+	 * 3. A constructor which accepts an FOperatorSettings.
+	 * 4. The default constructor.
+	 *
+	 * If none of these constructors exist for the provided arguments, then the
+	 * factory creation method will not compile. 
+	 */
+	template<typename DataType>
+	class TDataReferenceFactory
+	{
+		private:
+
+			/** TDataReferenceFactoryHelper determines which constructors are available 
+			 * for a given data type and arguments.
+			 */
+			template<typename T, typename... ArgTypes>
+			struct TDataReferenceFactoryHelper
+			{
+				static constexpr bool bIsDefaultConstructible = std::is_constructible<T>::value;
+				static constexpr bool bIsConstructibleWithSettings = std::is_constructible<T, const FOperatorSettings&>::value;
+				static constexpr bool bIsConstructibleWithArgs = std::is_constructible<T, ArgTypes...>::value;
+				static constexpr bool bIsConstructibleWithSettingsAndArgs = std::is_constructible<T, const FOperatorSettings&, ArgTypes...>::value;
+			};
+
+			/** TDataReferenceFactoryHelper specialization which handles an empty parameter pack. */
+			template<typename T>
+			struct TDataReferenceFactoryHelper<T>
+			{
+				static constexpr bool bIsDefaultConstructible = std::is_constructible<T>::value;
+				static constexpr bool bIsConstructibleWithSettings = std::is_constructible<T, const FOperatorSettings&>::value;
+				static constexpr bool bIsConstructibleWithArgs = false;
+				static constexpr bool bIsConstructibleWithSettingsAndArgs = false;
+			};
+
+			/** TDataReferenceFactoryChooser prioritizes the available constructors. */
+			template<typename T, typename... ArgTypes>
+			struct TDataReferenceFactoryChooser
+			{
+				using FHelper = TDataReferenceFactoryHelper<T, ArgTypes...>;
+
+				static constexpr bool bIsConstructibleWithoutArg = FHelper::bIsDefaultConstructible || FHelper::bIsConstructibleWithSettings;
+
+				// Only one of these booleans should be true. These enable the appropriate
+				// "CreateNewReference(...)" function. If multiple are true, than a
+				// duplicate symbol will exist. 
+				static constexpr bool bCreateWithSettingsAndArgs = FHelper::bIsConstructibleWithSettingsAndArgs;
+				static constexpr bool bCreateWithArgs = FHelper::bIsConstructibleWithArgs && !bCreateWithSettingsAndArgs;
+				static constexpr bool bCreateWithSettings = FHelper::bIsConstructibleWithSettings && !bCreateWithArgs;
+				static constexpr bool bCreateWithDefaultConstructor = FHelper::bIsDefaultConstructible && !bCreateWithSettings;
+
+				static constexpr bool bCreateWithAnyConstructor = bCreateWithSettingsAndArgs || bCreateWithArgs || bCreateWithSettings || bCreateWithDefaultConstructor;
+
+				// TODO: 
+				static_assert(bCreateWithAnyConstructor, "No constructor possible");
+			};
+
+			/** Create a reference using FOperatorSettings and arguments. */
+			template<
+				typename ReferenceType, 
+				typename... ArgTypes,
+				typename std::enable_if< TDataReferenceFactoryChooser<DataType, ArgTypes...>::bCreateWithSettingsAndArgs, int>::type = 0
+			>
+			static ReferenceType CreateNewReference(const FOperatorSettings& InSettings, ArgTypes&&... Args)
+			{
+				return ReferenceType::CreateNew(InSettings, Forward<ArgTypes>(Args)...);
+			}
+
+			/** Create a reference using arguments. */
+			template<
+				typename ReferenceType, 
+				typename... ArgTypes,
+				typename std::enable_if< TDataReferenceFactoryChooser<DataType, ArgTypes...>::bCreateWithArgs, int>::type = 0
+			>
+			static ReferenceType CreateNewReference(const FOperatorSettings& InSettings, ArgTypes&&... Args)
+			{
+				return ReferenceType::CreateNew(Forward<ArgTypes>(Args)...);
+			}
+
+			/** Create a reference using FOperatorSettings. */
+			template<
+				typename ReferenceType, 
+				typename... ArgTypes,
+				typename std::enable_if< TDataReferenceFactoryChooser<DataType, ArgTypes...>::bCreateWithSettings, int>::type = 0
+			>
+			static ReferenceType CreateNewReference(const FOperatorSettings& InSettings, ArgTypes&&... Args)
+			{
+				return ReferenceType::CreateNew(InSettings);
+			}
+
+			/** Create a reference using the default constructor */
+			template<
+				typename ReferenceType, 
+				typename... ArgTypes,
+				typename std::enable_if< TDataReferenceFactoryChooser<DataType, ArgTypes...>::bCreateWithDefaultConstructor, int>::type = 0
+			>
+			static ReferenceType CreateNewReference(const FOperatorSettings& InSettings, ArgTypes&&... Args)
+			{
+				return ReferenceType::CreateNew();
+			}
+
+		public:
+
+			/** Create a new TDataWriteReference<DataType> using the given FOperatorSettings and ArgTypes. */
+			template<typename... ArgTypes>
+			static TDataWriteReference<DataType> CreateNewWriteReference(const FOperatorSettings& InSettings, ArgTypes&&... Args)
+			{
+				return CreateNewReference<TDataWriteReference<DataType>>(InSettings, Forward<ArgTypes>(Args)...);
+			}
+
+			/** Create a new TDataReadReference<DataType> using the given FOperatorSettings and ArgTypes. */
+			template<typename... ArgTypes>
+			static TDataReadReference<DataType> CreateNewReadReference(const FOperatorSettings& InSettings, ArgTypes&&... Args)
+			{
+				return CreateNewReference<TDataReadReference<DataType>>(InSettings, Forward<ArgTypes>(Args)...);
+			}
+	};
 }
 

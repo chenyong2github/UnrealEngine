@@ -3,6 +3,7 @@
 
 #include "CoreMinimal.h"
 #include "MetasoundBuilderInterface.h"
+#include "MetasoundBuildError.h"
 #include "MetasoundNodeInterface.h"
 #include "MetasoundOperatorInterface.h"
 #include "MetasoundDataReference.h"
@@ -37,15 +38,18 @@ namespace Metasound
 		}
 
 	private:
+		/** FConverterOperator converts from "FromDataType" to "ToDataType" using
+		 * a implicit conversion operators. 
+		 */
 		class FConverterOperator : public TExecutableOperator<FConverterOperator>
 		{
 			public:
 
-				FConverterOperator(TDataReadReference<FromDataType> InFromDataReference)
+				FConverterOperator(TDataReadReference<FromDataType> InFromDataReference, TDataWriteReference<ToDataType> InToDataReference)
 					: FromData(InFromDataReference)
-					, ToData(TDataWriteReference<ToDataType>::CreateNew()) // TODO: this currently only works with default constructible datatypes. Can we do something similar to what we did with literals?
+					, ToData(InToDataReference) 
 				{
-					Outputs.AddDataReadReference<ToDataType>(GetOutputName(), TDataReadReference<ToDataType>(ToData));
+					Outputs.AddDataReadReference<ToDataType>(GetOutputName(), ToData);
 				}
 
 				virtual ~FConverterOperator() {}
@@ -73,6 +77,9 @@ namespace Metasound
 				FDataReferenceCollection Outputs;
 		};
 
+		/** FConverterOperatorFactory creates an operator which converts from 
+		 * "FromDataType" to "ToDataType". 
+		 */
 		class FCoverterOperatorFactory : public IOperatorFactory
 		{
 			public:
@@ -80,13 +87,25 @@ namespace Metasound
 
 				virtual TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors) override
 				{
+					TDataWriteReference<ToDataType> WriteReference = TDataReferenceFactory<ToDataType>::CreateNewWriteReference(InParams.OperatorSettings);
+
 					if (!InParams.InputDataReferences.ContainsDataReadReference<FromDataType>(GetInputName()))
 					{
-						// TODO: Add build error.
-						return TUniquePtr<IOperator>(nullptr);
+						if (ensure(InParams.Node.GetVertexInterface().ContainsInputVertex(GetInputName())))
+						{
+							// There should be something hooked up to the converter node. Report it as an error. 
+							FInputDataDestination Dest(InParams.Node, InParams.Node.GetVertexInterface().GetInputVertex(GetInputName()));
+							AddBuildError<FMissingInputDataReferenceError>(OutErrors, Dest);
+						}
+
+						// We can still build something even though there is an error. 
+						TDataReadReference<FromDataType> ReadReference = TDataReferenceFactory<FromDataType>::CreateNewReadReference(InParams.OperatorSettings);
+						return MakeUnique<FConverterOperator>(ReadReference, WriteReference);
 					}
 
-					return MakeUnique<FConverterOperator>(InParams.InputDataReferences.GetDataReadReference<FromDataType>(GetInputName()));
+					TDataReadReference<FromDataType> ReadReference = InParams.InputDataReferences.GetDataReadReference<FromDataType>(GetInputName());
+
+					return MakeUnique<FConverterOperator>(ReadReference, WriteReference);
 				}
 		};
 
