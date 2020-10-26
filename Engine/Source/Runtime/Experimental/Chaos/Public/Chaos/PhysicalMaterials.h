@@ -135,8 +135,8 @@ namespace Chaos
 		void UpdateMaterialMask(FMaterialMaskHandle InHandle);
 
 		/** Gets the internal list of master materials representing the current user state of the material data */
-		const THandleArray<FChaosPhysicsMaterial>& GetMasterMaterials() const;
-		const THandleArray<FChaosPhysicsMaterialMask>& GetMasterMaterialMasks() const;
+		const THandleArray<FChaosPhysicsMaterial>& GetMasterMaterials_External() const;
+		const THandleArray<FChaosPhysicsMaterialMask>& GetMasterMaterialMasks_External() const;
 
 		/** Events */
 		FOnMaterialUpdated OnMaterialUpdated;
