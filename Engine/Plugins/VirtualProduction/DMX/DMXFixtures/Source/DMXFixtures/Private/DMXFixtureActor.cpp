@@ -71,11 +71,15 @@ void ADMXFixtureActor::InitializeFixture(UStaticMeshComponent* StaticMeshLens, U
 	DynamicMaterialSpotLight = UMaterialInstanceDynamic::Create(SpotLightMaterialInstance, NULL);
 	DynamicMaterialPointLight = UMaterialInstanceDynamic::Create(PointLightMaterialInstance, NULL);
 
-	// Get lens width
+	// Get lens width (support scaling)
 	if (StaticMeshLens)
 	{
+		//FBoxSphereBounds LocalBounds = StaticMeshLens->CalcLocalBounds();
+		//FVector Scale = StaticMeshLens->GetRelativeScale3D();
+		//float BiggestComponentScale = Scale.GetMax();
+		//LensRadius = LocalBounds.SphereRadius * BiggestComponentScale * 0.97f;
 		FBoxSphereBounds Bounds = StaticMeshLens->Bounds;
-		LensRadius = Bounds.SphereRadius;
+		LensRadius = Bounds.SphereRadius * 0.9f;
 	}
 
 	// Feed fixture data into materials and lights
@@ -87,9 +91,11 @@ void ADMXFixtureActor::InitializeFixture(UStaticMeshComponent* StaticMeshLens, U
 		StaticMeshLens->SetMaterial(0, DynamicMaterialLens);
 	}
 
+	// Make sure beam doesnt have any scale applied or it wont render correctly
 	if (StaticMeshBeam)
 	{
 		StaticMeshBeam->SetMaterial(0, DynamicMaterialBeam);
+		StaticMeshBeam->SetWorldScale3D(FVector(1,1,1));
 	}
 
 	// Assign dynamic materials to lights
