@@ -13,13 +13,15 @@
 class IOnlinePartyJoinInfo;
 class FOnlineUserPresence;
 class UPartyMember;
-enum class EPlatformIconDisplayRule : uint8;
-
 struct FOnlineError;
+enum class EPartyInvitationRemovedReason : uint8;
+enum class EPlatformIconDisplayRule : uint8;
+typedef TSharedRef<const IOnlinePartyJoinInfo> IOnlinePartyJoinInfoConstRef;
+typedef TSharedPtr<const IOnlinePartyJoinInfo> IOnlinePartyJoinInfoConstPtr;
 
 namespace EOnlinePresenceState { enum Type : uint8; }
 
-DECLARE_MULTICAST_DELEGATE_OneParam(FOnNewSocialUserInitialized, USocialUser&);
+DECLARE_DELEGATE_OneParam(FOnNewSocialUserInitialized, USocialUser&);
 
 UCLASS(Within = SocialToolkit)
 class PARTY_API USocialUser : public UObject
@@ -29,7 +31,7 @@ class PARTY_API USocialUser : public UObject
 public:
 	USocialUser();
 
-	void RegisterInitCompleteHandler(const FOnNewSocialUserInitialized::FDelegate& OnInitializationComplete);
+	void RegisterInitCompleteHandler(const FOnNewSocialUserInitialized& OnInitializationComplete);
 	bool IsInitialized() const { return bIsInitialized; }
 
 	void ValidateFriendInfo(ESocialSubsystem SubsystemType);
@@ -92,7 +94,10 @@ public:
 
 	bool ShowPlatformProfile();
 
-	TSharedPtr<const IOnlinePartyJoinInfo> GetPartyJoinInfo(const FOnlinePartyTypeId& PartyTypeId) const;
+	void HandlePartyInviteReceived(const IOnlinePartyJoinInfo& Invite);
+	void HandlePartyInviteRemoved(const IOnlinePartyJoinInfo& Invite, EPartyInvitationRemovedReason Reason);
+
+	IOnlinePartyJoinInfoConstPtr GetPartyJoinInfo(const FOnlinePartyTypeId& PartyTypeId) const;
 
 	bool HasSentPartyInvite(const FOnlinePartyTypeId& PartyTypeId) const;
 	FJoinPartyResult CheckPartyJoinability(const FOnlinePartyTypeId& PartyTypeId) const;
@@ -202,11 +207,12 @@ private:
 
 	bool bIsInitialized = false;
 
-	TSharedPtr<const IOnlinePartyJoinInfo> PersistentPartyInfo;
 	TMap<ESocialSubsystem, FSubsystemUserInfo> SubsystemInfoByType;
 
+	TArray<IOnlinePartyJoinInfoConstRef> ReceivedPartyInvites;
+
 	// Initialization delegates that fire only when a specific user has finishing initializing
-	static TMap<TWeakObjectPtr<USocialUser>, FOnNewSocialUserInitialized> InitEventsByUser;
+	static TMap<TWeakObjectPtr<USocialUser>, TArray<FOnNewSocialUserInitialized>> InitEventsByUser;
 
 	mutable FOnNicknameChanged OnSetNicknameCompletedEvent;
 	mutable FPartyInviteResponseEvent OnPartyInviteAcceptedEvent;
