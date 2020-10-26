@@ -13,10 +13,6 @@ public class Core : ModuleRules
 		SharedPCHHeaderFile = "Public/CoreSharedPCH.h";
 
 		PrivateDependencyModuleNames.Add("BuildSettings");
-		if (Target.Platform == UnrealTargetPlatform.Android && Target.Configuration != UnrealTargetConfiguration.Shipping)
-		{
-			PrivateDependencyModuleNames.Add("HWCPipe");
-		}
 
 		PublicDependencyModuleNames.Add("TraceLog");
 		PublicIncludePaths.Add("Runtime/TraceLog/Public");
