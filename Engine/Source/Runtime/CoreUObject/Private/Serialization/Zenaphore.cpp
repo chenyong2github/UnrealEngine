@@ -15,6 +15,15 @@ FZenaphore::~FZenaphore()
 	FPlatformProcess::ReturnSynchEventToPool(Event);
 }
 
+void FZenaphore::NotifyInternal(FZenaphoreWaiterNode* Waiter)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(ZenaphoreTrigger);
+	check(Waiter);
+	FScopeLock Lock(&Mutex);
+	Waiter->bTriggered = true;
+	Event->Trigger();
+}
+
 void FZenaphore::NotifyOne()
 {
 	for (;;)
@@ -26,10 +35,7 @@ void FZenaphore::NotifyOne()
 		}
 		if (HeadWaiter.CompareExchange(Waiter, Waiter->Next))
 		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(ZenaphoreTrigger);
-			FScopeLock Lock(&Mutex);
-			Waiter->bTriggered = true;
-			Event->Trigger();
+			NotifyInternal(Waiter);
 			return;
 		}
 	}
@@ -42,10 +48,29 @@ void FZenaphore::NotifyAll()
 	{
 		if (HeadWaiter.CompareExchange(Waiter, Waiter->Next))
 		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(ZenaphoreTrigger);
-			FScopeLock Lock(&Mutex);
-			Waiter->bTriggered = true;
-			Event->Trigger();
+			NotifyInternal(Waiter);
+		}
+	}
+}
+
+FZenaphoreWaiter::~FZenaphoreWaiter()
+{
+	if (SpinCount)
+	{
+		WaitInternal();
+	}
+}
+
+void FZenaphoreWaiter::WaitInternal()
+{
+	for (;;)
+	{
+		Outer.Event->Wait(INT32_MAX, true);
+		FScopeLock Lock(&Outer.Mutex);
+		if (WaiterNode.bTriggered)
+		{
+			Outer.Event->Reset();
+			return;
 		}
 	}
 }
@@ -65,16 +90,7 @@ void FZenaphoreWaiter::Wait()
 	}
 	else
 	{
-		for (;;)
-		{
-			Outer.Event->Wait(INT32_MAX, true);
-			FScopeLock Lock(&Outer.Mutex);
-			if (WaiterNode.bTriggered)
-			{
-				Outer.Event->Reset();
-				break;
-			}
-		}
+		WaitInternal();
 		SpinCount = 0;
 	}
 }
