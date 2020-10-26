@@ -267,6 +267,20 @@ bool UControlRigGraphSchema::IsStructEditable(UStruct* InStruct) const
 	return false;
 }
 
+void UControlRigGraphSchema::SetNodePosition(UEdGraphNode* Node, const FVector2D& Position) const
+{
+	if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(Node))
+	{
+		UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForNodeChecked(RigNode);
+		UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(Blueprint);
+		if (RigBlueprint != nullptr)
+		{
+			RigBlueprint->Controller->SetNodePosition(RigNode->GetModelNode(), Position, true, false); 
+			return;
+		}
+	}
+}
+
 UControlRigGraphNode* UControlRigGraphSchema::CreateGraphNode(UControlRigGraph* InGraph, const FName& InPropertyName) const
 {
 	const bool bSelectNewNode = true;

@@ -911,6 +911,13 @@ class ENGINE_API UEdGraphSchema : public UObject
 	 */
 	virtual UEdGraphNode* CreateSubstituteNode(UEdGraphNode* Node, const UEdGraph* Graph, FObjectInstancingGraph* InstanceGraph, TSet<FName>& InOutExtraNames) const { return nullptr; }
 
+	/**
+	 * Sets a node's position.
+	 *
+	 * @param	Node			The node to set
+	 * @param	Position		The target position
+	 */
+	virtual void SetNodePosition(UEdGraphNode* Node, const FVector2D& Position) const;
 
 	/**
 	 * Returns the currently selected graph node count

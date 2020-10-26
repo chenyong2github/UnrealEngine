@@ -785,6 +785,14 @@ void UEdGraphSchema::ReconstructNode(UEdGraphNode& TargetNode, bool bIsBatchRequ
 #endif	//#if WITH_EDITOR
 }
 
+void UEdGraphSchema::SetNodePosition(UEdGraphNode* Node, const FVector2D& Position) const
+{
+	check(Node);
+	Node->Modify();
+	Node->NodePosX = Position.X;
+	Node->NodePosY = Position.Y;
+}
+
 void UEdGraphSchema::GetGraphDisplayInformation(const UEdGraph& Graph, /*out*/ FGraphDisplayInfo& DisplayInfo) const
 {
 	DisplayInfo.PlainName = FText::FromString( Graph.GetName() );

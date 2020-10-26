@@ -1255,9 +1255,15 @@ private:
 				AlignmentDelta += (Node->NodePosY + Pins.SrcPin->GetNodeOffset().Y) - (NodeToPins.Key->NodePosY + Pins.DstPin->GetNodeOffset().Y);
 			}
 
-			NodeToPins.Key->Modify();
-			NodeToPins.Key->NodePosY += AlignmentDelta / NodeToPins.Value.Num();
+			UEdGraph* GraphObj = NodeToPins.Key->GetGraph();
 
+			check(GraphObj);
+
+			const UEdGraphSchema* Schema = GraphObj->GetSchema();
+
+			float NewNodePosY = NodeToPins.Key->NodePosY + (AlignmentDelta / NodeToPins.Value.Num());
+			Schema->SetNodePosition(NodeToPins.Key, FVector2D(NodeToPins.Key->NodePosX, NewNodePosY));
+	
 			VisitedNodes.Add(Node);
 			VisitedNodes.Add(NodeToPins.Key);
 			
