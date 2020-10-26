@@ -381,33 +381,60 @@ void FMeshUtilities::GenerateSignedDistanceFieldVolumeData(
 		{
 			for (int32 TriangleIndex = 0; TriangleIndex < NumTriangles; ++TriangleIndex)
 			{
-				FilteredTriangles.Add(TriangleIndex);
+				const uint32 I0 = SourceMeshData.TriangleIndices[TriangleIndex * 3 + 0];
+				const uint32 I1 = SourceMeshData.TriangleIndices[TriangleIndex * 3 + 1];
+				const uint32 I2 = SourceMeshData.TriangleIndices[TriangleIndex * 3 + 2];
+
+				const FVector V0 = SourceMeshData.VertexPositions[I0];
+				const FVector V1 = SourceMeshData.VertexPositions[I1];
+				const FVector V2 = SourceMeshData.VertexPositions[I2];
+
+				const FVector TriangleNormal = ((V1 - V2) ^ (V0 - V2));
+				const bool bDegenerateTriangle = TriangleNormal.SizeSquared() < SMALL_NUMBER;
+				if (!bDegenerateTriangle)
+				{
+					FilteredTriangles.Add(TriangleIndex);
+				}
 			}
 		}
 		else
 		{
 			for (int32 TriangleIndex = 0; TriangleIndex < NumTriangles; ++TriangleIndex)
 			{
-				bool bTriangleIsOpaqueOrMasked = false;
+				const FIndexArrayView Indices = LODModel.IndexBuffer.GetArrayView();
+				const uint32 I0 = Indices[TriangleIndex * 3 + 0];
+				const uint32 I1 = Indices[TriangleIndex * 3 + 1];
+				const uint32 I2 = Indices[TriangleIndex * 3 + 2];
 
-				for (int32 SectionIndex = 0; SectionIndex < LODModel.Sections.Num(); SectionIndex++)
+				const FVector V0 = LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(I0);
+				const FVector V1 = LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(I1);
+				const FVector V2 = LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(I2);
+
+				const FVector TriangleNormal = ((V1 - V2) ^ (V0 - V2));
+				const bool bDegenerateTriangle = TriangleNormal.SizeSquared() < SMALL_NUMBER;
+				if (!bDegenerateTriangle)
 				{
-					const FStaticMeshSection& Section = LODModel.Sections[SectionIndex];
+					bool bTriangleIsOpaqueOrMasked = false;
 
-					if ((uint32)(TriangleIndex * 3) >= Section.FirstIndex && (uint32)(TriangleIndex * 3) < Section.FirstIndex + Section.NumTriangles * 3)
+					for (int32 SectionIndex = 0; SectionIndex < LODModel.Sections.Num(); SectionIndex++)
 					{
-						if (MaterialBlendModes.IsValidIndex(Section.MaterialIndex))
+						const FStaticMeshSection& Section = LODModel.Sections[SectionIndex];
+
+						if ((uint32)(TriangleIndex * 3) >= Section.FirstIndex && (uint32)(TriangleIndex * 3) < Section.FirstIndex + Section.NumTriangles * 3)
 						{
-							bTriangleIsOpaqueOrMasked = !IsTranslucentBlendMode(MaterialBlendModes[Section.MaterialIndex]);
+							if (MaterialBlendModes.IsValidIndex(Section.MaterialIndex))
+							{
+								bTriangleIsOpaqueOrMasked = !IsTranslucentBlendMode(MaterialBlendModes[Section.MaterialIndex]);
+							}
+
+							break;
 						}
-
-						break;
 					}
-				}
 
-				if (bTriangleIsOpaqueOrMasked)
-				{
-					FilteredTriangles.Add(TriangleIndex);
+					if (bTriangleIsOpaqueOrMasked)
+					{
+						FilteredTriangles.Add(TriangleIndex);
+					}
 				}
 			}
 		}
