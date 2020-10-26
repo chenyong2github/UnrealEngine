@@ -647,6 +647,9 @@ void UChildActorComponent::CreateChildActor()
 				{
 					ChildActorName = ChildActor->GetFName();
 
+					// Remember which component spawned it (for selection in editor etc)
+					FActorParentComponentSetter::Set(ChildActor, this);
+
 					// Parts that we deferred from SpawnActor
 					const FComponentInstanceDataCache* ComponentInstanceData = (CachedInstanceData ? CachedInstanceData->ComponentInstanceData.Get() : nullptr);
 					ChildActor->FinishSpawning(GetComponentTransform(), false, ComponentInstanceData);
