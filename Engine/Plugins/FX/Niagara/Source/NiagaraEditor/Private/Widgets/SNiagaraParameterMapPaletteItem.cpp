@@ -68,11 +68,27 @@ void SNiagaraParameterMapPalleteItem::Construct(const FArguments& InArgs, FCreat
 		.IsReadOnly(InCreateData->bIsReadOnly || bForceReadOnly || ParameterAction->bIsExternallyReferenced)
 		.Decorator()
 		[
-			SNew(STextBlock)
-			.Visibility(ParameterAction->bIsExternallyReferenced ? EVisibility::Visible : EVisibility::Collapsed)
-			.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.8"))
-			.Text(FEditorFontGlyphs::Lock)
-			.ToolTipText(LOCTEXT("LockedToolTip", "This parameter is used in a referenced external graph and can't be edited directly."))
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(0, 0, 5, 0)
+			[
+				SNew(STextBlock)
+				.Visibility(ParameterAction->bIsExternallyReferenced ? EVisibility::Visible : EVisibility::Collapsed)
+				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.8"))
+				.Text(FEditorFontGlyphs::Lock)
+				.ToolTipText(LOCTEXT("LockedToolTip", "This parameter is used in a referenced external graph and can't be edited directly."))
+			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(0, 0, 5, 0)
+			[
+				SNew(STextBlock)
+				.Visibility(ParameterAction->bIsSourcedFromCustomStackContext ? EVisibility::Visible : EVisibility::Collapsed)
+				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.8"))
+				.Text(FEditorFontGlyphs::Database)
+				.ToolTipText(LOCTEXT("DataInterfaceSourceToolTip", "This parameter is a child variable of an existing Data Interface, meant to be used in Simulation Stage based stacks where the parent Data Interface is the Iteration Source.") )
+			]
 		];
 
 	InCreateData->OnRenameRequest->BindSP(ParameterNameTextBlock.ToSharedRef(), &SNiagaraParameterNameTextBlock::EnterEditingMode);

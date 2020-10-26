@@ -59,6 +59,11 @@ public:
 	FGuid GetUsageId() const { return ScriptTypeId; }
 	void SetUsageId(FGuid InId) { ScriptTypeId = InId; }
 
+	/** Gets the Stack Context replacement name if it is different than the default for this stage. Note that this doesn't work in cloned graphs during translation, but will work in general editor evaluation.*/
+	TOptional<FName> GetStackContextOverride() const; 
+	/** Gets the Stack Context replacement names for the owning emitter if it is different than the default for this stage. Note that this doesn't work in cloned graphs during translation, but will work in general editor evaluation.*/
+	TArray<FName> GetAllStackContextOverrides() const;
+
 protected:
 	virtual int32 CompileInputPin(class FHlslNiagaraTranslator *Translator, UEdGraphPin* Pin) override;
 
