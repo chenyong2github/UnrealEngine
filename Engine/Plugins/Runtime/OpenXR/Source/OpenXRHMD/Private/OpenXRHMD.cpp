@@ -1283,6 +1283,7 @@ FOpenXRHMD::FOpenXRHMD(const FAutoRegister& AutoRegister, XrInstance InInstance,
 	, bIsRunning(false)
 	, bIsReady(false)
 	, bIsRendering(false)
+	, bIsSynchronized(false)
 	, bNeedReAllocatedDepth(false)
 	, bNeedReBuildOcclusionMesh(true)
 	, CurrentSessionState(XR_SESSION_STATE_UNKNOWN)
@@ -1455,17 +1456,26 @@ void FOpenXRHMD::UpdateDeviceLocations(bool bUpdateOpenXRExtensionPlugins)
 	FPipelinedFrameState& PipelineState = GetPipelinedFrameStateForThread();
 
 	// Only update the device locations if the frame state has been predicted
-	if (PipelineState.FrameState.predictedDisplayTime > 0)
+	if (bIsSynchronized && PipelineState.FrameState.predictedDisplayTime > 0)
 	{
+		FScopeLock Lock(&DeviceMutex);
+
 		PipelineState.DeviceLocations.SetNum(DeviceSpaces.Num());
 		for (int32 DeviceIndex = 0; DeviceIndex < PipelineState.DeviceLocations.Num(); DeviceIndex++)
 		{
 			const FDeviceSpace& DeviceSpace = DeviceSpaces[DeviceIndex];
-
-			XrSpaceLocation& DeviceLocation = PipelineState.DeviceLocations[DeviceIndex];
-			DeviceLocation.type = XR_TYPE_SPACE_LOCATION;
-			DeviceLocation.next = nullptr;
-			XR_ENSURE(xrLocateSpace(DeviceSpace.Space, PipelineState.TrackingSpace, PipelineState.FrameState.predictedDisplayTime, &DeviceLocation));
+			if (DeviceSpace.Space != XR_NULL_HANDLE)
+			{
+				XrSpaceLocation& DeviceLocation = PipelineState.DeviceLocations[DeviceIndex];
+				DeviceLocation.type = XR_TYPE_SPACE_LOCATION;
+				DeviceLocation.next = nullptr;
+				XR_ENSURE(xrLocateSpace(DeviceSpace.Space, PipelineState.TrackingSpace, PipelineState.FrameState.predictedDisplayTime, &DeviceLocation));
+			}
+			else
+			{
+				// Ensure the location flags are zeroed out so the pose is detected as invalid
+				PipelineState.DeviceLocations[DeviceIndex].locationFlags = 0;
+			}
 		}
 
 		if (bUpdateOpenXRExtensionPlugins)
@@ -1786,13 +1796,19 @@ bool FOpenXRHMD::OnStereoTeardown()
 
 void FOpenXRHMD::DestroySession()
 {
+	FScopeLock Lock(&DeviceMutex);
+
 	if (Session != XR_NULL_HANDLE)
 	{
 		Swapchain.Reset();
 		DepthSwapchain.Reset();
 
-		// Clear up device spaces
-		DeviceSpaces.Empty();
+		// Destroy device spaces, they will be recreated
+		// when the session is created again.
+		for (FDeviceSpace& Device : DeviceSpaces)
+		{
+			Device.DestroySpace();
+		}
 
 		// Close the session now we're allowed to.
 		XR_ENSURE(xrDestroySession(Session));
@@ -1801,9 +1817,10 @@ void FOpenXRHMD::DestroySession()
 		FlushRenderingCommands();
 
 		bStereoEnabled = false;
-		bIsRendering = false;
 		bIsReady = false;
 		bIsRunning = false;
+		bIsRendering = false;
+		bIsSynchronized = false;
 		bNeedReAllocatedDepth = true;
 		bNeedReBuildOcclusionMesh = true;
 	}
@@ -1811,6 +1828,9 @@ void FOpenXRHMD::DestroySession()
 
 int32 FOpenXRHMD::AddActionDevice(XrAction Action)
 {
+	// Ensure the HMD device is already emplaced
+	ensure(DeviceSpaces.Num() > 0);
+
 	int32 DeviceId = DeviceSpaces.Emplace(Action);
 	if (Session)
 	{
@@ -1870,6 +1890,10 @@ bool FOpenXRHMD::StartSession()
 
 bool FOpenXRHMD::StopSession()
 {
+	if (!bIsRunning)
+	{
+		return false;
+	}
 	bIsRunning = !XR_ENSURE(xrEndSession(Session));
 	return !bIsRunning;
 }
@@ -2131,8 +2155,13 @@ bool FOpenXRHMD::OnStartGameFrame(FWorldContext& WorldContext)
 				bIsReady = true;
 				StartSession();
 			}
+			else if (SessionState.state == XR_SESSION_STATE_SYNCHRONIZED)
+			{
+				bIsSynchronized = true;
+			}
 			else if (SessionState.state == XR_SESSION_STATE_IDLE)
 			{
+				bIsSynchronized = false;
 				GEngine->SetMaxFPS(OPENXR_PAUSED_IDLE_FPS);
 			}
 			else if (SessionState.state == XR_SESSION_STATE_STOPPING)
