@@ -20,7 +20,9 @@ namespace Chaos
 		using FGeometryParticleHandle = TGeometryParticleHandle<T, d>;
 
 		TPBDPositionConstraintHandle() {}
-		TPBDPositionConstraintHandle(FConstraintContainer* InConstraintContainer, int32 InConstraintIndex) : TContainerConstraintHandle<TPBDPositionConstraints<T, d>>(InConstraintContainer, InConstraintIndex) {}
+		TPBDPositionConstraintHandle(FConstraintContainer* InConstraintContainer, int32 InConstraintIndex) 
+			: TContainerConstraintHandle<TPBDPositionConstraints<T, d>>(StaticType(), InConstraintContainer, InConstraintIndex) {}
+		static FConstraintHandle::EType StaticType() { return FConstraintHandle::EType::Position; }
 		TVector<FGeometryParticleHandle*, 2> GetConstrainedParticles() const { return ConstraintContainer->GetConstrainedParticles(ConstraintIndex); }
 
 	protected:
@@ -108,9 +110,13 @@ namespace Chaos
 			}
 		}
 
-		// @todo(ccaulfield): remove/rename/implement
-		void RemoveConstraints(const TSet<TGeometryParticleHandle<T, d>*>& RemovedParticles)
+
+		/**
+		 * Disabled the specified constraint.
+		 */
+		void DisableConstraints(const TSet<TGeometryParticleHandle<FReal, 3>*>& RemovedParticles)
 		{
+			// @todo(chaos)
 		}
 
 
