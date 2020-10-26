@@ -279,26 +279,19 @@ void FWebSocketMessageHandler::ProcessAddedProperties()
 		AddedPropertiesDescription.Name = Preset->GetName();
 		AddedPropertiesDescription.Path = Preset->GetPathName();
 
+		TMap<FRemoteControlPresetGroup*, TArray<FName>> GroupedNewFields;
+
 		for (const FName& Label : Entry.Value)
 		{
-			FRemoteControlTargetDescription Description = FRemoteControlTargetDescription(Preset, Label);
-
-			const FName EntryName = Description.Name;
-			FRemoteControlTargetDescription* ExistingDescription = AddedPropertiesDescription.ExposedObjects.FindByPredicate([EntryName](const FRemoteControlTargetDescription& Other)
+			if (FRemoteControlPresetGroup* Group = Preset->Layout.FindGroupFromField(Preset->GetFieldId(Label)))
 			{
-				return Other.Name == EntryName;
-			});
-
-			//If we already have an entry for this exposed field, append its data, if not, add the new entry to the list
-			if (ExistingDescription)
-			{
-				ExistingDescription->ExposedFunctions.Append(Description.ExposedFunctions);
-				ExistingDescription->ExposedProperties.Append(Description.ExposedProperties);
+				GroupedNewFields.FindOrAdd(Group).Add(Label);
 			}
-			else
-			{
-				AddedPropertiesDescription.ExposedObjects.Emplace(MoveTemp(Description));
-			}
+		}
+
+		for (const TTuple<FRemoteControlPresetGroup*, TArray<FName>>& Tuple : GroupedNewFields)
+		{
+			AddedPropertiesDescription.Groups.Emplace(Preset, *Tuple.Key, Tuple.Value);
 		}
 
 		TArray<uint8> Payload;
