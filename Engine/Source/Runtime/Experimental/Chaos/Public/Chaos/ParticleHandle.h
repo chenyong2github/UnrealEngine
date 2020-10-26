@@ -17,6 +17,8 @@ class IPhysicsProxyBase;
 
 namespace Chaos
 {
+	class FConstraintHandle;
+
 template <typename T, int d>
 struct TGeometryParticleParameters
 {
@@ -555,6 +557,21 @@ public:
 	FWeakParticleHandle& WeakParticleHandle()
 	{
 		return GeometryParticles->WeakParticleHandle(ParticleIdx);
+	}
+
+	TArray<FConstraintHandle*>& ParticleConstraints()
+	{
+		return GeometryParticles->ParticleConstraints(ParticleIdx);
+	}
+
+	void AddConstraintHandle(FConstraintHandle* InConstraintHandle )
+	{
+		return GeometryParticles->AddConstraintHandle(ParticleIdx, InConstraintHandle);
+	}
+
+	void RemoveConstraintHandle(FConstraintHandle* InConstraintHandle)
+	{
+		return GeometryParticles->RemoveConstraintHandle(ParticleIdx, InConstraintHandle);
 	}
 
 protected:

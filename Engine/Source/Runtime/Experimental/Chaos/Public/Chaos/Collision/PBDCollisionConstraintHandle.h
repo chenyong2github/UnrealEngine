@@ -26,10 +26,12 @@ namespace Chaos
 		{}
 
 		FPBDCollisionConstraintHandle(FPBDCollisionConstraints* InConstraintContainer, int32 InConstraintIndex, typename FCollisionConstraintBase::FType InType)
-			: TContainerConstraintHandle<FPBDCollisionConstraints>(InConstraintContainer, InConstraintIndex)
+			: TContainerConstraintHandle<FPBDCollisionConstraints>(StaticType(), InConstraintContainer, InConstraintIndex)
 			, ConstraintType(InType)
 		{
 		}
+		static FConstraintHandle::EType StaticType() { return FConstraintHandle::EType::Collision; }
+
 
 		FHandleKey GetKey();
 

@@ -9,21 +9,34 @@ namespace Chaos
 {
 	class FPBDConstraintContainer;
 
+
 	/**
 	 * Base class for constraint handles.
 	 */
 	class CHAOS_API FConstraintHandle
 	{
 	public:
+		enum EType
+		{
+			Invalid = 0,
+			Collision,
+			RigidSpring,
+			DynamicSpring,
+			Position,
+			Joint,
+			Suspension
+		};
+
+
 		using FGeometryParticleHandle = TGeometryParticleHandle<FReal, 3>;
 
-		FConstraintHandle() : ConstraintIndex(INDEX_NONE) { }
-		FConstraintHandle(int32 InConstraintIndex): ConstraintIndex(InConstraintIndex) {}
-		~FConstraintHandle() {}
+		FConstraintHandle() : Type(EType::Invalid), ConstraintIndex(INDEX_NONE) { }
+		FConstraintHandle(EType InType, int32 InConstraintIndex): Type(InType), ConstraintIndex(InConstraintIndex) {}
+		virtual ~FConstraintHandle() {}
 
 		bool IsValid() const
 		{
-			return (ConstraintIndex != INDEX_NONE );
+			return (ConstraintIndex != INDEX_NONE && IsEnabled());
 		}
 
 		int32 GetConstraintIndex() const
@@ -31,12 +44,15 @@ namespace Chaos
 			return ConstraintIndex;
 		}
 
-		// @todo(ccaulfield): Add checked down - casting to specific constraint - type handle
-		template<typename T>  T* As() { return static_cast<T*>(this); }
+		virtual void SetEnabled(bool InEnabled) = 0;
+		virtual bool IsEnabled() const = 0;
+
+		template<typename T>  T* As() { return T::StaticType()==Type?static_cast<T*>(this):nullptr; }
 
 	protected:
 		friend class FPBDConstraintContainer;
 
+		EType Type;
 		int32 ConstraintIndex;
 	};
 
@@ -53,10 +69,13 @@ namespace Chaos
 		using FConstraintContainer = T_CONTAINER;
 
 		TContainerConstraintHandle() : ConstraintContainer(nullptr) {}
-		TContainerConstraintHandle(FConstraintContainer* InConstraintContainer, int32 InConstraintIndex) 
-			: FConstraintHandle(InConstraintIndex), ConstraintContainer(InConstraintContainer) {}
+		TContainerConstraintHandle(Base::EType InType, FConstraintContainer* InConstraintContainer, int32 InConstraintIndex)
+			: FConstraintHandle(InType, InConstraintIndex), ConstraintContainer(InConstraintContainer) {}
 
 		void RemoveConstraint() { ConstraintContainer->RemoveConstraint(ConstraintIndex); }
+
+		void SetEnabled(bool InEnabled) override { ConstraintContainer->SetConstraintEnabled(ConstraintIndex,InEnabled); }
+		bool IsEnabled() const override { return ConstraintContainer->IsConstraintEnabled(ConstraintIndex); }
 
 	protected:
 		using Base::ConstraintIndex;
