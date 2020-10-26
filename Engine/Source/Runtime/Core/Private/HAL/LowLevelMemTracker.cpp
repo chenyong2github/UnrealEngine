@@ -3616,7 +3616,7 @@ namespace LLMPrivate
 		auto WriteValue = [this, &TextBuffer](int64 Value)
 		{
 			TextBuffer.Reset();
-			TextBuffer.Appendf(TEXT("%0.2f,"), Value / 1024.0f / 1024.0f);
+			TextBuffer.Appendf(TEXT("%0.2f,"), (float)Value / 1024.0f / 1024.0f);
 			Write(TextBuffer);
 		};
 		auto WriteTag = [&WriteValue, &TagSizes, bTrackPeaks](const FTagData* TagData)

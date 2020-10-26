@@ -273,7 +273,7 @@ public:
 
 		for (int32 l = 0; l < TSHVector::MaxSHOrder; l++)
 		{
-			const float BandScaleFactor = 1.0f / (1.0f + Lambda * l * l * (l + 1.0f) * (l + 1.0f));
+			const float BandScaleFactor = 1.0f / (1.0f + Lambda * float(l * l * (l + 1) * (l + 1)));
 
 			for (int32 m = -l; m <= l; m++)
 			{
@@ -355,8 +355,8 @@ public:
 
 			for (int32 BandIndex = 1; BandIndex < TSHVector::MaxSHOrder; BandIndex++)
 			{
-				const float	SinPhiM = FMath::Sin(BandIndex * Phi);
-				const float	CosPhiM = FMath::Cos(BandIndex * Phi);
+				const float	SinPhiM = FMath::Sin((float)BandIndex * Phi);
+				const float	CosPhiM = FMath::Cos((float)BandIndex * Phi);
 
 				for (int32 RecurrentBandIndex = BandIndex; RecurrentBandIndex < TSHVector::MaxSHOrder; RecurrentBandIndex++)
 				{
