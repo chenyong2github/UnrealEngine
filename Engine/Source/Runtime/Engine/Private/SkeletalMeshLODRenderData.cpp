@@ -72,6 +72,8 @@ FArchive& operator<<(FArchive& Ar, FSkelMeshRenderSection& S)
 {
 	const uint8 DuplicatedVertices = 1;
 	
+	Ar.UsingCustomVersion(FRecomputeTangentCustomVersion::GUID);
+
 	// DuplicatedVerticesBuffer is used only for SkinCache and Editor features which is SM5 only
 	uint8 ClassDataStripFlags = 0;
 	ClassDataStripFlags |= (Ar.IsCooking() && !Ar.CookingTarget()->SupportsFeature(ETargetPlatformFeatures::DeferredRendering)) ? DuplicatedVertices : 0;
@@ -85,7 +87,15 @@ FArchive& operator<<(FArchive& Ar, FSkelMeshRenderSection& S)
 	Ar << S.BaseIndex;
 	Ar << S.NumTriangles;
 	Ar << S.bRecomputeTangent;
-	Ar << S.RecomputeTangentsVertexMaskChannel;
+	if (Ar.CustomVer(FRecomputeTangentCustomVersion::GUID) >= FRecomputeTangentCustomVersion::RecomputeTangentVertexColorMask)
+	{
+		Ar << S.RecomputeTangentsVertexMaskChannel;
+	}
+	else
+	{
+		// Our default is to use the green vertex color channel 
+		S.RecomputeTangentsVertexMaskChannel = ESkinVertexColorChannel::Green;
+	}
 	Ar << S.bCastShadow;
 	Ar << S.BaseVertexIndex;
 	Ar << S.ClothMappingData;
