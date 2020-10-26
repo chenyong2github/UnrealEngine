@@ -995,6 +995,7 @@ void CompileD3DShader(const FShaderCompilerInput& Input, FShaderCompilerOutput& 
 				FilteredErrors.Add(TEXT("Compile Failed without errors!"));
 			}
 		}
+		CrossCompiler::FShaderConductorContext::ConvertCompileErrors(MoveTemp(FilteredErrors), Output.Errors);
 	}
 	else
 	{
@@ -1009,61 +1010,13 @@ void CompileD3DShader(const FShaderCompilerInput& Input, FShaderCompilerOutput& 
 				FilteredErrors.Add(TEXT("Compile Failed without errors!"));
 			}
 		}
-	}
 
-	// Process errors
-	for (int32 ErrorIndex = 0; ErrorIndex < FilteredErrors.Num(); ErrorIndex++)
-	{
-		const FString& CurrentError = FilteredErrors[ErrorIndex];
-		FShaderCompilerError NewError;
-
-		if (bUseDXC)
+		// Process errors
+		for (int32 ErrorIndex = 0; ErrorIndex < FilteredErrors.Num(); ErrorIndex++)
 		{
-			// Extract filename and line number from DXC output with format:
-			// "d:\UE4\Binaries\BasePassPixelShader:30:7: error: invalid target or usage string"
-			int32 ReportIndex = CurrentError.Find(TEXT(": error: "));
-			if (ReportIndex == INDEX_NONE)
-			{
-				ReportIndex = CurrentError.Find(TEXT(": warning: "));
-			}
+			const FString& CurrentError = FilteredErrors[ErrorIndex];
+			FShaderCompilerError NewError;
 
-			int32 SecondColonIndex = CurrentError.Find(TEXT(":"), ESearchCase::IgnoreCase, ESearchDir::FromEnd, ReportIndex - 1);
-			int32 FirstColonIndex = CurrentError.Find(TEXT(":"), ESearchCase::IgnoreCase, ESearchDir::FromEnd, SecondColonIndex - 1);
-
-			if (ReportIndex != INDEX_NONE &&
-				FirstColonIndex != INDEX_NONE &&
-				SecondColonIndex != INDEX_NONE &&
-				FirstColonIndex < SecondColonIndex &&
-				SecondColonIndex < ReportIndex)
-			{
-				// Extract and store error message with source filename
-				NewError.ErrorVirtualFilePath = CurrentError.Left(FirstColonIndex);
-				NewError.ErrorLineString = CurrentError.Mid(FirstColonIndex + 1, ReportIndex - FirstColonIndex - FCString::Strlen(TEXT(":")));
-				NewError.StrippedErrorMessage = CurrentError.Right(CurrentError.Len() - ReportIndex - FCString::Strlen(TEXT(": ")));
-				Output.Errors.Add(NewError);
-			}
-			else if (Output.Errors.Num() > 0)
-			{
-				// Append highlighted line or marker to the previous error message
-				FShaderCompilerError& PrevError = Output.Errors.Last();
-				if (PrevError.HighlightedLine.IsEmpty())
-				{
-					PrevError.HighlightedLine = CurrentError;
-				}
-				else if (PrevError.HighlightedLineMarker.IsEmpty())
-				{
-					PrevError.HighlightedLineMarker = CurrentError;
-				}
-				else
-				{
-					// Register as new error message
-					NewError.StrippedErrorMessage = CurrentError;
-					Output.Errors.Add(NewError);
-				}
-			}
-		}
-		else
-		{
 			// Extract filename and line number from FXC output with format:
 			// "d:\UE4\Binaries\BasePassPixelShader(30,7): error X3000: invalid target or usage string"
 			int32 FirstParenIndex = CurrentError.Find(TEXT("("));
@@ -1090,7 +1043,7 @@ void CompileD3DShader(const FShaderCompilerInput& Input, FShaderCompilerOutput& 
 	{
 		for (const auto& Error : Output.Errors)
 		{
-			FPlatformMisc::LowLevelOutputDebugStringf(TEXT("%s\n"), *Error.GetErrorString());
+			FPlatformMisc::LowLevelOutputDebugStringf(TEXT("%s\n"), *Error.GetErrorStringWithLineMarker());
 		}
 	}
 

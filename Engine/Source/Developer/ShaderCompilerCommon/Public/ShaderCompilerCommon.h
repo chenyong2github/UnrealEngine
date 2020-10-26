@@ -490,6 +490,10 @@ namespace CrossCompiler
 		}
 
 	public:
+		/** Convert array of error string lines into array of <FShaderCompilerError>. */
+		static void ConvertCompileErrors(TArray<FString>&& ErrorStringLines, TArray<FShaderCompilerError>& OutErrors);
+
+	public:
 		struct FShaderConductorIntermediates; // Pimpl idiom
 
 	private:
