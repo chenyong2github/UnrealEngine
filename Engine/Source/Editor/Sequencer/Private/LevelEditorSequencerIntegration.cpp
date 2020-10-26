@@ -599,6 +599,7 @@ void FLevelEditorSequencerIntegration::OnPreBeginPIE(bool bIsSimulating)
 				In.GetEvaluationTemplate().PlaybackContextChanged(In);
 				In.RestorePreAnimatedState();
 				In.State.ClearObjectCaches(In);
+				In.RequestEvaluate();
 			}
 		}
 	);
