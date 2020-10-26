@@ -439,7 +439,7 @@ public:
 
 	virtual int32 FindMostOpposingFace(const TVector<T, d>& Position, const TVector<T, d>& UnitDir, int32 HintFaceIndex, T SearchDist) const override
 	{
-		ensure(OuterMargin == 0);	//not supported: do we care?
+		//ensure(OuterMargin == 0);	//not supported: do we care?
 		ensure(FMath::IsNearlyEqual(UnitDir.SizeSquared(), 1, KINDA_SMALL_NUMBER));
 
 		const TVector<T, d> UnscaledPosition = MInvScale * Position;
@@ -455,7 +455,7 @@ public:
 
 	virtual TVector<T, 3> FindGeometryOpposingNormal(const TVector<T, d>& DenormDir, int32 HintFaceIndex, const TVector<T, d>& OriginalNormal) const override
 	{
-		ensure(OuterMargin == 0);	//not supported: do we care?
+		//ensure(OuterMargin == 0);	//not supported: do we care?
 		ensure(FMath::IsNearlyEqual(OriginalNormal.SizeSquared(), 1, KINDA_SMALL_NUMBER));
 
 		// Get unscaled dir and normal
