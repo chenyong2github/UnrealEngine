@@ -35,12 +35,6 @@ public:
 
 	static UFunction* GetOperatorFunction(FName Operation, const TArray<UEdGraphPin*>& InputPins, const UEdGraphPin* OutputPin);
 
-	/** 
-	* Find the function that has this input and the lowest matching other input.
-	* Ex: Given "Add" and "Vector" this function would return the "Add_VectorFloat" function
-	*/
-	static UFunction* FindLowestMatchingFunc(FName Operation, const FEdGraphPinType& InputType, TArray<UFunction*>& OutPossibleFunctions);
-
 	/**
 	* Find the function that is the best match given the pins to consider. 
 	* Ex: Given "Add" operator and an array of two Vector pins, it will return "Add_VectorVector"
@@ -129,8 +123,6 @@ private:
 	bool IsFunctionPromotionReady_Internal(const UFunction* const FuncToConsider) const;
 
 	FEdGraphPinType GetPromotedType_Internal(const TArray<UEdGraphPin*>& WildcardPins) const;
-
-	UFunction* FindLowestMatchingFunc_Internal(FName Operation, const FEdGraphPinType& InputType, TArray<UFunction*>& OutPossibleFunctions);
 	
 	UFunction* FindBestMatchingFunc_Internal(FName Operation, const TArray<UEdGraphPin*>& PinsToConsider);
 

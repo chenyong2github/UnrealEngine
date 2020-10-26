@@ -361,11 +361,6 @@ UFunction* FTypePromotion::GetOperatorFunction_Internal(FName Operation, const T
 	return MatchingFunction;
 }
 
-UFunction* FTypePromotion::FindLowestMatchingFunc(FName Operation, const FEdGraphPinType& InputType, TArray<UFunction*>& OutPossibleFunctions)
-{
-	return FTypePromotion::Get().FindLowestMatchingFunc_Internal(Operation, InputType, OutPossibleFunctions);
-}
-
 UFunction* FTypePromotion::FindBestMatchingFunc(FName Operation, const TArray<UEdGraphPin*>& PinsToConsider)
 {
 	return FTypePromotion::Get().FindBestMatchingFunc_Internal(Operation, PinsToConsider);
@@ -385,71 +380,6 @@ static bool PropertyCompatibleWithPin(const FProperty* Param, FEdGraphPinType co
 		}
 	}
 	return false;
-}
-
-UFunction* FTypePromotion::FindLowestMatchingFunc_Internal(FName Operation, const FEdGraphPinType& InputType, TArray<UFunction*>& OutPossibleFunctions)
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(FTypePromotionTable::FindLowestMatchingFunc_Internal);
-
-	UFunction* LowestFunc = nullptr;
-	OutPossibleFunctions.Empty();
-
-	if (const FFunctionsList* FuncList = OperatorTable.Find(Operation))
-	{
-		const UEdGraphSchema_K2* Schema = GetDefault<UEdGraphSchema_K2>();
-
-		for (UFunction* Func : *FuncList)
-		{
-			// Find the function that matches the input type here, we don't care about the output type
-			for (TFieldIterator<FProperty> PropIt(Func); PropIt && (PropIt->PropertyFlags & CPF_Parm); ++PropIt)
-			{
-				// Ignore return params here, we only care about inputs
-				FProperty* Param = *PropIt;
-				if (!Param->HasAnyPropertyFlags(CPF_ReturnParm) && PropertyCompatibleWithPin(Param, InputType))
-				{
-					// If an input of this function is compatible with this type
-					// Then we need to check all the other inputs on this function
-					OutPossibleFunctions.AddUnique(Func);
-					break;
-				}
-			}
-		}
-	}
-
-	const UEdGraphSchema_K2* Schema = GetDefault<UEdGraphSchema_K2>();
-	FEdGraphPinType CurLowestType = {};
-
-	if(OutPossibleFunctions.Num() > 0)
-	{
-		LowestFunc = OutPossibleFunctions[0];
-	}
-
-	// Check possible matches to see who has the lowest type
-	for(UFunction* Func : OutPossibleFunctions)
-	{
-		for (TFieldIterator<FProperty> PropIt(Func); PropIt && (PropIt->PropertyFlags & CPF_Parm); ++PropIt)
-		{
-			// Check for the other input param that is not the input type we are lookin at
-			FProperty* Param = *PropIt;
-			FEdGraphPinType ParamType;
-			if (!Param->HasAnyPropertyFlags(CPF_ReturnParm) && Schema->ConvertPropertyToPinType(Param, /* out */ ParamType))
-			{
-				ETypeComparisonResult Res = FTypePromotion::GetHigherType(ParamType, CurLowestType);
-				if(Res == ETypeComparisonResult::TypeBHigher)
-				{
-					CurLowestType = ParamType;
-					LowestFunc = Func;
-				}
-				else if(Res == ETypeComparisonResult::TypeAHigher)
-				{
-					//CurLowestType = CurLowestType;
-					LowestFunc = Func;
-				}
-			}
-		}
-	}
-
-	return LowestFunc;
 }
 
 UFunction* FTypePromotion::FindBestMatchingFunc_Internal(FName Operation, const TArray<UEdGraphPin*>& PinsToConsider)

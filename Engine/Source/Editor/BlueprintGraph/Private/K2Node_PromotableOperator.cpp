@@ -579,9 +579,6 @@ void UK2Node_PromotableOperator::EvaluatePinsFromChange(UEdGraphPin* ChangedPin)
 	// if a pin was changed, update it if it cannot be promoted to this type
 	FEdGraphPinType NewConnectionHighestType = ChangedPin->LinkedTo.Num() > 0 ? FTypePromotion::GetPromotedType(ChangedPin->LinkedTo) : FWildcardNodeUtils::GetDefaultWildcardPinType();
 
-	// If there are ANY wildcards on this node, than we need to update the whole node accordingly. Otherwise we can 
-	// update only the Changed and output pins.
-
 	const UFunction* BestMatchingFunc = FTypePromotion::FindBestMatchingFunc(OperationName, PinsToConsider);
 
 	// Store these other function options for later so that the user can convert to them later
@@ -892,8 +889,6 @@ void UK2Node_PromotableOperator::UpdatePinsFromFunction(const UFunction* Functio
 
 	// Update the function reference and the FUNC_BlueprintPure/FUNC_Const appropriately
 	SetFromFunction(Function);
-
-	UpdatePossibleConversionFuncs();
 }
 
 void UK2Node_PromotableOperator::UpdatePossibleConversionFuncs()
@@ -923,9 +918,10 @@ void UK2Node_PromotableOperator::UpdatePossibleConversionFuncs()
 	// all the same. 
 	if (!bAllPinTypesEqual)
 	{
+		// #TODO_BH We need up change how these conversions work to be on a per-pin basis instead of via a function
+		// which will be a more consistent experience, and work better with additional pins
 		// The node has changed, so lets find the lowest matching function with the newly updated types
 		FEdGraphPinType HighestType = FTypePromotion::GetPromotedType(GetInputPins());
-		FTypePromotion::FindLowestMatchingFunc(OperationName, HighestType, PossibleConversions);
 	}
 }
 
