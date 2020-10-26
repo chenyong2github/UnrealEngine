@@ -67,7 +67,7 @@ struct FRigUnit_CCDIK_WorkData
 	UPROPERTY()
 	TArray<FCCDIKChainLink> Chain;
 
-	UPROPERTY(transient)
+	UPROPERTY()
 	TArray<FCachedRigElement> CachedItems;
 
 	UPROPERTY()
@@ -76,7 +76,7 @@ struct FRigUnit_CCDIK_WorkData
 	UPROPERTY()
 	TArray<float> RotationLimitsPerItem;
 
-	UPROPERTY(transient)
+	UPROPERTY()
 	FCachedRigElement CachedEffector;
 };
 
@@ -166,7 +166,7 @@ struct FRigUnit_CCDIK : public FRigUnit_HighlevelBaseMutable
 	UPROPERTY(meta = (Input, Constant))
 	bool bPropagateToChildren;
 
-	UPROPERTY(transient)
+	UPROPERTY()
 	FRigUnit_CCDIK_WorkData WorkData;
 };
 
@@ -250,6 +250,6 @@ struct FRigUnit_CCDIKPerItem : public FRigUnit_HighlevelBaseMutable
 	UPROPERTY(meta = (Input, Constant))
 	bool bPropagateToChildren;
 
-	UPROPERTY(transient)
+	UPROPERTY()
 	FRigUnit_CCDIK_WorkData WorkData;
 };
