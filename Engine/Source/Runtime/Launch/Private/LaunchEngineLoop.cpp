@@ -4073,7 +4073,7 @@ int32 FEngineLoop::Init()
 #endif
 	
 #if UE_EXTERNAL_PROFILING_ENABLED
-	FExternalProfiler* ActiveProfiler = FActiveExternalProfilerBase::GetActiveProfiler();
+	FExternalProfiler* ActiveProfiler = FActiveExternalProfilerBase::InitActiveProfiler();
 	if (ActiveProfiler)
 	{
 		ActiveProfiler->Register();
