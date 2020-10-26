@@ -160,7 +160,7 @@ FAllocatedVirtualTexture* FVirtualTextureAllocator::Find(uint32 vAddress, uint32
 	if (vAddress >= AddressBlock.vAddress &&
 		vAddress < AddressBlock.vAddress + BlockSize)
 	{
-		check(AddressBlock.VT->GetVirtualAddress() == AddressBlock.vAddress);
+		check(!AddressBlock.VT || AddressBlock.VT->GetVirtualAddress() == AddressBlock.vAddress);
 		OutLocal_vAddress = vAddress - AddressBlock.vAddress;
 		// TODO mip bias
 		return AddressBlock.VT;
