@@ -258,12 +258,12 @@ class DevicenDisplay(DeviceUnreal):
             "-NoVerifyGC",              # improves performance
             "-noxrstereo",              # avoids a conflict with steam/oculus
             f'{additional_args}',       # specified in settings
-            f'dc_cfg="{cfg_file}"',     # nDisplay config file
+            f'-dc_cfg="{cfg_file}"',    # nDisplay config file
             f'{render_api}',            # dx11/12
             f'{render_mode}',           # mono/...
             f'{use_all_cores}',         # -useallavailablecores
             f'{no_texture_streaming}',  # -notexturestreaming
-            f'dc_node={self.name}',     # name of this node in the nDisplay cluster
+            f'-dc_node={self.name}',    # name of this node in the nDisplay cluster
             f'Log={self.name}.log',     # log file
             f'{ini_engine}',            # Engine ini injections
             f'{ini_game}',              # Game ini injections
