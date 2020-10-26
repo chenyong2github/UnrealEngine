@@ -29,5 +29,5 @@ public:
 private:
 	static TSharedRef<FExtender> OnExtendContentBrowserAssetSelectionMenu(const TArray<FAssetData>& SelectedAssets);
 	static void AddMenuExtenderConvertEntry(FMenuBuilder& MenuBuilder, TArray<FAssetData> SelectedAssets);
-	static void ExecuteConvertCascadeSystemToNiagaraSystem(UParticleSystem* CascadeSystem);
+	static void ExecuteConvertCascadeSystemToNiagaraSystem(TArray<UParticleSystem*> CascadeSystems);
 };
