@@ -9,6 +9,7 @@ class FAssetTypeActions_MediaOutput : public FAssetTypeActions_Base
 {
 public:
 	//~ Begin IAssetTypeActions Implementation
+	virtual bool CanFilter() override;
 	virtual FColor GetTypeColor() const override;
 	virtual uint32 GetCategories() override;
 	virtual bool IsImportedAsset() const override;

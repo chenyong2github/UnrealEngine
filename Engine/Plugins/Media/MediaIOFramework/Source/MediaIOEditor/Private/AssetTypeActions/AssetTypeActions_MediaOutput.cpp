@@ -6,6 +6,11 @@
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions_MediaOutput"
 
+bool FAssetTypeActions_MediaOutput::CanFilter()
+{
+	return false;
+}
+
 FColor FAssetTypeActions_MediaOutput::GetTypeColor() const
 {
 	return FColor::White;

@@ -1201,7 +1201,7 @@ void SFilterList::CreateFiltersMenuCategory(FMenuBuilder& MenuBuilder, const TAr
 		if ( WeakTypeActions.IsValid() )
 		{
 			TSharedPtr<IAssetTypeActions> TypeActions = WeakTypeActions.Pin();
-			if ( TypeActions.IsValid() )
+			if ( TypeActions.IsValid() && TypeActions->CanFilter() )
 			{
 				const FText& LabelText = TypeActions->GetName();
 				MenuBuilder.AddMenuEntry(
