@@ -17,6 +17,7 @@
 #include "UObject/LinkerLoad.h"
 #include "UObject/CoreRedirects.h"
 #include "RenderUtils.h"
+#include "RenderGraphBuilder.h"
 #include "ContentStreaming.h"
 #include "EngineUtils.h"
 #include "DeviceProfiles/DeviceProfile.h"
@@ -1351,12 +1352,16 @@ void FVirtualTexture2DResource::InitializeEditorResources(IVirtualTexture* InVir
 			}
 		}
 
-		for (IVirtualTextureFinalizer* Finalizer : Finalizers)
 		{
-			Finalizer->Finalize(RHICommandList);
+			FMemMark Mark(FMemStack::Get());
+			FRDGBuilder GraphBuilder(RHICommandList);
+			for (IVirtualTextureFinalizer* Finalizer : Finalizers)
+			{
+				Finalizer->Finalize(GraphBuilder);
+			}
+			GraphBuilder.Execute();
 		}
 
-		
 		if (MipWidthInTiles * TileSizeInPixels != MipWidth || MipHeightInTiles * TileSizeInPixels != MipHeight)
 		{
 			// Logical dimensions of mip image may be smaller than tile size (in this case tile will contain mirrored/wrapped padding)

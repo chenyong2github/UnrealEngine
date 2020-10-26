@@ -84,7 +84,7 @@ public:
 
 	FRayTracingSceneRHIRef RayTracingScene;
 	FRayTracingPipelineState* RayTracingPipelineState;
-	TUniquePtr<FViewInfo> ReferenceView;
+	TSharedPtr<FViewInfo> ReferenceView;
 
 	TUniquePtr<FCachedRayTracingSceneData> CachedRayTracingScene;
 

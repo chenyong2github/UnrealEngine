@@ -1477,10 +1477,14 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	const bool bUseVirtualTexturing = UseVirtualTexturing(FeatureLevel);
 	if (bUseVirtualTexturing)
 	{
-		SCOPED_GPU_STAT(RHICmdList, VirtualTextureUpdate);
-		// AllocateResources needs to be called before RHIBeginScene
-		FVirtualTextureSystem::Get().AllocateResources(RHICmdList, FeatureLevel);
-		FVirtualTextureSystem::Get().CallPendingCallbacks();
+		FRDGBuilder GraphBuilder(RHICmdList);
+		{
+			SCOPED_GPU_STAT(RHICmdList, VirtualTextureUpdate);
+			// AllocateResources needs to be called before RHIBeginScene
+			FVirtualTextureSystem::Get().AllocateResources(GraphBuilder, FeatureLevel);
+			FVirtualTextureSystem::Get().CallPendingCallbacks();
+		}
+		GraphBuilder.Execute();
 	}
 
 	// Nanite materials do not currently support most debug view modes.
@@ -1554,15 +1558,22 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 		if (bUseVirtualTexturing)
 		{
-			SCOPED_GPU_STAT(RHICmdList, VirtualTextureUpdate);
-			FVirtualTextureSystem::Get().Update(RHICmdList, FeatureLevel, Scene);
+			FRDGBuilder GraphBuilder(RHICmdList);
+			{
+				RDG_GPU_STAT_SCOPE(GraphBuilder, VirtualTextureUpdate);
+				FVirtualTextureSystem::Get().Update(GraphBuilder, FeatureLevel, Scene);
 
-			// Clear virtual texture feedback to default value
-			FUnorderedAccessViewRHIRef FeedbackUAV = SceneContext.GetVirtualTextureFeedbackUAV();
-			RHICmdList.Transition(FRHITransitionInfo(FeedbackUAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
-			RHICmdList.ClearUAVUint(FeedbackUAV, FUintVector4(~0u, ~0u, ~0u, ~0u));
-			RHICmdList.Transition(FRHITransitionInfo(FeedbackUAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute));
-			RHICmdList.BeginUAVOverlap(FeedbackUAV);
+				AddPass(GraphBuilder, [&SceneContext](FRHICommandList& RHICmdList)
+				{
+					// Clear virtual texture feedback to default value
+					FUnorderedAccessViewRHIRef FeedbackUAV = SceneContext.GetVirtualTextureFeedbackUAV();
+					RHICmdList.Transition(FRHITransitionInfo(FeedbackUAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
+					RHICmdList.ClearUAVUint(FeedbackUAV, FUintVector4(~0u, ~0u, ~0u, ~0u));
+					RHICmdList.Transition(FRHITransitionInfo(FeedbackUAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute));
+					RHICmdList.BeginUAVOverlap(FeedbackUAV);
+				});
+			}
+			GraphBuilder.Execute();
 		}
 
 		if (GDoPrepareDistanceFieldSceneAfterRHIFlush && (GRHINeedsExtraDeletionLatency || !GRHICommandList.Bypass()))

@@ -37,7 +37,7 @@ public:
 	void AddTile(FTileEntry& Tile);
 
 	//~ Begin IVirtualTextureFinalizer Interface.
-	virtual void Finalize(FRHICommandListImmediate& RHICmdList) override;
+	virtual void Finalize(FRDGBuilder& GraphBuilder) override;
 	//~ End IVirtualTextureFinalizer Interface.
 
 private:

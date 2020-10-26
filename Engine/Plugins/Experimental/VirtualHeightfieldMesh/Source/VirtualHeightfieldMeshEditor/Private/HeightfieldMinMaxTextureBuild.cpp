@@ -213,11 +213,12 @@ namespace VirtualHeightfieldMesh
 					Desc.PageDescs[0].UVRange = UVRange;
 					Desc.PageDescs[0].vLevel = MipLevel;
 
-					RenderPages(RHICmdList, Desc);
-
-					// Downsample page to texel in output
 					FMemMark Mark(FMemStack::Get());
 					FRDGBuilder GraphBuilder(RHICmdList);
+
+					RenderPages(GraphBuilder, Desc);
+
+					// Downsample page to texel in output
 
 					FRDGTextureRef SrcTexture = GraphBuilder.RegisterExternalTexture(RenderTileResources.GetTileRenderTarget());
 					FRDGTextureRef DstTexture = GraphBuilder.RegisterExternalTexture(RenderTileResources.GetFinalRenderTarget());
@@ -240,12 +241,11 @@ namespace VirtualHeightfieldMesh
 				FRDGBuilder GraphBuilder(RHICmdList);
 
 				FRDGTextureRef Texture = GraphBuilder.RegisterExternalTexture(RenderTileResources.GetFinalRenderTarget());
+				GraphBuilder.SetTextureAccessFinal(Texture, ERHIAccess::CopySrc);
 
 				GenerateMinMaxTextureMips(GraphBuilder, Texture, FIntPoint(NumTilesX, NumTilesY), NumMips);
 
 				GraphBuilder.Execute();
-
-				RHICmdList.Transition(FRHITransitionInfo(RenderTileResources.GetFinalRenderTarget()->GetRenderTargetItem().ShaderResourceTexture, ERHIAccess::WritableMask, ERHIAccess::CopySrc));
 
 				for (int32 MipLevel = 0; MipLevel < NumMips; MipLevel++)
 				{

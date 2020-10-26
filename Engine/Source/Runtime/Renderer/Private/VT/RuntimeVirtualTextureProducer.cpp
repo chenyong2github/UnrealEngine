@@ -61,7 +61,7 @@ void FRuntimeVirtualTextureFinalizer::AddTile(FTileEntry& Tile)
 	Tiles.Add(Tile);
 }
 
-void FRuntimeVirtualTextureFinalizer::Finalize(FRHICommandListImmediate& RHICmdList)
+void FRuntimeVirtualTextureFinalizer::Finalize(FRDGBuilder& GraphBuilder)
 {
 	RuntimeVirtualTexture::FRenderPageBatchDesc RenderPageBatchDesc;
 	RenderPageBatchDesc.Scene = Scene->GetRenderScene();
@@ -115,7 +115,7 @@ void FRuntimeVirtualTextureFinalizer::Finalize(FRHICommandListImmediate& RHICmdL
 		if (++BatchSize == RuntimeVirtualTexture::EMaxRenderPageBatch || bBreakBatchForTextures)
 		{
 			RenderPageBatchDesc.NumPageDescs = BatchSize;
-			RuntimeVirtualTexture::RenderPages(RHICmdList, RenderPageBatchDesc);
+			RuntimeVirtualTexture::RenderPages(GraphBuilder, RenderPageBatchDesc);
 			BatchSize = 0;
 		}
 
@@ -132,7 +132,7 @@ void FRuntimeVirtualTextureFinalizer::Finalize(FRHICommandListImmediate& RHICmdL
 	if (BatchSize > 0)
 	{
 		RenderPageBatchDesc.NumPageDescs = BatchSize;
-		RuntimeVirtualTexture::RenderPages(RHICmdList, RenderPageBatchDesc);
+		RuntimeVirtualTexture::RenderPages(GraphBuilder, RenderPageBatchDesc);
 	}
 
 	Tiles.SetNumUnsafeInternal(0);

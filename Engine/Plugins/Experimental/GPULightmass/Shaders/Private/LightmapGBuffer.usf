@@ -39,7 +39,7 @@ void LightmapGBufferVS(
 
 	Output.FactoryInterpolants = VertexFactoryGetInterpolantsVSToPS(Input, VFIntermediates, VertexParameters);
 
-    float2 LightmapUV, UnusedLightmapUV1;
+	float2 LightmapUV, UnusedLightmapUV1;
 	uint UnusedLightmapDataIndex;
     GetLightMapCoordinates(Output.FactoryInterpolants, LightmapUV, UnusedLightmapUV1, UnusedLightmapDataIndex);
 	// Unscale with float2(1, 2)

@@ -10,12 +10,10 @@
 #include "LightMapRendering.h"
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FLightmapGBufferParams, )
-	SHADER_PARAMETER_UAV(RWTexture2D<float4>, ScratchTilePoolLayer0)
-	SHADER_PARAMETER_UAV(RWTexture2D<float4>, ScratchTilePoolLayer1)
-	SHADER_PARAMETER_UAV(RWTexture2D<float4>, ScratchTilePoolLayer2)
+	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, ScratchTilePoolLayer0)
+	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, ScratchTilePoolLayer1)
+	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, ScratchTilePoolLayer2)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
-
-typedef TUniformBufferRef<FLightmapGBufferParams> FLightmapGBufferUniformBufferRef;
 
 struct FLightmapElementData : public FMeshMaterialShaderElementData
 {
@@ -41,7 +39,6 @@ protected:
 	FLightmapGBufferVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		: FMeshMaterialShader(Initializer)
 	{
-		PassUniformBuffer.Bind(Initializer.ParameterMap, FLightmapGBufferParams::StaticStructMetadata.GetShaderVariableName());
 		PrecomputedLightingBufferParameter.Bind(Initializer.ParameterMap, TEXT("PrecomputedLightingBuffer"));
 		VirtualTexturePhysicalTileCoordinateScaleAndBias.Bind(Initializer.ParameterMap, TEXT("VirtualTexturePhysicalTileCoordinateScaleAndBias"));
 		RenderPassIndex.Bind(Initializer.ParameterMap, TEXT("RenderPassIndex"));
@@ -142,7 +139,6 @@ public:
 	FLightmapGBufferPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		: FMeshMaterialShader(Initializer)
 	{
-		PassUniformBuffer.Bind(Initializer.ParameterMap, FLightmapGBufferParams::StaticStructMetadata.GetShaderVariableName());
 		ScratchTilePoolOffset.Bind(Initializer.ParameterMap, TEXT("ScratchTilePoolOffset"));
 	}
 
@@ -167,14 +163,13 @@ public:
 	FLightmapGBufferMeshProcessor(
 		const FScene* InScene, 
 		const FSceneView* InView,
-		FMeshPassDrawListContext* InDrawListContext, 
-		FRHIUniformBuffer* InPassUniformBuffer,
+		FMeshPassDrawListContext* InDrawListContext,
 		FVector4 VirtualTexturePhysicalTileCoordinateScaleAndBias,
 		int32 RenderPassIndex,
 		FIntPoint ScratchTilePoolOffset
 	)
 		: FMeshPassProcessor(InScene, InView->GetFeatureLevel(), InView, InDrawListContext)
-		, DrawRenderState(*InView, InPassUniformBuffer)
+		, DrawRenderState(*InView)
 		, VirtualTexturePhysicalTileCoordinateScaleAndBias(VirtualTexturePhysicalTileCoordinateScaleAndBias)
 		, RenderPassIndex(RenderPassIndex)
 		, ScratchTilePoolOffset(ScratchTilePoolOffset)

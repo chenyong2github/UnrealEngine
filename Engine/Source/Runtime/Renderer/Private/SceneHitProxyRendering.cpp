@@ -222,8 +222,14 @@ void InitHitProxyRender(FRHICommandListImmediate& RHICmdList, const FSceneRender
 	// Ensure VirtualTexture resources are allocated
 	if (UseVirtualTexturing(FeatureLevel))
 	{
-		FVirtualTextureSystem::Get().AllocateResources(RHICmdList, FeatureLevel);
-		FVirtualTextureSystem::Get().CallPendingCallbacks();
+		FRDGBuilder GraphBuilder(RHICmdList);
+		{
+			SCOPED_GPU_STAT(RHICmdList, VirtualTextureUpdate);
+			// AllocateResources needs to be called before RHIBeginScene
+			FVirtualTextureSystem::Get().AllocateResources(GraphBuilder, FeatureLevel);
+			FVirtualTextureSystem::Get().CallPendingCallbacks();
+		}
+		GraphBuilder.Execute();
 	}
 
 	// Initialize global system textures (pass-through if already initialized).

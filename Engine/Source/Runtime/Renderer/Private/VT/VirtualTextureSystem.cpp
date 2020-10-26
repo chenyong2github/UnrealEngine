@@ -850,7 +850,7 @@ void FVirtualTextureSystem::RequestTilesForRegion(const IAllocatedVirtualTexture
 	}
 }
 
-void FVirtualTextureSystem::LoadPendingTiles(FRHICommandListImmediate& RHICmdList, ERHIFeatureLevel::Type FeatureLevel)
+void FVirtualTextureSystem::LoadPendingTiles(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::Type FeatureLevel)
 {
 	check(IsInRenderingThread());
 
@@ -865,8 +865,6 @@ void FVirtualTextureSystem::LoadPendingTiles(FRHICommandListImmediate& RHICmdLis
 	if (PackedTiles.Num() > 0)
 	{
 		FMemStack& MemStack = FMemStack::Get();
-		FMemMark Mark(MemStack);
-
 		FUniquePageList* UniquePageList = new(MemStack) FUniquePageList;
 		UniquePageList->Initialize();
 		for (uint32 Tile : PackedTiles)
@@ -878,8 +876,8 @@ void FVirtualTextureSystem::LoadPendingTiles(FRHICommandListImmediate& RHICmdLis
 		RequestList->Initialize();
 		GatherRequests(RequestList, UniquePageList, Frame, MemStack);
 		// No need to sort requests, since we're submitting all of them here (no throttling)
-		AllocateResources(RHICmdList, FeatureLevel);
-		SubmitRequests(RHICmdList, FeatureLevel, MemStack, RequestList, false);
+		AllocateResources(GraphBuilder, FeatureLevel);
+		SubmitRequests(GraphBuilder, FeatureLevel, MemStack, RequestList, false);
 	}
 }
 
@@ -938,14 +936,14 @@ void FVirtualTextureSystem::FeedbackAnalysisTask(const FFeedbackAnalysisParamete
 	}
 }
 
-void FVirtualTextureSystem::Update(FRHICommandListImmediate& RHICmdList, ERHIFeatureLevel::Type FeatureLevel, FScene* Scene)
+void FVirtualTextureSystem::Update(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::Type FeatureLevel, FScene* Scene)
 {
 	check(IsInRenderingThread());
 
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(VirtualTextureSystem_Update);
 	SCOPE_CYCLE_COUNTER(STAT_VirtualTextureSystem_Update);
-	SCOPED_GPU_STAT(RHICmdList, VirtualTexture);
-	
+	RDG_GPU_STAT_SCOPE(GraphBuilder, VirtualTexture);
+
 	if (bFlushCaches)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_FlushCache);
@@ -983,7 +981,7 @@ void FVirtualTextureSystem::Update(FRHICommandListImmediate& RHICmdList, ERHIFea
 	{
 		// Only flush if we know that there is GPU feedback available to refill the visible data this frame
 		// This prevents bugs when low frame rate causes feedback buffer to stall so that the physical cache isn't filled immediately which causes visible glitching
-		if (GVirtualTextureFeedback.CanMap(RHICmdList))
+		if (GVirtualTextureFeedback.CanMap(GraphBuilder.RHICmdList))
 		{
 			// Each RVT will call FVirtualTextureSystem::FlushCache()
 			Scene->FlushDirtyRuntimeVirtualTextures();
@@ -1003,7 +1001,6 @@ void FVirtualTextureSystem::Update(FRHICommandListImmediate& RHICmdList, ERHIFea
 	}
 
 	FMemStack& MemStack = FMemStack::Get();
-	FMemMark Mark(MemStack);
 	FUniquePageList* MergedUniquePageList = new(MemStack) FUniquePageList;
 	MergedUniquePageList->Initialize();
 	
@@ -1016,7 +1013,7 @@ void FVirtualTextureSystem::Update(FRHICommandListImmediate& RHICmdList, ERHIFea
 
 		{
 			SCOPE_CYCLE_COUNTER(STAT_FeedbackMap);
-			FeedbackResult = GVirtualTextureFeedback.Map(RHICmdList);
+			FeedbackResult = GVirtualTextureFeedback.Map(GraphBuilder.RHICmdList);
 		}
 
 		// Create tasks to read the feedback data
@@ -1089,7 +1086,7 @@ void FVirtualTextureSystem::Update(FRHICommandListImmediate& RHICmdList, ERHIFea
 			}
 		}
 
-		GVirtualTextureFeedback.Unmap(RHICmdList, FeedbackResult.MapHandle);
+		GVirtualTextureFeedback.Unmap(GraphBuilder.RHICmdList, FeedbackResult.MapHandle);
 	}
 
 	FUniqueRequestList* MergedRequestList = new(MemStack) FUniqueRequestList(MemStack);
@@ -1142,7 +1139,6 @@ void FVirtualTextureSystem::Update(FRHICommandListImmediate& RHICmdList, ERHIFea
 	{
 		// Collect explicitly requested tiles
 		// These tiles are generated on the current frame, so they are collected/processed in a separate list
-		FMemMark RequestPageMark(MemStack);
 		FUniquePageList* RequestedPageList = new(MemStack) FUniquePageList;
 		RequestedPageList->Initialize();
 		for (uint32 Tile : PackedTiles)
@@ -1190,9 +1186,9 @@ void FVirtualTextureSystem::Update(FRHICommandListImmediate& RHICmdList, ERHIFea
 	}
 
 	// Submit the requests to produce pages that are already mapped
-	SubmitPreMappedRequests(RHICmdList, FeatureLevel);
+	SubmitPreMappedRequests(GraphBuilder, FeatureLevel);
 	// Submit the merged requests
-	SubmitRequests(RHICmdList, FeatureLevel, MemStack, MergedRequestList, true);
+	SubmitRequests(GraphBuilder, FeatureLevel, MemStack, MergedRequestList, true);
 
 	UpdateCSVStats();
 
@@ -1767,7 +1763,7 @@ void FVirtualTextureSystem::UpdateCSVStats() const
 #endif
 }
 
-void FVirtualTextureSystem::SubmitRequestsFromLocalTileList(const TSet<FVirtualTextureLocalTile>& LocalTileList, EVTProducePageFlags Flags, FRHICommandListImmediate& RHICmdList, ERHIFeatureLevel::Type FeatureLevel)
+void FVirtualTextureSystem::SubmitRequestsFromLocalTileList(const TSet<FVirtualTextureLocalTile>& LocalTileList, EVTProducePageFlags Flags, FRDGBuilder& GraphBuilder, ERHIFeatureLevel::Type FeatureLevel)
 {
 	LLM_SCOPE(ELLMTag::VirtualTextureSystem);
 
@@ -1820,7 +1816,7 @@ void FVirtualTextureSystem::SubmitRequestsFromLocalTileList(const TSet<FVirtualT
 		}
 
 		IVirtualTextureFinalizer* VTFinalizer = Producer.GetVirtualTexture()->ProducePageData(
-			RHICmdList, FeatureLevel,
+			GraphBuilder.RHICmdList, FeatureLevel,
 			Flags,
 			ProducerHandle, LayerMask, Tile.Local_vLevel, Tile.Local_vAddress,
 			RequestPageResult.Handle,
@@ -1834,26 +1830,24 @@ void FVirtualTextureSystem::SubmitRequestsFromLocalTileList(const TSet<FVirtualT
 	}
 }
 
-void FVirtualTextureSystem::SubmitPreMappedRequests(FRHICommandListImmediate& RHICmdList, ERHIFeatureLevel::Type FeatureLevel)
+void FVirtualTextureSystem::SubmitPreMappedRequests(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::Type FeatureLevel)
 {
 	{
 		INC_DWORD_STAT_BY(STAT_NumMappedPageUpdate, MappedTilesToProduce.Num());
-		SubmitRequestsFromLocalTileList(MappedTilesToProduce, EVTProducePageFlags::None, RHICmdList, FeatureLevel);
+		SubmitRequestsFromLocalTileList(MappedTilesToProduce, EVTProducePageFlags::None, GraphBuilder, FeatureLevel);
 		MappedTilesToProduce.Reset();
 	}
 
 	{
 		INC_DWORD_STAT_BY(STAT_NumContinuousPageUpdate, ContinuousUpdateTilesToProduce.Num());
-		SubmitRequestsFromLocalTileList(ContinuousUpdateTilesToProduce, EVTProducePageFlags::ContinuousUpdate, RHICmdList, FeatureLevel);
+		SubmitRequestsFromLocalTileList(ContinuousUpdateTilesToProduce, EVTProducePageFlags::ContinuousUpdate, GraphBuilder, FeatureLevel);
 		ContinuousUpdateTilesToProduce.Reset();
 	}
 }
 
-void FVirtualTextureSystem::SubmitRequests(FRHICommandListImmediate& RHICmdList, ERHIFeatureLevel::Type FeatureLevel, FMemStack& MemStack, FUniqueRequestList* RequestList, bool bAsync)
+void FVirtualTextureSystem::SubmitRequests(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::Type FeatureLevel, FMemStack& MemStack, FUniqueRequestList* RequestList, bool bAsync)
 {
 	LLM_SCOPE(ELLMTag::VirtualTextureSystem);
-
-	FMemMark Mark(MemStack);
 
 	// Allocate space to hold the physical address we allocate for each page load (1 page per layer per request)
 	uint32* RequestPhysicalAddress = new(MemStack, MEM_Oned) uint32[RequestList->GetNumLoadRequests() * VIRTUALTEXTURE_SPACE_MAXLAYERS];
@@ -2072,7 +2066,7 @@ void FVirtualTextureSystem::SubmitRequests(FRHICommandListImmediate& RHICmdList,
 
 			for (FProducePageDataPrepareTask& Task : PrepareTasks)
 			{
-				IVirtualTextureFinalizer* VTFinalizer = Task.VirtualTexture->ProducePageData(RHICmdList, FeatureLevel,
+				IVirtualTextureFinalizer* VTFinalizer = Task.VirtualTexture->ProducePageData(GraphBuilder.RHICmdList, FeatureLevel,
 					Task.Flags,
 					Task.ProducerHandle, Task.LayerMask, Task.vLevel, Task.vAddress,
 					Task.RequestHandle,
@@ -2218,7 +2212,7 @@ void FVirtualTextureSystem::SubmitRequests(FRHICommandListImmediate& RHICmdList,
 		SCOPE_CYCLE_COUNTER(STAT_ProcessRequests_Finalize);
 		for (IVirtualTextureFinalizer* VTFinalizer : Finalizers)
 		{
-			VTFinalizer->Finalize(RHICmdList);
+			VTFinalizer->Finalize(GraphBuilder);
 		}
 		Finalizers.Reset();
 	}
@@ -2230,7 +2224,7 @@ void FVirtualTextureSystem::SubmitRequests(FRHICommandListImmediate& RHICmdList,
 		{
 			if (Spaces[ID])
 			{
-				Spaces[ID]->ApplyUpdates(this, RHICmdList);
+				Spaces[ID]->ApplyUpdates(this, GraphBuilder);
 			}
 		}
 	}
@@ -2238,16 +2232,16 @@ void FVirtualTextureSystem::SubmitRequests(FRHICommandListImmediate& RHICmdList,
 	Frame++;
 }
 
-void FVirtualTextureSystem::AllocateResources(FRHICommandListImmediate& RHICmdList, ERHIFeatureLevel::Type FeatureLevel)
+void FVirtualTextureSystem::AllocateResources(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::Type FeatureLevel)
 {
 	LLM_SCOPE(ELLMTag::VirtualTextureSystem);
-	SCOPED_GPU_STAT(RHICmdList, VirtualTextureAllocate);
+	RDG_GPU_STAT_SCOPE(GraphBuilder, VirtualTextureAllocate);
 
 	for (uint32 ID = 0; ID < MaxSpaces; ID++)
 	{
 		if (Spaces[ID])
 		{
-			Spaces[ID]->AllocateTextures(RHICmdList);
+			Spaces[ID]->AllocateTextures(GraphBuilder);
 		}
 	}
 }

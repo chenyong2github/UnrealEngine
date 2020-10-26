@@ -35,7 +35,7 @@ public:
 	virtual ~FVirtualTextureUploadCache();
 
 	// IVirtualTextureFinalizer
-	virtual void Finalize(FRHICommandListImmediate& RHICmdList) override;
+	virtual void Finalize(FRDGBuilder& GraphBuilder) override;
 
 	// FRenderResource
 	virtual void ReleaseRHI() override;

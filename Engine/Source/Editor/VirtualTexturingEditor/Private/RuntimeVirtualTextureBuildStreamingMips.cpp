@@ -9,6 +9,7 @@
 #include "RendererInterface.h"
 #include "RenderTargetPool.h"
 #include "SceneInterface.h"
+#include "RenderGraphBuilder.h"
 #include "VT/RuntimeVirtualTexture.h"
 #include "VT/RuntimeVirtualTextureRender.h"
 #include "VT/VirtualTextureBuilder.h"
@@ -244,7 +245,12 @@ namespace RuntimeVirtualTexture
 					Desc.PageDescs[0].UVRange = UVRange;
 					Desc.PageDescs[0].vLevel = RenderLevel;
 
-					RuntimeVirtualTexture::RenderPages(RHICmdList, Desc);
+					{
+						FMemMark MemMark(FMemStack::Get());
+						FRDGBuilder GraphBuilder(RHICmdList);
+						RuntimeVirtualTexture::RenderPages(GraphBuilder, Desc);
+						GraphBuilder.Execute();
+					}
 
 					// Transition render targets for copying
 					for (int32 Layer = 0; Layer < NumLayers; Layer++)

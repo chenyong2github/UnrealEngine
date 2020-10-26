@@ -543,10 +543,14 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	const bool bUseVirtualTexturing = UseVirtualTexturing(ViewFeatureLevel);
 	if (bUseVirtualTexturing)
 	{
-		SCOPED_GPU_STAT(RHICmdList, VirtualTextureUpdate);
-		// AllocateResources needs to be called before RHIBeginScene
-		FVirtualTextureSystem::Get().AllocateResources(RHICmdList, ViewFeatureLevel);
-		FVirtualTextureSystem::Get().CallPendingCallbacks();
+		FRDGBuilder GraphBuilder(RHICmdList);
+		{
+			SCOPED_GPU_STAT(RHICmdList, VirtualTextureUpdate);
+			// AllocateResources needs to be called before RHIBeginScene
+			FVirtualTextureSystem::Get().AllocateResources(GraphBuilder, FeatureLevel);
+			FVirtualTextureSystem::Get().CallPendingCallbacks();
+		}
+		GraphBuilder.Execute();
 	}
 
 	//make sure all the targets we're going to use will be safely writable.
@@ -576,13 +580,22 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 	if (bUseVirtualTexturing)
 	{
-		SCOPED_GPU_STAT(RHICmdList, VirtualTextureUpdate);
-		FVirtualTextureSystem::Get().Update(RHICmdList, ViewFeatureLevel, Scene);
-		// Clear virtual texture feedback to default value
-		FUnorderedAccessViewRHIRef FeedbackUAV = SceneContext.GetVirtualTextureFeedbackUAV();
-		RHICmdList.Transition(FRHITransitionInfo(FeedbackUAV, ERHIAccess::SRVMask, ERHIAccess::UAVMask));
-		RHICmdList.ClearUAVUint(FeedbackUAV, FUintVector4(~0u, ~0u, ~0u, ~0u));
-		RHICmdList.Transition(FRHITransitionInfo(FeedbackUAV, ERHIAccess::UAVMask, ERHIAccess::UAVMask));
+		FRDGBuilder GraphBuilder(RHICmdList);
+		{
+			RDG_GPU_STAT_SCOPE(GraphBuilder, VirtualTextureUpdate);
+			FVirtualTextureSystem::Get().Update(GraphBuilder, FeatureLevel, Scene);
+
+			AddPass(GraphBuilder, [&SceneContext](FRHICommandList& RHICmdList)
+			{
+				// Clear virtual texture feedback to default value
+				FUnorderedAccessViewRHIRef FeedbackUAV = SceneContext.GetVirtualTextureFeedbackUAV();
+				RHICmdList.Transition(FRHITransitionInfo(FeedbackUAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
+				RHICmdList.ClearUAVUint(FeedbackUAV, FUintVector4(~0u, ~0u, ~0u, ~0u));
+				RHICmdList.Transition(FRHITransitionInfo(FeedbackUAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute));
+				RHICmdList.BeginUAVOverlap(FeedbackUAV);
+			});
+		}
+		GraphBuilder.Execute();
 	}
 
 	FSortedLightSetSceneInfo SortedLightSet;

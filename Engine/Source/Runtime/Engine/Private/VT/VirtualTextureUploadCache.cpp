@@ -3,6 +3,7 @@
 #include "VirtualTextureUploadCache.h"
 #include "VirtualTextureChunkManager.h"
 #include "RHI.h"
+#include "RenderGraphBuilder.h"
 
 // allow uploading CPU buffer directly to GPU texture
 // this is slow under D3D11
@@ -83,11 +84,13 @@ int32 FVirtualTextureUploadCache::GetOrCreatePoolIndex(EPixelFormat InFormat, ui
 	return PoolIndex;
 }
 
-void FVirtualTextureUploadCache::Finalize(FRHICommandListImmediate& RHICmdList)
+void FVirtualTextureUploadCache::Finalize(FRDGBuilder& GraphBuilder)
 {
 	SCOPE_CYCLE_COUNTER(STAT_VTP_FlushUpload)
 
 	check(IsInRenderingThread());
+
+	FRHICommandListImmediate& RHICmdList = GraphBuilder.RHICmdList;
 
 	// Multi-GPU support : May be ineffecient for AFR.
 	SCOPED_GPU_MASK(RHICmdList, FRHIGPUMask::All());

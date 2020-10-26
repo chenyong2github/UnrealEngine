@@ -108,7 +108,7 @@ public:
 
 	void AddRequest(FLightmapTileRequest TileRequest);
 
-	virtual void Finalize(FRHICommandListImmediate& RHICmdList) override;
+	virtual void Finalize(FRDGBuilder& GraphBuilder) override;
 
 	virtual ~FLightmapRenderer();
 

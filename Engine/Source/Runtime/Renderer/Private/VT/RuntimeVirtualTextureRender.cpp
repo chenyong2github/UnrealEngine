@@ -804,8 +804,6 @@ namespace RuntimeVirtualTexture
 			ERDGPassFlags::Copy | ERDGPassFlags::NeverCull,
 			[InputTexture, OutputTexture, CopyInfo](FRHICommandList& RHICmdList)
 			{
-				InputTexture->MarkResourceAsUsed();
-
 				RHICmdList.Transition(FRHITransitionInfo(OutputTexture, ERHIAccess::SRVMask, ERHIAccess::CopyDest));
 				RHICmdList.CopyTexture(InputTexture->GetRHI(), OutputTexture, CopyInfo);
 				RHICmdList.Transition(FRHITransitionInfo(OutputTexture, ERHIAccess::CopyDest, ERHIAccess::SRVMask));
@@ -964,7 +962,7 @@ namespace RuntimeVirtualTexture
 	}
 
 	void RenderPage(
-		FRHICommandListImmediate& RHICmdList,
+		FRDGBuilder& GraphBuilder,
 		FScene* Scene,
 		uint32 RuntimeVirtualTextureMask,
 		ERuntimeVirtualTextureMaterialType MaterialType,
@@ -986,14 +984,14 @@ namespace RuntimeVirtualTexture
 		uint8 MaxLevel,
 		ERuntimeVirtualTextureDebugType DebugType)
 	{
-		SCOPED_DRAW_EVENT(RHICmdList, VirtualTextureDynamicCache);
+		RDG_EVENT_SCOPE(GraphBuilder, "VirtualTextureDynamicCache");
 
 		// Initialize a temporary view required for the material render pass
 		//todo[vt]: Some of this, such as ViewRotationMatrix, can be computed once in the Finalizer and passed down.
 		//todo[vt]: Have specific shader variations and setup for different output texture configs
 		FSceneViewFamily::ConstructionValues ViewFamilyInit(nullptr, nullptr, FEngineShowFlags(ESFIM_Game));
 		ViewFamilyInit.SetWorldTimes(0.0f, 0.0f, 0.0f);
-		FSceneViewFamily ViewFamily(ViewFamilyInit);
+		FSceneViewFamily& ViewFamily = *GraphBuilder.AllocObject<FSceneViewFamily>(ViewFamilyInit);
 
 		FSceneViewInitOptions ViewInitOptions;
 		ViewInitOptions.ViewFamily = &ViewFamily;
@@ -1031,11 +1029,11 @@ namespace RuntimeVirtualTexture
 		ViewInitOptions.BackgroundColor = FLinearColor::Black;
 		ViewInitOptions.OverlayColor = FLinearColor::White;
 
-		FViewInfo ViewInfo(ViewInitOptions);
+		FViewInfo& ViewInfo = *GraphBuilder.AllocObject<FViewInfo>(ViewInitOptions);
 		FViewInfo* View = &ViewInfo;
 		ViewFamily.Views.Add(View);
 
-		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
 		View->bIsVirtualTexture = true;
 		View->ViewRect = View->UnconstrainedViewRect;
 		View->CachedViewUniformShaderParameters = MakeUnique<FViewUniformShaderParameters>();
@@ -1045,12 +1043,14 @@ namespace RuntimeVirtualTexture
 		View->CachedViewUniformShaderParameters->RuntimeVirtualTexturePackHeight = WorldHeightPackParameter;
 		View->CachedViewUniformShaderParameters->RuntimeVirtualTextureDebugParams = FVector4(DebugType == ERuntimeVirtualTextureDebugType::Debug ? 1.f : 0.f, 0.f, 0.f, 0.f);
 		View->ViewUniformBuffer = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(*View->CachedViewUniformShaderParameters, UniformBuffer_SingleFrame);
-		UploadDynamicPrimitiveShaderDataForView(RHICmdList, *(const_cast<FScene*>(Scene)), *View);
-		Scene->UniformBuffers.VirtualTextureViewUniformBuffer.UpdateUniformBufferImmediate(*View->CachedViewUniformShaderParameters);
+		UploadDynamicPrimitiveShaderDataForView(GraphBuilder.RHICmdList, *(const_cast<FScene*>(Scene)), *View);
+
+		AddPass(GraphBuilder, [Scene, View](FRHICommandList&)
+		{
+			Scene->UniformBuffers.VirtualTextureViewUniformBuffer.UpdateUniformBufferImmediate(*View->CachedViewUniformShaderParameters);
+		});
 
 		// Build graph
-		FMemMark Mark(FMemStack::Get());
-		FRDGBuilder GraphBuilder(RHICmdList);
 		FRenderGraphSetup GraphSetup(GraphBuilder, Scene->GetFeatureLevel(), MaterialType, OutputTexture0, TextureSize, bIsThumbnails);
 
 		// Draw Pass
@@ -1131,26 +1131,23 @@ namespace RuntimeVirtualTexture
 		{
 			AddCopyToOutputPass(GraphBuilder, GraphSetup.OutputAlias2, OutputTexture2, DestBox2);
 		}
-
-		// Execute the graph
-		GraphBuilder.Execute();
 	}
 
-	void RenderPages(FRHICommandListImmediate& RHICmdList, FRenderPageBatchDesc const& InDesc)
+	void RenderPages(FRDGBuilder& GraphBuilder, FRenderPageBatchDesc const& InDesc)
 	{
-		SCOPED_DRAW_EVENT(RHICmdList, RuntimeVirtualTextureRenderPages);
+		RDG_EVENT_SCOPE(GraphBuilder, "RuntimeVirtualTextureRenderPages");
 		check(InDesc.NumPageDescs <= EMaxRenderPageBatch);
 
 		// Make sure GPUScene is up to date. 
 		// Usually this is a no-op since we updated before calling, but RuntimeVirtualTexture::BuildStreamedMips() needs this.
-		UpdateGPUScene(RHICmdList, *InDesc.Scene->GetRenderScene());
+		UpdateGPUScene(GraphBuilder.RHICmdList, *InDesc.Scene->GetRenderScene());
 
 		for (int32 PageIndex = 0; PageIndex < InDesc.NumPageDescs; ++PageIndex)
 		{
 			FRenderPageDesc const& PageDesc = InDesc.PageDescs[PageIndex];
 
 			RenderPage(
-				RHICmdList,
+				GraphBuilder,
 				InDesc.Scene,
 				InDesc.RuntimeVirtualTextureMask,
 				InDesc.MaterialType,
@@ -1168,6 +1165,13 @@ namespace RuntimeVirtualTexture
 		}
 	}
 
+	void RenderPages(FRHICommandListImmediate& RHICmdList, FRenderPageBatchDesc const& InDesc)
+	{
+		FMemMark MemMark(FMemStack::Get());
+		FRDGBuilder GraphBuilder(RHICmdList);
+		RenderPages(GraphBuilder, InDesc);
+		GraphBuilder.Execute();
+	}
 
 	uint32 GetRuntimeVirtualTextureSceneIndex_GameThread(class URuntimeVirtualTextureComponent* InComponent)
 	{

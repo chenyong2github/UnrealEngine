@@ -4127,7 +4127,10 @@ void FRendererModule::RequestVirtualTextureTilesForRegion(IAllocatedVirtualTextu
 
 void FRendererModule::LoadPendingVirtualTextureTiles(FRHICommandListImmediate& RHICmdList, ERHIFeatureLevel::Type FeatureLevel)
 {
-	FVirtualTextureSystem::Get().LoadPendingTiles(RHICmdList, FeatureLevel);
+	FMemMark MemMark(FMemStack::Get());
+	FRDGBuilder GraphBuilder(RHICmdList);
+	FVirtualTextureSystem::Get().LoadPendingTiles(GraphBuilder, FeatureLevel);
+	GraphBuilder.Execute();
 }
 
 void FRendererModule::FlushVirtualTextureCache()

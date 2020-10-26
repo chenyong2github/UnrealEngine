@@ -12,6 +12,7 @@ class FRHICommandListImmediate;
 class FRHIShaderResourceView;
 class FRHITexture;
 class FRHIUnorderedAccessView;
+class FRDGBuilder;
 
 union FVirtualTextureProducerHandle
 {
@@ -150,7 +151,10 @@ typedef void (FVTProducerDestroyedFunction)(const FVirtualTextureProducerHandle&
 class IVirtualTextureFinalizer
 {
 public:
-	virtual void Finalize(FRHICommandListImmediate& RHICmdList) = 0;
+	virtual void Finalize(FRDGBuilder& GraphBuilder) = 0;
+
+	UE_DEPRECATED(5.0, "This method has been refactored to use an FRDGBuilder instead.")
+	virtual void Finalize(FRHICommandListImmediate& RHICmdList) {}
 };
 
 enum class EVTRequestPageStatus

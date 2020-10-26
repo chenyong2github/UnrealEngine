@@ -83,5 +83,8 @@ namespace RuntimeVirtualTexture
 	RENDERER_API bool IsSceneReadyToRender(FScene* Scene);
 
 	/** Render a batch of pages for a runtime virtual texture. */
+	RENDERER_API void RenderPages(FRDGBuilder& GraphBuilder, FRenderPageBatchDesc const& InDesc);
+
+	UE_DEPRECATED(5.0, "This method has been refactored to use an FRDGBuilder instead.")
 	RENDERER_API void RenderPages(FRHICommandListImmediate& RHICmdList, FRenderPageBatchDesc const& InDesc);
 }

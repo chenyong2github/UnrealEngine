@@ -5,6 +5,7 @@
 #include "Components/RuntimeVirtualTextureComponent.h"
 #include "MaterialShared.h"
 #include "RenderingThread.h"
+#include "RenderGraphBuilder.h"
 #include "SceneInterface.h"
 #include "VT/RuntimeVirtualTexture.h"
 #include "VT/RuntimeVirtualTextureRender.h"
@@ -96,6 +97,9 @@ void URuntimeVirtualTextureThumbnailRenderer::Draw(UObject* Object, int32 X, int
 		Desc.PageDescs[0].UVRange = FBox2D(FVector2D(0, 0), FVector2D(1, 1));
 		Desc.PageDescs[0].vLevel = MaxLevel;
 
-		RuntimeVirtualTexture::RenderPages(RHICmdList, Desc);
+		FMemMark MemMark(FMemStack::Get());
+		FRDGBuilder GraphBuilder(RHICmdList);
+		RuntimeVirtualTexture::RenderPages(GraphBuilder, Desc);
+		GraphBuilder.Execute();
 	});
 }

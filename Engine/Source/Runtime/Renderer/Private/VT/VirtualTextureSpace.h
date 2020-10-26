@@ -87,8 +87,8 @@ public:
 	FRHITexture* GetPageTableIndirectionTexture() const;
 
 	void				QueueUpdate( uint8 Layer, uint8 vLogSize, uint32 vAddress, uint8 vLevel, const FPhysicalTileLocation& pTileLocation);
-	void				AllocateTextures(FRHICommandList& RHICmdList);
-	void				ApplyUpdates(FVirtualTextureSystem* System, FRHICommandListImmediate& RHICmdList);
+	void				AllocateTextures(FRDGBuilder& GraphBuilder);
+	void				ApplyUpdates(FVirtualTextureSystem* System, FRDGBuilder& GraphBuilder);
 	void				QueueUpdateEntirePageTable();
 
 	void DumpToConsole(bool verbose);
