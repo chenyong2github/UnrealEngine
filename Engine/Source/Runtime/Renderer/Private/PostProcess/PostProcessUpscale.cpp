@@ -107,6 +107,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FUpscaleParameters, )
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneColorTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, SceneColorSampler)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, PointSceneColorTexture)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2DArray, PointSceneColorTextureArray)
 	SHADER_PARAMETER_SAMPLER(SamplerState, PointSceneColorSampler)
 	SHADER_PARAMETER_STRUCT(FPaniniProjectionParameters, Panini)
 	SHADER_PARAMETER(float, UpscaleSoftness)
@@ -212,6 +213,7 @@ FScreenPassTexture AddUpscalePass(FRDGBuilder& GraphBuilder, const FViewInfo& Vi
 	PassParameters->SceneColorTexture = Inputs.SceneColor.Texture;
 	PassParameters->SceneColorSampler = TStaticSamplerState<SF_Bilinear, AM_Border, AM_Border, AM_Border>::GetRHI();
 	PassParameters->PointSceneColorTexture = Inputs.SceneColor.Texture;
+	PassParameters->PointSceneColorTextureArray = Inputs.SceneColor.Texture;
 	PassParameters->PointSceneColorSampler = TStaticSamplerState<SF_Point, AM_Border, AM_Border, AM_Border>::GetRHI();
 	PassParameters->Panini = GetPaniniProjectionParameters(PaniniConfig, View);
 	PassParameters->UpscaleSoftness = FMath::Clamp(CVarUpscaleSoftness.GetValueOnRenderThread(), 0.0f, 1.0f);
