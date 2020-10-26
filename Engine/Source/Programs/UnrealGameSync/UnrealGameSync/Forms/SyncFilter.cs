@@ -77,12 +77,15 @@ namespace UnrealGameSync
 			ListBox.Items.Clear();
 			foreach(WorkspaceSyncCategory Filter in UniqueIdToFilter.Values)
 			{
-				CheckState State = CheckState.Checked;
-				if(!CategoryIdToSetting[Filter.UniqueId])
+				if (!Filter.bHidden)
 				{
-					State = CheckState.Unchecked;
+					CheckState State = CheckState.Checked;
+					if (!CategoryIdToSetting[Filter.UniqueId])
+					{
+						State = CheckState.Unchecked;
+					}
+					ListBox.Items.Add(Filter, State);
 				}
-				ListBox.Items.Add(Filter, State);
 			}
 		}
 
@@ -103,8 +106,12 @@ namespace UnrealGameSync
 			for(int Idx = 0; Idx < ListBox.Items.Count; Idx++)
 			{
 				Guid UniqueId = ((WorkspaceSyncCategory)ListBox.Items[Idx]).UniqueId;
-				Result[UniqueId] = ListBox.GetItemCheckState(Idx) == CheckState.Checked;
+				if (!Result.ContainsKey(UniqueId))
+				{
+					Result[UniqueId] = ListBox.GetItemCheckState(Idx) == CheckState.Checked;
+				}
 			}
+
 			return Result;
 		}
 
