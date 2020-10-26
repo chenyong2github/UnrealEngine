@@ -730,7 +730,10 @@ namespace Chaos
 			const uint32 SpaceDimension = 3;
 
 			// We only build one shot manifolds once
+			// All boxes are prescaled
 			ensure(Constraint.GetManifoldPoints().Num() == 0);
+			ensure(Box1Transform.GetScale3D() == FVec3(1.0f, 1.0f, 1.0f));
+			ensure(Box2Transform.GetScale3D() == FVec3(1.0f, 1.0f, 1.0f));
 
 			const uint32 MaxContactPointCount = 8;
 			uint32 ContactPointCount = 0;
