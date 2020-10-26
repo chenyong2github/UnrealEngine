@@ -65,12 +65,6 @@ void SLayersCommandsMenu::Construct(const FArguments& InArgs, const TSharedRef< 
 			MenuBuilder.AddMenuEntry(Commands.MakeAllLayersVisible);
 		}
 		MenuBuilder.EndSection();
-
-		MenuBuilder.BeginSection("LayersActorsLoading", LOCTEXT("ActorsLoadingMenuHeader", "Actors Loading"));
-		{
-			MenuBuilder.AddMenuEntry(Commands.MakeAllLayersLoadActors);
-		}
-		MenuBuilder.EndSection();
 	}
 
 	ChildSlot
