@@ -19,6 +19,10 @@
 		{
 			"Name": "LevelSequenceEditor",
 			"Enabled": true
+		},
+		{
+			"Name": "PropertyAccessEditor",
+			"Enabled": true
 		}
 	],
 	"Modules" :
