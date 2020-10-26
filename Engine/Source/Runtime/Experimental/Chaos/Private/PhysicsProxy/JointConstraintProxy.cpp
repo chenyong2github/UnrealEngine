@@ -66,9 +66,9 @@ EPhysicsProxyType TJointConstraintProxy<Chaos::FJointConstraint>::ConcreteType()
 template<>
 void TJointConstraintProxy<Chaos::FJointConstraint>::BufferPhysicsResults()
 {
-	if (Constraint != nullptr)
+	if (Constraint != nullptr && Constraint->IsValid() )
 	{
-		if (Handle != nullptr)
+		if (Handle != nullptr && Handle->IsValid())
 		{
 			FOutputData* Buffer = OutputBuffer->AccessProducerBuffer();
 			Buffer->bIsBroken = Handle->IsConstraintEnabled();
@@ -82,9 +82,9 @@ void TJointConstraintProxy<Chaos::FJointConstraint>::BufferPhysicsResults()
 template<>
 bool TJointConstraintProxy<Chaos::FJointConstraint>::PullFromPhysicsState(const int32 SolverSyncTimestamp)
 {
-	if (Constraint != nullptr)
+	if (Constraint != nullptr && Constraint->IsValid())
 	{
-		if (Handle != nullptr)
+		if (Handle != nullptr && Handle->IsValid())
 		{
 			FOutputData* Buffer = OutputBuffer->AccessProducerBuffer();
 			Constraint->GetOutputData().bIsBroken = Buffer->bIsBroken;
@@ -115,6 +115,9 @@ void TJointConstraintProxy<Chaos::FJointConstraint>::InitializeOnPhysicsThread(C
 				{
 					Handle = JointConstraints.AddConstraint({ Particles[0]->Handle() , Particles[1]->Handle() }, Constraint->GetJointTransforms());
 					Handle->SetSettings(JointSettingsBuffer);
+
+					Particles[0]->Handle()->AddConstraintHandle(Handle);
+					Particles[1]->Handle()->AddConstraintHandle(Handle);
 				}
 			}
 		}
@@ -125,7 +128,7 @@ template < >
 template < class Trait >
 void TJointConstraintProxy<Chaos::FJointConstraint>::DestroyOnPhysicsThread(Chaos::TPBDRigidsSolver<Trait>* InSolver)
 {
-	if (Handle)
+	if (Handle && Handle->IsValid())
 	{
 		auto& JointConstraints = InSolver->GetJointConstraints();
 		JointConstraints.RemoveConstraint(Handle->GetConstraintIndex());
@@ -138,7 +141,7 @@ template < >
 template < class Trait >
 void TJointConstraintProxy<Chaos::FJointConstraint>::PushStateOnGameThread(Chaos::TPBDRigidsSolver<Trait>* InSolver)
 {
-	if (Constraint != nullptr)
+	if (Constraint != nullptr && Constraint->IsValid())
 	{
 		if (Constraint->IsDirty())
 		{
@@ -261,7 +264,7 @@ template < class Trait >
 void TJointConstraintProxy<Chaos::FJointConstraint>::PushStateOnPhysicsThread(Chaos::TPBDRigidsSolver<Trait>* InSolver)
 {
 	typedef typename Chaos::TPBDRigidsSolver<Trait>::FPBDRigidsEvolution::FCollisionConstraints FCollisionConstraints;
-	if (Handle)
+	if (Handle && Handle->IsValid())
 	{
 		if (DirtyFlagsBuffer.IsDirty())
 		{

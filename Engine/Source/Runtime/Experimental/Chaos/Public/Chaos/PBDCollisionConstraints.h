@@ -174,6 +174,12 @@ public:
 
 
 	/**
+	* Disable the constraints associated with the ParticleHandle.
+	*/
+	void DisableConstraints(const TSet<TGeometryParticleHandle<FReal, 3>*>& ParticleHandle) {}
+
+
+	/**
 	* Remove the constraint, update the handle, and any maps. 
 	*/
 	void RemoveConstraint(FPBDCollisionConstraintHandle* ConstraintHandle);
