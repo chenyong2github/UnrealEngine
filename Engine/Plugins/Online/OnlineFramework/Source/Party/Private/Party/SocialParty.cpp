@@ -364,7 +364,7 @@ bool USocialParty::CanPromoteMember(const UPartyMember& PartyMember) const
 
 bool USocialParty::CanPromoteMemberInternal(const UPartyMember& PartyMember) const
 {
-	return IsLocalPlayerPartyLeader() && bIsMemberPromotionPossible && !PartyMember.IsPartyLeader();
+	return IsLocalPlayerPartyLeader() && bIsMemberPromotionPossible && !PartyMember.IsPartyLeader() && !PartyMember.IsLocalPlayer();
 }
 
 bool USocialParty::TryPromoteMember(const UPartyMember& PartyMember)
