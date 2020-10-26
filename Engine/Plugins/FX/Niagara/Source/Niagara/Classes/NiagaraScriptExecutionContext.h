@@ -409,7 +409,7 @@ public:
 
 	bool IsOutputStage(FNiagaraDataInterfaceProxy* DIProxy, uint32 CurrentStage) const;
 	bool IsIterationStage(FNiagaraDataInterfaceProxy* DIProxy, uint32 CurrentStage) const;
-	FNiagaraDataInterfaceProxy* FindIterationInterface(const TArray<FNiagaraDataInterfaceProxy*>& InProxies, uint32 SimulationStageIndex) const;
+	FNiagaraDataInterfaceProxyRW* FindIterationInterface(const TArray<FNiagaraDataInterfaceProxyRW*>& InProxies, uint32 SimulationStageIndex) const;
 	const FSimulationStageMetaData* GetSimStageMetaData(uint32 SimulationStageIndex) const;
 };
 
@@ -431,7 +431,7 @@ struct FNiagaraSimStageData
 {
 	FNiagaraDataBuffer* Source = nullptr;
 	FNiagaraDataBuffer* Destination = nullptr;
-	FNiagaraDataInterfaceProxy* AlternateIterationSource = nullptr;
+	FNiagaraDataInterfaceProxyRW* AlternateIterationSource = nullptr;
 	uint32 SourceCountOffset = 0;
 	uint32 DestinationCountOffset = 0;
 	uint32 SourceNumInstances = 0;
@@ -446,6 +446,7 @@ struct FNiagaraComputeInstanceData
 	uint8* ExternalParamData = nullptr;
 	FNiagaraComputeExecutionContext* Context = nullptr;
 	TArray<FNiagaraDataInterfaceProxy*> DataInterfaceProxies;
+	TArray<FNiagaraDataInterfaceProxyRW*> IterationDataInterfaceProxies;
 	bool bStartNewOverlapGroup = false;
 	bool bUsesSimStages = false;
 	bool bUsesOldShaderStages = false;
@@ -453,7 +454,7 @@ struct FNiagaraComputeInstanceData
 
 	bool IsOutputStage(FNiagaraDataInterfaceProxy* DIProxy, uint32 CurrentStage) const;
 	bool IsIterationStage(FNiagaraDataInterfaceProxy* DIProxy, uint32 CurrentStage) const;
-	FNiagaraDataInterfaceProxy* FindIterationInterface(uint32 SimulationStageIndex) const;
+	FNiagaraDataInterfaceProxyRW* FindIterationInterface(uint32 SimulationStageIndex) const;
 };
 
 

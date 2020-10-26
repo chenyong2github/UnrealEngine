@@ -387,8 +387,6 @@ bool UNiagaraDataInterfaceRenderTarget2D::InitPerInstanceData(void* PerInstanceD
 #endif
 			TargetData->TextureReferenceRHI = RT_TargetTexture->TextureReference.TextureReferenceRHI;
 			TargetData->UAV.SafeRelease();
-
-			RT_Proxy->SetElementCount(TargetData->Size);
 		}
 	);
 	return true;
@@ -541,23 +539,12 @@ bool UNiagaraDataInterfaceRenderTarget2D::PerInstanceTickPostSimulate(void* PerI
 	#endif
 						TargetData->TextureReferenceRHI = RT_TargetTexture->TextureReference.TextureReferenceRHI;
 						TargetData->UAV.SafeRelease();
-
-						RT_Proxy->SetElementCount(TargetData->Size);
 					}
 				}
 			);
 		}
 	}
 	return false;
-}
-
-void FNiagaraDataInterfaceProxyRenderTarget2DProxy::PreStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceStageArgs& Context)
-{
-
-}
-
-void FNiagaraDataInterfaceProxyRenderTarget2DProxy::PostStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceStageArgs& Context)
-{	
 }
 
 void FNiagaraDataInterfaceProxyRenderTarget2DProxy::PostSimulate(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceArgs& Context)
@@ -578,7 +565,13 @@ void FNiagaraDataInterfaceProxyRenderTarget2DProxy::PostSimulate(FRHICommandList
 #endif
 }
 
-void FNiagaraDataInterfaceProxyRenderTarget2DProxy::ResetData(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceArgs& Context)
-{	
+FIntVector FNiagaraDataInterfaceProxyRenderTarget2DProxy::GetElementCount(FNiagaraSystemInstanceID SystemInstanceID) const
+{
+	if ( const FRenderTarget2DRWInstanceData_RenderThread* TargetData = SystemInstancesToProxyData_RT.Find(SystemInstanceID) )
+	{
+		return FIntVector(TargetData->Size.X, TargetData->Size.Y, 1);
+	}
+	return FIntVector::ZeroValue;
 }
+
 #undef LOCTEXT_NAMESPACE

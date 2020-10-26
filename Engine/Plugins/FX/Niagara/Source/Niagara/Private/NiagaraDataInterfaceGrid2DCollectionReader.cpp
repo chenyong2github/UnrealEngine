@@ -379,4 +379,18 @@ void UNiagaraDataInterfaceGrid2DCollectionReader::GetEmitterDependencies(UNiagar
 	}
 }
 
+FIntVector FNiagaraDataInterfaceProxyGrid2DCollectionReaderProxy::GetElementCount(FNiagaraSystemInstanceID SystemInstanceID) const
+{
+	const auto* ReaderProxyData = SystemInstancesToProxyData_RT.Find(SystemInstanceID);
+	if (ReaderProxyData && ReaderProxyData->ProxyToUse)
+	{
+		if ( FGrid2DCollectionRWInstanceData_RenderThread* Grid2DProxyData = ReaderProxyData->ProxyToUse->SystemInstancesToProxyData_RT.Find(SystemInstanceID) )
+		{
+			return FIntVector(Grid2DProxyData->NumCells.X, Grid2DProxyData->NumCells.Y, 1);
+		}
+	}
+
+	return FIntVector::ZeroValue;
+}
+
 #undef LOCTEXT_NAMESPACE

@@ -31,6 +31,8 @@ struct FNiagaraDataInterfaceProxyGrid2DCollectionReaderProxy : public FNiagaraDa
 {
 	FNiagaraDataInterfaceProxyGrid2DCollectionReaderProxy() {}
 
+	virtual FIntVector GetElementCount(FNiagaraSystemInstanceID SystemInstanceID) const;
+
 	/* List of proxy data for each system instances*/
 	// #todo(dmp): this should all be refactored to avoid duplicate code
 	TMap<FNiagaraSystemInstanceID, FGrid2DCollectionReaderInstanceData_RenderThread> SystemInstancesToProxyData_RT;

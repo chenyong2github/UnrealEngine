@@ -176,7 +176,7 @@ protected:
 };
 
 /** Proxy to send data to gpu */
-struct FNDIVelocityGridProxy : public FNiagaraDataInterfaceProxy
+struct FNDIVelocityGridProxy : public FNiagaraDataInterfaceProxyRW
 {
 	/** Get the size of the data that will be passed to render*/
 	virtual int32 PerInstanceDataPassedToRenderThreadSize() const override { return sizeof(FNDIVelocityGridData); }
@@ -192,6 +192,9 @@ struct FNDIVelocityGridProxy : public FNiagaraDataInterfaceProxy
 
 	/** Reset the buffers  */
 	virtual void ResetData(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceArgs& Context) override;
+
+	// Get the element count for this instance
+	virtual FIntVector GetElementCount(FNiagaraSystemInstanceID SystemInstanceID) const override;
 
 	/** List of proxy data for each system instances*/
 	TMap<FNiagaraSystemInstanceID, FNDIVelocityGridData> SystemInstancesToProxyData;
