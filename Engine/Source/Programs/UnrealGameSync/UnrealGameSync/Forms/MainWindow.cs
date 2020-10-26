@@ -107,6 +107,9 @@ namespace UnrealGameSync
 
 		public MainWindow(UpdateMonitor InUpdateMonitor, string InApiUrl, string InDataFolder, string InCacheFolder, bool bInRestoreStateOnLoad, string InOriginalExecutableFileName, bool bInUnstable, DetectProjectSettingsResult[] StartupProjects, PerforceConnection InDefaultConnection, LineBasedTextWriter InLog, UserSettings InSettings, string InUri)
 		{
+			Log = InLog;
+			Log.WriteLine("Opening Main Window for {0} projects. Last Project {1}", StartupProjects.Length, InSettings.LastProject);
+
 			InitializeComponent();
 
 			UpdateMonitor = InUpdateMonitor;
@@ -118,7 +121,7 @@ namespace UnrealGameSync
 			OriginalExecutableFileName = InOriginalExecutableFileName;
 			bUnstable = bInUnstable;
 			DefaultConnection = InDefaultConnection;
-			Log = InLog;
+	
 			Settings = InSettings;
 
 			// While creating tab controls during startup, we need to prevent layout calls resulting in the window handle being created too early. Disable layout calls here.
@@ -145,6 +148,7 @@ namespace UnrealGameSync
 				}
 				else if(StartupProject.ErrorMessage != null)
 				{
+					Log.WriteLine("StartupProject Error: {0}", StartupProject.ErrorMessage);
 					CreateErrorPanel(-1, StartupProject.Task.SelectedProject, StartupProject.ErrorMessage);
 				}
 
@@ -435,13 +439,12 @@ namespace UnrealGameSync
 				if (ExistingWorkspace != null)
 				{
 					IssueMonitor IssueMonitor = ExistingWorkspace.GetIssueMonitor();
-					if (IssueMonitor != null)
+					if (IssueMonitor != null && (DeploymentSettings.UrlHandleIssueApi == null || String.Compare(IssueMonitor.ApiUrl, DeploymentSettings.UrlHandleIssueApi, StringComparison.OrdinalIgnoreCase) == 0))
 					{
 						IssueMonitor.AddRef();
 						try
 						{
 							IssueData Issue = RESTApi.GET<IssueData>(IssueMonitor.ApiUrl, String.Format("issues/{0}", IssueId));
-							Issue.Builds = RESTApi.GET<List<IssueBuildData>>(IssueMonitor.ApiUrl, String.Format("issues/{0}/builds", IssueId));
 							ExistingWorkspace.ShowIssueDetails(Issue);
 							return new AutomationRequestOutput(AutomationRequestResult.Ok);
 						}
@@ -716,15 +719,18 @@ namespace UnrealGameSync
 
 		public void ShowAndActivate()
 		{
-			Show();
-			if(WindowState == FormWindowState.Minimized)
+			if (!IsDisposed)
 			{
-				WindowState = FormWindowState.Normal;
-			}
-			Activate();
+				Show();
+				if (WindowState == FormWindowState.Minimized)
+				{
+					WindowState = FormWindowState.Normal;
+				}
+				Activate();
 
-			Settings.bWindowVisible = Visible;
-			Settings.Save();
+				Settings.bWindowVisible = Visible;
+				Settings.Save();
+			}
 		}
 
 		public bool CanPerformUpdate()
@@ -1206,18 +1212,33 @@ namespace UnrealGameSync
 
 		string GetTabName(WorkspaceControl Workspace)
 		{
-			switch(Settings.TabLabels)
+			string TabName = "";
+			switch (Settings.TabLabels)
 			{
 				case TabLabels.Stream:
-					return Workspace.StreamName;
+					TabName = Workspace.StreamName;
+					break;
 				case TabLabels.ProjectFile:
-					return Workspace.SelectedFileName;
+					TabName = Workspace.SelectedFileName;
+					break;
 				case TabLabels.WorkspaceName:
-					return Workspace.ClientName;
+					TabName = Workspace.ClientName;
+					break;
 				case TabLabels.WorkspaceRoot:
+					TabName = Workspace.BranchDirectoryName;
+					break;
 				default:
-					return Workspace.BranchDirectoryName;
+					break;
 			}
+
+			// if this failes, return something sensible to avoid blank tabs
+			if (string.IsNullOrEmpty(TabName))
+			{
+				Log.WriteLine("No TabName for {0} for setting {1}. Defaulting to client name", Workspace.ClientName, Settings.TabLabels.ToString());
+				TabName = Workspace.ClientName;
+			}
+
+			return TabName;
 		}
 
 		public void SetTabNames(TabLabels NewTabNames)
@@ -1578,7 +1599,7 @@ namespace UnrealGameSync
 			WorkspaceIssueMonitor WorkspaceIssueMonitor = WorkspaceIssueMonitors.FirstOrDefault(x => String.Compare(x.IssueMonitor.ApiUrl, ApiUrl, StringComparison.OrdinalIgnoreCase) == 0 && String.Compare(x.IssueMonitor.UserName, UserName, StringComparison.OrdinalIgnoreCase) == 0);
 			if (WorkspaceIssueMonitor == null)
 			{
-				string ServerId = Regex.Replace(ApiUrl, @"^.*://", "");
+				string ServerId = ApiUrl != null ? Regex.Replace(ApiUrl, @"^.*://", "") : "noserver";
 				ServerId = Regex.Replace(ServerId, "[^a-zA-Z.]", "+");
 
 				string LogFileName = Path.Combine(DataFolder, String.Format("IssueMonitor-{0}-{1}.log", ServerId, UserName));

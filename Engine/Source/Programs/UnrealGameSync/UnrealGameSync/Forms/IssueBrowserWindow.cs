@@ -7,7 +7,9 @@ using System.Data;
 using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -24,14 +26,14 @@ namespace UnrealGameSync
 		string CurrentStream;
 		int MaxResults = 0;
 		int PendingMaxResults = 0;
-		string FilterProjectName;
-		List<string> ProjectNames = new List<string>();
+		string FilterName;
+		Dictionary<string, Func<IssueData, bool>> CustomFilters = new Dictionary<string, Func<IssueData, bool>>();
 		List<IssueData> Issues = new List<IssueData>();
 		SynchronizationContext MainThreadSynchronizationContext;
 		Thread BackgroundThread;
 		bool bDisposed;
 
-		public IssueBrowserWindow(IssueMonitor IssueMonitor, string ServerAndPort, string UserName, TimeSpan? ServerTimeOffset, TextWriter Log, string CurrentStream, string FilterProjectName)
+		public IssueBrowserWindow(IssueMonitor IssueMonitor, string ServerAndPort, string UserName, TimeSpan? ServerTimeOffset, TextWriter Log, string CurrentStream, Dictionary<string, Func<IssueData, bool>> CustomFilters, string FilterName)
 		{
 			this.IssueMonitor = IssueMonitor;
 			this.ServerAndPort = ServerAndPort;
@@ -39,7 +41,8 @@ namespace UnrealGameSync
 			this.ServerTimeOffset = ServerTimeOffset;
 			this.Log = Log;
 			this.CurrentStream = CurrentStream;
-			this.FilterProjectName = FilterProjectName;
+			this.FilterName = FilterName;
+			this.CustomFilters = CustomFilters;
 			this.MainThreadSynchronizationContext = SynchronizationContext.Current;
 
 			IssueMonitor.AddRef();
@@ -88,7 +91,21 @@ namespace UnrealGameSync
 		{
 			try
 			{
-				List<IssueData> NewIssues = RESTApi.GET<List<IssueData>>(IssueMonitor.ApiUrl, String.Format("issues?includeresolved=true&maxresults={0}", NewMaxResults));
+				SortedDictionary<int, IssueData> NewSortedIssues = new SortedDictionary<int, IssueData>();
+
+				List<IssueData> OpenIssues = RESTApi.GET<List<IssueData>>(IssueMonitor.ApiUrl, "issues");
+				foreach (IssueData OpenIssue in OpenIssues)
+				{
+					NewSortedIssues[(int)OpenIssue.Id] = OpenIssue;
+				}
+
+				List<IssueData> ResolvedIssues = RESTApi.GET<List<IssueData>>(IssueMonitor.ApiUrl, String.Format("issues?includeresolved=true&maxresults={0}", NewMaxResults));
+				foreach (IssueData ResolvedIssue in ResolvedIssues)
+				{
+					NewSortedIssues[(int)ResolvedIssue.Id] = ResolvedIssue;
+				}
+
+				List<IssueData> NewIssues = NewSortedIssues.Values.Reverse().ToList();
 				MainThreadSynchronizationContext.Post((o) => { if (!bDisposed) { FetchIssuesSuccess(NewMaxResults, NewIssues); } }, null);
 			}
 			catch(Exception Ex)
@@ -103,7 +120,6 @@ namespace UnrealGameSync
 
 			// Update the list of project names
 			Issues = NewIssues;
-			ProjectNames = NewIssues.SelectMany(x => x.Projects).Distinct().OrderBy(x => x).ToList();
 			UpdateIssueList();
 
 			BackgroundThread = null;
@@ -141,12 +157,23 @@ namespace UnrealGameSync
 			DateTime Now = DateTime.Now;
 			DateTime Midnight = (Now - Now.TimeOfDay).ToUniversalTime();
 
+			// Get the regex for the selected filter
+			Func<IssueData, bool> Filter;
+			if (String.IsNullOrEmpty(FilterName))
+			{
+				Filter = x => true;
+			}
+			else if (!CustomFilters.TryGetValue(FilterName, out Filter))
+			{
+				Filter = x => x.Streams == null || x.Streams.Any(y => String.Equals(y, FilterName, StringComparison.OrdinalIgnoreCase));
+			}
+
 			// Update the table
 			int ItemIdx = 0;
 			IssueListView.BeginUpdate();
 			foreach(IssueData Issue in Issues)
 			{
-				if(FilterProjectName == null || Issue.Projects.Contains(FilterProjectName))
+				if(Filter(Issue))
 				{
 					for(;;)
 					{
@@ -184,7 +211,12 @@ namespace UnrealGameSync
 			IssueListView.EndUpdate();
 
 			// Update the maximum number of results
-			StatusLabel.Text = (IssueListView.Items.Count == Issues.Count)? String.Format("Showing {0} results matching project '{1}'.", Issues.Count, FilterProjectName) : String.Format("Showing {0}/{1} results matching project '{2}'.", IssueListView.Items.Count, Issues.Count, FilterProjectName);
+			string FilterText = "";
+			if(!String.IsNullOrEmpty(FilterName))
+			{
+				FilterText = String.Format(" matching filter '{0}'", FilterName);
+			}
+			StatusLabel.Text = (IssueListView.Items.Count == Issues.Count)? String.Format("Showing {0} results{1}.", Issues.Count, FilterText) : String.Format("Showing {0}/{1} results{2}.", IssueListView.Items.Count, Issues.Count, FilterText);
 		}
 
 		void IssueList_InsertItem(int ItemIdx, IssueData Issue, DateTime Midnight)
@@ -202,9 +234,9 @@ namespace UnrealGameSync
 		void IssueList_UpdateItem(ListViewItem Item, IssueData Issue, DateTime Midnight)
 		{
 			Item.SubItems[IdHeader.Index].Text = Issue.Id.ToString();
-			Item.SubItems[ProjectHeader.Index].Text = String.Join(", ", Issue.Projects);
 			Item.SubItems[CreatedHeader.Index].Text = FormatIssueDateTime(Issue.CreatedAt.ToLocalTime(), Midnight);
 			Item.SubItems[ResolvedHeader.Index].Text = Issue.ResolvedAt.HasValue ? FormatIssueDateTime(Issue.ResolvedAt.Value.ToLocalTime(), Midnight) : "Unresolved";
+			Item.SubItems[TimeToFixHeader.Index].Text = Issue.ResolvedAt.HasValue ? Utility.FormatDurationMinutes(Issue.ResolvedAt.Value - Issue.CreatedAt) : "-";
 			Item.SubItems[OwnerHeader.Index].Text = (Issue.Owner == null) ? "-" : Utility.FormatUserName(Issue.Owner);
 			Item.SubItems[DescriptionHeader.Index].Text = Issue.Summary;
 		}
@@ -223,12 +255,12 @@ namespace UnrealGameSync
 
 		static List<IssueBrowserWindow> ExistingWindows = new List<IssueBrowserWindow>();
 
-		public static void Show(Form Owner, IssueMonitor IssueMonitor, string ServerAndPort, string UserName, TimeSpan? ServerTimeOffset, TextWriter Log, string CurrentStream, string FilterProjectName)
+		public static void Show(Form Owner, IssueMonitor IssueMonitor, string ServerAndPort, string UserName, TimeSpan? ServerTimeOffset, TextWriter Log, string CurrentStream, Dictionary<string, Func<IssueData, bool>> CustomFilters, string DefaultFilter)
 		{
 			IssueBrowserWindow Window = ExistingWindows.FirstOrDefault(x => x.IssueMonitor == IssueMonitor);
 			if(Window == null)
 			{
-				Window = new IssueBrowserWindow(IssueMonitor, ServerAndPort, UserName, ServerTimeOffset, Log, CurrentStream, FilterProjectName);
+				Window = new IssueBrowserWindow(IssueMonitor, ServerAndPort, UserName, ServerTimeOffset, Log, CurrentStream, CustomFilters, DefaultFilter);
 				Window.Owner = Owner;
 				Window.StartPosition = FormStartPosition.Manual;
 				Window.Location = new Point(Owner.Location.X + (Owner.Width - Window.Width) / 2, Owner.Location.Y + (Owner.Height - Window.Height) / 2);
@@ -272,14 +304,38 @@ namespace UnrealGameSync
 				FilterMenu.Items.RemoveAt(SeparatorIdx + 1);
 			}
 
-			FilterMenu_ShowAll.Checked = (FilterProjectName == null);
+			FilterMenu_ShowAll.Checked = (FilterName == null);
 
-			foreach(string ProjectName in ProjectNames)
+			if (CustomFilters.Count > 0)
 			{
-				ToolStripMenuItem Item = new ToolStripMenuItem(ProjectName);
-				Item.Checked = (FilterProjectName == ProjectName);
-				Item.Click += (S, E) => { FilterProjectName = ProjectName; UpdateIssueList(); };
-				FilterMenu.Items.Add(Item);
+				foreach (KeyValuePair<string, Func<IssueData, bool>> CustomFilter in CustomFilters.OrderBy(x => x.Key))
+				{
+					ToolStripMenuItem Item = new ToolStripMenuItem(CustomFilter.Key);
+					Item.Checked = (FilterName == CustomFilter.Key);
+					Item.Click += (S, E) => { FilterName = CustomFilter.Key; UpdateIssueList(); };
+					FilterMenu.Items.Add(Item);
+				}
+			}
+
+			HashSet<string> Streams = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+			foreach (IssueData Issue in Issues)
+			{
+				if (Issue.Streams != null)
+				{
+					Streams.UnionWith(Issue.Streams);
+				}
+			}
+
+			if (Streams.Count > 0)
+			{
+				FilterMenu.Items.Add(new ToolStripSeparator());
+				foreach (string Stream in Streams.OrderBy(x => x))
+				{
+					ToolStripMenuItem Item = new ToolStripMenuItem(Stream);
+					Item.Checked = (FilterName == Stream);
+					Item.Click += (S, E) => { FilterName = Stream; UpdateIssueList(); };
+					FilterMenu.Items.Add(Item);
+				}
 			}
 
 			FilterMenu.Show(FilterBtn, new Point(FilterBtn.Left, FilterBtn.Bottom));
@@ -287,21 +343,12 @@ namespace UnrealGameSync
 
 		private void FilterMenu_ShowAll_Click(object sender, EventArgs e)
 		{
-			FilterProjectName = null;
+			FilterName = null;
 			UpdateIssueList();
 		}
 
 		private void ShowIssue(IssueData Issue)
 		{
-			try
-			{
-				Issue.Builds = RESTApi.GET<List<IssueBuildData>>(IssueMonitor.ApiUrl, String.Format("issues/{0}/builds", Issue.Id));
-			}
-			catch(Exception Ex)
-			{
-				MessageBox.Show(Owner, Ex.ToString(), "Error querying builds", MessageBoxButtons.OK);
-				return;
-			}
 			IssueDetailsWindow.Show(Owner, IssueMonitor, ServerAndPort, UserName, ServerTimeOffset, Issue, Log, CurrentStream);
 		}
 
