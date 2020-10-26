@@ -24,11 +24,17 @@
 #include "Particles/TypeData/ParticleModuleTypeDataRibbon.h"
 #include "Curves/RichCurve.h"
 #include "NiagaraEmitter.h"
+#include "Particles/Location/ParticleModuleLocationPrimitiveCylinder.h"
+#include "Particles/Location/ParticleModuleLocationBoneSocket.h"
+#include "Particles/Orientation/ParticleModuleOrientationAxisLock.h"
+#include "Particles/Velocity/ParticleModuleVelocityInheritParent.h"
 #include "NiagaraStackGraphUtilitiesAdapterLibrary.generated.h"
 
 class UNiagaraSystem;
 class UNiagaraEmitter;
 class UNiagaraRendererProperties;
+class UNiagaraLightRendererProperties;
+class UNiagaraComponentRendererProperties;
 class UParticleEmitter;
 class UParticleLODLevel;
 class UParticleModule;
@@ -37,10 +43,10 @@ class FNiagaraSystemViewModel;
 class UNiagaraClipboardFunction;
 class UNiagaraClipboardFunctionInput;
 class UDistributionFloat;
+class UNiagaraDataInterfaceSkeletalMesh;
 
 struct FParticleBurst;
 struct FNiagaraMeshMaterialOverride;
-struct FRichCurveKey;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////	Enums																									  /////
@@ -286,6 +292,20 @@ struct FRichCurveKeyBP : public FRichCurveKey
 	FRichCurveKey ToBase() const { return FRichCurveKey(Time, Value, ArriveTangent, LeaveTangent, InterpMode); };
 
 	static TArray<FRichCurveKey> KeysToBase(const TArray<FRichCurveKeyBP>& InKeyBPs);
+};
+
+USTRUCT(BlueprintInternalUseOnly)
+struct FLocationBoneSocketInfoBP : public FLocationBoneSocketInfo
+{
+	GENERATED_BODY()
+
+	FLocationBoneSocketInfoBP()
+		:FLocationBoneSocketInfo()
+	{};
+
+	FLocationBoneSocketInfoBP(const FLocationBoneSocketInfo& Other)
+		:FLocationBoneSocketInfo(Other)
+	{};
 };
 
 USTRUCT(BlueprintInternalUseOnly)
@@ -551,15 +571,15 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
 	void AddModuleScript(
-		UNiagaraScriptConversionContext* ScriptConversionContext
-		, FString ScriptNameString
+		FString ScriptNameString
+		, UNiagaraScriptConversionContext* ScriptConversionContext
 		, EScriptExecutionCategory ModuleScriptExecutionCategory
 	);
 
 	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
 	void AddModuleEventScript(
-		UNiagaraScriptConversionContext* ScriptConversionContext
-		, FString ScriptNameString
+		FString ScriptNameString
+		, UNiagaraScriptConversionContext* ScriptConversionContext
 		, FNiagaraEventHandlerAddAction EventScriptProps
 	);
 
@@ -580,6 +600,9 @@ public:
 	/** Find an added renderer properties by name string. */
 	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
 	UNiagaraRendererProperties* FindRenderer(FString RendererNameString);
+
+	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
+	TArray<UNiagaraRendererProperties*> GetAllRenderers();
 
 	/**
 	 * Log a message to the niagara message log for the emitter.
@@ -627,6 +650,12 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
 	void AddEventHandler(FNiagaraEventHandlerAddAction EventScriptPropertiesBP);
+
+	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
+	void SetRendererBinding(UNiagaraRendererProperties* InRendererProperties, FName BindingName, FName VariableToBindName, ENiagaraRendererSourceDataMode SourceDataMode);
+
+	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
+	void RemoveModuleScriptsForAssets(TArray<FAssetData> ScriptsToRemove);
 
 private:
 	UNiagaraEmitter* Emitter;
@@ -686,10 +715,10 @@ public:
 	void Log(FString Message, ENiagaraMessageSeverity Severity, bool bIsVerbose = false);
 
 	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
-	void SetEnabled(bool bInEnabled) {bEnabled = bInEnabled;};
+	void SetModuleEnabled(bool bInModuleEnabled) {bModuleEnabled = bInModuleEnabled;};
 
 	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
-	bool GetEnabled() const {return bEnabled;};
+	bool GetModuleEnabled() const {return bModuleEnabled;};
 
 	const TArray<const UNiagaraClipboardFunctionInput*>& GetClipboardFunctionInputs() { return FunctionInputs; };
 
@@ -710,7 +739,7 @@ private:
 	// Map of input variable names to their type defs for verifying inputs.
 	TMap<FString, FNiagaraTypeDefinition> InputNameToTypeDefMap;
 
-	bool bEnabled;
+	bool bModuleEnabled;
 };
 
 /** Wrapper for setting the value on a parameter of a UNiagaraScript, applied through a UNiagaraScriptConversionContext. */
@@ -814,16 +843,23 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
 	static UNiagaraScriptConversionContextInput* CreateScriptInputBool(bool Value);
 
-
-	// Niagara Renderer Properties Helpers
 	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
 	static UNiagaraRibbonRendererProperties* CreateRibbonRendererProperties();
 
 	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
 	static UNiagaraMeshRendererProperties* CreateMeshRendererProperties();
 
+	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
+	static UNiagaraLightRendererProperties* CreateLightRendererProperties();
+
+	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
+	static UNiagaraComponentRendererProperties* CreateComponentRendererProperties();
+
 
 	// Niagara DI Helpers
+	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
+	static UNiagaraDataInterfaceSkeletalMesh* CreateSkeletalMeshDataInterface();
+
 	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
 	static UNiagaraDataInterfaceCurve* CreateFloatCurveDI(TArray<FRichCurveKeyBP> Keys);
 
@@ -916,6 +952,21 @@ public:
 	);
 
 	UFUNCTION(BlueprintCallable, meta = (ScriptMethod), Category = "FXConverterUtilities")
+	static void GetParticleModuleSpawnPerUnitProps(
+		UParticleModuleSpawnPerUnit* ParticleModule
+		, float& OutUnitScalar
+		, float& OutMovementTolerance
+		, UDistribution*& OutSpawnPerUnit
+		, float& OutMaxFrameDistance
+		, bool& bOutIgnoreSpawnRateWhenMoving
+		, bool& bOutIgnoreMovementAlongX
+		, bool& bOutIgnoreMovementAlongY
+		, bool& bOutIgnoreMovementAlongZ
+		, bool& bOutProcessSpawnRate
+		, bool& bOutProcessBurstList
+	);
+
+	UFUNCTION(BlueprintCallable, meta = (ScriptMethod), Category = "FXConverterUtilities")
 	static void GetParticleModuleRequiredPerRendererProps(
 		  UParticleModuleRequired* ParticleModuleRequired
 		, UMaterialInterface*& OutMaterialInterface
@@ -930,6 +981,7 @@ public:
 		, UTexture2D*& OutCutoutTexture
 		, TEnumAsByte<ESubUVBoundingVertexCount>& OutBoundingMode
 		, TEnumAsByte<EOpacitySourceMode>& OutOpacitySourceMode
+		, TEnumAsByte< EEmitterNormalsMode>& OutEmitterNormalsMode
 		, float& OutAlphaThreshold
 	);
 
@@ -980,10 +1032,62 @@ public:
 	static void GetParticleModuleVelocityProps(UParticleModuleVelocity* ParticleModule, UDistribution*& OutStartVelocity, UDistribution*& OutStartVelocityRadial, bool& bOutInWorldSpace, bool& bOutApplyOwnerScale);
 
 	UFUNCTION(BlueprintCallable, meta = (ScriptMethod), Category = "FXConverterUtilities")
+	static void GetParticleModuleVelocityOverLifetimeProps(
+		UParticleModuleVelocityOverLifetime* ParticleModule
+		, UDistribution*& OutVelOverLife
+		, bool& bOutAbsolute
+		, bool& bOutInWorldSpace
+		, bool& bOutApplyOwnerScale
+	);
+
+	UFUNCTION(BlueprintCallable, meta = (ScriptMethod), Category = "FXConverterUtilities")
 	static void GetParticleModuleConstantAccelerationProps(UParticleModuleAccelerationConstant* ParticleModule, FVector& OutConstAcceleration);
 
 	UFUNCTION(BlueprintCallable, meta = (ScriptMethod), Category = "FXConverterUtilities")
-	static void GetParticleModuleLocationPrimitiveSphereProps(UParticleModuleLocationPrimitiveSphere* ParticleModule, UDistribution*& OutStartRadius);
+	static void GetParticleModuleLocationPrimitiveSphereProps(
+		UParticleModuleLocationPrimitiveSphere* ParticleModule
+		, UDistribution*& OutStartRadius
+		, bool& bOutPositiveX
+		, bool& bOutPositiveY
+		, bool& bOutPositiveZ
+		, bool& bOutNegativeX
+		, bool& bOutNegativeY
+		, bool& bOutNegativeZ
+		, bool& bOutSurfaceOnly
+		, bool& bOutVelocity
+		, UDistribution*& OutVelocityScale
+		, UDistribution*& OutStartLocation
+	);
+
+	UFUNCTION(BlueprintCallable, meta = (ScriptMethod), Category = "FXConverterUtilities")
+	static void GetParticleModuleLocationPrimitiveCylinderProps(
+		UParticleModuleLocationPrimitiveCylinder* ParticleModule
+		, bool& bOutRadialVelocity
+		, UDistribution*& OutStartRadius
+		, UDistribution*& OutStartHeight
+		, TEnumAsByte<CylinderHeightAxis>& OutHeightAxis
+		, bool& bOutPositiveX
+		, bool& bOutPositiveY
+		, bool& bOutPositiveZ
+		, bool& bOutNegativeX
+		, bool& bOutNegativeY
+		, bool& bOutNegativeZ
+		, bool& bOutSurfaceOnly
+		, bool& bOutVelocity
+		, UDistribution*& OutVelocityScale
+		, UDistribution*& OutStartLocation
+	);
+	
+	UFUNCTION(BlueprintCallable, meta = (ScriptMethod), Category = "FXConverterUtilities")
+	static void GetParticleModuleOrientationAxisLockProps(UParticleModuleOrientationAxisLock* ParticleModule, TEnumAsByte<EParticleAxisLock>& OutLockAxisFlags);
+	
+	UFUNCTION(BlueprintCallable, meta = (ScriptMethod), Category = "FXConverterUtilities")
+	static void GetParticleModuleVelocityInheritParentProps(
+		UParticleModuleVelocityInheritParent* ParticleModule
+		, UDistribution*& OutScale
+		, bool& bOutInWorldSpace
+		, bool& bOutApplyOwnerScale
+	);
 
 	UFUNCTION(BlueprintCallable, meta = (ScriptMethod), Category = "FXConverterUtilities")
 	static void GetParticleModuleMeshRotationProps(UParticleModuleMeshRotation* ParticleModule, UDistribution*& OutStartRotation, bool& bOutInheritParentRotation);
@@ -1009,6 +1113,9 @@ public:
 		, bool& bOutIgnoreSourceActor
 		, float& OutMaxCollisionDistance
 	);
+
+	UFUNCTION(BlueprintCallable, meta = (ScriptMethod), Category = "FXConverterUtilities")
+	static void GetParticleModuleSizeScaleProps(UParticleModuleSizeScale* ParticleModule, UDistribution*& OutSizeScale);
 
 	UFUNCTION(BlueprintCallable, meta = (ScriptMethod), Category = "FXConverterUtilities")
 	static void GetParticleModuleSizeScaleBySpeedProps(UParticleModuleSizeScaleBySpeed* ParticleModule, FVector2D& OutSpeedScale, FVector2D& OutMaxScale);
@@ -1067,6 +1174,18 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
 	static void GetParticleModuleRotationRateProps(UParticleModuleRotationRate* ParticleModule, UDistribution*& OutStartRotationRate);
 	
+	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
+	static void GetParticleModuleMeshRotationRateProps(UParticleModuleMeshRotationRate* ParticleModule, UDistribution*& OutStartRotationRate);
+	
+	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
+	static void GetParticleModuleRotationOverLifetimeProps(UParticleModuleRotationOverLifetime* ParticleModule, UDistribution*& OutRotationOverLife, bool& bOutScale);
+
+	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
+	static void GetParticleModuleMeshRotationRateMultiplyLifeProps(UParticleModuleMeshRotationRateMultiplyLife* ParticleModule, UDistribution*& OutLifeMultiplier);
+	
+	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
+	static void GetParticleModulePivotOffsetProps(UParticleModulePivotOffset* ParticleModule, FVector2D& OutPivotOffset);
+
 	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
 	static void GetParticleModuleSubUVProps(
 		UParticleModuleSubUV* ParticleModule
@@ -1173,6 +1292,22 @@ public:
 		, float& OutDistributeOverNPoints
 		, float& OutDistributeThreshold
 	);
+
+	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
+	static void GetParticleModuleLocationBoneSocketProps(
+		UParticleModuleLocationBoneSocket* ParticleModule
+		, TEnumAsByte<ELocationBoneSocketSource>& OutSourceType
+		, FVector& OutUniversalOffset
+		, TArray<FLocationBoneSocketInfoBP>& OutSourceLocations
+		, TEnumAsByte<ELocationBoneSocketSelectionMethod>& OutSelectionMethod
+		, bool& bOutUpdatePositionEachFrame
+		, bool& bOutOrientMeshEmitters
+		, bool& bOutInheritBoneVelocity
+		, float& OutInheritVelocityScale
+		, FName& OutSkelMeshActorParamName
+		, int32& OutNumPreSelectedIndices
+		, USkeletalMesh*& OutEditorSkelMesh
+	);
 	
 	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
 	static void GetParticleModuleKillBoxProps(
@@ -1201,6 +1336,11 @@ public:
 		, bool& bOutShadowCastingLights
 	);
 	
+	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
+	static void GetParticleModuleMeshMaterialProps(UParticleModuleMeshMaterial* ParticleModule, TArray<UMaterialInterface*>& OutMeshMaterials);
+	
+	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
+	static void SetMeshRendererMaterialOverridesFromCascade(UNiagaraMeshRendererProperties* MeshRendererProps, TArray<UMaterialInterface*> MeshMaterials);
 	
 	// Cascade Distribution Getters
 	UFUNCTION(BlueprintCallable, meta = (ScriptMethod), Category = "FXConverterUtilities")
@@ -1208,13 +1348,18 @@ public:
 		UDistribution* Distribution,
 		bool& bOutSuccess,
 		FVector& OutMinValue,
-		FVector& OutMaxValue);
+		FVector& OutMaxValue
+	);
 
+	UFUNCTION(BlueprintCallable, meta = (ScriptMethod), Category = "FXConverterUtilities")
+	static TArray<TEnumAsByte<EDistributionVectorLockFlags>> GetDistributionLockedAxes(UDistribution* Distribution);
+	
 	UFUNCTION(BlueprintCallable, meta = (ScriptMethod), Category = "FXConverterUtilities")
 	static void GetDistributionType(
 		UDistribution* Distribution
 		, EDistributionType& OutDistributionType
-		, EDistributionValueType& OutCascadeDistributionValueType);
+		, EDistributionValueType& OutCascadeDistributionValueType
+	);
 
 	UFUNCTION(BlueprintCallable, meta = (ScriptMethod), Category = "FXConverterUtilities")
 	static void GetFloatDistributionConstValues(UDistributionFloatConstant* Distribution, float& OutConstFloat);
@@ -1263,4 +1408,42 @@ public:
 
 	// Code only utilities
 	static FName GetNiagaraScriptInputTypeName(ENiagaraScriptInputType InputType);
+
+private:
+	// Internal cascade module getters
+	static void GetParticleModuleLocationPrimitiveBaseProps(
+		UParticleModuleLocationPrimitiveBase* ParticleModule
+		, bool& bOutPositiveX
+		, bool& bOutPositiveY
+		, bool& bOutPositiveZ
+		, bool& bOutNegativeX
+		, bool& bOutNegativeY
+		, bool& bOutNegativeZ
+		, bool& bOutSurfaceOnly
+		, bool& bOutVelocity
+		, UDistribution*& OutVelocityScale
+		, UDistribution*& OutStartLocation
+	);
+};
+
+/**
+* Wrapper class for passing results back from the ConvertCascadeToNiagara python script.
+*/
+UCLASS(BlueprintType)
+class UConvertCascadeToNiagaraResults : public UObject
+{
+	GENERATED_BODY()
+
+public:
+	UFUNCTION()
+		void Init() { bCancelledByUser = false; bCancelledByPythonError = true; };
+
+public:
+	// Whether the converter process was cancelled by the user.
+	UPROPERTY(BlueprintReadWrite, Category = "Results")
+		bool bCancelledByUser;
+
+	// Whether the converter process was cancelled due to an unrecoverable error in the python script process.
+	UPROPERTY(BlueprintReadWrite, Category = "Results")
+		bool bCancelledByPythonError;
 };

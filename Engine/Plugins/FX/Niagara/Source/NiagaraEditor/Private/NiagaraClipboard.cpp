@@ -293,6 +293,17 @@ UNiagaraClipboardFunctionInput* UNiagaraClipboardEditorScriptingUtilities::Creat
 	return const_cast<UNiagaraClipboardFunctionInput*>(CreateLocalValue(InOuter, InInputName, InputType, bInHasEditCondition, bInEditConditionValue, IntValue));
 }
 
+UNiagaraClipboardFunctionInput* UNiagaraClipboardEditorScriptingUtilities::CreateBoolLocalValueInput(UObject* InOuter, FName InInputName, bool bInHasEditCondition, bool bInEditConditionValue, bool InBoolValue)
+{
+	FNiagaraTypeDefinition InputType = FNiagaraTypeDefinition::GetBoolDef();
+	const int32 BoolAsIntValue = InBoolValue ? 1 : 0;
+	TArray<uint8> IntValue;
+	IntValue.AddUninitialized(InputType.GetSize());
+	FMemory::Memcpy(IntValue.GetData(), &BoolAsIntValue, InputType.GetSize());
+
+	return const_cast<UNiagaraClipboardFunctionInput*>(CreateLocalValue(InOuter, InInputName, InputType, bInHasEditCondition, bInEditConditionValue, IntValue));
+}
+
 UNiagaraClipboardFunctionInput* UNiagaraClipboardEditorScriptingUtilities::CreateStructLocalValueInput(UObject* InOuter, FName InInputName, bool bInHasEditCondition, bool bInEditConditionValue, UUserDefinedStruct* InStructValue)
 {
 	FNiagaraTypeDefinition InputType = FNiagaraTypeDefinition(InStructValue);
