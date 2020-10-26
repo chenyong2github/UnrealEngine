@@ -137,12 +137,15 @@ private:
 	TArrayCollectionArray<uint32> MParticleGroupIds;  // Used for per group parameters for particles
 
 	TArrayCollectionArray<FGravityForces> MGroupGravityForces;
+	TArrayCollectionArray<FVelocityField> MGroupVelocityFields;
 	TArrayCollectionArray<TFunction<void(TPBDParticles<T, d>&, const T, const int32)>> MGroupForceRules;
 	TArrayCollectionArray<T> MGroupCollisionThicknesses;
 	TArrayCollectionArray<T> MGroupSelfCollisionThicknesses;
 	TArrayCollectionArray<T> MGroupCoefficientOfFrictions;
 	TArrayCollectionArray<T> MGroupDampings;
-	TArrayCollectionArray<FVelocityField> MGroupVelocityFields;
+	TArrayCollectionArray<TVector<T, d>> MGroupCenterOfMass;
+	TArrayCollectionArray<TVector<T, d>> MGroupVelocity;
+	TArrayCollectionArray<TVector<T, d>> MGroupAngularVelocity;
 	
 	TArray<TFunction<void()>> MConstraintInits;
 	TPBDActiveView<TArray<TFunction<void()>>> MConstraintInitsActiveView;
