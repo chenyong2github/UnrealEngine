@@ -1025,6 +1025,7 @@ PARTY_DECLARE_DELEGATETYPE(OnPartyInviteRequestReceived);
 
 /**
  * Notification when a new invite is received
+ * Deprecated - Use OnPartyInviteReceivedEx
  * @param LocalUserId id associated with this notification
  * @param PartyId id associated with the party
  * @param SenderId id of member that sent the invite
@@ -1033,7 +1034,16 @@ DECLARE_MULTICAST_DELEGATE_ThreeParams(F_PREFIX(OnPartyInviteReceived), const FU
 PARTY_DECLARE_DELEGATETYPE(OnPartyInviteReceived);
 
 /**
+ * Notification when a new invite is received
+ * @param LocalUserId id associated with this notification
+ * @param Invitation the invitation that was received
+ */
+DECLARE_MULTICAST_DELEGATE_TwoParams(F_PREFIX(OnPartyInviteReceivedEx), const FUniqueNetId& /*LocalUserId*/, const IOnlinePartyJoinInfo& /*Invitation*/);
+PARTY_DECLARE_DELEGATETYPE(OnPartyInviteReceivedEx);
+
+/**
  * Notification when an invite has been removed
+ * Deprecated - Use OnPartyInviteRemovedEx
  * @param LocalUserId id associated with this notification
  * @param PartyId id associated with the party
  * @param SenderId id of member that sent the invite
@@ -1041,6 +1051,15 @@ PARTY_DECLARE_DELEGATETYPE(OnPartyInviteReceived);
  */
 DECLARE_MULTICAST_DELEGATE_FourParams(F_PREFIX(OnPartyInviteRemoved), const FUniqueNetId& /*LocalUserId*/, const FOnlinePartyId& /*PartyId*/, const FUniqueNetId& /*SenderId*/, EPartyInvitationRemovedReason /*Reason*/);
 PARTY_DECLARE_DELEGATETYPE(OnPartyInviteRemoved);
+
+/**
+ * Notification when an invite has been removed
+ * @param LocalUserId id associated with this notification
+ * @param Invitation the invitation that was removed
+ * @param Reason reason the invite has been removed
+ */
+DECLARE_MULTICAST_DELEGATE_ThreeParams(F_PREFIX(OnPartyInviteRemovedEx), const FUniqueNetId& /*LocalUserId*/, const IOnlinePartyJoinInfo& /*Invitation*/, EPartyInvitationRemovedReason /*Reason*/);
+PARTY_DECLARE_DELEGATETYPE(OnPartyInviteRemovedEx);
 
 /**
  * Notification when a new invite is received
@@ -1646,7 +1665,9 @@ public:
 	 * OnPartyInvitesChanged
 	 * OnPartyInviteRequestReceived
 	 * OnPartyInviteReceived
+	 * OnPartyInviteReceivedEx
 	 * OnPartyInviteRemoved
+	 * OnPartyInviteRemovedEx
 	 * OnPartyInviteResponseReceived
 	 * OnPartyJoinRequestReceived
 	 * OnPartyQueryJoinabilityReceived
@@ -1765,6 +1786,7 @@ public:
 
 	/**
 	 * Notification when a new invite is received
+	 * Deprecated - use OnPartyInviteReceivedEx
 	 * @param LocalUserId - id associated with this notification
 	 * @param PartyId - id associated with the party
 	 * @param SenderId - id of member that sent the invite
@@ -1772,13 +1794,29 @@ public:
 	DEFINE_ONLINE_DELEGATE_THREE_PARAM(OnPartyInviteReceived, const FUniqueNetId& /*LocalUserId*/, const FOnlinePartyId& /*PartyId*/, const FUniqueNetId& /*SenderId*/);
 
 	/**
+	 * Notification when a new invite is received
+	 * @param LocalUserId - id associated with this notification
+	 * @param Invitation - the invitation that was received
+	 */
+	DEFINE_ONLINE_DELEGATE_TWO_PARAM(OnPartyInviteReceivedEx, const FUniqueNetId& /*LocalUserId*/, const IOnlinePartyJoinInfo& /*Invitation*/);
+
+	/**
 	 * Notification when an invite has been removed
+	 * Deprecated Use OnPartyInviteRemovedEx
 	 * @param LocalUserId id associated with this notification
 	 * @param PartyId id associated with the party
 	 * @param SenderId id of member that sent the invite
 	 * @param Reason reason the invitation was removed
 	 */
 	DEFINE_ONLINE_DELEGATE_FOUR_PARAM(OnPartyInviteRemoved, const FUniqueNetId& /*LocalUserId*/, const FOnlinePartyId& /*PartyId*/, const FUniqueNetId& /*SenderId*/, EPartyInvitationRemovedReason /*Reason*/);
+
+	/**
+	 * Notification when an invite has been removed
+	 * @param LocalUserId id associated with this notification
+	 * @param Invitation the invitation that was removed
+	 * @param Reason reason the invitation was removed
+	 */
+	DEFINE_ONLINE_DELEGATE_THREE_PARAM(OnPartyInviteRemovedEx, const FUniqueNetId& /*LocalUserId*/, const IOnlinePartyJoinInfo& /*Invitation*/, EPartyInvitationRemovedReason /*Reason*/);
 
 	/**
 	 * Notification when an invitation response is received
