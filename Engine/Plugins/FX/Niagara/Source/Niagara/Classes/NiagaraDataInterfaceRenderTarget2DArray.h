@@ -48,7 +48,7 @@ struct FRenderTarget2DArrayRWInstanceData_RenderThread
 #endif
 };
 
-struct FNiagaraDataInterfaceProxyRenderTarget2DArrayProxy : public FNiagaraDataInterfaceProxy
+struct FNiagaraDataInterfaceProxyRenderTarget2DArrayProxy : public FNiagaraDataInterfaceProxyRW
 {
 	FNiagaraDataInterfaceProxyRenderTarget2DArrayProxy() {}
 	virtual void ConsumePerInstanceDataFromGameThread(void* PerInstanceData, const FNiagaraSystemInstanceID& Instance) override {}
@@ -59,6 +59,8 @@ struct FNiagaraDataInterfaceProxyRenderTarget2DArrayProxy : public FNiagaraDataI
 
 	virtual void ClearBuffers(FRHICommandList& RHICmdList) {}
 	virtual void PostSimulate(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceArgs& Context) override;
+
+	virtual FIntVector GetElementCount(FNiagaraSystemInstanceID SystemInstanceID) const override;
 
 	/* List of proxy data for each system instances*/
 	// #todo(dmp): this should all be refactored to avoid duplicate code

@@ -47,10 +47,12 @@ struct FRenderTargetVolumeRWInstanceData_RenderThread
 #endif
 };
 
-struct FNiagaraDataInterfaceProxyRenderTargetVolumeProxy : public FNiagaraDataInterfaceProxy
+struct FNiagaraDataInterfaceProxyRenderTargetVolumeProxy : public FNiagaraDataInterfaceProxyRW
 {
 	virtual int32 PerInstanceDataPassedToRenderThreadSize() const override { return 0; }
 	virtual void PostSimulate(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceArgs& Context) override;
+
+	virtual FIntVector GetElementCount(FNiagaraSystemInstanceID SystemInstanceID) const override;
 
 	/* List of proxy data for each system instances*/
 	// #todo(dmp): this should all be refactored to avoid duplicate code

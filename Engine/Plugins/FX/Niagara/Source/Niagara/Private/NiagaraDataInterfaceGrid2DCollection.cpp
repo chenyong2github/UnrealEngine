@@ -1578,8 +1578,6 @@ bool UNiagaraDataInterfaceGrid2DCollection::InitPerInstanceData(void* PerInstanc
 		RT_Proxy->OutputSimulationStages_DEPRECATED = RT_OutputShaderStages;
 		RT_Proxy->IterationSimulationStages_DEPRECATED = RT_IterationShaderStages;
 
-		RT_Proxy->SetElementCount(TargetData->NumCells);
-		
 		if (RT_Resource && RT_Resource->TextureRHI.IsValid())
 		{
 			TargetData->RenderTargetToCopyTo = RT_Resource->TextureRHI;
@@ -2065,8 +2063,6 @@ bool UNiagaraDataInterfaceGrid2DCollection::PerInstanceTickPostSimulate(void* Pe
 			TargetData->CurrentData = nullptr;
 			TargetData->DestinationData = nullptr;
 			
-			RT_Proxy->SetElementCount(TargetData->NumCells);
-
 			if (RT_Resource && RT_Resource->TextureRHI.IsValid())
 			{
 				TargetData->RenderTargetToCopyTo = RT_Resource->TextureRHI;
@@ -2312,4 +2308,14 @@ void FNiagaraDataInterfaceProxyGrid2DCollectionProxy::ResetData(FRHICommandList&
 		}		
 	}	
 }
+
+FIntVector FNiagaraDataInterfaceProxyGrid2DCollectionProxy::GetElementCount(FNiagaraSystemInstanceID SystemInstanceID) const
+{
+	if ( const FGrid2DCollectionRWInstanceData_RenderThread* TargetData = SystemInstancesToProxyData_RT.Find(SystemInstanceID) )
+	{
+		return FIntVector(TargetData->NumCells.X, TargetData->NumCells.Y, 1);
+	}
+	return FIntVector::ZeroValue;
+}
+
 #undef LOCTEXT_NAMESPACE

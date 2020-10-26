@@ -507,8 +507,6 @@ bool UNiagaraDataInterfaceGrid3DCollection::InitPerInstanceData(void* PerInstanc
 		RT_Proxy->OutputSimulationStages_DEPRECATED = RT_OutputShaderStages;
 		RT_Proxy->IterationSimulationStages_DEPRECATED = RT_IterationShaderStages;
 
-		RT_Proxy->SetElementCount(TargetData->NumCells);
-
 		if (RT_Resource && RT_Resource->TextureRHI.IsValid())
 		{
 			TargetData->RenderTargetToCopyTo = RT_Resource->TextureRHI;
@@ -952,4 +950,14 @@ void FNiagaraDataInterfaceProxyGrid3DCollectionProxy::ResetData(FRHICommandList&
 		}		
 	}	
 }
+
+FIntVector FNiagaraDataInterfaceProxyGrid3DCollectionProxy::GetElementCount(FNiagaraSystemInstanceID SystemInstanceID) const
+{
+	if ( const FGrid3DCollectionRWInstanceData_RenderThread* ProxyData = SystemInstancesToProxyData_RT.Find(SystemInstanceID) )
+	{
+		return ProxyData->NumCells;
+	}
+	return FIntVector::ZeroValue;
+}
+
 #undef LOCTEXT_NAMESPACE

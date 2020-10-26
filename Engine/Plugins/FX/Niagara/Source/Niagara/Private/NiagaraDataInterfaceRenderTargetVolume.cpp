@@ -385,8 +385,6 @@ bool UNiagaraDataInterfaceRenderTargetVolume::InitPerInstanceData(void* PerInsta
 #endif
 			TargetData->TextureReferenceRHI = RT_TargetTexture->TextureReference.TextureReferenceRHI;
 			TargetData->UAV.SafeRelease();
-
-			RT_Proxy->SetElementCount(TargetData->Size);
 		}
 	);
 	return true;
@@ -538,8 +536,6 @@ bool UNiagaraDataInterfaceRenderTargetVolume::PerInstanceTickPostSimulate(void* 
 #endif
 					TargetData->TextureReferenceRHI = RT_TargetTexture->TextureReference.TextureReferenceRHI;
 					TargetData->UAV.SafeRelease();
-
-					RT_Proxy->SetElementCount(TargetData->Size);
 				}
 			}
 		);
@@ -564,6 +560,15 @@ void FNiagaraDataInterfaceProxyRenderTargetVolumeProxy::PostSimulate(FRHICommand
 		}
 	}
 #endif
+}
+
+FIntVector FNiagaraDataInterfaceProxyRenderTargetVolumeProxy::GetElementCount(FNiagaraSystemInstanceID SystemInstanceID) const
+{
+	if ( const FRenderTargetVolumeRWInstanceData_RenderThread* TargetData = SystemInstancesToProxyData_RT.Find(SystemInstanceID) )
+	{
+		return TargetData->Size;
+	}
+	return FIntVector::ZeroValue;
 }
 
 #undef LOCTEXT_NAMESPACE
