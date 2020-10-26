@@ -1197,10 +1197,21 @@ namespace UnrealBuildTool
 			StringBuilder OutFile = new StringBuilder();
 			if (!IncludeAllFiles)
 			{
-				string WorkspaceRoot = UnrealBuildTool.RootDirectory.ToString().Replace('\\', '/');
+				// TODO: Adding ignore patterns to .ignore hides files from Open File Dialog but it does not hide them in the File Explorer
+				// but using files.exclude with our full set of excludes breaks vscode for larger code bases so a verbose file explorer
+				// seems like less of an issue and thus we are not adding these to files.exclude.
+				// see https://github.com/microsoft/vscode/issues/109380 for discussions with vscode team
+				DirectoryReference WorkspaceRoot = bForeignProject ? Projects[0].BaseDir : UnrealBuildTool.RootDirectory;
+				string WorkspaceRootPath = WorkspaceRoot.ToString().Replace('\\', '/') + "/";
+
+				if (!bForeignProject)
+				{
+					OutFile.AppendLine(".vscode");
+				}
+
 				foreach (string PathToExclude in PathsToExclude)
 				{
-					OutFile.AppendLine(PathToExclude.Replace('\\', '/').Replace(WorkspaceRoot, ""));
+					OutFile.AppendLine(PathToExclude.Replace('\\', '/').Replace(WorkspaceRootPath, ""));
 				}
 			}
 			FileReference.WriteAllText(FileReference.Combine(MasterProjectPath, ".ignore"), OutFile.ToString());
