@@ -79,22 +79,34 @@ uint8 GetNearestSupportedSwapchainFormat(XrSession InSession, uint8 RequestedFor
 		return RequestedFormat;
 	}
 
-	// Search for an 8bpc fallback format in order of preference (first element in the array has the high preference).
+	// Search for a fallback format in order of preference (first element in the array has the highest preference).
 	uint8 FallbackFormat = 0;
 	uint32 FallbackPlatformFormat = 0;
 	for (int64_t Format : Formats)
 	{
-		if (Format == ToPlatformFormat(PF_B8G8R8A8))
+		if (RequestedFormat == PF_DepthStencil)
 		{
-			FallbackFormat = PF_B8G8R8A8;
-			FallbackPlatformFormat = Format;
-			break;
+			if (Format == ToPlatformFormat(PF_D24))
+			{
+				FallbackFormat = PF_D24;
+				FallbackPlatformFormat = Format;
+				break;
+			}
 		}
-		else if (Format == ToPlatformFormat(PF_R8G8B8A8))
+		else
 		{
-			FallbackFormat = PF_R8G8B8A8;
-			FallbackPlatformFormat = Format;
-			break;
+			if (Format == ToPlatformFormat(PF_B8G8R8A8))
+			{
+				FallbackFormat = PF_B8G8R8A8;
+				FallbackPlatformFormat = Format;
+				break;
+			}
+			else if (Format == ToPlatformFormat(PF_R8G8B8A8))
+			{
+				FallbackFormat = PF_R8G8B8A8;
+				FallbackPlatformFormat = Format;
+				break;
+			}
 		}
 	}
 
