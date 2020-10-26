@@ -917,7 +917,7 @@ static void ConvertToNEWHeader(FOLDVulkanCodeHeader& OLDHeader,
 						FVulkanShaderHeader::FPackedGlobalInfo& PackedGlobalInfo = OutHeader.PackedGlobals[HeaderPackedGlobalIndex];
 						PackedGlobalInfo.PackedTypeIndex = CrossCompiler::PackedTypeNameToTypeIndex(OLDHeader.NEWPackedUBToVulkanBindingIndices[BufferIndex].TypeName);
 						PackedGlobalInfo.PackedUBIndex = BufferIndex;
-						check(Size > 0);
+						checkf(Size > 0, TEXT("Assertion failed for shader parameter: %s"), *ParameterName);
 						PackedGlobalInfo.ConstantDataSizeInFloats = Size / sizeof(float);
 #if VULKAN_ENABLE_BINDING_DEBUG_NAMES
 						PackedGlobalInfo.DebugName = ParameterName;
@@ -995,7 +995,7 @@ static void ConvertToNEWHeader(FOLDVulkanCodeHeader& OLDHeader,
 			FVulkanShaderHeader::EAttachmentType::Color6,
 			FVulkanShaderHeader::EAttachmentType::Color7
 		};
-				
+
 		uint32 InputAttachmentsMask = BindingTable.InputAttachmentsMask;
 		for (int32 Index = 0; InputAttachmentsMask != 0; ++Index, InputAttachmentsMask>>=1)
 		{
@@ -1003,7 +1003,7 @@ static void ConvertToNEWHeader(FOLDVulkanCodeHeader& OLDHeader,
 			{
 				continue;
 			}
-						
+
 			const FString& AttachmentName = VULKAN_SUBPASS_FETCH_VAR_W[Index];
 			const FVulkanBindingTable::FBinding* Found = BindingTable.GetBindings().FindByPredicate([&AttachmentName](const FVulkanBindingTable::FBinding& Entry)
 				{
@@ -1856,11 +1856,13 @@ static bool CompileWithHlslcc(const FString& PreprocessedShader, FVulkanBindingT
 
 #if PLATFORM_MAC || PLATFORM_WINDOWS || PLATFORM_LINUX
 
+// Container structure for all SPIR-V reflection resources and in/out attributes.
 struct FSpirvReflectionBindings
 {
 	TArray<SpvReflectInterfaceVariable*> InputAttributes;
 	TArray<SpvReflectInterfaceVariable*> OutputAttributes;
 	TSet<SpvReflectDescriptorBinding*> AtomicCounters;
+	TArray<SpvReflectDescriptorBinding*> InputAttachments; // for subpass inputs
 	TArray<SpvReflectDescriptorBinding*> UniformBuffers;
 	TArray<SpvReflectDescriptorBinding*> Samplers;
 	TArray<SpvReflectDescriptorBinding*> TextureSRVs;
@@ -1898,6 +1900,133 @@ static bool ParseSemanticIndex(const ANSICHAR* InSemanticName, int32& OutSemanti
 	}
 
 	return false;
+}
+
+static void GatherSpirvReflectionBindingEntry(SpvReflectDescriptorBinding* InBinding, FSpirvReflectionBindings& OutBindings)
+{
+	switch (InBinding->resource_type)
+	{
+	case SPV_REFLECT_RESOURCE_FLAG_SAMPLER:
+	{
+		// Gather sampler states (i.e. SamplerState or SamplerComparisonState)
+		check(InBinding->descriptor_type == SPV_REFLECT_DESCRIPTOR_TYPE_SAMPLER);
+		if (InBinding->accessed)
+		{
+			OutBindings.Samplers.Add(InBinding);
+		}
+		break;
+	}
+	case SPV_REFLECT_RESOURCE_FLAG_CBV:
+	{
+		// Gather constant buffers (i.e. cbuffer or ConstantBuffer<T>).
+		check(InBinding->descriptor_type == SPV_REFLECT_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+		if (InBinding->accessed)
+		{
+			OutBindings.UniformBuffers.Add(InBinding);
+		}
+		break;
+	}
+	case SPV_REFLECT_RESOURCE_FLAG_SRV:
+	{
+		// Gather SRV resources (e.g. Buffer, StructuredBuffer, Texture2D etc.)
+		switch (InBinding->descriptor_type)
+		{
+			/*case SPV_REFLECT_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
+			{
+				if (InBinding->accessed)
+				{
+					OutBindings.Samplers.Add(InBinding);
+				}
+				break;
+			}*/
+		case SPV_REFLECT_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
+		{
+			if (InBinding->accessed)
+			{
+				OutBindings.TextureSRVs.Add(InBinding);
+			}
+			break;
+		}
+		case SPV_REFLECT_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER:
+		{
+			if (InBinding->accessed)
+			{
+				OutBindings.TBufferSRVs.Add(InBinding);
+			}
+			break;
+		}
+		case SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_BUFFER:
+		{
+			if (InBinding->accessed)
+			{
+				// Storage buffers must always occupy a UAV binding slot
+				OutBindings.SBufferUAVs.Add(InBinding);
+			}
+			break;
+		}
+		default:
+		{
+			// check(false);
+			break;
+		}
+		}
+		break;
+	}
+	case SPV_REFLECT_RESOURCE_FLAG_UAV:
+	{
+		if (InBinding->uav_counter_binding)
+		{
+			OutBindings.AtomicCounters.Add(InBinding->uav_counter_binding);
+		}
+
+		switch (InBinding->descriptor_type)
+		{
+		case SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_IMAGE:
+		{
+			OutBindings.TextureUAVs.Add(InBinding);
+			break;
+		}
+		case SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER:
+		{
+			OutBindings.TBufferUAVs.Add(InBinding);
+			break;
+		}
+		case SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_BUFFER:
+		{
+			if (!OutBindings.AtomicCounters.Contains(InBinding) || InBinding->accessed)
+			{
+				OutBindings.SBufferUAVs.Add(InBinding);
+			}
+			break;
+		}
+		default:
+		{
+			break;
+		}
+		}
+		break;
+	}
+	default:
+	{
+		// Gather input attachments (e.g. subpass inputs)
+		switch (InBinding->descriptor_type)
+		{
+		case SPV_REFLECT_DESCRIPTOR_TYPE_INPUT_ATTACHMENT:
+		{
+			if (InBinding->accessed)
+			{
+				OutBindings.InputAttachments.Add(InBinding);
+			}
+			break;
+		}
+		default:
+		{
+			break;
+		}
+		}
+		break;
+	}
+	} // switch
 }
 
 static void GatherSpirvReflectionBindings(
@@ -1977,150 +2106,44 @@ static void GatherSpirvReflectionBindings(
 
 		// Extract all the bindings first so that we process them in order - this lets us assign UAVs before other resources
 		// Which is necessary to match the D3D binding scheme.
-		for (auto const& Binding : Bindings)
+		for (auto const& BindingEntry : Bindings)
 		{
-			if (Binding->usage_binding_count > 0)
-			{
-				auto count = Binding->usage_binding_count;
-			}
-
-			switch (Binding->resource_type)
-			{
-			case SPV_REFLECT_RESOURCE_FLAG_SAMPLER:
-			{
-				check(Binding->descriptor_type == SPV_REFLECT_DESCRIPTOR_TYPE_SAMPLER);
-				if (Binding->accessed)
-				{
-					OutBindings.Samplers.Add(Binding);
-				}
-				break;
-			}
-			case SPV_REFLECT_RESOURCE_FLAG_CBV:
-			{
-				check(Binding->descriptor_type == SPV_REFLECT_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-				if (Binding->accessed)
-				{
-					OutBindings.UniformBuffers.Add(Binding);
-				}
-				break;
-			}
-			case SPV_REFLECT_RESOURCE_FLAG_SRV:
-			{
-				switch (Binding->descriptor_type)
-				{
-				/*case SPV_REFLECT_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
-				{
-					if (Binding->accessed)
-					{
-						OutBindings.Samplers.Add(Binding);
-					}
-					break;
-				}*/
-				case SPV_REFLECT_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
-				{
-					if (Binding->accessed)
-					{
-						OutBindings.TextureSRVs.Add(Binding);
-					}
-					break;
-				}
-				case SPV_REFLECT_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER:
-				{
-					if (Binding->accessed)
-					{
-						OutBindings.TBufferSRVs.Add(Binding);
-					}
-					break;
-				}
-				case SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_BUFFER:
-				{
-					if (Binding->accessed)
-					{
-						// Storage buffers must always occupy a UAV binding slot
-						OutBindings.SBufferUAVs.Add(Binding);
-					}
-					break;
-				}
-				default:
-				{
-					// check(false);
-					break;
-				}
-				}
-				break;
-			}
-			case SPV_REFLECT_RESOURCE_FLAG_UAV:
-			{
-				if (Binding->uav_counter_binding)
-				{
-					OutBindings.AtomicCounters.Add(Binding->uav_counter_binding);
-				}
-
-				switch (Binding->descriptor_type)
-				{
-				case SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_IMAGE:
-				{
-					OutBindings.TextureUAVs.Add(Binding);
-					break;
-				}
-				case SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER:
-				{
-					OutBindings.TBufferUAVs.Add(Binding);
-					break;
-				}
-				case SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_BUFFER:
-				{
-					if (!OutBindings.AtomicCounters.Contains(Binding) || Binding->accessed)
-					{
-						OutBindings.SBufferUAVs.Add(Binding);
-					}
-					break;
-				}
-				default:
-				{
-					break;
-				}
-				}
-				break;
-			}
-			default:
-			{
-				break;
-			}
-			} // switch
+			GatherSpirvReflectionBindingEntry(BindingEntry, OutBindings);
 		} // for
 	}
 }
 
-static FString ConvertMetaDataTypeSpecifier(const SpvReflectTypeDescription& TypeSpecifier, bool bBaseTypeOnly = false)
+static void ConvertMetaDataTypeSpecifierPrimary(const SpvReflectTypeDescription& TypeSpecifier, FString& OutTypeName, uint32& OutTypeBitWidth, bool bBaseTypeOnly)
 {
-	FString TypeName;
-
 	// Generate prefix for base type
 	if (TypeSpecifier.type_flags & SPV_REFLECT_TYPE_FLAG_BOOL)
 	{
-		TypeName += TEXT('b');
+		OutTypeName += TEXT('b');
+		OutTypeBitWidth = 8;
 	}
 	else if (TypeSpecifier.type_flags & SPV_REFLECT_TYPE_FLAG_INT)
 	{
 		if (TypeSpecifier.traits.numeric.scalar.signedness)
 		{
-			TypeName += TEXT('i');
+			OutTypeName += TEXT('i');
 		}
 		else
 		{
-			TypeName += TEXT('u');
+			OutTypeName += TEXT('u');
 		}
+		OutTypeBitWidth = 32;
 	}
 	else if (TypeSpecifier.type_flags & SPV_REFLECT_TYPE_FLAG_FLOAT)
 	{
 		if (TypeSpecifier.traits.numeric.scalar.width == 16)
 		{
-			TypeName += TEXT('h');
+			OutTypeName += TEXT('h');
+			OutTypeBitWidth = 16;
 		}
 		else
 		{
-			TypeName += TEXT('f');
+			OutTypeName += TEXT('f');
+			OutTypeBitWidth = 32;
 		}
 	}
 
@@ -2132,7 +2155,7 @@ static FString ConvertMetaDataTypeSpecifier(const SpvReflectTypeDescription& Typ
 			static const TCHAR* VectorDims = TEXT("1234");
 			const uint32 VectorSize = TypeSpecifier.traits.numeric.vector.component_count;
 			check(VectorSize >= 1 && VectorSize <= 4);
-			TypeName += VectorDims[VectorSize - 1];
+			OutTypeName += VectorDims[VectorSize - 1];
 		}
 		else if (TypeSpecifier.type_flags & SPV_REFLECT_TYPE_FLAG_MATRIX)
 		{
@@ -2148,10 +2171,20 @@ static FString ConvertMetaDataTypeSpecifier(const SpvReflectTypeDescription& Typ
 		}
 		else
 		{
-			TypeName += TEXT('1'); // add single scalar component
+			OutTypeName += TEXT('1'); // add single scalar component
 		}
 	}
+}
 
+static FString ConvertMetaDataTypeSpecifier(const SpvReflectTypeDescription& TypeSpecifier, uint32* OutTypeBitWidth = nullptr, bool bBaseTypeOnly = false)
+{
+	FString TypeName;
+	uint32 TypeBitWidth = sizeof(float) * 8;
+	ConvertMetaDataTypeSpecifierPrimary(TypeSpecifier, TypeName, TypeBitWidth, bBaseTypeOnly);
+	if (OutTypeBitWidth)
+	{
+		*OutTypeBitWidth = TypeBitWidth;
+	}
 	return TypeName;
 }
 
@@ -2334,6 +2367,13 @@ static void BuildShaderOutputFromSpirv(
 		}
 	}
 
+	for (const SpvReflectDescriptorBinding* Binding : Bindings.InputAttachments)
+	{
+		int32 BindingIndex = BindingTable.RegisterBinding(Binding->name, "a", EVulkanBindingType::InputAttachment);
+		BindingToIndexMap.Add(Binding, BindingIndex);
+		BindingTable.InputAttachmentsMask |= (1u << Binding->input_attachment_index);
+	}
+
 	for (const SpvReflectDescriptorBinding* Binding : Bindings.TBufferUAVs)
 	{
 		int32 BindingIndex = BindingTable.RegisterBinding(Binding->name, "u", EVulkanBindingType::StorageTexelBuffer);
@@ -2490,18 +2530,19 @@ static void BuildShaderOutputFromSpirv(
 			{
 				const SpvReflectBlockVariable* Member = &(Binding->block.members[MemberIndex]);
 
-				const uint32 MbrOffset = Member->absolute_offset / sizeof(float);
-				const uint32 MbrSize = Member->size / sizeof(float);
 				const FString MemberName(ANSI_TO_TCHAR(Member->name));
-				const FString TypeSpecifier = ConvertMetaDataTypeSpecifier(*Member->type_description, true);
+				uint32 MemberTypeBitWidth = sizeof(float) * 8;
+				const FString TypeSpecifier = ConvertMetaDataTypeSpecifier(*Member->type_description, &MemberTypeBitWidth, true);
+				const uint32 MemberOffset = Member->absolute_offset / sizeof(float);
+				const uint32 MemberComponentCount = Member->size * 8 / MemberTypeBitWidth;
 
 				MbrString += FString::Printf(
 					TEXT("%s%s(%s:%u,%u)"),
 					MbrString.Len() ? TEXT(",") : TEXT(""),
 					*MemberName,
 					TEXT("h"),//*TypeSpecifier,
-					MbrOffset,
-					MbrSize
+					MemberOffset,
+					MemberComponentCount
 				);
 			}
 
@@ -2528,6 +2569,19 @@ static void BuildShaderOutputFromSpirv(
 
 			UBOString += FString::Printf(TEXT("%s%s(%u)"), UBOString.Len() ? TEXT(",") : TEXT(""), *ResourceName, UBOBindings++);
 		}
+	}
+
+	for (const SpvReflectDescriptorBinding* Binding : Bindings.InputAttachments)
+	{
+		int32 BindingIndex = GetRealBindingIndex(Binding);
+
+		SpvResult = Reflection.ChangeDescriptorBindingNumbers(Binding, BindingIndex);//, GlobalSetId);
+		check(SpvResult == SPV_REFLECT_RESULT_SUCCESS);
+
+		const FString ResourceName(ANSI_TO_TCHAR(Binding->name));
+		//IAString += FString::Printf(TEXT("%s%s(%u:%u)"), IAString.Len() ? TEXT(",") : TEXT(""), *ResourceName, IABindings++, 1);
+
+		Spirv.ReflectionInfo.Add(FSpirv::FEntry(ResourceName, BindingIndex));
 	}
 
 	for (const SpvReflectDescriptorBinding* Binding : Bindings.TBufferUAVs)
@@ -2878,14 +2932,6 @@ void DoCompileVulkanShader(const FShaderCompilerInput& Input, FShaderCompilerOut
 		AdditionalDefines.SetDefine(TEXT("FORCE_FLOATS"), (uint32)1);
 	}
 
-#if PLATFORM_MAC || PLATFORM_WINDOWS || PLATFORM_LINUX
-	// Disable VULKAN_SUBPASS_DEPTHFETCH for DXC, since DXC doesn't generate SPIR-V code that can make use of that Vulkan specific feature yet
-	if (bForceDXC)
-	{
-		AdditionalDefines.SetDefine(TEXT("VULKAN_SUBPASS_DEPTHFETCH"), (uint32)0);
-	}
-#endif // PLATFORM_MAC || PLATFORM_WINDOWS
-
 	// Preprocess the shader.
 	FString PreprocessedShaderSource;
 	const bool bDirectCompile = FParse::Param(FCommandLine::Get(), TEXT("directcompile"));
@@ -3012,7 +3058,7 @@ void DoCompileVulkanShader(const FShaderCompilerInput& Input, FShaderCompilerOut
 	{
 		for (const auto& Error : Output.Errors)
 		{
-			FPlatformMisc::LowLevelOutputDebugStringf(TEXT("%s\n"), *Error.GetErrorString());
+			FPlatformMisc::LowLevelOutputDebugStringf(TEXT("%s\n"), *Error.GetErrorStringWithLineMarker());
 		}
 		ensure(bSuccess);
 	}
