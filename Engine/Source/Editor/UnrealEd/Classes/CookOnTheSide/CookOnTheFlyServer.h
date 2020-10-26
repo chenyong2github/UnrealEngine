@@ -267,6 +267,8 @@ private:
 
 	/** Execute operations that need to be done after each Scheduler task, such as checking for new external requests. */
 	void TickCookStatus(UE::Cook::FTickStackData& StackData);
+	void SetSaveBusy(bool bInSaveBusy);
+	void SetLoadBusy(bool bInLoadBusy);
 	void UpdateDisplay(ECookTickFlags CookFlags, bool bForceDisplay);
 	enum class ECookAction
 	{
@@ -283,26 +285,26 @@ private:
 	ECookAction DecideNextCookAction(UE::Cook::FTickStackData& StackData);
 	/** Execute any existing external callbacks and push any existing external cook requests into the RequestQueue. */
 	void PumpExternalRequests(const UE::Cook::FCookerTimer& CookerTimer);
-	/** Inspect the next package in the RequestQueue and push it on to its next state. */
-	void PumpRequests(UE::Cook::FTickStackData& StackData);
-	/** Handle the requested PackageData that has been peeled off of the RequestQueue, e.g. by sending it on to the LoadQueue. */
-	void ProcessRequest(UE::Cook::FPackageData& PackageData, UE::Cook::FTickStackData& StackData);
-	/** Get the list of unloaded Packages the load of the given PackageData is dependent upon, and add their PackageDatas to the load queue */
-	void AddDependenciesToLoadQueue(UE::Cook::FPackageData& PackageData);
+	/** Inspect the next package in the RequestQueue and push it on to its next state. Report the number of PackageDatas that were pushed to load. */
+	void PumpRequests(UE::Cook::FTickStackData& StackData, int32& OutNumPushed);
+	/** Handle the requested PackageData that has been peeled off of the RequestQueue, e.g. by sending it on to the LoadQueue. Report the number of PackageDatas that were pushed to load (includes dependencies, so may be more than 1). */
+	void ProcessRequest(UE::Cook::FPackageData& PackageData, UE::Cook::FTickStackData& StackData, int32& OutNumPushed);
+	/** Get the list of unloaded Packages the load of the given PackageData is dependent upon, and add their PackageDatas to the load queue. Report the number of PackageDatass that were pushed to the load queue */
+	void AddDependenciesToLoadQueue(UE::Cook::FPackageData& PackageData, int32& OutNumPushed);
 
-	/** Load all packages in the LoadQueue until it's time to break. */
-	void PumpLoads(UE::Cook::FTickStackData& StackData, uint32 DesiredQueueLength);
+	/** Load all packages in the LoadQueue until it's time to break. Report the number of loads that were pushed to save. */
+	void PumpLoads(UE::Cook::FTickStackData& StackData, uint32 DesiredQueueLength, int32& OutNumPushed, bool& bOutBusy);
 	/** Move packages from LoadPrepare's entry queue into the PreloadingQueue until we run out of Preload slots. */
 	void PumpPreloadStarts();
 	/** Move preload-completed packages from LoadPrepare into state LoadReady until we find the first one that is not yet finished preloading. */
 	void PumpPreloadCompletes();
-	/** Load the given PackageData that was in the load queue and send it on to its next state */
-	void LoadPackageInQueue(UE::Cook::FPackageData& PackageData, uint32& ResultFlags);
+	/** Load the given PackageData that was in the load queue and send it on to its next state. Report the number of PackageDatas that were pushed to save (0 or 1) */
+	void LoadPackageInQueue(UE::Cook::FPackageData& PackageData, uint32& ResultFlags, int32& OutNumPushed);
 	/** Mark that the given PackageData failed to load and return it to idle. */
 	void RejectPackageToLoad(UE::Cook::FPackageData& PackageData, const TCHAR* Reason);
 
-	/** Try to save all packages in the SaveQueue until it's time to break. */
-	void PumpSaves(UE::Cook::FTickStackData& StackData, uint32 DesiredQueueLength);
+	/** Try to save all packages in the SaveQueue until it's time to break. Report the number of requests that were completed (either skipped or successfully saved or failed to save) */
+	void PumpSaves(UE::Cook::FTickStackData& StackData, uint32 DesiredQueueLength, int32& OutNumPushed, bool& bOutBusy);
 	/**
 	 * Inspect the given package from the PackageTracker and add it to the SaveQueue if the cooker should save it.
 	 *
@@ -1046,6 +1048,12 @@ private:
 	bool bSaveBusy = false;
 	/** If preloading is enabled, we call TryPreload until it returns true before sending the package to LoadReady, otherwise we skip TryPreload and it goes immediately. */
 	bool bPreloadingEnabled = false;
+
+	/** Timers for tracking how long we have been busy, to manage retries and warnings of deadlock */
+	float SaveBusyTimeLastRetry = 0.f;
+	float SaveBusyTimeStarted = 0.f;
+	float LoadBusyTimeLastRetry = 0.f;
+	float LoadBusyTimeStarted = 0.f;
 
 	// These helper structs are all TUniquePtr rather than inline members so that we can keep their headers private.  See class header comments for their purpose.
 	TUniquePtr<UE::Cook::FPackageTracker> PackageTracker;
