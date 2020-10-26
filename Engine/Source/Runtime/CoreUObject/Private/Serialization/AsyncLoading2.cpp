@@ -333,6 +333,8 @@ public:
 struct FExportObject
 {
 	UObject* Object = nullptr;
+	UObject* TemplateObject = nullptr;
+	UObject* SuperObject = nullptr;
 	bool bFiltered = false;
 	bool bExportLoadFailed = false;
 };
@@ -3643,6 +3645,25 @@ void FAsyncPackage2::EventDrivenCreateExport(int32 LocalExportIndex)
 		return;
 	}
 	check(!dynamic_cast<UObjectRedirector*>(ThisParent));
+	if (!Export.SuperIndex.IsNull())
+	{
+		ExportObject.SuperObject = EventDrivenIndexToObject(Export.SuperIndex, false);
+		if (!ExportObject.SuperObject)
+		{
+			UE_ASYNC_PACKAGE_LOG(Error, Desc, TEXT("CreateExport"), TEXT("Could not find SuperStruct object for %s"), *ObjectName.ToString());
+			ExportObject.bExportLoadFailed = true;
+			return;
+		}
+	}
+	// Find the Archetype object for the one we are loading.
+	check(!Export.TemplateIndex.IsNull());
+	ExportObject.TemplateObject = EventDrivenIndexToObject(Export.TemplateIndex, true);
+	if (!ExportObject.TemplateObject)
+	{
+		UE_ASYNC_PACKAGE_LOG(Error, Desc, TEXT("CreateExport"), TEXT("Could not find template object for %s"), *ObjectName.ToString());
+		ExportObject.bExportLoadFailed = true;
+		return;
+	}
 
 	// Try to find existing object first as we cannot in-place replace objects, could have been created by other export in this package
 	{
@@ -3677,17 +3698,8 @@ void FAsyncPackage2::EventDrivenCreateExport(int32 LocalExportIndex)
 	}
 	else
 	{
-		// Find the Archetype object for the one we are loading.
-		check(!Export.TemplateIndex.IsNull());
-		UObject* Template = EventDrivenIndexToObject(Export.TemplateIndex, true);
-		if (!Template)
-		{
-			UE_ASYNC_PACKAGE_LOG(Error, Desc, TEXT("CreateExport"), TEXT("Could not find template object for %s"), *ObjectName.ToString());
-			ExportObject.bExportLoadFailed = true;
-			return;
-		}
 		// we also need to ensure that the template has set up any instances
-		Template->ConditionalPostLoadSubobjects();
+		ExportObject.TemplateObject->ConditionalPostLoadSubobjects();
 
 		check(!GVerifyObjectReferencesOnly); // not supported with the event driven loader
 		// Create the export object, marking it with the appropriate flags to
@@ -3702,7 +3714,7 @@ void FAsyncPackage2::EventDrivenCreateExport(int32 LocalExportIndex)
 		{
 			UClass* SuperClass = LoadClass->GetSuperClass();
 			UObject* SuperCDO = SuperClass ? SuperClass->GetDefaultObject() : nullptr;
-			check(!SuperCDO || Template == SuperCDO); // the template for a CDO is the CDO of the super
+			check(!SuperCDO || ExportObject.TemplateObject == SuperCDO); // the template for a CDO is the CDO of the super
 			if (SuperClass && !SuperClass->IsNative())
 			{
 				check(SuperCDO);
@@ -3730,7 +3742,7 @@ void FAsyncPackage2::EventDrivenCreateExport(int32 LocalExportIndex)
 			}
 			else
 			{
-				check(Template->IsA(LoadClass));
+				check(ExportObject.TemplateObject->IsA(LoadClass));
 			}
 		}
 #endif
@@ -3738,8 +3750,8 @@ void FAsyncPackage2::EventDrivenCreateExport(int32 LocalExportIndex)
 			TEXT("LoadClass %s had RF_NeedLoad while creating %s"), *LoadClass->GetFullName(), *ObjectName.ToString());
 		checkf(!(LoadClass->GetDefaultObject() && LoadClass->GetDefaultObject()->HasAnyFlags(RF_NeedLoad)), 
 			TEXT("Class CDO %s had RF_NeedLoad while creating %s"), *LoadClass->GetDefaultObject()->GetFullName(), *ObjectName.ToString());
-		checkf(!Template->HasAnyFlags(RF_NeedLoad),
-			TEXT("Template %s had RF_NeedLoad while creating %s"), *Template->GetFullName(), *ObjectName.ToString());
+		checkf(!ExportObject.TemplateObject->HasAnyFlags(RF_NeedLoad),
+			TEXT("Template %s had RF_NeedLoad while creating %s"), *ExportObject.TemplateObject->GetFullName(), *ObjectName.ToString());
 
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(ConstructObject);
@@ -3747,7 +3759,7 @@ void FAsyncPackage2::EventDrivenCreateExport(int32 LocalExportIndex)
 			Params.Outer = ThisParent;
 			Params.Name = ObjectName;
 			Params.SetFlags = ObjectLoadFlags;
-			Params.Template = Template;
+			Params.Template = ExportObject.TemplateObject;
 			Params.bAssumeTemplateIsArchetype = true;
 			Object = StaticConstructObject_Internal(Params);
 		}
@@ -3814,16 +3826,8 @@ bool FAsyncPackage2::EventDrivenSerializeExport(int32 LocalExportIndex, FExportA
 	// If this is a struct, make sure that its parent struct is completely loaded
 	if (UStruct* Struct = dynamic_cast<UStruct*>(Object))
 	{
-		if (!Export.SuperIndex.IsNull())
+		if (UStruct* SuperStruct = dynamic_cast<UStruct*>(ExportObject.SuperObject))
 		{
-			UStruct* SuperStruct = CastEventDrivenIndexToObject<UStruct>(Export.SuperIndex, true);
-			if (!SuperStruct)
-			{
-				UE_ASYNC_PACKAGE_LOG(Error, Desc, TEXT("SerializeExport"),
-					TEXT("Could not find SuperStruct object for %s"), *NameMap.GetName(Export.ObjectName).ToString());
-				ExportObject.bExportLoadFailed = true;
-				return false;
-			}
 			Struct->SetSuperStruct(SuperStruct);
 			if (UClass* ClassObject = dynamic_cast<UClass*>(Object))
 			{
@@ -3838,10 +3842,8 @@ bool FAsyncPackage2::EventDrivenSerializeExport(int32 LocalExportIndex, FExportA
 
 	// cache archetype
 	// prevents GetArchetype from hitting the expensive GetArchetypeFromRequiredInfoImpl
-	check(!Export.TemplateIndex.IsNull());
-	UObject* Template = EventDrivenIndexToObject(Export.TemplateIndex, true);
-	check(Template);
-	CacheArchetypeForObject(Object, Template);
+	check(ExportObject.TemplateObject);
+	CacheArchetypeForObject(Object, ExportObject.TemplateObject);
 
 	Object->ClearFlags(RF_NeedLoad);
 
@@ -3849,7 +3851,7 @@ bool FAsyncPackage2::EventDrivenSerializeExport(int32 LocalExportIndex, FExportA
 	UObject* PrevSerializedObject = LoadContext->SerializedObject;
 	LoadContext->SerializedObject = Object;
 
-	Ar.TemplateForGetArchetypeFromLoader = Template;
+	Ar.TemplateForGetArchetypeFromLoader = ExportObject.TemplateObject;
 
 	if (Object->HasAnyFlags(RF_ClassDefaultObject))
 	{
