@@ -116,14 +116,14 @@ struct FMath : public FPlatformMath
 	{
 		// Note that on some platforms RAND_MAX is a large number so we cannot do ((rand()/(RAND_MAX+1)) * A)
 		// or else we may include the upper bound results, which should be excluded.
-		return A > 0 ? Min(TruncToInt(FRand() * A), A - 1) : 0;
+		return A > 0 ? Min(TruncToInt(FRand() * (float)A), A - 1) : 0;
 	}
 
 	static FORCEINLINE int64 RandHelper64(int64 A)
 	{
 		// Note that on some platforms RAND_MAX is a large number so we cannot do ((rand()/(RAND_MAX+1)) * A)
 		// or else we may include the upper bound results, which should be excluded.
-		return A > 0 ? Min<int64>(TruncToInt(FRand() * A), A - 1) : 0;
+		return A > 0 ? Min<int64>(TruncToInt(FRand() * (float)A), A - 1) : 0;
 	}
 
 	/** Helper function for rand implementations. Returns a random number >= Min and <= Max */

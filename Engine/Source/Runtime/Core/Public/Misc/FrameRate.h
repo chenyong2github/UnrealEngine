@@ -164,7 +164,7 @@ inline double FFrameRate::AsDecimal() const
 inline double FFrameRate::AsSeconds(FFrameTime FrameTime) const
 {
 	const int64  IntegerPart  = FrameTime.GetFrame().Value * int64(Denominator);
-	const double FloatPart    = FrameTime.GetSubFrame()    * Denominator;
+	const double FloatPart    = FrameTime.GetSubFrame()    * double(Denominator);
 
 	return (double(IntegerPart) + FloatPart) / Numerator;
 }
@@ -272,7 +272,7 @@ inline FFrameTime ConvertFrameTime(FFrameTime SourceTime, FFrameRate SourceRate,
 	//Now the IntegerPart may have a Float Part, and then the FloatPart may have an IntegerPart,
 	//So we add the extra Float from the IntegerPart to the FloatPart and then add back any extra Integer to IntegerPart
 	int64  IntegerPart = ( (int64)(SourceTime.GetFrame().Value) * NewNumerator ) / NewDenominator;
-	const double IntegerFloatPart = ((double(SourceTime.GetFrame().Value) * NewNumerator) / NewDenominator) - double(IntegerPart);
+	const double IntegerFloatPart = ((double(SourceTime.GetFrame().Value) * double(NewNumerator)) / double(NewDenominator)) - double(IntegerPart);
 	const double FloatPart = ((SourceTime.GetSubFrame()    * NewNumerator_d) / NewDenominator_d) + IntegerFloatPart;
 	const double FloatPartFloored = FMath::FloorToDouble(FloatPart);
 	const int64 FloatAsInt = int64(FloatPartFloored);

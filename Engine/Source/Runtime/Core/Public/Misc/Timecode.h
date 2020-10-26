@@ -164,7 +164,7 @@ public:
 			const int32 NumTrueFramesPerTenMinutes = FMath::FloorToInt((float)((60 * 10) * InFrameRate.AsDecimal()));
 
 			// Calculate out how many times we've skipped dropping frames (ie: Minute 15 gives us a value of 1, as we've only didn't drop frames on the 10th minute)
-			const int32 NumTimesSkippedDroppingFrames = FMath::FloorToInt(FMath::Abs(InFrameNumber.Value) / (float)NumTrueFramesPerTenMinutes);
+			const int32 NumTimesSkippedDroppingFrames = FMath::Abs(InFrameNumber.Value) / NumTrueFramesPerTenMinutes;
 
 			// Now we can figure out how many frame (displays) have been skipped total; 9 times out of every 10 minutes
 			const int32 NumFramesSkippedTotal = NumTimesSkippedDroppingFrames * 9 * NumberOfTimecodesToDrop;
@@ -184,7 +184,7 @@ public:
 				const uint32 NumTrueFramesPerMinute = (uint32)FMath::FloorToInt(60 * (float)InFrameRate.AsDecimal());
 
 				// Figure out which minute we are (0-9) to see how many to skip
-				int32 CurrentMinuteOfTen = FMath::FloorToInt((FrameInTrueFrames - NumberOfTimecodesToDrop) / (float)NumTrueFramesPerMinute);
+				int32 CurrentMinuteOfTen = (FrameInTrueFrames - NumberOfTimecodesToDrop) / NumTrueFramesPerMinute;
 				int NumAddedFrames = NumFramesSkippedTotal + (NumberOfTimecodesToDrop * CurrentMinuteOfTen);
 				OffsetFrame += NumAddedFrames;
 			}
