@@ -522,6 +522,7 @@ bool UMaterialParameterCollectionInstance::SetScalarParameterValue(FName Paramet
 		if (bUpdateUniformBuffer)
 		{
 			UpdateRenderState(false);
+			ScalarParameterUpdatedDelegate.Broadcast(ScalarParameterUpdate(ParameterName, ParameterValue));
 		}
 
 		return true;
@@ -555,6 +556,7 @@ bool UMaterialParameterCollectionInstance::SetVectorParameterValue(FName Paramet
 		if (bUpdateUniformBuffer)
 		{
 			UpdateRenderState(false);
+			VectorParameterUpdatedDelegate.Broadcast(VectorParameterUpdate(ParameterName, ParameterValue));
 		}
 
 		return true;
@@ -565,13 +567,9 @@ bool UMaterialParameterCollectionInstance::SetVectorParameterValue(FName Paramet
 
 bool UMaterialParameterCollectionInstance::GetScalarParameterValue(FName ParameterName, float& OutParameterValue) const
 {
-	const FCollectionScalarParameter* Parameter = Collection->GetScalarParameterByName(ParameterName);
-
-	if (Parameter)
+	if (const FCollectionScalarParameter* Parameter = Collection->GetScalarParameterByName(ParameterName))
 	{
-		const float* InstanceValue = ScalarParameterValues.Find(ParameterName);
-		OutParameterValue = InstanceValue != nullptr ? *InstanceValue : Parameter->DefaultValue;
-		return true;
+		return GetScalarParameterValue(*Parameter, OutParameterValue);
 	}
 
 	return false;
@@ -579,16 +577,26 @@ bool UMaterialParameterCollectionInstance::GetScalarParameterValue(FName Paramet
 
 bool UMaterialParameterCollectionInstance::GetVectorParameterValue(FName ParameterName, FLinearColor& OutParameterValue) const
 {
-	const FCollectionVectorParameter* Parameter = Collection->GetVectorParameterByName(ParameterName);
-
-	if (Parameter)
+	if (const FCollectionVectorParameter* Parameter = Collection->GetVectorParameterByName(ParameterName))
 	{
-		const FLinearColor* InstanceValue = VectorParameterValues.Find(ParameterName);
-		OutParameterValue = InstanceValue != nullptr ? *InstanceValue : Parameter->DefaultValue;
-		return true;
+		return GetVectorParameterValue(*Parameter, OutParameterValue);
 	}
 
 	return false;
+}
+
+bool UMaterialParameterCollectionInstance::GetScalarParameterValue(const FCollectionScalarParameter& Parameter, float& OutParameterValue) const
+{
+	const float* InstanceValue = ScalarParameterValues.Find(Parameter.ParameterName);
+	OutParameterValue = InstanceValue != nullptr ? *InstanceValue : Parameter.DefaultValue;
+	return true;
+}
+
+bool UMaterialParameterCollectionInstance::GetVectorParameterValue(const FCollectionVectorParameter& Parameter, FLinearColor& OutParameterValue) const
+{
+	const FLinearColor* InstanceValue = VectorParameterValues.Find(Parameter.ParameterName);
+	OutParameterValue = InstanceValue != nullptr ? *InstanceValue : Parameter.DefaultValue;
+	return true;
 }
 
 void UMaterialParameterCollectionInstance::UpdateRenderState(bool bRecreateUniformBuffer)
@@ -606,8 +614,6 @@ void UMaterialParameterCollectionInstance::UpdateRenderState(bool bRecreateUnifo
 	{
 		DeferredUpdateRenderState(bRecreateUniformBuffer);
 	}
-
-	ParametersUpdatedDelegate.Broadcast();
 }
 
 void UMaterialParameterCollectionInstance::DeferredUpdateRenderState(bool bRecreateUniformBuffer)
