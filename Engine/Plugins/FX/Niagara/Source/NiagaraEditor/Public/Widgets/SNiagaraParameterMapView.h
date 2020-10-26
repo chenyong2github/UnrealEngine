@@ -128,8 +128,8 @@ private:
 	TSharedRef<SWidget> OnGetSectionWidget(TSharedRef<SWidget> RowWidget, int32 InSectionID);
 	TSharedRef<SWidget> CreateAddToSectionButton(const NiagaraParameterMapSectionID::Type InSection, TWeakPtr<SWidget> WeakRowWidget, FText AddNewText, FName MetaDataTag);
 	
-	void CollectAllActionsForScriptToolkit(TMap<FNiagaraVariable, TArray<FNiagaraGraphParameterReferenceCollection>>& ParameterEntries);
-	void CollectAllActionsForSystemToolkit(TMap<FNiagaraVariable, TArray<FNiagaraGraphParameterReferenceCollection>>& ParameterEntries);
+	void CollectAllActionsForScriptToolkit(TMap<FNiagaraVariable, TArray<FNiagaraGraphParameterReferenceCollection>>& ParameterEntries, TArray<FName>& OutCustomIterationSourceNamespaces);
+	void CollectAllActionsForSystemToolkit(TMap<FNiagaraVariable, TArray<FNiagaraGraphParameterReferenceCollection>>& ParameterEntries, TArray<FName>& OutCustomIterationSourceNamespaces);
 
 	/** Checks if the selected action has context menu */
 	bool SelectionHasContextMenu() const;
