@@ -191,9 +191,11 @@ void UVCamOutputProviderBase::DestroyUMG()
 		if (UMGWidget->IsDisplayed())
 		{
 			UMGWidget->Hide();
+			UE_LOG(LogVCamOutputProvider, Log, TEXT("DestroyUMG widget hidden"));
 		}
 		UMGWidget->ConditionalBeginDestroy();
 		UMGWidget = nullptr;
+		UE_LOG(LogVCamOutputProvider, Log, TEXT("DestroyUMG widget destroyed"));
 	}
 }
 
