@@ -10,6 +10,9 @@
 #include "ViewModels/NiagaraSystemSelectionViewModel.h"
 
 #include "Async/Async.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Interfaces/ITargetPlatformManagerModule.h"
+#include "Types/SlateEnums.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Layout/SSpacer.h"
@@ -17,11 +20,10 @@
 #include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Views/SListView.h"
 #include "Widgets/Views/STableRow.h"
+#include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Images/SImage.h"
-
-PRAGMA_DISABLE_OPTIMIZATION
 
 #define LOCTEXT_NAMESPACE "NiagaraScriptStatsViewModel"
 
@@ -316,7 +318,7 @@ public:
 			return CellDetails.CellColor;
 		}
 
-		return FColorList::White;
+		return FColor::White;
 	}
 
 	bool GetCellWrapText(const FName ColumnName) const
@@ -845,5 +847,3 @@ void FNiagaraScriptStatsViewModel::OnForceRecompile()
 }
 
 #undef LOCTEXT_NAMESPACE
-
-PRAGMA_ENABLE_OPTIMIZATION
