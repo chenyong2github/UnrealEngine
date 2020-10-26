@@ -1280,7 +1280,7 @@ void FThreadStats::FlushRawStats( bool bHasBrokenCallstacks /*= false*/, bool bF
 		}
 		UpdateExplicitFlush();
 
-		const float NumMessagesAsMB = NumMessages*sizeof(FStatMessage) / 1024.0f / 1024.0f;
+		const float NumMessagesAsMB = float(NumMessages * sizeof(FStatMessage)) / 1024.0f / 1024.0f;
 		if( NumMessages > 524288 )
 		{
 			UE_LOG( LogStats, Warning, TEXT( "FlushRawStats NumMessages: %i (%.2f MB), Thread: %u" ), NumMessages, NumMessagesAsMB, Packet.ThreadId );

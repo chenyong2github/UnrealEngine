@@ -374,7 +374,12 @@ struct FGenericPlatformMath
 	static FORCEINLINE void RandInit(int32 Seed) { srand( Seed ); }
 
 	/** Returns a random float between 0 and 1, inclusive. */
-	static FORCEINLINE float FRand() { return Rand() / (float)RAND_MAX; }
+	static FORCEINLINE float FRand() 
+	{ 
+		// FP32 mantissa can only represent 24 bits before losing precision
+		constexpr int32 RandMax = 0x00ffffff < RAND_MAX ? 0x00ffffff : RAND_MAX;
+		return (Rand() & RandMax) / (float)RandMax;
+	}
 
 	/** Seeds future calls to SRand() */
 	static CORE_API void SRandInit( int32 Seed );

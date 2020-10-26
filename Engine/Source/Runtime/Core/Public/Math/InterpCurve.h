@@ -507,7 +507,7 @@ float FInterpCurve<T>::InaccurateFindNearest(const T &PointInSpace, float& OutDi
 			{
 				BestDistanceSq = LocalDistanceSq;
 				BestResult = LocalResult;
-				BestSegment = Segment;
+				BestSegment = (float)Segment;
 			}
 		}
 		OutDistanceSq = BestDistanceSq;

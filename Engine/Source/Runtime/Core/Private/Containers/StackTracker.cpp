@@ -166,7 +166,7 @@ void FStackTracker::DumpStackTraces(int32 StackThreshold, FOutputDevice& Ar, flo
 	}
 	else
 	{
-		Ar.Logf(TEXT("Captured %i unique callstacks totalling %i function calls over %i frames, averaging %5.2f calls/frame, Avg Per Frame"), SortedCallStacks.Num(), (int32)TotalStackCount, FramesCaptured, (float) TotalStackCount / FramesCaptured);
+		Ar.Logf(TEXT("Captured %i unique callstacks totalling %i function calls over %i frames, averaging %5.2f calls/frame, Avg Per Frame"), SortedCallStacks.Num(), (int32)TotalStackCount, FramesCaptured, (float)TotalStackCount / (float)FramesCaptured);
 	}
 
 	// Iterate over each callstack and write out info in human readable form in CSV format

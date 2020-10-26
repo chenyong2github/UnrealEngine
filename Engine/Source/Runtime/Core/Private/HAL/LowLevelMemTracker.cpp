@@ -2241,9 +2241,9 @@ void FLLMCsvWriter::WriteGraph(FLLMCustomTag* CustomTags, const int32* ParentTag
 	for (int32 i = 0; i < StatValueCountLocal; ++i)
 	{
 #if LLM_TRACK_PEAK_MEMORY
-		FString Text = FString::Printf(TEXT("%0.2f,"), StatValuesForWrite[i].Peak / 1024.0f / 1024.0f);
+		FString Text = FString::Printf(TEXT("%0.2f,"), (float)StatValuesForWrite[i].Peak / 1024.0f / 1024.0f);
 #else
-		FString Text = FString::Printf(TEXT("%0.2f,"), StatValuesForWrite[i].Value / 1024.0f / 1024.0f);
+		FString Text = FString::Printf(TEXT("%0.2f,"), (float)StatValuesForWrite[i].Value / 1024.0f / 1024.0f);
 #endif
 		Write(Text);
 	}
