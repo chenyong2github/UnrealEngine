@@ -45,16 +45,20 @@ enum class ESetResolutionMethod
 struct FNiagaraDataInterfaceProxyRW : public FNiagaraDataInterfaceProxy
 {
 public:
-
 	virtual void ConsumePerInstanceDataFromGameThread(void* PerInstanceData, const FNiagaraSystemInstanceID& Instance) override { check(false); }
-	virtual int32 PerInstanceDataPassedToRenderThreadSize() const override
-	{
-		return 0;
-	}	
+	virtual int32 PerInstanceDataPassedToRenderThreadSize() const override { return 0; }	
+
+	// Get the element count for this instance
+	virtual FIntVector GetElementCount(FNiagaraSystemInstanceID SystemInstanceID) const = 0;
+
+	// For data interfaces that support iteration on the GPU we need to be able to get the 'real' element count as known only by the GPU
+	// The dispatch will use the CPU count, which is potentially an over-estimation, and the value inside the buffer will be used to clip instances that are not valid
+	virtual uint32 GetGPUInstanceCountOffset(FNiagaraSystemInstanceID SystemInstanceID) const { return INDEX_NONE; }
 
 	virtual void ClearBuffers(FRHICommandList& RHICmdList) {}
-};
 
+	virtual FNiagaraDataInterfaceProxyRW* AsIterationProxy() override { return this; }
+};
 
 UCLASS(abstract, EditInlineNew)
 class NIAGARA_API UNiagaraDataInterfaceRWBase : public UNiagaraDataInterface
