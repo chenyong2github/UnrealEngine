@@ -547,13 +547,17 @@ TSharedRef<SWidget> SMemTagTreeView::ConstructTracksMiniToolbar()
 	[
 		SNew(SButton)
 		.ToolTipText(LOCTEXT("HideAll_ToolTip", "Remove all memory graph tracks."))
-		.ContentPadding(FMargin(2.0f, 0.0f, 2.0f, 0.0f))
+		.ContentPadding(FMargin(-14.0f, 0.0f, -17.0f, -1.0f))
 		.OnClicked(this, &SMemTagTreeView::HideAllTracks_OnClicked)
 		.Content()
 		[
-			SNew(SImage)
-			.ColorAndOpacity(FSlateColor(FLinearColor(0.5f, 0.0f, 0.0f, 1.0f)))
-			.Image(FInsightsStyle::Get().GetBrush("Mem.Remove.Small"))
+			SNew(SBox)
+			.HAlign(HAlign_Center)
+			[
+				SNew(SImage)
+				.ColorAndOpacity(FSlateColor(FLinearColor(0.5f, 0.0f, 0.0f, 1.0f)))
+				.Image(FInsightsStyle::Get().GetBrush("Mem.Remove.Small"))
+			]
 		]
 	]
 
@@ -564,13 +568,17 @@ TSharedRef<SWidget> SMemTagTreeView::ConstructTracksMiniToolbar()
 	[
 		SNew(SButton)
 		.ToolTipText(LOCTEXT("ShowAll_ToolTip", "Create memory graph tracks for all visible (filtered) LLM tags."))
-		.ContentPadding(FMargin(2.0f, 0.0f, 2.0f, 0.0f))
+		.ContentPadding(FMargin(-14.0f, 0.0f, -17.0f, -1.0f))
 		.OnClicked(this, &SMemTagTreeView::ShowAllTracks_OnClicked)
 		.Content()
 		[
-			SNew(SImage)
-			.ColorAndOpacity(FSlateColor(FLinearColor(0.0f, 0.5f, 0.0f, 1.0f)))
-			.Image(FInsightsStyle::Get().GetBrush("Mem.Add.Small"))
+			SNew(SBox)
+			.HAlign(HAlign_Center)
+			[
+				SNew(SImage)
+				.ColorAndOpacity(FSlateColor(FLinearColor(0.0f, 0.5f, 0.0f, 1.0f)))
+				.Image(FInsightsStyle::Get().GetBrush("Mem.Add.Small"))
+			]
 		]
 	]
 
@@ -581,12 +589,16 @@ TSharedRef<SWidget> SMemTagTreeView::ConstructTracksMiniToolbar()
 	[
 		SNew(SButton)
 		.ToolTipText(LOCTEXT("LoadReportXML_ToolTip", "Load LLMReportTypes.xml"))
-		.ContentPadding(FMargin(2.0f, 2.0f, 2.0f, 2.0f))
+		.ContentPadding(FMargin(-14.0f, 2.0f, -14.0f, 2.0f))
 		.OnClicked(this, &SMemTagTreeView::LoadReportXML_OnClicked)
 		.Content()
 		[
-			SNew(STextBlock)
-			.Text(LOCTEXT("LoadReportXML_Text", "Load XML..."))
+			SNew(SBox)
+			.HAlign(HAlign_Center)
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("LoadReportXML_Text", "Load XML..."))
+			]
 		]
 	]
 
@@ -596,12 +608,16 @@ TSharedRef<SWidget> SMemTagTreeView::ConstructTracksMiniToolbar()
 	[
 		SNew(SButton)
 		.ToolTipText(LOCTEXT("SmallHeight_ToolTip", "Change height of LLM Tag Graph tracks to Small."))
-		.ContentPadding(FMargin(2.0f, 2.0f, 2.0f, 2.0f))
+		.ContentPadding(FMargin(-18.0f, 2.0f, -18.0f, 2.0f))
 		.OnClicked(this, &SMemTagTreeView::AllTracksSmallHeight_OnClicked)
 		.Content()
 		[
-			SNew(STextBlock)
-			.Text(LOCTEXT("SmallHeight_Text", "\u2195S"))
+			SNew(SBox)
+			.HAlign(HAlign_Center)
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("SmallHeight_Text", "\u2195S"))
+			]
 		]
 	]
 
@@ -611,12 +627,16 @@ TSharedRef<SWidget> SMemTagTreeView::ConstructTracksMiniToolbar()
 	[
 		SNew(SButton)
 		.ToolTipText(LOCTEXT("MediumHeight_ToolTip", "Change height of LLM Tag Graph tracks to Medium."))
-		.ContentPadding(FMargin(2.0f, 2.0f, 2.0f, 2.0f))
+		.ContentPadding(FMargin(-18.0f, 2.0f, -18.0f, 2.0f))
 		.OnClicked(this, &SMemTagTreeView::AllTracksMediumHeight_OnClicked)
 		.Content()
 		[
-			SNew(STextBlock)
-			.Text(LOCTEXT("MediumHeight_Text", "\u2195M"))
+			SNew(SBox)
+			.HAlign(HAlign_Center)
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("MediumHeight_Text", "\u2195M"))
+			]
 		]
 	]
 
@@ -626,12 +646,16 @@ TSharedRef<SWidget> SMemTagTreeView::ConstructTracksMiniToolbar()
 	[
 		SNew(SButton)
 		.ToolTipText(LOCTEXT("LargeHeight_ToolTip", "Change height of LLM Tag Graph tracks to Large."))
-		.ContentPadding(FMargin(2.0f, 2.0f, 2.0f, 2.0f))
+		.ContentPadding(FMargin(-18.0f, 2.0f, -18.0f, 2.0f))
 		.OnClicked(this, &SMemTagTreeView::AllTracksLargeHeight_OnClicked)
 		.Content()
 		[
-			SNew(STextBlock)
-			.Text(LOCTEXT("LargeHeight_Text", "\u2195L"))
+			SNew(SBox)
+			.HAlign(HAlign_Center)
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("LargeHeight_Text", "\u2195L"))
+			]
 		]
 	];
 

@@ -135,25 +135,23 @@ void STimingView::Construct(const FArguments& InArgs)
 
 		+ SOverlay::Slot()
 		.VAlign(VAlign_Bottom)
-		.Padding(FMargin(0, 0, 12, 0))
+		.Padding(FMargin(0.0f, 0.0f, 8.0f, 0.0f))
 		[
 			SAssignNew(HorizontalScrollBar, SScrollBar)
 			.Orientation(Orient_Horizontal)
 			.AlwaysShowScrollbar(false)
 			.Visibility(EVisibility::Visible)
-			.Thickness(FVector2D(5.0f, 5.0f))
 			.OnUserScrolled(this, &STimingView::HorizontalScrollBar_OnUserScrolled)
 		]
 
 		+ SOverlay::Slot()
 		.HAlign(HAlign_Right)
-		.Padding(FMargin(0.0f, 0.0f, 0.0f, 0.0f))
+		.Padding(FMargin(0.0f, 0.0f, 2.0f, 0.0f))
 		[
 			SAssignNew(VerticalScrollBar, SScrollBar)
 			.Orientation(Orient_Vertical)
 			.AlwaysShowScrollbar(false)
 			.Visibility(EVisibility::Visible)
-			.Thickness(FVector2D(5.0f, 5.0f))
 			.OnUserScrolled(this, &STimingView::VerticalScrollBar_OnUserScrolled)
 		]
 
@@ -771,7 +769,7 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 	}
 
 	// Set the VerticalScrollBar padding so it is limited to the scrollable area.
-	VerticalScrollBar->SetPadding(FMargin(0.0f, TopOffset, 0.0f, FMath::Max(BottomOffset, 12.0f)));
+	VerticalScrollBar->SetPadding(FMargin(0.0f, TopOffset + 2.0f, 0.0f, FMath::Max(BottomOffset + 2.0f, 10.0f)));
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -809,7 +807,7 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 	// Elastic snap to vertical scroll limits.
 	if (!bIsPanning)
 	{
-		const float DY = Viewport.GetScrollHeight() - Viewport.GetScrollableAreaHeight() + 7.0f; // +7 is to allow some space for the horizontal scrollbar
+		const float DY = Viewport.GetScrollHeight() - Viewport.GetScrollableAreaHeight();
 		const float MinY = FMath::Min(DY, 0.0f);
 		const float MaxY = DY - MinY;
 
@@ -2977,7 +2975,7 @@ float STimingView::EnforceVerticalScrollLimits(const float InScrollPosY)
 {
 	float NewScrollPosY = InScrollPosY;
 
-	const float DY = Viewport.GetScrollHeight() - Viewport.GetScrollableAreaHeight() + 7.0f; // +7 is to allow some space for the horizontal scrollbar
+	const float DY = Viewport.GetScrollHeight() - Viewport.GetScrollableAreaHeight();
 	const float MinY = FMath::Min(DY, 0.0f);
 	const float MaxY = DY - MinY;
 
