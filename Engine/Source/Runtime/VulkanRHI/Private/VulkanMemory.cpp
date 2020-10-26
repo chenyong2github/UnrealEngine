@@ -3981,9 +3981,6 @@ namespace VulkanRHI
 					}
 					break;
 					default:
-						UE_LOG(LogVulkanRHI, Error, TEXT("MetaType %u, size %u, "), (unsigned int)Alloc.MetaType, Alloc.AllocationSize);
-						UE_LOG(LogVulkanRHI, Error, TEXT("TextureBase %s"), *Alloc.AllocationOwner->GetTextureBase()->GetRHITexture()->GetName().ToString());
-						
 						checkNoEntry(); //not implemented.
 				}
 				if(0 >= --Count)
