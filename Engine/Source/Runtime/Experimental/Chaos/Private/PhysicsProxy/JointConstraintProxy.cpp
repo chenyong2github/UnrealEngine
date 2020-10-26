@@ -137,8 +137,8 @@ void TJointConstraintProxy<Chaos::FJointConstraint>::InitializeOnPhysicsThread(C
 				Handle = JointConstraints.AddConstraint({ Handle0,Handle1 }, Constraint->GetJointTransforms());
 				Handle->SetSettings(JointSettingsBuffer);
 
-					Particles[0]->Handle()->AddConstraintHandle(Handle);
-					Particles[1]->Handle()->AddConstraintHandle(Handle);
+				Handle0->AddConstraintHandle(Handle);
+				Handle1->AddConstraintHandle(Handle);
 			}
 
 		}
