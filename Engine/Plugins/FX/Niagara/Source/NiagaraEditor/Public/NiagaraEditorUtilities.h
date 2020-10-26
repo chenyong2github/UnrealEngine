@@ -256,7 +256,7 @@ namespace FNiagaraEditorUtilities
 
 	void GetScriptRunAndExecutionIndexFromUsage(const ENiagaraScriptUsage& InUsage, int32& OutRunIndex, int32&OutExecutionIndex);
 
-	FName GetUniqueObjectName(UObject* Outer, UClass* ObjectClass, const FString& CandidateName);
+	NIAGARAEDITOR_API FName GetUniqueObjectName(UObject* Outer, UClass* ObjectClass, const FString& CandidateName);
 
 	template<typename T>
 	FName GetUniqueObjectName(UObject* Outer, const FString& CandidateName)
