@@ -9,6 +9,7 @@
 #include "Editor/LandscapeEditor/Private/LandscapeEdMode.h"
 #include "LandscapeFileFormatInterface.h"
 #include "LandscapeBlueprintBrush.h"
+#include "LandscapeImportHelper.h"
 
 #include "LandscapeEditorObject.generated.h"
 
@@ -522,6 +523,8 @@ class ULandscapeEditorObject : public UObject
 	UPROPERTY(NonTransactional)
 	uint32 ImportLandscape_Height;
 
+	FLandscapeImportDescriptor HeightmapImportDescriptor;
+	int32 HeightmapImportDescriptorIndex;
 private:
 	UPROPERTY(NonTransactional)
 	TArray<uint16> ImportLandscape_Data;
@@ -644,11 +647,17 @@ public:
 
 	const TArray<uint16>& GetImportLandscapeData() const { return ImportLandscape_Data; }
 	void ClearImportLandscapeData() { ImportLandscape_Data.Empty(); }
-
+	void ChooseBestComponentSizeForImport();
 	void ImportLandscapeData();
 	void RefreshImportLayersList();
-	
+	ELandscapeImportResult CreateImportLayersInfo(TArray<FLandscapeImportLayerInfo>& OutImportLayerInfos);
+	ELandscapeImportResult CreateNewLayersInfo(TArray<FLandscapeImportLayerInfo>& OutNewLayerInfos);
+	void InitializeDefaultHeightData(TArray<uint16>& OutData);
+	void ExpandImportData(TArray<uint16>& OutHeightData, TArray<FLandscapeImportLayerInfo>& OutImportLayerInfos);
 	void UpdateComponentLayerWhitelist();
+	bool UseSingleFileImport() const;
+	void OnChangeImportLandscapeResolution(int32 DescriptorIndex);
+	void OnImportHeightmapFilenameChanged();
 
 	int32 ClampLandscapeSize(int32 InComponentsCount) const
 	{

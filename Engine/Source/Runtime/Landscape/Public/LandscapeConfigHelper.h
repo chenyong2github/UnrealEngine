@@ -78,6 +78,7 @@ private:
 	static void MoveSplinesToLandscape(ULandscapeInfo* InLandscapeInfo, ALandscapeProxy* InLandscape, float InScaleFactor);
 	static void MoveFoliageToLandscape(ULandscapeInfo* InLandscapeInfo, ULandscapeInfo* InNewLandscapeInfo);
 
+public:
 	template<typename T>
 	static void CopyData(const TArray<T>& InData, TArray<T>& OutData, const FIntRect& InSrcRegion, const FIntRect& InDestRegion, bool bInResample)
 	{
@@ -92,24 +93,36 @@ private:
 	}
 
 	template<typename T>
-	static void ExpandData(const TArray<T>& InData, TArray<T>& OutData, const FIntRect& InSrcRegion, const FIntRect& InDestRegion)
+	static void ExpandData(const TArray<T>& InData, TArray<T>& OutData, const FIntRect& InSrcRegion, const FIntRect& InDestRegion, bool bOffset = false)
 	{
 		// Regions are in ComponentQuads and we want Vertices (+1)
 		const int32 SrcWidth = InSrcRegion.Width() + 1;
 		const int32 SrcHeight = InSrcRegion.Height() + 1;
 		const int32 DestWidth = InDestRegion.Width() + 1;
 		const int32 DestHeight = InDestRegion.Height() + 1;
+		const int32 OffsetX = bOffset ? InDestRegion.Min.X - InSrcRegion.Min.X : 0;
+		const int32 OffsetY = bOffset ? InDestRegion.Min.Y - InSrcRegion.Min.X : 0;
 		
 		OutData.Empty(DestWidth * DestHeight);
 		OutData.AddUninitialized(DestWidth * DestHeight);
 
 		for (int32 Y = 0; Y < DestHeight; ++Y)
 		{
-			const int32 OldY = FMath::Clamp<int32>(Y, 0, SrcHeight - 1);
+			const int32 OldY = FMath::Clamp<int32>(Y + OffsetY, 0, SrcHeight - 1);
 						
-			// Copy one row of the old data
-			FMemory::Memcpy(&OutData[Y * DestWidth], &InData[OldY * SrcWidth], FMath::Min<int32>(SrcWidth, DestWidth) * sizeof(T));
-		
+			// Pad anything to the left
+			const T PadLeft = InData[OldY * SrcWidth];
+			for (int32 X = 0; X < -OffsetX; ++X)
+			{
+				OutData[Y * DestWidth + X] = PadLeft;
+			}
+
+			{
+				const int32 X = FMath::Max(0, -OffsetX);
+				const int32 OldX = FMath::Clamp<int32>(X + OffsetX, 0, SrcWidth - 1);
+				FMemory::Memcpy(&OutData[Y * DestWidth + X], &InData[OldY * SrcWidth + OldX], FMath::Min<int32>(SrcWidth, DestWidth) * sizeof(T));
+			}
+
 			const T PadRight = InData[OldY * SrcWidth + SrcWidth - 1];
 			for (int32 X = SrcWidth; X < DestWidth; ++X)
 			{

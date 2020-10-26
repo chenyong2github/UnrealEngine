@@ -75,7 +75,6 @@ public:
 
 	bool GetImportButtonIsEnabled() const;
 	FReply OnFitImportDataButtonClicked();
-	void ChooseBestComponentSizeForImport(FEdModeLandscape* LandscapeEdMode);
 
 	FText GetOverallResolutionTooltip() const;
 
@@ -83,7 +82,6 @@ public:
 	EVisibility GetMaterialTipVisibility() const;
 
 protected:
-	TArray<FLandscapeFileResolution> ImportResolutions;
 	bool bUsingSlider;
 };
 

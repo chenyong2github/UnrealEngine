@@ -21,7 +21,7 @@
 #include "Landscape.h"
 #include "LandscapeEditorUtils.h"
 #include "LandscapeConfigHelper.h"
-#include "NewLandscapeUtils.h"
+#include "LandscapeImportHelper.h"
 
 #include "DetailLayoutBuilder.h"
 #include "IDetailChildrenBuilder.h"
@@ -817,9 +817,10 @@ FReply FLandscapeEditorDetailCustomization_NewLandscape::OnCreateButtonClicked()
 		const int32 SizeX = ComponentCountX * QuadsPerComponent + 1;
 		const int32 SizeY = ComponentCountY * QuadsPerComponent + 1;
 
-		TOptional< TArray< FLandscapeImportLayerInfo > > MaterialImportLayers = FNewLandscapeUtils::CreateImportLayersInfo(UISettings, LandscapeEdMode->NewLandscapePreviewMode );
+		TArray<FLandscapeImportLayerInfo> MaterialImportLayers;
+		ELandscapeImportResult LayerImportResult = LandscapeEdMode->NewLandscapePreviewMode == ENewLandscapePreviewMode::NewLandscape ? UISettings->CreateNewLayersInfo(MaterialImportLayers) : UISettings->CreateImportLayersInfo(MaterialImportLayers);
 
-		if ( !MaterialImportLayers)
+		if (LayerImportResult == ELandscapeImportResult::Error)
 		{
 			return FReply::Handled();
 		}
@@ -827,9 +828,19 @@ FReply FLandscapeEditorDetailCustomization_NewLandscape::OnCreateButtonClicked()
 		TMap<FGuid, TArray<uint16>> HeightDataPerLayers;
 		TMap<FGuid, TArray<FLandscapeImportLayerInfo>> MaterialLayerDataPerLayers;
 
-		HeightDataPerLayers.Add(FGuid(), FNewLandscapeUtils::ComputeHeightData(UISettings, MaterialImportLayers.GetValue(), LandscapeEdMode->NewLandscapePreviewMode));
+		TArray<uint16> OutHeightData;
+		if (LandscapeEdMode->NewLandscapePreviewMode == ENewLandscapePreviewMode::NewLandscape)
+		{
+			UISettings->InitializeDefaultHeightData(OutHeightData);
+		}
+		else
+		{
+			UISettings->ExpandImportData(OutHeightData, MaterialImportLayers);
+		}
+
+		HeightDataPerLayers.Add(FGuid(), OutHeightData);
 		// ComputeHeightData will also modify/expand material layers data, which is why we create MaterialLayerDataPerLayers after calling ComputeHeightData
-		MaterialLayerDataPerLayers.Add(FGuid(), MaterialImportLayers.GetValue());
+		MaterialLayerDataPerLayers.Add(FGuid(), MoveTemp(MaterialImportLayers));
 
 		FScopedTransaction Transaction(LOCTEXT("Undo", "Creating New Landscape"));
 
@@ -847,12 +858,13 @@ FReply FLandscapeEditorDetailCustomization_NewLandscape::OnCreateButtonClicked()
 		// >= 8192x8192 -> LOD3
 		Landscape->StaticLightingLOD = FMath::DivideAndRoundUp(FMath::CeilLogTwo((SizeX * SizeY) / (2048 * 2048) + 1), (uint32)2);
 
+		FString ReimportHeightmapFilePath;
 		if (LandscapeEdMode->NewLandscapePreviewMode == ENewLandscapePreviewMode::ImportLandscape)
 		{
-			Landscape->ReimportHeightmapFilePath = UISettings->ImportLandscape_HeightmapFilename;
+			ReimportHeightmapFilePath = UISettings->ImportLandscape_HeightmapFilename;
 		}
 
-		Landscape->Import(FGuid::NewGuid(), 0, 0, SizeX - 1, SizeY - 1, UISettings->NewLandscape_SectionsPerComponent, UISettings->NewLandscape_QuadsPerSection, HeightDataPerLayers, nullptr, MaterialLayerDataPerLayers, UISettings->ImportLandscape_AlphamapType);
+		Landscape->Import(FGuid::NewGuid(), 0, 0, SizeX - 1, SizeY - 1, UISettings->NewLandscape_SectionsPerComponent, UISettings->NewLandscape_QuadsPerSection, HeightDataPerLayers, *ReimportHeightmapFilePath, MaterialLayerDataPerLayers, UISettings->ImportLandscape_AlphamapType);
 
 		ULandscapeInfo* LandscapeInfo = Landscape->GetLandscapeInfo();
 		check(LandscapeInfo);
@@ -926,7 +938,7 @@ FReply FLandscapeEditorDetailCustomization_NewLandscape::OnFitImportDataButtonCl
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
 	if (LandscapeEdMode != nullptr)
 	{
-		ChooseBestComponentSizeForImport(LandscapeEdMode);
+		LandscapeEdMode->UISettings->ChooseBestComponentSizeForImport();
 	}
 
 	return FReply::Handled();
@@ -1023,7 +1035,7 @@ void FLandscapeEditorDetailCustomization_NewLandscape::OnImportHeightmapFilename
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
 	if (LandscapeEdMode != nullptr)
 	{
-		FNewLandscapeUtils::ImportLandscapeData(LandscapeEdMode->UISettings, ImportResolutions);
+		LandscapeEdMode->UISettings->OnImportHeightmapFilenameChanged();
 	}
 }
 
@@ -1064,12 +1076,16 @@ TSharedRef<SWidget> FLandscapeEditorDetailCustomization_NewLandscape::GetImportL
 {
 	FMenuBuilder MenuBuilder(true, nullptr);
 
-	for (int32 i = 0; i < ImportResolutions.Num(); i++)
+	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
+	if (LandscapeEdMode != nullptr)
 	{
-		FFormatNamedArguments Args;
-		Args.Add(TEXT("Width"), ImportResolutions[i].Width);
-		Args.Add(TEXT("Height"), ImportResolutions[i].Height);
-		MenuBuilder.AddMenuEntry(FText::Format(LOCTEXT("ImportResolution_Format", "{Width}\u00D7{Height}"), Args), FText(), FSlateIcon(), FExecuteAction::CreateSP(this, &FLandscapeEditorDetailCustomization_NewLandscape::OnChangeImportLandscapeResolution, i));
+		for (int32 i = 0; i < LandscapeEdMode->UISettings->HeightmapImportDescriptor.ImportResolutions.Num(); i++)
+		{
+			FFormatNamedArguments Args;
+			Args.Add(TEXT("Width"), LandscapeEdMode->UISettings->HeightmapImportDescriptor.ImportResolutions[i].Width);
+			Args.Add(TEXT("Height"), LandscapeEdMode->UISettings->HeightmapImportDescriptor.ImportResolutions[i].Height);
+			MenuBuilder.AddMenuEntry(FText::Format(LOCTEXT("ImportResolution_Format", "{Width}\u00D7{Height}"), Args), FText(), FSlateIcon(), FExecuteAction::CreateSP(this, &FLandscapeEditorDetailCustomization_NewLandscape::OnChangeImportLandscapeResolution, i));
+		}
 	}
 
 	return MenuBuilder.MakeWidget();
@@ -1080,10 +1096,7 @@ void FLandscapeEditorDetailCustomization_NewLandscape::OnChangeImportLandscapeRe
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
 	if (LandscapeEdMode != nullptr)
 	{
-		LandscapeEdMode->UISettings->ImportLandscape_Width = ImportResolutions[Index].Width;
-		LandscapeEdMode->UISettings->ImportLandscape_Height = ImportResolutions[Index].Height;
-		LandscapeEdMode->UISettings->ClearImportLandscapeData();
-		ChooseBestComponentSizeForImport(LandscapeEdMode);
+		LandscapeEdMode->UISettings->OnChangeImportLandscapeResolution(Index);
 	}
 }
 
@@ -1108,11 +1121,6 @@ FText FLandscapeEditorDetailCustomization_NewLandscape::GetImportLandscapeResolu
 	}
 
 	return FText::GetEmpty();
-}
-
-void FLandscapeEditorDetailCustomization_NewLandscape::ChooseBestComponentSizeForImport(FEdModeLandscape* LandscapeEdMode)
-{
-	FNewLandscapeUtils::ChooseBestComponentSizeForImport(LandscapeEdMode->UISettings);
 }
 
 EVisibility FLandscapeEditorDetailCustomization_NewLandscape::GetMaterialTipVisibility() const

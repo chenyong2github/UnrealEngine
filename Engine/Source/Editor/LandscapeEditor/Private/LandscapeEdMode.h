@@ -603,6 +603,7 @@ public:
 
 	void ReimportData(const FLandscapeTargetListInfo& TargetInfo);
 	void ImportData(const FLandscapeTargetListInfo& TargetInfo, const FString& Filename);
+	bool UseSingleFileImport() const { return !IsGridBased(); }
 
 	/** Resample landscape to a different resolution or change the component size */
 	ALandscape* ChangeComponentSetting(int32 NumComponentsX, int32 NumComponentsY, int32 InNumSubsections, int32 InSubsectionSizeQuads, bool bResample);

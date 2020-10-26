@@ -9,6 +9,8 @@ struct FLandscapeFileResolution;
 struct FLandscapeImportLayerInfo;
 class ULandscapeEditorObject;
 
+// This class has been replaced by FLandscapeImportHelper & ULandscapeEditorObject methods.
+// @todo_ow: deprecate (probably just delete since it was added for Datasmith which was updated to the new import code)
 class LANDSCAPEEDITOR_API FNewLandscapeUtils
 {
 public:
