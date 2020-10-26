@@ -121,6 +121,9 @@ namespace Audio
 		// Clears the submix send to the given submix
 		void ClearSubmixSendInfo(FMixerSubmixWeakPtr Submix);
 
+		// Sets whether or not we are enabling sending audio to submixes (we could be sending audio to source buses though).
+		void SetOutputToBusOnly(bool bInOutputToBusOnly);
+
 		// Set the source bus send levels
 		void SetAudioBusSendInfo(EBusSendType InBusSendType, uint32 AudioBusId, float BusSendLevel);
 
@@ -150,8 +153,9 @@ namespace Audio
 		uint16 bIsPlaying : 1;
 		uint16 bIsPaused : 1;
 		uint16 bIsActive : 1;
-		uint16 bOutputToBusOnly : 1;
 		uint16 bIsBus : 1;
+
+		volatile bool bOutputToBusOnly;
 	};
 
 }

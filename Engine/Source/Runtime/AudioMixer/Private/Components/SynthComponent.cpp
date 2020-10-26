@@ -531,6 +531,15 @@ void USynthComponent::SetLowPassFilterFrequency(float InLowPassFilterFrequency)
 	}
 }
 
+void USynthComponent::SetOutputToBusOnly(bool bInOutputToBusOnly)
+{
+	if (AudioComponent)
+	{
+		AudioComponent->SetOutputToBusOnly(bInOutputToBusOnly);
+	}
+}
+
+
 void USynthComponent::SynthCommand(TFunction<void()> Command)
 {
 	if (SoundGenerator.IsValid())

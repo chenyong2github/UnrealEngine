@@ -2171,7 +2171,15 @@ void USoundWave::Parse(FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstance
 	// Copy over the source bus send and data
 	if (!WaveInstance->ActiveSound->bIsPreviewSound)
 	{
-		WaveInstance->bOutputToBusOnly = ParseParams.bOutputToBusOnly;
+		// Active sounds can override their output to bus only behavior via audio components
+		if (ActiveSound.bEnableOutputToBusOnlyOverride)
+		{
+			WaveInstance->bOutputToBusOnly = ActiveSound.bOutputToBusOnlyOverride;
+		}
+		else
+		{
+			WaveInstance->bOutputToBusOnly = ParseParams.bOutputToBusOnly;
+		}
 	}
 
 	for (int32 BusSendType = 0; BusSendType < (int32)EBusSendType::Count; ++BusSendType)
