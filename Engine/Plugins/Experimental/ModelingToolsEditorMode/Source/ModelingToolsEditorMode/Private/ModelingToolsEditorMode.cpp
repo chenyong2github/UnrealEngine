@@ -8,6 +8,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "EditorViewportClient.h"
+#include "EngineAnalytics.h"
 
 //#include "SingleClickTool.h"
 //#include "MeshSurfacePointTool.h"
@@ -783,12 +784,48 @@ void FModelingToolsEditorMode::Enter()
 
 	// enable realtime viewport override
 	ConfigureRealTimeViewportsOverride(true);
+
+	//
+	// Engine Analytics
+	//
+	// Log Analytic of mode starting
+	if( FEngineAnalytics::IsAvailable() )
+	{
+		FEngineAnalytics::GetProvider().RecordEvent( TEXT( "Editor.Usage.MeshModelingMode.Enter" ) );
+	}
+	ToolsContext->ToolManager->OnToolStarted.AddLambda([this](UInteractiveToolManager* Manager, UInteractiveTool* Tool)
+	{
+		if( FEngineAnalytics::IsAvailable() )
+		{
+			FEngineAnalytics::GetProvider().RecordEvent( TEXT( "Editor.Usage.MeshModelingMode.ToolStarted" ),
+														 TEXT( "DisplayName" ),
+														 Tool->GetToolInfo().ToolDisplayName.ToString() );
+		}
+	});
+	ToolsContext->ToolManager->OnToolEnded.AddLambda([this](UInteractiveToolManager* Manager, UInteractiveTool* Tool)
+	{
+		if( FEngineAnalytics::IsAvailable() )
+		{
+			FEngineAnalytics::GetProvider().RecordEvent( TEXT( "Editor.Usage.MeshModelingMode.ToolEnded" ),
+														 TEXT( "DisplayName" ),
+														 Tool->GetToolInfo().ToolDisplayName.ToString() );
+		}
+	});
 }
 
 
 
 void FModelingToolsEditorMode::Exit()
 {
+	//
+	// Engine Analytics
+	//
+	// Log Analytic of mode ending
+	if( FEngineAnalytics::IsAvailable() )
+	{
+		FEngineAnalytics::GetProvider().RecordEvent( TEXT( "Editor.Usage.MeshModelingMode.Exit" ) );
+	}
+
 	OnToolNotificationMessage.Clear();
 	OnToolWarningMessage.Clear();
 
