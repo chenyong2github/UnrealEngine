@@ -1115,6 +1115,12 @@ void UBodySetup::Serialize(FArchive& Ar)
 			}
 		}
 		*/
+#else
+		if(Ar.IsLoading())
+		{
+			int32 DummyCount;
+			Ar << DummyCount;
+		}
 #endif
 	}
 
