@@ -1103,6 +1103,10 @@ struct RIGVMDEVELOPER_API FRigVMParserASTSettings
 	UPROPERTY(EditAnywhere, Category = "AST")
 	bool bFoldConstantBranches;
 
+	// links to be ignored during the parse
+	UPROPERTY()
+	TArray<URigVMLink*> LinksToSkip;
+
 	// static method to provide fast AST parse settings
 	static FRigVMParserASTSettings Fast()
 	{
@@ -1334,6 +1338,7 @@ private:
 
 	const FRigVMExprAST* LastCycleCheckExpr;
 	TArray<ETraverseRelationShip> CycleCheckFlags;
+	TArray<URigVMLink*> LinksToSkip;
 
 	friend class FRigVMExprAST;
 	friend class URigVMCompiler;

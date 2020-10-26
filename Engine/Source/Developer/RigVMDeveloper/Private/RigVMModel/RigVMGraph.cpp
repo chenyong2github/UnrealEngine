@@ -119,11 +119,12 @@ void URigVMGraph::Notify(ERigVMGraphNotifType InNotifType, UObject* InSubject)
 	ModifiedEvent.Broadcast(InNotifType, this, InSubject);
 }
 
-TSharedPtr<FRigVMParserAST> URigVMGraph::GetDiagnosticsAST(bool bForceRefresh)
+TSharedPtr<FRigVMParserAST> URigVMGraph::GetDiagnosticsAST(bool bForceRefresh, TArray<URigVMLink*> InLinksToSkip)
 {
 	if (DiagnosticsAST == nullptr || bForceRefresh)
 	{
 		FRigVMParserASTSettings Settings = FRigVMParserASTSettings::Fast();
+		Settings.LinksToSkip = InLinksToSkip;
 		DiagnosticsAST = MakeShareable(new FRigVMParserAST(this, nullptr, Settings));
 	}
 	return DiagnosticsAST;
@@ -164,7 +165,12 @@ bool URigVMGraph::IsNameAvailable(const FString& InName)
 
 void URigVMGraph::PrepareCycleChecking(URigVMPin* InPin, bool bAsInput)
 {
-	GetDiagnosticsAST()->PrepareCycleChecking(InPin);
+	TArray<URigVMLink*> LinksToSkip;
+	if (InPin)
+	{
+		LinksToSkip = InPin->GetLinks();
+	}
+	GetDiagnosticsAST(LinksToSkip.Num() > 0, LinksToSkip)->PrepareCycleChecking(InPin);
 }
 
 bool URigVMGraph::CanLink(URigVMPin* InSourcePin, URigVMPin* InTargetPin, FString* OutFailureReason)

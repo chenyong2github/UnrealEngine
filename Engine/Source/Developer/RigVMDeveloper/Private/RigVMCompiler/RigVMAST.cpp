@@ -823,6 +823,7 @@ FRigVMParserAST::FRigVMParserAST(URigVMGraph* InGraph, URigVMController* InContr
 
 	ObsoleteBlock = nullptr;
 	LastCycleCheckExpr = nullptr;
+	LinksToSkip = InSettings.LinksToSkip;
 
 	const TArray<URigVMNode*> Nodes = InGraph->GetNodes();
 	for (URigVMNode* Node : Nodes)
@@ -977,9 +978,14 @@ FRigVMExprAST* FRigVMParserAST::TraverseMutableNode(URigVMNode* InNode, FRigVMEx
 						}
 					}
 
-					TArray<URigVMPin*> TargetPins = SourcePin->GetLinkedTargetPins();
-					for (URigVMPin* TargetPin : TargetPins)
+					const TArray<URigVMLink*>& Links = SourcePin->GetLinks();
+					for(URigVMLink* Link : Links)
 					{
+						if (LinksToSkip.Contains(Link))
+						{
+							continue;
+						}
+						URigVMPin* TargetPin = Link->GetTargetPin();
 						TraverseMutableNode(TargetPin->GetNode(), ParentExpr);
 					}
 				}
@@ -1094,6 +1100,12 @@ FRigVMExprAST* FRigVMParserAST::TraversePin(URigVMPin* InPin, FRigVMExprAST* InP
 	ensure(!SubjectToExpression.Contains(InPin));
 
 	TArray<URigVMLink*> SourceLinks = InPin->GetSourceLinks(true);
+	
+	if (LinksToSkip.Num() > 0)
+	{
+		const TArray<URigVMLink*>& LocalLinksToSkip = LinksToSkip;
+		SourceLinks.RemoveAll([LocalLinksToSkip](URigVMLink* LinkToCheck) { return LocalLinksToSkip.Contains(LinkToCheck); });
+	}
 
 	struct Local
 	{
