@@ -522,7 +522,7 @@ namespace DisplayClusterHelpers
 				static const float MaxFOVRad = FMath::DegreesToRadians(178.0f); // max FOV = 179 degree
 
 				// Protect from broken input data, return valid matrix
-				if (isnan(l) || isnan(r) || isnan(r) || isnan(b) || isnan(n) || isnan(f))
+				if (isnan(l) || isnan(r) || isnan(t) || isnan(b) || isnan(n) || isnan(f))
 				{
 					return FMatrix::Identity;
 				}
