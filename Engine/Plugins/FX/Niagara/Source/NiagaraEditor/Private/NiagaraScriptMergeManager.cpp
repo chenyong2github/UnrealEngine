@@ -1962,6 +1962,10 @@ TOptional<bool> FNiagaraScriptMergeManager::DoFunctionInputOverridesMatch(TShare
 			.GetParameterData(BaseFunctionInputAdapter->GetLocalValueRapidIterationParameter().GetValue());
 		const uint8* OtherRapidIterationParameterValue = OtherFunctionInputAdapter->GetOwningScript()->RapidIterationParameters
 			.GetParameterData(OtherFunctionInputAdapter->GetLocalValueRapidIterationParameter().GetValue());
+		if (BaseRapidIterationParameterValue == nullptr || OtherRapidIterationParameterValue == nullptr)
+		{
+			return TOptional<bool>();
+		}
 		return FMemory::Memcmp(
 			BaseRapidIterationParameterValue,
 			OtherRapidIterationParameterValue,
