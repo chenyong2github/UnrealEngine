@@ -42,11 +42,33 @@ void UDisplayClusterGameEngine::Init(class IEngineLoop* InEngineLoop)
 
 	if (OperationMode == EDisplayClusterOperationMode::Cluster)
 	{
+		// Our parsing function for arguments like:
+		// -ArgName1="ArgValue 1" -ArgName2=ArgValue2 ArgName3=ArgValue3
+		//
+		auto ParseCommandArg = [](const FString& CommandLine, const FString& ArgName, FString& OutArgVal) {
+			const FString Tag = FString::Printf(TEXT("-%s="), *ArgName);
+			const int32 TagPos = CommandLine.Find(Tag);
+
+			if (TagPos == INDEX_NONE)
+			{
+				// Try old method, where the '-' prefix is missing and quoted values with spaces are not supported.
+				return FParse::Value(*CommandLine, *ArgName, OutArgVal);
+			}
+
+			const TCHAR* TagValue = &CommandLine[TagPos + Tag.Len()];
+
+			if (*TagValue == TEXT('"'))
+			{
+				return FParse::QuotedString(TagValue, OutArgVal);
+			}
+
+			return FParse::Token(TagValue, OutArgVal, false);
+		};
+
 		FString ConfigPath;
-		FString NodeId;
 
 		// Extract config path from command line
-		if (!FParse::Value(FCommandLine::Get(), DisplayClusterStrings::args::Config, ConfigPath))
+		if (!ParseCommandArg(FCommandLine::Get(), DisplayClusterStrings::args::Config, ConfigPath))
 		{
 			FDisplayClusterAppExit::ExitApplication(FDisplayClusterAppExit::EExitType::KillImmediately, FString("No config file specified. Cluster operation mode requires config file."));
 		}
@@ -61,8 +83,10 @@ void UDisplayClusterGameEngine::Init(class IEngineLoop* InEngineLoop)
 			FDisplayClusterAppExit::ExitApplication(FDisplayClusterAppExit::EExitType::KillImmediately, FString("An error occurred during loading the configuration file"));
 		}
 
+		FString NodeId;
+
 		// Extract node ID from command line
-		if (!FParse::Value(FCommandLine::Get(), DisplayClusterStrings::args::Node, NodeId))
+		if (!ParseCommandArg(FCommandLine::Get(), DisplayClusterStrings::args::Node, NodeId))
 		{
 			UE_LOG(LogDisplayClusterEngine, Log, TEXT("Node ID is not specified. Trying to resolve from host address..."));
 

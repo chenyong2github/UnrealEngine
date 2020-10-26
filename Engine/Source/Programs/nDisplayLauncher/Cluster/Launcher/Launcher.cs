@@ -38,9 +38,9 @@ namespace nDisplayLauncher.Cluster
 		// run application params\keys
 		private const string ArgMandatory = "-dc_cluster -nosplash -fixedseed";
 
-		private const string ArgConfig = "dc_cfg";
-		private const string ArgNode   = "dc_node";
-		private const string ArgGpu    = "dc_gpu";
+		private const string ArgConfig = "-dc_cfg";
+		private const string ArgNode   = "-dc_node";
+		private const string ArgGpu    = "-dc_gpu";
 
 		// switches
 		private const string ArgFullscreen           = "-fullscreen";
