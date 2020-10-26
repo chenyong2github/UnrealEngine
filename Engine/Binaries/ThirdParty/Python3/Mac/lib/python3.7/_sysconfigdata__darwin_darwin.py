@@ -6,85 +6,73 @@ build_time_vars = {'ABIFLAGS': '',
  'AR': 'ar',
  'ARFLAGS': 'rcs',
  'BASECFLAGS': '-Wno-unused-result -Wsign-compare -Wunreachable-code',
- 'BASECPPFLAGS': '',
+ 'BASECPPFLAGS': '-IObjects -IInclude -IPython',
  'BASEMODLIBS': '',
- 'BINDIR': '/Users/devqa/.pyenv/versions/3.7.7/bin',
- 'BINLIBDEST': '/Users/devqa/.pyenv/versions/3.7.7/lib/python3.7',
+ 'BINDIR': '/tmp/Python3/Deploy/bin',
+ 'BINLIBDEST': '/tmp/Python3/Deploy/lib/python3.7',
  'BLDLIBRARY': '-L. -lpython3.7',
- 'BLDSHARED': 'clang -bundle -undefined dynamic_lookup '
-              '-L/usr/local/opt/readline/lib -L/usr/local/opt/readline/lib '
-              '-L/Users/devqa/.pyenv/versions/3.7.7/lib '
-              '-L/usr/local/opt/openssl@1.1/lib -L/usr/local/opt/readline/lib '
-              '-L/usr/local/opt/readline/lib '
-              '-L/Users/devqa/.pyenv/versions/3.7.7/lib '
-              '-L/usr/local/opt/openssl@1.1/lib',
+ 'BLDSHARED': 'gcc -bundle -undefined dynamic_lookup '
+              '/tmp/zlib/Deploy/lib/libz.a -mmacosx-version-min=10.14',
  'BUILDEXE': '.exe',
  'BUILDPYTHON': 'python.exe',
- 'BUILD_GNU_TYPE': 'x86_64-apple-darwin19.0.0',
+ 'BUILD_GNU_TYPE': 'x86_64-apple-darwin20.1.0',
  'BYTESTR_DEPS': '\\',
- 'CC': 'clang',
+ 'CC': 'gcc',
  'CCSHARED': '',
  'CFLAGS': '-Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g '
-           '-fwrapv -O3 -Wall '
-           '-I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include '
-           '-I/usr/local/opt/openssl@1.1/include '
-           '-I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include '
-           '-I/usr/local/opt/openssl@1.1/include',
+           '-fwrapv -O3 -Wall -isysroot '
+           '/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.15.sdk '
+           '-mmacosx-version-min=10.14 -gdwarf-2 -I/tmp/zlib/Deploy/include '
+           '-Wno-error=implicit-function-declaration',
  'CFLAGSFORSHARED': '',
  'CFLAGS_ALIASING': '-fno-strict-aliasing',
  'CFLAGS_NODIST': '',
  'CONFIGFILES': 'configure configure.ac acconfig.h pyconfig.h.in '
                 'Makefile.pre.in',
- 'CONFIGURE_CFLAGS': '-I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include '
-                     '-I/usr/local/opt/openssl@1.1/include',
+ 'CONFIGURE_CFLAGS': '-isysroot '
+                     '/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.15.sdk '
+                     '-mmacosx-version-min=10.14 -gdwarf-2 '
+                     '-I/tmp/zlib/Deploy/include '
+                     '-Wno-error=implicit-function-declaration',
  'CONFIGURE_CFLAGS_NODIST': '-std=c99 -Wextra -Wno-unused-result '
                             '-Wno-unused-parameter '
                             '-Wno-missing-field-initializers '
                             '-Wstrict-prototypes '
                             '-Werror=implicit-function-declaration',
- 'CONFIGURE_CPPFLAGS': '-I/usr/local/opt/readline/include '
-                       '-I/usr/local/opt/readline/include '
-                       '-I/Users/devqa/.pyenv/versions/3.7.7/include',
- 'CONFIGURE_LDFLAGS': '-L/usr/local/opt/readline/lib '
-                      '-L/usr/local/opt/readline/lib '
-                      '-L/Users/devqa/.pyenv/versions/3.7.7/lib '
-                      '-L/usr/local/opt/openssl@1.1/lib',
+ 'CONFIGURE_CPPFLAGS': '-mmacosx-version-min=10.14 -gdwarf-2 '
+                       '-I/tmp/zlib/Deploy/include '
+                       '-Wno-error=implicit-function-declaration',
+ 'CONFIGURE_LDFLAGS': '/tmp/zlib/Deploy/lib/libz.a -mmacosx-version-min=10.14',
  'CONFIGURE_LDFLAGS_NODIST': '',
- 'CONFIG_ARGS': "'--prefix=/Users/devqa/.pyenv/versions/3.7.7' "
-                "'--enable-shared' '--without-pymalloc' "
-                "'--libdir=/Users/devqa/.pyenv/versions/3.7.7/lib' "
-                "'--with-openssl=/usr/local/opt/openssl@1.1' 'CC=clang' "
-                "'CFLAGS=-I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include "
-                "-I/usr/local/opt/openssl@1.1/include ' "
-                "'LDFLAGS=-L/usr/local/opt/readline/lib "
-                '-L/usr/local/opt/readline/lib '
-                '-L/Users/devqa/.pyenv/versions/3.7.7/lib '
-                "-L/usr/local/opt/openssl@1.1/lib' "
-                "'CPPFLAGS=-I/usr/local/opt/readline/include "
-                '-I/usr/local/opt/readline/include '
-                "-I/Users/devqa/.pyenv/versions/3.7.7/include ' "
-                "'PKG_CONFIG_PATH=/usr/local/opt/openssl@1.1/lib/pkgconfig/:'",
- 'CONFINCLUDEDIR': '/Users/devqa/.pyenv/versions/3.7.7/include',
- 'CONFINCLUDEPY': '/Users/devqa/.pyenv/versions/3.7.7/include/python3.7',
+ 'CONFIG_ARGS': "'--prefix=/tmp/Python3/Deploy' '--without-pymalloc' "
+                "'--enable-shared' '--with-openssl=/tmp/OpenSSL/Deploy/x86_64' "
+                "'CFLAGS=-isysroot "
+                '/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.15.sdk '
+                '-mmacosx-version-min=10.14 -gdwarf-2 '
+                '-I/tmp/zlib/Deploy/include '
+                "-Wno-error=implicit-function-declaration' "
+                "'CPPFLAGS=-mmacosx-version-min=10.14 -gdwarf-2 "
+                '-I/tmp/zlib/Deploy/include '
+                "-Wno-error=implicit-function-declaration' "
+                "'LDFLAGS=/tmp/zlib/Deploy/lib/libz.a "
+                "-mmacosx-version-min=10.14'",
+ 'CONFINCLUDEDIR': '/tmp/Python3/Deploy/include',
+ 'CONFINCLUDEPY': '/tmp/Python3/Deploy/include/python3.7',
  'COREPYTHONPATH': '',
- 'COVERAGE_INFO': '/var/folders/5l/l7jhjs9n0y1bl5qj2341ssc00000gp/T/python-build.20200730112651.22441/Python-3.7.7/coverage.info',
- 'COVERAGE_REPORT': '/var/folders/5l/l7jhjs9n0y1bl5qj2341ssc00000gp/T/python-build.20200730112651.22441/Python-3.7.7/lcov-report',
+ 'COVERAGE_INFO': '/tmp/Python3/Python-3.7.7/UEBuild/coverage.info',
+ 'COVERAGE_REPORT': '/tmp/Python3/Python-3.7.7/UEBuild/lcov-report',
  'COVERAGE_REPORT_OPTIONS': '--no-branch-coverage --title "CPython lcov '
                             'report"',
- 'CPPFLAGS': '-I. -I./Include -I/usr/local/opt/readline/include '
-             '-I/usr/local/opt/readline/include '
-             '-I/Users/devqa/.pyenv/versions/3.7.7/include '
-             '-I/usr/local/opt/readline/include '
-             '-I/usr/local/opt/readline/include '
-             '-I/Users/devqa/.pyenv/versions/3.7.7/include',
- 'CXX': 'clang++',
- 'DESTDIRS': '/Users/devqa/.pyenv/versions/3.7.7 '
-             '/Users/devqa/.pyenv/versions/3.7.7/lib '
-             '/Users/devqa/.pyenv/versions/3.7.7/lib/python3.7 '
-             '/Users/devqa/.pyenv/versions/3.7.7/lib/python3.7/lib-dynload',
- 'DESTLIB': '/Users/devqa/.pyenv/versions/3.7.7/lib/python3.7',
+ 'CPPFLAGS': '-IObjects -IInclude -IPython -I. -I../Include '
+             '-mmacosx-version-min=10.14 -gdwarf-2 -I/tmp/zlib/Deploy/include '
+             '-Wno-error=implicit-function-declaration',
+ 'CXX': 'g++',
+ 'DESTDIRS': '/tmp/Python3/Deploy /tmp/Python3/Deploy/lib '
+             '/tmp/Python3/Deploy/lib/python3.7 '
+             '/tmp/Python3/Deploy/lib/python3.7/lib-dynload',
+ 'DESTLIB': '/tmp/Python3/Deploy/lib/python3.7',
  'DESTPATH': '',
- 'DESTSHARED': '/Users/devqa/.pyenv/versions/3.7.7/lib/python3.7/lib-dynload',
+ 'DESTSHARED': '/tmp/Python3/Deploy/lib/python3.7/lib-dynload',
  'DFLAGS': '',
  'DIRMODE': 755,
  'DIST': 'README.rst ChangeLog configure configure.ac acconfig.h pyconfig.h.in '
@@ -357,14 +345,14 @@ build_time_vars = {'ABIFLAGS': '',
  'HAVE_READV': 1,
  'HAVE_REALPATH': 1,
  'HAVE_RENAMEAT': 1,
- 'HAVE_RL_APPEND_HISTORY': 1,
- 'HAVE_RL_CATCH_SIGNAL': 1,
+ 'HAVE_RL_APPEND_HISTORY': 0,
+ 'HAVE_RL_CATCH_SIGNAL': 0,
  'HAVE_RL_COMPLETION_APPEND_CHARACTER': 1,
  'HAVE_RL_COMPLETION_DISPLAY_MATCHES_HOOK': 1,
  'HAVE_RL_COMPLETION_MATCHES': 1,
- 'HAVE_RL_COMPLETION_SUPPRESS_APPEND': 1,
+ 'HAVE_RL_COMPLETION_SUPPRESS_APPEND': 0,
  'HAVE_RL_PRE_INPUT_HOOK': 1,
- 'HAVE_RL_RESIZE_TERMINAL': 1,
+ 'HAVE_RL_RESIZE_TERMINAL': 0,
  'HAVE_ROUND': 1,
  'HAVE_SCHED_GET_PRIORITY_MAX': 1,
  'HAVE_SCHED_H': 1,
@@ -518,13 +506,12 @@ build_time_vars = {'ABIFLAGS': '',
  'HAVE_X509_VERIFY_PARAM_SET1_HOST': 1,
  'HAVE_ZLIB_COPY': 1,
  'HAVE__GETPTY': 0,
- 'HOST_GNU_TYPE': 'x86_64-apple-darwin19.0.0',
- 'INCLDIRSTOMAKE': '/Users/devqa/.pyenv/versions/3.7.7/include '
-                   '/Users/devqa/.pyenv/versions/3.7.7/include '
-                   '/Users/devqa/.pyenv/versions/3.7.7/include/python3.7 '
-                   '/Users/devqa/.pyenv/versions/3.7.7/include/python3.7',
- 'INCLUDEDIR': '/Users/devqa/.pyenv/versions/3.7.7/include',
- 'INCLUDEPY': '/Users/devqa/.pyenv/versions/3.7.7/include/python3.7',
+ 'HOST_GNU_TYPE': 'x86_64-apple-darwin20.1.0',
+ 'INCLDIRSTOMAKE': '/tmp/Python3/Deploy/include /tmp/Python3/Deploy/include '
+                   '/tmp/Python3/Deploy/include/python3.7 '
+                   '/tmp/Python3/Deploy/include/python3.7',
+ 'INCLUDEDIR': '/tmp/Python3/Deploy/include',
+ 'INCLUDEPY': '/tmp/Python3/Deploy/include/python3.7',
  'INSTALL': '/usr/bin/install -c',
  'INSTALL_DATA': '/usr/bin/install -c -m 644',
  'INSTALL_PROGRAM': '/usr/bin/install -c',
@@ -533,40 +520,30 @@ build_time_vars = {'ABIFLAGS': '',
  'INSTSONAME': 'libpython3.7.dylib',
  'IO_H': 'Modules/_io/_iomodule.h',
  'IO_OBJS': '\\',
- 'LDCXXSHARED': 'clang++ -bundle -undefined dynamic_lookup',
- 'LDFLAGS': '-L/usr/local/opt/readline/lib -L/usr/local/opt/readline/lib '
-            '-L/Users/devqa/.pyenv/versions/3.7.7/lib '
-            '-L/usr/local/opt/openssl@1.1/lib -L/usr/local/opt/readline/lib '
-            '-L/usr/local/opt/readline/lib '
-            '-L/Users/devqa/.pyenv/versions/3.7.7/lib '
-            '-L/usr/local/opt/openssl@1.1/lib',
+ 'LDCXXSHARED': 'g++ -bundle -undefined dynamic_lookup',
+ 'LDFLAGS': '/tmp/zlib/Deploy/lib/libz.a -mmacosx-version-min=10.14',
  'LDFLAGS_NODIST': '',
  'LDLAST': '',
  'LDLIBRARY': 'libpython3.7.dylib',
  'LDLIBRARYDIR': '',
- 'LDSHARED': 'clang -bundle -undefined dynamic_lookup '
-             '-L/usr/local/opt/readline/lib -L/usr/local/opt/readline/lib '
-             '-L/Users/devqa/.pyenv/versions/3.7.7/lib '
-             '-L/usr/local/opt/openssl@1.1/lib -L/usr/local/opt/readline/lib '
-             '-L/usr/local/opt/readline/lib '
-             '-L/Users/devqa/.pyenv/versions/3.7.7/lib '
-             '-L/usr/local/opt/openssl@1.1/lib',
+ 'LDSHARED': 'gcc -bundle -undefined dynamic_lookup '
+             '/tmp/zlib/Deploy/lib/libz.a -mmacosx-version-min=10.14',
  'LDVERSION': '3.7',
  'LIBC': '',
- 'LIBDEST': '/Users/devqa/.pyenv/versions/3.7.7/lib/python3.7',
- 'LIBDIR': '/Users/devqa/.pyenv/versions/3.7.7/lib',
+ 'LIBDEST': '/tmp/Python3/Deploy/lib/python3.7',
+ 'LIBDIR': '/tmp/Python3/Deploy/lib',
  'LIBFFI_INCLUDEDIR': '',
  'LIBM': '',
  'LIBOBJDIR': 'Python/',
  'LIBOBJS': '',
- 'LIBPC': '/Users/devqa/.pyenv/versions/3.7.7/lib/pkgconfig',
- 'LIBPL': '/Users/devqa/.pyenv/versions/3.7.7/lib/python3.7/config-3.7-darwin',
+ 'LIBPC': '/tmp/Python3/Deploy/lib/pkgconfig',
+ 'LIBPL': '/tmp/Python3/Deploy/lib/python3.7/config-3.7-darwin',
  'LIBRARY': 'libpython3.7.a',
  'LIBRARY_OBJS': '\\',
  'LIBRARY_OBJS_OMIT_FROZEN': '\\',
  'LIBS': '-ldl  -framework CoreFoundation',
  'LIBSUBDIRS': 'tkinter tkinter/test tkinter/test/test_tkinter \\',
- 'LINKCC': 'clang',
+ 'LINKCC': 'gcc',
  'LINKFORSHARED': '-Wl,-stack_size,1000000  -framework CoreFoundation',
  'LIPO_32BIT_FLAGS': '',
  'LLVM_PROF_ERR': 'no',
@@ -578,14 +555,14 @@ build_time_vars = {'ABIFLAGS': '',
  'LOG1P_DROPS_ZERO_SIGN': 0,
  'MACHDEP': 'darwin',
  'MACHDEP_OBJS': '',
- 'MACHDESTLIB': '/Users/devqa/.pyenv/versions/3.7.7/lib/python3.7',
- 'MACOSX_DEPLOYMENT_TARGET': '10.15',
- 'MAINCC': 'clang',
+ 'MACHDESTLIB': '/tmp/Python3/Deploy/lib/python3.7',
+ 'MACOSX_DEPLOYMENT_TARGET': '10.14',
+ 'MAINCC': 'gcc',
  'MAJOR_IN_MKDEV': 0,
  'MAJOR_IN_SYSMACROS': 0,
- 'MAKESETUP': './Modules/makesetup',
- 'MANDIR': '/Users/devqa/.pyenv/versions/3.7.7/share/man',
- 'MKDIR_P': './install-sh -c -d',
+ 'MAKESETUP': '../Modules/makesetup',
+ 'MANDIR': '/tmp/Python3/Deploy/share/man',
+ 'MKDIR_P': '../install-sh -c -d',
  'MODBUILT_NAMES': 'posix  errno  pwd  _sre  _codecs  _weakref  _functools  '
                    '_operator  _collections  _abc  itertools  atexit  _signal  '
                    '_stat  time  _thread  _locale  _io  zipimport  '
@@ -611,8 +588,8 @@ build_time_vars = {'ABIFLAGS': '',
  'MVWDELCH_IS_EXPRESSION': 1,
  'NO_AS_NEEDED': '',
  'OBJECT_OBJS': '\\',
- 'OPENSSL_INCLUDES': '-I/usr/local/opt/openssl@1.1/include',
- 'OPENSSL_LDFLAGS': '-L/usr/local/opt/openssl@1.1/lib',
+ 'OPENSSL_INCLUDES': '-I/tmp/OpenSSL/Deploy/x86_64/include',
+ 'OPENSSL_LDFLAGS': '-L/tmp/OpenSSL/Deploy/x86_64/lib',
  'OPENSSL_LIBS': '-lssl -lcrypto',
  'OPT': '-DNDEBUG -g -fwrapv -O3 -Wall',
  'OTHER_LIBTOOL_OPT': '',
@@ -649,87 +626,66 @@ build_time_vars = {'ABIFLAGS': '',
  'PYTHON_OBJS': '\\',
  'PY_BUILTIN_MODULE_CFLAGS': '-Wno-unused-result -Wsign-compare '
                              '-Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall '
-                             '-I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include '
-                             '-I/usr/local/opt/openssl@1.1/include '
-                             '-I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include '
-                             '-I/usr/local/opt/openssl@1.1/include -std=c99 '
-                             '-Wextra -Wno-unused-result -Wno-unused-parameter '
+                             '-isysroot '
+                             '/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.15.sdk '
+                             '-mmacosx-version-min=10.14 -gdwarf-2 '
+                             '-I/tmp/zlib/Deploy/include '
+                             '-Wno-error=implicit-function-declaration '
+                             '-std=c99 -Wextra -Wno-unused-result '
+                             '-Wno-unused-parameter '
                              '-Wno-missing-field-initializers '
                              '-Wstrict-prototypes '
-                             '-Werror=implicit-function-declaration -I. '
-                             '-I./Include -I/usr/local/opt/readline/include '
-                             '-I/usr/local/opt/readline/include '
-                             '-I/Users/devqa/.pyenv/versions/3.7.7/include '
-                             '-I/usr/local/opt/readline/include '
-                             '-I/usr/local/opt/readline/include '
-                             '-I/Users/devqa/.pyenv/versions/3.7.7/include '
+                             '-Werror=implicit-function-declaration -IObjects '
+                             '-IInclude -IPython -I. -I../Include '
+                             '-mmacosx-version-min=10.14 -gdwarf-2 '
+                             '-I/tmp/zlib/Deploy/include '
+                             '-Wno-error=implicit-function-declaration '
                              '-DPy_BUILD_CORE_BUILTIN',
  'PY_CFLAGS': '-Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG '
-              '-g -fwrapv -O3 -Wall '
-              '-I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include '
-              '-I/usr/local/opt/openssl@1.1/include '
-              '-I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include '
-              '-I/usr/local/opt/openssl@1.1/include',
+              '-g -fwrapv -O3 -Wall -isysroot '
+              '/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.15.sdk '
+              '-mmacosx-version-min=10.14 -gdwarf-2 -I/tmp/zlib/Deploy/include '
+              '-Wno-error=implicit-function-declaration',
  'PY_CFLAGS_NODIST': '-std=c99 -Wextra -Wno-unused-result '
                      '-Wno-unused-parameter -Wno-missing-field-initializers '
                      '-Wstrict-prototypes '
                      '-Werror=implicit-function-declaration',
  'PY_COERCE_C_LOCALE': 1,
  'PY_CORE_CFLAGS': '-Wno-unused-result -Wsign-compare -Wunreachable-code '
-                   '-DNDEBUG -g -fwrapv -O3 -Wall '
-                   '-I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include '
-                   '-I/usr/local/opt/openssl@1.1/include '
-                   '-I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include '
-                   '-I/usr/local/opt/openssl@1.1/include -std=c99 -Wextra '
+                   '-DNDEBUG -g -fwrapv -O3 -Wall -isysroot '
+                   '/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.15.sdk '
+                   '-mmacosx-version-min=10.14 -gdwarf-2 '
+                   '-I/tmp/zlib/Deploy/include '
+                   '-Wno-error=implicit-function-declaration -std=c99 -Wextra '
                    '-Wno-unused-result -Wno-unused-parameter '
                    '-Wno-missing-field-initializers -Wstrict-prototypes '
-                   '-Werror=implicit-function-declaration -I. -I./Include '
-                   '-I/usr/local/opt/readline/include '
-                   '-I/usr/local/opt/readline/include '
-                   '-I/Users/devqa/.pyenv/versions/3.7.7/include '
-                   '-I/usr/local/opt/readline/include '
-                   '-I/usr/local/opt/readline/include '
-                   '-I/Users/devqa/.pyenv/versions/3.7.7/include '
-                   '-DPy_BUILD_CORE',
- 'PY_CORE_LDFLAGS': '-L/usr/local/opt/readline/lib '
-                    '-L/usr/local/opt/readline/lib '
-                    '-L/Users/devqa/.pyenv/versions/3.7.7/lib '
-                    '-L/usr/local/opt/openssl@1.1/lib '
-                    '-L/usr/local/opt/readline/lib '
-                    '-L/usr/local/opt/readline/lib '
-                    '-L/Users/devqa/.pyenv/versions/3.7.7/lib '
-                    '-L/usr/local/opt/openssl@1.1/lib',
- 'PY_CPPFLAGS': '-I. -I./Include -I/usr/local/opt/readline/include '
-                '-I/usr/local/opt/readline/include '
-                '-I/Users/devqa/.pyenv/versions/3.7.7/include '
-                '-I/usr/local/opt/readline/include '
-                '-I/usr/local/opt/readline/include '
-                '-I/Users/devqa/.pyenv/versions/3.7.7/include',
+                   '-Werror=implicit-function-declaration -IObjects -IInclude '
+                   '-IPython -I. -I../Include -mmacosx-version-min=10.14 '
+                   '-gdwarf-2 -I/tmp/zlib/Deploy/include '
+                   '-Wno-error=implicit-function-declaration -DPy_BUILD_CORE',
+ 'PY_CORE_LDFLAGS': '/tmp/zlib/Deploy/lib/libz.a -mmacosx-version-min=10.14',
+ 'PY_CPPFLAGS': '-IObjects -IInclude -IPython -I. -I../Include '
+                '-mmacosx-version-min=10.14 -gdwarf-2 '
+                '-I/tmp/zlib/Deploy/include '
+                '-Wno-error=implicit-function-declaration',
  'PY_FORMAT_SIZE_T': '"z"',
- 'PY_LDFLAGS': '-L/usr/local/opt/readline/lib -L/usr/local/opt/readline/lib '
-               '-L/Users/devqa/.pyenv/versions/3.7.7/lib '
-               '-L/usr/local/opt/openssl@1.1/lib -L/usr/local/opt/readline/lib '
-               '-L/usr/local/opt/readline/lib '
-               '-L/Users/devqa/.pyenv/versions/3.7.7/lib '
-               '-L/usr/local/opt/openssl@1.1/lib',
+ 'PY_LDFLAGS': '/tmp/zlib/Deploy/lib/libz.a -mmacosx-version-min=10.14',
  'PY_LDFLAGS_NODIST': '',
  'PY_SSL_DEFAULT_CIPHERS': 1,
  'PY_SSL_DEFAULT_CIPHER_STRING': 0,
  'PY_STDMODULE_CFLAGS': '-Wno-unused-result -Wsign-compare -Wunreachable-code '
-                        '-DNDEBUG -g -fwrapv -O3 -Wall '
-                        '-I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include '
-                        '-I/usr/local/opt/openssl@1.1/include '
-                        '-I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include '
-                        '-I/usr/local/opt/openssl@1.1/include -std=c99 -Wextra '
-                        '-Wno-unused-result -Wno-unused-parameter '
+                        '-DNDEBUG -g -fwrapv -O3 -Wall -isysroot '
+                        '/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.15.sdk '
+                        '-mmacosx-version-min=10.14 -gdwarf-2 '
+                        '-I/tmp/zlib/Deploy/include '
+                        '-Wno-error=implicit-function-declaration -std=c99 '
+                        '-Wextra -Wno-unused-result -Wno-unused-parameter '
                         '-Wno-missing-field-initializers -Wstrict-prototypes '
-                        '-Werror=implicit-function-declaration -I. -I./Include '
-                        '-I/usr/local/opt/readline/include '
-                        '-I/usr/local/opt/readline/include '
-                        '-I/Users/devqa/.pyenv/versions/3.7.7/include '
-                        '-I/usr/local/opt/readline/include '
-                        '-I/usr/local/opt/readline/include '
-                        '-I/Users/devqa/.pyenv/versions/3.7.7/include',
+                        '-Werror=implicit-function-declaration -IObjects '
+                        '-IInclude -IPython -I. -I../Include '
+                        '-mmacosx-version-min=10.14 -gdwarf-2 '
+                        '-I/tmp/zlib/Deploy/include '
+                        '-Wno-error=implicit-function-declaration',
  'Py_DEBUG': 0,
  'Py_ENABLE_SHARED': 1,
  'Py_HASH_ALGORITHM': 0,
@@ -737,8 +693,8 @@ build_time_vars = {'ABIFLAGS': '',
  'READELF': ':',
  'RESSRCDIR': 'Mac/Resources/framework',
  'RETSIGTYPE': 'void',
- 'RUNSHARED': 'DYLD_LIBRARY_PATH=/var/folders/5l/l7jhjs9n0y1bl5qj2341ssc00000gp/T/python-build.20200730112651.22441/Python-3.7.7',
- 'SCRIPTDIR': '/Users/devqa/.pyenv/versions/3.7.7/lib',
+ 'RUNSHARED': 'DYLD_LIBRARY_PATH=/tmp/Python3/Python-3.7.7/UEBuild',
+ 'SCRIPTDIR': '/tmp/Python3/Deploy/lib',
  'SETPGRP_HAVE_ARG': 0,
  'SGI_ABI': '@SGI_ABI@',
  'SHELL': '/bin/sh',
@@ -766,7 +722,7 @@ build_time_vars = {'ABIFLAGS': '',
  'SIZEOF__BOOL': 1,
  'SOABI': 'cpython-37-darwin',
  'SRCDIRS': 'Parser Objects Python Modules Modules/_io Programs',
- 'SRC_GDB_HOOKS': './Tools/gdb/libpython.py',
+ 'SRC_GDB_HOOKS': '../Tools/gdb/libpython.py',
  'STDC_HEADERS': 1,
  'STRICT_SYSV_CURSES': "/* Don't use ncurses extensions */",
  'STRIPFLAG': '-s',
@@ -779,20 +735,21 @@ build_time_vars = {'ABIFLAGS': '',
  'TCLTK_LIBS': '',
  'TESTOPTS': '',
  'TESTPATH': '',
- 'TESTPYTHON': 'DYLD_LIBRARY_PATH=/var/folders/5l/l7jhjs9n0y1bl5qj2341ssc00000gp/T/python-build.20200730112651.22441/Python-3.7.7 '
+ 'TESTPYTHON': 'DYLD_LIBRARY_PATH=/tmp/Python3/Python-3.7.7/UEBuild '
                './python.exe',
  'TESTPYTHONOPTS': '',
- 'TESTRUNNER': 'DYLD_LIBRARY_PATH=/var/folders/5l/l7jhjs9n0y1bl5qj2341ssc00000gp/T/python-build.20200730112651.22441/Python-3.7.7 '
-               './python.exe ./Tools/scripts/run_tests.py',
+ 'TESTRUNNER': 'DYLD_LIBRARY_PATH=/tmp/Python3/Python-3.7.7/UEBuild '
+               './python.exe ../Tools/scripts/run_tests.py',
  'TESTTIMEOUT': 1200,
  'TIMEMODULE_LIB': 0,
  'TIME_WITH_SYS_TIME': 1,
  'TM_IN_SYS_TIME': 0,
  'UNICODE_DEPS': '\\',
  'UNIVERSALSDK': '',
- 'UPDATE_FILE': 'python3 ./Tools/scripts/update_file.py',
+ 'UPDATE_FILE': 'python3 ../Tools/scripts/update_file.py',
  'USE_COMPUTED_GOTOS': 0,
  'VERSION': '3.7',
+ 'VPATH': '..',
  'WINDOW_HAS_FLAGS': 1,
  'WITH_DECIMAL_CONTEXTVAR': 1,
  'WITH_DOC_STRINGS': 1,
@@ -804,9 +761,9 @@ build_time_vars = {'ABIFLAGS': '',
  'WITH_VALGRIND': 0,
  'X87_DOUBLE_ROUNDING': 0,
  'XMLLIBSUBDIRS': 'xml xml/dom xml/etree xml/parsers xml/sax',
- 'abs_builddir': '/var/folders/5l/l7jhjs9n0y1bl5qj2341ssc00000gp/T/python-build.20200730112651.22441/Python-3.7.7',
- 'abs_srcdir': '/var/folders/5l/l7jhjs9n0y1bl5qj2341ssc00000gp/T/python-build.20200730112651.22441/Python-3.7.7',
- 'datarootdir': '/Users/devqa/.pyenv/versions/3.7.7/share',
- 'exec_prefix': '/Users/devqa/.pyenv/versions/3.7.7',
- 'prefix': '/Users/devqa/.pyenv/versions/3.7.7',
- 'srcdir': '.'}
+ 'abs_builddir': '/tmp/Python3/Python-3.7.7/UEBuild',
+ 'abs_srcdir': '/tmp/Python3/Python-3.7.7/UEBuild/..',
+ 'datarootdir': '/tmp/Python3/Deploy/share',
+ 'exec_prefix': '/tmp/Python3/Deploy',
+ 'prefix': '/tmp/Python3/Deploy',
+ 'srcdir': '..'}
