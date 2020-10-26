@@ -83,9 +83,9 @@ class FActiveExternalProfilerBase
 {
 public:	
 
-	CORE_API static FExternalProfiler* GetActiveProfiler();
+	CORE_API static FExternalProfiler* GetActiveProfiler() { return ActiveProfiler;	};
 
-
+	CORE_API static FExternalProfiler* InitActiveProfiler();
 private:
 	/** Static: True if we've tried to initialize a profiler already */
 	static bool bDidInitialize;
