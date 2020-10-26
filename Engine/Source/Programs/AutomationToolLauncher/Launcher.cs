@@ -12,15 +12,17 @@ namespace AutomationToolLauncher
 	{
 		static int Main(string[] Arguments)
 		{
+			// net core does not support shadow copying so we just have to run the executable
+#if !NET_CORE
 			if (Arguments.Contains("-compile", StringComparer.OrdinalIgnoreCase))
 			{
 				return RunInAppDomain(Arguments);
 			}
-
+#endif
 			return Run(Arguments);
 
 		}
-
+#if !NET_CORE
 		static int RunInAppDomain(string[] Arguments)
 		{
 			// Create application domain setup information.
@@ -52,12 +54,17 @@ namespace AutomationToolLauncher
 
 			return ExitCode;
 		}
+#endif
 
 		static int Run(string[] Arguments)
 		{
 
 			string ApplicationBase = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+#if NET_CORE
+			string UATExecutable = Path.Combine(ApplicationBase, "..\\AutomationTool", "AutomationTool.exe");
+#else
 			string UATExecutable = Path.Combine(ApplicationBase, "AutomationTool.exe");
+#endif
 
 			if (!File.Exists(UATExecutable))
 			{
@@ -67,8 +74,19 @@ namespace AutomationToolLauncher
 
 			try
 			{
+#if NET_CORE
+				ProcessStartInfo StartInfo = new ProcessStartInfo(UATExecutable);
+				foreach (string s in Arguments)
+				{
+					StartInfo.ArgumentList.Add(s);
+				}
+				Process uatProcess = Process.Start(StartInfo);
+				uatProcess.WaitForExit();
+				Environment.Exit(uatProcess.ExitCode);
+#else
 				Assembly UAT = Assembly.LoadFile(UATExecutable);
 				Environment.Exit((int) UAT.EntryPoint.Invoke(null, new object[] { Arguments }));
+#endif
 			}
 			catch (Exception Ex)
 			{

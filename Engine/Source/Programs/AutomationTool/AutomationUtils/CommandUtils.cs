@@ -1971,7 +1971,11 @@ namespace AutomationTool
 		/// <summary>
 		/// Path to the root directory
 		/// </summary>
+#if NET_CORE
+		public static readonly DirectoryReference RootDirectory = new DirectoryReference(Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().GetOriginalLocation()), "..", "..", "..", ".."));
+#else
 		public static readonly DirectoryReference RootDirectory = new DirectoryReference(Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().GetOriginalLocation()), "..", "..", ".."));
+#endif
 
 		/// <summary>
 		/// Path to the engine directory

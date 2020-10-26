@@ -13,7 +13,7 @@ using Tools.DotNETCommon;
 using System.Xml;
 using System.Text.RegularExpressions;
 
-#if !__MonoCS__
+#if !__MonoCS__ && !NET_CORE
 using Windows.Management.Deployment;
 using Windows.Foundation;
 #if false
@@ -196,7 +196,7 @@ namespace HoloLens.Automation
 		}
 	}
 
-#if !__MonoCS__
+#if !__MonoCS__ && !NET_CORE
 	class HoloLensDevicePortalCreatedProcess : IProcessResult
 	{
 		object StateLock;
@@ -1224,7 +1224,7 @@ namespace HoloLens.Automation
 			return !result;
 		}
 
-#if !__MonoCS__
+#if !__MonoCS__ && !NET_CORE
 		private void WaitFor(IAsyncOperationWithProgress<DeploymentResult, DeploymentProgress> deploymentOperation)
 		{
 			// This event is signaled when the operation completes
@@ -1262,7 +1262,7 @@ namespace HoloLens.Automation
 
 		private void DeployToLocalDevice(ProjectParams Params, DeploymentContext SC)
 		{
-#if !__MonoCS__
+#if !__MonoCS__ && !NET_CORE
             if (Utils.IsRunningOnMono)
             {
                 return;
@@ -1564,7 +1564,7 @@ namespace HoloLens.Automation
 
 		private IProcessResult RunUsingDevicePortal(string DeviceAddress, ERunOptions ClientRunFlags, string ClientApp, string ClientCmdLine, ProjectParams Params)
 		{
-#if !__MonoCS__
+#if !__MonoCS__ && !NET_CORE
             if (Utils.IsRunningOnMono)
             {
                 return null;

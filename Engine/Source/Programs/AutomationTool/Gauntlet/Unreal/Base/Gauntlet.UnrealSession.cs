@@ -817,7 +817,8 @@ namespace Gauntlet
 				bool InstallSuccess = true;
 
 
-#if !__MonoCS__
+#if (!__MonoCS__) && (!NET_CORE)
+				// netcore: this uses windows forms which would require us to add a big dependency as such just skipping this
 				// count how many desktop clients
 				IEnumerable<UnrealSessionRole> DesktopClients = SessionRoles.Where(R => R.Platform == BuildHostPlatform.Current.Platform).Where(R => R.RoleType.IsClient());
 

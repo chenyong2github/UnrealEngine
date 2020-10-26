@@ -9,7 +9,6 @@ using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
-using System.Web.UI.HtmlControls;
 using System.Xml;
 using Tools.DotNETCommon;
 using Tools.DotNETCommon.Jupiter;

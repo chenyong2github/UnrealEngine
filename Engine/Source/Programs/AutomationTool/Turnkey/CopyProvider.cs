@@ -10,7 +10,6 @@ using System.IO;
 using AutomationTool;
 using Ionic.Zip;
 using UnrealBuildTool;
-using System.Windows.Forms;
 
 namespace Turnkey
 {

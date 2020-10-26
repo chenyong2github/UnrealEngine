@@ -5,10 +5,15 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using System.Windows.Forms;
 using System.Text.RegularExpressions;
 using System.Drawing;
 using Tools.DotNETCommon;
+
+#if NET_CORE && WINDOWS
+using System.Windows.Forms;
+#elif !NET_CORE
+using System.Windows.Forms;
+#endif
 
 namespace Turnkey
 {
@@ -17,7 +22,6 @@ namespace Turnkey
 		// @todo turnkey: if this is really bad on Mono, then we can set it in the manifest, but that means changing AutomationTool's and ATLaunchers' manifests
 		[System.Runtime.InteropServices.DllImport("user32.dll")]
 		private static extern bool SetProcessDPIAware();
-
 		static HybridIOProvider()
 		{
 			// make the form look good on modern displays!
@@ -26,8 +30,16 @@ namespace Turnkey
 				SetProcessDPIAware();
 			}
 
+#if NET_CORE
+#if WINDOWS
 			Application.EnableVisualStyles();
 			Application.SetCompatibleTextRenderingDefault(false);
+#endif
+#else
+			Application.EnableVisualStyles();
+			Application.SetCompatibleTextRenderingDefault(false);
+#endif
+
 		}
 
 		private string ShowMacDialog(string Prompt, string Default)
@@ -52,9 +64,71 @@ namespace Turnkey
 			return Match.Groups[1].Value;
 		}
 
+#if NET_CORE
+#if WINDOWS
+		private string ShowFormsDialogs(string Prompt, string Default)
+		{
+			// TODO: Make sure this dialog actually looks like we expect
+			Size size = new Size(200, 70);
+			Form inputBox = new Form();
+
+			inputBox.FormBorderStyle = FormBorderStyle.FixedDialog;
+			inputBox.ClientSize = size;
+			inputBox.Text = "Turnkey Input";
+
+			TextBox textBox = new TextBox();
+			textBox.Size = new Size(size.Width - 10, 23);
+			textBox.Location = new Point(5, 5);
+			textBox.Text = Prompt;
+			inputBox.Controls.Add(textBox);
+
+			Button okButton = new Button();
+			okButton.DialogResult = DialogResult.OK;
+			okButton.Name = "okButton";
+			okButton.Size = new Size(75, 23);
+			okButton.Text = "&OK";
+			okButton.Location = new Point(size.Width - 80 - 80, 39);
+			inputBox.Controls.Add(okButton);
+
+			Button cancelButton = new Button();
+			cancelButton.DialogResult = DialogResult.Cancel;
+			cancelButton.Name = "cancelButton";
+			cancelButton.Size = new Size(75, 23);
+			cancelButton.Text = "&Cancel";
+			cancelButton.Location = new Point(size.Width - 80, 39);
+			inputBox.Controls.Add(cancelButton);
+
+			inputBox.AcceptButton = okButton;
+			inputBox.CancelButton = cancelButton;
+
+			DialogResult result = inputBox.ShowDialog();
+			if (result == DialogResult.OK)
+			{
+				return textBox.Text;
+			}
+			else
+			{
+				return Default;
+			}
+		}
+#endif
+#endif
+
 		private string ShowDialog(string Prompt, string Default, bool bIsList)
 		{
+// disable unreachable code warning as this fails on linux builds due to this method not being implemented
+#pragma warning disable 0162
 			string Result;
+#if NET_CORE
+#if WINDOWS
+			Result = ShowFormsDialogs(Prompt, Default);
+#elif  OSX
+			Result = ShowMacDialog(Prompt, Default);
+#else
+			throw new NotImplementedException("Linux dialog not implemented");
+#endif
+
+#else // !NET_CORE
 			if (UnrealBuildTool.BuildHostPlatform.Current.Platform == UnrealBuildTool.UnrealTargetPlatform.Mac)
 			{
 				Result = ShowMacDialog(Prompt, Default);
@@ -63,6 +137,7 @@ namespace Turnkey
 			{
 				Result = Microsoft.VisualBasic.Interaction.InputBox(Prompt, "Turnkey Input", Default);
 			}
+#endif
 
 			if (string.IsNullOrEmpty(Result) && bIsList)
 			{
@@ -70,6 +145,7 @@ namespace Turnkey
 			}
 
 			return Result;
+#pragma warning restore
 /*
 			// Create a new instance of the form.
 			Form Form1 = new Form();

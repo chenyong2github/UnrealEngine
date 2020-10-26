@@ -602,6 +602,16 @@ namespace AutomationTool
 				Request.BucketName = BucketName;
 				Request.Key = Key;
 
+#if NET_CORE
+				using (GetObjectResponse Response = Client.GetObjectAsync(Request).Result)
+				{
+					if ((int)Response.HttpStatusCode >= 200 && (int)Response.HttpStatusCode <= 299)
+					{
+						Response.WriteResponseStreamToFileAsync(OutputFile.FullName, false, CancellationToken.None).Wait();
+						return true;
+					}
+				}
+#else
 				using (GetObjectResponse Response = Client.GetObject(Request))
 				{
 					if ((int)Response.HttpStatusCode >= 200 && (int)Response.HttpStatusCode <= 299)
@@ -610,6 +620,7 @@ namespace AutomationTool
 						return true;
 					}
 				}
+#endif
 				return false;
 			}
 			catch (Exception Ex)
@@ -724,7 +735,11 @@ namespace AutomationTool
 					Request.Key = Key;
 					Request.FilePath = File.FullName;
 					Request.CannedACL = S3CannedACL.NoACL;
+#if NET_CORE
+					Client.PutObjectAsync(Request).Wait();
+#else
 					Client.PutObject(Request);
+#endif
 				}
 
 				if (State != null)
@@ -760,8 +775,11 @@ namespace AutomationTool
 				DeleteObjectRequest Request = new DeleteObjectRequest();
 				Request.BucketName = BucketName;
 				Request.Key = Key;
+#if NET_CORE
+				Client.DeleteObjectAsync(Request).Wait();
+#else
 				Client.DeleteObject(Request);
-
+#endif
 				if (State != null)
 				{
 					Interlocked.Increment(ref State.NumFiles);

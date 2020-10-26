@@ -11,6 +11,10 @@ echo Running AutomationTool...
 
 set UATExecutable=AutomationToolLauncher.exe
 set UATDirectory=Binaries\DotNET\
+if "%UE_USE_DOTNET%" == "1" (
+	set UATDirectory=Binaries\DotNET\AutomationToolLauncher
+)
+
 set UATCompileArg=-compile
 
 rem ## Change the CWD to /Engine. 
@@ -31,6 +35,11 @@ if not exist Source\Programs\AutomationTool\AutomationTool.csproj goto RunPrecom
 if not exist Source\Programs\AutomationToolLauncher\AutomationToolLauncher.csproj goto RunPrecompiled
 
 rem ## Get the path to MSBuild
+if "%UE_USE_DOTNET%" == "1" (
+	goto BuildNetCore
+)
+
+:BuildNetFW
 call "%~dp0GetMSBuildPath.bat"
 if errorlevel 1 goto RunPrecompiled
 %MSBUILD_EXE% /nologo /verbosity:quiet Source\Programs\AutomationToolLauncher\AutomationToolLauncher.csproj /property:Configuration=Development /property:Platform=AnyCPU
@@ -39,13 +48,34 @@ if errorlevel 1 goto Error_UATCompileFailed
 if errorlevel 1 goto Error_UATCompileFailed
 goto DoRunUAT
 
+:BuildNetCore
+rem ## Verify that dotnet is present
+call "%~dp0GetDotnetPath.bat"
+if errorlevel 1 goto Error_NoDotnetSDK
+
+dotnet build Source\Programs\AutomationToolLauncher\AutomationToolLauncherCore.csproj -c Development 
+if errorlevel 1 goto Error_UATCompileFailed
+dotnet build Source\Programs\AutomationTool\AutomationToolCore.csproj -c Development 
+if errorlevel 1 goto Error_UATCompileFailed
+goto DoRunUAT
 
 rem ## ok, well it doesn't look like visual studio is installed, let's try running the precompiled one.
 :RunPrecompiled
-if not exist Binaries\DotNET\AutomationTool.exe goto Error_NoFallbackExecutable
+
 set UATCompileArg=
-if not exist Binaries\DotNET\AutomationToolLauncher.exe set UATExecutable=AutomationTool.exe
+if "%UE_USE_DOTNET%" == "1" (
+	if not exist Binaries\DotNET\AutomationTool\AutomationTool.exe goto Error_NoFallbackExecutable
+	if not exist Binaries\DotNET\AutomationToolLauncher\AutomationToolLauncher.exe (
+		set UATExecutable=AutomationTool.exe
+		set UATDirectory=Binaries\DotNET\AutomationTool
+	) 
+) else (
+	if not exist Binaries\DotNET\AutomationTool.exe goto Error_NoFallbackExecutable
+	if not exist Binaries\DotNET\AutomationToolLauncher.exe set UATExecutable=AutomationTool.exe
+)
 goto DoRunUAT
+
+
 
 
 rem ## Run AutomationTool
@@ -81,6 +111,11 @@ goto Exit_Failure
 
 :Error_NoVisualStudioEnvironment
 echo RunUAT.bat ERROR: A valid version of Visual Studio 2015 does not appear to be installed.
+set RUNUAT_EXITCODE=1
+goto Exit_Failure
+
+:Error_NoDotnetSDK
+echo RunUAT.bat ERROR: Unable to find a install of Dotnet SDK.  Please make sure you have it installed and that `dotnet` is a globally available command.
 set RUNUAT_EXITCODE=1
 goto Exit_Failure
 
