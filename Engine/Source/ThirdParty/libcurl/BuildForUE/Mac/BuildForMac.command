@@ -32,6 +32,8 @@ OSSL_BRANCH="OpenSSL_1_1_1-stable"
 LWS_VERSION="3.0.0"
 LWS_BRANCH="${LWS_VERSION}"
 
+PY_VERSION="3.7.7"
+
 ## TODO: Enable when/if needed for macOS
 #LIBCURL_VERSION=curl-7_65_3
 #LIBCURL_BRANCH="${LIBCURL_VERSION}"
@@ -300,6 +302,67 @@ build_libwebsockets()
 	popd > /dev/null
 }
 
+# This is here for reference:
+build_libpython()
+{
+	LIB_NAME="Python3"
+
+	pushd "${SCRIPT_DIR}/${DROP_TO_LIBROOT}/${DROP_TO_THIRDPARTY}/${LIB_NAME}" > /dev/null 2>&1
+
+#	DGB_LIBFILE_PATH="${LIB_NAME_LC}/lib/Mac/Debug/${LIB_NAME_LC}.a"
+#	REL_LIBFILE_PATH="${LIB_NAME_LC}/lib/Mac/Release/${LIB_NAME_LC}.a"
+
+#	LIBFILES=( "${DGB_LIBFILE_PATH}" "${REL_LIBFILE_PATH}" )
+#	INCFILES=( "${LIB_NAME_LC}/include/Mac/libwebsockets.h" "${LIB_NAME_LC}/include/Mac/lws_config.h" )
+
+#	if [ "${ENABLE_CHECKOUT_FILES}" == "1" ]; then
+#		checkoutFiles ${LIBFILES[@]}
+#		checkoutFiles ${INCFILES[@]}
+#	fi
+#	saveFileStates ${LIBFILES[@]} ${INCFILES[@]}
+
+	echo "================================================================================"
+	echo "Building ${LIB_NAME}"
+	echo "================================================================================"
+
+	SRCROOT="/tmp/${LIB_NAME}"
+	DSTROOT="`pwd`"
+
+	PREFIX_ROOT="${SRCROOT}/Deploy"
+
+	mkdir -p "${PREFIX_ROOT}"
+
+	pushd "${SRCROOT}" > /dev/null 2>&1
+
+	cp "${DSTROOT}/Python-${PY_VERSION}.tgz" ./
+	tar -xzf Python-${PY_VERSION}.tgz
+	#TODO: Apply patches here that are located at DSTROOT/Mac/Patches/Python-${PY_VERSION}/
+	cd Python-${PY_VERSION}
+	mkdir UEBuild
+	cd UEBuild
+	export MACOSX_DEPLOYMENT_TARGET=10.14
+	../configure --prefix="${PREFIX_ROOT}" --enable-shared --with-openssl="/tmp/OpenSSL/Deploy/x86_64" CFLAGS="-isysroot `xcrun --sdk macosx --show-sdk-path` -mmacosx-version-min=10.14 -gdwarf-2 -I/tmp/zlib/Deploy/include" CPPFLAGS="-mmacosx-version-min=10.14 -gdwarf-2 -I/tmp/zlib/Deploy/include" LDFLAGS="/tmp/zlib/Deploy/lib/libz.a -mmacosx-version-min=10.14"
+	make -j$(get_core_count) > UEBuildInstallLog.txt 2>&1
+	make install >> UEBuildInstallLog.txt 2>&1
+
+	popd > /dev/null
+
+#	cp -v ${PREFIX_ROOT}/Debug/lib/${LIB_NAME_LC}.a ${DGB_LIBFILE_PATH}
+#	cp -v ${PREFIX_ROOT}/Release/lib/${LIB_NAME_LC}.a ${REL_LIBFILE_PATH}
+#	cp -av ${PREFIX_ROOT}/Release/include/* "${LIB_NAME_LC}/include/Mac/"
+
+#	echo "================================================================================"
+#	echo "Checking built file status:"
+#	checkFilesWereUpdated ${LIBFILES[@]} ${INCFILES[@]}
+#	echo "================================================================================"
+#	checkFilesAreFatBinaries ${LIBFILES[@]}
+#	echo "================================================================================"
+#	echo "${LIB_NAME} was successfully built and updated."
+#	echo "================================================================================"
+#	echo ""
+
+	popd > /dev/null
+}
 ##
 #TODO: Build libcurl as universal when/if needed for macOS
 #build_libcurl()
@@ -315,6 +378,7 @@ build_libwebsockets()
 build_zlib
 build_openssl
 build_libwebsockets
+#build_libpython
 
 ## TODO: Enable when/if needed for macOS
 #build_libcurl
