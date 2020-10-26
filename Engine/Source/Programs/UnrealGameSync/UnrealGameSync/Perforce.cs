@@ -716,6 +716,22 @@ namespace UnrealGameSync
 			}
 		}
 
+		public bool TryGetDepotSpec(string DepotName, out PerforceSpec Spec, TextWriter Log)
+		{
+			List<string> Lines;
+			if (!RunCommand(String.Format("depot -o {0}", DepotName), out Lines, CommandOptions.None, Log))
+			{
+				Spec = null;
+				return false;
+			}
+			if (!PerforceSpec.TryParse(Lines, out Spec, Log))
+			{
+				Spec = null;
+				return false;
+			}
+			return true;
+		}
+
 		public bool TryGetClientSpec(string ClientName, out PerforceSpec Spec, TextWriter Log)
 		{
 			List<string> Lines;
@@ -1232,7 +1248,7 @@ namespace UnrealGameSync
 
 		public bool Sync(string Filter, TextWriter Log)
 		{
-			return RunCommand("sync " + Filter, CommandOptions.IgnoreFilesUpToDateError, Log);
+			return RunCommand("sync --parallel=0 " + Filter, CommandOptions.IgnoreFilesUpToDateError, Log);
 		}
 
 		public bool Sync(List<string> FileRevisions, Action<PerforceFileRecord> SyncOutput, List<string> TamperedFiles, bool bForce, PerforceSyncOptions Options, TextWriter Log)
@@ -1258,7 +1274,7 @@ namespace UnrealGameSync
 					{
 						CommandLine.AppendFormat(" -v net.tcpsize={0}", Options.TcpBufferSize);
 					}
-					CommandLine.Append(" sync");
+					CommandLine.Append(" sync --parallel=0");
 					if(bForce)
 					{
 						CommandLine.AppendFormat(" -f");
@@ -1329,26 +1345,26 @@ namespace UnrealGameSync
 
 		public bool SyncPreview(string Filter, int ChangeNumber, bool bOnlyFilesInThisChange, out List<PerforceFileRecord> FileRecords, TextWriter Log)
 		{
-			return RunCommand(String.Format("sync -n {0}@{1}{2}", Filter, bOnlyFilesInThisChange? "=" : "", ChangeNumber), out FileRecords, CommandOptions.IgnoreFilesUpToDateError | CommandOptions.IgnoreNoSuchFilesError | CommandOptions.IgnoreFilesNotInClientViewError, Log);
+			return RunCommand(String.Format("sync --parallel=0 -n {0}@{1}{2}", Filter, bOnlyFilesInThisChange? "=" : "", ChangeNumber), out FileRecords, CommandOptions.IgnoreFilesUpToDateError | CommandOptions.IgnoreNoSuchFilesError | CommandOptions.IgnoreFilesNotInClientViewError, Log);
 		}
 
 		public bool SyncPreview(string Filter, int ChangeNumber, bool bOnlyFilesInThisChange, Action<PerforceFileRecord> SyncOutput, TextWriter Log)
 		{
 			using(PerforceTagRecordParser Parser = new PerforceTagRecordParser(x => SyncOutput(new PerforceFileRecord(x))))
 			{
-				string CommandLine = String.Format("-ztag sync -n {0}@{1}{2}", Filter, bOnlyFilesInThisChange? "=" : "", ChangeNumber);
+				string CommandLine = String.Format("-ztag sync --parallel=0 -n {0}@{1}{2}", Filter, bOnlyFilesInThisChange? "=" : "", ChangeNumber);
 				return RunCommand(CommandLine.ToString(), null, Line => FilterTaggedOutput(Line, Parser, Log), CommandOptions.NoFailOnErrors | CommandOptions.IgnoreFilesUpToDateError | CommandOptions.IgnoreExitCode | CommandOptions.IgnoreNoSuchFilesError | CommandOptions.IgnoreFilesNotInClientViewError, Log);
 			}
 		}
 
 		public bool ForceSync(string Filter, TextWriter Log)
 		{
-			return RunCommand(String.Format("sync -f \"{0}\"", Filter), CommandOptions.IgnoreFilesUpToDateError, Log);
+			return RunCommand(String.Format("sync --parallel=0 -f \"{0}\"", Filter), CommandOptions.IgnoreFilesUpToDateError, Log);
 		}
 
 		public bool ForceSync(string Filter, int ChangeNumber, TextWriter Log)
 		{
-			return RunCommand(String.Format("sync -f \"{0}\"@{1}", Filter, ChangeNumber), CommandOptions.IgnoreFilesUpToDateError, Log);
+			return RunCommand(String.Format("sync --parallel=0 -f \"{0}\"@{1}", Filter, ChangeNumber), CommandOptions.IgnoreFilesUpToDateError, Log);
 		}
 
 		public bool GetOpenFiles(string Filter, out List<PerforceFileRecord> FileRecords, TextWriter Log)
@@ -1655,7 +1671,7 @@ namespace UnrealGameSync
 		private bool RunCommandWithBinaryOutput(string CommandLine, HandleRecordDelegate HandleOutput, CommandOptions Options, TextWriter Log)
 		{
 			string FullCommandLine = GetFullCommandLine("-G " + CommandLine, Options | CommandOptions.NoChannels);
-			Log.WriteLine("p4> p4.exe {0}", CommandLine);
+			Log.WriteLine("p4> p4.exe {0}", FullCommandLine);
 
 			// Execute Perforce, consuming the binary output into a memory stream
 			MemoryStream MemoryStream = new MemoryStream();

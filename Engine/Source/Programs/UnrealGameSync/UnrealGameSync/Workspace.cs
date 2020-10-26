@@ -81,6 +81,8 @@ namespace UnrealGameSync
 		public bool bEnable;
 		public string Name;
 		public string[] Paths;
+		public bool bHidden;
+		public Guid[] Requires;
 
 		public WorkspaceSyncCategory(Guid UniqueId) : this(UniqueId, "Unnamed")
 		{
@@ -92,6 +94,7 @@ namespace UnrealGameSync
 			this.bEnable = true;
 			this.Name = Name;
 			this.Paths = Paths;
+			this.Requires = new Guid[0];
 		}
 
 		public static Dictionary<Guid, bool> GetDefault(IEnumerable<WorkspaceSyncCategory> Categories)
@@ -746,10 +749,8 @@ namespace UnrealGameSync
 						// Update the version files
 						if(ProjectConfigFile.GetValue("Options.UseFastModularVersioningV2", false))
 						{
-							bool bIsEpicInternal;
-							Perforce.FileExists(ClientRootPath + "/Engine/Build/NotForLicensees/EpicInternal.txt", out bIsEpicInternal, Log);
-
-							if (!UpdateVersionFile(ClientRootPath + BuildVersionFileName, PendingChangeNumber, Text => UpdateBuildVersion(Text, PendingChangeNumber, VersionChangeNumber, BranchOrStreamName, !bIsEpicInternal)))
+							bool bIsLicenseeVersion = IsLicenseeVersion();
+							if (!UpdateVersionFile(ClientRootPath + BuildVersionFileName, PendingChangeNumber, Text => UpdateBuildVersion(Text, PendingChangeNumber, VersionChangeNumber, BranchOrStreamName, bIsLicenseeVersion)))
 							{
 								StatusMessage = String.Format("Failed to update {0}.", BuildVersionFileName);
 								return WorkspaceUpdateResult.FailedToSync;
@@ -757,10 +758,8 @@ namespace UnrealGameSync
 						}
 						else if(ProjectConfigFile.GetValue("Options.UseFastModularVersioning", false))
 						{
-							bool bIsEpicInternal;
-							Perforce.FileExists(ClientRootPath + "/Engine/Build/NotForLicensees/EpicInternal.txt", out bIsEpicInternal, Log);
-
-							if (!UpdateVersionFile(ClientRootPath + BuildVersionFileName, PendingChangeNumber, Text => UpdateBuildVersion(Text, PendingChangeNumber, VersionChangeNumber, BranchOrStreamName, !bIsEpicInternal)))
+							bool bIsLicenseeVersion = IsLicenseeVersion();
+							if (!UpdateVersionFile(ClientRootPath + BuildVersionFileName, PendingChangeNumber, Text => UpdateBuildVersion(Text, PendingChangeNumber, VersionChangeNumber, BranchOrStreamName, bIsLicenseeVersion)))
 							{
 								StatusMessage = String.Format("Failed to update {0}.", BuildVersionFileName);
 								return WorkspaceUpdateResult.FailedToSync;
@@ -1179,6 +1178,20 @@ namespace UnrealGameSync
 
 			StatusMessage = "Update succeeded";
 			return WorkspaceUpdateResult.Success;
+		}
+
+		bool IsLicenseeVersion()
+		{
+			bool bIsEpicInternal;
+			if (Perforce.FileExists(ClientRootPath + "/Engine/Build/NotForLicensees/EpicInternal.txt", out bIsEpicInternal, Log) && bIsEpicInternal)
+			{
+				return false;
+			}
+			if (Perforce.FileExists(ClientRootPath + "/Engine/Restricted/NotForLicensees/Build/EpicInternal.txt", out bIsEpicInternal, Log) && bIsEpicInternal)
+			{
+				return false;
+			}
+			return true;
 		}
 
 		public List<string> GetSyncPaths(bool bSyncAllProjects, string[] SyncFilter)
