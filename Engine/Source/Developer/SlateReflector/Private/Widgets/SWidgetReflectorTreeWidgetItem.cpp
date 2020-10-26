@@ -16,8 +16,12 @@ FName SReflectorTreeWidgetItem::NAME_WidgetName(TEXT("WidgetName"));
 FName SReflectorTreeWidgetItem::NAME_WidgetInfo(TEXT("WidgetInfo"));
 FName SReflectorTreeWidgetItem::NAME_Visibility(TEXT("Visibility"));
 FName SReflectorTreeWidgetItem::NAME_Focusable(TEXT("Focusable"));
+FName SReflectorTreeWidgetItem::NAME_Enabled(TEXT("Enabled"));
+FName SReflectorTreeWidgetItem::NAME_Volatile(TEXT("Volatile"));
+FName SReflectorTreeWidgetItem::NAME_HasActiveTimer(TEXT("HasActiveTimer"));
 FName SReflectorTreeWidgetItem::NAME_Clipping(TEXT("Clipping"));
 FName SReflectorTreeWidgetItem::NAME_ForegroundColor(TEXT("ForegroundColor"));
+FName SReflectorTreeWidgetItem::NAME_ActualSize(TEXT("ActualSize"));
 FName SReflectorTreeWidgetItem::NAME_Address(TEXT("Address"));
 
 void SReflectorTreeWidgetItem::Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView)
@@ -28,20 +32,6 @@ void SReflectorTreeWidgetItem::Construct(const FArguments& InArgs, const TShared
 	this->SetPadding(0);
 
 	check(WidgetInfo.IsValid());
-	CachedWidgetType = WidgetInfo->GetWidgetType();
-	CachedWidgetTypeAndShortName = WidgetInfo->GetWidgetTypeAndShortName();
-	CachedWidgetVisibility = WidgetInfo->GetWidgetVisibilityText();
-	CachedWidgetClipping = WidgetInfo->GetWidgetClippingText();
-	bCachedWidgetFocusable = WidgetInfo->GetWidgetFocusable();
-	bCachedWidgetVisible = WidgetInfo->GetWidgetVisible();
-	bCachedWidgetNeedsTick = WidgetInfo->GetWidgetNeedsTick();
-	bCachedWidgetIsVolatile = WidgetInfo->GetWidgetIsVolatile();
-	bCachedWidgetIsVolatileIndirectly = WidgetInfo->GetWidgetIsVolatileIndirectly();
-	bCachedWidgetHasActiveTimers = WidgetInfo->GetWidgetHasActiveTimers();
-	CachedReadableLocation = WidgetInfo->GetWidgetReadableLocation();
-	CachedWidgetFile = WidgetInfo->GetWidgetFile();
-	CachedWidgetLineNumber = WidgetInfo->GetWidgetLineNumber();
-	CachedAssetData = WidgetInfo->GetWidgetAssetData();
 
 	SMultiColumnTableRow< TSharedRef<FWidgetReflectorNodeBase> >::Construct(SMultiColumnTableRow< TSharedRef<FWidgetReflectorNodeBase> >::FArguments().Padding(0), InOwnerTableView);
 }
@@ -49,6 +39,20 @@ void SReflectorTreeWidgetItem::Construct(const FArguments& InArgs, const TShared
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 TSharedRef<SWidget> SReflectorTreeWidgetItem::GenerateWidgetForColumn(const FName& ColumnName)
 {
+	SReflectorTreeWidgetItem* Self = this;
+	auto BuildCheckBox = [Self](bool bIsChecked)
+		{
+			return SNew(SBox)
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
+				.Padding(FMargin(2.0f, 0.0f))
+				[
+					SNew(SCheckBox)
+					.Style(FCoreStyle::Get(), TEXT("WidgetReflector.FocusableCheck"))
+					.IsChecked(bIsChecked ? ECheckBoxState::Checked : ECheckBoxState::Unchecked)
+				];
+		};
+
 	if (ColumnName == NAME_WidgetName )
 	{
 		return SNew(SHorizontalBox)
@@ -67,7 +71,7 @@ TSharedRef<SWidget> SReflectorTreeWidgetItem::GenerateWidgetForColumn(const FNam
 		.VAlign(VAlign_Center)
 		[
 			SNew(STextBlock)
-			.Text(this, &SReflectorTreeWidgetItem::GetWidgetTypeAndShortName)
+			.Text(WidgetInfo->GetWidgetTypeAndShortName())
 			.ColorAndOpacity(this, &SReflectorTreeWidgetItem::GetTint)
 		];
 	}
@@ -79,7 +83,7 @@ TSharedRef<SWidget> SReflectorTreeWidgetItem::GenerateWidgetForColumn(const FNam
 			.Padding(FMargin(2.0f, 0.0f))
 			[
 				SNew(SHyperlink)
-				.Text(this, &SReflectorTreeWidgetItem::GetReadableLocationAsText)
+				.Text(WidgetInfo->GetWidgetReadableLocation())
 				.OnNavigate(this, &SReflectorTreeWidgetItem::HandleHyperlinkNavigate)
 			];
 	}
@@ -91,21 +95,25 @@ TSharedRef<SWidget> SReflectorTreeWidgetItem::GenerateWidgetForColumn(const FNam
 			.Padding(FMargin(2.0f, 0.0f))
 			[
 				SNew(STextBlock)
-				.Text(this, &SReflectorTreeWidgetItem::GetVisibilityAsString)
+				.Text(WidgetInfo->GetWidgetVisibilityText())
 					.Justification(ETextJustify::Center)
 			];
 	}
 	else if (ColumnName == NAME_Focusable)
 	{
-		return SNew(SBox)
-			.HAlign(HAlign_Center)
-			.VAlign(VAlign_Center)
-			.Padding(FMargin(2.0f, 0.0f))
-			[
-				SNew(SCheckBox)
-				.Style(FCoreStyle::Get(), TEXT("WidgetReflector.FocusableCheck"))
-				.IsChecked(this, &SReflectorTreeWidgetItem::GetFocusableAsCheckBoxState)
-			];
+		return BuildCheckBox(WidgetInfo->GetWidgetFocusable());
+	}
+	else if (ColumnName == NAME_Enabled)
+	{
+		return BuildCheckBox(WidgetInfo->GetWidgetEnabled());
+	}
+	else if (ColumnName == NAME_Volatile)
+	{
+		return BuildCheckBox(WidgetInfo->GetWidgetIsVolatile());
+	}
+	else if (ColumnName == NAME_HasActiveTimer)
+	{
+		return BuildCheckBox(WidgetInfo->GetWidgetHasActiveTimers());
 	}
 	else if ( ColumnName == NAME_Clipping )
 	{
@@ -115,7 +123,7 @@ TSharedRef<SWidget> SReflectorTreeWidgetItem::GenerateWidgetForColumn(const FNam
 			.Padding(FMargin(2.0f, 0.0f))
 			[
 				SNew(STextBlock)
-				.Text(this, &SReflectorTreeWidgetItem::GetClippingAsString)
+				.Text(WidgetInfo->GetWidgetClippingText())
 			];
 	}
 	else if (ColumnName == NAME_ForegroundColor )
@@ -135,6 +143,11 @@ TSharedRef<SWidget> SReflectorTreeWidgetItem::GenerateWidgetForColumn(const FNam
 					.Color(Foreground.GetSpecifiedColor())
 					.Size(FVector2D(16.0f, 16.0f))
 			];
+	}
+	else if (ColumnName == NAME_ActualSize)
+	{
+		return SNew(STextBlock)
+			.Text(FText::FromString(WidgetInfo->GetLocalSize().ToString()));
 	}
 	else if (ColumnName == NAME_Address )
 	{
@@ -173,6 +186,7 @@ END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 void SReflectorTreeWidgetItem::HandleHyperlinkNavigate()
 {
+	FAssetData CachedAssetData = WidgetInfo->GetWidgetAssetData();
 	if (CachedAssetData.IsValid())
 	{
 		if (OnAccessAsset.IsBound())
@@ -185,7 +199,7 @@ void SReflectorTreeWidgetItem::HandleHyperlinkNavigate()
 
 	if (OnAccessSourceCode.IsBound())
 	{
-		OnAccessSourceCode.Execute(GetWidgetFile(), GetWidgetLineNumber(), 0);
+		OnAccessSourceCode.Execute(WidgetInfo->GetWidgetFile(), WidgetInfo->GetWidgetLineNumber(), 0);
 	}
 }
 

@@ -445,11 +445,17 @@ private:
 
 void SWidgetReflector::Construct( const FArguments& InArgs )
 {
+	// If saved, LoadSettings will override these varibles.
+	LastPickingMode = EWidgetPickingMode::HitTesting;
+	HiddenReflectorTreeColumns.Add(SReflectorTreeWidgetItem::NAME_Enabled.ToString());
+	HiddenReflectorTreeColumns.Add(SReflectorTreeWidgetItem::NAME_Volatile.ToString());
+	HiddenReflectorTreeColumns.Add(SReflectorTreeWidgetItem::NAME_HasActiveTimer.ToString());
+	HiddenReflectorTreeColumns.Add(SReflectorTreeWidgetItem::NAME_ActualSize.ToString());
+
 	LoadSettings();
 
 	CurrentUIMode = EWidgetReflectorUIMode::Live;
 	PickingMode = EWidgetPickingMode::None;
-	//LastPickingMode = EWidgetPickingMode::HitTesting; //initialized in LoadSettings
 	bFilterReflectorTreeRootWithUMG = false;
 
 	SnapshotDelay = 0.0f;
@@ -846,24 +852,38 @@ TSharedRef<SDockTab> SWidgetReflector::SpawnWidgetHierarchyTab(const FSpawnTabAr
 						+SHeaderRow::Column(SReflectorTreeWidgetItem::NAME_Visibility)
 						.DefaultLabel(LOCTEXT("Visibility", "Visibility"))
 						.DefaultTooltip(LOCTEXT("VisibilityTooltip", "Visibility"))
-						.FixedWidth(125.0f)
+						.ManualWidth(125.0f)
+						
+						+ SHeaderRow::Column(SReflectorTreeWidgetItem::NAME_Enabled)
+						.DefaultLabel(LOCTEXT("Enabled", "Enabled"))
+						.DefaultTooltip(LOCTEXT("EnabledToolTip", "Enabled"))
+						.ManualWidth(60.0f)
 
 						+ SHeaderRow::Column(SReflectorTreeWidgetItem::NAME_Focusable)
-						.DefaultLabel(LOCTEXT("Focus", "Focus?"))
+						.DefaultLabel(LOCTEXT("Focus", "Focus"))
 						.DefaultTooltip(LOCTEXT("FocusableTooltip", "Focusability (Note that for hit-test directional navigation to work it must be Focusable and \"Visible\"!)"))
-						.FixedWidth(50.0f)
+						.ManualWidth(60.0f)
+
+						+ SHeaderRow::Column(SReflectorTreeWidgetItem::NAME_HasActiveTimer)
+						.DefaultLabel(LOCTEXT("HasActiveTimer", "Timer"))
+						.DefaultTooltip(LOCTEXT("HasActiveTimerTooltip", "Has Active Timer"))
+						.ManualWidth(60.0f)
 
 						+SHeaderRow::Column(SReflectorTreeWidgetItem::NAME_Clipping)
 						.DefaultLabel(LOCTEXT("Clipping", "Clipping" ))
-						.FixedWidth(100.0f)
+						.ManualWidth(100.0f)
+
+						+ SHeaderRow::Column(SReflectorTreeWidgetItem::NAME_ActualSize)
+						.DefaultLabel(LOCTEXT("ActualSize", "Size"))
+						.ManualWidth(100.0f)
 
 						+SHeaderRow::Column(SReflectorTreeWidgetItem::NAME_WidgetInfo)
 						.DefaultLabel(LOCTEXT("Source", "Source" ))
-						.FillWidth(0.20f)
+						.ManualWidth(200.f)
 
 						+SHeaderRow::Column(SReflectorTreeWidgetItem::NAME_Address)
 						.DefaultLabel( LOCTEXT("Address", "Address") )
-						.FixedWidth(170.0f)
+						.ManualWidth(170.0f)
 					)
 				]
 			]
@@ -993,15 +1013,18 @@ void SWidgetReflector::SaveSettings()
 
 void SWidgetReflector::LoadSettings()
 {
-	int32 LastPickingModeAsInt = static_cast<int32>(EWidgetPickingMode::HitTesting);
-	GConfig->GetInt(TEXT("WidgetReflector"), TEXT("LastPickingMode"), LastPickingModeAsInt, *GEditorPerProjectIni);
-	LastPickingMode = ConvertToWidgetPickingMode(LastPickingModeAsInt);
-	if (LastPickingMode == EWidgetPickingMode::None)
+	if (GConfig->DoesSectionExist(TEXT("WidgetReflector"), *GEditorPerProjectIni))
 	{
-		LastPickingMode = EWidgetPickingMode::HitTesting;
-	}
+		int32 LastPickingModeAsInt = static_cast<int32>(EWidgetPickingMode::HitTesting);
+		GConfig->GetInt(TEXT("WidgetReflector"), TEXT("LastPickingMode"), LastPickingModeAsInt, *GEditorPerProjectIni);
+		LastPickingMode = ConvertToWidgetPickingMode(LastPickingModeAsInt);
+		if (LastPickingMode == EWidgetPickingMode::None)
+		{
+			LastPickingMode = EWidgetPickingMode::HitTesting;
+		}
 
-	GConfig->GetArray(TEXT("WidgetReflector"), TEXT("HiddenReflectorTreeColumns"), HiddenReflectorTreeColumns, *GEditorPerProjectIni);
+		GConfig->GetArray(TEXT("WidgetReflector"), TEXT("HiddenReflectorTreeColumns"), HiddenReflectorTreeColumns, *GEditorPerProjectIni);
+	}
 }
 
 
