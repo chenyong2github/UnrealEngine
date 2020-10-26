@@ -140,7 +140,7 @@ FWebSocket::FWebSocket(WebSocketInternalContext* InContext, WebSocketInternal* I
 }
 #endif
 
-bool FWebSocket::Send(const uint8* Data, uint32 Size)
+bool FWebSocket::Send(const uint8* Data, uint32 Size, bool bPrependSize)
 {
 	TArray<uint8> Buffer;
 
@@ -148,7 +148,11 @@ bool FWebSocket::Send(const uint8* Data, uint32 Size)
 	Buffer.AddDefaulted(LWS_PRE); // Reserve space for WS header data
 #endif
 
-	Buffer.Append((uint8*)&Size, sizeof (uint32)); // insert size.
+	if (bPrependSize)
+	{
+		Buffer.Append((uint8*)&Size, sizeof(uint32)); // insert size.
+	}
+
 	Buffer.Append((uint8*)Data, Size);
 	OutgoingBuffer.Add(Buffer);
 
