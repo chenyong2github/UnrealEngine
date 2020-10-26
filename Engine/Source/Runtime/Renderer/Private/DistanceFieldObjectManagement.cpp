@@ -261,10 +261,9 @@ bool ProcessPrimitiveUpdate(
 	FIntVector BlockMin;
 	FIntVector BlockSize;
 	bool bBuiltAsIfTwoSided;
-	bool bMeshWasPlane;
 	float SelfShadowBias;
 	bool bThrottled;
-	PrimitiveSceneInfo->Proxy->GetDistancefieldAtlasData(LocalVolumeBounds, DistanceMinMax, BlockMin, BlockSize, bBuiltAsIfTwoSided, bMeshWasPlane, SelfShadowBias, bThrottled);
+	PrimitiveSceneInfo->Proxy->GetDistancefieldAtlasData(LocalVolumeBounds, DistanceMinMax, BlockMin, BlockSize, bBuiltAsIfTwoSided, SelfShadowBias, bThrottled);
 	PrimitiveSceneInfo->Proxy->GetDistancefieldInstanceData(ObjectLocalToWorldTransforms);	
 
 	if (bThrottled)
@@ -596,24 +595,12 @@ void FDeferredShadingSceneRenderer::UpdateGlobalDistanceFieldObjectBuffers(FRHIC
 									FIntVector BlockMin;
 									FIntVector BlockSize;
 									bool bBuiltAsIfTwoSided;
-									bool bMeshWasPlane;
 									float SelfShadowBias;
 									bool bThrottled;
-									PrimAndInst.Primitive->Proxy->GetDistancefieldAtlasData(LocalVolumeBounds, DistanceMinMax, BlockMin, BlockSize, bBuiltAsIfTwoSided, bMeshWasPlane, SelfShadowBias, bThrottled);
+									PrimAndInst.Primitive->Proxy->GetDistancefieldAtlasData(LocalVolumeBounds, DistanceMinMax, BlockMin, BlockSize, bBuiltAsIfTwoSided, SelfShadowBias, bThrottled);
 
 									FMatrix LocalToWorld = PrimAndInst.LocalToWorld;
 									const float MaxScale = LocalToWorld.GetMaximumAxisScale();
-
-									if (bMeshWasPlane)
-									{
-										FVector LocalScales = LocalToWorld.GetScaleVector();
-										FVector AbsLocalScales(FMath::Abs(LocalScales.X), FMath::Abs(LocalScales.Y), FMath::Abs(LocalScales.Z));
-										float MidScale = FMath::Min(AbsLocalScales.X, AbsLocalScales.Y);
-										float ScaleAdjust = FMath::Sign(LocalScales.Z) * MidScale / AbsLocalScales.Z;
-										// The mesh was determined to be a plane flat in Z during the build process, so we can change the Z scale
-										// Helps in cases with modular ground pieces with scales of (10, 10, 1) and some triangles just above Z=0
-										LocalToWorld.SetAxis(2, LocalToWorld.GetScaledAxis(EAxis::Z) * ScaleAdjust);
-									}
 
 									const FMatrix VolumeToWorld = FScaleMatrix(LocalVolumeBounds.GetExtent())
 										* FTranslationMatrix(LocalVolumeBounds.GetCenter())

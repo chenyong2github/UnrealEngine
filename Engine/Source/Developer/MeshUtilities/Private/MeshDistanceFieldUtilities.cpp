@@ -337,6 +337,7 @@ void FMeshUtilities::GenerateSignedDistanceFieldVolumeData(
 		const double StartTime = FPlatformTime::Seconds();
 
 		const int32 NumIndices = SourceMeshData.IsValid() ? SourceMeshData.Indices.Num() : LODModel.IndexBuffer.GetNumIndices();
+		const int32 NumTriangles = NumIndices / 3;
 		const int32 NumVertices = SourceMeshData.IsValid() ? SourceMeshData.Vertices.Num() : LODModel.VertexBuffers.PositionVertexBuffer.GetNumVertices();
 		const FStaticMeshSectionArray& Sections = SourceMeshData.IsValid() ? SourceMeshData.Sections : LODModel.Sections;
 
@@ -374,79 +375,31 @@ void FMeshUtilities::GenerateSignedDistanceFieldVolumeData(
 		}
 #endif
 
-		FVector BoundsSize = Bounds.GetBox().GetExtent() * 2;
-		float MaxDimension = FMath::Max(FMath::Max(BoundsSize.X, BoundsSize.Y), BoundsSize.Z);
-
-		// Consider the mesh a plane if it is very flat
-		const bool bMeshWasPlane = BoundsSize.Z * 100 < MaxDimension
-			// And it lies mostly on the origin
-			&& Bounds.Origin.Z - Bounds.BoxExtent.Z < KINDA_SMALL_NUMBER
-			&& Bounds.Origin.Z + Bounds.BoxExtent.Z > -KINDA_SMALL_NUMBER;
-
 		TArray<int32> FilteredTriangles;
-		FilteredTriangles.Empty(NumIndices / 3);
+		FilteredTriangles.Empty(NumTriangles);
 
-		for (int32 i = 0; i < NumIndices; i += 3)
+		for (int32 TriangleIndex = 0; TriangleIndex < NumTriangles; ++TriangleIndex)
 		{
-			int32 I0, I1, I2;
-			FVector V0, V1, V2;
+			bool bTriangleIsOpaqueOrMasked = false;
 
-			if (SourceMeshData.IsValid())
+			for (int32 SectionIndex = 0; SectionIndex < Sections.Num(); SectionIndex++)
 			{
-				I0 = SourceMeshData.Indices[i + 0];
-				I1 = SourceMeshData.Indices[i + 1];
-				I2 = SourceMeshData.Indices[i + 2];
+				const FStaticMeshSection& Section = Sections[SectionIndex];
 
-				V0 = SourceMeshData.Vertices[I0].Position;
-				V1 = SourceMeshData.Vertices[I1].Position;
-				V2 = SourceMeshData.Vertices[I2].Position;
-			}
-			else
-			{
-				const FIndexArrayView Indices = LODModel.IndexBuffer.GetArrayView();
-				I0 = Indices[i + 0];
-				I1 = Indices[i + 1];
-				I2 = Indices[i + 2];
-
-				V0 = LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(I0);
-				V1 = LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(I1);
-				V2 = LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(I2);
-			}
-
-			if (bMeshWasPlane)
-			{
-				// Flatten out the mesh into an actual plane, this will allow us to manipulate the component's Z scale at runtime without artifacts
-				V0.Z = 0;
-				V1.Z = 0;
-				V2.Z = 0;
-			}
-
-			const FVector LocalNormal = ((V1 - V2) ^ (V0 - V2)).GetSafeNormal();
-
-			// No degenerates
-			if (LocalNormal.IsUnit())
-			{
-				bool bTriangleIsOpaqueOrMasked = false;
-
-				for (int32 SectionIndex = 0; SectionIndex < Sections.Num(); SectionIndex++)
+				if ((uint32)(TriangleIndex * 3) >= Section.FirstIndex && (uint32)(TriangleIndex * 3) < Section.FirstIndex + Section.NumTriangles * 3)
 				{
-					const FStaticMeshSection& Section = Sections[SectionIndex];
-
-					if ((uint32)i >= Section.FirstIndex && (uint32)i < Section.FirstIndex + Section.NumTriangles * 3)
+					if (MaterialBlendModes.IsValidIndex(Section.MaterialIndex))
 					{
-						if (MaterialBlendModes.IsValidIndex(Section.MaterialIndex))
-						{
-							bTriangleIsOpaqueOrMasked = !IsTranslucentBlendMode(MaterialBlendModes[Section.MaterialIndex]);
-						}
-
-						break;
+						bTriangleIsOpaqueOrMasked = !IsTranslucentBlendMode(MaterialBlendModes[Section.MaterialIndex]);
 					}
-				}
 
-				if (bTriangleIsOpaqueOrMasked)
-				{
-					FilteredTriangles.Add(i / 3);
+					break;
 				}
+			}
+
+			if (bTriangleIsOpaqueOrMasked)
+			{
+				FilteredTriangles.Add(TriangleIndex);
 			}
 		}
 
@@ -472,11 +425,12 @@ void FMeshUtilities::GenerateSignedDistanceFieldVolumeData(
 		}
 #endif
 
-		for (int32 TriangleIndex = 0; TriangleIndex < FilteredTriangles.Num(); TriangleIndex++)
+		for (int32 FilteredTriangleIndex = 0; FilteredTriangleIndex < FilteredTriangles.Num(); FilteredTriangleIndex++)
 		{
 			int32 I0, I1, I2;
 			FVector V0, V1, V2;
 
+			const int32 TriangleIndex = FilteredTriangles[FilteredTriangleIndex];
 			if (SourceMeshData.IsValid())
 			{
 				I0 = SourceMeshData.Indices[TriangleIndex * 3 + 0];
@@ -499,19 +453,11 @@ void FMeshUtilities::GenerateSignedDistanceFieldVolumeData(
 				V2 = LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(I2);
 			}
 
-			if (bMeshWasPlane)
-			{
-				// Flatten out the mesh into an actual plane, this will allow us to manipulate the component's Z scale at runtime without artifacts
-				V0.Z = 0;
-				V1.Z = 0;
-				V2.Z = 0;
-			}
-
 			if (bUseEmbree)
 			{
-				EmbreeIndices[TriangleIndex * 3 + 0] = I0;
-				EmbreeIndices[TriangleIndex * 3 + 1] = I1;
-				EmbreeIndices[TriangleIndex * 3 + 2] = I2;
+				EmbreeIndices[FilteredTriangleIndex * 3 + 0] = I0;
+				EmbreeIndices[FilteredTriangleIndex * 3 + 1] = I1;
+				EmbreeIndices[FilteredTriangleIndex * 3 + 2] = I2;
 
 				EmbreeVertices[I0] = FVector4(V0, 0);
 				EmbreeVertices[I1] = FVector4(V1, 0);
@@ -733,7 +679,6 @@ void FMeshUtilities::GenerateSignedDistanceFieldVolumeData(
 
 			OutData.bMeshWasClosed = !bNegativeAtBorder;
 			OutData.bBuiltAsIfTwoSided = bGenerateAsIfTwoSided;
-			OutData.bMeshWasPlane = bMeshWasPlane;
 			OutData.Size = VolumeDimensions;
 			OutData.LocalBoundingBox = DistanceFieldVolumeBounds;
 			OutData.DistanceMinMax = FVector2D(MinVolumeDistance, MaxVolumeDistance);

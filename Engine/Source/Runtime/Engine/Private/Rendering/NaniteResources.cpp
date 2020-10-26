@@ -771,7 +771,7 @@ const FCardRepresentationData* FSceneProxy::GetMeshCardRepresentation() const
 	return CardRepresentationData;
 }
 
-void FSceneProxy::GetDistancefieldAtlasData(FBox& LocalVolumeBounds, FVector2D& OutDistanceMinMax, FIntVector& OutBlockMin, FIntVector& OutBlockSize, bool& bOutBuiltAsIfTwoSided, bool& bMeshWasPlane, float& SelfShadowBias, bool& bOutThrottled) const
+void FSceneProxy::GetDistancefieldAtlasData(FBox& LocalVolumeBounds, FVector2D& OutDistanceMinMax, FIntVector& OutBlockMin, FIntVector& OutBlockSize, bool& bOutBuiltAsIfTwoSided, float& SelfShadowBias, bool& bOutThrottled) const
 {
 	if (DistanceFieldData)
 	{
@@ -780,7 +780,6 @@ void FSceneProxy::GetDistancefieldAtlasData(FBox& LocalVolumeBounds, FVector2D& 
 		OutBlockMin = DistanceFieldData->VolumeTexture.GetAllocationMin();
 		OutBlockSize = DistanceFieldData->VolumeTexture.GetAllocationSize();
 		bOutBuiltAsIfTwoSided = DistanceFieldData->bBuiltAsIfTwoSided;
-		bMeshWasPlane = DistanceFieldData->bMeshWasPlane;
 		SelfShadowBias = DistanceFieldSelfShadowBias;
 		bOutThrottled = DistanceFieldData->VolumeTexture.Throttled();
 	}
@@ -791,7 +790,6 @@ void FSceneProxy::GetDistancefieldAtlasData(FBox& LocalVolumeBounds, FVector2D& 
 		OutBlockMin = FIntVector(-1, -1, -1);
 		OutBlockSize = FIntVector(0, 0, 0);
 		bOutBuiltAsIfTwoSided = false;
-		bMeshWasPlane = false;
 		SelfShadowBias = 0;
 		bOutThrottled = false;
 	}

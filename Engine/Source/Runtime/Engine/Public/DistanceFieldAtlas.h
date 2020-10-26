@@ -331,9 +331,6 @@ public:
 	/** Whether the distance field was built assuming that every triangle is a frontface. */
 	bool bBuiltAsIfTwoSided;
 
-	/** Whether the mesh was a plane with very little extent in Z. */
-	bool bMeshWasPlane;
-
 	bool bAsyncBuilding;
 
 	FDistanceFieldVolumeTexture VolumeTexture;
@@ -344,7 +341,6 @@ public:
 		DistanceMinMax(FVector2D(0, 0)),
 		bMeshWasClosed(true),
 		bBuiltAsIfTwoSided(false),
-		bMeshWasPlane(false),
 		bAsyncBuilding(false),
 		VolumeTexture(*this)
 	{}
@@ -371,7 +367,7 @@ public:
 	friend FArchive& operator<<(FArchive& Ar,FDistanceFieldVolumeData& Data)
 	{
 		// Note: this is derived data, no need for versioning (bump the DDC guid)
-		Ar << Data.CompressedDistanceFieldVolume << Data.Size << Data.LocalBoundingBox << Data.DistanceMinMax << Data.bMeshWasClosed << Data.bBuiltAsIfTwoSided << Data.bMeshWasPlane;
+		Ar << Data.CompressedDistanceFieldVolume << Data.Size << Data.LocalBoundingBox << Data.DistanceMinMax << Data.bMeshWasClosed << Data.bBuiltAsIfTwoSided;
 		return Ar;
 	}
 };
