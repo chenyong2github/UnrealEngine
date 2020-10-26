@@ -125,6 +125,62 @@ public:
 		return true;
 	}
 
+	bool CompressBaseImageTiled(
+		const FImage* Images,
+		uint32 NumImages,
+		const struct FTextureBuildSettings& BuildSettings,
+		bool bImageHasAlphaChannel,
+		TSharedPtr<FTilerSettings>& TilerSettings,
+		FCompressedImage2D& OutCompressedImage
+	) const
+	{
+		FTextureBuildSettings BaseSettings = BuildSettings;
+		BaseSettings.TextureFormatName = GetBaseFormatName(BuildSettings.TextureFormatName);
+
+		// pass along the compression to the base format
+		if (GetBaseFormatObject(BuildSettings.TextureFormatName)->CompressImageTiled(Images, NumImages, BaseSettings, bImageHasAlphaChannel, TilerSettings, OutCompressedImage) == false)
+		{
+			UE_LOG(LogTemp, Error, TEXT("Failed to compress with base tiled compressor [format %s]"), *BaseSettings.TextureFormatName.ToString());
+			return false;
+		}
+		return true;
+	}
+
+	bool PrepareTiling(
+		const FImage* Images,
+		const uint32 NumImages,
+		const struct FTextureBuildSettings& BuildSettings,
+		bool bImageHasAlphaChannel,
+		TSharedPtr<FTilerSettings>& OutTilerSettings,
+		TArray<FCompressedImage2D>& OutCompressedImages
+	) const override
+	{
+		FTextureBuildSettings BaseSettings = BuildSettings;
+		BaseSettings.TextureFormatName = GetBaseFormatName(BuildSettings.TextureFormatName);
+
+		return GetBaseFormatObject(BuildSettings.TextureFormatName)->PrepareTiling(Images, NumImages, BaseSettings, bImageHasAlphaChannel, OutTilerSettings, OutCompressedImages);
+	}
+
+	bool SetTiling(
+		const struct FTextureBuildSettings& BuildSettings,
+		TSharedPtr<FTilerSettings>& TilerSettings,
+		const TArray64<uint8>& ReorderedBlocks,
+		uint32 NumBlocks
+	) const override
+	{
+		FTextureBuildSettings BaseSettings = BuildSettings;
+		BaseSettings.TextureFormatName = GetBaseFormatName(BuildSettings.TextureFormatName);
+
+		return GetBaseFormatObject(BuildSettings.TextureFormatName)->SetTiling(BaseSettings, TilerSettings, ReorderedBlocks, NumBlocks);
+	}
+
+	void ReleaseTiling(const struct FTextureBuildSettings& BuildSettings, TSharedPtr<FTilerSettings>& TilerSettings) const override
+	{
+		FTextureBuildSettings BaseSettings = BuildSettings;
+		BaseSettings.TextureFormatName = GetBaseFormatName(BuildSettings.TextureFormatName);
+
+		return GetBaseFormatObject(BuildSettings.TextureFormatName)->ReleaseTiling(BuildSettings, TilerSettings);
+	}
 
 protected:
 
