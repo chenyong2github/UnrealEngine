@@ -207,7 +207,7 @@ FPathTracingLightData SetupPathTracingLightParameters(const GPULightmass::FLight
 		{
 			LightParameters.Type[LightParameters.Count] = 1;
 			LightParameters.Position[LightParameters.Count] = Light.Position;
-			LightParameters.Color[LightParameters.Count] = FVector(Light.Color) / (4.0 * PI);
+			LightParameters.Color[LightParameters.Count] = FVector(Light.Color);
 			LightParameters.Dimensions[LightParameters.Count] = FVector(0.0, 0.0, Light.SourceRadius);
 			LightParameters.Attenuation[LightParameters.Count] = Light.AttenuationRadius;
 			LightParameters.Mobility[LightParameters.Count] = Light.bStationary ? 1 : 0;
@@ -226,7 +226,7 @@ FPathTracingLightData SetupPathTracingLightParameters(const GPULightmass::FLight
 			LightParameters.Type[LightParameters.Count] = 4;
 			LightParameters.Position[LightParameters.Count] = Light.Position;
 			LightParameters.Normal[LightParameters.Count] = Light.Direction;
-			LightParameters.Color[LightParameters.Count] = 4.0 * PI * FVector(Light.Color);
+			LightParameters.Color[LightParameters.Count] = FVector(Light.Color);
 			LightParameters.Dimensions[LightParameters.Count] = FVector(Light.SpotAngles, Light.SourceRadius);
 			LightParameters.Attenuation[LightParameters.Count] = Light.AttenuationRadius;
 			LightParameters.Mobility[LightParameters.Count] = Light.bStationary ? 1 : 0;
@@ -379,7 +379,7 @@ FLightmapRenderer::FLightmapRenderer(FSceneRenderState* InScene)
 	bDenoiseDuringInteractiveBake = Scene->Settings->DenoisingOptions == EGPULightmassDenoisingOptions::DuringInteractivePreview;
 	bOnlyBakeWhatYouSee = Scene->Settings->Mode == EGPULightmassMode::BakeWhatYouSee;
 	DenoisingThreadPool = FQueuedThreadPool::Allocate();
-	DenoisingThreadPool->Create(1);
+	DenoisingThreadPool->Create(1, 64 * 1024 * 1024);
 
 	if (bOnlyBakeWhatYouSee)
 	{
