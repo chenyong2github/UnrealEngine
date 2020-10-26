@@ -15,6 +15,7 @@ class FRigVMCallExternExprAST;
 class FRigVMNoOpExprAST;
 class FRigVMVarExprAST;
 class FRigVMLiteralExprAST;
+class FRigVMExternalVarExprAST;
 class FRigVMAssignExprAST;
 class FRigVMCopyExprAST;
 class FRigVMCachedValueExprAST;
@@ -51,6 +52,7 @@ public:
 		NoOp,
 		Var,
 		Literal,
+		ExternalVar,
 		Assign,
 		Copy,
 		CachedValue,
@@ -325,6 +327,17 @@ FORCEINLINE const FRigVMLiteralExprAST* FRigVMExprAST::To() const
 {
 	ensure(IsA(EType::Literal));
 	return (const FRigVMLiteralExprAST*)this;
+}
+
+// specialized cast for type checking
+// for a External Variable / FRigVMExternalVarExprAST expression
+// will raise if types are not compatible
+// @return this expression cast to FRigVMExternalVarExprAST
+template<>
+FORCEINLINE const FRigVMExternalVarExprAST* FRigVMExprAST::To() const
+{
+	ensure(IsA(EType::ExternalVar));
+	return (const FRigVMExternalVarExprAST*)this;
 }
 
 // specialized cast for type checking
@@ -723,6 +736,42 @@ protected:
 	// default constructor (protected so that only parser can access it)
 	FRigVMLiteralExprAST(UObject* InSubject = nullptr)
 		: FRigVMVarExprAST(EType::Literal, InSubject)
+	{}
+
+private:
+
+	friend class FRigVMParserAST;
+};
+
+/*
+ * An abstract syntax tree external variable expression represents the reference 
+ * of unowned / external memory.
+ */
+class RIGVMDEVELOPER_API FRigVMExternalVarExprAST : public FRigVMVarExprAST
+{
+public:
+
+	// virtual destructor
+	virtual ~FRigVMExternalVarExprAST() {}
+
+	// disable copy constructor
+	FRigVMExternalVarExprAST(const FRigVMExternalVarExprAST&) = delete;
+
+	// overload of the type checking mechanism
+	virtual bool IsA(EType InType) const override
+	{
+		if (FRigVMVarExprAST::IsA(InType))
+		{
+			return true;
+		}
+		return InType == EType::ExternalVar;
+	};
+
+protected:
+
+	// default constructor (protected so that only parser can access it)
+	FRigVMExternalVarExprAST(UObject* InSubject = nullptr)
+		: FRigVMVarExprAST(EType::ExternalVar, InSubject)
 	{}
 
 private:

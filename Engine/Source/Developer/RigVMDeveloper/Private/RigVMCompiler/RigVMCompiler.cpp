@@ -345,6 +345,11 @@ void URigVMCompiler::TraverseExpression(const FRigVMExprAST* InExpr, FRigVMCompi
 			TraverseLiteral(InExpr->To<FRigVMLiteralExprAST>(), WorkData);
 			break;
 		}
+		case FRigVMExprAST::EType::ExternalVar:
+		{
+			TraverseExternalVar(InExpr->To<FRigVMExternalVarExprAST>(), WorkData);
+			break;
+		}
 		case FRigVMExprAST::EType::Assign:
 		{
 			TraverseAssign(InExpr->To<FRigVMAssignExprAST>(), WorkData);
@@ -644,6 +649,11 @@ void URigVMCompiler::TraverseLiteral(const FRigVMVarExprAST* InExpr, FRigVMCompi
 	TraverseVar(InExpr, WorkData);
 }
 
+void URigVMCompiler::TraverseExternalVar(const FRigVMExternalVarExprAST* InExpr, FRigVMCompilerWorkData& WorkData)
+{
+	TraverseVar(InExpr, WorkData);
+}
+
 void URigVMCompiler::TraverseAssign(const FRigVMAssignExprAST* InExpr, FRigVMCompilerWorkData& WorkData)
 {
 	TraverseChildren(InExpr, WorkData);
@@ -708,10 +718,15 @@ void URigVMCompiler::TraverseAssign(const FRigVMAssignExprAST* InExpr, FRigVMCom
 		{
 			struct Local
 			{
-				static void SetupRegisterOffset(URigVM* VM, URigVMPin* Pin, FRigVMOperand& Operand)
+				static void SetupRegisterOffset(URigVM* VM, URigVMPin* Pin, FRigVMOperand& Operand, bool bSource)
 				{
 					URigVMPin* RootPin = Pin->GetRootPin();
 					if (Pin == RootPin)
+					{
+						return;
+					}
+
+					if (bSource && Pin->IsBoundToVariable())
 					{
 						return;
 					}
@@ -758,8 +773,8 @@ void URigVMCompiler::TraverseAssign(const FRigVMAssignExprAST* InExpr, FRigVMCom
 				}
 			};
 
-			Local::SetupRegisterOffset(WorkData.VM, InExpr->GetSourcePin(), Source);
-			Local::SetupRegisterOffset(WorkData.VM, InExpr->GetTargetPin(), Target);
+			Local::SetupRegisterOffset(WorkData.VM, InExpr->GetSourcePin(), Source, true);
+			Local::SetupRegisterOffset(WorkData.VM, InExpr->GetTargetPin(), Target, false);
 		}
 
 		WorkData.VM->GetByteCode().AddCopyOp(Source, Target);
@@ -1087,11 +1102,17 @@ FString URigVMCompiler::GetPinHash(URigVMPin* InPin, const FRigVMVarExprAST* InV
 
 	if (InVarExpr != nullptr && !bIsDebugValue)
 	{
+		if (InVarExpr->IsA(FRigVMExprAST::ExternalVar) && !bIsDebugValue)
+		{
+			FString VariablePath = InPin->GetBoundVariablePath();
+			return FString::Printf(TEXT("%sVariable::%s%s"), *Prefix, *VariablePath, *Suffix);
+		}
+
 		bIsExecutePin = InPin->IsExecuteContext();
 		bIsLiteral = InVarExpr->GetType() == FRigVMExprAST::EType::Literal;
 
 		bIsParameter = Cast<URigVMParameterNode>(Node) != nullptr;
-		bIsVariable = Cast<URigVMVariableNode>(Node) != nullptr;
+		bIsVariable = Cast<URigVMVariableNode>(Node) != nullptr || InVarExpr->IsA(FRigVMExprAST::ExternalVar);
 
 		// determine if this is an initialization for an IO pin
 		if (!bIsLiteral && !bIsParameter && !bIsVariable &&
@@ -1251,6 +1272,30 @@ FRigVMOperand URigVMCompiler::FindOrAddRegister(const FRigVMVarExprAST* InVarExp
 			WorkData.ExprToOperand.Add(InVarExpr, *ExistingOperand);
 		}
 		return *ExistingOperand;
+	}
+
+	// check if this is a variable with a segment path
+	if (!Operand.IsValid())
+	{
+		if (Pin->IsBoundToVariable() && !bIsDebugValue)
+		{
+			FString VariablePath = Pin->GetBoundVariablePath();
+			FString VariableName = VariablePath, SegmentPath;
+			VariablePath.Split(TEXT("."), &VariableName, &SegmentPath);
+
+			ExistingOperand = WorkData.PinPathToOperand->Find(FString::Printf(TEXT("Variable::%s"), *VariableName));
+			if (ExistingOperand)
+			{
+				Operand = *ExistingOperand;
+				Operand.RegisterOffset = INDEX_NONE;
+				if (!SegmentPath.IsEmpty())
+				{
+					const FRigVMExternalVariable& ExternalVariable = WorkData.VM->GetExternalVariables()[Operand.GetRegisterIndex()];
+					UScriptStruct* ScriptStruct = CastChecked<UScriptStruct>(ExternalVariable.TypeObject);
+					Operand.RegisterOffset = WorkData.VM->GetWorkMemory().GetOrAddRegisterOffset(Operand.GetRegisterIndex(), ScriptStruct, SegmentPath, 0 /*ArrayIndex */);
+				}
+			}
+		}
 	}
 
 	// create remaining operands / registers

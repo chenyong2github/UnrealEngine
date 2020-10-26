@@ -72,7 +72,8 @@ namespace UnrealBuildTool.Rules
                     "RigVM",
                     "RigVMDeveloper",
 					"AnimationEditor",
-					"MessageLog"
+					"MessageLog",
+					"PropertyAccessEditor",
 				}
             );
 

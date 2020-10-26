@@ -32,7 +32,7 @@ class UScriptStruct;
 struct FRigUnit;
 struct FRigControl;
 
-DECLARE_LOG_CATEGORY_EXTERN(LogControlRig, Log, All);
+CONTROLRIG_API DECLARE_LOG_CATEGORY_EXTERN(LogControlRig, Log, All);
 
 /** Runs logic for mapping input data to transforms (the "Rig") */
 UCLASS(Blueprintable, Abstract, editinlinenew)

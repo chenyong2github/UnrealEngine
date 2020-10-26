@@ -25,7 +25,6 @@
 #if WITH_EDITOR
 #include "IControlRigEditorModule.h"
 #include "Kismet2/BlueprintEditorUtils.h"
-#include "Kismet2/Kismet2NameValidators.h"
 #include "ControlRigBlueprintUtils.h"
 #include "Settings/ControlRigSettings.h"
 #include "UnrealEdGlobals.h"
@@ -86,6 +85,46 @@ void UControlRigBlueprint::InitializeModelIfRequired(bool bRecompileVM)
 			}
 			return true;
 		});
+
+		TWeakObjectPtr<UControlRigBlueprint> WeakThis(this);
+
+		// this delegate is used by the controller to determine variable validity
+		// during a bind process. the controller itself doesn't own the variables,
+		// so we need a delegate to request them from the owning blueprint
+		Controller->GetExternalVariablesDelegate.BindLambda([WeakThis]() -> TArray<FRigVMExternalVariable> {
+			
+			if (WeakThis.IsValid())
+			{
+				if (UControlRigBlueprintGeneratedClass* RigClass = WeakThis->GetControlRigBlueprintGeneratedClass())
+				{
+					if (UControlRig* CDO = Cast<UControlRig>(RigClass->GetDefaultObject(true /* create if needed */)))
+					{
+						return CDO->GetExternalVariablesImpl(true /* rely on variables within blueprint */);
+					}
+				}
+			}
+			return TArray<FRigVMExternalVariable>();
+
+		});
+
+#if WITH_EDITOR
+
+		// this sets up three delegates:
+		// a) get external variables (mapped to Controller->GetExternalVariables)
+		// b) bind pin to variable (mapped to Controller->BindPinToVariable)
+		// c) create external variable (mapped to the passed in tfunction)
+		// the last one is defined within the blueprint since the controller
+		// doesn't own the variables and can't create one itself.
+		Controller->SetupDefaultStructNodeDelegates(TDelegate<FName(FRigVMExternalVariable)>::CreateLambda(
+			[WeakThis](FRigVMExternalVariable InVariableToCreate) -> FName {
+				if (WeakThis.IsValid())
+				{
+					return WeakThis->AddCRMemberVariableFromExternal(InVariableToCreate);
+				}
+				return NAME_None;
+			}
+		));
+#endif
 
 		Controller->RemoveStaleNodes();
 
@@ -1183,6 +1222,7 @@ void UControlRigBlueprint::HandleModifiedEvent(ERigVMGraphNotifType InNotifType,
 			case ERigVMGraphNotifType::ParameterAdded:
 			case ERigVMGraphNotifType::ParameterRemoved:
 			case ERigVMGraphNotifType::ParameterRenamed:
+			case ERigVMGraphNotifType::PinBoundVariableChanged:
 			{
 				RequestAutoVMRecompilation();
 				MarkPackageDirty();
@@ -1264,74 +1304,6 @@ void UControlRigBlueprint::CreateMemberVariablesOnLoad()
 	{
 		TSharedPtr<FKismetNameValidator> NameValidator = MakeShareable(new FKismetNameValidator(this, NAME_None, nullptr));
 
-		struct Local
-		{
-			static FName FindUniqueName(TSharedPtr<FKismetNameValidator> InNameValidator, const FString& InBaseName)
-			{
-				FString KismetName = InBaseName;
-				if (InNameValidator->IsValid(KismetName) == EValidatorResult::ContainsInvalidCharacters)
-				{
-					for (TCHAR& TestChar : KismetName)
-					{
-						for (TCHAR BadChar : UE_BLUEPRINT_INVALID_NAME_CHARACTERS)
-						{
-							if (TestChar == BadChar)
-							{
-								TestChar = TEXT('_');
-								break;
-							}
-						}
-					}
-				}
-
-				int32 Suffix = 0;
-				while (InNameValidator->IsValid(KismetName) != EValidatorResult::Ok)
-				{
-					KismetName = FString::Printf(TEXT("%s_%d"), *InBaseName, Suffix);
-					Suffix++;
-				}
-
-
-				return *KismetName;
-			}
-
-			static int32 AddMemberVariable(UControlRigBlueprint* InBlueprint, const FName& InVarName, FEdGraphPinType InVarType, bool bIsPublic, bool bIsReadOnly)
-			{
-				FBPVariableDescription NewVar;
-
-				NewVar.VarName = InVarName;
-				NewVar.VarGuid = FGuid::NewGuid();
-				NewVar.FriendlyName = FName::NameToDisplayString(InVarName.ToString(), (InVarType.PinCategory == UEdGraphSchema_K2::PC_Boolean) ? true : false);
-				NewVar.VarType = InVarType;
-
-				NewVar.PropertyFlags |= (CPF_Edit | CPF_BlueprintVisible | CPF_DisableEditOnInstance);
-
-				if (bIsPublic)
-				{
-					NewVar.PropertyFlags &= ~CPF_DisableEditOnInstance;
-				}
-
-				if (bIsReadOnly)
-				{
-					NewVar.PropertyFlags |= CPF_BlueprintReadOnly;
-				}
-
-				NewVar.ReplicationCondition = COND_None;
-
-				NewVar.Category = UEdGraphSchema_K2::VR_DefaultCategory;
-
-				// user created variables should be none of these things
-				NewVar.VarType.bIsConst = false;
-				NewVar.VarType.bIsWeakPointer = false;
-				NewVar.VarType.bIsReference = false;
-
-				// Text variables, etc. should default to multiline
-				NewVar.SetMetaData(TEXT("MultiLine"), TEXT("true"));
-
-				return InBlueprint->NewVariables.Add(NewVar);
-			}
-		};
-
 		TArray<URigVMNode*> Nodes = Model->GetNodes();
 		for (URigVMNode* Node : Nodes)
 		{
@@ -1357,8 +1329,8 @@ void UControlRigBlueprint::CreateMemberVariablesOnLoad()
 					continue;
 				}
 
-				FName VarName = Local::FindUniqueName(NameValidator, Description.Name.ToString());
-				int32 VariableIndex = Local::AddMemberVariable(this, VarName, PinType, false, false);
+				FName VarName = FindCRMemberVariableUniqueName(NameValidator, Description.Name.ToString());
+				int32 VariableIndex = AddCRMemberVariable(this, VarName, PinType, false, false);
 				if (VariableIndex != INDEX_NONE)
 				{
 					AddedMemberVariableMap.Add(Description.Name, VariableIndex);
@@ -1388,8 +1360,8 @@ void UControlRigBlueprint::CreateMemberVariablesOnLoad()
 					continue;
 				}
 
-				FName VarName = Local::FindUniqueName(NameValidator, Description.Name.ToString());
-				int32 VariableIndex = Local::AddMemberVariable(this, VarName, PinType, true, !Description.bIsInput);
+				FName VarName = FindCRMemberVariableUniqueName(NameValidator, Description.Name.ToString());
+				int32 VariableIndex = AddCRMemberVariable(this, VarName, PinType, true, !Description.bIsInput);
 				if (VariableIndex != INDEX_NONE)
 				{
 					AddedMemberVariableMap.Add(Description.Name, VariableIndex);
@@ -1401,6 +1373,97 @@ void UControlRigBlueprint::CreateMemberVariablesOnLoad()
 
 #endif
 }
+
+#if WITH_EDITOR
+
+FName UControlRigBlueprint::FindCRMemberVariableUniqueName(TSharedPtr<FKismetNameValidator> InNameValidator, const FString& InBaseName)
+{
+	FString KismetName = InBaseName;
+	if (InNameValidator->IsValid(KismetName) == EValidatorResult::ContainsInvalidCharacters)
+	{
+		for (TCHAR& TestChar : KismetName)
+		{
+			for (TCHAR BadChar : UE_BLUEPRINT_INVALID_NAME_CHARACTERS)
+			{
+				if (TestChar == BadChar)
+				{
+					TestChar = TEXT('_');
+					break;
+				}
+			}
+		}
+	}
+
+	int32 Suffix = 0;
+	while (InNameValidator->IsValid(KismetName) != EValidatorResult::Ok)
+	{
+		KismetName = FString::Printf(TEXT("%s_%d"), *InBaseName, Suffix);
+		Suffix++;
+	}
+
+
+	return *KismetName;
+}
+
+int32 UControlRigBlueprint::AddCRMemberVariable(UControlRigBlueprint* InBlueprint, const FName& InVarName, FEdGraphPinType InVarType, bool bIsPublic, bool bIsReadOnly)
+{
+	FBPVariableDescription NewVar;
+
+	NewVar.VarName = InVarName;
+	NewVar.VarGuid = FGuid::NewGuid();
+	NewVar.FriendlyName = FName::NameToDisplayString(InVarName.ToString(), (InVarType.PinCategory == UEdGraphSchema_K2::PC_Boolean) ? true : false);
+	NewVar.VarType = InVarType;
+
+	NewVar.PropertyFlags |= (CPF_Edit | CPF_BlueprintVisible | CPF_DisableEditOnInstance);
+
+	if (bIsPublic)
+	{
+		NewVar.PropertyFlags &= ~CPF_DisableEditOnInstance;
+	}
+
+	if (bIsReadOnly)
+	{
+		NewVar.PropertyFlags |= CPF_BlueprintReadOnly;
+	}
+
+	NewVar.ReplicationCondition = COND_None;
+
+	NewVar.Category = UEdGraphSchema_K2::VR_DefaultCategory;
+
+	// user created variables should be none of these things
+	NewVar.VarType.bIsConst = false;
+	NewVar.VarType.bIsWeakPointer = false;
+	NewVar.VarType.bIsReference = false;
+
+	// Text variables, etc. should default to multiline
+	NewVar.SetMetaData(TEXT("MultiLine"), TEXT("true"));
+
+	return InBlueprint->NewVariables.Add(NewVar);
+}
+
+FName UControlRigBlueprint::AddCRMemberVariableFromExternal(FRigVMExternalVariable InVariableToCreate)
+{
+	FEdGraphPinType PinType = UControlRig::GetPinTypeFromExternalVariable(InVariableToCreate);
+	if (!PinType.PinCategory.IsValid())
+	{
+		return NAME_None;
+	}
+
+	Modify();
+
+	TSharedPtr<FKismetNameValidator> NameValidator = MakeShareable(new FKismetNameValidator(this, NAME_None, nullptr));
+	FName VarName = FindCRMemberVariableUniqueName(NameValidator, InVariableToCreate.Name.ToString());
+	int32 VariableIndex = AddCRMemberVariable(this, VarName, PinType, InVariableToCreate.bIsPublic, InVariableToCreate.bIsReadOnly);
+	if (VariableIndex != INDEX_NONE)
+	{
+		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(this);
+		return VarName;
+	}
+
+	return NAME_None;
+}
+
+#endif
 
 void UControlRigBlueprint::PatchVariableNodesOnLoad()
 {

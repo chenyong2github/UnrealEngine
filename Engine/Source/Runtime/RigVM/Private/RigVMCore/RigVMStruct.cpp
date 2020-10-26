@@ -34,11 +34,12 @@ FName FRigVMStructNodeCreatedContext::AddExternalVariable(const FRigVMExternalVa
 	return NAME_None;
 }
 
-bool FRigVMStructNodeCreatedContext::BindPinToExternalVariable(FString InPinPath, FName InVariableName)
+bool FRigVMStructNodeCreatedContext::BindPinToExternalVariable(FString InPinPath, FString InVariablePath)
 {
 	if (BindPinToExternalVariableDelegate.IsBound())
 	{
-		return BindPinToExternalVariableDelegate.Execute(InPinPath, InVariableName);
+		const FString NodePinPath = FString::Printf(TEXT("%s.%s"), *NodeName.ToString(), *InPinPath);
+		return BindPinToExternalVariableDelegate.Execute(NodePinPath, InVariablePath);
 	}
 	return false;
 }

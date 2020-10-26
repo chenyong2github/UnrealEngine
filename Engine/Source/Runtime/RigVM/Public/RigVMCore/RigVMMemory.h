@@ -111,6 +111,8 @@ private:
 	
 	UPROPERTY()
 	uint16 RegisterOffset;
+
+	friend class URigVMCompiler;
 };
 
 typedef FRigVMFixedArray<FRigVMOperand> FRigVMOperandArray;

@@ -457,6 +457,44 @@ bool UControlRigGraphSchema::RequestVariableDropOnPanel(UEdGraph* InGraph, FProp
 	return false;
 }
 
+bool UControlRigGraphSchema::RequestVariableDropOnPin(UEdGraph* InGraph, FProperty* InVariableToDrop, UEdGraphPin* InPin, const FVector2D& InDropPosition, const FVector2D& InScreenPosition)
+{
+#if WITH_EDITOR
+	if (CanVariableBeDropped(InGraph, InVariableToDrop))
+	{
+		UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForGraph(InGraph);
+		UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(Blueprint);
+		if (RigBlueprint != nullptr)
+		{
+			if (URigVMPin* ModelPin = RigBlueprint->Model->FindPin(InPin->GetName()))
+			{
+				FRigVMExternalVariable ExternalVariable = FRigVMExternalVariable::Make(InVariableToDrop, nullptr);
+				if (ModelPin->CanBeBoundToVariable(ExternalVariable))
+				{
+					FModifierKeysState KeyState = FSlateApplication::Get().GetModifierKeys();
+					if (KeyState.IsAltDown())
+					{
+						return RigBlueprint->Controller->BindPinToVariable(ModelPin->GetPinPath(), InVariableToDrop->GetName());
+					}
+					else
+					{
+						RigBlueprint->Controller->OpenUndoBracket(TEXT("Bind Variable to Pin"));
+						if (URigVMVariableNode* VariableNode = RigBlueprint->Controller->AddVariableNode(ExternalVariable.Name, ExternalVariable.TypeName.ToString(), ExternalVariable.TypeObject, true, FString(), InDropPosition + FVector2D(0.f, -34.f)))
+						{
+							RigBlueprint->Controller->AddLink(VariableNode->FindPin(TEXT("Value"))->GetPinPath(), ModelPin->GetPinPath(), true);
+						}
+						RigBlueprint->Controller->CloseUndoBracket();
+						return true;
+					}
+				}
+			}
+		}
+	}
+#endif
+
+	return false;
+}
+
 void UControlRigGraphSchema::EndGraphNodeInteraction(UEdGraphNode* InNode) const
 {
 #if WITH_EDITOR

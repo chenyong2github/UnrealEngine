@@ -82,7 +82,7 @@ URigVMPin::URigVMPin()
 	, CPPTypeObject(nullptr)
 	, CPPTypeObjectPath(NAME_None)
 	, DefaultValue(FString())
-	, BoundVariableName(NAME_None)
+	, BoundVariablePath()
 {
 }
 
@@ -393,9 +393,16 @@ UObject* URigVMPin::FindObjectFromCPPTypeObjectPath(const FString& InObjectPath)
 	return FindObject<UObject>(ANY_PACKAGE, *InObjectPath);
 }
 
-bool URigVMPin::CanBeBoundToVariable(const FRigVMExternalVariable& InExternalVariable) const
+FString URigVMPin::GetBoundVariableName() const
 {
-	if (!InExternalVariable.IsValid())
+	FString VariableName = BoundVariablePath;
+	BoundVariablePath.Split(TEXT("."), &VariableName, nullptr);
+	return VariableName;
+}
+
+bool URigVMPin::CanBeBoundToVariable(const FRigVMExternalVariable& InExternalVariable, const FRigVMRegisterOffset& InOffset) const
+{
+	if (!InExternalVariable.IsValid(true))
 	{
 		return false;
 	}
@@ -412,14 +419,28 @@ bool URigVMPin::CanBeBoundToVariable(const FRigVMExternalVariable& InExternalVar
 	}
 
 	// check type validity
+	// in the future we need to allow arrays as well
+	if (IsArray() && InOffset.IsValid())
+	{
+		return false;
+	}
 	if (IsArray() != InExternalVariable.bIsArray)
 	{
 		return false;
 	}
 
+	FString ExternalCPPType = InExternalVariable.TypeName.ToString();
+	UObject* ExternalCPPTypeObject = InExternalVariable.TypeObject;
+
+	if (InOffset.IsValid())
+	{
+		ExternalCPPType = InOffset.GetCPPType().ToString();
+		ExternalCPPTypeObject = InOffset.GetScriptStruct();
+	}
+
 	if (GetCPPTypeObject() != nullptr)
 	{
-		if (GetCPPTypeObject() != InExternalVariable.TypeObject)
+		if (GetCPPTypeObject() != ExternalCPPTypeObject)
 		{
 			return false;
 		}
@@ -427,7 +448,7 @@ bool URigVMPin::CanBeBoundToVariable(const FRigVMExternalVariable& InExternalVar
 	else
 	{
 		FString CPPBaseType = IsArray() ? GetArrayElementCppType() : GetCPPType();
-		if (CPPBaseType != InExternalVariable.TypeName.ToString())
+		if (CPPBaseType != ExternalCPPType)
 		{
 			return false;
 		}
@@ -479,6 +500,44 @@ bool URigVMPin::ShowInDetailsPanelOnly() const
 	}
 #endif
 	return false;
+}
+
+// Returns nullptr external variable matching this description
+FRigVMExternalVariable URigVMPin::ToExternalVariable() const
+{
+	FRigVMExternalVariable ExternalVariable;
+
+	FString VariableName = GetBoundVariableName();
+	if (VariableName.IsEmpty())
+	{
+		FString NodeName, PinPath;
+		if (!SplitPinPathAtStart(GetPinPath(), NodeName, VariableName))
+		{
+			return ExternalVariable;
+		}
+
+		VariableName = VariableName.Replace(TEXT("."), TEXT("_"));
+	}
+	ExternalVariable.Name = *VariableName;
+
+	if (CPPType.StartsWith(TEXT("TArray<")))
+	{
+		ExternalVariable.bIsArray = true;
+		ExternalVariable.TypeName = *CPPType.Mid(7, CPPType.Len() - 8);
+		ExternalVariable.TypeObject = CPPTypeObject;
+	}
+	else
+	{
+		ExternalVariable.bIsArray = false;
+		ExternalVariable.TypeName = *CPPType;
+		ExternalVariable.TypeObject = CPPTypeObject;
+	}
+
+	ExternalVariable.bIsPublic = false;
+	ExternalVariable.bIsReadOnly = false;
+	ExternalVariable.Memory = nullptr;
+
+	return ExternalVariable;
 }
 
 void URigVMPin::UpdateCPPTypeObjectIfRequired() const
@@ -763,15 +822,6 @@ bool URigVMPin::CanLink(URigVMPin* InSourcePin, URigVMPin* InTargetPin, FString*
 		return false;
 	}
 	
-	if (InTargetPin->IsBoundToVariable())
-	{
-		if (OutFailureReason)
-		{
-			*OutFailureReason = TEXT("Target pin is bound to a variable.");
-		}
-		return false;
-	}
-
 	URigVMNode* SourceNode = InSourcePin->GetNode();
 	URigVMNode* TargetNode = InTargetPin->GetNode();
 	if (SourceNode == TargetNode)

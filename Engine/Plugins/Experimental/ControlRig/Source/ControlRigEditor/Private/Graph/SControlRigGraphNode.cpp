@@ -602,7 +602,7 @@ TSharedRef<ITableRow> SControlRigGraphNode::MakeTableRowWidget(URigVMPin* InItem
 			}
 
 			// Only leaf pins have value widgets, but not containers
-			if(bLeaf && !bIsContainer && bIsPlainOrEditableStruct)
+			if(((bLeaf && bIsPlainOrEditableStruct) || InItem->IsBoundToVariable()) && !bIsContainer)
 			{
 				InputPinValueWidget = (*InputGraphPinPtr)->GetValueWidget();
 			}

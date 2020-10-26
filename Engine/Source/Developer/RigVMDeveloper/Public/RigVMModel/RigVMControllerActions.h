@@ -1112,7 +1112,7 @@ struct FRigVMSetPinBoundVariableAction : public FRigVMBaseAction
 public:
 
 	FRigVMSetPinBoundVariableAction() {}
-	FRigVMSetPinBoundVariableAction(URigVMPin* InPin, const FName& InNewBoundVariableName);
+	FRigVMSetPinBoundVariableAction(URigVMPin* InPin, const FString& InNewBoundVariablePath);
 	virtual ~FRigVMSetPinBoundVariableAction() {};
 	virtual bool Merge(const FRigVMBaseAction* Other);
 	virtual bool Undo(URigVMController* InController) override;
@@ -1122,8 +1122,8 @@ public:
 	FString PinPath;
 
 	UPROPERTY()
-	FName OldBoundVariableName;
+	FString OldBoundVariablePath;
 
 	UPROPERTY()
-	FName NewBoundVariableName;
+	FString NewBoundVariablePath;
 };

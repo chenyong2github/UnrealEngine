@@ -1963,10 +1963,12 @@ FRigVMExternalVariable UControlRig::GetExternalVariableFromPinType(const FName& 
 	if (InPinType.PinCategory == UEdGraphSchema_K2::PC_Boolean)
 	{
 		ExternalVariable.TypeName = TEXT("bool");
+		ExternalVariable.Size = sizeof(bool);
 	}
 	else if (InPinType.PinCategory == UEdGraphSchema_K2::PC_Int)
 	{
 		ExternalVariable.TypeName = TEXT("int32");
+		ExternalVariable.Size = sizeof(int32);
 	}
 	else if (InPinType.PinCategory == UEdGraphSchema_K2::PC_Enum ||
 		InPinType.PinCategory == UEdGraphSchema_K2::PC_Byte)
@@ -1980,18 +1982,22 @@ FRigVMExternalVariable UControlRig::GetExternalVariableFromPinType(const FName& 
 		{
 			ExternalVariable.TypeName = TEXT("uint8");
 		}
+		ExternalVariable.Size = sizeof(uint8);
 	}
 	else if (InPinType.PinCategory == UEdGraphSchema_K2::PC_Float)
 	{
 		ExternalVariable.TypeName = TEXT("float");
+		ExternalVariable.Size = sizeof(float);
 	}
 	else if (InPinType.PinCategory == UEdGraphSchema_K2::PC_Name)
 	{
 		ExternalVariable.TypeName = TEXT("FName");
+		ExternalVariable.Size = sizeof(FName);
 	}
 	else if (InPinType.PinCategory == UEdGraphSchema_K2::PC_String)
 	{
 		ExternalVariable.TypeName = TEXT("FString");
+		ExternalVariable.Size = sizeof(FString);
 	}
 	else if (InPinType.PinCategory == UEdGraphSchema_K2::PC_Struct)
 	{
@@ -1999,6 +2005,7 @@ FRigVMExternalVariable UControlRig::GetExternalVariableFromPinType(const FName& 
 		{
 			ExternalVariable.TypeName = *Struct->GetStructCPPName();
 			ExternalVariable.TypeObject = Struct;
+			ExternalVariable.Size = Struct->GetStructureSize();
 		}
 	}
 

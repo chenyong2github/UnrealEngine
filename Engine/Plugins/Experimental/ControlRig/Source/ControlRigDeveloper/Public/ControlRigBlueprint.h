@@ -19,6 +19,11 @@
 #include "ControlRigHierarchyModifier.h"
 #include "ControlRigValidationPass.h"
 #include "Drawing/ControlRigDrawContainer.h"
+
+#if WITH_EDITOR
+#include "Kismet2/Kismet2NameValidators.h"
+#endif
+
 #include "ControlRigBlueprint.generated.h"
 
 class UControlRigBlueprintGeneratedClass;
@@ -238,6 +243,11 @@ private:
 
 	void CleanupBoneHierarchyDeprecated();
 	void CreateMemberVariablesOnLoad();
+#if WITH_EDITOR
+	static FName FindCRMemberVariableUniqueName(TSharedPtr<FKismetNameValidator> InNameValidator, const FString& InBaseName);
+	static int32 AddCRMemberVariable(UControlRigBlueprint* InBlueprint, const FName& InVarName, FEdGraphPinType InVarType, bool bIsPublic, bool bIsReadOnly);
+	FName AddCRMemberVariableFromExternal(FRigVMExternalVariable InVariableToCreate);
+#endif
 	void PatchVariableNodesOnLoad();
 
 	TMap<FName, int32> AddedMemberVariableMap;

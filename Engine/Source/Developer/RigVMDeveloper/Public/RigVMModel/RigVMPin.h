@@ -289,13 +289,16 @@ public:
 	const TArray<URigVMInjectionInfo*> GetInjectedNodes() const { return InjectionInfos; }
 
 	// Returns the variable bound to this pin (or NAME_None)
-	const FName& GetBoundVariableName() const { return BoundVariableName; }
+	const FString& GetBoundVariablePath() const { return BoundVariablePath; }
+
+	// Returns the variable bound to this pin (or NAME_None)
+	FString GetBoundVariableName() const;
 
 	// Returns true if this pin is bound to a variable
-	bool IsBoundToVariable() const { return !GetBoundVariableName().IsNone(); }
+	bool IsBoundToVariable() const { return !BoundVariablePath.IsEmpty(); }
 
 	// Returns true if the pin can be bound to a given variable
-	bool CanBeBoundToVariable(const FRigVMExternalVariable& InExternalVariable) const;
+	bool CanBeBoundToVariable(const FRigVMExternalVariable& InExternalVariable, const FRigVMRegisterOffset& InOffset = FRigVMRegisterOffset()) const;
 
 	// helper function to retrieve an object from a path
 	static UObject* FindObjectFromCPPTypeObjectPath(const FString& InObjectPath);
@@ -313,6 +316,9 @@ public:
 
 	// Returns true if the pin should not show up on a node, but in the details panel
 	bool ShowInDetailsPanelOnly() const;
+
+	// Returns an external variable matching this pin's type
+	FRigVMExternalVariable ToExternalVariable() const;
 
 private:
 
@@ -362,7 +368,7 @@ private:
 	TArray<URigVMInjectionInfo*> InjectionInfos;
 
 	UPROPERTY()
-	FName BoundVariableName;
+	FString BoundVariablePath;
 
 	friend class URigVMController;
 	friend class URigVMGraph;

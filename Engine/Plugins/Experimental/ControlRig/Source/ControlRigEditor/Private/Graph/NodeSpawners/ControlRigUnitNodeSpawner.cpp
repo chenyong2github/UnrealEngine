@@ -141,6 +141,9 @@ UControlRigGraphNode* UControlRigUnitNodeSpawner::SpawnNode(UEdGraph* ParentGrap
 			Controller->OpenUndoBracket(FString::Printf(TEXT("Add '%s' Node"), *Name.ToString()));
 		}
 
+		FRigVMStructNodeCreatedContext& StructNodeCreatedContext = Controller->GetStructNodeCreatedContext();
+		FRigVMStructNodeCreatedContext::FScope ReasonScope(StructNodeCreatedContext, ERigVMNodeCreatedReason::NodeSpawner);
+
 		if (URigVMStructNode* ModelNode = Controller->AddStructNode(StructTemplate, TEXT("Execute"), Location, Name.ToString(), bUndo))
 		{
 			NewNode = Cast<UControlRigGraphNode>(RigGraph->FindNodeForModelNodeName(ModelNode->GetFName()));

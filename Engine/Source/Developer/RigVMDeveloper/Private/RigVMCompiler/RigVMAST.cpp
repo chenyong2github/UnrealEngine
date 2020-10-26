@@ -51,6 +51,10 @@ FName FRigVMExprAST::GetTypeName() const
 		{
 			return TEXT("[Literal]");
 		}
+		case EType::ExternalVar:
+		{
+			return TEXT("[ExtVar.]");
+		}
 		case EType::Assign:
 		{
 			return TEXT("[.Assign]");
@@ -329,6 +333,11 @@ FString FRigVMExprAST::DumpDot(TArray<bool>& OutExpressionDefined, const FString
 				Label = FString::Printf(TEXT("%s(Literal)"), *To<FRigVMLiteralExprAST>()->GetPin()->GetName());
 				break;
 			}
+			case EType::ExternalVar:
+			{
+				Label = FString::Printf(TEXT("%s(ExternalVar)"), *To<FRigVMExternalVarExprAST>()->GetPin()->GetBoundVariableName());
+				break;
+			}
 			case EType::Var:
 			{
 				if (To<FRigVMVarExprAST>()->IsGraphParameter())
@@ -542,6 +551,15 @@ bool FRigVMNodeExprAST::IsConstant() const
 		else if (CurrentNode->IsDefinedAsVarying())
 		{
 			return false;
+		}
+
+		TArray<URigVMPin*> AllPins = CurrentNode->GetAllPinsRecursively();
+		for (URigVMPin* Pin : AllPins)
+		{
+			if (Pin->IsBoundToVariable())
+			{
+				return false;
+			}
 		}
 	}
 	return FRigVMExprAST::IsConstant();
@@ -1077,6 +1095,24 @@ FRigVMExprAST* FRigVMParserAST::TraversePin(URigVMPin* InPin, FRigVMExprAST* InP
 
 	TArray<URigVMLink*> SourceLinks = InPin->GetSourceLinks(true);
 
+	struct Local
+	{
+		static void LookForPinsBoundToVariables(URigVMPin* InPin, TArray<URigVMPin*>& SubPinsBoundToVariables)
+		{
+			for (URigVMPin* SubPin : InPin->GetSubPins())
+			{
+				if (SubPin->IsBoundToVariable())
+				{
+					SubPinsBoundToVariables.Add(SubPin);
+				}
+				LookForPinsBoundToVariables(SubPin, SubPinsBoundToVariables);
+			}
+		}
+	};
+
+	TArray<URigVMPin*> SubPinsBoundToVariables;
+	Local::LookForPinsBoundToVariables(InPin, SubPinsBoundToVariables);
+
 	FRigVMExprAST* PinExpr = nullptr;
 
 	if (Cast<URigVMVariableNode>(InPin->GetNode()))
@@ -1097,7 +1133,8 @@ FRigVMExprAST* FRigVMParserAST::TraversePin(URigVMPin* InPin, FRigVMExprAST* InP
 
 	if ((InPin->GetDirection() == ERigVMPinDirection::Input ||
 		InPin->GetDirection() == ERigVMPinDirection::Visible) &&
-		SourceLinks.Num() == 0)
+		SourceLinks.Num() == 0 &&
+		SubPinsBoundToVariables.Num() == 0)
 	{
 		if (Cast<URigVMParameterNode>(InPin->GetNode()) ||
 			Cast<URigVMVariableNode>(InPin->GetNode()))
@@ -1108,6 +1145,10 @@ FRigVMExprAST* FRigVMParserAST::TraversePin(URigVMPin* InPin, FRigVMExprAST* InP
 			FRigVMExprAST* PinCopyExpr = MakeExpr<FRigVMCopyExprAST>(InPin, InPin);
 			PinCopyExpr->AddParent(PinExpr);
 			PinLiteralExpr->AddParent(PinCopyExpr);
+		}
+		else if (InPin->IsBoundToVariable())
+		{
+			PinExpr = MakeExpr<FRigVMExternalVarExprAST>(InPin);
 		}
 		else
 		{
@@ -1132,6 +1173,11 @@ FRigVMExprAST* FRigVMParserAST::TraversePin(URigVMPin* InPin, FRigVMExprAST* InP
 		return PinExpr;
 	}
 
+	if (PinExpr->IsA(FRigVMExprAST::ExternalVar))
+	{
+		return PinExpr;
+	}
+
 	if ((InPin->GetDirection() == ERigVMPinDirection::IO ||
 		InPin->GetDirection() == ERigVMPinDirection::Input) 
 		&& !InPin->IsExecuteContext())
@@ -1149,7 +1195,7 @@ FRigVMExprAST* FRigVMParserAST::TraversePin(URigVMPin* InPin, FRigVMExprAST* InP
 
 		if (!bHasSourceLinkToRoot && 
 			InPin->GetSourceLinks(false).Num() == 0 &&
-			(InPin->GetDirection() == ERigVMPinDirection::IO || SourceLinks.Num() > 0))
+			(InPin->GetDirection() == ERigVMPinDirection::IO || SourceLinks.Num() > 0 || SubPinsBoundToVariables.Num() > 0))
 		{
 			FRigVMLiteralExprAST* LiteralExpr = MakeExpr<FRigVMLiteralExprAST>(InPin);
 			FRigVMCopyExprAST* LiteralCopyExpr = MakeExpr<FRigVMCopyExprAST>(InPin, InPin);
@@ -1160,6 +1206,14 @@ FRigVMExprAST* FRigVMParserAST::TraversePin(URigVMPin* InPin, FRigVMExprAST* InP
 
 			SubjectToExpression[InPin] = LiteralExpr;
 		}
+		else
+		{
+			SubPinsBoundToVariables.Reset();
+		}
+	}
+	else
+	{
+		SubPinsBoundToVariables.Reset();
 	}
 
 	FRigVMExprAST* ParentExprForLinks = PinExpr;
@@ -1177,6 +1231,16 @@ FRigVMExprAST* FRigVMParserAST::TraversePin(URigVMPin* InPin, FRigVMExprAST* InP
 	for (URigVMLink* SourceLink : SourceLinks)
 	{
 		TraverseLink(SourceLink, ParentExprForLinks);
+	}
+
+	for (URigVMPin* SubPinBoundToVariable : SubPinsBoundToVariables)
+	{
+		FRigVMExternalVarExprAST* ExternalVarExpr = MakeExpr<FRigVMExternalVarExprAST>(SubPinBoundToVariable);
+		FRigVMCopyExprAST* ExternalVarExprCopyExpr = MakeExpr<FRigVMCopyExprAST>(SubPinBoundToVariable, SubPinBoundToVariable);
+		ExternalVarExprCopyExpr->Name = *FString::Printf(TEXT("%s -> %s"), *SubPinBoundToVariable->GetPinPath(), *SubPinBoundToVariable->GetPinPath());
+		ExternalVarExprCopyExpr->AddParent(PinExpr);
+		ExternalVarExpr->AddParent(ExternalVarExprCopyExpr);
+		ExternalVarExpr->Name = *SubPinBoundToVariable->GetPinPath();
 	}
 
 	return PinExpr;

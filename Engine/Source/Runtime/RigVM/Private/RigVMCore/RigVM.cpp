@@ -1699,8 +1699,21 @@ void URigVM::CacheSingleMemoryHandle(const FRigVMOperand& InArg, bool bForExecut
 		ensure(ExternalVariables.IsValidIndex(InArg.GetRegisterIndex()));
 
 		FRigVMExternalVariable& ExternalVariable = ExternalVariables[InArg.GetRegisterIndex()];
+		FRigVMRegisterOffset RegisterOffset = GetWorkMemory().GetRegisterOffsetForOperand(InArg);
 		check(ExternalVariable.Memory);
-		CachedMemoryHandles.Add(ExternalVariable.GetHandle(InArg.GetRegisterOffset()));
+
+		if (RegisterOffset.IsValid())
+		{
+			CachedMemoryHandles.Add(FRigVMMemoryHandle(
+				RegisterOffset.GetData(ExternalVariable.Memory),
+				RegisterOffset.GetElementSize(),
+				FRigVMMemoryHandle::FType::Plain
+			));
+		}
+		else
+		{
+			CachedMemoryHandles.Add(ExternalVariable.GetHandle(InArg.GetRegisterOffset()));
+		}
 		return;
 	}
 

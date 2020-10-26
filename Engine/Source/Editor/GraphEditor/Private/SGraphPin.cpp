@@ -771,6 +771,13 @@ FReply SGraphPin::OnDrop( const FGeometry& MyGeometry, const FDragDropEvent& Dra
 			//Line it up vertically with pin
 			NodeAddPosition.Y += MyGeometry.Size.Y;
 
+			// if the pin widget is nested into another compound
+			if (MyGeometry.Position == FVector2D::ZeroVector)
+			{
+				FVector2D PinOffsetPosition = MyGeometry.AbsolutePosition - NodeWidget->GetTickSpaceGeometry().AbsolutePosition;
+				NodeAddPosition = OwnerNode->GetPosition() + PinOffsetPosition;
+			}
+
 			if(GetDirection() == EEdGraphPinDirection::EGPD_Input)
 			{
 				//left side just offset by fixed amount

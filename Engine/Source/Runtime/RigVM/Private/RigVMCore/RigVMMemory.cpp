@@ -1633,9 +1633,7 @@ int32 FRigVMMemoryContainer::GetOrAddRegisterOffset(int32 InRegisterIndex, UScri
 		return INDEX_NONE;
 	}
 
-	ensure(Registers.IsValidIndex(InRegisterIndex));
-
-	if (InElementSize == 0)
+	if (InElementSize == 0 && Registers.IsValidIndex(InRegisterIndex))
 	{
 		InElementSize = (int32)Registers[InRegisterIndex].ElementSize;
 	}
@@ -1810,7 +1808,8 @@ TArray<FString> FRigVMMemoryContainer::GetRegisterValueAsString(const FRigVMOper
 
 const FRigVMRegisterOffset FRigVMMemoryContainer::GetRegisterOffsetForOperand(const FRigVMOperand& InOperand) const
 {
-	ensure(InOperand.GetMemoryType() == MemoryType);
+	ensure(InOperand.GetMemoryType() == MemoryType || 
+		(InOperand.GetMemoryType() == ERigVMMemoryType::External && MemoryType == ERigVMMemoryType::Work));
 
 	int32 RegisterOffsetIndex = InOperand.GetRegisterOffset();
 	if (RegisterOffsets.IsValidIndex(RegisterOffsetIndex))

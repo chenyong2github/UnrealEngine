@@ -8,6 +8,7 @@
 #include "Graph/SControlRigGraphPinCurveFloat.h"
 #include "Graph/SControlRigGraphPinVariableName.h"
 #include "Graph/SControlRigGraphPinParameterName.h"
+#include "Graph/SControlRigGraphPinVariableBinding.h"
 #include "KismetPins/SGraphPinExec.h"
 #include "ControlRig.h"
 #include "NodeFactory.h"
@@ -15,6 +16,7 @@
 #include "Curves/CurveFloat.h"
 #include "RigVMModel/Nodes/RigVMStructNode.h"
 #include "RigVMCore/RigVMExecuteContext.h"
+#include "IPropertyAccessEditor.h"
 
 TSharedPtr<SGraphPin> FControlRigGraphPanelPinFactory::CreatePin(UEdGraphPin* InPin) const
 {
@@ -26,6 +28,16 @@ TSharedPtr<SGraphPin> FControlRigGraphPanelPinFactory::CreatePin(UEdGraphPin* In
 
 			if (URigVMPin* ModelPin = RigNode->GetModelPinFromPinPath(InPin->GetName()))
 			{
+				if (ModelPin->IsBoundToVariable())
+				{
+					if (UControlRigBlueprint* Blueprint = Cast<UControlRigBlueprint>(RigGraph->GetOuter()))
+					{
+						return SNew(SControlRigGraphPinVariableBinding, InPin)
+							.ModelPin(ModelPin)
+							.Blueprint(Blueprint);
+					}
+				}
+
 				FName CustomWidgetName = ModelPin->GetCustomWidgetName();
 				if (CustomWidgetName == TEXT("BoneName"))
 				{

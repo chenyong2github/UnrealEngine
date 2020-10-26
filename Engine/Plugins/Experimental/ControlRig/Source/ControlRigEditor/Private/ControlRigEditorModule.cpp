@@ -104,7 +104,7 @@
 #include "AnimSequenceLevelSequenceLink.h"
 #include "Rigs/FKControlRig.h"
 #include "SBakeToControlRigDialog.h"
-
+#include "Graph/SControlRigGraphPinVariableBinding.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigEditorModule"
 
@@ -1132,8 +1132,62 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 						));
 					}
 
+					if (ModelPin->GetDirection() == ERigVMPinDirection::Input &&
+							!ModelPin->IsExecuteContext())
+					{
+						if (ModelPin->IsBoundToVariable())
+						{
+							FVector2D NodePosition = FVector2D(Context->Node->NodePosX - 200.f, Context->Node->NodePosY);
+
+							FToolMenuSection& VariablesSection = Menu->AddSection("EdGraphSchemaVariables", LOCTEXT("Variables", "Variables"));
+							VariablesSection.AddMenuEntry(
+								"MakeVariableNodeFromBinding",
+								LOCTEXT("MakeVariableNodeFromBinding", "Make Variable Node"),
+								LOCTEXT("MakeVariableNodeFromBinding_Tooltip", "Turns the variable binding on the pin to a variable node"),
+								FSlateIcon(),
+								FUIAction(FExecuteAction::CreateLambda([RigBlueprint, ModelPin, NodePosition]() {
+									RigBlueprint->Controller->MakeVariableNodeFromBinding(ModelPin->GetPinPath(), NodePosition);
+								})
+							));
+						}
+						else
+						{
+							FVector2D NodePosition = FVector2D(Context->Node->NodePosX - 200.f, Context->Node->NodePosY);
+
+							FToolMenuSection& VariablesSection = Menu->AddSection("EdGraphSchemaVariables", LOCTEXT("Variables", "Variables"));
+							VariablesSection.AddMenuEntry(
+								"PromotePinToVariable",
+								LOCTEXT("PromotePinToVariable", "Promote Pin To Variable"),
+								LOCTEXT("PromotePinToVariable_Tooltip", "Turns the variable into a variable"),
+								FSlateIcon(),
+								FUIAction(FExecuteAction::CreateLambda([RigBlueprint, ModelPin, NodePosition]() {
+
+									FModifierKeysState KeyState = FSlateApplication::Get().GetModifierKeys();
+									bool bCreateVariableNode = !KeyState.IsAltDown();
+
+									RigBlueprint->Controller->PromotePinToVariable(ModelPin->GetPinPath(), bCreateVariableNode, NodePosition);
+								})
+							));
+						}
+					}
+
 					if(Cast<URigVMStructNode>(ModelPin->GetNode()))
 					{
+						if (ModelPin->GetDirection() == ERigVMPinDirection::Input && 
+							!ModelPin->IsExecuteContext() &&
+							!ModelPin->IsBoundToVariable())
+						{
+							FToolMenuSection& VariablesSection = Menu->FindOrAddSection(TEXT("Variables"));
+
+							TSharedRef<SControlRigVariableBinding> VariableBindingWidget =
+								SNew(SControlRigVariableBinding)
+								.Blueprint(RigBlueprint)
+								.ModelPin(ModelPin)
+								.CanRemoveBinding(false);
+
+							VariablesSection.AddEntry(FToolMenuEntry::InitWidget("BindPinToVariableWidget", VariableBindingWidget, FText(), true));
+						}
+
 						FToolMenuSection& Section = Menu->AddSection("EdGraphSchemaPinDefaults", LOCTEXT("PinDefaults", "Pin Defaults"));
 						Section.AddMenuEntry(
 							"ResetPinDefaultValue",
@@ -1144,7 +1198,7 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 								RigBlueprint->Controller->ResetPinDefaultValue(ModelPin->GetPinPath());
 							})
 						));
-	}
+					}
 
 					if ((ModelPin->GetCPPType() == TEXT("FVector") ||
 						 ModelPin->GetCPPType() == TEXT("FQuat") ||
@@ -1595,6 +1649,20 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 									ExpansionMap.Values.FindOrAdd(RemainingPath) = Pin->IsExpanded();
 								}
 #endif
+							})
+						));
+					}
+
+					if (URigVMVariableNode* VariableNode = Cast<URigVMVariableNode>(RigNode->GetModelNode()))
+					{
+						FToolMenuSection& VariablesSection = Menu->AddSection("EdGraphSchemaVariables", LOCTEXT("VariablesSettingsHeader", "Variables"));
+						VariablesSection.AddMenuEntry(
+							"MakePindingsFromVariableNode",
+							LOCTEXT("MakePindingsFromVariableNode", "Make Bindings From Node"),
+							LOCTEXT("MakePindingsFromVariableNode_Tooltip", "Turns the variable node into one ore more variable bindings on the pin(s)"),
+							FSlateIcon(),
+							FUIAction(FExecuteAction::CreateLambda([RigBlueprint, VariableNode]() {
+								RigBlueprint->Controller->MakeBindingsFromVariableNode(VariableNode->GetFName());
 							})
 						));
 					}

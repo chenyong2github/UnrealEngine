@@ -411,12 +411,24 @@ public:
 	// Binds a pin to a variable (or removes the binding given NAME_None)
 	// This causes a PinBoundVariableChanged modified event.
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	bool BindPinToVariable(const FString& InPinPath, const FName& InNewBoundVariableName, bool bUndo = true);
+	bool BindPinToVariable(const FString& InPinPath, const FString& InNewBoundVariablePath, bool bUndo = true);
 
 	// Removes the binging of a pin to a variable
 	// This causes a PinBoundVariableChanged modified event.
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
 	bool UnbindPinFromVariable(const FString& InPinPath, bool bUndo = true);
+
+	// Turns a variable node into one or more bindings
+	UFUNCTION(BlueprintCallable, Category = RigVMController)
+	bool MakeBindingsFromVariableNode(const FName& InNodeName, bool bUndo = true);
+
+	// Turns a binding to a variable node
+	UFUNCTION(BlueprintCallable, Category = RigVMController)
+	bool MakeVariableNodeFromBinding(const FString& InPinPath, const FVector2D& InNodePosition = FVector2D::ZeroVector, bool bUndo = true);
+
+	// Promotes a pin to a variable
+	UFUNCTION(BlueprintCallable, Category = RigVMController)
+	bool PromotePinToVariable(const FString& InPinPath, bool bCreateVariableNode, const FVector2D& InNodePosition = FVector2D::ZeroVector, bool bUndo = true);
 
 	// Adds a link to the graph.
 	// This causes a LinkAdded modified event.
@@ -459,6 +471,11 @@ public:
 
 	FRigVMStructNodeCreatedContext& GetStructNodeCreatedContext() { return StructNodeCreatedContext; }
 
+	// Wires the struct node delegates to the default controller delegates.
+	// this is used only within the Control Rig Editor currently.
+	void SetupDefaultStructNodeDelegates(TDelegate<FName(FRigVMExternalVariable)> InCreateExternalVariableDelegate);
+	void ResetStructNodeDelegates();
+
 private:
 
 	UPROPERTY(BlueprintReadOnly, Category = RigVMController, meta = (ScriptName = "ModifiedEvent", AllowPrivateAccess = "true"))
@@ -484,7 +501,9 @@ private:
 	URigVMPin* InsertArrayPin(URigVMPin* ArrayPin, int32 InIndex, const FString& InDefaultValue, bool bUndo);
 	bool RemovePin(URigVMPin* InPinToRemove, bool bUndo);
 	FProperty* FindPropertyForPin(const FString& InPinPath);
-	bool BindPinToVariable(URigVMPin* InPin, const FName& InNewBoundVariableName, bool bUndo);
+	bool BindPinToVariable(URigVMPin* InPin, const FString& InNewBoundVariablePath, bool bUndo);
+	bool MakeBindingsFromVariableNode(URigVMVariableNode* InNode, bool bUndo);
+	bool PromotePinToVariable(URigVMPin* InPin, bool bCreateVariableNode, const FVector2D& InNodePosition, bool bUndo);
 	bool AddLink(URigVMPin* OutputPin, URigVMPin* InputPin, bool bUndo);
 	bool BreakLink(URigVMPin* OutputPin, URigVMPin* InputPin, bool bUndo);
 	bool BreakAllLinks(URigVMPin* Pin, bool bAsInput, bool bUndo);
