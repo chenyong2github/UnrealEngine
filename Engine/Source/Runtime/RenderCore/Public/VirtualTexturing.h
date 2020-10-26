@@ -316,6 +316,8 @@ public:
 		, SpaceID(~0u)
 		, MaxLevel(0u)
 		, VirtualAddress(~0u)
+		, VirtualPageX(~0u)
+		, VirtualPageY(~0u)
 	{}
 
 	virtual uint32 GetNumPageTableTextures() const = 0;
@@ -350,6 +352,8 @@ public:
 	inline uint32 GetDepthInPixels() const { return DepthInTiles * Description.TileSize; }
 	inline uint32 GetSpaceID() const { return SpaceID; }
 	inline uint32 GetVirtualAddress() const { return VirtualAddress; }
+	inline uint32 GetVirtualPageX() const { return VirtualPageX; }
+	inline uint32 GetVirtualPageY() const { return VirtualPageY; }
 	inline uint32 GetMaxLevel() const { return MaxLevel; }
 	inline EVTPageTableFormat GetPageTableFormat() const { return PageTableFormat; }
 
@@ -371,6 +375,8 @@ protected:
 	uint32 SpaceID;
 	uint32 MaxLevel;
 	uint32 VirtualAddress;
+	uint32 VirtualPageX;
+	uint32 VirtualPageY;
 };
 
 /** 

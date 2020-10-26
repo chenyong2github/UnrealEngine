@@ -29,7 +29,8 @@ public:
 	 * Translate a virtual page address in the address space to a local page address within a virtual texture.
 	 * @return nullptr If there is no virtual texture allocated at this address.
 	 */
-	FAllocatedVirtualTexture* Find(uint32 vAddress, uint32& Local_vAddress) const;
+	FAllocatedVirtualTexture* Find(uint32 vAddress, uint32& OutLocal_vAddress) const;
+	inline FAllocatedVirtualTexture* Find(uint32 vAddress) const { uint32 UnusedLocal_vAddress = 0u; return Find(vAddress, UnusedLocal_vAddress); }
 
 	/**
 	 * Allocate address space for the virtual texture.
@@ -60,7 +61,7 @@ public:
 private:
 	int32 AcquireBlock();
 	void FreeAddressBlock(uint32 Index);
-	uint32 Find(uint32 vAddress) const;
+	uint32 FindAddressBlock(uint32 vAddress) const;
 
 	struct FAddressBlock
 	{

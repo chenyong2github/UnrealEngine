@@ -128,7 +128,7 @@ int32 FVirtualTextureAllocator::AcquireBlock()
 	return FreeBlock;
 }
 
-uint32 FVirtualTextureAllocator::Find(uint32 vAddress) const
+uint32 FVirtualTextureAllocator::FindAddressBlock(uint32 vAddress) const
 {
 	uint32 Min = 0;
 	uint32 Max = SortedAddresses.Num();
@@ -148,9 +148,9 @@ uint32 FVirtualTextureAllocator::Find(uint32 vAddress) const
 	return Min;
 }
 
-FAllocatedVirtualTexture* FVirtualTextureAllocator::Find(uint32 vAddress, uint32& Local_vAddress) const
+FAllocatedVirtualTexture* FVirtualTextureAllocator::Find(uint32 vAddress, uint32& OutLocal_vAddress) const
 {
-	const uint32 SortedIndex = Find(vAddress);
+	const uint32 SortedIndex = FindAddressBlock(vAddress);
 
 	const uint16 Index = SortedIndices[SortedIndex];
 	const FAddressBlock& AddressBlock = AddressBlocks[Index];
@@ -160,7 +160,8 @@ FAllocatedVirtualTexture* FVirtualTextureAllocator::Find(uint32 vAddress, uint32
 	if (vAddress >= AddressBlock.vAddress &&
 		vAddress < AddressBlock.vAddress + BlockSize)
 	{
-		Local_vAddress = vAddress - AddressBlock.vAddress;
+		check(AddressBlock.VT->GetVirtualAddress() == AddressBlock.vAddress);
+		OutLocal_vAddress = vAddress - AddressBlock.vAddress;
 		// TODO mip bias
 		return AddressBlock.VT;
 	}
@@ -248,7 +249,7 @@ uint32 FVirtualTextureAllocator::Alloc(FAllocatedVirtualTexture* VT)
 				FAddressBlock* ParentBlock = &AddressBlocks[FreeIndex];
 				check(ParentBlock->vAddress == AllocBlock->vAddress);
 
-				const int32 SortedIndex = Find(AllocBlock->vAddress);
+				const int32 SortedIndex = FindAddressBlock(AllocBlock->vAddress);
 				check(AllocBlock->vAddress == SortedAddresses[SortedIndex]);
 
 				// Replace parent block with new allocated block
@@ -406,7 +407,7 @@ void FVirtualTextureAllocator::FreeAddressBlock(uint32 Index)
 		// Remove this block and its siblings from the sorted lists
 		// We can assume that the sibling blocks are sequential in the sorted list since they are free and so have no children
 		// FirstSibling will be the last in the range of siblings in the sorted lists 
-		const uint32 SortedIndexRangeEnd = Find(AddressBlocks[AddressBlock.FirstSibling].vAddress);
+		const uint32 SortedIndexRangeEnd = FindAddressBlock(AddressBlocks[AddressBlock.FirstSibling].vAddress);
 		check(SortedAddresses[SortedIndexRangeEnd] == AddressBlocks[AddressBlock.FirstSibling].vAddress);
 		const uint32 NumSiblings = 1 << vDimensions;
 		check(SortedIndexRangeEnd + 1 >= NumSiblings);

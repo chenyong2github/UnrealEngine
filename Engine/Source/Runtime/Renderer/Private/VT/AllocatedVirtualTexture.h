@@ -34,6 +34,8 @@ public:
 	inline void IncrementRefCount() { RefCount.Increment(); }
 	inline uint32 GetFrameAllocated() const { return FrameAllocated; }
 
+	void AssignVirtualAddress(uint32 vAddress);
+
 	// begin IAllocatedVirtualTexture
 	virtual uint32 GetNumPageTableTextures() const override;
 	virtual FRHITexture* GetPageTableTexture(uint32 InPageTableIndex) const override;
