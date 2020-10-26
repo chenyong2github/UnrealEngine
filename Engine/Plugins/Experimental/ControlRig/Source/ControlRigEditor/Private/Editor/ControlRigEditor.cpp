@@ -75,6 +75,7 @@
 #include "BlueprintCompilationManager.h"
 #include "AssetEditorModeManager.h"
 #include "IPersonaEditorModeManager.h"
+#include "BlueprintEditorTabs.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigEditor"
 
@@ -239,6 +240,9 @@ void FControlRigEditor::InitControlRigEditor(const EToolkitMode::Type Mode, cons
 
 	// Activate the initial mode (which will populate with a real layout)
 	SetCurrentMode(FControlRigEditorModes::ControlRigEditorMode);
+
+	// Always show the myblueprint tab
+	GetTabManager()->TryInvokeTab(FTabId(FBlueprintEditorTabs::MyBlueprintID));
 
 	// Activate our edit mode
 	GetEditorModeManager().SetDefaultMode(FControlRigEditorEditMode::ModeName);
