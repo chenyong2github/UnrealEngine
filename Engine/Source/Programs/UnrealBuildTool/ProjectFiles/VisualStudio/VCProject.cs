@@ -1773,24 +1773,66 @@ namespace UnrealBuildTool
 
 				// Parse all the configurations and platforms
 				// Parse the basic structure of the document, updating properties and recursing into other referenced projects as we go
-				foreach (XmlElement Element in Document.DocumentElement.ChildNodes.OfType<XmlElement>())
+				if (!IsDotNETCoreProject())
 				{
-					if(Element.Name == "PropertyGroup")
+					foreach (XmlElement Element in Document.DocumentElement.ChildNodes.OfType<XmlElement>())
 					{
-						string Condition = Element.GetAttribute("Condition");
-						if(!String.IsNullOrEmpty(Condition))
+						if(Element.Name == "PropertyGroup")
 						{
-							Match Match = Regex.Match(Condition, "^\\s*'\\$\\(Configuration\\)\\|\\$\\(Platform\\)'\\s*==\\s*'(.+)\\|(.+)'\\s*$");
-							if(Match.Success && Match.Groups.Count == 3)
+							string Condition = Element.GetAttribute("Condition");
+							if(!String.IsNullOrEmpty(Condition))
 							{
-								Configurations.Add(Match.Groups[1].Value);
-								Platforms.Add(Match.Groups[2].Value);
-							}
-							else
-							{
-								Log.TraceWarning("Unable to parse configuration/platform from condition '{0}': {1}", InitFilePath, Condition);
+								Match Match = Regex.Match(Condition, "^\\s*'\\$\\(Configuration\\)\\|\\$\\(Platform\\)'\\s*==\\s*'(.+)\\|(.+)'\\s*$");
+								if(Match.Success && Match.Groups.Count == 3)
+								{
+									Configurations.Add(Match.Groups[1].Value);
+									Platforms.Add(Match.Groups[2].Value);
+								}
+								else
+								{
+									Log.TraceWarning("Unable to parse configuration/platform from condition '{0}': {1}", InitFilePath, Condition);
+								}
 							}
 						}
+					}
+				}
+				else
+				{
+					bool ConfigurationsFound = false;
+					foreach (XmlElement PropertyGroup in Document.DocumentElement.ChildNodes.OfType<XmlElement>()
+						.Where(element => element.Name == "PropertyGroup"))
+					{
+						XmlNodeList ConfigNodeList = PropertyGroup.GetElementsByTagName("Configurations");
+						// if this property group does not set configurations we do not care about it
+						if (ConfigNodeList.Count == 0)
+							continue;
+						
+						if (PropertyGroup.HasAttribute("Condition"))
+						{
+							string Condition = PropertyGroup.GetAttribute("Condition");
+							Log.TraceWarning("Unable to parse configuration from property group with condition '{0}': {1}. UBT Requires you to set the configuration without conditionals.", InitFilePath, Condition);
+							continue;
+						}
+						string[] ParsedConfigurations = ConfigNodeList[0].FirstChild.Value.Split(';');
+						foreach (string c in ParsedConfigurations)
+						{
+							Configurations.Add(c);
+						}
+
+						// platforms change meaning quite a bit in .net core but typically you do not specify this and its derived from the build instead
+						// for most intents it is just Any CPU from .net framework
+						Platforms.Add("AnyCPU");
+
+						ConfigurationsFound = true;
+						break;
+					}
+
+					// dotnet does not require you to specify configurations or platforms, if you do not debug and release are the defaults
+					if (!ConfigurationsFound)
+					{
+						Configurations.Add("Debug");
+						Configurations.Add("Release");
+						Platforms.Add("AnyCPU");
 					}
 				}
 			}

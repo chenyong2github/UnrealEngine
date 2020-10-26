@@ -756,7 +756,7 @@ namespace Tools.DotNETCommon
 				string[] Tokens = Tokenize(NewText.Substring(Idx + 2, (EndIdx - 1) - (Idx + 2)));
 
 				// Make sure the first token is a valid property name
-				if(Tokens.Length == 0 || !(Char.IsLetter(Tokens[0][0]) || Tokens[0][0] == '_'))
+				if(Tokens.Length == 0 || !(Char.IsLetter(Tokens[0][0]) || Tokens[0][0] == '_' || Tokens[0][0] == '[' ))
 				{
 					throw new Exception(String.Format("Invalid property name '{0}' in .csproj file", Tokens[0]));
 				}
@@ -897,6 +897,76 @@ namespace Tools.DotNETCommon
 							break;
 						}
 					}
+					Idx++;
+					Tokens.Add(Condition.Substring(StartIdx, Idx - StartIdx));
+				}
+				else if (Condition[Idx] == '[')
+				{
+					// static property function invoke
+					// format: [Class]::Property
+					// alternatively: [Class]::Method()
+					// we consider the entire invocation to be a single token
+					int StartIdx = Idx++;
+					int ClassEndIdx = 0;
+					int MethodEndIdx = 0;
+					int MethodArgsEndIdx = 0;
+					for (; ; Idx++)
+					{
+						while (Idx < Condition.Length && (Char.IsLetterOrDigit(Condition[Idx]) || Condition[Idx] == '_'))
+						{
+							Idx++;
+						}
+
+						if (Idx == Condition.Length)
+						{
+							throw new Exception(String.Format("Found end of condition when searching for end of static property function for condition string ('{0}')", Condition));
+						}
+						if (Condition[Idx] == ']')
+						{
+							ClassEndIdx = Idx;
+							Idx++;
+							break;
+						}
+					}
+
+					// skip ::
+					if (Condition[Idx] != ':')
+					{
+						throw new Exception(String.Format("Unexpected format of static property function, expected :: after class declaration in condition string ('{0}')", Condition));
+					}
+					Idx += 2;
+
+					while (Idx < Condition.Length && (Char.IsLetterOrDigit(Condition[Idx]) || Condition[Idx] == '_'))
+					{
+						Idx++;
+					}
+
+					MethodEndIdx = Idx;
+
+					if (Condition[Idx] == '(')
+					{
+						// a method invoke
+						for (; ; Idx++)
+						{
+							while (Idx < Condition.Length && (Char.IsLetterOrDigit(Condition[Idx]) || Condition[Idx] == '_'))
+							{
+								Idx++;
+							}
+
+							if (Idx == Condition.Length)
+							{
+								throw new Exception(String.Format("Found end of condition when searching for ) to indicate end of arguments to static property function for condition string ('{0}')", Condition));
+							}
+							if (Condition[Idx] == ')')
+							{
+								MethodArgsEndIdx = Idx;
+								Idx++;
+								break;
+							}
+						}
+
+					}
+
 					Idx++;
 					Tokens.Add(Condition.Substring(StartIdx, Idx - StartIdx));
 				}

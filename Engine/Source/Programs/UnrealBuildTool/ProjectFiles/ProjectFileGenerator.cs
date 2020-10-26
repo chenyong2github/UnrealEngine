@@ -1624,11 +1624,8 @@ namespace UnrealBuildTool
 
 						if (bIncludeDotNETCoreProjects || !UnrealBuildToolProject.IsDotNETCoreProject())
 						{
-							if (!UnrealBuildToolProject.IsDotNETCoreProject())
-							{
-								// Store it off as we need it when generating target projects.
-								UBTProject = UnrealBuildToolProject;
-							}
+							// Store it off as we need it when generating target projects.
+							UBTProject = UnrealBuildToolProject;
 
 							// Add the project
 							AddExistingProjectFile(UnrealBuildToolProject, bNeedsAllPlatformAndConfigurations: true, bForceDevelopmentConfiguration: true);
@@ -1654,6 +1651,12 @@ namespace UnrealBuildTool
 			VCSharpProjectFile Project = null;
 
 			FileReference ProjectFileName = FileReference.Combine( UnrealBuildTool.EngineSourceDirectory, "Programs", ProjectName, Path.GetFileName( ProjectName ) + ".csproj" );
+			FileReference ProjectFileNameDotnet = FileReference.Combine( UnrealBuildTool.EngineSourceDirectory, "Programs", ProjectName, Path.GetFileName( ProjectName ) + "Core.csproj" );
+	
+			// if we are using the dotnet flag and there is a dotnet version of the project available use that instead
+			if (File.Exists(ProjectFileNameDotnet.FullName) && AllowDotNetCoreProjects && bIncludeDotNETCoreProjects)
+				ProjectFileName = ProjectFileNameDotnet;
+
 			FileInfo Info = new FileInfo( ProjectFileName.FullName );
 			if( Info.Exists )
 			{
@@ -2634,6 +2637,26 @@ namespace UnrealBuildTool
 				WriteMasterProjectFile( UBTProject, PlatformProjectGenerators );
 				Progress.Write(TotalProjectFileCount, TotalProjectFileCount);
 			}
+
+            // Update the dotnet reference files so that the tooling knows which projects to build
+            // TODO: Should UAT build like this for net core or should it use custom logic to determine which projects to build?
+            if (AutomationProjectFiles.Any())
+            {
+	            XNamespace NS = XNamespace.Get("http://schemas.microsoft.com/developer/msbuild/2003");
+
+	            DirectoryReference AutomationToolDir = DirectoryReference.Combine(UnrealBuildTool.EngineSourceDirectory, "Programs", "AutomationTool");
+	            new XDocument(
+		            new XElement(NS + "Project",
+			            new XAttribute("DefaultTargets", "Build"),
+			            new XElement(NS + "ItemGroup",
+				            from AutomationProject in AutomationProjectFiles
+				            select new XElement(NS + "ProjectReference",
+					            new XAttribute("Include", AutomationProject.ProjectFilePath.MakeRelativeTo(AutomationToolDir))
+				            )
+			            )
+		            )
+	            ).Save(FileReference.Combine(AutomationToolDir, "AutomationToolCore.csproj.References").FullName);
+            }
 			return true;
 		}
 
