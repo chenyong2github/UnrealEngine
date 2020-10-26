@@ -202,13 +202,13 @@ namespace BuildPatchServices
 		{
 			FFileManifestList NewFileManifestList;
 			NewFileManifestList.FileList.Reserve(FileLinkedList.Num());
-			for (const FFileDListNode FileNode : FileLinkedList)
+			for (const FFileNode& FileNode : FileLinkedList)
 			{
-				FFileManifest& FileManifest = NewFileManifestList.FileList.Add_GetRef(*FileNode.GetValue().Manifest);
-				FileManifest.ChunkParts.Empty(FileNode.GetValue().ChunkParts.Num());
-				for (const FChunkDListNode ChunkNode : FileNode.GetValue().ChunkParts)
+				FFileManifest& FileManifest = NewFileManifestList.FileList.Add_GetRef(*FileNode.Manifest);
+				FileManifest.ChunkParts.Empty(FileNode.ChunkParts.Num());
+				for (const FChunkNode& ChunkNode : FileNode.ChunkParts)
 				{
-					FileManifest.ChunkParts.Add(ChunkNode.GetValue().ChunkPart);
+					FileManifest.ChunkParts.Add(ChunkNode.ChunkPart);
 				}
 			}
 			return NewFileManifestList;
