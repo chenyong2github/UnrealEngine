@@ -4711,7 +4711,8 @@ namespace VulkanRHI
 		FMemoryManager& MemoryManager = Device->GetMemoryManager();
 		for (int32 Index = 0; Index < NUM_BUFFERS; ++Index)
 		{
-			MemoryManager.FreeVulkanAllocation(Entries[Index].Allocation); ;
+			Entries[Index].Reset(Device);
+			MemoryManager.FreeVulkanAllocation(Entries[Index].Allocation); ;			
 		}
 	}
 
