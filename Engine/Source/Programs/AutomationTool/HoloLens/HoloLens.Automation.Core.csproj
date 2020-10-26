@@ -1,0 +1,103 @@
+﻿<Project>
+  <PropertyGroup>
+    <!-- Set a custom temp directory so we can live side by side with the .net framework output -->
+    <BaseIntermediateOutputPath>$(MSBuildThisFileDirectory)obj-core\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
+    <BaseOutputPath>$(MSBuildThisFileDirectory)bin-core\$(MSBuildProjectName)\</BaseOutputPath>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <Configuration Condition=" '$(Configuration)' == '' ">Development</Configuration>
+    <OutputType>Library</OutputType>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
+    <Configurations>Debug;Release;Development</Configurations>
+    <RootNamespace>HoloLens.Automation</RootNamespace>
+    <AssemblyName>HoloLens.Automation</AssemblyName>
+    <WarningsNotAsErrors>612,618</WarningsNotAsErrors>
+    <OutputPath>..\..\..\..\Binaries\DotNET\AutomationTool</OutputPath>
+    <DefineConstants>NET_CORE</DefineConstants>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <IsWindows Condition="'$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::Windows)))' == 'true'">true</IsWindows> 
+    <IsOSX Condition="'$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::OSX)))' == 'true'">true</IsOSX> 
+    <IsLinux Condition="'$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::Linux)))' == 'true'">true</IsLinux> 
+
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Development|AnyCPU' ">
+    <DefineConstants>NET_CORE;TRACE</DefineConstants>
+    <Optimize>true</Optimize>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DefineConstants>NET_CORE;TRACE</DefineConstants>
+    <Optimize>true</Optimize>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DefineConstants>NET_CORE;DEBUG;TRACE</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="WindowsDevicePortalWrapper">
+      <HintPath>..\..\..\..\..\Engine\Binaries\ThirdParty\WindowsDevicePortalWrapper\WindowsDevicePortalWrapper.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+  <Choose>
+    <When Condition="'$(IsWindows)'!='true'">
+      <PropertyGroup>
+        <DefineConstants>$(DefineConstants);__MonoCS__</DefineConstants>
+      </PropertyGroup>
+    </When>
+  </Choose>
+  <Choose>
+    <When Condition="'$(IsWindows)'=='true'">
+      <PropertyGroup>
+        <UseWindowsForms>true</UseWindowsForms>
+        <Windows10SdkPath>$(Registry:HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\Microsoft\Microsoft SDKs\Windows\v10.0@InstallationFolder)</Windows10SdkPath>
+        <Windows10SdkLatestVersion>$(Registry:HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\Microsoft\Microsoft SDKs\Windows\v10.0@ProductVersion)</Windows10SdkLatestVersion>
+      </PropertyGroup>
+      <ItemGroup>
+        <Reference Include="System.Runtime.WindowsRuntime">
+          <HintPath>$(SystemDrive)\Program Files (x86)\Reference Assemblies\Microsoft\Framework\.NETCore\$(TargetFrameworkVersion)\System.Runtime.WindowsRuntime.dll</HintPath>
+          <HintPath Condition="'$([System.IO.File]::Exists(%(HintPath)))'=='false'">C:\Program Files (x86)\Reference Assemblies\Microsoft\Framework\.NETCore\v4.5\System.Runtime.WindowsRuntime.dll</HintPath>
+          <Private>True</Private>
+        </Reference>
+        <!-- Disable windows reference in net core as this causes infinite rebuilds
+        <Reference Include="Windows">
+          <HintPath>$(Windows10SdkPath)\UnionMetadata\$(Windows10SdkLatestVersion)\Windows.winmd</HintPath>
+          <SDKsWinmdPath Condition="'$(UE_SDKS_ROOT)' != ''">$(UE_SDKS_ROOT)\HostWin64\Win64\Windows Kits\10\UnionMetadata\10.0.18362.0\Windows.winmd</SDKsWinmdPath>
+          <HintPath Condition="'$(UE_SDKS_ROOT)' != '' And '$([System.IO.File]::Exists(%(SDKsWinmdPath)))'!='false'">$(UE_SDKS_ROOT)\HostWin64\Win64\Windows Kits\10\UnionMetadata\10.0.18362.0\Windows.winmd</HintPath>
+          <HintPath Condition="'$([System.IO.File]::Exists(%(HintPath)))'=='false'">$(Windows10SdkPath)\UnionMetadata\$(Windows10SdkLatestVersion).0\Windows.winmd</HintPath>
+          <HintPath Condition="'$([System.IO.File]::Exists(%(HintPath)))'=='false'">$(Windows10SdkPath)\UnionMetadata\Windows.winmd</HintPath>
+          <Private>false</Private>
+        </Reference>
+        -->
+      </ItemGroup>
+    </When>
+  </Choose>
+
+  <Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk.WindowsDesktop" Condition="'$(IsWindows)'=='true'"/>
+  <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk.WindowsDesktop" Condition="'$(IsWindows)'=='true'"/>
+  <Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" Condition="'$(IsWindows)'!='true'"/>
+  <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" Condition="'$(IsWindows)'!='true'"/>
+
+  <ItemGroup>
+    <Compile Remove="obj\**" />
+    <EmbeddedResource Remove="obj\**" />
+    <None Remove="obj\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\..\DotNETCommon\MetaData.cs">
+      <Link>Properties\MetaData.cs</Link>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\DotNETCommon\DotNETUtilities\DotNETUtilitiesCore.csproj" />
+    <ProjectReference Include="..\..\UnrealBuildTool\UnrealBuildToolCore.csproj" />
+    <ProjectReference Include="..\AutomationUtils\AutomationUtils.Automation.Core.csproj" />
+    <ProjectReference Include="..\Scripts\AutomationScripts.Automation.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
+    <PackageReference Include="System.Data.DataSetExtensions" Version="4.5.0" />
+  </ItemGroup>
+</Project>
