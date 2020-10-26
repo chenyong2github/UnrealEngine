@@ -68,7 +68,7 @@ void FNiagaraEmitterHandle::SetName(FName InName, UNiagaraSystem& InOwnerSystem)
 		SanitizedName = FName(*InNameStr);
 	}
 	
-	if (SanitizedName == Name)
+	if (SanitizedName.IsEqual(Name, ENameCase::CaseSensitive, false))
 	{
 		return;
 	}
