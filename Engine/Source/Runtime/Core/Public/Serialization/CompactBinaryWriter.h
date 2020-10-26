@@ -121,7 +121,7 @@ public:
 	/** Write a binary field by copying Size bytes from Value. */
 	CORE_API void Binary(const void* Value, uint64 Size);
 	/** Write a binary field by copying the view. */
-	inline void Binary(FConstMemoryView Value) { Binary(Value.GetData(), Value.Size()); }
+	inline void Binary(FConstMemoryView Value) { Binary(Value.GetData(), Value.GetSize()); }
 
 	/** Write a string field by copying the UTF-8 value. */
 	CORE_API void String(FAnsiStringView Value);

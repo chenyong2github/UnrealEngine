@@ -32,18 +32,18 @@ bool FVirtualizationWrapperTestBasic::RunTest(const FString& Parameters)
 	auto ValidateBulkData = [this, &SourceBuffer, BufferSize](const FVirtualizedUntypedBulkData& BulkDataToValidate, const TCHAR* Label)
 		{
 			FSharedBufferConstPtr RetrievedBuffer = BulkDataToValidate.GetData().Get();
-			TestEqual(FString::Printf(TEXT("%s buffer length"),Label), (int64)RetrievedBuffer->Size(), BufferSize);
+			TestEqual(FString::Printf(TEXT("%s buffer length"),Label), (int64)RetrievedBuffer->GetSize(), BufferSize);
 			TestTrue(FString::Printf(TEXT("SourceBuffer values == %s values"),Label), FMemory::Memcmp(SourceBuffer.Get(), RetrievedBuffer->GetData(), BufferSize) == 0);
 		};
 
 	// Create a basic bulkdata (but retain ownership of the buffer!)
 	FByteVirtualizedBulkData BulkData;
-	BulkData.UpdatePayload(MakeSharedBuffer(FSharedBuffer::Wrap, SourceBuffer.Get(), BufferSize));
+	BulkData.UpdatePayload(FSharedBuffer::MakeView(SourceBuffer.Get(), BufferSize));
 
 	// Test access via callback
 	BulkData.GetData([this,BufferSize,&SourceBuffer](FSharedBufferConstPtr Payload)
 		{
-			TestEqual(TEXT("Callback buffer length"), (int64)Payload->Size(), BufferSize);
+			TestEqual(TEXT("Callback buffer length"), (int64)Payload->GetSize(), BufferSize);
 			TestTrue(TEXT("SourceBuffer values == Callback values"), FMemory::Memcmp(SourceBuffer.Get(), Payload->GetData(), BufferSize) == 0);
 		});
 
@@ -55,7 +55,7 @@ bool FVirtualizationWrapperTestBasic::RunTest(const FString& Parameters)
 
 	// Create a new bulkdata object and copy by assignment (note we assign some junk data that will get overwritten)
 	FByteVirtualizedBulkData BulkDataAssignment;
-	BulkDataAssignment.UpdatePayload(MakeSharedBuffer(128));
+	BulkDataAssignment.UpdatePayload(FSharedBuffer::Alloc(128));
 	BulkDataAssignment = BulkData;
 
 	// Test both bulkdata objects
@@ -111,7 +111,7 @@ bool FVirtualizationWrapperTestUpdatePayload::RunTest(const FString& Parameters)
 
 	// Pass the buffer to to bulkdata but retain ownership
 	FByteVirtualizedBulkData BulkData;
-	BulkData.UpdatePayload(MakeSharedBuffer(FSharedBuffer::Wrap, OriginalData.Get(), BufferSize));
+	BulkData.UpdatePayload(FSharedBuffer::MakeView(OriginalData.Get(), BufferSize));
 
 	// Access the payload, edit it and push it back into the bulkdata object
 	{
@@ -119,24 +119,24 @@ bool FVirtualizationWrapperTestUpdatePayload::RunTest(const FString& Parameters)
 		// memory address since we retained ownership in the TUniquePtr, so the bulkdata object should 
 		// have created it's own copy.
 		FSharedBufferConstPtr Payload = BulkData.GetData().Get();
-		TestEqual(TEXT("Payload length"), (int64)Payload->Size(), BufferSize);
+		TestEqual(TEXT("Payload length"), (int64)Payload->GetSize(), BufferSize);
 		TestNotEqual(TEXT("OriginalData and the payload should have different memory addresses"), (uint8*)OriginalData.Get(), (uint8*)Payload->GetData());
-		TestTrue(TEXT("Orginal buffer == Payload data"), FMemory::Memcmp(OriginalData.Get(), Payload->GetData(), Payload->Size()) == 0);
+		TestTrue(TEXT("Orginal buffer == Payload data"), FMemory::Memcmp(OriginalData.Get(), Payload->GetData(), Payload->GetSize()) == 0);
 
 		// Make a copy of the payload that we can edit
-		FSharedBufferRef EditablePayload = MakeSharedBuffer(FSharedBuffer::Clone, Payload->GetView());
+		FSharedBufferRef EditablePayload = FSharedBuffer::Clone(*Payload);
 
 		const uint8 NewValue = 255;
-		FMemory::Memset(EditablePayload->GetData(), NewValue, EditablePayload->Size());
+		FMemory::Memset(EditablePayload->GetData(), NewValue, EditablePayload->GetSize());
 
 		// Update the bulkdata object with the new edited payload
 		BulkData.UpdatePayload(EditablePayload);
 
 		Payload = BulkData.GetData().Get();
-		TestEqual(TEXT("Updated payload length"), (int64)Payload->Size(), BufferSize);
+		TestEqual(TEXT("Updated payload length"), (int64)Payload->GetSize(), BufferSize);
 		TestEqual(TEXT("Payload and EditablePayload should have the same memory addresses"), (uint8*)Payload->GetData(), (uint8*)EditablePayload->GetData());
 
-		const bool bAllElementsCorrect = Algo::AllOf(TArrayView<uint8>((uint8*)Payload->GetData(), Payload->Size()), [NewValue](uint8 Val)
+		const bool bAllElementsCorrect = Algo::AllOf(TArrayView<uint8>((uint8*)Payload->GetData(), Payload->GetSize()), [NewValue](uint8 Val)
 			{ 
 				return Val == NewValue; 
 			});
@@ -151,14 +151,14 @@ bool FVirtualizationWrapperTestUpdatePayload::RunTest(const FString& Parameters)
 
 		// Update the bulkdata object with the original data but this time we give ownership of the buffer to
 		// the bulkdata object.
-		BulkData.UpdatePayload(MakeSharedBuffer(FSharedBuffer::AssumeOwnership, OriginalData.Release(), BufferSize));
+		BulkData.UpdatePayload(FSharedBuffer::TakeOwnership(OriginalData.Release(), BufferSize, FMemory::Free));
 
 		FSharedBufferConstPtr Payload = BulkData.GetData().Get();
-		TestEqual(TEXT("Updated payload length"), (int64)Payload->Size(), BufferSize);
+		TestEqual(TEXT("Updated payload length"), (int64)Payload->GetSize(), BufferSize);
 		TestEqual(TEXT("Payload and OriginalDataPtr should have the same memory addresses"), (uint8*)Payload->GetData(), OriginalDataPtr);
 
 		// The original data was all zeros, so we can test for that to make sure that the contents are correct.
-		const bool bAllElementsCorrect = Algo::AllOf(TArrayView<uint8>((uint8*)Payload->GetData(), Payload->Size()), [](uint8 Val)
+		const bool bAllElementsCorrect = Algo::AllOf(TArrayView<uint8>((uint8*)Payload->GetData(), Payload->GetSize()), [](uint8 Val)
 			{
 				return Val == 0;
 			});

@@ -92,7 +92,7 @@ FConstMemoryView FCbField::AsMemoryView() const
 
 uint64 FCbField::Size() const
 {
-	return AsMemoryView().Size();
+	return AsMemoryView().GetSize();
 }
 
 uint64 FCbField::PayloadSize() const
@@ -416,7 +416,7 @@ FTimespan FCbField::AsTimeSpan(FTimespan Default)
 void FCbField::CopyTo(const FMutableMemoryView Buffer) const
 {
 	const FConstMemoryView Source = AsMemoryView();
-	FMemory::Memcpy(Buffer.GetData(), Source.GetData(), FMath::Min(Buffer.Size(), Source.Size()));
+	FMemory::Memcpy(Buffer.GetData(), Source.GetData(), FMath::Min(Buffer.GetSize(), Source.GetSize()));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -448,7 +448,7 @@ FConstMemoryView FCbArray::AsMemoryView() const
 
 uint64 FCbArray::Size() const
 {
-	return sizeof(ECbFieldType) + AsMemoryView().Size();
+	return sizeof(ECbFieldType) + AsMemoryView().GetSize();
 }
 
 uint64 FCbArray::Num() const
@@ -486,7 +486,7 @@ void FCbArray::CopyTo(const FMutableMemoryView Buffer) const
 	uint8* BufferBytes = static_cast<uint8*>(Buffer.GetData());
 	*BufferBytes++ = uint8(FCbFieldType::GetType(Type));
 	const FConstMemoryView Source = AsMemoryView();
-	FMemory::Memcpy(BufferBytes, Source.GetData(), FMath::Min(Buffer.Size() - 1, Source.Size()));
+	FMemory::Memcpy(BufferBytes, Source.GetData(), FMath::Min(Buffer.GetSize() - 1, Source.GetSize()));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -518,7 +518,7 @@ FConstMemoryView FCbObject::AsMemoryView() const
 
 uint64 FCbObject::Size() const
 {
-	return sizeof(ECbFieldType) + AsMemoryView().Size();
+	return sizeof(ECbFieldType) + AsMemoryView().GetSize();
 }
 
 FCbFieldIterator FCbObject::CreateIterator() const
@@ -571,7 +571,7 @@ void FCbObject::CopyTo(const FMutableMemoryView Buffer) const
 	uint8* BufferBytes = static_cast<uint8*>(Buffer.GetData());
 	*BufferBytes++ = uint8(FCbFieldType::GetType(Type));
 	const FConstMemoryView Source = AsMemoryView();
-	FMemory::Memcpy(BufferBytes, Source.GetData(), FMath::Min(Buffer.Size() - 1, Source.Size()));
+	FMemory::Memcpy(BufferBytes, Source.GetData(), FMath::Min(Buffer.GetSize() - 1, Source.GetSize()));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -595,7 +595,7 @@ static ECbFieldType ValidateCbFieldType(FConstMemoryView& View, ECbValidateMode 
 {
 	if (FCbFieldType::HasFieldType(Type))
 	{
-		if (View.Size() >= 1)
+		if (View.GetSize() >= 1)
 		{
 			Type = *static_cast<const ECbFieldType*>(View.GetData());
 			View += 1;
@@ -628,7 +628,7 @@ static ECbFieldType ValidateCbFieldType(FConstMemoryView& View, ECbValidateMode 
  */
 static uint64 ValidateCbUInt(FConstMemoryView& View, ECbValidateMode Mode, ECbValidateError& Error)
 {
-	if (View.Size() > 0 && View.Size() >= MeasureVarUInt(View.GetData()))
+	if (View.GetSize() > 0 && View.GetSize() >= MeasureVarUInt(View.GetData()))
 	{
 		uint32 ValueByteCount;
 		const uint64 Value = ReadVarUInt(View.GetData(), ValueByteCount);
@@ -654,7 +654,7 @@ static uint64 ValidateCbUInt(FConstMemoryView& View, ECbValidateMode Mode, ECbVa
  */
 static void ValidateCbFloat64(FConstMemoryView& View, ECbValidateMode Mode, ECbValidateError& Error)
 {
-	if (View.Size() >= sizeof(double))
+	if (View.GetSize() >= sizeof(double))
 	{
 		if (EnumHasAnyFlags(Mode, ECbValidateMode::Format))
 		{
@@ -682,7 +682,7 @@ static void ValidateCbFloat64(FConstMemoryView& View, ECbValidateMode Mode, ECbV
 static FAnsiStringView ValidateCbString(FConstMemoryView& View, ECbValidateMode Mode, ECbValidateError& Error)
 {
 	const uint64 NameSize = ValidateCbUInt(View, Mode, Error);
-	if (View.Size() >= NameSize)
+	if (View.GetSize() >= NameSize)
 	{
 		const FAnsiStringView Name(static_cast<const ANSICHAR*>(View.GetData()), static_cast<int32>(NameSize));
 		View += NameSize;
@@ -801,7 +801,7 @@ static void ValidateCbArray(FConstMemoryView& View, ECbValidateMode Mode, ECbVal
 	View += Size;
 
 	const uint64 Count = ValidateCbUInt(ArrayView, Mode, Error);
-	const uint64 FieldsSize = ArrayView.Size();
+	const uint64 FieldsSize = ArrayView.GetSize();
 	const bool bUniformArray = FCbFieldType::GetType(ArrayType) == ECbFieldType::UniformArray;
 	const ECbFieldType ExternalType = bUniformArray ? ValidateCbFieldType(ArrayView, Mode, Error) : ECbFieldType::HasFieldType;
 	FCbUniformFieldsValidator UniformValidator(ExternalType);
@@ -831,7 +831,7 @@ static FCbField ValidateCbField(FConstMemoryView& View, ECbValidateMode Mode, EC
 
 	auto ValidateFixedPayload = [&View, &Error](uint32 PayloadSize)
 	{
-		if (View.Size() >= PayloadSize)
+		if (View.GetSize() >= PayloadSize)
 		{
 			View += PayloadSize;
 		}
@@ -875,7 +875,7 @@ static FCbField ValidateCbField(FConstMemoryView& View, ECbValidateMode Mode, EC
 	case ECbFieldType::Binary:
 	{
 		const uint64 ValueSize = ValidateCbUInt(View, Mode, Error);
-		if (View.Size() < ValueSize)
+		if (View.GetSize() < ValueSize)
 		{
 			AddError(Error, ECbValidateError::OutOfBounds);
 			View.Reset();
@@ -951,7 +951,7 @@ uint64 MeasureCompactBinary(FConstMemoryView View, ECbFieldType Type)
 
 	if (FCbFieldType::HasFieldType(Type))
 	{
-		if (View.Size() == 0)
+		if (View.GetSize() == 0)
 		{
 			return 0;
 		}
@@ -1003,7 +1003,7 @@ uint64 MeasureCompactBinary(FConstMemoryView View, ECbFieldType Type)
 
 	if (FCbFieldType::HasFieldName(Type))
 	{
-		if (View.Size() == 0 || View.Size() < MeasureVarUInt(View.GetData()))
+		if (View.GetSize() == 0 || View.GetSize() < MeasureVarUInt(View.GetData()))
 		{
 			return 0;
 		}
@@ -1012,7 +1012,7 @@ uint64 MeasureCompactBinary(FConstMemoryView View, ECbFieldType Type)
 		const uint64 NameLen = ReadVarUInt(View.GetData(), NameLenByteCount);
 		const uint64 NameSize = NameLen + NameLenByteCount;
 
-		if (bVariableSize && View.Size() < NameSize)
+		if (bVariableSize && View.GetSize() < NameSize)
 		{
 			return 0;
 		}
@@ -1029,7 +1029,7 @@ uint64 MeasureCompactBinary(FConstMemoryView View, ECbFieldType Type)
 	case ECbFieldType::UniformArray:
 	case ECbFieldType::Binary:
 	case ECbFieldType::String:
-		if (View.Size() == 0 || View.Size() < MeasureVarUInt(View.GetData()))
+		if (View.GetSize() == 0 || View.GetSize() < MeasureVarUInt(View.GetData()))
 		{
 			return 0;
 		}
@@ -1041,7 +1041,7 @@ uint64 MeasureCompactBinary(FConstMemoryView View, ECbFieldType Type)
 		}
 	case ECbFieldType::IntegerPositive:
 	case ECbFieldType::IntegerNegative:
-		if (View.Size() == 0)
+		if (View.GetSize() == 0)
 		{
 			return 0;
 		}

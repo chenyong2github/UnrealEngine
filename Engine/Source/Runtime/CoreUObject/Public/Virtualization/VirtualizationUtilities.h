@@ -21,7 +21,7 @@ public:
 
 		if (Payload.IsValid())
 		{
-			const int64 CurrentDataLength = Payload->Size();
+			const int64 CurrentDataLength = Payload->GetSize();
 
 			// Clone the payload so that we have a local copy that we can
 			// append additional data to.
@@ -48,7 +48,7 @@ public:
 	{
 		// Remove the slack from the allocated bulk data
 		Buffer = FMemory::Realloc(Buffer, DataLength, DEFAULT_ALIGNMENT);
-		BulkData.UpdatePayload(MakeSharedBuffer(FSharedBuffer::AssumeOwnership, Buffer, DataLength));
+		BulkData.UpdatePayload(FSharedBuffer::TakeOwnership(Buffer, DataLength, FMemory::Free));
 	}
 
 	virtual void Serialize(void* Data, int64 Num)
@@ -151,7 +151,7 @@ namespace UE4VirtualizedBulkData_Private
 
 		int64 GetDataLength() const
 		{
-			return Payload.IsValid() ? Payload->Size() : 0;
+			return Payload.IsValid() ? Payload->GetSize() : 0;
 		}
 
 	private:

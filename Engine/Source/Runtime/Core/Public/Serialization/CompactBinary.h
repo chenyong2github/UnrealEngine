@@ -832,7 +832,7 @@ public:
 	/** Construct a value and take ownership its memory. */
 	inline TCbBufferRef(EAssumeOwnershipTag, const void* Value)
 		: BaseType(Value)
-		, BufferPtr(MakeSharedBuffer(FSharedBuffer::AssumeOwnership, Value, BaseType::Size()))
+		, BufferPtr(FSharedBuffer::TakeOwnership(Value, BaseType::Size(), FMemory::Free))
 	{
 	}
 
@@ -846,7 +846,7 @@ public:
 	inline TCbBufferRef(ECloneTag, const BaseType& Value)
 		: BaseType(Value)
 	{
-		const FSharedBufferRef BufferRef = MakeSharedBuffer(BaseType::Size());
+		const FSharedBufferRef BufferRef = FSharedBuffer::Alloc(BaseType::Size());
 		BaseType::CopyTo(*BufferRef);
 		BufferPtr = BufferRef;
 		static_cast<BaseType&>(*this) = BaseType(BufferPtr->GetData(), BaseType::GetCopyType());

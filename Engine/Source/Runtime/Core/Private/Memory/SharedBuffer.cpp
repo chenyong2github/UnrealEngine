@@ -2,40 +2,88 @@
 
 #include "Memory/SharedBuffer.h"
 
-FSharedBuffer::FSharedBuffer(const uint64 InSize)
+FSharedBufferRef FSharedBuffer::NewBuffer(
+	void* const Data,
+	const uint64 Size,
+	const ESharedBufferFlags Flags,
+	const uint32 DeleterSize)
 {
-	checkf(InSize < (uint64(1) << 48), TEXT("Size %" UINT64_FMT " exceeds maximum shared buffer size of 256 TiB"), InSize);
-	Data = FMemory::Malloc(InSize);
-	DataSize = InSize;
-	Flags = uint16(ESharedBufferFlags::Owned);
+	checkf((DeleterSize == 0) == !(Flags & ESharedBufferFlags::HasDeleter), TEXT("Mismatch between DeleterSize %u and Flags."), DeleterSize);
+
+	void* const BufferMemory = FMemory::Malloc(sizeof(FSharedBuffer) + DeleterSize, alignof(FSharedBuffer));
+
+	FSharedBuffer* const Buffer = new(BufferMemory) FSharedBuffer;
+	Buffer->Data = Data;
+	Buffer->Size = Size;
+	Buffer->ReferenceCountAndFlags = SetFlags(Flags);
+
+	return FSharedBufferRef(SharedBufferPrivate::TSharedBufferPtr</*bAllowNull*/ false, /*bIsConst*/ false, /*bIsWeak*/ false>(Buffer));
 }
 
-FSharedBuffer::FSharedBuffer(EAssumeOwnershipTag, void* const InData, const uint64 InSize)
+void FSharedBuffer::DeleteBuffer(FSharedBuffer* const Buffer)
 {
-	checkf(InSize < (uint64(1) << 48), TEXT("Size %" UINT64_FMT " exceeds maximum shared buffer size of 256 TiB"), InSize);
-	Data = InData;
-	DataSize = InSize;
-	Flags = uint16(ESharedBufferFlags::Owned);
+	checkSlow(!Data && !Size);
+	checkSlow(ReferenceCountAndFlags == 0);
+	Buffer->~FSharedBuffer();
+	FMemory::Free(Buffer);
 }
 
-FSharedBuffer::FSharedBuffer(ECloneTag, const void* const InData, const uint64 InSize)
-	: FSharedBuffer(InSize)
-{
-	FMemory::Memcpy(Data, InData, InSize);
-}
-
-FSharedBuffer::FSharedBuffer(EWrapTag, void* const InData, const uint64 InSize)
-{
-	checkf(InSize < (uint64(1) << 48), TEXT("Size %" UINT64_FMT " exceeds maximum shared buffer size of 256 TiB"), InSize);
-	Data = InData;
-	DataSize = InSize;
-	Flags = uint16(ESharedBufferFlags::None);
-}
-
-FSharedBuffer::~FSharedBuffer()
+void FSharedBuffer::ReleaseData()
 {
 	if (IsOwned())
 	{
-		FMemory::Free(Data);
+		if (GetFlags(ReferenceCountAndFlags) & ESharedBufferFlags::HasDeleter)
+		{
+			reinterpret_cast<FSharedBufferDeleter*>(this + 1)->Free(Data);
+		}
+		else
+		{
+			FMemory::Free(Data);
+		}
+	}
+	Data = nullptr;
+	Size = 0;
+	ReferenceCountAndFlags.fetch_and(~SetFlags(~ESharedBufferFlags::None));
+}
+
+bool FSharedBuffer::TryMakeImmutable() const
+{
+	for (uint64 Value = ReferenceCountAndFlags.load(std::memory_order_relaxed);;)
+	{
+		if (EnumHasAnyFlags(GetFlags(Value), ESharedBufferFlags::Immutable))
+		{
+			return true;
+		}
+		if (GetSharedRefCount(Value) != 1 || GetWeakRefCount(Value) != 1 ||
+			!EnumHasAnyFlags(GetFlags(Value), ESharedBufferFlags::Owned))
+		{
+			return false;
+		}
+		if (ReferenceCountAndFlags.compare_exchange_weak(Value, Value | SetFlags(ESharedBufferFlags::Immutable),
+			std::memory_order_relaxed, std::memory_order_relaxed))
+		{
+			return true;
+		}
+	}
+}
+
+bool FSharedBuffer::TryMakeMutable() const
+{
+	for (uint64 Value = ReferenceCountAndFlags.load(std::memory_order_relaxed);;)
+	{
+		if (GetSharedRefCount(Value) != 1 || GetWeakRefCount(Value) != 1 ||
+			!EnumHasAnyFlags(GetFlags(Value), ESharedBufferFlags::Owned))
+		{
+			return false;
+		}
+		if (!EnumHasAnyFlags(GetFlags(Value), ESharedBufferFlags::Immutable))
+		{
+			return true;
+		}
+		if (ReferenceCountAndFlags.compare_exchange_weak(Value, Value & ~SetFlags(ESharedBufferFlags::Immutable),
+			std::memory_order_relaxed, std::memory_order_relaxed))
+		{
+			return true;
+		}
 	}
 }

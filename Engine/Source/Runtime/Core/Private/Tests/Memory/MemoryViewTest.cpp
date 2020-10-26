@@ -35,14 +35,14 @@ bool FMemoryViewTest::RunTest(const FString& Parameters)
 	auto TestMutableMemoryView = [this](const FMutableMemoryView& View, void* Data, uint64 Size)
 	{
 		TestEqual(TEXT("MemoryView.GetData()"), View.GetData(), Data);
-		TestEqual(TEXT("MemoryView.Size()"), View.Size(), Size);
+		TestEqual(TEXT("MemoryView.GetSize()"), View.GetSize(), Size);
 		TestEqual(TEXT("MemoryView.IsEmpty()"), View.IsEmpty(), Size == 0);
 	};
 
 	auto TestConstMemoryView = [this](const FConstMemoryView& View, const void* Data, uint64 Size)
 	{
 		TestEqual(TEXT("MemoryView.GetData()"), View.GetData(), Data);
-		TestEqual(TEXT("MemoryView.Size()"), View.Size(), Size);
+		TestEqual(TEXT("MemoryView.GetSize()"), View.GetSize(), Size);
 		TestEqual(TEXT("MemoryView.IsEmpty()"), View.IsEmpty(), Size == 0);
 	};
 

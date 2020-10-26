@@ -33,13 +33,13 @@ bool FVirtualizationManager::PushData(const FSharedBufferConstPtr& Payload, cons
 	}
 
 	// Early out if we have no payload
-	if (!Payload.IsValid() || Payload->Size() == 0)
+	if (!Payload.IsValid() || Payload->GetSize() == 0)
 	{
 		return false;
 	}
 
 	// Early out if the payload length is below our minimum required length
-	if ((int64)Payload->Size() < MinPayloadLength)
+	if ((int64)Payload->GetSize() < MinPayloadLength)
 	{
 		return false;
 	}
@@ -52,7 +52,7 @@ bool FVirtualizationManager::PushData(const FSharedBufferConstPtr& Payload, cons
 		TUniquePtr<FArchive> FileAr(IFileManager::Get().CreateFileWriter(*FilePath));
 		check(FileAr);
 
-		uint64 PayloadLength = Payload->Size();
+		uint64 PayloadLength = Payload->GetSize();
 		// Cast away the const because FArchive requires a non-const pointer even if we are only reading from it (saving)
 		void* PayloadPtr = const_cast<void*>(Payload->GetData());
 
@@ -81,7 +81,7 @@ FSharedBufferConstPtr FVirtualizationManager::PullData(const FGuid& Guid)
 	uint8* DataPtr = (uint8*)FMemory::Malloc(DataLength, DEFAULT_ALIGNMENT);
 	FileAr->Serialize(DataPtr, DataLength);
 
-	return MakeSharedBuffer(FSharedBuffer::AssumeOwnership, DataPtr, DataLength);
+	return FSharedBuffer::TakeOwnership(DataPtr, DataLength, FMemory::Free);
 }
 
 void FVirtualizationManager::LoadSettingsFromConfigFiles()

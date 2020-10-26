@@ -70,7 +70,7 @@ void FCbWriter::Reset()
 FCbFieldRefIterator FCbWriter::Save() const
 {
 	const uint64 Size = SaveSize();
-	const FSharedBufferRef Buffer = MakeSharedBuffer(Size);
+	const FSharedBufferRef Buffer = FSharedBuffer::Alloc(Size);
 	const FMutableMemoryView View = Buffer->GetView();
 	SaveToMemory(View);
 	return FCbFieldRefIterator(FCbFieldRef(Buffer), View.RightChop(Size).GetData());
@@ -81,10 +81,10 @@ FCbFieldIterator FCbWriter::SaveToMemory(const FMutableMemoryView Buffer) const
 	checkf(States.Num() == 1 && States.Last().Flags == EStateFlags::None,
 		TEXT("It is invalid to save while there are incomplete write operations."));
 	checkf(Data.Num() > 0, TEXT("It is invalid to save when nothing has been written."));
-	checkf(Buffer.Size() == Data.Num(),
-		TEXT("Buffer is %" UINT64_FMT " bytes but %" INT64_FMT " is required."), Buffer.Size(), Data.Num());
+	checkf(Buffer.GetSize() == Data.Num(),
+		TEXT("Buffer is %" UINT64_FMT " bytes but %" INT64_FMT " is required."), Buffer.GetSize(), Data.Num());
 	FMemory::Memcpy(Buffer.GetData(), Data.GetData(), Data.Num());
-	return FCbFieldIterator(FCbField(Buffer.GetData()), Buffer.RightChop(Buffer.Size()).GetData());
+	return FCbFieldIterator(FCbField(Buffer.GetData()), Buffer.RightChop(Buffer.GetSize()).GetData());
 }
 
 uint64 FCbWriter::SaveSize() const
@@ -202,7 +202,7 @@ void FCbWriter::MakeFieldsUniform(const int64 FieldBeginOffset, const int64 Fiel
 	}
 	if (!TargetView.IsEmpty())
 	{
-		Data.RemoveAt(FieldEndOffset - TargetView.Size(), TargetView.Size());
+		Data.RemoveAt(FieldEndOffset - TargetView.GetSize(), TargetView.GetSize());
 	}
 }
 
@@ -276,8 +276,8 @@ void FCbWriter::Object(const FCbObject& Value)
 	};
 	const FCbObjectCopy& ValueCopy = static_cast<const FCbObjectCopy&>(Value);
 	const FConstMemoryView SourceView = ValueCopy.AsMemoryView();
-	const int64 TargetOffset = Data.AddUninitialized(SourceView.Size());
-	FMemory::Memcpy(Data.GetData() + TargetOffset, SourceView.GetData(), SourceView.Size());
+	const int64 TargetOffset = Data.AddUninitialized(SourceView.GetSize());
+	FMemory::Memcpy(Data.GetData() + TargetOffset, SourceView.GetData(), SourceView.GetSize());
 	EndField(FCbFieldType::GetType(ValueCopy.GetCopyType()));
 }
 
@@ -335,8 +335,8 @@ void FCbWriter::Array(const FCbArray& Value)
 	};
 	const FCbArrayCopy& ValueCopy = static_cast<const FCbArrayCopy&>(Value);
 	const FConstMemoryView SourceView = ValueCopy.AsMemoryView();
-	const int64 TargetOffset = Data.AddUninitialized(SourceView.Size());
-	FMemory::Memcpy(Data.GetData() + TargetOffset, SourceView.GetData(), SourceView.Size());
+	const int64 TargetOffset = Data.AddUninitialized(SourceView.GetSize());
+	FMemory::Memcpy(Data.GetData() + TargetOffset, SourceView.GetData(), SourceView.GetSize());
 	EndField(FCbFieldType::GetType(ValueCopy.GetCopyType()));
 }
 

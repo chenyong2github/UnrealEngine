@@ -219,7 +219,7 @@ bool FVirtualizedUntypedBulkData::SerializeData(FArchive& Ar, FSharedBufferConst
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualizedUntypedBulkData::SerializeData);
 
-	const int64 PayloadSize = Ar.IsSaving() ? InPayload->Size() : GetBulkDataSize();
+	const int64 PayloadSize = Ar.IsSaving() ? InPayload->GetSize() : GetBulkDataSize();
 
 	if (PayloadSize > 0)
 	{
@@ -243,7 +243,7 @@ bool FVirtualizedUntypedBulkData::SerializeData(FArchive& Ar, FSharedBufferConst
 
 		if (Ar.IsLoading())
 		{
-			InPayload = MakeSharedBuffer(FSharedBuffer::AssumeOwnership, DataPtr, PayloadSize);
+			InPayload = FSharedBuffer::TakeOwnership(DataPtr, PayloadSize, FMemory::Free);
 		}
 
 		return true;
@@ -291,10 +291,10 @@ FSharedBufferConstPtr FVirtualizedUntypedBulkData::PullData() const
 
 	if (PulledPayload.IsValid())
 	{
-		checkf(	PayloadLength == PulledPayload->Size(),	
+		checkf(	PayloadLength == PulledPayload->GetSize(),	
 				TEXT("Mismatch between serialized length (%d) and virtualized data length (%d)"), 
 				PayloadLength,
-				PulledPayload->Size());
+				PulledPayload->GetSize());
 	}
 	else
 	{
@@ -399,8 +399,8 @@ void FVirtualizedUntypedBulkData::UpdatePayload(const FSharedBufferConstRef& InP
 	UnloadData();
 
 	// Make sure that we own the memory in the shared buffer
-	Payload = MakeSharedBufferOwned(InPayload);
-	PayloadLength = (int64)InPayload->Size();
+	Payload = FSharedBuffer::MakeOwned(InPayload);
+	PayloadLength = (int64)InPayload->GetSize();
 
 	bIsVirtualized = false;
 	bIsDataStoredAsCompressed = false;
