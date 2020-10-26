@@ -134,6 +134,7 @@
     <Compile Include="RunProjectCommand.Automation.cs" />
     <Compile Include="SharedCookedBuild.cs" />
     <Compile Include="SubmitUtililzationReportToEC.Automation.cs" />
+    <Compile Include="SyncBinariesFromUGS.Automation.cs" />
     <Compile Include="SyncDDC.cs" />
     <Compile Include="SyncDepotPath.cs" />
     <Compile Include="Tests.Automation.cs" />
