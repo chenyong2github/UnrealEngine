@@ -1118,6 +1118,7 @@ struct FIoStoreTocChunkInfo
 	FIoChunkHash Hash;
 	uint64 Offset;
 	uint64 Size;
+	uint64 CompressedSize;
 	bool bForceUncompressed;
 	bool bIsMemoryMapped;
 	bool bIsCompressed;
