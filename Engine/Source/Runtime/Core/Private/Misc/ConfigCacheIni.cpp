@@ -3945,6 +3945,10 @@ bool FConfigCacheIni::InitializeKnownConfigFiles(const TCHAR* PlatformName, bool
 	return bEngineConfigCreated;
 }
 
+bool FConfigCacheIni::IsKnownConfigName(FName ConfigName)
+{
+	return KnownFiles.GetFile(ConfigName) != nullptr;
+}
 
 const FConfigFile* FConfigCacheIni::FKnownConfigFiles::GetFile(FName Name)
 {

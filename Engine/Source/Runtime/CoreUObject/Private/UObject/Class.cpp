@@ -5267,23 +5267,14 @@ void UClass::AssembleReferenceTokenStreams()
 
 const FString UClass::GetConfigName() const
 {
-	static const FName NAME_DeviceProfiles("DeviceProfiles");
-
-	if( ClassConfigName == NAME_Engine )
+	// Look up in the known configs
+	if (GConfig->IsKnownConfigName(ClassConfigName))
 	{
-		return GEngineIni;
+		return ClassConfigName.ToString();
 	}
 	else if( ClassConfigName == NAME_Editor )
 	{
 		return GEditorIni;
-	}
-	else if( ClassConfigName == NAME_Input )
-	{
-		return GInputIni;
-	}
-	else if( ClassConfigName == NAME_Game )
-	{
-		return GGameIni;
 	}
 	else if ( ClassConfigName == NAME_EditorSettings )
 	{
@@ -5297,18 +5288,10 @@ const FString UClass::GetConfigName() const
 	{
 		return GEditorKeyBindingsIni;
 	}
-	else if (ClassConfigName == NAME_DeviceProfiles)
-	{
-		return GDeviceProfilesIni;
-	}
 	else if( ClassConfigName == NAME_None )
 	{
 		UE_LOG(LogClass, Fatal,TEXT("UObject::GetConfigName() called on class with config name 'None'. Class flags = 0x%08X"), (uint32)ClassFlags );
 		return TEXT("");
-	}
-	else if (ClassConfigName == NAME_GameUserSettings)
-	{
-		return GGameUserSettingsIni;
 	}
 	else
 	{

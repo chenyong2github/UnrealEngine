@@ -872,9 +872,21 @@ bool FPluginManager::ConfigureEnabledPlugins()
 					for (const FString& ConfigFile : PluginConfigs)
 					{
 						FString PlaformName = FPlatformProperties::PlatformName();
-						// Use GetDestIniFilename to find the proper config file to combine into, since it manages command line overrides and path sanitization
-						PluginConfigFilename = FConfigCacheIni::GetDestIniFilename(*FPaths::GetBaseFilename(ConfigFile), *PlaformName, *FPaths::GeneratedConfigDir());
-						FConfigFile* FoundConfig = GConfig->Find(PluginConfigFilename);
+						// try a known ini name first
+						PluginConfigFilename = FPaths::GetBaseFilename(ConfigFile);
+						FConfigFile* FoundConfig;
+						if (GConfig->IsKnownConfigName(*PluginConfigFilename))
+						{
+							FoundConfig = GConfig->FindConfigFile(PluginConfigFilename);
+						}
+						// if it's not a known type, generate it final name
+						else
+						{
+							// Use GetDestIniFilename to find the proper config file to combine into, since it manages command line overrides and path sanitization
+							PluginConfigFilename = FConfigCacheIni::GetDestIniFilename(*FPaths::GetBaseFilename(ConfigFile), *PlaformName, *FPaths::GeneratedConfigDir());
+							FoundConfig = GConfig->Find(PluginConfigFilename);
+						}
+
 						if (FoundConfig != nullptr)
 						{
 							UE_LOG(LogPluginManager, Log, TEXT("Found config from plugin[%s] %s"), *Plugin.GetName(), *PluginConfigFilename);

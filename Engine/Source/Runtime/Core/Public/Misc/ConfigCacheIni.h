@@ -1015,6 +1015,12 @@ public:
 	bool InitializeKnownConfigFiles(const TCHAR* PlatformName, bool bDefaultEngineIniRequired);
 
 	/**
+	 * Returns true if the given name is one of the known configs, where the matching G****Ini property is going to match the 
+	 * base name ("Engine" returns true, which means GEngineIni's value is just "Engine")
+	 */
+	bool IsKnownConfigName(FName ConfigName);
+
+	/**
 	 * Create GConfig from a saved file
 	 */
 	static bool CreateGConfigFromSaved(const TCHAR* Filename);
