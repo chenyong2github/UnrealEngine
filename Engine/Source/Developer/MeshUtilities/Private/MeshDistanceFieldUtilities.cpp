@@ -336,10 +336,9 @@ void FMeshUtilities::GenerateSignedDistanceFieldVolumeData(
 	{
 		const double StartTime = FPlatformTime::Seconds();
 
-		const int32 NumIndices = SourceMeshData.IsValid() ? SourceMeshData.Indices.Num() : LODModel.IndexBuffer.GetNumIndices();
+		const int32 NumIndices = SourceMeshData.IsValid() ? SourceMeshData.GetNumIndices() : LODModel.IndexBuffer.GetNumIndices();
 		const int32 NumTriangles = NumIndices / 3;
-		const int32 NumVertices = SourceMeshData.IsValid() ? SourceMeshData.Vertices.Num() : LODModel.VertexBuffers.PositionVertexBuffer.GetNumVertices();
-		const FStaticMeshSectionArray& Sections = SourceMeshData.IsValid() ? SourceMeshData.Sections : LODModel.Sections;
+		const int32 NumVertices = SourceMeshData.IsValid() ? SourceMeshData.GetNumVertices() : LODModel.VertexBuffers.PositionVertexBuffer.GetNumVertices();
 
 		TArray<FkDOPBuildCollisionTriangle<uint32> > BuildTriangles;
 
@@ -378,28 +377,38 @@ void FMeshUtilities::GenerateSignedDistanceFieldVolumeData(
 		TArray<int32> FilteredTriangles;
 		FilteredTriangles.Empty(NumTriangles);
 
-		for (int32 TriangleIndex = 0; TriangleIndex < NumTriangles; ++TriangleIndex)
+		if (SourceMeshData.IsValid())
 		{
-			bool bTriangleIsOpaqueOrMasked = false;
-
-			for (int32 SectionIndex = 0; SectionIndex < Sections.Num(); SectionIndex++)
-			{
-				const FStaticMeshSection& Section = Sections[SectionIndex];
-
-				if ((uint32)(TriangleIndex * 3) >= Section.FirstIndex && (uint32)(TriangleIndex * 3) < Section.FirstIndex + Section.NumTriangles * 3)
-				{
-					if (MaterialBlendModes.IsValidIndex(Section.MaterialIndex))
-					{
-						bTriangleIsOpaqueOrMasked = !IsTranslucentBlendMode(MaterialBlendModes[Section.MaterialIndex]);
-					}
-
-					break;
-				}
-			}
-
-			if (bTriangleIsOpaqueOrMasked)
+			for (int32 TriangleIndex = 0; TriangleIndex < NumTriangles; ++TriangleIndex)
 			{
 				FilteredTriangles.Add(TriangleIndex);
+			}
+		}
+		else
+		{
+			for (int32 TriangleIndex = 0; TriangleIndex < NumTriangles; ++TriangleIndex)
+			{
+				bool bTriangleIsOpaqueOrMasked = false;
+
+				for (int32 SectionIndex = 0; SectionIndex < LODModel.Sections.Num(); SectionIndex++)
+				{
+					const FStaticMeshSection& Section = LODModel.Sections[SectionIndex];
+
+					if ((uint32)(TriangleIndex * 3) >= Section.FirstIndex && (uint32)(TriangleIndex * 3) < Section.FirstIndex + Section.NumTriangles * 3)
+					{
+						if (MaterialBlendModes.IsValidIndex(Section.MaterialIndex))
+						{
+							bTriangleIsOpaqueOrMasked = !IsTranslucentBlendMode(MaterialBlendModes[Section.MaterialIndex]);
+						}
+
+						break;
+					}
+				}
+
+				if (bTriangleIsOpaqueOrMasked)
+				{
+					FilteredTriangles.Add(TriangleIndex);
+				}
 			}
 		}
 
@@ -433,13 +442,13 @@ void FMeshUtilities::GenerateSignedDistanceFieldVolumeData(
 			const int32 TriangleIndex = FilteredTriangles[FilteredTriangleIndex];
 			if (SourceMeshData.IsValid())
 			{
-				I0 = SourceMeshData.Indices[TriangleIndex * 3 + 0];
-				I1 = SourceMeshData.Indices[TriangleIndex * 3 + 1];
-				I2 = SourceMeshData.Indices[TriangleIndex * 3 + 2];
+				I0 = SourceMeshData.TriangleIndices[TriangleIndex * 3 + 0];
+				I1 = SourceMeshData.TriangleIndices[TriangleIndex * 3 + 1];
+				I2 = SourceMeshData.TriangleIndices[TriangleIndex * 3 + 2];
 
-				V0 = SourceMeshData.Vertices[I0].Position;
-				V1 = SourceMeshData.Vertices[I1].Position;
-				V2 = SourceMeshData.Vertices[I2].Position;
+				V0 = SourceMeshData.VertexPositions[I0];
+				V1 = SourceMeshData.VertexPositions[I1];
+				V2 = SourceMeshData.VertexPositions[I2];
 			}
 			else
 			{

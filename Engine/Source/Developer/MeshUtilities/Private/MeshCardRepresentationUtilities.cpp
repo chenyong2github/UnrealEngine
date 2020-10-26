@@ -27,7 +27,7 @@ bool SetupEmbreeScene(
 	RTCDevice EmbreeDevice,
 	RTCScene& EmbreeScene)
 {
-	const int32 NumVertices = SourceMeshData.IsValid() ? SourceMeshData.Vertices.Num() : LODModel.VertexBuffers.PositionVertexBuffer.GetNumVertices();
+	const int32 NumVertices = SourceMeshData.IsValid() ? SourceMeshData.GetNumVertices() : LODModel.VertexBuffers.PositionVertexBuffer.GetNumVertices();
 
 	EmbreeScene = rtcDeviceNewScene(EmbreeDevice, RTC_SCENE_STATIC, RTC_INTERSECT1);
 			
@@ -58,13 +58,13 @@ bool SetupEmbreeScene(
 
 		if (SourceMeshData.IsValid())
 		{
-			I0 = SourceMeshData.Indices[TriangleIndex * 3 + 0];
-			I1 = SourceMeshData.Indices[TriangleIndex * 3 + 1];
-			I2 = SourceMeshData.Indices[TriangleIndex * 3 + 2];
+			I0 = SourceMeshData.TriangleIndices[TriangleIndex * 3 + 0];
+			I1 = SourceMeshData.TriangleIndices[TriangleIndex * 3 + 1];
+			I2 = SourceMeshData.TriangleIndices[TriangleIndex * 3 + 2];
 
-			V0 = SourceMeshData.Vertices[I0].Position;
-			V1 = SourceMeshData.Vertices[I1].Position;
-			V2 = SourceMeshData.Vertices[I2].Position;
+			V0 = SourceMeshData.VertexPositions[I0];
+			V1 = SourceMeshData.VertexPositions[I1];
+			V2 = SourceMeshData.VertexPositions[I2];
 		}
 		else
 		{
@@ -553,7 +553,7 @@ bool FMeshUtilities::GenerateCardRepresentationData(
 		return false;
 	}
 
-	const int32 NumIndices = SourceMeshData.IsValid() ? SourceMeshData.Indices.Num() : LODModel.IndexBuffer.GetNumIndices();
+	const int32 NumIndices = SourceMeshData.IsValid() ? SourceMeshData.GetNumIndices() : LODModel.IndexBuffer.GetNumIndices();
 	const int32 NumTriangles = NumIndices / 3;
 
 	FInputPrimitiveIds InputPrimitiveIds;

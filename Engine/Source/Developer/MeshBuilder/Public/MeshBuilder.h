@@ -31,9 +31,12 @@ public:
 		TArray< FStaticMeshBuildVertex >& Verts,
 		TArray< uint32 >& Indexes,
 		FStaticMeshSectionArray& Sections,
-		bool bBuildOnlyPosition,
 		uint32& NumTexCoords,
 		bool& bHasColors ) = 0;
+	virtual bool BuildMeshVertexPositions(
+		UStaticMesh* StaticMesh,
+		TArray<uint32>& Indices,
+		TArray<FVector>& Vertices) = 0;
 
 	/**
 	 * Build function should be override and is the starting point for skeletal mesh builders

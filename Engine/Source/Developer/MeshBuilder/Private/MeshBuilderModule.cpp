@@ -33,9 +33,13 @@ public:
 		TArray< FStaticMeshBuildVertex >& Verts,
 		TArray< uint32 >& Indexes,
 		FStaticMeshSectionArray& Sections,
-		bool bBuildOnlyPosition,
 		uint32& NumTexCoords,
 		bool& bHasColors ) override;
+
+	virtual bool BuildMeshVertexPositions(
+		UObject* StaticMesh,
+		TArray<uint32>& Indices,
+		TArray<FVector>& Vertices) override;
 
 	virtual bool BuildSkeletalMesh(USkeletalMesh* SkeletalMesh, const int32 LODIndex, const bool bRegenDepLODs) override;
 
@@ -61,15 +65,28 @@ bool FMeshBuilderModule::BuildMesh(
 	TArray< FStaticMeshBuildVertex >& Verts,
 	TArray< uint32 >& Indexes,
 	FStaticMeshSectionArray& Sections,
-	bool bBuildOnlyPosition,
 	uint32& NumTexCoords,
-	bool& bHasColors )
+	bool& bHasColors)
 {
-	UStaticMesh* StaticMesh = Cast< UStaticMesh >( Mesh );
-	if( StaticMesh )
+	UStaticMesh* StaticMesh = Cast< UStaticMesh >(Mesh);
+	if (StaticMesh)
 	{
 		//Call the static mesh builder
-		return FStaticMeshBuilder().Build( StaticMesh, Verts, Indexes, Sections, bBuildOnlyPosition, NumTexCoords, bHasColors );
+		return FStaticMeshBuilder().Build(StaticMesh, Verts, Indexes, Sections, NumTexCoords, bHasColors);
+	}
+	return false;
+}
+
+bool FMeshBuilderModule::BuildMeshVertexPositions(
+	UObject* Mesh,
+	TArray<uint32>& Indices,
+	TArray<FVector>& Vertices)
+{
+	UStaticMesh* StaticMesh = Cast< UStaticMesh >(Mesh);
+	if (StaticMesh)
+	{
+		//Call the static mesh builder
+		return FStaticMeshBuilder().BuildMeshVertexPositions(StaticMesh, Indices, Vertices);
 	}
 	return false;
 }

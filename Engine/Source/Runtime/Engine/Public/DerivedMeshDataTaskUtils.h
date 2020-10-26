@@ -13,12 +13,21 @@
 class FSourceMeshDataForDerivedDataTask
 {
 public:
-	TArray<FStaticMeshBuildVertex> Vertices;
-	TArray<uint32> Indices;
-	FStaticMeshSectionArray Sections;
+	TArray<uint32> TriangleIndices;
+	TArray<FVector> VertexPositions;
+
+	int32 GetNumIndices() const
+	{
+		return TriangleIndices.Num();
+	}
+
+	int32 GetNumVertices() const
+	{
+		return VertexPositions.Num();
+	}
 
 	bool IsValid() const
 	{ 
-		return Sections.Num() > 0;
+		return TriangleIndices.Num() > 0;
 	}
 };

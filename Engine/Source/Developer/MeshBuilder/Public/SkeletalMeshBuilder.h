@@ -30,9 +30,18 @@ public:
 		TArray< FStaticMeshBuildVertex >& Verts,
 		TArray< uint32 >& Indexes,
 		FStaticMeshSectionArray& Sections,
-		bool bBuildOnlyPosition,
 		uint32& NumTexCoords,
 		bool& bHasColors) override
+	{
+		bool No_Support_For_StaticMesh_Build_In_FSkeletalMeshBuilder_Class = false;
+		check(No_Support_For_StaticMesh_Build_In_FSkeletalMeshBuilder_Class);
+		return false;
+	}
+
+	virtual bool BuildMeshVertexPositions(
+		UStaticMesh* StaticMesh,
+		TArray<uint32>& Indices,
+		TArray<FVector>& Vertices) override
 	{
 		bool No_Support_For_StaticMesh_Build_In_FSkeletalMeshBuilder_Class = false;
 		check(No_Support_For_StaticMesh_Build_In_FSkeletalMeshBuilder_Class);

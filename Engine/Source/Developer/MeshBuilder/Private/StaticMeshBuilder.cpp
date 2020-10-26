@@ -378,7 +378,6 @@ bool FStaticMeshBuilder::Build(
 	TArray< FStaticMeshBuildVertex >& Verts,
 	TArray< uint32 >& Indexes,
 	FStaticMeshSectionArray& Sections,
-	bool bBuildOnlyPosition,
 	uint32& NumTexCoords,
 	bool& bHasColors )
 {
@@ -402,7 +401,7 @@ bool FStaticMeshBuilder::Build(
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("FStaticMeshBuilder::Build::Mappings"));
 		MeshDescription = *OriginalMeshDescription;
-		MeshDescriptionHelper.SetupRenderMeshDescription(StaticMesh, MeshDescription, bBuildOnlyPosition);
+		MeshDescriptionHelper.SetupRenderMeshDescription(StaticMesh, MeshDescription);
 	}
 	else
 	{
@@ -459,6 +458,57 @@ bool FStaticMeshBuilder::Build(
 				Section.MaxVertexIndex = FMath::Max<uint32>(VertIndex, Section.MaxVertexIndex);
 				*DestPtr++ = VertIndex;
 			}
+		}
+	}
+
+	return true;
+}
+
+bool FStaticMeshBuilder::BuildMeshVertexPositions(
+	UStaticMesh* StaticMesh,
+	TArray<uint32>& BuiltIndices,
+	TArray<FVector>& BuiltVertices)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("FStaticMeshBuilder::BuildMeshVertexPositions"));
+
+	const FMeshDescription* MeshDescription = StaticMesh->GetMeshDescription(0);
+	if (MeshDescription == nullptr)
+	{
+		//Warn the user that there is no mesh description data
+		UE_LOG(LogStaticMeshBuilder, Error, TEXT("Cannot find a valid mesh description to build the asset."));
+		return false;
+	}
+
+	const FMeshBuildSettings& BuildSettings = StaticMesh->GetSourceModel(0).BuildSettings;
+
+	const FStaticMeshConstAttributes Attributes(*MeshDescription);
+	TArrayView<const FVector> VertexPositions = Attributes.GetVertexPositions().GetRawArray();
+	TArrayView<const FVertexID> VertexIndices = Attributes.GetTriangleVertexIndices().GetRawArray();
+
+	BuiltVertices.Reserve(VertexPositions.Num());
+	for (int32 VertexIndex = 0; VertexIndex < VertexPositions.Num(); ++VertexIndex)
+	{
+		BuiltVertices.Add(VertexPositions[VertexIndex] * BuildSettings.BuildScale3D);
+	}
+
+	BuiltIndices.Reserve(VertexIndices.Num());
+	for (int32 TriangleIndex = 0; TriangleIndex < VertexIndices.Num() / 3; ++TriangleIndex)
+	{
+		const uint32 I0 = VertexIndices[TriangleIndex * 3 + 0];
+		const uint32 I1 = VertexIndices[TriangleIndex * 3 + 1];
+		const uint32 I2 = VertexIndices[TriangleIndex * 3 + 2];
+
+		const FVector V0 = BuiltVertices[I0];
+		const FVector V1 = BuiltVertices[I1];
+		const FVector V2 = BuiltVertices[I2];
+
+		const FVector TriangleNormal = ((V1 - V2) ^ (V0 - V2));
+		const bool bDegenerateTriangle = TriangleNormal.SizeSquared() < SMALL_NUMBER;
+		if (!bDegenerateTriangle)
+		{
+			BuiltIndices.Add(I0);
+			BuiltIndices.Add(I1);
+			BuiltIndices.Add(I2);
 		}
 	}
 

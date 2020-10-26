@@ -123,13 +123,8 @@ void FCardRepresentationData::CacheDerivedData(const FString& InDDCKey, const IT
 		}
 		else if (Mesh->NaniteSettings.bEnabled)
 		{
-			TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("FCardRepresentationData::BuildMesh"));
-
-			uint32 NumTexCoords = 0;
-			bool bHasColors = false;
-
 			IMeshBuilderModule& MeshBuilderModule = IMeshBuilderModule::GetForPlatform(TargetPlatform);
-			if (!MeshBuilderModule.BuildMesh(Mesh, NewTask->SourceMeshData.Vertices, NewTask->SourceMeshData.Indices, NewTask->SourceMeshData.Sections, /* bBuildOnlyPosition */ true, NumTexCoords, bHasColors))
+			if (!MeshBuilderModule.BuildMeshVertexPositions(Mesh, NewTask->SourceMeshData.TriangleIndices, NewTask->SourceMeshData.VertexPositions))
 			{
 				UE_LOG(LogStaticMesh, Error, TEXT("Failed to build static mesh. See previous line(s) for details."));
 			}
