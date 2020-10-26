@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 import { FunctionalTest, P4Util, Stream } from '../framework'
-import { Change } from '../test-perforce'
 
 const streams: Stream[] =
 	[ {name: 'Main', streamType: 'mainline'}
@@ -36,31 +35,12 @@ export class IncognitoTest extends FunctionalTest {
 	}
 
 	verify() {
-		const testNameLower = this.testName.toLowerCase()
-
 		this.info('Ensuring Dev-Pootle-Child commit has no incriminating information')
 
 		return Promise.all([
-			this.getClient('Dev-Perkin-Child').changes(1)
-				.then((changes: Change[]) => {
-					const description = changes[0]!.description.toLowerCase()
-					if (description.indexOf(testNameLower) < 0) {
-						throw new Error('Expected test name to appear in description')
-					}
-					if (description.indexOf('dev-perkin') < 0) {
-						throw new Error('Expected parent branch name to appear in description')
-					}
-				}),
-			this.getClient('Dev-Pootle-Child').changes(1)
-				.then((changes: Change[]) => {
-					const description = changes[0]!.description.toLowerCase()
-					if (description.indexOf(testNameLower) >= 0) {
-						throw new Error('Expected test name not to appear in description')
-					}
-					if (description.indexOf('dev-pootle') >= 0) {
-						throw new Error('Expected parent branch name not to appear in description')
-					}
-				}),
+			this.checkDescriptionContainsEdit('Dev-Perkin-Child', [this.testName, 'Dev-Perkin']),
+			this.checkDescriptionContainsEdit('Dev-Pootle-Child', [], [this.testName, 'Dev-Pootle']),
+
 			this.checkHeadRevision('Main', 'test.txt', 2),
 			this.checkHeadRevision('Dev-Perkin', 'test.txt', 2),
 			this.checkHeadRevision('Dev-Pootle', 'test.txt', 2),

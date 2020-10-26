@@ -1,82 +1,54 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-import * as Path from 'path'
-import { FunctionalTest, P4Client, P4Util } from '../framework'
-import * as System from '../system'
+import { FunctionalTest, P4Util, Stream } from '../framework'
 import { Perforce } from '../test-perforce'
 
+export const streams: Stream[] = [
+	{name: 'Main', streamType: 'mainline'},
+	{name: 'Development', streamType: 'development', parent: 'Main'}
+]
+
+const BINARY_FILENAME1 = 'fake1.uasset'
+//const BINARY_FILENAME2 = 'fake2.uasset'
 export class RejectBranchResolveStomp extends FunctionalTest {
-
-	private binaryFilePathMain: string[]
-	private binaryFilePathDevelopment: string
-
-	private mainClient: P4Client[]
-	private developmentClient: P4Client
 
 	constructor(p4: Perforce) {
 		super(p4)
-
-		this.mainClient = [
-			this.p4Client('testuser1', 'Main'),
-			this.p4Client('testuser2', 'Main')
-		]
-
-		this.developmentClient = this.p4Client('testuser1', 'Development')
-
-		this.binaryFilePathMain = this.mainClient.map(client => Path.join(client.root, 'fake.uasset'))
-		this.binaryFilePathDevelopment = Path.join(this.developmentClient.root, 'fake.uasset')
 	}
 
 	async setup() {
 		// Set up depot
 
 		await this.p4.depot('stream', this.depotSpec())
+		await this.createStreamsAndWorkspaces(streams)
 
-		// Setup streams
-		await this.p4.stream(this.streamSpec('Main', 'mainline'))
-		await this.p4.stream(this.streamSpec('Development', 'development', 'Main'))
-
-		// Create workspaces
-		await this.mainClient[0].create(P4Util.specForClient(this.mainClient[0]))
-		await this.mainClient[1].create(P4Util.specForClient(this.mainClient[1]))
-		await this.developmentClient.create(P4Util.specForClient(this.developmentClient))
-
-		await System.writeFile(this.binaryFilePathMain[0], 'Simple functional test binary file') 
-		await this.mainClient[0].add('fake.uasset', true)
-		await this.mainClient[0].submit("Adding initial files 'fake.uasset'")
+		await P4Util.addFileAndSubmit(this.getClient('Main'), BINARY_FILENAME1, 'Initial content', true)
 
 		// Populate Development stream
-		await this.p4.populate(this.getStreamPath('Development'), `Initial branch of files from Main (${this.getStreamPath('Main')}) to Development (${this.getStreamPath('Development')})`)
+		await this.p4.populate(this.getStreamPath('Development'), 'Initial branch of files from Main')
 	
 		// Delete file in main streqm to cause branch conflict
-		await this.mainClient[1].sync()
-		await this.mainClient[1].delete('fake.uasset')
-		await this.mainClient[1].submit('Deleting binary file from Main')
+		const mainClient = this.getClient('Main')
+		await Promise.all([this.getClient('Development').sync(),
+			mainClient.delete(BINARY_FILENAME1)
+			.then(() => mainClient.submit('Deleting binary file from Main'))
+		])
 	}
 
-	async run() {
-
-		// Create future binary file conflict
-		await this.developmentClient.sync()
-		await this.developmentClient.edit('fake.uasset')
-		await System.writeFile(this.binaryFilePathDevelopment, 'Create second revision in Development for binary file')
-
-		// This should result in a conflict on Main 'fake.uasset' so we can test stomp verification and execution!
-		const command = `#robomerge ${this.testName}Main`
-		await P4Util.submit(this.developmentClient, 'Creating second revision in Development for binary file\n' + command)
+	run() {
+		return P4Util.editFileAndSubmit(this.getClient('Development'), BINARY_FILENAME1, 'Changed content', this.fullBranchName('Main'))
 	}
 
 	getBranches() {
 		return [{
 			streamDepot: this.testName,
-			name: this.testName + 'Main',
+			name: this.fullBranchName('Main'),
 			streamName: 'Main',
-			flowsTo: [this.testName + 'Development'],
-			forceAll: false
+			flowsTo: [this.fullBranchName('Development')]
 		}, {
 			streamDepot: this.testName,
-			name: this.testName + 'Development',
+			name: this.fullBranchName('Development'),
 			streamName: 'Development',
-			flowsTo: [this.testName + 'Main'],
+			flowsTo: [this.fullBranchName('Main')]
 		}]
 	}
 

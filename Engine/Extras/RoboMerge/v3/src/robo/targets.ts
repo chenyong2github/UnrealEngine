@@ -117,6 +117,17 @@ export class DescriptionParser {
 	) {
 	}
 
+	/** override anything parsed from robomerge tags */
+	override(other: DescriptionParser) {
+
+		this.useDefaultFlow = other.useDefaultFlow
+		this.arguments = other.arguments
+		this.expandedMacros = other.expandedMacros
+		this.expandedMacroLines = other.expandedMacroLines
+
+		this.errors = other.errors
+	}
+
 	parseLine(line: string) {
 
 		// trim end - keep any initial whitespace
