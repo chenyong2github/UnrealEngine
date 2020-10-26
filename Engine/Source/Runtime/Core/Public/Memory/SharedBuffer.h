@@ -695,7 +695,7 @@ private:
 	private:
 		~TSharedBufferDeleter() = default;
 
-		virtual void Free(void* const InData) final
+		virtual void Free(void* InData) final
 		{
 			Deleter(InData);
 			this->~TSharedBufferDeleter();

@@ -22,8 +22,8 @@ FSharedBufferRef FSharedBuffer::NewBuffer(
 
 void FSharedBuffer::DeleteBuffer(FSharedBuffer* const Buffer)
 {
-	checkSlow(!Data && !Size);
-	checkSlow(ReferenceCountAndFlags == 0);
+	checkSlow(!Buffer->Data && !Buffer->Size);
+	checkSlow(Buffer->ReferenceCountAndFlags == 0);
 	Buffer->~FSharedBuffer();
 	FMemory::Free(Buffer);
 }
