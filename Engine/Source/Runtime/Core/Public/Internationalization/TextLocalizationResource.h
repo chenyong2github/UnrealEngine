@@ -19,8 +19,14 @@ public:
 	FTextLocalizationMetaDataResource(FTextLocalizationMetaDataResource&&) = default;
 	FTextLocalizationMetaDataResource& operator=(FTextLocalizationMetaDataResource&&) = default;
 
+	/** Name of the native culture for the localization target, eg) "en". */
 	FString NativeCulture;
+
+	/** Relative path to the native LocRes file for the localization target, eg) "en/Game.locres". */
 	FString NativeLocRes;
+
+	/** Name of all cultures with compiled LocRes files for the localization target (@note may be empty for older LocMeta files). */
+	TArray<FString> CompiledCultures;
 
 	/** Load the given LocMeta file into this resource. */
 	bool LoadFromFile(const FString& FilePath);
