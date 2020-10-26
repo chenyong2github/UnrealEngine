@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WorldPartition/DataLayer/DataLayerSubsystem.h"
+#include "Engine/World.h"
+#include "Engine/Engine.h"
 
 UDataLayerSubsystem::UDataLayerSubsystem()
 {}

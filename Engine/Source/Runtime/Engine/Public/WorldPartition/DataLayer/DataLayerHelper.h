@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
+
 struct ENGINE_API FDataLayersHelper
 {
 	static const uint32 NoDataLayerID = 0;
