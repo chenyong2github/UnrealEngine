@@ -5,7 +5,11 @@
 AVCamSample_CameraActor::AVCamSample_CameraActor(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	VCamComponent = ObjectInitializer.CreateDefaultSubobject<UVCamComponent>(this, TEXT("VCamComponent"));
-	VCamComponent->AttachToComponent(GetCineCameraComponent(), FAttachmentTransformRules::KeepRelativeTransform);
-	VCamComponent->RegisterComponent();
+	// Don't run on CDO
+	if (!HasAnyFlags(RF_ClassDefaultObject))
+	{
+		VCamComponent = ObjectInitializer.CreateDefaultSubobject<UVCamComponent>(this, TEXT("VCamComponent"));
+		VCamComponent->AttachToComponent(GetCineCameraComponent(), FAttachmentTransformRules::KeepRelativeTransform);
+		VCamComponent->RegisterComponent();
+	}
 }
