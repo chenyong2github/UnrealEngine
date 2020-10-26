@@ -2,11 +2,47 @@
 
 #include "PluginDescriptor.h"
 #include "Misc/FileHelper.h"
+#include "HAL/FileManager.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
 #include "ProjectDescriptor.h"
 
 #define LOCTEXT_NAMESPACE "PluginDescriptor"
+
+namespace PluginDescriptor
+{
+	bool ReadFile(const FString& FileName, FString& Text, FText& OutFailReason)
+	{
+		if (!FFileHelper::LoadFileToString(Text, *FileName))
+		{
+			OutFailReason = FText::Format(LOCTEXT("FailedToLoadDescriptorFile", "Failed to open descriptor file '{0}'"), FText::FromString(FileName));
+			return false;
+		}
+		return true;
+	}
+
+	bool WriteFile(const FString& FileName, const FString& Text, FText& OutFailReason)
+	{
+		if (!FFileHelper::SaveStringToFile(Text, *FileName))
+		{
+			OutFailReason = FText::Format(LOCTEXT("FailedToWriteDescriptorFile", "Failed to write plugin descriptor file '{0}'. Perhaps the file is Read-Only?"), FText::FromString(FileName));
+			return false;
+		}
+		return true;
+	}
+
+	TSharedPtr<FJsonObject> DeserializeJson(const FString& Text, FText& OutFailReason)
+	{
+		TSharedPtr<FJsonObject> JsonObject;
+		TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Text);
+		if (!FJsonSerializer::Deserialize(Reader, JsonObject) || !JsonObject.IsValid())
+		{
+			OutFailReason = FText::Format(LOCTEXT("FailedToReadDescriptorFile", "Failed to read file. {0}"), FText::FromString(Reader->GetErrorMessage()));
+			return TSharedPtr<FJsonObject>();
+		}
+		return JsonObject;
+	}
+}
 
 /**
  * Version numbers for plugin descriptors. These version numbers are not generally needed; serialization from JSON attempts to be tolerant of missing/added fields.
@@ -42,30 +78,25 @@ FPluginDescriptor::FPluginDescriptor()
 
 bool FPluginDescriptor::Load(const FString& FileName, FText& OutFailReason)
 {
-	// Read the file to a string
-	FString FileContents;
-	if (!FFileHelper::LoadFileToString(FileContents, *FileName))
+	FString Text;
+	if (PluginDescriptor::ReadFile(FileName, Text, OutFailReason))
 	{
-		OutFailReason = FText::Format(LOCTEXT("FailedToLoadDescriptorFile", "Failed to open descriptor file '{0}'"), FText::FromString(FileName));
-		return false;
+		return Read(Text, OutFailReason);
 	}
-	return Read(FileContents, OutFailReason);
+	return false;
 }
 
 
 bool FPluginDescriptor::Read(const FString& Text, FText& OutFailReason)
 {
 	// Deserialize a JSON object from the string
-	TSharedPtr< FJsonObject > ObjectPtr;
-	TSharedRef< TJsonReader<> > Reader = TJsonReaderFactory<>::Create(Text);
-	if (!FJsonSerializer::Deserialize(Reader, ObjectPtr) || !ObjectPtr.IsValid() )
+	TSharedPtr<FJsonObject> JsonObject = PluginDescriptor::DeserializeJson(Text, OutFailReason);
+	if (JsonObject.IsValid())
 	{
-		OutFailReason = FText::Format(LOCTEXT("FailedToReadDescriptorFile", "Failed to read file. {0}"), FText::FromString(Reader->GetErrorMessage()));
-		return false;
+		// Parse it as a plug-in descriptor
+		return Read(*JsonObject.Get(), OutFailReason);
 	}
-
-	// Parse it as a plug-in descriptor
-	return Read(*ObjectPtr.Get(), OutFailReason);
+	return false;
 }
 
 
@@ -169,12 +200,7 @@ bool FPluginDescriptor::Save(const FString& FileName, FText& OutFailReason) cons
 	Write(Text);
 
 	// Save it to a file
-	if ( !FFileHelper::SaveStringToFile(Text, *FileName) )
-	{
-		OutFailReason = FText::Format( LOCTEXT("FailedToWriteOutputFile", "Failed to write plugin descriptor file '{0}'. Perhaps the file is Read-Only?"), FText::FromString(FileName) );
-		return false;
-	}
-	return true;
+	return PluginDescriptor::WriteFile(FileName, Text, OutFailReason);
 }
 
 void FPluginDescriptor::Write(FString& Text) const
@@ -182,81 +208,165 @@ void FPluginDescriptor::Write(FString& Text) const
 	// Write the contents of the descriptor to a string. Make sure the writer is destroyed so that the contents are flushed to the string.
 	TSharedRef< TJsonWriter<> > WriterRef = TJsonWriterFactory<>::Create(&Text);
 	TJsonWriter<>& Writer = WriterRef.Get();
-	Writer.WriteObjectStart();
 	Write(Writer);
-	Writer.WriteObjectEnd();
 	Writer.Close();
 }
 
 void FPluginDescriptor::Write(TJsonWriter<>& Writer) const
 {
-	Writer.WriteValue(TEXT("FileVersion"), EProjectDescriptorVersion::Latest);
-	Writer.WriteValue(TEXT("Version"), Version);
-	Writer.WriteValue(TEXT("VersionName"), VersionName);
-	Writer.WriteValue(TEXT("FriendlyName"), FriendlyName);
-	Writer.WriteValue(TEXT("Description"), Description);
-	Writer.WriteValue(TEXT("Category"), Category);
-	Writer.WriteValue(TEXT("CreatedBy"), CreatedBy);
-	Writer.WriteValue(TEXT("CreatedByURL"), CreatedByURL);
-	Writer.WriteValue(TEXT("DocsURL"), DocsURL);
-	Writer.WriteValue(TEXT("MarketplaceURL"), MarketplaceURL);
-	Writer.WriteValue(TEXT("SupportURL"), SupportURL);
+	TSharedRef<FJsonObject> PluginJsonObject = MakeShared<FJsonObject>();
+	UpdateJson(*PluginJsonObject);
+
+	FJsonSerializer::Serialize(PluginJsonObject, Writer);
+}
+
+void FPluginDescriptor::UpdateJson(FJsonObject& JsonObject) const
+{
+	JsonObject.SetNumberField(TEXT("FileVersion"), EProjectDescriptorVersion::Latest);
+	JsonObject.SetNumberField(TEXT("Version"), Version);
+	JsonObject.SetStringField(TEXT("VersionName"), VersionName);
+	JsonObject.SetStringField(TEXT("FriendlyName"), FriendlyName);
+	JsonObject.SetStringField(TEXT("Description"), Description);
+	JsonObject.SetStringField(TEXT("Category"), Category);
+	JsonObject.SetStringField(TEXT("CreatedBy"), CreatedBy);
+	JsonObject.SetStringField(TEXT("CreatedByURL"), CreatedByURL);
+	JsonObject.SetStringField(TEXT("DocsURL"), DocsURL);
+	JsonObject.SetStringField(TEXT("MarketplaceURL"), MarketplaceURL);
+	JsonObject.SetStringField(TEXT("SupportURL"), SupportURL);
+
 	if (EngineVersion.Len() > 0)
 	{
-		Writer.WriteValue(TEXT("EngineVersion"), EngineVersion);
+		JsonObject.SetStringField(TEXT("EngineVersion"), EngineVersion);
 	}
-	if(EnabledByDefault != EPluginEnabledByDefault::Unspecified)
+	else
 	{
-		Writer.WriteValue(TEXT("EnabledByDefault"), (EnabledByDefault == EPluginEnabledByDefault::Enabled));
+		JsonObject.RemoveField(TEXT("EngineVersion"));
 	}
-	Writer.WriteValue(TEXT("CanContainContent"), bCanContainContent);
-	Writer.WriteValue(TEXT("IsBetaVersion"), bIsBetaVersion);
-	Writer.WriteValue(TEXT("IsExperimentalVersion"), bIsExperimentalVersion);
-	Writer.WriteValue(TEXT("Installed"), bInstalled);
 
-	if(SupportedTargetPlatforms.Num() > 0)
+	if (EnabledByDefault != EPluginEnabledByDefault::Unspecified)
 	{
-		Writer.WriteValue(TEXT("SupportedTargetPlatforms"), SupportedTargetPlatforms);
+		JsonObject.SetBoolField(TEXT("EnabledByDefault"), (EnabledByDefault == EPluginEnabledByDefault::Enabled));
 	}
+	else
+	{
+		JsonObject.RemoveField(TEXT("EnabledByDefault"));
+	}
+
+	JsonObject.SetBoolField(TEXT("CanContainContent"), bCanContainContent);
+	JsonObject.SetBoolField(TEXT("IsBetaVersion"), bIsBetaVersion);
+	JsonObject.SetBoolField(TEXT("IsExperimentalVersion"), bIsExperimentalVersion);
+	JsonObject.SetBoolField(TEXT("Installed"), bInstalled);
+
+	if (SupportedTargetPlatforms.Num() > 0)
+	{
+		TArray<TSharedPtr<FJsonValue>> SupportedTargetPlatformValues;
+		for (const FString& SupportedTargetPlatform : SupportedTargetPlatforms)
+		{
+			SupportedTargetPlatformValues.Add(MakeShareable(new FJsonValueString(SupportedTargetPlatform)));
+		}
+		JsonObject.SetArrayField(TEXT("SupportedTargetPlatforms"), SupportedTargetPlatformValues);
+	}
+	else
+	{
+		JsonObject.RemoveField(TEXT("SupportedTargetPlatforms"));
+	}
+
 	if (SupportedPrograms.Num() > 0)
 	{
-		Writer.WriteValue(TEXT("SupportedPrograms"), SupportedPrograms);
+		TArray<TSharedPtr<FJsonValue>> SupportedProgramValues;
+		for (const FString& SupportedProgram : SupportedPrograms)
+		{
+			SupportedProgramValues.Add(MakeShareable(new FJsonValueString(SupportedProgram)));
+		}
+		JsonObject.SetArrayField(TEXT("SupportedPrograms"), SupportedProgramValues);
+	}
+	else
+	{
+		JsonObject.RemoveField(TEXT("SupportedPrograms"));
 	}
 
 	if (bIsPluginExtension)
 	{
-		Writer.WriteValue(TEXT("bIsPluginExtension"), bIsPluginExtension);
+		JsonObject.SetBoolField(TEXT("bIsPluginExtension"), bIsPluginExtension);
 	}
-	FModuleDescriptor::WriteArray(Writer, TEXT("Modules"), Modules);
-
-	FLocalizationTargetDescriptor::WriteArray(Writer, TEXT("LocalizationTargets"), LocalizationTargets);
-
-	if(bRequiresBuildPlatform)
+	else
 	{
-		Writer.WriteValue(TEXT("RequiresBuildPlatform"), bRequiresBuildPlatform);
+		JsonObject.RemoveField(TEXT("bIsPluginExtension"));
+	}
+
+	FModuleDescriptor::UpdateArray(JsonObject, TEXT("Modules"), Modules);
+
+	FLocalizationTargetDescriptor::UpdateArray(JsonObject, TEXT("LocalizationTargets"), LocalizationTargets);
+
+	if (bRequiresBuildPlatform)
+	{
+		JsonObject.SetBoolField(TEXT("RequiresBuildPlatform"), bRequiresBuildPlatform);
+	}
+	else
+	{
+		JsonObject.RemoveField(TEXT("RequiresBuildPlatform"));
 	}
 
 	if (bIsHidden)
 	{
-		Writer.WriteValue(TEXT("Hidden"), bIsHidden);
+		JsonObject.SetBoolField(TEXT("Hidden"), bIsHidden);
+	}
+	else
+	{
+		JsonObject.RemoveField(TEXT("Hidden"));
 	}
 
 	if (bExplicitlyLoaded)
 	{
-		Writer.WriteValue(TEXT("ExplicitlyLoaded"), bExplicitlyLoaded);
+		JsonObject.SetBoolField(TEXT("ExplicitlyLoaded"), bExplicitlyLoaded);
 	}
-
-	if(!PreBuildSteps.IsEmpty())
+	else
 	{
-		PreBuildSteps.Write(Writer, TEXT("PreBuildSteps"));
+		JsonObject.RemoveField(TEXT("ExplicitlyLoaded"));
 	}
 
-	if(!PostBuildSteps.IsEmpty())
+	PreBuildSteps.UpdateJson(JsonObject, TEXT("PreBuildSteps"));
+	PostBuildSteps.UpdateJson(JsonObject, TEXT("PostBuildSteps"));
+
+	FPluginReferenceDescriptor::UpdateArray(JsonObject, TEXT("Plugins"), Plugins);
+}
+
+bool FPluginDescriptor::UpdatePluginFile(const FString& FileName, FText& OutFailReason) const
+{
+	if (IFileManager::Get().FileExists(*FileName))
 	{
-		PostBuildSteps.Write(Writer, TEXT("PostBuildSteps"));
-	}
+		// Plugin file exists so we need to read it and update it.
 
-	FPluginReferenceDescriptor::WriteArray(Writer, TEXT("Plugins"), Plugins);
+		FString JsonText;
+		if (!PluginDescriptor::ReadFile(FileName, JsonText, OutFailReason))
+		{
+			return false;
+		}
+
+		TSharedPtr<FJsonObject> JsonObject = PluginDescriptor::DeserializeJson(JsonText, OutFailReason);
+		if (!JsonObject.IsValid())
+		{
+			return false;
+		}
+
+		UpdateJson(*JsonObject.Get());
+
+		{
+			TSharedRef<TJsonWriter<>> JsonWriter = TJsonWriterFactory<>::Create(&JsonText);
+			if (!ensure(FJsonSerializer::Serialize(JsonObject.ToSharedRef(), JsonWriter)))
+			{
+				OutFailReason = LOCTEXT("FailedToWriteDescriptor", "Failed to write plugin descriptor content");
+				return false;
+			}
+		}
+
+		return PluginDescriptor::WriteFile(FileName, JsonText, OutFailReason);
+	}
+	else
+	{
+		// Plugin file doesn't exist so just write it.
+		return Save(FileName, OutFailReason);
+	}
 }
 
 bool FPluginDescriptor::SupportsTargetPlatform(const FString& Platform) const

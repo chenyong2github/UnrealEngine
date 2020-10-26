@@ -4,9 +4,28 @@
 #include "Misc/FileHelper.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
+#include "JsonUtils/JsonObjectArrayUpdater.h"
 #include "ProjectDescriptor.h"
 
 #define LOCTEXT_NAMESPACE "PluginDescriptor"
+
+namespace PluginReferenceDescriptor
+{
+	FString GetPluginRefKey(const FPluginReferenceDescriptor& PluginRef)
+	{
+		return PluginRef.Name;
+	}
+
+	bool TryGetPluginRefJsonObjectKey(const FJsonObject& JsonObject, FString& OutKey)
+	{
+		return JsonObject.TryGetStringField(TEXT("Name"), OutKey);
+	}
+
+	void UpdatePluginRefJsonObject(const FPluginReferenceDescriptor& PluginRef, FJsonObject& JsonObject)
+	{
+		PluginRef.UpdateJson(JsonObject);
+	}
+}
 
 FPluginReferenceDescriptor::FPluginReferenceDescriptor( const FString& InName, bool bInEnabled )
 	: Name(InName)
@@ -159,128 +178,169 @@ bool FPluginReferenceDescriptor::ReadArray( const FJsonObject& Object, const TCH
 }
 
 
-void FPluginReferenceDescriptor::Write( TJsonWriter<>& Writer ) const
+void FPluginReferenceDescriptor::Write(TJsonWriter<>& Writer) const
 {
-	Writer.WriteObjectStart();
-	Writer.WriteValue(TEXT("Name"), Name);
-	Writer.WriteValue(TEXT("Enabled"), bEnabled);
+	TSharedRef<FJsonObject> PluginRefJsonObject = MakeShared<FJsonObject>();
+	UpdateJson(*PluginRefJsonObject);
+
+	FJsonSerializer::Serialize(PluginRefJsonObject, Writer);
+}
+
+void FPluginReferenceDescriptor::UpdateJson(FJsonObject& JsonObject) const
+{
+	JsonObject.SetStringField(TEXT("Name"), Name);
+	JsonObject.SetBoolField(TEXT("Enabled"), bEnabled);
 
 	if (bEnabled && bOptional)
 	{
-		Writer.WriteValue(TEXT("Optional"), bOptional);
+		JsonObject.SetBoolField(TEXT("Optional"), bOptional);
+	}
+	else
+	{
+		JsonObject.RemoveField(TEXT("Optional"));
 	}
 
 	if (Description.Len() > 0)
 	{
-		Writer.WriteValue(TEXT("Description"), Description);
+		JsonObject.SetStringField(TEXT("Description"), Description);
+	}
+	else
+	{
+		JsonObject.RemoveField(TEXT("Description"));
 	}
 
 	if (MarketplaceURL.Len() > 0)
 	{
-		Writer.WriteValue(TEXT("MarketplaceURL"), MarketplaceURL);
+		JsonObject.SetStringField(TEXT("MarketplaceURL"), MarketplaceURL);
+	}
+	else
+	{
+		JsonObject.RemoveField(TEXT("MarketplaceURL"));
 	}
 
 	if (WhitelistPlatforms.Num() > 0)
 	{
-		Writer.WriteArrayStart(TEXT("WhitelistPlatforms"));
-
-		for (int Idx = 0; Idx < WhitelistPlatforms.Num(); Idx++)
+		TArray<TSharedPtr<FJsonValue>> WhitelistPlatformValues;
+		for (const FString& WhitelistPlatform : WhitelistPlatforms)
 		{
-			Writer.WriteValue(WhitelistPlatforms[Idx]);
+			WhitelistPlatformValues.Add(MakeShareable(new FJsonValueString(WhitelistPlatform)));
 		}
-
-		Writer.WriteArrayEnd();
+		JsonObject.SetArrayField(TEXT("WhitelistPlatforms"), WhitelistPlatformValues);
+	}
+	else
+	{
+		JsonObject.RemoveField(TEXT("WhitelistPlatforms"));
 	}
 
 	if (BlacklistPlatforms.Num() > 0)
 	{
-		Writer.WriteArrayStart(TEXT("BlacklistPlatforms"));
-
-		for (int Idx = 0; Idx < BlacklistPlatforms.Num(); Idx++)
+		TArray<TSharedPtr<FJsonValue>> BlacklistPlatformValues;
+		for (const FString& BlacklistPlatform : BlacklistPlatforms)
 		{
-			Writer.WriteValue(BlacklistPlatforms[Idx]);
+			BlacklistPlatformValues.Add(MakeShareable(new FJsonValueString(BlacklistPlatform)));
 		}
-
-		Writer.WriteArrayEnd();
+		JsonObject.SetArrayField(TEXT("BlacklistPlatforms"), BlacklistPlatformValues);
+	}
+	else
+	{
+		JsonObject.RemoveField(TEXT("BlacklistPlatforms"));
 	}
 
 	if (WhitelistTargetConfigurations.Num() > 0)
 	{
-		Writer.WriteArrayStart(TEXT("WhitelistTargetConfigurations"));
-
-		for (int Idx = 0; Idx < WhitelistTargetConfigurations.Num(); Idx++)
+		TArray<TSharedPtr<FJsonValue>> WhitelistTargetConfigurationValues;
+		for (EBuildConfiguration WhitelistTargetConfiguration : WhitelistTargetConfigurations)
 		{
-			Writer.WriteValue(LexToString(WhitelistTargetConfigurations[Idx]));
+			WhitelistTargetConfigurationValues.Add(MakeShareable(new FJsonValueString(LexToString(WhitelistTargetConfiguration))));
 		}
-
-		Writer.WriteArrayEnd();
+		JsonObject.SetArrayField(TEXT("WhitelistTargetConfigurations"), WhitelistTargetConfigurationValues);
+	}
+	else
+	{
+		JsonObject.RemoveField(TEXT("WhitelistTargetConfigurations"));
 	}
 
 	if (BlacklistTargetConfigurations.Num() > 0)
 	{
-		Writer.WriteArrayStart(TEXT("BlacklistTargetConfigurations"));
-
-		for (int Idx = 0; Idx < BlacklistTargetConfigurations.Num(); Idx++)
+		TArray<TSharedPtr<FJsonValue>> BlacklistTargetConfigurationValues;
+		for (EBuildConfiguration BlacklistTargetConfiguration : BlacklistTargetConfigurations)
 		{
-			Writer.WriteValue(LexToString(BlacklistTargetConfigurations[Idx]));
+			BlacklistTargetConfigurationValues.Add(MakeShareable(new FJsonValueString(LexToString(BlacklistTargetConfiguration))));
 		}
-
-		Writer.WriteArrayEnd();
+		JsonObject.SetArrayField(TEXT("BlacklistTargetConfigurations"), BlacklistTargetConfigurationValues);
+	}
+	else
+	{
+		JsonObject.RemoveField(TEXT("BlacklistTargetConfigurations"));
 	}
 
 	if (WhitelistTargets.Num() > 0)
 	{
-		Writer.WriteArrayStart(TEXT("WhitelistTargets"));
-
-		for (int Idx = 0; Idx < WhitelistTargets.Num(); Idx++)
+		TArray<TSharedPtr<FJsonValue>> WhitelistTargetValues;
+		for (EBuildTargetType WhitelistTarget : WhitelistTargets)
 		{
-			Writer.WriteValue(LexToString(WhitelistTargets[Idx]));
+			WhitelistTargetValues.Add(MakeShareable(new FJsonValueString(LexToString(WhitelistTarget))));
 		}
-
-		Writer.WriteArrayEnd();
+		JsonObject.SetArrayField(TEXT("WhitelistTargets"), WhitelistTargetValues);
+	}
+	else
+	{
+		JsonObject.RemoveField(TEXT("WhitelistTargets"));
 	}
 
 	if (BlacklistTargets.Num() > 0)
 	{
-		Writer.WriteArrayStart(TEXT("BlacklistTargets"));
-
-		for (int Idx = 0; Idx < BlacklistTargets.Num(); Idx++)
+		TArray<TSharedPtr<FJsonValue>> BlacklistTargetValues;
+		for (EBuildTargetType BlacklistTarget : BlacklistTargets)
 		{
-			Writer.WriteValue(LexToString(BlacklistTargets[Idx]));
+			BlacklistTargetValues.Add(MakeShareable(new FJsonValueString(LexToString(BlacklistTarget))));
 		}
-
-		Writer.WriteArrayEnd();
+		JsonObject.SetArrayField(TEXT("BlacklistTargets"), BlacklistTargetValues);
+	}
+	else
+	{
+		JsonObject.RemoveField(TEXT("BlacklistTargets"));
 	}
 
 	if (SupportedTargetPlatforms.Num() > 0)
 	{
-		Writer.WriteArrayStart(TEXT("SupportedTargetPlatforms"));
-
-		for (int Idx = 0; Idx < SupportedTargetPlatforms.Num(); Idx++)
+		TArray<TSharedPtr<FJsonValue>> SupportedTargetPlatformValues;
+		for (const FString& SupportedTargetPlatform : SupportedTargetPlatforms)
 		{
-			Writer.WriteValue(SupportedTargetPlatforms[Idx]);
+			SupportedTargetPlatformValues.Add(MakeShareable(new FJsonValueString(SupportedTargetPlatform)));
 		}
-
-		Writer.WriteArrayEnd();
+		JsonObject.SetArrayField(TEXT("SupportedTargetPlatforms"), SupportedTargetPlatformValues);
 	}
-
-	Writer.WriteObjectEnd();
+	else
+	{
+		JsonObject.RemoveField(TEXT("SupportedTargetPlatforms"));
+	}
 }
 
-
-void FPluginReferenceDescriptor::WriteArray( TJsonWriter<>& Writer, const TCHAR* Name, const TArray<FPluginReferenceDescriptor>& Plugins )
+void FPluginReferenceDescriptor::WriteArray(TJsonWriter<>& Writer, const TCHAR* ArrayName, const TArray<FPluginReferenceDescriptor>& Plugins)
 {
-	if( Plugins.Num() > 0)
+	if (Plugins.Num() > 0)
 	{
-		Writer.WriteArrayStart(Name);
+		Writer.WriteArrayStart(ArrayName);
 
-		for (int Idx = 0; Idx < Plugins.Num(); Idx++)
+		for (const FPluginReferenceDescriptor& PluginRef : Plugins)
 		{
-			Plugins[Idx].Write(Writer);
+			PluginRef.Write(Writer);
 		}
 
 		Writer.WriteArrayEnd();
 	}
+}
+
+void FPluginReferenceDescriptor::UpdateArray(FJsonObject& JsonObject, const TCHAR* ArrayName, const TArray<FPluginReferenceDescriptor>& Plugins)
+{
+	typedef FJsonObjectArrayUpdater<FPluginReferenceDescriptor, FString> FPluginRefJsonArrayUpdater;
+
+	FPluginRefJsonArrayUpdater::Execute(
+		JsonObject, ArrayName, Plugins, 
+		FPluginRefJsonArrayUpdater::FGetElementKey::CreateStatic(PluginReferenceDescriptor::GetPluginRefKey),
+		FPluginRefJsonArrayUpdater::FTryGetJsonObjectKey::CreateStatic(PluginReferenceDescriptor::TryGetPluginRefJsonObjectKey),
+		FPluginRefJsonArrayUpdater::FUpdateJsonObject::CreateStatic(PluginReferenceDescriptor::UpdatePluginRefJsonObject));
 }
 
 #undef LOCTEXT_NAMESPACE
