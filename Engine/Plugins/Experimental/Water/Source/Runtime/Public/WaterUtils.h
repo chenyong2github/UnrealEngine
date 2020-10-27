@@ -18,9 +18,10 @@ struct FWaterUtils
 	 * @param InMaterialInterface is the parent material interface of the desired MID: can be a UMaterial or UMaterialInstanceConstant, in which case 
 	    a MID can be created, or a UMaterialInstanceDynamic, which will just be returned as-is (as we can't create MID out of another). In the latter case, it is expected to be a transient MID.
 		InMID is read-only so it's up to the caller to decide to update or not the MID. Usually, the calling code will be : MID = FWaterUtils::GetOrCreateTransientMID(MID, ...)
+	* @param InAdditionalObjectFlags is the additional flags that should be set on the newly-created object, if any (it will come out with at least RF_Transient as the name of the function implies)
 	 * @return a compatible transient MID if InMaterialInterface is valid, nullptr otherwise
 	 */
-	static WATER_API UMaterialInstanceDynamic* GetOrCreateTransientMID(UMaterialInstanceDynamic* InMID, FName InMIDName, UMaterialInterface* InMaterialInterface);
+	static WATER_API UMaterialInstanceDynamic* GetOrCreateTransientMID(UMaterialInstanceDynamic* InMID, FName InMIDName, UMaterialInterface* InMaterialInterface, EObjectFlags InAdditionalObjectFlags = RF_NoFlags);
 
 	/** 
 	 *  Creates a transient render target of the proper size/format/... or returns the existing one if it's compatible.
