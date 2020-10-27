@@ -7,7 +7,7 @@
 #include "Interfaces/IDMXProtocolUniverse.h"
 #include "Packets/DMXProtocolArtNetPackets.h"
 
-#include "Async/TaskGraphInterfaces.h"
+#include "Async/AsyncWork.h"
 #include "Misc/ScopeLock.h"
 #include "Templates/SharedPointer.h"
 
