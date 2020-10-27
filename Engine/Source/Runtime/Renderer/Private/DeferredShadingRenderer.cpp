@@ -1689,7 +1689,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 		// Interpolation needs to happen after the skin cache run as there is a dependency 
 		// on the skin cache output.
-		const bool bRunHairStrands = HairStrandsBookmarkParameters.bHasElements && (Views.Num() > 0) && !ViewFamily.bWorldIsPaused;
+		const bool bRunHairStrands = HairStrandsBookmarkParameters.bHasElements && (Views.Num() > 0);
 		if (bRunHairStrands)
 		{
 			if (HairStrandsBookmarkParameters.bStrandsGeometryEnabled)
