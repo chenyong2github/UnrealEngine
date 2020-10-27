@@ -9,7 +9,6 @@
 #include "RigVMModel/RigVMPin.h"
 #include "IPropertyAccessEditor.h"
 #include "ControlRigBlueprint.h"
-#include "SControlRigGraphPinVariableBinding.h"
 
 class SControlRigVariableBinding : public SCompoundWidget
 {
