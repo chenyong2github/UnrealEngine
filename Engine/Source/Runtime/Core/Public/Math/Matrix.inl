@@ -500,6 +500,19 @@ inline bool FMatrix::ContainsNaN() const
 	return false;
 }
 
+/** @return the minimum magnitude of any row of the matrix. */
+inline float FMatrix::GetMinimumAxisScale() const
+{
+	const float MaxRowScaleSquared = FMath::Min(
+		GetScaledAxis(EAxis::X).SizeSquared(),
+		FMath::Min(
+			GetScaledAxis(EAxis::Y).SizeSquared(),
+			GetScaledAxis(EAxis::Z).SizeSquared()
+		)
+	);
+	return FMath::Sqrt(MaxRowScaleSquared);
+}
+
 /** @return the maximum magnitude of any row of the matrix. */
 inline float FMatrix::GetMaximumAxisScale() const
 {

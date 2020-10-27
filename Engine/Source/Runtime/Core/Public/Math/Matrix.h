@@ -201,6 +201,9 @@ public:
 	/** Scale the translation part of the matrix by the supplied vector. */
 	inline void ScaleTranslation(const FVector& Scale3D);
 
+	/** @return the minimum magnitude of any row of the matrix. */
+	inline float GetMinimumAxisScale() const;
+
 	/** @return the maximum magnitude of any row of the matrix. */
 	inline float GetMaximumAxisScale() const;
 

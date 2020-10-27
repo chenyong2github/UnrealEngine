@@ -595,8 +595,7 @@ void FDeferredShadingSceneRenderer::UpdateGlobalDistanceFieldObjectBuffers(FRDGB
 									bool bThrottled;
 									PrimAndInst.Primitive->Proxy->GetDistancefieldAtlasData(LocalVolumeBounds, DistanceMinMax, BlockMin, BlockSize, bBuiltAsIfTwoSided, SelfShadowBias, bThrottled);
 
-									FMatrix LocalToWorld = PrimAndInst.LocalToWorld;
-									const float MaxScale = LocalToWorld.GetMaximumAxisScale();
+									const FMatrix LocalToWorld = PrimAndInst.LocalToWorld;
 
 									const FMatrix VolumeToWorld = FScaleMatrix(LocalVolumeBounds.GetExtent())
 										* FTranslationMatrix(LocalVolumeBounds.GetCenter())
@@ -625,7 +624,7 @@ void FDeferredShadingSceneRenderer::UpdateGlobalDistanceFieldObjectBuffers(FRDGB
 									//float3 VolumeUV = (VolumePosition / LocalPositionExtent * .5f * UVScale + .5f * UVScale + UVAdd;
 									const FVector LocalPositionExtent = LocalVolumeBounds.GetExtent() / FVector(MaxExtent);
 									const FVector UVScale = FVector(BlockSize) * InvTextureDim;
-									const float VolumeScale = UniformScaleVolumeToWorld.GetMaximumAxisScale();
+									const float VolumeMinScale = UniformScaleVolumeToWorld.GetMinimumAxisScale();
 
 									const FMatrix WorldToVolumeT = UniformScaleVolumeToWorld.Inverse().GetTransposed();
 									// WorldToVolumeT
@@ -646,7 +645,7 @@ void FDeferredShadingSceneRenderer::UpdateGlobalDistanceFieldObjectBuffers(FRDGB
 
 									// UVScale, VolumeScale and sign gives bGeneratedAsTwoSided
 									const float WSign = bBuiltAsIfTwoSided ? -1 : 1;
-									UploadObjectData[4] = FVector4(FVector(BlockSize) * InvTextureDim * .5f / LocalPositionExtent, WSign * VolumeScale);
+									UploadObjectData[4] = FVector4(FVector(BlockSize) * InvTextureDim * .5f / LocalPositionExtent, WSign * VolumeMinScale);
 
 									// UVAdd
 									UploadObjectData[5] = FVector4(FVector(BlockMin) * InvTextureDim + .5f * UVScale, SelfShadowBias);
