@@ -166,7 +166,7 @@ FRigUnit_AimBone_Execute()
 		SecondaryTargetItem,
 		Weight,
 		DebugSettings,
-		BoneIndex,
+		CachedBoneIndex,
 		PrimaryCachedSpace,
 		SecondaryCachedSpace,
 		ExecuteContext,
