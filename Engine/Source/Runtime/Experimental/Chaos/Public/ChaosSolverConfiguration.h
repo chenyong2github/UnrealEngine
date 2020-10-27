@@ -30,6 +30,8 @@ struct FChaosSolverConfiguration
 		, CollisionMarginFraction(FEvolution::DefaultCollisionMarginFraction)
 		, CollisionMarginMax(FEvolution::DefaultCollisionMarginMax)
 		, CollisionCullDistance(FEvolution::DefaultCollisionCullDistance)
+		, JointPairIterations(FEvolution::DefaultNumJointPairIterations)
+		, JointPushOutPairIterations(FEvolution::DefaultNumJointPushOutPairIterations)
 		, ClusterConnectionFactor(1.0f)
 		, ClusterUnionConnectionType(EClusterUnionMethod::DelaunayTriangulation)
 		, bGenerateCollisionData(false)
@@ -49,7 +51,7 @@ struct FChaosSolverConfiguration
 	int32 CollisionPairIterations;
 
 	// The number of iterations to run during the constraint fixup step. This applies a post-solve
-	// correction that can address errors left behind during the mainm solver iterations.
+	// correction that can address errors left behind during the main solver iterations.
 	UPROPERTY(EditAnywhere, Category = "SolverConfiguration|Iterations")
 	int32 PushOutIterations;
 
@@ -72,6 +74,16 @@ struct FChaosSolverConfiguration
 	// during the collision detection step.
 	UPROPERTY(EditAnywhere, Category = "SolverConfiguration|Collision")
 	float CollisionCullDistance;
+
+	// The number of iterations to run on each constraint during the constraint solver step
+	UPROPERTY(EditAnywhere, Category = "SolverConfiguration|Iterations")
+	int32 JointPairIterations;
+
+	// The number of iterations to run during the constraint fixup step for each joint. This applies a post-solve
+	// correction that can address errors left behind during the main solver iterations.
+	UPROPERTY(EditAnywhere, Category = "SolverConfiguration|Iterations")
+	int32 JointPushOutPairIterations;
+
 
 	UPROPERTY(EditAnywhere, Category = "SolverConfiguration|Clustering")
 	float ClusterConnectionFactor;

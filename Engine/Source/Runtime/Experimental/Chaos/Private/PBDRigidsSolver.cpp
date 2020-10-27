@@ -87,14 +87,25 @@ FAutoConsoleVariableRef CVarChaosSolverParticlePoolNumFrameUntilShrink(TEXT("p.C
 
 // Iteration count cvars
 // These override the engine config if >= 0
+
 int32 ChaosSolverIterations = -1;
-int32 ChaosSolverPushOutIterations = -1;
-int32 ChaosSolverCollisionIterations = -1;
-int32 ChaosSolverCollisionPushOutIterations = -1;
 FAutoConsoleVariableRef CVarChaosSolverIterations(TEXT("p.Chaos.Solver.Iterations"), ChaosSolverIterations, TEXT("Override umber of solver iterations (-1 to use config)"));
+
+int32 ChaosSolverCollisionIterations = -1;
 FAutoConsoleVariableRef CVarChaosSolverCollisionIterations(TEXT("p.Chaos.Solver.Collision.Iterations"), ChaosSolverCollisionIterations, TEXT("Override number of collision iterations per solver iteration (-1 to use config)"));
+
+int32 ChaosSolverPushOutIterations = -1;
 FAutoConsoleVariableRef CVarChaosSolverPushOutIterations(TEXT("p.Chaos.Solver.PushoutIterations"), ChaosSolverPushOutIterations, TEXT("Override number of solver pushout iterations (-1 to use config)"));
+
+int32 ChaosSolverCollisionPushOutIterations = -1;
 FAutoConsoleVariableRef CVarChaosSolverCollisionPushOutIterations(TEXT("p.Chaos.Solver.Collision.PushOutIterations"), ChaosSolverCollisionPushOutIterations, TEXT("Override number of collision iterations per solver iteration (-1 to use config)"));
+
+int32 ChaosSolverJointPairIterations = -1;
+FAutoConsoleVariableRef CVarChaosSolverJointPairIterations(TEXT("p.Chaos.Solver.Joint.PairIterations"), ChaosSolverJointPairIterations, TEXT("Override number of iterations per joint pair during a solver iteration (-1 to use config)"));
+
+int32 ChaosSolverJointPushOutPairIterations = -1;
+FAutoConsoleVariableRef CVarChaosSolverJointPushOutPairIterations(TEXT("p.Chaos.Solver.Joint.PushOutPairIterations"), ChaosSolverJointPushOutPairIterations, TEXT("Override number of push out iterations per joint during a solver iteration (-1 to use config)"));
+
 
 // Collision detection cvars
 // These override the engine config if >= 0
@@ -757,6 +768,14 @@ namespace Chaos
 			{
 				SetCollisionPushOutPairIterations(ChaosSolverCollisionPushOutIterations);
 			}
+			if (ChaosSolverJointPairIterations >= 0.0f)
+			{
+				SetJointPairIterations(ChaosSolverJointPairIterations);
+			}
+			if (ChaosSolverJointPushOutPairIterations >= 0.0f)
+			{
+				SetJointPushOutPairIterations(ChaosSolverJointPushOutPairIterations);
+			}
 			if (ChaosSolverCullDistance >= 0.0f)
 			{
 				SetCollisionCullDistance(ChaosSolverCullDistance);
@@ -1314,6 +1333,8 @@ namespace Chaos
 		SetCollisionPairIterations(InConfig.CollisionPairIterations);
 		SetPushOutIterations(InConfig.PushOutIterations);
 		SetCollisionPushOutPairIterations(InConfig.CollisionPushOutPairIterations);
+		SetJointPairIterations(InConfig.JointPairIterations);
+		SetJointPushOutPairIterations(InConfig.JointPushOutPairIterations);
 		SetCollisionCullDistance(InConfig.CollisionCullDistance);
 		SetGenerateCollisionData(InConfig.bGenerateCollisionData);
 		SetGenerateBreakingData(InConfig.bGenerateBreakData);
