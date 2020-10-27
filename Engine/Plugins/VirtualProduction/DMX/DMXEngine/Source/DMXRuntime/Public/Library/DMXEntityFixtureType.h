@@ -232,6 +232,12 @@ struct DMXRUNTIME_API FDMXFixtureMode
 		, bAutoChannelSpan(true)
 	{}
 
+#if WITH_EDITOR
+	/**
+	 * Adding the function into the mode, checking the channel offset
+	 */
+	int32 AddOrInsertFunction(int32 IndexOfFunction, const FDMXFixtureFunction& InFunction);
+#endif
 };
 
 #if WITH_EDITOR
