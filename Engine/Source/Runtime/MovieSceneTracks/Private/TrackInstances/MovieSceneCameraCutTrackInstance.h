@@ -39,6 +39,7 @@ private:
 	{
 		int32 UseCount = 0;
 		bool bValid = false;
+		bool bCanBlend = false;
 	};
 
 	FCameraCutCache CameraCutCache;
