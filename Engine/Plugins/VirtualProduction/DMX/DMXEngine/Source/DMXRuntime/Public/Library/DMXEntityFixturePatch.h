@@ -54,6 +54,11 @@ public:
 
 	const TSharedPtr<FDMXSignal>& GetLastReceivedDMXSignal() const { return CachedLastDMXSignal; }
 
+#if WITH_EDITOR
+	/** Clears cached data. Useful in dmx to rest to default state on begin and end PIE */
+	void ClearCachedData();
+#endif // WITH_EDITOR
+
 private:
 	/** Updates CachedDMXValues, returns true if cached values changed. */
 	bool UpdateCachedDMXValues();

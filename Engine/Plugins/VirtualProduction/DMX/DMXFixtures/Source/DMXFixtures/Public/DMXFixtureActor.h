@@ -47,7 +47,6 @@ public:
 	bool HasBeenInitialized;
 	float LensRadius;
 	void FeedFixtureData();
-	void SetDefaultFixtureState();
 
 	// VISUAL QUALITY LEVEL----------------------
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX Light Fixture", meta = (DisplayPriority = 0))
@@ -72,11 +71,14 @@ public:
 	void PushNormalizedValuesPerAttribute(const FDMXNormalizedAttributeValueMap& ValuePerAttributeMap);
 
 protected:
+	/** Sets the fixture in a defaulted state using default values of its Fixture Components */
+	void SetDefaultFixtureState();
+	
 	/*
 	 * Pushes DMX Values to the Fixture. Does not interpolate, causing fixtures to jump to the value directly. 
 	 * Useful for initalization when data is first received.
 	 */
-	virtual void ReInitalizeAttributeValueNoInterp(const FDMXAttributeName& AttributeName, float Value);
+	virtual void InitalizeAttributeValueNoInterp(const FDMXAttributeName& AttributeName, float Value);
 
 	/** Contains all attributes that were received at least once and got initalized  */
 	TSet<FDMXAttributeName> InitializedAttributes;
