@@ -71,6 +71,7 @@
 #include "Rendering/StaticLightingSystemInterface.h"
 #endif
 
+
 /** Affects BasePassPixelShader.usf so must relaunch editor to recompile shaders. */
 static TAutoConsoleVariable<int32> CVarEarlyZPassOnlyMaterialMasking(
 	TEXT("r.EarlyZPassOnlyMaterialMasking"),
@@ -127,6 +128,8 @@ TGlobalResource< FGlobalDistanceCullFadeUniformBuffer > GDistanceCullFadedInUnif
 TGlobalResource< FGlobalDitherUniformBuffer > GDitherFadedInUniformBuffer;
 
 static FThreadSafeCounter FSceneViewState_UniqueID;
+
+extern bool IsVelocityMergedWithDepthPass();
 
 /**
  * Holds the info to update SpeedTree wind per unique tree object in the scene, instead of per instance
@@ -3431,11 +3434,11 @@ void FScene::UpdateEarlyZPassMode()
 		if (ShouldForceFullDepthPass(ShaderPlatform))
 		{
 			// DBuffer decals and stencil LOD dithering force a full prepass
-			EarlyZPassMode = DDM_AllOpaque;
-			bEarlyZPassMovable = true;
+			EarlyZPassMode = IsVelocityMergedWithDepthPass() ? DDM_AllOpaqueNoVelocity : DDM_AllOpaque;
+			bEarlyZPassMovable = IsVelocityMergedWithDepthPass() ? false : true;
 		}
 
-		if (EarlyZPassMode == DDM_AllOpaque
+		if ((EarlyZPassMode == DDM_AllOpaque || EarlyZPassMode == DDM_AllOpaqueNoVelocity)
 			&& CVarBasePassWriteDepthEvenWithFullPrepass.GetValueOnAnyThread() == 0)
 		{
 			DefaultBasePassDepthStencilAccess = FExclusiveDepthStencil::DepthRead_StencilWrite;

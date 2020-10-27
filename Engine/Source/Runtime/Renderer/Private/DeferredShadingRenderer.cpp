@@ -1493,8 +1493,11 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		&& !ViewFamily.EngineShowFlags.Wireframe
 		&& !ViewFamily.EngineShowFlags.LightMapDensity;
 
+	// if DDM_AllOpaqueNoVelocity was used, then velocity should have already been rendered as well
+	const bool bIsEarlyDepthComplete = (DepthPass.EarlyZPassMode == DDM_AllOpaque || DepthPass.EarlyZPassMode == DDM_AllOpaqueNoVelocity);
+
 	// Use read-only depth in the base pass if we have a full depth prepass.
-	const bool bAllowReadOnlyDepthBasePass = DepthPass.EarlyZPassMode == DDM_AllOpaque
+	const bool bAllowReadOnlyDepthBasePass = bIsEarlyDepthComplete
 		&& !ViewFamily.EngineShowFlags.ShaderComplexity
 		&& !ViewFamily.UseDebugViewPS()
 		&& !ViewFamily.EngineShowFlags.Wireframe
@@ -1754,6 +1757,21 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		Nanite::GStreamingManager.EndAsyncUpdate(GraphBuilder);
 	}
 
+	FRDGTextureRef VelocityTexture = TryRegisterExternalTexture(GraphBuilder, SceneContext.SceneVelocity);
+
+	const bool bShouldRenderVelocities = ShouldRenderVelocities();
+	const bool bBasePassCanOutputVelocity = FVelocityRendering::BasePassCanOutputVelocity(FeatureLevel);
+	const bool bUseSelectiveBasePassOutputs = IsUsingSelectiveBasePassOutputs(ShaderPlatform);
+	const bool bIsViewCompatible = Views.Num() > 0;
+	const bool bHairEnable = HairStrandsBookmarkParameters.bHasElements && bIsViewCompatible && IsHairStrandsEnabled(EHairStrandsShaderType::Strands, Views[0].GetShaderPlatform());
+
+	{
+		// Even if !bShouldRenderVelocities, the velocity buffer must be bound because it's a compile time option for the shader. Also, this pass was modified
+		// to allocate the velocity texture, since we need it earlier in the frame and itss usage is separate from the rest of the GBuffer passes.
+		SceneContext.PreallocGBufferTargets();
+		SceneContext.AllocVelocityTarget(RHICmdList);
+	}
+
 	{
 		AddSetCurrentStatPass(GraphBuilder, GET_STATID(STAT_CLM_PrePass));
 
@@ -1775,8 +1793,19 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 			// We didn't do the prepass, but we still want the HMD mask if there is one
 			RenderPrePassHMD(GraphBuilder, SceneDepthTexture.Target);
 		}
+
 		AddSetCurrentStatPass(GraphBuilder, GET_STATID(STAT_CLM_AfterPrePass));
 		AddServiceLocalQueuePass(GraphBuilder);
+
+		// special pass for DDM_AllOpaqueNoVelocity, which uses the velocity pass to finish the early depth pass write
+		if (bShouldRenderVelocities && Scene->EarlyZPassMode == DDM_AllOpaqueNoVelocity)
+		{
+			// Render the velocities of movable objects
+			AddSetCurrentStatPass(GraphBuilder, GET_STATID(STAT_CLM_Velocity));
+			RenderVelocities(GraphBuilder, SceneDepthTexture.Resolve, VelocityTexture, nullptr, EVelocityPass::Opaque, bHairEnable);
+			AddSetCurrentStatPass(GraphBuilder, GET_STATID(STAT_CLM_AfterVelocity));
+			AddServiceLocalQueuePass(GraphBuilder);
+		}
 
 		if (bDoInitViewAftersPrepass)
 		{
@@ -1838,7 +1867,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 				Nanite::FCullingContext CullingContext = Nanite::InitCullingContext(
 					GraphBuilder,
 					*Scene,
-					DepthPass.EarlyZPassMode != DDM_AllOpaque ? View.PrevViewInfo.NaniteHZB : View.PrevViewInfo.HZB,
+					!bIsEarlyDepthComplete ? View.PrevViewInfo.NaniteHZB : View.PrevViewInfo.HZB,
 					View.PrevViewInfo.ViewRect,
 					bTwoPassOcclusion,
 					bUpdateStreaming,
@@ -1862,7 +1891,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 					bExtractStats
 				);
 
-				if (DepthPass.EarlyZPassMode != DDM_AllOpaque && bTwoPassOcclusion && View.ViewState)
+				if (!bIsEarlyDepthComplete && bTwoPassOcclusion && View.ViewState)
 				{
 					// Won't have a complete SceneDepth for post pass so can't use complete HZB for main pass or it will poke holes in the post pass HZB killing occlusion culling.
 					RDG_EVENT_SCOPE(GraphBuilder, "BuildNaniteHZB");
@@ -1894,10 +1923,6 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	ESceneTextureSetupMode SceneTexturesSetupMode = ESceneTextureSetupMode::SceneDepth;
 	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTextures = CreateSceneTextureUniformBuffer(GraphBuilder, FeatureLevel, SceneTexturesSetupMode);
 
-	const bool bShouldRenderVelocities = ShouldRenderVelocities();
-	const bool bBasePassCanOutputVelocity = FVelocityRendering::BasePassCanOutputVelocity(FeatureLevel);
-	const bool bUseSelectiveBasePassOutputs = IsUsingSelectiveBasePassOutputs(ShaderPlatform);
-
 	AddResolveSceneDepthPass(GraphBuilder, Views, SceneDepthTexture);
 
 	// NOTE: The ordering of the lights is used to select sub-sets for different purposes, e.g., those that support clustered deferred.
@@ -1913,7 +1938,6 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 	{
 		SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_AllocGBufferTargets);
-		SceneContext.PreallocGBufferTargets(); // Even if !bShouldRenderVelocities, the velocity buffer must be bound because it's a compile time option for the shader.
 		SceneContext.AllocGBufferTargets(RHICmdList);
 	}
 
@@ -1948,7 +1972,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	};
 
 	// Early occlusion queries
-	const bool bOcclusionBeforeBasePass = !bNaniteEnabled && ((DepthPass.EarlyZPassMode == EDepthDrawingMode::DDM_AllOccluders) || (DepthPass.EarlyZPassMode == EDepthDrawingMode::DDM_AllOpaque));
+	const bool bOcclusionBeforeBasePass = !bNaniteEnabled && ((DepthPass.EarlyZPassMode == EDepthDrawingMode::DDM_AllOccluders) || bIsEarlyDepthComplete);
 
 	if (bOcclusionBeforeBasePass)
 	{
@@ -2031,8 +2055,6 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 	FHairStrandsRenderingData* HairDatas = nullptr;
 	FHairStrandsRenderingData HairDatasStorage;
-	const bool bIsViewCompatible = Views.Num() > 0;
-	const bool bHairEnable = HairStrandsBookmarkParameters.bHasElements && bIsViewCompatible && IsHairStrandsEnabled(EHairStrandsShaderType::Strands, Views[0].GetShaderPlatform());
 
 	FRDGTextureRef ForwardScreenSpaceShadowMaskTexture = nullptr;
 	FRDGTextureRef ForwardScreenSpaceShadowMaskHairTexture = nullptr;
@@ -2139,8 +2161,6 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		}
 	}
 
-	FRDGTextureRef VelocityTexture = TryRegisterExternalTexture(GraphBuilder, SceneContext.SceneVelocity);
-
 	// Rebuild scene textures to include GBuffers.
 	SceneTexturesSetupMode |= ESceneTextureSetupMode::GBuffers;
 	SceneTextures = CreateSceneTextureUniformBuffer(GraphBuilder, FeatureLevel, SceneTexturesSetupMode);
@@ -2241,8 +2261,11 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	FRDGTextureRef SkyLightHitDistanceTexture = nullptr;
 #endif
 
+	// TODO: Keeping the velocities here for testing, but if that works, this pass will be remove and DDM_AllOpaqueNoVelocity will be the only option with
+	// DBuffer decals enabled.
+
 	// If bBasePassCanOutputVelocity is set, basepass fully writes the velocity buffer unless bUseSelectiveBasePassOutputs is enabled.
-	if (bShouldRenderVelocities && (!bBasePassCanOutputVelocity || bUseSelectiveBasePassOutputs))
+	if (bShouldRenderVelocities && (!bBasePassCanOutputVelocity || bUseSelectiveBasePassOutputs) && (Scene->EarlyZPassMode != DDM_AllOpaqueNoVelocity))
 	{
 		// Render the velocities of movable objects
 		AddSetCurrentStatPass(GraphBuilder, GET_STATID(STAT_CLM_Velocity));

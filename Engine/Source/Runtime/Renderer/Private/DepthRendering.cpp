@@ -67,6 +67,11 @@ static TAutoConsoleVariable<int32> CVarStencilForLODDither(
 	TEXT("Forces a full prepass when enabled."),
 	ECVF_RenderThreadSafe | ECVF_ReadOnly);
 
+static TAutoConsoleVariable<int32> CVarDepthPassMergedWithVelocity(
+	TEXT("r.DepthPassMergedWithVelocity"),
+	0,
+	TEXT("If enabled, and we are doing a full depth pass, then the depth pass will ignore movable objects and the velocity pass will write depth directly after the depth pass. After the velocity pass is finished, a full opaque depth-only texture is ready."));
+
 extern bool IsHMDHiddenAreaMaskActive();
 
 FDepthPassInfo GetDepthPassInfo(const FScene* Scene)
@@ -116,6 +121,8 @@ const TCHAR* GetDepthDrawingModeString(EDepthDrawingMode Mode)
 		return TEXT("DDM_AllOccluders");
 	case DDM_AllOpaque:
 		return TEXT("DDM_AllOpaque");
+	case DDM_AllOpaqueNoVelocity:
+		return TEXT("DDM_AllOpaqueNoVelocity");
 	default:
 		check(0);
 	}
@@ -824,6 +831,34 @@ void FDepthPassMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch,
 			}
 		}
 		else
+		{
+			bDraw = false;
+		}
+	}
+
+	// if we are skipping movable objects in early Z, which can happen in DDM_AllOpaqueNoVelocity
+	if (EarlyZPassMode == DDM_AllOpaqueNoVelocity && PrimitiveSceneProxy&& ViewIfDynamicMeshCommand)
+	{
+		// We should ideally check to see if we are using the FOpaqueVelocityMeshProcessor or FTranslucentVelocityMeshProcessor. But for
+		// the object to get here, it would already be culled if it was translucent. We can safely use the FOpaqueVelocityMeshProcessor.
+
+		// This logic is copy/paste/modified from FOpaqueVelocityMeshProcessor::AddMeshBatch(), but ideally we should clean it up into
+		// a single function that is shared to avoid breakages from code changes.
+		EShaderPlatform ShaderPlatform = ViewIfDynamicMeshCommand->GetShaderPlatform();
+		if (!FOpaqueVelocityMeshProcessor::PrimitiveCanHaveVelocity(ShaderPlatform, PrimitiveSceneProxy))
+		{
+			bDraw = false;
+		}
+
+		if (!FOpaqueVelocityMeshProcessor::PrimitiveHasVelocityForFrame(PrimitiveSceneProxy))
+		{
+			bDraw = false;
+		}
+
+		checkSlow(ViewIfDynamicMeshCommand->bIsViewInfo);
+		FViewInfo* ViewInfo = (FViewInfo*)ViewIfDynamicMeshCommand;
+
+		if (!FOpaqueVelocityMeshProcessor::PrimitiveHasVelocityForView(*ViewInfo, PrimitiveSceneProxy))
 		{
 			bDraw = false;
 		}

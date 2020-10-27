@@ -1331,6 +1331,18 @@ static FPooledRenderTargetDesc GetDescFromRenderTarget(FIntPoint BufferSize, con
 	return Desc;
 }
 
+void FSceneRenderTargets::AllocVelocityTarget(FRHICommandList& RHICmdList)
+{
+	const EShaderPlatform ShaderPlatform = GetFeatureLevelShaderPlatform(CurrentFeatureLevel);
+
+	if (bAllocateVelocityGBuffer)
+	{
+		FPooledRenderTargetDesc VelocityRTDesc = Translate(FVelocityRendering::GetRenderTargetDesc(ShaderPlatform));
+		VelocityRTDesc.Flags |= GFastVRamConfig.GBufferVelocity;
+		GRenderTargetPool.FindFreeElement(RHICmdList, VelocityRTDesc, SceneVelocity, TEXT("GBufferVelocity"));
+	}
+}
+
 void FSceneRenderTargets::AllocGBufferTargets(FRHICommandList& RHICmdList, ETextureCreateFlags AddTargetableFlags)
 {	
 	// AdjustGBufferRefCount +1 doesn't match -1 (within the same frame)
@@ -1357,13 +1369,6 @@ void FSceneRenderTargets::AllocGBufferTargets(FRHICommandList& RHICmdList, EText
 			FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(BufferSize, GetGBufferAFormat(), FClearValueBinding::Transparent, TexCreate_None, TexCreate_RenderTargetable | TexCreate_ShaderResource | AddTargetableFlags , false));
 			Desc.Flags |= GFastVRamConfig.GBufferA;
 			GRenderTargetPool.FindFreeElement(RHICmdList, Desc, GBufferA, TEXT("GBufferA"));
-		}
-
-		if (bAllocateVelocityGBuffer)
-		{
-			FPooledRenderTargetDesc VelocityRTDesc = Translate(FVelocityRendering::GetRenderTargetDesc(ShaderPlatform));
-			VelocityRTDesc.Flags |= GFastVRamConfig.GBufferVelocity;
-			GRenderTargetPool.FindFreeElement(RHICmdList, VelocityRTDesc, SceneVelocity, TEXT("GBufferVelocity"));
 		}
 	}
 	else
@@ -1427,14 +1432,6 @@ void FSceneRenderTargets::AllocGBufferTargets(FRHICommandList& RHICmdList, EText
 
 		// otherwise we have a severe problem
 		check(GBufferA);
-
-		if (IndexVelocity >= 0)
-		{
-			//FPooledRenderTargetDesc VelocityRTDesc = Translate(FVelocityRendering::GetRenderTargetDesc(ShaderPlatform));
-			FPooledRenderTargetDesc Desc = GetDescFromRenderTarget(BufferSize, GBufferInfo.Targets[IndexVelocity], AddTargetableFlags);
-			Desc.Flags |= GFastVRamConfig.GBufferVelocity;
-			GRenderTargetPool.FindFreeElement(RHICmdList, Desc, SceneVelocity, TEXT("GBufferVelocity"));
-		}
 
 	}
 

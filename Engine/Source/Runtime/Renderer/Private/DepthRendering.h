@@ -29,6 +29,8 @@ enum EDepthDrawingMode
 	DDM_AllOpaque		= 3,
 	// Masked materials only
 	DDM_MaskedOnly = 4,
+	// Full prepass, every object must be drawn and every pixel must match the base pass depth, except dynamic geometry which will render in the Velocity pass
+	DDM_AllOpaqueNoVelocity	= 5,
 };
 
 extern const TCHAR* GetDepthDrawingModeString(EDepthDrawingMode Mode);

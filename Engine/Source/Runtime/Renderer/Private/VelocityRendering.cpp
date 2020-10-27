@@ -61,6 +61,13 @@ bool IsVelocityWaitForTasksEnabled()
 	return IsParallelVelocity() && (CVarRHICmdFlushRenderThreadTasksVelocityPass.GetValueOnRenderThread() > 0 || CVarRHICmdFlushRenderThreadTasks.GetValueOnRenderThread() > 0);
 }
 
+bool IsVelocityMergedWithDepthPass()
+{
+	static const auto CVarDepthPassMergedWithVelocity = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.DepthPassMergedWithVelocity"));
+	bool bIsMerged = (CVarDepthPassMergedWithVelocity && CVarDepthPassMergedWithVelocity->GetValueOnAnyThread() != 0);
+	return bIsMerged;
+}
+
 class FVelocityVS : public FMeshMaterialShader
 {
 public:
@@ -302,9 +309,9 @@ void FDeferredShadingSceneRenderer::RenderVelocities(
 				DepthTexture,
 				ERenderTargetLoadAction::ELoad,
 				ERenderTargetLoadAction::ELoad,
-				VelocityPass == EVelocityPass::Opaque
-				? FExclusiveDepthStencil::DepthRead_StencilWrite
-				: FExclusiveDepthStencil::DepthWrite_StencilWrite);
+				(VelocityPass == EVelocityPass::Opaque && !(Scene->EarlyZPassMode == DDM_AllOpaqueNoVelocity))
+					? FExclusiveDepthStencil::DepthRead_StencilWrite
+					: FExclusiveDepthStencil::DepthWrite_StencilWrite);
 
 			if (IsParallelVelocity())
 			{
@@ -741,7 +748,9 @@ FMeshPassProcessor* CreateVelocityPassProcessor(const FScene* Scene, const FScen
 {
 	FMeshPassProcessorRenderState VelocityPassState;
 	VelocityPassState.SetBlendState(TStaticBlendState<CW_RGBA>::GetRHI());
-	VelocityPassState.SetDepthStencilState(TStaticDepthStencilState<false, CF_DepthNearOrEqual>::GetRHI());
+	VelocityPassState.SetDepthStencilState((Scene->EarlyZPassMode == DDM_AllOpaqueNoVelocity) // if the depth mode is all opaque except velocity, it relies on velocity to write the depth of the remaining meshes
+										    ? TStaticDepthStencilState<true, CF_DepthNearOrEqual>::GetRHI()
+											: TStaticDepthStencilState<false, CF_DepthNearOrEqual>::GetRHI());
 
 	return new(FMemStack::Get()) FOpaqueVelocityMeshProcessor(Scene, InViewIfDynamicMeshCommand, VelocityPassState, InDrawListContext);
 }

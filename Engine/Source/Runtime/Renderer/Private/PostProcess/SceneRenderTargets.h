@@ -410,7 +410,7 @@ public:
 	void AdjustGBufferRefCount(FRHICommandList& RHICmdList, int Delta);
 
 	void PreallocGBufferTargets();
-	bool AllocateGBufferTarget(const FName& TargetName, ETextureCreateFlags TargetFlags) const;
+	bool AllocateGBufferTargets(const FName& TargetName, ETextureCreateFlags TargetFlags) const;
 
 	EPixelFormat GetGBufferAFormat() const;
 	EPixelFormat GetGBufferBFormat() const;
@@ -420,6 +420,7 @@ public:
 	EPixelFormat GetGBufferFFormat() const;
 	void AllocGBufferTargets(FRHICommandList& RHICmdList);
 	void AllocGBufferTargets(FRHICommandList& RHICmdList, ETextureCreateFlags AddTargetableFlags);
+	void AllocVelocityTarget(FRHICommandList& RHICmdList);
 
 	void AllocateReflectionTargets(FRHICommandList& RHICmdList, int32 TargetSize);
 
