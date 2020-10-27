@@ -4,7 +4,6 @@
  
 #include "CoreMinimal.h"
 #include "IDetailCustomization.h"
-#include "IPropertyUtilities.h"
 #include "EditorUndoClient.h"
  
 class UEdGraphPin;

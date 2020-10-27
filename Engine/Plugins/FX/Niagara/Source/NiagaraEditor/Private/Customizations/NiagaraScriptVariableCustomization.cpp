@@ -1,28 +1,21 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
  
 #include "NiagaraScriptVariableCustomization.h"
- 
-#include "NiagaraScriptVariable.h"
-#include "NiagaraGraph.h"
-#include "NiagaraEditorModule.h"
- 
-#include "SNiagaraParameterEditor.h"
- 
-#include "DetailWidgetRow.h"
+
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
- 
-#include "TypeEditorUtilities/NiagaraFloatTypeEditorUtilities.h"
-#include "TypeEditorUtilities/NiagaraIntegerTypeEditorUtilities.h"
-#include "TypeEditorUtilities/NiagaraEnumTypeEditorUtilities.h"
-#include "TypeEditorUtilities/NiagaraBoolTypeEditorUtilities.h"
-#include "TypeEditorUtilities/NiagaraFloatTypeEditorUtilities.h"
-#include "TypeEditorUtilities/NiagaraVectorTypeEditorUtilities.h"
-#include "TypeEditorUtilities/NiagaraColorTypeEditorUtilities.h"
-#include "NiagaraEditorStyle.h"
+#include "DetailWidgetRow.h"
+#include "IPropertyUtilities.h"
 #include "ScopedTransaction.h"
-#include "NiagaraNode.h"
+
 #include "EdGraphSchema_Niagara.h"
+#include "INiagaraEditorTypeUtilities.h"
+#include "NiagaraEditorModule.h"
+#include "NiagaraEditorStyle.h"
+#include "NiagaraGraph.h"
+#include "NiagaraNode.h"
+#include "NiagaraScriptVariable.h"
+#include "SNiagaraParameterEditor.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraScriptVariableVariableDetails"
 
@@ -43,20 +36,10 @@ FNiagaraScriptVariableDetails::~FNiagaraScriptVariableDetails()
 
 UEdGraphPin* FNiagaraScriptVariableDetails::GetAnyDefaultPin()
 {
-	// TODO: We don't know the usage at this point, so we'll try each script type in order
-	//       This could probably be made much more robust, but works for now.
-	if (UNiagaraGraph* Graph = Cast<UNiagaraGraph>(Variable->GetOuter())) 
+	TArray<UEdGraphPin*> AllPins = GetDefaultPins();
+	if (AllPins.Num() > 0)
 	{
-		UEdGraphPin* Pin = Graph->FindParameterMapDefaultValuePin(Variable->Variable.GetName(), ENiagaraScriptUsage::Module, ENiagaraScriptUsage::Module);
-		if (Pin == nullptr)
-		{
-			Pin = Graph->FindParameterMapDefaultValuePin(Variable->Variable.GetName(), ENiagaraScriptUsage::DynamicInput, ENiagaraScriptUsage::Module);
-		}
-		if (Pin == nullptr)
-		{
-			Pin = Graph->FindParameterMapDefaultValuePin(Variable->Variable.GetName(), ENiagaraScriptUsage::Function, ENiagaraScriptUsage::Module);
-		}
-		return Pin;
+		return AllPins[0];
 	}
 	return nullptr;
 }
@@ -276,7 +259,7 @@ void FNiagaraScriptVariableDetails::CustomizeDetails(IDetailLayoutBuilder& Detai
 		}
 	}
 }
- 
+
 void FNiagaraScriptVariableDetails::OnValueChanged()
 {
 	if (TypeUtilityValue && ParameterEditorValue && GetDefaultPins().Num() > 0)
