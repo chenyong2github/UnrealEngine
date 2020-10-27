@@ -123,6 +123,12 @@ public:
 	/** Instantiate an exporter and register export start time */
 	void PreExport();
 
+	/** 
+	 * Manually shutdown the Facade and close down all the core engine systems and release the resources they allocated
+	 * You don't need to call this function on Windows platform.
+	 */
+	static void Shutdown();
+
 	/** Build and export a Datasmith scene instance and its scene element assets. */
 	void ExportScene(
 		const TCHAR* InOutputPath // Datasmith scene output file path
