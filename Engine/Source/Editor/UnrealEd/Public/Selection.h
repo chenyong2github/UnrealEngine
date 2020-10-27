@@ -7,7 +7,7 @@
 #include "UObject/UObjectGlobals.h"
 #include "UObject/Object.h"
 #include "Components/ActorComponent.h"
-#include "Elements/TypedElementSelectionSet.h"
+#include "Elements/Framework/TypedElementSelectionSet.h"
 #include "Selection.generated.h"
 
 class ISelectionElementBridge;

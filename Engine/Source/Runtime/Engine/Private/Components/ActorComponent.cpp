@@ -13,7 +13,7 @@
 #include "Components/PrimitiveComponent.h"
 #include "AI/NavigationSystemBase.h"
 #include "Engine/BlueprintGeneratedClass.h"
-#include "Elements/EngineElementsLibrary.h"
+#include "Elements/Framework/EngineElementsLibrary.h"
 #include "ContentStreaming.h"
 #include "ComponentReregisterContext.h"
 #include "Engine/AssetUserData.h"

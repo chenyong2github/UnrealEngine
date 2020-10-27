@@ -32,7 +32,7 @@
 #include "EditorModeRegistry.h"
 #include "EditorModeManager.h"
 #include "EditorModes.h"
-#include "Elements/EditorElements.h"
+#include "Elements/Framework/EditorElements.h"
 #include "UnrealEdMisc.h"
 #include "UnrealEdGlobals.h"
 

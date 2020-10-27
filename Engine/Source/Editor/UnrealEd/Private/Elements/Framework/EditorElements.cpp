@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Elements/EditorElements.h"
-#include "TypedElementRegistry.h"
+#include "Elements/Framework/EditorElements.h"
+#include "Elements/Framework/TypedElementRegistry.h"
 
 #include "Elements/Object/ObjectElementEditorSelectionInterface.h"
 

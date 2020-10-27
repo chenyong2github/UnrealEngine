@@ -8,7 +8,7 @@
 #include "Templates/SubclassOf.h"
 #include "Containers/ArrayView.h"
 #include "Templates/UniquePtr.h"
-#include "TypedElementHandle.h"
+#include "Elements/Framework/TypedElementHandle.h"
 #include "TypedElementList.generated.h"
 
 class UTypedElementList;

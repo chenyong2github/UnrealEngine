@@ -3,8 +3,8 @@
 #include "Selection.h"
 #include "UObject/Package.h"
 #include "GameFramework/Actor.h"
-#include "TypedElementObjectInterface.h"
-#include "Elements/EngineElementsLibrary.h"
+#include "Elements/Framework/EngineElementsLibrary.h"
+#include "Elements/Interfaces/TypedElementObjectInterface.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogSelection, Log, All);
 

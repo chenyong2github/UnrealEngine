@@ -1,9 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Elements/EngineElements.h"
-#include "Modules/ModuleManager.h"
-
-#include "TypedElementRegistry.h"
+#include "Elements/Framework/EngineElements.h"
+#include "Elements/Framework/TypedElementRegistry.h"
 
 #include "Elements/Object/ObjectElementData.h"
 #include "Elements/Object/ObjectElementObjectInterface.h"
@@ -16,6 +14,8 @@
 #include "Elements/Component/ComponentElementData.h"
 #include "Elements/Component/ComponentElementObjectInterface.h"
 #include "Elements/Component/ComponentElementSelectionInterface.h"
+
+#include "Modules/ModuleManager.h"
 
 FSimpleMulticastDelegate OnRegisterEngineElementsDelegate;
 

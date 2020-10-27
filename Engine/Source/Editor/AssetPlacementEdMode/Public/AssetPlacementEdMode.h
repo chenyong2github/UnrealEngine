@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Tools/UEdMode.h"
-#include "TypedElementHandle.h"
+#include "Elements/Framework/TypedElementHandle.h"
 
 #include "AssetPlacementEdMode.generated.h"
 

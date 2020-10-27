@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "TypedElementList.h"
-#include "TypedElementSelectionInterface.h"
+#include "Elements/Framework/TypedElementList.h"
+#include "Elements/Interfaces/TypedElementSelectionInterface.h"
 #include "TypedElementSelectionSet.generated.h"
 
 /**

@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Elements/TypedElementSelectionSet.h"
-#include "TypedElementRegistry.h"
+#include "Elements/Framework/TypedElementSelectionSet.h"
+#include "Elements/Framework/TypedElementRegistry.h"
 
 UTypedElementSelectionSet::UTypedElementSelectionSet()
 {

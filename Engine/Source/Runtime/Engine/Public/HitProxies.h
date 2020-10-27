@@ -10,7 +10,7 @@
 #include "UObject/ObjectMacros.h"
 #include "Templates/RefCounting.h"
 #include "GenericPlatform/ICursor.h"
-#include "TypedElementHandle.h"
+#include "Elements/Framework/TypedElementHandle.h"
 
 class FReferenceCollector;
 

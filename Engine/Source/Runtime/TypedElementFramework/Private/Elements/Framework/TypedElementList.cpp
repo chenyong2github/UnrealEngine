@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "TypedElementList.h"
-#include "TypedElementRegistry.h"
+#include "Elements/Framework/TypedElementList.h"
+#include "Elements/Framework/TypedElementRegistry.h"
 
 namespace TypedElementList_Private
 {

@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Elements/TypedElementSelectionSet.h"
+#include "Elements/Framework/TypedElementSelectionSet.h"
 #include "ActorElementLevelEditorSelectionProxy.generated.h"
 
 class AGroupActor;

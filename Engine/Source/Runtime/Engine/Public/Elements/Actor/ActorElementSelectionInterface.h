@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "TypedElementSelectionInterface.h"
+#include "Elements/Interfaces/TypedElementSelectionInterface.h"
 #include "ActorElementSelectionInterface.generated.h"
 
 UCLASS()

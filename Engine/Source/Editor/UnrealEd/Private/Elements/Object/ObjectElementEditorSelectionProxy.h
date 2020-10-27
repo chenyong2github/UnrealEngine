@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Elements/TypedElementSelectionSet.h"
+#include "Elements/Framework/TypedElementSelectionSet.h"
 #include "ObjectElementEditorSelectionProxy.generated.h"
 
 UCLASS()

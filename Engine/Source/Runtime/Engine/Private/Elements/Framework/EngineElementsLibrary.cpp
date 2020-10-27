@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Elements/EngineElementsLibrary.h"
+#include "Elements/Framework/EngineElementsLibrary.h"
+#include "Elements/Framework/TypedElementRegistry.h"
+#include "Elements/Framework/TypedElementOwnerStore.h"
 
 #include "Elements/Object/ObjectElementData.h"
 #include "UObject/Object.h"
@@ -10,9 +12,6 @@
 
 #include "Elements/Component/ComponentElementData.h"
 #include "Components/ActorComponent.h"
-
-#include "TypedElementRegistry.h"
-#include "TypedElementOwnerStore.h"
 
 namespace EngineElementsLibraryUtil
 {

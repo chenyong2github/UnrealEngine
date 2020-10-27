@@ -4,18 +4,9 @@
 
 #include <type_traits>
 #include "CoreMinimal.h"
-#include "TypedElementData.h"
+#include "Elements/Framework/TypedElementData.h"
+#include "Elements/Interfaces/TypedElementInterface.h"
 #include "TypedElementHandle.generated.h"
-
-/**
- * Base typed used to represent element interfaces.
- * @note Top-level element interfaces that inherit from this should also specialize TTypedElement for their API.
- */
-UCLASS(Abstract)
-class TYPEDELEMENTFRAMEWORK_API UTypedElementInterface : public UObject
-{
-	GENERATED_BODY()
-};
 
 /**
  * The most minimal representation of an element - its ID!

@@ -8,7 +8,7 @@
 #include "HAL/PlatformStackWalk.h"
 #include "Containers/SparseArray.h"
 #include "Containers/ChunkedArray.h"
-#include "TypedElementLimits.h"
+#include "Elements/Framework/TypedElementLimits.h"
 
 /**
  * Macro to declare the required RTTI data for types representing element data.

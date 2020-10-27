@@ -6,8 +6,8 @@
 #include "Misc/ScopeRWLock.h"
 #include "Containers/ArrayView.h"
 #include "Containers/SortedMap.h"
-#include "TypedElementHandle.h"
-#include "TypedElementList.h"
+#include "Elements/Framework/TypedElementHandle.h"
+#include "Elements/Framework/TypedElementList.h"
 #include "TypedElementRegistry.generated.h"
 
 /**

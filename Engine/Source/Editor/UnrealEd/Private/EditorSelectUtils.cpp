@@ -27,9 +27,9 @@
 #include "Logging/MessageLog.h"
 #include "ActorGroupingUtils.h"
 #include "Subsystems/BrushEditingSubsystem.h"
-#include "TypedElementList.h"
-#include "Elements/TypedElementSelectionSet.h"
-#include "Elements/EngineElementsLibrary.h"
+#include "Elements/Framework/TypedElementList.h"
+#include "Elements/Framework/TypedElementSelectionSet.h"
+#include "Elements/Framework/EngineElementsLibrary.h"
 
 #define LOCTEXT_NAMESPACE "EditorSelectUtils"
 

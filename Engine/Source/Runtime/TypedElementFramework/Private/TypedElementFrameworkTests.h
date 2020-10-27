@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "TypedElementRegistry.h"
+#include "Elements/Framework/TypedElementRegistry.h"
 #include "TypedElementFrameworkTests.generated.h"
 
 /**

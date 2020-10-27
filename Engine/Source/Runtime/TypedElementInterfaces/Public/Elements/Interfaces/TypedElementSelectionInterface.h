@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "TypedElementHandle.h"
+#include "Elements/Framework/TypedElementHandle.h"
 #include "TypedElementSelectionInterface.generated.h"
 
 class UTypedElementList;

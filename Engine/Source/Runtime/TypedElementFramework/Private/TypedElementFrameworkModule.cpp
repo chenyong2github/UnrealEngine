@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "TypedElementRegistry.h"
+#include "Elements/Framework/TypedElementRegistry.h"
 #include "Modules/ModuleManager.h"
 
 class FTypedElementFrameworkModule : public FDefaultModuleImpl

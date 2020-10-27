@@ -3,7 +3,7 @@
 #include "AssetEditorModeManager.h"
 #include "Engine/Selection.h"
 #include "PreviewScene.h"
-#include "Elements/TypedElementSelectionSet.h"
+#include "Elements/Framework/TypedElementSelectionSet.h"
 
 //////////////////////////////////////////////////////////////////////////
 // FAssetEditorModeManager

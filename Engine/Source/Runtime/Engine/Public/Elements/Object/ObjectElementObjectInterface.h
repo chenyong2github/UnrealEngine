@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "TypedElementObjectInterface.h"
+#include "Elements/Interfaces/TypedElementObjectInterface.h"
 #include "ObjectElementObjectInterface.generated.h"
 
 UCLASS()

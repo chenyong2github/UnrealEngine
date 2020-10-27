@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "TypedElementData.h"
+#include "Elements/Framework/TypedElementData.h"
 
 class AActor;
 

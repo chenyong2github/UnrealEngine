@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "TypedElementRegistry.h"
+#include "Elements/Framework/TypedElementRegistry.h"
 #include "Misc/CoreDelegates.h"
 #include "Misc/ScopeLock.h"
 #include "UObject/StrongObjectPtr.h"

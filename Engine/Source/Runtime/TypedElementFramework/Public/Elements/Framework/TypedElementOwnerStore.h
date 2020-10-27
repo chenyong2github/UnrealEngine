@@ -3,8 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "TypedElementHandle.h"
 #include "Misc/ScopeLock.h"
+#include "Elements/Framework/TypedElementHandle.h"
 
 /**
  * Type to keep a lock on the TTypedElementOwnerStore for the duration 

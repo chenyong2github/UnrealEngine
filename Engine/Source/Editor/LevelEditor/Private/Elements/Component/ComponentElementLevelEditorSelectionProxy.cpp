@@ -4,8 +4,9 @@
 #include "Elements/Component/ComponentElementData.h"
 #include "GameFramework/Actor.h"
 #include "Components/ActorComponent.h"
-#include "TypedElementList.h"
-#include "Elements/EngineElementsLibrary.h"
+
+#include "Elements/Framework/TypedElementList.h"
+#include "Elements/Framework/EngineElementsLibrary.h"
 
 #include "Elements/Actor/ActorElementSelectionInterface.h"
 #include "Elements/Component/ComponentElementSelectionInterface.h"

@@ -26,7 +26,7 @@
 #include "EngineModule.h"
 #include "Performance/EnginePerformanceTargets.h"
 #include "Templates/UniquePtr.h"
-#include "TypedElementList.h"
+#include "Elements/Framework/TypedElementList.h"
 #include "EngineUtils.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogClient, Log, All);

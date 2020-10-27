@@ -58,7 +58,7 @@
 #include "SourceCodeNavigation.h"
 #include "Editor/EnvironmentLightingViewer/Public/EnvironmentLightingModule.h"
 #include "Misc/MessageDialog.h"
-#include "Elements/TypedElementSelectionSet.h"
+#include "Elements/Framework/TypedElementSelectionSet.h"
 #include "Elements/Actor/ActorElementLevelEditorSelectionProxy.h"
 #include "Elements/Component/ComponentElementLevelEditorSelectionProxy.h"
 

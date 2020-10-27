@@ -129,7 +129,7 @@
 
 #include "Editor/ActorPositioning.h"
 
-#include "Elements/TypedElementSelectionSet.h"
+#include "Elements/Framework/TypedElementSelectionSet.h"
 #include "Elements/Object/ObjectElementEditorSelectionProxy.h"
 
 #include "IDirectoryWatcher.h"

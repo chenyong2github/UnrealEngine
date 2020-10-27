@@ -4,7 +4,7 @@
 #include "Elements/Object/ObjectElementData.h"
 
 #include "UObject/Package.h"
-#include "Elements/EngineElementsLibrary.h"
+#include "Elements/Framework/EngineElementsLibrary.h"
 
 bool UObjectElementEditorSelectionInterface::ShouldPreventTransactions(const FTypedElementHandle& InElementHandle)
 {

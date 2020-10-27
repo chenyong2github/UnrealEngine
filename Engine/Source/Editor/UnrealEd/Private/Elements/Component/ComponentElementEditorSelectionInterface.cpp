@@ -5,8 +5,8 @@
 #include "Components/SceneComponent.h"
 #include "GameFramework/Actor.h"
 
-#include "TypedElementList.h"
-#include "Elements/EngineElementsLibrary.h"
+#include "Elements/Framework/TypedElementList.h"
+#include "Elements/Framework/EngineElementsLibrary.h"
 #include "Elements/Object/ObjectElementEditorSelectionInterface.h"
 
 bool UComponentElementEditorSelectionInterface::IsElementSelected(const FTypedElementHandle& InElementHandle, const UTypedElementList* InSelectionSet, const FTypedElementIsSelectedOptions& InSelectionOptions)

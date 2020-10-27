@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "TypedElementSelectionInterface.h"
-#include "TypedElementList.h"
+#include "Elements/Interfaces/TypedElementSelectionInterface.h"
+#include "Elements/Framework/TypedElementList.h"
 
 bool UTypedElementSelectionInterface::IsElementSelected(const FTypedElementHandle& InElementHandle, const UTypedElementList* InSelectionSet, const FTypedElementIsSelectedOptions& InSelectionOptions)
 {

@@ -30,7 +30,7 @@
 #include "StaticLightingSystem/StaticLightingPrivate.h"
 #include "LightMap.h"
 #include "Subsystems/BrushEditingSubsystem.h"
-#include "Elements/TypedElementSelectionSet.h"
+#include "Elements/Framework/TypedElementSelectionSet.h"
 
 #define LOCTEXT_NAMESPACE "ClickHandlers"
 
