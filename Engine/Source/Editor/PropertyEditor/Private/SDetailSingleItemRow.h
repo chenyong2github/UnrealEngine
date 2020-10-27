@@ -118,6 +118,8 @@ private:
 	const FSlateBrush* GetExpanderImage() const;
 	FReply OnExpanderClicked();
 
+	int32 GetIndentLevelForBackgroundColor() const;
+
 private:
 	TWeakPtr<IDetailKeyframeHandler> KeyframeHandler;
 	/** Customization for this widget */

@@ -60,6 +60,8 @@ public:
 		return STableRow< TSharedPtr< FDetailTreeNode > >::OnMouseButtonUp( MyGeometry, MouseEvent );
 	}
 
+	TSharedPtr<FDetailTreeNode> GetOwnerTreeNode() const { return OwnerTreeNode.Pin(); }
+
 protected:
 	/**
 	 * Called when the user opens the context menu on this row
