@@ -71,16 +71,16 @@ protected:
 	URiverGenerator* RiverGenerator;
 
 	/** Material used when a river is overlapping a lake. */
-	UPROPERTY(Category = Water, EditAnywhere, BlueprintReadOnly, meta = (DisplayName = "River to Lake Transition"))
+	UPROPERTY(Category = Rendering, EditAnywhere, BlueprintReadOnly, meta = (DisplayName = "River to Lake Transition"))
 	UMaterialInterface* LakeTransitionMaterial;
 
-	UPROPERTY(Category = Debug, VisibleInstanceOnly, Transient)
+	UPROPERTY(Category = Debug, VisibleInstanceOnly, Transient, NonPIEDuplicateTransient, TextExportTransient, meta = (DisplayAfter = "LakeTransitionMaterial"))
 	UMaterialInstanceDynamic* LakeTransitionMID;
 
 	/** This is the material used when a river is overlapping the ocean. */
-	UPROPERTY(Category = Water, EditAnywhere, BlueprintReadOnly, meta = (DisplayName = "River to Ocean Transition"))
+	UPROPERTY(Category = Rendering, EditAnywhere, BlueprintReadOnly, meta = (DisplayName = "River to Ocean Transition"))
 	UMaterialInterface* OceanTransitionMaterial;
 
-	UPROPERTY(Category = Debug, VisibleInstanceOnly, Transient)
+	UPROPERTY(Category = Debug, VisibleInstanceOnly, Transient, NonPIEDuplicateTransient, TextExportTransient, meta = (DisplayAfter = "OceanTransitionMaterial"))
 	UMaterialInstanceDynamic* OceanTransitionMID;
 };

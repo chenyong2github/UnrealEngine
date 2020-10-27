@@ -497,10 +497,10 @@ protected:
 	UBillboardComponent* ActorIcon;
 #endif
 
-	UPROPERTY(Category = Debug, VisibleInstanceOnly, Transient)
+	UPROPERTY(Category = Debug, VisibleInstanceOnly, Transient, NonPIEDuplicateTransient, TextExportTransient, meta = (DisplayAfter = "WaterMaterial"))
 	UMaterialInstanceDynamic* WaterMID;
 
-	UPROPERTY(Category = Debug, VisibleInstanceOnly, Transient, meta = (DisplayAfter = "UnderwaterPostProcessMaterial"))
+	UPROPERTY(Category = Debug, VisibleInstanceOnly, Transient, NonPIEDuplicateTransient, TextExportTransient, meta = (DisplayAfter = "UnderwaterPostProcessMaterial"))
 	UMaterialInstanceDynamic* UnderwaterPostProcessMID;
 
 	/** Islands in this water body*/
@@ -653,6 +653,8 @@ protected:
 	void PrepareCurrentPostProcessSettings();
 	void ApplyNavigationSettings() const;
 	void RequestGPUWaveDataUpdate();
+	void SetWaterWavesInternal(UWaterWavesBase* InWaterWaves, bool bTriggerWaterBodyChanged);
+	EObjectFlags GetTransientMIDFlags() const; 
 
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void PostLoad() override;

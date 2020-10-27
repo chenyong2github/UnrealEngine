@@ -3,6 +3,7 @@
 #include "WaterBodyRiverActor.h"
 #include "WaterSplineComponent.h"
 #include "WaterSubsystem.h"
+#include "WaterUtils.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Components/SplineMeshComponent.h"
 #include "PhysicsEngine/ConvexElem.h"
@@ -112,15 +113,7 @@ void AWaterBodyRiver::CreateOrUpdateLakeTransitionMID()
 {
 	if (GetWorld())
 	{
-		if ((!LakeTransitionMID || LakeTransitionMID->Parent != LakeTransitionMaterial) && LakeTransitionMaterial)
-		{
-			static const FName LakeTransitionMIDName(TEXT("RiverToLakeTransitionMID"));
-			LakeTransitionMID = UMaterialInstanceDynamic::Create(LakeTransitionMaterial, this, LakeTransitionMIDName);
-		}
-		else if (!LakeTransitionMaterial)
-		{
-			LakeTransitionMID = nullptr;
-		}
+		LakeTransitionMID = FWaterUtils::GetOrCreateTransientMID(LakeTransitionMID, TEXT("LakeTransitionMID"), LakeTransitionMaterial, GetTransientMIDFlags());
 
 		SetDynamicParametersOnMID(LakeTransitionMID);
 	}
@@ -130,15 +123,7 @@ void AWaterBodyRiver::CreateOrUpdateOceanTransitionMID()
 {
 	if (GetWorld())
 	{
-		if ((!OceanTransitionMID || OceanTransitionMID->Parent != OceanTransitionMaterial) && OceanTransitionMaterial)
-		{
-			static const FName OceanTransitionMIDName(TEXT("RiverToOceanTransitionMID"));
-			OceanTransitionMID = UMaterialInstanceDynamic::Create(OceanTransitionMaterial, this, OceanTransitionMIDName);
-		}
-		else if (!OceanTransitionMaterial)
-		{
-			OceanTransitionMID = nullptr;
-		}
+		OceanTransitionMID = FWaterUtils::GetOrCreateTransientMID(OceanTransitionMID, TEXT("OceanTransitionMID"), OceanTransitionMaterial, GetTransientMIDFlags());
 
 		SetDynamicParametersOnMID(OceanTransitionMID);
 	}
