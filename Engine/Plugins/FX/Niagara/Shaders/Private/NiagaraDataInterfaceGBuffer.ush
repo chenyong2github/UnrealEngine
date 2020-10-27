@@ -174,3 +174,14 @@ void DIGBuffer_DecodeCustomStencil(in float2 ScreenUV, out bool IsValid, out int
 #endif
 }
 
+void DIGBuffer_DecodeSceneColor(in float2 ScreenUV, out bool IsValid, out float4 OutValue)
+{
+#if NDIGBUFFER_ENABLED
+	IsValid = true;
+	OutValue = Texture2DSample(SceneTexturesStruct.SceneColorTexture, SceneTexturesStruct.SceneColorTextureSampler, ScreenUV);
+#else
+	IsValid = false;
+	OutValue = 0;
+#endif
+}
+
