@@ -3643,6 +3643,17 @@ static void RenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, 
 			SceneRenderer->Scene->DistanceFieldSceneData.PrimitiveModifiedBounds[CacheType].Reset();
 		}
 
+		if (SceneRenderer->Views.Num() > 0 && !SceneRenderer->ViewFamily.EngineShowFlags.HitProxies)
+		{
+			FHairStrandsBookmarkParameters Parameters = CreateHairStrandsBookmarkParameters(SceneRenderer->Views);
+			if (Parameters.bHasElements)
+			{
+				FRDGBuilder GraphBuilder(RHICmdList);
+				RunHairStrandsBookmark(GraphBuilder, EHairStrandsBookmark::ProcessEndOfFrame, Parameters);
+				GraphBuilder.Execute();
+			}
+		}
+
 		// Immediately issue EndFrame() for all extensions in case any of the outstanding tasks they issued getting out of this frame
 		extern TSet<IPersistentViewUniformBufferExtension*> PersistentViewUniformBufferExtensions;
 
