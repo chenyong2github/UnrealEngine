@@ -490,7 +490,7 @@ void FilterReflectionEnvironment(FRHICommandListImmediate& RHICmdList, ERHIFeatu
 		SCOPED_DRAW_EVENT(RHICmdList, ComputeDiffuseIrradiance);
 		
 		const int32 NumDiffuseMips = FMath::CeilLogTwo( GDiffuseIrradianceCubemapSize ) + 1;
-		const int32 DiffuseConvolutionSourceMip = NumMips - NumDiffuseMips;
+		const int32 DiffuseConvolutionSourceMip = FMath::Max(0, NumMips - NumDiffuseMips);
 
 		ComputeDiffuseIrradiance(RHICmdList, FeatureLevel, DownSampledCube.ShaderResourceTexture, DiffuseConvolutionSourceMip, OutIrradianceEnvironmentMap);
 	}
