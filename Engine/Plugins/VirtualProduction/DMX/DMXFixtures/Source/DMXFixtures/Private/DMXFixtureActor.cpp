@@ -105,7 +105,7 @@ void ADMXFixtureActor::InitializeFixture(UStaticMeshComponent* StaticMeshLens, U
 	// Initialize components
 	TInlineComponentArray<UDMXFixtureComponent*> DMXComponents;
 	GetComponents<UDMXFixtureComponent>(DMXComponents);
-	for (auto& DMXComponent : DMXComponents)
+	for (UDMXFixtureComponent* DMXComponent : DMXComponents)
 	{
 		DMXComponent->Initialize();
 	}
@@ -114,43 +114,6 @@ void ADMXFixtureActor::InitializeFixture(UStaticMeshComponent* StaticMeshLens, U
 	SetDefaultFixtureState();
 
 	HasBeenInitialized = true;
-}
-
-void ADMXFixtureActor::SetDefaultFixtureState()
-{
-	// Get current components (supports PIE)
-	TInlineComponentArray<UDMXFixtureComponent*> DMXComponents;
-	GetComponents<UDMXFixtureComponent>(DMXComponents);
-
-	for (auto& DMXComponent : DMXComponents)
-	{
-		// SingleChannel Component
-		UDMXFixtureComponentSingle* SingleComponent = Cast<UDMXFixtureComponentSingle>(DMXComponent);
-		if (SingleComponent)
-		{
-			float TargetValue = SingleComponent->DMXChannel.DefaultValue;
-			SingleComponent->SetTarget(TargetValue);
-			SingleComponent->SetComponent(TargetValue);
-		}
-
-		// DoubleChannel Component
-		UDMXFixtureComponentDouble* DoubleComponent = Cast<UDMXFixtureComponentDouble>(DMXComponent);
-		if (DoubleComponent)
-		{
-			float Channel1TargetValue = DoubleComponent->DMXChannel1.DefaultValue;
-			float Channel2TargetValue = DoubleComponent->DMXChannel2.DefaultValue;
-			DoubleComponent->SetTarget(0, Channel1TargetValue);
-			DoubleComponent->SetTarget(1, Channel2TargetValue);
-		}
-
-		// Color Component 
-		UDMXFixtureComponentColor* ColorComponent = Cast<UDMXFixtureComponentColor>(DMXComponent);
-		if (ColorComponent)
-		{
-			ColorComponent->SetTargetColor(FLinearColor::White);
-			ColorComponent->SetComponent(FLinearColor::White);
-		}
-	}
 }
 
 void ADMXFixtureActor::FeedFixtureData()
@@ -236,7 +199,7 @@ void ADMXFixtureActor::PushNormalizedValuesPerAttribute(const FDMXNormalizedAttr
 
 	for (const TPair<FDMXAttributeName, float>& AttributeValueKvp : ValuePerAttribute.Map)
 	{
-		ReInitalizeAttributeValueNoInterp(AttributeValueKvp.Key, AttributeValueKvp.Value);
+		InitalizeAttributeValueNoInterp(AttributeValueKvp.Key, AttributeValueKvp.Value);
 	}
 
 	if (HasBeenInitialized)
@@ -246,10 +209,9 @@ void ADMXFixtureActor::PushNormalizedValuesPerAttribute(const FDMXNormalizedAttr
 			// Components without matrix data
 			if (DMXComponent->IsEnabled && !DMXComponent->UsingMatrixData)
 			{
-				// SingleChannel Component
-				UDMXFixtureComponentSingle* SingleComponent = Cast<UDMXFixtureComponentSingle>(DMXComponent);
-				if (SingleComponent)
+				if (UDMXFixtureComponentSingle* SingleComponent = Cast<UDMXFixtureComponentSingle>(DMXComponent))
 				{
+					// SingleChannel Component
 					const float* TargetValuePtr = ValuePerAttribute.Map.Find(SingleComponent->DMXChannel.Name);
 					if (TargetValuePtr)
 					{
@@ -269,11 +231,9 @@ void ADMXFixtureActor::PushNormalizedValuesPerAttribute(const FDMXNormalizedAttr
 						}
 					}
 				}
-
-				// DoubleChannel Component
-				UDMXFixtureComponentDouble* DoubleComponent = Cast<UDMXFixtureComponentDouble>(DMXComponent);
-				if (DoubleComponent)
-				{
+				else if (UDMXFixtureComponentDouble* DoubleComponent = Cast<UDMXFixtureComponentDouble>(DMXComponent))
+				{	
+					// DoubleChannel Component
 					const float* FirstTargetValuePtr = ValuePerAttribute.Map.Find(DoubleComponent->DMXChannel1.Name);
 					if (FirstTargetValuePtr)
 					{
@@ -312,11 +272,9 @@ void ADMXFixtureActor::PushNormalizedValuesPerAttribute(const FDMXNormalizedAttr
 						}
 					}
 				}
-				
-				// Color Component
-				UDMXFixtureComponentColor* ColorComponent = Cast<UDMXFixtureComponentColor>(DMXComponent);
-				if(ColorComponent)
+				else if(UDMXFixtureComponentColor* ColorComponent = Cast<UDMXFixtureComponentColor>(DMXComponent))
 				{
+					// Color Component
 					if (FLinearColor* CurrentTargetColorPtr = ColorComponent->CurrentTargetColorRef)
 					{
 						const float* FirstTargetValuePtr = ValuePerAttribute.Map.Find(ColorComponent->ChannelName1);
@@ -343,7 +301,43 @@ void ADMXFixtureActor::PushNormalizedValuesPerAttribute(const FDMXNormalizedAttr
 	}
 }
 
-void ADMXFixtureActor::ReInitalizeAttributeValueNoInterp(const FDMXAttributeName& AttributeName, float Value)
+void ADMXFixtureActor::SetDefaultFixtureState()
+{
+	// Get current components (supports PIE)
+	TInlineComponentArray<UDMXFixtureComponent*> DMXComponents;
+	GetComponents<UDMXFixtureComponent>(DMXComponents);
+
+	for (auto& DMXComponent : DMXComponents)
+	{
+		if (UDMXFixtureComponentSingle* SingleComponent = Cast<UDMXFixtureComponentSingle>(DMXComponent))
+		{		
+			// SingleChannel Component
+			float TargetValue = SingleComponent->DMXChannel.DefaultValue;
+
+			SingleComponent->SetTarget(TargetValue);
+			SingleComponent->SetComponent(TargetValue);
+		}
+		else if (UDMXFixtureComponentDouble* DoubleComponent = Cast<UDMXFixtureComponentDouble>(DMXComponent))
+		{
+			// DoubleChannel Component
+			float Channel1TargetValue = DoubleComponent->DMXChannel1.DefaultValue;
+			float Channel2TargetValue = DoubleComponent->DMXChannel2.DefaultValue;
+
+			DoubleComponent->SetTarget(0, Channel1TargetValue);
+			DoubleComponent->SetTarget(1, Channel2TargetValue);
+		}
+		else if (UDMXFixtureComponentColor* ColorComponent = Cast<UDMXFixtureComponentColor>(DMXComponent))
+		{
+			// Color Component 
+			const FLinearColor& DefaultColor = FLinearColor::White;
+
+			ColorComponent->SetTargetColor(DefaultColor);
+			ColorComponent->SetComponent(DefaultColor);
+		}
+	}
+}
+
+void ADMXFixtureActor::InitalizeAttributeValueNoInterp(const FDMXAttributeName& AttributeName, float Value)
 {
 	// Don't need to try and intialized invalid attributes
 	if (InitializedAttributes.Contains(AttributeName) || InvalidAttributes.Contains(AttributeName))
