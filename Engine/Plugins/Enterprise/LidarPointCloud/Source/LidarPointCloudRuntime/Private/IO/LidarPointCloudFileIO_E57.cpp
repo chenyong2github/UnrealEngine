@@ -39,6 +39,8 @@ struct FE57PoseTransform
 
 class FE57Wrapper
 {
+	typedef TFunction<bool(uint32, uint32, bool, bool, FE57PoseTransform)> FBatchCallback;
+
 	void* ImageFile;
 
 public:
@@ -125,16 +127,21 @@ public:
 		}
 	}
 
-	void ReadPoints(void* Buffer, uint32 BatchSize, TFunction<bool(uint32, uint32, bool, bool, FE57PoseTransform)> BatchCallback)
+	void ReadPoints(void* Buffer, uint32 BatchSize, FBatchCallback InBatchCallback)
 	{		
 		if (ImageFile)
 		{
-			LOADFUNC(void, ReadPoints, void*, void*, uint32, TFunction<bool(uint32, uint32, bool, bool, FE57PoseTransform)>);
-			hReadPoints(ImageFile, Buffer, BatchSize, MoveTemp(BatchCallback));
+			LOADFUNC(void, ReadPoints, void*, void*, uint32, void*, void*);
+			hReadPoints(ImageFile, Buffer, BatchSize, &ReadPointsCallbackFunc, &InBatchCallback);
 		}
 	}
 
 private:
+	static bool ReadPointsCallbackFunc(uint32 ScanID, uint32 NumPointsRead, bool bHasRGB, bool bHasIntensity, FE57PoseTransform Transform, FBatchCallback* Callback)
+	{
+		return (*Callback)(ScanID, NumPointsRead, bHasRGB, bHasIntensity, Transform);
+	}
+
 	void* GetDLLHandle()
 	{
 		static void* v_dllHandle = nullptr;
