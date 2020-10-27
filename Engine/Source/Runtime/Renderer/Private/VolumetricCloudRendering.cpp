@@ -51,11 +51,6 @@ static TAutoConsoleVariable<float> CVarVolumetricCloudReflectionRaySampleMaxCoun
 	TEXT("The maximum number of samples taken while ray marching primary rays in reflections."),
 	ECVF_RenderThreadSafe | ECVF_Scalability);
 
-static TAutoConsoleVariable<int32> CVarVolumetricCloudOpaqueIntersectionMode(
-	TEXT("r.VolumetricCloud.OpaqueIntersectionMode"), 2,
-	TEXT("[0] no intersection with opaque. [1] trace up to the far distance and interesect during composition (sharp transition, single layer). [2] trace up to the depth buffer and take into account HZB: softer but can have artefact at edges when flying in the cloud layer."),
-	ECVF_RenderThreadSafe | ECVF_Scalability);
-
 static TAutoConsoleVariable<int32> CVarVolumetricCloudHighQualityAerialPerspective(
 	TEXT("r.VolumetricCloud.HighQualityAerialPerspective"), 0,
 	TEXT("Enable/disable a second pass to trace the aerial perspective per pixel on clouds instead of using the aerial persepctive texture. Only usable when r.VolumetricCloud.EnableAerialPerspectiveSampling=1 and only needed for extra quality when r.VolumetricRenderTarget=1."),
@@ -1651,8 +1646,6 @@ void FSceneRenderer::RenderVolumetricCloudsInternal(FRDGBuilder& GraphBuilder, F
 	FVolumeShadowingShaderParametersGlobal0 LightShadowShaderParams0 = CloudRC.LightShadowShaderParams0;
 	bool bSkipAerialPerspective = CloudRC.bSkipAerialPerspective;
 
-	int32 VolumetricCloudOpaqueIntersectionMode = CVarVolumetricCloudOpaqueIntersectionMode.GetValueOnAnyThread();
-
 	FRenderVolumetricCloudGlobalParameters& VolumetricCloudParams = *GraphBuilder.AllocParameters<FRenderVolumetricCloudGlobalParameters>();
 	SetupDefaultRenderVolumetricCloudGlobalParameters(GraphBuilder, VolumetricCloudParams, CloudInfo, MainView);
 	VolumetricCloudParams.SceneDepthTexture = GraphBuilder.RegisterExternalTexture(SceneDepthZ);
@@ -1661,8 +1654,17 @@ void FSceneRenderer::RenderVolumetricCloudsInternal(FRDGBuilder& GraphBuilder, F
 	VolumetricCloudParams.CloudShadowTexture1 = RenderViewPassParameters->CloudShadowTexture1;
 	VolumetricCloudParams.TracingCoordToZbufferCoordScaleBias = CloudRC.TracingCoordToZbufferCoordScaleBias;	
 	VolumetricCloudParams.NoiseFrameIndexModPattern = NoiseFrameIndexModPattern;
-	VolumetricCloudParams.OpaqueIntersectionMode = bShouldViewRenderVolumetricRenderTarget ? VolumetricCloudOpaqueIntersectionMode : (VolumetricCloudOpaqueIntersectionMode > 0 ? 2 : 0);	// When tracing per pixel and not in the volumetric render target, we can alway intersect with depth
 	VolumetricCloudParams.IsReflectionRendering = bIsReflectionRendering ? 1 : 0;
+
+	if (bShouldViewRenderVolumetricRenderTarget && MainView.ViewState)
+	{
+		FVolumetricRenderTargetViewStateData& VRT = MainView.ViewState->VolumetricCloudRenderTarget;
+		VolumetricCloudParams.OpaqueIntersectionMode = VRT.GetMode()== 2 ? 0 : 2;	// intersect with opaque only if not using mode 2 (full res distant cloud updating 1 out 4x4 pixels)
+	}
+	else
+	{
+		VolumetricCloudParams.OpaqueIntersectionMode = 2;	// always intersect with opaque
+	}
 
 	if (bIsReflectionRendering)
 	{
