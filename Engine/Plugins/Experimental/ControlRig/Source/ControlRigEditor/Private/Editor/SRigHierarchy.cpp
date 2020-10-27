@@ -1839,7 +1839,7 @@ void SRigHierarchy::HandlePasteItems()
 		Hierarchy->ImportFromText(Content, ERigHierarchyImportMode::Append, true);
 	}
 
-	ControlRigBlueprint->PropagateHierarchyFromBPToInstances(true);
+	//ControlRigBlueprint->PropagateHierarchyFromBPToInstances(true);
 	ControlRigEditor.Pin()->OnHierarchyChanged();
 	RefreshTreeView();
 }
@@ -1854,10 +1854,14 @@ void SRigHierarchy::HandlePasteLocalTransforms()
 		FScopedTransaction Transaction(LOCTEXT("HierarchyTreePasteLocal", "Pasted local transforms."));
 		ControlRigBlueprint->Modify();
 
-		Hierarchy->ImportFromText(Content, ERigHierarchyImportMode::ReplaceLocalTransform, true);
-	}
+		Hierarchy->ImportFromText(Content, ERigHierarchyImportMode::ReplaceCurrentLocalTransform, true);
 
-	ControlRigBlueprint->PropagateHierarchyFromBPToInstances(false);
+		FRigHierarchyContainer* DebuggedHierarchy = GetDebuggedHierarchyContainer();
+		if(DebuggedHierarchy && DebuggedHierarchy != Hierarchy)
+		{
+			DebuggedHierarchy->ImportFromText(Content, ERigHierarchyImportMode::ReplaceCurrentLocalTransform, false, Hierarchy->CurrentSelection());
+		}
+	}
 }
 
 void SRigHierarchy::HandlePasteGlobalTransforms()
@@ -1870,10 +1874,14 @@ void SRigHierarchy::HandlePasteGlobalTransforms()
 		FScopedTransaction Transaction(LOCTEXT("HierarchyTreePasteGlobal", "Pasted global transforms."));
 		ControlRigBlueprint->Modify();
 
-		Hierarchy->ImportFromText(Content, ERigHierarchyImportMode::ReplaceGlobalTransform, true);
-	}
+		Hierarchy->ImportFromText(Content, ERigHierarchyImportMode::ReplaceCurrentGlobalTransform, true);
 
-	ControlRigBlueprint->PropagateHierarchyFromBPToInstances(false);
+		FRigHierarchyContainer* DebuggedHierarchy = GetDebuggedHierarchyContainer();
+		if(DebuggedHierarchy && DebuggedHierarchy != Hierarchy)
+		{
+			DebuggedHierarchy->ImportFromText(Content, ERigHierarchyImportMode::ReplaceCurrentGlobalTransform, false, Hierarchy->CurrentSelection());
+		}
+	}
 }
 
 FRigHierarchyContainer* SRigHierarchy::GetHierarchyContainer() const
@@ -1888,13 +1896,19 @@ FRigHierarchyContainer* SRigHierarchy::GetHierarchyContainer() const
 
 FRigHierarchyContainer* SRigHierarchy::GetDebuggedHierarchyContainer() const
 {
-	if (UControlRig* CurrentRig = ControlRigEditor.Pin()->ControlRig)
+	if (ControlRigBlueprint.IsValid())
 	{
-		return (FRigHierarchyContainer*)CurrentRig->GetHierarchy();
+		if (UControlRig* DebuggedRig = Cast<UControlRig>(ControlRigBlueprint->GetObjectBeingDebugged()))
+		{
+			return (FRigHierarchyContainer*)DebuggedRig->GetHierarchy();
+		}
 	}
-	else if (UControlRig* DebuggedRig = Cast<UControlRig>(ControlRigBlueprint->GetObjectBeingDebugged()))
+	if (ControlRigEditor.IsValid())
 	{
-		return (FRigHierarchyContainer*)DebuggedRig->GetHierarchy();
+		if (UControlRig* CurrentRig = ControlRigEditor.Pin()->ControlRig)
+		{
+			return (FRigHierarchyContainer*)CurrentRig->GetHierarchy();
+		}
 	}
 
 	return GetHierarchyContainer();

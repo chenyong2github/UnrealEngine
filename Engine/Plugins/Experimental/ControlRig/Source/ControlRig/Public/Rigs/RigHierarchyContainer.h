@@ -23,9 +23,13 @@ enum class ERigHierarchyImportMode : uint8
 
 	Replace,
 
-	ReplaceLocalTransform,
+	ReplaceInitialLocalTransform,
 
-	ReplaceGlobalTransform,
+	ReplaceInitialGlobalTransform,
+
+	ReplaceCurrentLocalTransform,
+
+	ReplaceCurrentGlobalTransform,
 
 	/** MAX - invalid */
 	Max UMETA(Hidden),
@@ -323,7 +327,7 @@ public:
 
 	FString ExportSelectionToText() const;
 	FString ExportToText(const TArray<FRigElementKey>& InSelection) const;
-	TArray<FRigElementKey> ImportFromText(const FString& InContent, ERigHierarchyImportMode InImportMode = ERigHierarchyImportMode::Append, bool bSelectNewElements = true);
+	TArray<FRigElementKey> ImportFromText(const FString& InContent, ERigHierarchyImportMode InImportMode = ERigHierarchyImportMode::Append, bool bSelectNewElements = true, const TArray<FRigElementKey>& InSelection = TArray<FRigElementKey>());
 
 	TArray<FRigElementKey> DuplicateItems(const TArray<FRigElementKey>& InSelection, bool bSelectNewElements = true);
 	TArray<FRigElementKey> MirrorItems(const TArray<FRigElementKey>& InSelection, const FRigMirrorSettings& InSettings, bool bSelectNewElements = true);

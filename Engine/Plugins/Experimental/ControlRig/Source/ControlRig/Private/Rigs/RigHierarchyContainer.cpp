@@ -880,7 +880,7 @@ public:
 	}
 };
 
-TArray<FRigElementKey> FRigHierarchyContainer::ImportFromText(const FString& InContent, ERigHierarchyImportMode InImportMode, bool bSelectNewElements)
+TArray<FRigElementKey> FRigHierarchyContainer::ImportFromText(const FString& InContent, ERigHierarchyImportMode InImportMode, bool bSelectNewElements, const TArray<FRigElementKey>& InSelection)
 {
 	TArray<FRigElementKey> PastedKeys;
 
@@ -964,7 +964,15 @@ TArray<FRigElementKey> FRigHierarchyContainer::ImportFromText(const FString& InC
 		Elements.Add(NewElement);
 	}
 
-	TArray<FRigElementKey> Selection = CurrentSelection();
+	TArray<FRigElementKey> Selection = InSelection;
+	if (InSelection.IsEmpty())
+	{
+		Selection = CurrentSelection();
+	}
+	else
+	{
+		bSelectNewElements = false;
+	}
 
 	switch (InImportMode)
 	{
@@ -1058,8 +1066,10 @@ TArray<FRigElementKey> FRigHierarchyContainer::ImportFromText(const FString& InC
 			}
 			break;
 		}
-		case ERigHierarchyImportMode::ReplaceLocalTransform:
-		case ERigHierarchyImportMode::ReplaceGlobalTransform:
+		case ERigHierarchyImportMode::ReplaceInitialLocalTransform:
+		case ERigHierarchyImportMode::ReplaceInitialGlobalTransform:
+		case ERigHierarchyImportMode::ReplaceCurrentLocalTransform:
+		case ERigHierarchyImportMode::ReplaceCurrentGlobalTransform:
 		{
 			if (Selection.Num() == 0)
 			{
@@ -1076,7 +1086,7 @@ TArray<FRigElementKey> FRigHierarchyContainer::ImportFromText(const FString& InC
 
 			for (int32 Index = 0; Index < Data.Types.Num(); Index++)
 			{
-				if(InImportMode == ERigHierarchyImportMode::ReplaceLocalTransform)
+				if(InImportMode == ERigHierarchyImportMode::ReplaceInitialLocalTransform)
 				{
 					Data.LocalTransforms[Index].NormalizeRotation();
 					switch (Selection[Index].Type)
@@ -1098,7 +1108,7 @@ TArray<FRigElementKey> FRigHierarchyContainer::ImportFromText(const FString& InC
 						}
 					}
 				}
-				else
+				else if (InImportMode == ERigHierarchyImportMode::ReplaceInitialGlobalTransform)
 				{
 					Data.GlobalTransforms[Index].NormalizeRotation();
 					switch (Selection[Index].Type)
@@ -1120,6 +1130,16 @@ TArray<FRigElementKey> FRigHierarchyContainer::ImportFromText(const FString& InC
 							break;
 						}
 					}
+				}
+				else if (InImportMode == ERigHierarchyImportMode::ReplaceCurrentLocalTransform)
+				{
+					Data.LocalTransforms[Index].NormalizeRotation();
+					SetLocalTransform(Selection[Index], Data.LocalTransforms[Index]);
+				}
+				else if (InImportMode == ERigHierarchyImportMode::ReplaceCurrentGlobalTransform)
+				{
+					Data.GlobalTransforms[Index].NormalizeRotation();
+					SetGlobalTransform(Selection[Index], Data.GlobalTransforms[Index]);
 				}
 				PastedKeys.Add(Selection[Index]);
 			}
