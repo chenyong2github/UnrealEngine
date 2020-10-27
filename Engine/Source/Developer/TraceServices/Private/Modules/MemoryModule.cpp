@@ -2,8 +2,10 @@
 
 #include "MemoryModule.h"
 #include "Analyzers/AllocationsAnalysis.h"
+#include "Analyzers/CallstacksAnalysis.h"
 #include "Analyzers/MemoryAnalysis.h"
 #include "Model/AllocationsProvider.h"
+#include "Model/CallstacksProvider.h"
 #include "TraceServices/Model/AnalysisSession.h"
 
 #if defined(UE_USE_ALLOCATIONS_PROVIDER)
@@ -99,6 +101,10 @@ void FMemoryModule::OnAnalysisBegin(IAnalysisSession& Session)
 
 	TEMP_TestAllocationsProvider();
 #endif // UE_USE_ALLOCATIONS_PROVIDER
+
+	FCallstacksProvider* CallstacksProvider = new FCallstacksProvider(Session);
+	Session.AddProvider(CallstacksProvider->GetName(), CallstacksProvider);
+	Session.AddAnalyzer(new FCallstacksAnalyzer(Session, CallstacksProvider));
 
 	Session.AddAnalyzer(new FMemoryAnalyzer(Session));
 }
