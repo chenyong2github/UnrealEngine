@@ -112,7 +112,11 @@
 		</graph>
 		
 		<graph title="Android CPU" showAverages="1" hideStatPrefix="AndroidCPU/" maxy="0">
-			<statString>AndroidCPU/CPUFreqGroup0 AndroidCPU/CPUFreqGroup1 AndroidCPU/CPUFreqGroup2 AndroidCPU/CPUFreqGroup3</statString>
+			<statString>AndroidCPU/CPUFreqMHzGroup0 AndroidCPU/CPUFreqMHzGroup1 AndroidCPU/CPUFreqMHzGroup2 AndroidCPU/CPUFreqMHzGroup3</statString>
+		</graph>
+		
+		<graph title="Android CPU Percentage From Maximum" showAverages="1" hideStatPrefix="AndroidCPU/" maxy="0">
+			<statString>AndroidCPU/CPUFreqPercentageGroup0 AndroidCPU/CPUFreqPercentageGroup1 AndroidCPU/CPUFreqPercentageGroup2 AndroidCPU/CPUFreqPercentageGroup3</statString>
 		</graph>
 
 		<graph title="GPU cycles / frame" showAverages="1" hideStatPrefix="AndroidGPU/" mainStat="frametime" maxy="0">

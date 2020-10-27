@@ -22,29 +22,37 @@ CSV_DEFINE_CATEGORY(AndroidCPU, true);
 CSV_DEFINE_CATEGORY(AndroidMemory, true);
 
 DECLARE_DWORD_COUNTER_STAT(TEXT("Num Frequency Groups"), STAT_NumFreqGroups, STATGROUP_AndroidCPU);
-DECLARE_DWORD_COUNTER_STAT(TEXT("Freq Group 0 : Max frequency"), STAT_FreqGroup0MaxFrequency, STATGROUP_AndroidCPU);
-DECLARE_DWORD_COUNTER_STAT(TEXT("Freq Group 0 : Min frequency"), STAT_FreqGroup0MinFrequency, STATGROUP_AndroidCPU);
-DECLARE_FLOAT_COUNTER_STAT(TEXT("Freq Group 0 : % of max frequency"), STAT_FreqGroup0CurrentFrequency, STATGROUP_AndroidCPU);
+DECLARE_DWORD_COUNTER_STAT(TEXT("Freq Group 0 : Max frequency (MHz)"), STAT_FreqGroup0MaxFrequency, STATGROUP_AndroidCPU);
+DECLARE_DWORD_COUNTER_STAT(TEXT("Freq Group 0 : Min frequency (MHz)"), STAT_FreqGroup0MinFrequency, STATGROUP_AndroidCPU);
+DECLARE_DWORD_COUNTER_STAT(TEXT("Freq Group 0 : Current frequency (MHz)"), STAT_FreqGroup0CurrentFrequency, STATGROUP_AndroidCPU);
+DECLARE_FLOAT_COUNTER_STAT(TEXT("Freq Group 0 : Current frequency (% from Max)"), STAT_FreqGroup0CurrentFrequencyPercentage, STATGROUP_AndroidCPU);
 DECLARE_DWORD_COUNTER_STAT(TEXT("Freq Group 0 : Num Cores"), STAT_FreqGroup0NumCores, STATGROUP_AndroidCPU);
-CSV_DEFINE_STAT(AndroidCPU, CPUFreqGroup0);
+CSV_DEFINE_STAT(AndroidCPU, CPUFreqMHzGroup0);
+CSV_DEFINE_STAT(AndroidCPU, CPUFreqPercentageGroup0);
 
-DECLARE_DWORD_COUNTER_STAT(TEXT("Freq Group 1 : Max frequency"), STAT_FreqGroup1MaxFrequency, STATGROUP_AndroidCPU);
-DECLARE_DWORD_COUNTER_STAT(TEXT("Freq Group 1 : Min frequency"), STAT_FreqGroup1MinFrequency, STATGROUP_AndroidCPU);
-DECLARE_FLOAT_COUNTER_STAT(TEXT("Freq Group 1 : % of max frequency"), STAT_FreqGroup1CurrentFrequency, STATGROUP_AndroidCPU);
+DECLARE_DWORD_COUNTER_STAT(TEXT("Freq Group 1 : Max frequency (MHz)"), STAT_FreqGroup1MaxFrequency, STATGROUP_AndroidCPU);
+DECLARE_DWORD_COUNTER_STAT(TEXT("Freq Group 1 : Min frequency (MHz)"), STAT_FreqGroup1MinFrequency, STATGROUP_AndroidCPU);
+DECLARE_DWORD_COUNTER_STAT(TEXT("Freq Group 1 : Current frequency (MHz)"), STAT_FreqGroup1CurrentFrequency, STATGROUP_AndroidCPU);
+DECLARE_FLOAT_COUNTER_STAT(TEXT("Freq Group 1 : Current frequency (% from Max)"), STAT_FreqGroup1CurrentFrequencyPercentage, STATGROUP_AndroidCPU);
 DECLARE_DWORD_COUNTER_STAT(TEXT("Freq Group 1 : Num Cores"), STAT_FreqGroup1NumCores, STATGROUP_AndroidCPU);
-CSV_DEFINE_STAT(AndroidCPU, CPUFreqGroup1);
+CSV_DEFINE_STAT(AndroidCPU, CPUFreqMHzGroup1);
+CSV_DEFINE_STAT(AndroidCPU, CPUFreqPercentageGroup1);
 
-DECLARE_DWORD_COUNTER_STAT(TEXT("Freq Group 2 : Max frequency"), STAT_FreqGroup2MaxFrequency, STATGROUP_AndroidCPU);
-DECLARE_DWORD_COUNTER_STAT(TEXT("Freq Group 2 : Min frequency"), STAT_FreqGroup2MinFrequency, STATGROUP_AndroidCPU);
-DECLARE_FLOAT_COUNTER_STAT(TEXT("Freq Group 2 : % of max frequency"), STAT_FreqGroup2CurrentFrequency, STATGROUP_AndroidCPU);
+DECLARE_DWORD_COUNTER_STAT(TEXT("Freq Group 2 : Max frequency (MHz)"), STAT_FreqGroup2MaxFrequency, STATGROUP_AndroidCPU);
+DECLARE_DWORD_COUNTER_STAT(TEXT("Freq Group 2 : Min frequency (MHz)"), STAT_FreqGroup2MinFrequency, STATGROUP_AndroidCPU);
+DECLARE_DWORD_COUNTER_STAT(TEXT("Freq Group 2 : Current frequency (MHz)"), STAT_FreqGroup2CurrentFrequency, STATGROUP_AndroidCPU);
+DECLARE_FLOAT_COUNTER_STAT(TEXT("Freq Group 2 : Current frequency (% from Max)"), STAT_FreqGroup2CurrentFrequencyPercentage, STATGROUP_AndroidCPU);
 DECLARE_DWORD_COUNTER_STAT(TEXT("Freq Group 2 : Num Cores"), STAT_FreqGroup2NumCores, STATGROUP_AndroidCPU);
-CSV_DEFINE_STAT(AndroidCPU, CPUFreqGroup2);
+CSV_DEFINE_STAT(AndroidCPU, CPUFreqMHzGroup2);
+CSV_DEFINE_STAT(AndroidCPU, CPUFreqPercentageGroup2);
 
-DECLARE_DWORD_COUNTER_STAT(TEXT("Freq Group 3 : Max frequency"), STAT_FreqGroup3MaxFrequency, STATGROUP_AndroidCPU);
-DECLARE_DWORD_COUNTER_STAT(TEXT("Freq Group 3 : Min frequency"), STAT_FreqGroup3MinFrequency, STATGROUP_AndroidCPU);
-DECLARE_FLOAT_COUNTER_STAT(TEXT("Freq Group 3 : % of max frequency"), STAT_FreqGroup3CurrentFrequency, STATGROUP_AndroidCPU);
+DECLARE_DWORD_COUNTER_STAT(TEXT("Freq Group 3 : Max frequency (MHz)"), STAT_FreqGroup3MaxFrequency, STATGROUP_AndroidCPU);
+DECLARE_DWORD_COUNTER_STAT(TEXT("Freq Group 3 : Min frequency (MHz)"), STAT_FreqGroup3MinFrequency, STATGROUP_AndroidCPU);
+DECLARE_DWORD_COUNTER_STAT(TEXT("Freq Group 3 : Current frequency (MHz)"), STAT_FreqGroup3CurrentFrequency, STATGROUP_AndroidCPU);
+DECLARE_FLOAT_COUNTER_STAT(TEXT("Freq Group 3 : Current frequency (% from Max)"), STAT_FreqGroup3CurrentFrequencyPercentage, STATGROUP_AndroidCPU);
 DECLARE_DWORD_COUNTER_STAT(TEXT("Freq Group 3 : Num Cores"), STAT_FreqGroup3NumCores, STATGROUP_AndroidCPU);
-CSV_DEFINE_STAT(AndroidCPU, CPUFreqGroup3);
+CSV_DEFINE_STAT(AndroidCPU, CPUFreqMHzGroup3);
+CSV_DEFINE_STAT(AndroidCPU, CPUFreqPercentageGroup3);
 
 DECLARE_DWORD_COUNTER_STAT(TEXT("Num CPU Cores"), STAT_NumCPUCores, STATGROUP_AndroidCPU);
 
@@ -86,10 +94,17 @@ DECLARE_FLOAT_COUNTER_STAT(TEXT("Thermal Status"), STAT_ThermalStatus, STATGROUP
 #define CSV_STAT_PTR(StatName)									&_GCsvStat_##StatName
 #define CSV_CUSTOM_STAT_DEFINED_BY_PTR(StatPtr,Value,Op)		FCsvProfiler::RecordCustomStat(StatPtr->Name, StatPtr->CategoryIndex, Value, Op);
 FCsvDeclaredStat* GCPUFreqStats[] = {
-	CSV_STAT_PTR(CPUFreqGroup0),
-	CSV_STAT_PTR(CPUFreqGroup1),
-	CSV_STAT_PTR(CPUFreqGroup2),
-	CSV_STAT_PTR(CPUFreqGroup3)
+	CSV_STAT_PTR(CPUFreqMHzGroup0),
+	CSV_STAT_PTR(CPUFreqMHzGroup1),
+	CSV_STAT_PTR(CPUFreqMHzGroup2),
+	CSV_STAT_PTR(CPUFreqMHzGroup3)
+};
+
+FCsvDeclaredStat* GCPUFreqPercentageStats[] = {
+	CSV_STAT_PTR(CPUFreqPercentageGroup0),
+	CSV_STAT_PTR(CPUFreqPercentageGroup1),
+	CSV_STAT_PTR(CPUFreqPercentageGroup2),
+	CSV_STAT_PTR(CPUFreqPercentageGroup3)
 };
 #undef CSV_STAT_PTR
 
@@ -221,8 +236,8 @@ void FAndroidStats::UpdateAndroidStats()
 		{
 			if (CoreFrequencyGroupIndex[CoreIndex] == 0xFFFFFFFF)
 			{
-				uint32 MinFreq = FAndroidMisc::GetCoreFrequency(CoreIndex, FAndroidMisc::ECoreFrequencyProperty::MinFrequency);
-				uint32 MaxFreq = FAndroidMisc::GetCoreFrequency(CoreIndex, FAndroidMisc::ECoreFrequencyProperty::MaxFrequency);
+				uint32 MinFreq = FAndroidMisc::GetCoreFrequency(CoreIndex, FAndroidMisc::ECoreFrequencyProperty::MinFrequency) / 1000;
+				uint32 MaxFreq = FAndroidMisc::GetCoreFrequency(CoreIndex, FAndroidMisc::ECoreFrequencyProperty::MaxFrequency) / 1000;
 				if (MaxFreq > 0)
 				{
 					UnInitializedCores--;
@@ -248,24 +263,23 @@ void FAndroidStats::UpdateAndroidStats()
 		{
 			if (CoreFrequencyGroupIndex[CoreIdx] == FrequencyGroupIdx)
 			{
-				uint32 CoreFreq = FAndroidMisc::GetCoreFrequency(CoreIdx, FAndroidMisc::ECoreFrequencyProperty::CurrentFrequency);
-				if (CoreFreq > 0)
-				{
-					return ((float)CoreFreq / (float)FrequencyGroups[FrequencyGroupIdx].MaxFrequency) * 100.0f;
-				}
+				return FAndroidMisc::GetCoreFrequency(CoreIdx, FAndroidMisc::ECoreFrequencyProperty::CurrentFrequency) / 1000;
 			}
 		}
-		return 0.0f;
+		return 0u;
 	};
 
-	static float CurrentFrequencies[MaxFrequencyGroupStats] = { 0,0,0,0 };
+	static int32 CurrentFrequencies[MaxFrequencyGroupStats] = { 0,0,0,0 };
+	static float CurrentFrequenciesPercentage[MaxFrequencyGroupStats] = { 0,0,0,0 };
 	for (int32 FrequencyGroupIndex = 0; FrequencyGroupIndex < FrequencyGroups.Num(); FrequencyGroupIndex++)
 	{
 		if (bUpdateStats)
 		{
 			CurrentFrequencies[FrequencyGroupIndex] = GetFrequencyGroupCurrentFrequency(FrequencyGroupIndex);
+			CurrentFrequenciesPercentage[FrequencyGroupIndex] = ((float)CurrentFrequencies[FrequencyGroupIndex] / (float)FrequencyGroups[FrequencyGroupIndex].MaxFrequency) * 100.0f;
 		}
 		CSV_CUSTOM_STAT_DEFINED_BY_PTR(GCPUFreqStats[FrequencyGroupIndex], CurrentFrequencies[FrequencyGroupIndex], ECsvCustomStatOp::Set);
+		CSV_CUSTOM_STAT_DEFINED_BY_PTR(GCPUFreqPercentageStats[FrequencyGroupIndex], CurrentFrequenciesPercentage[FrequencyGroupIndex], ECsvCustomStatOp::Set);
 	}
 
 #if STATS
@@ -288,6 +302,14 @@ void FAndroidStats::UpdateAndroidStats()
 		GET_STATFNAME(STAT_FreqGroup1CurrentFrequency),
 		GET_STATFNAME(STAT_FreqGroup2CurrentFrequency),
 		GET_STATFNAME(STAT_FreqGroup3CurrentFrequency),
+	};
+
+	
+	static const FName AndroidFrequencyGroupCurrentFreqPercentageStats[] = {
+		GET_STATFNAME(STAT_FreqGroup0CurrentFrequencyPercentage),
+		GET_STATFNAME(STAT_FreqGroup1CurrentFrequencyPercentage),
+		GET_STATFNAME(STAT_FreqGroup2CurrentFrequencyPercentage),
+		GET_STATFNAME(STAT_FreqGroup3CurrentFrequencyPercentage),
 	};
 
 	static const FName AndroidFrequencyGroupNumCoresStats[] = {
@@ -325,7 +347,8 @@ void FAndroidStats::UpdateAndroidStats()
 		SET_DWORD_STAT_BY_FNAME(AndroidFrequencyGroupMaxFreqStats[FrequencyGroupIndex], FrequencyGroup.MaxFrequency);
 		SET_DWORD_STAT_BY_FNAME(AndroidFrequencyGroupNumCoresStats[FrequencyGroupIndex], FrequencyGroup.CoreCount);
 		//SET_DWORD_STAT_BY_FNAME(AndroidFrequencyGroupMinFreqStats[FrequencyGroupIndex], FrequencyGroup.MinFrequency);
-		SET_FLOAT_STAT_BY_FNAME(AndroidFrequencyGroupCurrentFreqStats[FrequencyGroupIndex], CurrentFrequencies[FrequencyGroupIndex]);
+		SET_DWORD_STAT_BY_FNAME(AndroidFrequencyGroupCurrentFreqStats[FrequencyGroupIndex], CurrentFrequencies[FrequencyGroupIndex]);
+		SET_FLOAT_STAT_BY_FNAME(AndroidFrequencyGroupCurrentFreqPercentageStats[FrequencyGroupIndex], CurrentFrequencies[FrequencyGroupIndex]);
 		SET_FLOAT_STAT_BY_FNAME(AndroidFrequencyGroupMaxCoresUtilizationStats[FrequencyGroupIndex], MaxSingleCoreUtilization[FrequencyGroupIndex]);
 	}
 
