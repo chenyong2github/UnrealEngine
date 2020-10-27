@@ -113,6 +113,7 @@ bool FDisplayClusterProjectionCameraPolicy::GetProjectionMatrix(const uint32 Vie
 				if (CurPlayerCameraManager)
 				{
 					OutPrjMatrix = ComposureSettings.GetProjectionMatrix(CurPlayerCameraManager->GetFOVAngle() * CurrentFovMultiplier, CurPlayerCameraManager->DefaultAspectRatio);
+					return true;
 				}
 			}
 		}

@@ -3,6 +3,7 @@
 #include "MPCDIWarpMesh.h"
 #include "MPCDIData.h"
 #include "MPCDIWarpHelpers.h"
+#include "MPCDILog.h"
 
 #include "Shader.h"
 #include "GlobalShader.h"
@@ -238,6 +239,9 @@ bool FMPCDIWarpMesh::SetStaticMeshWarp(UStaticMeshComponent* InMeshComponent, US
 	// Support runtime dynamic changes (new mesh to exist viewport)
 	bIsDirtyFrustumData = true;
 	bIsValidFrustumData = false;
+	FString MeshName = "";
+	InMeshComponent->GetName(MeshName);
+	UE_LOG(LogMPCDI, Log, TEXT("Warp mesh [%s] assigned."), *MeshName);
 
 	return true;
 }
