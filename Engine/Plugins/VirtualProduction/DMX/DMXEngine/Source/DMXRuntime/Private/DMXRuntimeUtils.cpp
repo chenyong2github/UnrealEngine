@@ -60,4 +60,53 @@ TMap<int32, TArray<UDMXEntityFixturePatch*>> FDMXRuntimeUtils::MapToUniverses(co
 	return Result;
 }
 
+FString FDMXRuntimeUtils::GenerateUniqueNameForImportFunction(TMap<FString, uint32>& OutPotentialFunctionNamesAndCount, const FString& InBaseName)
+{
+	if (!InBaseName.IsEmpty() && !OutPotentialFunctionNamesAndCount.Contains(InBaseName))
+	{
+		return InBaseName;
+	}
+
+	FString BaseName;
+
+	int32 Index = 0;
+	if (InBaseName.IsEmpty())
+	{
+		BaseName = TEXT("Default name");
+	}
+	else
+	{
+		// If there's an index at the end of the name, start from there
+		FDMXRuntimeUtils::GetNameAndIndexFromString(InBaseName, BaseName, Index);
+	}
+
+	FString FinalName = BaseName;
+
+	// Generate a new Unique name and update the Unique counter
+	if (uint32* CountPointer = OutPotentialFunctionNamesAndCount.Find(InBaseName))
+	{
+		// Calculate the number of digits in the number, adding 2 (1 extra to correctly count digits, another to account for the '_' that will be added to the name
+		int32 CountLength = *CountPointer > 0 ? (int32)FGenericPlatformMath::LogX(10.0f, *CountPointer) + 2 : 2;
+
+		// If the length of the final string will be too long, cut off the end so we can fit the number
+		if (CountLength + BaseName.Len() > NAME_SIZE)
+		{
+			BaseName = BaseName.Left(NAME_SIZE - CountLength);
+		}
+		
+		if (*CountPointer > 0)
+		{
+			FinalName = FString::Printf(TEXT("%s_%d"), *BaseName, *CountPointer);
+		}
+		else
+		{
+			FinalName = FString::Printf(TEXT("%s"), *BaseName);
+		}
+
+		*CountPointer = *CountPointer + 1;
+	}
+
+	return FinalName;
+}
+
 #undef LOCTEXT_NAMESPACE

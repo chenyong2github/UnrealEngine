@@ -26,6 +26,11 @@ public:
 	 * @return Key: universe Value: patches in universe with associated key
 	 */
 	static TMap<int32, TArray<UDMXEntityFixturePatch*>> MapToUniverses(const TArray<UDMXEntityFixturePatch*>& AllPatches);
+
+	/**
+	 * Generates a unique name given a base one and a list of potential ones
+	 */
+	static FString GenerateUniqueNameForImportFunction(TMap<FString, uint32>& OutPotentialFunctionNamesAndCount, const FString& InBaseName);
 	
 	// can't instantiate this class
 	FDMXRuntimeUtils() = delete;
