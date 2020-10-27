@@ -1079,11 +1079,10 @@ void FHoloLensARSystem::AddOrUpdateMesh(FMeshUpdate* CurrentMesh)
 	else
 	{
 		// Update the tracking data
-		NewUpdatedGeometry->UpdateTrackedGeometry(TrackingSystem->GetARCompositionComponent().ToSharedRef(),
+		NewUpdatedGeometry->UpdateTrackedGeometryNoMove(TrackingSystem->GetARCompositionComponent().ToSharedRef(),
 			GFrameCounter,
-			FPlatformTime::Seconds(),
-			FTransform::Identity,
-			FTransform::Identity);
+			FPlatformTime::Seconds()
+		);
 	}
 
 	// Trigger the proper notification delegate
