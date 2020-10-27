@@ -1603,6 +1603,8 @@ void CopyInterpAnimControlTrack(TSharedRef<ISequencer> Sequencer, UInterpTrackAn
 
 void FSkeletalAnimationTrackEditor::BuildTrackContextMenu( FMenuBuilder& MenuBuilder, UMovieSceneTrack* Track )
 {
+	//there's a bug with a section being open already, so we end it.
+
 	TSharedPtr<ISequencer> SequencerPtr = GetSequencer();
 
 	UInterpTrackAnimControl* MatineeAnimControlTrack = nullptr;
@@ -1645,8 +1647,24 @@ void FSkeletalAnimationTrackEditor::BuildTrackContextMenu( FMenuBuilder& MenuBui
 	}
 	*/
 
-	MenuBuilder.BeginSection(NAME_None, LOCTEXT("SkelAnimTrackDisplay", "Display"));
+	MenuBuilder.BeginSection(NAME_None, LOCTEXT("SkelAnimRootMOtion", "Root Motion"));
 	{
+		MenuBuilder.AddMenuEntry(
+			NSLOCTEXT("Sequencer", "BlendFirstChildOfRoot", "Blend First Child Of Root"),
+			NSLOCTEXT("Sequencer", "BlendFirstChildOfRootTooltip", "If True, do not blend and match the root bones but instead the first child bone of the root. Toggle this on when the matched sequences in the track have no motion on the root."),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateLambda([=]()->void {
+					SkeletalAnimationTrack->bBlendFirstChildOfRoot = SkeletalAnimationTrack->bBlendFirstChildOfRoot ? false : true;
+					SkeletalAnimationTrack->SetRootMotionsDirty();
+					SequencerPtr->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::TrackValueChanged);
+
+					}),
+				FCanExecuteAction::CreateLambda([=]()->bool { return SequencerPtr && SkeletalAnimationTrack != nullptr; }),
+						FIsActionChecked::CreateLambda([=]()->bool { return SkeletalAnimationTrack != nullptr && SkeletalAnimationTrack->bBlendFirstChildOfRoot; })),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
+			);
 
 		MenuBuilder.AddMenuEntry(
 			NSLOCTEXT("Sequencer", "ShowRootMotionTrails", "Show Root Motion Trail"),
@@ -1662,12 +1680,11 @@ void FSkeletalAnimationTrackEditor::BuildTrackContextMenu( FMenuBuilder& MenuBui
 						FIsActionChecked::CreateLambda([=]()->bool { return SkeletalAnimationTrack != nullptr && SkeletalAnimationTrack->bShowRootMotionTrail; })),
 			NAME_None,
 						EUserInterfaceActionType::ToggleButton
-						);
+			);
 
-		MenuBuilder.EndSection();
 	}
 	MenuBuilder.EndSection();
-
+	MenuBuilder.AddSeparator();
 }
 
 TSharedPtr<SWidget> FSkeletalAnimationTrackEditor::BuildOutlinerEditWidget(const FGuid& ObjectBinding, UMovieSceneTrack* Track, const FBuildEditWidgetParams& Params)

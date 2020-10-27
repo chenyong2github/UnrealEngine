@@ -26,6 +26,7 @@
 UMovieSceneSkeletalAnimationTrack::UMovieSceneSkeletalAnimationTrack(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, bUseLegacySectionIndexBlend(false)
+	, bBlendFirstChildOfRoot(false)
 {
 #if WITH_EDITORONLY_DATA
 	TrackTint = FColor(124, 15, 124, 65);
@@ -94,14 +95,21 @@ void UMovieSceneSkeletalAnimationTrack::PostLoad()
 #if WITH_EDITOR
 void UMovieSceneSkeletalAnimationTrack::PostEditImport()
 {
+	Super::PostEditImport();
 	SetUpRootMotions(true);
 }
 
 void UMovieSceneSkeletalAnimationTrack::PostEditUndo()
 {
+	Super::PostEditUndo();
 	SetUpRootMotions(true);
 }
 
+void UMovieSceneSkeletalAnimationTrack::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+
+	SetUpRootMotions(true);
+}
 
 #endif
 
@@ -452,6 +460,7 @@ void UMovieSceneSkeletalAnimationTrack::SetUpRootMotions(bool bForce)
 					AnimSection->TempOffsetTransform = FTransform::Identity;
 				}
 				PrevAnimSection = AnimSection;
+				AnimSection->SetBoneIndexForRootMotionCalculations(bBlendFirstChildOfRoot);
 			}
 		}
 
@@ -469,12 +478,8 @@ void UMovieSceneSkeletalAnimationTrack::SetUpRootMotions(bool bForce)
 		TArray<FTransform> CurrentTransforms;
 		TArray<float> CurrentWeights;
 
-
-		//UMovieSceneSkeletalAnimationSection* AnimSection = Cast< UMovieSceneSkeletalAnimationSection>(AnimationSections[SmallestActiveSection]);
-		//AnimSection->AllocateRootMotionCache(FrameRateInSeconds);
 		FFrameTime PreviousFrame = RootMotionParams.StartFrame;
 		int32 Index = 0;
-		
 		for (FFrameTime FrameNumber = RootMotionParams.StartFrame; FrameNumber <= RootMotionParams.EndFrame; FrameNumber += RootMotionParams.FrameTick)
 		{
 			CurrentTransforms.SetNum(0);
@@ -484,11 +489,11 @@ void UMovieSceneSkeletalAnimationTrack::SetUpRootMotions(bool bForce)
 			UMovieSceneSkeletalAnimationSection* PrevSection = nullptr;
 			for (UMovieSceneSection* Section : AnimationSections)
 			{
-				if (Section->GetRange().Contains(FrameNumber.FrameNumber))
+				if (Section && Section->GetRange().Contains(FrameNumber.FrameNumber))
 				{
-					//mz todo handles 
-					UMovieSceneSkeletalAnimationSection* AnimSection = Cast<UMovieSceneSkeletalAnimationSection>(Section);
-					if (AnimSection->GetRootMotionTransform( FrameNumber.FrameNumber, TickResolution, CurrentTransform, CurrentWeight))
+					UMovieSceneSkeletalAnimationSection* AnimSection = CastChecked<UMovieSceneSkeletalAnimationSection>(Section);
+				
+					if (AnimSection->GetRootMotionTransform(FrameNumber.FrameNumber, TickResolution, CurrentTransform, CurrentWeight))
 					{
 						CurrentTransform =  CurrentTransform * AnimSection->TempOffsetTransform;
 						CurrentTransforms.Add(CurrentTransform);
