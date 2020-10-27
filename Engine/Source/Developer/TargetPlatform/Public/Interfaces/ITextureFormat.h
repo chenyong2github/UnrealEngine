@@ -228,6 +228,11 @@ public:
 		unimplemented();
 	}
 
+	/**
+	 * Whether the compressor uses the FTaskGraph API.
+	 * 
+	 * @returns true if FTaskGraph is used, false otherwise
+	 */
 	virtual bool UsesTaskGraph() const
 	{
 		return false;
