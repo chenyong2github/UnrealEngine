@@ -970,7 +970,7 @@ void UNiagaraEmitter::GetScripts(TArray<UNiagaraScript*>& OutScripts, bool bComp
 	{
 		for (int32 i = 0; i < SimulationStages.Num(); i++)
 		{
-			if (SimulationStages[i] && SimulationStages[i]->Script)
+			if (SimulationStages[i] && SimulationStages[i]->Script && SimulationStages[i]->bEnabled)
 			{
 				OutScripts.Add(SimulationStages[i]->Script);
 			}
@@ -1166,7 +1166,7 @@ bool UNiagaraEmitter::AreAllScriptAndSourcesSynchronized() const
 
 	for (int32 i = 0; i < SimulationStages.Num(); i++)
 	{
-		if (SimulationStages[i] && SimulationStages[i]->Script  && SimulationStages[i]->Script->IsCompilable() && !SimulationStages[i]->Script->AreScriptAndSourceSynchronized())
+		if (SimulationStages[i] && SimulationStages[i]->Script  && SimulationStages[i]->Script->IsCompilable() && SimulationStages[i]->bEnabled && !SimulationStages[i]->Script->AreScriptAndSourceSynchronized())
 		{
 			return false;
 		}

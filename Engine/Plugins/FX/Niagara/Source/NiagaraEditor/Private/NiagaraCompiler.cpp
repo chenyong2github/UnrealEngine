@@ -557,7 +557,7 @@ void FNiagaraCompileRequestData::FinishPrecompile(UNiagaraScriptSource* ScriptSo
 			StageNames.Reserve(NumSimStageNodes);
 			const int32 NumProvidedStages = SimStages->Num();
 
-			for (int32 i=0; i < NumSimStageNodes && i < NumProvidedStages; ++i)
+			for (int32 i=0, ActiveStageCount = 0; ActiveStageCount < NumSimStageNodes && i < NumProvidedStages; ++i)
 			{
 				UNiagaraSimulationStageBase* SimStage = (*SimStages)[i];
 				if (SimStage == nullptr || !SimStage->bEnabled)
@@ -573,6 +573,8 @@ void FNiagaraCompileRequestData::FinishPrecompile(UNiagaraScriptSource* ScriptSo
 					PartialParticleUpdatePerStage.Add(GenericStage->bDisablePartialParticleUpdate == false);
 					StageGuids.Add(GenericStage->Script->GetUsageId());
 					StageNames.Add(GenericStage->SimulationStageName);
+
+					++ActiveStageCount;
 				}
 			}
 		}
