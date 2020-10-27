@@ -170,8 +170,8 @@ FActorSpawnParameters::FActorSpawnParameters()
 , OverrideLevel(NULL)
 #if WITH_EDITOR
 , OverridePackage(nullptr)
-, OverrideParentComponent(nullptr)
 #endif
+, OverrideParentComponent(nullptr)
 , SpawnCollisionHandlingOverride(ESpawnActorCollisionHandlingMethod::Undefined)
 , bRemoteOwned(false)
 , bNoFail(false)

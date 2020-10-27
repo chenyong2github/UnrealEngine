@@ -532,12 +532,12 @@ struct ENGINE_API FActorSpawnParameters
 	/* The UPackage to set the Actor in. If left as NULL the Package will not be set and the actor will be saved in the same package as the persistent level. */
 	class	UPackage* OverridePackage;
 
-	/* The parent component to set the Actor in. */
-	class   UChildActorComponent* OverrideParentComponent;
-
 	/** The Guid to set to this actor. Should only be set when reinstancing blueprint actors. */
 	FGuid	OverrideActorGuid;
 #endif
+
+	/* The parent component to set the Actor in. */
+	class   UChildActorComponent* OverrideParentComponent;
 
 	/** Method for resolving collisions at the spawn point. Undefined means no override, use the actor's setting. */
 	ESpawnActorCollisionHandlingMethod SpawnCollisionHandlingOverride;
