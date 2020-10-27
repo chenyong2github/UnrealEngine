@@ -1731,10 +1731,7 @@ bool FAndroidMisc::ShouldDisablePluginAtRuntime(const FString& PluginName)
 
 void FAndroidMisc::SetThreadName(const char* name)
 {
-#if USE_ANDROID_JNI
-	extern void AndroidThunkCpp_SetThreadName(const char * name);
-	AndroidThunkCpp_SetThreadName(name);
-#endif
+	pthread_setname_np(pthread_self(), name);
 }
 
 ///////////////////////////////////////////////////////////////////////////////

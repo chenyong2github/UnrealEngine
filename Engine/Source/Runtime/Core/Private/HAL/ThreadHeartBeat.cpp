@@ -255,7 +255,7 @@ void FORCENOINLINE FThreadHeartBeat::OnHang(double HangDuration, uint32 ThreadTh
 		}
 
 		// Dump the callstack and the thread name to log
-		FString ThreadName(ThreadThatHung == GGameThreadId ? TEXT("GameThread") : FThreadManager::Get().GetThreadName(ThreadThatHung));
+		FString ThreadName = FThreadManager::GetThreadName(ThreadThatHung);
 		if (ThreadName.IsEmpty())
 		{
 			ThreadName = FString::Printf(TEXT("unknown thread (%u)"), ThreadThatHung);

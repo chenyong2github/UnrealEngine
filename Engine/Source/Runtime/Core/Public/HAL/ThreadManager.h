@@ -41,7 +41,20 @@ public:
 	void Tick();
 
 	/** Returns the name of a thread given its TLS id */
-	const FString& GetThreadName(uint32 ThreadId);
+	inline static const FString& GetThreadName(uint32 ThreadId)
+	{
+		static FString GameThreadName(TEXT("GameThread"));
+		static FString RenderThreadName(TEXT("RenderThread"));
+		if (ThreadId == GGameThreadId)
+		{
+			return GameThreadName;
+		}
+		else if (IsInActualRenderingThread())
+		{
+			return RenderThreadName;
+		}
+		return Get().GetThreadNameInternal(ThreadId);
+	}
 
 	/** Checks if thread manager has been initialized. Avoids creating the manager trough lazy initialization */
 	FORCEINLINE static bool IsInitialized() 
@@ -79,4 +92,7 @@ private:
 
 	/** Returns a list of registered forkable threads  */
 	TArray<FRunnableThread*> GetForkableThreads();
+
+	/** Returns internal name of a the thread given its TLS id */
+	const FString& GetThreadNameInternal(uint32 ThreadId);
 };

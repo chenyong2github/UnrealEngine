@@ -704,7 +704,6 @@ int32 ReportCrashForMonitor(
 	// Setup all the thread ids and names using snapshot dbghelp. Since it's not possible to 
 	// query thread names from an external process.
 	uint32 ThreadIdx = 0;
-	const bool bThreadManagerAvailable = FThreadManager::IsInitialized();
 	DWORD CurrentProcessId = GetCurrentProcessId();
 	DWORD CurrentThreadId = GetCurrentThreadId();
 	HANDLE ThreadSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
@@ -731,20 +730,8 @@ int32 ReportCrashForMonitor(
 					}
 
 					SharedContext->ThreadIds[ThreadIdx] = ThreadEntry.th32ThreadID;
-					const TCHAR* ThreadName = nullptr;
-					if (ThreadEntry.th32ThreadID == GGameThreadId)
-					{
-						ThreadName = TEXT("GameThread");
-					}
-					else if (bThreadManagerAvailable)
-					{
-						const FString& TmThreadName = FThreadManager::Get().GetThreadName(ThreadEntry.th32ThreadID);
-						ThreadName = TmThreadName.IsEmpty() ? TEXT("Unknown") : *TmThreadName;
-					}
-					else
-					{
-						ThreadName = TEXT("Unavailable");
-					}
+					const FString& TmThreadName = FThreadManager::GetThreadName(ThreadEntry.th32ThreadID);
+					const TCHAR* ThreadName = TmThreadName.IsEmpty() ? TEXT("Unknown") : *TmThreadName;
 					FCString::Strcpy(
 						&SharedContext->ThreadNames[ThreadIdx*CR_MAX_THREAD_NAME_CHARS],
 						CR_MAX_THREAD_NAME_CHARS - 1,
