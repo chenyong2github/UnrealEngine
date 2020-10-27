@@ -863,7 +863,7 @@ const bool FTimecodeSynchronizerActiveTimecodedInputSource::UpdateSourceState(co
 {
 	check(InputSource);
 
-	bIsReady = InputSource->IsReady();
+	bIsReady = InputSource->IsReady() && InputSource->GetFrameRate().IsValid() && InputSource->GetFrameRate().Numerator > 0;
 
 	if (bIsReady)
 	{
