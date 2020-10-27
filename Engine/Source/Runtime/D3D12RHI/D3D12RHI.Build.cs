@@ -42,10 +42,10 @@ public class D3D12RHI : ModuleRules
 		{
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "DX12");
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11");
-            if (Target.Platform != UnrealTargetPlatform.HoloLens)
+			AddEngineThirdPartyPrivateStaticDependencies(Target, "AMD_AGS");
+			if (Target.Platform != UnrealTargetPlatform.HoloLens)
             {
                 AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAPI");
-				AddEngineThirdPartyPrivateStaticDependencies(Target, "AMD_AGS");
             	AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAftermath");
             	AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelMetricsDiscovery");
             }
