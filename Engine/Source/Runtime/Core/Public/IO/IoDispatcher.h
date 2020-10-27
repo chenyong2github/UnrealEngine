@@ -931,6 +931,8 @@ public:
 	CORE_API bool					DoesChunkExist(const FIoChunkId& ChunkId) const;
 	CORE_API TIoStatusOr<uint64>	GetSizeForChunk(const FIoChunkId& ChunkId) const;
 	CORE_API TArray<FIoDispatcherMountedContainer> GetMountedContainers() const;
+	CORE_API int64					GetTotalLoaded() const;
+
 
 	// Events
 	CORE_API FIoContainerMountedEvent& OnContainerMounted();

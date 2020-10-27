@@ -21,12 +21,6 @@
 DEFINE_LOG_CATEGORY(LogIoDispatcher);
 
 
-#if CSV_PROFILER && IS_MONOLITHIC
-extern int64 GTotalLoaded;
-#endif
-
-
-
 const FIoChunkId FIoChunkId::InvalidChunkId = FIoChunkId::CreateEmptyId();
 
 TUniquePtr<FIoDispatcher> GIoDispatcher;
@@ -162,7 +156,7 @@ class FIoDispatcherImpl
 public:
 	FIoDispatcherImpl(bool bInIsMultithreaded)
 		: bIsMultithreaded(bInIsMultithreaded)
-		, FileIoStore(EventQueue, SignatureErrorEvent, bIsMultithreaded) 
+		, FileIoStore(EventQueue, SignatureErrorEvent, bIsMultithreaded)
 	{
 		FCoreDelegates::GetMemoryTrimDelegate().AddLambda([this]()
 		{
@@ -443,6 +437,11 @@ public:
 		return FIoStatus(EIoErrorCode::Ok);
 	}
 
+	int64 GetTotalLoaded() const
+	{
+		return TotalLoaded;
+	}
+
 private:
 	friend class FIoBatch;
 
@@ -481,9 +480,7 @@ private:
 			if (Request->Status.IsOk())
 			{
 				Request->Callback(Request->IoBuffer);
-#if CSV_PROFILER && IS_MONOLITHIC
-				FPlatformAtomics::InterlockedAdd(&GTotalLoaded, Request->Options.GetSize());
-#endif
+				FPlatformAtomics::InterlockedAdd(&TotalLoaded, Request->Options.GetSize());
 			}
 			else
 			{
@@ -529,9 +526,7 @@ private:
 		// Return the buffer if there are no errors, or the failed status if there were
 		if (Status.IsOk())
 		{
-#if CSV_PROFILER && IS_MONOLITHIC
-			FPlatformAtomics::InterlockedAdd(&GTotalLoaded, Batch->IoBuffer.DataSize());
-#endif
+			FPlatformAtomics::InterlockedAdd(&TotalLoaded, Batch->IoBuffer.DataSize());
 			Batch->Callback(Batch->IoBuffer);
 
 		}
@@ -652,6 +647,7 @@ private:
 	TArray<FIoDispatcherMountedContainer> MountedContainers;
 	FIoDispatcher::FIoContainerMountedEvent ContainerMountedEvent;
 	uint64 PendingIoRequestsCount = 0;
+	int64 TotalLoaded = 0;
 };
 
 FIoDispatcher::FIoDispatcher()
@@ -712,6 +708,12 @@ TArray<FIoDispatcherMountedContainer>
 FIoDispatcher::GetMountedContainers() const
 {
 	return Impl->GetMountedContainers();
+}
+
+int64
+FIoDispatcher::GetTotalLoaded() const
+{
+	return Impl->GetTotalLoaded();
 }
 
 FIoDispatcher::FIoContainerMountedEvent&
