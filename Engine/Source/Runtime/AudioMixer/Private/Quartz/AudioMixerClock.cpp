@@ -7,10 +7,10 @@
 namespace Audio
 {
 	FQuartzClock::FQuartzClock(const FName& InName, const FQuartzClockSettings& InClockSettings, FQuartzClockManager* InOwningClockManagerPtr)
-		: Metronome(InClockSettings.TimeSignature, InClockSettings.TickRate)
+		: Metronome(InClockSettings.TimeSignature)
 		, OwningClockManagerPtr(InOwningClockManagerPtr)
 		, Name(InName)
-		, bIsRunning(InClockSettings.bStartTickingImmediately)
+		, bIsRunning(false)
 		, bIgnoresFlush(InClockSettings.bIgnoreLevelChange)
 	{
 	}
@@ -21,6 +21,13 @@ namespace Audio
 
 	void FQuartzClock::ChangeTickRate(FQuartzClockTickRate InNewTickRate, int32 NumFramesLeft)
 	{
+		FMixerDevice* MixerDevice = GetMixerDevice();
+
+		if (MixerDevice)
+		{
+			InNewTickRate.SetSampleRate(MixerDevice->GetSampleRate());
+		}
+
 		Metronome.SetTickRate(InNewTickRate, NumFramesLeft);
 		FQuartzClockTickRate CurrentTickRate = Metronome.GetTickRate();
 
@@ -180,7 +187,7 @@ namespace Audio
 
 	bool FQuartzClock::DoesMatchSettings(const FQuartzClockSettings& InClockSettings)
 	{
-		return (Metronome.GetTickRate().IsSameTickRate(InClockSettings.TickRate)) && (Metronome.GetTimeSignature() == InClockSettings.TimeSignature);
+		return Metronome.GetTimeSignature() == InClockSettings.TimeSignature;
 	}
 
 	void FQuartzClock::SubscribeToTimeDivision(MetronomeCommandQueuePtr InListenerQueue, EQuartzCommandQuantization InQuantizationBoundary)
