@@ -19,6 +19,7 @@
 -----------------------------------------------------------------------------*/
 
 #include "ProfilingDebugging/MallocProfiler.h"
+#include "ProfilingDebugging/MemoryTrace.h"
 #include "HAL/MallocThreadSafeProxy.h"
 #include "HAL/MallocVerify.h"
 #include "HAL/MallocLeakDetectionProxy.h"
@@ -338,16 +339,28 @@ static int FMemory_GCreateMalloc_ThreadUnsafe()
 		UE_LOG(LogMemory, Fatal, TEXT("PLATFORM_USES_FIXED_GMalloc_CLASS only makes sense for allocators that are internally threadsafe."));
 	}
 #else
-// so now check to see if we are using a Mem Profiler which wraps the GMalloc
+
+#if UE_MEMORY_TRACE_ENABLED
+	FMalloc* TraceMalloc = MemoryTrace_Create(GMalloc);
+	if (TraceMalloc != GMalloc)
+	{
+		GMalloc = TraceMalloc;
+		MemoryTrace_Initialize();
+	}
+	else
+#endif // UE_MEMORY_TRACE_ENABLED
+	{
+	// so now check to see if we are using a Mem Profiler which wraps the GMalloc
 #if USE_MALLOC_PROFILER
-	#if WITH_ENGINE && IS_MONOLITHIC
-		GMallocProfiler = new FMallocProfilerEx( GMalloc );
-	#else
-		GMallocProfiler = new FMallocProfiler( GMalloc );
-	#endif
-	GMallocProfiler->BeginProfiling();
-	GMalloc = GMallocProfiler;
+		#if WITH_ENGINE && IS_MONOLITHIC
+			GMallocProfiler = new FMallocProfilerEx( GMalloc );
+		#else
+			GMallocProfiler = new FMallocProfiler( GMalloc );
+		#endif
+		GMallocProfiler->BeginProfiling();
+		GMalloc = GMallocProfiler;
 #endif
+	}
 
 	// if the allocator is already thread safe, there is no need for the thread safe proxy
 	if (!GMalloc->IsInternallyThreadSafe())

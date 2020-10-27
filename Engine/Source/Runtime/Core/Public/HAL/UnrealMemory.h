@@ -171,11 +171,13 @@ struct CORE_API FMemory
 	//
 	static FORCEINLINE void* SystemMalloc(SIZE_T Size)
 	{
+		/* TODO: Trace! */
 		return ::malloc(Size);
 	}
 
 	static FORCEINLINE void SystemFree(void* Ptr)
 	{
+		/* TODO: Trace! */
 		::free(Ptr);
 	}
 
