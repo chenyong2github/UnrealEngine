@@ -20,7 +20,7 @@ class HEADMOUNTEDDISPLAY_API UXRLoadingScreenFunctionLibrary : public UBlueprint
 	GENERATED_UCLASS_BODY()
 
 	UFUNCTION(BlueprintCallable, Category = "Input|HeadMountedDisplay|LoadingScreen")
-	static void SetLoadingScreen(class UTexture* Texture, FVector2D Scale, FVector Offset, bool bShowLoadingMovie, bool bShowOnSet);
+	static void SetLoadingScreen(class UTexture* Texture, FVector2D Scale = FVector2D(1.0f, 1.0f), FVector Offset = FVector::ZeroVector, bool bShowLoadingMovie = false, bool bShowOnSet = false);
 	
 	UFUNCTION(BlueprintCallable, Category = "Input|HeadMountedDisplay|LoadingScreen")
 	static void ClearLoadingScreenSplashes();
