@@ -678,6 +678,7 @@ void UDMXEntityFixtureType::UpdateModeChannelProperties(FDMXFixtureMode& Mode)
 }
 #endif // WITH_EDITOR
 
+#if WITH_EDITOR
 int32 FDMXFixtureMode::AddOrInsertFunction(int32 IndexOfFunction, const FDMXFixtureFunction& InFunction)
 {
 	int32 Index = 0;
@@ -705,3 +706,5 @@ int32 FDMXFixtureMode::AddOrInsertFunction(int32 IndexOfFunction, const FDMXFixt
 
 	return Index;
 }
+
+#endif // WITH_EDITOR
