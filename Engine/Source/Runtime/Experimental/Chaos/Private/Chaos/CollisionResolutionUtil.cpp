@@ -537,7 +537,7 @@ namespace Chaos
 		}
 #else		
 		template <ECollisionUpdateType UpdateType>
-		void SampleObject(const FImplicitObject& Object, const FRigidTransform3& ObjectTransform, const TBVHParticles<FReal, 3>& SampleParticles, const FRigidTransform3& SampleParticlesTransform, FReal CullingDistance)
+		FContactPoint SampleObject(const FImplicitObject& Object, const FRigidTransform3& ObjectTransform, const TBVHParticles<FReal, 3>& SampleParticles, const FRigidTransform3& SampleParticlesTransform, FReal CullingDistance)
 		{
 			SCOPE_CYCLE_COUNTER(STAT_SampleObject);
 
