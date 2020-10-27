@@ -97,13 +97,8 @@ public:
 			}
 		}
 
-		if (!FPaths::ValidatePath(OutputDirectoryBase))
-		{
-			GLog->Log(TEXT("LogFileOpenOrder"), ELogVerbosity::Warning, FString::Printf(TEXT("Desired log path of %s is invalid, Defaulting to %s instead."), 
-				*OutputDirectoryBase, FPlatformMisc::ProjectDir()));
-			OutputDirectoryBase = FPlatformMisc::ProjectDir();
-		}
-	
+		GLog->Log(TEXT("LogFileOpenOrder"), ELogVerbosity::Log, FString::Printf(TEXT("FOO log base path set to %s"),
+			*OutputDirectoryBase));
 
 		if (FParse::Value(CommandLineParam, TEXT("TARGETPLATFORM="), PlatformStr))
 		{
