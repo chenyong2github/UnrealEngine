@@ -873,21 +873,21 @@ void AddPrimitiveToUpdateGPU(FScene& Scene, int32 PrimitiveId)
 		}
 	}
 }
-void UpdateGPUScene(FRHICommandListImmediate& RHICmdList, FScene& Scene)
+void UpdateGPUScene(FRDGBuilder& GraphBuilder, FScene& Scene)
 {
 	// Invoke the cache manager to invalidate the previous location of all instances that are to be updated, 
 	// must be done prior to update of GPU-side data to use the previous transforms.
 	if (Scene.VirtualShadowMapArrayCacheManager)
 	{
-		Scene.VirtualShadowMapArrayCacheManager->ProcessPrimitivesToUpdate(RHICmdList, Scene);
+		Scene.VirtualShadowMapArrayCacheManager->ProcessPrimitivesToUpdate(GraphBuilder, Scene);
 	}
 	if (GPUSceneUseTexture2D(Scene.GetShaderPlatform()))
 	{
-		UpdateGPUSceneInternal<FTextureRWBuffer2D>(RHICmdList, Scene);
+		UpdateGPUSceneInternal<FTextureRWBuffer2D>(GraphBuilder.RHICmdList, Scene);
 	}
 	else
 	{
-		UpdateGPUSceneInternal<FRWBufferStructured>(RHICmdList, Scene);
+		UpdateGPUSceneInternal<FRWBufferStructured>(GraphBuilder.RHICmdList, Scene);
 	}
 }
 

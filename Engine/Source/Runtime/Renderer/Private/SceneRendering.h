@@ -1341,7 +1341,7 @@ public:
 	FTexture2DRHIRef PrimitiveSceneDataTextureOverrideRHI;
 	FShaderResourceViewRHIRef LightmapSceneDataOverrideSRV;
 
-	FRWBufferStructured ShaderPrintValueBuffer;
+	FRDGBufferRef ShaderPrintValueBuffer = nullptr;
 
 	FShaderDrawDebugData ShaderDrawData;
 	FLumenTranslucencyGIVolume LumenTranslucencyGIVolume;
@@ -1937,7 +1937,7 @@ protected:
 	void GatherShadowDynamicMeshElements(FGlobalDynamicIndexBuffer& DynamicIndexBuffer, FGlobalDynamicVertexBuffer& DynamicVertexBuffer, FGlobalDynamicReadBuffer& DynamicReadBuffer);
 
 	/** Performs once per frame setup prior to visibility determination. */
-	void PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdList);
+	void PreVisibilityFrameSetup(FRDGBuilder& GraphBuilder);
 
 	/** Computes which primitives are visible and relevant for each view. */
 	void ComputeViewVisibility(FRHICommandListImmediate& RHICmdList, FExclusiveDepthStencil::Type BasePassDepthStencilAccess, FViewVisibleCommandsPerView& ViewCommandsPerView, 
@@ -2083,7 +2083,7 @@ protected:
 	/** Build visibility lists on CSM receivers and non-csm receivers. */
 	void BuildCSMVisibilityState(FLightSceneInfo* LightSceneInfo);
 
-	void InitViews(FRHICommandListImmediate& RHICmdList);
+	void InitViews(FRDGBuilder& GraphBuilder);
 
 	void RenderPrePass(FRHICommandListImmediate& RHICmdList);
 

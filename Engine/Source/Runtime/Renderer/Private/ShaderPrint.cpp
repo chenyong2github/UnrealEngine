@@ -12,8 +12,6 @@
 #include "SceneRendering.h"
 #include "SystemTextures.h"
 
-IMPLEMENT_TYPE_LAYOUT(ShaderPrint::FShaderParametersLegacy);
-
 namespace ShaderPrint
 {
 	// Console variables
@@ -98,50 +96,10 @@ namespace ShaderPrint
 	}
 
 	// Fill the FShaderParameters parameters
-	void SetParameters(FViewInfo const& View, FShaderParameters& OutParameters)
+	void SetParameters(FRDGBuilder& GraphBuilder, FViewInfo const& View, FShaderParameters& OutParameters)
 	{
 		OutParameters.UniformBufferParameters = CreateUniformBuffer(View);
-		OutParameters.RWValuesBuffer = View.ShaderPrintValueBuffer.UAV;
-	}
-
-	// FShaderParametersLegacy implementation
-	void FShaderParametersLegacy::Bind(FShaderParameterMap const& ParameterMap)
-	{
-		UniformBufferParameter.Bind(ParameterMap, TEXT("ShaderPrint"));
-		ValuesBufferParameter.Bind(ParameterMap, TEXT("ValuesBuffer"));
-	}
-
-	template<typename TShaderRHIParamRef>
-	void SetShaderParameters(FShaderParametersLegacy const* P, FRHICommandListImmediate& RHICmdList, TShaderRHIParamRef ShaderRHI, FViewInfo const& View)
-	{
-		SetUniformBufferParameter(RHICmdList, ShaderRHI, P->UniformBufferParameter, CreateUniformBuffer(View));
-		P->ValuesBufferParameter.SetBuffer(RHICmdList, ShaderRHI, View.ShaderPrintValueBuffer);
-	}
-
-	void FShaderParametersLegacy::SetParameters(FRHICommandListImmediate& RHICmdList, FRHIVertexShader* ShaderRHI, FViewInfo const& View)
-	{
-		SetShaderParameters(this, RHICmdList, ShaderRHI, View);
-	}
-
-	void FShaderParametersLegacy::SetParameters(FRHICommandListImmediate& RHICmdList, FRHIPixelShader* ShaderRHI, FViewInfo const& View)
-	{
-		SetShaderParameters(this, RHICmdList, ShaderRHI, View);
-	}
-
-	void FShaderParametersLegacy::SetParameters(FRHICommandListImmediate& RHICmdList, FRHIComputeShader* ShaderRHI, FViewInfo const& View)
-	{
-		SetShaderParameters(this, RHICmdList, ShaderRHI, View);
-	}
-
-	void FShaderParametersLegacy::UnsetUAV(FRHICommandListImmediate& RHICmdList, FRHIComputeShader* ShaderRHI)
-	{
-		ValuesBufferParameter.UnsetUAV(RHICmdList, ShaderRHI);
-	}
-
-	FArchive& operator<<(FArchive& Ar, FShaderParametersLegacy& P)
-	{
-		Ar << P.UniformBufferParameter << P.ValuesBufferParameter;
-		return Ar;
+		OutParameters.RWValuesBuffer = GraphBuilder.CreateUAV(View.ShaderPrintValueBuffer);
 	}
 
 	// Supported platforms
@@ -183,7 +141,7 @@ namespace ShaderPrint
 		SHADER_USE_PARAMETER_STRUCT(FShaderInitValueBufferCS, FGlobalShader);
 
 		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-			SHADER_PARAMETER_UAV(RWStructuredBuffer<ShaderPrintItem>, RWValuesBuffer)
+			SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<ShaderPrintItem>, RWValuesBuffer)
 		END_SHADER_PARAMETER_STRUCT()
 
 		static bool ShouldCompilePermutation(FGlobalShaderPermutationParameters const& Parameters)
@@ -203,7 +161,7 @@ namespace ShaderPrint
 
 		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 			SHADER_PARAMETER_STRUCT_REF(FUniformBufferParameters, UniformBufferParameters)
-			SHADER_PARAMETER_SRV(StructuredBuffer<ShaderPrintItem>, ValuesBuffer)
+			SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<ShaderPrintItem>, ValuesBuffer)
 			SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<ShaderPrintItem>, RWSymbolsBuffer)
 			SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWIndirectDispatchArgsBuffer)
 		END_SHADER_PARAMETER_STRUCT()
@@ -225,7 +183,7 @@ namespace ShaderPrint
 
 		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 			SHADER_PARAMETER_STRUCT_REF(FUniformBufferParameters, UniformBufferParameters)
-			SHADER_PARAMETER_SRV(StructuredBuffer<ShaderPrintItem>, ValuesBuffer)
+			SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<ShaderPrintItem>, ValuesBuffer)
 			SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<ShaderPrintItem>, RWSymbolsBuffer)
 			SHADER_PARAMETER_RDG_BUFFER(StructuredBuffer<uint>, IndirectDispatchArgsBuffer)
 		END_SHADER_PARAMETER_STRUCT()
@@ -309,7 +267,7 @@ namespace ShaderPrint
 
 	IMPLEMENT_GLOBAL_SHADER(FShaderDrawSymbolsPS, "/Engine/Private/ShaderPrintDraw.usf", "DrawSymbolsPS", SF_Pixel);
 
-	void BeginView(FRHICommandListImmediate& RHICmdList, FViewInfo& View)
+	void BeginView(FRDGBuilder& GraphBuilder, FViewInfo& View)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE( "ShaderPrint::BeginView" );
 		if (!IsSupported(View))
@@ -319,7 +277,7 @@ namespace ShaderPrint
 
 		// Initialize output buffer and store in the view info
 		// Values buffer contains Count + 1 elements. The first element is only used as a counter.
-		View.ShaderPrintValueBuffer.Initialize(sizeof(ShaderPrintItem), GetMaxValueCount() + 1, 0U, TEXT("ShaderPrintValueBuffer"));
+		View.ShaderPrintValueBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(ShaderPrintItem), GetMaxValueCount() + 1), TEXT("ShaderPrintValueBuffer"));
 
 		// Early out if system is disabled
 		// Note that we still prepared a minimal ShaderPrintValueBuffer 
@@ -329,18 +287,20 @@ namespace ShaderPrint
 			return;
 		}
 
-		SCOPED_DRAW_EVENT(RHICmdList, ShaderPrintBeginView);
-
 		// Clear the output buffer internal counter ready for use
 		const ERHIFeatureLevel::Type FeatureLevel = View.GetFeatureLevel();
 		FGlobalShaderMap* GlobalShaderMap = GetGlobalShaderMap(FeatureLevel);
-
 		TShaderMapRef< FShaderInitValueBufferCS > ComputeShader(GlobalShaderMap);
 
-		FShaderInitValueBufferCS::FParameters Parameters;
-		Parameters.RWValuesBuffer = View.ShaderPrintValueBuffer.UAV;
+		auto* PassParameters = GraphBuilder.AllocParameters<FShaderInitValueBufferCS::FParameters>();
+		PassParameters->RWValuesBuffer = GraphBuilder.CreateUAV(View.ShaderPrintValueBuffer);
 
-		FComputeShaderUtils::Dispatch(RHICmdList, ComputeShader, Parameters, FIntVector(1, 1, 1));
+		FComputeShaderUtils::AddPass(
+			GraphBuilder,
+			RDG_EVENT_NAME("ShaderPrintBeginView"),
+			ComputeShader,
+			PassParameters,
+			FIntVector(1, 1, 1));
 	}
 
 	void DrawView(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGTextureRef OutputTexture)
@@ -348,12 +308,6 @@ namespace ShaderPrint
 		check(OutputTexture);
 
 		RDG_EVENT_SCOPE(GraphBuilder, "ShaderPrintDrawView");
-
-		FRHIUnorderedAccessView* ShaderPrintValueBufferUAV = View.ShaderPrintValueBuffer.UAV;
-		AddPass(GraphBuilder, [ShaderPrintValueBufferUAV](FRHICommandList& RHICmdList)
-		{
-			RHICmdList.Transition(FRHITransitionInfo(ShaderPrintValueBufferUAV, ERHIAccess::UAVMask, ERHIAccess::SRVMask));
-		});
 
 		// Initialize graph managed resources
 		// Symbols buffer contains Count + 1 elements. The first element is only used as a counter.
@@ -363,9 +317,9 @@ namespace ShaderPrint
 
 		// Non graph managed resources
 		FUniformBufferRef UniformBuffer = CreateUniformBuffer(View);
+		FRDGBufferSRVRef ValuesBuffer = GraphBuilder.CreateSRV(View.ShaderPrintValueBuffer);
 		FTextureRHIRef FontTexture = GEngine->MiniFontTexture != nullptr ? GEngine->MiniFontTexture->Resource->TextureRHI : GSystemTextures.BlackDummy->GetRenderTargetItem().ShaderResourceTexture;;
 
-		FShaderResourceViewRHIRef ValuesBuffer = View.ShaderPrintValueBuffer.SRV;
 		const ERHIFeatureLevel::Type FeatureLevel = View.GetFeatureLevel();
 		FGlobalShaderMap* GlobalShaderMap = GetGlobalShaderMap(FeatureLevel);
 
@@ -462,6 +416,6 @@ namespace ShaderPrint
 
 	void EndView(FViewInfo& View)
 	{
-		View.ShaderPrintValueBuffer.Release();
+		View.ShaderPrintValueBuffer = nullptr;
 	}
 }

@@ -1140,7 +1140,7 @@ namespace RuntimeVirtualTexture
 
 		// Make sure GPUScene is up to date. 
 		// Usually this is a no-op since we updated before calling, but RuntimeVirtualTexture::BuildStreamedMips() needs this.
-		UpdateGPUScene(GraphBuilder.RHICmdList, *InDesc.Scene->GetRenderScene());
+		UpdateGPUScene(GraphBuilder, *InDesc.Scene->GetRenderScene());
 
 		for (int32 PageIndex = 0; PageIndex < InDesc.NumPageDescs; ++PageIndex)
 		{

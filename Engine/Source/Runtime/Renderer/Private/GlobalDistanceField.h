@@ -35,7 +35,7 @@ namespace GlobalDistanceField
  * In the worst case of a camera cut or large distance field scene changes, a full update of the global distance field will be done.
  **/
 extern void UpdateGlobalDistanceFieldVolume(
-	FRHICommandListImmediate& RHICmdList, 
+	FRDGBuilder& GraphBuilder,
 	FViewInfo& View, 
 	FScene* Scene, 
 	float MaxOcclusionDistance, 

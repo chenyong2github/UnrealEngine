@@ -349,7 +349,7 @@ bool FVirtualShadowMapArrayCacheManager::IsAccumulatingStats()
 	return CVarAccumulateStats.GetValueOnRenderThread() != 0;
 }
 
-void FVirtualShadowMapArrayCacheManager::ProcessRemovedPrimives(FRHICommandListImmediate& RHICmdList, const FGPUScene &GPUScene, const TArray<FPrimitiveSceneInfo*> &RemovedPrimitiveSceneInfos)
+void FVirtualShadowMapArrayCacheManager::ProcessRemovedPrimives(FRDGBuilder& GraphBuilder, const FGPUScene &GPUScene, const TArray<FPrimitiveSceneInfo*> &RemovedPrimitiveSceneInfos)
 {
 	if (CVarCacheVirtualSMs.GetValueOnRenderThread() != 0 && RemovedPrimitiveSceneInfos.Num() > 0 && PrevDynamicCasterPageFlags.IsValid())
 	{
@@ -362,12 +362,12 @@ void FVirtualShadowMapArrayCacheManager::ProcessRemovedPrimives(FRHICommandListI
 				InstanceRanges.Add(FInstanceDataRange{ PrimitiveSceneInfo->GetInstanceDataOffset(), PrimitiveSceneInfo->GetNumInstanceDataEntries() });
 			}
 		}
-		ProcessInstanceRangeInvalidation(RHICmdList, InstanceRanges, GPUScene);
+		ProcessInstanceRangeInvalidation(GraphBuilder, InstanceRanges, GPUScene);
 	}
 }
 
 
-void FVirtualShadowMapArrayCacheManager::ProcessPrimitivesToUpdate(FRHICommandListImmediate& RHICmdList, const FScene &Scene)
+void FVirtualShadowMapArrayCacheManager::ProcessPrimitivesToUpdate(FRDGBuilder& GraphBuilder, const FScene &Scene)
 {
 	const FGPUScene& GPUScene = Scene.GPUScene;
 	if (IsValid() && GPUScene.PrimitivesToUpdate.Num() > 0)
@@ -386,7 +386,7 @@ void FVirtualShadowMapArrayCacheManager::ProcessPrimitivesToUpdate(FRHICommandLi
 				}
 			}
 		}
-		ProcessInstanceRangeInvalidation(RHICmdList, InstanceRanges, GPUScene);
+		ProcessInstanceRangeInvalidation(GraphBuilder, InstanceRanges, GPUScene);
 	}
 }
 
@@ -438,52 +438,46 @@ public:
 IMPLEMENT_GLOBAL_SHADER(FVirtualSmInvalidateInstancePagesCS, "/Engine/Private/VirtualShadowMaps/CacheManagement.usf", "VirtualSmInvalidateInstancePagesCS", SF_Compute);
 
 
-void FVirtualShadowMapArrayCacheManager::ProcessInstanceRangeInvalidation(FRHICommandListImmediate& RHICmdList, const TArray<FInstanceDataRange>& InstanceRanges, const FGPUScene& GPUScene)
+void FVirtualShadowMapArrayCacheManager::ProcessInstanceRangeInvalidation(FRDGBuilder& GraphBuilder, const TArray<FInstanceDataRange>& InstanceRanges, const FGPUScene& GPUScene)
 {
 	if (InstanceRanges.Num())
 	{
-		FRDGBuilder GraphBuilder(RHICmdList);
+		RDG_EVENT_SCOPE(GraphBuilder, "ProcessInstanceRangeInvalidation [%d ranges]", InstanceRanges.Num());
+
+		FVirtualSmInvalidateInstancePagesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FVirtualSmInvalidateInstancePagesCS::FParameters>();
+
+		FRDGBufferRef InstanceRangesRDG = CreateStructuredBuffer(GraphBuilder, TEXT("InstanceRanges"), InstanceRanges);
+		FRDGBufferRef DynamicCasterFlagsRDG = GraphBuilder.RegisterExternalBuffer(PrevDynamicCasterPageFlags, TEXT("DynamicCasterFlags"));
+
+		auto RegExtCreateSrv = [&GraphBuilder](const TRefCountPtr<FRDGPooledBuffer>& Buffer, const TCHAR* Name) -> FRDGBufferSRVRef
 		{
-			RDG_EVENT_SCOPE(GraphBuilder, "ProcessInstanceRangeInvalidation [%d ranges]", InstanceRanges.Num());
+			return GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(Buffer, Name));
+		};
 
-			FVirtualSmInvalidateInstancePagesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FVirtualSmInvalidateInstancePagesCS::FParameters>();
+		PassParameters->CommonParameters = PrevCommonParameters;
+		PassParameters->InstanceRanges = GraphBuilder.CreateSRV(InstanceRangesRDG);
+		PassParameters->NumRemovedItems = InstanceRanges.Num();
+		PassParameters->ShadowMapProjectionData = RegExtCreateSrv(PrevShadowMapProjectionDataBuffer, TEXT("PrevShadowMapProjectionData"));
 
-			FRDGBufferRef InstanceRangesRDG = CreateStructuredBuffer(GraphBuilder, TEXT("InstanceRanges"), InstanceRanges);
-			FRDGBufferRef DynamicCasterFlagsRDG = GraphBuilder.RegisterExternalBuffer(PrevDynamicCasterPageFlags, TEXT("DynamicCasterFlags"));
+		PassParameters->PageFlags = RegExtCreateSrv(PrevPageFlags, TEXT("PrevPageFlags"));
+		PassParameters->HPageFlags = RegExtCreateSrv(PrevHPageFlags, TEXT("PrevHPageFlags"));
+		PassParameters->PageRectBounds = RegExtCreateSrv(PrevPageRectBounds, TEXT("PrevPageRectBounds"));
 
-			auto RegExtCreateSrv = [&GraphBuilder](const TRefCountPtr<FRDGPooledBuffer>& Buffer, const TCHAR* Name) -> FRDGBufferSRVRef
-			{
-				return GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(Buffer, Name));
-			};
+		PassParameters->OutDynamicCasterFlags = GraphBuilder.CreateUAV(DynamicCasterFlagsRDG);
 
-			PassParameters->CommonParameters = PrevCommonParameters;
-			PassParameters->InstanceRanges = GraphBuilder.CreateSRV(InstanceRangesRDG);
-			PassParameters->NumRemovedItems = InstanceRanges.Num();
-			PassParameters->ShadowMapProjectionData = RegExtCreateSrv(PrevShadowMapProjectionDataBuffer, TEXT("PrevShadowMapProjectionData"));
+		PassParameters->GPUSceneInstanceSceneData = GPUScene.InstanceDataBuffer.SRV;
+		PassParameters->GPUScenePrimitiveSceneData = GPUScene.PrimitiveBuffer.SRV;
+		PassParameters->GPUSceneFrameNumber = GPUScene.SceneFrameNumber;
+		PassParameters->InstanceDataSOAStride = GPUScene.InstanceDataSOAStride;
 
-			PassParameters->PageFlags = RegExtCreateSrv(PrevPageFlags, TEXT("PrevPageFlags"));
-			PassParameters->HPageFlags = RegExtCreateSrv(PrevHPageFlags, TEXT("PrevHPageFlags"));
-			PassParameters->PageRectBounds = RegExtCreateSrv(PrevPageRectBounds, TEXT("PrevPageRectBounds"));
+		auto ComputeShader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FVirtualSmInvalidateInstancePagesCS>();
 
-			PassParameters->OutDynamicCasterFlags = GraphBuilder.CreateUAV(DynamicCasterFlagsRDG);
-
-			PassParameters->GPUSceneInstanceSceneData = GPUScene.InstanceDataBuffer.SRV;
-			PassParameters->GPUScenePrimitiveSceneData = GPUScene.PrimitiveBuffer.SRV;
-			PassParameters->GPUSceneFrameNumber = GPUScene.SceneFrameNumber;
-			PassParameters->InstanceDataSOAStride = GPUScene.InstanceDataSOAStride;
-
-			auto ComputeShader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FVirtualSmInvalidateInstancePagesCS>();
-
-			FComputeShaderUtils::AddPass(
-				GraphBuilder,
-				RDG_EVENT_NAME("VirtualSmInvalidateInstancePagesCS"),
-				ComputeShader,
-				PassParameters,
-				FIntVector(FMath::DivideAndRoundUp(InstanceRanges.Num(), FVirtualSmInvalidateInstancePagesCS::Cs1dGroupSizeX), 1, 1)
-			);
-
-			GraphBuilder.QueueBufferExtraction(DynamicCasterFlagsRDG, &PrevDynamicCasterPageFlags);
-		}
-		GraphBuilder.Execute();
+		FComputeShaderUtils::AddPass(
+			GraphBuilder,
+			RDG_EVENT_NAME("VirtualSmInvalidateInstancePagesCS"),
+			ComputeShader,
+			PassParameters,
+			FIntVector(FMath::DivideAndRoundUp(InstanceRanges.Num(), FVirtualSmInvalidateInstancePagesCS::Cs1dGroupSizeX), 1, 1)
+		);
 	}
 }

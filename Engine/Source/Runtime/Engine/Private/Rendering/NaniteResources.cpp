@@ -891,7 +891,7 @@ void FGlobalResources::ReleaseRHI()
 	}
 }
 
-void FGlobalResources::Update(FRHICommandListImmediate& RHICmdList)
+void FGlobalResources::Update(FRDGBuilder& GraphBuilder)
 {
 	check(DoesPlatformSupportNanite(GMaxRHIShaderPlatform));
 
@@ -911,27 +911,27 @@ void FGlobalResources::Update(FRHICommandListImmediate& RHICmdList)
 
 		if (!PrimaryVisibleClustersBuffer.IsValid())
 		{
-			GetPooledFreeBuffer(RHICmdList, ClustersBufferDesc, PrimaryVisibleClustersBuffer, TEXT("VisibleClustersSWHW"));
+			GetPooledFreeBuffer(GraphBuilder.RHICmdList, ClustersBufferDesc, PrimaryVisibleClustersBuffer, TEXT("VisibleClustersSWHW"));
 		}
 
 		if (!ScratchVisibleClustersBuffer.IsValid())
 		{
-			GetPooledFreeBuffer(RHICmdList, ClustersBufferDesc, ScratchVisibleClustersBuffer, TEXT("VisibleClustersSWHW"));
+			GetPooledFreeBuffer(GraphBuilder.RHICmdList, ClustersBufferDesc, ScratchVisibleClustersBuffer, TEXT("VisibleClustersSWHW"));
 		}
 
 		if (!ScratchOccludedInstancesBuffer.IsValid())
 		{
-			GetPooledFreeBuffer(RHICmdList, FRDGBufferDesc::CreateStructuredDesc(4, GetMaxInstances()), ScratchOccludedInstancesBuffer, TEXT("OccludedInstances"));
+			GetPooledFreeBuffer(GraphBuilder.RHICmdList, FRDGBufferDesc::CreateStructuredDesc(4, GetMaxInstances()), ScratchOccludedInstancesBuffer, TEXT("OccludedInstances"));
 		}
 
 		if (!MainPassBuffers.ScratchCandidateClustersBuffer.IsValid())
 		{
-			GetPooledFreeBuffer(RHICmdList, ClustersBufferDesc, MainPassBuffers.ScratchCandidateClustersBuffer, TEXT("MainPass.CandidateClusters"));
+			GetPooledFreeBuffer(GraphBuilder.RHICmdList, ClustersBufferDesc, MainPassBuffers.ScratchCandidateClustersBuffer, TEXT("MainPass.CandidateClusters"));
 		}
 
 		if (!PostPassBuffers.ScratchCandidateClustersBuffer.IsValid())
 		{
-			GetPooledFreeBuffer(RHICmdList, ClustersBufferDesc, PostPassBuffers.ScratchCandidateClustersBuffer, TEXT("PostPass.CandidateClusters"));
+			GetPooledFreeBuffer(GraphBuilder.RHICmdList, ClustersBufferDesc, PostPassBuffers.ScratchCandidateClustersBuffer, TEXT("PostPass.CandidateClusters"));
 		}
 
 		check(PrimaryVisibleClustersBuffer.IsValid());
@@ -942,7 +942,7 @@ void FGlobalResources::Update(FRHICommandListImmediate& RHICmdList)
 	if(!StructureBufferStride8.IsValid())
 	{
 		FRDGBufferDesc StructureBufferStride8Desc = FRDGBufferDesc::CreateStructuredDesc(8, 1);
-		GetPooledFreeBuffer(RHICmdList, StructureBufferStride8Desc, StructureBufferStride8, TEXT("StructureBufferStride8"));
+		GetPooledFreeBuffer(GraphBuilder.RHICmdList, StructureBufferStride8Desc, StructureBufferStride8, TEXT("StructureBufferStride8"));
 		check(StructureBufferStride8.IsValid());
 	}
 #endif

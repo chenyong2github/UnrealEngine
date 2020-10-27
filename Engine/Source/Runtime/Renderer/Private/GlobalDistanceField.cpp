@@ -1538,13 +1538,14 @@ IMPLEMENT_GLOBAL_SHADER(FPropagateMipDistanceCS, "/Engine/Private/GlobalDistance
  * In the worst case of a camera cut or large distance field scene changes, a full update of the global distance field will be done.
  **/
 void UpdateGlobalDistanceFieldVolume(
-	FRHICommandListImmediate& RHICmdList, 
-	FViewInfo& View, 
-	FScene* Scene, 
-	float MaxOcclusionDistance, 
+	FRDGBuilder& GraphBuilder,
+	FViewInfo& View,
+	FScene* Scene,
+	float MaxOcclusionDistance,
 	FGlobalDistanceFieldInfo& GlobalDistanceFieldInfo)
 {
-	SCOPED_GPU_STAT(RHICmdList, GlobalDistanceFieldUpdate);
+	RDG_GPU_STAT_SCOPE(GraphBuilder, GlobalDistanceFieldUpdate);
+	SCOPED_GPU_STAT(GraphBuilder.RHICmdList, GlobalDistanceFieldUpdate);
 
 	const FDistanceFieldSceneData& DistanceFieldSceneData = Scene->DistanceFieldSceneData;
 
@@ -1553,7 +1554,7 @@ void UpdateGlobalDistanceFieldVolume(
 	if (Scene->DistanceFieldSceneData.NumObjectsInBuffer > 0)
 	{
 		const int32 NumClipmaps = FMath::Clamp<int32>(GetNumGlobalDistanceFieldClipmaps(), 0, GMaxGlobalDistanceFieldClipmaps);
-		ComputeUpdateRegionsAndUpdateViewState(RHICmdList, View, Scene, GlobalDistanceFieldInfo, NumClipmaps, MaxOcclusionDistance);
+		ComputeUpdateRegionsAndUpdateViewState(GraphBuilder.RHICmdList, View, Scene, GlobalDistanceFieldInfo, NumClipmaps, MaxOcclusionDistance);
 
 		// Recreate the view uniform buffer now that we have updated GlobalDistanceFieldInfo
 		View.SetupGlobalDistanceFieldUniformBufferParameters(*View.CachedViewUniformShaderParameters);
@@ -1571,8 +1572,6 @@ void UpdateGlobalDistanceFieldVolume(
 		{
 			bHasUpdateBounds = bHasUpdateBounds || GlobalDistanceFieldInfo.MostlyStaticClipmaps[ClipmapIndex].UpdateBounds.Num() > 0;
 		}
-
-		FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("UpdateGlobalDistanceFieldVolume"));
 
 		if (bHasUpdateBounds && GAOUpdateGlobalDistanceField)
 		{
@@ -2355,19 +2354,17 @@ void UpdateGlobalDistanceFieldVolume(
 				ConvertToExternalTexture(GraphBuilder, MipTexture, GlobalDistanceFieldInfo.MipTexture);
 			}
 		}
-
-		GraphBuilder.Execute();
 	}
 
 	if (GDFReadbackRequest && GlobalDistanceFieldInfo.Clipmaps.Num() > 0)
 	{
 		// Read back a clipmap
-		ReadbackDistanceFieldClipmap(RHICmdList, GlobalDistanceFieldInfo);
+		ReadbackDistanceFieldClipmap(GraphBuilder.RHICmdList, GlobalDistanceFieldInfo);
 	}
 
 	if (GDFReadbackRequest && GlobalDistanceFieldInfo.Clipmaps.Num() > 0)
 	{
 		// Read back a clipmap
-		ReadbackDistanceFieldClipmap(RHICmdList, GlobalDistanceFieldInfo);
+		ReadbackDistanceFieldClipmap(GraphBuilder.RHICmdList, GlobalDistanceFieldInfo);
 	}
 }

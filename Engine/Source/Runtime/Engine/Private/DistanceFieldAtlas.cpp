@@ -437,7 +437,7 @@ static void CopyToUpdateTextureData
 	}
 }
 
-void FDistanceFieldVolumeTextureAtlas::UpdateAllocations(FRHICommandListImmediate& RHICmdList, ERHIFeatureLevel::Type InFeatureLevel)
+void FDistanceFieldVolumeTextureAtlas::UpdateAllocations(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::Type InFeatureLevel)
 {
 	SCOPED_NAMED_EVENT(FDistanceFieldVolumeTextureAtlas_UpdateAllocations, FColor::Emerald);
 
@@ -803,7 +803,7 @@ void FDistanceFieldVolumeTextureAtlas::UpdateAllocations(FRHICommandListImmediat
 
 		if (DownsamplingTasks.Num() > 0)
 		{
-			FDistanceFieldDownsampling::DispatchDownsampleTasks(RHICmdList, VolumeTextureUAVRHI, InFeatureLevel, DownsamplingTasks, UpdateDataArray);
+			FDistanceFieldDownsampling::DispatchDownsampleTasks(GraphBuilder, VolumeTextureUAVRHI, InFeatureLevel, DownsamplingTasks, UpdateDataArray);
 		}
 
 		const double EndTime = FPlatformTime::Seconds();
@@ -815,6 +815,13 @@ void FDistanceFieldVolumeTextureAtlas::UpdateAllocations(FRHICommandListImmediat
 		}
 		GDistanceFieldForceAtlasRealloc = 0;
 	}
+}
+
+void FDistanceFieldVolumeTextureAtlas::UpdateAllocations(FRHICommandListImmediate& RHICmdList, ERHIFeatureLevel::Type InFeatureLevel)
+{
+	FRDGBuilder GraphBuilder(RHICmdList);
+	UpdateAllocations(GraphBuilder, InFeatureLevel);
+	GraphBuilder.Execute();
 }
 
 FDistanceFieldVolumeTexture::~FDistanceFieldVolumeTexture()
@@ -1419,7 +1426,7 @@ uint32 FLandscapeTextureAtlas::CalculateDownSampleLevel(uint32 SizeX, uint32 Siz
 	return MaxDownSampleLevel;
 }
 
-void FLandscapeTextureAtlas::UpdateAllocations(FRHICommandListImmediate& RHICmdList, ERHIFeatureLevel::Type InFeatureLevel)
+void FLandscapeTextureAtlas::UpdateAllocations(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::Type InFeatureLevel)
 {
 	InitializeIfNeeded();
 
@@ -1544,10 +1551,11 @@ void FLandscapeTextureAtlas::UpdateAllocations(FRHICommandListImmediate& RHICmdL
 
 	if (PendingUploads.Num())
 	{
-		RHICmdList.Transition(FRHITransitionInfo(AtlasUAVRHI, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
-		RHICmdList.BeginUAVOverlap(AtlasUAVRHI);
-
-		FRDGBuilder GraphBuilder(RHICmdList);
+		AddPass(GraphBuilder, [this](FRHICommandList& RHICmdList)
+		{
+			RHICmdList.Transition(FRHITransitionInfo(AtlasUAVRHI, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
+			RHICmdList.BeginUAVOverlap(AtlasUAVRHI);
+		});
 
 		if (SubAllocType == SAT_Height)
 		{
@@ -1584,11 +1592,19 @@ void FLandscapeTextureAtlas::UpdateAllocations(FRHICommandListImmediate& RHICmdL
 			}
 		}
 
-		GraphBuilder.Execute();
-
-		RHICmdList.EndUAVOverlap(AtlasUAVRHI);
-		RHICmdList.Transition(FRHITransitionInfo(AtlasUAVRHI, ERHIAccess::UAVCompute, ERHIAccess::SRVGraphics));
+		AddPass(GraphBuilder, [this](FRHICommandList& RHICmdList)
+		{
+			RHICmdList.EndUAVOverlap(AtlasUAVRHI);
+			RHICmdList.Transition(FRHITransitionInfo(AtlasUAVRHI, ERHIAccess::UAVCompute, ERHIAccess::SRVGraphics));
+		});
 	}
+}
+
+void FLandscapeTextureAtlas::UpdateAllocations(FRHICommandListImmediate& RHICmdList, ERHIFeatureLevel::Type InFeatureLevel)
+{
+	FRDGBuilder GraphBuilder(RHICmdList);
+	UpdateAllocations(GraphBuilder, InFeatureLevel);
+	GraphBuilder.Execute();
 }
 
 uint32 FLandscapeTextureAtlas::GetAllocationHandle(UTexture2D* Texture) const

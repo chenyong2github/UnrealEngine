@@ -515,7 +515,7 @@ public:
 	virtual void InitRHI() override;
 	virtual void ReleaseRHI() override;
 
-	ENGINE_API void	Update(FRHICommandListImmediate& RHICmdList); // Called once per frame before any Nanite rendering has occurred.
+	ENGINE_API void	Update(FRDGBuilder& GraphBuilder); // Called once per frame before any Nanite rendering has occurred.
 
 	ENGINE_API static uint32 GetMaxInstances();
 	ENGINE_API static uint32 GetMaxClusters();

@@ -72,7 +72,9 @@ public:
 	/**
 	* Updates all primitive scene info additions, remobals and translation changes
 	*/
-	virtual void UpdateAllPrimitiveSceneInfos(FRHICommandListImmediate& RHICmdList, bool bAsyncCreateLPIs = false) = 0;
+	virtual void UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsyncCreateLPIs = false) = 0;
+	virtual ENGINE_API void UpdateAllPrimitiveSceneInfos(FRHICommandListImmediate& RHICmdList, bool bAsyncCreateLPIs = false);
+
 	/** 
 	 * Updates the transform of a primitive which has already been added to the scene. 
 	 * 
@@ -322,7 +324,10 @@ public:
 	/**
 	 * Reset the physics field scene proxy
 	 */
-	virtual void UpdatePhysicsField(FRHICommandListImmediate& RHICmdList, FViewInfo& View) = 0;
+	virtual void UpdatePhysicsField(FRDGBuilder& GraphBuilder, FViewInfo& View) = 0;
+
+	UE_DEPRECATED(5.0, "This method has been refactored to use an FRDGBuilder instead.")
+	virtual void UpdatePhysicsField(FRHICommandListImmediate& RHICmdList, FViewInfo& View) {}
 
 	/**
 	 * Returns the scene's unique info if it exists

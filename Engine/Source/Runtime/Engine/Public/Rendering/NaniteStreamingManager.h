@@ -117,7 +117,7 @@ public:
 	void	Remove( FResources* Resources );
 
 	ENGINE_API void BeginAsyncUpdate(FRDGBuilder& GraphBuilder);			// Called once per frame before any Nanite rendering has occurred. Must be called before EndUpdate.
-	ENGINE_API void EndAsyncUpdate(FRHICommandListImmediate& RHICmdList);			// Called once per frame before any Nanite rendering has occurred. Must be called after BeginUpdate.
+	ENGINE_API void EndAsyncUpdate(FRDGBuilder& GraphBuilder);				// Called once per frame before any Nanite rendering has occurred. Must be called after BeginUpdate.
 	ENGINE_API bool IsAsyncUpdateInProgress();
 	ENGINE_API void	SubmitFrameStreamingRequests(FRDGBuilder& GraphBuilder);		// Called once per frame after the last request has been added.
 	

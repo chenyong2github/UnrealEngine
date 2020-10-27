@@ -3067,8 +3067,10 @@ static bool IsLargeCameraMovement(FSceneView& View, const FMatrix& PrevViewMatri
 		Distance.SizeSquared() > CameraTranslationThreshold * CameraTranslationThreshold;
 }
 
-void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdList)
+void FSceneRenderer::PreVisibilityFrameSetup(FRDGBuilder& GraphBuilder)
 {
+	FRHICommandListImmediate& RHICmdList = GraphBuilder.RHICmdList;
+
 	// Notify the RHI we are beginning to render a scene.
 	RHICmdList.BeginScene();
 
@@ -3106,12 +3108,9 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdLis
 
 	if (IsHairStrandsEnabled(EHairStrandsShaderType::All, Scene->GetShaderPlatform()) && Views.Num() > 0 && !ViewFamily.EngineShowFlags.HitProxies)
 	{
-		FRDGBuilder GraphBuilder(RHICmdList);
-
 		FHairStrandsBookmarkParameters Parameters = CreateHairStrandsBookmarkParameters(Views);
 		RunHairStrandsBookmark(GraphBuilder, EHairStrandsBookmark::ProcessLODSelection, Parameters);
 		RunHairStrandsBookmark(GraphBuilder, EHairStrandsBookmark::ProcessGuideInterpolation, Parameters);
-		GraphBuilder.Execute();
 	}
 
 	// Notify the FX system that the scene is about to perform visibility checks.
@@ -4400,7 +4399,7 @@ uint32 GetShadowQuality();
 /** 
 * Performs once per frame setup prior to visibility determination.
 */
-void FDeferredShadingSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdList)
+void FDeferredShadingSceneRenderer::PreVisibilityFrameSetup(FRDGBuilder& GraphBuilder)
 {
 	// Possible stencil dither optimization approach
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
@@ -4409,23 +4408,29 @@ void FDeferredShadingSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmed
 		View.bAllowStencilDither = DepthPass.bDitheredLODTransitionsUseStencil;
 	}
 
-	FSceneRenderer::PreVisibilityFrameSetup(RHICmdList);
+	FSceneRenderer::PreVisibilityFrameSetup(GraphBuilder);
 }
 
 /**
  * Initialize scene's views.
  * Check visibility, build visible mesh commands, etc.
  */
-bool FDeferredShadingSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList, FExclusiveDepthStencil::Type BasePassDepthStencilAccess, struct FILCUpdatePrimTaskData& ILCTaskData)
+bool FDeferredShadingSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, FExclusiveDepthStencil::Type BasePassDepthStencilAccess, struct FILCUpdatePrimTaskData& ILCTaskData)
 {
 	SCOPED_NAMED_EVENT(FDeferredShadingSceneRenderer_InitViews, FColor::Emerald);
 	SCOPE_CYCLE_COUNTER(STAT_InitViewsTime);
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(InitViews_Scene);
-	check(RHICmdList.IsOutsideRenderPass());
 
-	PreVisibilityFrameSetup(RHICmdList);
+	PreVisibilityFrameSetup(GraphBuilder);
 
-	RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
+	FRHICommandListImmediate& RHICmdList = GraphBuilder.RHICmdList;
+
+	const auto DispatchToRHIThread = [&]()
+	{
+		RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
+	};
+
+	DispatchToRHIThread();
 
 	{
 		// This is to init the ViewUniformBuffer before rendering for the Niagara compute shader.
@@ -4442,7 +4447,7 @@ bool FDeferredShadingSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdLi
 
 	ComputeViewVisibility(RHICmdList, BasePassDepthStencilAccess, ViewCommandsPerView, DynamicIndexBufferForInitViews, DynamicVertexBufferForInitViews, DynamicReadBufferForInitViews);
 
-	RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
+	DispatchToRHIThread();
 
 	// This has to happen before Scene->IndirectLightingCache.UpdateCache, since primitives in View.IndirectShadowPrimitives need ILC updates
 	CreateIndirectCapsuleShadows();
@@ -4450,7 +4455,7 @@ bool FDeferredShadingSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdLi
 	// This must happen before we start initialising and using views.
 	UpdateSkyIrradianceGpuBuffer(RHICmdList);
 
-	RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
+	DispatchToRHIThread();
 
 	// Initialise Sky/View resources before the view global uniform buffer is built.
 	if (ShouldRenderSkyAtmosphere(Scene, ViewFamily.EngineShowFlags))
@@ -4459,12 +4464,12 @@ bool FDeferredShadingSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdLi
 	}
 
 	PostVisibilityFrameSetup(ILCTaskData);
-	RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
+	DispatchToRHIThread();
 
 	FVector AverageViewPosition(0);
 
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
-	{		
+	{
 		FViewInfo& View = Views[ViewIndex];
 		AverageViewPosition += View.ViewMatrices.GetViewOrigin() / Views.Num();
 	}
@@ -4473,7 +4478,7 @@ bool FDeferredShadingSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdLi
 
 	if (!bDoInitViewAftersPrepass)
 	{
-		InitViewsPossiblyAfterPrepass(RHICmdList, ILCTaskData);
+		InitViewsPossiblyAfterPrepass(GraphBuilder, ILCTaskData);
 	}
 
 	{
@@ -4566,10 +4571,12 @@ void FSceneRenderer::SetupSceneReflectionCaptureBuffer(FRHICommandListImmediate&
 	}
 }
 
-void FDeferredShadingSceneRenderer::InitViewsPossiblyAfterPrepass(FRHICommandListImmediate& RHICmdList, struct FILCUpdatePrimTaskData& ILCTaskData)
+void FDeferredShadingSceneRenderer::InitViewsPossiblyAfterPrepass(FRDGBuilder& GraphBuilder, struct FILCUpdatePrimTaskData& ILCTaskData)
 {
 	SCOPED_NAMED_EVENT(FDeferredShadingSceneRenderer_InitViewsPossiblyAfterPrepass, FColor::Emerald);
 	SCOPE_CYCLE_COUNTER(STAT_InitViewsPossiblyAfterPrepass);
+
+	FRHICommandListImmediate& RHICmdList = GraphBuilder.RHICmdList;
 
 	if (ViewFamily.EngineShowFlags.DynamicShadows 
 		&& !IsSimpleForwardShadingEnabled(ShaderPlatform)
@@ -4607,7 +4614,7 @@ void FDeferredShadingSceneRenderer::InitViewsPossiblyAfterPrepass(FRHICommandLis
 
 	SetupSceneReflectionCaptureBuffer(RHICmdList);
 
-	BeginUpdateLumenSceneTasks(RHICmdList);
+	BeginUpdateLumenSceneTasks(GraphBuilder);
 }
 
 /*------------------------------------------------------------------------------

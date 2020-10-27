@@ -893,39 +893,30 @@ void UpdateDirtyCards(FScene* Scene, bool bReallocateAtlas, bool bLatchedRecaptu
 	}
 }
 
-void ClearAtlas(FRHICommandListImmediate& RHICmdList, const TRefCountPtr<IPooledRenderTarget>& Atlas)
+void ClearAtlas(FRDGBuilder& GraphBuilder, const TRefCountPtr<IPooledRenderTarget>& Atlas)
 {
 	LLM_SCOPE_BYTAG(Lumen);
-	FRHITexture* RenderTargetArray[1] =
-	{
-		Atlas->GetRenderTargetItem().TargetableTexture
-	};
-
-	FRHIRenderPassInfo RPInfo(UE_ARRAY_COUNT(RenderTargetArray), RenderTargetArray, ERenderTargetActions::Clear_Store);
-	TransitionRenderPassTargets(RHICmdList, RPInfo);
-	RHICmdList.BeginRenderPass(RPInfo, TEXT("ClearAtlas"));
-
-	RHICmdList.EndRenderPass();
-	RHICmdList.Transition(FRHITransitionInfo(Atlas->GetRenderTargetItem().TargetableTexture, ERHIAccess::Unknown, ERHIAccess::SRVMask));
+	FRDGTextureRef AtlasTexture = GraphBuilder.RegisterExternalTexture(Atlas);
+	AddClearRenderTargetPass(GraphBuilder, AtlasTexture);
 }
 
-void ClearAtlasesToDebugValues(FRHICommandListImmediate& RHICmdList, FLumenSceneData& LumenSceneData)
+void ClearAtlasesToDebugValues(FRDGBuilder& GraphBuilder, FLumenSceneData& LumenSceneData)
 {
 	LLM_SCOPE_BYTAG(Lumen);
 
 	// Clear to debug values to make out of bounds reads obvious
-	ClearAtlas(RHICmdList, LumenSceneData.DepthAtlas);
-	ClearAtlas(RHICmdList, LumenSceneData.FinalLightingAtlas);
+	ClearAtlas(GraphBuilder, LumenSceneData.DepthAtlas);
+	ClearAtlas(GraphBuilder, LumenSceneData.FinalLightingAtlas);
 	if (Lumen::UseIrradianceAtlas())
 	{
-		ClearAtlas(RHICmdList, LumenSceneData.IrradianceAtlas);
+		ClearAtlas(GraphBuilder, LumenSceneData.IrradianceAtlas);
 	}
 	if (Lumen::UseIndirectIrradianceAtlas())
 	{
-		ClearAtlas(RHICmdList, LumenSceneData.IndirectIrradianceAtlas);
+		ClearAtlas(GraphBuilder, LumenSceneData.IndirectIrradianceAtlas);
 	}
-	ClearAtlas(RHICmdList, LumenSceneData.RadiosityAtlas);
-	ClearAtlas(RHICmdList, LumenSceneData.OpacityAtlas);
+	ClearAtlas(GraphBuilder, LumenSceneData.RadiosityAtlas);
+	ClearAtlas(GraphBuilder, LumenSceneData.OpacityAtlas);
 }
 
 FIntPoint GetDesiredAtlasSize()
@@ -934,7 +925,7 @@ FIntPoint GetDesiredAtlasSize()
 	return FIntPoint(Pow2, Pow2);
 }
 
-void AllocateCardAtlases(FRHICommandListImmediate& RHICmdList, FLumenSceneData& LumenSceneData)
+void AllocateCardAtlases(FRDGBuilder& GraphBuilder, FLumenSceneData& LumenSceneData)
 {
 	LLM_SCOPE_BYTAG(Lumen);
 
@@ -942,36 +933,36 @@ void AllocateCardAtlases(FRHICommandListImmediate& RHICmdList, FLumenSceneData& 
 
 	FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(LumenSceneData.MaxAtlasSize, PF_R8G8B8A8, FClearValueBinding::Green, TexCreate_None, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_NoFastClear, false));
 	Desc.AutoWritable = false;
-	GRenderTargetPool.FindFreeElement(RHICmdList, Desc, LumenSceneData.AlbedoAtlas, TEXT("LumenSceneAlbedo"), ERenderTargetTransience::NonTransient);
-	GRenderTargetPool.FindFreeElement(RHICmdList, Desc, LumenSceneData.NormalAtlas, TEXT("LumenSceneNormal"), ERenderTargetTransience::NonTransient);
+	GRenderTargetPool.FindFreeElement(GraphBuilder.RHICmdList, Desc, LumenSceneData.AlbedoAtlas, TEXT("LumenSceneAlbedo"), ERenderTargetTransience::NonTransient);
+	GRenderTargetPool.FindFreeElement(GraphBuilder.RHICmdList, Desc, LumenSceneData.NormalAtlas, TEXT("LumenSceneNormal"), ERenderTargetTransience::NonTransient);
 
 	FPooledRenderTargetDesc DepthBufferDesc(FPooledRenderTargetDesc::Create2DDesc(LumenSceneData.MaxAtlasSize, PF_DepthStencil, FClearValueBinding::DepthZero, TexCreate_None, TexCreate_ShaderResource | TexCreate_DepthStencilTargetable | TexCreate_NoFastClear, false));
 	DepthBufferDesc.AutoWritable = false;
- 	GRenderTargetPool.FindFreeElement(RHICmdList, DepthBufferDesc, LumenSceneData.DepthBufferAtlas, TEXT("LumenSceneDepthBuffer"), ERenderTargetTransience::NonTransient);
+ 	GRenderTargetPool.FindFreeElement(GraphBuilder.RHICmdList, DepthBufferDesc, LumenSceneData.DepthBufferAtlas, TEXT("LumenSceneDepthBuffer"), ERenderTargetTransience::NonTransient);
 
 	FPooledRenderTargetDesc DepthDesc(FPooledRenderTargetDesc::Create2DDesc(LumenSceneData.MaxAtlasSize, PF_G16, FClearValueBinding::Black, TexCreate_None, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_NoFastClear, false, NumMips));
 	DepthDesc.AutoWritable = false;
-	GRenderTargetPool.FindFreeElement(RHICmdList, DepthDesc, LumenSceneData.DepthAtlas, TEXT("LumenSceneDepth"), ERenderTargetTransience::NonTransient);
+	GRenderTargetPool.FindFreeElement(GraphBuilder.RHICmdList, DepthDesc, LumenSceneData.DepthAtlas, TEXT("LumenSceneDepth"), ERenderTargetTransience::NonTransient);
 
 	FClearValueBinding CrazyGreen(FLinearColor(0.0f, 10000.0f, 0.0f, 1.0f));
 	FPooledRenderTargetDesc LightingDesc(FPooledRenderTargetDesc::Create2DDesc(LumenSceneData.MaxAtlasSize, PF_FloatR11G11B10, CrazyGreen, TexCreate_None, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_NoFastClear, false, NumMips));
 	LightingDesc.AutoWritable = false;
-	GRenderTargetPool.FindFreeElement(RHICmdList, LightingDesc, LumenSceneData.FinalLightingAtlas, TEXT("LumenSceneFinalLighting"), ERenderTargetTransience::NonTransient);
+	GRenderTargetPool.FindFreeElement(GraphBuilder.RHICmdList, LightingDesc, LumenSceneData.FinalLightingAtlas, TEXT("LumenSceneFinalLighting"), ERenderTargetTransience::NonTransient);
 	LumenSceneData.bFinalLightingAtlasContentsValid = false;
 
 	FPooledRenderTargetDesc RadiosityDesc(FPooledRenderTargetDesc::Create2DDesc(GetRadiosityAtlasSize(LumenSceneData.MaxAtlasSize), PF_FloatR11G11B10, FClearValueBinding::Black, TexCreate_None, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV, false));
 	RadiosityDesc.AutoWritable = false;
-	GRenderTargetPool.FindFreeElement(RHICmdList, RadiosityDesc, LumenSceneData.RadiosityAtlas, TEXT("LumenSceneRadiosity"), ERenderTargetTransience::NonTransient);
+	GRenderTargetPool.FindFreeElement(GraphBuilder.RHICmdList, RadiosityDesc, LumenSceneData.RadiosityAtlas, TEXT("LumenSceneRadiosity"), ERenderTargetTransience::NonTransient);
 
 	FPooledRenderTargetDesc OpacityDesc(FPooledRenderTargetDesc::Create2DDesc(LumenSceneData.MaxAtlasSize, PF_G8, FClearValueBinding::Black, TexCreate_None, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_NoFastClear, false, NumMips));
 	OpacityDesc.AutoWritable = false;
-	GRenderTargetPool.FindFreeElement(RHICmdList, OpacityDesc, LumenSceneData.OpacityAtlas, TEXT("LumenSceneOpacity"), ERenderTargetTransience::NonTransient);
+	GRenderTargetPool.FindFreeElement(GraphBuilder.RHICmdList, OpacityDesc, LumenSceneData.OpacityAtlas, TEXT("LumenSceneOpacity"), ERenderTargetTransience::NonTransient);
 
-	ClearAtlasesToDebugValues(RHICmdList, LumenSceneData);
+	ClearAtlasesToDebugValues(GraphBuilder, LumenSceneData);
 }
 
 // @todo Fold into AllocateCardAtlases after changing reallocation boolean to respect optional card atlas state settings
-void AllocateOptionalCardAtlases(FRHICommandListImmediate& RHICmdList, FLumenSceneData& LumenSceneData, bool bReallocateAtlas)
+void AllocateOptionalCardAtlases(FRDGBuilder& GraphBuilder, FLumenSceneData& LumenSceneData, bool bReallocateAtlas)
 {
 	FClearValueBinding CrazyGreen(FLinearColor(0.0f, 10000.0f, 0.0f, 1.0f));
 	const int32 NumMips = FMath::CeilLogTwo(FMath::Max(LumenSceneData.MaxAtlasSize.X, LumenSceneData.MaxAtlasSize.Y)) + 1;
@@ -981,7 +972,7 @@ void AllocateOptionalCardAtlases(FRHICommandListImmediate& RHICmdList, FLumenSce
 	const bool bUseIrradianceAtlas = Lumen::UseIrradianceAtlas();
 	if (bUseIrradianceAtlas && (bReallocateAtlas || !LumenSceneData.IrradianceAtlas))
 	{
-		GRenderTargetPool.FindFreeElement(RHICmdList, LightingDesc, LumenSceneData.IrradianceAtlas, TEXT("LumenSceneIrradiance"), ERenderTargetTransience::NonTransient);
+		GRenderTargetPool.FindFreeElement(GraphBuilder.RHICmdList, LightingDesc, LumenSceneData.IrradianceAtlas, TEXT("LumenSceneIrradiance"), ERenderTargetTransience::NonTransient);
 	}
 	else if (!bUseIrradianceAtlas)
 	{
@@ -991,7 +982,7 @@ void AllocateOptionalCardAtlases(FRHICommandListImmediate& RHICmdList, FLumenSce
 	const bool bUseIndirectIrradianceAtlas = Lumen::UseIndirectIrradianceAtlas();
 	if (bUseIndirectIrradianceAtlas && (bReallocateAtlas || !LumenSceneData.IndirectIrradianceAtlas))
 	{
-		GRenderTargetPool.FindFreeElement(RHICmdList, LightingDesc, LumenSceneData.IndirectIrradianceAtlas, TEXT("LumenSceneIndirectIrradiance"), ERenderTargetTransience::NonTransient);
+		GRenderTargetPool.FindFreeElement(GraphBuilder.RHICmdList, LightingDesc, LumenSceneData.IndirectIrradianceAtlas, TEXT("LumenSceneIndirectIrradiance"), ERenderTargetTransience::NonTransient);
 	}
 	else if (!bUseIndirectIrradianceAtlas)
 	{
@@ -1120,7 +1111,7 @@ void AddCardCaptureDraws(const FScene* Scene,
 	}
 }
 
-void FDeferredShadingSceneRenderer::UpdateLumenCardAtlasAllocation(FRHICommandListImmediate& RHICmdList, const FViewInfo& MainView, bool bReallocateAtlas, bool bRecaptureLumenSceneOnce)
+void FDeferredShadingSceneRenderer::UpdateLumenCardAtlasAllocation(FRDGBuilder& GraphBuilder, const FViewInfo& MainView, bool bReallocateAtlas, bool bRecaptureLumenSceneOnce)
 {
 	LLM_SCOPE_BYTAG(Lumen);
 	TRACE_CPUPROFILER_EVENT_SCOPE(UpdateCardAtlasAllocation);
@@ -1190,14 +1181,14 @@ void FDeferredShadingSceneRenderer::UpdateLumenCardAtlasAllocation(FRHICommandLi
 
 	if (bReallocateAtlas || !LumenSceneData.AlbedoAtlas)
 	{
-		AllocateCardAtlases(RHICmdList, LumenSceneData);
+		AllocateCardAtlases(GraphBuilder, LumenSceneData);
 	}
 
 	if (GLumenSceneRecaptureLumenSceneEveryFrame || bRecaptureLumenSceneOnce)
 	{
-		ClearAtlas(RHICmdList, LumenSceneData.DepthAtlas);
-		ClearAtlas(RHICmdList, LumenSceneData.OpacityAtlas);
-		ClearAtlas(RHICmdList, LumenSceneData.AlbedoAtlas);
+		ClearAtlas(GraphBuilder, LumenSceneData.DepthAtlas);
+		ClearAtlas(GraphBuilder, LumenSceneData.OpacityAtlas);
+		ClearAtlas(GraphBuilder, LumenSceneData.AlbedoAtlas);
 	}
 }
 
@@ -1405,7 +1396,7 @@ float ComputeMaxCardUpdateDistanceFromCamera()
 	return MaxCardDistanceFromCamera + FMath::Max(GLumenSceneCardCaptureMargin, 0.0f);
 }
 
-void FDeferredShadingSceneRenderer::BeginUpdateLumenSceneTasks(FRHICommandListImmediate& RHICmdList)
+void FDeferredShadingSceneRenderer::BeginUpdateLumenSceneTasks(FRDGBuilder& GraphBuilder)
 {
 	LLM_SCOPE_BYTAG(Lumen);
 
@@ -1646,10 +1637,10 @@ void FDeferredShadingSceneRenderer::BeginUpdateLumenSceneTasks(FRHICommandListIm
 			}
 		}
 
-		AllocateOptionalCardAtlases(RHICmdList, LumenSceneData, bReallocateAtlas);
+		AllocateOptionalCardAtlases(GraphBuilder, LumenSceneData, bReallocateAtlas);
 		if (CardsToRender.Num() > 0)
 		{
-			UpdateLumenCardAtlasAllocation(RHICmdList, MainView, bReallocateAtlas, bRecaptureLumenSceneOnce);
+			UpdateLumenCardAtlasAllocation(GraphBuilder, MainView, bReallocateAtlas, bRecaptureLumenSceneOnce);
 
 			{
 				QUICK_SCOPE_CYCLE_COUNTER(MeshPassSetup);
@@ -1665,7 +1656,7 @@ void FDeferredShadingSceneRenderer::BeginUpdateLumenSceneTasks(FRHICommandListIm
 
 					checkSlow(CardRenderData.CardData.bVisible && CardRenderData.CardData.bAllocated);
 					AddCardCaptureDraws(Scene, 
-						RHICmdList, 
+						GraphBuilder.RHICmdList, 
 						CardRenderData.CardData.PrimitiveSceneInfo, 
 						CardRenderData, 
 						LumenCardRenderer.MeshDrawCommands, 
@@ -1684,7 +1675,7 @@ void FDeferredShadingSceneRenderer::BeginUpdateLumenSceneTasks(FRHICommandListIm
 						UpdatedSceneInfos.Add(PrimitiveSceneInfo);
 					}
 
-					FPrimitiveSceneInfo::UpdateStaticMeshes(RHICmdList, Scene, UpdatedSceneInfos, true);
+					FPrimitiveSceneInfo::UpdateStaticMeshes(GraphBuilder.RHICmdList, Scene, UpdatedSceneInfos, true);
 				}
 			}
 

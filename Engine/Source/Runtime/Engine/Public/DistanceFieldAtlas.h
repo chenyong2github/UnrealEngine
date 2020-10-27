@@ -118,6 +118,9 @@ public:
 	void RemoveAllocation(FDistanceFieldVolumeTexture* Texture);
 
 	/** Reallocates the volume texture if necessary and uploads new allocations. */
+	void UpdateAllocations(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::Type InFeatureLevel);
+
+	UE_DEPRECATED(5.0, "This method has been refactored to use an FRDGBuilder instead.")
 	void UpdateAllocations(FRHICommandListImmediate& RHICmdList, ERHIFeatureLevel::Type InFeatureLevel);
 
 	int32 GetGeneration() const { return Generation; }
@@ -179,6 +182,9 @@ public:
 
 	void RemoveAllocation(UTexture2D* Texture);
 
+	void UpdateAllocations(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::Type InFeatureLevel);
+
+	UE_DEPRECATED(5.0, "This method has been refactored to use an FRDGBuilder instead.")
 	void UpdateAllocations(FRHICommandListImmediate& RHICmdList, ERHIFeatureLevel::Type InFeatureLevel);
 
 	uint32 GetAllocationHandle(UTexture2D* Texture) const;

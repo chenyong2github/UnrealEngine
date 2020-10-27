@@ -240,7 +240,7 @@ static FRDGBufferRef AddDeepShadowTransmittanceMaskPass(
 	if (ShaderDrawDebug::IsShaderDrawDebugEnabled(View))
 	{
 		ShaderDrawDebug::SetParameters(GraphBuilder, View.ShaderDrawData, Parameters->ShaderDrawParameters);
-		ShaderPrint::SetParameters(View, Parameters->ShaderPrintParameters);
+		ShaderPrint::SetParameters(GraphBuilder, View, Parameters->ShaderPrintParameters);
 	}
 
 	memcpy(&(Parameters->DeepShadow_AtlasSlotOffsets_AtlasSlotIndex[0]), Params.DeepShadow_AtlasSlotOffsets_AtlasSlotIndex, sizeof(FIntVector4) * FHairStrandsDeepShadowData::MaxMacroGroupCount);
@@ -401,7 +401,7 @@ static void AddDeepShadowOpaqueMaskPass(
 	if (ShaderDrawDebug::IsShaderDrawDebugEnabled(View))
 	{
 		ShaderDrawDebug::SetParameters(GraphBuilder, View.ShaderDrawData, Parameters->ShaderDrawParameters);
-		ShaderPrint::SetParameters(View, Parameters->ShaderPrintParameters);
+		ShaderPrint::SetParameters(GraphBuilder, View, Parameters->ShaderPrintParameters);
 	}
 
 	FRDGTextureRef RayMarchMask = nullptr;

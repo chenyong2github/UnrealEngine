@@ -358,14 +358,14 @@ private:
 	/**
 	* Performs once per frame setup prior to visibility determination.
 	*/
-	void PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdList);
+	void PreVisibilityFrameSetup(FRDGBuilder& GraphBuilder);
 
 	/** Determines which primitives are visible for each view. */
-	bool InitViews(FRHICommandListImmediate& RHICmdList, FExclusiveDepthStencil::Type BasePassDepthStencilAccess, struct FILCUpdatePrimTaskData& ILCTaskData);
+	bool InitViews(FRDGBuilder& GraphBuilder, FExclusiveDepthStencil::Type BasePassDepthStencilAccess, struct FILCUpdatePrimTaskData& ILCTaskData);
 
-	void InitViewsPossiblyAfterPrepass(FRHICommandListImmediate& RHICmdList, struct FILCUpdatePrimTaskData& ILCTaskData);
-	void UpdateLumenCardAtlasAllocation(FRHICommandListImmediate& RHICmdList, const FViewInfo& MainView, bool bReallocateAtlas, bool bRecaptureLumenSceneOnce);
-	void BeginUpdateLumenSceneTasks(FRHICommandListImmediate& RHICmdList);
+	void InitViewsPossiblyAfterPrepass(FRDGBuilder& GraphBuilder, struct FILCUpdatePrimTaskData& ILCTaskData);
+	void UpdateLumenCardAtlasAllocation(FRDGBuilder& GraphBuilder, const FViewInfo& MainView, bool bReallocateAtlas, bool bRecaptureLumenSceneOnce);
+	void BeginUpdateLumenSceneTasks(FRDGBuilder& GraphBuilder);
 	void UpdateLumenScene(FRDGBuilder& GraphBuilder);
 	void RenderLumenSceneLighting(FRDGBuilder& GraphBuilder, FViewInfo& View);
 
@@ -888,10 +888,10 @@ private:
 	bool ShouldPrepareGlobalDistanceField() const;
 	bool ShouldPrepareHeightFieldScene() const;
 
-	void UpdateGlobalDistanceFieldObjectBuffers(FRHICommandListImmediate& RHICmdList);
-	void UpdateGlobalHeightFieldObjectBuffers(FRHICommandListImmediate& RHICmdList);
+	void UpdateGlobalDistanceFieldObjectBuffers(FRDGBuilder& GraphBuilder);
+	void UpdateGlobalHeightFieldObjectBuffers(FRDGBuilder& GraphBuilder);
 	void AddOrRemoveSceneHeightFieldPrimitives(bool bSkipAdd = false);
-	void PrepareDistanceFieldScene(FRHICommandListImmediate& RHICmdList, bool bSplitDispatch);
+	void PrepareDistanceFieldScene(FRDGBuilder& GraphBuilder, bool bSplitDispatch);
 
 	void CopySceneCaptureComponentToTarget(
 		FRDGBuilder& GraphBuilder,

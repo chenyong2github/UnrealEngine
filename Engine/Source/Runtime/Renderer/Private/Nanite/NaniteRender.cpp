@@ -3442,7 +3442,7 @@ void PrintStats(
 		{
 			FPrintStatsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FPrintStatsCS::FParameters>();
 
-			ShaderPrint::SetParameters(View, PassParameters->ShaderPrintStruct);
+			ShaderPrint::SetParameters(GraphBuilder, View, PassParameters->ShaderPrintStruct);
 			PassParameters->PackedTriClusterSize = sizeof(Nanite::FPackedTriCluster);
 
 			PassParameters->RenderFlags = Nanite::GGlobalResources.StatsRenderFlags;
@@ -3506,24 +3506,20 @@ void ExtractResults(
 }
 
 void DrawHitProxies(
-	FRHICommandListImmediate& RHICmdList,
+	FRDGBuilder& GraphBuilder,
 	const FScene& Scene,
 	const FViewInfo& View, 
 	const FRasterResults& RasterResults,
-	const TRefCountPtr<IPooledRenderTarget>& HitProxyRT,
-	const TRefCountPtr<IPooledRenderTarget>& HitProxyDepthRT
+	FRDGTextureRef HitProxyTexture,
+	FRDGTextureRef HitProxyDepthTexture
 	)
 {
 #if WITH_EDITOR
 	LLM_SCOPE_BYTAG(Nanite);
 
-	SCOPED_DRAW_EVENT(RHICmdList, NaniteHitProxyPass);
-	SCOPED_GPU_STAT(RHICmdList, NaniteEditor);
+	RDG_EVENT_SCOPE(GraphBuilder, "NaniteHitProxyPass");
+	RDG_GPU_STAT_SCOPE(GraphBuilder, NaniteEditor);
 
-	FRDGBuilder GraphBuilder(RHICmdList);
-
-	FRDGTextureRef HitProxyId  = RegisterExternalTextureWithFallback(GraphBuilder, HitProxyRT,					GSystemTextures.BlackDummy);
-	FRDGTextureRef SceneDepth  = RegisterExternalTextureWithFallback(GraphBuilder, HitProxyDepthRT,				GSystemTextures.BlackDummy);
 	FRDGTextureRef VisBuffer64 = RegisterExternalTextureWithFallback(GraphBuilder, RasterResults.VisBuffer64,	GSystemTextures.BlackDummy);
 
 	FRDGBufferRef VisibleClustersSWHW = GraphBuilder.RegisterExternalBuffer(RasterResults.VisibleClustersSWHW, TEXT("VisibleClustersSWHW"));
@@ -3539,8 +3535,8 @@ void DrawHitProxies(
 		PassParameters->VisBuffer64 = VisBuffer64;
 		PassParameters->MaterialHitProxyTable = Scene.MaterialTables[ENaniteMeshPass::BasePass].GetHitProxyTableSRV();
 
-		PassParameters->RenderTargets[0]			= FRenderTargetBinding(HitProxyId, ERenderTargetLoadAction::ELoad);
-		PassParameters->RenderTargets.DepthStencil	= FDepthStencilBinding(SceneDepth, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthWrite_StencilWrite);
+		PassParameters->RenderTargets[0]			= FRenderTargetBinding(HitProxyTexture, ERenderTargetLoadAction::ELoad);
+		PassParameters->RenderTargets.DepthStencil	= FDepthStencilBinding(HitProxyDepthTexture, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthWrite_StencilWrite);
 
 		auto PixelShader = View.ShaderMap->GetShader<FEmitHitProxyIdPS>();
 
@@ -3556,8 +3552,6 @@ void DrawHitProxies(
 			TStaticDepthStencilState<true, CF_DepthNearOrEqual>::GetRHI()
 			);
 	}
-
-	GraphBuilder.Execute();
 #endif
 }
 

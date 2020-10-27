@@ -212,315 +212,320 @@ IMPLEMENT_MATERIAL_SHADER_TYPE(,FHitProxyPS,TEXT("/Engine/Private/HitProxyPixelS
 
 #if WITH_EDITOR
 
-void InitHitProxyRender(FRHICommandListImmediate& RHICmdList, const FSceneRenderer* SceneRenderer, TRefCountPtr<IPooledRenderTarget>& OutHitProxyRT, TRefCountPtr<IPooledRenderTarget>& OutHitProxyDepthRT)
+void InitHitProxyRender(FRDGBuilder& GraphBuilder, const FSceneRenderer* SceneRenderer, FRDGTextureRef& OutHitProxyTexture, FRDGTextureRef& OutHitProxyDepthTexture)
 {
-	check(!RHICmdList.IsInsideRenderPass());
-
 	auto& ViewFamily = SceneRenderer->ViewFamily;
 	auto FeatureLevel = ViewFamily.Scene->GetFeatureLevel();
 
 	// Ensure VirtualTexture resources are allocated
 	if (UseVirtualTexturing(FeatureLevel))
 	{
-		FRDGBuilder GraphBuilder(RHICmdList);
-		{
-			SCOPED_GPU_STAT(RHICmdList, VirtualTextureUpdate);
-			// AllocateResources needs to be called before RHIBeginScene
-			FVirtualTextureSystem::Get().AllocateResources(GraphBuilder, FeatureLevel);
-			FVirtualTextureSystem::Get().CallPendingCallbacks();
-		}
-		GraphBuilder.Execute();
+		FVirtualTextureSystem::Get().AllocateResources(GraphBuilder, FeatureLevel);
+		FVirtualTextureSystem::Get().CallPendingCallbacks();
 	}
 
 	// Initialize global system textures (pass-through if already initialized).
-	GSystemTextures.InitializeTextures(RHICmdList, FeatureLevel);
+	GSystemTextures.InitializeTextures(GraphBuilder.RHICmdList, FeatureLevel);
 
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
 	// Allocate the maximum scene render target space for the current view family.
-	SceneContext.Allocate(RHICmdList, SceneRenderer);
+	SceneContext.Allocate(GraphBuilder.RHICmdList, SceneRenderer);
 
 	// Create a texture to store the resolved light attenuation values, and a render-targetable surface to hold the unresolved light attenuation values.
 	{
-		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(SceneContext.GetBufferSizeXY(), PF_B8G8R8A8, FClearValueBinding::None, TexCreate_None, TexCreate_RenderTargetable | TexCreate_ShaderResource, false));
-		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, OutHitProxyRT, TEXT("HitProxy"));
+		FRDGTextureDesc Desc(FRDGTextureDesc::Create2D(SceneContext.GetBufferSizeXY(), PF_B8G8R8A8, FClearValueBinding::Black, TexCreate_RenderTargetable | TexCreate_ShaderResource));
+		OutHitProxyTexture = GraphBuilder.CreateTexture(Desc, TEXT("HitProxy"));
 
 		// create non-MSAA version for hit proxies on PC if needed
 		const EShaderPlatform CurrentShaderPlatform = GShaderPlatformForFeatureLevel[FeatureLevel];
-		FPooledRenderTargetDesc DepthDesc = SceneContext.SceneDepthZ->GetDesc();
+		FRDGTextureDesc DepthDesc = Translate(SceneContext.SceneDepthZ->GetDesc(), ERenderTargetTexture::Targetable);
 
 		if (DepthDesc.NumSamples > 1 && RHISupportsSeparateMSAAAndResolveTextures(CurrentShaderPlatform))
 		{
 			DepthDesc.NumSamples = 1;
-			GRenderTargetPool.FindFreeElement(RHICmdList, DepthDesc, OutHitProxyDepthRT, TEXT("NoMSAASceneDepthZ"));
+			OutHitProxyDepthTexture = GraphBuilder.CreateTexture(DepthDesc, TEXT("NoMSAASceneDepthZ"));
 		}
 		else
 		{
-			OutHitProxyDepthRT = SceneContext.SceneDepthZ;
+			OutHitProxyDepthTexture = GraphBuilder.RegisterExternalTexture(SceneContext.SceneDepthZ);
 		}
 	}
 }
 
+BEGIN_SHADER_PARAMETER_STRUCT(FHitProxyPassParameters, )
+	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTextures)
+	RENDER_TARGET_BINDING_SLOTS()
+END_SHADER_PARAMETER_STRUCT()
+
+BEGIN_SHADER_PARAMETER_STRUCT(FHitProxyCopyToViewFamilyParameters, )
+	RDG_TEXTURE_ACCESS(HitProxyTexture, ERHIAccess::SRVGraphics)
+	RENDER_TARGET_BINDING_SLOTS()
+END_SHADER_PARAMETER_STRUCT()
+
 static void DoRenderHitProxies(
-	FRHICommandListImmediate& RHICmdList, 
+	FRDGBuilder& GraphBuilder, 
 	const FSceneRenderer* SceneRenderer, 
-	TRefCountPtr<IPooledRenderTarget> HitProxyRT, 
-	TRefCountPtr<IPooledRenderTarget> HitProxyDepthRT,
+	FRDGTextureRef HitProxyTexture, 
+	FRDGTextureRef HitProxyDepthTexture,
 	const TArray<Nanite::FRasterResults, TInlineAllocator<2>>& NaniteRasterResults)
 {
-	FRHIRenderPassInfo RPInfo(HitProxyRT->GetRenderTargetItem().TargetableTexture, ERenderTargetActions::Load_Store);
-	RPInfo.DepthStencilRenderTarget.Action = EDepthStencilTargetActions::LoadDepthStencil_StoreDepthStencil;
-	RPInfo.DepthStencilRenderTarget.DepthStencilTarget = HitProxyDepthRT->GetRenderTargetItem().TargetableTexture;
-	RPInfo.DepthStencilRenderTarget.ExclusiveDepthStencil = FExclusiveDepthStencil::DepthWrite_StencilWrite;
-	TransitionRenderPassTargets(RHICmdList, RPInfo);
-
-	RHICmdList.BeginRenderPass(RPInfo, TEXT("Clear_HitProxies"));
-	{
-		// Clear color for each view.
-		auto& Views = SceneRenderer->Views;
-		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
-		{
-			const FViewInfo& View = Views[ViewIndex];
-			RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
-			DrawClearQuad(RHICmdList, true, FLinearColor::White, false, 0, false, 0, HitProxyRT->GetDesc().Extent, FIntRect());
-			// Clear the depth buffer for each DPG.
-			DrawClearQuad(RHICmdList, false, FLinearColor(), true, (float)ERHIZBuffer::FarPlane, true, 0, HitProxyDepthRT->GetDesc().Extent, FIntRect());
-		}
-	}
-	RHICmdList.EndRenderPass();
-
 	auto& ViewFamily = SceneRenderer->ViewFamily;
 	auto& Views = SceneRenderer->Views;
+	const auto FeatureLevel = SceneRenderer->FeatureLevel;
+	const bool bNeedToSwitchVerticalAxis = RHINeedsToSwitchVerticalAxis(GShaderPlatformForFeatureLevel[FeatureLevel]);
+	const FIntPoint HitProxyTextureExtent = HitProxyTexture->Desc.Extent;
+
+	{
+		auto* PassParameters = GraphBuilder.AllocParameters<FRenderTargetParameters>();
+		PassParameters->RenderTargets[0] = FRenderTargetBinding(HitProxyTexture, ERenderTargetLoadAction::EClear);
+		PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(HitProxyDepthTexture, ERenderTargetLoadAction::EClear, ERenderTargetLoadAction::EClear, FExclusiveDepthStencil::DepthWrite_StencilWrite);
+
+		GraphBuilder.AddPass(
+			RDG_EVENT_NAME("ClearHitProxies"),
+			PassParameters,
+			ERDGPassFlags::Raster,
+			[&Views, HitProxyTextureExtent](FRHICommandList& RHICmdList)
+		{
+			// Clear color for each view.
+			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+			{
+				const FViewInfo& View = Views[ViewIndex];
+				RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
+				DrawClearQuad(RHICmdList, true, FLinearColor::White, false, 0, false, 0, HitProxyTextureExtent, FIntRect());
+				// Clear the depth buffer for each DPG.
+				DrawClearQuad(RHICmdList, false, FLinearColor(), true, (float)ERHIZBuffer::FarPlane, true, 0, HitProxyTextureExtent, FIntRect());
+			}
+		});
+	}
 
 	if (NaniteRasterResults.Num() == Views.Num())
 	{
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
 		{
-			Nanite::DrawHitProxies(RHICmdList, *SceneRenderer->Scene, Views[ViewIndex], NaniteRasterResults[ViewIndex], HitProxyRT, HitProxyDepthRT);
+			Nanite::DrawHitProxies(GraphBuilder, *SceneRenderer->Scene, Views[ViewIndex], NaniteRasterResults[ViewIndex], HitProxyTexture, HitProxyDepthTexture);
 		}
-
-		TransitionRenderPassTargets(RHICmdList, RPInfo);
 	}
 
-	const auto FeatureLevel = SceneRenderer->FeatureLevel;
-
-	const bool bNeedToSwitchVerticalAxis = RHINeedsToSwitchVerticalAxis(GShaderPlatformForFeatureLevel[SceneRenderer->FeatureLevel]);
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
-	
-	TUniformBufferRef<FSceneTextureUniformParameters> SceneTextures = CreateSceneTextureUniformBuffer(RHICmdList, SceneRenderer->FeatureLevel, ESceneTextureSetupMode::None);
-
-	RHICmdList.BeginRenderPass(RPInfo, TEXT("Render_HitProxies"));
-	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
-		const FViewInfo& View = Views[ViewIndex];
-		const FScene* LocalScene = SceneRenderer->Scene;
+		auto* PassParameters = GraphBuilder.AllocParameters<FHitProxyPassParameters>();
+		PassParameters->RenderTargets[0] = FRenderTargetBinding(HitProxyTexture, ERenderTargetLoadAction::ELoad);
+		PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(HitProxyDepthTexture, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthWrite_StencilWrite);
+		PassParameters->SceneTextures = CreateSceneTextureUniformBuffer(GraphBuilder, SceneRenderer->FeatureLevel, ESceneTextureSetupMode::None);
 
-		SceneRenderer->Scene->UniformBuffers.UpdateViewUniformBuffer(View);
-
-		FUniformBufferStaticBindings GlobalUniformBuffers(SceneTextures);
-		SCOPED_UNIFORM_BUFFER_GLOBAL_BINDINGS(RHICmdList, GlobalUniformBuffers);
-
-		FMeshPassProcessorRenderState DrawRenderState(View);
-
-		// Set the device viewport for the view.
-		RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
-
-		// Depth tests + writes, no alpha blending.
-		DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<true, CF_DepthNearOrEqual>::GetRHI());
-		DrawRenderState.SetBlendState(TStaticBlendState<>::GetRHI());
-
-		const bool bHitTesting = true;
-
-		// Adjust the visibility map for this view
-		if (View.bAllowTranslucentPrimitivesInHitProxy)
+		GraphBuilder.AddPass(
+			RDG_EVENT_NAME("RenderHitProxies"),
+			PassParameters,
+			ERDGPassFlags::Raster,
+			[SceneRenderer, &Views, &ViewFamily, FeatureLevel, bNeedToSwitchVerticalAxis](FRHICommandList& RHICmdList)
 		{
-			View.ParallelMeshDrawCommandPasses[EMeshPass::HitProxy].DispatchDraw(nullptr, RHICmdList);
-		}
-		else
-		{
-			View.ParallelMeshDrawCommandPasses[EMeshPass::HitProxyOpaqueOnly].DispatchDraw(nullptr, RHICmdList);
-		}
-
-		DrawDynamicMeshPass(View, RHICmdList,
-			[&View, &DrawRenderState, LocalScene](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
-		{
-			FHitProxyMeshProcessor PassMeshProcessor(
-				LocalScene,
-				&View,
-				View.bAllowTranslucentPrimitivesInHitProxy,
-				DrawRenderState,
-				DynamicMeshPassContext);
-
-			const uint64 DefaultBatchElementMask = ~0ull;
-
-			for (int32 MeshIndex = 0; MeshIndex < View.DynamicEditorMeshElements.Num(); MeshIndex++)
+			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 			{
-				const FMeshBatchAndRelevance& MeshBatchAndRelevance = View.DynamicEditorMeshElements[MeshIndex];
-				PassMeshProcessor.AddMeshBatch(*MeshBatchAndRelevance.Mesh, DefaultBatchElementMask, MeshBatchAndRelevance.PrimitiveSceneProxy);
-			}
-		});
+				const FViewInfo& View = Views[ViewIndex];
+				const FScene* LocalScene = SceneRenderer->Scene;
 
-		View.SimpleElementCollector.DrawBatchedElements(RHICmdList, DrawRenderState, View, EBlendModeFilter::All, SDPG_World);
-		View.SimpleElementCollector.DrawBatchedElements(RHICmdList, DrawRenderState, View, EBlendModeFilter::All, SDPG_Foreground);
+				SceneRenderer->Scene->UniformBuffers.UpdateViewUniformBuffer(View);
 
-		View.EditorSimpleElementCollector.DrawBatchedElements(RHICmdList, DrawRenderState, View, EBlendModeFilter::All, SDPG_World);
-		View.EditorSimpleElementCollector.DrawBatchedElements(RHICmdList, DrawRenderState, View, EBlendModeFilter::All, SDPG_Foreground);
+				FMeshPassProcessorRenderState DrawRenderState(View);
 
-		DrawDynamicMeshPass(View, RHICmdList,
-			[&View, &DrawRenderState, LocalScene](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
-		{
-			FHitProxyMeshProcessor PassMeshProcessor(
-				LocalScene,
-				&View,
-				View.bAllowTranslucentPrimitivesInHitProxy,
-				DrawRenderState,
-				DynamicMeshPassContext);
+				// Set the device viewport for the view.
+				RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
 
-			const uint64 DefaultBatchElementMask = ~0ull;
+				// Depth tests + writes, no alpha blending.
+				DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<true, CF_DepthNearOrEqual>::GetRHI());
+				DrawRenderState.SetBlendState(TStaticBlendState<>::GetRHI());
 
-			for (int32 MeshIndex = 0; MeshIndex < View.ViewMeshElements.Num(); MeshIndex++)
-			{
-				const FMeshBatch& MeshBatch = View.ViewMeshElements[MeshIndex];
-				PassMeshProcessor.AddMeshBatch(MeshBatch, DefaultBatchElementMask, nullptr);
-			}
-		});
+				const bool bHitTesting = true;
 
-		DrawDynamicMeshPass(View, RHICmdList,
-			[&View, &DrawRenderState, LocalScene](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
-		{
-			FHitProxyMeshProcessor PassMeshProcessor(
-				LocalScene,
-				&View,
-				View.bAllowTranslucentPrimitivesInHitProxy,
-				DrawRenderState,
-				DynamicMeshPassContext);
-
-			const uint64 DefaultBatchElementMask = ~0ull;
-
-			for (int32 MeshIndex = 0; MeshIndex < View.TopViewMeshElements.Num(); MeshIndex++)
-			{
-				const FMeshBatch& MeshBatch = View.TopViewMeshElements[MeshIndex];
-				PassMeshProcessor.AddMeshBatch(MeshBatch, DefaultBatchElementMask, nullptr);
-			}
-		});
-
-
-		// Draw the view's batched simple elements(lines, sprites, etc).
-		View.BatchedViewElements.Draw(RHICmdList, DrawRenderState, FeatureLevel, bNeedToSwitchVerticalAxis, View, true);
-
-		// Some elements should never be occluded (e.g. gizmos).
-		// So we render those twice, first to overwrite potentially nearer objects,
-		// then again to allows proper occlusion within those elements.
-		DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<false, CF_Always>::GetRHI());
-
-		DrawDynamicMeshPass(View, RHICmdList,
-			[&View, &DrawRenderState, LocalScene](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
-			{
-				FHitProxyMeshProcessor PassMeshProcessor(
-					LocalScene,
-					&View, 
-					View.bAllowTranslucentPrimitivesInHitProxy, 
-					DrawRenderState,
-					DynamicMeshPassContext);
-
-				const uint64 DefaultBatchElementMask = ~0ull;
-					
-				for (int32 MeshIndex = 0; MeshIndex < View.TopViewMeshElements.Num(); MeshIndex++)
+				// Adjust the visibility map for this view
+				if (View.bAllowTranslucentPrimitivesInHitProxy)
 				{
-					const FMeshBatch& MeshBatch = View.TopViewMeshElements[MeshIndex];
-					PassMeshProcessor.AddMeshBatch(MeshBatch, DefaultBatchElementMask, nullptr);
+					View.ParallelMeshDrawCommandPasses[EMeshPass::HitProxy].DispatchDraw(nullptr, RHICmdList);
 				}
-			});
-
-		View.TopBatchedViewElements.Draw(RHICmdList, DrawRenderState, FeatureLevel, bNeedToSwitchVerticalAxis, View, true);
-
-		DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<true, CF_DepthNearOrEqual>::GetRHI());
-
-		DrawDynamicMeshPass(View, RHICmdList,
-			[&View, &DrawRenderState, LocalScene](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
-			{
-				FHitProxyMeshProcessor PassMeshProcessor(
-					LocalScene,
-					&View, 
-					View.bAllowTranslucentPrimitivesInHitProxy, 
-					DrawRenderState,
-					DynamicMeshPassContext);
-
-				const uint64 DefaultBatchElementMask = ~0ull;
-					
-				for (int32 MeshIndex = 0; MeshIndex < View.TopViewMeshElements.Num(); MeshIndex++)
+				else
 				{
-					const FMeshBatch& MeshBatch = View.TopViewMeshElements[MeshIndex];
-					PassMeshProcessor.AddMeshBatch(MeshBatch, DefaultBatchElementMask, nullptr);
+					View.ParallelMeshDrawCommandPasses[EMeshPass::HitProxyOpaqueOnly].DispatchDraw(nullptr, RHICmdList);
 				}
-			});
 
-		View.TopBatchedViewElements.Draw(RHICmdList, DrawRenderState, FeatureLevel, bNeedToSwitchVerticalAxis, View, true);
+				DrawDynamicMeshPass(View, RHICmdList,
+					[&View, &DrawRenderState, LocalScene](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
+				{
+					FHitProxyMeshProcessor PassMeshProcessor(
+						LocalScene,
+						&View,
+						View.bAllowTranslucentPrimitivesInHitProxy,
+						DrawRenderState,
+						DynamicMeshPassContext);
+
+					const uint64 DefaultBatchElementMask = ~0ull;
+
+					for (int32 MeshIndex = 0; MeshIndex < View.DynamicEditorMeshElements.Num(); MeshIndex++)
+					{
+						const FMeshBatchAndRelevance& MeshBatchAndRelevance = View.DynamicEditorMeshElements[MeshIndex];
+						PassMeshProcessor.AddMeshBatch(*MeshBatchAndRelevance.Mesh, DefaultBatchElementMask, MeshBatchAndRelevance.PrimitiveSceneProxy);
+					}
+				});
+
+				View.SimpleElementCollector.DrawBatchedElements(RHICmdList, DrawRenderState, View, EBlendModeFilter::All, SDPG_World);
+				View.SimpleElementCollector.DrawBatchedElements(RHICmdList, DrawRenderState, View, EBlendModeFilter::All, SDPG_Foreground);
+
+				View.EditorSimpleElementCollector.DrawBatchedElements(RHICmdList, DrawRenderState, View, EBlendModeFilter::All, SDPG_World);
+				View.EditorSimpleElementCollector.DrawBatchedElements(RHICmdList, DrawRenderState, View, EBlendModeFilter::All, SDPG_Foreground);
+
+				DrawDynamicMeshPass(View, RHICmdList,
+					[&View, &DrawRenderState, LocalScene](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
+				{
+					FHitProxyMeshProcessor PassMeshProcessor(
+						LocalScene,
+						&View,
+						View.bAllowTranslucentPrimitivesInHitProxy,
+						DrawRenderState,
+						DynamicMeshPassContext);
+
+					const uint64 DefaultBatchElementMask = ~0ull;
+
+					for (int32 MeshIndex = 0; MeshIndex < View.ViewMeshElements.Num(); MeshIndex++)
+					{
+						const FMeshBatch& MeshBatch = View.ViewMeshElements[MeshIndex];
+						PassMeshProcessor.AddMeshBatch(MeshBatch, DefaultBatchElementMask, nullptr);
+					}
+				});
+
+				DrawDynamicMeshPass(View, RHICmdList,
+					[&View, &DrawRenderState, LocalScene](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
+				{
+					FHitProxyMeshProcessor PassMeshProcessor(
+						LocalScene,
+						&View,
+						View.bAllowTranslucentPrimitivesInHitProxy,
+						DrawRenderState,
+						DynamicMeshPassContext);
+
+					const uint64 DefaultBatchElementMask = ~0ull;
+
+					for (int32 MeshIndex = 0; MeshIndex < View.TopViewMeshElements.Num(); MeshIndex++)
+					{
+						const FMeshBatch& MeshBatch = View.TopViewMeshElements[MeshIndex];
+						PassMeshProcessor.AddMeshBatch(MeshBatch, DefaultBatchElementMask, nullptr);
+					}
+				});
+
+
+				// Draw the view's batched simple elements(lines, sprites, etc).
+				View.BatchedViewElements.Draw(RHICmdList, DrawRenderState, FeatureLevel, bNeedToSwitchVerticalAxis, View, true);
+
+				// Some elements should never be occluded (e.g. gizmos).
+				// So we render those twice, first to overwrite potentially nearer objects,
+				// then again to allows proper occlusion within those elements.
+				DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<false, CF_Always>::GetRHI());
+
+				DrawDynamicMeshPass(View, RHICmdList,
+					[&View, &DrawRenderState, LocalScene](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
+				{
+					FHitProxyMeshProcessor PassMeshProcessor(
+						LocalScene,
+						&View,
+						View.bAllowTranslucentPrimitivesInHitProxy,
+						DrawRenderState,
+						DynamicMeshPassContext);
+
+					const uint64 DefaultBatchElementMask = ~0ull;
+
+					for (int32 MeshIndex = 0; MeshIndex < View.TopViewMeshElements.Num(); MeshIndex++)
+					{
+						const FMeshBatch& MeshBatch = View.TopViewMeshElements[MeshIndex];
+						PassMeshProcessor.AddMeshBatch(MeshBatch, DefaultBatchElementMask, nullptr);
+					}
+				});
+
+				View.TopBatchedViewElements.Draw(RHICmdList, DrawRenderState, FeatureLevel, bNeedToSwitchVerticalAxis, View, true);
+
+				DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<true, CF_DepthNearOrEqual>::GetRHI());
+
+				DrawDynamicMeshPass(View, RHICmdList,
+					[&View, &DrawRenderState, LocalScene](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
+				{
+					FHitProxyMeshProcessor PassMeshProcessor(
+						LocalScene,
+						&View,
+						View.bAllowTranslucentPrimitivesInHitProxy,
+						DrawRenderState,
+						DynamicMeshPassContext);
+
+					const uint64 DefaultBatchElementMask = ~0ull;
+
+					for (int32 MeshIndex = 0; MeshIndex < View.TopViewMeshElements.Num(); MeshIndex++)
+					{
+						const FMeshBatch& MeshBatch = View.TopViewMeshElements[MeshIndex];
+						PassMeshProcessor.AddMeshBatch(MeshBatch, DefaultBatchElementMask, nullptr);
+					}
+				});
+
+				View.TopBatchedViewElements.Draw(RHICmdList, DrawRenderState, FeatureLevel, bNeedToSwitchVerticalAxis, View, true);
+			}
+		});
 	}
-	// Was started in init, but ends here.
-	RHICmdList.EndRenderPass();
 
-	// Finish drawing to the hit proxy render target.
-	RHICmdList.CopyToResolveTarget(HitProxyRT->GetRenderTargetItem().TargetableTexture, HitProxyRT->GetRenderTargetItem().ShaderResourceTexture, FResolveParams());
-	RHICmdList.CopyToResolveTarget(SceneContext.GetSceneDepthSurface(), SceneContext.GetSceneDepthSurface(), FResolveParams());
-
-	// to be able to observe results with VisualizeTexture
-	GVisualizeTexture.SetCheckPoint(RHICmdList, HitProxyRT);
+	FRDGTextureRef ViewFamilyTexture = TryCreateViewFamilyTexture(GraphBuilder, ViewFamily);
+	check(ViewFamilyTexture);
 
 	//
 	// Copy the hit proxy buffer into the view family's render target.
 	//
-	
-	// Set up a FTexture that is used to draw the hit proxy buffer to the view family's render target.
-	FTexture HitProxyRenderTargetTexture;
-	HitProxyRenderTargetTexture.TextureRHI = HitProxyRT->GetRenderTargetItem().ShaderResourceTexture;
-	HitProxyRenderTargetTexture.SamplerStateRHI = TStaticSamplerState<>::GetRHI();
 
-	// Generate the vertices and triangles mapping the hit proxy RT pixels into the view family's RT pixels.
-	FBatchedElements BatchedElements;
-	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
-		const FViewInfo& View = Views[ViewIndex];
+		auto* PassParameters = GraphBuilder.AllocParameters<FHitProxyCopyToViewFamilyParameters>();
+		PassParameters->HitProxyTexture = HitProxyTexture;
+		PassParameters->RenderTargets[0] = FRenderTargetBinding(ViewFamilyTexture, ERenderTargetLoadAction::ELoad);
 
-		FIntPoint BufferSize = SceneContext.GetBufferSizeXY();
-		float InvBufferSizeX = 1.0f / BufferSize.X;
-		float InvBufferSizeY = 1.0f / BufferSize.Y;
+		GraphBuilder.AddPass(
+			RDG_EVENT_NAME("HitProxies"),
+			PassParameters,
+			ERDGPassFlags::Raster,
+			[&Views, HitProxyTextureExtent, HitProxyTexture, ViewFamilyTexture, FeatureLevel, bNeedToSwitchVerticalAxis](FRHICommandList& RHICmdList)
+		{
+			// Set up a FTexture that is used to draw the hit proxy buffer to the view family's render target.
+			FTexture HitProxyRenderTargetTexture;
+			HitProxyRenderTargetTexture.TextureRHI = HitProxyTexture->GetRHI();
+			HitProxyRenderTargetTexture.SamplerStateRHI = TStaticSamplerState<>::GetRHI();
 
-		const float U0 = View.ViewRect.Min.X * InvBufferSizeX;
-		const float V0 = View.ViewRect.Min.Y * InvBufferSizeY;
-		const float U1 = View.ViewRect.Max.X * InvBufferSizeX;
-		const float V1 = View.ViewRect.Max.Y * InvBufferSizeY;
+			// Generate the vertices and triangles mapping the hit proxy RT pixels into the view family's RT pixels.
+			FBatchedElements BatchedElements;
+			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+			{
+				const FViewInfo& View = Views[ViewIndex];
 
-		// Note: High DPI .  We are drawing to the size of the unscaled view rect because that is the size of the views render target
-		// if we do not do this clicking would be off.
-		const int32 V00 = BatchedElements.AddVertex(FVector4(View.UnscaledViewRect.Min.X,	View.UnscaledViewRect.Min.Y, 0, 1),FVector2D(U0, V0),	FLinearColor::White, FHitProxyId());
-		const int32 V10 = BatchedElements.AddVertex(FVector4(View.UnscaledViewRect.Max.X,	View.UnscaledViewRect.Min.Y,	0, 1),FVector2D(U1, V0),	FLinearColor::White, FHitProxyId());
-		const int32 V01 = BatchedElements.AddVertex(FVector4(View.UnscaledViewRect.Min.X,	View.UnscaledViewRect.Max.Y,	0, 1),FVector2D(U0, V1),	FLinearColor::White, FHitProxyId());
-		const int32 V11 = BatchedElements.AddVertex(FVector4(View.UnscaledViewRect.Max.X,	View.UnscaledViewRect.Max.Y,	0, 1),FVector2D(U1, V1),	FLinearColor::White, FHitProxyId());
+				float InvBufferSizeX = 1.0f / HitProxyTextureExtent.X;
+				float InvBufferSizeY = 1.0f / HitProxyTextureExtent.Y;
 
-		BatchedElements.AddTriangle(V00,V10,V11,&HitProxyRenderTargetTexture,BLEND_Opaque);
-		BatchedElements.AddTriangle(V00,V11,V01,&HitProxyRenderTargetTexture,BLEND_Opaque);
-	}
+				const float U0 = View.ViewRect.Min.X * InvBufferSizeX;
+				const float V0 = View.ViewRect.Min.Y * InvBufferSizeY;
+				const float U1 = View.ViewRect.Max.X * InvBufferSizeX;
+				const float V1 = View.ViewRect.Max.Y * InvBufferSizeY;
 
-	// Generate a transform which maps from view family RT pixel coordinates to Normalized Device Coordinates.
-	FIntPoint RenderTargetSize = ViewFamily.RenderTarget->GetSizeXY();
+				// Note: High DPI .  We are drawing to the size of the unscaled view rect because that is the size of the views render target
+				// if we do not do this clicking would be off.
+				const int32 V00 = BatchedElements.AddVertex(FVector4(View.UnscaledViewRect.Min.X, View.UnscaledViewRect.Min.Y, 0, 1), FVector2D(U0, V0), FLinearColor::White, FHitProxyId());
+				const int32 V10 = BatchedElements.AddVertex(FVector4(View.UnscaledViewRect.Max.X, View.UnscaledViewRect.Min.Y, 0, 1), FVector2D(U1, V0), FLinearColor::White, FHitProxyId());
+				const int32 V01 = BatchedElements.AddVertex(FVector4(View.UnscaledViewRect.Min.X, View.UnscaledViewRect.Max.Y, 0, 1), FVector2D(U0, V1), FLinearColor::White, FHitProxyId());
+				const int32 V11 = BatchedElements.AddVertex(FVector4(View.UnscaledViewRect.Max.X, View.UnscaledViewRect.Max.Y, 0, 1), FVector2D(U1, V1), FLinearColor::White, FHitProxyId());
 
-	const FMatrix PixelToView =
-		FTranslationMatrix(FVector(0, 0, 0)) *
-			FMatrix(
-				FPlane(	1.0f / ((float)RenderTargetSize.X / 2.0f),	0.0,										0.0f,	0.0f	),
-				FPlane(	0.0f,										-GProjectionSignY / ((float)RenderTargetSize.Y / 2.0f),	0.0f,	0.0f	),
-				FPlane(	0.0f,										0.0f,										1.0f,	0.0f	),
-				FPlane(	-1.0f,										GProjectionSignY,										0.0f,	1.0f	)
+				BatchedElements.AddTriangle(V00, V10, V11, &HitProxyRenderTargetTexture, BLEND_Opaque);
+				BatchedElements.AddTriangle(V00, V11, V01, &HitProxyRenderTargetTexture, BLEND_Opaque);
+			}
+
+			// Generate a transform which maps from view family RT pixel coordinates to Normalized Device Coordinates.
+			FIntPoint ViewFamilyTextureExtent = ViewFamilyTexture->Desc.Extent;
+
+			const FMatrix PixelToView =
+				FTranslationMatrix(FVector(0, 0, 0)) *
+				FMatrix(
+					FPlane(1.0f / ((float)ViewFamilyTextureExtent.X / 2.0f), 0.0, 0.0f, 0.0f),
+					FPlane(0.0f, -GProjectionSignY / ((float)ViewFamilyTextureExtent.Y / 2.0f), 0.0f, 0.0f),
+					FPlane(0.0f, 0.0f, 1.0f, 0.0f),
+					FPlane(-1.0f, GProjectionSignY, 0.0f, 1.0f)
 				);
 
-	{
-		RHICmdList.Transition(FRHITransitionInfo(ViewFamily.RenderTarget->GetRenderTargetTexture(), ERHIAccess::Unknown, ERHIAccess::RTV));
-
-		// Draw the triangles to the view family's render target.
-		FRHIRenderPassInfo ViewFamilyRPInfo(ViewFamily.RenderTarget->GetRenderTargetTexture(), ERenderTargetActions::Load_Store);
-		RHICmdList.BeginRenderPass(ViewFamilyRPInfo, TEXT("HitProxies"));
-		{
-			FSceneView SceneView = FBatchedElements::CreateProxySceneView(PixelToView, FIntRect(0, 0, RenderTargetSize.X, RenderTargetSize.Y));
+			FSceneView SceneView = FBatchedElements::CreateProxySceneView(PixelToView, FIntRect(0, 0, ViewFamilyTextureExtent.X, ViewFamilyTextureExtent.Y));
 			FMeshPassProcessorRenderState DrawRenderState(SceneView);
 
 			DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<false, CF_Always>::GetRHI());
@@ -535,115 +540,116 @@ static void DoRenderHitProxies(
 				false,
 				1.0f
 			);
-		}
-		RHICmdList.EndRenderPass();
-	}
 
-	RHICmdList.EndScene();
+			RHICmdList.EndScene();
+		});
+	}
 }
 #endif
 
 void FMobileSceneRenderer::RenderHitProxies(FRHICommandListImmediate& RHICmdList)
 {
-	Scene->UpdateAllPrimitiveSceneInfos(RHICmdList);
+	FRDGBuilder GraphBuilder(RHICmdList);
+
+	Scene->UpdateAllPrimitiveSceneInfos(GraphBuilder);
 	
 	PrepareViewRectsForRendering();
 
 #if WITH_EDITOR
-	TRefCountPtr<IPooledRenderTarget> HitProxyRT;
-	TRefCountPtr<IPooledRenderTarget> HitProxyDepthRT;
-	InitHitProxyRender(RHICmdList, this, HitProxyRT, HitProxyDepthRT);
-	// HitProxyRT==0 should never happen but better we don't crash
-	if (HitProxyRT)
-	{
-		// Find the visible primitives.
-		InitViews(RHICmdList);
 
-		GEngine->GetPreRenderDelegate().Broadcast();
+	FRDGTextureRef HitProxyTexture = nullptr;
+	FRDGTextureRef HitProxyDepthTexture = nullptr;
+	InitHitProxyRender(GraphBuilder, this, HitProxyTexture, HitProxyDepthTexture);
 
-		// Global dynamic buffers need to be committed before rendering.
-		DynamicIndexBuffer.Commit();
-		DynamicVertexBuffer.Commit();
-		DynamicReadBuffer.Commit();
+	// Find the visible primitives.
+	InitViews(GraphBuilder);
 
-		TArray<Nanite::FRasterResults, TInlineAllocator<2>> NaniteRasterResults;
+	GEngine->GetPreRenderDelegate().Broadcast();
 
-		::DoRenderHitProxies(RHICmdList, this, HitProxyRT, HitProxyDepthRT, NaniteRasterResults);
+	// Global dynamic buffers need to be committed before rendering.
+	DynamicIndexBuffer.Commit();
+	DynamicVertexBuffer.Commit();
+	DynamicReadBuffer.Commit();
 
-		GEngine->GetPostRenderDelegate().Broadcast();
-	}
+	TArray<Nanite::FRasterResults, TInlineAllocator<2>> NaniteRasterResults;
 
-	check(RHICmdList.IsOutsideRenderPass());
+	::DoRenderHitProxies(GraphBuilder, this, HitProxyTexture, HitProxyDepthTexture, NaniteRasterResults);
 
+	GEngine->GetPostRenderDelegate().Broadcast();
 #endif
+
+	GraphBuilder.Execute();
 }
 
 void FDeferredShadingSceneRenderer::RenderHitProxies(FRHICommandListImmediate& RHICmdList)
 {
 	static const bool bNaniteEnabled = DoesPlatformSupportNanite(GMaxRHIShaderPlatform);
 
-	Scene->UpdateAllPrimitiveSceneInfos(RHICmdList);
+	FRDGBuilder GraphBuilder(RHICmdList);
+
+	Scene->UpdateAllPrimitiveSceneInfos(GraphBuilder);
 
 	PrepareViewRectsForRendering();
 
 #if WITH_EDITOR
-	// HitProxyRT==0 should never happen but better we don't crash
-	TRefCountPtr<IPooledRenderTarget> HitProxyRT;
-	TRefCountPtr<IPooledRenderTarget> HitProxyDepthRT;
-	InitHitProxyRender(RHICmdList, this, HitProxyRT, HitProxyDepthRT);
-	if (HitProxyRT)
+	FRDGTextureRef HitProxyTexture = nullptr;
+	FRDGTextureRef HitProxyDepthTexture = nullptr;
+
+	InitHitProxyRender(GraphBuilder, this, HitProxyTexture, HitProxyDepthTexture);
+
+	const FIntPoint HitProxyTextureSize = HitProxyDepthTexture->Desc.Extent;
+
+	// Find the visible primitives.
+	FILCUpdatePrimTaskData ILCTaskData;
+	bool bDoInitViewAftersPrepass = InitViews(GraphBuilder, FExclusiveDepthStencil::DepthWrite_StencilWrite, ILCTaskData);
+	if (bDoInitViewAftersPrepass)
 	{
-		// Find the visible primitives.
-		FILCUpdatePrimTaskData ILCTaskData;
-		bool bDoInitViewAftersPrepass = InitViews(RHICmdList, FExclusiveDepthStencil::DepthWrite_StencilWrite, ILCTaskData);
-		if (bDoInitViewAftersPrepass)
-		{
-			InitViewsPossiblyAfterPrepass(RHICmdList, ILCTaskData);
-		}
+		InitViewsPossiblyAfterPrepass(GraphBuilder, ILCTaskData);
+	}
 
-		extern TSet<IPersistentViewUniformBufferExtension*> PersistentViewUniformBufferExtensions;
+	extern TSet<IPersistentViewUniformBufferExtension*> PersistentViewUniformBufferExtensions;
 
-		for (IPersistentViewUniformBufferExtension* Extension : PersistentViewUniformBufferExtensions)
-		{
-			Extension->BeginFrame();
-
-			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
-			{
-				// Must happen before RHI thread flush so any tasks we dispatch here can land in the idle gap during the flush
-				Extension->PrepareView(&Views[ViewIndex]);
-			}
-		}
-
-		UpdateGPUScene(RHICmdList, *Scene);
+	for (IPersistentViewUniformBufferExtension* Extension : PersistentViewUniformBufferExtensions)
+	{
+		Extension->BeginFrame();
 
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 		{
-			ShaderPrint::BeginView(RHICmdList, Views[ViewIndex]);
+			// Must happen before RHI thread flush so any tasks we dispatch here can land in the idle gap during the flush
+			Extension->PrepareView(&Views[ViewIndex]);
 		}
+	}
 
-		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
-		{
-			UploadDynamicPrimitiveShaderDataForView(RHICmdList, *Scene, Views[ViewIndex]);
-		}	
+	UpdateGPUScene(GraphBuilder, *Scene);
 
-		if (bNaniteEnabled)
-		{
-			Nanite::GGlobalResources.Update(RHICmdList);
-			FRDGBuilder GraphBuilder(RHICmdList);
-			Nanite::GStreamingManager.BeginAsyncUpdate(GraphBuilder);
-			GraphBuilder.Execute();			
-			Nanite::GStreamingManager.EndAsyncUpdate(RHICmdList);
-		}
+	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+	{
+		ShaderPrint::BeginView(GraphBuilder, Views[ViewIndex]);
+	}
 
-		GEngine->GetPreRenderDelegate().Broadcast();
+	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+	{
+		UploadDynamicPrimitiveShaderDataForView(GraphBuilder.RHICmdList, *Scene, Views[ViewIndex]);
+	}
 
-		// Global dynamic buffers need to be committed before rendering.
-		DynamicIndexBufferForInitViews.Commit();
-		DynamicVertexBufferForInitViews.Commit();
-		DynamicReadBufferForInitViews.Commit();
+	if (bNaniteEnabled)
+	{
+		Nanite::GGlobalResources.Update(GraphBuilder);
+		Nanite::GStreamingManager.BeginAsyncUpdate(GraphBuilder);
+		Nanite::GStreamingManager.EndAsyncUpdate(GraphBuilder);
+	}
 
-		// Notify the FX system that the scene is about to be rendered.
-		if (FXSystem && Views.IsValidIndex(0))
+	GEngine->GetPreRenderDelegate().Broadcast();
+
+	// Global dynamic buffers need to be committed before rendering.
+	DynamicIndexBufferForInitViews.Commit();
+	DynamicVertexBufferForInitViews.Commit();
+	DynamicReadBufferForInitViews.Commit();
+
+	// Notify the FX system that the scene is about to be rendered.
+	if (FXSystem && Views.IsValidIndex(0))
+	{
+		AddPass(GraphBuilder, [this](FRHICommandListImmediate& RHICmdList)
 		{
 			FGPUSortManager* GPUSortManager = FXSystem->GetGPUSortManager();
 			FXSystem->PreRender(RHICmdList, Views[0].ViewUniformBuffer, &Views[0].GlobalDistanceFieldInfo.ParameterData, false);
@@ -658,57 +664,54 @@ void FDeferredShadingSceneRenderer::RenderHitProxies(FRHICommandListImmediate& R
 			{
 				GPUSortManager->OnPostRenderOpaque(RHICmdList);
 			}
-		}
+		});
+	}
 
-		TArray<Nanite::FRasterResults, TInlineAllocator<2>> NaniteRasterResults;
-		if (bNaniteEnabled)
-		{
-			NaniteRasterResults.AddDefaulted(Views.Num());
+	TArray<Nanite::FRasterResults, TInlineAllocator<2>> NaniteRasterResults;
+	if (bNaniteEnabled)
+	{
+		NaniteRasterResults.AddDefaulted(Views.Num());
 
-			FRDGBuilder GraphBuilder(RHICmdList);
+		Nanite::FRasterState RasterState;
+		Nanite::FRasterContext RasterContext = Nanite::InitRasterContext(GraphBuilder, HitProxyTextureSize);
 
-			const FIntPoint HitProxyTextureSize = HitProxyDepthRT->GetDesc().Extent;
-			Nanite::FRasterState RasterState;
-			Nanite::FRasterContext RasterContext = Nanite::InitRasterContext(GraphBuilder, HitProxyTextureSize);
-
-			const bool bTwoPassOcclusion = true;
-			const bool bUpdateStreaming = false;
-			const bool bSupportsMultiplePasses = false;
-			const bool bForceHWRaster = RasterContext.RasterScheduling == Nanite::ERasterScheduling::HardwareOnly;
-			const bool bPrimaryContext = false;
-
-			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
-			{
-				Nanite::FCullingContext CullingContext = Nanite::InitCullingContext(
-					GraphBuilder,
-					*Scene,
-					Views[ViewIndex].PrevViewInfo.HZB,
-					Views[ViewIndex].PrevViewInfo.ViewRect,
-					bTwoPassOcclusion,
-					bUpdateStreaming,
-					bSupportsMultiplePasses,
-					bForceHWRaster,
-					bPrimaryContext
-				);
-				Nanite::FPackedView PackedView = Nanite::CreatePackedViewFromViewInfo(Views[ViewIndex], HitProxyTextureSize);
-				Nanite::CullRasterize(GraphBuilder, *Scene, { PackedView }, CullingContext, RasterContext, RasterState);
-				Nanite::ExtractResults(GraphBuilder, CullingContext, RasterContext, NaniteRasterResults[ViewIndex]);
-			}
-
-			GraphBuilder.Execute();
-		}
-
-		::DoRenderHitProxies(RHICmdList, this, HitProxyRT, HitProxyDepthRT, NaniteRasterResults);
+		const bool bTwoPassOcclusion = true;
+		const bool bUpdateStreaming = false;
+		const bool bSupportsMultiplePasses = false;
+		const bool bForceHWRaster = RasterContext.RasterScheduling == Nanite::ERasterScheduling::HardwareOnly;
+		const bool bPrimaryContext = false;
 
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 		{
-			ShaderPrint::EndView(Views[ViewIndex]);
+			Nanite::FCullingContext CullingContext = Nanite::InitCullingContext(
+				GraphBuilder,
+				*Scene,
+				Views[ViewIndex].PrevViewInfo.HZB,
+				Views[ViewIndex].PrevViewInfo.ViewRect,
+				bTwoPassOcclusion,
+				bUpdateStreaming,
+				bSupportsMultiplePasses,
+				bForceHWRaster,
+				bPrimaryContext
+			);
+			Nanite::FPackedView PackedView = Nanite::CreatePackedViewFromViewInfo(Views[ViewIndex], HitProxyTextureSize);
+			Nanite::CullRasterize(GraphBuilder, *Scene, { PackedView }, CullingContext, RasterContext, RasterState);
+			Nanite::ExtractResults(GraphBuilder, CullingContext, RasterContext, NaniteRasterResults[ViewIndex]);
 		}
-
-		GEngine->GetPostRenderDelegate().Broadcast();
 	}
-	check(RHICmdList.IsOutsideRenderPass());
+
+	::DoRenderHitProxies(GraphBuilder, this, HitProxyTexture, HitProxyDepthTexture, NaniteRasterResults);
+
+	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+	{
+		ShaderPrint::EndView(Views[ViewIndex]);
+	}
+
+	GEngine->GetPostRenderDelegate().Broadcast();
+
 #endif
+
+	GraphBuilder.Execute();
 }
 
 #if WITH_EDITOR

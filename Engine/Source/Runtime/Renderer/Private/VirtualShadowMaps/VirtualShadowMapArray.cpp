@@ -1005,7 +1005,7 @@ void FVirtualShadowMapArray::PrintStats(FRDGBuilder& GraphBuilder, const FViewIn
 		{
 			FVirtualSmPrintStatsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FVirtualSmPrintStatsCS::FParameters>();
 
-			ShaderPrint::SetParameters(View, PassParameters->ShaderPrintStruct);
+			ShaderPrint::SetParameters(GraphBuilder, View, PassParameters->ShaderPrintStruct);
 			PassParameters->InStatsBuffer = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(StatsBufferRef));
 			PassParameters->CommonParameters = CommonParameters;
 

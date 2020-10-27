@@ -99,9 +99,9 @@ public:
 	FHeightfieldLightingViewInfo()
 	{}
 
-	void SetupVisibleHeightfields(const FViewInfo& View, FRHICommandListImmediate& RHICmdList);
+	void SetupVisibleHeightfields(const FViewInfo& View, FRDGBuilder& GraphBuilder);
 
-	void SetupHeightfieldsForScene(const FScene& Scene, FRHICommandListImmediate& RHICmdList);
+	void SetupHeightfieldsForScene(const FScene& Scene);
 
 	void ClearShadowing(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FLightSceneInfo& LightSceneInfo) const;
 

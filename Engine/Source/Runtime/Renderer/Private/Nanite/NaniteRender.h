@@ -567,12 +567,12 @@ void ExtractResults(
 	FRasterResults& RasterResults );
 
 void DrawHitProxies(
-	FRHICommandListImmediate& RHICmdList,
+	FRDGBuilder& GraphBuilder,
 	const FScene& Scene,
 	const FViewInfo& View,
 	const FRasterResults& RasterResults,
-	const TRefCountPtr<IPooledRenderTarget>& HitProxyRT,
-	const TRefCountPtr<IPooledRenderTarget>& HitProxyDepthRT
+	FRDGTextureRef HitProxyTexture,
+	FRDGTextureRef HitProxyDeptTexture
 	);
 
 void EmitShadowMap(

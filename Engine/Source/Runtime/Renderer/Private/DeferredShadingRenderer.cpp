@@ -425,7 +425,7 @@ static int32 GetCustomDepthPassLocation()
 	return FMath::Clamp(CVarCustomDepthOrder.GetValueOnRenderThread(), 0, 1);
 }
 
-void FDeferredShadingSceneRenderer::PrepareDistanceFieldScene(FRHICommandListImmediate& RHICmdList, bool bSplitDispatch)
+void FDeferredShadingSceneRenderer::PrepareDistanceFieldScene(FRDGBuilder& GraphBuilder, bool bSplitDispatch)
 {
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderDFAO);
 	SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_DistanceFieldAO_Init);
@@ -438,10 +438,10 @@ void FDeferredShadingSceneRenderer::PrepareDistanceFieldScene(FRHICommandListImm
 		extern int32 GHFShadowQuality;
 		if (GHFShadowQuality > 2)
 		{
-			GHFVisibilityTextureAtlas.UpdateAllocations(RHICmdList, FeatureLevel);
+			GHFVisibilityTextureAtlas.UpdateAllocations(GraphBuilder, FeatureLevel);
 		}
-		GHeightFieldTextureAtlas.UpdateAllocations(RHICmdList, FeatureLevel);
-		UpdateGlobalHeightFieldObjectBuffers(RHICmdList);
+		GHeightFieldTextureAtlas.UpdateAllocations(GraphBuilder, FeatureLevel);
+		UpdateGlobalHeightFieldObjectBuffers(GraphBuilder);
 	}
 	else if (bShouldPrepareDistanceFieldScene)
 	{
@@ -450,19 +450,24 @@ void FDeferredShadingSceneRenderer::PrepareDistanceFieldScene(FRHICommandListImm
 
 	if (bShouldPrepareDistanceFieldScene)
 	{
-		GDistanceFieldVolumeTextureAtlas.UpdateAllocations(RHICmdList, FeatureLevel);
-		UpdateGlobalDistanceFieldObjectBuffers(RHICmdList);
-		if (bSplitDispatch)
+		auto DispatchToRHIThreadPass = [](FRHICommandListImmediate& RHICmdList)
 		{
 			RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
+		};
+
+		GDistanceFieldVolumeTextureAtlas.UpdateAllocations(GraphBuilder, FeatureLevel);
+		UpdateGlobalDistanceFieldObjectBuffers(GraphBuilder);
+		if (bSplitDispatch)
+		{
+			AddPass(GraphBuilder, DispatchToRHIThreadPass);
 		}
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 		{
 			FViewInfo& View = Views[ViewIndex];
 
-			SCOPED_GPU_MASK(RHICmdList, View.GPUMask);
+			RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
 
-			View.HeightfieldLightingViewInfo.SetupVisibleHeightfields(View, RHICmdList);
+			View.HeightfieldLightingViewInfo.SetupVisibleHeightfields(View, GraphBuilder);
 
 			if (ShouldPrepareGlobalDistanceField())
 			{
@@ -474,12 +479,12 @@ void FDeferredShadingSceneRenderer::PrepareDistanceFieldScene(FRHICommandListImm
 					OcclusionMaxDistance = Scene->SkyLight->OcclusionMaxDistance;
 				}
 
-				UpdateGlobalDistanceFieldVolume(RHICmdList, Views[ViewIndex], Scene, OcclusionMaxDistance, Views[ViewIndex].GlobalDistanceFieldInfo);
+				UpdateGlobalDistanceFieldVolume(GraphBuilder, Views[ViewIndex], Scene, OcclusionMaxDistance, Views[ViewIndex].GlobalDistanceFieldInfo);
 			}
 		}
 		if (!bSplitDispatch)
 		{
-			RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
+			AddPass(GraphBuilder, DispatchToRHIThreadPass);
 		}
 	}
 }
@@ -1380,18 +1385,15 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 {
 	const bool bNaniteEnabled = UseNanite(ShaderPlatform) && ViewFamily.EngineShowFlags.NaniteMeshes;
 
-	Scene->UpdateAllPrimitiveSceneInfos(RHICmdList, true);
+	FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("DeferredShadingRenderer_Render(ViewFamily=%s)", ViewFamily.bResolveScene ? TEXT("Primary") : TEXT("Auxiliary")));
+
+	Scene->UpdateAllPrimitiveSceneInfos(GraphBuilder, true);
 
 	if (bNaniteEnabled)
 	{
-		Nanite::GGlobalResources.Update(RHICmdList); // Needed to managed scratch buffers for Nanite.
-
-		FRDGBuilder GraphBuilder(RHICmdList);
+		Nanite::GGlobalResources.Update(GraphBuilder); // Needed to managed scratch buffers for Nanite.
 		Nanite::GStreamingManager.BeginAsyncUpdate(GraphBuilder);
-		GraphBuilder.Execute();
 	}
-
-	check(RHICmdList.IsOutsideRenderPass());
 
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderOther);
 
@@ -1454,6 +1456,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 	if (!ViewFamily.EngineShowFlags.Rendering)
 	{
+		GraphBuilder.Execute();
 		return;
 	}
 
@@ -1477,14 +1480,10 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	const bool bUseVirtualTexturing = UseVirtualTexturing(FeatureLevel);
 	if (bUseVirtualTexturing)
 	{
-		FRDGBuilder GraphBuilder(RHICmdList);
-		{
-			SCOPED_GPU_STAT(RHICmdList, VirtualTextureUpdate);
-			// AllocateResources needs to be called before RHIBeginScene
-			FVirtualTextureSystem::Get().AllocateResources(GraphBuilder, FeatureLevel);
-			FVirtualTextureSystem::Get().CallPendingCallbacks();
-		}
-		GraphBuilder.Execute();
+		RDG_GPU_STAT_SCOPE(GraphBuilder, VirtualTextureUpdate);
+		// AllocateResources needs to be called before RHIBeginScene
+		FVirtualTextureSystem::Get().AllocateResources(GraphBuilder, FeatureLevel);
+		FVirtualTextureSystem::Get().CallPendingCallbacks();
 	}
 
 	// Nanite materials do not currently support most debug view modes.
@@ -1514,8 +1513,8 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 	bool bDoInitViewAftersPrepass = false;
 	{
-		SCOPED_GPU_STAT(RHICmdList, VisibilityCommands);
-		bDoInitViewAftersPrepass = InitViews(RHICmdList, BasePassDepthStencilAccess, ILCTaskData);
+		RDG_GPU_STAT_SCOPE(GraphBuilder, VisibilityCommands);
+		bDoInitViewAftersPrepass = InitViews(GraphBuilder, BasePassDepthStencilAccess, ILCTaskData);
 	}
 
 	// Compute & commit the final state of the entire dependency topology of the renderer.
@@ -1553,78 +1552,77 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	}
 #endif // RHI_RAYTRACING
 
+	const FIntPoint SceneTextureExtent = SceneContext.GetBufferSizeXY();
+
 	{
-		SCOPED_GPU_STAT(RHICmdList, GPUSceneUpdate);
+		RDG_GPU_STAT_SCOPE(GraphBuilder, GPUSceneUpdate);
 
 		if (bUseVirtualTexturing)
 		{
-			FRDGBuilder GraphBuilder(RHICmdList);
-			{
-				RDG_GPU_STAT_SCOPE(GraphBuilder, VirtualTextureUpdate);
-				FVirtualTextureSystem::Get().Update(GraphBuilder, FeatureLevel, Scene);
+			RDG_GPU_STAT_SCOPE(GraphBuilder, VirtualTextureUpdate);
 
-				AddPass(GraphBuilder, [&SceneContext](FRHICommandList& RHICmdList)
-				{
-					// Clear virtual texture feedback to default value
-					FUnorderedAccessViewRHIRef FeedbackUAV = SceneContext.GetVirtualTextureFeedbackUAV();
-					RHICmdList.Transition(FRHITransitionInfo(FeedbackUAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
-					RHICmdList.ClearUAVUint(FeedbackUAV, FUintVector4(~0u, ~0u, ~0u, ~0u));
-					RHICmdList.Transition(FRHITransitionInfo(FeedbackUAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute));
-					RHICmdList.BeginUAVOverlap(FeedbackUAV);
-				});
-			}
-			GraphBuilder.Execute();
+			FVirtualTextureSystem::Get().Update(GraphBuilder, FeatureLevel, Scene);
+
+			AddPass(GraphBuilder, [this, &SceneContext](FRHICommandListImmediate& InRHICmdList)
+			{
+				// Clear virtual texture feedback to default value
+				FUnorderedAccessViewRHIRef FeedbackUAV = SceneContext.GetVirtualTextureFeedbackUAV();
+				InRHICmdList.Transition(FRHITransitionInfo(FeedbackUAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
+				InRHICmdList.ClearUAVUint(FeedbackUAV, FUintVector4(~0u, ~0u, ~0u, ~0u));
+				InRHICmdList.Transition(FRHITransitionInfo(FeedbackUAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute));
+				InRHICmdList.BeginUAVOverlap(FeedbackUAV);
+			});
 		}
 
-		if (GDoPrepareDistanceFieldSceneAfterRHIFlush && (GRHINeedsExtraDeletionLatency || !GRHICommandList.Bypass()))
+		auto FlushResourcesPass = [this](FRHICommandListImmediate& InRHICmdList)
 		{
 			// we will probably stall on occlusion queries, so might as well have the RHI thread and GPU work while we wait.
 			CSV_SCOPED_TIMING_STAT_EXCLUSIVE(PostInitViews_FlushDel);
 			SCOPE_CYCLE_COUNTER(STAT_PostInitViews_FlushDel);
-			RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResources);
+			InRHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResources);
+		};
+
+		if (GDoPrepareDistanceFieldSceneAfterRHIFlush && (GRHINeedsExtraDeletionLatency || !GRHICommandList.Bypass()))
+		{
+			AddPass(GraphBuilder, FlushResourcesPass);
 		}
 
-		UpdateGPUScene(RHICmdList, *Scene);
+		UpdateGPUScene(GraphBuilder, *Scene);
 
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 		{
 			FViewInfo& View = Views[ViewIndex];
-			SCOPED_GPU_MASK(RHICmdList, View.GPUMask);
-			ShaderPrint::BeginView(RHICmdList, View);
-			ShaderDrawDebug::BeginView(RHICmdList, View);
+			RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
+
+			ShaderPrint::BeginView(GraphBuilder, View);
+			ShaderDrawDebug::BeginView(GraphBuilder, View);
 		}
 
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 		{
 			FViewInfo& View = Views[ViewIndex];
-			SCOPED_GPU_MASK(RHICmdList, View.GPUMask);
-			UploadDynamicPrimitiveShaderDataForView(RHICmdList, *Scene, View);
+			RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
+
+			UploadDynamicPrimitiveShaderDataForView(GraphBuilder.RHICmdList, *Scene, View);
 		}
 
 		if (!bDoInitViewAftersPrepass)
 		{
 			bool bSplitDispatch = !GDoPrepareDistanceFieldSceneAfterRHIFlush;
-			PrepareDistanceFieldScene(RHICmdList, bSplitDispatch);
+			PrepareDistanceFieldScene(GraphBuilder, bSplitDispatch);
 		}
 
 		if (Views.Num() > 0)
 		{
 			FViewInfo& View = Views[0];
-			Scene->UpdatePhysicsField(RHICmdList, View);
+			Scene->UpdatePhysicsField(GraphBuilder, View);
 		}
 
 		if (!GDoPrepareDistanceFieldSceneAfterRHIFlush && (GRHINeedsExtraDeletionLatency || !GRHICommandList.Bypass()))
 		{
-			// we will probably stall on occlusion queries, so might as well have the RHI thread and GPU work while we wait.
-			CSV_SCOPED_TIMING_STAT_EXCLUSIVE(PostInitViews_FlushDel);
-			SCOPE_CYCLE_COUNTER(STAT_PostInitViews_FlushDel);
-			FRHICommandListExecutor::GetImmediateCommandList().ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResources);
+			AddPass(GraphBuilder, FlushResourcesPass);
 		}
 	}
-
-	FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("DeferredShadingRenderer_Render(ViewFamily=%s)", ViewFamily.bResolveScene ? TEXT("Primary") : TEXT("Auxiliary")));
-
-	const FIntPoint SceneTextureExtent = SceneContext.GetBufferSizeXY();
 
 	FRDGTextureMSAA SceneDepthTexture = RegisterExternalTextureMSAA(GraphBuilder, SceneContext.SceneDepthZ);
 	FRDGTextureRef SmallDepthTexture = GraphBuilder.RegisterExternalTexture(SceneContext.SmallDepthZ, ERenderTargetTexture::Targetable);
@@ -1681,7 +1679,6 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	// Dynamic vertex and index buffers need to be committed before rendering.
 	GEngine->GetPreRenderDelegate().Broadcast();
 
-	AddPass(GraphBuilder, [this, bDoInitViewAftersPrepass](FRHICommandList&)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_FGlobalDynamicVertexBuffer_Commit);
 		DynamicIndexBufferForInitViews.Commit();
@@ -1694,7 +1691,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 			DynamicIndexBufferForInitShadows.Commit();
 			DynamicReadBufferForInitShadows.Commit();
 		}
-	});
+	}
 
 	if (DepthPass.IsComputeStencilDitherEnabled())
 	{
@@ -1706,19 +1703,19 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_FXSystem_PreRender);
 		AddSetCurrentStatPass(GraphBuilder, GET_STATID(STAT_CLM_FXPreRender));
-		AddPass(GraphBuilder, [this](FRHICommandListImmediate& RHICmdList)
+		AddPass(GraphBuilder, [this](FRHICommandListImmediate& InRHICmdList)
 		{
-			FXSystem->PreRender(RHICmdList, Views[0].ViewUniformBuffer, &Views[0].GlobalDistanceFieldInfo.ParameterData, Views[0].AllowGPUParticleUpdate());
+			FXSystem->PreRender(InRHICmdList, Views[0].ViewUniformBuffer, &Views[0].GlobalDistanceFieldInfo.ParameterData, Views[0].AllowGPUParticleUpdate());
 			if (FGPUSortManager* GPUSortManager = FXSystem->GetGPUSortManager())
 			{
-				GPUSortManager->OnPreRender(RHICmdList);
+				GPUSortManager->OnPreRender(InRHICmdList);
 			}
 		});
 	}
 
-	AddPass(GraphBuilder, [this](FRHICommandList& RHICmdList)
+	AddPass(GraphBuilder, [this](FRHICommandList& InRHICmdList)
 	{
-		RunGPUSkinCacheTransition(RHICmdList, Scene, EGPUSkinCacheTransition::Renderer);
+		RunGPUSkinCacheTransition(InRHICmdList, Scene, EGPUSkinCacheTransition::Renderer);
 	});
 
 	FHairStrandsBookmarkParameters HairStrandsBookmarkParameters;
@@ -1753,11 +1750,8 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	{
 		Nanite::ListStatFilters(this);
 
-		AddPass(GraphBuilder, [](FRHICommandListImmediate& RHICmdList)
-		{
-			// Must happen before any Nanite rendering in the frame
-			Nanite::GStreamingManager.EndAsyncUpdate(RHICmdList); 
-		});
+		// Must happen before any Nanite rendering in the frame
+		Nanite::GStreamingManager.EndAsyncUpdate(GraphBuilder);
 	}
 
 	{
@@ -1788,23 +1782,19 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		{
 			{
 				SCOPED_GPU_STAT(GraphBuilder.RHICmdList, VisibilityCommands);
-				InitViewsPossiblyAfterPrepass(GraphBuilder.RHICmdList, ILCTaskData);
+				InitViewsPossiblyAfterPrepass(GraphBuilder, ILCTaskData);
 			}
 
 			{
 				SCOPED_GPU_STAT(GraphBuilder.RHICmdList, GPUSceneUpdate);
-				PrepareDistanceFieldScene(GraphBuilder.RHICmdList, false);
+				PrepareDistanceFieldScene(GraphBuilder, false);
 			}
 
 			{
-				RDG_GPU_STAT_SCOPE(GraphBuilder, UploadDynamicBuffers);
-				AddPass(GraphBuilder, [this](FRHICommandList&)
-				{
-					SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_FGlobalDynamicVertexBuffer_Commit);
-					DynamicVertexBufferForInitShadows.Commit();
-					DynamicIndexBufferForInitShadows.Commit();
-					DynamicReadBufferForInitShadows.Commit();
-				});
+				SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_FGlobalDynamicVertexBuffer_Commit);
+				DynamicVertexBufferForInitShadows.Commit();
+				DynamicIndexBufferForInitShadows.Commit();
+				DynamicReadBufferForInitShadows.Commit();
 			}
 
 			AddServiceLocalQueuePass(GraphBuilder);
@@ -2785,14 +2775,14 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		});
 	}
 
+	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+	{
+		ShaderPrint::EndView(Views[ViewIndex]);
+		ShaderDrawDebug::EndView(Views[ViewIndex]);
+	}
+
 	AddPass(GraphBuilder, [this, &SceneContext](FRHICommandListImmediate& InRHICmdList)
 	{
-		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
-		{
-			ShaderPrint::EndView(Views[ViewIndex]);
-			ShaderDrawDebug::EndView(Views[ViewIndex]);
-		}
-
 		GEngine->GetPostRenderDelegate().Broadcast();
 
 		SceneContext.AdjustGBufferRefCount(InRHICmdList, -1);

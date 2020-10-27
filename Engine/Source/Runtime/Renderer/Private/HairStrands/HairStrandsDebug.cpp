@@ -321,7 +321,7 @@ static void AddDebugHairPrintPass(
 	Parameters->HairMacroGroupCount = MacroGroupDatas.Datas.Num();
 	Parameters->MaxSampleCount = VisibilityData.MaxSampleCount;
 	Parameters->HairMacroGroupAABBBuffer = GraphBuilder.CreateSRV(MacroGroupDatas.MacroGroupResources.MacroGroupAABBsBuffer, PF_R32_SINT);
-	ShaderPrint::SetParameters(*View, Parameters->ShaderPrintUniformBuffer);
+	ShaderPrint::SetParameters(GraphBuilder, *View, Parameters->ShaderPrintUniformBuffer);
 	ShaderDrawDebug::SetParameters(GraphBuilder, View->ShaderDrawData, Parameters->ShaderDrawUniformBuffer);
 	TShaderMapRef<FHairDebugPrintCS> ComputeShader(View->ShaderMap);
 
@@ -630,7 +630,7 @@ static void AddDeepShadowInfoPass(
 	Parameters->MacroGroupAABBBuffer = GraphBuilder.CreateSRV(MacroGroupDatas.MacroGroupResources.MacroGroupAABBsBuffer, PF_R32_SINT);
 	Parameters->ShadowWorldToLightTransformBuffer = GraphBuilder.CreateSRV(MacroGroupDatas.DeepShadowResources.DeepShadowWorldToLightTransforms);
 	ShaderDrawDebug::SetParameters(GraphBuilder, View.ShaderDrawData, Parameters->ShaderDrawParameters);
-	ShaderPrint::SetParameters(View, Parameters->ShaderPrintParameters);
+	ShaderPrint::SetParameters(GraphBuilder, View, Parameters->ShaderPrintParameters);
 	Parameters->OutputTexture = GraphBuilder.CreateUAV(OutputTexture);
 
 	TShaderMapRef<FDeepShadowInfoCS> ComputeShader(View.ShaderMap);
@@ -705,7 +705,7 @@ static void AddVoxelPageRaymarchingPass(
 		Parameters->VirtualVoxel			= VoxelResources.UniformBuffer;
 		Parameters->TotalValidPageCounter	= GraphBuilder.CreateSRV(VoxelResources.PageIndexGlobalCounter, PF_R32_UINT);
 		ShaderDrawDebug::SetParameters(GraphBuilder, View.ShaderDrawData, Parameters->ShaderDrawParameters);
-		ShaderPrint::SetParameters(View, Parameters->ShaderPrintParameters);
+		ShaderPrint::SetParameters(GraphBuilder, View, Parameters->ShaderPrintParameters);
 		Parameters->OutputTexture			= GraphBuilder.CreateUAV(OutputTexture);
 
 		FVoxelVirtualRaymarchingCS::FPermutationDomain PermutationVector;
@@ -1054,7 +1054,7 @@ static void AddDrawDebugClusterPass(
 								Parameters->ClusterDebugInfoBuffer = GraphBuilder.CreateSRV(ClusterDebugInfoBuffer);
 							}
 							ShaderDrawDebug::SetParameters(GraphBuilder, ViewInfo.ShaderDrawData, Parameters->ShaderDrawParameters);
-							ShaderPrint::SetParameters(ViewInfo, Parameters->ShaderPrintParameters);
+							ShaderPrint::SetParameters(GraphBuilder, ViewInfo, Parameters->ShaderPrintParameters);
 
 							check(Parameters->ClusterCount / 64 <= 65535);
 							const FIntVector DispatchCount = DispatchCount.DivideAndRoundUp(FIntVector(Parameters->ClusterCount, 1, 1), FIntVector(64, 1, 1));// FIX ME, this could get over 65535
@@ -1330,7 +1330,7 @@ void RenderHairStrandsDebugInfo(
 			PassParameters->PPLLNodeData = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(VisibilityData.PPLLNodeDataBuffer));
 			PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 			PassParameters->SceneColorTextureUAV = GraphBuilder.CreateUAV(SceneColorTexture);
-			ShaderPrint::SetParameters(View, PassParameters->ShaderPrintParameters);
+			ShaderPrint::SetParameters(GraphBuilder, View, PassParameters->ShaderPrintParameters);
 
 			FHairVisibilityDebugPPLLCS::FPermutationDomain PermutationVector;
 			TShaderMapRef<FHairVisibilityDebugPPLLCS> ComputeShader(View.ShaderMap, PermutationVector);

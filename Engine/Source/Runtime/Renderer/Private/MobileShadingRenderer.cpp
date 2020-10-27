@@ -263,8 +263,9 @@ void FMobileSceneRenderer::SetupMobileBasePassAfterShadowInit(FExclusiveDepthSte
  * Initialize scene's views.
  * Check visibility, sort translucent items, etc.
  */
-void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
+void FMobileSceneRenderer::InitViews(FRDGBuilder& GraphBuilder)
 {
+	FRHICommandListImmediate& RHICmdList = GraphBuilder.RHICmdList;
 	RHICmdList.SetCurrentStat(GET_STATID(STAT_CLMM_InitViews));
 
 	SCOPED_DRAW_EVENT(RHICmdList, InitViews);
@@ -280,7 +281,7 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 
 	const FExclusiveDepthStencil::Type BasePassDepthStencilAccess = FExclusiveDepthStencil::DepthWrite_StencilWrite;
 
-	PreVisibilityFrameSetup(RHICmdList);
+	PreVisibilityFrameSetup(GraphBuilder);
 	ComputeViewVisibility(RHICmdList, BasePassDepthStencilAccess, ViewCommandsPerView, DynamicIndexBuffer, DynamicVertexBuffer, DynamicReadBuffer);
 
 	// Initialise Sky/View resources before the view global uniform buffer is built.
@@ -310,7 +311,7 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 	if (bDynamicShadows && !IsSimpleForwardShadingEnabled(ShaderPlatform))
 	{
 		// Setup dynamic shadows.
-		InitDynamicShadows(RHICmdList);		
+		InitDynamicShadows(RHICmdList);
 	}
 	else
 	{
@@ -371,7 +372,7 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 		}
 	}
 
-	UpdateGPUScene(RHICmdList, *Scene);
+	UpdateGPUScene(GraphBuilder, *Scene);
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
 		UploadDynamicPrimitiveShaderDataForView(RHICmdList, *Scene, Views[ViewIndex]);
@@ -545,9 +546,9 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	{
 		FRDGBuilder GraphBuilder(RHICmdList);
 		{
-			SCOPED_GPU_STAT(RHICmdList, VirtualTextureUpdate);
+			RDG_GPU_STAT_SCOPE(GraphBuilder, VirtualTextureUpdate);
 			// AllocateResources needs to be called before RHIBeginScene
-			FVirtualTextureSystem::Get().AllocateResources(GraphBuilder, FeatureLevel);
+			FVirtualTextureSystem::Get().AllocateResources(GraphBuilder, ViewFeatureLevel);
 			FVirtualTextureSystem::Get().CallPendingCallbacks();
 		}
 		GraphBuilder.Execute();
@@ -557,7 +558,11 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	GRenderTargetPool.TransitionTargetsWritable(RHICmdList);
 
 	// Find the visible primitives.
-	InitViews(RHICmdList);
+	{
+		FRDGBuilder GraphBuilder(RHICmdList);
+		InitViews(GraphBuilder);
+		GraphBuilder.Execute();
+	}
 
 	if (GRHINeedsExtraDeletionLatency || !GRHICommandList.Bypass())
 	{
@@ -592,7 +597,6 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 				RHICmdList.Transition(FRHITransitionInfo(FeedbackUAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
 				RHICmdList.ClearUAVUint(FeedbackUAV, FUintVector4(~0u, ~0u, ~0u, ~0u));
 				RHICmdList.Transition(FRHITransitionInfo(FeedbackUAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute));
-				RHICmdList.BeginUAVOverlap(FeedbackUAV);
 			});
 		}
 		GraphBuilder.Execute();

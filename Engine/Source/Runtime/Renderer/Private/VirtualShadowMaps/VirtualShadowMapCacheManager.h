@@ -116,12 +116,12 @@ public:
 	 * In particular, it must be processed before the Scene primitive IDs are updated/compacted as part of the removal.
 	 * Invalidate pages that are touched by (the instances of) the removed primitives. 
 	 */
-	void ProcessRemovedPrimives(FRHICommandListImmediate& RHICmdList, const FGPUScene& GPUScene, const TArray<FPrimitiveSceneInfo*>& RemovedPrimitiveSceneInfos);
+	void ProcessRemovedPrimives(FRDGBuilder& GraphBuilder, const FGPUScene& GPUScene, const TArray<FPrimitiveSceneInfo*>& RemovedPrimitiveSceneInfos);
 
 	/**
 	 * Invalidate pages that are touched by (the instances of) all primitive about to be removed. Must be called before the GPU-Scene is updated (but after all upates are registered).
 	 */
-	void ProcessPrimitivesToUpdate(FRHICommandListImmediate& RHICmdList, const FScene& Scene);
+	void ProcessPrimitivesToUpdate(FRDGBuilder& GraphBuilder, const FScene& Scene);
 
 	// Index the Cache entries by the light ID and cascade index
 	TMap< FIntPoint, TSharedPtr<FVirtualShadowMapCacheEntry> > CacheEntries;
@@ -164,5 +164,5 @@ protected:
 		int32 NumInstanceDataEntries;
 	};
 
-	void ProcessInstanceRangeInvalidation(FRHICommandListImmediate& RHICmdList, const TArray<FInstanceDataRange>& InstanceRanges, const FGPUScene& GPUScene);
+	void ProcessInstanceRangeInvalidation(FRDGBuilder& GraphBuilder, const TArray<FInstanceDataRange>& InstanceRanges, const FGPUScene& GPUScene);
 };

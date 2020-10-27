@@ -382,14 +382,19 @@ bool AllowHeightfieldGI(const FViewInfo& View)
 		&& false;
 }
 
-void FHeightfieldLightingViewInfo::SetupVisibleHeightfields(const FViewInfo& View, FRHICommandListImmediate& RHICmdList)
+void FHeightfieldLightingViewInfo::SetupVisibleHeightfields(const FViewInfo& View, FRDGBuilder& GraphBuilder)
 {
 	const FScene* Scene = (const FScene*)View.Family->Scene;
 	const int32 NumPrimitives = Scene->DistanceFieldSceneData.HeightfieldPrimitives.Num();
 
-	if ((AllowHeightfieldGI(View) || GAOHeightfieldOcclusion)
-		&& NumPrimitives > 0
-		&& SupportsHeightfieldLighting(View.GetFeatureLevel(), View.GetShaderPlatform()))
+	if ((!AllowHeightfieldGI(View) && !GAOHeightfieldOcclusion)
+		|| NumPrimitives == 0
+		|| !SupportsHeightfieldLighting(View.GetFeatureLevel(), View.GetShaderPlatform()))
+	{
+		return;
+	}
+
+	AddPass(GraphBuilder, [this, Scene, &View, NumPrimitives](FRHICommandListImmediate& RHICmdList)
 	{
 		const float MaxDistanceSquared = FMath::Square(GetMaxAOViewDistance() + GetGHeightfieldBounceDistance());
 		float LocalToWorldScale = 1;
@@ -519,10 +524,10 @@ void FHeightfieldLightingViewInfo::SetupVisibleHeightfields(const FViewInfo& Vie
 				}
 			}
 		}
-	}
+	});
 }
 
-void FHeightfieldLightingViewInfo::SetupHeightfieldsForScene(const FScene& Scene, FRHICommandListImmediate& RHICmdList)
+void FHeightfieldLightingViewInfo::SetupHeightfieldsForScene(const FScene& Scene)
 {
 	const int32 NumPrimitives = Scene.DistanceFieldSceneData.HeightfieldPrimitives.Num();
 
@@ -1199,7 +1204,7 @@ void FHeightfieldLightingViewInfo::ComputeLighting(FRDGBuilder& GraphBuilder, co
 		return;
 	}
 
-	AddUntrackedAccessPass(GraphBuilder, RDG_EVENT_NAME("HeightfieldLightingForGI"), [this, &View, &LightSceneInfo, FeatureLevel](FRHICommandListImmediate& RHICmdList)
+	AddPass(GraphBuilder, RDG_EVENT_NAME("HeightfieldLightingForGI"), [this, &View, &LightSceneInfo, FeatureLevel](FRHICommandListImmediate& RHICmdList)
 	{
 		FUniformBufferRHIRef PassUniformBuffer = CreateSceneTextureUniformBuffer(RHICmdList, View.FeatureLevel);
 		FUniformBufferStaticBindings GlobalUniformBuffers(PassUniformBuffer);

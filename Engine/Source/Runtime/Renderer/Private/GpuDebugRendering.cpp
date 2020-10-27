@@ -237,14 +237,13 @@ namespace ShaderDrawDebug
 
 	//////////////////////////////////////////////////////////////////////////
 
-	void BeginView(FRHICommandListImmediate& InRHICmdList, FViewInfo& View)
+	void BeginView(FRDGBuilder& GraphBuilder, FViewInfo& View)
 	{
 		if (!IsShaderDrawDebugEnabled(View))
 		{
 			return;
 		}
 
-		FRDGBuilder GraphBuilder(InRHICmdList);
 		FRDGBufferRef DataBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FPackedShaderDrawElement), GetMaxElementCount()), TEXT("ShaderDrawDataBuffer"));
 		FRDGBufferRef IndirectBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDrawIndirectParameters>(1), TEXT("ShaderDrawDataIndirectBuffer"));
 
@@ -264,10 +263,8 @@ namespace ShaderDrawDebug
 			FComputeShaderUtils::Dispatch(RHICmdList, ComputeShader, *Parameters, FIntVector(1,1,1));
 		});
 
-		GraphBuilder.QueueBufferExtraction(DataBuffer, &View.ShaderDrawData.Buffer, ERHIAccess::UAVCompute);
-		GraphBuilder.QueueBufferExtraction(IndirectBuffer, &View.ShaderDrawData.IndirectBuffer, ERHIAccess::UAVCompute);
-
-		GraphBuilder.Execute();
+		View.ShaderDrawData.Buffer = DataBuffer;
+		View.ShaderDrawData.IndirectBuffer = IndirectBuffer;
 
 		if (IsShaderDrawLocked() && !LockedData.bIsLocked)
 		{
@@ -361,8 +358,8 @@ namespace ShaderDrawDebug
 			});
 		};
 
-		FRDGBufferRef DataBuffer = GraphBuilder.RegisterExternalBuffer(View.ShaderDrawData.Buffer);
-		FRDGBufferRef IndirectBuffer = GraphBuilder.RegisterExternalBuffer(View.ShaderDrawData.IndirectBuffer);
+		FRDGBufferRef DataBuffer = View.ShaderDrawData.Buffer;
+		FRDGBufferRef IndirectBuffer = View.ShaderDrawData.IndirectBuffer;
 		{
 			RunPass(true, DataBuffer, IndirectBuffer, nullptr, nullptr);
 		}
@@ -423,8 +420,8 @@ namespace ShaderDrawDebug
 
 	void SetParameters(FRDGBuilder& GraphBuilder, const FShaderDrawDebugData& Data, FShaderDrawDebugParameters& OutParameters)
 	{
-		FRDGBufferRef DataBuffer = GraphBuilder.RegisterExternalBuffer(Data.Buffer);
-		FRDGBufferRef IndirectBuffer = GraphBuilder.RegisterExternalBuffer(Data.IndirectBuffer);
+		FRDGBufferRef DataBuffer = Data.Buffer;
+		FRDGBufferRef IndirectBuffer = Data.IndirectBuffer;
 
 		OutParameters.ShaderDrawCursorPos = Data.CursorPosition;
 		OutParameters.ShaderDrawMaxElementCount = GetMaxElementCount();

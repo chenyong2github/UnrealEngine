@@ -1611,7 +1611,7 @@ void FStreamingManager::AsyncUpdate()
 	}
 }
 
-void FStreamingManager::EndAsyncUpdate(FRHICommandListImmediate& RHICmdList)
+void FStreamingManager::EndAsyncUpdate(FRDGBuilder& GraphBuilder)
 {
 	if (!DoesPlatformSupportNanite(GMaxRHIShaderPlatform))
 	{
@@ -1620,76 +1620,73 @@ void FStreamingManager::EndAsyncUpdate(FRHICommandListImmediate& RHICmdList)
 
 	LLM_SCOPE_BYTAG(Nanite);
 	TRACE_CPUPROFILER_EVENT_SCOPE(FStreamingManager::EndAsyncUpdate);
-	SCOPED_DRAW_EVENT(RHICmdList, NaniteStreaming);
-	SCOPED_GPU_STAT(RHICmdList, NaniteStreaming);
-	
-	check(AsyncState.bUpdateActive);
+	RDG_EVENT_SCOPE(GraphBuilder, "NaniteStreaming");
+	RDG_GPU_STAT_SCOPE(GraphBuilder, NaniteStreaming);
 
-	// Wait for async processing to finish
-	if (GNaniteAsyncStreaming)
+	AddPass(GraphBuilder, [this](FRHICommandListImmediate& RHICmdList)
 	{
-		check(!AsyncTaskEvents.IsEmpty());
-		FTaskGraphInterface::Get().WaitUntilTasksComplete(AsyncTaskEvents, ENamedThreads::GetRenderThread_Local());
-	}
-	
-	AsyncTaskEvents.Empty();
+		check(AsyncState.bUpdateActive);
 
-	// Unlock readback buffer
-	if(AsyncState.LatestReadbackBuffer)
-	{
-		AsyncState.LatestReadbackBuffer->Unlock();
-	}
-
-	// Issue GPU copy operations
-	if(AsyncState.NumReadyPages > 0)
-	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(UploadPages);
-
-		if(!AsyncState.bBuffersTransitionedToWrite)
+		// Wait for async processing to finish
+		if (GNaniteAsyncStreaming)
 		{
-			FRHITransitionInfo Transitions[3] =
-			{
-				FRHITransitionInfo(ClusterPageData.DataBuffer.UAV,		ERHIAccess::Unknown, ERHIAccess::UAVCompute),
-				FRHITransitionInfo(ClusterPageHeaders.DataBuffer.UAV,	ERHIAccess::Unknown, ERHIAccess::UAVCompute),
-				FRHITransitionInfo(Hierarchy.DataBuffer.UAV,			ERHIAccess::Unknown, ERHIAccess::UAVCompute)
-			};
-			RHICmdList.Transition(Transitions);
+			check(!AsyncTaskEvents.IsEmpty());
+			FTaskGraphInterface::Get().WaitUntilTasksComplete(AsyncTaskEvents, ENamedThreads::GetRenderThread_Local());
 		}
 
-		PageUploader->ResourceUploadTo(RHICmdList, ClusterPageData.DataBuffer);
+		AsyncTaskEvents.Empty();
 
-		ClusterPageHeaders.UploadBuffer.ResourceUploadTo(RHICmdList, ClusterPageHeaders.DataBuffer, false);
-		Hierarchy.UploadBuffer.ResourceUploadTo(RHICmdList, Hierarchy.DataBuffer, false);
-
-		// NOTE: We need an additional barrier here to make sure pages are finished uploading before fixups can be applied.
-		RHICmdList.Transition(FRHITransitionInfo(ClusterPageData.DataBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute));
-		ClusterFixupUploadBuffer.ResourceUploadTo(RHICmdList, ClusterPageData.DataBuffer, false);
-		
-		NumPendingPages -= AsyncState.NumReadyPages;
-		AsyncState.bBuffersTransitionedToWrite |= true;
-	}
-
-	// Transition resource back to read
-	if(AsyncState.bBuffersTransitionedToWrite)
-	{
-		FRHITransitionInfo Transitions[3] =
+		// Unlock readback buffer
+		if (AsyncState.LatestReadbackBuffer)
 		{
-			FRHITransitionInfo(ClusterPageData.DataBuffer.UAV,		ERHIAccess::UAVCompute, ERHIAccess::SRVMask),
-			FRHITransitionInfo(ClusterPageHeaders.DataBuffer.UAV,	ERHIAccess::UAVCompute, ERHIAccess::SRVMask),
-			FRHITransitionInfo(Hierarchy.DataBuffer.UAV,			ERHIAccess::UAVCompute, ERHIAccess::SRVMask)
-		};
-		RHICmdList.Transition(Transitions);
+			AsyncState.LatestReadbackBuffer->Unlock();
+		}
 
-		AsyncState.bBuffersTransitionedToWrite = false;
-	}
+		// Issue GPU copy operations
+		if (AsyncState.NumReadyPages > 0)
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(UploadPages);
 
-	NextUpdateIndex++;
-	AsyncState.bUpdateActive = false;
+			if (!AsyncState.bBuffersTransitionedToWrite)
+			{
+				RHICmdList.Transition(
+				{
+					FRHITransitionInfo(ClusterPageData.DataBuffer.UAV,		ERHIAccess::Unknown, ERHIAccess::UAVCompute),
+					FRHITransitionInfo(ClusterPageHeaders.DataBuffer.UAV,	ERHIAccess::Unknown, ERHIAccess::UAVCompute),
+					FRHITransitionInfo(Hierarchy.DataBuffer.UAV,			ERHIAccess::Unknown, ERHIAccess::UAVCompute)
+				});
+			}
+
+			PageUploader->ResourceUploadTo(RHICmdList, ClusterPageData.DataBuffer);
+
+			ClusterPageHeaders.UploadBuffer.ResourceUploadTo(RHICmdList, ClusterPageHeaders.DataBuffer, false);
+			Hierarchy.UploadBuffer.ResourceUploadTo(RHICmdList, Hierarchy.DataBuffer, false);
+
+			// NOTE: We need an additional barrier here to make sure pages are finished uploading before fixups can be applied.
+			RHICmdList.Transition(FRHITransitionInfo(ClusterPageData.DataBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute));
+			ClusterFixupUploadBuffer.ResourceUploadTo(RHICmdList, ClusterPageData.DataBuffer, false);
+
+			NumPendingPages -= AsyncState.NumReadyPages;
+			AsyncState.bBuffersTransitionedToWrite |= true;
+		}
+
+		// Transition resource back to read
+		if (AsyncState.bBuffersTransitionedToWrite)
+		{
+			RHICmdList.Transition(
+			{
+				FRHITransitionInfo(ClusterPageData.DataBuffer.UAV,		ERHIAccess::UAVCompute, ERHIAccess::SRVMask),
+				FRHITransitionInfo(ClusterPageHeaders.DataBuffer.UAV,	ERHIAccess::UAVCompute, ERHIAccess::SRVMask),
+				FRHITransitionInfo(Hierarchy.DataBuffer.UAV,			ERHIAccess::UAVCompute, ERHIAccess::SRVMask)
+			});
+
+			AsyncState.bBuffersTransitionedToWrite = false;
+		}
+
+		NextUpdateIndex++;
+		AsyncState.bUpdateActive = false;
+	});
 }
-
-BEGIN_SHADER_PARAMETER_STRUCT(FReadbackPassParameters, )
-	SHADER_PARAMETER_RDG_BUFFER(, Input)
-END_SHADER_PARAMETER_STRUCT()
 
 void FStreamingManager::SubmitFrameStreamingRequests(FRDGBuilder& GraphBuilder)
 {
@@ -1715,22 +1712,13 @@ void FStreamingManager::SubmitFrameStreamingRequests(FRDGBuilder& GraphBuilder)
 	}
 
 	FRDGBufferRef Buffer = GraphBuilder.RegisterExternalBuffer(StreamingRequestsBuffer);
+	FRHIGPUBufferReadback* ReadbackBuffer = StreamingRequestReadbackBuffers[ReadbackBuffersWriteIndex];
 
+	AddReadbackBufferPass(GraphBuilder, RDG_EVENT_NAME("Readback"), Buffer,
+		[ReadbackBuffer, Buffer](FRHICommandList& RHICmdList)
 	{
-		FRHIGPUBufferReadback* ReadbackBuffer = StreamingRequestReadbackBuffers[ReadbackBuffersWriteIndex];
-
-		FReadbackPassParameters* PassParameters = GraphBuilder.AllocParameters<FReadbackPassParameters>();
-		PassParameters->Input = Buffer;
-		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("Readback"),
-			PassParameters,
-			ERDGPassFlags::Readback,
-			[ReadbackBuffer, Buffer](FRHICommandList& RHICmdList)
-		{
-			Buffer->MarkResourceAsUsed();
-			ReadbackBuffer->EnqueueCopy(RHICmdList, Buffer->GetRHIVertexBuffer(), 0u);
-		});
-	}
+		ReadbackBuffer->EnqueueCopy(RHICmdList, Buffer->GetRHIVertexBuffer(), 0u);
+	});
 
 	AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(Buffer, PF_R32_UINT), 0);
 

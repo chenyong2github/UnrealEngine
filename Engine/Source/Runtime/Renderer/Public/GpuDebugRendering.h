@@ -11,8 +11,8 @@ class FViewInfo;
 struct FShaderDrawDebugData
 {
 	FIntPoint CursorPosition;
-	TRefCountPtr<FRDGPooledBuffer> Buffer;
-	TRefCountPtr<FRDGPooledBuffer> IndirectBuffer;
+	FRDGBufferRef Buffer = nullptr;
+	FRDGBufferRef IndirectBuffer = nullptr;
 };
 
 namespace ShaderDrawDebug 
@@ -27,7 +27,7 @@ namespace ShaderDrawDebug
 	bool IsShaderDrawDebugEnabled(const FViewInfo& View);
 
 	// Allocate the debug print buffer associated with the view
-	void BeginView(FRHICommandListImmediate& RHICmdList, FViewInfo& View);
+	void BeginView(FRDGBuilder& GraphBuilder, FViewInfo& View);
 	// Draw info from the debug print buffer to the given output target
 	void DrawView(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGTextureRef OutputTexture, FRDGTextureRef DepthTexture);
 	// Release the debug print buffer associated with the view
@@ -43,5 +43,4 @@ namespace ShaderDrawDebug
 
 	// Call this to fill the FShaderDrawParameters
 	RENDERER_API void SetParameters(FRDGBuilder& GraphBuilder, const FShaderDrawDebugData& Data, FShaderDrawDebugParameters& OutParameters);
-
 }

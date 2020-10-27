@@ -94,9 +94,9 @@ void FDistanceFieldDownsampling::FillDownsamplingTask
 }
 
 // --------------------------------------------------------------------------------------------------------------------
-void FDistanceFieldDownsampling::DispatchDownsampleTasks(FRHICommandListImmediate& RHICmdList, FRHIUnorderedAccessView* DFAtlasUAV, ERHIFeatureLevel::Type FeatureLevel, TArray<FDistanceFieldDownsamplingDataTask>& DownsamplingTasks, TArray<FUpdateTexture3DData>& UpdateTextureDataArray)
+void FDistanceFieldDownsampling::DispatchDownsampleTasks(FRDGBuilder& GraphBuilder, FRHIUnorderedAccessView* DFAtlasUAV, ERHIFeatureLevel::Type FeatureLevel, TArray<FDistanceFieldDownsamplingDataTask>& DownsamplingTasks, TArray<FUpdateTexture3DData>& UpdateTextureDataArray)
 {
-	SCOPED_GPU_STAT(RHICmdList, DFMeshDownsampling);
+	RDG_GPU_STAT_SCOPE(GraphBuilder, DFMeshDownsampling);
 
 	check(DownsamplingTasks.Num()==UpdateTextureDataArray.Num());
 
@@ -107,10 +107,10 @@ void FDistanceFieldDownsampling::DispatchDownsampleTasks(FRHICommandListImmediat
 		RHIEndUpdateTexture3D(UpdateTextureData);
 	}
 
-	RHICmdList.Transition(FRHITransitionInfo(DFAtlasUAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
-
-	// Dispatch CS downsample tasks
-	FRDGBuilder GraphBuilder(RHICmdList);
+	AddPass(GraphBuilder, [DFAtlasUAV](FRHICommandList& RHICmdList)
+	{
+		RHICmdList.Transition(FRHITransitionInfo(DFAtlasUAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
+	});
 
 	for (int32 Index=0; Index<DownsamplingTasks.Num(); Index++)
 	{
@@ -142,7 +142,15 @@ void FDistanceFieldDownsampling::DispatchDownsampleTasks(FRHICommandListImmediat
 		);
 	}
 
-	GraphBuilder.Execute();
+	AddPass(GraphBuilder, [DFAtlasUAV](FRHICommandList& RHICmdList)
+	{
+		RHICmdList.Transition(FRHITransitionInfo(DFAtlasUAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask));
+	});
+}
 
-	RHICmdList.Transition(FRHITransitionInfo(DFAtlasUAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask));
+void FDistanceFieldDownsampling::DispatchDownsampleTasks(FRHICommandListImmediate& RHICmdList, FRHIUnorderedAccessView* DFAtlasUAV, ERHIFeatureLevel::Type FeatureLevel, TArray<FDistanceFieldDownsamplingDataTask>& DownsamplingTasks, TArray<FUpdateTexture3DData>& UpdateTextureDataArray)
+{
+	FRDGBuilder GraphBuilder(RHICmdList);
+	DispatchDownsampleTasks(GraphBuilder, DFAtlasUAV, FeatureLevel, DownsamplingTasks, UpdateTextureDataArray);
+	GraphBuilder.Execute();
 }
