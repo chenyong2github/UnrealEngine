@@ -18,8 +18,6 @@
 #include <atomic>
 #include <intrin.h>
 
-PRAGMA_DISABLE_OPTIMIZATION
-
 ////////////////////////////////////////////////////////////////////////////////
 void	Backtracer_Create(FMalloc*);
 void	Backtracer_Initialize();
