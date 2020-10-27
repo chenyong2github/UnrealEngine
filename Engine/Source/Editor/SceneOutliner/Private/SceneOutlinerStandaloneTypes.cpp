@@ -27,7 +27,7 @@ TOptional<FLinearColor> FSceneOutlinerCommonLabelData::GetForegroundColor(const 
 	{
 		TSharedPtr<FDragDropOperation> DragDropOp = FSlateApplication::Get().GetDragDroppingContent();
 
-		FSceneOutlinerDragDropPayload DraggedObjects;
+		FSceneOutlinerDragDropPayload DraggedObjects(*DragDropOp);
 		const auto Outliner = WeakSceneOutliner.Pin();
 		if (Outliner->GetMode()->ParseDragDrop(DraggedObjects, *DragDropOp) && !Outliner->GetMode()->ValidateDrop(TreeItem, DraggedObjects).IsValid())
 		{

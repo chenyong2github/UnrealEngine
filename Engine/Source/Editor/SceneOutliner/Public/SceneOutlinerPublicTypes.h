@@ -78,7 +78,7 @@ struct FSceneOutlinerColumnInfo
 };
 
 /** Settings for the scene outliner which can be quieried publicly */
-struct FSharedSceneOutlinerData
+struct SCENEOUTLINER_API FSharedSceneOutlinerData
 {
 	/**	Invoked whenever the user attempts to delete an actor from within a Scene Outliner in the actor browsing mode */
 	FCustomSceneOutlinerDeleteDelegate CustomDelete;

@@ -85,7 +85,7 @@ FReply HandleDrop(TSharedPtr<SSceneOutliner> SceneOutlinerPtr, const FDragDropEv
 		return FReply::Unhandled();
 	}
 
-	FSceneOutlinerDragDropPayload DraggedObjects;
+	FSceneOutlinerDragDropPayload DraggedObjects(*DragDropEvent.GetOperation());
 	// Validate now to make sure we don't doing anything we shouldn't
 	if (!SceneOutlinerPtr->ParseDragDrop(DraggedObjects, *DragDropEvent.GetOperation()))
 	{

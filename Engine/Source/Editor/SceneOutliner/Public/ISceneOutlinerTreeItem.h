@@ -10,7 +10,7 @@
 class UToolMenu;
 
 /** Base tree item interface  */
-struct ISceneOutlinerTreeItem : TSharedFromThis<ISceneOutlinerTreeItem>
+struct SCENEOUTLINER_API ISceneOutlinerTreeItem : TSharedFromThis<ISceneOutlinerTreeItem>
 {
 	/** Friendship required for access to various internals */
 	friend SSceneOutliner;
@@ -138,8 +138,12 @@ public:
 	/** Called when this items visibility changed */
 	virtual void OnVisibilityChanged(const bool bNewVisibility) {}
 
+	/** Returns true if this item should show its visibility state */
+	virtual bool ShouldShowVisibilityState() const { return true; }
+
 	/** Returns true if this item can set its own visibility */
 	virtual bool HasVisibilityInfo() const { return false; }
+
 	/** Query this items visibility state. Only called if the item type has visibility info */
 	virtual bool GetVisibility() const { return false; }
 

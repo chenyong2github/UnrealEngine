@@ -142,7 +142,7 @@ private:
 	mutable uint8 Data[MaxSize];
 };
 	
-struct FSceneOutlinerTreeItemType
+struct SCENEOUTLINER_API FSceneOutlinerTreeItemType
 {
 public:
 	explicit FSceneOutlinerTreeItemType(const FSceneOutlinerTreeItemType* Parent = nullptr) : ID(++NextUniqueID), ParentType(Parent) {}
@@ -164,7 +164,7 @@ private:
 	const FSceneOutlinerTreeItemType* ParentType;
 };
 
-struct FSceneOutlinerCommonLabelData
+struct SCENEOUTLINER_API FSceneOutlinerCommonLabelData
 {
 	TWeakPtr<ISceneOutliner> WeakSceneOutliner;
 	static const FLinearColor DarkColor;

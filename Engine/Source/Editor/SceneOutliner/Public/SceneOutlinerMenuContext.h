@@ -10,7 +10,7 @@
 class SSceneOutliner;
 
 UCLASS()
-class USceneOutlinerMenuContext : public UObject
+class SCENEOUTLINER_API USceneOutlinerMenuContext : public UObject
 {
 	GENERATED_BODY()
 public:

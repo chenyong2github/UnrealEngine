@@ -193,7 +193,7 @@ struct FSceneOutlinerItemSelection
 /**
 	* Scene Outliner widget
 	*/
-class SSceneOutliner : public ISceneOutliner, public FEditorUndoClient, public FGCObject
+class SCENEOUTLINER_API SSceneOutliner : public ISceneOutliner, public FEditorUndoClient, public FGCObject
 {
 
 public:
@@ -214,7 +214,7 @@ public:
 	SSceneOutliner() : SharedData(MakeShareable(new FSharedSceneOutlinerData)) {}
 
 	/** SSceneOutliner destructor */
-	~SSceneOutliner();
+	virtual ~SSceneOutliner();
 
 	/** SWidget interface */
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;

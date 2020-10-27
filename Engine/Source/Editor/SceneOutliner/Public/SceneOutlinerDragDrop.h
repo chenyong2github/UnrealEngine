@@ -28,11 +28,15 @@ enum class ESceneOutlinerDropCompatibility : uint8
 struct FSceneOutlinerDragDropPayload
 {
 	/** Default constructor, resulting in unset contents */
-	FSceneOutlinerDragDropPayload() {}
+	FSceneOutlinerDragDropPayload(const FDragDropOperation& InOperation = FDragDropOperation())
+	: SourceOperation(InOperation)
+	{
+	}
 
 	/** Populate this payload from an array of tree items */
 	template<typename TreeType>
-	FSceneOutlinerDragDropPayload(const TArray<TreeType>& InDraggedItems)
+	FSceneOutlinerDragDropPayload(const TArray<TreeType>& InDraggedItems, const FDragDropOperation& InOperation = FDragDropOperation())
+	: SourceOperation(InOperation)
 	{
 		for (const auto& Item : InDraggedItems)
 		{
@@ -109,6 +113,9 @@ struct FSceneOutlinerDragDropPayload
 
 	/** List of all dragged items */
 	mutable TArray<TWeakPtr<ISceneOutlinerTreeItem>> DraggedItems;
+
+	/** The source FDragDropOperation */
+	const FDragDropOperation& SourceOperation;
 };
 
 /** Struct used for validation of a drag/drop operation in the scene outliner */
@@ -151,7 +158,7 @@ struct FSceneOutlinerDragValidationInfo
 };
 
 /** A drag/drop operation that was started from the scene outliner */
-struct FSceneOutlinerDragDropOp : public FCompositeDragDropOp
+struct SCENEOUTLINER_API FSceneOutlinerDragDropOp : public FCompositeDragDropOp
 {
 	DRAG_DROP_OPERATOR_TYPE(FSceneOutlinerDragDropOp, FCompositeDragDropOp);
 		
