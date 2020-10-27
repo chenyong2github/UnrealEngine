@@ -16,8 +16,9 @@ void FLightweightStatScope::ReportHitch()
 	{
 		float Delta = float(FGameThreadHitchHeartBeat::Get().GetCurrentTime() - FGameThreadHitchHeartBeat::Get().GetFrameStartTime()) * 1000.0f;
 
-		bool isGT = FPlatformTLS::GetCurrentThreadId() == GGameThreadId;
-		FString ThreadString(isGT ? TEXT("GameThread") : FThreadManager::Get().GetThreadName(FPlatformTLS::GetCurrentThreadId()));
+		const uint32 CurrentThreadId = FPlatformTLS::GetCurrentThreadId();
+		const bool isGT = CurrentThreadId == GGameThreadId;
+		const FString& ThreadString = FThreadManager::GetThreadName(CurrentThreadId);
 		FString StackString = StatString; // possibly convert from ANSICHAR
 
 		if (!isGT && (StackString == TEXT("STAT_EventWait") || StackString == TEXT("STAT_FQueuedThread_Run_WaitForWork")))
