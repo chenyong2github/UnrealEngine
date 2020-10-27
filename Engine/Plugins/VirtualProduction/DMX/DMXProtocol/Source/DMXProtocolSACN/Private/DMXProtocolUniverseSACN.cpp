@@ -22,9 +22,9 @@ DECLARE_CYCLE_STAT(TEXT("SACN Packages Recieved"), STAT_SACNPackagesRecieved, ST
 DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("SACN Packages Recieved Total"), STAT_SACNPackagesRecievedTotal, STATGROUP_DMX);
 
 FDMXProtocolUniverseSACN::FDMXProtocolUniverseSACN(TWeakPtr<FDMXProtocolSACN, ESPMode::ThreadSafe> DMXProtocolSACN, const FJsonObject& InSettings)
-	: HighestReceivedPriority(0)
-	, WeakDMXProtocol(DMXProtocolSACN)
+	: WeakDMXProtocol(DMXProtocolSACN)
 	, bShouldReceiveDMX(true)
+	, HighestReceivedPriority(0)
 	, ListeningSocket(nullptr)
 	, NetworkErrorMessagePrefix(TEXT("NETWORK ERROR SACN:"))
 {
