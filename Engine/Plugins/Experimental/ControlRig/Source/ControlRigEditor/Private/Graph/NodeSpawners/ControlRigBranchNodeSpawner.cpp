@@ -34,7 +34,7 @@ UControlRigBranchNodeSpawner* UControlRigBranchNodeSpawner::CreateGeneric(const 
 
 FBlueprintNodeSignature UControlRigBranchNodeSpawner::GetSpawnerSignature() const
 {
-	return FBlueprintNodeSignature(NodeClass);
+	return FBlueprintNodeSignature(FString("RigUnit=" + DefaultMenuSignature.MenuName.ToString()));
 }
 
 FBlueprintActionUiSpec UControlRigBranchNodeSpawner::GetUiSpec(FBlueprintActionContext const& Context, FBindingSet const& Bindings) const

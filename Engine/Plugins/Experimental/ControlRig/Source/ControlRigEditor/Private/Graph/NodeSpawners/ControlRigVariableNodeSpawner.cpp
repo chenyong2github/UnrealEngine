@@ -63,7 +63,7 @@ bool UControlRigVariableNodeSpawner::IsTemplateNodeFilteredOut(FBlueprintActionF
 
 FBlueprintNodeSignature UControlRigVariableNodeSpawner::GetSpawnerSignature() const
 {
-	return FBlueprintNodeSignature(NodeClass);
+	return FBlueprintNodeSignature(FString("RigUnit=" + ExternalVariable.Name.ToString()));
 }
 
 FBlueprintActionUiSpec UControlRigVariableNodeSpawner::GetUiSpec(FBlueprintActionContext const& Context, FBindingSet const& Bindings) const

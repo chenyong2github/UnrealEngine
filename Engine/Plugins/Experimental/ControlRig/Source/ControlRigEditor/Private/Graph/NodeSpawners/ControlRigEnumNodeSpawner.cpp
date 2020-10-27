@@ -37,7 +37,7 @@ UControlRigEnumNodeSpawner* UControlRigEnumNodeSpawner::CreateForEnum(UEnum* InE
 
 FBlueprintNodeSignature UControlRigEnumNodeSpawner::GetSpawnerSignature() const
 {
-	return FBlueprintNodeSignature(NodeClass);
+	return FBlueprintNodeSignature(FString("RigUnit=" + Enum->GetFName().ToString()));
 }
 
 FBlueprintActionUiSpec UControlRigEnumNodeSpawner::GetUiSpec(FBlueprintActionContext const& Context, FBindingSet const& Bindings) const

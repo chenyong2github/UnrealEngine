@@ -67,7 +67,7 @@ void UControlRigPrototypeNodeSpawner::Prime()
 
 FBlueprintNodeSignature UControlRigPrototypeNodeSpawner::GetSpawnerSignature() const
 {
-	return FBlueprintNodeSignature(NodeClass);
+	return FBlueprintNodeSignature(FString("RigUnit=" + PrototypeNotation.ToString()));
 }
 
 FBlueprintActionUiSpec UControlRigPrototypeNodeSpawner::GetUiSpec(FBlueprintActionContext const& Context, FBindingSet const& Bindings) const
