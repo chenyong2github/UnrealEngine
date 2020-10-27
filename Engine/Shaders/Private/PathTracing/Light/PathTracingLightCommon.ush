@@ -6,6 +6,13 @@ LightCommon.usf: Common utility functions for light sampling
 
 #pragma once
 
+// These ids must be kept in sync with the logic in PathTracer.cpp
+#define PATHTRACING_LIGHT_SKY				0
+#define PATHTRACING_LIGHT_POINT				1
+#define PATHTRACING_LIGHT_DIRECTIONAL		2
+#define PATHTRACING_LIGHT_RECT				3
+#define PATHTRACING_LIGHT_SPOT				4
+
 int GetLightId(FMaterialClosestHitPayload RayHitInfo)
 {
 	return -1;
@@ -13,27 +20,27 @@ int GetLightId(FMaterialClosestHitPayload RayHitInfo)
 
 bool IsEnvironmentLight(int LightId)
 {
-	return SceneLightsData.Type[LightId] == 0;
+	return SceneLightsData.Type[LightId] == PATHTRACING_LIGHT_SKY;
 }
 
 bool IsPointLight(int LightId)
 {
-	return SceneLightsData.Type[LightId] == 1;
+	return SceneLightsData.Type[LightId] == PATHTRACING_LIGHT_POINT;
 }
 
 bool IsDirectionalLight(int LightId)
 {
-	return SceneLightsData.Type[LightId] == 2;
+	return SceneLightsData.Type[LightId] == PATHTRACING_LIGHT_DIRECTIONAL;
 }
 
 bool IsRectLight(int LightId)
 {
-	return SceneLightsData.Type[LightId] == 3;
+	return SceneLightsData.Type[LightId] == PATHTRACING_LIGHT_RECT;
 }
 
 bool IsSpotLight(int LightId)
 {
-	return SceneLightsData.Type[LightId] == 4;
+	return SceneLightsData.Type[LightId] == PATHTRACING_LIGHT_SPOT;
 }
 
 // A light is a physical light if it can be intersected by a ray.
