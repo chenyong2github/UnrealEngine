@@ -78,7 +78,7 @@ public:
 
 	void Reset();
 
-	void OnImportEnd();
+	virtual void OnImportEnd();
 
 	static void OnShutdownModule();
 	static void OnStartupModule();

@@ -36,7 +36,14 @@ namespace DatasmithRuntime
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FSceneImporter::ProcessMeshData);
 
-		if (MeshData.HasState(EDatasmithRuntimeAssetState::Processed))
+		// Clear PendingDelete flag if it is set. Something is wrong. Better safe than sorry
+		if (MeshData.HasState(EAssetState::PendingDelete))
+		{
+			MeshData.ClearState(EAssetState::PendingDelete);
+			UE_LOG(LogDatasmithRuntime, Warning, TEXT("A mesh marked for deletion is actually used by the scene"));
+		}
+
+		if (MeshData.HasState(EAssetState::Processed))
 		{
 			return true;
 		}
@@ -53,7 +60,7 @@ namespace DatasmithRuntime
 		if (!FPaths::FileExists(MeshElement->GetFile()))
 		{
 			MeshData.Object.Reset();
-			MeshData.SetState(EDatasmithRuntimeAssetState::Processed | EDatasmithRuntimeAssetState::Completed);
+			MeshData.SetState(EAssetState::Processed | EAssetState::Completed);
 			return false;
 		}
 
@@ -127,7 +134,7 @@ namespace DatasmithRuntime
 					ProcessMaterialData(MaterialData);
 
 					AddToQueue(NONASYNC_QUEUE, { AssignMaterialFunc, *MaterialElementIdPtr, { EDataType::Mesh, MeshData.ElementId, (int8)Index } });
-					TasksToComplete |= EDatasmithRuntimeWorkerTask::MaterialAssign;
+					TasksToComplete |= EWorkerTask::MaterialAssign;
 
 					if (!bUsingStaticMeshFromCache)
 					{
@@ -143,7 +150,7 @@ namespace DatasmithRuntime
 			StaticMesh->CreateBodySetup();
 		}
 
-		MeshData.SetState(EDatasmithRuntimeAssetState::Processed);
+		MeshData.SetState(EAssetState::Processed);
 
 		FAssetRegistry::RegisterAssetData(StaticMesh, SceneKey, MeshData);
 
@@ -153,7 +160,7 @@ namespace DatasmithRuntime
 		}
 		else
 		{
-			MeshData.AddState(FAssetRegistry::IsObjectCompleted(StaticMesh) ? EDatasmithRuntimeAssetState::Completed : EDatasmithRuntimeAssetState::Building);
+			MeshData.AddState(FAssetRegistry::IsObjectCompleted(StaticMesh) ? EAssetState::Completed : EAssetState::Building);
 		}
 
 		return true;
@@ -163,7 +170,7 @@ namespace DatasmithRuntime
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FSceneImporter::ProcessMeshActorData);
 
-		if (ActorData.HasState(EDatasmithRuntimeAssetState::Processed))
+		if (ActorData.HasState(EAssetState::Processed))
 		{
 			return true;
 		}
@@ -171,7 +178,7 @@ namespace DatasmithRuntime
 		// Invalid reference to a mesh. Abort creation of component
 		if (FCString::Strlen(MeshActorElement->GetStaticMeshPathName()) == 0)
 		{
-			ActorData.SetState(EDatasmithRuntimeAssetState::Processed);
+			ActorData.SetState(EAssetState::Processed);
 			return false;
 		}
 
@@ -195,7 +202,7 @@ namespace DatasmithRuntime
 				}
 
 				AddToQueue(NONASYNC_QUEUE, { CreateComponentFunc, *MeshElementIdPtr, { EDataType::Actor, ActorData.ElementId, 0 } });
-				TasksToComplete |= EDatasmithRuntimeWorkerTask::MeshComponentCreate;
+				TasksToComplete |= EWorkerTask::MeshComponentCreate;
 
 				ActorData.MeshId = *MeshElementIdPtr;
 
@@ -252,13 +259,13 @@ namespace DatasmithRuntime
 
 						ProcessMaterialData(MaterialData);
 						AddToQueue(NONASYNC_QUEUE, { AssignMaterialFunc, *MaterialElementIdPtr, { EDataType::Actor, ActorData.ElementId, (int8)MaterialIndex } });
-						TasksToComplete |= EDatasmithRuntimeWorkerTask::MaterialAssign;
+						TasksToComplete |= EWorkerTask::MaterialAssign;
 					}
 				}
 			}
 		}
 
-		ActorData.SetState(EDatasmithRuntimeAssetState::Processed);
+		ActorData.SetState(EAssetState::Processed);
 
 		return true;
 	}
@@ -351,7 +358,7 @@ namespace DatasmithRuntime
 
 		if (MeshElementSet.Num() > 0)
 		{
-			TasksToComplete |=  EDatasmithRuntimeWorkerTask::MeshCreate;
+			TasksToComplete |=  EWorkerTask::MeshCreate;
 		}
 	}
 
@@ -415,7 +422,7 @@ namespace DatasmithRuntime
 		// Empty mesh?
 		if (MeshDescriptions.Num() == 0)
 		{
-			MeshData.AddState(EDatasmithRuntimeAssetState::Completed);
+			MeshData.AddState(EAssetState::Completed);
 			return true;
 		}
 
@@ -578,6 +585,7 @@ namespace DatasmithRuntime
 
 		check(StaticMesh->GetRenderData() && StaticMesh->GetRenderData()->IsInitialized());
 
+		MeshData.ClearState(EAssetState::Building);
 		FAssetRegistry::SetObjectCompletion(StaticMesh, true);
 
 		return true;
@@ -657,7 +665,7 @@ namespace DatasmithRuntime
 			}
 		}
 
-		ActorData.AddState(EDatasmithRuntimeAssetState::Completed);
+		ActorData.AddState(EAssetState::Completed);
 
 		// Update counters
 		ActionCounter.Increment();
@@ -681,7 +689,7 @@ namespace DatasmithRuntime
 		{
 			FAssetData& MeshData = AssetDataList[Referencer.GetId()];
 
-			if (!MeshData.HasState(EDatasmithRuntimeAssetState::Completed))
+			if (!MeshData.HasState(EAssetState::Completed))
 			{
 				return EActionResult::Retry;
 			}
@@ -725,7 +733,7 @@ namespace DatasmithRuntime
 
 			const TCHAR* ActorLabel = Elements[ActorData.ElementId]->GetLabel();
 
-			if (!ActorData.HasState(EDatasmithRuntimeAssetState::Completed))
+			if (!ActorData.HasState(EAssetState::Completed))
 			{
 				return EActionResult::Retry;
 			}

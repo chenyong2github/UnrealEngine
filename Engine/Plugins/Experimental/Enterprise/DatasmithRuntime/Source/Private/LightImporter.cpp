@@ -44,7 +44,7 @@ namespace DatasmithRuntime
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FSceneImporter::ProcessLightActorData);
 
-		if (ActorData.HasState(EDatasmithRuntimeAssetState::Processed))
+		if (ActorData.HasState(EAssetState::Processed))
 		{
 			return true;
 		}
@@ -70,9 +70,9 @@ namespace DatasmithRuntime
 		};
 
 		AddToQueue(NONASYNC_QUEUE, { CreateLightFunc, { EDataType::Actor, ActorData.ElementId, 0 } });
-		TasksToComplete |= EDatasmithRuntimeWorkerTask::LightComponentCreate;
+		TasksToComplete |= EWorkerTask::LightComponentCreate;
 
-		ActorData.SetState(EDatasmithRuntimeAssetState::Processed);
+		ActorData.SetState(EAssetState::Processed);
 
 		return true;
 	}
@@ -92,7 +92,7 @@ namespace DatasmithRuntime
 
 		FActorData& ActorData = ActorDataList[ActorId];
 
-		if (!ActorData.HasState(EDatasmithRuntimeAssetState::Completed))
+		if (!ActorData.HasState(EAssetState::Completed))
 		{
 			return EActionResult::Retry;
 		}
@@ -209,7 +209,7 @@ namespace DatasmithRuntime
 			}
 		}
 
-		ActorData.AddState(EDatasmithRuntimeAssetState::Completed);
+		ActorData.AddState(EAssetState::Completed);
 
 		return LightComponent ? EActionResult::Succeeded : EActionResult::Failed;
 	}

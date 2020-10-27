@@ -47,43 +47,6 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOnStaticMeshComplete, UStaticMesh*)
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnMaterialComplete, UMaterialInstanceDynamic*)
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnTextureComplete, UTexture2D*)
 
-namespace EDatasmithRuntimeWorkerTask
-{
-	enum Type : uint16
-	{
-		NoTask					= 0x0000,
-		CollectSceneData		= 0x0002,
-		LightComponentCreate	= 0x0004,
-		MaterialAssign			= 0x0008,
-		MaterialCreate			= 0x0010,
-		MeshComponentCreate		= 0x0020,
-		MeshCreate				= 0x0040,
-		ResetScene				= 0x0080,
-		SetupTasks				= 0x0100,
-		TextureCreate			= 0x0200,
-		TextureAssign			= 0x0400,
-		TextureLoad				= 0x0800,
-		UpdateElement			= 0x1000,
-		AllTasks				= 0xffff
-	};
-}
-
-ENUM_CLASS_FLAGS(EDatasmithRuntimeWorkerTask::Type);
-
-namespace EDatasmithRuntimeAssetState
-{
-	enum Type : uint8
-	{
-		Unknown		= 0x00,
-		Processed	= 0x01,
-		Completed	= 0x02,
-		Building	= 0x04,
-		AllStates	= 0xff
-	};
-}
-
-ENUM_CLASS_FLAGS(EDatasmithRuntimeAssetState::Type);
-
 namespace DatasmithRuntime
 {
 #ifdef LIVEUPDATE_TIME_LOGGING
@@ -99,6 +62,49 @@ namespace DatasmithRuntime
 		FString Text;
 	};
 #endif
+
+	enum class EWorkerTask : uint16
+	{
+		NoTask                  = 0x0000,
+		CollectSceneData        = 0x0001,
+		UpdateElement           = 0x0002,
+		ResetScene              = 0x0004,
+		SetupTasks              = 0x0008,
+
+		MeshCreate              = 0x0010,
+		MaterialCreate          = 0x0020,
+		TextureLoad             = 0x0040,
+		TextureCreate           = 0x0080,
+
+		MeshComponentCreate     = 0x0100,
+		LightComponentCreate    = 0x0200,
+
+		MaterialAssign          = 0x0400,
+		TextureAssign           = 0x0800,
+
+		DeleteComponent         = 0x1000,
+		DeleteAsset             = 0x2000,
+		GarbageCollect          = 0x4000,
+
+		NonAsyncTasks           = LightComponentCreate | MeshComponentCreate | MaterialAssign | TextureCreate | TextureAssign,
+		DeleteTasks             = DeleteComponent | DeleteAsset,
+
+		AllTasks                = 0xffff
+	};
+
+	ENUM_CLASS_FLAGS(EWorkerTask);
+
+	enum class EAssetState : uint8
+	{
+		Unknown        = 0x00,
+		Processed      = 0x01,
+		Completed      = 0x02,
+		Building       = 0x04,
+		PendingDelete  = 0x08,
+		AllStates      = 0xff
+	};
+
+	ENUM_CLASS_FLAGS(EAssetState);
 
 	typedef DirectLink::FSceneGraphId FSceneGraphId;
 
@@ -157,7 +163,7 @@ namespace DatasmithRuntime
 		FSceneGraphId GetId() const { return (FSceneGraphId)ElementId; }
 	};
 
-	typedef std::atomic<EDatasmithRuntimeAssetState::Type> FDataState;
+	typedef std::atomic<EAssetState> FDataState;
 
 	/**
 	 * Utility structure to hold onto information used during the import process
@@ -182,7 +188,7 @@ namespace DatasmithRuntime
 			: ElementId(InElementId)
 			, Type(InType)
 		{
-			DataState.store(EDatasmithRuntimeAssetState::Unknown);
+			DataState.store(EAssetState::Unknown);
 		}
 
 		FBaseData(const FBaseData& Other)
@@ -194,22 +200,22 @@ namespace DatasmithRuntime
 			Referencers = Other.Referencers;
 		}
 
-		bool HasState(EDatasmithRuntimeAssetState::Type Value)
+		bool HasState(EAssetState Value)
 		{
-			return !!(DataState.load() & Value);
+			return !!(DataState & Value);
 		}
 
-		void AddState(EDatasmithRuntimeAssetState::Type Value)
+		void AddState(EAssetState Value)
 		{
-			DataState.store(DataState.load() | Value);
+			DataState.store(DataState | Value);
 		}
 
-		void ClearState(EDatasmithRuntimeAssetState::Type Value)
+		void ClearState(EAssetState Value)
 		{
-			DataState.store(DataState.load() & ~Value);
+			DataState.store(DataState & ~Value);
 		}
 
-		void SetState(EDatasmithRuntimeAssetState::Type Value)
+		void SetState(EAssetState Value)
 		{
 			DataState.store(Value);
 		}
@@ -417,7 +423,7 @@ namespace DatasmithRuntime
 
 		EActionResult::Type Execute(FAssetData& AssetData)
 		{
-			return AssetData.HasState(EDatasmithRuntimeAssetState::Completed) ? ActionFunc(AssetData.GetObject<>(), Referencer) : EActionResult::Retry;
+			return AssetData.HasState(EAssetState::Completed) ? ActionFunc(AssetData.GetObject<>(), Referencer) : EActionResult::Retry;
 		}
 
 	private:
@@ -432,12 +438,13 @@ namespace DatasmithRuntime
 	extern const FString MeshPrefix;
 
 	#define UPDATE_QUEUE	0
-	#define DELETE_QUEUE	1
-	#define MESH_QUEUE		2
-	#define MATERIAL_QUEUE	3
-	#define TEXTURE_QUEUE	4
-	#define NONASYNC_QUEUE	5
-	#define MAX_QUEUES		6
+	#define MESH_QUEUE		1
+	#define MATERIAL_QUEUE	2
+	#define TEXTURE_QUEUE	3
+	#define NONASYNC_QUEUE	4
+	#define DELETE_QUEUE_C	5	// Index of queue to delete components
+	#define DELETE_QUEUE_A	6	// Index of queue to delete assets
+	#define MAX_QUEUES		7
 
 	/**
 	 * Helper class to incrementally load a Datasmith scene at runtime
@@ -490,14 +497,14 @@ namespace DatasmithRuntime
 	protected:
 		//~ Begin FTickableEditorObject interface
 		virtual void Tick(float DeltaSeconds) override;
-		virtual bool IsTickable() const override { return RootComponent.IsValid() && TasksToComplete != EDatasmithRuntimeWorkerTask::NoTask; }
+		virtual bool IsTickable() const override { return RootComponent.IsValid() && TasksToComplete != EWorkerTask::NoTask; }
 		virtual TStatId GetStatId() const override;
 		//~ End FTickableEditorObject interface
 
 	private:
 
 		/** Delete all the assets and components created during the previous import process */
-		void DeleteData();
+		bool DeleteData();
 
 		/** Delete the asset or component associated with the Datasmith element associated with the ElementId */
 		EActionResult::Type DeleteElement(FSceneGraphId ElementId);
@@ -601,7 +608,7 @@ namespace DatasmithRuntime
 		}
 
 		/** Helper method to dequeue a given queue for a given amount of time */
-		void ProcessQueue(int32 Which, double EndTime, EDatasmithRuntimeWorkerTask::Type TaskCompleted = EDatasmithRuntimeWorkerTask::NoTask, EDatasmithRuntimeWorkerTask::Type TaskFollowing = EDatasmithRuntimeWorkerTask::NoTask)
+		void ProcessQueue(int32 Which, double EndTime, EWorkerTask TaskCompleted = EWorkerTask::NoTask, EWorkerTask TaskFollowing = EWorkerTask::NoTask)
 		{
 			FActionTask ActionTask;
 			while (FPlatformTime::Seconds() < EndTime)
@@ -660,10 +667,7 @@ namespace DatasmithRuntime
 		TArray<TFuture<bool>> OnGoingTasks;
 
 		/** Flag used to properly sequence the import process */
-		EDatasmithRuntimeWorkerTask::Type TasksToComplete;
-
-		/** Indicates if a garbage collect is required */
-		uint8 bGarbageCollect:1;
+		EWorkerTask TasksToComplete;
 
 		/** Indicated a incremental update has been requested */
 		uint8 bIncrementalUpdate:1;

@@ -47,7 +47,14 @@ namespace DatasmithRuntime
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FSceneImporter::ProcessMaterialData);
 
-		if (MaterialData.HasState(EDatasmithRuntimeAssetState::Processed))
+		// Clear PendingDelete flag if it is set. Something is wrong. Better safe than sorry
+		if (MaterialData.HasState(EAssetState::PendingDelete))
+		{
+			MaterialData.ClearState(EAssetState::PendingDelete);
+			UE_LOG(LogDatasmithRuntime, Warning, TEXT("A material marked for deletion is actually used by the scene"));
+		}
+
+		if (MaterialData.HasState(EAssetState::Processed))
 		{
 			return;
 		}
@@ -126,7 +133,7 @@ namespace DatasmithRuntime
 			MaterialData.Requirements = ProcessMaterialElement(StaticCastSharedPtr<IDatasmithMasterMaterialElement>(Element), *Host, TextureCallback);
 		}
 
-		MaterialData.SetState(EDatasmithRuntimeAssetState::Processed);
+		MaterialData.SetState(EAssetState::Processed);
 
 		FAssetRegistry::RegisterAssetData(MaterialData.GetObject<>(), SceneKey, MaterialData);
 
@@ -138,13 +145,13 @@ namespace DatasmithRuntime
 			};
 
 			AddToQueue(MATERIAL_QUEUE, { TaskFunc, {EDataType::Material, MaterialData.ElementId, 0 } });
-			TasksToComplete |= EDatasmithRuntimeWorkerTask::MaterialCreate;
+			TasksToComplete |= EWorkerTask::MaterialCreate;
 
 			MaterialElementSet.Add(MaterialData.ElementId);
 		}
 		else if(FAssetRegistry::IsObjectCompleted(MaterialData.GetObject<>()))
 		{
-			MaterialData.AddState(EDatasmithRuntimeAssetState::Completed);
+			MaterialData.AddState(EAssetState::Completed);
 		}
 	}
 
@@ -187,7 +194,7 @@ namespace DatasmithRuntime
 		{
 			FAssetRegistry::UnregisteredAssetsData(MaterialInstance, 0, [](FAssetData& AssetData) -> void
 				{
-					AssetData.AddState(EDatasmithRuntimeAssetState::Completed);
+					AssetData.AddState(EAssetState::Completed);
 					AssetData.Object.Reset();
 				});
 
@@ -207,7 +214,7 @@ namespace DatasmithRuntime
 
 			FAssetData& MaterialData = AssetDataList[ ElementId ];
 
-			if (!MaterialData.HasState(EDatasmithRuntimeAssetState::Completed))
+			if (!MaterialData.HasState(EAssetState::Completed))
 			{
 				return EActionResult::Retry;
 			}
