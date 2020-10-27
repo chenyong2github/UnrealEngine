@@ -12,7 +12,7 @@
 
 #include "HairStrandsVisibilityCommon.ush"
 
-#define USE_HAIR_COMPLEX_TRANSMITTANCE 1
+#define USE_HAIR_COMPLEX_TRANSMITTANCE 1 
 
 #if MANUAL_VERTEX_FETCH 
 	Buffer<float4> VertexFetch_InstanceOriginBuffer;
@@ -78,6 +78,11 @@ FHairVertexAttributes GetHairStrandsAttributes(uint HairPrimitiveId, float2 InUV
 	Out.HairSeed = Value.w;
 	Out.HairRoughness = 0;
 	return Out;
+}
+
+float4 GetHairStrandsAuxilaryData(uint HairPrimitiveId, float2 InUV)
+{
+	return Texture2DSample(HairCardsVF.AuxilaryDataTexture, HairCardsVF.AuxilaryDataSampler, InUV);
 }
 
 float2 GetHairStrandsUV(uint HairPrimitiveId, float2 HairPrimitiveUV)
@@ -386,26 +391,11 @@ half3x3 VertexFactoryGetTangentToLocal( FVertexFactoryInput Input, FVertexFactor
 }
 
 // @return translated world position
-float4 VertexFactoryGetWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, FHairViewInfo HairViewInfo)
-{
-	FHairCardsPoint ControlPoint = GetVertexPosition(Input);
-	const float3 VertexPosition = ControlPoint.Position;
-	const float4 WorldPosition = CalcWorldPosition(VertexPosition, Intermediates.PrimitiveId);
-	return WorldPosition;
-}
-
-// This function is referenced by several "system" shaders, but none of these shaders (apart HitProxy, are actually used)
 float4 VertexFactoryGetWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
 {
-	const FHairRenderInfo HairRenderInfo = GetHairRenderInfo(ResolvedView.HairRenderInfo, ResolvedView.HairRenderInfoBits, false);
-
-	FHairViewInfo HairViewInfo;
-	HairViewInfo.TranslatedWorldCameraOrigin = ResolvedView.TranslatedWorldCameraOrigin;
-	HairViewInfo.ViewForward = ResolvedView.ViewForward;
-	HairViewInfo.RadiusAtDepth1 = HairRenderInfo.RadiusAtDepth1Primary;
-	HairViewInfo.bIsOrthoView = HairRenderInfo.bIsOrthoView;
-
-	return VertexFactoryGetWorldPosition(Input, Intermediates, HairViewInfo);
+	const float3 VertexPosition = GetVertexPosition(Input).Position;
+	const float4 WorldPosition = CalcWorldPosition(VertexPosition, Intermediates.PrimitiveId);
+	return WorldPosition;
 }
 
 float4 VertexFactoryGetRasterizedWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, float4 InWorldPosition)
@@ -591,6 +581,11 @@ FVertexFactoryInterpolantsVSToDS VertexFactoryInterpolate(FVertexFactoryInterpol
 		}
 #elif USE_PARTICLE_SUBUVS
 	TESSELLATION_INTERPOLATE_MEMBER(InterpolantsVSToPS.TexCoords[0]);
+#endif
+
+#if VF_STRAND_HAIR || VF_CARDS_HAIR
+	O.InterpolantsVSToPS.HairPrimitiveId = a.InterpolantsVSToPS.HairPrimitiveId;
+	TESSELLATION_INTERPOLATE_MEMBER(InterpolantsVSToPS.HairPrimitiveUV);
 #endif
 
 	return O;

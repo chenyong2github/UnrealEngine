@@ -70,7 +70,7 @@ struct HAIRSTRANDSCORE_API FHairGroupData
 
 	struct FBase
 	{
-		bool HasDataValid() const	{ return Data.GetNumPoints() > 0;}
+		bool HasValidData() const	{ return Data.GetNumPoints() > 0;}
 		bool IsValid() const		{ return RestResource != nullptr; }
 		FHairStrandsDatas					Data;
 		FHairStrandsRestResource*			RestResource = nullptr;
@@ -97,6 +97,17 @@ struct HAIRSTRANDSCORE_API FHairGroupData
 
 	struct FCards
 	{
+		bool HasValidData() const 
+		{ 
+			for (const FLOD& LOD : LODs)
+			{
+				if (LOD.HasValidData())
+					return true;
+			}
+			return false;
+		}
+
+		bool HasValidData(uint32 LODIt) const { return LODIt < uint32(LODs.Num()) && LODs[LODIt].HasValidData(); }
 		bool IsValid(uint32 LODIt) const { return LODIt < uint32(LODs.Num()) && LODs[LODIt].IsValid(); }
 		FBox GetBounds() const
 		{
@@ -108,7 +119,8 @@ struct HAIRSTRANDSCORE_API FHairGroupData
 		}
 		struct FLOD
 		{
-			bool IsValid() const { return RestResource != nullptr; }
+			bool HasValidData() const { return Data.IsValid(); }
+			bool IsValid() const { return Data.IsValid() && RestResource != nullptr; }
 			// Main data & Resources
 			FHairCardsDatas						Data;
 			FHairCardsRestResource*				RestResource = nullptr;
@@ -130,6 +142,16 @@ struct HAIRSTRANDSCORE_API FHairGroupData
 
 	struct FMeshes
 	{
+		bool HasValidData() const
+		{
+			for (const FLOD& LOD : LODs)
+			{
+				if (LOD.HasValidData())
+					return true;
+			}
+			return false;
+		}
+		bool HasValidData(uint32 LODIt) const { return LODIt < uint32(LODs.Num()) && LODs[LODIt].HasValidData(); }
 		bool IsValid(uint32 LODIt) const { return LODIt < uint32(LODs.Num()) && LODs[LODIt].IsValid(); }
 		FBox GetBounds() const
 		{
@@ -141,7 +163,8 @@ struct HAIRSTRANDSCORE_API FHairGroupData
 		}
 		struct FLOD
 		{
-			bool IsValid() const { return RestResource != nullptr; }
+			bool HasValidData() const { return Data.IsValid(); }
+			bool IsValid() const { return Data.IsValid() && RestResource != nullptr; }
 			FHairMeshesDatas Data;
 			FHairMeshesRestResource* RestResource = nullptr;
 			bool bIsCookedOut = false;

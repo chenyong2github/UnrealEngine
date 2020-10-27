@@ -453,7 +453,7 @@ struct FHairStrandsRootData
 	};
 
 	/* Number of roots */
-	uint32 RootCount;
+	uint32 RootCount = 0;
 
 	/* Curve index for every vertices */
 	TArray<FHairStrandsIndexFormat::Type> VertexToCurveIndexBuffer;

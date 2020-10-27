@@ -55,25 +55,6 @@
 //   what kind of approximation works the best for certains type of grooms and lighting condition
 // * There is a few fudges factor as well (roughness mapping, TT density, reflected vector orientations, ...)
 
-float4 ComputeRandom4(uint2 PixelPosition, uint SampleIt, uint SampleCount)
-{
-	//  Shader compiler code is pretty good at moving this out of any for loops.
-	const uint2 Seed0 = Rand3DPCG16(int3(PixelPosition, View.StateFrameIndexMod8)).xy;
-	const uint2 Seed1 = Rand3DPCG16(int3(PixelPosition + 17, View.StateFrameIndexMod8)).xy;
-	return float4(
-		Hammersley16(SampleIt, SampleCount, Seed0),
-		Hammersley16(SampleIt, SampleCount, Seed1));
-}
-
-// Compute a sample bias by adding a constant bias (3d jitter within a voxel) + a directional offset (jitter along the direction). 
-// Both constant & directional bias are scaled with the size of a voxel
-float3 ComputePositionBias(float3 SampleDirection, float3 SampleOffset)
-{
-	const float3 Bias_Constant		= SampleOffset;
-	const float3 Bias_Directional	= SampleDirection * VirtualVoxel.DepthBiasScale_Environment;
-	return VirtualVoxel.VoxelWorldSize * (Bias_Constant + Bias_Directional);
-}
-
 float GetPreExposure()
 {
 	#if USE_PREEXPOSURE
@@ -179,10 +160,10 @@ uint  HairComponents;
 float HairDualScatteringRoughnessOverride;
 float TransmissionDensityScaleFactor;
 
-uint  Voxel_MacroGroupId;
 float Voxel_TanConeAngle;
 
 FHairTraversalResult InternalComputeHairCountVoxel(
+	uint MacroGroupId,
 	float3 WorldPosition, 
 	float3 LightPosition, 
 	float ExtraDensityScale, 
@@ -198,7 +179,7 @@ FHairTraversalResult InternalComputeHairCountVoxel(
 	CommonDesc.PageTextureResolution = VirtualVoxel.PageTextureResolution;
 	CommonDesc.PageResolution = VirtualVoxel.PageResolution;
 
-	const FPackedVirtualVoxelNodeDesc PackedNode = VirtualVoxel.NodeDescBuffer[Voxel_MacroGroupId];
+	const FPackedVirtualVoxelNodeDesc PackedNode = VirtualVoxel.NodeDescBuffer[MacroGroupId];
 	const FVirtualVoxelNodeDesc NodeDesc = UnpackVoxelNode(PackedNode, VirtualVoxel.PageResolution);
 
 	FHairTraversalSettings TraversalSettings = InitHairTraversalSettings();
@@ -227,11 +208,11 @@ FHairTraversalResult InternalComputeHairCountVoxel(
 #if PERMUTATION_INTEGRATION_TYPE == INTEGRATION_ADHOC
 
 #define ADHOC_SAMPLING_R 1
-#define ADHOC_SAMPLING_TT 1
+#define ADHOC_SAMPLING_TT 0
 #define ADHOC_SAMPLING_TRT 1
 #define ADHOC_SAMPLING_MS 1
 
-float3 ReflectionEnvironment(FGBufferData GBuffer, float2 ScreenPosition, float2 SvPosition, uint PrimitiveId)
+float3 ReflectionEnvironment(FGBufferData GBuffer, float2 ScreenPosition, float2 SvPosition, uint PrimitiveId, uint MacroGroupId)
 {
 	const float PreExposure = GetPreExposure();
 	const float3 WorldPosition	= mul(float4(ScreenPosition * GBuffer.Depth, GBuffer.Depth, 1), View.ScreenToWorld).xyz;
@@ -287,16 +268,16 @@ float3 ReflectionEnvironment(FGBufferData GBuffer, float2 ScreenPosition, float2
 		float3 AvgR = 0;
 		for (uint SampleIt = 0; SampleIt < SampleCount; ++SampleIt)
 		{
-			const float4 Random4 = ComputeRandom4(PixelPosition, SampleIt, SampleCount);
+			const float4 Random4 = ComputeRandom4(PixelPosition, SampleIt, SampleCount, View.StateFrameIndexMod8);
 
 			const float3 SampleL = UniformSampleSphere(frac(Random4.xy)).xyz;
-			const float3 SampleBias = ComputePositionBias(SampleL, SampleL * Random4.z);
+			const float3 SampleBias = ComputePositionBias(SampleL, SampleL * Random4.z, VirtualVoxel.VoxelWorldSize, VirtualVoxel.DepthBiasScale_Environment);
 			const float3 SampleWorldPosition = WorldPosition + SampleBias;
 			const float3 SampleLightPosition = SampleWorldPosition + SampleL* MaxSearchDistance;
 
 			// Compute the number of hair count between light & shading point
 			const float SinLightAngle = dot(SampleL, T);
-			const FHairTraversalResult Result = InternalComputeHairCountVoxel(SampleWorldPosition, SampleLightPosition, 1, 0, MaxSearchDistance, PixelRadius, true, bDebugEnabled);
+			const FHairTraversalResult Result = InternalComputeHairCountVoxel(MacroGroupId, SampleWorldPosition, SampleLightPosition, 1, 0, MaxSearchDistance, PixelRadius, true, bDebugEnabled);
 			const FHairTransmittanceMask TransmittanceMask = ComputeTransmittanceFromHairCount(Result.HairCount, Result.Visibility, GBuffer, SinLightAngle, HairScatteringLUTTexture, HairLUTSampler);
 
 			const float ScalarTransmittance = max(TransmittanceMask.Transmittance.x, max(TransmittanceMask.Transmittance.y, TransmittanceMask.Transmittance.z));
@@ -417,12 +398,12 @@ float3 ReflectionEnvironment(FGBufferData GBuffer, float2 ScreenPosition, float2
 		// Compute the transmittance
 		FHairTransmittanceMask TransmittanceMask = InitHairTransmittanceMask();
 		{
-			const float3 SampleBias = ComputePositionBias(L, VoxelOffset);
+			const float3 SampleBias = ComputePositionBias(L, VoxelOffset, VirtualVoxel.VoxelWorldSize, VirtualVoxel.DepthBiasScale_Environment);
 			const float3 SampleWorldPosition = WorldPosition + SampleBias;
 			const float3 SampleLightPosition = SampleWorldPosition + L * MaxSearchDistance;
 
 			// Compute the number of hair count between light & shading point
-			const FHairTraversalResult Result = InternalComputeHairCountVoxel(SampleWorldPosition, SampleLightPosition, 1, 0, MaxSearchDistance, PixelRadius, true, bDebugEnabled);
+			const FHairTraversalResult Result = InternalComputeHairCountVoxel(MacroGroupId, SampleWorldPosition, SampleLightPosition, 1, 0, MaxSearchDistance, PixelRadius, true, bDebugEnabled);
 			TransmittanceMask = ComputeTransmittanceFromHairCount(Result.HairCount, Result.Visibility, GBuffer, SinLightAngle, HairScatteringLUTTexture, HairLUTSampler);
 		}
 
@@ -470,7 +451,7 @@ float3 ReflectionEnvironment(FGBufferData GBuffer, float2 ScreenPosition, float2
 		// Compute the transmittance
 		FHairTransmittanceMask TransmittanceMask = InitHairTransmittanceMask();
 		{
-			const float3 SampleBias = ComputePositionBias(L, VoxelOffset);
+			const float3 SampleBias = ComputePositionBias(L, VoxelOffset, VirtualVoxel.VoxelWorldSize, VirtualVoxel.DepthBiasScale_Environment);
 			const float3 SampleWorldPosition = WorldPosition + SampleBias;
 			const float3 SampleLightPosition = SampleWorldPosition + L * MaxSearchDistance;
 
@@ -485,7 +466,7 @@ float3 ReflectionEnvironment(FGBufferData GBuffer, float2 ScreenPosition, float2
 			}
 			else
 			{
-				Result = InternalComputeHairCountVoxel(SampleWorldPosition, SampleLightPosition, TransmissionDensityScaleFactor, 0, DistanceThresholdTT, PixelRadius, false, bDebugEnabled);
+				Result = InternalComputeHairCountVoxel(MacroGroupId, SampleWorldPosition, SampleLightPosition, TransmissionDensityScaleFactor, 0, DistanceThresholdTT, PixelRadius, false, bDebugEnabled);
 			}
 			TransmittanceMask = ComputeTransmittanceFromHairCount(Result.HairCount, Result.Visibility, GBuffer, SinLightAngle, HairScatteringLUTTexture, HairLUTSampler);
 		}
@@ -542,6 +523,7 @@ float3 ReflectionEnvironmentUniformSampling(
 	float2 ScreenPosition, 
 	float2 SvPosition, 
 	uint PrimitiveId, 
+	uint MacroGroupId,
 	bool bDebugEnabled)
 {
 	const float PreExposure = GetPreExposure();
@@ -571,11 +553,11 @@ float3 ReflectionEnvironmentUniformSampling(
 	float3 AccLighting = 0;
 	for (uint SampleIt = 0; SampleIt < SampleCount; ++SampleIt)
 	{
-		const float4 Random4 = ComputeRandom4(PixelPosition, SampleIt, SampleCount);
+		const float4 Random4 = ComputeRandom4(PixelPosition, SampleIt, SampleCount, View.StateFrameIndexMod8);
 
 		// Depth bias
 		const float3 SampleL    = UniformSampleSphere(frac(Random4.xy)).xyz;
-		const float3 SampleBias = ComputePositionBias(SampleL, Random4.z * SampleL);
+		const float3 SampleBias = ComputePositionBias(SampleL, Random4.z * SampleL, VirtualVoxel.VoxelWorldSize, VirtualVoxel.DepthBiasScale_Environment);
 
 		const float3 SampleWorldPosition = WorldPosition + SampleBias;
 		const float3 SampleLightPosition = SampleWorldPosition + SampleL * MaxSearchDistance;
@@ -589,6 +571,7 @@ float3 ReflectionEnvironmentUniformSampling(
 
 		const float SinLightAngle = dot(SampleL, T);
 		const FHairTraversalResult Result = InternalComputeHairCountVoxel(
+			MacroGroupId,
 			SampleWorldPosition, 
 			SampleLightPosition, 
 			1,
@@ -648,6 +631,7 @@ float3 ReflectionEnvironmentSH(
 	float2 ScreenPosition,
 	float2 SvPosition,
 	uint PrimitiveId,
+	uint MacroGroupId,
 	bool bDebugEnabled)
 {
 	const float PreExposure = GetPreExposure();
@@ -680,6 +664,8 @@ float3 ReflectionEnvironmentSH(
 	// Need to take into account DFAO?
 	float3 Lighting = 0;
 	{
+	#if 0
+		// Diffuse SH lighting. Require to have GI data laydown during the based pass
 		float AmbientOcclusion = 1;
 		float SkyVisibility = 1;
 		float3 SkyLightingNormal = GBuffer.WorldNormal;
@@ -701,6 +687,12 @@ float3 ReflectionEnvironmentSH(
 		}
 		const float3 DiffuseLighting = PreExposure * GetSkySHDiffuse(L) * View.SkyLightColor.rgb;
 		Lighting = SkyVisibility * DiffuseLighting * f_s + (1 - SkyVisibility) * SkyLight_OcclusionTintAndMinOcclusion.xyz * f_s;
+	#else
+		// Probe lighting
+		const uint2  PixelPosition = SvPosition - ResolvedView.ViewRectMin.xy;
+		const float  PixelSceneDepth = GBuffer.Depth;
+		Lighting = PreExposure * GatherRadiance(L, GBuffer.Roughness, PixelPosition, PixelSceneDepth, WorldPosition) * f_s;
+	#endif
 	}
 
 	// Transform NaNs to black, transform negative colors to black.
@@ -820,24 +812,19 @@ void MainPS(
 	const bool bDebugEnabled = false;
 #endif
 
-	const bool bIsMacroGroupCompatible = Sample.MacroGroupId == Voxel_MacroGroupId;
 #if PERMUTATION_INTEGRATION_TYPE == INTEGRATION_SCENECOLOR
-	const bool bEnabled = Sample.bScatterSceneLighting;
-#else
-	const bool bEnabled = true;
+	if (Sample.bScatterSceneLighting)
 #endif
-
-	if (bIsMacroGroupCompatible && bEnabled)
 	{
 		const float3 SkyLighting =
 		#if PERMUTATION_INTEGRATION_TYPE == INTEGRATION_SCENECOLOR
 			ComputeThinTransmission(GBuffer, ScreenPosition, SvPosition, Sample.PrimitiveId);
 		#elif PERMUTATION_INTEGRATION_TYPE == INTEGRATION_ADHOC
-			ReflectionEnvironment(GBuffer, ScreenPosition, SvPosition, Sample.PrimitiveId);
+			ReflectionEnvironment(GBuffer, ScreenPosition, SvPosition, Sample.PrimitiveId, Sample.MacroGroupId);
 		#elif PERMUTATION_INTEGRATION_TYPE == INTEGRATION_UNIFORM
-			ReflectionEnvironmentUniformSampling(GBuffer, ScreenPosition, SvPosition, Sample.PrimitiveId, bDebugEnabled);
+			ReflectionEnvironmentUniformSampling(GBuffer, ScreenPosition, SvPosition, Sample.PrimitiveId, Sample.MacroGroupId, bDebugEnabled);
 		#elif PERMUTATION_INTEGRATION_TYPE == INTEGRATION_SH
-			ReflectionEnvironmentSH(GBuffer, ScreenPosition, SvPosition, Sample.PrimitiveId, bDebugEnabled);
+			ReflectionEnvironmentSH(GBuffer, ScreenPosition, SvPosition, Sample.PrimitiveId, Sample.MacroGroupId, bDebugEnabled);
 		#endif
 
 		const float SampleCoverage = saturate(From8bitCoverage(Sample.Coverage8bit));

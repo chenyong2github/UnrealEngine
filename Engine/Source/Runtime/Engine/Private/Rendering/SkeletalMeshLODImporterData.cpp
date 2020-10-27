@@ -646,7 +646,7 @@ FArchive& operator<<(FArchive& Ar, FSkeletalMeshImportData& RawMesh)
 	//We now save it after the processing is done so for old version we do it here when loading
 	if (Ar.IsLoading() && Version < RAW_SKELETAL_MESH_BULKDATA_VER_AlternateInfluence)
 	{
-		SkeletalMeshHelper::ProcessImportMeshInfluences(RawMesh);
+		SkeletalMeshHelper::ProcessImportMeshInfluences(RawMesh, FString(TEXT("Unknown"))); // Not sure how to get owning mesh name at this point...
 	}
 
 	

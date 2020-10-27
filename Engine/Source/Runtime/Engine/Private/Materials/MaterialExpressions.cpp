@@ -17841,6 +17841,7 @@ UMaterialExpressionHairAttributes::UMaterialExpressionHairAttributes(const FObje
 	Outputs.Add(FExpressionOutput(TEXT("Roughness"), 1, 1, 0, 0, 0));
 	Outputs.Add(FExpressionOutput(TEXT("Depth"), 1, 1, 0, 0, 0));
 	Outputs.Add(FExpressionOutput(TEXT("Coverage"), 1, 1, 0, 0, 0));
+	Outputs.Add(FExpressionOutput(TEXT("AuxilaryData"), 1, 1, 1, 1, 1));
 	Outputs.Add(FExpressionOutput(TEXT("AtlasUVs"), 1, 1, 1, 0, 0));
 #endif
 }
@@ -17885,6 +17886,10 @@ int32 UMaterialExpressionHairAttributes::Compile(class FMaterialCompiler* Compil
 		return Compiler->GetHairCoverage();
 	}
 	else if (OutputIndex == 11)
+	{
+		return Compiler->GetHairAuxilaryData();
+	}
+	else if (OutputIndex == 12)
 	{
 		return Compiler->GetHairAtlasUVs();
 	}

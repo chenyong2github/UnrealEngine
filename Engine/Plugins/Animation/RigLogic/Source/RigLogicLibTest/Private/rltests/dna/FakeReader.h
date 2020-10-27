@@ -401,6 +401,10 @@ class FakeReader : public Reader {
             return {};
         }
 
+        std::uint32_t getSkinWeightsCount(std::uint16_t meshIndex) const override {
+            return {};
+        }
+
         ConstArrayView<float> getSkinWeightsValues(std::uint16_t meshIndex, std::uint32_t vertexIndex) const override {
             return {};
         }
