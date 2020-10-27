@@ -71,7 +71,7 @@ struct FRHICommandRenameUploadBuffer final : public FRHICommand<FRHICommandRenam
 	void Execute(FRHICommandListBase& CmdList)
 	{
 		// Clear the resource if still bound to make sure the SRVs are rebound again on next operation
-		FD3D12CommandContext& Context = (FD3D12CommandContext&)(CmdList.IsImmediateAsyncCompute() ? CmdList.GetComputeContext() : CmdList.GetContext());
+		FD3D12CommandContext& Context = (FD3D12CommandContext&)(CmdList.IsImmediateAsyncCompute() ? CmdList.GetComputeContext().GetLowestLevelContext() : CmdList.GetContext().GetLowestLevelContext());
 		Context.ConditionalClearShaderResource(&Resource->ResourceLocation);
 
 		Resource->RenameLDAChain(NewLocation);
