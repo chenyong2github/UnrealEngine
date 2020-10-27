@@ -5722,7 +5722,8 @@ void FSequencer::UpdatePreviewLevelViewportClientFromCameraCut(FLevelEditorViewp
 	const float BlendFactor = FMath::Clamp(CameraCutParams.PreviewBlendFactor, 0.f, 1.f);
 
 	const bool bIsBlending = (
-			CameraCutParams.BlendTime > 0.f &&
+			(CameraCutParams.bCanBlend) &&
+			(CameraCutParams.BlendTime > 0.f) &&
 			BlendFactor < 1.f - SMALL_NUMBER &&
 			(CameraActor != nullptr || PreviousCameraActor != nullptr));
 
@@ -5772,8 +5773,11 @@ void FSequencer::UpdatePreviewLevelViewportClientFromCameraCut(FLevelEditorViewp
 	{
 		if (!bIsBlending)
 		{
-			InViewportClient.SetViewLocation(PreAnimatedViewportLocation);
-			InViewportClient.SetViewRotation(PreAnimatedViewportRotation);
+			if (CameraCutParams.bCanBlend && bHasPreAnimatedInfo)
+			{
+				InViewportClient.SetViewLocation(PreAnimatedViewportLocation);
+				InViewportClient.SetViewRotation(PreAnimatedViewportRotation);
+			}
 		}
 		else
 		{
