@@ -64,6 +64,7 @@ UMovieSceneSkeletalAnimationSection::UMovieSceneSkeletalAnimationSection( const 
 	bMatchRotationPitch = false;
 	bMatchIncludeZHeight = false;
 
+	TempRootBoneIndex = 0;
 #if WITH_EDITOR
 
 	PreviousPlayRate = Params.PlayRate;
@@ -377,18 +378,20 @@ void UMovieSceneSkeletalAnimationSection::PostEditUndo()
 
 #endif
 
-TOptional<FTransform> UMovieSceneSkeletalAnimationSection::GetRootMotion(FFrameTime CurrentTime) const
+TOptional<FTransform> UMovieSceneSkeletalAnimationSection::GetRootMotion(FFrameTime CurrentTime, bool& bBlendFirstChildOfRoot) const
 {
 	if (GetRootMotionParams())
 	{
+		UMovieSceneSkeletalAnimationTrack* Track = GetTypedOuter<UMovieSceneSkeletalAnimationTrack>();
 		if (GetRootMotionParams()->bRootMotionsDirty)
 		{
-			UMovieSceneSkeletalAnimationTrack* Track = GetTypedOuter<UMovieSceneSkeletalAnimationTrack>();
 			if (Track)
 			{
 				Track->SetUpRootMotions(true);
 			}
 		}
+
+		bBlendFirstChildOfRoot = Track ? Track->bBlendFirstChildOfRoot : false;
 		return GetRootMotionParams()->GetRootMotion(CurrentTime);
 	}
 	return TOptional<FTransform>();
@@ -433,7 +436,41 @@ FTransform  UMovieSceneSkeletalAnimationSection::GetOffsetTransform() const
 	return OffsetTransform;
 }
 
-bool UMovieSceneSkeletalAnimationSection::GetRootMotionTransform(FFrameTime CurrentTime, FFrameRate FrameRate, FTransform& OutTransform, float& OutWeight) const
+int32 UMovieSceneSkeletalAnimationSection::SetBoneIndexForRootMotionCalculations(bool bBlendFirstChildOfRoot)
+{
+	TempRootBoneIndex = 0;
+	if (!bBlendFirstChildOfRoot)
+	{
+		return TempRootBoneIndex.GetValue();
+	}
+	else if(UAnimSequence* AnimSequence = Cast<UAnimSequence>(Params.Animation))
+	{ 
+		//but if not first find first
+		int32 RootIndex = INDEX_NONE;
+		for (int32 TrackIndex = 0; TrackIndex < AnimSequence->GetRawAnimationData().Num(); ++TrackIndex)
+		{
+			// verify if this bone exists in skeleton
+			int32 BoneTreeIndex = AnimSequence->GetSkeletonIndexFromRawDataTrackIndex(TrackIndex);
+			if (BoneTreeIndex != INDEX_NONE)
+			{
+				int32 ParentIndex = AnimSequence->GetSkeleton()->GetReferenceSkeleton().GetParentIndex(BoneTreeIndex);
+				if (ParentIndex == INDEX_NONE)
+				{
+					RootIndex = TrackIndex;
+				}
+				else if (ParentIndex == RootIndex)
+				{
+					TempRootBoneIndex = TrackIndex;
+					break;
+				}
+			}
+		}
+	}
+	return TempRootBoneIndex.GetValue();
+}
+
+
+bool UMovieSceneSkeletalAnimationSection::GetRootMotionTransform(FFrameTime CurrentTime, FFrameRate FrameRate,FTransform& OutTransform, float& OutWeight) const
 {
 	UAnimSequence* AnimSequence = Cast<UAnimSequence>(Params.Animation);
 	FTransform OffsetTransform = GetOffsetTransform();
@@ -448,7 +485,12 @@ bool UMovieSceneSkeletalAnimationSection::GetRootMotionTransform(FFrameTime Curr
 		{
 			CurrentTimeSeconds = 0.0f;
 		}
+	
 		OutTransform = AnimSequence->ExtractRootTrackTransform(CurrentTimeSeconds,nullptr);
+		if (TempRootBoneIndex.IsSet())
+		{
+			AnimSequence->GetBoneTransform(OutTransform, TempRootBoneIndex.GetValue(), CurrentTimeSeconds, true);
+		}
 		OutTransform = OutTransform * OffsetTransform;
 
 		return true;

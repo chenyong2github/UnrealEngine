@@ -191,14 +191,16 @@ public:
 	//Temporary transform used to specify the global OffsetTransform while calculting the root motions.
 	FTransform TempOffsetTransform;
 
-// Functions/params related to root motion calcuations.
+	//Temporary index used by GetRootMotionTransform and set by SetBoneIndexforRootMotionCalculations
+	TOptional<int32> TempRootBoneIndex;
 public:
-	
+	// Functions/params related to root motion calcuations.
 	MOVIESCENETRACKS_API FMovieSceneSkeletalAnimRootMotionTrackParams* GetRootMotionParams() const;
 
 	MOVIESCENETRACKS_API FTransform GetOffsetTransform() const;
 	MOVIESCENETRACKS_API bool GetRootMotionVelocity(FFrameTime PreviousTime, FFrameTime CurrentTime, FFrameRate FrameRate, FTransform& OutVelocity, float& OutWeight) const;
-	MOVIESCENETRACKS_API bool GetRootMotionTransform(FFrameTime CurrentTime, FFrameRate FrameRate, FTransform& OutTransform, float& OutWeight) const;
+	MOVIESCENETRACKS_API int32 SetBoneIndexForRootMotionCalculations(bool bBlendFirstChildOfRoot);
+	MOVIESCENETRACKS_API bool GetRootMotionTransform(FFrameTime CurrentTime, FFrameRate FrameRate, FTransform& OutTransform,  float& OutWeight) const;
 	MOVIESCENETRACKS_API void MatchSectionByBoneTransform(USkeletalMeshComponent* SkelMeshComp, FFrameTime CurrentFrame, FFrameRate FrameRate,
 		const FName& BoneName); //add options for z and rotation
 
@@ -206,7 +208,7 @@ public:
 	
 	MOVIESCENETRACKS_API void FindBestBlendPoint(USkeletalMeshComponent* SkelMeshComp);
 
-	MOVIESCENETRACKS_API TOptional<FTransform> GetRootMotion(FFrameTime CurrentTime) const;
+	MOVIESCENETRACKS_API TOptional<FTransform> GetRootMotion(FFrameTime CurrentTime, bool& bBlendFirstChildOfRoot) const;
 
 	MOVIESCENETRACKS_API void ToggleMatchTranslation();
 
