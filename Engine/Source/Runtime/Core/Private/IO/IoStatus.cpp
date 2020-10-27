@@ -4,30 +4,6 @@
 
 //////////////////////////////////////////////////////////////////////////
 
-static const TCHAR* GetIoErrorText(EIoErrorCode ErrorCode)
-{
-	static constexpr const TCHAR* ErrorCodeText[]
-	{
-		TEXT("OK"),
-		TEXT("Unknown Status"),
-		TEXT("Invalid Code"),
-		TEXT("Cancelled"),
-		TEXT("FileOpen Failed"),
-		TEXT("File Not Open"),
-		TEXT("Read Error"),
-		TEXT("Write Error"),
-		TEXT("Not Found"),
-		TEXT("Corrupt Toc"),
-		TEXT("Unknown ChunkID"),
-		TEXT("Invalid Parameter"),
-		TEXT("SignatureError")
-	};
-
-	return ErrorCodeText[static_cast<uint32>(ErrorCode)];
-}
-
-//////////////////////////////////////////////////////////////////////////
-
 const FIoStatus FIoStatus::Ok		{ EIoErrorCode::Ok,				TEXT("OK")				};
 const FIoStatus FIoStatus::Unknown	{ EIoErrorCode::Unknown,		TEXT("Unknown Status")	};
 const FIoStatus FIoStatus::Invalid	{ EIoErrorCode::InvalidCode,	TEXT("Invalid Code")	};
