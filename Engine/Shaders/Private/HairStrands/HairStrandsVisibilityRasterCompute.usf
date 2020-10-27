@@ -389,7 +389,7 @@ void MainCS(uint3 DispatchThreadID : SV_DispatchThreadID)
 			int2 Coord = PX1 + (bLower ? int2(0, 0) : int2(0, 1));
 			Coord = bIsSteep ? Coord.yx : Coord.xy;
 			const float Ratio = bLower ? 1 - FracY : FracY;
-			Rasterize(Coord, Ratio * XGap, SP1.z, VertexIndex0, Coverage1);
+			Rasterize(Coord, Ratio * XGap, SP1.z, VertexIndex0, max(Coverage1,0.01f));
 		}
 	}
 
