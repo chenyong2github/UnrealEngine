@@ -404,7 +404,7 @@ FText FDMXEditorModule::GetToggleSendDMXText() const
 
 FText FDMXEditorModule::GetToggleSendDMXTooltip() const
 {
-	if (UDMXProtocolBlueprintLibrary::IsReceiveDMXEnabled())
+	if (UDMXProtocolBlueprintLibrary::IsSendDMXEnabled())
 	{
 		return LOCTEXT("MenuButtonText_DisableOutboundDMXPackets", "Disables outbound DMX packets in editor.");
 	}

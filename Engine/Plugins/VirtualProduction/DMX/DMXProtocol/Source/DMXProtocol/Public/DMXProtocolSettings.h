@@ -69,7 +69,7 @@ public:
 
 private:	
 	/** Whether DMX is received from the network. Recalled whenever editor or game starts. */
-	UPROPERTY(Config, EditAnywhere, Category = "DMX|Receiving Settings", Meta = (AllowPrivateAccess = true, DisplayName = "Send DMX by default"))
+	UPROPERTY(Config, EditAnywhere, Category = "DMX|Sending Settings", Meta = (AllowPrivateAccess = true, DisplayName = "Send DMX by default"))
 	bool bDefaultReceiveDMXEnabled;
 
 	/** Whether DMX is sent to the network. Recalled whenever editor or game starts.  */
