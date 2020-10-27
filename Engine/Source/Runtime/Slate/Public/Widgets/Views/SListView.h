@@ -1821,7 +1821,7 @@ protected:
 		}
 		else
 		{
-			return EScrollIntoViewResult::Deferred;
+			return EScrollIntoViewResult::Failure;
 		}
 		return EScrollIntoViewResult::Success;
 	}
