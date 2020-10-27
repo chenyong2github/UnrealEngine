@@ -302,7 +302,7 @@ void UGroomBindingAsset::BeginDestroy()
 
 bool UGroomBindingAsset::IsCompatible(const USkeletalMesh* InSkeletalMesh, const UGroomBindingAsset* InBinding, bool bIssueWarning)
 {
-	if (InBinding && InSkeletalMesh)
+	if (InBinding && InSkeletalMesh && IsHairStrandsBindingEnable())
 	{
 		if (!InBinding->TargetSkeletalMesh)
 		{
@@ -354,7 +354,7 @@ bool UGroomBindingAsset::IsCompatible(const USkeletalMesh* InSkeletalMesh, const
 
 bool UGroomBindingAsset::IsCompatible(const UGroomAsset* InGroom, const UGroomBindingAsset* InBinding, bool bIssueWarning)
 {
-	if (InBinding && InGroom)
+	if (InBinding && InGroom && IsHairStrandsBindingEnable())
 	{
 		if (!InBinding->Groom)
 		{
