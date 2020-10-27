@@ -95,3 +95,28 @@ struct OffsetUtilizer {
     }
 
 };
+
+struct SerializableByFreeSerialize {
+    std::uint32_t a;
+    std::uint16_t b;
+};
+
+template<class TArchive>
+void serialize(TArchive& archive, SerializableByFreeSerialize& target) {
+    archive(target.a, target.b);
+}
+
+struct SerializableByFreeLoadSave {
+    std::uint32_t a;
+    std::uint16_t b;
+};
+
+template<class TArchive>
+void load(TArchive& archive, SerializableByFreeLoadSave& dest) {
+    archive(dest.a, dest.b);
+}
+
+template<class TArchive>
+void save(TArchive& archive, const SerializableByFreeLoadSave& source) {
+    archive(source.a, source.b);
+}

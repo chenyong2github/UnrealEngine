@@ -15,6 +15,22 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+#if COMPILER_SUPPORTS_UINT64_IMAGE_ATOMICS && COMPILER_SUPPORTS_ULONG_TYPES
+#define PackedType UlongType
+uint2 UnpackData(PackedType In)
+{
+	return UnpackUlongType(In);
+}
+#else
+#define PackedType uint2
+uint2 UnpackData(PackedType In)
+{
+	return In;
+}
+#endif
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 int2 OutputResolution;
 uint MaxNodeCount;
 uint SamplerPerPixel;
@@ -47,10 +63,10 @@ struct FSampleSetDesc
 // Compute raster visibility buffer
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-Texture2D<uint2> VisibilityTexture0;
-Texture2D<uint2> VisibilityTexture1;
-Texture2D<uint2> VisibilityTexture2;
-Texture2D<uint2> VisibilityTexture3;
+Texture2D<PackedType> VisibilityTexture0;
+Texture2D<PackedType> VisibilityTexture1;
+Texture2D<PackedType> VisibilityTexture2;
+Texture2D<PackedType> VisibilityTexture3;
 
 Texture2D<uint>  VisibilityHairCount;
 Texture2D<float> ViewTransmittanceTexture;
@@ -75,11 +91,10 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 	//const uint HairCountAndRadius = VisibilityHairCount.Load(uint3(PixelCoord, 0)); // Contains both hair count and the radius;
 	//const uint HairRadius = 0; // TODO
 	//const uint HairCount  = HairCountAndRadius;
-
-	const uint2 VisData0 = VisibilityTexture0.Load(uint3(PixelCoord, 0));
-	const uint2 VisData1 = VisibilityTexture1.Load(uint3(PixelCoord, 0));
-	const uint2 VisData2 = VisibilityTexture2.Load(uint3(PixelCoord, 0));
-	const uint2 VisData3 = VisibilityTexture3.Load(uint3(PixelCoord, 0));
+	const uint2 VisData0 = UnpackData(VisibilityTexture0.Load(uint3(PixelCoord, 0)));
+	const uint2 VisData1 = UnpackData(VisibilityTexture1.Load(uint3(PixelCoord, 0)));
+	const uint2 VisData2 = UnpackData(VisibilityTexture2.Load(uint3(PixelCoord, 0)));
+	const uint2 VisData3 = UnpackData(VisibilityTexture3.Load(uint3(PixelCoord, 0)));
 
 	uint2  Vis_PrimId_MatId[4];
 	float2 Vis_Depth_Cov[4];

@@ -48,24 +48,6 @@ struct FHairStrandsProjectionMeshData
 uint32 GetHairStrandsMaxSectionCount();
 uint32 GetHairStrandsMaxTriangleCount();
 
-/* Project hair strands onto a LOD mesh */
-void ProjectHairStrandsOntoMesh(
-	FRDGBuilder& GraphBuilder,
-	FGlobalShaderMap* ShaderMap,
-	const int32 LODIndex,
-	const FHairStrandsProjectionMeshData& ProjectionMeshData,
-	FHairStrandsRestRootResource* RestResources,
-	FBufferTransitionQueue& TransitionQueue);
-
-void TransferMesh(
-	FRDGBuilder& GraphBuilder,
-	FGlobalShaderMap* ShaderMap,
-	const int32 LODIndex,
-	const FHairStrandsProjectionMeshData& SourceMeshData,
-	const FHairStrandsProjectionMeshData& TargetMeshData,
-	struct FRWBuffer& OutPositionBuffer,
-	FBufferTransitionQueue& OutTransitionQueue);
-
 enum class HairStrandsTriangleType
 {
 	RestPose,
@@ -80,8 +62,7 @@ void AddHairStrandUpdateMeshTrianglesPass(
 	const HairStrandsTriangleType Type,
 	const FHairStrandsProjectionMeshData::LOD& MeshData,
 	FHairStrandsRestRootResource* RestResources,
-	FHairStrandsDeformedRootResource* DeformedResources,
-	FBufferTransitionQueue& OutTransitionQueue);
+	FHairStrandsDeformedRootResource* DeformedResources);
 
 /* Init the samples information to be used for interpolation*/
 void AddHairStrandInitMeshSamplesPass(
@@ -91,8 +72,7 @@ void AddHairStrandInitMeshSamplesPass(
 	const HairStrandsTriangleType Type,
 	const FHairStrandsProjectionMeshData::LOD& MeshData,
 	FHairStrandsRestRootResource* RestResources,
-	FHairStrandsDeformedRootResource* DeformedResources,
-	FBufferTransitionQueue& OutTransitionQueue);
+	FHairStrandsDeformedRootResource* DeformedResources);
 
 /* Update the samples information to be used for interpolation*/
 void AddHairStrandUpdateMeshSamplesPass(
@@ -101,8 +81,7 @@ void AddHairStrandUpdateMeshSamplesPass(
 	const int32 LODIndex,
 	const FHairStrandsProjectionMeshData::LOD& ProjectionMeshData,
 	FHairStrandsRestRootResource* RestResources,
-	FHairStrandsDeformedRootResource* DeformedResources,
-	FBufferTransitionQueue& TransitionQueue);
+	FHairStrandsDeformedRootResource* DeformedResources);
 
 void GenerateFolliculeMask(
 	FRDGBuilder& GraphBuilder,
@@ -138,8 +117,7 @@ void AddHairStrandInterpolateMeshTrianglesPass(
 	const int32 LODIndex,
 	const FHairStrandsProjectionMeshData::LOD& MeshData,
 	FHairStrandsRestRootResource* RestResources,
-	FHairStrandsDeformedRootResource* DeformedResources,
-	FBufferTransitionQueue& OutTransitionQueue);
+	FHairStrandsDeformedRootResource* DeformedResources);
 
 void AddSkinUpdatePass(
 	FRDGBuilder& GraphBuilder,
@@ -157,8 +135,7 @@ void AddHairMeshesRBFInterpolationPass(
 	FHairMeshesRestResource* RestResources,
 	FHairMeshesDeformedResource* DeformedResources,
 	FHairStrandsRestRootResource* RestRootResources,
-	FHairStrandsDeformedRootResource* DeformedRootResources,
-	FBufferTransitionQueue& OutTransitionQueue);
+	FHairStrandsDeformedRootResource* DeformedRootResources);
 
 void AddHairCardsRBFInterpolationPass(
 	FRDGBuilder& GraphBuilder,
@@ -167,7 +144,6 @@ void AddHairCardsRBFInterpolationPass(
 	FHairCardsRestResource* RestResources,
 	FHairCardsDeformedResource* DeformedResources,
 	FHairStrandsRestRootResource* RestRootResources,
-	FHairStrandsDeformedRootResource* DeformedRootResources,
-	FBufferTransitionQueue& OutTransitionQueue);
+	FHairStrandsDeformedRootResource* DeformedRootResources);
 
 FHairStrandsProjectionMeshData ExtractMeshData(FSkeletalMeshRenderData* RenderData);

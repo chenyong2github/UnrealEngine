@@ -116,5 +116,6 @@ private:
 	void InitializeSyncComponents();
 	void UninitializeSyncComponents();
 	const FComponentSync* GetComponentSync(const FName& InName) const;
+	void UpdateLOD();
 };
 

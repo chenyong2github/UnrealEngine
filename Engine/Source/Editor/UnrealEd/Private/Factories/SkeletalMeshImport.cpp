@@ -214,9 +214,9 @@ bool SkeletalMeshHelper::ProcessImportMeshSkeleton(const USkeleton* SkeletonAsse
 *
 * @param ImportData - raw binary import data to process
 */
-void SkeletalMeshHelper::ProcessImportMeshInfluences(FSkeletalMeshImportData& ImportData)
+void SkeletalMeshHelper::ProcessImportMeshInfluences(FSkeletalMeshImportData& ImportData, const FString& SkeletalMeshName)
 {
-	FLODUtilities::ProcessImportMeshInfluences(ImportData.Wedges.Num(), ImportData.Influences);
+	FLODUtilities::ProcessImportMeshInfluences(ImportData.Wedges.Num(), ImportData.Influences, SkeletalMeshName);
 }
 
 bool SkeletalMeshHelperImpl::SkeletalMeshIsUsingMaterialSlotNameWorkflow(UAssetImportData* AssetImportData)

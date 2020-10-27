@@ -58,15 +58,5 @@ void RenderHairBasePass(
 			SceneContext.SceneDepthZ, 
 			SceneContext.SceneVelocity, 
 			OutHairDatas.MacroGroupsPerViews);
-
-
-		if (SceneContext.bScreenSpaceAOIsValid && SceneContext.ScreenSpaceAO)
-		{
-			RenderHairStrandsAmbientOcclusion(
-				GraphBuilder,
-				Views,
-				&OutHairDatas,
-				SceneContext.ScreenSpaceAO);
-		}
 	}
 }

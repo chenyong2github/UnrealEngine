@@ -68,25 +68,32 @@ class ExtendableBinaryOutputArchive : public Archive<TExtender> {
         }
 
         template<typename T>
-        typename std::enable_if<traits::has_save<T>::value && traits::has_serialize<T>::value, void>::type process(
-            const T& source) {
+        typename std::enable_if<traits::has_save_member<T>::value,
+                                void>::type process(const T& source) {
             const_cast<T&>(source).save(*static_cast<TExtender*>(this));
         }
 
         template<typename T>
-        typename std::enable_if<traits::has_save<T>::value && !traits::has_serialize<T>::value, void>::type process(
-            const T& source) {
-            const_cast<T&>(source).save(*static_cast<TExtender*>(this));
-        }
-
-        template<typename T>
-        typename std::enable_if<!traits::has_save<T>::value && traits::has_serialize<T>::value, void>::type process(
-            const T& source) {
+        typename std::enable_if<traits::has_serialize_member<T>::value,
+                                void>::type process(const T& source) {
             const_cast<T&>(source).serialize(*static_cast<TExtender*>(this));
         }
 
         template<typename T>
-        typename std::enable_if<!traits::has_save<T>::value && !traits::has_serialize<T>::value,
+        typename std::enable_if<traits::has_save_function<T>::value,
+                                void>::type process(const T& source) {
+            save(*static_cast<TExtender*>(this), const_cast<T&>(source));
+        }
+
+        template<typename T>
+        typename std::enable_if<traits::has_serialize_function<T>::value,
+                                void>::type process(const T& source) {
+            serialize(*static_cast<TExtender*>(this), const_cast<T&>(source));
+        }
+
+        template<typename T>
+        typename std::enable_if<!traits::has_save_member<T>::value && !traits::has_serialize_member<T>::value &&
+                                !traits::has_save_function<T>::value && !traits::has_serialize_function<T>::value,
                                 void>::type process(const T& source) {
             T networkOrder;
             std::memcpy(&networkOrder, &source, sizeof(T));

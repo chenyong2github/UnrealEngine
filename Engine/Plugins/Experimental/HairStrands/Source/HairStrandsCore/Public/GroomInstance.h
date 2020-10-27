@@ -19,9 +19,6 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FHairCardsVertexFactoryUniformShaderParamet
 	SHADER_PARAMETER_SRV(Buffer<float4>, NormalsBuffer)
 	SHADER_PARAMETER_SRV(Buffer<float4>, UVsBuffer)
 
-	//SHADER_PARAMETER_SRV(Buffer, CardsAtlasRectBuffer)
-	//SHADER_PARAMETER_SRV(Buffer, CardsDimensionBuffer)
-
 	SHADER_PARAMETER_TEXTURE(Texture2D<float4>, DepthTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, DepthSampler)
 	SHADER_PARAMETER_TEXTURE(Texture2D<float4>, TangentTexture)
@@ -30,6 +27,8 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FHairCardsVertexFactoryUniformShaderParamet
 	SHADER_PARAMETER_SAMPLER(SamplerState, CoverageSampler)
 	SHADER_PARAMETER_TEXTURE(Texture2D<float4>, AttributeTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, AttributeSampler)
+	SHADER_PARAMETER_TEXTURE(Texture2D<float4>, AuxilaryDataTexture)
+	SHADER_PARAMETER_SAMPLER(SamplerState, AuxilaryDataSampler)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 typedef TUniformBufferRef<FHairCardsVertexFactoryUniformShaderParameters> FHairCardsUniformBuffer;
@@ -42,6 +41,7 @@ struct HAIRSTRANDSCORE_API FHairGroupInstance
 
 	struct FStrandsBase
 	{
+		bool HasValidData() const { return Data != nullptr && Data->GetNumPoints() > 0; }
 		bool IsValid() const { return DeformedResource != nullptr; }
 
 		// Data - Render & sim (rest) data
@@ -91,7 +91,7 @@ struct HAIRSTRANDSCORE_API FHairGroupInstance
 		FHairStrandsRaytracingResource* RenRaytracingResource = nullptr;
 		#endif
 
-		FRWBuffer DebugAttributeBuffer;
+		FRDGExternalBuffer DebugAttributeBuffer;
 		FHairGroupInstanceModifer Modifier;
 
 		UMaterialInterface* Material = nullptr;
@@ -101,7 +101,7 @@ struct HAIRSTRANDSCORE_API FHairGroupInstance
 	// Cards
 	struct FCards
 	{
-		bool IsValid() const { for (const FLOD& LOD: LODs) { if (LOD.IsValid()) { return true; } } return LODs.Num() > 0; }
+		bool IsValid() const { for (const FLOD& LOD: LODs) { if (LOD.IsValid()) { return true; } } return false; }
 		bool IsValid(int32 LODIndex) const { return LODIndex >= 0 && LODIndex < LODs.Num() && LODs[LODIndex].DeformedResource != nullptr; }
 		struct FLOD
 		{
@@ -133,7 +133,7 @@ struct HAIRSTRANDSCORE_API FHairGroupInstance
 	// Meshes
 	struct FMeshes
 	{
-		bool IsValid() const { for (const FLOD& LOD : LODs) { if (LOD.IsValid()) { return true; } } return LODs.Num() > 0; }
+		bool IsValid() const { for (const FLOD& LOD : LODs) { if (LOD.IsValid()) { return true; } } return false; }
 		bool IsValid(int32 LODIndex) const { return LODIndex >= 0 && LODIndex < LODs.Num() && LODs[LODIndex].DeformedResource != nullptr; }
 		struct FLOD
 		{
@@ -190,4 +190,9 @@ struct HAIRSTRANDSCORE_API FHairGroupInstance
 	bool					bUseCPULODSelection = true;
 	bool					bForceCards = false;
 	bool					bUpdatePositionOffset = false;
+
+	bool IsValid() const 
+	{
+		return Meshes.IsValid() || Cards.IsValid() || Strands.IsValid();
+	}
 };

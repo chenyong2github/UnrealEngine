@@ -32,17 +32,7 @@ public:
 		EHairGeometryType GeometryType = EHairGeometryType::NoneGeometry;
 	};
 
-	FHairCardsVertexFactory(FHairGroupInstance* Instance, uint32 GroupIndex, uint32 LODIndex, uint32 BufferIndex, EHairGeometryType GeometryType, bool bSupportManualFetch, ERHIFeatureLevel::Type InFeatureLevel, const char* InDebugName)
-		: FVertexFactory(InFeatureLevel)
-		, DebugName(InDebugName)
-	{
-		bSupportsManualVertexFetch = bSupportManualFetch;
-		Data.Instance = Instance;
-		Data.GroupIndex = GroupIndex;
-		Data.LODIndex = LODIndex;
-		Data.BufferIndex = BufferIndex;
-		Data.GeometryType = GeometryType;
-	}
+	FHairCardsVertexFactory(FHairGroupInstance* Instance, uint32 GroupIndex, uint32 LODIndex, uint32 BufferIndex, EHairGeometryType GeometryType, EShaderPlatform InShaderPlatform, ERHIFeatureLevel::Type InFeatureLevel, const char* InDebugName);
 	
 	/**
 	 * Should we cache the material's shadertype on this platform with this vertex factory? 
