@@ -45,16 +45,15 @@ pushd ..\..\..\Intermediate\ShaderConductor
 	
 	where MSBuild.exe >nul 2>nul
 	if %ERRORLEVEL% equ 0 (
-		echo Found MSBuild via environment variable
+		echo Run MSBuild from environment variable
 		MSbuild.exe ALL_BUILD.vcxproj -nologo -v:m -maxCpuCount -p:Platform=x64;Configuration="%CONFIG%"
 	) else (
-		where "%MSBUILD_VS16_PROFESSIONAL%\MSbuild.exe" >nul 2>nul
-		if %ERRORLEVEL% equ 0 (
-			echo Found MSBuild at "%MSBUILD_VS16_PROFESSIONAL%\MSbuild.exe"
-			"%MSBUILD_VS16_PROFESSIONAL%\MSbuild.exe" ALL_BUILD.vcxproj -nologo -v:m -maxCpuCount -p:Platform=x64;Configuration="%CONFIG%"
+		if exist "%MSBUILD_VS16_PROFESSIONAL%\MSBuild.exe" (
+			echo Run MSBuild from "%MSBUILD_VS16_PROFESSIONAL%\MSBuild.exe"
+			"%MSBUILD_VS16_PROFESSIONAL%\MSBuild.exe" ALL_BUILD.vcxproj -nologo -v:m -maxCpuCount -p:Platform=x64;Configuration="%CONFIG%"
 		) else (
-			echo Found MSBuild at "%MSBUILD_VS16_ENTERPRISE%\MSbuild.exe"
-			"%MSBUILD_VS16_ENTERPRISE%\MSbuild.exe" ALL_BUILD.vcxproj -nologo -v:m -maxCpuCount -p:Platform=x64;Configuration="%CONFIG%"
+			echo Run MSBuild from "%MSBUILD_VS16_ENTERPRISE%\MSBuild.exe"
+			"%MSBUILD_VS16_ENTERPRISE%\MSBuild.exe" ALL_BUILD.vcxproj -nologo -v:m -maxCpuCount -p:Platform=x64;Configuration="%CONFIG%"
 		)
 	)
 	
