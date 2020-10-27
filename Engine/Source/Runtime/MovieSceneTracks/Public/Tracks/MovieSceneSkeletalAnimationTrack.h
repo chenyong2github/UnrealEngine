@@ -60,6 +60,8 @@ public:
 #if WITH_EDITOR
 	virtual void PostEditImport() override;
 	virtual void PostEditUndo() override;
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+
 #endif
 
 	virtual void RemoveAllAnimationData() override;
@@ -91,10 +93,10 @@ private:
 
 public:
 
-	void SetRootMotionsDirty();
-	void SetUpRootMotions(bool bForce);
-	void FindBestBlendPoint(USkeletalMeshComponent* SkelMeshComp,UMovieSceneSkeletalAnimationSection* FirstSection);
-	void MatchSectionByBoneTransform(bool bMatchWithPrevious, USkeletalMeshComponent* SkelMeshComp, UMovieSceneSkeletalAnimationSection* CurrentSection, FFrameTime CurrentFrame, FFrameRate FrameRate,
+	MOVIESCENETRACKS_API void SetRootMotionsDirty();
+	MOVIESCENETRACKS_API void SetUpRootMotions(bool bForce);
+	MOVIESCENETRACKS_API void FindBestBlendPoint(USkeletalMeshComponent* SkelMeshComp,UMovieSceneSkeletalAnimationSection* FirstSection);
+	MOVIESCENETRACKS_API void MatchSectionByBoneTransform(bool bMatchWithPrevious, USkeletalMeshComponent* SkelMeshComp, UMovieSceneSkeletalAnimationSection* CurrentSection, FFrameTime CurrentFrame, FFrameRate FrameRate,
 		const FName& BoneName, FTransform& SecondSectionRootDiff, FVector& TranslationDiff, FQuat& RotationDiff); //add options for z and for rotation.
 	MOVIESCENETRACKS_API void ToggleAutoMatchClipsRootMotions();
 #if WITH_EDITORONLY_DATA
@@ -122,6 +124,9 @@ public:
 	UPROPERTY()
 	FMovieSceneSkeletalAnimRootMotionTrackParams RootMotionParams;
 
+	/** Whether to blend and adjust the first child node instead of the root, this should be true for blending when the root is static, false if the animations have proper root motion*/
+	UPROPERTY(EditAnywhere, Category = "Root Motions")
+	bool bBlendFirstChildOfRoot;
 
 #if WITH_EDITORONLY_DATA
 public:
