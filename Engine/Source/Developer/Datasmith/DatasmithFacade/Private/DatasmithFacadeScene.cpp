@@ -342,6 +342,11 @@ void FDatasmithFacadeScene::PreExport()
 	SceneExporterRef->PreExport();
 }
 
+void FDatasmithFacadeScene::Shutdown()
+{
+	FDatasmithExporterManager::Shutdown();
+}
+
 void FDatasmithFacadeScene::ExportScene(
 	const TCHAR* InOutputPath
 )
