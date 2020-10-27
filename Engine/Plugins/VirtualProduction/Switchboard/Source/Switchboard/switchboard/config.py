@@ -97,7 +97,7 @@ class Config(object):
     def __init__(self, file_name):
         self.init_with_file_name(file_name)
 
-    def init_new_config(self, project_name, uproject, engine_dir):
+    def init_new_config(self, project_name, uproject, engine_dir, p4_settings):
         self.PROJECT_NAME = project_name
         self.UPROJECT_PATH = Setting("uproject", "uProject Path", uproject, tool_tip="Path to uProject")
         self.SWITCHBOARD_DIR = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '../'))
@@ -105,8 +105,9 @@ class Config(object):
         self.BUILD_ENGINE = Setting("build_engine", "Build Engine", False, tool_tip="Is Engine built from source?")
         self.MAPS_PATH = Setting("maps_path", "Map Path", "", tool_tip="Relative path from Content folder that contains maps to launch into.")
         self.MAPS_FILTER = Setting("maps_filter", "Map Filter", "*.umap", tool_tip="Walk every file in the Map Path and run a fnmatch to filter the file names")
-        self.SOURCE_CONTROL_WORKSPACE = Setting("source_control_workspace", "Workspace Name", "", tool_tip="SourceControl Workspace/Branch")
-        self.P4_PATH = Setting("p4_sync_path", "Perforce Project Path", "//UE4/Project")
+        self.P4_ENABLED = Setting("p4_enabled", "Perforce Enabled", p4_settings['p4_enabled'], tool_tip="Toggle Perforce support for the entire application")
+        self.SOURCE_CONTROL_WORKSPACE = Setting("source_control_workspace", "Workspace Name", p4_settings['p4_workspace_name'], tool_tip="SourceControl Workspace/Branch")
+        self.P4_PATH = Setting("p4_sync_path", "Perforce Project Path", p4_settings['p4_project_path'])
         self.CURRENT_LEVEL = DEFAULT_MAP_TEXT
 
         self.OSC_SERVER_PORT = Setting("osc_server_port", "OSC Server Port", 6000)
@@ -173,9 +174,10 @@ class Config(object):
         project_settings.extend([self.OSC_SERVER_PORT, self.OSC_CLIENT_PORT])
 
         # Perforce settings
+        self.P4_ENABLED = Setting("p4_enabled", "Perforce Enabled", data.get("p4_enabled", False), tool_tip="Toggle Perforce support for the entire application")
         self.SOURCE_CONTROL_WORKSPACE = Setting("source_control_workspace", "Workspace Name", data.get("source_control_workspace"), tool_tip="SourceControl Workspace/Branch")
         self.P4_PATH = Setting("p4_sync_path", "Perforce Project Path", data.get("p4_sync_path", ''), placholder_text="//UE4/Project")
-        project_settings.extend([self.SOURCE_CONTROL_WORKSPACE, self.P4_PATH])
+        project_settings.extend([self.P4_ENABLED, self.SOURCE_CONTROL_WORKSPACE, self.P4_PATH])
 
         # EXE names
         self.MULTIUSER_SERVER_EXE = data.get('multiuser_exe', 'UnrealMultiUserServer.exe')
@@ -289,6 +291,7 @@ class Config(object):
 
         # Source Control Settings
         #
+        data["p4_enabled"] = self.P4_ENABLED.get_value()
         data["p4_sync_path"] = self.P4_PATH.get_value()
         data["source_control_workspace"] = self.SOURCE_CONTROL_WORKSPACE.get_value()
         
