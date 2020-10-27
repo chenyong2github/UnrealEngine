@@ -211,7 +211,7 @@ struct FRigUnit_AimBone : public FRigUnit_HighlevelBaseMutable
 		Weight = 1.f;
 		bPropagateToChildren = false;
 		DebugSettings = FRigUnit_AimBone_DebugSettings();
-		BoneIndex = FCachedRigElement();
+		CachedBoneIndex = FCachedRigElement();
 		PrimaryCachedSpace = FCachedRigElement();
 		SecondaryCachedSpace = FCachedRigElement();
 	}
@@ -269,7 +269,7 @@ struct FRigUnit_AimBone : public FRigUnit_HighlevelBaseMutable
 	FRigUnit_AimBone_DebugSettings DebugSettings;
 
 	UPROPERTY()
-	FCachedRigElement BoneIndex;
+	FCachedRigElement CachedBoneIndex;
 
 	UPROPERTY()
 	FCachedRigElement PrimaryCachedSpace;
