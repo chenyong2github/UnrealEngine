@@ -225,31 +225,31 @@ public:
 	/** The type with transient flags removed. */
 	static constexpr inline ECbFieldType GetSerializedType(ECbFieldType Type)   { return Type & SerializedTypeMask; }
 
-	static constexpr inline bool HasFieldType(ECbFieldType Type)                { return EnumHasAnyFlags(Type, ECbFieldType::HasFieldType); }
-	static constexpr inline bool HasFieldName(ECbFieldType Type)                { return EnumHasAnyFlags(Type, ECbFieldType::HasFieldName); }
+	static constexpr inline bool HasFieldType(ECbFieldType Type) { return EnumHasAnyFlags(Type, ECbFieldType::HasFieldType); }
+	static constexpr inline bool HasFieldName(ECbFieldType Type) { return EnumHasAnyFlags(Type, ECbFieldType::HasFieldName); }
 
-	static constexpr inline bool IsNone(ECbFieldType Type)                      { return GetType(Type) == ECbFieldType::None; }
-	static constexpr inline bool IsNull(ECbFieldType Type)                      { return GetType(Type) == ECbFieldType::Null; }
+	static constexpr inline bool IsNone(ECbFieldType Type)       { return GetType(Type) == ECbFieldType::None; }
+	static constexpr inline bool IsNull(ECbFieldType Type)       { return GetType(Type) == ECbFieldType::Null; }
 
-	static constexpr inline bool IsObject(ECbFieldType Type)                    { return (Type & ObjectMask) == ObjectBase; }
-	static constexpr inline bool IsArray(ECbFieldType Type)                     { return (Type & ArrayMask) == ArrayBase; }
+	static constexpr inline bool IsObject(ECbFieldType Type)     { return (Type & ObjectMask) == ObjectBase; }
+	static constexpr inline bool IsArray(ECbFieldType Type)      { return (Type & ArrayMask) == ArrayBase; }
 
-	static constexpr inline bool IsBinary(ECbFieldType Type)                    { return GetType(Type) == ECbFieldType::Binary; }
-	static constexpr inline bool IsString(ECbFieldType Type)                    { return GetType(Type) == ECbFieldType::String; }
+	static constexpr inline bool IsBinary(ECbFieldType Type)     { return GetType(Type) == ECbFieldType::Binary; }
+	static constexpr inline bool IsString(ECbFieldType Type)     { return GetType(Type) == ECbFieldType::String; }
 
-	static constexpr inline bool IsInteger(ECbFieldType Type)                   { return (Type & IntegerMask) == IntegerBase; }
+	static constexpr inline bool IsInteger(ECbFieldType Type)    { return (Type & IntegerMask) == IntegerBase; }
 	/** Whether the field is a float, or integer due to implicit conversion. */
-	static constexpr inline bool IsFloat(ECbFieldType Type)                     { return (Type & FloatMask) == FloatBase; }
-	static constexpr inline bool IsBool(ECbFieldType Type)                      { return (Type & BoolMask) == BoolBase; }
+	static constexpr inline bool IsFloat(ECbFieldType Type)      { return (Type & FloatMask) == FloatBase; }
+	static constexpr inline bool IsBool(ECbFieldType Type)       { return (Type & BoolMask) == BoolBase; }
 
-	static constexpr inline bool IsExternHash(ECbFieldType Type)                { return (Type & ExternHashMask) == ExternHashBase; }
-	static constexpr inline bool IsBinaryHash(ECbFieldType Type)                { return GetType(Type) == ECbFieldType::BinaryHash; }
-	static constexpr inline bool IsFieldHash(ECbFieldType Type)                 { return GetType(Type) == ECbFieldType::FieldHash; }
+	static constexpr inline bool IsExternHash(ECbFieldType Type) { return (Type & ExternHashMask) == ExternHashBase; }
+	static constexpr inline bool IsBinaryHash(ECbFieldType Type) { return GetType(Type) == ECbFieldType::BinaryHash; }
+	static constexpr inline bool IsFieldHash(ECbFieldType Type)  { return GetType(Type) == ECbFieldType::FieldHash; }
 
-	static constexpr inline bool IsUuid(ECbFieldType Type)                      { return GetType(Type) == ECbFieldType::Uuid; }
+	static constexpr inline bool IsUuid(ECbFieldType Type)       { return GetType(Type) == ECbFieldType::Uuid; }
 
-	static constexpr inline bool IsDateTime(ECbFieldType Type)                  { return GetType(Type) == ECbFieldType::DateTime; }
-	static constexpr inline bool IsTimeSpan(ECbFieldType Type)                  { return GetType(Type) == ECbFieldType::TimeSpan; }
+	static constexpr inline bool IsDateTime(ECbFieldType Type)   { return GetType(Type) == ECbFieldType::DateTime; }
+	static constexpr inline bool IsTimeSpan(ECbFieldType Type)   { return GetType(Type) == ECbFieldType::TimeSpan; }
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -378,7 +378,10 @@ public:
 	CORE_API explicit FCbField(const void* Data, ECbFieldType Type = ECbFieldType::HasFieldType);
 
 	/** Name of the field if it has one, otherwise empty. */
-	constexpr inline FAnsiStringView Name() const { return FAnsiStringView(static_cast<const ANSICHAR*>(Payload) - NameLen, NameLen); }
+	constexpr inline FAnsiStringView Name() const
+	{
+		return FAnsiStringView(static_cast<const ANSICHAR*>(Payload) - NameLen, NameLen);
+	}
 
 	/** Size of the field in bytes. */
 	CORE_API uint64 Size() const;
@@ -738,10 +741,6 @@ template <typename BaseType>
 class TCbBufferRef : public BaseType
 {
 public:
-	enum EAssumeOwnershipTag { AssumeOwnership };
-	enum ECloneTag           { Clone };
-	enum EWrapTag            { Wrap };
-
 	/** Construct a default value. */
 	TCbBufferRef() = default;
 
@@ -829,41 +828,6 @@ public:
 	{
 	}
 
-	/** Construct a value and take ownership its memory. */
-	inline TCbBufferRef(EAssumeOwnershipTag, const void* Value)
-		: BaseType(Value)
-		, BufferPtr(FSharedBuffer::TakeOwnership(Value, BaseType::Size(), FMemory::Free))
-	{
-	}
-
-	/** Construct a value from an owned clone of its memory. */
-	inline TCbBufferRef(ECloneTag, const void* Value)
-		: TCbBufferRef(Clone, BaseType(Value))
-	{
-	}
-
-	/** Construct a value from an owned clone of its memory. */
-	inline TCbBufferRef(ECloneTag, const BaseType& Value)
-		: BaseType(Value)
-	{
-		const FSharedBufferRef BufferRef = FSharedBuffer::Alloc(BaseType::Size());
-		BaseType::CopyTo(*BufferRef);
-		BufferPtr = BufferRef;
-		static_cast<BaseType&>(*this) = BaseType(BufferPtr->GetData(), BaseType::GetCopyType());
-	}
-
-	/** Construct a value by wrapping its memory without taking ownership of it. */
-	inline TCbBufferRef(EWrapTag, const void* Value)
-		: BaseType(Value)
-	{
-	}
-
-	/** Construct a value by wrapping its memory without taking ownership of it. */
-	inline TCbBufferRef(EWrapTag, const BaseType& Value)
-		: BaseType(Value)
-	{
-	}
-
 	/** Whether this reference has ownership of the memory in its buffer. */
 	inline bool IsOwned() const { return BufferPtr && BufferPtr->IsOwned(); }
 
@@ -872,7 +836,10 @@ public:
 	{
 		if (!IsOwned())
 		{
-			*this = TCbBufferRef(Clone, ImplicitConv<BaseType>(*this));
+			FSharedBufferPtr Buffer = FSharedBuffer::Alloc(BaseType::Size());
+			BaseType::CopyTo(*Buffer);
+			static_cast<BaseType&>(*this) = BaseType(Buffer->GetData(), BaseType::GetCopyType());
+			BufferPtr = MoveTemp(Buffer);
 		}
 	}
 
@@ -888,23 +855,63 @@ private:
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+/**
+ * Factory functions for types derived from TCbBufferRef.
+ *
+ * This uses the curiously recurring template pattern to construct the correct type of reference.
+ * The derived type inherits from TCbBufferRef and this type to expose the factory functions.
+ */
+template <typename RefType, typename BaseType>
+class TCbBufferRefFactory
+{
+public:
+	/** Construct a value from an owned clone of its memory. */
+	static inline RefType Clone(const void* const Data)
+	{
+		return Clone(BaseType(Data));
+	}
+
+	/** Construct a value from an owned clone of its memory. */
+	static inline RefType Clone(const BaseType& Value)
+	{
+		RefType Ref = MakeView(Value);
+		Ref.MakeOwned();
+		return Ref;
+	}
+
+	/** Construct a value from a read-only view of its memory. */
+	static inline RefType MakeView(const void* const Data)
+	{
+		return MakeView(BaseType(Data));
+	}
+
+	/** Construct a value from a read-only view of its memory. */
+	static inline RefType MakeView(const BaseType& Value)
+	{
+		return RefType(Value, FSharedBufferConstPtr());
+	}
+
+	/** Construct a value and take ownership its memory. */
+	template <typename DeleterType>
+	static inline RefType TakeOwnership(const void* const Data, DeleterType&& Deleter)
+	{
+		const BaseType Value(Data);
+		return RefType(Value, FSharedBuffer::TakeOwnership(Data, Value.Size(), Forward<DeleterType>(Deleter)));
+	}
+};
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 class FCbArrayRef;
 class FCbObjectRef;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /** A field that can hold a reference to the memory that contains it. \see \ref TCbBufferRef */
-class FCbFieldRef : public TCbBufferRef<FCbField>
+class FCbFieldRef : public TCbBufferRef<FCbField>, public TCbBufferRefFactory<FCbFieldRef, FCbField>
 {
 public:
 	using TCbBufferRef::TCbBufferRef;
-
-	FCbFieldRef() = default;
-
-	inline FCbFieldRef(TCbBufferRef<FCbField>&& Ref)
-		: TCbBufferRef(MoveTemp(Ref))
-	{
-	}
 
 	/** Access the field as an object. Defaults to an empty object on error. */
 	inline FCbObjectRef AsObjectRef();
@@ -918,29 +925,15 @@ class FCbFieldRefIterator : public TCbFieldIterator<FCbFieldRef>
 {
 public:
 	using TCbFieldIterator::TCbFieldIterator;
-
-	FCbFieldRefIterator() = default;
-
-	inline FCbFieldRefIterator(TCbFieldIterator<FCbFieldRef>&& Field)
-		: TCbFieldIterator(MoveTemp(Field))
-	{
-	}
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /** An array that can hold a reference to the memory that contains it. \see \ref TCbBufferRef */
-class FCbArrayRef : public TCbBufferRef<FCbArray>
+class FCbArrayRef : public TCbBufferRef<FCbArray>, public TCbBufferRefFactory<FCbArrayRef, FCbArray>
 {
 public:
 	using TCbBufferRef::TCbBufferRef;
-
-	FCbArrayRef() = default;
-
-	inline FCbArrayRef(TCbBufferRef<FCbArray>&& Ref)
-		: TCbBufferRef(MoveTemp(Ref))
-	{
-	}
 
 	/** Create an iterator for the fields of this array. */
 	inline FCbFieldRefIterator CreateRefIterator() const
@@ -953,17 +946,10 @@ public:
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /** An object that can hold a reference to the memory that contains it. \see \ref TCbBufferRef */
-class FCbObjectRef : public TCbBufferRef<FCbObject>
+class FCbObjectRef : public TCbBufferRef<FCbObject>, public TCbBufferRefFactory<FCbObjectRef, FCbObject>
 {
 public:
 	using TCbBufferRef::TCbBufferRef;
-
-	FCbObjectRef() = default;
-
-	inline FCbObjectRef(TCbBufferRef<FCbObject>&& Ref)
-		: TCbBufferRef(MoveTemp(Ref))
-	{
-	}
 
 	/** Create an iterator for the fields of this object. */
 	inline FCbFieldRefIterator CreateRefIterator() const
