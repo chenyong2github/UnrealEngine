@@ -165,17 +165,20 @@ void UHeadMountedDisplayFunctionLibrary::GetTrackingSensorParameters(FVector& Or
 		TArray<int32> TrackingSensors;
 		GEngine->XRSystem->EnumerateTrackedDevices(TrackingSensors, EXRTrackedDeviceType::TrackingReference);
 
-		FQuat Orientation;
-		FXRSensorProperties SensorProperties;
-		IsActive = GEngine->XRSystem->GetTrackingSensorProperties(TrackingSensors[Index], Orientation, Origin, SensorProperties);
-		Rotation = Orientation.Rotator();
-		LeftFOV = SensorProperties.LeftFOV;
-		RightFOV = SensorProperties.RightFOV;
-		TopFOV = SensorProperties.TopFOV;
-		BottomFOV = SensorProperties.BottomFOV;
-		Distance = SensorProperties.CameraDistance;
-		NearPlane = SensorProperties.NearPlane;
-		FarPlane = SensorProperties.FarPlane;
+		if (TrackingSensors.Num() > 0)
+		{
+			FQuat Orientation;
+			FXRSensorProperties SensorProperties;
+			IsActive = GEngine->XRSystem->GetTrackingSensorProperties(TrackingSensors[Index], Orientation, Origin, SensorProperties);
+			Rotation = Orientation.Rotator();
+			LeftFOV = SensorProperties.LeftFOV;
+			RightFOV = SensorProperties.RightFOV;
+			TopFOV = SensorProperties.TopFOV;
+			BottomFOV = SensorProperties.BottomFOV;
+			Distance = SensorProperties.CameraDistance;
+			NearPlane = SensorProperties.NearPlane;
+			FarPlane = SensorProperties.FarPlane;
+		}
 	}
 	else
 	{
