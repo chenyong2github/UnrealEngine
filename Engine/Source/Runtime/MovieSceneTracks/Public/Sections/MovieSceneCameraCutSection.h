@@ -81,6 +81,11 @@ public:
 private:
 	virtual void ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity) override;
 
+public:
+	/** When blending, lock the previous camera (camera cut or gameplay camera). */
+	UPROPERTY(EditAnywhere, Category="Section")
+	bool bLockPreviousCamera = false;
+
 private:
 	/** The camera possessable or spawnable that this movie CameraCut uses */
 	UPROPERTY()
