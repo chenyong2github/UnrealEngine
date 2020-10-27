@@ -11,7 +11,6 @@
 #include "Async/MappedFileHandle.h"
 #include "HAL/RunnableThread.h"
 #include "Misc/ScopeLock.h"
-#include "Misc/CoreDelegates.h"
 #include "Misc/Paths.h"
 
 TRACE_DECLARE_MEMORY_COUNTER(IoDispatcherTotalBytesRead, TEXT("IoDispatcher/TotalBytesRead"));
@@ -75,48 +74,6 @@ public:
 private:
 	IMappedFileHandle* SharedMappedFileHandle;
 };
-
-FFileIoStoreEncryptionKeys::FFileIoStoreEncryptionKeys()
-{
-	FCoreDelegates::GetRegisterEncryptionKeyMulticastDelegate().AddRaw(this, &FFileIoStoreEncryptionKeys::RegisterEncryptionKey);
-}
-
-FFileIoStoreEncryptionKeys::~FFileIoStoreEncryptionKeys()
-{
-	FCoreDelegates::GetRegisterEncryptionKeyMulticastDelegate().RemoveAll(this);
-}
-
-bool FFileIoStoreEncryptionKeys::GetEncryptionKey(const FGuid& Guid, FAES::FAESKey& OutKey) const
-{
-	OutKey.Reset();
-
-	{
-		FScopeLock _(&EncryptionKeysCritical);
-		if (const FAES::FAESKey* ExistingKey = EncryptionKeysByGuid.Find(Guid))
-		{
-			OutKey = *ExistingKey;
-			return OutKey.IsValid();
-		}
-	}
-
-	if (!Guid.IsValid() && FCoreDelegates::GetPakEncryptionKeyDelegate().IsBound())
-	{
-		FCoreDelegates::GetPakEncryptionKeyDelegate().Execute(OutKey.Key);
-		return OutKey.IsValid();
-	}
-
-	return false;
-}
-
-void FFileIoStoreEncryptionKeys::RegisterEncryptionKey(const FGuid& Guid, const FAES::FAESKey& Key)
-{
-	{
-		FScopeLock _(&EncryptionKeysCritical);
-		EncryptionKeysByGuid.Add(Guid, Key);
-	}
-
-	KeyRegisteredCallback(Guid, Key);
-}
 
 void FFileIoStoreBufferAllocator::Initialize(uint64 MemorySize, uint64 BufferSize, uint32 BufferAlignment)
 {
@@ -435,18 +392,6 @@ FFileIoStore::FFileIoStore(FIoDispatcherEventQueue& InEventQueue, FIoSignatureEr
 	, PlatformImpl(InEventQueue, BufferAllocator, BlockCache)
 	, bIsMultithreaded(bInIsMultithreaded)
 {
-	EncryptionKeys.SetKeyRegisteredCallback([this](const FGuid& Guid, const FAES::FAESKey& Key)
-	{
-		FReadScopeLock _(IoStoreReadersLock);
-		for (FFileIoStoreReader* Reader : UnorderedIoStoreReaders)
-		{
-			if (Reader->IsEncrypted() && !Reader->GetEncryptionKey().IsValid() && Reader->GetEncryptionKeyGuid() == Guid)
-			{
-				UE_LOG(LogIoDispatcher, Verbose, TEXT("Updating container '%d' with encryption key guid '%s'"), Reader->GetContainerId().Value(), *Guid.ToString());
-				Reader->SetEncryptionKey(Key);
-			}
-		}
-	});
 }
 
 FFileIoStore::~FFileIoStore()
@@ -477,7 +422,7 @@ void FFileIoStore::Initialize()
 	Thread = FRunnableThread::Create(this, TEXT("IoService"), 0, TPri_AboveNormal);
 }
 
-TIoStatusOr<FIoContainerId> FFileIoStore::Mount(const FIoStoreEnvironment& Environment)
+TIoStatusOr<FIoContainerId> FFileIoStore::Mount(const FIoStoreEnvironment& Environment, const FGuid& EncryptionKeyGuid, const FAES::FAESKey& EncryptionKey)
 {
 	TUniquePtr<FFileIoStoreReader> Reader(new FFileIoStoreReader(PlatformImpl));
 	FIoStatus IoStatus = Reader->Initialize(Environment);
@@ -488,14 +433,14 @@ TIoStatusOr<FIoContainerId> FFileIoStore::Mount(const FIoStoreEnvironment& Envir
 
 	if (Reader->IsEncrypted())
 	{
-		FAES::FAESKey EncryptionKey;
-		if (EncryptionKeys.GetEncryptionKey(Reader->GetEncryptionKeyGuid(), EncryptionKey))
+		if (Reader->GetEncryptionKeyGuid() == EncryptionKeyGuid && EncryptionKey.IsValid())
 		{
 			Reader->SetEncryptionKey(EncryptionKey);
 		}
 		else
 		{
-			UE_LOG(LogIoDispatcher, Warning, TEXT("Mounting container '%s' with invalid encryption key"), *FPaths::GetBaseFilename(Environment.GetPath()));
+			return FIoStatus(EIoErrorCode::InvalidEncryptionKey, *FString::Printf(TEXT("Invalid encryption key '%s' (container '%s', encryption key '%s')"),
+				*EncryptionKeyGuid.ToString(), *FPaths::GetBaseFilename(Environment.GetPath()), *Reader->GetEncryptionKeyGuid().ToString()));
 		}
 	}
 
@@ -978,10 +923,6 @@ void FFileIoStore::ReadBlocks(const FFileIoStoreReader& Reader, const FFileIoSto
 	ScopeName.Appendf(TEXT("ReadBlock %d"), BlockIndex);
 	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*ScopeName);*/
 
-	UE_CLOG(Reader.IsEncrypted() && !Reader.GetEncryptionKey().IsValid(),
-		LogIoDispatcher, Fatal, TEXT("Reading from encrypted container (ID = '%d') with invalid encryption key (Guid = '%s')"),
-		Reader.GetContainerId().Value(),
-		*Reader.GetEncryptionKeyGuid().ToString());
 	const FFileIoStoreContainerFile& ContainerFile = Reader.GetContainerFile();
 	const uint64 CompressionBlockSize = ContainerFile.CompressionBlockSize;
 	const uint64 RequestEndOffset = ResolvedRequest.ResolvedOffset + ResolvedRequest.ResolvedSize;
