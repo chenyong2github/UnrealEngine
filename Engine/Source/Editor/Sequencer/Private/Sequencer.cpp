@@ -5790,7 +5790,6 @@ void FSequencer::UpdatePreviewLevelViewportClientFromCameraCut(FLevelEditorViewp
 		else
 		{
 			// Blending from a shot back to editor camera.
-			const float InverseBlendFactor = FMath::Clamp(1.0f - BlendFactor, 0.f, 1.f);
 
 			const FVector PreviousViewLocation = PreviousCameraComponent ? 
 				PreviousCameraComponent->GetComponentLocation() : 
@@ -5799,8 +5798,8 @@ void FSequencer::UpdatePreviewLevelViewportClientFromCameraCut(FLevelEditorViewp
 				PreviousCameraComponent->GetComponentRotation() :
 				PreviousCameraActor->GetActorRotation();
 
-			const FVector BlendedLocation = FMath::Lerp(PreviousViewLocation, PreAnimatedViewportLocation, InverseBlendFactor);
-			const FRotator BlendedRotation = FMath::Lerp(PreviousViewRotation, PreAnimatedViewportRotation, InverseBlendFactor);
+			const FVector BlendedLocation = FMath::Lerp(PreviousViewLocation, PreAnimatedViewportLocation, BlendFactor);
+			const FRotator BlendedRotation = FMath::Lerp(PreviousViewRotation, PreAnimatedViewportRotation, BlendFactor);
 
 			InViewportClient.SetViewLocation(BlendedLocation);
 			InViewportClient.SetViewRotation(BlendedRotation);
