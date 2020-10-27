@@ -7,6 +7,7 @@
 #include "IImageWrapperModule.h"
 #include "IOS/IOSInputInterface.h"
 #include "Modules/ModuleManager.h"
+#include "Engine/Texture2D.h"
 
 class FIOSGamepadUtils
 {
