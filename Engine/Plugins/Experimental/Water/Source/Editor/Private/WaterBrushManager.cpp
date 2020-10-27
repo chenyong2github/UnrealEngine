@@ -73,9 +73,18 @@ void AWaterBrushManager::PostLoad()
 	{
 		if (JumpFloodComponent2D != nullptr)
 		{
-			BlurEdgesMaterial = JumpFloodComponent2D->BlurEdgesMaterial;
-			FindEdgesMaterial = JumpFloodComponent2D->FindEdgesMaterial;
-			JumpStepMaterial = JumpFloodComponent2D->JumpStepMaterial;
+			if (JumpFloodComponent2D->BlurEdgesMaterial != nullptr)
+			{
+				BlurEdgesMaterial = JumpFloodComponent2D->BlurEdgesMaterial;
+			}
+			if (JumpFloodComponent2D->FindEdgesMaterial != nullptr)
+			{
+				FindEdgesMaterial = JumpFloodComponent2D->FindEdgesMaterial;
+			}
+			if (JumpFloodComponent2D->JumpStepMaterial != nullptr)
+			{
+				JumpStepMaterial = JumpFloodComponent2D->JumpStepMaterial;
+			}
 		}
 	}
 }
