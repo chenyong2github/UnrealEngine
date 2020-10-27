@@ -1190,18 +1190,6 @@ void FSequencer::PopToSequenceInstance(FMovieSceneSequenceIDRef SequenceID)
 		check( ActiveTemplateIDs.Num() > 0 );
 		UpdateSubSequenceData();
 
-		// Pop out of any potentially locked cameras from the shot and toggle on camera cuts
-		for (FLevelEditorViewportClient* LevelVC : GEditor->GetLevelViewportClients())
-		{		
-			if (LevelVC && LevelVC->AllowsCinematicControl() && LevelVC->GetViewMode() != VMI_Unknown)
-			{
-				LevelVC->SetActorLock(nullptr);
-				LevelVC->bLockedCameraView = false;
-				LevelVC->UpdateViewForLockedActor();
-				LevelVC->Invalidate();
-			}
-		}
-
 		ResetPerMovieSceneData();
 
 		if (SequenceID == MovieSceneSequenceID::Root)
