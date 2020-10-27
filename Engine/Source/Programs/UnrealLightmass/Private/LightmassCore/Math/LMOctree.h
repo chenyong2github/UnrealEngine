@@ -617,7 +617,7 @@ public:
 
 private:
 	/** Lightmass octree is grow-only. Use a stack allocator to coalesce allocations for better allocation performance. */
-	FMemStackBase NodeAllocator;
+	FMemStackBase NodeAllocator = FMemStackBase(0);
 
 	/** The octree's root node. */
 	FNode RootNode;
