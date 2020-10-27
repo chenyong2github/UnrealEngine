@@ -280,7 +280,7 @@ void FKismetCompilerContext::CleanAndSanitizeClass(UBlueprintGeneratedClass* Cla
 		// transaction buffer references to these UObjects. The UBlueprint may not have a reference to
 		// the ICH at the moment, and therefore might not have added it to SubObjectsToSave (and
 		// removed the ICH from ClassSubObjects):
-		if(Cast<UInheritableComponentHandler>(CurrSubObj) || CurrSubObj->IsInA(InheritableComponentHandlerClass))
+		if(Cast<UInheritableComponentHandler>(CurrSubObj) || CurrSubObj->IsInA(InheritableComponentHandlerClass) || CurrSubObj->HasAnyFlags(RF_InheritableComponentTemplate))
 		{
 			continue;
 		}
@@ -352,7 +352,8 @@ void FKismetCompilerContext::SaveSubObjectsFromCleanAndSanitizeClass(FSubobjectC
 	{
 		SubObjectsToSave.AddObject(Blueprint->InheritableComponentHandler);
 		TArray<UActorComponent*> AllTemplates;
-		Blueprint->InheritableComponentHandler->GetAllTemplates(AllTemplates);
+		const bool bIncludeTransientTemplates = true;
+		Blueprint->InheritableComponentHandler->GetAllTemplates(AllTemplates, bIncludeTransientTemplates);
 		SubObjectsToSave.AddObjects(AllTemplates);
 	}
 }
