@@ -15,6 +15,7 @@
 #include "Evaluation/IMovieSceneMotionVectorSimulation.h"
 #include "UObject/StrongObjectPtr.h"
 #include "SkeletalMeshRestoreState.h"
+#include "AnimSequencerInstanceProxy.h"
 
 bool ShouldUsePreviewPlayback(IMovieScenePlayer& Player, UObject& RuntimeObject)
 {
@@ -450,11 +451,16 @@ namespace MovieScene
 				FMovieSceneAnimTypeID AnimTypeID = SectionToAnimationIDs.GetAnimTypeID(Section);
 
 				Player.SavePreAnimatedState(*SequencerInst, AnimTypeID, FStatelessPreAnimatedTokenProducer(&ResetAnimSequencerInstance));
+				TOptional <FRootMotionOverride> RootMotion;
+				bool bBlendFirstChildOfRoot = false;
+				TOptional<FTransform> RootMotionTransform = AnimSection->GetRootMotion(CurrentTime, bBlendFirstChildOfRoot);
+				if (RootMotionTransform.IsSet())
+				{
+					RootMotion = FRootMotionOverride();
+					RootMotion.GetValue().RootMotion = RootMotionTransform.GetValue();
+					RootMotion.GetValue().bBlendFirstChildOfRoot = bBlendFirstChildOfRoot;
+				}
 
-				// Set position and weight
-				//SequencerInst->UpdateAnimTrack(InAnimSequence, GetTypeHash(AnimTypeID), InFromPosition, InToPosition, Weight, bFireNotifies);
-
-				TOptional<FTransform> RootMotion = AnimSection->GetRootMotion(CurrentTime);
 				SequencerInst->UpdateAnimTrackWithRootMotion(InAnimSequence, GetTypeHash(AnimTypeID),RootMotion, InFromPosition, InToPosition, Weight, bFireNotifies);
 
 			}
@@ -506,8 +512,15 @@ namespace MovieScene
 				Player.SavePreAnimatedState(*SequencerInst, AnimTypeID, FStatelessPreAnimatedTokenProducer(&ResetAnimSequencerInstance));
 
 				// Set position and weight
-				//SequencerInst->UpdateAnimTrack(InAnimSequence, GetTypeHash(AnimTypeID), InFromPosition, InToPosition, Weight, bFireNotifies);
-				TOptional<FTransform> RootMotion = AnimSection->GetRootMotion(CurrentTime);
+				TOptional <FRootMotionOverride> RootMotion;
+				bool bBlendFirstChildOfRoot = false;
+				TOptional<FTransform> RootMotionTransform = AnimSection->GetRootMotion(CurrentTime, bBlendFirstChildOfRoot);
+				if (RootMotionTransform.IsSet())
+				{
+					RootMotion = FRootMotionOverride();
+					RootMotion.GetValue().RootMotion = RootMotionTransform.GetValue();
+					RootMotion.GetValue().bBlendFirstChildOfRoot = bBlendFirstChildOfRoot;
+				}
 				SequencerInst->UpdateAnimTrackWithRootMotion(InAnimSequence, GetTypeHash(AnimTypeID), RootMotion, InFromPosition, InToPosition, Weight, bFireNotifies);
 
 			}

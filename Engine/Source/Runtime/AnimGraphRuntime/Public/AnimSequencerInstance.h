@@ -11,6 +11,8 @@
 #include "SequencerAnimationSupport.h"
 #include "AnimSequencerInstance.generated.h"
 
+struct FRootMotionOverride;
+
 UCLASS(transient, NotBlueprintable)
 class ANIMGRAPHRUNTIME_API UAnimSequencerInstance : public UAnimInstance, public ISequencerAnimationSupport
 {
@@ -23,7 +25,7 @@ public:
 	virtual void UpdateAnimTrack(UAnimSequenceBase* InAnimSequence, int32 SequenceId, float InFromPosition, float InToPosition, float Weight, bool bFireNotifies);
 
 	/** Update with Root Motion*/
-	void UpdateAnimTrackWithRootMotion(UAnimSequenceBase* InAnimSequence, int32 SequenceId,const TOptional<FTransform>& RootMotion, float InFromPosition, float InToPosition, float Weight, bool bFireNotifies);
+	void UpdateAnimTrackWithRootMotion(UAnimSequenceBase* InAnimSequence, int32 SequenceId,const TOptional<FRootMotionOverride>& RootMotion, float InFromPosition, float InToPosition, float Weight, bool bFireNotifies);
 
 	/** Construct all nodes in this instance */
 	virtual void ConstructNodes() override;
