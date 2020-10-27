@@ -131,11 +131,6 @@ UTypedElementInterface* UTypedElementList::GetElementInterface(const FTypedEleme
 	return Registry->GetElementInterface(InElementHandle, InBaseInterfaceType);
 }
 
-FTypedHandleTypeId UTypedElementList::GetRegisteredElementTypeId(const FName InElementTypeName) const
-{
-	return Registry->GetRegisteredElementTypeId(InElementTypeName);
-}
-
 bool UTypedElementList::AddElementImpl(FTypedElementHandle&& InElementHandle)
 {
 	if (!InElementHandle)

@@ -11,7 +11,7 @@
 FAssetEditorModeManager::FAssetEditorModeManager()
 {
 	{
-		UTypedElementSelectionSet* ActorAndComponentsSelectionSet = NewObject<UTypedElementSelectionSet>();
+		UTypedElementSelectionSet* ActorAndComponentsSelectionSet = NewObject<UTypedElementSelectionSet>(GetTransientPackage(), NAME_None, RF_Transactional);
 
 		ActorSet = USelection::CreateActorSelection(GetTransientPackage(), NAME_None, RF_Transactional);
 		ActorSet->SetElementSelectionSet(ActorAndComponentsSelectionSet);
@@ -23,7 +23,7 @@ FAssetEditorModeManager::FAssetEditorModeManager()
 	}
 
 	ObjectSet = USelection::CreateObjectSelection(GetTransientPackage(), NAME_None, RF_Transactional);
-	ObjectSet->SetElementSelectionSet(NewObject<UTypedElementSelectionSet>(ObjectSet));
+	ObjectSet->SetElementSelectionSet(NewObject<UTypedElementSelectionSet>(ObjectSet, NAME_None, RF_Transactional));
 	ObjectSet->AddToRoot();
 }
 

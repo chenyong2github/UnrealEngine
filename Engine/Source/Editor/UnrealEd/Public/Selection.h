@@ -365,7 +365,6 @@ private:
 	bool IsValidObjectToSelect(const UObject* InObject) const;
 	UObject* GetObjectForElementHandle(const FTypedElementHandle& InElementHandle) const;
 
-	void OnElementPreChangeEvent(const UTypedElementSelectionSet* InElementSelectionSet);
 	void OnElementListSyncEvent(const UTypedElementList* InElementList, FTypedElementListLegacySync::ESyncType InSyncType, const FTypedElementHandle& InElementHandle, bool bIsWithinBatchOperation);
 
 	void OnObjectSelected(UObject* InObject, const bool bNotify);

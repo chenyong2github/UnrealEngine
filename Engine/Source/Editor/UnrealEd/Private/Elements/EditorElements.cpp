@@ -3,11 +3,20 @@
 #include "Elements/EditorElements.h"
 #include "TypedElementRegistry.h"
 
+#include "Elements/Object/ObjectElementEditorSelectionInterface.h"
+
 #include "Elements/Actor/ActorElementEditorSelectionInterface.h"
 
 #include "Elements/Component/ComponentElementEditorSelectionInterface.h"
 
 FSimpleMulticastDelegate OnRegisterEditorElementsDelegate;
+
+void RegisterEditorObjectElements()
+{
+	UTypedElementRegistry* Registry = UTypedElementRegistry::GetInstance();
+
+	Registry->RegisterElementInterface<UTypedElementSelectionInterface>(NAME_Object, NewObject<UObjectElementEditorSelectionInterface>(), /*bAllowOverride*/true);
+}
 
 void RegisterEditorActorElements()
 {
@@ -25,6 +34,7 @@ void RegisterEditorComponentElements()
 
 void RegisterEditorElements()
 {
+	RegisterEditorObjectElements();
 	RegisterEditorActorElements();
 	RegisterEditorComponentElements();
 

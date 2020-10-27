@@ -13,6 +13,88 @@ UTypedElementSelectionSet::UTypedElementSelectionSet()
 	}
 }
 
+bool UTypedElementSelectionSet::Modify(bool bAlwaysMarkDirty)
+{
+	if (GUndo && CanModify())
+	{
+		for (const TTypedElement<UTypedElementSelectionInterface>& SelectionElement : ElementList->IterateInterface<UTypedElementSelectionInterface>())
+		{
+			if (SelectionElement.ShouldPreventTransactions())
+			{
+				return false;
+			}
+		}
+
+		return Super::Modify(bAlwaysMarkDirty);
+	}
+
+	return false;
+}
+
+void UTypedElementSelectionSet::Serialize(FArchive& Ar)
+{
+	checkf(Ar.IsTransacting(), TEXT("UTypedElementSelectionSet can only be serialized for transactions!"));
+
+	if (Ar.IsSaving())
+	{
+		FTypedHandleTypeId ElementTypeId = 0;
+
+		for (const TTypedElement<UTypedElementSelectionInterface>& SelectionElement : ElementList->IterateInterface<UTypedElementSelectionInterface>())
+		{
+			ElementTypeId = SelectionElement.GetId().GetTypeId();
+			Ar << ElementTypeId;
+
+			SelectionElement.WriteTransactedElement(Ar);
+		}
+
+		// End of the list
+		ElementTypeId = 0;
+		Ar << ElementTypeId;
+	}
+	else if (Ar.IsLoading())
+	{
+		TArray<FTypedElementHandle, TInlineAllocator<256>> SelectedElements;
+
+		{
+			UTypedElementRegistry* Registry = UTypedElementRegistry::GetInstance();
+
+			FTypedHandleTypeId ElementTypeId = 0;
+			for (;;)
+			{
+				Ar << ElementTypeId;
+				if (!ElementTypeId)
+				{
+					// End of the list
+					break;
+				}
+
+				UTypedElementSelectionInterface* ElementTypeSelectionInterface = Registry->GetElementInterface<UTypedElementSelectionInterface>(ElementTypeId);
+				checkf(ElementTypeSelectionInterface, TEXT("Failed to find selection interface for a previously transacted element type!"));
+				FTypedElementHandle SelectedElement = ElementTypeSelectionInterface->ReadTransactedElement(Ar);
+				if (SelectedElement)
+				{
+					SelectedElements.Add(MoveTemp(SelectedElement));
+				}
+			}
+		}
+
+		{
+			FTypedElementListLegacySyncScopedBatch LegacySyncBatch(ElementList, /*bNotify*/false);
+			TGuardValue<bool> GuardIsRestoringFromTransaction(bIsRestoringFromTransaction, true);
+
+			// TODO: Work out the intersection of the before and after state instead of clearing and reselecting?
+
+			const FTypedElementSelectionOptions SelectionOptions = FTypedElementSelectionOptions()
+				.SetAllowHidden(true)
+				.SetAllowGroups(false)
+				.SetWarnIfLocked(false);
+
+			ClearSelection(SelectionOptions);
+			SelectElements(SelectedElements, SelectionOptions);
+		}
+	}
+}
+
 bool UTypedElementSelectionSet::IsElementSelected(const FTypedElementHandle& InElementHandle, const FTypedElementIsSelectedOptions InSelectionOptions) const
 {
 	FTypedElementSelectionSetElement SelectionSetElement = ResolveSelectionSetElement(InElementHandle);
@@ -129,7 +211,7 @@ FTypedElementHandle UTypedElementSelectionSet::GetSelectionElement(const FTypedE
 
 void UTypedElementSelectionSet::RegisterAssetEditorSelectionProxy(const FName InElementTypeName, UTypedElementAssetEditorSelectionProxy* InAssetEditorSelectionProxy)
 {
-	const FTypedHandleTypeId ElementTypeId = ElementList->GetRegisteredElementTypeId(InElementTypeName);
+	const FTypedHandleTypeId ElementTypeId = UTypedElementRegistry::GetInstance()->GetRegisteredElementTypeId(InElementTypeName);
 	checkf(ElementTypeId > 0, TEXT("Element type '%s' has not been registered!"), *InElementTypeName.ToString());
 	RegisteredAssetEditorSelectionProxies[ElementTypeId - 1] = InAssetEditorSelectionProxy;
 }
@@ -142,4 +224,22 @@ FTypedElementSelectionSetElement UTypedElementSelectionSet::ResolveSelectionSetE
 		return FTypedElementSelectionSetElement(ElementList->GetElement<UTypedElementSelectionInterface>(InElementHandle), ElementList, AssetEditorSelectionProxy ? AssetEditorSelectionProxy : GetMutableDefault<UTypedElementAssetEditorSelectionProxy>());
 	}
 	return FTypedElementSelectionSetElement();
+}
+
+void UTypedElementSelectionSet::OnElementListPreChange(const UTypedElementList* InElementList)
+{
+	check(InElementList == ElementList);
+	OnPreChangeDelegate.Broadcast(this);
+
+	if (!bIsRestoringFromTransaction)
+	{
+		// Track the pre-change state for undo/redo
+		Modify();
+	}
+}
+
+void UTypedElementSelectionSet::OnElementListChanged(const UTypedElementList* InElementList)
+{
+	check(InElementList == ElementList);
+	OnChangedDelegate.Broadcast(this);
 }

@@ -217,7 +217,7 @@ void SLevelEditor::Construct( const SLevelEditor::FArguments& InArgs)
 
 void SLevelEditor::Initialize( const TSharedRef<SDockTab>& OwnerTab, const TSharedRef<SWindow>& OwnerWindow )
 {
-	SelectedElements = NewObject<UTypedElementSelectionSet>();
+	SelectedElements = NewObject<UTypedElementSelectionSet>(GetTransientPackage(), NAME_None, RF_Transactional);
 	SelectedElements->AddToRoot();
 
 	// Register the level editor specific selection behavior

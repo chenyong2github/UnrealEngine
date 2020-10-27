@@ -86,6 +86,10 @@ class EDITORFRAMEWORK_API UTypedElementSelectionSet : public UObject
 public:
 	UTypedElementSelectionSet();
 
+	//~ UObject interface
+	virtual bool Modify(bool bAlwaysMarkDirty = true) override;
+	virtual void Serialize(FArchive& Ar) override;
+
 	/**
 	 * Test to see whether the given element is currently considered selected.
 	 */
@@ -229,20 +233,12 @@ private:
 	/**
 	 * Proxy the internal OnPreChange event from the underlying element list.
 	 */
-	void OnElementListPreChange(const UTypedElementList* InElementList) const
-	{
-		check(InElementList == ElementList);
-		OnPreChangeDelegate.Broadcast(this);
-	}
+	void OnElementListPreChange(const UTypedElementList* InElementList);
 
 	/**
 	 * Proxy the internal OnChanged event from the underlying element list.
 	 */
-	void OnElementListChanged(const UTypedElementList* InElementList) const
-	{
-		check(InElementList == ElementList);
-		OnChangedDelegate.Broadcast(this);
-	}
+	void OnElementListChanged(const UTypedElementList* InElementList);
 
 	/** Underlying element list holding the selection state. */
 	UPROPERTY()
@@ -257,4 +253,7 @@ private:
 
 	/** Delegate that is invoked whenever the underlying element list has been changed. */
 	FOnChanged OnChangedDelegate;
+
+	/** Set when we are currently restoring the selection state from a transaction (undo/redo) */
+	bool bIsRestoringFromTransaction = false;
 };

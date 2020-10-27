@@ -100,7 +100,6 @@ void USelection::SetElementSelectionSet(UTypedElementSelectionSet* InElementSele
 {
 	if (ElementSelectionSet)
 	{
-		ElementSelectionSet->OnPreChange().RemoveAll(this);
 		ElementSelectionSet->Legacy_GetElementListSync().OnSyncEvent().RemoveAll(this);
 	}
 
@@ -109,7 +108,6 @@ void USelection::SetElementSelectionSet(UTypedElementSelectionSet* InElementSele
 
 	if (ElementSelectionSet)
 	{
-		ElementSelectionSet->OnPreChange().AddUObject(this, &USelection::OnElementPreChangeEvent);
 		ElementSelectionSet->Legacy_GetElementListSync().OnSyncEvent().AddUObject(this, &USelection::OnElementListSyncEvent);
 	}
 	
@@ -199,12 +197,6 @@ UObject* USelection::GetObjectForElementHandle(const FTypedElementHandle& InElem
 	}
 
 	return nullptr;
-}
-
-void USelection::OnElementPreChangeEvent(const UTypedElementSelectionSet* InElementSelectionSet)
-{
-	check(InElementSelectionSet == ElementSelectionSet);
-	Modify();
 }
 
 void USelection::OnElementListSyncEvent(const UTypedElementList* InElementList, FTypedElementListLegacySync::ESyncType InSyncType, const FTypedElementHandle& InElementHandle, bool bIsWithinBatchOperation)
@@ -421,47 +413,14 @@ bool USelection::IsSelected(const UObject* InObject) const
 
 void USelection::Serialize(FArchive& Ar)
 {
-	Super::Serialize(Ar);
-
-	TArray<TWeakObjectPtr<UObject>> SelectedObjects;
-	if (Ar.IsSaving())
+	if (ElementSelectionSet)
 	{
-		GetSelectedObjects(SelectedObjects); // TODO: The old code used to use bEvenIfPendingKill during the resolve
-	}
-	Ar << SelectedObjects;
-
-	if (Ar.IsLoading())
-	{
-		BeginBatchSelectOperation();
-
-		// The set of selected objects may have changed, so make sure our annotations exactly match the list, otherwise
-		// UObject::IsSelected() could return a result that was different from the list of objects returned by GetSelectedObjects()
-		// This needs to happen in serialize because other code may check the selection state in PostEditUndo and the order of PostEditUndo is indeterminate.
-		DeselectAll(nullptr);
-		for (const TWeakObjectPtr<UObject>& ObjectPtr : SelectedObjects)
-		{
-			if (UObject* Object = ObjectPtr.Get(true))
-			{
-				Select(Object);
-			}
-		}
-		SyncSelectedClasses();
-
-		EndBatchSelectOperation(/*bNotify*/false);
+		ElementSelectionSet->Serialize(Ar);
 	}
 }
 
-bool USelection::Modify(bool bAlwaysMarkDirty/* =true */)
+bool USelection::Modify(bool bAlwaysMarkDirty)
 {
-	// If the selection currently contains any PIE objects we should not be including it in the transaction buffer
-	for (int32 Idx = 0; Idx < Num(); ++Idx)
-	{
-		UObject* Object = GetSelectedObject(Idx);
-		if (Object && Object->GetOutermost()->HasAnyPackageFlags(PKG_PlayInEditor | PKG_ContainsScript | PKG_CompiledIn))
-		{
-			return false;
-		}
-	}
-
-	return Super::Modify(bAlwaysMarkDirty);
+	return ElementSelectionSet 
+		&& ElementSelectionSet->Modify(bAlwaysMarkDirty);
 }

@@ -532,12 +532,6 @@ public:
 	}
 
 	/**
-	 * Get the element type ID for the associated element type name, if any.
-	 * @return The element type ID, or 0 if the given name wasn't registered.
-	 */
-	FTypedHandleTypeId GetRegisteredElementTypeId(const FName InElementTypeName) const;
-
-	/**
 	 * Access the delegate that is invoked whenever this element list is potentially about to change.
 	 * @note This may be called even if no actual change happens, though once a change does happen it won't be called again until after the next call to NotifyPendingChanges.
 	 */

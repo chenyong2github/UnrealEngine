@@ -80,12 +80,12 @@ public:
 	}
 
 	/**
-	 * Get the element interface supported by the given handle, or null if there is no support for this interface.
+	 * Get the element interface supported by the given type, or null if there is no support for this interface.
 	 */
 	template <typename BaseInterfaceType>
-	FORCEINLINE BaseInterfaceType* GetElementInterface(const FTypedElementId& InElementId) const
+	FORCEINLINE BaseInterfaceType* GetElementInterface(const FTypedHandleTypeId InElementTypeId) const
 	{
-		return static_cast<BaseInterfaceType*>(GetElementInterfaceImpl(InElementId, BaseInterfaceType::StaticClass()));
+		return static_cast<BaseInterfaceType*>(GetElementInterfaceImpl(InElementTypeId, BaseInterfaceType::StaticClass()));
 	}
 
 	/**
@@ -94,7 +94,7 @@ public:
 	template <typename BaseInterfaceType>
 	FORCEINLINE BaseInterfaceType* GetElementInterface(const FTypedElementHandle& InElementHandle) const
 	{
-		return static_cast<BaseInterfaceType*>(GetElementInterfaceImpl(InElementHandle.GetId(), BaseInterfaceType::StaticClass()));
+		return static_cast<BaseInterfaceType*>(GetElementInterfaceImpl(InElementHandle.GetId().GetTypeId(), BaseInterfaceType::StaticClass()));
 	}
 
 	/**
@@ -103,7 +103,7 @@ public:
 	UFUNCTION(BlueprintPure, Category="TypedElementFramework|Registry")
 	FORCEINLINE UTypedElementInterface* GetElementInterface(const FTypedElementHandle& InElementHandle, const TSubclassOf<UTypedElementInterface>& InBaseInterfaceType) const
 	{
-		return GetElementInterfaceImpl(InElementHandle.GetId(), InBaseInterfaceType);
+		return GetElementInterfaceImpl(InElementHandle.GetId().GetTypeId(), InBaseInterfaceType);
 	}
 
 	/**
@@ -308,7 +308,7 @@ private:
 
 	void RegisterElementTypeImpl(const FName InElementTypeName, TUniquePtr<FRegisteredElementType>&& InRegisteredElementType);
 	void RegisterElementInterfaceImpl(const FName InElementTypeName, UTypedElementInterface* InElementInterface, const TSubclassOf<UTypedElementInterface>& InBaseInterfaceType, const bool InAllowOverride);
-	UTypedElementInterface* GetElementInterfaceImpl(const FTypedElementId& InElementId, const TSubclassOf<UTypedElementInterface>& InBaseInterfaceType) const;
+	UTypedElementInterface* GetElementInterfaceImpl(const FTypedHandleTypeId InElementTypeId, const TSubclassOf<UTypedElementInterface>& InBaseInterfaceType) const;
 
 	template <typename ElementDataType>
 	TTypedElementOwner<ElementDataType> CreateElementImpl(const FName InElementTypeName, const FTypedHandleElementId InElementId)

@@ -99,15 +99,15 @@ void UTypedElementRegistry::RegisterElementInterfaceImpl(const FName InElementTy
 	RegisteredElementType->Interfaces.Add(InBaseInterfaceType->GetFName(), InElementInterface);
 }
 
-UTypedElementInterface* UTypedElementRegistry::GetElementInterfaceImpl(const FTypedElementId& InElementId, const TSubclassOf<UTypedElementInterface>& InBaseInterfaceType) const
+UTypedElementInterface* UTypedElementRegistry::GetElementInterfaceImpl(const FTypedHandleTypeId InElementTypeId, const TSubclassOf<UTypedElementInterface>& InBaseInterfaceType) const
 {
-	if (!InElementId)
+	if (!InElementTypeId)
 	{
 		return nullptr;
 	}
 
-	FRegisteredElementType* RegisteredElementType = GetRegisteredElementTypeFromId(InElementId.GetTypeId());
-	checkf(RegisteredElementType, TEXT("Element type ID '%d' has not been registered!"), InElementId.GetTypeId());
+	FRegisteredElementType* RegisteredElementType = GetRegisteredElementTypeFromId(InElementTypeId);
+	checkf(RegisteredElementType, TEXT("Element type ID '%d' has not been registered!"), InElementTypeId);
 
 	return RegisteredElementType->Interfaces.FindRef(InBaseInterfaceType->GetFName());
 }

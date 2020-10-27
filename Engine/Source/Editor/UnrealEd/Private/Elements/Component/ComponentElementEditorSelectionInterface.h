@@ -14,6 +14,9 @@ class UComponentElementEditorSelectionInterface : public UComponentElementSelect
 
 public:
 	virtual bool IsElementSelected(const FTypedElementHandle& InElementHandle, const UTypedElementList* InSelectionSet, const FTypedElementIsSelectedOptions& InSelectionOptions) override;
+	virtual bool ShouldPreventTransactions(const FTypedElementHandle& InElementHandle) override;
+	virtual void WriteTransactedElement(const FTypedElementHandle& InElementHandle, FArchive& InArchive) override;
+	virtual FTypedElementHandle ReadTransactedElement(FArchive& InArchive) override;
 
 	static bool IsComponentSelected(const UActorComponent* InComponent, const UTypedElementList* InSelectionSet, const FTypedElementIsSelectedOptions& InSelectionOptions);
 };

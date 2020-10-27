@@ -111,6 +111,23 @@ public:
 	 */
 	UFUNCTION(BlueprintPure, Category="TypedElementInterfaces|Selection")
 	virtual FTypedElementHandle GetSelectionElement(const FTypedElementHandle& InElementHandle, const UTypedElementList* InCurrentSelection, const ETypedElementSelectionMethod InSelectionMethod) { return InElementHandle; }
+
+	/**
+	 * Test to see whether the given element prevents the selection set state from being transacted for undo/redo (eg, if the element belongs to a PIE instance).
+	 */
+	virtual bool ShouldPreventTransactions(const FTypedElementHandle& InElementHandle) { return false; }
+
+	/**
+	 * Write the information needed to find the given element again when this transaction is replayed for undo/redo.
+	 * @note The data written must match the data read by ReadTransactedElement.
+	 */
+	virtual void WriteTransactedElement(const FTypedElementHandle& InElementHandle, FArchive& InArchive) {}
+
+	/**
+	 * Read the information needed to be find a previously tracked element, and attempt to get it now that this transaction is being replayed for undo/redo.
+	 * @note The data read must match the data written by WriteTransactedElement.
+	 */
+	virtual FTypedElementHandle ReadTransactedElement(FArchive& InArchive) { return FTypedElementHandle(); }
 };
 
 template <>
@@ -123,4 +140,7 @@ struct TTypedElement<UTypedElementSelectionInterface> : public TTypedElementBase
 	bool DeselectElement(UTypedElementList* InSelectionSet, const FTypedElementSelectionOptions& InSelectionOptions) const { return InterfacePtr->DeselectElement(*this, InSelectionSet, InSelectionOptions); }
 	bool AllowSelectionModifiers(const UTypedElementList* InSelectionSet) const { return InterfacePtr->AllowSelectionModifiers(*this, InSelectionSet); }
 	FTypedElementHandle GetSelectionElement(const UTypedElementList* InCurrentSelection, const ETypedElementSelectionMethod InSelectionMethod) const { return InterfacePtr->GetSelectionElement(*this, InCurrentSelection, InSelectionMethod); }
+	bool ShouldPreventTransactions() const { return InterfacePtr->ShouldPreventTransactions(*this); }
+	void WriteTransactedElement(FArchive& InArchive) const { return InterfacePtr->WriteTransactedElement(*this, InArchive); }
+	FTypedElementHandle ReadTransactedElement(FArchive& InArchive) const { return InterfacePtr->ReadTransactedElement(InArchive); }
 };
