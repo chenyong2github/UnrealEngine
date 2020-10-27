@@ -240,12 +240,10 @@ void FAndroidCrashContext::DumpAllThreadCallstacks() const
 
 		Writeln(DestHandle, "<Threads>");
 
-		if( GIsGameThreadIdInitialized )
-		{
-			// On android the Game thread is that which calls android_main entry point. 
-			// Explicitly call it here as the thread manager is not aware of it.
-			WriteThreadEntry(GGameThreadId, "GameThread");
-		}
+		// On android the Game thread is that which calls android_main entry point. 
+		// Explicitly call it here as the thread manager is not aware of it.
+		WriteThreadEntry(GGameThreadId, "GameThread");
+
 		// For each thread append it's info to the file.
 		FThreadManager::Get().ForEachThread([WriteThreadEntry, this, DestHandle, &CrashStackFrames, &CallstacksRecorded](uint32 ThreadID, FRunnableThread* Runnable)
 		{

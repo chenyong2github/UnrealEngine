@@ -1642,23 +1642,6 @@ private:
 	static CSV_PROFILER_INLINE uint64 GetStatID(const char* StatName) { return uint64(StatName); }
 	static CSV_PROFILER_INLINE uint64 GetStatID(const FName& StatId) { return StatId.GetComparisonIndex().ToUnstableInt(); }
 
-	static inline FString GenerateThreadName()
-	{
-		// Determine the thread name
-		if (IsInGameThread())
-		{
-			return TEXT("GameThread");
-		}
-		else if (IsInActualRenderingThread())
-		{
-			return TEXT("RenderThread");
-		}
-		else
-		{
-			return FThreadManager::Get().GetThreadName(FPlatformTLS::GetCurrentThreadId());
-		}
-	}
-
 	static FCriticalSection TlsCS;
 	static TArray<FWeakPtr> TlsInstances;
 	static uint32 TlsSlot;
@@ -1718,7 +1701,7 @@ public:
 
 	FCsvProfilerThreadData()
 		: ThreadId(FPlatformTLS::GetCurrentThreadId())
-		, ThreadName(GenerateThreadName())
+		, ThreadName(FThreadManager::GetThreadName(ThreadId))
 		, DataProcessor(nullptr)
 	{
 	}
