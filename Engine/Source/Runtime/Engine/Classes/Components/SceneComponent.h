@@ -282,7 +282,7 @@ public:
 
 #if WITH_EDITORONLY_DATA
 protected:
-	/** Editor only component used to display the sprite so as to be able to see the location of the Audio Component  */
+	/** Editor only component used to display the sprite so as to be able to see the location of the Component  */
 	class UBillboardComponent* SpriteComponent;
 #endif
 
