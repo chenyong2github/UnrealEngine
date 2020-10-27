@@ -801,6 +801,7 @@ class FD3D12ShaderResourceView : public FD3D12BaseShaderResourceView, public FRH
 	bool bSkipFastClearFinalize;
 	bool bRequiresResourceStateTracking;
 	uint32 Stride;
+	uint32 StartOffsetBytes;
 
 public:
 	// Used for dynamic buffer SRVs, which can be renamed. Must be explicitly Initialize()'d before it can be used.
@@ -810,10 +811,10 @@ public:
 
 	// Used for all other SRV resource types. Initialization is immediate on the calling thread.
 	// Should not be used for dynamic resources which can be renamed.
-	FD3D12ShaderResourceView(FD3D12Device* InParent, D3D12_SHADER_RESOURCE_VIEW_DESC& InDesc, FD3D12ResourceLocation& InResourceLocation, uint32 InStride = -1, bool InSkipFastClearFinalize = false)
+	FD3D12ShaderResourceView(FD3D12Device* InParent, D3D12_SHADER_RESOURCE_VIEW_DESC& InDesc, FD3D12ResourceLocation& InResourceLocation, uint32 InStride = -1, uint32 InStartOffsetBytes = 0, bool InSkipFastClearFinalize = false)
 		: FD3D12ShaderResourceView(InParent)
 	{
-		Initialize(InDesc, InResourceLocation, InStride, InSkipFastClearFinalize);
+		Initialize(InDesc, InResourceLocation, InStride, InStartOffsetBytes, InSkipFastClearFinalize);
 	}
 
 	~FD3D12ShaderResourceView()
@@ -823,9 +824,10 @@ public:
 		FD3D12BaseShaderResourceView::Remove();
 	}
 
-	void Initialize(D3D12_SHADER_RESOURCE_VIEW_DESC& InDesc, FD3D12ResourceLocation& InResourceLocation, uint32 InStride, bool InSkipFastClearFinalize = false)
+	void Initialize(D3D12_SHADER_RESOURCE_VIEW_DESC& InDesc, FD3D12ResourceLocation& InResourceLocation, uint32 InStride, uint32 InStartOffsetBytes, bool InSkipFastClearFinalize = false)
 	{
 		Stride = InStride;
+		StartOffsetBytes = InStartOffsetBytes;
 		bContainsDepthPlane   = InResourceLocation.GetResource()->IsDepthStencilResource() && GetPlaneSliceFromViewFormat(InResourceLocation.GetResource()->GetDesc().Format, InDesc.Format) == 0;
 		bContainsStencilPlane = InResourceLocation.GetResource()->IsDepthStencilResource() && GetPlaneSliceFromViewFormat(InResourceLocation.GetResource()->GetDesc().Format, InDesc.Format) == 1;
 		bRequiresResourceStateTracking = InResourceLocation.GetResource()->RequiresResourceStateTracking();
@@ -865,10 +867,11 @@ public:
 		// Update the first element index, then reinitialize the SRV
 		if (Desc.ViewDimension == D3D12_SRV_DIMENSION_BUFFER)
 		{
-			Desc.Buffer.FirstElement = InResourceLocation.GetOffsetFromBaseOfResource() / Stride;
+			uint32 StartElement = StartOffsetBytes / Stride;
+			Desc.Buffer.FirstElement = InResourceLocation.GetOffsetFromBaseOfResource() / Stride + StartElement;
 		}
 
-		Initialize(Desc, InResourceLocation, Stride);
+		Initialize(Desc, InResourceLocation, Stride, StartOffsetBytes);
 	}
 
 	void Rename(float ResourceMinLODClamp)

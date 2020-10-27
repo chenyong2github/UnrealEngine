@@ -215,7 +215,7 @@ FShaderResourceViewRHIRef FD3D12DynamicRHI::RHICreateShaderResourceView(const FS
 					D3D12_SHADER_RESOURCE_VIEW_DESC SRVDesc = GetVertexBufferSRVDesc(VertexBuffer, CreationStride, Format, StartOffsetBytes, NumElements);
 
 					// Create a Shader Resource View
-					SRV->Initialize(SRVDesc, VertexBuffer->ResourceLocation, CreationStride);
+					SRV->Initialize(SRVDesc, VertexBuffer->ResourceLocation, CreationStride, StartOffsetBytes);
 					VertexBuffer->AddDynamicSRV(SRV);
 				}
 			};
@@ -310,7 +310,7 @@ FShaderResourceViewRHIRef FD3D12DynamicRHI::RHICreateShaderResourceView(const FS
 					SRVDesc.Buffer.FirstElement = Offset / Stride + StartElement;
 
 					// Create a Shader Resource View
-					SRV->Initialize(SRVDesc, StructuredBuffer->ResourceLocation, Stride);
+					SRV->Initialize(SRVDesc, StructuredBuffer->ResourceLocation, Stride, StartOffsetBytes);
 					StructuredBuffer->AddDynamicSRV(SRV);
 				}
 			};

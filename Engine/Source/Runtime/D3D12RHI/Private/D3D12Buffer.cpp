@@ -70,6 +70,10 @@ struct FRHICommandRenameUploadBuffer final : public FRHICommand<FRHICommandRenam
 
 	void Execute(FRHICommandListBase& CmdList)
 	{
+		// Clear the resource if still bound to make sure the SRVs are rebound again on next operation
+		FD3D12CommandContext& Context = (FD3D12CommandContext&)(CmdList.IsImmediateAsyncCompute() ? CmdList.GetComputeContext() : CmdList.GetContext());
+		Context.ConditionalClearShaderResource(&Resource->ResourceLocation);
+
 		Resource->RenameLDAChain(NewLocation);
 	}
 };
@@ -376,9 +380,9 @@ void* FD3D12DynamicRHI::LockBuffer(FRHICommandListImmediate* RHICmdList, FD3D12B
 			}
 			else
 			{
-				FD3D12ResourceLocation Location(Buffer->GetParentDevice());
-				Data = Adapter.GetUploadHeapAllocator(Device->GetGPUIndex()).AllocUploadResource(BufferSize, Buffer->BufferAlignment, Location);
-				Buffer->RenameLDAChain(Location);
+				FRHICommandRenameUploadBuffer Command(Buffer, Device);
+				Data = Adapter.GetUploadHeapAllocator(Device->GetGPUIndex()).AllocUploadResource(BufferSize, Buffer->BufferAlignment, Command.NewLocation);
+				Command.Execute(*RHICmdList);
 			}
 		}
 	}
