@@ -176,6 +176,40 @@ TEST(BinaryInputArchiveTest, ComplexTypeDeserialization) {
     ASSERT_EQ(dest.f, 4294967295u);
 }
 
+TEST(BinaryInputArchiveTest, FreeSerialize) {
+    tersetests::FakeStream stream;
+    unsigned char bytes[] = {
+        0xff, 0xff, 0xff, 0xff,  // 4294967295
+        0xff, 0xff  // 65535
+    };
+    stream.write(reinterpret_cast<char*>(bytes), 6ul);
+    stream.seek(0ul);
+
+    terse::BinaryInputArchive<tersetests::FakeStream> archive(&stream);
+    SerializableByFreeSerialize dest;
+    archive(dest);
+
+    ASSERT_EQ(dest.a, 4294967295u);
+    ASSERT_EQ(dest.b, 65535u);
+}
+
+TEST(BinaryInputArchiveTest, FreeLoad) {
+    tersetests::FakeStream stream;
+    unsigned char bytes[] = {
+        0xff, 0xff, 0xff, 0xff,  // 4294967295
+        0xff, 0xff  // 65535
+    };
+    stream.write(reinterpret_cast<char*>(bytes), 6ul);
+    stream.seek(0ul);
+
+    terse::BinaryInputArchive<tersetests::FakeStream> archive(&stream);
+    SerializableByFreeLoadSave dest;
+    archive(dest);
+
+    ASSERT_EQ(dest.a, 4294967295u);
+    ASSERT_EQ(dest.b, 65535u);
+}
+
 TEST(BinaryInputArchiveTest, StringDeserialization) {
     tersetests::FakeStream stream;
     unsigned char size[] = {0x00, 0x00, 0x00, 0x08};  // 8

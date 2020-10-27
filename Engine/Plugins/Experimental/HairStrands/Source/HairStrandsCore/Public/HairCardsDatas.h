@@ -181,6 +181,7 @@ struct FHairCardsGeometry
 	TArray<FVector>  Tangents;
 	TArray<FVector>  Positions;
 	TArray<uint32>   Indices;
+	TArray<float>    CoordU; // Transient data storing [0..1] parametric value along main axis. This is used for generating guides & interpolation data
 
 	// Vertex offset and vertex count of each cards geometry
 	TArray<uint32> PointOffsets;
@@ -199,6 +200,7 @@ struct FHairCardsGeometry
 		Tangents.Reset();
 		Positions.Reset();
 		Indices.Reset();
+		CoordU.Reset();
 
 		PointOffsets.Reset();
 		PointCounts.Reset();
@@ -217,6 +219,7 @@ struct FHairCardsGeometry
 		Tangents.Empty();
 		Positions.Empty();
 		Indices.Empty();
+		CoordU.Reset();
 
 		// Cards' points offset & count
 		PointOffsets.SetNum(Count);
@@ -245,6 +248,8 @@ struct FHairCardsGeometry
 
 struct FHairCardsDatas
 {
+	bool IsValid() const { return RenderData.Positions.Num() > 0; }
+
 	FHairCardsGeometry Cards;
 
 	UTexture2D* DepthTexture = nullptr;
@@ -270,9 +275,9 @@ FArchive& operator<<(FArchive& Ar, FHairCardsDatas& CardData);
 // This structured is exposed only for debug purpose
 struct FHairCardsVoxel
 {
-	FRWBuffer	TangentBuffer;
-	FRWBuffer	NormalBuffer;
-	FRWBuffer	DensityBuffer;
+	FRDGExternalBuffer TangentBuffer;
+	FRDGExternalBuffer NormalBuffer;
+	FRDGExternalBuffer DensityBuffer;
 	FIntVector	Resolution;
 	FVector		MinBound;
 	FVector		MaxBound;
@@ -420,6 +425,8 @@ struct FHairMeshes
 
 struct FHairMeshesDatas
 {
+	bool IsValid() const { return RenderData.Positions.Num() > 0; }
+
 	FHairMeshes Meshes;
 
 	struct FRenderData

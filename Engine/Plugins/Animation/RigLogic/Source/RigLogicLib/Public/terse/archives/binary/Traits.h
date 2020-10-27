@@ -34,32 +34,62 @@ struct needs_allocator<T, typename sink<typename T::allocator_type,
 template<class>
 struct true_sink : std::true_type {};
 
+// Serializer member functions
 template<class T>
-static auto test_serialize(std::int32_t)->true_sink<decltype(std::declval<T>().serialize(std::declval<T&>()))>;
+static auto test_serialize_member(std::int32_t)->true_sink<decltype(std::declval<T>().serialize(std::declval<T&>()))>;
 
 template<class>
-static auto test_serialize(std::uint32_t)->std::false_type;
+static auto test_serialize_member(std::uint32_t)->std::false_type;
 
 template<class T>
-struct has_serialize : decltype(test_serialize<T>(0)) {};
+struct has_serialize_member : decltype(test_serialize_member<T>(0)) {};
 
 template<class T>
-static auto test_load(std::int32_t)->true_sink<decltype(std::declval<T>().load(std::declval<T&>()))>;
+static auto test_load_member(std::int32_t)->true_sink<decltype(std::declval<T>().load(std::declval<T&>()))>;
 
 template<class>
-static auto test_load(std::uint32_t)->std::false_type;
+static auto test_load_member(std::uint32_t)->std::false_type;
 
 template<class T>
-struct has_load : decltype(test_load<T>(0)) {};
+struct has_load_member : decltype(test_load_member<T>(0)) {};
 
 template<class T>
-static auto test_save(std::int32_t)->true_sink<decltype(std::declval<T>().save(std::declval<T&>()))>;
+static auto test_save_member(std::int32_t)->true_sink<decltype(std::declval<T>().save(std::declval<T&>()))>;
 
 template<class>
-static auto test_save(std::uint32_t)->std::false_type;
+static auto test_save_member(std::uint32_t)->std::false_type;
 
 template<class T>
-struct has_save : decltype(test_save<T>(0)) {};
+struct has_save_member : decltype(test_save_member<T>(0)) {};
+
+// Serializer free functions
+
+template<class T>
+static auto test_serialize_function(std::int32_t)->true_sink<decltype(serialize(std::declval<T&>(), std::declval<T&>()))>;
+
+template<class>
+static auto test_serialize_function(std::uint32_t)->std::false_type;
+
+template<class T>
+struct has_serialize_function : decltype(test_serialize_function<T>(0)) {};
+
+template<class T>
+static auto test_load_function(std::int32_t)->true_sink<decltype(load(std::declval<T&>(), std::declval<T&>()))>;
+
+template<class>
+static auto test_load_function(std::uint32_t)->std::false_type;
+
+template<class T>
+struct has_load_function : decltype(test_load_function<T>(0)) {};
+
+template<class T>
+static auto test_save_function(std::int32_t)->true_sink<decltype(save(std::declval<T&>(), std::declval<T&>()))>;
+
+template<class>
+static auto test_save_function(std::uint32_t)->std::false_type;
+
+template<class T>
+struct has_save_function : decltype(test_save_function<T>(0)) {};
 
 template<typename TContainer>
 using is_batchable = std::is_scalar<typename TContainer::value_type>;

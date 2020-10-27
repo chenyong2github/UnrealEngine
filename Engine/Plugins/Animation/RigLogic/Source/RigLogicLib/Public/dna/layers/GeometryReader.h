@@ -278,6 +278,14 @@ class DNAAPI GeometryReader : public virtual DefinitionReader {
         */
         virtual std::uint16_t getMaximumInfluencePerVertex(std::uint16_t meshIndex) const = 0;
         /**
+            @brief Number of skin weights associated with the specified mesh.
+            @param meshIndex
+                A mesh's position in the zero-indexed array of meshes.
+            @warning
+                meshIndex must be less than the value returned by getMeshCount.
+        */
+        virtual std::uint32_t getSkinWeightsCount(std::uint16_t meshIndex) const = 0;
+        /**
             @brief List of skin weights influencing the requested vertex.
             @param meshIndex
                 A mesh's position in the zero-indexed array of meshes.

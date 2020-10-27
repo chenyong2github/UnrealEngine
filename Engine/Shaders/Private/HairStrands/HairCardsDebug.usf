@@ -111,7 +111,7 @@ Buffer<uint4> SimDeformedPosition;
 float3 RestOffset;
 float3 DeformedOffset;
 Buffer<uint4> RestPosition;
-Buffer<uint4> DeformedPosition;
+Buffer<uint4> DeformedPosition; 
 
 int DebugMode;
 

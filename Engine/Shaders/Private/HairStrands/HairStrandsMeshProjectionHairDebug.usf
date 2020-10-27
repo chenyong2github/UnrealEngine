@@ -24,7 +24,7 @@ Buffer<float4>  RestPosition2Buffer;
 
 Buffer<float4>  DeformedPosition0Buffer;
 Buffer<float4>  DeformedPosition1Buffer;
-Buffer<float4>  DeformedPosition2Buffer;
+Buffer<float4>  DeformedPosition2Buffer; 
 
 void MainVS(
 	uint VertexId : SV_VertexID,

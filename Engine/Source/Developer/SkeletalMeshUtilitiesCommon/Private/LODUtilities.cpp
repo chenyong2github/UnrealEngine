@@ -45,7 +45,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogLODUtilities, Log, All);
 * @param WedgeCount - The number of wedges in the corresponding mesh.
 * @param Influences - BoneWeights and Ids for the corresponding vertices.
 */
-void FLODUtilities::ProcessImportMeshInfluences(const int32 WedgeCount, TArray<SkeletalMeshImportData::FRawBoneInfluence>& Influences)
+void FLODUtilities::ProcessImportMeshInfluences(const int32 WedgeCount, TArray<SkeletalMeshImportData::FRawBoneInfluence>& Influences, const FString& MeshName)
 {
 
 	// Sort influences by vertex index.
@@ -115,7 +115,7 @@ void FLODUtilities::ProcessImportMeshInfluences(const int32 WedgeCount, TArray<S
 	// warn about too many influences
 	if (MaxVertexInfluence > MAX_TOTAL_INFLUENCES)
 	{
-		UE_LOG(LogLODUtilities, Display, TEXT("Skeletal mesh influence count of %d exceeds max count of %d. Influence truncation will occur. Maximum Ignored Weight %f"), MaxVertexInfluence, MAX_TOTAL_INFLUENCES, MaxIgnoredWeight);
+		UE_LOG(LogLODUtilities, Display, TEXT("Skeletal mesh (%s) influence count of %d exceeds max count of %d. Influence truncation will occur. Maximum Ignored Weight %f"), *MeshName, MaxVertexInfluence, MAX_TOTAL_INFLUENCES, MaxIgnoredWeight);
 	}
 
 	for (int32 i = 0; i < Influences.Num(); i++)
@@ -169,7 +169,7 @@ void FLODUtilities::ProcessImportMeshInfluences(const int32 WedgeCount, TArray<S
 	if (Influences.Num() == 0)
 	{
 		// warn about no influences
-		UE_LOG(LogLODUtilities, Warning, TEXT("Warning skeletal mesh has no vertex influences"));
+		UE_LOG(LogLODUtilities, Warning, TEXT("Warning skeletal mesh (%s) has no vertex influences"), *MeshName);
 		// add one for each wedge entry
 		Influences.AddUninitialized(WedgeCount);
 		for (int32 WedgeIdx = 0; WedgeIdx < WedgeCount; WedgeIdx++)
@@ -2079,7 +2079,7 @@ bool FLODUtilities::UpdateAlternateSkinWeights(FSkeletalMeshLODModel& LODModelDe
 	}
 
 	//Sort and normalize weights for alternate influences
-	ProcessImportMeshInfluences(ImportDataDest.Wedges.Num(), AlternateInfluences);
+	ProcessImportMeshInfluences(ImportDataDest.Wedges.Num(), AlternateInfluences, SkeletalMeshDest->GetPathName());
 
 	//Store the remapped influence into the profile, the function SkeletalMeshTools::ChunkSkinnedVertices will use all profiles including this one to chunk the sections
 	FImportedSkinWeightProfileData& ImportedProfileData = LODModelDest.SkinWeightProfiles.Add(ProfileNameDest);

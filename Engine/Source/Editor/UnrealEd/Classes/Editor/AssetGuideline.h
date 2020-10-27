@@ -61,9 +61,11 @@ private:
 
 #if WITH_EDITOR
 public:
+	/** Begin UObject interface */
 	virtual bool IsPostLoadThreadSafe() const override;
 	virtual void PostLoad() override;
 	virtual void BeginDestroy() override;
+	/** End UObject interface */
 
 private:
 	void EnableMissingGuidelines(TArray<FString> IncorrectPlugins, TArray<FIniStringValue> IncorrectProjectSettings);

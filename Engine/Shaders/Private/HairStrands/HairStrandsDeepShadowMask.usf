@@ -54,6 +54,14 @@ RWTexture2D<float4>	OutputColor;
 SamplerState		LinearSampler;	
 SamplerState 		ShadowSampler;
 
+float4 WriteShadowMaskOutput(const float InFadedShadow)
+{
+	// Depending of if the light is direction (i.e., WholeSceneLight) or a local light (Point/Spot/Rect), 
+	// we change the output layout
+	const float EncodedShadow = EncodeLightAttenuation(InFadedShadow);
+	return float4(EncodedShadow, EncodedShadow, EncodedShadow, EncodedShadow);
+}
+
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Random functions
 
@@ -439,12 +447,9 @@ void MainPS(
 		(LightSpacePosition.x >= 0 && LightSpacePosition.x <= 1) &&
 		(LightSpacePosition.y >= 0 && LightSpacePosition.y <= 1);
 	Visibility = bIsValid ? Visibility : 1;
+	OutColor = WriteShadowMaskOutput(Visibility);
 
-	// Depending of if the light is direction (i.e., WholeSceneLight) or a local light (Point/Spot/Rect), 
-	// we change the output layout
-    OutColor = bIsWholeSceneLight ? float4(Visibility, 1, 1, 1) : float4(1, 1, Visibility, 1);
 }
-
 #endif
 
 #if PERMUTATION_OPAQUEMASK_TYPE == OPAQUE_MASK_TYPE_VIRTUAL_VOXEL
@@ -529,10 +534,7 @@ void MainPS(
 
 		Visibility = saturate(1 - Result.HairCount);
 	}
-
-	// Depending of if the light is direction (i.e., WholeSceneLight) or a local light (Point/Spot/Rect), 
-	// we change the output layout
-	OutColor = bIsWholeSceneLight ? float4(Visibility, Visibility, 1, 1) : float4(1, 1, Visibility, Visibility);
+	OutColor = WriteShadowMaskOutput(Visibility);
 }
 
 #endif

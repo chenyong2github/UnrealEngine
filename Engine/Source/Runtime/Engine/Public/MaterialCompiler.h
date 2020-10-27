@@ -381,6 +381,7 @@ public:
 	virtual int32 GetHairRoughness() = 0;
 	virtual int32 GetHairDepth() = 0;
 	virtual int32 GetHairCoverage() = 0;
+	virtual int32 GetHairAuxilaryData() = 0;
 	virtual int32 GetHairAtlasUVs() = 0;
 	virtual int32 GetHairColorFromMelanin(int32 Melanin, int32 Redness, int32 DyeColor) = 0;
 	virtual int32 CustomPrimitiveData(int32 OutputIndex, EMaterialValueType Type) = 0;
@@ -656,6 +657,7 @@ public:
 	virtual int32 GetHairRoughness() override { return Compiler->GetHairRoughness(); }
 	virtual int32 GetHairDepth() override { return Compiler->GetHairDepth(); }
 	virtual int32 GetHairCoverage() override { return Compiler->GetHairCoverage(); }
+	virtual int32 GetHairAuxilaryData() override { return Compiler->GetHairAuxilaryData(); }
 	virtual int32 GetHairAtlasUVs() override { return Compiler->GetHairAtlasUVs(); }
 	virtual int32 GetHairColorFromMelanin(int32 Melanin, int32 Redness, int32 DyeColor) override { return Compiler->GetHairColorFromMelanin(Melanin, Redness, DyeColor); }
 
