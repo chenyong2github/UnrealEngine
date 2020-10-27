@@ -3307,9 +3307,21 @@ bool UCookOnTheFlyServer::HasRecompileShaderRequests() const
 
 class FDiffModeCookServerUtils
 {
+public:
+	/**
+	 *  Mode for the linker diff test
+	 */
+	enum ELinkerDiffMode
+	{
+		LDM_None = 0,
+		LDM_Algo = 1,
+		LDM_Consistent = 2,
+	};
+
+private:
 	/** Misc / common settings */
 	bool bDiffEnabled;
-	bool bLinkerDiffEnabled;
+	ELinkerDiffMode LinkerDiffMode;
 	FString PackageFilter;
 
 	/** DumpObjList settings */
@@ -3322,10 +3334,24 @@ class FDiffModeCookServerUtils
 
 public:
 
+
 	FDiffModeCookServerUtils()
 	{
 		bDiffEnabled = FParse::Param(FCommandLine::Get(), TEXT("DIFFONLY"));
-		bLinkerDiffEnabled = FParse::Param(FCommandLine::Get(), TEXT("LINKERDIFF"));
+
+		LinkerDiffMode = LDM_None;
+		FString DiffMode;
+		if (FParse::Value(FCommandLine::Get(), TEXT("-LINKERDIFF="), DiffMode))
+		{
+			if (DiffMode == TEXT("1") || DiffMode == TEXT("algo"))
+			{
+				LinkerDiffMode = LDM_Algo;
+			}
+			else if (DiffMode == TEXT("2") || DiffMode == TEXT("consistent"))
+			{
+				LinkerDiffMode = LDM_Consistent;
+			}
+		}
 
 		bDumpObjList = false;
 		bDumpObjects = false;
@@ -3341,7 +3367,12 @@ public:
 
 	bool IsRunningCookLinkerDiff() const
 	{
-		return bLinkerDiffEnabled;
+		return LinkerDiffMode != LDM_None;
+	}
+
+	ELinkerDiffMode GetLinkerDiffMode() const
+	{
+		return LinkerDiffMode;
 	}
 
 	void ProcessPackage(UPackage* InPackage)
@@ -3670,12 +3701,24 @@ void UCookOnTheFlyServer::SaveCookedPackage(UE::Cook::FPackageData& PackageData,
 					{
 						static IConsoleVariable* EnableNewSave = IConsoleManager::Get().FindConsoleVariable(TEXT("SavePackage.EnableNewSave"));
 						bool bPreviousCvarValue = EnableNewSave->GetBool();
-						EnableNewSave->Set(!bPreviousCvarValue);
+
+						// If the linker diff is comparing the two save algo, switch the cvar to the other algo before saving again,
+						// Otherwise the linker diff mode is tracking if the save is consistent across multiple save
+						bool bAlgoLinkerDiff = DiffModeHelper.GetLinkerDiffMode() == FDiffModeCookServerUtils::LDM_Algo;
+						if (bAlgoLinkerDiff)
+						{
+							EnableNewSave->Set(!bPreviousCvarValue);
+						}
+
 						FSavePackageResultStruct NewResult = GEditor->Save(Package, World, FlagsToCook, *PlatFilename,
 							GError, nullptr, bSwap, false, SaveFlags|SAVE_DiffOnly, Target,
 							FDateTime::MinValue(), false, /*DiffMap*/ nullptr,
 							nullptr);
-						EnableNewSave->Set(bPreviousCvarValue);
+
+						if (bAlgoLinkerDiff)
+						{
+							EnableNewSave->Set(bPreviousCvarValue);
+						}
 
 						if (Result.LinkerSave && NewResult.LinkerSave)
 						{

@@ -82,6 +82,16 @@ int32 USavePackageUtilitiesCommandlet::Main(const FString& Params)
 				FDateTime::MinValue(), false, /*DiffMap*/ nullptr,
 				nullptr);
 		}
+
+		// Old Save Package
+		FSavePackageResultStruct OldResultCheck;
+		{
+			EnableNewSave->Set(0);
+			OldResultCheck = GEditor->Save(Package, Asset, SaveArgs.TopLevelFlags, *Filename,
+				GError, nullptr, false, true, SaveArgs.SaveFlags, SaveArgs.TargetPlatform,
+				FDateTime::MinValue(), false, /*DiffMap*/ nullptr,
+				nullptr);
+		}
 		EnableNewSave->Set(EnableNewSavePreviousValue);
 
 		if (OldResult.LinkerSave && NewResult.LinkerSave)
@@ -90,7 +100,15 @@ int32 USavePackageUtilitiesCommandlet::Main(const FString& Params)
 			FLinkerDiff LinkerDiff = FLinkerDiff::CompareLinkers(OldResult.LinkerSave.Get(), NewResult.LinkerSave.Get());
 			LinkerDiff.PrintDiff(*GWarn);
 		}
-		
+
+		// Add a old save against itself check to test potential byproduct, doesn't catch them all, since oftentimes byproduct are caused by the first save
+		if (OldResultCheck.LinkerSave && OldResult.LinkerSave)
+		{
+			// Compare Linker Save info
+			FLinkerDiff LinkerDiff = FLinkerDiff::CompareLinkers(OldResultCheck.LinkerSave.Get(), OldResult.LinkerSave.Get());
+			LinkerDiff.PrintDiff(*GWarn);
+		}
+
 		// Delete the temp filename
 		IFileManager::Get().Delete(*Filename);
 	}

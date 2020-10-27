@@ -575,7 +575,7 @@ private:
 	TMap<UObject*, TSet<UObject*>> ExportObjectDependencies;
 	// Map of objects to their native dependencies
 	TMap<UObject*, TSet<UObject*>> ExportNativeObjectDependencies;
-	// Set of harvested prestream packages
+	// Set of harvested prestream packages, should be deprecated, not implementated in Save2 yet
 	TSet<UPackage*> PrestreamPackages;
 	// Harvested custom versions
 	FCustomVersionContainer CustomVersions;

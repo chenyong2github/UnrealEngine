@@ -21,7 +21,9 @@ bool FSaveContext::IsUnsaveable(UObject* InObject) const
 	while (Obj)
 	{
 		// if the object class is abstract, has been marked as deprecated, there is a newer version that exist or the class is maked transient, then the object is unsaveable
-		if (Obj->GetClass()->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated | CLASS_NewerVersionExists | CLASS_Transient) && !Obj->HasAnyFlags(RF_ClassDefaultObject))
+		// @note: Although object instance of transient class should definitely be unsaveable, it results in discrepencies with the old save algorithm and currently load problems
+		if (Obj->GetClass()->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated | CLASS_NewerVersionExists /*| CLASS_Transient*/) 
+			&& !Obj->HasAnyFlags(RF_ClassDefaultObject))
 		{
 			if (!InObject->IsPendingKill() 
 				&& InObject->GetOutermost() == GetPackage()
