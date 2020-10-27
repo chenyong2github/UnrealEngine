@@ -24,6 +24,7 @@
 #include "WaterSplineMetadata.h"
 #include "WaterSplineComponent.h"
 #include "WaterRuntimeSettings.h"
+#include "WaterUtils.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "GerstnerWaterWaves.h"
 #include "WaterVersion.h"
@@ -643,6 +644,11 @@ TArray<AWaterBodyExclusionVolume*> AWaterBody::GetExclusionVolumes() const
 
 void AWaterBody::SetWaterWaves(UWaterWavesBase* InWaterWaves)
 {
+	SetWaterWavesInternal(InWaterWaves, /*bTriggerWaterBodyChanged = */true);
+}
+
+void AWaterBody::SetWaterWavesInternal(UWaterWavesBase* InWaterWaves, bool bTriggerWaterBodyChanged)
+{
 	if (InWaterWaves != WaterWaves)
 	{
 #if WITH_EDITOR
@@ -658,8 +664,17 @@ void AWaterBody::SetWaterWaves(UWaterWavesBase* InWaterWaves)
 		RequestGPUWaveDataUpdate();
 
 		// Waves data can affect the navigation: 
-		OnWaterBodyChanged(/*bShapeOrPositionChanged = */true);
+		if (bTriggerWaterBodyChanged)
+		{
+			OnWaterBodyChanged(/*bShapeOrPositionChanged = */true);
+		}
 	}
+}
+
+// Our transient MIDs are per-object and shall not survive duplicating nor be exported to text when copy-pasting : 
+EObjectFlags AWaterBody::GetTransientMIDFlags() const
+{
+	return RF_Transient | RF_NonPIEDuplicateTransient | RF_TextExportTransient;
 }
 
 void AWaterBody::OnConstruction(const FTransform& Transform)
@@ -735,15 +750,7 @@ void AWaterBody::CreateOrUpdateWaterMID()
 	// If GetWorld fails we may be in a blueprint
 	if (GetWorld())
 	{
-		if ((!WaterMID || WaterMID->Parent != WaterMaterial) && WaterMaterial)
-		{
-			static const FName WaterMIDName(TEXT("WaterMaterialInstance"));
-			WaterMID = UMaterialInstanceDynamic::Create(WaterMaterial, this, WaterMIDName);
-		}
-		else if (!WaterMaterial)
-		{
-			WaterMID = nullptr;
-		}
+		WaterMID = FWaterUtils::GetOrCreateTransientMID(WaterMID, TEXT("WaterMID"), WaterMaterial, GetTransientMIDFlags());
 
 		SetDynamicParametersOnMID(WaterMID);
 	}
@@ -754,15 +761,7 @@ void AWaterBody::CreateOrUpdateUnderwaterPostProcessMID()
 	// If GetWorld fails we may be in a blueprint
 	if (GetWorld())
 	{
-		if ((!UnderwaterPostProcessMID || UnderwaterPostProcessMID->Parent != UnderwaterPostProcessMaterial) && UnderwaterPostProcessMaterial)
-		{
-			static const FName UnderwaterPostProcessMIDName(TEXT("UnderwaterPostProcessMID"));
-			UnderwaterPostProcessMID = UMaterialInstanceDynamic::Create(UnderwaterPostProcessMaterial, this, UnderwaterPostProcessMIDName);
-		}
-		else if (!UnderwaterPostProcessMaterial)
-		{
-			UnderwaterPostProcessMID = nullptr;
-		}
+		UnderwaterPostProcessMID = FWaterUtils::GetOrCreateTransientMID(UnderwaterPostProcessMID, TEXT("UnderwaterPostProcessMID"), UnderwaterPostProcessMaterial, GetTransientMIDFlags());
 
 		SetDynamicParametersOnUnderwaterPostProcessMID(UnderwaterPostProcessMID);
 
@@ -1267,31 +1266,6 @@ void AWaterBody::PostLoad()
 		// don't call CreateOrUpdateUnderwaterPostProcessMID() just yet because we need the water mesh actor to be registerd
 	}
 
-#if WITH_EDITOR
-	RegisterOnUpdateWavesData(WaterWaves, /* bRegister = */true);
-#endif
-}
-
-void AWaterBody::PostRegisterAllComponents()
-{
-	Super::PostRegisterAllComponents();
-
-#if WITH_EDITOR
-	// Register to data changes on the spline metadata (we only do it here because WaterSplineMetadata shouldn't ever change after creation/load/duplication)
-	RegisterOnChangeWaterSplineMetadata(WaterSplineMetadata, /*bRegister = */true);
-
-	FixupOnPostRegisterAllComponents();
-
-	// make sure existing collision components are marked as net-addressable (their names should already be deterministic) :
-	TArray<UPrimitiveComponent*> LocalCollisionComponents = GetCollisionComponents();
-	for (auto It = LocalCollisionComponents.CreateIterator(); It; ++It)
-	{
-		if (UActorComponent* CollisionComponent = Cast<UActorComponent>(*It))
-		{
-			CollisionComponent->SetNetAddressable();
-		}
-	}
-
 	if (GetLinkerCustomVersion(FWaterCustomVersion::GUID) < FWaterCustomVersion::WaterBodyRefactor)
 	{
 		// Try to retrieve wave data from BP properties when it was defined in BP : 
@@ -1315,9 +1289,9 @@ void AWaterBody::PostRegisterAllComponents()
 					void* OldPropertyOnWaveSpectrumSettings = OldWaveStructProperty->ContainerPtrToValuePtr<void>(this);
 					UGerstnerWaterWaves* GerstnerWaves = NewObject<UGerstnerWaterWaves>(this, MakeUniqueObjectName(this, UGerstnerWaterWaves::StaticClass(), TEXT("GestnerWaterWaves")));
 					UClass* NewGerstnerClass = UGerstnerWaterWaveGeneratorSimple::StaticClass();
-					UGerstnerWaterWaveGeneratorSimple* GerstnerWavesGenerator = NewObject<UGerstnerWaterWaveGeneratorSimple>(this, MakeUniqueObjectName(this, UGerstnerWaterWaveGeneratorSimple::StaticClass(), TEXT("GestnerWaterWavesGenerator")));
+					UGerstnerWaterWaveGeneratorSimple* GerstnerWavesGenerator = NewObject<UGerstnerWaterWaveGeneratorSimple>(this, MakeUniqueObjectName(this, NewGerstnerClass, TEXT("GestnerWaterWavesGenerator")));
 					GerstnerWaves->GerstnerWaveGenerator = GerstnerWavesGenerator;
-					SetWaterWaves(GerstnerWaves);
+					SetWaterWavesInternal(GerstnerWaves, /*bTriggerWaterBodyChanged = */false); // we're in PostLoad, we don't want to send the water body changed event as it might re-enter into BP script
 
 					for (FProperty* NewProperty = NewGerstnerClass->PropertyLink; NewProperty != nullptr; NewProperty = NewProperty->PropertyLinkNext)
 					{
@@ -1357,7 +1331,7 @@ void AWaterBody::PostRegisterAllComponents()
 		{
 			if (UGerstnerWaterWaves* GerstnerWaterWaves = Cast<UGerstnerWaterWaves>(WaterWaves->GetWaterWaves()))
 			{
-				GerstnerWaterWaves->RecomputeWaves(/*bAllowBPScript = */true);
+				GerstnerWaterWaves->RecomputeWaves(/*bAllowBPScript = */false); // We're in PostLoad, don't let BP script run, this is forbidden
 			}
 		}
 	}
@@ -1369,6 +1343,31 @@ void AWaterBody::PostRegisterAllComponents()
 
 		// TerrainCarvingSettings has been deprecated, we don't need to do it anymore, ever: 
 		bHasTerrainCarvingSettingsSettings_DEPRECATED = false;
+	}
+
+#if WITH_EDITOR
+	RegisterOnUpdateWavesData(WaterWaves, /* bRegister = */true);
+#endif
+}
+
+void AWaterBody::PostRegisterAllComponents()
+{
+	Super::PostRegisterAllComponents();
+
+#if WITH_EDITOR
+	// Register to data changes on the spline metadata (we only do it here because WaterSplineMetadata shouldn't ever change after creation/load/duplication)
+	RegisterOnChangeWaterSplineMetadata(WaterSplineMetadata, /*bRegister = */true);
+
+	FixupOnPostRegisterAllComponents();
+
+	// Make sure existing collision components are marked as net-addressable (their names should already be deterministic) :
+	TArray<UPrimitiveComponent*> LocalCollisionComponents = GetCollisionComponents();
+	for (auto It = LocalCollisionComponents.CreateIterator(); It; ++It)
+	{
+		if (UActorComponent* CollisionComponent = Cast<UActorComponent>(*It))
+		{
+			CollisionComponent->SetNetAddressable();
+		}
 	}
 #endif // WITH_EDITOR
 
