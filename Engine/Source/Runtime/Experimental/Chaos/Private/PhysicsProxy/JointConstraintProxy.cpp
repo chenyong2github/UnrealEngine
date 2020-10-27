@@ -71,7 +71,7 @@ void TJointConstraintProxy<Chaos::FJointConstraint>::BufferPhysicsResults()
 		if (Handle != nullptr && Handle->IsValid())
 		{
 			FOutputData* Buffer = OutputBuffer->AccessProducerBuffer();
-			Buffer->bIsBroken = Handle->IsConstraintEnabled();
+			Buffer->bIsBroken = !Handle->IsConstraintEnabled();
 			Buffer->Force = Handle->GetLinearImpulse();
 			Buffer->Torque = Handle->GetAngularImpulse();
 		}
