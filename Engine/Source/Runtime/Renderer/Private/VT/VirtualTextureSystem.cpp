@@ -974,7 +974,7 @@ void FVirtualTextureSystem::Update(FRHICommandListImmediate& RHICmdList, ERHIFea
 		{
 			if (AdaptiveVTs[ID])
 			{
-				AdaptiveVTs[ID]->UpdateAllocations(this, Frame);
+				AdaptiveVTs[ID]->UpdateAllocations(this, RHICmdList, Frame);
 			}
 		}
 	}
