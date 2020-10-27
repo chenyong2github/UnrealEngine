@@ -525,21 +525,6 @@ FWorldPartitionActorDesc* UWorldPartition::GetActorDesc(const FGuid& Guid)
 	return ActorDescObj != nullptr ? ActorDescObj->Get() : nullptr;
 }
 
-void UWorldPartition::RefreshLoadedCells()
-{
-	FWorldPartionCellUpdateContext CellUpdateContext(this);
-
-	UpdateLoadingEditorCell(EditorHash->GetAlwaysLoadedCell(), true);
-
-	EditorHash->ForEachCell([&](UWorldPartitionEditorCell* Cell)
-	{
-		if (Cell->bLoaded)
-		{
-			UpdateLoadingEditorCell(Cell, true);
-		}
-	});
-}
-
 bool UWorldPartition::IsSimulating() const
 {
 	return GEditor->bIsSimulatingInEditor || !!GEditor->PlayWorld;

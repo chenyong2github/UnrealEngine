@@ -207,8 +207,6 @@ private:
 	void UpdateLoadingEditorCell(UWorldPartitionEditorCell* Cell, bool bShouldBeLoaded);
 	void CreateLayers(const TSet<FName>& LayerNames);
 
-	void RefreshLoadedCells();
-
 	void HashActorDesc(FWorldPartitionActorDesc* ActorDesc);
 	void UnhashActorDesc(FWorldPartitionActorDesc* ActorDesc);
 #endif
