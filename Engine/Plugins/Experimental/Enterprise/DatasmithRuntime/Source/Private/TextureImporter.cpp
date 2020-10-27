@@ -192,7 +192,7 @@ namespace DatasmithRuntime
 			{
 				FAssetRegistry::UnregisteredAssetsData(THelper, SceneKey, [](FAssetData& AssetData) -> void
 					{
-						AssetData.AddState(EDatasmithRuntimeAssetState::Completed);
+						AssetData.AddState(EAssetState::Completed);
 						AssetData.Object.Reset();
 					});
 			}
@@ -242,7 +242,7 @@ namespace DatasmithRuntime
 		{
 			FAssetRegistry::UnregisteredAssetsData(THelper, SceneKey, [this](FAssetData& AssetData) -> void
 				{
-					AssetData.AddState(EDatasmithRuntimeAssetState::Completed);
+					AssetData.AddState(EAssetState::Completed);
 					AssetData.Object.Reset();
 				});
 		}
@@ -302,7 +302,7 @@ namespace DatasmithRuntime
 
 		if (bSuccessfulLoad)
 		{
-			TasksToComplete |= EDatasmithRuntimeWorkerTask::TextureAssign;
+			TasksToComplete |= EWorkerTask::TextureAssign;
 		}
 
 		return true;
@@ -321,7 +321,14 @@ namespace DatasmithRuntime
 		FAssetData& AssetData = AssetDataList[TextureId];
 		FTextureData& TextureData = TextureDataList[TextureId];
 
-		if (AssetData.HasState(EDatasmithRuntimeAssetState::Processed))
+		// Clear PendingDelete flag if it is set. Something is wrong. Better safe than sorry
+		if (AssetData.HasState(EAssetState::PendingDelete))
+		{
+			AssetData.ClearState(EAssetState::PendingDelete);
+			UE_LOG(LogDatasmithRuntime, Warning, TEXT("A texture marked for deletion is actually used by the scene"));
+		}
+
+		if (AssetData.HasState(EAssetState::Processed))
 		{
 			return;
 		}
@@ -332,7 +339,7 @@ namespace DatasmithRuntime
 
 		if (UObject* Asset = FAssetRegistry::FindObjectFromHash(TextureHash))
 		{
-			AssetData.SetState(EDatasmithRuntimeAssetState::Processed);
+			AssetData.SetState(EAssetState::Processed);
 
 			AssetData.Hash = TextureHash;
 			AssetData.Object = TWeakObjectPtr<UObject>(Asset);
@@ -346,7 +353,7 @@ namespace DatasmithRuntime
 
 		if (UObject* Asset = FAssetRegistry::FindObjectFromHash(AssetData.Hash))
 		{
-			AssetData.SetState(EDatasmithRuntimeAssetState::Processed);
+			AssetData.SetState(EAssetState::Processed);
 
 			AssetData.Object = TWeakObjectPtr<UObject>(Asset);
 
@@ -377,14 +384,14 @@ namespace DatasmithRuntime
 		};
 
 		AddToQueue(TEXTURE_QUEUE, { LoadTaskFunc, {EDataType::Texture, TextureId, 0 } });
-		TasksToComplete |= EDatasmithRuntimeWorkerTask::TextureLoad;
+		TasksToComplete |= EWorkerTask::TextureLoad;
 
 		// Create texture helper to leverage registration mechanism
 		UDatasmithRuntimeTHelper* TextureHelper = NewObject< UDatasmithRuntimeTHelper >();
 
 		AssetData.Object = TWeakObjectPtr<UObject>(TextureHelper);
 
-		AssetData.SetState(EDatasmithRuntimeAssetState::Processed);
+		AssetData.SetState(EAssetState::Processed);
 
 		FAssetRegistry::RegisterAssetData(TextureHelper, SceneKey, AssetData);
 
