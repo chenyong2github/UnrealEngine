@@ -69,11 +69,22 @@ void FDMXProtocolSACNReceivingRunnable::GameThread_InputDMXFragment(uint16 Unive
 
 	for (const TPair<uint32, uint8>& ChannelValue : DMXFragment)
 	{
-		Channels[ChannelValue.Key] = ChannelValue.Value;
+		Channels[ChannelValue.Key - 1] = ChannelValue.Value;
 	}
 
-	double TimeStamp = FPlatformTime::Seconds();
-	GameThreadOnlyBuffer.FindOrAdd(UniverseID) = MakeShared<FDMXSignal>(FApp::GetTimecode(), UniverseID, Channels);
+	TSharedPtr<FDMXSignal>* ExistingSignalPtr = GameThreadOnlyBuffer.Find(UniverseID);
+	if (ExistingSignalPtr)
+	{
+		// Copy fragments into existing
+		for (const TPair<uint32, uint8>& ChannelValue : DMXFragment)
+		{
+			(*ExistingSignalPtr)->ChannelData[ChannelValue.Key - 1] = ChannelValue.Value;
+		}
+	}
+	else
+	{
+		GameThreadOnlyBuffer.Add(UniverseID, MakeShared<FDMXSignal>(FApp::GetTimecode(), UniverseID, Channels));
+	}
 }
 
 void FDMXProtocolSACNReceivingRunnable::SetRefreshRate(uint32 NewReceivingRefreshRate)
