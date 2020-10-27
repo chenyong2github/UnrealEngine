@@ -642,19 +642,26 @@ TArray< UE::FUsdPrim > UsdUtils::GetAllPrimsOfType( const UE::FUsdPrim& StartPri
 	return GetAllPrimsOfType( StartPrim, SchemaName, []( const UE::FUsdPrim& ) { return false; } );
 }
 
-TArray< UE::FUsdPrim > UsdUtils::GetAllPrimsOfType( const UE::FUsdPrim& StartPrim, const TCHAR* SchemaName, TFunction< bool( const UE::FUsdPrim& ) > PruneChildren )
+TArray< UE::FUsdPrim > UsdUtils::GetAllPrimsOfType( const UE::FUsdPrim& StartPrim, const TCHAR* SchemaName, TFunction< bool( const UE::FUsdPrim& ) > PruneChildren, const TArray<const TCHAR*>& ExcludeSchemaNames )
 {
 	TArray< UE::FUsdPrim > Result;
 
 #if USE_USD_SDK
 	const pxr::TfType SchemaType = pxr::TfType::FindByName( TCHAR_TO_ANSI( SchemaName ) );
 
+	TArray< TUsdStore< pxr::TfType > > ExcludeSchemaTypes;
+	ExcludeSchemaTypes.Reserve( ExcludeSchemaNames.Num() );
+	for ( const TCHAR* ExcludeSchemaName : ExcludeSchemaNames )
+	{
+		ExcludeSchemaTypes.Add( pxr::TfType( pxr::TfType::FindByName( TCHAR_TO_ANSI( ExcludeSchemaName ) ) ) );
+	}
+
 	auto UsdPruneChildren = [ &PruneChildren ]( const pxr::UsdPrim& ChildPrim ) -> bool
 	{
 		return PruneChildren( UE::FUsdPrim( ChildPrim ) );
 	};
 
-	TArray< TUsdStore< pxr::UsdPrim > > UsdResult = GetAllPrimsOfType( StartPrim, SchemaType, UsdPruneChildren );
+	TArray< TUsdStore< pxr::UsdPrim > > UsdResult = GetAllPrimsOfType( StartPrim, SchemaType, UsdPruneChildren, ExcludeSchemaTypes );
 
 	for ( const TUsdStore< pxr::UsdPrim >& Prim : UsdResult )
 	{
