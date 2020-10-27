@@ -4,6 +4,7 @@
 
 #include "Containers/UnrealString.h"
 #include "Misc/AutomationTest.h"
+#include "Misc/StringBuilder.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -18,6 +19,14 @@ static_assert(TIsSame<FWideStringView, TStringView<WIDECHAR>>::Value, "FWideStri
 static_assert(TIsContiguousContainer<FStringView>::Value, "FStringView must be a contiguous container.");
 static_assert(TIsContiguousContainer<FAnsiStringView>::Value, "FAnsiStringView must be a contiguous container.");
 static_assert(TIsContiguousContainer<FWideStringView>::Value, "FWideStringView must be a contiguous container.");
+
+static_assert(StringViewPrivate::TIsConvertibleToStringView<FString>::Value, "FString must be convertible to FStringView.");
+static_assert(StringViewPrivate::TIsConvertibleToStringView<FAnsiStringBuilderBase>::Value, "FAnsiStringBuilderBase must be convertible to FAnsiStringView.");
+static_assert(StringViewPrivate::TIsConvertibleToStringView<FWideStringBuilderBase>::Value, "FWideStringBuilderBase must be convertible to FWideStringView.");
+
+static_assert(TIsSame<FStringView, typename StringViewPrivate::TCompatibleStringViewType<FString>::Type>::Value, "FString must be convertible to FStringView.");
+static_assert(TIsSame<FAnsiStringView, typename StringViewPrivate::TCompatibleStringViewType<FAnsiStringBuilderBase>::Type>::Value, "FAnsiStringBuilderBase must be convertible to FAnsiStringView.");
+static_assert(TIsSame<FWideStringView, typename StringViewPrivate::TCompatibleStringViewType<FWideStringBuilderBase>::Type>::Value, "FWideStringBuilderBase must be convertible to FWideStringView.");
 
 #define TEST_NAME_ROOT "System.Core.StringView"
 constexpr const uint32 TestFlags = EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter;
@@ -273,6 +282,14 @@ bool FStringViewTestEquality::RunTest(const FString& Parameters)
 	TestFalse(TEXT("Equality(92)"), AnsiViewUpper.Equals(WideStringLiteralSrc, ESearchCase::CaseSensitive));
 	TestTrue(TEXT("Equality(93)"), AnsiViewUpper.Equals(WideStringLiteralSrc, ESearchCase::IgnoreCase));
 
+	// Test types convertible to a string view
+	static_assert(TIsSame<bool, decltype(FAnsiStringView().Equals(FString()))>::Value, "Error with Equals");
+	static_assert(TIsSame<bool, decltype(FWideStringView().Equals(FString()))>::Value, "Error with Equals");
+	static_assert(TIsSame<bool, decltype(FAnsiStringView().Equals(TAnsiStringBuilder<16>()))>::Value, "Error with Equals");
+	static_assert(TIsSame<bool, decltype(FAnsiStringView().Equals(TWideStringBuilder<16>()))>::Value, "Error with Equals");
+	static_assert(TIsSame<bool, decltype(FWideStringView().Equals(TAnsiStringBuilder<16>()))>::Value, "Error with Equals");
+	static_assert(TIsSame<bool, decltype(FWideStringView().Equals(TWideStringBuilder<16>()))>::Value, "Error with Equals");
+
 	return true;
 }
 
@@ -339,6 +356,14 @@ bool FStringViewTestComparisonCaseSensitive::RunTest(const FString& Parameters)
 		TestTrue(TEXT("ComparisonCaseInsensitive(17)"), ViewShortLower.Compare(AnsiStringLiteralUpper, ESearchCase::CaseSensitive) > 0);
 		TestTrue(TEXT("ComparisonCaseInsensitive(18)"), ViewLongUpper.Compare(WideStringLiteralLowerShort, ESearchCase::CaseSensitive) < 0);
 	}
+
+	// Test types convertible to a string view
+	static_assert(TIsSame<int32, decltype(FAnsiStringView().Compare(FString()))>::Value, "Error with Compare");
+	static_assert(TIsSame<int32, decltype(FWideStringView().Compare(FString()))>::Value, "Error with Compare");
+	static_assert(TIsSame<int32, decltype(FAnsiStringView().Compare(TAnsiStringBuilder<16>()))>::Value, "Error with Compare");
+	static_assert(TIsSame<int32, decltype(FAnsiStringView().Compare(TWideStringBuilder<16>()))>::Value, "Error with Compare");
+	static_assert(TIsSame<int32, decltype(FWideStringView().Compare(TAnsiStringBuilder<16>()))>::Value, "Error with Compare");
+	static_assert(TIsSame<int32, decltype(FWideStringView().Compare(TWideStringBuilder<16>()))>::Value, "Error with Compare");
 
 	return true;
 }
