@@ -1234,6 +1234,11 @@ int32 UGroomComponent::GetCurrentSyncLOD() const
 
 void UGroomComponent::SetBinding(UGroomBindingAsset* InBinding)
 {
+	SetBindingAsset(InBinding);
+}
+
+void UGroomComponent::SetBindingAsset(UGroomBindingAsset* InBinding)
+{
 	if (BindingAsset != InBinding)
 	{
 		const bool bIsValid = InBinding != nullptr ? UGroomBindingAsset::IsBindingAssetValid(BindingAsset, false, bValidationEnable) : true;
