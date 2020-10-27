@@ -182,6 +182,10 @@ UGroomBindingAsset* FHairStrandsCore::CreateGroomBindingAsset(const FString& InP
 		Suffix += TEXT("_Binding");
 		HairStrandsCore_AssetHelper.CreateFilename(GroomAsset->GetOutermost()->GetName(), Suffix, PackageName, Name);		
 	}
+	else
+	{
+		HairStrandsCore_AssetHelper.CreateFilename(InPackageName, TEXT(""), PackageName, Name);
+	}
 
 	UPackage* Package = Cast<UPackage>(InParent);
 	if (InParent == nullptr && !PackageName.IsEmpty())
