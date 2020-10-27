@@ -108,7 +108,7 @@ namespace
 
 	TAutoConsoleVariable<int32> CVarSSSBurleyEnableProfileIdCache(
 		TEXT("r.SSS.Burley.EnableProfileIdCache"),
-		1,
+		0,
 		TEXT("0: Disable profile id cache using in the sampling pass.\n")
 		TEXT("1: Consumes 1 byte per pixel more memory to make Burley pass much faster. (default)\n"),
 		ECVF_RenderThreadSafe);
@@ -286,7 +286,8 @@ bool IsSubsurfaceRequiredForView(const FViewInfo& View)
 
 bool IsProfileIdCacheEnabled()
 {
-	return CVarSSSBurleyEnableProfileIdCache.GetValueOnRenderThread() != 0;
+	// Had to disable this at the last minute, because it uses an R8 UAV which isn't supported on all platforms. Will enable it in a later revision.
+	return 0 && CVarSSSBurleyEnableProfileIdCache.GetValueOnRenderThread() != 0;
 }
 
 uint32 GetSubsurfaceRequiredViewMask(TArrayView<const FViewInfo> Views)
@@ -861,6 +862,7 @@ void AddSubsurfaceViewPass(
 		// profile cache to accelerate sampling
 		if (bUseProfileIdCache)
 		{
+			// This path was designed to get used when r.SSS.Burley.EnableProfileIdCache is true, but we had to disable this path because R8 UAVs are not supported on all platforms. 
 			ProfileIdTexture = GraphBuilder.CreateTexture(ProfileIdTextureDescriptor, TEXT("ProfileIdTexture"));
 		}
 		else
