@@ -97,9 +97,6 @@ public:
 			}
 		}
 
-		GLog->Log(TEXT("LogFileOpenOrder"), ELogVerbosity::Log, FString::Printf(TEXT("FOO log base path set to %s"),
-			*OutputDirectoryBase));
-
 		if (FParse::Value(CommandLineParam, TEXT("TARGETPLATFORM="), PlatformStr))
 		{
 			TArray<FString> PlatformNames;
