@@ -7,7 +7,6 @@
 #include "AudioMixerDevice.h"
 #include "Engine/GameInstance.h"
 
-// TODO: Don't access clock manager directly, go through the subsystem
 
 UQuartzClockHandle::UQuartzClockHandle()
 {
@@ -22,20 +21,27 @@ void UQuartzClockHandle::BeginDestroy()
 {
 	Super::BeginDestroy();
 
-	if (CommandQueuePtr.IsValid())
-	{
-		CommandQueuePtr->StopTakingCommands();
-		CommandQueuePtr.Reset();
-	}
-
+	// un-subscribe from Subsystem tick and metronome events
 	if (QuartzSubsystem)
 	{
 		QuartzSubsystem->UnsubscribeFromQuartzTick(this);
 
 		if (WorldPtr)
 		{
-			QuartzSubsystem->UnsubscribeFromAllTimeDivisionsInternal(WorldPtr, *this);
+			Audio::FQuartzClockManager* ClockManager = QuartzSubsystem->GetClockManager(WorldPtr);
+
+			if (ClockManager)
+			{
+				ClockManager->UnsubscribeFromAllTimeDivisions(CurrentClockId, GetCommandQueue());
+			}
 		}
+	}
+
+	// shutdown the shared command queue
+	if (CommandQueuePtr.IsValid())
+	{
+		CommandQueuePtr->StopTakingCommands();
+		CommandQueuePtr.Reset();
 	}
 }
 
@@ -54,28 +60,223 @@ UQuartzClockHandle* UQuartzClockHandle::Init(UWorld* InWorldPtr)
 	return this;
 }
 
-void UQuartzClockHandle::SubscribeToQuantizationEvent(EQuartzCommandQuantization InQuantizationBoundary, const FOnQuartzMetronomeEventBP& OnQuantizationEvent)
+void UQuartzClockHandle::PauseClock(const UObject* WorldContextObject)
 {
-	if (!OnQuantizationEvent.IsBound())
+	if (QuartzSubsystem)
 	{
-		return;
+		Audio::FQuartzClockManager* ClockManager = QuartzSubsystem->GetClockManager(WorldContextObject);
+		if (ClockManager)
+		{
+			ClockManager->PauseClock(CurrentClockId);
+		}
 	}
-
-	MetronomeDelegates[static_cast<int32>(InQuantizationBoundary)].MulticastDelegate.AddUnique(OnQuantizationEvent);
 }
 
-void UQuartzClockHandle::SubscribeToAllQuantizationEvents(const FOnQuartzMetronomeEventBP& OnQuantizationEvent)
+// Begin BP interface
+void UQuartzClockHandle::ResumeClock(const UObject* WorldContextObject)
 {
-	if (!OnQuantizationEvent.IsBound())
+	if (QuartzSubsystem)
 	{
-		return;
-	}
+		Audio::FQuartzClockManager* ClockManager = QuartzSubsystem->GetClockManager(WorldContextObject);
 
-	for (int32 i = 0; i < static_cast<int32>(EQuartzCommandQuantization::Count) - 1; ++i)
-	{
-		MetronomeDelegates[i].MulticastDelegate.AddUnique(OnQuantizationEvent);
+		if (ClockManager)
+		{
+			ClockManager->ResumeClock(CurrentClockId);
+		}
 	}
 }
+
+void UQuartzClockHandle::ResetTransport(const UObject* WorldContextObject, const FOnQuartzCommandEventBP& InDelegate)
+{
+	if (QuartzSubsystem != nullptr)
+	{
+		Audio::FQuartzQuantizedCommandInitInfo Data(QuartzSubsystem->CreateDataForTransportReset(this, InDelegate));
+		QuartzSubsystem->AddCommandToClock(WorldContextObject, Data);
+	}
+}
+
+void UQuartzClockHandle::SubscribeToQuantizationEvent(const UObject* WorldContextObject, EQuartzCommandQuantization InQuantizationBoundary, const FOnQuartzMetronomeEventBP& OnQuantizationEvent)
+{
+	if (QuartzSubsystem)
+	{
+		Audio::FQuartzClockManager* ClockManager = QuartzSubsystem->GetClockManager(WorldContextObject);
+		if (ClockManager && ClockManager->DoesClockExist(CurrentClockId) && OnQuantizationEvent.IsBound())
+		{
+			MetronomeDelegates[static_cast<int32>(InQuantizationBoundary)].MulticastDelegate.AddUnique(OnQuantizationEvent);
+			ClockManager->SubscribeToTimeDivision(CurrentClockId, GetCommandQueue(), InQuantizationBoundary);
+		}
+	}
+}
+
+void UQuartzClockHandle::SubscribeToAllQuantizationEvents(const UObject* WorldContextObject, const FOnQuartzMetronomeEventBP& OnQuantizationEvent)
+{
+	if (QuartzSubsystem)
+	{
+		Audio::FQuartzClockManager* ClockManager = QuartzSubsystem->GetClockManager(WorldContextObject);
+		if (ClockManager && ClockManager->DoesClockExist(CurrentClockId) && OnQuantizationEvent.IsBound())
+		{
+			for (int32 i = 0; i < static_cast<int32>(EQuartzCommandQuantization::Count) - 1; ++i)
+			{
+				MetronomeDelegates[i].MulticastDelegate.AddUnique(OnQuantizationEvent);
+			}
+
+			ClockManager->SubscribeToAllTimeDivisions(CurrentClockId, GetCommandQueue());
+		}
+	}
+}
+
+void UQuartzClockHandle::UnsubscribeFromTimeDivision(const UObject* WorldContextObject, EQuartzCommandQuantization InQuantizationBoundary)
+{
+	if (QuartzSubsystem)
+	{
+		Audio::FQuartzClockManager* ClockManager = QuartzSubsystem->GetClockManager(WorldContextObject);
+		if (ClockManager && ClockManager->DoesClockExist(CurrentClockId))
+		{
+			ClockManager->UnsubscribeFromTimeDivision(CurrentClockId, GetCommandQueue(), InQuantizationBoundary);
+		}
+	}
+}
+
+void UQuartzClockHandle::UnsubscribeFromAllTimeDivisions(const UObject* WorldContextObject)
+{
+	if (QuartzSubsystem)
+	{
+		Audio::FQuartzClockManager* ClockManager = QuartzSubsystem->GetClockManager(WorldContextObject);
+		if (ClockManager && ClockManager->DoesClockExist(CurrentClockId))
+		{
+			ClockManager->UnsubscribeFromAllTimeDivisions(CurrentClockId, GetCommandQueue());
+		}
+	}
+}
+
+// Metronome Alteration (setters)
+void UQuartzClockHandle::SetMillisecondsPerTick(const UObject* WorldContextObject, float MillisecondsPerTick, const FQuartzQuantizationBoundary& InQuantizationBoundary, const FOnQuartzCommandEventBP& InDelegate)
+{
+	if (QuartzSubsystem)
+	{
+		Audio::FQuartzClockTickRate TickRate;
+		TickRate.SetMillisecondsPerTick(MillisecondsPerTick);
+
+		Audio::FQuartzQuantizedCommandInitInfo Data(QuartzSubsystem->CreateDataForTickRateChange(this, InDelegate, TickRate, InQuantizationBoundary));
+		QuartzSubsystem->AddCommandToClock(WorldContextObject, Data);
+	}
+}
+
+void UQuartzClockHandle::SetTicksPerSecond(const UObject* WorldContextObject, float TicksPerSecond, const FQuartzQuantizationBoundary& InQuantizationBoundary, const FOnQuartzCommandEventBP& InDelegate)
+{
+	if (QuartzSubsystem)
+	{
+		Audio::FQuartzClockTickRate TickRate;
+		TickRate.SetSecondsPerTick(1.f / TicksPerSecond);
+
+		Audio::FQuartzQuantizedCommandInitInfo Data(QuartzSubsystem->CreateDataForTickRateChange(this, InDelegate, TickRate, InQuantizationBoundary));
+		QuartzSubsystem->AddCommandToClock(WorldContextObject, Data);
+	}
+}
+
+void UQuartzClockHandle::SetSecondsPerTick(const UObject* WorldContextObject, float SecondsPerTick, const FQuartzQuantizationBoundary& InQuantizationBoundary, const FOnQuartzCommandEventBP& InDelegate)
+{
+	if (QuartzSubsystem)
+	{
+		Audio::FQuartzClockTickRate TickRate;
+		TickRate.SetSecondsPerTick(SecondsPerTick);
+
+		Audio::FQuartzQuantizedCommandInitInfo Data(QuartzSubsystem->CreateDataForTickRateChange(this, InDelegate, TickRate, InQuantizationBoundary));
+		QuartzSubsystem->AddCommandToClock(WorldContextObject, Data);
+	}
+}
+
+void UQuartzClockHandle::SetThirtySecondNotesPerMinute(const UObject* WorldContextObject, float ThirtySecondsNotesPerMinute, const FQuartzQuantizationBoundary& InQuantizationBoundary, const FOnQuartzCommandEventBP& InDelegate)
+{
+	if (QuartzSubsystem)
+	{
+		Audio::FQuartzClockTickRate TickRate;
+		TickRate.SetThirtySecondNotesPerMinute(ThirtySecondsNotesPerMinute);
+
+		Audio::FQuartzQuantizedCommandInitInfo Data(QuartzSubsystem->CreateDataForTickRateChange(this, InDelegate, TickRate, InQuantizationBoundary));
+		QuartzSubsystem->AddCommandToClock(WorldContextObject, Data);
+	}
+}
+
+void UQuartzClockHandle::SetBeatsPerMinute(const UObject* WorldContextObject, float BeatsPerMinute, const FQuartzQuantizationBoundary& InQuantizationBoundary, const FOnQuartzCommandEventBP& InDelegate)
+{
+	if (QuartzSubsystem)
+	{
+		Audio::FQuartzClockTickRate TickRate;
+		TickRate.SetBeatsPerMinute(BeatsPerMinute);
+
+		Audio::FQuartzQuantizedCommandInitInfo Data(QuartzSubsystem->CreateDataForTickRateChange(this, InDelegate, TickRate, InQuantizationBoundary));
+		QuartzSubsystem->AddCommandToClock(WorldContextObject, Data);
+	}
+}
+
+// Metronome getters
+float UQuartzClockHandle::GetMillisecondsPerTick(const UObject* WorldContextObject) const
+{
+	Audio::FQuartzClockTickRate OutTickRate;
+
+	if (GetCurrentTickRate(WorldContextObject, OutTickRate))
+	{
+		return OutTickRate.GetMillisecondsPerTick();
+	}
+
+	return 0.f;
+}
+
+float UQuartzClockHandle::GetTicksPerSecond(const UObject* WorldContextObject) const
+{
+	Audio::FQuartzClockTickRate OutTickRate;
+
+	if (GetCurrentTickRate(WorldContextObject, OutTickRate))
+	{
+		const float SecondsPerTick = OutTickRate.GetSecondsPerTick();
+		
+		if (!FMath::IsNearlyZero(SecondsPerTick))
+		{
+			return 1.f / SecondsPerTick;
+		}
+	}
+
+	return 0.f;
+}
+
+float UQuartzClockHandle::GetSecondsPerTick(const UObject* WorldContextObject) const
+{
+	Audio::FQuartzClockTickRate OutTickRate;
+
+	if (GetCurrentTickRate(WorldContextObject, OutTickRate))
+	{
+		return OutTickRate.GetSecondsPerTick();
+	}
+
+	return 0.f;
+}
+
+float UQuartzClockHandle::GetThirtySecondNotesPerMinute(const UObject* WorldContextObject) const
+{
+	Audio::FQuartzClockTickRate OutTickRate;
+
+	if (GetCurrentTickRate(WorldContextObject, OutTickRate))
+	{
+		return OutTickRate.GetThirtySecondNotesPerMinute();
+	}
+
+	return 0.f;
+}
+
+float UQuartzClockHandle::GetBeatsPerMinute(const UObject* WorldContextObject) const
+{
+	Audio::FQuartzClockTickRate OutTickRate;
+
+	if (GetCurrentTickRate(WorldContextObject, OutTickRate))
+	{
+		return OutTickRate.GetBeatsPerMinute();
+	}
+
+	return 0.f;
+}
+// End BP interface
+
 
 UQuartzClockHandle* UQuartzClockHandle::SubscribeToClock(const UObject* WorldContextObject, FName ClockName)
 {
@@ -135,6 +336,24 @@ void UQuartzClockHandle::PumpCommandQueue()
 	{
 		Command(this);
 	}
+}
+
+// returns true if OutTickRate is valid and was updated
+bool UQuartzClockHandle::GetCurrentTickRate(const UObject* WorldContextObject, Audio::FQuartzClockTickRate& OutTickRate) const
+{
+	if (QuartzSubsystem)
+	{
+		Audio::FQuartzClockManager* ClockManager = QuartzSubsystem->GetClockManager(WorldContextObject);
+
+		if (ClockManager)
+		{
+			OutTickRate = ClockManager->GetTickRateForClock(CurrentClockId);
+			return true;
+		}
+	}
+
+	OutTickRate = {};
+	return false;
 }
 
 void UQuartzClockHandle::ProcessCommand(Audio::FQuartzQuantizedCommandDelegateData Data)
