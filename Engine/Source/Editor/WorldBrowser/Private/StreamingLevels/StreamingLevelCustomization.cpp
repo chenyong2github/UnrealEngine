@@ -216,6 +216,11 @@ bool FStreamingLevelCustomization::OnShouldSetEditorStreamingVolume(const FAsset
 
 		return bIsInPersistentLevel && bIsUnique;
 	}
+	else if (!AssetData.IsValid())
+	{
+		// Allow clear
+		return true;
+	}
 
 	return false;
 }
