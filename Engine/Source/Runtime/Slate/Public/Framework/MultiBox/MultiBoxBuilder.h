@@ -470,8 +470,9 @@ public:
 	 * @param	InWidget				The widget that should be shown in the toolbar
 	 * @param	InTutorialHighlightName	Name to identify this widget and highlight during tutorials
 	 * @param	bSearchable			If true, widget will be searchable (default == true)
+	 * @param	Alignment			Horizontal alignment for the widget inside the toolbar
 	 */
-	void AddWidget(TSharedRef<SWidget> InWidget, FName InTutorialHighlightName = NAME_None, bool bSearchable = true);
+	void AddWidget(TSharedRef<SWidget> InWidget, FName InTutorialHighlightName = NAME_None, bool bSearchable = true, EHorizontalAlignment Alignment = HAlign_Fill);
 	
 	/**
 	 * Adds a toolbar separator
@@ -505,7 +506,6 @@ public:
 	 * The override will be used for any added blocks until EndStyleOverride is called
 	 */
 	void BeginStyleOverride(FName StyleOverrideName);
-
 	void EndStyleOverride();
 protected:
 

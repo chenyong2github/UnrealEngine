@@ -23,7 +23,7 @@ public:
 	 * @param	InLabel		Optional label text to be added to the left of the content
 	 * @param	bInNoIndent	If true, removes the padding from the left of the widget that lines it up with other menu items
 	 */
-	FWidgetBlock( TSharedRef<SWidget> InContent, const FText& InLabel, bool bInNoIndent );
+	FWidgetBlock(TSharedRef<SWidget> InContent, const FText& InLabel, bool bInNoIndent, EHorizontalAlignment InHorizontalAlignment = HAlign_Fill);
 
 	/** FMultiBlock interface */
 	virtual void CreateMenuEntry(class FMenuBuilder& MenuBuilder) const override;
@@ -33,8 +33,7 @@ private:
 
 	/** FMultiBlock private interface */
 	virtual TSharedRef< class IMultiBlockBaseWidget > ConstructWidget() const override;
-
-
+	virtual bool GetAlignmentOverrides(EHorizontalAlignment& OutHorizontalAlignment, EVerticalAlignment& OutVerticalAlignment, bool& bOutAutoWidth) const;
 private:
 
 	// Friend our corresponding widget class
@@ -48,6 +47,9 @@ private:
 
 	/** Remove the padding from the left of the widget that lines it up with other menu items? */
 	bool bNoIndent;
+
+	/** Hortizontal aligment for this widget in its parent container. Note: only applies to toolbars */
+	EHorizontalAlignment HorizontalAlignment;
 };
 
 

@@ -485,7 +485,7 @@ void FToolBarBuilder::AddToolBarWidget( TSharedRef<SWidget> InWidget, const TAtt
 	NewWidgetBlock->SetSearchable(bSearchable);
 }
 
-void FToolBarBuilder::AddWidget( TSharedRef<SWidget> InWidget, FName InTutorialHighlightName, bool bSearchable )
+void FToolBarBuilder::AddWidget( TSharedRef<SWidget> InWidget, FName InTutorialHighlightName, bool bSearchable, EHorizontalAlignment Alignment )
 {
 	ApplySectionBeginning();
 
@@ -500,7 +500,7 @@ void FToolBarBuilder::AddWidget( TSharedRef<SWidget> InWidget, FName InTutorialH
 			ChildWidget
 		];
 	
-	TSharedRef< FWidgetBlock > NewWidgetBlock( new FWidgetBlock( InWidget, FText::GetEmpty(), true ) );
+	TSharedRef< FWidgetBlock > NewWidgetBlock( new FWidgetBlock( InWidget, FText::GetEmpty(), true, Alignment) );
 	MultiBox->AddMultiBlock( NewWidgetBlock );
 	NewWidgetBlock->SetSearchable(bSearchable);
 }

@@ -208,6 +208,15 @@ private:
 	 */
 	virtual TSharedRef< class IMultiBlockBaseWidget > ConstructWidget() const = 0;
 
+	/**
+ 	 * Gets any aligment overrides for this block
+	 *
+	 * @param OutHorizontalAligment	Horizontal alignment override
+	 * @param OutVerticalAlignment	Vertical Alignment override 
+	 * @param bOutAutoWidth		Fill or Auto width override
+	 * @return true if overrides should be applied, false to use defaults 
+ 	 */ 
+	virtual bool GetAlignmentOverrides(EHorizontalAlignment& OutHorizontalAlignment, EVerticalAlignment& OutVerticalAlignment, bool& bOutAutoWidth) const { return false; }
 private:
 
 	// We're friends with SMultiBoxWidget so that it can call MakeWidget() directly

@@ -660,9 +660,31 @@ void SMultiBoxWidget::AddBlockWidget( const FMultiBlock& Block, TSharedPtr<SHori
 	case EMultiBoxType::ToolBar:
 	case EMultiBoxType::SlimHorizontalToolBar:
 		{
-			HorizontalBox->AddSlot()
-			.AutoWidth()
-			.Padding(0)
+			EHorizontalAlignment HAlign;
+			EVerticalAlignment VAlign;
+			bool bAutoWidth;
+
+			bool bOverride = Block.GetAlignmentOverrides(HAlign, VAlign, bAutoWidth);
+
+			SHorizontalBox::FSlot& Slot = HorizontalBox->AddSlot();
+		
+			if(bOverride)
+			{
+				if (bAutoWidth)
+				{
+					Slot.AutoWidth();
+				}
+
+				Slot.HAlign(HAlign);
+				Slot.VAlign(VAlign);
+			}
+			else
+			{
+				Slot.AutoWidth();
+			}
+
+			Slot.Padding(0);
+			Slot
 			[
 				FinalWidgetWithHook
 			];

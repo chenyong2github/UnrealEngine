@@ -11,11 +11,12 @@
  *
  * @param	InHeadingText	Heading text
  */
-FWidgetBlock::FWidgetBlock( TSharedRef<SWidget> InContent, const FText& InLabel, bool bInNoIndent )
+FWidgetBlock::FWidgetBlock( TSharedRef<SWidget> InContent, const FText& InLabel, bool bInNoIndent, EHorizontalAlignment InHorizontalAlignment)
 	: FMultiBlock( nullptr, nullptr, NAME_None, EMultiBlockType::Widget )
 	, ContentWidget( InContent )
 	, Label( InLabel )
 	, bNoIndent( bInNoIndent )
+	, HorizontalAlignment(InHorizontalAlignment)
 {
 }
 
@@ -38,6 +39,14 @@ TSharedRef< class IMultiBlockBaseWidget > FWidgetBlock::ConstructWidget() const
 			.Cursor(EMouseCursor::Default);
 }
 
+
+bool FWidgetBlock::GetAlignmentOverrides(EHorizontalAlignment& OutHorizontalAlignment, EVerticalAlignment& OutVerticalAlignment, bool& bOutAutoWidth) const
+{
+	OutHorizontalAlignment = HorizontalAlignment;
+	OutVerticalAlignment = VAlign_Fill;
+	bOutAutoWidth = HorizontalAlignment != HAlign_Fill ? false : true;
+	return true;
+}
 
 /**
  * Construct this widget
