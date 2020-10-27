@@ -81,7 +81,7 @@ void SGraphNodeComment::Tick( const FGeometry& AllottedGeometry, const double In
 		bCachedBubbleVisibility = CommentNode->bCommentBubbleVisible_InDetailsPanel;
 	}
 
-	if (CachedFontSize != CommentNode->FontSize)
+	if (CachedFontSize != CommentNode->GetFontSize())
 	{
 		UpdateGraphNode();
 	}
@@ -139,10 +139,11 @@ void SGraphNodeComment::UpdateGraphNode()
 	FGraphNodeMetaData TagMeta(TEXT("Graphnode"));
 	PopulateMetaTag(&TagMeta);
 
+	CachedFontSize = CommentNode->GetFontSize();
+
 	CommentStyle = FEditorStyle::Get().GetWidgetStyle<FInlineEditableTextBlockStyle>("Graph.CommentBlock.TitleInlineEditableText");
-	CommentStyle.EditableTextBoxStyle.Font.Size = CommentNode->FontSize;
-	CommentStyle.TextStyle.Font.Size = CommentNode->FontSize;
-	CachedFontSize = CommentNode->FontSize;
+	CommentStyle.EditableTextBoxStyle.Font.Size = CachedFontSize;
+	CommentStyle.TextStyle.Font.Size = CachedFontSize;
 
 	bool bIsSet = GraphNode->IsA(UEdGraphNode_Comment::StaticClass());
 	this->ContentScale.Bind( this, &SGraphNode::GetContentScale );

@@ -164,6 +164,15 @@ void UMaterialGraphNode_Comment::ResizeNode(const FVector2D& NewSize)
 	MaterialDirtyDelegate.ExecuteIfBound();
 }
 
+int32 UMaterialGraphNode_Comment::GetFontSize() const
+{
+	if (MaterialExpressionComment)
+	{
+		return MaterialExpressionComment->FontSize;
+	}
+	return Super::GetFontSize();
+}
+
 void UMaterialGraphNode_Comment::ResetMaterialExpressionOwner()
 {
 	if (MaterialExpressionComment)

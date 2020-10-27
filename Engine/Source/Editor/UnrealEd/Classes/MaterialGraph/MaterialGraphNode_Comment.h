@@ -37,6 +37,7 @@ class UMaterialGraphNode_Comment : public UEdGraphNode_Comment
 	virtual void PostPlacedNewNode() override;
 	virtual void OnRenameNode(const FString& NewName) override;
 	virtual void ResizeNode(const FVector2D& NewSize) override;
+	virtual int32 GetFontSize() const override;
 	//~ End UEdGraphNode Interface.
 
 private:

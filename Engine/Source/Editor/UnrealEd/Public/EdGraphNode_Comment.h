@@ -96,6 +96,9 @@ public:
 	/** Return the set of nodes underneath the comment */
 	UNREALED_API const FCommentNodeSet& GetNodesUnderComment() const;
 
+	/** Return the font size of the comment */
+	UNREALED_API virtual int32 GetFontSize() const { return FontSize; }
+
 private:
 	/** Nodes currently within the region of the comment */
 	FCommentNodeSet	NodesUnderComment;
