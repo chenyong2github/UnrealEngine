@@ -137,7 +137,7 @@ private:
 */
 class FNiagaraVertexFactoryShaderParametersBase : public FVertexFactoryShaderParameters
 {
-	DECLARE_INLINE_TYPE_LAYOUT(FNiagaraVertexFactoryShaderParametersBase, NonVirtual);
+	DECLARE_TYPE_LAYOUT(FNiagaraVertexFactoryShaderParametersBase, NonVirtual);
 
 public:
 	void Bind(const FShaderParameterMap& ParameterMap);

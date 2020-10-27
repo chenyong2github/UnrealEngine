@@ -4,6 +4,8 @@
 #include "ShaderParameterUtils.h"
 #include "MeshMaterialShader.h"
 
+IMPLEMENT_TYPE_LAYOUT(FNiagaraVertexFactoryShaderParametersBase);
+
 void FNiagaraVertexFactoryShaderParametersBase::Bind(const FShaderParameterMap& ParameterMap)
 {
 

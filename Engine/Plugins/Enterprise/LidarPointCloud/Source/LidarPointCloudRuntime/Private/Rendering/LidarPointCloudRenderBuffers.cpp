@@ -237,6 +237,8 @@ void FLidarPointCloudVertexFactory::ReleaseRHI()
 	VertexBuffer.ReleaseResource();
 }
 
+IMPLEMENT_TYPE_LAYOUT(FLidarPointCloudVertexFactoryShaderParameters);
+
 IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FLidarPointCloudVertexFactory, SF_Vertex, FLidarPointCloudVertexFactoryShaderParameters);
 
 IMPLEMENT_VERTEX_FACTORY_TYPE(FLidarPointCloudVertexFactory, "/Plugin/LidarPointCloud/Private/LidarPointCloudVertexFactory.ush", /* bUsedWithMaterials */ true, /* bSupportsStaticLighting */ false, /* bSupportsDynamicLighting */ true, /* bPrecisePrevWorldPos */ false, /* bSupportsPositionOnly */ true);

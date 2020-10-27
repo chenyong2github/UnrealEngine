@@ -14,7 +14,7 @@ IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FNiagaraMeshUniformParameters, "Niagara
 
 class FNiagaraMeshVertexFactoryShaderParametersVS : public FNiagaraVertexFactoryShaderParametersBase
 {
-	DECLARE_INLINE_TYPE_LAYOUT(FNiagaraMeshVertexFactoryShaderParametersVS, NonVirtual);
+	DECLARE_TYPE_LAYOUT(FNiagaraMeshVertexFactoryShaderParametersVS, NonVirtual);
 public:
 	void Bind(const FShaderParameterMap& ParameterMap)
 	{
@@ -54,19 +54,21 @@ public:
 private:
 
 
-		//LAYOUT_FIELD(FShaderResourceParameter, PrevTransformBuffer)
+	//LAYOUT_FIELD(FShaderResourceParameter, PrevTransformBuffer)
 
-		// 	LAYOUT_FIELD(FShaderResourceParameter, NiagaraParticleDataInt)
-		// 	LAYOUT_FIELD(FShaderParameter, Int32DataOffset)
-		// 	LAYOUT_FIELD(FShaderParameter, Int32DataStride)
-		LAYOUT_FIELD(FShaderResourceParameter, SortedIndices)
-		LAYOUT_FIELD(FShaderParameter, SortedIndicesOffset)
+	// 	LAYOUT_FIELD(FShaderResourceParameter, NiagaraParticleDataInt)
+	// 	LAYOUT_FIELD(FShaderParameter, Int32DataOffset)
+	// 	LAYOUT_FIELD(FShaderParameter, Int32DataStride)
+	LAYOUT_FIELD(FShaderResourceParameter, SortedIndices);
+	LAYOUT_FIELD(FShaderParameter, SortedIndicesOffset);
 
 };
 
+IMPLEMENT_TYPE_LAYOUT(FNiagaraMeshVertexFactoryShaderParametersVS);
+
 class FNiagaraMeshVertexFactoryShaderParametersPS : public FNiagaraVertexFactoryShaderParametersBase
 {
-	DECLARE_INLINE_TYPE_LAYOUT(FNiagaraMeshVertexFactoryShaderParametersPS, NonVirtual);
+	DECLARE_TYPE_LAYOUT(FNiagaraMeshVertexFactoryShaderParametersPS, NonVirtual);
 public:
 	void GetElementShaderBindings(
 		const FSceneInterface* Scene,
@@ -88,6 +90,8 @@ public:
 	
 	
 };
+
+IMPLEMENT_TYPE_LAYOUT(FNiagaraMeshVertexFactoryShaderParametersPS);
 
 void FNiagaraMeshVertexFactory::InitRHI()
 {

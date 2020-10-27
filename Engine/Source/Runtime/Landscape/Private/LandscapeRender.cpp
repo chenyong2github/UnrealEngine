@@ -3342,7 +3342,7 @@ FLandscapeSharedAdjacencyIndexBuffer::~FLandscapeSharedAdjacencyIndexBuffer()
 /** Shader parameters for use with FLandscapeVertexFactory */
 class FLandscapeVertexFactoryVertexShaderParameters : public FVertexFactoryShaderParameters
 {
-	DECLARE_INLINE_TYPE_LAYOUT(FLandscapeVertexFactoryVertexShaderParameters, NonVirtual);
+	DECLARE_TYPE_LAYOUT(FLandscapeVertexFactoryVertexShaderParameters, NonVirtual);
 public:
 	/**
 	* Bind shader constants by name
@@ -3391,13 +3391,15 @@ public:
 	}
 };
 
+IMPLEMENT_TYPE_LAYOUT(FLandscapeVertexFactoryVertexShaderParameters);
+
 /** 
   * Shader parameters for use with FLandscapeFixedGridVertexFactory
   * Simple grid rendering (without dynamic lod blend) needs a simpler fixed setup.
   */
 class FLandscapeFixedGridVertexFactoryVertexShaderParameters : public FLandscapeVertexFactoryVertexShaderParameters
 {
-	DECLARE_INLINE_TYPE_LAYOUT(FLandscapeFixedGridVertexFactoryVertexShaderParameters, NonVirtual);
+	DECLARE_TYPE_LAYOUT(FLandscapeFixedGridVertexFactoryVertexShaderParameters, NonVirtual);
 public:
 	void GetElementShaderBindings(
 		const class FSceneInterface* Scene,
@@ -3427,6 +3429,8 @@ public:
 #endif
 	}
 };
+
+IMPLEMENT_TYPE_LAYOUT(FLandscapeFixedGridVertexFactoryVertexShaderParameters);
 
 //
 // FLandscapeVertexFactoryPixelShaderParameters

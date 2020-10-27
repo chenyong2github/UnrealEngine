@@ -427,8 +427,10 @@ void* FShaderMapPointerTable::GetIndexedPointer(const FTypeLayoutDesc& TypeDesc,
 	return Ptr;
 }
 
-void FShaderMapPointerTable::SaveToArchive(FArchive& Ar, void* FrozenContent, bool bInlineShaderResources) const
+void FShaderMapPointerTable::SaveToArchive(FArchive& Ar, const FPlatformTypeLayoutParameters& LayoutParams, const void* FrozenObject) const
 {
+	FPointerTableBase::SaveToArchive(Ar, LayoutParams, FrozenObject);
+
 	int32 NumTypes = ShaderTypes.Num();
 	int32 NumVFTypes = VFTypes.Num();
 
@@ -450,9 +452,11 @@ void FShaderMapPointerTable::SaveToArchive(FArchive& Ar, void* FrozenContent, bo
 	}
 }
 
-void FShaderMapPointerTable::LoadFromArchive(FArchive& Ar, void* FrozenContent, bool bInlineShaderResources, bool bLoadedByCookedMaterial)
+bool FShaderMapPointerTable::LoadFromArchive(FArchive& Ar, const FPlatformTypeLayoutParameters& LayoutParams, void* FrozenObject)
 {
 	SCOPED_LOADTIMER(FShaderMapPointerTable_LoadFromArchive);
+
+	const bool bResult = FPointerTableBase::LoadFromArchive(Ar, LayoutParams, FrozenObject);
 
 	int32 NumTypes = 0;
 	int32 NumVFTypes = 0;
@@ -477,6 +481,8 @@ void FShaderMapPointerTable::LoadFromArchive(FArchive& Ar, void* FrozenContent, 
 		FVertexFactoryType* VFType = FVertexFactoryType::GetVFByName(TypeName);
 		VFTypes.LoadIndexedPointer(VFType);
 	}
+
+	return bResult;
 }
 
 FShaderCompiledShaderInitializerType::FShaderCompiledShaderInitializerType(
