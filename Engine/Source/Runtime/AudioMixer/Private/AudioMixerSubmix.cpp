@@ -174,7 +174,6 @@ namespace Audio
 		, CurrentDryLevel(0.0f)
 		, TargetDryLevel(0.0f)
 		, EnvelopeNumChannels(0)
-		, SpectrumAnalyzer(FAsyncSpectrumAnalyzer::CreateAsyncSpectrumAnalyzer())
 		, NumSubmixEffects(0)
 		, bIsRecording(false)
 		, bIsBackgroundMuted(false)
@@ -1198,7 +1197,7 @@ namespace Audio
 			{
 				MixBufferDownToMono(InputBuffer, NumChannels, MonoMixBuffer);
 				SpectrumAnalyzer->PushAudio(MonoMixBuffer.GetData(), MonoMixBuffer.Num());
-				SpectrumAnalyzer->PerformAsyncAnalysisIfPossible(true);
+				SpectrumAnalyzer->PerformAnalysisIfPossible(true, true);
 			}
 		}
 
@@ -1854,7 +1853,7 @@ namespace Audio
 
 		{
 			FScopeLock SpectrumAnalyzerLock(&SpectrumAnalyzerCriticalSection);
-			SpectrumAnalyzer = FAsyncSpectrumAnalyzer::CreateAsyncSpectrumAnalyzer(AudioSpectrumAnalyzerSettings, MixerDevice->GetSampleRate());
+			SpectrumAnalyzer.Reset(new FSpectrumAnalyzer(AudioSpectrumAnalyzerSettings, MixerDevice->GetSampleRate()));
 
 
 			for (FSpectrumAnalysisDelegateInfo& DelegateInfo : SpectralAnalysisDelegates)
