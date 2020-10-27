@@ -440,6 +440,12 @@ class SControlRigExpanderArrow : public SExpanderArrow
 	bool bLeftAligned;
 };
 
+static TAutoConsoleVariable<int32> CVarEnableShowBackground(
+    TEXT("controlrig.ShowBackground"),
+    0,
+    TEXT("Enable unsupported Experimental prototype Modeling Tools"));
+
+
 class SControlRigPinTreeRow : public STableRow<URigVMPin*>
 {
 public:
@@ -454,6 +460,17 @@ public:
 		bLeftAligned = InArgs._LeftAligned;
 
 		STableRow<URigVMPin*>::Construct(STableRow<URigVMPin*>::FArguments(), InOwnerTableView);
+	}
+
+	const FSlateBrush* GetBorder() const
+	{
+		bool bShowBG = (CVarEnableShowBackground.GetValueOnGameThread() > 0);
+
+		if (bShowBG)
+			return STableRow<URigVMPin*>::GetBorder();
+		else
+		// We want a transparent background.
+		return FCoreStyle::Get().GetBrush("NoBrush");
 	}
 
 	virtual void ConstructChildren( ETableViewMode::Type InOwnerTableMode, const TAttribute<FMargin>& InPadding, const TSharedRef<SWidget>& InContent ) override
