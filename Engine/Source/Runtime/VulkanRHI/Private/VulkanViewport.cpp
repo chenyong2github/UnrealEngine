@@ -404,12 +404,19 @@ FVulkanFramebuffer::FVulkanFramebuffer(FVulkanDevice& Device, const FRHISetRende
 		check(Texture->PartialView);
 		PartialDepthTextureView = *Texture->PartialView;
 
+		FVulkanTextureView RTView;
 		ensure(Texture->Surface.GetViewType() == VK_IMAGE_VIEW_TYPE_2D || Texture->Surface.GetViewType() == VK_IMAGE_VIEW_TYPE_2D_ARRAY || Texture->Surface.GetViewType() == VK_IMAGE_VIEW_TYPE_CUBE);
 		if (NumColorAttachments == 0 && Texture->Surface.GetViewType() == VK_IMAGE_VIEW_TYPE_CUBE)
 		{
-			FVulkanTextureView RTView;
 			RTView.Create(*Texture->Surface.Device, Texture->Surface.Image, VK_IMAGE_VIEW_TYPE_2D_ARRAY, Texture->Surface.GetFullAspectMask(), Texture->Surface.PixelFormat, Texture->Surface.ViewFormat, MipIndex, 1, 0, 6, true);
 			NumLayers = 6;
+			AttachmentTextureViews.Add(RTView);
+			AttachmentViewsToDelete.Add(RTView.View);
+		}
+		else if (Texture->Surface.GetViewType() == VK_IMAGE_VIEW_TYPE_2D  || Texture->Surface.GetViewType() == VK_IMAGE_VIEW_TYPE_2D_ARRAY)
+		{
+			// depth attachments need a separate view to have no swizzle components, for validation correctness
+			RTView.Create(*Texture->Surface.Device, Texture->Surface.Image, Texture->Surface.GetViewType(), Texture->Surface.GetFullAspectMask(), Texture->Surface.PixelFormat, Texture->Surface.ViewFormat, MipIndex, 1, 0, Texture->Surface.GetNumberOfArrayLevels(), true);
 			AttachmentTextureViews.Add(RTView);
 			AttachmentViewsToDelete.Add(RTView.View);
 		}
