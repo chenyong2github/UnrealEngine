@@ -27,6 +27,7 @@
 #include "StaticBoundShaderState.h"
 #include "MaterialShared.h"
 #include "Materials/Material.h"
+#include "Misc/CoreDelegates.h"
 #include "EditorSupportDelegates.h"
 #include "GlobalShader.h"
 #include "Interfaces/IShaderFormat.h"
