@@ -7800,8 +7800,7 @@ void UWorld::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 
 	if(PersistentLevel && PersistentLevel->OwningWorld)
 	{
-		TArray<UBlueprint*> LevelBlueprints = PersistentLevel->GetLevelBlueprints();
-		for (UBlueprint* Blueprint : LevelBlueprints)
+		if (ULevelScriptBlueprint* Blueprint = PersistentLevel->GetLevelScriptBlueprint(true))
 		{
 			Blueprint->GetAssetRegistryTags(OutTags);
 		}

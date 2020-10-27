@@ -1041,6 +1041,7 @@ public:
 	/**
 	 *  Returns a list of all blueprints contained within the level
 	 */
+	UE_DEPRECATED(5.0, "This function is deprecated, we only support having a single level script blueprint. Use GetLevelScriptBlueprint instead.")
 	ENGINE_API TArray<class UBlueprint*> GetLevelBlueprints() const;
 
 	/**

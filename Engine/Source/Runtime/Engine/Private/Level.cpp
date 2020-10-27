@@ -2541,8 +2541,8 @@ void ULevel::BeginCacheForCookedPlatformData(const ITargetPlatform *TargetPlatfo
 {
 	Super::BeginCacheForCookedPlatformData(TargetPlatform);
 
-	// Cook all level blueprints.
-	for (auto LevelBlueprint : GetLevelBlueprints())
+	// Cook the level blueprint.
+	if (ULevelScriptBlueprint* LevelBlueprint = GetLevelScriptBlueprint(true))
 	{
 		LevelBlueprint->BeginCacheForCookedPlatformData(TargetPlatform);
 	}
