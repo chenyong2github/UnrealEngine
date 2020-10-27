@@ -42,6 +42,10 @@ enum class ERaDistanceRolloffModel : uint8
 	NONE								UMETA(DisplayName = "None")
 };
 
+// Microsoft define TRANSPARENT as a Macro in "wingdi.h", protect against that. 
+// We are in a private module should be ok with unity compilation
+#undef TRANSPARENT
+
 UENUM(BlueprintType)
 enum class ERaMaterialName : uint8
 {
