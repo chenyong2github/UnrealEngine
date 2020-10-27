@@ -506,6 +506,8 @@ int32 AndroidMain(struct android_app* state)
 	}
 #endif
 
+	FAndroidStats::Init();
+
 	BootTimingPoint("Tick loop starting");
 	DumpBootTiming();
 	// tick until done
@@ -533,6 +535,7 @@ int32 AndroidMain(struct android_app* state)
 		}
 #endif
 	}
+	
 	FAppEventManager::GetInstance()->TriggerEmptyQueue();
 
 	UE_LOG(LogAndroid, Log, TEXT("Exiting"));
