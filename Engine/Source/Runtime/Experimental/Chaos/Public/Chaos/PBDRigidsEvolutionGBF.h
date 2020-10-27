@@ -98,6 +98,8 @@ namespace Chaos
 		static constexpr float DefaultCollisionMarginFraction = 0.01f;
 		static constexpr float DefaultCollisionMarginMax = 2.0f;
 		static constexpr float DefaultCollisionCullDistance = 5.0f;
+		static constexpr int32 DefaultNumJointPairIterations = 3;
+		static constexpr int32 DefaultNumJointPushOutPairIterations = 0;
 
 		// @todo(chaos): Required by clustering - clean up
 		using Base::ApplyPushOut;
