@@ -15,8 +15,10 @@ class ENGINE_API ANavigationDataChunkActor : public AActor
 
 public:
 	//~ Begin UObject Interface
-	virtual void Serialize(FArchive& Ar) override;
+#if WITH_EDITOR
 	virtual void PostLoad() override;
+	virtual void BeginDestroy() override;
+#endif //WITH_EDITOR
 	//~ End UObject Interface
 
 	const TArray<UNavigationDataChunk*>& GetNavDataChunk() const { return NavDataChunks; }
@@ -24,18 +26,29 @@ public:
 
 	void CollectNavData(const FBox& Bounds);
 
+#if WITH_EDITOR
+	void SetDataChunkActorBounds(const FBox& InBounds);
+
+	//~ Begin AActor Interface.
+	virtual EActorGridPlacement GetDefaultGridPlacement() const override;
+	virtual void GetActorLocationBounds(bool bOnlyCollidingComponents, FVector& OutOrigin, FVector& OutBoxExtent, bool bIncludeFromChildActors) const override;
+	//~ End AActor Interface.
+#endif // WITH_EDITOR
+	
 protected:
 	//~ Begin AActor Interface.
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+	virtual void GetActorBounds(bool bOnlyCollidingComponents, FVector& OutOrigin, FVector& OutBoxExtent, bool bIncludeFromChildActors) const override;
 	//~ End AActor Interface.
 
-#if WITH_EDITOR
-	//~ Begin AActor Interface.
-	virtual EActorGridPlacement GetDefaultGridPlacement() const override;
-	//~ End AActor Interface.
-#endif
+	void AddNavigationDataChunkToWorld();
+	void RemoveNavigationDataChunkFromWorld();
+	void Log(const TCHAR* FunctionName) const;
 
 	UPROPERTY()
 	TArray<UNavigationDataChunk*> NavDataChunks;
+
+	UPROPERTY()
+	FBox DataChunkActorBounds;
 };

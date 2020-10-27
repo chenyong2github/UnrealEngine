@@ -1563,10 +1563,10 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateNavigationData()
 
 		FBox2D CellBounds;
 		GridHelper.GetCellBounds(CellCoord, CellBounds);
-		const float HalfHeight = 100000.f; //Todo AT: try use WORLD_MAX instead
-		const FBox Bounds(FVector(CellBounds.Min.X, CellBounds.Min.Y, -HalfHeight), FVector(CellBounds.Max.X, CellBounds.Max.Y, HalfHeight));
+		const float HalfHeight = 100000.f; //Todo AT: check to get the real z bounds from the collected tiles
+		const FBox CollectingBounds(FVector(CellBounds.Min.X, CellBounds.Min.Y, -HalfHeight), FVector(CellBounds.Max.X, CellBounds.Max.Y, HalfHeight));
 
-		if (NavSystem->ContainsNavData(Bounds) == false)
+		if (NavSystem->ContainsNavData(CollectingBounds) == false)
 		{
 			// Skip if there is no navdata for this cell
 			return;
@@ -1580,21 +1580,22 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateNavigationData()
 		ANavigationDataChunkActor* DataChunkActor = World->SpawnActor<ANavigationDataChunkActor>(SpawnParams);
 		ActorCount++;
 
-		const FName CellName = GetCellName(RuntimeGrid.GridName, CellCoord.Z, CellCoord.X, CellCoord.Y, FDataLayersHelper::NoDataLayerID);
-		DataChunkActor->SetActorLabel(FString::Printf(TEXT("NavDataChunkActor_%s_%s"), *GetName(), *CellName.ToString()));
-			
 		const FVector2D CellCenter = CellBounds.GetCenter();
 		DataChunkActor->SetActorLocation(FVector(CellCenter.X, CellCenter.Y, 0.f));
+		DataChunkActor->SetDataChunkActorBounds(CollectingBounds.ExpandBy(-1.f)); //reduce by 1cm to avoid precision issues
+
+		const FName CellName = GetCellName(RuntimeGrid.GridName, CellCoord.Z, CellCoord.X, CellCoord.Y, FDataLayersHelper::NoDataLayerID);
+		DataChunkActor->SetActorLabel(FString::Printf(TEXT("NavDataChunkActor_%s_%s"), *GetName(), *CellName.ToString()));
 		
 		//@todo_ow: Properly handle data layers
-		DataChunkActor->CollectNavData(Bounds);
+		DataChunkActor->CollectNavData(CollectingBounds);
 
 		// Set target grid
 		DataChunkActor->RuntimeGrid = RuntimeGrid.GridName;
 		ValidNavigationDataChunkActors.Add(DataChunkActor);
-	});
 
-	UE_LOG(LogWorldPartitionRuntimeSpatialHash, Verbose, TEXT("   %i ANavigationDataChunkActor actors added."), ActorCount);
+		UE_LOG(LogWorldPartitionRuntimeSpatialHash, Verbose, TEXT("%i) %s added."), ActorCount, *DataChunkActor->GetName());
+	});
 
 	// Destroy all invalid navigation data chunk actors
 	for (TActorIterator<ANavigationDataChunkActor> It(GetWorld()); It; ++It)
