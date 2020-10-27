@@ -14,7 +14,7 @@ namespace Audio
 	public:
 		// ctor
 		FQuartzMetronome();
-		FQuartzMetronome(const FQuartzTimeSignature& InTimeSignature, const FQuartzClockTickRate& InTickRate);
+		FQuartzMetronome(const FQuartzTimeSignature& InTimeSignature);
 
 		// dtor
 		~FQuartzMetronome();
