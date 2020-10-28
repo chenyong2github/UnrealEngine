@@ -54,7 +54,6 @@ bool DoAdaptiveSampling()
 void AdaptivePinholeCamera_SampleEmitter(
 	uint2 LaunchIndex,
 	inout RandomSequence RandSequence,
-	inout uint SampleIndex,
 	uint SourceEmitterId,
 	uint SensorId,
 	out RayDesc OutRay,
@@ -65,7 +64,7 @@ void AdaptivePinholeCamera_SampleEmitter(
 	// Fallback
 	if (!DoAdaptiveSampling())
 	{
-		return PinholeCamera_SampleEmitter(LaunchIndex, RandSequence, SampleIndex, SourceEmitterId, SensorId, OutRay, OutPixel, OutPdf);
+		return PinholeCamera_SampleEmitter(LaunchIndex, RandSequence, SourceEmitterId, SensorId, OutRay, OutPixel, OutPdf);
 	}
 	OutPdf = 1.0;
 
@@ -83,7 +82,7 @@ void AdaptivePinholeCamera_SampleEmitter(
 		VarianceCdf.w = VarianceCdf.z + AdaptiveSamplingData.VarianceMipTree[BufferOffsetAtPixel(MipPixel + uint2(1, 1), MipIndex)];
 		VarianceCdf /= VarianceCdf.w;
 
-		float RandSample = RandomSequence_GenerateSample1D(RandSequence, SampleIndex);
+		float RandSample = RandomSequence_GenerateSample1D(RandSequence, 0);
 		if (RandSample < VarianceCdf.x)
 		{
 			OutPdf *= VarianceCdf.x;
@@ -114,7 +113,7 @@ void AdaptivePinholeCamera_SampleEmitter(
 #endif
 	MipPixel = uint2(MipPixel.x >> 1, MipPixel.y >> 1);
 
-	float2 PixelOffset = RandomSequence_GenerateSample2D(RandSequence, SampleIndex);
+	float2 PixelOffset = RandomSequence_GenerateSample2D(RandSequence, 0);
 	float2 MipPixelUV = (MipPixel + PixelOffset) / float2(DimensionsAtLevel(StopLevel));
 	// Correct for ViewSize/BufferSize discrepancy
 	MipPixelUV *= View.ViewSizeAndInvSize.xy * View.BufferSizeAndInvSize.zw;

@@ -9,18 +9,22 @@
 
 #include "../../QuasiRandom.ush" 
 
+#define RANDSEQ_LCG			0
+#define RANDSEQ_HALTON		1
+#define RANDSEQ_OWENSOBOL	2
+
+#ifndef RANDSEQ
+#define RANDSEQ			RANDSEQ_OWENSOBOL
+#endif
+
+#ifndef RANDSEQ_RANDOMIZED
+#define RANDSEQ_RANDOMIZED		1 // 1 to randomize per pixel, 0 to share the same sequence in all pixels
+#endif
 
 struct RandomSequence
 {
-	uint Type;
-	uint PositionSeed;
-	uint TimeSeed;
-
-	// LCG
-	uint PseudoRandomSeed;
-
-	// Halton options
-	uint HaltonDimensionIndex;
+	uint SampleIndex;		// index into the random sequence
+	uint SampleSeed;		// changes as we draw samples to reflect the change in dimension
 };
 
 // TEA-based pseudo-random number generator
@@ -58,26 +62,6 @@ float Rand(inout uint Seed)
 }
 
 // #dxr_todo: convert prime factors to constant buffer
-static const uint Primes128LUT[] = {
-	2,3,5,7,11,13,17,19,23,29,
-	31,37,41,43,47,53,59,61,67,71,
-	73,79,83,89,97,101,103,107,109,113,
-	127,131,137,139,149,151,157,163,167,173,
-	179,181,191,193,197,199,211,223,227,229,
-	233,239,241,251,257,263,269,271,277,281,
-	283,293,307,311,313,317,331,337,347,349,
-	353,359,367,373,379,383,389,397,401,409,
-	419,421,431,433,439,443,449,457,461,463,
-	467,479,487,491,499,503,509,521,523,541,
-	547,557,563,569,571,577,587,593,599,601,
-	607,613,617,619,631,641,643,647,653,659,
-	661,673,677,683,691,701,709,719
-};
-uint Prime128(uint Dimension)
-{
-	return Primes128LUT[Dimension % 128];
-}
-
 static const uint Primes512LUT[] = {
 	2,3,5,7,11,13,17,19,23,29,
 	31,37,41,43,47,53,59,61,67,71,
@@ -252,134 +236,102 @@ float4 SobolSampler(uint SampleIndex, inout uint Seed) {
 
 void RandomSequence_Initialize(inout RandomSequence RandSequence, uint PositionSeed, uint TimeSeed)
 {
-	RandSequence.Type = 0;
-	RandSequence.PositionSeed = PositionSeed;
-	RandSequence.TimeSeed = TimeSeed;
+	// optionally disable randomization per pixel so that all pixels follow the same path in primary sample space
+#if RANDSEQ_RANDOMIZED == 0
+	PositionSeed = 0;
+#endif
 
-	// LCG
-	RandSequence.PseudoRandomSeed = RandInit(PositionSeed, TimeSeed);
-
-	// Halton
-	RandSequence.HaltonDimensionIndex = 0;
-
-	// Halton and Sobol both want a hashed position seed - so precompute it here
-	RandSequence.PositionSeed = IntegerHash(PositionSeed);
+#if RANDSEQ == RANDSEQ_LCG
+	RandSequence.SampleIndex = 0; // not used
+	RandSequence.SampleSeed = RandInit(PositionSeed, TimeSeed);
+#elif RANDSEQ == RANDSEQ_HALTON
+	RandSequence.SampleIndex = TimeSeed + IntegerHash(PositionSeed);
+	RandSequence.SampleSeed = 0; // this sampler just counts dimensions
+#else
+	RandSequence.SampleIndex = TimeSeed;
+	RandSequence.SampleSeed  = IntegerHash(PositionSeed);
+#endif
 }
 
-bool RandomSequence_IsLCG(in RandomSequence RandSequence)
+float RandomSequence_GenerateSample1D(inout RandomSequence RandSequence, uint DummyVariable)
 {
-	return RandSequence.Type == 0;
+	float Result;
+#if RANDSEQ == RANDSEQ_LCG
+	Result = Rand(RandSequence.SampleSeed);
+#elif RANDSEQ == RANDSEQ_HALTON
+	Result = Halton(RandSequence.SampleIndex, Prime512(RandSequence.SampleSeed + 0));
+	RandSequence.SampleSeed += 1;
+#elif RANDSEQ == RANDSEQ_OWENSOBOL
+	// rely on compiler to optimize out dead code for now
+	// #dxr_todo: benchmark and specialize if needed
+	Result = SobolSampler(RandSequence.SampleIndex, RandSequence.SampleSeed).x;
+#else
+#error "Unknown random sequence chosen in path tracer"
+#endif
+	return Result;
 }
 
-bool RandomSequence_IsHalton(in RandomSequence RandSequence)
+float2 RandomSequence_GenerateSample2D(inout RandomSequence RandSequence, uint DummyVariable)
 {
-	return RandSequence.Type == 1;
+	float2 Result;
+#if RANDSEQ == RANDSEQ_LCG
+	Result.x = Rand(RandSequence.SampleSeed);
+	Result.y = Rand(RandSequence.SampleSeed);
+#elif RANDSEQ == RANDSEQ_HALTON
+	Result.x = Halton(RandSequence.SampleIndex, Prime512(RandSequence.SampleSeed + 0));
+	Result.y = Halton(RandSequence.SampleIndex, Prime512(RandSequence.SampleSeed + 1));
+	RandSequence.SampleSeed += 2;
+#elif RANDSEQ == RANDSEQ_OWENSOBOL
+	// rely on compiler to optimize out dead code for now
+	// #dxr_todo: benchmark and specialize if needed
+	Result = SobolSampler(RandSequence.SampleIndex, RandSequence.SampleSeed).xy;
+#else
+#error "Unknown random sequence chosen in path tracer"
+#endif
+	return Result;
 }
 
-bool RandomSequence_IsScrambledHalton(in RandomSequence RandSequence)
+float3 RandomSequence_GenerateSample3D(inout RandomSequence RandSequence, uint DummyVariable)
 {
-	return RandSequence.Type == 2;
+	float3 Result;
+#if RANDSEQ == RANDSEQ_LCG
+	Result.x = Rand(RandSequence.SampleSeed);
+	Result.y = Rand(RandSequence.SampleSeed);
+	Result.z = Rand(RandSequence.SampleSeed);
+#elif RANDSEQ == RANDSEQ_HALTON
+	Result.x = Halton(RandSequence.SampleIndex, Prime512(RandSequence.SampleSeed + 0));
+	Result.y = Halton(RandSequence.SampleIndex, Prime512(RandSequence.SampleSeed + 1));
+	Result.z = Halton(RandSequence.SampleIndex, Prime512(RandSequence.SampleSeed + 2));
+	RandSequence.SampleSeed += 3;
+#elif RANDSEQ == RANDSEQ_OWENSOBOL
+	// rely on compiler to optimize out dead code for now
+	// #dxr_todo: benchmark and specialize if needed
+	Result = SobolSampler(RandSequence.SampleIndex, RandSequence.SampleSeed).xyz;
+#else
+#error "Unknown random sequence chosen in path tracer"
+#endif
+	return Result;
 }
 
-bool RandomSequence_IsOwenSobol(in RandomSequence RandSequence)
+
+float4 RandomSequence_GenerateSample4D(inout RandomSequence RandSequence, uint DummyVariable)
 {
-	return RandSequence.Type == 3;
-}
-
-
-float RandomSequence_generateSample(inout RandomSequence RandSequence, in uint SampleIndex)
-{
-	// dxr_todo: Make choice of random a shader permutation
-	if (RandomSequence_IsHalton(RandSequence))
-	{
-		uint HaltonSampleIndex = RandSequence.TimeSeed;
-
-		float RandomSample = Halton(HaltonSampleIndex, Prime512(RandSequence.HaltonDimensionIndex));
-		RandSequence.HaltonDimensionIndex += 1;
-		return RandomSample;
-	}
-	else if (RandomSequence_IsScrambledHalton(RandSequence))
-	{
-		uint HaltonSampleIndex = RandSequence.PositionSeed + RandSequence.TimeSeed;
-
-		float RandomSample = Halton(HaltonSampleIndex, Prime512(RandSequence.HaltonDimensionIndex));
-		RandSequence.HaltonDimensionIndex += 1;
-		return RandomSample;
-	}
-	else // LCG
-	{
-		return Rand(RandSequence.PseudoRandomSeed);
-	}
-}
-
-float RandomSequence_GenerateSample1D(inout RandomSequence RandSequence, inout uint SampleIndex)
-{
-	float Sample;
-	if (RandomSequence_IsOwenSobol(RandSequence))
-	{
-		// rely on compiler to optimize out dead code for now
-		// #dxr_todo: benchmark and specialize if needed
-		Sample = SobolSampler(RandSequence.TimeSeed, RandSequence.PositionSeed).x;
-	}
-	else
-	{
-		Sample = RandomSequence_generateSample(RandSequence, SampleIndex);
-	}
-	SampleIndex += 1;
-	return Sample;
-}
-
-float2 RandomSequence_GenerateSample2D(inout RandomSequence RandSequence, inout uint SampleIndex)
-{
-	float2 Sample;
-	if (RandomSequence_IsOwenSobol(RandSequence))
-	{
-		// rely on compiler to optimize out dead code for now
-		// #dxr_todo: benchmark and specialize if needed
-		Sample = SobolSampler(RandSequence.TimeSeed, RandSequence.PositionSeed).xy;
-	}
-	else
-	{
-		Sample.x = RandomSequence_generateSample(RandSequence, SampleIndex);
-		Sample.y = RandomSequence_generateSample(RandSequence, SampleIndex + 1);
-	}
-	SampleIndex += 2;
-	return Sample;
-}
-
-float3 RandomSequence_GenerateSample3D(inout RandomSequence RandSequence, inout uint SampleIndex)
-{
-	float3 Sample;
-	if (RandomSequence_IsOwenSobol(RandSequence))
-	{
-		// rely on compiler to optimize out dead code for now
-		// #dxr_todo: benchmark and specialize if needed
-		Sample = SobolSampler(RandSequence.TimeSeed, RandSequence.PositionSeed).xyz;
-	}
-	else
-	{
-		Sample.x = RandomSequence_generateSample(RandSequence, SampleIndex);
-		Sample.y = RandomSequence_generateSample(RandSequence, SampleIndex + 1);
-		Sample.z = RandomSequence_generateSample(RandSequence, SampleIndex + 2);
-	}
-	SampleIndex += 3;
-	return Sample;
-}
-
-float4 RandomSequence_GenerateSample4D(inout RandomSequence RandSequence, inout uint SampleIndex)
-{
-	float4 Sample;
-	if (RandomSequence_IsOwenSobol(RandSequence))
-	{
-		Sample = SobolSampler(RandSequence.TimeSeed, RandSequence.PositionSeed);
-	}
-	else
-	{
-		Sample.x = RandomSequence_generateSample(RandSequence, SampleIndex);
-		Sample.y = RandomSequence_generateSample(RandSequence, SampleIndex + 1);
-		Sample.z = RandomSequence_generateSample(RandSequence, SampleIndex + 2);
-		Sample.w = RandomSequence_generateSample(RandSequence, SampleIndex + 3);
-	}
-	SampleIndex += 4;
-	return Sample;
+	float4 Result;
+#if RANDSEQ == RANDSEQ_LCG
+	Result.x = Rand(RandSequence.SampleSeed);
+	Result.y = Rand(RandSequence.SampleSeed);
+	Result.z = Rand(RandSequence.SampleSeed);
+	Result.w = Rand(RandSequence.SampleSeed);
+#elif RANDSEQ == RANDSEQ_HALTON
+	Result.x = Halton(RandSequence.SampleIndex, Prime512(RandSequence.SampleSeed + 0));
+	Result.y = Halton(RandSequence.SampleIndex, Prime512(RandSequence.SampleSeed + 1));
+	Result.z = Halton(RandSequence.SampleIndex, Prime512(RandSequence.SampleSeed + 2));
+	Result.w = Halton(RandSequence.SampleIndex, Prime512(RandSequence.SampleSeed + 3));
+	RandSequence.SampleSeed += 4;
+#elif RANDSEQ == RANDSEQ_OWENSOBOL
+	Result = SobolSampler(RandSequence.SampleIndex, RandSequence.SampleSeed);
+#else
+#error "Unknown random sequence chosen in path tracer"
+#endif
+	return Result;
 }
