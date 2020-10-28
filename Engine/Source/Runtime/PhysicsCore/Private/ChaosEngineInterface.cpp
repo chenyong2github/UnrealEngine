@@ -940,7 +940,7 @@ FPhysicsConstraintHandle FChaosEngineInterface::CreateConstraint(const FPhysicsA
 			JointConstraint->SetKinematicEndPoint(KinematicEndPoint, Scene->GetSolver());
 			ConstraintRef.Constraint = JointConstraint;
 
-			JointConstraint->SetParticles({ KinematicEndPoint, ValidParticle });
+			JointConstraint->SetParticleProxies({ KinematicEndPoint->GetProxy(), ValidParticle->GetProxy() });
 
 			Chaos::FJointConstraint::FTransformPair TransformPair = { InLocalFrame2, InLocalFrame1};
 			if (bSwapped)
