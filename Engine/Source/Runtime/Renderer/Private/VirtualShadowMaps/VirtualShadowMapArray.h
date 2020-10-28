@@ -43,8 +43,8 @@ public:
 	static constexpr uint32 PageSize = 128U;
 	static constexpr uint32 Level0DimPagesXY = 128U;
 
-	// With 128x128 pages, a 4k texture holds 1024 physical pages
-	static constexpr uint32 PhysicalPagePoolTexureSizeX = 4096U;
+	// With 128x128 pages, a 8k x 4k texture holds 2048 physical pages
+	static constexpr uint32 PhysicalPagePoolTexureSizeX = 8192U;
 	static constexpr uint32 PhysicalPagePoolTexureSizeY = 4096U;
 
 	static constexpr uint32 PageSizeMask = PageSize - 1U;

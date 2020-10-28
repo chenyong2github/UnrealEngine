@@ -13,13 +13,13 @@ VirtualShadowMapClipmap.cpp
 
 static TAutoConsoleVariable<float> CVarVirtualShadowMapClipmapResolutionLodBias(
 	TEXT( "r.Shadow.v.Clipmap.ResolutionLodBias" ),
-	3.0f,
+	2.0f,
 	TEXT( "" ),
 	ECVF_RenderThreadSafe
 );
 static TAutoConsoleVariable<float> CVarVirtualShadowMapClipmapFirstLevel(
 	TEXT( "r.Shadow.v.Clipmap.FirstLevel" ),
-	5.0f,
+	8.0f,
 	TEXT( "First level of the virtual clipmap. Lower values allow higher resolution shadows closer to the camera." ),
 	ECVF_RenderThreadSafe
 );
@@ -64,7 +64,7 @@ FVirtualShadowMapClipmap::FVirtualShadowMapClipmap(
 	// For now we adjust resolution by just biasing the page we look up in. This is wasteful in terms of page table vs.
 	// just resizing the virtual shadow maps for each clipmap, but convenient for now. This means we need to additionally bias
 	// which levels are present.
-	FirstLevel = FMath::FloorToInt(CVarVirtualShadowMapClipmapFirstLevel.GetValueOnRenderThread() + ResolutionLodBias);
+	FirstLevel = FMath::FloorToInt(CVarVirtualShadowMapClipmapFirstLevel.GetValueOnRenderThread());
 	int32 LastLevel = FMath::FloorToInt(FMath::Log2(MaxRadius) + ResolutionLodBias);
 	LastLevel = FMath::Max(FirstLevel, LastLevel);
 	int32 LevelCount = LastLevel - FirstLevel + 1;
