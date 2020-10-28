@@ -13,7 +13,7 @@
 #include "Editor/GroupActor.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
 #include "WorldPartition/WorldPartition.h"
-#include "WorldPartition/DataLayer/Datalayer.h"
+#include "WorldPartition/DataLayer/DataLayer.h"
 #endif
 
 #if WITH_EDITOR

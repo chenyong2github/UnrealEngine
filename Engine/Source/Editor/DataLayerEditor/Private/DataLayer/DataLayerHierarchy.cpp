@@ -161,7 +161,7 @@ void FDataLayerHierarchy::OnActorDataLayersChanged(const TWeakObjectPtr<AActor>&
 void FDataLayerHierarchy::OnDataLayerChanged(const EDataLayerAction Action, const TWeakObjectPtr<const UDataLayer>& ChangedDataLayer, const FName& ChangedProperty)
 {
 	const UDataLayer* DataLayer = ChangedDataLayer.Get();
-	if (DataLayer && (RepresentingWorld.Get() == DataLayer->GetWorld()) || Action == EDataLayerAction::Delete || Action == EDataLayerAction::Reset)
+	if ((DataLayer && (RepresentingWorld.Get() == DataLayer->GetWorld())) || (Action == EDataLayerAction::Delete) || (Action == EDataLayerAction::Reset))
 	{
 		FullRefreshEvent();
 	}
