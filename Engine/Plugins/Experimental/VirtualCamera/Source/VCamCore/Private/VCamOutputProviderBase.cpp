@@ -219,15 +219,18 @@ void UVCamOutputProviderBase::NotifyWidgetOfComponentChange() const
 
 UVCamOutputProviderBase* UVCamOutputProviderBase::GetOtherOutputProviderByIndex(int32 Index) const
 {
-	if (UVCamComponent* OuterComponent = GetTypedOuter<UVCamComponent>())
+	if (Index > INDEX_NONE)
 	{
-		if (UVCamOutputProviderBase* Provider = OuterComponent->GetOutputProviderByIndex(Index))
+		if (UVCamComponent* OuterComponent = GetTypedOuter<UVCamComponent>())
 		{
-			return Provider;
-		}
-		else
-		{
-			UE_LOG(LogVCamOutputProvider, Warning, TEXT("GetOtherOutputProviderByIndex - specified index is out of range"));
+			if (UVCamOutputProviderBase* Provider = OuterComponent->GetOutputProviderByIndex(Index))
+			{
+				return Provider;
+			}
+			else
+			{
+				UE_LOG(LogVCamOutputProvider, Warning, TEXT("GetOtherOutputProviderByIndex - specified index is out of range"));
+			}
 		}
 	}
 
