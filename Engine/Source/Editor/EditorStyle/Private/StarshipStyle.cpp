@@ -6742,21 +6742,51 @@ void FStarshipEditorStyle::FStyle::SetupToolkitStyles()
 	{
 		Set("TextureEditor.Tabs.Properties", new IMAGE_BRUSH("/Icons/icon_tab_SelectionDetails_16x", Icon16x16));
 		
-		Set( "TextureEditor.RedChannel", new IMAGE_BRUSH( "Icons/icon_TextureEd_RedChannel_40x", Icon40x40 ) );
-		Set( "TextureEditor.RedChannel.Small", new IMAGE_BRUSH( "Icons/icon_TextureEd_RedChannel_40x", Icon20x20 ) );
-		Set( "TextureEditor.GreenChannel", new IMAGE_BRUSH( "Icons/icon_TextureEd_GreenChannel_40x", Icon40x40 ) );
-		Set( "TextureEditor.GreenChannel.Small", new IMAGE_BRUSH( "Icons/icon_TextureEd_GreenChannel_40x", Icon20x20 ) );
-		Set( "TextureEditor.BlueChannel", new IMAGE_BRUSH( "Icons/icon_TextureEd_BlueChannel_40x", Icon40x40 ) );
-		Set( "TextureEditor.BlueChannel.Small", new IMAGE_BRUSH( "Icons/icon_TextureEd_BlueChannel_40x", Icon20x20 ) );
-		Set( "TextureEditor.AlphaChannel", new IMAGE_BRUSH( "Icons/icon_TextureEd_AlphaChannel_40x", Icon40x40 ) );
-		Set( "TextureEditor.AlphaChannel.Small", new IMAGE_BRUSH( "Icons/icon_TextureEd_AlphaChannel_40x", Icon20x20 ) );
-		Set( "TextureEditor.Saturation", new IMAGE_BRUSH( "Icons/icon_TextureEd_Saturation_40x", Icon40x40 ) );
-		Set( "TextureEditor.Saturation.Small", new IMAGE_BRUSH( "Icons/icon_TextureEd_Saturation_40x", Icon20x20 ) );
+		Set("TextureEditor.RedChannel", new IMAGE_BRUSH( "Icons/icon_TextureEd_RedChannel_40x", Icon40x40));
+		Set("TextureEditor.RedChannel.Small", new IMAGE_BRUSH( "Icons/icon_TextureEd_RedChannel_40x", Icon20x20));
+		Set("TextureEditor.GreenChannel", new IMAGE_BRUSH( "Icons/icon_TextureEd_GreenChannel_40x", Icon40x40));
+		Set("TextureEditor.GreenChannel.Small", new IMAGE_BRUSH( "Icons/icon_TextureEd_GreenChannel_40x", Icon20x20));
+		Set("TextureEditor.BlueChannel", new IMAGE_BRUSH( "Icons/icon_TextureEd_BlueChannel_40x", Icon40x40));
+		Set("TextureEditor.BlueChannel.Small", new IMAGE_BRUSH( "Icons/icon_TextureEd_BlueChannel_40x", Icon20x20));
+		Set("TextureEditor.AlphaChannel", new IMAGE_BRUSH( "Icons/icon_TextureEd_AlphaChannel_40x", Icon40x40));
+		Set("TextureEditor.AlphaChannel.Small", new IMAGE_BRUSH( "Icons/icon_TextureEd_AlphaChannel_40x", Icon20x20));
+		Set("TextureEditor.Saturation", new IMAGE_BRUSH( "Icons/icon_TextureEd_Saturation_40x", Icon40x40));
+		Set("TextureEditor.Saturation.Small", new IMAGE_BRUSH( "Icons/icon_TextureEd_Saturation_40x", Icon20x20));
 
-		Set( "TextureEditor.CompressNow", new IMAGE_BRUSH( "Icons/icon_TextureEd_CompressNow_40x", Icon40x40 ) );
-		Set( "TextureEditor.CompressNow.Small", new IMAGE_BRUSH( "Icons/icon_TextureEd_CompressNow_40x", Icon20x20 ) );
-		Set( "TextureEditor.Reimport", new IMAGE_BRUSH( "Icons/icon_TextureEd_Reimport_40x", Icon40x40 ) );
-		Set( "TextureEditor.Reimport.Small", new IMAGE_BRUSH( "Icons/icon_TextureEd_Reimport_40x", Icon20x20 ) );
+		Set("TextureEditor.CompressNow", new IMAGE_BRUSH( "Icons/icon_TextureEd_CompressNow_40x", Icon40x40));
+		Set("TextureEditor.CompressNow.Small", new IMAGE_BRUSH( "Icons/icon_TextureEd_CompressNow_40x", Icon20x20));
+		Set("TextureEditor.Reimport", new IMAGE_BRUSH( "Icons/icon_TextureEd_Reimport_40x", Icon40x40));
+		Set("TextureEditor.Reimport.Small", new IMAGE_BRUSH( "Icons/icon_TextureEd_Reimport_40x", Icon20x20));
+
+		FButtonStyle MipmapButtonStyle = 
+			FButtonStyle(FStarshipCoreStyle::GetCoreStyle().GetWidgetStyle<FButtonStyle>("Button"))
+				.SetNormalPadding(FMargin(2, 2, 2, 2))
+				.SetPressedPadding(FMargin(2, 3, 2, 1));
+
+		Set("TextureEditor.MipmapButtonStyle", MipmapButtonStyle);
+
+		const FLinearColor White80 = FLinearColor(1, 1, 1, .8f);
+
+		const FCheckBoxStyle ChannelToggleButtonStyle = FCheckBoxStyle()
+			.SetCheckBoxType(ESlateCheckBoxType::ToggleButton)
+			.SetCheckedImage(FSlateRoundedBoxBrush(White80, CoreStyleConstants::InputFocusRadius))
+			.SetCheckedHoveredImage(FSlateRoundedBoxBrush(FLinearColor::White, CoreStyleConstants::InputFocusRadius))
+			.SetCheckedPressedImage(FSlateRoundedBoxBrush(FStyleColors::White, CoreStyleConstants::InputFocusRadius))
+			.SetUncheckedImage(FSlateRoundedBoxBrush(FStyleColors::Dropdown, CoreStyleConstants::InputFocusRadius))
+			.SetUncheckedHoveredImage(FSlateRoundedBoxBrush(FStyleColors::Hover, CoreStyleConstants::InputFocusRadius))
+			.SetUncheckedPressedImage(FSlateRoundedBoxBrush(FStyleColors::Hover, CoreStyleConstants::InputFocusRadius))
+			.SetForegroundColor(FStyleColors::Foreground)
+			.SetHoveredForegroundColor(FStyleColors::ForegroundHover)
+			.SetPressedForegroundColor(FStyleColors::ForegroundHover)
+			.SetCheckedForegroundColor(FStyleColors::Foreground)
+			.SetCheckedHoveredForegroundColor(FStyleColors::ForegroundHover)
+			.SetPadding(FMargin(8.f, 4.f));
+
+		FSlateFontInfo ChannelButtonFont = FStyleFonts::Get().NormalBold;
+		ChannelButtonFont.Size = 12;
+		Set("TextureEditor.ChannelButtonFont", ChannelButtonFont);
+
+		Set("TextureEditor.ChannelButtonStyle", ChannelToggleButtonStyle);
 	}
 
 	// Cascade

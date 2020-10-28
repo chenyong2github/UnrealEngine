@@ -24,41 +24,6 @@
 
 TSharedPtr< ISlateStyle > FStarshipCoreStyle::Instance = nullptr;
 
-namespace CoreStyleConstants
-{
-	// Note, these sizes are in Slate Units.
-	// Slate Units do NOT have to map to pixels.
-	const FVector2D Icon5x16(5.0f, 16.0f);
-	const FVector2D Icon8x4(8.0f, 4.0f);
-	const FVector2D Icon16x4(16.0f, 4.0f);
-	const FVector2D Icon8x8(8.0f, 8.0f);
-	const FVector2D Icon10x10(10.0f, 10.0f);
-	const FVector2D Icon12x12(12.0f, 12.0f);
-	const FVector2D Icon12x16(12.0f, 16.0f);
-	const FVector2D Icon14x14(14.0f, 14.0f);
-	const FVector2D Icon16x16(16.0f, 16.0f);
-	const FVector2D Icon18x18(18.0f, 18.0f);
-	const FVector2D Icon20x20(20.0f, 20.0f);
-	const FVector2D Icon22x22(22.0f, 22.0f);
-	const FVector2D Icon24x24(24.0f, 24.0f);
-	const FVector2D Icon25x25(25.0f, 25.0f);
-	const FVector2D Icon32x32(32.0f, 32.0f);
-	const FVector2D Icon40x40(40.0f, 40.0f);
-	const FVector2D Icon64x64(64.0f, 64.0f);
-	const FVector2D Icon36x24(36.0f, 24.0f);
-	const FVector2D Icon128x128(128.0f, 128.0f);
-
-	// Common Margins
-	const FMargin DefaultMargins(8.f, 4.f);
-	// Buttons already have a built in (4., 2.) padding - adding to that a little
-	const FMargin ButtonMargins(20.f, 2.f, 20.f, 3.f);
-
-	const float InputFocusRadius = 4.f;
-	const float InputFocusThickness = 1.0f;
-
-	const FLinearColor WindowHighlight(FColor::FromHex("#4C4C4CFF"));
-}
-
 using namespace CoreStyleConstants;
 
 #define FONT(...) FSlateFontInfo(FLegacySlateFontInfoCache::Get().GetDefaultFont(), __VA_ARGS__)
@@ -336,6 +301,7 @@ TSharedRef<ISlateStyle> FStarshipCoreStyle::Create()
 		Style->Set("Icons.Blueprints", new IMAGE_BRUSH_SVG("Starship/Common/blueprint", Icon16x16));
 		Style->Set("Icons.Cross", new IMAGE_BRUSH_SVG("Starship/Common/plus", Icon16x16));
 		Style->Set("Icons.Plus", new IMAGE_BRUSH_SVG("Starship/Common/plus", Icon16x16));
+		Style->Set("Icons.Minus", new IMAGE_BRUSH_SVG("Starship/Common/minus", Icon16x16));
 		Style->Set("Icons.PlusCircle", new IMAGE_BRUSH_SVG("Starship/Common/plus-circle", Icon16x16));
 		Style->Set("Icons.X", new IMAGE_BRUSH_SVG("Starship/Common/close", Icon16x16));
 

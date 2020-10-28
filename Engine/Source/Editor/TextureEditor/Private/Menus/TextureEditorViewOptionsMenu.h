@@ -22,20 +22,11 @@ public:
 	 */
 	static void MakeMenu( FMenuBuilder& MenuBuilder, bool bIsVolumeTexture )
 	{
-		// color channel options
-		MenuBuilder.BeginSection("ChannelSection", LOCTEXT("ChannelsSectionHeader", "Color Channels"));
-		{
-			MenuBuilder.AddMenuEntry(FTextureEditorCommands::Get().RedChannel);
-			MenuBuilder.AddMenuEntry(FTextureEditorCommands::Get().GreenChannel);
-			MenuBuilder.AddMenuEntry(FTextureEditorCommands::Get().BlueChannel);
-			MenuBuilder.AddMenuEntry(FTextureEditorCommands::Get().AlphaChannel);
-			MenuBuilder.AddMenuEntry(FTextureEditorCommands::Get().Desaturation);
-		}
-		MenuBuilder.EndSection();
-
 		// view port options
 		MenuBuilder.BeginSection("ViewportSection", LOCTEXT("ViewportSectionHeader", "Viewport Options"));
 		{
+			MenuBuilder.AddMenuEntry(FTextureEditorCommands::Get().Desaturation);
+
 			MenuBuilder.AddSubMenu(
 				LOCTEXT("Background", "Background"),
 				LOCTEXT("BackgroundTooltip", "Set the viewport's background"),

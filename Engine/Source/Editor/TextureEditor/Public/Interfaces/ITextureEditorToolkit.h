@@ -45,31 +45,8 @@ public:
 	virtual void SetVolumeOpacity( float VolumeOpacity ) = 0;
 	virtual const FRotator& GetVolumeOrientation( ) const = 0;
 	virtual void SetVolumeOrientation( const FRotator& InOrientation ) = 0;
-
-	UE_DEPRECATED(4.26, "There are now more than 2 zoom modes, use GetZoomMode() instead.")
-	virtual bool GetFitToViewport() const final
-	{
-		return GetZoomMode() != ETextureEditorZoomMode::Custom;
-	}
-	
-	UE_DEPRECATED(4.26, "There are now more than 2 zoom modes, use SetZoomMode() instead.")
-	virtual void SetFitToViewport(const bool bFitToViewport) final
-	{
-		SetZoomMode(bFitToViewport ? ETextureEditorZoomMode::Fit : ETextureEditorZoomMode::Custom);
-	}
-
-	UE_DEPRECATED(4.26, "GetZoom Has been renamed to GetCustomZoomLevel to clarify it refers to the custom zoom mode's value.")
-	virtual double GetZoom() const final
-	{
-		return GetCustomZoomLevel();
-	}
-
-	UE_DEPRECATED(4.26, "SetZoom has been renamed to SetCustomZoomLevel to clarify it refers to the custom zoom mode's value.")
-	virtual void SetZoom(double ZoomValue) final
-	{
-		SetCustomZoomLevel(ZoomValue);
-	}
-
+	virtual int32 GetExposureBias() const = 0;
+	virtual bool IsVolumeTexture() const = 0;
 public:
 
 	/**

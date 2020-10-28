@@ -14,18 +14,12 @@
 #include "Engine/TextureRenderTargetVolume.h"
 #include "Slate/SceneViewport.h"
 #include "TextureEditorConstants.h"
-#include "Widgets/STextureEditorViewportToolbar.h"
 #include "Widgets/Input/SNumericEntryBox.h"
 #include "TextureEditorSettings.h"
 
 
 #define LOCTEXT_NAMESPACE "STextureEditorViewport"
 
-// Specifies the maximum allowed exposure bias.
-const int32 MaxExposure = 10;
-
-// Specifies the minimum allowed exposure bias.
-const int32 MinExposure = -10;
 
 
 /* STextureEditorViewport interface
@@ -39,54 +33,16 @@ void STextureEditorViewport::AddReferencedObjects( FReferenceCollector& Collecto
 
 void STextureEditorViewport::Construct( const FArguments& InArgs, const TSharedRef<ITextureEditorToolkit>& InToolkit )
 {
-	ExposureBias = 0;
+
 	bIsRenderingEnabled = true;
 	ToolkitPtr = InToolkit;
 	
-	// create zoom menu
-	FMenuBuilder ZoomMenuBuilder(true, NULL);
-	{
-		FUIAction Zoom25Action(FExecuteAction::CreateSP(this, &STextureEditorViewport::HandleZoomMenuEntryClicked, 0.25));
-		ZoomMenuBuilder.AddMenuEntry(LOCTEXT("Zoom25Action", "25%"), LOCTEXT("Zoom25ActionHint", "Show the texture at a quarter of its size."), FSlateIcon(), Zoom25Action);
-
-		FUIAction Zoom50Action(FExecuteAction::CreateSP(this, &STextureEditorViewport::HandleZoomMenuEntryClicked, 0.5));
-		ZoomMenuBuilder.AddMenuEntry(LOCTEXT("Zoom50Action", "50%"), LOCTEXT("Zoom50ActionHint", "Show the texture at half its size."), FSlateIcon(), Zoom50Action);
-
-		FUIAction Zoom100Action(FExecuteAction::CreateSP(this, &STextureEditorViewport::HandleZoomMenuEntryClicked, 1.0));
-		ZoomMenuBuilder.AddMenuEntry(LOCTEXT("Zoom100Action", "100%"), LOCTEXT("Zoom100ActionHint", "Show the texture in its original size."), FSlateIcon(), Zoom100Action);
-
-		FUIAction Zoom200Action(FExecuteAction::CreateSP(this, &STextureEditorViewport::HandleZoomMenuEntryClicked, 2.0));
-		ZoomMenuBuilder.AddMenuEntry(LOCTEXT("Zoom200Action", "200%"), LOCTEXT("Zoom200ActionHint", "Show the texture at twice its size."), FSlateIcon(), Zoom200Action);
-
-		FUIAction Zoom400Action(FExecuteAction::CreateSP(this, &STextureEditorViewport::HandleZoomMenuEntryClicked, 4.0));
-		ZoomMenuBuilder.AddMenuEntry(LOCTEXT("Zoom400Action", "400%"), LOCTEXT("Zoom400ActionHint", "Show the texture at four times its size."), FSlateIcon(), Zoom400Action);
-
-		ZoomMenuBuilder.AddMenuSeparator();
-
-		FUIAction ZoomFitAction(
-			FExecuteAction::CreateSP(this, &STextureEditorViewport::HandleZoomMenuFitClicked),
-			FCanExecuteAction(),
-			FIsActionChecked::CreateSP(this, &STextureEditorViewport::IsZoomMenuFitChecked)
-		);
-		ZoomMenuBuilder.AddMenuEntry(LOCTEXT("ZoomFitAction", "Scale To Fit"), LOCTEXT("ZoomFitActionHint", "Scales the texture down to fit within the viewport if needed."), FSlateIcon(), ZoomFitAction, NAME_None, EUserInterfaceActionType::RadioButton);
-
-		FUIAction ZoomFillAction(
-			FExecuteAction::CreateSP(this, &STextureEditorViewport::HandleZoomMenuFillClicked),
-			FCanExecuteAction(),
-			FIsActionChecked::CreateSP(this, &STextureEditorViewport::IsZoomMenuFillChecked)
-		);
-		ZoomMenuBuilder.AddMenuEntry(LOCTEXT("ZoomFillAction", "Scale To Fill"), LOCTEXT("ZoomFillActionHint", "Scales the texture up and down to fill the viewport."), FSlateIcon(), ZoomFillAction, NAME_None, EUserInterfaceActionType::RadioButton);
-	}
-
 	FText TextureName = FText::GetEmpty();
-	
-	bool bIsVolumeTexture = false;
+
 	if (InToolkit->GetTexture() != nullptr)
 	{
 		FText FormattedText = InToolkit->HasValidTextureResource() ? FText::FromString(TEXT("{0}")) : LOCTEXT( "InvalidTexture", "{0} (Invalid Texture)");
 		TextureName = FText::Format(FormattedText, FText::FromName(InToolkit->GetTexture()->GetFName()));
-
-		bIsVolumeTexture = InToolkit->GetTexture()->IsA<UVolumeTexture>() || InToolkit->GetTexture()->IsA<UTextureRenderTargetVolume>();
 	}
 
 
@@ -95,198 +51,44 @@ void STextureEditorViewport::Construct( const FArguments& InArgs, const TSharedR
 	this->ChildSlot
 	[
 		SNew(SVerticalBox)
-
 		+ SVerticalBox::Slot()
-			.FillHeight(1.0f)
+		.FillHeight(1.0f)
+		[
+			SNew(SOverlay)
+			// viewport canvas
+			+ SOverlay::Slot()
+			.Padding(5.0f, 0.0f)
 			[
-				SNew(SHorizontalBox)
-
-				+ SHorizontalBox::Slot()
-					.FillWidth(1.0f)
-					[
-						SNew(SVerticalBox)
-
-						+ SVerticalBox::Slot()
-							.FillHeight(1)
-							[
-								SNew(SOverlay)
-
-								// viewport canvas
-								+ SOverlay::Slot()
-									[
-										SAssignNew(ViewportWidget, SViewport)
-											.EnableGammaCorrection(false)
-											.IsEnabled(FSlateApplication::Get().GetNormalExecutionAttribute())
-											.ShowEffectWhenDisabled(false)
-											.EnableBlending(true)
-											.ToolTip(SNew(SToolTip).Text(this, &STextureEditorViewport::GetDisplayedResolution))
-									]
-	
-								// tool bar
-								+ SOverlay::Slot()
-									.Padding(2.0f)
-									.VAlign(VAlign_Top)
-									[
-										SNew(SHorizontalBox)
-
-										+ SHorizontalBox::Slot()
-											.AutoWidth()
-											[
-												SNew(STextureEditorViewportToolbar, InToolkit->GetToolkitCommands())
-													.IsVolumeTexture(bIsVolumeTexture)
-											]
-
-										+ SHorizontalBox::Slot()
-											.FillWidth(1.0f)
-											.Padding(4.0f, 0.0f)
-											.HAlign(HAlign_Right)
-											.VAlign(VAlign_Center)
-											[
-												SNew(STextBlock)
-													.Text(TextureName)
-											]
-									]
-							]
-					]
-
-				+ SHorizontalBox::Slot()
-					.AutoWidth()
-					[
-						// vertical scroll bar
-						SAssignNew(TextureViewportVerticalScrollBar, SScrollBar)
-							.Visibility(this, &STextureEditorViewport::HandleVerticalScrollBarVisibility)
-							.OnUserScrolled(this, &STextureEditorViewport::HandleVerticalScrollBarScrolled)
-					]
+				SAssignNew(ViewportWidget, SViewport)
+				.EnableGammaCorrection(false)
+				.IsEnabled(FSlateApplication::Get().GetNormalExecutionAttribute())
+				.ShowEffectWhenDisabled(false)
+				.EnableBlending(true)
+				.ToolTip(SNew(SToolTip).Text(this, &STextureEditorViewport::GetDisplayedResolution))
 			]
-
+			+ SOverlay::Slot()
+			.HAlign(HAlign_Right)
+			[
+				// vertical scroll bar
+				SAssignNew(TextureViewportVerticalScrollBar, SScrollBar)
+				.Visibility(this, &STextureEditorViewport::HandleVerticalScrollBarVisibility)
+				.OnUserScrolled(this, &STextureEditorViewport::HandleVerticalScrollBarScrolled)
+			]
+		]
 		+ SVerticalBox::Slot()
-			.AutoHeight()
-			[
-				// horizontal scrollbar
-				SAssignNew(TextureViewportHorizontalScrollBar, SScrollBar)
-					.Orientation( Orient_Horizontal )
-					.Visibility(this, &STextureEditorViewport::HandleHorizontalScrollBarVisibility)
-					.OnUserScrolled(this, &STextureEditorViewport::HandleHorizontalScrollBarScrolled)
-			]
+		.AutoHeight()
+		[
+			// horizontal scrollbar
+			SAssignNew(TextureViewportHorizontalScrollBar, SScrollBar)
+				.Orientation( Orient_Horizontal )
+				.Visibility(this, &STextureEditorViewport::HandleHorizontalScrollBarVisibility)
+				.OnUserScrolled(this, &STextureEditorViewport::HandleHorizontalScrollBarScrolled)
+		]
 
-		+ SVerticalBox::Slot()
-			.AutoHeight()
-			.Padding(0.0f, 2.0f, 0.0f, 0.0f)
-			[
-				SAssignNew(HorizontalBox, SHorizontalBox)
-
-				// exposure bias
-				+ SHorizontalBox::Slot()
-					.FillWidth(0.3f)
-					[
-						SNew(SHorizontalBox)
-							.Visibility(this, &STextureEditorViewport::HandleExposureBiasWidgetVisibility)
-
-						+ SHorizontalBox::Slot()
-							.AutoWidth()
-							.VAlign(VAlign_Center)
-							[
-								SNew(STextBlock)
-									.Text(LOCTEXT("ExposureBiasLabel", "Exposure Bias:"))
-							]
-
-						+ SHorizontalBox::Slot()
-							.AutoWidth()
-							.Padding(4.0f, 0.0f)
-							[
-								SNew(SNumericEntryBox<int32>)
-									.AllowSpin(true)
-									.MinSliderValue(MinExposure)
-									.MaxSliderValue(MaxExposure)
-									.Value(this, &STextureEditorViewport::HandleExposureBiasBoxValue)
-									.OnValueChanged(this, &STextureEditorViewport::HandleExposureBiasBoxValueChanged)
-							]
-					]
-
-				// separator
-				+ SHorizontalBox::Slot()
-					.FillWidth(0.3f)
-					[
-						SNullWidget::NullWidget
-					]
-			]
 	];
 
 
-	if (bIsVolumeTexture)
-	{
-		// opacity slider
-		HorizontalBox->AddSlot()
-			.FillWidth(0.3f)
-			[
-				SNew(SHorizontalBox)
-
-				+ SHorizontalBox::Slot()
-					.AutoWidth()
-					.VAlign(VAlign_Center)
-					[
-						SNew(STextBlock)
-							.Text(LOCTEXT("OpacityLabel", "Opacity:"))
-					]
-
-				+ SHorizontalBox::Slot()
-					.FillWidth(1.0f)
-					.Padding(4.0f, 0.0f)
-					.VAlign(VAlign_Center)
-					[
-						SNew(SSlider)
-							.OnValueChanged(this, &STextureEditorViewport::HandleOpacitySliderChanged)
-							.Value(this, &STextureEditorViewport::HandleOpacitySliderValue)
-					]
-			];
-	}
-
-	// zoom slider
-	HorizontalBox->AddSlot()
-		.FillWidth(0.3f)
-		[
-			SNew(SHorizontalBox)
-
-			+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.VAlign(VAlign_Center)
-				[
-					SNew(STextBlock)
-						.Text(LOCTEXT("ZoomLabel", "Zoom:"))
-				]
-
-			+ SHorizontalBox::Slot()
-				.FillWidth(1.0f)
-				.Padding(4.0f, 0.0f)
-				.VAlign(VAlign_Center)
-				[
-					SNew(SSlider)
-						.OnValueChanged(this, &STextureEditorViewport::HandleZoomSliderChanged)
-						.Value(this, &STextureEditorViewport::HandleZoomSliderValue)
-				]
-
-			+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.VAlign(VAlign_Center)
-				[
-					SNew(STextBlock)
-						.Text(this, &STextureEditorViewport::HandleZoomPercentageText)
-				]
-
-			+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.Padding(4.0f, 0.0f, 0.0f, 0.0f)
-				.VAlign(VAlign_Center)
-				[
-					SNew(SComboButton)
-						.ContentPadding(FMargin(0.0))
-						.MenuContent()
-						[
-							ZoomMenuBuilder.MakeWidget()
-						]
-				]
-		];
-
+	
 	ViewportClient = MakeShareable(new FTextureEditorViewportClient(ToolkitPtr, SharedThis(this)));
 
 	Viewport = MakeShareable(new FSceneViewport(ViewportClient.Get(), ViewportWidget));
@@ -359,30 +161,6 @@ FText STextureEditorViewport::GetDisplayedResolution( ) const
 /* STextureEditorViewport event handlers
  *****************************************************************************/
 
-EVisibility STextureEditorViewport::HandleExposureBiasWidgetVisibility( ) const
-{
-	UTexture* Texture = ToolkitPtr.Pin()->GetTexture();
-
-	if ((Texture != NULL) && (Texture->CompressionSettings == TC_HDR || Texture->CompressionSettings == TC_HDR_Compressed))
-	{
-		return EVisibility::Visible;
-	}
-
-	return EVisibility::Hidden;
-}
-
-
-TOptional<int32> STextureEditorViewport::HandleExposureBiasBoxValue( ) const
-{
-	return ExposureBias;
-}
-
-
-void STextureEditorViewport::HandleExposureBiasBoxValueChanged( int32 NewExposure )
-{
-	ExposureBias = NewExposure;
-}
-
 
 void STextureEditorViewport::HandleHorizontalScrollBarScrolled( float InScrollOffsetFraction )
 {
@@ -426,82 +204,6 @@ EVisibility STextureEditorViewport::HandleVerticalScrollBarVisibility( ) const
 }
 
 
-void STextureEditorViewport::HandleZoomMenuEntryClicked( double ZoomValue )
-{
-	ToolkitPtr.Pin()->SetCustomZoomLevel(ZoomValue);
-}
-
-
-void STextureEditorViewport::HandleZoomMenuFillClicked()
-{
-	ToolkitPtr.Pin()->SetZoomMode(ETextureEditorZoomMode::Fill);
-}
-
-void STextureEditorViewport::HandleZoomMenuFitClicked()
-{
-	ToolkitPtr.Pin()->SetZoomMode(ETextureEditorZoomMode::Fit);
-}
-
-
-bool STextureEditorViewport::IsZoomMenuFillChecked() const
-{
-	return ToolkitPtr.Pin()->IsCurrentZoomMode(ETextureEditorZoomMode::Fill);
-}
-
-bool STextureEditorViewport::IsZoomMenuFitChecked() const
-{
-	return ToolkitPtr.Pin()->IsCurrentZoomMode(ETextureEditorZoomMode::Fit);
-}
-
-bool STextureEditorViewport::HasValidTextureResource() const
-{
-	return ToolkitPtr.Pin()->HasValidTextureResource();
-}
-
-FText STextureEditorViewport::HandleZoomPercentageText( ) const
-{
-	double DisplayedZoomLevel = ToolkitPtr.Pin()->CalculateDisplayedZoomLevel();
-	FText ZoomLevelPercent = FText::AsPercent(DisplayedZoomLevel);
-
-	// For fit and fill, show the effective zoom level in parenthesis - eg. "Fill (220%)"
-	static const FText ZoomModeWithPercentFormat = LOCTEXT("ZoomModeWithPercentFormat", "{ZoomMode} ({ZoomPercent})");
-	if (ToolkitPtr.Pin()->GetZoomMode() == ETextureEditorZoomMode::Fit)
-	{
-		static const FText ZoomModeFit = LOCTEXT("ZoomModeFit", "Fit");
-		return FText::FormatNamed(ZoomModeWithPercentFormat, TEXT("ZoomMode"), ZoomModeFit, TEXT("ZoomPercent"), ZoomLevelPercent);
-	}
-
-	if (ToolkitPtr.Pin()->GetZoomMode() == ETextureEditorZoomMode::Fill)
-	{
-		static const FText ZoomModeFill = LOCTEXT("ZoomModeFill", "Fill");
-		return FText::FormatNamed(ZoomModeWithPercentFormat, TEXT("ZoomMode"), ZoomModeFill, TEXT("ZoomPercent"), ZoomLevelPercent);
-	}
-
-	// If custom, then just the percent is enough
-	return ZoomLevelPercent;
-}
-
-
-void STextureEditorViewport::HandleZoomSliderChanged( float NewValue )
-{
-	ToolkitPtr.Pin()->SetCustomZoomLevel(NewValue * MaxZoom);
-}
-
-
-float STextureEditorViewport::HandleZoomSliderValue( ) const
-{
-	return (ToolkitPtr.Pin()->CalculateDisplayedZoomLevel() / MaxZoom);
-}
-
-void STextureEditorViewport::HandleOpacitySliderChanged(float NewValue)
-{
-	ToolkitPtr.Pin()->SetVolumeOpacity(NewValue);
-}
-
-float STextureEditorViewport::HandleOpacitySliderValue() const
-{
-	return ToolkitPtr.Pin()->GetVolumeOpacity();
-}
 
 
 #undef LOCTEXT_NAMESPACE

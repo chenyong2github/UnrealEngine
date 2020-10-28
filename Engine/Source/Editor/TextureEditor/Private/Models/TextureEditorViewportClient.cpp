@@ -61,8 +61,10 @@ void FTextureEditorViewportClient::Draw(FViewport* Viewport, FCanvas* Canvas)
 	{
 		return;
 	}
+
+	TSharedPtr<ITextureEditorToolkit> TextureEditorPinned = TextureEditorPtr.Pin();
 	
-	UTexture* Texture = TextureEditorPtr.Pin()->GetTexture();
+	UTexture* Texture = TextureEditorPinned->GetTexture();
 	FVector2D Ratio = FVector2D(GetViewportHorizontalScrollBarRatio(), GetViewportVerticalScrollBarRatio());
 	FVector2D ViewportSize = FVector2D(TextureEditorViewportPtr.Pin()->GetViewport()->GetSizeXY().X, TextureEditorViewportPtr.Pin()->GetViewport()->GetSizeXY().Y);
 	FVector2D ScrollBarPos = GetViewportScrollBarPositions();
@@ -93,13 +95,13 @@ void FTextureEditorViewportClient::Draw(FViewport* Viewport, FCanvas* Canvas)
 		Texture2D->WaitForStreaming();
 	}
 
-	TextureEditorPtr.Pin()->PopulateQuickInfo();
+	TextureEditorPinned->PopulateQuickInfo();
 
 	// Figure out the size we need
 	uint32 Width, Height;
-	TextureEditorPtr.Pin()->CalculateTextureDimensions(Width, Height);
-	const float MipLevel = (float)TextureEditorPtr.Pin()->GetMipLevel();
-	const float LayerIndex = (float)TextureEditorPtr.Pin()->GetLayer();
+	TextureEditorPinned->CalculateTextureDimensions(Width, Height);
+	const float MipLevel = (float)TextureEditorPinned->GetMipLevel();
+	const float LayerIndex = (float)TextureEditorPinned->GetLayer();
 
 	bool bIsVirtualTexture = false;
 
@@ -117,9 +119,9 @@ void FTextureEditorViewportClient::Draw(FViewport* Viewport, FCanvas* Canvas)
 				Settings.VolumeViewMode == TextureEditorVolumeViewMode_DepthSlices, 
 				FMath::Max<int32>(VolumeTexture->GetSizeZ(), 1), 
 				MipLevel, 
-				(float)TextureEditorPtr.Pin()->GetVolumeOpacity(),
+				(float)TextureEditorPinned->GetVolumeOpacity(),
 				true, 
-				TextureEditorPtr.Pin()->GetVolumeOrientation());
+				TextureEditorPinned->GetVolumeOrientation());
 		}
 		else if (RTTextureVolume)
 		{
@@ -127,9 +129,9 @@ void FTextureEditorViewportClient::Draw(FViewport* Viewport, FCanvas* Canvas)
 				Settings.VolumeViewMode == TextureEditorVolumeViewMode_DepthSlices,
 				FMath::Max<int32>(RTTextureVolume->SizeZ >> RTTextureVolume->GetCachedLODBias(), 1),
 				MipLevel,
-				(float)TextureEditorPtr.Pin()->GetVolumeOpacity(),
+				(float)TextureEditorPinned->GetVolumeOpacity(),
 				true,
-				TextureEditorPtr.Pin()->GetVolumeOrientation());
+				TextureEditorPinned->GetVolumeOrientation());
 		}
 		else if (Texture2D)
 		{
@@ -176,12 +178,12 @@ void FTextureEditorViewportClient::Draw(FViewport* Viewport, FCanvas* Canvas)
 		}
 	}
 
-	float Exposure = FMath::Pow(2.0f, (float)TextureEditorViewportPtr.Pin()->GetExposureBias());
+	float Exposure = FMath::Pow(2.0f, (float)TextureEditorPinned->GetExposureBias());
 
 	if ( Texture->Resource != nullptr )
 	{
 		FCanvasTileItem TileItem( FVector2D( XPos, YPos ), Texture->Resource, FVector2D( Width, Height ), FLinearColor(Exposure, Exposure, Exposure) );
-		TileItem.BlendMode = TextureEditorPtr.Pin()->GetColourChannelBlendMode();
+		TileItem.BlendMode = TextureEditorPinned->GetColourChannelBlendMode();
 		TileItem.BatchedElementParameters = BatchedElementParameters;
 
 		if (bIsVirtualTexture && Texture->Source.GetNumBlocks() > 1)
@@ -213,7 +215,7 @@ void FTextureEditorViewportClient::Draw(FViewport* Viewport, FCanvas* Canvas)
  			auto ZeroOrAbsolute = [](int32 value) -> int32 { return value >= 0 ? 0 : FMath::Abs(value); };
 			auto GetCorrectDimension = [](int value, int32 viewportSize, int32 TextureSize) -> int32 { return value <= viewportSize ? TextureSize : viewportSize; };
 
-			const float Zoom = 1.0f / TextureEditorPtr.Pin()->GetCustomZoomLevel();
+			const float Zoom = 1.0f / TextureEditorPinned->GetCustomZoomLevel();
 			const int32 VisibleXPos = FMath::FloorToInt(Zoom * -FMath::Min(0, XPos));
 			const int32 VisibleYPos = FMath::FloorToInt(Zoom * -FMath::Min(0, YPos));
 			

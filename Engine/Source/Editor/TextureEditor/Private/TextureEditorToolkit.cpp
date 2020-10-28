@@ -41,6 +41,9 @@
 #include "Curves/CurveLinearColorAtlas.h"
 #include "TextureEditorSettings.h"
 #include "TextureCompiler.h"
+#include "Widgets/Input/SSlider.h"
+#include "Widgets/Layout/SSpacer.h"
+#include "Menus/TextureEditorViewOptionsMenu.h"
 
 #define LOCTEXT_NAMESPACE "FTextureEditorToolkit"
 
@@ -145,6 +148,10 @@ void FTextureEditorToolkit::InitTextureEditor( const EToolkitMode::Type Mode, co
 	bIsBlueChannel = true;
 	bIsAlphaChannel = false;
 
+	ExposureBias = 0;
+
+	bIsVolumeTexture = Texture->IsA<UVolumeTexture>() || Texture->IsA<UTextureRenderTargetVolume>();
+
 	switch (Texture->CompressionSettings)
 	{
 	default:
@@ -179,7 +186,7 @@ void FTextureEditorToolkit::InitTextureEditor( const EToolkitMode::Type Mode, co
 	BindCommands();
 	CreateInternalWidgets();
 
-	const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_TextureEditor_Layout_v3")
+	const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_TextureEditor_Layout_v4")
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()
@@ -188,15 +195,6 @@ void FTextureEditorToolkit::InitTextureEditor( const EToolkitMode::Type Mode, co
 				(
 					FTabManager::NewSplitter()
 						->SetOrientation(Orient_Vertical)
-						->SetSizeCoefficient(0.66f)
-						->Split
-						(
-							FTabManager::NewStack()
-								->AddTab(GetToolbarTabId(), ETabState::OpenedTab)
-								->SetHideTabWell(true)
-								->SetSizeCoefficient(0.1f)
-								
-						)
 						->Split
 						(
 							FTabManager::NewStack()
@@ -790,27 +788,23 @@ void FTextureEditorToolkit::BindCommands( )
 
 	ToolkitCommands->MapAction(
 		Commands.RedChannel,
-		FExecuteAction::CreateSP(this, &FTextureEditorToolkit::HandleRedChannelActionExecute),
-		FCanExecuteAction(),
-		FIsActionChecked::CreateSP(this, &FTextureEditorToolkit::HandleRedChannelActionIsChecked));
+		FExecuteAction::CreateSP(this, &FTextureEditorToolkit::OnChannelButtonCheckStateChanged, ETextureChannelButton::Red),
+		FCanExecuteAction());
 
 	ToolkitCommands->MapAction(
 		Commands.GreenChannel,
-		FExecuteAction::CreateSP(this, &FTextureEditorToolkit::HandleGreenChannelActionExecute),
-		FCanExecuteAction(),
-		FIsActionChecked::CreateSP(this, &FTextureEditorToolkit::HandleGreenChannelActionIsChecked));
+		FExecuteAction::CreateSP(this, &FTextureEditorToolkit::OnChannelButtonCheckStateChanged, ETextureChannelButton::Green),
+		FCanExecuteAction());
 
 	ToolkitCommands->MapAction(
 		Commands.BlueChannel,
-		FExecuteAction::CreateSP(this, &FTextureEditorToolkit::HandleBlueChannelActionExecute),
-		FCanExecuteAction(),
-		FIsActionChecked::CreateSP(this, &FTextureEditorToolkit::HandleBlueChannelActionIsChecked));
+		FExecuteAction::CreateSP(this, &FTextureEditorToolkit::OnChannelButtonCheckStateChanged, ETextureChannelButton::Blue),
+		FCanExecuteAction());
 
 	ToolkitCommands->MapAction(
 		Commands.AlphaChannel,
-		FExecuteAction::CreateSP(this, &FTextureEditorToolkit::HandleAlphaChannelActionExecute),
-		FCanExecuteAction(),
-		FIsActionChecked::CreateSP(this, &FTextureEditorToolkit::HandleAlphaChannelActionIsChecked));
+		FExecuteAction::CreateSP(this, &FTextureEditorToolkit::OnChannelButtonCheckStateChanged, ETextureChannelButton::Alpha),
+		FCanExecuteAction());
 
 	ToolkitCommands->MapAction(
 		Commands.Desaturation,
@@ -907,92 +901,88 @@ void FTextureEditorToolkit::CreateInternalWidgets( )
 	.AutoHeight()
 	.Padding(2.0f)
 	[
-		SNew(SBorder)
+		SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		.FillWidth(0.5f)
 		[
-			SNew(SHorizontalBox)
+			SNew(SVerticalBox)
 
-			+ SHorizontalBox::Slot()
-			.FillWidth(0.5f)
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.VAlign(VAlign_Center)
+			.Padding(4.0f)
 			[
-				SNew(SVerticalBox)
-
-				+ SVerticalBox::Slot()
-				.AutoHeight()
-				.VAlign(VAlign_Center)
-				.Padding(4.0f)
-				[
-					SAssignNew(ImportedText, STextBlock)
-				]
-
-				+ SVerticalBox::Slot()
-				.AutoHeight()
-				.VAlign(VAlign_Center)
-				.Padding(4.0f)
-				[
-					SAssignNew(CurrentText, STextBlock)
-				]
-
-				+ SVerticalBox::Slot()
-				.AutoHeight()
-				.VAlign(VAlign_Center)
-				.Padding(4.0f)
-				[
-					SAssignNew(MaxInGameText, STextBlock)
-				]
-
-				+ SVerticalBox::Slot()
-				.AutoHeight()
-				.VAlign(VAlign_Center)
-				.Padding(4.0f)
-				[
-					SAssignNew(SizeText, STextBlock)
-				]
-
-				+ SVerticalBox::Slot()
-				.AutoHeight()
-				.VAlign(VAlign_Center)
-				.Padding(4.0f)
-				[
-					SAssignNew(HasAlphaChannelText, STextBlock)
-				]
+				SAssignNew(ImportedText, STextBlock)
 			]
 
-			+ SHorizontalBox::Slot()
-			.FillWidth(0.5f)
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.VAlign(VAlign_Center)
+			.Padding(4.0f)
 			[
-				SNew(SVerticalBox)
+				SAssignNew(CurrentText, STextBlock)
+			]
 
-				+ SVerticalBox::Slot()
-				.AutoHeight()
-				.VAlign(VAlign_Center)
-				.Padding(4.0f)
-				[
-					SAssignNew(MethodText, STextBlock)
-				]
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.VAlign(VAlign_Center)
+			.Padding(4.0f)
+			[
+				SAssignNew(MaxInGameText, STextBlock)
+			]
 
-				+ SVerticalBox::Slot()
-				.AutoHeight()
-				.VAlign(VAlign_Center)
-				.Padding(4.0f)
-				[
-					SAssignNew(FormatText, STextBlock)
-				]
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.VAlign(VAlign_Center)
+			.Padding(4.0f)
+			[
+				SAssignNew(SizeText, STextBlock)
+			]
 
-				+ SVerticalBox::Slot()
-				.AutoHeight()
-				.VAlign(VAlign_Center)
-				.Padding(4.0f)
-				[
-					SAssignNew(LODBiasText, STextBlock)
-				]
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.VAlign(VAlign_Center)
+			.Padding(4.0f)
+			[
+				SAssignNew(HasAlphaChannelText, STextBlock)
+			]
+		]
 
-				+ SVerticalBox::Slot()
-				.AutoHeight()
-				.VAlign(VAlign_Center)
-				.Padding(4.0f)
-				[
-					SAssignNew(NumMipsText, STextBlock)
-				]
+		+ SHorizontalBox::Slot()
+		.FillWidth(0.5f)
+		[
+			SNew(SVerticalBox)
+
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.VAlign(VAlign_Center)
+			.Padding(4.0f)
+			[
+				SAssignNew(MethodText, STextBlock)
+			]
+
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.VAlign(VAlign_Center)
+			.Padding(4.0f)
+			[
+				SAssignNew(FormatText, STextBlock)
+			]
+
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.VAlign(VAlign_Center)
+			.Padding(4.0f)
+			[
+				SAssignNew(LODBiasText, STextBlock)
+			]
+
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.VAlign(VAlign_Center)
+			.Padding(4.0f)
+			[
+				SAssignNew(NumMipsText, STextBlock)
 			]
 		]
 	]
@@ -1001,166 +991,19 @@ void FTextureEditorToolkit::CreateInternalWidgets( )
 	.FillHeight(1.0f)
 	.Padding(2.0f)
 	[
-		SNew(SBorder)
-		.Padding(4.0f)
-		[
-			BuildTexturePropertiesWidget()
-		]
+		BuildTexturePropertiesWidget()
 	];
 }
 
-
-BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
-void FTextureEditorToolkit::ExtendToolBar( )
+void FTextureEditorToolkit::ExtendToolBar()
 {
-	TSharedRef<SWidget> LODControl = SNew(SBox)
-		.WidthOverride(240.0f)
-		[
-			SNew(SHorizontalBox)
-
-			+ SHorizontalBox::Slot()
-				.FillWidth(1.0f)
-				.MaxWidth(240.0f)
-				.Padding(0.0f, 0.0f, 0.0f, 0.0f)
-				.VAlign(VAlign_Center)
-				[
-					// Mip and exposure controls
-					SNew(SHorizontalBox)
-
-					+ SHorizontalBox::Slot()
-						.Padding(4.0f, 0.0f, 4.0f, 0.0f)
-						.AutoWidth()
-						[
-							SNew(SHorizontalBox)
-
-							+ SHorizontalBox::Slot()
-								.VAlign(VAlign_Center)
-								.AutoWidth()
-								[
-									SNew(SCheckBox)
-										.IsChecked(this, &FTextureEditorToolkit::HandleMipLevelCheckBoxIsChecked)
-										.IsEnabled(this, &FTextureEditorToolkit::HandleMipLevelCheckBoxIsEnabled)
-										.OnCheckStateChanged(this, &FTextureEditorToolkit::HandleMipLevelCheckBoxCheckedStateChanged)
-								]
-						]
-
-					+ SHorizontalBox::Slot()
-						.Padding(4.0f, 0.0f, 4.0f, 0.0f)
-						.FillWidth(1)
-						[
-							SNew(SHorizontalBox)
-
-							+ SHorizontalBox::Slot()
-								.Padding(0.0f, 0.0, 4.0, 0.0)
-								.AutoWidth()
-								.VAlign(VAlign_Center)
-								[
-									SNew(STextBlock)
-										.Text(NSLOCTEXT("TextureEditor", "MipLevel", "Mip Level: "))
-								]
-
-							+ SHorizontalBox::Slot()
-								.VAlign(VAlign_Center)
-								.FillWidth(1.0f)
-								[
-									SNew(SNumericEntryBox<int32>)
-										.AllowSpin(true)
-										.MinSliderValue(MIPLEVEL_MIN)
-										.MaxSliderValue(this, &FTextureEditorToolkit::GetMaxMipLevel)
-										.Value(this, &FTextureEditorToolkit::HandleMipLevelEntryBoxValue)
-										.OnValueChanged(this, &FTextureEditorToolkit::HandleMipLevelEntryBoxChanged)
-										.IsEnabled(this, &FTextureEditorToolkit::GetUseSpecifiedMip)
-								]
-
-							+ SHorizontalBox::Slot()
-								.AutoWidth()
-								.VAlign(VAlign_Center)
-								.Padding(2.0f)
-								[
-									SNew(SButton)
-										.Text(NSLOCTEXT("TextureEditor", "MipMinus", "-"))
-										.OnClicked(this, &FTextureEditorToolkit::HandleMipMapMinusButtonClicked)
-										.IsEnabled(this, &FTextureEditorToolkit::GetUseSpecifiedMip)
-								]
-
-							+ SHorizontalBox::Slot()
-								.AutoWidth()
-								.VAlign(VAlign_Center)
-								.Padding(2.0f)
-								[
-									SNew(SButton)
-										.Text(NSLOCTEXT("TextureEditor", "MipPlus", "+"))
-										.OnClicked(this, &FTextureEditorToolkit::HandleMipMapPlusButtonClicked)
-										.IsEnabled(this, &FTextureEditorToolkit::GetUseSpecifiedMip)
-								]
-						]
-				]
-			];
-
-	TSharedRef<SWidget> LayerControl = SNew(SBox)
-		.WidthOverride(200.0f)
-		[
-			SNew(SHorizontalBox)
-
-				+SHorizontalBox::Slot()
-					.FillWidth(1.0f)
-					.MaxWidth(200.0f)
-					.Padding(0.0f, 0.0f, 0.0f, 0.0f)
-					.VAlign(VAlign_Center)
-					[
-						// Layer controls
-						SNew(SHorizontalBox)
-
-						+ SHorizontalBox::Slot()
-							.Padding(0.0f, 0.0, 4.0, 0.0)
-							.AutoWidth()
-							.VAlign(VAlign_Center)
-							[
-								SNew(STextBlock)
-									.Text(NSLOCTEXT("TextureEditor", "Layer", "Layer: "))
-							]
-
-						+ SHorizontalBox::Slot()
-							.VAlign(VAlign_Center)
-							.FillWidth(1.0f)
-							[
-								SNew(SNumericEntryBox<int32>)
-									.AllowSpin(true)
-									.MinSliderValue(MIPLEVEL_MIN)
-									.MaxSliderValue(this, &FTextureEditorToolkit::GetMaxLayer)
-									.Value(this, &FTextureEditorToolkit::HandleLayerEntryBoxValue)
-									.OnValueChanged(this, &FTextureEditorToolkit::HandleLayerEntryBoxChanged)
-							]
-
-						+ SHorizontalBox::Slot()
-							.AutoWidth()
-							.VAlign(VAlign_Center)
-							.Padding(2.0f)
-							[
-								SNew(SButton)
-									.Text(NSLOCTEXT("TextureEditor", "LayerMinus", "-"))
-									.OnClicked(this, &FTextureEditorToolkit::HandleLayerMinusButtonClicked)
-							]
-
-						+ SHorizontalBox::Slot()
-							.AutoWidth()
-							.VAlign(VAlign_Center)
-							.Padding(2.0f)
-							[
-								SNew(SButton)
-									.Text(NSLOCTEXT("TextureEditor", "LayerPlus", "+"))
-									.OnClicked(this, &FTextureEditorToolkit::HandleLayerPlusButtonClicked)
-							]
-					]
-		];
-
 	TSharedPtr<FExtender> ToolbarExtender = MakeShareable(new FExtender);
 
 	ToolbarExtender->AddToolBarExtension(
 		"Asset",
 		EExtensionHook::After,
 		GetToolkitCommands(),
-		FToolBarExtensionDelegate::CreateSP(this, &FTextureEditorToolkit::FillToolbar, GetToolkitCommands(), LODControl, LayerControl)
+		FToolBarExtensionDelegate::CreateSP(this, &FTextureEditorToolkit::FillToolbar)
 	);
 
 	AddToolbarExtender(ToolbarExtender);
@@ -1169,8 +1012,15 @@ void FTextureEditorToolkit::ExtendToolBar( )
 	AddToolbarExtender(TextureEditorModule->GetToolBarExtensibilityManager()->GetAllExtenders(GetToolkitCommands(), GetEditingObjects()));
 }
 
-void FTextureEditorToolkit::FillToolbar(FToolBarBuilder& ToolbarBuilder, const TSharedRef< FUICommandList > InToolkitCommands, TSharedRef<SWidget> LODControl, TSharedRef<SWidget> LayerControl)
+void FTextureEditorToolkit::FillToolbar(FToolBarBuilder& ToolbarBuilder)
 {
+	TSharedRef<SWidget> ChannelControl = MakeChannelControlWidget();
+	TSharedRef<SWidget> LODControl = MakeLODControlWidget();
+	TSharedRef<SWidget> LayerControl = MakeLayerControlWidget();
+	TSharedRef<SWidget> ExposureControl = MakeExposureContolWidget();
+	TSharedPtr<SWidget> OptionalOpacityControl = IsVolumeTexture() ? TSharedPtr<SWidget>(MakeOpacityControlWidget()) : nullptr;
+	TSharedRef<SWidget> ZoomControl = MakeZoomControlWidget();
+
 	UCurveLinearColorAtlas* Atlas = Cast<UCurveLinearColorAtlas>(GetTexture());
 	if (!Atlas)
 	{
@@ -1181,10 +1031,17 @@ void FTextureEditorToolkit::FillToolbar(FToolBarBuilder& ToolbarBuilder, const T
 		}
 		ToolbarBuilder.EndSection();
 
+		ToolbarBuilder.BeginSection("Channels");
+		{
+			ToolbarBuilder.AddWidget(ChannelControl);
+		}
+		ToolbarBuilder.EndSection();
+
 		ToolbarBuilder.BeginSection("TextureMipAndExposure");
 		{
 			ToolbarBuilder.AddWidget(LODControl);
-		}
+			ToolbarBuilder.AddWidget(ExposureControl);
+		}	
 		ToolbarBuilder.EndSection();
 
 		if (HasLayers())
@@ -1195,11 +1052,34 @@ void FTextureEditorToolkit::FillToolbar(FToolBarBuilder& ToolbarBuilder, const T
 			}
 			ToolbarBuilder.EndSection();
 		}
+
+		if (OptionalOpacityControl.IsValid())
+		{
+			ToolbarBuilder.BeginSection("Opacity");
+			{
+				ToolbarBuilder.AddWidget(OptionalOpacityControl.ToSharedRef());
+			}
+			ToolbarBuilder.EndSection();
+		}
+
+		ToolbarBuilder.BeginSection("Zoom");
+		{
+			ToolbarBuilder.AddWidget(ZoomControl);
+		}
+		ToolbarBuilder.EndSection();
+		ToolbarBuilder.BeginSection("Settings");
+		{
+			ToolbarBuilder.AddWidget(SNew(SSpacer), NAME_None, false, HAlign_Right);
+			ToolbarBuilder.AddComboButton(
+				FUIAction(),
+				FOnGetContent::CreateSP(this, &FTextureEditorToolkit::OnGenerateSettingsMenu),
+				LOCTEXT("SettingsMenu", "Settings"),
+				FText::GetEmpty(),
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Settings")
+			);
+		}
 	}
 }
-
-END_SLATE_FUNCTION_BUILD_OPTIMIZATION
-
 
 TOptional<int32> FTextureEditorToolkit::GetMaxMipLevel( ) const
 {
@@ -1266,10 +1146,42 @@ bool FTextureEditorToolkit::IsCubeTexture( ) const
 }
 
 
+TSharedRef<SWidget> FTextureEditorToolkit::OnGenerateMipMapLevelMenu()
+{
+	FMenuBuilder MenuBuilder(true, nullptr);
+
+	for (int32 MipLevel = MIPLEVEL_MIN; MipLevel <= GetMaxMipLevel().Get(MIPLEVEL_MAX); ++MipLevel)
+	{
+		FText MipNumberText = FText::AsNumber(MipLevel);
+
+		MenuBuilder.AddMenuEntry(
+			FText::Format(LOCTEXT("MipLevel", "Mip Level {0}"), MipNumberText),
+			FText::Format(LOCTEXT("MipLevel_Tooltip", "Display Mip Level {0}"), MipNumberText),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateSP(this, &FTextureEditorToolkit::HandleMipLevelChanged, MipLevel),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateLambda([this, MipLevel]() {return SpecifiedMipLevel == MipLevel; })
+			)
+		);
+	}
+
+	return MenuBuilder.MakeWidget();
+}
+
+TSharedRef<SWidget> FTextureEditorToolkit::OnGenerateSettingsMenu()
+{
+	FMenuBuilder MenuBuilder(true, ToolkitCommands);
+	FTextureEditorViewOptionsMenu::MakeMenu(MenuBuilder, IsVolumeTexture());
+
+	return MenuBuilder.MakeWidget();
+}
+
 /* FTextureEditorToolkit callbacks
  *****************************************************************************/
 
-bool FTextureEditorToolkit::HandleAlphaChannelActionCanExecute( ) const
+
+bool FTextureEditorToolkit::IsAlphaChannelButtonEnabled( ) const
 {
 	const UTexture2D* Texture2D = Cast<UTexture2D>(Texture);
 
@@ -1281,28 +1193,89 @@ bool FTextureEditorToolkit::HandleAlphaChannelActionCanExecute( ) const
 	return Texture2D->HasAlphaChannel();
 }
 
-
-void FTextureEditorToolkit::HandleAlphaChannelActionExecute( )
+FSlateColor FTextureEditorToolkit::GetChannelButtonBackgroundColor(ETextureChannelButton Button) const
 {
-	bIsAlphaChannel = !bIsAlphaChannel;
+	FSlateColor Dropdown = FAppStyle::Get().GetSlateColor("Colors.Dropdown");
+
+	switch (Button)
+	{
+	case ETextureChannelButton::Red:
+		return bIsRedChannel ? FLinearColor::Red : FLinearColor::White;
+	case ETextureChannelButton::Green:
+		return bIsGreenChannel ? FLinearColor::Green : FLinearColor::White;
+	case ETextureChannelButton::Blue:
+		return bIsBlueChannel ? FLinearColor::Blue : FLinearColor::White;
+	case ETextureChannelButton::Alpha:
+		return bIsAlphaChannel ? FLinearColor::White : FLinearColor::White;
+	default:
+		check(false);
+		return FSlateColor();
+	}
 }
 
-
-bool FTextureEditorToolkit::HandleAlphaChannelActionIsChecked( ) const
+FSlateColor FTextureEditorToolkit::GetChannelButtonForegroundColor(ETextureChannelButton Button) const
 {
-	return bIsAlphaChannel;
+	FSlateColor DefaultForeground = FAppStyle::Get().GetSlateColor("Colors.Foreground");
+
+	switch (Button)
+	{
+	case ETextureChannelButton::Red:
+		return bIsRedChannel ? FLinearColor::Black : DefaultForeground;
+	case ETextureChannelButton::Green:
+		return bIsGreenChannel ? FLinearColor::Black : DefaultForeground;
+	case ETextureChannelButton::Blue:
+		return bIsBlueChannel ? FLinearColor::Black : DefaultForeground;
+	case ETextureChannelButton::Alpha:
+		return bIsAlphaChannel ? FLinearColor::Black : DefaultForeground;
+	default:
+		check(false);
+		return FSlateColor::UseForeground();
+	}
 }
 
-
-void FTextureEditorToolkit::HandleBlueChannelActionExecute( )
+void FTextureEditorToolkit::OnChannelButtonCheckStateChanged(ETextureChannelButton Button)
 {
-	 bIsBlueChannel = !bIsBlueChannel;
+	switch (Button)
+	{
+	case ETextureChannelButton::Red:
+		bIsRedChannel = !bIsRedChannel;
+		break;
+	case ETextureChannelButton::Green:
+		bIsGreenChannel = !bIsGreenChannel;
+		break;
+	case ETextureChannelButton::Blue:
+		bIsBlueChannel = !bIsBlueChannel;
+		break;
+	case ETextureChannelButton::Alpha:
+		bIsAlphaChannel = !bIsAlphaChannel;
+		break;
+	default:
+		check(false);
+		break;
+	}
 }
 
-
-bool FTextureEditorToolkit::HandleBlueChannelActionIsChecked( ) const
+ECheckBoxState FTextureEditorToolkit::OnGetChannelButtonCheckState(ETextureChannelButton Button) const
 {
-	return bIsBlueChannel;
+	switch (Button)
+	{
+	case ETextureChannelButton::Red:
+		return bIsRedChannel ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+		break;
+	case ETextureChannelButton::Green:
+		return bIsGreenChannel ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+		break;
+	case ETextureChannelButton::Blue:
+		return bIsBlueChannel ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+		break;
+	case ETextureChannelButton::Alpha:
+		return bIsAlphaChannel ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+		break;
+	default:
+		check(false);
+		return ECheckBoxState::Unchecked;
+		break;
+	}
 }
 
 
@@ -1378,18 +1351,6 @@ void FTextureEditorToolkit::HandleZoomToNaturalActionExecute()
 	SetCustomZoomLevel(1);
 }
 
-void FTextureEditorToolkit::HandleGreenChannelActionExecute( )
-{
-	 bIsGreenChannel = !bIsGreenChannel;
-}
-
-
-bool FTextureEditorToolkit::HandleGreenChannelActionIsChecked( ) const
-{
-	return bIsGreenChannel;
-}
-
-
 void FTextureEditorToolkit::HandleMipLevelCheckBoxCheckedStateChanged( ECheckBoxState InNewState )
 {
 	bUseSpecifiedMipLevel = InNewState == ECheckBoxState::Checked;
@@ -1414,36 +1375,28 @@ bool FTextureEditorToolkit::HandleMipLevelCheckBoxIsEnabled( ) const
 	return true;
 }
 
-
-void FTextureEditorToolkit::HandleMipLevelEntryBoxChanged( int32 NewMipLevel )
+void FTextureEditorToolkit::HandleMipLevelChanged(int32 NewMipLevel)
 {
 	SpecifiedMipLevel = FMath::Clamp<int32>(NewMipLevel, MIPLEVEL_MIN, GetMaxMipLevel().Get(MIPLEVEL_MAX));
-}
 
+	MipLevelTextBlock->SetText(FText::Format(LOCTEXT("MipLevel", "Mip Level {0}"), SpecifiedMipLevel));
+}
 
 TOptional<int32> FTextureEditorToolkit::HandleMipLevelEntryBoxValue( ) const
 {
 	return SpecifiedMipLevel;
 }
 
-
-FReply FTextureEditorToolkit::HandleMipMapMinusButtonClicked( )
+FReply FTextureEditorToolkit::HandleMipMapMinusButtonClicked()
 {
-	if (SpecifiedMipLevel > MIPLEVEL_MIN)
-	{
-		--SpecifiedMipLevel;
-	}
+	HandleMipLevelChanged(--SpecifiedMipLevel);
 
 	return FReply::Handled();
 }
 
-
-FReply FTextureEditorToolkit::HandleMipMapPlusButtonClicked( )
+FReply FTextureEditorToolkit::HandleMipMapPlusButtonClicked()
 {
-	if (SpecifiedMipLevel < GetMaxMipLevel().Get(MIPLEVEL_MAX))
-	{
-		++SpecifiedMipLevel;
-	}
+	HandleMipLevelChanged(++SpecifiedMipLevel);
 
 	return FReply::Handled();
 }
@@ -1454,28 +1407,6 @@ void FTextureEditorToolkit::HandleLayerEntryBoxChanged(int32 NewLayer)
 	PopulateQuickInfo();
 }
 
-FReply FTextureEditorToolkit::HandleLayerMinusButtonClicked()
-{
-	if (SpecifiedLayer > 0)
-	{
-		--SpecifiedLayer;
-		PopulateQuickInfo();
-	}
-
-	return FReply::Handled();
-}
-
-
-FReply FTextureEditorToolkit::HandleLayerPlusButtonClicked()
-{
-	if ((SpecifiedLayer + 1) < Texture->Source.GetNumLayers())
-	{
-		++SpecifiedLayer;
-		PopulateQuickInfo();
-	}
-
-	return FReply::Handled();
-}
 
 TOptional<int32> FTextureEditorToolkit::HandleLayerEntryBoxValue() const
 {
@@ -1486,18 +1417,6 @@ bool FTextureEditorToolkit::HasLayers() const
 {
 	return Texture->Source.GetNumLayers() > 1;
 }
-
-void FTextureEditorToolkit::HandleRedChannelActionExecute( )
-{
-	bIsRedChannel = !bIsRedChannel;
-}
-
-
-bool FTextureEditorToolkit::HandleRedChannelActionIsChecked( ) const
-{
-	return bIsRedChannel;
-}
-
 
 bool FTextureEditorToolkit::HandleReimportActionCanExecute( ) const
 {
@@ -1622,5 +1541,437 @@ bool FTextureEditorToolkit::HandleTextureBorderActionIsChecked( ) const
 	return Settings.TextureBorderEnabled;
 }
 
+EVisibility FTextureEditorToolkit::HandleExposureBiasWidgetVisibility() const
+{
+	if ((Texture != nullptr) && (Texture->CompressionSettings == TC_HDR || Texture->CompressionSettings == TC_HDR_Compressed))
+	{
+		return EVisibility::Visible;
+	}
+
+	return EVisibility::Collapsed;
+}
+
+
+TOptional<int32> FTextureEditorToolkit::HandleExposureBiasBoxValue() const
+{
+	return GetExposureBias();
+}
+
+void FTextureEditorToolkit::HandleExposureBiasBoxValueChanged(int32 NewExposure)
+{
+	ExposureBias = NewExposure;
+}
+
+void FTextureEditorToolkit::HandleOpacitySliderChanged(float NewValue)
+{
+	SetVolumeOpacity(NewValue);
+}
+
+TOptional<float> FTextureEditorToolkit::HandleOpacitySliderValue() const
+{
+	return GetVolumeOpacity();
+}
+
+
+FReply FTextureEditorToolkit::HandleViewOptionsMenuButtonClicked()
+{
+	if (ViewOptionsMenuAnchor->ShouldOpenDueToClick())
+	{
+		ViewOptionsMenuAnchor->SetIsOpen(true);
+	}
+	else
+	{
+		ViewOptionsMenuAnchor->SetIsOpen(false);
+	}
+
+	return FReply::Handled();
+}
+
+void FTextureEditorToolkit::HandleZoomMenuEntryClicked(double ZoomValue)
+{
+	SetCustomZoomLevel(ZoomValue);
+}
+
+void FTextureEditorToolkit::HandleZoomMenuFillClicked()
+{
+	SetZoomMode(ETextureEditorZoomMode::Fill);
+}
+
+void FTextureEditorToolkit::HandleZoomMenuFitClicked()
+{
+	SetZoomMode(ETextureEditorZoomMode::Fit);
+}
+
+bool FTextureEditorToolkit::IsZoomMenuFillChecked() const
+{
+	return IsCurrentZoomMode(ETextureEditorZoomMode::Fill);
+}
+
+bool FTextureEditorToolkit::IsZoomMenuFitChecked() const
+{
+	return IsCurrentZoomMode(ETextureEditorZoomMode::Fit);
+}
+
+FText FTextureEditorToolkit::HandleZoomPercentageText() const
+{
+	double DisplayedZoomLevel = CalculateDisplayedZoomLevel();
+	FText ZoomLevelPercent = FText::AsPercent(DisplayedZoomLevel);
+
+	// For fit and fill, show the effective zoom level in parenthesis - eg. "Fill (220%)"
+	static const FText ZoomModeWithPercentFormat = LOCTEXT("ZoomModeWithPercentFormat", "{ZoomMode} ({ZoomPercent})");
+	if (GetZoomMode() == ETextureEditorZoomMode::Fit)
+	{
+		static const FText ZoomModeFit = LOCTEXT("ZoomModeFit", "Fit");
+		return FText::FormatNamed(ZoomModeWithPercentFormat, TEXT("ZoomMode"), ZoomModeFit, TEXT("ZoomPercent"), ZoomLevelPercent);
+	}
+
+	if (GetZoomMode() == ETextureEditorZoomMode::Fill)
+	{
+		static const FText ZoomModeFill = LOCTEXT("ZoomModeFill", "Fill");
+		return FText::FormatNamed(ZoomModeWithPercentFormat, TEXT("ZoomMode"), ZoomModeFill, TEXT("ZoomPercent"), ZoomLevelPercent);
+	}
+
+	// If custom, then just the percent is enough
+	return ZoomLevelPercent;
+}
+
+void FTextureEditorToolkit::HandleZoomSliderChanged(float NewValue)
+{
+	SetCustomZoomLevel(NewValue * MaxZoom);
+}
+
+float FTextureEditorToolkit::HandleZoomSliderValue() const
+{
+	return (CalculateDisplayedZoomLevel() / MaxZoom);
+}
+
+TSharedRef<SWidget> FTextureEditorToolkit::MakeChannelControlWidget()
+{
+	auto OnChannelCheckStateChanged = [this](ECheckBoxState NewState, ETextureChannelButton Button)
+	{
+		OnChannelButtonCheckStateChanged(Button);
+	};
+
+	TSharedRef<SWidget> ChannelControl = 
+		SNew(SHorizontalBox)
+		+SHorizontalBox::Slot()
+		.VAlign(VAlign_Center)
+		.Padding(2.0f)
+		.AutoWidth()
+		[
+			SNew(SCheckBox)
+			.Style(FAppStyle::Get(), "TextureEditor.ChannelButtonStyle")
+			.BorderBackgroundColor(this, &FTextureEditorToolkit::GetChannelButtonBackgroundColor, ETextureChannelButton::Red)
+			.ForegroundColor(this, &FTextureEditorToolkit::GetChannelButtonForegroundColor, ETextureChannelButton::Red)
+			.OnCheckStateChanged_Lambda(OnChannelCheckStateChanged, ETextureChannelButton::Red)
+			.IsChecked(this, &FTextureEditorToolkit::OnGetChannelButtonCheckState, ETextureChannelButton::Red)
+			[
+				SNew(STextBlock)
+				.Font(FAppStyle::Get().GetFontStyle("TextureEditor.ChannelButtonFont"))
+				.Text(FText::FromString("R"))
+			]
+		]
+		+SHorizontalBox::Slot()
+		.VAlign(VAlign_Center)
+		.Padding(2.0f)
+		.AutoWidth()
+		[
+			SNew(SCheckBox)
+			.Style(FAppStyle::Get(), "TextureEditor.ChannelButtonStyle")
+			.BorderBackgroundColor(this, &FTextureEditorToolkit::GetChannelButtonBackgroundColor, ETextureChannelButton::Green)
+			.ForegroundColor(this, &FTextureEditorToolkit::GetChannelButtonForegroundColor, ETextureChannelButton::Green)
+			.OnCheckStateChanged_Lambda(OnChannelCheckStateChanged, ETextureChannelButton::Green)
+			.IsChecked(this, &FTextureEditorToolkit::OnGetChannelButtonCheckState, ETextureChannelButton::Green)
+			[
+				SNew(STextBlock)
+				.Font(FAppStyle::Get().GetFontStyle("TextureEditor.ChannelButtonFont"))
+				.Text(FText::FromString("G"))
+			]
+		]
+
+		+SHorizontalBox::Slot()
+		.VAlign(VAlign_Center)
+		.Padding(2.0f)
+		.AutoWidth()
+		[
+			SNew(SCheckBox)
+			.Style(FAppStyle::Get(), "TextureEditor.ChannelButtonStyle")
+			.BorderBackgroundColor(this, &FTextureEditorToolkit::GetChannelButtonBackgroundColor, ETextureChannelButton::Blue)
+			.ForegroundColor(this, &FTextureEditorToolkit::GetChannelButtonForegroundColor, ETextureChannelButton::Blue)
+			.OnCheckStateChanged_Lambda(OnChannelCheckStateChanged, ETextureChannelButton::Blue)
+			.IsChecked(this, &FTextureEditorToolkit::OnGetChannelButtonCheckState, ETextureChannelButton::Blue)
+			[
+				SNew(STextBlock)
+				.Font(FAppStyle::Get().GetFontStyle("TextureEditor.ChannelButtonFont"))
+				.Text(FText::FromString("B"))
+			]
+		]
+		+SHorizontalBox::Slot()
+		.VAlign(VAlign_Center)
+		.Padding(2.0f)
+		.AutoWidth()
+		[
+			SNew(SCheckBox)
+			.Style(FAppStyle::Get(), "TextureEditor.ChannelButtonStyle")
+			.BorderBackgroundColor(this, &FTextureEditorToolkit::GetChannelButtonBackgroundColor, ETextureChannelButton::Alpha)
+			.ForegroundColor(this, &FTextureEditorToolkit::GetChannelButtonForegroundColor, ETextureChannelButton::Alpha)
+			.OnCheckStateChanged_Lambda(OnChannelCheckStateChanged, ETextureChannelButton::Alpha)
+			.IsChecked(this, &FTextureEditorToolkit::OnGetChannelButtonCheckState, ETextureChannelButton::Alpha)
+			.IsEnabled(this, &FTextureEditorToolkit::IsAlphaChannelButtonEnabled)
+			[
+				SNew(STextBlock)
+				.Font(FAppStyle::Get().GetFontStyle("TextureEditor.ChannelButtonFont"))
+				.Text(FText::FromString("A"))
+			]
+		];
+
+	return ChannelControl;
+}
+
+TSharedRef<SWidget> FTextureEditorToolkit::MakeLODControlWidget()
+{
+	TSharedRef<SWidget> LODControl = SNew(SBox)
+		.WidthOverride(212.0f)
+		[
+			SNew(SHorizontalBox)
+			.IsEnabled(this, &FTextureEditorToolkit::HandleMipLevelCheckBoxIsEnabled)
+			+ SHorizontalBox::Slot()
+			.Padding(4.0f, 0.0f, 2.0f, 0.0f)
+			.VAlign(VAlign_Center)
+			.AutoWidth()
+			[
+				SNew(SCheckBox)
+				.IsChecked(this, &FTextureEditorToolkit::HandleMipLevelCheckBoxIsChecked)
+				.OnCheckStateChanged(this, &FTextureEditorToolkit::HandleMipLevelCheckBoxCheckedStateChanged)
+			]
+			+ SHorizontalBox::Slot()
+			.VAlign(VAlign_Center)
+			.Padding(2.0f, 0.0f, 4.0f, 0.0f)
+			[
+				SNew(SComboButton)
+				.IsEnabled(this, &FTextureEditorToolkit::GetUseSpecifiedMip)
+				.OnGetMenuContent(this, &FTextureEditorToolkit::OnGenerateMipMapLevelMenu)
+				.ButtonContent()
+				[
+					SAssignNew(MipLevelTextBlock, STextBlock)
+					.Text(FText::Format(LOCTEXT("MipLevel", "Mip Level {0}"), SpecifiedMipLevel))
+				]
+			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.Padding(4.0f)
+			[
+				SNew(SButton)
+				.ButtonStyle(FAppStyle::Get(), "TextureEditor.MipmapButtonStyle")
+				.OnClicked(this, &FTextureEditorToolkit::HandleMipMapPlusButtonClicked)
+				.IsEnabled(this, &FTextureEditorToolkit::GetUseSpecifiedMip)
+				[
+					SNew(SImage)
+					.Image(FAppStyle::Get().GetBrush("Icons.Plus"))
+					.ColorAndOpacity(FSlateColor::UseForeground())
+				]
+			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.Padding(4.0f)
+			[
+				SNew(SButton)
+				.ButtonStyle(FAppStyle::Get(), "TextureEditor.MipmapButtonStyle")
+				.OnClicked(this, &FTextureEditorToolkit::HandleMipMapMinusButtonClicked)
+				.IsEnabled(this, &FTextureEditorToolkit::GetUseSpecifiedMip)
+				[
+					SNew(SImage)
+					.Image(FAppStyle::Get().GetBrush("Icons.Minus"))
+					.ColorAndOpacity(FSlateColor::UseForeground())
+				]
+			]
+		];
+
+	return LODControl;
+}
+
+TSharedRef<SWidget> FTextureEditorToolkit::MakeLayerControlWidget()
+{
+	TSharedRef<SWidget> LayerControl = SNew(SBox)
+		.WidthOverride(160.0f)
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.Padding(4.0f, 0.0f, 4.0f, 0.0f)
+			.VAlign(VAlign_Center)
+			.AutoWidth()
+			[
+				SNew(STextBlock)
+				.Text(NSLOCTEXT("TextureEditor", "Layer", "Layer"))
+			]
+			+ SHorizontalBox::Slot()
+				.Padding(0.0f, 0.0f, 4.0f, 0.0f)
+				.VAlign(VAlign_Center)
+			[
+				SNew(SNumericEntryBox<int32>)
+				.AllowSpin(true)
+				.MinSliderValue(0)
+				.MaxSliderValue(this, &FTextureEditorToolkit::GetMaxLayer)
+				.Value(this, &FTextureEditorToolkit::HandleLayerEntryBoxValue)
+				.OnValueChanged(this, &FTextureEditorToolkit::HandleLayerEntryBoxChanged)
+			]
+		];
+
+	return LayerControl;
+}
+
+TSharedRef<SWidget> FTextureEditorToolkit::MakeExposureContolWidget()
+{
+	TSharedRef<SWidget> ExposureControl = SNew(SBox)
+		.WidthOverride(160.0f)
+		.Visibility(this, &FTextureEditorToolkit::HandleExposureBiasWidgetVisibility)
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.Padding(8.0f, 0.0f, 4.0f, 0.0f)
+				.AutoWidth()
+				.VAlign(VAlign_Center)
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("ExposureBiasLabel", "Exposure Bias"))
+				]
+				+ SHorizontalBox::Slot()
+				.Padding(0.0f, 0.0f, 4.0f, 0.0f)
+				.VAlign(VAlign_Center)
+				[
+					SNew(SNumericEntryBox<int32>)
+					.AllowSpin(true)
+					.MinSliderValue(MinExposure)
+					.MaxSliderValue(MaxExposure)
+					.Value(this, &FTextureEditorToolkit::HandleExposureBiasBoxValue)
+					.OnValueChanged(this, &FTextureEditorToolkit::HandleExposureBiasBoxValueChanged)
+				]
+			]
+		];
+	return ExposureControl;
+}
+
+TSharedRef<SWidget> FTextureEditorToolkit::MakeOpacityControlWidget()
+{
+	TSharedRef<SWidget> OpacityControl = SNew(SBox)
+		.WidthOverride(160.0f)
+		[
+			// opacity slider
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("OpacityLabel", "Opacity"))
+			]
+			+ SHorizontalBox::Slot()
+			.Padding(4.0f, 0.0f)
+			.VAlign(VAlign_Center)
+			[
+				SNew(SNumericEntryBox<float>)
+				.AllowSpin(true)
+				.MinSliderValue(0.0f)
+				.MaxSliderValue(1.0f)
+				.OnValueChanged(this, &FTextureEditorToolkit::HandleOpacitySliderChanged)
+				.Value(this, &FTextureEditorToolkit::HandleOpacitySliderValue)
+			]
+		];
+
+	return OpacityControl;
+}
+
+TSharedRef<SWidget> FTextureEditorToolkit::MakeZoomControlWidget()
+{
+	const FMargin ToolbarSlotPadding(4.0f, 1.0f);
+	const FMargin ToolbarButtonPadding(4.0f, 0.0f);
+
+	FMenuBuilder ZoomMenuBuilder(true, NULL);
+	{
+		FUIAction Zoom25Action(FExecuteAction::CreateSP(this, &FTextureEditorToolkit::HandleZoomMenuEntryClicked, 0.25));
+		ZoomMenuBuilder.AddMenuEntry(LOCTEXT("Zoom25Action", "25%"), LOCTEXT("Zoom25ActionHint", "Show the texture at a quarter of its size."), FSlateIcon(), Zoom25Action);
+
+		FUIAction Zoom50Action(FExecuteAction::CreateSP(this, &FTextureEditorToolkit::HandleZoomMenuEntryClicked, 0.5));
+		ZoomMenuBuilder.AddMenuEntry(LOCTEXT("Zoom50Action", "50%"), LOCTEXT("Zoom50ActionHint", "Show the texture at half its size."), FSlateIcon(), Zoom50Action);
+
+		FUIAction Zoom100Action(FExecuteAction::CreateSP(this, &FTextureEditorToolkit::HandleZoomMenuEntryClicked, 1.0));
+		ZoomMenuBuilder.AddMenuEntry(LOCTEXT("Zoom100Action", "100%"), LOCTEXT("Zoom100ActionHint", "Show the texture in its original size."), FSlateIcon(), Zoom100Action);
+
+		FUIAction Zoom200Action(FExecuteAction::CreateSP(this, &FTextureEditorToolkit::HandleZoomMenuEntryClicked, 2.0));
+		ZoomMenuBuilder.AddMenuEntry(LOCTEXT("Zoom200Action", "200%"), LOCTEXT("Zoom200ActionHint", "Show the texture at twice its size."), FSlateIcon(), Zoom200Action);
+
+		FUIAction Zoom400Action(FExecuteAction::CreateSP(this, &FTextureEditorToolkit::HandleZoomMenuEntryClicked, 4.0));
+		ZoomMenuBuilder.AddMenuEntry(LOCTEXT("Zoom400Action", "400%"), LOCTEXT("Zoom400ActionHint", "Show the texture at four times its size."), FSlateIcon(), Zoom400Action);
+
+		ZoomMenuBuilder.AddMenuSeparator();
+
+		FUIAction ZoomFitAction(
+			FExecuteAction::CreateSP(this, &FTextureEditorToolkit::HandleZoomMenuFitClicked),
+			FCanExecuteAction(),
+			FIsActionChecked::CreateSP(this, &FTextureEditorToolkit::IsZoomMenuFitChecked)
+		);
+		ZoomMenuBuilder.AddMenuEntry(LOCTEXT("ZoomFitAction", "Scale To Fit"), LOCTEXT("ZoomFitActionHint", "Scales the texture down to fit within the viewport if needed."), FSlateIcon(), ZoomFitAction, NAME_None, EUserInterfaceActionType::RadioButton);
+
+		FUIAction ZoomFillAction(
+			FExecuteAction::CreateSP(this, &FTextureEditorToolkit::HandleZoomMenuFillClicked),
+			FCanExecuteAction(),
+			FIsActionChecked::CreateSP(this, &FTextureEditorToolkit::IsZoomMenuFillChecked)
+		);
+		ZoomMenuBuilder.AddMenuEntry(LOCTEXT("ZoomFillAction", "Scale To Fill"), LOCTEXT("ZoomFillActionHint", "Scales the texture up and down to fill the viewport."), FSlateIcon(), ZoomFillAction, NAME_None, EUserInterfaceActionType::RadioButton);
+	}
+
+	// zoom slider
+	TSharedRef<SWidget> ZoomControl = 
+		SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.VAlign(VAlign_Center)
+		[
+			SNew(STextBlock)
+			.Text(LOCTEXT("ZoomLabel", "Zoom"))
+		]
+		+ SHorizontalBox::Slot()
+		.Padding(4.0f, 0.0f)
+		.AutoWidth()
+		.VAlign(VAlign_Center)
+		[
+			SNew(SBox)
+			.WidthOverride(200.f)
+			[
+				SNew(SSlider)
+				.OnValueChanged(this, &FTextureEditorToolkit::HandleZoomSliderChanged)
+				.Value(this, &FTextureEditorToolkit::HandleZoomSliderValue)
+			]
+		]
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.VAlign(VAlign_Center)
+		.Padding(4.0f, 0.0f, 0.0f, 0.0f)
+		[
+			SNew(SComboButton)
+			.ComboButtonStyle(FAppStyle::Get(), "SimpleComboButton")
+			.ButtonContent()
+			[
+				SNew(SBox)
+				.WidthOverride(40.f)
+				.HAlign(HAlign_Right)
+				[
+					SNew(STextBlock)
+					.Text(this, &FTextureEditorToolkit::HandleZoomPercentageText)
+				]
+			]
+			.MenuContent()
+			[
+				ZoomMenuBuilder.MakeWidget()
+			]
+		];
+
+	return ZoomControl;
+}
 
 #undef LOCTEXT_NAMESPACE

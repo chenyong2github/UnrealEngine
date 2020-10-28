@@ -30,6 +30,12 @@ void FTextureDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 		TextureBeingCustomized = ObjectsBeingCustomized[0];
 	}
 
+	DetailBuilder.EditCategory("LevelOfDetail");
+	DetailBuilder.EditCategory("Compression");
+	DetailBuilder.EditCategory("Texture");
+	DetailBuilder.EditCategory("Adjustments");
+	DetailBuilder.EditCategory("File Path");
+
 	MaxTextureSizePropertyHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UTexture, MaxTextureSize));
 	PowerOfTwoModePropertyHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UTexture, PowerOfTwoMode));
 	VirtualTextureStreamingPropertyHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UTexture, VirtualTextureStreaming));

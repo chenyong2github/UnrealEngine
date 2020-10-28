@@ -17,6 +17,14 @@ class STextureEditorViewport;
 class UFactory;
 class UTexture;
 
+enum class ETextureChannelButton : uint8
+{
+	Red,
+	Green,
+	Blue,
+	Alpha
+};
+
 /**
  * Implements an Editor toolkit for textures.
  */
@@ -45,17 +53,13 @@ public:
 	void InitTextureEditor( const EToolkitMode::Type Mode, const TSharedPtr<class IToolkitHost>& InitToolkitHost, UObject* ObjectToEdit );
 
 public:
-
 	// FAssetEditorToolkit interface
-
 	virtual FString GetDocumentationLink( ) const override;
 	virtual void RegisterTabSpawners( const TSharedRef<class FTabManager>& TabManager ) override;
 	virtual void UnregisterTabSpawners( const TSharedRef<class FTabManager>& TabManager ) override;
-
-public:
+	virtual bool UsesCustomToolbarPlacement() const { return false; }
 
 	// ITextureEditorToolkit interface
-
 	virtual void CalculateTextureDimensions( uint32& Width, uint32& Height ) const override;
 	virtual ESimpleElementBlendMode GetColourChannelBlendMode( ) const override;
 	virtual int32 GetMipLevel( ) const override;
@@ -76,30 +80,30 @@ public:
 	virtual void SetVolumeOpacity( float VolumeOpacity ) override;
 	virtual const FRotator& GetVolumeOrientation( ) const override;
 	virtual void SetVolumeOrientation( const FRotator& InOrientation ) override;
+	virtual bool IsVolumeTexture() const override
+	{
+		return bIsVolumeTexture;
+	}
 
-public:
+	virtual int32 GetExposureBias() const override
+	{
+		return ExposureBias;
+	}
+
 
 	// IToolkit interface
-
 	virtual FText GetBaseToolkitName( ) const override;
 	virtual FName GetToolkitFName( ) const override;
 	virtual FLinearColor GetWorldCentricTabColorScale( ) const override;
 	virtual FString GetWorldCentricTabPrefix( ) const override;
 
-public:
-
 	// FGCObject interface
-
 	virtual void AddReferencedObjects( FReferenceCollector& Collector ) override;
 	
 protected:
-
 	// FEditorUndoClient interface
-
 	virtual void PostUndo( bool bSuccess ) override;
 	virtual void PostRedo( bool bSuccess ) override;
-
-protected:
 
 	/**
 	 * Binds the UI commands to delegates.
@@ -123,7 +127,7 @@ protected:
 	 */
 	void ExtendToolBar( );
 
-	void FillToolbar(FToolBarBuilder& ToolbarBuilder, const TSharedRef< FUICommandList > ToolkitCommands, TSharedRef<SWidget> LODControl, TSharedRef<SWidget> LayerControl);
+	void FillToolbar(FToolBarBuilder& ToolbarBuilder);
 	/**
 	 * Gets the highest mip map level that this texture supports.
 	 *
@@ -138,22 +142,14 @@ protected:
 	 */
 	bool IsCubeTexture( ) const;
 
+	TSharedRef<SWidget> OnGenerateMipMapLevelMenu();
+	TSharedRef<SWidget> OnGenerateSettingsMenu();
 private:
-
-	// Callback for toggling the Alpha channel action.
-	void HandleAlphaChannelActionExecute( );
-
-	// Callback for getting the checked state of the Alpha channel action.
-	bool HandleAlphaChannelActionIsChecked( ) const;
-
-	// Callback for getting the enabled state of the Alpha channel action.
-	bool HandleAlphaChannelActionCanExecute( ) const;
-
-	// Callback for toggling the Blue channel action.
-	void HandleBlueChannelActionExecute( );
-
-	// Callback for getting the checked state of the Blue channel action.
-	bool HandleBlueChannelActionIsChecked( ) const;
+	bool IsAlphaChannelButtonEnabled() const;
+	FSlateColor GetChannelButtonBackgroundColor(ETextureChannelButton Button) const;
+	FSlateColor GetChannelButtonForegroundColor(ETextureChannelButton Button) const;
+	void OnChannelButtonCheckStateChanged(ETextureChannelButton Button);
+	ECheckBoxState OnGetChannelButtonCheckState(ETextureChannelButton Button) const;
 
 	// Callback for toggling the Checkered Background action.
 	void HandleCheckeredBackgroundActionExecute( ETextureEditorBackgrounds Background );
@@ -185,12 +181,6 @@ private:
 	// Callback for executing the Fit To 100% action.
 	void HandleZoomToNaturalActionExecute( );
 
-	// Callback for toggling the Green channel action.
-	void HandleGreenChannelActionExecute( );
-
-	// Callback for getting the checked state of the Green Channel action.
-	bool HandleGreenChannelActionIsChecked( ) const;
-
 	// Callback for changing the checked state of the MipMap check box.
 	void HandleMipLevelCheckBoxCheckedStateChanged( ECheckBoxState InNewState );
 
@@ -201,29 +191,19 @@ private:
 	bool HandleMipLevelCheckBoxIsEnabled( ) const;
 
 	// Callback for changing the value of the mip map level entry box.
-	void HandleMipLevelEntryBoxChanged( int32 NewMipLevel );
+	void HandleMipLevelChanged( int32 NewMipLevel );
 
 	// Callback for getting the value of the mip map level entry box.
 	TOptional<int32> HandleMipLevelEntryBoxValue( ) const;
 
-	// Callback for clicking the MipMinus button.
-	FReply HandleMipMapMinusButtonClicked( );
+	FReply HandleMipMapMinusButtonClicked();
 
-	// Callback for clicking the MipPlus button.
-	FReply HandleMipMapPlusButtonClicked( );
-
+	FReply HandleMipMapPlusButtonClicked();
 
 	void HandleLayerEntryBoxChanged(int32 NewMipLevel);
 	TOptional<int32> HandleLayerEntryBoxValue() const;
-	FReply HandleLayerMinusButtonClicked();
-	FReply HandleLayerPlusButtonClicked();
+
 	bool HasLayers() const;
-
-	// Callback for toggling the Red channel action.
-	void HandleRedChannelActionExecute( );
-
-	// Callback for getting the checked state of the Red Channel action.
-	bool HandleRedChannelActionIsChecked( ) const;
 
 	// Callback for determining whether the Reimport action can execute.
 	bool HandleReimportActionCanExecute( ) const;
@@ -261,6 +241,54 @@ private:
 	// Callback for getting the checked state of the Texture Border action.
 	bool HandleTextureBorderActionIsChecked( ) const;
 
+	// Callback for getting the visibility of the exposure bias widget.
+	EVisibility HandleExposureBiasWidgetVisibility() const;
+
+	// Callback for getting the exposure bias.
+	TOptional<int32> HandleExposureBiasBoxValue() const;
+
+	// Callback for changing the exposure bias.
+	void HandleExposureBiasBoxValueChanged(int32 NewExposure);
+
+	// Callback for changes in the zoom slider.
+	void HandleOpacitySliderChanged(float NewValue);
+
+	// Callback for getting the zoom slider's value.
+	TOptional<float> HandleOpacitySliderValue() const;
+
+	// Callback for clicking an item in the 'Zoom' menu.
+	void HandleZoomMenuEntryClicked(double ZoomValue);
+
+	// Callback for clicking the 'Fill' item in the 'Zoom' menu.
+	void HandleZoomMenuFillClicked();
+
+	// Callback for setting the checked state of the 'Fill' item in the 'Zoom' menu.
+	bool IsZoomMenuFillChecked() const;
+
+	// Callback for clicking the 'Fit' item in the 'Zoom' menu.
+	void HandleZoomMenuFitClicked();
+
+	// Callback for setting the checked state of the 'Fit' item in the 'Zoom' menu.
+	bool IsZoomMenuFitChecked() const;
+
+	// Callback for getting the zoom percentage text.
+	FText HandleZoomPercentageText() const;
+
+	// Callback for changes in the zoom slider.
+	void HandleZoomSliderChanged(float NewValue);
+
+	// Callback for getting the zoom slider's value.
+	float HandleZoomSliderValue() const;
+
+	// Callback for clicking the View Options menu button.
+	FReply HandleViewOptionsMenuButtonClicked();
+
+	TSharedRef<SWidget> MakeChannelControlWidget();
+	TSharedRef<SWidget> MakeLODControlWidget();
+	TSharedRef<SWidget> MakeLayerControlWidget();
+	TSharedRef<SWidget> MakeExposureContolWidget();
+	TSharedRef<SWidget> MakeOpacityControlWidget();
+	TSharedRef<SWidget> MakeZoomControlWidget();
 private:
 
 	/** The Texture asset being inspected */
@@ -285,6 +313,10 @@ private:
 	TSharedPtr<STextBlock> LODBiasText;
 	TSharedPtr<STextBlock> HasAlphaChannelText;
 	TSharedPtr<STextBlock> NumMipsText;
+	TSharedPtr<STextBlock> MipLevelTextBlock;
+
+	// Holds the anchor for the view options menu.
+	TSharedPtr<SMenuAnchor> ViewOptionsMenuAnchor;
 
 	/** If true, displays the red channel */
 	bool bIsRedChannel;
@@ -318,6 +350,9 @@ private:
 	/** The texture's zoom factor. */
 	double Zoom;
 
+	// Which exposure level should be used, in FStop e.g. 0:original, -1:half as bright, 1:2x as bright, 2:4x as bright.
+	int32 ExposureBias;
+
 	/** This toolkit's current zoom mode **/
 	ETextureEditorZoomMode ZoomMode;
 
@@ -327,6 +362,7 @@ private:
 	// For volume texture, the orientation when tracing.
 	FRotator VolumeOrientation;
 
+	bool bIsVolumeTexture;
 private:
 
 	// The name of the Viewport tab.
