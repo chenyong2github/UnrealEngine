@@ -185,15 +185,6 @@ void UWeldMeshEdgesTool::UpdateResult()
 	bResultValid = true;
 }
 
-bool UWeldMeshEdgesTool::HasAccept() const
-{
-	return true;
-}
-
-bool UWeldMeshEdgesTool::CanAccept() const
-{
-	return true;
-}
 
 
 

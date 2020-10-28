@@ -263,7 +263,7 @@ bool UEditNormalsTool::CanAccept() const
 			return false;
 		}
 	}
-	return true;
+	return Super::CanAccept();
 }
 
 

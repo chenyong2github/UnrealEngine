@@ -276,7 +276,7 @@ public:
 
 	virtual bool HasCancel() const override { return true; }
 	virtual bool HasAccept() const override { return true; }
-	virtual bool CanAccept() const override { return bHaveModifiedMesh; }
+	virtual bool CanAccept() const override { return Super::CanAccept() && bHaveModifiedMesh; }
 
 	// UBaseBrushTool overrides
 	virtual bool HitTest(const FRay& Ray, FHitResult& OutHit) override;
