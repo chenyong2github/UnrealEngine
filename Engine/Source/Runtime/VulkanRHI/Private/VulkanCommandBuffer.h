@@ -153,6 +153,7 @@ public:
 		HasEnded,
 		Submitted,
 		NotAllocated,
+		NeedReset,
 	};
 
 	VkViewport CurrentViewport;
