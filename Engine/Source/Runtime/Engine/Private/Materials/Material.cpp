@@ -3783,7 +3783,7 @@ void UMaterial::PostLoad()
 	//DumpDebugInfo();
 }
 
-void UMaterial::DumpDebugInfo()
+void UMaterial::DumpDebugInfo() const
 {
 	UE_LOG(LogConsoleResponse, Display, TEXT("----------------------------- %s"), *GetFullName());
 
