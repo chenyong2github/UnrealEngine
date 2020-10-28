@@ -82,7 +82,15 @@ void SSearchableComboBox::Construct(const FArguments& InArgs)
 		.OnMenuOpenChanged(this, &SSearchableComboBox::OnMenuOpenChanged)
 		.IsFocusable(true)
 		);
-	SetMenuContentWidgetToFocus(SearchField);
+
+	if (SearchField->GetVisibility() == EVisibility::Visible)
+	{
+		SetMenuContentWidgetToFocus(SearchField);
+	}
+	else
+	{
+		SetMenuContentWidgetToFocus(ComboListView);
+	}
 
 	// Need to establish the selected item at point of construction so its available for querying
 	// NB: If you need a selection to fire use SetItemSelection rather than setting an IntiallySelectedItem
