@@ -76,9 +76,6 @@ void FAnimTransitionNodeDetails::CustomizeDetails( IDetailLayoutBuilder& DetailB
 	UAnimStateTransitionNode* TransNode = TransitionNode.Get();
 	IDetailCategoryBuilder& TransitionCategory = DetailBuilder.EditCategory("Transition", LOCTEXT("TransitionCategoryTitle", "Transition") );
 
-	// Added below via CreateBlendProfilePicker
-	DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UAnimStateTransitionNode, BlendProfile));
-
 	if (bTransitionToConduit)
 	{
 		// Transitions to conduits are just shorthand for some other real transition;
@@ -89,6 +86,7 @@ void FAnimTransitionNodeDetails::CustomizeDetails( IDetailLayoutBuilder& DetailB
 		DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UAnimStateTransitionNode, CustomBlendCurve));
 		DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UAnimStateTransitionNode, LogicType));
 		DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UAnimStateTransitionNode, PriorityOrder));
+		DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UAnimStateTransitionNode, BlendProfile));
 	}
 	else
 	{
@@ -230,37 +228,10 @@ void FAnimTransitionNodeDetails::CustomizeDetails( IDetailLayoutBuilder& DetailB
 		CrossfadeCategory.AddProperty(GET_MEMBER_NAME_CHECKED(UAnimStateTransitionNode, CrossfadeDuration)).DisplayName( LOCTEXT("DurationLabel", "Duration") );
 		CrossfadeCategory.AddProperty(GET_MEMBER_NAME_CHECKED(UAnimStateTransitionNode, BlendMode)).DisplayName(LOCTEXT("ModeLabel", "Mode")).IsEnabled(BlendSettingsEnabledAttribute);
 		CrossfadeCategory.AddProperty(GET_MEMBER_NAME_CHECKED(UAnimStateTransitionNode, CustomBlendCurve)).DisplayName(LOCTEXT("CurveLabel", "Custom Blend Curve")).IsEnabled(BlendSettingsEnabledAttribute);
-
-		USkeleton* TargetSkeleton = TransNode ? TransNode->GetAnimBlueprint()->TargetSkeleton : nullptr;
-
-		if(TargetSkeleton)
-		{
+		CrossfadeCategory.AddProperty(GET_MEMBER_NAME_CHECKED(UAnimStateTransitionNode, BlendProfile)).DisplayName(LOCTEXT("BlendProfileLabel", "Blend Profile")).IsEnabled(BlendSettingsEnabledAttribute);
+		
+		{// Blend Profile Mode
 			TSharedPtr<IPropertyHandle> BlendProfileHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UAnimStateTransitionNode, BlendProfile));
-			UObject* BlendProfilePropertyValue = nullptr;
-			BlendProfileHandle->GetValue(BlendProfilePropertyValue);
-			UBlendProfile* CurrentProfile = Cast<UBlendProfile>(BlendProfilePropertyValue);
-
-			ISkeletonEditorModule& SkeletonEditorModule = FModuleManager::LoadModuleChecked<ISkeletonEditorModule>("SkeletonEditor");
-
-			FBlendProfilePickerArgs Args;
-			Args.InitialProfile = CurrentProfile;
-			Args.OnBlendProfileSelected = FOnBlendProfileSelected::CreateSP(this, &FAnimTransitionNodeDetails::OnBlendProfileChanged, BlendProfileHandle);
-			Args.bAllowNew = false;
-			Args.bAllowClear = true;
-			Args.bAllowRemove = false;
-
-			CrossfadeCategory.AddCustomRow(LOCTEXT("BlendProfileLabel", "Blend Profile"))
-				.IsEnabled(BlendSettingsEnabledAttribute)
-				.NameContent()
-				[
-					BlendProfileHandle->CreatePropertyNameWidget()
-				]
-				.ValueContent()
-				[
-					SkeletonEditorModule.CreateBlendProfilePicker(TargetSkeleton, Args)
-				];
-
-			// Blend Profile Mode
 			auto BlendProfileEnabled = [BlendProfileHandle, BlendSettingsEnabledAttribute]()
 			{
 				if (BlendProfileHandle->IsValidHandle())

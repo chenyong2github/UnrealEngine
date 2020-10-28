@@ -254,26 +254,6 @@ TSharedRef<SWidget> FAnimGraphNodeDetails::CreatePropertyWidget(FProperty* Targe
 				.AllowClear(bAllowClear)
 				.OnShouldFilterAsset(FOnShouldFilterAsset::CreateSP(this, &FAnimGraphNodeDetails::OnShouldFilterAnimAsset, NodeClass));
 		}
-		else if(ObjectProperty->PropertyClass->IsChildOf(UBlendProfile::StaticClass()) && TargetSkeleton)
-		{
-			TSharedPtr<IPropertyHandle> PropertyPtr(TargetPropertyHandle);
-
-			UObject* PropertyValue = nullptr;
-			TargetPropertyHandle->GetValue(PropertyValue);
-
-			UBlendProfile* CurrentProfile = Cast<UBlendProfile>(PropertyValue);
-
-			FBlendProfilePickerArgs Args;
-			Args.bAllowNew = false;
-			Args.bAllowRemove = false;
-			Args.bAllowClear = true;
-			Args.OnBlendProfileSelected = FOnBlendProfileSelected::CreateSP(this, &FAnimGraphNodeDetails::OnBlendProfileChanged, PropertyPtr);
-			Args.InitialProfile = CurrentProfile;
-
-			ISkeletonEditorModule& SkeletonEditorModule = FModuleManager::Get().LoadModuleChecked<ISkeletonEditorModule>("SkeletonEditor");
-			return SkeletonEditorModule.CreateBlendProfilePicker(this->TargetSkeleton, Args);
-
-		}
 	}
 
 	return SNullWidget::NullWidget;
