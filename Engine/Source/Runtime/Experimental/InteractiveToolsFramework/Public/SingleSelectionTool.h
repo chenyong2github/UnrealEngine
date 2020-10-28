@@ -15,6 +15,24 @@ public:
     {
 		ComponentTarget = MoveTemp(ComponentTargetIn);
 	}
+
+	/**
+	 * @return true if all ComponentTargets of this tool are still valid
+	 */
+	virtual bool AreAllTargetsValid() const
+	{
+		return ComponentTarget->IsValid();
+	}
+
+
+public:
+	virtual bool CanAccept() const override
+	{
+		return AreAllTargetsValid();
+	}
+
 protected:
 	TUniquePtr<FPrimitiveComponentTarget> ComponentTarget{};
+
+
 };

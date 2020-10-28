@@ -244,6 +244,12 @@ void URemoveOccludedTrianglesTool::SetupPreviews()
 
 void URemoveOccludedTrianglesTool::Shutdown(EToolShutdownType ShutdownType)
 {
+	if (ShutdownType == EToolShutdownType::Accept && AreAllTargetsValid() == false)
+	{
+		UE_LOG(LogTemp, Error, TEXT("Tool Target has become Invalid (possibly it has been Force Deleted). Aborting Tool."));
+		ShutdownType = EToolShutdownType::Cancel;
+	}
+
 	// Restore (unhide) the source meshes
 	for (TUniquePtr<FPrimitiveComponentTarget>& ComponentTarget : ComponentTargets)
 	{
@@ -377,11 +383,6 @@ void URemoveOccludedTrianglesTool::OnPropertyModified(UObject* PropertySet, FPro
 
 
 
-bool URemoveOccludedTrianglesTool::HasAccept() const
-{
-	return true;
-}
-
 bool URemoveOccludedTrianglesTool::CanAccept() const
 {
 	for (UMeshOpPreviewWithBackgroundCompute* Preview : Previews)
@@ -391,7 +392,7 @@ bool URemoveOccludedTrianglesTool::CanAccept() const
 			return false;
 		}
 	}
-	return true;
+	return Super::CanAccept();
 }
 
 

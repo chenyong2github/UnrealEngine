@@ -120,7 +120,7 @@ void UMeshSpaceDeformerTool::SetAssetAPI(IToolsContextAssetAPI* AssetAPIIn)
 
 bool UMeshSpaceDeformerTool::CanAccept() const 
 {
-	return (Preview == nullptr || Preview->HaveValidResult());
+	return Super::CanAccept() && (Preview == nullptr || Preview->HaveValidResult());
 }
 
 void UMeshSpaceDeformerTool::ComputeAABB(const FDynamicMesh3& MeshIn, const FTransform& XFormIn, FVector& BBoxMin, FVector& BBoxMax) const 

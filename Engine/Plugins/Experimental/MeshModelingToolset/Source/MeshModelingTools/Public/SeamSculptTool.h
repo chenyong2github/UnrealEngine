@@ -59,10 +59,8 @@ public:
 	virtual void OnTick(float DeltaTime) override;
 	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
 
-
 	virtual bool HasCancel() const override { return true; }
 	virtual bool HasAccept() const override { return true; }
-	virtual bool CanAccept() const override { return true; }
 
 	// UBaseBrushTool overrides
 	virtual void OnBeginDrag(const FRay& Ray) override;

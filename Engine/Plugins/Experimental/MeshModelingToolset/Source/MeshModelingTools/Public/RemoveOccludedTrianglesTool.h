@@ -149,7 +149,7 @@ public:
 	virtual void OnTick(float DeltaTime) override;
 
 	virtual bool HasCancel() const override { return true; }
-	virtual bool HasAccept() const override;
+	virtual bool HasAccept() const override { return true; }
 	virtual bool CanAccept() const override;
 
 #if WITH_EDITOR
