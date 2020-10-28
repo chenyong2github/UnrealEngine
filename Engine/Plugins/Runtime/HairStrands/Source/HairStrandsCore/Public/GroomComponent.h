@@ -175,6 +175,15 @@ public:
 
 private:
 	TArray<FHairGroupInstance*> HairGroupInstances;
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(Transient)
+	UGroomAsset* GroomAssetBeingLoaded;
+
+	UPROPERTY(Transient)
+	UGroomBindingAsset* BindingAssetBeingLoaded;
+#endif
+
 protected:
 	// Used for tracking if a Niagara component is attached or not
 	virtual void OnChildAttached(USceneComponent* ChildComponent) override;
@@ -199,6 +208,7 @@ private:
 	friend class FHairCardsSceneProxy;
 };
 
+#if WITH_EDITORONLY_DATA
 /** Used to recreate render context for all GroomComponents that use a given GroomAsset */
 class HAIRSTRANDSCORE_API FGroomComponentRecreateRenderStateContext
 {
@@ -209,3 +219,4 @@ public:
 private:
 	TArray<UGroomComponent*> GroomComponents;
 };
+#endif

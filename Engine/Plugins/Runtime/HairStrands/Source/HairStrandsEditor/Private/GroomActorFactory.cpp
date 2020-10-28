@@ -39,7 +39,7 @@ void UGroomActorFactory::PostSpawnActor( UObject* Asset, AActor* NewActor)
 	check(GroomComponent);
 
 	GroomComponent->UnregisterComponent();
-	GroomComponent->GroomAsset = GroomAsset;
+	GroomComponent->SetGroomAsset(GroomAsset);
 	GroomComponent->PostLoad();
 	GroomComponent->RegisterComponent();
 }
@@ -61,7 +61,7 @@ void UGroomActorFactory::PostCreateBlueprint( UObject* Asset, AActor* CDO )
 		AGroomActor* GroomActor = CastChecked<AGroomActor>(CDO);
 		UGroomComponent* GroomComponent = GroomActor->GetGroomComponent();
 
-		GroomComponent->GroomAsset = GroomAsset;
+		GroomComponent->SetGroomAsset(GroomAsset);
 	}
 }
 

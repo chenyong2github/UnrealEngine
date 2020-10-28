@@ -356,6 +356,12 @@ bool UGroomBindingAsset::IsCompatible(const UGroomAsset* InGroom, const UGroomBi
 {
 	if (InBinding && InGroom && IsHairStrandsBindingEnable())
 	{
+		if (InBinding->Groom && !InBinding->Groom->IsValid())
+		{
+			// The groom could be invalid if it's still being loaded asynchronously
+			return false;
+		}
+
 		if (!InBinding->Groom)
 		{
 			if (bIssueWarning)
@@ -559,6 +565,12 @@ FString UGroomBindingAsset::BuildDerivedDataKeySuffix(USkeletalMesh* InSource, U
 
 void UGroomBindingAsset::CacheDerivedDatas()
 {
+	if (!Groom->IsValid())
+	{
+		// The groom could be invalid if it's still being loaded asynchronously
+		return;
+	}
+
 	// List all the components which will need to be recreated to get the new binding information
 	const FString KeySuffix = BuildDerivedDataKeySuffix(SourceSkeletalMesh, TargetSkeletalMesh, Groom, NumInterpolationPoints);
 	const FString DerivedDataKey = GroomBindingDerivedDataCacheUtils::BuildGroomBindingDerivedDataKey(KeySuffix);
