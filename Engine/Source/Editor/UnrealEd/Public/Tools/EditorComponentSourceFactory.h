@@ -21,6 +21,8 @@ public:
 	FStaticMeshComponentTarget( UPrimitiveComponent* Component )
 		: FPrimitiveComponentTarget( Cast<UStaticMeshComponent>(Component) ){}
 
+	virtual bool IsValid() const override;
+
 	virtual void GetMaterialSet(FComponentMaterialSet& MaterialSetOut, bool bAssetMaterials) const override;
 
 	FMeshDescription* GetMesh() override;
