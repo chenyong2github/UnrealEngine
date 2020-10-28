@@ -2443,6 +2443,15 @@ static FString BuildStaticMeshDerivedDataKeySuffix(const ITargetPlatform* Target
 
 	KeySuffix.AppendChar(Mesh->bSupportUniformlyDistributedSampling ? TEXT('1') : TEXT('0'));
 
+	if (TargetPlatform->SupportsFeature(ETargetPlatformFeatures::HardwareLZDecompression))
+	{
+		KeySuffix += TEXT("_HWLZ");
+	}
+	else
+	{
+		KeySuffix += TEXT("_SWLZ");
+	}
+
 	// Value of this CVar affects index buffer <-> painted vertex color correspondence (see UE-51421).
 	static const TConsoleVariableData<int32>* CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.TriangleOrderOptimization"));
 
