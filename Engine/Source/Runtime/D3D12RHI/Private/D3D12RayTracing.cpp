@@ -3394,10 +3394,12 @@ static bool SetRayTracingShaderResources(
 		if (Resource)
 		{
 			FD3D12TextureBase* Texture = FD3D12CommandContext::RetrieveTextureBase(Resource, GPUIndex);
-			LocalSRVs[SRVIndex] = Texture->GetShaderResourceView()->GetView();
+			FD3D12ShaderResourceView* SRV = Texture->GetShaderResourceView();
+			LocalSRVs[SRVIndex] = SRV->GetView();
 			BoundSRVMask |= 1ull << SRVIndex;
 
 			ReferencedResources.Add({ Texture->GetResource(), Resource });
+			Binder.AddResourceTransition(SRV);
 		}
 	}
 
@@ -3411,6 +3413,7 @@ static bool SetRayTracingShaderResources(
 			BoundSRVMask |= 1ull << SRVIndex;
 
 			ReferencedResources.Add({ SRV->GetResource(), Resource });
+			Binder.AddResourceTransition(SRV);
 		}
 	}
 
