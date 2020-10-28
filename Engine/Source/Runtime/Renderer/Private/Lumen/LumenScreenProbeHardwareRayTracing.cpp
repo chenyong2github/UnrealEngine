@@ -217,7 +217,7 @@ class FLumenCardHardwareRayTracingRGS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenMeshSDFGridParameters, MeshSDFGridParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenIndirectTracingParameters, IndirectTracingParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FScreenProbeParameters, ScreenProbeParameters)
-		SHADER_PARAMETER_STRUCT_REF(FSceneTextureUniformParameters, SceneTexturesStruct)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
 		SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheParameters, RadianceCacheParameters)
 		SHADER_PARAMETER_STRUCT_REF(FRGSRadianceCacheParameters, RGSRadianceCacheParameters)
 
@@ -376,7 +376,7 @@ class FLumenCardHardwarePrimaryRayTracingRGS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenCardTracingParameters, TracingParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenMeshSDFGridParameters, MeshSDFGridParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenIndirectTracingParameters, IndirectTracingParameters)
-		SHADER_PARAMETER_STRUCT_REF(FSceneTextureUniformParameters, SceneTexturesStruct)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
 		SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheParameters, RadianceCacheParameters)
 		SHADER_PARAMETER_STRUCT_REF(FRGSRadianceCacheParameters, RGSRadianceCacheParameters)
 
@@ -659,6 +659,7 @@ void FDeferredShadingSceneRenderer::PrepareRayTracingScreenProbeGather(const FVi
 
 void RenderHardwareRayTracingScreenProbeSubpass(FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
+	const FSceneTextureParameters& SceneTextures,
 	FScreenProbeParameters& ScreenProbeParameters,
 	const FViewInfo& View,
 	ERayTracingPrimaryRaysFlag Flags,
@@ -708,7 +709,7 @@ void RenderHardwareRayTracingScreenProbeSubpass(FRDGBuilder& GraphBuilder,
 		PassParameters->MeshSDFGridParameters = MeshSDFGridParameters;
 
 		PassParameters->ScreenProbeParameters = ScreenProbeParameters;
-		PassParameters->SceneTexturesStruct = CreateSceneTextureUniformBuffer(GraphBuilder.RHICmdList, View.FeatureLevel);
+		PassParameters->SceneTextures = SceneTextures;
 
 		//This parameter should be set always as dynamic branch is chosen to reduce permutation counts. 
 		// The dynamic branch is coherent. Only set up the buffer when trace visualization is enabled.
@@ -789,6 +790,7 @@ void RenderHardwareRayTracingScreenProbeSubpass(FRDGBuilder& GraphBuilder,
 
 void RenderHardwareRayTracingScreenProbe(FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
+	const FSceneTextureParameters& SceneTextures,
 	FScreenProbeParameters& ScreenProbeParameters,
 	const FViewInfo& View,
 	const FLumenCardTracingInputs& TracingInputs,
@@ -804,7 +806,7 @@ void RenderHardwareRayTracingScreenProbe(FRDGBuilder& GraphBuilder,
 		MaterialEvaluationType == ERayHitMaterialEvaluationType::NormalFromSDFLightingFromSurfaceCache ||
 		MaterialEvaluationType == ERayHitMaterialEvaluationType::NormalFromGeometryLightingFromSurfaceCache)
 	{
-		RenderHardwareRayTracingScreenProbeSubpass(GraphBuilder, Scene, ScreenProbeParameters, View,
+		RenderHardwareRayTracingScreenProbeSubpass(GraphBuilder, Scene, SceneTextures, ScreenProbeParameters, View,
 			Flags,
 			MaterialEvaluationType,
 			TracingInputs,
@@ -831,7 +833,7 @@ void RenderHardwareRayTracingScreenProbe(FRDGBuilder& GraphBuilder,
 
 		for (int i = 0; i < 2; ++i)
 		{
-			RenderHardwareRayTracingScreenProbeSubpass(GraphBuilder, Scene, ScreenProbeParameters, View,
+			RenderHardwareRayTracingScreenProbeSubpass(GraphBuilder, Scene, SceneTextures, ScreenProbeParameters, View,
 				Flags,
 				EvaluationTypePasses[i],
 				TracingInputs,
@@ -902,7 +904,7 @@ void VisualizeLumenHardwareRayTracingPrimaryRaySubpass(FRDGBuilder& GraphBuilder
 		PassParameters->MeshSDFGridParameters = MeshSDFGridParameters;
 
 		//PassParameters->ScreenProbeParameters = ScreenProbeParameters;
-		PassParameters->SceneTexturesStruct = CreateSceneTextureUniformBuffer(GraphBuilder.RHICmdList, View.FeatureLevel);
+		PassParameters->SceneTextures = GetSceneTextureParameters(GraphBuilder);
 		
 		//This parameter should be set always as dynamic branch is chosen to reduce permutation counts. 
 		// The dynamic branch is coherent. Only set up the buffer when trace visualization is enabled.

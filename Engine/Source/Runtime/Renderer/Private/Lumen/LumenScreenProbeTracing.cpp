@@ -616,6 +616,7 @@ void TraceScreenProbes(
 
 			RenderHardwareRayTracingScreenProbe(GraphBuilder,
 				Scene,
+				SceneTextures,
 				ScreenProbeParameters,
 				View,
 				TracingInputs,

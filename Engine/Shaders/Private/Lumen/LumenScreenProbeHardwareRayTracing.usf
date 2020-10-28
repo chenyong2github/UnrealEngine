@@ -782,8 +782,7 @@ RAY_TRACING_ENTRY_RAYGEN(LumenCardHardwareRayTracingRGS)
 		bool bHit;
 		float TraceHitDistance = DecodeProbeRayDistance(TraceHit[TraceCoord].x, bHit);
 		float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
-
-		float3 SceneNormal = DecodeNormal(SceneTexturesStruct.GBufferATexture.Load(int3(ScreenUV * View.BufferSizeAndInvSize.xy, 0)).xyz);
+		float3 SceneNormal = DecodeNormal(GBufferATexture.Load(int3(ScreenUV * View.BufferSizeAndInvSize.xy, 0)).xyz);
 		
 		if (SceneDepth > 0 && !bHit)
 		{
