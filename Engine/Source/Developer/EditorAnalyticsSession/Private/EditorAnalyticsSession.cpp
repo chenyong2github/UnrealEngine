@@ -26,7 +26,7 @@ namespace EditorAnalyticsDefs
 	//   Version 1_1 : To avoid public API changes in 4.25.1, TotalUserInactivitySeconds was repurposed to contain the SessionDuration read from FPlatformTime::Seconds() to detect cases where the user system date time is unreliable.
 	//   Version 1_2 : Removed TotalUserInactivitySeconds and added SessionDuration.
 	//   Version 1_3 : Added SessionTickCount, UserInteractionCount, IsCrcExeMissing, IsUserLoggingOut, MonitorExitCode and readded lost code to save/load/delete IsLowDriveSpace for 4.26.0.
-	//   Version 1_4 : Added CommandLine, EngineTickCount, LastTickTimestamp and DeathTimestamp for 4.26.0.
+	//   Version 1_4 : Added CommandLine, EngineTickCount, LastTickTimestamp, DeathTimestamp and IsDebuggerIgnored for 4.26.0.
 	static const FString StoreId(TEXT("Epic Games"));
 	static const FString SessionSummaryRoot(TEXT("Unreal Engine/Session Summary"));
 	static const FString SessionSummarySection_1_0 = SessionSummaryRoot / TEXT("1_0"); // The session format used by older versions.
@@ -99,6 +99,7 @@ namespace EditorAnalyticsDefs
 	static const FString IsCrashStoreKey(TEXT("IsCrash"));
 	static const FString IsGPUCrashStoreKey(TEXT("IsGPUCrash"));
 	static const FString IsDebuggerStoreKey(TEXT("IsDebugger"));
+	static const FString IsDebuggerIgnoredStoreKey(TEXT("IsDebuggerIgnored"));
 	static const FString WasDebuggerStoreKey(TEXT("WasEverDebugger"));
 	static const FString IsVanillaStoreKey(TEXT("IsVanilla"));
 	static const FString IsTerminatingStoreKey(TEXT("Terminating"));
@@ -438,6 +439,7 @@ namespace EditorAnalyticsUtils
 		Session.bCrashed = EditorAnalyticsUtils::GetStoredBool(SectionName, EditorAnalyticsDefs::IsCrashStoreKey);
 		Session.bGPUCrashed = EditorAnalyticsUtils::GetStoredBool(SectionName, EditorAnalyticsDefs::IsGPUCrashStoreKey);
 		Session.bIsDebugger = EditorAnalyticsUtils::GetStoredBool(SectionName, EditorAnalyticsDefs::IsDebuggerStoreKey);
+		Session.bIsDebuggerIgnored = EditorAnalyticsUtils::GetStoredBool(SectionName, EditorAnalyticsDefs::IsDebuggerIgnoredStoreKey);
 		Session.bWasEverDebugger = EditorAnalyticsUtils::GetStoredBool(SectionName, EditorAnalyticsDefs::WasDebuggerStoreKey);
 		Session.bIsVanilla = EditorAnalyticsUtils::GetStoredBool(SectionName, EditorAnalyticsDefs::IsVanillaStoreKey);
 		Session.bIsTerminating = EditorAnalyticsUtils::GetStoredBool(SectionName, EditorAnalyticsDefs::IsTerminatingStoreKey);
@@ -505,6 +507,7 @@ FEditorAnalyticsSession::FEditorAnalyticsSession()
 	bAlreadySaved = false;
 	bIsLowDriveSpace = false;
 	bIsCrcExeMissing = false;
+	bIsDebuggerIgnored = false;
 }
 
 bool FEditorAnalyticsSession::Lock(FTimespan Timeout)
@@ -610,6 +613,7 @@ bool FEditorAnalyticsSession::Save()
 			{EditorAnalyticsDefs::EngineTickCountStoreKey,  FString::FromInt(EngineTickCount)},
 			{EditorAnalyticsDefs::UserInteractionCountStoreKey, FString::FromInt(UserInteractionCount)},
 			{EditorAnalyticsDefs::IsDebuggerStoreKey,       EditorAnalyticsUtils::BoolToStoredString(bIsDebugger)},
+			{EditorAnalyticsDefs::IsDebuggerIgnoredStoreKey,EditorAnalyticsUtils::BoolToStoredString(bIsDebuggerIgnored)},
 			{EditorAnalyticsDefs::WasDebuggerStoreKey,      EditorAnalyticsUtils::BoolToStoredString(bWasEverDebugger)},
 			{EditorAnalyticsDefs::IsVanillaStoreKey,        EditorAnalyticsUtils::BoolToStoredString(bIsVanilla)},
 			{EditorAnalyticsDefs::WasShutdownStoreKey,      EditorAnalyticsUtils::BoolToStoredString(bWasShutdown)},
@@ -723,6 +727,7 @@ bool FEditorAnalyticsSession::Delete() const
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::IsCrashStoreKey);
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::IsGPUCrashStoreKey);
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::IsDebuggerStoreKey);
+	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::IsDebuggerIgnoredStoreKey);
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::WasDebuggerStoreKey);
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::IsVanillaStoreKey);
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::IsTerminatingStoreKey);

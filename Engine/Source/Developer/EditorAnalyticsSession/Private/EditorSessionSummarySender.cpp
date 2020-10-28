@@ -211,6 +211,7 @@ void FEditorSessionSummarySender::SendSessionSummaryEvent(const FEditorAnalytics
 	AnalyticsAttributes.Emplace(TEXT("Is64BitOS"), Session.bIs64BitOS);
 	AnalyticsAttributes.Emplace(TEXT("GPUCrash"), Session.bGPUCrashed);
 	AnalyticsAttributes.Emplace(TEXT("WasDebugged"), Session.bWasEverDebugger);
+	AnalyticsAttributes.Emplace(TEXT("WasDebuggerIgnored"), Session.bIsDebuggerIgnored);
 	AnalyticsAttributes.Emplace(TEXT("IsVanilla"), Session.bIsVanilla);
 	AnalyticsAttributes.Emplace(TEXT("WasShutdown"), Session.bWasShutdown);
 	AnalyticsAttributes.Emplace(TEXT("IsUserLoggingOut"), Session.bIsUserLoggingOut);
