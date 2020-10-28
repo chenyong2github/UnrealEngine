@@ -69,34 +69,18 @@ public:
 	}
 };
 
-// Temporary template version of IMPLEMENT_VERTEX_FACTORY_TYPE_EX
-#define IMPLEMENT_VERTEX_FACTORY_TYPE_EX_TEMP(FactoryClass,ShaderFilename,bUsedWithMaterials,bSupportsStaticLighting,bSupportsDynamicLighting,bPrecisePrevWorldPos,bSupportsPositionOnly,bSupportsCachingMeshDrawCommands,bSupportsPrimitiveIdStream) \
-	template<> FVertexFactoryType FactoryClass::StaticType( \
-		TEXT(#FactoryClass), \
-		TEXT(ShaderFilename), \
-		bUsedWithMaterials, \
-		bSupportsStaticLighting, \
-		bSupportsDynamicLighting, \
-		bPrecisePrevWorldPos, \
-		bSupportsPositionOnly, \
-		bSupportsCachingMeshDrawCommands, \
-		bSupportsPrimitiveIdStream, \
-		IMPLEMENT_VERTEX_FACTORY_VTABLE(FactoryClass) \
-		); \
-		template<> FVertexFactoryType* FactoryClass::GetType() const { return &StaticType; }
-
 // ----------------------------------------------------------------------------------
 
 // Always implement the basic vertex factory so that it's there for both editor and non-editor builds :
 IMPLEMENT_TEMPLATE_TYPE_LAYOUT(template<>, TWaterVertexFactoryShaderParameters</*bWithWaterSelectionSupport = */ false>);
 IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(TWaterVertexFactory</*bWithWaterSelectionSupport = */ false>, SF_Vertex, TWaterVertexFactoryShaderParameters</*bWithWaterSelectionSupport = */ false>);
-IMPLEMENT_VERTEX_FACTORY_TYPE_EX_TEMP(TWaterVertexFactory</*bWithWaterSelectionSupport = */ false>, "/Plugin/Water/Private/WaterMeshVertexFactory.ush", true, false, true, true, false, false, true);
+IMPLEMENT_TEMPLATE_VERTEX_FACTORY_TYPE_EX(template<>, TWaterVertexFactory</*bWithWaterSelectionSupport = */ false>, "/Plugin/Water/Private/WaterMeshVertexFactory.ush", true, false, true, true, false, false, true);
 
 #if WITH_WATER_SELECTION_SUPPORT
 
 // In editor builds, also implement the vertex factory that supports water selection:
 IMPLEMENT_TEMPLATE_TYPE_LAYOUT(template<>, TWaterVertexFactoryShaderParameters</*bWithWaterSelectionSupport = */ true>);
 IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(TWaterVertexFactory</*bWithWaterSelectionSupport = */ true>, SF_Vertex, TWaterVertexFactoryShaderParameters</*bWithWaterSelectionSupport = */ true>);
-IMPLEMENT_VERTEX_FACTORY_TYPE_EX_TEMP(TWaterVertexFactory</*bWithWaterSelectionSupport = */ true>, "/Plugin/Water/Private/WaterMeshVertexFactory.ush", true, false, true, true, false, false, true);
+IMPLEMENT_TEMPLATE_VERTEX_FACTORY_TYPE_EX(template<>, TWaterVertexFactory</*bWithWaterSelectionSupport = */ true>, "/Plugin/Water/Private/WaterMeshVertexFactory.ush", true, false, true, true, false, false, true);
 
 #endif // WITH_WATER_SELECTION_SUPPORT
