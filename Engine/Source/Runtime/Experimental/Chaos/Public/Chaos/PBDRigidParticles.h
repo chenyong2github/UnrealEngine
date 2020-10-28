@@ -52,11 +52,11 @@ class TPBDRigidParticles : public TRigidParticles<T, d>
 	CHAOS_API virtual ~TPBDRigidParticles()
 	{}
 
-	const TVector<T, d>& P(const int32 index) const { return MP[index]; }
-	TVector<T, d>& P(const int32 index) { return MP[index]; }
-
-	const TRotation<T, d>& Q(const int32 index) const { return MQ[index]; }
-	TRotation<T, d>& Q(const int32 index) { return MQ[index]; }
+	FORCEINLINE const TVector<T, d>& P(const int32 index) const { return MP[index]; }
+	FORCEINLINE TVector<T, d>& P(const int32 index) { return MP[index]; }
+	
+	FORCEINLINE const TRotation<T, d>& Q(const int32 index) const { return MQ[index]; }
+	FORCEINLINE TRotation<T, d>& Q(const int32 index) { return MQ[index]; }
 
 	CHAOS_API const TVector<T, d>& PreV(const int32 index) const { return MPreV[index]; }
 	CHAOS_API TVector<T, d>& PreV(const int32 index) { return MPreV[index]; }
