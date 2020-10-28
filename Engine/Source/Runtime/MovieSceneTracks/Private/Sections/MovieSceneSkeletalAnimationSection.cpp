@@ -470,7 +470,7 @@ int32 UMovieSceneSkeletalAnimationSection::SetBoneIndexForRootMotionCalculations
 }
 
 
-bool UMovieSceneSkeletalAnimationSection::GetRootMotionTransform(FFrameTime CurrentTime, FFrameRate FrameRate,FTransform& OutTransform, float& OutWeight) const
+bool UMovieSceneSkeletalAnimationSection::GetRootMotionTransform(FFrameTime CurrentTime, FFrameRate FrameRate, bool& bIsAdditive,FTransform& OutTransform, float& OutWeight) const
 {
 	UAnimSequence* AnimSequence = Cast<UAnimSequence>(Params.Animation);
 	FTransform OffsetTransform = GetOffsetTransform();
@@ -496,8 +496,12 @@ bool UMovieSceneSkeletalAnimationSection::GetRootMotionTransform(FFrameTime Curr
 				OutTransform = AnimSequence->ExtractRootTrackTransform(CurrentTimeSeconds, nullptr);
 			}
 		}
-		OutTransform = OutTransform * OffsetTransform;
-
+		//note though we don't support mesh space addtive just local additive it will still work the same here for the root so 
+		bIsAdditive = AnimSequence->GetAdditiveAnimType() != EAdditiveAnimationType::AAT_None;
+		if (!bIsAdditive)
+		{
+			OutTransform = OutTransform * OffsetTransform;
+		}
 		return true;
 	}
 	//for safety always return true for now

@@ -233,8 +233,24 @@ void UMovieSceneSkeletalAnimationTrack::SortSections()
 	AnimationSections.Sort([](UMovieSceneSection& A,  UMovieSceneSection& B) {return ((A).GetTrueRange().GetLowerBoundValue() < (B).GetTrueRange().GetLowerBoundValue());});
 }
 
-static void BlendTheseTransformsByWeight(FTransform& OutTransform, const TArray<FTransform>& Transforms, const TArray<float>& Weights)
+//expectation is the weights may be unnormalized.
+static void BlendTheseTransformsByWeight(FTransform& OutTransform, const TArray<FTransform>& Transforms,  TArray<float>& Weights)
 {
+	if (Weights.Num() > 0)
+	{
+		float TotalWeight = 0.0f;
+		for (int32 WeightIndex = 0; WeightIndex < Weights.Num(); ++WeightIndex)
+		{
+			TotalWeight += Weights[WeightIndex];
+		}
+		if (!FMath::IsNearlyEqual(TotalWeight, 1.0f))
+		{
+			for (int32 DivideIndex = 0; DivideIndex < Weights.Num(); ++DivideIndex)
+			{
+				Weights[DivideIndex] /= TotalWeight;
+			}
+		}
+	}
 	int32 NumBlends = Transforms.Num();
 	check(Transforms.Num() == Weights.Num());
 	if (NumBlends == 0)
@@ -477,7 +493,8 @@ void UMovieSceneSkeletalAnimationTrack::SetUpRootMotions(bool bForce)
 		RootMotionParams.RootTransforms.SetNum(NumTotal);
 		TArray<FTransform> CurrentTransforms;
 		TArray<float> CurrentWeights;
-
+		TArray<FTransform> CurrentAdditiveTransforms;
+		TArray<float> CurrentAdditiveWeights;
 		FFrameTime PreviousFrame = RootMotionParams.StartFrame;
 		int32 Index = 0;
 		for (FFrameTime FrameNumber = RootMotionParams.StartFrame; FrameNumber <= RootMotionParams.EndFrame; FrameNumber += RootMotionParams.FrameTick)
@@ -493,31 +510,36 @@ void UMovieSceneSkeletalAnimationTrack::SetUpRootMotions(bool bForce)
 				{
 					UMovieSceneSkeletalAnimationSection* AnimSection = CastChecked<UMovieSceneSkeletalAnimationSection>(Section);
 				
-					if (AnimSection->GetRootMotionTransform(FrameNumber.FrameNumber, TickResolution, CurrentTransform, CurrentWeight))
+					bool bIsAdditive;
+					if (AnimSection->GetRootMotionTransform(FrameNumber.FrameNumber, TickResolution, bIsAdditive, CurrentTransform, CurrentWeight))
 					{
-						CurrentTransform =  CurrentTransform * AnimSection->TempOffsetTransform;
-						CurrentTransforms.Add(CurrentTransform);
-						CurrentWeights.Add(CurrentWeight);
+						if (!bIsAdditive)
+						{
+							CurrentTransform = CurrentTransform * AnimSection->TempOffsetTransform;
+							CurrentTransforms.Add(CurrentTransform);
+							CurrentWeights.Add(CurrentWeight);
+						}
+						else
+						{
+							CurrentAdditiveTransforms.Add(CurrentTransform);
+							CurrentAdditiveWeights.Add(CurrentWeight);
+						}
 					}
 					PrevSection = AnimSection;
 				}
 			}
-			if (CurrentWeights.Num() > 0)
-			{
-				float TotalWeight = 0.0f;
-				for (int32 WeightIndex = 0; WeightIndex < CurrentWeights.Num(); ++WeightIndex)
-				{
-					TotalWeight += CurrentWeights[WeightIndex];
-				}
-				if (!FMath::IsNearlyEqual(TotalWeight, 1.0f))
-				{
-					for (int32 DivideIndex = 0; DivideIndex < CurrentWeights.Num(); ++DivideIndex)
-					{
-						CurrentWeights[DivideIndex] /= TotalWeight;
-					}
-				}
-			}
+
 			BlendTheseTransformsByWeight(CurrentTransform, CurrentTransforms, CurrentWeights);
+			//now handle additive onto the current
+			if (CurrentAdditiveWeights.Num() > 0)
+			{
+				FTransform AdditiveTransform;
+				BlendTheseTransformsByWeight(AdditiveTransform, CurrentAdditiveTransforms, CurrentAdditiveWeights );
+				//zero base the scale
+				AdditiveTransform.SetScale3D(FVector(AdditiveTransform.GetScale3D().X - 1.0f, AdditiveTransform.GetScale3D().Y - 1.0f, AdditiveTransform.GetScale3D().Z - 1.0f));
+				const ScalarRegister VBlendWeight(1.0f);
+				FTransform::BlendFromIdentityAndAccumulate(CurrentTransform, AdditiveTransform, VBlendWeight);
+			}
 			RootMotionParams.RootTransforms[Index] = CurrentTransform;
 			++Index;
 			PreviousFrame = FrameNumber;
