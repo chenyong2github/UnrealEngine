@@ -26,12 +26,14 @@ namespace EditorAnalyticsDefs
 	//   Version 1_1 : To avoid public API changes in 4.25.1, TotalUserInactivitySeconds was repurposed to contain the SessionDuration read from FPlatformTime::Seconds() to detect cases where the user system date time is unreliable.
 	//   Version 1_2 : Removed TotalUserInactivitySeconds and added SessionDuration.
 	//   Version 1_3 : Added SessionTickCount, UserInteractionCount, IsCrcExeMissing, IsUserLoggingOut, MonitorExitCode and readded lost code to save/load/delete IsLowDriveSpace for 4.26.0.
+	//   Version 1_4 : Added CommandLine, EngineTickCount, LastTickTimestamp and DeathTimestamp for 4.26.0.
 	static const FString StoreId(TEXT("Epic Games"));
 	static const FString SessionSummaryRoot(TEXT("Unreal Engine/Session Summary"));
 	static const FString SessionSummarySection_1_0 = SessionSummaryRoot / TEXT("1_0"); // The session format used by older versions.
 	static const FString SessionSummarySection_1_1 = SessionSummaryRoot / TEXT("1_1");
 	static const FString SessionSummarySection_1_2 = SessionSummaryRoot / TEXT("1_2");
-	static const FString SessionSummarySection = SessionSummaryRoot / TEXT("1_3"); // The current session format.
+	static const FString SessionSummarySection_1_3 = SessionSummaryRoot / TEXT("1_3");
+	static const FString SessionSummarySection = SessionSummaryRoot / TEXT("1_4"); // The current session format.
 	static const FString GlobalLockName(TEXT("UE4_SessionSummary_Lock"));
 	static const FString SessionListStoreKey(TEXT("SessionList"));
 
@@ -52,7 +54,9 @@ namespace EditorAnalyticsDefs
 	static const FString MonitorExceptCodeStoreKey(TEXT("MonitorExceptCode"));
 	static const FString MonitorExitCodeStoreKey(TEXT("MonitorExitCode"));
 	static const FString SessionTickCountStoreKey(TEXT("SessionTickCount"));
+	static const FString EngineTickCountStoreKey(TEXT("EngineTickCount"));
 	static const FString UserInteractionCountStoreKey(TEXT("UserInteractionCount"));
+	static const FString CommandLineStoreKey(TEXT("CommandLine"));
 
 	// timestamps
 	static const FString StartupTimestampStoreKey(TEXT("StartupTimestamp"));
@@ -65,6 +69,8 @@ namespace EditorAnalyticsDefs
 	static const FString CurrentUserActivityStoreKey(TEXT("CurrentUserActivity"));
 	static const FString PluginsStoreKey(TEXT("Plugins"));
 	static const FString AverageFPSStoreKey(TEXT("AverageFPS"));
+	static const FString LastTickTimestampStoreKey(TEXT("LastTickTimestamp"));
+	static const FString DeathTimestampStoreKey(TEXT("DeathTimestamp"));
 
 	// GPU details
 	static const FString DesktopGPUAdapterStoreKey(TEXT("DesktopGPUAdapter"));
@@ -95,7 +101,7 @@ namespace EditorAnalyticsDefs
 	static const FString IsDebuggerStoreKey(TEXT("IsDebugger"));
 	static const FString WasDebuggerStoreKey(TEXT("WasEverDebugger"));
 	static const FString IsVanillaStoreKey(TEXT("IsVanilla"));
-	static const FString IsTerminatingKey(TEXT("Terminating"));
+	static const FString IsTerminatingStoreKey(TEXT("Terminating"));
 	static const FString WasShutdownStoreKey(TEXT("WasShutdown"));
 	static const FString IsUserLoggingOutStoreKey(TEXT("IsUserLoggingOut"));
 	static const FString IsInPIEStoreKey(TEXT("IsInPIE"));
@@ -146,11 +152,21 @@ namespace EditorAnalyticsUtils
 		return FString::Printf(TEXT("%sAnalytics"), FPlatformProcess::ApplicationSettingsDir());
 	}
 
+	static bool IsSavingIndividualFieldFastAndThreadSafe()
+	{
+	#if PLATFORM_WINDOWS
+		return true; // Saving individual field to registry on Windows is fast and thread safe.
+	#else
+		return false; // On other platforms, we load/update/save an entire .ini file. This is not fast and not thread safe.
+	#endif
+	}
+
 	static void LogSessionEvent(FEditorAnalyticsSession& Session, FEditorAnalyticsSession::EEventType InEventType, const FDateTime& InTimestamp)
 	{
-		// The logger uses the robustness of the file system to log events. It creates a file (a directory) for each event and encodes the event payload in the file name.
-		// This doesn't require any fancy synchronization or complicated concurrent file IO implementation. Since the number of events is low (0 to 5 per session), that's
-		// a straight forward working solution. The files are deleted when the session is deleted. Also avoid memory allocation, this can be called when the heap is corrupted.
+		// This is primary logging mechanims. It works across all platforms and is rather robust. It uses the robustness of the file system to log events. It creates a file
+		// (a directory) for each event and encodes the event payload in the file name. This doesn't require any fancy synchronization or complicated concurrent file IO
+		// implementation. Since the number of events is low (0 to 5 per session), that's a straight forward working solution. The files are deleted when the session is
+		// deleted. Also avoid memory allocation, this can be called when the heap is corrupted.
 		TCHAR TimestampStr[256];
 		FCString::Sprintf(TimestampStr, TFormatSpecifier<decltype(InTimestamp.ToUnixTimestamp())>::GetFormatSpecifier(), InTimestamp.ToUnixTimestamp());
 
@@ -166,6 +182,45 @@ namespace EditorAnalyticsUtils
 			TimestampStr);
 
 		IFileManager::Get().MakeDirectory(Pathname, /*Tree*/true);
+
+		// As a secondary/backup mechanism, directly save the info in the session if this is fast and safe. This allocate memory, so that's not perfect in case of crash.
+		if (IsSavingIndividualFieldFastAndThreadSafe())
+		{
+			const FString StorageLocation = EditorAnalyticsUtils::GetSessionStorageLocation(Session.SessionId);
+
+			switch(InEventType)
+			{
+			case FEditorAnalyticsSession::EEventType::Crashed:
+				FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::IsCrashStoreKey, EditorAnalyticsUtils::BoolToStoredString(true));
+				break;
+
+			case FEditorAnalyticsSession::EEventType::GpuCrashed:
+				FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::IsGPUCrashStoreKey, EditorAnalyticsUtils::BoolToStoredString(true));
+				break;
+
+			case FEditorAnalyticsSession::EEventType::Terminated:
+				FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::IsTerminatingStoreKey, EditorAnalyticsUtils::BoolToStoredString(true));
+				break;
+
+			case FEditorAnalyticsSession::EEventType::Shutdown:
+				FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::WasShutdownStoreKey, EditorAnalyticsUtils::BoolToStoredString(true));
+				break;
+
+			case FEditorAnalyticsSession::EEventType::LogOut:
+				FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::IsUserLoggingOutStoreKey, EditorAnalyticsUtils::BoolToStoredString(true));
+				break;
+
+			default:
+				break;
+			}
+
+			// Save the timestamps.
+			FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::Idle1MinStoreKey, FString::FromInt(FPlatformAtomics::AtomicRead(&Session.Idle1Min)));
+			FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::Idle5MinStoreKey, FString::FromInt(FPlatformAtomics::AtomicRead(&Session.Idle5Min)));
+			FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::Idle30MinStoreKey, FString::FromInt(FPlatformAtomics::AtomicRead(&Session.Idle30Min)));
+			FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::SessionDurationStoreKey, FString::FromInt(FPlatformAtomics::AtomicRead(&Session.SessionDuration)));
+			FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::TimestampStoreKey, EditorAnalyticsUtils::TimestampToString(InTimestamp));
+		}
 	}
 
 	/** Analyze the events logged with LogEvent() and update the session fields to reflect the last state of the session. */
@@ -273,6 +328,7 @@ namespace EditorAnalyticsUtils
 		GET_STORED_STRING(ProjectDescription);
 		GET_STORED_STRING(ProjectVersion);
 		GET_STORED_STRING(EngineVersion);
+		GET_STORED_STRING(CommandLine);
 		GET_STORED_INT(PlatformProcessID);
 		GET_STORED_INT(MonitorProcessID);
 
@@ -313,6 +369,20 @@ namespace EditorAnalyticsUtils
 			Session.Timestamp = EditorAnalyticsUtils::StringToTimestamp(TimestampString);
 		}
 
+		{
+			FString LastTickTimestampString;
+			FPlatformMisc::GetStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::LastTickTimestampStoreKey, LastTickTimestampString);
+			Session.LastTickTimestamp = EditorAnalyticsUtils::StringToTimestamp(LastTickTimestampString);
+		}
+
+		{
+			FString DeathTimestampString;
+			if (FPlatformMisc::GetStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::DeathTimestampStoreKey, DeathTimestampString))
+			{
+				Session.DeathTimestamp.Emplace(EditorAnalyticsUtils::StringToTimestamp(DeathTimestampString));
+			}
+		}
+
 		GET_STORED_INT(SessionDuration);
 		GET_STORED_INT(Idle1Min);
 		GET_STORED_INT(Idle5Min);
@@ -334,6 +404,7 @@ namespace EditorAnalyticsUtils
 		}
 
 		GET_STORED_INT(SessionTickCount);
+		GET_STORED_INT(EngineTickCount);
 		GET_STORED_INT(UserInteractionCount);
 
 		GET_STORED_STRING(DesktopGPUAdapter);
@@ -369,7 +440,7 @@ namespace EditorAnalyticsUtils
 		Session.bIsDebugger = EditorAnalyticsUtils::GetStoredBool(SectionName, EditorAnalyticsDefs::IsDebuggerStoreKey);
 		Session.bWasEverDebugger = EditorAnalyticsUtils::GetStoredBool(SectionName, EditorAnalyticsDefs::WasDebuggerStoreKey);
 		Session.bIsVanilla = EditorAnalyticsUtils::GetStoredBool(SectionName, EditorAnalyticsDefs::IsVanillaStoreKey);
-		Session.bIsTerminating = EditorAnalyticsUtils::GetStoredBool(SectionName, EditorAnalyticsDefs::IsTerminatingKey);
+		Session.bIsTerminating = EditorAnalyticsUtils::GetStoredBool(SectionName, EditorAnalyticsDefs::IsTerminatingStoreKey);
 		Session.bWasShutdown = EditorAnalyticsUtils::GetStoredBool(SectionName, EditorAnalyticsDefs::WasShutdownStoreKey);
 		Session.bIsUserLoggingOut = EditorAnalyticsUtils::GetStoredBool(SectionName, EditorAnalyticsDefs::IsUserLoggingOutStoreKey);
 		Session.bIsInPIE = EditorAnalyticsUtils::GetStoredBool(SectionName, EditorAnalyticsDefs::IsInPIEStoreKey);
@@ -487,6 +558,7 @@ bool FEditorAnalyticsSession::Save()
 
 		TMap<FString, FString> KeyValues = {
 			{EditorAnalyticsDefs::EngineVersionStoreKey,       EngineVersion},
+			{EditorAnalyticsDefs::CommandLineStoreKey,         CommandLine},
 			{EditorAnalyticsDefs::PlatformProcessIDStoreKey,   FString::FromInt(PlatformProcessID)},
 			{EditorAnalyticsDefs::MonitorProcessIDStoreKey,    FString::FromInt(MonitorProcessID)},
 			{EditorAnalyticsDefs::DesktopGPUAdapterStoreKey,   DesktopGPUAdapter},
@@ -525,7 +597,8 @@ bool FEditorAnalyticsSession::Save()
 			{EditorAnalyticsDefs::ProjectIDStoreKey,   ProjectID},
 			{EditorAnalyticsDefs::ProjectDescriptionStoreKey,  ProjectDescription},
 			{EditorAnalyticsDefs::ProjectVersionStoreKey,  ProjectVersion},
-			{EditorAnalyticsDefs::TimestampStoreKey,       EditorAnalyticsUtils::TimestampToString(Timestamp)},
+			{EditorAnalyticsDefs::TimestampStoreKey,         EditorAnalyticsUtils::TimestampToString(Timestamp)},
+			{EditorAnalyticsDefs::LastTickTimestampStoreKey, EditorAnalyticsUtils::TimestampToString(LastTickTimestamp)},
 			{EditorAnalyticsDefs::SessionDurationStoreKey,  FString::FromInt(SessionDuration)},
 			{EditorAnalyticsDefs::Idle1MinStoreKey,  FString::FromInt(Idle1Min)},
 			{EditorAnalyticsDefs::Idle5MinStoreKey,  FString::FromInt(Idle5Min)},
@@ -534,6 +607,7 @@ bool FEditorAnalyticsSession::Save()
 			{EditorAnalyticsDefs::CurrentUserActivityStoreKey, CurrentUserActivity},
 			{EditorAnalyticsDefs::AverageFPSStoreKey,       FString::SanitizeFloat(AverageFPS)},
 			{EditorAnalyticsDefs::SessionTickCountStoreKey, FString::FromInt(SessionTickCount)},
+			{EditorAnalyticsDefs::EngineTickCountStoreKey,  FString::FromInt(EngineTickCount)},
 			{EditorAnalyticsDefs::UserInteractionCountStoreKey, FString::FromInt(UserInteractionCount)},
 			{EditorAnalyticsDefs::IsDebuggerStoreKey,       EditorAnalyticsUtils::BoolToStoredString(bIsDebugger)},
 			{EditorAnalyticsDefs::WasDebuggerStoreKey,      EditorAnalyticsUtils::BoolToStoredString(bWasEverDebugger)},
@@ -559,6 +633,11 @@ bool FEditorAnalyticsSession::Save()
 		if (MonitorExitCode.IsSet())
 		{
 			KeyValues.Emplace(EditorAnalyticsDefs::MonitorExitCodeStoreKey, FString::FromInt(MonitorExitCode.GetValue()));
+		}
+		
+		if (DeathTimestamp.IsSet())
+		{
+			KeyValues.Emplace(EditorAnalyticsDefs::DeathTimestampStoreKey, EditorAnalyticsUtils::TimestampToString(DeathTimestamp.GetValue()));
 		}
 
 		FPlatformMisc::SetStoredValues(EditorAnalyticsDefs::StoreId, StorageLocation, KeyValues);
@@ -606,6 +685,8 @@ bool FEditorAnalyticsSession::Delete() const
 
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::StartupTimestampStoreKey);
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::TimestampStoreKey);
+	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::LastTickTimestampStoreKey);
+	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::DeathTimestampStoreKey);
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::SessionDurationStoreKey);
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::Idle1MinStoreKey);
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::Idle5MinStoreKey);
@@ -615,7 +696,9 @@ bool FEditorAnalyticsSession::Delete() const
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::PluginsStoreKey);
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::AverageFPSStoreKey);
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::SessionTickCountStoreKey);
+	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::EngineTickCountStoreKey);
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::UserInteractionCountStoreKey);
+	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::CommandLineStoreKey);
 
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::DesktopGPUAdapterStoreKey);
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::RenderingGPUAdapterStoreKey);
@@ -642,7 +725,7 @@ bool FEditorAnalyticsSession::Delete() const
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::IsDebuggerStoreKey);
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::WasDebuggerStoreKey);
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::IsVanillaStoreKey);
-	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::IsTerminatingKey);
+	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::IsTerminatingStoreKey);
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::WasShutdownStoreKey);
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::IsUserLoggingOutStoreKey);
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::IsInPIEStoreKey);
@@ -757,6 +840,7 @@ void FEditorAnalyticsSession::CleanupOutdatedIncompatibleSessions(const FTimespa
 	CleanupVersionedSection(EditorAnalyticsDefs::SessionSummarySection_1_0);
 	CleanupVersionedSection(EditorAnalyticsDefs::SessionSummarySection_1_1);
 	CleanupVersionedSection(EditorAnalyticsDefs::SessionSummarySection_1_2);
+	CleanupVersionedSection(EditorAnalyticsDefs::SessionSummarySection_1_3);
 }
 
 void FEditorAnalyticsSession::LogEvent(EEventType InEventType, const FDateTime& InTimestamp)
@@ -788,7 +872,7 @@ bool FEditorAnalyticsSession::FindSession(const uint32 InSessionProcessId, FEdit
 	return false;
 }
 
-bool FEditorAnalyticsSession::SaveExitCode(int32 InExitCode)
+bool FEditorAnalyticsSession::SaveExitCode(int32 InExitCode, const FDateTime& ApproximativeEditorDeathTime)
 {
 	if (!ensure(IsLocked()))
 	{
@@ -796,10 +880,11 @@ bool FEditorAnalyticsSession::SaveExitCode(int32 InExitCode)
 	}
 
 	ExitCode.Emplace(InExitCode);
-	FString ExitCodeStr = FString::Printf(TFormatSpecifier<decltype(InExitCode)>::GetFormatSpecifier(), InExitCode);
+	DeathTimestamp.Emplace(ApproximativeEditorDeathTime);
 
 	const FString StorageLocation = EditorAnalyticsUtils::GetSessionStorageLocation(SessionId);
-	return FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::ExitCodeStoreKey, ExitCodeStr);
+	return FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::ExitCodeStoreKey, FString::FromInt(InExitCode))
+		&& FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::DeathTimestampStoreKey, EditorAnalyticsUtils::TimestampToString(ApproximativeEditorDeathTime));
 }
 
 bool FEditorAnalyticsSession::SaveMonitorExceptCode(int32 InExceptCode)
@@ -810,8 +895,7 @@ bool FEditorAnalyticsSession::SaveMonitorExceptCode(int32 InExceptCode)
 	}
 
 	MonitorExceptCode.Emplace(InExceptCode);
-	FString ExceptCodeStr = FString::Printf(TFormatSpecifier<decltype(InExceptCode)>::GetFormatSpecifier(), InExceptCode);
 
 	const FString StorageLocation = EditorAnalyticsUtils::GetSessionStorageLocation(SessionId);
-	return FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::MonitorExceptCodeStoreKey, ExceptCodeStr);
+	return FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, StorageLocation, EditorAnalyticsDefs::MonitorExceptCodeStoreKey, FString::FromInt(InExceptCode));
 }
