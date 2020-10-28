@@ -20,6 +20,7 @@
 #include "Interfaces/IProjectManager.h"
 #include "Logging/LogMacros.h"
 #include "Misc/App.h"
+#include "Misc/CommandLine.h"
 #include "Misc/CoreDelegates.h"
 #include "Misc/EngineBuildSettings.h"
 #include "Misc/EngineVersion.h"
@@ -43,7 +44,7 @@ namespace EditorSessionWriterDefs
 	// In the first minutes, update every seconds because lot of crashes occurs in the first minute.
 	static const float EarlyHeartbeatPeriodSeconds = 1;
 
-	// In the first minutes, update every seconds because lot of crashes occurs in the first minute.
+	// Number of seconds to wait before checking again if the debugger is connected.
 	static const float DebuggerCheckPeriodSeconds = 1;
 
 	// The upper CPU usage % considered as Idle. If the CPU usage goes above this threshold, the Editor is considered 'active'.
@@ -268,9 +269,12 @@ void FEditorSessionSummaryWriter::Tick(float DeltaTime)
 		return;
 	}
 
-	CurrentSession->SessionTickCount++;
-
 	const double CurrentTimeSecs = FPlatformTime::Seconds();
+	const FDateTime CurrentTimeUtc = FDateTime::UtcNow();
+
+	CurrentSession->LastTickTimestamp = CurrentTimeUtc;
+	CurrentSession->SessionTickCount++;
+	CurrentSession->EngineTickCount = GFrameCounter;
 
 	// If the Editor process CPU usage is high enough, this count as an activity.
 	if (FPlatformTime::GetCPUTime().CPUTimePct > EditorSessionWriterDefs::IdleCpuUsagePercent)
@@ -280,7 +284,7 @@ void FEditorSessionSummaryWriter::Tick(float DeltaTime)
 
 	if (UpdateOutOfProcessMonitorState(/*bQuickCheck*/true))
 	{
-		TrySaveCurrentSession(FDateTime::UtcNow(), CurrentTimeSecs);
+		TrySaveCurrentSession(CurrentTimeUtc, CurrentTimeSecs);
 	}
 
 	// Update other session stats approximatively every minute.
@@ -298,7 +302,7 @@ void FEditorSessionSummaryWriter::Tick(float DeltaTime)
 			{
 				CurrentSession->bWasEverDebugger = true;
 			}
-			TrySaveCurrentSession(FDateTime::UtcNow(), CurrentTimeSecs);
+			TrySaveCurrentSession(CurrentTimeUtc, CurrentTimeSecs);
 		}
 		NextDebuggerCheckSecs = CurrentTimeSecs + EditorSessionWriterDefs::DebuggerCheckPeriodSeconds;
 	}
@@ -314,7 +318,7 @@ void FEditorSessionSummaryWriter::Tick(float DeltaTime)
 		CurrentSession->bIsInPIE = FPlayWorldCommandCallbacks::IsInPIE();
 
 		UpdateOutOfProcessMonitorState(/*bQuickCheck*/false);
-		TrySaveCurrentSession(FDateTime::UtcNow(), CurrentTimeSecs); // Saving also updates session duration/timestamp/userIdle/editorIdle
+		TrySaveCurrentSession(CurrentTimeUtc, CurrentTimeSecs); // Saving also updates session duration/timestamp/userIdle/editorIdle
 	}
 }
 
@@ -407,11 +411,14 @@ TUniquePtr<FEditorAnalyticsSession> FEditorSessionSummaryWriter::CreateCurrentSe
 	Session->ProjectVersion = ProjectSettings.ProjectVersion;
 	Session->EngineVersion = FEngineVersion::Current().ToString(EVersionComponent::Changelist);
 	Session->StartupTimestamp = StartupTimeUtc;
+	Session->LastTickTimestamp = FDateTime::UtcNow();
 	Session->Timestamp = FDateTime::UtcNow();
 	Session->bIsDebugger = FPlatformMisc::IsDebuggerPresent();
 	Session->bWasEverDebugger = FPlatformMisc::IsDebuggerPresent();
 	Session->CurrentUserActivity = GetUserActivityString();
 	Session->bIsVanilla = GEngine && GEngine->IsVanillaProduct();
+	Session->CommandLine = FCommandLine::GetForLogging();
+	Session->EngineTickCount = GFrameCounter;
 
 	// TODO: Add a function later on to PlatfomCrashContext to check existance of CRC. This is only used on windows at the moment to categorize cases where CRC fails to report the exit code (only supported on Windows).
 #if PLATFORM_WINDOWS
