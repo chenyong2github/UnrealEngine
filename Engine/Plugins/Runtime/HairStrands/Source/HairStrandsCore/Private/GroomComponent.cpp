@@ -935,6 +935,10 @@ UGroomComponent::UGroomComponent(const FObjectInitializer& ObjectInitializer)
 	AngularSpringsSystem = nullptr;
 	CosseratRodsSystem = nullptr;
 
+#if WITH_EDITORONLY_DATA
+	GroomAssetBeingLoaded = nullptr;
+	BindingAssetBeingLoaded = nullptr;
+#endif
 }
 
 void UGroomComponent::UpdateHairGroupsDesc()
@@ -1062,27 +1066,7 @@ void UGroomComponent::UpdateHairSimulation()
 
 void UGroomComponent::SetGroomAsset(UGroomAsset* Asset)
 {
-	ReleaseResources();
-	const bool bIsSameAsset = GroomAsset == Asset;
-	if (Asset && Asset->IsValid())
-	{
-		GroomAsset = Asset;
-	}
-	else
-	{
-		GroomAsset = nullptr;
-	}
-
-	if (!UGroomBindingAsset::IsBindingAssetValid(BindingAsset, false, bValidationEnable) || !UGroomBindingAsset::IsCompatible(GroomAsset, BindingAsset, bValidationEnable))
-	{
-		BindingAsset = nullptr;
-	}
-
-	UpdateHairGroupsDesc();
-	UpdateHairSimulation();
-	if (!GroomAsset)
-		return;
-	InitResources();
+	SetGroomAsset(Asset, BindingAsset);
 }
 
 void UGroomComponent::SetGroomAsset(UGroomAsset* Asset, UGroomBindingAsset* InBinding)
@@ -1091,12 +1075,40 @@ void UGroomComponent::SetGroomAsset(UGroomAsset* Asset, UGroomBindingAsset* InBi
 	if (Asset && Asset->IsValid())
 	{
 		GroomAsset = Asset;
+
+#if WITH_EDITORONLY_DATA
+		if (InBinding && !InBinding->IsValid())
+		{
+			// The binding could be invalid if the groom asset was previously invalid. 
+			// This will re-fetch the binding data from the DDC to make it valid
+			InBinding->InvalidateBinding();
+		}
+		GroomAssetBeingLoaded = nullptr;
+		BindingAssetBeingLoaded = nullptr;
+#endif
 	}
+#if WITH_EDITORONLY_DATA
+	else if (Asset)
+	{
+		// The asset is still being loaded. This will allow the assets to be re-set once the groom is finished loading
+		GroomAssetBeingLoaded = Asset;
+		BindingAssetBeingLoaded = InBinding;
+	}
+#endif
 	else
 	{
 		GroomAsset = nullptr;
 	}
-	BindingAsset = InBinding;
+	if (BindingAsset != InBinding
+#if WITH_EDITORONLY_DATA
+		// With the groom still being loaded, the binding is still invalid
+		&& !BindingAssetBeingLoaded
+#endif
+		)
+	{
+		BindingAsset = InBinding;
+	}
+
 	if (!UGroomBindingAsset::IsBindingAssetValid(BindingAsset, false, bValidationEnable) || !UGroomBindingAsset::IsCompatible(GroomAsset, BindingAsset, bValidationEnable))
 	{
 		BindingAsset = nullptr;
@@ -1104,8 +1116,10 @@ void UGroomComponent::SetGroomAsset(UGroomAsset* Asset, UGroomBindingAsset* InBi
 
 	UpdateHairGroupsDesc();
 	UpdateHairSimulation();
-	if (!GroomAsset)
+	if (!GroomAsset || !GroomAsset->IsValid())
+	{
 		return;
+	}
 	InitResources();
 }
 
@@ -2112,17 +2126,14 @@ void UGroomComponent::PostLoad()
 		GroomAsset->ConditionalPostLoad();
 	}
 
-	if (GroomAsset && !GroomAsset->IsValid())
-	{
-		GroomAsset = nullptr;
-	}
-
 	if (BindingAsset)
 	{
 		// Make sure that the asset initialized its resources first since the component needs them to initialize its own resources
 		BindingAsset->ConditionalPostLoad();
 	}
-	InitResources();
+
+	// This call will handle the GroomAsset properly if it's still being loaded
+	SetGroomAsset(GroomAsset, BindingAsset);
 
 #if WITH_EDITOR
 	if (GroomAsset && !bIsGroomAssetCallbackRegistered)
@@ -2581,6 +2592,7 @@ void UGroomComponent::CheckForErrors()
 }
 #endif
 
+#if WITH_EDITORONLY_DATA
 FGroomComponentRecreateRenderStateContext::FGroomComponentRecreateRenderStateContext(UGroomAsset* GroomAsset)
 {
 	if (!GroomAsset)
@@ -2590,7 +2602,8 @@ FGroomComponentRecreateRenderStateContext::FGroomComponentRecreateRenderStateCon
 
 	for (TObjectIterator<UGroomComponent> HairStrandsComponentIt; HairStrandsComponentIt; ++HairStrandsComponentIt)
 	{
-		if (HairStrandsComponentIt->GroomAsset == GroomAsset)
+		if (HairStrandsComponentIt->GroomAsset == GroomAsset ||
+			HairStrandsComponentIt->GroomAssetBeingLoaded == GroomAsset) // A GroomAsset was set on the component while it was still loading
 		{
 			if (HairStrandsComponentIt->IsRenderStateCreated())
 			{
@@ -2613,10 +2626,19 @@ FGroomComponentRecreateRenderStateContext::~FGroomComponentRecreateRenderStateCo
 
 		if (GroomComponent->IsRegistered() && !GroomComponent->IsRenderStateCreated())
 		{
-			GroomComponent->InitResources();
+			if (GroomComponent->GroomAssetBeingLoaded && GroomComponent->GroomAssetBeingLoaded->IsValid())
+			{
+				// Re-set the assets on the component now that they are loaded
+				GroomComponent->SetGroomAsset(GroomComponent->GroomAssetBeingLoaded, GroomComponent->BindingAssetBeingLoaded);
+			}
+			else
+			{
+				GroomComponent->InitResources();
+			}
 			GroomComponent->CreateRenderState_Concurrent(nullptr);
 		}
 	}
 }
+#endif
 
 #undef LOCTEXT_NAMESPACE

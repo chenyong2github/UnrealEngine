@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GroomAsset.h"
+#include "Async/Async.h"
 #include "EngineUtils.h"
 #include "GroomAssetImportData.h"
 #include "GroomBuilder.h"
@@ -39,6 +40,10 @@
 
 static int32 GHairStrandsLoadAsset = 1;
 static FAutoConsoleVariableRef CVarHairStrandsLoadAsset(TEXT("r.HairStrands.LoadAsset"), GHairStrandsLoadAsset, TEXT("Allow groom asset to be loaded"));
+
+// Editor async groom load can be useful in a workflow that consists mostly of loading grooms from a hot DDC
+static int32 GEnableGroomAsyncLoad = 0;
+static FAutoConsoleVariableRef CVarGroomAsyncLoad(TEXT("r.HairStrands.AsyncLoad"), GEnableGroomAsyncLoad, TEXT("Allow groom asset to be loaded asynchronously in the editor"));
 
 /////////////////////////////////////////////////////////////////////////////////////////
 
@@ -596,7 +601,52 @@ void UGroomAsset::PostLoad()
 		CardsDerivedDataKey.SetNum(GroupCount);
 		MeshesDerivedDataKey.SetNum(GroupCount);
 
-		bSucceed = UGroomAsset::CacheDerivedDatas();
+		// The async load is allowed only if all the groom derived data is already cached since parts of the build path need to run in the game thread
+		bool bAsyncLoadEnabled = (GEnableGroomAsyncLoad > 0) && IsFullyCached();
+		if (bAsyncLoadEnabled)
+		{
+			GroomAssetStrongPtr = TStrongObjectPtr<UGroomAsset>(this); // keeps itself alive while completing the async load
+			Async(EAsyncExecution::LargeThreadPool,
+				[this]()
+				{
+					UE_LOG(LogHairStrands, Log, TEXT("[Groom] %s is fully cached. Loading it asynchronously."), *GetName());
+
+					if (CacheDerivedDatas() && !bRetryLoadFromGameThread)
+					{
+						// Post-load completion code that must be executed in the game thread
+						Async(EAsyncExecution::TaskGraphMainThread,
+							[this]()
+							{
+								GroomAssetStrongPtr.Reset();
+
+								InitResources();
+
+								// This will update the GroomComponents that are using groom that was async loaded
+								FGroomComponentRecreateRenderStateContext RecreateContext(this);
+							});
+					}
+					else
+					{
+						UE_LOG(LogHairStrands, Log, TEXT("[Groom] %s failed to load asynchronously. Trying synchronous load."), *GetName());
+
+						// Load might have failed because if failed to fetch the data from the DDC
+						// Retry a sync load from the game thread
+						Async(EAsyncExecution::TaskGraphMainThread,
+							[this]()
+							{
+								GroomAssetStrongPtr.Reset();
+
+								CacheDerivedDatas();
+							});
+					}
+				});
+
+			return;
+		}
+		else
+		{
+			bSucceed = UGroomAsset::CacheDerivedDatas();
+		}
 	}
 #else
 	bool bSucceed = false;
@@ -1158,6 +1208,54 @@ namespace GroomDerivedDataCacheUtils
 	}
 }
 
+bool UGroomAsset::IsFullyCached()
+{
+	// Check if all the groom derived data for strands, cards and meshes are already stored in the DDC
+	bool bIsFullyCached = true;
+	const uint32 GroupCount = HairGroupsInterpolation.Num();
+	for (uint32 GroupIndex = 0; GroupIndex < GroupCount && bIsFullyCached; ++GroupIndex)
+	{
+		const FString StrandsDDCKey = UGroomAsset::GetDerivedDataKeyForStrands(GroupIndex);
+		bIsFullyCached &= GetDerivedDataCacheRef().CachedDataProbablyExists(*StrandsDDCKey);
+
+		// Some cards and meshes LOD settings may not produce any derived data so those must be excluded
+		bool bHasCardsLODs = false;
+		bool bHasMeshesLODs = false;
+		const uint32 LODCount = HairGroupsLOD[GroupIndex].LODs.Num();
+		for (uint32 LODIt = 0; LODIt < LODCount; ++LODIt)
+		{
+			int32 SourceIt = 0;
+			// GetSourceDescription will cross-check the LOD settings with the cards/meshes settings to see if they would produce any data
+			if (const FHairGroupsCardsSourceDescription* Desc = GetSourceDescription(HairGroupsCards, GroupIndex, LODIt, SourceIt))
+			{
+				Desc->HasMeshChanged(); // this query will trigger a load of the mesh dependency, which has to be done in the game thread
+				bHasCardsLODs = true;
+			}
+			if (const FHairGroupsMeshesSourceDescription* Desc = GetSourceDescription(HairGroupsMeshes, GroupIndex, LODIt, SourceIt))
+			{
+				Desc->HasMeshChanged(); // this query will trigger a load of the mesh dependency, which has to be done in the game thread
+				bHasMeshesLODs = true;
+			}
+		}
+
+		if (bHasCardsLODs)
+		{
+			const FString CardsKeySuffix = GroomDerivedDataCacheUtils::BuildCardsDerivedDataKeySuffix(GroupIndex, HairGroupsLOD[GroupIndex].LODs, HairGroupsCards);
+			const FString CardsDDCKey = StrandsDDCKey + CardsKeySuffix;
+			bIsFullyCached &= GetDerivedDataCacheRef().CachedDataProbablyExists(*CardsDDCKey);
+		}
+
+		if (bHasMeshesLODs)
+		{
+			const FString MeshesKeySuffix = GroomDerivedDataCacheUtils::BuildMeshesDerivedDataKeySuffix(GroupIndex, HairGroupsLOD[GroupIndex].LODs, HairGroupsMeshes);
+			const FString MeshesDDCKey = GroomDerivedDataCacheUtils::BuildGroomDerivedDataKey(MeshesKeySuffix);
+			bIsFullyCached &= GetDerivedDataCacheRef().CachedDataProbablyExists(*MeshesDDCKey);
+		}
+	}
+
+	return bIsFullyCached;
+}
+
 FString UGroomAsset::BuildDerivedDataKeySuffix(uint32 GroupIndex, const FHairGroupsInterpolation& InterpolationSettings, const FHairGroupsLOD& LODSettings) const
 {
 	// Serialize the build settings into a temporary array
@@ -1254,7 +1352,12 @@ FHairDescription UGroomAsset::GetHairDescription() const
 
 bool UGroomAsset::CacheDerivedDatas()
 {
-	FGroomComponentRecreateRenderStateContext RecreateContext(this);
+	bRetryLoadFromGameThread = false;
+
+	if (IsInGameThread())
+	{
+		FGroomComponentRecreateRenderStateContext RecreateContext(this);
+	}
 
 	FProcessedHairDescription ProcessedHairDescription;
 	const uint32 GroupCount = HairGroupsInterpolation.Num();
@@ -1265,7 +1368,11 @@ bool UGroomAsset::CacheDerivedDatas()
 			return false;
 	}
 	UpdateHairGroupsInfo();
-	InitResources();
+
+	if (IsInGameThread())
+	{
+		InitResources();
+	}
 	return true;
 }
 
@@ -1324,6 +1431,13 @@ bool UGroomAsset::CacheStrandsData(uint32 GroupIndex, FProcessedHairDescription&
 	}
 	else
 	{
+		if (!IsInGameThread())
+		{
+			// Strands build might actually be thread safe, but retry on the game thread to be safe
+			bRetryLoadFromGameThread = true;
+			return false;
+		}
+
 		UE_LOG(LogHairStrands, Log, TEXT("[Groom/DDC] Strands - Not found (Groom:%s Group:%d)."), *GetName(), GroupIndex);
 		// Load the HairDescription from the bulk data if needed
 		if (!HairDescription)
@@ -1571,12 +1685,15 @@ bool UGroomAsset::BuildCardsGeometry(uint32 GroupIndex)
 			{
 				// Reload/Update texture resources when the groom asset is saved, so that the textures 
 				// content is up to date with what has been saved.
-				FHairGroupCardsTextures& Textures = HairGroupsCards[SourceIt].Textures;
-				if (Textures.DepthTexture != nullptr)		Textures.DepthTexture->UpdateResource();
-				if (Textures.TangentTexture != nullptr)		Textures.TangentTexture->UpdateResource();
-				if (Textures.AttributeTexture != nullptr)	Textures.AttributeTexture->UpdateResource();
-				if (Textures.CoverageTexture != nullptr)	Textures.CoverageTexture->UpdateResource();
-				if (Textures.AuxilaryDataTexture != nullptr)Textures.AuxilaryDataTexture->UpdateResource();
+				if (IsInGameThread())
+				{
+					FHairGroupCardsTextures& Textures = HairGroupsCards[SourceIt].Textures;
+					if (Textures.DepthTexture != nullptr)		Textures.DepthTexture->UpdateResource();
+					if (Textures.TangentTexture != nullptr)		Textures.TangentTexture->UpdateResource();
+					if (Textures.AttributeTexture != nullptr)	Textures.AttributeTexture->UpdateResource();
+					if (Textures.CoverageTexture != nullptr)	Textures.CoverageTexture->UpdateResource();
+					if (Textures.AuxilaryDataTexture != nullptr)Textures.AuxilaryDataTexture->UpdateResource();
+				}
 			}
 		}
 	}
@@ -1601,6 +1718,13 @@ bool UGroomAsset::BuildCardsGeometry(uint32 GroupIndex)
 			{
 				bDataBuilt |= bIsAlreadyBuilt[LODIt];
 				continue;
+			}
+
+			if (!IsInGameThread())
+			{
+				// Build needs to execute from the game thread
+				bRetryLoadFromGameThread = true;
+				return false;
 			}
 
 			FHairGroupData::FCards::FLOD& LOD = GroupData.Cards.LODs[LODIt];
@@ -1875,12 +1999,15 @@ bool UGroomAsset::BuildMeshesGeometry(uint32 GroupIndex)
 			{
 				// Reload/Update texture resources when the groom asset is saved, so that the textures 
 				// content is up to date with what has been saved.
-				FHairGroupCardsTextures& Textures = HairGroupsMeshes[SourceIt].Textures;
-				if (Textures.DepthTexture != nullptr)		Textures.DepthTexture->UpdateResource();
-				if (Textures.TangentTexture != nullptr)		Textures.TangentTexture->UpdateResource();
-				if (Textures.AttributeTexture != nullptr)	Textures.AttributeTexture->UpdateResource();
-				if (Textures.CoverageTexture != nullptr)	Textures.CoverageTexture->UpdateResource();
-				if (Textures.AuxilaryDataTexture != nullptr)Textures.AuxilaryDataTexture->UpdateResource();
+				if (IsInGameThread())
+				{
+					FHairGroupCardsTextures& Textures = HairGroupsMeshes[SourceIt].Textures;
+					if (Textures.DepthTexture != nullptr)		Textures.DepthTexture->UpdateResource();
+					if (Textures.TangentTexture != nullptr)		Textures.TangentTexture->UpdateResource();
+					if (Textures.AttributeTexture != nullptr)	Textures.AttributeTexture->UpdateResource();
+					if (Textures.CoverageTexture != nullptr)	Textures.CoverageTexture->UpdateResource();
+					if (Textures.AuxilaryDataTexture != nullptr)Textures.AuxilaryDataTexture->UpdateResource();
+				}
 			}
 		}
 	}
@@ -1904,6 +2031,13 @@ bool UGroomAsset::BuildMeshesGeometry(uint32 GroupIndex)
 			{
 				bDataBuilt |= bIsAlreadyBuilt[LODIt];
 				continue;
+			}
+
+			if (!IsInGameThread())
+			{
+				// Build needs to execute from the game thread
+				bRetryLoadFromGameThread = true;
+				return false;
 			}
 
 			FHairGroupData::FMeshes::FLOD& LOD = GroupData.Meshes.LODs[LODIt];
