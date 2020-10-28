@@ -1,8 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Trace/Config.h"
-
-//#define UE_MEMORY_TRACE_ENABLED 0
+#include "Trace/Trace.h"
 
 #if !defined(UE_MEMORY_TRACE_ENABLED) && UE_TRACE_ENABLED
 #	if PLATFORM_WINDOWS

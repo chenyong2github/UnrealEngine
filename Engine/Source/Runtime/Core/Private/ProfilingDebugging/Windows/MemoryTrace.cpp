@@ -26,9 +26,8 @@ void*	Backtracer_GetBacktraceId(void*);
 ////////////////////////////////////////////////////////////////////////////////
 #if defined(_MSC_VER)
 #	define UE_RETURN_ADDRESS_ADDRESS()	(void*)_AddressOfReturnAddress()
-#else if defined(__clang__) || defined(__GNUC__)
-#	define UE_RETURN_ADDRESS_ADDRESS()
-#	error TODO
+#elif defined(__clang__) || defined(__GNUC__)
+#	define UE_RETURN_ADDRESS_ADDRESS()	__builtin_frame_address(0)
 #endif
 
 FORCEINLINE void* GetOwner(bool bLight)
