@@ -832,6 +832,17 @@ void FAnimationRuntime::LerpPosesWithBoneIndexList(FCompactPose& PoseA, const FC
 
 void FAnimationRuntime::LerpBoneTransforms(TArray<FTransform>& A, const TArray<FTransform>& B, float Alpha, const TArray<FBoneIndexType>& RequiredBonesArray)
 {
+	if (FAnimWeight::IsFullWeight(Alpha))
+	{
+		A = B;
+		return;
+	}
+
+	if (!FAnimWeight::IsRelevant(Alpha))
+	{
+		return;
+	}
+
 	if (INTEL_ISPC)
 	{
 #if INTEL_ISPC
@@ -840,35 +851,26 @@ void FAnimationRuntime::LerpBoneTransforms(TArray<FTransform>& A, const TArray<F
 			(ispc::FTransform*)B.GetData(),
 			Alpha,
 			RequiredBonesArray.GetData(),
-			A.Num()
+			RequiredBonesArray.Num()
 		);
 #endif
 	}
 	else
 	{
-		if (FAnimWeight::IsFullWeight(Alpha))
+		FTransform* ATransformData = A.GetData();
+		const FTransform* BTransformData = B.GetData();
+		const ScalarRegister VAlpha(Alpha);
+		const ScalarRegister VOneMinusAlpha(1.f - Alpha);
+
+		for (int32 Index=0; Index<RequiredBonesArray.Num(); Index++)
 		{
-			A = B;
-		}
-		else if (FAnimWeight::IsRelevant(Alpha))
-		{
-			FTransform* ATransformData = A.GetData();
-			const FTransform* BTransformData = B.GetData();
-			const ScalarRegister VAlpha(Alpha);
-			const ScalarRegister VOneMinusAlpha(1.f - Alpha);
+			const int32& BoneIndex = RequiredBonesArray[Index];
+			FTransform* TA = ATransformData + BoneIndex;
+			const FTransform* TB = BTransformData + BoneIndex;
 
-			for (int32 Index=0; Index<RequiredBonesArray.Num(); Index++)
-			{
-				const int32& BoneIndex = RequiredBonesArray[Index];
-				FTransform* TA = ATransformData + BoneIndex;
-				const FTransform* TB = BTransformData + BoneIndex;
-
-				*TA *= VOneMinusAlpha;
-				TA->AccumulateWithShortestRotation(*TB, VAlpha);
-				TA->NormalizeRotation();
-
-//				TA->BlendWith(*TB, Alpha);
-			}
+			*TA *= VOneMinusAlpha;
+			TA->AccumulateWithShortestRotation(*TB, VAlpha);
+			TA->NormalizeRotation();
 		}
 	}
 }
