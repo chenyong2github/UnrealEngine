@@ -567,7 +567,7 @@ void SStartPageWindow::Construct(const FArguments& InArgs)
 			+ SOverlay::Slot()
 			.HAlign(HAlign_Right)
 			.VAlign(VAlign_Top)
-			.Padding(0.0f, -16.0f, 0.0f, 0.0f)
+			.Padding(0.0f, -16.0f, 4.0f, 0.0f)
 			[
 				SNew(STextBlock)
 				.Clipping(EWidgetClipping::ClipToBoundsWithoutIntersecting)
@@ -800,7 +800,7 @@ TSharedRef<SWidget> SStartPageWindow::ConstructLoadPanel()
 		.IsEnabled(this, &SStartPageWindow::Open_IsEnabled)
 		.OnClicked(this, &SStartPageWindow::Open_OnClicked)
 		.ToolTipText(LOCTEXT("OpenButtonTooltip", "Start analysis for selected trace session."))
-		.ContentPadding(FMargin(4.0f, 1.0f))
+		.ContentPadding(FMargin(0.0f, 0.0f))
 		.Content()
 		[
 			SNew(SHorizontalBox)
@@ -818,18 +818,25 @@ TSharedRef<SWidget> SStartPageWindow::ConstructLoadPanel()
 				[
 					SNew(STextBlock)
 					.Text(LOCTEXT("OpenButtonText", "Open"))
+					.TextStyle(FAppStyle::Get(), "ButtonText")
 				]
 		]
 	]
 
 	+ SHorizontalBox::Slot()
+	.Padding(FMargin(6.0f, 0.0f, 0.0f, 0.0f))
 	.AutoWidth()
 	[
 		SNew(SComboButton)
 		.ToolTipText(LOCTEXT("MRU_Tooltip", "Open a trace file or choose a trace session."))
 		.OnGetMenuContent(this, &SStartPageWindow::MakeTraceListMenu)
 		.HasDownArrow(true)
-		.ContentPadding(FMargin(1.0f, 1.0f, 1.0f, 1.0f))
+		.ContentPadding(FMargin(0.0f, 0.0f, 0.0f, 0.0f))
+		.ButtonContent()
+		[
+			SNew(SImage)
+			.Image(FInsightsStyle::GetBrush("Menu.Icon.Small"))
+		]
 	];
 
 	return Widget;
