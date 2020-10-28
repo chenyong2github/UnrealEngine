@@ -28,6 +28,8 @@
 #include "GroomManager.h"
 #include "GroomInstance.h"
 
+PRAGMA_DISABLE_OPTIMIZATION
+
 static float GHairClipLength = -1;
 static FAutoConsoleVariableRef CVarHairClipLength(TEXT("r.HairStrands.DebugClipLength"), GHairClipLength, TEXT("Clip hair strands which have a lenth larger than this value. (default is -1, no effect)"));
 float GetHairClipLength() { return GHairClipLength > 0 ? GHairClipLength : 100000;  }
@@ -158,8 +160,11 @@ enum class EHairMaterialCompatibility : uint8
 	Invalid_IsNull
 };
 
-static EHairMaterialCompatibility IsHairMaterialCompatible(UMaterialInterface* MaterialInterface, ERHIFeatureLevel::Type FeatureLevel)
+static EHairMaterialCompatibility IsHairMaterialCompatible(UMaterialInterface* MaterialInterface, ERHIFeatureLevel::Type FeatureLevel, EHairGeometryType GeometryType)
 {
+	// Hair material and opaque material are enforced for strands material as the strands system is tailored for this type of shading 
+	// (custom packing of material attributes). However this is not needed/required for cards/meshes, when the relaxation for these type 
+	// of goemetry
 	if (MaterialInterface)
 	{
 		const FMaterialRelevance Relevance = MaterialInterface->GetRelevance_Concurrent(FeatureLevel);
@@ -168,11 +173,11 @@ static EHairMaterialCompatibility IsHairMaterialCompatible(UMaterialInterface* M
 		{
 			return EHairMaterialCompatibility::Invalid_UsedWithHairStrands;
 		}
-		if (!MaterialInterface->GetShadingModels().HasShadingModel(MSM_Hair))
+		if (!MaterialInterface->GetShadingModels().HasShadingModel(MSM_Hair) && GeometryType == EHairGeometryType::Strands)
 		{
 			return EHairMaterialCompatibility::Invalid_ShadingModel;
 		}
-		if (MaterialInterface->GetBlendMode() != BLEND_Opaque && MaterialInterface->GetBlendMode() != BLEND_Masked)
+		if (MaterialInterface->GetBlendMode() != BLEND_Opaque && MaterialInterface->GetBlendMode() != BLEND_Masked && GeometryType == EHairGeometryType::Strands)
 		{
 			return EHairMaterialCompatibility::Invalid_BlendMode;
 		}
@@ -475,7 +480,7 @@ public:
 			if (IsHairStrandsEnabled(EHairStrandsShaderType::Strands, Platform))
 			{
 				const int32 SlotIndex = Component->GroomAsset->GetMaterialIndex(Component->GroomAsset->HairGroupsRendering[GroupIt].MaterialSlotName);
-				HairInstance->Strands.Material = Component->GetMaterial(GetMaterialIndexWithFallback(SlotIndex), EHairGeometryType::Strands);
+				HairInstance->Strands.Material = Component->GetMaterial(GetMaterialIndexWithFallback(SlotIndex), EHairGeometryType::Strands, true);
 			}
 
 			// Material - Cards
@@ -496,7 +501,7 @@ public:
 								break;
 							}
 						}
-						HairInstance->Cards.LODs[CardsLODIndex].Material = Component->GetMaterial(GetMaterialIndexWithFallback(SlotIndex), EHairGeometryType::Cards);
+						HairInstance->Cards.LODs[CardsLODIndex].Material = Component->GetMaterial(GetMaterialIndexWithFallback(SlotIndex), EHairGeometryType::Cards, true);
 					}
 					++CardsLODIndex;
 				}
@@ -520,7 +525,7 @@ public:
 								break;
 							}
 						}
-						HairInstance->Meshes.LODs[MeshesLODIndex].Material = Component->GetMaterial(GetMaterialIndexWithFallback(SlotIndex), EHairGeometryType::Meshes);
+						HairInstance->Meshes.LODs[MeshesLODIndex].Material = Component->GetMaterial(GetMaterialIndexWithFallback(SlotIndex), EHairGeometryType::Meshes, true);
 					}
 					++MeshesLODIndex;
 				}
@@ -1365,7 +1370,7 @@ int32 UGroomComponent::GetNumMaterials() const
 	return 1;
 }
 
-UMaterialInterface* UGroomComponent::GetMaterial(int32 ElementIndex, EHairGeometryType GeometryType) const
+UMaterialInterface* UGroomComponent::GetMaterial(int32 ElementIndex, EHairGeometryType GeometryType, bool bUseDefaultIfIncompatible) const
 {
 	UMaterialInterface* OverrideMaterial = Super::GetMaterial(ElementIndex);
 
@@ -1377,16 +1382,19 @@ UMaterialInterface* UGroomComponent::GetMaterial(int32 ElementIndex, EHairGeomet
 		{
 			OverrideMaterial = Material;
 		}
-		else
+		else if (bUseDefaultIfIncompatible)
 		{
 			bUseHairDefaultMaterial = true;
 		}
 	}
 
-	const ERHIFeatureLevel::Type FeatureLevel = GetScene() ? GetScene()->GetFeatureLevel() : ERHIFeatureLevel::Num;
-	if (IsHairMaterialCompatible(OverrideMaterial, FeatureLevel) != EHairMaterialCompatibility::Valid && FeatureLevel != ERHIFeatureLevel::Num)
+	if (bUseDefaultIfIncompatible)
 	{
-		bUseHairDefaultMaterial = true;
+		const ERHIFeatureLevel::Type FeatureLevel = GetScene() ? GetScene()->GetFeatureLevel() : ERHIFeatureLevel::Num;
+		if (FeatureLevel != ERHIFeatureLevel::Num && IsHairMaterialCompatible(OverrideMaterial, FeatureLevel, GeometryType) != EHairMaterialCompatibility::Valid)
+		{
+			bUseHairDefaultMaterial = true;
+		}
 	}
 
 	if (bUseHairDefaultMaterial)
@@ -1408,9 +1416,84 @@ UMaterialInterface* UGroomComponent::GetMaterial(int32 ElementIndex, EHairGeomet
 	return OverrideMaterial;
 }
 
+EHairGeometryType UGroomComponent::GetMaterialGeometryType(int32 ElementIndex) const
+{
+	const EShaderPlatform Platform = GetScene() ? GetScene()->GetShaderPlatform() : EShaderPlatform::SP_NumPlatforms;
+	for (uint32 GroupIt = 0, GroupCount = GroomAsset->HairGroupsRendering.Num(); GroupIt < GroupCount; ++GroupIt)
+	{
+		// Material - Strands
+		const FHairGroupData& InGroupData = GroomAsset->HairGroupsData[GroupIt];
+		if (IsHairStrandsEnabled(EHairStrandsShaderType::Strands, Platform))
+		{
+			const int32 SlotIndex = GroomAsset->GetMaterialIndex(GroomAsset->HairGroupsRendering[GroupIt].MaterialSlotName);
+			if (SlotIndex == ElementIndex)
+			{
+				return EHairGeometryType::Strands;
+			}
+		}
+
+		// Material - Cards
+		if (IsHairStrandsEnabled(EHairStrandsShaderType::Cards, Platform))
+		{
+			uint32 CardsLODIndex = 0;
+			for (const FHairGroupData::FCards::FLOD& LOD : InGroupData.Cards.LODs)
+			{
+				if (LOD.IsValid())
+				{
+					// Material
+					int32 SlotIndex = INDEX_NONE;
+					for (const FHairGroupsCardsSourceDescription& Desc : GroomAsset->HairGroupsCards)
+					{
+						if (Desc.GroupIndex == GroupIt && Desc.LODIndex == CardsLODIndex)
+						{
+							SlotIndex = GroomAsset->GetMaterialIndex(Desc.MaterialSlotName);
+							break;
+						}
+					}
+					if (SlotIndex == ElementIndex)
+					{
+						return EHairGeometryType::Cards;
+					}
+				}
+				++CardsLODIndex;
+			}
+		}
+
+		// Material - Meshes
+		if (IsHairStrandsEnabled(EHairStrandsShaderType::Meshes, Platform))
+		{
+			uint32 MeshesLODIndex = 0;
+			for (const FHairGroupData::FMeshes::FLOD& LOD : InGroupData.Meshes.LODs)
+			{
+				if (LOD.IsValid())
+				{
+					// Material
+					int32 SlotIndex = INDEX_NONE;
+					for (const FHairGroupsMeshesSourceDescription& Desc : GroomAsset->HairGroupsMeshes)
+					{
+						if (Desc.GroupIndex == GroupIt && Desc.LODIndex == MeshesLODIndex)
+						{
+							SlotIndex = GroomAsset->GetMaterialIndex(Desc.MaterialSlotName);
+							break;
+						}
+					}
+					if (SlotIndex == ElementIndex)
+					{
+						return EHairGeometryType::Meshes;
+					}
+				}
+				++MeshesLODIndex;
+			}
+		}
+	}
+	// If we don't know, enforce strands, as it has the most requirement.
+	return EHairGeometryType::Strands;
+}
+
 UMaterialInterface* UGroomComponent::GetMaterial(int32 ElementIndex) const
 {
-	return GetMaterial(ElementIndex, EHairGeometryType::Strands);
+	const EHairGeometryType GeometryType = GetMaterialGeometryType(ElementIndex);
+	return GetMaterial(ElementIndex, GeometryType, true);
 }
 
 FHairStrandsDatas* UGroomComponent::GetGuideStrandsDatas(uint32 GroupIndex)
@@ -2407,17 +2490,15 @@ void UGroomComponent::ValidateMaterials(bool bMapCheck) const
 		Name += GetOwner()->GetName() + "/";
 	}
 	Name += GetName() + "/" + GroomAsset->GetName();
-	
+
 	const ERHIFeatureLevel::Type FeatureLevel = GetScene() ? GetScene()->GetFeatureLevel() : ERHIFeatureLevel::Num;
 	for (uint32 MaterialIt = 0, MaterialCount = GetNumMaterials(); MaterialIt < MaterialCount; ++MaterialIt)
 	{
-		UMaterialInterface* OverrideMaterial = Super::GetMaterial(MaterialIt);
-		if (!OverrideMaterial && MaterialIt < uint32(GroomAsset->HairGroupsMaterials.Num()) && GroomAsset->HairGroupsMaterials[MaterialIt].Material)
-		{
-			OverrideMaterial = GroomAsset->HairGroupsMaterials[MaterialIt].Material;
-		}
+		// Do not fallback on default material, so that we can detect that a material is not valid, and we can emit warning/validation error for this material
+		const EHairGeometryType GeometryType = GetMaterialGeometryType(MaterialIt);
+		UMaterialInterface* OverrideMaterial = GetMaterial(MaterialIt, GeometryType, false);
 
-		const EHairMaterialCompatibility Result = IsHairMaterialCompatible(OverrideMaterial, FeatureLevel);
+		const EHairMaterialCompatibility Result = IsHairMaterialCompatible(OverrideMaterial, FeatureLevel, GeometryType);
 		switch (Result)
 		{
 			case EHairMaterialCompatibility::Invalid_UsedWithHairStrands:
