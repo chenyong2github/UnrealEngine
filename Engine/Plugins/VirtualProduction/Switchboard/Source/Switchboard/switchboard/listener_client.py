@@ -253,6 +253,7 @@ class ListenerClient(object):
                 if self.receive_file_failed_delegate:
                     self.receive_file_failed_delegate(message['source'], message['error'])
         else:
+            LOGGER.error(f'Unhandled message: {message}')
             raise ValueError
 
     def process_received_data(self, buffer, received_data):

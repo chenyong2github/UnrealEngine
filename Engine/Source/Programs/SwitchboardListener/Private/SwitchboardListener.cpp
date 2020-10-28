@@ -145,7 +145,7 @@ bool FSwitchboardListener::Init()
 		UE_LOG(LogSwitchboard, Display, TEXT("Started listening on %s:%d"), *SocketListener->GetLocalEndpoint().Address.ToString(), SocketListener->GetLocalEndpoint().Port);
 		return true;
 	}
-
+	
 	UE_LOG(LogSwitchboard, Error, TEXT("Could not create Tcp Listener!"));
 	return false;
 }
@@ -166,14 +166,16 @@ bool FSwitchboardListener::Tick()
 			{
 				FSwitchboardStatePacket StatePacket;
 
-				for (const FRunningProcess& RunningProcess : RunningProcesses)
+				for (const auto RunningProcess : RunningProcesses)
 				{
+					check(RunningProcess.IsValid());
+
 					FSwitchboardStateRunningProcess StateRunningProcess;
 
-					StateRunningProcess.Uuid = RunningProcess.UUID.ToString();
-					StateRunningProcess.Name = RunningProcess.Name;
-					StateRunningProcess.Path = RunningProcess.Path;
-					StateRunningProcess.Caller = RunningProcess.Caller;
+					StateRunningProcess.Uuid = RunningProcess->UUID.ToString();
+					StateRunningProcess.Name = RunningProcess->Name;
+					StateRunningProcess.Path = RunningProcess->Path;
+					StateRunningProcess.Caller = RunningProcess->Caller;
 
 					StatePacket.RunningProcesses.Add(MoveTemp(StateRunningProcess));
 				}
@@ -328,13 +330,14 @@ bool FSwitchboardListener::RunScheduledTask(const FSwitchboardTask& InTask)
 
 bool FSwitchboardListener::StartProcess(const FSwitchboardStartTask& InRunTask)
 {
-	FRunningProcess NewProcess = {};
-	NewProcess.Recipient = InRunTask.Recipient;
-	NewProcess.Path = InRunTask.Command;
-	NewProcess.Name = InRunTask.Name;
-	NewProcess.Caller = InRunTask.Caller;
+	auto NewProcess = MakeShared<FRunningProcess, ESPMode::ThreadSafe>();
 
-	if (!FPlatformProcess::CreatePipe(NewProcess.ReadPipe, NewProcess.WritePipe))
+	NewProcess->Recipient = InRunTask.Recipient;
+	NewProcess->Path = InRunTask.Command;
+	NewProcess->Name = InRunTask.Name;
+	NewProcess->Caller = InRunTask.Caller;
+
+	if (!FPlatformProcess::CreatePipe(NewProcess->ReadPipe, NewProcess->WritePipe))
 	{
 		UE_LOG(LogSwitchboard, Error, TEXT("Could not create pipe to read process output!"));
 		return false;
@@ -346,26 +349,26 @@ bool FSwitchboardListener::StartProcess(const FSwitchboardStartTask& InRunTask)
 	const int32 PriorityModifier = 0;
 	TCHAR* WorkingDirectory = nullptr;
 
-	NewProcess.Handle = FPlatformProcess::CreateProc(
+	NewProcess->Handle = FPlatformProcess::CreateProc(
 		*InRunTask.Command, 
 		*InRunTask.Arguments, 
 		bLaunchDetached, 
 		bLaunchHidden, 
 		bLaunchReallyHidden, 
-		&NewProcess.PID, 
+		&NewProcess->PID, 
 		PriorityModifier, 
 		WorkingDirectory, 
-		NewProcess.WritePipe, 
-		NewProcess.ReadPipe
+		NewProcess->WritePipe,
+		NewProcess->ReadPipe
 	);
 
-	if (!NewProcess.Handle.IsValid() || !FPlatformProcess::IsProcRunning(NewProcess.Handle))
+	if (!NewProcess->Handle.IsValid() || !FPlatformProcess::IsProcRunning(NewProcess->Handle))
 	{
 		// Close process in case it just didn't run
-		FPlatformProcess::CloseProc(NewProcess.Handle);
+		FPlatformProcess::CloseProc(NewProcess->Handle);
 
 		// close pipes
-		FPlatformProcess::ClosePipe(NewProcess.ReadPipe, NewProcess.WritePipe);
+		FPlatformProcess::ClosePipe(NewProcess->ReadPipe, NewProcess->WritePipe);
 
 		// log error
 		const FString ErrorMsg = FString::Printf(TEXT("Could not start program %s"), *InRunTask.Command);
@@ -377,12 +380,12 @@ bool FSwitchboardListener::StartProcess(const FSwitchboardStartTask& InRunTask)
 		return false;
 	}
 
-	UE_LOG(LogSwitchboard, Display, TEXT("Started process %d: %s %s"), NewProcess.PID, *InRunTask.Command, *InRunTask.Arguments);
+	UE_LOG(LogSwitchboard, Display, TEXT("Started process %d: %s %s"), NewProcess->PID, *InRunTask.Command, *InRunTask.Arguments);
 
-	FGenericPlatformMisc::CreateGuid(NewProcess.UUID);
-	RunningProcesses.Add(MoveTemp(NewProcess));
+	FGenericPlatformMisc::CreateGuid(NewProcess->UUID);
+	RunningProcesses.Add(NewProcess);
 
-	SendMessage(CreateProgramStartedMessage(NewProcess.UUID.ToString(), InRunTask.TaskID.ToString()), InRunTask.Recipient);
+	SendMessage(CreateProgramStartedMessage(NewProcess->UUID.ToString(), InRunTask.TaskID.ToString()), InRunTask.Recipient);
 	return true;
 
 }
@@ -397,26 +400,36 @@ bool FSwitchboardListener::KillProcess(const FSwitchboardKillTask& KillTask)
 
 	// Look in RunningProcesses
 
-	FRunningProcess* Process = RunningProcesses.FindByPredicate([&KillTask](const FRunningProcess& Process) 
+	TSharedPtr<FRunningProcess, ESPMode::ThreadSafe> Process;
 	{
-		return !Process.bPendingKill && (Process.UUID == KillTask.ProgramID);
-	});
+		auto* ProcessPtr = RunningProcesses.FindByPredicate([&KillTask](const TSharedPtr<FRunningProcess, ESPMode::ThreadSafe>& InProcess)
+		{
+			check(InProcess.IsValid());
+			return !InProcess->bPendingKill && (InProcess->UUID == KillTask.ProgramID);
+		});
 
-	if (Process)
-	{
-		Process->bPendingKill = true;
+		if (ProcessPtr)
+		{
+			Process = *ProcessPtr;
+			Process->bPendingKill = true;
+		}
 	}
 
 	// Look in FlipModeMonitors
 
-	FRunningProcess* FlipModeMonitor = FlipModeMonitors.FindByPredicate([&](const FRunningProcess& FlipMonitor)
+	TSharedPtr<FRunningProcess, ESPMode::ThreadSafe> FlipModeMonitor;
 	{
-		return !FlipMonitor.bPendingKill && (FlipMonitor.UUID == KillTask.ProgramID);
-	});
+		auto* FlipModeMonitorPtr = FlipModeMonitors.FindByPredicate([&](const TSharedPtr<FRunningProcess, ESPMode::ThreadSafe>& FlipMonitor)
+		{
+			check(FlipMonitor.IsValid());
+			return !FlipMonitor->bPendingKill && (FlipMonitor->UUID == KillTask.ProgramID);
+		});
 
-	if (FlipModeMonitor)
-	{
-		FlipModeMonitor->bPendingKill = true;
+		if (FlipModeMonitorPtr)
+		{
+			FlipModeMonitor = *FlipModeMonitorPtr;
+			FlipModeMonitor->bPendingKill = true;
+		}
 	}
 
 	// Create our future message
@@ -433,8 +446,8 @@ bool FSwitchboardListener::KillProcess(const FSwitchboardKillTask& KillTask)
 
 		const float SoftKillTimeout = 2.0f;
 
-		const bool bKilledProcess = KillProcessNow(Process, SoftKillTimeout);
-		KillProcessNow(FlipModeMonitor, SoftKillTimeout);
+		const bool bKilledProcess = KillProcessNow(Process.Get(), SoftKillTimeout);
+		KillProcessNow(FlipModeMonitor.Get(), SoftKillTimeout);
 
 		// Clear bPendingKill
 
@@ -511,32 +524,38 @@ void FSwitchboardListener::KillAllProcessesNow()
 {
 	const float WaitSeconds = 0.050;
 
-	for (FRunningProcess& Process : RunningProcesses)
+	for (const auto Process : RunningProcesses)
 	{
-		while (Process.bPendingKill)
+		check(Process.IsValid());
+
+		while (Process->bPendingKill)
 		{
 			FPlatformProcess::Sleep(WaitSeconds);
 		}
 
-		KillProcessNow(&Process);
+		KillProcessNow(Process.Get());
 	}
 
-	for (FRunningProcess& Process : FlipModeMonitors)
+	for (const auto Process : FlipModeMonitors)
 	{
-		while (Process.bPendingKill)
+		check(Process.IsValid());
+
+		while (Process->bPendingKill)
 		{
 			FPlatformProcess::Sleep(WaitSeconds);
 		}
 
-		KillProcessNow(&Process);
+		KillProcessNow(Process.Get());
 	}
 }
 
 bool FSwitchboardListener::KillAllProcesses(const FSwitchboardKillAllTask& KillAllTask)
 {
-	for (FRunningProcess& Process : RunningProcesses)
+	for (const auto Process : RunningProcesses)
 	{
-		FSwitchboardKillTask Task(KillAllTask.TaskID, KillAllTask.Recipient, Process.UUID);
+		check(Process.IsValid());
+
+		FSwitchboardKillTask Task(KillAllTask.TaskID, KillAllTask.Recipient, Process->UUID);
 		KillProcess(Task);
 	}
 
@@ -886,35 +905,45 @@ FRunningProcess* FSwitchboardListener::FindOrStartFlipModeMonitorForUUID(const F
 {
 	// See if the associated FlipModeMonitor is running
 	{
-		FRunningProcess* FlipModeMonitor = FlipModeMonitors.FindByPredicate([&](const FRunningProcess& Process)
+		auto* FlipModeMonitorPtr = FlipModeMonitors.FindByPredicate([&](const TSharedPtr<FRunningProcess, ESPMode::ThreadSafe>& FlipMonitor)
 		{
-			return Process.UUID == UUID;
+			check(FlipMonitor.IsValid());
+			return FlipMonitor->UUID == UUID;
 		});
 
-		if (FlipModeMonitor)
+		if (FlipModeMonitorPtr)
 		{
-			return FlipModeMonitor;
+			return (*FlipModeMonitorPtr).Get();
 		}
 	}
 
 	// It wasn't in there, so let's find our target process
 
-	const FRunningProcess* Process = RunningProcesses.FindByPredicate([&](const FRunningProcess& Process)
+	TSharedPtr<FRunningProcess, ESPMode::ThreadSafe> Process;
 	{
-		return Process.UUID == UUID;
-	});
+		auto* ProcessPtr = RunningProcesses.FindByPredicate([&](const TSharedPtr<FRunningProcess, ESPMode::ThreadSafe>& InProcess)
+		{
+			check(InProcess.IsValid());
+			return InProcess->UUID == UUID;
+		});
+
+		if (ProcessPtr)
+		{
+			Process = *ProcessPtr;
+		}
+	}
 
 	// If the target process does not exist, no point in continuing
-	if (!Process)
+	if (!Process.IsValid())
 	{
 		return nullptr;
 	}
 
 	// Ok, we need to create our monitor.
 
-	FRunningProcess MonitorProcess = {};
+	auto MonitorProcess = MakeShared<FRunningProcess, ESPMode::ThreadSafe>();
 
-	if (!FPlatformProcess::CreatePipe(MonitorProcess.ReadPipe, MonitorProcess.WritePipe))
+	if (!FPlatformProcess::CreatePipe(MonitorProcess->ReadPipe, MonitorProcess->WritePipe))
 	{
 		UE_LOG(LogSwitchboard, Error, TEXT("Could not create pipe to read MonitorProcess output!"));
 		return nullptr;
@@ -926,50 +955,50 @@ FRunningProcess* FSwitchboardListener::FindOrStartFlipModeMonitorForUUID(const F
 	const int32 PriorityModifier = 0;
 	const TCHAR* WorkingDirectory = nullptr;
 
-	MonitorProcess.Path = FPaths::EngineSourceDir() / TEXT("Programs") / TEXT("SwitchboardListener") / TEXT("ThirdParty") / TEXT("PresentMon") / TEXT("PresentMon64-1.5.2.exe");
+	MonitorProcess->Path = FPaths::EngineSourceDir() / TEXT("Programs") / TEXT("SwitchboardListener") / TEXT("ThirdParty") / TEXT("PresentMon") / TEXT("PresentMon64-1.5.2.exe");
 
 	FString Arguments = 
 		FString::Printf(TEXT("-session_name session_%d -output_stdout -dont_restart_as_admin -terminate_on_proc_exit -stop_existing_session -process_id %d"), 
 		Process->PID, Process->PID);
 
-	MonitorProcess.Handle = FPlatformProcess::CreateProc(
-		*MonitorProcess.Path,
+	MonitorProcess->Handle = FPlatformProcess::CreateProc(
+		*MonitorProcess->Path,
 		*Arguments,
 		bLaunchDetached,
 		bLaunchHidden,
 		bLaunchReallyHidden,
-		&MonitorProcess.PID,
+		&MonitorProcess->PID,
 		PriorityModifier,
 		WorkingDirectory,
-		MonitorProcess.WritePipe,
-		MonitorProcess.ReadPipe
+		MonitorProcess->WritePipe,
+		MonitorProcess->ReadPipe
 	);
 
-	if (!MonitorProcess.Handle.IsValid() || !FPlatformProcess::IsProcRunning(MonitorProcess.Handle))
+	if (!MonitorProcess->Handle.IsValid() || !FPlatformProcess::IsProcRunning(MonitorProcess->Handle))
 	{
 		// Close process in case it just didn't run
-		FPlatformProcess::CloseProc(MonitorProcess.Handle);
+		FPlatformProcess::CloseProc(MonitorProcess->Handle);
 
 		// Close unused pipes
-		FPlatformProcess::ClosePipe(MonitorProcess.ReadPipe, MonitorProcess.WritePipe);
+		FPlatformProcess::ClosePipe(MonitorProcess->ReadPipe, MonitorProcess->WritePipe);
 
 		// Log error
-		const FString ErrorMsg = FString::Printf(TEXT("Could not start FlipMode monitor  %s"), *MonitorProcess.Path);
+		const FString ErrorMsg = FString::Printf(TEXT("Could not start FlipMode monitor  %s"), *MonitorProcess->Path);
 		UE_LOG(LogSwitchboard, Error, TEXT("%s"), *ErrorMsg);
 
 		return nullptr;
 	}
 
 	// Log success
-	UE_LOG(LogSwitchboard, Display, TEXT("Started FlipMode monitor %d: %s %s"), MonitorProcess.PID, *MonitorProcess.Path, *Arguments);
+	UE_LOG(LogSwitchboard, Display, TEXT("Started FlipMode monitor %d: %s %s"), MonitorProcess->PID, *MonitorProcess->Path, *Arguments);
 
 	// The UUID corresponds to the program being monitored. This will be used when looking for the Monitor of a given process.
 	// The monitor auto-closes when monitored program closes.
-	MonitorProcess.UUID = Process->UUID;
+	MonitorProcess->UUID = Process->UUID;
 
-	FlipModeMonitors.Add(MoveTemp(MonitorProcess));
+	FlipModeMonitors.Add(MonitorProcess);
 
-	return &FlipModeMonitors.Last();
+	return &MonitorProcess.Get();
 }
 
 #if PLATFORM_WINDOWS
@@ -1166,10 +1195,18 @@ bool FSwitchboardListener::GetSyncStatus(const FSwitchboardGetSyncStatusTask& In
 
 	// Fill out fullscreen optimization setting
 	{
-		FRunningProcess* Process = RunningProcesses.FindByPredicate([&](const FRunningProcess& Process)
+		auto* ProcessPtr = RunningProcesses.FindByPredicate([&](const TSharedPtr<FRunningProcess, ESPMode::ThreadSafe>& InProcess)
 		{
-			return Process.UUID == InGetSyncStatusTask.ProgramID;
+			check(InProcess.IsValid());
+			return !InProcess->bPendingKill && (InProcess->UUID == InGetSyncStatusTask.ProgramID);
 		});
+
+		FRunningProcess* Process = nullptr;
+
+		if (ProcessPtr)
+		{
+			Process = (*ProcessPtr).Get();
+		}
 
 		FillOutDisableFullscreenOptimizationForProcess(SyncStatus.Get(), Process);
 	}
@@ -1233,40 +1270,42 @@ void FSwitchboardListener::DisconnectClient(const FIPv4Endpoint& InClientEndpoin
 	ReceiveBuffer.Remove(InClientEndpoint);
 }
 
-void FSwitchboardListener::HandleRunningProcesses(TArray<FRunningProcess>& Processes, bool bNotifyThatProgramEnded)
+void FSwitchboardListener::HandleRunningProcesses(TArray<TSharedPtr<FRunningProcess, ESPMode::ThreadSafe>>& Processes, bool bNotifyThatProgramEnded)
 {
 	// Reads pipe and cleans up dead processes from the array.
 	for (auto Iter = Processes.CreateIterator(); Iter; ++Iter)
 	{
-		FRunningProcess& Process = *Iter;
+		TSharedPtr<FRunningProcess, ESPMode::ThreadSafe> Process = *Iter;
 
-		if (Process.bPendingKill)
+		check(Process.IsValid());
+
+		if (Process->bPendingKill)
 		{
 			continue;
 		}
 
-		if (Process.Handle.IsValid())
+		if (Process->Handle.IsValid())
 		{
 			TArray<uint8> Output;
-			if (FPlatformProcess::ReadPipeToArray(Process.ReadPipe, Output))
+			if (FPlatformProcess::ReadPipeToArray(Process->ReadPipe, Output))
 			{
 				// make sure the output array always has exactly one trailing null terminator.
 				// this way we can always convert to a valid string.
-				if (Process.Output.Num() > 0)
+				if (Process->Output.Num() > 0)
 				{
-					Process.Output.RemoveAt(Process.Output.Num() - 1);
+					Process->Output.RemoveAt(Process->Output.Num() - 1);
 				}
-				Process.Output.Append(Output);
-				Process.Output.Add('\x00');
+				Process->Output.Append(Output);
+				Process->Output.Add('\x00');
 			}
 
-			if (!FPlatformProcess::IsProcRunning(Process.Handle))
+			if (!FPlatformProcess::IsProcRunning(Process->Handle))
 			{
 				int32 ReturnCode = 0;
-				FPlatformProcess::GetProcReturnCode(Process.Handle, &ReturnCode);
+				FPlatformProcess::GetProcReturnCode(Process->Handle, &ReturnCode);
 				UE_LOG(LogSwitchboard, Display, TEXT("Process exited with returncode: %d"), ReturnCode);
 
-				const FString ProcessOutput(UTF8_TO_TCHAR(Process.Output.GetData()));
+				const FString ProcessOutput(UTF8_TO_TCHAR(Process->Output.GetData()));
 				if (ReturnCode != 0)
 				{
 					UE_LOG(LogSwitchboard, Display, TEXT("Output:\n%s"), *ProcessOutput);
@@ -1275,25 +1314,28 @@ void FSwitchboardListener::HandleRunningProcesses(TArray<FRunningProcess>& Proce
 				// Notify remote client, which implies that this is a program managed by it.
 				if (bNotifyThatProgramEnded)
 				{
-					SendMessage(CreateProgramEndedMessage(Process.UUID.ToString(), ReturnCode, ProcessOutput), Process.Recipient);
+					SendMessage(CreateProgramEndedMessage(Process->UUID.ToString(), ReturnCode, ProcessOutput), Process->Recipient);
 
 					// Kill its monitor to avoid potential zombies (unless it is already pending kill)
 					{
-						FRunningProcess* FlipModeMonitor = FlipModeMonitors.FindByPredicate([&](const FRunningProcess& FlipMonitor)
+						auto* FlipModeMonitorPtr = FlipModeMonitors.FindByPredicate([&](const TSharedPtr<FRunningProcess, ESPMode::ThreadSafe>& FlipMonitor)
 						{
-							return !FlipMonitor.bPendingKill && (FlipMonitor.UUID == Process.UUID);
+							check(FlipMonitor.IsValid());
+							return !FlipMonitor->bPendingKill && (FlipMonitor->UUID == Process->UUID);
 						});
 
-						if (FlipModeMonitor)
+						if (FlipModeMonitorPtr)
 						{
-							FSwitchboardKillTask Task(FGuid(), FlipModeMonitor->Recipient, FlipModeMonitor->UUID);
+							check((*FlipModeMonitorPtr).IsValid());
+
+							FSwitchboardKillTask Task(FGuid(), (*FlipModeMonitorPtr)->Recipient, (*FlipModeMonitorPtr)->UUID);
 							KillProcess(Task);
 						}
 					}
 				}
 
-				FPlatformProcess::CloseProc(Process.Handle);
-				FPlatformProcess::ClosePipe(Process.ReadPipe, Process.WritePipe);
+				FPlatformProcess::CloseProc(Process->Handle);
+				FPlatformProcess::ClosePipe(Process->ReadPipe, Process->WritePipe);
 
 				Iter.RemoveCurrent();
 			}

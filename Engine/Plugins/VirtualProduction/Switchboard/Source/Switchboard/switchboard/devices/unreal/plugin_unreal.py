@@ -97,6 +97,7 @@ class DeviceUnreal(Device):
         self.unreal_client.receive_file_completed_delegate = self.on_file_received
         self.unreal_client.receive_file_failed_delegate = self.on_file_receive_failed
         self.unreal_client.delegates["state"] = self.on_listener_state
+        self.unreal_client.delegates["kill"] = self.on_listener_kill
 
         self._remote_programs_start_queue = {} # key: message_id, name
         self._running_remote_programs = {} # key: program id, value: program name
@@ -514,6 +515,15 @@ class DeviceUnreal(Device):
         if len(roles) > 0:
             LOGGER.error(f"{self.name}: Error receiving role file from listener and device claims to have these roles: {' | '.join(roles)}")
             LOGGER.error(f"Error: {error}")
+
+    def on_listener_kill(self, message):
+        ''' Handles errors in kill messages
+        '''
+
+        error = message.get('error', None)
+
+        if error:
+            LOGGER.error(f'Command "{message["command"]}" error "{error}"')
 
     def on_listener_state(self, message):
         ''' Message expected to be received upon connection with the listener.
