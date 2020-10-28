@@ -2644,14 +2644,18 @@ void FPersonaMeshDetails::AddLODLevelCategories(IDetailLayoutBuilder& DetailLayo
 
 		LodCategories.Empty(SkelMeshLODCount);
 		DetailDisplayLODs.Reset();
-
-		for (ULODInfoUILayout* LODInfoUILayout : LODInfoUILayouts)
+		auto ClearLODInfoLayouts = [this, &SkelMeshLODCount]()
 		{
-			LODInfoUILayout->RemoveFromRoot();
-			LODInfoUILayout->MarkPendingKill();
-			LODInfoUILayout = nullptr;
-		}
-		LODInfoUILayouts.Reset(SkelMeshLODCount);
+			for (ULODInfoUILayout* LODInfoUILayout : LODInfoUILayouts)
+			{
+				LODInfoUILayout->RemoveFromRoot();
+				LODInfoUILayout->MarkPendingKill();
+				LODInfoUILayout = nullptr;
+			}
+			LODInfoUILayouts.Reset(SkelMeshLODCount);
+		};
+
+		ClearLODInfoLayouts();
 
 		// Create information panel for each LOD level.
 		for (int32 LODIndex = 0; LODIndex < SkelMeshLODCount; ++LODIndex)
@@ -2692,7 +2696,13 @@ void FPersonaMeshDetails::AddLODLevelCategories(IDetailLayoutBuilder& DetailLayo
 			TSharedRef<IPropertyHandle> LODInfoProperty = DetailLayout.GetProperty(FName("LODInfo"), USkeletalMesh::StaticClass());
 			uint32 NumChildren = 0;
 			LODInfoProperty->GetNumChildren(NumChildren);
-			check(NumChildren >(uint32)LODIndex);
+			//If the skeleton change during a re-import the skleleton preview mesh will be force reload even if we are in the middle of a re-import
+			//But when the re-import will be done the UI will be refresh, so skipping LOD ui until we have valid data is necessary to avoid crash.
+			if (NumChildren <= (uint32)LODIndex)
+			{
+				ClearLODInfoLayouts();
+				break;
+			}
 
 			IDetailCategoryBuilder& LODCategory = GetLODIndexCategory(DetailLayout, LODIndex);
 			LodCategories.Add(&LODCategory);
