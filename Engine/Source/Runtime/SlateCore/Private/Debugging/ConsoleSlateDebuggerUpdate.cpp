@@ -33,7 +33,7 @@ FConsoleSlateDebuggerUpdate::FConsoleSlateDebuggerUpdate()
 	, DrawWidgetNameColor(FColorList::Red)
 	, MaxNumberOfWidgetInList(20)
 	, InvalidationRootIdFilter(-1)
-	, CacheDuration(2.0)
+	, CacheDuration(2.0f)
 	, StartCommand(
 		TEXT("SlateDebugger.Update.Start"),
 		TEXT("Start the update widget debug tool. It shows when widgets are updated."),
@@ -389,7 +389,7 @@ void FConsoleSlateDebuggerUpdate::HandlePaintDebugInfo(const FPaintArgs& InArgs,
 	{
 		if (Itt.Value.WindowId == PaintWindow)
 		{
-			const double LerpValue = FMath::Clamp((SlateApplicationCurrentTime - Itt.Value.LastInvalidationTime) / CacheDuration, 0.0, 1.0);
+			const float LerpValue = FMath::Clamp((float)(SlateApplicationCurrentTime - Itt.Value.LastInvalidationTime) / CacheDuration, 0.f, 1.f);
 			const FGeometry Geometry = FGeometry::MakeRoot(Itt.Value.PaintSize, FSlateLayoutTransform(1.f, Itt.Value.PaintLocation));
 			const FPaintGeometry PaintGeometry = Geometry.ToPaintGeometry();
 			FLinearColor Color = DrawVolatilePaintColor;

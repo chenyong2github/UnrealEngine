@@ -36,7 +36,7 @@ FConsoleSlateDebuggerInvalidate::FConsoleSlateDebuggerInvalidate()
 	, DrawWidgetRenderTransformColor(FColorList::Black)
 	, DrawWidgetVisibilityColor(FColorList::White)
 	, MaxNumberOfWidgetInList(20)
-	, CacheDuration(2.0)
+	, CacheDuration(2.0f)
 	, StartCommand(
 		TEXT("SlateDebugger.Invalidate.Start"),
 		TEXT("Start the Invalidation widget debug tool. It shows when widgets are invalidated."),
@@ -682,7 +682,7 @@ void FConsoleSlateDebuggerInvalidate::HandlePaintDebugInfo(const FPaintArgs& InA
 			AlreadyProcessedInvalidatedId.Add(InvalidationInfo.WidgetInvalidatorId);
 		}
 
-		const double LerpValue = FMath::Clamp((SlateApplicationCurrentTime - InvalidationInfo.InvalidationTime) / CacheDuration, 0.0, 1.0);
+		const float LerpValue = FMath::Clamp((float)(SlateApplicationCurrentTime - InvalidationInfo.InvalidationTime) / CacheDuration, 0.0f, 1.0f);
 		const FLinearColor ColorWithOpacity = InvalidationInfo.DisplayColor.CopyWithNewOpacity(FMath::InterpExpoOut(1.0f, 0.2f, LerpValue));
 
 		{

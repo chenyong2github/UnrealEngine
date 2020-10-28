@@ -198,9 +198,9 @@ namespace SlateDebuggerUtils
 		{
 			for (int32 Index = 0; Index < Params.Num(); Index += 2)
 			{
-				const int64 InputEventEnumValue = EventEnum->GetValueByNameString(Params[Index]);
+				const int32 InputEventEnumValue = (int32)EventEnum->GetValueByNameString(Params[Index]);
 				// We are casting ESlateDebuggingInputEvent::MAX to uint8. Let's make sure it has a valid value. Prefer to crash now than doing bad memory access.
-				check(EventEnum->GetMaxEnumValue() < (int64)TNumericLimits<uint8>::Max());
+				check(EventEnum->GetMaxEnumValue() < TNumericLimits<uint8>::Max());
 				if (InputEventEnumValue == INDEX_NONE)
 				{
 					return;

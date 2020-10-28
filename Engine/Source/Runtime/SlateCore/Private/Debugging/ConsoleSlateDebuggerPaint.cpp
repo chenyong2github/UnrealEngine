@@ -30,7 +30,7 @@ FConsoleSlateDebuggerPaint::FConsoleSlateDebuggerPaint()
 	, DrawQuadColor(1.0f, 1.0f, 1.0f, 1.0f)
 	, DrawWidgetNameColor(FColorList::SpicyPink)
 	, MaxNumberOfWidgetInList(20)
-	, CacheDuration(2.0)
+	, CacheDuration(2.0f)
 	, ShowPaintWidgetCommand(
 		TEXT("SlateDebugger.Paint.Start")
 		, TEXT("Start the painted widget debug tool. It shows when widgets are painted.")
@@ -238,7 +238,7 @@ void FConsoleSlateDebuggerPaint::HandlePaintDebugInfo(const FPaintArgs& InArgs, 
 	{
 		if (Itt.Value.Window == PaintWindow)
 		{
-			const double LerpValue = FMath::Clamp((SlateApplicationCurrentTime - Itt.Value.LastPaint) / CacheDuration, 0.0, 1.0);
+			const float LerpValue = FMath::Clamp((float)(SlateApplicationCurrentTime - Itt.Value.LastPaint) / CacheDuration, 0.0f, 1.0f);
 			const FGeometry Geometry = FGeometry::MakeRoot(Itt.Value.PaintSize, FSlateLayoutTransform(1.f, Itt.Value.PaintLocation));
 			const FPaintGeometry PaintGeometry = Geometry.ToPaintGeometry();
 
