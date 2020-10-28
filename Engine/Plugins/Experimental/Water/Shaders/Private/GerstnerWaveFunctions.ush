@@ -31,15 +31,13 @@ struct WaveOutput
 
 struct GerstnerWaveRenderer
 {
-	Texture2D WaveParamsRT;
-	SamplerState WaveParamsRTSampler;
 	float2 WaveParamRTSize;
 	int MaxWaves;
 	float2 WorldPos;
 	float Time;
 };
 
-WaveParams GetWaveRTData(GerstnerWaveRenderer inWaveRenderer, int inWaveIndex, int inWaterBodyIndex)
+WaveParams GetWaveRTData(GerstnerWaveRenderer inWaveRenderer, Texture2D inWaveParamsRT, SamplerState inWaveParamsRTSampler, int inWaveIndex, int inWaterBodyIndex)
 {
 	WaveParams OutWaveParams;
 		
@@ -54,9 +52,9 @@ WaveParams GetWaveRTData(GerstnerWaveRenderer inWaveRenderer, int inWaveIndex, i
 		
 	WaveUV_b = WaveUV.x + (1 / inWaveRenderer.WaveParamRTSize.x);
 		
-	OutWaveParams.Direction = inWaveRenderer.WaveParamsRT.SampleLevel(inWaveRenderer.WaveParamsRTSampler, WaveUV, 0).rg;
+	OutWaveParams.Direction = inWaveParamsRT.SampleLevel(inWaveParamsRTSampler, WaveUV, 0).rg;
 		
-	float3 TempParams = inWaveRenderer.WaveParamsRT.SampleLevel(inWaveRenderer.WaveParamsRTSampler, float2(WaveUV_b, WaveUV.y), 0).rgb;
+	float3 TempParams = inWaveParamsRT.SampleLevel(inWaveParamsRTSampler, float2(WaveUV_b, WaveUV.y), 0).rgb;
 		
 	OutWaveParams.Wavelength = TempParams.x;
 	OutWaveParams.Amplitude = TempParams.y;
@@ -137,12 +135,12 @@ WaveOutput ComputeSingleWaveVectorized(float inWaveSin, float inWaveCos, float i
 	return OutWave;
 }
 	
-WaveOutput GetSingleGerstnerWave(GerstnerWaveRenderer inWaveRenderer, int inWaveIndex, int inWaterBodyIndex)
+WaveOutput GetSingleGerstnerWave(GerstnerWaveRenderer inWaveRenderer, Texture2D inWaveParamsRT, SamplerState inWaveParamsRTSampler, int inWaveIndex, int inWaterBodyIndex)
 {
 	WaveOutput OutWave;
 		
 	WaveParams CurrentWave;
-	CurrentWave = GetWaveRTData(inWaveRenderer, inWaveIndex, inWaterBodyIndex);
+	CurrentWave = GetWaveRTData(inWaveRenderer, inWaveParamsRT, inWaveParamsRTSampler, inWaveIndex, inWaterBodyIndex);
 		
 	float dispersion = 2 * PI / CurrentWave.Wavelength;
 	float2 wavevector = CurrentWave.Direction * dispersion;
@@ -174,7 +172,7 @@ WaveOutput GetSingleGerstnerWave(GerstnerWaveRenderer inWaveRenderer, int inWave
 		
 }
 	
-WaveOutput GetAllGerstnerWaves(GerstnerWaveRenderer inWaveRenderer, int inWaterBodyIndex)
+WaveOutput GetAllGerstnerWaves(GerstnerWaveRenderer inWaveRenderer, Texture2D inWaveParamsRT, SamplerState inWaveParamsRTSampler, int inWaterBodyIndex)
 {
 		
 	WaveOutput OutWaves;
@@ -184,7 +182,7 @@ WaveOutput GetAllGerstnerWaves(GerstnerWaveRenderer inWaveRenderer, int inWaterB
 		
 	for (int i = 0; i <= MaxWaveRange; i++)
 	{
-		CurrentWave = GetSingleGerstnerWave(inWaveRenderer, i, inWaterBodyIndex);
+		CurrentWave = GetSingleGerstnerWave(inWaveRenderer, inWaveParamsRT, inWaveParamsRTSampler, i, inWaterBodyIndex);
 		OutWaves = AddWaves(OutWaves, CurrentWave);
 	}
 		
@@ -239,7 +237,7 @@ WaveOutput GetAllGerstnerWavesVectorized(GerstnerWaveRenderer inWaveRenderer, in
 	return OutWaves;
 }
 	
-WaveOutput GetRangeGerstnerWaves(GerstnerWaveRenderer inWaveRenderer, int inMinWaveIndex, int inMaxWaveIndex, int inWaterBodyIndex)
+WaveOutput GetRangeGerstnerWaves(GerstnerWaveRenderer inWaveRenderer, Texture2D inWaveParamsRT, SamplerState inWaveParamsRTSampler, int inMinWaveIndex, int inMaxWaveIndex, int inWaterBodyIndex)
 {
 	WaveOutput OutWaves;
 	WaveOutput CurrentWave;
@@ -248,7 +246,7 @@ WaveOutput GetRangeGerstnerWaves(GerstnerWaveRenderer inWaveRenderer, int inMinW
 		
 	for (int i = inMinWaveIndex; i <= MaxWaveRange; i++)
 	{
-		CurrentWave = GetSingleGerstnerWave(inWaveRenderer, i, inWaterBodyIndex);
+		CurrentWave = GetSingleGerstnerWave(inWaveRenderer, inWaveParamsRT, inWaveParamsRTSampler, i, inWaterBodyIndex);
 		OutWaves = AddWaves(OutWaves, CurrentWave);
 	}
 		
@@ -264,12 +262,10 @@ float ComputeWaveDepthAttenuationFactor(int InWaterBodyIndex, float InWaterDepth
 	return 1.0f;
 }
 
-GerstnerWaveRenderer InitializeGerstnerWaveRenderer(Texture2D inWaveParamsRT, SamplerState inWaveParamsRTSampler, float2 inWaveParamsRTSize, int inMaxwaves, float2 inWorldPos, float inTime)
+GerstnerWaveRenderer InitializeGerstnerWaveRenderer(float2 inWaveParamsRTSize, int inMaxwaves, float2 inWorldPos, float inTime)
 {
 	GerstnerWaveRenderer OutWaveRenderer;
 	
-	OutWaveRenderer.WaveParamsRT = inWaveParamsRT;
-	OutWaveRenderer.WaveParamsRTSampler = inWaveParamsRTSampler;
 	OutWaveRenderer.WaveParamRTSize = inWaveParamsRTSize;
 	OutWaveRenderer.MaxWaves = inMaxwaves;
 	OutWaveRenderer.WorldPos = inWorldPos;
