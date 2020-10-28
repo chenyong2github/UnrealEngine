@@ -1920,18 +1920,58 @@ bool FFbxExporter::ExportLevelSequenceTracks(UMovieScene* MovieScene, IMovieScen
 
 	bool bSkip3DTransformTrack = SkeletalMeshComp && GetExportOptions()->MapSkeletalMotionToRoot;
 
+	// Get all the transform tracks that affect this binding
 	TArray<TWeakObjectPtr<UMovieScene3DTransformTrack> > TransformTracks;
 	for ( const FMovieSceneBinding& MovieSceneBinding : MovieScene->GetBindings() )
 	{
 		for ( TWeakObjectPtr<UObject> RuntimeObject : MovieScenePlayer->FindBoundObjects(MovieSceneBinding.GetObjectGuid(), InSequenceID) )
 		{
-			if (RuntimeObject.IsValid() && ((RuntimeObject == Actor) || (RuntimeObject == BoundObject)))
+			if (RuntimeObject.IsValid())
 			{
-				for (UMovieSceneTrack* Track : MovieSceneBinding.GetTracks())
+				AActor* RuntimeActor = Cast<AActor>(RuntimeObject);
+				UActorComponent* RuntimeComponent = nullptr;
+				if (!RuntimeActor)
 				{
-					if (Track->IsA(UMovieScene3DTransformTrack::StaticClass()))
+					RuntimeComponent = Cast<UActorComponent>(RuntimeObject);
+					if (RuntimeComponent)
 					{
-						TransformTracks.Add(Cast<UMovieScene3DTransformTrack>(Track));
+						RuntimeActor = RuntimeComponent->GetOwner();
+					}
+				}
+
+				if (RuntimeActor == Actor || RuntimeComponent == BoundObject)
+				{
+					for (UMovieSceneTrack* Track : MovieSceneBinding.GetTracks())
+					{
+						if (Track->IsA(UMovieScene3DTransformTrack::StaticClass()))
+						{
+							TransformTracks.Add(Cast<UMovieScene3DTransformTrack>(Track));
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// Also need to skip 3d transform track if this object is an actor and the component has a transform track because otherwise 
+	if (BoundObject && BoundObject->IsA<AActor>())
+	{
+		for ( const FMovieSceneBinding& MovieSceneBinding : MovieScene->GetBindings() )
+		{
+			for ( TWeakObjectPtr<UObject> RuntimeObject : MovieScenePlayer->FindBoundObjects(MovieSceneBinding.GetObjectGuid(), InSequenceID) )
+			{
+				if (RuntimeObject.IsValid())
+				{
+					UActorComponent* RuntimeComponent = Cast<UActorComponent>(RuntimeObject);
+					if (RuntimeComponent && RuntimeComponent->GetOwner() == BoundObject)
+					{
+						for (UMovieSceneTrack* Track : MovieSceneBinding.GetTracks())
+						{
+							if (Track->IsA(UMovieScene3DTransformTrack::StaticClass()))
+							{
+								bSkip3DTransformTrack = true;
+							}
+						}
 					}
 				}
 			}
@@ -1941,7 +1981,10 @@ bool FFbxExporter::ExportLevelSequenceTracks(UMovieScene* MovieScene, IMovieScen
 	// If there's more than one transform track for this actor (ie. on the actor and on the root component) or if there's more than one section, evaluate through interrogation
 	if (TransformTracks.Num() > 1 || (TransformTracks.Num() != 0 && TransformTracks[0].Get()->GetAllSections().Num() > 1))
 	{
-		ExportLevelSequenceInterrogated3DTransformTrack(FbxActor, MovieScenePlayer, InSequenceID, TransformTracks, BoundObject, MovieScene->GetPlaybackRange(), RootToLocalTransform);
+		if (!bSkip3DTransformTrack)
+		{
+			ExportLevelSequenceInterrogated3DTransformTrack(FbxActor, MovieScenePlayer, InSequenceID, TransformTracks, BoundObject, MovieScene->GetPlaybackRange(), RootToLocalTransform);
+		}
 
 		bSkip3DTransformTrack = true;
 	}
@@ -1950,10 +1993,13 @@ bool FFbxExporter::ExportLevelSequenceTracks(UMovieScene* MovieScene, IMovieScen
 	bool bExportedAnimTrack = false; // Only export the anim track once since the evaluation is already blended
 	for (UMovieSceneTrack* Track : Tracks)
 	{
-		if (Track->IsA(UMovieScene3DTransformTrack::StaticClass()) && !bSkip3DTransformTrack)
+		if (Track->IsA(UMovieScene3DTransformTrack::StaticClass()))
 		{
-			UMovieScene3DTransformTrack* TransformTrack = (UMovieScene3DTransformTrack*)Track;
-			ExportLevelSequence3DTransformTrack(FbxActor, MovieScenePlayer, InSequenceID, *TransformTrack, BoundObject, MovieScene->GetPlaybackRange(), RootToLocalTransform);
+			if (!bSkip3DTransformTrack)
+			{
+				UMovieScene3DTransformTrack* TransformTrack = (UMovieScene3DTransformTrack*)Track;
+				ExportLevelSequence3DTransformTrack(FbxActor, MovieScenePlayer, InSequenceID, *TransformTrack, BoundObject, MovieScene->GetPlaybackRange(), RootToLocalTransform);
+			}
 		}
 		else if (Track->IsA(UMovieSceneSkeletalAnimationTrack::StaticClass()) && !bExportedAnimTrack)
 		{
@@ -3139,20 +3185,12 @@ void FFbxExporter::ExportLevelSequenceInterrogated3DTransformTrack(FbxNode* FbxN
 	FMovieSceneTimeTransform LocatToRootTransform = RootToLocalTransform.InverseLinearOnly();
 
 	FSystemInterrogator Interrogator;
-
-	for (TWeakObjectPtr<UMovieScene3DTransformTrack> WeakTransformTrack : TransformTracks)
-	{
-		if (WeakTransformTrack.IsValid())
-		{
-			Interrogator.ImportTrack(WeakTransformTrack.Get(), FInterrogationChannel::Default());
-		}
-	}
-
+	Interrogator.ImportTransformHierarchy(BoundComponent ? BoundComponent : BoundActor->GetRootComponent(), MovieScenePlayer, InSequenceID);
+	
 	int32 LocalStartFrame = FFrameRate::TransformTime(FFrameTime(DiscreteInclusiveLower(InPlaybackRange)), TickResolution, DisplayRate).RoundToFrame().Value;
-	int32 StartFrame      = FFrameRate::TransformTime(FFrameTime(DiscreteInclusiveLower(InPlaybackRange) * RootToLocalTransform.InverseLinearOnly()), TickResolution, DisplayRate).RoundToFrame().Value;
 	int32 AnimationLength = FFrameRate::TransformTime(FFrameTime(FFrameNumber(DiscreteSize(InPlaybackRange))), TickResolution, DisplayRate).RoundToFrame().Value + 1; // Add one so that we export a key for the end frame
 
-	for (int32 FrameNumber = StartFrame; FrameNumber < StartFrame + AnimationLength; ++FrameNumber)
+	for (int32 FrameNumber = LocalStartFrame; FrameNumber < LocalStartFrame + AnimationLength; ++FrameNumber)
 	{
 		const FFrameTime FrameTime = FFrameRate::TransformTime(FrameNumber, DisplayRate, TickResolution);
 		Interrogator.AddInterrogation(FrameTime);
@@ -3160,17 +3198,14 @@ void FFbxExporter::ExportLevelSequenceInterrogated3DTransformTrack(FbxNode* FbxN
 
 	Interrogator.Update();
 
-	TArray<UE::MovieScene::FIntermediate3DTransform> Transforms;
-	Interrogator.QueryLocalSpaceTransforms(FInterrogationChannel::Default(), Transforms);
+	TArray<FTransform> WorldTransforms;
+	Interrogator.QueryWorldSpaceTransforms(BoundComponent, WorldTransforms);
 
-	ensure(Transforms.Num() == AnimationLength);
+	ensure(WorldTransforms.Num() == AnimationLength);
 
-	for (int32 TransformIndex = 0; TransformIndex < Transforms.Num(); ++TransformIndex)
+	for (int32 TransformIndex = 0; TransformIndex < WorldTransforms.Num(); ++TransformIndex)
 	{
-		FTransform RelativeTransform;
-		ConvertOperationalProperty(Transforms[TransformIndex],RelativeTransform);
-
-		RelativeTransform = RotationDirectionConvert * RelativeTransform;
+		FTransform RelativeTransform = RotationDirectionConvert * WorldTransforms[TransformIndex];
 
 		FbxVector4 KeyTrans = Converter.ConvertToFbxPos(RelativeTransform.GetTranslation());
 		FbxVector4 KeyRot = Converter.ConvertToFbxRot(RelativeTransform.GetRotation().Euler());
