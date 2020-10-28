@@ -1669,9 +1669,6 @@ static USkeletalMeshComponent* ValidateBindingAsset(
 		}
 	}
 
-	// To solve fale positive with static analyser
-	check(GroomAsset);
-
 	// Report warning if the skeletal section count is larger than the supported count
 	const bool bHasValidSketalMesh = SkeletalMeshComponent && SkeletalMeshComponent->GetSkeletalMeshRenderData() && bHasValidSectionCount;
 	if (SkeletalMeshComponent && !bHasValidSectionCount)
@@ -1779,9 +1776,9 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 		const uint32 SkeletalLODCount = SkeletalMeshComponent ? SkeletalMeshComponent->GetNumLODs() : 0;
 
 		const uint32 HairInterpolationType =
-			(GroomAsset && GroomAsset->HairInterpolationType == EGroomInterpolationType::RigidTransform) ? 0 :
-			(GroomAsset && GroomAsset->HairInterpolationType == EGroomInterpolationType::OffsetTransform) ? 1 :
-			(GroomAsset && GroomAsset->HairInterpolationType == EGroomInterpolationType::SmoothTransform) ? 2 : 0;
+			GroomAsset->HairInterpolationType == EGroomInterpolationType::RigidTransform ? 0 :
+			GroomAsset->HairInterpolationType == EGroomInterpolationType::OffsetTransform ? 1 :
+			GroomAsset->HairInterpolationType == EGroomInterpolationType::SmoothTransform ? 2 : 0;
 
 		const bool bDynamicResources = IsHairStrandsSimulationEnable() || IsHairStrandsBindingEnable();
 
