@@ -1653,7 +1653,7 @@ bool FAppleARKitSystem::Run(UARSessionConfig* SessionConfig)
 #if SUPPORTS_ARKIT_4_0
 		if (FAppleARKitAvailability::SupportsARKit40())
 		{
-			if (Configuration.frameSemantics == ARFrameSemanticSceneDepth)
+			if (Configuration.frameSemantics == ARFrameSemanticSceneDepth || Configuration.frameSemantics == ARFrameSemanticSmoothedSceneDepth)
 			{
 				bSceneDepthEnabled = true;
 			}
