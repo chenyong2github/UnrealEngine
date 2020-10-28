@@ -340,7 +340,6 @@ class RHI_API FGenericDataDrivenShaderPlatformInfo
 	uint32 bSupportsGen5TemporalAA : 1;
 	uint32 bTargetsTiledGPU: 1;
 	uint32 bNeedsOfflineCompiler: 1;
-	uint32 bSupportsAnisotropicMaterials : 1;
 
 	// NOTE: When adding fields, you must also add to ParseDataDrivenShaderInfo!
 	uint32 bContainsValidPlatformInfo : 1;
@@ -533,11 +532,6 @@ public:
 	static FORCEINLINE_DEBUGGABLE const bool GetSupportsGen5TemporalAA(const FStaticShaderPlatform Platform)
 	{
 		return Infos[Platform].bSupportsGen5TemporalAA;
-	}
-
-	static FORCEINLINE_DEBUGGABLE const bool GetSupportsAnisotropicMaterials(const FStaticShaderPlatform Platform)
-	{
-		return Infos[Platform].bSupportsAnisotropicMaterials;
 	}
 
 	static FORCEINLINE_DEBUGGABLE const bool GetSupportsUInt64ImageAtomics(const FStaticShaderPlatform Platform)

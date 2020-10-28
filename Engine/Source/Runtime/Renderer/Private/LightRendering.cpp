@@ -484,7 +484,9 @@ class FDeferredLightPS : public FGlobalShader
 				return false;
 			}
 
-			if (!FDataDrivenShaderPlatformInfo::GetSupportsAnisotropicMaterials(Parameters.Platform))
+			static const auto SupportAnisotropicMaterials = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.SupportAnisotropicMaterials"));
+			static const bool bSupportAnisotropicMaterials = SupportAnisotropicMaterials->GetValueOnAnyThread() != 0;
+			if (!bSupportAnisotropicMaterials || !IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5))
 			{
 				return false;
 			}
