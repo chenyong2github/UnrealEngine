@@ -28,8 +28,6 @@
 #include "GroomManager.h"
 #include "GroomInstance.h"
 
-PRAGMA_DISABLE_OPTIMIZATION
-
 static float GHairClipLength = -1;
 static FAutoConsoleVariableRef CVarHairClipLength(TEXT("r.HairStrands.DebugClipLength"), GHairClipLength, TEXT("Clip hair strands which have a lenth larger than this value. (default is -1, no effect)"));
 float GetHairClipLength() { return GHairClipLength > 0 ? GHairClipLength : 100000;  }
