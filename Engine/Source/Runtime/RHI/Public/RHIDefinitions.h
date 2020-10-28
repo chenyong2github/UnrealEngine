@@ -1672,7 +1672,8 @@ inline bool RHISupportsShaderPipelines(const FStaticShaderPlatform Platform)
 inline bool RHISupportsDualSourceBlending(const FStaticShaderPlatform Platform)
 {
 	// For now only enable support for SM5
-	return IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5) && (IsD3DPlatform(Platform, true) || IsPS4Platform(Platform) || IsVulkanPlatform(Platform) || IsMetalPlatform(Platform));
+	// Metal RHI doesn't support dual source blending properly at the moment.
+	return IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5) && (IsD3DPlatform(Platform, true) || IsPS4Platform(Platform) || IsVulkanPlatform(Platform));
 }
 
 inline bool RHISupportsMultithreadedShaderCreation(const FStaticShaderPlatform Platform)
