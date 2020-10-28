@@ -61,11 +61,11 @@ private:
 	int32 InitializeObjectTypeComboList();
 
 	// set to default for profile setting
-	FReply SetToDefaultProfile();
-	EVisibility ShouldShowResetToDefaultProfile() const;
+	void SetToDefaultProfile();
+	bool ShouldShowResetToDefaultProfile() const;
 
-	FReply SetToDefaultResponse(int32 ValidIndex);
-	EVisibility ShouldShowResetToDefaultResponse(int32 ValidIndex) const;
+	void SetToDefaultResponse(int32 ValidIndex);
+	bool ShouldShowResetToDefaultResponse(int32 ValidIndex) const;
 
 	// collision channel check boxes
 	void OnCollisionChannelChanged(ECheckBoxState InNewValue, int32 ValidIndex, ECollisionResponse InCollisionResponse);
