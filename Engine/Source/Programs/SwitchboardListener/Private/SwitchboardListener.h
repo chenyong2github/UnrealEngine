@@ -49,7 +49,7 @@ private:
 
 	void CleanUpDisconnectedSockets();
 	void DisconnectClient(const FIPv4Endpoint& InClientEndpoint);
-	void HandleRunningProcesses(TArray<FRunningProcess>& Processes, bool bNotifyThatProgramEnded);
+	void HandleRunningProcesses(TArray<TSharedPtr<FRunningProcess, ESPMode::ThreadSafe>>& Processes, bool bNotifyThatProgramEnded);
 
 	bool SendMessage(const FString& InMessage, const FIPv4Endpoint& InEndpoint);
 	void SendMessageFutures();
@@ -66,7 +66,7 @@ private:
 
 	TQueue<TUniquePtr<FSwitchboardTask>, EQueueMode::Spsc> ScheduledTasks;
 	TQueue<TUniquePtr<FSwitchboardTask>, EQueueMode::Spsc> DisconnectTasks;
-	TArray<FRunningProcess> RunningProcesses;
-	TArray<FRunningProcess> FlipModeMonitors;
+	TArray<TSharedPtr<FRunningProcess, ESPMode::ThreadSafe>> RunningProcesses;
+	TArray<TSharedPtr<FRunningProcess, ESPMode::ThreadSafe>> FlipModeMonitors;
 	TArray<FSwitchboardMessageFuture> MessagesFutures;
 };
