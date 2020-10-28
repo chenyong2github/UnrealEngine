@@ -481,15 +481,20 @@ bool UMovieSceneSkeletalAnimationSection::GetRootMotionTransform(FFrameTime Curr
 		OutWeight = ManualWeight * EvaluateEasing(CurrentTime);
 
 		float CurrentTimeSeconds = MapTimeToAnimation(CurrentTime, FrameRate);
-		if (AnimSequence->bForceRootLock) //if root lock is on just get the first frame since ExtractRootTrackTransform will still extract(it ignores the flag)
+		if (AnimSequence->bForceRootLock) //if root lock is on just get Identity since ExtractRootTrackTransform will still extract(it ignores the flag)
 		{
-			CurrentTimeSeconds = 0.0f;
+			OutTransform = FTransform::Identity;
 		}
-	
-		OutTransform = AnimSequence->ExtractRootTrackTransform(CurrentTimeSeconds,nullptr);
-		if (TempRootBoneIndex.IsSet())
+		else
 		{
-			AnimSequence->GetBoneTransform(OutTransform, TempRootBoneIndex.GetValue(), CurrentTimeSeconds, true);
+			if (TempRootBoneIndex.IsSet())
+			{
+				AnimSequence->GetBoneTransform(OutTransform, TempRootBoneIndex.GetValue(), CurrentTimeSeconds, true);
+			}
+			else //not set then just use root.
+			{
+				OutTransform = AnimSequence->ExtractRootTrackTransform(CurrentTimeSeconds, nullptr);
+			}
 		}
 		OutTransform = OutTransform * OffsetTransform;
 
