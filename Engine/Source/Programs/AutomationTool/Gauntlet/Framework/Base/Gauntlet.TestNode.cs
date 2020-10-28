@@ -68,6 +68,11 @@ namespace Gauntlet
 		float MaxDuration { get; }
 
 		/// <summary>
+		/// Return true if the warnings and errors needs to log after summary
+		/// </summary>
+		bool LogWarningsAndErrorsAfterSummary { get; }
+
+		/// <summary>
 		/// What the test result should be treated as if we reach max duration.
 		/// </summary>
 		EMaxDurationReachedResult MaxDurationReachedResult { get; }
