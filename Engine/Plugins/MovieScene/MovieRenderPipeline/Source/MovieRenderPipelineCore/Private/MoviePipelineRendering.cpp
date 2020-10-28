@@ -215,9 +215,16 @@ void UMoviePipeline::RenderFrame()
 	int32 NumWarmupSamples = 0;
 	if (CurrentCameraCut.State == EMovieRenderShotState::WarmingUp)
 	{
-		// We should only get this far if we want to render samples, so we'll always overwrite it with NumRenderWarmUpSamples. We should
-		// not change the NumSpatialSamples because that causes side effects to other parts of the rendering.
-		NumWarmupSamples = AntiAliasingSettings->RenderWarmUpCount;
+		// We sometimes render the actual warmup frames, and in this case we only want to render one warmup sample each frame,
+		// and save any RenderWarmUp frames until the last one.
+		if (CurrentCameraCut.NumEngineWarmUpFramesRemaining > 0)
+		{
+			NumWarmupSamples = 1;
+		}
+		else
+		{
+			NumWarmupSamples = AntiAliasingSettings->RenderWarmUpCount;
+		}
 	}
 
 	TArray<UMoviePipelineRenderPass*> InputBuffers = FindSettingsForShot<UMoviePipelineRenderPass>(ActiveShotList[CurrentShotIndex]);
