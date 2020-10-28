@@ -930,15 +930,15 @@ namespace Chaos
 			}
 
 			ContactPointCount = 4; // Number of face vertices
-			const uint32 GrayCode[4] = {0, 1, 3, 2}; // Gray code to make sure we add vertices in correct order
+			const uint32 GreyCode[4] = {0, 1, 3, 2}; // Grey code to make sure we add vertices in correct order
 			FVec3 ClippedVertices[MaxContactPointCount];
 			// Add the vertices in an order that will form a closed loop
 			const FRigidTransform3 BoxOtherToRef = OtherBoxTM->GetRelativeTransform(*RefBoxTM);
 			for (uint32 Vertex = 0; Vertex < ContactPointCount; Vertex++)
 			{
 				ClippedVertices[Vertex][ConstantCoordinateIndex] = ConstantCoordinate;
-				ClippedVertices[Vertex][VariableCoordinateIndices[0]] = (GrayCode[Vertex] & (1 << 0)) ? VariableCoordinates[0] : -VariableCoordinates[0];
-				ClippedVertices[Vertex][VariableCoordinateIndices[1]] = (GrayCode[Vertex] & (1 << 1)) ? VariableCoordinates[1] : -VariableCoordinates[1];
+				ClippedVertices[Vertex][VariableCoordinateIndices[0]] = (GreyCode[Vertex] & (1 << 0)) ? VariableCoordinates[0] : -VariableCoordinates[0];
+				ClippedVertices[Vertex][VariableCoordinateIndices[1]] = (GreyCode[Vertex] & (1 << 1)) ? VariableCoordinates[1] : -VariableCoordinates[1];
 				ClippedVertices[Vertex] = BoxOtherToRef.TransformPositionNoScale(ClippedVertices[Vertex]);
 			}
 
@@ -995,7 +995,7 @@ namespace Chaos
 			}
 		}
 
-		void UpdateOneShotManifold(
+		void UpdateBoxBoxOneShotManifold(
 			const FImplicitBox3& Box1,
 			const FRigidTransform3& Box1Transform, //world
 			const FImplicitBox3& Box2,
@@ -1023,7 +1023,7 @@ namespace Chaos
 			}
 			else
 			{
-				UpdateOneShotManifold(Box1, Box1Transform, Box2, Box2Transform, CullDistance, Constraint);
+				UpdateBoxBoxOneShotManifold(Box1, Box1Transform, Box2, Box2Transform, CullDistance, Constraint);
 			}
 		}
 
@@ -2255,21 +2255,16 @@ namespace Chaos
 
 			if (T_TRAITS::bAllowManifold)
 			{
-				// Note: This TBox check is a temporary workaround to avoid jitter in cases of Box vs Convex; investigation ongoing
-				// We need to improve iterative manifolds for this case
-				if (Implicit0Type != TBox<FReal, 3>::StaticType() && Implicit1Type != TBox<FReal, 3>::StaticType())
+				FRigidBodyMultiPointContactConstraint Constraint = FRigidBodyMultiPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::ConvexConvex);
+				FRigidTransform3 WorldTransform0 = LocalTransform0 * Collisions::GetTransform(Particle0);
+				FRigidTransform3 WorldTransform1 = LocalTransform1 * Collisions::GetTransform(Particle1);
+				UpdateConvexConvexManifold(Constraint, WorldTransform0, WorldTransform1, CullDistance);
+				if (T_TRAITS::bImmediateUpdate)
 				{
-					FRigidBodyMultiPointContactConstraint Constraint = FRigidBodyMultiPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::ConvexConvex);
-					FRigidTransform3 WorldTransform0 = LocalTransform0 * Collisions::GetTransform(Particle0);
-					FRigidTransform3 WorldTransform1 = LocalTransform1 * Collisions::GetTransform(Particle1);
-					UpdateConvexConvexManifold(Constraint, WorldTransform0, WorldTransform1, CullDistance);
-					if (T_TRAITS::bImmediateUpdate)
-					{
-						UpdateConvexConvexConstraint(*Implicit0, WorldTransform0, *Implicit1, WorldTransform1, CullDistance, Constraint);
-					}
-					NewConstraints.Add(Constraint);
-					return;
+					UpdateConvexConvexConstraint(*Implicit0, WorldTransform0, *Implicit1, WorldTransform1, CullDistance, Constraint);
 				}
+				NewConstraints.Add(Constraint);
+				return;
 			}
 
 			FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::ConvexConvex, Context.bUseIncrementalManifold, false);
