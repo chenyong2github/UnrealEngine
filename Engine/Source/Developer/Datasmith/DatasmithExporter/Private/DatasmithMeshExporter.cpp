@@ -51,7 +51,7 @@ public:
 
 	/**
 	 * Generate and fill a UDatasmithMesh from a FDatasmithMesh.
-	 * Note: The returned TSharedPtr uses a special destructor to return the UDatasmithMesh to a pool instead of destroying it (which wouldn't work anyways).				
+	 * Note: The returned TSharedPtr uses a special destructor to return the UDatasmithMesh to a pool instead of destroying it (which wouldn't work anyways).
 	 */
 	TSharedPtr<UDatasmithMesh> GeneratePooledUDatasmithMeshFromFDatasmithMesh( const FDatasmithMesh& Mesh, bool bIsCollisionMesh );
 
@@ -196,7 +196,7 @@ TSharedPtr< IDatasmithMeshElement > FDatasmithMeshExporter::ExportToUObject( con
 
 	TSharedPtr<IDatasmithMeshElement> ExportedMeshElement;
 	Impl->DoExport( ExportedMeshElement, ExportOptions );
-	
+
 	return ExportedMeshElement;
 }
 
@@ -204,7 +204,7 @@ bool FDatasmithMeshExporter::ExportToUObject( TSharedPtr< IDatasmithMeshElement 
 {
 	FString FullPath( GetMeshFilePath( Filepath, MeshElement->GetName() ) );
 	FDatasmithMeshExporterImpl::FDatasmithMeshExporterOptions ExportOptions( MoveTemp( FullPath ), Mesh, LightmapUV, CollisionMesh );
-	
+
 	return Impl->DoExport( MeshElement, ExportOptions );
 }
 
@@ -284,7 +284,7 @@ void FDatasmithMeshExporterImpl::CreateDefaultUVs( FDatasmithMesh& Mesh )
 	FUVMapParameters UVParameters(Mesh.GetExtents().GetCenter(), FQuat::Identity, Mesh.GetExtents().GetSize(), FVector::OneVector, FVector2D::UnitVector);
 	TMap<FVertexInstanceID, FVector2D> TexCoords;
 	FStaticMeshOperations::GenerateBoxUV(MeshDescription, UVParameters, TexCoords);
-	
+
 	// Put the results in a map to determine the number of unique values.
 	TMap<FVector2D, TArray<int32>> UniqueTexCoordMap;
 	for (const TPair<FVertexInstanceID, FVector2D>& Pair : TexCoords)
@@ -390,7 +390,10 @@ TSharedPtr<UDatasmithMesh> FDatasmithMeshExporterImpl::GetPooledUDatasmithMesh(b
 		return TSharedPtr<UDatasmithMesh>(PooledMesh, FPooledUDatasmithMeshDeleter(this));
 	}
 
-	return TSharedPtr<UDatasmithMesh>(NewObject< UDatasmithMesh >((UObject*)GetTransientPackage(), *PooledMeshName, RF_Transient | RF_MarkAsRootSet), FPooledUDatasmithMeshDeleter(this));
+	{
+		FGCScopeGuard GCGuard; // Can't create new objects while the GC is running.
+		return TSharedPtr<UDatasmithMesh>(NewObject< UDatasmithMesh >((UObject*)GetTransientPackage(), *PooledMeshName, RF_Transient | RF_MarkAsRootSet), FPooledUDatasmithMeshDeleter(this));
+	}
 }
 
 void FDatasmithMeshExporterImpl::ReturnUDatasmithMeshToPool(UDatasmithMesh*& UMesh)
@@ -419,9 +422,11 @@ void FDatasmithMeshExporterImpl::ClearUDatasmithMeshPool()
 	//Even if our UObjects are basically empty at this point and don't have a big memory footprint, the engine will assert when reaching around 65k UObjects.
 	//So we need to call the GC before that point.
 	NumberOfUMeshPendingGC += PooledMeshes.Num();
-	if (NumberOfUMeshPendingGC % 2000 == 0)
+	if (NumberOfUMeshPendingGC > 2000)
 	{
-		FDatasmithExporterManager::RunGarbageCollection();
-		NumberOfUMeshPendingGC = 0;
+		if (FDatasmithExporterManager::RunGarbageCollection())
+		{
+			NumberOfUMeshPendingGC = 0;
+		}
 	}
 }
