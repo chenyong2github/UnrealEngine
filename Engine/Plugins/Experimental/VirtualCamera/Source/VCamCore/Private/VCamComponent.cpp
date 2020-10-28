@@ -249,10 +249,16 @@ void UVCamComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChang
 		}
 		else if (PropertyName == NAME_TargetViewport)
 		{
-			if (bEnabled && bLockViewportToCamera)
+			if (bEnabled)
 			{
-				SetActorLock(false);
-				SetActorLock(true);
+				SetEnabled(false);
+				SetEnabled(true);
+
+				if (bLockViewportToCamera)
+				{
+					SetActorLock(false);
+					SetActorLock(true);
+				}
 			}
 		}
 	}
@@ -1091,15 +1097,24 @@ FLevelEditorViewportClient* UVCamComponent::GetTargetLevelViewportClient() const
 {
 	FLevelEditorViewportClient* OutClient = nullptr;
 
+	TSharedPtr<SLevelViewport> LevelViewport = GetTargetLevelViewport();
+	if (LevelViewport.IsValid())
+	{
+		OutClient = &LevelViewport->GetLevelViewportClient();
+	}
+
+	return OutClient;
+}
+
+TSharedPtr<SLevelViewport> UVCamComponent::GetTargetLevelViewport() const
+{
+	TSharedPtr<SLevelViewport> OutLevelViewport = nullptr;
+
 	if (TargetViewport == EVCamTargetViewportID::CurrentlySelected)
 	{
 		if (FLevelEditorModule* LevelEditorModule = FModuleManager::GetModulePtr<FLevelEditorModule>(VCamComponent::LevelEditorName))
 		{
-			TSharedPtr<SLevelViewport> ActiveLevelViewport = LevelEditorModule->GetFirstActiveLevelViewport();
-			if (ActiveLevelViewport.IsValid())
-			{
-				OutClient = &ActiveLevelViewport->GetLevelViewportClient();
-			}
+			OutLevelViewport = LevelEditorModule->GetFirstActiveLevelViewport();
 		}
 	}
 	else
@@ -1118,7 +1133,7 @@ FLevelEditorViewportClient* UVCamComponent::GetTargetLevelViewportClient() const
 						const FString ViewportConfigKey = LevelViewport->GetConfigKey().ToString();
 						if (ViewportConfigKey.Contains(*WantedViewportString, ESearchCase::CaseSensitive, ESearchDir::FromStart))
 						{
-							OutClient = Client;
+							OutLevelViewport = LevelViewport;
 							break;
 						}
 					}
@@ -1127,7 +1142,7 @@ FLevelEditorViewportClient* UVCamComponent::GetTargetLevelViewportClient() const
 		}
 	}
 
-	return OutClient;
+	return OutLevelViewport;
 }
 
 void UVCamComponent::OnMapChanged(UWorld* World, EMapChangeType ChangeType)
