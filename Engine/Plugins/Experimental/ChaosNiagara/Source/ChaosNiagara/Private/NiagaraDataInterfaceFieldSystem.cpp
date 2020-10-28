@@ -740,18 +740,6 @@ public:
 		MinBounds.Bind(ParameterMap, *ParamNames.MinBoundsName);
 		MaxBounds.Bind(ParameterMap, *ParamNames.MaxBoundsName);
 
-		if (!FieldNodesParamsBuffer.IsBound())
-		{
-			UE_LOG(LogFieldSystem, Warning, TEXT("Binding failed for FNDIFieldSystemParametersCS %s. Was it optimized out?"), *ParamNames.FieldNodesParamsBufferName)
-		}
-		if (!FieldCommandsNodesBuffer.IsBound())
-		{
-			UE_LOG(LogFieldSystem, Warning, TEXT("Binding failed for FNDIFieldSystemParametersCS %s. Was it optimized out?"), *ParamNames.FieldCommandsNodesBufferName)
-		}
-		if (!FieldNodesOffsetsBuffer.IsBound())
-		{
-			UE_LOG(LogFieldSystem, Warning, TEXT("Binding failed for FNDIFieldSystemParametersCS %s. Was it optimized out?"), *ParamNames.FieldNodesOffsetsBufferName)
-		}
 	}
 
 	void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
