@@ -210,7 +210,7 @@ private:
 	double PauseTime;
 
 	/** How long the entire sequence lasts. */
-	float TotalDuration;
+	double TotalDuration;
 
 	/** Are we playing the animation in reverse */
 	uint8 bInReverse : 1;
