@@ -16,6 +16,7 @@
 #include "EditorActorFolders.h"
 #include "Algo/Transform.h"
 #include "ToolMenus.h"
+#include "Selection.h"
 #include "Editor.h"
 
 #define LOCTEXT_NAMESPACE "DataLayer"
