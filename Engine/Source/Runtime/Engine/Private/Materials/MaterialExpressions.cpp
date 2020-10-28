@@ -604,7 +604,17 @@ int32 CompileStrataBlendFunction(FMaterialCompiler* Compiler, const int32 A, con
 	{
 		return INDEX_NONE;
 	}
-	return Compiler->StrataHorizontalMixing(B, A, Alpha); // B is foreground (fully visible when Alpha=1), and A is background (fully visible when Alpha=0)
+	int32 OutputCodeChunk = Compiler->StrataHorizontalMixing(B, A, Alpha); // B is foreground (fully visible when Alpha=1), and A is background (fully visible when Alpha=0)
+
+	// Also register the horizontal mixing operation with the compiler.
+	if (!Compiler->ContainsStrataCodeChunk(A) || !Compiler->ContainsStrataCodeChunk(B))
+	{
+		return Compiler->Errorf(TEXT("Could not find A or B code chunk in CompileStrataBlendFunction"));
+	}
+	FStrataMaterialCompilationInfo StrataInfo = StrataHorizontalMixing(Compiler, Compiler->GetStrataCompilationInfo(B), Compiler->GetStrataCompilationInfo(A));
+	Compiler->AddStrataCodeChunk(OutputCodeChunk, StrataInfo);
+
+	return OutputCodeChunk;
 }
 
 UMaterialExpression::UMaterialExpression(const FObjectInitializer& ObjectInitializer)
