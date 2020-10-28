@@ -931,6 +931,9 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 			return MakeTuple(bRunning, ProcessReturnCodeOpt);
 		};
 
+		// The approximative time of death of the monitored application.
+		FDateTime MonitoredProcessDeathTime;
+
 		// Loop until the monitored process dies.
 		TTuple<bool/*bRunning*/, TOptional<int32>/*ExitCode*/> ProcessStatus = GetProcessStatus(MonitoredProcess);
 		while (ProcessStatus.Get<0>())
@@ -1009,6 +1012,10 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 
 			// Refresh the monitored application status.
 			ProcessStatus = GetProcessStatus(MonitoredProcess);
+			if (!ProcessStatus.Get<0>()) // Not running anymore.
+			{
+				MonitoredProcessDeathTime = FDateTime::UtcNow();
+			}
 
 			PrevLoopStartTime = CurrLoopStartTime;
 
@@ -1040,7 +1047,7 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 					if (FEditorAnalyticsSession::FindSession(MonitorPid, MonitoredSession))
 					{
 						bMonitoredSessionLoaded = true;
-						if (!MonitoredSession.SaveExitCode(MonitoredProcessExitCode.IsSet() ? MonitoredProcessExitCode.GetValue() : ECrashExitCodes::MonitoredApplicationExitCodeNotAvailable))
+						if (!MonitoredSession.SaveExitCode(MonitoredProcessExitCode.IsSet() ? MonitoredProcessExitCode.GetValue() : ECrashExitCodes::MonitoredApplicationExitCodeNotAvailable, MonitoredProcessDeathTime))
 						{
 							FDiagnosticLogger::Get().LogEvent(TEXT("MTBF/ExitCodeNotSaved"));
 						}
