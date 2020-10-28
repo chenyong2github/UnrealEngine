@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved. 
 
 /*=============================================================================
 	ShadowDepthVertexShader.usf: Vertex shader for writing shadow depth.

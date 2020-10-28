@@ -194,6 +194,12 @@ public:
 	/** Flag a buffer that is produced by a pass but never used or extracted to not emit an 'unused' warning. */
 	void RemoveUnusedBufferWarning(FRDGBufferRef Buffer);
 
+	/** Manually begins a new GPU event scope. */
+	void BeginEventScope(FRDGEventName&& Name);
+
+	/** Manually ends the current GPU event scope. */
+	void EndEventScope();
+
 	/** Executes the queued passes, managing setting of render targets (RHI RenderPasses), resource transitions and queued texture extraction. */
 	void Execute();
 

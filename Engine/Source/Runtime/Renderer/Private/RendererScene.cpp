@@ -897,14 +897,12 @@ void FPersistentUniformBuffers::Clear()
 	InstancedViewUniformBuffer.SafeRelease();
 	ReflectionCaptureUniformBuffer.SafeRelease();
 	CSMShadowDepthViewUniformBuffer.SafeRelease();
-	CSMShadowDepthPassUniformBuffer.SafeRelease();
 	VoxelizeVolumeViewUniformBuffer.SafeRelease();
 	CustomDepthViewUniformBuffer.SafeRelease();
 	InstancedCustomDepthViewUniformBuffer.SafeRelease();
 	VirtualTextureViewUniformBuffer.SafeRelease();
 	MobileOpaqueBasePassUniformBuffer.SafeRelease();
 	MobileTranslucentBasePassUniformBuffer.SafeRelease();
-	MobileCSMShadowDepthPassUniformBuffer.SafeRelease();
 
 
 	for (auto& UniformBuffer : MobileDirectionalLightUniformBuffers)
@@ -931,9 +929,6 @@ void FPersistentUniformBuffers::Initialize()
 
 	CSMShadowDepthViewUniformBuffer = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(ViewUniformBufferParameters, UniformBuffer_MultiFrame, EUniformBufferValidation::None);
 
-	FShadowDepthPassUniformParameters CSMShadowDepthPassParameters;
-	CSMShadowDepthPassUniformBuffer = TUniformBufferRef<FShadowDepthPassUniformParameters>::CreateUniformBufferImmediate(CSMShadowDepthPassParameters, UniformBuffer_MultiFrame, EUniformBufferValidation::None);
-
 	VoxelizeVolumeViewUniformBuffer = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(ViewUniformBufferParameters, UniformBuffer_MultiFrame, EUniformBufferValidation::None);
 
 	CustomDepthViewUniformBuffer = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(ViewUniformBufferParameters, UniformBuffer_MultiFrame, EUniformBufferValidation::None);
@@ -942,9 +937,6 @@ void FPersistentUniformBuffers::Initialize()
 	VirtualTextureViewUniformBuffer = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(ViewUniformBufferParameters, UniformBuffer_MultiFrame, EUniformBufferValidation::None);
 
 	LumenCardCaptureViewUniformBuffer = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(ViewUniformBufferParameters, UniformBuffer_MultiFrame, EUniformBufferValidation::None);
-
-	FMobileShadowDepthPassUniformParameters MobileCSMShadowDepthPassParameters;
-	MobileCSMShadowDepthPassUniformBuffer = TUniformBufferRef<FMobileShadowDepthPassUniformParameters>::CreateUniformBufferImmediate(MobileCSMShadowDepthPassParameters, UniformBuffer_MultiFrame, EUniformBufferValidation::None);
 
 	FMobileBasePassUniformParameters MobileBasePassUniformParameters;
 	MobileOpaqueBasePassUniformBuffer = TUniformBufferRef<FMobileBasePassUniformParameters>::CreateUniformBufferImmediate(MobileBasePassUniformParameters, UniformBuffer_MultiFrame, EUniformBufferValidation::None);

@@ -1845,7 +1845,7 @@ void FProjectedShadowInfo::AddReceiverPrimitive(FPrimitiveSceneInfo* PrimitiveSc
 	ReceiverPrimitives.Add(PrimitiveSceneInfo);
 }
 
-void FProjectedShadowInfo::SetupMeshDrawCommandsForShadowDepth(FSceneRenderer& Renderer, FRHIUniformBuffer* PassUniformBuffer)
+void FProjectedShadowInfo::SetupMeshDrawCommandsForShadowDepth(FSceneRenderer& Renderer)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_SetupMeshDrawCommandsForShadowDepth);
 
@@ -1853,7 +1853,6 @@ void FProjectedShadowInfo::SetupMeshDrawCommandsForShadowDepth(FSceneRenderer& R
 		Renderer.Scene,
 		ShadowDepthView,
 		ShadowDepthView->ViewUniformBuffer,
-		PassUniformBuffer,
 		GetShadowDepthType(),
 		nullptr);
 
@@ -2056,24 +2055,7 @@ void FProjectedShadowInfo::GatherDynamicMeshElements(FSceneRenderer& Renderer, F
 		Renderer.MeshCollector.ProcessTasks();
     }
 
-	
-	// Create a pass uniform buffer so we can build mesh commands now in InitDynamicShadows.  This will be updated with the correct contents just before the actual pass.
-	const EShadingPath ShadingPath = FSceneInterface::GetShadingPath(Renderer.FeatureLevel);
-	FRHIUniformBuffer* PassUniformBuffer = nullptr;
-	if (ShadingPath == EShadingPath::Deferred)
-	{
-		FShadowDepthPassUniformParameters ShadowDepthParameters;
-		ShadowDepthPassUniformBuffer = TUniformBufferRef<FShadowDepthPassUniformParameters>::CreateUniformBufferImmediate(ShadowDepthParameters, UniformBuffer_MultiFrame, EUniformBufferValidation::None);
-		PassUniformBuffer = ShadowDepthPassUniformBuffer;
-	}
-	else if (ShadingPath == EShadingPath::Mobile)
-	{
-		FMobileShadowDepthPassUniformParameters ShadowDepthParameters;
-		MobileShadowDepthPassUniformBuffer = TUniformBufferRef<FMobileShadowDepthPassUniformParameters>::CreateUniformBufferImmediate(ShadowDepthParameters, UniformBuffer_MultiFrame, EUniformBufferValidation::None);
-		PassUniformBuffer = MobileShadowDepthPassUniformBuffer;
-	}
-
-	SetupMeshDrawCommandsForShadowDepth(Renderer, PassUniformBuffer);
+	SetupMeshDrawCommandsForShadowDepth(Renderer);
 	SetupMeshDrawCommandsForProjectionStenciling(Renderer);
 }
 

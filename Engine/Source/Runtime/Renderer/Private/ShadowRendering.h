@@ -101,7 +101,6 @@ public:
 		const FScene* Scene, 
 		const FSceneView* InViewIfDynamicMeshCommand, 
 		const TUniformBufferRef<FViewUniformShaderParameters>& InViewUniformBuffer,
-		FRHIUniformBuffer* InPassUniformBuffer,
 		FShadowDepthType InShadowDepthType,
 		FMeshPassDrawListContext* InDrawListContext);
 
@@ -235,9 +234,6 @@ public:
 
 	/** The view to be used when rendering this shadow's depths. */
 	FViewInfo* ShadowDepthView;
-
-	TUniformBufferRef<FShadowDepthPassUniformParameters> ShadowDepthPassUniformBuffer;
-	TUniformBufferRef<FMobileShadowDepthPassUniformParameters> MobileShadowDepthPassUniformBuffer;
 
 	/** The depth or color targets this shadow was rendered to. */
 	FShadowMapRenderTargets RenderTargets;
@@ -423,11 +419,6 @@ public:
 	float GetShaderMaxSlopeDepthBias() const { return ShaderMaxSlopeDepthBias; }
 	float GetShaderReceiverDepthBias() const;
 
-	/**
-	 * Renders the shadow subject depth.
-	 */
-	void RenderDepth(FRHICommandListImmediate& RHICmdList, class FSceneRenderer* SceneRenderer, FBeginShadowRenderPassFunction BeginShadowRenderPass, bool bDoParallelDispatch);
-
 	void SetStateForView(FRHICommandList& RHICmdList) const;
 
 	FIntRect GetViewRectForView() const
@@ -443,10 +434,10 @@ public:
 	/** Set state for depth rendering */
 	void SetStateForDepth(FMeshPassProcessorRenderState& DrawRenderState) const;
 
-	void ClearDepth(FRHICommandList& RHICmdList, class FSceneRenderer* SceneRenderer, int32 NumColorTextures, FRHITexture** ColorTextures, FRHITexture* DepthTexture, bool bPerformClear);
+	void ClearDepth(FRHICommandList& RHICmdList) const;
 
 	/** Renders shadow maps for translucent primitives. */
-	void RenderTranslucencyDepths(FRHICommandList& RHICmdList, class FSceneRenderer* SceneRenderer);
+	void RenderTranslucencyDepths(FRDGBuilder& GraphBuilder, class FSceneRenderer* SceneRenderer, const FRenderTargetBindingSlots& RenderTargets);
 
 	static FRHIBlendState* GetBlendStateForProjection(
 		int32 ShadowMapChannel,
@@ -460,7 +451,24 @@ public:
 	/**
 	 * Projects the shadow onto the scene for a particular view.
 	 */
-	void RenderProjection(FRHICommandListImmediate& RHICmdList, int32 ViewIndex, const class FViewInfo* View, const class FSceneRenderer* SceneRender, bool bProjectingForForwardShading, bool bMobile, const struct FHairStrandsVisibilityData* HairVisibilityData) const;
+	void RenderProjection(
+		FRDGBuilder& GraphBuilder,
+		const FShadowProjectionPassParameters& CommonPassParameters,
+		int32 ViewIndex,
+		const FViewInfo* View,
+		const FSceneRenderer* SceneRender,
+		bool bProjectingForForwardShading,
+		bool bMobileModulatedProjections,
+		const FHairStrandsVisibilityData* HairVisibilityData) const;
+
+	/**
+	* Renders the shadow subject depth, to a particular hacked view
+	*/
+	void RenderDepth(
+		FRDGBuilder& GraphBuilder,
+		const FSceneRenderer* SceneRenderer,
+		FRDGTextureRef ShadowDepthTexture,
+		bool bDoParallelDispatch);
 
 	FRDGTextureRef BeginRenderRayTracedDistanceFieldProjection(
 		FRDGBuilder& GraphBuilder,
@@ -478,7 +486,13 @@ public:
 		bool bProjectingForForwardShading) const;
 
 	/** Render one pass point light shadow projections. */
-	void RenderOnePassPointLightProjection(FRHICommandListImmediate& RHICmdList, int32 ViewIndex, const FViewInfo& View, bool bProjectingForForwardShading, const FHairStrandsVisibilityData* HairVisibilityData) const;
+	void RenderOnePassPointLightProjection(
+		FRDGBuilder& GraphBuilder,
+		const FShadowProjectionPassParameters& CommonPassParameters,
+		int32 ViewIndex,
+		const FViewInfo& View,
+		bool bProjectingForForwardShading,
+		const FHairStrandsVisibilityData* HairVisibilityData) const;
 
 	/**
 	 * Renders the projected shadow's frustum wireframe with the given FPrimitiveDrawInterface.
@@ -519,7 +533,7 @@ public:
 	void GatherDynamicMeshElements(FSceneRenderer& Renderer, class FVisibleLightInfo& VisibleLightInfo, TArray<const FSceneView*>& ReusedViewsArray, 
 		FGlobalDynamicIndexBuffer& DynamicIndexBuffer, FGlobalDynamicVertexBuffer& DynamicVertexBuffer, FGlobalDynamicReadBuffer& DynamicReadBuffer);
 
-	void SetupMeshDrawCommandsForShadowDepth(FSceneRenderer& Renderer, FRHIUniformBuffer* PassUniformBuffer);
+	void SetupMeshDrawCommandsForShadowDepth(FSceneRenderer& Renderer);
 
 	void SetupMeshDrawCommandsForProjectionStenciling(FSceneRenderer& Renderer);
 
@@ -603,16 +617,6 @@ public:
 		return FShadowDepthType(bDirectionalLight, bOnePassPointLightShadow);
 	}
 
-	/**
-	* Setup uniformbuffers and update Primitive Shader Data
-	*/
-	void SetupShadowUniformBuffers(FRHICommandListImmediate& RHICmdList, FScene* Scene);
-
-	/**
-	* Ensure Cached Shadowmap is in readable state
-	*/
-	void TransitionCachedShadowmap(FRHICommandListImmediate& RHICmdList, FScene* Scene);
-
 	bool HasVirtualShadowMap() const { return VirtualShadowMap != nullptr; }
 
 private:
@@ -663,17 +667,19 @@ private:
 	float ShaderSlopeDepthBias;
 	float ShaderMaxSlopeDepthBias;
 
-	void CopyCachedShadowMap(FRHICommandList& RHICmdList, const FMeshPassProcessorRenderState& DrawRenderState, FSceneRenderer* SceneRenderer, const FViewInfo& View);
-
-	/**
-	* Renders the shadow subject depth, to a particular hacked view
-	*/
-	void RenderDepthInner(FRHICommandListImmediate& RHICmdList, class FSceneRenderer* SceneRenderer, FBeginShadowRenderPassFunction BeginShadowRenderPass, bool bDoParallelDispatch);
+	void CopyCachedShadowMap(
+		FRDGBuilder& GraphBuilder,
+		const FViewInfo& View,
+		const FSceneRenderer* SceneRenderer,
+		const FRenderTargetBindingSlots& RenderTargets,
+		const FMeshPassProcessorRenderState& DrawRenderState);
 
 	/**
 	* Modifies the passed in view for this shadow
 	*/
 	void ModifyViewForShadow(FRHICommandList& RHICmdList, FViewInfo* FoundView) const;
+
+	void BeginRenderView(FRDGBuilder& GraphBuilder, FScene* Scene);
 
 	/**
 	* Finds a relevant view for a shadow

@@ -46,6 +46,7 @@ struct FILCUpdatePrimTaskData;
 class FRaytracingLightDataPacked;
 class FRayTracingLocalShaderBindingWriter;
 class FVirtualShadowMapClipmap;
+class FShadowProjectionPassParameters;
 
 struct FCloudRenderContext;
 struct FSceneWithoutWaterTextures;
@@ -1845,7 +1846,8 @@ protected:
 	void SetupMeshPass(FViewInfo& View, FExclusiveDepthStencil::Type BasePassDepthStencilAccess, FViewCommands& ViewCommands);
 
 	void RenderShadowProjections(
-		FRHICommandListImmediate& RHICmdList,
+		FRDGBuilder& GraphBuilder,
+		const FShadowProjectionPassParameters& CommonPassParameters,
 		const FLightSceneProxy* LightSceneProxy,
 		const FHairStrandsVisibilityViews* HairVisibilityViews,
 		TArrayView<const FProjectedShadowInfo* const> Shadows,

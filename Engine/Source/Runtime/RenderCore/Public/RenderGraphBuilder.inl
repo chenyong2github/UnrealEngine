@@ -394,3 +394,17 @@ inline void FRDGBuilder::RemoveUnusedBufferWarning(FRDGBufferRef Buffer)
 	UserValidation.RemoveUnusedWarning(Buffer);
 #endif
 }
+
+inline void FRDGBuilder::BeginEventScope(FRDGEventName&& ScopeName)
+{
+#if RDG_GPU_SCOPES
+	GPUScopeStacks.BeginEventScope(MoveTemp(ScopeName));
+#endif
+}
+
+inline void FRDGBuilder::EndEventScope()
+{
+#if RDG_GPU_SCOPES
+	GPUScopeStacks.EndEventScope();
+#endif
+}

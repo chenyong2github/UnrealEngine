@@ -139,40 +139,6 @@ void FilterMainPS(
 	OutColor1 = TextureValue1 * InvWeight;
 }
 
-#if INJECTION_PIXEL_SHADER
-
-/** Parameters needed to access the shadow map of the light. */
-float4x4 WorldToShadowMatrix;
-float4 ShadowmapMinMax;
-
-/** Pixel shader that calculates per object shadowing from translucency for a volume texture and outputs the shadow factor. */
-void PerObjectShadowingMainPS(
-	FWriteToSliceGeometryOutput Input,
-	out float4 OutColor : SV_Target0
-	)
-{
-	float ZPosition = View.TranslucencyLightingVolumeMin[VolumeCascadeIndex].z + (Input.LayerIndex + .5f) * View.TranslucencyLightingVolumeInvSize[VolumeCascadeIndex].w;
-	float3 WorldPosition = float3(View.TranslucencyLightingVolumeMin[VolumeCascadeIndex].xy + Input.Vertex.UV / View.TranslucencyLightingVolumeInvSize[VolumeCascadeIndex].xy - .5f * View.TranslucencyLightingVolumeInvSize[VolumeCascadeIndex].w, ZPosition);
-	float VoxelSize = View.TranslucencyLightingVolumeInvSize[VolumeCascadeIndex].w;
-
-	float ShadowFactor = 1;
-
-	float3 WorldPositionForShadowing = WorldPosition;
-	// Transform the world position into shadowmap space
-	float4 HomogeneousShadowPosition = mul(float4(WorldPositionForShadowing, 1), WorldToShadowMatrix);
-	float2 ShadowUVs = HomogeneousShadowPosition.xy / HomogeneousShadowPosition.w;
-
-	// Treat as unshadowed if the voxel is outside of the shadow map
-	if (all(ShadowUVs >= ShadowmapMinMax.xy && ShadowUVs <= ShadowmapMinMax.zw))
-	{
-		ShadowFactor = CalculateTranslucencyShadowing(ShadowUVs, HomogeneousShadowPosition.z);
-	}
-
-	OutColor = float4(ShadowFactor.xxx, 0);
-}
-
-#endif // #if INJECTION_PIXEL_SHADER
-
 #include "CubemapCommon.ush"
 
 /** Add AmbientCubemap color to the volume. */
