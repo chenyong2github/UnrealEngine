@@ -695,9 +695,9 @@ void CalculateTransforms(in FVertexFactoryIntermediates Intermediates, out float
 FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput Input)
 {
 	FVertexFactoryIntermediates Intermediates = (FVertexFactoryIntermediates)0;
-	Input.InstanceId = GetInstanceId(Input.InstanceId);
+	Input.InstanceId = GetInstanceId(Input.InstanceId); // NOTE: Handles instanced stereo
 
-	Intermediates.SortedInstanceId = GetInstanceId(Input.InstanceId); // NOTE: Handles instanced stereo		
+	Intermediates.SortedInstanceId = Input.InstanceId;
 	if (SortedIndicesOffset != 0xFFFFFFFF)
 	{
 		Intermediates.SortedInstanceId = SortedIndices[SortedIndicesOffset + Intermediates.SortedInstanceId];
