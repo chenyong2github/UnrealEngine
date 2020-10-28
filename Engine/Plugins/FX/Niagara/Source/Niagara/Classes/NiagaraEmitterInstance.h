@@ -87,15 +87,26 @@ public:
 	/** Create a new NiagaraRenderer. The old renderer is not immediately deleted, but instead put in the ToBeRemoved list.*/
 	//void NIAGARA_API UpdateEmitterRenderer(ERHIFeatureLevel::Type FeatureLevel, TArray<NiagaraRenderer*>& ToBeAddedList, TArray<NiagaraRenderer*>& ToBeRemovedList);
 
-	FORCEINLINE int32 GetNumParticles()const
+private:
+	NIAGARA_API int32 GetNumParticlesGPUInternal() const;
+public:
+	FORCEINLINE int32 GetNumParticles() const
 	{
-		// Note: For ENiagaraSimTarget::GPUComputeSim this data is latent
-		if (ParticleDataSet->GetCurrentData())
+		// Note: For GPU simulations the data is latent we can not read directly from GetCurrentData() until we have passed a fence
+		// which guarantees that at least one tick has occurred inside the batcher.  The count will still technically be incorrect
+		// but hopefully adequate for a system script update.
+		if (GPUExecContext)
+		{
+			return GetNumParticlesGPUInternal();
+		}
+
+		if ( ParticleDataSet->GetCurrentData() )
 		{
 			return ParticleDataSet->GetCurrentData()->GetNumInstances();
 		}
 		return 0;
 	}
+
 	FORCEINLINE int32 GetTotalSpawnedParticles()const { return TotalSpawnedParticles; }
 	FORCEINLINE const FNiagaraEmitterScalabilitySettings& GetScalabilitySettings()const { return CachedEmitter->GetScalabilitySettings(); }
 

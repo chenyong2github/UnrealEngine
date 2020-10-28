@@ -809,6 +809,21 @@ void FNiagaraEmitterInstance::BindParameters(bool bExternalOnly)
 	}
 }
 
+int32 FNiagaraEmitterInstance::GetNumParticlesGPUInternal() const
+{
+	check(GPUExecContext);
+
+	// If our fence has not been passed return the TotalSpawnedParticles as a 'guess' to the amount
+	FNiagaraComputeSharedContext* GPUSharedContext = GetParentSystemInstance()->GetComputeSharedContext();
+	if (GPUSharedContext->ParticleCountReadFence > GPUSharedContext->ParticleCountWriteFence)
+	{
+		return TotalSpawnedParticles;
+	}
+
+	// If the fence has passed we read directly from the GPU Exec Context which will have the most up-to-date information
+	return GPUExecContext->ScratchNumInstances;
+}
+
 const FNiagaraEmitterHandle& FNiagaraEmitterInstance::GetEmitterHandle() const
 {
 	UNiagaraSystem* Sys = ParentSystemInstance->GetSystem();
