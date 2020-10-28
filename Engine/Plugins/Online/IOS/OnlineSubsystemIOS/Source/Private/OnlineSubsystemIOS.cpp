@@ -387,32 +387,32 @@ bool FOnlineSubsystemIOS::IsInAppPurchasingEnabled()
 NSString* FOnlineSubsystemIOS::GetPlayerId(GKPlayer* Player)
 {
 #if USE_DEPRECATED_PLAYERID
-	if ([GKPlayer respondsToSelector:@selector(teamPlayerID)] == YES)
+	if ([GKPlayer respondsToSelector:@selector(gamePlayerID)] == YES)
 	{
-		return Player.teamPlayerID;
+		return Player.gamePlayerID;
 	}
 	else
 	{
 		return Player.playerID;
 	}
 #else
-	return Player.teamPlayerID;
+	return Player.gamePlayerID;
 #endif
 }
 
 NSString* FOnlineSubsystemIOS::GetPlayerId(GKLocalPlayer* Player)
 {
 #if USE_DEPRECATED_PLAYERID
-	if ([GKLocalPlayer respondsToSelector:@selector(teamPlayerID)] == YES)
+	if ([GKLocalPlayer respondsToSelector:@selector(gamePlayerID)] == YES)
 	{
-		return Player.teamPlayerID;
+		return Player.gamePlayerID;
 	}
 	else
 	{
 		return Player.playerID;
 	}
 #else
-	return Player.teamPlayerID;
+	return Player.gamePlayerID;
 #endif
 }
 
