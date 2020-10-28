@@ -526,6 +526,12 @@ public:
 	UPROPERTY(EditAnywhere, Category=Scalability)
 	uint32 bEnableDensityScaling:1;
 
+	/**
+	* Whether this foliage type should be discarded when CVarFoliageDiscardDataOnLoad is enabled.
+	*/
+	UPROPERTY(EditAnywhere, Category=Scalability)
+	uint32 bEnableDiscardOnLoad:1;
+
 public:
 	// VIRTUAL TEXTURE
 
