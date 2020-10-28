@@ -86,6 +86,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Hierarchy")
 	FTransform GetControlValueTransform(const FRigElementKey& InKey, ERigControlValueType InValueType = ERigControlValueType::Initial);
 
+	// returns a control's offset transform
+	UFUNCTION(BlueprintCallable, Category = "Hierarchy")
+		FTransform GetControlOffsetTransform(const FRigElementKey& InKey);
+
 	// Sets a control value
 	UFUNCTION(BlueprintCallable, Category = "Hierarchy")
 	void SetControlValueBool(const FRigElementKey& InKey, bool InValue, ERigControlValueType InValueType = ERigControlValueType::Initial);
@@ -113,6 +117,10 @@ public:
 	// Sets a control value
 	UFUNCTION(BlueprintCallable, Category = "Hierarchy")
 	void SetControlValueTransform(const FRigElementKey& InKey, FTransform InValue, ERigControlValueType InValueType = ERigControlValueType::Initial);
+
+	// Sets a control's offset transform
+	UFUNCTION(BlueprintCallable, Category = "Hierarchy")
+	void SetControlOffsetTransform(const FRigElementKey& InKey, FTransform InValue);
 
 	// Adds a new single space
 	UFUNCTION(BlueprintCallable, Category = "Hierarchy")

@@ -199,6 +199,19 @@ FTransform UControlRigHierarchyModifier::GetControlValueTransform(const FRigElem
 	return FTransform::Identity;
 }
 
+FTransform UControlRigHierarchyModifier::GetControlOffsetTransform(const FRigElementKey& InKey)
+{
+	if (Container != nullptr && InKey.Type == ERigElementType::Control)
+	{
+		int32 Index = Container->GetIndex(InKey);
+		if (Index != INDEX_NONE)
+		{
+			return Container->ControlHierarchy.Controls[Index].OffsetTransform;
+		}
+	}
+	return FTransform::Identity;
+}
+
 void UControlRigHierarchyModifier::SetControlValueBool(const FRigElementKey& InKey, bool InValue, ERigControlValueType InValueType)
 {
 	if (Container != nullptr && InKey.Type == ERigElementType::Control)
@@ -279,6 +292,18 @@ void UControlRigHierarchyModifier::SetControlValueTransform(const FRigElementKey
 		if (Index != INDEX_NONE)
 		{
 			Container->ControlHierarchy.Controls[Index].SetValueFromTransform(InValue, InValueType);
+		}
+	}
+}
+
+void UControlRigHierarchyModifier::SetControlOffsetTransform(const FRigElementKey& InKey, FTransform InValue)
+{
+	if (Container != nullptr && InKey.Type == ERigElementType::Control)
+	{
+		int32 Index = Container->GetIndex(InKey);
+		if (Index != INDEX_NONE)
+		{
+			Container->ControlHierarchy.Controls[Index].OffsetTransform = InValue;
 		}
 	}
 }
