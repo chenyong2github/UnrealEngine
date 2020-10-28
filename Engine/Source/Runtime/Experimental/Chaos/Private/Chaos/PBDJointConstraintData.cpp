@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Chaos/PBDJointConstraintData.h"
+#include "PBDRigidsSolver.h"
 
 namespace Chaos
 {
@@ -8,10 +9,19 @@ namespace Chaos
 		: FConstraintBase(EConstraintType::JointConstraintType)
 		, JointTransforms({ FTransform::Identity, FTransform::Identity })
 		, UserData(nullptr)
+		, KinematicEndPoint(nullptr)
 	{
 	}
 
 	FJointConstraint::FTransformPair FJointConstraint::GetJointTransforms() { return JointTransforms; }
+
+	void FJointConstraint::SetKinematicEndPoint(TGeometryParticle<FReal, 3>* InDummyParticle, FPBDRigidsSolver* Solver)
+	{
+		ensure(KinematicEndPoint == nullptr);
+		KinematicEndPoint = InDummyParticle;
+		Solver->RegisterObject(KinematicEndPoint);
+	}
+
 	const FJointConstraint::FTransformPair FJointConstraint::GetJointTransforms() const { return JointTransforms; }
 	void FJointConstraint::SetJointTransforms(const Chaos::FJointConstraint::FTransformPair& InJointTransforms)
 	{
