@@ -645,6 +645,12 @@ void FNiagaraGPUSystemTick::Init(FNiagaraSystemInstance* InSystemInstance)
 	bNeedsReset = InSystemInstance->RequiresGpuBufferReset();
 	NumInstancesWithSimStages = 0;
 
+	if ( bNeedsReset )
+	{
+		++SharedContext->ParticleCountReadFence;
+	}
+	ParticleCountFence = SharedContext->ParticleCountReadFence;
+
 	TotalDispatches = 0;
 
 	// we want to include interpolation parameters (current and previous frame) if any of the emitters in the system
@@ -775,6 +781,8 @@ void FNiagaraGPUSystemTick::Init(FNiagaraSystemInstance* InSystemInstance)
 
 void FNiagaraGPUSystemTick::Destroy()
 {
+	SharedContext->ParticleCountWriteFence = ParticleCountFence;
+
 	FNiagaraComputeInstanceData* Instances = GetInstanceData();
 	for (uint32 i = 0; i < Count; i++)
 	{
