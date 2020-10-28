@@ -108,6 +108,7 @@ protected:
 
 #if WITH_EDITOR
 	FLevelEditorViewportClient* GetTargetLevelViewportClient() const;
+	TSharedPtr<SLevelViewport> GetTargetLevelViewport() const;
 #endif
 
 	UPROPERTY(Transient)

@@ -143,6 +143,10 @@ void UVCamOutputProviderBase::CreateUMG()
 	UMGWidget->SetDisplayTypes(DisplayType, DisplayType, DisplayType);
 	UMGWidget->PostProcessDisplayType.bReceiveHardwareInput = true;
 
+#if WITH_EDITOR
+	UMGWidget->SetAllTargetViewports(GetTargetLevelViewport());
+#endif
+
 	UMGWidget->WidgetClass = UMGClass;
 	UE_LOG(LogVCamOutputProvider, Log, TEXT("CreateUMG widget named %s from class %s"), *UMGWidget->GetName(), *UMGWidget->WidgetClass->GetName());
 }
@@ -191,11 +195,16 @@ void UVCamOutputProviderBase::DestroyUMG()
 		if (UMGWidget->IsDisplayed())
 		{
 			UMGWidget->Hide();
-			UE_LOG(LogVCamOutputProvider, Log, TEXT("DestroyUMG widget hidden"));
+			UE_LOG(LogVCamOutputProvider, Log, TEXT("DestroyUMG widget %s hidden"), *UMGWidget->GetName());
 		}
+		UE_LOG(LogVCamOutputProvider, Log, TEXT("DestroyUMG widget %s destroyed"), *UMGWidget->GetName());
+
+#if WITH_EDITOR
+		UMGWidget->ResetAllTargetViewports();
+#endif
+
 		UMGWidget->ConditionalBeginDestroy();
 		UMGWidget = nullptr;
-		UE_LOG(LogVCamOutputProvider, Log, TEXT("DestroyUMG widget destroyed"));
 	}
 }
 
@@ -273,6 +282,18 @@ FLevelEditorViewportClient* UVCamOutputProviderBase::GetTargetLevelViewportClien
 	}
 
 	return ViewportClient;
+}
+
+TSharedPtr<SLevelViewport> UVCamOutputProviderBase::GetTargetLevelViewport() const
+{
+	TSharedPtr<SLevelViewport> LevelViewport;
+
+	if (UVCamComponent* OuterComponent = GetTypedOuter<UVCamComponent>())
+	{
+		LevelViewport = OuterComponent->GetTargetLevelViewport();
+	}
+
+	return LevelViewport;
 }
 
 void UVCamOutputProviderBase::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
