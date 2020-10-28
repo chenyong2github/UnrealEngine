@@ -783,7 +783,14 @@ void UpdateVoxelVisBuffer(
 	for (int32 ClipmapIndex = 0; ClipmapIndex < MaxVoxelClipmapLevels; ++ClipmapIndex)
 	{
 		TArray<FBox>& PrimitiveModifiedBounds = View.ViewState->Lumen.VoxelLightingClipmapState[ClipmapIndex].PrimitiveModifiedBounds;
-		PrimitiveModifiedBounds.Append(Scene->LumenSceneData->PrimitiveModifiedBounds);
+		if (ClipmapIndex < ClampedNumClipmapLevels)
+		{
+			PrimitiveModifiedBounds.Append(Scene->LumenSceneData->PrimitiveModifiedBounds);
+		}
+		else
+		{
+			PrimitiveModifiedBounds.Empty();
+		}
 	}
 
 	// Update clipmaps
