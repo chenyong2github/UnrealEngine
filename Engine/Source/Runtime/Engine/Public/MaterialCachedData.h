@@ -103,11 +103,10 @@ struct FMaterialCachedParameterEntry
 
 	void Reset();
 
+	// This is used to map FMaterialParameterInfos to indices, which are then used to index various TArrays containing values for each type of parameter
+	// (ExpressionGuids and Overrides, along with ScalarValues, VectorValues, etc)
 	UPROPERTY()
-	TArray<uint64> NameHashes;
-
-	UPROPERTY()
-	TArray<FMaterialParameterInfo> ParameterInfos;
+	TSet<FMaterialParameterInfo> ParameterInfos;
 
 	UPROPERTY()
 	TArray<FGuid> ExpressionGuids; // editor-only?
@@ -144,11 +143,11 @@ struct FMaterialCachedParameters
 #else
 	inline const FMaterialCachedParameterEntry& GetParameterTypeEntry(EMaterialParameterType Type) const { return RuntimeEntries[static_cast<int32>(Type)]; }
 #endif
-	inline int32 GetNumParameters(EMaterialParameterType Type) const { return GetParameterTypeEntry(Type).ParameterInfos.Num(); }
-	inline const FName& GetParameterName(EMaterialParameterType Type, int32 Index) const { return GetParameterTypeEntry(Type).ParameterInfos[Index].Name; }
 
-	int32 FindParameterIndex(EMaterialParameterType Type, const FHashedMaterialParameterInfo& HashedParameterInfo, bool bOveriddenOnly) const;
-	int32 FindParameterIndex(EMaterialParameterType Type, const FHashedMaterialParameterInfo& HashedParameterInfo) const;
+	inline int32 GetNumParameters(EMaterialParameterType Type) const { return GetParameterTypeEntry(Type).ParameterInfos.Num(); }
+
+	int32 FindParameterIndex(EMaterialParameterType Type, const FMemoryImageMaterialParameterInfo& HashedParameterInfo, bool bOveriddenOnly) const;
+	int32 FindParameterIndex(EMaterialParameterType Type, const FMemoryImageMaterialParameterInfo& HashedParameterInfo) const;
 	bool IsParameterValid(EMaterialParameterType Type, int32 Index, bool bOveriddenOnly) const;
 	bool IsDefaultParameterValid(EMaterialParameterType Type, int32 Index, bool bOveriddenOnly, bool bCheckOwnedGlobalOverrides) const;
 	void GetAllParameterInfoOfType(EMaterialParameterType Type, bool bEmptyOutput, TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const;
