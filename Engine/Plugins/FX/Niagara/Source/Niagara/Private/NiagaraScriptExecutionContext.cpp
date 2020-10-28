@@ -642,9 +642,7 @@ void FNiagaraGPUSystemTick::Init(FNiagaraSystemInstance* InSystemInstance)
 	FNiagaraComputeInstanceData* Instances = (FNiagaraComputeInstanceData*)(InstanceData_ParamData_Packed);
 	uint8* ParamDataBufferPtr = InstanceData_ParamData_Packed + PackedDispatchesSizeAligned;
 
-	int32 TickCount = InSystemInstance->GetTickCount();
-	check(TickCount > 0);
-	bNeedsReset = ( TickCount == 1);
+	bNeedsReset = InSystemInstance->RequiresGpuBufferReset();
 	NumInstancesWithSimStages = 0;
 
 	TotalDispatches = 0;
