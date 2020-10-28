@@ -1713,6 +1713,20 @@ void* FGoogleARCoreSession::GetLatestFrameRawPointer()
 	return nullptr;
 }
 
+bool FGoogleARCoreSession::IsSceneDepthEnabled() const
+{
+#if PLATFORM_ANDROID
+	if (SessionHandle && ConfigHandle)
+	{
+		ArDepthMode DepthMode = AR_DEPTH_MODE_DISABLED;
+		ArConfig_getDepthMode(SessionHandle, ConfigHandle, &DepthMode);
+		return DepthMode != AR_DEPTH_MODE_DISABLED;
+	}
+#endif
+	
+	return false;
+}
+
 UGoogleARCoreUObjectManager::UGoogleARCoreUObjectManager()
 {
 	if (!HasAnyFlags(RF_ClassDefaultObject))
