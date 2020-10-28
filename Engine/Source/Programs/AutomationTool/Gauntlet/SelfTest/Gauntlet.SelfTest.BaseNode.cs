@@ -45,6 +45,8 @@ namespace Gauntlet.SelfTest
 
 		public bool HasWarnings { get { return false; } }
 
+		public virtual bool LogWarningsAndErrorsAfterSummary { get { return true; } }
+
 		public TestResult GetTestResult()
 		{
 			return InnerResult;

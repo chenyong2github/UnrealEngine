@@ -58,6 +58,8 @@ namespace Gauntlet.SelfTest
 
 		public bool HasWarnings { get { return false; } }
 
+		public virtual bool LogWarningsAndErrorsAfterSummary { get { return true; } }
+
 		protected void SetNewStage(TestStages NewStage)
 		{
 			int CurrentValue = (int)CurrentStage;
