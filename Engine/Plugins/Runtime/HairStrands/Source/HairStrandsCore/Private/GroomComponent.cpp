@@ -1650,6 +1650,9 @@ static USkeletalMeshComponent* ValidateBindingAsset(
 		}
 	}
 
+	// To solve fale positive with static analyser
+	check(GroomAsset);
+
 	// Report warning if the skeletal section count is larger than the supported count
 	const bool bHasValidSketalMesh = SkeletalMeshComponent && SkeletalMeshComponent->GetSkeletalMeshRenderData() && bHasValidSectionCount;
 	if (SkeletalMeshComponent && !bHasValidSectionCount)
