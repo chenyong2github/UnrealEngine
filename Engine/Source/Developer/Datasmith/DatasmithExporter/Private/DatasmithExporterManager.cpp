@@ -239,11 +239,11 @@ void FDatasmithGameThread::OnInit()
 
 	PreInitCommandArgs.Empty();
 	if (bInitSucceded)
-	{ 
+	{
 		SyncEvent = FPlatformProcess::GetSynchEventFromPool();
 
 		PreInitCommandArgs.Empty();
-	
+
 		// Initialize a normal Slate application using the platform's standalone renderer
 		FSlateApplication::InitializeAsStandaloneApplication( GetStandardStandaloneRenderer() );
 
@@ -362,7 +362,7 @@ void FDatasmithExporterManager::Shutdown()
 #endif // IS_PROGRAM
 }
 
-void FDatasmithExporterManager::RunGarbageCollection()
+bool FDatasmithExporterManager::RunGarbageCollection()
 {
 #if IS_PROGRAM
 	if (GDatasmithGameThread)
@@ -378,14 +378,17 @@ void FDatasmithExporterManager::RunGarbageCollection()
 		PushCommandIntoGameThread(MoveTemp(Command), true);
 
 		GarbageCollectionDoneFuture.Wait();
+		return true;
 	}
-	else
+#endif
+
+	if (IsInGameThread())
 	{
 		CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
+		return true;
 	}
-#else
-	CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
-#endif
+
+	return false;
 }
 
 #if IS_PROGRAM
@@ -416,7 +419,7 @@ bool FDatasmithExporterManager::WasInitilizedWithMessaging()
 	{
 		return GDatasmithGameThread->WasInitilizedWithMessaging();
 	}
-	
+
 	return bUseMessaging && bEngineInitialized;
 }
 #endif
