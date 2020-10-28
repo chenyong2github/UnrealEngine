@@ -4353,11 +4353,15 @@ bool UEdGraphSchema_K2::ArePinTypesCompatible(const FEdGraphPinType& Output, con
 
 void UEdGraphSchema_K2::BreakNodeLinks(UEdGraphNode& TargetNode) const
 {
-	UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForNodeChecked(&TargetNode);
+	UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForNode(&TargetNode);
+	ensureMsgf(Blueprint != nullptr, TEXT("Node %s does not belong to a blueprint!"), *GetFullNameSafe(&TargetNode));
 
 	Super::BreakNodeLinks(TargetNode);
 	
-	FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
+	if (Blueprint != nullptr)
+	{
+		FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
+	}
 }
 
 void UEdGraphSchema_K2::BreakPinLinks(UEdGraphPin& TargetPin, bool bSendsNodeNotifcation) const
