@@ -875,6 +875,7 @@ FIntVector GRHIMaxDispatchThreadGroupsPerDimension(0, 0, 0);
 uint64 GRHIPresentCounter = 1;
 
 bool GRHISupportsArrayIndexFromAnyShader = false;
+bool GRHISupportsStencilRefFromPixelShader = false;
 bool GRHISupportsConservativeRasterization = false;
 
 /** Whether we are profiling GPU hitches. */

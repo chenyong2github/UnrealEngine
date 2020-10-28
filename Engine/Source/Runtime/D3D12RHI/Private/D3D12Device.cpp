@@ -164,6 +164,7 @@ void FD3D12Device::SetupAfterDeviceCreation()
 	ID3D12Device* Direct3DDevice = GetParentAdapter()->GetD3DDevice();
 
 	GRHISupportsArrayIndexFromAnyShader = true;
+	GRHISupportsStencilRefFromPixelShader = false; // TODO: Sort out DXC shader database SM6.0 usage. DX12 supports this feature, but need to improve DXC support.
 
 #if (PLATFORM_WINDOWS || PLATFORM_HOLOLENS)
 	// Check if we're running under GPU capture

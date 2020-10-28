@@ -624,6 +624,9 @@ extern RHI_API uint64 GRHIPresentCounter;
 /** True if the RHI supports setting the render target array index from any shader stage */
 extern RHI_API bool GRHISupportsArrayIndexFromAnyShader;
 
+/** True if the RHI supports setting the stencil ref at pixel granularity from the pixel shader */
+extern RHI_API bool GRHISupportsStencilRefFromPixelShader;
+
 /** Whether current RHI supports overestimated conservative rasterization. */
 extern RHI_API bool GRHISupportsConservativeRasterization;
 
