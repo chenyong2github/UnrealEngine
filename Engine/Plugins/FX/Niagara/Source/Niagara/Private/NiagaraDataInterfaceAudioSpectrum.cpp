@@ -746,7 +746,7 @@ void UNiagaraDataInterfaceAudioSpectrum::GetParameterDefinitionHLSL(const FNiaga
 
 struct FNiagaraDataInterfaceParametersCS_AudioSpectrum : public FNiagaraDataInterfaceParametersCS
 {
-	DECLARE_INLINE_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_AudioSpectrum, NonVirtual);
+	DECLARE_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_AudioSpectrum, NonVirtual);
 
 	void Bind(const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap)
 	{
@@ -775,6 +775,8 @@ struct FNiagaraDataInterfaceParametersCS_AudioSpectrum : public FNiagaraDataInte
 	LAYOUT_FIELD(FShaderParameter, Resolution);
 	LAYOUT_FIELD(FShaderResourceParameter,SpectrumBuffer);
 };
+
+IMPLEMENT_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_AudioSpectrum);
 
 IMPLEMENT_NIAGARA_DI_PARAMETER(UNiagaraDataInterfaceAudioSpectrum, FNiagaraDataInterfaceParametersCS_AudioSpectrum);
 

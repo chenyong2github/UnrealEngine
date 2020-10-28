@@ -317,7 +317,7 @@ void UNiagaraDataInterfaceAudioOscilloscope::GetParameterDefinitionHLSL(const FN
 
 struct FNiagaraDataInterfaceParametersCS_AudioOscilloscope : public FNiagaraDataInterfaceParametersCS
 {
-	DECLARE_INLINE_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_AudioOscilloscope, NonVirtual);
+	DECLARE_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_AudioOscilloscope, NonVirtual);
 
 	void Bind(const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap)
 	{
@@ -341,6 +341,8 @@ struct FNiagaraDataInterfaceParametersCS_AudioOscilloscope : public FNiagaraData
 	LAYOUT_FIELD(FShaderParameter, NumChannels);
 	LAYOUT_FIELD(FShaderResourceParameter, AudioBuffer);
 };
+
+IMPLEMENT_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_AudioOscilloscope);
 
 IMPLEMENT_NIAGARA_DI_PARAMETER(UNiagaraDataInterfaceAudioOscilloscope, FNiagaraDataInterfaceParametersCS_AudioOscilloscope);
 

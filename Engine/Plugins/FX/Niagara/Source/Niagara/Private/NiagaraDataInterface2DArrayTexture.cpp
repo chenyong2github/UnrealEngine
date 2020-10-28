@@ -166,7 +166,7 @@ void UNiagaraDataInterface2DArrayTexture::GetParameterDefinitionHLSL(const FNiag
 
 struct FNiagaraDataInterfaceParametersCS_2DArrayTexture : public FNiagaraDataInterfaceParametersCS
 {
-	DECLARE_INLINE_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_2DArrayTexture, NonVirtual);
+	DECLARE_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_2DArrayTexture, NonVirtual);
 public:
 	void Bind(const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap)
 	{
@@ -223,6 +223,8 @@ private:
 	LAYOUT_FIELD(FShaderResourceParameter, SamplerParam);
 	LAYOUT_FIELD(FShaderParameter, Dimensions);
 };
+
+IMPLEMENT_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_2DArrayTexture);
 
 IMPLEMENT_NIAGARA_DI_PARAMETER(UNiagaraDataInterface2DArrayTexture, FNiagaraDataInterfaceParametersCS_2DArrayTexture);
 
