@@ -39,6 +39,9 @@ namespace Chaos
 		typedef TVector<FTransform, 2> FTransformPair;
 		friend FData;
 
+		template <typename Traits>
+		friend class TPBDRigidsSolver; // friend so we can call ReleaseKinematicEndPoint when unregistering joint.
+
 		FJointConstraint();
 		virtual ~FJointConstraint() override {}
 
@@ -51,6 +54,9 @@ namespace Chaos
 		FTransformPair GetJointTransforms();
 
 		const FData& GetJointSettings()const { return JointSettings; }
+
+		// If we created particle to serve as kinematic endpoint, track so we can release later. This will add particle to solver.
+		void SetKinematicEndPoint(TGeometryParticle<FReal, 3>* InParticle, FPBDRigidsSolver* Solver);
 
 		CONSTRAINT_JOINT_PROPERPETY_IMPL(bool, CollisionEnabled, EJointConstraintFlags::CollisionEnabled, JointSettings.bCollisionEnabled);
 		//void SetCollisionEnabled(bool InValue);
@@ -293,6 +299,16 @@ namespace Chaos
 
 	protected:
 
+		template <typename Traits>
+		void ReleaseKinematicEndPoint(TPBDRigidsSolver<Traits>* Solver)
+		{
+			if (KinematicEndPoint)
+			{
+				Solver->UnregisterObject(KinematicEndPoint);
+				KinematicEndPoint = nullptr;
+			}
+		}
+
 		FJointConstraintDirtyFlags MDirtyFlags;
 		FData JointSettings;
 
@@ -300,6 +316,10 @@ namespace Chaos
 		void* UserData;
 		FOutputData Output;
 
+	private:
+		// TODO: When we build constraint with only one actor, we spawn this particle to serve as kinematic endpoint
+		// to attach to, as Chaos requires two particles currently. This tracks particle that will need to be released with joint.
+		TGeometryParticle<FReal, 3>* KinematicEndPoint;
 	};
 
 } // Chaos
