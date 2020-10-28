@@ -154,7 +154,7 @@ static void AddTransferPositionPass(
 	FRDGBufferSRVRef InBuffer,
 	FRDGBufferUAVRef OutBuffer)
 {
-	if (ElementCount < 0) return;
+	if (ElementCount == 0) return;
 
 	const uint32 GroupSize = 64;
 	const uint32 DispatchCount = FMath::DivideAndRoundUp(ElementCount, GroupSize);
