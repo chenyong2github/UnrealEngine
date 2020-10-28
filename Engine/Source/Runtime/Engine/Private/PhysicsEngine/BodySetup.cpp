@@ -1035,6 +1035,12 @@ void UBodySetup::Serialize(FArchive& Ar)
 		{
 			if (Ar.UE4Ver() >= VER_UE4_STORE_HASCOOKEDDATA_FOR_BODYSETUP)
 			{
+				// CL#14327190 Removed cooked implicit collision structures from the UBodySetup.
+				// UBodySetups saved with support for cooked implicit geometry store a counter for the number 
+				// of implicit objects saved to the file. This count needs to be removed from the input stream. 
+				// Note: We only need to extract the count, not the array. Editor operations for populating the 
+				// implicit array were never added, so it's expected that the actual implicit array would 
+				// always be empty.
 				bool bTemp = bHasCookedCollisionData;
 				Ar << bTemp;
 				bHasCookedCollisionData = bTemp;
