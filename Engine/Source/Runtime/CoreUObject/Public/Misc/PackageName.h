@@ -472,7 +472,8 @@ public:
 	 * @param OutObjectPath The path to the object.
 	 * @return True if the supplied export text path could be parsed
 	 */
-	static bool ParseExportTextPath(FStringView InExportTextPath, FStringView* OutClassName, FStringView* OutObjectPath);
+	static bool ParseExportTextPath(FWideStringView InExportTextPath, FWideStringView* OutClassName, FWideStringView* OutObjectPath);
+	static bool ParseExportTextPath(FAnsiStringView InExportTextPath, FAnsiStringView* OutClassName, FAnsiStringView* OutObjectPath);
 	static bool ParseExportTextPath(const FString& InExportTextPath, FString* OutClassName, FString* OutObjectPath);	
 	static bool ParseExportTextPath(const TCHAR* InExportTextPath, FStringView* OutClassName, FStringView* OutObjectPath);
 
@@ -483,19 +484,23 @@ public:
 	 * @param InExportTextPath The export text path for an object. Takes on the form: ClassName'ObjectPath'
 	 * @return The path to the object referred to by the supplied export path.
 	 */
-	static FStringView	ExportTextPathToObjectPath(FStringView InExportTextPath);
-	static FString		ExportTextPathToObjectPath(const FString& InExportTextPath);
-	static FString		ExportTextPathToObjectPath(const TCHAR* InExportTextPath);
+	static FWideStringView	ExportTextPathToObjectPath(FWideStringView InExportTextPath);
+	static FAnsiStringView	ExportTextPathToObjectPath(FAnsiStringView InExportTextPath);
+	static FString			ExportTextPathToObjectPath(const FString& InExportTextPath);
+	static FString			ExportTextPathToObjectPath(const TCHAR* InExportTextPath);
 
 	/** 
 	 * Returns the name of the package referred to by the specified object path
 	 */
+	static FWideStringView ObjectPathToPackageName(FWideStringView InObjectPath);
+	static FAnsiStringView ObjectPathToPackageName(FAnsiStringView InObjectPath);
 	static FString ObjectPathToPackageName(const FString& InObjectPath);
 
 	/** 
 	 * Returns the name of the object referred to by the specified object path
 	 */
-	static FStringView ObjectPathToObjectName(FStringView InObjectPath);
+	static FWideStringView ObjectPathToObjectName(FWideStringView InObjectPath);
+	static FAnsiStringView ObjectPathToObjectName(FAnsiStringView InObjectPath);
 	static FString ObjectPathToObjectName(const FString& InObjectPath);
 
 	/**
