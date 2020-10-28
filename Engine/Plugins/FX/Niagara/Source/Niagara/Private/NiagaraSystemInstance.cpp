@@ -122,6 +122,7 @@ FNiagaraSystemInstance::FNiagaraSystemInstance(UWorld& InWorld, UNiagaraSystem& 
 	, bAlreadyBound(false)
 	, bLODDistanceIsValid(false)
 	, bPooled(bInPooled)
+	, bHasSimulationReset(false)
 	, bAsyncWorkInProgress(false)
 	, CachedDeltaSeconds(0.0f)
 	, RequestedExecutionState(ENiagaraExecutionState::Complete)
@@ -881,6 +882,7 @@ void FNiagaraSystemInstance::ResetInternal(bool bResetSimulations)
 
 	Age = 0;
 	TickCount = 0;
+	bHasSimulationReset = bResetSimulations;
 	CachedDeltaSeconds = 0.0f;
 	bLODDistanceIsValid = false;
 	TotalGPUParamSize = 0;
@@ -1022,6 +1024,7 @@ void FNiagaraSystemInstance::ReInitInternal()
 
 	Age = 0;
 	TickCount = 0;
+	bHasSimulationReset = true;
 	LocalBounds = FBox(FVector::ZeroVector, FVector::ZeroVector);
 	CachedDeltaSeconds = 0.0f;
 	bAlreadyBound = false;
