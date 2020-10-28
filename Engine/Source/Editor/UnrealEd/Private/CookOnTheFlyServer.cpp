@@ -1674,11 +1674,9 @@ void UCookOnTheFlyServer::LoadPackageInQueue(UE::Cook::FPackageData& PackageData
 	FName NewPackageFileName(GetPackageNameCache().GetCachedStandardFileName(LoadedPackage));
 	if (LoadedPackage->GetFName() != PackageData.GetPackageName())
 	{
-		// This case should never happen since we are checking for the existence of the file in PumpExternalRequests
-		UE_LOG(LogCook, Warning, TEXT("Unexpected change in PackageName when loading a requested package. \"%s\" changed to \"%s\"."),
-			*PackageData.GetPackageName().ToString(), *LoadedPackage->GetName());
-
-		// The PackageName is not the name that we loaded
+		// The PackageName is not the name that we loaded. This can happen due to CoreRedirects.
+		// We refuse to cook requests for packages that no longer exist in PumpExternalRequests, but it is possible
+		// that a CoreRedirect exists from a (externally requested or requested as a reference) package that still exists.
 		// Mark the original PackageName as cooked for all platforms and send a request to cook the new FileName
 		check(NewPackageFileName != PackageFileName);
 
