@@ -23,10 +23,11 @@ DECLARE_MULTICAST_DELEGATE_TwoParams(FOnEditorAutomationMapLoad, const FString&,
 /** Common automation functions */
 namespace AutomationCommon
 {
-	/** Get a string contains the render mode we are currently in */
-	ENGINE_API FString GetRenderDetailsString();
 
 #if WITH_AUTOMATION_TESTS
+
+	/** Get a string contains the render mode we are currently in */
+	ENGINE_API FString GetRenderDetailsString();
 
 	/** Gets a name to be used for this screenshot.  This will return something like 
 		TestName/PlatformName/DeviceName.png. It's important to understand that a screenshot
