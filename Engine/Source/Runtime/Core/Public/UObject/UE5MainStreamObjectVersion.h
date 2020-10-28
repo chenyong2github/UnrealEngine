@@ -34,6 +34,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Added a new configurable BlendProfileMode that the user can setup to control the behavior of blend profiles.
 		AnimationAddedBlendProfileModes,
 
+		// Serialize DataLayers in WorldPartitionActorDesc
+		WorldPartitionActorDescSerializeDataLayers,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

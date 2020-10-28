@@ -3,6 +3,7 @@
 
 #include "CoreMinimal.h"
 #include "Templates/SubclassOf.h"
+#include "WorldPartition/DataLayer/DataLayer.h"
 #include "WorldPartitionRuntimeCell.generated.h"
 
 USTRUCT()
@@ -53,11 +54,11 @@ class UWorldPartitionRuntimeCell : public UObject
 	virtual FLinearColor GetDebugColor() const PURE_VIRTUAL(UWorldPartitionRuntimeCell::GetDebugColor, return FLinearColor::Black;);
 	virtual bool IsAlwaysLoaded() const { return bIsAlwaysLoaded; }
 	virtual void SetIsAlwaysLoaded(bool bInIsAlwaysLoaded) { bIsAlwaysLoaded = bInIsAlwaysLoaded; }
-	void SetDataLayers(const TArray<FName> InDataLayers) { check(DataLayers.IsEmpty()); DataLayers = InDataLayers; }
 	bool HasDataLayers() const { return !DataLayers.IsEmpty(); }
 	const TArray<FName>& GetDataLayers() const { return DataLayers; }
 
 #if WITH_EDITOR
+	void SetDataLayers(const TArray<const UDataLayer*> InDataLayers);
 	virtual void AddActorToCell(FName Package, FName Path) PURE_VIRTUAL(UWorldPartitionRuntimeCell::AddActorToCell,);
 	virtual bool CreateCellForCook() PURE_VIRTUAL(UWorldPartitionRuntimeCell::CreateCellForCook, return false;);
 	virtual int32 GetActorCount() const PURE_VIRTUAL(UWorldPartitionRuntimeCell::GetActorCount, return 0;);

@@ -13,6 +13,8 @@
 #include "AI/NavigationSystemBase.h"
 #include "Engine/BlueprintGeneratedClass.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
+#include "WorldPartition/DataLayer/WorldDataLayers.h"
+#include "WorldPartition/DataLayer/DataLayer.h"
 #include "EditorSupportDelegates.h"
 #include "Logging/TokenizedMessage.h"
 #include "Logging/MessageLog.h"
@@ -83,6 +85,11 @@ void AActor::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	FProperty* MemberPropertyThatChanged = PropertyChangedEvent.MemberProperty;
 	const FName MemberPropertyName = MemberPropertyThatChanged != NULL ? MemberPropertyThatChanged->GetFName() : NAME_None;
+
+	if (IsPropertyChangedAffectingDataLayers(PropertyChangedEvent))
+	{
+		FixupDataLayers();
+	}
 	
 	const bool bTransformationChanged = (MemberPropertyName == Name_RelativeLocation || MemberPropertyName == Name_RelativeRotation || MemberPropertyName == Name_RelativeScale3D);
 
@@ -1119,6 +1126,180 @@ EDataValidationResult AActor::IsDataValid(TArray<FText>& ValidationErrors)
 
 	return Result;
 }
+
+//---------------------------------------------------------------------------
+// DataLayers (begin)
+
+bool AActor::AddDataLayer(const UDataLayer* DataLayer)
+{
+	bool bActorWasModified = false;
+	if (DataLayer && !ContainsDataLayer(DataLayer))
+	{
+		if (!bActorWasModified)
+		{
+			Modify();
+			bActorWasModified = true;
+		}
+
+		DataLayers.Emplace(DataLayer->GetFName());
+	}
+	return bActorWasModified;
+}
+
+bool AActor::RemoveDataLayer(const UDataLayer* DataLayer)
+{
+	bool bActorWasModified = false;
+	if (ContainsDataLayer(DataLayer))
+	{
+		if (!bActorWasModified)
+		{
+			Modify();
+			bActorWasModified = true;
+		}
+
+		DataLayers.Remove(FActorDataLayer(DataLayer->GetFName()));
+	}
+	return bActorWasModified;
+}
+
+bool AActor::ContainsDataLayer(const UDataLayer* DataLayer) const
+{
+	return DataLayer && DataLayers.Contains(FActorDataLayer(DataLayer->GetFName()));
+}
+
+bool AActor::HasDataLayers() const
+{
+	return DataLayers.Num() > 0;
+}
+
+bool AActor::HasValidDataLayers() const
+{
+	if (const AWorldDataLayers* WorldDataLayers = AWorldDataLayers::Get(GetWorld()))
+	{
+		for (const FActorDataLayer& DataLayer : DataLayers)
+		{
+			if (const UDataLayer* DataLayerObject = WorldDataLayers->GetDataLayerFromName(DataLayer.Name))
+			{
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+bool AActor::HasAllDataLayers(const TArray<const UDataLayer*>& InDataLayers) const
+{
+	if (DataLayers.Num() < InDataLayers.Num())
+	{
+		return false;
+	}
+
+	for (const UDataLayer* DataLayer : InDataLayers)
+	{
+		if (!ContainsDataLayer(DataLayer))
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
+TArray<FName> AActor::GetDataLayerNames() const
+{
+	TArray<FName> OutDataLayerNames;
+	OutDataLayerNames.Reserve(DataLayers.Num());
+
+	for (const UDataLayer* DataLayer : GetDataLayerObjects())
+	{
+		OutDataLayerNames.Add(DataLayer->GetFName());
+	}
+
+	return MoveTemp(OutDataLayerNames);
+}
+
+TArray<const UDataLayer*> AActor::GetDataLayerObjects() const
+{
+	TArray<const UDataLayer*> OutDataLayers;
+	OutDataLayers.Reserve(DataLayers.Num());
+	
+	if (const AWorldDataLayers* WorldDataLayers = AWorldDataLayers::Get(GetWorld()))
+	{
+		for (const FActorDataLayer& DataLayer : DataLayers)
+		{
+			if (const UDataLayer* DataLayerObject = WorldDataLayers->GetDataLayerFromName(DataLayer.Name))
+			{
+				OutDataLayers.Add(DataLayerObject);
+			}
+		}
+	}
+
+	return MoveTemp(OutDataLayers);
+}
+
+bool AActor::HasAnyOfDataLayers(const TArray<FName>& DataLayerNames) const
+{
+	for (const FActorDataLayer& DataLayer : DataLayers)
+	{
+		if (DataLayerNames.Contains(DataLayer.Name))
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+void AActor::FixupDataLayers()
+{
+	if (const AWorldDataLayers* WorldDataLayers = AWorldDataLayers::Get(GetWorld()))
+	{
+		TSet<FName> ExistingDataLayers;
+		for (int32 Index = 0; Index < DataLayers.Num();)
+		{
+			const FName& DataLayer = DataLayers[Index].Name;
+			if (!WorldDataLayers->GetDataLayerFromName(DataLayer) || ExistingDataLayers.Contains(DataLayer))
+			{
+				DataLayers.RemoveAtSwap(Index);
+			}
+			else
+			{
+				ExistingDataLayers.Add(DataLayer);
+				++Index;
+			}
+		}
+	}
+}
+
+bool AActor::IsPropertyChangedAffectingDataLayers(FPropertyChangedEvent& PropertyChangedEvent) const
+{
+	if (PropertyChangedEvent.Property != nullptr)
+	{
+		FProperty* MemberPropertyThatChanged = PropertyChangedEvent.MemberProperty;
+		const FName MemberPropertyName = MemberPropertyThatChanged != NULL ? MemberPropertyThatChanged->GetFName() : NAME_None;
+
+		static const FName NAME_DataLayers = GET_MEMBER_NAME_CHECKED(AActor, DataLayers);
+		static const FName NAME_FActorDataLayerName = GET_MEMBER_NAME_CHECKED(FActorDataLayer, Name);
+
+		if (MemberPropertyName == NAME_DataLayers &&
+			PropertyChangedEvent.ChangeType == EPropertyChangeType::ValueSet &&
+			PropertyChangedEvent.Property->GetFName() == NAME_FActorDataLayerName)
+		{
+			return true;
+		}
+		else
+		{
+			const FName PropertyName = PropertyChangedEvent.GetPropertyName();
+			if (PropertyName == NAME_DataLayers && (PropertyChangedEvent.ChangeType == EPropertyChangeType::ValueSet))
+			{
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+// DataLayers (end)
+//---------------------------------------------------------------------------
+
 #undef LOCTEXT_NAMESPACE
 
 #endif // WITH_EDITOR

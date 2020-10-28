@@ -56,11 +56,6 @@ public:
 	 */
 	void ToggleVisibility();
 
-	/** 
-	 *	Toggles the specified layer's actors loading behavior
-	 */
-	void ToggleActorsLoading();
-
 	/**
 	 *	Returns whether the layer can be assigned the specified name
 	 *
@@ -239,7 +234,4 @@ private:
 
 	/** Broadcasts whenever a layer visibility toggle is requested */
 	FVisibilityToggledEvent VisibilityToggledEvent;
-
-	/** Broadcasts whenever a layer actors loading toggle is requested */
-	FVisibilityToggledEvent ActorsLoadingToggledEvent;
 };

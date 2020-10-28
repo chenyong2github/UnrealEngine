@@ -78,6 +78,12 @@ void FLevelViewportCommands::RegisterCommands()
 		UI_COMMAND( HideAllLayers, "Hide All Layers", "Hides all layers", EUserInterfaceActionType::Button, FInputChord() );
 	}
 
+	// Generate a command for show/hide all DataLayers
+	{
+		UI_COMMAND(ShowAllDataLayers, "Show All Data Layers", "Shows all Data Layers", EUserInterfaceActionType::Button, FInputChord());
+		UI_COMMAND(HideAllDataLayers, "Hide All Data Layers", "Hides all Data Layers", EUserInterfaceActionType::Button, FInputChord());
+	}
+
 	// Generate a command for each sprite category
 	{
 		UI_COMMAND( ShowAllSprites, "Show All Sprites", "Shows all sprites", EUserInterfaceActionType::Button, FInputChord() );

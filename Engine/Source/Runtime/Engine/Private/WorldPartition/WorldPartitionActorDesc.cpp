@@ -11,7 +11,9 @@
 #include "Engine/World.h"
 #include "Engine/Level.h"
 #include "Editor/GroupActor.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
 #include "WorldPartition/WorldPartition.h"
+#include "WorldPartition/DataLayer/Datalayer.h"
 #endif
 
 #if WITH_EDITOR
@@ -53,7 +55,7 @@ void FWorldPartitionActorDesc::Init(const AActor* InActor)
 	RuntimeGrid = InActor->RuntimeGrid;
 	bActorIsEditorOnly = InActor->IsEditorOnly();
 	bLevelBoundsRelevant = InActor->IsLevelBoundsRelevant();
-	Layers = InActor->Layers;
+	DataLayers = InActor->GetDataLayerNames();
 	ActorPackage = InActor->GetPackage()->GetFName();
 	ActorPath = *InActor->GetPathName();
 	
@@ -139,11 +141,26 @@ FString FWorldPartitionActorDesc::ToString() const
 
 void FWorldPartitionActorDesc::Serialize(FArchive& Ar)
 {
-	Ar << Class << Guid << BoundsLocation << BoundsExtent << GridPlacement << RuntimeGrid << bActorIsEditorOnly << bLevelBoundsRelevant << Layers << References;
+	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
+
+	Ar << Class << Guid << BoundsLocation << BoundsExtent << GridPlacement << RuntimeGrid << bActorIsEditorOnly << bLevelBoundsRelevant;
+	
+	if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::WorldPartitionActorDescSerializeDataLayers)
+	{
+		TArray<FName> Deprecated_Layers;
+		Ar << Deprecated_Layers;
+	}
+
+	Ar << References;
 
 	if (!Ar.IsPersistent())
 	{
 		Ar << ActorPackage << ActorPath;
+	}
+
+	if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) >= FUE5MainStreamObjectVersion::WorldPartitionActorDescSerializeDataLayers)
+	{
+		Ar << DataLayers;
 	}
 }
 

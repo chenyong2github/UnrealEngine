@@ -36,6 +36,8 @@
 #include "Editor/Layers/Public/LayersModule.h"
 #include "Editor/WorldBrowser/Public/WorldBrowserModule.h"
 #include "Editor/WorldPartitionEditor/Public/WorldPartitionEditorModule.h"
+#include "Editor/DataLayerEditor/Public/DataLayerEditorModule.h"
+#include "WorldPartition/WorldPartitionSubsystem.h"
 #include "Toolkits/ToolkitManager.h"
 #include "PropertyEditorModule.h"
 #include "Interfaces/IMainFrameModule.h"
@@ -854,6 +856,22 @@ TSharedRef<SDockTab> SLevelEditor::SpawnLevelEditorTab( const FSpawnTabArgs& Arg
 				WorldPartitionEditorModule.CreateWorldPartitionEditor()
 			];
 	}
+	else if (TabIdentifier == LevelEditorTabIds::LevelEditorDataLayerBrowser)
+	{
+		FDataLayerEditorModule& DataLayerEditorModule = FModuleManager::LoadModuleChecked<FDataLayerEditorModule>( "DataLayerEditor" );
+		return SNew(SDockTab)
+			.Icon(FEditorStyle::GetBrush("LevelEditor.Tabs.DataLayers"))
+			.Label(NSLOCTEXT("LevelEditor", "DataLayersTabTitle", "Data Layers"))
+			[
+				SNew(SBorder)
+				.Padding(0)
+				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+				.AddMetaData<FTutorialMetaData>(FTutorialMetaData(TEXT("DataLayerBrowser"), TEXT("LevelEditorDataLayerBrowser")))
+				[
+					DataLayerEditorModule.CreateDataLayerBrowser()
+				]
+			];
+	}
 	else if( TabIdentifier == TEXT("Sequencer") )
 	{
 		if (FSlateStyleRegistry::FindSlateStyle("LevelSequenceEditorStyle"))
@@ -943,6 +961,16 @@ bool SLevelEditor::HasAnyHostedEditorModeToolkit() const
 		}
 	}
 	return false;
+}
+
+bool SLevelEditor::CanSpawnLayerBrowser(const FSpawnTabArgs& Args) const
+{
+	return !UWorld::HasSubsystem<UWorldPartitionSubsystem>(GetWorld());
+}
+
+bool SLevelEditor::CanSpawnDataLayerBrowser(const FSpawnTabArgs& Args) const
+{
+	return UWorld::HasSubsystem<UWorldPartitionSubsystem>(GetWorld());
 }
 
 TSharedPtr<SDockTab> SLevelEditor::TryInvokeTab( FName TabID )
@@ -1237,11 +1265,22 @@ TSharedRef<SWidget> SLevelEditor::RestoreContentArea( const TSharedRef<SDockTab>
 
 		{
 			const FSlateIcon LayersIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Layers");
-			LevelEditorTabManager->RegisterTabSpawner(LevelEditorTabIds::LevelEditorLayerBrowser, FOnSpawnTab::CreateSP<SLevelEditor, FName, FString>(this, &SLevelEditor::SpawnLevelEditorTab, LevelEditorTabIds::LevelEditorLayerBrowser, FString()) )
+			LevelEditorTabManager->RegisterTabSpawner(LevelEditorTabIds::LevelEditorLayerBrowser, FOnSpawnTab::CreateSP<SLevelEditor, FName, FString>(this, &SLevelEditor::SpawnLevelEditorTab, LevelEditorTabIds::LevelEditorLayerBrowser, FString()),
+																								  FCanSpawnTab::CreateSP(this, &SLevelEditor::CanSpawnLayerBrowser))
 				.SetDisplayName(NSLOCTEXT("LevelEditorTabs", "LevelEditorLayerBrowser", "Layers"))
 				.SetTooltipText(NSLOCTEXT("LevelEditorTabs", "LevelEditorLayerBrowserTooltipText", "Open the Layers tab. Use this to manage which actors in the world belong to which layers."))
 				.SetGroup( MenuStructure.GetLevelEditorCategory() )
 				.SetIcon( LayersIcon );
+		}
+
+		{
+			const FSlateIcon DataLayersIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.DataLayers");
+			LevelEditorTabManager->RegisterTabSpawner(LevelEditorTabIds::LevelEditorDataLayerBrowser, FOnSpawnTab::CreateSP<SLevelEditor, FName, FString>(this, &SLevelEditor::SpawnLevelEditorTab, LevelEditorTabIds::LevelEditorDataLayerBrowser, FString()),
+																									  FCanSpawnTab::CreateSP(this, &SLevelEditor::CanSpawnDataLayerBrowser))
+				.SetDisplayName(NSLOCTEXT("LevelEditorTabs", "LevelEditorDataLayerBrowser", "Data Layers"))
+				.SetTooltipText(NSLOCTEXT("LevelEditorTabs", "LevelEditorDataLayerBrowserTooltipText", "Open the Data Layers tab. Use this to manage which actors in the world belong to which Data Layers."))
+				.SetGroup(MenuStructure.GetLevelEditorCategory())
+				.SetIcon(DataLayersIcon);
 		}
 
 		{

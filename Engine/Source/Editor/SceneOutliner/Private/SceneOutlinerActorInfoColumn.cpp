@@ -4,6 +4,7 @@
 #include "Modules/ModuleManager.h"
 #include "UObject/Package.h"
 #include "Misc/PackageName.h"
+#include "Misc/StringBuilder.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Views/SListView.h"
@@ -15,6 +16,8 @@
 #include "ComponentTreeItem.h"
 #include "FolderTreeItem.h"
 #include "WorldTreeItem.h"
+#include "WorldPartition/DataLayer/DataLayer.h"
+#include "WorldPartition/DataLayer/WorldDataLayers.h"
 
 #define LOCTEXT_NAMESPACE "SceneOutlinerActorInfoColumn"
 
@@ -65,6 +68,21 @@ struct FGetInfo
 				}
 				return Result;
 			}
+
+			case SceneOutliner::ECustomColumnMode::DataLayer:
+			{
+				TStringBuilder<128> Builder;
+				for (const UDataLayer* DataLayer : Actor->GetDataLayerObjects())
+				{
+					if (Builder.Len())
+					{
+						Builder += TEXT(", ");
+					}
+					Builder += DataLayer->GetDataLayerLabel().ToString();
+				}
+				return Builder.ToString();
+			}
+
 		case SceneOutliner::ECustomColumnMode::Mobility:
 			{
 				FString Result;
@@ -373,6 +391,10 @@ FText FActorInfoColumn::MakeComboText( const SceneOutliner::ECustomColumnMode::T
 		ModeName = LOCTEXT("CustomColumnMode_Layer", "Layer");
 		break;
 
+	case SceneOutliner::ECustomColumnMode::DataLayer:
+		ModeName = LOCTEXT("CustomColumnMode_DataLayer", "Data Layer");
+		break;
+
 	case SceneOutliner::ECustomColumnMode::Socket:
 		ModeName = LOCTEXT("CustomColumnMode_Socket", "Socket");
 		break;
@@ -418,6 +440,10 @@ FText FActorInfoColumn::MakeComboToolTipText( const SceneOutliner::ECustomColumn
 
 	case SceneOutliner::ECustomColumnMode::Layer:
 		ToolTipText = LOCTEXT("CustomColumnModeToolTip_Layer", "Displays the layer each actor is in, and allows you to search by layer name");
+		break;
+
+	case SceneOutliner::ECustomColumnMode::DataLayer:
+		ToolTipText = LOCTEXT("CustomColumnModeToolTip_DataLayer", "Displays the data layers each actor is in, and allows you to search by data layer label");
 		break;
 
 	case SceneOutliner::ECustomColumnMode::Socket:

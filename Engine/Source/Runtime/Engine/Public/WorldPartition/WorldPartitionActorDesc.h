@@ -41,7 +41,7 @@ public:
 	inline FName GetRuntimeGrid() const { return RuntimeGrid; }
 	inline bool GetActorIsEditorOnly() const { return bActorIsEditorOnly; }
 	inline bool GetLevelBoundsRelevant() const { return bLevelBoundsRelevant; }
-	inline const TArray<FName>& GetLayers() const { return Layers; }
+	inline const TArray<FName>& GetDataLayers() const { return DataLayers; }
 	inline FName GetActorPackage() const { return ActorPackage; }
 	inline FName GetActorPath() const { return ActorPath; }
 	FBox GetBounds() const;
@@ -95,7 +95,7 @@ protected:
 	FName						RuntimeGrid;
 	bool						bActorIsEditorOnly;
 	bool						bLevelBoundsRelevant;
-	TArray<FName>				Layers;
+	TArray<FName>				DataLayers;
 	TArray<FGuid>				References;
 	
 	mutable uint32				LoadedRefCount;

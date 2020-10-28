@@ -43,6 +43,7 @@ public:
 	static const FName LevelEditorSceneOutliner;
 	static const FName LevelEditorStatsViewer;
 	static const FName LevelEditorLayerBrowser;
+	static const FName LevelEditorDataLayerBrowser;
 	static const FName Sequencer;
 	static const FName SequencerGraphEditor;
 	static const FName WorldSettings;

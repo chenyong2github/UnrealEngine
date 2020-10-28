@@ -15,6 +15,17 @@ void UWorldPartitionRuntimeCell::AddCellData(const UWorldPartitionRuntimeCellDat
 	CellDataMap.Add(InCellData->GetClass(), InCellData);
 }
 
+void UWorldPartitionRuntimeCell::SetDataLayers(const TArray<const UDataLayer*> InDataLayers)
+{
+	check(DataLayers.IsEmpty());
+	DataLayers.Reserve(InDataLayers.Num());
+	for (const UDataLayer* DataLayer : InDataLayers)
+	{
+		check(DataLayer->IsDynamicallyLoaded());
+		DataLayers.Add(DataLayer->GetFName());
+	}
+}
+
 #endif
 
 const UWorldPartitionRuntimeCellData* UWorldPartitionRuntimeCell::GetCellData(const TSubclassOf<UWorldPartitionRuntimeCellData> InCellDataClass) const

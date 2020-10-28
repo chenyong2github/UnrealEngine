@@ -36,6 +36,9 @@ namespace SceneOutliner
 			/** Layer */
 			Layer,
 
+			/** Data Layer */
+			DataLayer,
+
 			/** The socket the actor is attached to. */
 			Socket,
 

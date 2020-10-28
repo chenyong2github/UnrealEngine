@@ -724,6 +724,9 @@ public:
 	/** List of layers that are hidden in this view */
 	TArray<FName>			ViewHiddenLayers;
 
+	/** List of DataLayers that are hidden in this view */
+	TArray<FName>			ViewHiddenDataLayers;
+
 	/** Special volume actor visibility settings. Each bit represents a visibility state for a specific volume class. 1 = visible, 0 = hidden */
 	TBitArray<>				VolumeActorVisibility;
 

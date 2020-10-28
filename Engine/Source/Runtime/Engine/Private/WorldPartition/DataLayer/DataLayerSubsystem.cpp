@@ -1,11 +1,25 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WorldPartition/DataLayer/DataLayerSubsystem.h"
-#include "Engine/World.h"
+#include "WorldPartition/DataLayer/WorldDataLayers.h"
+#include "WorldPartition/DataLayer/DataLayer.h"
 #include "Engine/Engine.h"
+#include "Engine/World.h"
 
 UDataLayerSubsystem::UDataLayerSubsystem()
 {}
+
+const UDataLayer* UDataLayerSubsystem::GetDataLayerFromLabel(const FName& InDataLayerLabel) const
+{
+	const AWorldDataLayers* WorldDataLayers = AWorldDataLayers::Get(GetWorld());
+	return WorldDataLayers ? WorldDataLayers->GetDataLayerFromLabel(InDataLayerLabel) : nullptr;
+}
+
+const UDataLayer* UDataLayerSubsystem::GetDataLayerFromName(const FName& InDataLayerName) const
+{
+	const AWorldDataLayers* WorldDataLayers = AWorldDataLayers::Get(GetWorld());
+	return WorldDataLayers ? WorldDataLayers->GetDataLayerFromName(InDataLayerName) : nullptr;
+}
 
 bool UDataLayerSubsystem::ShouldCreateSubsystem(UObject* Outer) const
 {
@@ -22,33 +36,38 @@ bool UDataLayerSubsystem::ShouldCreateSubsystem(UObject* Outer) const
 	return false;
 }
 
-void UDataLayerSubsystem::ActivateDataLayer(const FName& InDataLayer, bool bActivate)
+void UDataLayerSubsystem::ActivateDataLayer(const FName& InDataLayerName, bool bActivate)
 {
-	const bool bIsLayerActive = IsDataLayerActive(InDataLayer);
+	// First validate that DataLayer is known by the world
+	if (!GetDataLayerFromName(InDataLayerName))
+{
+		return;
+	}
+
+	const bool bIsLayerActive = IsDataLayerActive(InDataLayerName);
 	if (bIsLayerActive != bActivate)
 	{
 		if (bActivate)
 		{
-			//@todo_ow: Once DataLayer is an asset, validate it exists
-			ActiveDataLayers.Add(InDataLayer);
+			ActiveDataLayerNames.Add(InDataLayerName);
 		}
 		else
 		{
-			ActiveDataLayers.Remove(InDataLayer);
+			ActiveDataLayerNames.Remove(InDataLayerName);
 		}
 	}
 }
 
-bool UDataLayerSubsystem::IsDataLayerActive(const FName& InDataLayer) const
+bool UDataLayerSubsystem::IsDataLayerActive(const FName& InDataLayerName) const
 {
-	return ActiveDataLayers.Contains(InDataLayer);
+	return ActiveDataLayerNames.Contains(InDataLayerName);
 }
 
-bool UDataLayerSubsystem::IsAnyDataLayerActive(const TArray<FName>& InDataLayers) const
+bool UDataLayerSubsystem::IsAnyDataLayerActive(const TArray<FName>& InDataLayerNames) const
 {
-	for (const FName& DataLayer : InDataLayers)
+	for (FName DataLayerName : InDataLayerNames)
 	{
-		if (IsDataLayerActive(DataLayer))
+		if (IsDataLayerActive(DataLayerName))
 		{
 			return true;
 		}
@@ -58,20 +77,22 @@ bool UDataLayerSubsystem::IsAnyDataLayerActive(const TArray<FName>& InDataLayers
 
 FAutoConsoleCommand UDataLayerSubsystem::ToggleDataLayerActivation(
 	TEXT("wp.Runtime.ToggleDataLayerActivation"),
-	TEXT("Toggles a DataLayer. Args [DataLayerName]"),
+	TEXT("Toggles a DataLayer. Args [DataLayerLabel]"),
 	FConsoleCommandWithArgsDelegate::CreateLambda([](const TArray<FString>& Args)
 	{
 		if (Args.Num() == 1)
 		{
-			FName DataLayer = FName(Args[0]);
+			FName DataLayerLabel = FName(Args[0]);
 			for (const FWorldContext& Context : GEngine->GetWorldContexts())
 			{
 				UWorld* World = Context.World();
 				if (World && World->IsGameWorld())
 				{
-					if (UDataLayerSubsystem* DataLayerSubsystem = World->GetSubsystem<UDataLayerSubsystem>())
+					UDataLayerSubsystem* DataLayerSubsystem = World->GetSubsystem<UDataLayerSubsystem>();
+					if (const UDataLayer* DataLayer = DataLayerSubsystem ? DataLayerSubsystem->GetDataLayerFromLabel(DataLayerLabel) : nullptr)
 					{
-						DataLayerSubsystem->ActivateDataLayer(DataLayer, !DataLayerSubsystem->IsDataLayerActive(DataLayer));
+						FName DataLayerName = DataLayer->GetFName();
+						DataLayerSubsystem->ActivateDataLayer(DataLayerName, !DataLayerSubsystem->IsDataLayerActive(DataLayerName));
 					}
 				}
 			}

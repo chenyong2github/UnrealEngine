@@ -1158,7 +1158,21 @@ void FStarshipEditorStyle::FStyle::SetupGeneralStyles()
 		Set( "LayerBrowserButton.LabelFont", DEFAULT_FONT( "Regular", 8 ) );
 	}
 
-	
+	// DataLayer
+	{
+		Set("DataLayer.Icon16x", new IMAGE_BRUSH("Icons/datalayer_16x", Icon16x16));
+		Set("DataLayer.DynamicallyLoaded", new IMAGE_BRUSH("/Icons/datalayer_dynamicallyloaded_16x", Icon16x16));
+		Set("DataLayer.NotDynamicallyLoaded", new IMAGE_BRUSH("/Icons/datalayer_not_dynamicallyloaded_16x", Icon16x16));
+		Set("DataLayerBrowser.DataLayerContentsQuickbarBackground", new CORE_BOX_BRUSH("Common/DarkGroupBorder", 4.f / 16.f));
+		Set("DataLayerBrowser.ExploreDataLayerContents", new IMAGE_BRUSH("Icons/datalayer_explore_contents", Icon16x16));
+		Set("DataLayerBrowser.ReturnToDataLayersList", new IMAGE_BRUSH("Icons/datalayer_exit_contents", Icon16x16));
+		Set("DataLayerBrowser.Actor.RemoveFromDataLayer", new IMAGE_BRUSH("Icons/Cross_12x", Icon12x12));
+		Set("DataLayerBrowserButton", FButtonStyle(Button)
+			.SetNormal(FSlateNoResource())
+			.SetHovered(BOX_BRUSH("Common/RoundedSelection_16x", 4.0f / 16.0f, SelectionColor))
+			.SetPressed(BOX_BRUSH("Common/RoundedSelection_16x", 4.0f / 16.0f, SelectionColor_Pressed))
+		);
+	}
 
 	// Scene Outliner
 	{
@@ -4303,6 +4317,7 @@ void FStarshipEditorStyle::FStyle::SetupLevelEditorStyle()
 			Set( "LevelEditor.Tabs.WorldPartition", new IMAGE_BRUSH( "/Icons/icon_levels_partitionbutton_16x", Icon16x16 ) );
 
 			Set( "LevelEditor.Tabs.Layers",                 new IMAGE_BRUSH_SVG("Starship/Common/Layers", Icon16x16) );
+			Set( "LevelEditor.Tabs.DataLayers",				new IMAGE_BRUSH_SVG("Starship/Common/DataLayers", Icon16x16));
 			Set( "LevelEditor.Tabs.ComposureCompositing",   new IMAGE_BRUSH_SVG("Starship/Common/ComposureCompositing", Icon16x16) );
 			Set( "LevelEditor.Tabs.USDStage",   			new IMAGE_BRUSH_SVG("Starship/Common/USDStage", Icon16x16) );
 

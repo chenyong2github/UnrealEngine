@@ -112,17 +112,6 @@ private:
 	}
 
 	/**
-	 *	Called when the user clicks on the actors loading icon for a layer's row widget
-	 *
-	 *	@return	A reply that indicated whether this event was handled.
-	 */
-	FReply OnToggleActorsLoading()
-	{
-		ViewModel->ToggleActorsLoading();
-		return FReply::Handled();
-	}
-
-	/**
 	 *	Called to get the Slate Image Brush representing the visibility state of
 	 *	the layer this row widget represents
 	 *

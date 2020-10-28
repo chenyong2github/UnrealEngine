@@ -65,6 +65,7 @@ const FName LevelEditorTabIds::LevelEditorBuildAndSubmit(TEXT("LevelEditorBuildA
 const FName LevelEditorTabIds::LevelEditorSceneOutliner(TEXT("LevelEditorSceneOutliner"));
 const FName LevelEditorTabIds::LevelEditorStatsViewer(TEXT("LevelEditorStatsViewer"));
 const FName LevelEditorTabIds::LevelEditorLayerBrowser(TEXT("LevelEditorLayerBrowser"));
+const FName LevelEditorTabIds::LevelEditorDataLayerBrowser(TEXT("LevelEditorDataLayerBrowser"));
 const FName LevelEditorTabIds::Sequencer(TEXT("Sequencer"));
 const FName LevelEditorTabIds::SequencerGraphEditor(TEXT("SequencerGraphEditor"));
 const FName LevelEditorTabIds::WorldSettings(TEXT("WorldSettingsTab"));

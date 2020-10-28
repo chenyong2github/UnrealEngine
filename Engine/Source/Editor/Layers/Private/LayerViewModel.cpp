@@ -103,16 +103,6 @@ void FLayerViewModel::ToggleVisibility()
 	VisibilityToggledEvent.Broadcast( AsShared() );
 }
 
-void FLayerViewModel::ToggleActorsLoading()
-{
-	if (!Layer.IsValid())
-	{
-		return;
-	}
-
-	ActorsLoadingToggledEvent.Broadcast(AsShared());
-}
-
 
 bool FLayerViewModel::CanRenameTo( const FName& NewLayerName, FString& OutMessage ) const
 {

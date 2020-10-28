@@ -10,6 +10,8 @@
 #include "WorldPartition/WorldPartitionStreamingPolicy.h"
 #include "WorldPartition/DataLayer/DataLayerSubsystem.h"
 #include "WorldPartition/DataLayer/DataLayerHelper.h"
+#include "WorldPartition/DataLayer/WorldDataLayers.h"
+#include "WorldPartition/DataLayer/DataLayer.h"
 #include "GameFramework/WorldSettings.h"
 #include "ProfilingDebugging/ScopedTimers.h"
 #include "Engine/World.h"
@@ -110,24 +112,37 @@ static FAutoConsoleVariableRef CVarRuntimeSpatialHashCellToSourceAngleContributi
 // Clustering
 struct FActorCluster
 {
-	TSet<FGuid>			Actors;
-	EActorGridPlacement	GridPlacement;
-	FName				RuntimeGrid;
-	FBox				Bounds;
-	TArray<FName>		DataLayers;
-	uint32				DataLayersID;
+	TSet<FGuid>					Actors;
+	EActorGridPlacement			GridPlacement;
+	FName						RuntimeGrid;
+	FBox						Bounds;
+	TArray<const UDataLayer*>	DataLayers;
+	uint32						DataLayersID;
 
-	FActorCluster(const FWorldPartitionActorDesc* ActorDesc);
+	FActorCluster(const FWorldPartitionActorDesc* ActorDesc, UWorld* World);
 	void Add(const FActorCluster& ActorCluster);
 };
 
-FActorCluster::FActorCluster(const FWorldPartitionActorDesc* ActorDesc)
+FActorCluster::FActorCluster(const FWorldPartitionActorDesc* ActorDesc, UWorld* World)
 	: GridPlacement(ActorDesc->GetGridPlacement())
 	, RuntimeGrid(ActorDesc->GetRuntimeGrid())
 	, Bounds(ActorDesc->GetBounds())
 {
 	check(GridPlacement != EActorGridPlacement::None);
 	Actors.Add(ActorDesc->GetGuid());
+	if (const AWorldDataLayers* WorldDataLayers = AWorldDataLayers::Get(World))
+	{
+		for (const FName& DataLayerName : ActorDesc->GetDataLayers())
+		{
+			if (const UDataLayer* DataLayer = WorldDataLayers->GetDataLayerFromName(DataLayerName))
+			{
+				if (DataLayer->IsDynamicallyLoaded())
+				{
+					DataLayers.Add(DataLayer);
+				}
+			}
+		}
+	}
 	DataLayersID = FDataLayersHelper::ComputeDataLayerID(DataLayers);
 }
 
@@ -170,8 +185,9 @@ void FActorCluster::Add(const FActorCluster& ActorCluster)
 	// Merge DataLayers
 	if (DataLayersID != ActorCluster.DataLayersID)
 	{
-		for (const FName& DataLayer : ActorCluster.DataLayers)
+		for (const UDataLayer* DataLayer : ActorCluster.DataLayers)
 		{
+			check(DataLayer->IsDynamicallyLoaded());
 			DataLayers.AddUnique(DataLayer);
 		}
 		DataLayersID = FDataLayersHelper::ComputeDataLayerID(DataLayers);
@@ -181,10 +197,11 @@ void FActorCluster::Add(const FActorCluster& ActorCluster)
 
 void CreateActorCluster(const FGuid& ActorGuid, const FWorldPartitionActorDesc* ActorDesc, TMap<FGuid, FActorCluster*>& ActorToActorCluster, TSet<FActorCluster*>& ActorClustersSet, UWorldPartition* WorldPartition)
 {
+	UWorld* World = WorldPartition->GetWorld();
 	FActorCluster* ActorCluster = ActorToActorCluster.FindRef(ActorGuid);
 	if (!ActorCluster)
 	{
-		ActorCluster = new FActorCluster(ActorDesc);
+		ActorCluster = new FActorCluster(ActorDesc, World);
 		ActorClustersSet.Add(ActorCluster);
 		ActorToActorCluster.Add(ActorGuid, ActorCluster);
 	}
@@ -217,7 +234,7 @@ void CreateActorCluster(const FGuid& ActorGuid, const FWorldPartitionActorDesc* 
 				else
 				{
 					// Put Reference in Actor's cluster
-					ActorCluster->Add(FActorCluster(ReferenceActorDesc));
+					ActorCluster->Add(FActorCluster(ReferenceActorDesc, World));
 				}
 
 				// Map its cluster
@@ -469,28 +486,30 @@ struct FSquare2DGridHelper
 
 	struct FGridLevel : public FGrid2D
 	{
+#if WITH_EDITOR
 		struct FGridCellDataChunk
 		{
-			FGridCellDataChunk(const TArray<FName>& InDataLayers)
-			: DataLayers(InDataLayers)
-			, DataLayersID(FDataLayersHelper::ComputeDataLayerID(InDataLayers))
-			{}
+			FGridCellDataChunk(const TArray<const UDataLayer*>& InDataLayers)
+			{
+				Algo::TransformIf(InDataLayers, DataLayers, [](const UDataLayer* DataLayer) { return DataLayer->IsDynamicallyLoaded(); }, [](const UDataLayer* DataLayer) { return DataLayer; });
+				DataLayersID = FDataLayersHelper::ComputeDataLayerID(DataLayers);
+			}
 
 			void AddActor(const FGuid& Actor) { Actors.Add(Actor); }
 			const TSet<FGuid>& GetActors() const { return Actors; }
 			bool HasDataLayers() const { return !DataLayers.IsEmpty(); }
-			const TArray<FName>& GetDataLayers() const { return DataLayers; }
+			const TArray<const UDataLayer*>& GetDataLayers() const { return DataLayers; }
 			uint32 GetDataLayersID() const { return DataLayersID; }
 
 		private:
 			TSet<FGuid> Actors;
-			TArray<FName> DataLayers;
+			TArray<const UDataLayer*> DataLayers;
 			uint32 DataLayersID;
 		};
 
 		struct FGridCell
 		{
-			void AddActor(const FGuid& InActor, const TArray<FName>& InDataLayers)
+			void AddActor(const FGuid& InActor, const TArray<const UDataLayer*>& InDataLayers)
 			{
 				uint32 DataLayersID = FDataLayersHelper::ComputeDataLayerID(InDataLayers);
 				FGridCellDataChunk* ActorDataChunk = Algo::FindByPredicate(DataChunks, [&](FGridCellDataChunk& InDataChunk) { return InDataChunk.GetDataLayersID() == DataLayersID; });
@@ -501,7 +520,7 @@ struct FSquare2DGridHelper
 				ActorDataChunk->AddActor(InActor);
 			}
 
-			void AddActors(const TSet<FGuid>& InActors, const TArray<FName>& InDataLayers)
+			void AddActors(const TSet<FGuid>& InActors, const TArray<const UDataLayer*>& InDataLayers)
 			{
 				for (const FGuid& Actor : InActors)
 				{
@@ -526,13 +545,17 @@ struct FSquare2DGridHelper
 		private:
 			TArray<FGridCellDataChunk> DataChunks;
 		};
+#endif
 
 		inline FGridLevel(const FVector2D& InOrigin, int32 InCellSize, int32 InGridSize)
 			: FGrid2D(InOrigin, InCellSize, InGridSize)
 		{
+#if WITH_EDITOR
 			Cells.InsertDefaulted(0, GridSize * GridSize);
+#endif
 		}
 
+#if WITH_EDITOR
 		/**
 		 * Returns the cell at the specified grid coordinate
 		 *
@@ -560,6 +583,7 @@ struct FSquare2DGridHelper
 		}
 
 		TArray<FGridCell> Cells;
+#endif
 	};
 
 	FSquare2DGridHelper(int32 InNumLevels, const FVector& InOrigin, int32 InCellSize, int32 InGridSize)
@@ -588,6 +612,7 @@ struct FSquare2DGridHelper
 		}
 	}
 
+#if WITH_EDITOR
 	// Returns the lowest grid level
 	inline FGridLevel& GetLowestLevel() { return Levels[0]; }
 
@@ -599,6 +624,7 @@ struct FSquare2DGridHelper
 
 	// Returns the cell at the given coord
 	inline const FGridLevel::FGridCell& GetCell(const FIntVector& InCoords) const { return Levels[InCoords.Z].GetCell(FIntVector2(InCoords.X, InCoords.Y)); }
+#endif
 
 	/**
 	 * Returns the cell bounds
@@ -1023,7 +1049,18 @@ static FSquare2DGridHelper GetPartitionedActors(const UWorldPartition* WorldPart
 				const FWorldPartitionActorDesc& ActorDesc = *WorldPartition->GetActorDesc(ActorGuid);
 				if (PartitionedActors.GetLowestLevel().GetCellCoords(FVector2D(ActorDesc.GetOrigin()), CellCoords))
 				{
-					PartitionedActors.GetLowestLevel().GetCell(CellCoords).AddActor(ActorGuid, TArray<FName>());
+					TArray<const UDataLayer*> ActorDataLayers;
+					if (const AWorldDataLayers* WorldDataLayers = AWorldDataLayers::Get(WorldPartition->GetWorld()))
+					{
+						for (const FName& DataLayerName : ActorDesc.GetDataLayers())
+						{
+							if (const UDataLayer* DataLayer = WorldDataLayers->GetDataLayerFromName(DataLayerName))
+							{
+								ActorDataLayers.Add(DataLayer);
+							}
+						}
+					}
+					PartitionedActors.GetLowestLevel().GetCell(CellCoords).AddActor(ActorGuid, ActorDataLayers);
 				}
 				else
 				{

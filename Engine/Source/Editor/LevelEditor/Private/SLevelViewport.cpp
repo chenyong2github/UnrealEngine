@@ -78,6 +78,10 @@
 #include "Bookmarks/IBookmarkTypeTools.h"
 #include "Editor/EditorPerformanceSettings.h"
 #include "UnrealWidget.h"
+#include "WorldPartition/WorldPartitionSubsystem.h"
+#include "WorldPartition/DataLayer/WorldDataLayers.h"
+#include "WorldPartition/DataLayer/DataLayer.h"
+#include "DataLayer/DataLayerEditorSubsystem.h"
 
 static const FName LevelEditorName("LevelEditor");
 
@@ -1593,16 +1597,33 @@ void SLevelViewport::BindShowCommands( FUICommandList& OutCommandList )
 
 	// Show Layers
 	{
+		auto CanToggleAllLayers = [this]() { return !UWorld::HasSubsystem<UWorldPartitionSubsystem>(GetWorld()); };
 		// Map 'Show All' and 'Hide All' commands
 		OutCommandList.MapAction(
 			LevelViewportCommands.ShowAllLayers,
-			FExecuteAction::CreateSP( this, &SLevelViewport::OnToggleAllLayers, true ) );
+			FExecuteAction::CreateSP( this, &SLevelViewport::OnToggleAllLayers, true ),
+			FCanExecuteAction::CreateLambda(CanToggleAllLayers));
 
 		OutCommandList.MapAction(
 			LevelViewportCommands.HideAllLayers,
-			FExecuteAction::CreateSP( this, &SLevelViewport::OnToggleAllLayers, false ) );
+			FExecuteAction::CreateSP( this, &SLevelViewport::OnToggleAllLayers, false ),
+			FCanExecuteAction::CreateLambda(CanToggleAllLayers));
 	}
+	// Show DataLayers
+	{
+		auto CanToggleAllDataLayers = [this]() { return UWorld::HasSubsystem<UWorldPartitionSubsystem>(GetWorld()); };
+		// Map 'Show All' and 'Hide All' commands
+		OutCommandList.MapAction(
+			LevelViewportCommands.ShowAllDataLayers,
+			FExecuteAction::CreateSP(this, &SLevelViewport::OnToggleAllDataLayers, true),
+			FCanExecuteAction::CreateLambda(CanToggleAllDataLayers));
 
+		OutCommandList.MapAction(
+			LevelViewportCommands.HideAllDataLayers,
+			FExecuteAction::CreateSP(this, &SLevelViewport::OnToggleAllDataLayers, false),
+			FCanExecuteAction::CreateLambda(CanToggleAllDataLayers));
+	}
+	
 	// Show Sprite Categories
 	{
 		// Map 'Show All' and 'Hide All' commands
@@ -2066,6 +2087,63 @@ void SLevelViewport::ToggleShowLayer( FName LayerName )
 bool SLevelViewport::IsLayerVisible( FName LayerName ) const
 {
 	return LevelViewportClient->ViewHiddenLayers.Find(LayerName) == INDEX_NONE;
+}
+
+/** Called when a user selects show or hide all from the DataLayers visibility menu. **/
+void SLevelViewport::OnToggleAllDataLayers(bool bVisible)
+{
+	UDataLayerEditorSubsystem* DataLayerSubsystem = UDataLayerEditorSubsystem::Get();
+	if (bVisible)
+	{
+		// Clear all hidden DataLayers
+		LevelViewportClient->ViewHiddenDataLayers.Empty();
+	}
+	else
+	{
+		TArray<FName> AllDataLayerNames;
+		if (const AWorldDataLayers* WorldDataLayers = AWorldDataLayers::Get(GetWorld()))
+		{
+			WorldDataLayers->ForEachDataLayer([&AllDataLayerNames](UDataLayer* DataLayer)
+			{
+				AllDataLayerNames.Add(DataLayer->GetFName());
+				return true;
+			});
+		}
+		// Hide them all
+		LevelViewportClient->ViewHiddenDataLayers = AllDataLayerNames;
+	}
+
+	// Update actor visibility for this view
+	DataLayerSubsystem->UpdatePerViewVisibility(LevelViewportClient.Get());
+	LevelViewportClient->Invalidate();
+}
+
+/** Called when the user toggles a layer from Layers sub-menu. **/
+void SLevelViewport::ToggleShowDataLayer(FName DataLayerName)
+{
+	int32 HiddenIndex = LevelViewportClient->ViewHiddenDataLayers.Find(DataLayerName);
+	if (HiddenIndex == INDEX_NONE)
+	{
+		LevelViewportClient->ViewHiddenDataLayers.Add(DataLayerName);
+	}
+	else
+	{
+		LevelViewportClient->ViewHiddenDataLayers.RemoveAt(HiddenIndex);
+	}
+
+	// Update actor visibility for this view
+	UDataLayerEditorSubsystem* DataLayerEditorSubsystem = UDataLayerEditorSubsystem::Get();
+	if (const UDataLayer* DataLayer = DataLayerEditorSubsystem->GetDataLayerFromName(DataLayerName))
+	{
+		DataLayerEditorSubsystem->UpdatePerViewVisibility(LevelViewportClient.Get(), DataLayer);
+		LevelViewportClient->Invalidate();
+	}
+}
+
+/** Called to determine if a DataLayer is visible. **/
+bool SLevelViewport::IsDataLayerVisible(FName DataLayerName) const
+{
+	return LevelViewportClient->ViewHiddenDataLayers.Find(DataLayerName) == INDEX_NONE;
 }
 
 void SLevelViewport::ToggleShowFoliageType(TWeakObjectPtr<UFoliageType> InFoliageType)

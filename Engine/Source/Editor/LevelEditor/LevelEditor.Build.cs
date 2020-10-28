@@ -17,7 +17,8 @@ public class LevelEditor : ModuleRules
                 "AppFramework",
                 "PortalServices",
                 "Persona",
-            }
+				"DataLayerEditor",
+			}
 		);
 
 		PublicIncludePathModuleNames.AddRange(
@@ -78,6 +79,7 @@ public class LevelEditor : ModuleRules
 				"EditorSubsystem",
 				"EnvironmentLightingViewer",
 				"DesktopPlatform",
+				"DataLayerEditor",
 			}
 		);
 
@@ -91,7 +93,7 @@ public class LevelEditor : ModuleRules
 				"SlateReflector",
 				"AutomationWindow",
 				"Layers",
-                "WorldBrowser",
+				"WorldBrowser",
 				"WorldPartitionEditor",
 				"EditorWidgets",
 				"AssetTools",

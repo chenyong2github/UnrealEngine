@@ -18,6 +18,10 @@
 #include "Misc/ITransaction.h"
 #include "Engine/Level.h"
 
+#if WITH_EDITOR
+#include "WorldPartition/DataLayer/ActorDataLayer.h"
+#endif
+
 #include "Actor.generated.h"
 
 class AActor;
@@ -32,6 +36,7 @@ class UPrimitiveComponent;
 struct FAttachedActorInfo;
 struct FNetViewer;
 struct FNetworkObjectInfo;
+class UDataLayer;
 
 #if WITH_EDITOR
 // @todo_ow this is temporary and will be removed
@@ -763,6 +768,10 @@ protected:
 	UPROPERTY(VisibleAnywhere, AdvancedDisplay, Category=Actor, NonPIEDuplicateTransient, TextExportTransient, NonTransactional)
 	FGuid ActorGuid;
 
+	/** DataLayers the actor belongs to.*/
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Actor)
+	TArray<FActorDataLayer> DataLayers;
+
 public:
 	/** The editor-only group this actor is a part of. */
 	UPROPERTY(Transient)
@@ -998,6 +1007,21 @@ public:
 		return Cast<T>(GetInstigatorController());
 	}
 
+#if WITH_EDITOR
+	//~=============================================================================
+	// DataLayers functions.
+	bool AddDataLayer(const UDataLayer* DataLayer);
+	bool RemoveDataLayer(const UDataLayer* DataLayer);
+	bool ContainsDataLayer(const UDataLayer* DataLayer) const;
+	bool HasDataLayers() const;
+	bool HasValidDataLayers() const;
+	bool HasAllDataLayers(const TArray<const UDataLayer*>& DataLayers) const;
+	bool HasAnyOfDataLayers(const TArray<FName>& DataLayerNames) const;
+	TArray<FName> GetDataLayerNames() const;
+	TArray<const UDataLayer*> GetDataLayerObjects() const;
+	bool IsPropertyChangedAffectingDataLayers(FPropertyChangedEvent& PropertyChangedEvent) const;
+	void FixupDataLayers();
+#endif
 
 	//~=============================================================================
 	// General functions.

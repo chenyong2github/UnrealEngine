@@ -22,8 +22,6 @@
 
 #if WITH_EDITOR
 #include "Editor.h"
-#include "Layers/Layer.h"
-#include "Layers/LayersSubsystem.h"
 #include "Editor/GroupActor.h"
 #include "EditorLevelUtils.h"
 #include "FileHelpers.h"
@@ -208,8 +206,6 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 
 		EditorHash->Initialize();
 
-		LayerSubSystem = GEditor->GetEditorSubsystem<ULayersSubsystem>();
-
 		if (IsMainWorldPartition())
 		{
 			RegisterDelegates();
@@ -225,8 +221,6 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 
 	if (bEditorOnly || !IsMainWorldPartition())
 	{
-		TSet<FName> AllLayersNames;
-
 		TArray<FAssetData> Assets;
 		UPackage* LevelPackage = OuterWorld->PersistentLevel->GetOutermost();
 
@@ -280,11 +274,6 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 				NewActorDesc->TransformInstance(ReplaceFrom, ReplaceTo, InstanceTransform);
 			}
 
-			if (bEditorOnly)
-			{
-				AllLayersNames.Append(NewActorDesc->GetLayers());
-			}
-
 			Actors.Add(NewActorDesc->GetGuid(), MoveTemp(NewActorDesc));
 		}
 
@@ -294,8 +283,6 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 			{
 				HashActorDesc(Pair.Value.Get());
 			}
-
-			CreateLayers(AllLayersNames);
 
 			// Load the always loaded cell, don't call LoadCells to avoid creating a transaction
 			UpdateLoadingEditorCell(EditorHash->GetAlwaysLoadedCell(), true);
@@ -723,20 +710,6 @@ void UWorldPartition::UpdateLoadingEditorCell(UWorldPartitionEditorCell* Cell, b
 	}
 }
 
-void UWorldPartition::CreateLayers(const TSet<FName>& LayerNames)
-{
-	// Make sure all the layers we discovered are created
-	if (LayerSubSystem)
-	{
-		for (FName LayerName : LayerNames)
-		{
-			if (!LayerSubSystem->IsLayer(LayerName))
-			{
-				LayerSubSystem->CreateLayer(LayerName);
-			}
-		}
-	}
-}
 #endif
 
 AActor* UWorldPartition::RegisterActor(FWorldPartitionActorDesc* ActorDesc)
@@ -756,16 +729,6 @@ AActor* UWorldPartition::RegisterActor(FWorldPartitionActorDesc* ActorDesc)
 	check(ActorDesc->GetActor() == Actor);
 
 	ApplyActorTransform(Actor, InstanceTransform);
-
-	// Since Actor might have been kept loaded but unregistered (modified), we need to make sure its visibility reflects its layer visibility
-	if (LayerSubSystem)
-	{
-		bool bActorModified = false;
-		bool bActorSelectionChanged = false;
-		const bool bActorNotifySelectionChange = false;
-		const bool bActorRedrawViewports = false;
-		LayerSubSystem->UpdateActorVisibility(Actor, bActorSelectionChanged, bActorModified, bActorNotifySelectionChange, bActorRedrawViewports);
-	}
 
 	TGuardValue<ITransaction*> TransGuard(GUndo, nullptr);
 	Actor->GetLevel()->AddLoadedActor(Actor);
@@ -788,11 +751,6 @@ void UWorldPartition::UnregisterActor(AActor* Actor)
 
 	if (!Actor->IsPendingKill())
 	{
-		if (LayerSubSystem)
-		{
-			LayerSubSystem->DisassociateActorFromLayers(Actor);
-		}
-
 		OnActorRegisteredEvent.Broadcast(*Actor, false);
 
 		Actor->GetLevel()->RemoveLoadedActor(Actor);

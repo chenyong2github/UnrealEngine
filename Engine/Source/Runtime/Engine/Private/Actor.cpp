@@ -787,6 +787,12 @@ void AActor::Serialize(FArchive& Ar)
 		}
 	}
 
+	// Fixup DataLayers
+	if (Ar.IsSaving() && !Ar.IsObjectReferenceCollector() && Ar.IsPersistent())
+	{
+		FixupDataLayers();
+	}
+
 	// When duplicating for PIE all components need to be gathered up and duplicated even if there are no other property references to them
 	// otherwise we can end up with Attach Parents that do not get redirected to the correct component. However, if there is a transient component
 	// we'll let that drop
@@ -886,6 +892,10 @@ void AActor::PostLoad()
 			UE_LOG(LogActor, Log,  TEXT("Loaded Actor (%s) with IsPendingKill() == true"), *GetName() );
 		}
 	}
+
+	// Fixup DataLayers
+	FixupDataLayers();
+
 #endif // WITH_EDITORONLY_DATA
 
 	// Since the actor is being loading, it finished spawning by definition when it was originally spawned, so set to true now

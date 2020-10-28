@@ -126,6 +126,12 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	/** Hides all layers */
 	TSharedPtr< FUICommandInfo > HideAllLayers;
 
+	/** Shows all DataLayers */
+	TSharedPtr< FUICommandInfo > ShowAllDataLayers;
+
+	/** Hides all DataLayers */
+	TSharedPtr< FUICommandInfo > HideAllDataLayers;
+
 	/** Shows all sprite categories */
 	TSharedPtr< FUICommandInfo > ShowAllSprites;
 

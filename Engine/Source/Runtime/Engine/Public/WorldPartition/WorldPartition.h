@@ -160,7 +160,6 @@ public:
 
 #if WITH_EDITOR
 	TMap<FGuid, TUniquePtr<FWorldPartitionActorDesc>> Actors;
-	class ULayersSubsystem* LayerSubSystem;
 	
 	static TUniquePtr<FWorldPartitionActorDescFactory> DefaultActorDescFactory;
 	static TMap<FName, FWorldPartitionActorDescFactory*> ActorDescFactories;
@@ -205,8 +204,6 @@ private:
 
 #if WITH_EDITOR
 	void UpdateLoadingEditorCell(UWorldPartitionEditorCell* Cell, bool bShouldBeLoaded);
-	void CreateLayers(const TSet<FName>& LayerNames);
-
 	void HashActorDesc(FWorldPartitionActorDesc* ActorDesc);
 	void UnhashActorDesc(FWorldPartitionActorDesc* ActorDesc);
 #endif
