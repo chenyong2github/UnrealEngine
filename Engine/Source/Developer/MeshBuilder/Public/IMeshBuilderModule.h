@@ -31,17 +31,6 @@ public:
 
 	virtual bool BuildMesh(class FStaticMeshRenderData& OutRenderData, class UObject* Mesh, const class FStaticMeshLODGroup& LODGroup) { return false; }
 
-	virtual bool BuildMesh(
-		class UObject* StaticMesh,
-		TArray< FStaticMeshBuildVertex >& Verts,
-		TArray< uint32 >& Indexes,
-		FStaticMeshSectionArray& Sections,
-		uint32& NumTexCoords,
-		bool& bHasColors )
-	{
-		return false;
-	}
-
 	virtual bool BuildMeshVertexPositions(
 		class UObject* StaticMesh,
 		TArray<uint32>& Indices,

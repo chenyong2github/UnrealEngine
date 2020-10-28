@@ -28,14 +28,6 @@ public:
 		return false;
 	}
 
-	virtual bool Build(
-		UStaticMesh* StaticMesh,
-		TArray< FStaticMeshBuildVertex >& Verts,
-		TArray< uint32 >& Indexes,
-		FStaticMeshSectionArray& Sections,
-		uint32& NumTexCoords,
-		bool& bHasColors ) override;
-
 	virtual bool BuildMeshVertexPositions(
 		UStaticMesh* StaticMesh,
 		TArray<uint32>& Indices,
