@@ -50,6 +50,11 @@ namespace Gauntlet
 		private TestStatus InnerStatus;
 
 		/// <summary>
+		/// Return true if the warnings and errors needs to log after summary
+		/// </summary>
+		public virtual bool LogWarningsAndErrorsAfterSummary { get; protected set; } = true;
+
+		/// <summary>
 		/// 
 		/// </summary>
 		public BaseTest()
