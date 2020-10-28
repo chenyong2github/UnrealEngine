@@ -309,11 +309,6 @@ void UUVLayoutTool::UpdateVisualization()
 	}
 }
 
-bool UUVLayoutTool::HasAccept() const
-{
-	return true;
-}
-
 bool UUVLayoutTool::CanAccept() const
 {
 	for (UMeshOpPreviewWithBackgroundCompute* Preview : Previews)
@@ -323,7 +318,7 @@ bool UUVLayoutTool::CanAccept() const
 			return false;
 		}
 	}
-	return true;
+	return Super::CanAccept();
 }
 
 

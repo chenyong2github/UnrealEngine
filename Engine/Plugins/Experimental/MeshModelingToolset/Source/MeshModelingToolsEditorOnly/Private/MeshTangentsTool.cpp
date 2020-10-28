@@ -182,14 +182,10 @@ void UMeshTangentsTool::Render(IToolsContextRenderAPI* RenderAPI)
 	}
 }
 
-bool UMeshTangentsTool::HasAccept() const
-{
-	return true;
-}
 
 bool UMeshTangentsTool::CanAccept() const
 {
-	return Compute->HaveValidResult();
+	return Super::CanAccept() && Compute->HaveValidResult();
 }
 
 

@@ -157,14 +157,9 @@ void UMergeMeshesTool::OnTick(float DeltaTime)
 	Preview->Tick(DeltaTime);
 }
 
-bool UMergeMeshesTool::HasAccept() const
-{
-	return true;
-}
-
 bool UMergeMeshesTool::CanAccept() const
 {
-	return Preview->HaveValidResult();
+	return Super::CanAccept() && Preview->HaveValidResult();
 }
 
 void UMergeMeshesTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)

@@ -369,11 +369,6 @@ void UGenerateLODMeshesTool::UpdateVisualization()
 
 }
 
-bool UGenerateLODMeshesTool::HasAccept() const
-{
-	return true;
-}
-
 bool UGenerateLODMeshesTool::CanAccept() const
 {
 	for (UMeshOpPreviewWithBackgroundCompute* Preview : Previews)
@@ -383,7 +378,7 @@ bool UGenerateLODMeshesTool::CanAccept() const
 			return false;
 		}
 	}
-	return true;
+	return Super::CanAccept();
 }
 
 void UGenerateLODMeshesTool::GenerateAssets()
