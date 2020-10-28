@@ -8,7 +8,7 @@
 
 
 #include "SSRTTileClassificationBuffer.ush"
-#include "SSRTRaycast.ush"
+#include "SSRTRayCast.ush"
 #include "../SceneTextureParameters.ush"
 #include "../FastMath.ush"
 
