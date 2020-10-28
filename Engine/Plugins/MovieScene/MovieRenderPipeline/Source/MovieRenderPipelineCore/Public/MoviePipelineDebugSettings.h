@@ -31,12 +31,8 @@ public:
 	
 	/** Used when capturing rendering information with RenderDoc. In Display Rate frames.*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "RenderDoc")
-	int32 CaptureStartFrame;
+	int32 CaptureFrame;
 	
-	/** Used when capturing rendering information with RenderDoc. In Display Rate frames.*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "RenderDoc")
-	int32 CaptureEndFrame;
-
 private:
 	bool bIsRenderDebugCaptureAvailable;
 };
