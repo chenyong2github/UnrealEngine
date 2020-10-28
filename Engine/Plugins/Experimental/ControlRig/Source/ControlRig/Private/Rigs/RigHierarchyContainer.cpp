@@ -1136,7 +1136,7 @@ TArray<FRigElementKey> FRigHierarchyContainer::ImportFromText(const FString& InC
 					Data.LocalTransforms[Index].NormalizeRotation();
 					SetLocalTransform(Selection[Index], Data.LocalTransforms[Index]);
 				}
-				else if (InImportMode == ERigHierarchyImportMode::ReplaceCurrentGlobalTransform)
+				else // (InImportMode == ERigHierarchyImportMode::ReplaceCurrentGlobalTransform)
 				{
 					Data.GlobalTransforms[Index].NormalizeRotation();
 					SetGlobalTransform(Selection[Index], Data.GlobalTransforms[Index]);
