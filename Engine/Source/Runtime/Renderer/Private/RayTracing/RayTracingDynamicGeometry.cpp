@@ -30,7 +30,7 @@ public:
 		PassUniformBuffer.Bind(Initializer.ParameterMap, FSceneTextureUniformParameters::StaticStructMetadata.GetShaderVariableName());
 
 		RWVertexPositions.Bind(Initializer.ParameterMap, TEXT("VertexPositions"));
-		VertexBufferSize.Bind(Initializer.ParameterMap, TEXT("VertexBufferSize"));
+		UsingIndirectDraw.Bind(Initializer.ParameterMap, TEXT("UsingIndirectDraw"));
 		NumVertices.Bind(Initializer.ParameterMap, TEXT("NumVertices"));
 		MinVertexIndex.Bind(Initializer.ParameterMap, TEXT("MinVertexIndex"));
 		PrimitiveId.Bind(Initializer.ParameterMap, TEXT("PrimitiveId"));
@@ -76,7 +76,7 @@ public:
 	}
 
 	LAYOUT_FIELD(FRWShaderParameter, RWVertexPositions);
-	LAYOUT_FIELD(FShaderParameter, VertexBufferSize);
+	LAYOUT_FIELD(FShaderParameter, UsingIndirectDraw);
 	LAYOUT_FIELD(FShaderParameter, NumVertices);
 	LAYOUT_FIELD(FShaderParameter, MinVertexIndex);
 	LAYOUT_FIELD(FShaderParameter, PrimitiveId);
@@ -209,20 +209,13 @@ void FRayTracingDynamicGeometryCollection::AddDynamicMeshBatchForGeometryUpdate(
 		// Setup the loose parameters directly on the binding
 		uint32 OutputVertexBaseIndex = VertexBufferOffset / sizeof(float);
 		uint32 MinVertexIndex = MeshBatch.Elements[0].MinVertexIndex;
-		uint32 NumCPUVertices = !bUsingIndirectDraw ? UpdateParams.NumVertices : 0;
+		uint32 NumCPUVertices = UpdateParams.NumVertices;
 		if (MeshBatch.Elements[0].MinVertexIndex < MeshBatch.Elements[0].MaxVertexIndex)
 		{
-			NumCPUVertices = MeshBatch.Elements[0].MaxVertexIndex - MeshBatch.Elements[0].MinVertexIndex;
+			NumCPUVertices = 1 + MeshBatch.Elements[0].MaxVertexIndex - MeshBatch.Elements[0].MinVertexIndex;
 		}
 
-		// RayTracingDynamicGeometryConverterCS expects VertexBufferSize in terms of number of float3 vertices.
-		// It performs an explicit bounds check using only DispatchThreadId.x as the vertex index.
-		// Actual output buffer index is computed as MinVertexIndex + DispatchThreadId.x,
-		// therefore valid vertex buffer bounds calculation must also take MinVertexIndex offset into account.
-		static constexpr uint32 VertexSize = uint32(sizeof(FVector));
-		const uint32 VertexBufferNumElements = UpdateParams.VertexBufferSize / VertexSize - MinVertexIndex;
-
-		SingleShaderBindings.Add(Shader->VertexBufferSize, VertexBufferNumElements);
+		SingleShaderBindings.Add(Shader->UsingIndirectDraw, bUsingIndirectDraw ? 1 : 0);
 		SingleShaderBindings.Add(Shader->NumVertices, NumCPUVertices);
 		SingleShaderBindings.Add(Shader->MinVertexIndex, MinVertexIndex);
 		SingleShaderBindings.Add(Shader->PrimitiveId, PrimitiveId);
