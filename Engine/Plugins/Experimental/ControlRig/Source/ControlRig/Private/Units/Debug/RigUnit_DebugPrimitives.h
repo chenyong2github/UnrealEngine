@@ -6,7 +6,7 @@
 #include "RigUnit_DebugPrimitives.generated.h"
 
 USTRUCT(meta=(DisplayName="Draw Rectangle", Keywords="Draw Square", Deprecated = "4.25"))
-struct FRigUnit_DebugRectangle : public FRigUnit_DebugBaseMutable
+struct CONTROLRIG_API FRigUnit_DebugRectangle : public FRigUnit_DebugBaseMutable
 {
 	GENERATED_BODY()
 
@@ -49,7 +49,7 @@ struct FRigUnit_DebugRectangle : public FRigUnit_DebugBaseMutable
  * Draws vectors on each bone in the viewport across the entire hierarchy
  */
 USTRUCT(meta=(DisplayName="Draw Rectangle", Keywords="Draw Square"))
-struct FRigUnit_DebugRectangleItemSpace : public FRigUnit_DebugBaseMutable
+struct CONTROLRIG_API FRigUnit_DebugRectangleItemSpace : public FRigUnit_DebugBaseMutable
 {
 	GENERATED_BODY()
 
@@ -91,7 +91,7 @@ struct FRigUnit_DebugRectangleItemSpace : public FRigUnit_DebugBaseMutable
 
 
 USTRUCT(meta=(DisplayName="Draw Arc", Keywords="Draw Ellipse, Draw Circle", Deprecated = "4.25"))
-struct FRigUnit_DebugArc : public FRigUnit_DebugBaseMutable
+struct CONTROLRIG_API FRigUnit_DebugArc : public FRigUnit_DebugBaseMutable
 {
 	GENERATED_BODY()
 
@@ -145,7 +145,7 @@ struct FRigUnit_DebugArc : public FRigUnit_DebugBaseMutable
  * Draws an arc in the viewport, can take in different min and max degrees
  */
 USTRUCT(meta=(DisplayName="Draw Arc", Keywords="Draw Ellipse, Draw Circle"))
-struct FRigUnit_DebugArcItemSpace : public FRigUnit_DebugBaseMutable
+struct CONTROLRIG_API FRigUnit_DebugArcItemSpace : public FRigUnit_DebugBaseMutable
 {
 	GENERATED_BODY()
 

@@ -37,7 +37,7 @@ struct FConstraintTarget
 };
 
 USTRUCT()
-struct FRigUnit_TransformConstraint_WorkData
+struct CONTROLRIG_API FRigUnit_TransformConstraint_WorkData
 {
 	GENERATED_BODY()
 
@@ -50,7 +50,7 @@ struct FRigUnit_TransformConstraint_WorkData
 };
 
 USTRUCT(meta=(DisplayName="Transform Constraint", Category="Transforms", Deprecated = "4.25"))
-struct FRigUnit_TransformConstraint : public FRigUnit_HighlevelBaseMutable
+struct CONTROLRIG_API FRigUnit_TransformConstraint : public FRigUnit_HighlevelBaseMutable
 {
 	GENERATED_BODY()
 
@@ -117,7 +117,7 @@ private:
  * Constrains an item's transform to multiple items' transforms
  */
 USTRUCT(meta=(DisplayName="Transform Constraint", Category="Transforms", Keywords = "Parent,Orient,Scale"))
-struct FRigUnit_TransformConstraintPerItem : public FRigUnit_HighlevelBaseMutable
+struct CONTROLRIG_API FRigUnit_TransformConstraintPerItem : public FRigUnit_HighlevelBaseMutable
 {
 	GENERATED_BODY()
 

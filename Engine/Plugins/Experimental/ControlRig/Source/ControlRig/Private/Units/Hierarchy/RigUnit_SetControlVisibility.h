@@ -9,7 +9,7 @@
  * SetControlVisibility is used to change the gizmo visibility on a control at runtime
  */
 USTRUCT(meta=(DisplayName="Set Control Visibility", Category="Hierarchy", DocumentationPolicy="Strict", Keywords = "SetControlVisibility,Visibility,Hide,Show,Hidden,Visible,SetGizmoVisibility", PrototypeName = "SetControlVisibility"))
-struct FRigUnit_SetControlVisibility : public FRigUnitMutable
+struct CONTROLRIG_API FRigUnit_SetControlVisibility : public FRigUnitMutable
 {
 	GENERATED_BODY()
 

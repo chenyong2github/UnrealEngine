@@ -6,7 +6,7 @@
 #include "RigUnit_DebugLineStrip.generated.h"
 
 USTRUCT(meta=(DisplayName="Draw Line Strip", Deprecated = "4.25"))
-struct FRigUnit_DebugLineStrip : public FRigUnit_DebugBaseMutable
+struct CONTROLRIG_API FRigUnit_DebugLineStrip : public FRigUnit_DebugBaseMutable
 {
 	GENERATED_BODY()
 
@@ -44,7 +44,7 @@ struct FRigUnit_DebugLineStrip : public FRigUnit_DebugBaseMutable
  * Draws a line strip in the viewport given any number of points
  */
 USTRUCT(meta=(DisplayName="Draw Line Strip"))
-struct FRigUnit_DebugLineStripItemSpace : public FRigUnit_DebugBaseMutable
+struct CONTROLRIG_API FRigUnit_DebugLineStripItemSpace : public FRigUnit_DebugBaseMutable
 {
 	GENERATED_BODY()
 

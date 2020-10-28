@@ -10,7 +10,7 @@
  * Provides a constant curve to be used for multiple curve evaluations
  */
 USTRUCT(meta=(DisplayName="Curve", Keywords="Curve,Profile"))
-struct FRigUnit_AnimRichCurve : public FRigUnit_AnimBase
+struct CONTROLRIG_API FRigUnit_AnimRichCurve : public FRigUnit_AnimBase
 {
 	GENERATED_BODY()
 	

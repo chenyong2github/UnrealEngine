@@ -7,13 +7,13 @@
 #include "RigUnit_MathVector.generated.h"
 
 USTRUCT(meta=(Abstract, Category="Math|Vector", MenuDescSuffix="(Vector)"))
-struct FRigUnit_MathVectorBase : public FRigUnit_MathBase
+struct CONTROLRIG_API FRigUnit_MathVectorBase : public FRigUnit_MathBase
 {
 	GENERATED_BODY()
 };
 
 USTRUCT(meta=(Abstract))
-struct FRigUnit_MathVectorUnaryOp : public FRigUnit_MathVectorBase
+struct CONTROLRIG_API FRigUnit_MathVectorUnaryOp : public FRigUnit_MathVectorBase
 {
 	GENERATED_BODY()
 	
@@ -30,7 +30,7 @@ struct FRigUnit_MathVectorUnaryOp : public FRigUnit_MathVectorBase
 };
 
 USTRUCT(meta=(Abstract))
-struct FRigUnit_MathVectorBinaryOp : public FRigUnit_MathVectorBase
+struct CONTROLRIG_API FRigUnit_MathVectorBinaryOp : public FRigUnit_MathVectorBase
 {
 	GENERATED_BODY()
 
@@ -53,7 +53,7 @@ struct FRigUnit_MathVectorBinaryOp : public FRigUnit_MathVectorBase
  * Makes a vector from a single float
  */
 USTRUCT(meta=(DisplayName="From Float", PrototypeName="FromFloat", Keywords="Make,Construct"))
-struct FRigUnit_MathVectorFromFloat : public FRigUnit_MathVectorBase
+struct CONTROLRIG_API FRigUnit_MathVectorFromFloat : public FRigUnit_MathVectorBase
 {
 	GENERATED_BODY()
 	RIGVM_METHOD()
@@ -76,7 +76,7 @@ struct FRigUnit_MathVectorFromFloat : public FRigUnit_MathVectorBase
  * Returns the sum of the two values
  */
 USTRUCT(meta=(DisplayName="Add", PrototypeName="Add", Keywords="Sum,+"))
-struct FRigUnit_MathVectorAdd : public FRigUnit_MathVectorBinaryOp
+struct CONTROLRIG_API FRigUnit_MathVectorAdd : public FRigUnit_MathVectorBinaryOp
 {
 	GENERATED_BODY()
 
@@ -88,7 +88,7 @@ struct FRigUnit_MathVectorAdd : public FRigUnit_MathVectorBinaryOp
  * Returns the difference of the two values
  */
 USTRUCT(meta=(DisplayName="Subtract", PrototypeName="Subtract", Keywords="-"))
-struct FRigUnit_MathVectorSub : public FRigUnit_MathVectorBinaryOp
+struct CONTROLRIG_API FRigUnit_MathVectorSub : public FRigUnit_MathVectorBinaryOp
 {
 	GENERATED_BODY()
 
@@ -100,7 +100,7 @@ struct FRigUnit_MathVectorSub : public FRigUnit_MathVectorBinaryOp
  * Returns the product of the two values
  */
 USTRUCT(meta=(DisplayName="Multiply", PrototypeName="Multiply", Keywords="Product,*"))
-struct FRigUnit_MathVectorMul : public FRigUnit_MathVectorBinaryOp
+struct CONTROLRIG_API FRigUnit_MathVectorMul : public FRigUnit_MathVectorBinaryOp
 {
 	GENERATED_BODY()
 
@@ -117,7 +117,7 @@ struct FRigUnit_MathVectorMul : public FRigUnit_MathVectorBinaryOp
  * Returns the product of the the vector and the float value
  */
 USTRUCT(meta = (DisplayName = "Scale", PrototypeName = "Scale", Keywords = "Multiply,Product,*,ByScalar,ByFloat"))
-struct FRigUnit_MathVectorScale : public FRigUnit_MathVectorBase
+struct CONTROLRIG_API FRigUnit_MathVectorScale : public FRigUnit_MathVectorBase
 {
 	GENERATED_BODY()
 
@@ -144,7 +144,7 @@ struct FRigUnit_MathVectorScale : public FRigUnit_MathVectorBase
  * Returns the division of the two values
  */
 USTRUCT(meta=(DisplayName="Divide", PrototypeName="Divide", Keywords="Division,Divisor,/"))
-struct FRigUnit_MathVectorDiv : public FRigUnit_MathVectorBinaryOp
+struct CONTROLRIG_API FRigUnit_MathVectorDiv : public FRigUnit_MathVectorBinaryOp
 {
 	GENERATED_BODY()
 
@@ -161,7 +161,7 @@ struct FRigUnit_MathVectorDiv : public FRigUnit_MathVectorBinaryOp
  * Returns the modulo of the two values
  */
 USTRUCT(meta=(DisplayName="Modulo", PrototypeName="Modulo", Keywords="%,fmod"))
-struct FRigUnit_MathVectorMod : public FRigUnit_MathVectorBinaryOp
+struct CONTROLRIG_API FRigUnit_MathVectorMod : public FRigUnit_MathVectorBinaryOp
 {
 	GENERATED_BODY()
 
@@ -179,7 +179,7 @@ struct FRigUnit_MathVectorMod : public FRigUnit_MathVectorBinaryOp
  * Returns the smaller of the two values for each component
  */
 USTRUCT(meta=(DisplayName="Minimum", PrototypeName="Minimum"))
-struct FRigUnit_MathVectorMin : public FRigUnit_MathVectorBinaryOp
+struct CONTROLRIG_API FRigUnit_MathVectorMin : public FRigUnit_MathVectorBinaryOp
 {
 	GENERATED_BODY()
 
@@ -191,7 +191,7 @@ struct FRigUnit_MathVectorMin : public FRigUnit_MathVectorBinaryOp
  * Returns the larger of the two values each component
  */
 USTRUCT(meta=(DisplayName="Maximum", PrototypeName="Maximum"))
-struct FRigUnit_MathVectorMax : public FRigUnit_MathVectorBinaryOp
+struct CONTROLRIG_API FRigUnit_MathVectorMax : public FRigUnit_MathVectorBinaryOp
 {
 	GENERATED_BODY()
 
@@ -203,7 +203,7 @@ struct FRigUnit_MathVectorMax : public FRigUnit_MathVectorBinaryOp
  * Returns the negative value
  */
 USTRUCT(meta=(DisplayName="Negate", PrototypeName="Negate", Keywords="-,Abs"))
-struct FRigUnit_MathVectorNegate : public FRigUnit_MathVectorUnaryOp
+struct CONTROLRIG_API FRigUnit_MathVectorNegate : public FRigUnit_MathVectorUnaryOp
 {
 	GENERATED_BODY()
 
@@ -215,7 +215,7 @@ struct FRigUnit_MathVectorNegate : public FRigUnit_MathVectorUnaryOp
  * Returns the absolute (positive) value
  */
 USTRUCT(meta=(DisplayName="Absolute", PrototypeName="Absolute", Keywords="Abs,Neg"))
-struct FRigUnit_MathVectorAbs : public FRigUnit_MathVectorUnaryOp
+struct CONTROLRIG_API FRigUnit_MathVectorAbs : public FRigUnit_MathVectorUnaryOp
 {
 	GENERATED_BODY()
 
@@ -227,7 +227,7 @@ struct FRigUnit_MathVectorAbs : public FRigUnit_MathVectorUnaryOp
  * Returns the closest lower full number (integer) of the value for each component
  */
 USTRUCT(meta=(DisplayName="Floor", PrototypeName="Floor", Keywords="Round"))
-struct FRigUnit_MathVectorFloor : public FRigUnit_MathVectorUnaryOp
+struct CONTROLRIG_API FRigUnit_MathVectorFloor : public FRigUnit_MathVectorUnaryOp
 {
 	GENERATED_BODY()
 
@@ -239,7 +239,7 @@ struct FRigUnit_MathVectorFloor : public FRigUnit_MathVectorUnaryOp
  * Returns the closest higher full number (integer) of the value for each component
  */
 USTRUCT(meta=(DisplayName="Ceiling", PrototypeName="Ceiling", Keywords="Round"))
-struct FRigUnit_MathVectorCeil : public FRigUnit_MathVectorUnaryOp
+struct CONTROLRIG_API FRigUnit_MathVectorCeil : public FRigUnit_MathVectorUnaryOp
 {
 	GENERATED_BODY()
 
@@ -251,7 +251,7 @@ struct FRigUnit_MathVectorCeil : public FRigUnit_MathVectorUnaryOp
  * Returns the closest higher full number (integer) of the value for each component
  */
 USTRUCT(meta=(DisplayName="Round", PrototypeName="Round"))
-struct FRigUnit_MathVectorRound : public FRigUnit_MathVectorUnaryOp
+struct CONTROLRIG_API FRigUnit_MathVectorRound : public FRigUnit_MathVectorUnaryOp
 {
 	GENERATED_BODY()
 
@@ -263,7 +263,7 @@ struct FRigUnit_MathVectorRound : public FRigUnit_MathVectorUnaryOp
  * Returns the sign of the value (+1 for >= FVector(0.f, 0.f, 0.f), -1 for < 0.f) for each component
  */
 USTRUCT(meta=(DisplayName="Sign", PrototypeName="Sign"))
-struct FRigUnit_MathVectorSign : public FRigUnit_MathVectorUnaryOp
+struct CONTROLRIG_API FRigUnit_MathVectorSign : public FRigUnit_MathVectorUnaryOp
 {
 	GENERATED_BODY()
 
@@ -275,7 +275,7 @@ struct FRigUnit_MathVectorSign : public FRigUnit_MathVectorUnaryOp
  * Clamps the given value within the range provided by minimum and maximum for each component
  */
 USTRUCT(meta=(DisplayName="Clamp", PrototypeName="Clamp", Keywords="Range,Remap"))
-struct FRigUnit_MathVectorClamp : public FRigUnit_MathVectorBase
+struct CONTROLRIG_API FRigUnit_MathVectorClamp : public FRigUnit_MathVectorBase
 {
 	GENERATED_BODY()
 
@@ -305,7 +305,7 @@ struct FRigUnit_MathVectorClamp : public FRigUnit_MathVectorBase
  * Linearly interpolates between A and B using the ratio T
  */
 USTRUCT(meta=(DisplayName="Interpolate", PrototypeName="Interpolate", Keywords="Lerp,Mix,Blend"))
-struct FRigUnit_MathVectorLerp : public FRigUnit_MathVectorBase
+struct CONTROLRIG_API FRigUnit_MathVectorLerp : public FRigUnit_MathVectorBase
 {
 	GENERATED_BODY()
 
@@ -336,7 +336,7 @@ struct FRigUnit_MathVectorLerp : public FRigUnit_MathVectorBase
  * Remaps the given value from a source range to a target range for each component
  */
 USTRUCT(meta=(DisplayName="Remap", PrototypeName="Remap", Keywords="Rescale,Scale"))
-struct FRigUnit_MathVectorRemap : public FRigUnit_MathVectorBase
+struct CONTROLRIG_API FRigUnit_MathVectorRemap : public FRigUnit_MathVectorBase
 {
 	GENERATED_BODY()
 
@@ -377,7 +377,7 @@ struct FRigUnit_MathVectorRemap : public FRigUnit_MathVectorBase
  * Returns true if the value A equals B
  */
 USTRUCT(meta=(DisplayName="Equals", PrototypeName="Equals", Keywords="Same,=="))
-struct FRigUnit_MathVectorEquals : public FRigUnit_MathVectorBase
+struct CONTROLRIG_API FRigUnit_MathVectorEquals : public FRigUnit_MathVectorBase
 {
 	GENERATED_BODY()
 
@@ -404,7 +404,7 @@ struct FRigUnit_MathVectorEquals : public FRigUnit_MathVectorBase
  * Returns true if the value A does not equal B
  */
 USTRUCT(meta=(DisplayName="Not Equals", PrototypeName="NotEquals", Keywords="Different,!="))
-struct FRigUnit_MathVectorNotEquals : public FRigUnit_MathVectorBase
+struct CONTROLRIG_API FRigUnit_MathVectorNotEquals : public FRigUnit_MathVectorBase
 {
 	GENERATED_BODY()
 
@@ -431,7 +431,7 @@ struct FRigUnit_MathVectorNotEquals : public FRigUnit_MathVectorBase
  * Returns true if the value is nearly zero
  */
 USTRUCT(meta=(DisplayName="Is Nearly Zero", PrototypeName="IsNearlyZero", Keywords="AlmostZero,0"))
-struct FRigUnit_MathVectorIsNearlyZero : public FRigUnit_MathVectorBase
+struct CONTROLRIG_API FRigUnit_MathVectorIsNearlyZero : public FRigUnit_MathVectorBase
 {
 	GENERATED_BODY()
 
@@ -459,7 +459,7 @@ struct FRigUnit_MathVectorIsNearlyZero : public FRigUnit_MathVectorBase
  * Returns true if the value A is almost equal to B
  */
 USTRUCT(meta=(DisplayName="Is Nearly Equal", PrototypeName="IsNearlyEqual", Keywords="AlmostEqual,=="))
-struct FRigUnit_MathVectorIsNearlyEqual : public FRigUnit_MathVectorBase
+struct CONTROLRIG_API FRigUnit_MathVectorIsNearlyEqual : public FRigUnit_MathVectorBase
 {
 	GENERATED_BODY()
 
@@ -490,7 +490,7 @@ struct FRigUnit_MathVectorIsNearlyEqual : public FRigUnit_MathVectorBase
  * Return one of the two values based on the condition
  */
 USTRUCT(meta=(DisplayName="Select", PrototypeName="Select", Keywords="Pick,If", Deprecated = "4.26.0"))
-struct FRigUnit_MathVectorSelectBool : public FRigUnit_MathVectorBase
+struct CONTROLRIG_API FRigUnit_MathVectorSelectBool : public FRigUnit_MathVectorBase
 {
 	GENERATED_BODY()
 
@@ -520,7 +520,7 @@ struct FRigUnit_MathVectorSelectBool : public FRigUnit_MathVectorBase
  * Returns the degrees of a given value in radians
  */
 USTRUCT(meta=(DisplayName="Degrees", PrototypeName="Degrees"))
-struct FRigUnit_MathVectorDeg : public FRigUnit_MathVectorUnaryOp
+struct CONTROLRIG_API FRigUnit_MathVectorDeg : public FRigUnit_MathVectorUnaryOp
 {
 	GENERATED_BODY()
 
@@ -532,7 +532,7 @@ struct FRigUnit_MathVectorDeg : public FRigUnit_MathVectorUnaryOp
  * Returns the radians of a given value in degrees
  */
 USTRUCT(meta=(DisplayName="Radians", PrototypeName="Radians"))
-struct FRigUnit_MathVectorRad : public FRigUnit_MathVectorUnaryOp
+struct CONTROLRIG_API FRigUnit_MathVectorRad : public FRigUnit_MathVectorUnaryOp
 {
 	GENERATED_BODY()
 
@@ -544,7 +544,7 @@ struct FRigUnit_MathVectorRad : public FRigUnit_MathVectorUnaryOp
  * Returns the squared length of the vector
  */
 USTRUCT(meta=(DisplayName="Length Squared", PrototypeName="LengthSquared", Keywords="Length,Size,Magnitude"))
-struct FRigUnit_MathVectorLengthSquared : public FRigUnit_MathVectorBase
+struct CONTROLRIG_API FRigUnit_MathVectorLengthSquared : public FRigUnit_MathVectorBase
 {
 	GENERATED_BODY()
 
@@ -568,7 +568,7 @@ struct FRigUnit_MathVectorLengthSquared : public FRigUnit_MathVectorBase
  * Returns the length of the vector
  */
 USTRUCT(meta=(DisplayName="Length", PrototypeName="Length", Keywords="Size,Magnitude"))
-struct FRigUnit_MathVectorLength : public FRigUnit_MathVectorBase
+struct CONTROLRIG_API FRigUnit_MathVectorLength : public FRigUnit_MathVectorBase
 {
 	GENERATED_BODY()
 
@@ -592,7 +592,7 @@ struct FRigUnit_MathVectorLength : public FRigUnit_MathVectorBase
  * Returns the distance from A to B
  */
 USTRUCT(meta=(DisplayName="Distance Between", PrototypeName="Distance"))
-struct FRigUnit_MathVectorDistance : public FRigUnit_MathVectorBase
+struct CONTROLRIG_API FRigUnit_MathVectorDistance : public FRigUnit_MathVectorBase
 {
 	GENERATED_BODY()
 
@@ -619,7 +619,7 @@ struct FRigUnit_MathVectorDistance : public FRigUnit_MathVectorBase
  * Returns the cross product between two vectors
  */
 USTRUCT(meta=(DisplayName="Cross", PrototypeName="Cross", Keywords="^"))
-struct FRigUnit_MathVectorCross : public FRigUnit_MathVectorBinaryOp
+struct CONTROLRIG_API FRigUnit_MathVectorCross : public FRigUnit_MathVectorBinaryOp
 {
 	GENERATED_BODY()
 	RIGVM_METHOD()
@@ -630,7 +630,7 @@ struct FRigUnit_MathVectorCross : public FRigUnit_MathVectorBinaryOp
  * Returns the dot product between two vectors
  */
 USTRUCT(meta=(DisplayName="Dot", PrototypeName="Dot,|"))
-struct FRigUnit_MathVectorDot : public FRigUnit_MathVectorBase
+struct CONTROLRIG_API FRigUnit_MathVectorDot : public FRigUnit_MathVectorBase
 {
 	GENERATED_BODY()
 
@@ -657,7 +657,7 @@ struct FRigUnit_MathVectorDot : public FRigUnit_MathVectorBase
  * Returns the normalized value
  */
 USTRUCT(meta=(DisplayName="Unit", PrototypeName="Unit", Keywords="Normalize"))
-struct FRigUnit_MathVectorUnit : public FRigUnit_MathVectorUnaryOp
+struct CONTROLRIG_API FRigUnit_MathVectorUnit : public FRigUnit_MathVectorUnaryOp
 {
 	GENERATED_BODY()
 
@@ -669,7 +669,7 @@ struct FRigUnit_MathVectorUnit : public FRigUnit_MathVectorUnaryOp
  * Sets the length of a given vector
  */
 USTRUCT(meta = (DisplayName = "SetLength", PrototypeName = "SetLength", Keywords = "Unit,Normalize,Scale"))
-struct FRigUnit_MathVectorSetLength: public FRigUnit_MathVectorBase
+struct CONTROLRIG_API FRigUnit_MathVectorSetLength: public FRigUnit_MathVectorBase
 {
 	GENERATED_BODY()
 
@@ -696,7 +696,7 @@ struct FRigUnit_MathVectorSetLength: public FRigUnit_MathVectorBase
  * Clamps the length of a given vector between a minimum and maximum
  */
 USTRUCT(meta = (DisplayName = "ClampLength", PrototypeName = "ClampLength", Keywords = "Unit,Normalize,Scale"))
-struct FRigUnit_MathVectorClampLength: public FRigUnit_MathVectorBase
+struct CONTROLRIG_API FRigUnit_MathVectorClampLength: public FRigUnit_MathVectorBase
 {
 	GENERATED_BODY()
 
@@ -728,7 +728,7 @@ struct FRigUnit_MathVectorClampLength: public FRigUnit_MathVectorBase
  * Mirror a vector about a normal vector.
  */
 USTRUCT(meta=(DisplayName="Mirror", PrototypeName="Mirror"))
-struct FRigUnit_MathVectorMirror : public FRigUnit_MathVectorBase
+struct CONTROLRIG_API FRigUnit_MathVectorMirror : public FRigUnit_MathVectorBase
 {
 	GENERATED_BODY()
 
@@ -755,7 +755,7 @@ struct FRigUnit_MathVectorMirror : public FRigUnit_MathVectorBase
  * Returns the angle between two vectors in radians
  */
 USTRUCT(meta=(DisplayName="Angle Between", PrototypeName="AngleBetween"))
-struct FRigUnit_MathVectorAngle : public FRigUnit_MathVectorBase
+struct CONTROLRIG_API FRigUnit_MathVectorAngle : public FRigUnit_MathVectorBase
 {
 	GENERATED_BODY()
 
@@ -782,7 +782,7 @@ struct FRigUnit_MathVectorAngle : public FRigUnit_MathVectorBase
  * Returns true if the two vectors are parallel
  */
 USTRUCT(meta=(DisplayName="Parallel", PrototypeName="Parallel"))
-struct FRigUnit_MathVectorParallel : public FRigUnit_MathVectorBase
+struct CONTROLRIG_API FRigUnit_MathVectorParallel : public FRigUnit_MathVectorBase
 {
 	GENERATED_BODY()
 
@@ -809,7 +809,7 @@ struct FRigUnit_MathVectorParallel : public FRigUnit_MathVectorBase
  * Returns true if the two vectors are orthogonal
  */
 USTRUCT(meta=(DisplayName="Orthogonal", PrototypeName="Orthogonal"))
-struct FRigUnit_MathVectorOrthogonal : public FRigUnit_MathVectorBase
+struct CONTROLRIG_API FRigUnit_MathVectorOrthogonal : public FRigUnit_MathVectorBase
 {
 	GENERATED_BODY()
 
@@ -837,7 +837,7 @@ struct FRigUnit_MathVectorOrthogonal : public FRigUnit_MathVectorBase
  * Returns the 4 point bezier interpolation
  */
 USTRUCT(meta=(DisplayName="Bezier Four Point"))
-struct FRigUnit_MathVectorBezierFourPoint : public FRigUnit_MathVectorBase
+struct CONTROLRIG_API FRigUnit_MathVectorBezierFourPoint : public FRigUnit_MathVectorBase
 {
 	GENERATED_BODY()
 
@@ -868,7 +868,7 @@ struct FRigUnit_MathVectorBezierFourPoint : public FRigUnit_MathVectorBase
  * Creates a bezier four point
  */
 USTRUCT(meta = (DisplayName = "Make Bezier Four Point", Constant))
-struct FRigUnit_MathVectorMakeBezierFourPoint : public FRigUnit_MathVectorBase
+struct CONTROLRIG_API FRigUnit_MathVectorMakeBezierFourPoint : public FRigUnit_MathVectorBase
 {
 	GENERATED_BODY()
 
@@ -888,7 +888,7 @@ struct FRigUnit_MathVectorMakeBezierFourPoint : public FRigUnit_MathVectorBase
  * Clamps a position using a plane collision, cylindric collision or spherical collision.
  */
 USTRUCT(meta = (DisplayName = "Clamp Spatially", PrototypeName = "ClampSpatially", Keywords="Collide,Collision"))
-struct FRigUnit_MathVectorClampSpatially: public FRigUnit_MathVectorBase
+struct CONTROLRIG_API FRigUnit_MathVectorClampSpatially: public FRigUnit_MathVectorBase
 {
 	GENERATED_BODY()
 
@@ -945,7 +945,7 @@ struct FRigUnit_MathVectorClampSpatially: public FRigUnit_MathVectorBase
  * Intersects a plane with a vector given a start and direction
  */
 USTRUCT(meta = (DisplayName = "Intersect Plane", Keywords = "Collide,Intersect,Raycast"))
-struct FRigUnit_MathIntersectPlane : public FRigUnit_MathVectorBase
+struct CONTROLRIG_API FRigUnit_MathIntersectPlane : public FRigUnit_MathVectorBase
 {
 	GENERATED_BODY()
 

@@ -6,7 +6,7 @@
 #include "RigUnit_DebugLine.generated.h"
 
 USTRUCT(meta=(DisplayName="Draw Line", Deprecated = "4.25"))
-struct FRigUnit_DebugLine : public FRigUnit_DebugBaseMutable
+struct CONTROLRIG_API FRigUnit_DebugLine : public FRigUnit_DebugBaseMutable
 {
 	GENERATED_BODY()
 
@@ -48,7 +48,7 @@ struct FRigUnit_DebugLine : public FRigUnit_DebugBaseMutable
  * Draws a line in the viewport given a start and end vector
  */
 USTRUCT(meta=(DisplayName="Draw Line"))
-struct FRigUnit_DebugLineItemSpace : public FRigUnit_DebugBaseMutable
+struct CONTROLRIG_API FRigUnit_DebugLineItemSpace : public FRigUnit_DebugBaseMutable
 {
 	GENERATED_BODY()
 

@@ -10,7 +10,7 @@
  * SetBoneTranslation is used to perform a change in the hierarchy by setting a single bone's Translation.
  */
 USTRUCT(meta=(DisplayName="Set Translation", Category="Hierarchy", DocumentationPolicy="Strict", Keywords = "SetBoneTranslation,SetPosition,SetLocation,SetBonePosition,SetBoneLocation", Deprecated="4.25"))
-struct FRigUnit_SetBoneTranslation : public FRigUnitMutable
+struct CONTROLRIG_API FRigUnit_SetBoneTranslation : public FRigUnitMutable
 {
 	GENERATED_BODY()
 

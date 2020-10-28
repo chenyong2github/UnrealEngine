@@ -8,7 +8,7 @@
 
 /** Two args and a result of Quaternion type */
 USTRUCT(meta=(Abstract, NodeColor = "0.1 0.7 0.1", Deprecated="4.23.0"))
-struct FRigUnit_BinaryQuaternionOp : public FRigUnit
+struct CONTROLRIG_API FRigUnit_BinaryQuaternionOp : public FRigUnit
 {
 	GENERATED_BODY()
 
@@ -29,7 +29,7 @@ struct FRigUnit_BinaryQuaternionOp : public FRigUnit
 };
 
 USTRUCT(meta=(DisplayName="Multiply(Quaternion)", Category="Math|Quaternion", Deprecated="4.23.0"))
-struct FRigUnit_MultiplyQuaternion : public FRigUnit_BinaryQuaternionOp
+struct CONTROLRIG_API FRigUnit_MultiplyQuaternion : public FRigUnit_BinaryQuaternionOp
 {
 	GENERATED_BODY()
 
@@ -39,7 +39,7 @@ struct FRigUnit_MultiplyQuaternion : public FRigUnit_BinaryQuaternionOp
 
 /** Two args and a result of Quaternion type */
 USTRUCT(meta=(Abstract, NodeColor = "0.1 0.7 0.1", Deprecated="4.23.0"))
-struct FRigUnit_UnaryQuaternionOp : public FRigUnit
+struct CONTROLRIG_API FRigUnit_UnaryQuaternionOp : public FRigUnit
 {
 	GENERATED_BODY()
 
@@ -51,7 +51,7 @@ struct FRigUnit_UnaryQuaternionOp : public FRigUnit
 };
 
 USTRUCT(meta = (DisplayName = "Inverse(Quaternion)", Category = "Math|Quaternion", Deprecated="4.23.0"))
-struct FRigUnit_InverseQuaterion: public FRigUnit_UnaryQuaternionOp
+struct CONTROLRIG_API FRigUnit_InverseQuaterion: public FRigUnit_UnaryQuaternionOp
 {
 	GENERATED_BODY()
 
@@ -60,7 +60,7 @@ struct FRigUnit_InverseQuaterion: public FRigUnit_UnaryQuaternionOp
 };
 
 USTRUCT(meta = (DisplayName = "To Axis And Angle(Quaternion)", Category = "Math|Quaternion", NodeColor = "0.1 0.7 0.1", Deprecated="4.23.0"))
-struct FRigUnit_QuaternionToAxisAndAngle : public FRigUnit
+struct CONTROLRIG_API FRigUnit_QuaternionToAxisAndAngle : public FRigUnit
 {
 	GENERATED_BODY()
 
@@ -78,7 +78,7 @@ struct FRigUnit_QuaternionToAxisAndAngle : public FRigUnit
 };
 
 USTRUCT(meta = (DisplayName = "From Axis And Angle(Quaternion)", Category = "Math|Quaternion", NodeColor = "0.1 0.7 0.1", Deprecated="4.23.0"))
-struct FRigUnit_QuaternionFromAxisAndAngle : public FRigUnit
+struct CONTROLRIG_API FRigUnit_QuaternionFromAxisAndAngle : public FRigUnit
 {
 	GENERATED_BODY()
 
@@ -102,7 +102,7 @@ struct FRigUnit_QuaternionFromAxisAndAngle : public FRigUnit
 };
 
 USTRUCT(meta = (DisplayName = "Get Angle Around Axis", Category = "Math|Quaternion", NodeColor = "0.1 0.7 0.1", Deprecated="4.23.0"))
-struct FRigUnit_QuaternionToAngle : public FRigUnit
+struct CONTROLRIG_API FRigUnit_QuaternionToAngle : public FRigUnit
 {
 	GENERATED_BODY()
 

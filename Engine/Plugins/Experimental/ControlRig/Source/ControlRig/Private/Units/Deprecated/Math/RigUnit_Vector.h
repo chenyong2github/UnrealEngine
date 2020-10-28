@@ -8,7 +8,7 @@
 
 /** Two args and a result of Vector type */
 USTRUCT(meta=(Abstract, NodeColor = "0.1 0.7 0.1", Deprecated="4.23.0"))
-struct FRigUnit_BinaryVectorOp : public FRigUnit
+struct CONTROLRIG_API FRigUnit_BinaryVectorOp : public FRigUnit
 {
 	GENERATED_BODY()
 
@@ -23,7 +23,7 @@ struct FRigUnit_BinaryVectorOp : public FRigUnit
 };
 
 USTRUCT(meta=(DisplayName="Multiply(Vector)", Category="Math|Vector", Deprecated="4.23.0"))
-struct FRigUnit_Multiply_VectorVector : public FRigUnit_BinaryVectorOp
+struct CONTROLRIG_API FRigUnit_Multiply_VectorVector : public FRigUnit_BinaryVectorOp
 {
 	GENERATED_BODY()
 
@@ -32,7 +32,7 @@ struct FRigUnit_Multiply_VectorVector : public FRigUnit_BinaryVectorOp
 };
 
 USTRUCT(meta=(DisplayName="Add(Vector)", Category="Math|Vector", Deprecated="4.23.0"))
-struct FRigUnit_Add_VectorVector : public FRigUnit_BinaryVectorOp
+struct CONTROLRIG_API FRigUnit_Add_VectorVector : public FRigUnit_BinaryVectorOp
 {
 	GENERATED_BODY()
 
@@ -41,7 +41,7 @@ struct FRigUnit_Add_VectorVector : public FRigUnit_BinaryVectorOp
 };
 
 USTRUCT(meta=(DisplayName="Subtract(Vector)", Category="Math|Vector", Deprecated="4.23.0"))
-struct FRigUnit_Subtract_VectorVector : public FRigUnit_BinaryVectorOp
+struct CONTROLRIG_API FRigUnit_Subtract_VectorVector : public FRigUnit_BinaryVectorOp
 {
 	GENERATED_BODY()
 
@@ -50,7 +50,7 @@ struct FRigUnit_Subtract_VectorVector : public FRigUnit_BinaryVectorOp
 };
 
 USTRUCT(meta=(DisplayName="Divide(Vector)", Category="Math|Vector", Deprecated="4.23.0"))
-struct FRigUnit_Divide_VectorVector : public FRigUnit_BinaryVectorOp
+struct CONTROLRIG_API FRigUnit_Divide_VectorVector : public FRigUnit_BinaryVectorOp
 {
 	GENERATED_BODY()
 
@@ -59,7 +59,7 @@ struct FRigUnit_Divide_VectorVector : public FRigUnit_BinaryVectorOp
 };
 
 USTRUCT(meta = (DisplayName = "Distance", Category = "Math|Vector", Deprecated="4.23.0", NodeColor = "0.1 0.7 0.1"))
-struct FRigUnit_Distance_VectorVector : public FRigUnit
+struct CONTROLRIG_API FRigUnit_Distance_VectorVector : public FRigUnit
 {
 	GENERATED_BODY()
 

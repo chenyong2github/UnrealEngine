@@ -9,7 +9,7 @@
  * Returns the current time (year, month, day, hour, minute)
  */
 USTRUCT(meta = (DisplayName = "Now", Keywords = "Time,Clock"))
-struct FRigUnit_GetWorldTime : public FRigUnit_AnimBase
+struct CONTROLRIG_API FRigUnit_GetWorldTime : public FRigUnit_AnimBase
 {
 	GENERATED_BODY()
 

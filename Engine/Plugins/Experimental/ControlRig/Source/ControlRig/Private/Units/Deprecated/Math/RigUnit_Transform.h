@@ -8,7 +8,7 @@
 
 /** Two args and a result of Transform type */
 USTRUCT(meta=(Abstract, NodeColor = "0.1 0.7 0.1", Deprecated="4.23.0"))
-struct FRigUnit_BinaryTransformOp : public FRigUnit
+struct CONTROLRIG_API FRigUnit_BinaryTransformOp : public FRigUnit
 {
 	GENERATED_BODY()
 
@@ -23,7 +23,7 @@ struct FRigUnit_BinaryTransformOp : public FRigUnit
 };
 
 USTRUCT(meta=(DisplayName="Multiply(Transform)", Category="Math|Transform", Deprecated="4.23.0"))
-struct FRigUnit_MultiplyTransform : public FRigUnit_BinaryTransformOp
+struct CONTROLRIG_API FRigUnit_MultiplyTransform : public FRigUnit_BinaryTransformOp
 {
 	GENERATED_BODY()
 
@@ -32,7 +32,7 @@ struct FRigUnit_MultiplyTransform : public FRigUnit_BinaryTransformOp
 };
 
 USTRUCT(meta = (DisplayName = "GetRelativeTransform", Category = "Math|Transform", Deprecated="4.23.0"))
-struct FRigUnit_GetRelativeTransform : public FRigUnit_BinaryTransformOp
+struct CONTROLRIG_API FRigUnit_GetRelativeTransform : public FRigUnit_BinaryTransformOp
 {
 	GENERATED_BODY()
 

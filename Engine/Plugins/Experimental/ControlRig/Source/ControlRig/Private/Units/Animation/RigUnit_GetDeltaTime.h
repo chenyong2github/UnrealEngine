@@ -9,7 +9,7 @@
  * Returns the time gone by from the previous evaluation
  */
 USTRUCT(meta=(DisplayName="Delta Time", Varying))
-struct FRigUnit_GetDeltaTime : public FRigUnit_AnimBase
+struct CONTROLRIG_API FRigUnit_GetDeltaTime : public FRigUnit_AnimBase
 {
 	GENERATED_BODY()
 	

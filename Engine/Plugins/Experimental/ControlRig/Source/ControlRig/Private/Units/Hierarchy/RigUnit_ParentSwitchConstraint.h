@@ -11,7 +11,7 @@
  * and allowing to switch between the parent in question.
  */
 USTRUCT(meta=(DisplayName="Parent Switch Constraint", Category="Hierarchy", DocumentationPolicy="Strict", Keywords = "SpaceSwitch"))
-struct FRigUnit_ParentSwitchConstraint : public FRigUnitMutable
+struct CONTROLRIG_API FRigUnit_ParentSwitchConstraint : public FRigUnitMutable
 {
 	GENERATED_BODY()
 

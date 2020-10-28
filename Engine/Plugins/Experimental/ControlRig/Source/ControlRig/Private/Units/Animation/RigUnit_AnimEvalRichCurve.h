@@ -10,7 +10,7 @@
  * Evaluates the provided curve. Values are normalized between 0 and 1
  */
 USTRUCT(meta=(DisplayName="Evaluate Curve", Keywords="Curve,Profile"))
-struct FRigUnit_AnimEvalRichCurve : public FRigUnit_AnimBase
+struct CONTROLRIG_API FRigUnit_AnimEvalRichCurve : public FRigUnit_AnimBase
 {
 	GENERATED_BODY()
 	

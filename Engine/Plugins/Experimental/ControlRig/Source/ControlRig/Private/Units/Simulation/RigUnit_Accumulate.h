@@ -9,7 +9,7 @@
  * Adds a value over time over and over again
  */
 USTRUCT(meta=(DisplayName="Accumulate Add (Float)", PrototypeName="AccumulateAdd", Keywords="Simulate,++"))
-struct FRigUnit_AccumulateFloatAdd : public FRigUnit_SimBase
+struct CONTROLRIG_API FRigUnit_AccumulateFloatAdd : public FRigUnit_SimBase
 {
 	GENERATED_BODY()
 	
@@ -42,7 +42,7 @@ struct FRigUnit_AccumulateFloatAdd : public FRigUnit_SimBase
  * Adds a vector over time over and over again
  */
 USTRUCT(meta = (DisplayName="Accumulate Add (Vector)", PrototypeName="AccumulateAdd", Keywords="Simulate,++"))
-struct FRigUnit_AccumulateVectorAdd : public FRigUnit_SimBase
+struct CONTROLRIG_API FRigUnit_AccumulateVectorAdd : public FRigUnit_SimBase
 {
 	GENERATED_BODY()
 
@@ -75,7 +75,7 @@ struct FRigUnit_AccumulateVectorAdd : public FRigUnit_SimBase
  * Multiplies a value over time over and over again
  */
 USTRUCT(meta=(DisplayName="Accumulate Mul (Float)", PrototypeName="AccumulateMul", Keywords="Simulate,**"))
-struct FRigUnit_AccumulateFloatMul : public FRigUnit_SimBase
+struct CONTROLRIG_API FRigUnit_AccumulateFloatMul : public FRigUnit_SimBase
 {
 	GENERATED_BODY()
 	
@@ -108,7 +108,7 @@ struct FRigUnit_AccumulateFloatMul : public FRigUnit_SimBase
  * Multiplies a vector over time over and over again
  */
 USTRUCT(meta = (DisplayName="Accumulate Mul (Vector)", PrototypeName="AccumulateMul", Keywords="Simulate,**"))
-struct FRigUnit_AccumulateVectorMul : public FRigUnit_SimBase
+struct CONTROLRIG_API FRigUnit_AccumulateVectorMul : public FRigUnit_SimBase
 {
 	GENERATED_BODY()
 
@@ -141,7 +141,7 @@ struct FRigUnit_AccumulateVectorMul : public FRigUnit_SimBase
  * Multiplies a quaternion over time over and over again
  */
 USTRUCT(meta=(DisplayName="Accumulate Mul (Quaternion)", PrototypeName="AccumulateMul", Keywords="Simulate,**"))
-struct FRigUnit_AccumulateQuatMul : public FRigUnit_SimBase
+struct CONTROLRIG_API FRigUnit_AccumulateQuatMul : public FRigUnit_SimBase
 {
 	GENERATED_BODY()
 	
@@ -177,7 +177,7 @@ struct FRigUnit_AccumulateQuatMul : public FRigUnit_SimBase
  * Multiplies a transform over time over and over again
  */
 USTRUCT(meta = (DisplayName="Accumulate Mul (Transform)", PrototypeName="AccumulateMul", Keywords="Simulate,**"))
-struct FRigUnit_AccumulateTransformMul : public FRigUnit_SimBase
+struct CONTROLRIG_API FRigUnit_AccumulateTransformMul : public FRigUnit_SimBase
 {
 	GENERATED_BODY()
 
@@ -213,7 +213,7 @@ struct FRigUnit_AccumulateTransformMul : public FRigUnit_SimBase
  * Interpolates two values over time over and over again
  */
 USTRUCT(meta=(DisplayName="Accumulate Lerp (Float)", PrototypeName="AccumulateLerp", Keywords="Simulate,Ramp"))
-struct FRigUnit_AccumulateFloatLerp : public FRigUnit_SimBase
+struct CONTROLRIG_API FRigUnit_AccumulateFloatLerp : public FRigUnit_SimBase
 {
 	GENERATED_BODY()
 	
@@ -249,7 +249,7 @@ struct FRigUnit_AccumulateFloatLerp : public FRigUnit_SimBase
  * Interpolates two vectors over time over and over again
  */
 USTRUCT(meta = (DisplayName="Accumulate Lerp (Vector)", PrototypeName="AccumulateLerp", Keywords="Simulate,Ramp"))
-struct FRigUnit_AccumulateVectorLerp : public FRigUnit_SimBase
+struct CONTROLRIG_API FRigUnit_AccumulateVectorLerp : public FRigUnit_SimBase
 {
 	GENERATED_BODY()
 
@@ -286,7 +286,7 @@ struct FRigUnit_AccumulateVectorLerp : public FRigUnit_SimBase
  * Interpolates two quaternions over time over and over again
  */
 USTRUCT(meta=(DisplayName="Accumulate Lerp (Quaternion)", PrototypeName="AccumulateLerp", Keywords="Simulate,Ramp"))
-struct FRigUnit_AccumulateQuatLerp : public FRigUnit_SimBase
+struct CONTROLRIG_API FRigUnit_AccumulateQuatLerp : public FRigUnit_SimBase
 {
 	GENERATED_BODY()
 	
@@ -323,7 +323,7 @@ struct FRigUnit_AccumulateQuatLerp : public FRigUnit_SimBase
  * Interpolates two transforms over time over and over again
  */
 USTRUCT(meta = (DisplayName="Accumulate Lerp (Transform)", PrototypeName="AccumulateLerp", Keywords="Simulate,Ramp"))
-struct FRigUnit_AccumulateTransformLerp : public FRigUnit_SimBase
+struct CONTROLRIG_API FRigUnit_AccumulateTransformLerp : public FRigUnit_SimBase
 {
 	GENERATED_BODY()
 
@@ -360,7 +360,7 @@ struct FRigUnit_AccumulateTransformLerp : public FRigUnit_SimBase
  * Accumulates the min and max values over time
  */
 USTRUCT(meta=(DisplayName="Accumulate Range (Float)", PrototypeName="AccumulateRange", Keywords="Range"))
-struct FRigUnit_AccumulateFloatRange : public FRigUnit_SimBase
+struct CONTROLRIG_API FRigUnit_AccumulateFloatRange : public FRigUnit_SimBase
 {
 	GENERATED_BODY()
 	
@@ -392,7 +392,7 @@ struct FRigUnit_AccumulateFloatRange : public FRigUnit_SimBase
  * Accumulates the min and max values over time
  */
 USTRUCT(meta = (DisplayName="Accumulate Range (Vector)", PrototypeName="AccumulateRange", Keywords="Range"))
-struct FRigUnit_AccumulateVectorRange : public FRigUnit_SimBase
+struct CONTROLRIG_API FRigUnit_AccumulateVectorRange : public FRigUnit_SimBase
 {
 	GENERATED_BODY()
 

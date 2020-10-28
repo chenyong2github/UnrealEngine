@@ -7,7 +7,7 @@
 #include "RigUnit_SlideChain.generated.h"
 
 USTRUCT()
-struct FRigUnit_SlideChain_WorkData
+struct CONTROLRIG_API FRigUnit_SlideChain_WorkData
 {
 	GENERATED_BODY()
 
@@ -36,7 +36,7 @@ struct FRigUnit_SlideChain_WorkData
  * Slides an existing chain along itself with control over extrapolation.
  */
 USTRUCT(meta=(DisplayName="Slide Chain", Category="Hierarchy", Keywords="Fit,Refit", Deprecated = "4.25"))
-struct FRigUnit_SlideChain: public FRigUnit_HighlevelBaseMutable
+struct CONTROLRIG_API FRigUnit_SlideChain: public FRigUnit_HighlevelBaseMutable
 {
 	GENERATED_BODY()
 
@@ -84,7 +84,7 @@ struct FRigUnit_SlideChain: public FRigUnit_HighlevelBaseMutable
  * Slides an existing chain along itself with control over extrapolation.
  */
 USTRUCT(meta=(DisplayName="Slide Chain", Category="Hierarchy", Keywords="Fit,Refit"))
-struct FRigUnit_SlideChainPerItem: public FRigUnit_HighlevelBaseMutable
+struct CONTROLRIG_API FRigUnit_SlideChainPerItem: public FRigUnit_HighlevelBaseMutable
 {
 	GENERATED_BODY()
 

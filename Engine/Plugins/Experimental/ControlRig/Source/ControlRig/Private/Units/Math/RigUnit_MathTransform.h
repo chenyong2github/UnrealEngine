@@ -8,13 +8,13 @@
 #include "RigUnit_MathTransform.generated.h"
 
 USTRUCT(meta=(Abstract, Category="Math|Transform", MenuDescSuffix="(Transform)"))
-struct FRigUnit_MathTransformBase : public FRigUnit_MathBase
+struct CONTROLRIG_API FRigUnit_MathTransformBase : public FRigUnit_MathBase
 {
 	GENERATED_BODY()
 };
 
 USTRUCT(meta=(Abstract))
-struct FRigUnit_MathTransformUnaryOp : public FRigUnit_MathTransformBase
+struct CONTROLRIG_API FRigUnit_MathTransformUnaryOp : public FRigUnit_MathTransformBase
 {
 	GENERATED_BODY()
 
@@ -31,7 +31,7 @@ struct FRigUnit_MathTransformUnaryOp : public FRigUnit_MathTransformBase
 };
 
 USTRUCT(meta=(Abstract))
-struct FRigUnit_MathTransformBinaryOp : public FRigUnit_MathTransformBase
+struct CONTROLRIG_API FRigUnit_MathTransformBinaryOp : public FRigUnit_MathTransformBase
 {
 	GENERATED_BODY()
 
@@ -54,7 +54,7 @@ struct FRigUnit_MathTransformBinaryOp : public FRigUnit_MathTransformBase
  * Makes a quaternion based transform from a euler based transform
  */
 USTRUCT(meta=(DisplayName="From Euler Transform", PrototypeName="FromEulerTransform", Keywords="Make,Construct"))
-struct FRigUnit_MathTransformFromEulerTransform : public FRigUnit_MathTransformBase
+struct CONTROLRIG_API FRigUnit_MathTransformFromEulerTransform : public FRigUnit_MathTransformBase
 {
 	GENERATED_BODY()
 
@@ -78,7 +78,7 @@ struct FRigUnit_MathTransformFromEulerTransform : public FRigUnit_MathTransformB
  * Retrieves the euler transform
  */
 USTRUCT(meta=(DisplayName="To Euler Transform", PrototypeName="ToEulerTransform", Keywords="Make,Construct"))
-struct FRigUnit_MathTransformToEulerTransform : public FRigUnit_MathTransformBase
+struct CONTROLRIG_API FRigUnit_MathTransformToEulerTransform : public FRigUnit_MathTransformBase
 {
 	GENERATED_BODY()
 
@@ -102,7 +102,7 @@ struct FRigUnit_MathTransformToEulerTransform : public FRigUnit_MathTransformBas
  * Returns the product of the two values
  */
 USTRUCT(meta=(DisplayName="Multiply", PrototypeName="Multiply", Keywords="Product,*,Global"))
-struct FRigUnit_MathTransformMul : public FRigUnit_MathTransformBinaryOp
+struct CONTROLRIG_API FRigUnit_MathTransformMul : public FRigUnit_MathTransformBinaryOp
 {
 	GENERATED_BODY()
 	RIGVM_METHOD()
@@ -113,7 +113,7 @@ struct FRigUnit_MathTransformMul : public FRigUnit_MathTransformBinaryOp
  * Returns the relative local transform within a parent's transform
  */
 USTRUCT(meta=(DisplayName="Make Relative", PrototypeName="MakeRelative", Keywords="Local,Global,Absolute"))
-struct FRigUnit_MathTransformMakeRelative : public FRigUnit_MathTransformBase
+struct CONTROLRIG_API FRigUnit_MathTransformMakeRelative : public FRigUnit_MathTransformBase
 {
 	GENERATED_BODY()
 
@@ -139,7 +139,7 @@ struct FRigUnit_MathTransformMakeRelative : public FRigUnit_MathTransformBase
  * Returns the absolute global transform within a parent's transform
  */
 USTRUCT(meta = (DisplayName = "Make Absolute", PrototypeName = "MakeAbsolute", Keywords = "Local,Global,Relative"))
-struct FRigUnit_MathTransformMakeAbsolute : public FRigUnit_MathTransformBase
+struct CONTROLRIG_API FRigUnit_MathTransformMakeAbsolute : public FRigUnit_MathTransformBase
 {
 	GENERATED_BODY()
 
@@ -165,7 +165,7 @@ struct FRigUnit_MathTransformMakeAbsolute : public FRigUnit_MathTransformBase
  * Returns the negative value
  */
 USTRUCT(meta=(DisplayName="Inverse", PrototypeName="Inverse"))
-struct FRigUnit_MathTransformInverse : public FRigUnit_MathTransformUnaryOp
+struct CONTROLRIG_API FRigUnit_MathTransformInverse : public FRigUnit_MathTransformUnaryOp
 {
 	GENERATED_BODY()
 	RIGVM_METHOD()
@@ -176,7 +176,7 @@ struct FRigUnit_MathTransformInverse : public FRigUnit_MathTransformUnaryOp
  * Linearly interpolates between A and B using the ratio T
  */
 USTRUCT(meta=(DisplayName="Interpolate", PrototypeName="Interpolate", Keywords="Lerp,Mix,Blend"))
-struct FRigUnit_MathTransformLerp : public FRigUnit_MathTransformBase
+struct CONTROLRIG_API FRigUnit_MathTransformLerp : public FRigUnit_MathTransformBase
 {
 	GENERATED_BODY()
 
@@ -206,7 +206,7 @@ struct FRigUnit_MathTransformLerp : public FRigUnit_MathTransformBase
  * Return one of the two values based on the condition
  */
 USTRUCT(meta=(DisplayName="Select", PrototypeName="Select", Keywords="Pick,If", Deprecated = "4.26.0"))
-struct FRigUnit_MathTransformSelectBool : public FRigUnit_MathTransformBase
+struct CONTROLRIG_API FRigUnit_MathTransformSelectBool : public FRigUnit_MathTransformBase
 {
 	GENERATED_BODY()
 
@@ -236,7 +236,7 @@ struct FRigUnit_MathTransformSelectBool : public FRigUnit_MathTransformBase
  * Rotates a given vector (direction) by the transform
  */
 USTRUCT(meta=(DisplayName="Transform Direction", PrototypeName="Rotate", Keywords="Transform,Direction"))
-struct FRigUnit_MathTransformRotateVector : public FRigUnit_MathTransformBase
+struct CONTROLRIG_API FRigUnit_MathTransformRotateVector : public FRigUnit_MathTransformBase
 {
 	GENERATED_BODY()
 
@@ -263,7 +263,7 @@ struct FRigUnit_MathTransformRotateVector : public FRigUnit_MathTransformBase
  * Rotates a given vector (location) by the transform
  */
 USTRUCT(meta=(DisplayName="Transform Location", PrototypeName="Multiply"))
-struct FRigUnit_MathTransformTransformVector : public FRigUnit_MathTransformBase
+struct CONTROLRIG_API FRigUnit_MathTransformTransformVector : public FRigUnit_MathTransformBase
 {
 	GENERATED_BODY()
 
@@ -290,7 +290,7 @@ struct FRigUnit_MathTransformTransformVector : public FRigUnit_MathTransformBase
  * Composes a Transform (and Euler Transform) from its components.
  */
 USTRUCT(meta=(DisplayName="Transform from SRT", Keywords ="EulerTransform,Scale,Rotation,Orientation,Translation,Location"))
-struct FRigUnit_MathTransformFromSRT : public FRigUnit_MathTransformBase
+struct CONTROLRIG_API FRigUnit_MathTransformFromSRT : public FRigUnit_MathTransformBase
 {
 	GENERATED_BODY()
 
@@ -330,7 +330,7 @@ struct FRigUnit_MathTransformFromSRT : public FRigUnit_MathTransformBase
  * Clamps a position using a plane collision, cylindric collision or spherical collision.
  */
 USTRUCT(meta = (DisplayName = "Clamp Spatially", PrototypeName = "ClampSpatially", Keywords = "Collide,Collision"))
-struct FRigUnit_MathTransformClampSpatially : public FRigUnit_MathTransformBase
+struct CONTROLRIG_API FRigUnit_MathTransformClampSpatially : public FRigUnit_MathTransformBase
 {
 	GENERATED_BODY()
 

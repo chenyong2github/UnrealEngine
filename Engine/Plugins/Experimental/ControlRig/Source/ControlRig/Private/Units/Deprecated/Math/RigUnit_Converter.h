@@ -7,7 +7,7 @@
 #include "RigUnit_Converter.generated.h"
 
 USTRUCT(meta = (DisplayName = "ConvertToEulerTransform", Category = "Math|Convert", NodeColor = "0.1 0.1 0.7", Deprecated="4.23.0"))
-struct FRigUnit_ConvertTransform : public FRigUnit
+struct CONTROLRIG_API FRigUnit_ConvertTransform : public FRigUnit
 {
 	GENERATED_BODY()
 
@@ -22,7 +22,7 @@ struct FRigUnit_ConvertTransform : public FRigUnit
 };
 
 USTRUCT(meta = (DisplayName = "ConvertToTransform", Category = "Math|Convert", NodeColor = "0.1 0.1 0.7", Deprecated="4.23.0"))
-struct FRigUnit_ConvertEulerTransform : public FRigUnit
+struct CONTROLRIG_API FRigUnit_ConvertEulerTransform : public FRigUnit
 {
 	GENERATED_BODY()
 
@@ -37,7 +37,7 @@ struct FRigUnit_ConvertEulerTransform : public FRigUnit
 };
 
 USTRUCT(meta = (DisplayName = "ConvertToQuaternion", Category = "Math|Convert", NodeColor = "0.1 0.1 0.7", Deprecated="4.23.0"))
-struct FRigUnit_ConvertRotation : public FRigUnit
+struct CONTROLRIG_API FRigUnit_ConvertRotation : public FRigUnit
 {
 	GENERATED_BODY()
 
@@ -52,13 +52,13 @@ struct FRigUnit_ConvertRotation : public FRigUnit
 };
 
 USTRUCT(meta = (DisplayName = "ConvertToQuaternionDeprecated", Category = "Math|Convert", NodeColor = "0.1 0.1 0.7", Deprecated="4.23.0"))
-struct FRigUnit_ConvertVectorRotation : public FRigUnit_ConvertRotation
+struct CONTROLRIG_API FRigUnit_ConvertVectorRotation : public FRigUnit_ConvertRotation
 {
 	GENERATED_BODY()
 };
 
 USTRUCT(meta = (DisplayName = "ConvertToRotation", Category = "Math|Convert", NodeColor = "0.1 0.1 0.7", Deprecated="4.23.0"))
-struct FRigUnit_ConvertQuaternion: public FRigUnit
+struct CONTROLRIG_API FRigUnit_ConvertQuaternion: public FRigUnit
 {
 	GENERATED_BODY()
 
@@ -73,7 +73,7 @@ struct FRigUnit_ConvertQuaternion: public FRigUnit
 };
 
 USTRUCT(meta = (DisplayName = "ConvertVectorToRotation", Category = "Math|Convert", NodeColor = "0.1 0.1 0.7", Deprecated="4.23.0"))
-struct FRigUnit_ConvertVectorToRotation: public FRigUnit
+struct CONTROLRIG_API FRigUnit_ConvertVectorToRotation: public FRigUnit
 {
 	GENERATED_BODY()
 
@@ -88,7 +88,7 @@ struct FRigUnit_ConvertVectorToRotation: public FRigUnit
 };
 
 USTRUCT(meta = (DisplayName = "ConvertVectorToQuaternion", Category = "Math|Convert", NodeColor = "0.1 0.1 0.7", Deprecated="4.23.0"))
-struct FRigUnit_ConvertVectorToQuaternion: public FRigUnit
+struct CONTROLRIG_API FRigUnit_ConvertVectorToQuaternion: public FRigUnit
 {
 	GENERATED_BODY()
 
@@ -104,7 +104,7 @@ struct FRigUnit_ConvertVectorToQuaternion: public FRigUnit
 
 
 USTRUCT(meta = (DisplayName = "ConvertRotationToVector", Category = "Math|Convert", NodeColor = "0.1 0.1 0.7", Deprecated="4.23.0"))
-struct FRigUnit_ConvertRotationToVector: public FRigUnit
+struct CONTROLRIG_API FRigUnit_ConvertRotationToVector: public FRigUnit
 {
 	GENERATED_BODY()
 
@@ -119,7 +119,7 @@ struct FRigUnit_ConvertRotationToVector: public FRigUnit
 };
 
 USTRUCT(meta = (DisplayName = "ConvertQuaternionToVector", Category = "Math|Convert", NodeColor = "0.1 0.1 0.7", Deprecated="4.23.0"))
-struct FRigUnit_ConvertQuaternionToVector: public FRigUnit
+struct CONTROLRIG_API FRigUnit_ConvertQuaternionToVector: public FRigUnit
 {
 	GENERATED_BODY()
 
@@ -134,7 +134,7 @@ struct FRigUnit_ConvertQuaternionToVector: public FRigUnit
 };
 
 USTRUCT(meta = (DisplayName = "ToSwingAndTwist", Category = "Math|Transform", NodeColor = "0.1 0.1 0.7", Deprecated="4.23.0"))
-struct FRigUnit_ToSwingAndTwist : public FRigUnit
+struct CONTROLRIG_API FRigUnit_ToSwingAndTwist : public FRigUnit
 {
 	GENERATED_BODY()
 

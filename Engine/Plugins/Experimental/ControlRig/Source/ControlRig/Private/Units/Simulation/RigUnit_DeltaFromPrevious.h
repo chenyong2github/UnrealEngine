@@ -9,7 +9,7 @@
  * Computes the difference from the previous value going through the node
  */
 USTRUCT(meta=(DisplayName="DeltaFromPrevious (Float)", PrototypeName="DeltaFromPrevious", Keywords="Difference,Velocity,Acceleration"))
-struct FRigUnit_DeltaFromPreviousFloat : public FRigUnit_SimBase
+struct CONTROLRIG_API FRigUnit_DeltaFromPreviousFloat : public FRigUnit_SimBase
 {
 	GENERATED_BODY()
 	
@@ -38,7 +38,7 @@ struct FRigUnit_DeltaFromPreviousFloat : public FRigUnit_SimBase
  * Computes the difference from the previous value going through the node
  */
 USTRUCT(meta=(DisplayName="DeltaFromPrevious (Vector)", PrototypeName="DeltaFromPrevious", Keywords="Difference,Velocity,Acceleration"))
-struct FRigUnit_DeltaFromPreviousVector : public FRigUnit_SimBase
+struct CONTROLRIG_API FRigUnit_DeltaFromPreviousVector : public FRigUnit_SimBase
 {
 	GENERATED_BODY()
 	
@@ -67,7 +67,7 @@ struct FRigUnit_DeltaFromPreviousVector : public FRigUnit_SimBase
  * Computes the difference from the previous value going through the node
  */
 USTRUCT(meta=(DisplayName="DeltaFromPrevious (Quaternion)", PrototypeName="DeltaFromPrevious", Keywords="Difference,Velocity,Acceleration"))
-struct FRigUnit_DeltaFromPreviousQuat : public FRigUnit_SimBase
+struct CONTROLRIG_API FRigUnit_DeltaFromPreviousQuat : public FRigUnit_SimBase
 {
 	GENERATED_BODY()
 	
@@ -96,7 +96,7 @@ struct FRigUnit_DeltaFromPreviousQuat : public FRigUnit_SimBase
  * Computes the difference from the previous value going through the node
  */
 USTRUCT(meta=(DisplayName="DeltaFromPrevious (Transform)", PrototypeName="DeltaFromPrevious", Keywords="Difference,Velocity,Acceleration"))
-struct FRigUnit_DeltaFromPreviousTransform : public FRigUnit_SimBase
+struct CONTROLRIG_API FRigUnit_DeltaFromPreviousTransform : public FRigUnit_SimBase
 {
 	GENERATED_BODY()
 	

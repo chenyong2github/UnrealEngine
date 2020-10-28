@@ -10,7 +10,7 @@
  * SetBoneTransform is used to perform a change in the hierarchy by setting a single bone's transform.
  */
 USTRUCT(meta=(DisplayName="Set Transform", Category="Hierarchy", DocumentationPolicy="Strict", Keywords = "SetBoneTransform", Deprecated="4.25"))
-struct FRigUnit_SetBoneTransform : public FRigUnitMutable
+struct CONTROLRIG_API FRigUnit_SetBoneTransform : public FRigUnitMutable
 {
 	GENERATED_BODY()
 

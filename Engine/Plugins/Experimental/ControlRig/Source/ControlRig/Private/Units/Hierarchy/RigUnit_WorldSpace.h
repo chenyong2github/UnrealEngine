@@ -9,7 +9,7 @@
  * Converts a transform from rig (global) space to world space
  */
 USTRUCT(meta=(DisplayName="To World", MenuDescSuffix="(Transform)", Category="Hierarchy", DocumentationPolicy = "Strict", Keywords="Global,Local,World,Actor,ComponentSpace,FromRig", Varying))
-struct FRigUnit_ToWorldSpace_Transform : public FRigUnit
+struct CONTROLRIG_API FRigUnit_ToWorldSpace_Transform : public FRigUnit
 {
 	GENERATED_BODY()
 
@@ -38,7 +38,7 @@ struct FRigUnit_ToWorldSpace_Transform : public FRigUnit
  * Converts a transform from world space to rig (global) space
  */
 USTRUCT(meta=(DisplayName="From World", MenuDescSuffix="(Transform)", Category="Hierarchy", DocumentationPolicy = "Strict", Keywords="Global,Local,World,Actor,ComponentSpace,ToRig", Varying))
-struct FRigUnit_ToRigSpace_Transform : public FRigUnit
+struct CONTROLRIG_API FRigUnit_ToRigSpace_Transform : public FRigUnit
 {
 	GENERATED_BODY()
 
@@ -67,7 +67,7 @@ struct FRigUnit_ToRigSpace_Transform : public FRigUnit
  * Converts a position / location from rig (global) space to world space
  */
 USTRUCT(meta=(DisplayName="To World", MenuDescSuffix="(Vector)", Category="Hierarchy", DocumentationPolicy = "Strict", Keywords="Global,Local,World,Actor,ComponentSpace,FromRig", Varying))
-struct FRigUnit_ToWorldSpace_Location : public FRigUnit
+struct CONTROLRIG_API FRigUnit_ToWorldSpace_Location : public FRigUnit
 {
 	GENERATED_BODY()
 
@@ -96,7 +96,7 @@ struct FRigUnit_ToWorldSpace_Location : public FRigUnit
  * Converts a position / location from world space to rig (global) space
  */
 USTRUCT(meta=(DisplayName="From World", MenuDescSuffix="(Vector)", Category="Hierarchy", DocumentationPolicy = "Strict", Keywords="Global,Local,World,Actor,ComponentSpace,ToRig", Varying))
-struct FRigUnit_ToRigSpace_Location : public FRigUnit
+struct CONTROLRIG_API FRigUnit_ToRigSpace_Location : public FRigUnit
 {
 	GENERATED_BODY()
 
@@ -125,7 +125,7 @@ struct FRigUnit_ToRigSpace_Location : public FRigUnit
  * Converts a rotation from rig (global) space to world space
  */
 USTRUCT(meta=(DisplayName="To World", MenuDescSuffix="(Quat)", Category="Hierarchy", DocumentationPolicy = "Strict", Keywords="Global,Local,World,Actor,ComponentSpace,FromRig", Varying))
-struct FRigUnit_ToWorldSpace_Rotation : public FRigUnit
+struct CONTROLRIG_API FRigUnit_ToWorldSpace_Rotation : public FRigUnit
 {
 	GENERATED_BODY()
 
@@ -154,7 +154,7 @@ struct FRigUnit_ToWorldSpace_Rotation : public FRigUnit
  * Converts a rotation from world space to rig (global) space
  */
 USTRUCT(meta=(DisplayName="From World", MenuDescSuffix="(Quat)", Category="Hierarchy", DocumentationPolicy = "Strict", Keywords="Global,Local,World,Actor,ComponentSpace,ToRig", Varying))
-struct FRigUnit_ToRigSpace_Rotation : public FRigUnit
+struct CONTROLRIG_API FRigUnit_ToRigSpace_Rotation : public FRigUnit
 {
 	GENERATED_BODY()
 

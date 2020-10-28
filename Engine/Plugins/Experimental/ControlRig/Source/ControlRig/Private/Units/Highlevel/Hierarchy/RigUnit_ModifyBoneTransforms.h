@@ -8,7 +8,7 @@
 #include "RigUnit_ModifyBoneTransforms.generated.h"
 
 USTRUCT()
-struct FRigUnit_ModifyBoneTransforms_PerBone
+struct CONTROLRIG_API FRigUnit_ModifyBoneTransforms_PerBone
 {
 	GENERATED_BODY()
 
@@ -31,7 +31,7 @@ struct FRigUnit_ModifyBoneTransforms_PerBone
 };
 
 USTRUCT()
-struct FRigUnit_ModifyBoneTransforms_WorkData : public FRigUnit_ModifyTransforms_WorkData
+struct CONTROLRIG_API FRigUnit_ModifyBoneTransforms_WorkData : public FRigUnit_ModifyTransforms_WorkData
 {
 	GENERATED_BODY()
 };
@@ -40,7 +40,7 @@ struct FRigUnit_ModifyBoneTransforms_WorkData : public FRigUnit_ModifyTransforms
  * ModifyBonetransforms is used to perform a change in the hierarchy by setting one or more bones' transforms.
  */
 USTRUCT(meta=(DisplayName="Modify Transforms", Category="Hierarchy", DocumentationPolicy="Strict", Keywords = "ModifyBone", Deprecated = "4.25"))
-struct FRigUnit_ModifyBoneTransforms : public FRigUnit_HighlevelBaseMutable
+struct CONTROLRIG_API FRigUnit_ModifyBoneTransforms : public FRigUnit_HighlevelBaseMutable
 {
 	GENERATED_BODY()
 

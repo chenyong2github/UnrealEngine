@@ -9,7 +9,7 @@
  * GetTransform is used to retrieve a single transform from a hierarchy.
  */
 USTRUCT(meta=(DisplayName="Get Transform", Category="Hierarchy", DocumentationPolicy = "Strict", Keywords="GetBoneTransform,GetControlTransform,GetInitialTransform,GetSpaceTransform,GetTransform", Varying))
-struct FRigUnit_GetTransform : public FRigUnit
+struct CONTROLRIG_API FRigUnit_GetTransform : public FRigUnit
 {
 	GENERATED_BODY()
 

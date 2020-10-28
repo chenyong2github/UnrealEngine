@@ -6,13 +6,13 @@
 #include "RigUnit_SimBase.generated.h"
 
 USTRUCT(meta=(Abstract, Category = "Simulation", NodeColor = "0.25 0.05 0.05"))
-struct FRigUnit_SimBase : public FRigUnit
+struct CONTROLRIG_API FRigUnit_SimBase : public FRigUnit
 {
 	GENERATED_BODY()
 };
 
 USTRUCT(meta=(Abstract, Category = "Simulation", NodeColor = "0.25 0.05 0.05"))
-struct FRigUnit_SimBaseMutable : public FRigUnitMutable
+struct CONTROLRIG_API FRigUnit_SimBaseMutable : public FRigUnitMutable
 {
 	GENERATED_BODY()
 };

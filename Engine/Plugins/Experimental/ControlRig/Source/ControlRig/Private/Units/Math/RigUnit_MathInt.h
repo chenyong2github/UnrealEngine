@@ -6,13 +6,13 @@
 #include "RigUnit_MathInt.generated.h"
 
 USTRUCT(meta=(Abstract, Category="Math|Int", MenuDescSuffix="(Int)"))
-struct FRigUnit_MathIntBase : public FRigUnit_MathBase
+struct CONTROLRIG_API FRigUnit_MathIntBase : public FRigUnit_MathBase
 {
 	GENERATED_BODY()
 };
 
 USTRUCT(meta=(Abstract))
-struct FRigUnit_MathIntUnaryOp : public FRigUnit_MathIntBase
+struct CONTROLRIG_API FRigUnit_MathIntUnaryOp : public FRigUnit_MathIntBase
 {
 	GENERATED_BODY()
 
@@ -29,7 +29,7 @@ struct FRigUnit_MathIntUnaryOp : public FRigUnit_MathIntBase
 };
 
 USTRUCT(meta=(Abstract))
-struct FRigUnit_MathIntBinaryOp : public FRigUnit_MathIntBase
+struct CONTROLRIG_API FRigUnit_MathIntBinaryOp : public FRigUnit_MathIntBase
 {
 	GENERATED_BODY()
 
@@ -52,7 +52,7 @@ struct FRigUnit_MathIntBinaryOp : public FRigUnit_MathIntBase
  * Returns the sum of the two values
  */
 USTRUCT(meta=(DisplayName="Add", PrototypeName="Add", Keywords="Sum,+"))
-struct FRigUnit_MathIntAdd : public FRigUnit_MathIntBinaryOp
+struct CONTROLRIG_API FRigUnit_MathIntAdd : public FRigUnit_MathIntBinaryOp
 {
 	GENERATED_BODY()
 
@@ -64,7 +64,7 @@ struct FRigUnit_MathIntAdd : public FRigUnit_MathIntBinaryOp
  * Returns the difference of the two values
  */
 USTRUCT(meta=(DisplayName="Subtract", PrototypeName="Subtract", Keywords="-"))
-struct FRigUnit_MathIntSub : public FRigUnit_MathIntBinaryOp
+struct CONTROLRIG_API FRigUnit_MathIntSub : public FRigUnit_MathIntBinaryOp
 {
 	GENERATED_BODY()
 
@@ -76,7 +76,7 @@ struct FRigUnit_MathIntSub : public FRigUnit_MathIntBinaryOp
  * Returns the product of the two values
  */
 USTRUCT(meta=(DisplayName="Multiply", PrototypeName="Multiply", Keywords="Product,*"))
-struct FRigUnit_MathIntMul : public FRigUnit_MathIntBinaryOp
+struct CONTROLRIG_API FRigUnit_MathIntMul : public FRigUnit_MathIntBinaryOp
 {
 	GENERATED_BODY()
 
@@ -94,7 +94,7 @@ struct FRigUnit_MathIntMul : public FRigUnit_MathIntBinaryOp
  * Returns the division of the two values
  */
 USTRUCT(meta=(DisplayName="Divide", PrototypeName="Divide", Keywords="Division,Divisor,/"))
-struct FRigUnit_MathIntDiv : public FRigUnit_MathIntBinaryOp
+struct CONTROLRIG_API FRigUnit_MathIntDiv : public FRigUnit_MathIntBinaryOp
 {
 	GENERATED_BODY()
 
@@ -111,7 +111,7 @@ struct FRigUnit_MathIntDiv : public FRigUnit_MathIntBinaryOp
  * Returns the modulo of the two values
  */
 USTRUCT(meta=(DisplayName="Modulo", PrototypeName="Modulo", Keywords="%,fmod"))
-struct FRigUnit_MathIntMod : public FRigUnit_MathIntBinaryOp
+struct CONTROLRIG_API FRigUnit_MathIntMod : public FRigUnit_MathIntBinaryOp
 {
 	GENERATED_BODY()
 
@@ -129,7 +129,7 @@ struct FRigUnit_MathIntMod : public FRigUnit_MathIntBinaryOp
  * Returns the smaller of the two values
  */
 USTRUCT(meta=(DisplayName="Minimum", PrototypeName="Minimum"))
-struct FRigUnit_MathIntMin : public FRigUnit_MathIntBinaryOp
+struct CONTROLRIG_API FRigUnit_MathIntMin : public FRigUnit_MathIntBinaryOp
 {
 	GENERATED_BODY()
 
@@ -141,7 +141,7 @@ struct FRigUnit_MathIntMin : public FRigUnit_MathIntBinaryOp
  * Returns the larger of the two values
  */
 USTRUCT(meta=(DisplayName="Maximum", PrototypeName="Maximum"))
-struct FRigUnit_MathIntMax : public FRigUnit_MathIntBinaryOp
+struct CONTROLRIG_API FRigUnit_MathIntMax : public FRigUnit_MathIntBinaryOp
 {
 	GENERATED_BODY()
 
@@ -153,7 +153,7 @@ struct FRigUnit_MathIntMax : public FRigUnit_MathIntBinaryOp
  * Returns the value of A raised to the power of B.
  */
 USTRUCT(meta=(DisplayName="Power", PrototypeName="Power"))
-struct FRigUnit_MathIntPow : public FRigUnit_MathIntBinaryOp
+struct CONTROLRIG_API FRigUnit_MathIntPow : public FRigUnit_MathIntBinaryOp
 {
 	GENERATED_BODY()
 
@@ -171,7 +171,7 @@ struct FRigUnit_MathIntPow : public FRigUnit_MathIntBinaryOp
  * Returns the negative value
  */
 USTRUCT(meta=(DisplayName="Negate", PrototypeName="Negate", Keywords="-,Abs"))
-struct FRigUnit_MathIntNegate : public FRigUnit_MathIntUnaryOp
+struct CONTROLRIG_API FRigUnit_MathIntNegate : public FRigUnit_MathIntUnaryOp
 {
 	GENERATED_BODY()
 
@@ -183,7 +183,7 @@ struct FRigUnit_MathIntNegate : public FRigUnit_MathIntUnaryOp
  * Returns the absolute (positive) value
  */
 USTRUCT(meta=(DisplayName="Absolute", PrototypeName="Absolute", Keywords="Abs,Neg"))
-struct FRigUnit_MathIntAbs : public FRigUnit_MathIntUnaryOp
+struct CONTROLRIG_API FRigUnit_MathIntAbs : public FRigUnit_MathIntUnaryOp
 {
 	GENERATED_BODY()
 
@@ -195,7 +195,7 @@ struct FRigUnit_MathIntAbs : public FRigUnit_MathIntUnaryOp
  * Returns the int cast to a float
  */
 USTRUCT(meta=(DisplayName="To Float", PrototypeName="Convert"))
-struct FRigUnit_MathIntToFloat : public FRigUnit_MathIntBase
+struct CONTROLRIG_API FRigUnit_MathIntToFloat : public FRigUnit_MathIntBase
 {
 	GENERATED_BODY()
 
@@ -219,7 +219,7 @@ struct FRigUnit_MathIntToFloat : public FRigUnit_MathIntBase
  * Returns the sign of the value (+1 for >= 0, -1 for < 0)
  */
 USTRUCT(meta=(DisplayName="Sign", PrototypeName="Sign"))
-struct FRigUnit_MathIntSign : public FRigUnit_MathIntUnaryOp
+struct CONTROLRIG_API FRigUnit_MathIntSign : public FRigUnit_MathIntUnaryOp
 {
 	GENERATED_BODY()
 
@@ -231,7 +231,7 @@ struct FRigUnit_MathIntSign : public FRigUnit_MathIntUnaryOp
  * Clamps the given value within the range provided by minimum and maximum
  */
 USTRUCT(meta=(DisplayName="Clamp", PrototypeName="Clamp", Keywords="Range,Remap"))
-struct FRigUnit_MathIntClamp : public FRigUnit_MathIntBase
+struct CONTROLRIG_API FRigUnit_MathIntClamp : public FRigUnit_MathIntBase
 {
 	GENERATED_BODY()
 
@@ -260,7 +260,7 @@ struct FRigUnit_MathIntClamp : public FRigUnit_MathIntBase
  * Returns true if the value A equals B
  */
 USTRUCT(meta=(DisplayName="Equals", PrototypeName="Equals", Keywords="Same,=="))
-struct FRigUnit_MathIntEquals : public FRigUnit_MathIntBase
+struct CONTROLRIG_API FRigUnit_MathIntEquals : public FRigUnit_MathIntBase
 {
 	GENERATED_BODY()
 	RIGVM_METHOD()
@@ -286,7 +286,7 @@ struct FRigUnit_MathIntEquals : public FRigUnit_MathIntBase
  * Returns true if the value A does not equal B
  */
 USTRUCT(meta=(DisplayName="Not Equals", PrototypeName="NotEquals", Keywords="Different,!="))
-struct FRigUnit_MathIntNotEquals : public FRigUnit_MathIntBase
+struct CONTROLRIG_API FRigUnit_MathIntNotEquals : public FRigUnit_MathIntBase
 {
 	GENERATED_BODY()
 	RIGVM_METHOD()
@@ -312,7 +312,7 @@ struct FRigUnit_MathIntNotEquals : public FRigUnit_MathIntBase
  * Returns true if the value A is greater than B
  */
 USTRUCT(meta=(DisplayName="Greater", PrototypeName="Greater", Keywords="Larger,Bigger,>"))
-struct FRigUnit_MathIntGreater : public FRigUnit_MathIntBase
+struct CONTROLRIG_API FRigUnit_MathIntGreater : public FRigUnit_MathIntBase
 {
 	GENERATED_BODY()
 
@@ -339,7 +339,7 @@ struct FRigUnit_MathIntGreater : public FRigUnit_MathIntBase
  * Returns true if the value A is less than B
  */
 USTRUCT(meta=(DisplayName="Less", PrototypeName="Less", Keywords="Smaller,<"))
-struct FRigUnit_MathIntLess : public FRigUnit_MathIntBase
+struct CONTROLRIG_API FRigUnit_MathIntLess : public FRigUnit_MathIntBase
 {
 	GENERATED_BODY()
 	
@@ -366,7 +366,7 @@ struct FRigUnit_MathIntLess : public FRigUnit_MathIntBase
  * Returns true if the value A is greater than or equal to B
  */
 USTRUCT(meta=(DisplayName="Greater Equal", PrototypeName="GreaterEqual", Keywords="Larger,Bigger,>="))
-struct FRigUnit_MathIntGreaterEqual : public FRigUnit_MathIntBase
+struct CONTROLRIG_API FRigUnit_MathIntGreaterEqual : public FRigUnit_MathIntBase
 {
 	GENERATED_BODY()
 
@@ -393,7 +393,7 @@ struct FRigUnit_MathIntGreaterEqual : public FRigUnit_MathIntBase
  * Returns true if the value A is less than or equal to B
  */
 USTRUCT(meta=(DisplayName="Less Equal", PrototypeName="LessEqual", Keywords="Smaller,<="))
-struct FRigUnit_MathIntLessEqual : public FRigUnit_MathIntBase
+struct CONTROLRIG_API FRigUnit_MathIntLessEqual : public FRigUnit_MathIntBase
 {
 	GENERATED_BODY()
 

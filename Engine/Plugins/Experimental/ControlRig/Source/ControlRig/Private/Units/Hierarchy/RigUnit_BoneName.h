@@ -9,7 +9,7 @@
  * The Item node is used to share a specific item across the graph
  */
 USTRUCT(meta=(DisplayName="Item", Category="Hierarchy", DocumentationPolicy = "Strict", Constant))
-struct FRigUnit_Item : public FRigUnit
+struct CONTROLRIG_API FRigUnit_Item : public FRigUnit
 {
 	GENERATED_BODY()
 
@@ -30,7 +30,7 @@ struct FRigUnit_Item : public FRigUnit
  * BoneName is used to represent a bone name in the graph
  */
 USTRUCT(meta=(DisplayName="Bone Name", Category="Hierarchy", DocumentationPolicy = "Strict", Constant, Deprecated = "4.25"))
-struct FRigUnit_BoneName : public FRigUnit
+struct CONTROLRIG_API FRigUnit_BoneName : public FRigUnit
 {
 	GENERATED_BODY()
 
@@ -51,7 +51,7 @@ struct FRigUnit_BoneName : public FRigUnit
  * SpaceName is used to represent a Space name in the graph
  */
 USTRUCT(meta=(DisplayName="Space Name", Category="Hierarchy", DocumentationPolicy = "Strict", Deprecated = "4.25"))
-struct FRigUnit_SpaceName : public FRigUnit
+struct CONTROLRIG_API FRigUnit_SpaceName : public FRigUnit
 {
 	GENERATED_BODY()
 
@@ -72,7 +72,7 @@ struct FRigUnit_SpaceName : public FRigUnit
  * ControlName is used to represent a Control name in the graph
  */
 USTRUCT(meta=(DisplayName="Control Name", Category="Hierarchy", DocumentationPolicy = "Strict", Deprecated = "4.25"))
-struct FRigUnit_ControlName : public FRigUnit
+struct CONTROLRIG_API FRigUnit_ControlName : public FRigUnit
 {
 	GENERATED_BODY()
 

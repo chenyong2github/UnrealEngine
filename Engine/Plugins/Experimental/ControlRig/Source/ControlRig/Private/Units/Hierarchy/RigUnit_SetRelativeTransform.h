@@ -9,7 +9,7 @@
  * SetRelativeTransform is used to set a single transform from a hierarchy in the space of another item
  */
 USTRUCT(meta=(DisplayName="Set Relative Transform", Category="Hierarchy", DocumentationPolicy = "Strict", Keywords = "Offset,Local", Varying))
-struct FRigUnit_SetRelativeTransformForItem : public FRigUnitMutable
+struct CONTROLRIG_API FRigUnit_SetRelativeTransformForItem : public FRigUnitMutable
 {
 	GENERATED_BODY()
 

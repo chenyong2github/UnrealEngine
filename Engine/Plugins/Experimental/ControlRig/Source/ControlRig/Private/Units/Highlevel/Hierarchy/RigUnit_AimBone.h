@@ -6,7 +6,7 @@
 #include "RigUnit_AimBone.generated.h"
 
 USTRUCT()
-struct FRigUnit_AimBone_Target
+struct CONTROLRIG_API FRigUnit_AimBone_Target
 {
 	GENERATED_BODY()
 
@@ -51,7 +51,7 @@ struct FRigUnit_AimBone_Target
 };
 
 USTRUCT()
-struct FRigUnit_AimItem_Target
+struct CONTROLRIG_API FRigUnit_AimItem_Target
 {
 	GENERATED_BODY()
 
@@ -96,7 +96,7 @@ struct FRigUnit_AimItem_Target
 };
 
 USTRUCT()
-struct FRigUnit_AimBone_DebugSettings
+struct CONTROLRIG_API FRigUnit_AimBone_DebugSettings
 {
 	GENERATED_BODY()
 
@@ -131,7 +131,7 @@ struct FRigUnit_AimBone_DebugSettings
  * Note: This node operates in world space!
  */
 USTRUCT(meta = (DisplayName = "Aim Math", Category = "Hierarchy", Keywords = "Lookat"))
-struct FRigUnit_AimBoneMath : public FRigUnit_HighlevelBase
+struct CONTROLRIG_API FRigUnit_AimBoneMath : public FRigUnit_HighlevelBase
 {
 	GENERATED_BODY()
 
@@ -197,7 +197,7 @@ struct FRigUnit_AimBoneMath : public FRigUnit_HighlevelBase
  * Note: This node operates in global space!
  */
 USTRUCT(meta=(DisplayName="Aim", Category="Hierarchy", Keywords="Lookat", Deprecated = "4.25"))
-struct FRigUnit_AimBone : public FRigUnit_HighlevelBaseMutable
+struct CONTROLRIG_API FRigUnit_AimBone : public FRigUnit_HighlevelBaseMutable
 {
 	GENERATED_BODY()
 
@@ -283,7 +283,7 @@ struct FRigUnit_AimBone : public FRigUnit_HighlevelBaseMutable
  * Note: This node operates in global space!
  */
 USTRUCT(meta=(DisplayName="Aim", Category="Hierarchy", Keywords="Lookat"))
-struct FRigUnit_AimItem: public FRigUnit_HighlevelBaseMutable
+struct CONTROLRIG_API FRigUnit_AimItem: public FRigUnit_HighlevelBaseMutable
 {
 	GENERATED_BODY()
 

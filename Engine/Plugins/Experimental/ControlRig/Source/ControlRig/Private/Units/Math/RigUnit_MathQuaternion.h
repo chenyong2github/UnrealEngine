@@ -7,13 +7,13 @@
 #include "RigUnit_MathQuaternion.generated.h"
 
 USTRUCT(meta=(Abstract, Category="Math|Quaternion", MenuDescSuffix="(Quaternion)"))
-struct FRigUnit_MathQuaternionBase : public FRigUnit_MathBase
+struct CONTROLRIG_API FRigUnit_MathQuaternionBase : public FRigUnit_MathBase
 {
 	GENERATED_BODY()
 };
 
 USTRUCT(meta=(Abstract))
-struct FRigUnit_MathQuaternionUnaryOp : public FRigUnit_MathQuaternionBase
+struct CONTROLRIG_API FRigUnit_MathQuaternionUnaryOp : public FRigUnit_MathQuaternionBase
 {
 	GENERATED_BODY()
 
@@ -30,7 +30,7 @@ struct FRigUnit_MathQuaternionUnaryOp : public FRigUnit_MathQuaternionBase
 };
 
 USTRUCT(meta=(Abstract))
-struct FRigUnit_MathQuaternionBinaryOp : public FRigUnit_MathQuaternionBase
+struct CONTROLRIG_API FRigUnit_MathQuaternionBinaryOp : public FRigUnit_MathQuaternionBase
 {
 	GENERATED_BODY()
 
@@ -53,7 +53,7 @@ struct FRigUnit_MathQuaternionBinaryOp : public FRigUnit_MathQuaternionBase
  * Makes a quaternion from an axis and an angle in radians
  */
 USTRUCT(meta=(DisplayName="From Axis And Angle", PrototypeName="FromAxisAndAngle", Keywords="Make,Construct"))
-struct FRigUnit_MathQuaternionFromAxisAndAngle : public FRigUnit_MathQuaternionBase
+struct CONTROLRIG_API FRigUnit_MathQuaternionFromAxisAndAngle : public FRigUnit_MathQuaternionBase
 {
 	GENERATED_BODY()
 
@@ -81,7 +81,7 @@ struct FRigUnit_MathQuaternionFromAxisAndAngle : public FRigUnit_MathQuaternionB
  * Makes a quaternion from euler values in degrees
  */
 USTRUCT(meta=(DisplayName="From Euler", PrototypeName="FromEuler", Keywords="Make,Construct"))
-struct FRigUnit_MathQuaternionFromEuler : public FRigUnit_MathQuaternionBase
+struct CONTROLRIG_API FRigUnit_MathQuaternionFromEuler : public FRigUnit_MathQuaternionBase
 {
 	GENERATED_BODY()
 
@@ -109,7 +109,7 @@ struct FRigUnit_MathQuaternionFromEuler : public FRigUnit_MathQuaternionBase
  * Makes a quaternion from a rotator
  */
 USTRUCT(meta=(DisplayName="From Rotator", PrototypeName="FromRotator", Keywords="Make,Construct"))
-struct FRigUnit_MathQuaternionFromRotator : public FRigUnit_MathQuaternionBase
+struct CONTROLRIG_API FRigUnit_MathQuaternionFromRotator : public FRigUnit_MathQuaternionBase
 {
 	GENERATED_BODY()
 	
@@ -133,7 +133,7 @@ struct FRigUnit_MathQuaternionFromRotator : public FRigUnit_MathQuaternionBase
  * Makes a quaternion from two vectors, representing the shortest rotation between the two vectors.
  */
 USTRUCT(meta=(DisplayName="From Two Vectors", PrototypeName="FromTwoVectors", Keywords="Make,Construct"))
-struct FRigUnit_MathQuaternionFromTwoVectors : public FRigUnit_MathQuaternionBase
+struct CONTROLRIG_API FRigUnit_MathQuaternionFromTwoVectors : public FRigUnit_MathQuaternionBase
 {
 	GENERATED_BODY()
 	
@@ -160,7 +160,7 @@ struct FRigUnit_MathQuaternionFromTwoVectors : public FRigUnit_MathQuaternionBas
  * Retrieves the axis and angle of a quaternion in radians
  */
 USTRUCT(meta=(DisplayName="To Axis And Angle", PrototypeName="ToAxisAndAngle", Keywords="Make,Construct,GetAxis,GetAngle"))
-struct FRigUnit_MathQuaternionToAxisAndAngle : public FRigUnit_MathQuaternionBase
+struct CONTROLRIG_API FRigUnit_MathQuaternionToAxisAndAngle : public FRigUnit_MathQuaternionBase
 {
 	GENERATED_BODY()
 
@@ -188,7 +188,7 @@ struct FRigUnit_MathQuaternionToAxisAndAngle : public FRigUnit_MathQuaternionBas
  * Scales a quaternion's angle
  */
 USTRUCT(meta=(DisplayName="Scale", PrototypeName="Scale", Keywords="Multiply,Angle,Scale", Constant))
-struct FRigUnit_MathQuaternionScale : public FRigUnit_MathQuaternionBase
+struct CONTROLRIG_API FRigUnit_MathQuaternionScale : public FRigUnit_MathQuaternionBase
 {
 	GENERATED_BODY()
 
@@ -212,7 +212,7 @@ struct FRigUnit_MathQuaternionScale : public FRigUnit_MathQuaternionBase
  * Retrieves the euler angles in degrees
  */
 USTRUCT(meta=(DisplayName="To Euler", PrototypeName="ToEuler", Keywords="Make,Construct"))
-struct FRigUnit_MathQuaternionToEuler : public FRigUnit_MathQuaternionBase
+struct CONTROLRIG_API FRigUnit_MathQuaternionToEuler : public FRigUnit_MathQuaternionBase
 {
 	GENERATED_BODY()
 
@@ -240,7 +240,7 @@ struct FRigUnit_MathQuaternionToEuler : public FRigUnit_MathQuaternionBase
  * Retrieves the rotator
  */
 USTRUCT(meta=(DisplayName="To Rotator", PrototypeName="ToRotator", Keywords="Make,Construct"))
-struct FRigUnit_MathQuaternionToRotator : public FRigUnit_MathQuaternionBase
+struct CONTROLRIG_API FRigUnit_MathQuaternionToRotator : public FRigUnit_MathQuaternionBase
 {
 	GENERATED_BODY()
 
@@ -264,7 +264,7 @@ struct FRigUnit_MathQuaternionToRotator : public FRigUnit_MathQuaternionBase
  * Returns the product of the two values
  */
 USTRUCT(meta=(DisplayName="Multiply", PrototypeName="Multiply", Keywords="Product,*"))
-struct FRigUnit_MathQuaternionMul : public FRigUnit_MathQuaternionBinaryOp
+struct CONTROLRIG_API FRigUnit_MathQuaternionMul : public FRigUnit_MathQuaternionBinaryOp
 {
 	GENERATED_BODY()
 	RIGVM_METHOD()
@@ -275,7 +275,7 @@ struct FRigUnit_MathQuaternionMul : public FRigUnit_MathQuaternionBinaryOp
  * Returns the negative value
  */
 USTRUCT(meta=(DisplayName="Inverse", PrototypeName="Inverse"))
-struct FRigUnit_MathQuaternionInverse : public FRigUnit_MathQuaternionUnaryOp
+struct CONTROLRIG_API FRigUnit_MathQuaternionInverse : public FRigUnit_MathQuaternionUnaryOp
 {
 	GENERATED_BODY()
 	RIGVM_METHOD()
@@ -286,7 +286,7 @@ struct FRigUnit_MathQuaternionInverse : public FRigUnit_MathQuaternionUnaryOp
  * Linearly interpolates between A and B using the ratio T
  */
 USTRUCT(meta=(DisplayName="Interpolate", PrototypeName="Interpolate", Keywords="Lerp,Mix,Blend,Slerp,SphericalInterpolate"))
-struct FRigUnit_MathQuaternionSlerp : public FRigUnit_MathQuaternionBase
+struct CONTROLRIG_API FRigUnit_MathQuaternionSlerp : public FRigUnit_MathQuaternionBase
 {
 	GENERATED_BODY()
 
@@ -316,7 +316,7 @@ struct FRigUnit_MathQuaternionSlerp : public FRigUnit_MathQuaternionBase
  * Returns true if the value A equals B
  */
 USTRUCT(meta=(DisplayName="Equals", PrototypeName="Equals", Keywords="Same,=="))
-struct FRigUnit_MathQuaternionEquals : public FRigUnit_MathQuaternionBase
+struct CONTROLRIG_API FRigUnit_MathQuaternionEquals : public FRigUnit_MathQuaternionBase
 {
 	GENERATED_BODY()
 
@@ -343,7 +343,7 @@ struct FRigUnit_MathQuaternionEquals : public FRigUnit_MathQuaternionBase
  * Returns true if the value A does not equal B
  */
 USTRUCT(meta=(DisplayName="Not Equals", PrototypeName="NotEquals", Keywords="Different,!="))
-struct FRigUnit_MathQuaternionNotEquals : public FRigUnit_MathQuaternionBase
+struct CONTROLRIG_API FRigUnit_MathQuaternionNotEquals : public FRigUnit_MathQuaternionBase
 {
 	GENERATED_BODY()
 
@@ -370,7 +370,7 @@ struct FRigUnit_MathQuaternionNotEquals : public FRigUnit_MathQuaternionBase
  * Return one of the two values based on the condition
  */
 USTRUCT(meta=(DisplayName="Select", PrototypeName="Select", Keywords="Pick,If", Deprecated = "4.26.0"))
-struct FRigUnit_MathQuaternionSelectBool : public FRigUnit_MathQuaternionBase
+struct CONTROLRIG_API FRigUnit_MathQuaternionSelectBool : public FRigUnit_MathQuaternionBase
 {
 	GENERATED_BODY()
 
@@ -400,7 +400,7 @@ struct FRigUnit_MathQuaternionSelectBool : public FRigUnit_MathQuaternionBase
  * Returns the dot product between two quaternions
  */
 USTRUCT(meta=(DisplayName="Dot", PrototypeName="Dot,|"))
-struct FRigUnit_MathQuaternionDot : public FRigUnit_MathQuaternionBase
+struct CONTROLRIG_API FRigUnit_MathQuaternionDot : public FRigUnit_MathQuaternionBase
 {
 	GENERATED_BODY()
 
@@ -427,7 +427,7 @@ struct FRigUnit_MathQuaternionDot : public FRigUnit_MathQuaternionBase
  * Returns the normalized quaternion
  */
 USTRUCT(meta=(DisplayName="Unit", PrototypeName="Unit", Keywords="Normalize"))
-struct FRigUnit_MathQuaternionUnit : public FRigUnit_MathQuaternionUnaryOp
+struct CONTROLRIG_API FRigUnit_MathQuaternionUnit : public FRigUnit_MathQuaternionUnaryOp
 {
 	GENERATED_BODY()
 	RIGVM_METHOD()
@@ -438,7 +438,7 @@ struct FRigUnit_MathQuaternionUnit : public FRigUnit_MathQuaternionUnaryOp
  * Rotates a given vector by the quaternion
  */
 USTRUCT(meta=(DisplayName="Rotate", PrototypeName="Multiply", Keywords="Transform"))
-struct FRigUnit_MathQuaternionRotateVector : public FRigUnit_MathQuaternionBase
+struct CONTROLRIG_API FRigUnit_MathQuaternionRotateVector : public FRigUnit_MathQuaternionBase
 {
 	GENERATED_BODY()
 
@@ -465,7 +465,7 @@ struct FRigUnit_MathQuaternionRotateVector : public FRigUnit_MathQuaternionBase
  * Rotates a given vector by the quaternion
  */
 USTRUCT(meta = (DisplayName = "Axis", PrototypeName = "Axis", Keywords = "GetAxis,xAxis,yAxis,zAxis"))
-struct FRigUnit_MathQuaternionGetAxis: public FRigUnit_MathQuaternionBase
+struct CONTROLRIG_API FRigUnit_MathQuaternionGetAxis: public FRigUnit_MathQuaternionBase
 {
 	GENERATED_BODY()
 
@@ -494,7 +494,7 @@ struct FRigUnit_MathQuaternionGetAxis: public FRigUnit_MathQuaternionBase
  * Computes the swing and twist components of a quaternion
  */
 USTRUCT(meta = (DisplayName = "To Swing & Twist"))
-struct FRigUnit_MathQuaternionSwingTwist : public FRigUnit_MathQuaternionBase
+struct CONTROLRIG_API FRigUnit_MathQuaternionSwingTwist : public FRigUnit_MathQuaternionBase
 {
 	GENERATED_BODY()
 
@@ -524,7 +524,7 @@ struct FRigUnit_MathQuaternionSwingTwist : public FRigUnit_MathQuaternionBase
  * Enum of possible rotation orders
  */
 USTRUCT(meta = (DisplayName = "Rotation Order", Category = "Math|Rotation", Constant))
-struct FRigUnit_MathQuaternionRotationOrder : public FRigUnit_MathBase
+struct CONTROLRIG_API FRigUnit_MathQuaternionRotationOrder : public FRigUnit_MathBase
 {
 	GENERATED_BODY()
 

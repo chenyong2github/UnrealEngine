@@ -10,7 +10,7 @@
  * SetBoneInitialTransform is used to perform a change in the hierarchy by setting a single bone's transform.
  */
 USTRUCT(meta=(DisplayName="Set Initial Bone Transform", Category="Setup", DocumentationPolicy="Strict", Keywords = "SetBoneInitialTransform", Deprecated="4.25"))
-struct FRigUnit_SetBoneInitialTransform : public FRigUnitMutable
+struct CONTROLRIG_API FRigUnit_SetBoneInitialTransform : public FRigUnitMutable
 {
 	GENERATED_BODY()
 

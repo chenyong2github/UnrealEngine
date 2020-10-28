@@ -7,13 +7,13 @@
 #include "RigUnit_MathColor.generated.h"
 
 USTRUCT(meta=(Abstract, Category="Math|Color", MenuDescSuffix="(Color)"))
-struct FRigUnit_MathColorBase : public FRigUnit_MathBase
+struct CONTROLRIG_API FRigUnit_MathColorBase : public FRigUnit_MathBase
 {
 	GENERATED_BODY()
 };
 
 USTRUCT(meta=(Abstract))
-struct FRigUnit_MathColorBinaryOp : public FRigUnit_MathColorBase
+struct CONTROLRIG_API FRigUnit_MathColorBinaryOp : public FRigUnit_MathColorBase
 {
 	GENERATED_BODY()
 
@@ -36,7 +36,7 @@ struct FRigUnit_MathColorBinaryOp : public FRigUnit_MathColorBase
  * Makes a vector from a single float
  */
 USTRUCT(meta=(DisplayName="From Float", PrototypeName="FromFloat", Keywords="Make,Construct"))
-struct FRigUnit_MathColorFromFloat : public FRigUnit_MathColorBase
+struct CONTROLRIG_API FRigUnit_MathColorFromFloat : public FRigUnit_MathColorBase
 {
 	GENERATED_BODY()
 	RIGVM_METHOD()
@@ -59,7 +59,7 @@ struct FRigUnit_MathColorFromFloat : public FRigUnit_MathColorBase
  * Returns the sum of the two values
  */
 USTRUCT(meta=(DisplayName="Add", PrototypeName="Add", Keywords="Sum,+"))
-struct FRigUnit_MathColorAdd : public FRigUnit_MathColorBinaryOp
+struct CONTROLRIG_API FRigUnit_MathColorAdd : public FRigUnit_MathColorBinaryOp
 {
 	GENERATED_BODY()
 
@@ -71,7 +71,7 @@ struct FRigUnit_MathColorAdd : public FRigUnit_MathColorBinaryOp
  * Returns the difference of the two values
  */
 USTRUCT(meta=(DisplayName="Subtract", PrototypeName="Subtract", Keywords="-"))
-struct FRigUnit_MathColorSub : public FRigUnit_MathColorBinaryOp
+struct CONTROLRIG_API FRigUnit_MathColorSub : public FRigUnit_MathColorBinaryOp
 {
 	GENERATED_BODY()
 
@@ -83,7 +83,7 @@ struct FRigUnit_MathColorSub : public FRigUnit_MathColorBinaryOp
  * Returns the product of the two values
  */
 USTRUCT(meta=(DisplayName="Multiply", PrototypeName="Multiply", Keywords="Product,*"))
-struct FRigUnit_MathColorMul : public FRigUnit_MathColorBinaryOp
+struct CONTROLRIG_API FRigUnit_MathColorMul : public FRigUnit_MathColorBinaryOp
 {
 	GENERATED_BODY()
 
@@ -100,7 +100,7 @@ struct FRigUnit_MathColorMul : public FRigUnit_MathColorBinaryOp
  * Linearly interpolates between A and B using the ratio T
  */
 USTRUCT(meta=(DisplayName="Interpolate", PrototypeName="Interpolate", Keywords="Lerp,Mix,Blend"))
-struct FRigUnit_MathColorLerp : public FRigUnit_MathColorBase
+struct CONTROLRIG_API FRigUnit_MathColorLerp : public FRigUnit_MathColorBase
 {
 	GENERATED_BODY()
 

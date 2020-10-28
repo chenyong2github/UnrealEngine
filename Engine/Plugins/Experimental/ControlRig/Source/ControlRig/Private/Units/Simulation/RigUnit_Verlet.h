@@ -10,7 +10,7 @@
  * Simulates a single position over time using verlet integration
  */
 USTRUCT(meta=(DisplayName="Verlet (Vector)", PrototypeName="Verlet", Keywords="Simulate,Integrate"))
-struct FRigUnit_VerletIntegrateVector : public FRigUnit_SimBase
+struct CONTROLRIG_API FRigUnit_VerletIntegrateVector : public FRigUnit_SimBase
 {
 	GENERATED_BODY()
 	

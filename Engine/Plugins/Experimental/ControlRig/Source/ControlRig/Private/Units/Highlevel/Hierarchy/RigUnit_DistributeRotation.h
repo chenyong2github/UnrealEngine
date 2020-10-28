@@ -7,7 +7,7 @@
 #include "RigUnit_DistributeRotation.generated.h"
 
 USTRUCT()
-struct FRigUnit_DistributeRotation_Rotation
+struct CONTROLRIG_API FRigUnit_DistributeRotation_Rotation
 {
 	GENERATED_BODY()
 
@@ -31,7 +31,7 @@ struct FRigUnit_DistributeRotation_Rotation
 };
 
 USTRUCT()
-struct FRigUnit_DistributeRotation_WorkData
+struct CONTROLRIG_API FRigUnit_DistributeRotation_WorkData
 {
 	GENERATED_BODY()
 
@@ -57,7 +57,7 @@ struct FRigUnit_DistributeRotation_WorkData
  * Note: This node adds rotation in local space of each bone!
  */
 USTRUCT(meta=(DisplayName="Distribute Rotation", Category="Hierarchy", Keywords="TwistBones", Deprecated = "4.25"))
-struct FRigUnit_DistributeRotation : public FRigUnit_HighlevelBaseMutable
+struct CONTROLRIG_API FRigUnit_DistributeRotation : public FRigUnit_HighlevelBaseMutable
 {
 	GENERATED_BODY()
 
@@ -129,7 +129,7 @@ struct FRigUnit_DistributeRotation : public FRigUnit_HighlevelBaseMutable
  * Note: This node adds rotation in local space of each item!
  */
 USTRUCT(meta=(DisplayName="Distribute Rotation", Category="Hierarchy", Keywords="TwistBones"))
-struct FRigUnit_DistributeRotationForCollection : public FRigUnit_HighlevelBaseMutable
+struct CONTROLRIG_API FRigUnit_DistributeRotationForCollection : public FRigUnit_HighlevelBaseMutable
 {
 	GENERATED_BODY()
 

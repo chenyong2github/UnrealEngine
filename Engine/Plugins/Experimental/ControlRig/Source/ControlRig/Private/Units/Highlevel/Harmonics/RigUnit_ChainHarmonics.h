@@ -8,7 +8,7 @@
 #include "RigUnit_ChainHarmonics.generated.h"
 
 USTRUCT()
-struct FRigUnit_ChainHarmonics_Reach
+struct CONTROLRIG_API FRigUnit_ChainHarmonics_Reach
 {
 	GENERATED_BODY()
 
@@ -42,7 +42,7 @@ struct FRigUnit_ChainHarmonics_Reach
 };
 
 USTRUCT()
-struct FRigUnit_ChainHarmonics_Wave
+struct CONTROLRIG_API FRigUnit_ChainHarmonics_Wave
 {
 	GENERATED_BODY()
 
@@ -84,7 +84,7 @@ struct FRigUnit_ChainHarmonics_Wave
 };
 
 USTRUCT()
-struct FRigUnit_ChainHarmonics_Pendulum
+struct CONTROLRIG_API FRigUnit_ChainHarmonics_Pendulum
 {
 	GENERATED_BODY()
 
@@ -138,7 +138,7 @@ struct FRigUnit_ChainHarmonics_Pendulum
 };
 
 USTRUCT()
-struct FRigUnit_ChainHarmonics_WorkData
+struct CONTROLRIG_API FRigUnit_ChainHarmonics_WorkData
 {
 	GENERATED_BODY()
 
@@ -176,7 +176,7 @@ struct FRigUnit_ChainHarmonics_WorkData
 };
 
 USTRUCT(meta=(DisplayName="ChainHarmonics", Deprecated = "4.25"))
-struct FRigUnit_ChainHarmonics : public FRigUnit_HighlevelBaseMutable
+struct CONTROLRIG_API FRigUnit_ChainHarmonics : public FRigUnit_HighlevelBaseMutable
 {
 	GENERATED_BODY()
 
@@ -232,7 +232,7 @@ struct FRigUnit_ChainHarmonics : public FRigUnit_HighlevelBaseMutable
  * Performs chain based simulation
  */
 USTRUCT(meta=(DisplayName="Chain Harmonics"))
-struct FRigUnit_ChainHarmonicsPerItem : public FRigUnit_HighlevelBaseMutable
+struct CONTROLRIG_API FRigUnit_ChainHarmonicsPerItem : public FRigUnit_HighlevelBaseMutable
 {
 	GENERATED_BODY()
 

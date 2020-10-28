@@ -9,7 +9,7 @@
  * SendEvent is used to notify the engine / editor of a change that happend within the Control Rig.
  */
 USTRUCT(meta=(DisplayName="Send Event", Category="Hierarchy", DocumentationPolicy="Strict", Keywords = "SendEvent", PrototypeName = "Event,Notify,Notification"))
-struct FRigUnit_SendEvent : public FRigUnitMutable
+struct CONTROLRIG_API FRigUnit_SendEvent : public FRigUnitMutable
 {
 	GENERATED_BODY()
 

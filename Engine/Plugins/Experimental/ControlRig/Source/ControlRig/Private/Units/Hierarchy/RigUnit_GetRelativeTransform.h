@@ -9,7 +9,7 @@
  * GetRelativeTransform is used to retrieve a single transform from a hierarchy in the space of another transform
  */
 USTRUCT(meta=(DisplayName="Get Relative Transform", Category="Hierarchy", DocumentationPolicy = "Strict", Keywords = "Offset,Local", Varying))
-struct FRigUnit_GetRelativeTransformForItem : public FRigUnit
+struct CONTROLRIG_API FRigUnit_GetRelativeTransformForItem : public FRigUnit
 {
 	GENERATED_BODY()
 

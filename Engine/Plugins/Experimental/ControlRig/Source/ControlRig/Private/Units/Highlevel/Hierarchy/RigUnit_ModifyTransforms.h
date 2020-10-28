@@ -32,7 +32,7 @@ enum class EControlRigModifyBoneMode : uint8
 };
 
 USTRUCT()
-struct FRigUnit_ModifyTransforms_PerItem
+struct CONTROLRIG_API FRigUnit_ModifyTransforms_PerItem
 {
 	GENERATED_BODY()
 
@@ -55,7 +55,7 @@ struct FRigUnit_ModifyTransforms_PerItem
 };
 
 USTRUCT()
-struct FRigUnit_ModifyTransforms_WorkData
+struct CONTROLRIG_API FRigUnit_ModifyTransforms_WorkData
 {
 	GENERATED_BODY()
 
@@ -67,7 +67,7 @@ struct FRigUnit_ModifyTransforms_WorkData
  * Modify Transforms is used to perform a change in the hierarchy by setting one or more bones' transforms
  */
 USTRUCT(meta=(DisplayName="Modify Transforms", Category="Hierarchy", DocumentationPolicy="Strict", Keywords = "ModifyBone"))
-struct FRigUnit_ModifyTransforms : public FRigUnit_HighlevelBaseMutable
+struct CONTROLRIG_API FRigUnit_ModifyTransforms : public FRigUnit_HighlevelBaseMutable
 {
 	GENERATED_BODY()
 

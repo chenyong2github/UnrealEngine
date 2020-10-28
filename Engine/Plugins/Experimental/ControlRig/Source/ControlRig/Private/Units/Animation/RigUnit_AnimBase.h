@@ -6,7 +6,7 @@
 #include "RigUnit_AnimBase.generated.h"
 
 USTRUCT(meta=(Abstract, Category = "Animation", NodeColor = "0.05 0.05 0.25"))
-struct FRigUnit_AnimBase : public FRigUnit
+struct CONTROLRIG_API FRigUnit_AnimBase : public FRigUnit
 {
 	GENERATED_BODY()
 };

@@ -7,13 +7,13 @@
 #include "RigUnit_Item.generated.h"
 
 USTRUCT(meta = (Abstract, NodeColor = "0.7 0.05 0.5", Category = "Collections"))
-struct FRigUnit_ItemBase : public FRigUnit
+struct CONTROLRIG_API FRigUnit_ItemBase : public FRigUnit
 {
 	GENERATED_BODY()
 };
 
 USTRUCT(meta = (Abstract, NodeColor = "0.7 0.05 0.5", Category = "Collections"))
-struct FRigUnit_ItemBaseMutable : public FRigUnitMutable
+struct CONTROLRIG_API FRigUnit_ItemBaseMutable : public FRigUnitMutable
 {
 	GENERATED_BODY()
 };
@@ -22,7 +22,7 @@ struct FRigUnit_ItemBaseMutable : public FRigUnitMutable
  * Returns true or false if a given item exists
  */
 USTRUCT(meta=(DisplayName="Item Exists", Keywords=""))
-struct FRigUnit_ItemExists : public FRigUnit_ItemBase
+struct CONTROLRIG_API FRigUnit_ItemExists : public FRigUnit_ItemBase
 {
 	GENERATED_BODY()
 
@@ -51,7 +51,7 @@ struct FRigUnit_ItemExists : public FRigUnit_ItemBase
  * Replaces the text within the name of the item
  */
 USTRUCT(meta=(DisplayName="Item Replace", Keywords="Replace,Name"))
-struct FRigUnit_ItemReplace : public FRigUnit_ItemBase
+struct CONTROLRIG_API FRigUnit_ItemReplace : public FRigUnit_ItemBase
 {
 	GENERATED_BODY()
 

@@ -6,7 +6,7 @@
 #include "RigUnit_Name.generated.h"
 
 USTRUCT(meta=(Abstract, Category="Core|Name", NodeColor = "0.7 0.05 0.5"))
-struct FRigUnit_NameBase : public FRigUnit
+struct CONTROLRIG_API FRigUnit_NameBase : public FRigUnit
 {
 	GENERATED_BODY()
 };
@@ -15,7 +15,7 @@ struct FRigUnit_NameBase : public FRigUnit
  * Concatenates two strings together to make a new string
  */
 USTRUCT(meta = (DisplayName = "Concat", Keywords = "Add,+,Combine,Merge,Append"))
-struct FRigUnit_NameConcat : public FRigUnit_NameBase
+struct CONTROLRIG_API FRigUnit_NameConcat : public FRigUnit_NameBase
 {
 	GENERATED_BODY()
 
@@ -41,7 +41,7 @@ struct FRigUnit_NameConcat : public FRigUnit_NameBase
  * Returns the left or right most characters from the string chopping the given number of characters from the start or the end
  */
 USTRUCT(meta = (DisplayName = "Chop", Keywords = "Truncate,-,Remove,Subtract,Split"))
-struct FRigUnit_NameTruncate : public FRigUnit_NameBase
+struct CONTROLRIG_API FRigUnit_NameTruncate : public FRigUnit_NameBase
 {
 	GENERATED_BODY()
 
@@ -79,7 +79,7 @@ struct FRigUnit_NameTruncate : public FRigUnit_NameBase
  * Replace all occurrences of a substring in this string
  */
 USTRUCT(meta = (DisplayName = "Replace", Keywords = "Search,Emplace,Find"))
-struct FRigUnit_NameReplace : public FRigUnit_NameBase
+struct CONTROLRIG_API FRigUnit_NameReplace : public FRigUnit_NameBase
 {
 	GENERATED_BODY()
 
@@ -108,7 +108,7 @@ struct FRigUnit_NameReplace : public FRigUnit_NameBase
  * Tests whether this string ends with given string
  */
 USTRUCT(meta = (DisplayName = "Ends With", Keywords = "Right"))
-struct FRigUnit_EndsWith : public FRigUnit_NameBase
+struct CONTROLRIG_API FRigUnit_EndsWith : public FRigUnit_NameBase
 {
 	GENERATED_BODY()
 
@@ -135,7 +135,7 @@ struct FRigUnit_EndsWith : public FRigUnit_NameBase
  * Tests whether this string starts with given string
  */
 USTRUCT(meta = (DisplayName = "Starts With", Keywords = "Left"))
-struct FRigUnit_StartsWith : public FRigUnit_NameBase
+struct CONTROLRIG_API FRigUnit_StartsWith : public FRigUnit_NameBase
 {
 	GENERATED_BODY()
 
@@ -162,7 +162,7 @@ struct FRigUnit_StartsWith : public FRigUnit_NameBase
  * Returns true or false if a given name exists in another given name
  */
 USTRUCT(meta = (DisplayName = "Contains", Keywords = "Contains,Find,Has,Search"))
-struct FRigUnit_Contains : public FRigUnit_NameBase
+struct CONTROLRIG_API FRigUnit_Contains : public FRigUnit_NameBase
 {
 	GENERATED_BODY()
 

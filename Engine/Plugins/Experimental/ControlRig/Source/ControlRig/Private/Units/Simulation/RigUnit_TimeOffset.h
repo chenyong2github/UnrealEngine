@@ -9,7 +9,7 @@
  * Records a value over time and can access the value from the past
  */
 USTRUCT(meta=(DisplayName="Value Over Time (Float)", PrototypeName="TimeOffset", Keywords="Buffer,Delta,History,Previous,TimeOffset,Delay"))
-struct FRigUnit_TimeOffsetFloat : public FRigUnit_SimBase
+struct CONTROLRIG_API FRigUnit_TimeOffsetFloat : public FRigUnit_SimBase
 {
 	GENERATED_BODY()
 	
@@ -62,7 +62,7 @@ struct FRigUnit_TimeOffsetFloat : public FRigUnit_SimBase
  * Records a value over time and can access the value from the past
  */
 USTRUCT(meta=(DisplayName="Value Over Time (Vector)", PrototypeName="TimeOffset", Keywords="Buffer,Delta,History,Previous,TimeOffset,Delay"))
-struct FRigUnit_TimeOffsetVector : public FRigUnit_SimBase
+struct CONTROLRIG_API FRigUnit_TimeOffsetVector : public FRigUnit_SimBase
 {
 	GENERATED_BODY()
 	
@@ -115,7 +115,7 @@ struct FRigUnit_TimeOffsetVector : public FRigUnit_SimBase
  * Records a value over time and can access the value from the past
  */
 USTRUCT(meta=(DisplayName="Value Over Time (Transform)", PrototypeName="TimeOffset", Keywords="Buffer,Delta,History,Previous,TimeOffset,Delay"))
-struct FRigUnit_TimeOffsetTransform : public FRigUnit_SimBase
+struct CONTROLRIG_API FRigUnit_TimeOffsetTransform : public FRigUnit_SimBase
 {
 	GENERATED_BODY()
 	

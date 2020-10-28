@@ -10,7 +10,7 @@
  * Draws vectors on each bone in the viewport across the entire hierarchy
  */
 USTRUCT(meta=(DisplayName="Draw Hierarchy"))
-struct FRigUnit_DebugHierarchy : public FRigUnit_DebugBaseMutable
+struct CONTROLRIG_API FRigUnit_DebugHierarchy : public FRigUnit_DebugBaseMutable
 {
 	GENERATED_BODY()
 

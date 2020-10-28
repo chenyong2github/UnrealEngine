@@ -50,7 +50,7 @@ struct FAimTarget
 };
 
 USTRUCT()
-struct FRigUnit_AimConstraint_WorkData
+struct CONTROLRIG_API FRigUnit_AimConstraint_WorkData
 {
 	GENERATED_BODY()
 
@@ -60,7 +60,7 @@ struct FRigUnit_AimConstraint_WorkData
 };
 
 USTRUCT(meta=(DisplayName="Aim Constraint", Category="Transforms", Deprecated = "4.23.0"))
-struct FRigUnit_AimConstraint : public FRigUnitMutable
+struct CONTROLRIG_API FRigUnit_AimConstraint : public FRigUnitMutable
 {
 	GENERATED_BODY()
 

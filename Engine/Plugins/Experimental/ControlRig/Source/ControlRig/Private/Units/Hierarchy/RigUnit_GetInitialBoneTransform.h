@@ -9,7 +9,7 @@
  * GetInitialBoneTransform is used to retrieve a single transform from a hierarchy.
  */
 USTRUCT(meta=(DisplayName="Get Initial Transform", Category="Hierarchy", DocumentationPolicy = "Strict", Keywords="GetInitialBoneTransform", Varying, Deprecated = "4.25"))
-struct FRigUnit_GetInitialBoneTransform : public FRigUnit
+struct CONTROLRIG_API FRigUnit_GetInitialBoneTransform : public FRigUnit
 {
 	GENERATED_BODY()
 

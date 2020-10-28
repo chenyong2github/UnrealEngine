@@ -10,7 +10,7 @@
  * Adds a float value over time over and over again
  */
 USTRUCT(meta=(DisplayName="Interpolate", Keywords="Alpha,Lerp,LinearInterpolate", PrototypeName = "AlphaInterp"))
-struct FRigUnit_AlphaInterp : public FRigUnit_SimBase
+struct CONTROLRIG_API FRigUnit_AlphaInterp : public FRigUnit_SimBase
 {
 	GENERATED_BODY()
 	
@@ -83,7 +83,7 @@ struct FRigUnit_AlphaInterp : public FRigUnit_SimBase
  * Adds a vector value over time over and over again
  */
 USTRUCT(meta=(DisplayName="Interpolate", Keywords="Alpha,Lerp,LinearInterpolate", PrototypeName = "AlphaInterp", MenuDescSuffix = "(Vector)"))
-struct FRigUnit_AlphaInterpVector : public FRigUnit_SimBase
+struct CONTROLRIG_API FRigUnit_AlphaInterpVector : public FRigUnit_SimBase
 {
 	GENERATED_BODY()
 	

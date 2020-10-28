@@ -10,7 +10,7 @@
  * SetSpaceTransform is used to perform a change in the hierarchy by setting a single space's transform.
  */
 USTRUCT(meta=(DisplayName="Set Space", Category="Hierarchy", DocumentationPolicy="Strict", Keywords = "SetSpaceTransform", Deprecated="4.25"))
-struct FRigUnit_SetSpaceTransform : public FRigUnitMutable
+struct CONTROLRIG_API FRigUnit_SetSpaceTransform : public FRigUnitMutable
 {
 	GENERATED_BODY()
 

@@ -9,7 +9,7 @@
 #include "RigUnit_GetJointTransform.generated.h"
 
 USTRUCT(meta=(DisplayName="Get Joint Transform", Category="Transforms", Deprecated = "4.23.0"))
-struct FRigUnit_GetJointTransform : public FRigUnitMutable
+struct CONTROLRIG_API FRigUnit_GetJointTransform : public FRigUnitMutable
 {
 	GENERATED_BODY()
 

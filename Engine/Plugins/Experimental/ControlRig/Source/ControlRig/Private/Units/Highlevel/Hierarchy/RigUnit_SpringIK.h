@@ -7,7 +7,7 @@
 #include "RigUnit_SpringIK.generated.h"
 
 USTRUCT()
-struct FRigUnit_SpringIK_DebugSettings
+struct CONTROLRIG_API FRigUnit_SpringIK_DebugSettings
 {
 	GENERATED_BODY()
 
@@ -45,7 +45,7 @@ struct FRigUnit_SpringIK_DebugSettings
 };
 
 USTRUCT()
-struct FRigUnit_SpringIK_WorkData
+struct CONTROLRIG_API FRigUnit_SpringIK_WorkData
 {
 	GENERATED_BODY()
 
@@ -73,7 +73,7 @@ struct FRigUnit_SpringIK_WorkData
  * Note: This node operates in world space!
  */
 USTRUCT(meta=(DisplayName="Spring IK", Category="Hierarchy", Keywords="IK"))
-struct FRigUnit_SpringIK : public FRigUnit_HighlevelBaseMutable
+struct CONTROLRIG_API FRigUnit_SpringIK : public FRigUnit_HighlevelBaseMutable
 {
 	GENERATED_BODY()
 

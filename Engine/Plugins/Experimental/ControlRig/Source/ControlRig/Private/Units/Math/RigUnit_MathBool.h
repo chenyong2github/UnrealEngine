@@ -6,13 +6,13 @@
 #include "RigUnit_MathBool.generated.h"
 
 USTRUCT(meta=(Abstract, Category="Math|Boolean", MenuDescSuffix="(Bool)"))
-struct FRigUnit_MathBoolBase : public FRigUnit_MathBase
+struct CONTROLRIG_API FRigUnit_MathBoolBase : public FRigUnit_MathBase
 {
 	GENERATED_BODY()
 };
 
 USTRUCT(meta=(Abstract))
-struct FRigUnit_MathBoolConstant : public FRigUnit_MathBoolBase
+struct CONTROLRIG_API FRigUnit_MathBoolConstant : public FRigUnit_MathBoolBase
 {
 	GENERATED_BODY()
 
@@ -26,7 +26,7 @@ struct FRigUnit_MathBoolConstant : public FRigUnit_MathBoolBase
 };
 
 USTRUCT(meta=(Abstract))
-struct FRigUnit_MathBoolUnaryOp : public FRigUnit_MathBoolBase
+struct CONTROLRIG_API FRigUnit_MathBoolUnaryOp : public FRigUnit_MathBoolBase
 {
 	GENERATED_BODY()
 
@@ -43,7 +43,7 @@ struct FRigUnit_MathBoolUnaryOp : public FRigUnit_MathBoolBase
 };
 
 USTRUCT(meta=(Abstract))
-struct FRigUnit_MathBoolBinaryOp : public FRigUnit_MathBoolBase
+struct CONTROLRIG_API FRigUnit_MathBoolBinaryOp : public FRigUnit_MathBoolBase
 {
 	GENERATED_BODY()
 
@@ -66,7 +66,7 @@ struct FRigUnit_MathBoolBinaryOp : public FRigUnit_MathBoolBase
  * Returns true
  */
 USTRUCT(meta=(DisplayName="True", Keywords="Yes"))
-struct FRigUnit_MathBoolConstTrue : public FRigUnit_MathBoolConstant
+struct CONTROLRIG_API FRigUnit_MathBoolConstTrue : public FRigUnit_MathBoolConstant
 {
 	GENERATED_BODY()
 	
@@ -83,7 +83,7 @@ struct FRigUnit_MathBoolConstTrue : public FRigUnit_MathBoolConstant
  * Returns false
  */
 USTRUCT(meta=(DisplayName="False", Keywords="No"))
-struct FRigUnit_MathBoolConstFalse : public FRigUnit_MathBoolConstant
+struct CONTROLRIG_API FRigUnit_MathBoolConstFalse : public FRigUnit_MathBoolConstant
 {
 	GENERATED_BODY()
 	
@@ -100,7 +100,7 @@ struct FRigUnit_MathBoolConstFalse : public FRigUnit_MathBoolConstant
  * Returns true if the condition is false
  */
 USTRUCT(meta=(DisplayName="Not", PrototypeName="Not", Keywords="!"))
-struct FRigUnit_MathBoolNot : public FRigUnit_MathBoolUnaryOp
+struct CONTROLRIG_API FRigUnit_MathBoolNot : public FRigUnit_MathBoolUnaryOp
 {
 	GENERATED_BODY()
 
@@ -112,7 +112,7 @@ struct FRigUnit_MathBoolNot : public FRigUnit_MathBoolUnaryOp
  * Returns true if both conditions are true
  */
 USTRUCT(meta=(DisplayName="And", PrototypeName="And", Keywords="&&"))
-struct FRigUnit_MathBoolAnd : public FRigUnit_MathBoolBinaryOp
+struct CONTROLRIG_API FRigUnit_MathBoolAnd : public FRigUnit_MathBoolBinaryOp
 {
 	GENERATED_BODY()
 
@@ -124,7 +124,7 @@ struct FRigUnit_MathBoolAnd : public FRigUnit_MathBoolBinaryOp
  * Returns true if both conditions are false
  */
 USTRUCT(meta=(DisplayName="Nand", PrototypeName="Nand"))
-struct FRigUnit_MathBoolNand : public FRigUnit_MathBoolBinaryOp
+struct CONTROLRIG_API FRigUnit_MathBoolNand : public FRigUnit_MathBoolBinaryOp
 {
 	GENERATED_BODY()
 
@@ -136,7 +136,7 @@ struct FRigUnit_MathBoolNand : public FRigUnit_MathBoolBinaryOp
  * Returns true if one of the conditions is true
  */
 USTRUCT(meta=(DisplayName="Or", PrototypeName="Or", Keywords="||"))
-struct FRigUnit_MathBoolOr : public FRigUnit_MathBoolBinaryOp
+struct CONTROLRIG_API FRigUnit_MathBoolOr : public FRigUnit_MathBoolBinaryOp
 {
 	GENERATED_BODY()
 
@@ -148,7 +148,7 @@ struct FRigUnit_MathBoolOr : public FRigUnit_MathBoolBinaryOp
  * Returns true if the value A equals B
  */
 USTRUCT(meta=(DisplayName="Equals", PrototypeName="Equals", Keywords="Same,=="))
-struct FRigUnit_MathBoolEquals : public FRigUnit_MathBoolBase
+struct CONTROLRIG_API FRigUnit_MathBoolEquals : public FRigUnit_MathBoolBase
 {
 	GENERATED_BODY()
 	RIGVM_METHOD()
@@ -174,7 +174,7 @@ struct FRigUnit_MathBoolEquals : public FRigUnit_MathBoolBase
  * Returns true if the value A does not equal B
  */
 USTRUCT(meta=(DisplayName="Not Equals", PrototypeName="NotEquals", Keywords="Different,!=,Xor"))
-struct FRigUnit_MathBoolNotEquals : public FRigUnit_MathBoolBase
+struct CONTROLRIG_API FRigUnit_MathBoolNotEquals : public FRigUnit_MathBoolBase
 {
 	GENERATED_BODY()
 	RIGVM_METHOD()

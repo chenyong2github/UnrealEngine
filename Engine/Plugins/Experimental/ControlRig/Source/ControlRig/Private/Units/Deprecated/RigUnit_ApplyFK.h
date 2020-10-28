@@ -26,7 +26,7 @@ enum class EApplyTransformMode : uint8
 };
 
 USTRUCT(meta=(DisplayName="Apply FK", Category="Transforms", Deprecated = "4.23.0"))
-struct FRigUnit_ApplyFK : public FRigUnitMutable
+struct CONTROLRIG_API FRigUnit_ApplyFK : public FRigUnitMutable
 {
 	GENERATED_BODY()
 

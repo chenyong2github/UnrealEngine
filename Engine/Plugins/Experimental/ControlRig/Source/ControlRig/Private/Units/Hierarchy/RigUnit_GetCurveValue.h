@@ -9,7 +9,7 @@
  * GetCurveValue is used to retrieve a single float from a Curve
  */
 USTRUCT(meta=(DisplayName="Get Curve Value", Category="Curve", Keywords="GetCurveValue,float", Varying))
-struct FRigUnit_GetCurveValue : public FRigUnit
+struct CONTROLRIG_API FRigUnit_GetCurveValue : public FRigUnit
 {
 	GENERATED_BODY()
 

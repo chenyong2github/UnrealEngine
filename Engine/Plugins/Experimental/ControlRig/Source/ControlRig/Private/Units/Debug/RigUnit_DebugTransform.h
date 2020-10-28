@@ -22,7 +22,7 @@ enum class ERigUnitDebugTransformMode : uint8
 };
 
 USTRUCT(meta=(DisplayName="Draw Transform In Place", Deprecated = "4.25.0"))
-struct FRigUnit_DebugTransform : public FRigUnit_DebugBase
+struct CONTROLRIG_API FRigUnit_DebugTransform : public FRigUnit_DebugBase
 {
 	GENERATED_BODY()
 
@@ -65,7 +65,7 @@ struct FRigUnit_DebugTransform : public FRigUnit_DebugBase
 };
 
 USTRUCT(meta=(DisplayName="Draw Transform", Deprecated = "4.25"))
-struct FRigUnit_DebugTransformMutable : public FRigUnit_DebugBaseMutable
+struct CONTROLRIG_API FRigUnit_DebugTransformMutable : public FRigUnit_DebugBaseMutable
 {
 	GENERATED_BODY()
 
@@ -111,7 +111,7 @@ struct FRigUnit_DebugTransformMutable : public FRigUnit_DebugBaseMutable
  * Given a transform, will draw a point, axis, or a box in the viewport
  */
 USTRUCT(meta=(DisplayName="Draw Transform"))
-struct FRigUnit_DebugTransformMutableItemSpace : public FRigUnit_DebugBaseMutable
+struct CONTROLRIG_API FRigUnit_DebugTransformMutableItemSpace : public FRigUnit_DebugBaseMutable
 {
 	GENERATED_BODY()
 
@@ -155,7 +155,7 @@ struct FRigUnit_DebugTransformMutableItemSpace : public FRigUnit_DebugBaseMutabl
 };
 
 USTRUCT()
-struct FRigUnit_DebugTransformArrayMutable_WorkData
+struct CONTROLRIG_API FRigUnit_DebugTransformArrayMutable_WorkData
 {
 	GENERATED_BODY()
 		
@@ -164,7 +164,7 @@ struct FRigUnit_DebugTransformArrayMutable_WorkData
 };
 
 USTRUCT(meta=(DisplayName="Draw Transform Array", Deprecated = "4.25.0"))
-struct FRigUnit_DebugTransformArrayMutable : public FRigUnit_DebugBaseMutable
+struct CONTROLRIG_API FRigUnit_DebugTransformArrayMutable : public FRigUnit_DebugBaseMutable
 {
  	GENERATED_BODY()
 

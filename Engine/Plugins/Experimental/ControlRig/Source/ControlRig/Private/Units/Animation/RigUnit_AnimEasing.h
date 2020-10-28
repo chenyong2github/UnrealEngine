@@ -10,7 +10,7 @@
  * A constant value of an easing type
  */
 USTRUCT(meta = (DisplayName = "EaseType", Keywords = "Constant"))
-struct FRigUnit_AnimEasingType : public FRigUnit_AnimBase
+struct CONTROLRIG_API FRigUnit_AnimEasingType : public FRigUnit_AnimBase
 {
 	GENERATED_BODY()
 
@@ -30,7 +30,7 @@ struct FRigUnit_AnimEasingType : public FRigUnit_AnimBase
  * Returns the eased version of the input value
  */
 USTRUCT(meta=(DisplayName="Ease", Keywords="Easing,Profile,Smooth,Cubic"))
-struct FRigUnit_AnimEasing : public FRigUnit_AnimBase
+struct CONTROLRIG_API FRigUnit_AnimEasing : public FRigUnit_AnimBase
 {
 	GENERATED_BODY()
 	

@@ -7,13 +7,13 @@
 #include "RigUnit_Collection.generated.h"
 
 USTRUCT(meta = (Abstract, NodeColor = "0.7 0.05 0.5", Category = "Collections"))
-struct FRigUnit_CollectionBase : public FRigUnit
+struct CONTROLRIG_API FRigUnit_CollectionBase : public FRigUnit
 {
 	GENERATED_BODY()
 };
 
 USTRUCT(meta = (Abstract, NodeColor = "0.7 0.05 0.5", Category = "Collections"))
-struct FRigUnit_CollectionBaseMutable : public FRigUnitMutable
+struct CONTROLRIG_API FRigUnit_CollectionBaseMutable : public FRigUnitMutable
 {
 	GENERATED_BODY()
 };
@@ -23,7 +23,7 @@ struct FRigUnit_CollectionBaseMutable : public FRigUnitMutable
  * Chains can refer to bone chains or chains within a control hierarchy.
  */
 USTRUCT(meta=(DisplayName="Item Chain", Keywords="Bone,Joint,Collection", Varying))
-struct FRigUnit_CollectionChain : public FRigUnit_CollectionBase
+struct CONTROLRIG_API FRigUnit_CollectionChain : public FRigUnit_CollectionBase
 {
 	GENERATED_BODY()
 
@@ -61,7 +61,7 @@ struct FRigUnit_CollectionChain : public FRigUnit_CollectionBase
  * The name search is case sensitive.
  */
 USTRUCT(meta = (DisplayName = "Item Name Search", Keywords = "Bone,Joint,Collection,Filter", Varying))
-struct FRigUnit_CollectionNameSearch : public FRigUnit_CollectionBase
+struct CONTROLRIG_API FRigUnit_CollectionNameSearch : public FRigUnit_CollectionBase
 {
 	GENERATED_BODY()
 
@@ -96,7 +96,7 @@ struct FRigUnit_CollectionNameSearch : public FRigUnit_CollectionBase
  * of a provided parent item. Returns an empty collection for an invalid parent item.
  */
 USTRUCT(meta = (DisplayName = "Children", Keywords = "Bone,Joint,Collection,Filter,Parent", Varying))
-struct FRigUnit_CollectionChildren : public FRigUnit_CollectionBase
+struct CONTROLRIG_API FRigUnit_CollectionChildren : public FRigUnit_CollectionBase
 {
 	GENERATED_BODY()
 
@@ -138,7 +138,7 @@ struct FRigUnit_CollectionChildren : public FRigUnit_CollectionBase
  * Replaces all names within the collection
  */
 USTRUCT(meta = (DisplayName = "Replace Items", Keywords = "Replace,Find", Varying))
-struct FRigUnit_CollectionReplaceItems : public FRigUnit_CollectionBase
+struct CONTROLRIG_API FRigUnit_CollectionReplaceItems : public FRigUnit_CollectionBase
 {
 	GENERATED_BODY()
 
@@ -178,7 +178,7 @@ struct FRigUnit_CollectionReplaceItems : public FRigUnit_CollectionBase
  * Returns a collection provided a specific list of items.
  */
 USTRUCT(meta = (DisplayName = "Items", Keywords = "Collection,Array", Varying))
-struct FRigUnit_CollectionItems : public FRigUnit_CollectionBase
+struct CONTROLRIG_API FRigUnit_CollectionItems : public FRigUnit_CollectionBase
 {
 	GENERATED_BODY()
 
@@ -202,7 +202,7 @@ struct FRigUnit_CollectionItems : public FRigUnit_CollectionBase
  * (the combination of all items from both A and B).
  */
 USTRUCT(meta = (DisplayName = "Union", Keywords = "Combine,Add,Merge,Collection,Hierarchy"))
-struct FRigUnit_CollectionUnion : public FRigUnit_CollectionBase
+struct CONTROLRIG_API FRigUnit_CollectionUnion : public FRigUnit_CollectionBase
 {
 	GENERATED_BODY()
 
@@ -228,7 +228,7 @@ struct FRigUnit_CollectionUnion : public FRigUnit_CollectionBase
  * (the items present in both A and B).
  */
 USTRUCT(meta = (DisplayName = "Intersection", Keywords = "Combine,Merge,Collection,Hierarchy"))
-struct FRigUnit_CollectionIntersection : public FRigUnit_CollectionBase
+struct CONTROLRIG_API FRigUnit_CollectionIntersection : public FRigUnit_CollectionBase
 {
 	GENERATED_BODY()
 
@@ -254,7 +254,7 @@ struct FRigUnit_CollectionIntersection : public FRigUnit_CollectionBase
  * (the items present in A but not in B).
  */
 USTRUCT(meta = (DisplayName = "Difference", Keywords = "Collection,Exclude,Subtract"))
-struct FRigUnit_CollectionDifference : public FRigUnit_CollectionBase
+struct CONTROLRIG_API FRigUnit_CollectionDifference : public FRigUnit_CollectionBase
 {
 	GENERATED_BODY()
 
@@ -279,7 +279,7 @@ struct FRigUnit_CollectionDifference : public FRigUnit_CollectionBase
  * Returns the collection in reverse order
  */
 USTRUCT(meta = (DisplayName = "Reverse", Keywords = "Direction,Order,Reverse"))
-struct FRigUnit_CollectionReverse : public FRigUnit_CollectionBase
+struct CONTROLRIG_API FRigUnit_CollectionReverse : public FRigUnit_CollectionBase
 {
 	GENERATED_BODY()
 
@@ -301,7 +301,7 @@ struct FRigUnit_CollectionReverse : public FRigUnit_CollectionBase
  * Returns the number of elements in a collection
  */
 USTRUCT(meta = (DisplayName = "Count", Keywords = "Collection,Array,Count,Num,Length,Size"))
-struct FRigUnit_CollectionCount : public FRigUnit_CollectionBase
+struct CONTROLRIG_API FRigUnit_CollectionCount : public FRigUnit_CollectionBase
 {
 	GENERATED_BODY()
 
@@ -325,7 +325,7 @@ struct FRigUnit_CollectionCount : public FRigUnit_CollectionBase
  * Returns a single item within a collection by index
  */
 USTRUCT(meta = (DisplayName = "Item At Index", Keywords = "Item,GetIndex,AtIndex,At,ForIndex,[]"))
-struct FRigUnit_CollectionItemAtIndex : public FRigUnit_CollectionBase
+struct CONTROLRIG_API FRigUnit_CollectionItemAtIndex : public FRigUnit_CollectionBase
 {
 	GENERATED_BODY()
 
@@ -353,7 +353,7 @@ struct FRigUnit_CollectionItemAtIndex : public FRigUnit_CollectionBase
  * Given a collection of items, execute iteratively across all items in a given collection
  */
 USTRUCT(meta=(DisplayName="For Each Item", Keywords="Collection,Loop,Iterate"))
-struct FRigUnit_CollectionLoop : public FRigUnit_CollectionBaseMutable
+struct CONTROLRIG_API FRigUnit_CollectionLoop : public FRigUnit_CollectionBaseMutable
 {
 	GENERATED_BODY()
 

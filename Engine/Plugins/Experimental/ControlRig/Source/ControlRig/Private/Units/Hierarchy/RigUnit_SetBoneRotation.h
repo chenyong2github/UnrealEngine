@@ -10,7 +10,7 @@
  * SetBoneRotation is used to perform a change in the hierarchy by setting a single bone's rotation.
  */
 USTRUCT(meta=(DisplayName="Set Rotation", Category="Hierarchy", DocumentationPolicy="Strict", Keywords = "SetBoneRotation", Deprecated="4.25"))
-struct FRigUnit_SetBoneRotation : public FRigUnitMutable
+struct CONTROLRIG_API FRigUnit_SetBoneRotation : public FRigUnitMutable
 {
 	GENERATED_BODY()
 

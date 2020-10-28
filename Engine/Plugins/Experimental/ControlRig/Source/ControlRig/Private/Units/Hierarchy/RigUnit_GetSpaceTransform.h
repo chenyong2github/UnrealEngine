@@ -9,7 +9,7 @@
  * GetSpaceTransform is used to retrieve a single transform from a hierarchy.
  */
 USTRUCT(meta=(DisplayName="Get Space Transform", Category="Spaces", DocumentationPolicy = "Strict", Keywords="GetSpaceTransform", Varying, Deprecated = "4.25"))
-struct FRigUnit_GetSpaceTransform : public FRigUnit
+struct CONTROLRIG_API FRigUnit_GetSpaceTransform : public FRigUnit
 {
 	GENERATED_BODY()
 

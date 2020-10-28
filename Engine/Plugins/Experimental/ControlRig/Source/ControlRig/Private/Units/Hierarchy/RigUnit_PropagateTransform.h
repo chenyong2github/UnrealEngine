@@ -10,7 +10,7 @@
  * from its local - as well as propagating that change onto the children.
  */
 USTRUCT(meta=(DisplayName="Propagate Transform", Category="Hierarchy", DocumentationPolicy = "Strict", Keywords = "PropagateToChildren,RecomputeGlobal,RecalculateGlobal", Varying))
-struct FRigUnit_PropagateTransform : public FRigUnitMutable
+struct CONTROLRIG_API FRigUnit_PropagateTransform : public FRigUnitMutable
 {
 	GENERATED_BODY()
 

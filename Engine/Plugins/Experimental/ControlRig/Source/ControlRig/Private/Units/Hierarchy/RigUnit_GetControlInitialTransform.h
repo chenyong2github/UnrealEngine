@@ -9,7 +9,7 @@
  * GetControlTransform is used to retrieve a single transform from a hierarchy.
  */
 USTRUCT(meta=(DisplayName="Get Control Initial Transform", Category="Controls", DocumentationPolicy = "Strict", Keywords="GetControlInitialTransform", Deprecated = "4.25"))
-struct FRigUnit_GetControlInitialTransform : public FRigUnit
+struct CONTROLRIG_API FRigUnit_GetControlInitialTransform : public FRigUnit
 {
 	GENERATED_BODY()
 

@@ -9,7 +9,7 @@
 /* This is each element WIP transform
  * while iterating, we use this as bone transform data
  */
-struct FRigUnit_MultiFABRIK_BoneWorkingData
+struct CONTROLRIG_API FRigUnit_MultiFABRIK_BoneWorkingData
 {
 	FName BoneName;
 	FCachedRigElement BoneIndex; // bone index of hierarchy
@@ -31,7 +31,7 @@ struct FRigUnit_MultiFABRIK_BoneWorkingData
 /* 
  * Describes each chain. This contains list of chain and effector location data and what's desired max length 
  */
-struct FRigUnit_MultiFABRIK_Chain
+struct CONTROLRIG_API FRigUnit_MultiFABRIK_Chain
 {
 	TArray<FFABRIKChainLink> Link;
 	FVector EffectorLocation; // effector location - based on where you're this location could change
@@ -56,7 +56,7 @@ struct FRigUnit_MultiFABRIK_Chain
  * Contains groups of Chains 
  * This also contains base bone tree index of the root
  */
-struct FRigUnit_MultiFABRIK_ChainGroup
+struct CONTROLRIG_API FRigUnit_MultiFABRIK_ChainGroup
 {
 	// current chain data
 	FRigUnit_MultiFABRIK_Chain Chain;
@@ -79,7 +79,7 @@ struct FRigUnit_MultiFABRIK_ChainGroup
 };
 
 USTRUCT()
-struct FRigUnit_MultiFABRIK_WorkData
+struct CONTROLRIG_API FRigUnit_MultiFABRIK_WorkData
 {
 	GENERATED_BODY()
 
@@ -98,7 +98,7 @@ struct FRigUnit_MultiFABRIK_WorkData
 };
 
 USTRUCT()
-struct FRigUnit_MultiFABRIK_EndEffector
+struct CONTROLRIG_API FRigUnit_MultiFABRIK_EndEffector
 {
 	GENERATED_BODY()
 	/**
@@ -119,7 +119,7 @@ struct FRigUnit_MultiFABRIK_EndEffector
  * For now this node supports single effector chains only.
  */
 USTRUCT(meta=(DisplayName="Multi Effector FABRIK", Category="Hierarchy", Keywords="Multi, Effector, N-Chain,IK"))
-struct FRigUnit_MultiFABRIK : public FRigUnit_HighlevelBaseMutable
+struct CONTROLRIG_API FRigUnit_MultiFABRIK : public FRigUnit_HighlevelBaseMutable
 {
 	GENERATED_BODY()
 

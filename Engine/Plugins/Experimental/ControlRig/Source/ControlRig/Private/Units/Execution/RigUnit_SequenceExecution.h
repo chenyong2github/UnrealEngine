@@ -10,7 +10,7 @@
  * Allows for a single execution pulse to trigger a series of events in order.
  */
 USTRUCT(meta=(DisplayName="Sequence", Category="Execution", TitleColor="1 0 0", NodeColor="0.1 0.1 0.1"))
-struct FRigUnit_SequenceExecution : public FRigUnit
+struct CONTROLRIG_API FRigUnit_SequenceExecution : public FRigUnit
 {
 	GENERATED_BODY()
 

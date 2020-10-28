@@ -9,7 +9,7 @@
  * Converts frames to seconds based on the current frame rate
  */
 USTRUCT(meta=(DisplayName="Frames to Seconds", Varying))
-struct FRigUnit_FramesToSeconds : public FRigUnit_AnimBase
+struct CONTROLRIG_API FRigUnit_FramesToSeconds : public FRigUnit_AnimBase
 {
 	GENERATED_BODY()
 	
@@ -32,7 +32,7 @@ struct FRigUnit_FramesToSeconds : public FRigUnit_AnimBase
  * Converts seconds to frames based on the current frame rate
  */
 USTRUCT(meta=(DisplayName="Seconds to Frames", Varying))
-struct FRigUnit_SecondsToFrames : public FRigUnit_AnimBase
+struct CONTROLRIG_API FRigUnit_SecondsToFrames : public FRigUnit_AnimBase
 {
 	GENERATED_BODY()
 	

@@ -10,7 +10,7 @@
  * SetSpaceInitialTransform is used to perform a change in the hierarchy by setting a single space's initial transform.
  */
 USTRUCT(meta=(DisplayName="Set Initial Space Transform", Category="Setup", DocumentationPolicy="Strict", Keywords = "SetSpaceInitialTransform", Deprecated="4.25"))
-struct FRigUnit_SetSpaceInitialTransform : public FRigUnitMutable
+struct CONTROLRIG_API FRigUnit_SetSpaceInitialTransform : public FRigUnitMutable
 {
 	GENERATED_BODY()
 

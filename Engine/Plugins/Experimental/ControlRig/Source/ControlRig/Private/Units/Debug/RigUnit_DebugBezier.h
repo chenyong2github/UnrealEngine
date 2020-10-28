@@ -7,7 +7,7 @@
 #include "RigUnit_DebugBezier.generated.h"
 
 USTRUCT(meta=(DisplayName="Draw Bezier", Deprecated = "4.25"))
-struct FRigUnit_DebugBezier : public FRigUnit_DebugBaseMutable
+struct CONTROLRIG_API FRigUnit_DebugBezier : public FRigUnit_DebugBaseMutable
 {
 	GENERATED_BODY()
 
@@ -55,7 +55,7 @@ struct FRigUnit_DebugBezier : public FRigUnit_DebugBaseMutable
 };
 
 USTRUCT(meta=(DisplayName="Draw Bezier", Deprecated = "4.25"))
-struct FRigUnit_DebugBezierItemSpace : public FRigUnit_DebugBaseMutable
+struct CONTROLRIG_API FRigUnit_DebugBezierItemSpace : public FRigUnit_DebugBaseMutable
 {
 	GENERATED_BODY()
 

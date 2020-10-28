@@ -9,7 +9,7 @@
  * Generates a random float between a min and a max
  */
 USTRUCT(meta=(DisplayName="Random (Float)", Category="Math|Random", PrototypeName="Random"))
-struct FRigUnit_RandomFloat : public FRigUnit_MathBase
+struct CONTROLRIG_API FRigUnit_RandomFloat : public FRigUnit_MathBase
 {
 	GENERATED_BODY()
 
@@ -55,7 +55,7 @@ struct FRigUnit_RandomFloat : public FRigUnit_MathBase
  * Generates a random vector between a min and a max
  */
 USTRUCT(meta = (DisplayName = "Random (Vector)", Category = "Math|Random", PrototypeName = "Random"))
-struct FRigUnit_RandomVector: public FRigUnit_MathBase
+struct CONTROLRIG_API FRigUnit_RandomVector: public FRigUnit_MathBase
 {
 	GENERATED_BODY()
 

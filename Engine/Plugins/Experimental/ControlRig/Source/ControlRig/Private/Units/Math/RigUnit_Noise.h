@@ -9,7 +9,7 @@
  * Generates a float through a noise fluctuation process between a min and a max through speed
  */
 USTRUCT(meta=(DisplayName="Noise (Float)", Category="Math|Noise", PrototypeName="Noise"))
-struct FRigUnit_NoiseFloat : public FRigUnit_MathBase
+struct CONTROLRIG_API FRigUnit_NoiseFloat : public FRigUnit_MathBase
 {
 	GENERATED_BODY()
 
@@ -49,7 +49,7 @@ struct FRigUnit_NoiseFloat : public FRigUnit_MathBase
  * Generates a vector through a noise fluctuation process between a min and a max through speed
  */
 USTRUCT(meta = (DisplayName = "Noise (Vector)", Category = "Math|Noise", PrototypeName = "Noise"))
-struct FRigUnit_NoiseVector : public FRigUnit_MathBase
+struct CONTROLRIG_API FRigUnit_NoiseVector : public FRigUnit_MathBase
 {
 	GENERATED_BODY()
 

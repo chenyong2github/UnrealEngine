@@ -7,7 +7,7 @@
 #include "RigUnit_FABRIK.generated.h"
 
 USTRUCT()
-struct FRigUnit_FABRIK_WorkData
+struct CONTROLRIG_API FRigUnit_FABRIK_WorkData
 {
 	GENERATED_BODY()
 
@@ -32,7 +32,7 @@ struct FRigUnit_FABRIK_WorkData
  * For now this node supports single effector chains only.
  */
 USTRUCT(meta=(DisplayName="Basic FABRIK", Category="Hierarchy", Keywords="N-Bone,IK", Deprecated = "4.25"))
-struct FRigUnit_FABRIK : public FRigUnit_HighlevelBaseMutable
+struct CONTROLRIG_API FRigUnit_FABRIK : public FRigUnit_HighlevelBaseMutable
 {
 	GENERATED_BODY()
 
@@ -102,7 +102,7 @@ struct FRigUnit_FABRIK : public FRigUnit_HighlevelBaseMutable
  * For now this node supports single effector chains only.
  */
 USTRUCT(meta=(DisplayName="Basic FABRIK", Category="Hierarchy", Keywords="N-Bone,IK"))
-struct FRigUnit_FABRIKPerItem : public FRigUnit_HighlevelBaseMutable
+struct CONTROLRIG_API FRigUnit_FABRIKPerItem : public FRigUnit_HighlevelBaseMutable
 {
 	GENERATED_BODY()
 

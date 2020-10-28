@@ -9,8 +9,8 @@
 
 enum class EControlRigState : uint8;
 template<typename T> class TRBFInterpolator;
-struct FRigUnit_MathRBFQuatWeightFunctor;
-struct FRigUnit_MathRBFVectorWeightFunctor;
+struct CONTROLRIG_API FRigUnit_MathRBFQuatWeightFunctor;
+struct CONTROLRIG_API FRigUnit_MathRBFVectorWeightFunctor;
 
 
 /** Function to use for each target falloff */
@@ -47,7 +47,7 @@ enum class ERBFVectorDistanceType : uint8
 
 
 USTRUCT()
-struct FRigUnit_MathRBFInterpolateQuatWorkData
+struct CONTROLRIG_API FRigUnit_MathRBFInterpolateQuatWorkData
 {
 	GENERATED_BODY()
 
@@ -61,7 +61,7 @@ struct FRigUnit_MathRBFInterpolateQuatWorkData
 };
 
 USTRUCT()
-struct FRigUnit_MathRBFInterpolateVectorWorkData
+struct CONTROLRIG_API FRigUnit_MathRBFInterpolateVectorWorkData
 {
 	GENERATED_BODY()
 
@@ -73,14 +73,14 @@ struct FRigUnit_MathRBFInterpolateVectorWorkData
 
 
 USTRUCT(meta = (Abstract, Category = "Math|RBF Interpolation"))
-struct FRigUnit_MathRBFInterpolateBase : 
+struct CONTROLRIG_API FRigUnit_MathRBFInterpolateBase : 
 	public FRigUnit_MathBase
 {
 	GENERATED_BODY()
 };
 
 USTRUCT(meta = (Abstract, Keywords = "RBF,Interpolate,Quaternion"))
-struct FRigUnit_MathRBFInterpolateQuatBase :
+struct CONTROLRIG_API FRigUnit_MathRBFInterpolateQuatBase :
 	public FRigUnit_MathRBFInterpolateBase
 {
 	GENERATED_BODY()
@@ -125,7 +125,7 @@ protected:
 };
 
 USTRUCT(meta = (Abstract, Keywords = "RBF,Interpolate,Vector"))
-struct FRigUnit_MathRBFInterpolateVectorBase :
+struct CONTROLRIG_API FRigUnit_MathRBFInterpolateVectorBase :
 	public FRigUnit_MathRBFInterpolateBase
 {
 	GENERATED_BODY()
@@ -182,7 +182,7 @@ struct FMathRBFInterpolateQuatFloat_Target
 };
 
 USTRUCT(meta = (Abstract, DisplayName="Quaternion to Float", PrototypeName="RBFInterpolateQuatToFloat"))
-struct FRigUnit_MathRBFInterpolateQuatFloat : 
+struct CONTROLRIG_API FRigUnit_MathRBFInterpolateQuatFloat : 
 	public FRigUnit_MathRBFInterpolateQuatBase
 {
 	GENERATED_BODY()
@@ -211,7 +211,7 @@ struct FMathRBFInterpolateQuatVector_Target
 };
 
 USTRUCT(meta = (Abstract, DisplayName = "Quaternion to Vector", PrototypeName = "RBFInterpolateQuatToVector"))
-struct FRigUnit_MathRBFInterpolateQuatVector :
+struct CONTROLRIG_API FRigUnit_MathRBFInterpolateQuatVector :
 	public FRigUnit_MathRBFInterpolateQuatBase
 {
 	GENERATED_BODY()
@@ -240,7 +240,7 @@ struct FMathRBFInterpolateQuatColor_Target
 };
 
 USTRUCT(meta = (Abstract, DisplayName = "Quaternion to Color", PrototypeName = "RBFInterpolateQuatToColor"))
-struct FRigUnit_MathRBFInterpolateQuatColor :
+struct CONTROLRIG_API FRigUnit_MathRBFInterpolateQuatColor :
 	public FRigUnit_MathRBFInterpolateQuatBase
 {
 	GENERATED_BODY()
@@ -269,7 +269,7 @@ struct FMathRBFInterpolateQuatQuat_Target
 };
 
 USTRUCT(meta = (Abstract, DisplayName = "Quaternion to Quaternion", PrototypeName = "RBFInterpolateQuatToQuat"))
-struct FRigUnit_MathRBFInterpolateQuatQuat :
+struct CONTROLRIG_API FRigUnit_MathRBFInterpolateQuatQuat :
 	public FRigUnit_MathRBFInterpolateQuatBase
 {
 	GENERATED_BODY()
@@ -298,7 +298,7 @@ struct FMathRBFInterpolateQuatXform_Target
 };
 
 USTRUCT(meta = (Abstract, DisplayName = "Quaternion to Transform", PrototypeName = "RBFInterpolateQuatToXform"))
-struct FRigUnit_MathRBFInterpolateQuatXform :
+struct CONTROLRIG_API FRigUnit_MathRBFInterpolateQuatXform :
 	public FRigUnit_MathRBFInterpolateQuatBase
 {
 	GENERATED_BODY()
@@ -329,7 +329,7 @@ struct FMathRBFInterpolateVectorFloat_Target
 };
 
 USTRUCT(meta = (Abstract, DisplayName = "Vector to Float", PrototypeName = "RBFInterpolateVectorToFloat", Keywords = "RBF,Interpolate,Vector"))
-struct FRigUnit_MathRBFInterpolateVectorFloat :
+struct CONTROLRIG_API FRigUnit_MathRBFInterpolateVectorFloat :
 	public FRigUnit_MathRBFInterpolateVectorBase
 {
 	GENERATED_BODY()
@@ -358,7 +358,7 @@ struct FMathRBFInterpolateVectorVector_Target
 };
 
 USTRUCT(meta = (Abstract, DisplayName = "Vector to Vector", PrototypeName = "RBFInterpolateVectorToVector", Keywords = "RBF,Interpolate,Vector"))
-struct FRigUnit_MathRBFInterpolateVectorVector :
+struct CONTROLRIG_API FRigUnit_MathRBFInterpolateVectorVector :
 	public FRigUnit_MathRBFInterpolateVectorBase
 {
 	GENERATED_BODY()
@@ -387,7 +387,7 @@ struct FMathRBFInterpolateVectorColor_Target
 };
 
 USTRUCT(meta = (Abstract, DisplayName = "Vector to Color", PrototypeName = "RBFInterpolateVectorToColor", Keywords = "RBF,Interpolate,Vector"))
-struct FRigUnit_MathRBFInterpolateVectorColor :
+struct CONTROLRIG_API FRigUnit_MathRBFInterpolateVectorColor :
 	public FRigUnit_MathRBFInterpolateVectorBase
 {
 	GENERATED_BODY()
@@ -417,7 +417,7 @@ struct FMathRBFInterpolateVectorQuat_Target
 };
 
 USTRUCT(meta = (Abstract, DisplayName = "Vector to Quat", PrototypeName = "RBFInterpolateVectorToQuat", Keywords = "RBF,Interpolate,Vector"))
-struct FRigUnit_MathRBFInterpolateVectorQuat :
+struct CONTROLRIG_API FRigUnit_MathRBFInterpolateVectorQuat :
 	public FRigUnit_MathRBFInterpolateVectorBase
 {
 	GENERATED_BODY()
@@ -445,7 +445,7 @@ struct FMathRBFInterpolateVectorXform_Target
 };
 
 USTRUCT(meta = (Abstract, DisplayName = "Vector to Transform", PrototypeName = "RBFInterpolateVectorToXform", Keywords = "RBF,Interpolate,Vector"))
-struct FRigUnit_MathRBFInterpolateVectorXform :
+struct CONTROLRIG_API FRigUnit_MathRBFInterpolateVectorXform :
 	public FRigUnit_MathRBFInterpolateVectorBase
 {
 	GENERATED_BODY()

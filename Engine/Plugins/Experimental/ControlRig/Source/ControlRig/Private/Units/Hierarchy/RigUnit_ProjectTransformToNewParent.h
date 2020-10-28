@@ -14,7 +14,7 @@
  * and set the new parent to the head as well (not-initial == current).
  */
 USTRUCT(meta=(DisplayName="Project to new Parent", Category="Hierarchy", DocumentationPolicy = "Strict", Keywords = "ProjectTransformToNewParent,Relative,Reparent,Offset", Varying))
-struct FRigUnit_ProjectTransformToNewParent : public FRigUnit
+struct CONTROLRIG_API FRigUnit_ProjectTransformToNewParent : public FRigUnit
 {
 	GENERATED_BODY()
 

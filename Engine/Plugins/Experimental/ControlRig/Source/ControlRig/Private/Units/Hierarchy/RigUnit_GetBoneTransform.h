@@ -9,7 +9,7 @@
  * GetBoneTransform is used to retrieve a single transform from a hierarchy.
  */
 USTRUCT(meta=(DisplayName="Get Transform", Category="Hierarchy", DocumentationPolicy = "Strict", Keywords="GetBoneTransform", Varying, Deprecated = "4.25"))
-struct FRigUnit_GetBoneTransform : public FRigUnit
+struct CONTROLRIG_API FRigUnit_GetBoneTransform : public FRigUnit
 {
 	GENERATED_BODY()
 

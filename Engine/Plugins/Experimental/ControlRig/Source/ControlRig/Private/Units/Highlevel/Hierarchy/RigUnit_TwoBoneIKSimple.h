@@ -6,7 +6,7 @@
 #include "RigUnit_TwoBoneIKSimple.generated.h"
 
 USTRUCT()
-struct FRigUnit_TwoBoneIKSimple_DebugSettings
+struct CONTROLRIG_API FRigUnit_TwoBoneIKSimple_DebugSettings
 {
 	GENERATED_BODY()
 
@@ -41,7 +41,7 @@ struct FRigUnit_TwoBoneIKSimple_DebugSettings
  * Note: This node operates in world space!
  */
 USTRUCT(meta=(DisplayName="Basic IK", Category="Hierarchy", Keywords="TwoBone,IK", Deprecated = "4.25"))
-struct FRigUnit_TwoBoneIKSimple : public FRigUnit_HighlevelBaseMutable
+struct CONTROLRIG_API FRigUnit_TwoBoneIKSimple : public FRigUnit_HighlevelBaseMutable
 {
 	GENERATED_BODY()
 
@@ -208,7 +208,7 @@ struct FRigUnit_TwoBoneIKSimple : public FRigUnit_HighlevelBaseMutable
  * Note: This node operates in world space!
  */
 USTRUCT(meta=(DisplayName="Basic IK", Category="Hierarchy", Keywords="TwoBone,IK"))
-struct FRigUnit_TwoBoneIKSimplePerItem : public FRigUnit_HighlevelBaseMutable
+struct CONTROLRIG_API FRigUnit_TwoBoneIKSimplePerItem : public FRigUnit_HighlevelBaseMutable
 {
 	GENERATED_BODY()
 
@@ -375,7 +375,7 @@ struct FRigUnit_TwoBoneIKSimplePerItem : public FRigUnit_HighlevelBaseMutable
  * Note: This node operates in world space!
  */
 USTRUCT(meta = (DisplayName = "Basic IK Positions", Category = "Hierarchy", Keywords = "TwoBone,IK"))
-struct FRigUnit_TwoBoneIKSimpleVectors : public FRigUnit_HighlevelBase
+struct CONTROLRIG_API FRigUnit_TwoBoneIKSimpleVectors : public FRigUnit_HighlevelBase
 {
 	GENERATED_BODY()
 
@@ -453,7 +453,7 @@ struct FRigUnit_TwoBoneIKSimpleVectors : public FRigUnit_HighlevelBase
  * Note: This node operates in world space!
  */
 USTRUCT(meta = (DisplayName = "Basic IK Transforms", Category = "Hierarchy", Keywords = "TwoBone,IK"))
-struct FRigUnit_TwoBoneIKSimpleTransforms : public FRigUnit_HighlevelBase
+struct CONTROLRIG_API FRigUnit_TwoBoneIKSimpleTransforms : public FRigUnit_HighlevelBase
 {
 	GENERATED_BODY()
 

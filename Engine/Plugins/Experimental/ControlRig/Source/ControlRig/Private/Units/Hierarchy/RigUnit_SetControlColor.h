@@ -9,7 +9,7 @@
  * SetControlColor is used to change the gizmo's color on a control at runtime
  */
 USTRUCT(meta=(DisplayName="Set Control Color", Category="Hierarchy", DocumentationPolicy="Strict", Keywords = "SetControlColor,SetGizmoColor", PrototypeName = "SetControlColor"))
-struct FRigUnit_SetControlColor : public FRigUnitMutable
+struct CONTROLRIG_API FRigUnit_SetControlColor : public FRigUnitMutable
 {
 	GENERATED_BODY()
 

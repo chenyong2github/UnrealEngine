@@ -10,7 +10,7 @@
  * This uses a Kalman Filter internally.
  */
 USTRUCT(meta=(DisplayName="Average Over Time (Float)", PrototypeName="KalmanFilter", Keywords="Average,Smooth,KalmanFilter"))
-struct FRigUnit_KalmanFloat : public FRigUnit_SimBase
+struct CONTROLRIG_API FRigUnit_KalmanFloat : public FRigUnit_SimBase
 {
 	GENERATED_BODY()
 	
@@ -45,7 +45,7 @@ struct FRigUnit_KalmanFloat : public FRigUnit_SimBase
  * This uses a Kalman Filter internally.
  */
 USTRUCT(meta=(DisplayName="Average Over Time (Vector)", PrototypeName="KalmanFilter", Keywords="Average,Smooth,KalmanFilter"))
-struct FRigUnit_KalmanVector : public FRigUnit_SimBase
+struct CONTROLRIG_API FRigUnit_KalmanVector : public FRigUnit_SimBase
 {
 	GENERATED_BODY()
 	
@@ -80,7 +80,7 @@ struct FRigUnit_KalmanVector : public FRigUnit_SimBase
  * This uses a Kalman Filter internally.
  */
 USTRUCT(meta=(DisplayName="Average Over Time (Transform)", PrototypeName="KalmanFilter", Keywords="Average,Smooth,KalmanFilter"))
-struct FRigUnit_KalmanTransform : public FRigUnit_SimBase
+struct CONTROLRIG_API FRigUnit_KalmanTransform : public FRigUnit_SimBase
 {
 	GENERATED_BODY()
 	

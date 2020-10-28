@@ -14,7 +14,7 @@ enum class EControlRigCurveAlignment : uint8
 };
 
 USTRUCT()
-struct FRigUnit_FitChainToCurve_Rotation
+struct CONTROLRIG_API FRigUnit_FitChainToCurve_Rotation
 {
 	GENERATED_BODY()
 
@@ -38,7 +38,7 @@ struct FRigUnit_FitChainToCurve_Rotation
 };
 
 USTRUCT()
-struct FRigUnit_FitChainToCurve_DebugSettings
+struct CONTROLRIG_API FRigUnit_FitChainToCurve_DebugSettings
 {
 	GENERATED_BODY()
 
@@ -83,7 +83,7 @@ struct FRigUnit_FitChainToCurve_DebugSettings
 };
 
 USTRUCT()
-struct FRigUnit_FitChainToCurve_WorkData
+struct CONTROLRIG_API FRigUnit_FitChainToCurve_WorkData
 {
 	GENERATED_BODY()
 
@@ -128,7 +128,7 @@ struct FRigUnit_FitChainToCurve_WorkData
  * Additionally provides rotational control matching the features of the Distribute Rotation node.
  */
 USTRUCT(meta=(DisplayName="Fit Chain on Curve", Category="Hierarchy", Keywords="Fit,Resample,Bezier", Deprecated = "4.25"))
-struct FRigUnit_FitChainToCurve : public FRigUnit_HighlevelBaseMutable
+struct CONTROLRIG_API FRigUnit_FitChainToCurve : public FRigUnit_HighlevelBaseMutable
 {
 	GENERATED_BODY()
 
@@ -252,7 +252,7 @@ struct FRigUnit_FitChainToCurve : public FRigUnit_HighlevelBaseMutable
  * Additionally provides rotational control matching the features of the Distribute Rotation node.
  */
 USTRUCT(meta=(DisplayName="Fit Chain on Curve", Category="Hierarchy", Keywords="Fit,Resample,Bezier"))
-struct FRigUnit_FitChainToCurvePerItem : public FRigUnit_HighlevelBaseMutable
+struct CONTROLRIG_API FRigUnit_FitChainToCurvePerItem : public FRigUnit_HighlevelBaseMutable
 {
 	GENERATED_BODY()
 

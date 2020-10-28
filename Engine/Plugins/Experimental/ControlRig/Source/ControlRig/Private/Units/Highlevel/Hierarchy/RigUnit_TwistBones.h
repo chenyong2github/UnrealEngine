@@ -7,7 +7,7 @@
 #include "RigUnit_TwistBones.generated.h"
 
 USTRUCT()
-struct FRigUnit_TwistBones_WorkData
+struct CONTROLRIG_API FRigUnit_TwistBones_WorkData
 {
 	GENERATED_BODY()
 
@@ -26,7 +26,7 @@ struct FRigUnit_TwistBones_WorkData
  * Creates a gradient of twist rotation along a chain.
  */
 USTRUCT(meta=(DisplayName="Twist Bones", Category="Hierarchy", Keywords="TwistBones", Deprecated = "4.25"))
-struct FRigUnit_TwistBones : public FRigUnit_HighlevelBaseMutable
+struct CONTROLRIG_API FRigUnit_TwistBones : public FRigUnit_HighlevelBaseMutable
 {
 	GENERATED_BODY()
 
@@ -100,7 +100,7 @@ struct FRigUnit_TwistBones : public FRigUnit_HighlevelBaseMutable
  * Creates a gradient of twist rotation along a collection of items.
  */
 USTRUCT(meta=(DisplayName="Twist Bones", Category="Hierarchy", Keywords="TwistBones"))
-struct FRigUnit_TwistBonesPerItem : public FRigUnit_HighlevelBaseMutable
+struct CONTROLRIG_API FRigUnit_TwistBonesPerItem : public FRigUnit_HighlevelBaseMutable
 {
 	GENERATED_BODY()
 

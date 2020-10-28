@@ -19,7 +19,7 @@ enum class ERigUnitDebugPointMode : uint8
 };
 
 USTRUCT(meta=(DisplayName="Draw Point In Place", Keywords="Draw Vector", Deprecated = "4.25.0"))
-struct FRigUnit_DebugPoint : public FRigUnit_DebugBase
+struct CONTROLRIG_API FRigUnit_DebugPoint : public FRigUnit_DebugBase
 {
 	GENERATED_BODY()
 
@@ -63,7 +63,7 @@ struct FRigUnit_DebugPoint : public FRigUnit_DebugBase
 };
 
 USTRUCT(meta=(DisplayName="Draw Point", Keywords="Draw Vector", Deprecated = "4.25.0"))
-struct FRigUnit_DebugPointMutable : public FRigUnit_DebugBaseMutable
+struct CONTROLRIG_API FRigUnit_DebugPointMutable : public FRigUnit_DebugBaseMutable
 {
 	GENERATED_BODY()
 

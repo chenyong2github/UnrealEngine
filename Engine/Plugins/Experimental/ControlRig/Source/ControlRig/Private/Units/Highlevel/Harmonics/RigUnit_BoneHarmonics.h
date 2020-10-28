@@ -7,7 +7,7 @@
 #include "RigUnit_BoneHarmonics.generated.h"
 
 USTRUCT()
-struct FRigUnit_BoneHarmonics_BoneTarget
+struct CONTROLRIG_API FRigUnit_BoneHarmonics_BoneTarget
 {
 	GENERATED_BODY()
 
@@ -32,7 +32,7 @@ struct FRigUnit_BoneHarmonics_BoneTarget
 };
 
 USTRUCT()
-struct FRigUnit_Harmonics_TargetItem
+struct CONTROLRIG_API FRigUnit_Harmonics_TargetItem
 {
 	GENERATED_BODY()
 
@@ -57,7 +57,7 @@ struct FRigUnit_Harmonics_TargetItem
 };
 
 USTRUCT()
-struct FRigUnit_BoneHarmonics_WorkData
+struct CONTROLRIG_API FRigUnit_BoneHarmonics_WorkData
 {
 	GENERATED_BODY()
 
@@ -77,7 +77,7 @@ struct FRigUnit_BoneHarmonics_WorkData
  * Performs point based simulation
  */
 USTRUCT(meta=(DisplayName="Harmonics", Keywords="Sin,Wave", Deprecated = 4.25))
-struct FRigUnit_BoneHarmonics : public FRigUnit_HighlevelBaseMutable
+struct CONTROLRIG_API FRigUnit_BoneHarmonics : public FRigUnit_HighlevelBaseMutable
 {
 	GENERATED_BODY()
 	
@@ -146,7 +146,7 @@ struct FRigUnit_BoneHarmonics : public FRigUnit_HighlevelBaseMutable
  * Performs point based simulation
  */
 USTRUCT(meta=(DisplayName="Harmonics", Keywords="Sin,Wave"))
-struct FRigUnit_ItemHarmonics : public FRigUnit_HighlevelBaseMutable
+struct CONTROLRIG_API FRigUnit_ItemHarmonics : public FRigUnit_HighlevelBaseMutable
 {
 	GENERATED_BODY()
 	

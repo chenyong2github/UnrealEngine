@@ -10,7 +10,7 @@
  * SetRelativeBoneTransform is used to perform a change in the hierarchy by setting a single bone's transform.
  */
 USTRUCT(meta=(DisplayName="Set Relative Transform", Category="Hierarchy", DocumentationPolicy="Strict", Keywords = "SetRelativeBoneTransform", Deprecated = "4.25"))
-struct FRigUnit_SetRelativeBoneTransform : public FRigUnitMutable
+struct CONTROLRIG_API FRigUnit_SetRelativeBoneTransform : public FRigUnitMutable
 {
 	GENERATED_BODY()
 

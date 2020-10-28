@@ -9,7 +9,7 @@
  * Starts a profiling timer for debugging, used in conjunction with End Profiling Timer
  */
 USTRUCT(meta=(DisplayName="Start Profiling Timer", Keywords="Measure,BeginProfiling,Profile"))
-struct FRigUnit_StartProfilingTimer : public FRigUnit_DebugBaseMutable
+struct CONTROLRIG_API FRigUnit_StartProfilingTimer : public FRigUnit_DebugBaseMutable
 {
 	GENERATED_BODY()
 
@@ -25,7 +25,7 @@ struct FRigUnit_StartProfilingTimer : public FRigUnit_DebugBaseMutable
  * Ends an existing profiling timer for debugging, used in conjunction with Start Profiling Timer
  */
 USTRUCT(meta = (DisplayName = "End Profiling Timer", Keywords = "Measure,StopProfiling,Meter,Profile"))
-struct FRigUnit_EndProfilingTimer : public FRigUnit_DebugBaseMutable
+struct CONTROLRIG_API FRigUnit_EndProfilingTimer : public FRigUnit_DebugBaseMutable
 {
 	GENERATED_BODY()
 

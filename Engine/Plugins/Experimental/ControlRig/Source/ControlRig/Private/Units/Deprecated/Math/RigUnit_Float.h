@@ -8,7 +8,7 @@
 
 /** Two args and a result of float type */
 USTRUCT(meta=(Abstract, NodeColor = "0.1 0.7 0.1", Deprecated="4.23.0"))
-struct FRigUnit_BinaryFloatOp : public FRigUnit
+struct CONTROLRIG_API FRigUnit_BinaryFloatOp : public FRigUnit
 {
 	GENERATED_BODY()
 
@@ -23,7 +23,7 @@ struct FRigUnit_BinaryFloatOp : public FRigUnit
 };
 
 USTRUCT(meta=(DisplayName="Multiply", Category="Math|Float", Keywords="*", Deprecated="4.23.0"))
-struct FRigUnit_Multiply_FloatFloat : public FRigUnit_BinaryFloatOp
+struct CONTROLRIG_API FRigUnit_Multiply_FloatFloat : public FRigUnit_BinaryFloatOp
 {
 	GENERATED_BODY()
 
@@ -32,7 +32,7 @@ struct FRigUnit_Multiply_FloatFloat : public FRigUnit_BinaryFloatOp
 };
 
 USTRUCT(meta=(DisplayName="Add", Category="Math|Float", Keywords = "+,Sum", Deprecated="4.23.0"))
-struct FRigUnit_Add_FloatFloat : public FRigUnit_BinaryFloatOp
+struct CONTROLRIG_API FRigUnit_Add_FloatFloat : public FRigUnit_BinaryFloatOp
 {
 	GENERATED_BODY()
 
@@ -41,7 +41,7 @@ struct FRigUnit_Add_FloatFloat : public FRigUnit_BinaryFloatOp
 };
 
 USTRUCT(meta=(DisplayName="Subtract", Category="Math|Float", Keywords = "-", Deprecated="4.23.0"))
-struct FRigUnit_Subtract_FloatFloat : public FRigUnit_BinaryFloatOp
+struct CONTROLRIG_API FRigUnit_Subtract_FloatFloat : public FRigUnit_BinaryFloatOp
 {
 	GENERATED_BODY()
 
@@ -50,7 +50,7 @@ struct FRigUnit_Subtract_FloatFloat : public FRigUnit_BinaryFloatOp
 };
 
 USTRUCT(meta=(DisplayName="Divide", Category="Math|Float", Keywords = "/", Deprecated="4.23.0"))
-struct FRigUnit_Divide_FloatFloat : public FRigUnit_BinaryFloatOp
+struct CONTROLRIG_API FRigUnit_Divide_FloatFloat : public FRigUnit_BinaryFloatOp
 {
 	GENERATED_BODY()
 
@@ -60,7 +60,7 @@ struct FRigUnit_Divide_FloatFloat : public FRigUnit_BinaryFloatOp
 
 /** Two args and a result of float type */
 USTRUCT(meta = (DisplayName = "Clamp", Category = "Math|Float", NodeColor = "0.1 0.7 0.1", Deprecated="4.23.0"))
-struct FRigUnit_Clamp_Float: public FRigUnit
+struct CONTROLRIG_API FRigUnit_Clamp_Float: public FRigUnit
 {
 	GENERATED_BODY()
 
@@ -82,7 +82,7 @@ struct FRigUnit_Clamp_Float: public FRigUnit
 
 /** Two args and a result of float type */
 USTRUCT(meta = (DisplayName = "MapRange", Category = "Math|Float", Deprecated="4.23.0"))
-struct FRigUnit_MapRange_Float: public FRigUnit
+struct CONTROLRIG_API FRigUnit_MapRange_Float: public FRigUnit
 {
 	GENERATED_BODY()
 

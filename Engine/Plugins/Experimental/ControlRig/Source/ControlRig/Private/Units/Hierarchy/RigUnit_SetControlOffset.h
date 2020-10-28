@@ -9,7 +9,7 @@
  * SetControlOffset is used to perform a change in the hierarchy by setting a single control's transform.
  */
 USTRUCT(meta=(DisplayName="Set Control Offset", Category="Setup", DocumentationPolicy="Strict", Keywords = "SetControlOffset,Initial,InitialTransform,SetInitialTransform,SetInitialControlTransform", PrototypeName = "SetControlValue"))
-struct FRigUnit_SetControlOffset : public FRigUnitMutable
+struct CONTROLRIG_API FRigUnit_SetControlOffset : public FRigUnitMutable
 {
 	GENERATED_BODY()
 

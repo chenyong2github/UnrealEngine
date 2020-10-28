@@ -10,7 +10,7 @@
  * Sweeps a sphere against the world and return the first blocking hit using a specific channel
  */
 USTRUCT(meta=(DisplayName="Sphere Trace", Category="Collision", DocumentationPolicy = "Strict", Keywords="Sweep,Raytrace,Collision,Collide,Trace", Varying, NodeColor = "0.2 0.4 0.7"))
-struct FRigUnit_SphereTraceWorld : public FRigUnit
+struct CONTROLRIG_API FRigUnit_SphereTraceWorld : public FRigUnit
 {
 	GENERATED_BODY()
 

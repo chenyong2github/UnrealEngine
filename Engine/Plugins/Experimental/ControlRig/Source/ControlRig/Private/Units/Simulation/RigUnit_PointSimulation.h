@@ -12,7 +12,7 @@
 #include "RigUnit_PointSimulation.generated.h"
 
 USTRUCT()
-struct FRigUnit_PointSimulation_DebugSettings
+struct CONTROLRIG_API FRigUnit_PointSimulation_DebugSettings
 {
 	GENERATED_BODY()
 
@@ -64,7 +64,7 @@ struct FRigUnit_PointSimulation_DebugSettings
 };
 
 USTRUCT()
-struct FRigUnit_PointSimulation_BoneTarget
+struct CONTROLRIG_API FRigUnit_PointSimulation_BoneTarget
 {
 	GENERATED_BODY()
 
@@ -102,7 +102,7 @@ struct FRigUnit_PointSimulation_BoneTarget
 };
 
 USTRUCT()
-struct FRigUnit_PointSimulation_WorkData
+struct CONTROLRIG_API FRigUnit_PointSimulation_WorkData
 {
 	GENERATED_BODY()
 
@@ -118,7 +118,7 @@ struct FRigUnit_PointSimulation_WorkData
  * Note: Disabled for now.
  */
 USTRUCT(meta=(DisplayName="Point Simulation", Keywords="Simulate,Verlet,Springs", Deprecated="4.25"))
-struct FRigUnit_PointSimulation : public FRigUnit_SimBaseMutable
+struct CONTROLRIG_API FRigUnit_PointSimulation : public FRigUnit_SimBaseMutable
 {
 	GENERATED_BODY()
 	

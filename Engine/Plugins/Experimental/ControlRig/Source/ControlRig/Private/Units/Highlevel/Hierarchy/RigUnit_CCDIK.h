@@ -7,7 +7,7 @@
 #include "RigUnit_CCDIK.generated.h"
 
 USTRUCT()
-struct FRigUnit_CCDIK_RotationLimit
+struct CONTROLRIG_API FRigUnit_CCDIK_RotationLimit
 {
 	GENERATED_BODY()
 
@@ -31,7 +31,7 @@ struct FRigUnit_CCDIK_RotationLimit
 };
 
 USTRUCT()
-struct FRigUnit_CCDIK_RotationLimitPerItem
+struct CONTROLRIG_API FRigUnit_CCDIK_RotationLimitPerItem
 {
 	GENERATED_BODY()
 
@@ -55,7 +55,7 @@ struct FRigUnit_CCDIK_RotationLimitPerItem
 };
 
 USTRUCT()
-struct FRigUnit_CCDIK_WorkData
+struct CONTROLRIG_API FRigUnit_CCDIK_WorkData
 {
 	GENERATED_BODY()
 
@@ -86,7 +86,7 @@ struct FRigUnit_CCDIK_WorkData
  * For now this node supports single effector chains only.
  */
 USTRUCT(meta=(DisplayName="CCDIK", Category="Hierarchy", Keywords="N-Bone,IK", Deprecated = "4.25"))
-struct FRigUnit_CCDIK : public FRigUnit_HighlevelBaseMutable
+struct CONTROLRIG_API FRigUnit_CCDIK : public FRigUnit_HighlevelBaseMutable
 {
 	GENERATED_BODY()
 
@@ -176,7 +176,7 @@ struct FRigUnit_CCDIK : public FRigUnit_HighlevelBaseMutable
  * For now this node supports single effector chains only.
  */
 USTRUCT(meta=(DisplayName="CCDIK", Category="Hierarchy", Keywords="N-Bone,IK"))
-struct FRigUnit_CCDIKPerItem : public FRigUnit_HighlevelBaseMutable
+struct CONTROLRIG_API FRigUnit_CCDIKPerItem : public FRigUnit_HighlevelBaseMutable
 {
 	GENERATED_BODY()
 
