@@ -50,7 +50,7 @@ bool IsCompatibleWithHairStrands(const FMaterial* Material, const ERHIFeatureLev
 {
 	return
 		ERHIFeatureLevel::SM5 == FeatureLevel &&
-		Material && Material->IsUsedWithHairStrands() && Material->GetShadingModels().HasShadingModel(MSM_Hair) &&
+		Material && Material->IsUsedWithHairStrands() && 
 		(Material->GetBlendMode() == BLEND_Opaque || Material->GetBlendMode() == BLEND_Masked);
 }
 
@@ -58,7 +58,7 @@ bool IsCompatibleWithHairStrands(EShaderPlatform Platform, const FMaterialShader
 {
 	return
 		IsHairStrandsGeometrySupported(Platform) &&
-		Parameters.bIsUsedWithHairStrands && Parameters.ShadingModels.HasShadingModel(MSM_Hair) &&
+		Parameters.bIsUsedWithHairStrands &&
 		(Parameters.BlendMode == BLEND_Opaque || Parameters.BlendMode == BLEND_Masked);
 }
 
