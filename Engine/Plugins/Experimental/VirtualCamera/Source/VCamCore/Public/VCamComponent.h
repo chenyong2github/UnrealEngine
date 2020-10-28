@@ -55,6 +55,7 @@ public:
 
 #if WITH_EDITOR
 	FLevelEditorViewportClient* GetTargetLevelViewportClient() const;
+	TSharedPtr<SLevelViewport> GetTargetLevelViewport() const;
 
 	virtual void CheckForErrors() override;
 	virtual void PreEditChange(FProperty* PropertyThatWillChange) override;
