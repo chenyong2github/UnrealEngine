@@ -421,6 +421,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Wave, DisplayName = "Wave Attenuation Water Depth", meta = (UIMin = 0, ClampMin = 0, UIMax = 10000.0))
 	float TargetWaveMaskDepth;
 
+	/** Offset added to the automatically calculated max wave height bounds. Use this in case the automatically calculated max height bounds don't match your waves. This can happen if the water surface is manually altered through World Position Offset or other means.*/
+	UPROPERTY(EditAnywhere, Category = Wave)
+	float MaxWaveHeightOffset = 0.0f;
+
 	/** Unique Id for accessing (wave, ... ) data in GPU buffers */
 	UPROPERTY(Transient, DuplicateTransient, NonTransactional, VisibleAnywhere, BlueprintReadOnly, Category = Water)
 	int32 WaterBodyIndex = INDEX_NONE;
