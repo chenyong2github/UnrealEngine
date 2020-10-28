@@ -716,7 +716,7 @@ void USoundSubmixBase::AddReferencedObjects(UObject* InThis, FReferenceCollector
 ISoundfieldFactory* USoundfieldSubmix::GetSoundfieldFactoryForSubmix() const
 {
 	// If this isn't called in the game thread, a ParentSubmix could get destroyed while we are recursing through the submix graph.
-	ensure(IsInGameThread());
+	// ensure(IsInGameThread());
 
 	FName SoundfieldFormat = GetSubmixFormat();
 	check(SoundfieldFormat != ISoundfieldFactory::GetFormatNameForInheritedEncoding());

@@ -734,13 +734,18 @@ void FSoundFieldEncoder::EncodeAudioDirectlyFromOutputPositions(const Audio::Ali
 
 	check(InputPositions.ChannelPositions);
 
+	const bool bIsMono = NumInputChannels == 1;
+
 	// fill out the ambisonics speaker gain maps
 	for (int InChan = 0; InChan < NumInputChannels; ++InChan)
 	{
 		const Audio::FChannelPositionInfo& CurrSpeakerPos = (*InputPositions.ChannelPositions)[InChan];
 
 		// skip LFE and Center channel (leave gains at zero)
-		if (CurrSpeakerPos.Channel == EAudioMixerChannel::LowFrequency || CurrSpeakerPos.Channel == EAudioMixerChannel::FrontCenter)
+		// Mono audio channels are FrontCenter, so do _not_ skip if center channel and mono.
+		const bool bSkipChannel = CurrSpeakerPos.Channel == EAudioMixerChannel::LowFrequency || (!bIsMono && (CurrSpeakerPos.Channel == EAudioMixerChannel::FrontCenter));
+			
+		if (bSkipChannel)
 		{
 			SpeakerGainsPtr += NumAmbiChannels;
 			continue;
