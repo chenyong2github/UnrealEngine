@@ -1891,6 +1891,7 @@ const UNiagaraClipboardFunctionInput* UNiagaraStackFunctionInput::ToClipboardFun
 	case EValueMode::InvalidOverride:
 	case EValueMode::UnsupportedDefault:
 	case EValueMode::DefaultFunction:
+	case EValueMode::None:
 		// Do nothing.
 		break;
 	default:
