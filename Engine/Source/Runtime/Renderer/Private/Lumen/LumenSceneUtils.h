@@ -417,6 +417,7 @@ END_SHADER_PARAMETER_STRUCT()
 
 void RenderHardwareRayTracingScreenProbe(FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
+	const FSceneTextureParameters& SceneTextures,
 	FScreenProbeParameters& CommonDiffuseParameters,
 	const FViewInfo& View,
 	const FLumenCardTracingInputs& TracingInputs,
