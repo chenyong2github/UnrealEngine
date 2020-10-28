@@ -8,7 +8,8 @@
 #include "PhysicsEngine/PhysicsAsset.h"
 #include "NiagaraDataInterfacePhysicsAsset.generated.h"
 
-#define PHYSICS_ASSET_MAX_PRIMITIVES 300
+#define PHYSICS_ASSET_MAX_PRIMITIVES 100
+#define PHYSICS_ASSET_MAX_TRANSFORMS PHYSICS_ASSET_MAX_PRIMITIVES * 3
 
 /** Element offsets in the array list */
 struct FElementOffset
@@ -30,12 +31,12 @@ struct FElementOffset
 struct FNDIPhysicsAssetArrays
 {
 	FElementOffset ElementOffsets;
-	TStaticArray<FVector4, PHYSICS_ASSET_MAX_PRIMITIVES> CurrentTransform;
-	TStaticArray<FVector4, PHYSICS_ASSET_MAX_PRIMITIVES> InverseTransform;
-	TStaticArray<FVector4, PHYSICS_ASSET_MAX_PRIMITIVES> PreviousTransform;
-	TStaticArray<FVector4, PHYSICS_ASSET_MAX_PRIMITIVES> PreviousInverse;
-	TStaticArray<FVector4, PHYSICS_ASSET_MAX_PRIMITIVES> RestTransform;
-	TStaticArray<FVector4, PHYSICS_ASSET_MAX_PRIMITIVES> RestInverse;
+	TStaticArray<FVector4, PHYSICS_ASSET_MAX_TRANSFORMS> CurrentTransform;
+	TStaticArray<FVector4, PHYSICS_ASSET_MAX_TRANSFORMS> InverseTransform;
+	TStaticArray<FVector4, PHYSICS_ASSET_MAX_TRANSFORMS> PreviousTransform;
+	TStaticArray<FVector4, PHYSICS_ASSET_MAX_TRANSFORMS> PreviousInverse;
+	TStaticArray<FVector4, PHYSICS_ASSET_MAX_TRANSFORMS> RestTransform;
+	TStaticArray<FVector4, PHYSICS_ASSET_MAX_TRANSFORMS> RestInverse;
 	TStaticArray<FVector4, PHYSICS_ASSET_MAX_PRIMITIVES> ElementExtent;
 };
 
