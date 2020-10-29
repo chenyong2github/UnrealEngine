@@ -380,7 +380,7 @@ bool UNiagaraNodeStaticSwitch::SubstituteCompiledPin(FHlslNiagaraTranslator* Tra
 			UEdGraphPin* InputPin = InputPins[VarIdx + i];
 			if (InputPin->LinkedTo.Num() == 1)
 			{
-				*LocallyOwnedPin = GetTracedOutputPin(InputPin->LinkedTo[0]);
+				*LocallyOwnedPin = GetTracedOutputPin(InputPin->LinkedTo[0], true);
 				return true;
 			}
 			else
@@ -411,13 +411,18 @@ void UNiagaraNodeStaticSwitch::PostLoad()
 	}
 }
 
-UEdGraphPin* UNiagaraNodeStaticSwitch::GetTracedOutputPin(UEdGraphPin* LocallyOwnedOutputPin) const
+UEdGraphPin* UNiagaraNodeStaticSwitch::GetTracedOutputPin(UEdGraphPin* LocallyOwnedOutputPin, bool bFilterForCompilation) const
 {
-	return GetTracedOutputPin(LocallyOwnedOutputPin, true);
+	return GetTracedOutputPin(LocallyOwnedOutputPin, true, bFilterForCompilation);
 }
 
-UEdGraphPin* UNiagaraNodeStaticSwitch::GetTracedOutputPin(UEdGraphPin* LocallyOwnedOutputPin, bool bRecursive) const
+UEdGraphPin* UNiagaraNodeStaticSwitch::GetTracedOutputPin(UEdGraphPin* LocallyOwnedOutputPin, bool bRecursive, bool bFilterForCompilation) const
 {
+	if (!bFilterForCompilation)
+	{
+		return LocallyOwnedOutputPin;
+	}
+	
 	FPinCollectorArray InputPins;
 	GetInputPins(InputPins);
 	FPinCollectorArray OutputPins;
@@ -436,7 +441,7 @@ UEdGraphPin* UNiagaraNodeStaticSwitch::GetTracedOutputPin(UEdGraphPin* LocallyOw
 			UEdGraphPin* InputPin = InputPins[VarIdx + i];
 			if (InputPin->LinkedTo.Num() == 1)
 			{
-				return bRecursive ? UNiagaraNode::TraceOutputPin(InputPin->LinkedTo[0]) : InputPin->LinkedTo[0];
+				return bRecursive ? UNiagaraNode::TraceOutputPin(InputPin->LinkedTo[0], bFilterForCompilation) : InputPin->LinkedTo[0];
 			}
 		}
 	}
@@ -447,7 +452,7 @@ UEdGraphPin* UNiagaraNodeStaticSwitch::GetPassThroughPin(const UEdGraphPin* Loca
 {
 	if (IsValueSet)
 	{
-		return GetTracedOutputPin(const_cast<UEdGraphPin*>(LocallyOwnedOutputPin));
+		return GetTracedOutputPin(const_cast<UEdGraphPin*>(LocallyOwnedOutputPin), true);
 	}
 	return Super::GetPassThroughPin(LocallyOwnedOutputPin, MasterUsage);
 }
