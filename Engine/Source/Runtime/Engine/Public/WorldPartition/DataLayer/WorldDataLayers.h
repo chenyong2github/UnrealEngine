@@ -22,8 +22,6 @@ public:
 	virtual void PostLoad() override;
 
 #if WITH_EDITOR
-	virtual EActorGridPlacement GetDefaultGridPlacement() const override { return EActorGridPlacement::AlwaysLoaded; }
-
 	UDataLayer* CreateDataLayer();
 	bool RemoveDataLayer(const UDataLayer* InDataLayer);
 	bool RemoveDataLayers(const TArray<const UDataLayer*>& InDataLayers);

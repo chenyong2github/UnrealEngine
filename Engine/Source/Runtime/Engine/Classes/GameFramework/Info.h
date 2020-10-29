@@ -32,6 +32,10 @@ public:
 	/** Indicates whether this actor should participate in level bounds calculations. */
 	virtual bool IsLevelBoundsRelevant() const override { return false; }
 
+#if WITH_EDITOR
+	virtual EActorGridPlacement GetDefaultGridPlacement() const override { return EActorGridPlacement::AlwaysLoaded; }
+#endif
+
 public:
 #if WITH_EDITORONLY_DATA
 	/** Returns SpriteComponent subobject **/
