@@ -13,6 +13,9 @@ TGlobalResource<FRenderTargetPool> GRenderTargetPool;
 
 DEFINE_LOG_CATEGORY_STATIC(LogRenderTargetPool, Warning, All);
 
+CSV_DEFINE_CATEGORY(RenderTargetPool, true);
+
+
 TRefCountPtr<IPooledRenderTarget> CreateRenderTarget(FRHITexture* Texture, const TCHAR* Name)
 {
 	check(Texture);
@@ -1005,6 +1008,13 @@ void FRenderTargetPool::AddAllocEventsFromCurrentState()
 
 void FRenderTargetPool::TickPoolElements()
 {
+	// gather stats on deferred allocs before calling WaitForTransitionFence
+	uint32 DeferredAllocationLevelInKB = 0;
+	for (FPooledRenderTarget* Element : DeferredDeleteArray)
+	{
+		DeferredAllocationLevelInKB += ComputeSizeInKB(*Element);
+	}
+
 	check(IsInRenderingThread());
 	WaitForTransitionFence();
 
@@ -1023,6 +1033,7 @@ void FRenderTargetPool::TickPoolElements()
 
 	CompactPool();
 
+	uint32 UnusedAllocationLevelInKB = 0;
 	for (uint32 i = 0; i < (uint32)PooledRenderTargets.Num(); ++i)
 	{
 		FPooledRenderTarget* Element = PooledRenderTargets[i];
@@ -1031,8 +1042,12 @@ void FRenderTargetPool::TickPoolElements()
 		{
 			check(!Element->IsSnapshot());
 			Element->OnFrameStart();
+			UnusedAllocationLevelInKB += ComputeSizeInKB(*Element);
 		}
 	}
+
+	CSV_CUSTOM_STAT(RenderTargetPool, UnusedMB, UnusedAllocationLevelInKB / 1024.0f, ECsvCustomStatOp::Set);
+	CSV_CUSTOM_STAT(RenderTargetPool, TotalMB, (AllocationLevelInKB + DeferredAllocationLevelInKB) / 1024.f, ECsvCustomStatOp::Set);
 
 	// we need to release something, take the oldest ones first
 	while (AllocationLevelInKB > MinimumPoolSizeInKB)
