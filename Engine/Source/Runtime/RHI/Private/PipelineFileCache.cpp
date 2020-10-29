@@ -1791,6 +1791,9 @@ public:
 				}
 				else
 				{
+					// parent directory creation is necessary because the deploy process from
+					// AndroidPlatform.Automation.cs destroys the parent directories and recreates them
+					IFileManager::Get().MakeDirectory(*FPaths::GetPath(TempPath), true);
 					FileWriter = IFileManager::Get().CreateFileWriter(*TempPath, FILEWRITE_Append);
 				}
 				if (FileWriter)
