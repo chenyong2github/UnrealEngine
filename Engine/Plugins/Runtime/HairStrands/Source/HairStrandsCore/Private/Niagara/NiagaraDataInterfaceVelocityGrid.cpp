@@ -555,7 +555,7 @@ bool UNiagaraDataInterfaceVelocityGrid::GetFunctionHLSL(const FNiagaraDataInterf
 
 void UNiagaraDataInterfaceVelocityGrid::GetCommonHLSL(FString& OutHLSL)
 {
-	OutHLSL += TEXT("#include \"/Plugin/Experimental/HairStrands/Private/NiagaraDataInterfaceVelocityGrid.ush\"\n");
+	OutHLSL += TEXT("#include \"/Plugin/Runtime/HairStrands/Private/NiagaraDataInterfaceVelocityGrid.ush\"\n");
 }
 
 void UNiagaraDataInterfaceVelocityGrid::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
@@ -659,7 +659,7 @@ public:
 	}
 };
 
-IMPLEMENT_GLOBAL_SHADER(FCopyVelocityGridCS, "/Plugin/Experimental/HairStrands/Private/NiagaraCopyVelocityGrid.usf", "MainCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FCopyVelocityGridCS, "/Plugin/Runtime/HairStrands/Private/NiagaraCopyVelocityGrid.usf", "MainCS", SF_Compute);
 
 static void AddCopyVelocityGridPass(
 	FRDGBuilder& GraphBuilder,

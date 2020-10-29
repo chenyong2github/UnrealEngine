@@ -416,7 +416,7 @@ bool UNiagaraDataInterfacePressureGrid::GetFunctionHLSL(const FNiagaraDataInterf
 void UNiagaraDataInterfacePressureGrid::GetCommonHLSL(FString& OutHLSL)
 {
 	Super::GetCommonHLSL(OutHLSL);
-	OutHLSL += TEXT("#include \"/Plugin/Experimental/HairStrands/Private/NiagaraDataInterfacePressureGrid.ush\"\n");
+	OutHLSL += TEXT("#include \"/Plugin/Runtime/HairStrands/Private/NiagaraDataInterfacePressureGrid.ush\"\n");
 }
 
 void UNiagaraDataInterfacePressureGrid::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
@@ -453,7 +453,7 @@ public:
 	}
 };
 
-IMPLEMENT_GLOBAL_SHADER(FClearPressureGridCS, "/Plugin/Experimental/HairStrands/Private/NiagaraClearPressureGrid.usf", "MainCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FClearPressureGridCS, "/Plugin/Runtime/HairStrands/Private/NiagaraClearPressureGrid.usf", "MainCS", SF_Compute);
 
 static void AddClearPressureGridPass(
 	FRDGBuilder& GraphBuilder,
