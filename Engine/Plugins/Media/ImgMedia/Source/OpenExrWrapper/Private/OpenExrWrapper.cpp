@@ -7,11 +7,11 @@
 
 PRAGMA_DEFAULT_VISIBILITY_START
 THIRD_PARTY_INCLUDES_START
-	#include "OpenEXR/ImathBox.h"
-	#include "OpenEXR/ImfHeader.h"
-	#include "OpenEXR/ImfRgbaFile.h"
-	#include "OpenEXR/ImfCompressionAttribute.h"
-	#include "OpenEXR/ImfStandardAttributes.h"
+	#include "openexr/ImathBox.h"
+	#include "openexr/ImfHeader.h"
+	#include "openexr/ImfRgbaFile.h"
+	#include "openexr/ImfCompressionAttribute.h"
+	#include "openexr/ImfStandardAttributes.h"
 THIRD_PARTY_INCLUDES_END
 PRAGMA_DEFAULT_VISIBILITY_END
 
