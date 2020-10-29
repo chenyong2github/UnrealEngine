@@ -99,14 +99,15 @@ namespace Chaos
 
 	int32 FConvex::GetMostOpposingPlaneWithVertex(int32 VertexIndex, const FVec3& Normal) const
 	{
-		if ((VertexIndex == INDEX_NONE) || (StructureData == nullptr))
+		TArrayView<const int32> VertexPlaneIndices = GetVertexPlanes(VertexIndex);
+
+		if ((VertexIndex == INDEX_NONE) || (VertexPlaneIndices.Num() == 0))
 		{
 			return GetMostOpposingPlane(Normal);
 		}
 
 		int32 MostOpposingIdx = INDEX_NONE;
 		FReal MostOpposingDot = TNumericLimits<FReal>::Max();
-		const TArray<int32>& VertexPlaneIndices = StructureData->VertexPlanes[VertexIndex];
 		for (int32 VertexPlaneIndex = 0; VertexPlaneIndex < VertexPlaneIndices.Num(); ++VertexPlaneIndex)
 		{
 			const int32 PlaneIndex = VertexPlaneIndices[VertexPlaneIndex];
@@ -122,17 +123,33 @@ namespace Chaos
 		return MostOpposingIdx;
 	}
 
-	TArrayView<int32> FConvex::GetPlaneVertices(int32 FaceIndex) const
+	TArrayView<const int32> FConvex::GetVertexPlanes(int32 VertexIndex) const
 	{
-		if (StructureData != nullptr)
+		if (StructureData.IsValid())
 		{
-			return MakeArrayView(StructureData->PlaneVertices[FaceIndex]);
+			return StructureData.GetVertexPlanes(VertexIndex);
 		}
 
-		static TArray<int32> EmptyVertices;
+		static TArray<const int32> EmptyPlanes;
+		return MakeArrayView(EmptyPlanes);
+	}
+
+	TArrayView<const int32> FConvex::GetPlaneVertices(int32 FaceIndex) const
+	{
+		if (StructureData.IsValid())
+		{
+			return StructureData.GetPlaneVertices(FaceIndex);
+		}
+
+		static TArray<const int32> EmptyVertices;
 		return MakeArrayView(EmptyVertices);
 	}
 
+	// Store the structure data with the convex. This is used by manifold generation, for example
+	void FConvex::CreateStructureData(TArray<TArray<int32>>&& PlaneVertexIndices)
+	{
+		StructureData.SetPlaneVertices(MoveTemp(PlaneVertexIndices), SurfaceParticles.Size());
+	}
 
 
 	// Reduce the core convex shape by the specified margin. For this we need to:
