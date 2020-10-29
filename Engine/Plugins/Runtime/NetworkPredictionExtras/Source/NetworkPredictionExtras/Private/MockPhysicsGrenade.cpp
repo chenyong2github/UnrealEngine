@@ -21,7 +21,7 @@ public:
 	using Simulation = UMockPhysicsGrenadeComponent;	// Note how this example uses the component as the sim obj (!).
 	using Driver = UMockPhysicsGrenadeComponent;
 	using PhysicsState = FNetworkPredictionPhysicsState;
-
+	
 	static const TCHAR* GetName() { return TEXT("MockPhysicsGrenade"); }
 	static constexpr int32 GetSortPriority() { return (int32)ENetworkPredictionSortPriority::PreKinematicMovers + 7; }
 };
@@ -47,7 +47,9 @@ NETSIMCUESET_REGISTER(UMockPhysicsGrenadeComponent, FMockGrenadeModelDefCueSet);
 void UMockPhysicsGrenadeComponent::InitializeNetworkPredictionProxy()
 {
 	npCheckSlow(this->UpdatedPrimitive);
-	NetworkPredictionProxy.Init<FMockPhysicsGrenadeModelDef>(GetWorld(), GetReplicationProxies(), this, this);
+	
+	// Temp: something about this setup is causing issues on some versions of clang... maybe related to same sim object and driver class
+	//NetworkPredictionProxy.Init<FMockPhysicsGrenadeModelDef>(GetWorld(), GetReplicationProxies(), this, this);
 }
 
 void UMockPhysicsGrenadeComponent::InitializeSimulationState(void* Sync, FMockPhysicsGrenadeAuxState* Aux)
