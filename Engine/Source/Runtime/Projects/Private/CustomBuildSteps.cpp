@@ -54,16 +54,17 @@ void FCustomBuildSteps::UpdateJson(FJsonObject& JsonObject, const FString& Field
 	if (!IsEmpty())
 	{
 		TSharedPtr<FJsonObject> StepsObject;
-
-		TSharedPtr<FJsonValue> StepsValue = JsonObject.TryGetField(FieldName);
-		if (StepsValue.IsValid() && StepsValue->Type == EJson::Object)
 		{
-			StepsObject = StepsValue->AsObject();
-		}
-		else
-		{
-			StepsObject = MakeShared<FJsonObject>();
-			JsonObject.SetObjectField(FieldName, StepsObject);
+			const TSharedPtr<FJsonObject>* StepsObjectPtr = nullptr;
+			if (JsonObject.TryGetObjectField(FieldName, StepsObjectPtr) && StepsObjectPtr)
+			{
+				StepsObject = *StepsObjectPtr;
+			}
+			else
+			{
+				StepsObject = MakeShared<FJsonObject>();
+				JsonObject.SetObjectField(FieldName, StepsObject);
+			}
 		}
 
 		if (ensure(StepsObject.IsValid()))
