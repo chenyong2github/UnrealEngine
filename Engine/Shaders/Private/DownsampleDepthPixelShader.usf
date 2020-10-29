@@ -53,10 +53,16 @@ void Main(
 	else // DownsampleDepthFilter == DOWNSAMPLE_DEPTH_FILTER_CBMINMAX
 	{
 		// Lookup the four DeviceZ's of the full resolution pixels corresponding to this low resolution pixel
-		float DeviceZ0 = GetDeviceZ(UV.xy + SourceTexelOffsets23.zw * 0.5f * float2(-1,-1));
-		float DeviceZ1 = GetDeviceZ(UV.xy + SourceTexelOffsets23.zw * 0.5f * float2(-1, 1));
-		float DeviceZ2 = GetDeviceZ(UV.xy + SourceTexelOffsets23.zw * 0.5f * float2( 1,-1));
-		float DeviceZ3 = GetDeviceZ(UV.xy + SourceTexelOffsets23.zw * 0.5f * float2( 1, 1));
+		const float OffsetScale = 0.25f;
+		// OffsetScale is 0.25 because:
+		//  - UV is centered on the low resolution render targetr in UV space
+		//  - SourceTexelOffsets23 in fact represent a texel size for the DESTINATION render target (TODO refactor that code once in main)
+		//  - So scale by 0.5 will get us to the edge of the half resolution texel. 
+		//  - And to sample the center of the high resolution source pixel in UV space we need to divide angain the offset by half ==> 0.25
+		float DeviceZ0 = GetDeviceZ(UV.xy + SourceTexelOffsets23.zw * OffsetScale * float2(-1,-1));
+		float DeviceZ1 = GetDeviceZ(UV.xy + SourceTexelOffsets23.zw * OffsetScale * float2(-1, 1));
+		float DeviceZ2 = GetDeviceZ(UV.xy + SourceTexelOffsets23.zw * OffsetScale * float2( 1,-1));
+		float DeviceZ3 = GetDeviceZ(UV.xy + SourceTexelOffsets23.zw * OffsetScale * float2( 1, 1));
 
 		const float MaxDeviceZ = max(max(DeviceZ0, DeviceZ1), max(DeviceZ2, DeviceZ3));
 		const float MinDeviceZ = min(min(DeviceZ0, DeviceZ1), min(DeviceZ2, DeviceZ3));
