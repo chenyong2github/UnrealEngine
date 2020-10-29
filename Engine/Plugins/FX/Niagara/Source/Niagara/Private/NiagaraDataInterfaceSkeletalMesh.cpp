@@ -2333,41 +2333,27 @@ void UNiagaraDataInterfaceSkeletalMesh::GetFeedback(UNiagaraSystem* Asset, UNiag
 		// Check for the possibility that this mesh won't behave properly because of no CPU access
 		if (!bHasCPUAccess)
 		{			
-			// Filter through all the relevant CPU scripts
+			// Collect all scripts used by the system
+			// NOTE: We don't descriminate between CPU or GPU scripts here because while GPU access will "Just Work"
+			// on some platforms, other platforms (like Mobile or OpenGL) do not create a shader resource view for the
+			// buffers unless the CPU access flag is enabled.
 			TArray<UNiagaraScript*> Scripts;
 			Scripts.Add(Asset->GetSystemSpawnScript());
 			Scripts.Add(Asset->GetSystemUpdateScript());
 			for (auto&& EmitterHandle : Asset->GetEmitterHandles())
 			{
-				TArray<UNiagaraScript*> OutScripts;
-				EmitterHandle.GetInstance()->GetScripts(OutScripts, false);
-				Scripts.Append(OutScripts.FilterByPredicate(
-					[&EmitterHandle](const UNiagaraScript* Script)
-					{
-						if (EmitterHandle.GetInstance()->SimTarget == ENiagaraSimTarget::GPUComputeSim)
-						{
-							// Ignore the spawn and update scripts
-							if (Script->Usage == ENiagaraScriptUsage::ParticleSpawnScript ||
-								Script->Usage == ENiagaraScriptUsage::ParticleSpawnScriptInterpolated ||
-								Script->Usage == ENiagaraScriptUsage::ParticleUpdateScript)
-							{
-								return false;
-							}
-						}
-						return Script->Usage != ENiagaraScriptUsage::ParticleGPUComputeScript;						
-					}
-				));
+				EmitterHandle.GetInstance()->GetScripts(Scripts, false);				
 			}
 
-			// Now check if any CPU script uses functions that require CPU access
-			//TODO: This isn't complete enough. It doesn't guarantee that the DI used by these functions are THIS DI.
+			// Now check if any script uses functions that require CPU access			
+			// TODO: This isn't complete enough. It doesn't guarantee that the DI used by these functions are THIS DI.
 			// Finding that information out is currently non-trivial so just pop a warning with the possibility of false
 			// positives
-			TArray<FNiagaraFunctionSignature> CPUFunctions;
-			GetTriangleSamplingFunctions(CPUFunctions);
-			GetVertexSamplingFunctions(CPUFunctions);
+			TArray<FNiagaraFunctionSignature> Functions;
+			GetTriangleSamplingFunctions(Functions);
+			GetVertexSamplingFunctions(Functions);
 
-			bHasCPUAccessWarning = [this, &Scripts, &CPUFunctions]()
+			bHasCPUAccessWarning = [this, &Scripts, &Functions]()
 			{
 				for (const auto Script : Scripts)
 				{
@@ -2381,7 +2367,7 @@ void UNiagaraDataInterfaceSkeletalMesh::GetFeedback(UNiagaraSystem* Asset, UNiag
 								{
 									return CPUSig.Name == Func.Name;
 								};
-								if (CPUFunctions.FindByPredicate(Filter))
+								if (Functions.FindByPredicate(Filter))
 								{
 									return true;
 								}
@@ -2401,7 +2387,8 @@ void UNiagaraDataInterfaceSkeletalMesh::GetFeedback(UNiagaraSystem* Asset, UNiag
 	// Report Errors/Warnings
 	if (bHasCPUAccessWarning)
 	{
-		FNiagaraDataInterfaceFeedback CPUAccessNotAllowedWarning(FText::Format(LOCTEXT("CPUAccessNotAllowedError", "This mesh may need CPU access in order to be used properly. ({0})"), FText::FromString(SkelMesh->GetName())),
+		FNiagaraDataInterfaceFeedback CPUAccessNotAllowedWarning(
+			FText::Format(LOCTEXT("CPUAccessNotAllowedError", "This mesh may need CPU access in order to be used properly (even when used by GPU emitters). ({0})"), FText::FromString(SkelMesh->GetName())),
 			LOCTEXT("CPUAccessNotAllowedErrorSummary", "CPU access error"),
 			FNiagaraDataInterfaceFix::CreateLambda([=]()
 				{
