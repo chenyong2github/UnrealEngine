@@ -8,6 +8,7 @@
 
 #include "CoreMinimal.h"
 #include "SceneRendering.h"
+#include "PostProcessDeferredDecals.h"
 
 class FPersistentUniformBuffers;
 
@@ -40,6 +41,9 @@ public:
 		FRDGBuilder& GraphBuilder,
 		const TArray<FViewInfo>& Views,
 		TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer);
+
+private:
+	FDeferredDecalPassTextures DecalPassTextures;
 };
 
 /** The global used for deferred lighting. */
