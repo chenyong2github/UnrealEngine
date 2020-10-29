@@ -478,6 +478,10 @@ namespace Chaos
 		{
 			return (X < Y && X < Z) ? X : (Y < Z ? Y : Z);
 		}
+		int32 MaxAxis() const
+		{
+			return (X > Y && X > Z) ? 0 : (Y > Z ? 1 : 2);
+		}
 		TVector<float, 3> ComponentwiseMin(const TVector<float, 3>& Other) const { return {FMath::Min(X,Other.X), FMath::Min(Y,Other.Y), FMath::Min(Z,Other.Z)}; }
 		TVector<float, 3> ComponentwiseMax(const TVector<float, 3>& Other) const { return {FMath::Max(X,Other.X), FMath::Max(Y,Other.Y), FMath::Max(Z,Other.Z)}; }
 		static TVector<float, 3> Max(const TVector<float, 3>& V1, const TVector<float, 3>& V2)

@@ -200,6 +200,54 @@ namespace Chaos
 			return AABB.FindGeometryOpposingNormal(DenormDir, FaceIndex, OriginalNormal);
 		}
 
+		// Get the index of the plane that most opposes the normal
+		int32 GetMostOpposingPlane(const FVec3& Normal) const
+		{
+			int32 AxisIndex = FVec3(Normal.GetAbs()).MaxAxis();
+			if (Normal[AxisIndex] > 0.0f)
+			{
+				AxisIndex += 3;
+			}
+			return AxisIndex;
+		}
+
+		// Get the index of the plane that most opposes the normal (VertexIndex is ignored)
+		int32 GetMostOpposingPlaneWithVertex(int32 VertexIndex, const FVec3& Normal) const
+		{
+			return GetMostOpposingPlane(Normal);
+		}
+
+		// Get the set of planes that pass through the specified vertex
+		TArrayView<const int32> GetVertexPlanes(int32 VertexIndex) const
+		{
+			return MakeArrayView(SVertexPlanes[VertexIndex]);
+		}
+
+		// Get the list of vertices that form the boundary of the specified face
+		TArrayView<const int32> GetPlaneVertices(int32 FaceIndex) const
+		{
+			return MakeArrayView(SPlaneVertices[FaceIndex]);
+		}
+
+		int32 NumPlanes() const { return 6; }
+
+		int32 NumVertices() const { return 8; }
+
+		// Get the plane at the specified index (e.g., indices from GetVertexPlanes)
+		const TPlaneConcrete<FReal, 3> GetPlane(int32 FaceIndex) const
+		{
+			const FVec3& PlaneN = SNormals[FaceIndex];
+			const FVec3 PlaneX = AABB.Center() + PlaneN * AABB.Extents();
+			return TPlaneConcrete<FReal, 3>(PlaneX, PlaneN);
+		}
+
+		// Get the vertex at the specified index (e.g., indices from GetPlaneVertices)
+		const FVec3 GetVertex(int32 VertexIndex) const
+		{
+			const FVec3& Vertex = SVertices[VertexIndex];
+			return AABB.Center() + Vertex * AABB.Extents();
+		}
+
 		// Returns a position on the outer shape including the margin
 		FORCEINLINE TVector<T, d> Support(const TVector<T, d>& Direction, const T Thickness) const
 		{
@@ -334,5 +382,11 @@ namespace Chaos
 
 	private:
 		TAABB<T, d> AABB;
+
+		// Structure data shared by all boxes and used for manifold creation
+		static TArray<TArray<int32>> SVertexPlanes;
+		static TArray<TArray<int32>> SPlaneVertices;
+		static TArray<FVec3> SNormals;
+		static TArray<FVec3> SVertices;
 	};
 }
