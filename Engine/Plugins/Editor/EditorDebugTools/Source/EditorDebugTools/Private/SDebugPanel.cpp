@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "SDebugPanel.h"
 #include "ISlateReflectorModule.h"
 #include "Widgets/Testing/SStarshipSuite.h"
