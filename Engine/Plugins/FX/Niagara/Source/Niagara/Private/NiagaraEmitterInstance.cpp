@@ -749,6 +749,18 @@ void FNiagaraEmitterInstance::BindParameters(bool bExternalOnly)
 		ParentSystemInstance->GetParameterCollectionInstance(Collection)->GetParameterStore().Bind(&UpdateExecContext.Parameters);
 	}
 
+	if (CachedEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim)
+	{
+		for (UNiagaraParameterCollection* Collection : SpawnExecContext.Script->GetCachedParameterCollectionReferences())
+		{
+			ParentSystemInstance->GetParameterCollectionInstance(Collection)->GetParameterStore().Bind(&GPUExecContext->CombinedParamStore);
+		}
+		for (UNiagaraParameterCollection* Collection : UpdateExecContext.Script->GetCachedParameterCollectionReferences())
+		{
+			ParentSystemInstance->GetParameterCollectionInstance(Collection)->GetParameterStore().Bind(&GPUExecContext->CombinedParamStore);
+		}
+	}
+
 	for (FNiagaraScriptExecutionContext& EventContext : GetEventExecutionContexts())
 	{
 		for (UNiagaraParameterCollection* Collection : EventContext.Script->GetCachedParameterCollectionReferences())
