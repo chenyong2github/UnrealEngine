@@ -4843,6 +4843,21 @@ void FBlueprintEditorUtils::RenameMemberVariable(UBlueprint* Blueprint, const FN
 			// Update the name
 			FBPVariableDescription& Variable = Blueprint->NewVariables[VarIndex];
 			Variable.VarName = NewName;
+
+			// If the variable has an associated OnRep function, warn the user and break the association if the name is changed
+			FName OnRepFuncName = Blueprint->NewVariables[VarIndex].RepNotifyFunc;
+			if (OnRepFuncName != NAME_None)
+			{
+				if (!VerifyUserWantsRepNotifyVariableNameChanged(OldName, OnRepFuncName))
+				{
+					// Showing the warning dialog causes the variable name text box to lose focus, which can result in this function being called again.
+					// The VarName is set before verifying to skip over the second call, preventing the dialog from appearing twice. 
+					Variable.VarName = OldName;
+					return;
+				}
+				Blueprint->NewVariables[VarIndex].RepNotifyFunc = NAME_None;
+			}
+
 			Variable.FriendlyName = FName::NameToDisplayString( NewName.ToString(), (Variable.VarType.PinCategory == UEdGraphSchema_K2::PC_Boolean) ? true : false );
 
 			// Update any existing references to the old name
@@ -4948,6 +4963,25 @@ bool FBlueprintEditorUtils::VerifyUserWantsVariableTypeChanged(const FName& InVa
 	FSuppressableWarningDialog ChangeVariableType( Info );
 
 	FSuppressableWarningDialog::EResult RetCode = ChangeVariableType.ShowModal();
+	return RetCode == FSuppressableWarningDialog::Confirm || RetCode == FSuppressableWarningDialog::Suppressed;
+}
+
+bool FBlueprintEditorUtils::VerifyUserWantsRepNotifyVariableNameChanged(const FName& InVarName, const FName& InFuncName)
+{
+	FFormatNamedArguments Args;
+	Args.Add(TEXT("VariableName"), FText::FromName(InVarName));
+	Args.Add(TEXT("FuncName"), FText::FromName(InFuncName));
+
+	FText ConfirmRename = FText::Format(LOCTEXT("ConfirmChangeRepNotifyVarName",
+		"Variable '{VariableName}' is linked to the OnRep function '{FuncName}'. Renaming it will still allow this variable to be replicated, but the function will not be called. Do you wish to proceed?"), Args);
+
+	FSuppressableWarningDialog::FSetupInfo Info(ConfirmRename, LOCTEXT("ChangeRepNotifyVariableName", "Change RepNotify Variable Name"), "ChangeRepNotifyVariableName_Warning");
+	Info.ConfirmText = LOCTEXT("ChangeRepNotifyVariableName_Yes", "Yes");
+	Info.CancelText = LOCTEXT("ChangeRepNotifyVariableName_No", "No");
+
+	FSuppressableWarningDialog ChangeRepNotifyVariableName(Info);
+
+	FSuppressableWarningDialog::EResult RetCode = ChangeRepNotifyVariableName.ShowModal();
 	return RetCode == FSuppressableWarningDialog::Confirm || RetCode == FSuppressableWarningDialog::Suppressed;
 }
 

@@ -1738,6 +1738,15 @@ protected:
 	static bool VerifyUserWantsVariableTypeChanged(const FName& InVarName);
 
 	/**
+	 * Helper function to warn user of the results of changing a RepNotify variable name by displaying a suppressible dialog
+	 *
+	 * @param InVarName		Variable name to display in the dialog message
+	 * @param InFuncName	Associated OnRep function name to display in the dialog message
+	 * @return				TRUE if the user wants to change the variable name
+	 */
+	static bool VerifyUserWantsRepNotifyVariableNameChanged(const FName& InVarName, const FName& InFuncName);
+
+	/**
 	 * Helper function to get all loaded Blueprints that are children (or using as an interface) the passed Blueprint
 	 *
 	 * @param InBlueprint		Blueprint to find children of
