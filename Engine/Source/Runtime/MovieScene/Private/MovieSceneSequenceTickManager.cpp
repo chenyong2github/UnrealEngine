@@ -138,6 +138,14 @@ void FMovieSceneLatentActionManager::ClearLatentActions(UObject* Object)
 
 void FMovieSceneLatentActionManager::RunLatentActions(FMovieSceneEntitySystemRunner& Runner)
 {
+	if (bIsRunningLatentActions)
+	{
+		// We're already running latent actions... no need to run them again in a nested loop.
+		return;
+	}
+
+	TGuardValue<bool> IsRunningLatentActionsGuard(bIsRunningLatentActions, true);
+
 	int32 NumLoopsLeft = CVarMovieSceneMaxLatentActionLoops.GetValueOnGameThread();
 	while (LatentActions.Num() > 0)
 	{
@@ -184,6 +192,12 @@ void FMovieSceneLatentActionManager::RunLatentActions(FMovieSceneEntitySystemRun
 void FMovieSceneLatentActionManager::RunLatentActions(FMovieSceneEntitySystemRunner& Runner, const UObject* Object)
 {
 	check(Object);
+
+	if (bIsRunningLatentActions)
+	{
+		// We are already running latent actions for all players. We'll get to this one soon.
+		return;
+	}
 
 	int32 Index = 0;
 	int32 NumLoopsLeft = CVarMovieSceneMaxLatentActionLoops.GetValueOnGameThread();

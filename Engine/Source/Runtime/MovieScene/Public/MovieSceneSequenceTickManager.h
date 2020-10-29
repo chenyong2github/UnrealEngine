@@ -25,6 +25,7 @@ public:
 
 private:
 	TArray<FMovieSceneSequenceLatentActionDelegate> LatentActions;
+	bool bIsRunningLatentActions = false;
 };
 
 /**
