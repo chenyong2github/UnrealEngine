@@ -6,6 +6,7 @@
 #include "ChaosStats.h"
 #include "Chaos/PendingSpatialData.h"
 #include "PBDRigidsSolver.h"
+#include "Chaos/PullPhysicsDataImp.h"
 
 namespace Chaos
 {	
@@ -246,6 +247,68 @@ namespace Chaos
 		}
 	}
 
+
+	FChaosPullPhysicsResults FChaosResultsManager::PullPhysicsResults_External(FChaosMarshallingManager& MarshallingManager, const FReal ResultsTime, const bool bUseAsync)
+	{
+		if (bUseAsync)
+		{
+			//in async mode we must interpolate between prev and next, where ResultsTime is in the inclusive interval [Prev, Next]
+
+			if (Results.Next == nullptr)
+			{
+				ensure(Results.Prev == nullptr);	//if next is null, prev must also be null since we haven't consumed any results yet
+				Results.Next = MarshallingManager.PopPullData_External();
+			}
+
+			while (Results.Next && Results.Next->ExternalStartTime < ResultsTime)
+			{
+				if (Results.Prev)
+				{
+					MarshallingManager.FreePullData_External(Results.Prev);
+				}
+
+				Results.Prev = Results.Next;
+				Results.Next = MarshallingManager.PopPullData_External();
+			}
+
+			if (Results.Prev != nullptr && Results.Next == nullptr)
+			{
+				//we are lagging and can't interpolate
+				//UE_LOG(LogChaos, Warning, TEXT("Physics interpolation failed: Is the delay too small?"));
+
+				Results.Next = Results.Prev;	//no interpolation, so results are only in next and nothing in prev
+				Results.Prev = nullptr;
+
+				//question: is it better to put it in prev results since time has exceeded?
+			}
+		}
+		else
+		{
+			//sync mode doesn't use prev results, but if we were async previously we need to clean it up
+			if (Results.Prev)
+			{
+				MarshallingManager.FreePullData_External(Results.Prev);
+				Results.Prev = nullptr;
+			}
+
+			//if we switched from async to sync we may have multiple pending results, so discard them all except latest
+			FPullPhysicsData* PullDataLatest = nullptr;
+			do
+			{
+				//free any old results
+				if (Results.Next)
+				{
+					MarshallingManager.FreePullData_External(Results.Next);
+				}
+
+				Results.Next = PullDataLatest;
+				PullDataLatest = MarshallingManager.PopPullData_External();
+
+			} while (PullDataLatest);
+		}
+
+		return Results;
+	}
 
 	//////////////////////////////////////////////////////////////////////////
 }

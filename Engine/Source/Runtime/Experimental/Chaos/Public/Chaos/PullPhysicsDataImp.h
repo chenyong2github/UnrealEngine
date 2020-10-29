@@ -78,6 +78,7 @@ public:
 	TArray<FDirtyJointConstraintData> DirtyJointConstraints;
 
 	int32 SolverTimestamp;
+	float ExternalStartTime;	//The start time associated with this result. The time is synced using the external time
 
 	void Reset();
 };
