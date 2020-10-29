@@ -6,7 +6,7 @@ UMovieSceneNiagaraSystemSpawnSection::UMovieSceneNiagaraSystemSpawnSection()
 {
 	EvalOptions.CompletionMode = EMovieSceneCompletionMode::RestoreState;
 	SectionStartBehavior = ENiagaraSystemSpawnSectionStartBehavior::Activate;
-	SectionEvaluateBehavior = ENiagaraSystemSpawnSectionEvaluateBehavior::None;
+	SectionEvaluateBehavior = ENiagaraSystemSpawnSectionEvaluateBehavior::ActivateIfInactive;
 	SectionEndBehavior = ENiagaraSystemSpawnSectionEndBehavior::SetSystemInactive;
 	AgeUpdateMode = ENiagaraAgeUpdateMode::TickDeltaTime;
 }
