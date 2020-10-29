@@ -554,7 +554,10 @@ void FCompositionLighting::ProcessBeforeBasePass(
 		// decals are before AmbientOcclusion so the decal can output a normal that AO is affected by
 		if (bDBuffer)
 		{
-			FDeferredDecalPassTextures DecalPassTextures = GetDeferredDecalPassTextures(GraphBuilder, View, SceneTexturesUniformBuffer);
+			if (!IStereoRendering::IsASecondaryView(View))
+			{
+				DecalPassTextures = GetDeferredDecalPassTextures(GraphBuilder, View, SceneTexturesUniformBuffer);
+			}
 			AddDeferredDecalPass(GraphBuilder, View, DecalPassTextures, DRS_BeforeBasePass);
 		}
 
@@ -598,7 +601,10 @@ void FCompositionLighting::ProcessAfterBasePass(
 		// decal are distracting when looking at LightCulling.
 		const bool bDoDecal = ViewFamily.EngineShowFlags.Decals && !ViewFamily.EngineShowFlags.VisualizeLightCulling;
 
-		FDeferredDecalPassTextures DecalPassTextures = GetDeferredDecalPassTextures(GraphBuilder, View, SceneTexturesUniformBuffer);
+		if (!IStereoRendering::IsASecondaryView(View))
+		{
+			DecalPassTextures = GetDeferredDecalPassTextures(GraphBuilder, View, SceneTexturesUniformBuffer);
+		}
 
 		if (ViewFamily.EngineShowFlags.Decals && !ViewFamily.EngineShowFlags.ShaderComplexity)
 		{
