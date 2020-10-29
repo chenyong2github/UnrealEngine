@@ -16,6 +16,7 @@
 #include "Modules/ModuleManager.h"
 #include "Misc/CoreDelegates.h"
 #include "Serialization/MemoryWriter.h"
+#include "Async/AsyncFileHandle.h"
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -949,7 +950,7 @@ public:
 		TocFilePath.Append(TEXT(".utoc"));
 
 		IPlatformFile& Ipf = FPlatformFileManager::Get().GetPlatformFile();
-		ContainerFileHandle.Reset(Ipf.OpenRead(*ContainerFilePath, /* allowwrite */ false));
+		ContainerFileHandle.Reset(Ipf.OpenAsyncRead(*ContainerFilePath));
 		if (!ContainerFileHandle)
 		{
 			return FIoStatusBuilder(EIoErrorCode::FileOpenFailed) << TEXT("Failed to open IoStore container file '") << *TocFilePath << TEXT("'");
@@ -1041,11 +1042,21 @@ public:
 
 	TIoStatusOr<FIoBuffer> Read(const FIoChunkId& ChunkId, const FIoReadOptions& Options) const
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(ReadChunk);
+
 		const FIoOffsetAndLength* OffsetAndLength = Toc.GetOffsetAndLength(ChunkId);
 		if (!OffsetAndLength )
 		{
 			return FIoStatus(EIoErrorCode::NotFound, TEXT("Unknown chunk ID"));
 		}
+
+		if (!ThreadBuffers)
+		{
+			ThreadBuffers = new FThreadBuffers();
+			ThreadBuffers->Register();
+		}
+		TArray<uint8>& CompressedBuffer = ThreadBuffers->CompressedBuffer;
+		TArray<uint8>& UncompressedBuffer = ThreadBuffers->UncompressedBuffer;
 
 		const FIoStoreTocResource& TocResource = Toc.GetTocResource();
 		const uint64 CompressionBlockSize = TocResource.Header.CompressionBlockSize;
@@ -1069,8 +1080,12 @@ public:
 			{
 				UncompressedBuffer.SetNumUninitialized(UncompressedSize);
 			}
-			ContainerFileHandle->Seek(CompressionBlock.GetOffset());
-			ContainerFileHandle->Read(CompressedBuffer.GetData(), RawSize);
+		
+			TUniquePtr<IAsyncReadRequest> ReadRequest(ContainerFileHandle->ReadRequest(CompressionBlock.GetOffset(), RawSize, AIOP_Normal, nullptr, CompressedBuffer.GetData()));
+			{
+				TRACE_CPUPROFILER_EVENT_SCOPE(WaitForIo);
+				ReadRequest->WaitCompletion();
+			}
 			if (EnumHasAnyFlags(TocResource.Header.ContainerFlags, EIoContainerFlags::Encrypted))
 			{
 				FAES::DecryptData(CompressedBuffer.GetData(), RawSize, DecryptionKey);
@@ -1142,13 +1157,21 @@ private:
 		return CompressedSize;
 	}
 
+	struct FThreadBuffers
+		: public FTlsAutoCleanup
+	{
+		TArray<uint8> CompressedBuffer;
+		TArray<uint8> UncompressedBuffer;
+	};
+
 	FIoStoreToc Toc;
 	FAES::FAESKey DecryptionKey;
-	TUniquePtr<IFileHandle> ContainerFileHandle;
-	mutable TArray<uint8> CompressedBuffer;
-	mutable TArray<uint8> UncompressedBuffer;
+	TUniquePtr<IAsyncReadFileHandle> ContainerFileHandle;
 	FIoDirectoryIndexReader DirectoryIndexReader;
+	static thread_local FThreadBuffers* ThreadBuffers;
 };
+
+thread_local FIoStoreReaderImpl::FThreadBuffers* FIoStoreReaderImpl::ThreadBuffers = nullptr;
 
 FIoStoreReader::FIoStoreReader()
 	: Impl(new FIoStoreReaderImpl())
