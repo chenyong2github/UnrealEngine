@@ -536,7 +536,7 @@ void SAnimationRefPoseViewport::Tick( const FGeometry& AllottedGeometry, const d
 				{
 					int RefFrameIndex;
 					RefFrameIndexPropertyHandle->GetValue( RefFrameIndex );
-					float Fraction = ( AnimRef->GetRawNumberOfFrames() > 0 ) ? FMath::Clamp<float>( (float)RefFrameIndex / (float)AnimRef->GetRawNumberOfFrames(), 0.f, 1.f ) : 0.f;
+					float Fraction = ( AnimRef->GetNumberOfSampledKeys() > 0 ) ? FMath::Clamp<float>( (float)RefFrameIndex / (float)AnimRef->GetNumberOfSampledKeys(), 0.f, 1.f ) : 0.f;
 					float RefTime = AnimRef->GetPlayLength() * Fraction;
 					PreviewComponent->PreviewInstance->SetPosition( RefTime, false );
 					PreviewComponent->PreviewInstance->SetPlaying( false );
@@ -621,7 +621,7 @@ TArray<float> SAnimationRefPoseViewport::GetBars() const
 	{
 		int RefFrameIndex;
 		RefFrameIndexPropertyHandle->GetValue(RefFrameIndex);
-		float Fraction = (AnimRef->GetRawNumberOfFrames() > 0)? FMath::Clamp<float>((float)RefFrameIndex/(float)AnimRef->GetRawNumberOfFrames(), 0.f, 1.f) : 0.f;
+		float Fraction = (AnimRef->GetNumberOfSampledKeys() > 0)? FMath::Clamp<float>((float)RefFrameIndex/(float)AnimRef->GetNumberOfSampledKeys(), 0.f, 1.f) : 0.f;
 		Bars.Add(AnimRef->GetPlayLength() * Fraction);
 	}
 	else
@@ -635,7 +635,7 @@ void SAnimationRefPoseViewport::OnBarDrag(int32 Index, float Position)
 {
 	if (AnimRef)
 	{
-		int RefFrameIndex = FMath::Clamp<int>(AnimRef->GetPlayLength() > 0.0f? (int)(Position * (float)AnimRef->GetRawNumberOfFrames() / AnimRef->GetPlayLength() + 0.5f) : 0.0f, 0, AnimRef->GetRawNumberOfFrames() - 1);
+		int RefFrameIndex = FMath::Clamp<int>(AnimRef->GetPlayLength() > 0.0f? (int)(Position * (float)AnimRef->GetNumberOfSampledKeys() / AnimRef->GetPlayLength() + 0.5f) : 0.0f, 0, AnimRef->GetNumberOfSampledKeys() - 1);
 		RefFrameIndexPropertyHandle->SetValue(RefFrameIndex);
 	}
 }

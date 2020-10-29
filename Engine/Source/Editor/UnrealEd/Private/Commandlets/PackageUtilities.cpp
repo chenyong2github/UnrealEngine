@@ -1839,9 +1839,9 @@ struct CompressAnimationsFunctor
 				continue;
 			}
 
-			if( !bForceCompression && bSkipLongAnimations && (AnimSeq->GetRawNumberOfFrames() > 300) )
+			if( !bForceCompression && bSkipLongAnimations && (AnimSeq->GetNumberOfSampledKeys() > 300) )
 			{
-				UE_LOG(LogPackageUtilities, Warning, TEXT("Animation (%s) has more than 300 frames (%i frames) and SKIPLONGANIMS switch is set. Skipping."), *AnimSeq->GetName(), AnimSeq->GetRawNumberOfFrames());
+				UE_LOG(LogPackageUtilities, Warning, TEXT("Animation (%s) has more than 300 keys (%i keys) and SKIPLONGANIMS switch is set. Skipping."), *AnimSeq->GetName(), AnimSeq->GetNumberOfSampledKeys());
 				continue;
 			}
 

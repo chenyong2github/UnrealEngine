@@ -35,7 +35,7 @@ void AEFVariableKeyLerpShared::ByteSwapRotationIn(
 		PadMemoryReader(&MemoryReader, TrackData, 4); 
 
 		// swap the track table
-		const size_t EntryStride = (CompressedData.CompressedNumberOfFrames > 0xFF) ? sizeof(uint16) : sizeof(uint8);
+		const size_t EntryStride = (CompressedData.CompressedNumberOfKeys > 0xFF) ? sizeof(uint16) : sizeof(uint8);
 		for (int32 KeyIndex = 0; KeyIndex < NumKeys; ++KeyIndex)
 		{
 			AC_UnalignedSwap(MemoryReader, TrackData, EntryStride);
@@ -67,7 +67,7 @@ void AEFVariableKeyLerpShared::ByteSwapTranslationIn(
 		PadMemoryReader(&MemoryReader, TrackData, 4); 
 
 		// swap the track table
-		const size_t EntryStride = (CompressedData.CompressedNumberOfFrames > 0xFF) ? sizeof(uint16) : sizeof(uint8);
+		const size_t EntryStride = (CompressedData.CompressedNumberOfKeys > 0xFF) ? sizeof(uint16) : sizeof(uint8);
 		for (int32 KeyIndex = 0; KeyIndex < NumKeys; ++KeyIndex)
 		{
 			AC_UnalignedSwap(MemoryReader, TrackData, EntryStride);
@@ -99,7 +99,7 @@ void AEFVariableKeyLerpShared::ByteSwapScaleIn(
 		PadMemoryReader(&MemoryReader, TrackData, 4); 
 
 		// swap the track table
-		const size_t EntryStride = (CompressedData.CompressedNumberOfFrames > 0xFF) ? sizeof(uint16) : sizeof(uint8);
+		const size_t EntryStride = (CompressedData.CompressedNumberOfKeys > 0xFF) ? sizeof(uint16) : sizeof(uint8);
 		for (int32 KeyIndex = 0; KeyIndex < NumKeys; ++KeyIndex)
 		{
 			AC_UnalignedSwap(MemoryReader, TrackData, EntryStride);
@@ -130,7 +130,7 @@ void AEFVariableKeyLerpShared::ByteSwapRotationOut(
 		PadMemoryWriter(&MemoryWriter, TrackData, 4);
 
 		// swap the track table
-		const size_t EntryStride = (CompressedData.CompressedNumberOfFrames > 0xFF) ? sizeof(uint16) : sizeof(uint8);
+		const size_t EntryStride = (CompressedData.CompressedNumberOfKeys > 0xFF) ? sizeof(uint16) : sizeof(uint8);
 		for (int32 KeyIndex = 0; KeyIndex < NumKeys; ++KeyIndex)
 		{
 			AC_UnalignedSwap(MemoryWriter, TrackData, EntryStride);
@@ -162,7 +162,7 @@ void AEFVariableKeyLerpShared::ByteSwapTranslationOut(
 		PadMemoryWriter(&MemoryWriter, TrackData, 4);
 
 		// swap the track table
-		const size_t EntryStride = (CompressedData.CompressedNumberOfFrames > 0xFF) ? sizeof(uint16) : sizeof(uint8);
+		const size_t EntryStride = (CompressedData.CompressedNumberOfKeys > 0xFF) ? sizeof(uint16) : sizeof(uint8);
 		for (int32 KeyIndex = 0; KeyIndex < NumKeys; ++KeyIndex)
 		{
 			AC_UnalignedSwap(MemoryWriter, TrackData, EntryStride);
@@ -195,7 +195,7 @@ void AEFVariableKeyLerpShared::ByteSwapScaleOut(
 		PadMemoryWriter(&MemoryWriter, TrackData, 4);
 
 		// swap the track table
-		const size_t EntryStride = (CompressedData.CompressedNumberOfFrames > 0xFF) ? sizeof(uint16) : sizeof(uint8);
+		const size_t EntryStride = (CompressedData.CompressedNumberOfKeys > 0xFF) ? sizeof(uint16) : sizeof(uint8);
 		for (int32 KeyIndex = 0; KeyIndex < NumKeys; ++KeyIndex)
 		{
 			AC_UnalignedSwap(MemoryWriter, TrackData, EntryStride);
@@ -235,7 +235,7 @@ void AEFVariableKeyLerp<FORMAT>::GetPoseRotations(
 			(ispc::BoneTrackPair*)&DesiredPairs[0],
 			AnimData.CompressedTrackOffsets.GetData(),
 			AnimData.CompressedByteStream.GetData(),
-			AnimData.CompressedNumberOfFrames,
+			AnimData.CompressedNumberOfKeys,
 			DecompContext.RelativePos,
 			(uint8)DecompContext.Interpolation,
 			FORMAT,
@@ -287,7 +287,7 @@ void AEFVariableKeyLerp<FORMAT>::GetPoseTranslations(
 			(ispc::BoneTrackPair*)&DesiredPairs[0],
 			AnimData.CompressedTrackOffsets.GetData(),
 			AnimData.CompressedByteStream.GetData(),
-			AnimData.CompressedNumberOfFrames,
+			AnimData.CompressedNumberOfKeys,
 			DecompContext.RelativePos,
 			(uint8)DecompContext.Interpolation,
 			FORMAT,
@@ -343,7 +343,7 @@ void AEFVariableKeyLerp<FORMAT>::GetPoseScales(
 			ScaleOffsets.GetData(),
 			StripSize,
 			AnimData.CompressedByteStream.GetData(),
-			AnimData.CompressedNumberOfFrames,
+			AnimData.CompressedNumberOfKeys,
 			DecompContext.RelativePos,
 			(uint8)DecompContext.Interpolation,
 			FORMAT,

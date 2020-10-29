@@ -56,7 +56,7 @@ double FAnimModel::GetFrameRate() const
 {
 	if(UAnimSequence* AnimSequence = Cast<UAnimSequence>(GetAnimSequenceBase()))
 	{
-		return (double)AnimSequence->GetFrameRate();
+		return AnimSequence->GetSamplingFrameRate().AsDecimal();
 	}
 	else
 	{

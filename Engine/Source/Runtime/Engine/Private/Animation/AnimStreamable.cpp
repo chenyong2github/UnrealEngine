@@ -21,6 +21,7 @@
 #include "ProfilingDebugging/CookStats.h"
 #include "Animation/AnimationPoseData.h"
 #include "Animation/CustomAttributesRuntime.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
 
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(ENGINE_API, Animation);
 
@@ -143,6 +144,7 @@ void UAnimStreamable::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);
 	
+	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
 
 	bool bCooked = Ar.IsCooking();
 	Ar << bCooked;
@@ -164,6 +166,15 @@ void UAnimStreamable::Serialize(FArchive& Ar)
 			PlatformData.Serialize(Ar, this);
 		}
 	}
+
+#if WITH_EDITORONLY_DATA
+	if (Ar.IsLoading() && Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::RenamingAnimationNumFrames)
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		NumberOfKeys = NumFrames;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+#endif // WITH_EDITORONLY_DATA
 }
 
 #if WITH_EDITOR
@@ -280,7 +291,7 @@ void UAnimStreamable::GetAnimationPose(FAnimationPoseData& OutAnimationPoseData,
 			}
 		}
 
-		BuildPoseFromRawData(RawAnimationData, TrackToSkeletonMapTable, OutPose, ExtractionContext.CurrentTime, Interpolation, NumFrames, GetPlayLength(), RetargetSource);
+		BuildPoseFromRawData(RawAnimationData, TrackToSkeletonMapTable, OutPose, ExtractionContext.CurrentTime, Interpolation, NumberOfKeys, GetPlayLength(), RetargetSource);
 
 		if ((ExtractionContext.bExtractRootMotion && RootMotionReset.bEnableRootMotion) || RootMotionReset.bForceRootLock)
 		{
@@ -446,7 +457,7 @@ void UAnimStreamable::InitFrom(const UAnimSequence* InSourceSequence)
 	TrackToSkeletonMapTable = InSourceSequence->GetRawTrackToSkeletonMapTable();
 	AnimationTrackNames = InSourceSequence->GetAnimationTrackNames();
 	
-	NumFrames = InSourceSequence->GetNumberOfFrames();
+	NumberOfKeys = InSourceSequence->GetNumberOfSampledKeys();
 	SetSequenceLength(InSourceSequence->GetPlayLength());
 	
 	RateScale = InSourceSequence->RateScale;
@@ -543,8 +554,8 @@ void UAnimStreamable::RequestCompressedData(const ITargetPlatform* Platform)
 		NumChunks = FMath::Max(InitialNumChunks, 1);
 	}
 
-	int32 NumFramesToChunk = NumFrames - 1;
-	int32 FramesPerChunk = NumFrames / NumChunks;
+	int32 NumFramesToChunk = NumberOfKeys - 1;
+	int32 FramesPerChunk = NumberOfKeys / NumChunks;
 
 	PlatformData.Chunks.AddDefaulted(NumChunks);
 
@@ -625,7 +636,8 @@ void UAnimStreamable::RequestCompressedDataForChunk(const FString& ChunkDDCKey, 
 		const bool bSkipDDC = false;
 
 		const int32 ChunkNumFrames = FrameEnd - FrameStart;
-		const float FrameLength = GetPlayLength() / (float)(NumFrames - 1);
+		const int32 NumberOfFrames = NumberOfKeys - 1;
+		const float FrameLength = GetPlayLength() / (float)NumberOfFrames;
 		Chunk.StartTime = FrameStart * FrameLength;
 		Chunk.SequenceLength = ChunkNumFrames * FrameLength;
 
@@ -644,11 +656,11 @@ void UAnimStreamable::RequestCompressedDataForChunk(const FString& ChunkDDCKey, 
 				FRawAnimSequenceTrack& SrcTrack = RawAnimationData[TrackIndex];
 				FRawAnimSequenceTrack& DestTrack = CompressibleData->RawAnimationData[TrackIndex];
 
-				MakeKeyChunk(SrcTrack.PosKeys, DestTrack.PosKeys, NumFrames, FrameStart, FrameEnd);
-				MakeKeyChunk(SrcTrack.RotKeys, DestTrack.RotKeys, NumFrames, FrameStart, FrameEnd);
+				MakeKeyChunk(SrcTrack.PosKeys, DestTrack.PosKeys, NumberOfKeys, FrameStart, FrameEnd);
+				MakeKeyChunk(SrcTrack.RotKeys, DestTrack.RotKeys, NumberOfKeys, FrameStart, FrameEnd);
 				if (SrcTrack.ScaleKeys.Num() > 0)
 				{
-					MakeKeyChunk(SrcTrack.ScaleKeys, DestTrack.ScaleKeys, NumFrames, FrameStart, FrameEnd);
+					MakeKeyChunk(SrcTrack.ScaleKeys, DestTrack.ScaleKeys, NumberOfKeys, FrameStart, FrameEnd);
 				}
 			}
 

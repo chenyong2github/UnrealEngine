@@ -99,7 +99,7 @@ protected:
 
 	/** Do I need to sync with viewport? **/
 	bool DoesSyncViewport() const;
-	uint32 GetNumOfFrames() const;
+	uint32 GetNumberOfKeys() const;
 	float GetSequenceLength() const;
 
 	// Returns a UAnimInstance that came from a blueprint, or NULL (even if the UAnimInstance is not null, but it didn't come from a blueprint)

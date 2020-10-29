@@ -1178,7 +1178,7 @@ void UPoseAsset::CreatePoseFromAnimation(class UAnimSequence* AnimSequence, cons
 			// reinitialize, now we're making new pose from this animation
 			Reinitialize();
 
-			const int32 NumPoses = AnimSequence->GetNumberOfFrames();
+			const int32 NumPoses = AnimSequence->GetNumberOfSampledKeys();
 
 			// make sure we have more than one pose
 			if (NumPoses > 0)

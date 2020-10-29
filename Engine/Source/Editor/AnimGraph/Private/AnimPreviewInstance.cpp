@@ -704,11 +704,11 @@ void UAnimPreviewInstance::MontagePreview_StepForward()
 		MontagePreview_SetPlaying(true);
 
 		// Advance a single frame, leaving it paused afterwards
-		int32 NumFrames = Montage->GetNumberOfFrames();
+		const int32 NumKeys = Montage->GetNumberOfSampledKeys();
 		// Add DELTA to prefer next frame when we're close to the boundary
-		float CurrentFraction = Proxy.GetCurrentTime() / Montage->GetPlayLength() + DELTA;
-		float NextFrame = FMath::Clamp<float>(FMath::FloorToFloat(CurrentFraction * NumFrames) + 1.0f, 0, NumFrames);
-		float NewTime = Montage->GetPlayLength() * (NextFrame / (NumFrames-1));
+		const float CurrentFraction = Proxy.GetCurrentTime() / Montage->GetPlayLength() + DELTA;
+		const float NextFrame = FMath::Clamp<float>(FMath::FloorToFloat(CurrentFraction * NumKeys) + 1.0f, 0, NumKeys);
+		const float NewTime = Montage->GetPlayLength() * (NextFrame / (NumKeys-1));
 
 		GetSkelMeshComponent()->GlobalAnimRateScale = 1.0f;
 		GetSkelMeshComponent()->TickAnimation(NewTime - Proxy.GetCurrentTime(), false);
@@ -760,11 +760,11 @@ void UAnimPreviewInstance::MontagePreview_StepBackward()
 		MontagePreview_SetPlaying(true);
 
 		// Advance a single frame, leaving it paused afterwards
-		int32 NumFrames = Montage->GetNumberOfFrames();
+		const int32 NumKeys = Montage->GetNumberOfSampledKeys();
 		// Add DELTA to prefer next frame when we're close to the boundary
-		float CurrentFraction = Proxy.GetCurrentTime() / Montage->GetPlayLength() + DELTA;
-		float NextFrame = FMath::Clamp<float>(FMath::FloorToFloat(CurrentFraction * NumFrames) - 1.0f, 0, NumFrames);
-		float NewTime = Montage->GetPlayLength() * (NextFrame / (NumFrames-1));
+		const float CurrentFraction = Proxy.GetCurrentTime() / Montage->GetPlayLength() + DELTA;
+		const float NextFrame = FMath::Clamp<float>(FMath::FloorToFloat(CurrentFraction * NumKeys) - 1.0f, 0, NumKeys);
+		const float NewTime = Montage->GetPlayLength() * (NextFrame / (NumKeys-1));
 
 		GetSkelMeshComponent()->GlobalAnimRateScale = 1.0f;
 		GetSkelMeshComponent()->TickAnimation(FMath::Abs(NewTime - Proxy.GetCurrentTime()), false);

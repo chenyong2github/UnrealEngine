@@ -34,7 +34,7 @@ void SAnimationScrubPanel::Construct( const SAnimationScrubPanel::FArguments& In
 			SAssignNew(ScrubControlPanel, SScrubControlPanel)
 			.IsEnabled(true)//this, &SAnimationScrubPanel::DoesSyncViewport)
 			.Value(this, &SAnimationScrubPanel::GetScrubValue)
-			.NumOfKeys(this, &SAnimationScrubPanel::GetNumOfFrames)
+			.NumOfKeys(this, &SAnimationScrubPanel::GetNumberOfKeys)
 			.SequenceLength(this, &SAnimationScrubPanel::GetSequenceLength)
 			.DisplayDrag(this, &SAnimationScrubPanel::GetDisplayDrag)
 			.OnValueChanged(this, &SAnimationScrubPanel::OnValueChanged)
@@ -305,31 +305,31 @@ void SAnimationScrubPanel::OnEndSliderMovement(float NewValue)
 	bSliderBeingDragged = false;
 }
 
-uint32 SAnimationScrubPanel::GetNumOfFrames() const
+uint32 SAnimationScrubPanel::GetNumberOfKeys() const
 {
 	if (DoesSyncViewport())
 	{
 		UAnimSingleNodeInstance* PreviewInstance = GetPreviewInstance();
 		float Length = PreviewInstance->GetLength();
 		// if anim sequence, use correct num frames
-		int32 NumFrames = (int32) (Length/0.0333f); 
+		int32 NumKeys = (int32) (Length/0.0333f); 
 		if (PreviewInstance->GetCurrentAsset())
 		{
 			if (PreviewInstance->GetCurrentAsset()->IsA(UAnimSequenceBase::StaticClass()))
 			{
-				NumFrames = CastChecked<UAnimSequenceBase>(PreviewInstance->GetCurrentAsset())->GetNumberOfFrames();
+				NumKeys = CastChecked<UAnimSequenceBase>(PreviewInstance->GetCurrentAsset())->GetNumberOfSampledKeys();
 			}
 			else if(PreviewInstance->GetCurrentAsset()->IsA(UBlendSpaceBase::StaticClass()))
 			{
 				// Blendspaces dont display frame notches, so just return 0 here
-				NumFrames = 0;
+				NumKeys = 0;
 			}
 		}
-		return NumFrames;
+		return NumKeys;
 	}
 	else if (LockedSequence)
 	{
-		return LockedSequence->GetNumberOfFrames();
+		return LockedSequence->GetNumberOfSampledKeys();
 	}
 	else
 	{
@@ -503,7 +503,7 @@ void SAnimationScrubPanel::OnAppendAnimSequence( bool bFromStart, int32 NumOfFra
 			AnimSequence->Modify();
 
 			// Crop the raw anim data.
-			int32 StartFrame = (bFromStart)? 0 : AnimSequence->GetRawNumberOfFrames() - 1;
+			int32 StartFrame = (bFromStart)? 0 : AnimSequence->GetNumberOfSampledKeys() - 1;
 			int32 EndFrame = StartFrame + NumOfFrames;
 			int32 CopyFrame = StartFrame;
 			AnimSequence->InsertFramesToRawAnimData(StartFrame, EndFrame, CopyFrame);

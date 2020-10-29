@@ -25,11 +25,24 @@ void UAnimationBlueprintLibrary::GetNumFrames(const UAnimSequence* AnimationSequ
 	NumFrames = 0;
 	if (AnimationSequence)
 	{
-		NumFrames = AnimationSequence->NumFrames;
+		NumFrames = AnimationSequence->GetNumberOfSampledKeys() - 1;
 	}
 	else
 	{
 		UE_LOG(LogAnimationBlueprintLibrary, Warning, TEXT("Invalid Animation Sequence supplied for GetNumFrames"));
+	}
+}
+
+void UAnimationBlueprintLibrary::GetNumKeys(const UAnimSequence* AnimationSequence, int32& NumKeys)
+{
+	NumKeys = 0;
+	if (AnimationSequence)
+	{
+		NumKeys = AnimationSequence->GetNumberOfSampledKeys();
+	}
+	else
+	{
+		UE_LOG(LogAnimationBlueprintLibrary, Warning, TEXT("Invalid Animation Sequence supplied for GetNumKeys"));
 	}
 }
 

@@ -35,4 +35,7 @@ public:
 
 	/** Get the collection of the ITimedDataInput and ITimedDataInputGroups. */
 	virtual FTimedDataInputCollection& GetTimedDataInputCollection() = 0;
+
+	/** Returns all stored common frame rates */
+	virtual TArrayView<const struct FCommonFrameRateInfo> GetAllCommonFrameRates() = 0;
 };

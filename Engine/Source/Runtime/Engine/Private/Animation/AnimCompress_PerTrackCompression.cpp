@@ -31,7 +31,7 @@ struct FPerTrackParams
 {
 	float MaxZeroingThreshold;
 
-	int32 NumFrames;
+	int32 NumberOfKeys;
 
 	float SequenceLength;
 
@@ -804,7 +804,7 @@ protected:
 	{
 		if (bReallyNeedsFrameTable && (CompressedBytes.Num() > 0))
 		{
-			const int32 NumFrames = Params.NumFrames;
+			const int32 NumFrames = Params.NumberOfKeys;
 			const float SequenceLength = Params.SequenceLength;
 			const float FramesPerSecond = (NumFrames - 1) / SequenceLength;
 
@@ -824,7 +824,7 @@ public:
 	FPerTrackCompressor(int32 InCompressionType, const FTranslationTrack& TranslationData, const FPerTrackParams& Params)
 	{
 		Reset();
-		bReallyNeedsFrameTable = Params.bIncludeKeyTable && (TranslationData.PosKeys.Num() > 1) && (TranslationData.PosKeys.Num() < Params.NumFrames);
+		bReallyNeedsFrameTable = Params.bIncludeKeyTable && (TranslationData.PosKeys.Num() > 1) && (TranslationData.PosKeys.Num() < Params.NumberOfKeys);
 
 		switch (InCompressionType)
 		{
@@ -858,7 +858,7 @@ public:
 	FPerTrackCompressor(int32 InCompressionType, const FRotationTrack& RotationData, const FPerTrackParams& Params)
 	{
 		Reset();
-		bReallyNeedsFrameTable = Params.bIncludeKeyTable && (RotationData.RotKeys.Num() > 1) && (RotationData.RotKeys.Num() < Params.NumFrames);
+		bReallyNeedsFrameTable = Params.bIncludeKeyTable && (RotationData.RotKeys.Num() > 1) && (RotationData.RotKeys.Num() < Params.NumberOfKeys);
 
 		switch (InCompressionType)
 		{
@@ -895,7 +895,7 @@ public:
 	FPerTrackCompressor(int32 InCompressionType, const FScaleTrack& ScaleData, const FPerTrackParams& Params)
 	{
 		Reset();
-		bReallyNeedsFrameTable = Params.bIncludeKeyTable && (ScaleData.ScaleKeys.Num() > 1) && (ScaleData.ScaleKeys.Num() < Params.NumFrames);
+		bReallyNeedsFrameTable = Params.bIncludeKeyTable && (ScaleData.ScaleKeys.Num() > 1) && (ScaleData.ScaleKeys.Num() < Params.NumberOfKeys);
 
 		switch (InCompressionType)
 		{
@@ -1024,7 +1024,7 @@ void UAnimCompress_PerTrackCompression::CompressUsingUnderlyingCompressor(
 		}
 		// Compression parameters / thresholds
 		FPerTrackParams Params;
-		Params.NumFrames = CompressibleAnimData.NumFrames;
+		Params.NumberOfKeys = CompressibleAnimData.NumberOfKeys;
 		Params.SequenceLength = CompressibleAnimData.SequenceLength;
 		Params.MaxZeroingThreshold = MaxZeroingThreshold;
 
@@ -1078,7 +1078,7 @@ void UAnimCompress_PerTrackCompression::CompressUsingUnderlyingCompressor(
 		// Start compressing translation using a totally lossless float32x3
 		const FTranslationTrack& TranslationTrack = TranslationData[TrackIndex];
 
-		Params.bIncludeKeyTable = bActuallyFilterLinearKeys && !FAnimationUtils::HasUniformKeySpacing(CompressibleAnimData.NumFrames, TranslationTrack.Times);
+		Params.bIncludeKeyTable = bActuallyFilterLinearKeys && !FAnimationUtils::HasUniformKeySpacing(CompressibleAnimData.NumberOfKeys, TranslationTrack.Times);
 		FPerTrackCompressor BestTranslation(ACF_Float96NoW, TranslationTrack, Params);
 
 		// Try the other translation formats
@@ -1102,7 +1102,7 @@ void UAnimCompress_PerTrackCompression::CompressUsingUnderlyingCompressor(
 		// Start compressing rotation, first using lossless float32x3
 		const FRotationTrack& RotationTrack = RotationData[TrackIndex];
 
-		Params.bIncludeKeyTable = bActuallyFilterLinearKeys && !FAnimationUtils::HasUniformKeySpacing(CompressibleAnimData.NumFrames, RotationTrack.Times);
+		Params.bIncludeKeyTable = bActuallyFilterLinearKeys && !FAnimationUtils::HasUniformKeySpacing(CompressibleAnimData.NumberOfKeys, RotationTrack.Times);
 		FPerTrackCompressor BestRotation(ACF_Float96NoW, RotationTrack, Params);
 
 		//bool bLeaveRotationUncompressed = (RotationTrack.Times.Num() <= 1) && (GHighQualityEmptyTracks != 0);
@@ -1132,7 +1132,7 @@ void UAnimCompress_PerTrackCompression::CompressUsingUnderlyingCompressor(
 		{
 			const FScaleTrack& ScaleTrack = ScaleData[TrackIndex];
 
-			Params.bIncludeKeyTable = bActuallyFilterLinearKeys && !FAnimationUtils::HasUniformKeySpacing(CompressibleAnimData.NumFrames, ScaleTrack.Times);
+			Params.bIncludeKeyTable = bActuallyFilterLinearKeys && !FAnimationUtils::HasUniformKeySpacing(CompressibleAnimData.NumberOfKeys, ScaleTrack.Times);
 			FPerTrackCompressor BestScale(ACF_Float96NoW, ScaleTrack, Params);
 
 			//bool bLeaveScaleUncompressed = (ScaleTrack.Times.Num() <= 1) && (GHighQualityEmptyTracks != 0);
@@ -1457,12 +1457,12 @@ void* UAnimCompress_PerTrackCompression::FilterBeforeMainKeyRemoval(
 	const int32 NumTracks = TranslationData.Num();
 
 	// Downsample the keys if enabled
-	if ((CompressibleAnimData.NumFrames >= MinKeysForResampling) && bResampleAnimation)
+	if ((CompressibleAnimData.NumberOfKeys >= MinKeysForResampling) && bResampleAnimation)
 	{
 		if(CompressibleAnimData.SequenceLength > 0)
 		{
 			//Make sure we aren't going to oversample the original animation
-			const float CurrentFramerate = (CompressibleAnimData.NumFrames - 1) / CompressibleAnimData.SequenceLength;
+			const float CurrentFramerate = (CompressibleAnimData.NumberOfKeys - 1) / CompressibleAnimData.SequenceLength;
 			if (CurrentFramerate > ResampledFramerate)
 			{
 				ResampleKeys(TranslationData, RotationData, ScaleData, 1.0f / ResampledFramerate, 0.0f);
@@ -1557,7 +1557,7 @@ bool UAnimCompress_PerTrackCompression::DoReduction(const FCompressibleAnimData&
 		return false;
 	}
 
-	if (bResampleAnimation && CompressibleAnimData.NumFrames < MinKeysForResampling)
+	if (bResampleAnimation && CompressibleAnimData.NumberOfKeys < MinKeysForResampling)
 	{
 		return false;
 	}

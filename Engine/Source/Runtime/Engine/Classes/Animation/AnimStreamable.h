@@ -91,9 +91,9 @@ class UAnimStreamable : public UAnimSequenceBase
 	GENERATED_UCLASS_BODY()
 
 public:
-	/** Number of raw frames in this sequence (not used by engine - just for informational purposes). */
-	UPROPERTY(AssetRegistrySearchable, meta = (DisplayName = "Number of Keys"))
-	int32 NumFrames;
+	/** The number of keys expected within the individual animation tracks. */
+	UPROPERTY(AssetRegistrySearchable)
+	int32 NumberOfKeys;
 
 	/** This defines how values between keys are calculated **/
 	UPROPERTY(EditAnywhere, AssetRegistrySearchable, Category = Animation)
@@ -111,6 +111,11 @@ public:
 
 	UPROPERTY()
 	FGuid RawDataGuid;
+
+	/** Number of raw frames in this sequence (not used by engine - just for informational purposes). */
+	UE_DEPRECATED(5.0, "Num Frames is deprecated use NumberOfKeys instead")
+	UPROPERTY()
+	int32 NumFrames;
 
 	/**
 	 * Raw uncompressed keyframe data.
@@ -205,7 +210,7 @@ public:
 	//~ Begin UAnimSequenceBase Interface
 	ENGINE_API virtual void HandleAssetPlayerTickedInternal(FAnimAssetTickContext &Context, const float PreviousTime, const float MoveDelta, const FAnimTickRecord &Instance, struct FAnimNotifyQueue& NotifyQueue) const override;
 	virtual void GetAnimationPose(FAnimationPoseData& OutAnimationPoseData, const FAnimExtractContext& ExtractionContext) const override;
-	virtual int32 GetNumberOfFrames() const override { return NumFrames; }
+	virtual int32 GetNumberOfSampledKeys() const override { return NumberOfKeys; }
 	//~ End UAnimSequenceBase Interface
 
 #if WITH_EDITOR

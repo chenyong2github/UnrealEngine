@@ -384,9 +384,9 @@ void UAnimCompress::BitwiseCompressAnimationTracks(
 					PadByteStream(AnimData.CompressedByteStream, 4, AnimationPadSentinel);
 
 					// write the key table
-					const int32 NumFrames = CompressibleAnimData.NumFrames;
-					const int32 LastFrame = NumFrames-1;
-					const size_t FrameSize = NumFrames > 0xff ? sizeof(uint16) : sizeof(uint8);
+					const int32 NumKeys = CompressibleAnimData.NumberOfKeys;
+					const int32 LastFrame = NumKeys-1;
+					const size_t FrameSize = NumKeys > 0xff ? sizeof(uint16) : sizeof(uint8);
 					const float FrameRate = LastFrame / CompressibleAnimData.SequenceLength;
 
 					const int32 TableSize = NumKeysTrans*FrameSize;
@@ -486,9 +486,9 @@ void UAnimCompress::BitwiseCompressAnimationTracks(
 					PadByteStream(AnimData.CompressedByteStream, 4, AnimationPadSentinel);
 
 					// write the key table
-					const int32 NumFrames = CompressibleAnimData.NumFrames;
-					const int32 LastFrame= NumFrames-1;
-					const size_t FrameSize= NumFrames > 0xff ? sizeof(uint16) : sizeof(uint8);
+					const int32 NumKeys = CompressibleAnimData.NumberOfKeys;
+					const int32 LastFrame= NumKeys-1;
+					const size_t FrameSize= NumKeys > 0xff ? sizeof(uint16) : sizeof(uint8);
 					const float FrameRate = LastFrame / CompressibleAnimData.SequenceLength;
 
 					const int32 TableSize = NumKeysRot*FrameSize;
@@ -572,9 +572,9 @@ void UAnimCompress::BitwiseCompressAnimationTracks(
 						PadByteStream(AnimData.CompressedByteStream, 4, AnimationPadSentinel);
 
 						// write the key table
-						const int32 NumFrames = CompressibleAnimData.NumFrames;
-						const int32 LastFrame = NumFrames-1;
-						const size_t FrameSize = NumFrames > 0xff ? sizeof(uint16) : sizeof(uint8);
+						const int32 NumKeys = CompressibleAnimData.NumberOfKeys;
+						const int32 LastFrame = NumKeys-1;
+						const size_t FrameSize = NumKeys > 0xff ? sizeof(uint16) : sizeof(uint8);
 						const float FrameRate = LastFrame / CompressibleAnimData.SequenceLength;
 
 						const int32 TableSize = NumKeysScale*FrameSize;
@@ -623,7 +623,7 @@ void UAnimCompress::BitwiseCompressAnimationTracks(
 bool UAnimCompress::Compress(const FCompressibleAnimData& CompressibleAnimData, FCompressibleAnimDataResult& OutResult)
 {
 	FUECompressedAnimDataMutable AnimDataMutable;
-	AnimDataMutable.CompressedNumberOfFrames = CompressibleAnimData.NumFrames;
+	AnimDataMutable.CompressedNumberOfKeys = CompressibleAnimData.NumberOfKeys;
 
 	OutResult.Codec = this;
 	OutResult.AnimData = TUniquePtr<ICompressedAnimData>(&AnimDataMutable);

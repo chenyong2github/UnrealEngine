@@ -362,7 +362,7 @@ void AnimationFormat_GetStats(
 	int32& NumScaleTracksWithOneKey)
 {
 	OverheadSize = CompressedData.CompressedTrackOffsets.Num() * sizeof(int32);
-	const size_t KeyFrameLookupSize = (CompressedData.CompressedNumberOfFrames > 0xFF) ? sizeof(uint16) : sizeof(uint8);
+	const size_t KeyFrameLookupSize = (CompressedData.CompressedNumberOfKeys > 0xFF) ? sizeof(uint16) : sizeof(uint8);
 
 	if (CompressedData.KeyEncodingFormat != AKF_PerTrackCompression)
 	{

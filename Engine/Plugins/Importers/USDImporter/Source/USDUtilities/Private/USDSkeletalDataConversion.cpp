@@ -1895,7 +1895,7 @@ bool UsdToUnreal::ConvertSkelAnim( const pxr::UsdSkelSkeletonQuery& InUsdSkeleto
 	OutSkeletalAnimationAsset->ImportFileFramerate = Stage.Get()->GetFramesPerSecond();
 	OutSkeletalAnimationAsset->ImportResampleFramerate = FramesPerSecond;
 	OutSkeletalAnimationAsset->SetSequenceLength(SequenceLengthSeconds);
-	OutSkeletalAnimationAsset->SetRawNumberOfFrame( NumBakedFrames );
+	OutSkeletalAnimationAsset->SetNumberOfSampledKeys( NumBakedFrames );
 	OutSkeletalAnimationAsset->MarkRawDataAsModified();	
 	OutSkeletalAnimationAsset->PostProcessSequence();
 

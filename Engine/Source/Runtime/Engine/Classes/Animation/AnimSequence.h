@@ -214,9 +214,20 @@ class ENGINE_API UAnimSequence : public UAnimSequenceBase
 #endif
 
 protected:
-	/** Number of raw frames in this sequence (not used by engine - just for informational purposes). */
-	UPROPERTY(AssetRegistrySearchable, meta = (DisplayName = "Number of Keys"))
+#if WITH_EDITORONLY_DATA
+	/** Contains the number of keys expected within the individual animation tracks. */
+	UE_DEPRECATED(5.0, "Num Frames is deprecated use NumberOfKeys instead")
+	UPROPERTY()
 	int32 NumFrames;
+#endif
+
+	/** The number of keys expected within the individual (non-uniform) animation tracks. */
+	UPROPERTY(AssetRegistrySearchable)
+	int32 NumberOfKeys;
+
+	/** The frame rate at which the source animation is sampled. */
+	UPROPERTY(AssetRegistrySearchable)
+	FFrameRate SamplingFrameRate;
 
 	/**
 	 * In the future, maybe keeping RawAnimSequenceTrack + TrackMap as one would be good idea to avoid inconsistent array size
@@ -277,8 +288,14 @@ public:
 	FCompressedAnimSequence CompressedData;
 
 	// Accessors for animation frame count
-	int32 GetRawNumberOfFrames() const { return NumFrames; }
-	void SetRawNumberOfFrame(int32 InNumFrames) { NumFrames = InNumFrames; }
+	UE_DEPRECATED(5.0, "GetRawNumberOfFrames has been deprecated, use GetNumberOfSampledKeys instead")
+	int32 GetRawNumberOfFrames() const { return NumberOfKeys; }
+
+	UE_DEPRECATED(5.0, "SetRawNumberOfFrame has been deprecated, use SetNumberOfSampledKeys instead")
+	void SetRawNumberOfFrame(int32 InNumFrames) { SetNumberOfSampledKeys(InNumFrames); }
+
+	/** Update the the number of expected keys in the (non-uniform) animation tracks, including T0 */
+	void SetNumberOfSampledKeys(int32 InNumberOfKeys);
 
 	/** Additive animation type. **/
 	UPROPERTY(EditAnywhere, Category=AdditiveSettings, AssetRegistrySearchable)
@@ -396,7 +413,6 @@ public:
 #if WITH_EDITOR
 	virtual bool GetAllAnimationSequencesReferred(TArray<UAnimationAsset*>& AnimationAssets, bool bRecursive = true) override;
 	virtual void ReplaceReferredAnimations(const TMap<UAnimationAsset*, UAnimationAsset*>& ReplacementMap) override;
-	virtual int32 GetNumberOfFrames() const override { return NumFrames; }
 #endif
 	//~ End UAnimationAsset Interface
 
@@ -405,7 +421,9 @@ public:
 	virtual bool HasRootMotion() const override { return bEnableRootMotion; }
 	virtual void RefreshCacheData() override;
 	virtual EAdditiveAnimationType GetAdditiveAnimType() const override { return AdditiveAnimType; }
-
+	virtual int32 GetNumberOfSampledKeys() const override { return NumberOfKeys; }
+	virtual const FFrameRate& GetSamplingFrameRate() const override { return SamplingFrameRate; }
+	virtual void SetSequenceLength(float NewLength) override;
 	virtual void EvaluateCurveData(FBlendedCurve& OutCurve, float CurrentTime, bool bForceUseRawData = false) const override;
 	virtual float EvaluateCurveData(SmartName::UID_Type CurveUID, float CurrentTime, bool bForceUseRawData = false) const override;
 	virtual bool HasCurveData(SmartName::UID_Type CurveUID, bool bForceUseRawData) const override;
@@ -423,7 +441,11 @@ public:
 	//~ End UAnimSequenceBase Interface
 
 	// Returns the framerate of the animation
-	float GetFrameRate() const { return (float)(FMath::Max(NumFrames - 1, 1)) / (GetPlayLength() > 0.f ? GetPlayLength() : 1.f); }
+	UE_DEPRECATED(5.0, "Use GetSamplingFrameRate instead")
+	float GetFrameRate() const 
+	{ 
+		return (float)(FMath::Max(NumberOfKeys - 1, 1)) / (GetPlayLength() > 0.f ? GetPlayLength() : 1.f); 
+	}
 
 	// Extract Root Motion transform from the animation
 	FTransform ExtractRootMotion(float StartTime, float DeltaTime, bool bAllowLooping) const;
@@ -481,6 +503,10 @@ private:
 #if WITH_EDITORONLY_DATA
 	void UpdateRetargetSourceAsset();
 #endif
+
+	/** Updates the stored sampling frame-rate using the sequence length and number of sampling keys */
+	void UpdateFrameRate();
+	
 	const TArray<FTransform>& GetRetargetTransforms() const;
 	FName GetRetargetTransformsSourceName() const;
 

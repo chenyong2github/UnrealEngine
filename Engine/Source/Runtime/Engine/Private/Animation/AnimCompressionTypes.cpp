@@ -155,7 +155,7 @@ FCompressibleAnimData::FCompressibleAnimData(class UAnimSequence* InSeq, const b
 	, TrackToSkeletonMapTable(InSeq->GetRawTrackToSkeletonMapTable())
 	, Interpolation(InSeq->Interpolation)
 	, SequenceLength(InSeq->GetPlayLength())
-	, NumFrames(InSeq->GetRawNumberOfFrames())
+	, NumberOfKeys(InSeq->GetNumberOfSampledKeys())
 	, bIsValidAdditive(InSeq->IsValidAdditive())
 #if WITH_EDITORONLY_DATA
 	, ErrorThresholdScale(InSeq->CompressionErrorThresholdScale)
@@ -209,43 +209,43 @@ FCompressibleAnimData::FCompressibleAnimData(class UAnimSequence* InSeq, const b
 		const int32 NumTracks = RawAnimationData.Num();
 		
 		// End frame does not count towards "Even framed" calculation
-		const bool bIsEvenFramed = ((NumFrames - 1) % 2) == 0;
+		const bool bIsEvenFramed = ((NumberOfKeys - 1) % 2) == 0;
 
 		//Strip every other frame from tracks
 		if (bIsEvenFramed)
 		{
 			for (FRawAnimSequenceTrack& Track : RawAnimationData)
 			{
-				StripFramesEven(Track.PosKeys, NumFrames);
-				StripFramesEven(Track.RotKeys, NumFrames);
-				StripFramesEven(Track.ScaleKeys, NumFrames);
+				StripFramesEven(Track.PosKeys, NumberOfKeys);
+				StripFramesEven(Track.RotKeys, NumberOfKeys);
+				StripFramesEven(Track.ScaleKeys, NumberOfKeys);
 			}
 
-			const int32 ActualFrames = NumFrames - 1; // strip bookmark end frame
-			NumFrames = (ActualFrames / 2) + 1;
+			const int32 ActualKeys = NumberOfKeys - 1; // strip bookmark end frame
+			NumberOfKeys = (ActualKeys / 2) + 1;
 		}
 		else
 		{
 			for (FRawAnimSequenceTrack& Track : RawAnimationData)
 			{
-				StripFramesOdd(Track.PosKeys, NumFrames);
-				StripFramesOdd(Track.RotKeys, NumFrames);
-				StripFramesOdd(Track.ScaleKeys, NumFrames);
+				StripFramesOdd(Track.PosKeys, NumberOfKeys);
+				StripFramesOdd(Track.RotKeys, NumberOfKeys);
+				StripFramesOdd(Track.ScaleKeys, NumberOfKeys);
 			}
 
-			const int32 ActualFrames = NumFrames;
-			NumFrames = (ActualFrames / 2);
+			const int32 ActualKeys = NumberOfKeys;
+			NumberOfKeys = (ActualKeys / 2);
 		}
 	}
 #endif
 }
 
-FCompressibleAnimData::FCompressibleAnimData(UAnimBoneCompressionSettings* InBoneCompressionSettings, UAnimCurveCompressionSettings* InCurveCompressionSettings, USkeleton* InSkeleton, EAnimInterpolationType InInterpolation, float InSequenceLength, int32 InNumFrames)
+FCompressibleAnimData::FCompressibleAnimData(UAnimBoneCompressionSettings* InBoneCompressionSettings, UAnimCurveCompressionSettings* InCurveCompressionSettings, USkeleton* InSkeleton, EAnimInterpolationType InInterpolation, float InSequenceLength, int32 InNumberOfKeys)
 	: CurveCompressionSettings(InCurveCompressionSettings)
 	, BoneCompressionSettings(InBoneCompressionSettings)
 	, Interpolation(InInterpolation)
 	, SequenceLength(InSequenceLength)
-	, NumFrames(InNumFrames)
+	, NumberOfKeys(InNumberOfKeys)
 	, bIsValidAdditive(false)
 	, ErrorThresholdScale(1.f)
 {
@@ -261,7 +261,7 @@ FCompressibleAnimData::FCompressibleAnimData()
 , BoneCompressionSettings(nullptr)
 , Interpolation((EAnimInterpolationType)0)
 , SequenceLength(0.f)
-, NumFrames(0)
+, NumberOfKeys(0)
 , bIsValidAdditive(false)
 , ErrorThresholdScale(1.f)
 {
@@ -451,7 +451,7 @@ void FUECompressedAnimDataMutable::BuildFinalBuffer(TArray<uint8>& OutCompressed
 
 void ICompressedAnimData::SerializeCompressedData(class FArchive& Ar)
 {
-	Ar << CompressedNumberOfFrames;
+	Ar << CompressedNumberOfKeys;
 
 #if WITH_EDITORONLY_DATA
 	if (!Ar.IsFilterEditorOnly())

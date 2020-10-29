@@ -527,9 +527,18 @@ void UAnimSequenceBase::RefreshCacheData()
 
 int32 UAnimSequenceBase::GetNumberOfFrames() const
 {
-	static float DefaultSampleRateInterval = 1.f / DEFAULT_SAMPLERATE;
-	// because of float error, add small margin at the end, so it can clamp correctly
-	return (int32)(GetPlayLength() / DefaultSampleRateInterval + KINDA_SMALL_NUMBER) + 1;
+	return GetNumberOfSampledKeys();
+}
+
+int32 UAnimSequenceBase::GetNumberOfSampledKeys() const
+{
+	return GetSamplingFrameRate().AsFrameTime(GetPlayLength()).RoundToFrame().Value;
+}
+
+const FFrameRate& UAnimSequenceBase::GetSamplingFrameRate() const
+{
+	static const FFrameRate DefaultFrameRate = FFrameRate(DEFAULT_SAMPLERATE, 1);
+	return DefaultFrameRate;
 }
 
 #if WITH_EDITOR
@@ -549,14 +558,12 @@ void UAnimSequenceBase::InitializeNotifyTrack()
 
 int32 UAnimSequenceBase::GetFrameAtTime(const float Time) const
 {
-	const float FrameTime = GetNumberOfFrames() > 1 ? GetPlayLength() / (float)(GetNumberOfFrames() - 1) : 0.0f;
-	return FMath::Clamp(FMath::RoundToInt(Time / FrameTime), 0, GetNumberOfFrames() - 1);
+	return FMath::Clamp(GetSamplingFrameRate().AsFrameTime(Time).RoundToFrame().Value, 0, GetNumberOfSampledKeys() - 1);
 }
 
 float UAnimSequenceBase::GetTimeAtFrame(const int32 Frame) const
 {
-	const float FrameTime = GetNumberOfFrames() > 1 ? GetPlayLength() / (float)(GetNumberOfFrames() - 1) : 0.0f;
-	return FMath::Clamp(FrameTime * Frame, 0.0f, GetPlayLength());
+	return FMath::Clamp((float)GetSamplingFrameRate().AsSeconds(Frame), 0.f, GetPlayLength());
 }
 
 void UAnimSequenceBase::RegisterOnNotifyChanged(const FOnNotifyChanged& Delegate)

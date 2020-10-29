@@ -264,7 +264,7 @@ void SAnimTimingPanel::Update()
 			.ViewInputMax(ViewInputMax)
 			.TrackMinValue(InputMin)
 			.TrackMaxValue(InputMax)
-			.TrackNumDiscreteValues(AnimSequence->GetNumberOfFrames())
+			.TrackNumDiscreteValues(AnimSequence->GetNumberOfSampledKeys())
 		];
 
 	RefreshTrackNodes();

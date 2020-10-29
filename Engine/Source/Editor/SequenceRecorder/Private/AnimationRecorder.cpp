@@ -225,7 +225,7 @@ void FAnimationRecorder::StartRecord(USkeletalMeshComponent* Component, UAnimSeq
 
 	LastFrame = 0;
 	AnimationObject->SetSequenceLength(0.f);
-	AnimationObject->SetRawNumberOfFrame(0);
+	AnimationObject->SetNumberOfSampledKeys(0);
 
 	RecordedCurves.Reset();
 	RecordedTimes.Empty();
@@ -289,11 +289,11 @@ UAnimSequence* FAnimationRecorder::StopRecord(bool bShowMessage)
 
 	if (AnimationObject)
 	{
-		int32 NumFrames = LastFrame  + 1;
-		AnimationObject->SetRawNumberOfFrame(NumFrames);
+		int32 NumKeys = LastFrame  + 1;
+		AnimationObject->SetNumberOfSampledKeys(NumKeys);
 
 		// can't use TimePassed. That is just total time that has been passed, not necessarily match with frame count
-		AnimationObject->SetSequenceLength((NumFrames>1) ? (NumFrames-1) * IntervalTime : MINIMUM_ANIMATION_LENGTH);
+		AnimationObject->SetSequenceLength((NumKeys>1) ? (NumKeys-1) * IntervalTime : MINIMUM_ANIMATION_LENGTH);
 
 		FixupNotifies();
 
@@ -301,7 +301,7 @@ UAnimSequence* FAnimationRecorder::StopRecord(bool bShowMessage)
 		// @todo figure out why removing redundant keys is inconsistent
 
 		// add to real curve data 
-		if (RecordedCurves.Num() == NumFrames && UIDToArrayIndexLUT)
+		if (RecordedCurves.Num() == NumKeys && UIDToArrayIndexLUT)
 		{
 			StartTime = FPlatformTime::Seconds();
 
@@ -316,16 +316,16 @@ UAnimSequence* FAnimationRecorder::StopRecord(bool bShowMessage)
 
 					TArray<float> TimesToRecord;
 					TArray<float> ValuesToRecord;
-					TimesToRecord.SetNum(NumFrames);
-					ValuesToRecord.SetNum(NumFrames);
+					TimesToRecord.SetNum(NumKeys);
+					ValuesToRecord.SetNum(NumKeys);
 
 					bool bSeenThisCurve = false;
-					for (int32 FrameIndex = 0; FrameIndex < NumFrames; ++FrameIndex)
+					for (int32 KeyIndex = 0; KeyIndex < NumKeys; ++KeyIndex)
 					{
-						const float TimeToRecord = FrameIndex*IntervalTime;
-						if(RecordedCurves[FrameIndex].ValidCurveWeights[CurveIndex])
+						const float TimeToRecord = KeyIndex*IntervalTime;
+						if(RecordedCurves[KeyIndex].ValidCurveWeights[CurveIndex])
 						{
-							float CurCurveValue = RecordedCurves[FrameIndex].CurveWeights[CurveIndex];
+							float CurCurveValue = RecordedCurves[KeyIndex].CurveWeights[CurveIndex];
 							if (!bSeenThisCurve)
 							{
 								bSeenThisCurve = true;
@@ -342,8 +342,8 @@ UAnimSequence* FAnimationRecorder::StopRecord(bool bShowMessage)
 
 							if (FloatCurveData)
 							{
-								TimesToRecord[FrameIndex] = TimeToRecord;
-								ValuesToRecord[FrameIndex] = CurCurveValue;
+								TimesToRecord[KeyIndex] = TimeToRecord;
+								ValuesToRecord[KeyIndex] = CurCurveValue;
 							}
 						}
 					}
@@ -394,9 +394,9 @@ UAnimSequence* FAnimationRecorder::StopRecord(bool bShowMessage)
 		// notify to user
 		if (bShowMessage)
 		{
-			const FText NotificationText = FText::Format(LOCTEXT("RecordAnimation", "'{0}' has been successfully recorded [{1} frames : {2} sec(s) @ {3} Hz]"),
+			const FText NotificationText = FText::Format(LOCTEXT("RecordAnimation", "'{0}' has been successfully recorded [{1} keys : {2} sec(s) @ {3} Hz]"),
 				FText::FromString(AnimationObject->GetName()),
-				FText::AsNumber(AnimationObject->GetRawNumberOfFrames()),
+				FText::AsNumber(AnimationObject->GetNumberOfSampledKeys()),
 				FText::AsNumber(AnimationObject->GetPlayLength()),
 				FText::AsNumber(1.f / IntervalTime)
 				);

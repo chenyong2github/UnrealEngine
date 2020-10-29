@@ -309,21 +309,21 @@ void UAnimCompress_RemoveLinearKeys::UpdateWorldBoneTransformTable(
 	TArray<FTransform>& OutputWorldBones)
 {
 	const FBoneData& Bone		= CompressibleAnimData.BoneData[BoneIndex];
-	const int32 NumFrames		= CompressibleAnimData.NumFrames;
+	const int32 NumKeys		= CompressibleAnimData.NumberOfKeys;
 	const float SequenceLength	= CompressibleAnimData.SequenceLength;
-	const int32 FrameStart		= (BoneIndex*NumFrames);
+	const int32 FrameStart		= (BoneIndex*NumKeys);
 	const int32 TrackIndex = FAnimationUtils::GetAnimTrackIndexForSkeletonBone(BoneIndex, CompressibleAnimData.TrackToSkeletonMapTable);
 	
-	check(OutputWorldBones.Num() >= (FrameStart+NumFrames));
+	check(OutputWorldBones.Num() >= (FrameStart+NumKeys));
 
-	const float TimePerFrame = SequenceLength / (float)(NumFrames-1);
+	const float TimePerFrame = SequenceLength / (float)(NumKeys-1);
 
 	if( TrackIndex != INDEX_NONE )
 	{
 		// get the local-space bone transforms using the animation solver
-		for ( int32 FrameIndex = 0; FrameIndex < NumFrames; ++FrameIndex )
+		for ( int32 KeyIndex = 0; KeyIndex < NumKeys; ++KeyIndex )
 		{
-			float Time = (float)FrameIndex * TimePerFrame;
+			float Time = (float)KeyIndex * TimePerFrame;
 			FTransform LocalAtom;
 
 			FAnimationUtils::ExtractTransformFromCompressionData(CompressibleAnimData, OutCompressedData, Time, TrackIndex, UseRaw, LocalAtom);
@@ -333,7 +333,7 @@ void UAnimCompress_RemoveLinearKeys::UpdateWorldBoneTransformTable(
 			// Saw some crashes happening with it, so normalize here. 
 			LocalAtom.NormalizeRotation();
 
-			OutputWorldBones[(BoneIndex*NumFrames) + FrameIndex] = LocalAtom;
+			OutputWorldBones[(BoneIndex*NumKeys) + KeyIndex] = LocalAtom;
 		}
 	}
 	else
@@ -345,9 +345,9 @@ void UAnimCompress_RemoveLinearKeys::UpdateWorldBoneTransformTable(
 		DefaultTransform = LocalAtom;
 
 		// copy the default transformation into the world bone table
-		for ( int32 FrameIndex = 0; FrameIndex < NumFrames; ++FrameIndex )
+		for ( int32 KeyIndex = 0; KeyIndex < NumKeys; ++KeyIndex )
 		{
-			OutputWorldBones[(BoneIndex*NumFrames) + FrameIndex] = DefaultTransform;
+			OutputWorldBones[(BoneIndex*NumKeys) + KeyIndex] = DefaultTransform;
 		}
 	}
 
@@ -356,9 +356,9 @@ void UAnimCompress_RemoveLinearKeys::UpdateWorldBoneTransformTable(
 	if (ParentIndex != INDEX_NONE)
 	{
 		check (ParentIndex < BoneIndex);
-		for ( int32 FrameIndex = 0; FrameIndex < NumFrames; ++FrameIndex )
+		for ( int32 KeyIndex = 0; KeyIndex < NumKeys; ++KeyIndex )
 		{
-			OutputWorldBones[(BoneIndex*NumFrames) + FrameIndex] = OutputWorldBones[(BoneIndex*NumFrames) + FrameIndex] * OutputWorldBones[(ParentIndex*NumFrames) + FrameIndex];
+			OutputWorldBones[(BoneIndex*NumKeys) + KeyIndex] = OutputWorldBones[(BoneIndex*NumKeys) + KeyIndex] * OutputWorldBones[(ParentIndex*NumKeys) + KeyIndex];
 		}
 	}
 }
@@ -590,9 +590,9 @@ void UAnimCompress_RemoveLinearKeys::ProcessAnimationTracks(
 {
 	// extract all the data we'll need about the skeleton and animation sequence
 	const int32 NumBones			= CompressibleAnimData.BoneData.Num();
-	const int32 NumFrames			= CompressibleAnimData.NumFrames;
+	const int32 NumKeys			= CompressibleAnimData.NumberOfKeys;
 	const float SequenceLength	= CompressibleAnimData.SequenceLength;
-	const int32 LastFrame = NumFrames-1;
+	const int32 LastFrame = NumKeys-1;
 	const float FrameRate = (float)(LastFrame) / SequenceLength;
 	const float TimePerFrame = SequenceLength / (float)(LastFrame);
 
@@ -605,10 +605,10 @@ void UAnimCompress_RemoveLinearKeys::ProcessAnimationTracks(
 	// generate the raw and compressed skeleton in world-space
 	TArray<FTransform> RawWorldBones;
 	TArray<FTransform> NewWorldBones;
-	RawWorldBones.Empty(NumBones * NumFrames);
-	NewWorldBones.Empty(NumBones * NumFrames);
-	RawWorldBones.AddZeroed(NumBones * NumFrames);
-	NewWorldBones.AddZeroed(NumBones * NumFrames);
+	RawWorldBones.Empty(NumBones * NumKeys);
+	NewWorldBones.Empty(NumBones * NumKeys);
+	RawWorldBones.AddZeroed(NumBones * NumKeys);
+	NewWorldBones.AddZeroed(NumBones * NumKeys);
 
 	// generate an array to hold the indices of our end effectors
 	TArray<int32> EndEffectors;
@@ -728,8 +728,8 @@ void UAnimCompress_RemoveLinearKeys::ProcessAnimationTracks(
 						FVector& Key= ScaleTrack.ScaleKeys[KeyIndex];
 
 						const int32 FrameIndex= FMath::Clamp(KeyIndex, 0, LastFrame);
-						const FTransform& NewWorldParent = NewWorldBones[(ParentBoneIndex*NumFrames) + FrameIndex];
-						const FTransform& RawWorldChild = RawWorldBones[(BoneIndex*NumFrames) + FrameIndex];
+						const FTransform& NewWorldParent = NewWorldBones[(ParentBoneIndex*NumKeys) + FrameIndex];
+						const FTransform& RawWorldChild = RawWorldBones[(BoneIndex*NumKeys) + FrameIndex];
 						const FTransform& RelTM = (RawWorldChild.GetRelativeTransform(NewWorldParent));
 						const FTransform Delta = FTransform(RelTM);
 
@@ -747,8 +747,8 @@ void UAnimCompress_RemoveLinearKeys::ProcessAnimationTracks(
 
 							check(ParentBoneIndex != INDEX_NONE);
 							const int32 FrameIndex = FMath::Clamp(KeyIndex, 0, LastFrame);
-							FTransform NewWorldParent = NewWorldBones[(ParentBoneIndex*NumFrames) + FrameIndex];
-							FTransform RawWorldChild = RawWorldBones[(BoneIndex*NumFrames) + FrameIndex];
+							FTransform NewWorldParent = NewWorldBones[(ParentBoneIndex*NumKeys) + FrameIndex];
+							FTransform RawWorldChild = RawWorldBones[(BoneIndex*NumKeys) + FrameIndex];
 							const FTransform& RelTM = (RawWorldChild.GetRelativeTransform(NewWorldParent)); 
 							FQuat Rot = FTransform(RelTM).GetRotation();
 
@@ -778,10 +778,10 @@ void UAnimCompress_RemoveLinearKeys::ProcessAnimationTracks(
 
 							const int32 FrameIndex = FMath::Clamp(KeyIndex, 0, LastFrame);
 
-							const FTransform& NewWorldTransform = NewWorldBones[(BoneIndex*NumFrames) + FrameIndex];
+							const FTransform& NewWorldTransform = NewWorldBones[(BoneIndex*NumKeys) + FrameIndex];
 
-							const FTransform& DesiredChildTransform = RawWorldBones[(FurthestTargetBoneIndex*NumFrames) + FrameIndex].GetRelativeTransform(NewWorldTransform);
-							const FTransform& CurrentChildTransform = NewWorldBones[(FurthestTargetBoneIndex*NumFrames) + FrameIndex].GetRelativeTransform(NewWorldTransform);
+							const FTransform& DesiredChildTransform = RawWorldBones[(FurthestTargetBoneIndex*NumKeys) + FrameIndex].GetRelativeTransform(NewWorldTransform);
+							const FTransform& CurrentChildTransform = NewWorldBones[(FurthestTargetBoneIndex*NumKeys) + FrameIndex].GetRelativeTransform(NewWorldTransform);
 
 							// find the two vectors which represent the angular error we are trying to correct
 							const FVector& CurrentHeading = CurrentChildTransform.GetTranslation();
@@ -835,8 +835,8 @@ void UAnimCompress_RemoveLinearKeys::ProcessAnimationTracks(
 						FVector& Key= TransTrack.PosKeys[KeyIndex];
 
 						const int32 FrameIndex= FMath::Clamp(KeyIndex, 0, LastFrame);
-						FTransform NewWorldParent = NewWorldBones[(ParentBoneIndex*NumFrames) + FrameIndex];
-						FTransform RawWorldChild = RawWorldBones[(BoneIndex*NumFrames) + FrameIndex];
+						FTransform NewWorldParent = NewWorldBones[(ParentBoneIndex*NumKeys) + FrameIndex];
+						FTransform RawWorldChild = RawWorldBones[(BoneIndex*NumKeys) + FrameIndex];
 						const FTransform& RelTM = RawWorldChild.GetRelativeTransform(NewWorldParent);
 						const FTransform Delta = FTransform(RelTM);
 						ensure (!Delta.ContainsNaN());
@@ -873,7 +873,7 @@ void UAnimCompress_RemoveLinearKeys::ProcessAnimationTracks(
 				NewWorldBones);
 			
 			// rebuild the BoneAtoms table using the current set of keys
-			UpdateBoneAtomList(CompressibleAnimData, OutCompressedData, BoneIndex, TrackIndex, NumFrames, TimePerFrame, BoneAtoms);
+			UpdateBoneAtomList(CompressibleAnimData, OutCompressedData, BoneIndex, TrackIndex, NumKeys, TimePerFrame, BoneAtoms);
 
 			// determine the EndEffectorTolerance. 
 			// We use the Maximum value by default, and the Minimum value
@@ -915,7 +915,7 @@ void UAnimCompress_RemoveLinearKeys::ProcessAnimationTracks(
 						RawWorldBones,
 						NewWorldBones,
 						TargetBoneIndices,
-						NumFrames,
+						NumKeys,
 						BoneIndex,
 						ParentBoneIndex,
 						GuidanceScale, 
@@ -938,7 +938,7 @@ void UAnimCompress_RemoveLinearKeys::ProcessAnimationTracks(
 						NewWorldBones);
 					
 					// rebuild the BoneAtoms table using the current set of keys
-					UpdateBoneAtomList(CompressibleAnimData, OutCompressedData, BoneIndex, TrackIndex, NumFrames, TimePerFrame, BoneAtoms);
+					UpdateBoneAtomList(CompressibleAnimData, OutCompressedData, BoneIndex, TrackIndex, NumKeys, TimePerFrame, BoneAtoms);
 				}
 
 				// filter out translations we can approximate through interpolation
@@ -950,7 +950,7 @@ void UAnimCompress_RemoveLinearKeys::ProcessAnimationTracks(
 					RawWorldBones,
 					NewWorldBones,
 					TargetBoneIndices,
-					NumFrames,
+					NumKeys,
 					BoneIndex,
 					ParentBoneIndex,
 					GuidanceScale, 
@@ -973,7 +973,7 @@ void UAnimCompress_RemoveLinearKeys::ProcessAnimationTracks(
 					NewWorldBones);
 				
 				// rebuild the BoneAtoms table using the current set of keys
-				UpdateBoneAtomList(CompressibleAnimData, OutCompressedData, BoneIndex, TrackIndex, NumFrames, TimePerFrame, BoneAtoms);
+				UpdateBoneAtomList(CompressibleAnimData, OutCompressedData, BoneIndex, TrackIndex, NumKeys, TimePerFrame, BoneAtoms);
 
 				// filter out rotations we can approximate through interpolation
 				FilterLinearKeysTemplate<RotationAdapter>(
@@ -984,7 +984,7 @@ void UAnimCompress_RemoveLinearKeys::ProcessAnimationTracks(
 					RawWorldBones,
 					NewWorldBones,
 					TargetBoneIndices,
-					NumFrames,
+					NumKeys,
 					BoneIndex,
 					ParentBoneIndex,
 					GuidanceScale, 

@@ -1512,7 +1512,7 @@ bool UnFbx::FFbxImporter::ImportAnimation(USkeleton* Skeleton, UAnimSequence * D
 	}
 	else if (CurveAttributeKeyCount > 0)
 	{
-		DestSeq->SetRawNumberOfFrame(CurveAttributeKeyCount);
+		DestSeq->SetNumberOfSampledKeys(CurveAttributeKeyCount);
 		DestSeq->MarkRawDataAsModified();
 	}
 	// compress animation
@@ -1868,7 +1868,7 @@ void UnFbx::FFbxImporter::ImportBoneTracks(USkeleton* Skeleton, FAnimCurveImport
 		OutTotalNumKeys = FMath::Max(OutTotalNumKeys, NumKeysForTrack);
 	}
 
-	DestSeq->SetRawNumberOfFrame(OutTotalNumKeys);
+	DestSeq->SetNumberOfSampledKeys(OutTotalNumKeys);
 
 	DestSeq->MarkRawDataAsModified();
 }

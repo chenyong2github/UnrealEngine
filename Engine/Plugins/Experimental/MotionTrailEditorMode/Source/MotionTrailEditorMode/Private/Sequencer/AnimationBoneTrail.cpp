@@ -48,7 +48,7 @@ void FAnimTrajectoryCache::Evaluate(FTrajectoryCache* ParentTransformCache)
 	GetSpaceBasedAnimationData(GlobalBoneTransforms);
 	ComponentBoneTransforms.SetNum(GlobalBoneTransforms.Num());
 
-	Spacing = 1.0 / CachedAnimSequence->GetFrameRate();
+	Spacing = CachedAnimSequence->GetSamplingFrameRate().AsInterval();
 	const double AnimLength = CachedAnimSequence->GetPlayLength();
 	AnimRange = TRange<double>(0.0, AnimLength);
 	for (int32 TrackIndex = 0; TrackIndex < GlobalBoneTransforms.Num(); TrackIndex++)
@@ -95,7 +95,7 @@ void FAnimTrajectoryCache::GetSpaceBasedAnimationData(TArray<TArray<FTransform>>
 	OutAnimationDataInComponentSpace.AddZeroed(NumBones);
 
 	// 2d array of animated time [boneindex][time key]
-	int32 NumKeys = CachedAnimSequence->GetNumberOfFrames();
+	const int32 NumKeys = CachedAnimSequence->GetNumberOfSampledKeys();
 	float Interval = UE::MotionTrailEditor::GetIntervalPerKey(NumKeys, CachedAnimSequence->GetPlayLength());
 
 	// allocate arrays

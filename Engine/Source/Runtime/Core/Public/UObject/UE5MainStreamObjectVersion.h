@@ -37,6 +37,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Serialize DataLayers in WorldPartitionActorDesc
 		WorldPartitionActorDescSerializeDataLayers,
 
+		// Renaming UAnimSequence::NumFrames to NumberOfKeys, as that what is actually contains.
+		RenamingAnimationNumFrames,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

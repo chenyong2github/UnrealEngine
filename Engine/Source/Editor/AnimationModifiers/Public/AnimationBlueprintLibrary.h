@@ -39,6 +39,10 @@ public:
 	/** Retrieves the number of animation frames for the given Animation Sequence */
 	UFUNCTION(BlueprintPure, meta=(AutoCreateRefTerm = "AnimationSequence"), Category = "AnimationBlueprintLibrary|Animation")
 	static void GetNumFrames(const UAnimSequence* AnimationSequence, int32& NumFrames);
+
+	/** Retrieves the number of animation keys for the given Animation Sequence */
+	UFUNCTION(BlueprintPure, meta = (AutoCreateRefTerm = "AnimationSequence"), Category = "AnimationBlueprintLibrary|Animation")
+	static void GetNumKeys(const UAnimSequence* AnimationSequence, int32& NumKeys);
 	
 	/** Retrieves the Names of the individual ATracks for the given Animation Sequence */
 	UFUNCTION(BlueprintPure, Category = "AnimationBlueprintLibrary|Animation")

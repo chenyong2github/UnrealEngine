@@ -193,7 +193,7 @@ struct ENGINE_API FCompressibleAnimData
 public:
 	FCompressibleAnimData();
 
-	FCompressibleAnimData(UAnimBoneCompressionSettings* InBoneCompressionSettings, UAnimCurveCompressionSettings* InCurveCompressionSettings, USkeleton* InSkeleton, EAnimInterpolationType InInterpolation, float InSequenceLength, int32 InNumFrames);
+	FCompressibleAnimData(UAnimBoneCompressionSettings* InBoneCompressionSettings, UAnimCurveCompressionSettings* InCurveCompressionSettings, USkeleton* InSkeleton, EAnimInterpolationType InInterpolation, float InSequenceLength, int32 InNumberOfKeys);
 
 	FCompressibleAnimData(class UAnimSequence* InSeq, const bool bPerformStripping);
 
@@ -219,7 +219,8 @@ public:
 
 	float SequenceLength;
 
-	int32 NumFrames;
+	/** Number of keys within the (non-uniform) RawAnimationData tracks */
+	int32 NumberOfKeys;
 
 	bool bIsValidAdditive;
 
@@ -394,7 +395,7 @@ struct FCompressedAnimDataBase
 struct ENGINE_API ICompressedAnimData
 {
 	/* Common data */
-	int32 CompressedNumberOfFrames;
+	int32 CompressedNumberOfKeys;
 
 #if WITH_EDITORONLY_DATA
 	/** The error stats from the current bone compression codec. */

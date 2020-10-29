@@ -134,47 +134,6 @@ FText SAnimEditorBase::GetEditorObjectName() const
 	}
 }
 
-void SAnimEditorBase::RecalculateSequenceLength()
-{
-	// Remove Gaps and update Montage Sequence Length
-	if(UAnimCompositeBase* Composite = Cast<UAnimCompositeBase>(GetEditorObject()))
-	{
-		Composite->InvalidateRecursiveAsset();
-
-		float NewSequenceLength = CalculateSequenceLengthOfEditorObject();
-		if (NewSequenceLength != GetSequenceLength())
-		{
-			ClampToEndTime(NewSequenceLength);
-
-			Composite->SetSequenceLength(NewSequenceLength);
-
-			// Reset view if we changed length (note: has to be done after ->SetSequenceLength)!
-			SetInputViewRange(0.f, NewSequenceLength);
-
-			UAnimSingleNodeInstance * PreviewInstance = GetPreviewInstance();
-			if (PreviewInstance)
-			{
-				// Re-set the position, so instance is clamped properly
-				PreviewInstance->SetPosition(PreviewInstance->GetCurrentTime(), false); 
-			}
-		}
-	}
-
-	if(UAnimSequenceBase* Sequence = Cast<UAnimSequenceBase>(GetEditorObject()))
-	{
-		Sequence->ClampNotifiesAtEndOfSequence();
-	}
-}
-
-bool SAnimEditorBase::ClampToEndTime(float NewEndTime)
-{
-	float SequenceLength = GetSequenceLength();
-
-	//if we had a valid sequence length before and our new end time is shorter
-	//then we need to clamp.
-	return (SequenceLength > 0.f && NewEndTime < SequenceLength);
-}
-
 void SAnimEditorBase::OnSelectionChanged(const TArray<UObject*>& SelectedItems)
 {
 	OnObjectsSelected.ExecuteIfBound(SelectedItems);
@@ -203,69 +162,6 @@ void SAnimEditorBase::SetInputViewRange(float InViewMinInput, float InViewMaxInp
 {
 	ViewMaxInput = FMath::Min<float>(InViewMaxInput, GetSequenceLength());
 	ViewMinInput = FMath::Max<float>(InViewMinInput, 0.f);
-}
-
-FText SAnimEditorBase::GetCurrentSequenceTime() const
-{
-	UAnimSingleNodeInstance * PreviewInstance = GetPreviewInstance();
-	float CurTime = 0.f;
-	float TotalTime = GetSequenceLength();
-
-	if (PreviewInstance)
-	{
-		CurTime = PreviewInstance->GetCurrentTime();
-	}
-
-	static const FNumberFormattingOptions FractionNumberFormat = FNumberFormattingOptions()
-		.SetMinimumFractionalDigits(3)
-		.SetMaximumFractionalDigits(3);
-	return FText::Format(LOCTEXT("FractionSecondsFmt", "{0} / {1} (second(s))"), FText::AsNumber(CurTime, &FractionNumberFormat), FText::AsNumber(TotalTime, &FractionNumberFormat));
-}
-
-float SAnimEditorBase::GetPercentageInternal() const
-{
-	UAnimSingleNodeInstance * PreviewInstance = GetPreviewInstance();
-	float Percentage = 0.f;
-	if (PreviewInstance)
-	{
-		float SequenceLength = GetSequenceLength();
-		if (SequenceLength > 0.f)
-		{
-			Percentage = PreviewInstance->GetCurrentTime() / SequenceLength;
-		}
-		else
-		{
-			Percentage = 0.f;
-		}
-	}
-
-	return Percentage;
-}
-
-FText SAnimEditorBase::GetCurrentPercentage() const
-{
-	float Percentage = GetPercentageInternal();
-
-	static const FNumberFormattingOptions PercentNumberFormat = FNumberFormattingOptions()
-		.SetMinimumFractionalDigits(2)
-		.SetMaximumFractionalDigits(2);
-	return FText::AsPercent(Percentage, &PercentNumberFormat);
-}
-
-FText SAnimEditorBase::GetCurrentFrame() const
-{
-	float Percentage = GetPercentageInternal();
-	float LastFrame = 0;
-	
-	if (UAnimSequenceBase* AnimSeqBase = Cast<UAnimSequenceBase>(GetEditorObject()))
-	{
-		LastFrame = FMath::Max(AnimSeqBase->GetNumberOfFrames() - 1, 0);
-	}
-
-	static const FNumberFormattingOptions FractionNumberFormat = FNumberFormattingOptions()
-		.SetMinimumFractionalDigits(2)
-		.SetMaximumFractionalDigits(2);
-	return FText::Format(LOCTEXT("FractionKeysFmt", "{0} / {1} Frame"), FText::AsNumber(LastFrame * Percentage, &FractionNumberFormat), FText::AsNumber((int32)LastFrame));
 }
 
 float SAnimEditorBase::GetSequenceLength() const

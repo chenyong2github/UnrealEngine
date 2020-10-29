@@ -2077,7 +2077,7 @@ bool UMovieSceneControlRigParameterSection::LoadAnimSequenceIntoThisSection(UAni
 	
 	FFrameRate TickResolution = MovieScene->GetTickResolution();
 	float Length = AnimSequence->GetPlayLength();
-	float FrameRate = AnimSequence->GetFrameRate();
+	const FFrameRate& FrameRate = AnimSequence->GetSamplingFrameRate();
 	FFrameNumber EndFrame = TickResolution.AsFrameNumber(Length);
 	FFrameNumber StartFrame(0);
 
@@ -2090,18 +2090,16 @@ bool UMovieSceneControlRigParameterSection::LoadAnimSequenceIntoThisSection(UAni
 	}
 
 
-	int32 NumFrames = Length * FrameRate;
-	NumFrames = AnimSequence->GetNumberOfFrames();
-	FFrameNumber FrameRateInFrameNumber = TickResolution.AsFrameNumber(1.0f / FrameRate);
+	const int32 NumberOfFrames = FrameRate.AsFrameNumber(Length).Value;
+	FFrameNumber FrameRateInFrameNumber = TickResolution.AsFrameNumber(FrameRate.AsInterval());
 	int32 ExtraProgress = bKeyReduce ? FloatChannels.Num() : 0;
 	
-	FScopedSlowTask Progress(NumFrames + ExtraProgress, LOCTEXT("BakingToControlRig_SlowTask", "Baking To Control Rig..."));	
+	FScopedSlowTask Progress(NumberOfFrames + ExtraProgress, LOCTEXT("BakingToControlRig_SlowTask", "Baking To Control Rig..."));	
 	Progress.MakeDialog(true);
 
-
-	for (int32 Index = 0; Index < NumFrames; ++Index)
+	for (int32 Index = 0; Index < NumberOfFrames; ++Index)
 	{
-		float SequenceSecond = AnimSequence->GetTimeAtFrame(Index);
+		const float SequenceSecond = FrameRate.AsSeconds(Index);
 		FFrameNumber FrameNumber = StartFrame + (FrameRateInFrameNumber * Index);
 
 		for (FFloatCurve& Curve : AnimSequence->RawCurveData.FloatCurves)

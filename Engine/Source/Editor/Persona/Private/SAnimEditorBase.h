@@ -111,26 +111,6 @@ protected:
 	/** To get scrub value, get preview instance **/
 	class UAnimSingleNodeInstance* GetPreviewInstance() const;
 
-	/** For the information section **/
-	FText GetCurrentSequenceTime() const;
-	FText GetCurrentPercentage() const;
-	FText GetCurrentFrame() const;
-
-	/** Recalculate sequence length after modifying */
-	void RecalculateSequenceLength();
-
-	/** Clamps the sequence to the specified length 
-	 *
-	 *  @return		Whether clamping was/is necessary
-	 */
-	virtual bool ClampToEndTime(float NewEndTime);
-
-	/** Calculates the sequence length of the object 
-	 *
-	 *  @return		New sequence length
-	 */
-	virtual float CalculateSequenceLengthOfEditorObject() const {return GetSequenceLength();}
-
 	/** The slate container that the editor panels are placed in */
 	TSharedPtr<SVerticalBox>	 EditorPanels;
 

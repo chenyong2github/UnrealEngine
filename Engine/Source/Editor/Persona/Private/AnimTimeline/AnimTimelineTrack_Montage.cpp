@@ -391,7 +391,7 @@ class SMontageSections : public SLeafWidget
 							SNew(SNumericEntryBox<int32>)
 							.Font(FEditorStyle::GetFontStyle(TEXT("MenuItem.Font")))
 							.MinValue(0)
-							.MaxValue(AnimMontage->GetNumberOfFrames())
+							.MaxValue(AnimMontage->GetNumberOfSampledKeys())
 							.Value(AnimMontage->GetFrameAtTime(Section.GetTime()))
 							.AllowSpin(true)						
 							.OnValueCommitted_Lambda([this, SectionIndex](int32 InValue, ETextCommit::Type InCommitType)

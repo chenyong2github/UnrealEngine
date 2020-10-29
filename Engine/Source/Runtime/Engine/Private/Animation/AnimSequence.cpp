@@ -49,6 +49,8 @@
 #include "Animation/CustomAttributesRuntime.h"
 #include "Stats/StatsHierarchical.h"
 #include "Animation/AnimationPoseData.h"
+#include "ITimeManagementModule.h"
+#include "CommonFrameRates.h"
 
 #define USE_SLERP 0
 #define LOCTEXT_NAMESPACE "AnimSequence"
@@ -207,7 +209,7 @@ void OnCVarsChanged()
 		int32 NumAnimations = 0;
 		for (const TPair<int32, UAnimSequence*>& Pair : Sizes)
 		{
-			const bool bIsOddFramed = (Pair.Value->GetNumberOfFrames() % 2) == 0;
+			const bool bIsOddFramed = (Pair.Value->GetNumberOfSampledKeys() % 2) == 0;
 			if (bIsOddFramed)
 			{
 				OutputMessage += FString::Printf(TEXT("%s - %.1fK\n"), *Pair.Value->GetPathName(), (float)Pair.Key / 1000.f);
@@ -606,7 +608,7 @@ void UAnimSequence::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) con
 
 	OutTags.Add(FAssetRegistryTag(TEXT("Compression Ratio"), FString::Printf(TEXT("%.03f"), (float)GetApproxCompressedSize() / (float)GetUncompressedRawSize()), FAssetRegistryTag::TT_Numerical));
 	OutTags.Add(FAssetRegistryTag(TEXT("Compressed Size (KB)"), FString::Printf(TEXT("%.02f"), (float)GetApproxCompressedSize() / 1024.0f), FAssetRegistryTag::TT_Numerical));
-	OutTags.Add(FAssetRegistryTag(TEXT("FrameRate"), FString::Printf(TEXT("%.2f"), GetFrameRate()), FAssetRegistryTag::TT_Numerical));
+	OutTags.Add(FAssetRegistryTag(TEXT("FrameRate"), FString::Printf(TEXT("%.2f"), SamplingFrameRate.AsDecimal()), FAssetRegistryTag::TT_Numerical));
 	Super::GetAssetRegistryTags(OutTags);
 }
 
@@ -621,7 +623,7 @@ void UAnimSequence::AddReferencedObjects(UObject* This, FReferenceCollector& Col
 
 int32 UAnimSequence::GetUncompressedRawSize() const
 {
-	int32 BoneRawSize = ((sizeof(FVector) + sizeof(FQuat) + sizeof(FVector)) * RawAnimationData.Num() * NumFrames);
+	int32 BoneRawSize = ((sizeof(FVector) + sizeof(FQuat) + sizeof(FVector)) * RawAnimationData.Num() * NumberOfKeys);
 	int32 CurveRawSize = 0;
 	for (const FFloatCurve& Curve : RawCurveData.FloatCurves)
 	{
@@ -785,6 +787,46 @@ void UAnimSequence::Serialize(FArchive& Ar)
 	}
 
 #if WITH_EDITORONLY_DATA
+	if (Ar.IsLoading() && Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::RenamingAnimationNumFrames)
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		NumberOfKeys = NumFrames;
+
+		// Validate the actual number of keys that is stored, by looking at the maximum number of keys for any given animation track 
+		int32 MaxNumberOfTrackKeys = 0;
+		for (const FRawAnimSequenceTrack& Track : RawAnimationData)
+		{
+			MaxNumberOfTrackKeys = FMath::Max(MaxNumberOfTrackKeys, Track.PosKeys.Num());
+			MaxNumberOfTrackKeys = FMath::Max(MaxNumberOfTrackKeys, Track.RotKeys.Num());
+			MaxNumberOfTrackKeys = FMath::Max(MaxNumberOfTrackKeys, Track.ScaleKeys.Num());
+		}
+
+		// Test whether or not there are more track keys than the value stored, only check for greater then as uniform tracks will have a single key and identity scaling with result in zero keys
+		if (MaxNumberOfTrackKeys > NumberOfKeys)
+		{
+			UE_LOG(LogAnimation, Warning, TEXT("Animation %s needs resaving - Invalid number of keys %i stored according to maximum number animation data track keys. Setting new number of keys %i."), *GetName(), NumberOfKeys, MaxNumberOfTrackKeys);
+			NumberOfKeys = MaxNumberOfTrackKeys;
+		}
+
+		// Update stored frame rate according to number of keys and play length
+		UpdateFrameRate();
+
+		// In case there is any animation data available (not valid for curve only animations), verify that the new frame-rate matches up with the expected number of frames/keys and vice versa
+		if (RawAnimationData.Num())
+		{
+			const int32 NumberOfFrames = FMath::Max(NumberOfKeys - 1, 1);
+			const float SampledTime = SamplingFrameRate.AsSeconds(NumberOfFrames);
+
+			// Validate that provided the number of keys and frame-rate the sequence length is accurate
+			if (!FMath::IsNearlyEqual(SampledTime, GetPlayLength(), KINDA_SMALL_NUMBER))
+			{
+				UE_LOG(LogAnimation, Warning, TEXT("Animation %s needs resaving - Inaccurate sequence length %5.5f according to number of frames and frame rate (delta of %f). Setting new length %5.5f."), *GetName(), GetPlayLength(), SampledTime - GetPlayLength(), SampledTime);
+				SequenceLength = SampledTime;
+			}
+		}
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
 	if ( Ar.IsLoading() && Ar.UE4Ver() < VER_UE4_ASSET_IMPORT_DATA_AS_JSON && !AssetImportData)
 	{
 		// AssetImportData should always be valid
@@ -813,6 +855,43 @@ bool UAnimSequence::IsValidToPlay() const
 	return (GetPlayLength() > 0.f);
 }
 #endif
+
+void UAnimSequence::SetNumberOfSampledKeys(int32 InNumberOfKeys)
+{
+	NumberOfKeys = InNumberOfKeys;	
+	UpdateFrameRate();
+}
+
+void UAnimSequence::SetSequenceLength(float NewLength)
+{
+	UAnimSequenceBase::SetSequenceLength(NewLength);
+	UpdateFrameRate();
+}
+
+void UAnimSequence::UpdateFrameRate()
+{
+	const int32 NumberOfFrames = FMath::Max(NumberOfKeys - 1, 1);
+
+	// Generate the frame-rate according to the number of frames and sequence length
+	const double DecimalFrameRate = (double)NumberOfFrames / ((double)GetPlayLength() > 0.0 ? (double)GetPlayLength() : 1.0);
+
+	// Account for non-whole number frame rates using large denominator
+	const double Denominator = 1000000.0;
+	SamplingFrameRate = FFrameRate(DecimalFrameRate * Denominator, Denominator);	 
+
+	// Try to simplifiy the frame rate, in case it is a multiple of the commonly used frame rates e.g. 10000/300000 -> 1/30
+	TArrayView<const FCommonFrameRateInfo> CommonFrameRates = FModuleManager::LoadModulePtr<ITimeManagementModule>("TimeManagement")->GetAllCommonFrameRates();
+	for (const FCommonFrameRateInfo& Info : CommonFrameRates)
+	{
+		const bool bDoesNotAlreadyMatch = Info.FrameRate.Denominator != SamplingFrameRate.Denominator && Info.FrameRate.Numerator != SamplingFrameRate.Numerator;
+		
+		if (bDoesNotAlreadyMatch && FMath::IsNearlyEqual(SamplingFrameRate.AsInterval(), Info.FrameRate.AsInterval()))
+		{
+			SamplingFrameRate = Info.FrameRate;
+			break;
+		}
+	}
+}
 
 void UAnimSequence::SortSyncMarkers()
 {
@@ -946,7 +1025,7 @@ void UAnimSequence::PostLoad()
 	// No animation data is found. Warn - this should check before we check CompressedTrackOffsets size
 	// Otherwise, we'll see empty data set crashing game due to no CompressedTrackOffsets
 	// You can't check RawAnimationData size since it gets removed during cooking
-	if ( NumFrames == 0 && RawCurveData.FloatCurves.Num() == 0 )
+	if ( NumberOfKeys == 0 && RawCurveData.FloatCurves.Num() == 0 )
 	{
 		UE_LOG(LogAnimation, Warning, TEXT("No animation data exists for sequence %s (%s)"), *GetName(), (GetOuter() ? *GetOuter()->GetFullName() : *GetFullName()) );
 #if WITH_EDITOR
@@ -967,7 +1046,7 @@ void UAnimSequence::PostLoad()
 	// @todo need to fix importer/editing feature
 	else if (GetPlayLength() == 0.f )
 	{
-		ensure(NumFrames == 1);
+		ensure(NumberOfKeys == 1);
 		SetSequenceLength(MINIMUM_ANIMATION_LENGTH);
 	}
 	// Raw data exists, but missing compress animation data
@@ -1307,7 +1386,7 @@ void UAnimSequence::ExtractBoneTransform(const struct FRawAnimSequenceTrack& Raw
 
 void UAnimSequence::ExtractBoneTransform(const struct FRawAnimSequenceTrack& RawTrack, FTransform& OutAtom, float Time) const
 {
-	FAnimationUtils::ExtractTransformFromTrack(Time, NumFrames, GetPlayLength(), RawTrack, Interpolation, OutAtom);
+	FAnimationUtils::ExtractTransformFromTrack(Time, NumberOfKeys, GetPlayLength(), RawTrack, Interpolation, OutAtom);
 }
 
 void UAnimSequence::HandleAssetPlayerTickedInternal(FAnimAssetTickContext &Context, const float PreviousTime, const float MoveDelta, const FAnimTickRecord &Instance, struct FAnimNotifyQueue& NotifyQueue) const
@@ -1630,7 +1709,7 @@ void UAnimSequence::GetBonePose(FAnimationPoseData& OutAnimationPoseData, const 
 			}
 		}
 
-		BuildPoseFromRawData(AnimationData, TrackToSkeletonMapTable, OutPose, ExtractionContext.CurrentTime, Interpolation, NumFrames, GetPlayLength(), GetRetargetTransformsSourceName(), GetRetargetTransforms());
+		BuildPoseFromRawData(AnimationData, TrackToSkeletonMapTable, OutPose, ExtractionContext.CurrentTime, Interpolation, NumberOfKeys, GetPlayLength(), GetRetargetTransformsSourceName(), GetRetargetTransforms());
 
 		if ((ExtractionContext.bExtractRootMotion && RootMotionReset.bEnableRootMotion) || RootMotionReset.bForceRootLock)
 		{
@@ -1784,7 +1863,7 @@ void UAnimSequence::GetAdditiveBasePose(FAnimationPoseData& OutAnimationPoseData
 		// use animation as a base pose. Need BasePoseSeq and RefFrameIndex (will clamp if outside).
 		case ABPT_AnimFrame:
 		{
-			const float Fraction = (RefPoseSeq->NumFrames > 0) ? FMath::Clamp<float>((float)RefFrameIndex / (float)RefPoseSeq->NumFrames, 0.f, 1.f) : 0.f;
+			const float Fraction = (RefPoseSeq->NumberOfKeys > 0) ? FMath::Clamp<float>((float)RefFrameIndex / (float)RefPoseSeq->NumberOfKeys, 0.f, 1.f) : 0.f;
 			const float BasePoseTime = RefPoseSeq->GetPlayLength() * Fraction;
 
 			FAnimExtractContext BasePoseExtractionContext(ExtractionContext);
@@ -1935,25 +2014,26 @@ static int32 CropRawTrack(FRawAnimSequenceTrack& RawTrack, int32 StartKey, int32
 	return FMath::Max<int32>( RawTrack.PosKeys.Num(), FMath::Max<int32>(RawTrack.RotKeys.Num(), RawTrack.ScaleKeys.Num()) );
 }
 
-void UAnimSequence::ResizeSequence(float NewLength, int32 NewNumFrames, bool bInsert, int32 StartFrame/*inclusive */, int32 EndFrame/*inclusive*/)
+void UAnimSequence::ResizeSequence(float NewLength, int32 NewNumKeys, bool bInsert, int32 StartFrame/*inclusive */, int32 EndFrame/*inclusive*/)
 {
-	check (NewNumFrames > 0);
+	check (NewNumKeys > 0);
 	check (StartFrame < EndFrame);
 
-	int32 OldNumFrames = NumFrames;
+	int32 OldNumberOfKeys = NumberOfKeys;
 	float OldSequenceLength = GetPlayLength();
 
 	// verify condition
-	NumFrames = NewNumFrames;
+	NumberOfKeys = NewNumKeys;
 	// Update sequence length to match new number of frames.
 	SetSequenceLength(NewLength);
 
-	float Interval = OldSequenceLength / OldNumFrames;
-	ensure (Interval == GetPlayLength()/NumFrames);
+	const float OldInterval = OldSequenceLength / (OldNumberOfKeys - 1);
+	const float NewInterval = NewLength / (NewNumKeys - 1);
+	ensure(FMath::IsNearlyEqual(OldInterval, NewInterval));
 
-	float OldStartTime = StartFrame * Interval;
-	float OldEndTime = EndFrame * Interval;
-	float Duration = OldEndTime - OldStartTime;
+	const float OldStartTime = StartFrame * OldInterval;
+	const float OldEndTime = EndFrame * OldInterval;
+	const float Duration = OldEndTime - OldStartTime;
 
 	// re-locate notifies
 	for (auto& Notify: Notifies)
@@ -1989,21 +2069,20 @@ void UAnimSequence::ResizeSequence(float NewLength, int32 NewNumFrames, bool bIn
 			// if state, make sure to adjust end time
 			if(Notify.NotifyStateClass)
 			{
-				float NotifyDuration = Notify.GetDuration();
+				const float NotifyDuration = Notify.GetDuration();
 				float NotifyEnd = CurrentTime + NotifyDuration;
 				NewDuration = NotifyDuration;
+
+				// If Notify is inside of the trimmed time frame, zero out the duration
 				if(NotifyEnd >= OldStartTime && NotifyEnd <= OldEndTime)
 				{
 					// small number @todo see if there is define for this
 					NewDuration = 0.1f;
 				}
-				else if (NotifyEnd > OldEndTime)
+				// If Notify overlaps trimmed time frame, remove trimmed duration
+				else if (CurrentTime < OldEndTime && NotifyEnd > OldEndTime)
 				{
 					NewDuration = NotifyEnd-Duration-CurrentTime;
-				}
-				else
-				{
-					NewDuration = NotifyDuration;
 				}
 
 				NewDuration = FMath::Max(NewDuration, 0.1f);
@@ -2042,6 +2121,7 @@ void UAnimSequence::ResizeSequence(float NewLength, int32 NewNumFrames, bool bIn
 			// if it's later than start time
 			if (CurrentTime >= OldStartTime)
 			{
+				// Move forwards
 				CurrentTime += Duration;
 			}
 		}
@@ -2049,10 +2129,12 @@ void UAnimSequence::ResizeSequence(float NewLength, int32 NewNumFrames, bool bIn
 		{
 			if (CurrentTime >= OldStartTime && CurrentTime <= OldEndTime)
 			{
+				// Snap to start of the trim/crop
 				CurrentTime = OldStartTime;
 			}
 			else if (CurrentTime > OldEndTime)
 			{
+				// Move backwards relative to crop/trim range end
 				CurrentTime -= Duration;
 			}
 		}
@@ -2065,15 +2147,15 @@ void UAnimSequence::ResizeSequence(float NewLength, int32 NewNumFrames, bool bIn
 bool UAnimSequence::InsertFramesToRawAnimData( int32 StartFrame, int32 EndFrame, int32 CopyFrame)
 {
 	// make sure the copyframe is valid and start frame is valid
-	int32 NumFramesToInsert = EndFrame-StartFrame;
-	if ((CopyFrame>=0 && CopyFrame<NumFrames) && (StartFrame >= 0 && StartFrame <=NumFrames) && NumFramesToInsert > 0)
+	const int32 NumberOfKeysToInsert = EndFrame-StartFrame;
+	if ((CopyFrame>=0 && CopyFrame< NumberOfKeys) && (StartFrame >= 0 && StartFrame <=NumberOfKeys) && NumberOfKeysToInsert > 0)
 	{
 		for (auto& RawData : RawAnimationData)
 		{
 			if (RawData.PosKeys.Num() > 1 && RawData.PosKeys.IsValidIndex(CopyFrame))
 			{
 				auto Source = RawData.PosKeys[CopyFrame];
-				RawData.PosKeys.InsertZeroed(StartFrame, NumFramesToInsert);
+				RawData.PosKeys.InsertZeroed(StartFrame, NumberOfKeysToInsert);
 				for (int32 Index=StartFrame; Index<EndFrame; ++Index)
 				{
 					RawData.PosKeys[Index] = Source;
@@ -2083,7 +2165,7 @@ bool UAnimSequence::InsertFramesToRawAnimData( int32 StartFrame, int32 EndFrame,
 			if(RawData.RotKeys.Num() > 1 && RawData.RotKeys.IsValidIndex(CopyFrame))
 			{
 				auto Source = RawData.RotKeys[CopyFrame];
-				RawData.RotKeys.InsertZeroed(StartFrame, NumFramesToInsert);
+				RawData.RotKeys.InsertZeroed(StartFrame, NumberOfKeysToInsert);
 				for(int32 Index=StartFrame; Index<EndFrame; ++Index)
 				{
 					RawData.RotKeys[Index] = Source;
@@ -2093,7 +2175,7 @@ bool UAnimSequence::InsertFramesToRawAnimData( int32 StartFrame, int32 EndFrame,
 			if(RawData.ScaleKeys.Num() > 1 && RawData.ScaleKeys.IsValidIndex(CopyFrame))
 			{
 				auto Source = RawData.ScaleKeys[CopyFrame];
-				RawData.ScaleKeys.InsertZeroed(StartFrame, NumFramesToInsert);
+				RawData.ScaleKeys.InsertZeroed(StartFrame, NumberOfKeysToInsert);
 
 				for(int32 Index=StartFrame; Index<EndFrame; ++Index)
 				{
@@ -2102,14 +2184,16 @@ bool UAnimSequence::InsertFramesToRawAnimData( int32 StartFrame, int32 EndFrame,
 			}
 		}
 
-		float const FrameTime = GetPlayLength() / ((float)NumFrames);
+		float const FrameTime = SamplingFrameRate.AsInterval();
 
-		int32 NewNumFrames = NumFrames + NumFramesToInsert;
-		ResizeSequence((float)NewNumFrames * FrameTime, NewNumFrames, true, StartFrame, EndFrame);
+		const int32 NewNumKeys = NumberOfKeys + NumberOfKeysToInsert;
+		const int32 NewNumFrames = NewNumKeys - 1;
+		ResizeSequence((float)NewNumFrames * FrameTime, NewNumKeys, true, StartFrame, EndFrame);
 
-		UE_LOG(LogAnimation, Log, TEXT("\tGetPlayLength(): %f, NumFrames: %d"), GetPlayLength(), NumFrames);
+		UE_LOG(LogAnimation, Log, TEXT("\tGetPlayLength(): %f, Number of Keys: %d"), GetPlayLength(), NumberOfKeys);
 		
 		MarkRawDataAsModified();
+		OnRawDataChanged();
 		MarkPackageDirty();
 
 		return true;
@@ -2121,12 +2205,12 @@ bool UAnimSequence::InsertFramesToRawAnimData( int32 StartFrame, int32 EndFrame,
 bool UAnimSequence::CropRawAnimData( float CurrentTime, bool bFromStart )
 {
 	// Length of one frame.
-	float const FrameTime = GetPlayLength() / ((float)NumFrames);
+	float const FrameTime = SamplingFrameRate.AsInterval();
 	// Save Total Number of Frames before crop
-	int32 TotalNumOfFrames = NumFrames;
+	const int32 TotalNumOfKeys = NumberOfKeys;
 
 	// if current frame is 1, do not try crop. There is nothing to crop
-	if ( NumFrames <= 1 )
+	if (TotalNumOfKeys <= 1 )
 	{
 		return false;
 	}
@@ -2146,38 +2230,39 @@ bool UAnimSequence::CropRawAnimData( float CurrentTime, bool bFromStart )
 	// This assumes that all keys are equally spaced (ie. won't work if we have dropped unimportant frames etc).
 	// The reason I'm changing to TotalNumOfFrames is CT/SL = KeyIndexWithFraction/TotalNumOfFrames
 	// To play TotalNumOfFrames, it takes GetPlayLength(). Each key will take GetPlayLength()/TotalNumOfFrames
-	float const KeyIndexWithFraction = (CurrentTime * (float)(TotalNumOfFrames)) / GetPlayLength();
+	float const KeyIndexWithFraction = (CurrentTime * (float)(TotalNumOfKeys)) / GetPlayLength();
 	int32 KeyIndex = bFromStart ? FMath::FloorToInt(KeyIndexWithFraction) : FMath::CeilToInt(KeyIndexWithFraction);
 	// Ensure KeyIndex is in range.
-	KeyIndex = FMath::Clamp<int32>(KeyIndex, 1, TotalNumOfFrames-1); 
+	KeyIndex = FMath::Clamp<int32>(KeyIndex, 1, TotalNumOfKeys-1); 
 	// determine which keys need to be removed.
-	int32 const StartKey = bFromStart ? 0 : KeyIndex;
-	int32 const NumKeys = bFromStart ? KeyIndex : TotalNumOfFrames - KeyIndex ;
+	const int32 StartKey = bFromStart ? 0 : KeyIndex;
+	const int32 NumKeysToRemove = bFromStart ? KeyIndex : TotalNumOfKeys - KeyIndex;
 
-	// Recalculate NumFrames
-	int32 NewNumFrames = TotalNumOfFrames - NumKeys;
+	// Recalculate number of keys and frames
+	const int32 NewNumKeys = TotalNumOfKeys - NumKeysToRemove;
+	const int32 NewNumFrames = NewNumKeys - 1;
 
-	UE_LOG(LogAnimation, Log, TEXT("UAnimSequence::CropRawAnimData %s - CurrentTime: %f, bFromStart: %d, TotalNumOfFrames: %d, KeyIndex: %d, StartKey: %d, NumKeys: %d"), *GetName(), CurrentTime, bFromStart, TotalNumOfFrames, KeyIndex, StartKey, NumKeys);
+	UE_LOG(LogAnimation, Log, TEXT("UAnimSequence::CropRawAnimData %s - CurrentTime: %f, bFromStart: %d, TotalNumOfFrames: %d, KeyIndex: %d, StartKey: %d, NumKeys: %d"), *GetName(), CurrentTime, bFromStart, TotalNumOfKeys, KeyIndex, StartKey, NumKeysToRemove);
 
 	// Iterate over tracks removing keys from each one.
 	for(int32 i=0; i<RawAnimationData.Num(); i++)
 	{
-		// Update NewNumFrames below to reflect actual number of keys while we crop the anim data
-		CropRawTrack(RawAnimationData[i], StartKey, NumKeys, TotalNumOfFrames);
+		// Update NewNumKeys below to reflect actual number of keys while we crop the anim data
+		CropRawTrack(RawAnimationData[i], StartKey, NumKeysToRemove, TotalNumOfKeys);
 	}
 
 	// Double check that everything is fine
 	for(int32 i=0; i<RawAnimationData.Num(); i++)
 	{
 		FRawAnimSequenceTrack& RawTrack = RawAnimationData[i];
-		check(RawTrack.PosKeys.Num() == 1 || RawTrack.PosKeys.Num() == NewNumFrames);
-		check(RawTrack.RotKeys.Num() == 1 || RawTrack.RotKeys.Num() == NewNumFrames);
+		check(RawTrack.PosKeys.Num() == 1 || RawTrack.PosKeys.Num() == NewNumKeys);
+		check(RawTrack.RotKeys.Num() == 1 || RawTrack.RotKeys.Num() == NewNumKeys);
 	}
 
 	// Update sequence length to match new number of frames.
-	ResizeSequence((float)NewNumFrames * FrameTime, NewNumFrames, false, StartKey, StartKey+NumKeys);
+	ResizeSequence((float)NewNumFrames * FrameTime, NewNumKeys, false, StartKey, StartKey + NumKeysToRemove);
 
-	UE_LOG(LogAnimation, Log, TEXT("\tGetPlayLength(): %f, NumFrames: %d"), GetPlayLength(), NumFrames);
+	UE_LOG(LogAnimation, Log, TEXT("\tGetPlayLength(): %f, Number of Keys: %d"), GetPlayLength(), NumberOfKeys);
 
 	MarkRawDataAsModified();
 	OnRawDataChanged();
@@ -2189,7 +2274,7 @@ bool UAnimSequence::CompressRawAnimData(float MaxPosDiff, float MaxAngleDiff)
 {
 	if (RawAnimationData.Num() > 0)
 	{
-		return StaticCompressRawAnimData(RawAnimationData, NumFrames, GetFName(), MaxPosDiff, MaxAngleDiff);
+		return StaticCompressRawAnimData(RawAnimationData, NumberOfKeys, GetFName(), MaxPosDiff, MaxAngleDiff);
 	}
 	return false;
 }
@@ -2198,7 +2283,7 @@ bool UAnimSequence::CompressRawAnimData()
 {
 	if (RawAnimationData.Num() > 0)
 	{
-		return StaticCompressRawAnimData(RawAnimationData, NumFrames, GetFName());
+		return StaticCompressRawAnimData(RawAnimationData, NumberOfKeys, GetFName());
 	}
 	return false;
 }
@@ -2249,10 +2334,10 @@ bool UAnimSequence::ShouldPerformStripping(const bool bPerformFrameStripping, co
 	const bool bShouldPerformFrameStripping = bPerformFrameStripping && bAllowFrameStripping;
 
 	// Can only do stripping on animations that have an even number of frames once the end frame is removed)
-	const bool bIsEvenFramed = ((NumFrames - 1) % 2) == 0;
+	const bool bIsEvenFramed = ((NumberOfKeys - 1) % 2) == 0;
 	const bool bIsValidForStripping = bIsEvenFramed || bPerformStrippingOnOddFramedAnims;
 
-	const bool bStripCandidate = (NumFrames > 10) && bIsValidForStripping;
+	const bool bStripCandidate = (NumberOfKeys > 10) && bIsValidForStripping;
 
 	return bStripCandidate && bShouldPerformFrameStripping;
 }
@@ -2482,7 +2567,7 @@ void UAnimSequence::SerializeCompressedData(FArchive& Ar, bool bDDCData)
 
 bool UAnimSequence::CanBakeAdditive() const
 {
-	return	(NumFrames > 0) &&
+	return	(NumberOfKeys > 0) &&
 			IsValidAdditive() &&
 			GetSkeleton();
 }
@@ -2527,7 +2612,7 @@ public:
 	TArray<FBoneIndexType> RequiredBoneIndexArray;
 
 	FByFramePoseEvalContext(const UAnimSequence* InAnimToEval)
-		: FByFramePoseEvalContext(InAnimToEval->GetPlayLength(), InAnimToEval->GetRawNumberOfFrames(), InAnimToEval->GetSkeleton())
+		: FByFramePoseEvalContext(InAnimToEval->GetPlayLength(), InAnimToEval->GetNumberOfSampledKeys(), InAnimToEval->GetSkeleton())
 	{}
 		
 	FByFramePoseEvalContext(float InSequenceLength, int32 InRawNumOfFrames, USkeleton* InSkeleton)
@@ -2573,9 +2658,9 @@ void UAnimSequence::BakeOutVirtualBoneTracks(TArray<FRawAnimSequenceTrack>& NewR
 		const int32 TrackIndex = NewRawTracks.Add(FRawAnimSequenceTrack());
 
 		//Init new tracks
-		NewRawTracks[TrackIndex].PosKeys.SetNumUninitialized(NumFrames);
-		NewRawTracks[TrackIndex].RotKeys.SetNumUninitialized(NumFrames);
-		NewRawTracks[TrackIndex].ScaleKeys.SetNumUninitialized(NumFrames);
+		NewRawTracks[TrackIndex].PosKeys.SetNumUninitialized(NumberOfKeys);
+		NewRawTracks[TrackIndex].RotKeys.SetNumUninitialized(NumberOfKeys);
+		NewRawTracks[TrackIndex].ScaleKeys.SetNumUninitialized(NumberOfKeys);
 		
 		NewTrackToSkeletonMapTable.Add(FTrackToSkeletonMap(GetSkeleton()->GetReferenceSkeleton().GetRequiredVirtualBones()[VBIndex]));
 		NewAnimationTrackNames.Add(GetSkeleton()->GetVirtualBones()[VBIndex].VirtualBoneName);
@@ -2592,7 +2677,7 @@ void UAnimSequence::BakeOutVirtualBoneTracks(TArray<FRawAnimSequenceTrack>& NewR
 
 	const TArray<FVirtualBoneRefData>& VBRefData = GetSkeleton()->GetReferenceSkeleton().GetVirtualBoneRefData();
 
-	for (int Frame = 0; Frame < NumFrames; ++Frame)
+	for (int32 Frame = 0; Frame < NumberOfKeys; ++Frame)
 	{
 		// Initialise curve data from Skeleton
 		FBlendedCurve Curve;
@@ -2613,7 +2698,7 @@ void UAnimSequence::BakeOutVirtualBoneTracks(TArray<FRawAnimSequenceTrack>& NewR
 		}
 	}
 
-	StaticCompressRawAnimData(NewRawTracks, NumFrames, GetFName());
+	StaticCompressRawAnimData(NewRawTracks, NumberOfKeys, GetFName());
 }
 
 bool IsIdentity(const FVector& Pos)
@@ -2650,7 +2735,7 @@ void UAnimSequence::TestEvalauteAnimation() const
 
 	FAnimExtractContext ExtractContext;
 
-	for (int Frame = 0; Frame < NumFrames; ++Frame)
+	for (int32 Frame = 0; Frame < NumberOfKeys; ++Frame)
 	{
 		// Initialise curve data from Skeleton
 		FBlendedCurve Curve;
@@ -2700,9 +2785,9 @@ void UAnimSequence::BakeOutAdditiveIntoRawData(TArray<FRawAnimSequenceTrack>& Ne
 
 	for (FRawAnimSequenceTrack& RawTrack : NewRawTracks)
 	{
-		RawTrack.PosKeys.SetNumUninitialized(NumFrames);
-		RawTrack.RotKeys.SetNumUninitialized(NumFrames);
-		RawTrack.ScaleKeys.SetNumUninitialized(NumFrames);
+		RawTrack.PosKeys.SetNumUninitialized(NumberOfKeys);
+		RawTrack.RotKeys.SetNumUninitialized(NumberOfKeys);
+		RawTrack.ScaleKeys.SetNumUninitialized(NumberOfKeys);
 	}
 
 	// keep the same buffer size
@@ -2728,7 +2813,7 @@ void UAnimSequence::BakeOutAdditiveIntoRawData(TArray<FRawAnimSequenceTrack>& Ne
 
 	FAnimExtractContext ExtractContext;
 
-	for (int Frame = 0; Frame < NumFrames; ++Frame)
+	for (int32 Frame = 0; Frame < NumberOfKeys; ++Frame)
 	{
 		// Initialise curve data from Skeleton
 		FBlendedCurve Curve;
@@ -2822,7 +2907,7 @@ void UAnimSequence::BakeOutAdditiveIntoRawData(TArray<FRawAnimSequenceTrack>& Ne
 	}
 #endif
 
-	StaticCompressRawAnimData(NewRawTracks,NumFrames, GetFName());
+	StaticCompressRawAnimData(NewRawTracks, NumberOfKeys, GetFName());
 
 	// Note on (TrackIndex > 0) below : deliberately stop before track 0, compression code doesn't like getting a completely empty animation
 	for (int32 TrackIndex = NewRawTracks.Num() - 1; TrackIndex > 0; --TrackIndex)
@@ -3252,8 +3337,8 @@ void UAnimSequence::RemapTracksToNewSkeleton( USkeleton* NewSkeleton, bool bConv
 			ConvertedSpaceAnimations.AddZeroed(SrcNumTracks);
 			ConvertedLocalSpaceAnimations.AddZeroed(SrcNumTracks);
 
-			int32 NumKeys = NumFrames;
-			float Interval = GetIntervalPerKey(NumFrames, GetPlayLength());
+			int32 NumKeys = NumberOfKeys;
+			float Interval = SamplingFrameRate.AsInterval();
 
 			// allocate arrays
 			for(int32 SrcTrackIndex=0; SrcTrackIndex<SrcNumTracks; ++SrcTrackIndex)
@@ -3476,8 +3561,8 @@ void UAnimSequence::RemapTracksToNewSkeleton( USkeleton* NewSkeleton, bool bConv
 			ConvertedLocalSpaces.AddZeroed(NumBones);
 			ConvertedSpaceBases.AddZeroed(NumBones);
 
-			int32 NumKeys = NumFrames;
-			float Interval = GetIntervalPerKey(NumFrames, GetPlayLength());
+			int32 NumKeys = NumberOfKeys;
+			float Interval = SamplingFrameRate.AsInterval();
 
 			// allocate arrays
 			for(int32 BoneIndex=0; BoneIndex<NumBones; ++BoneIndex)
@@ -3655,6 +3740,7 @@ void UAnimSequence::PostProcessSequence(bool bForceNewRawDatGuid)
 		SanitizeAnimationTrackData(RawAnim);
 	}
 
+	UpdateFrameRate();
 	CompressRawAnimData();
 	// Apply compression
 	MarkRawDataAsModified(bForceNewRawDatGuid);
@@ -3869,12 +3955,12 @@ void UAnimSequence::ReplaceReferredAnimations(const TMap<UAnimationAsset*, UAnim
 bool UAnimSequence::AddLoopingInterpolation()
 {
 	int32 NumTracks = AnimationTrackNames.Num();
-	float Interval = GetIntervalPerKey(NumFrames, GetPlayLength());
+	float Interval = SamplingFrameRate.AsInterval();
 
-	if(NumFrames > 0)
+	if(NumberOfKeys > 0)
 	{
 		// added one more key
-		int32 NewNumKeys = NumFrames +1 ;
+		int32 NewNumKeys = NumberOfKeys +1 ;
 
 		// now I need to calculate back to new animation data
 		for(int32 TrackIndex=0; TrackIndex<NumTracks; ++TrackIndex)
@@ -3899,8 +3985,8 @@ bool UAnimSequence::AddLoopingInterpolation()
 			}
 		}
 
+		NumberOfKeys = NewNumKeys;
 		SetSequenceLength(GetPlayLength() + Interval);
-		NumFrames = NewNumKeys;
 
 		PostProcessSequence();
 		return true;
@@ -3928,8 +4014,8 @@ int32 UAnimSequence::GetSpaceBasedAnimationData(TArray< TArray<FTransform> >& An
 	AnimationDataInComponentSpace.AddZeroed(NumBones);
 
 	// 2d array of animated time [boneindex][time key]
-	int32 NumKeys = NumFrames;
-	float Interval = GetIntervalPerKey(NumFrames, GetPlayLength());
+	int32 NumKeys = NumberOfKeys;
+	float Interval = SamplingFrameRate.AsInterval();
 
 	// allocate arrays
 	for (int32 BoneIndex = 0; BoneIndex < NumBones; ++BoneIndex)
@@ -4166,12 +4252,12 @@ bool UAnimSequence::ConvertAnimationDataToRiggingData(FAnimSequenceTrackContaine
 
 				if (ensure(BoneIndex != INDEX_NONE))
 				{
-					Track.PosKeys.Empty(NumFrames);
-					Track.RotKeys.Empty(NumFrames);
-					Track.ScaleKeys.Empty(NumFrames);
-					Track.PosKeys.AddUninitialized(NumFrames);
-					Track.RotKeys.AddUninitialized(NumFrames);
-					Track.ScaleKeys.AddUninitialized(NumFrames);
+					Track.PosKeys.Empty(NumberOfKeys);
+					Track.RotKeys.Empty(NumberOfKeys);
+					Track.ScaleKeys.Empty(NumberOfKeys);
+					Track.PosKeys.AddUninitialized(NumberOfKeys);
+					Track.RotKeys.AddUninitialized(NumberOfKeys);
+					Track.ScaleKeys.AddUninitialized(NumberOfKeys);
 
 					int32 RigConstraintIndex = Rig->FindTransformBaseByNodeName(NodeName);
 
@@ -4190,7 +4276,7 @@ bool UAnimSequence::ConvertAnimationDataToRiggingData(FAnimSequenceTrackContaine
 							if (ParentBoneIndex != INDEX_NONE)
 							{
 								// if no rig control, component space is used
-								for (int32 KeyIndex = 0; KeyIndex < NumFrames; ++KeyIndex)
+								for (int32 KeyIndex = 0; KeyIndex < NumberOfKeys; ++KeyIndex)
 								{
 									FTransform ParentTransform = AnimationDataInComponentSpace[ParentBoneIndex][KeyIndex];
 									FTransform RelativeTransform = AnimationDataInComponentSpace[BoneIndex][KeyIndex].GetRelativeTransform(ParentTransform);
@@ -4200,7 +4286,7 @@ bool UAnimSequence::ConvertAnimationDataToRiggingData(FAnimSequenceTrackContaine
 							else
 							{
 								// if no rig control, component space is used
-								for (int32 KeyIndex = 0; KeyIndex < NumFrames; ++KeyIndex)
+								for (int32 KeyIndex = 0; KeyIndex < NumberOfKeys; ++KeyIndex)
 								{
 									Track.RotKeys[KeyIndex] = AnimationDataInComponentSpace[BoneIndex][KeyIndex].GetRotation();
 								}
@@ -4209,7 +4295,7 @@ bool UAnimSequence::ConvertAnimationDataToRiggingData(FAnimSequenceTrackContaine
 						else
 						{
 							// if no rig control, component space is used
-							for (int32 KeyIndex = 0; KeyIndex < NumFrames; ++KeyIndex)
+							for (int32 KeyIndex = 0; KeyIndex < NumberOfKeys; ++KeyIndex)
 							{
 								Track.RotKeys[KeyIndex] = AnimationDataInComponentSpace[BoneIndex][KeyIndex].GetRotation();
 							}
@@ -4226,7 +4312,7 @@ bool UAnimSequence::ConvertAnimationDataToRiggingData(FAnimSequenceTrackContaine
 							if (ParentBoneIndex != INDEX_NONE)
 							{
 								// if no rig control, component space is used
-								for (int32 KeyIndex = 0; KeyIndex < NumFrames; ++KeyIndex)
+								for (int32 KeyIndex = 0; KeyIndex < NumberOfKeys; ++KeyIndex)
 								{
 									FTransform ParentTransform = AnimationDataInComponentSpace[ParentBoneIndex][KeyIndex];
 									FTransform RelativeTransform = AnimationDataInComponentSpace[BoneIndex][KeyIndex].GetRelativeTransform(ParentTransform);
@@ -4236,7 +4322,7 @@ bool UAnimSequence::ConvertAnimationDataToRiggingData(FAnimSequenceTrackContaine
 							}
 							else
 							{
-								for (int32 KeyIndex = 0; KeyIndex < NumFrames; ++KeyIndex)
+								for (int32 KeyIndex = 0; KeyIndex < NumberOfKeys; ++KeyIndex)
 								{
 									Track.PosKeys[KeyIndex] = AnimationDataInComponentSpace[BoneIndex][KeyIndex].GetTranslation();
 									Track.ScaleKeys[KeyIndex] = AnimationDataInComponentSpace[BoneIndex][KeyIndex].GetScale3D();
@@ -4245,7 +4331,7 @@ bool UAnimSequence::ConvertAnimationDataToRiggingData(FAnimSequenceTrackContaine
 						}
 						else
 						{
-							for (int32 KeyIndex = 0; KeyIndex < NumFrames; ++KeyIndex)
+							for (int32 KeyIndex = 0; KeyIndex < NumberOfKeys; ++KeyIndex)
 							{
 								Track.PosKeys[KeyIndex] = AnimationDataInComponentSpace[BoneIndex][KeyIndex].GetTranslation();
 								Track.ScaleKeys[KeyIndex] = AnimationDataInComponentSpace[BoneIndex][KeyIndex].GetScale3D();
@@ -4255,7 +4341,7 @@ bool UAnimSequence::ConvertAnimationDataToRiggingData(FAnimSequenceTrackContaine
 					else
 					{
 						// if no rig control, component space is used
-						for (int32 KeyIndex = 0; KeyIndex < NumFrames; ++KeyIndex)
+						for (int32 KeyIndex = 0; KeyIndex < NumberOfKeys; ++KeyIndex)
 						{
 							Track.PosKeys[KeyIndex] = AnimationDataInComponentSpace[BoneIndex][KeyIndex].GetTranslation();
 							Track.RotKeys[KeyIndex] = AnimationDataInComponentSpace[BoneIndex][KeyIndex].GetRotation();
@@ -4324,15 +4410,15 @@ bool UAnimSequence::ConvertRiggingDataToAnimationData(FAnimSequenceTrackContaine
 				Track.PosKeys.Empty();
 				Track.RotKeys.Empty();
 				Track.ScaleKeys.Empty();
-				Track.PosKeys.AddUninitialized(NumFrames);
-				Track.RotKeys.AddUninitialized(NumFrames);
-				Track.ScaleKeys.AddUninitialized(NumFrames);
+				Track.PosKeys.AddUninitialized(NumberOfKeys);
+				Track.RotKeys.AddUninitialized(NumberOfKeys);
+				Track.ScaleKeys.AddUninitialized(NumberOfKeys);
 
 				const int32& ParentBoneIndex = RefSkeleton.GetParentIndex(BoneIndex);
 
 				if(ParentBoneIndex != INDEX_NONE)
 				{
-					for(int32 KeyIndex = 0; KeyIndex < NumFrames; ++KeyIndex)
+					for(int32 KeyIndex = 0; KeyIndex < NumberOfKeys; ++KeyIndex)
 					{
 						FTransform LocalTransform = AnimationDataInComponentSpace[BoneIndex][KeyIndex].GetRelativeTransform(AnimationDataInComponentSpace[ParentBoneIndex][KeyIndex]);
 
@@ -4343,7 +4429,7 @@ bool UAnimSequence::ConvertRiggingDataToAnimationData(FAnimSequenceTrackContaine
 				}
 				else
 				{
-					for(int32 KeyIndex = 0; KeyIndex < NumFrames; ++KeyIndex)
+					for(int32 KeyIndex = 0; KeyIndex < NumberOfKeys; ++KeyIndex)
 					{
 						FTransform LocalTransform = AnimationDataInComponentSpace[BoneIndex][KeyIndex];
 
@@ -4439,7 +4525,7 @@ void UAnimSequence::BakeTrackCurvesToRawAnimationTracks(TArray<FRawAnimSequenceT
 
 
 		// NumFrames can't be zero (filtered earlier)
-		const float Interval = GetIntervalPerKey(NumFrames, GetPlayLength());
+		const float Interval = SamplingFrameRate.AsInterval();
 
 		for (const FTransformCurve& Curve : RawCurveData.TransformCurves)
 		{
@@ -4472,21 +4558,21 @@ void UAnimSequence::BakeTrackCurvesToRawAnimationTracks(TArray<FRawAnimSequenceT
 				if (RawTrack.PosKeys.Num() == 1)
 				{
 					FVector OneKey = RawTrack.PosKeys[0];
-					RawTrack.PosKeys.Init(OneKey, NumFrames);
+					RawTrack.PosKeys.Init(OneKey, NumberOfKeys);
 				}
 				else
 				{
-					ensure(RawTrack.PosKeys.Num() == NumFrames);
+					ensure(RawTrack.PosKeys.Num() == NumberOfKeys);
 				}
 
 				if (RawTrack.RotKeys.Num() == 1)
 				{
 					FQuat OneKey = RawTrack.RotKeys[0];
-					RawTrack.RotKeys.Init(OneKey, NumFrames);
+					RawTrack.RotKeys.Init(OneKey, NumberOfKeys);
 				}
 				else
 				{
-					ensure(RawTrack.RotKeys.Num() == NumFrames);
+					ensure(RawTrack.RotKeys.Num() == NumberOfKeys);
 				}
 
 				// although we don't allow edit of scale
@@ -4495,15 +4581,15 @@ void UAnimSequence::BakeTrackCurvesToRawAnimationTracks(TArray<FRawAnimSequenceT
 				if (RawTrack.ScaleKeys.Num() == 1)
 				{
 					FVector OneKey = RawTrack.ScaleKeys[0];
-					RawTrack.ScaleKeys.Init(OneKey, NumFrames);
+					RawTrack.ScaleKeys.Init(OneKey, NumberOfKeys);
 				}
 				else
 				{
-					ensure(RawTrack.ScaleKeys.Num() == NumFrames);
+					ensure(RawTrack.ScaleKeys.Num() == NumberOfKeys);
 				}
 
 				// now we have all data ready to apply
-				for (int32 KeyIndex = 0; KeyIndex < NumFrames; ++KeyIndex)
+				for (int32 KeyIndex = 0; KeyIndex < NumberOfKeys; ++KeyIndex)
 				{
 					// now evaluate
 					FTransformCurve* TransformCurve = static_cast<FTransformCurve*>(RawCurveData.GetCurveData(Curve.Name.UID, ERawCurveTrackTypes::RCT_Transform));
@@ -4526,7 +4612,7 @@ void UAnimSequence::BakeTrackCurvesToRawAnimationTracks(TArray<FRawAnimSequenceT
 				SanitizeAnimationTrackData(RawTrack);
 			}
 		}
-		StaticCompressRawAnimData(NewRawTracks, NumFrames, GetFName());
+		StaticCompressRawAnimData(NewRawTracks, NumberOfKeys, GetFName());
 	}
 }
 
@@ -4554,7 +4640,7 @@ void UAnimSequence::AddKeyToSequence(float Time, const FName& BoneName, const FT
 void UAnimSequence::ResetAnimation()
 {
 	// clear everything. Making new animation, so need to reset all the things that belong here
-	NumFrames = 0;
+	NumberOfKeys = 0;
 	SetSequenceLength(0.f);
 	RawAnimationData.Empty();
 	AnimationTrackNames.Empty();
@@ -4616,7 +4702,7 @@ bool UAnimSequence::CreateAnimation(USkeletalMesh* Mesh)
 
 		const FReferenceSkeleton& RefSkeleton = Mesh->RefSkeleton;
 		SetSequenceLength(MINIMUM_ANIMATION_LENGTH);
-		NumFrames = 1;
+		NumberOfKeys = 1;
 
 		const int32 NumBones = RefSkeleton.GetRawBoneNum();
 		RawAnimationData.AddZeroed(NumBones);
@@ -4658,7 +4744,7 @@ bool UAnimSequence::CreateAnimation(USkeletalMeshComponent* MeshComponent)
 
 		const FReferenceSkeleton& RefSkeleton = Mesh->RefSkeleton;
 		SetSequenceLength(MINIMUM_ANIMATION_LENGTH);
-		NumFrames = 1;
+		NumberOfKeys = 1;
 
 		const int32 NumBones = RefSkeleton.GetRawBoneNum();
 		RawAnimationData.AddZeroed(NumBones);
@@ -4697,7 +4783,7 @@ bool UAnimSequence::CreateAnimation(UAnimSequence* Sequence)
 		ResetAnimation();
 
 		SetSequenceLength(Sequence->GetPlayLength());
-		NumFrames = Sequence->NumFrames;
+		NumberOfKeys = Sequence->NumberOfKeys;
 
 		RawAnimationData = Sequence->RawAnimationData;
 		AnimationTrackNames = Sequence->AnimationTrackNames;
@@ -4706,6 +4792,7 @@ bool UAnimSequence::CreateAnimation(UAnimSequence* Sequence)
 		AnimNotifyTracks = Sequence->AnimNotifyTracks;
 		RawCurveData = Sequence->RawCurveData;
 
+		UpdateFrameRate();
 		// refresh TrackToskeletonMapIndex
 		RefreshTrackMapFromAnimTrackNames();
 
@@ -5311,7 +5398,7 @@ void UAnimSequence::SynchronousCustomAttributesCompression()
 			}
 			else if (RefPoseType == ABPT_AnimFrame)
 			{
-				const float Fraction = (RefPoseSeq->NumFrames > 0) ? FMath::Clamp<float>((float)RefFrameIndex / (float)RefPoseSeq->NumFrames, 0.f, 1.f) : 0.f;
+				const float Fraction = (RefPoseSeq->NumberOfKeys > 0) ? FMath::Clamp<float>((float)RefFrameIndex / (float)RefPoseSeq->NumberOfKeys, 0.f, 1.f) : 0.f;
 				BasePoseTime = RefPoseSeq->GetPlayLength() * Fraction;
 
 			}
@@ -5359,7 +5446,7 @@ void UAnimSequence::SynchronousCustomAttributesCompression()
 								BakedFloatAttribute.AttributeName = Attribute.Name;
 
 								FSimpleCurve& FloatCurve = BakedFloatAttribute.FloatCurve;
-								ConvertAttributeToAdditive<float, FSimpleCurve>(Attribute, *RefAttribute, FloatCurve, EvalContext.IntervalTime, NumFrames, GetBasePoseTimeToSample);
+								ConvertAttributeToAdditive<float, FSimpleCurve>(Attribute, *RefAttribute, FloatCurve, EvalContext.IntervalTime, NumberOfKeys, GetBasePoseTimeToSample);
 								FloatCurve.RemoveRedundantKeys(0.f);
 
 								break;
@@ -5371,7 +5458,7 @@ void UAnimSequence::SynchronousCustomAttributesCompression()
 								BakedIntAttribute.AttributeName = Attribute.Name;
 
 								FIntegralCurve& IntCurve = BakedIntAttribute.IntCurve;
-								ConvertAttributeToAdditive<int32, FIntegralCurve>(Attribute, *RefAttribute, IntCurve, EvalContext.IntervalTime, NumFrames, GetBasePoseTimeToSample);
+								ConvertAttributeToAdditive<int32, FIntegralCurve>(Attribute, *RefAttribute, IntCurve, EvalContext.IntervalTime, NumberOfKeys, GetBasePoseTimeToSample);
 								IntCurve.RemoveRedundantKeys();
 							
 								break;
@@ -6006,7 +6093,7 @@ void GatherAnimSequenceStats(FOutputDevice& Ar)
 
 		Ar.Logf(TEXT(" %60s, %3i, %3i,%3i,%3i, %3i,%3i,%3i, %10i,%10i,%10i, %s, %d"),
 			*Seq->GetName(),
-			Seq->GetRawNumberOfFrames(),
+			Seq->GetNumberOfSampledKeys(),
 			NumTransTracks, NumRotTracks, NumScaleTracks,
 			NumTransTracksWithOneKey, NumRotTracksWithOneKey, NumScaleTracksWithOneKey,
 			TotalNumTransKeys, TotalNumRotKeys, TotalNumScaleKeys,

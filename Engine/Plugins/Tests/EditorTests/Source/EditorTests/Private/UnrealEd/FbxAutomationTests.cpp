@@ -1560,7 +1560,7 @@ bool FFbxImportAssetsAutomationTest::RunTest(const FString& Parameters)
 						*GetFormatedMessageErrorInTestData(CleanFilename, TestPlan->TestPlanName, TEXT("Animation_Frame_Number"), ExpectedResultIndex)));
 					break;
 				}
-				int32 FrameNumber = AnimSequence->GetNumberOfFrames();
+				int32 FrameNumber = AnimSequence->GetNumberOfSampledKeys();
 				if (FrameNumber != ExpectedResult.ExpectedPresetsDataInteger[0])
 				{
 					ExecutionInfo.AddError(FString::Printf(TEXT("%s [%d frames but expected %d]"),

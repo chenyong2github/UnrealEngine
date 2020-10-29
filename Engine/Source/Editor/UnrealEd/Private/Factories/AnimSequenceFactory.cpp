@@ -71,7 +71,7 @@ UObject* UAnimSequenceFactory::FactoryCreateNew(UClass* Class, UObject* InParent
 
 	// @todo I think this will crash, we should support differentoptions
 	AnimSequence->SetSequenceLength(0.f);
-	AnimSequence->SetRawNumberOfFrame(0);
+	AnimSequence->SetNumberOfSampledKeys(0);
 	
 	if (TargetSkeleton)
 	{

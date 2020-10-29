@@ -86,7 +86,7 @@ bool UAnimCurveCompressionCodec_UniformIndexable::Compress(const FCompressibleAn
 	const int32 NumCurves = AnimSeq.RawCurveData.FloatCurves.Num();
 	const float Duration = AnimSeq.SequenceLength;
 
-	const FAnimKeyHelper Helper(AnimSeq.SequenceLength, AnimSeq.NumFrames);
+	const FAnimKeyHelper Helper(AnimSeq.SequenceLength, AnimSeq.NumberOfKeys);
 	const float SampleRate = Helper.KeysPerSecond();
 	const int32 NumSamples = FMath::RoundToInt(Duration * SampleRate) + 1;
 

@@ -23,7 +23,7 @@ bool UAnimCurveCompressionCodec_UniformlySampled::Compress(const FCompressibleAn
 	float SampleRate_;
 	if (UseAnimSequenceSampleRate)
 	{
-		const FAnimKeyHelper Helper(AnimSeq.SequenceLength, AnimSeq.NumFrames);
+		const FAnimKeyHelper Helper(AnimSeq.SequenceLength, AnimSeq.NumberOfKeys);
 		SampleRate_ = Helper.KeysPerSecond();
 		NumSamples = FMath::RoundToInt(Duration * SampleRate_) + 1;
 	}

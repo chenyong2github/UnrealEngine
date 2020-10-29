@@ -40,7 +40,7 @@ public:
 	UPROPERTY(Category=Length, AssetRegistrySearchable, VisibleAnywhere, BlueprintReadOnly)
 	float SequenceLength;
 
-	void SetSequenceLength(float NewLength) 	
+	virtual void SetSequenceLength(float NewLength) 	
 	{
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		SequenceLength = NewLength; 
@@ -117,8 +117,15 @@ public:
 	virtual const FRawCurveTracks& GetCurveData() const { return RawCurveData; }
 	virtual bool HasCurveData(SmartName::UID_Type CurveUID, bool bForceUseRawData = false) const;
 
-	/** Return Number of Frames **/
+	/** Return Number of Keys **/
+	UE_DEPRECATED(4.19, "Use GetNumberOfSampledKeys instead")
 	virtual int32 GetNumberOfFrames() const;
+
+	/** Return the total number of keys sampled for this animation, including the T0 key **/
+	virtual int32 GetNumberOfSampledKeys() const;
+
+	/** Return rate at which the animation is sampled **/
+	virtual const FFrameRate& GetSamplingFrameRate() const;
 
 #if WITH_EDITOR
 

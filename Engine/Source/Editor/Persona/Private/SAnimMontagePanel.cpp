@@ -651,7 +651,7 @@ void SAnimMontagePanel::Update()
 						.OnAnimReplaceMapping(this, &SAnimMontagePanel::ReplaceAnimationMapping)
 						.OnDiffFromParentAsset(this, &SAnimMontagePanel::IsDiffererentFromParent)
 						.TrackMaxValue(this, &SAnimMontagePanel::GetSequenceLength)
-						.TrackNumDiscreteValues(Montage->GetNumberOfFrames())
+						.TrackNumDiscreteValues(Montage->GetNumberOfSampledKeys())
 					];
 
 				}
@@ -670,7 +670,7 @@ void SAnimMontagePanel::Update()
 						.bChildAnimMontage(bChildAnimMontage)
 						.OnGetNodeColor_Lambda([NodeColor](const FAnimSegment& InSegment){ return NodeColor; })
 						.TrackMaxValue(this, &SAnimMontagePanel::GetSequenceLength)
-						.TrackNumDiscreteValues(Montage->GetNumberOfFrames())
+						.TrackNumDiscreteValues(Montage->GetNumberOfSampledKeys())
 						.OnAnimSegmentNodeClicked(this, &SAnimMontagePanel::ShowSegmentInDetailsView, SlotAnimIdx)
 						.OnPreAnimUpdate(this, &SAnimMontagePanel::PreAnimUpdate)
 						.OnPostAnimUpdate(this, &SAnimMontagePanel::PostAnimUpdate)

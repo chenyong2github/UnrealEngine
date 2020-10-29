@@ -402,20 +402,21 @@ void UAnimSingleNodeInstance::StepForward()
 	if (UAnimSequenceBase* Sequence = Cast<UAnimSequenceBase>(CurrentAsset))
 	{
 		FAnimSingleNodeInstanceProxy& Proxy = GetProxyOnGameThread<FAnimSingleNodeInstanceProxy>();
-		const FAnimKeyHelper Helper(Sequence->GetPlayLength(), Sequence->GetNumberOfFrames());
-		float KeyLength = Helper.TimePerKey() + SMALL_NUMBER;
-		float Fraction = (Proxy.GetCurrentTime()+KeyLength)/Sequence->GetPlayLength();
-		int32 Frames = (float)Helper.LastKey() * Fraction;
+
+		const FFrameRate& FrameRate = Sequence->GetSamplingFrameRate();
+		const FFrameNumber LastSequenceFrameNumber = FrameRate.AsFrameTime(Sequence->GetPlayLength()).RoundToFrame();
+		
+		// Step forward a small amount and ceil to the next frame number 
+		FFrameNumber StepToFrame = FrameRate.AsFrameTime(Proxy.GetCurrentTime() + KINDA_SMALL_NUMBER).CeilToFrame();		
 		if (IsLooping())
 		{
-			int32 PreviousFrame = (float)Helper.LastKey() * (Proxy.GetCurrentTime() / Sequence->GetPlayLength());
-			Frames = (PreviousFrame == Helper.LastKey()) ? 0 : Frames;
+			// Wrap around to start of the sequence
+			StepToFrame %= (LastSequenceFrameNumber + 1);
 		}
-		else
-		{
-			Frames = FMath::Clamp<int32>(Frames, 0, Helper.LastKey());
-		}
-		SetPosition(Frames*KeyLength);
+
+		StepToFrame.Value = FMath::Clamp<int32>(StepToFrame.Value, 0, LastSequenceFrameNumber.Value);
+
+		SetPosition(FrameRate.AsSeconds(StepToFrame));
 	}	
 }
 
@@ -425,19 +426,20 @@ void UAnimSingleNodeInstance::StepBackward()
 	{
 		FAnimSingleNodeInstanceProxy& Proxy = GetProxyOnGameThread<FAnimSingleNodeInstanceProxy>();
 
-		const FAnimKeyHelper Helper(Sequence->GetPlayLength(), Sequence->GetNumberOfFrames());
-		float KeyLength = Helper.TimePerKey() + SMALL_NUMBER;
-		float Fraction = (Proxy.GetCurrentTime()-KeyLength)/Sequence->GetPlayLength();
-		int32 Frames = (float)Helper.LastKey() * Fraction;
+		const FFrameRate& FrameRate = Sequence->GetSamplingFrameRate();
+		const FFrameNumber LastSequenceFrameNumber = FrameRate.AsFrameTime(Sequence->GetPlayLength()).RoundToFrame();
+
+		// Step backwards a small amount and floor to the previous frame number 
+		FFrameNumber StepToFrame = FrameRate.AsFrameTime(Proxy.GetCurrentTime() - KINDA_SMALL_NUMBER).FloorToFrame();
 		if (IsLooping())
 		{
-			Frames = (Frames < 0) ? Helper.LastKey() : Frames;
+			// Wrap around to end of sequence
+			StepToFrame = StepToFrame.Value < 0 ? LastSequenceFrameNumber : StepToFrame;
 		}
-		else
-		{
-			Frames = FMath::Clamp<int32>(Frames, 0, Helper.LastKey());
-		}
-		SetPosition(Frames * KeyLength);
+
+		StepToFrame.Value = FMath::Clamp<int32>(StepToFrame.Value, 0, LastSequenceFrameNumber.Value);
+
+		SetPosition(FrameRate.AsSeconds(StepToFrame));
 	}
 }
 

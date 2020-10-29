@@ -541,17 +541,17 @@ uint32 SAnimationSegmentScrubPanel::GetNumOfFrames() const
 	{
 		UAnimSingleNodeInstance* PreviewInst = GetPreviewInstance();
 		float Length = PreviewInst->GetLength();
-		// if anim sequence, use correct num frames
-		int32 NumFrames = (int32) (Length/0.0333f); 
+		// if anim sequence, use correct number of keys
+		int32 NumKeys = (int32) (Length/0.0333f); 
 		if (PreviewInst->GetCurrentAsset() && PreviewInst->GetCurrentAsset()->IsA(UAnimSequenceBase::StaticClass()))
 		{
-			NumFrames = CastChecked<UAnimSequenceBase>(PreviewInst->GetCurrentAsset())->GetNumberOfFrames();
+			NumKeys = CastChecked<UAnimSequenceBase>(PreviewInst->GetCurrentAsset())->GetNumberOfSampledKeys();
 		}
-		return NumFrames;
+		return NumKeys;
 	}
 	else if (LockedSequence)
 	{
-		return LockedSequence->GetNumberOfFrames();
+		return LockedSequence->GetNumberOfSampledKeys();
 	}
 	return 1;
 }
