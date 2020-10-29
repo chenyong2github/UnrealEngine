@@ -4157,6 +4157,32 @@ void UWorld::ClearDemoNetDriver()
 }
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
+void UWorld::ClearNetDriver(UNetDriver* Driver)
+{
+	if (GetNetDriver() == Driver)
+	{
+		SetNetDriver(nullptr);
+	}
+
+	if (GetDemoNetDriver() == Driver)
+	{
+		SetDemoNetDriver(nullptr);
+	}
+
+	for (FLevelCollection& Collection : LevelCollections)
+	{
+		if (Collection.GetNetDriver() == Driver)
+		{
+			Collection.SetNetDriver(nullptr);
+		}
+
+		if (Collection.GetDemoNetDriver() == Driver)
+		{
+			Collection.SetDemoNetDriver(nullptr);
+		}
+	}
+}
+
 bool UWorld::SetGameMode(const FURL& InURL)
 {
 	if( IsServer() && !AuthorityGameMode )
