@@ -1574,7 +1574,7 @@ bool UNiagaraSystem::CompilationResultsValid(const FNiagaraSystemCompileRequest&
 	{
 		if (SpawnScriptRequest->CompileResults->Attributes != UpdateScriptRequest->CompileResults->Attributes)
 		{
-			UE_LOG(LogNiagara, Warning, TEXT("Failed to generate consistent results for System spawn and update scripts for system %s."), *GetFullName());
+			UE_LOG(LogNiagara, Log, TEXT("Failed to generate consistent results for System spawn and update scripts for system %s."), *GetFullName());
 			return false;
 		}
 	}
