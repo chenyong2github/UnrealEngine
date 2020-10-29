@@ -43,6 +43,7 @@ namespace Audio
 
 		SampleRate = InSampleRate;
 
+		FrequencyHz = -1.0f;
 		SetFrequency(InFrequencyHz);
 	}
 
@@ -60,6 +61,11 @@ namespace Audio
 	{
 		check(SampleRate > 0);
 
+		if (FrequencyHz == InFrequencyHz)
+		{
+			return;
+		}
+
 		FrequencyHz = InFrequencyHz;
 
 		// Find new wT value
@@ -71,11 +77,13 @@ namespace Audio
 
 		// Set up initial conditions based on current state of the oscillator to avoid pops when dynamically changing frequencies
 
+		Yn_1 = FMath::Clamp(Yn_1, -1.0f, 1.0f);
+
 		// Get previous outputs phase
 		const float OmegaTPrev = FMath::Asin(Yn_1);
 
 		// Get N by dividing prev phase over new current phase
-		float N = OmegaTPrev / OmegaT;
+		float N = OmegaTPrev / FMath::Max(OmegaT, SMALL_NUMBER);
 
 		// If currently on rising edge (newer value is higher)
 		if (Yn_1 > Yn_2)
