@@ -17,7 +17,9 @@ class AUDIOSYNESTHESIA_API UAudioSynesthesiaNRTSettings : public UAudioAnalyzerN
 
 		const TArray<FText>& GetAssetActionSubmenus() const;
 
+#if WITH_EDITOR
 		FColor GetTypeColor() const override;
+#endif
 };
 
 /** UAudioSynesthesiaNRT
@@ -33,6 +35,8 @@ class AUDIOSYNESTHESIA_API UAudioSynesthesiaNRT : public UAudioAnalyzerNRT
 
 		const TArray<FText>& GetAssetActionSubmenus() const;
 
+#if WITH_EDITOR
 		FColor GetTypeColor() const override;
+#endif
 };
 
