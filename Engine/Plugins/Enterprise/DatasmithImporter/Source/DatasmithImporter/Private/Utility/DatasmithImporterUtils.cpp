@@ -288,12 +288,23 @@ void FDatasmithImporterUtils::DeleteNonImportedDatasmithElementFromSceneActor(AD
 
 					// Make a copy because the array in RootComponent will get modified during the process
 					TArray< USceneComponent* > AttachChildren = Actor->GetRootComponent()->GetAttachChildren();
+					USceneComponent* AttachParent = Actor->GetRootComponent()->GetAttachParent();
 					for ( USceneComponent* ChildComponent : AttachChildren )
 					{
 						if ( ChildComponent->GetOwner() != Actor && !ChildComponent->GetOwner()->IsActorBeingDestroyed() )
 						{
+							// If the component has a template pointing to the parent about to be deleted, update the template 
+							// to the new parent to avoid creating a template override where there was none.
+							if ( UDatasmithSceneComponentTemplate* ComponentTemplate = FDatasmithObjectTemplateUtils::GetObjectTemplate<UDatasmithSceneComponentTemplate>( ChildComponent ) )
+							{
+								if ( ComponentTemplate->AttachParent == ChildComponent->GetAttachParent() )
+								{
+									ComponentTemplate->AttachParent = AttachParent;
+								}
+							}
+
 							// Reattach our children to our parent
-							ChildComponent->AttachToComponent( Actor->GetRootComponent()->GetAttachParent(), FAttachmentTransformRules::KeepWorldTransform );
+							ChildComponent->AttachToComponent( AttachParent, FAttachmentTransformRules::KeepWorldTransform );
 						}
 					}
 
