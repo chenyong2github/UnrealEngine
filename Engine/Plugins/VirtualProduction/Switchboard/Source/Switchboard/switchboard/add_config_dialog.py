@@ -53,10 +53,12 @@ class AddConfigDialog(QtWidgets.QDialog):
         self.p4_group.setCheckable(True)
         self.p4_group.setChecked(bool(CONFIG.P4_ENABLED.get_value()))
 
-        self.p4_project_path_line_edit = QtWidgets.QLineEdit(CONFIG.P4_PATH.get_value())
+        self.p4_project_path_line_edit = QtWidgets.QLineEdit(CONFIG.P4_PROJECT_PATH.get_value())
+        self.p4_engine_path_line_edit = QtWidgets.QLineEdit(CONFIG.P4_ENGINE_PATH.get_value())
         self.p4_workspace_line_edit = QtWidgets.QLineEdit(CONFIG.SOURCE_CONTROL_WORKSPACE.get_value())
         p4_layout = QtWidgets.QFormLayout()
         p4_layout.addRow("P4 Project Path", self.p4_project_path_line_edit)
+        p4_layout.addRow("P4 Engine Path", self.p4_engine_path_line_edit)
         p4_layout.addRow("Workspace Name", self.p4_workspace_line_edit)
         self.p4_group.setLayout(p4_layout)
         layout.addWidget(self.p4_group)
@@ -76,6 +78,7 @@ class AddConfigDialog(QtWidgets.QDialog):
         settings['p4_enabled'] = self.p4_group.isChecked()
         settings['p4_workspace_name'] = self.p4_workspace_line_edit.text() if self.p4_group.isChecked() else None
         settings['p4_project_path'] = self.p4_project_path_line_edit.text() if self.p4_group.isChecked() else None
+        settings['p4_engine_path'] = self.p4_engine_path_line_edit.text() if self.p4_group.isChecked() else None
         return settings
 
     def on_name_changed(self, text):
