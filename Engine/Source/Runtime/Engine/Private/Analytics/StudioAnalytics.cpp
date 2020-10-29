@@ -45,10 +45,11 @@ void FStudioAnalytics::SetProvider(TSharedRef<IAnalyticsProviderET> InAnalytics)
 
 void FStudioAnalytics::ApplyDefaultEventAttributes()
 {
-	checkf(Analytics.IsValid(), TEXT("Cannot apply default attributes without a valid provider"));
-
-	// Apply all the default attributes to the provider
-	Analytics->SetDefaultEventAttributes(MoveTemp(DefaultAttributes));
+	if (Analytics.IsValid())
+	{
+		// Apply all the default attributes to the provider
+		Analytics->SetDefaultEventAttributes(MoveTemp(DefaultAttributes));
+	}	
 }
 
 void FStudioAnalytics::AddDefaultEventAttribute(const FAnalyticsEventAttribute& Attribute)
