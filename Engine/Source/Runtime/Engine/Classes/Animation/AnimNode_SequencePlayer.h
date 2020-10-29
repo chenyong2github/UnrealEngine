@@ -43,6 +43,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (PinHiddenByDefault))
 	bool bLoopAnimation;
 
+	// Use pose matching to choose the start position. Requires experimental PoseSearch plugin.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = PoseMatching, meta = (PinHiddenByDefault))
+	bool bStartFromMatchingPose;
+
 public:
 	FAnimNode_SequencePlayer()
 		: Sequence(nullptr)
@@ -50,6 +54,7 @@ public:
 		, PlayRate(1.0f)
 		, StartPosition(0.f)
 		, bLoopAnimation(true)
+		, bStartFromMatchingPose(false)
 	{
 	}
 
@@ -70,4 +75,5 @@ public:
 	// End of FAnimNode_Base interface
 
 	float GetTimeFromEnd(float CurrentNodeTime);
+	float GetEffectiveStartPosition(const FAnimationBaseContext& Context) const;
 };

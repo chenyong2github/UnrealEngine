@@ -9,11 +9,19 @@ public class PoseSearch : ModuleRules
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 
 		PublicIncludePaths.AddRange(
-			new string[] {
+			new string[]
+			{
 				System.IO.Path.Combine(ModuleDirectory, "Public"),
 			}
-			);			
-		
+		);
+
+		PrivateIncludePaths.AddRange(
+			new string[]
+			{
+				System.IO.Path.Combine(ModuleDirectory, "Private"),
+			}
+		);
+
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
@@ -22,13 +30,15 @@ public class PoseSearch : ModuleRules
 				"Engine",
 				"AnimationCore"
 			}
-			);
+		);
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
             {
+				"Core",
+				"CoreUObject",
 				"Engine",
             }
-			);
+		);
 	}
 }

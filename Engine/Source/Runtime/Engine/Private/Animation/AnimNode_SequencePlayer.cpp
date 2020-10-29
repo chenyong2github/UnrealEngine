@@ -5,6 +5,7 @@
 #include "AnimEncoding.h"
 #include "Animation/AnimInstanceProxy.h"
 #include "Animation/AnimTrace.h"
+#include "Animation/AnimPoseSearchProvider.h"
 
 #define LOCTEXT_NAMESPACE "AnimNode_SequencePlayer"
 
@@ -47,10 +48,12 @@ void FAnimNode_SequencePlayer::Initialize_AnyThread(const FAnimationInitializeCo
 
 	if (Sequence != nullptr)
 	{
-		InternalTimeAccumulator = FMath::Clamp(StartPosition, 0.f, Sequence->GetPlayLength());
+		const float EffectiveStartPosition = GetEffectiveStartPosition(Context);
+
+		InternalTimeAccumulator = FMath::Clamp(EffectiveStartPosition, 0.f, Sequence->GetPlayLength());
 		const float AdjustedPlayRate = PlayRateScaleBiasClamp.ApplyTo(FMath::IsNearlyZero(PlayRateBasis) ? 0.f : (PlayRate / PlayRateBasis), 0.f);
 		const float EffectivePlayrate = Sequence->RateScale * AdjustedPlayRate;
-		if ((StartPosition == 0.f) && (EffectivePlayrate < 0.f))
+		if ((EffectiveStartPosition == 0.f) && (EffectivePlayrate < 0.f))
 		{
 			InternalTimeAccumulator = Sequence->GetPlayLength();
 		}
@@ -136,6 +139,25 @@ void FAnimNode_SequencePlayer::GatherDebugData(FNodeDebugData& DebugData)
 float FAnimNode_SequencePlayer::GetTimeFromEnd(float CurrentNodeTime)
 {
 	return Sequence->GetPlayLength() - CurrentNodeTime;
+}
+
+float FAnimNode_SequencePlayer::GetEffectiveStartPosition(const FAnimationBaseContext& Context) const
+{
+	// Override the start position if pose matching is enabled
+	if (Sequence != nullptr && bStartFromMatchingPose)
+	{
+		UE::Anim::IPoseSearchProvider* PoseSearchProvider = UE::Anim::IPoseSearchProvider::Get();
+		if (PoseSearchProvider)
+		{
+			UE::Anim::IPoseSearchProvider::FSearchResult Result = PoseSearchProvider->Search(Context, Sequence);
+			if (Result.PoseIdx >= 0)
+			{
+				return Result.TimeOffsetSeconds;
+			}
+		}
+	}
+
+	return StartPosition;
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -3,6 +3,7 @@
 #include "Animation/AnimationAsset.h"
 #include "Engine/AssetUserData.h"
 #include "Animation/AssetMappingTable.h"
+#include "Animation/AnimMetaData.h"
 #include "Animation/AnimSequence.h"
 #include "AnimationUtils.h"
 #include "Animation/AnimInstance.h"
@@ -235,6 +236,25 @@ void UAnimationAsset::Serialize(FArchive& Ar)
 	{
 		Ar << SkeletonGuid;
 	}
+}
+
+UAnimMetaData* UAnimationAsset::FindMetaDataByClass(const TSubclassOf<UAnimMetaData> MetaDataClass) const
+{
+	UAnimMetaData* FoundMetaData = nullptr;
+
+	if (UClass* TargetClass = MetaDataClass.Get())
+	{
+		for (UAnimMetaData* MetaDataInstance : MetaData)
+		{
+			if (MetaDataInstance && MetaDataInstance->IsA(TargetClass))
+			{
+				FoundMetaData = MetaDataInstance;
+				break;
+			}
+		}
+	}
+
+	return FoundMetaData;
 }
 
 void UAnimationAsset::AddMetaData(UAnimMetaData* MetaDataInstance)

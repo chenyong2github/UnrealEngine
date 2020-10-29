@@ -1,59 +1,91 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PoseSearchEditor.h"
-#include "Editor.h"
 #include "Animation/AnimSequence.h"
-#include "IAssetTools.h"
-#include "AssetToolsModule.h"
 #include "Modules/ModuleManager.h"
+#include "Editor.h"
+#include "Subsystems/AssetEditorSubsystem.h"
+#include "IAnimationEditor.h"
+#include "IPersonaToolkit.h"
+#include "IPersonaPreviewScene.h"
 
-void UPoseSearchBlueprintLibrary::BuildPoseSearchIndex(const UAnimSequence* AnimationSequence, const UPoseSearchIndexConfig* Config, const UPoseSearchSchema* Schema, UPoseSearchIndex* SearchIndex)
+
+//////////////////////////////////////////////////////////////////////////
+// FEditorCommands
+
+namespace UE { namespace PoseSearch {
+
+struct FEditorCommands
 {
-	if (!ensure(AnimationSequence))
-	{
-		return;
-	}
-	if (!ensure(Config))
-	{
-		return;
-	}
-	if (!ensure(Schema))
-	{
-		return;
-	}
-	if (!ensure(SearchIndex))
-	{
-		return;
-	}
-
-	PoseSearchBuildIndex(*AnimationSequence, *Config, *Schema, SearchIndex);
-}
-
-UPoseSearchSchemaFactory::UPoseSearchSchemaFactory(const FObjectInitializer& ObjectInitializer)
-    : Super(ObjectInitializer)
-{
-	bCreateNew = true;
-	bEditAfterNew = true;
-	SupportedClass = UPoseSearchSchema::StaticClass();
-}
-
-UObject* UPoseSearchSchemaFactory::FactoryCreateNew(UClass* InClass, UObject* InParent, FName InName, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn)
-{
-	UPoseSearchSchema* Schema = NewObject<UPoseSearchSchema>(InParent, InClass, InName, Flags | RF_Transactional);
-	return Schema;
-}
-
-class FPoseSearchEditorModule : public IPoseSearchEditorModuleInterface
-{
-public:
-	virtual void StartupModule() override
-	{
-		FAssetToolsModule::GetModule().Get().RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_PoseSearchSchema));
-	}
-
-	virtual void ShutdownModule() override
-	{
-	}
+	static void DrawSearchIndex(UWorld * World);
 };
 
-IMPLEMENT_MODULE(FPoseSearchEditorModule, PoseSearchEditor);
+void FEditorCommands::DrawSearchIndex(UWorld * World)
+{
+	FDebugDrawParams DrawParams;
+	DrawParams.DefaultLifeTime = 60.0f;
+	DrawParams.Flags = EDebugDrawFlags::DrawSearchIndex;
+
+	TArray<UObject*> EditedAssets = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->GetAllEditedAssets();
+	for (UObject* EditedAsset : EditedAssets)
+	{
+		if (UAnimSequence* Sequence = Cast<UAnimSequence>(EditedAsset))
+		{
+			const UPoseSearchSequenceMetaData* MetaData = Sequence->FindMetaDataByClass<UPoseSearchSequenceMetaData>();
+			DrawParams.SearchIndex = MetaData ? &MetaData->SearchIndex : nullptr;
+			if (DrawParams.SearchIndex)
+			{
+				IAssetEditorInstance* EditorInstance = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(Sequence, true /*bFocusIfOpen*/);
+				if (EditorInstance && EditorInstance->GetEditorName() == TEXT("AnimationEditor"))
+				{
+					IAnimationEditor* Editor = static_cast<IAnimationEditor*>(EditorInstance);
+					TSharedRef<IPersonaToolkit> Toolkit = Editor->GetPersonaToolkit();
+					TSharedRef<IPersonaPreviewScene> Scene = Toolkit->GetPreviewScene();
+
+					DrawParams.World = Scene->GetWorld();
+					Draw(DrawParams);
+				}
+			}
+		}
+	}
+}
+
+
+//////////////////////////////////////////////////////////////////////////
+// FPoseSearchEditorModule
+
+class FEditorModule : public IPoseSearchEditorModuleInterface
+{
+public:
+	void StartupModule() override;
+	void ShutdownModule() override;
+
+private:
+	TArray<class IConsoleObject*> ConsoleCommands;
+};
+
+void FEditorModule::StartupModule()
+{
+	if (GIsEditor && !IsRunningCommandlet())
+	{
+		ConsoleCommands.Add(IConsoleManager::Get().RegisterConsoleCommand(
+			TEXT("a.PoseSearch.DrawSearchIndex"),
+			TEXT("Draw the search index for the selected asset"),
+			FConsoleCommandWithWorldDelegate::CreateStatic(&FEditorCommands::DrawSearchIndex),
+			ECVF_Default
+		));
+	}
+}
+
+void FEditorModule::ShutdownModule()
+{
+	for (IConsoleObject* ConsoleCmd : ConsoleCommands)
+	{
+		IConsoleManager::Get().UnregisterConsoleObject(ConsoleCmd);
+	}
+	ConsoleCommands.Empty();
+}
+
+}} // namespace UE::PoseSearch
+
+IMPLEMENT_MODULE(UE::PoseSearch::FEditorModule, PoseSearchEditor);

@@ -14,7 +14,7 @@ void FAnimNode_PoseSearchHistoryCollector::Initialize_AnyThread(const FAnimation
 
 	Super::Initialize_AnyThread(Context);
 
-	// @@ need to do this once based on descendant node's search schema, not every node init
+	// @@ need to do this once based on descendant node's (or input param?) search schema, not every node init
 	PoseHistory.Init(32, 1.0f);
 
 	FScopedAnimNodeTracker ScopedNodeTracker = Context.TrackAncestor(this);
@@ -44,6 +44,15 @@ void FAnimNode_PoseSearchHistoryCollector::Update_AnyThread(const FAnimationUpda
 	Source.Update(Context);
 
 	EvalDeltaTime += Context.GetDeltaTime();
+}
+
+TArrayView<const float> FAnimNode_PoseSearchHistoryCollector::BuildQuery(const UPoseSearchSchema* Schema)
+{
+	check(Schema);
+
+	Query.SetNumZeroed(Schema->Layout.NumFloats);
+	UE::PoseSearch::BuildQuery(Schema, &PoseHistory, Query);
+	return Query;
 }
 
 #undef LOCTEXT_NAMESPACE

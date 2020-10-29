@@ -9,7 +9,8 @@ public class PoseSearchEditor : ModuleRules
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 
 		PublicDependencyModuleNames.AddRange(
-			new string[] {
+			new string[]
+			{
 				"AnimGraph",
 				"AnimationCore",
 				"Core",
@@ -23,11 +24,9 @@ public class PoseSearchEditor : ModuleRules
 		);
 
 		PrivateDependencyModuleNames.AddRange(
-			new string[] {
-				"AssetTools",
+			new string[]
+			{
 				"BlueprintGraph",
-				"GraphEditor",
-				"SlateCore",
 			}
 		);
 	}

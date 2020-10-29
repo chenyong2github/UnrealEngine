@@ -914,6 +914,19 @@ public:
 	/** Get available Metadata within the animation asset
 	 */
 	const TArray<UAnimMetaData*>& GetMetaData() const { return MetaData; }
+	
+	/** Returns the first metadata of the specified class */
+	UAnimMetaData* FindMetaDataByClass(const TSubclassOf<UAnimMetaData> MetaDataClass) const;
+
+	/** Templatized version of FindMetaDataByClass that handles casting for you */
+	template<class T>
+	T* FindMetaDataByClass() const
+	{
+		static_assert(TPointerIsConvertibleFromTo<T, const UAnimMetaData>::Value, "'T' template parameter to FindMetaDataByClass must be derived from UAnimMetaData");
+
+		return (T*)FindMetaDataByClass(T::StaticClass());
+	}
+	
 	void AddMetaData(UAnimMetaData* MetaDataInstance); 
 	void EmptyMetaData() { MetaData.Empty(); }	
 	void RemoveMetaData(UAnimMetaData* MetaDataInstance);

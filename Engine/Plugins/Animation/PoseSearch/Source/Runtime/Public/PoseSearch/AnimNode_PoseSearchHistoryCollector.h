@@ -25,12 +25,14 @@ public:
 	virtual void Update_AnyThread(const FAnimationUpdateContext& Context);
 	// End of FAnimNode_Base interface
 
-	const FPoseSearchPoseHistory& GetPoseHistory() const { return PoseHistory; }
-	void Init(int32 InNumPoses, float InTimeHorizon);
+	UE::PoseSearch::FPoseHistory& GetPoseHistory() { return PoseHistory; }
+	const UE::PoseSearch::FPoseHistory& GetPoseHistory() const { return PoseHistory; }
+	TArrayView<const float> BuildQuery(const UPoseSearchSchema* Schema);
+
 
 protected:
 
-	FPoseSearchPoseHistory PoseHistory;
+	UE::PoseSearch::FPoseHistory PoseHistory;
+	TArray<float> Query;
 	float EvalDeltaTime = 0.0f;
-
 };
