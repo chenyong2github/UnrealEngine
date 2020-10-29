@@ -37,13 +37,13 @@ float3 StrataForwardLighting(
 			{
 			case STRATA_BSDF_TYPE_DIFFUSE_ON:
 			case STRATA_BSDF_TYPE_DIFFUSE_CHAN:
-			{ N = BSDF.Diffuse.Normal; break; }
+			{ N = BSDF.Diffuse.Normal;				SanitizeStrataDiffuse(BSDF.Diffuse);		break; }
 			case STRATA_BSDF_TYPE_DIELECTRIC:
-			{ N = BSDF.Dielectric.Normal; break; }
+			{ N = BSDF.Dielectric.Normal;			SanitizeStrataDielectric(BSDF.Dielectric);	break; }
 			case STRATA_BSDF_TYPE_CONDUCTOR:
-			{ N = BSDF.Conductor.Normal; break; }
+			{ N = BSDF.Conductor.Normal;			SanitizeStrataConductor(BSDF.Conductor);	break; }
 			case STRATA_BSDF_TYPE_VOLUME:
-			{ N = BSDF.Volume.SmoothSurfaceNormal; break; }
+			{ N = BSDF.Volume.SmoothSurfaceNormal;	SanitizeStrataVolume(BSDF.Volume);		break; }
 			}
 			N = normalize(N);
 			float3 R = 2 * dot(V, N) * N - V;
