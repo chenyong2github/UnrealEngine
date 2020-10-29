@@ -263,58 +263,58 @@ FReply SCaptureRegionWidget::OnMouseMove( const FGeometry& MyGeometry, const FPo
 					// Check if we're over the corners
 					if ((ViewportPosition - FVector2D((float)CurrentCaptureRegion.Min.X, CurrentCaptureRegion.Min.Y)).Size() < EdgeDistance)
 					{
-						this->Cursor = EMouseCursor::ResizeSouthEast;
+						SetCursor(EMouseCursor::ResizeSouthEast);
 						PotentialInteraction = PI_ResizeTL;
 					}
 					else if ((ViewportPosition - FVector2D((float)CurrentCaptureRegion.Min.X, CurrentCaptureRegion.Max.Y)).Size() < EdgeDistance)
 					{
-						this->Cursor = EMouseCursor::ResizeSouthWest;
+						SetCursor(EMouseCursor::ResizeSouthWest);
 						PotentialInteraction = PI_ResizeBL;
 					}
 					else if ((ViewportPosition - FVector2D((float)CurrentCaptureRegion.Max.X, CurrentCaptureRegion.Min.Y)).Size() < EdgeDistance)
 					{
-						this->Cursor = EMouseCursor::ResizeSouthWest;
+						SetCursor(EMouseCursor::ResizeSouthWest);
 						PotentialInteraction = PI_ResizeTR;
 					}
 					else if ((ViewportPosition - FVector2D((float)CurrentCaptureRegion.Max.X, CurrentCaptureRegion.Max.Y)).Size() < EdgeDistance)
 					{
-						this->Cursor = EMouseCursor::ResizeSouthEast;
+						SetCursor(EMouseCursor::ResizeSouthEast);
 						PotentialInteraction = PI_ResizeBR;
 					}
 					else if (FMath::Abs((float)CurrentCaptureRegion.Min.X - ViewportPosition.X) < EdgeDistance && bWithinYRangeOfExistingRegion)
 					{
-						this->Cursor = EMouseCursor::ResizeLeftRight;
+						SetCursor(EMouseCursor::ResizeLeftRight);
 						PotentialInteraction = PI_ResizeLeft;
 					}
 					else if (FMath::Abs((float)CurrentCaptureRegion.Max.X - ViewportPosition.X) < EdgeDistance && bWithinYRangeOfExistingRegion)
 					{
-						this->Cursor = EMouseCursor::ResizeLeftRight;
+						SetCursor(EMouseCursor::ResizeLeftRight);
 						PotentialInteraction = PI_ResizeRight;
 					}
 					else if (FMath::Abs((float)CurrentCaptureRegion.Min.Y - ViewportPosition.Y) < EdgeDistance && bWithinXRangeOfExistingRegion)
 					{
-						this->Cursor = EMouseCursor::ResizeUpDown;
+						SetCursor(EMouseCursor::ResizeUpDown);
 						PotentialInteraction = PI_ResizeTop;
 					}
 					else if (FMath::Abs((float)CurrentCaptureRegion.Max.Y - ViewportPosition.Y) < EdgeDistance && bWithinXRangeOfExistingRegion)
 					{
-						this->Cursor = EMouseCursor::ResizeUpDown;
+						SetCursor(EMouseCursor::ResizeUpDown);
 						PotentialInteraction = PI_ResizeBottom;
 					}
 					else if (CurrentCaptureRegion.Contains(FIntPoint((int32)ViewportPosition.X, (int32)ViewportPosition.Y)))
 					{
-						this->Cursor = EMouseCursor::CardinalCross;
+						SetCursor(EMouseCursor::CardinalCross);
 						PotentialInteraction = PI_MoveExistingRegion;
 					}
 					else
 					{
-						this->Cursor = EMouseCursor::Crosshairs;
+						SetCursor(EMouseCursor::Crosshairs);
 						PotentialInteraction = PI_DrawNewCaptureRegion;
 					}
 				}
 				else
 				{
-					this->Cursor = EMouseCursor::Crosshairs;
+					SetCursor(EMouseCursor::Crosshairs);
 					PotentialInteraction = PI_DrawNewCaptureRegion;
 				}
 
