@@ -58,6 +58,10 @@ public:
 	UPROPERTY()
 	class UNiagaraSystem* CosseratRodsSystem;
 
+	/** Optional socket name, where the groom component should be attached at, when parented with a skeletal mesh */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, interp, Category = "Groom")
+	FString AttachmentName;
+
 	/** Boolean to check when the simulation should be reset */
 	bool bResetSimulation;
 
