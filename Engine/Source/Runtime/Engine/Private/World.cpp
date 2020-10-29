@@ -1892,6 +1892,8 @@ void UWorld::RemoveActor(AActor* Actor, bool bShouldModifyLevel) const
 		}
 		
 		CheckLevel->Actors[ActorListIndex] = nullptr;
+
+		CheckLevel->ActorsForGC.RemoveSwap(Actor);
 	}
 
 	// Remove actor from network list
