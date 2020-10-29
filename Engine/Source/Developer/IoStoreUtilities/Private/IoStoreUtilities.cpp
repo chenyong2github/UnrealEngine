@@ -46,6 +46,7 @@
 #include "Misc/OutputDeviceFile.h"
 #include "Misc/FeedbackContext.h"
 #include "Serialization/LargeMemoryReader.h"
+#include "Misc/StringBuilder.h"
 
 //PRAGMA_DISABLE_OPTIMIZATION
 
