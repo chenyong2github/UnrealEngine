@@ -1662,13 +1662,19 @@ void FDatasmithSceneXmlWriterImpl::WriteTextureElement(const TSharedPtr< IDatasm
 {
 	WriteIndent(Archive, Indent);
 
-	FString XmlString = TEXT("<Texture name=\"") + SanitizeXMLText( FDatasmithUtils::SanitizeFileName( TextureElement->GetName()) )
-		+ FString::Printf( TEXT("\" texturemode=\"%i"), (int)TextureElement->GetTextureMode() )
+	FString XmlString = TEXT("<Texture name=\"") + SanitizeXMLText( FDatasmithUtils::SanitizeFileName( TextureElement->GetName() ) );
+
+	if ( !FString( TextureElement->GetLabel() ).IsEmpty() )
+	{
+		XmlString += TEXT("\" label=\"") + SanitizeXMLText( TextureElement->GetLabel() );
+	}
+
+	XmlString += FString::Printf( TEXT("\" texturemode=\"%i"), (int)TextureElement->GetTextureMode() )
 		+ FString::Printf( TEXT("\" texturefilter=\"%i"), (int)TextureElement->GetTextureFilter() )
 		+ FString::Printf( TEXT("\" textureaddressx=\"%i"), (int)TextureElement->GetTextureAddressX() )
 		+ FString::Printf( TEXT("\" textureaddressy=\"%i"), (int)TextureElement->GetTextureAddressY() )
-		+ FString::Printf(TEXT("\" rgbcurve=\"%f"), TextureElement->GetRGBCurve())
-		+ FString::Printf(TEXT("\" srgb=\"%i"), (int)TextureElement->GetSRGB())
+		+ FString::Printf( TEXT("\" rgbcurve=\"%f"), TextureElement->GetRGBCurve() )
+		+ FString::Printf( TEXT("\" srgb=\"%i"), (int)TextureElement->GetSRGB() )
 		+ TEXT("\" file=\"") + FString( TextureElement->GetFile() ) + TEXT("\">") + LINE_TERMINATOR;
 
 	SerializeToArchive( Archive, XmlString );
