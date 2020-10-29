@@ -635,7 +635,8 @@ public:
 		check(RefCount > 0);
 		--RefCount;
 
-		ensureMsgf(bAreAllPublicExportsLoaded || bIsMissing || bHasFailed,
+#if DO_CHECK
+		ensureMsgf(!bHasBeenLoadedDebug || bAreAllPublicExportsLoaded || bIsMissing || bHasFailed,
 			TEXT("LoadedPackageRef from None (0x%llX) to %s (0x%llX) should not have been released when the package is not complete.")
 			TEXT("RefCount=%d, AreAllExportsLoaded=%d, IsMissing=%d, HasFailed=%d, HasBeenLoaded=%d"),
 			FromPackageId.Value(),
@@ -647,7 +648,6 @@ public:
 			bHasFailed,
 			bHasBeenLoadedDebug);
 
-#if DO_CHECK
 		if (bAreAllPublicExportsLoaded)
 		{
 			check(!bIsMissing);
