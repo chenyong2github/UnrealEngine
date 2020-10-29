@@ -464,14 +464,14 @@ bool UNiagaraDataInterfaceExport::GetFunctionHLSL(const FNiagaraDataInterfaceGPU
 
 	if (FunctionInfo.DefinitionName == NDIExportLocal::StoreDataName_DEPRECATED)
 	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (in bool bStoreData, in float3 Position, in float Size, in float3 Velocity, out bool bSuccess) { {NDIGetContextName} NDIExport_StoreData(DIContext, bStoreData, Position, Size, Velocity, bSuccess); }\n");
+		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (in bool bStoreData, in float3 Position, in float Size, in float3 Velocity, out bool bSuccess) { {NDIGetContextName} NDIExport_StoreData(DIContext_WriteBufferSize, DIContext_WriteBuffer, bStoreData, Position, Size, Velocity, bSuccess); }\n");
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 		return true;
 	}
 
 	if (FunctionInfo.DefinitionName == NDIExportLocal::ExportDataName)
 	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (in bool bStoreData, in float3 Position, in float Size, in float3 Velocity, out bool bWasExported) { {NDIGetContextName} NDIExport_StoreData(DIContext, bStoreData, Position, Size, Velocity, bWasExported); }\n");
+		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (in bool bStoreData, in float3 Position, in float Size, in float3 Velocity, out bool bWasExported) { {NDIGetContextName} NDIExport_StoreData(DIContext_WriteBufferSize, DIContext_WriteBuffer, bStoreData, Position, Size, Velocity, bWasExported); }\n");
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 		return true;
 	}
