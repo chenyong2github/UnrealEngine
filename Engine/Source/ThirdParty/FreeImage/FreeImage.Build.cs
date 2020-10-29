@@ -36,7 +36,11 @@ public class FreeImage : ModuleRules
 			PublicDelayLoadDLLs.Add(LibraryFileName);
 			RuntimeDependencies.Add(DynLibPath);
 
-			PublicSystemLibraries.Add("stdc++");
+			if (Target.LinkType != TargetLinkType.Monolithic)
+			{
+				PublicSystemLibraries.Add("stdc++");
+			}
+
 			bWithFreeImage = true;
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
