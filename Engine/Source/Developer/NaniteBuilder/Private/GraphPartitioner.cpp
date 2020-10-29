@@ -287,12 +287,15 @@ void FGraphPartitioner::PartitionStrict( FGraphData* Graph, int32 InMinPartition
 
 	if( bThreaded && NumPartitionsExpected > 4 )
 	{
+		const ENamedThreads::Type DesiredThread = IsInGameThread() ? ENamedThreads::AnyThread : ENamedThreads::AnyBackgroundThreadNormalTask;
+
 		class FBuildTask
 		{
 		public:
-			FBuildTask( FGraphPartitioner* InPartitioner, FGraphData* InGraph )
+			FBuildTask( FGraphPartitioner* InPartitioner, FGraphData* InGraph, ENamedThreads::Type InDesiredThread)
 				: Partitioner( InPartitioner )
 				, Graph( InGraph )
+				, DesiredThread( InDesiredThread )
 			{}
 
 			void DoTask( ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionEvent )
@@ -305,15 +308,15 @@ void FGraphPartitioner::PartitionStrict( FGraphData* Graph, int32 InMinPartition
 				{
 					if( ChildGraphs[0]->Num > 256 )
 					{
-						FGraphEventRef Task = TGraphTask< FBuildTask >::CreateTask().ConstructAndDispatchWhenReady( Partitioner, ChildGraphs[0] );
+						FGraphEventRef Task = TGraphTask< FBuildTask >::CreateTask().ConstructAndDispatchWhenReady( Partitioner, ChildGraphs[0], DesiredThread);
 						MyCompletionEvent->DontCompleteUntil( Task );
 					}
 					else
 					{
-						FBuildTask( Partitioner, ChildGraphs[0] ).DoTask( CurrentThread, MyCompletionEvent );
+						FBuildTask( Partitioner, ChildGraphs[0], DesiredThread).DoTask( CurrentThread, MyCompletionEvent );
 					}
 			
-					FBuildTask( Partitioner, ChildGraphs[1] ).DoTask( CurrentThread, MyCompletionEvent );
+					FBuildTask( Partitioner, ChildGraphs[1], DesiredThread).DoTask( CurrentThread, MyCompletionEvent );
 				}
 			}
 
@@ -326,16 +329,17 @@ void FGraphPartitioner::PartitionStrict( FGraphData* Graph, int32 InMinPartition
 
 			FORCEINLINE ENamedThreads::Type GetDesiredThread() const
 			{
-				return ENamedThreads::AnyThread;
+				return DesiredThread;
 			}
 
 		private:
-			FGraphPartitioner*	Partitioner;
-			FGraphData*							Graph;
+			FGraphPartitioner*  Partitioner;
+			FGraphData*         Graph;
+			ENamedThreads::Type DesiredThread;
 		};
 
-		FGraphEventRef BuildTask = TGraphTask< FBuildTask >::CreateTask( nullptr, ENamedThreads::GameThread ).ConstructAndDispatchWhenReady( this, Graph );
-		FTaskGraphInterface::Get().WaitUntilTaskCompletes( BuildTask, ENamedThreads::GameThread );
+		FGraphEventRef BuildTask = TGraphTask< FBuildTask >::CreateTask( nullptr ).ConstructAndDispatchWhenReady( this, Graph, DesiredThread);
+		FTaskGraphInterface::Get().WaitUntilTaskCompletes( BuildTask );
 	}
 	else
 	{

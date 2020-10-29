@@ -234,7 +234,7 @@ static void ClusterTriangles(
 			uint32 Hash = Murmur32( { Hash0, Hash1 } );
 
 			EdgeHash.Add_Concurrent( Hash, EdgeIndex );
-		} );
+		}, IsInGameThread() ? EParallelForFlags::None : EParallelForFlags::BackgroundPriority);
 
 	const int32 NumDwords = FMath::DivideAndRoundUp( BoundaryEdges.Num(), NumBitsPerDWORD );
 
@@ -295,7 +295,7 @@ static void ClusterTriangles(
 			{
 				BoundaryEdges.GetData()[ DwordIndex ] = Dword;
 			}
-		} );
+		}, IsInGameThread() ? EParallelForFlags::None : EParallelForFlags::BackgroundPriority);
 
 	FDisjointSet DisjointSet( NumTriangles );
 
@@ -380,6 +380,9 @@ static void ClusterTriangles(
 
 	Clusters.AddDefaulted( Partitioner.Ranges.Num() );
 
+	const bool bSingleThreaded = Partitioner.Ranges.Num() > 32;
+	const EParallelForFlags ThreadingFlags = bSingleThreaded ? EParallelForFlags::ForceSingleThread : EParallelForFlags::None;
+	const EParallelForFlags PriorityFlags = IsInGameThread() ? EParallelForFlags::None : EParallelForFlags::BackgroundPriority;
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("Nanite::Build::BuildClusters"));
 		ParallelFor( Partitioner.Ranges.Num(),
@@ -391,8 +394,7 @@ static void ClusterTriangles(
 
 				// Negative notes it's a leaf
 				Clusters[ Index ].EdgeLength *= -1.0f;
-			},
-			Partitioner.Ranges.Num() > 32 );
+			}, ThreadingFlags | PriorityFlags);
 	}
 
 	uint32 LeavesTime = FPlatformTime::Cycles();
@@ -430,6 +432,21 @@ static bool BuildNaniteData(
 
 	TArray< FCluster > Clusters;
 	ClusterTriangles( Verts, Indexes, MaterialIndexes, Clusters, MeshBounds, NumTexCoords, bHasColors );
+	
+	const int32 OldTriangleCount = Indexes.Num() / 3;
+	const int32 MinTriCount = 8000; // Temporary fix: make sure that resulting mesh is detailed enough for SDF and bounds computation
+	// Replace original static mesh data with coarse representation.
+	const bool bUseCoarseRepresentation = Settings.PercentTriangles < 1.0f && OldTriangleCount > MinTriCount;
+
+	// If we're going to replace the original vertex buffer with a coarse representation, get rid of the old copies
+	// now that we copied it into the cluster representation. We do it before the longer DAG reduce phase to shorten peak memory duration.
+	// This is especially important when building multiple huge Nanite meshes in parallel.
+	if (bUseCoarseRepresentation)
+	{
+		Verts.Empty();
+		Indexes.Empty();
+		MaterialIndexes.Empty();
+	}
 
 	uint32 Time0 = FPlatformTime::Cycles();
 
@@ -443,13 +460,8 @@ static bool BuildNaniteData(
 	uint32 ReduceTime = FPlatformTime::Cycles();
 	UE_LOG(LogStaticMesh, Log, TEXT("Reduce [%.2fs]"), FPlatformTime::ToMilliseconds(ReduceTime - Time0) / 1000.0f);
 
-	const int32 MinTriCount = 8000; // Temporary fix: make sure that resulting mesh is detailed enough for SDF and bounds computation
-
-	// Replace original static mesh data with coarse representation.
-	const bool bUseCoarseRepresentation = Settings.PercentTriangles < 1.0f && Indexes.Num() / 3 > MinTriCount;
 	if (bUseCoarseRepresentation)
 	{
-		const int32 OldTriangleCount = Indexes.Num() / 3;
 		const uint32 CoarseStartTime = FPlatformTime::Cycles();
 		int32 CoarseTriCount = FMath::Max(MinTriCount, int32((float(OldTriangleCount) * Settings.PercentTriangles)));
 

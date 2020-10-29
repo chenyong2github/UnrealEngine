@@ -71,7 +71,7 @@ void FClusterDAG::Reduce( const FMeshNaniteSettings& Settings )
 					ExternalEdges[ ExternalEdgeIndex ] = { ClusterIndex, EdgeIndex };
 					ExternalEdgeHash.Add_Concurrent( Hash, ExternalEdgeIndex );
 				}
-			} );
+			}, IsInGameThread() ? EParallelForFlags::None : EParallelForFlags::BackgroundPriority );
 
 		check( ExternalEdgeOffset == ExternalEdges.Num() );
 
@@ -128,7 +128,7 @@ void FClusterDAG::Reduce( const FMeshNaniteSettings& Settings )
 					{
 						return LevelClusters[A].GUID < LevelClusters[B].GUID;
 					} );
-			} );
+			}, IsInGameThread() ? EParallelForFlags::None : EParallelForFlags::BackgroundPriority);
 
 		FDisjointSet DisjointSet( LevelClusters.Num() );
 
@@ -230,7 +230,7 @@ void FClusterDAG::Reduce( const FMeshNaniteSettings& Settings )
 				uint32 ClusterGroupIndex = PartitionIndex + ClusterGroups.Num() - Partitioner.Ranges.Num();
 
 				Reduce( Children, ClusterGroupIndex );
-			} );
+			}, IsInGameThread() ? EParallelForFlags::None : EParallelForFlags::BackgroundPriority);
 
 		// Correct num to atomic count
 		Clusters.SetNum( NumClusters, false );
