@@ -5,6 +5,7 @@
 #include "HAL/PlatformStackWalk.h"
 #include "HAL/PlatformOutputDevices.h"
 #include "HAL/LowLevelMemTracker.h"
+#include "HAL/MallocFrameProfiler.h"
 #include "Misc/MessageDialog.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Misc/QueuedThreadPool.h"
@@ -1594,6 +1595,15 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 	if (FParse::Param(FCommandLine::Get(), TEXT("emitdrawevents")))
 	{
 		SetEmitDrawEvents(true);
+	}
+
+	// Activates malloc frame profiler from the command line 
+	// Recommend enabling bGenerateSymbols to ensure callstacks can resolve and bRetainFramePointers to ensure frame pointers remain valid.
+	// Also disabling the hitch detector ALLOW_HITCH_DETECTION=0 helps ensure quicker more accurate runs.
+	if (FParse::Param(FCommandLine::Get(), TEXT("mallocframeprofiler")))
+	{
+		GMallocFrameProfilerEnabled = true;
+		GMalloc = FMallocFrameProfiler::OverrideIfEnabled(GMalloc);
 	}
 #endif // !UE_BUILD_SHIPPING
 
