@@ -6,6 +6,7 @@
 #include "PluginDescriptor.h"
 
 struct FProjectDescriptor;
+class FJsonObject;
 
 /**
  * Enum for where a plugin is loaded from
@@ -169,6 +170,15 @@ public:
 	 * @return True if the descriptor was updated, false otherwise. 
 	 */ 
 	virtual bool UpdateDescriptor(const FPluginDescriptor& NewDescriptor, FText& OutFailReason) = 0;
+
+#if WITH_EDITOR
+	/**
+	 * Gets the cached plugin descriptor json
+	 *
+	 * @return Reference to the cached plugin descriptor json
+	 */
+	virtual const TSharedPtr<FJsonObject>& GetDescriptorJson() = 0;
+#endif // WITH_EDITOR
 };
 
 /**

@@ -78,6 +78,10 @@ FPluginDescriptor::FPluginDescriptor()
 
 bool FPluginDescriptor::Load(const FString& FileName, FText& OutFailReason)
 {
+#if WITH_EDITOR
+	CachedJson.Reset();
+#endif // WITH_EDITOR
+
 	FString Text;
 	if (PluginDescriptor::ReadFile(FileName, Text, OutFailReason))
 	{
@@ -89,12 +93,22 @@ bool FPluginDescriptor::Load(const FString& FileName, FText& OutFailReason)
 
 bool FPluginDescriptor::Read(const FString& Text, FText& OutFailReason)
 {
+#if WITH_EDITOR
+	CachedJson.Reset();
+#endif // WITH_EDITOR
+
 	// Deserialize a JSON object from the string
 	TSharedPtr<FJsonObject> JsonObject = PluginDescriptor::DeserializeJson(Text, OutFailReason);
 	if (JsonObject.IsValid())
 	{
 		// Parse it as a plug-in descriptor
-		return Read(*JsonObject.Get(), OutFailReason);
+		if (Read(*JsonObject.Get(), OutFailReason))
+		{
+#if WITH_EDITOR
+			CachedJson = JsonObject;
+#endif // WITH_EDITOR
+			return true;
+		}
 	}
 	return false;
 }

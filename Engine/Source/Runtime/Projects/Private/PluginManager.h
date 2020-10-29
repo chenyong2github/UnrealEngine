@@ -7,6 +7,7 @@
 #include "Interfaces/IPluginManager.h"
 
 struct FProjectDescriptor;
+class FJsonObject;
 
 /**
  * Instance of a plugin in memory
@@ -84,6 +85,9 @@ public:
 	virtual EPluginLoadedFrom GetLoadedFrom() const override;
 	virtual const FPluginDescriptor& GetDescriptor() const override;
 	virtual bool UpdateDescriptor(const FPluginDescriptor& NewDescriptor, FText& OutFailReason) override;
+#if WITH_EDITOR
+	virtual const TSharedPtr<FJsonObject>& GetDescriptorJson() override;
+#endif // WITH_EDITOR
 };
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
