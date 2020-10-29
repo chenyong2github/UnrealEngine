@@ -776,6 +776,7 @@ void FOpenXRHMD::GetMotionControllerData(UObject* WorldContext, const EControlle
 	MotionControllerData.ApplicationInstanceID = FApp::GetInstanceId();
 	MotionControllerData.DeviceVisualType = EXRVisualType::Controller;
 	MotionControllerData.TrackingStatus = ETrackingStatus::NotTracked;
+	MotionControllerData.HandIndex = Hand;
 
 	FName HandTrackerName("OpenXRHandTracking");
 	TArray<IHandTracker*> HandTrackers = IModularFeatures::Get().GetModularFeatureImplementations<IHandTracker>(IHandTracker::GetModularFeatureName());
