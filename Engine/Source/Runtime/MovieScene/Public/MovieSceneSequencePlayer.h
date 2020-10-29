@@ -7,6 +7,7 @@
 #include "UObject/ScriptMacros.h"
 #include "IMovieScenePlayer.h"
 #include "MovieScene.h"
+#include "MovieSceneSequenceTickManager.h"
 #include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
 #include "IMovieScenePlaybackClient.h"
 #include "Misc/QualifiedFrameTime.h"
@@ -515,7 +516,7 @@ protected:
 	FFrameTime GetLastValidTime() const;
 
 	bool NeedsQueueLatentAction() const;
-	void QueueLatentAction(FMovieSceneSequenceLatentActionDelegate Delegate) const;
+	void QueueLatentAction(FMovieSceneSequenceLatentActionDelegate Delegate);
 	void RunLatentActions();
 
 protected:
@@ -649,6 +650,9 @@ protected:
 	/** Global tick manager, held here to keep it alive while world sequences are in play */
 	UPROPERTY(transient)
 	UMovieSceneSequenceTickManager* TickManager;
+
+	/** Local latent action manager for when we're running a blocking sequence */
+	FMovieSceneLatentActionManager LatentActionManager;
 
 	/** (Optional) Externally supplied time controller */
 	TSharedPtr<FMovieSceneTimeController> TimeController;
