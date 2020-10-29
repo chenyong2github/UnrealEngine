@@ -42,8 +42,8 @@ namespace ChaosTest
 			EXPECT_EQ(FaceVertices[FaceIndex].Num(), 4);
 			for (int32 VertexIndex0 = 0; VertexIndex0 < FaceVertices[FaceIndex].Num(); ++VertexIndex0)
 			{
-				int32 VertexIndex1 = FMath::Wrap(VertexIndex0 + 1, 0, FaceVertices[FaceIndex].Num() - 1);
-				int32 VertexIndex2 = FMath::Wrap(VertexIndex0 + 2, 0, FaceVertices[FaceIndex].Num() - 1);
+				int32 VertexIndex1 = Chaos::Utilities::WrapIndex(VertexIndex0 + 1, 0, FaceVertices[FaceIndex].Num());
+				int32 VertexIndex2 = Chaos::Utilities::WrapIndex(VertexIndex0 + 2, 0, FaceVertices[FaceIndex].Num());
 				const FVec3 Vertex0 = SurfaceParticles.X(FaceVertices[FaceIndex][VertexIndex0]);
 				const FVec3 Vertex1 = SurfaceParticles.X(FaceVertices[FaceIndex][VertexIndex1]);
 				const FVec3 Vertex2 = SurfaceParticles.X(FaceVertices[FaceIndex][VertexIndex2]);
@@ -63,7 +63,7 @@ namespace ChaosTest
 		}
 	}
 
-	GTEST_TEST(ConvexBuilderTests, TestBoxFaceMerge)
+	GTEST_TEST(ConvexBuilderTests, TestBoxFaceMergeSimple)
 	{
 		const FVec3 Vertices[] =
 		{
@@ -80,4 +80,84 @@ namespace ChaosTest
 		TestConvexBuilder_Box_FaceMerge(Vertices, UE_ARRAY_COUNT(Vertices));
 	}
 
+
+	void TestConvex_StructrureData(const FVec3* Vertices, const int32 NumVertices)
+	{
+		TParticles<FReal, 3> Particles;
+		Particles.AddParticles(NumVertices);
+		for (int32 ParticleIndex = 0; ParticleIndex < NumVertices; ++ParticleIndex)
+		{
+			Particles.X(ParticleIndex) = Vertices[ParticleIndex];
+		}
+
+		FConvex Convex(Particles, 0.0f);
+
+		// Check all per-plane data
+		for (int32 PlaneIndex = 0; PlaneIndex < Convex.GetFaces().Num(); ++PlaneIndex)
+		{
+			// All vertices should be on the plane
+			for (int32 PlaneVertexIndex = 0; PlaneVertexIndex < (int32)Convex.GetPlaneVertices(PlaneIndex).Num(); ++PlaneVertexIndex)
+			{
+				const int32 VertexIndex = Convex.GetPlaneVertices(PlaneIndex)[PlaneVertexIndex];
+				const FReal VertexDistance = FVec3::DotProduct(Convex.GetPlane(PlaneIndex).Normal(), Convex.GetVertex(VertexIndex) - Convex.GetPlane(PlaneIndex).X());
+				EXPECT_NEAR(VertexDistance, 0.0f, 1.e-3f);
+			}
+		}
+
+		// Check all per-vertex data
+		for (int32 VertexIndex = 0; VertexIndex < (int32)Convex.GetSurfaceParticles().Size(); ++VertexIndex)
+		{
+			// All planes should pass through the vertex
+			for (int32 VertexPlaneIndex = 0; VertexPlaneIndex < Convex.GetVertexPlanes(VertexIndex).Num(); ++VertexPlaneIndex)
+			{
+				const int32 PlaneIndex = Convex.GetVertexPlanes(VertexIndex)[VertexPlaneIndex];
+				const FReal VertexDistance = FVec3::DotProduct(Convex.GetPlane(PlaneIndex).Normal(), Convex.GetVertex(VertexIndex) - Convex.GetPlane(PlaneIndex).X());
+				EXPECT_NEAR(VertexDistance, 0.0f, 1.e-3f);
+			}
+		}
+	}
+
+	GTEST_TEST(ConvexTests, TestBoxStructureData)
+	{
+		const FVec3 Vertices[] =
+		{
+			FVec3(-50,		-50,	-50),
+			FVec3(-50,		-50,	50),
+			FVec3(-50,		50,		-50),
+			FVec3(-50,		50,		50),
+			FVec3(50,		-50,	-50),
+			FVec3(50,		-50,	50),
+			FVec3(50,		50,		-50),
+			FVec3(50,		50,		50),
+		};
+
+		TestConvex_StructrureData(Vertices, UE_ARRAY_COUNT(Vertices));
+	}
+
+	GTEST_TEST(ConvexTests, TestBoxStructureData2)
+	{
+		const FVec3 Vertices[] =
+		{
+			FVec3(0, 0, 12.0f),
+			FVec3(-0.707f, -0.707f, 10.0f),
+			FVec3(0, -1, 10.0f),
+			FVec3(0.707f, -0.707f, 10.0f),
+			FVec3(1, 0, 10.0f),
+			FVec3(0.707f, 0.707f, 10.0f),
+			FVec3(0.0f, 1.0f, 10.0f),
+			FVec3(-0.707f, 0.707f, 10.0f),
+			FVec3(-1.0f, 0.0f, 10.0f),
+			FVec3(-0.707f, -0.707f, 0.0f),
+			FVec3(0, -1, 0.0f),
+			FVec3(0.707f, -0.707f, 0.0f),
+			FVec3(1, 0, 0.0f),
+			FVec3(0.707f, 0.707f, 0.0f),
+			FVec3(0.0f, 1.0f, 0.0f),
+			FVec3(-0.707f, 0.707f, 0.0f),
+			FVec3(-1.0f, 0.0f, 0.0f),
+			FVec3(0, 0, -2.0f),
+		};
+
+		TestConvex_StructrureData(Vertices, UE_ARRAY_COUNT(Vertices));
+	}
 }

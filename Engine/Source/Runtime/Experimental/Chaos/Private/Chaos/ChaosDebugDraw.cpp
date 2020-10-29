@@ -234,18 +234,36 @@ namespace Chaos
 			{
 				if (const FConvex* Convex = Shape->template GetObject<FConvex>())
 				{
-					// TODO: This is horrendously slow. Figure out a way to cache
-					// the generated trimeshes on the debug draw queue instance.
-					const TParticles<FReal, 3>& Particles = Convex->GetSurfaceParticles();
-					TTriangleMesh<FReal> Triangles = TTriangleMesh<FReal>::GetConvexHullFromParticles(Particles);
-					for (const TVector<int32, 3>& Elem : Triangles.GetElements())
+					if (Convex->HasStructureData())
 					{
-						const FVec3 P0 = ShapeTransform.TransformPosition(Particles.X(Elem[0]));
-						const FVec3 P1 = ShapeTransform.TransformPosition(Particles.X(Elem[1]));
-						const FVec3 P2 = ShapeTransform.TransformPosition(Particles.X(Elem[2]));
-						FDebugDrawQueue::GetInstance().DrawDebugLine(P0, P1, Color, false, -1.f, 0, Settings.ShapeThicknesScale * Settings.LineThickness);
-						FDebugDrawQueue::GetInstance().DrawDebugLine(P1, P2, Color, false, -1.f, 0, Settings.ShapeThicknesScale * Settings.LineThickness);
-						FDebugDrawQueue::GetInstance().DrawDebugLine(P2, P0, Color, false, -1.f, 0, Settings.ShapeThicknesScale * Settings.LineThickness);
+						for (int32 PlaneIndex = 0; PlaneIndex < Convex->GetFaces().Num(); ++PlaneIndex)
+						{
+							TArrayView<const int32> VertexIndices = Convex->GetPlaneVertices(PlaneIndex);
+							for (int32 PlaneVertexIndex = 0; PlaneVertexIndex < VertexIndices.Num(); ++PlaneVertexIndex)
+							{
+								const int32 VertexIndex0 = VertexIndices[PlaneVertexIndex];
+								const int32 VertexIndex1 = VertexIndices[Utilities::WrapIndex(PlaneVertexIndex + 1, 0, VertexIndices.Num())];
+								const FVec3 P0 = ShapeTransform.TransformPosition(Convex->GetVertex(VertexIndex0));
+								const FVec3 P1 = ShapeTransform.TransformPosition(Convex->GetVertex(VertexIndex1));
+								FDebugDrawQueue::GetInstance().DrawDebugLine(P0, P1, Color, false, -1.f, 0, Settings.ShapeThicknesScale * Settings.LineThickness);
+							}
+						}
+					}
+					else
+					{
+						// TODO: This is horrendously slow. Figure out a way to cache
+						// the generated trimeshes on the debug draw queue instance.
+						const TParticles<FReal, 3>& Particles = Convex->GetSurfaceParticles();
+						TTriangleMesh<FReal> Triangles = TTriangleMesh<FReal>::GetConvexHullFromParticles(Particles);
+						for (const TVector<int32, 3>& Elem : Triangles.GetElements())
+						{
+							const FVec3 P0 = ShapeTransform.TransformPosition(Particles.X(Elem[0]));
+							const FVec3 P1 = ShapeTransform.TransformPosition(Particles.X(Elem[1]));
+							const FVec3 P2 = ShapeTransform.TransformPosition(Particles.X(Elem[2]));
+							FDebugDrawQueue::GetInstance().DrawDebugLine(P0, P1, Color, false, -1.f, 0, Settings.ShapeThicknesScale * Settings.LineThickness);
+							FDebugDrawQueue::GetInstance().DrawDebugLine(P1, P2, Color, false, -1.f, 0, Settings.ShapeThicknesScale * Settings.LineThickness);
+							FDebugDrawQueue::GetInstance().DrawDebugLine(P2, P0, Color, false, -1.f, 0, Settings.ShapeThicknesScale * Settings.LineThickness);
+						}
 					}
 				}
 				break;

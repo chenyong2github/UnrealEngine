@@ -467,5 +467,21 @@ namespace Chaos
 			return ScaledInertia;
 		}
 
+		// Replacement for FMath::Wrap that works for integers and returns a value in [Begin, End).
+		// Note: this implementation uses a loop to bring the value into range - it should not be used if the value is much larger than the range.
+		inline int32 WrapIndex(int32 V, int32 Begin, int32 End)
+		{
+			int32 Range = End - Begin;
+			while (V < Begin)
+			{
+				V += Range;
+			}
+			while (V >= End)
+			{
+				V -= Range;
+			}
+			return V;
+		}
+
 	} // namespace Utilities
 } // namespace Chaos
