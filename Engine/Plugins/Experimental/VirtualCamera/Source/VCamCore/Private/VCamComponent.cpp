@@ -813,12 +813,16 @@ void UVCamComponent::UpdateActorLock()
 				{
 					Backup_ActorLock = LevelViewportClient->GetActiveActorLock();
 					LevelViewportClient->SetActorLock(GetTargetCamera()->GetOwner());
+					// If bLockedCameraView is not true then the viewport is locked to the actor's transform and not the camera component
+					LevelViewportClient->bLockedCameraView = true;
 					bIsLockedToViewport = true;
 				}
 				else if (Backup_ActorLock.IsValid())
 				{
 					LevelViewportClient->SetActorLock(Backup_ActorLock.Get());
 					Backup_ActorLock = nullptr;
+					// If bLockedCameraView is not true then the viewport is locked to the actor's transform and not the camera component
+					LevelViewportClient->bLockedCameraView = true;
 					bIsLockedToViewport = false;
 				}
 				else
