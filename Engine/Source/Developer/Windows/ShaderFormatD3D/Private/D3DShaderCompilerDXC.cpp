@@ -860,6 +860,8 @@ bool CompileAndProcessD3DShaderDXC(FString& PreprocessedShaderSource,
 
 				// We only need this to appear when using a DXC shader
 				ShaderCode.AddOptionalData<FShaderCodeFeatures>(CodeFeatures);
+				uint8 IsSM6 = 1;
+				ShaderCode.AddOptionalData('6', &IsSM6, 1);
 			};
 
 			//#todo-rco: Should compress ShaderCode?
