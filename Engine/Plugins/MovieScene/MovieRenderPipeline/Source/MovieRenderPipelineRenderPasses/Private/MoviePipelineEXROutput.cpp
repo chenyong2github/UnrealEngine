@@ -18,7 +18,7 @@
 #include "Modules/ModuleManager.h"
 
 THIRD_PARTY_INCLUDES_START
-#include "OpenEXR/include/ImfChannelList.h"
+#include "OpenEXR/ImfChannelList.h"
 THIRD_PARTY_INCLUDES_END
 
 #if WITH_UNREALEXR

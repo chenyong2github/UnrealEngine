@@ -34,8 +34,7 @@
 
 #include "version.h"
 #include "Platform.h"
-#include <OpenEXR/include/half.h>
-//#include <OpenEXR/half.h>
+#include <OpenEXR/half.h>
 
 #include <openvdb/math/Math.h>
 #include <openvdb/math/BBox.h>

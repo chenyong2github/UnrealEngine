@@ -8,7 +8,7 @@
 #include "DatasmithFacadeScene.h"
 
 // OpenEXR third party library.
-#include "ImathMatrixAlgo.h"
+#include "OpenEXR/ImathMatrixAlgo.h"
 
 
 FDatasmithFacadeActor::FDatasmithFacadeActor(

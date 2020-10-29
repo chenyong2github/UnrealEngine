@@ -28,7 +28,7 @@
 #include "DatasmithUtils.h"
 
 // OpenEXR third party library.
-#include "ImathMatrixAlgo.h"
+#include "OpenEXR/ImathMatrixAlgo.h"
 
 
 #ifdef SKP_SDK_2017

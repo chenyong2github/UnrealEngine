@@ -7,7 +7,7 @@
 #include "Containers/UnrealString.h"
 
 THIRD_PARTY_INCLUDES_START
-#include "OpenEXR/include/ImfHeader.h"
+#include "OpenEXR/ImfHeader.h"
 THIRD_PARTY_INCLUDES_END
 
 
