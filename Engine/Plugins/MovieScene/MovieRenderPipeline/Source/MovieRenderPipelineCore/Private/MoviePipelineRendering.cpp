@@ -426,7 +426,7 @@ void UMoviePipeline::ProcessOutstandingFinishedFrames()
 	
 		for (UMoviePipelineOutputBase* OutputContainer : GetPipelineMasterConfig()->GetOutputContainers())
 		{
-			OutputContainer->OnRecieveImageData(&OutputFrame);
+			OutputContainer->OnReceiveImageData(&OutputFrame);
 		}
 	}
 }
