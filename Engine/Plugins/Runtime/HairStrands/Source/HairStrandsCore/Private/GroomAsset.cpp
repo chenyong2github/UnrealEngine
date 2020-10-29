@@ -369,11 +369,12 @@ void UGroomAsset::InitResources()
 {
 	LLM_SCOPE(ELLMTag::Meshes) // This should be a Groom LLM tag, but there is no LLM tag bit left
 
-	bIsInitialized = true;
 	InitGuideResources();
 	InitStrandsResources();
 	InitCardsResources();
 	InitMeshesResources();
+
+	bIsInitialized = true;
 }
 
 enum EGroomAssetChangeType
@@ -623,6 +624,8 @@ void UGroomAsset::PostLoad()
 
 								// This will update the GroomComponents that are using groom that was async loaded
 								FGroomComponentRecreateRenderStateContext RecreateContext(this);
+
+								OnGroomAsyncLoadFinished.Broadcast();
 							});
 					}
 					else
@@ -637,6 +640,8 @@ void UGroomAsset::PostLoad()
 								GroomAssetStrongPtr.Reset();
 
 								CacheDerivedDatas();
+
+								OnGroomAsyncLoadFinished.Broadcast();
 							});
 					}
 				});
