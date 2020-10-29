@@ -117,9 +117,6 @@ export class ConfirmBinaryStomp extends FunctionalTest {
 		await Promise.all([
 			this.ensureNotBlocked('Main', 'DevBranch1'),
 			this.ensureNotBlocked('Main', 'DevBranch2'),
-
-			this.checkDescriptionContainsEdit('DevBranch1', ['Second revision']),
-			this.checkDescriptionContainsEdit('DevBranch2', ['Second revision']),
 		])
 	}
 
@@ -146,7 +143,8 @@ export class ConfirmBinaryStomp extends FunctionalTest {
 
 		await Promise.all([
 			this.checkHeadRevision(branch, COLLECTION_FILENAME, 3),
-			this.checkHeadRevision(branch, ASSET_FILENAME, 3)
+			this.checkHeadRevision(branch, ASSET_FILENAME, 3),
+			this.checkDescriptionContainsEdit(branch, ['Second revision']),
 		])
 	}
 }

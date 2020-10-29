@@ -119,12 +119,15 @@ export class ConfirmTextResolveBinaryStomp extends FunctionalTest {
 		const stompEndpoint = urlTemplate.replace('<op>', 'stompchanges')
 		await bent('POST')(`${stompEndpoint}?cl=${this.conflictCl}&target=${this.testName}Main`)
 
-		console.log('Waiting for RoboMerge to process Stomp')
+		this.verbose('Waiting for RoboMerge to process Stomp')
 		await this.waitForRobomergeIdle()
 
 		await Promise.all([
 			this.checkHeadRevision('Main', 'fake.uasset', 3),
 			this.checkHeadRevision('Main', 'textfile.txt', 2),
+
+			this.checkDescriptionContainsEdit('Main', ['second revision'])
+
 		])
 	}
 }
