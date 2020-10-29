@@ -128,8 +128,9 @@ class DeviceListWidget(QtWidgets.QListWidget):
         try:
             new_device_header = self._header_by_category_name[device.category_name]
         except KeyError:
-            LOGGER.warning(f'No header for category "{device.category_name}" for device "{device.name}"')
-            return None
+            # if the category does not exist, create it and try again.
+            self._header_by_category_name[device.category_name] = self.add_header(device.category_name + " Devices")
+            return self._get_new_index(device)
 
         new_header_row = self.row(new_device_header)
 
