@@ -34,13 +34,39 @@ FArchive& operator<<(FArchive& Ar, UGroomBindingAsset::FHairGroupData& GroupData
 
 void UGroomBindingAsset::Serialize(FArchive& Ar)
 {
+#if WITH_EDITOR
+	bool bIsStrandsStrippedForCook = false;
+	if (Groom)
+	{
+		uint8 StripFlags = Groom->GenerateClassStripFlags(Ar);
+		bIsStrandsStrippedForCook = !!(StripFlags & UGroomAsset::CDSF_StrandsStripped);
+	}
+#endif
+
 	Super::Serialize(Ar);
 	Ar.UsingCustomVersion(FAnimObjectVersion::GUID);
 #if WITH_EDITOR
 	if (Ar.CustomVer(FAnimObjectVersion::GUID) < FAnimObjectVersion::GroomBindingSerialization || Ar.IsCooking())
 #endif
 	{
-		Ar << HairGroupDatas;
+#if WITH_EDITOR
+		if (bIsStrandsStrippedForCook)
+		{
+			FHairGroupDatas StrippedHairGroupDatas;
+			StrippedHairGroupDatas.SetNum(HairGroupDatas.Num());
+			for (int32 Index = 0; Index < HairGroupDatas.Num(); ++Index)
+			{
+				FHairGroupData& HairGroupData = HairGroupDatas[Index];
+				StrippedHairGroupDatas[Index].CardsRootData = HairGroupData.CardsRootData;
+			}
+
+			Ar << StrippedHairGroupDatas;
+		}
+		else
+#endif
+		{
+			Ar << HairGroupDatas;
+		}
 		bIsValid = true;
 	}
 }
@@ -246,7 +272,7 @@ void UGroomBindingAsset::PostLoad()
 	#endif
 	}
 
-	if (!IsTemplate())
+	if (!IsTemplate() && IsValid())
 	{
 		InitResource();
 	}
@@ -410,7 +436,7 @@ bool UGroomBindingAsset::IsCompatible(const UGroomAsset* InGroom, const UGroomBi
 				const uint32 GroomCount = InGroom->HairGroupsData[GroupIt].Guides.Data.GetNumCurves();
 				const uint32 BindingCount = InBinding->GroupInfos[GroupIt].SimRootCount;
 
-				if (GroomCount != BindingCount)
+				if (GroomCount != 0 && GroomCount != BindingCount)
 				{
 					if (bIssueWarning)
 					{
@@ -430,7 +456,8 @@ bool UGroomBindingAsset::IsCompatible(const UGroomAsset* InGroom, const UGroomBi
 				const uint32 GroomCount = InGroom->HairGroupsData[GroupIt].Strands.Data.GetNumCurves();
 				const uint32 BindingCount = InBinding->GroupInfos[GroupIt].RenRootCount;
 
-				if (GroomCount != BindingCount)
+				// Groom may have stripped strands data so GroomCount would be 0
+				if (GroomCount != 0 && GroomCount != BindingCount)
 				{
 					if (bIssueWarning)
 					{
@@ -451,7 +478,7 @@ bool UGroomBindingAsset::IsCompatible(const UGroomAsset* InGroom, const UGroomBi
 
 bool UGroomBindingAsset::IsBindingAssetValid(const UGroomBindingAsset* InBinding, bool bIsBindingReloading, bool bIssueWarning)
 {
-	if (InBinding)
+	if (InBinding && IsHairStrandsBindingEnable())
 	{
 		if (!InBinding->IsValid())
 		{
