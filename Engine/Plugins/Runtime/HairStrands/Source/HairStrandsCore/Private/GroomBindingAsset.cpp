@@ -339,6 +339,9 @@ bool UGroomBindingAsset::IsCompatible(const USkeletalMesh* InSkeletalMesh, const
 			return false;
 		}
 		
+		// Relax the mismatch of skeletal mesh as this is not necesarely a good metric: something the same skeletal mesh can be imported with/without animation, and all projection data 
+		// matches in this case and it is useful to be able to reuse the binding asset in this case
+		#if 0
 		// TODO: need something better to assess that skeletal meshes match. In the mean time, string comparison. 
 		// Since they can be several instances of a skeletalMesh asset (??), a numerical suffix is sometime added to the name (e.g., SkeletalName_0).
 		// This is why we are using substring comparison.
@@ -354,6 +357,7 @@ bool UGroomBindingAsset::IsCompatible(const USkeletalMesh* InSkeletalMesh, const
 			}
 			return false;
 		}
+		#endif
 
 		for (const FHairGroupResource& Resource : InBinding->HairGroupResources)
 		{
