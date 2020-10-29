@@ -559,7 +559,11 @@ void UChaosVehicleMovementComponent::ClearInput()
 		CurrentGear = PVehicle->GetTransmission().GetCurrentGear();
 	}
 
-	ServerUpdateState(SteeringInput, ThrottleInput, BrakeInput, HandbrakeInput, CurrentGear, RollInput, PitchInput, YawInput);
+	AController* Controller = GetController();
+	if (Controller && Controller->IsLocalController() && PVehicle)
+	{
+		ServerUpdateState(SteeringInput, ThrottleInput, BrakeInput, HandbrakeInput, CurrentGear, RollInput, PitchInput, YawInput);
+	}
 }
 
 void UChaosVehicleMovementComponent::ClearRawInput()
