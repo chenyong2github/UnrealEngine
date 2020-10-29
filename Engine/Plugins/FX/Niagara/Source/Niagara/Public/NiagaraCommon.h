@@ -825,9 +825,14 @@ template<typename ElementType> class TSimpleRingBuffer;
 
 struct FStatExecutionTimer
 {
-	TSimpleRingBuffer<float>* CapturedTimings;
-
 	FStatExecutionTimer();
+
+	void AddTiming(float NewTiming);
+	
+	TArray<float> CapturedTimings;
+	
+private:
+	int CurrentIndex = 0;
 };
 
 /** Combines all stat reporting and evaluation of niagara instances (emitter or system).

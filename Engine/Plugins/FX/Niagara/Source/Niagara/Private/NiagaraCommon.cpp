@@ -280,7 +280,20 @@ void FNiagaraSystemUpdateContext::AddInternal(UNiagaraComponent* Comp, bool bReI
 #if STATS
 FStatExecutionTimer::FStatExecutionTimer()
 {
-	CapturedTimings = new TSimpleRingBuffer<float>(GbMaxStatRecordedFrames);
+	CapturedTimings.Reserve(GbMaxStatRecordedFrames);
+}
+
+void FStatExecutionTimer::AddTiming(float NewTiming)
+{
+	if (CapturedTimings.Num() < GbMaxStatRecordedFrames)
+	{
+		CapturedTimings.Add(NewTiming);
+	}
+	else if (CapturedTimings.IsValidIndex(CurrentIndex))
+	{
+		CapturedTimings[CurrentIndex] = NewTiming;
+		CurrentIndex = (CurrentIndex + 1) % GbMaxStatRecordedFrames;
+	}
 }
 
 void FNiagaraStatDatabase::AddStatCapture(FStatReportKey ReportKey, TMap<TStatIdData const*, float> CapturedData)
@@ -301,7 +314,7 @@ void FNiagaraStatDatabase::AddStatCapture(FStatReportKey ReportKey, TMap<TStatId
 	TMap<TStatIdData const*, FStatExecutionTimer>& InstanceData = StatCaptures.FindOrAdd(ReportKey);
 	for (const auto& Entry : CapturedData)
 	{		
-		InstanceData.FindOrAdd(Entry.Key).CapturedTimings->WriteNewElementUninitialized() = Entry.Value;
+		InstanceData.FindOrAdd(Entry.Key).AddTiming(Entry.Value);
 	}
 }
 
@@ -327,9 +340,9 @@ float FNiagaraStatDatabase::GetRuntimeStat(FName StatName, ENiagaraScriptUsage U
 		{
 			if (MinimalNameToName(StatEntry.Key->Name) == StatName)
 			{
-				for (int i = 0; i < StatEntry.Value.CapturedTimings->Num(); i++)
+				for (int i = 0; i < StatEntry.Value.CapturedTimings.Num(); i++)
 				{
-					float Value = (*StatEntry.Value.CapturedTimings)(i);
+					float Value = StatEntry.Value.CapturedTimings[i];
 					Max = FMath::Max(Max, Value);
 					Sum += Value;
 					ValueCount++;
@@ -359,9 +372,9 @@ float FNiagaraStatDatabase::GetRuntimeStat(ENiagaraScriptUsage Usage, ENiagaraSt
 		}
 		for (const TTuple<TStatIdData const*, FStatExecutionTimer>& StatEntry : EmitterEntry.Value)
 		{
-			for (int i = 0; i < StatEntry.Value.CapturedTimings->Num(); i++)
+			for (int i = 0; i < StatEntry.Value.CapturedTimings.Num(); i++)
 			{
-				float Value = (*StatEntry.Value.CapturedTimings)(i);
+				float Value = StatEntry.Value.CapturedTimings[i];
 				Max = FMath::Max(Max, Value);
 				Sum += Value;
 				ValueCount++;
