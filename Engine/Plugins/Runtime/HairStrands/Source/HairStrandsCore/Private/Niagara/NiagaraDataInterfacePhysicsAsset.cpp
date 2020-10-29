@@ -272,6 +272,10 @@ void UpdateInternalArrays(const TArray<TWeakObjectPtr<UPhysicsAsset>>& PhysicsAs
 		OutAssetArrays->PreviousTransform = OutAssetArrays->CurrentTransform;
 		OutAssetArrays->PreviousInverse = OutAssetArrays->InverseTransform;
 
+		uint32 BoxCount = OutAssetArrays->ElementOffsets.BoxOffset;
+		uint32 SphereCount = OutAssetArrays->ElementOffsets.SphereOffset;
+		uint32 CapsuleCount = OutAssetArrays->ElementOffsets.CapsuleOffset;
+
 		for (int32 ComponentIndex = 0; ComponentIndex < SkeletalMeshs.Num(); ++ComponentIndex)
 		{
 			TWeakObjectPtr<USkeletalMeshComponent> SkeletalMesh = SkeletalMeshs[ComponentIndex];
@@ -292,10 +296,7 @@ void UpdateInternalArrays(const TArray<TWeakObjectPtr<UPhysicsAsset>>& PhysicsAs
 				{
 					TArray<FTransform> RestTransforms;
 					FAnimationRuntime::FillUpComponentSpaceTransforms(*RefSkeleton, RefSkeleton->GetRefBonePose(), RestTransforms);
-
-					uint32 BoxCount = OutAssetArrays->ElementOffsets.BoxOffset;
-					uint32 SphereCount = OutAssetArrays->ElementOffsets.SphereOffset;
-					uint32 CapsuleCount = OutAssetArrays->ElementOffsets.CapsuleOffset;
+					
 					for (const UBodySetup* BodySetup : PhysicsAsset->SkeletalBodySetups)
 					{
 						const FName BoneName = BodySetup->BoneName;
