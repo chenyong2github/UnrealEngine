@@ -2971,9 +2971,12 @@ int32 ALandscape::RegenerateLayersHeightmaps(const TArray<ULandscapeComponent*>&
 						continue;
 					}
 
+					ALandscapeBlueprintBrushBase* LandscapeBrush = Brush.GetBrush();
+					check(LandscapeBrush != nullptr); // If we managed to render, the brush should be valid
+
 					INC_DWORD_STAT(STAT_LandscapeLayersRegenerateDrawCalls); // Brush Render
 
-					PrintLayersDebugRT(OutputDebugName ? FString::Printf(TEXT("LS Height: %s %s -> BrushNonAtlas %s"), *Layer.Name.ToString(), *Brush.GetBrush()->GetName(), *BrushOutputNonAtlasRT->GetName()) : GEmptyDebugName, BrushOutputNonAtlasRT);
+					PrintLayersDebugRT(OutputDebugName ? FString::Printf(TEXT("LS Height: %s %s -> BrushNonAtlas %s"), *Layer.Name.ToString(), *LandscapeBrush->GetName(), *BrushOutputNonAtlasRT->GetName()) : GEmptyDebugName, BrushOutputNonAtlasRT);
 
 					// Resolve back to Combined heightmap
 					CopyLayersTexture(BrushOutputNonAtlasRT, CombinedHeightmapNonAtlasRT);
@@ -4008,11 +4011,14 @@ int32 ALandscape::RegenerateLayersWeightmaps(const TArray<ULandscapeComponent*>&
 								continue;
 							}
 
+							ALandscapeBlueprintBrushBase* LandscapeBrush = Brush.GetBrush();
+							check(LandscapeBrush != nullptr); // If we managed to render, the brush should be valid
+
 							BrushRequiredAllocations.AddUnique(LayerInfoObj);
 
 							INC_DWORD_STAT(STAT_LandscapeLayersRegenerateDrawCalls); // Brush RenderInitialize
 
-							PrintLayersDebugRT(OutputDebugName ? FString::Printf(TEXT("LS Weight: %s %s -> Brush %s"), *Layer.Name.ToString(), *Brush.GetBrush()->GetName(), *BrushOutputRT->GetName()) : GEmptyDebugName, BrushOutputRT);
+							PrintLayersDebugRT(OutputDebugName ? FString::Printf(TEXT("LS Weight: %s %s -> Brush %s"), *Layer.Name.ToString(), *LandscapeBrush->GetName(), *BrushOutputRT->GetName()) : GEmptyDebugName, BrushOutputRT);
 
 							SourceDebugName = OutputDebugName ? FString::Printf(TEXT("Weight: %s PaintLayer: %s Brush: %s"), *Layer.Name.ToString(), *LayerInfoObj->LayerName.ToString(), *BrushOutputRT->GetName()) : GEmptyDebugName;
 							DestDebugName = OutputDebugName ? LandscapeScratchRT3->GetName() : GEmptyDebugName;
@@ -4905,7 +4911,10 @@ void ALandscape::UpdateLayersContent(bool bInWaitForStreaming, bool bInSkipMonit
 	{
 		for (FLandscapeLayerBrush& Brush : Layer.Brushes)
 		{
-			Brush.GetBrush()->PushDeferredLayersContentUpdate();
+			if (ALandscapeBlueprintBrushBase* LandscapeBrush = Brush.GetBrush())
+			{
+				LandscapeBrush->PushDeferredLayersContentUpdate();
+			}
 		}
 	}
 
