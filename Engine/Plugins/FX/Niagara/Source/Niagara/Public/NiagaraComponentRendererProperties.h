@@ -3,10 +3,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "NiagaraRendererProperties.h"
 #include "NiagaraCommon.h"
+#include "NiagaraRendererProperties.h"
 #include "Components/PointLightComponent.h"
+#include "Engine/EngineTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UnrealType.h"
 #include "NiagaraComponentRendererProperties.generated.h"
 
 class FNiagaraEmitterInstance;
@@ -36,6 +38,12 @@ struct FNiagaraComponentPropertyBinding
 	FNiagaraVariable WritableValue;
 
 	UFunction* SetterFunction = nullptr;
+};
+
+struct FNiagaraPropertySetter
+{
+	UFunction* Function;
+	bool bIgnoreConversion = false;
 };
 
 UCLASS(editinlinenew, MinimalAPI, meta = (DisplayName = "Component Renderer"))
@@ -110,6 +118,8 @@ public:
 	UPROPERTY()
 	TArray<FNiagaraComponentPropertyBinding> PropertyBindings;
 
+	TMap<FName, FNiagaraPropertySetter> SetterFunctionMapping;
+
 	NIAGARA_API static bool IsConvertible(const FNiagaraTypeDefinition& SourceType, const FNiagaraTypeDefinition& TargetType);
 	NIAGARA_API static FNiagaraTypeDefinition ToNiagaraType(FProperty* Property);
 	static FNiagaraTypeDefinition GetFColorDef();
@@ -128,7 +138,10 @@ private:
 
 	void CreateTemplateComponent();
 
-	void UpdateComponentClassList();
+	void UpdateSetterFunctions();
 
 	bool HasPropertyBinding(FName PropertyName) const;
+
+	/** Callback for whenever any blueprint components are reinstanced */
+	void OnObjectsReplacedCallback(const TMap<UObject*, UObject*>& ReplacementsMap);
 };
