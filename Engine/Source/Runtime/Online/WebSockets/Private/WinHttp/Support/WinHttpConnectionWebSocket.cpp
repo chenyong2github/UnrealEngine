@@ -99,6 +99,12 @@ void FWinHttpConnectionWebSocket::PumpMessages()
 {
 	check(IsInGameThread());
 
+	// Don't lock our object if we don't have any events ready (this is an optimization to skip locking on game thread every tick if there's no events waiting)
+	if (!bHasPendingDelegate)
+	{
+		return;
+	}
+
 	TSharedRef<IWinHttpConnection, ESPMode::ThreadSafe> LocalKeepAlive(AsShared());
 
 	const FScopeLock ScopeLock(&SyncObject);
@@ -113,24 +119,8 @@ void FWinHttpConnectionWebSocket::PumpMessages()
 		FWinHttpConnectionHttp::PumpMessages();
 	}
 
-	// Pump WinHttp's Send and Receive WebSocket functions to make sure we receive data
-	if (WebSocketHandle.IsValid())
-	{
-		const int32 MaxMessagesPerPump = 5;
-
-		if (!IsReadInProgress())
-		{
-			// Starts reading data if we aren't already, and if there is data immediately available, reads up to 10 message (or message fragments) worth
-			ReadData(MaxMessagesPerPump);
-		}
-
-		if (!IsWriteInProgress())
-		{
-			// If we have data to send, queue up to 10 messages to be written
-			// How many actually get immediately copied to be written will depend on how larger each message is.
-			WriteData(MaxMessagesPerPump);
-		}
-	}
+	// Now that we're done potentially pumping the HTTP connection, ensure the pending delegate flag is reset
+	bHasPendingDelegate = false;
 
 	// Process connection opened success messages
 	if (bHasPendingConnectedEvent)
@@ -190,6 +180,42 @@ void FWinHttpConnectionWebSocket::PumpMessages()
 			{
 				return;
 			}
+		}
+	}
+}
+
+void FWinHttpConnectionWebSocket::PumpStates()
+{
+	TSharedRef<IWinHttpConnection, ESPMode::ThreadSafe> LocalKeepAlive(AsShared());
+
+	const FScopeLock ScopeLock(&SyncObject);
+	if (bRequestCancelled)
+	{
+		return;
+	}
+
+	// Pump HTTP's state loop until our websocket is valid
+	if (!WebSocketHandle.IsValid())
+	{
+		FWinHttpConnectionHttp::PumpStates();
+	}
+
+	// Pump WinHttp's Send and Receive WebSocket functions to make sure we receive data
+	if (WebSocketHandle.IsValid())
+	{
+		const int32 MaxMessagesPerPump = 5;
+
+		if (!IsReadInProgress())
+		{
+			// Starts reading data if we aren't already, and if there is data immediately available, reads up to 10 message (or message fragments) worth
+			ReadData(MaxMessagesPerPump);
+		}
+
+		if (!IsWriteInProgress())
+		{
+			// If we have data to send, queue up to 10 messages to be written
+			// How many actually get immediately copied to be written will depend on how larger each message is.
+			WriteData(MaxMessagesPerPump);
 		}
 	}
 }
@@ -441,6 +467,8 @@ void FWinHttpConnectionWebSocket::WriteData(const int32 MaxMessagesToWrite)
 				if(ErrorCode == ERROR_WINHTTP_TIMEOUT)
 				{
 					ReceivedCloseInfo.Emplace(ErrorCode, FString("errors.com.epicgames.winhttp.timeout"));
+
+					bHasPendingDelegate = true;
 				}
 				bWebSocketWriteInProgress = false;
 				PendingMessage.Reset();
@@ -526,6 +554,8 @@ void FWinHttpConnectionWebSocket::HandleHeadersAvailable()
 	RequestHandle.Reset();
 
 	bHasPendingConnectedEvent = true;
+
+	bHasPendingDelegate = true;
 }
 
 void FWinHttpConnectionWebSocket::HandleHandleClosing()
@@ -628,6 +658,8 @@ void FWinHttpConnectionWebSocket::HandleWebSocketReadComplete(const uint32 Bytes
 		UE_LOG(LogWinHttp, VeryVerbose, TEXT("WinHttp WebSocket[%p]: Received complete message MessageType=[%s]"), this, LexToString(MessageType));
 		ReceieveMessageQueue.Enqueue(FPendingWebSocketMessage(MessageType, ReceiveBuffer));
 
+		bHasPendingDelegate = true;
+
 		// Reset our read bytes now that we've copied our data out
 		ReceiveBufferBytesWritten = 0;
 	}
@@ -687,6 +719,8 @@ void FWinHttpConnectionWebSocket::HandleWebSocketCloseComplete()
 
 	ReceivedCloseInfo.Emplace(CloseCode, CloseReason);
 	FinalState = (CloseCode == UE_WEBSOCKET_CLOSE_NORMAL_CLOSURE) ? EHttpRequestStatus::Succeeded : EHttpRequestStatus::Failed;
+
+	bHasPendingDelegate = true;
 
 	WebSocketHandle.Reset();
 }

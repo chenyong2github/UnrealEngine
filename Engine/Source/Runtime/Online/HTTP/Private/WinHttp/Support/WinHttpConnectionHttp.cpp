@@ -201,6 +201,15 @@ bool FWinHttpConnectionHttp::IsComplete() const
 
 void FWinHttpConnectionHttp::PumpMessages()
 {
+	// Don't lock our object if we don't have any events ready (this is an optimization to skip locking on game thread every tick if there's no events waiting)
+	if (!bHasPendingDelegate)
+	{
+		return;
+	}
+
+	// Reset our pending delegate flag now that we're entering the real loop
+	bHasPendingDelegate = false;
+
 	// A keep-alive object that will keep us alive in case we're killed in one of the callbacks
 	TSharedRef<IWinHttpConnection, ESPMode::ThreadSafe> LocalKeepAlive(AsShared());
 
@@ -210,9 +219,6 @@ void FWinHttpConnectionHttp::PumpMessages()
 	{
 		return;
 	}
-
-	// Pump our state machine
-	PumpStateMachine();
 
 	if (CurrentChunk.Num() > 0)
 	{
@@ -266,7 +272,7 @@ void FWinHttpConnectionHttp::PumpMessages()
 			}
 		}
 	}
-	
+
 	// Send our completion callback if the request is now finished
 	if (OnRequestCompleteHandler.IsBound() && FinalState.IsSet())
 	{
@@ -279,6 +285,93 @@ void FWinHttpConnectionHttp::PumpMessages()
 			// If we get canceled in our callback, don't send any more messages
 			return;
 		}
+	}
+}
+
+void FWinHttpConnectionHttp::PumpStates()
+{
+	FScopeLock ScopeLock(&SyncObject);
+
+	const int32 MaxStateChanges = 20;
+	for (int32 NumStateChanges = 0; NumStateChanges < MaxStateChanges; ++NumStateChanges)
+	{
+		switch (CurrentAction)
+		{
+			case EState::WaitToStart:
+			case EState::WaitForSendComplete:
+			case EState::WaitForResponseHeaders:
+			case EState::WaitForNextResponseBodyChunkSize:
+			case EState::WaitForNextResponseBodyChunkData:
+			case EState::Finished:
+			{
+				// We don't have anything to do but wait
+				return;
+			}
+
+			case EState::SendRequest:
+			{
+				if (!SendRequest())
+				{
+					FinishRequest(EHttpRequestStatus::Failed_ConnectionError);
+					return;
+				}
+				continue;
+			}
+
+			case EState::SendAdditionalRequestBody:
+			{
+				check(HasRequestBodyToSend());
+				if (!SendAdditionalRequestBody())
+				{
+					FinishRequest(EHttpRequestStatus::Failed);
+					return;
+				}
+				continue;
+			}
+
+			case EState::RequestResponse:
+			{
+				if (!RequestResponse())
+				{
+					FinishRequest(EHttpRequestStatus::Failed);
+					return;
+				}
+				continue;
+			}
+
+			case EState::ProcessResponseHeaders:
+			{
+				if (!ProcessResponseHeaders())
+				{
+					FinishRequest(EHttpRequestStatus::Failed);
+					return;
+				}
+
+				continue;
+			}
+
+			case EState::RequestNextResponseBodyChunkSize:
+			{
+				if (!RequestNextResponseBodyChunkSize())
+				{
+					FinishRequest(EHttpRequestStatus::Failed);
+					return;
+				}
+				continue;
+			}
+
+			case EState::RequestNextResponseBodyChunkData:
+			{
+				if (!RequestNextResponseBodyChunkData())
+				{
+					FinishRequest(EHttpRequestStatus::Failed);
+					return;
+				}
+				continue;
+			}
+		}
+
+		checkNoEntry();
 	}
 }
 
@@ -566,6 +659,8 @@ void FWinHttpConnectionHttp::IncrementSentByteCounts(const int32 AmountSent)
 		BytesToReportSent.GetValue() += AmountSent;
 	}
 
+	bHasPendingDelegate = true;
+
 	NumBytesSuccessfullySent += AmountSent;
 }
 
@@ -581,6 +676,8 @@ void FWinHttpConnectionHttp::IncrementReceivedByteCounts(const int32 AmountRecei
 	{
 		BytesToReportReceived.GetValue() += AmountReceived;
 	}
+
+	bHasPendingDelegate = true;
 }
 
 bool FWinHttpConnectionHttp::HasRequestBodyToSend() const
@@ -725,6 +822,8 @@ bool FWinHttpConnectionHttp::ProcessResponseHeaders()
 
 				HeadersReceived.Emplace(HeaderKey, HeaderValue);
 				HeaderKeysToReportReceived.Emplace(HeaderKey);
+
+				bHasPendingDelegate = true;
 			}
 		}
 	}
@@ -817,91 +916,6 @@ bool FWinHttpConnectionHttp::RequestNextResponseBodyChunkData()
 
 }
 
-void FWinHttpConnectionHttp::PumpStateMachine()
-{
-	const int32 MaxStateChanges = 10;
-	for (int32 NumStateChanges = 0; NumStateChanges < MaxStateChanges; ++NumStateChanges)
-	{
-		switch (CurrentAction)
-		{
-			case EState::WaitToStart:
-			case EState::WaitForSendComplete:
-			case EState::WaitForResponseHeaders:
-			case EState::WaitForNextResponseBodyChunkSize:
-			case EState::WaitForNextResponseBodyChunkData:
-			case EState::Finished:
-			{
-				// We don't have anything to do but wait
-				return;
-			}
-
-			case EState::SendRequest:
-			{
-				if (!SendRequest())
-				{
-					FinishRequest(EHttpRequestStatus::Failed_ConnectionError);
-					return;
-				}
-				continue;
-			}
-			
-			case EState::SendAdditionalRequestBody:
-			{
-				check(HasRequestBodyToSend());
-				if (!SendAdditionalRequestBody())
-				{
-					FinishRequest(EHttpRequestStatus::Failed);
-					return;
-				}
-				continue;
-			}
-			
-			case EState::RequestResponse:
-			{
-				if (!RequestResponse())
-				{
-					FinishRequest(EHttpRequestStatus::Failed);
-					return;
-				}
-				continue;
-			}
-
-			case EState::ProcessResponseHeaders:
-			{
-				if (!ProcessResponseHeaders())
-				{
-					FinishRequest(EHttpRequestStatus::Failed);
-					return;
-				}
-
-				continue;
-			}
-
-			case EState::RequestNextResponseBodyChunkSize:
-			{
-				if (!RequestNextResponseBodyChunkSize())
-				{
-					FinishRequest(EHttpRequestStatus::Failed);
-					return;
-				}
-				continue;
-			}
-
-			case EState::RequestNextResponseBodyChunkData:
-			{
-				if (!RequestNextResponseBodyChunkData())
-				{
-					FinishRequest(EHttpRequestStatus::Failed);
-					return;
-				}
-				continue;
-			}
-		}
-
-		checkNoEntry();
-	}
-}
-
 bool FWinHttpConnectionHttp::FinishRequest(const EHttpRequestStatus::Type NewFinalState)
 {
 	// Make sure this state is a "final" state
@@ -924,13 +938,15 @@ bool FWinHttpConnectionHttp::FinishRequest(const EHttpRequestStatus::Type NewFin
 	// Log-level Log if successful, Warning if failure
 	if (FinalState == EHttpRequestStatus::Succeeded)
 	{
-		
 		UE_LOG(LogWinHttp, Log, TEXT("WinHttp Http[%p]: Request Complete. State=[%s]"), this, EHttpRequestStatus::ToString(FinalState.GetValue()));
 	}
 	else
 	{
 		UE_LOG(LogWinHttp, Warning, TEXT("WinHttp Http[%p]: Request Complete. State=[%s]"), this, EHttpRequestStatus::ToString(FinalState.GetValue()));
 	}
+
+	// We have a pending action now that our final state is set
+	bHasPendingDelegate = true;
 
 	// Reset our handles (begins shutdown)
 	RequestHandle.Reset();
