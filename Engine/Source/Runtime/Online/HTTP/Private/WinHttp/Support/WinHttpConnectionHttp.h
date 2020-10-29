@@ -13,6 +13,8 @@
 #include "Interfaces/IHttpRequest.h"
 #include "Interfaces/IHttpResponse.h"
 
+#include <atomic>
+
 class FWinHttpSession;
 class FWinHttpRequestContextHttp;
 class FRequestPayload;
@@ -48,6 +50,7 @@ public:
 	virtual bool CancelRequest() override;
 	virtual bool IsComplete() const override;
 	virtual void PumpMessages() override;
+	virtual void PumpStates() override;
 	//~ End IWinHttpConnection Interface
 
 	/// Request Events
@@ -173,11 +176,6 @@ protected:
 
 	/// Request State
 
-	/**
-	 * Process state changes
-	 */
-	void PumpStateMachine();
-
 	/** Set our request as finished and set state to the specified state. This also releases the WinHttp handles. */
 	virtual bool FinishRequest(const EHttpRequestStatus::Type FinalState);
 
@@ -232,6 +230,8 @@ protected:
 	bool bConnectedToServer = false;
 	/** Has this request been cancelled? */
 	bool bRequestCancelled = false;
+	/** If true, we have a pending event that needs to be broadcast on the game thread */
+	std::atomic<bool> bHasPendingDelegate{false};
 
 private:
 	FString RequestUrl;
