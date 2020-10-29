@@ -1898,41 +1898,6 @@ void FSceneRenderTargets::AllocateFoveationTexture(FRHICommandList& RHICmdList)
 	}
 }
 
-const FTexture2DRHIRef& FSceneRenderTargets::GetOptionalShadowDepthColorSurface(FRHICommandList& RHICmdList, int32 Width, int32 Height) const
-{
-	// Look for matching resolution
-	int32 EmptySlot = -1;
-	for (int32 Index = 0; Index < UE_ARRAY_COUNT(OptionalShadowDepthColor); Index++)
-	{
-		if (OptionalShadowDepthColor[Index])
-		{
-			const FTexture2DRHIRef& TargetTexture = (const FTexture2DRHIRef&)OptionalShadowDepthColor[Index]->GetRenderTargetItem().TargetableTexture;
-			if (TargetTexture->GetSizeX() == Width && TargetTexture->GetSizeY() == Height)
-			{
-				return TargetTexture;
-			}
-		}
-		else
-		{
-			// Remember this as a free slot for allocation attempt
-			EmptySlot = Index;
-		}
-	}
-
-	if (EmptySlot == -1)
-	{
-		UE_LOG(LogRenderer, Fatal, TEXT("Exceeded storage space for OptionalShadowDepthColorSurface. Increase array size."));
-	}
-
-	// Allocate new shadow color buffer (it must be the same resolution as the depth target!)
-	const FIntPoint ShadowColorBufferResolution = FIntPoint(Width, Height);
-	FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(ShadowColorBufferResolution, PF_B8G8R8A8, FClearValueBinding::None, TexCreate_None, TexCreate_RenderTargetable, false));
-	GRenderTargetPool.FindFreeElement(RHICmdList, Desc, (TRefCountPtr<IPooledRenderTarget>&)OptionalShadowDepthColor[EmptySlot], TEXT("OptionalShadowDepthColor"));
-	UE_LOG(LogRenderer, Log, TEXT("Allocated OptionalShadowDepthColorSurface %d x %d"), Width, Height);
-
-	return (const FTexture2DRHIRef&)OptionalShadowDepthColor[EmptySlot]->GetRenderTargetItem().TargetableTexture;
-}
-
 void FSceneRenderTargets::AllocateDeferredShadingPathRenderTargets(FRHICommandListImmediate& RHICmdList, const int32 NumViews)
 {
 	const EShaderPlatform ShaderPlatform = GetFeatureLevelShaderPlatform(CurrentFeatureLevel);
@@ -2028,12 +1993,6 @@ void FSceneRenderTargets::AllocateDeferredShadingPathRenderTargets(FRHICommandLi
 					TranslucencyLightingVolumeDim,
 					TranslucencyTargetFlags);
 			}
-
-			//these get bound even with the CVAR off, make sure they aren't full of garbage.
-			if (!GUseTranslucentLightingVolumes)
-			{
-				ClearTranslucentVolumeLighting(RHICmdList, 0);
-			}
 		}
 	}
 
@@ -2106,104 +2065,6 @@ EPixelFormat FSceneRenderTargets::GetMobileSceneColorFormat() const
 {
 	return CurrentMobileSceneColorFormat;
 }
-
-void FSceneRenderTargets::ClearTranslucentVolumeLighting(FRHICommandListImmediate& RHICmdList, int32 ViewIndex)
-{
-	if (GSupportsVolumeTextureRendering)
-	{
-		// Clear all volume textures in the same draw with MRT, which is faster than individually
-		static_assert(TVC_MAX == 2, "Only expecting two translucency lighting cascades.");
-		static IConsoleVariable* CVarTranslucencyVolumeBlur =
-			IConsoleManager::Get().FindConsoleVariable(TEXT("r.TranslucencyVolumeBlur"));
-		static constexpr int32 Num3DTextures = NumTranslucentVolumeRenderTargetSets << 1;
-
-		FRHITexture* RenderTargets[Num3DTextures];
-		bool bUseTransLightingVolBlur = CVarTranslucencyVolumeBlur->GetInt() > 0;
-		const int32 NumIterations = bUseTransLightingVolBlur ?
-			NumTranslucentVolumeRenderTargetSets : NumTranslucentVolumeRenderTargetSets - 1;
-
-		for (int32 Idx = 0; Idx < NumIterations; ++Idx)
-		{
-			RenderTargets[Idx << 1] = TranslucencyLightingVolumeAmbient[Idx + NumTranslucentVolumeRenderTargetSets * ViewIndex]->GetRenderTargetItem().TargetableTexture;
-			RenderTargets[(Idx << 1) + 1] = TranslucencyLightingVolumeDirectional[Idx + NumTranslucentVolumeRenderTargetSets * ViewIndex]->GetRenderTargetItem().TargetableTexture;
-		}
-
-		static const FLinearColor ClearColors[Num3DTextures] = { FLinearColor::Transparent };
-
-		if (bUseTransLightingVolBlur)
-		{
-			ClearVolumeTextures<Num3DTextures>(RHICmdList, CurrentFeatureLevel, RenderTargets, ClearColors);
-		}
-		else
-		{
-			ClearVolumeTextures<Num3DTextures - 2>(RHICmdList, CurrentFeatureLevel, RenderTargets, ClearColors);
-		}
-	}
-}
-
-/** Helper function that clears the given volume texture render targets. */
-template<int32 NumRenderTargets>
-void FSceneRenderTargets::ClearVolumeTextures(FRHICommandList& RHICmdList, ERHIFeatureLevel::Type FeatureLevel, FRHITexture** RenderTargets, const FLinearColor* ClearColors)
-{
-	check(!RHICmdList.IsInsideRenderPass());
-
-	FRHIRenderPassInfo RPInfo(NumRenderTargets, RenderTargets, ERenderTargetActions::DontLoad_Store);
-	TransitionRenderPassTargets(RHICmdList, RPInfo);
-
-	RHICmdList.BeginRenderPass(RPInfo, TEXT("ClearVolumeTextures"));
-	{
-	FGraphicsPipelineStateInitializer GraphicsPSOInit;
-	RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
-	GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Solid, CM_None>::GetRHI();
-	GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
-	GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
-
-	const int32 TranslucencyLightingVolumeDim = GetTranslucencyLightingVolumeDim();
-
-	const FVolumeBounds VolumeBounds(TranslucencyLightingVolumeDim);
-	auto ShaderMap = GetGlobalShaderMap(FeatureLevel);
-	TShaderMapRef<FWriteToSliceVS> VertexShader(ShaderMap);
-	TOptionalShaderMapRef<FWriteToSliceGS> GeometryShader(ShaderMap);
-	TOneColorPixelShaderMRT::FPermutationDomain PermutationVector;
-	PermutationVector.Set<TOneColorPixelShaderMRT::TOneColorPixelShaderNumOutputs>(NumRenderTargets);
-	TShaderMapRef<TOneColorPixelShaderMRT>PixelShader(ShaderMap, PermutationVector);
-
-	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GScreenVertexDeclaration.VertexDeclarationRHI;
-	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
-#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
-	GraphicsPSOInit.BoundShaderState.GeometryShaderRHI = GeometryShader.GetGeometryShader();
-#endif
-	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
-	GraphicsPSOInit.PrimitiveType = PT_TriangleStrip;
-
-	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
-
-	VertexShader->SetParameters(RHICmdList, VolumeBounds, FIntVector(TranslucencyLightingVolumeDim));
-	if (GeometryShader.IsValid())
-	{
-		GeometryShader->SetParameters(RHICmdList, VolumeBounds.MinZ);
-	}
-	PixelShader->SetColors(RHICmdList, ClearColors, NumRenderTargets);
-
-	RasterizeToVolumeTexture(RHICmdList, VolumeBounds);
-	}
-	RHICmdList.EndRenderPass();
-
-	FRHITransitionInfo SRVTransitions[NumRenderTargets];
-	for (int RT = 0; RT < NumRenderTargets; ++RT)
-	{
-		SRVTransitions[RT] = FRHITransitionInfo(RenderTargets[RT], ERHIAccess::Unknown, ERHIAccess::SRVMask);
-	}
-	RHICmdList.Transition(MakeArrayView(SRVTransitions, NumRenderTargets));
-}
-template void FSceneRenderTargets::ClearVolumeTextures<1>(FRHICommandList& RHICmdList, ERHIFeatureLevel::Type FeatureLevel, FRHITexture** RenderTargets, const FLinearColor* ClearColors);
-template void FSceneRenderTargets::ClearVolumeTextures<2>(FRHICommandList& RHICmdList, ERHIFeatureLevel::Type FeatureLevel, FRHITexture** RenderTargets, const FLinearColor* ClearColors);
-template void FSceneRenderTargets::ClearVolumeTextures<3>(FRHICommandList& RHICmdList, ERHIFeatureLevel::Type FeatureLevel, FRHITexture** RenderTargets, const FLinearColor* ClearColors);
-template void FSceneRenderTargets::ClearVolumeTextures<4>(FRHICommandList& RHICmdList, ERHIFeatureLevel::Type FeatureLevel, FRHITexture** RenderTargets, const FLinearColor* ClearColors);
-template void FSceneRenderTargets::ClearVolumeTextures<5>(FRHICommandList& RHICmdList, ERHIFeatureLevel::Type FeatureLevel, FRHITexture** RenderTargets, const FLinearColor* ClearColors);
-template void FSceneRenderTargets::ClearVolumeTextures<6>(FRHICommandList& RHICmdList, ERHIFeatureLevel::Type FeatureLevel, FRHITexture** RenderTargets, const FLinearColor* ClearColors);
-template void FSceneRenderTargets::ClearVolumeTextures<7>(FRHICommandList& RHICmdList, ERHIFeatureLevel::Type FeatureLevel, FRHITexture** RenderTargets, const FLinearColor* ClearColors);
-template void FSceneRenderTargets::ClearVolumeTextures<8>(FRHICommandList& RHICmdList, ERHIFeatureLevel::Type FeatureLevel, FRHITexture** RenderTargets, const FLinearColor* ClearColors);
 
 EPixelFormat FSceneRenderTargets::GetSceneColorFormat() const
 {

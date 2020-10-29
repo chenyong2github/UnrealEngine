@@ -1,68 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	PostProcessAmbient.cpp: Post processing ambient implementation.
-=============================================================================*/
-
-#include "StaticBoundShaderState.h"
-#include "SceneUtils.h"
-#include "PostProcess/SceneRenderTargets.h"
-#include "SceneRenderTargetParameters.h"
-#include "ScenePrivate.h"
-#include "PostProcess/SceneFilterRendering.h"
-#include "PostProcess/PostProcessing.h"
 #include "AmbientCubemapParameters.h"
-#include "PipelineStateCache.h"
-
-/*-----------------------------------------------------------------------------
-FCubemapShaderParameters
------------------------------------------------------------------------------*/
-IMPLEMENT_TYPE_LAYOUT(FCubemapShaderParameters);
-
-void FCubemapShaderParameters::Bind(const FShaderParameterMap& ParameterMap)
-{
-	AmbientCubemapColor.Bind(ParameterMap, TEXT("AmbientCubemapColor"));
-	AmbientCubemapMipAdjust.Bind(ParameterMap, TEXT("AmbientCubemapMipAdjust"));
-	AmbientCubemap.Bind(ParameterMap, TEXT("AmbientCubemap"));
-	AmbientCubemapSampler.Bind(ParameterMap, TEXT("AmbientCubemapSampler"));
-}
-
-void FCubemapShaderParameters::SetParameters(FRHICommandList& RHICmdList, FRHIPixelShader* ShaderRHI, const FFinalPostProcessSettings::FCubemapEntry& Entry) const
-{
-	SetParametersTemplate(RHICmdList, ShaderRHI, Entry);
-}
-
-void FCubemapShaderParameters::SetParameters(FRHICommandList& RHICmdList, FRHIComputeShader* ShaderRHI, const FFinalPostProcessSettings::FCubemapEntry& Entry) const
-{
-	SetParametersTemplate(RHICmdList, ShaderRHI, Entry);
-}
-
-template<typename TRHIShader>
-void FCubemapShaderParameters::SetParametersTemplate(FRHICommandList& RHICmdList, TRHIShader* ShaderRHI, const FFinalPostProcessSettings::FCubemapEntry& Entry) const
-{
-	FAmbientCubemapParameters ShaderParameters;
-	SetupAmbientCubemapParameters(Entry, &ShaderParameters);
-
-	// floats to render the cubemap
-	{
-		SetShaderValue(RHICmdList, ShaderRHI, AmbientCubemapColor, ShaderParameters.AmbientCubemapColor);
-		SetShaderValue(RHICmdList, ShaderRHI, AmbientCubemapMipAdjust, ShaderParameters.AmbientCubemapMipAdjust);
-	}
-
-	// cubemap texture
-	{
-		FTexture* InternalSpec = Entry.AmbientCubemap ? Entry.AmbientCubemap->Resource : GBlackTextureCube;
-
-		SetTextureParameter(RHICmdList, ShaderRHI, AmbientCubemap, AmbientCubemapSampler, InternalSpec);
-	}
-}
-
-FArchive& operator<<(FArchive& Ar, FCubemapShaderParameters& P)
-{
-	Ar << P.AmbientCubemapColor << P.AmbientCubemap << P.AmbientCubemapSampler << P.AmbientCubemapMipAdjust;
-
-	return Ar;
-}
+#include "Engine/Texture.h"
+#include "RenderUtils.h"
 
 void SetupAmbientCubemapParameters(const FFinalPostProcessSettings::FCubemapEntry& Entry, FAmbientCubemapParameters* OutParameters)
 {

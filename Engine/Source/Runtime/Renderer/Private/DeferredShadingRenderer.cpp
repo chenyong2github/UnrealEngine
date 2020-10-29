@@ -2132,10 +2132,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		
 		if (GbEnableAsyncComputeTranslucencyLightingVolumeClear && GSupportsEfficientAsyncCompute)
 		{
-			AddPass(GraphBuilder, [this](FRHICommandListImmediate& InRHICmdList)
-			{
-				ClearTranslucentVolumeLightingAsyncCompute(InRHICmdList);
-			});
+			ClearTranslucentVolumeLighting(GraphBuilder, ERDGPassFlags::AsyncCompute);
 		}
 	}
 
@@ -2395,12 +2392,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		// Clear the translucent lighting volumes before we accumulate
 		if ((GbEnableAsyncComputeTranslucencyLightingVolumeClear && GSupportsEfficientAsyncCompute) == false)
 		{
-			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
-			{
-				const FViewInfo& View = Views[ViewIndex];
-				RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
-				ClearTranslucentVolumeLighting(GraphBuilder, ViewIndex);
-			}
+			ClearTranslucentVolumeLighting(GraphBuilder, ERDGPassFlags::Compute);
 		}
 
 #if RHI_RAYTRACING
