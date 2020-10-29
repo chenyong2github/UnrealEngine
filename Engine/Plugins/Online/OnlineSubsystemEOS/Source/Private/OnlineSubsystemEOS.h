@@ -51,6 +51,9 @@ public:
 	/** Used to be called before RHIInit() */
 	static void ModuleInit();
 
+	/** Common method for creating the EOS platform */
+	static EOS_PlatformHandle* PlatformCreate();
+
 // IOnlineSubsystem
 	virtual IOnlineSessionPtr GetSessionInterface() const override;
 	virtual IOnlineFriendsPtr GetFriendsInterface() const override;
@@ -82,11 +85,9 @@ public:
 	virtual IOnlineTournamentPtr GetTournamentInterface() const override { return nullptr; }
 //~IOnlineSubsystem
 
-	virtual bool Init() override { return true; }
+	virtual bool Init() override;
 	virtual bool Shutdown() override;
 	virtual FString GetAppId() const override;
-
-	bool DeferredInit();
 
 // FTickerObjectBase
 	virtual bool Tick(float DeltaTime) override;
