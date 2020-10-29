@@ -1903,8 +1903,8 @@ bool FOpenXRHMD::StopSession()
 		return false;
 	}
 
-	bool signaled = FrameEventRHI->Wait(PipelinedFrameStateRHI.FrameState.predictedDisplayPeriod / 1e6);
-
+	// We'll wait a maximum of one second for the last frame to finished
+	FrameEventRHI->Wait(1000);
 	bIsRunning = !XR_ENSURE(xrEndSession(Session));
 	return !bIsRunning;
 }
@@ -2000,15 +2000,19 @@ void FOpenXRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdL
 	}
 #endif
 
-	// There is a chance xrBeginFrame may time out waiting for FrameEventRHI so a mutex is needed
-	// to ensure the two calls never overlap (spec requires they are externally synchronized).
-	// In addition, the mutex ensures bIsRunning and the frame event are checked atomically.
+	// Ensure xrEndFrame has been called before starting rendering the next frame.
+	// We'll discard the frame if it takes longer than 250ms to finish.
+	if (bIsRunning)
+	{
+		FrameEventRHI->Wait(250);
+	}
+
+	// We need to re-check bIsRunning to ensure the session didn't end while waiting for FrameEventRHI.
+	// There is a chance xrBeginFrame may time out waiting for FrameEventRHI so a mutex is needed to
+	// ensure the two calls never overlap (spec requires they are externally synchronized).
 	FScopeLock ScopeLock(&BeginEndFrameMutex);
 	if (bIsRunning)
 	{
-		// Ensure xrEndFrame has been called before starting rendering the next frame.
-		bool signaled = FrameEventRHI->Wait(PipelinedFrameStateRHI.FrameState.predictedDisplayPeriod / 1e6);
-
 		// TODO: This should be moved to the RHI thread at some point
 		XrFrameBeginInfo BeginInfo;
 		BeginInfo.type = XR_TYPE_FRAME_BEGIN_INFO;
@@ -2252,6 +2256,12 @@ void FOpenXRHMD::OnBeginRendering_RHIThread()
 void FOpenXRHMD::OnFinishRendering_RHIThread()
 {
 	ensure(IsInRenderingThread() || IsInRHIThread());
+
+	// OnBeginRendering_RenderThread may time out waiting for FrameEventRHI to be signaled. This can result
+	// in xrBeginFrame being called on the render thread while xrEndFrame is being called on the RHI thread,
+	// so a mutex is needed to ensure they are externally synchronized, as required by the OpenXR specification.
+	// This may also result in a XR_ERROR_CALL_ORDER_INVALID error.
+	FScopeLock ScopeLock(&BeginEndFrameMutex);
 	if (!bIsRunning || !Swapchain)
 	{
 		return;
@@ -2309,18 +2319,7 @@ void FOpenXRHMD::OnFinishRendering_RHIThread()
 			}
 			EndInfo.next = Module->OnEndFrame(Session, EndInfo.displayTime, ColorImages, DepthImages, EndInfo.next);
 		}
-		XrResult Result;
-		{
-			// OnBeginRendering_RenderThread may time out waiting for FrameEventRHI to be signaled. This can result
-			// in xrBeginFrame being called on the render thread while xrEndFrame is being called on the RHI thread,
-			// so a mutex is needed to ensure they are externally synchronized, as required by the OpenXR specification.
-			// This may also result in a XR_ERROR_CALL_ORDER_INVALID error.
-			FScopeLock ScopeLock(&BeginEndFrameMutex);
-			Result = xrEndFrame(Session, &EndInfo);
-		}
-
-		// Ignore invalid call order for now, we will recover on the next frame
-		ensure(XR_SUCCEEDED(Result));
+		XR_ENSURE(xrEndFrame(Session, &EndInfo));
 
 		bIsRendering = false;
 	}
