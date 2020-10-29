@@ -528,7 +528,7 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 	// Initialize global system textures (pass-through if already initialized).
 	GSystemTextures.InitializeTextures(RHICmdList, ViewFeatureLevel);
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 
 	// Allocate the maximum scene render target space for the current view family.
 	SceneContext.SetKeepDepthContent(bKeepDepthContent);
@@ -819,7 +819,7 @@ FRHITexture* FMobileSceneRenderer::RenderForward(FRHICommandListImmediate& RHICm
 {
 	const FViewInfo& View = *ViewList[0];
 	const bool bGammaSpace = !IsMobileHDR();
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 				
 	FRHITexture* SceneColor = nullptr;
 	FRHITexture* SceneColorResolve = nullptr;
@@ -1063,7 +1063,7 @@ FRHITexture* FMobileSceneRenderer::RenderForward(FRHICommandListImmediate& RHICm
 
 FRHITexture* FMobileSceneRenderer::RenderDeferred(FRHICommandListImmediate& RHICmdList, const TArrayView<const FViewInfo*> ViewList, const FSortedLightSetSceneInfo& SortedLightSet)
 {
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 			
 	FRHITexture* ColorTargets[5] = {
 		SceneContext.GetSceneColorSurface(),
@@ -1308,7 +1308,7 @@ bool FMobileSceneRenderer::RequiresMultiPass(FRHICommandListImmediate& RHICmdLis
 
 void FMobileSceneRenderer::ConditionalResolveSceneDepth(FRHICommandListImmediate& RHICmdList, const FViewInfo& View)
 {
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 	
 	if (IsSimulatedPlatform(ShaderPlatform)) // mobile emulation on PC
 	{
@@ -1484,7 +1484,7 @@ void FMobileSceneRenderer::CopyMobileMultiViewSceneColor(FRHICommandListImmediat
 
 	RHICmdList.DiscardRenderTargets(true, true, 0);
 
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 
 	// Switching from the multi-view scene color render target array to side by side scene color
 	FRHIRenderPassInfo RPInfo(ViewFamily.RenderTarget->GetRenderTargetTexture(), ERenderTargetActions::Clear_Store);
@@ -1572,7 +1572,7 @@ void FMobileSceneRenderer::PreTonemapMSAA(FRHICommandListImmediate& RHICmdList)
 	// Part of scene rendering pass
 	check (RHICmdList.IsInsideRenderPass());
 
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 
 	FGraphicsPipelineStateInitializer GraphicsPSOInit;
 	RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);

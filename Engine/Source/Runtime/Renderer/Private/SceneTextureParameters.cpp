@@ -8,7 +8,7 @@
 
 FSceneTextureParameters GetSceneTextureParameters(FRDGBuilder& GraphBuilder)
 {
-	const FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
+	const FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 
 	FSceneTextureParameters Parameters;
 

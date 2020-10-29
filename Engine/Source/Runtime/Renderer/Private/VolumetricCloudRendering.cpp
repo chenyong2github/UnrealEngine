@@ -1740,7 +1740,7 @@ void FSceneRenderer::RenderVolumetricCloud(
 			RDG_EVENT_SCOPE(GraphBuilder, "VolumetricCloud");
 			RDG_GPU_STAT_SCOPE(GraphBuilder, VolumetricCloud);
 
-			FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
+			FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 
 			TRefCountPtr<IPooledRenderTarget> SceneDepthZ = SceneContext.SceneDepthZ;
 			TRefCountPtr<IPooledRenderTarget> BlackDummy = GSystemTextures.BlackDummy;

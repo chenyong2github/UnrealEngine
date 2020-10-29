@@ -271,7 +271,7 @@ static FSceneWithoutWaterTextures AddCopySceneWithoutWaterPass(
 	const FRDGTextureDesc& SceneColorDesc = SceneColorTexture->Desc;
 	const FRDGTextureDesc& SceneDepthDesc = SceneColorTexture->Desc;
 
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 	const int32 RefractionDownsampleFactor = FMath::Clamp(GSingleLayerWaterRefractionDownsampleFactor, 1, 8);
 	const FIntPoint RefractionResolution = FIntPoint::DivideAndRoundDown(SceneColorDesc.Extent, RefractionDownsampleFactor);
 	FRDGTextureRef SceneColorWithoutSingleLayerWaterTexture = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
@@ -694,7 +694,7 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterInner(
 
 	const bool bRenderInParallel = GRHICommandList.UseParallelAlgorithms() && CVarParallelSingleLayerWaterPass.GetValueOnRenderThread() == 1;
 
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 
 	FRenderTargetBindingSlots RenderTargets;
 	SceneContext.GetGBufferRenderTargets(GraphBuilder, ERenderTargetLoadAction::ELoad, RenderTargets);

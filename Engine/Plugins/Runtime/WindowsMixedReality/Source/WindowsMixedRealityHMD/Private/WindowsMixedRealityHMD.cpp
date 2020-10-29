@@ -1525,7 +1525,7 @@ namespace WindowsMixedReality
 #if PLATFORM_HOLOLENS
 		if (bIsMobileMultiViewEnabled && !HMD->IsThirdCameraActive())
 		{
-			FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+			FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 			IPooledRenderTarget* depthRenderTarget = SceneContext.MobileMultiViewSceneDepthZ.GetReference();
 			if (depthRenderTarget != nullptr)
 			{

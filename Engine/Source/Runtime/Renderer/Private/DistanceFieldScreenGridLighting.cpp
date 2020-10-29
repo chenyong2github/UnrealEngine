@@ -526,7 +526,7 @@ void FDeferredShadingSceneRenderer::RenderDistanceFieldAOScreenGrid(
 		{
 			ScreenGridResources->AcquireTransientResource();
 
-			FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+			FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 
 			float ConeVisibilityClearValue = 1.0f;
 			RHICmdList.Transition(FRHITransitionInfo(ScreenGridResources->ScreenGridConeVisibility.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));

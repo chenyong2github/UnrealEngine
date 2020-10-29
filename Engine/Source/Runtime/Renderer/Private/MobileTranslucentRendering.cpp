@@ -76,7 +76,7 @@ bool FMobileSceneRenderer::RenderInverseOpacity(FRHICommandListImmediate& RHICmd
 	check(RHICmdList.IsOutsideRenderPass());
 
 	bool bDirty = false;
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 
 	SceneContext.AllocSceneColor(RHICmdList);
 

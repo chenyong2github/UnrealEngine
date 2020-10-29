@@ -247,7 +247,7 @@ FScreenPassTexture AddEditorPrimitivePass(
 
 	RDG_EVENT_SCOPE(GraphBuilder, "CompositeEditorPrimitives");
 
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 	FPersistentUniformBuffers& SceneUniformBuffers = View.Family->Scene->GetRenderScene()->UniformBuffers;
 
 	const FViewInfo* EditorView = UpdateEditorPrimitiveView(SceneUniformBuffers, SceneContext, View, Inputs.SceneColor.ViewRect);

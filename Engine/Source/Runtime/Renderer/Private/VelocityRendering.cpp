@@ -350,7 +350,7 @@ void FDeferredShadingSceneRenderer::RenderVelocities(
 
 	if (!InOutVelocityTexture && bVelocityRendered)
 	{
-		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
+		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 		ConvertToExternalTexture(GraphBuilder, VelocityTexture, SceneContext.SceneVelocity);
 		InOutVelocityTexture = VelocityTexture;
 	}
@@ -365,7 +365,7 @@ EPixelFormat FVelocityRendering::GetFormat(EShaderPlatform ShaderPlatform)
 
 FRDGTextureDesc FVelocityRendering::GetRenderTargetDesc(EShaderPlatform ShaderPlatform)
 {
-	const FIntPoint BufferSize = FSceneRenderTargets::Get_FrameConstantsOnly().GetBufferSizeXY();
+	const FIntPoint BufferSize = FSceneRenderTargets::Get().GetBufferSizeXY();
 	return FRDGTextureDesc::Create2D(BufferSize, GetFormat(ShaderPlatform), FClearValueBinding::Transparent, TexCreate_RenderTargetable | TexCreate_UAV | TexCreate_ShaderResource);
 }
 

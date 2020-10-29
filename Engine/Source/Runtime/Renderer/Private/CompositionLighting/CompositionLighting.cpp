@@ -506,7 +506,7 @@ void FCompositionLighting::ProcessBeforeBasePass(
 	// so that the passes can register themselves to the graph
 	if (bDBuffer || bNeedSSAO)
 	{
-		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
+		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 
 		RDG_EVENT_SCOPE(GraphBuilder, "CompositionBeforeBasePass");
 		RDG_GPU_STAT_SCOPE(GraphBuilder, CompositionBeforeBasePass);
@@ -546,7 +546,7 @@ void FCompositionLighting::ProcessAfterBasePass(
 	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
 	bool bEnableSSAO)
 {
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 
 	if (CanOverlayRayTracingOutput(View))
 	{
@@ -678,7 +678,7 @@ void FCompositionLighting::ProcessAsyncSSAO(
 			FRDGTextureRef GTAOHorizonsTexture = nullptr;
 
 			{
-				FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
+				FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 				FIntPoint BufferSize = SceneContext.GetBufferSizeXY();
 				FIntPoint HorizonBufferSize = FIntPoint::DivideAndRoundUp(BufferSize, CommonParameters.DownscaleFactor);
 

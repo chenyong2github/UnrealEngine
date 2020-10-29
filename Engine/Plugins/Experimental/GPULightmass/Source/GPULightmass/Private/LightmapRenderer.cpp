@@ -2923,7 +2923,7 @@ void FLightmapRenderer::RenderIrradianceCacheVisualization(FPostOpaqueRenderPara
 	FUniformBufferStaticBindings GlobalUniformBuffers(PassParameters.SceneTextures);
 	SCOPED_UNIFORM_BUFFER_GLOBAL_BINDINGS(RHICmdList, GlobalUniformBuffers);
 
-	FRHIRenderPassInfo RPInfo(FSceneRenderTargets::Get(RHICmdList).GetSceneColor()->GetTargetableRHI(), ERenderTargetActions::Load_Store);
+	FRHIRenderPassInfo RPInfo(FSceneRenderTargets::Get().GetSceneColor()->GetTargetableRHI(), ERenderTargetActions::Load_Store);
 	RHICmdList.BeginRenderPass(RPInfo, TEXT("AP_ClearIrradiance"));
 
 	RHICmdList.SetViewport(0, 0, 0.0f, Parameters.ViewportRect.Width(), Parameters.ViewportRect.Height(), 1.0f);
@@ -2952,7 +2952,7 @@ void FLightmapRenderer::RenderIrradianceCacheVisualization(FPostOpaqueRenderPara
 		0, 0,
 		Parameters.ViewportRect.Width(), Parameters.ViewportRect.Height(),
 		FIntPoint(Parameters.ViewportRect.Width(), Parameters.ViewportRect.Height()),
-		FSceneRenderTargets::Get(RHICmdList).GetBufferSizeXY(),
+		FSceneRenderTargets::Get().GetBufferSizeXY(),
 		VertexShader);
 
 	RHICmdList.EndRenderPass();

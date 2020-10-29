@@ -106,7 +106,7 @@ void FDeferredShadingSceneRenderer::RenderLumenRadianceCacheVisualization(FRDGBu
 		const FViewInfo& View = Views[0];
 		const FRadianceCacheState& RadianceCacheState = Views[0].ViewState->RadianceCacheState;
 
-		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
+		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 		FRDGTextureRef SceneColor = GraphBuilder.RegisterExternalTexture(SceneContext.GetSceneColor());
 		FRDGTextureRef SceneDepth = GraphBuilder.RegisterExternalTexture(SceneContext.SceneDepthZ);
 

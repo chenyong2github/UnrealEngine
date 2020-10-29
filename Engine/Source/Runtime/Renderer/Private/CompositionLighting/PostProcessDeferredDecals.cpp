@@ -23,7 +23,7 @@ FDeferredDecalPassTextures GetDeferredDecalPassTextures(
 	const FViewInfo& View,
 	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer)
 {
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 
 	FDeferredDecalPassTextures PassTextures;
 	PassTextures.SceneTexturesUniformBuffer = SceneTexturesUniformBuffer;
@@ -434,7 +434,7 @@ void AddDeferredDecalPass(
 		return;
 	}
 
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 
 	const FScene& Scene = *(FScene*)ViewFamily.Scene;
 	const EShaderPlatform ShaderPlatform = View.GetShaderPlatform();

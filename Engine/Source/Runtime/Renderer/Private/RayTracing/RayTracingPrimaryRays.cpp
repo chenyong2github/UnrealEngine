@@ -99,7 +99,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingPrimaryRaysView(
 	float ResolutionFraction,
 	ERayTracingPrimaryRaysFlag Flags)
 {
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 
 	FSceneTextureParameters SceneTextures = GetSceneTextureParameters(GraphBuilder);
 

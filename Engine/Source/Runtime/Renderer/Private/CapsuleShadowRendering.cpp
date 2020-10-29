@@ -160,7 +160,7 @@ int32 GetCapsuleShadowDownsampleFactor()
 
 FIntPoint GetBufferSizeForCapsuleShadows()
 {
-	return FIntPoint::DivideAndRoundDown(FSceneRenderTargets::Get_FrameConstantsOnly().GetBufferSizeXY(), GetCapsuleShadowDownsampleFactor());
+	return FIntPoint::DivideAndRoundDown(FSceneRenderTargets::Get().GetBufferSizeXY(), GetCapsuleShadowDownsampleFactor());
 }
 
 enum ECapsuleShadowingType

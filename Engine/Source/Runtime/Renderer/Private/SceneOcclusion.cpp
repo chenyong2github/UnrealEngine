@@ -1334,7 +1334,7 @@ void FDeferredShadingSceneRenderer::RenderOcclusion(
 
 		RDG_GPU_STAT_SCOPE(GraphBuilder, HZB);
 
-		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
+		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 
 		uint32 DownsampleFactor = 1;
 		FRDGTextureRef OcclusionDepthTexture = SceneDepthTexture;

@@ -69,7 +69,7 @@ void FRendererModule::ShutdownModule()
 void FRendererModule::ReallocateSceneRenderTargets()
 {
 	FLightPrimitiveInteraction::InitializeMemoryPool();
-	FSceneRenderTargets::GetGlobalUnsafe().UpdateRHI();
+	FSceneRenderTargets::Get().UpdateRHI();
 }
 
 void FRendererModule::OnWorldCleanup(UWorld* World, bool bSessionEnded, bool bCleanupResources, bool bWorldChanged)
@@ -92,8 +92,8 @@ void FRendererModule::OnWorldCleanup(UWorld* World, bool bSessionEnded, bool bCl
 
 void FRendererModule::SceneRenderTargetsSetBufferSize(uint32 SizeX, uint32 SizeY)
 {
-	FSceneRenderTargets::GetGlobalUnsafe().SetBufferSize(SizeX, SizeY);
-	FSceneRenderTargets::GetGlobalUnsafe().UpdateRHI();
+	FSceneRenderTargets::Get().SetBufferSize(SizeX, SizeY);
+	FSceneRenderTargets::Get().UpdateRHI();
 }
 
 void FRendererModule::InitializeSystemTextures(FRHICommandListImmediate& RHICmdList)

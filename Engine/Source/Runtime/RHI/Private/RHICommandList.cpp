@@ -945,10 +945,6 @@ void FRHICommandListBase::Reset()
 	Root = nullptr;
 	CommandLink = &Root;
 	UID = GRHICommandList.UIDCounter.Increment();
-	for (int32 Index = 0; ERenderThreadContext(Index) < ERenderThreadContext::Num; Index++)
-	{
-		RenderThreadContexts[Index] = nullptr;
-	}
 	ExecuteStat = TStatId();
 
 	InitialGPUMask = GPUMask;
@@ -1290,7 +1286,6 @@ void FRHICommandListBase::QueueParallelAsyncCommandListSubmit(FGraphEventRef* An
 				Prereq.Add(RHIThreadBufferLockFence);
 			}
 			FRHICommandList* CmdList = new FRHICommandList(GetGPUMask());
-			CmdList->CopyRenderThreadContexts(*this);
 			FGraphEventRef TranslateSetupCompletionEvent = TGraphTask<FParallelTranslateSetupCommandList>::CreateTask(&Prereq, ENamedThreads::GetRenderThread()).ConstructAndDispatchWhenReady(CmdList, &RHICmdLists[0], Num, bIsPrepass);
 			QueueCommandListSubmit(CmdList);
 			AllOutstandingTasks.Add(TranslateSetupCompletionEvent);

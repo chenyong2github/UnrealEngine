@@ -700,7 +700,7 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 
 	RDG_EVENT_SCOPE(GraphBuilder, "DiffuseIndirectAndAO");
 
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 
 	FSceneTextureParameters SceneTextures = GetSceneTextureParameters(GraphBuilder, SceneTexturesUniformBuffer);
 	
@@ -1085,7 +1085,7 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 						View.ViewRect.Min.X, View.ViewRect.Min.Y,
 						View.ViewRect.Width(), View.ViewRect.Height(),
 						View.ViewRect.Size(),
-						FSceneRenderTargets::Get(RHICmdList).GetBufferSizeXY(),
+						FSceneRenderTargets::Get().GetBufferSizeXY(),
 						VertexShader,
 						View.StereoPass, 
 						false, // TODO.
@@ -1155,7 +1155,7 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(
 
 	RDG_EVENT_SCOPE(GraphBuilder, "ReflectionIndirect");
 
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 
 	const bool bReflectionEnv = ShouldDoReflectionEnvironment();
 

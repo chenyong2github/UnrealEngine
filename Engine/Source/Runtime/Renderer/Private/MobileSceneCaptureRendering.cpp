@@ -440,7 +440,7 @@ void UpdateSceneCaptureContentMobile_RenderThread(
 		{
 			// Copy the captured scene into the destination texture
 			SCOPED_DRAW_EVENT(RHICmdList, CaptureSceneColor);
-			CopyCaptureToTarget(RHICmdList, Target, TargetSize, View, ViewRect, FSceneRenderTargets::Get(RHICmdList).GetSceneColorTexture()->GetTexture2D(), bNeedsFlippedCopy, SceneRenderer);
+			CopyCaptureToTarget(RHICmdList, Target, TargetSize, View, ViewRect, FSceneRenderTargets::Get().GetSceneColorTexture()->GetTexture2D(), bNeedsFlippedCopy, SceneRenderer);
 		}
 
 		FRDGBuilder GraphBuilder(RHICmdList);

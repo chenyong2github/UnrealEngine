@@ -146,23 +146,7 @@ struct FCustomDepthTextures
 class RENDERER_API FSceneRenderTargets : public FRenderResource
 {
 public:
-	/** Destructor. */
-	virtual ~FSceneRenderTargets() {}
-
-	/** Singletons. At the moment parallel tasks get their snapshot from the rhicmdlist */
-	static FSceneRenderTargets& Get(FRHIComputeCommandList& RHICmdList);
-
-	// this is a placeholder, the context should come from somewhere. This is very unsafe, please don't use it!
-	static FSceneRenderTargets& GetGlobalUnsafe();
-	// As above but relaxed checks and always gives the global FSceneRenderTargets. The intention here is that it is only used for constants that don't change during a frame. This is very unsafe, please don't use it!
-	static FSceneRenderTargets& Get_FrameConstantsOnly();
-
-	/** Create a snapshot on the scene allocator */
-	FSceneRenderTargets* CreateSnapshot(const FViewInfo& InView);
-	/** Set a snapshot on the TargetCmdList */
-	void SetSnapshotOnCmdList(FRHICommandList& TargetCmdList);	
-	/** Destruct all snapshots */
-	void DestroyAllSnapshots();
+	static FSceneRenderTargets& Get();
 
 protected:
 	/** Constructor */
@@ -186,7 +170,6 @@ protected:
 		CurrentShadingPath(EShadingPath::Num),
 		bRequireSceneColorAlpha(false),
 		bAllocateVelocityGBuffer(false),
-		bSnapshot(false),
 		DefaultColorClear(FClearValueBinding::Black),
 		DefaultDepthClear(FClearValueBinding::DepthFar),
 		bHMDAllocatedDepthTarget(false),
@@ -196,9 +179,6 @@ protected:
 		FMemory::Memset(LargestDesiredSizes, 0);
 		FMemory::Memset(HistoryFlags, 0, sizeof(HistoryFlags));
 	}
-	
-	/** Constructor that creates snapshot */
-	FSceneRenderTargets(const FViewInfo& InView, const FSceneRenderTargets& SnapshotSource);
 
 public:
 
@@ -667,9 +647,6 @@ private:
 	// Set this per frame since there might be cases where we don't need an extra GBuffer
 	bool bAllocateVelocityGBuffer;
 
-	/** true is this is a snapshot on the scene allocator */
-	bool bSnapshot;
-
 	/** Clear color value, defaults to FClearValueBinding::Black */
 	FClearValueBinding DefaultColorClear;
 
@@ -687,9 +664,6 @@ private:
 
 	/** True if the a variable resolution texture is allocated to control sampling or shading rate */
 	bool bAllocatedFoveationTexture;
-
-	/** CAUTION: When adding new data, make sure you copy it in the snapshot constructor! **/
-
 };
 
 /** Sets up scene texture parameters for RDG (builder is valid) or passthrough RHI access (builder is null). Intended for temporary use during RDG refactor. */

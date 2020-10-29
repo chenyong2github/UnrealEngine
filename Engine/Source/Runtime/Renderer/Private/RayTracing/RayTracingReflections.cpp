@@ -585,7 +585,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingReflections(
 	const bool bLightingMissShader = CanUseRayTracingLightingMissShader(View.GetShaderPlatform());
 	const bool bRayTraceSkyLightContribution = ShouldRayTracedReflectionsRayTraceSkyLightContribution(*Scene);
 
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 	FSceneViewState* SceneViewState = (FSceneViewState*)View.State;
 
 	int32 UpscaleFactor = int32(1.0f / Options.ResolutionFraction);

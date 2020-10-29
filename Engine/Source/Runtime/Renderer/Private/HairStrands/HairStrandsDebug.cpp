@@ -1098,7 +1098,7 @@ void RenderHairStrandsDebugInfo(
 	const uint32 ViewIndex = 0;
 	FViewInfo& View = Views[ViewIndex];
 	const FSceneViewFamily& ViewFamily = *(View.Family);
-	FSceneRenderTargets& SceneTargets = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
+	FSceneRenderTargets& SceneTargets = FSceneRenderTargets::Get();
 
 	{
 		FHairStrandsBookmarkParameters Params = CreateHairStrandsBookmarkParameters(Views[0]);

@@ -1441,7 +1441,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	SCOPED_GPU_MASK(RHICmdList, AllViewsGPUMask);
 	SCOPED_GPU_MASK(FRHICommandListExecutor::GetImmediateAsyncComputeCommandList(), AllViewsGPUMask);
 
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 	
 	//make sure all the targets we're going to use will be safely writable.
 	GRenderTargetPool.TransitionTargetsWritable(RHICmdList);
@@ -2931,7 +2931,7 @@ FRDGTextureRef FDeferredShadingSceneRenderer::CopyStencilToLightingChannelTextur
 		RDG_EVENT_SCOPE(GraphBuilder, "CopyStencilToLightingChannels");
 
 		{
-			FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
+			FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 
 			const FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(SceneContext.GetBufferSizeXY(), PF_R16_UINT, FClearValueBinding::None, TexCreate_RenderTargetable | TexCreate_ShaderResource);
 			LightingChannelsTexture = GraphBuilder.CreateTexture(Desc, TEXT("LightingChannels"));

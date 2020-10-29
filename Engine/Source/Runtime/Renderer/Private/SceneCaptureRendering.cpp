@@ -232,7 +232,7 @@ void FDeferredShadingSceneRenderer::CopySceneCaptureComponentToTarget(
 					View.ViewRect.Min.X, View.ViewRect.Min.Y,
 					View.ViewRect.Width(), View.ViewRect.Height(),
 					View.UnconstrainedViewRect.Size(),
-					FSceneRenderTargets::Get(RHICmdList).GetBufferSizeXY(),
+					FSceneRenderTargets::Get().GetBufferSizeXY(),
 					VertexShader,
 					EDRF_UseTriangleOptimization);
 			});

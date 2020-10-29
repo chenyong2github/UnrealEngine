@@ -596,12 +596,6 @@ protected:
 
 public:
 	TStatId	ExecuteStat;
-	enum class ERenderThreadContext
-	{
-		SceneRenderTargets,
-		Num
-	};
-	void *RenderThreadContexts[(int32)ERenderThreadContext::Num];
 
 protected:
 	//the values of this struct must be copied when the commandlist is split 
@@ -681,22 +675,6 @@ protected:
 	}
 	
 public:
-	void CopyRenderThreadContexts(const FRHICommandListBase& ParentCommandList)
-	{
-		for (int32 Index = 0; ERenderThreadContext(Index) < ERenderThreadContext::Num; Index++)
-		{
-			RenderThreadContexts[Index] = ParentCommandList.RenderThreadContexts[Index];
-		}
-	}
-	void SetRenderThreadContext(void* InContext, ERenderThreadContext Slot)
-	{
-		RenderThreadContexts[int32(Slot)] = InContext;
-	}
-	FORCEINLINE void* GetRenderThreadContext(ERenderThreadContext Slot)
-	{
-		return RenderThreadContexts[int32(Slot)];
-	}
-
 	struct FCommonData
 	{
 		class FRHICommandListBase* Parent = nullptr;

@@ -107,7 +107,7 @@ namespace MobileReflectionEnvironmentCapture
 
 		auto ShaderMap = GetGlobalShaderMap(FeatureLevel);
 
-		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 
 		{
 			SCOPED_DRAW_EVENT(RHICmdList, DownsampleCubeMips);
@@ -166,7 +166,7 @@ namespace MobileReflectionEnvironmentCapture
 			}
 		}
 
-		OutAverageBrightness = ComputeSingleAverageBrightnessFromCubemap(RHICmdList, FeatureLevel, CubmapSize, GetEffectiveRenderTarget(FSceneRenderTargets::Get(RHICmdList), true, NumMips - 1));
+		OutAverageBrightness = ComputeSingleAverageBrightnessFromCubemap(RHICmdList, FeatureLevel, CubmapSize, GetEffectiveRenderTarget(FSceneRenderTargets::Get(), true, NumMips - 1));
 	}
 
 	void CopyToSkyTexture(FRHICommandList& RHICmdList, FScene* Scene, FTexture* ProcessedTexture)
@@ -177,7 +177,7 @@ namespace MobileReflectionEnvironmentCapture
 			const bool bUseHQFiltering = CVarMobileUseHighQualitySkyCaptureFiltering.GetValueOnRenderThread() == 1;
 			const int32 EffectiveTopMipSize = ProcessedTexture->GetSizeX();
 			const int32 NumMips = FMath::CeilLogTwo(EffectiveTopMipSize) + 1;
-			FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+			FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 
 			RHICmdList.Transition(FRHITransitionInfo(ProcessedTexture->TextureRHI, ERHIAccess::Unknown, ERHIAccess::CopyDest));
 
@@ -213,7 +213,7 @@ namespace MobileReflectionEnvironmentCapture
 		const int32 NumMips = FMath::CeilLogTwo(EffectiveTopMipSize) + 1;
 		const bool bUseHQFiltering = CVarMobileUseHighQualitySkyCaptureFiltering.GetValueOnRenderThread() == 1;
 		{
-			FSceneRenderTargetItem& EffectiveColorRT = FSceneRenderTargets::Get(RHICmdList).ReflectionColorScratchCubemap[0]->GetRenderTargetItem();
+			FSceneRenderTargetItem& EffectiveColorRT = FSceneRenderTargets::Get().ReflectionColorScratchCubemap[0]->GetRenderTargetItem();
 			// Premultiply alpha in-place using alpha blending
 			for (uint32 CubeFace = 0; CubeFace < CubeFace_MAX; CubeFace++)
 			{
@@ -266,7 +266,7 @@ namespace MobileReflectionEnvironmentCapture
 		FSceneRenderTargetItem* DiffuseConvolutionSource = NULL;
 
 		auto ShaderMap = GetGlobalShaderMap(FeatureLevel);
-		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 
 		{
 			SCOPED_DRAW_EVENT(RHICmdList, DownsampleCubeMips);

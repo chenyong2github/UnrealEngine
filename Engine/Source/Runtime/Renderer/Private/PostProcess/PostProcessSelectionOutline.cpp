@@ -55,7 +55,7 @@ FScreenPassTexture AddSelectionOutlinePass(FRDGBuilder& GraphBuilder, const FVie
 
 	RDG_EVENT_SCOPE(GraphBuilder, "EditorSelectionOutlines");
 
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 	FPersistentUniformBuffers& SceneUniformBuffers = View.Family->Scene->GetRenderScene()->UniformBuffers;
 	const uint32 MsaaSampleCount = SceneContext.GetEditorMSAACompositingSampleCount();
 

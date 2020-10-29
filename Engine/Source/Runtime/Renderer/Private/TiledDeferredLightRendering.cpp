@@ -162,7 +162,7 @@ public:
 
 		if (TransmissionProfilesTexture.IsBound())
 		{
-			FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+			FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 			const IPooledRenderTarget* PooledRT = GetSubsufaceProfileTexture_RT((FRHICommandListImmediate&)RHICmdList);
 
 			if (!PooledRT)
@@ -406,7 +406,7 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderTiledDeferredLighting(
 			SceneColorTexture = SceneColorOutputTexture;
 		}
 
-		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
+		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 		ConvertToExternalTexture(GraphBuilder, SceneColorTexture, SceneContext.GetSceneColor());
 	}
 

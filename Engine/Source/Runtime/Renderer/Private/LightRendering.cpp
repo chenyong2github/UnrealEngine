@@ -575,7 +575,7 @@ private:
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View.ViewUniformBuffer);
 		FGlobalShader::SetParameters<FStrataGlobalUniformParameters>(RHICmdList, ShaderRHI, Strata::BindStrataGlobalUniformParameters(View));
 
-		FSceneRenderTargets& SceneRenderTargets = FSceneRenderTargets::Get(RHICmdList);
+		FSceneRenderTargets& SceneRenderTargets = FSceneRenderTargets::Get();
 
 		if(LightAttenuationTexture.IsBound())
 		{
@@ -2240,7 +2240,7 @@ void FDeferredShadingSceneRenderer::RenderLight(
 				View.ViewRect.Min.X, View.ViewRect.Min.Y,
 				View.ViewRect.Width(), View.ViewRect.Height(),
 				View.ViewRect.Size(),
-				FSceneRenderTargets::Get(RHICmdList).GetBufferSizeXY(),
+				FSceneRenderTargets::Get().GetBufferSizeXY(),
 				VertexShader,
 				EDRF_UseTriangleOptimization);
 		}

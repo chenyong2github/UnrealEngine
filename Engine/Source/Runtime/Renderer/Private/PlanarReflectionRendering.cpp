@@ -209,7 +209,7 @@ IMPLEMENT_SHADER_TYPE(template<>, FPrefilterPlanarReflectionPS<true>, TEXT("/Eng
 template<bool bEnablePlanarReflectionPrefilter>
 void PrefilterPlanarReflection(FRHICommandListImmediate& RHICmdList, FViewInfo& View, const FUniformBufferRHIRef& PassUniformBuffer, const FPlanarReflectionSceneProxy* ReflectionSceneProxy, const FRenderTarget* Target)
 {
-	FRHITexture* SceneColorInput = FSceneRenderTargets::Get(RHICmdList).GetSceneColorTexture();
+	FRHITexture* SceneColorInput = FSceneRenderTargets::Get().GetSceneColorTexture();
 
 	if(View.FeatureLevel >= ERHIFeatureLevel::SM5)
 	{
@@ -273,7 +273,7 @@ void PrefilterPlanarReflection(FRHICommandListImmediate& RHICmdList, FViewInfo& 
 				UV.X, UV.Y,
 				UVSize.X, UVSize.Y,
 				View.ViewRect.Size(),
-				FSceneRenderTargets::Get(RHICmdList).GetBufferSizeXY(),
+				FSceneRenderTargets::Get().GetBufferSizeXY(),
 				VertexShader,
 				EDRF_UseTriangleOptimization);
 		}
@@ -887,7 +887,7 @@ void FDeferredShadingSceneRenderer::RenderDeferredPlanarReflections(FRDGBuilder&
 				View.ViewRect.Min.X, View.ViewRect.Min.Y,
 				View.ViewRect.Width(), View.ViewRect.Height(),
 				View.ViewRect.Size(),
-				FSceneRenderTargets::Get(RHICmdList).GetBufferSizeXY(),
+				FSceneRenderTargets::Get().GetBufferSizeXY(),
 				VertexShader,
 				EDRF_UseTriangleOptimization);
 		}

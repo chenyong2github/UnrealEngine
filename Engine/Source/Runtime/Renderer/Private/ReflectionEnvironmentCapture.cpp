@@ -107,7 +107,7 @@ bool DoGPUArrayCopy()
 void FullyResolveReflectionScratchCubes(FRHICommandListImmediate& RHICmdList)
 {
 	SCOPED_DRAW_EVENT(RHICmdList, FullyResolveReflectionScratchCubes);
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 	FTextureRHIRef& Scratch0 = SceneContext.ReflectionColorScratchCubemap[0]->GetRenderTargetItem().TargetableTexture;
 	FTextureRHIRef& Scratch1 = SceneContext.ReflectionColorScratchCubemap[1]->GetRenderTargetItem().TargetableTexture;
 	FResolveParams ResolveParams(FResolveRect(), CubeFace_PosX, -1, -1, -1);
@@ -342,7 +342,7 @@ void ComputeAverageBrightness(FRHICommandListImmediate& RHICmdList, ERHIFeatureL
 	// necessary to resolve the clears which touched all the mips.  scene rendering only resolves mip 0.
 	FullyResolveReflectionScratchCubes(RHICmdList);	
 
-	FSceneRenderTargetItem& DownSampledCube = FSceneRenderTargets::Get(RHICmdList).ReflectionColorScratchCubemap[0]->GetRenderTargetItem();
+	FSceneRenderTargetItem& DownSampledCube = FSceneRenderTargets::Get().ReflectionColorScratchCubemap[0]->GetRenderTargetItem();
 	CreateCubeMips( RHICmdList, FeatureLevel, NumMips, DownSampledCube );
 
 	OutAverageBrightness = ComputeSingleAverageBrightnessFromCubemap(RHICmdList, FeatureLevel, CubmapSize, DownSampledCube);
@@ -429,7 +429,7 @@ void FilterReflectionEnvironment(FRHICommandListImmediate& RHICmdList, ERHIFeatu
 	const int32 EffectiveTopMipSize = CubmapSize;
 	const int32 NumMips = FMath::CeilLogTwo(EffectiveTopMipSize) + 1;
 
-	FSceneRenderTargetItem& EffectiveColorRT = FSceneRenderTargets::Get(RHICmdList).ReflectionColorScratchCubemap[0]->GetRenderTargetItem();
+	FSceneRenderTargetItem& EffectiveColorRT = FSceneRenderTargets::Get().ReflectionColorScratchCubemap[0]->GetRenderTargetItem();
 
 	FGraphicsPipelineStateInitializer GraphicsPSOInit;
 	GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Solid, CM_None>::GetRHI();
@@ -478,10 +478,10 @@ void FilterReflectionEnvironment(FRHICommandListImmediate& RHICmdList, ERHIFeatu
 	RHICmdList.Transition(FRHITransitionInfo(EffectiveColorRT.TargetableTexture, ERHIAccess::Unknown, ERHIAccess::SRVMask));
 
 	auto ShaderMap = GetGlobalShaderMap(FeatureLevel);
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 
-	FSceneRenderTargetItem& DownSampledCube = FSceneRenderTargets::Get(RHICmdList).ReflectionColorScratchCubemap[0]->GetRenderTargetItem();
-	FSceneRenderTargetItem& FilteredCube = FSceneRenderTargets::Get(RHICmdList).ReflectionColorScratchCubemap[1]->GetRenderTargetItem();
+	FSceneRenderTargetItem& DownSampledCube = FSceneRenderTargets::Get().ReflectionColorScratchCubemap[0]->GetRenderTargetItem();
+	FSceneRenderTargetItem& FilteredCube = FSceneRenderTargets::Get().ReflectionColorScratchCubemap[1]->GetRenderTargetItem();
 
 	CreateCubeMips( RHICmdList, FeatureLevel, NumMips, DownSampledCube );
 
@@ -615,7 +615,7 @@ void ClearScratchCubemaps(FRHICommandListImmediate& RHICmdList, int32 TargetSize
 {
 	SCOPED_DRAW_EVENT(RHICmdList, ClearScratchCubemaps);
 
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 	SceneContext.AllocateReflectionTargets(RHICmdList, TargetSize);
 
 	FMemMark Mark(FMemStack::Get());
@@ -675,7 +675,7 @@ void CaptureSceneToScratchCubemap(FRHICommandListImmediate& RHICmdList, FSceneRe
 		// allow them to restart their command buffers
 		RHICmdList.SubmitCommandsAndFlushGPU();
 
-		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 		SceneContext.AllocateReflectionTargets(RHICmdList, CubemapSize);
 
 		const FViewInfo& View = SceneRenderer->Views[0];
@@ -783,7 +783,7 @@ void CopyCubemapToScratchCubemap(FRHICommandListImmediate& RHICmdList, ERHIFeatu
 		return;
 	}
 
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 
 	FMemMark Mark(FMemStack::Get());
 	FRDGBuilder GraphBuilder(RHICmdList);
@@ -1376,7 +1376,7 @@ void CopyToSceneArray(FRHICommandListImmediate& RHICmdList, FScene* Scene, FRefl
 	const int32 NumMips = FMath::CeilLogTwo(EffectiveTopMipSize) + 1;
 
 	const int32 CaptureIndex = FindOrAllocateCubemapIndex(Scene, ReflectionProxy->Component);
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 	
 	FSceneRenderTargetItem& FilteredCube = SceneContext.ReflectionColorScratchCubemap[1]->GetRenderTargetItem();
 	FSceneRenderTargetItem& DestCube = Scene->ReflectionSceneData.CubemapArray.GetRenderTarget();
@@ -1543,7 +1543,7 @@ void ReadbackRadianceMap(FRHICommandListImmediate& RHICmdList, int32 CubmapSize,
 
 	const int32 MipIndex = 0;
 
-	FSceneRenderTargetItem& SourceCube = FSceneRenderTargets::Get(RHICmdList).ReflectionColorScratchCubemap[0]->GetRenderTargetItem();
+	FSceneRenderTargetItem& SourceCube = FSceneRenderTargets::Get().ReflectionColorScratchCubemap[0]->GetRenderTargetItem();
 	check(SourceCube.ShaderResourceTexture->GetFormat() == PF_FloatRGBA);
 	const int32 CubeFaceBytes = CubmapSize * CubmapSize * OutRadianceMap.GetTypeSize();
 
@@ -1567,9 +1567,9 @@ void CopyToSkyTexture(FRHICommandList& RHICmdList, FScene* Scene, FTexture* Proc
 	{
 		const int32 EffectiveTopMipSize = ProcessedTexture->GetSizeX();
 		const int32 NumMips = FMath::CeilLogTwo(EffectiveTopMipSize) + 1;
-		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 
-		FSceneRenderTargetItem& FilteredCube = FSceneRenderTargets::Get(RHICmdList).ReflectionColorScratchCubemap[1]->GetRenderTargetItem();
+		FSceneRenderTargetItem& FilteredCube = FSceneRenderTargets::Get().ReflectionColorScratchCubemap[1]->GetRenderTargetItem();
 
 		// GPU copy back to the skylight's texture, which is not a render target
 		FRHICopyTextureInfo CopyInfo;
@@ -1709,7 +1709,7 @@ void FScene::UpdateSkyCaptureContents(
 			ENQUEUE_RENDER_COMMAND(FreeReflectionScratch)(
 				[](FRHICommandListImmediate& RHICmdList)
 			{
-				FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+				FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 				SceneContext.FreeReflectionScratchRenderTargets();
 				GRenderTargetPool.FreeUnusedResources();
 			});

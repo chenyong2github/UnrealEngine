@@ -298,7 +298,7 @@ void GenerateImportanceSamplingRays(
 				PassParameters->PrevInvPreExposure = 1.0f / View.PrevViewInfo.SceneColorPreExposure;
 				PassParameters->ImportanceSamplingHistoryScreenPositionScaleBias = ScreenProbeGatherState.ImportanceSamplingHistoryScreenPositionScaleBias;
 
-				FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
+				FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 				
 				const FVector2D InvBufferSize(1.0f / SceneContext.GetBufferSizeXY().X, 1.0f / SceneContext.GetBufferSizeXY().Y);
 
@@ -344,7 +344,7 @@ void GenerateImportanceSamplingRays(
 		}
 
 		ScreenProbeGatherState.ImportanceSamplingHistoryViewRect = View.ViewRect;
-		ScreenProbeGatherState.ImportanceSamplingHistoryScreenPositionScaleBias = View.GetScreenPositionScaleBias(FSceneRenderTargets::Get_FrameConstantsOnly().GetBufferSizeXY(), View.ViewRect);
+		ScreenProbeGatherState.ImportanceSamplingHistoryScreenPositionScaleBias = View.GetScreenPositionScaleBias(FSceneRenderTargets::Get().GetBufferSizeXY(), View.ViewRect);
 	}
 
 	FIntPoint RayInfosForTracingBufferSize = ScreenProbeParameters.ScreenProbeAtlasBufferSize * ScreenProbeParameters.ScreenProbeTracingOctahedronResolution;

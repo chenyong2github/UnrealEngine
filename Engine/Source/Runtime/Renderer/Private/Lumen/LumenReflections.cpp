@@ -444,7 +444,7 @@ void UpdateHistoryReflections(
 	{
 		FReflectionTemporalState& ReflectionTemporalState = View.ViewState->Lumen.ReflectionState;
 		ReflectionTemporalState.HistoryViewRect = View.ViewRect;
-		ReflectionTemporalState.HistoryScreenPositionScaleBias = View.GetScreenPositionScaleBias(FSceneRenderTargets::Get_FrameConstantsOnly().GetBufferSizeXY(), View.ViewRect);
+		ReflectionTemporalState.HistoryScreenPositionScaleBias = View.GetScreenPositionScaleBias(FSceneRenderTargets::Get().GetBufferSizeXY(), View.ViewRect);
 
 		// Queue updating the view state's render target reference with the new values
 		ConvertToExternalTexture(GraphBuilder, FinalSpecularIndirect, ReflectionTemporalState.SpecularIndirectHistoryRT);
@@ -470,7 +470,7 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLumenReflections(
 	RDG_GPU_STAT_SCOPE(GraphBuilder, LumenReflections);
 
 	FLumenReflectionTracingParameters ReflectionTracingParameters;
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 
 	ReflectionTracingParameters.ReflectionDownsampleFactor = GLumenReflectionDownsampleFactor;
 	ReflectionTracingParameters.ReflectionTracingViewSize = FIntPoint::DivideAndRoundUp(View.ViewRect.Size(), (int32)ReflectionTracingParameters.ReflectionDownsampleFactor);

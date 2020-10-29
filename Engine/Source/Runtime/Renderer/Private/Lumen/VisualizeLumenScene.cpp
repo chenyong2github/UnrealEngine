@@ -305,7 +305,7 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneVisualization(FRDGBuilder& G
 		const bool bVisualizeVoxels = GLumenVisualizeVoxels != 0;
 
 		FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
-		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
+		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 		FRDGTextureRef SceneColor = GraphBuilder.RegisterExternalTexture(SceneContext.GetSceneColor());
 		FRDGTextureUAVRef SceneColorUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(SceneColor));
 

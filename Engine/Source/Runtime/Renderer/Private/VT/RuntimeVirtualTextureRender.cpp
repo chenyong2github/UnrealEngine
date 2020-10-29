@@ -1033,7 +1033,7 @@ namespace RuntimeVirtualTexture
 		FViewInfo* View = &ViewInfo;
 		ViewFamily.Views.Add(View);
 
-		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
+		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 		View->bIsVirtualTexture = true;
 		View->ViewRect = View->UnconstrainedViewRect;
 		View->CachedViewUniformShaderParameters = MakeUnique<FViewUniformShaderParameters>();

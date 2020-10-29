@@ -634,7 +634,7 @@ static void RenderHairStrandsShadowMask(
 	SCOPED_DRAW_EVENT(GraphBuilder.RHICmdList, HairStrandsOpaqueMask);
 	SCOPED_GPU_STAT(GraphBuilder.RHICmdList, HairStrandsOpaqueMask);
 
-	FSceneRenderTargets& SceneTargets = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
+	FSceneRenderTargets& SceneTargets = FSceneRenderTargets::Get();
 
 	FRDGTextureRef SceneDepthTexture = GraphBuilder.RegisterExternalTexture(SceneTargets.SceneDepthZ, TEXT("SceneDephtTexture"));
 

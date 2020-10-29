@@ -693,7 +693,7 @@ void UpdateHistoryScreenProbeGather(
 		}
 
 		*DiffuseIndirectHistoryViewRect = NewHistoryViewRect;
-		*DiffuseIndirectHistoryScreenPositionScaleBias = View.GetScreenPositionScaleBias(FSceneRenderTargets::Get_FrameConstantsOnly().GetBufferSizeXY(), View.ViewRect);
+		*DiffuseIndirectHistoryScreenPositionScaleBias = View.GetScreenPositionScaleBias(FSceneRenderTargets::Get().GetBufferSizeXY(), View.ViewRect);
 		ScreenProbeGatherState.LumenGatherCvars = GLumenGatherCvars;
 	}
 	else
@@ -720,7 +720,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 
 	check(ShouldRenderLumenDiffuseGI(View));
 	ensureMsgf(VelocityEncodeDepth(View.GetShaderPlatform()), TEXT("Platform did not return true from VelocityEncodeDepth().  Lumen requires velocity depth."));
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 
 	if (!GLumenScreenProbeGather)
 	{

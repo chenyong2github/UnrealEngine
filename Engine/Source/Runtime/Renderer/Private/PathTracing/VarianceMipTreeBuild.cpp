@@ -174,7 +174,7 @@ IMPLEMENT_SHADER_TYPE(, FVisualizeMipTreePS, TEXT("/Engine/Private/PathTracing/V
 void FDeferredShadingSceneRenderer::VisualizeVarianceMipTree(FRHICommandListImmediate& RHICmdList, const FViewInfo& View, const FRWBuffer& VarianceMipTree, FIntVector VarianceMipTreeDimensions)
 {
 	// Allocate render target
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 	TRefCountPtr<IPooledRenderTarget> SceneColor = SceneContext.GetSceneColor();
 	FPooledRenderTargetDesc Desc = SceneColor->GetDesc();
 	Desc.Flags &= ~(TexCreate_FastVRAM | TexCreate_Transient);

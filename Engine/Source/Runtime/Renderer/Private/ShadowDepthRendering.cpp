@@ -823,7 +823,7 @@ public:
 		const FViewInfo& InView,
 		const FProjectedShadowInfo& InProjectedShadowInfo,
 		const FParallelCommandListBindings& InBindings)
-		: FParallelCommandListSet(GET_STATID(STAT_CLP_Shadow), InView, InParentCmdList, false)
+		: FParallelCommandListSet(GET_STATID(STAT_CLP_Shadow), InView, InParentCmdList)
 		, ProjectedShadowInfo(InProjectedShadowInfo)
 		, Bindings(InBindings)
 	{}
@@ -1164,7 +1164,7 @@ void FProjectedShadowInfo::ModifyViewForShadow(FRHICommandList& RHICmdList, FVie
 	// Don't do material texture mip biasing in shadow maps.
 	FoundView->MaterialTextureMipBias = 0;
 
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 	FoundView->CachedViewUniformShaderParameters = MakeUnique<FViewUniformShaderParameters>();
 
 	// Override the view matrix so that billboarding primitives will be aligned to the light
@@ -1629,7 +1629,7 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder)
 {
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderShadows);
 	SCOPED_NAMED_EVENT(FSceneRenderer_RenderShadowDepthMaps, FColor::Emerald);
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 
 	RDG_EVENT_SCOPE(GraphBuilder, "ShadowDepths");
 	RDG_GPU_STAT_SCOPE(GraphBuilder, ShadowDepths);

@@ -2456,7 +2456,7 @@ void FSceneRenderer::CreatePerObjectProjectedShadow(
 		}
 	}
 
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 	
 	// Shadowing constants.
 	
@@ -3066,7 +3066,7 @@ void FSceneRenderer::CreateWholeSceneProjectedShadow(
 	TArray<FWholeSceneProjectedShadowInitializer, TInlineAllocator<6> > ProjectedShadowInitializers;
 	if (LightSceneInfo->Proxy->GetWholeSceneProjectedShadowInitializer(ViewFamily, ProjectedShadowInitializers))
 	{
-		FSceneRenderTargets& SceneContext_ConstantsOnly = FSceneRenderTargets::Get_FrameConstantsOnly();
+		FSceneRenderTargets& SceneContext_ConstantsOnly = FSceneRenderTargets::Get();
 
 		checkSlow(ProjectedShadowInitializers.Num() > 0);
 
@@ -4145,7 +4145,7 @@ void FSceneRenderer::AddViewDependentWholeSceneShadowsForView(
 
 			static_assert(INDEX_NONE == -1, "INDEX_NONE != -1!");
 
-			FSceneRenderTargets& SceneContext_ConstantsOnly = FSceneRenderTargets::Get_FrameConstantsOnly();
+			FSceneRenderTargets& SceneContext_ConstantsOnly = FSceneRenderTargets::Get();
 
 			float MaxShadowCascadeDistance = 0.0f;
 
@@ -4262,7 +4262,7 @@ void FSceneRenderer::AddViewDependentWholeSceneShadowsForView(
 
 void FSceneRenderer::AllocateShadowDepthTargets(FRHICommandListImmediate& RHICmdList)
 {
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 
 	// Sort visible shadows based on their allocation needs
 	// 2d shadowmaps for this frame only that can be atlased across lights
@@ -4550,7 +4550,7 @@ void FSceneRenderer::AllocateAtlasedShadowDepthTargets(
 		return;
 	}
 
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 	const FIntPoint MaxTextureSize = SceneContext.GetShadowDepthTextureResolution();
 
 	TArray<FLayoutAndAssignedShadows, SceneRenderingAllocator> Layouts;
@@ -4804,7 +4804,7 @@ void FSceneRenderer::AllocateTranslucentShadowDepthTargets(FRHICommandListImmedi
 {
 	if (TranslucentShadows.Num() > 0 && FeatureLevel >= ERHIFeatureLevel::SM5)
 	{
-		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 		const FIntPoint TranslucentShadowBufferResolution = SceneContext.GetTranslucentShadowDepthTextureResolution();
 
 		// Start with an empty atlas for per-object shadows (don't allow packing object shadows into the CSM atlas atm)
@@ -5050,7 +5050,7 @@ void FSceneRenderer::InitDynamicShadows(FRHICommandListImmediate& RHICmdList, FG
 	//SetupFallbackShadowMaps();
 
 	// Clear old preshadows and attempt to add new ones to the cache
-	UpdatePreshadowCache(FSceneRenderTargets::Get(RHICmdList));
+	UpdatePreshadowCache(FSceneRenderTargets::Get());
 
 	// Gathers the list of primitives used to draw various shadow types
 	GatherShadowPrimitives(PreShadows, ViewDependentWholeSceneShadowsThatNeedCulling, bStaticSceneOnly);

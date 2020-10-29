@@ -154,7 +154,7 @@ FDistanceFieldAOParameters::FDistanceFieldAOParameters(float InOcclusionMaxDista
 
 FIntPoint GetBufferSizeForAO()
 {
-	return FIntPoint::DivideAndRoundDown(FSceneRenderTargets::Get_FrameConstantsOnly().GetBufferSizeXY(), GAODownsampleFactor);
+	return FIntPoint::DivideAndRoundDown(FSceneRenderTargets::Get().GetBufferSizeXY(), GAODownsampleFactor);
 }
 
 // Sample set restricted to not self-intersect a surface based on cone angle .475882232
@@ -440,7 +440,7 @@ void ComputeDistanceFieldNormal(
 					0, 0,
 					View.ViewRect.Width(), View.ViewRect.Height(),
 					FIntPoint(View.ViewRect.Width() / GAODownsampleFactor, View.ViewRect.Height() / GAODownsampleFactor),
-					FSceneRenderTargets::Get(RHICmdList).GetBufferSizeXY(),
+					FSceneRenderTargets::Get().GetBufferSizeXY(),
 					VertexShader);
 			});
 		}
@@ -783,7 +783,7 @@ void FDeferredShadingSceneRenderer::RenderDistanceFieldLighting(
 
 	//@todo - support multiple views
 	const FViewInfo& View = Views[0];
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 
 	RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
 	RDG_EVENT_SCOPE(GraphBuilder, "DistanceFieldLighting");

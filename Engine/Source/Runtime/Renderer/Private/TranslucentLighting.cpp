@@ -852,7 +852,7 @@ void FDeferredShadingSceneRenderer::ClearTranslucentVolumeLighting(FRDGBuilder& 
 {
 	RDG_GPU_STAT_SCOPE(GraphBuilder, TranslucentLighting);
 
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 
 	const FIntVector TranslucencyLightingVolumeDim(GetTranslucencyLightingVolumeDim());
 	const FIntVector GroupCount = FComputeShaderUtils::GetGroupCount(TranslucencyLightingVolumeDim, FClearTranslucentLightingVolumeCS::CLEAR_BLOCK_SIZE);
@@ -907,7 +907,7 @@ void FDeferredShadingSceneRenderer::InjectAmbientCubemapTranslucentVolumeLightin
 	RDG_EVENT_SCOPE(GraphBuilder, "InjectAmbientCubemapTranslucentVolumeLighting");
 	RDG_GPU_STAT_SCOPE(GraphBuilder, TranslucentLighting);
 
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 
 	const int32 TranslucencyLightingVolumeDim = GetTranslucencyLightingVolumeDim();
 	const FVolumeBounds VolumeBounds(TranslucencyLightingVolumeDim);
@@ -1161,7 +1161,7 @@ static void InjectTranslucentLightArray(
 	TArrayView<const FTranslucentLightInjectionData> LightInjectionData,
 	int32 ViewIndex)
 {
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 	INC_DWORD_STAT_BY(STAT_NumLightsInjectedIntoTranslucency, LightInjectionData.Num());
 
 	// Inject into each volume cascade
@@ -1349,7 +1349,7 @@ void FDeferredShadingSceneRenderer::InjectSimpleTranslucentVolumeLightingArray(F
 		RDG_EVENT_SCOPE(GraphBuilder, "InjectSimpleTranslucentLightArray");
 
 		INC_DWORD_STAT_BY(STAT_NumLightsInjectedIntoTranslucency, NumLightsToInject);
-		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
+		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 
 		const int32 TranslucencyLightingVolumeDim = GetTranslucencyLightingVolumeDim();
 
@@ -1432,7 +1432,7 @@ void FDeferredShadingSceneRenderer::FilterTranslucentVolumeLighting(FRDGBuilder&
 		return;
 	}
 
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 
 	FRHISamplerState* SamplerStateRHI = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 

@@ -119,7 +119,7 @@ void FDeferredShadingSceneRenderer::VisualizeVolumetricLightmap(
 
 	RDG_EVENT_SCOPE(GraphBuilder, "VisualizeVolumetricLightmap");
 
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 
 	for (const FViewInfo& View : Views)
 	{

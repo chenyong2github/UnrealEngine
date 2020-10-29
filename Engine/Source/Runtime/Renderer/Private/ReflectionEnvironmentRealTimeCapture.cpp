@@ -310,7 +310,7 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 	FViewMatrices::FMinimalInitializer SceneCubeViewInitOptions;
 	SceneCubeViewInitOptions.ConstrainedViewRect = FIntRect(FIntPoint(0, 0), FIntPoint(CubeWidth, CubeWidth));
 
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 	FBox VolumeBounds[TVC_MAX];
 	CubeView.CachedViewUniformShaderParameters = MakeUnique<FViewUniformShaderParameters>();
 	CubeView.SetupUniformBufferParameters(

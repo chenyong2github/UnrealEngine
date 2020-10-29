@@ -1059,7 +1059,7 @@ void FDeferredShadingSceneRenderer::RenderScreenProbeGatherVisualizeHardwareTrac
 	}
 
 	FRDGBufferRef VisualizeHardwareTracesBuffer = GraphBuilder.RegisterExternalBuffer(GVisualizeHardwareTracesBuffer);
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 
 	FVisualizeHardwareTraces* PassParameters = GraphBuilder.AllocParameters<FVisualizeHardwareTraces>();
 	{

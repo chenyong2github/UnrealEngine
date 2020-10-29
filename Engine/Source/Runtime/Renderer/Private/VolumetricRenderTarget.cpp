@@ -340,7 +340,7 @@ void FSceneRenderer::InitVolumetricRenderTargetForViews(FRDGBuilder& GraphBuilde
 		FVolumetricRenderTargetViewStateData& VolumetricCloudRT = ViewInfo.ViewState->VolumetricCloudRenderTarget;
 
 
-		//FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+		//FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 		FIntPoint ViewRect = ViewInfo.ViewRect.Size();
 		VolumetricCloudRT.Initialise(	// TODO this is going to reallocate a buffer each time dynamic resolution scaling is applied 
 			ViewRect,
@@ -442,7 +442,7 @@ void FSceneRenderer::ReconstructVolumetricRenderTarget(FRDGBuilder& GraphBuilder
 
 	FRDGTextureRef BlackDummy = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
 
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 	TRefCountPtr<IPooledRenderTarget> SceneDepthZ = SceneContext.SceneDepthZ;
 
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)

@@ -195,7 +195,7 @@ IMPLEMENT_SHADER_TYPE(,FAccumulateCubeFacesPS,TEXT("/Engine/Private/ReflectionEn
 void ComputeDiffuseIrradiance(FRHICommandListImmediate& RHICmdList, ERHIFeatureLevel::Type FeatureLevel, FTextureRHIRef LightingSource, int32 LightingSourceMipIndex, FSHVectorRGB3* OutIrradianceEnvironmentMap)
 {
 	auto ShaderMap = GetGlobalShaderMap(FeatureLevel);
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 
 	FGraphicsPipelineStateInitializer GraphicsPSOInit;
 	GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Solid, CM_None>::GetRHI();
@@ -303,8 +303,8 @@ void ComputeDiffuseIrradiance(FRHICommandListImmediate& RHICmdList, ERHIFeatureL
 		}
 
 		{
-			// Gather the cubemap face results and normalize, copy this coefficient to FSceneRenderTargets::Get(RHICmdList).SkySHIrradianceMap
-			FSceneRenderTargetItem& EffectiveRT = FSceneRenderTargets::Get(RHICmdList).SkySHIrradianceMap->GetRenderTargetItem();
+			// Gather the cubemap face results and normalize, copy this coefficient to FSceneRenderTargets::Get().SkySHIrradianceMap
+			FSceneRenderTargetItem& EffectiveRT = FSceneRenderTargets::Get().SkySHIrradianceMap->GetRenderTargetItem();
 
 			//load/store actions so we don't lose results as we render one pixel at a time on tile renderers.
 			RHICmdList.Transition(FRHITransitionInfo(EffectiveRT.TargetableTexture, ERHIAccess::Unknown, ERHIAccess::RTV));
@@ -347,7 +347,7 @@ void ComputeDiffuseIrradiance(FRHICommandListImmediate& RHICmdList, ERHIFeatureL
 
 	{
 		// Read back the completed SH environment map
-		FSceneRenderTargetItem& EffectiveRT = FSceneRenderTargets::Get(RHICmdList).SkySHIrradianceMap->GetRenderTargetItem();
+		FSceneRenderTargetItem& EffectiveRT = FSceneRenderTargets::Get().SkySHIrradianceMap->GetRenderTargetItem();
 		check(EffectiveRT.ShaderResourceTexture->GetFormat() == PF_FloatRGBA);
 
 		TArray<FFloat16Color> SurfaceData;

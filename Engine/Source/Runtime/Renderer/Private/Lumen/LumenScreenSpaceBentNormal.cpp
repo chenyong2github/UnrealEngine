@@ -54,7 +54,7 @@ FScreenSpaceBentNormalParameters ComputeScreenSpaceBentNormal(
 {
 	FScreenSpaceBentNormalParameters OutParameters;
 
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 	FRDGTextureDesc ScreenBentNormalDesc(FRDGTextureDesc::Create2D(SceneContext.GetBufferSizeXY(), PF_R8G8B8A8, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV));
 	FRDGTextureRef ScreenBentNormal = GraphBuilder.CreateTexture(ScreenBentNormalDesc, TEXT("ScreenBentNormal"));
 

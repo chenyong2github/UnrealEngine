@@ -3196,7 +3196,7 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRDGBuilder& GraphBuilder)
 			View.bDisableQuerySubmissions = true;
 			View.bIgnoreExistingQueries = true;
 		}
-		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 
 		// set up the screen area for occlusion
 		float NumPossiblePixels = SceneContext.UseDownsizedOcclusionQueries() && IsValidRef(SceneContext.SmallDepthZ) ?

@@ -114,38 +114,6 @@ IMPLEMENT_SHADERPIPELINE_TYPE_VSPS(AnisotropyPipeline, FAnisotropyVS, FAnisotrop
 
 DECLARE_CYCLE_STAT(TEXT("AnisotropyPass"), STAT_CLP_AnisotropyPass, STATGROUP_ParallelCommandListMarkers);
 
-class FAnisotropyPassParallelCommandListSet : public FParallelCommandListSet
-{
-public:
-	FAnisotropyPassParallelCommandListSet(
-		FRHICommandListImmediate& InRHICmdList,
-		const FSceneRenderer& InSceneRenderer,
-		const FViewInfo& InView,
-		const FParallelCommandListBindings& InBindings
-		)
-		: FParallelCommandListSet(GET_STATID(STAT_CLP_AnisotropyPass), InView, InRHICmdList, false)
-		, SceneRenderer(InSceneRenderer)
-		, Bindings(InBindings)
-	{}
-
-	virtual ~FAnisotropyPassParallelCommandListSet()
-	{
-		Dispatch();
-	}
-
-	virtual void SetStateOnCommandList(FRHICommandList& RHICmdList) override
-	{
-		FParallelCommandListSet::SetStateOnCommandList(RHICmdList);
-		Bindings.SetOnCommandList(RHICmdList);
-		SceneRenderer.SetStereoViewport(RHICmdList, View);
-	}
-
-private:
-	const FSceneRenderer& SceneRenderer;
-	FParallelCommandListBindings Bindings;
-};
-
-
 FAnisotropyMeshProcessor::FAnisotropyMeshProcessor(
 	const FScene* Scene, 
 	const FSceneView* InViewIfDynamicMeshCommand, 
@@ -325,7 +293,7 @@ void FDeferredShadingSceneRenderer::RenderAnisotropyPass(
 	SCOPE_CYCLE_COUNTER(STAT_AnisotropyPassDrawTime);
 	RDG_GPU_STAT_SCOPE(GraphBuilder, RenderAnisotropyPass);
 
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 	if (!SceneContext.GBufferF)
 	{
 		SceneContext.AllocateAnisotropyTarget(GraphBuilder.RHICmdList);
@@ -359,7 +327,7 @@ void FDeferredShadingSceneRenderer::RenderAnisotropyPass(
 					[this, &View, &ParallelMeshPass, PassParameters](FRHICommandListImmediate& RHICmdList)
 				{
 					Scene->UniformBuffers.UpdateViewUniformBuffer(View);
-					FAnisotropyPassParallelCommandListSet ParallelCommandListSet(RHICmdList, *this, View, FParallelCommandListBindings(PassParameters));
+					FRDGParallelCommandListSet ParallelCommandListSet(RHICmdList, GET_STATID(STAT_CLP_AnisotropyPass), *this, View, FParallelCommandListBindings(PassParameters));
 
 					ParallelMeshPass.DispatchDraw(&ParallelCommandListSet, RHICmdList);
 				});

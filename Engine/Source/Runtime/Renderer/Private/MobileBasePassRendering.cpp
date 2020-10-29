@@ -163,7 +163,7 @@ void SetupMobileBasePassUniformParameters(
 		SetupMode |= EMobileSceneTextureSetupMode::CustomDepth;
 	}
 
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 	SetupMobileSceneTextureUniformParameters(SceneContext, SetupMode, BasePassParameters.SceneTextures);
 
 	BasePassParameters.PreIntegratedGFTexture = GSystemTextures.PreintegratedGF->GetRenderTargetItem().ShaderResourceTexture;

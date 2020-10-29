@@ -3739,7 +3739,7 @@ void DrawPrePass(
 	{
 		SCOPED_DRAW_EVENT(RHICmdList, NanitePrePass);
 
-		FSceneRenderTargets& SceneTargets = FSceneRenderTargets::Get(RHICmdList);
+		FSceneRenderTargets& SceneTargets = FSceneRenderTargets::Get();
 
 		FRDGBuilder GraphBuilder(RHICmdList);
 
@@ -3847,7 +3847,7 @@ void DrawBasePass(
 	RDG_EVENT_SCOPE(GraphBuilder, "NaniteBasePass");
 	RDG_GPU_STAT_SCOPE(GraphBuilder, NaniteMaterials);
 
-	FSceneRenderTargets& SceneTargets = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
+	FSceneRenderTargets& SceneTargets = FSceneRenderTargets::Get();
 	const ENaniteMeshPass::Type MeshPass = ENaniteMeshPass::BasePass;
 
 	const int32 ViewWidth		= View.ViewRect.Max.X - View.ViewRect.Min.X;

@@ -415,7 +415,7 @@ void FDeferredShadingSceneRenderer::RenderScreenProbeGatherVisualizeTraces(
 	if (GLumenScreenProbeGatherVisualizeTraces && GVisualizeTracesData.IsValid())
 	{
 		FRDGBufferRef VisualizeTracesData = GraphBuilder.RegisterExternalBuffer(GVisualizeTracesData);
-		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
+		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 
 		FVisualizeTraces* PassParameters = GraphBuilder.AllocParameters<FVisualizeTraces>();
 		PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColor, ERenderTargetLoadAction::ELoad);

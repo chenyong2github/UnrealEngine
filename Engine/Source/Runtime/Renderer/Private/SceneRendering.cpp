@@ -617,13 +617,12 @@ bool FFastVramConfig::UpdateBufferFlagFromCVar(TAutoConsoleVariable<int32>& CVar
 FFastVramConfig GFastVRamConfig;
 
 
-FParallelCommandListSet::FParallelCommandListSet(TStatId InExecuteStat, const FViewInfo& InView, FRHICommandListImmediate& InParentCmdList, bool bInCreateSceneContext)
+FParallelCommandListSet::FParallelCommandListSet(TStatId InExecuteStat, const FViewInfo& InView, FRHICommandListImmediate& InParentCmdList)
 	: View(InView)
 	, ParentCmdList(InParentCmdList)
 	, Snapshot(nullptr)
 	, ExecuteStat(InExecuteStat)
 	, NumAlloc(0)
-	, bCreateSceneContext(bInCreateSceneContext)
 {
 	Width = CVarRHICmdWidth.GetValueOnRenderThread();
 	MinDrawsPerCommandList = CVarRHICmdMinDrawsPerParallelCmdList.GetValueOnRenderThread();
@@ -733,17 +732,6 @@ FRHICommandList* FParallelCommandListSet::NewParallelCommandList()
 	FRHICommandList* Result = AllocCommandList();
 	Result->ExecuteStat = ExecuteStat;
 	SetStateOnCommandList(*Result);
-	if (bCreateSceneContext)
-	{
-		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(ParentCmdList);
-		check(&SceneContext == &FSceneRenderTargets::Get_FrameConstantsOnly()); // the immediate should not have an overridden context
-		if (!Snapshot)
-		{
-			Snapshot = SceneContext.CreateSnapshot(View);
-		}
-		Snapshot->SetSnapshotOnCmdList(*Result);
-		check(&SceneContext != &FSceneRenderTargets::Get(*Result)); // the new commandlist should have a snapshot
-	}
 	return Result;
 }
 
@@ -1849,7 +1837,7 @@ void FViewInfo::InitRHIResources()
 
 	CachedViewUniformShaderParameters = MakeUnique<FViewUniformShaderParameters>();
 
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(FRHICommandListExecutor::GetImmediateCommandList());
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 
 	SetupUniformBufferParameters(
 		SceneContext,
@@ -3279,7 +3267,7 @@ void FSceneRenderer::RenderCustomDepthPass(FRDGBuilder& GraphBuilder)
 	const bool bMobilePath = (FeatureLevel <= ERHIFeatureLevel::ES3_1);
 	const bool bWritesCustomStencilValues = FSceneRenderTargets::IsCustomDepthPassWritingStencil(FeatureLevel);
 
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 	const FCustomDepthTextures CustomDepthTextures = SceneContext.RequestCustomDepth(GraphBuilder, bPrimitives);
 
 	if (CustomDepthTextures.CustomDepth)
@@ -3323,7 +3311,7 @@ void FSceneRenderer::RenderCustomDepthPass(FRDGBuilder& GraphBuilder)
 					ERDGPassFlags::Raster,
 					[this, &View](FRHICommandListImmediate& RHICmdList)
 				{
-					FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+					FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 					{
 						const bool bMobilePath = FSceneInterface::GetShadingPath(View.GetFeatureLevel()) == EShadingPath::Mobile;
 
@@ -3408,7 +3396,7 @@ void FSceneRenderer::RenderCustomDepthPass(FRDGBuilder& GraphBuilder)
 
 void FSceneRenderer::OnStartRender(FRHICommandListImmediate& RHICmdList)
 {
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 
 	FVisualizeTexturePresent::OnStartRender(Views[0]);
 	SceneContext.bScreenSpaceAOIsValid = false;
@@ -3469,7 +3457,6 @@ void FSceneRenderer::WaitForTasksClearSnapshotsAndDeleteSceneRenderer(FRHIComman
 	}
 
 	FViewInfo::DestroyAllSnapshots(); // this destroys viewinfo snapshots
-	FSceneRenderTargets::GetGlobalUnsafe().DestroyAllSnapshots(); // this will destroy the render target snapshots
 	static const IConsoleVariable* AsyncDispatch	= IConsoleManager::Get().FindConsoleVariable(TEXT("r.RHICmdAsyncRHIThreadDispatch"));
 
 	if (AsyncDispatch->GetInt() == 0)
@@ -4553,7 +4540,7 @@ void AddResolveSceneColorPass(FRDGBuilder& GraphBuilder, TArrayView<const FViewI
 
 void FSceneRenderer::ResolveSceneColor(FRHICommandListImmediate& RHICmdList)
 {
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 
 	FRDGBuilder GraphBuilder(RHICmdList);
 	AddResolveSceneColorPass(GraphBuilder, Views, RegisterExternalTextureMSAA(GraphBuilder, SceneContext.GetSceneColor()));
@@ -4666,7 +4653,7 @@ void AddResolveSceneDepthPass(FRDGBuilder& GraphBuilder, TArrayView<const FViewI
 
 void FSceneRenderer::ResolveSceneDepth(FRHICommandListImmediate& RHICmdList)
 {
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 
 	FRDGBuilder GraphBuilder(RHICmdList);
 	AddResolveSceneDepthPass(GraphBuilder, Views, RegisterExternalTextureMSAA(GraphBuilder, SceneContext.SceneDepthZ));

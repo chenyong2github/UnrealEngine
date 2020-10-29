@@ -72,7 +72,7 @@ void SetupDebugViewModePassUniformBufferConstants(const FViewInfo& ViewInfo, FDe
 TUniformBufferRef<FDebugViewModePassUniformParameters> CreateDebugViewModePassUniformBuffer(FRHICommandList& RHICmdList, const FViewInfo& View)
 {
 	FDebugViewModePassUniformParameters Parameters;
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 	SetupSceneTextureUniformParameters(SceneContext, View.FeatureLevel, ESceneTextureSetupMode::None, Parameters.SceneTextures);
 	SetupDebugViewModePassUniformBufferConstants(View, Parameters);
 	return TUniformBufferRef<FDebugViewModePassUniformParameters>::CreateUniformBufferImmediate(Parameters, UniformBuffer_SingleFrame);

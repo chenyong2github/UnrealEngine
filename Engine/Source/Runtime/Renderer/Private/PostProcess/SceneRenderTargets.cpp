@@ -154,155 +154,10 @@ static TGlobalResource<FSceneRenderTargets> SceneRenderTargetsSingleton;
 
 extern int32 GUseTranslucentLightingVolumes;
 
-FSceneRenderTargets& FSceneRenderTargets::Get(FRHIComputeCommandList& RHICmdList)
-{
-	if (RHICmdList.IsImmediate() || RHICmdList.IsImmediateAsyncCompute())
-	{
-		check(IsInRenderingThread() && !RHICmdList.GetRenderThreadContext(FRHICommandListBase::ERenderThreadContext::SceneRenderTargets)
-			&& !FTaskGraphInterface::Get().IsThreadProcessingTasks(ENamedThreads::GetRenderThread_Local())); // if we are processing tasks on the local queue, it is assumed this are in support of async tasks, which cannot use the current state of the render targets. This can be relaxed if needed.
-		return SceneRenderTargetsSingleton;
-	}
-	else
-	{
-		FSceneRenderTargets* SceneContext = (FSceneRenderTargets*)RHICmdList.GetRenderThreadContext(FRHICommandListBase::ERenderThreadContext::SceneRenderTargets);
-		if (!SceneContext)
-		{
-			return SceneRenderTargetsSingleton;
-		}
-		return *SceneContext;
-	}
-}
-
-FSceneRenderTargets& FSceneRenderTargets::GetGlobalUnsafe()
+FSceneRenderTargets& FSceneRenderTargets::Get()
 {
 	check(IsInRenderingThread());
 	return SceneRenderTargetsSingleton;
-}
-
-FSceneRenderTargets& FSceneRenderTargets::Get_FrameConstantsOnly()
-{
-	return SceneRenderTargetsSingleton;
-}
-
- FSceneRenderTargets* FSceneRenderTargets::CreateSnapshot(const FViewInfo& InView)
-{
-	QUICK_SCOPE_CYCLE_COUNTER(STAT_FSceneRenderTargets_CreateSnapshot);
-	check(IsInRenderingThread() && FMemStack::Get().GetNumMarks() == 1); // we do not want this popped before the end of the scene and it better be the scene allocator
-	FSceneRenderTargets* NewSnapshot = new (FMemStack::Get()) FSceneRenderTargets(InView, *this);
-	check(NewSnapshot->bSnapshot);
-	Snapshots.Add(NewSnapshot);
-	return NewSnapshot;
-}
-
-void FSceneRenderTargets::SetSnapshotOnCmdList(FRHICommandList& TargetCmdList)
-{
-	check(bSnapshot);
-	TargetCmdList.SetRenderThreadContext(this, FRHICommandListBase::ERenderThreadContext::SceneRenderTargets);
-}
-
-void FSceneRenderTargets::DestroyAllSnapshots()
-{
-	if (Snapshots.Num())
-	{
-		QUICK_SCOPE_CYCLE_COUNTER(STAT_FSceneRenderTargets_DestroyAllSnapshots);
-		check(IsInRenderingThread());
-		for (auto Snapshot : Snapshots)
-		{
-			Snapshot->~FSceneRenderTargets();
-		}
-		Snapshots.Reset();
-		GRenderTargetPool.DestructSnapshots();
-	}
-}
-
-
-
-template <size_t N>
-static void SnapshotArray(TRefCountPtr<IPooledRenderTarget> (&Dest)[N], const TRefCountPtr<IPooledRenderTarget> (&Src)[N])
-{
-	for (int32 Index = 0; Index < N; Index++)
-	{
-		Dest[Index] = GRenderTargetPool.MakeSnapshot(Src[Index]);
-	}
-}
-
-template <uint32 N>
-static void SnapshotArray(TArray<TRefCountPtr<IPooledRenderTarget>, TInlineAllocator<N>>(&Dest), const TArray<TRefCountPtr<IPooledRenderTarget>, TInlineAllocator<N>>(&Src))
-{
-	Dest.SetNum(Src.Num());
-	for (int32 Index = 0; Index < Src.Num(); Index++)
-	{
-		Dest[Index] = GRenderTargetPool.MakeSnapshot(Src[Index]);
-	}
-}
-
-FSceneRenderTargets::FSceneRenderTargets(const FViewInfo& View, const FSceneRenderTargets& SnapshotSource)
-	: LightAccumulation(GRenderTargetPool.MakeSnapshot(SnapshotSource.LightAccumulation))
-	, SceneDepthZ(GRenderTargetPool.MakeSnapshot(SnapshotSource.SceneDepthZ))	
-	, SceneVelocity(GRenderTargetPool.MakeSnapshot(SnapshotSource.SceneVelocity))
-	, SmallDepthZ(GRenderTargetPool.MakeSnapshot(SnapshotSource.SmallDepthZ))
-	, GBufferA(GRenderTargetPool.MakeSnapshot(SnapshotSource.GBufferA))
-	, GBufferB(GRenderTargetPool.MakeSnapshot(SnapshotSource.GBufferB))
-	, GBufferC(GRenderTargetPool.MakeSnapshot(SnapshotSource.GBufferC))
-	, GBufferD(GRenderTargetPool.MakeSnapshot(SnapshotSource.GBufferD))
-	, GBufferE(GRenderTargetPool.MakeSnapshot(SnapshotSource.GBufferE))
-	, GBufferF(GRenderTargetPool.MakeSnapshot(SnapshotSource.GBufferF))
-	, SceneDepthAux(GRenderTargetPool.MakeSnapshot(SnapshotSource.SceneDepthAux))
-	, DBufferA(GRenderTargetPool.MakeSnapshot(SnapshotSource.DBufferA))
-	, DBufferB(GRenderTargetPool.MakeSnapshot(SnapshotSource.DBufferB))
-	, DBufferC(GRenderTargetPool.MakeSnapshot(SnapshotSource.DBufferC))
-	, DBufferMask(GRenderTargetPool.MakeSnapshot(SnapshotSource.DBufferMask))
-	, ScreenSpaceAO(GRenderTargetPool.MakeSnapshot(SnapshotSource.ScreenSpaceAO))
-	, ScreenSpaceGTAOHorizons(GRenderTargetPool.MakeSnapshot(SnapshotSource.ScreenSpaceGTAOHorizons))
-	, QuadOverdrawBuffer(GRenderTargetPool.MakeSnapshot(SnapshotSource.QuadOverdrawBuffer))
-	, CustomDepth(GRenderTargetPool.MakeSnapshot(SnapshotSource.CustomDepth))
-	, MobileCustomDepth(GRenderTargetPool.MakeSnapshot(SnapshotSource.MobileCustomDepth))
-	, MobileCustomStencil(GRenderTargetPool.MakeSnapshot(SnapshotSource.MobileCustomStencil))
-	, CustomStencilSRV(SnapshotSource.CustomStencilSRV)
-	, SkySHIrradianceMap(GRenderTargetPool.MakeSnapshot(SnapshotSource.SkySHIrradianceMap))
-	, MobileMultiViewSceneColor(GRenderTargetPool.MakeSnapshot(SnapshotSource.MobileMultiViewSceneColor))
-	, MobileMultiViewSceneDepthZ(GRenderTargetPool.MakeSnapshot(SnapshotSource.MobileMultiViewSceneDepthZ))
-	, EditorPrimitivesColor(GRenderTargetPool.MakeSnapshot(SnapshotSource.EditorPrimitivesColor))
-	, EditorPrimitivesDepth(GRenderTargetPool.MakeSnapshot(SnapshotSource.EditorPrimitivesDepth))
-	, FoveationTexture(GRenderTargetPool.MakeSnapshot(SnapshotSource.FoveationTexture))
-	, bScreenSpaceAOIsValid(SnapshotSource.bScreenSpaceAOIsValid)
-	, bCustomDepthIsValid(SnapshotSource.bCustomDepthIsValid)
-	, GBufferRefCount(SnapshotSource.GBufferRefCount)
-	, ThisFrameNumber(SnapshotSource.ThisFrameNumber)
-	, CurrentDesiredSizeIndex(SnapshotSource.CurrentDesiredSizeIndex)
-	, BufferSize(SnapshotSource.BufferSize)
-	, LastStereoSize(SnapshotSource.LastStereoSize)
-	, SmallColorDepthDownsampleFactor(SnapshotSource.SmallColorDepthDownsampleFactor)
-	, bUseDownsizedOcclusionQueries(SnapshotSource.bUseDownsizedOcclusionQueries)
-	, CurrentGBufferFormat(SnapshotSource.CurrentGBufferFormat)
-	, CurrentSceneColorFormat(SnapshotSource.CurrentSceneColorFormat)
-	, CurrentMobileSceneColorFormat(SnapshotSource.CurrentMobileSceneColorFormat)
-	, bAllowStaticLighting(SnapshotSource.bAllowStaticLighting)
-	, CurrentMaxShadowResolution(SnapshotSource.CurrentMaxShadowResolution)
-	, CurrentTranslucencyLightingVolumeDim(SnapshotSource.CurrentTranslucencyLightingVolumeDim)
-	, CurrentMSAACount(SnapshotSource.CurrentMSAACount)
-	, CurrentMinShadowResolution(SnapshotSource.CurrentMinShadowResolution)
-	, bCurrentLightPropagationVolume(SnapshotSource.bCurrentLightPropagationVolume)
-	, CurrentFeatureLevel(SnapshotSource.CurrentFeatureLevel)
-	, CurrentShadingPath(SnapshotSource.CurrentShadingPath)
-	, bRequireSceneColorAlpha(SnapshotSource.bRequireSceneColorAlpha)
-	, bAllocateVelocityGBuffer(SnapshotSource.bAllocateVelocityGBuffer)
-	, bSnapshot(true)
-	, DefaultColorClear(SnapshotSource.DefaultColorClear)
-	, DefaultDepthClear(SnapshotSource.DefaultDepthClear)
-	, bHMDAllocatedDepthTarget(SnapshotSource.bHMDAllocatedDepthTarget)
-	, bKeepDepthContent(SnapshotSource.bKeepDepthContent)
-	, bAllocatedFoveationTexture(SnapshotSource.bAllocatedFoveationTexture)
-{
-	FMemory::Memcpy(LargestDesiredSizes, SnapshotSource.LargestDesiredSizes);
-	FMemory::Memcpy(HistoryFlags, SnapshotSource.HistoryFlags, sizeof(SnapshotSource.HistoryFlags));
-
-	SnapshotArray(SceneColor, SnapshotSource.SceneColor);
-	SnapshotArray(ReflectionColorScratchCubemap, SnapshotSource.ReflectionColorScratchCubemap);
-	SnapshotArray(DiffuseIrradianceScratchCubemap, SnapshotSource.DiffuseIrradianceScratchCubemap);
-	SnapshotArray(TranslucencyLightingVolumeAmbient, SnapshotSource.TranslucencyLightingVolumeAmbient);
-	SnapshotArray(TranslucencyLightingVolumeDirectional, SnapshotSource.TranslucencyLightingVolumeDirectional);
-	SnapshotArray(OptionalShadowDepthColor, SnapshotSource.OptionalShadowDepthColor);
 }
 
 inline const TCHAR* GetSceneColorTargetName(EShadingPath ShadingPath)
@@ -2596,7 +2451,7 @@ void SetupSceneTextureUniformParameters(
 	ESceneTextureSetupMode SetupMode,
 	FSceneTextureUniformParameters& SceneTextureParameters)
 {
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 	SetupSceneTextureUniformParameters(&GraphBuilder, FeatureLevel, SceneContext, SetupMode, SceneTextureParameters);
 }
 
@@ -2606,7 +2461,7 @@ TUniformBufferRef<FSceneTextureUniformParameters> CreateSceneTextureUniformBuffe
 	ESceneTextureSetupMode SetupMode)
 {
 	FSceneTextureUniformParameters SceneTextures;
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 	SetupSceneTextureUniformParameters(nullptr, FeatureLevel, SceneContext, SetupMode, SceneTextures);
 	return TUniformBufferRef<FSceneTextureUniformParameters>::CreateUniformBufferImmediate(SceneTextures, EUniformBufferUsage::UniformBuffer_SingleFrame);
 }
@@ -2617,7 +2472,7 @@ TRDGUniformBufferRef<FSceneTextureUniformParameters> CreateSceneTextureUniformBu
 	ESceneTextureSetupMode SetupMode)
 {
 	FSceneTextureUniformParameters* SceneTextures = GraphBuilder.AllocParameters<FSceneTextureUniformParameters>();
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 	SetupSceneTextureUniformParameters(&GraphBuilder, FeatureLevel, SceneContext, SetupMode, *SceneTextures);
 	return GraphBuilder.CreateUniformBuffer(SceneTextures);
 }
@@ -2729,7 +2584,7 @@ TUniformBufferRef<FMobileSceneTextureUniformParameters> CreateMobileSceneTexture
 	EMobileSceneTextureSetupMode SetupMode)
 {
 	FMobileSceneTextureUniformParameters SceneTextures;
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 	SetupMobileSceneTextureUniformParameters(nullptr, SceneContext, SetupMode, SceneTextures);
 	return TUniformBufferRef<FMobileSceneTextureUniformParameters>::CreateUniformBufferImmediate(SceneTextures, EUniformBufferUsage::UniformBuffer_SingleFrame);
 }
@@ -2739,7 +2594,7 @@ TRDGUniformBufferRef<FMobileSceneTextureUniformParameters> CreateMobileSceneText
 	EMobileSceneTextureSetupMode SetupMode)
 {
 	FMobileSceneTextureUniformParameters* SceneTextures = GraphBuilder.AllocParameters<FMobileSceneTextureUniformParameters>();
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 	SetupMobileSceneTextureUniformParameters(&GraphBuilder, SceneContext, SetupMode, *SceneTextures);
 	return GraphBuilder.CreateUniformBuffer(SceneTextures);
 }
@@ -2782,7 +2637,7 @@ TRefCountPtr<FRHIUniformBuffer> CreateSceneTextureUniformBufferDependentOnShadin
 
 bool IsSceneTexturesValid(FRHICommandListImmediate& RHICmdList)
 {
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 	return SceneContext.IsShadingPathValid();
 }
 
@@ -2810,6 +2665,6 @@ void SetupMobileSceneTextureUniformParameters(
 	EMobileSceneTextureSetupMode SetupMode,
 	FMobileSceneTextureUniformParameters& SceneTextureParameters)
 {
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 	SetupMobileSceneTextureUniformParameters(&GraphBuilder, SceneContext, SetupMode, SceneTextureParameters);
 }

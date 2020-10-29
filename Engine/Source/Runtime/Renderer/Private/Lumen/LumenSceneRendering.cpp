@@ -860,7 +860,7 @@ void FCardRenderData::PatchView(FRHICommandList& RHICmdList, const FScene* Scene
 	View->ViewMatrices = ViewMatrices;
 	View->ViewRect = GetAtlasAllocation();
 
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 
 	FBox VolumeBounds[TVC_MAX];
 	View->SetupUniformBufferParameters(

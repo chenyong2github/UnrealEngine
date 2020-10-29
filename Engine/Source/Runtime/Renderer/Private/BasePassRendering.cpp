@@ -691,7 +691,7 @@ TRDGUniformBufferRef<FOpaqueBasePassUniformParameters> CreateOpaqueBasePassUnifo
 	const FSceneWithoutWaterTextures* SceneWithoutWaterTextures,
 	const int32 ViewIndex)
 {
-	FSceneRenderTargets& SceneRenderTargets = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
+	FSceneRenderTargets& SceneRenderTargets = FSceneRenderTargets::Get();
 	FOpaqueBasePassUniformParameters* BasePassParameters = GraphBuilder.AllocParameters<FOpaqueBasePassUniformParameters>();
 	SetupSharedOpaqueBasePassParameters(&GraphBuilder, GraphBuilder.RHICmdList, SceneRenderTargets, View, ForwardScreenSpaceShadowMask, SceneWithoutWaterTextures, ViewIndex, *BasePassParameters);
 	return GraphBuilder.CreateUniformBuffer(BasePassParameters);
@@ -705,7 +705,7 @@ TUniformBufferRef<FOpaqueBasePassUniformParameters> CreateOpaqueBasePassUniformB
 	FRDGTextureRef ForwardScreenSpaceShadowMaskRDG = FRDGTexture::GetPassthrough(ForwardScreenSpaceShadowMask);
 
 	FOpaqueBasePassUniformParameters BasePassParameters;
-	SetupSharedOpaqueBasePassParameters(nullptr, RHICmdList, FSceneRenderTargets::Get(RHICmdList), View, ForwardScreenSpaceShadowMaskRDG, nullptr, 0, BasePassParameters);
+	SetupSharedOpaqueBasePassParameters(nullptr, RHICmdList, FSceneRenderTargets::Get(), View, ForwardScreenSpaceShadowMaskRDG, nullptr, 0, BasePassParameters);
 	return TUniformBufferRef<FOpaqueBasePassUniformParameters>::CreateUniformBufferImmediate(BasePassParameters, UniformBuffer_SingleFrame);
 }
 
@@ -846,7 +846,7 @@ void FDeferredShadingSceneRenderer::RenderBasePass(
 
 	const FExclusiveDepthStencil ExclusiveDepthStencil(BasePassDepthStencilAccess);
 
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 
 	TStaticArray<FRDGTextureRef, MaxSimultaneousRenderTargets> BasePassTextures;
 	uint32 BasePassTextureCount = SceneContext.GetGBufferRenderTargets(GraphBuilder, BasePassTextures);

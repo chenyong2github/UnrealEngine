@@ -169,7 +169,7 @@ public:
 			OverlayColor
 			);
 
-		FIntPoint BufferSize = FSceneRenderTargets::Get(RHICmdList).GetBufferSizeXY();
+		FIntPoint BufferSize = FSceneRenderTargets::Get().GetBufferSizeXY();
 		float BufferSizeX = (float)BufferSize.X;
 		float BufferSizeY = (float)BufferSize.Y;
 		float InvBufferSizeX = 1.0f / BufferSizeX;

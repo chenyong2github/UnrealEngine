@@ -2102,7 +2102,7 @@ void FPostProcessing::ProcessPlanarReflection(FRHICommandListImmediate& RHICmdLi
 	FSceneViewState* ViewState = View.ViewState;
 	const EAntiAliasingMethod AntiAliasingMethod = View.AntiAliasingMethod;
 
-	const FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+	const FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 
 	if (AntiAliasingMethod == AAM_TemporalAA)
 	{

@@ -844,7 +844,7 @@ void FDeferredShadingSceneRenderer::VisualizeSkyLightMipTree(
 	const FIntVector& SkyLightMipDimensions)
 {
 	// Allocate render target
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 	TRefCountPtr<IPooledRenderTarget> SceneColor = SceneContext.GetSceneColor();
 	FPooledRenderTargetDesc Desc = SceneColor->GetDesc();
 	Desc.Flags &= ~(TexCreate_FastVRAM | TexCreate_Transient);

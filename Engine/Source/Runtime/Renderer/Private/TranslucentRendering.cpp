@@ -326,7 +326,7 @@ FSeparateTranslucencyDimensions UpdateTranslucencyTimers(FRHICommandListImmediat
 		EffectiveScale = 0.5f;
 	}
 
-	const FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+	const FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 
 	FSeparateTranslucencyDimensions Dimensions;
 	Dimensions.Extent = GetScaledExtent(SceneContext.GetBufferSizeXY(), EffectiveScale);
@@ -774,7 +774,7 @@ TRDGUniformBufferRef<FTranslucentBasePassUniformParameters> CreateTranslucentBas
 	ESceneTextureSetupMode SceneTextureSetupMode,
 	const int32 ViewIndex)
 {
-	FSceneRenderTargets& SceneRenderTargets = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
+	FSceneRenderTargets& SceneRenderTargets = FSceneRenderTargets::Get();
 	FTranslucentBasePassUniformParameters* BasePassParameters = GraphBuilder.AllocParameters<FTranslucentBasePassUniformParameters>();
 	SetupTranslucentBasePassUniformParameters(&GraphBuilder, GraphBuilder.RHICmdList, SceneRenderTargets, View, SceneColorCopyTexture, SceneTextureSetupMode, ViewIndex, *BasePassParameters);
 	return GraphBuilder.CreateUniformBuffer(BasePassParameters);
@@ -786,7 +786,7 @@ TUniformBufferRef<FTranslucentBasePassUniformParameters> CreateTranslucentBasePa
 	ESceneTextureSetupMode SceneTextureSetupMode,
 	const int32 ViewIndex)
 {
-	FSceneRenderTargets& SceneRenderTargets = FSceneRenderTargets::Get(RHICmdList);
+	FSceneRenderTargets& SceneRenderTargets = FSceneRenderTargets::Get();
 	FTranslucentBasePassUniformParameters BasePassParameters;
 	SetupTranslucentBasePassUniformParameters(nullptr, RHICmdList, SceneRenderTargets, View, nullptr, SceneTextureSetupMode, ViewIndex, BasePassParameters);
 	return TUniformBufferRef<FTranslucentBasePassUniformParameters>::CreateUniformBufferImmediate(BasePassParameters, EUniformBufferUsage::UniformBuffer_SingleFrame);

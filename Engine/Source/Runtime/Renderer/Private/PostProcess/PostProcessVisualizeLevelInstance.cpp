@@ -44,7 +44,7 @@ FScreenPassTexture AddVisualizeLevelInstancePass(FRDGBuilder& GraphBuilder, cons
 
 	RDG_EVENT_SCOPE(GraphBuilder, "EditorVisualizeLevelInstance");
 
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 	FPersistentUniformBuffers& SceneUniformBuffers = View.Family->Scene->GetRenderScene()->UniformBuffers;
 	const uint32 MsaaSampleCount = SceneContext.GetEditorMSAACompositingSampleCount();
 

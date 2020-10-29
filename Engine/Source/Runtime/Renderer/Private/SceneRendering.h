@@ -488,9 +488,8 @@ protected:
 	//C++ will not do dynamic dispatch of virtual calls from destructors so we can't call it in the base class.
 	void Dispatch(bool bHighPriority = false);
 	FRHICommandList* AllocCommandList();
-	bool bCreateSceneContext;
 public:
-	FParallelCommandListSet(TStatId InExecuteStat, const FViewInfo& InView, FRHICommandListImmediate& InParentCmdList, bool bInCreateSceneContext);
+	FParallelCommandListSet(TStatId InExecuteStat, const FViewInfo& InView, FRHICommandListImmediate& InParentCmdList);
 	virtual ~FParallelCommandListSet();
 
 	int32 NumParallelCommandLists() const
@@ -524,7 +523,7 @@ public:
 		const FViewInfo& InView,
 		const FParallelCommandListBindings& InBindings,
 		float InViewportScale = 1.0f)
-		: FParallelCommandListSet(InStatId, InView, InParentCmdList, false)
+		: FParallelCommandListSet(InStatId, InView, InParentCmdList)
 		, SceneRenderer(InSceneRenderer)
 		, Bindings(InBindings)
 		, ViewportScale(InViewportScale)

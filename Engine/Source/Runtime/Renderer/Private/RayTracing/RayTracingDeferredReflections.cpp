@@ -285,7 +285,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingDeferredReflections(
 	const bool bGenerateRaysWithRGS = CVarRayTracingReflectionsGenerateRaysWithRGS.GetValueOnRenderThread()==1;
 
 	FRDGTextureDesc OutputDesc = FRDGTextureDesc::Create2D(
-		FSceneRenderTargets::Get_FrameConstantsOnly().GetBufferSizeXY(),
+		FSceneRenderTargets::Get().GetBufferSizeXY(),
 		PF_FloatRGBA, FClearValueBinding(FLinearColor(0, 0, 0, 0)),
 		TexCreate_ShaderResource | TexCreate_UAV);
 

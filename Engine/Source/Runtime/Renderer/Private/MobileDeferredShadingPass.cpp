@@ -126,7 +126,7 @@ IMPLEMENT_SHADER_TYPE(, FMobileRadialLightPS, TEXT("/Engine/Private/MobileDeferr
 
 static void RenderDirectLight(FRHICommandListImmediate& RHICmdList, const FScene& Scene, const FViewInfo& View)
 {
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 	
 	FMobileDeferredShadingPS::FParameters PassParameters;
 	PassParameters.View = View.ViewUniformBuffer;
@@ -311,7 +311,7 @@ void MobileDeferredShadingPass(FRHICommandListImmediate& RHICmdList, const FScen
 {
 	SCOPED_DRAW_EVENT(RHICmdList, MobileDeferredShading);
 
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
 	FUniformBufferRHIRef PassUniformBuffer = CreateMobileSceneTextureUniformBuffer(RHICmdList);
 	FUniformBufferStaticBindings GlobalUniformBuffers(PassUniformBuffer);
 	SCOPED_UNIFORM_BUFFER_GLOBAL_BINDINGS(RHICmdList, GlobalUniformBuffers);
