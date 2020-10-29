@@ -903,9 +903,7 @@ void ACompositingElement::PostLoad()
 	const int32 ComposureVer = GetLinkerCustomVersion(FComposureCustomVersion::GUID);
 	PostLoadCompatUpgrade(ComposureVer);
 
-#if WITH_EDITOR
-	RefreshAllInternalPassLists();
-#endif
+	// Note that RefreshAllInternalPassLists is not called here because the refresh can call Reset, which is not allowed in PostLoad.
 }
 
 void ACompositingElement::BeginPlay()
