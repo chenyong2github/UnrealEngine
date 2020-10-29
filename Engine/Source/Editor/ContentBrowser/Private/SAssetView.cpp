@@ -274,6 +274,8 @@ void SAssetView::Construct( const FArguments& InArgs )
 	HiddenColumnNames = DefaultHiddenColumnNames = InArgs._HiddenColumnNames;
 	CustomColumns = InArgs._CustomColumns;
 	OnSearchOptionsChanged = InArgs._OnSearchOptionsChanged;
+	bShowPathViewFilters = InArgs._bShowPathViewFilters;
+	OnExtendAssetViewOptionsMenuContext = InArgs._OnExtendAssetViewOptionsMenuContext;
 
 	if ( InArgs._InitialViewType >= 0 && InArgs._InitialViewType < EAssetViewType::MAX )
 	{
@@ -2220,6 +2222,12 @@ TSharedRef<SWidget> SAssetView::GetViewButtonContent()
 	UContentBrowserAssetViewContextMenuContext* Context = NewObject<UContentBrowserAssetViewContextMenuContext>();
 	Context->AssetView = SharedThis(this);
 	FToolMenuContext MenuContext(nullptr, MenuExtender, Context);
+
+	if (OnExtendAssetViewOptionsMenuContext.IsBound())
+	{
+		OnExtendAssetViewOptionsMenuContext.Execute(MenuContext);
+	}
+
 	return UToolMenus::Get()->GenerateWidget("ContentBrowser.AssetViewOptions", MenuContext);
 }
 
@@ -2356,6 +2364,15 @@ void SAssetView::PopulateViewButtonMenu(UToolMenu* Menu)
 			),
 			EUserInterfaceActionType::ToggleButton
 		);
+
+		if (bShowPathViewFilters)
+		{
+			Section.AddSubMenu(
+				"PathViewFilters",
+				LOCTEXT("PathViewFilters", "Path View Filters"),
+				LOCTEXT("PathViewFilters_ToolTip", "Path View Filters"),
+				FNewToolMenuDelegate());
+		}
 	}
 
 	{
