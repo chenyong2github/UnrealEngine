@@ -206,9 +206,9 @@ public:
 	struct FCapsule
 	{
 		FCapsule() {}
-		FCapsule(const FVector& InLocation, const float& InRadius, const FVector& x, const FVector& y, const FVector &z, const float& InHalfHeight, const FLinearColor& InColor)
+		FCapsule(const FVector& InBase, const float& InRadius, const FVector& x, const FVector& y, const FVector &z, const float& InHalfHeight, const FLinearColor& InColor)
 			: Radius(InRadius)
-			, Location(InLocation)
+			, Base(InBase)
 			, Color(InColor.ToFColor(true))
 			, HalfHeight(InHalfHeight)
 			, X(x)
@@ -219,7 +219,7 @@ public:
 		}
 
 		float Radius;
-		FVector Location; //Center pointer of the base of the cylinder.
+		FVector Base; //Center point of the base of the cylinder.
 		FColor Color;
 		float HalfHeight;
 		FVector X, Y, Z; //X, Y, and Z alignment axes to draw along.
@@ -235,7 +235,7 @@ public:
 	TArray<FText3d> Texts;
 	TArray<FCone> Cones;
 	TArray<FMesh> Meshes;
-	TArray<FCapsule> Capsles;
+	TArray<FCapsule> Capsules;
 
 	uint32 ViewFlagIndex;
 	float TextWithoutShadowDistance;

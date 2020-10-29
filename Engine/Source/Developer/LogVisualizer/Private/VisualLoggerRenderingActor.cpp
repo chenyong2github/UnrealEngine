@@ -79,7 +79,7 @@ FPrimitiveSceneProxy* UVisualLoggerRenderingComponent::CreateSceneProxy()
 		VLogSceneProxy->Texts.Append(CurrentShapes.Value.Texts);
 		VLogSceneProxy->Cylinders.Append(CurrentShapes.Value.Cylinders);
 		VLogSceneProxy->ArrowLines.Append(CurrentShapes.Value.Arrows);
-		VLogSceneProxy->Capsles.Append(CurrentShapes.Value.Capsules);
+		VLogSceneProxy->Capsules.Append(CurrentShapes.Value.Capsules);
 	}
 
 	{
@@ -91,7 +91,7 @@ FPrimitiveSceneProxy* UVisualLoggerRenderingComponent::CreateSceneProxy()
 		VLogSceneProxy->Texts.Append(RenderingActor->TestDebugShapes.Texts);
 		VLogSceneProxy->Cylinders.Append(RenderingActor->TestDebugShapes.Cylinders);
 		VLogSceneProxy->ArrowLines.Append(RenderingActor->TestDebugShapes.Arrows);
-		VLogSceneProxy->Capsles.Append(RenderingActor->TestDebugShapes.Capsules);
+		VLogSceneProxy->Capsules.Append(RenderingActor->TestDebugShapes.Capsules);
 	}
 
 #if WITH_EDITOR
@@ -285,7 +285,7 @@ void AVisualLoggerRenderingActor::AddDebugRendering()
 	}
 
 	{
-		const FVector Center = FVector(1000, 0, 128);
+		const FVector Base = FVector(1000, 0, 128);
 		const float HalfHeight = 150;
 		const float Radius = 50;
 		const FQuat Rotation = FQuat::Identity;
@@ -295,7 +295,7 @@ void AVisualLoggerRenderingActor::AddDebugRendering()
 		const FVector YAxis = Axes.GetScaledAxis(EAxis::Y);
 		const FVector ZAxis = Axes.GetScaledAxis(EAxis::Z);
 
-		TestDebugShapes.Capsules.Add(FDebugRenderSceneProxy::FCapsule(Center, Radius, XAxis, YAxis, ZAxis, HalfHeight, FColor::Yellow));
+		TestDebugShapes.Capsules.Add(FDebugRenderSceneProxy::FCapsule(Base, Radius, XAxis, YAxis, ZAxis, HalfHeight, FColor::Yellow));
 	}
 	{
 		const float Radius = 50;
@@ -570,7 +570,7 @@ void AVisualLoggerRenderingActor::GetDebugShapes(const FVisualLogDevice::FVisual
 			const bool bDrawLabel = ElementToDraw->Description.IsEmpty() == false;
 			for (int32 Index = 0; Index + 2 < ElementToDraw->Points.Num(); Index += 3)
 			{
-				const FVector Center = ElementToDraw->Points[Index + 0];
+				const FVector Base = ElementToDraw->Points[Index + 0];
 				const FVector FirstData = ElementToDraw->Points[Index + 1];
 				const FVector SecondData = ElementToDraw->Points[Index + 2];
 				const float HalfHeight = FirstData.X;
@@ -582,10 +582,10 @@ void AVisualLoggerRenderingActor::GetDebugShapes(const FVisualLogDevice::FVisual
 				const FVector YAxis = Axes.GetScaledAxis(EAxis::Y);
 				const FVector ZAxis = Axes.GetScaledAxis(EAxis::Z);
 
-				DebugShapes.Capsules.Add(FDebugRenderSceneProxy::FCapsule(Center, Radius, XAxis, YAxis, ZAxis, HalfHeight, Color));
+				DebugShapes.Capsules.Add(FDebugRenderSceneProxy::FCapsule(Base, Radius, XAxis, YAxis, ZAxis, HalfHeight, Color));
 				if (bDrawLabel)
 				{
-					DebugShapes.Texts.Add(FDebugRenderSceneProxy::FText3d(ElementToDraw->Description, Center, Color));
+					DebugShapes.Texts.Add(FDebugRenderSceneProxy::FText3d(ElementToDraw->Description, Base + HalfHeight * FVector::UpVector, Color));
 				}
 			}
 		}

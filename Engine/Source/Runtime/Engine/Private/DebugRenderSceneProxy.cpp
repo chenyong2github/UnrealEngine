@@ -245,14 +245,14 @@ void FDebugRenderSceneProxy::GetDynamicMeshElements(const TArray<const FSceneVie
 				}
 			}
 
-			for (auto It = Capsles.CreateConstIterator(); It; ++It)
+			for (auto It = Capsules.CreateConstIterator(); It; ++It)
 			{
-				if (PointInView(It->Location, View))
+				if (PointInView(It->Base, View))
 				{
 					if (DrawType == SolidAndWireMeshes || DrawType == WireMesh)
 					{
 						const float HalfAxis = FMath::Max<float>(It->HalfHeight - It->Radius, 1.f);
-						const FVector BottomEnd = It->Location + It->Radius * It->Z;
+						const FVector BottomEnd = It->Base + It->Radius * It->Z;
 						const FVector TopEnd = BottomEnd + (2 * HalfAxis) * It->Z;
 						const float CylinderHalfHeight = (TopEnd - BottomEnd).Size() * 0.5;
 						const FVector CylinderLocation = BottomEnd + CylinderHalfHeight * It->Z;
@@ -260,7 +260,7 @@ void FDebugRenderSceneProxy::GetDynamicMeshElements(const TArray<const FSceneVie
 					}
 					if (DrawType == SolidAndWireMeshes || DrawType == SolidMesh)
 					{
-						GetCapsuleMesh(It->Location, It->X, It->Y, It->Z, It->Color, It->Radius, It->HalfHeight, 16, MaterialCache[0][It->Color.WithAlpha(DrawAlpha)], SDPG_World, false, ViewIndex, Collector);
+						GetCapsuleMesh(It->Base, It->X, It->Y, It->Z, It->Color, It->Radius, It->HalfHeight, 16, MaterialCache[0][It->Color.WithAlpha(DrawAlpha)], SDPG_World, false, ViewIndex, Collector);
 					}
 				}
 			}

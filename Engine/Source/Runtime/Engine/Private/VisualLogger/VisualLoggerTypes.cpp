@@ -248,11 +248,11 @@ void FVisualLogEntry::AddElement(const FVector& Start, const FVector& End, float
 	ElementsToDraw.Add(Element);
 }
 
-void FVisualLogEntry::AddElement(const FVector& Center, float HalfHeight, float Radius, const FQuat & Rotation, const FName& CategoryName, ELogVerbosity::Type Verbosity, const FColor& Color, const FString& Description)
+void FVisualLogEntry::AddElement(const FVector& Base, float HalfHeight, float Radius, const FQuat & Rotation, const FName& CategoryName, ELogVerbosity::Type Verbosity, const FColor& Color, const FString& Description)
 {
 	FVisualLogShapeElement Element(Description, Color, 0, CategoryName);
 	Element.Points.Reserve(3);
-	Element.Points.Add(Center);
+	Element.Points.Add(Base);
 	Element.Points.Add(FVector(HalfHeight, Radius, Rotation.X));
 	Element.Points.Add(FVector(Rotation.Y, Rotation.Z, Rotation.W));
 	Element.Type = EVisualLoggerShapeElement::Capsule;
