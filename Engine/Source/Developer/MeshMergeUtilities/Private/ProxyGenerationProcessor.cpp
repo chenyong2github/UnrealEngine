@@ -191,8 +191,8 @@ void FProxyGenerationProcessor::ProcessJob(const FGuid& JobGuid, FProxyGeneratio
 	StaticMesh->SetLightingGuid();
 
 	// Set it to use textured lightmaps. Note that Build Lighting will do the error-checking (texcoordindex exists for all LODs, etc).
-	StaticMesh->LightMapResolution = Data->MergeData->InProxySettings.LightMapResolution;
-	StaticMesh->LightMapCoordinateIndex = 1;
+	StaticMesh->SetLightMapResolution(Data->MergeData->InProxySettings.LightMapResolution);
+	StaticMesh->SetLightMapCoordinateIndex(1);
 
 
 	FStaticMeshSourceModel& SrcModel = StaticMesh->AddSourceModel();
@@ -329,8 +329,8 @@ void FProxyGenerationProcessor::ProcessJob(const FGuid& JobGuid, FProxyGeneratio
 	{
 		const FBox StaticMeshBox = StaticMesh->GetBoundingBox();
 		const FBox CombinedBox = StaticMeshBox + ImposterBounds;
-		StaticMesh->PositiveBoundsExtension = (CombinedBox.Max - StaticMeshBox.Max);
-		StaticMesh->NegativeBoundsExtension = (StaticMeshBox.Min - CombinedBox.Min);
+		StaticMesh->SetPositiveBoundsExtension((CombinedBox.Max - StaticMeshBox.Max));
+		StaticMesh->SetNegativeBoundsExtension((StaticMeshBox.Min - CombinedBox.Min));
 		StaticMesh->CalculateExtendedBounds();
 	}
 

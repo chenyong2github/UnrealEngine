@@ -105,7 +105,7 @@ TOptional<int32> FStaticMeshComponentDetails::GetStaticMeshLightResValue() const
 		UStaticMeshComponent*  Component = Cast<UStaticMeshComponent>(ObjectsCustomized[i].Get());
 		if (Component != nullptr && Component->GetStaticMesh() != nullptr)
 		{
-			DefaultResolution = Component->GetStaticMesh()->LightMapResolution;
+			DefaultResolution = Component->GetStaticMesh()->GetLightMapResolution();
 		}
 	}
 	return DefaultResolution;
@@ -147,7 +147,7 @@ int FStaticMeshComponentDetails::HandleNoticeSwitcherWidgetIndex() const
 					AccessResultOverrideEnabled = FPropertyAccess::MultipleValues;
 				}
 
-				int32 CurrentStaticLightRes = Component->GetStaticMesh()->LightMapResolution;
+				int32 CurrentStaticLightRes = Component->GetStaticMesh()->GetLightMapResolution();
 				if (OverrideLightRes == -1)
 				{
 					OverrideLightRes = CurrentStaticLightRes;

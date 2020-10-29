@@ -1991,8 +1991,8 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary7(UClass* InClass, UObject*
 
 				// Lightmap data
 				StaticMesh->SetLightingGuid();
-				StaticMesh->LightMapResolution = 128;
-				StaticMesh->LightMapCoordinateIndex = 1;
+				StaticMesh->SetLightMapResolution(128);
+				StaticMesh->SetLightMapCoordinateIndex(1);
 
 				// set up SpeedTree wind data
 				if (!StaticMesh->SpeedTreeWind.IsValid())
@@ -2519,8 +2519,8 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary8(UClass* InClass, UObject*
 
 		// Lightmap data
 		StaticMesh->SetLightingGuid();
-		StaticMesh->LightMapResolution = SpeedTree.LightmapSize();
-		StaticMesh->LightMapCoordinateIndex = 1;		
+		StaticMesh->SetLightMapResolution(SpeedTree.LightmapSize());
+		StaticMesh->SetLightMapCoordinateIndex(1);
 
 		// set up SpeedTree wind data
 		if (!StaticMesh->SpeedTreeWind.IsValid())
@@ -2899,8 +2899,8 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary9(UClass* InClass, UObject*
 
 		// Lightmap data
 		StaticMesh->SetLightingGuid();
-		StaticMesh->LightMapResolution = SpeedTree.LightmapSize();
-		StaticMesh->LightMapCoordinateIndex = (NumUVs - 1);
+		StaticMesh->SetLightMapResolution(SpeedTree.LightmapSize());
+		StaticMesh->SetLightMapCoordinateIndex((NumUVs - 1));
 
 		// make geometry LODs
 		for (uint32 LODIndex = 0; LODIndex < SpeedTree.Lods().Count(); ++LODIndex)

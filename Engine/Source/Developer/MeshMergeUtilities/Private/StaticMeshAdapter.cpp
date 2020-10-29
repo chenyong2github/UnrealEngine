@@ -38,7 +38,7 @@ int32 FStaticMeshAdapter::GetMaterialIndex(int32 LODIndex, int32 SectionIndex) c
 
 void FStaticMeshAdapter::ApplySettings(int32 LODIndex, FMeshData& InOutMeshData) const
 {
-	InOutMeshData.LightMapIndex = StaticMesh->LightMapCoordinateIndex;
+	InOutMeshData.LightMapIndex = StaticMesh->GetLightMapCoordinateIndex();
 }
 
 UPackage* FStaticMeshAdapter::GetOuter() const
@@ -102,7 +102,7 @@ bool FStaticMeshAdapter::IsAsset() const
 
 int32 FStaticMeshAdapter::LightmapUVIndex() const
 {
-	return StaticMesh->LightMapCoordinateIndex;
+	return StaticMesh->GetLightMapCoordinateIndex();
 }
 
 FBoxSphereBounds FStaticMeshAdapter::GetBounds() const

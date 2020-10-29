@@ -47,7 +47,7 @@ void FStaticMeshComponentAdapter::ApplySettings(int32 LODIndex, FMeshData& InOut
 		if (MeshMapBuildData)
 		{
 			InOutMeshData.LightMap = MeshMapBuildData->LightMap;
-			InOutMeshData.LightMapIndex = StaticMeshComponent->GetStaticMesh()->LightMapCoordinateIndex;
+			InOutMeshData.LightMapIndex = StaticMeshComponent->GetStaticMesh()->GetLightMapCoordinateIndex();
 			InOutMeshData.LightmapResourceCluster = MeshMapBuildData->ResourceCluster;
 		}
 	}
@@ -104,7 +104,7 @@ bool FStaticMeshComponentAdapter::IsAsset() const
 
 int32 FStaticMeshComponentAdapter::LightmapUVIndex() const
 {
-	return StaticMesh->LightMapCoordinateIndex;
+	return StaticMesh->GetLightMapCoordinateIndex();
 }
 
 FBoxSphereBounds FStaticMeshComponentAdapter::GetBounds() const

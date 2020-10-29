@@ -393,7 +393,7 @@ bool UnFbx::FFbxImporter::BuildStaticMeshFromGeometry(FbxNode* Node, UStaticMesh
 	int32 FBXNamedLightMapCoordinateIndex = FBXUVs.FindLightUVIndex();
 	if (FBXNamedLightMapCoordinateIndex != INDEX_NONE)
 	{
-		StaticMesh->LightMapCoordinateIndex = FBXNamedLightMapCoordinateIndex;
+		StaticMesh->SetLightMapCoordinateIndex(FBXNamedLightMapCoordinateIndex);
 	}
 	
 	//
@@ -1765,8 +1765,8 @@ UStaticMesh* UnFbx::FFbxImporter::ImportStaticMeshAsSingle(UObject* InParent, TA
 	StaticMesh->SetLightingGuid();
 
 	// Set it to use textured lightmaps. Note that Build Lighting will do the error-checking (texcoordindex exists for all LODs, etc).
-	StaticMesh->LightMapResolution = 64;
-	StaticMesh->LightMapCoordinateIndex = 1;
+	StaticMesh->SetLightMapResolution(64);
+	StaticMesh->SetLightMapCoordinateIndex(1);
 
 	float SqrBoundingBoxThreshold = THRESH_POINTS_ARE_NEAR * THRESH_POINTS_ARE_NEAR;
 
@@ -1928,7 +1928,7 @@ UStaticMesh* UnFbx::FFbxImporter::ImportStaticMeshAsSingle(UObject* InParent, TA
 			{
 				StaticMesh->GetSourceModel(ModelLODIndex).ReductionSettings = LODGroup.GetDefaultSettings(ModelLODIndex);
 			}
-			StaticMesh->LightMapResolution = LODGroup.GetDefaultLightMapResolution();
+			StaticMesh->SetLightMapResolution(LODGroup.GetDefaultLightMapResolution());
 
 			//@third party BEGIN SIMPLYGON
 			/* ImportData->Update(UFactory::GetCurrentFilename());
@@ -1963,7 +1963,7 @@ UStaticMesh* UnFbx::FFbxImporter::ImportStaticMeshAsSingle(UObject* InParent, TA
 		{
 			SrcModel.BuildSettings.bGenerateLightmapUVs = true;
 			SrcModel.BuildSettings.DstLightmapIndex = FirstOpenUVChannel;
-			StaticMesh->LightMapCoordinateIndex = FirstOpenUVChannel;
+			StaticMesh->SetLightMapCoordinateIndex(FirstOpenUVChannel);
 		}
 		else
 		{
@@ -2227,7 +2227,7 @@ void UnFbx::FFbxImporter::PostImportStaticMesh(UStaticMesh* StaticMesh, TArray<F
 		//Set the minimum LOD
 		if (ImportOptions->MinimumLodNumber > 0)
 		{
-			StaticMesh->MinLOD = ImportOptions->MinimumLodNumber;
+			StaticMesh->SetMinLOD(ImportOptions->MinimumLodNumber);
 		}
 
 		//User specify a number of LOD.

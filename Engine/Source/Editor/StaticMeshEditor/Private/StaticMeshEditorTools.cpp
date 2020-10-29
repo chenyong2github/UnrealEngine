@@ -92,8 +92,8 @@ void FStaticMeshDetails::CustomizeDetails( class IDetailLayoutBuilder& DetailBui
 	IDetailCategoryBuilder& CollisionCategory = DetailBuilder.EditCategory( "Collision", LOCTEXT("CollisionCategory", "Collision") );
 	IDetailCategoryBuilder& ImportSettingsCategory = DetailBuilder.EditCategory("ImportSettings");
 
-	TSharedRef<IPropertyHandle> LightMapCoordinateIndexProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UStaticMesh, LightMapCoordinateIndex));
-	TSharedRef<IPropertyHandle> LightMapResolutionProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UStaticMesh, LightMapResolution));
+	TSharedRef<IPropertyHandle> LightMapCoordinateIndexProperty = DetailBuilder.GetProperty(UStaticMesh::GetLightMapCoordinateIndexName());
+	TSharedRef<IPropertyHandle> LightMapResolutionProperty = DetailBuilder.GetProperty(UStaticMesh::GetLightMapResolutionName());
 	LightMapCoordinateIndexProperty->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FStaticMeshDetails::OnLightmapSettingsChanged));
 	LightMapResolutionProperty->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FStaticMeshDetails::OnLightmapSettingsChanged));
 
@@ -3282,7 +3282,7 @@ void FLevelOfDetailSettingsLayout::AddToDetailsPanel( IDetailLayoutBuilder& Deta
 		.Text(LOCTEXT("MinLOD", "Minimum LOD"))
 	]
 	.ValueContent()
-	.MinDesiredWidth((float)(StaticMesh->MinLOD.PerPlatform.Num() + 1)*125.0f)
+	.MinDesiredWidth((float)(StaticMesh->GetMinLOD().PerPlatform.Num() + 1)*125.0f)
 	.MaxDesiredWidth((float)(PlatformNumber + 1)*125.0f)
 	[
 		SNew(SPerPlatformPropertiesWidget)
@@ -4193,8 +4193,8 @@ int32 FLevelOfDetailSettingsLayout::GetMinLOD(FName Platform) const
 	UStaticMesh* StaticMesh = StaticMeshEditor.GetStaticMesh();
 	check(StaticMesh);
 
-	int32* ValuePtr = (Platform == NAME_None) ? nullptr : StaticMesh->MinLOD.PerPlatform.Find(Platform);
-	return (ValuePtr != nullptr) ? *ValuePtr : StaticMesh->MinLOD.Default;
+	const int32* ValuePtr = (Platform == NAME_None) ? nullptr : StaticMesh->GetMinLOD().PerPlatform.Find(Platform);
+	return (ValuePtr != nullptr) ? *ValuePtr : StaticMesh->GetMinLOD().Default;
 }
 
 void FLevelOfDetailSettingsLayout::OnMinLODChanged(int32 NewValue, FName Platform)
@@ -4205,18 +4205,20 @@ void FLevelOfDetailSettingsLayout::OnMinLODChanged(int32 NewValue, FName Platfor
 	{
 		FStaticMeshComponentRecreateRenderStateContext ReregisterContext(StaticMesh, false);
 		NewValue = FMath::Clamp<int32>(NewValue, 0, MAX_STATIC_MESH_LODS - 1);
+		FPerPlatformInt MinLOD = StaticMesh->GetMinLOD();
 		if (Platform == NAME_None)
 		{
-			StaticMesh->MinLOD.Default = NewValue;
+			MinLOD.Default = NewValue;
 		}
 		else
 		{
-			int32* ValuePtr = StaticMesh->MinLOD.PerPlatform.Find(Platform);
+			int32* ValuePtr = MinLOD.PerPlatform.Find(Platform);
 			if (ValuePtr != nullptr)
 			{
 				*ValuePtr = NewValue;
 			}
 		}
+		StaticMesh->SetMinLOD(MoveTemp(MinLOD));
 		StaticMesh->Modify();
 	}
 	StaticMeshEditor.RefreshViewport();
@@ -4251,10 +4253,12 @@ bool FLevelOfDetailSettingsLayout::AddMinLODPlatformOverride(FName PlatformGroup
 	UStaticMesh* StaticMesh = StaticMeshEditor.GetStaticMesh();
 	check(StaticMesh);
 	StaticMesh->Modify();
-	if (StaticMesh->MinLOD.PerPlatform.Find(PlatformGroupName) == nullptr)
+	if (StaticMesh->GetMinLOD().PerPlatform.Find(PlatformGroupName) == nullptr)
 	{
-		float Value = StaticMesh->MinLOD.Default;
-		StaticMesh->MinLOD.PerPlatform.Add(PlatformGroupName, Value);
+		FPerPlatformInt MinLOD = StaticMesh->GetMinLOD();
+		float Value = MinLOD.Default;
+		MinLOD.PerPlatform.Add(PlatformGroupName, Value);
+		StaticMesh->SetMinLOD(MoveTemp(MinLOD));
 		OnMinLODChanged(Value, PlatformGroupName);
 		return true;
 	}
@@ -4267,9 +4271,12 @@ bool FLevelOfDetailSettingsLayout::RemoveMinLODPlatformOverride(FName PlatformGr
 	UStaticMesh* StaticMesh = StaticMeshEditor.GetStaticMesh();
 	check(StaticMesh);
 	StaticMesh->Modify();
-	if (StaticMesh->MinLOD.PerPlatform.Remove(PlatformGroupName) != 0)
+	FPerPlatformInt MinLOD = StaticMesh->GetMinLOD();
+	if (MinLOD.PerPlatform.Remove(PlatformGroupName) != 0)
 	{
-		OnMinLODChanged(StaticMesh->MinLOD.Default, PlatformGroupName);
+		float Value = MinLOD.Default;
+		StaticMesh->SetMinLOD(MoveTemp(MinLOD));
+		OnMinLODChanged(Value, PlatformGroupName);
 		return true;
 	}
 	return false;
@@ -4280,7 +4287,7 @@ TArray<FName> FLevelOfDetailSettingsLayout::GetMinLODPlatformOverrideNames() con
 	UStaticMesh* StaticMesh = StaticMeshEditor.GetStaticMesh();
 	check(StaticMesh);
 	TArray<FName> KeyArray;
-	StaticMesh->MinLOD.PerPlatform.GenerateKeyArray(KeyArray);
+	StaticMesh->GetMinLOD().PerPlatform.GenerateKeyArray(KeyArray);
 	KeyArray.Sort(FNameLexicalLess());
 	return KeyArray;
 }

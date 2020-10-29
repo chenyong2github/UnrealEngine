@@ -192,8 +192,8 @@ UStaticMesh* FAbcImporter::CreateStaticMeshFromSample(UObject* InParent, const F
 		StaticMesh->SetLightingGuid();
 
 		// Set it to use textured lightmaps. Note that Build Lighting will do the error-checking (texcoord index exists for all LODs, etc).
-		StaticMesh->LightMapResolution = 64;
-		StaticMesh->LightMapCoordinateIndex = 1;
+		StaticMesh->SetLightMapResolution(64);
+		StaticMesh->SetLightMapCoordinateIndex(1);
 
 		// Material setup, since there isn't much material information in the Alembic file, 
 		UMaterial* DefaultMaterial = UMaterial::GetDefaultMaterial(MD_Surface);

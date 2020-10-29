@@ -1384,7 +1384,7 @@ void FMeshMergeUtilities::CreateProxyMesh(const TArray<UStaticMeshComponent*>& I
 						TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = FStaticMeshAttributes(*MeshDescription).GetVertexInstanceUVs();
 
 						// If we already have lightmap uvs generated and they are valid, we can reuse those instead of having to generate new ones
-						const int32 LightMapCoordinateIndex = StaticMeshComponent->GetStaticMesh()->LightMapCoordinateIndex;
+						const int32 LightMapCoordinateIndex = StaticMeshComponent->GetStaticMesh()->GetLightMapCoordinateIndex();
 						if (InMeshProxySettings.bReuseMeshLightmapUVs &&
 							LightMapCoordinateIndex > 0 &&
 							VertexInstanceUVs.GetNumElements() > 0 &&
@@ -1435,7 +1435,7 @@ void FMeshMergeUtilities::CreateProxyMesh(const TArray<UStaticMeshComponent*>& I
 							if (MeshMapBuildData)
 							{
 								MeshSettings.LightMap = MeshMapBuildData->LightMap;
-								MeshSettings.LightMapIndex = StaticMeshComponent->GetStaticMesh()->LightMapCoordinateIndex;
+								MeshSettings.LightMapIndex = StaticMeshComponent->GetStaticMesh()->GetLightMapCoordinateIndex();
 							}
 						}
 
@@ -1878,7 +1878,7 @@ bool RetrieveRawMeshData(FMeshMergeDataTracker& DataTracker
 	else if (Component->GetStaticMesh() != nullptr)
 	{
 		// If the mesh is valid at this point, record the lightmap UV so we have a record for use later
-		DataTracker.AddLightmapChannelRecord(ComponentIndex, LODIndex, Component->GetStaticMesh()->LightMapCoordinateIndex);
+		DataTracker.AddLightmapChannelRecord(ComponentIndex, LODIndex, Component->GetStaticMesh()->GetLightMapCoordinateIndex());
 	}
 	return bValidMesh;
 }
@@ -2197,7 +2197,7 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 					if (bRequiresUniqueUVs || MeshData.RawMeshDescription->VertexInstances().Num() > 0)
 					{
 						// Check if there are lightmap uvs available?
-						const int32 LightMapUVIndex = StaticMeshComponentsToMerge[Key.GetMeshIndex()]->GetStaticMesh()->LightMapCoordinateIndex;
+						const int32 LightMapUVIndex = StaticMeshComponentsToMerge[Key.GetMeshIndex()]->GetStaticMesh()->GetLightMapCoordinateIndex();
 
 						TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = FStaticMeshAttributes(*MeshData.RawMeshDescription).GetVertexInstanceUVs();
 						if (InSettings.bReuseMeshLightmapUVs && VertexInstanceUVs.GetNumElements() > 0 && VertexInstanceUVs.GetNumChannels() > LightMapUVIndex)
@@ -2723,8 +2723,8 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 		StaticMesh->SetLightingGuid();
 		if (InSettings.bGenerateLightMapUV)
 		{
-			StaticMesh->LightMapResolution = InSettings.TargetLightMapResolution;
-			StaticMesh->LightMapCoordinateIndex = LightMapUVChannel;
+			StaticMesh->SetLightMapResolution(InSettings.TargetLightMapResolution);
+			StaticMesh->SetLightMapCoordinateIndex(LightMapUVChannel);
 		}
 
 		const bool bContainsImposters = ImposterComponents.Num() > 0;
@@ -2845,7 +2845,7 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 
 		//Set the Imported version before calling the build
 		StaticMesh->ImportVersion = EImportStaticMeshVersion::LastVersion;
-		StaticMesh->LightMapResolution = InSettings.bComputedLightMapResolution ? DataTracker.GetLightMapDimension() : InSettings.TargetLightMapResolution;
+		StaticMesh->SetLightMapResolution(InSettings.bComputedLightMapResolution ? DataTracker.GetLightMapDimension() : InSettings.TargetLightMapResolution);
 
 #if WITH_EDITOR
 		//If we are running the automation test
@@ -2860,8 +2860,8 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 		{
 			const FBox StaticMeshBox = StaticMesh->GetBoundingBox();
 			const FBox CombinedBox = StaticMeshBox + ImposterBounds;
-			StaticMesh->PositiveBoundsExtension = (CombinedBox.Max - StaticMeshBox.Max);
-			StaticMesh->NegativeBoundsExtension = (StaticMeshBox.Min - CombinedBox.Min);
+			StaticMesh->SetPositiveBoundsExtension((CombinedBox.Max - StaticMeshBox.Max));
+			StaticMesh->SetNegativeBoundsExtension((StaticMeshBox.Min - CombinedBox.Min));
 			StaticMesh->CalculateExtendedBounds();
 		}		
 

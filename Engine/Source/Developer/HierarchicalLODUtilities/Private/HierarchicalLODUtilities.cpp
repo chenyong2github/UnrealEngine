@@ -296,8 +296,8 @@ UStaticMesh* CreateImposterStaticMesh(UStaticMeshComponent* InComponent, UMateri
 		StaticMesh->SetLightingGuid();
 
 		// Set it to use textured lightmaps. Note that Build Lighting will do the error-checking (texcoordindex exists for all LODs, etc).
-		StaticMesh->LightMapResolution = InProxySettings.LightMapResolution;
-		StaticMesh->LightMapCoordinateIndex = 1;
+		StaticMesh->SetLightMapResolution(InProxySettings.LightMapResolution);
+		StaticMesh->SetLightMapCoordinateIndex(1);
 
 		// Add one LOD for the base mesh
 		StaticMesh->SetNumSourceModels(0);
@@ -341,8 +341,8 @@ UStaticMesh* CreateImposterStaticMesh(UStaticMeshComponent* InComponent, UMateri
 		{
 			const FBox StaticMeshBox = StaticMesh->GetBoundingBox();
 			const FBox CombinedBox = StaticMeshBox + InComponent->GetStaticMesh()->GetBoundingBox();
-			StaticMesh->PositiveBoundsExtension = (CombinedBox.Max - StaticMeshBox.Max);
-			StaticMesh->NegativeBoundsExtension = (StaticMeshBox.Min - CombinedBox.Min);
+			StaticMesh->SetPositiveBoundsExtension((CombinedBox.Max - StaticMeshBox.Max));
+			StaticMesh->SetNegativeBoundsExtension((StaticMeshBox.Min - CombinedBox.Min));
 			StaticMesh->CalculateExtendedBounds();
 		}	
 	

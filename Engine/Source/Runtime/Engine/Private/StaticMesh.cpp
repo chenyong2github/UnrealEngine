@@ -271,7 +271,7 @@ int32 FStaticMeshLODResources::GetPlatformMinLODIdx(const ITargetPlatform* Targe
 {
 #if WITH_EDITOR
 	check(TargetPlatform && StaticMesh);
-	return StaticMesh->MinLOD.GetValueForPlatform(*TargetPlatform->IniPlatformName());
+	return StaticMesh->GetMinLOD().GetValueForPlatform(*TargetPlatform->IniPlatformName());
 #else
 	return 0;
 #endif
@@ -838,7 +838,7 @@ void FStaticMeshVertexFactories::InitVertexFactory(
 		uint32 LODIndex;
 	} Params;
 
-	uint32 LightMapCoordinateIndex = (uint32)InParentMesh->LightMapCoordinateIndex;
+	uint32 LightMapCoordinateIndex = (uint32)InParentMesh->GetLightMapCoordinateIndex();
 	LightMapCoordinateIndex = LightMapCoordinateIndex < LodResources.VertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords() ? LightMapCoordinateIndex : LodResources.VertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords() - 1;
 
 	Params.VertexFactory = &InOutVertexFactory;
@@ -2786,8 +2786,8 @@ UStaticMesh::UStaticMesh(const FObjectInitializer& ObjectInitializer)
 	LODForOccluderMesh = -1;
 	NumStreamedLODs.Default = -1;
 #endif // #if WITH_EDITORONLY_DATA
-	LightMapResolution = 4;
-	MinLOD.Default = 0;
+	SetLightMapResolution(4);
+	SetMinLOD(0);
 
 	bSupportUniformlyDistributedSampling = false;
 	SetIsBuiltAtRuntime(false);
@@ -2866,7 +2866,7 @@ void UStaticMesh::InitResources()
 	{
 		{
 			const int32 NumLODs = GetNumLODs();
-			const int32 MinFirstLOD = MinLOD.GetValue();
+			const int32 MinFirstLOD = GetMinLOD().GetValue();
 
 			CachedSRRState.NumNonStreamingLODs = GetRenderData()->NumInlinedLODs;
 			CachedSRRState.NumNonOptionalLODs = GetRenderData()->GetNumNonOptionalLODs();
@@ -3002,7 +3002,7 @@ bool UStaticMesh::HasValidRenderData(bool bCheckLODForVerts, int32 LODIndex) con
 		{
 		    if (LODIndex == INDEX_NONE)
 		    {
-			    LODIndex = FMath::Clamp<int32>(MinLOD.GetValue(), 0, GetRenderData()->LODResources.Num() - 1);
+			    LODIndex = FMath::Clamp<int32>(GetMinLOD().GetValue(), 0, GetRenderData()->LODResources.Num() - 1);
 		    }
 			return (GetRenderData()->LODResources[LODIndex].VertexBuffers.StaticMeshVertexBuffer.GetNumVertices() > 0);
 		}
@@ -3114,7 +3114,7 @@ void UStaticMesh::UpdateUVChannelData(bool bRebuildAll)
 
 		if (bDensityChanged || bRebuildAll)
 		{
-			SetLightmapUVDensity(GetUVDensity(GetRenderData()->LODResources, LightMapCoordinateIndex));
+			SetLightmapUVDensity(GetUVDensity(GetRenderData()->LODResources, GetLightMapCoordinateIndex()));
 
 			if (GEngine)
 			{
@@ -3279,11 +3279,11 @@ void UStaticMesh::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedE
 	}
 #endif
 
-	LightMapResolution = FMath::Max(LightMapResolution, 0);
+	SetLightMapResolution(FMath::Max(GetLightMapResolution(), 0));
 
 	if (PropertyChangedEvent.MemberProperty 
-		&& ((PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UStaticMesh, PositiveBoundsExtension)) 
-			|| (PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UStaticMesh, NegativeBoundsExtension))))
+		&& (PropertyChangedEvent.MemberProperty->GetFName() == UStaticMesh::GetPositiveBoundsExtensionName() || 
+			PropertyChangedEvent.MemberProperty->GetFName() == UStaticMesh::GetNegativeBoundsExtensionName()))
 	{
 		// Update the extended bounds
 		CalculateExtendedBounds();
@@ -3310,13 +3310,8 @@ void UStaticMesh::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedE
 
 	Build(/*bSilent=*/ true);
 
-	// It's OK to access the property directly just to fetch its name
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	FName BodySetupProperyName = GET_MEMBER_NAME_CHECKED(UStaticMesh, BodySetup);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(UStaticMesh, bHasNavigationData)
-		|| PropertyName == BodySetupProperyName)
+		|| PropertyName == UStaticMesh::GetBodySetupName())
 	{
 		// Build called above will result in creation, update or destruction 
 		// of NavCollision. We need to let related StaticMeshComponents know
@@ -3326,8 +3321,8 @@ void UStaticMesh::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedE
 	if (PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
 	{
 		// Only unbuild lighting for properties which affect static lighting
-		if (PropertyName == GET_MEMBER_NAME_CHECKED(UStaticMesh, LightMapResolution)
-			|| PropertyName == GET_MEMBER_NAME_CHECKED(UStaticMesh, LightMapCoordinateIndex))
+		if (PropertyName == UStaticMesh::GetLightMapResolutionName()
+			|| PropertyName == UStaticMesh::GetLightMapCoordinateIndexName())
 		{
 			FStaticMeshComponentRecreateRenderStateContext Context(this, true);
 			SetLightingGuid();
@@ -3391,24 +3386,24 @@ void UStaticMesh::SetLODGroup(FName NewGroup, bool bRebuildImmediately)
 			
 			if (LODIndex != 0)
 			{
-			//Reset the section info map
-			if (bResetSectionInfoMap)
-			{
-				for (int32 SectionIndex = 0; SectionIndex < GetSectionInfoMap().GetSectionNumber(LODIndex); ++SectionIndex)
+				//Reset the section info map
+				if (bResetSectionInfoMap)
 				{
+					for (int32 SectionIndex = 0; SectionIndex < GetSectionInfoMap().GetSectionNumber(LODIndex); ++SectionIndex)
+					{
 						GetSectionInfoMap().Remove(LODIndex, SectionIndex);
+					}
+				}
+				//Clear the raw data if we change the LOD Group and we do not reduce ourself, this will force the user to do a import LOD which will manage the section info map properly
+				if (!SourceModel.IsRawMeshEmpty() && SourceModel.ReductionSettings.BaseLODModel != LODIndex)
+				{
+					FRawMesh EmptyRawMesh;
+					SourceModel.SaveRawMesh(EmptyRawMesh);
+					SourceModel.SourceImportFilename = FString();
 				}
 			}
-			//Clear the raw data if we change the LOD Group and we do not reduce ourself, this will force the user to do a import LOD which will manage the section info map properly
-			if (!SourceModel.IsRawMeshEmpty() && SourceModel.ReductionSettings.BaseLODModel != LODIndex)
-			{
-				FRawMesh EmptyRawMesh;
-				SourceModel.SaveRawMesh(EmptyRawMesh);
-				SourceModel.SourceImportFilename = FString();
-			}
 		}
-		}
-		LightMapResolution = GroupSettings.GetDefaultLightMapResolution();
+		SetLightMapResolution(GroupSettings.GetDefaultLightMapResolution());
 
 		if (!bBeforeDerivedDataCached)
 		{
@@ -3717,7 +3712,7 @@ void UStaticMesh::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 	OutTags.Add(FAssetRegistryTag("ApproxSize", ApproxSizeStr, FAssetRegistryTag::TT_Dimensional) );
 	OutTags.Add(FAssetRegistryTag("CollisionPrims", FString::FromInt(NumCollisionPrims), FAssetRegistryTag::TT_Numerical));
 	OutTags.Add(FAssetRegistryTag("LODs", FString::FromInt(NumLODs), FAssetRegistryTag::TT_Numerical));
-	OutTags.Add(FAssetRegistryTag("MinLOD", MinLOD.ToString(), FAssetRegistryTag::TT_Alphabetical));
+	OutTags.Add(FAssetRegistryTag("MinLOD", GetMinLOD().ToString(), FAssetRegistryTag::TT_Alphabetical));
 	OutTags.Add(FAssetRegistryTag("SectionsWithCollision", FString::FromInt(NumSectionsWithCollision), FAssetRegistryTag::TT_Numerical));
 	OutTags.Add(FAssetRegistryTag("DefaultCollision", DefaultCollisionName.ToString(), FAssetRegistryTag::TT_Alphabetical));
 	OutTags.Add(FAssetRegistryTag("CollisionComplexity", ComplexityString, FAssetRegistryTag::TT_Alphabetical));
@@ -4467,9 +4462,9 @@ bool UStaticMesh::InsertUVChannel(int32 LODIndex, int32 UVChannelIndex)
 				++LODBuildSettings.DstLightmapIndex;
 			}
 
-			if (UVChannelIndex <= LightMapCoordinateIndex)
+			if (UVChannelIndex <= GetLightMapCoordinateIndex())
 			{
-				++LightMapCoordinateIndex;
+				SetLightMapCoordinateIndex(GetLightMapCoordinateIndex() + 1);
 			}
 
 			CommitMeshDescription(LODIndex);
@@ -4518,9 +4513,9 @@ bool UStaticMesh::RemoveUVChannel(int32 LODIndex, int32 UVChannelIndex)
 				--LODBuildSettings.DstLightmapIndex;
 			}
 
-			if (UVChannelIndex < LightMapCoordinateIndex)
+			if (UVChannelIndex < GetLightMapCoordinateIndex())
 			{
-				--LightMapCoordinateIndex;
+				SetLightMapCoordinateIndex(GetLightMapCoordinateIndex() - 1);
 			}
 
 			CommitMeshDescription(LODIndex);
@@ -4609,6 +4604,11 @@ void UStaticMesh::CacheDerivedData()
 			{
 				GDistanceFieldAsyncQueue->BlockUntilBuildComplete(this, true);
 			}
+
+			if (GCardRepresentationAsyncQueue)
+			{
+				GCardRepresentationAsyncQueue->BlockUntilBuildComplete(this, true);
+			}
 		}
 
 		for (int32 LODIndex = 0; LODIndex < GetRenderData()->LODResources.Num(); ++LODIndex)
@@ -4621,8 +4621,6 @@ void UStaticMesh::CacheDerivedData()
 				DistanceFieldData->VolumeTexture.Release();
 			}
 		}
-
-		GCardRepresentationAsyncQueue->BlockUntilBuildComplete(this, true);
 	}
 
 	SetRenderData(MakeUnique<FStaticMeshRenderData>());
@@ -4654,14 +4652,14 @@ void UStaticMesh::CalculateExtendedBounds()
 	}
 
 	// Only apply bound extension if necessary, as it will result in a larger bounding sphere radius than retrieved from the render data
-	if (!NegativeBoundsExtension.IsZero() || !PositiveBoundsExtension.IsZero())
+	if (!GetNegativeBoundsExtension().IsZero() || !GetPositiveBoundsExtension().IsZero())
 	{
 		// Convert to Min and Max
 		FVector Min = Bounds.Origin - Bounds.BoxExtent;
 		FVector Max = Bounds.Origin + Bounds.BoxExtent;
 		// Apply bound extensions
-		Min -= NegativeBoundsExtension;
-		Max += PositiveBoundsExtension;
+		Min -= GetNegativeBoundsExtension();
+		Max += GetPositiveBoundsExtension();
 		// Convert back to Origin, Extent and update SphereRadius
 		Bounds.Origin = (Min + Max) / 2;
 		Bounds.BoxExtent = (Max - Min) / 2;
@@ -4670,7 +4668,6 @@ void UStaticMesh::CalculateExtendedBounds()
 
 	SetExtendedBounds(Bounds);
 }
-
 
 #if WITH_EDITORONLY_DATA
 FUObjectAnnotationSparseBool GStaticMeshesThatNeedMaterialFixup;
@@ -4981,12 +4978,12 @@ void UStaticMesh::PostLoad()
 	if (GetNumSourceModels() > 0)
 	{
 		UStaticMesh* DistanceFieldReplacementMesh = GetSourceModel(0).BuildSettings.DistanceFieldReplacementMesh;
- 
+
 		if (DistanceFieldReplacementMesh)
 		{
 			DistanceFieldReplacementMesh->ConditionalPostLoad();
 		}
-		
+
 		//TODO remove this code when FRawMesh will be removed
 		//Fill the static mesh owner
 		int32 NumLODs = GetNumSourceModels();
@@ -5140,7 +5137,7 @@ void UStaticMesh::PostLoad()
 			if (bMaterialChange || CompactedMaterial.Num() < GetStaticMaterials().Num())
 			{
 				GetStaticMaterials().Empty(CompactedMaterial.Num());
-				for (const FStaticMaterial &Material : CompactedMaterial)
+				for (const FStaticMaterial& Material : CompactedMaterial)
 				{
 					GetStaticMaterials().Add(Material);
 				}
@@ -5165,7 +5162,7 @@ void UStaticMesh::PostLoad()
 		if (bSupportGpuUniformlyDistributedSampling)
 		{
 			// Initialise pointers to samplers
-			for (FStaticMeshLODResources &LOD : GetRenderData()->LODResources)
+			for (FStaticMeshLODResources& LOD : GetRenderData()->LODResources)
 			{
 				LOD.AreaWeightedSectionSamplersBuffer.Init(&LOD.AreaWeightedSectionSamplers);
 			}
@@ -5174,16 +5171,18 @@ void UStaticMesh::PostLoad()
 		// check the MinLOD values are all within range
 		bool bFixedMinLOD = false;
 		int32 MinAvailableLOD = FMath::Max<int32>(GetRenderData()->LODResources.Num() - 1, 0);
-		if (!GetRenderData()->LODResources.IsValidIndex(MinLOD.Default))
+		if (!GetRenderData()->LODResources.IsValidIndex(GetMinLOD().Default))
 		{
 			FFormatNamedArguments Arguments;
-			Arguments.Add(TEXT("MinLOD"), FText::AsNumber(MinLOD.Default));
+			Arguments.Add(TEXT("MinLOD"), FText::AsNumber(GetMinLOD().Default));
 			Arguments.Add(TEXT("MinAvailLOD"), FText::AsNumber(MinAvailableLOD));
 			FMessageLog("LoadErrors").Warning()
 				->AddToken(FUObjectToken::Create(this))
 				->AddToken(FTextToken::Create(FText::Format(LOCTEXT("LoadError_BadMinLOD", "Min LOD value of {MinLOD} is out of range 0..{MinAvailLOD} and has been adjusted to {MinAvailLOD}. Please verify and resave the asset."), Arguments)));
 
-			MinLOD.Default = MinAvailableLOD;
+			FPerPlatformInt LocalMinLOD = GetMinLOD();
+			LocalMinLOD.Default = MinAvailableLOD;
+			SetMinLOD(MoveTemp(LocalMinLOD));
 			bFixedMinLOD = true;
 		}
 		for (TMap<FName, int32>::TIterator It(MinLOD.PerPlatform); It; ++It)
@@ -5207,7 +5206,6 @@ void UStaticMesh::PostLoad()
 			FMessageLog("LoadErrors").Open();
 		}
 	}
-
 
 #endif // #if WITH_EDITOR
 
@@ -5688,7 +5686,7 @@ bool UStaticMesh::GetMipDataFilename(const int32 MipIndex, FString& OutBulkDataF
 	LocalizedName = FPackageName::GetLocalizedPackagePath(LocalizedName);
 	bool bSucceed = FPackageName::DoesPackageExist(LocalizedName, nullptr, &OutBulkDataFilename);
 	check(bSucceed);
-	OutBulkDataFilename = FPaths::ChangeExtension(OutBulkDataFilename, MipIndex < MinLOD.Default ? TEXT(".uptnl") : TEXT(".ubulk"));
+	OutBulkDataFilename = FPaths::ChangeExtension(OutBulkDataFilename, MipIndex < GetMinLOD().Default ? TEXT(".uptnl") : TEXT(".ubulk"));
 	return true;
 }
 #endif // USE_BULKDATA_STREAMING_TOKEN
@@ -6212,7 +6210,7 @@ ENGINE_API void UStaticMesh::RemoveVertexColors()
 void UStaticMesh::EnforceLightmapRestrictions(bool bUseRenderData)
 {
 	// Legacy content may contain a lightmap resolution of 0, which was valid when vertex lightmaps were supported, but not anymore with only texture lightmaps
-	LightMapResolution = FMath::Max(LightMapResolution, 4);
+	SetLightMapResolution(FMath::Max(GetLightMapResolution(), 4));
 
 	// Lightmass only supports 4 UVs from Lightmass::MAX_TEXCOORDS
 	int32 NumUVs = 4;
@@ -6292,7 +6290,7 @@ void UStaticMesh::EnforceLightmapRestrictions(bool bUseRenderData)
 	check(NumUVs > 0);
 
 	// Clamp LightMapCoordinateIndex to be valid for all lightmap uvs
-	LightMapCoordinateIndex = FMath::Clamp(LightMapCoordinateIndex, 0, NumUVs - 1);
+	SetLightMapCoordinateIndex(FMath::Clamp(GetLightMapCoordinateIndex(), 0, NumUVs - 1));
 }
 
 /**
@@ -6493,7 +6491,7 @@ void UStaticMesh::CheckLightMapUVs( UStaticMesh* InStaticMesh, TArray< FString >
 	for( int32 CurLODModelIndex = 0; CurLODModelIndex < NumLods; ++CurLODModelIndex )
 	{
 		const FStaticMeshLODResources& RenderData = InStaticMesh->GetRenderData()->LODResources[CurLODModelIndex];
-		int32 LightMapTextureCoordinateIndex = InStaticMesh->LightMapCoordinateIndex;
+		int32 LightMapTextureCoordinateIndex = InStaticMesh->GetLightMapCoordinateIndex();
 
 		// We expect the light map texture coordinate to be greater than zero, as the first UV set
 		// should never really be used for light maps, unless this mesh was exported as a light mapped uv set.
@@ -6539,7 +6537,7 @@ void UStaticMesh::CheckLightMapUVs( UStaticMesh* InStaticMesh, TArray< FString >
 					}
 					break;
 				case FLocal::UVCheck_Missing:
-					UE_LOG(LogStaticMesh, Warning, TEXT( "[%s, LOD %i] missing light map UVs (Res %i, CoordIndex %i)" ), *InStaticMesh->GetName(), CurLODModelIndex, InStaticMesh->LightMapResolution, InStaticMesh->LightMapCoordinateIndex );
+					UE_LOG(LogStaticMesh, Warning, TEXT( "[%s, LOD %i] missing light map UVs (Res %i, CoordIndex %i)" ), *InStaticMesh->GetName(), CurLODModelIndex, InStaticMesh->GetLightMapResolution(), InStaticMesh->GetLightMapCoordinateIndex() );
 					break;
 				case FLocal::UVCheck_NoTriangles:
 					UE_LOG(LogStaticMesh, Warning, TEXT( "[%s, LOD %i] doesn't have any triangles" ), *InStaticMesh->GetName(), CurLODModelIndex );

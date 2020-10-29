@@ -907,7 +907,7 @@ void UDatasmithStaticMeshBlueprintLibrary::SetupStaticLighting(const TArray< UOb
 
 					if (GeneratedLightmapChannel < Lightmass::MAX_TEXCOORDS)
 					{
-						StaticMesh->LightMapCoordinateIndex = GeneratedLightmapChannel;
+						StaticMesh->SetLightMapCoordinateIndex(GeneratedLightmapChannel);
 					}
 					else
 					{
@@ -915,10 +915,10 @@ void UDatasmithStaticMeshBlueprintLibrary::SetupStaticLighting(const TArray< UOb
 						break;
 					}
 				}
-				else if (StaticMesh->LightMapCoordinateIndex > MaxBiggestUVChannel && bDidChangeSettings)
+				else if (StaticMesh->GetLightMapCoordinateIndex() > MaxBiggestUVChannel && bDidChangeSettings)
 				{
 					// If we are not generating the lightmap anymore make sure we are selecting a valid lightmap index.
-					StaticMesh->LightMapCoordinateIndex = MaxBiggestUVChannel;
+					StaticMesh->SetLightMapCoordinateIndex(MaxBiggestUVChannel);
 				}
 			}
 		}
@@ -970,7 +970,7 @@ void UDatasmithStaticMeshBlueprintLibrary::ComputeLightmapResolution(const TMap<
 					StaticMesh->Modify();
 				}
 
-				StaticMesh->LightMapResolution = LightMapResolution;
+				StaticMesh->SetLightMapResolution(LightMapResolution);
 
 				if(bApplyChanges)
 				{
@@ -1059,7 +1059,7 @@ int32 UDatasmithStaticMeshBlueprintLibrary::ComputeLightmapResolution(UStaticMes
 	const FPositionVertexBuffer& PositionBuffer = StaticMesh->GetRenderData()->LODResources[0].VertexBuffers.PositionVertexBuffer;
 	const FStaticMeshVertexBuffer& VertexBuffer = StaticMesh->GetRenderData()->LODResources[0].VertexBuffers.StaticMeshVertexBuffer;
 
-	if (VertexBuffer.GetNumTexCoords() <= (uint32)StaticMesh->LightMapCoordinateIndex)
+	if (VertexBuffer.GetNumTexCoords() <= (uint32)StaticMesh->GetLightMapCoordinateIndex())
 	{
 		return 0;
 	}
@@ -1076,7 +1076,7 @@ int32 UDatasmithStaticMeshBlueprintLibrary::ComputeLightmapResolution(UStaticMes
 		{
 			uint32 VertexIndex = IndexBuffer.GetIndex(TriangleIndex * 3 + CornerIndex);
 			VertexPosition[CornerIndex] = PositionBuffer.VertexPosition(VertexIndex);
-			LightmapUVs[CornerIndex] = VertexBuffer.GetVertexUV(VertexIndex, StaticMesh->LightMapCoordinateIndex);
+			LightmapUVs[CornerIndex] = VertexBuffer.GetVertexUV(VertexIndex, StaticMesh->GetLightMapCoordinateIndex());
 		}
 
 		const float PolygonArea = DatasmithStaticMeshBlueprintLibraryUtil::ParallelogramArea(VertexPosition[0], VertexPosition[1], VertexPosition[2]);

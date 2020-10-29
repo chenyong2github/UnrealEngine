@@ -158,7 +158,7 @@ bool FLightmapResRatioAdjustSettings::ApplyRatioAdjustment()
 				int32 CurrentResolution = SMComp->GetStaticLightMapResolution();
 				bool bConvertIt = true;
 				if (((SMComp->bOverrideLightMapRes == true) && (CurrentResolution == 0)) ||
-					((SMComp->bOverrideLightMapRes == false) && (SMComp->GetStaticMesh() != nullptr) && (SMComp->GetStaticMesh()->LightMapResolution == 0)))
+					((SMComp->bOverrideLightMapRes == false) && (SMComp->GetStaticMesh() != nullptr) && (SMComp->GetStaticMesh()->GetLightMapResolution() == 0)))
 				{
 					// Don't convert vertex mapped objects!
 					bConvertIt = false;

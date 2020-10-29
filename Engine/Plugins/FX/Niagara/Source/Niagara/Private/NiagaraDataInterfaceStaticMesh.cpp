@@ -317,7 +317,7 @@ bool FNDIStaticMesh_InstanceData::Init(UNiagaraDataInterfaceStaticMesh* Interfac
 		}
 #endif
 
-	    MinLOD = Mesh->MinLOD.GetValue();
+	    MinLOD = Mesh->GetMinLOD().GetValue();
 	    CachedLODIdx = Mesh->GetRenderData()->GetCurrentFirstLODIdx(MinLOD);
 
 		bMeshAllowsCpuAccess = Mesh->bAllowCPUAccess;

@@ -88,6 +88,12 @@ protected:
 		Destination->MemberName = MemberName; \
 	}
 
+#define DATASMITHOBJECTTEMPLATE_CONDITIONALSET_ACCESSORS(MemberName, Destination, PreviousTemplate) \
+	if ( !PreviousTemplate || Destination->Get##MemberName() == PreviousTemplate->MemberName ) \
+	{ \
+		Destination->Set##MemberName(MemberName); \
+	}
+
 // Specialized version of DATASMITHOBJECTTEMPLATE_CONDITIONALSET to handle SoftObjectPtr to Ptr assignment
 #define DATASMITHOBJECTTEMPLATE_CONDITIONALSETSOFTOBJECTPTR(MemberName, Destination, PreviousTemplate) \
 	if ( !PreviousTemplate || Destination->MemberName == PreviousTemplate->MemberName.Get() ) \
