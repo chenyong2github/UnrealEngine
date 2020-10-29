@@ -120,6 +120,16 @@ void UNiagaraStackFunctionInputCollection::GetChildInputs(TArray<UNiagaraStackFu
 	}
 }
 
+void UNiagaraStackFunctionInputCollection::ApplyModuleChanges()
+{
+	TArray<UNiagaraStackFunctionInput*> ChildInputs;
+	GetChildInputs(ChildInputs);
+	for (UNiagaraStackFunctionInput* ChildInput : ChildInputs)
+	{
+		ChildInput->ApplyModuleChanges();
+	}
+}
+
 struct FNiagaraParentData
 {
 	const UEdGraphPin* ParentPin;
