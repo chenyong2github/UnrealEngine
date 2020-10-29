@@ -12,8 +12,8 @@
 #include "HttpServerConstants.h"
 
 // Serialization
-#include "Serialization/MemoryWriter.h"
 #include "Backends/JsonStructSerializerBackend.h"
+#include "Serialization/MemoryWriter.h"
 
 // Console variable handling
 #include "HAL/ConsoleManager.h"
@@ -24,7 +24,11 @@
 // Thumbnails
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetRegistry/IAssetRegistry.h"
+#include "ClassIconFinder.h"
+#include "IImageWrapperModule.h"
+#include "IImageWrapper.h"
 #include "Misc/ObjectThumbnail.h"
+#include "Misc/FileHelper.h"
 #include "ObjectTools.h"
 
 void FWebRemoteControlEditorRoutes::RegisterRoutes(FWebRemoteControlModule* WebRemoteControl)
@@ -105,19 +109,38 @@ bool FWebRemoteControlEditorRoutes::HandleGetThumbnailRoute(const FHttpServerReq
 			if (FObjectThumbnail* Thumbnail = ThumbnailMap.Find(ObjectFullName))
 			{
 				WebRemoteControlUtils::AddContentTypeHeaders(Response.Get(), TEXT("image/png"));
-				Response->Body = Thumbnail->AccessCompressedImageData();
-				Response->Code = EHttpServerResponseCodes::Ok;
+				IImageWrapperModule& ImageWrapperModule = FModuleManager::Get().LoadModuleChecked<IImageWrapperModule>(TEXT("ImageWrapper"));
+				EImageFormat Format = ImageWrapperModule.DetectImageFormat((void*)Thumbnail->AccessCompressedImageData().GetData(), Thumbnail->AccessCompressedImageData().Num());
+				if (Format == EImageFormat::PNG)
+				{
+					TSharedPtr<IImageWrapper> Wrapper = ImageWrapperModule.CreateImageWrapper(Format);
+					Wrapper->SetRaw(Thumbnail->GetUncompressedImageData().GetData(), Thumbnail->GetUncompressedImageData().Num(), Thumbnail->GetImageWidth(), Thumbnail->GetImageHeight(), ERGBFormat::BGRA, 8);
+					if (Wrapper)
+					{
+						ERGBFormat RGBFormat = Wrapper->GetFormat();
+						Response->Body = Wrapper->GetCompressed();
+						Response->Code = EHttpServerResponseCodes::Ok;
+					}
+				}
 			}
 		}
-		else
+
+		if (!Response->Body.Num())
 		{
-			WebRemoteControlUtils::CreateUTF8ErrorMessage(FString::Printf(TEXT("Could not load thumbnail for object %s"), *GetThumbnailRequest.ObjectPath), Response->Body);
-			Response->Code = EHttpServerResponseCodes::NotFound;
+			if (const FSlateBrush* ThumbnailBrush = FClassIconFinder::FindThumbnailForClass(AssetData.GetClass()))
+			{
+				FName ResourceName = ThumbnailBrush->GetResourceName();
+				if (FFileHelper::LoadFileToArray(Response->Body, *ResourceName.ToString()))
+				{
+					Response->Code = EHttpServerResponseCodes::Ok;
+				}
+			}
 		}
 	}
-	else
+
+	if (!Response->Body.Num())
 	{
-		WebRemoteControlUtils::CreateUTF8ErrorMessage(FString::Printf(TEXT("Could not resolve object %s"), *GetThumbnailRequest.ObjectPath), Response->Body);
+		WebRemoteControlUtils::CreateUTF8ErrorMessage(FString::Printf(TEXT("Could not load thumbnail for object %s"), *GetThumbnailRequest.ObjectPath), Response->Body);
 		Response->Code = EHttpServerResponseCodes::NotFound;
 	}
 

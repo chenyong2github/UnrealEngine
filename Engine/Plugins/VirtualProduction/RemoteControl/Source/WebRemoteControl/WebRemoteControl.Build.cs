@@ -27,8 +27,10 @@ public class WebRemoteControl : ModuleRules
 		{
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {
+					"ImageWrapper",
 					"Settings",
-					"UnrealEd"
+					"SlateCore",
+					"UnrealEd",
 				}
 			);
 		}
