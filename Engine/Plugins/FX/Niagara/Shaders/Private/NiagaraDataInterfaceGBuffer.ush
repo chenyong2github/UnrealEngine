@@ -178,7 +178,7 @@ void DIGBuffer_DecodeSceneColor(in float2 ScreenUV, out bool IsValid, out float4
 {
 #if NDIGBUFFER_ENABLED
 	IsValid = true;
-	OutValue = Texture2DSample(SceneTexturesStruct.SceneColorTexture, SceneTexturesStruct.SceneColorTextureSampler, ScreenUV);
+	OutValue = Texture2DSampleLevel(SceneTexturesStruct_SceneColorTexture, SceneTexturesStruct_SceneColorTextureSampler, ScreenUV, 0);
 #else
 	IsValid = false;
 	OutValue = 0;
