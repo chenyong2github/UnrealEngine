@@ -1675,8 +1675,10 @@ void FBodyInstance::UnWeld(FBodyInstance* TheirBI)
 		const int32 NumSyncShapes = GetAllShapes_AssumesLocked(Shapes);
 		const int32 NumTotalShapes = Shapes.Num();
 
-		for(FPhysicsShapeHandle& Shape : Shapes)
+		// reversed since FPhysicsInterface::DetachShape is removing shapes
+		for (int Idx = Shapes.Num()-1; Idx >=0; Idx--)
 		{
+			FPhysicsShapeHandle& Shape = Shapes[Idx];
 			const FBodyInstance* BI = GetOriginalBodyInstance(Shape);
 			if (TheirBI == BI)
 			{

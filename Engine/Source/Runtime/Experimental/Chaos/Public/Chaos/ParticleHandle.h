@@ -1663,6 +1663,10 @@ public:
 		check(false);
 	}
 
+	void MergeGeometry(TArray<TUniquePtr<FImplicitObject>>&& Objects);
+
+	void RemoveShape(FPerShapeData* InShape, bool bWakeTouching);
+
 	const TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>& SharedGeometryLowLevel() const { return MNonFrequentData.Read().Geometry(); }
 
 	void* UserData() const { return MNonFrequentData.Read().UserData(); }
@@ -1737,6 +1741,17 @@ public:
 	{
 		ensure(InShapesArray.Num() == MShapesArray.Num());
 		MShapesArray = MoveTemp(InShapesArray);
+		MapImplicitShapes();
+	}
+
+	void MergeShapesArray(FShapesArray&& OtherShapesArray)
+	{
+		int Idx = MShapesArray.Num() - OtherShapesArray.Num();
+		for (TUniquePtr<FPerShapeData>& Shape : OtherShapesArray)
+		{
+			ensure(Idx < MShapesArray.Num());
+			MShapesArray[Idx++] = MoveTemp(Shape);
+		}
 		MapImplicitShapes();
 	}
 

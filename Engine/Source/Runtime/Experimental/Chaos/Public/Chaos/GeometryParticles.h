@@ -217,6 +217,11 @@ namespace Chaos
 			return ShapeIdx;
 		}
 
+		void ModifyShapeIndex(int32 NewShapeIndex)
+		{
+			ShapeIdx = NewShapeIndex;
+		}
+
 	private:
 
 		class IPhysicsProxyBase* Proxy;
