@@ -15,8 +15,9 @@ public:
 public:
 	FRigHierarchyTabSummoner(const TSharedRef<FControlRigEditor>& InControlRigEditor);
 	
+	virtual FTabSpawnerEntry& RegisterTabSpawner(TSharedRef<FTabManager> TabManager, const FApplicationMode* CurrentApplicationMode) const;
 	virtual TSharedRef<SWidget> CreateTabBody(const FWorkflowTabSpawnInfo& Info) const override;
-	
+
 protected:
 	TWeakPtr<FControlRigEditor> ControlRigEditor;
 };

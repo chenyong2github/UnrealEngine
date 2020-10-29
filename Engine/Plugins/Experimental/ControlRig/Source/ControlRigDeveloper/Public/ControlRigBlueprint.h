@@ -230,6 +230,7 @@ private:
 
 public:
 
+	void BroadcastRefreshEditor() { return RefreshEditorEvent.Broadcast(this); }
 	FOnRefreshEditorEvent& OnRefreshEditor() { return RefreshEditorEvent; }
 	FOnVariableDroppedEvent& OnVariableDropped() { return VariableDroppedEvent; }
 

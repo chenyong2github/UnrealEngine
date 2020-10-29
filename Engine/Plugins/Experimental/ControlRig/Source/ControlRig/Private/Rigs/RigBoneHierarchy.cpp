@@ -660,6 +660,21 @@ void FRigBoneHierarchy::PropagateTransform(int32 InIndex)
 	}
 }
 
+void FRigBoneHierarchy::CopyGlobalToInitial(int32 InIndex, bool bPropagate)
+{
+	FTransform InitialGlobalTransform = GetGlobalTransform(InIndex);
+	SetInitialGlobalTransform(InIndex, InitialGlobalTransform);
+
+	if (bPropagate)
+	{
+		const TArray<int32> Dependents = Bones[InIndex].Dependents;
+		for (int32 DependentIndex = 0; DependentIndex < Dependents.Num(); ++DependentIndex)
+		{
+			CopyGlobalToInitial(Dependents[DependentIndex], bPropagate);
+		}
+	}
+}
+
 bool FRigBoneHierarchy::Select(const FName& InName, bool bSelect)
 {
 	if(GetIndex(InName) == INDEX_NONE)

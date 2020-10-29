@@ -3957,8 +3957,7 @@ void FControlRigEditor::HandleOnControlModified(UControlRig* Subject, const FRig
 
 				if (bSetupModeEnabled)
 				{
-					FTransform InitialGlobalTransform = Blueprint->HierarchyContainer.BoneHierarchy.GetGlobalTransform(BoneName);
-					Blueprint->HierarchyContainer.BoneHierarchy.SetInitialGlobalTransform(BoneName, InitialGlobalTransform);
+					Blueprint->HierarchyContainer.BoneHierarchy.CopyGlobalToInitial(Blueprint->HierarchyContainer.BoneHierarchy.GetIndex(BoneName));
 				}
 
 				Blueprint->PropagateHierarchyFromBPToInstances(false, false);

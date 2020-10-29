@@ -194,6 +194,9 @@ struct CONTROLRIG_API FRigBoneHierarchy
 	// propagates the transform change for a single bone
 	void PropagateTransform(int32 InIndex);
 
+	// copies the global transform to the initial transform
+	void CopyGlobalToInitial(int32 InIndex, bool bPropagate = true);
+
 	// import skeleton
 	TArray<FRigElementKey> ImportSkeleton(const FReferenceSkeleton& InSkeleton, const FName& InNameSpace, bool bReplaceExistingBones, bool bRemoveObsoleteBones, bool bSelectBones, bool bNotify);
 

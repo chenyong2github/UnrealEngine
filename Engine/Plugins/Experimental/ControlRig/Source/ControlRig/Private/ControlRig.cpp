@@ -1433,7 +1433,7 @@ FName UControlRig::AddTransientControl(const FRigElementKey& InElement)
 
 	if (InElement.Type == ERigElementType::Bone)
 	{
-		if (PreviewInstance)
+		if (PreviewInstance && Hierarchy.BoneHierarchy[ElementIndex].Type == ERigBoneType::Imported)
 		{
 			PreviewInstance->ModifyBone(InElement.Name);
 		}
