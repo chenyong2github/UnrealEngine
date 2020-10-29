@@ -30,7 +30,7 @@
 #include "EngineAnalytics.h"
 #include "AnalyticsEventAttribute.h"
 #include "Interfaces/IAnalyticsProvider.h"
-#include "Gameframework/InputSettings.h"
+#include "GameFramework/InputSettings.h"
 
 #include "GameProjectGenerationModule.h"
 
