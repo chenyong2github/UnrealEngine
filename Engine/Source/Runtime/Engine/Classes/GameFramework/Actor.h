@@ -38,21 +38,6 @@ struct FNetViewer;
 struct FNetworkObjectInfo;
 class UDataLayer;
 
-#if WITH_EDITOR
-// @todo_ow this is temporary and will be removed
-class FArchiveGetActorRefs : public FArchiveUObject
-{
-public:
-	FArchiveGetActorRefs(AActor* InRoot, TSet<AActor*>& InActorReferences);
-	virtual FArchive& operator<<(UObject*& Obj) override;
-
-private:
-	AActor* Root;
-	TSet<AActor*>& ActorReferences;
-	TSet<UObject*> SubObjects;
-};
-#endif
-
 /** Chooses a method for actors to update overlap state (objects it is touching) on initialization, currently only used during level streaming. */
 UENUM(BlueprintType)
 enum class EActorUpdateOverlapsMethod : uint8

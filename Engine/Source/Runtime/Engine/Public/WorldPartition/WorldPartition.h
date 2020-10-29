@@ -22,7 +22,6 @@ DECLARE_LOG_CATEGORY_EXTERN(LogWorldPartition, Log, All);
 enum class EWorldPartitionStreamingMode
 {
 	PIE,
-	RuntimeExternalObjects,
 	RuntimeStreamingCells
 };
 

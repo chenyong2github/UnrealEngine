@@ -1,0 +1,72 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "ExternalActorsUtils.h"
+
+class FArchiveGatherExternalActorRefs : public FArchiveUObject
+{
+public:
+	FArchiveGatherExternalActorRefs(UObject* InRoot, TArray<AActor*>& InActorReferences)
+		: Root(InRoot)
+		, ActorReferences(InActorReferences)
+	{
+		SetIsSaving(true);
+		SetIsPersistent(true);
+		ArIgnoreOuterRef = true;
+		ArIsObjectReferenceCollector = true;
+		ArShouldSkipBulkData = true;
+
+		MarkAllObjects(OBJECTMARK_TagExp);
+
+		Root->Serialize(*this);
+	}
+
+	virtual FArchive& operator<<(UObject*& Obj) override
+	{
+		if (Obj && (Obj != Root) && !Obj->IsTemplate() && !Obj->HasAnyFlags(RF_Transient))
+		{
+			if (Obj->HasAnyMarks(OBJECTMARK_TagExp))
+			{
+				Obj->UnMark(OBJECTMARK_TagExp);
+
+				HandleObjectReference(Obj);
+
+				if (Obj->IsInOuter(Root))
+				{
+					Obj->Serialize(*this);
+				}
+			}
+		}
+		return *this;
+	}
+
+private:
+	void HandleObjectReference(UObject* Obj)
+	{
+		if(Obj->IsA<AActor>())
+		{
+			AActor* Actor = (AActor*)Obj;
+			AActor* TopParentActor = Actor;
+			while(TopParentActor->GetParentActor())
+			{
+				TopParentActor = TopParentActor->GetParentActor();
+			}
+
+			check(TopParentActor);
+
+			if (TopParentActor->IsPackageExternal())
+			{
+				ActorReferences.Add(TopParentActor);
+			}
+		}
+	}
+
+	UObject* Root;
+	TArray<AActor*>& ActorReferences;
+};
+
+TArray<AActor*> ExternalActorsUtils::GetExternalActorReferences(UObject* Root)
+{
+	TArray<AActor*> Result;
+	FArchiveGatherExternalActorRefs Ar(Root, Result);
+	return MoveTemp(Result);
+}

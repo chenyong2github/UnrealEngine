@@ -14,6 +14,7 @@
 #include "UObject/UE5MainStreamObjectVersion.h"
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/DataLayer/DataLayer.h"
+#include "Engine/Public/ExternalActorsUtils.h"
 #endif
 
 #if WITH_EDITOR
@@ -59,9 +60,7 @@ void FWorldPartitionActorDesc::Init(const AActor* InActor)
 	ActorPackage = InActor->GetPackage()->GetFName();
 	ActorPath = *InActor->GetPathName();
 	
-	TSet<AActor*> ActorReferences;
-	FArchiveGetActorRefs GetActorRefsAr((AActor*)InActor, ActorReferences);
-	((AActor*)InActor)->Serialize(GetActorRefsAr);
+	TArray<AActor*> ActorReferences = ExternalActorsUtils::GetExternalActorReferences((AActor*)InActor);
 
 	if (ActorReferences.Num())
 	{

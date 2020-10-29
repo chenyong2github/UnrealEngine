@@ -89,60 +89,6 @@ FCriticalSection CSVActorClassNameToCountMapLock;
 
 #endif // (CSV_PROFILER && !UE_BUILD_SHIPPING)
 
-#if WITH_EDITOR
-FArchiveGetActorRefs::FArchiveGetActorRefs(AActor* InRoot, TSet<AActor*>& InActorReferences)
-	: Root(InRoot)
-	, ActorReferences(InActorReferences)
-{
-	SetIsSaving(true);
-	SetIsPersistent(true);
-	ArIsObjectReferenceCollector = true;
-	ArShouldSkipBulkData = true;
-}
-
-FArchive& FArchiveGetActorRefs::operator<<(UObject*& Obj)
-{
-	if (Obj && !Obj->IsTemplate() && !Obj->HasAnyFlags(RF_Transient))
-	{
-		if (Obj->IsInOuter(Root))
-		{
-			bool bWasAlreadyInSet;
-			SubObjects.Add(Obj, &bWasAlreadyInSet);
-
-			if (!bWasAlreadyInSet)
-			{
-				// Recurse into subobjects
-				Obj->Serialize(*this);
-			}
-		}
-		else
-		{
-			// Check if external reference is an actor
-			if(Obj->IsA<AActor>())
-			{
-				AActor* Actor = (AActor*)Obj;
-				if (Actor->IsInLevel(Root->GetLevel()))
-				{
-					AActor* TopParentActor = Actor;
-					while(TopParentActor->GetParentActor())
-					{
-						TopParentActor = TopParentActor->GetParentActor();
-					}
-
-					check(TopParentActor);
-
-					if (TopParentActor->IsPackageExternal())
-					{
-						ActorReferences.Add(TopParentActor);
-					}
-				}
-			}
-		}
-	}
-	return *this;
-}
-#endif
-
 uint32 AActor::BeginPlayCallDepth = 0;
 
 AActor::AActor()

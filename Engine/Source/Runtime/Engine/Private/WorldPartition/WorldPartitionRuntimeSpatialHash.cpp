@@ -32,6 +32,8 @@
 #include "WorldPartition/HLOD/HLODActorDesc.h"
 #include "WorldPartition/NavigationData/NavigationDataChunkActor.h"
 #include "AI/NavigationSystemBase.h"
+#include "Engine/Public/ExternalActorsUtils.h"
+#include "Engine/LevelScriptBlueprint.h"
 
 #include "AssetRegistryModule.h"
 #include "AssetData.h"
@@ -119,89 +121,87 @@ struct FActorCluster
 	TArray<const UDataLayer*>	DataLayers;
 	uint32						DataLayersID;
 
-	FActorCluster(const FWorldPartitionActorDesc* ActorDesc, UWorld* World);
-	void Add(const FActorCluster& ActorCluster);
-};
-
-FActorCluster::FActorCluster(const FWorldPartitionActorDesc* ActorDesc, UWorld* World)
-	: GridPlacement(ActorDesc->GetGridPlacement())
-	, RuntimeGrid(ActorDesc->GetRuntimeGrid())
-	, Bounds(ActorDesc->GetBounds())
-{
-	check(GridPlacement != EActorGridPlacement::None);
-	Actors.Add(ActorDesc->GetGuid());
-	if (const AWorldDataLayers* WorldDataLayers = AWorldDataLayers::Get(World))
+	FActorCluster(const FWorldPartitionActorDesc* InActorDesc, EActorGridPlacement InGridPlacement, UWorld* InWorld)
+		: GridPlacement(InGridPlacement)
+		, RuntimeGrid(InActorDesc->GetRuntimeGrid())
+		, Bounds(InActorDesc->GetBounds())
 	{
-		for (const FName& DataLayerName : ActorDesc->GetDataLayers())
+		check(GridPlacement != EActorGridPlacement::None);
+
+		Actors.Add(InActorDesc->GetGuid());
+		if (const AWorldDataLayers* WorldDataLayers = AWorldDataLayers::Get(InWorld))
 		{
-			if (const UDataLayer* DataLayer = WorldDataLayers->GetDataLayerFromName(DataLayerName))
+			for (const FName& DataLayerName : InActorDesc->GetDataLayers())
 			{
-				if (DataLayer->IsDynamicallyLoaded())
+				if (const UDataLayer* DataLayer = WorldDataLayers->GetDataLayerFromName(DataLayerName))
 				{
-					DataLayers.Add(DataLayer);
+					if (DataLayer->IsDynamicallyLoaded())
+					{
+						DataLayers.Add(DataLayer);
+					}
 				}
 			}
 		}
-	}
-	DataLayersID = FDataLayersHelper::ComputeDataLayerID(DataLayers);
-}
 
-void FActorCluster::Add(const FActorCluster& ActorCluster)
-{
-	// Merge Actors
-	Actors.Append(ActorCluster.Actors);
-
-	// Merge RuntimeGrid
-	RuntimeGrid = RuntimeGrid == ActorCluster.RuntimeGrid ? RuntimeGrid : NAME_None;
-
-	// Merge Bounds
-	Bounds += ActorCluster.Bounds;
-
-	// Merge GridPlacement
-	// If currently None, will always stay None
-	if (GridPlacement != EActorGridPlacement::None)
-	{
-		// If grid placement differs between the two clusters
-		if (GridPlacement != ActorCluster.GridPlacement)
-		{
-			// If one of the two cluster was always loaded, set to None
-			if (ActorCluster.GridPlacement == EActorGridPlacement::AlwaysLoaded || GridPlacement == EActorGridPlacement::AlwaysLoaded)
-			{
-				GridPlacement = EActorGridPlacement::None;
-			}
-			else
-			{
-				GridPlacement = ActorCluster.GridPlacement;
-			}
-		}
-
-		// If current placement is set to Location, that won't make sense when merging two clusters. Set to Bounds
-		if (GridPlacement == EActorGridPlacement::Location)
-		{
-			GridPlacement = EActorGridPlacement::Bounds;
-		}
-	}
-
-	// Merge DataLayers
-	if (DataLayersID != ActorCluster.DataLayersID)
-	{
-		for (const UDataLayer* DataLayer : ActorCluster.DataLayers)
-		{
-			check(DataLayer->IsDynamicallyLoaded());
-			DataLayers.AddUnique(DataLayer);
-		}
 		DataLayersID = FDataLayersHelper::ComputeDataLayerID(DataLayers);
 	}
-}
 
+	void Add(const FActorCluster& InActorCluster)
+	{
+		// Merge Actors
+		Actors.Append(InActorCluster.Actors);
 
-void CreateActorCluster(const FGuid& ActorGuid, const FWorldPartitionActorDesc* ActorDesc, TMap<FGuid, FActorCluster*>& ActorToActorCluster, TSet<FActorCluster*>& ActorClustersSet, UWorldPartition* WorldPartition)
+		// Merge RuntimeGrid
+		RuntimeGrid = RuntimeGrid == InActorCluster.RuntimeGrid ? RuntimeGrid : NAME_None;
+
+		// Merge Bounds
+		Bounds += InActorCluster.Bounds;
+
+		// Merge GridPlacement
+		// If currently None, will always stay None
+		if (GridPlacement != EActorGridPlacement::None)
+		{
+			// If grid placement differs between the two clusters
+			if (GridPlacement != InActorCluster.GridPlacement)
+			{
+				// If one of the two cluster was always loaded, set to None
+				if (InActorCluster.GridPlacement == EActorGridPlacement::AlwaysLoaded || GridPlacement == EActorGridPlacement::AlwaysLoaded)
+				{
+					GridPlacement = EActorGridPlacement::None;
+				}
+				else
+				{
+					GridPlacement = InActorCluster.GridPlacement;
+				}
+			}
+
+			// If current placement is set to Location, that won't make sense when merging two clusters. Set to Bounds
+			if (GridPlacement == EActorGridPlacement::Location)
+			{
+				GridPlacement = EActorGridPlacement::Bounds;
+			}
+		}
+
+		// Merge DataLayers
+		if (DataLayersID != InActorCluster.DataLayersID)
+		{
+			for (const UDataLayer* DataLayer : InActorCluster.DataLayers)
+			{
+				check(DataLayer->IsDynamicallyLoaded());
+				DataLayers.AddUnique(DataLayer);
+			}
+			DataLayersID = FDataLayersHelper::ComputeDataLayerID(DataLayers);
+		}
+	}
+};
+
+void CreateActorCluster(const FGuid& ActorGuid, const FWorldPartitionActorDesc* ActorDesc, EActorGridPlacement GridPlacement, TMap<FGuid, FActorCluster*>& ActorToActorCluster, TSet<FActorCluster*>& ActorClustersSet, UWorldPartition* WorldPartition)
 {
 	UWorld* World = WorldPartition->GetWorld();
 	FActorCluster* ActorCluster = ActorToActorCluster.FindRef(ActorGuid);
 	if (!ActorCluster)
 	{
-		ActorCluster = new FActorCluster(ActorDesc, World);
+		ActorCluster = new FActorCluster(ActorDesc, GridPlacement, World);
 		ActorClustersSet.Add(ActorCluster);
 		ActorToActorCluster.Add(ActorGuid, ActorCluster);
 	}
@@ -234,7 +234,7 @@ void CreateActorCluster(const FGuid& ActorGuid, const FWorldPartitionActorDesc* 
 				else
 				{
 					// Put Reference in Actor's cluster
-					ActorCluster->Add(FActorCluster(ReferenceActorDesc, World));
+					ActorCluster->Add(FActorCluster(ReferenceActorDesc, GridPlacement, World));
 				}
 
 				// Map its cluster
@@ -249,11 +249,29 @@ TArray<FActorCluster> CreateActorClusters(UWorldPartition* WorldPartition)
 	TMap<FGuid, FActorCluster*> ActorToActorCluster;
 	TSet<FActorCluster*> ActorClustersSet;
 
+	// Gather all references to external actors from the level script
+	TSet<AActor*> LevelScriptExternalActorReferences;
+	if (ULevelScriptBlueprint* LevelScriptBlueprint = WorldPartition->GetWorld()->PersistentLevel->GetLevelScriptBlueprint(true))
+	{
+		LevelScriptExternalActorReferences.Append(ExternalActorsUtils::GetExternalActorReferences(LevelScriptBlueprint));
+	}
+
 	for (const auto& Pair : WorldPartition->Actors)
 	{
 		const FGuid& ActorGuid = Pair.Key;
 		const FWorldPartitionActorDesc* ActorDesc = Pair.Value.Get();
-		CreateActorCluster(ActorGuid, ActorDesc, ActorToActorCluster, ActorClustersSet, WorldPartition);
+		EActorGridPlacement GridPlacement = ActorDesc->GetGridPlacement();
+
+		// Check if the actor is loaded (potentially referenced by the level script)
+		if (AActor* Actor = ActorDesc->GetActor())
+		{
+			if (LevelScriptExternalActorReferences.Contains(Actor))
+			{
+				GridPlacement = EActorGridPlacement::AlwaysLoaded;
+			}
+		}
+
+		CreateActorCluster(ActorGuid, ActorDesc, GridPlacement, ActorToActorCluster, ActorClustersSet, WorldPartition);
 	}
 
 	TArray<FActorCluster> ActorClusters;
