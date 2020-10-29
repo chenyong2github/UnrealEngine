@@ -31,7 +31,7 @@ public:
 	/** Create and initialize a new instance. */
 	FSequencerSelectedKey(UMovieSceneSection& InSection, TSharedPtr<IKeyArea> InKeyArea, FKeyHandle InKeyHandle)
 		: Section(&InSection)
-		, KeyArea(InKeyArea)
+		, KeyArea(MoveTemp(InKeyArea))
 		, KeyHandle(InKeyHandle)
 	{}
 

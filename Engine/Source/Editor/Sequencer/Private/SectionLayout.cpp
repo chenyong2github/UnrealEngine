@@ -1,6 +1,38 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SectionLayout.h"
+#include "Layout/Geometry.h"
+
+bool FSectionLayoutElementKeyFuncs::Matches(const FSectionLayoutElement& A, const FSectionLayoutElement& B)
+{
+	if (A.GetDisplayNode() != B.GetDisplayNode())
+	{
+		return false;
+	}
+	TArrayView<const TSharedRef<IKeyArea>> KeyAreasA = A.GetKeyAreas(), KeyAreasB = B.GetKeyAreas();
+	if (KeyAreasA.Num() != KeyAreasB.Num())
+	{
+		return false;
+	}
+	for (int32 Index = 0; Index < KeyAreasA.Num(); ++Index)
+	{
+		if (KeyAreasA[Index] != KeyAreasB[Index])
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
+uint32 FSectionLayoutElementKeyFuncs::GetKeyHash(const FSectionLayoutElement& Key)
+{
+	uint32 Hash = GetTypeHash(Key.GetDisplayNode()) ;
+	for (TSharedRef<IKeyArea> KeyArea : Key.GetKeyAreas())
+	{
+		Hash = HashCombine(GetTypeHash(KeyArea), Hash);
+	}
+	return Hash;
+}
 
 FSectionLayoutElement FSectionLayoutElement::FromGroup(const TSharedRef<FSequencerDisplayNode>& InNode, UMovieSceneSection* InSection, float InOffset)
 {
@@ -87,6 +119,14 @@ TArrayView<const TSharedRef<IKeyArea>> FSectionLayoutElement::GetKeyAreas() cons
 TSharedPtr<FSequencerDisplayNode> FSectionLayoutElement::GetDisplayNode() const
 {
 	return DisplayNode;
+}
+
+FGeometry FSectionLayoutElement::ComputeGeometry(const FGeometry& SectionAreaGeometry) const
+{
+	return SectionAreaGeometry.MakeChild(
+		FVector2D(0, LocalOffset),
+		FVector2D(SectionAreaGeometry.GetLocalSize().X, Height)
+	);
 }
 
 FSectionLayout::FSectionLayout(FSequencerTrackNode& TrackNode, int32 InSectionIndex)

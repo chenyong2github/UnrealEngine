@@ -7,6 +7,8 @@
 #include "DisplayNodes/SequencerSectionKeyAreaNode.h"
 #include "DisplayNodes/SequencerTrackNode.h"
 
+struct FGeometry;
+
 /** A layout element specifying the geometry required to render a key area */
 struct FSectionLayoutElement
 {
@@ -39,6 +41,9 @@ struct FSectionLayoutElement
 
 	/** Access the display node that this layout element was generated for */
 	TSharedPtr<FSequencerDisplayNode> GetDisplayNode() const;
+
+	/** Computes the geometry for this layout as a child of the specified section area geometry */
+	FGeometry ComputeGeometry(const FGeometry& SectionAreaGeometry) const;
 
 private:
 
@@ -75,4 +80,17 @@ public:
 private:
 	/** Array of layout elements that we generated */
 	TArray<FSectionLayoutElement> Elements;
+};
+
+/** Key funcs for using a section layout element as a key. Intentionally not supported implicitly due to performance reasons. */
+struct FSectionLayoutElementKeyFuncs
+{
+	template<typename T>
+	static const FSectionLayoutElement& GetSetKey(const TPair<FSectionLayoutElement, T>& Element)
+	{
+		return Element.Key;
+	}
+
+	static bool Matches(const FSectionLayoutElement& A, const FSectionLayoutElement& B);
+	static uint32 GetKeyHash(const FSectionLayoutElement& Key);
 };
