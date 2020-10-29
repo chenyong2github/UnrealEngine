@@ -95,7 +95,7 @@ float3 StrataEnvironmentLighting(
 			const float3 SafeExtinctionThreshold = 0.000001f;
 			const float3 SafeExtinctionCoefficients = max(SafeExtinctionThreshold, ExtinctionCoefficients);
 
-			const float SatNoV = saturate(dot(GBuffer.WorldNormal, V));
+			const float SatNoV = saturate(dot(BSDF.Volume.SmoothSurfaceNormal, V));
 			const float PathLength = Thickness / max(0.0001f, SatNoV);
 			const float3 SafePathSegmentTransmittance = exp(-SafeExtinctionCoefficients * PathLength);
 			const float3 NormLuminanceTransfert = 1.0f * ScatteringCoefficients;
@@ -105,7 +105,7 @@ float3 StrataEnvironmentLighting(
 			Albedo = NormLuminanceSingleScattering;
 
 			// STRATA_TODO: This is to fake some directionality. Have normal specified on the material as for MaterialX?
-			Normal = GBuffer.WorldNormal;
+			Normal = BSDF.Volume.SmoothSurfaceNormal;
 		}
 		break;
 		}

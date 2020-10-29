@@ -42,6 +42,8 @@ float3 StrataForwardLighting(
 			{ N = BSDF.Dielectric.Normal; break; }
 			case STRATA_BSDF_TYPE_CONDUCTOR:
 			{ N = BSDF.Conductor.Normal; break; }
+			case STRATA_BSDF_TYPE_VOLUME:
+			{ N = BSDF.Volume.SmoothSurfaceNormal; break; }
 			}
 			N = normalize(N);
 			float3 R = 2 * dot(V, N) * N - V;

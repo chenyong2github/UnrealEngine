@@ -7273,11 +7273,12 @@ int32 FHLSLMaterialTranslator::StrataConductorBSDF(int32 Reflectivity, int32 Edg
 int32 FHLSLMaterialTranslator::StrataVolumeBSDF(int32 Albedo, int32 Extinction, int32 Anisotropy, int32 Thickness)
 {
 	return AddInlinedCodeChunk(
-		MCT_Strata, TEXT("GetStrataVolumeBSDF(%s, %s, %s, %s)"),
+		MCT_Strata, TEXT("GetStrataVolumeBSDF(%s, %s, %s, %s, %s)"),
 		*GetParameterCode(Albedo),
 		*GetParameterCode(Extinction),
 		*GetParameterCode(Anisotropy),
-		*GetParameterCode(Thickness)
+		*GetParameterCode(Thickness),
+		*GetParameterCode(VertexNormal())
 	);
 }
 
