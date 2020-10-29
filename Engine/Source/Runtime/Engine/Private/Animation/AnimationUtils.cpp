@@ -697,7 +697,11 @@ void FAnimationUtils::TallyErrorsFromPerturbation(
 
 	for (int32 TrackToTest = 0; TrackToTest < NumTracks; TrackToTest++)
 	{
-		TracksAndBonesToTest.Emplace(TrackToTest, CompressibleAnimData.TrackToSkeletonMapTable[TrackToTest].BoneTreeIndex, CompressibleAnimData.BoneData);
+		const int32 BoneIndex = CompressibleAnimData.TrackToSkeletonMapTable[TrackToTest].BoneTreeIndex;
+		if (BoneIndex != INDEX_NONE)
+		{
+			TracksAndBonesToTest.Emplace(TrackToTest, BoneIndex, CompressibleAnimData.BoneData);
+		}
 	}
 
 	Algo::SortBy(TracksAndBonesToTest, &FTrackBoneMapping::BoneIndex);
