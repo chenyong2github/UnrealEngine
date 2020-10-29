@@ -117,7 +117,7 @@ public:
 		bMultilayer = true;
 	}
 
-	virtual void OnRecieveImageDataImpl(FMoviePipelineMergerOutputFrame* InMergedOutputFrame) override;
+	virtual void OnReceiveImageDataImpl(FMoviePipelineMergerOutputFrame* InMergedOutputFrame) override;
 
 public:
 	/**

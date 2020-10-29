@@ -33,7 +33,7 @@ public:
 	* Called when a frame is ready for output. This will contain all passes the user has requested for the given output frame. 
 	* It also contains metrics about the output frame (such as frame number).
 	*/
-	void OnRecieveImageData(FMoviePipelineMergerOutputFrame* InMergedOutputFrame) { OnRecieveImageDataImpl(InMergedOutputFrame); }
+	void OnReceiveImageData(FMoviePipelineMergerOutputFrame* InMergedOutputFrame) { OnReceiveImageDataImpl(InMergedOutputFrame); }
 
 	/** 
 	* Called once when all frames have been produced for the pipeline. Use this as an indicator to start flushing to disk. 
@@ -70,7 +70,7 @@ public:
 	
 protected:
 	// UMoviePipelineOutputBase Interface
-	virtual void OnRecieveImageDataImpl(FMoviePipelineMergerOutputFrame* InMergedOutputFrame) {}
+	virtual void OnReceiveImageDataImpl(FMoviePipelineMergerOutputFrame* InMergedOutputFrame) {}
 	virtual void BeginFinalizeImpl() {}
 	virtual bool HasFinishedProcessingImpl() { return true; }
 	virtual void FinalizeImpl() {}

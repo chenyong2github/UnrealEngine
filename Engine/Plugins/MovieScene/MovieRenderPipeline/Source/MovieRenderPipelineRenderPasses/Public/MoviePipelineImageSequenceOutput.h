@@ -15,7 +15,7 @@ class MOVIERENDERPIPELINERENDERPASSES_API UMoviePipelineImageSequenceOutputBase 
 public:
 	UMoviePipelineImageSequenceOutputBase();
 
-	virtual void OnRecieveImageDataImpl(FMoviePipelineMergerOutputFrame* InMergedOutputFrame) override;
+	virtual void OnReceiveImageDataImpl(FMoviePipelineMergerOutputFrame* InMergedOutputFrame) override;
 
 protected:
 	// UMovieRenderPipelineOutputContainer interface
