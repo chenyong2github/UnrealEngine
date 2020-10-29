@@ -19,6 +19,7 @@
 #include "Materials/MaterialInterface.h"
 #include "Modules/ModuleManager.h"
 #include "UObject/UObjectGlobals.h"
+#include "Misc/Paths.h"
 
 UMaterialExporterUsd::UMaterialExporterUsd()
 {

@@ -16,7 +16,7 @@ namespace Chaos
 	class CHAOS_API FConstraintHandle
 	{
 	public:
-		enum EType
+		enum class EType : uint8
 		{
 			Invalid = 0,
 			Collision,

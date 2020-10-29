@@ -11,6 +11,7 @@
 #include "HAL/CriticalSection.h"
 #include "Containers/Queue.h"
 #include "Misc/SingleThreadRunnable.h"
+#include "Misc/ScopeLock.h"
 
 struct FDMXProtocolArtNetDMXPacket;
 class FDMXProtocolArtNet;
