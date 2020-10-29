@@ -1466,7 +1466,8 @@ bool UNiagaraDataInterfaceGrid2DCollection::InitPerInstanceData(void* PerInstanc
 	int32 NumAttribChannelsFound = 0;
 	FindAttributes(InstanceData->Vars, InstanceData->Offsets, NumAttribChannelsFound);
 
-	NumAttribChannelsFound = NumAttributes + NumAttribChannelsFound;
+	// Ensure we never allocate 0 attributes as that would fail to create the texture
+	NumAttribChannelsFound = FMath::Max(NumAttributes + NumAttribChannelsFound, 1);
 	InstanceData->NumAttributes = NumAttribChannelsFound;
 
 	InstanceData->WorldBBoxSize = WorldBBoxSize;
