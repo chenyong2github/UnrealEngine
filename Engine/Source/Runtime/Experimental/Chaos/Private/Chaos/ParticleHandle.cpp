@@ -98,6 +98,68 @@ namespace Chaos
 		return nullptr;
 	}
 
+
+	template <typename T, int d>
+	void Chaos::TGeometryParticle<T, d>::MergeGeometry(TArray<TUniquePtr<FImplicitObject>>&& Objects)
+	{
+		ensure(MNonFrequentData.Read().Geometry());
+
+		// we only support FImplicitObjectUnion
+		ensure(MNonFrequentData.Read().Geometry()->GetType() == FImplicitObjectUnion::StaticType());
+
+		if (MNonFrequentData.Read().Geometry()->GetType() == FImplicitObjectUnion::StaticType())
+		{
+			// if we are currently a union then add the new geometry to this union
+			MNonFrequentData.Modify(true, MDirtyFlags, Proxy, [&Objects](auto& Data)
+				{
+					if (Data.AccessGeometry())
+					{
+						if (FImplicitObjectUnion* Union = Data.AccessGeometry()->template GetObject<FImplicitObjectUnion>())
+						{
+							Union->Combine(Objects);
+						}
+					}
+				});
+
+			UpdateShapesArray();
+		}
+	}
+
+	template <typename T, int d>
+	void Chaos::TGeometryParticle<T, d>::RemoveShape(FPerShapeData* InShape, bool bWakeTouching)
+	{
+		// NOTE: only intended use is to remove objects from inside a FImplicitObjectUnion
+		CHAOS_ENSURE(MNonFrequentData.Read().Geometry()->GetType() == FImplicitObjectUnion::StaticType());
+
+		int32 FoundIndex = INDEX_NONE;
+		for (int32 Index = 0; Index < MShapesArray.Num(); Index++)
+		{
+			if (InShape == MShapesArray[Index].Get())
+			{
+				FoundIndex = Index;
+				break;
+			}
+		}
+
+		if (MNonFrequentData.Read().Geometry()->GetType() == FImplicitObjectUnion::StaticType())
+		{
+			// if we are currently a union then add the new geometry to this union
+			MNonFrequentData.Modify(true, MDirtyFlags, Proxy, [FoundIndex](auto& Data)
+				{
+					if (Data.AccessGeometry())
+					{
+						if (FImplicitObjectUnion* Union = Data.AccessGeometry()->template GetObject<FImplicitObjectUnion>())
+						{
+							Union->RemoveAt(FoundIndex);
+						}
+					}
+				});
+		}
+
+		UpdateShapesArray();
+	}
+
+
 	template <typename T, int d>
 	void Chaos::TGeometryParticle<T, d>::SetIgnoreAnalyticCollisionsImp(FImplicitObject* Implicit, bool bIgnoreAnalyticCollisions)
 	{

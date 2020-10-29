@@ -64,6 +64,49 @@ FImplicitObjectUnion::FImplicitObjectUnion(TArray<TUniquePtr<FImplicitObject>>&&
 	CacheAllImplicitObjects();
 }
 
+void FImplicitObjectUnion::Combine(TArray<TUniquePtr<FImplicitObject>>& OtherObjects)
+{
+	ensure(MObjects.Num());
+
+	for (int32 i = 0; i < OtherObjects.Num(); ++i)
+	{
+		MLocalBoundingBox.GrowToInclude(OtherObjects[i]->BoundingBox());
+	}
+
+	for (TUniquePtr<FImplicitObject>& ChildObject: OtherObjects)
+	{
+		MObjects.Add(MoveTemp(ChildObject));
+	}
+
+	CacheAllImplicitObjects();
+}
+
+void FImplicitObjectUnion::RemoveAt(int32 RemoveIndex)
+{
+	if (RemoveIndex < MObjects.Num())
+	{
+		MObjects[RemoveIndex].Reset(nullptr);
+		MObjects.RemoveAt(RemoveIndex);
+	}
+
+	MLocalBoundingBox = TAABB<float, 3>::EmptyAABB();
+	for (int32 i = 0; i < MObjects.Num(); ++i)
+	{
+		if (i > 0)
+		{
+			MLocalBoundingBox.GrowToInclude(MObjects[i]->BoundingBox());
+		}
+		else
+		{
+			MLocalBoundingBox = MObjects[i]->BoundingBox();
+		}
+	}
+
+	CacheAllImplicitObjects();
+
+}
+
+
 FImplicitObjectUnion::FImplicitObjectUnion(FImplicitObjectUnion&& Other)
 	: FImplicitObject(EImplicitObject::HasBoundingBox, ImplicitObjectType::Union)
 	, MObjects(MoveTemp(Other.MObjects))

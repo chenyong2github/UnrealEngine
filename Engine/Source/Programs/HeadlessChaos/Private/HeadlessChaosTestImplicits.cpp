@@ -1619,4 +1619,48 @@ namespace ChaosTest {
 	}
 	template void ImplicitScaled2<float>();
 
+
+	template <typename T>
+	void UpdateImplicitUnion()
+	{
+		typedef TVector<T, 3> TVector3;
+		TUniquePtr<FImplicitObjectUnion> MUnionedObjects;
+
+		TArray<TUniquePtr<FImplicitObject>> Objects;
+		Objects.Add(MakeUnique<TCylinder<T>>(TVector<T, 3>(0, 0, 1), TVector3(0), 1));
+		Objects.Add(MakeUnique<TCylinder<T>>(TVector<T, 3>(0, 0, -1), TVector3(0), 1));
+		MUnionedObjects.Reset(new Chaos::FImplicitObjectUnion(std::move(Objects)));
+
+		TArray<TUniquePtr<FImplicitObject>> Objects2;
+		Objects2.Add(MakeUnique<TSphere<T, 3>>(TVector<T, 3>(4, 0, 0), 1));
+		Objects2.Add(MakeUnique<TSphere<T, 3>>(TVector<T, 3>(5, 0, 0), 2));
+		Objects2.Add(MakeUnique<TSphere<T, 3>>(TVector<T, 3>(10, 0, 0), 3));
+
+		const TAABB<FReal, 3> OriginalBounds = MUnionedObjects->BoundingBox();
+
+		EXPECT_EQ(MUnionedObjects->GetObjects().Num(), 2);
+		EXPECT_FLOAT_EQ(OriginalBounds.Extents().X, 2.f);
+		EXPECT_FLOAT_EQ(OriginalBounds.Extents().Y, 2.f);
+		EXPECT_FLOAT_EQ(OriginalBounds.Extents().Z, 4.f);
+
+		MUnionedObjects->Combine(Objects2);
+
+		EXPECT_EQ(MUnionedObjects->GetObjects().Num(), 5);
+		const TAABB<FReal, 3> CombinedBounds = MUnionedObjects->BoundingBox();
+		EXPECT_FLOAT_EQ(CombinedBounds.Extents().X, 14.f);
+		EXPECT_FLOAT_EQ(CombinedBounds.Extents().Y, 6.f);
+		EXPECT_FLOAT_EQ(CombinedBounds.Extents().Z, 6.f);
+
+		MUnionedObjects->RemoveAt(1);
+		MUnionedObjects->RemoveAt(0);
+
+		EXPECT_EQ(MUnionedObjects->GetObjects().Num(), 3);
+		const TAABB<FReal, 3> RemovedBounds = MUnionedObjects->BoundingBox();
+		EXPECT_FLOAT_EQ(RemovedBounds.Extents().X, 10.f);
+		EXPECT_FLOAT_EQ(RemovedBounds.Extents().Y, 6.f);
+		EXPECT_FLOAT_EQ(RemovedBounds.Extents().Z, 6.f);
+
+	}
+	template void UpdateImplicitUnion<float>();
+
 }
