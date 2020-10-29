@@ -194,6 +194,7 @@ void FNiagaraScratchPadScriptViewModel::ApplyChanges()
 	for (UNiagaraStackFunctionInputCollection* InputCollectionToRefresh : InputCollectionsToRefresh)
 	{
 		InputCollectionToRefresh->RefreshChildren();
+		InputCollectionToRefresh->ApplyModuleChanges();
 	}
 }
 
