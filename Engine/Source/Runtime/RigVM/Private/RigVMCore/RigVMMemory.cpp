@@ -1727,7 +1727,7 @@ TArray<FString> FRigVMMemoryContainer::GetRegisterValueAsString(const FRigVMOper
 
 	FRigVMRegister& Register = Registers[InOperand.GetRegisterIndex()];
 
-	int32 SliceCount = Register.ElementCount;
+	int32 SliceCount = Register.SliceCount;
 	
 	if (Register.IsNestedDynamic())
 	{
@@ -1771,7 +1771,7 @@ TArray<FString> FRigVMMemoryContainer::GetRegisterValueAsString(const FRigVMOper
 			}
 			else if (const UEnum* Enum = Cast<const UEnum>(InCPPTypeObject))
 			{
-				DefaultValue = Enum->GetNameStringByValue((int64)GetFixedArray<int32>(Register, INDEX_NONE, SliceIndex)[ElementIndex]);
+				DefaultValue = Enum->GetNameStringByValue((int64)GetFixedArray<uint8>(Register, INDEX_NONE, SliceIndex)[ElementIndex]);
 			}
 			else if (InCPPType == TEXT("bool") && Register.GetNumBytesPerSlice() == sizeof(bool))
 			{

@@ -308,6 +308,7 @@ public:
 	FORCEINLINE_DEBUGGABLE ERigVMRegisterType GetType() const { return Type; }
 	FORCEINLINE_DEBUGGABLE FName GetCPPType() const { return CPPType; }
 	FORCEINLINE_DEBUGGABLE FString GetCachedSegmentPath() const { return CachedSegmentPath; }
+	FORCEINLINE_DEBUGGABLE int32 GetArrayIndex() const { return ArrayIndex; }
 	uint16 GetElementSize() const;
 	UScriptStruct* GetScriptStruct() const;
 
