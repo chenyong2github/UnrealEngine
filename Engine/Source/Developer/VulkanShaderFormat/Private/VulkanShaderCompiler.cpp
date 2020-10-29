@@ -2053,14 +2053,17 @@ static void GatherSpirvReflectionBindings(
 	}
 
 	// Change indices of input attributes by their name suffix
-	for (SpvReflectInterfaceVariable* InterfaceVar : OutBindings.InputAttributes)
+	if (ShaderFrequency == SF_Vertex)
 	{
-		if (InterfaceVar->built_in == -1 && InterfaceVar->name && FCStringAnsi::Strncmp(InterfaceVar->name, "in.var.ATTRIBUTE", 16) == 0)
+		for (SpvReflectInterfaceVariable* InterfaceVar : OutBindings.InputAttributes)
 		{
-			int32 Location = 0;
-			if (ParseSemanticIndex(InterfaceVar->name, Location))
+			if (InterfaceVar->built_in == -1 && InterfaceVar->name && FCStringAnsi::Strncmp(InterfaceVar->name, "in.var.ATTRIBUTE", 16) == 0)
 			{
-				Reflection.ChangeInputVariableLocation(InterfaceVar, static_cast<uint32>(Location));
+				int32 Location = 0;
+				if (ParseSemanticIndex(InterfaceVar->name, Location))
+				{
+					Reflection.ChangeInputVariableLocation(InterfaceVar, static_cast<uint32>(Location));
+				}
 			}
 		}
 	}
