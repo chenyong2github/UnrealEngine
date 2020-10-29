@@ -393,7 +393,7 @@ bool FSteamVRInputDevice::GetControllerOrientationAndPosition(const int32 Contro
 		VRActionHandle_t RightActionHandle = bUseSkeletonPose ? VRSkeletalHandleRight : VRControllerHandleRight;
 
 		//UE_LOG(LogSteamVRInputDevice, Warning, TEXT("MOTION SOURCE: %s"), *MotionSource.ToString());
-		if (MotionSource.IsEqual(TEXT("Left")))
+		if (MotionSource.IsEqual(TEXT("Left")) || MotionSource.IsEqual(TEXT("EControllerHand::Left")))
 		{
 			if (LeftActionHandle != vr::k_ulInvalidActionHandle)
 			{
@@ -412,7 +412,7 @@ bool FSteamVRInputDevice::GetControllerOrientationAndPosition(const int32 Contro
 				}
 			}
 		}
-		else if (MotionSource.IsEqual(TEXT("Right")))
+		else if (MotionSource.IsEqual(TEXT("Right")) || MotionSource.IsEqual(TEXT("EControllerHand::Right")))
 		{
 			if (RightActionHandle != vr::k_ulInvalidActionHandle)
 			{
@@ -951,7 +951,7 @@ ETrackingStatus FSteamVRInputDevice::GetControllerTrackingStatus(const int32 Con
 		InputPoseActionData_t PoseData = {};
 		EVRInputError InputError = VRInputError_NoData;
 
-		if (MotionSource.IsEqual(TEXT("Left")))
+		if (MotionSource.IsEqual(TEXT("Left")) || MotionSource.IsEqual(TEXT("EControllerHand::Left")))
 		{
 			if (VRControllerHandleLeft == k_ulInvalidActionHandle)
 			{
@@ -972,7 +972,7 @@ ETrackingStatus FSteamVRInputDevice::GetControllerTrackingStatus(const int32 Con
 				return ETrackingStatus::NotTracked;
 			}
 		}
-		else if (MotionSource.IsEqual(TEXT("Right")))
+		else if (MotionSource.IsEqual(TEXT("Right")) || MotionSource.IsEqual(TEXT("EControllerHand::Right")))
 		{
 			if (VRControllerHandleRight == k_ulInvalidActionHandle)
 			{
