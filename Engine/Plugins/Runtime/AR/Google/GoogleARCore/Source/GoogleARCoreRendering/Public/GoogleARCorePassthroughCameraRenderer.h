@@ -21,6 +21,7 @@
 
 class UTexture;
 class FRHICommandListImmediate;
+struct FSceneViewFamily;
 
 /** A helper class that is used to load the GoogleARCorePassthroughCameraMaterial from its default object. */
 UCLASS()

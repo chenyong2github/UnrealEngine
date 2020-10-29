@@ -6,6 +6,7 @@
 #include "DetailWidgetRow.h"
 #include "PropertyCustomizationHelpers.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Text/STextBlock.h"
 #include "Chaos/CacheManagerActor.h"
 #include "IDetailChildrenBuilder.h"
 
