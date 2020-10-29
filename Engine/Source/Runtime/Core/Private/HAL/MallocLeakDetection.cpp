@@ -319,10 +319,10 @@ int32 FMallocLeakDetection::DumpOpenCallstacks(const TCHAR* FileName, const FMal
 	ReportAr->Logf(TEXT("Current Time: %s, Current Frame %d"), *FDateTime::Now().ToString(TEXT("%m.%d-%H.%M.%S")), GFrameCounter);
 
 	ReportAr->Logf(TEXT("Current Memory: %.02fMB (Peak: %.02fMB)."),
-		MemoryStats.UsedPhysical * InvToMb,
-		MemoryStats.PeakUsedPhysical * InvToMb);
+		(float)MemoryStats.UsedPhysical * InvToMb,
+		(float)MemoryStats.PeakUsedPhysical * InvToMb);
 
-	ReportAr->Logf(TEXT("Tracking %d callstacks that hold %.02fMB"), UniqueCallstacks.Num(), TotalTracked * InvToMb);
+	ReportAr->Logf(TEXT("Tracking %d callstacks that hold %.02fMB"), UniqueCallstacks.Num(), (float)TotalTracked * InvToMb);
 
 	ReportAr->Logf(TEXT("Allocation filter: %dKB"), MinAllocationSize / 1024);
 	ReportAr->Logf(TEXT("Report filter: %dKB"), Options.SizeFilter / 1024);
