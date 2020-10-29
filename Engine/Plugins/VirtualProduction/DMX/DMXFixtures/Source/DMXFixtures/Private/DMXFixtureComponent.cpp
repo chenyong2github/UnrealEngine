@@ -86,7 +86,7 @@ void UDMXFixtureComponent::ApplySpeedScale()
 	{
 		for (auto& ChannelInterp : Cell.ChannelInterpolation)
 		{
-			ChannelInterp.ApplyInterpolationScale(InterpolationScale);
+			ChannelInterp.InterpolationScale = InterpolationScale;
 		}
 	}
 }
@@ -146,7 +146,7 @@ TArray<FLinearColor> UDMXFixtureComponent::GetTextureCenterColors(UTexture2D* Te
 	}
 
 
-	// to linear space for the light
+	// color correction
 	for (auto& Pixel : PixelColorArray)
 	{
 		Pixel.R = FMath::Pow(Pixel.R, 0.4545f);
