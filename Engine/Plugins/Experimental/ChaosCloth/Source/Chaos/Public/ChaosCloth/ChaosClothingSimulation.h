@@ -74,7 +74,7 @@ namespace Chaos
 
 		// IClothingSimulation interface
 		virtual int32 GetNumCloths() const override { return NumCloths; }
-		virtual int32 GetNumKinematicParticles() const override { return NumKinemamicParticles; }
+		virtual int32 GetNumKinematicParticles() const override { return NumKinematicParticles; }
 		virtual int32 GetNumDynamicParticles() const override { return NumDynamicParticles; }
 		virtual int32 GetNumIterations() const override { return NumIterations; }
 		virtual int32 GetNumSubsteps() const override { return NumSubsteps; }
@@ -136,7 +136,7 @@ namespace Chaos
 
 		// Properties that must be readable from all threads
 		TAtomic<int32> NumCloths;
-		TAtomic<int32> NumKinemamicParticles;
+		TAtomic<int32> NumKinematicParticles;
 		TAtomic<int32> NumDynamicParticles;
 		TAtomic<int32> NumIterations;
 		TAtomic<int32> NumSubsteps;

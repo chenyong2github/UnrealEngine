@@ -96,7 +96,7 @@ namespace Chaos
 			{
 				return; // Do not damp kinematic particles
 			}
-			ApplyHelper(InParticles, Dt, Index);
+			ApplyFast(InParticles, Dt, Index);
 		}
 
 		inline void Apply(TRigidParticles<T, d>& InParticles, const T Dt, const int32 Index) const override //-V762
@@ -105,23 +105,21 @@ namespace Chaos
 			{
 				return; // Do not damp kinematic rigid bodies
 			}
-			ApplyHelper(InParticles, Dt, Index);
+			ApplyFast(InParticles, Dt, Index);
 		}
 
-	protected:
+		// Apply damping without first checking for kinematic particles
 		template<class T_PARTICLES>
-		inline void ApplyHelper(T_PARTICLES& InParticles, const T Dt, const int32 Index) const
+		inline void ApplyFast(T_PARTICLES& Particles, const T /*Dt*/, const int32 Index) const
 		{
-			TVector<T, d> R = InParticles.X(Index) - MXcm;
-			TVector<T, d> Dv = MVcm - InParticles.V(Index) + TVector<T, d>::CrossProduct(R, MOmega);
-			InParticles.V(Index) += MCoefficient * Dv;
+			const TVector<T, d> R = Particles.X(Index) - MXcm;
+			const TVector<T, d> Dv = MVcm - Particles.V(Index) + TVector<T, d>::CrossProduct(R, MOmega);
+			Particles.V(Index) += MCoefficient * Dv;
 		}
-
-	protected:
-		mutable T MCoefficient;  // The mutable allows to be modified in derived classes Apply const functions
-		TVector<T, d> MXcm, MVcm, MOmega;
 
 	private:
+		T MCoefficient;
+		TVector<T, d> MXcm, MVcm, MOmega;
 		TArray<int32> ActiveIndices;
 	};
 }

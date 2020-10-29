@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "ChaosCloth/ChaosClothConstraints.h"
-
 #include "Chaos/PBDSpringConstraints.h"
 #include "Chaos/XPBDSpringConstraints.h"
 #include "Chaos/PBDBendingConstraints.h"
@@ -11,7 +10,6 @@
 #include "Chaos/PBDSphericalConstraint.h"
 #include "Chaos/PBDAnimDriveConstraint.h"
 #include "Chaos/PBDShapeConstraints.h"
-
 #include "Chaos/PBDEvolution.h"
 
 using namespace Chaos;
@@ -82,47 +80,26 @@ void FClothConstraints::CreateRules()
 	int32 ConstraintInitIndex = 0;
 	int32 ConstraintRuleIndex = 0;
 
-	if (XTwoEdgeConstraints)
+	if (XEdgeConstraints)
 	{
 		ConstraintInits[ConstraintInitIndex++] =
 			[this]()
 			{
-				XTwoEdgeConstraints->Init();
+				XEdgeConstraints->Init();
 			};
 
 		ConstraintRules[ConstraintRuleIndex++] = 
 			[this](TPBDParticles<float, 3>& InParticles, const float Dt)
 			{
-				XTwoEdgeConstraints->Apply(InParticles, Dt);
+				XEdgeConstraints->Apply(InParticles, Dt);
 			};
 	}
-	if (TwoEdgeConstraints)
+	if (EdgeConstraints)
 	{
 		ConstraintRules[ConstraintRuleIndex++] = 
 			[this](TPBDParticles<float, 3>& InParticles, const float Dt)
 			{
-				TwoEdgeConstraints->Apply(InParticles, Dt);
-			};
-	}
-	if (XThreeEdgeConstraints)
-	{
-		ConstraintInits[ConstraintInitIndex++] =
-			[this]()
-			{
-				XThreeEdgeConstraints->Init();
-			};
-		ConstraintRules[ConstraintRuleIndex++] = 
-			[this](TPBDParticles<float, 3>& InParticles, const float Dt)
-			{
-				XThreeEdgeConstraints->Apply(InParticles, Dt);
-			};
-	}
-	if (ThreeEdgeConstraints)
-	{
-		ConstraintRules[ConstraintRuleIndex++] = 
-			[this](TPBDParticles<float, 3>& InParticles, const float Dt)
-			{
-				ThreeEdgeConstraints->Apply(InParticles, Dt);
+				EdgeConstraints->Apply(InParticles, Dt);
 			};
 	}
 	if (XBendingConstraints)
@@ -132,7 +109,7 @@ void FClothConstraints::CreateRules()
 			{
 				XBendingConstraints->Init();
 			};
-		ConstraintRules[ConstraintRuleIndex++] = 
+		ConstraintRules[ConstraintRuleIndex++] =
 			[this](TPBDParticles<float, 3>& InParticles, const float Dt)
 			{
 				XBendingConstraints->Apply(InParticles, Dt);
@@ -140,7 +117,7 @@ void FClothConstraints::CreateRules()
 	}
 	if (BendingConstraints)
 	{
-		ConstraintRules[ConstraintRuleIndex++] = 
+		ConstraintRules[ConstraintRuleIndex++] =
 			[this](TPBDParticles<float, 3>& InParticles, const float Dt)
 			{
 				BendingConstraints->Apply(InParticles, Dt);
@@ -148,7 +125,7 @@ void FClothConstraints::CreateRules()
 	}
 	if (BendingElementConstraints)
 	{
-		ConstraintRules[ConstraintRuleIndex++] = 
+		ConstraintRules[ConstraintRuleIndex++] =
 			[this](TPBDParticles<float, 3>& InParticles, const float Dt)
 			{
 				BendingElementConstraints->Apply(InParticles, Dt);
@@ -161,7 +138,7 @@ void FClothConstraints::CreateRules()
 			{
 				XAreaConstraints->Init();
 			};
-		ConstraintRules[ConstraintRuleIndex++] = 
+		ConstraintRules[ConstraintRuleIndex++] =
 			[this](TPBDParticles<float, 3>& InParticles, const float Dt)
 			{
 				XAreaConstraints->Apply(InParticles, Dt);
@@ -169,7 +146,7 @@ void FClothConstraints::CreateRules()
 	}
 	if (AreaConstraints)
 	{
-		ConstraintRules[ConstraintRuleIndex++] = 
+		ConstraintRules[ConstraintRuleIndex++] =
 			[this](TPBDParticles<float, 3>& InParticles, const float Dt)
 			{
 				AreaConstraints->Apply(InParticles, Dt);
@@ -177,7 +154,7 @@ void FClothConstraints::CreateRules()
 	}
 	if (ThinShellVolumeConstraints)
 	{
-		ConstraintRules[ConstraintRuleIndex++] = 
+		ConstraintRules[ConstraintRuleIndex++] =
 			[this](TPBDParticles<float, 3>& InParticles, const float Dt)
 			{
 				ThinShellVolumeConstraints->Apply(InParticles, Dt);
@@ -198,7 +175,7 @@ void FClothConstraints::CreateRules()
 			{
 				XLongRangeConstraints->Init();
 			};
-		ConstraintRules[ConstraintRuleIndex++] = 
+		ConstraintRules[ConstraintRuleIndex++] =
 			[this](TPBDParticles<float, 3>& InParticles, const float Dt)
 			{
 				XLongRangeConstraints->Apply(InParticles, Dt);
@@ -206,7 +183,7 @@ void FClothConstraints::CreateRules()
 	}
 	if (LongRangeConstraints)
 	{
-		ConstraintRules[ConstraintRuleIndex++] = 
+		ConstraintRules[ConstraintRuleIndex++] =
 			[this](TPBDParticles<float, 3>& InParticles, const float Dt)
 			{
 				LongRangeConstraints->Apply(InParticles, Dt);
@@ -214,7 +191,7 @@ void FClothConstraints::CreateRules()
 	}
 	if (MaximumDistanceConstraints)
 	{
-		ConstraintRules[ConstraintRuleIndex++] = 
+		ConstraintRules[ConstraintRuleIndex++] =
 			[this](TPBDParticles<float, 3>& InParticles, const float Dt)
 			{
 				MaximumDistanceConstraints->SetSphereRadiiMultiplier(FMath::Max(0.f, MaxDistancesMultiplier));
@@ -223,7 +200,7 @@ void FClothConstraints::CreateRules()
 	}
 	if (BackstopConstraints)
 	{
-		ConstraintRules[ConstraintRuleIndex++] = 
+		ConstraintRules[ConstraintRuleIndex++] =
 			[this](TPBDParticles<float, 3>& InParticles, const float Dt)
 			{
 				BackstopConstraints->Apply(InParticles, Dt);
@@ -231,7 +208,7 @@ void FClothConstraints::CreateRules()
 	}
 	if (AnimDriveConstraints)
 	{
-		ConstraintRules[ConstraintRuleIndex++] = 
+		ConstraintRules[ConstraintRuleIndex++] =
 			[this](TPBDParticles<float, 3>& InParticles, const float Dt)
 			{
 				AnimDriveConstraints->SetSpringStiffness(FMath::Clamp(AnimDriveSpringStiffness, 0.f, 1.f));
@@ -240,7 +217,7 @@ void FClothConstraints::CreateRules()
 	}
 	if (ShapeConstraints)
 	{
-		ConstraintRules[ConstraintRuleIndex++] = 
+		ConstraintRules[ConstraintRuleIndex++] =
 			[this](TPBDParticles<float, 3>& InParticles, const float Dt)
 			{
 				ShapeConstraints->Apply(InParticles, Dt);
@@ -250,24 +227,6 @@ void FClothConstraints::CreateRules()
 	check(ConstraintRuleIndex == NumConstraintRules);
 }
 
-
-void FClothConstraints::SetEdgeConstraints(TArray<TVector<int32, 2>>&& Edges, float EdgeStiffness, bool bUseXPBDConstraints)
-{
-	check(Evolution);
-	check(EdgeStiffness > 0.f && EdgeStiffness <= 1.f);
-
-	if (bUseXPBDConstraints)
-	{
-		XTwoEdgeConstraints = MakeShared<TXPBDSpringConstraints<float, 3>>(Evolution->Particles(), MoveTemp(Edges), EdgeStiffness);
-		++NumConstraintInits;
-	}
-	else
-	{
-		TwoEdgeConstraints = MakeShared<FPBDSpringConstraints>(Evolution->Particles(), MoveTemp(Edges), EdgeStiffness);
-	}
-	++NumConstraintRules;
-}
-
 void FClothConstraints::SetEdgeConstraints(const TArray<TVector<int32, 3>>& SurfaceElements, float EdgeStiffness, bool bUseXPBDConstraints)
 {
 	check(Evolution);
@@ -275,12 +234,12 @@ void FClothConstraints::SetEdgeConstraints(const TArray<TVector<int32, 3>>& Surf
 
 	if (bUseXPBDConstraints)
 	{
-		XThreeEdgeConstraints = MakeShared<TXPBDSpringConstraints<float, 3>>(Evolution->Particles(), SurfaceElements, EdgeStiffness);
+		XEdgeConstraints = MakeShared<TXPBDSpringConstraints<float, 3>>(Evolution->Particles(), SurfaceElements, EdgeStiffness, /*bStripKinematicConstraints =*/ true);
 		++NumConstraintInits;
 	}
 	else
 	{
-		ThreeEdgeConstraints = MakeShared<FPBDSpringConstraints>(Evolution->Particles(), SurfaceElements, EdgeStiffness);
+		EdgeConstraints = MakeShared<FPBDSpringConstraints>(Evolution->Particles(), SurfaceElements, EdgeStiffness, /*bStripKinematicConstraints =*/ true);
 	}
 	++NumConstraintRules;
 }
@@ -291,12 +250,12 @@ void FClothConstraints::SetBendingConstraints(TArray<TVector<int32, 2>>&& Edges,
 
 	if (bUseXPBDConstraints)
 	{
-		XBendingConstraints = MakeShared<TXPBDSpringConstraints<float, 3>>(Evolution->Particles(), MoveTemp(Edges), BendingStiffness);
+		XBendingConstraints = MakeShared<TXPBDSpringConstraints<float, 3>>(Evolution->Particles(), MoveTemp(Edges), BendingStiffness, /*bStripKinematicConstraints =*/ true);
 		++NumConstraintInits;
 	}
 	else
 	{
-		BendingConstraints = MakeShared<FPBDSpringConstraints>(Evolution->Particles(), MoveTemp(Edges), BendingStiffness);
+		BendingConstraints = MakeShared<FPBDSpringConstraints>(Evolution->Particles(), MoveTemp(Edges), BendingStiffness, /*bStripKinematicConstraints =*/ true);
 	}
 	++NumConstraintRules;
 }
@@ -306,7 +265,7 @@ void FClothConstraints::SetBendingConstraints(TArray<TVector<int32, 4>>&& Bendin
 	check(Evolution);
 	check(BendingStiffness > 0.f && BendingStiffness <= 1.f);
 
-	BendingElementConstraints = MakeShared<TPBDBendingConstraints<float>>(Evolution->Particles(), MoveTemp(BendingElements), BendingStiffness);
+	BendingElementConstraints = MakeShared<TPBDBendingConstraints<float>>(Evolution->Particles(), MoveTemp(BendingElements), BendingStiffness);  // TODO: Strip kinematic constraints
 	++NumConstraintRules;
 }
 

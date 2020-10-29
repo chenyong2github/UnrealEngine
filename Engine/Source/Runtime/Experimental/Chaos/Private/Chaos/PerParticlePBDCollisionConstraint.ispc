@@ -371,3 +371,243 @@ export void ApplyPerParticleCollision(uniform FVector ParticlesP[],
 		}
 	}
 }
+
+export void ApplyPerParticleCollisionFastFriction(uniform FVector ParticlesP[],
+													const uniform FVector ParticlesX[],
+													const uniform float ParticlesInvM[],
+													const uniform FVector CollisionV[],
+													const uniform FVector CollisionX[],
+													const uniform FVector CollisionW[],
+													const uniform FVector4 CollisionR[],
+													const uniform uint32 DynamicGroupId,
+													const uniform uint32 KinematicGroupIds[],
+													const uniform float PerGroupFriction,
+													const uniform float PerGroupThickness,
+													const uniform uint8 *uniform CollisionParticles,
+													const uniform uint8 *uniform Geometry,
+													const uniform int SizeofFImplicitObject,
+													const uniform int OffsetofGeometryType,
+													const uniform int OffsetOfMargin,
+													const uniform float Dt,
+													const uniform int InnerOffset,
+													const uniform int InnerRange,
+													const uniform int OuterOffset,
+													const uniform int OuterRange)
+{
+	uniform int BailAt = OuterRange;
+	uniform bool bBail = false;
+
+	// Pre-check for bail out.
+	foreach(Index = OuterOffset ... BailAt)
+	{
+		for(uniform int i = InnerOffset; i < InnerRange; i++)
+		{
+			const uniform uint32 KinematicGroupId = KinematicGroupIds[i];  // Collision group Id
+
+			if (KinematicGroupId != (uint32)INDEX_NONE && DynamicGroupId != KinematicGroupId)
+			{
+				foreach_active(j)
+				{
+					if(!bBail)
+					{
+						BailAt = extract(Index, j);
+						bBail = true;
+					}
+				}
+			}
+		}
+	}
+
+	foreach(Index = OuterOffset ... BailAt)
+	{
+		const float IM = ParticlesInvM[Index];
+
+		if(all(IM == 0))
+		{
+			continue;
+		}
+
+		FVector P = VectorLoad(&ParticlesP[extract(Index, 0)]);
+
+		for(uniform int i = InnerOffset; i < InnerRange; i++) // SequentialFor
+		{
+			const uniform FTransform Frame = SetTransform(CollisionR[i], SetVector4(CollisionX[i], 0.0f), Float1110);
+			const FVector PhiWithNormalInput = InverseTransformPosition(Frame, P);
+			FVector Normal;
+			float Phi;
+
+			const uniform SerializedPtr *uniform GeometryPtr = (const uniform SerializedPtr *uniform)Geometry;
+			const uniform uint8 *uniform Ptr = GeometryPtr[i].Ptr;
+			const uniform uint8 *uniform TypedPtr = Ptr + SizeofFImplicitObject;
+			const uniform uint8 Type = Ptr[OffsetofGeometryType] & 0xF;
+
+			switch(Type)
+			{
+			case Sphere:
+				{
+					const uniform float Margin = *((const uniform float *uniform)(Ptr + OffsetOfMargin));
+					PhiWithNormalSphere(TypedPtr, PhiWithNormalInput, Normal, Phi, Margin);
+					break;
+				}
+			case Capsule:
+				{
+					const uniform float Margin = *((const uniform float *uniform)(Ptr + OffsetOfMargin));
+					PhiWithNormalCapsule(TypedPtr, PhiWithNormalInput, Normal, Phi, Margin);
+					break;
+				}
+			case Union:
+				{
+					PhiWithNormalUnion(TypedPtr, PhiWithNormalInput, Normal, Phi, SizeofFImplicitObject, OffsetOfMargin);
+					break;
+				}
+			default:
+				{
+					uniform int IMMask;
+					if(IM != 0)
+					{
+						IMMask = lanemask();
+					}
+
+					GetPhiWithNormal(CollisionParticles, (const uniform float *uniform)&PhiWithNormalInput, (uniform float *uniform)&Normal, (uniform float *uniform)&Phi, i, programCount, IMMask);
+					break;
+				}
+			}
+
+			const float Penetration = PerGroupThickness - Phi; // This is related to the Normal impulse
+			if(Penetration > 0.0f)
+			{
+				const FVector NormalWorld = TransformVector(Frame, Normal);
+				P = P + (Penetration * NormalWorld);
+
+				const FVector VectorToPoint = P - CollisionX[i];
+				const FVector X = VectorLoad(&ParticlesX[extract(Index, 0)]);
+				const FVector RelativeDisplacement = (P - X) - (CollisionV[i] + VectorCross(CollisionW[i], VectorToPoint)) * Dt; // This corresponds to the tangential velocity multiplied by dt (friction will drive this to zero if it is high enough)
+				const FVector RelativeDisplacementTangent = RelativeDisplacement - VectorDot(RelativeDisplacement, NormalWorld) * NormalWorld; // Project displacement into the tangential plane
+				const float RelativeDisplacementTangentLength = VectorSize(RelativeDisplacementTangent);
+				const float PositionCorrection = min(Penetration * PerGroupFriction, RelativeDisplacementTangentLength);
+
+				P = P - ((PositionCorrection / RelativeDisplacementTangentLength) * RelativeDisplacementTangent);
+			}
+		}
+
+		if(IM != 0)
+		{
+			VectorStore(&ParticlesP[extract(Index, 0)], P);
+		}
+	}
+}
+
+export void ApplyPerParticleCollisionNoFriction(uniform FVector ParticlesP[],
+												const uniform FVector ParticlesX[],
+												const uniform float ParticlesInvM[],
+												const uniform FVector CollisionV[],
+												const uniform FVector CollisionX[],
+												const uniform FVector CollisionW[],
+												const uniform FVector4 CollisionR[],
+												const uniform uint32 DynamicGroupId,
+												const uniform uint32 KinematicGroupIds[],
+												const uniform float PerGroupThickness,
+												const uniform uint8 *uniform CollisionParticles,
+												const uniform uint8 *uniform Geometry,
+												const uniform int SizeofFImplicitObject,
+												const uniform int OffsetofGeometryType,
+												const uniform int OffsetOfMargin,
+												const uniform float Dt,
+												const uniform int InnerOffset,
+												const uniform int InnerRange,
+												const uniform int OuterOffset,
+												const uniform int OuterRange)
+{
+	uniform int BailAt = OuterRange;
+	uniform bool bBail = false;
+
+	// Pre-check for bail out.
+	foreach(Index = OuterOffset ... BailAt)
+	{
+		for(uniform int i = InnerOffset; i < InnerRange; i++)
+		{
+			const uniform uint32 KinematicGroupId = KinematicGroupIds[i];  // Collision group Id
+
+			if (KinematicGroupId != (uint32)INDEX_NONE && DynamicGroupId != KinematicGroupId)
+			{
+				foreach_active(j)
+				{
+					if(!bBail)
+					{
+						BailAt = extract(Index, j);
+						bBail = true;
+					}
+				}
+			}
+		}
+	}
+
+	foreach(Index = OuterOffset ... BailAt)
+	{
+		const float IM = ParticlesInvM[Index];
+
+		if(all(IM == 0))
+		{
+			continue;
+		}
+
+		FVector P = VectorLoad(&ParticlesP[extract(Index, 0)]);
+
+		for(uniform int i = InnerOffset; i < InnerRange; i++) // SequentialFor
+		{
+			const uniform FTransform Frame = SetTransform(CollisionR[i], SetVector4(CollisionX[i], 0.0f), Float1110);
+			const FVector PhiWithNormalInput = InverseTransformPosition(Frame, P);
+			FVector Normal;
+			float Phi;
+
+			const uniform SerializedPtr *uniform GeometryPtr = (const uniform SerializedPtr *uniform)Geometry;
+			const uniform uint8 *uniform Ptr = GeometryPtr[i].Ptr;
+			const uniform uint8 *uniform TypedPtr = Ptr + SizeofFImplicitObject;
+			const uniform uint8 Type = Ptr[OffsetofGeometryType] & 0xF;
+
+			switch(Type)
+			{
+			case Sphere:
+				{
+					const uniform float Margin = *((const uniform float *uniform)(Ptr + OffsetOfMargin));
+					PhiWithNormalSphere(TypedPtr, PhiWithNormalInput, Normal, Phi, Margin);
+					break;
+				}
+			case Capsule:
+				{
+					const uniform float Margin = *((const uniform float *uniform)(Ptr + OffsetOfMargin));
+					PhiWithNormalCapsule(TypedPtr, PhiWithNormalInput, Normal, Phi, Margin);
+					break;
+				}
+			case Union:
+				{
+					PhiWithNormalUnion(TypedPtr, PhiWithNormalInput, Normal, Phi, SizeofFImplicitObject, OffsetOfMargin);
+					break;
+				}
+			default:
+				{
+					uniform int IMMask;
+					if(IM != 0)
+					{
+						IMMask = lanemask();
+					}
+
+					GetPhiWithNormal(CollisionParticles, (const uniform float *uniform)&PhiWithNormalInput, (uniform float *uniform)&Normal, (uniform float *uniform)&Phi, i, programCount, IMMask);
+					break;
+				}
+			}
+
+			const float Penetration = PerGroupThickness - Phi; // This is related to the Normal impulse
+			if(Penetration > 0.0f)
+			{
+				const FVector NormalWorld = TransformVector(Frame, Normal);
+				P = P + (Penetration * NormalWorld);
+			}
+		}
+
+		if(IM != 0)
+		{
+			VectorStore(&ParticlesP[extract(Index, 0)], P);
+		}
+	}
+}

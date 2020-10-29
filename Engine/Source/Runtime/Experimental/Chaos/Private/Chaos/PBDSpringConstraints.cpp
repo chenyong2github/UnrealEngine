@@ -5,6 +5,8 @@
 #include "Chaos/Framework/Parallel.h"
 #include "ChaosStats.h"
 #include "ChaosLog.h"
+#include "HAL/IConsoleManager.h"
+
 #if INTEL_ISPC
 #include "PBDSpringConstraints.ispc.generated.h"
 #endif
@@ -19,8 +21,10 @@ FAutoConsoleVariableRef CVarChaosSpringISPCEnabled(TEXT("p.Chaos.Spring.ISPC"), 
 using namespace Chaos;
 
 // @todo(chaos): the parallel threshold (or decision to run parallel) should probably be owned by the solver and passed to the constraint container
-int32 Chaos_Spring_ParallelConstraintCount = 100;
+static int32 Chaos_Spring_ParallelConstraintCount = 100;
+#if !UE_BUILD_SHIPPING
 FAutoConsoleVariableRef CVarChaosSpringParallelConstraintCount(TEXT("p.Chaos.Spring.ParallelConstraintCount"), Chaos_Spring_ParallelConstraintCount, TEXT("If we have more constraints than this, use parallel-for in Apply."));
+#endif
 
 void FPBDSpringConstraints::InitColor(const TDynamicParticles<FReal, 3>& InParticles)
 {
