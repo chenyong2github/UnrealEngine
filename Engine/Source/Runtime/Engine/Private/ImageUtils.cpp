@@ -169,6 +169,90 @@ void FImageUtils::ImageResize(int32 SrcWidth, int32 SrcHeight, const TArrayView<
 }
 
 /**
+ * Resizes the given image using a simple average filter and stores it in the destination array.
+ *
+ * @param SrcWidth		Source image width.
+ * @param SrcHeight		Source image height.
+ * @param SrcData		Source image data.
+ * @param DstWidth		Destination image width.
+ * @param DstHeight		Destination image height.
+ * @param DstData		Destination image data.
+ */
+void FImageUtils::ImageResize(int32 SrcWidth, int32 SrcHeight, const TArray64<FLinearColor>& SrcData, int32 DstWidth, int32 DstHeight, TArray64<FLinearColor>& DstData)
+{
+	DstData.Empty(DstWidth * DstHeight);
+	DstData.AddZeroed(DstWidth * DstHeight);
+
+	ImageResize(SrcWidth, SrcHeight, TArrayView64<const FLinearColor>(SrcData), DstWidth, DstHeight, TArrayView64<FLinearColor>(DstData));
+}
+
+/**
+ * Resizes the given image using a simple average filter and stores it in the destination array.  This version constrains aspect ratio.
+ * Accepts TArrayViews but requires that DstData be pre-sized appropriately
+ *
+ * @param SrcWidth	Source image width.
+ * @param SrcHeight	Source image height.
+ * @param SrcData	Source image data.
+ * @param DstWidth	Destination image width.
+ * @param DstHeight Destination image height.
+ * @param DstData	Destination image data. (must already be sized to DstWidth*DstHeight)
+ */
+void FImageUtils::ImageResize(int32 SrcWidth, int32 SrcHeight, const TArrayView64<const FLinearColor>& SrcData, int32 DstWidth, int32 DstHeight, const TArrayView64<FLinearColor>& DstData)
+{
+	check(SrcData.Num() >= SrcWidth * SrcHeight);
+	check(DstData.Num() >= DstWidth * DstHeight);
+
+	float SrcX = 0;
+	float SrcY = 0;
+	const float StepSizeX = SrcWidth / (float)DstWidth;
+	const float StepSizeY = SrcHeight / (float)DstHeight;
+
+	for (int32 Y = 0; Y < DstHeight; Y++)
+	{
+		int32 PixelPos = Y * DstWidth;
+		SrcX = 0.0f;
+
+		for (int32 X = 0; X < DstWidth; X++)
+		{
+			int32 PixelCount = 0;
+			float EndX = SrcX + StepSizeX;
+			float EndY = SrcY + StepSizeY;
+
+			// Generate a rectangular region of pixels and then find the average color of the region.
+			int32 PosY = FMath::TruncToInt(SrcY + 0.5f);
+			PosY = FMath::Clamp<int32>(PosY, 0, (SrcHeight - 1));
+
+			int32 PosX = FMath::TruncToInt(SrcX + 0.5f);
+			PosX = FMath::Clamp<int32>(PosX, 0, (SrcWidth - 1));
+
+			int32 EndPosY = FMath::TruncToInt(EndY + 0.5f);
+			EndPosY = FMath::Clamp<int32>(EndPosY, 0, (SrcHeight - 1));
+
+			int32 EndPosX = FMath::TruncToInt(EndX + 0.5f);
+			EndPosX = FMath::Clamp<int32>(EndPosX, 0, (SrcWidth - 1));
+
+			FLinearColor FinalColor(0.0f, 0.0f, 0.0f, 0.0f);
+			for (int32 PixelX = PosX; PixelX <= EndPosX; PixelX++)
+			{
+				for (int32 PixelY = PosY; PixelY <= EndPosY; PixelY++)
+				{
+					int32 StartPixel = PixelX + PixelY * SrcWidth;
+					FinalColor += SrcData[StartPixel];
+					PixelCount++;
+				}
+			}
+			FinalColor /= (float)PixelCount;
+
+			// Store the final averaged pixel color value.
+			DstData[PixelPos] = FinalColor;
+			SrcX = EndX;
+			PixelPos++;
+		}
+		SrcY += StepSizeY;
+	}
+}
+
+/**
  * Creates a 2D texture from a array of raw color data.
  *
  * @param SrcWidth		Source image width.
