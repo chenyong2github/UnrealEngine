@@ -2,29 +2,37 @@
 
 #pragma once
 
-struct FNDIExportContext
-{
-	uint			WriteBufferSize;
-	RWBuffer<uint>	WriteBuffer;
-};
+//
+// Conceptually this is the Niagara data interface export context:
+//
+//		struct FNDIExportContext
+//		{
+//			uint			WriteBufferSize;
+//			RWBuffer<uint>	WriteBuffer;
+//		};
+//
+// However, SPIRV-Cross does not correctly support use of the field member of a struct for
+// emulated texture2d atomics for some target platforms (like, Metal). Consequently, we provide
+// the WriteBuffer and its size as individual parameters to the StoreData function.
+//
 
-void NDIExport_StoreData(in FNDIExportContext DIContext, in bool bStoreData, in float3 Position, in float Size, in float3 Velocity, out bool bSuccess)
+void NDIExport_StoreData(in uint DIContext_WriteBufferSize, inout RWBuffer<uint> DIContext_WriteBuffer, in bool bStoreData, in float3 Position, in float Size, in float3 Velocity, out bool bSuccess)
 {
 	bSuccess = false;
-	if ( bStoreData && (DIContext.WriteBufferSize > 0) )
+	if ( bStoreData && (DIContext_WriteBufferSize > 0) )
 	{
 		uint StoreIndex;
-		InterlockedAdd(DIContext.WriteBuffer[0], 1u, StoreIndex);
-		if ( StoreIndex < DIContext.WriteBufferSize)
+		InterlockedAdd(DIContext_WriteBuffer[0], 1u, StoreIndex);
+		if ( StoreIndex < DIContext_WriteBufferSize)
 		{
 			uint StoreOffset = 1 + (StoreIndex * 7);
-			DIContext.WriteBuffer[StoreOffset + 0] = asuint(Position.x);
-			DIContext.WriteBuffer[StoreOffset + 1] = asuint(Position.y);
-			DIContext.WriteBuffer[StoreOffset + 2] = asuint(Position.z);
-			DIContext.WriteBuffer[StoreOffset + 3] = asuint(Size);
-			DIContext.WriteBuffer[StoreOffset + 4] = asuint(Velocity.x);
-			DIContext.WriteBuffer[StoreOffset + 5] = asuint(Velocity.y);
-			DIContext.WriteBuffer[StoreOffset + 6] = asuint(Velocity.z);
+			DIContext_WriteBuffer[StoreOffset + 0] = asuint(Position.x);
+			DIContext_WriteBuffer[StoreOffset + 1] = asuint(Position.y);
+			DIContext_WriteBuffer[StoreOffset + 2] = asuint(Position.z);
+			DIContext_WriteBuffer[StoreOffset + 3] = asuint(Size);
+			DIContext_WriteBuffer[StoreOffset + 4] = asuint(Velocity.x);
+			DIContext_WriteBuffer[StoreOffset + 5] = asuint(Velocity.y);
+			DIContext_WriteBuffer[StoreOffset + 6] = asuint(Velocity.z);
 			bSuccess = true;
 		}
 	}
@@ -37,6 +45,5 @@ void NDIExport_StoreData(in FNDIExportContext DIContext, in bool bStoreData, in 
 	RWBuffer<uint>	RWWriteBuffer_ ## NAME; \
 
 #define NDIEXPORT_MAKE_CONTEXT(NAME) \
-	FNDIExportContext	DIContext; \
-	DIContext.WriteBufferSize = WriteBufferSize_ ## NAME; \
-	DIContext.WriteBuffer = RWWriteBuffer_ ## NAME; \
+	uint			DIContext_WriteBufferSize	= WriteBufferSize_ ## NAME;	\
+	RWBuffer<uint>	DIContext_WriteBuffer		= RWWriteBuffer_ ## NAME; 	\
