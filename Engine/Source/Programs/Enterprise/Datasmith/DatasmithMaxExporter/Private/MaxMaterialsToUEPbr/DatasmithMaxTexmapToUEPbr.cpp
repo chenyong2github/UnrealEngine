@@ -644,12 +644,35 @@ IDatasmithMaterialExpression* FDatasmithMaxTexmapToUEPbrUtils::MapOrValue( FData
 				RGBComponents->ConnectExpression( *MultiplyGreen->GetInput(0), 1 ); // Green
 				Intensity->ConnectExpression( *MultiplyGreen->GetInput(1) );
 
+				// Blue is reconstructed from the other colors ( sqrt( 1-( saturate( dot([Red,Green], [Red,Green]) ) ) ) )
+				IDatasmithMaterialExpressionGeneric* AppendRedAndGreen = MaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionGeneric >();
+				AppendRedAndGreen->SetExpressionName( TEXT("AppendVector") );
+				MultiplyRed->ConnectExpression( *AppendRedAndGreen->GetInput(0) );
+				MultiplyGreen->ConnectExpression( *AppendRedAndGreen->GetInput(1) );
+
+				IDatasmithMaterialExpressionGeneric* DotProduct = MaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionGeneric >();
+				DotProduct->SetExpressionName( TEXT("DotProduct") );
+				AppendRedAndGreen->ConnectExpression( *DotProduct->GetInput(0) );
+				AppendRedAndGreen->ConnectExpression( *DotProduct->GetInput(1) );
+
+				IDatasmithMaterialExpressionGeneric* OneMinus = MaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionGeneric >();
+				OneMinus->SetExpressionName( TEXT("OneMinus") );
+				DotProduct->ConnectExpression( *OneMinus->GetInput(0) );
+
+				IDatasmithMaterialExpressionGeneric* Saturate = MaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionGeneric >();
+				Saturate->SetExpressionName( TEXT("Saturate") );
+				OneMinus->ConnectExpression( *Saturate->GetInput(0) );
+
+				IDatasmithMaterialExpressionGeneric* SquareRoot = MaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionGeneric >();
+				SquareRoot->SetExpressionName( TEXT("SquareRoot") );
+				Saturate->ConnectExpression( *SquareRoot->GetInput(0) ); // Blue
+
 				IDatasmithMaterialExpressionFunctionCall* MakeRGB = MaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionFunctionCall >();
 				MakeRGB->SetFunctionPathName( TEXT("/Engine/Functions/Engine_MaterialFunctions02/Utility/MakeFloat3.MakeFloat3") );
 
 				MultiplyRed->ConnectExpression( *MakeRGB->GetInput(0) );
 				MultiplyGreen->ConnectExpression( *MakeRGB->GetInput(1) );
-				RGBComponents->ConnectExpression( *MakeRGB->GetInput(2), 2 ); // Blue
+				SquareRoot->ConnectExpression( *MakeRGB->GetInput(2) );
 
 				Expression = MakeRGB;
 			}
