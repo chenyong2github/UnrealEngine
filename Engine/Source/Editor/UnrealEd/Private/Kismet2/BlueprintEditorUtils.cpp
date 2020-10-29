@@ -2349,7 +2349,7 @@ void FBlueprintEditorUtils::CreateMatchingFunction(UK2Node_CallFunction* InNode,
 
 bool FBlueprintEditorUtils::IsFunctionConvertableToEvent(UBlueprint* const BlueprintObj, UFunction* const Function)
 {
-	return BlueprintObj && BlueprintObj->BlueprintType != BPTYPE_FunctionLibrary && Function;
+	return BlueprintObj && BlueprintObj->BlueprintType != BPTYPE_FunctionLibrary && BlueprintObj->BlueprintType != BPTYPE_Interface && Function;
 }
 
 UFunction* FBlueprintEditorUtils::FindFunctionInImplementedInterfaces(const UBlueprint* Blueprint, const FName& FunctionName, bool * bOutInvalidInterface, bool bGetAllInterfaces)
