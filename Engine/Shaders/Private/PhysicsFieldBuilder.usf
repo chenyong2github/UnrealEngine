@@ -1029,6 +1029,11 @@ void BuildPhysicsFieldClipmapCS(
 		float4 ResultsDatas[MAX_COUNT];
 		float ContextDatas[MAX_DATAS];
 		
+		const float LimitDistance = (float)ClipmapResolution / 8.0;
+		const uint3 BorderDirection = min(uint3(ClipmapResolution - 1, ClipmapResolution - 1, ClipmapResolution - 1) - DispatchThreadId.xyz, DispatchThreadId.xyz);
+		const float BorderDistance = min(min(BorderDirection.x, BorderDirection.y), BorderDirection.z);
+		const float BorderFade = (BorderDistance < LimitDistance) ? (BorderDistance * BorderDistance / (LimitDistance * LimitDistance)) : 1.0;
+		
 		for (int ClipmapIndex = 0; ClipmapIndex < ClipmapCount; ++ClipmapIndex)
 		{
 			[unroll]
@@ -1065,11 +1070,12 @@ void BuildPhysicsFieldClipmapCS(
 					}
 				}
 			}
+			const float ClipmapFade = (ClipmapIndex == (ClipmapCount - 1)) ? BorderFade : 1.0;
 			for (int TargetIndex = 0; TargetIndex < TargetCount; ++TargetIndex)
 			{
 				const int DatasOffset = ClipmapIndex + TargetIndex * ClipmapCount;
 				const uint3 TextureCoordinates = uint3(DispatchThreadId.x, DispatchThreadId.y, DispatchThreadId.z + ClipmapResolution * DatasOffset + DatasOffset);
-				FieldClipmap[TextureCoordinates] = ResultsDatas[TargetIndex];
+				FieldClipmap[TextureCoordinates] = ResultsDatas[TargetIndex] * ClipmapFade;
 			}
 		}
 	}
