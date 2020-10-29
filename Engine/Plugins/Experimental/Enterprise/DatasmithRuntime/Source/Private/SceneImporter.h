@@ -38,7 +38,7 @@ class UTextureLightProfile;
 
 struct FUpdateContext;
 
-#ifdef WITH_EDITOR
+#if WITH_EDITOR
 #define LIVEUPDATE_TIME_LOGGING
 //#define ASSET_DEBUG
 #endif

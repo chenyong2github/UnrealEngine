@@ -128,7 +128,7 @@ void FAssetTypeActions_MaterialFunction::ExecuteNewMFI(TArray<TWeakObjectPtr<UMa
 
 void FAssetTypeActions_MaterialFunction::ExecuteFindMaterials(TArray<TWeakObjectPtr<UMaterialFunctionInterface>> Objects)
 {
-#ifdef WITH_EDITOR
+#if WITH_EDITOR
 	if (FEditorDelegates::OnOpenReferenceViewer.IsBound())
 	{
 		// TArray that will be send to the ReferenceViewer for display

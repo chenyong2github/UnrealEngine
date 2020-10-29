@@ -18,7 +18,7 @@ class AUDIOANALYZER_API UAudioAnalyzerAsset : public UObject
 
 	public:
 
-#ifdef WITH_EDITOR
+#if WITH_EDITOR
 		virtual bool HasAssetActions() const { return true; }
 
 		/**

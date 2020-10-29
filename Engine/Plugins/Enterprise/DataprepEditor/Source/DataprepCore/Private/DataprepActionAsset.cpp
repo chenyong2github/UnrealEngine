@@ -28,9 +28,7 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/UObjectHash.h"
 
-#ifdef WITH_EDITOR
 #include "Editor.h"
-#endif //WITH_EDITOR
 
 void UDataprepActionStep::PostLoad()
 {
@@ -75,9 +73,7 @@ UDataprepActionAsset::UDataprepActionAsset()
 
 UDataprepActionAsset::~UDataprepActionAsset()
 {
-#ifdef WITH_EDITOR
 	FEditorDelegates::OnAssetsDeleted.Remove( OnAssetDeletedHandle );
-#endif //WITH_EDITOR
 }
 
 void UDataprepActionAsset::PostTransacted(const FTransactionObjectEvent& TransactionEvent)

@@ -52,7 +52,7 @@ FMaterialLayersFunctionsCustomization::FMaterialLayersFunctionsCustomization(con
 	LayerHandle->AsArray()->SetOnNumElementsChanged(RebuildChildrenDelegate);
 	BlendHandle->AsArray()->SetOnNumElementsChanged(RebuildChildrenDelegate);
 
-#ifdef WITH_EDITOR
+#if WITH_EDITOR
 	//Fixup for adding new bool arrays to the class
 	if (MaterialLayersFunctions)
 	{
