@@ -657,7 +657,7 @@ public:
 /**
  * Helper struct for FAssetIdentifier (e.g., for the FOnViewAssetIdentifiersInReferenceViewer delegate and Reference Viewer functions).
  */
-#ifdef WITH_EDITORONLY_DATA
+#if WITH_EDITORONLY_DATA
 struct FReferenceViewerParams
 {
 	FReferenceViewerParams()

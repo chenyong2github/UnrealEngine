@@ -451,7 +451,7 @@ private:
 	UPROPERTY()
 	TArray<UObject*> CachedReferencedTextures;
 
-#ifdef WITH_EDITOR
+#if WITH_EDITOR
 	mutable TOptional<FStaticParameterSet> CachedStaticParameterValues;
 	mutable uint8 AllowCachingStaticParameterValuesCounter = 0;
 #endif // WITH_EDITOR
