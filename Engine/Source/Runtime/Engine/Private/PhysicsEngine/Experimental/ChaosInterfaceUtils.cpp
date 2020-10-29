@@ -303,20 +303,21 @@ namespace ChaosInterface
 			for (uint32 i = 0; i < static_cast<uint32>(InParams.Geometry->ConvexElems.Num()); ++i)
 			{
 				const FKConvexElem& CollisionBody = InParams.Geometry->ConvexElems[i];
-				const FTransform& ConvexTransform = CollisionBody.GetTransform();
+				const FTransform& ConvexTransform = InParams.LocalTransform;
 				if (const auto& ConvexImplicit = CollisionBody.GetChaosConvexMesh())
 				{
 					const float CollisionMargin = FMath::Min(CollisionBody.ElemBox.GetSize().GetMax() * CollisionMarginFraction, CollisionMarginMax);
 
-					//if (!ConvexTransform.GetTranslation().IsNearlyZero() || !ConvexTransform.GetRotation().IsIdentity())
-					//{
-					//	TUniquePtr<Chaos::FImplicitObject> TransformImplicit = TUniquePtr<Chaos::FImplicitObject>(new Chaos::TImplicitObjectTransformed<float, 3>(MakeSerializable(ConvexImplicit), ConvexTransform));
-					//	TUniquePtr<Chaos::TImplicitObjectScaled<float, 3, false>> Implicit = MakeUnique<Chaos::TImplicitObjectScaled<float, 3, false>>(MoveTemp(TransformImplicit), Scale);
-					//	auto NewShape = NewShapeHelper(MakeSerializable(Implicit));
-					//	Shapes.Emplace(MoveTemp(NewShape));
-					//	Geoms.Add(MoveTemp(Implicit));
-					//}
-					//else
+					if (!ConvexTransform.GetTranslation().IsNearlyZero() || !ConvexTransform.GetRotation().IsIdentity())
+					{
+						// this path is taken when objects are welded
+						//TUniquePtr<Chaos::FImplicitObject> ScaledImplicit = TUniquePtr<Chaos::FImplicitObject>(new Chaos::TImplicitObjectScaled<Chaos::FImplicitObject>(MakeSerializable(ConvexImplicit), Scale, CollisionMargin));
+						TUniquePtr<Chaos::FImplicitObject> Implicit = TUniquePtr<Chaos::FImplicitObject>(new Chaos::TImplicitObjectTransformed<float, 3>(MakeSerializable(ConvexImplicit), ConvexTransform));
+						TUniquePtr<Chaos::FPerShapeData> NewShape = NewShapeHelper(MakeSerializable(Implicit), Shapes.Num(), (void*)CollisionBody.GetUserData(), CollisionBody.GetCollisionEnabled());
+						Shapes.Emplace(MoveTemp(NewShape));
+						Geoms.Add(MoveTemp(Implicit));
+					}
+					else
 					{
 						// NOTE: CollisionMargin is on the Instance/Scaled wrapper, not the inner convex (which has no margin). This means that convex shapes grow by the margion size...
 						TUniquePtr<Chaos::FImplicitObject> Implicit;

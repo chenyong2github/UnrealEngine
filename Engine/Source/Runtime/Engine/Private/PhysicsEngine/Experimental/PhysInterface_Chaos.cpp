@@ -837,16 +837,29 @@ void FPhysInterface_Chaos::AddGeometry(FPhysicsActorHandle& InActor, const FGeom
 			//FPhysInterface_Chaos::SetMaterials(NewHandle, InParams.ComplexMaterials.Num() > 0 ? InParams.ComplexMaterials : SimpleView);
 		}
 
+		bool bMergeShapesArray = false;
 		//todo: we should not be creating unique geometry per actor
-		if(Geoms.Num() > 1)
+		// we always have a union so we can support any future welding operations. (Non-trivial converting the SharedPtr to UniquePtr)
 		{
-			InActor->SetGeometry(MakeUnique<Chaos::FImplicitObjectUnion>(MoveTemp(Geoms)));
+			if (InActor->Geometry()) // geometry already exists - combine new geometry with the existing
+			{
+				InActor->MergeGeometry(MoveTemp(Geoms));
+				bMergeShapesArray = true;
+			}
+			else
+			{
+				InActor->SetGeometry(MakeUnique<Chaos::FImplicitObjectUnion>(MoveTemp(Geoms)));
+			}
+		}
+
+		if (bMergeShapesArray)
+		{
+			InActor->MergeShapesArray(MoveTemp(Shapes));
 		}
 		else
 		{
-			InActor->SetGeometry(MoveTemp(Geoms[0]));
+			InActor->SetShapesArray(MoveTemp(Shapes));
 		}
-		InActor->SetShapesArray(MoveTemp(Shapes));
 	}
 #endif
 }

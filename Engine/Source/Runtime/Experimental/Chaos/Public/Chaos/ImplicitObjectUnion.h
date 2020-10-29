@@ -21,6 +21,9 @@ class CHAOS_API FImplicitObjectUnion : public FImplicitObject
 	using FImplicitObject::GetTypeName;
 
 	FImplicitObjectUnion(TArray<TUniquePtr<FImplicitObject>>&& Objects);
+	void Combine(TArray<TUniquePtr<FImplicitObject>>& Objects);
+	void RemoveAt(int32 RemoveIndex);
+
 	FImplicitObjectUnion(const FImplicitObjectUnion& Other) = delete;
 	FImplicitObjectUnion(FImplicitObjectUnion&& Other);
 	virtual ~FImplicitObjectUnion();
