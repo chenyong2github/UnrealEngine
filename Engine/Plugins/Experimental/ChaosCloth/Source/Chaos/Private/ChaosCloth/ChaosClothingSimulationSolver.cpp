@@ -601,11 +601,15 @@ void FClothingSimulationSolver::SetLegacyWind(uint32 GroupId, bool bUseLegacyWin
 					static const float LegacyWindMultiplier = 25.f;
 					const TVector<float, 3> VelocityDelta = WindVelocity * LegacyWindMultiplier - Particles.V(Index);
 
-					// Scale by angle
-					const float DirectionDot = TVector<float, 3>::DotProduct(VelocityDelta.GetUnsafeNormal(), Normals[Index]);
-					const float ScaleFactor = FMath::Min(1.f, FMath::Abs(DirectionDot) * LegacyWindAdaption);
-					
-					Particles.F(Index) += VelocityDelta * ScaleFactor * Particles.M(Index);
+					TVector<float, 3> Direction = VelocityDelta;
+					if (Direction.Normalize())
+					{
+						// Scale by angle
+						const float DirectionDot = TVector<float, 3>::DotProduct(Direction, Normals[Index]);
+						const float ScaleFactor = FMath::Min(1.f, FMath::Abs(DirectionDot) * LegacyWindAdaption);
+
+						Particles.F(Index) += VelocityDelta * ScaleFactor * Particles.M(Index);
+					}
 				}
 			};
 	}
@@ -717,6 +721,7 @@ void FClothingSimulationSolver::Update(float InDeltaTime)
 	// Advance Sim
 	{
 		SCOPE_CYCLE_COUNTER(STAT_ChaosClothSolverUpdateSolverStep);
+		SCOPE_CYCLE_COUNTER(STAT_ClothInternalSolve);
 
 		Evolution->SetIterations(NumIterations);
 
@@ -734,6 +739,7 @@ void FClothingSimulationSolver::Update(float InDeltaTime)
 	// Post solver step, update normals, ...etc
 	{
 		SCOPE_CYCLE_COUNTER(STAT_ChaosClothSolverUpdatePostSolverStep);
+		SCOPE_CYCLE_COUNTER(STAT_ClothComputeNormals);
 
 		for (FClothingSimulationCloth* Cloth : Cloths)
 		{

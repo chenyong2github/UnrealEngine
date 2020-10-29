@@ -1075,109 +1075,110 @@ void SDMXEntityList::OnPasteNodes()
 	// Get the Entities to paste from the clipboard
 	TArray<UDMXEntity*> NewObjects;
 	FDMXEditorUtils::GetEntitiesFromClipboard(NewObjects);
-	check(NewObjects.Num() != 0)
-
-	// Get the library that's being edited
-	UDMXLibrary* Library = GetDMXLibrary();
-	check(Library != nullptr);
-
-	// Start transaction for Undo and take a snapshot of the current Library state
-	const FScopedTransaction PasteEntities(NewObjects.Num() > 1 ? LOCTEXT("PasteEntities", "Paste Entities") : LOCTEXT("PasteEntity", "Paste Entity"));
-	Library->Modify();
-
-	// If pasting Patches we'll need to check against existing Fixture Types
-	TArray<UDMXEntityFixtureType*> ExistingFixtureTypes;
-	if (NewObjects[0]->GetClass()->IsChildOf<UDMXEntityFixturePatch>())
+	if (ensureMsgf(NewObjects.Num() != 0, TEXT("Something went wrong with copying through TextObjectFactory. Nodes not copied!")))
 	{
-		ExistingFixtureTypes = Library->GetEntitiesTypeCast<UDMXEntityFixtureType>();
-	}
-	// Caches suitable replacements for pasted FixtureTypes (Pasted -> Existing replacement)
-	TMap<UDMXEntityFixtureType*, UDMXEntityFixtureType*> PatchTemplateReplacements;
+		// Get the library that's being edited
+		UDMXLibrary* Library = GetDMXLibrary();
+		check(Library != nullptr);
 
-	// Add each pasted Entity to the Library
-	for (UDMXEntity* NewEntity : NewObjects)
-	{
-		check(NewEntity);
+		// Start transaction for Undo and take a snapshot of the current Library state
+		const FScopedTransaction PasteEntities(NewObjects.Num() > 1 ? LOCTEXT("PasteEntities", "Paste Entities") : LOCTEXT("PasteEntity", "Paste Entity"));
+		Library->Modify();
 
-		// If we're pasting Fixture Patches, we'll need to check for existing similar
-		// Fixture Type templates in this editor's Library to replace the temp one from copy
-		// or add the temp one if there's no suitable replacement
-		if (UDMXEntityFixturePatch* AsPatch = Cast<UDMXEntityFixturePatch>(NewEntity))
+		// If pasting Patches we'll need to check against existing Fixture Types
+		TArray<UDMXEntityFixtureType*> ExistingFixtureTypes;
+		if (NewObjects[0]->GetClass()->IsChildOf<UDMXEntityFixturePatch>())
 		{
-			// Do we need to replace the template?
-			if (UDMXEntityFixtureType* CopiedPatchTemplate = AsPatch->ParentFixtureTypeTemplate)
-			{
-				// Did it come from this editor's DMX Library and does the original still exists?
-				if (UDMXEntityFixtureType* OriginalTemplate = Cast<UDMXEntityFixtureType>(Library->FindEntity(CopiedPatchTemplate->GetID())))
-				{
-					AsPatch->ParentFixtureTypeTemplate = OriginalTemplate;
-				}
-				else
-				{
-					check(CopiedPatchTemplate != nullptr);
+			ExistingFixtureTypes = Library->GetEntitiesTypeCast<UDMXEntityFixtureType>();
+		}
+		// Caches suitable replacements for pasted FixtureTypes (Pasted -> Existing replacement)
+		TMap<UDMXEntityFixtureType*, UDMXEntityFixtureType*> PatchTemplateReplacements;
 
-					// Is there already a suitable replacement registered for this template?
-					if (PatchTemplateReplacements.Contains(CopiedPatchTemplate))
+		// Add each pasted Entity to the Library
+		for (UDMXEntity* NewEntity : NewObjects)
+		{
+			check(NewEntity);
+
+			// If we're pasting Fixture Patches, we'll need to check for existing similar
+			// Fixture Type templates in this editor's Library to replace the temp one from copy
+			// or add the temp one if there's no suitable replacement
+			if (UDMXEntityFixturePatch* AsPatch = Cast<UDMXEntityFixturePatch>(NewEntity))
+			{
+				// Do we need to replace the template?
+				if (UDMXEntityFixtureType* CopiedPatchTemplate = AsPatch->ParentFixtureTypeTemplate)
+				{
+					// Did it come from this editor's DMX Library and does the original still exists?
+					if (UDMXEntityFixtureType* OriginalTemplate = Cast<UDMXEntityFixtureType>(Library->FindEntity(CopiedPatchTemplate->GetID())))
 					{
-						// Replace the Patch's template with the replacement
-						AsPatch->ParentFixtureTypeTemplate = *PatchTemplateReplacements.Find(CopiedPatchTemplate);
+						AsPatch->ParentFixtureTypeTemplate = OriginalTemplate;
 					}
 					else
 					{
-						// Search for a suitable replacement for the pasted Fixture Type, with identical
-						// properties, except for the Name, ID and Parent Library
-						bool bFoundReplacement = false;
-						for (UDMXEntityFixtureType* ExistingFixtureType : ExistingFixtureTypes)
-						{
-							if (FDMXEditorUtils::AreFixtureTypesIdentical(CopiedPatchTemplate, ExistingFixtureType))
-							{
-								AsPatch->ParentFixtureTypeTemplate = ExistingFixtureType;
-								PatchTemplateReplacements.Add(CopiedPatchTemplate, ExistingFixtureType);
-								bFoundReplacement = true;
-								break;
-							}
-						}
+						check(CopiedPatchTemplate != nullptr);
 
-						if (!bFoundReplacement)
+						// Is there already a suitable replacement registered for this template?
+						if (PatchTemplateReplacements.Contains(CopiedPatchTemplate))
 						{
-							// Move the Fixture Type template from the transient package into the Library package
-							NewEntity->Rename(*MakeUniqueObjectName(Library, UDMXEntityFixtureType::StaticClass()).ToString(), Library, REN_DoNotDirty | REN_DontCreateRedirectors);
-							// Make sure the Template's name and ID won't collide with existing Fixture Types
-							CopiedPatchTemplate->SetName(FDMXEditorUtils::FindUniqueEntityName(Library, UDMXEntityFixtureType::StaticClass(), CopiedPatchTemplate->GetDisplayName()));
-							CopiedPatchTemplate->RefreshID();
-							// Add to the Library
-							Library->AddEntity(CopiedPatchTemplate);
+							// Replace the Patch's template with the replacement
+							AsPatch->ParentFixtureTypeTemplate = *PatchTemplateReplacements.Find(CopiedPatchTemplate);
+						}
+						else
+						{
+							// Search for a suitable replacement for the pasted Fixture Type, with identical
+							// properties, except for the Name, ID and Parent Library
+							bool bFoundReplacement = false;
+							for (UDMXEntityFixtureType* ExistingFixtureType : ExistingFixtureTypes)
+							{
+								if (FDMXEditorUtils::AreFixtureTypesIdentical(CopiedPatchTemplate, ExistingFixtureType))
+								{
+									AsPatch->ParentFixtureTypeTemplate = ExistingFixtureType;
+									PatchTemplateReplacements.Add(CopiedPatchTemplate, ExistingFixtureType);
+									bFoundReplacement = true;
+									break;
+								}
+							}
+
+							if (!bFoundReplacement)
+							{
+								// Move the Fixture Type template from the transient package into the Library package
+								NewEntity->Rename(*MakeUniqueObjectName(Library, UDMXEntityFixtureType::StaticClass()).ToString(), Library, REN_DoNotDirty | REN_DontCreateRedirectors);
+								// Make sure the Template's name and ID won't collide with existing Fixture Types
+								CopiedPatchTemplate->SetName(FDMXEditorUtils::FindUniqueEntityName(Library, UDMXEntityFixtureType::StaticClass(), CopiedPatchTemplate->GetDisplayName()));
+								CopiedPatchTemplate->RefreshID();
+								// Add to the Library
+								Library->AddEntity(CopiedPatchTemplate);
+							}
 						}
 					}
 				}
+
+				AutoAssignCopiedPatch(AsPatch);
 			}
 
-			AutoAssignCopiedPatch(AsPatch);
+			// Move the Entity from the transient package into the Library package
+			NewEntity->Rename(*MakeUniqueObjectName(Library, NewEntity->GetClass()).ToString(), Library, REN_DoNotDirty | REN_DontCreateRedirectors);
+			// Make sure the Entity's name won't collide with existing ones
+			NewEntity->SetName(FDMXEditorUtils::FindUniqueEntityName(Library, NewEntity->GetClass(), NewEntity->GetDisplayName()));
+
+			Library->AddEntity(NewEntity);
+
+			OnEntitiesAdded.ExecuteIfBound();
 		}
 
-		// Move the Entity from the transient package into the Library package
-		NewEntity->Rename(*MakeUniqueObjectName(Library, NewEntity->GetClass()).ToString(), Library, REN_DoNotDirty | REN_DontCreateRedirectors);
-		// Make sure the Entity's name won't collide with existing ones
-		NewEntity->SetName(FDMXEditorUtils::FindUniqueEntityName(Library, NewEntity->GetClass(), NewEntity->GetDisplayName()));
-
-		Library->AddEntity(NewEntity);
-
-		OnEntitiesAdded.ExecuteIfBound();
-	}
-
-	// Select the new Entities in their type tab
-	if (NewObjects[0]->GetClass() == ListType)
-	{
-		UpdateTree();
-		SelectItemsByEntity(NewObjects, ESelectInfo::OnMouseClick);
-	}
-	else
-	{
-		// Navigate to the correct tab for the pasted entities type and selected them
-		if (TSharedPtr<FDMXEditor> PinnedEditor = DMXEditor.Pin())
+		// Select the new Entities in their type tab
+		if (NewObjects[0]->GetClass() == ListType)
 		{
-			// Switching tabs will already trigger a UpdateTree, so we don't need to call it
-			PinnedEditor->SelectEntitiesInTypeTab(NewObjects, ESelectInfo::OnMouseClick);
+			UpdateTree();
+			SelectItemsByEntity(NewObjects, ESelectInfo::OnMouseClick);
+		}
+		else
+		{
+			// Navigate to the correct tab for the pasted entities type and selected them
+			if (TSharedPtr<FDMXEditor> PinnedEditor = DMXEditor.Pin())
+			{
+				// Switching tabs will already trigger a UpdateTree, so we don't need to call it
+				PinnedEditor->SelectEntitiesInTypeTab(NewObjects, ESelectInfo::OnMouseClick);
+			}
 		}
 	}
 }
@@ -1756,7 +1757,7 @@ FText SDMXEntityList::CheckForPatchError(UDMXEntityFixturePatch* FixturePatch) c
 {
 	const TArray<UDMXEntityController*> Controllers = GetDMXLibrary()->GetEntitiesTypeCast<UDMXEntityController>();
 
-	if (FixturePatch->ParentFixtureTypeTemplate->Modes.Num() == 0)
+	if (FixturePatch->ParentFixtureTypeTemplate == nullptr || FixturePatch->ParentFixtureTypeTemplate->Modes.Num() == 0)
 	{
 		return LOCTEXT("DMXEntityList.FixtureTypeHasNoModes", "This patch's fixture type has no modes.");
 	}

@@ -326,7 +326,7 @@ namespace MobileReflectionEnvironmentCapture
 					RHICmdList.CopyToResolveTarget(EffectiveRT.TargetableTexture, EffectiveRT.ShaderResourceTexture, FResolveParams(FResolveRect(), (ECubeFace)CubeFace, MipIndex));
 				}
 
-				if (MipSize == GDiffuseIrradianceCubemapSize)
+				if (DiffuseConvolutionSource == NULL && MipSize <= GDiffuseIrradianceCubemapSize)
 				{
 					DiffuseConvolutionSourceMip = MipIndex;
 					DiffuseConvolutionSource = &EffectiveRT;

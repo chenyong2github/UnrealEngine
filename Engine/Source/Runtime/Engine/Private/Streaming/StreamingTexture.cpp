@@ -23,7 +23,10 @@ FStreamingRenderAsset::FStreamingRenderAsset(
 	UpdateStaticData(Settings);
 	UpdateDynamicData(NumStreamedMips, NumLODGroups, Settings, false);
 
-	InstanceRemovedTimestamp = FApp::GetCurrentTime();
+	// In the editor, some paths can recreate the FStreamingRenderAsset, which could potentiallly trigger the unkown ref heuristic.
+	// To prevent this, we consider that the asset bindings where reset when creating the FStreamingRenderAsset.
+	// In game, we set it to FLT_MAX so that unkown ref heurisitic can kick in immeditaly (otherwise it incurs a 5 sec penalty on async loading)
+	InstanceRemovedTimestamp = GIsEditor ? FApp::GetCurrentTime() : -FLT_MAX;
 	DynamicBoostFactor = 1.f;
 
 	bHasUpdatePending = InRenderAsset && InRenderAsset->bHasStreamingUpdatePending;

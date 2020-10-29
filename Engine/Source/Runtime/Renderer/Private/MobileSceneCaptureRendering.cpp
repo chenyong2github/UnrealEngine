@@ -219,6 +219,7 @@ static void CopyCaptureToTarget(
 	FIntPoint SourceTexSize = SourceTextureRHI->GetSizeXY();
 	
 	{
+		RHICmdList.Transition(FRHITransitionInfo(Target->GetRenderTargetTexture(), ERHIAccess::Unknown,ERHIAccess::RTV));
 		FRHIRenderPassInfo RPInfo(Target->GetRenderTargetTexture(), MakeRenderTargetActions(RTLoadAction, ERenderTargetStoreAction::EStore));
 		RHICmdList.BeginRenderPass(RPInfo, TEXT("CaptureToTarget"));
 		RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);

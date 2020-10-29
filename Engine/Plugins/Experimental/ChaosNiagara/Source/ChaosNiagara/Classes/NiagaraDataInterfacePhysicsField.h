@@ -26,6 +26,9 @@ struct FNDIPhysicsFieldData
 
 	/** Field system commands for cpu */
 	TArray<FFieldSystemCommand>	FieldCommands;
+
+	/** Time in seconds*/
+	float TimeSeconds = 0.0;
 };
 
 /** Data Interface for the strand base */

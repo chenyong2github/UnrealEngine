@@ -1418,6 +1418,15 @@ void UNiagaraComponent::OnRegister()
 		SavedAutoAttachRelativeRotation = GetRelativeRotation();
 		SavedAutoAttachRelativeScale3D = GetRelativeScale3D();
 	}
+
+#if WITH_EDITOR
+	if (Asset && !AssetExposedParametersChangedHandle.IsValid())
+	{
+		AssetExposedParametersChangedHandle = Asset->GetExposedParameters().AddOnChangedHandler(
+			FNiagaraParameterStore::FOnChanged::FDelegate::CreateUObject(this, &UNiagaraComponent::AssetExposedParametersChanged));
+	}
+#endif
+
 	Super::OnRegister();
 }
 
@@ -1788,7 +1797,7 @@ void UNiagaraComponent::UpdateEmitterMaterials(bool bForceUpdateEmitterMaterials
 								// Create a new MID
 								if ( bCreateMID )
 								{
-									UE_LOG(LogNiagara, Log, TEXT("Create Dynamic Material for component %s"), *GetPathName());
+									//UE_LOG(LogNiagara, Log, TEXT("Create Dynamic Material for component %s"), *GetPathName());
 									ExistingMaterial = UMaterialInstanceDynamic::Create(ExistingMaterial, this);
 									FNiagaraMaterialOverride Override;
 									Override.Material = ExistingMaterial;
@@ -1876,10 +1885,7 @@ void UNiagaraComponent::GetUsedMaterials(TArray<UMaterialInterface*>& OutMateria
 void UNiagaraComponent::SetComponentTickEnabled(bool bEnabled)
 {
 	Super::SetComponentTickEnabled(bEnabled);
-	if (SystemInstance.IsValid())
-	{
-		SystemInstance->UpdatePrereqs();
-	}
+
 }
 
 void UNiagaraComponent::OnAttachmentChanged()
@@ -1891,28 +1897,19 @@ void UNiagaraComponent::OnAttachmentChanged()
 	// 	}
 
 	Super::OnAttachmentChanged();
-	if ( SystemInstance.IsValid() )
-	{
-		SystemInstance->UpdatePrereqs();
-	}
+
 }
 
 void UNiagaraComponent::OnChildAttached(USceneComponent* ChildComponent)
 {
 	Super::OnChildAttached(ChildComponent);
-	if (SystemInstance.IsValid())
-	{
-		SystemInstance->UpdatePrereqs();
-	}
+
 }
 
 void UNiagaraComponent::OnChildDetached(USceneComponent* ChildComponent)
 {
 	Super::OnChildDetached(ChildComponent);
-	if (SystemInstance.IsValid())
-	{
-		SystemInstance->UpdatePrereqs();
-	}
+
 }
 
 FNiagaraSystemInstance* UNiagaraComponent::GetSystemInstance() const
@@ -2342,9 +2339,6 @@ void UNiagaraComponent::PostLoad()
 		}
 #endif
 		SynchronizeWithSourceSystem();
-
-		AssetExposedParametersChangedHandle = Asset->GetExposedParameters().AddOnChangedHandler(
-			FNiagaraParameterStore::FOnChanged::FDelegate::CreateUObject(this, &UNiagaraComponent::AssetExposedParametersChanged));
 	}
 #endif
 }

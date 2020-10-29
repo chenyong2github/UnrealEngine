@@ -1789,12 +1789,15 @@ public:
 
 	FRHITexture* FoveationTexture;
 
+	uint8 MultiViewCount;
+
 	FRHISetRenderTargetsInfo() :
 		NumColorRenderTargets(0),
 		bClearColor(false),
 		bHasResolveAttachments(false),
 		bClearDepth(false),
-		FoveationTexture(nullptr)
+		FoveationTexture(nullptr),
+		MultiViewCount(0)
 	{}
 
 	FRHISetRenderTargetsInfo(int32 InNumColorRenderTargets, const FRHIRenderTargetView* InColorRenderTargets, const FRHIDepthRenderTargetView& InDepthStencilRenderTarget) :
@@ -1849,6 +1852,7 @@ public:
 			bool bClearColor;
 			bool bHasResolveAttachments;
 			FRHIUnorderedAccessView* UnorderedAccessView[MaxSimultaneousUAVs];
+			uint8 MultiViewCount;
 
 			void Set(const FRHISetRenderTargetsInfo& RTInfo)
 			{
@@ -1875,7 +1879,7 @@ public:
 				bClearStencil = RTInfo.bClearStencil;
 				bClearColor = RTInfo.bClearColor;
 				bHasResolveAttachments = RTInfo.bHasResolveAttachments;
-
+				MultiViewCount = RTInfo.MultiViewCount;
 			}
 		};
 
@@ -2113,7 +2117,7 @@ public:
 		, SubpassIndex(0)
 		, ConservativeRasterization(EConservativeRasterization::Disabled)
 		, bDepthBounds(false)
-		, bMultiView(false)
+		, MultiViewCount(0)
 		, bHasFragmentDensityAttachment(false)
 		, ShadingRate(EVRSShadingRate::VRSSR_1x1)
 		, Flags(0)
@@ -2148,7 +2152,7 @@ public:
 		EConservativeRasterization	InConservativeRasterization,
 		uint16						InFlags,
 		bool						bInDepthBounds,
-		bool						bInMultiView,
+		uint8						InMultiViewCount,
 		bool						bInHasFragmentDensityAttachment,
 		EVRSShadingRate				InShadingRate)
 		: BoundShaderState(InBoundShaderState)
@@ -2172,7 +2176,7 @@ public:
 		, SubpassIndex(InSubpassIndex)
 		, ConservativeRasterization(EConservativeRasterization::Disabled)
 		, bDepthBounds(bInDepthBounds)
-		, bMultiView(bInMultiView)
+		, MultiViewCount(InMultiViewCount)
 		, bHasFragmentDensityAttachment(bInHasFragmentDensityAttachment)
 		, ShadingRate(InShadingRate)
 		, Flags(InFlags)
@@ -2197,8 +2201,8 @@ public:
 			ImmutableSamplerState != rhs.ImmutableSamplerState ||
 			PrimitiveType != rhs.PrimitiveType ||
 			bDepthBounds != rhs.bDepthBounds ||
+			MultiViewCount != rhs.MultiViewCount ||
 			ShadingRate != rhs.ShadingRate ||
-			bMultiView != rhs.bMultiView ||
 			bHasFragmentDensityAttachment != rhs.bHasFragmentDensityAttachment ||
 			RenderTargetsEnabled != rhs.RenderTargetsEnabled ||
 			RenderTargetFormats != rhs.RenderTargetFormats || 
@@ -2262,7 +2266,7 @@ public:
 	uint8							SubpassIndex;
 	EConservativeRasterization		ConservativeRasterization;
 	bool							bDepthBounds;
-	bool							bMultiView;
+	uint8							MultiViewCount;
 	bool							bHasFragmentDensityAttachment;
 	EVRSShadingRate					ShadingRate;
 	
@@ -2592,8 +2596,8 @@ struct FRHIRenderPassInfo
 	// Some RHIs need to know if this render pass is going to be reading and writing to the same texture in the case of generating mip maps for partial resource transitions
 	bool bGeneratingMips = false;
 
-	// If this render pass should be multiview
-	bool bMultiviewPass = false;
+	// if this renderpass should be multiview, and if so how many views are required
+	uint8 MultiViewCount = 0;
 
 	// Hint for some RHI's that renderpass will have specific sub-passes 
 	ESubpassHint SubpassHint = ESubpassHint::None;

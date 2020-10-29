@@ -2861,6 +2861,8 @@ int32 FEngineLoop::PreInitPostStartupScreen(const TCHAR* CmdLine)
 
 #if WITH_ENGINE
 	{
+		TSharedPtr<IInstallBundleManager> BundleManager = IInstallBundleManager::GetPlatformInstallBundleManager();
+
 #if !UE_SERVER// && !UE_EDITOR
 		if (!IsRunningDedicatedServer() && !IsRunningCommandlet())
 		{
@@ -2884,7 +2886,6 @@ int32 FEngineLoop::PreInitPostStartupScreen(const TCHAR* CmdLine)
 				}
 			}
 
-			IInstallBundleManager* BundleManager = IInstallBundleManager::GetPlatformInstallBundleManager();
 			if (BundleManager != nullptr && !BundleManager->IsNullInterface())
 			{
 				IInstallBundleManager::InstallBundleCompleteDelegate.AddStatic(
@@ -3004,7 +3005,6 @@ int32 FEngineLoop::PreInitPostStartupScreen(const TCHAR* CmdLine)
 
 		//Now that our EarlyStartupScreen is finished, lets take the necessary steps to mount paks, apply .ini cvars, and open the shader libraries if we installed content we expect to handle
 		//If using a bundle manager, assume its handling all this stuff and that we don't have to do it.
-		IInstallBundleManager* BundleManager = IInstallBundleManager::GetPlatformInstallBundleManager();
 		if (BundleManager == nullptr || BundleManager->IsNullInterface())
 		{
 			// Mount Paks that were installed during EarlyStartupScreen
@@ -4136,7 +4136,7 @@ int32 FEngineLoop::Init()
 #endif
 	
 #if UE_EXTERNAL_PROFILING_ENABLED
-	FExternalProfiler* ActiveProfiler = FActiveExternalProfilerBase::GetActiveProfiler();
+	FExternalProfiler* ActiveProfiler = FActiveExternalProfilerBase::InitActiveProfiler();
 	if (ActiveProfiler)
 	{
 		ActiveProfiler->Register();
@@ -4641,8 +4641,8 @@ static inline void EndFrameRenderThread(FRHICommandListImmediate& RHICmdList, ui
 
 void FEngineLoop::Tick()
 {
-    // make sure to catch any FMemStack uses outside of UWorld::Tick
-    FMemMark MemStackMark(FMemStack::Get());
+	// make sure to catch any FMemStack uses outside of UWorld::Tick
+	FMemMark MemStackMark(FMemStack::Get());
 
 #if !UE_BUILD_SHIPPING && !UE_BUILD_TEST && MALLOC_GT_HOOKS
 	FScopedSampleMallocChurn ChurnTracker;
@@ -4651,6 +4651,8 @@ void FEngineLoop::Tick()
 	LLM(FLowLevelMemTracker::Get().UpdateStatsPerFrame());
 
 	LLM_SCOPE(ELLMTag::EngineMisc);
+
+	BeginExitIfRequested();
 
 	// Send a heartbeat for the diagnostics thread
 	FThreadHeartBeat::Get().HeartBeat(true);

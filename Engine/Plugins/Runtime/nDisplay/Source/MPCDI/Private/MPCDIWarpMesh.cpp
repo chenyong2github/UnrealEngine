@@ -3,6 +3,7 @@
 #include "MPCDIWarpMesh.h"
 #include "MPCDIData.h"
 #include "MPCDIWarpHelpers.h"
+#include "MPCDILog.h"
 
 #include "Shader.h"
 #include "GlobalShader.h"
@@ -213,7 +214,20 @@ void FMPCDIWarpMesh::BuildAABBox()
 
 bool FMPCDIWarpMesh::SetStaticMeshWarp(UStaticMeshComponent* InMeshComponent, USceneComponent* InOriginComponent)
 {
+	// Inside the BeginBuildFrustum() function, we always check for changes to the mesh components IsWarpMeshChanged(), and update the corresponding resources and data.
+	// No assignment needed when changing a mesh component
+	UStaticMeshComponent* MeshComponent = MeshComponentRef.GetOrFindWarpMeshComponent();
+	USceneComponent* OriginComponent = OriginComponentRef.GetOrFindSceneComponent();
+	if (MeshComponent == InMeshComponent && OriginComponent == InOriginComponent)
+	{
+		// Same values, use current warpmesh
+		return true;
+	}
+
+	// Reset previous one
 	ReleaseRHIResources();
+	MeshComponentRef.ResetMeshComponent();
+	OriginComponentRef.ResetSceneComponent();
 
 	FScopeLock lock(&MeshDataGuard);
 
@@ -225,6 +239,9 @@ bool FMPCDIWarpMesh::SetStaticMeshWarp(UStaticMeshComponent* InMeshComponent, US
 	// Support runtime dynamic changes (new mesh to exist viewport)
 	bIsDirtyFrustumData = true;
 	bIsValidFrustumData = false;
+	FString MeshName = "";
+	InMeshComponent->GetName(MeshName);
+	UE_LOG(LogMPCDI, Log, TEXT("Warp mesh [%s] assigned."), *MeshName);
 
 	return true;
 }
@@ -360,17 +377,23 @@ UStaticMeshComponent* FDisplayClusterWarpMeshComponentRef::GetOrFindWarpMeshComp
 	return nullptr;
 }
 
-void FDisplayClusterWarpMeshComponentRef::ResetWarpMeshComponent()
+void FDisplayClusterWarpMeshComponentRef::ResetWarpMeshChangedFlag()
 {
 	bIsStaticMeshChanged = false;
 	StaticMeshName = FName();
+}
+
+void FDisplayClusterWarpMeshComponentRef::ResetMeshComponent()
+{
+	ResetWarpMeshChangedFlag();
+	ResetSceneComponent();
 }
 
 bool FDisplayClusterWarpMeshComponentRef::SetWarpMeshComponent(UStaticMeshComponent* StaticMeshComponent)
 {
 	FScopeLock lock(&DataGuard);
 
-	ResetWarpMeshComponent();
+	ResetWarpMeshChangedFlag();
 	if(SetSceneComponent(StaticMeshComponent))
 	{ 
 		// Store the name of the current mesh geometry

@@ -21,22 +21,17 @@ static TAutoConsoleVariable<int32> CVarVolumetricRenderTarget(
 
 static TAutoConsoleVariable<float> CVarVolumetricRenderTargetUvNoiseScale(
 	TEXT("r.VolumetricRenderTarget.UvNoiseScale"), 0.5f,
-	TEXT(""),
+	TEXT("Used when r.VolumetricRenderTarget.UpsamplingMode is in a mode using jitter - this value scales the amount of jitter."),
 	ECVF_SetByScalability);
 
 static TAutoConsoleVariable<int32> CVarVolumetricRenderTargetMode(
 	TEXT("r.VolumetricRenderTarget.Mode"), 0,
-	TEXT("0: trace quarter resolution + reconstruct at half resolution + upsample, 1: trace half res + reconstruct full res + upsample, 2: trace at quarter resolution + reconstruct full resolution"),
+	TEXT("[0] trace quarter resolution + reconstruct at half resolution + upsample [1] trace half res + reconstruct full res + upsample [2] trace at quarter resolution + reconstruct full resolution (cannot intersect with opaque meshes and forces UpsamplingMode=2)"),
 	ECVF_SetByScalability);
 
 static TAutoConsoleVariable<int32> CVarVolumetricRenderTargetUpsamplingMode(
 	TEXT("r.VolumetricRenderTarget.UpsamplingMode"), 4,
-	TEXT("0: bilinear, 1: bilinear + jitter, 2: nearest + jitter + depth test, 3: bilinear + jitter + keep closest, 4: bilaterial upsampling"),
-	ECVF_SetByScalability);
-
-static TAutoConsoleVariable<float> CVarVolumetricRenderTargetTemporalFactor(
-	TEXT("r.VolumetricRenderTarget.TemporalFactor"), 0.1f,
-	TEXT("This factor control how much the new frame will contribute to the current render, after reprojection constaints."),
+	TEXT("Used in compositing volumetric RT over the scene. [0] bilinear [1] bilinear + jitter [2] nearest + depth test [3] bilinear + jitter + keep closest [4] bilaterial upsampling"),
 	ECVF_SetByScalability);
 
 
@@ -144,14 +139,12 @@ void FVolumetricRenderTargetViewStateData::Initialise(
 	FIntPoint& ViewRectResolutionIn,
 	float InUvNoiseScale,
 	int32 InMode,
-	int32 InUpsamplingMode,
-	float InTemporalFactor)
+	int32 InUpsamplingMode)
 {
 	// Update internal settings
-	TemporalFactor = FMath::Clamp(InTemporalFactor, 0.0f, 1.0f);
-	UpsamplingMode = FMath::Clamp(InUpsamplingMode, 0, 4);
-	Mode = FMath::Clamp(InMode, 0, 2);
 	UvNoiseScale = InUvNoiseScale;
+	Mode = FMath::Clamp(InMode, 0, 2);
+	UpsamplingMode = Mode == 2 ? 2 : FMath::Clamp(InUpsamplingMode, 0, 4); // if we are using mode 2 then we cannot intersect with depth and upsampling should be 2 (simple on/off intersection)
 
 	if (bFirstTimeUsed)
 	{
@@ -353,8 +346,7 @@ void FSceneRenderer::InitVolumetricRenderTargetForViews(FRDGBuilder& GraphBuilde
 			ViewRect,
 			CVarVolumetricRenderTargetUvNoiseScale.GetValueOnAnyThread(), 
 			CVarVolumetricRenderTargetMode.GetValueOnRenderThread(),
-			CVarVolumetricRenderTargetUpsamplingMode.GetValueOnAnyThread(),
-			CVarVolumetricRenderTargetTemporalFactor.GetValueOnAnyThread());
+			CVarVolumetricRenderTargetUpsamplingMode.GetValueOnAnyThread());
 
 		FViewUniformShaderParameters ViewVolumetricCloudRTParameters = *ViewInfo.CachedViewUniformShaderParameters;
 		{
@@ -460,6 +452,7 @@ void FSceneRenderer::ReconstructVolumetricRenderTarget(FRDGBuilder& GraphBuilder
 		{
 			continue;
 		}
+
 		FVolumetricRenderTargetViewStateData& VolumetricCloudRT = ViewInfo.ViewState->VolumetricCloudRenderTarget;
 
 		FRDGTextureRef DstVolumetric = VolumetricCloudRT.GetOrCreateDstVolumetricReconstructRT(GraphBuilder);
@@ -491,7 +484,6 @@ void FSceneRenderer::ReconstructVolumetricRenderTarget(FRDGBuilder& GraphBuilder
 
 		GetTextureSafeUvCoordBound(SrcTracingVolumetric, PassParameters->TracingVolumetricTextureValidCoordRect, PassParameters->TracingVolumetricTextureValidUvRect);
 		GetTextureSafeUvCoordBound(PreviousFrameVolumetricTexture, PassParameters->PreviousFrameVolumetricTextureValidCoordRect, PassParameters->PreviousFrameVolumetricTextureValidUvRect);
-		PassParameters->TemporalFactor = FMath::Clamp(CVarVolumetricRenderTargetTemporalFactor.GetValueOnAnyThread(), 0.0f, 1.0f);
 
 		FIntVector DstVolumetricSize = DstVolumetric->Desc.GetSize();
 		FVector2D DstVolumetricTextureSize = FVector2D(float(DstVolumetricSize.X), float(DstVolumetricSize.Y));

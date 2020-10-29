@@ -98,11 +98,13 @@ namespace Chaos
 		static constexpr float DefaultCollisionMarginFraction = 0.01f;
 		static constexpr float DefaultCollisionMarginMax = 2.0f;
 		static constexpr float DefaultCollisionCullDistance = 5.0f;
+		static constexpr int32 DefaultNumJointPairIterations = 3;
+		static constexpr int32 DefaultNumJointPushOutPairIterations = 0;
 
 		// @todo(chaos): Required by clustering - clean up
 		using Base::ApplyPushOut;
 
-		CHAOS_API TPBDRigidsEvolutionGBF(TPBDRigidsSOAs<FReal, 3>& InParticles, THandleArray<FChaosPhysicsMaterial>& SolverPhysicsMaterials, bool InIsSingleThreaded = false);
+		CHAOS_API TPBDRigidsEvolutionGBF(TPBDRigidsSOAs<FReal, 3>& InParticles, THandleArray<FChaosPhysicsMaterial>& SolverPhysicsMaterials, const TArray<ISimCallbackObject*>* InCollisionModifiers = nullptr, bool InIsSingleThreaded = false);
 		CHAOS_API ~TPBDRigidsEvolutionGBF() {}
 
 		FORCEINLINE void SetPostIntegrateCallback(const FPBDRigidsEvolutionCallback& Cb)
@@ -113,11 +115,6 @@ namespace Chaos
 		FORCEINLINE void SetPostDetectCollisionsCallback(const FPBDRigidsEvolutionCallback& Cb)
 		{
 			PostDetectCollisionsCallback = Cb;
-		}
-
-		FORCEINLINE void SetCollisionModifierCallback(const FCollisionModifierCallback& Cb)
-		{
-			CollisionModifierCallback = Cb;
 		}
 
 		FORCEINLINE void SetPreApplyCallback(const FPBDRigidsEvolutionCallback& Cb)
@@ -268,12 +265,12 @@ namespace Chaos
 
 		FPBDRigidsEvolutionCallback PostIntegrateCallback;
 		FPBDRigidsEvolutionCallback PostDetectCollisionsCallback;
-		FCollisionModifierCallback CollisionModifierCallback;
 		FPBDRigidsEvolutionCallback PreApplyCallback;
 		FPBDRigidsEvolutionIslandCallback PostApplyCallback;
 		FPBDRigidsEvolutionIslandCallback PostApplyPushOutCallback;
 		FPBDRigidsEvolutionInternalHandleCallback InternalParticleInitilization;
 		FEvolutionResimCache* CurrentStepResimCacheImp;
+		const TArray<ISimCallbackObject*>* CollisionModifiers;
 	};
 
 #define EVOLUTION_TRAIT(Trait) extern template class CHAOS_TEMPLATE_API TPBDRigidsEvolutionGBF<Trait>;

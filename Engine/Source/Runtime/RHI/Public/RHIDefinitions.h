@@ -54,14 +54,14 @@ enum EShaderPlatform
 	SP_OPENGL_PCES2_REMOVED			= 3,	// SUPPORT FOR THIS FEATURE LEVEL HAS BEEN ENTIRELY REMOVED.
 	SP_XBOXONE_D3D12				= 4,
 	SP_PCD3D_SM4_REMOVED			= 5,	// SUPPORT FOR THIS FEATURE LEVEL HAS BEEN ENTIRELY REMOVED.
-	SP_OPENGL_SM5					= 6,
+	SP_OPENGL_SM5_REMOVED			= 6,	// SUPPORT FOR THIS FEATURE LEVEL HAS BEEN ENTIRELY REMOVED.
 	SP_PCD3D_ES2_REMOVED			= 7,	// SUPPORT FOR THIS FEATURE LEVEL HAS BEEN ENTIRELY REMOVED.
 	SP_OPENGL_ES2_ANDROID_REMOVED	= 8,
 	SP_OPENGL_ES2_WEBGL_REMOVED		= 9, 
 	SP_OPENGL_ES2_IOS_REMOVED		= 10,	// SUPPORT FOR THIS FEATURE LEVEL HAS BEEN ENTIRELY REMOVED.
 	SP_METAL						= 11,
 	SP_METAL_MRT					= 12,
-	SP_OPENGL_ES31_EXT				= 13,
+	SP_OPENGL_ES31_EXT_REMOVED		= 13,	// SUPPORT FOR THIS FEATURE LEVEL HAS BEEN ENTIRELY REMOVED.
 	/** Used when running in Feature Level ES3_1 in D3D11. */
 	SP_PCD3D_ES3_1					= 14,
 	/** Used when running in Feature Level ES3_1 in OpenGL. */
@@ -328,7 +328,6 @@ class RHI_API FGenericDataDrivenShaderPlatformInfo
 	uint32 bSupports4ComponentUAVReadWrite: 1;
 	uint32 bSupportsRenderTargetWriteMask: 1;
 	uint32 bSupportsRayTracing: 1;
-	uint32 bSupportsRayTracingMissShaderBindings : 1; // Whether resources could be bound for miss shaders
 	uint32 bSupportsRayTracingIndirectInstanceData : 1; // Whether instance transforms can be copied from the GPU to the TLAS instances buffer
 	uint32 bSupportsGPUSkinCache: 1;
 	uint32 bSupportsGPUScene : 1;
@@ -496,11 +495,6 @@ public:
 	static FORCEINLINE_DEBUGGABLE const bool GetSupportsRayTracing(const FStaticShaderPlatform Platform)
 	{
 		return Infos[Platform].bSupportsRayTracing;
-	}
-
-	static FORCEINLINE_DEBUGGABLE const bool GetSupportsRayTracingMissShaderBindings(const FStaticShaderPlatform Platform)
-	{
-		return Infos[Platform].bSupportsRayTracingMissShaderBindings;
 	}
 
 	static FORCEINLINE_DEBUGGABLE const bool GetSupportsRayTracingIndirectInstanceData(const FStaticShaderPlatform Platform)
@@ -1505,7 +1499,7 @@ enum class EAsyncComputeBudget
 inline bool IsPCPlatform(const FStaticShaderPlatform Platform)
 {
 	return Platform == SP_PCD3D_SM5 || Platform == SP_PCD3D_ES3_1 ||
-		Platform == SP_OPENGL_SM5 || Platform == SP_OPENGL_PCES3_1 ||
+		Platform == SP_OPENGL_PCES3_1 ||
 		Platform == SP_METAL_SM5_NOTESS || Platform == SP_METAL_SM5 ||
 		Platform == SP_VULKAN_PCES3_1 || Platform == SP_VULKAN_SM5 || Platform == SP_METAL_MACES3_1 || Platform == SP_METAL_MRT_MAC 
 		|| FDataDrivenShaderPlatformInfo::GetIsPC(Platform);
@@ -1525,8 +1519,7 @@ inline bool IsMobilePlatform(const EShaderPlatform Platform)
 
 inline bool IsOpenGLPlatform(const FStaticShaderPlatform Platform)
 {
-	return Platform == SP_OPENGL_SM5 || Platform == SP_OPENGL_PCES3_1
-		|| Platform == SP_OPENGL_ES31_EXT
+	return Platform == SP_OPENGL_PCES3_1
 		|| Platform == SP_OPENGL_ES3_1_ANDROID
 		|| FDataDrivenShaderPlatformInfo::GetIsLanguageOpenGL(Platform);
 }
@@ -1627,7 +1620,7 @@ inline bool IsHlslccShaderPlatform(const FStaticShaderPlatform Platform)
 
 inline bool IsDeprecatedShaderPlatform(const FStaticShaderPlatform ShaderPlatform)
 {
-	return ShaderPlatform == SP_OPENGL_SM5 || ShaderPlatform == SP_PCD3D_SM4_REMOVED || ShaderPlatform == SP_OPENGL_ES2_IOS_REMOVED ||
+	return ShaderPlatform == SP_OPENGL_SM5_REMOVED || ShaderPlatform == SP_PCD3D_SM4_REMOVED || ShaderPlatform == SP_OPENGL_ES2_IOS_REMOVED ||
 		ShaderPlatform == SP_PCD3D_ES2_REMOVED || ShaderPlatform == SP_METAL_MACES2_REMOVED || ShaderPlatform == SP_OPENGL_PCES2_REMOVED ||
 		ShaderPlatform == SP_OPENGL_ES2_ANDROID_REMOVED || ShaderPlatform == SP_OPENGL_ES2_WEBGL_REMOVED ||
 		ShaderPlatform == SP_VULKAN_SM4_REMOVED || ShaderPlatform == SP_OPENGL_SM4_REMOVED;
@@ -1638,10 +1631,8 @@ inline FStaticFeatureLevel GetMaxSupportedFeatureLevel(const FStaticShaderPlatfo
 	switch (InShaderPlatform)
 	{
 	case SP_PCD3D_SM5:
-	case SP_OPENGL_SM5:
 	case SP_PS4:
 	case SP_XBOXONE_D3D12:
-	case SP_OPENGL_ES31_EXT:
 	case SP_METAL_SM5:
 	case SP_METAL_MRT:
 	case SP_METAL_MRT_TVOS:

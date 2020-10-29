@@ -159,7 +159,7 @@ void FLevelSequenceEditorToolkit::Initialize(const EToolkitMode::Type Mode, cons
 		);
 
 	LevelSequence = InLevelSequence;
-	PlaybackContext = MakeShared<FLevelSequencePlaybackContext>();
+	PlaybackContext = MakeShared<FLevelSequencePlaybackContext>(InLevelSequence);
 
 	const bool bCreateDefaultStandaloneMenu = true;
 	const bool bCreateDefaultToolbar = false;
@@ -177,7 +177,8 @@ void FLevelSequenceEditorToolkit::Initialize(const EToolkitMode::Type Mode, cons
 		SequencerInitParams.SpawnRegister = SpawnRegister;
 
 		SequencerInitParams.EventContexts.Bind(PlaybackContext.ToSharedRef(), &FLevelSequencePlaybackContext::GetEventContexts);
-		SequencerInitParams.PlaybackContext.Bind(PlaybackContext.ToSharedRef(), &FLevelSequencePlaybackContext::GetAsObject);
+		SequencerInitParams.PlaybackContext.Bind(PlaybackContext.ToSharedRef(), &FLevelSequencePlaybackContext::GetPlaybackContextAsObject);
+		SequencerInitParams.PlaybackClient.Bind(PlaybackContext.ToSharedRef(), &FLevelSequencePlaybackContext::GetPlaybackClientAsInterface);
 
 		SequencerInitParams.ViewParams.UniqueName = "LevelSequenceEditor";
 		SequencerInitParams.ViewParams.ScrubberStyle = ESequencerScrubberStyle::FrameBlock;
@@ -230,7 +231,7 @@ void FLevelSequenceEditorToolkit::Initialize(const EToolkitMode::Type Mode, cons
 	FLevelSequenceEditorToolkit::OnOpened().Broadcast(*this);
 
 	{
-		UWorld* World = PlaybackContext->Get();
+		UWorld* World = PlaybackContext->GetPlaybackContext();
 		UVREditorMode* VRMode = Cast<UVREditorMode>( GEditor->GetEditorWorldExtensionsManager()->GetEditorWorldExtensions( World )->FindExtension( UVREditorMode::StaticClass() ) );
 		if (VRMode != nullptr)
 		{
@@ -606,7 +607,7 @@ void FLevelSequenceEditorToolkit::HandleActorAddedToSequencer(AActor* Actor, con
 
 void FLevelSequenceEditorToolkit::HandleVREditorModeExit()
 {
-	UWorld* World = PlaybackContext->Get();
+	UWorld* World = PlaybackContext->GetPlaybackContext();
 	UVREditorMode* VRMode = CastChecked<UVREditorMode>( GEditor->GetEditorWorldExtensionsManager()->GetEditorWorldExtensions( World )->FindExtension( UVREditorMode::StaticClass() ) );
 
 	// Reset sequencer settings
@@ -894,7 +895,7 @@ void FLevelSequenceEditorToolkit::BindAnimationInstance(USkeletalMeshComponent* 
 
 bool FLevelSequenceEditorToolkit::OnRequestClose()
 {
-	UWorld* World = PlaybackContext->Get();
+	UWorld* World = PlaybackContext->GetPlaybackContext();
 	UVREditorMode* VRMode = Cast<UVREditorMode>(GEditor->GetEditorWorldExtensionsManager()->GetEditorWorldExtensions(World)->FindExtension(UVREditorMode::StaticClass()));
 	if (VRMode != nullptr)
 	{

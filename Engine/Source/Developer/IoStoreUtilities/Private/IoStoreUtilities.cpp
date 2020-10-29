@@ -4218,6 +4218,11 @@ int32 CreateContentPatch(const FIoStoreArguments& Arguments, const FIoStoreWrite
 		EIoContainerFlags TargetContainerFlags = TargetReader->GetContainerFlags();
 
 		FIoContainerSettings ContainerSettings;
+		if (Arguments.bCreateDirectoryIndex)
+		{
+			ContainerSettings.ContainerFlags |= EIoContainerFlags::Indexed;
+		}
+
 		ContainerSettings.ContainerId = TargetReader->GetContainerId();
 		if (Arguments.bSign || EnumHasAnyFlags(TargetContainerFlags, EIoContainerFlags::Signed))
 		{
@@ -4279,26 +4284,26 @@ using DirectoryIndexVisitorFunction = TFunctionRef<bool(FString, const uint32)>;
 
 bool IterateDirectoryIndex(FIoDirectoryIndexHandle Directory, const FString& Path, const FIoDirectoryIndexReader& Reader, DirectoryIndexVisitorFunction Visit)
 {
+	FIoDirectoryIndexHandle File = Reader.GetFile(Directory);
+	while (File.IsValid())
+	{
+		const uint32 TocEntryIndex = Reader.GetFileData(File);
+		FStringView FileName = Reader.GetFileName(File);
+		FString FilePath = Reader.GetMountPoint() / Path / FString(FileName);
+
+		if (!Visit(MoveTemp(FilePath), TocEntryIndex))
+		{
+			return false;
+		}
+
+		File = Reader.GetNextFile(File);
+	}
+
 	FIoDirectoryIndexHandle ChildDirectory = Reader.GetChildDirectory(Directory);
 	while (ChildDirectory.IsValid())
 	{
 		FStringView DirectoryName = Reader.GetDirectoryName(ChildDirectory);
 		FString ChildDirectoryPath = Path / FString(DirectoryName);
-
-		FIoDirectoryIndexHandle File = Reader.GetFile(ChildDirectory);
-		while (File.IsValid())
-		{
-			const uint32 TocEntryIndex = Reader.GetFileData(File);
-			FStringView FileName = Reader.GetFileName(File);
-			FString FilePath = Reader.GetMountPoint() / ChildDirectoryPath / FString(FileName);
-
-			if (!Visit(MoveTemp(FilePath), TocEntryIndex))
-			{
-				return false;
-			}
-
-			File = Reader.GetNextFile(File);
-		}
 
 		if (!IterateDirectoryIndex(ChildDirectory, ChildDirectoryPath, Reader, Visit))
 		{
@@ -4345,7 +4350,7 @@ int32 ListContainer(
 	TArray<FString> CsvLines;
 	TArray<TPair<uint32, FString>> ContainerCsvLines;
 
-	CsvLines.Add(TEXT("PackageId, PackageName, Filename, ContainerName, Offset, Size, Hash"));
+	CsvLines.Add(TEXT("PackageId, PackageName, Filename, ContainerName, Offset, Size, CompressedSize, Hash"));
 
 	for (const FString& ContainerFilePath : ContainerFilePaths)
 	{
@@ -4353,6 +4358,12 @@ int32 ListContainer(
 		if (!Reader.IsValid())
 		{
 			UE_LOG(LogIoStore, Warning, TEXT("Failed to read container '%s'"), *ContainerFilePath);
+			continue;
+		}
+
+		if (!EnumHasAnyFlags(Reader->GetContainerFlags(), EIoContainerFlags::Indexed))
+		{
+			UE_LOG(LogIoStore, Warning, TEXT("Cannot list container '%s' due to missing directory index"), *ContainerFilePath);
 			continue;
 		}
 
@@ -4382,24 +4393,26 @@ int32 ListContainer(
 			{
 				ContainerCsvLines.Emplace(TPair<uint32, FString>(
 					TocEntryIndex,
-					FString::Printf(TEXT("0x%llX, %s, %s, %s, %lld, %lld, 0x%s"),
+					FString::Printf(TEXT("0x%llX, %s, %s, %s, %lld, %lld, %lld, 0x%s"),
 					PackageId.ValueForDebugging(),
 					*PackageName,
 					*Filename,
 					*ContainerName,
 					ChunkInfo.ValueOrDie().Offset,
 					ChunkInfo.ValueOrDie().Size,
+					ChunkInfo.ValueOrDie().CompressedSize,
 					*ChunkInfo.ValueOrDie().Hash.ToString())));
 			}
 			else
 			{
 				ContainerCsvLines.Emplace(TPair<uint32, FString>(
 					TocEntryIndex,
-					FString::Printf(TEXT("0x%llX, %s, %s, %s, %lld, %lld, %s"),
+					FString::Printf(TEXT("0x%llX, %s, %s, %s, %lld, %lld, %lld, %s"),
 					PackageId.ValueForDebugging(),
 					*PackageName,
 					*Filename,
 					*ContainerName,
+					0,
 					0,
 					0,
 					TEXT("<NotFound>"))));
@@ -4419,8 +4432,15 @@ int32 ListContainer(
 		}
 	}
 
-	UE_LOG(LogIoStore, Display, TEXT("Saving CSV file '%s'"), *CsvPath);
-	FFileHelper::SaveStringArrayToFile(CsvLines, *CsvPath);
+	if (CsvLines.Num())
+	{
+		UE_LOG(LogIoStore, Display, TEXT("Saving '%d' file entries to '%s'"), CsvLines.Num(), *CsvPath);
+		FFileHelper::SaveStringArrayToFile(CsvLines, *CsvPath);
+	}
+	else
+	{
+		UE_LOG(LogIoStore, Warning, TEXT("No file entries to save from '%s'"), *ContainerPathOrWildcard);
+	}
 
 	return 0;
 }
@@ -5203,25 +5223,29 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 
 	ParseSizeArgument(CmdLine, TEXT("-alignformemorymapping="), GeneralIoWriterSettings.MemoryMappingAlignment, DefaultMemoryMappingAlignment);
 	ParseSizeArgument(CmdLine, TEXT("-compressionblocksize="), GeneralIoWriterSettings.CompressionBlockSize, DefaultCompressionBlockSize);
-	bool bUseDefaultCompressionBlockAlignment = true;
-	if (ParseSizeArgument(CmdLine, TEXT("-blocksize="), GeneralIoWriterSettings.CompressionBlockAlignment))
+		
+	GeneralIoWriterSettings.CompressionBlockAlignment = DefaultCompressionBlockAlignment;
+	
+	uint64 BlockAlignment = 0;
+	if (ParseSizeArgument(CmdLine, TEXT("-blocksize="), BlockAlignment))
 	{
-		bUseDefaultCompressionBlockAlignment = false;
+		GeneralIoWriterSettings.CompressionBlockAlignment = BlockAlignment;
 	}
-
+	
 	uint64 PatchPaddingAlignment = 0;
-	if (ParseSizeArgument(CmdLine, TEXT("-patchpaddingalign"), PatchPaddingAlignment))
+	if (ParseSizeArgument(CmdLine, TEXT("-patchpaddingalign="), PatchPaddingAlignment))
 	{
-		bUseDefaultCompressionBlockAlignment = false;
-		if (!GeneralIoWriterSettings.CompressionBlockAlignment || PatchPaddingAlignment < GeneralIoWriterSettings.CompressionBlockAlignment)
+		if (PatchPaddingAlignment < GeneralIoWriterSettings.CompressionBlockAlignment)
 		{
 			GeneralIoWriterSettings.CompressionBlockAlignment = PatchPaddingAlignment;
 		}
 	}
-
-	if (bUseDefaultCompressionBlockAlignment)
+	
+	// Temporary, this command-line allows us to explicitly override the value otherwise shared between pak building and iostore
+	uint64 IOStorePatchPaddingAlignment = 0;
+	if (ParseSizeArgument(CmdLine, TEXT("-iostorepatchpaddingalign="), IOStorePatchPaddingAlignment))
 	{
-		GeneralIoWriterSettings.CompressionBlockAlignment = DefaultCompressionBlockAlignment;
+		GeneralIoWriterSettings.CompressionBlockAlignment = IOStorePatchPaddingAlignment;
 	}
 
 	UE_LOG(LogIoStore, Display, TEXT("Using memory mapping alignment '%ld'"), GeneralIoWriterSettings.MemoryMappingAlignment);
@@ -5452,9 +5476,13 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 			FParse::Value(FCommandLine::Get(), TEXT("DumpToFile="), OutPath);
 			return Describe(ContainerPathOrWildcard, Arguments.KeyChain, PackageFilterWildcard, OutPath);
 		}
-
-		UE_LOG(LogIoStore, Error, TEXT("Nothing to do!"));
-		return -1;
+		else
+		{
+			UE_LOG(LogIoStore, Display, TEXT("Usage:"));
+			UE_LOG(LogIoStore, Display, TEXT(" -List=</path/to/[container.utoc|*.utoc]> -CSV=<list.csv> [-CryptoKeys=</path/to/crypto.json>]"));
+			UE_LOG(LogIoStore, Display, TEXT(" -Describe=</path/to/global.utoc> [-PackageFilter=<PackageName>] [-DumpToFile=<describe.txt>] [-CryptoKeys=</path/to/crypto.json>]"));
+			return -1;
+		}
 	}
 
 	return 0;

@@ -40,7 +40,9 @@ export class OverriddenCommand extends FunctionalTest {
 		return Promise.all([
 			this.checkHeadRevision('Main', 'test.txt', 2),
 			this.checkHeadRevision('Dev-Pootle', 'test.txt', 2),
-			this.checkHeadRevision('Dev-Perkin', 'test.txt', 1) 
+			this.checkHeadRevision('Dev-Perkin', 'test.txt', 1),
+
+			this.checkDescriptionContainsEdit('Dev-Pootle')
 		])
 	}
 

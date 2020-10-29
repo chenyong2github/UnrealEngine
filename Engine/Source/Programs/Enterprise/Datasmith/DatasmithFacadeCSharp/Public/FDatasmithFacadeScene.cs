@@ -188,6 +188,10 @@ public class FDatasmithFacadeScene : global::System.IDisposable {
     DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeScene_PreExport(swigCPtr);
   }
 
+  public static void Shutdown() {
+    DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeScene_Shutdown();
+  }
+
   public void ExportScene(string InOutputPath) {
     DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeScene_ExportScene(swigCPtr, InOutputPath);
   }

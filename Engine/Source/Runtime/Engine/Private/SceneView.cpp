@@ -802,7 +802,7 @@ FSceneView::FSceneView(const FSceneViewInitOptions& InitOptions)
 		{
 			UE_LOG(LogMultiView, Fatal, TEXT("Mobile Multi-View not supported by the RHI and no fallback is available."));
 		}
-		bIsInstancedStereoEnabled = RHISupportsInstancedStereo(ShaderPlatform);
+		bIsMobileMultiViewEnabled = bIsInstancedStereoEnabled = RHISupportsInstancedStereo(ShaderPlatform);
 	}
 
 	// If the plugin uses separate render targets it is required to support mobile multi-view direct

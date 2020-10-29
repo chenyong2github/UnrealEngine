@@ -7,6 +7,7 @@
 
 #include "Policy/Camera/DisplayClusterProjectionCameraPolicyFactory.h"
 #include "Policy/EasyBlend/DisplayClusterProjectionEasyBlendPolicyFactory.h"
+#include "Policy/VIOSO/DisplayClusterProjectionVIOSOPolicyFactory.h"
 #include "Policy/Simple/DisplayClusterProjectionSimplePolicyFactory.h"
 #include "Policy/MPCDI/DisplayClusterProjectionMPCDIPolicyFactory.h"
 #include "Policy/Manual/DisplayClusterProjectionManualPolicyFactory.h"
@@ -41,6 +42,10 @@ FDisplayClusterProjectionModule::FDisplayClusterProjectionModule()
 	// EasyBlend projection
 	Factory = MakeShared<FDisplayClusterProjectionEasyBlendPolicyFactory>();
 	ProjectionPolicyFactories.Emplace(DisplayClusterProjectionStrings::projection::EasyBlend, Factory);
+
+	// VIOSO projection
+	Factory = MakeShared<FDisplayClusterProjectionVIOSOPolicyFactory>();
+	ProjectionPolicyFactories.Emplace(DisplayClusterProjectionStrings::projection::VIOSO, Factory);
 
 	// Manual projection
 	Factory = MakeShared<FDisplayClusterProjectionManualPolicyFactory>();

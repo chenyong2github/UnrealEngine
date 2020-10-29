@@ -68,6 +68,25 @@ void AWaterBrushManager::PostLoad()
 			SetupDefaultMaterials();
 		}
 	}
+
+	if (GetLinkerCustomVersion(FWaterCustomVersion::GUID) < FWaterCustomVersion::MoveJumpFloodMaterialsToWaterBrushManager)
+	{
+		if (JumpFloodComponent2D != nullptr)
+		{
+			if (JumpFloodComponent2D->BlurEdgesMaterial != nullptr)
+			{
+				BlurEdgesMaterial = JumpFloodComponent2D->BlurEdgesMaterial;
+			}
+			if (JumpFloodComponent2D->FindEdgesMaterial != nullptr)
+			{
+				FindEdgesMaterial = JumpFloodComponent2D->FindEdgesMaterial;
+			}
+			if (JumpFloodComponent2D->JumpStepMaterial != nullptr)
+			{
+				JumpStepMaterial = JumpFloodComponent2D->JumpStepMaterial;
+			}
+		}
+	}
 }
 
 void AWaterBrushManager::PostLoadSubobjects(FObjectInstancingGraph* OuterInstanceGraph)
@@ -247,7 +266,7 @@ void AWaterBrushManager::SingleJumpStep()
 {
 	if (!::IsValid(DebugDistanceFieldMID))
 	{
-		UE_LOG(LogWaterEditor, Error, TEXT("DebugDF must be set to use this debug function"));
+		UE_LOG(LogWaterEditor, Error, TEXT("DebugDistanceFieldMaterial must be set to use this debug function"));
 		return;
 	}
 
@@ -259,7 +278,7 @@ void AWaterBrushManager::SingleBlurStep()
 {
 	if (!::IsValid(DebugDistanceFieldMID))
 	{
-		UE_LOG(LogWaterEditor, Error, TEXT("DebugDF must be set to use this debug function"));
+		UE_LOG(LogWaterEditor, Error, TEXT("DebugDistanceFieldMaterial must be set to use this debug function"));
 		return;
 	}
 
@@ -271,7 +290,7 @@ void AWaterBrushManager::FindEdges()
 {
 	if (!::IsValid(DebugDistanceFieldMID))
 	{
-		UE_LOG(LogWaterEditor, Error, TEXT("DebugDF must be set to use this debug function"));
+		UE_LOG(LogWaterEditor, Error, TEXT("DebugDistanceFieldMaterial must be set to use this debug function"));
 		return;
 	}
 
@@ -407,7 +426,7 @@ void AWaterBrushManager::UpdateTransform(const FTransform& Transform)
 	bKillCache = true;
 }
 
-bool AWaterBrushManager::SetupRiverSplineRenderMIDs(const FBrushActorRenderContext& BrushActorRenderContext)
+bool AWaterBrushManager::SetupRiverSplineRenderMIDs(const FBrushActorRenderContext& BrushActorRenderContext, bool bClearMIDs)
 {
 	AWaterBody* WaterBody = BrushActorRenderContext.GetActorAs<AWaterBody>();
 	check(WaterBody->GetWaterBodyType() == EWaterBodyType::River);
@@ -433,23 +452,30 @@ bool AWaterBrushManager::SetupRiverSplineRenderMIDs(const FBrushActorRenderConte
 
 	for (int32 MIDIndex = 0; MIDIndex < NumSplineMids; ++MIDIndex)
 	{
-		check(MIDIndex < SplineMeshComponents.Num());
-		RiverSplineMIDs[MIDIndex] = FWaterUtils::GetOrCreateTransientMID(RiverSplineMIDs[MIDIndex], TEXT("RiverSplineMID"), RenderRiverSplineDepthMaterial);
-		UMaterialInstanceDynamic* TempMID = RiverSplineMIDs[MIDIndex];
-		if (TempMID != nullptr)
+		if (bClearMIDs)
 		{
-			const float Offset = BrushActorRenderContext.WaterBrushActor->GetWaterHeightmapSettings().FalloffSettings.ZOffset;
-			TempMID->SetScalarParameterValue(FName(TEXT("DepthA")), SplineComponent->GetFloatPropertyAtSplinePoint(MIDIndex, FName(TEXT("Depth"))) + Offset);
-			TempMID->SetScalarParameterValue(FName(TEXT("DepthB")), SplineComponent->GetFloatPropertyAtSplinePoint(MIDIndex + 1, FName(TEXT("Depth"))) + Offset);
-			TempMID->SetScalarParameterValue(FName(TEXT("VelA")), SplineComponent->GetFloatPropertyAtSplinePoint(MIDIndex, FName(TEXT("WaterVelocityScalar"))));
-			TempMID->SetScalarParameterValue(FName(TEXT("VelB")), SplineComponent->GetFloatPropertyAtSplinePoint(MIDIndex + 1, FName(TEXT("WaterVelocityScalar"))));
-
-			SplineMeshComponents[MIDIndex]->SetMaterial(0, TempMID);
+			SplineMeshComponents[MIDIndex]->SetMaterial(0, nullptr);
 		}
 		else
 		{
-			UE_LOG(LogWaterEditor, Error, TEXT("Invalid River spline material for Water Brush."));
-			return false;
+			check(MIDIndex < SplineMeshComponents.Num());
+			RiverSplineMIDs[MIDIndex] = FWaterUtils::GetOrCreateTransientMID(RiverSplineMIDs[MIDIndex], TEXT("RiverSplineMID"), RenderRiverSplineDepthMaterial);
+			UMaterialInstanceDynamic* TempMID = RiverSplineMIDs[MIDIndex];
+			if (TempMID != nullptr)
+			{
+				const float Offset = BrushActorRenderContext.WaterBrushActor->GetWaterHeightmapSettings().FalloffSettings.ZOffset;
+				TempMID->SetScalarParameterValue(FName(TEXT("DepthA")), SplineComponent->GetFloatPropertyAtSplinePoint(MIDIndex, FName(TEXT("Depth"))) + Offset);
+				TempMID->SetScalarParameterValue(FName(TEXT("DepthB")), SplineComponent->GetFloatPropertyAtSplinePoint(MIDIndex + 1, FName(TEXT("Depth"))) + Offset);
+				TempMID->SetScalarParameterValue(FName(TEXT("VelA")), SplineComponent->GetFloatPropertyAtSplinePoint(MIDIndex, FName(TEXT("WaterVelocityScalar"))));
+				TempMID->SetScalarParameterValue(FName(TEXT("VelB")), SplineComponent->GetFloatPropertyAtSplinePoint(MIDIndex + 1, FName(TEXT("WaterVelocityScalar"))));
+
+				SplineMeshComponents[MIDIndex]->SetMaterial(0, TempMID);
+			}
+			else
+			{
+				UE_LOG(LogWaterEditor, Error, TEXT("Invalid River spline material for Water Brush."));
+				return false;
+			}
 		}
 	}
 
@@ -458,7 +484,7 @@ bool AWaterBrushManager::SetupRiverSplineRenderMIDs(const FBrushActorRenderConte
 
 void AWaterBrushManager::CaptureRiverDepthAndVelocity(const FBrushActorRenderContext& BrushActorRenderContext)
 {
-	if (!SetupRiverSplineRenderMIDs(BrushActorRenderContext))
+	if (!SetupRiverSplineRenderMIDs(BrushActorRenderContext, /*bClearMIDs = */false))
 	{
 		UE_LOG(LogWaterEditor, Error, TEXT("Error in setup River spline render material for Water Brush. Aborting CaptureRiverDepthAndVelocity."));
 		return;
@@ -482,6 +508,9 @@ void AWaterBrushManager::CaptureRiverDepthAndVelocity(const FBrushActorRenderCon
 
 	CaptureMeshDepth(SplineMeshComponents);
 	WaterBody->SetIsTemporarilyHiddenInEditor(Hidden);
+
+	// Cleanup the spline components at the end (we're not supposed to have modified the water actors) :
+	SetupRiverSplineRenderMIDs(BrushActorRenderContext, /*bClearMIDs = */true);
 }
 
 void AWaterBrushManager::DrawCanvasShape(const FBrushActorRenderContext& BrushActorRenderContext)
@@ -564,6 +593,7 @@ void AWaterBrushManager::UpdateCurveCacheKeys()
 				FWaterBodyBrushCache* WaterBrushCache = BrushCurveRTCache.Find(ElevationCurveAsset);
 				if (WaterBrushCache != nullptr)
 				{
+					// TODO [jonathan.bard] : there are some repros where this can happen : fix this : 
 					check(WaterBrushCache->CacheRenderTarget != nullptr);
 				}
 				else
@@ -627,19 +657,23 @@ bool AWaterBrushManager::BrushRenderSetup()
 		return false;
 	}
 
+	JumpFloodComponent2D->BlurEdgesMaterial = BlurEdgesMaterial;
+	JumpFloodComponent2D->FindEdgesMaterial = FindEdgesMaterial;
+	JumpFloodComponent2D->JumpStepMaterial = JumpStepMaterial;
+
 	// TODO [jonathan.bard] make sure that this works : (probably do the MID setup in CreateMIDs and use AWaterUtils::GetOrCreateTransientMID
-	if (::IsValid(DebugDF))
+	if (::IsValid(DebugDistanceFieldMaterial))
 	{
 		UStaticMeshComponent* StaticMeshComponent = CastChecked<UStaticMeshComponent>(AActor::AddComponent(FName(TEXT("NODE_AddStaticMeshComponent-0")), false, FTransform(FRotator::ZeroRotator, FVector::ZeroVector, WorldSize), this), ECastCheckedType::NullAllowed);
-		if (DebugDF->IsA<UMaterialInstanceDynamic>())
+		if (DebugDistanceFieldMaterial->IsA<UMaterialInstanceDynamic>())
 		{
-			UE_LOG(LogWaterEditor, Error, TEXT("Invalid DebugDF Material : must be either a Material Instance Constant or a Material"));
+			UE_LOG(LogWaterEditor, Error, TEXT("Invalid DebugDistanceFieldMaterial Material : must be either a Material Instance Constant or a Material"));
 		}
 		else
 		{
 			// Transient MID : no outer, no name : 
-			DebugDistanceFieldMID = UMaterialInstanceDynamic::Create(DebugDF, nullptr);
-			check((DebugDistanceFieldMID != nullptr) && (DebugDistanceFieldMID->GetMaterial() == DebugDF->GetMaterial()));
+			DebugDistanceFieldMID = UMaterialInstanceDynamic::Create(DebugDistanceFieldMaterial, nullptr);
+			check((DebugDistanceFieldMID != nullptr) && (DebugDistanceFieldMID->GetMaterial() == DebugDistanceFieldMaterial->GetMaterial()));
 			StaticMeshComponent->SetMaterial(0, DebugDistanceFieldMID);
 
 			DebugDistanceFieldMID->SetScalarParameterValue(FName(TEXT("ShowGrid")), (float)ShowGrid);
@@ -1211,9 +1245,9 @@ void AWaterBrushManager::SetupDefaultMaterials()
 	IslandFalloffMaterial = WaterEditorSettings->GetDefaultBrushIslandFalloffMaterial();
 	FinalizeVelocityHeightMaterial = WaterEditorSettings->GetDefaultFinalizeVelocityHeightMaterial();
 
-	JumpFloodComponent2D->JumpStepMaterial = WaterEditorSettings->GetDefaultJumpFloodStepMaterial();
-	JumpFloodComponent2D->BlurEdgesMaterial = WaterEditorSettings->GetDefaultBlurEdgesMaterial();
-	JumpFloodComponent2D->FindEdgesMaterial = WaterEditorSettings->GetDefaultFindEdgesMaterial();
+	JumpStepMaterial = WaterEditorSettings->GetDefaultJumpFloodStepMaterial();
+	BlurEdgesMaterial = WaterEditorSettings->GetDefaultBlurEdgesMaterial();
+	FindEdgesMaterial = WaterEditorSettings->GetDefaultFindEdgesMaterial();
 }
 
 UTextureRenderTarget2D* AWaterBrushManager::Render_Native(bool InIsHeightmap, UTextureRenderTarget2D* InCombinedResult, FName const& InWeightmapLayerName)

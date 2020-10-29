@@ -18,6 +18,9 @@ Buffer<int> NodesOffsets;
 Buffer<int> TargetsOffsets;
 RWTexture3D<float4> FieldClipmap;
 
+Buffer<float4> BoundsMin;
+Buffer<float4> BoundsMax;
+
 int ClipmapResolution;
 float ClipmapDistance;
 float3 ClipmapCenter;
@@ -370,6 +373,7 @@ void EvaluateWaveScalar(in float3 SamplePosition, in int NodeOffset,
 	const int Function = (int) NodesParams[NodeOffset + WAVE_SCALAR_FUNCTION];
 	const float Magnitude = NodesParams[NodeOffset + WAVE_SCALAR_MAGNITUDE];
 	
+	[branch]
 	if (Function == WAVE_GAUSSIAN)
 	{
 		Result = Magnitude * exp(-Phase * Phase);
@@ -508,6 +512,7 @@ void EvaluateBoxFalloffScalar(in float3 SamplePosition, in int NodeOffset,
 					inout float ContextDatas[MAX_DATAS], inout int LocalIndex)
 {
 	float ScalarDatas = NodesParams[NodeOffset + BOX_FALLOFF_DEFAULT];
+	const float HalfBox = 0.5;
 	
 	const float DeltaRange = NodesParams[NodeOffset + BOX_FALLOFF_MAX_RANGE] - NodesParams[NodeOffset + BOX_FALLOFF_MIN_RANGE];
 
@@ -530,7 +535,7 @@ void EvaluateBoxFalloffScalar(in float3 SamplePosition, in int NodeOffset,
 
 	const float3 LocalPosition = FieldUnRotateVectorByQuat(SamplePosition - BoxTranslation, BoxRotation) * InverseScale;
 	
-	const float3 DeltaPosition = abs(LocalPosition) - float3(50.0, 50.0, 50.0);
+	const float3 DeltaPosition = abs(LocalPosition) - float3(HalfBox, HalfBox, HalfBox);
 	const int ClosestAxis = ((DeltaPosition.x > DeltaPosition.y) && (DeltaPosition.x > DeltaPosition.z)) ? 0 : (DeltaPosition.y > DeltaPosition.z) ? 1 : 2;
 	const float OutsideDistance = length(max(DeltaPosition, 0.0));
 
@@ -538,7 +543,7 @@ void EvaluateBoxFalloffScalar(in float3 SamplePosition, in int NodeOffset,
 
 	if (LocalDistance < 0.0)
 	{
-		const float DeltaDistance = -LocalDistance / 50.0;
+		const float DeltaDistance = -LocalDistance / HalfBox;
 		
 		SetFalloffValue((int)NodesParams[NodeOffset + BOX_FALLOFF_FALLOFF],
 						1.0,DeltaDistance, ScalarDatas);
@@ -810,7 +815,7 @@ void EvaluateCullingInteger(in float3 SamplePosition, in int NodeOffset,
 	int OffsetIndex = LocalIndex;
 	const float CullingScalar = HasScalar ? ContextDatas[OffsetIndex] : 0.0;
 	OffsetIndex += (int)CullingScalar;
-	const int InputInteger = HasInput ? (int)ContextDatas[OffsetIndex] : 0.0;
+	const int InputInteger = HasInput ? (int)ContextDatas[OffsetIndex] : 0;
 
 	const int CullingOperation = (int)NodesParams[NodeOffset + CULLING_OPERATION];
 	const bool ValidSample = ((CullingOperation == CULLING_OUTSIDE) && (CullingScalar != 0.0)) ||
@@ -1022,13 +1027,15 @@ void BuildPhysicsFieldClipmapCS(
 	if (all(DispatchThreadId.xyz < int3(ClipmapResolution, ClipmapResolution, ClipmapResolution)) && (TargetCount < MAX_COUNT))
 	{
 		float4 ResultsDatas[MAX_COUNT];
-		[unroll]
-		for (int ResultsIndex = 0; ResultsIndex < MAX_COUNT; ++ResultsIndex)
-		{
-			ResultsDatas[ResultsIndex] = float4(0, 0, 0, 0);
-		}
+		float ContextDatas[MAX_DATAS];
+		
 		for (int ClipmapIndex = 0; ClipmapIndex < ClipmapCount; ++ClipmapIndex)
 		{
+			[unroll]
+			for (int ResultsIndex = 0; ResultsIndex < MAX_COUNT; ++ResultsIndex)
+			{
+				ResultsDatas[ResultsIndex] = float4(0, 0, 0, 0);
+			}
 			const float ClipmapExtent = ClipmapDistance * pow(ClipmapExponent, ClipmapIndex + 1 - ClipmapCount);
 		
 			const float3 SampleUV = (DispatchThreadId.xyz + 0.5) / ClipmapResolution;
@@ -1041,18 +1048,20 @@ void BuildPhysicsFieldClipmapCS(
 				[branch]
 				if ((TargetIndex != -1) && (TargetIndex < TargetCount))
 				{
-					float ContextDatas[MAX_DATAS];
-					int LocalIndex = 0;
-
-					SampleFieldDatas(SamplePosition, ContextDatas, LocalIndex, TargetType + 1, ClipmapExtent);
+					[branch]
+					if (all(SamplePosition >= BoundsMin[TargetType + 1].xyz) && all(SamplePosition < BoundsMax[TargetType + 1].xyz))
+					{
+						int LocalIndex = 0;
+						SampleFieldDatas(SamplePosition, ContextDatas, LocalIndex, TargetType + 1, ClipmapExtent);
 		
-					if (LocalIndex == 3)
-					{
-						ResultsDatas[TargetIndex].xyz = float3(ContextDatas[0], ContextDatas[1], ContextDatas[2]);
-					}
-					else if (LocalIndex == 1)
-					{
-						ResultsDatas[TargetIndex].w = ContextDatas[0];
+						if (LocalIndex == 3)
+						{
+							ResultsDatas[TargetIndex].xyz = float3(ContextDatas[0], ContextDatas[1], ContextDatas[2]);
+						}
+						else if (LocalIndex == 1)
+						{
+							ResultsDatas[TargetIndex].w = ContextDatas[0];
+						}
 					}
 				}
 			}
@@ -1065,3 +1074,12 @@ void BuildPhysicsFieldClipmapCS(
 		}
 	}
 }
+
+//const int MemoryIndex = GGroupThreadId.x * 16 + GGroupThreadId.y * 4 + GGroupThreadId.z;
+//const int ParamsIndex = MemoryIndex % 32;
+//const int SharedOffset = MemoryIndex >= 32 ? 32 : 0;
+//	if (ParamsIndex < 9)
+//	{
+//		SharedParams[MemoryIndex] = NodesParams[NodeOffset + ParamsIndex];
+//	}
+//	GroupMemoryBarrier();

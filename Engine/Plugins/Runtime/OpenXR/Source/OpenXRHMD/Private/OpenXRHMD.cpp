@@ -39,6 +39,8 @@ extern struct android_app* GNativeAndroidApp;
 #include "Editor/UnrealEd/Classes/Editor/EditorEngine.h"
 #endif
 
+#define OPENXR_PAUSED_IDLE_FPS 10
+
 static TAutoConsoleVariable<int32> CVarEnableOpenXRValidationLayer(
 	TEXT("xr.EnableOpenXRValidationLayer"),
 	0,
@@ -48,7 +50,7 @@ static TAutoConsoleVariable<int32> CVarEnableOpenXRValidationLayer(
 
 
 namespace {
-	static TSet<XrEnvironmentBlendMode> SupportedBlendModes{ XR_ENVIRONMENT_BLEND_MODE_ADDITIVE, XR_ENVIRONMENT_BLEND_MODE_ALPHA_BLEND, XR_ENVIRONMENT_BLEND_MODE_OPAQUE };
+	static TSet<XrEnvironmentBlendMode> SupportedBlendModes{ XR_ENVIRONMENT_BLEND_MODE_ADDITIVE, XR_ENVIRONMENT_BLEND_MODE_OPAQUE };
 	static TSet<XrViewConfigurationType> SupportedViewConfigurations{ XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO, XR_VIEW_CONFIGURATION_TYPE_PRIMARY_QUAD_VARJO };
 
 	/** Helper function for acquiring the appropriate FSceneViewport */
@@ -1282,7 +1284,7 @@ FOpenXRHMD::FOpenXRHMD(const FAutoRegister& AutoRegister, XrInstance InInstance,
 	, bIsRunning(false)
 	, bIsReady(false)
 	, bIsRendering(false)
-	, bRunRequested(false)
+	, bIsSynchronized(false)
 	, bNeedReAllocatedDepth(false)
 	, bNeedReBuildOcclusionMesh(true)
 	, CurrentSessionState(XR_SESSION_STATE_UNKNOWN)
@@ -1306,13 +1308,14 @@ FOpenXRHMD::FOpenXRHMD(const FAutoRegister& AutoRegister, XrInstance InInstance,
 	bHiddenAreaMaskSupported = IsExtensionEnabled(XR_KHR_VISIBILITY_MASK_EXTENSION_NAME);
 	bViewConfigurationFovSupported = IsExtensionEnabled(XR_EPIC_VIEW_CONFIGURATION_FOV_EXTENSION_NAME);
 
-#if PLATFORM_HOLOLENS
 	static const auto CVarMobileMultiView = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("vr.MobileMultiView"));
 	static const auto CVarMobileHDR = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MobileHDR"));
 	const bool bMobileHDR = (CVarMobileHDR && CVarMobileHDR->GetValueOnAnyThread() != 0);
-	bIsMobileMultiViewEnabled = (GRHISupportsArrayIndexFromAnyShader && !bMobileHDR) && (CVarMobileMultiView && CVarMobileMultiView->GetValueOnAnyThread() != 0);
+	const bool bMobileMultiView = !bMobileHDR && (CVarMobileMultiView && CVarMobileMultiView->GetValueOnAnyThread() != 0);
+#if PLATFORM_HOLOLENS
+	bIsMobileMultiViewEnabled = bMobileMultiView && GRHISupportsArrayIndexFromAnyShader;
 #else
-	bIsMobileMultiViewEnabled = false;
+	bIsMobileMultiViewEnabled = bMobileMultiView && RHISupportsMobileMultiView(GShaderPlatformForFeatureLevel[GMaxRHIFeatureLevel]);
 #endif
 	// Enumerate the viewport configurations
 	uint32 ConfigurationCount;
@@ -1384,10 +1387,7 @@ FOpenXRHMD::FOpenXRHMD(const FAutoRegister& AutoRegister, XrInstance InInstance,
 
 FOpenXRHMD::~FOpenXRHMD()
 {
-	if (Session)
-	{
-		XR_ENSURE(xrDestroySession(Session));
-	}
+	DestroySession();
 
 	FPlatformProcess::ReturnSynchEventToPool(FrameEventRHI);
 }
@@ -1452,22 +1452,39 @@ FOpenXRHMD::FPipelinedLayerState& FOpenXRHMD::GetPipelinedLayerStateForThread()
 	}
 }
 
-void FOpenXRHMD::UpdateDeviceLocations()
+void FOpenXRHMD::UpdateDeviceLocations(bool bUpdateOpenXRExtensionPlugins)
 {
 	FPipelinedFrameState& PipelineState = GetPipelinedFrameStateForThread();
 
 	// Only update the device locations if the frame state has been predicted
-	if (PipelineState.FrameState.predictedDisplayTime > 0)
+	if (bIsSynchronized && PipelineState.FrameState.predictedDisplayTime > 0)
 	{
+		FScopeLock Lock(&DeviceMutex);
+
 		PipelineState.DeviceLocations.SetNum(DeviceSpaces.Num());
 		for (int32 DeviceIndex = 0; DeviceIndex < PipelineState.DeviceLocations.Num(); DeviceIndex++)
 		{
 			const FDeviceSpace& DeviceSpace = DeviceSpaces[DeviceIndex];
+			if (DeviceSpace.Space != XR_NULL_HANDLE)
+			{
+				XrSpaceLocation& DeviceLocation = PipelineState.DeviceLocations[DeviceIndex];
+				DeviceLocation.type = XR_TYPE_SPACE_LOCATION;
+				DeviceLocation.next = nullptr;
+				XR_ENSURE(xrLocateSpace(DeviceSpace.Space, PipelineState.TrackingSpace, PipelineState.FrameState.predictedDisplayTime, &DeviceLocation));
+			}
+			else
+			{
+				// Ensure the location flags are zeroed out so the pose is detected as invalid
+				PipelineState.DeviceLocations[DeviceIndex].locationFlags = 0;
+			}
+		}
 
-			XrSpaceLocation& DeviceLocation = PipelineState.DeviceLocations[DeviceIndex];
-			DeviceLocation.type = XR_TYPE_SPACE_LOCATION;
-			DeviceLocation.next = nullptr;
-			XR_ENSURE(xrLocateSpace(DeviceSpace.Space, PipelineState.TrackingSpace, PipelineState.FrameState.predictedDisplayTime, &DeviceLocation));
+		if (bUpdateOpenXRExtensionPlugins)
+		{
+			for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
+			{
+				Module->UpdateDeviceLocations(Session, PipelineState.FrameState.predictedDisplayTime, PipelineState.TrackingSpace);
+			}
 		}
 	}
 }
@@ -1728,7 +1745,31 @@ bool FOpenXRHMD::OnStereoStartup()
 	static const FName RendererModuleName("Renderer");
 	RendererModule = FModuleManager::GetModulePtr<IRendererModule>(RendererModuleName);
 
-	SpectatorScreenController = MakeUnique<FDefaultSpectatorScreenController>(this);
+	bool bUseExtensionSpectatorScreenController = false;
+	for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
+	{
+		bUseExtensionSpectatorScreenController = Module->GetSpectatorScreenController(this, SpectatorScreenController);
+		if (bUseExtensionSpectatorScreenController)
+		{
+			break;
+		}
+	}
+	if (!bUseExtensionSpectatorScreenController)
+	{
+		SpectatorScreenController = MakeUnique<FDefaultSpectatorScreenController>(this);
+		UE_LOG(LogHMD, Verbose, TEXT("OpenXR using base spectator screen."));
+	}
+	else
+	{
+		if (SpectatorScreenController == nullptr)
+		{
+			UE_LOG(LogHMD, Verbose, TEXT("OpenXR disabling spectator screen."));
+		}
+		else
+		{
+			UE_LOG(LogHMD, Verbose, TEXT("OpenXR using extension spectator screen."));
+		}
+	}
 
 	StartSession();
 
@@ -1743,7 +1784,7 @@ bool FOpenXRHMD::OnStereoTeardown()
 		if (Result == XR_ERROR_SESSION_NOT_RUNNING)
 		{
 			// Session was never running - most likely PIE without putting the headset on.
-			CloseSession();
+			DestroySession();
 		}
 		else
 		{
@@ -1754,17 +1795,20 @@ bool FOpenXRHMD::OnStereoTeardown()
 	return true;
 }
 
-void FOpenXRHMD::CloseSession()
+void FOpenXRHMD::DestroySession()
 {
+	FScopeLock Lock(&DeviceMutex);
+
 	if (Session != XR_NULL_HANDLE)
 	{
 		Swapchain.Reset();
 		DepthSwapchain.Reset();
 
-		// Clear up device spaces
-		for (FDeviceSpace& DeviceSpace : DeviceSpaces)
+		// Destroy device spaces, they will be recreated
+		// when the session is created again.
+		for (FDeviceSpace& Device : DeviceSpaces)
 		{
-			DeviceSpace.DestroySpace();
+			Device.DestroySpace();
 		}
 
 		// Close the session now we're allowed to.
@@ -1774,10 +1818,10 @@ void FOpenXRHMD::CloseSession()
 		FlushRenderingCommands();
 
 		bStereoEnabled = false;
-		bIsRendering = false;
 		bIsReady = false;
 		bIsRunning = false;
-		bRunRequested = false;
+		bIsRendering = false;
+		bIsSynchronized = false;
 		bNeedReAllocatedDepth = true;
 		bNeedReBuildOcclusionMesh = true;
 	}
@@ -1785,6 +1829,9 @@ void FOpenXRHMD::CloseSession()
 
 int32 FOpenXRHMD::AddActionDevice(XrAction Action)
 {
+	// Ensure the HMD device is already emplaced
+	ensure(DeviceSpaces.Num() > 0);
+
 	int32 DeviceId = DeviceSpaces.Emplace(Action);
 	if (Session)
 	{
@@ -1829,9 +1876,6 @@ bool FOpenXRHMD::StartSession()
 	// If the session is already running, or is not yet ready,
 	if (!bIsReady || bIsRunning)
 	{
-		if (!bIsRunning)
-			bRunRequested = true;
-
 		return false;
 	}
 
@@ -1840,13 +1884,26 @@ bool FOpenXRHMD::StartSession()
 	{
 		Begin.next = Module->OnBeginSession(Session, Begin.next);
 	}
+
+	FScopeLock ScopeLock(&BeginEndFrameMutex);
 	bIsRunning = XR_ENSURE(xrBeginSession(Session, &Begin));
-
-	// Unflag a request, if we're running.
-	if (bIsRunning)
-		bRunRequested = false;
-
 	return bIsRunning;
+}
+
+bool FOpenXRHMD::StopSession()
+{
+	// Ensures xrEndFrame has been called before the session leaves running state and no new frames are submitted.
+	FScopeLock ScopeLock(&BeginEndFrameMutex);
+
+	if (!bIsRunning)
+	{
+		return false;
+	}
+
+	bool signaled = FrameEventRHI->Wait(PipelinedFrameStateRHI.FrameState.predictedDisplayPeriod / 1e6);
+
+	bIsRunning = !XR_ENSURE(xrEndSession(Session));
+	return !bIsRunning;
 }
 
 void FOpenXRHMD::OnBeginPlay(FWorldContext& InWorldContext)
@@ -1867,7 +1924,7 @@ bool FOpenXRHMD::AllocateRenderTargetTexture(uint32 Index, uint32 SizeX, uint32 
 	check(IsInRenderingThread());
 
 	// We need to ensure we can sample from the texture in CopyTexture
-	Flags |= TexCreate_ShaderResource;
+	Flags |= TexCreate_ShaderResource | TexCreate_SRGB;
 
 	const FRHITexture2D* const SwapchainTexture = Swapchain == nullptr ? nullptr : Swapchain->GetTexture2DArray() ? Swapchain->GetTexture2DArray() : Swapchain->GetTexture2D();
 	if (Swapchain == nullptr || SwapchainTexture == nullptr || Format != LastRequestedSwapchainFormat || SwapchainTexture->GetSizeX() != SizeX || SwapchainTexture->GetSizeY() != SizeY)
@@ -1940,10 +1997,14 @@ void FOpenXRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdL
 	}
 #endif
 
-	if (bIsReady)
+	// There is a chance xrBeginFrame may time out waiting for FrameEventRHI so a mutex is needed
+	// to ensure the two calls never overlap (spec requires they are externally synchronized).
+	// In addition, the mutex ensures bIsRunning and the frame event are checked atomically.
+	FScopeLock ScopeLock(&BeginEndFrameMutex);
+	if (bIsRunning)
 	{
 		// Ensure xrEndFrame has been called before starting rendering the next frame.
-		bool signaled = FrameEventRHI->Wait(PipelinedFrameStateRHI.FrameState.predictedDisplayPeriod);
+		bool signaled = FrameEventRHI->Wait(PipelinedFrameStateRHI.FrameState.predictedDisplayPeriod / 1e6);
 
 		// TODO: This should be moved to the RHI thread at some point
 		XrFrameBeginInfo BeginInfo;
@@ -1955,12 +2016,8 @@ void FOpenXRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdL
 			BeginInfo.next = Module->OnBeginFrame(Session, DisplayTime, BeginInfo.next);
 		}
 		XrResult Result;
-		{
-			// There is a chance xrBeginFrame may time out waiting for FrameEventRHI so a mutex is needed
-			// to ensure the two calls never overlap (spec requires they are externally synchronized).
-			FScopeLock ScopeLock(&BeginEndFrameMutex);
-			Result = xrBeginFrame(Session, &BeginInfo);
-		}
+		Result = xrBeginFrame(Session, &BeginInfo);
+
 		if (XR_SUCCEEDED(Result))
 		{
 			bIsRendering = true;
@@ -1982,9 +2039,10 @@ void FOpenXRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdL
 			}
 		}
 	}
+	ScopeLock.Unlock();
 
 	// Snapshot new poses for late update.
-	UpdateDeviceLocations();
+	UpdateDeviceLocations(false);
 }
 
 void FOpenXRHMD::OnLateUpdateApplied_RenderThread(const FTransform& NewRelativeTransform)
@@ -2102,15 +2160,26 @@ bool FOpenXRHMD::OnStartGameFrame(FWorldContext& WorldContext)
 
 			if (SessionState.state == XR_SESSION_STATE_READY)
 			{
+				GEngine->SetMaxFPS(0);
 				bIsReady = true;
-				if (bRunRequested)
-				{
-					StartSession();
-				}
-				break;
+				StartSession();
 			}
-
-			if (SessionState.state != XR_SESSION_STATE_STOPPING && SessionState.state != XR_SESSION_STATE_EXITING && SessionState.state != XR_SESSION_STATE_LOSS_PENDING)
+			else if (SessionState.state == XR_SESSION_STATE_SYNCHRONIZED)
+			{
+				bIsSynchronized = true;
+			}
+			else if (SessionState.state == XR_SESSION_STATE_IDLE)
+			{
+				bIsSynchronized = false;
+				GEngine->SetMaxFPS(OPENXR_PAUSED_IDLE_FPS);
+			}
+			else if (SessionState.state == XR_SESSION_STATE_STOPPING)
+			{
+				bIsReady = false;
+				StopSession();
+			}
+			
+			if (SessionState.state != XR_SESSION_STATE_EXITING && SessionState.state != XR_SESSION_STATE_LOSS_PENDING)
 			{
 				break;
 			}
@@ -2135,7 +2204,7 @@ bool FOpenXRHMD::OnStartGameFrame(FWorldContext& WorldContext)
 				FPlatformMisc::RequestExit(false);
 			}
 
-			CloseSession();
+			DestroySession();
 
 			break;
 		}
@@ -2164,7 +2233,7 @@ bool FOpenXRHMD::OnStartGameFrame(FWorldContext& WorldContext)
 	PipelineState.FrameState.predictedDisplayTime += PipelineState.FrameState.predictedDisplayPeriod;
 
 	// Snapshot new poses for game simulation.
-	UpdateDeviceLocations();
+	UpdateDeviceLocations(true);
 
 	return true;
 }
@@ -2180,7 +2249,7 @@ void FOpenXRHMD::OnBeginRendering_RHIThread()
 void FOpenXRHMD::OnFinishRendering_RHIThread()
 {
 	ensure(IsInRenderingThread() || IsInRHIThread());
-	if (!Swapchain)
+	if (!bIsRunning || !Swapchain)
 	{
 		return;
 	}
@@ -2191,12 +2260,13 @@ void FOpenXRHMD::OnFinishRendering_RHIThread()
 	XrCompositionLayerProjection Layer = {};
 	Layer.type = XR_TYPE_COMPOSITION_LAYER_PROJECTION;
 	Layer.next = nullptr;
+	Layer.layerFlags = 0;
 	Layer.space = PipelineState.TrackingSpace;
 	Layer.viewCount = LayerState.ProjectionLayers.Num();
 	Layer.views = LayerState.ProjectionLayers.GetData();
 	for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
 	{
-		Layer.next = Module->OnEndProjectionLayer(Session, 0, Layer.next);
+		Layer.next = Module->OnEndProjectionLayer(Session, 0, Layer.next, Layer.layerFlags);
 	}
 
 	if (bIsRendering)
@@ -2214,8 +2284,9 @@ void FOpenXRHMD::OnFinishRendering_RHIThread()
 		EndInfo.next = nullptr;
 		EndInfo.displayTime = PipelineState.FrameState.predictedDisplayTime;
 		EndInfo.environmentBlendMode = SelectedEnvironmentBlendMode;
-		EndInfo.layerCount = 1;
-		EndInfo.layers = reinterpret_cast<XrCompositionLayerBaseHeader**>(Headers);
+		EndInfo.layerCount = PipelineState.FrameState.shouldRender ? 1 : 0;
+		EndInfo.layers = PipelineState.FrameState.shouldRender ?
+			reinterpret_cast<XrCompositionLayerBaseHeader**>(Headers) : nullptr;
 
 		// Make callback to plugin including any extra view subimages they've requested
 		for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
@@ -2425,6 +2496,11 @@ FOpenXRHMD::FDeviceSpace::FDeviceSpace(XrAction InAction)
 	: Action(InAction)
 	, Space(XR_NULL_HANDLE)
 {
+}
+
+FOpenXRHMD::FDeviceSpace::~FDeviceSpace()
+{
+	DestroySpace();
 }
 
 bool FOpenXRHMD::FDeviceSpace::CreateSpace(XrSession InSession)

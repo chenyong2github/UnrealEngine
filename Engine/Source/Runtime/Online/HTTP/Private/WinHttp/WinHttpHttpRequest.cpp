@@ -83,7 +83,7 @@ FString FWinHttpHttpRequest::GetVerb() const
 
 void FWinHttpHttpRequest::SetVerb(const FString& InVerb)
 {
-	if (State != EHttpRequestStatus::NotStarted)
+	if (State == EHttpRequestStatus::Processing)
 	{
 		UE_LOG(LogHttp, Warning, TEXT("Attempted to set verb on a request that is inflight"));
 		return;
@@ -94,7 +94,7 @@ void FWinHttpHttpRequest::SetVerb(const FString& InVerb)
 
 void FWinHttpHttpRequest::SetURL(const FString& InURL)
 {
-	if (State != EHttpRequestStatus::NotStarted)
+	if (State == EHttpRequestStatus::Processing)
 	{
 		UE_LOG(LogHttp, Warning, TEXT("Attempted to set URL on a request that is inflight"));
 		return;
@@ -110,7 +110,7 @@ void FWinHttpHttpRequest::SetContent(const TArray<uint8>& ContentPayload)
 
 void FWinHttpHttpRequest::SetContent(TArray<uint8>&& ContentPayload)
 {
-	if (State != EHttpRequestStatus::NotStarted)
+	if (State == EHttpRequestStatus::Processing)
 	{
 		UE_LOG(LogHttp, Warning, TEXT("Attempted to set content on a request that is inflight"));
 		return;
@@ -121,7 +121,7 @@ void FWinHttpHttpRequest::SetContent(TArray<uint8>&& ContentPayload)
 
 void FWinHttpHttpRequest::SetContentAsString(const FString& ContentString)
 {
-	if (State != EHttpRequestStatus::NotStarted)
+	if (State == EHttpRequestStatus::Processing)
 	{
 		UE_LOG(LogHttp, Warning, TEXT("Attempted to set content on a request that is inflight"));
 		return;
@@ -137,7 +137,7 @@ void FWinHttpHttpRequest::SetContentAsString(const FString& ContentString)
 
 bool FWinHttpHttpRequest::SetContentAsStreamedFile(const FString& Filename)
 {
-	if (State != EHttpRequestStatus::NotStarted)
+	if (State == EHttpRequestStatus::Processing)
 	{
 		UE_LOG(LogHttp, Warning, TEXT("Attempted to set content on a request that is inflight"));
 		return false;
@@ -158,7 +158,7 @@ bool FWinHttpHttpRequest::SetContentAsStreamedFile(const FString& Filename)
 
 bool FWinHttpHttpRequest::SetContentFromStream(TSharedRef<FArchive, ESPMode::ThreadSafe> Stream)
 {
-	if (State != EHttpRequestStatus::NotStarted)
+	if (State == EHttpRequestStatus::Processing)
 	{
 		UE_LOG(LogHttp, Warning, TEXT("Attempted to set content on a request that is inflight"));
 		return false;
@@ -170,7 +170,7 @@ bool FWinHttpHttpRequest::SetContentFromStream(TSharedRef<FArchive, ESPMode::Thr
 
 void FWinHttpHttpRequest::SetHeader(const FString& HeaderName, const FString& HeaderValue)
 {
-	if (State != EHttpRequestStatus::NotStarted)
+	if (State == EHttpRequestStatus::Processing)
 	{
 		UE_LOG(LogHttp, Warning, TEXT("Attempted to set a header on a request that is inflight"));
 		return;
@@ -187,7 +187,7 @@ void FWinHttpHttpRequest::SetHeader(const FString& HeaderName, const FString& He
 
 void FWinHttpHttpRequest::AppendToHeader(const FString& HeaderName, const FString& AdditionalHeaderValue)
 {
-	if (State != EHttpRequestStatus::NotStarted)
+	if (State == EHttpRequestStatus::Processing)
 	{
 		UE_LOG(LogHttp, Warning, TEXT("Attempted to append a header on a request that is inflight"));
 		return;
@@ -276,16 +276,16 @@ bool FWinHttpHttpRequest::ProcessRequest()
 		Connection->SetRequestCompletedHandler(FWinHttpConnectionHttpOnRequestComplete::CreateThreadSafeSP(StrongThisRef, &FWinHttpHttpRequest::HandleRequestComplete));
 
 		// Start request!
-		StrongThis->RequestStartTimeSeconds = FPlatformTime::Seconds();
+		StrongThisRef->RequestStartTimeSeconds = FPlatformTime::Seconds();
 		if (!Connection->StartRequest())
 		{
 			UE_LOG(LogHttp, Warning, TEXT("Unable to start WinHttp Connection, failing request"));
-			StrongThis->FinishRequest();
+			StrongThisRef->FinishRequest();
 			return;
 		}
 
 		// Save object
-		StrongThis->Connection = MoveTemp(Connection);
+		StrongThisRef->Connection = MoveTemp(Connection);
 	}));
 
 	// Store our request so it doesn't die if the requester doesn't store it (common use case)
@@ -369,6 +369,10 @@ void FWinHttpHttpRequest::HandleDataTransferred(int32 BytesSent, int32 BytesRece
 
 	if (BytesSent > 0 || BytesReceived > 0)
 	{
+		if (BytesReceived > 0)
+		{
+			UpdateResponseBody();
+		}
 		TotalBytesSent += BytesSent;
 		TotalBytesReceived += BytesReceived;
 		TSharedRef<IHttpRequest, ESPMode::ThreadSafe> KeepAlive = AsShared();
@@ -380,11 +384,20 @@ void FWinHttpHttpRequest::HandleHeaderReceived(const FString& HeaderKey, const F
 {
 	check(IsInGameThread());
 
+	if (Response.IsValid())
+	{
+		Response->AppendHeader(HeaderKey, HeaderValue);
+	}
+	else if (Connection.IsValid())
+	{
+		Response = MakeShared<FWinHttpHttpResponse, ESPMode::ThreadSafe>(RequestData.Url, Connection->GetResponseCode(), CopyTemp(Connection->GetHeadersReceived()), TArray<uint8>());
+	}
+
 	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> KeepAlive = AsShared();
 	OnHeaderReceived().ExecuteIfBound(AsShared(), HeaderKey, HeaderValue);
 }
 
-void FWinHttpHttpRequest::HandleRequestComplete(EHttpRequestStatus::Type CompletionStatus, EHttpResponseCodes::Type HttpStatusCode, FStringKeyValueMap& InHeaders, TArray<uint8>& InContents)
+void FWinHttpHttpRequest::HandleRequestComplete(EHttpRequestStatus::Type CompletionStatus)
 {
 	check(IsInGameThread());
 	check(EHttpRequestStatus::IsFinished(CompletionStatus));
@@ -393,10 +406,32 @@ void FWinHttpHttpRequest::HandleRequestComplete(EHttpRequestStatus::Type Complet
 
 	if (CompletionStatus == EHttpRequestStatus::Succeeded)
 	{
-		Response = MakeShared<FWinHttpHttpResponse, ESPMode::ThreadSafe>(RequestData.Url, HttpStatusCode, MoveTemp(InHeaders), MoveTemp(InContents));
+		UpdateResponseBody(true);
 	}
 
 	FinishRequest();
+}
+
+void FWinHttpHttpRequest::UpdateResponseBody(bool bForceResponseExist)
+{
+	if (Connection.IsValid())
+	{
+		TArray<uint8> NewChunk(MoveTemp(Connection->GetLastChunk()));
+		if (NewChunk.Num() > 0 || bForceResponseExist)
+		{
+			if (Response.IsValid())
+			{
+				if (NewChunk.Num() > 0)
+				{
+					Response->AppendPayload(NewChunk);
+				}
+			}
+			else
+			{
+				Response = MakeShared<FWinHttpHttpResponse, ESPMode::ThreadSafe>(RequestData.Url, Connection->GetResponseCode(), CopyTemp(Connection->GetHeadersReceived()), MoveTemp(NewChunk));
+			}
+		}
+	}
 }
 
 void FWinHttpHttpRequest::FinishRequest()

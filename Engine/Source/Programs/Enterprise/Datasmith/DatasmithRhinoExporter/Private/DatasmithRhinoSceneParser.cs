@@ -172,13 +172,14 @@ namespace DatasmithRhino
 	{
 		public Texture RhinoTexture { get; private set; }
 		public string Name { get; private set; }
-		public string Label { get { return Name; } }
+		public string Label { get; private set; }
 		public string FilePath { get; private set; }
 
 		public RhinoTextureInfo(Texture InRhinoTexture, string InName, string InFilePath)
 		{
 			RhinoTexture = InRhinoTexture;
-			Name = InName;
+			Name = FDatasmithFacadeElement.GetStringHash(InName);
+			Label = InName;
 			FilePath = InFilePath;
 		}
 
@@ -219,7 +220,14 @@ namespace DatasmithRhino
 	{
 		public RhinoDoc RhinoDocument { get; private set; }
 		public Rhino.FileIO.FileWriteOptions ExportOptions { get; private set; }
-		public bool bIsInWorksession { get { return RhinoDocument.Worksession != null && RhinoDocument.Worksession.ModelCount > 1; } }
+		public bool bIsInWorksession {
+			get {
+				//Only check for worksession on Windows, the feature is not implemented on Mac and calling the API throws exception.
+				return Environment.OSVersion.Platform == PlatformID.Win32NT 
+					&& RhinoDocument.Worksession != null
+					&& RhinoDocument.Worksession.ModelCount > 1;
+			}
+		}
 
 		public RhinoSceneHierarchyNode SceneRoot = new RhinoSceneHierarchyNode(/*bInIsInstanceDefinition=*/false);
 		public Dictionary<InstanceDefinition, RhinoSceneHierarchyNode> InstanceDefinitionHierarchyNodeDictionary = new Dictionary<InstanceDefinition, RhinoSceneHierarchyNode>();
@@ -447,9 +455,10 @@ namespace DatasmithRhino
 
 		private static bool IsUnsupportedObject(RhinoObject InObject)
 		{
-			// Geometry objects without meshes are currently not supported.
+			// Geometry objects without meshes are currently not supported, unless they are points.
 			return InObject.ComponentType == ModelComponentType.ModelGeometry 
-				&& !InObject.IsMeshable(MeshType.Render);
+				&& !InObject.IsMeshable(MeshType.Render)
+				&& InObject.ObjectType != ObjectType.Point;
 		}
 
 		private void InstanciateDefinition(RhinoSceneHierarchyNode ParentNode, RhinoSceneHierarchyNode DefinitionNode)
@@ -686,11 +695,11 @@ namespace DatasmithRhino
 
 				if (!TextureHashToTextureInfo.ContainsKey(TextureHash))
 				{
-					string TextureName, TexturePath;
-					FDatasmithRhinoUtilities.GetRhinoTextureNameAndPath(RhinoTexture, out TextureName, out TexturePath);
-					TextureName = TextureLabelGenerator.GenerateUniqueNameFromBaseName(TextureName);
-
-					TextureHashToTextureInfo.Add(TextureHash, new RhinoTextureInfo(RhinoTexture, TextureName, TexturePath));
+					if (FDatasmithRhinoUtilities.GetRhinoTextureNameAndPath(RhinoTexture, out string TextureName, out string TexturePath))
+					{
+						TextureName = TextureLabelGenerator.GenerateUniqueNameFromBaseName(TextureName);
+						TextureHashToTextureInfo.Add(TextureHash, new RhinoTextureInfo(RhinoTexture, TextureName, TexturePath));
+					}
 				}
 			}
 		}

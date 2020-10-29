@@ -901,6 +901,18 @@ namespace Audio
 		return 0.0f;
 	}
 
+	float FSpectrumAnalyzer::GetNormalizedMagnitudeForFrequency(float InFrequency, EPeakInterpolationMethod InMethod)
+	{
+		float Norm = static_cast<uint16>(CurrentSettings.FFTSize) * 0.5f;
+
+		if (Norm > 0.0f)
+		{
+			return GetMagnitudeForFrequency(InFrequency, InMethod) / Norm;
+		}
+
+		return 0.f;
+	}
+
 	float FSpectrumAnalyzer::GetPhaseForFrequency(float InFrequency, FSpectrumAnalyzer::EPeakInterpolationMethod InMethod)
 	{
 		if (!bIsInitialized)

@@ -112,6 +112,7 @@
 #include "UnrealExporter.h"
 #include "ISequencerEditorObjectBinding.h"
 #include "LevelSequence.h"
+#include "LevelSequenceActor.h"
 #include "IVREditorModule.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "SequencerKeyActor.h"
@@ -287,6 +288,9 @@ void FSequencer::InitSequencer(const FSequencerInitParams& InitParams, const TSh
 
 	PlaybackContextAttribute = InitParams.PlaybackContext;
 	CachedPlaybackContext = PlaybackContextAttribute.Get(nullptr);
+
+	PlaybackClientAttribute = InitParams.PlaybackClient;
+	CachedPlaybackClient = TWeakInterfacePtr<IMovieScenePlaybackClient>(PlaybackClientAttribute.Get(nullptr));
 
 	Settings = USequencerSettingsContainer::GetOrCreate<USequencerSettings>(*InitParams.ViewParams.UniqueName);
 
@@ -645,7 +649,7 @@ void FSequencer::Tick(float InDeltaTime)
 
 	Selection.Tick();
 
-	UpdateCachedPlaybackContext();
+	UpdateCachedPlaybackContextAndClient();
 
 	{
 		if (CompiledDataManager->IsDirty(RootSequencePtr))
@@ -815,6 +819,10 @@ void FSequencer::Tick(float InDeltaTime)
 		}
 		PrePossessionViewTargets.Reset();
 	}
+
+	UpdateCachedCameraActors();
+
+	UpdateLevelViewportClientsActorLocks();
 
 	if (!bGlobalMarkedFramesCached)
 	{
@@ -1011,6 +1019,9 @@ void FSequencer::FocusSequenceInstance(UMovieSceneSubSection& InSubSection)
 	if (Settings->ShouldEvaluateSubSequencesInIsolation())
 	{
 		RestorePreAnimatedState();
+
+		UMovieSceneEntitySystemLinker* Linker = RootTemplateInstance.GetEntitySystemLinker();
+		RootTemplateInstance.FindInstance(MovieSceneSequenceID::Root)->OverrideRootSequence(Linker, ActiveTemplateIDs.Top());
 	}
 
 	UpdateSubSequenceData();
@@ -1125,6 +1136,15 @@ UObject* FSequencer::GetPlaybackContext() const
 	return CachedPlaybackContext.Get();
 }
 
+IMovieScenePlaybackClient* FSequencer::GetPlaybackClient()
+{
+	if (UObject* Obj = CachedPlaybackClient.GetObject())
+	{
+		return Cast<IMovieScenePlaybackClient>(Obj);
+	}
+	return nullptr;
+}
+
 TArray<UObject*> FSequencer::GetEventContexts() const
 {
 	TArray<UObject*> Temp;
@@ -1206,6 +1226,12 @@ void FSequencer::PopToSequenceInstance(FMovieSceneSequenceIDRef SequenceID)
 		else
 		{
 			SequencerWidget->UpdateBreadcrumbs();
+		}
+
+		if (Settings->ShouldEvaluateSubSequencesInIsolation())
+		{
+			UMovieSceneEntitySystemLinker* Linker = RootTemplateInstance.GetEntitySystemLinker();
+			RootTemplateInstance.FindInstance(MovieSceneSequenceID::Root)->OverrideRootSequence(Linker, ActiveTemplateIDs.Top());
 		}
 
 		UpdateSequencerCustomizations();
@@ -3075,7 +3101,7 @@ void FSequencer::EvaluateInternal(FMovieSceneEvaluationRange InRange, bool bHasJ
 
 	bNeedsEvaluate = false;
 
-	UpdateCachedPlaybackContext();
+	UpdateCachedPlaybackContextAndClient();
 	
 	if (EventContextsAttribute.IsBound())
 	{
@@ -3094,8 +3120,8 @@ void FSequencer::EvaluateInternal(FMovieSceneEvaluationRange InRange, bool bHasJ
 	{
 		RootOverride = ActiveTemplateIDs.Top();
 	}
-	
-	RootTemplateInstance.Evaluate(Context, *this, RootOverride);
+
+	RootTemplateInstance.Evaluate(Context, *this);
 	SuppressAutoEvalSignature.Reset();
 
 	if (RootTemplateInstance.GetEntitySystemRunner().IsAttachedToLinker())
@@ -3114,19 +3140,91 @@ void FSequencer::EvaluateInternal(FMovieSceneEvaluationRange InRange, bool bHasJ
 	}
 }
 
-void FSequencer::UpdateCachedPlaybackContext()
+void FSequencer::UpdateCachedPlaybackContextAndClient()
 {
+	TWeakObjectPtr<UObject> NewPlaybackContext;
+	TWeakInterfacePtr<IMovieScenePlaybackClient> NewPlaybackClient;
+
 	if (PlaybackContextAttribute.IsBound())
 	{
-		TWeakObjectPtr<UObject> NewPlaybackContext = PlaybackContextAttribute.Get();
+		NewPlaybackContext = PlaybackContextAttribute.Get();
+	}
+	if (PlaybackClientAttribute.IsBound())
+	{
+		NewPlaybackClient = TWeakInterfacePtr<IMovieScenePlaybackClient>(PlaybackClientAttribute.Get());
+	}
 
-		if (CachedPlaybackContext != NewPlaybackContext)
+	if (CachedPlaybackContext != NewPlaybackContext || CachedPlaybackClient != NewPlaybackClient)
+	{
+		PrePossessionViewTargets.Reset();
+		State.ClearObjectCaches(*this);
+		RestorePreAnimatedState();
+
+		CachedPlaybackContext = NewPlaybackContext;
+		CachedPlaybackClient = NewPlaybackClient;
+
+		RootTemplateInstance.PlaybackContextChanged(*this);
+	}
+}
+
+void FSequencer::UpdateCachedCameraActors()
+{
+	const uint32 CurrentStateSerial = State.GetSerialNumber();
+	if (CurrentStateSerial == LastKnownStateSerial)
+	{
+		return;
+	}
+	
+	LastKnownStateSerial = CurrentStateSerial;
+	CachedCameraActors.Reset();
+
+	TArray<FMovieSceneSequenceID> SequenceIDs;
+	SequenceIDs.Add(MovieSceneSequenceID::Root);
+	if (const FMovieSceneSequenceHierarchy* Hierarchy = RootTemplateInstance.GetHierarchy())
+	{
+		Hierarchy->AllSubSequenceIDs(SequenceIDs);
+	}
+
+	for (FMovieSceneSequenceID SequenceID : SequenceIDs)
+	{
+		if (UMovieSceneSequence* Sequence = RootTemplateInstance.GetSequence(SequenceID))
 		{
-			PrePossessionViewTargets.Reset();
-			State.ClearObjectCaches(*this);
-			RestorePreAnimatedState();
-			CachedPlaybackContext = NewPlaybackContext;
-			RootTemplateInstance.PlaybackContextChanged(*this);
+			if (UMovieScene* MovieScene = Sequence->GetMovieScene())
+			{
+				TArray<FGuid> BindingGuids;
+
+				for (uint32 SpawnableIndex = 0, SpawnableCount = MovieScene->GetSpawnableCount(); 
+						SpawnableIndex < SpawnableCount; 
+						++SpawnableIndex)
+				{
+					const FMovieSceneSpawnable& Spawnable = MovieScene->GetSpawnable(SpawnableIndex);
+					BindingGuids.Add(Spawnable.GetGuid());
+				}
+
+				for (uint32 PossessableIndex = 0, PossessableCount = MovieScene->GetPossessableCount(); 
+						PossessableIndex < PossessableCount; 
+						++PossessableIndex)
+				{
+					const FMovieScenePossessable& Possessable = MovieScene->GetPossessable(PossessableIndex);
+					BindingGuids.Add(Possessable.GetGuid());
+				}
+
+				const FMovieSceneObjectCache& ObjectCache = State.GetObjectCache(SequenceID);
+				for (const FGuid& BindingGuid : BindingGuids)
+				{
+					for (TWeakObjectPtr<> BoundObject : ObjectCache.IterateBoundObjects(BindingGuid))
+					{
+						if (AActor* BoundActor = Cast<AActor>(BoundObject.Get()))
+						{
+							UCameraComponent* CameraComponent = MovieSceneHelpers::CameraComponentFromActor(BoundActor);
+							if (CameraComponent)
+							{
+								CachedCameraActors.Add(BoundActor);
+							}
+						}
+					}
+				}
+			}
 		}
 	}
 }
@@ -3796,6 +3894,49 @@ void FSequencer::UpdateCameraCut(UObject* CameraObject, const EMovieSceneCameraC
 	if (CameraObject == nullptr && CameraCutParams.BlendTime < 0.f)
 	{
 		bHasPreAnimatedInfo = false;
+	}
+}
+
+void FSequencer::UpdateLevelViewportClientsActorLocks()
+{
+	// Nothing to do if we are not editing level sequence, as these are the only kinds of sequences right now
+	// that have some aspect ratio constraints settings.
+	const ALevelSequenceActor* LevelSequenceActor = Cast<ALevelSequenceActor>(GetPlaybackClient());
+	if (LevelSequenceActor == nullptr)
+	{
+		return;
+	}
+
+	TOptional<EAspectRatioAxisConstraint> AspectRatioAxisConstraint;
+	if (LevelSequenceActor->CameraSettings.bOverrideAspectRatioAxisConstraint)
+	{
+		AspectRatioAxisConstraint = LevelSequenceActor->CameraSettings.AspectRatioAxisConstraint;
+	}
+
+	for (FLevelEditorViewportClient* LevelVC : GEditor->GetLevelViewportClients())
+	{
+		if (LevelVC != nullptr)
+		{
+			// If there is an actor lock on an actor that turns out to be one of our cameras, set the
+			// aspect ratio axis constraint on it.
+			FLevelViewportActorLock& ActorLock = LevelVC->GetActorLock();
+			if (AActor* LockedActor = ActorLock.GetLockedActor())
+			{
+				if (CachedCameraActors.Contains(LockedActor))
+				{
+					ActorLock.AspectRatioAxisConstraint = AspectRatioAxisConstraint;
+				}
+			}
+			// If we are in control of the entire viewport, also set the aspect ratio axis constraint.
+			if (IsPerspectiveViewportCameraCutEnabled())
+			{
+				FLevelViewportActorLock& CinematicLock = LevelVC->GetCinematicActorLock();
+				if (AActor* LockedActor = CinematicLock.GetLockedActor())
+				{
+					CinematicLock.AspectRatioAxisConstraint = AspectRatioAxisConstraint;
+				}
+			}
+		}
 	}
 }
 
@@ -5723,8 +5864,9 @@ void FSequencer::UpdatePreviewLevelViewportClientFromCameraCut(FLevelEditorViewp
 	const float BlendFactor = FMath::Clamp(CameraCutParams.PreviewBlendFactor, 0.f, 1.f);
 
 	const bool bIsBlending = (
-			CameraCutParams.BlendTime > 0.f &&
-			BlendFactor < 1.f - SMALL_NUMBER &&
+			(CameraCutParams.bCanBlend) &&
+			(CameraCutParams.BlendTime > 0.f) &&
+			(BlendFactor < 1.f - SMALL_NUMBER) &&
 			(CameraActor != nullptr || PreviousCameraActor != nullptr));
 
 	// To preview blending we'll have to offset the viewport camera using the view modifiers API.
@@ -5773,8 +5915,11 @@ void FSequencer::UpdatePreviewLevelViewportClientFromCameraCut(FLevelEditorViewp
 	{
 		if (!bIsBlending)
 		{
-			InViewportClient.SetViewLocation(PreAnimatedViewportLocation);
-			InViewportClient.SetViewRotation(PreAnimatedViewportRotation);
+			if (CameraCutParams.bCanBlend && bHasPreAnimatedInfo)
+			{
+				InViewportClient.SetViewLocation(PreAnimatedViewportLocation);
+				InViewportClient.SetViewRotation(PreAnimatedViewportRotation);
+			}
 		}
 		else
 		{
@@ -5804,8 +5949,8 @@ void FSequencer::UpdatePreviewLevelViewportClientFromCameraCut(FLevelEditorViewp
 	}
 
 	// Set the actor lock.
-	InViewportClient.SetMatineeActorLock(CameraActor);
-	InViewportClient.bLockedCameraView = CameraActor != nullptr;
+	InViewportClient.SetCinematicActorLock(CameraActor);
+	InViewportClient.bLockedCameraView = (CameraActor != nullptr);
 	InViewportClient.RemoveCameraRoll();
 
 	// Deal with camera properties.
@@ -11320,7 +11465,7 @@ void FSequencer::NewCameraAdded(FGuid CameraGuid, ACameraActor* NewCamera)
 	// Lock the viewport to this camera
 	if (NewCamera && NewCamera->GetLevel())
 	{
-		GCurrentLevelEditingViewportClient->SetMatineeActorLock(nullptr);
+		GCurrentLevelEditingViewportClient->SetCinematicActorLock(nullptr);
 		GCurrentLevelEditingViewportClient->SetActorLock(NewCamera);
 		GCurrentLevelEditingViewportClient->bLockedCameraView = true;
 		GCurrentLevelEditingViewportClient->UpdateViewForLockedActor();
@@ -12268,10 +12413,16 @@ void FSequencer::BindCommands()
 	SequencerCommandBindings->MapAction(
 		Commands.ToggleEvaluateSubSequencesInIsolation,
 		FExecuteAction::CreateLambda( [this]{
-			Settings->SetEvaluateSubSequencesInIsolation( !Settings->ShouldEvaluateSubSequencesInIsolation() );
+			const bool bNewValue = !Settings->ShouldEvaluateSubSequencesInIsolation();
+			Settings->SetEvaluateSubSequencesInIsolation( bNewValue );
+
+			FMovieSceneSequenceID NewOverrideRoot = bNewValue ? ActiveTemplateIDs.Top() : MovieSceneSequenceID::Root;
+			UMovieSceneEntitySystemLinker* Linker = RootTemplateInstance.GetEntitySystemLinker();
+			RootTemplateInstance.FindInstance(MovieSceneSequenceID::Root)->OverrideRootSequence(Linker, NewOverrideRoot);
+
 			ForceEvaluate();
 		} ),
-		FCanExecuteAction::CreateLambda( [this]{ return ActiveTemplateIDs.Num() > 1; } ),
+		FCanExecuteAction::CreateLambda( [this]{ return true; } ),
 		FIsActionChecked::CreateLambda( [this]{ return Settings->ShouldEvaluateSubSequencesInIsolation(); } ) );
 
 	SequencerCommandBindings->MapAction(

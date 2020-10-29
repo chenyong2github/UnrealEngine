@@ -271,7 +271,7 @@ namespace CADLibrary
 			}
 
 			FVertexID VertexID = MeshDescription.CreateVertex();
-			VertexPositions[VertexID] = FDatasmithUtils::ConvertVector((FDatasmithUtils::EModelCoordSystem) ImportParams.ModelCoordSys, Vertex);
+			VertexPositions[VertexID] = FDatasmithUtils::ConvertVector(ImportParams.ModelCoordSys, Vertex);
 			VertexIdSet[VertexIndex] = VertexID;
 		}
 
@@ -293,7 +293,7 @@ namespace CADLibrary
 				}
 
 				FVertexID VertexID = MeshDescription.CreateVertex();
-				VertexPositions[VertexID] = FDatasmithUtils::ConvertVector((FDatasmithUtils::EModelCoordSystem) ImportParams.ModelCoordSys, Vertex);
+				VertexPositions[VertexID] = FDatasmithUtils::ConvertVector(ImportParams.ModelCoordSys, Vertex);
 				VertexPositions[VertexID] = SymmetricMatrix.TransformPosition(VertexPositions[VertexID]);
 				SymmetricVertexIds[VertexIndex++] = VertexID;
 			}
@@ -487,7 +487,7 @@ namespace CADLibrary
 
 				if (!Step)
 				{
-					FDatasmithUtils::ConvertVectorArray((FDatasmithUtils::EModelCoordSystem) ImportParams.ModelCoordSys, Tessellation.NormalArray);
+					FDatasmithUtils::ConvertVectorArray(ImportParams.ModelCoordSys, Tessellation.NormalArray);
 					for (FVector& Normal : Tessellation.NormalArray)
 					{
 						Normal = Normal.GetSafeNormal();

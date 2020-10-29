@@ -104,6 +104,7 @@ bool UNiagaraDataInterfaceAudioPlayer::InitPerInstanceData(void* PerInstanceData
 	{
 		PIData->MaxPlaysPerTick = MaxPlaysPerTick;
 	}
+	PIData->bStopWhenComponentIsDestroyed = bStopWhenComponentIsDestroyed;
 	return true;
 }
 
@@ -141,6 +142,7 @@ bool UNiagaraDataInterfaceAudioPlayer::PerInstanceTick(void* PerInstanceData, FN
 		PIData->Concurrency.Reset();
 	}
 
+	PIData->bHadPersistentAudioUpdateThisTick = false;
 	PIData->ParameterNames = ParameterNames;
 	return false;
 }
@@ -165,6 +167,22 @@ bool UNiagaraDataInterfaceAudioPlayer::PerInstanceTickPostSimulate(void* PerInst
 			}
 		}
 		TGraphTask<FNiagaraAudioPlayerAsyncTask>::CreateTask().ConstructAndDispatchWhenReady(PIData->SoundToPlay, PIData->Attenuation, PIData->Concurrency, Data, SystemInstance->GetWorldManager()->GetWorld());
+	}
+
+	if (!PIData->bHadPersistentAudioUpdateThisTick)
+	{
+		ensureMsgf(PIData->PersistentAudioActionQueue.IsEmpty(), TEXT("There should be no update tasks without particle updates"));
+
+		for (auto& Entry : PIData->PersistentAudioMapping)
+		{
+			SCOPE_CYCLE_COUNTER(STAT_NiagaraAudioDIStopSound);
+			UAudioComponent* AudioComponent = Entry.Value.IsValid() ? Entry.Value.Get() : nullptr;
+			if (AudioComponent && AudioComponent->IsPlaying())
+			{
+				AudioComponent->Stop();
+			}
+		}
+		PIData->PersistentAudioMapping.Empty();
 	}
 
 	// process the persistent audio updates
@@ -429,6 +447,7 @@ void UNiagaraDataInterfaceAudioPlayer::SetParameterBool(FVectorVMContext& Contex
 	FNDIInputParam<FNiagaraBool> ValueParam(Context);
 	checkfSlow(InstData.Get(), TEXT("Audio player interface has invalid instance data. %s"), *GetPathName());
 
+	InstData->bHadPersistentAudioUpdateThisTick = true;
 	for (int32 i = 0; i < Context.NumInstances; ++i)
 	{
 		int32 Handle = AudioHandleInParam.GetAndAdvance();
@@ -461,6 +480,7 @@ void UNiagaraDataInterfaceAudioPlayer::SetParameterInteger(FVectorVMContext& Con
 	FNDIInputParam<int32> ValueParam(Context);
 	checkfSlow(InstData.Get(), TEXT("Audio player interface has invalid instance data. %s"), *GetPathName());
 
+	InstData->bHadPersistentAudioUpdateThisTick = true;
 	for (int32 i = 0; i < Context.NumInstances; ++i)
 	{
 		int32 Handle = AudioHandleInParam.GetAndAdvance();
@@ -493,6 +513,7 @@ void UNiagaraDataInterfaceAudioPlayer::SetParameterFloat(FVectorVMContext& Conte
 	FNDIInputParam<float> ValueParam(Context);
 	checkfSlow(InstData.Get(), TEXT("Audio player interface has invalid instance data. %s"), *GetPathName());
 
+	InstData->bHadPersistentAudioUpdateThisTick = true;
 	for (int32 i = 0; i < Context.NumInstances; ++i)
 	{
 		int32 Handle = AudioHandleInParam.GetAndAdvance();
@@ -524,6 +545,7 @@ void UNiagaraDataInterfaceAudioPlayer::UpdateVolume(FVectorVMContext& Context)
 	FNDIInputParam<float> VolumeParam(Context);
 	checkfSlow(InstData.Get(), TEXT("Audio player interface has invalid instance data. %s"), *GetPathName());
 
+	InstData->bHadPersistentAudioUpdateThisTick = true;
 	for (int32 i = 0; i < Context.NumInstances; ++i)
 	{
 		int32 Handle = AudioHandleInParam.GetAndAdvance();
@@ -582,6 +604,7 @@ void UNiagaraDataInterfaceAudioPlayer::UpdateLocation(FVectorVMContext& Context)
 	FNDIInputParam<FVector> LocationParam(Context);
 	checkfSlow(InstData.Get(), TEXT("Audio player interface has invalid instance data. %s"), *GetPathName());
 
+	InstData->bHadPersistentAudioUpdateThisTick = true;
 	for (int32 i = 0; i < Context.NumInstances; ++i)
 	{
 		int32 Handle = AudioHandleInParam.GetAndAdvance();
@@ -641,6 +664,7 @@ void UNiagaraDataInterfaceAudioPlayer::SetPausedState(FVectorVMContext& Context)
 	FNDIInputParam<FNiagaraBool> PausedParam(Context);
 	checkfSlow(InstData.Get(), TEXT("Audio player interface has invalid instance data. %s"), *GetPathName());
 
+	InstData->bHadPersistentAudioUpdateThisTick = true;
 	for (int32 i = 0; i < Context.NumInstances; ++i)
 	{
 		int32 Handle = AudioHandleInParam.GetAndAdvance();
@@ -722,6 +746,7 @@ void UNiagaraDataInterfaceAudioPlayer::PlayPersistentAudio(FVectorVMContext& Con
 
 	checkfSlow(InstData.Get(), TEXT("Audio player interface has invalid instance data. %s"), *GetPathName());
 
+	InstData->bHadPersistentAudioUpdateThisTick = true;
 	for (int32 i = 0; i < Context.NumInstances; ++i)
 	{
 		bool ShouldPlay = PlayAudioParam.GetAndAdvance();
@@ -747,9 +772,11 @@ void UNiagaraDataInterfaceAudioPlayer::PlayPersistentAudio(FVectorVMContext& Con
 				{
 					SCOPE_CYCLE_COUNTER(STAT_NiagaraAudioDICreateSound);
 					USceneComponent* NiagaraComponent = SystemInstance->GetAttachComponent();
-					if (NiagaraComponent && InstanceData->SoundToPlay.IsValid())
+					TWeakObjectPtr<USoundBase> Sound = InstanceData->SoundToPlay;
+					if (NiagaraComponent && Sound.IsValid())
 					{
-						UAudioComponent* AudioComponent = UGameplayStatics::SpawnSoundAttached(InstanceData->SoundToPlay.Get(), NiagaraComponent, NAME_None, Position, Rotation, EAttachLocation::KeepWorldPosition, true, Volume, Pitch, StartTime, InstanceData->Attenuation.Get(), InstanceData->Concurrency.Get(), true);
+						bool bStopWithEffect = InstanceData->bStopWhenComponentIsDestroyed || Sound->IsLooping(); // we don't allow looping effects to outlive us because then they keep playing forever
+						UAudioComponent* AudioComponent = UGameplayStatics::SpawnSoundAttached(Sound.Get(), NiagaraComponent, NAME_None, Position, Rotation, EAttachLocation::KeepWorldPosition, bStopWithEffect, Volume, Pitch, StartTime, InstanceData->Attenuation.Get(), InstanceData->Concurrency.Get(), true);
 						if (FadeIn > 0.0)
 						{
 							AudioComponent->FadeIn(FadeIn, Volume, StartTime);
@@ -803,5 +830,6 @@ bool UNiagaraDataInterfaceAudioPlayer::CopyToInternal(UNiagaraDataInterface* Des
 	OtherTyped->bLimitPlaysPerTick = bLimitPlaysPerTick;
 	OtherTyped->MaxPlaysPerTick = MaxPlaysPerTick;
 	OtherTyped->ParameterNames = ParameterNames;
+	OtherTyped->bStopWhenComponentIsDestroyed = bStopWhenComponentIsDestroyed;
 	return true;
 }

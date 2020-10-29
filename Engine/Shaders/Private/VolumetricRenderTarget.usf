@@ -68,7 +68,6 @@ float4 DstVolumetricTextureSizeAndInvSize;
 int2 CurrentTracingPixelOffset;
 int VolumetricRenderTargetMode;
 int DownSampleFactor;
-float TemporalFactor;
 
 
 #define USE_YCOCG 0
@@ -411,10 +410,6 @@ void ComposeVolumetricRTOverScenePS(
 	return;
 
 #elif (PERMUTATION_UPSAMPLINGMODE==4 || PERMUTATION_UPSAMPLINGMODE==3 || PERMUTATION_UPSAMPLINGMODE==2)
-	// Jitter the source sample to add high frequency that can be resolved by TAA - 4 samples + depth test with linear sampling
-
-	float2 VolumeCoord = (VolumeUV - 0*VolumetricTextureSizeAndInvSize.zw * 0.5f);	// 0.5 is the scale between upsampled and fullres, we want to offset down one full res pixel
-	VolumeCoord = (floor(VolumeCoord * VolumetricTextureSizeAndInvSize.xy) + 0.5f); // bottom left of the squere of texels to consider, at texel center
 
 	const float UseWaterLinearDepthTexture = 100.0f;	// This must match SINGLE_LAYER_WATER_DEPTH_SCALE from SingleLayerWaterCommon.ush and SingleLayerWaterComposite.usf
 #if PERMUTATION_RENDER_UNDERWATER_BUFFER
@@ -472,6 +467,7 @@ void ComposeVolumetricRTOverScenePS(
 		clip(-1.0f);
 	}
 #elif PERMUTATION_UPSAMPLINGMODE==3
+	// Jitter the source sample to add high frequency that can be resolved by TAA - 4 samples + depth test with linear sampling
 
 #if 1
 	float4 VolumeRGBT0 = SafeSampleVolumetricTexture(VolumeUVOffset0);
@@ -521,6 +517,7 @@ void ComposeVolumetricRTOverScenePS(
 	}
 
 #elif PERMUTATION_UPSAMPLINGMODE==4
+	// Bilateral upsampling
 
 	int2 PixelPos = SVPos.xy;
 	int2 VolumeCoordUInt = PixelPos  / int(FullResolutionToVolumetricBufferResolutionScale.y);
@@ -615,12 +612,11 @@ void ComposeVolumetricRTOverScenePS(
 	float4 VolumeRGBT3 = SafeLoadVolumetricTexture(VolumeCoord3);
 	float2 VolumeFrontDepth3 = SafeLoadVolumetricDepthTexture(VolumeCoord3);
 
-	PixelDistanceFromViewKm = min(PixelDistanceFromViewKm, max(max(VolumeFrontDepth0.y, VolumeFrontDepth1.y),max(VolumeFrontDepth2.y, VolumeFrontDepth3.y))); // clamp to the maximum of the read depth to avoid no depth matching
-	float4 depth4Diff;
-	depth4Diff.x = PixelDistanceFromViewKm - VolumeFrontDepth0.y;
-	depth4Diff.y = PixelDistanceFromViewKm - VolumeFrontDepth1.y;
-	depth4Diff.z = PixelDistanceFromViewKm - VolumeFrontDepth2.y;
-	depth4Diff.w = PixelDistanceFromViewKm - VolumeFrontDepth3.y;
+	// clamp to the maximum of the read depth to avoid no depth matching
+	PixelDistanceFromViewKm = min(PixelDistanceFromViewKm, max(max(VolumeFrontDepth0.y, VolumeFrontDepth1.y),max(VolumeFrontDepth2.y, VolumeFrontDepth3.y)));
+
+	float4 Depth4 = float4(VolumeFrontDepth0.y, VolumeFrontDepth1.y, VolumeFrontDepth2.y, VolumeFrontDepth3.y);
+	float4 depth4Diff = PixelDistanceFromViewKm - Depth4;
 	depth4Diff = abs(depth4Diff);
 	float MaxDepth4Diff = max(max(depth4Diff.x, depth4Diff.y), max(depth4Diff.z, depth4Diff.w));
 
@@ -628,24 +624,63 @@ void ComposeVolumetricRTOverScenePS(
 	float4 DataAcc = 0;
 
 	const float weightMultiplier = 10000.0f;
-	float4 weights = 1.0f / (depth4Diff * weightMultiplier + 1.0f);
-	const float weightsSum = dot(weights, float4(1.0f, 1.0f, 1.0f, 1.0f));
 	const float ThresholdToBilinear = PixelDistanceFromViewKm * 0.1;
+
 	if (MaxDepth4Diff > ThresholdToBilinear)
 	{
-		// Depth discontinuities edges
-		weights/= weightsSum;
+		const float ConsideredFarWaterDistanceKm = 1.0f;				// We only apply the fix for pixel that are further than 1km
+		const float NotRenderedPixelDistanceKm = 500.0f;				// We assume pixel have a depth great than that are far depth pixel
+		if (any(Depth4 > NotRenderedPixelDistanceKm)					// Some pixels have non rendered pixel...
+			&& !all(Depth4 > NotRenderedPixelDistanceKm)				// ...but not all (in this case we want to fall back to bilinear filtering).
+			&& PixelDistanceFromViewKm > ConsideredFarWaterDistanceKm)	// Only treat this way pixel that are far enough to not mix up close object with far water.
+		{
+			// This is a special case / hack added for to fix some visual issues encoutnered with water as of today.
+			// Water is render after checker boarded minmax depth is taken for cloud rendering (because clouds also needs to be rendered within the water pass).
+			// As such, the reconstructure fails a taking a matching color for a matching depth (cloud depth = 1000km but water is closer, less than 2 kilometers).
+			// This does not handle all the cases but fixes current issues with the water system.
+			// ==> this code can be removed when we automatically fix up edges of objects to have sharp silhouette under strong conflicting motion.
+			const float AcceptanceOffsetKm = 0.001f;
+			if (VolumeFrontDepth0.y > (PixelDistanceFromViewKm - AcceptanceOffsetKm))
+			{
+				DataAcc += VolumeRGBT0;
+				ValidSampleCount++;
+			}
+			if (VolumeFrontDepth1.y > (PixelDistanceFromViewKm - AcceptanceOffsetKm))
+			{
+				DataAcc += VolumeRGBT1;
+				ValidSampleCount++;
+			}
+			if (VolumeFrontDepth2.y > (PixelDistanceFromViewKm - AcceptanceOffsetKm))
+			{
+				DataAcc += VolumeRGBT2;
+				ValidSampleCount++;
+			}
+			if (VolumeFrontDepth3.y > (PixelDistanceFromViewKm - AcceptanceOffsetKm))
+			{
+				DataAcc += VolumeRGBT3;
+				ValidSampleCount++;
+			}
+			//DataAcc = float4(1.0, 1.0, 0, 0); 
+		}
 
-		ValidSampleCount = weightsSum > 0.0f ? 1.0 : 0.0f;
-		DataAcc = weights.x * VolumeRGBT0 + weights.y * VolumeRGBT1 + weights.z * VolumeRGBT2 + weights.w * VolumeRGBT3;
-		//DataAcc += float4(0.1, 0, 0, 0); 
+		if(ValidSampleCount == 0)
+		{
+			// Depth discontinuities edges
+			float4 weights = 1.0f / (depth4Diff * weightMultiplier + 1.0f);
+			const float weightsSum = dot(weights, float4(1.0f, 1.0f, 1.0f, 1.0f));
+			weights /= weightsSum;
+
+			ValidSampleCount = weightsSum > 0.0f ? 1.0 : 0.0f;
+			DataAcc = weights.x * VolumeRGBT0 + weights.y * VolumeRGBT1 + weights.z * VolumeRGBT2 + weights.w * VolumeRGBT3;
+			//DataAcc = float4(1.0, 0, 0, 0); 
+		}
 	}
 	else
 	{
 		// Now do a bilinear sample to have a soft look region without depth edges.
 		ValidSampleCount = 1.0;
 		DataAcc = SafeSampleVolumetricTexture((float2(VolumeCoord0) + 0.25 + (float2(OffsetX, OffsetY) * 0.5 + 0.5) * 0.5) * VolumetricTextureSizeAndInvSize.zw);
-		//DataAcc += float4(0, 0.1, 0, 0);
+		//DataAcc = float4(0, 1.0, 0, 0);
 
 		if (UvOffsetScale>0.0)
 		{

@@ -6,12 +6,13 @@
 #include "DMXProtocolConstants.h"
 #include "Interfaces/IDMXProtocol.h"
 
+#include "IPAddress.h"
+#include "SocketSubsystem.h"
+
 
 UDMXProtocolSettings::UDMXProtocolSettings()
-	: InterfaceIPAddress(TEXT("0.0.0.0"))
-	, SendingRefreshRate(DMX_MAX_REFRESH_RATE)
+	: SendingRefreshRate(DMX_MAX_REFRESH_RATE)
 	, ReceivingRefreshRate(DMX_MAX_REFRESH_RATE)
-	, bUseSeparateReceivingThread(true)
 	, bDefaultReceiveDMXEnabled(true)
 	, bDefaultSendDMXEnabled(true)
 	, bOverrideReceiveDMXEnabled(true)
@@ -69,6 +70,25 @@ UDMXProtocolSettings::UDMXProtocolSettings()
 		{ TEXT("Angle"),			TEXT("") },
 		{ TEXT("NumBeams"),			TEXT("") }
 	};
+
+
+	// Find a good default default network interface IP address
+	ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
+
+	TSharedRef<FInternetAddr> PreferedIPAddress = SocketSubsystem->CreateInternetAddr();
+	PreferedIPAddress->SetIp(*TEXT("127.0.0.1"));
+
+	TArray<TSharedPtr<FInternetAddr>> Addresses;
+	SocketSubsystem->GetLocalAdapterAddresses(Addresses);
+
+	if (Addresses.Contains(PreferedIPAddress))
+	{
+		InterfaceIPAddress = TEXT("127.0.0.1");
+	}
+	else
+	{
+		InterfaceIPAddress = TEXT("0.0.0.0");
+	}
 }
 
 #if WITH_EDITOR
@@ -99,11 +119,6 @@ void UDMXProtocolSettings::PostEditChangeChainProperty(FPropertyChangedChainEven
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXProtocolSettings, InterfaceIPAddress))
 	{
 		IDMXProtocol::OnNetworkInterfaceChanged.Broadcast(InterfaceIPAddress);
-	}
-	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXProtocolSettings, bUseSeparateReceivingThread) ||
-			PropertyName == GET_MEMBER_NAME_CHECKED(UDMXProtocolSettings, ReceivingRefreshRate))
-	{
-		IDMXProtocol::OnReceivingThreadChanged.Broadcast(ReceivingRefreshRate, bUseSeparateReceivingThread);
 	}
 	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXProtocolSettings, FixtureCategories))
 	{

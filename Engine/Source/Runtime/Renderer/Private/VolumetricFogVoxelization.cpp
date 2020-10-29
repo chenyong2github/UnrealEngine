@@ -591,25 +591,37 @@ void FDeferredShadingSceneRenderer::VoxelizeFogVolumePrimitives(
 
 			DrawDynamicMeshPass(View, RHICmdList,
 				[&View, VolumetricFogDistance, &RHICmdList, &VolumetricFogGridSize, &GridZParams](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
-			{
-				FVoxelizeVolumeMeshProcessor PassMeshProcessor(
-					View.Family->Scene->GetRenderScene(),
-					&View,
-					DynamicMeshPassContext);
-
-				for (int32 MeshBatchIndex = 0; MeshBatchIndex < View.VolumetricMeshBatches.Num(); ++MeshBatchIndex)
 				{
-					const FMeshBatch* Mesh = View.VolumetricMeshBatches[MeshBatchIndex].Mesh;
-					const FPrimitiveSceneProxy* PrimitiveSceneProxy = View.VolumetricMeshBatches[MeshBatchIndex].Proxy;
-					const FPrimitiveSceneInfo* PrimitiveSceneInfo = PrimitiveSceneProxy->GetPrimitiveSceneInfo();
-					const FBoxSphereBounds Bounds = PrimitiveSceneProxy->GetBounds();
+					FVoxelizeVolumeMeshProcessor PassMeshProcessor(
+						View.Family->Scene->GetRenderScene(),
+						&View,
+						DynamicMeshPassContext);
 
-					if ((View.ViewMatrices.GetViewOrigin() - Bounds.Origin).SizeSquared() < (VolumetricFogDistance + Bounds.SphereRadius) * (VolumetricFogDistance + Bounds.SphereRadius))
+					for (int32 MeshBatchIndex = 0; MeshBatchIndex < View.VolumetricMeshBatches.Num(); ++MeshBatchIndex)
 					{
-						VoxelizeVolumePrimitive(PassMeshProcessor, RHICmdList, View, VolumetricFogGridSize, GridZParams, PrimitiveSceneProxy, *Mesh);
+						const FMeshBatch* Mesh = View.VolumetricMeshBatches[MeshBatchIndex].Mesh;
+						const FPrimitiveSceneProxy* PrimitiveSceneProxy = View.VolumetricMeshBatches[MeshBatchIndex].Proxy;
+						const FPrimitiveSceneInfo* PrimitiveSceneInfo = PrimitiveSceneProxy->GetPrimitiveSceneInfo();
+						const FBoxSphereBounds Bounds = PrimitiveSceneProxy->GetBounds();
+
+						if ((View.ViewMatrices.GetViewOrigin() - Bounds.Origin).SizeSquared() < (VolumetricFogDistance + Bounds.SphereRadius) * (VolumetricFogDistance + Bounds.SphereRadius))
+						{
+							VoxelizeVolumePrimitive(PassMeshProcessor, RHICmdList, View, VolumetricFogGridSize, GridZParams, PrimitiveSceneProxy, *Mesh);
+						}
 					}
-				}
-			});
+				},
+
+				// Force off instanced stereo.
+				// With instanced stereo on, primitives were being drawn to the left eye twice,  thickening the fog more in the
+				// left eye.  It seemed better to force off instanced stereo anyway because of cache coherency in the 3d grids,
+				// which are per-eye (far away in cache). The engine is already instancing across slices, which should be nearby
+				// in cache).
+				//
+				// It may be a tradeoff where small primitives do better with instancing (their texture lookups stay cached)
+				// and large ones covering lots of the voxel grid do worse (grid writes use up too much cache?), and could be
+				// decided based on bounds?  GPUs presumably may have separate caches for read-only data in a way that changes
+				// this tradeoff as well.
+				true /*bForceInstanceStereoOff*/);
 		});
 	}
 }

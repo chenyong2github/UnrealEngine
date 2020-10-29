@@ -122,6 +122,37 @@ private:
 	
 };
 
+/** Interface for objects who want to lock the viewport to an actor. */
+struct UNREALED_API FLevelViewportActorLock
+{
+	/** Represents no lock. */
+	static const FLevelViewportActorLock None;
+
+	/** Creates a new instance of FLevelViewportActorLock. */
+	FLevelViewportActorLock() 
+		: LockedActor(nullptr) {}
+
+	/** Creates a new instance of FLevelViewportActorLock. */
+	FLevelViewportActorLock(AActor* InActor) 
+		: LockedActor(InActor) {}
+
+	/** Creates a new instance of FLevelViewportActorLock. */
+	FLevelViewportActorLock(AActor* InActor, TOptional<EAspectRatioAxisConstraint> InAspectRatioAxisConstraint) 
+		: LockedActor(InActor), AspectRatioAxisConstraint(InAspectRatioAxisConstraint) {}
+
+	/** Returns whether the locked actor is valid. */
+	bool HasValidLockedActor() const { return LockedActor.IsValid(); }
+
+	/** Gets the locked actor. */
+	AActor* GetLockedActor() const { return LockedActor.Get(); }
+
+	/** The actor the viewport should be locked to. */
+	TWeakObjectPtr<AActor> LockedActor;
+
+	/** An optional aspect ratio axis constraint to use when resizing the viewport. */
+	TOptional<EAspectRatioAxisConstraint> AspectRatioAxisConstraint;
+};
+
 /** */
 class UNREALED_API FLevelEditorViewportClient : public FEditorViewportClient
 {
@@ -434,18 +465,21 @@ public:
 	void SetLastKeyViewport();
 
 	/** 
-	 * Access the 'active' actor lock. This is the actor locked to the viewport via the viewport menus.
-	 * It is forced to be inactive if Matinee is controlling locking.
+	 * Access the 'active' actor lock.
+	 *
+	 * This returns the actor lock (as per GetActorLock) if that is the currently active lock. It is *not* the currently
+	 * active lock if there's a valid cinematic lock actor (as per GetCinematicActorLock), since cinematics take
+	 * precedence.
 	 * 
 	 * @return  The actor currently locked to the viewport and actively linked to the camera movements.
 	 */
 	TWeakObjectPtr<AActor> GetActiveActorLock() const
 	{
-		if (ActorLockedByMatinee.IsValid())
+		if (ActorLocks.CinematicActorLock.HasValidLockedActor())
 		{
 			return TWeakObjectPtr<AActor>();
 		}
-		return ActorLockedToCamera;
+		return ActorLocks.ActorLock.LockedActor;
 	}
 	
 	/**
@@ -456,21 +490,31 @@ public:
 
 	/** 
 	 * Find the camera component that is driving this viewport, in the following order of preference:
-	 *		1. Matinee locked actor
+	 *		1. Cinematic locked actor
 	 *		2. User actor lock (if (bLockedCameraView is true)
 	 * 
 	 * @return  Pointer to a camera component to use for this viewport's view
 	 */
 	UCameraComponent* GetCameraComponentForView() const
 	{
-		const AActor* LockedActor = ActorLockedByMatinee.Get();
+		const FLevelViewportActorLock& ActorLock = ActorLocks.GetLock(bLockedCameraView);
+		return Cast<UCameraComponent>(FindViewComponentForActor(ActorLock.GetLockedActor()));
+	}
 
-		if (!LockedActor && bLockedCameraView)
-		{
-			LockedActor = ActorLockedToCamera.Get();
-		}
+	/**
+	 * Gets the actor lock. This is the actor locked to the viewport via the viewport menus.
+	 */
+	const FLevelViewportActorLock& GetActorLock() const
+	{
+		return ActorLocks.ActorLock;
+	}
 
-		return Cast<UCameraComponent>(FindViewComponentForActor(LockedActor));
+	/**
+	 * Gets the actor lock. This is the actor locked to the viewport via the viewport menus.
+	 */
+	FLevelViewportActorLock& GetActorLock()
+	{
+		return ActorLocks.ActorLock;
 	}
 
 	/** 
@@ -479,24 +523,68 @@ public:
 	void SetActorLock(AActor* Actor);
 
 	/** 
+	 * Set the actor lock. This is the actor locked to the viewport via the viewport menus.
+	 */
+	void SetActorLock(const FLevelViewportActorLock& InActorLock);
+
+	/**
+	 * Get the actor locked to the viewport by cinematic tools like Sequencer.
+	 */
+	const FLevelViewportActorLock& GetCinematicActorLock() const
+	{
+		return ActorLocks.CinematicActorLock;
+	}
+
+	/**
+	 * Get the actor locked to the viewport by cinematic tools like Sequencer.
+	 */
+	FLevelViewportActorLock& GetCinematicActorLock()
+	{
+		return ActorLocks.CinematicActorLock;
+	}
+
+	/**
+	 * Set the actor locked to the viewport by cinematic tools like Sequencer.
+	 */
+	void SetCinematicActorLock(AActor* Actor);
+
+	/**
+	 * Set the actor locked to the viewport by cinematic tools like Sequencer.
+	 */
+	void SetCinematicActorLock(const FLevelViewportActorLock& InActorLock);
+
+	/** 
 	 * Set the actor locked to the viewport by Matinee.
 	 */
-	void SetMatineeActorLock(AActor* Actor);
+	UE_DEPRECATED(4.27, "Matinee is being deprecated, use SetCinematicActorLock instead.")
+	void SetMatineeActorLock(AActor* Actor)
+	{
+		SetCinematicActorLock(Actor);
+	}
 
 	/** 
 	 * Check whether this viewport is locked to the specified actor
 	 */
 	bool IsLockedToActor(AActor* Actor) const
 	{
-		return ActorLockedToCamera.Get() == Actor || ActorLockedByMatinee.Get() == Actor;
+		return ActorLocks.HasActorLocked(Actor);
 	}
 
 	/** 
 	 * Check whether this viewport is locked to display the matinee view
 	 */
+	UE_DEPRECATED(4.27, "Matinee is being deprecated, use IsLockedToCinematic instead.")
 	bool IsLockedToMatinee() const
 	{
-		return ActorLockedByMatinee.IsValid();
+		return IsLockedToCinematic();
+	}
+
+	/**
+	 * Check whether this viewport is locked to display a cinematic camera, like a Sequencer camera.
+	 */
+	bool IsLockedToCinematic() const
+	{
+		return ActorLocks.CinematicActorLock.HasValidLockedActor();
 	}
 
 	void UpdateHoveredObjects( const TSet<FViewportHoverTarget>& NewHoveredObjects );
@@ -805,11 +893,35 @@ private:
 
 	/**
 	 * When locked to an actor this view will be positioned in the same location and rotation as the actor.
-	 * If the actor has a camera component the view will also inherit camera settings such as aspect ratio, FOV, post processing settings, and the like.
-	 * A viewport locked to an actor by Matinee will always take precedent over any other.
+	 * If the actor has a camera component the view will also inherit camera settings such as aspect ratio, 
+	 * FOV, post processing settings, and the like.
+	 *
+	 * This structure allows us to keep track of two actor locks: a normal actor lock, and a lock specifically
+	 * for cinematic tools like Sequencer. A viewport locked to an actor by cinematics will always take 
+	 * precedent over any other.
 	 */
-	TWeakObjectPtr<AActor>	ActorLockedByMatinee;
-	TWeakObjectPtr<AActor>	ActorLockedToCamera;
+	struct FActorLockStack
+	{
+		/** Get the active lock info. Cinematics take precedence. */
+		const FLevelViewportActorLock& GetLock(bool bAllowActorLock = true) const
+		{
+			if (CinematicActorLock.LockedActor.IsValid())
+			{
+				return CinematicActorLock;
+			}
+			return bAllowActorLock ? ActorLock : FLevelViewportActorLock::None;
+		}
+
+		/** Returns whether the given actor is used as one of our locks. */
+		bool HasActorLocked(const AActor* InActor) const
+		{
+			return CinematicActorLock.LockedActor.Get() == InActor || ActorLock.LockedActor.Get() == InActor;
+		}
+
+		FLevelViewportActorLock CinematicActorLock;
+		FLevelViewportActorLock ActorLock;
+	};
+	FActorLockStack ActorLocks;
 
 	/** Caching for expensive FindViewComponentForActor. Invalidated once per Tick. */
 	static TMap<TObjectKey<AActor>, TWeakObjectPtr<UActorComponent>> ViewComponentForActorCache;

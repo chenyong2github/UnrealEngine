@@ -13,6 +13,10 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/StructOnScope.h"
 
+#if WITH_EDITOR
+#include "Editor.h"
+#endif
+
 #define LOCTEXT_NAMESPACE "RemoteControlPreset" 
 
 namespace
@@ -456,6 +460,15 @@ TArray<UObject*> FRemoteControlTarget::ResolveBoundObjects() const
 	{
 		if (UObject* Obj = Path.ResolveObject())
 		{
+#if WITH_EDITOR
+			if (Obj->IsA<AActor>() && GEditor && GEditor->PlayWorld)
+			{
+				if (AActor* SimWorldActor = EditorUtilities::GetSimWorldCounterpartActor(Cast<AActor>(Obj)))
+				{
+					Obj = SimWorldActor;
+				}
+			}
+#endif		
 			ResolvedObjects.Add(Obj);
 		}
 	}
@@ -541,6 +554,7 @@ void URemoteControlPreset::PostInitProperties()
 	Super::PostInitProperties();
 	if (!HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))
 	{
+		RegisterDelegates();
 		IRemoteControlModule::Get().RegisterPreset(GetFName(), this);
 	}
 }
@@ -550,10 +564,7 @@ void URemoteControlPreset::PostLoad()
 	Super::PostLoad();
 	IRemoteControlModule::Get().RegisterPreset(GetFName(), this);
 
-#if WITH_EDITOR
-	FCoreUObjectDelegates::OnObjectPropertyChanged.AddUObject(this, &URemoteControlPreset::OnObjectPropertyChanged);
-	FCoreUObjectDelegates::OnPreObjectPropertyChanged.AddUObject(this, &URemoteControlPreset::OnPreObjectPropertyChanged);
-#endif //WITH_EDITOR
+	RegisterDelegates();
 
 	FieldCache.Reset();
 	CacheFieldsData();
@@ -564,11 +575,7 @@ void URemoteControlPreset::BeginDestroy()
 {
 	Super::BeginDestroy();
 
-#if WITH_EDITOR
-	FCoreUObjectDelegates::OnPreObjectPropertyChanged.RemoveAll(this);
-	FCoreUObjectDelegates::OnObjectPropertyChanged.RemoveAll(this);
-#endif //WITH_EDITOR
-
+	UnregisterDelegates();
 	IRemoteControlModule::Get().UnregisterPreset(GetFName());
 }
 
@@ -984,6 +991,23 @@ void URemoteControlPreset::OnPreObjectPropertyChanged(UObject* Object, const cla
 			}
 		}
 	}
+}
+
+void URemoteControlPreset::RegisterDelegates()
+{
+#if WITH_EDITOR
+	UnregisterDelegates();
+	FCoreUObjectDelegates::OnObjectPropertyChanged.AddUObject(this, &URemoteControlPreset::OnObjectPropertyChanged);
+	FCoreUObjectDelegates::OnPreObjectPropertyChanged.AddUObject(this, &URemoteControlPreset::OnPreObjectPropertyChanged);
+#endif
+}
+
+void URemoteControlPreset::UnregisterDelegates()
+{
+#if WITH_EDITOR
+	FCoreUObjectDelegates::OnPreObjectPropertyChanged.RemoveAll(this);
+	FCoreUObjectDelegates::OnObjectPropertyChanged.RemoveAll(this);
+#endif
 }
 
 #undef LOCTEXT_NAMESPACE /* RemoteControlPreset */ 

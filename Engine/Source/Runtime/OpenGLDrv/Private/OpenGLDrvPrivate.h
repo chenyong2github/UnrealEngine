@@ -84,6 +84,8 @@ DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Uniform buffer pool num free"),STAT_
 DECLARE_CYCLE_STAT_EXTERN(TEXT("Time for first draw of shader programs"), STAT_OpenGLShaderFirstDrawTime,STATGROUP_OpenGLRHI, );
 DECLARE_MEMORY_STAT_EXTERN(TEXT("Program binary memory"), STAT_OpenGLProgramBinaryMemory, STATGROUP_OpenGLRHI, );
 DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("GL Program count"), STAT_OpenGLProgramCount, STATGROUP_OpenGLRHI, );
+DECLARE_CYCLE_STAT_EXTERN(TEXT("Program get from cache time"),STAT_OpenGLUseCachedProgramTime,STATGROUP_OpenGLRHI, );
+DECLARE_CYCLE_STAT_EXTERN(TEXT("Program create from binary time"),STAT_OpenGLCreateProgramFromBinaryTime,STATGROUP_OpenGLRHI, );
 
 DECLARE_CYCLE_STAT_EXTERN(TEXT("Program LRU cache eviction time"), STAT_OpenGLShaderLRUEvictTime, STATGROUP_OpenGLRHI, );
 DECLARE_CYCLE_STAT_EXTERN(TEXT("Program LRU cache miss time"), STAT_OpenGLShaderLRUMissTime, STATGROUP_OpenGLRHI, );
@@ -517,18 +519,9 @@ inline bool OpenGLShaderPlatformSeparable(const EShaderPlatform InShaderPlatform
 {
 	switch (InShaderPlatform)
 	{
-		case SP_OPENGL_SM5:
-#if PLATFORM_LUMINGL4
-// Only desktop shader platforms can use separable shaders for now,
-// the generated code relies on macros supplied at runtime to determine whether
-// shaders may be separable and/or linked.
-// although Lumin gl4 supports desktop gl feature level, it is not capable of compiling shaders.
-			return false;
-#endif		
 		case SP_OPENGL_PCES3_1:
 			return true;
 
-		case SP_OPENGL_ES31_EXT:
 		case SP_OPENGL_ES3_1_ANDROID:
 			return false;
 		default:

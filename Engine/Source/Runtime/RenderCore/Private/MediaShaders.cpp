@@ -542,6 +542,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FRGB10toYUVv210ConvertUB, )
 SHADER_PARAMETER(FMatrix, ColorTransform)
 SHADER_PARAMETER(uint32, LinearToSrgb)
 SHADER_PARAMETER(float, OnePixelDeltaX)
+SHADER_PARAMETER(float, PaddingScale)
 SHADER_PARAMETER_TEXTURE(Texture2D, Texture)
 SHADER_PARAMETER_SAMPLER(SamplerState, SamplerP)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
@@ -558,11 +559,46 @@ void FRGB10toYUVv210ConvertPS::SetParameters(FRHICommandList& CommandList, TRefC
 		UB.SamplerP = TStaticSamplerState<SF_Point>::GetRHI();
 		UB.LinearToSrgb = LinearToSrgb;
 		UB.Texture = RGBATexture;
-		UB.OnePixelDeltaX = 1.0f / float(RGBATexture->GetSizeX());
+
+		//Output texture will be based on a size dividable by 48 (i.e 1280 -> 1296) and divided by 6 (i.e 1296 / 6 = 216)
+		//To map output texture UVs, we get a scale from the source texture original size to the mapped output size
+		//And use the source texture size to get the pixel delta
+		const float PaddedResolution = uint32((RGBATexture->GetSizeX() + 47) / 48) * 48;
+		UB.OnePixelDeltaX = 1.0f / (float)RGBATexture->GetSizeX();
+		UB.PaddingScale = PaddedResolution / (float)RGBATexture->GetSizeX();
 	}
 
 	TUniformBufferRef<FRGB10toYUVv210ConvertUB> Data = TUniformBufferRef<FRGB10toYUVv210ConvertUB>::CreateUniformBufferImmediate(UB, UniformBuffer_SingleFrame);
 	SetUniformBufferParameter(CommandList, CommandList.GetBoundPixelShader(), GetUniformBufferParameter<FRGB10toYUVv210ConvertUB>(), Data);
+}
+
+
+/* FRGB8toY8ConvertPS shader
+ *****************************************************************************/
+
+BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FRGB8toY8ConvertUB, )
+SHADER_PARAMETER(FVector4, ColorTransform)
+SHADER_PARAMETER(uint32, LinearToSrgb)
+SHADER_PARAMETER_TEXTURE(Texture2D, Texture)
+SHADER_PARAMETER_SAMPLER(SamplerState, SamplerP)
+END_GLOBAL_SHADER_PARAMETER_STRUCT()
+
+IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FRGB8toY8ConvertUB, "RGB8toY8ConvertUB");
+IMPLEMENT_SHADER_TYPE(, FRGB8toY8ConvertPS, TEXT("/Engine/Private/MediaShaders.usf"), TEXT("RGB8toY8ConvertPS"), SF_Pixel);
+
+
+void FRGB8toY8ConvertPS::SetParameters(FRHICommandList& CommandList, TRefCountPtr<FRHITexture2D> RGBATexture, const FVector4& ColorTransform, bool LinearToSrgb)
+{
+	FRGB8toY8ConvertUB UB;
+	{
+		UB.ColorTransform = ColorTransform;
+		UB.SamplerP = TStaticSamplerState<SF_Point>::GetRHI();
+		UB.LinearToSrgb = LinearToSrgb;
+		UB.Texture = RGBATexture;
+	}
+
+	TUniformBufferRef<FRGB8toY8ConvertUB> Data = TUniformBufferRef<FRGB8toY8ConvertUB>::CreateUniformBufferImmediate(UB, UniformBuffer_SingleFrame);
+	SetUniformBufferParameter(CommandList, CommandList.GetBoundPixelShader(), GetUniformBufferParameter<FRGB8toY8ConvertUB>(), Data);
 }
 
 

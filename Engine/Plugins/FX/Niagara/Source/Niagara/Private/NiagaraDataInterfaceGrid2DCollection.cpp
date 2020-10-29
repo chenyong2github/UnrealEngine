@@ -6,8 +6,9 @@
 #include "TextureResource.h"
 #include "Engine/Texture2DArray.h"
 #include "NiagaraEmitterInstanceBatcher.h"
-#include "NiagaraSystemInstance.h"
 #include "NiagaraRenderer.h"
+#include "NiagaraSystemInstance.h"
+#include "NiagaraSettings.h"
 #if WITH_EDITOR
 #include "NiagaraGpuComputeDebug.h"
 #endif
@@ -373,7 +374,7 @@ void UNiagaraDataInterfaceGrid2DCollection::GetFunctions(TArray<FNiagaraFunction
 		Sig.bMemberFunction = true;
 		Sig.bRequiresContext = false;
 #if WITH_EDITORONLY_DATA
-		Sig.Description = NSLOCTEXT("Niagara", "NiagaraDataInterfaceGridColl2D_GetValueFunction", "Get the value at a specific index. Note that this is an older way of working with Grids. Consider using the SetFloat or other typed, named functions or parameter map variables with StageContext namespace instead.");
+		Sig.Description = NSLOCTEXT("Niagara", "NiagaraDataInterfaceGridColl2D_GetValueFunction", "Get the value at a specific index. Note that this is an older way of working with Grids. Consider using the SetFloat or other typed, named functions or parameter map variables with StackContext namespace instead.");
 #endif
 
 		OutFunctions.Add(Sig);
@@ -394,7 +395,7 @@ void UNiagaraDataInterfaceGrid2DCollection::GetFunctions(TArray<FNiagaraFunction
 		Sig.bRequiresContext = false;
 		Sig.bWriteFunction = true;
 #if WITH_EDITORONLY_DATA
-		Sig.Description = NSLOCTEXT("Niagara", "NiagaraDataInterfaceGridColl2D_SetValueFunction", "Set the value at a specific index. Note that this is an older way of working with Grids. Consider using the SetFloat or other typed, named functions or parameter map variables with StageContext namespace instead.");
+		Sig.Description = NSLOCTEXT("Niagara", "NiagaraDataInterfaceGridColl2D_SetValueFunction", "Set the value at a specific index. Note that this is an older way of working with Grids. Consider using the SetFloat or other typed, named functions or parameter map variables with StackContext namespace instead.");
 #endif
 		OutFunctions.Add(Sig);
 	}
@@ -813,7 +814,8 @@ bool UNiagaraDataInterfaceGrid2DCollection::Equals(const UNiagaraDataInterface* 
 		OtherTyped->PreviewAttribute == PreviewAttribute &&
 #endif
 		OtherTyped->RenderTargetUserParameter == RenderTargetUserParameter &&
-		OtherTyped->BufferFormat == BufferFormat;
+		OtherTyped->OverrideBufferFormat == OverrideBufferFormat &&
+		OtherTyped->bOverrideFormat == bOverrideFormat;
 }
 
 void UNiagaraDataInterfaceGrid2DCollection::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
@@ -1303,7 +1305,7 @@ bool UNiagaraDataInterfaceGrid2DCollection::GenerateIterationSourceNamespaceRead
 		{
 			if (TypeDefinitionToSetFunctionName(InAttributes[i].GetType()) == NAME_None)
 			{
-				FText Error = FText::Format(LOCTEXT("UnknownType", "Unsupported Type {0} , Attribute {1}"), InAttributes[i].GetType().GetNameText(), FText::FromName(InAttributes[i].GetName()));
+				FText Error = FText::Format(LOCTEXT("UnknownType", "Unsupported Type {0} , Attribute {1} for custom iteration source"), InAttributes[i].GetType().GetNameText(), FText::FromName(InAttributes[i].GetName()));
 				OutErrors.Add(Error);
 				continue;
 			}
@@ -1363,7 +1365,7 @@ bool UNiagaraDataInterfaceGrid2DCollection::GenerateIterationSourceNamespaceWrit
 		{
 			if (TypeDefinitionToSetFunctionName(InAttributes[i].GetType()) == NAME_None)
 			{
-				FText Error = FText::Format(LOCTEXT("UnknownType", "Unsupported Type {0} , Attribute {1}"), InAttributes[i].GetType().GetNameText(), FText::FromName(InAttributes[i].GetName()));
+				FText Error = FText::Format(LOCTEXT("UnknownType", "Unsupported Type {0} , Attribute {1} for custom iteration source"), InAttributes[i].GetType().GetNameText(), FText::FromName(InAttributes[i].GetName()));
 				OutErrors.Add(Error);
 				continue;
 			}
@@ -1440,7 +1442,8 @@ bool UNiagaraDataInterfaceGrid2DCollection::CopyToInternal(UNiagaraDataInterface
 
 	UNiagaraDataInterfaceGrid2DCollection* OtherTyped = CastChecked<UNiagaraDataInterfaceGrid2DCollection>(Destination);
 	OtherTyped->RenderTargetUserParameter = RenderTargetUserParameter;
-	OtherTyped->BufferFormat = BufferFormat;
+	OtherTyped->OverrideBufferFormat = OverrideBufferFormat;
+	OtherTyped->bOverrideFormat = bOverrideFormat;
 #if WITH_EDITOR
 	OtherTyped->bPreviewGrid = bPreviewGrid;
 	OtherTyped->PreviewAttribute = PreviewAttribute;
@@ -1468,12 +1471,13 @@ bool UNiagaraDataInterfaceGrid2DCollection::InitPerInstanceData(void* PerInstanc
 
 	InstanceData->WorldBBoxSize = WorldBBoxSize;
 
-	InstanceData->PixelFormat = FNiagaraUtilities::BufferFormatToPixelFormat(BufferFormat);
-
-	if (GNiagaraGrid2DOverrideFormat >= int32(ENiagaraGpuBufferFormat::Float) && (GNiagaraGrid2DOverrideFormat < int32(ENiagaraGpuBufferFormat::Max)) )
+	ENiagaraGpuBufferFormat BufferFormat = bOverrideFormat ? OverrideBufferFormat : GetDefault<UNiagaraSettings>()->DefaultGridFormat;
+	if (GNiagaraGrid2DOverrideFormat >= int32(ENiagaraGpuBufferFormat::Float) && (GNiagaraGrid2DOverrideFormat < int32(ENiagaraGpuBufferFormat::Max)))
 	{
-		InstanceData->PixelFormat = FNiagaraUtilities::BufferFormatToPixelFormat(ENiagaraGpuBufferFormat(GNiagaraGrid2DOverrideFormat));
+		BufferFormat = ENiagaraGpuBufferFormat(GNiagaraGrid2DOverrideFormat);
 	}
+
+	InstanceData->PixelFormat = FNiagaraUtilities::BufferFormatToPixelFormat(BufferFormat);
 
 	if (!FMath::IsNearlyEqual(GNiagaraGrid2DResolutionMultiplier, 1.0f))
 	{
@@ -1574,8 +1578,6 @@ bool UNiagaraDataInterfaceGrid2DCollection::InitPerInstanceData(void* PerInstanc
 		RT_Proxy->OutputSimulationStages_DEPRECATED = RT_OutputShaderStages;
 		RT_Proxy->IterationSimulationStages_DEPRECATED = RT_IterationShaderStages;
 
-		RT_Proxy->SetElementCount(TargetData->NumCells);
-		
 		if (RT_Resource && RT_Resource->TextureRHI.IsValid())
 		{
 			TargetData->RenderTargetToCopyTo = RT_Resource->TextureRHI;
@@ -1615,6 +1617,12 @@ void UNiagaraDataInterfaceGrid2DCollection::DestroyPerInstanceData(void* PerInst
 bool UNiagaraDataInterfaceGrid2DCollection::PerInstanceTick(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds)
 {	
 	FGrid2DCollectionRWInstanceData_GameThread* InstanceData = SystemInstancesToProxyData_GT.FindRef(SystemInstance->GetId());
+
+	ENiagaraGpuBufferFormat BufferFormat = bOverrideFormat ? OverrideBufferFormat : GetDefault<UNiagaraSettings>()->DefaultGridFormat;
+	if (GNiagaraGrid2DOverrideFormat >= int32(ENiagaraGpuBufferFormat::Float) && (GNiagaraGrid2DOverrideFormat < int32(ENiagaraGpuBufferFormat::Max)))
+	{
+		BufferFormat = ENiagaraGpuBufferFormat(GNiagaraGrid2DOverrideFormat);
+	}
 
 	bool NeedsReset = InstanceData->UpdateTargetTexture(BufferFormat);
 
@@ -2030,6 +2038,12 @@ bool UNiagaraDataInterfaceGrid2DCollection::PerInstanceTickPostSimulate(void* Pe
 
 		if (InstanceData->TargetTexture)
 		{
+			ENiagaraGpuBufferFormat BufferFormat = bOverrideFormat ? OverrideBufferFormat : GetDefault<UNiagaraSettings>()->DefaultGridFormat;
+			if (GNiagaraGrid2DOverrideFormat >= int32(ENiagaraGpuBufferFormat::Float) && (GNiagaraGrid2DOverrideFormat < int32(ENiagaraGpuBufferFormat::Max)))
+			{
+				BufferFormat = ENiagaraGpuBufferFormat(GNiagaraGrid2DOverrideFormat);
+			}
+
 			InstanceData->UpdateTargetTexture(BufferFormat);
 		}
 
@@ -2049,8 +2063,6 @@ bool UNiagaraDataInterfaceGrid2DCollection::PerInstanceTickPostSimulate(void* Pe
 			TargetData->CurrentData = nullptr;
 			TargetData->DestinationData = nullptr;
 			
-			RT_Proxy->SetElementCount(TargetData->NumCells);
-
 			if (RT_Resource && RT_Resource->TextureRHI.IsValid())
 			{
 				TargetData->RenderTargetToCopyTo = RT_Resource->TextureRHI;
@@ -2296,4 +2308,14 @@ void FNiagaraDataInterfaceProxyGrid2DCollectionProxy::ResetData(FRHICommandList&
 		}		
 	}	
 }
+
+FIntVector FNiagaraDataInterfaceProxyGrid2DCollectionProxy::GetElementCount(FNiagaraSystemInstanceID SystemInstanceID) const
+{
+	if ( const FGrid2DCollectionRWInstanceData_RenderThread* TargetData = SystemInstancesToProxyData_RT.Find(SystemInstanceID) )
+	{
+		return FIntVector(TargetData->NumCells.X, TargetData->NumCells.Y, 1);
+	}
+	return FIntVector::ZeroValue;
+}
+
 #undef LOCTEXT_NAMESPACE

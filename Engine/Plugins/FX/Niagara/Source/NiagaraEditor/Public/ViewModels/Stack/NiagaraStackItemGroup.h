@@ -39,7 +39,7 @@ protected:
 
 	virtual int32 GetChildIndentLevel() const override;
 
-	virtual void ChlildStructureChangedInternal() override;
+	virtual void ChildStructureChangedInternal() override;
 
 private:
 	bool FilterChildrenWithIssues(const UNiagaraStackEntry& Child) const;

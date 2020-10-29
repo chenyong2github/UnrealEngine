@@ -22,6 +22,7 @@
 #include "PostProcess/SceneFilterRendering.h"
 #include "PostProcess/PostProcessEyeAdaptation.h"
 #include "PostProcess/PostProcessSubsurface.h"
+#include "PostProcess/TemporalAA.h"
 #include "PostProcess/PostProcessing.h"
 #include "CompositionLighting/CompositionLighting.h"
 #include "LegacyScreenPercentageDriver.h"
@@ -452,11 +453,21 @@ public:
 
 	FScreenPercentageHellDriver(const FSceneViewFamily& InViewFamily)
 		: ViewFamily(InViewFamily)
-	{ }
+	{ 
+		if (InViewFamily.GetTemporalUpscalerInterface())
+		{
+			MinResolutionFraction = InViewFamily.GetTemporalUpscalerInterface()->GetMinUpsampleResolutionFraction();
+			MaxResolutionFraction = InViewFamily.GetTemporalUpscalerInterface()->GetMaxUpsampleResolutionFraction();
+		}
+
+		check(MinResolutionFraction <= MaxResolutionFraction);
+		check(MinResolutionFraction > 0.0f);
+		check(MaxResolutionFraction > 0.0f);
+	}
 
 	virtual float GetPrimaryResolutionFractionUpperBound() const override
 	{
-		return 1.0f;
+		return MaxResolutionFraction;
 	}
 
 	virtual ISceneViewFamilyScreenPercentage* Fork_GameThread(const class FSceneViewFamily& ForkedViewFamily) const override
@@ -469,7 +480,7 @@ public:
 		}
 
 		return new FLegacyScreenPercentageDriver(
-			ForkedViewFamily, /* GlobalResolutionFraction = */ 1.0f, /* AllowPostProcessSettingsScreenPercentage = */ false);
+			ForkedViewFamily, /* GlobalResolutionFraction = */ MaxResolutionFraction, /* AllowPostProcessSettingsScreenPercentage = */ false);
 	}
 
 	virtual void ComputePrimaryResolutionFractions_RenderThread(TArray<FSceneViewScreenPercentageConfig>& OutViewScreenPercentageConfigs) const override
@@ -489,9 +500,8 @@ public:
 		{
 			FrameId = ViewState->GetFrameIndex(8);
 		}
-
-		float ResolutionFraction = FrameId == 0 ? 1.f : (FMath::Cos((FrameId + 0.25) * PI / 8) * 0.25f + 0.75f);
-
+		float ResolutionFraction = FrameId == 0 ? MaxResolutionFraction : FMath::Lerp(MinResolutionFraction, MaxResolutionFraction, 0.5f + 0.5f * FMath::Cos((FrameId + 0.25) * PI / 8));
+	
 		for (int32 i = 0; i < ViewFamily.Views.Num(); i++)
 		{
 			OutViewScreenPercentageConfigs[i].PrimaryResolutionFraction = ResolutionFraction;
@@ -501,6 +511,8 @@ public:
 private:
 	// View family to take care of.
 	const FSceneViewFamily& ViewFamily;
+	float MinResolutionFraction = 0.5f;
+	float MaxResolutionFraction = 1.0f;
 
 };
 
@@ -2835,6 +2847,7 @@ void FSceneRenderer::RenderFinish(FRDGBuilder& GraphBuilder, FRDGTextureRef View
 		const bool bShowAtmosphericFogWarning = Scene->AtmosphericFog != nullptr && !ReadOnlyCVARCache.bEnableAtmosphericFog;
 
 		const bool bShowNoSkyAtmosphereComponentWarning = !Scene->HasSkyAtmosphere() && ViewFamily.EngineShowFlags.VisualizeSkyAtmosphere;
+		const bool bShowSkyAtmosphereFogComponentsConflicts = Scene->HasSkyAtmosphere() && Scene->HasAtmosphericFog();
 
 		const bool bStationarySkylight = Scene->SkyLight && Scene->SkyLight->bWantsStaticShadowing;
 		const bool bShowSkylightWarning = bStationarySkylight && !ReadOnlyCVARCache.bEnableStationarySkylight;
@@ -2867,7 +2880,8 @@ void FSceneRenderer::RenderFinish(FRDGBuilder& GraphBuilder, FRDGTextureRef View
 
 		const bool bAnyWarning = bShowPrecomputedVisibilityWarning || bShowGlobalClipPlaneWarning || bShowAtmosphericFogWarning || bShowSkylightWarning || bShowPointLightWarning 
 			|| bShowDFAODisabledWarning || bShowShadowedLightOverflowWarning || bShowMobileDynamicCSMWarning || bShowMobileLowQualityLightmapWarning || bShowMobileMovableDirectionalLightWarning
-			|| bMobileShowVertexFogWarning || bShowSkinCacheOOM || bSingleLayerWaterWarning || bShowDFDisabledWarning || bShowNoSkyAtmosphereComponentWarning || bFxDebugDraw || bLumenEnabledButNoDistanceFieldsWarning;
+			|| bMobileShowVertexFogWarning || bShowSkinCacheOOM || bSingleLayerWaterWarning || bShowDFDisabledWarning || bShowNoSkyAtmosphereComponentWarning || bFxDebugDraw 
+			|| bShowSkyAtmosphereFogComponentsConflicts || bLumenEnabledButNoDistanceFieldsWarning;
 
 		for(int32 ViewIndex = 0;ViewIndex < Views.Num();ViewIndex++)
 		{	
@@ -2889,7 +2903,7 @@ void FSceneRenderer::RenderFinish(FRDGBuilder& GraphBuilder, FRDGTextureRef View
 						bLocked, bShowPrecomputedVisibilityWarning, bShowGlobalClipPlaneWarning, bShowDFAODisabledWarning, bShowDFDisabledWarning,
 						bShowAtmosphericFogWarning, bViewParentOrFrozen, bShowSkylightWarning, bShowPointLightWarning, bShowShadowedLightOverflowWarning,
 						bShowMobileLowQualityLightmapWarning, bShowMobileMovableDirectionalLightWarning, bShowMobileDynamicCSMWarning, bMobileShowVertexFogWarning,
-						bShowSkinCacheOOM, bSingleLayerWaterWarning, bShowNoSkyAtmosphereComponentWarning, bFxDebugDraw, FXInterface, bLumenEnabledButNoDistanceFieldsWarning]
+						bShowSkinCacheOOM, bSingleLayerWaterWarning, bShowNoSkyAtmosphereComponentWarning, bFxDebugDraw, FXInterface, bShowSkyAtmosphereFogComponentsConflicts, bLumenEnabledButNoDistanceFieldsWarning]
 						(FCanvas& Canvas)
 					{
 						// so it can get the screen size
@@ -2942,6 +2956,12 @@ void FSceneRenderer::RenderFinish(FRDGBuilder& GraphBuilder, FRDGTextureRef View
 							static const FText Message = NSLOCTEXT("Renderer", "SkyAtmosphere", "There is no SkyAtmosphere component to visualize.");
 							Canvas.DrawShadowedText(10, Y, Message, GetStatsFont(), FLinearColor(1.0, 0.05, 0.05, 1.0));
 							Y += 14;						
+						}
+						if (bShowSkyAtmosphereFogComponentsConflicts)
+						{
+							static const FText Message = NSLOCTEXT("Renderer", "SkyAtmosphere", "You should not use a SkyAtmosphere and an AtmosphericFog component at the same time. SkyAtmosphere will overwrite the visuals of the AtmosphericFog which is now deprecated.");
+							Canvas.DrawShadowedText(10, Y, Message, GetStatsFont(), FLinearColor(1.0, 0.05, 0.05, 1.0));
+							Y += 14;
 						}
 						if (bShowSkylightWarning)
 						{
@@ -3027,12 +3047,11 @@ void FSceneRenderer::RenderFinish(FRDGBuilder& GraphBuilder, FRDGTextureRef View
 							Canvas.DrawShadowedText(10, Y, Message, GetStatsFont(), FLinearColor(1.0, 0.05, 0.05, 1.0));
 							Y += 14;
 						}
-
-						if (bFxDebugDraw)
-						{
-							//-TODO: Fix for RDG: FXInterface->DrawDebug_RenderThread(RHICmdList, &Canvas);
-						}
 					});
+					if (bFxDebugDraw)
+					{
+						FXInterface->DrawDebug_RenderThread(GraphBuilder, View, Output);
+					}
 				}
 				
 				// Software occlusion debug draw
@@ -3661,6 +3680,17 @@ static void RenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, 
 		if (SceneRenderer->Scene->LumenSceneData)
 		{
 			SceneRenderer->Scene->LumenSceneData->PrimitiveModifiedBounds.Reset();
+		}
+
+		if (SceneRenderer->Views.Num() > 0 && !SceneRenderer->ViewFamily.EngineShowFlags.HitProxies)
+		{
+			FHairStrandsBookmarkParameters Parameters = CreateHairStrandsBookmarkParameters(SceneRenderer->Views);
+			if (Parameters.bHasElements)
+			{
+				FRDGBuilder GraphBuilder(RHICmdList);
+				RunHairStrandsBookmark(GraphBuilder, EHairStrandsBookmark::ProcessEndOfFrame, Parameters);
+				GraphBuilder.Execute();
+			}
 		}
 
 		// Immediately issue EndFrame() for all extensions in case any of the outstanding tasks they issued getting out of this frame

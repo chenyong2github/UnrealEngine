@@ -2692,7 +2692,7 @@ void UMaterialInstance::InitStaticPermutation(EMaterialShaderPrecompileMode Prec
 		CacheResourceShadersForRendering(PrecompileMode, ResourcesToFree);
 	}
 
-	DeleteDeferredResources(ResourcesToFree);
+	FMaterial::DeferredDeleteArray(ResourcesToFree);
 }
 
 void UMaterialInstance::UpdateOverridableBaseProperties()
@@ -2866,26 +2866,11 @@ void UMaterialInstance::CacheResourceShadersForRendering(EMaterialShaderPrecompi
 	InitResources();
 }
 
-void UMaterialInstance::DeleteDeferredResources(FMaterialResourceDeferredDeletionArray& ResourcesToFree)
-{
-	if (ResourcesToFree.Num())
-	{
-		ENQUEUE_RENDER_COMMAND(CmdFreeMaterialResources)(
-			[ResourcesToFreeRT = MoveTemp(ResourcesToFree)](FRHICommandList&)
-		{
-			for (int32 Idx = 0; Idx < ResourcesToFreeRT.Num(); ++Idx)
-			{
-				delete ResourcesToFreeRT[Idx];
-			}
-		});
-	}
-}
-
 void UMaterialInstance::CacheResourceShadersForRendering(EMaterialShaderPrecompileMode PrecompileMode)
 {
 	FMaterialResourceDeferredDeletionArray ResourcesToFree;
 	CacheResourceShadersForRendering(PrecompileMode, ResourcesToFree);
-	DeleteDeferredResources(ResourcesToFree);
+	FMaterial::DeferredDeleteArray(ResourcesToFree);
 }
 
 void UMaterialInstance::CacheResourceShadersForCooking(EShaderPlatform ShaderPlatform, TArray<FMaterialResource*>& OutCachedMaterialResources, EMaterialShaderPrecompileMode PrecompileMode, const ITargetPlatform* TargetPlatform)
@@ -3735,7 +3720,7 @@ void UMaterialInstance::SetParentInternal(UMaterialInterface* NewParent, bool Re
 			{
 				FMaterialResourceDeferredDeletionArray ResourcesToFree;
 				ResourcesToFree = MoveTemp(StaticPermutationMaterialResources);
-				DeleteDeferredResources(ResourcesToFree);
+				FMaterial::DeferredDeleteArray(ResourcesToFree);
 				StaticPermutationMaterialResources.Reset();
 			}
 			InitStaticPermutation();

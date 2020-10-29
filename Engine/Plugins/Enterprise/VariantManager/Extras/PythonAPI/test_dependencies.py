@@ -4,7 +4,7 @@ import unreal
 
 lvs = unreal.VariantManagerLibrary.create_level_variant_sets_asset("LVS", "/Game/")
 if lvs is None:
-    print "Failed to spawn either the LevelVariantSets asset or the LevelVariantSetsActor!"
+    print ("Failed to spawn either the LevelVariantSets asset or the LevelVariantSetsActor!")
     quit()
 
 var_set_colors = unreal.VariantSet()
@@ -54,7 +54,7 @@ var_set_fruits.add_variant(var_orange)
 
 # Let's make variant 'Red' also switch on variant 'A' before it is switched on
 dep1 = unreal.VariantDependency()
-dep1.set_editor_property('VariantSet', var_set_letters) 
+dep1.set_editor_property('VariantSet', var_set_letters)
 dep1.set_editor_property('Variant', var_a)
 dep1_index = var_red.add_dependency(dep1)
 
@@ -68,9 +68,9 @@ var_a.add_dependency(dep2)
 var_red.switch_on()
 
 # Let's disable the first dependency
-# Note we need to set the struct back into the variant, as it's returned by value 
+# Note we need to set the struct back into the variant, as it's returned by value
 dep1.set_editor_property('bEnabled', False)
 var_red.set_dependency(dep1_index[0], dep1)
 
 # Now this will only trigger 'Red', because dep1 is disabled and doesn't propagate to variant 'A'
-var_red.switch_on()
+var_red.switch_on ( )

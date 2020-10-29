@@ -44,10 +44,7 @@ class Setting(QtCore.QObject):
             return False
 
     def remove_override(self, device_name):
-        try:
-            del self._overrides[device_name]
-        except KeyError:
-            pass
+        self._overrides.pop(device_name, None)
 
     def update_value(self, new_value):
         if self._value == new_value:
@@ -100,7 +97,7 @@ class Config(object):
     def __init__(self, file_name):
         self.init_with_file_name(file_name)
 
-    def init_new_config(self, project_name, uproject, engine_dir):
+    def init_new_config(self, project_name, uproject, engine_dir, p4_settings):
         self.PROJECT_NAME = project_name
         self.UPROJECT_PATH = Setting("uproject", "uProject Path", uproject, tool_tip="Path to uProject")
         self.SWITCHBOARD_DIR = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '../'))
@@ -108,12 +105,13 @@ class Config(object):
         self.BUILD_ENGINE = Setting("build_engine", "Build Engine", False, tool_tip="Is Engine built from source?")
         self.MAPS_PATH = Setting("maps_path", "Map Path", "", tool_tip="Relative path from Content folder that contains maps to launch into.")
         self.MAPS_FILTER = Setting("maps_filter", "Map Filter", "*.umap", tool_tip="Walk every file in the Map Path and run a fnmatch to filter the file names")
-        self.SOURCE_CONTROL_WORKSPACE = Setting("source_control_workspace", "Workspace Name", "", tool_tip="SourceControl Workspace/Branch")
-        self.P4_PATH = Setting("p4_sync_path", "Perforce Project Path", "//UE4/Project")
+        self.P4_ENABLED = Setting("p4_enabled", "Perforce Enabled", p4_settings['p4_enabled'], tool_tip="Toggle Perforce support for the entire application")
+        self.SOURCE_CONTROL_WORKSPACE = Setting("source_control_workspace", "Workspace Name", p4_settings['p4_workspace_name'], tool_tip="SourceControl Workspace/Branch")
+        self.P4_PATH = Setting("p4_sync_path", "Perforce Project Path", p4_settings['p4_project_path'])
         self.CURRENT_LEVEL = DEFAULT_MAP_TEXT
 
-        self.OSC_SERVER_PORT = 6000
-        self.OSC_CLIENT_PORT = 8000
+        self.OSC_SERVER_PORT = Setting("osc_server_port", "OSC Server Port", 6000)
+        self.OSC_CLIENT_PORT = Setting("osc_client_port", "OSC Client Port", 8000)
 
         # MU Settings
         self.MULTIUSER_SERVER_EXE = 'UnrealMultiUserServer.exe'
@@ -170,16 +168,19 @@ class Config(object):
         self.MAPS_FILTER = Setting("maps_filter", "Map Filter", data.get('maps_filter', '*.umap'), placholder_text="*.umap", tool_tip="Walk every file in the Map Path and run a fnmatch to filter the file names")
         project_settings.append(self.MAPS_FILTER)
 
+        # OSC settings
+        self.OSC_SERVER_PORT = Setting("osc_server_port", "OSC Server Port", data.get('osc_server_port', 6000))
+        self.OSC_CLIENT_PORT = Setting("osc_client_port", "OSC Client Port", data.get('osc_client_port', 8000))
+        project_settings.extend([self.OSC_SERVER_PORT, self.OSC_CLIENT_PORT])
+
         # Perforce settings
+        self.P4_ENABLED = Setting("p4_enabled", "Perforce Enabled", data.get("p4_enabled", False), tool_tip="Toggle Perforce support for the entire application")
         self.SOURCE_CONTROL_WORKSPACE = Setting("source_control_workspace", "Workspace Name", data.get("source_control_workspace"), tool_tip="SourceControl Workspace/Branch")
         self.P4_PATH = Setting("p4_sync_path", "Perforce Project Path", data.get("p4_sync_path", ''), placholder_text="//UE4/Project")
-        project_settings.extend([self.SOURCE_CONTROL_WORKSPACE, self.P4_PATH])
+        project_settings.extend([self.P4_ENABLED, self.SOURCE_CONTROL_WORKSPACE, self.P4_PATH])
 
         # EXE names
         self.MULTIUSER_SERVER_EXE = data.get('multiuser_exe', 'UnrealMultiUserServer.exe')
-
-        self.OSC_SERVER_PORT = 6000
-        self.OSC_CLIENT_PORT = 8000
 
         # MU Settings
         self.MUSERVER_COMMAND_LINE_ARGUMENTS = data.get('muserver_command_line_arguments', '')
@@ -282,9 +283,15 @@ class Config(object):
         data['build_engine'] = self.BUILD_ENGINE.get_value()
         data["maps_path"] = self.MAPS_PATH.get_value()
         data["maps_filter"] = self.MAPS_FILTER.get_value()
+        
+		# OSC settings
+		#
+        data["osc_server_port"] = self.OSC_SERVER_PORT.get_value()
+        data["osc_client_port"] = self.OSC_CLIENT_PORT.get_value()
 
         # Source Control Settings
         #
+        data["p4_enabled"] = self.P4_ENABLED.get_value()
         data["p4_sync_path"] = self.P4_PATH.get_value()
         data["source_control_workspace"] = self.SOURCE_CONTROL_WORKSPACE.get_value()
         
@@ -387,7 +394,7 @@ class Config(object):
     def multiuser_server_path(self):
         return os.path.normpath(os.path.join(self.ENGINE_DIR.get_value(), 'Binaries/Win64', self.MULTIUSER_SERVER_EXE))
 
-    # todo-dara: find a way to do this directly in the iphone plugin code
+    # todo-dara: find a way to do this directly in the LiveLinkFace plugin code
     def unreal_device_ip_addresses(self):
         unreal_ips = []
         for (device_type, device_name), (settings, overrides) in self._device_settings.items():

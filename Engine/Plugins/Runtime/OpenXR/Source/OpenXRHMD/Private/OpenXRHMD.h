@@ -30,11 +30,11 @@ public:
 	{
 	public:
 		FDeviceSpace(XrAction InAction);
+		~FDeviceSpace();
 
 		bool CreateSpace(XrSession InSession);
 		void DestroySpace();
 
-		XrReferenceSpaceType ReferenceSpaceType;
 		XrAction Action;
 		XrSpace Space;
 	};
@@ -138,10 +138,11 @@ public:
 protected:
 
 	bool StartSession();
+	bool StopSession();
 	bool OnStereoStartup();
 	bool OnStereoTeardown();
 	bool ReadNextEvent(XrEventDataBuffer* buffer);
-	void CloseSession();
+	void DestroySession();
 
 	void BuildOcclusionMeshes();
 	bool BuildOcclusionMesh(XrVisibilityMaskTypeKHR Type, int View, FHMDViewMesh& Mesh);
@@ -151,7 +152,7 @@ protected:
 	const FPipelinedLayerState& GetPipelinedLayerStateForThread() const;
 	FPipelinedLayerState& GetPipelinedLayerStateForThread();
 
-	void UpdateDeviceLocations();
+	void UpdateDeviceLocations(bool bUpdateOpenXRExtensionPlugins);
 	void EnumerateViews(FPipelinedFrameState& PipelineState);
 
 public:
@@ -246,10 +247,10 @@ public:
 
 private:
 	bool					bStereoEnabled;
-	bool					bIsRunning;
-	bool					bIsReady;
-	bool					bIsRendering;
-	bool					bRunRequested;
+	TAtomic<bool>			bIsRunning;
+	TAtomic<bool>			bIsReady;
+	TAtomic<bool>			bIsRendering;
+	TAtomic<bool>			bIsSynchronized;
 	bool					bDepthExtensionSupported;
 	bool					bHiddenAreaMaskSupported;
 	bool					bViewConfigurationFovSupported;
@@ -280,6 +281,7 @@ private:
 	FPipelinedLayerState	PipelinedLayerStateRendering;
 	FPipelinedLayerState	PipelinedLayerStateRHI;
 
+	FCriticalSection		DeviceMutex;
 	TArray<FDeviceSpace>	DeviceSpaces;
 
 	TRefCountPtr<FOpenXRRenderBridge> RenderBridge;

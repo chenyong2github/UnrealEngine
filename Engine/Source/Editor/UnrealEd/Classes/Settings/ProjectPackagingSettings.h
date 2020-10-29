@@ -399,17 +399,25 @@ public:
 
 	/**
 	 * Directories containing .uasset files that should always be cooked regardless of whether they're referenced by anything in your project
-	 * These paths are stored relative to the project root so they can start with /game, /engine, or /pluginname
+	 * These paths are stored either as a full package path (e.g. /Game/Folder, /Engine/Folder, /PluginName/Folder) or as a relative package path from /Game
 	 */
 	UPROPERTY(config, EditAnywhere, Category=Packaging, AdvancedDisplay, meta=(DisplayName="Additional Asset Directories to Cook", LongPackageName))
 	TArray<FDirectoryPath> DirectoriesToAlwaysCook;
 
 	/**
 	 * Directories containing .uasset files that should never be cooked even if they are referenced by your project
-	 * These paths are stored relative to the project root so they can start with /game, /engine, or /pluginname
+	 * These paths are stored either as a full package path (e.g. /Game/Folder, /Engine/Folder, /PluginName/Folder) or as a relative package path from /Game
 	 */
 	UPROPERTY(config, EditAnywhere, Category = Packaging, AdvancedDisplay, meta = (DisplayName = "Directories to never cook", LongPackageName))
 	TArray<FDirectoryPath> DirectoriesToNeverCook;
+
+	/**
+	 * Directories containing .uasset files that are for editor testing purposes and should not be included in
+	 * enumerations of all packages in a root directory, because they will cause errors on load
+	 * These paths are stored either as a full package path (e.g. /Game/Folder, /Engine/Folder, /PluginName/Folder) or as a relative package path from /Game
+	 */
+	UPROPERTY(config, EditAnywhere, Category = Packaging, AdvancedDisplay, meta = (DisplayName = "Test directories to not search", LongPackageName))
+	TArray<FDirectoryPath> TestDirectoriesToNotSearch;
 
 	/**
 	 * Directories containing files that should always be added to the .pak file (if using a .pak file; otherwise they're copied as individual files)

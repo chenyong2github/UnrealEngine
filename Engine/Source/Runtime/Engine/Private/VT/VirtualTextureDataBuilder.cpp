@@ -613,7 +613,11 @@ void FVirtualTextureDataBuilder::BuildTiles(const TArray<FVTSourceTileEntry>& Ti
  
 		GeneratedData.TilePayload.AddDefaulted(TileList.Num());
 
-		const EParallelForFlags ThreadingFlag = bAllowAsync ? EParallelForFlags::None : EParallelForFlags::ForceSingleThread;
+		// ParallelFor is implemented with TaskGraph so it can cause deadlock if it invokes a compressor that also
+		// uses TaskGraph in combination with FAsyncTask.
+		bool bUsesTaskGraph = Compressor->UsesTaskGraph(TBSettings);
+
+		const EParallelForFlags ThreadingFlag = (bAllowAsync && !bUsesTaskGraph) ? EParallelForFlags::None : EParallelForFlags::ForceSingleThread;
 		const EParallelForFlags PriorityFlag = IsInGameThread() ? EParallelForFlags::None : EParallelForFlags::BackgroundPriority;
 
 		ParallelFor(TileList.Num(), [&](int32 TileIndex)

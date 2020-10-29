@@ -206,21 +206,21 @@ void UNiagaraDataInterfaceWater::GetWaterDataAtPoint(FVectorVMContext& Context)
 		*OutHeight.GetDestAndAdvance() = bIsValid ? QueryResult.GetWaveInfo().Height : 0.0f;
 		*OutDepth.GetDestAndAdvance() = bIsValid ? QueryResult.GetWaterSurfaceDepth() : 0.0f;
 
-		const FVector& Velocity = QueryResult.GetVelocity();
-		*OutVelocityX.GetDestAndAdvance() = bIsValid ? Velocity.X : 0.0f;
-		*OutVelocityY.GetDestAndAdvance() = bIsValid ? Velocity.Y : 0.0f;
-		*OutVelocityZ.GetDestAndAdvance() = bIsValid ? Velocity.Z : 0.0f;
+		const FVector& Velocity = bIsValid ? QueryResult.GetVelocity() : FVector::ZeroVector;
+		*OutVelocityX.GetDestAndAdvance() = Velocity.X;
+		*OutVelocityY.GetDestAndAdvance() = Velocity.Y;
+		*OutVelocityZ.GetDestAndAdvance() = Velocity.Z;
 
 		// Note we assume X and Y are in water by the time this is queried
-		const FVector& AdjustedSurfaceLoc = QueryResult.GetWaterSurfaceLocation();
-		*OutSurfaceX.GetDestAndAdvance() =  bIsValid ? AdjustedSurfaceLoc.X : 0.0f;
-		*OutSurfaceY.GetDestAndAdvance() =  bIsValid ? AdjustedSurfaceLoc.Y : 0.0f;
-		*OutSurfaceZ.GetDestAndAdvance() =  bIsValid ? AdjustedSurfaceLoc.Z : 1.0f;
+		const FVector& AdjustedSurfaceLoc = bIsValid ? QueryResult.GetWaterSurfaceLocation() : FVector::ZeroVector;
+		*OutSurfaceX.GetDestAndAdvance() =  AdjustedSurfaceLoc.X;
+		*OutSurfaceY.GetDestAndAdvance() =  AdjustedSurfaceLoc.Y;
+		*OutSurfaceZ.GetDestAndAdvance() =  AdjustedSurfaceLoc.Z;
 
-		const FVector& Normal = QueryResult.GetWaterSurfaceNormal();
-		*OutSurfaceNormalX.GetDestAndAdvance() =  bIsValid ? Normal.X : 0.0f;
-		*OutSurfaceNormalY.GetDestAndAdvance() =  bIsValid ? Normal.Y : 0.0f;
-		*OutSurfaceNormalZ.GetDestAndAdvance() =  bIsValid ? Normal.Z : 0.0f;
+		const FVector& Normal = bIsValid ? QueryResult.GetWaterSurfaceNormal() : FVector::UpVector;
+		*OutSurfaceNormalX.GetDestAndAdvance() = Normal.X;
+		*OutSurfaceNormalY.GetDestAndAdvance() = Normal.Y;
+		*OutSurfaceNormalZ.GetDestAndAdvance() = Normal.Z;
 
 		WorldX.Advance();
 		WorldY.Advance();

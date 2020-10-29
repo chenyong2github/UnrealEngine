@@ -77,6 +77,15 @@ bool FTextLocalizationMetaDataResource::LoadFromArchive(FArchive& Archive, const
 	Archive << NativeCulture;
 	Archive << NativeLocRes;
 
+	if (VersionNumber >= FTextLocalizationResourceVersion::ELocMetaVersion::AddedCompiledCultures)
+	{
+		Archive << CompiledCultures;
+	}
+	else
+	{
+		CompiledCultures.Reset();
+	}
+
 	return true;
 }
 
@@ -109,6 +118,9 @@ bool FTextLocalizationMetaDataResource::SaveToArchive(FArchive& Archive, const F
 	{
 		Archive << NativeCulture;
 		Archive << NativeLocRes;
+
+		// Added by version: AddedCompiledCultures
+		Archive << CompiledCultures;
 	}
 
 	return true;

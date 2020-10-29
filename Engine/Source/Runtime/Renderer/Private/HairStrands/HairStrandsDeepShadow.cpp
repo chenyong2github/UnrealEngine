@@ -14,6 +14,133 @@ static FAutoConsoleVariableRef CVarDeepShadowResolution(TEXT("r.HairStrands.Deep
 static int32 GDeepShadowGPUDriven = 1;
 static FAutoConsoleVariableRef CVarDeepShadowGPUDriven(TEXT("r.HairStrands.DeepShadow.GPUDriven"), GDeepShadowGPUDriven, TEXT("Enable deep shadow to be driven by GPU bounding box, rather CPU ones. This allows more robust behavior"));
 
+static int32 GDeepShadowInjectVoxelDepth = 0;
+static FAutoConsoleVariableRef CVarDeepShadowInjectVoxelDepth(TEXT("r.HairStrands.DeepShadow.InjectVoxelDepth"), GDeepShadowInjectVoxelDepth, TEXT("Inject voxel content to generate the deep shadow map instead of rasterizing groom. This is an experimental path"));
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Inject voxel structure into shadow map to amortize the tracing, and rely on look up kernel to 
+// filter limited resolution
+BEGIN_SHADER_PARAMETER_STRUCT(FHairStransShadowDepthInjectionParameters, )
+	SHADER_PARAMETER(FMatrix, CPU_WorldToClip)
+
+	SHADER_PARAMETER(FVector2D, OutputResolution)
+	SHADER_PARAMETER(uint32, AtlasSlotIndex)
+	SHADER_PARAMETER(uint32, bIsGPUDriven)
+
+	SHADER_PARAMETER(FVector, LightDirection)
+	SHADER_PARAMETER(uint32, MacroGroupId)
+
+	SHADER_PARAMETER(FVector, LightPosition)
+	SHADER_PARAMETER(uint32, bIsDirectional)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FDeepShadowViewInfo>, DeepShadowViewInfoBuffer)
+	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
+	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualVoxelParameters, VirtualVoxel)
+	RENDER_TARGET_BINDING_SLOTS()
+END_SHADER_PARAMETER_STRUCT()
+
+class FHairStrandsShadowDepthInjection : public FGlobalShader
+{
+public:
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return IsHairStrandsSupported(EHairStrandsShaderType::Strands, Parameters.Platform);
+	}
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("SHADER_DEPTH_INJECTION"), 1);
+	}
+
+	FHairStrandsShadowDepthInjection() = default;
+	FHairStrandsShadowDepthInjection(const CompiledShaderInitializerType& Initializer) : FGlobalShader(Initializer) {}
+};
+
+class FHairStrandsShadowDepthInjectionVS : public FHairStrandsShadowDepthInjection
+{
+	DECLARE_GLOBAL_SHADER(FHairStrandsShadowDepthInjectionVS);
+	SHADER_USE_PARAMETER_STRUCT(FHairStrandsShadowDepthInjectionVS, FHairStrandsShadowDepthInjection);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_INCLUDE(FHairStransShadowDepthInjectionParameters, Pass)
+		END_SHADER_PARAMETER_STRUCT()
+};
+
+class FHairStrandsShadowDepthInjectionPS : public FHairStrandsShadowDepthInjection
+{
+	DECLARE_GLOBAL_SHADER(FHairStrandsShadowDepthInjectionPS);
+	SHADER_USE_PARAMETER_STRUCT(FHairStrandsShadowDepthInjectionPS, FHairStrandsShadowDepthInjection);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_INCLUDE(FHairStransShadowDepthInjectionParameters, Pass)
+	END_SHADER_PARAMETER_STRUCT()
+};
+
+IMPLEMENT_GLOBAL_SHADER(FHairStrandsShadowDepthInjectionPS, "/Engine/Private/HairStrands/HairStrandsVoxelDepthInjection.usf", "MainPS", SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(FHairStrandsShadowDepthInjectionVS, "/Engine/Private/HairStrands/HairStrandsVoxelDepthInjection.usf", "MainVS", SF_Vertex);
+
+void AddInjectHairVoxelShadowCaster(
+	FRDGBuilder& GraphBuilder,
+	const FViewInfo& View,
+	const bool bClear,
+	const FHairStrandsDeepShadowData& DomData,
+	FMatrix CPU_WorldToClipMatrix,
+	FIntRect AtlasRect,
+	uint32 AtlasSlotIndex,
+	FIntPoint AtlasSlotResolution,
+	FVirtualVoxelResources& VoxelResources,
+	FRDGBufferSRVRef DeepShadowViewInfoBufferSRV,
+	FRDGTextureRef OutDepthTexture)
+{
+	FHairStransShadowDepthInjectionParameters* Parameters = GraphBuilder.AllocParameters<FHairStransShadowDepthInjectionParameters>();
+	Parameters->OutputResolution = AtlasSlotResolution;
+	Parameters->CPU_WorldToClip = CPU_WorldToClipMatrix;
+	Parameters->ViewUniformBuffer = View.ViewUniformBuffer;
+	Parameters->RenderTargets.DepthStencil = FDepthStencilBinding(OutDepthTexture, bClear ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ENoAction, FExclusiveDepthStencil::DepthWrite_StencilNop);
+	Parameters->VirtualVoxel = VoxelResources.UniformBuffer;
+	Parameters->LightDirection = DomData.LightDirection;
+	Parameters->LightPosition = DomData.LightPosition;
+	Parameters->bIsDirectional = DomData.LightType == LightType_Directional ? 1 : 0;
+	Parameters->MacroGroupId = DomData.MacroGroupId;
+	Parameters->DeepShadowViewInfoBuffer = DeepShadowViewInfoBufferSRV;
+	Parameters->bIsGPUDriven = GDeepShadowGPUDriven > 0;
+	Parameters->AtlasSlotIndex = AtlasSlotIndex;
+
+	TShaderMapRef<FHairStrandsShadowDepthInjectionVS> VertexShader(View.ShaderMap);
+	TShaderMapRef<FHairStrandsShadowDepthInjectionPS> PixelShader(View.ShaderMap);
+	FHairStrandsShadowDepthInjectionVS::FParameters ParametersVS;
+	FHairStrandsShadowDepthInjectionPS::FParameters ParametersPS;
+	ParametersVS.Pass = *Parameters;
+	ParametersPS.Pass = *Parameters;
+
+	GraphBuilder.AddPass(
+		RDG_EVENT_NAME("HairStrandsShadowDepthInjection"),
+		Parameters,
+		ERDGPassFlags::Raster,
+		[ParametersVS, ParametersPS, VertexShader, PixelShader, AtlasRect](FRHICommandList& RHICmdList)
+		{
+
+			// Apply additive blending pipeline state.
+			FGraphicsPipelineStateInitializer GraphicsPSOInit;
+			RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+			GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Max, BF_SourceColor, BF_DestColor, BO_Max, BF_SourceAlpha, BF_DestAlpha>::GetRHI();
+			GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
+			GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<true, CF_Greater>::GetRHI();
+			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GEmptyVertexDeclaration.VertexDeclarationRHI;
+			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
+			GraphicsPSOInit.PrimitiveType = PT_TriangleList;
+			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+
+			SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), ParametersVS);
+			SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), ParametersPS);
+
+			// Emit an instanced quad draw call on the order of the number of pixels on the screen.	
+			RHICmdList.SetViewport(AtlasRect.Min.X, AtlasRect.Min.Y, 0.0f, AtlasRect.Max.X, AtlasRect.Max.Y, 1.0f);
+			RHICmdList.DrawPrimitive(0, 12, 1);
+		});
+}
+
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 typedef TArray<const FLightSceneInfo*, SceneRenderingAllocator> FLightSceneInfos;
@@ -271,8 +398,36 @@ void RenderHairStrandsDeepShadows(
 				const FVector4 HairRenderInfo = PackHairRenderInfo(DomData.CPU_MinStrandRadiusAtDepth1.Primary, DomData.CPU_MinStrandRadiusAtDepth1.Stable, DomData.CPU_MinStrandRadiusAtDepth1.Primary, 1);
 				const uint32 HairRenderInfoBits = PackHairRenderInfoBits(bIsOrtho, Resources.bIsGPUDriven);
 					
+				const bool bDeepShadow = GDeepShadowInjectVoxelDepth == 0;
+				// Inject voxel result into the deep shadow
+				if (!bDeepShadow)
+				{
+					DECLARE_GPU_STAT(HairStrandsDeepShadowFrontDepth);
+					RDG_EVENT_SCOPE(GraphBuilder, "HairStrandsDeepShadowFrontDepth");
+					RDG_GPU_STAT_SCOPE(GraphBuilder, HairStrandsDeepShadowFrontDepth);
+
+					AddInjectHairVoxelShadowCaster(
+						GraphBuilder,
+						View,
+						bClear,
+						DomData,
+						DomData.CPU_WorldToLightTransform,
+						DomData.AtlasRect,
+						DomData.AtlasSlotIndex,
+						AtlasSlotResolution,
+						MacroGroupDatas.VirtualVoxelResources,
+						DeepShadowViewInfoBufferSRV,
+						FrontDepthAtlasTexture);
+
+					if (bClear)
+					{
+						AddClearRenderTargetPass(GraphBuilder, DeepShadowLayersAtlasTexture);
+					}
+				}
+					
 				const FVector4 LayerDepths = ComputeDeepShadowLayerDepths(DomData.LayerDistribution);
 				// Front depth
+				if (bDeepShadow)
 				{
 					DECLARE_GPU_STAT(HairStrandsDeepShadowFrontDepth);
 					RDG_EVENT_SCOPE(GraphBuilder, "HairStrandsDeepShadowFrontDepth");
@@ -302,6 +457,7 @@ void RenderHairStrandsDeepShadows(
 				}
 
 				// Deep layers
+				if (bDeepShadow)
 				{
 					DECLARE_GPU_STAT(HairStrandsDeepShadowLayers);
 					RDG_EVENT_SCOPE(GraphBuilder, "HairStrandsDeepShadowLayers");

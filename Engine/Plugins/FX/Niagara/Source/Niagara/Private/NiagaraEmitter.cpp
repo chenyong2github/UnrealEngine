@@ -625,6 +625,23 @@ bool UNiagaraEmitter::IsEditorOnly() const
 
 bool UNiagaraEmitter::NeedsLoadForTargetPlatform(const ITargetPlatform* TargetPlatform)const
 {
+	// Don't load disabled emitters.
+	// Awkwardly, this requires us to look for ourselves in the owning system.
+	if (const UNiagaraSystem* OwnerSystem = GetTypedOuter<const UNiagaraSystem>())
+	{
+		for (const FNiagaraEmitterHandle& EmitterHandle : OwnerSystem->GetEmitterHandles())
+		{
+			if (EmitterHandle.GetInstance() == this)
+			{
+				if (!EmitterHandle.GetIsEnabled())
+				{
+					return false;
+				}
+				break;
+			}
+		}
+	}
+
 	if (!FNiagaraPlatformSet::ShouldPruneEmittersOnCook(TargetPlatform->IniPlatformName()))
 	{
 		return true;
@@ -953,7 +970,7 @@ void UNiagaraEmitter::GetScripts(TArray<UNiagaraScript*>& OutScripts, bool bComp
 	{
 		for (int32 i = 0; i < SimulationStages.Num(); i++)
 		{
-			if (SimulationStages[i] && SimulationStages[i]->Script)
+			if (SimulationStages[i] && SimulationStages[i]->Script && SimulationStages[i]->bEnabled)
 			{
 				OutScripts.Add(SimulationStages[i]->Script);
 			}
@@ -1149,7 +1166,7 @@ bool UNiagaraEmitter::AreAllScriptAndSourcesSynchronized() const
 
 	for (int32 i = 0; i < SimulationStages.Num(); i++)
 	{
-		if (SimulationStages[i] && SimulationStages[i]->Script  && SimulationStages[i]->Script->IsCompilable() && !SimulationStages[i]->Script->AreScriptAndSourceSynchronized())
+		if (SimulationStages[i] && SimulationStages[i]->Script  && SimulationStages[i]->Script->IsCompilable() && SimulationStages[i]->bEnabled && !SimulationStages[i]->Script->AreScriptAndSourceSynchronized())
 		{
 			return false;
 		}

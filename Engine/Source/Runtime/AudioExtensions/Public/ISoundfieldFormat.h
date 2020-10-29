@@ -117,7 +117,7 @@ struct FAudioPluginInitializationParams;
 /**
  * This interface represents all encoded soundfield audio from a single render callback.
  */
-class ISoundfieldAudioPacket
+class AUDIOEXTENSIONS_API ISoundfieldAudioPacket
 {
 public:
 	virtual ~ISoundfieldAudioPacket() {};

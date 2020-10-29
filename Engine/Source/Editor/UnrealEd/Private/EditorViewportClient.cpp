@@ -963,7 +963,11 @@ FSceneView* FEditorViewportClient::CalcSceneView(FSceneViewFamily* ViewFamily, c
 	TimeForForceRedraw = 0.0;
 
 	const bool bConstrainAspectRatio = bUseControllingActorViewInfo && ControllingActorViewInfo.bConstrainAspectRatio;
-	const EAspectRatioAxisConstraint AspectRatioAxisConstraint = GetDefault<ULevelEditorViewportSettings>()->AspectRatioAxisConstraint;
+	EAspectRatioAxisConstraint AspectRatioAxisConstraint = GetDefault<ULevelEditorViewportSettings>()->AspectRatioAxisConstraint;
+	if (bUseControllingActorViewInfo && ControllingActorAspectRatioAxisConstraint.IsSet())
+	{
+		AspectRatioAxisConstraint = ControllingActorAspectRatioAxisConstraint.GetValue();
+	}
 
 	AWorldSettings* WorldSettings = nullptr;
 	if( GetScene() != nullptr && GetScene()->GetWorld() != nullptr )

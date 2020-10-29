@@ -30,7 +30,7 @@ public:
 	virtual void SetErrorCallBack(FWebSocketInfoCallBack CallBack) override;
 	virtual void SetReceiveCallBack(FWebSocketPacketReceivedCallBack CallBack) override;
 	virtual void SetSocketClosedCallBack(FWebSocketInfoCallBack CallBack) override;
-	virtual bool Send(const uint8* Data, uint32 Size) override;
+	virtual bool Send(const uint8* Data, uint32 Size, bool bPrependSize = true) override;
 	virtual void Tick() override;
 	virtual void Flush() override;
 	virtual TArray<uint8> GetRawRemoteAddr(int32& OutPort) override;

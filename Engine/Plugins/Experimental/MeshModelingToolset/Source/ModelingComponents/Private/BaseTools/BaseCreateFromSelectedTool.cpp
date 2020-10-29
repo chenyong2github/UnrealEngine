@@ -156,6 +156,8 @@ void UBaseCreateFromSelectedTool::SetTransformGizmos()
 		UTransformGizmo* Gizmo = TransformGizmos.Add_GetRef(GizmoManager->Create3AxisTransformGizmo(this));
 		Gizmo->SetActiveTarget(Proxy, GetToolManager());
 		FTransform InitialTransform = Target->GetWorldTransform();
+		TransformInitialScales.Add(InitialTransform.GetScale3D());
+		InitialTransform.SetScale3D(FVector::OneVector);
 		Gizmo->ReinitializeGizmoTransform(InitialTransform);
 		Proxy->OnTransformChanged.AddUObject(this, &UBaseCreateFromSelectedTool::TransformChanged);
 	}
@@ -204,11 +206,17 @@ void UBaseCreateFromSelectedTool::GenerateAsset(const FDynamicMeshOpResult& Resu
 		NewTransform.SetTranslation(NewTransform.GetTranslation() + NewTransform.TransformVector(Center * Rescale));
 	}
 
+	// max len explicitly enforced here, would ideally notify user
+	FString UseBaseName = HandleSourcesProperties->OutputName.Left(250);
+	if (UseBaseName.IsEmpty())
+	{
+		UseBaseName = PrefixWithSourceNameIfSingleSelection(GetCreatedAssetName());
+	}
 
 	TArray<UMaterialInterface*> Materials = GetOutputMaterials();
 	AActor* NewActor = AssetGenerationUtil::GenerateStaticMeshActor(
 		AssetAPI, TargetWorld,
-		Result.Mesh.Get(), NewTransform, PrefixWithSourceNameIfSingleSelection(GetCreatedAssetName()), Materials);
+		Result.Mesh.Get(), NewTransform, UseBaseName, Materials);
 	if (NewActor != nullptr)
 	{
 		ToolSelectionUtil::SetNewActorSelection(GetToolManager(), NewActor);
@@ -245,15 +253,6 @@ void UBaseCreateFromSelectedTool::UpdateAsset(const FDynamicMeshOpResult& Result
 			FDynamicMeshToMeshDescription Converter;
 			Converter.Convert(Result.Mesh.Get(), *CommitParams.MeshDescription);
 		});
-
-		//FVector3d Center = Result.Mesh->GetCachedBounds().Center();
-		//double Rescale = Result.Transform.GetScale().X;
-		//FTransform3d LocalTransform(-Center * Rescale);
-		//LocalTransform.SetScale(FVector3d(Rescale, Rescale, Rescale));
-		//MeshTransforms::ApplyTransform(*Result.Mesh, LocalTransform);
-		//NewTransform = Result.Transform;
-		//NewTransform.SetScale(FVector3d::One());
-		//NewTransform.SetTranslation(NewTransform.GetTranslation() + NewTransform.TransformVector(Center * Rescale));
 	}
 
 	FComponentMaterialSet MaterialSet;

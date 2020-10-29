@@ -1513,13 +1513,9 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 			this.nodeBotLogger.warn(`Unrecognised description type: ${typeof(change.desc)}, CL#${change.change}`)
 			change.desc = '<description not available>'
 		}
-		const commandOverride = (change.commandOverride || '').trim()
-		let descLines = commandOverride ? commandOverride.split('|') :
-							change.desc ? change.desc.split('\n') : []
 
-
-		const parsedLines = parseDescriptionLines(
-			descLines,
+		const parse = (lines: string[]) => parseDescriptionLines(
+			lines,
 			this.branch.isDefaultBot,
 			this.graphBotName,
 			change.change,
@@ -1527,6 +1523,13 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 			this.branchGraph.config.macros,
 			this.nodeBotLogger
 		)
+
+		const parsedLines = parse(change.desc.split('\n'))
+
+		const commandOverride = (change.commandOverride || '').trim()
+		if (commandOverride) {
+			parsedLines.override(parse(commandOverride.split('|')))
+		}
 
 		// Author is always CL user
 		const author = (change.user || 'robomerge').toLowerCase()

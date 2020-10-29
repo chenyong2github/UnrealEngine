@@ -9,11 +9,9 @@ namespace Audio
 	{
 	}
 
-	FQuartzMetronome::FQuartzMetronome(const FQuartzTimeSignature& InTimeSignature, const FQuartzClockTickRate& InTickRate)
+	FQuartzMetronome::FQuartzMetronome(const FQuartzTimeSignature& InTimeSignature)
 		: CurrentTimeSignature(InTimeSignature)
-		, CurrentTickRate(InTickRate)
 	{
-		RecalculateDurations();
 	}
 
 	FQuartzMetronome::~FQuartzMetronome()
@@ -88,7 +86,12 @@ namespace Audio
 
 	void FQuartzMetronome::SetTickRate(FQuartzClockTickRate InNewTickRate, int32 NumFramesLeft)
 	{
-		InNewTickRate.SetSampleRate(CurrentTickRate.GetSampleRate());
+		// early exit?
+		if (InNewTickRate.GetFramesPerTick() == CurrentTickRate.GetFramesPerTick())
+		{
+			return;
+		}
+
 
 		// ratio between new and old rates
 		const float Ratio = static_cast<float>(InNewTickRate.GetFramesPerTick()) / static_cast<float>(CurrentTickRate.GetFramesPerTick());
@@ -123,13 +126,13 @@ namespace Audio
 		int32 FramesUntilBoundary = FramesLeftInMusicalDuration[InQuantizationBoundary.Quantization];
 
 		// in the vanilla case that's all we need to know
-		if ((InQuantizationBoundary.Multiplier == 1) || CurrentTimeStamp.IsZero())
+		if (FMath::IsNearlyEqual(InQuantizationBoundary.Multiplier, 1.f) || CurrentTimeStamp.IsZero())
 		{
 			return FramesUntilBoundary;
 		}
 
 		// how many multiples actually exist until the boundary we care about?
-		int32 NumDurationsLeft = InQuantizationBoundary.Multiplier - 1;
+		int32 NumDurationsLeft = static_cast<int32>(InQuantizationBoundary.Multiplier) - 1;
 
 		// counting from the current point in time
 		if (InQuantizationBoundary.CountingReferencePoint == EQuarztQuantizationReference::CurrentTimeRelative)
@@ -143,9 +146,9 @@ namespace Audio
 			int32 CurrentCount = CountNumSubdivisionsSinceStart(InQuantizationBoundary.Quantization);
 			 
 			// find the remainder
-			if (CurrentCount >= InQuantizationBoundary.Multiplier)
+			if (CurrentCount > InQuantizationBoundary.Multiplier)
 			{
-				CurrentCount %= InQuantizationBoundary.Multiplier;
+				CurrentCount %= static_cast<int32>(InQuantizationBoundary.Multiplier);
 			}
 
 			NumDurationsLeft -= CurrentCount;
@@ -162,6 +165,8 @@ namespace Audio
 				NumDurationsLeft += NumInBar;
 			}
 		}
+
+		const float FrationalPortion = FMath::Fractional(InQuantizationBoundary.Multiplier);
 
 		// for Beats, the lengths are not uniform for complex meters
 		if ((InQuantizationBoundary.Quantization == EQuartzCommandQuantization::Beat) && PulseDurations.Num())
@@ -186,11 +191,11 @@ namespace Audio
 				TempPulseDurationIndex = 0;
 			}
 
-			FramesUntilBoundary += InQuantizationBoundary.FractionalOffset * PulseDurations[TempPulseDurationIndex];
+			FramesUntilBoundary += FrationalPortion * PulseDurations[TempPulseDurationIndex];
 		}
 		else
 		{
-			const float Multiplier = NumDurationsLeft + InQuantizationBoundary.FractionalOffset;
+			const float Multiplier = NumDurationsLeft + FrationalPortion;
 			const float Duration = static_cast<float>(MusicalDurationsInFrames[InQuantizationBoundary.Quantization]);
 			FramesUntilBoundary += FMath::RoundToInt(Multiplier * Duration);
 		}
@@ -220,7 +225,7 @@ namespace Audio
 		else
 		{
 			float BarProgress = 1.0f - (FramesLeftInMusicalDuration[EQuartzCommandQuantization::Bar] / static_cast<float>(MusicalDurationsInFrames[EQuartzCommandQuantization::Bar]));
-			return (BarProgress * CountNumSubdivisionsPerBar(InSubdivision)) + 1; // (+ 1 because we are counting the first beat as "1" not "0")
+			return (BarProgress * CountNumSubdivisionsPerBar(InSubdivision));
 		}
 	}
 
@@ -229,7 +234,7 @@ namespace Audio
 		int32 NumPerBar = CountNumSubdivisionsPerBar(InSubdivision);
 		int32 NumInThisBar = CountNumSubdivisionsSinceBarStart(InSubdivision);
 
-		return CurrentTimeStamp.Bars * CountNumSubdivisionsPerBar(InSubdivision) + CountNumSubdivisionsSinceBarStart(InSubdivision);
+		return (CurrentTimeStamp.Bars - 1) * NumPerBar + NumInThisBar;
 	}
 
 	void FQuartzMetronome::SubscribeToTimeDivision(MetronomeCommandQueuePtr InListenerQueue, EQuartzCommandQuantization InQuantizationBoundary)

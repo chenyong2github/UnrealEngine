@@ -54,11 +54,13 @@ public:
 	};
 	virtual void OnSetElement(FSetElementArg& SetElementArg) = 0;
 
+
 	struct FRemoveElementsArg
 	{
 		TArray<FSceneGraphId> Elements;
 	};
 	virtual void RemoveElements(FRemoveElementsArg& RemoveElementsArg) = 0;
+
 
 	struct FCloseDeltaArg
 	{
@@ -67,44 +69,14 @@ public:
 	virtual void OnCloseDelta(FCloseDeltaArg& CloseDeltaArg) = 0;
 };
 
-class FSceneSnapshot;
+
 
 class ISceneReceiver
 {
 public:
 	virtual ~ISceneReceiver() = default;
-	virtual void FinalSnapshot(const FSceneSnapshot& SceneSnapshot) {};
+	virtual void FinalSnapshot(const class FSceneSnapshot& SceneSnapshot) {};
 };
-
-
-inline FArchive& operator << (FArchive& Ar, FSceneIdentifier& SceneId)
-{
-	Ar << SceneId.SceneGuid;
-	Ar << SceneId.DisplayName;
-	return Ar;
-}
-
-
-inline FArchive& operator << (FArchive& Ar, IDeltaConsumer::FSetupSceneArg& SetupSceneArg)
-{
-	Ar << SetupSceneArg.SceneId;
-	Ar << SetupSceneArg.bExpectHaveList;
-	Ar << SetupSceneArg.SyncCycle;
-	return Ar;
-}
-
-inline FArchive& operator << (FArchive& Ar, IDeltaConsumer::FOpenDeltaArg& OpenDeltaArg)
-{
-	Ar << OpenDeltaArg.bBasedOnNewScene;
-	Ar << OpenDeltaArg.ElementCountHint;
-	return Ar;
-}
-
-inline FArchive& operator << (FArchive& Ar, IDeltaConsumer::FCloseDeltaArg& CloseDeltaArg)
-{
-	Ar << CloseDeltaArg.bCancelled;
-	return Ar;
-}
 
 
 } // namespace DirectLink

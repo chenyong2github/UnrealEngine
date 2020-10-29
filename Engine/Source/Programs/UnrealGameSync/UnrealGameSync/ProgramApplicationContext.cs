@@ -273,7 +273,7 @@ namespace UnrealGameSync
 
 		private void OnActivationListenerCallback()
 		{
-			if(MainWindowInstance != null)
+			if(MainWindowInstance != null && !MainWindowInstance.IsDisposed)
 			{
 				MainWindowInstance.ShowAndActivate();
 			}
@@ -292,6 +292,7 @@ namespace UnrealGameSync
 				{
 					bIsClosing = true;
 					MainWindowInstance.ForceClose();
+					MainWindowInstance = null;
 				}
 			}
 		}
@@ -304,24 +305,6 @@ namespace UnrealGameSync
 		protected override void Dispose(bool bDisposing)
 		{
 			base.Dispose(bDisposing);
-
-			if(Components != null)
-			{
-				Components.Dispose();
-				Components = null;
-			}
-
-			if(NotifyIcon != null)
-			{
-				NotifyIcon.Dispose();
-				NotifyIcon = null;
-			}
-
-			if(Log != null)
-			{
-				Log.Dispose();
-				Log = null;
-			}
 
 			if(UpdateMonitor != null)
 			{
@@ -336,6 +319,24 @@ namespace UnrealGameSync
 				ActivationListener.Stop();
 				ActivationListener.Dispose();
 				ActivationListener = null;
+			}
+
+			if (Components != null)
+			{
+				Components.Dispose();
+				Components = null;
+			}
+
+			if (NotifyIcon != null)
+			{
+				NotifyIcon.Dispose();
+				NotifyIcon = null;
+			}
+
+			if (Log != null)
+			{
+				Log.Dispose();
+				Log = null;
 			}
 
 			if(MainWindowInstance != null)

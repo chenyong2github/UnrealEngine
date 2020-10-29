@@ -39,6 +39,19 @@ public:
 		TMap<FGuid, FOpenXRMeshUpdate*> GuidToMeshUpdateList;
 	};
 
+	struct FPlaneUpdateSet
+	{
+		FPlaneUpdateSet()
+		{
+		}
+		~FPlaneUpdateSet()
+		{
+			GuidToPlaneUpdateList.Empty();
+		}
+
+		TMap<FGuid, FOpenXRPlaneUpdate*> GuidToPlaneUpdateList;
+	};
+
 	FOpenXRARSystem();
 	virtual ~FOpenXRARSystem();
 
@@ -163,7 +176,10 @@ public:
 	virtual int32 OnGetNumberOfTrackedFacesSupported() const { return 1; }
 
 	/** @return the AR texture for the specified type */
-	virtual UARTexture* OnGetARTexture(EARTextureType TextureType) const { return nullptr; }
+	virtual UARTexture* OnGetARTexture(EARTextureType TextureType) const;
+
+	virtual bool OnToggleARCapture(const bool bOnOff, const EARCaptureType CaptureType) override;
+	virtual bool OnGetCameraIntrinsics(FARCameraIntrinsics& OutCameraIntrinsics) const override;
 
 	// ARPin Local Store support.
 	// Some Platforms/Devices have the ability to persist AR Anchors (real world positiosn) to the device or user account.
@@ -214,12 +230,18 @@ private:
 	virtual void StartMeshUpdates();
 	virtual FOpenXRMeshUpdate* AllocateMeshUpdate(FGuid InGuidMeshUpdate);
 	virtual void RemoveMesh(FGuid InGuidMeshUpdate);
+	virtual FOpenXRPlaneUpdate* AllocatePlaneUpdate(FGuid InGuidPlaneUpdate);
+	virtual void RemovePlane(FGuid InGuidPlaneUpdate);
 	virtual void EndMeshUpdates();
+	virtual void ObjectUpdated(FOpenXRARTrackedGeometryData* InUpdate);
 
 	void RemoveMesh_GameThread(FGuid InGuidMeshUpdate);
 	void ProcessMeshUpdates_GameThread();
 	void AddOrUpdateMesh_GameThread(FOpenXRMeshUpdate* CurrentMesh);
+	void ProcessSUPlaneUpdates_GameThread();
+	void AddOrUpdatePlane_GameThread(FOpenXRPlaneUpdate* CurrentPlane);
 	void OnSpawnARActor(AARActor* NewARActor, UARComponent* NewARComponent, FGuid NativeID);
+	void OnObjectUpdated_GameThread(FOpenXRARTrackedGeometryData* InUpdate);
 
 	/** Removes all tracked geometries, marking them as not tracked and sending the delegate event */
 	void ClearTrackedGeometries();
@@ -234,6 +256,13 @@ private:
 	TArray<FMeshUpdateSet*> MeshUpdateList;
 	/** Holds the set of last known meshes so we can detect removed meshes. Only touched on the game thread */
 	TSet<FGuid> LastKnownMeshes;
+	/** This pointer is locked until the list construction is complete, where this gets queued for game thread processing */
+	FPlaneUpdateSet* SUCurrentPlaneUpdate;
+	/** Controls the access to the queue of plane updates for the game thread to process */
+	FCriticalSection SUPlaneUpdateListSync;
+	/** List of plane updates for the game thread to process */
+	TArray<FPlaneUpdateSet*> SUPlaneUpdateList;
+
 	//for networked callbacks
 	FDelegateHandle SpawnARActorDelegateHandle;
 
@@ -246,6 +275,13 @@ private:
 	void ARTrackedGeometryAdded_GameThread(FOpenXRARTrackedGeometryData* InData);
 	void ARTrackedGeometryUpdated_GameThread(FOpenXRARTrackedGeometryData* InData);
 	void ARTrackedGeometryRemoved_GameThread(FOpenXRARTrackedGeometryData* InData);
+
+	class IOpenXRCustomCaptureSupport* QRCapture = nullptr;
+	class IOpenXRCustomCaptureSupport* CamCapture = nullptr;
+	class IOpenXRCustomCaptureSupport* SpatialMappingCapture = nullptr;
+	class IOpenXRCustomCaptureSupport* SceneUnderstandingCapture = nullptr;
+
+	TArray<IOpenXRCustomCaptureSupport*> CustomCaptureSupports;
 };
 
 

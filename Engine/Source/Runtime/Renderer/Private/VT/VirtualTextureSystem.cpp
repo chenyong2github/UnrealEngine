@@ -995,7 +995,7 @@ void FVirtualTextureSystem::Update(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::
 		{
 			if (AdaptiveVTs[ID])
 			{
-				AdaptiveVTs[ID]->UpdateAllocations(this, Frame);
+				AdaptiveVTs[ID]->UpdateAllocations(this, GraphBuilder.RHICmdList, Frame);
 			}
 		}
 	}

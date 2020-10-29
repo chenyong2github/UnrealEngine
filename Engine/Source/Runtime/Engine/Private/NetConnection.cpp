@@ -749,6 +749,12 @@ void UNetConnection::Serialize( FArchive& Ar )
 
 void UNetConnection::Close()
 {
+	if (IsInternalAck())
+	{
+		SetReserveDestroyedChannels(false);
+		SetIgnoreReservedChannels(false);
+	}
+
 	if (Driver != nullptr && State != USOCK_Closed)
 	{
 		NETWORK_PROFILER(GNetworkProfiler.TrackEvent(TEXT("CLOSE"), *(GetName() + TEXT(" ") + LowLevelGetRemoteAddress()), this));
@@ -2899,8 +2905,26 @@ void UNetConnection::SetAllowExistingChannelIndex(bool bAllow)
 
 		for (auto& It : ChannelIndexMap)
 		{
+			// It is possible the index we want to swap back to wasn't cleaned up because the channel was marked broken by backwards compatibility
+			if (Channels[It.Key] && Channels[It.Key]->Broken)
+			{
+				if (UActorChannel* ActorChannel = Cast<UActorChannel>(Channels[It.Key]))
+				{
+					// look for a queued close bunch
+					for (FInBunch* InBunch : ActorChannel->QueuedBunches)
+					{
+						if (InBunch && InBunch->bClose)
+						{
+							UE_LOG(LogNet, Warning, TEXT("SetAllowExistingChannelIndex:  Cleaning up broken channel: %s"), *ActorChannel->Describe());
+							ActorChannel->ConditionalCleanUp(true, InBunch->CloseReason);
+							break;
+						}
+					}
+				}
+			}
+
 			// this channel should still exist, but the location we want to swap it back to should be empty
-			if (ensure(Channels[It.Value] && !Channels[It.Key]))
+			if (ensureMsgf(Channels[It.Value] && !Channels[It.Key], TEXT("Source should exist: [%s] Destination should be null: [%s]"), Channels[It.Value] ? *Channels[It.Value]->Describe() : TEXT("null"), Channels[It.Key] ? *Channels[It.Key]->Describe() : TEXT("null")))
 			{
 				Channels[It.Value]->ChIndex = It.Key;
 
@@ -2925,6 +2949,20 @@ void UNetConnection::SetIgnoreActorBunches(bool bInIgnoreActorBunches, TSet<FNet
 	{
 		IgnoredBunchGuids = MoveTemp(InIgnoredBunchGuids);
 	}
+}
+
+void UNetConnection::SetReserveDestroyedChannels(bool bInReserveChannels)
+{
+	check(IsInternalAck());
+	bReserveDestroyedChannels = bInReserveChannels;
+}
+
+void UNetConnection::SetIgnoreReservedChannels(bool bInIgnoreReservedChannels)
+{
+	check(IsInternalAck());
+	bIgnoreReservedChannels = bInIgnoreReservedChannels;
+
+	ReservedChannels.Empty();
 }
 
 void UNetConnection::PrepareWriteBitsToSendBuffer(const int32 SizeInBits, const int32 ExtraSizeInBits)
@@ -3204,7 +3242,9 @@ int32 UNetConnection::GetFreeChannelIndex(const FName& ChName) const
 	// Search the channel array for an available location
 	for (ChIndex = FirstChannel; ChIndex < Channels.Num(); ChIndex++)
 	{
-		if (!Channels[ChIndex])
+		const bool bIgnoreReserved = bIgnoreReservedChannels && ReservedChannels.Contains(ChIndex);
+
+		if (!Channels[ChIndex] && !bIgnoreReserved)
 		{
 			break;
 		}

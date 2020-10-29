@@ -145,7 +145,7 @@ const FPluginDescriptor& FPlugin::GetDescriptor() const
 
 bool FPlugin::UpdateDescriptor(const FPluginDescriptor& NewDescriptor, FText& OutFailReason)
 {
-	if(!NewDescriptor.Save(FileName, OutFailReason))
+	if(!NewDescriptor.UpdatePluginFile(FileName, OutFailReason))
 	{
 		return false;
 	}

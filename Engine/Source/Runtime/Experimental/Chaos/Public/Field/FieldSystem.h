@@ -141,9 +141,10 @@ struct CHAOS_API FFieldContext
 	FFieldContext & operator =(FFieldContext&&) = delete;
 
 	FFieldContext(const TArrayView< ContextIndex >& SampleIndicesIn, const TArrayView<FVector>& SamplesIn,
-		const UniquePointerMap & MetaDataIn )
+		const UniquePointerMap & MetaDataIn, const float TimeSecondsIn)
 		: SampleIndices(SampleIndicesIn)
 		, Samples(SamplesIn)
+		, TimeSeconds(TimeSecondsIn)
 
 	{
 		for (const TPair<FFieldSystemMetaData::EMetaType, TUniquePtr<FFieldSystemMetaData>>& Meta : MetaDataIn)
@@ -155,10 +156,11 @@ struct CHAOS_API FFieldContext
 		MetaData.Add(FFieldSystemMetaData::EMetaType::ECommandData_Culling, CullingData.Get());
 	}
 	FFieldContext(const TArrayView< ContextIndex >& SampleIndicesIn, const TArrayView<FVector>& SamplesIn,
-		const PointerMap & MetaDataIn)
+		const PointerMap & MetaDataIn, const float TimeSecondsIn)
 		: SampleIndices(SampleIndicesIn)
 		, Samples(SamplesIn)
 		, MetaData(MetaDataIn)
+		, TimeSeconds(TimeSecondsIn)
 	{
 		CullingData = MakeUnique<FFieldSystemMetaDataCulling>(SampleIndices.Num());
 		MetaData.Add(FFieldSystemMetaData::EMetaType::ECommandData_Culling, CullingData.Get());
@@ -187,6 +189,7 @@ struct CHAOS_API FFieldContext
 	const TArrayView<FVector>& Samples;
 	PointerMap MetaData;
 	TUniquePtr<FFieldSystemMetaDataCulling> CullingData;
+	float TimeSeconds;
 };
 
 /** 

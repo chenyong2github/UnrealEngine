@@ -81,8 +81,8 @@ static TAutoConsoleVariable<int32> CVarRayTracingSkyLightEnableTwoSidedGeometry(
 
 static TAutoConsoleVariable<int32> CVarRayTracingSkyLightEnableMaterials(
 	TEXT("r.RayTracing.SkyLight.EnableMaterials"),
-	0,
-	TEXT("Enables material shader binding for shadow rays. If this is disabled, then a default trivial shader is used. (default = 0)"),
+	1,
+	TEXT("Enables material shader binding for shadow rays. If this is disabled, then a default trivial shader is used. (default = 1)"),
 	ECVF_RenderThreadSafe
 );
 

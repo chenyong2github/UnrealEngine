@@ -184,7 +184,7 @@ FName FNiagaraEmitterHandleViewModel::GetName() const
 
 void FNiagaraEmitterHandleViewModel::SetName(FName InName)
 {
-	if (EmitterHandle && EmitterHandle->GetName() == InName)
+	if (EmitterHandle && EmitterHandle->GetName().IsEqual(InName, ENameCase::CaseSensitive, false))
 	{
 		return;
 	}

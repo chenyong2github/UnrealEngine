@@ -157,9 +157,9 @@ namespace UnrealBuildTool.Rules
                         PublicAdditionalLibraries.Add(Path.Combine(USDLibsDir, UsdLib + ".dylib"));
                     }
 
-                    PublicAdditionalLibraries.Add(Path.Combine(PythonBinaryTPSDir, "Mac", "libpython3.7.dylib"));
-                    PublicIncludePaths.Add(PythonSourceTPSDir + "/Mac/include/");
-                    PublicSystemLibraryPaths.Add(Path.Combine(PythonBinaryTPSDir, "Mac"));
+                    PublicAdditionalLibraries.Add(Path.Combine(PythonBinaryTPSDir, "Mac", "lib", "libpython3.7.dylib"));
+                    PublicIncludePaths.Add(Path.Combine(PythonSourceTPSDir, "Mac", "include"));
+                    PublicSystemLibraryPaths.Add(Path.Combine(PythonBinaryTPSDir, "Mac", "lib"));
                 }
                 
                 PublicSystemLibraryPaths.Add(USDLibsDir);

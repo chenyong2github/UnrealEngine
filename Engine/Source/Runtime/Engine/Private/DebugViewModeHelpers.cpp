@@ -286,11 +286,10 @@ bool CompileDebugViewModeShaders(EDebugViewShaderMode ShaderMode, EMaterialQuali
 			check(MaterialInterface); // checked for null in GetTextureStreamingBuildMaterials
 
 			const FMaterial* Material = MaterialInterface->GetMaterialResource(FeatureLevel, QualityLevel);
-			bool bMaterialCompiled = true;
-			if (Material)
+			bool bMaterialFinished = true;
+			if (Material && Material->GetGameThreadShaderMap())
 			{
-				if (Material &&
-					!DebugViewModeInterface->bNeedsMaterialProperties &&
+				if (!DebugViewModeInterface->bNeedsMaterialProperties &&
 					FDebugViewModeInterface::AllowFallbackToDefaultMaterial(Material))
 				{
 					Material = UMaterial::GetDefaultMaterial(MD_Surface)->GetMaterialResource(FeatureLevel, QualityLevel);
@@ -301,11 +300,11 @@ bool CompileDebugViewModeShaders(EDebugViewShaderMode ShaderMode, EMaterialQuali
 				DebugViewModeInterface->AddShaderTypes(FeatureLevel, Material->GetTessellationMode(), LocalVertexFactory, ShaderTypes);
 				if (!Material->HasShaders(ShaderTypes, LocalVertexFactory))
 				{
-					bMaterialCompiled = false;
+					bMaterialFinished = false;
 				}
 			}
 
-			if (bMaterialCompiled)
+			if (bMaterialFinished)
 			{
 				It.RemoveCurrent();
 			}

@@ -333,6 +333,8 @@ public:
 struct FExportObject
 {
 	UObject* Object = nullptr;
+	UObject* TemplateObject = nullptr;
+	UObject* SuperObject = nullptr;
 	bool bFiltered = false;
 	bool bExportLoadFailed = false;
 };
@@ -612,6 +614,7 @@ class FLoadedPackageRef
 	int32 RefCount = 0;
 	bool bAreAllPublicExportsLoaded = false;
 	bool bIsMissing = false;
+	bool bHasBeenLoadedDebug = false;
 
 public:
 	inline int32 GetRefCount() const
@@ -626,12 +629,23 @@ public:
 		return RefCount == 1 && Package;
 	}
 
-	inline bool ReleaseRef()
+	inline bool ReleaseRef(FPackageId FromPackageId, FPackageId ToPackageId)
 	{
 		check(RefCount > 0);
 		--RefCount;
+
+		ensureMsgf(bAreAllPublicExportsLoaded || bIsMissing,
+			TEXT("LoadedPackageRef from None (0x%llX) to %s (0x%llX) should not have been released when the package is not complete.")
+			TEXT("RefCount=%d, AreAllExportsLoaded=%d, IsMissing=%d, HasBeenLoaded=%d"),
+			FromPackageId.Value(),
+			Package ? *Package->GetName() : TEXT("None"),
+			ToPackageId.Value(),
+			RefCount,
+			bAreAllPublicExportsLoaded,
+			bIsMissing,
+			bHasBeenLoadedDebug);
+
 #if DO_CHECK
-		check(bAreAllPublicExportsLoaded || bIsMissing);
 		if (bAreAllPublicExportsLoaded)
 		{
 			check(!bIsMissing);
@@ -680,6 +694,7 @@ public:
 		check(Package);
 		bIsMissing = false;
 		bAreAllPublicExportsLoaded = true;
+		bHasBeenLoadedDebug = true;
 	}
 
 	inline void ClearAllPublicExportsLoaded()
@@ -1287,7 +1302,7 @@ private:
 		for (const FPackageId& ImportedPackageId : Desc.StoreEntry->ImportedPackages)
 		{
 			FLoadedPackageRef& PackageRef = GlobalPackageStore.LoadedPackageStore.GetPackageRef(ImportedPackageId);
-			if (PackageRef.ReleaseRef())
+			if (PackageRef.ReleaseRef(Desc.DiskPackageId, ImportedPackageId))
 			{
 				ClearAsyncFlags(PackageRef.GetPackage());
 			}
@@ -1296,7 +1311,7 @@ private:
 		{
 			// clear own reference, and possible all async flags if no remaining ref count
 			FLoadedPackageRef& PackageRef =	GlobalPackageStore.LoadedPackageStore.GetPackageRef(Desc.DiskPackageId);
-			if (PackageRef.ReleaseRef())
+			if (PackageRef.ReleaseRef(Desc.DiskPackageId, Desc.DiskPackageId))
 			{
 				ClearAsyncFlags(PackageRef.GetPackage());
 			}
@@ -2219,8 +2234,7 @@ public:
 	/** Returns true if packages are currently being loaded on the async thread */
 	inline virtual bool IsAsyncLoadingPackages() override
 	{
-		FPlatformMisc::MemoryBarrier();
-		return QueuedPackagesCounter != 0 || ExistingAsyncPackagesCounter.GetValue() != 0 || !DeferredDeletePackages.IsEmpty();
+		return QueuedPackagesCounter != 0 || ExistingAsyncPackagesCounter.GetValue() != 0;
 	}
 
 	/** Returns true this codes runs on the async loading thread */
@@ -2525,6 +2539,7 @@ private:
 		Data.PackageNodes = MakeArrayView(reinterpret_cast<FEventLoadNode2*>(MemoryBuffer + AsyncPackageMemSize + ExportBundlesMetaMemSize + ExportsMemSize + ImportedPackagesMemSize), NodeCount);
 		Data.ExportBundleNodes = MakeArrayView(&Data.PackageNodes[EEventLoadNode2::Package_NumPhases], ExportBundleNodeCount);
 
+		ExistingAsyncPackagesCounter.Increment();
 		return new (MemoryBuffer) FAsyncPackage2(Desc, Data, *this, GraphAllocator, EventSpecs.GetData());
 	}
 
@@ -2534,6 +2549,7 @@ private:
 		UE_ASYNC_PACKAGE_DEBUG(Package->Desc);
 		Package->~FAsyncPackage2();
 		FMemory::Free(Package);
+		ExistingAsyncPackagesCounter.Decrement();
 	}
 
 	/** Number of times we re-entered the async loading tick, mostly used by singlethreaded ticking. Debug purposes only. */
@@ -2641,7 +2657,6 @@ FAsyncPackage2* FAsyncLoadingThread2::FindOrInsertPackage(FAsyncPackageDesc2* De
 			Package = CreateAsyncPackage(*Desc);
 			checkf(Package, TEXT("Failed to create async package %s"), *Desc->DiskPackageName.ToString());
 			Package->AddRef();
-			ExistingAsyncPackagesCounter.Increment();
 			AsyncPackageLookup.Add(Desc->GetAsyncPackageId(), Package);
 			bInserted = true;
 		}
@@ -3630,6 +3645,25 @@ void FAsyncPackage2::EventDrivenCreateExport(int32 LocalExportIndex)
 		return;
 	}
 	check(!dynamic_cast<UObjectRedirector*>(ThisParent));
+	if (!Export.SuperIndex.IsNull())
+	{
+		ExportObject.SuperObject = EventDrivenIndexToObject(Export.SuperIndex, false);
+		if (!ExportObject.SuperObject)
+		{
+			UE_ASYNC_PACKAGE_LOG(Error, Desc, TEXT("CreateExport"), TEXT("Could not find SuperStruct object for %s"), *ObjectName.ToString());
+			ExportObject.bExportLoadFailed = true;
+			return;
+		}
+	}
+	// Find the Archetype object for the one we are loading.
+	check(!Export.TemplateIndex.IsNull());
+	ExportObject.TemplateObject = EventDrivenIndexToObject(Export.TemplateIndex, true);
+	if (!ExportObject.TemplateObject)
+	{
+		UE_ASYNC_PACKAGE_LOG(Error, Desc, TEXT("CreateExport"), TEXT("Could not find template object for %s"), *ObjectName.ToString());
+		ExportObject.bExportLoadFailed = true;
+		return;
+	}
 
 	// Try to find existing object first as we cannot in-place replace objects, could have been created by other export in this package
 	{
@@ -3664,17 +3698,8 @@ void FAsyncPackage2::EventDrivenCreateExport(int32 LocalExportIndex)
 	}
 	else
 	{
-		// Find the Archetype object for the one we are loading.
-		check(!Export.TemplateIndex.IsNull());
-		UObject* Template = EventDrivenIndexToObject(Export.TemplateIndex, true);
-		if (!Template)
-		{
-			UE_ASYNC_PACKAGE_LOG(Error, Desc, TEXT("CreateExport"), TEXT("Could not find template object for %s"), *ObjectName.ToString());
-			ExportObject.bExportLoadFailed = true;
-			return;
-		}
 		// we also need to ensure that the template has set up any instances
-		Template->ConditionalPostLoadSubobjects();
+		ExportObject.TemplateObject->ConditionalPostLoadSubobjects();
 
 		check(!GVerifyObjectReferencesOnly); // not supported with the event driven loader
 		// Create the export object, marking it with the appropriate flags to
@@ -3689,7 +3714,7 @@ void FAsyncPackage2::EventDrivenCreateExport(int32 LocalExportIndex)
 		{
 			UClass* SuperClass = LoadClass->GetSuperClass();
 			UObject* SuperCDO = SuperClass ? SuperClass->GetDefaultObject() : nullptr;
-			check(!SuperCDO || Template == SuperCDO); // the template for a CDO is the CDO of the super
+			check(!SuperCDO || ExportObject.TemplateObject == SuperCDO); // the template for a CDO is the CDO of the super
 			if (SuperClass && !SuperClass->IsNative())
 			{
 				check(SuperCDO);
@@ -3717,7 +3742,7 @@ void FAsyncPackage2::EventDrivenCreateExport(int32 LocalExportIndex)
 			}
 			else
 			{
-				check(Template->IsA(LoadClass));
+				check(ExportObject.TemplateObject->IsA(LoadClass));
 			}
 		}
 #endif
@@ -3725,8 +3750,8 @@ void FAsyncPackage2::EventDrivenCreateExport(int32 LocalExportIndex)
 			TEXT("LoadClass %s had RF_NeedLoad while creating %s"), *LoadClass->GetFullName(), *ObjectName.ToString());
 		checkf(!(LoadClass->GetDefaultObject() && LoadClass->GetDefaultObject()->HasAnyFlags(RF_NeedLoad)), 
 			TEXT("Class CDO %s had RF_NeedLoad while creating %s"), *LoadClass->GetDefaultObject()->GetFullName(), *ObjectName.ToString());
-		checkf(!Template->HasAnyFlags(RF_NeedLoad),
-			TEXT("Template %s had RF_NeedLoad while creating %s"), *Template->GetFullName(), *ObjectName.ToString());
+		checkf(!ExportObject.TemplateObject->HasAnyFlags(RF_NeedLoad),
+			TEXT("Template %s had RF_NeedLoad while creating %s"), *ExportObject.TemplateObject->GetFullName(), *ObjectName.ToString());
 
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(ConstructObject);
@@ -3734,7 +3759,7 @@ void FAsyncPackage2::EventDrivenCreateExport(int32 LocalExportIndex)
 			Params.Outer = ThisParent;
 			Params.Name = ObjectName;
 			Params.SetFlags = ObjectLoadFlags;
-			Params.Template = Template;
+			Params.Template = ExportObject.TemplateObject;
 			Params.bAssumeTemplateIsArchetype = true;
 			Object = StaticConstructObject_Internal(Params);
 		}
@@ -3801,16 +3826,8 @@ bool FAsyncPackage2::EventDrivenSerializeExport(int32 LocalExportIndex, FExportA
 	// If this is a struct, make sure that its parent struct is completely loaded
 	if (UStruct* Struct = dynamic_cast<UStruct*>(Object))
 	{
-		if (!Export.SuperIndex.IsNull())
+		if (UStruct* SuperStruct = dynamic_cast<UStruct*>(ExportObject.SuperObject))
 		{
-			UStruct* SuperStruct = CastEventDrivenIndexToObject<UStruct>(Export.SuperIndex, true);
-			if (!SuperStruct)
-			{
-				UE_ASYNC_PACKAGE_LOG(Error, Desc, TEXT("SerializeExport"),
-					TEXT("Could not find SuperStruct object for %s"), *NameMap.GetName(Export.ObjectName).ToString());
-				ExportObject.bExportLoadFailed = true;
-				return false;
-			}
 			Struct->SetSuperStruct(SuperStruct);
 			if (UClass* ClassObject = dynamic_cast<UClass*>(Object))
 			{
@@ -3825,10 +3842,8 @@ bool FAsyncPackage2::EventDrivenSerializeExport(int32 LocalExportIndex, FExportA
 
 	// cache archetype
 	// prevents GetArchetype from hitting the expensive GetArchetypeFromRequiredInfoImpl
-	check(!Export.TemplateIndex.IsNull());
-	UObject* Template = EventDrivenIndexToObject(Export.TemplateIndex, true);
-	check(Template);
-	CacheArchetypeForObject(Object, Template);
+	check(ExportObject.TemplateObject);
+	CacheArchetypeForObject(Object, ExportObject.TemplateObject);
 
 	Object->ClearFlags(RF_NeedLoad);
 
@@ -3836,7 +3851,7 @@ bool FAsyncPackage2::EventDrivenSerializeExport(int32 LocalExportIndex, FExportA
 	UObject* PrevSerializedObject = LoadContext->SerializedObject;
 	LoadContext->SerializedObject = Object;
 
-	Ar.TemplateForGetArchetypeFromLoader = Template;
+	Ar.TemplateForGetArchetypeFromLoader = ExportObject.TemplateObject;
 
 	if (Object->HasAnyFlags(RF_ClassDefaultObject))
 	{
@@ -4391,11 +4406,6 @@ EAsyncPackageState::Type FAsyncLoadingThread2::ProcessLoadedPackagesFromGameThre
 			// Remove the package from the list before we trigger the callbacks, 
 			// this is to ensure we can re-enter FlushAsyncLoading from any of the callbacks
 			LoadedPackagesToProcess.RemoveAt(PackageIndex--);
-
-			// Incremented on the Async Thread, now decrement as we're done with this package				
-			const int32 NewExistingAsyncPackagesCounterValue = ExistingAsyncPackagesCounter.Decrement();
-
-			UE_CLOG(NewExistingAsyncPackagesCounterValue < 0, LogStreaming, Fatal, TEXT("ExistingAsyncPackagesCounter is negative, this means we loaded more packages then requested so there must be a bug in async loading code."));
 
 			TRACE_LOADTIME_END_LOAD_ASYNC_PACKAGE(Package);
 
@@ -5027,6 +5037,9 @@ void FAsyncLoadingThread2::NotifyUnreachableObjects(const TArrayView<FUObjectIte
 		check(Object);
 		if (Object->HasAllFlags(RF_WasLoaded | RF_Public))
 		{
+			ensureMsgf(!Object->HasAnyInternalFlags(EInternalObjectFlags::Async),
+				TEXT("%s (flags=0x%X, internalflags=0x%X) is still referenced by loader and should not have been marked unreachable."),
+				*Object->GetFullName(), Object->GetFlags(), Object->GetInternalFlags());
 			if (Object->GetOuter())
 			{
 				// TRACE_CPUPROFILER_EVENT_SCOPE(PackageStoreRemovePublicExport);
@@ -5469,6 +5482,7 @@ void FAsyncPackage2::CallCompletionCallbacks(EAsyncLoadingResult::Type LoadingRe
 	{
 		CompletionCallback->ExecuteIfBound(Desc.GetUPackageName(), LoadedPackage, LoadingResult);
 	}
+	CompletionCallbacks.Empty();
 }
 
 UPackage* FAsyncPackage2::GetLoadedPackage()

@@ -985,13 +985,13 @@ void UMovieSceneSequencePlayer::UpdateMovieSceneInstance(FMovieSceneEvaluationRa
 	if (!Args.bIsAsync)
 	{
 		// Evaluate the sequence synchronously.
-		RootTemplateInstance.Evaluate(Context, *this, MovieSceneSequenceID::Root);
+		RootTemplateInstance.Evaluate(Context, *this);
 	}
 	else
 	{
 		// Queue an evaluation on the tick manager.
 		FMovieSceneEntitySystemRunner& Runner = TickManager->GetRunner();
-		Runner.QueueUpdate(Context, RootTemplateInstance.GetRootInstanceHandle(), MovieSceneSequenceID::Root);
+		Runner.QueueUpdate(Context, RootTemplateInstance.GetRootInstanceHandle());
 	}
 }
 
@@ -1314,11 +1314,10 @@ void UMovieSceneSequencePlayer::PostNetReceive()
 					{
 						SetPlaybackPosition(FMovieSceneSequencePlaybackParams(NetSyncProps.LastKnownPosition + PingLag, EUpdatePositionMethod::Jump));
 					}
-				}
 
-				// When playing back we skip this sequence's ticked update to avoid queuing 2 updates this frame
-				//TODO: @AAndrew Rodham 
-				//bSkipNextUpdate = true;
+					// When playing back we skip this sequence's ticked update to avoid queuing 2 updates this frame
+					bSkipNextUpdate = true;
+				}
 			}
 			else if (Status == EMovieScenePlayerStatus::Stopped)
 			{

@@ -22,13 +22,12 @@ void FGerstnerWave::Recompute()
 UGerstnerWaterWaves::UGerstnerWaterWaves()
 {
 	// Default generator
-	UGerstnerWaterWaveGeneratorSimple* SimpleGenerator = CreateDefaultSubobject<UGerstnerWaterWaveGeneratorSimple>(TEXT("WaterWaves"), /* bTransient = */false);
+	GerstnerWaveGenerator = CreateDefaultSubobject<UGerstnerWaterWaveGeneratorSimple>(TEXT("WaterWaves"), /* bTransient = */false);
+
 	if (!IsTemplate())
 	{
 		RecomputeWaves(/* bAllowBPScript = */false); // for the default one, we don't want / cannot call a BP event 
 	}
-
-	GerstnerWaveGenerator = SimpleGenerator;
 }
 
 void UGerstnerWaterWaves::PostDuplicate(EDuplicateMode::Type DuplicateMode)

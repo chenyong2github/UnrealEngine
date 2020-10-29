@@ -4,6 +4,8 @@
 
 #include "IRenderDocPlugin.h"
 
+#include "Rendering/IRenderCaptureProvider.h"
+
 #include "RenderDocPluginLoader.h"
 #include "RenderDocPluginSettings.h"
 
@@ -37,6 +39,10 @@ public:
 	void CapturePIE(const TArray<FString>& Args);
 	void StartRenderDoc(FString CapturePath);
 	FString GetNewestCapture();
+
+	// IRenderCaptureProvider interface
+	virtual void StartCapturing() override { BeginCapture(); }
+	virtual void StopCapturing(const FString* DestPath = nullptr) override;
 
 private:
 	virtual TSharedPtr<class IInputDevice> CreateInputDevice(const TSharedRef<FGenericApplicationMessageHandler>& InMessageHandler) override;

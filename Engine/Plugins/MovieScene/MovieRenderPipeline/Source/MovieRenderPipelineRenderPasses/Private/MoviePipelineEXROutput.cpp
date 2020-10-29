@@ -359,8 +359,13 @@ void FEXRImageWriteTask::AddFileMetadata(Imf::Header& InHeader)
 
 void UMoviePipelineImageSequenceOutput_EXR::OnRecieveImageDataImpl(FMoviePipelineMergerOutputFrame* InMergedOutputFrame)
 {
-	// Super::OnRecieveImageDataImpl(...) is skipped because we don't want to use the generic handling, which outputs one
-	// file per render pass. EXRs specifically support multiple layers so we need to handle them separately. 
+	if (!bMultilayer)
+	{
+		// Some software doesn't support multi-layer, so in that case we fall back to the single-layer-multiple-file
+		// codepath of our parent.
+		Super::OnRecieveImageDataImpl(InMergedOutputFrame);
+		return;
+	}
 	check(InMergedOutputFrame);
 
 	// Ensure our OpenExrRTTI module gets loaded. This needs to happen from the main thread, if it's not loaded then metadata silently fails when writing.

@@ -229,7 +229,7 @@ namespace UsdShadeConversionImpl
 		}
 	}
 
-	UMaterialExpression* ParseInputTexture( pxr::UsdShadeInput& ShadeInput, UMaterial& Material, TMap< FString, UObject* >& TexturesCache, TMap<FString, int32>& PrimvarToUVIndex )
+	UMaterialExpression* ParseInputTexture( pxr::UsdShadeInput& ShadeInput, UMaterial& Material, TMap< FString, UObject* >& TexturesCache, TMap<FString, int32>& PrimvarToUVIndex, TextureGroup LODGroup )
 	{
 		UMaterialExpression* Result = nullptr;
 
@@ -260,7 +260,7 @@ namespace UsdShadeConversionImpl
 						MaterialPrimPath = ImportData->PrimPath;
 					}
 
-					Texture = UsdUtils::CreateTexture( FileInput.GetAttr(), MaterialPrimPath );
+					Texture = UsdUtils::CreateTexture( FileInput.GetAttr(), MaterialPrimPath, LODGroup );
 				}
 
 				if ( Texture )
@@ -315,7 +315,7 @@ namespace UsdShadeConversionImpl
 		pxr::UsdShadeAttributeType AttributeType;
 		if ( Input.GetConnectedSource( &Source, &SourceName, &AttributeType ) )
 		{
-			InputExpression = ParseInputTexture( Input, Material, TexturesCache, PrimvarToUVIndex );
+			InputExpression = ParseInputTexture( Input, Material, TexturesCache, PrimvarToUVIndex, TEXTUREGROUP_WorldSpecular );
 			if ( !InputExpression )
 			{
 				// Recurse because the attribute may just be pointing at some other attribute that has the data
@@ -341,7 +341,8 @@ namespace UsdShadeConversionImpl
 		return InputExpression;
 	}
 
-	UMaterialExpression* ParseVec3Input( const pxr::TfToken& InputName, const FLinearColor& DefaultValue, UMaterial& Material, pxr::UsdShadeConnectableAPI& Connectable, TMap< FString, UObject* >& TexturesCache, TMap<FString, int32>& PrimvarToUVIndex )
+	UMaterialExpression* ParseVec3Input( const pxr::TfToken& InputName, const FLinearColor& DefaultValue, UMaterial& Material, pxr::UsdShadeConnectableAPI& Connectable, TMap< FString, UObject* >& TexturesCache,
+		TMap<FString, int32>& PrimvarToUVIndex, bool bIsNormalMap )
 	{
 		FScopedUsdAllocs Allocs;
 
@@ -359,10 +360,10 @@ namespace UsdShadeConversionImpl
 		pxr::UsdShadeAttributeType AttributeType;
 		if ( Input.GetConnectedSource( &Source, &SourceName, &AttributeType ) )
 		{
-			InputExpression = ParseInputTexture( Input, Material, TexturesCache, PrimvarToUVIndex );
+			InputExpression = ParseInputTexture( Input, Material, TexturesCache, PrimvarToUVIndex, bIsNormalMap ? TEXTUREGROUP_WorldNormalMap : TEXTUREGROUP_World );
 			if ( !InputExpression )
 			{
-				InputExpression = ParseVec3Input( SourceName, DefaultValue, Material, Source, TexturesCache, PrimvarToUVIndex );
+				InputExpression = ParseVec3Input( SourceName, DefaultValue, Material, Source, TexturesCache, PrimvarToUVIndex, bIsNormalMap );
 			}
 		}
 		// No other node connected, so we must have some value
@@ -828,7 +829,8 @@ bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial
 
 	// Base color
 	{
-		UMaterialExpression* BaseColorExpression = UsdShadeConversionImpl::ParseVec3Input( UnrealIdentifiers::DiffuseColor, FLinearColor( 0, 0, 0 ), Material, Connectable, TexturesCache, PrimvarToUVIndex );
+		const bool bIsNormalMap = false;
+		UMaterialExpression* BaseColorExpression = UsdShadeConversionImpl::ParseVec3Input( UnrealIdentifiers::DiffuseColor, FLinearColor( 0, 0, 0 ), Material, Connectable, TexturesCache, PrimvarToUVIndex, bIsNormalMap );
 
 		if ( BaseColorExpression )
 		{
@@ -873,7 +875,8 @@ bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial
 
 	// Normal
 	{
-		UMaterialExpression* NormalExpression = UsdShadeConversionImpl::ParseVec3Input( UnrealIdentifiers::Normal, FLinearColor( 0, 0, 1 ), Material, Connectable, TexturesCache, PrimvarToUVIndex );
+		const bool bIsNormalMap = true;
+		UMaterialExpression* NormalExpression = UsdShadeConversionImpl::ParseVec3Input( UnrealIdentifiers::Normal, FLinearColor( 0, 0, 1 ), Material, Connectable, TexturesCache, PrimvarToUVIndex, bIsNormalMap );
 
 		if ( NormalExpression )
 		{
@@ -940,7 +943,7 @@ FString UsdUtils::GetResolvedTexturePath( const pxr::UsdAttribute& TextureAssetP
 	return ResolvedTexturePath;
 }
 
-UTexture* UsdUtils::CreateTexture( const pxr::UsdAttribute& TextureAssetPathAttr, const FString& PrimPath )
+UTexture* UsdUtils::CreateTexture( const pxr::UsdAttribute& TextureAssetPathAttr, const FString& PrimPath, TextureGroup LODGroup )
 {
 	FScopedUsdAllocs UsdAllocs;
 
@@ -961,6 +964,7 @@ UTexture* UsdUtils::CreateTexture( const pxr::UsdAttribute& TextureAssetPathAttr
 		UTextureFactory* TextureFactory = NewObject< UTextureFactory >();
 		TextureFactory->SuppressImportOverwriteDialog();
 		TextureFactory->bUseHashAsGuid = true;
+		TextureFactory->LODGroup = LODGroup;
 
 		if ( bIsSupportedUdimTexture )
 		{

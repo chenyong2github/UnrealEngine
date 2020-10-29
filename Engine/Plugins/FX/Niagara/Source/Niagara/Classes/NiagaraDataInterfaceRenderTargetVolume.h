@@ -20,7 +20,8 @@ struct FRenderTargetVolumeRWInstanceData_GameThread
 	}
 
 	FIntVector Size = FIntVector(EForceInit::ForceInitToZero);
-	
+	EPixelFormat Format = EPixelFormat::PF_A16B16G16R16;
+
 	UTextureRenderTargetVolume* TargetTexture = nullptr;
 #if WITH_EDITORONLY_DATA
 	uint32 bPreviewTexture : 1;
@@ -46,10 +47,12 @@ struct FRenderTargetVolumeRWInstanceData_RenderThread
 #endif
 };
 
-struct FNiagaraDataInterfaceProxyRenderTargetVolumeProxy : public FNiagaraDataInterfaceProxy
+struct FNiagaraDataInterfaceProxyRenderTargetVolumeProxy : public FNiagaraDataInterfaceProxyRW
 {
 	virtual int32 PerInstanceDataPassedToRenderThreadSize() const override { return 0; }
 	virtual void PostSimulate(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceArgs& Context) override;
+
+	virtual FIntVector GetElementCount(FNiagaraSystemInstanceID SystemInstanceID) const override;
 
 	/* List of proxy data for each system instances*/
 	// #todo(dmp): this should all be refactored to avoid duplicate code
@@ -108,6 +111,13 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Render Target")
 	FIntVector Size;
 
+	/** When enabled overrides the format of the render target, otherwise uses the project default setting. */
+	UPROPERTY(EditAnywhere, Category = "Render Target", meta = (EditCondition = "bOverrideFormat"))
+	TEnumAsByte<ETextureRenderTargetFormat> OverrideRenderTargetFormat;
+
+	UPROPERTY(EditAnywhere, Category = "Render Target", meta=(PinHiddenByDefault, InlineEditConditionToggle))
+	uint8 bOverrideFormat : 1;
+
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(Transient, EditAnywhere, Category = "Render Target")
 	uint8 bPreviewRenderTarget : 1;
@@ -121,6 +131,6 @@ protected:
 
 	static FNiagaraVariableBase ExposedRTVar;
 	
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, DuplicateTransient)
 	TMap<uint64, UTextureRenderTargetVolume*> ManagedRenderTargets;
 };

@@ -21,6 +21,9 @@ struct PROJECTS_API FCustomBuildSteps
 	/** Reads the descriptor from the given JSON object */
 	void Read(const FJsonObject& Object, const FString& FieldName);
 
-	/** Writes the descriptor to the given JSON object */
+	/** Writes the CustomBuildSteps to JSON */
 	void Write(TJsonWriter<>& Writer, const FString& FieldName) const;
+
+	/** Updates the given json object with this CustomBuildSteps */
+	void UpdateJson(FJsonObject& JsonObject, const FString& FieldName) const;
 };

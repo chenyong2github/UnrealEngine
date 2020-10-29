@@ -633,6 +633,9 @@ private:
 		const TArray<FString>& CookMaps, const TArray<FString>& CookDirectories, 
 		const TArray<FString>& IniMapSections, ECookByTheBookOptions FilesToCookFlags,
 		const TArrayView<const ITargetPlatform* const>& TargetPlatforms);
+	/* Collect filespackages that should not be cooked from ini settings and commandline. Does not include checking UAssetManager, which has to be queried later */
+	static TArray<FName> GetNeverCookPackages(TArrayView<const FString> ExtraNeverCookDirectories = TArrayView<const FString>());
+
 
 	/**
 	* AddFileToCook add file to cook list 
@@ -645,19 +648,29 @@ private:
 	void InitShaderCodeLibrary(void);
     
 	/**
-	* Invokes the necessary FShaderCodeLibrary functions to open a named code library.
-	*/
-	void OpenShaderCodeLibrary(FString const& Name);
+	 * Opens Global shader library. Global shaderlib isn't split into chunks nor associated with the assets, so it a special case
+	 */
+	void OpenGlobalShaderLibrary();
+
+	/**
+	 * Saves Global shader library. Global shaderlib isn't split into chunks nor associated with the assets, so it a special case
+	 */
+	void SaveGlobalShaderLibrary();
+
+	/**
+	 * Invokes the necessary FShaderCodeLibrary functions to open a named code library.
+	 */
+	void OpenShaderLibrary(FString const& Name);
     
 	/**
-	* Invokes the necessary FShaderCodeLibrary functions to save and close a named code library.
-	*/
-	void SaveShaderCodeLibrary(FString const& Name);
+	 * Invokes the necessary FShaderCodeLibrary functions to save and close a named code library.
+	 */
+	void SaveShaderLibrary(const ITargetPlatform* TargetPlatform, FString const& Name, const TArray<TSet<FName>>* ChunkAssignments = nullptr);
 
 	/**
 	* Calls the ShaderPipelineCacheToolsCommandlet to build a upipelinecache file from the .stablepc.csv file, if any
 	*/
-	void ProcessShaderCodeLibraries(const FString& LibraryName);
+	void CreatePipelineCache(const ITargetPlatform* TargetPlatform, const FString& LibraryName);
 
 	/**
 	* Invokes the necessary FShaderCodeLibrary functions to clean out all the temporary files.

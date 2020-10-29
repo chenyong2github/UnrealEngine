@@ -171,7 +171,7 @@ private:
 	FName	FolderName;
 #endif
 
-	/** GUID of package if it was loaded from disk; used by netcode to make sure packages match between client and server. Changes at every save. */
+	/** GUID of package if it was loaded from disk. Changes at every save. */
 	FGuid Guid;
 
 #if WITH_EDITORONLY_DATA

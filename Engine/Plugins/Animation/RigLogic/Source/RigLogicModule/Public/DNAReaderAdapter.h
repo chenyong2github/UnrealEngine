@@ -100,6 +100,7 @@ public:
 	uint32 GetVertexLayoutCount(uint16 MeshIndex) const override;
 	FVertexLayout GetVertexLayout(uint16 MeshIndex, uint32 LayoutIndex) const override;
 	uint16 GetMaximumInfluencePerVertex(uint16 MeshIndex) const override;
+	uint32 GetSkinWeightsCount(uint16 MeshIndex) const override;
 	TArrayView<const float> GetSkinWeightsValues(uint16 MeshIndex, uint32 VertexIndex) const override;
 	TArrayView<const uint16> GetSkinWeightsJointIndices(uint16 MeshIndex, uint32 VertexIndex) const override;
 	uint16 GetBlendShapeTargetCount(uint16 MeshIndex) const override;
@@ -669,6 +670,12 @@ template <class TWrappedReader>
 uint16 FDNAReader<TWrappedReader>::GetMaximumInfluencePerVertex(uint16 MeshIndex) const
 {
 	return ReaderPtr->getMaximumInfluencePerVertex(MeshIndex);
+}
+
+template <class TWrappedReader>
+uint32 FDNAReader<TWrappedReader>::GetSkinWeightsCount(uint16 MeshIndex) const
+{
+	return ReaderPtr->getSkinWeightsCount(MeshIndex);
 }
 
 template <class TWrappedReader>

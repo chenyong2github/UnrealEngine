@@ -538,7 +538,7 @@ self.accessibilityElements = @[Window.accessibilityContainer];
 	TArray<TouchInput> TouchesArray;
 	for (UITouch* Touch in Touches)
 	{
-#if (UE4_HAS_IOS14 || UE4_HAS_TVOS14)
+#if __IPHONE_OS_VERSION_MAX_ALLOWED >= 140000
         // ignore mouse-produced touches, these will be handled by FIOSInputInterface
         if (@available(iOS 14, *))
         {

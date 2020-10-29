@@ -141,20 +141,41 @@ namespace Chaos
 			const bool bResimSkipCollision = ResimCache && ResimCache->IsResimming();
 			if(!bResimSkipCollision)
 			{
-				Particles.GetNonDisabledDynamicView().ParallelFor(
-					[&](auto& Particle1,int32 ActiveIdxIdx)
+				int32 EntryCount = 0;
+				const TParticleView<TPBDRigidParticles<FReal, 3>>& View = Particles.GetNonDisabledDynamicView();
+
+				// Calculate maximum possible particle slots
+				for(int32 Index = 0; Index < View.SOAViews.Num(); ++Index)
 				{
-					ProduceParticleOverlaps</*bResimming=*/false>(Dt,Particle1,InSpatialAcceleration,NarrowPhase,Receiver,StatData);
+					EntryCount += View.SOAViews[Index].Size();
+				}
+
+				Receiver.Prepare(EntryCount);
+
+				View.ParallelFor([&](auto& Particle1,int32 ActiveIdxIdx)
+				{
+					ProduceParticleOverlaps</*bResimming=*/false>(Dt,Particle1,InSpatialAcceleration,NarrowPhase,Receiver,StatData, ActiveIdxIdx);
 				},bDisableParallelFor);
 			}
 			else
 			{
-				ResimCache->GetDesyncedView().ParallelFor(
+				int32 EntryCount = 0;
+				const TParticleView<TGeometryParticles<FReal, 3>>& View = ResimCache->GetDesyncedView();
+
+				// Calculate maximum possible particle slots
+				for(int32 Index = 0; Index < View.SOAViews.Num(); ++Index)
+				{
+					EntryCount += View.SOAViews[Index].Size();
+				}
+
+				Receiver.Prepare(EntryCount);
+
+				View.ParallelFor(
 					[&](auto& Particle1,int32 ActiveIdxIdx)
 				{
 					//TODO: use transient handle
 					TGenericParticleHandleHandleImp<FReal,3> GenericHandle(Particle1.Handle());
-					ProduceParticleOverlaps</*bResimming=*/true>(Dt,GenericHandle,InSpatialAcceleration,NarrowPhase,Receiver,StatData);
+					ProduceParticleOverlaps</*bResimming=*/true>(Dt,GenericHandle,InSpatialAcceleration,NarrowPhase,Receiver,StatData, ActiveIdxIdx);
 				},bDisableParallelFor);
 			}
 		}
@@ -169,7 +190,8 @@ namespace Chaos
 		    const T_SPATIALACCELERATION& InSpatialAcceleration,
 		    FNarrowPhase& NarrowPhase,
 		    FAsyncCollisionReceiver& Receiver,
-		    CollisionStats::FStatData& StatData)
+		    CollisionStats::FStatData& StatData,
+			int32 EntryIndex)
 		{
 			CHAOS_COLLISION_STAT(StatData.IncrementSimulatedParticles());
 
@@ -209,6 +231,7 @@ namespace Chaos
 
 				SCOPE_CYCLE_COUNTER(STAT_Collisions_Filtering);
 				const int32 NumPotentials = PotentialIntersections.Num();
+				FCollisionConstraintsArray NewConstraints;
 				for (int32 i = 0; i < NumPotentials; ++i)
 				{
 					auto& Particle2 = *PotentialIntersections[i].GetGeometryParticleHandle_PhysicsThread();
@@ -285,22 +308,24 @@ namespace Chaos
 						}
 					}
 				
-					FCollisionConstraintsArray NewConstraints;
+					
 					{
 						SCOPE_CYCLE_COUNTER(STAT_Collisions_GenerateCollisions);
-						
 						// Generate constraints for the potentially overlapping shape pairs. Also run collision detection to generate
 						// the contact position and normal (for contacts within CullDistance) for use in collision callbacks.
-						NarrowPhase.GenerateCollisions(NewConstraints, Dt, Particle1.Handle(), Particle2.Handle(), CullDistance, StatData);
+						NarrowPhase.GenerateCollisions(NewConstraints, Dt, Particle1.Handle(), Particle2.Handle(), CullDistance);
 					}
+				}
 
-					{
-						SCOPE_CYCLE_COUNTER(STAT_Collisions_ReceiveCollisions);
+				{
+					SCOPE_CYCLE_COUNTER(STAT_Collisions_ReceiveCollisions);
 
-						// We are probably running in a parallel task here. The Receiver collects the contacts from all the tasks 
-						// and passes them to theconstraint container in serial.
-						Receiver.ReceiveCollisions(NewConstraints);
-					}
+					CHAOS_COLLISION_STAT(if (NewConstraints.Num()) { StatData.IncrementCountNP(NewConstraints.Num()); });
+					CHAOS_COLLISION_STAT(if (!NewConstraints.Num()) { StatData.IncrementRejectedNP(); });
+
+					// We are probably running in a parallel task here. The Receiver collects the contacts from all the tasks 
+					// and passes them to theconstraint container in serial.
+					Receiver.ReceiveCollisions(MoveTemp(NewConstraints), EntryIndex);
 				}
 			}
 

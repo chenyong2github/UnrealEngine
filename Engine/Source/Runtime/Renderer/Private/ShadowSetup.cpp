@@ -1490,8 +1490,8 @@ void FProjectedShadowInfo::AddSubjectPrimitive(FPrimitiveSceneInfo* PrimitiveSce
 
 					if (bWholeSceneShadow)
 					{
-						const float LODScaleSquared = FMath::Square(CurrentView.LODDistanceFactor * GetCachedScalabilityCVars().StaticMeshLODDistanceScale);
-						const bool bDrawShadowDepth = FMath::Square( Bounds.SphereRadius ) > FMath::Square( GMinScreenRadiusForShadowCaster ) * DistanceSquared * LODScaleSquared;
+						const float LODScaleSquared = FMath::Square(CurrentView.LODDistanceFactor);
+						const bool bDrawShadowDepth = FMath::Square(Bounds.SphereRadius) > FMath::Square(GMinScreenRadiusForShadowCaster) * DistanceSquared * LODScaleSquared;
 						if( !bDrawShadowDepth )
 						{
 							// cull object if it's too small to be considered as shadow caster
@@ -1694,7 +1694,7 @@ uint64 FProjectedShadowInfo::AddSubjectPrimitive_AnyThread(
 				{
 					const FBoxSphereBounds& Bounds = PrimitiveSceneInfoCompact.Bounds;
 					const float DistanceSquared = (Bounds.Origin - CurrentView->ShadowViewMatrices.GetViewOrigin()).SizeSquared();
-					const float LODScaleSquared = FMath::Square(CurrentView->LODDistanceFactor * GetCachedScalabilityCVars().StaticMeshLODDistanceScale);
+					const float LODScaleSquared = FMath::Square(CurrentView->LODDistanceFactor);
 					const bool bDrawShadowDepth = FMath::Square(Bounds.SphereRadius) > FMath::Square(GMinScreenRadiusForShadowCaster) * DistanceSquared * LODScaleSquared;
 					if (!bDrawShadowDepth)
 					{
@@ -3879,7 +3879,7 @@ struct FGatherShadowPrimitivesPacket
 
 				{
 					const float DistanceSquared = (PrimitiveBounds.Origin - ProjectedShadowInfo->DependentView->ShadowViewMatrices.GetViewOrigin()).SizeSquared();
-					const float LODScaleSquared = FMath::Square(ProjectedShadowInfo->DependentView->LODDistanceFactor * GetCachedScalabilityCVars().StaticMeshLODDistanceScale);
+					const float LODScaleSquared = FMath::Square(ProjectedShadowInfo->DependentView->LODDistanceFactor);
 					bScreenSpaceSizeCulled = FMath::Square(PrimitiveBounds.SphereRadius) < FMath::Square(MinScreenRadiusForShadowCaster) * DistanceSquared * LODScaleSquared;
 				}
 

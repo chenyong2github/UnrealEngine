@@ -30,10 +30,16 @@ bool UWaterSplineMetadata::CanEditDepth() const
 
 bool UWaterSplineMetadata::CanEditVelocity() const
 {
-	AWaterBody* Body = GetTypedOuter<AWaterBody>();
-	return Body && Body->GetWaterBodyType() == EWaterBodyType::River;
+	return true;
 }
-#endif
+
+void UWaterSplineMetadata::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	OnChangeData.Broadcast(this, PropertyChangedEvent);
+}
+#endif // WITH_EDITOR
 
 void UWaterSplineMetadata::InsertPoint(int32 Index, float t, bool bClosedLoop)
 {

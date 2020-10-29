@@ -21,6 +21,7 @@ struct FRenderTarget2DRWInstanceData_GameThread
 	}
 
 	FIntPoint Size = FIntPoint(EForceInit::ForceInitToZero);
+	ETextureRenderTargetFormat Format = RTF_RGBA16f;
 	
 	UTextureRenderTarget2D* TargetTexture = nullptr;
 #if WITH_EDITORONLY_DATA
@@ -38,6 +39,10 @@ struct FRenderTarget2DRWInstanceData_RenderThread
 #endif
 	}
 
+#if STATS
+	void UpdateMemoryStats();
+#endif
+
 	FIntPoint Size = FIntPoint(EForceInit::ForceInitToZero);
 	
 	FTextureReferenceRHIRef TextureReferenceRHI;
@@ -45,23 +50,20 @@ struct FRenderTarget2DRWInstanceData_RenderThread
 #if WITH_EDITORONLY_DATA
 	uint32 bPreviewTexture : 1;
 #endif
+#if STATS
+	uint64 MemorySize = 0;
+#endif
 };
 
-struct FNiagaraDataInterfaceProxyRenderTarget2DProxy : public FNiagaraDataInterfaceProxy
+struct FNiagaraDataInterfaceProxyRenderTarget2DProxy : public FNiagaraDataInterfaceProxyRW
 {
 	FNiagaraDataInterfaceProxyRenderTarget2DProxy() {}
 	virtual void ConsumePerInstanceDataFromGameThread(void* PerInstanceData, const FNiagaraSystemInstanceID& Instance) override {}
-	virtual int32 PerInstanceDataPassedToRenderThreadSize() const override
-	{
-		return 0;
-	}
+	virtual int32 PerInstanceDataPassedToRenderThreadSize() const override { return 0; }
 
-	virtual void ClearBuffers(FRHICommandList& RHICmdList) {}
-	virtual void PreStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceStageArgs& Context) override;
-	virtual void PostStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceStageArgs& Context) override;
 	virtual void PostSimulate(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceArgs& Context) override;
 
-	virtual void ResetData(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceArgs& Context) override;
+	virtual FIntVector GetElementCount(FNiagaraSystemInstanceID SystemInstanceID) const override;
 
 	/* List of proxy data for each system instances*/
 	// #todo(dmp): this should all be refactored to avoid duplicate code
@@ -120,6 +122,13 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Render Target")
 	FIntPoint Size;
 
+	/** When enabled overrides the format of the render target, otherwise uses the project default setting. */
+	UPROPERTY(EditAnywhere, Category = "Render Target", meta = (EditCondition = "bOverrideFormat"))
+	TEnumAsByte<ETextureRenderTargetFormat> OverrideRenderTargetFormat;
+
+	UPROPERTY(EditAnywhere, Category = "Render Target", meta=(PinHiddenByDefault, InlineEditConditionToggle))
+	uint8 bOverrideFormat : 1;
+
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(Transient, EditAnywhere, Category = "Render Target")
 	uint8 bPreviewRenderTarget : 1;
@@ -131,6 +140,6 @@ public:
 protected:
 	static FNiagaraVariableBase ExposedRTVar;
 	
-	UPROPERTY(Transient)
-	TMap< uint64, UTextureRenderTarget2D*> ManagedRenderTargets;
+	UPROPERTY(Transient, DuplicateTransient)
+	TMap<uint64, UTextureRenderTarget2D*> ManagedRenderTargets;
 };

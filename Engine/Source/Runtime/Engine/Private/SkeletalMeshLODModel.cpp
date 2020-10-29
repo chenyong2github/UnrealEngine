@@ -365,6 +365,16 @@ FArchive& operator<<(FArchive& Ar, FSkelMeshSection& S)
 		Ar << S.bRecomputeTangent;
 	}
 
+	if (Ar.CustomVer(FRecomputeTangentCustomVersion::GUID) >= FRecomputeTangentCustomVersion::RecomputeTangentVertexColorMask)
+	{
+		Ar << S.RecomputeTangentsVertexMaskChannel;
+	}
+	else
+	{
+		// Our default is to use the green vertex color channel 
+		S.RecomputeTangentsVertexMaskChannel = ESkinVertexColorChannel::Green;
+	}
+
 	if (Ar.CustomVer(FEditorObjectVersion::GUID) >= FEditorObjectVersion::RefactorMeshEditorMaterials)
 	{
 		Ar << S.bCastShadow;
@@ -522,6 +532,8 @@ FArchive& operator<<(FArchive& Ar, FSkelMeshSection& S)
 // Serialization.
 FArchive& operator<<(FArchive& Ar, FSkelMeshSourceSectionUserData& S)
 {
+	Ar.UsingCustomVersion(FRecomputeTangentCustomVersion::GUID); 
+
 	FStripDataFlags StripFlags(Ar);
 	// When data is cooked we do not serialize anything
 	//This is for editor only editing
@@ -531,6 +543,16 @@ FArchive& operator<<(FArchive& Ar, FSkelMeshSourceSectionUserData& S)
 	}
 
 	Ar << S.bRecomputeTangent;
+	if (Ar.CustomVer(FRecomputeTangentCustomVersion::GUID) >= FRecomputeTangentCustomVersion::RecomputeTangentVertexColorMask)
+	{
+		Ar << S.RecomputeTangentsVertexMaskChannel;
+	}
+ 	else
+	{
+		// Our default is to use the green vertex color channel 
+		S.RecomputeTangentsVertexMaskChannel = ESkinVertexColorChannel::Green;
+	}
+
 	Ar << S.bCastShadow;
 	Ar << S.bDisabled;
 	Ar << S.GenerateUpToLodIndex;
@@ -1044,6 +1066,7 @@ void FSkeletalMeshLODModel::SyncronizeUserSectionsDataArray(bool bResetNonUsedSe
 		FSkelMeshSourceSectionUserData& SectionUserData = UserSectionsData.FindOrAdd(Section.OriginalDataSectionIndex);
 		Section.bCastShadow					= SectionUserData.bCastShadow;
 		Section.bRecomputeTangent			= SectionUserData.bRecomputeTangent;
+		Section.RecomputeTangentsVertexMaskChannel = SectionUserData.RecomputeTangentsVertexMaskChannel;
 		Section.bDisabled					= SectionUserData.bDisabled;
 		Section.GenerateUpToLodIndex		= SectionUserData.GenerateUpToLodIndex;
 		Section.CorrespondClothAssetIndex	= SectionUserData.CorrespondClothAssetIndex;
@@ -1067,6 +1090,7 @@ void FSkeletalMeshLODModel::SyncronizeUserSectionsDataArray(bool bResetNonUsedSe
 			FSkelMeshSourceSectionUserData& SectionUserData = UserSectionsData.FindOrAdd(Section.OriginalDataSectionIndex);
 			SectionUserData.bCastShadow = Section.bCastShadow;
 			SectionUserData.bRecomputeTangent = Section.bRecomputeTangent;
+			SectionUserData.RecomputeTangentsVertexMaskChannel = Section.RecomputeTangentsVertexMaskChannel;
 			SectionUserData.bDisabled = Section.bDisabled;
 			SectionUserData.GenerateUpToLodIndex = Section.GenerateUpToLodIndex;
 			SectionUserData.CorrespondClothAssetIndex = Section.CorrespondClothAssetIndex;
@@ -1130,6 +1154,7 @@ void FSkeletalMeshLODModel::UpdateChunkedSectionInfo(const FString& SkeletalMesh
 			Section.bDisabled = SectionUserData.bDisabled;
 			Section.bCastShadow = SectionUserData.bCastShadow;
 			Section.bRecomputeTangent = SectionUserData.bRecomputeTangent;
+			Section.RecomputeTangentsVertexMaskChannel = SectionUserData.RecomputeTangentsVertexMaskChannel;
 			Section.GenerateUpToLodIndex = SectionUserData.GenerateUpToLodIndex;
 			//Chunked section cannot have cloth, a cloth section will be a parent section
 			Section.CorrespondClothAssetIndex = INDEX_NONE;
@@ -1143,6 +1168,7 @@ void FSkeletalMeshLODModel::UpdateChunkedSectionInfo(const FString& SkeletalMesh
 			SectionUserData.bDisabled = Section.bDisabled;
 			SectionUserData.bCastShadow = Section.bCastShadow;
 			SectionUserData.bRecomputeTangent = Section.bRecomputeTangent;
+			SectionUserData.RecomputeTangentsVertexMaskChannel = Section.RecomputeTangentsVertexMaskChannel;
 			SectionUserData.GenerateUpToLodIndex = Section.GenerateUpToLodIndex;
 			SectionUserData.CorrespondClothAssetIndex = Section.CorrespondClothAssetIndex;
 			SectionUserData.ClothingData.AssetGuid = Section.ClothingData.AssetGuid;

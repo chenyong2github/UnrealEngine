@@ -222,6 +222,12 @@ void SAnimCurveListRow::OnAnimCurveTypeBoxChecked(ECheckBoxState InState, bool b
 	if (!bMorphTarget)
 	{
 		Item->EditableSkeleton.Pin()->SetCurveMetaDataMaterial(Item->SmartName, bNewData);
+
+		UAnimInstance* AnimInstance = PreviewScenePtr.Pin()->GetPreviewMeshComponent()->GetAnimInstance();
+		if (AnimInstance)
+		{		
+			AnimInstance->RecalcRequiredCurves(FCurveEvaluationOption());
+		}
 	}
 }
 

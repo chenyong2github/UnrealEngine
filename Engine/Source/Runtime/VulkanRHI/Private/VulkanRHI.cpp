@@ -45,8 +45,10 @@ static_assert(VK_API_VERSION >= UE_VK_API_VERSION, "Vulkan SDK is older than the
 	#error No VulkanSDK defines?
 #endif
 
+#if defined(VK_API_VERSION)
 #if defined(VK_HEADER_VERSION) && VK_HEADER_VERSION < 8 && (VK_API_VERSION < VK_MAKE_VERSION(1, 0, 3))
 	#include <vulkan/vk_ext_debug_report.h>
+#endif
 #endif
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -333,6 +335,7 @@ void FVulkanDynamicRHI::Shutdown()
 
 #if UE_BUILD_DEBUG || UE_BUILD_DEVELOPMENT
 	IConsoleManager::Get().UnregisterConsoleObject(DumpMemoryCmd);
+	IConsoleManager::Get().UnregisterConsoleObject(DumpMemoryFullCmd);
 	IConsoleManager::Get().UnregisterConsoleObject(DumpStagingMemoryCmd);
 	IConsoleManager::Get().UnregisterConsoleObject(DumpLRUCmd);
 	IConsoleManager::Get().UnregisterConsoleObject(TrimLRUCmd);
@@ -783,6 +786,12 @@ void FVulkanDynamicRHI::InitInstance()
 			FConsoleCommandDelegate::CreateStatic(DumpMemory),
 			ECVF_Default
 			);
+		DumpMemoryFullCmd = IConsoleManager::Get().RegisterConsoleCommand(
+			TEXT("r.Vulkan.DumpMemoryFull"),
+			TEXT("Dumps full memory map."),
+			FConsoleCommandDelegate::CreateStatic(DumpMemoryFull),
+			ECVF_Default
+		);
 		DumpStagingMemoryCmd = IConsoleManager::Get().RegisterConsoleCommand(
 			TEXT("r.Vulkan.DumpStagingMemory"),
 			TEXT("Dumps staging memory map."),
@@ -1530,6 +1539,9 @@ static VkRenderPass CreateRenderPass(FVulkanDevice& InDevice, const FVulkanRende
 	VkSubpassDescription SubpassDescriptions[8];
 	VkSubpassDependency SubpassDependencies[8];
 
+	//0b11 for 2, 0b1111 for 4, and so on
+	uint32 MultiviewMask = ( 0b1 << RTLayout.GetMultiViewCount() ) - 1;
+
 	const bool bDeferredShadingSubpass = RTLayout.GetSubpassHint() == ESubpassHint::DeferredShadingSubpass;
 	const bool bDepthReadSubpass =  RTLayout.GetSubpassHint() == ESubpassHint::DepthReadSubpass;
 		
@@ -1673,13 +1685,13 @@ static VkRenderPass CreateRenderPass(FVulkanDevice& InDevice, const FVulkanRende
 	Bit mask that specifies which view rendering is broadcast to
 	0011 = Broadcast to first and second view (layer)
 	*/
-	const uint32_t ViewMask[2] = { 0b00000011, 0b00000011 };
+	const uint32_t ViewMask[2] = { MultiviewMask, MultiviewMask };
 
 	/*
 	Bit mask that specifices correlation between views
 	An implementation may use this for optimizations (concurrent render)
 	*/
-	const uint32_t CorrelationMask = 0b00000011;
+	const uint32_t CorrelationMask = MultiviewMask;
 
 	VkRenderPassMultiviewCreateInfo MultiviewInfo;
 	if (RTLayout.GetIsMultiView())
@@ -1843,7 +1855,11 @@ void FVulkanDynamicRHI::SaveValidationCache()
 #if UE_BUILD_DEBUG || UE_BUILD_DEVELOPMENT
 void FVulkanDynamicRHI::DumpMemory()
 {
-	GVulkanRHI->Device->GetMemoryManager().DumpMemory();
+	GVulkanRHI->Device->GetMemoryManager().DumpMemory(false);
+}
+void FVulkanDynamicRHI::DumpMemoryFull()
+{
+	GVulkanRHI->Device->GetMemoryManager().DumpMemory(true);
 }
 void FVulkanDynamicRHI::DumpStagingMemory()
 {

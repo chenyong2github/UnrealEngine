@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-
+#include "Misc/DisplayClusterObjectRef.h"
 #include "Game/IPDisplayClusterGameManager.h"
 
 class AActor;
@@ -30,7 +30,7 @@ public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	virtual bool Init(EDisplayClusterOperationMode OperationMode) override;
 	virtual void Release() override;
-	virtual bool StartSession(const FString& InConfigPath, const FString& InNodeId) override;
+	virtual bool StartSession(const UDisplayClusterConfigurationData* InConfigData, const FString& InNodeId) override;
 	virtual void EndSession() override;
 	virtual bool StartScene(UWorld* World) override;
 	virtual void EndScene() override;
@@ -56,10 +56,9 @@ private:
 
 private:
 	// Active DisplayCluster root
-	ADisplayClusterRootActor* DisplayClusterRootActor = nullptr;
+	FDisplayClusterActorRef DisplayClusterRootActorRef;
 
 	EDisplayClusterOperationMode CurrentOperationMode;
-	FString ConfigPath;
 	FString ClusterNodeId;
 	UWorld* CurrentWorld;
 

@@ -142,6 +142,9 @@ struct FSequencerInitParams
 	/** Accessor for playback context */
 	TAttribute<UObject*> PlaybackContext;
 
+	/** Accessor for playback client */
+	TAttribute<IMovieScenePlaybackClient*> PlaybackClient;
+
 	FSequencerInitParams()
 		: RootSequence(nullptr)
 		, ToolkitHost(nullptr)

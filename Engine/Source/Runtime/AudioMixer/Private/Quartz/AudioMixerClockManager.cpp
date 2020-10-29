@@ -31,7 +31,6 @@ namespace Audio
 
 		// make a copy of the Settings
 		FQuartzClockSettings NewSettings = InClockSettings;
-		NewSettings.TickRate.SetSampleRate(MixerDevice->GetSampleRate());
 
 		// See if this clock already exists
 		FQuartzClock* Clock = FindClock(InClockName);
@@ -41,7 +40,6 @@ namespace Audio
 			if (bOverrideTickRateIfClockExists && !Clock->DoesMatchSettings(NewSettings))
 			{
 				UE_LOG(LogAudioQuartz, Display, TEXT("Overriding Tick Rate on Clock: %s"), *Clock->GetName().ToString());
-				Clock->ChangeTickRate(NewSettings.TickRate);
 				Clock->ChangeTimeSignature(NewSettings.TimeSignature);
 			}
 
@@ -161,7 +159,7 @@ namespace Audio
 	void FQuartzClockManager::Flush()
 	{
 		int32 NumClocks = ActiveClocks.Num();
-		for (int32 i = 0; i < NumClocks; ++i)
+		for (int32 i = NumClocks - 1; i >= 0; --i)
 		{
 			if (!ActiveClocks[i].IgnoresFlush())
 			{

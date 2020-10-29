@@ -263,6 +263,8 @@ void UNavLinkCustomComponent::SetEnabled(bool bNewEnabled)
 				BroadcastStateChange();
 			}
 		}
+
+		RefreshNavigationModifiers();
 	}
 }
 

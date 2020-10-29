@@ -277,6 +277,9 @@ public:
 	static FAudioDeviceManager* Get();
 	static void Shutdown();
 
+	/** Creates the main audio device. */
+	bool CreateMainAudioDevice();
+
 	/**
 	* Returns a ptr to the active audio device. If there is no active
 	* device then it will return the main audio device.

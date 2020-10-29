@@ -1519,9 +1519,8 @@ namespace Audio
 		{
 			// Create mapping of source id to bus send level
 			FAudioBusSend BusSend;
-			BusSend.SendLevel = BusSendLevel;
 			BusSend.SourceId = SourceId;
-			BusSend.AudioBusId = AudioBusId;
+			BusSend.SendLevel = BusSendLevel;
 
 			FSourceInfo& SourceInfo = SourceInfos[SourceId];
 

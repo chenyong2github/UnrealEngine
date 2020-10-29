@@ -653,14 +653,7 @@ void FDMXFixtureTypeSharedData::DuplicateFunctions(const TArray<TSharedPtr<FDMXF
 		FuncRef.FixtureType->PreEditChange(UDMXEntityFixtureType::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_STRING_CHECKED(UDMXEntityFixtureType, Modes)));
 		FuncRef.FixtureType->Modify();
 
-		if (ModePtr->Functions.IsValidIndex(IndexOfFunction + 1))
-		{
-			ModePtr->Functions.Insert(NewFunction, IndexOfFunction + 1);
-		}
-		else
-		{
-			ModePtr->Functions.Add(NewFunction);
-		}
+		ModePtr->AddOrInsertFunction(IndexOfFunction, NewFunction);
 
 		FuncRef.FixtureType->PostEditChange();
 	}

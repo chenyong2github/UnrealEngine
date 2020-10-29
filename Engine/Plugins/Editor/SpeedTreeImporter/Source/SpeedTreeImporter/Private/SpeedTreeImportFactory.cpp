@@ -2412,14 +2412,6 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary8(UClass* InClass, UObject*
 	check(Package);
 	NewPackageName = Package->GetFullName();
 
-	UStaticMesh* ExistingMesh = FindObject<UStaticMesh>(Package, *MeshName);
-	USpeedTreeImportData* ExistingImportData = nullptr;
-	if (ExistingMesh)
-	{
-		//Grab the existing asset data to fill correctly the option with the original import value
-		ExistingImportData = Cast<USpeedTreeImportData>(ExistingMesh->AssetImportData);
-	}
-
 	UStaticMesh* StaticMesh = NULL;
 
 	GameEngine8::CTree SpeedTree;
@@ -2432,9 +2424,16 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary8(UClass* InClass, UObject*
 		LoadedPackages.Empty();
 
 		FSpeedTreeImportContext ImportContext;
+		UStaticMesh* ExistingMesh = FindObject<UStaticMesh>(Package, *MeshName);
 
 		// Options
 		USpeedTreeImportData* SpeedTreeImportData = nullptr;
+		if (ExistingMesh)
+		{
+			//Grab the existing asset data to fill correctly the option with the original import value
+			SpeedTreeImportData = Cast<USpeedTreeImportData>(ExistingMesh->AssetImportData);
+		}
+
 		bool bIsAutomatedImport = IsAutomatedImport();
 
 		// clear out old mesh
@@ -2453,7 +2452,7 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary8(UClass* InClass, UObject*
 				.Title(LOCTEXT("WindowTitle", "SpeedTree Options"))
 				.SizingRule(ESizingRule::Autosized);
 
-			Window->SetContent(SAssignNew(Options, SSpeedTreeImportOptions).WidgetWindow(Window).ReimportAssetData(ExistingImportData));
+			Window->SetContent(SAssignNew(Options, SSpeedTreeImportOptions).WidgetWindow(Window).ReimportAssetData(SpeedTreeImportData));
 
 			FSlateApplication::Get().AddModalWindow(Window, ParentWindow, false);
 
@@ -2468,7 +2467,7 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary8(UClass* InClass, UObject*
 
 		if (bIsAutomatedImport)
 		{
-			SpeedTreeImportData = GetAutomatedImportOptions(ExistingImportData);
+			SpeedTreeImportData = GetAutomatedImportOptions(SpeedTreeImportData);
 		}
 
 		if (!StaticMesh)

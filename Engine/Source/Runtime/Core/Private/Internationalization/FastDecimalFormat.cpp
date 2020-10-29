@@ -279,7 +279,7 @@ void FractionalToString_SplitAndRoundNumber(const bool bIsNegative, const double
 	// Multiply the value to round by 10^DecimalPlacesToRoundTo - this will allow us to perform rounding calculations 
 	// that correctly trim any remaining fractional parts that are outside of our rounding range
 	double& ValueToRound = ((bIsRoundingEntireNumber) ? IntegralPart : FractionalPart);
-	ValueToRound = FMath::TruncateToHalfIfClose(ValueToRound * Pow10Table[DecimalPlacesToRoundTo]);
+	ValueToRound = FMath::TruncateToHalfIfClose(ValueToRound * (double)Pow10Table[DecimalPlacesToRoundTo]);
 
 	// The rounding modes here mimic those of ICU. See http://userguide.icu-project.org/formatparse/numbers/rounding-modes
 	switch (InRoundingMode)
@@ -333,17 +333,17 @@ void FractionalToString_SplitAndRoundNumber(const bool bIsNegative, const double
 	{
 		// Rounding may have caused the fractional value to overflow, and any overflow will need to be applied to the integral part and stripped from the fractional part
 		const double ValueToOverflowTest = (bIsNegative) ? -ValueToRound : ValueToRound;
-		if (ValueToOverflowTest >= Pow10Table[DecimalPlacesToRoundTo])
+		if (ValueToOverflowTest >= (double)Pow10Table[DecimalPlacesToRoundTo])
 		{
 			if (bIsNegative)
 			{
 				IntegralPart -= 1;
-				ValueToRound += Pow10Table[DecimalPlacesToRoundTo];
+				ValueToRound += (double)Pow10Table[DecimalPlacesToRoundTo];
 			}
 			else
 			{
 				IntegralPart += 1;
-				ValueToRound -= Pow10Table[DecimalPlacesToRoundTo];
+				ValueToRound -= (double)Pow10Table[DecimalPlacesToRoundTo];
 			}
 		}
 
@@ -736,7 +736,7 @@ bool StringToFractional(const TCHAR* InStr, const int32 InStrLen, const FDecimal
 
 	// Build the final number
 	OutVal = static_cast<double>(IntegralPart);
-	OutVal += (static_cast<double>(FractionalPart) / Pow10Table[FractionalPartDigitCount]);
+	OutVal += (static_cast<double>(FractionalPart) / (double)Pow10Table[FractionalPartDigitCount]);
 	OutVal *= ((bIntegralPartIsNegative || bFractionPartIsNegative) ? -1.0 : 1.0);
 	
 

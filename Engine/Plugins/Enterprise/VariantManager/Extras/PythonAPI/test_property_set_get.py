@@ -4,7 +4,7 @@ import unreal
 lvs = unreal.VariantManagerLibrary.create_level_variant_sets_asset("LVS", "/Game/")
 lvs_actor = unreal.VariantManagerLibrary.create_level_variant_sets_actor(lvs)
 if lvs is None or lvs_actor is None:
-    print "Failed to spawn either the LevelVariantSets asset or the LevelVariantSetsActor!"
+    print ("Failed to spawn either the LevelVariantSets asset or the LevelVariantSetsActor!")
     quit()
 
 # Create a variant set and add it to lvs
@@ -18,7 +18,7 @@ var1.set_display_text("Variant 1")
 var_set1.add_variant(var1)
 
 # Create a test actor and add it to var1. The test actor has almost all possible types of capturable properties
-location = unreal.Vector()	
+location = unreal.Vector()
 rotation = unreal.Rotator()
 test_actor = unreal.EditorLevelLibrary.spawn_actor_from_class(unreal.VariantManagerTestActor, location, rotation)
 var1.add_actor_binding(test_actor)
@@ -26,22 +26,22 @@ var1.add_actor_binding(test_actor)
 capturable_props = unreal.VariantManagerLibrary.get_capturable_properties(test_actor)
 captured_props = []
 
-print "Capturable properties for actor '" + test_actor.get_actor_label() + "':"
+print ("Capturable properties for actor '" + test_actor.get_actor_label() + "':")
 for prop in capturable_props:
-    print "\t" + prop
-    
+    print ("\t" + prop)
+
     # All test properties are named like 'Captured____Property'
     # The check here avoids capturing generic Actor properties like 'Can be Damaged'
     if str(prop).startswith('Captured') and str(prop).endswith('Property'):
         new_prop = var1.capture_property(test_actor, prop)
-        captured_props.append(new_prop)    
+        captured_props.append(new_prop)
 
 for prop in captured_props:
     type_str = prop.get_property_type_string()
-    
+
     # Set a value for a property depending on its type
     if type_str == "bool":
-        prop.set_value_bool(True)   
+        prop.set_value_bool(True)
     elif type_str == "int":
         prop.set_value_int(2)
     elif type_str == "float":
@@ -67,8 +67,8 @@ for prop in captured_props:
         prop.set_value_vector2d(unreal.Vector2D(7.1, 7.2))
     elif type_str == "int_Point":
         prop.set_value_int_point(unreal.IntPoint(81, 82))
-        
+
 # Easier to print using getattr
 for prop in captured_props:
     type_str = prop.get_property_type_string()
-    print(getattr(prop, "get_value_" + type_str)())
+    print (getattr(prop, "get_value_" + type_str)())

@@ -555,6 +555,17 @@ bool FAudioDeviceManager::InitializeManager()
 
 		FCoreDelegates::ApplicationWillEnterBackgroundDelegate.AddRaw(this, &FAudioDeviceManager::AppWillEnterBackground);
 
+		return true;
+	}
+
+	// Failed to initialize
+	return false;
+}
+
+bool FAudioDeviceManager::CreateMainAudioDevice()
+{
+	if (!MainAudioDeviceHandle)
+	{
 		// Initialize the main audio device.
 		FAudioDeviceParams MainDeviceParams;
 		MainDeviceParams.Scope = EAudioDeviceScope::Shared;
@@ -570,12 +581,8 @@ bool FAudioDeviceManager::InitializeManager()
 		}
 
 		FAudioThread::StartAudioThread();
-
-		return true;
 	}
-
-	// Failed to initialize
-	return false;
+	return true;
 }
 
 bool FAudioDeviceManager::LoadDefaultAudioDeviceModule()

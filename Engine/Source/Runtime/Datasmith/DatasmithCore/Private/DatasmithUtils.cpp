@@ -1475,6 +1475,7 @@ FTransform FDatasmithUtils::ConvertTransform(EModelCoordSystem SourceCoordSystem
 {
 	// convert to UE coords
 	static const FTransform RightHanded(FRotator(0.0f, 0.0f, 0.0f), FVector(0.0f, 0.0f, 0.0f), FVector(-1.0f, 1.0f, 1.0f));
+	static const FTransform RightHandedLegacy(FRotator(0.0f, 0.0f, 0.0f), FVector(0.0f, 0.0f, 0.0f), FVector(1.0f, -1.0f, 1.0f));
 	static const FTransform YUpMatrix(FMatrix(FVector(0.0f, 0.0f, 1.0f), FVector(1.0f, 0.0f, 0.0f), FVector(0.0f, 1.0f, 0.0f), FVector(0.0f, 0.0f, 0.0f)));
 	static const FTransform YUpMatrixInv(YUpMatrix.Inverse());
 
@@ -1491,6 +1492,10 @@ FTransform FDatasmithUtils::ConvertTransform(EModelCoordSystem SourceCoordSystem
 	case EModelCoordSystem::YUp_RightHanded:
 	{
 		return RightHanded * YUpMatrix * LocalTransform * YUpMatrixInv * RightHanded;
+	}
+	case EModelCoordSystem::ZUp_RightHanded_FBXLegacy:
+	{
+		return RightHandedLegacy * LocalTransform * RightHandedLegacy;
 	}
 	default:
 	{

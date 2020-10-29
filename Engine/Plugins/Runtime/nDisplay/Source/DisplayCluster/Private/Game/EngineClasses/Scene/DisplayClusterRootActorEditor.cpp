@@ -70,9 +70,13 @@ TSharedPtr<TMap<UObject*, FString>> ADisplayClusterRootActor::GenerateObjectsNam
 {
 	TSharedPtr<TMap<UObject*, FString>> ObjNameMap = MakeShared<TMap<UObject*, FString>>();
 
-	for (const TPair<FString, UDisplayClusterSceneComponent*>& Comp : AllComponents)
+	for (const TPair<FString, FDisplayClusterSceneComponentRef*>& Component : AllComponents)
 	{
-		ObjNameMap->Emplace(Comp.Value->GetObject(), Comp.Key);
+		UDisplayClusterSceneComponent* DisplayClusterSceneComponent = Cast<UDisplayClusterSceneComponent>(Component.Value->GetOrFindSceneComponent());
+		if (DisplayClusterSceneComponent)
+		{
+			ObjNameMap->Emplace(DisplayClusterSceneComponent->GetObject(), Component.Key);
+		}
 	}
 
 	return ObjNameMap;
@@ -80,15 +84,19 @@ TSharedPtr<TMap<UObject*, FString>> ADisplayClusterRootActor::GenerateObjectsNam
 
 void ADisplayClusterRootActor::SelectComponent(const FString& SelectedComponent)
 {
-	for (const TPair<FString, UDisplayClusterSceneComponent*>& Component : AllComponents)
+	for (const TPair<FString, FDisplayClusterSceneComponentRef*>& Component : AllComponents)
 	{
-		if (Component.Key.Equals(SelectedComponent, ESearchCase::IgnoreCase))
+		UDisplayClusterSceneComponent* DisplayClusterSceneComponent = Cast<UDisplayClusterSceneComponent>(Component.Value->GetOrFindSceneComponent());
+		if (DisplayClusterSceneComponent)
 		{
-			Component.Value->SetNodeSelection(true);
-		}
-		else
-		{
-			Component.Value->SetNodeSelection(false);
+			if (Component.Key.Equals(SelectedComponent, ESearchCase::IgnoreCase))
+			{
+				DisplayClusterSceneComponent->SetNodeSelection(true);
+			}
+			else
+			{
+				DisplayClusterSceneComponent->SetNodeSelection(false);
+			}
 		}
 	}
 }

@@ -459,7 +459,7 @@ namespace DatasmithOpenNurbsTranslatorUtils
 
 				// Fill the vertex array
 				FVertexID AddedVertexId = MeshDescription.CreateVertex();
-				VertexPositions[AddedVertexId] = FVector(-Pos.X, Pos.Y, Pos.Z);
+				VertexPositions[AddedVertexId] = FDatasmithUtils::ConvertVector(FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded_FBXLegacy, Pos);
 			}
 
 			int32 VertexIndices[3];
@@ -499,7 +499,7 @@ namespace DatasmithOpenNurbsTranslatorUtils
 					const FNode& FaceNode = *Face.Nodes[CornerIndex];
 
 					// Set the normal
-					FVector UENormal = FDatasmithUtils::ConvertVector(FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded, FaceNode.Normal);
+					FVector UENormal = FDatasmithUtils::ConvertVector(FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded_FBXLegacy, FaceNode.Normal);
 					UENormal = UENormal.GetSafeNormal();
 
 					// Check to see if normal is correct. If not replace by face's normal
@@ -745,7 +745,7 @@ private:
 	FDatasmithOpenNurbsOptions OpenNurbsOptions;
 	uint32 OpenNurbsOptionsHash;
 	FDatasmithImportBaseOptions BaseOptions;
-
+	
 #ifdef CAD_LIBRARY
 	TSharedPtr<FRhinoCoretechWrapper> LocalSession;
 #endif // CAD_LIBRARY
@@ -1307,7 +1307,7 @@ void FOpenNurbsTranslatorImpl::TranslateLightTable(const ON_ClassArray<FOpenNurb
 		{
 			FVector Location(LightObj.Location().x, LightObj.Location().y, LightObj.Location().z);
 			Location *= ScalingFactor;
-			Location = FDatasmithUtils::ConvertVector(FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded, Location);
+			Location = FDatasmithUtils::ConvertVector(FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded_FBXLegacy, Location);
 			LightElement->SetTranslation(Location);
 		}
 
@@ -1316,7 +1316,7 @@ void FOpenNurbsTranslatorImpl::TranslateLightTable(const ON_ClassArray<FOpenNurb
 			LightType == EDatasmithElementType::SpotLight)
 		{
 			FVector Direction(LightObj.Direction().x, LightObj.Direction().y, LightObj.Direction().z);
-			Direction = FDatasmithUtils::ConvertVector(FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded, Direction);
+			Direction = FDatasmithUtils::ConvertVector(FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded_FBXLegacy, Direction);
 			LightElement->SetRotation(FQuat::FindBetweenVectors(FVector::ForwardVector, Direction));
 		}
 
@@ -1871,7 +1871,7 @@ bool FOpenNurbsTranslatorImpl::TranslateInstance(const FOpenNurbsObjectWrapper& 
 
 	// Ref. FDatasmithCADImporter::SetWorldTransform
 	FTransform Transform(Matrix);
-	FTransform CorrectedTransform = FDatasmithUtils::ConvertTransform(FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded, Transform);
+	FTransform CorrectedTransform = FDatasmithUtils::ConvertTransform(FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded_FBXLegacy, Transform);
 
 	ContainerElement->SetTranslation(CorrectedTransform.GetTranslation() * ScalingFactor);
 	ContainerElement->SetScale(CorrectedTransform.GetScale3D());
@@ -2045,7 +2045,7 @@ TSharedPtr<IDatasmithMeshActorElement> FOpenNurbsTranslatorImpl::GetMeshActorEle
 	if (ComputeObjectGeometryCenter(Object, GeometryCenter))
 	{
 		MeshElementToGeometryCenter.Add(MeshElement.ToSharedRef(), GeometryCenter);
-		FVector ActorOffset = ScalingFactor * FDatasmithUtils::ConvertVector(FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded, GeometryCenter);
+		FVector ActorOffset = ScalingFactor * FDatasmithUtils::ConvertVector(FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded_FBXLegacy, GeometryCenter);
 		ActorElement->SetTranslation(ActorOffset);
 	}
 
@@ -2092,7 +2092,7 @@ TSharedPtr<IDatasmithActorElement> FOpenNurbsTranslatorImpl::GetPointActorElemen
 
 	FVector Location(pointObj->point.x, pointObj->point.y, pointObj->point.z);
 	Location *= ScalingFactor;
-	Location = FDatasmithUtils::ConvertVector(FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded, Location);
+	Location = FDatasmithUtils::ConvertVector(FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded_FBXLegacy, Location);
 
 	ActorElement->SetTranslation(Location);
 	ActorElement->SetLabel(*ActorLabel);
@@ -3192,6 +3192,7 @@ bool FOpenNurbsTranslatorImpl::TranslateBRep(ON_Brep* Brep, const ON_3dmObjectAt
 		// Ref. visitBRep
 		const FDatasmithOpenNurbsOptions& TessellationOptions = OpenNurbsOptions;
 		LocalSession->SetImportParameters(TessellationOptions.ChordTolerance, TessellationOptions.MaxEdgeLength, TessellationOptions.NormalTolerance, (CADLibrary::EStitchingTechnique) TessellationOptions.StitchingTechnique, false);
+		LocalSession->GetImportParameters().ModelCoordSys = FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded_FBXLegacy;
 
 		CADLibrary::CheckedCTError Result;
 
@@ -3508,7 +3509,7 @@ bool FDatasmithOpenNurbsTranslator::LoadStaticMesh(const TSharedRef<IDatasmithMe
 
 #ifdef CAD_LIBRARY
 		CADLibrary::FImportParameters ImportParameters;
-		ImportParameters.ModelCoordSys = CADLibrary::EModelCoordSystem::ZUp_RightHanded;
+		ImportParameters.ModelCoordSys = FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded_FBXLegacy;
 		ImportParameters.MetricUnit = Translator->GetMetricUnit();
 		ImportParameters.ScaleFactor = Translator->GetScalingFactor();
 

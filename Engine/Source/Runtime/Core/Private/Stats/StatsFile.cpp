@@ -1062,7 +1062,7 @@ void FStatsReadFile::UpdateReadStageProgress()
 	const double CurrentSeconds = FPlatformTime::Seconds();
 	if (CurrentSeconds > LastUpdateTime + NumSecondsBetweenUpdates)
 	{
-		const int32 PercentagePos = int32( 100.0*Reader->Tell() / Reader->TotalSize() );
+		const int32 PercentagePos = int32( 100.0*double(Reader->Tell()) / double(Reader->TotalSize()) );
 		StageProgress.Set( PercentagePos );
 		UE_LOG( LogStats, Verbose, TEXT( "UpdateReadStageProgress: %3i%%" ), PercentagePos );
 		LastUpdateTime = CurrentSeconds;
@@ -1093,7 +1093,7 @@ void FStatsReadFile::UpdateCombinedHistoryStats()
 		UE_LOG( LogStats, Verbose, TEXT( "Frame: %4i/%2i Size: %5.1f MB / %10i" ),
 				FrameNum,
 				FramePackets,
-				FramePacketsSize / 1024.0f / 1024.0f,
+				(float)FramePacketsSize / 1024.0f / 1024.0f,
 				FrameStatMessages );
 
 		FileInfo.TotalStatMessagesNum += FrameStatMessages;
@@ -1101,8 +1101,8 @@ void FStatsReadFile::UpdateCombinedHistoryStats()
 	}
 
 	UE_LOG( LogStats, Warning, TEXT( "Total PacketSize: %6.1f MB, Max: %2f MB, PacketsNum: %i, StatMessagesNum: %i, Frames: %i" ),
-			FileInfo.TotalPacketsSize / 1024.0f / 1024.0f,
-			FileInfo.MaximumPacketSize / 1024.0f / 1024.0f,
+			(float)FileInfo.TotalPacketsSize / 1024.0f / 1024.0f,
+			(float)FileInfo.MaximumPacketSize / 1024.0f / 1024.0f,
 			FileInfo.TotalPacketsNum,
 			FileInfo.TotalStatMessagesNum,
 			CombinedHistory.Num() );

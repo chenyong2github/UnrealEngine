@@ -14,6 +14,7 @@
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "NiagaraEditorUtilities.h"
+#include "NiagaraSimulationStageBase.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraNodeOutput"
 
@@ -58,6 +59,52 @@ FText UNiagaraNodeOutput::GetPinNameText(UEdGraphPin* Pin) const
 {
 	return FText::FromName(Pin->PinName);
 }
+
+TArray<FName> UNiagaraNodeOutput::GetAllStackContextOverrides() const
+{
+	UNiagaraEmitter* Emitter = GetTypedOuter<UNiagaraEmitter>();
+	TArray<FName> Overrides;
+	if (Emitter)
+	{
+		TArray<UNiagaraScript*> Scripts;
+		Emitter->GetScripts(Scripts, false);
+		for (UNiagaraScript* Script : Scripts)
+		{
+			if (Script && Script->GetUsage() == ENiagaraScriptUsage::ParticleSimulationStageScript)
+			{
+				UNiagaraSimulationStageBase* Base = Emitter->GetSimulationStageById(Script->GetUsageId());
+				if (Base)
+				{
+					FName StackContextAlias = Base->GetStackContextReplacementName();
+					if (StackContextAlias != NAME_None)
+						Overrides.AddUnique(StackContextAlias);
+				}
+			}
+		}
+	}
+	return Overrides;
+}
+
+TOptional<FName> UNiagaraNodeOutput::GetStackContextOverride() const
+{
+	
+	{
+		UNiagaraEmitter* Emitter = GetTypedOuter<UNiagaraEmitter>();
+		if (Emitter && GetUsage() == ENiagaraScriptUsage::ParticleSimulationStageScript)
+		{
+			UNiagaraSimulationStageBase* Base = Emitter->GetSimulationStageById(GetUsageId());
+			if (Base)
+			{
+				FName StackContextAlias = Base->GetStackContextReplacementName();
+				if (StackContextAlias != NAME_None)
+					return StackContextAlias;
+			}
+		}
+	}
+
+	return TOptional<FName>();
+}
+
 
 bool UNiagaraNodeOutput::VerifyPinNameTextChanged(const FText& InText, FText& OutErrorMessage, UEdGraphPin* Pin) const
 {

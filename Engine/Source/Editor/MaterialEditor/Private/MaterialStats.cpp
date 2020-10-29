@@ -48,12 +48,22 @@ FShaderPlatformSettings::FShaderPlatformSettings(
 
 void FShaderPlatformSettings::ClearResources()
 {
+	TArray<TRefCountPtr<FMaterial>> MaterialsToDeleteOnRenderThread;
+
 	// free material resources
 	for (int32 i = 0; i < EMaterialQualityLevel::Num; ++i)
 	{
-		if (PlatformData[i].MaterialResourcesStats != nullptr)
+		FMaterialResourceStats* Resource = PlatformData[i].MaterialResourcesStats;
+		if (Resource != nullptr)
 		{
-			delete PlatformData[i].MaterialResourcesStats;
+			if (Resource->PrepareDestroy_GameThread())
+			{
+				MaterialsToDeleteOnRenderThread.Add(Resource);
+			}
+			else
+			{
+				delete Resource;
+			}
 			PlatformData[i].MaterialResourcesStats = nullptr;
 		}
 
@@ -62,6 +72,8 @@ void FShaderPlatformSettings::ClearResources()
 		PlatformData[i].bCompilingShaders = false;
 		PlatformData[i].bNeedShaderRecompilation = true;
 	}
+
+	FMaterial::DeleteMaterialsOnRenderThread(MaterialsToDeleteOnRenderThread);
 }
 
 FText FShaderPlatformSettings::GetSelectedShaderViewComboText(EMaterialQualityLevel::Type QualityLevel) const
@@ -424,9 +436,6 @@ void FMaterialStats::BuildShaderPlatformDB()
 
 	// Vulkan
 	AddShaderPlatform(EPlatformCategoryType::Desktop, SP_VULKAN_SM5, TEXT("Vulkan SM5"), false, true, TEXT("Desktop, Vulkan, Shader Model 5"));
-
-	// OpenGL
-	AddShaderPlatform(EPlatformCategoryType::Desktop, SP_OPENGL_SM5, TEXT("OpenGL SM5"), false, true, TEXT("Desktop, OpenGL, Shader Model 5"));
 
 	// Android
 	AddShaderPlatform(EPlatformCategoryType::Android, SP_OPENGL_ES3_1_ANDROID, TEXT("Android GLES 3.1"), true, true, TEXT("Android, OpenGLES 3.1"));

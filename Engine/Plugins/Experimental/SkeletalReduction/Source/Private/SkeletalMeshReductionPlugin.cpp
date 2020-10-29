@@ -232,7 +232,8 @@ private:
 	*/
 	void AddSourceModelInfluences( const FSkeletalMeshLODModel& SrcLODModel,
 	                               const SkeletalSimplifier::FSkinnedSkeletalMesh& SkinnedMesh,
-		                           FSkeletalMeshLODModel& LODModel ) const;
+		                           FSkeletalMeshLODModel& LODModel,
+								   const FString& SkeletalMeshName) const;
 
 	/**
 	* Updates the alternate weights that correspond to the soft vertices
@@ -1356,7 +1357,8 @@ namespace
 
 void  FQuadricSkeletalMeshReduction::AddSourceModelInfluences( const FSkeletalMeshLODModel& SrcLODModel,
 		                                                       const SkeletalSimplifier::FSkinnedSkeletalMesh& SkinnedMesh, 
-		                                                       FSkeletalMeshLODModel& NewModel) const 
+		                                                       FSkeletalMeshLODModel& NewModel,
+															   const FString& SkeletalMeshName ) const
 	{
 		// Verify that we need to add the alternate weights.
 		const bool bSrcHasWeightOverrides = (SrcLODModel.SkinWeightProfiles.Num() != 0);
@@ -1426,7 +1428,7 @@ void  FQuadricSkeletalMeshReduction::AddSourceModelInfluences( const FSkeletalMe
 			}
 
 			// Pre-process the influences.  This is required for BuildSkeletalMesh to work correctly.
-			FLODUtilities::ProcessImportMeshInfluences(SkinnedMesh.NumIndices() /* = SkeletalMeshData.Wedges.Num()*/, RawBoneInfluences);
+			FLODUtilities::ProcessImportMeshInfluences(SkinnedMesh.NumIndices() /* = SkeletalMeshData.Wedges.Num()*/, RawBoneInfluences, SkeletalMeshName);
 
 
 			// Make an output array for this profile.
@@ -1598,7 +1600,7 @@ void FQuadricSkeletalMeshReduction::ConvertToFSkeletalMeshLODModel( const FStrin
 		// that the bone-based vertex chunking respects the alternate weights.
 		// NB: this only prepares the NewModel, but BuildSkeletalMesh is only 1/2-aware of this, so we will have to do some additional work after.
 
-		AddSourceModelInfluences(SrcLODModel, SkinnedMesh, NewModel);
+		AddSourceModelInfluences(SrcLODModel, SkinnedMesh, NewModel, SkeletalMeshName);
 	}
 	
 

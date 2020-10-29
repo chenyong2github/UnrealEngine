@@ -28,7 +28,6 @@ using namespace Chaos;
 PRAGMA_DISABLE_OPTIMIZATION
 #endif
 
-#if WITH_CHAOS
 
 FWheeledVehicleDebugParams GWheeledVehicleDebugParams;
 extern FVehicleDebugParams GVehicleDebugParams;
@@ -40,6 +39,7 @@ FAutoConsoleVariableRef CVarChaosVehiclesShowSuspensionRaycasts(TEXT("p.Vehicle.
 FAutoConsoleVariableRef CVarChaosVehiclesShowSuspensionLimits(TEXT("p.Vehicle.ShowSuspensionLimits"), GWheeledVehicleDebugParams.ShowSuspensionLimits, TEXT("Enable/Disable Suspension Limits Visualisation."));
 FAutoConsoleVariableRef CVarChaosVehiclesShowWheelForces(TEXT("p.Vehicle.ShowWheelForces"), GWheeledVehicleDebugParams.ShowWheelForces, TEXT("Enable/Disable Wheel Forces Visualisation."));
 FAutoConsoleVariableRef CVarChaosVehiclesShowSuspensionForces(TEXT("p.Vehicle.ShowSuspensionForces"), GWheeledVehicleDebugParams.ShowSuspensionForces, TEXT("Enable/Disable Suspension Forces Visualisation."));
+FAutoConsoleVariableRef CVarChaosVehiclesShowBatchQueryExtents(TEXT("p.Vehicle.ShowBatchQueryExtents"), GWheeledVehicleDebugParams.ShowBatchQueryExtents, TEXT("Enable/Disable Suspension Forces Visualisation."));
 
 FAutoConsoleVariableRef CVarChaosVehiclesDisableSuspensionForces(TEXT("p.Vehicle.DisableSuspensionForces"), GWheeledVehicleDebugParams.DisableSuspensionForces, TEXT("Enable/Disable Suspension Forces."));
 FAutoConsoleVariableRef CVarChaosVehiclesDisableFrictionForces(TEXT("p.Vehicle.DisableFrictionForces"), GWheeledVehicleDebugParams.DisableFrictionForces, TEXT("Enable/Disable Wheel Friction Forces."));
@@ -156,12 +156,13 @@ void UChaosWheeledVehicleMovementComponent::FixupSkeletalMesh()
 
 							FPhysicsCommand::ExecuteWrite(TargetInstance->ActorHandle, [&](const FPhysicsActorHandle& Chassis)
 								{
+#if WITH_CHAOS
 									const FVector LocalWheel = GetWheelRestingPosition(WheelSetup);
 									FPhysicsConstraintHandle ConstraintHandle = FPhysicsInterface::CreateSuspension(Chassis, LocalWheel);
 
 									if (ConstraintHandle.IsValid())
 									{
-										auto& SusSettings = PVehicle->GetSuspension(WheelIdx).Setup();
+										const Chaos::FSimpleSuspensionConfig& SusSettings = PVehicle->GetSuspension(WheelIdx).Setup();
 										ConstraintHandles.Add(ConstraintHandle);
 										if (Chaos::FSuspensionConstraint* Constraint = static_cast<Chaos::FSuspensionConstraint*>(ConstraintHandle.Constraint))
 										{
@@ -174,7 +175,7 @@ void UChaosWheeledVehicleMovementComponent::FixupSkeletalMesh()
 											Constraint->SetAxis(-SusSettings.SuspensionAxis);
 										}
 									}
-
+#endif // WITH_CHAOS
 								});
 						}
 					}
@@ -662,7 +663,13 @@ void UChaosWheeledVehicleMovementComponent::PerformSuspensionTraces(const TArray
 		FCollisionShape CollisionBox;
 		CollisionBox.SetBox(QueryBox.GetExtent());
 
-		//DrawDebugBox(GetWorld(), QueryBox.GetCenter(), QueryBox.GetExtent(), FColor::Yellow, false, -1.0f, 0, 2.0f);
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+		if (GWheeledVehicleDebugParams.ShowBatchQueryExtents)
+		{
+			DrawDebugBox(GetWorld(), QueryBox.GetCenter(), QueryBox.GetExtent(), FColor::Yellow, false, -1.0f, 0, 2.0f);
+		}
+#endif
+
 		const bool bOverlapHit = GetWorld()->OverlapMultiByChannel(OverlapResults, QueryBox.GetCenter(), FQuat::Identity, SpringCollisionChannel, CollisionBox, TraceParams, ResponseParams);
 
 		for (int32 WheelIdx = 0; WheelIdx < Wheels.Num(); ++WheelIdx)
@@ -857,9 +864,10 @@ void UChaosWheeledVehicleMovementComponent::ApplySuspensionForces(float DeltaTim
 		{
 			FPhysicsCommand::ExecuteWrite(TargetInstance->ActorHandle, [&](const FPhysicsActorHandle& Chassis)
 			{
+#if WITH_CHAOS
 				if (ConstraintHandles.Num() > 0)
 				{
-					auto& ConstraintHandle = ConstraintHandles[WheelIdx];
+					FPhysicsConstraintHandle& ConstraintHandle = ConstraintHandles[WheelIdx];
 					if (ConstraintHandle.IsValid())
 					{
 						if (Chaos::FSuspensionConstraint* Constraint = static_cast<Chaos::FSuspensionConstraint*>(ConstraintHandle.Constraint))
@@ -871,6 +879,7 @@ void UChaosWheeledVehicleMovementComponent::ApplySuspensionForces(float DeltaTim
 					}
 
 				}
+#endif // WITH_CHAOS
 			});
 		}
 
@@ -1020,7 +1029,8 @@ void UChaosWheeledVehicleMovementComponent::ApplyInput(float DeltaTime)
 
 		if (GWheeledVehicleDebugParams.ThrottleOverride > 0.f)
 		{
-			PTransmission.SetGear(1);
+			PTransmission.SetGear(1, true);
+			BrakeInput = 0.f;
 			PEngine.SetThrottle(GWheeledVehicleDebugParams.ThrottleOverride);
 		}
 		else
@@ -1725,7 +1735,6 @@ FChaosWheelSetup::FChaosWheelSetup()
 
 }
 
-#endif // WITH_CHAOS
 
 #if VEHICLE_DEBUGGING_ENABLED
 PRAGMA_ENABLE_OPTIMIZATION

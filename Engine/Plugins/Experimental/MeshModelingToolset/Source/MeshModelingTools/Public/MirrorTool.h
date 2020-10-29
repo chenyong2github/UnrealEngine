@@ -238,9 +238,6 @@ protected:
 	UPROPERTY()
 	UConstructionPlaneMechanic* PlaneMechanic;
 
-	// Deals with Ctrl + click behavior.
-	TUniquePtr<FSelectClickedAction> SetPlaneClickBehaviorTarget;
-
 	EMirrorToolAction PendingAction;
 	FBox CombinedBounds;
 	void ApplyAction(EMirrorToolAction ActionType);

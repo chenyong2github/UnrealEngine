@@ -43,6 +43,7 @@ public:
 	bool CanEditRiverWidth() const;
 	bool CanEditDepth() const;
 	bool CanEditVelocity() const;
+	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 	/** Insert point before index, lerping metadata between previous and next key values */
 	virtual void InsertPoint(int32 Index, float t, bool bClosedLoop) override;
@@ -84,7 +85,11 @@ public:
 	/** Whether depth visualization should be displayed */
 	UPROPERTY(EditAnywhere, Category = "Water", meta = (InlineEditConditionToggle = true))
 	bool bShouldVisualizeDepth;
-#endif
+
+	// Delegate called whenever the metadata is updated
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnChangeData, UWaterSplineMetadata* /*WaterSplineMetadata*/, FPropertyChangedEvent& /*PropertyChangedEvent*/);
+	FOnChangeData OnChangeData;
+#endif // WITH_EDITORONLY_DATA
 
 private:
 

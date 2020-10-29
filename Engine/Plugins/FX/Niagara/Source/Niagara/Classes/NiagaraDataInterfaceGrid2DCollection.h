@@ -102,6 +102,8 @@ struct FNiagaraDataInterfaceProxyGrid2DCollectionProxy : public FNiagaraDataInte
 
 	virtual void ResetData(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceArgs& Context) override;
 
+	virtual FIntVector GetElementCount(FNiagaraSystemInstanceID SystemInstanceID) const override;
+
 	/* List of proxy data for each system instances*/
 	// #todo(dmp): this should all be refactored to avoid duplicate code
 	TMap<FNiagaraSystemInstanceID, FGrid2DCollectionRWInstanceData_RenderThread> SystemInstancesToProxyData_RT;
@@ -120,8 +122,12 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Grid2DCollection")
 	FNiagaraUserParameterBinding RenderTargetUserParameter;
 
-	UPROPERTY(EditAnywhere, Category = "Grid2DCollection", meta = (ToolTip = "Changes the format used to store data inside the grid, low bit formats save memory and performance."))
-	ENiagaraGpuBufferFormat BufferFormat;
+	/** When enabled overrides the format used to store data inside the grid, otherwise uses the project default setting.  Lower bit depth formats will save memory and performance at the cost of precision. */
+	UPROPERTY(EditAnywhere, Category = "Grid2DCollection", meta = (EditCondition = "bOverrideFormat"))
+	ENiagaraGpuBufferFormat OverrideBufferFormat;
+
+	UPROPERTY(EditAnywhere, Category = "Grid2DCollection", meta = (PinHiddenByDefault, InlineEditConditionToggle))
+	uint8 bOverrideFormat : 1;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(Transient, EditAnywhere, Category = "Grid2DCollection", meta = (PinHiddenByDefault, InlineEditConditionToggle))

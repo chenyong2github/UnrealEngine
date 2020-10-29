@@ -309,6 +309,7 @@ namespace Audio
 
 		// Samples magnitude (linearly) for a given frequency, in Hz.
 		float GetMagnitudeForFrequency(float InFrequency, EPeakInterpolationMethod InMethod = EPeakInterpolationMethod::Linear);
+		float GetNormalizedMagnitudeForFrequency(float InFrequency, EPeakInterpolationMethod InMethod = EPeakInterpolationMethod::Linear);
 
 		// Samples phase for a given frequency, in Hz.
 		float GetPhaseForFrequency(float InFrequency, EPeakInterpolationMethod InMethod = EPeakInterpolationMethod::Linear);

@@ -175,11 +175,13 @@ public:
 	}
 
 	EImplicitObjectType GetType() const;
-	int32 GetOffsetOfType() const { return offsetof(FImplicitObject, Type); }
+	static int32 GetOffsetOfType() { return offsetof(FImplicitObject, Type); }
+
 	EImplicitObjectType GetCollisionType() const;
 	void SetCollisionType(EImplicitObjectType InCollisionType) { CollisionType = InCollisionType; }
 
 	FReal GetMargin() const { return Margin; }
+	static int32 GetOffsetOfMargin() { return offsetof(FImplicitObject, Margin); }
 
 	virtual bool IsValidGeometry() const;
 

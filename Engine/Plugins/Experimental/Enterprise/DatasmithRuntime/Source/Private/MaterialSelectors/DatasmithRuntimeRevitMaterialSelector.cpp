@@ -49,21 +49,22 @@ const FDatasmithMasterMaterial& FDatasmithRuntimeRevitMaterialSelector::GetMaste
 	};
 
 	// Convert glossiness into roughness' equivalent
-	TSharedPtr< IDatasmithKeyValueProperty > Property = MaterialElement->GetPropertyByName(TEXT("Glossiness"));
-	if (Property.IsValid())
+	TSharedPtr< IDatasmithKeyValueProperty > Glossiness = MaterialElement->GetPropertyByName(TEXT("Glossiness"));
+	if (Glossiness.IsValid())
 	{
 		TSharedPtr<IDatasmithKeyValueProperty> Roughness = MaterialElement->GetPropertyByName(TEXT("Roughness"));
 		if (!Roughness.IsValid())
 		{
 			Roughness = FDatasmithSceneFactory::CreateKeyValueProperty(TEXT("Roughness"));
-
-			float Value;
-			GetFloat(Property, Value);
-			FString NewValue = FString::Printf(TEXT("%f"), 1.f - Value);
-			Roughness->SetValue(*NewValue);
+			Roughness->SetPropertyType(EDatasmithKeyValuePropertyType::Float);
 
 			MaterialElement->AddProperty(Roughness);
 		}
+
+		float Value;
+		GetFloat(Glossiness, Value);
+		FString NewValue = FString::Printf(TEXT("%f"), 1.f - Value);
+		Roughness->SetValue(*NewValue);
 	}
 
 	// Convert static boolean parameters into float ones used in master material's graph

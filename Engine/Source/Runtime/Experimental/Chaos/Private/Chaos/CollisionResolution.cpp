@@ -267,7 +267,7 @@ namespace Chaos
 		{
 			// Ignore points that have not been initialized - if there is no detectable contact 
 			// point within reasonable range despite passing the AABB tests
-			if (ContactPoint.Phi != TNumericLimits<FReal>::Max())
+			if (ContactPoint.IsSet())
 			{
 				Constraint.UpdateManifold(ContactPoint);
 			}
@@ -282,9 +282,10 @@ namespace Chaos
 
 			FReal Penetration;
 			FVec3 ClosestA, ClosestBInA, Normal;
+			int32 ClosestVertexIndexA, ClosestVertexIndexB;
 			int32 NumIterations = 0;
 
-			if (ensure(GJKPenetration<true>(A, B, BToATM, Penetration, ClosestA, ClosestBInA, Normal, 0.5f * ShapePadding, InitialDir, 0.5f * ShapePadding, &NumIterations)))
+			if (ensure(GJKPenetration<true>(A, B, BToATM, Penetration, ClosestA, ClosestBInA, Normal, ClosestVertexIndexA, ClosestVertexIndexB, 0.5f * ShapePadding, InitialDir, 0.5f * ShapePadding, &NumIterations)))
 			{
 				// GJK output is all in the local space of A. We need to transform the B-relative position and the normal in to B-space
 				Contact.ShapeContactPoints[0] = ClosestA;
@@ -643,15 +644,387 @@ namespace Chaos
 		// Box - Box
 		//
 
+		// This function will clip the input vertices by a reference shape's planes (Specified by ClippingAxis and Distance for an AABB)
+		// more vertices may be added to outputVertexBuffer by this function
+		// This is the core of the Sutherland-Hodgman algorithm
+		uint32 ClipVerticesAgainstPlane(const FVec3* InputVertexBuffer, FVec3* outputVertexBuffer, uint32 ClipPointCount, FReal ClippingAxis, FReal Distance)
+		{
+
+			auto CalculateIntersect = [=](const FVec3& Point1, const FVec3& Point2) -> FVec3
+			{
+				// Only needs to be valid if the line connecting Point1 with Point2 actually intersects
+				FVec3 Result;
+				
+				FReal Denominator = Point2[ClippingAxis] - Point1[ClippingAxis];  // Can be negative
+				if (FMath::Abs(Denominator) < SMALL_NUMBER)
+				{
+					Result = Point1;
+				}
+				else
+				{
+					FReal Alpha = (Distance - Point1[ClippingAxis]) / Denominator;
+					Result = FMath::Lerp(Point1, Point2, Alpha);
+				}
+				Result[ClippingAxis] = Distance; // For Robustness
+				return Result;
+			};
+
+			auto InsideClipFace = [=](const FVec3& Point) -> bool
+			{
+				// The sign of Distance encodes which plane we are using
+				if (Distance >= 0)
+				{
+					return Point[ClippingAxis] <= Distance;
+				}
+				return Point[ClippingAxis] >= Distance;
+			};
+
+			uint32 NewClipPointCount = 0;
+			const uint32 MaxNumberOfPoints = 8;
+
+			for (uint32 ClipPointIndex = 0; ClipPointIndex < ClipPointCount; ClipPointIndex++)
+			{
+				FVec3 CurrentClipPoint = InputVertexBuffer[ClipPointIndex];
+				FVec3 PrevClipPoint = InputVertexBuffer[(ClipPointIndex + ClipPointCount - 1) % ClipPointCount];
+				FVec3 InterSect = CalculateIntersect(PrevClipPoint, CurrentClipPoint);
+
+				if (InsideClipFace(CurrentClipPoint))
+				{
+					if (!InsideClipFace(PrevClipPoint))
+					{
+						outputVertexBuffer[NewClipPointCount++] = InterSect;
+						if (NewClipPointCount >= MaxNumberOfPoints)
+						{
+							break;
+						}
+					}
+					outputVertexBuffer[NewClipPointCount++] = CurrentClipPoint;
+				}
+				else if (InsideClipFace(PrevClipPoint))
+				{
+					outputVertexBuffer[NewClipPointCount++] = InterSect;
+				}
+
+				if (NewClipPointCount >= MaxNumberOfPoints)
+				{
+					break;
+				}
+			}
+
+			return NewClipPointCount;
+		}
+
 		FContactPoint BoxBoxContactPoint(const FImplicitBox3& Box1, const FImplicitBox3& Box2, const FRigidTransform3& Box1TM, const FRigidTransform3& Box2TM, const FReal CullDistance, const FReal ShapePadding)
 		{
 			return GJKContactPoint(Box1, Box1TM, Box2, Box2TM, FVec3(1, 0, 0), ShapePadding);
 		}
 
 
+		// Reduce the number of contact points (in place)
+		// Prerequisites to calling this function:
+		// The points should be in a reference frame such that the z-axis is the in the direction of the separation vector
+		uint32 ReduceManifoldContactPoints(FVec3* Points, uint32 PointCount)
+		{
+			uint32 OutPointCount = 0;
+			if (PointCount <= 4)
+				return PointCount;
+			
+			// Point 1) Find the deepest contact point
+			{
+				uint32 DeepestPointIndex = 0;
+				FReal DeepestPointPhi = FLT_MAX;
+				for (uint32 PointIndex = 0; PointIndex < PointCount; PointIndex++)
+				{
+					if (Points[PointIndex].Z < DeepestPointPhi)
+					{
+						DeepestPointIndex = PointIndex;
+						DeepestPointPhi = Points[PointIndex].Z;
+					}
+				}
+				// Deepest point will be our first output point
+				Swap(Points[0], Points[DeepestPointIndex]);
+				++OutPointCount;
+			}			
+
+			// Point 2) Find the point with the largest distance to the deepest contact point (projected onto the separation plane)
+			{
+				uint32 FarthestPointIndex = 1;
+				FReal FarthestPointDistanceSQR = -1.0f;
+				for (uint32 PointIndex = 1; PointIndex < PointCount; PointIndex++)
+				{
+					FReal PointAToPointBSizeSQR = (Points[PointIndex] - Points[0]).SizeSquared2D();
+					if (PointAToPointBSizeSQR > FarthestPointDistanceSQR)
+					{
+						FarthestPointIndex = PointIndex;
+						FarthestPointDistanceSQR = PointAToPointBSizeSQR;
+					}
+				}
+				// Farthest point will be added now
+				Swap(Points[1], Points[FarthestPointIndex]);
+				++OutPointCount;
+			}
+
+			// Point 3) Largest triangle area
+			{
+				uint32 LargestTrianglePointIndex = 2;
+				FReal LargestTrianglePointSignedArea = 0.0f; // This will actually be double the signed area
+				FVec3 P0to1 = Points[1] - Points[0];
+				for (uint32 PointIndex = 2; PointIndex < PointCount; PointIndex++)
+				{
+					FReal TriangleSignedArea = (FVec3::CrossProduct(P0to1, Points[PointIndex] - Points[0])).Z; // Dot in direction of separation vector
+					if (FMath::Abs(TriangleSignedArea) > FMath::Abs(LargestTrianglePointSignedArea))
+					{
+						LargestTrianglePointIndex = PointIndex;
+						LargestTrianglePointSignedArea = TriangleSignedArea;
+					}
+				}
+				// Point causing the largest triangle will be added now
+				Swap(Points[2], Points[LargestTrianglePointIndex]);
+				++OutPointCount;
+				// Ensure the winding order is consistent
+				if (LargestTrianglePointSignedArea < 0)
+				{
+					Swap(Points[0], Points[1]);
+				}
+			}
+
+			// Point 4) Find the largest triangle connecting with our current triangle
+			{
+				uint32 LargestTrianglePointIndex = 3;
+				FReal LargestPositiveTrianglePointSignedArea = 0.0f;  
+				for (uint32 PointIndex = 3; PointIndex < PointCount; PointIndex++)
+				{
+					for (uint32 EdgeIndex = 0; EdgeIndex < 3; EdgeIndex++)
+					{
+						FReal TriangleSignedArea = (FVec3::CrossProduct(Points[PointIndex] - Points[EdgeIndex], Points[(EdgeIndex + 1) % 3] - Points[EdgeIndex])).Z; // Dot in direction of separation vector
+						if (TriangleSignedArea > LargestPositiveTrianglePointSignedArea)
+						{
+							LargestTrianglePointIndex = PointIndex;
+							LargestPositiveTrianglePointSignedArea = TriangleSignedArea;
+						}
+					}
+				}
+				// Point causing the largest positive triangle area will be added now
+				Swap(Points[3], Points[LargestTrianglePointIndex]);
+				++OutPointCount;
+			}
+
+			return OutPointCount; // This should always be 4
+		}
+
+		void ConstructBoxBoxOneShotManifold(
+			const FImplicitBox3& Box1,
+			const FRigidTransform3& Box1Transform, //world
+			const FImplicitBox3& Box2,
+			const FRigidTransform3& Box2Transform, //world
+			const FReal CullDistance,
+			FRigidBodyPointContactConstraint& Constraint,
+			bool bInInitialize)
+		{
+			const uint32 SpaceDimension = 3;
+
+			// We only build one shot manifolds once
+			// All boxes are prescaled
+			ensure(Constraint.GetManifoldPoints().Num() == 0);
+			ensure(Box1Transform.GetScale3D() == FVec3(1.0f, 1.0f, 1.0f));
+			ensure(Box2Transform.GetScale3D() == FVec3(1.0f, 1.0f, 1.0f));
+
+			const uint32 MaxContactPointCount = 8;
+			uint32 ContactPointCount = 0;
+
+			// Use GJK only once
+			const FContactPoint GJKContactPoint = BoxBoxContactPoint(Box1, Box2, Box1Transform, Box2Transform, CullDistance, Constraint.Manifold.RestitutionPadding);
+
+			// ToDo: should we generate no contacts here?
+			//if (GJKContactPoint.Phi >= CullDistance)
+				//return;
+
+			FRigidTransform3 Box1TransformCenter = Box1Transform;
+			Box1TransformCenter.SetTranslation(Box1Transform.TransformPositionNoScale(Box1.GetCenter()));
+			FRigidTransform3 Box2TransformCenter = Box2Transform;
+			Box2TransformCenter.SetTranslation(Box2Transform.TransformPositionNoScale(Box2.GetCenter()));
+			
+			// GJK does not give us any face information yet, so find the best reference face here
+			uint32 BestFaceNormalAxisBox1 = 0; // Note: Face normals are axis aligned due to coordinates. This is an element of {0 , 1, 2}
+			int32 BestFaceNormalAxisDirectionBox1 = 1; // {-1, 1}
+			FReal BestFaceNormalSizeInDirectionBox1 = -1.0f; 
+			const FVec3 SeparationDirectionLocalBox1 = Box1TransformCenter.InverseTransformVectorNoScale(GJKContactPoint.Normal);   // Todo: Check if we can have Non uniform scale here
+			// Box1: Iterating through 2 faces at a time here
+			for (uint32 FaceNormalAxis = 0; FaceNormalAxis < SpaceDimension; FaceNormalAxis++)
+			{
+				const FReal AbsSeparationDirectionDotFaceNormal = FMath::Abs(SeparationDirectionLocalBox1[FaceNormalAxis]);
+				if (AbsSeparationDirectionDotFaceNormal > BestFaceNormalSizeInDirectionBox1)
+				{
+					BestFaceNormalAxisBox1 = FaceNormalAxis;
+					BestFaceNormalSizeInDirectionBox1 = AbsSeparationDirectionDotFaceNormal;
+					BestFaceNormalAxisDirectionBox1 = SeparationDirectionLocalBox1[FaceNormalAxis] >= 0.0f ? -1 : 1;
+				}
+			}
+
+			// Now for Box2
+			uint32 BestFaceNormalAxisBox2 = 0; // Note: Face normals are axis aligned due to coordinates. This is a n element of {0, 1, 2}
+			int32 BestFaceNormalAxisDirectionBox2 = 1; // {-1, 1}
+			FReal BestFaceNormalSizeInDirectionBox2 = -1.0f;
+			const FVec3 SeparationDirectionLocalBox2 = Box2TransformCenter.InverseTransformVectorNoScale(GJKContactPoint.Normal);   // Todo: Check if we can have Non uniform scale here
+			for (uint32 FaceNormalAxis = 0; FaceNormalAxis < SpaceDimension; FaceNormalAxis++)
+			{
+				FVec3 FaceNormal(FVec3::ZeroVector);
+				FaceNormal[FaceNormalAxis] = 1.0f;
+				const FReal SeparationDirectionDotFaceNormal = FMath::Abs(SeparationDirectionLocalBox2[FaceNormalAxis]);
+				
+				if (SeparationDirectionDotFaceNormal > BestFaceNormalSizeInDirectionBox2)
+				{
+					BestFaceNormalAxisBox2 = FaceNormalAxis;
+					BestFaceNormalSizeInDirectionBox2 = SeparationDirectionDotFaceNormal;
+					BestFaceNormalAxisDirectionBox2 = SeparationDirectionLocalBox2[FaceNormalAxis] >= 0.0f ? 1 : -1;  // Note opposite of box1
+				}
+			}
+
+			const FReal SmallBiasToPreventFeatureFlipping = 0.002; // This improves frame coherence by penalizing box 1 in favour of box 2
+			bool ReferenceFaceBox1 = true; // Is the reference face on box1 or box2?
+			if (BestFaceNormalSizeInDirectionBox2 + SmallBiasToPreventFeatureFlipping > BestFaceNormalSizeInDirectionBox1)
+			{
+				ReferenceFaceBox1 = false;
+			}
+
+			// Setup pointers to other box and reference box
+			const FRigidTransform3* RefBoxTM;
+			const FRigidTransform3* OtherBoxTM;
+			const FImplicitBox3* RefBox;
+			const FImplicitBox3* OtherBox;
+
+			if (ReferenceFaceBox1)
+			{
+				RefBoxTM = &Box1TransformCenter;
+				OtherBoxTM = &Box2TransformCenter;
+				RefBox = &Box1;
+				OtherBox = &Box2;
+			}
+			else
+			{
+				RefBoxTM = &Box2TransformCenter;
+				OtherBoxTM = &Box1TransformCenter;
+				RefBox = &Box2;
+				OtherBox = &Box1;
+			}
+
+			// Populate the clipped vertices by the other face's vertices
+			
+			// Populate initial clipping vertices with a face from the other box
+			FVec3 otherBoxHalfExtents = 0.5f * OtherBox->Extents();
+			uint32 ConstantCoordinateIndex = ReferenceFaceBox1 ? BestFaceNormalAxisBox2 : BestFaceNormalAxisBox1;
+			FReal ConstantCoordinate = otherBoxHalfExtents[ConstantCoordinateIndex] * (FReal) (ReferenceFaceBox1 ? BestFaceNormalAxisDirectionBox2 : BestFaceNormalAxisDirectionBox1);
+
+			uint32 VariableCoordinateIndices[2];
+			FReal VariableCoordinates[2];
+
+			uint32 VariableCoordinateCount = 0;
+			for (uint32 Coordinate = 0; Coordinate < 3; ++Coordinate)
+			{
+				if (Coordinate != ConstantCoordinateIndex)
+				{
+					VariableCoordinateIndices[VariableCoordinateCount] = Coordinate;
+					VariableCoordinates[VariableCoordinateCount] = otherBoxHalfExtents[Coordinate];
+					++VariableCoordinateCount;
+				}
+			}
+
+			ContactPointCount = 4; // Number of face vertices
+			const uint32 GrayCode[4] = {0, 1, 3, 2}; // Gray code to make sure we add vertices in correct order
+			FVec3 ClippedVertices[MaxContactPointCount];
+			// Add the vertices in an order that will form a closed loop
+			const FRigidTransform3 BoxOtherToRef = OtherBoxTM->GetRelativeTransform(*RefBoxTM);
+			for (uint32 Vertex = 0; Vertex < ContactPointCount; Vertex++)
+			{
+				ClippedVertices[Vertex][ConstantCoordinateIndex] = ConstantCoordinate;
+				ClippedVertices[Vertex][VariableCoordinateIndices[0]] = (GrayCode[Vertex] & (1 << 0)) ? VariableCoordinates[0] : -VariableCoordinates[0];
+				ClippedVertices[Vertex][VariableCoordinateIndices[1]] = (GrayCode[Vertex] & (1 << 1)) ? VariableCoordinates[1] : -VariableCoordinates[1];
+				ClippedVertices[Vertex] = BoxOtherToRef.TransformPositionNoScale(ClippedVertices[Vertex]);
+			}
+
+			// Now clip against all planes that belong to the reference plane's, edges
+			FVec3 ClippedVertices2[MaxContactPointCount]; // We will use a double buffer as an optimization
+			FVec3* VertexBuffer1 = ClippedVertices;
+			FVec3* VertexBuffer2 = ClippedVertices2;
+
+			FVec3 refBoxHalfExtents = 0.5f * RefBox->Extents();
+			uint32 RefPlaneCoordinateIndex = ReferenceFaceBox1 ? BestFaceNormalAxisBox1 : BestFaceNormalAxisBox2;
+			for (uint32 Coordinate = 0; Coordinate < 3; ++Coordinate)
+			{
+				if (Coordinate != RefPlaneCoordinateIndex)
+				{
+					ContactPointCount = ClipVerticesAgainstPlane(VertexBuffer1, VertexBuffer2, ContactPointCount, Coordinate, refBoxHalfExtents[Coordinate]);
+					ContactPointCount = ClipVerticesAgainstPlane(VertexBuffer2, VertexBuffer1, ContactPointCount, Coordinate, -refBoxHalfExtents[Coordinate]);
+				}
+			}
+
+			// Reduce number of contacts to a maximum of 4
+			if (ContactPointCount > 4)
+			{
+				FRotation3 RotateSeperationToZ = FRotation3::FromRotatedVector(ReferenceFaceBox1 ? SeparationDirectionLocalBox1 : SeparationDirectionLocalBox2, FVec3(0.0f, 0.0f, 1.0f));
+				for (uint32 ContactPointIndex = 0; ContactPointIndex < ContactPointCount; ++ContactPointIndex)
+				{
+					ClippedVertices[ContactPointIndex] = RotateSeperationToZ * ClippedVertices[ContactPointIndex];
+				}
+
+				ContactPointCount = ReduceManifoldContactPoints(ClippedVertices, ContactPointCount);
+
+				for (uint32 ContactPointIndex = 0; ContactPointIndex < ContactPointCount; ++ContactPointIndex)
+				{
+					ClippedVertices[ContactPointIndex] = RotateSeperationToZ.Inverse() * ClippedVertices[ContactPointIndex];
+				}
+			}
+			
+			// Generate the contact points from the clipped vertices
+			for (uint32 ContactPointIndex = 0; ContactPointIndex < ContactPointCount; ++ContactPointIndex)
+			{
+				FContactPoint ContactPoint;
+				const FVec3 VertexInReferenceCubeCoordinates = ClippedVertices[ContactPointIndex];
+				FVec3 PointProjectedOntoReferenceFace = VertexInReferenceCubeCoordinates;
+				PointProjectedOntoReferenceFace[RefPlaneCoordinateIndex] = refBoxHalfExtents[RefPlaneCoordinateIndex] * (FReal) (ReferenceFaceBox1 ? BestFaceNormalAxisDirectionBox1 : BestFaceNormalAxisDirectionBox2);
+				FVec3 ClippedPointInOtherCubeCoordinates = BoxOtherToRef.InverseTransformPositionNoScale(VertexInReferenceCubeCoordinates);
+				
+				ContactPoint.ShapeContactPoints[0] = ReferenceFaceBox1 ? PointProjectedOntoReferenceFace + RefBox->GetCenter() : ClippedPointInOtherCubeCoordinates + OtherBox->GetCenter();
+				ContactPoint.ShapeContactPoints[1] = ReferenceFaceBox1 ? ClippedPointInOtherCubeCoordinates + OtherBox->GetCenter() : PointProjectedOntoReferenceFace + RefBox->GetCenter();
+				ContactPoint.ShapeContactNormal = SeparationDirectionLocalBox2;
+				ContactPoint.Location = RefBoxTM->TransformPositionNoScale(PointProjectedOntoReferenceFace);
+				ContactPoint.Normal = GJKContactPoint.Normal;
+				ContactPoint.Phi = FVec3::DotProduct(PointProjectedOntoReferenceFace - VertexInReferenceCubeCoordinates, ReferenceFaceBox1 ? SeparationDirectionLocalBox1 : -SeparationDirectionLocalBox2);
+
+				Constraint.AddOneshotManifoldContact(ContactPoint, bInInitialize);
+			}
+		}
+
+		void UpdateOneShotManifold(
+			const FImplicitBox3& Box1,
+			const FRigidTransform3& Box1Transform, //world
+			const FImplicitBox3& Box2,
+			const FRigidTransform3& Box2Transform, //world
+			const FReal CullDistance,
+			FRigidBodyPointContactConstraint& Constraint)
+		{
+			uint32 ContactCount = Constraint.GetManifoldPoints().Num();
+			// We only build one shot manifolds once
+			if (ContactCount == 0)
+			{
+				ConstructBoxBoxOneShotManifold(Box1, Box1Transform, Box2, Box2Transform, CullDistance, Constraint, true);
+			}
+			else
+			{
+				Constraint.UpdateOneShotManifoldContacts();
+			}
+		}
+
 		void UpdateBoxBoxConstraint(const FImplicitBox3& Box1, const FRigidTransform3& Box1Transform, const FImplicitBox3& Box2, const FRigidTransform3& Box2Transform, const FReal CullDistance, FRigidBodyPointContactConstraint& Constraint)
 		{
-			UpdateContactPoint(Constraint, BoxBoxContactPoint(Box1, Box2, Box1Transform, Box2Transform, CullDistance, Constraint.Manifold.RestitutionPadding));
+			if (!Constraint.UseOneShotManifold())
+			{
+				UpdateContactPoint(Constraint, BoxBoxContactPoint(Box1, Box2, Box1Transform, Box2Transform, CullDistance, Constraint.Manifold.RestitutionPadding));
+			}
+			else
+			{
+				UpdateOneShotManifold(Box1, Box1Transform, Box2, Box2Transform, CullDistance, Constraint);
+			}
 		}
 
 
@@ -668,7 +1041,7 @@ namespace Chaos
 			const TBox<FReal, 3>* Object1 = Implicit1->template GetObject<const TBox<FReal, 3> >();
 			if (ensure(Object0 && Object1))
 			{
-				FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::BoxBox, Context.bUseIncrementalManifold);
+				FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::BoxBox, Context.bUseIncrementalManifold, Context.bUseOneShotManifolds);
 				if (T_TRAITS::bImmediateUpdate)
 				{
 					FRigidTransform3 WorldTransform0 = LocalTransform0 * Collisions::GetTransform(Particle0);
@@ -710,7 +1083,7 @@ namespace Chaos
 			const FHeightField* Object1 = Implicit1->template GetObject<const FHeightField >();
 			if (ensure(Object0 && Object1))
 			{
-				FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::BoxHeightField, Context.bUseIncrementalManifold);
+				FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::BoxHeightField, Context.bUseIncrementalManifold, false);
 				if (T_TRAITS::bImmediateUpdate)
 				{
 					FRigidTransform3 WorldTransform0 = LocalTransform0 * Collisions::GetTransform(Particle0);
@@ -801,7 +1174,7 @@ namespace Chaos
 			const TPlane<FReal, 3>* Object1 = Implicit1->template GetObject<const TPlane<FReal, 3> >();
 			if (ensure(Object0 && Object1))
 			{
-				FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::BoxPlane, Context.bUseIncrementalManifold);
+				FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::BoxPlane, Context.bUseIncrementalManifold, false);
 				if (T_TRAITS::bImmediateUpdate)
 				{
 					FRigidTransform3 WorldTransform0 = LocalTransform0 * Collisions::GetTransform(Particle0);
@@ -842,7 +1215,7 @@ namespace Chaos
 			{
 				if (const TImplicitObjectScaled<FTriangleMeshImplicitObject>* ScaledTriangleMesh = Implicit1->template GetObject<const TImplicitObjectScaled<FTriangleMeshImplicitObject>>())
 				{
-					FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::BoxTriMesh, Context.bUseIncrementalManifold);
+					FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::BoxTriMesh, Context.bUseIncrementalManifold, false);
 					if (T_TRAITS::bImmediateUpdate)
 					{
 						FRigidTransform3 WorldTransform0 = LocalTransform0 * Collisions::GetTransform(Particle0);
@@ -853,7 +1226,7 @@ namespace Chaos
 				}
 				else if (const FTriangleMeshImplicitObject* TriangleMesh = Implicit1->template GetObject<const FTriangleMeshImplicitObject>())
 				{
-					FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::BoxTriMesh, Context.bUseIncrementalManifold);
+					FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::BoxTriMesh, Context.bUseIncrementalManifold, false);
 					if (T_TRAITS::bImmediateUpdate)
 					{
 						FRigidTransform3 WorldTransform0 = LocalTransform0 * Collisions::GetTransform(Particle0);
@@ -918,7 +1291,7 @@ namespace Chaos
 			const TSphere<FReal, 3>* Object1 = Implicit1->template GetObject<const TSphere<FReal, 3> >();
 			if (ensure(Object0 && Object1))
 			{
-				FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::SphereSphere, false);	// No manifold
+				FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::SphereSphere, false, false);	// No manifold
 				if (T_TRAITS::bImmediateUpdate)
 				{
 					FRigidTransform3 WorldTransform0 = LocalTransform0 * Collisions::GetTransform(Particle0);
@@ -966,7 +1339,7 @@ namespace Chaos
 			const FHeightField* Object1 = Implicit1->template GetObject<const FHeightField >();
 			if (ensure(Object0 && Object1))
 			{
-				FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::SphereHeightField, Context.bUseIncrementalManifold);
+				FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::SphereHeightField, Context.bUseIncrementalManifold, false);
 				if (T_TRAITS::bImmediateUpdate)
 				{
 					FRigidTransform3 WorldTransform0 = LocalTransform0 * Collisions::GetTransform(Particle0);
@@ -1038,7 +1411,7 @@ namespace Chaos
 			const TPlane<FReal, 3>* Object1 = Implicit1->template GetObject<const TPlane<FReal, 3> >();
 			if (ensure(Object0 && Object1))
 			{
-				FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::SpherePlane, Context.bUseIncrementalManifold);
+				FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::SpherePlane, Context.bUseIncrementalManifold, false);
 				if (T_TRAITS::bImmediateUpdate)
 				{
 					FRigidTransform3 WorldTransform0 = LocalTransform0 * Collisions::GetTransform(Particle0);
@@ -1097,7 +1470,7 @@ namespace Chaos
 			const TBox<FReal, 3>* Object1 = Implicit1->template GetObject<const TBox<FReal, 3> >();
 			if (ensure(Object0 && Object1))
 			{
-				FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::SphereBox, Context.bUseIncrementalManifold);
+				FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::SphereBox, Context.bUseIncrementalManifold, false);
 				if (T_TRAITS::bImmediateUpdate)
 				{
 					FRigidTransform3 WorldTransform0 = LocalTransform0 * Collisions::GetTransform(Particle0);
@@ -1160,7 +1533,7 @@ namespace Chaos
 			const TCapsule<FReal>* Object1 = Implicit1->template GetObject<const TCapsule<FReal> >();
 			if (ensure(Object0 && Object1))
 			{
-				FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::SphereCapsule, false);	// No manifold
+				FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::SphereCapsule, false, false);	// No manifold
 				if (T_TRAITS::bImmediateUpdate)
 				{
 					FRigidTransform3 WorldTransform0 = LocalTransform0 * Collisions::GetTransform(Particle0);
@@ -1225,7 +1598,7 @@ namespace Chaos
 			{
 				if (const TImplicitObjectScaled<FTriangleMeshImplicitObject>* ScaledTriangleMesh = Implicit1->template GetObject<const TImplicitObjectScaled<FTriangleMeshImplicitObject>>())
 				{
-					FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::SphereTriMesh, Context.bUseIncrementalManifold);
+					FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::SphereTriMesh, Context.bUseIncrementalManifold, false);
 					if (T_TRAITS::bImmediateUpdate)
 					{
 						FRigidTransform3 WorldTransform0 = LocalTransform0 * Collisions::GetTransform(Particle0);
@@ -1236,7 +1609,7 @@ namespace Chaos
 				}
 				else if (const FTriangleMeshImplicitObject* TriangleMesh = Implicit1->template GetObject<const FTriangleMeshImplicitObject>())
 				{
-					FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::SphereTriMesh, Context.bUseIncrementalManifold);
+					FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::SphereTriMesh, Context.bUseIncrementalManifold, false);
 					if (T_TRAITS::bImmediateUpdate)
 					{
 						FRigidTransform3 WorldTransform0 = LocalTransform0 * Collisions::GetTransform(Particle0);
@@ -1337,7 +1710,7 @@ namespace Chaos
 			const TCapsule<FReal>* Object1 = Implicit1->template GetObject<const TCapsule<FReal> >();
 			if (ensure(Object0 && Object1))
 			{
-				FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::CapsuleCapsule, Context.bUseIncrementalManifold);
+				FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::CapsuleCapsule, Context.bUseIncrementalManifold, false);
 				if (T_TRAITS::bImmediateUpdate)
 				{
 					FRigidTransform3 WorldTransform0 = LocalTransform0 * Collisions::GetTransform(Particle0);
@@ -1406,9 +1779,10 @@ namespace Chaos
 			FVec3 InitialDir = FVec3(1, 0, 0);
 			FReal Penetration;
 			FVec3 CapsuleClosestBoxSpace, BoxClosestBoxSpace, NormalBoxSpace;
+			int32 ClosestVertexIndexBox, ClosestVertexIndexCapsule;
 			{
 				SCOPE_CYCLE_COUNTER_GJK();
-				if (!ensure(GJKPenetration<true>(Box, Capsule, CapsuleToBoxTM, Penetration, BoxClosestBoxSpace, CapsuleClosestBoxSpace, NormalBoxSpace, (FReal)0, InitialDir, (FReal)0)))
+				if (!ensure(GJKPenetration<true>(Box, Capsule, CapsuleToBoxTM, Penetration, BoxClosestBoxSpace, CapsuleClosestBoxSpace, NormalBoxSpace, ClosestVertexIndexBox, ClosestVertexIndexCapsule, (FReal)0, InitialDir, (FReal)0)))
 				{
 					return;
 				}
@@ -1598,7 +1972,7 @@ namespace Chaos
 				}
 				else
 				{
-					FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::CapsuleBox, Context.bUseIncrementalManifold);
+					FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::CapsuleBox, Context.bUseIncrementalManifold, false);
 					if (T_TRAITS::bImmediateUpdate)
 					{
 						FRigidTransform3 WorldTransform0 = LocalTransform0 * Collisions::GetTransform(Particle0);
@@ -1653,7 +2027,7 @@ namespace Chaos
 			const FHeightField* Object1 = Implicit1->template GetObject<const FHeightField >();
 			if (ensure(Object0 && Object1))
 			{
-				FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::CapsuleHeightField, Context.bUseIncrementalManifold);
+				FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::CapsuleHeightField, Context.bUseIncrementalManifold, false);
 				if (T_TRAITS::bImmediateUpdate)
 				{
 					FRigidTransform3 WorldTransform0 = LocalTransform0 * Collisions::GetTransform(Particle0);
@@ -1742,7 +2116,7 @@ namespace Chaos
 			{
 				if (const TImplicitObjectScaled<FTriangleMeshImplicitObject>* ScaledTriangleMesh = Implicit1->template GetObject<const TImplicitObjectScaled<FTriangleMeshImplicitObject>>())
 				{
-					FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::CapsuleTriMesh, Context.bUseIncrementalManifold);
+					FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::CapsuleTriMesh, Context.bUseIncrementalManifold, false);
 					if (T_TRAITS::bImmediateUpdate)
 					{
 						FRigidTransform3 WorldTransform0 = LocalTransform0 * Collisions::GetTransform(Particle0);
@@ -1753,7 +2127,7 @@ namespace Chaos
 				}
 				else if (const FTriangleMeshImplicitObject* TriangleMesh = Implicit1->template GetObject<const FTriangleMeshImplicitObject>())
 				{
-					FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::CapsuleTriMesh, Context.bUseIncrementalManifold);
+					FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::CapsuleTriMesh, Context.bUseIncrementalManifold, false);
 					if (T_TRAITS::bImmediateUpdate)
 					{
 						FRigidTransform3 WorldTransform0 = LocalTransform0 * Collisions::GetTransform(Particle0);
@@ -1898,7 +2272,7 @@ namespace Chaos
 				}
 			}
 
-			FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::ConvexConvex, Context.bUseIncrementalManifold);
+			FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::ConvexConvex, Context.bUseIncrementalManifold, false);
 			if (T_TRAITS::bImmediateUpdate)
 			{
 				FRigidTransform3 WorldTransform0 = LocalTransform0 * Collisions::GetTransform(Particle0);
@@ -1959,7 +2333,7 @@ namespace Chaos
 			const FHeightField* Object1 = Implicit1->template GetObject<const FHeightField >();
 			if (ensure(Implicit0->IsConvex() && Object1))
 			{
-				FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::ConvexHeightField, Context.bUseIncrementalManifold);
+				FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::ConvexHeightField, Context.bUseIncrementalManifold, false);
 				if (T_TRAITS::bImmediateUpdate)
 				{
 					FRigidTransform3 WorldTransform0 = LocalTransform0 * Collisions::GetTransform(Particle0);
@@ -2044,7 +2418,7 @@ namespace Chaos
 			{
 				if (const TImplicitObjectScaled<FTriangleMeshImplicitObject>* ScaledTriangleMesh = Implicit1->template GetObject<const TImplicitObjectScaled<FTriangleMeshImplicitObject>>())
 				{
-					FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform0, EContactShapesType::ConvexTriMesh, Context.bUseIncrementalManifold);
+					FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform0, EContactShapesType::ConvexTriMesh, Context.bUseIncrementalManifold, false);
 					if (T_TRAITS::bImmediateUpdate)
 					{
 						FRigidTransform3 WorldTransform0 = LocalTransform0 * Collisions::GetTransform(Particle0);
@@ -2055,7 +2429,7 @@ namespace Chaos
 				}
 				else if (const FTriangleMeshImplicitObject* TriangleMesh = Implicit1->template GetObject<const FTriangleMeshImplicitObject>())
 				{
-					FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::ConvexTriMesh, Context.bUseIncrementalManifold);
+					FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, nullptr, LocalTransform0, Particle1, Implicit1, nullptr, LocalTransform1, EContactShapesType::ConvexTriMesh, Context.bUseIncrementalManifold, false);
 					if (T_TRAITS::bImmediateUpdate)
 					{
 						FRigidTransform3 WorldTransform0 = LocalTransform0 * Collisions::GetTransform(Particle0);
@@ -2132,20 +2506,16 @@ namespace Chaos
 			if (SampleParticles)
 			{
 				const FImplicitObject* Obj1 = Constraint.Manifold.Implicit[1];
-				SampleObject<UpdateType>(*Obj1, LevelsetTM, *SampleParticles, ParticlesTM, CullDistance, Constraint);
+				FContactPoint ContactPoint = SampleObject<UpdateType>(*Obj1, LevelsetTM, *SampleParticles, ParticlesTM, CullDistance);
 
-				// @todo(chaos): clean up SampleObject: make it return a FContactPoint and use UpdateConstraint, and then remove this...
-				if (Constraint.UseIncrementalManifold())
+				if (ContactPoint.IsSet())
 				{
-					FContactPoint ContactPoint;
-					ContactPoint.Location = Constraint.Manifold.Location;
-					ContactPoint.Normal = Constraint.Manifold.Normal;
-					ContactPoint.Phi = Constraint.Manifold.Phi;
-					ContactPoint.ShapeContactPoints[0] = WorldTransform0.InverseTransformPosition(Constraint.Manifold.Location);
-					ContactPoint.ShapeContactPoints[1] = WorldTransform1.InverseTransformPosition(Constraint.Manifold.Location - Constraint.Manifold.Phi * Constraint.Manifold.Normal);
-					ContactPoint.ShapeContactNormal = WorldTransform1.InverseTransformVector(Constraint.Manifold.Normal);
-					Constraint.UpdateManifold(ContactPoint);
+					ContactPoint.ShapeContactPoints[0] = WorldTransform0.InverseTransformPosition(ContactPoint.Location);
+					ContactPoint.ShapeContactPoints[1] = WorldTransform1.InverseTransformPosition(ContactPoint.Location - ContactPoint.Phi * ContactPoint.Normal);
+					ContactPoint.ShapeContactNormal = WorldTransform1.InverseTransformVector(ContactPoint.Normal);
 				}
+
+				UpdateContactPoint(Constraint, ContactPoint);
 			}
 		}
 
@@ -2159,7 +2529,7 @@ namespace Chaos
 		template<typename T_TRAITS>
 		void ConstructLevelsetLevelsetConstraints(TGeometryParticleHandle<FReal, 3>* Particle0, TGeometryParticleHandle<FReal, 3>* Particle1, const FImplicitObject* Implicit0, const TBVHParticles<FReal, 3>* Simplicial0, const FImplicitObject* Implicit1, const TBVHParticles<FReal, 3>* Simplicial1, const FRigidTransform3& LocalTransform0, const FRigidTransform3& LocalTransform1, const FReal CullDistance, const FCollisionContext& Context, FCollisionConstraintsArray& NewConstraints)
 		{
-			FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, Simplicial0, LocalTransform0, Particle1, Implicit1, Simplicial1, LocalTransform1, EContactShapesType::LevelSetLevelSet, Context.bUseIncrementalManifold);
+			FRigidBodyPointContactConstraint Constraint = FRigidBodyPointContactConstraint(Particle0, Implicit0, Simplicial0, LocalTransform0, Particle1, Implicit1, Simplicial1, LocalTransform1, EContactShapesType::LevelSetLevelSet, Context.bUseIncrementalManifold, false);
 
 			bool bIsParticleDynamic0 = Particle0->CastToRigidParticle() && Particle0->ObjectState() == EObjectStateType::Dynamic;
 			int32 P0NumCollisionParticles = Simplicial0 ? Simplicial0->Size() : Particle0->CastToRigidParticle()->CollisionParticlesSize();

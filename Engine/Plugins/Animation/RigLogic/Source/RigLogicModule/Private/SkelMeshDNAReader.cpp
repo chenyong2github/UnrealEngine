@@ -492,6 +492,15 @@ uint16 FSkelMeshDNAReader::GetMaximumInfluencePerVertex(uint16 MeshIndex) const
 	return {};
 }
 
+uint32 FSkelMeshDNAReader::GetSkinWeightsCount(uint16 MeshIndex) const
+{
+	if (GeometryStreamReader)
+	{
+		return GeometryStreamReader->GetSkinWeightsCount(MeshIndex);
+	}
+	return {};
+}
+
 TArrayView<const float> FSkelMeshDNAReader::GetSkinWeightsValues(uint16 MeshIndex, uint32 VertexIndex) const
 {
 	if (GeometryStreamReader)

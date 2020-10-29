@@ -24,6 +24,7 @@ namespace Chaos
 
 		FPBDSuspensionConstraintHandle() {}
 		FPBDSuspensionConstraintHandle(FConstraintContainer* InConstraintContainer, int32 InConstraintIndex);
+		static FConstraintHandle::EType StaticType() { return FConstraintHandle::EType::Suspension; }
 
 		FPBDSuspensionSettings& GetSettings();
 		const FPBDSuspensionSettings& GetSettings() const;
@@ -85,11 +86,21 @@ namespace Chaos
 		 * Remove a constraint.
 		 */
 		void RemoveConstraint(int ConstraintIndex);
-		void RemoveConstraints(const TSet<TGeometryParticleHandle<FReal, 3>*>& RemovedParticles)
-		{
-			check(false); // #todo
-		}
 
+
+		/**
+		 * Disabled the specified constraint.
+		 */
+		void DisableConstraints(const TSet<TGeometryParticleHandle<FReal, 3>*>& RemovedParticles)
+		{
+			for (TGeometryParticleHandle<FReal, 3>* RemovedParticle : RemovedParticles)
+			{
+				for (FConstraintHandle* ConstraintHandle : RemovedParticle->ParticleConstraints())
+				{
+					ConstraintHandle->SetEnabled(false); // constraint lifespan is managed by the proxy
+				}
+			}
+		}
 
 		//
 		// Constraint API

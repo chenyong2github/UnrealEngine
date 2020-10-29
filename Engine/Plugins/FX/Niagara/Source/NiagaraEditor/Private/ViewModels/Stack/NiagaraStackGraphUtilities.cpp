@@ -868,10 +868,6 @@ bool FNiagaraStackGraphUtilities::GetStackFunctionInputAndOutputVariables(UNiaga
 		// No builder histories; it is possible the script does not have a complete path from input to output node.
 		return false;
 	}
-	else if (ensureMsgf(Builder.Histories.Num() > 1, TEXT("Invalid Stack Graph - Function call node has invalid history count (more than one)!")))
-	{
-		return false;
-	}
 
 	for (int32 i = 0; i < Builder.Histories[0].Variables.Num(); ++i)
 	{
@@ -1679,31 +1675,46 @@ void FNiagaraStackGraphUtilities::GetScriptAssetsByDependencyProvided(ENiagaraSc
 	}
 }
 
-void FNiagaraStackGraphUtilities::GetAvailableParametersForScript(UNiagaraNodeOutput& ScriptOutputNode, TArray<FNiagaraVariable>& OutAvailableParameters)
+void FNiagaraStackGraphUtilities::GetAvailableParametersForScript(UNiagaraNodeOutput& ScriptOutputNode, TArray<FNiagaraVariable>& OutAvailableParameters, TArray<FName>& OutCustomIterationSourceNamespaces)
 {
 	TArray<FNiagaraParameterMapHistory> Histories = UNiagaraNodeParameterMapBase::GetParameterMaps(ScriptOutputNode.GetNiagaraGraph());
 
+	TOptional<FName> StackContextAlias = ScriptOutputNode.GetStackContextOverride();
+	
 	if (ScriptOutputNode.GetUsage() == ENiagaraScriptUsage::ParticleSpawnScript ||
 		ScriptOutputNode.GetUsage() == ENiagaraScriptUsage::ParticleSpawnScriptInterpolated ||
 		ScriptOutputNode.GetUsage() == ENiagaraScriptUsage::ParticleUpdateScript ||
-		ScriptOutputNode.GetUsage() == ENiagaraScriptUsage::ParticleSimulationStageScript ||
+		(ScriptOutputNode.GetUsage() == ENiagaraScriptUsage::ParticleSimulationStageScript && (!StackContextAlias.IsSet() || StackContextAlias.GetValue() == NAME_None)) ||
 		ScriptOutputNode.GetUsage() == ENiagaraScriptUsage::ParticleEventScript)
 	{
 		OutAvailableParameters.Append(FNiagaraConstants::GetCommonParticleAttributes());
 	}
 
+	
 	for (FNiagaraParameterMapHistory& History : Histories)
 	{
-		for (FNiagaraVariable& Variable : History.Variables)
+		for (int32 VarIdx = 0; VarIdx <  History.Variables.Num(); VarIdx++)
 		{
-			if (History.IsPrimaryDataSetOutput(Variable, ScriptOutputNode.GetUsage()))
+			FNiagaraVariable& Variable = History.Variables[VarIdx];
+			if (StackContextAlias.IsSet() && StackContextAlias.GetValue() != NAME_None && Variable.IsInNameSpace(StackContextAlias.GetValue()))
+			{
+				OutAvailableParameters.AddUnique(Variable);
+			}
+			else if (History.IsPrimaryDataSetOutput(Variable, ScriptOutputNode.GetUsage()))
 			{
 				OutAvailableParameters.AddUnique(Variable);
 			}
 		}
+		
+		for (const FName& Namespace : History.IterationNamespaceOverridesEncountered)
+		{
+			OutCustomIterationSourceNamespaces.AddUnique(Namespace);
+		}
 	}
+	
 
-	TOptional<FName> UsageNamespace = FNiagaraStackGraphUtilities::GetNamespaceForScriptUsage(ScriptOutputNode.GetUsage());
+
+	TOptional<FName> UsageNamespace = FNiagaraStackGraphUtilities::GetNamespaceForOutputNode(&ScriptOutputNode);
 	if (UsageNamespace.IsSet())
 	{
 		for (const TPair<FNiagaraVariable, FNiagaraGraphParameterReferenceCollection>& Entry : ScriptOutputNode.GetNiagaraGraph()->GetParameterReferenceMap())
@@ -1732,6 +1743,20 @@ void FNiagaraStackGraphUtilities::GetAvailableParametersForScript(UNiagaraNodeOu
 			}
 		}
 	}
+}
+
+TOptional<FName> FNiagaraStackGraphUtilities::GetNamespaceForOutputNode(const UNiagaraNodeOutput* OutputNode)
+{
+	if (OutputNode)
+	{
+		TOptional<FName> StackContextAlias = OutputNode->GetStackContextOverride();
+		if (StackContextAlias.IsSet() && StackContextAlias.GetValue() != NAME_None)
+		{
+			return StackContextAlias.GetValue();
+		}
+		return GetNamespaceForScriptUsage(OutputNode->GetUsage());
+	}
+	return TOptional<FName>();
 }
 
 TOptional<FName> FNiagaraStackGraphUtilities::GetNamespaceForScriptUsage(ENiagaraScriptUsage ScriptUsage)
@@ -1960,7 +1985,14 @@ bool FNiagaraStackGraphUtilities::IsValidDefaultDynamicInput(UNiagaraScript& Own
 	return TryGetStackFunctionInputValue(OwningScript, nullptr, DefaultPin, NAME_None, FRapidIterationParameterContext(), InputValue) && InputValue.DynamicValue.IsSet();
 }
 
-bool FNiagaraStackGraphUtilities::CanWriteParameterFromUsage(FNiagaraVariable Parameter, ENiagaraScriptUsage Usage)
+
+bool FNiagaraStackGraphUtilities::CanWriteParameterFromUsageViaOutput(FNiagaraVariable Parameter, const UNiagaraNodeOutput* OutputNode)
+{
+	bool bCanWrite = CanWriteParameterFromUsage(Parameter, OutputNode->GetUsage(), OutputNode->GetStackContextOverride(), OutputNode->GetAllStackContextOverrides());	
+	return bCanWrite;
+}
+
+bool FNiagaraStackGraphUtilities::CanWriteParameterFromUsage(FNiagaraVariable Parameter, ENiagaraScriptUsage Usage, const TOptional<FName>& StackContextOverride, const TArray<FName>& StackContextAllOverrides)
 {
 	const FNiagaraParameterHandle ParameterHandle(Parameter.GetName());
 
@@ -1972,6 +2004,26 @@ bool FNiagaraStackGraphUtilities::CanWriteParameterFromUsage(FNiagaraVariable Pa
 	if (ParameterHandle.IsTransientHandle())
 	{
 		return true;
+	}
+
+	if (ParameterHandle.IsStackContextHandle())
+	{
+		return true;
+	}
+
+	// Are we in the specified namespace for this stack context override? If so, we can definitely be written
+	if (StackContextOverride.IsSet() && Parameter.IsInNameSpace(StackContextOverride.GetValue()))
+	{
+		return true;
+	}
+
+	// Do we belong to any of the namespaces that are stack context overrides? If so, we aren't the one that is currently set as that would pass above, so definitely can't write here.
+	for (const FName& OverrideNamespace : StackContextAllOverrides)
+	{
+		if (Parameter.IsInNameSpace(OverrideNamespace))
+		{
+			return false;
+		}
 	}
 
 	switch (Usage)
@@ -2712,7 +2764,7 @@ void FNiagaraStackGraphUtilities::GetNamespacesForNewReadParameters(EStackEditCo
 	OutNamespacesForNewParameters.Add(FNiagaraConstants::TransientNamespace);
 }
 
-void FNiagaraStackGraphUtilities::GetNamespacesForNewWriteParameters(EStackEditContext EditContext, ENiagaraScriptUsage Usage, TArray<FName>& OutNamespacesForNewParameters)
+void FNiagaraStackGraphUtilities::GetNamespacesForNewWriteParameters(EStackEditContext EditContext, ENiagaraScriptUsage Usage, const TOptional<FName>& StackContextAlias, TArray<FName>& OutNamespacesForNewParameters)
 {
 	switch (Usage)
 	{
@@ -2742,6 +2794,9 @@ void FNiagaraStackGraphUtilities::GetNamespacesForNewWriteParameters(EStackEditC
 
 	OutNamespacesForNewParameters.Add(FNiagaraConstants::TransientNamespace);
 	OutNamespacesForNewParameters.Add(FNiagaraConstants::StackContextNamespace);
+
+	if (StackContextAlias.IsSet())
+		OutNamespacesForNewParameters.Add(StackContextAlias.GetValue());
 }
 
 bool FNiagaraStackGraphUtilities::TryRenameAssignmentTarget(UNiagaraNodeAssignment& OwningAssignmentNode, FNiagaraVariable CurrentAssignmentTarget, FName NewAssignmentTargetName)

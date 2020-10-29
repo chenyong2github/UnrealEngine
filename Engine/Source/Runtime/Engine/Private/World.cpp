@@ -900,12 +900,13 @@ void UWorld::BeginDestroy()
 		}
 	}
 
+#if WITH_CHAOS
 	if (PhysicsScene != nullptr)
 	{
 		// Tell PhysicsScene to stop kicking off async work so we can cleanup after pending work is complete.
 		PhysicsScene->BeginDestroy();
 	}
-
+#endif
 
 	if (Scene)
 	{
@@ -7410,12 +7411,21 @@ void UWorld::GetLightMapsAndShadowMaps(ULevel* Level, TArray<UTexture2D*>& OutLi
 			ArIsObjectReferenceCollector = true;
 			ArIsModifyingWeakAndStrongReferences = true; // While we are not modifying them, we want to follow weak references as well
 
-			for (FObjectIterator It; It; ++It)
-			{
-				It->Mark(OBJECTMARK_TagExp);
-			}
+			// Don't bother searching through the object's references if there's no objects of the types we're looking for
+			TArray<UObject*> Objects;
+			GetObjectsOfClass(ULightMapTexture2D::StaticClass(), Objects);
+			GetObjectsOfClass(UShadowMapTexture2D::StaticClass(), Objects);
+			GetObjectsOfClass(ULightMapVirtualTexture2D::StaticClass(), Objects);
 
-			*this << InSearch;
+			if (Objects.Num())
+			{
+				for (FObjectIterator It; It; ++It)
+				{
+					It->Mark(OBJECTMARK_TagExp);
+				}
+
+				*this << InSearch;
+			}
 		}
 
 		FArchive& operator<<(class UObject*& Obj)

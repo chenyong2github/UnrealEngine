@@ -1115,6 +1115,12 @@ void UBodySetup::Serialize(FArchive& Ar)
 			}
 		}
 		*/
+#else
+		if(Ar.IsLoading())
+		{
+			int32 DummyCount;
+			Ar << DummyCount;
+		}
 #endif
 	}
 
@@ -1461,7 +1467,13 @@ void UBodySetup::GetGeometryDDCKey(FString& OutString) const
 		CDP->GetMeshId(MeshIdString);
 	}
 
-	OutString = FString::Printf(TEXT("%s_%s_%s_%d_%d_%d_%d_%d"),
+#if WITH_CHAOS
+	const int32 ConvexMarginType = Chaos::Chaos_Collision_ConvexMarginType;
+#else
+	const int32 ConvexMarginType = 0;
+#endif
+
+	OutString = FString::Printf(TEXT("%s_%s_%s_%d_%d_%d_%d_%f_%f_%d_%d"),
 		*BodySetupGuid.ToString(),
 		*MeshIdString,
 		*AggGeom.MakeDDCKey().ToString(),
@@ -1469,6 +1481,9 @@ void UBodySetup::GetGeometryDDCKey(FString& OutString) const
 		(int32)bGenerateMirroredCollision,
 		(int32)UPhysicsSettings::Get()->bSupportUVFromHitResults,
 		(int32)GetCollisionTraceFlag(),
+		UPhysicsSettings::Get()->SolverOptions.CollisionMarginFraction,
+		UPhysicsSettings::Get()->SolverOptions.CollisionMarginMax,
+		ConvexMarginType,
 		(int32)BODY_SETUP_GEOMETRY_KEY_VER);
 
 	if (bSupportUVsAndFaceRemap)

@@ -34,7 +34,7 @@ public:
 	static const FName InputPinName_FixturePatch;
 	static const FName InputPinName_FixtureTypeRef;
 
-	static const FName OutputPinName_FunctionsMap;
+	static const FName OutputPinName_AttributesMap;
 
 public:
 
@@ -68,17 +68,17 @@ public:
 	virtual UEdGraphPin* CreatePinFromUserDefinition(const TSharedPtr<FUserPinInfo> NewPinInfo) override;
 	virtual bool ModifyUserDefinedPinDefaultValue(TSharedPtr<FUserPinInfo> PinInfo, const FString& NewDefaultValue) override;
 
-	// We only override this to return true, otherwise we can't create the user defined pins for the Functions
+	// We only override this to return true, otherwise we can't create the user defined pins for the Attributes
 	virtual bool CanCreateUserDefinedPin(const FEdGraphPinType& InPinType, EEdGraphPinDirection InDesiredDirection, FText& OutErrorMessage) override { return true; }	
 	//~ End UK2Node_EditablePinBase Interface
 
 public:
 
 	UFUNCTION()
-	void ExposeFunctions();
+	void ExposeAttributes();
 
 	UFUNCTION()
-	void ResetFunctions();
+	void ResetAttributes();
 
 	UDMXEntityFixtureType* GetSelectedFixtureType();
 

@@ -30,6 +30,14 @@ public:
 	}
 
 	/**
+	 * Check whether the given chunk ID has been registered as containing chunked LocRes data.
+	 */
+	bool HasRegisteredChunkId(const int32 InChunkId)
+	{
+		return ChunkIds.Contains(InChunkId);
+	}
+
+	/**
 	 * Get the list of localization targets that were chunked during cooking.
 	 */
 	static TArray<FString> GetChunkedLocalizationTargets();

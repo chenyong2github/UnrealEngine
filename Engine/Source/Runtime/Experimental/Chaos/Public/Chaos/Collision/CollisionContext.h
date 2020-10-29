@@ -16,6 +16,7 @@ namespace Chaos
 			, bDeferUpdate(true)
 			, bAllowManifolds(false)
 			, bUseIncrementalManifold(false)
+			, bUseOneShotManifolds(false)
 		{
 		}
 
@@ -31,5 +32,6 @@ namespace Chaos
 		// @todo(chaos): remove legacy manifold system
 		bool bAllowManifolds;
 		bool bUseIncrementalManifold;
+		bool bUseOneShotManifolds;
 	};
 }

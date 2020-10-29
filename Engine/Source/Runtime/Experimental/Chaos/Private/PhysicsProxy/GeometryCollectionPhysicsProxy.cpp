@@ -1949,6 +1949,8 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 	ParallelFor(NumGeometries, [&](int32 GeometryIndex)
 	//for (int32 GeometryIndex = 0; GeometryIndex < NumGeometries; GeometryIndex++)
 	{
+		// Need a new error reporter for parallel for loop here as it wouldn't be thread-safe to write to the prefix
+		Chaos::FErrorReporter LocalErrorReporter;
 		const int32 TransformGroupIndex = TransformIndex[GeometryIndex];
 
 		const float Volume_i = MassPropertiesArray[GeometryIndex].Volume;
@@ -1958,8 +1960,8 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 			if (DesiredDensity * Volume_i > SharedParams.MaximumMassClamp)
 			{
 				// For rigid bodies outside of range just defaut to a clamped bounding box, and warn the user.
-				ErrorReporter.ReportError(*FString::Printf(TEXT("Geometry has invalid mass (too large)")));
-				ErrorReporter.HandleLatestError();
+				LocalErrorReporter.ReportError(*FString::Printf(TEXT("Geometry has invalid mass (too large)")));
+				LocalErrorReporter.HandleLatestError();
 
 				CollectionSimulatableParticles[TransformGroupIndex] = false;
 			}
@@ -2048,10 +2050,10 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 
 				if (SizeSpecificData.ImplicitType == EImplicitTypeEnum::Chaos_Implicit_LevelSet)
 				{
-					ErrorReporter.SetPrefix(BaseErrorPrefix + " | Transform Index: " + FString::FromInt(TransformGroupIndex) + " of " + FString::FromInt(TransformIndex.Num()));
+					LocalErrorReporter.SetPrefix(BaseErrorPrefix + " | Transform Index: " + FString::FromInt(TransformGroupIndex) + " of " + FString::FromInt(TransformIndex.Num()));
 					CollectionImplicits[TransformGroupIndex] = FGeometryDynamicCollection::FSharedImplicit(
 						FCollisionStructureManager::NewImplicitLevelset(
-							ErrorReporter,
+							LocalErrorReporter,
 							MassSpaceParticles,
 							*TriMesh,
 							InstanceBoundingBox,
@@ -2503,7 +2505,9 @@ void FGeometryCollectionPhysicsProxy::ProcessCommands(Chaos::TPBDRigidsSolver<Tr
 						FFieldContext Context{
 							SampleIndicesView,
 							SamplesView,
-							Command.MetaData };
+							Command.MetaData, 
+							Time 
+						};
 
 						TArray<int32> DynamicState; // #BGTODO Enum class support (so we can size the underlying type to be more appropriate)
 						DynamicState.AddUninitialized(Handles.Num());
@@ -2562,7 +2566,9 @@ void FGeometryCollectionPhysicsProxy::ProcessCommands(Chaos::TPBDRigidsSolver<Tr
 							FFieldContext Context{
 								SampleIndicesView,
 								SamplesView,
-								Command.MetaData };
+								Command.MetaData,
+								Time
+							};
 
 							TArrayView<FVector> ResultsView(&(Collection.InitialLinearVelocity[0]), Collection.InitialLinearVelocity.Num());
 							static_cast<const FFieldNode<FVector> *>(Command.RootNode.Get())->Evaluate(Context, ResultsView);
@@ -2587,7 +2593,9 @@ void FGeometryCollectionPhysicsProxy::ProcessCommands(Chaos::TPBDRigidsSolver<Tr
 							FFieldContext Context{
 								SampleIndicesView,
 								SamplesView,
-								Command.MetaData };
+								Command.MetaData,
+								Time
+							};
 
 							TArrayView<FVector> ResultsView(&(Collection.InitialAngularVelocity[0]), Collection.InitialAngularVelocity.Num());
 							static_cast<const FFieldNode<FVector> *>(Command.RootNode.Get())->Evaluate(Context, ResultsView);
@@ -2623,7 +2631,9 @@ void FGeometryCollectionPhysicsProxy::ProcessCommands(Chaos::TPBDRigidsSolver<Tr
 					FFieldContext Context{
 						SampleIndicesView,
 						SamplesView,
-						Command.MetaData };
+						Command.MetaData,
+						Time
+					};
 
 					FVector * vptr = &(Particles.V(0));
 					TArrayView<FVector> ResultsView(vptr, Particles.Size());
@@ -2642,7 +2652,9 @@ void FGeometryCollectionPhysicsProxy::ProcessCommands(Chaos::TPBDRigidsSolver<Tr
 					FFieldContext Context{
 						SampleIndicesView,
 						SamplesView,
-						Command.MetaData };
+						Command.MetaData,
+						Time
+					};
 
 					FVector * vptr = &(Particles.W(0));
 					TArrayView<FVector> ResultsView(vptr, Particles.Size());
@@ -2660,7 +2672,9 @@ void FGeometryCollectionPhysicsProxy::ProcessCommands(Chaos::TPBDRigidsSolver<Tr
 					FFieldContext Context{
 						SampleIndicesView,
 						SamplesView,
-						Command.MetaData };
+						Command.MetaData,
+						Time
+					};
 
 					int32 * cptr = &(Particles.CollisionGroup(0));
 					TArrayView<int32> ResultsView(cptr, Particles.Size());
@@ -2696,9 +2710,11 @@ void FGeometryCollectionPhysicsProxy::FieldForcesUpdateCallback(Chaos::TPBDRigid
 					TArrayView<FVector> SamplesView(&(Samples[0]), Samples.Num());
 					TArrayView<ContextIndex> SampleIndicesView(&(SampleIndices[0]), SampleIndices.Num());
 						FFieldContext Context{
-						SampleIndicesView,
+							SampleIndicesView,
 							SamplesView,
-						Command.MetaData };
+							Command.MetaData,
+							Time
+						};
 
 						TArrayView<FVector> ForceView(&(Force[0]), Force.Num());
 						static_cast<const FFieldNode<FVector> *>(Command.RootNode.Get())->Evaluate(Context, ForceView);
@@ -2710,12 +2726,14 @@ void FGeometryCollectionPhysicsProxy::FieldForcesUpdateCallback(Chaos::TPBDRigid
 					if (ensureMsgf(Command.RootNode->Type() == FFieldNode<FVector>::StaticType(),
 						TEXT("Field based evaluation of the simulations 'AngularTorque' parameter expects FVector field inputs.")))
 					{
-					TArrayView<FVector> SamplesView(&(Samples[0]), Samples.Num());
-					TArrayView<ContextIndex> SampleIndicesView(&(SampleIndices[0]), SampleIndices.Num());
+						TArrayView<FVector> SamplesView(&(Samples[0]), Samples.Num());
+						TArrayView<ContextIndex> SampleIndicesView(&(SampleIndices[0]), SampleIndices.Num());
 						FFieldContext Context{
-						SampleIndicesView,
+							SampleIndicesView,
 							SamplesView,
-						Command.MetaData };
+							Command.MetaData,
+							Time
+						};
 
 						TArrayView<FVector> TorqueView(&(Torque[0]), Torque.Num());
 						static_cast<const FFieldNode<FVector> *>(Command.RootNode.Get())->Evaluate(Context, TorqueView);

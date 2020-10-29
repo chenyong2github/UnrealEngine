@@ -105,8 +105,14 @@ namespace Chaos
 		Solver.AdvanceSolverBy(Dt);
 	}
 
-	CHAOS_API int32 UseAsyncResults = 0;
-	FAutoConsoleVariableRef CVarUseAsyncResults(TEXT("p.UseAsyncResults"),UseAsyncResults,TEXT("Whether to use async results"));
+	CHAOS_API float DefaultAsyncDt = -1;
+	FAutoConsoleVariableRef CVarDefaultAsyncDt(TEXT("p.DefaultAsyncDt"), DefaultAsyncDt,TEXT("Whether to use async results -1 means not async"));
+
+	CHAOS_API int32 UseAsyncInterpolation = 1;
+	FAutoConsoleVariableRef CVarUseAsyncInterpolation(TEXT("p.UseAsyncInterpolation"), UseAsyncInterpolation, TEXT("Whether to interpolate when async mode is enabled"));
+
+	CHAOS_API int32 ForceDisableAsyncPhysics = 0;
+	FAutoConsoleVariableRef CVarForceDisableAsyncPhysics(TEXT("p.ForceDisableAsyncPhysics"), ForceDisableAsyncPhysics, TEXT("Whether to force async physics off regardless of other settings"));
 
 	FPhysicsSolverBase::FPhysicsSolverBase(const EMultiBufferMode BufferingModeIn,const EThreadingModeTemp InThreadingMode,UObject* InOwner,ETraits InTraitIdx)
 		: BufferMode(BufferingModeIn)
@@ -114,7 +120,9 @@ namespace Chaos
 		, PendingSpatialOperations_External(MakeUnique<FPendingSpatialDataQueue>())
 		, bPaused_External(false)
 		, Owner(InOwner)
+		, ExternalDataLock_External(new FPhysicsSceneGuard())
 		, TraitIdx(InTraitIdx)
+		, AsyncDt(DefaultAsyncDt)
 #if !UE_BUILD_SHIPPING
 		, bStealAdvanceTasksForTesting(false)
 #endif
@@ -171,6 +179,7 @@ namespace Chaos
 
 		// Ensure callbacks actually get cleaned up, only necessary when solver is disabled.
 		InSolver.ApplyCallbacks_Internal(0, 0);
+		InSolver.FreeCallbacksData_Internal(0, 0);
 
 		// verify callbacks have been processed and we're not leaking.
 		// TODO: why is this still firing in 14.30? (Seems we're still leaking)
@@ -216,6 +225,26 @@ namespace Chaos
 	}
 #endif
 
+	void FPhysicsSolverBase::TrackGTParticle_External(TGeometryParticle<FReal, 3>& Particle)
+	{
+		const int32 Idx = Particle.UniqueIdx().Idx;
+		const int32 SlotsNeeded = Idx + 1 - UniqueIdxToGTParticles.Num();
+		if (SlotsNeeded > 0)
+		{
+			UniqueIdxToGTParticles.AddZeroed(SlotsNeeded);
+		}
+
+		UniqueIdxToGTParticles[Idx] = &Particle;
+	}
+
+	void FPhysicsSolverBase::ClearGTParticle_External(TGeometryParticle<FReal, 3>& Particle)
+	{
+		const int32 Idx = Particle.UniqueIdx().Idx;
+		if (ensure(Idx < UniqueIdxToGTParticles.Num()))
+		{
+			UniqueIdxToGTParticles[Idx] = nullptr;
+		}
+	}
 
 
 	//////////////////////////////////////////////////////////////////////////

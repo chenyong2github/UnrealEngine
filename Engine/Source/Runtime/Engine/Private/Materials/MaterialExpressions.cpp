@@ -242,6 +242,7 @@
 #include "Materials/MaterialExpressionCurveAtlasRowParameter.h"
 #include "Materials/MaterialExpressionMapARPassthroughCameraUV.h"
 #include "Materials/MaterialExpressionShaderStageSwitch.h"
+#include "Materials/MaterialExpressionReflectionCapturePassSwitch.h"
 #include "Materials/MaterialUniformExpressions.h"
 #include "Materials/MaterialExpressionReflectionCapturePassSwitch.h"
 #include "Materials/MaterialExpressionStrata.h"
@@ -18337,6 +18338,7 @@ UMaterialExpressionHairAttributes::UMaterialExpressionHairAttributes(const FObje
 	Outputs.Add(FExpressionOutput(TEXT("Roughness"), 1, 1, 0, 0, 0));
 	Outputs.Add(FExpressionOutput(TEXT("Depth"), 1, 1, 0, 0, 0));
 	Outputs.Add(FExpressionOutput(TEXT("Coverage"), 1, 1, 0, 0, 0));
+	Outputs.Add(FExpressionOutput(TEXT("AuxilaryData"), 1, 1, 1, 1, 1));
 	Outputs.Add(FExpressionOutput(TEXT("AtlasUVs"), 1, 1, 1, 0, 0));
 #endif
 }
@@ -18381,6 +18383,10 @@ int32 UMaterialExpressionHairAttributes::Compile(class FMaterialCompiler* Compil
 		return Compiler->GetHairCoverage();
 	}
 	else if (OutputIndex == 11)
+	{
+		return Compiler->GetHairAuxilaryData();
+	}
+	else if (OutputIndex == 12)
 	{
 		return Compiler->GetHairAtlasUVs();
 	}
@@ -18815,6 +18821,7 @@ void UMaterialExpressionReflectionCapturePassSwitch::GetExpressionToolTip(TArray
 	ConvertToMultilineToolTip(TEXT("Allows material to define specialized behavior when being rendered into reflection capture views."), 40, OutToolTip);
 }
 #endif // WITH_EDITOR
+
 
 ///////////////////////////////////////////////////////////////////////////////
 // UMaterialExpressionCloudSampleAttribute

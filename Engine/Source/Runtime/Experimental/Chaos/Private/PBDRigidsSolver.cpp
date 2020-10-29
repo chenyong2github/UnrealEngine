@@ -87,14 +87,25 @@ FAutoConsoleVariableRef CVarChaosSolverParticlePoolNumFrameUntilShrink(TEXT("p.C
 
 // Iteration count cvars
 // These override the engine config if >= 0
+
 int32 ChaosSolverIterations = -1;
-int32 ChaosSolverPushOutIterations = -1;
-int32 ChaosSolverCollisionIterations = -1;
-int32 ChaosSolverCollisionPushOutIterations = -1;
 FAutoConsoleVariableRef CVarChaosSolverIterations(TEXT("p.Chaos.Solver.Iterations"), ChaosSolverIterations, TEXT("Override umber of solver iterations (-1 to use config)"));
+
+int32 ChaosSolverCollisionIterations = -1;
 FAutoConsoleVariableRef CVarChaosSolverCollisionIterations(TEXT("p.Chaos.Solver.Collision.Iterations"), ChaosSolverCollisionIterations, TEXT("Override number of collision iterations per solver iteration (-1 to use config)"));
+
+int32 ChaosSolverPushOutIterations = -1;
 FAutoConsoleVariableRef CVarChaosSolverPushOutIterations(TEXT("p.Chaos.Solver.PushoutIterations"), ChaosSolverPushOutIterations, TEXT("Override number of solver pushout iterations (-1 to use config)"));
+
+int32 ChaosSolverCollisionPushOutIterations = -1;
 FAutoConsoleVariableRef CVarChaosSolverCollisionPushOutIterations(TEXT("p.Chaos.Solver.Collision.PushOutIterations"), ChaosSolverCollisionPushOutIterations, TEXT("Override number of collision iterations per solver iteration (-1 to use config)"));
+
+int32 ChaosSolverJointPairIterations = -1;
+FAutoConsoleVariableRef CVarChaosSolverJointPairIterations(TEXT("p.Chaos.Solver.Joint.PairIterations"), ChaosSolverJointPairIterations, TEXT("Override number of iterations per joint pair during a solver iteration (-1 to use config)"));
+
+int32 ChaosSolverJointPushOutPairIterations = -1;
+FAutoConsoleVariableRef CVarChaosSolverJointPushOutPairIterations(TEXT("p.Chaos.Solver.Joint.PushOutPairIterations"), ChaosSolverJointPushOutPairIterations, TEXT("Override number of push out iterations per joint during a solver iteration (-1 to use config)"));
+
 
 // Collision detection cvars
 // These override the engine config if >= 0
@@ -113,7 +124,11 @@ FAutoConsoleVariableRef CVarChaosSolverCollisionUseManifolds(TEXT("p.Chaos.Solve
 
 // New manifold system
 int32 ChaosSolverCollisionUseIncrememtalManifolds = 1;
-FAutoConsoleVariableRef CVarChaosUseIncrementalManifold(TEXT("p.Chaos.Solver.Collision.UseIncrementalManifolds"), ChaosSolverCollisionUseIncrememtalManifolds, TEXT("Enable/Disable use of incremental manifolds"));
+FAutoConsoleVariableRef CVarChaosUseIncrementalManifold(TEXT("p.Chaos.Solver.Collision.UseIncrementalManifolds"), ChaosSolverCollisionUseIncrememtalManifolds, TEXT("Enable/Disable use of incremental manifolds."));
+
+// New One-shot manifolds (only for boxes right now)
+int32 ChaosSolverCollisionUseOneShotManifolds = 1;
+FAutoConsoleVariableRef CVarChaosUseOneShotManifold(TEXT("p.Chaos.Solver.Collision.UseOneShotManifolds"), ChaosSolverCollisionUseOneShotManifolds, TEXT("Enable/Disable use of OneShot manifolds where available. If enabled Incremental manifold setting will be ignored"));
 
 int32 ChaosVisualDebuggerEnable = 1;
 FAutoConsoleVariableRef CVarChaosVisualDebuggerEnable(TEXT("p.Chaos.VisualDebuggerEnable"), ChaosVisualDebuggerEnable, TEXT("Enable/Disable pushing/saving data to the visual debugger"));
@@ -274,6 +289,8 @@ namespace Chaos
 				RewindData->FinishFrame();
 			}
 
+			MSolver->FreeCallbacksData_Internal(MSolver->GetSolverTime(), MDeltaTime);	//question: is SolverTime the right thing to pass in here?
+
 			MSolver->GetSolverTime() += MDeltaTime;
 			MSolver->GetCurrentFrame()++;
 			MSolver->PostTickDebugDraw();
@@ -311,7 +328,7 @@ namespace Chaos
 		, bHasFloor(true)
 		, bIsFloorAnalytic(false)
 		, FloorHeight(0.f)
-		, MEvolution(new FPBDRigidsEvolution(Particles, SimMaterials, BufferingModeIn == Chaos::EMultiBufferMode::Single))
+		, MEvolution(new FPBDRigidsEvolution(Particles, SimMaterials, &ContactModifiers, BufferingModeIn == Chaos::EMultiBufferMode::Single))
 		, MEventManager(new TEventManager<Traits>(BufferingModeIn))
 		, MSolverEventFilters(new FSolverEventFilters())
 		, MDirtyParticlesBuffer(new FDirtyParticlesBuffer(BufferingModeIn, BufferingModeIn == Chaos::EMultiBufferMode::Single))
@@ -371,6 +388,7 @@ namespace Chaos
 		IPhysicsProxyBase* ProxyBase;
 
 		GTParticle->SetUniqueIdx(GetEvolution()->GenerateUniqueIdx());
+		TrackGTParticle_External(*GTParticle);
 		//Chaos::FParticlePropertiesData& RemoteParticleData = *DirtyPropertiesManager->AccessProducerBuffer()->NewRemoteParticleProperties();
 		//Chaos::FShapeRemoteDataContainer& RemoteShapeContainer = *DirtyPropertiesManager->AccessProducerBuffer()->NewRemoteShapeContainer();
 
@@ -416,6 +434,8 @@ namespace Chaos
 
 		// Grab the particle's type
 		const EParticleType InParticleType = GTParticle->ObjectType();
+
+		ClearGTParticle_External(*GTParticle);
 
 		UpdateParticleInAccelerationStructure_External(GTParticle, /*bDelete=*/true);
 
@@ -682,7 +702,7 @@ namespace Chaos
 		MMaxDeltaTime = 1.f;
 		MMinDeltaTime = SMALL_NUMBER;
 		MMaxSubSteps = 1;
-		MEvolution = TUniquePtr<FPBDRigidsEvolution>(new FPBDRigidsEvolution(Particles, SimMaterials, BufferMode == EMultiBufferMode::Single)); 
+		MEvolution = TUniquePtr<FPBDRigidsEvolution>(new FPBDRigidsEvolution(Particles, SimMaterials, &ContactModifiers, BufferMode == EMultiBufferMode::Single)); 
 
 		PerSolverField = MakeUnique<FPerSolverFieldSystem>();
 
@@ -729,6 +749,7 @@ namespace Chaos
 		MEvolution->GetCollisionDetector().GetNarrowPhase().GetContext().bDeferUpdate = (ChaosSolverCollisionDeferNarrowPhase != 0);
 		MEvolution->GetCollisionDetector().GetNarrowPhase().GetContext().bAllowManifolds = (ChaosSolverCollisionUseManifolds != 0);
 		MEvolution->GetCollisionDetector().GetNarrowPhase().GetContext().bUseIncrementalManifold = (ChaosSolverCollisionUseIncrememtalManifolds != 0);
+		MEvolution->GetCollisionDetector().GetNarrowPhase().GetContext().bUseOneShotManifolds = (ChaosSolverCollisionUseOneShotManifolds != 0);
 
 		// Apply CVAR overrides if set
 		{
@@ -748,6 +769,14 @@ namespace Chaos
 			{
 				SetCollisionPushOutPairIterations(ChaosSolverCollisionPushOutIterations);
 			}
+			if (ChaosSolverJointPairIterations >= 0.0f)
+			{
+				SetJointPairIterations(ChaosSolverJointPairIterations);
+			}
+			if (ChaosSolverJointPushOutPairIterations >= 0.0f)
+			{
+				SetJointPushOutPairIterations(ChaosSolverJointPushOutPairIterations);
+			}
 			if (ChaosSolverCullDistance >= 0.0f)
 			{
 				SetCollisionCullDistance(ChaosSolverCullDistance);
@@ -758,7 +787,6 @@ namespace Chaos
 		MLastDt = DeltaTime;
 		EventPreSolve.Broadcast(DeltaTime);
 		AdvanceOneTimeStepTask<Traits>(this, DeltaTime).DoWork();
-		EventPreBuffer.Broadcast(DeltaTime);
 
 		if(DeltaTime > 0)
 		{
@@ -993,7 +1021,15 @@ namespace Chaos
 		{
 			//update callbacks
 			{
-				SimCallbackObjects.Append(PushData->SimCallbackObjectsToAdd);
+				SimCallbackObjects.Reserve(SimCallbackObjects.Num() + PushData->SimCallbackObjectsToAdd.Num());
+				for(ISimCallbackObject* SimCallbackObject : PushData->SimCallbackObjectsToAdd)
+				{
+					SimCallbackObjects.Add(SimCallbackObject);
+					if(SimCallbackObject->bContactModification)
+					{
+						ContactModifiers.Add(SimCallbackObject);
+					}
+				}
 
 				for (int32 Idx = 0; Idx < PushData->SimCallbackObjectsToRemove.Num(); ++Idx)
 				{
@@ -1030,6 +1066,7 @@ namespace Chaos
 
 		if(HasActiveParticles())
 		{
+			EventPreBuffer.Broadcast(MLastDt);
 			GetDirtyParticlesBuffer()->CaptureSolverData(this);
 			BufferPhysicsResults();
 		}
@@ -1217,14 +1254,16 @@ namespace Chaos
 	}
 
 	template <typename Traits>
-	void TPBDRigidsSolver<Traits>::SyncQueryMaterials()
+	void TPBDRigidsSolver<Traits>::SyncQueryMaterials_External()
 	{
 		// Using lock on sim material is an imprefect workaround, we may block while physics thread is updating sim materials in callbacks.
 		// QueryMaterials may be slightly stale. Need to rethink lifetime + ownership of materials for async case.
+		//acquire external data lock
+		FPhysicsSceneGuardScopedWrite ScopedWrite(GetExternalDataLock_External());
 		TSolverSimMaterialScope<ELockType::Read> SimMatLock(this);
-		TSolverQueryMaterialScope<ELockType::Write> QueryMatLock(this);
-		QueryMaterials = SimMaterials;
-		QueryMaterialMasks = SimMaterialMasks;
+		
+		QueryMaterials_External = SimMaterials;
+		QueryMaterialMasks_External = SimMaterialMasks;
 	}
 
 	template <typename Traits>
@@ -1295,6 +1334,8 @@ namespace Chaos
 		SetCollisionPairIterations(InConfig.CollisionPairIterations);
 		SetPushOutIterations(InConfig.PushOutIterations);
 		SetCollisionPushOutPairIterations(InConfig.CollisionPushOutPairIterations);
+		SetJointPairIterations(InConfig.JointPairIterations);
+		SetJointPushOutPairIterations(InConfig.JointPushOutPairIterations);
 		SetCollisionCullDistance(InConfig.CollisionCullDistance);
 		SetGenerateCollisionData(InConfig.bGenerateCollisionData);
 		SetGenerateBreakingData(InConfig.bGenerateBreakData);

@@ -24,6 +24,10 @@ class SettingsDialog(QtCore.QObject):
 
         self.ui.setWindowTitle("Settings")
 
+        max_port = (1 << 16) - 1
+        self.ui.osc_server_port_line_edit.setValidator(QtGui.QIntValidator(0, max_port))
+        self.ui.osc_client_port_line_edit.setValidator(QtGui.QIntValidator(0, max_port))
+
         # Store the current config names
         self._config_names = [CONFIG.config_file_name_to_name(x) for x in list_config_files()]
         self._current_config_name = CONFIG.config_file_name_to_name(SETTINGS.CONFIG)
@@ -38,6 +42,9 @@ class SettingsDialog(QtCore.QObject):
         self.ui.uproject_line_edit.editingFinished.connect(lambda widget=self.ui.uproject_line_edit: CONFIG.UPROJECT_PATH.update_value(widget.text()))
         self.ui.map_path_line_edit.editingFinished.connect(lambda widget=self.ui.map_path_line_edit: CONFIG.MAPS_PATH.update_value(widget.text()))
         self.ui.map_filter_line_edit.editingFinished.connect(lambda widget=self.ui.map_filter_line_edit: CONFIG.MAPS_FILTER.update_value(widget.text()))
+
+        self.ui.osc_server_port_line_edit.editingFinished.connect(lambda widget=self.ui.osc_server_port_line_edit: CONFIG.OSC_SERVER_PORT.update_value(int(widget.text())))
+        self.ui.osc_client_port_line_edit.editingFinished.connect(lambda widget=self.ui.osc_client_port_line_edit: CONFIG.OSC_CLIENT_PORT.update_value(int(widget.text())))
 
         self.ui.p4_project_path_line_edit.editingFinished.connect(lambda widget=self.ui.p4_project_path_line_edit: CONFIG.P4_PATH.update_value(widget.text()))
         self.ui.source_control_workspace_line_edit.editingFinished.connect(lambda widget=self.ui.source_control_workspace_line_edit: CONFIG.SOURCE_CONTROL_WORKSPACE.update_value(widget.text()))
@@ -117,6 +124,12 @@ class SettingsDialog(QtCore.QObject):
     def set_build_engine(self, value):
         self.ui.build_engine_checkbox.setChecked(value)
 
+    def p4_enabled(self):
+        return self.ui.p4_group_box.isChecked()
+
+    def set_p4_enabled(self, enabled):
+        self.ui.p4_group_box.setChecked(enabled)
+
     def p4_project_path(self):
         return self.ui.p4_project_path_line_edit.text()
 
@@ -140,6 +153,13 @@ class SettingsDialog(QtCore.QObject):
 
     def set_map_filter(self, value):
         self.ui.map_filter_line_edit.setText(value)
+
+    # OSC Settings
+    def set_osc_server_port(self, port):
+        self.ui.osc_server_port_line_edit.setText(str(port))
+
+    def set_osc_client_port(self, port):
+        self.ui.osc_client_port_line_edit.setText(str(port))
 
     # MU SERVER Settings
     def mu_server_name(self):

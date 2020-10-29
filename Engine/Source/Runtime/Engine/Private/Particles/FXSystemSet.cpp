@@ -79,12 +79,12 @@ bool FFXSystemSet::ShouldDebugDraw_RenderThread() const
 	return false;
 }
 
-void FFXSystemSet::DrawDebug_RenderThread(FRHICommandListImmediate& RHICmdList, FCanvas* Canvas)
+void FFXSystemSet::DrawDebug_RenderThread(class FRDGBuilder& GraphBuilder, const class FViewInfo& View, const struct FScreenPassRenderTarget& Output)
 {
 	for (FFXSystemInterface* FXSystem : FXSystems)
 	{
 		check(FXSystem);
-		FXSystem->DrawDebug_RenderThread(RHICmdList, Canvas);
+		FXSystem->DrawDebug_RenderThread(GraphBuilder, View, Output);
 	}
 }
 

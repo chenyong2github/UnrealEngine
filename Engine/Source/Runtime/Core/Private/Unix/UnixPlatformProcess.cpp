@@ -1392,6 +1392,8 @@ FGenericPlatformProcess::EWaitAndForkResult FUnixPlatformProcess::WaitAndFork()
 	AllChildren.Reserve(1024); // Sized to be big enough that it probably wont reallocte, but its not the end of the world if it does.
 	while (!IsEngineExitRequested())
 	{
+		BeginExitIfRequested();
+
 		int32 SignalValue = 0;
 		if (WaitAndForkSignalQueue.Dequeue(SignalValue))
 		{

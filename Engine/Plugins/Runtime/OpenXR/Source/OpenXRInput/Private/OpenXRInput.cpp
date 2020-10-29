@@ -112,7 +112,7 @@ FOpenXRInputPlugin::FOpenXRAction::FOpenXRAction(XrActionSet InActionSet, XrActi
 	XR_ENSURE(xrCreateAction(Set, &Info, &Handle));
 }
 
-FOpenXRInputPlugin::FOpenXRController::FOpenXRController(FOpenXRHMD* HMD, XrActionSet InActionSet, const char* InName)
+FOpenXRInputPlugin::FOpenXRController::FOpenXRController(XrActionSet InActionSet, const char* InName)
 	: ActionSet(InActionSet)
 	, GripAction(XR_NULL_HANDLE)
 	, AimAction(XR_NULL_HANDLE)
@@ -143,7 +143,10 @@ FOpenXRInputPlugin::FOpenXRController::FOpenXRController(FOpenXRHMD* HMD, XrActi
 	FilterActionName(Info.localizedActionName, Info.actionName);
 	Info.actionType = XR_ACTION_TYPE_VIBRATION_OUTPUT;
 	XR_ENSURE(xrCreateAction(ActionSet, &Info, &VibrationAction));
+}
 
+void FOpenXRInputPlugin::FOpenXRController::AddActionDevices(FOpenXRHMD* HMD)
+{
 	if (HMD)
 	{
 		GripDeviceId = HMD->AddActionDevice(GripAction);
@@ -243,8 +246,8 @@ void FOpenXRInputPlugin::FOpenXRInput::BuildActions()
 
 	// Controller poses
 	OpenXRHMD->ResetActionDevices();
-	Controllers.Add(EControllerHand::Left, FOpenXRController(OpenXRHMD, ActionSet, "Left Controller"));
-	Controllers.Add(EControllerHand::Right, FOpenXRController(OpenXRHMD, ActionSet, "Right Controller"));
+	Controllers.Add(EControllerHand::Left, FOpenXRController(ActionSet, "Left Controller"));
+	Controllers.Add(EControllerHand::Right, FOpenXRController(ActionSet, "Right Controller"));
 
 	// Generate a map of all supported interaction profiles
 	TMap<FString, FInteractionProfile> Profiles;
@@ -399,6 +402,9 @@ void FOpenXRInputPlugin::FOpenXRInput::BuildActions()
 		XR_ENSURE(xrSuggestInteractionProfileBindings(Instance, &InteractionProfile));
 	}
 
+	Controllers[EControllerHand::Left].AddActionDevices(OpenXRHMD);
+	Controllers[EControllerHand::Right].AddActionDevices(OpenXRHMD);
+
 	// Add an active set for each sub-action path so we can use the subaction paths later
 	// TODO: Runtimes already allow us to do the same by simply specifying "subactionPath"
 	// as XR_NULL_PATH, we're just being verbose for safety.
@@ -509,8 +515,7 @@ void FOpenXRInputPlugin::FOpenXRInput::Tick(float DeltaTime)
 	}
 
 	XrSession Session = OpenXRHMD->GetSession();
-
-	if (OpenXRHMD->IsRunning())
+	if (Session != XR_NULL_HANDLE)
 	{
 		if (!bActionsBound)
 		{
@@ -546,10 +551,7 @@ void FOpenXRInputPlugin::FOpenXRInput::Tick(float DeltaTime)
 		SyncInfo.countActiveActionSets = ActionSets.Num();
 		SyncInfo.activeActionSets = ActionSets.GetData();
 		XR_ENSURE(xrSyncActions(Session, &SyncInfo));
-	}
-
-	if (bActionsBound)
-	{
+	
 		XrSpace TrackingSpace = OpenXRHMD->GetTrackingSpace();
 		XrTime DisplayTime = OpenXRHMD->GetDisplayTime();
 		for (IOpenXRExtensionPlugin* Plugin : OpenXRHMD->GetExtensionPlugins())

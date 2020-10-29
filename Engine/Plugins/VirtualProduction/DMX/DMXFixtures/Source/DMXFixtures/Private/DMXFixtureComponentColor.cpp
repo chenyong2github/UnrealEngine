@@ -4,9 +4,9 @@
 #include "DMXFixtureComponentColor.h"
 
 UDMXFixtureComponentColor::UDMXFixtureComponentColor()
+	: CurrentTargetColorRef(nullptr)
 {
 	PrimaryComponentTick.bCanEverTick = false;
-	BitResolution = 255;
 	InitCells(1);
 }
 
@@ -14,7 +14,7 @@ UDMXFixtureComponentColor::UDMXFixtureComponentColor()
 // NB: Does not support interpolation
 void UDMXFixtureComponentColor::InitCells(int NCells)
 {
-	TargetColorArray.Init(FLinearColor(1, 1, 1, 1), NCells);
+	TargetColorArray.Init(FLinearColor(1.f, 1.f, 1.f, 0.f), NCells);
 	CurrentTargetColorRef = &TargetColorArray[0];
 }
 
@@ -46,29 +46,3 @@ void UDMXFixtureComponentColor::SetTargetColor(FLinearColor NewColor)
 	CurrentTargetColorRef->B = NewColor.B;
 	CurrentTargetColorRef->A = NewColor.A;
 }
-
-FLinearColor UDMXFixtureComponentColor::RemapColor(int R, int G, int B, int A)
-{
-	FLinearColor NewColor(float(R) / BitResolution, float(G) / BitResolution, float(B) / BitResolution, float(A) / BitResolution);
-	return NewColor;
-}
-
-// Set bit resolution based on DMX signal format mapping
-// assuming each channel uses the same bit resolution: checking only first one
-void UDMXFixtureComponentColor::SetBitResolution(TMap<FDMXAttributeName, EDMXFixtureSignalFormat> Map)
-{
-	EDMXFixtureSignalFormat* Format = Map.Find(ChannelName1);
-	if (Format != nullptr)
-	{
-		switch (*Format)
-		{
-			case(EDMXFixtureSignalFormat::E8Bit): BitResolution = 255; break;
-			case(EDMXFixtureSignalFormat::E16Bit): BitResolution = 65535; break;
-			case(EDMXFixtureSignalFormat::E24Bit): BitResolution = 16777215; break;
-			case(EDMXFixtureSignalFormat::E32Bit): BitResolution = 4294967295; break;
-			default: BitResolution = 255;
-		}
-	}
-}
-
-

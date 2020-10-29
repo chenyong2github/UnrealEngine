@@ -30,6 +30,7 @@
 #include "NiagaraSystemFactoryNew.h"
 #include "NiagaraComponent.h"
 #include "NiagaraSystemEditorData.h"
+#include "NiagaraScriptStatsViewModel.h"
 
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
@@ -52,6 +53,7 @@
 #include "Modules/ModuleManager.h"
 #include "Misc/FileHelper.h"
 #include "NiagaraMessageLogViewModel.h"
+#include "NiagaraScriptStatsViewModel.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "ViewModels/NiagaraParameterPanelViewModel.h"
 
@@ -74,6 +76,7 @@ const FName FNiagaraSystemToolkit::GeneratedCodeTabID(TEXT("NiagaraSystemEditor_
 const FName FNiagaraSystemToolkit::MessageLogTabID(TEXT("NiagaraSystemEditor_MessageLog"));
 const FName FNiagaraSystemToolkit::SystemOverviewTabID(TEXT("NiagaraSystemEditor_SystemOverview"));
 const FName FNiagaraSystemToolkit::ScratchPadTabID(TEXT("NiagaraSystemEditor_ScratchPad"));
+const FName FNiagaraSystemToolkit::ScriptStatsTabID(TEXT("NiagaraSystemEditor_ScriptStats"));
 IConsoleVariable* FNiagaraSystemToolkit::VmStatEnabledVar = IConsoleManager::Get().FindConsoleVariable(TEXT("vm.DetailedVMScriptStats"));
 IConsoleVariable* FNiagaraSystemToolkit::GpuStatEnabledVar = IConsoleManager::Get().FindConsoleVariable(TEXT("fx.NiagaraGpuProfilingEnabled"));
 
@@ -154,6 +157,10 @@ void FNiagaraSystemToolkit::RegisterTabSpawners(const TSharedRef<class FTabManag
 	InTabManager->RegisterTabSpawner(ScratchPadTabID, FOnSpawnTab::CreateSP(this, &FNiagaraSystemToolkit::SpawnTab_ScratchPad))
 		.SetDisplayName(LOCTEXT("ScratchPadTabName", "Scratch Pad"))
 		.SetGroup(WorkspaceMenuCategory.ToSharedRef());
+
+	InTabManager->RegisterTabSpawner(ScriptStatsTabID, FOnSpawnTab::CreateSP(this, &FNiagaraSystemToolkit::SpawnTab_ScriptStats))
+		.SetDisplayName(LOCTEXT("NiagaraScriptsStatsTab", "Script Stats"))
+		.SetGroup(WorkspaceMenuCategory.ToSharedRef());
 }
 
 void FNiagaraSystemToolkit::UnregisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)
@@ -173,6 +180,7 @@ void FNiagaraSystemToolkit::UnregisterTabSpawners(const TSharedRef<class FTabMan
 	InTabManager->UnregisterTabSpawner(GeneratedCodeTabID);
 	InTabManager->UnregisterTabSpawner(SystemOverviewTabID);
 	InTabManager->UnregisterTabSpawner(ScratchPadTabID);
+	InTabManager->UnregisterTabSpawner(ScriptStatsTabID);
 }
 
 
@@ -309,6 +317,8 @@ void FNiagaraSystemToolkit::InitializeInternal(const EToolkitMode::Type Mode, co
 {
 	NiagaraMessageLogViewModel = MakeShared<FNiagaraMessageLogViewModel>(GetNiagaraSystemMessageLogName(System), MessageLogGuid, NiagaraMessageLog);
 	ObjectSelectionForParameterMapView = MakeShared<FNiagaraObjectSelection>();
+	ScriptStats = MakeShared<FNiagaraScriptStatsViewModel>();
+	ScriptStats->Initialize(SystemViewModel);
 
 	SystemViewModel->OnEmitterHandleViewModelsChanged().AddSP(this, &FNiagaraSystemToolkit::RefreshParameters);
 	SystemViewModel->GetSelectionViewModel()->OnSystemIsSelectedChanged().AddSP(this, &FNiagaraSystemToolkit::OnSystemSelectionChanged);
@@ -373,6 +383,7 @@ void FNiagaraSystemToolkit::InitializeInternal(const EToolkitMode::Type Mode, co
 						->AddTab(CurveEditorTabID, ETabState::OpenedTab)
 						->AddTab(MessageLogTabID, ETabState::OpenedTab)
 						->AddTab(SequencerTabID, ETabState::OpenedTab)
+						->AddTab(ScriptStatsTabID, ETabState::ClosedTab)
 					)
 				)
 				->Split
@@ -752,6 +763,23 @@ TSharedRef<SDockTab> FNiagaraSystemToolkit::SpawnTab_ScratchPad(const FSpawnTabA
 		.Icon(FNiagaraEditorStyle::Get().GetBrush("NiagaraEditor.Scratch"))
 		[
 			FNiagaraEditorModule::Get().GetWidgetProvider()->CreateScriptScratchPad(*SystemViewModel->GetScriptScratchPadViewModel())
+		];
+
+	return SpawnedTab;
+}
+
+TSharedRef<SDockTab> FNiagaraSystemToolkit::SpawnTab_ScriptStats(const FSpawnTabArgs& Args)
+{
+	check(Args.GetTabId().TabType == ScriptStatsTabID);
+
+	TSharedRef<SDockTab> SpawnedTab = SNew(SDockTab)
+		.Label(LOCTEXT("NiagaraScriptStatsTitle", "Script Stats"))
+		[
+			SNew(SBox)
+			.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("ScriptStats")))
+			[
+				ScriptStats->GetWidget().ToSharedRef()
+			]
 		];
 
 	return SpawnedTab;

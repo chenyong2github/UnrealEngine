@@ -56,7 +56,7 @@ public:
 	UPROPERTY(Category = Terrain, EditAnywhere, BlueprintReadWrite)
 	TMap<FName, FWaterBodyWeightmapSettings> WaterWeightmapSettings;
 
-	UPROPERTY()
+	UPROPERTY(Transient)
 	UBillboardComponent* ActorIcon;
 #endif
 

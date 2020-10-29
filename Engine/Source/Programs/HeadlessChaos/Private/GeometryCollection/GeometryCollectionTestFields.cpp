@@ -47,7 +47,8 @@ namespace GeometryCollectionTest
 		FFieldContext Context{
 			IndexView,
 			SamplesView,
-			FFieldContext::UniquePointerMap()
+			FFieldContext::UniquePointerMap(), 
+			0.0
 		};
 
 		TArray<float> ResultsArray;
@@ -92,7 +93,8 @@ namespace GeometryCollectionTest
 		FFieldContext Context{
 			IndexView,
 			SamplesView,
-			FFieldContext::UniquePointerMap()
+			FFieldContext::UniquePointerMap(),
+			0.0
 		};
 
 		TArray<int32> ResultsArray;
@@ -138,7 +140,8 @@ namespace GeometryCollectionTest
 		FFieldContext Context{
 			IndexView,
 			SamplesView,
-			FFieldContext::UniquePointerMap()
+			FFieldContext::UniquePointerMap(),
+			0.0
 		};
 
 		TArray<float> ResultsArray;
@@ -189,7 +192,8 @@ namespace GeometryCollectionTest
 		FFieldContext Context{
 			IndexView,
 			SamplesView,
-			FFieldContext::UniquePointerMap()
+			FFieldContext::UniquePointerMap(),
+			0.0
 		};
 
 		TArray<float> ResultsArray;
@@ -234,7 +238,8 @@ namespace GeometryCollectionTest
 		FFieldContext Context{
 			IndexView,
 			SamplesView,
-			FFieldContext::UniquePointerMap()
+			FFieldContext::UniquePointerMap(),
+			0.0
 		};
 
 		TArray<FVector> ResultsArray;
@@ -276,7 +281,8 @@ namespace GeometryCollectionTest
 		FFieldContext Context{
 			IndexView,
 			SamplesView,
-			FFieldContext::UniquePointerMap()
+			FFieldContext::UniquePointerMap(),
+			0.0
 		};
 
 		TArray<FVector> ResultsArray;
@@ -336,7 +342,8 @@ namespace GeometryCollectionTest
 		FFieldContext Context{
 			IndexView,
 			SamplesView,
-			FFieldContext::UniquePointerMap()
+			FFieldContext::UniquePointerMap(),
+			0.0
 		};
 
 		TArray<FVector> ResultsArray;
@@ -407,7 +414,8 @@ namespace GeometryCollectionTest
 		FFieldContext Context{
 			IndexView,
 			SamplesView,
-			FFieldContext::UniquePointerMap()
+			FFieldContext::UniquePointerMap(),
+			0.0
 		};
 
 		TArray<FVector> ResultsArray;
@@ -479,7 +487,8 @@ namespace GeometryCollectionTest
 		FFieldContext Context{
 			IndexView,
 			SamplesView,
-			FFieldContext::UniquePointerMap()
+			FFieldContext::UniquePointerMap(),
+			0.0
 		};
 
 		TArray<FVector> ResultsArray;
@@ -551,7 +560,8 @@ namespace GeometryCollectionTest
 		FFieldContext Context{
 			IndexView,
 			SamplesView,
-			FFieldContext::UniquePointerMap()
+			FFieldContext::UniquePointerMap(),
+			0.0
 		};
 
 		TArray<FVector> ResultsArray;
@@ -622,7 +632,8 @@ namespace GeometryCollectionTest
 		FFieldContext Context{
 			IndexView,
 			SamplesView,
-			FFieldContext::UniquePointerMap()
+			FFieldContext::UniquePointerMap(),
+			0.0
 		};
 
 		TArray<FVector> ResultsArray;
@@ -694,7 +705,8 @@ namespace GeometryCollectionTest
 		FFieldContext Context{
 			IndexView,
 			SamplesView,
-			FFieldContext::UniquePointerMap()
+			FFieldContext::UniquePointerMap(),
+			0.0
 		};
 
 		TArray<FVector> ResultsArray;
@@ -757,9 +769,10 @@ namespace GeometryCollectionTest
 		FSumScalar * SumScalar = new FSumScalar(1.f, RadialFalloff, RadialFalloff2,EFieldOperationType::Field_Multiply);
 
 		FFieldContext Context{
-		IndexView,
-		SamplesView,
-		FFieldContext::UniquePointerMap()
+			IndexView,
+			SamplesView,
+			FFieldContext::UniquePointerMap(),
+			0.0
 		};
 
 		TArray<float> ResultsArray;
@@ -831,7 +844,8 @@ namespace GeometryCollectionTest
 		FFieldContext Context{
 			IndexView,
 			SamplesView,
-			FFieldContext::UniquePointerMap()
+			FFieldContext::UniquePointerMap(),
+			0.0
 		};
 
 		TArray<float> ResultsArray;
@@ -896,7 +910,8 @@ namespace GeometryCollectionTest
 		FFieldContext Context{
 			IndexView,
 			SamplesView,
-			FFieldContext::UniquePointerMap()
+			FFieldContext::UniquePointerMap(),
+			0.0
 		};
 
 		TArray<float> ResultsArray;
@@ -962,7 +977,8 @@ namespace GeometryCollectionTest
 		FFieldContext Context{
 			IndexView,
 			SamplesView,
-			FFieldContext::UniquePointerMap()
+			FFieldContext::UniquePointerMap(),
+			0.0
 		};
 
 		TArray<float> ResultsArray;

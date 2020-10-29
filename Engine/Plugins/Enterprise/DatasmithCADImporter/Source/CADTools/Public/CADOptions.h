@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "DatasmithUtils.h"
 #include "Math/Vector.h"
 #include "Templates/TypeHash.h"
 
@@ -12,14 +13,6 @@ namespace CADLibrary
 		StitchingNone = 0,
 		StitchingHeal,
 		StitchingSew,
-	};
-
-	enum class EModelCoordSystem : uint8
-	{
-		ZUp_LeftHanded,
-		ZUp_RightHanded,
-		YUp_LeftHanded,
-		YUp_RightHanded,
 	};
 
 	enum class EDisplayPreference : uint8
@@ -51,7 +44,7 @@ namespace CADLibrary
 		double MaxEdgeLength = 0.0;
 		double MaxNormalAngle = 20.0;
 		EStitchingTechnique StitchingTechnique = EStitchingTechnique::StitchingNone;
-		EModelCoordSystem ModelCoordSys = EModelCoordSystem::ZUp_RightHanded;
+		FDatasmithUtils::EModelCoordSystem ModelCoordSys = FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded;
 		EDisplayDataPropagationMode Propagation = EDisplayDataPropagationMode::TopDown;
 		EDisplayPreference DisplayPreference = EDisplayPreference::MaterialPrefered;
 		bool bScaleUVMap = true;

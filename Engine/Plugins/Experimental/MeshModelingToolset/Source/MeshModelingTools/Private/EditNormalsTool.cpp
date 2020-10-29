@@ -101,10 +101,11 @@ void UEditNormalsTool::Setup()
 	}
 
 	BasicProperties = NewObject<UEditNormalsToolProperties>(this, TEXT("Mesh Normals Settings"));
-	AdvancedProperties = NewObject<UEditNormalsAdvancedProperties>(this, TEXT("Advanced Settings"));
-
-	// initialize our properties
+	BasicProperties->RestoreProperties(this);
 	AddToolPropertySource(BasicProperties);
+
+	AdvancedProperties = NewObject<UEditNormalsAdvancedProperties>(this, TEXT("Advanced Settings"));
+	AdvancedProperties->RestoreProperties(this);
 	AddToolPropertySource(AdvancedProperties);
 
 	// initialize the PreviewMesh+BackgroundCompute object
@@ -166,6 +167,9 @@ void UEditNormalsTool::UpdateNumPreviews()
 
 void UEditNormalsTool::Shutdown(EToolShutdownType ShutdownType)
 {
+	BasicProperties->SaveProperties(this);
+	AdvancedProperties->SaveProperties(this);
+
 	// Restore (unhide) the source meshes
 	for (TUniquePtr<FPrimitiveComponentTarget>& ComponentTarget : ComponentTargets)
 	{

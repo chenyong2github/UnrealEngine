@@ -1117,7 +1117,6 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& 
 		PrepareRayTracingShadows(View, RayGenShaders);
 		PrepareRayTracingAmbientOcclusion(View, RayGenShaders);
 		PrepareRayTracingSkyLight(View, RayGenShaders);
-		PrepareRayTracingRectLight(View, RayGenShaders);
 		PrepareRayTracingGlobalIllumination(View, RayGenShaders);
 		PrepareRayTracingTranslucency(View, RayGenShaders);
 		PrepareRayTracingDebug(View, RayGenShaders);
@@ -1732,7 +1731,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 		// Interpolation needs to happen after the skin cache run as there is a dependency 
 		// on the skin cache output.
-		const bool bRunHairStrands = HairStrandsBookmarkParameters.bHasElements && (Views.Num() > 0) && !ViewFamily.bWorldIsPaused;
+		const bool bRunHairStrands = HairStrandsBookmarkParameters.bHasElements && (Views.Num() > 0);
 		if (bRunHairStrands)
 		{
 			if (HairStrandsBookmarkParameters.bStrandsGeometryEnabled)
@@ -2341,6 +2340,8 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		check(HairDatas);
 		RenderHairBasePass(GraphBuilder, Scene,  SceneContext, Views, HairDatasStorage);
 
+		// Disable temporarly HZB update with hair data. This is not mandatory.
+		#if 0
 		const FSceneTextureParameters SceneTextureParameters = GetSceneTextureParameters(GraphBuilder, SceneTextures);
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 		{
@@ -2354,6 +2355,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 				/* OutClosestHZBTexture = */ nullptr,
 				/* OutFurthestHZBTexture = */ nullptr);
 		}
+		#endif
 	}
 
 	// Rebuild scene textures to include velocity, custom depth, and SSAO.
@@ -2374,7 +2376,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_Lighting);
 
 		FRDGTextureRef DynamicBentNormalAOTexture = nullptr;
-		RenderDiffuseIndirectAndAmbientOcclusion(GraphBuilder, SceneTextures, SceneColorTexture.Target, /* bIsVisualizePass = */ false);
+		RenderDiffuseIndirectAndAmbientOcclusion(GraphBuilder, SceneTextures, SceneColorTexture.Target, HairDatas, /* bIsVisualizePass = */ false);
 
 		// These modulate the scenecolor output from the basepass, which is assumed to be indirect lighting
 		if (SceneContext.IsStaticLightingAllowed())
@@ -2729,7 +2731,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	}
 
 	RenderLumenSceneVisualization(GraphBuilder);
-	RenderDiffuseIndirectAndAmbientOcclusion(GraphBuilder, SceneTextures, SceneColorTexture.Target, /* bIsVisualizePass = */ true);
+	RenderDiffuseIndirectAndAmbientOcclusion(GraphBuilder, SceneTextures, SceneColorTexture.Target, HairDatas, /* bIsVisualizePass = */ true);
 
 	if (ViewFamily.EngineShowFlags.StationaryLightOverlap)
 	{

@@ -205,9 +205,13 @@ UAssetRegistryImpl::UAssetRegistryImpl(const FObjectInitializer& ObjectInitializ
 				if (IFileManager::Get().DirectoryExists(*ContentFolder))
 				{
 					FDelegateHandle NewHandle;
-					DirectoryWatcher->RegisterDirectoryChangedCallback_Handle(ContentFolder, IDirectoryWatcher::FDirectoryChanged::CreateUObject(this, &UAssetRegistryImpl::OnDirectoryChanged),
-																			  NewHandle, IDirectoryWatcher::WatchOptions::IncludeDirectoryChanges);
-					OnDirectoryChangedDelegateHandles.Add(ContentFolder, NewHandle);
+					DirectoryWatcher->RegisterDirectoryChangedCallback_Handle(
+						ContentFolder,
+						IDirectoryWatcher::FDirectoryChanged::CreateUObject(this, &UAssetRegistryImpl::OnDirectoryChanged),
+						NewHandle,
+						IDirectoryWatcher::WatchOptions::IncludeDirectoryChanges);
+
+					OnDirectoryChangedDelegateHandles.Add(RootPath, NewHandle);
 				}
 			}
 		}
@@ -569,8 +573,7 @@ UAssetRegistryImpl::~UAssetRegistryImpl()
 				{
 					const FString& RootPath = *RootPathIt;
 					const FString& ContentFolder = FPackageName::LongPackageNameToFilename(RootPath);
-					DirectoryWatcher->UnregisterDirectoryChangedCallback_Handle(ContentFolder, OnDirectoryChangedDelegateHandles.FindRef(ContentFolder));
-					OnDirectoryChangedDelegateHandles.Remove(ContentFolder);
+					DirectoryWatcher->UnregisterDirectoryChangedCallback_Handle(ContentFolder, OnDirectoryChangedDelegateHandles.FindRef(RootPath));
 				}
 			}
 		}
@@ -2915,18 +2918,22 @@ void UAssetRegistryImpl::OnContentPathMounted(const FString& InAssetPath, const 
 	AddSubContentBlacklist(InAssetPath);
 
 	// Sanitize
-	FString AssetPath = InAssetPath;
-	if (AssetPath.EndsWith(TEXT("/")) == false)
+	FString AssetPathWithTrailingSlash;
+	if (!InAssetPath.EndsWith(TEXT("/"), ESearchCase::CaseSensitive))
 	{
 		// We actually want a trailing slash here so the path can be properly converted while searching for assets
-		AssetPath = AssetPath + TEXT("/");
+		AssetPathWithTrailingSlash = InAssetPath + TEXT("/");
+	}
+	else
+	{
+		AssetPathWithTrailingSlash = InAssetPath;
 	}
 
 	// Content roots always exist
-	AddPath(AssetPath);
+	AddPath(AssetPathWithTrailingSlash);
 
 	// Add this to our list of root paths to process
-	AddPathToSearch(AssetPath);
+	AddPathToSearch(AssetPathWithTrailingSlash);
 
 	// Listen for directory changes in this content path
 #if WITH_EDITOR
@@ -2939,8 +2946,18 @@ void UAssetRegistryImpl::OnContentPathMounted(const FString& InAssetPath, const 
 		{
 			// If the path doesn't exist on disk, make it so the watcher will work.
 			IFileManager::Get().MakeDirectory(*FileSystemPath);
-			DirectoryWatcher->RegisterDirectoryChangedCallback_Handle(FileSystemPath, IDirectoryWatcher::FDirectoryChanged::CreateUObject(this, &UAssetRegistryImpl::OnDirectoryChanged), 
-																	  OnContentPathMountedOnDirectoryChangedDelegateHandle, IDirectoryWatcher::WatchOptions::IncludeDirectoryChanges);
+
+			if (ensure(!OnDirectoryChangedDelegateHandles.Contains(AssetPathWithTrailingSlash)))
+			{
+				FDelegateHandle NewHandle;
+				DirectoryWatcher->RegisterDirectoryChangedCallback_Handle(
+					FileSystemPath, 
+					IDirectoryWatcher::FDirectoryChanged::CreateUObject(this, &UAssetRegistryImpl::OnDirectoryChanged),
+					NewHandle, 
+					IDirectoryWatcher::WatchOptions::IncludeDirectoryChanges);
+
+				OnDirectoryChangedDelegateHandles.Add(AssetPathWithTrailingSlash, NewHandle);
+			}
 		}
 	}
 #endif // WITH_EDITOR
@@ -2950,11 +2967,11 @@ void UAssetRegistryImpl::OnContentPathMounted(const FString& InAssetPath, const 
 void UAssetRegistryImpl::OnContentPathDismounted(const FString& InAssetPath, const FString& FileSystemPath)
 {
 	// Sanitize
-	FString AssetPath = InAssetPath;
-	if (AssetPath.EndsWith(TEXT("/"), ESearchCase::CaseSensitive))
+	FString AssetPathNoTrailingSlash = InAssetPath;
+	if (AssetPathNoTrailingSlash.EndsWith(TEXT("/"), ESearchCase::CaseSensitive))
 	{
 		// We don't want a trailing slash here as it could interfere with RemoveAssetPath
-		AssetPath.LeftChopInline(1, false);
+		AssetPathNoTrailingSlash.LeftChopInline(1, false);
 	}
 
 	// Remove all cached assets found at this location
@@ -2962,8 +2979,8 @@ void UAssetRegistryImpl::OnContentPathDismounted(const FString& InAssetPath, con
 		TArray<FAssetData*> AllAssetDataToRemove;
 		TArray<FString> PathList;
 		const bool bRecurse = true;
-		GetSubPaths(AssetPath, PathList, bRecurse);
-		PathList.Add(AssetPath);
+		GetSubPaths(AssetPathNoTrailingSlash, PathList, bRecurse);
+		PathList.Add(AssetPathNoTrailingSlash);
 		for (const FString& Path : PathList)
 		{
 			TArray<FAssetData*>* AssetsInPath = State.CachedAssetsByPath.Find(FName(*Path));
@@ -2982,7 +2999,7 @@ void UAssetRegistryImpl::OnContentPathDismounted(const FString& InAssetPath, con
 	// Remove the root path
 	{
 		const bool bEvenIfAssetsStillExist = true;
-		RemoveAssetPath(FName(*AssetPath), bEvenIfAssetsStillExist);
+		RemoveAssetPath(FName(*AssetPathNoTrailingSlash), bEvenIfAssetsStillExist);
 	}
 
 	// Stop listening for directory changes in this content path
@@ -2994,7 +3011,22 @@ void UAssetRegistryImpl::OnContentPathDismounted(const FString& InAssetPath, con
 		IDirectoryWatcher* DirectoryWatcher = DirectoryWatcherModule.Get();
 		if (DirectoryWatcher)
 		{
-			DirectoryWatcher->UnregisterDirectoryChangedCallback_Handle(FileSystemPath, OnContentPathMountedOnDirectoryChangedDelegateHandle);
+			// Make sure OnDirectoryChangedDelegateHandles key is symmetrical with the one used in OnContentPathMounted
+			FString AssetPathWithTrailingSlash;
+			if (!InAssetPath.EndsWith(TEXT("/"), ESearchCase::CaseSensitive))
+			{
+				AssetPathWithTrailingSlash = InAssetPath + TEXT("/");
+			}
+			else
+			{
+				AssetPathWithTrailingSlash = InAssetPath;
+			}
+
+			FDelegateHandle DirectoryChangedHandle;
+			if (ensure(OnDirectoryChangedDelegateHandles.RemoveAndCopyValue(AssetPathWithTrailingSlash, DirectoryChangedHandle)))
+			{
+				DirectoryWatcher->UnregisterDirectoryChangedCallback_Handle(FileSystemPath, DirectoryChangedHandle);
+			}
 		}
 	}
 #endif // WITH_EDITOR

@@ -139,6 +139,10 @@ void ULODSyncComponent::InitializeSyncComponents()
 			}
 		}
 	}
+
+	// after initialize we update LOD
+	// so that any initialization can happen with the new LOD
+	UpdateLOD();
 }
 
 void ULODSyncComponent::RefreshSyncComponents()
@@ -167,51 +171,69 @@ void ULODSyncComponent::UninitializeSyncComponents()
 	ResetComponentList(SubComponents);
 }
 
-void ULODSyncComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+void ULODSyncComponent::UpdateLOD()
 {
-	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
-
 	// update latest LOD
 	// this should tick first and it will set forced LOD
 	// individual component will update it correctly
 	int32 CurrentWorkingLOD = 0xff;
-	if (ForcedLOD >= 0 && ForcedLOD < CurrentNumLODs)
+	// we want to ensure we have a valid set of the driving components
+	if (DriveComponents.Num() > 0)
 	{
-		CurrentWorkingLOD = ForcedLOD;
-	}
-	else
-	{
-		for (UPrimitiveComponent* Component : DriveComponents)
+		// it seems we have a situation where components becomes nullptr between registration but has the array entry
+		// so we ensure this is set before we set the data. 
+		bool bHaveValidSetting = false;
+		if (ForcedLOD >= 0 && ForcedLOD < CurrentNumLODs)
 		{
-			if (Component)
+			CurrentWorkingLOD = ForcedLOD;
+			bHaveValidSetting = true;
+			UE_LOG(LogLODSync, Verbose, TEXT("LOD Sync : Using ForcedLOD [%d]"), ForcedLOD);
+		}
+		else
+		{
+			for (UPrimitiveComponent* Component : DriveComponents)
 			{
-				ILODSyncInterface* LODInterface = CastChecked<ILODSyncInterface>(Component);
-				const int32 DesiredSyncLOD = LODInterface->GetDesiredSyncLOD();
-
-				if (DesiredSyncLOD >= 0)
+				if (Component)
 				{
-					const int32 DesiredLOD = GetSyncMappingLOD(Component->GetFName(), DesiredSyncLOD);
-					UE_LOG(LogLODSync, Verbose, TEXT("LOD Sync Drivers : %s - Source LOD [%d] RemappedLOD[%d]"), *GetNameSafe(Component), DesiredSyncLOD, DesiredLOD);
-					// we're looking for lowest LOD (highest fidelity)
-					CurrentWorkingLOD = FMath::Min(CurrentWorkingLOD, DesiredLOD);
+					ILODSyncInterface* LODInterface = CastChecked<ILODSyncInterface>(Component);
+					const int32 DesiredSyncLOD = LODInterface->GetDesiredSyncLOD();
+
+					if (DesiredSyncLOD >= 0)
+					{
+						const int32 DesiredLOD = GetSyncMappingLOD(Component->GetFName(), DesiredSyncLOD);
+						UE_LOG(LogLODSync, Verbose, TEXT("LOD Sync Drivers : %s - Source LOD [%d] RemappedLOD[%d]"), *GetNameSafe(Component), DesiredSyncLOD, DesiredLOD);
+						// we're looking for lowest LOD (highest fidelity)
+						CurrentWorkingLOD = FMath::Min(CurrentWorkingLOD, DesiredLOD);
+						bHaveValidSetting = true;
+					}
+				}
+			}
+		}
+
+		if (bHaveValidSetting)
+		{
+			// ensure current WorkingLOD is with in the range
+			CurrentWorkingLOD = FMath::Clamp(CurrentWorkingLOD, 0, CurrentNumLODs - 1);
+			UE_LOG(LogLODSync, Verbose, TEXT("LOD Sync : Current LOD (%d)"), CurrentWorkingLOD);
+			for (UPrimitiveComponent* Component : SubComponents)
+			{
+				if (Component)
+				{
+					ILODSyncInterface* LODInterface = Cast<ILODSyncInterface>(Component);
+					const int32 NewLOD = GetCustomMappingLOD(Component->GetFName(), CurrentWorkingLOD);
+					UE_LOG(LogLODSync, Verbose, TEXT("LOD Sync Setter : %s - New LOD [%d]"), *GetNameSafe(Component), NewLOD);
+					LODInterface->SetSyncLOD(NewLOD);
 				}
 			}
 		}
 	}
+}
 
-	// ensure current WorkingLOD is with in the range
-	CurrentWorkingLOD = FMath::Clamp(CurrentWorkingLOD, 0, CurrentNumLODs);
-	UE_LOG(LogLODSync, Verbose, TEXT("LOD Sync : Final LOD (%d)"), CurrentWorkingLOD);
-	for (UPrimitiveComponent* Component : SubComponents)
-	{
-		if (Component)
-		{
-			ILODSyncInterface* LODInterface = Cast<ILODSyncInterface>(Component);
-			const int32 NewLOD = GetCustomMappingLOD(Component->GetFName(), CurrentWorkingLOD);
-			UE_LOG(LogLODSync, Verbose, TEXT("LOD Sync Setter : %s - New LOD [%d]"), *GetNameSafe(Component), NewLOD);
-			LODInterface->SetSyncLOD(NewLOD);
-		}
-	}
+void ULODSyncComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+{
+	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+
+	UpdateLOD();
 }
 
 int32 ULODSyncComponent::GetCustomMappingLOD(const FName& ComponentName, int32 CurrentWorkingLOD) const
@@ -246,9 +268,15 @@ FString ULODSyncComponent::GetLODSyncDebugText() const
 		{
 			ILODSyncInterface* LODInterface = CastChecked<ILODSyncInterface>(Component);
 			const int32 CurrentSyncLOD = LODInterface->GetCurrentSyncLOD();
-			if (CurrentSyncLOD >= 0)
+			const int32 DesiredSyncLOD = LODInterface->GetDesiredSyncLOD();
+
+			if (DesiredSyncLOD >= 0)
 			{
-				OutString += FString::Printf(TEXT("%s - %d\n"), *(Component->GetFName().ToString()), CurrentSyncLOD);
+				OutString += FString::Printf(TEXT("%s : %d (%d)\n"), *(Component->GetFName().ToString()), CurrentSyncLOD, DesiredSyncLOD);
+			}
+			else
+			{
+				OutString += FString::Printf(TEXT("%s : %d\n"), *(Component->GetFName().ToString()), CurrentSyncLOD);
 			}
 		}
 	}

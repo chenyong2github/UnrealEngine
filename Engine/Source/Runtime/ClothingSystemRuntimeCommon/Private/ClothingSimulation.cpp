@@ -7,6 +7,11 @@
 //==============================================================================
 // FClothingSimulationContextCommon
 //==============================================================================
+DEFINE_STAT(STAT_ClothComputeNormals);
+DEFINE_STAT(STAT_ClothInternalSolve);
+DEFINE_STAT(STAT_ClothUpdateCollisions);
+DEFINE_STAT(STAT_ClothSkinPhysMesh);
+DEFINE_STAT(STAT_ClothFillContext);
 
 static TAutoConsoleVariable<float> GClothMaxDeltaTimeTeleportMultiplier(
 	TEXT("p.Cloth.MaxDeltaTimeTeleportMultiplier"),
@@ -18,6 +23,7 @@ FClothingSimulationContextCommon::FClothingSimulationContextCommon()
 	: ComponentToWorld(FTransform::Identity)
 	, WorldGravity(FVector::ZeroVector)
 	, WindVelocity(FVector::ZeroVector)
+	, WindAdaption(0.f)
 	, DeltaSeconds(0.f)
 	, TeleportMode(EClothingTeleportMode::None)
 	, MaxDistanceScale(1.f)
@@ -29,6 +35,9 @@ FClothingSimulationContextCommon::~FClothingSimulationContextCommon()
 
 void FClothingSimulationContextCommon::Fill(const USkeletalMeshComponent* InComponent, float InDeltaSeconds, float InMaxPhysicsDelta)
 {
+	SCOPE_CYCLE_COUNTER(STAT_ClothFillContext);
+	LLM_SCOPE(ELLMTag::SkeletalMesh);
+
 	check(InComponent);
 	FillBoneTransforms(InComponent);
 	FillRefToLocals(InComponent);

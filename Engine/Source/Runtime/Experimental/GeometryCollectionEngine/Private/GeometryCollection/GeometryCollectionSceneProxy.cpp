@@ -9,6 +9,7 @@
 #include "Rendering/NaniteResources.h"
 #include "GeometryCollection/GeometryCollectionComponent.h"
 #include "GeometryCollection/GeometryCollectionAlgo.h"
+#include "RHIDefinitions.h"
 #if GEOMETRYCOLLECTION_EDITOR_SELECTION
 #include "GeometryCollection/GeometryCollectionHitProxy.h"
 #endif
@@ -43,7 +44,7 @@ static TAutoConsoleVariable<int32> CVarParallelGeometryCollectionBatchSize(
 );
 
 int32 GGeometryCollectionTripleBufferUploads = 1;
-TAutoConsoleVariable<int32> CVarGeometryCollectionTripleBufferUploads(
+FAutoConsoleVariableRef CVarGeometryCollectionTripleBufferUploads(
 	TEXT("r.GeometryCollectionTripleBufferUploads"),
 	GGeometryCollectionTripleBufferUploads,
 	TEXT("Whether to triple buffer geometry collection uploads, which allows Lock_NoOverwrite uploads which are much faster on the GPU with large amounts of data."),
@@ -59,6 +60,7 @@ FGeometryCollectionSceneProxy::FGeometryCollectionSceneProxy(UGeometryCollection
 	, NumIndices(0)
 	, VertexFactory(GetScene().GetFeatureLevel())
 	, bSupportsManualVertexFetch(VertexFactory.SupportsManualVertexFetch(GetScene().GetFeatureLevel()))
+	, bSupportsTripleBufferVertexUpload(!IsMetalPlatform(GetScene().GetShaderPlatform()) && !IsVulkanPlatform(GetScene().GetShaderPlatform()))
 #if GEOMETRYCOLLECTION_EDITOR_SELECTION
 	, SubSections()
 	, SubSectionHitProxies()
@@ -477,7 +479,7 @@ void FGeometryCollectionSceneProxy::SetDynamicData_RenderThread(FGeometryCollect
 
 		if (bSupportsManualVertexFetch)
 		{
-			const bool bLocalGeometryCollectionTripleBufferUploads = (GGeometryCollectionTripleBufferUploads != 0);
+			const bool bLocalGeometryCollectionTripleBufferUploads = (GGeometryCollectionTripleBufferUploads != 0) && bSupportsTripleBufferVertexUpload;
 
 			if (bLocalGeometryCollectionTripleBufferUploads && TransformBuffers.Num() == 1)
 			{

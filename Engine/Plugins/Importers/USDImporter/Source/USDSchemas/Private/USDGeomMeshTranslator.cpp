@@ -439,6 +439,8 @@ namespace UsdGeomMeshTranslatorImpl
 				*StaticMeshDescription = MoveTemp( MeshDescription );
 			}
 
+			StaticMesh->SetLightingGuid();
+
 			Context.AssetsCache.Add( AllLODHash.ToString() ) = StaticMesh;
 		}
 		else

@@ -14,14 +14,36 @@
 	"IsBetaVersion": true,
 	"Installed": false,
 	"EnabledByDefault": false,
-	"Modules":
-	[
+	"Modules": [
+		{
+			"Name": "VCamCore",
+			"Type": "Runtime",
+			"LoadingPhase": "Default",
+			"BlacklistPlatforms": [
+				"TVOS"
+			]
+		},
+		{
+			"Name": "VCamCoreEditor",
+			"Type": "Editor",
+			"LoadingPhase": "Default",
+			"BlacklistPlatforms": [
+				"TVOS"
+			]
+		},
+		{
+			"Name": "VCamInput",
+			"Type": "Runtime",
+			"LoadingPhase": "Default",
+			"BlacklistPlatforms": [
+				"TVOS"
+			]
+		},
 		{
 			"Name": "VirtualCamera",
 			"Type": "UncookedOnly",
 			"LoadingPhase": "PostDefault",
-			"WhitelistPlatforms" :
-			[
+			"WhitelistPlatforms": [
 				"Win64",
 				"Win32",
 				"Linux",
@@ -40,6 +62,14 @@
 			"Enabled": true
 		},
 		{
+			"Name": "MediaFrameworkUtilities",
+			"Enabled": true
+		},
+		{
+			"Name": "LiveLink",
+			"Enabled": true
+		},
+		{
 			"Name": "RemoteSession",
 			"Enabled": true
 		},
@@ -53,10 +83,6 @@
 		},
 		{
 			"Name": "VirtualProductionUtilities",
-			"Enabled": true
-		},
-		{
-			"Name": "VCamCore",
 			"Enabled": true
 		}
 	]

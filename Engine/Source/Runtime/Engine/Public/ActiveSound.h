@@ -459,6 +459,12 @@ public:
 	/** Whether or not the active sound is stopping. */
 	uint8 bIsStopping:1;
 
+	/** Whether or not we are overriding the output to bus option on sounds. */
+	uint8 bEnableOutputToBusOnlyOverride:1;
+
+	/** What the value of the override is. */
+	uint8 bOutputToBusOnlyOverride:1;
+
 	uint8 UserIndex;
 
 	/** Type of fade out currently being applied */
@@ -549,6 +555,12 @@ public:
 	TArray<uint8> SoundNodeData;
 
 	TArray<FAudioComponentParam> InstanceParameters;
+
+	// Whether or not there are Source Bus Sends that have not been sent to the render thread
+	bool bHasNewBusSends;
+	// Bus send(s) that have not yet been sent to the render thread
+	TArray< TTuple<EBusSendType, FSoundSourceBusSendInfo> > newBusSends;
+
 
 #if ENABLE_AUDIO_DEBUG
 	FColor DebugColor;
@@ -645,6 +657,21 @@ public:
 
 	/** Gets the sound source bus sends to use for this sound instance. */
 	void GetBusSends(EBusSendType BusSendType, TArray<FSoundSourceBusSendInfo>& OutSends) const;
+
+	/**
+	 * Checks whether there are Source Bus Sends that have not yet been updated
+	 * @return true when there are new Source Bus Sends, false otherwise
+	 */
+	bool HasNewBusSends() const;
+
+	/** Lets the audio thread know if additional Source Bus Send information has been added 
+	*
+	*  @return the array of Sound Bus Sends that have not yet been added to the render thread
+	*/
+	TArray< TTuple<EBusSendType, FSoundSourceBusSendInfo> > const & GetNewBusSends() const;
+
+	/** Resets internal data of new Source Bus Sends */
+	void ResetNewBusSends();
 
 	/* Determines which of the provided listeners is the closest to the sound */
 	int32 FindClosestListener( const TArray<struct FListener>& InListeners ) const;

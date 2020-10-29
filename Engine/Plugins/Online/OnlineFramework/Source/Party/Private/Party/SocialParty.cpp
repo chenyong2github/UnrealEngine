@@ -364,7 +364,7 @@ bool USocialParty::CanPromoteMember(const UPartyMember& PartyMember) const
 
 bool USocialParty::CanPromoteMemberInternal(const UPartyMember& PartyMember) const
 {
-	return IsLocalPlayerPartyLeader() && bIsMemberPromotionPossible && !PartyMember.IsPartyLeader();
+	return IsLocalPlayerPartyLeader() && bIsMemberPromotionPossible && !PartyMember.IsPartyLeader() && !PartyMember.IsLocalPlayer();
 }
 
 bool USocialParty::TryPromoteMember(const UPartyMember& PartyMember)
@@ -819,7 +819,7 @@ void USocialParty::HandleJoinabilityQueryReceived(const FUniqueNetId& LocalUserI
 		UE_LOG(LogParty, VeryVerbose, TEXT("[%s] Responding to approval request for %s with %s"), *PartyId.ToString(), *PrimaryJoiningUser->GetUserId()->ToString(), JoinabilityInfo.CanJoin() ? TEXT("approved") : TEXT("denied"));
 
 		const IOnlinePartyPtr PartyInterface = Online::GetPartyInterfaceChecked(GetWorld());
-		PartyInterface->RespondToQueryJoinability(LocalUserId, PartyId, *PrimaryJoiningUser->GetUserId(), JoinabilityInfo.CanJoin(), JoinabilityInfo.GetDenialReason());		
+		PartyInterface->RespondToQueryJoinability(LocalUserId, PartyId, *PrimaryJoiningUser->GetUserId(), JoinabilityInfo.CanJoin(), JoinabilityInfo.GetDenialReason(), FOnlinePartyDataConstPtr());		
 	}
 }
 

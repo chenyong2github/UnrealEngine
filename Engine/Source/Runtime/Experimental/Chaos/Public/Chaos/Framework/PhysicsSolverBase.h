@@ -20,11 +20,12 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FSolverPostAdvance, Chaos::FReal);
 
 namespace Chaos
 {
-
-	extern CHAOS_API int32 UseAsyncResults;
-
 	class FPhysicsSolverBase;
 	struct FPendingSpatialDataQueue;
+	class FPhysicsSceneGuard;
+
+	extern CHAOS_API int32 UseAsyncInterpolation;
+	extern CHAOS_API int32 ForceDisableAsyncPhysics;
 
 	/**
 	 * Task responsible for processing the command buffer of a single solver and advancing it by
@@ -117,10 +118,10 @@ namespace Chaos
 
 		/** Creates a new sim callback object of the type given. Caller expected to free using FreeSimCallbackObject_External*/
 		template <typename TSimCallbackObjectType>
-		TSimCallbackObjectType* CreateAndRegisterSimCallbackObject_External()
+		TSimCallbackObjectType* CreateAndRegisterSimCallbackObject_External(bool bContactModification = false)
 		{
 			auto NewCallbackObject = new TSimCallbackObjectType();
-			RegisterSimCallbackObject_External(NewCallbackObject);
+			RegisterSimCallbackObject_External(NewCallbackObject, bContactModification);
 			return NewCallbackObject;
 		}
 
@@ -144,6 +145,24 @@ namespace Chaos
 			//TODO: remove this check. Need to rename with _External
 			check(IsInGameThread());
 			RegisterSimOneShotCallback(Func);
+		}
+
+		//Used as helper for GT to go from unique idx back to gt particle
+		//If GT deletes a particle, this function will return null (that's a good thing when consuming async outputs as GT may have already deleted the particle we care about)
+		//Note: if the physics solver has been advanced after the particle was freed on GT, the index may have been freed and reused.
+		//In this case instead of getting a nullptr you will get an unrelated (wrong) GT particle
+		//Because of this we keep the index alive for as long as the async callback can lag behind. This way as long as you immediately consume the output, you will always be sure the unique index was not released.
+		//Practically the flow should always be like this:
+		//advance the solver and trigger callbacks. Callbacks write to outputs. Consume the outputs on GT and use this function _before_ advancing solver again
+		TGeometryParticle<FReal, 3>* UniqueIdxToGTParticle_External(const FUniqueIdx& UniqueIdx) const
+		{
+			TGeometryParticle<FReal, 3>* Result = nullptr;
+			if (ensure(UniqueIdx.Idx < UniqueIdxToGTParticles.Num()))	//asking for particle on index that has never been allocated
+			{
+				Result = UniqueIdxToGTParticles[UniqueIdx.Idx];
+			}
+
+			return Result;
 		}
 
 		//Ensures that any running tasks finish.
@@ -192,6 +211,16 @@ namespace Chaos
 			}
 		}
 
+		void EnableAsyncMode(FReal FixedDt)
+		{
+			AsyncDt = FixedDt;
+		}
+
+		void DisableAsyncMode()
+		{
+			AsyncDt = -1;
+		}
+
 		FChaosMarshallingManager& GetMarshallingManager() { return MarshallingManager; }
 
 		EThreadingModeTemp GetThreadingMode() const
@@ -202,11 +231,12 @@ namespace Chaos
 		FGraphEventRef AdvanceAndDispatch_External(FReal InDt)
 		{
 			const FReal DtWithPause = bPaused_External ? 0.0f : InDt;
+			const FReal InternalDt = UseAsyncInterpolation && IsUsingAsyncResults() ? AsyncDt : DtWithPause;
 
 			//make sure any GT state is pushed into necessary buffer
 			PushPhysicsState(DtWithPause);
 
-			TArray<FPushPhysicsData*> PushData = MarshallingManager.StepInternalTime_External(DtWithPause);
+			TArray<FPushPhysicsData*> PushData = MarshallingManager.StepInternalTime_External(InternalDt, IsUsingAsyncResults());
 
 			FGraphEventRef BlockingTasks = PendingTasks;
 
@@ -216,7 +246,7 @@ namespace Chaos
 				if(ThreadingMode == EThreadingModeTemp::SingleThread)
 				{
 					ensure(!PendingTasks || PendingTasks->IsComplete());	//if mode changed we should have already blocked
-					FPhysicsSolverAdvanceTask ImmediateTask(*this,MoveTemp(CommandQueue),MoveTemp(PushData), DtWithPause, MarshallingManager.GetExternalTimestampConsumed_External());
+					FPhysicsSolverAdvanceTask ImmediateTask(*this,MoveTemp(CommandQueue),MoveTemp(PushData), InternalDt, MarshallingManager.GetExternalTimestampConsumed_External());
 #if !UE_BUILD_SHIPPING
 					if (bStealAdvanceTasksForTesting)
 					{
@@ -238,9 +268,8 @@ namespace Chaos
 						Prereqs.Add(PendingTasks);
 					}
 
-					PendingTasks = TGraphTask<FPhysicsSolverAdvanceTask>::CreateTask(&Prereqs).ConstructAndDispatchWhenReady(*this,MoveTemp(CommandQueue), MoveTemp(PushData), InDt, MarshallingManager.GetExternalTimestampConsumed_External());
-					const bool bAsyncResults = !!UseAsyncResults;
-					if(!bAsyncResults)
+					PendingTasks = TGraphTask<FPhysicsSolverAdvanceTask>::CreateTask(&Prereqs).ConstructAndDispatchWhenReady(*this,MoveTemp(CommandQueue), MoveTemp(PushData), InternalDt, MarshallingManager.GetExternalTimestampConsumed_External());
+					if(IsUsingAsyncResults() == false)
 					{
 						BlockingTasks = PendingTasks;	//block right away
 					}
@@ -269,28 +298,50 @@ namespace Chaos
 				if (!Callback->bPendingDelete)
 				{
 					Callback->PreSimulate_Internal(SimTime, Dt);
-					
-					//todo: split out for different sim phases, also wait for resim
-					//we do this here instead of in object because later on when we split data out, we'll need to steal the data
-					for (FSimCallbackInput* Input : Callback->IntervalData)
-					{
-						Callback->FreeInputData_Internal(Input);
-					}
-					Callback->IntervalData.Reset();
+				}
+			}
+		}
 
-					if (Callback->bRunOnceMore)
-					{
-						Callback->bPendingDelete = true;
-					}
+		void FreeCallbacksData_Internal(float SimTime, float DeltaTime)
+		{
+			//final post solve call. TODO: move this out of here, just putting it here for now because we're forced to call callbacks manually during destroy
+			for(ISimCallbackObject* Callback : ContactModifiers)
+			{
+				if (!Callback->bPendingDelete)
+				{
+					Callback->PostSimulate_Internal(SimTime, DeltaTime);
 				}
 			}
 
-			//todo: need to split up for different phases of sim (always free when entire sim phase is finished)
+			for (ISimCallbackObject* Callback : SimCallbackObjects)
+			{
+				if (Callback->bRunOnceMore)
+				{
+					Callback->bPendingDelete = true;
+				}
+
+				for (FSimCallbackInput* Input : Callback->IntervalData)
+				{
+					Callback->FreeInputData_Internal(Input);
+				}
+				Callback->IntervalData.Reset();
+			}
+
 			//typically one shot callbacks are added to end of array, so removing in reverse order should be O(1)
 			//every so often a persistent callback is unregistered, so need to consider all callbacks
 			//might be possible to improve this, but number of callbacks is expected to be small
 			//one shot callbacks expect a FIFO so can't use RemoveAtSwap
 			//might be worth splitting into two different buffers if this is too slow
+
+			for (int32 Idx = ContactModifiers.Num() - 1; Idx >= 0; --Idx)
+			{
+				ISimCallbackObject* Callback = ContactModifiers[Idx];
+				if (Callback->bPendingDelete)
+				{
+					//will also be in SimCallbackObjects so we'll delete it in that loop
+					ContactModifiers.RemoveAt(Idx);
+				}
+			}
 
 			for (int32 Idx = SimCallbackObjects.Num() - 1; Idx >= 0; --Idx)
 			{
@@ -318,6 +369,11 @@ namespace Chaos
 		/** Used to update external thread data structures. RigidFunc allows per dirty rigid code to execute. Include PhysicsSolverBaseImpl.h to call this function*/
 		template <typename RigidLambda>
 		void PullPhysicsStateForEachDirtyProxy_External(const RigidLambda& RigidFunc);
+
+		bool IsUsingAsyncResults() const
+		{
+			return !ForceDisableAsyncPhysics && AsyncDt >= 0;
+		}
 
 	protected:
 		/** Mode that the results buffers should be set to (single, double, triple) */
@@ -359,6 +415,7 @@ namespace Chaos
 	TArray<TFunction<void()>> CommandQueue;
 
 	TArray<ISimCallbackObject*> SimCallbackObjects;
+	TArray<ISimCallbackObject*> ContactModifiers;
 
 	FGraphEventRef PendingTasks;
 
@@ -366,10 +423,11 @@ namespace Chaos
 
 		//This is private because the user should never create their own callback object
 		//The lifetime management should always be done by solver to ensure callbacks are accessing valid memory on async tasks
-		void RegisterSimCallbackObject_External(ISimCallbackObject* SimCallbackObject)
+		void RegisterSimCallbackObject_External(ISimCallbackObject* SimCallbackObject, bool bContactModification = false)
 		{
 			ensure(SimCallbackObject->Solver == nullptr);	//double register?
 			SimCallbackObject->SetSolver_External(this);
+			SimCallbackObject->SetContactModification(bContactModification);
 			MarshallingManager.RegisterSimCallbackObject_External(SimCallbackObject);
 		}
 
@@ -386,18 +444,23 @@ namespace Chaos
 		 * @see FChaosSolversModule::CreateSolver
 		 */
 		const UObject* Owner = nullptr;
-		FRWLock QueryMaterialLock;
+
+		//TODO: why is this needed? seems bad to read from solver directly, should be buffered
 		FRWLock SimMaterialLock;
+		
+		/** Scene lock object for external threads (non-physics) */
+		TUniquePtr<FPhysicsSceneGuard> ExternalDataLock_External;
 
 		friend FChaosSolversModule;
 		friend FPhysicsSolverAdvanceTask;
 
 		template<ELockType>
-		friend struct TSolverQueryMaterialScope;
-		template<ELockType>
 		friend struct TSolverSimMaterialScope;
 
 		ETraits TraitIdx;
+
+		FReal AsyncDt;
+		TArray<TGeometryParticle<FReal, 3>*> UniqueIdxToGTParticles;
 
 	public:
 		/** Events */
@@ -413,12 +476,19 @@ namespace Chaos
 		FDelegateHandle AddPostAdvanceCallback(FSolverPostAdvance::FDelegate InDelegate);
 		bool            RemovePostAdvanceCallback(FDelegateHandle InHandle);
 
+		/** Get the lock used for external data manipulation. A better API would be to use scoped locks so that getting a write lock is non-const */
+		//NOTE: this is a const operation so that you can acquire a read lock on a const solver. The assumption is that non-const write operations are already marked non-const
+		FPhysicsSceneGuard& GetExternalDataLock_External() const { return *ExternalDataLock_External; }
+
 	protected:
 		/** Storage for events, see the Add/Remove pairs above for event timings */
 		FSolverPreAdvance EventPreSolve;
 		FSolverPreBuffer EventPreBuffer;
 		FSolverPostAdvance EventPostSolve;
 
+		void TrackGTParticle_External(TGeometryParticle<FReal, 3>& Particle);
+		void ClearGTParticle_External(TGeometryParticle<FReal, 3>& Particle);
+		
 
 #if !UE_BUILD_SHIPPING
 	// Solver testing utility

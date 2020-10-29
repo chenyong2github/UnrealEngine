@@ -274,7 +274,7 @@ void USequenceCameraShakeSequencePlayer::Play(bool bLoop, bool bRandomStartTime)
 
 	const FMovieSceneEvaluationRange Range = PlayPosition.PlayTo(PlayPosition.GetCurrentPosition());
 	const FMovieSceneContext Context(Range, Status);
-	RootTemplateInstance.Evaluate(Context, *this, MovieSceneSequenceID::Root);
+	RootTemplateInstance.Evaluate(Context, *this);
 }
 
 void USequenceCameraShakeSequencePlayer::Update(FFrameTime NewPosition)
@@ -300,7 +300,7 @@ void USequenceCameraShakeSequencePlayer::Update(FFrameTime NewPosition)
 
 	const FMovieSceneEvaluationRange Range = PlayPosition.PlayTo(NewPosition);
 	const FMovieSceneContext Context(Range, Status);
-	RootTemplateInstance.Evaluate(Context, *this, MovieSceneSequenceID::Root);
+	RootTemplateInstance.Evaluate(Context, *this);
 }
 
 void USequenceCameraShakeSequencePlayer::Jump(FFrameTime NewPosition)

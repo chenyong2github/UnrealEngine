@@ -1061,35 +1061,37 @@ FDatasmithImporterUtils::FDatasmithMaterialImportIterator::FDatasmithMaterialImp
 		return;
 	}
 
+	auto DoesParentWithSameNameExist = [this](TSharedPtr<IDatasmithBaseMaterialElement> Mat)
+	{
+		if (TSoftObjectPtr<UMaterialInterface>* MatInterface = ImportContext.SceneAsset->Materials.Find(Mat->GetName()))
+		{
+			if (UMaterialInstanceConstant* MaterialInstance = Cast< UMaterialInstanceConstant >(MatInterface->Get()))
+			{
+				const FString ParentDatasmithUniqueId = UDatasmithAssetUserData::GetDatasmithUserDataValueForKey(MaterialInstance->Parent, UDatasmithAssetUserData::UniqueIdMetaDataKey);
+				return MaterialInstance->Parent && ParentDatasmithUniqueId == Mat->GetName();
+			}
+		}
+
+		return false;
+	};
+
 	SortedMaterials.Reserve(ImportContext.FilteredScene->GetMaterialsCount());
+	int32 NumMaterialMovedToFront = 0;
+
 	for (int32 MaterialIndex = 0; MaterialIndex < ImportContext.FilteredScene->GetMaterialsCount(); ++MaterialIndex)
 	{
 		SortedMaterials.Add(ImportContext.FilteredScene->GetMaterial(MaterialIndex));
-	}
 
-	SortedMaterials.Sort([this](TSharedPtr<IDatasmithBaseMaterialElement> MatA, TSharedPtr<IDatasmithBaseMaterialElement> MatB)
-	{
-		auto DoesParentWithSameNameExist = [this](TSharedPtr<IDatasmithBaseMaterialElement> Mat)
+		// Materials that are already existing and that were used to create their parent material should be imported first otherwise we might create new parent materials instead of reusing the existing ones.
+		if (DoesParentWithSameNameExist(SortedMaterials[MaterialIndex]))
 		{
-			if (TSoftObjectPtr<UMaterialInterface>* MatInterface = ImportContext.SceneAsset->Materials.Find(Mat->GetName()))
+			if (NumMaterialMovedToFront != MaterialIndex)
 			{
-				if (UMaterialInstanceConstant* MaterialInstance = Cast< UMaterialInstanceConstant >(MatInterface->Get()))
-				{
-					const FString ParentDatasmithUniqueId = UDatasmithAssetUserData::GetDatasmithUserDataValueForKey(MaterialInstance->Parent, UDatasmithAssetUserData::UniqueIdMetaDataKey);
-
-					return MaterialInstance->Parent && ParentDatasmithUniqueId == Mat->GetName();
-				}
+				SortedMaterials.Swap(NumMaterialMovedToFront,MaterialIndex);
 			}
-
-			return false;
-		};
-
-		//Materials that are already existing in the scene should be imported first otherwise we might create new parent materials instead of reusing the existing ones.
-		bool bMatAExists = DoesParentWithSameNameExist(MatA);
-		bool bMatBExists = DoesParentWithSameNameExist(MatB);
-
-		return bMatAExists && !bMatBExists;
-	});
+			NumMaterialMovedToFront++;
+		}
+	}
 }
 
 FDatasmithImporterUtils::FDatasmithMaterialImportIterator& FDatasmithImporterUtils::FDatasmithMaterialImportIterator::operator++()

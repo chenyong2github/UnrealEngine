@@ -47,6 +47,10 @@ namespace UnrealGameSync
 
 	partial class WorkspaceControl : UserControl, IMainWindowTabPanel
 	{
+		/// <summary>
+		/// Default sync categories.
+		/// NOTE: These category definitions are now overridden in UnrealGameSync.ini; this list exists solely for backwards compatibility, and will not normally be used.
+		/// </summary>
 		readonly WorkspaceSyncCategory[] DefaultSyncCategories =
 		{
 			new WorkspaceSyncCategory(new Guid("{6703E989-D912-451D-93AD-B48DE748D282}"), "Content", "*.uasset", "*.umap"),
@@ -591,39 +595,39 @@ namespace UnrealGameSync
 					DesiredColumnWidths[AuthorColumn.Index] = (int)(120 * DpiScaleX);
 					DesiredColumnWidths[CISColumn.Index] = (int)(200 * DpiScaleX);
 					DesiredColumnWidths[StatusColumn.Index] = (int)(300 * DpiScaleX);
-				}
 
-				ColumnWeights = Enumerable.Repeat(1.0f, BuildList.Columns.Count).ToArray();
-				ColumnWeights[IconColumn.Index] = 3.0f;
-				ColumnWeights[TypeColumn.Index] = 3.0f;
-				ColumnWeights[TimeColumn.Index] = 3.0f;
-				ColumnWeights[ChangeColumn.Index] = 3.0f;
-				ColumnWeights[DescriptionColumn.Index] = 1.25f;
-				ColumnWeights[CISColumn.Index] = 1.5f;
+					ColumnWeights = Enumerable.Repeat(1.0f, BuildList.Columns.Count).ToArray();
+					ColumnWeights[IconColumn.Index] = 3.0f;
+					ColumnWeights[TypeColumn.Index] = 3.0f;
+					ColumnWeights[TimeColumn.Index] = 3.0f;
+					ColumnWeights[ChangeColumn.Index] = 3.0f;
+					ColumnWeights[DescriptionColumn.Index] = 1.25f;
+					ColumnWeights[CISColumn.Index] = 1.5f;
 
-				foreach (ColumnHeader Column in BuildList.Columns)
-				{
-					ConfigObject ColumnConfig = (ConfigObject)Column.Tag;
-					if (ColumnConfig != null)
+					foreach (ColumnHeader Column in BuildList.Columns)
 					{
-						MinColumnWidths[Column.Index] = ColumnConfig.GetValue("MinWidth", MinColumnWidths[Column.Index]);
-						DesiredColumnWidths[Column.Index] = ColumnConfig.GetValue("DesiredWidth", DesiredColumnWidths[Column.Index]);
-						ColumnWeights[Column.Index] = ColumnConfig.GetValue("Weight", MinColumnWidths[Column.Index]);
-					}
-				}
-
-				ConfigFile ProjectConfigFile = PerforceMonitor.LatestProjectConfigFile;
-				for (int Idx = 0; Idx < BuildList.Columns.Count; Idx++)
-				{
-					if (!String.IsNullOrEmpty(BuildList.Columns[Idx].Text))
-					{
-						string StringValue;
-						if (TryGetProjectSetting(ProjectConfigFile, String.Format("ColumnWidth_{0}", BuildList.Columns[Idx].Text), out StringValue))
+						ConfigObject ColumnConfig = (ConfigObject)Column.Tag;
+						if (ColumnConfig != null)
 						{
-							int IntValue;
-							if (Int32.TryParse(StringValue, out IntValue))
+							MinColumnWidths[Column.Index] = (int)(ColumnConfig.GetValue("MinWidth", MinColumnWidths[Column.Index]) * DpiScaleX);
+							DesiredColumnWidths[Column.Index] = (int)(ColumnConfig.GetValue("DesiredWidth", DesiredColumnWidths[Column.Index]) * DpiScaleX);
+							ColumnWeights[Column.Index] = ColumnConfig.GetValue("Weight", MinColumnWidths[Column.Index]);
+						}
+					}
+
+					ConfigFile ProjectConfigFile = PerforceMonitor.LatestProjectConfigFile;
+					for (int Idx = 0; Idx < BuildList.Columns.Count; Idx++)
+					{
+						if (!String.IsNullOrEmpty(BuildList.Columns[Idx].Text))
+						{
+							string StringValue;
+							if (TryGetProjectSetting(ProjectConfigFile, String.Format("ColumnWidth_{0}", BuildList.Columns[Idx].Text), out StringValue))
 							{
-								DesiredColumnWidths[Idx] = IntValue;
+								int IntValue;
+								if (Int32.TryParse(StringValue, out IntValue))
+								{
+									DesiredColumnWidths[Idx] = (int)(IntValue * DpiScaleX);
+								}
 							}
 						}
 					}
@@ -945,11 +949,10 @@ namespace UnrealGameSync
 			string[] CombinedSyncFilter = UserSettings.GetCombinedSyncFilter(GetSyncCategories(), Settings.SyncView, Settings.SyncCategories, WorkspaceSettings.SyncView, WorkspaceSettings.SyncCategories);
 
 			ConfigSection PerforceSection = PerforceMonitor.LatestProjectConfigFile.FindSection("Perforce");
-
 			if (PerforceSection != null)
 			{
 				IEnumerable<string> AdditionalPaths = PerforceSection.GetValues("AdditionalPathsToSync", new string[0]);
-				CombinedSyncFilter = CombinedSyncFilter.Union(AdditionalPaths).ToArray();
+				CombinedSyncFilter = AdditionalPaths.Union(CombinedSyncFilter).ToArray();
 			}
 
 			WorkspaceUpdateContext Context = new WorkspaceUpdateContext(ChangeNumber, Options, CombinedSyncFilter, GetDefaultBuildStepObjects(), ProjectSettings.BuildSteps, null, GetWorkspaceVariables(ChangeNumber));
@@ -1676,15 +1679,30 @@ namespace UnrealGameSync
 						if (Object.GetValue("Clear", false))
 						{
 							Category.Paths = new string[0];
+							Category.Requires = new Guid[0];
 						}
 
 						Category.Name = Object.GetValue("Name", Category.Name);
 						Category.bEnable = Object.GetValue("Enable", Category.bEnable);
 						Category.Paths = Enumerable.Concat(Category.Paths, Object.GetValue("Paths", "").Split(';').Select(x => x.Trim())).Where(x => x.Length > 0).Distinct().OrderBy(x => x).ToArray();
+						Category.bHidden = Object.GetValue("Hidden", Category.bHidden);
+						Category.Requires = Enumerable.Concat(Category.Requires, ParseGuids(Object.GetValue("Requires", "").Split(';'))).Distinct().OrderBy(x => x).ToArray();
 					}
 				}
 			}
 			return UniqueIdToCategory;
+		}
+
+		static IEnumerable<Guid> ParseGuids(IEnumerable<string> Values)
+		{
+			foreach(string Value in Values)
+			{
+				Guid Guid;
+				if(Guid.TryParse(Value, out Guid))
+				{
+					yield return Guid;
+				}
+			}
 		}
 
 		void UpdateReviewsCallback()
@@ -1715,8 +1733,7 @@ namespace UnrealGameSync
 		void UpdateBuildFailureNotification()
 		{
 			// Ignore this if we're using the new build health system
-			string BuildHealthProject;
-			if (TryGetProjectSetting(PerforceMonitor.LatestProjectConfigFile, "BuildHealthProject", out BuildHealthProject))
+			if (GetDefaultIssueFilter() != null)
 			{
 				return;
 			}
@@ -2505,15 +2522,27 @@ namespace UnrealGameSync
 
 		private bool TryGetProjectSetting(ConfigFile ProjectConfigFile, string Name, out string Value)
 		{
-			ConfigSection ProjectSection = ProjectConfigFile.FindSection(SelectedProjectIdentifier);
-			if (ProjectSection != null)
+			string Path = SelectedProjectIdentifier;
+			for(; ;)
 			{
-				string NewValue = ProjectSection.GetValue(Name, null);
-				if (NewValue != null)
+				ConfigSection ProjectSection = ProjectConfigFile.FindSection(Path);
+				if (ProjectSection != null)
 				{
-					Value = NewValue;
-					return true;
+					string NewValue = ProjectSection.GetValue(Name, null);
+					if (NewValue != null)
+					{
+						Value = NewValue;
+						return true;
+					}
 				}
+
+				int LastSlash = Path.LastIndexOf('/');
+				if(LastSlash < 2)
+				{
+					break;
+				}
+
+				Path = Path.Substring(0, LastSlash);
 			}
 
 			ConfigSection DefaultSection = ProjectConfigFile.FindSection("Default");
@@ -2776,7 +2805,14 @@ namespace UnrealGameSync
 
 		public static string FormatUserName(string UserName)
 		{
-			return Utility.FormatUserName(UserName);
+			if (UserName == null)
+			{
+				return "(Invalid Name)";
+			}
+			else
+			{
+				return Utility.FormatUserName(UserName);
+			}
 		}
 
 		private static void AppendUserList(StringBuilder Builder, string Separator, string Format, IEnumerable<EventData> Reviews)
@@ -2894,6 +2930,26 @@ namespace UnrealGameSync
 			}
 		}
 
+		// returns the default editor target name if not syncing pcbs or Target isn't specified
+		private string TryGetEditorNameFromArchive()
+		{
+			if(ShouldSyncPrecompiledEditor)
+			{
+				List<IArchiveInfo> Archives = GetSelectedArchives(PerforceMonitor.AvailableArchives);
+				foreach(IArchiveInfo Archive in Archives)
+				{
+					if(Archive.Type == EditorArchiveType)
+					{
+						if(Archive.Target != null)
+						{
+							return Archive.Target;
+						}
+					}
+				}
+			}
+			return EditorTargetName;
+		}
+
 		private class ReceiptJsonObject
 		{
 			public string Launch { get; set; }
@@ -2929,11 +2985,14 @@ namespace UnrealGameSync
 				}
 			}
 
+			// Get the default editor target name
+			string TargetName = GetDefaultEditorTargetName();
+
 			// Otherwise use the standard editor path
-			string ExeFileName = "UE4Editor.exe";
+			string ExeFileName = String.Format("{0}.exe", TargetName);
 			if ((Config != BuildConfig.DebugGame || PerforceMonitor.LatestProjectConfigFile.GetValue("Options.DebugGameHasSeparateExecutable", false)) && Config != BuildConfig.Development)
 			{
-				ExeFileName = String.Format("UE4Editor-Win64-{0}.exe", Config.ToString());
+				ExeFileName = String.Format("{0}-Win64-{1}.exe", TargetName, Config.ToString());
 			}
 			return Path.Combine(BranchDirectoryName, "Engine", "Binaries", "Win64", ExeFileName);
 		}
@@ -2961,6 +3020,12 @@ namespace UnrealGameSync
 			ProcessNames.Add("UE4Editor-Win64-Debug-Cmd");
 			ProcessNames.Add("UE4Editor-Win64-DebugGame");
 			ProcessNames.Add("UE4Editor-Win64-DebugGame-Cmd");
+			ProcessNames.Add("UE5Editor");
+			ProcessNames.Add("UE5Editor-Cmd");
+			ProcessNames.Add("UE5Editor-Win64-Debug");
+			ProcessNames.Add("UE5Editor-Win64-Debug-Cmd");
+			ProcessNames.Add("UE5Editor-Win64-DebugGame");
+			ProcessNames.Add("UE5Editor-Win64-DebugGame-Cmd");
 			ProcessNames.Add("CrashReportClient");
 			ProcessNames.Add("CrashReportClient-Win64-Development");
 			ProcessNames.Add("CrashReportClient-Win64-Debug");
@@ -3015,9 +3080,10 @@ namespace UnrealGameSync
 			string ConfigSuffix = (Config == BuildConfig.Development) ? "" : String.Format("-Win64-{0}", Config.ToString());
 
 			List<string> PossiblePaths = new List<string>();
-			if (EditorTargetName != null)
+			string ActualEditorName = TryGetEditorNameFromArchive();
+			if (ActualEditorName != null)
 			{
-				PossiblePaths.Add(Path.Combine(Path.GetDirectoryName(SelectedFileName), "Binaries", "Win64", String.Format("{0}{1}.target", EditorTargetName, ConfigSuffix)));
+				PossiblePaths.Add(Path.Combine(Path.GetDirectoryName(SelectedFileName), "Binaries", "Win64", String.Format("{0}{1}.target", ActualEditorName, ConfigSuffix)));
 			}
 			else if (SelectedFileName.EndsWith(".uproject", StringComparison.InvariantCultureIgnoreCase))
 			{
@@ -3027,12 +3093,12 @@ namespace UnrealGameSync
 				}
 				else
 				{
-					PossiblePaths.Add(Path.Combine(Path.GetDirectoryName(SelectedFileName), "Binaries", "Win64", String.Format("UE4Editor{0}.target", ConfigSuffix)));
+					PossiblePaths.Add(Path.Combine(Path.GetDirectoryName(SelectedFileName), "Binaries", "Win64", String.Format("{0}{1}.target", GetDefaultEditorTargetName(), ConfigSuffix)));
 				}
 			}
 			else
 			{
-				PossiblePaths.Add(Path.Combine(Path.GetDirectoryName(SelectedFileName), "Engine", "Binaries", "Win64", String.Format("UE4Editor{0}.target", ConfigSuffix)));
+				PossiblePaths.Add(Path.Combine(Path.GetDirectoryName(SelectedFileName), "Engine", "Binaries", "Win64", String.Format("{0}{1}.target", GetDefaultEditorTargetName(), ConfigSuffix)));
 			}
 			return PossiblePaths;
 		}
@@ -3053,6 +3119,68 @@ namespace UnrealGameSync
 
 			UpdateStatusPanel();
 			BuildList.Refresh();
+		}
+
+		private string GetDefaultIssueFilter()
+		{
+			string BuildHealthProject;
+			if (TryGetProjectSetting(PerforceMonitor.LatestProjectConfigFile, "BuildHealthProject", out BuildHealthProject))
+			{
+				return BuildHealthProject;
+			}
+
+			string DefaultIssueFilter;
+			if (TryGetProjectSetting(PerforceMonitor.LatestProjectConfigFile, "DefaultIssueFilter", out DefaultIssueFilter))
+			{
+				return DefaultIssueFilter;
+			}
+
+			return null;
+		}
+
+		private Dictionary<string, Func<IssueData, bool>> GetCustomIssueFilters()
+		{
+			Dictionary<string, Func<IssueData, bool>> CustomFilters = new Dictionary<string, Func<IssueData, bool>>();
+
+			string BuildHealthProject;
+			if (TryGetProjectSetting(PerforceMonitor.LatestProjectConfigFile, "BuildHealthProject", out BuildHealthProject))
+			{
+				CustomFilters[BuildHealthProject] = x => !String.IsNullOrEmpty(x.Project) && x.Project.Equals(BuildHealthProject, StringComparison.OrdinalIgnoreCase);
+			}
+
+			string[] Filters;
+			if (TryGetProjectSetting(PerforceMonitor.LatestProjectConfigFile, "IssueFilters", out Filters))
+			{
+				foreach (string Filter in Filters)
+				{
+					try
+					{
+						ConfigObject Config = new ConfigObject(Filter);
+
+						string Name = Config.GetValue("Name", null);
+						string Pattern = Config.GetValue("Pattern", null);
+
+						if(Name != null && Pattern != null)
+						{
+							string DepotName;
+							if (PerforceUtils.TryGetDepotName(StreamName, out DepotName))
+							{
+								Pattern = Regex.Replace(Pattern, @"\$\(Depot\)", DepotName, RegexOptions.IgnoreCase);
+							}
+							Pattern = Regex.Replace(Pattern, @"\$\(Stream\)", StreamName, RegexOptions.IgnoreCase);
+
+							Regex PatternRegex = new Regex(String.Format("^(?:{0})$", Pattern), RegexOptions.IgnoreCase);
+							CustomFilters[Name] = x => x.Streams.Any(y => PatternRegex.IsMatch(y));
+						}
+					}
+					catch(Exception Ex)
+					{
+						Log.WriteLine("Unable to parse config filter '{0}': {1}", Filter, Ex);
+					}
+				}
+			}
+
+			return CustomFilters;
 		}
 
 		private void OpenPerforce()
@@ -3192,21 +3320,23 @@ namespace UnrealGameSync
 
 				ProgramsLine.AddLink("Perforce", FontStyle.Regular, () => { OpenPerforce(); });
 				ProgramsLine.AddText("  |  ");
-				ProgramsLine.AddLink("Visual Studio", FontStyle.Regular, () => { OpenSolution(); });
-				ProgramsLine.AddText("  |  ");
+				if (!ShouldSyncPrecompiledEditor)
+				{
+					ProgramsLine.AddLink("Visual Studio", FontStyle.Regular, () => { OpenSolution(); });
+					ProgramsLine.AddText("  |  ");
+				}
 				ProgramsLine.AddLink("Windows Explorer", FontStyle.Regular, () => { SafeProcessStart("explorer.exe", String.Format("\"{0}\"", Path.GetDirectoryName(SelectedFileName))); });
 
-				string BuildHealthProject;
-				if (TryGetProjectSetting(PerforceMonitor.LatestProjectConfigFile, "BuildHealthProject", out BuildHealthProject))
+				if (GetDefaultIssueFilter() != null)
 				{
 					ProgramsLine.AddText("  |  ");
 					if (bUserHasOpenIssues)
 					{
-						ProgramsLine.AddBadge("Build Health", GetBuildBadgeColor(BadgeResult.Failure), (P, R) => ShowBuildHealthMenu(R, BuildHealthProject));
+						ProgramsLine.AddBadge("Build Health", GetBuildBadgeColor(BadgeResult.Failure), (P, R) => ShowBuildHealthMenu(R));
 					}
 					else
 					{
-						ProgramsLine.AddLink("Build Health", FontStyle.Regular, (P, R) => { ShowBuildHealthMenu(R, BuildHealthProject); });
+						ProgramsLine.AddLink("Build Health", FontStyle.Regular, (P, R) => { ShowBuildHealthMenu(R); });
 					}
 				}
 
@@ -3311,7 +3441,7 @@ namespace UnrealGameSync
 			StatusPanel.Set(Lines, Caption, Alert, TintColor);
 		}
 
-		private void ShowBuildHealthMenu(Rectangle Bounds, string BuildHealthProject)
+		private void ShowBuildHealthMenu(Rectangle Bounds)
 		{
 			int MinSeparatorIdx = BuildHealthContextMenu.Items.IndexOf(BuildHealthContextMenu_MinSeparator);
 
@@ -3320,11 +3450,17 @@ namespace UnrealGameSync
 				BuildHealthContextMenu.Items.RemoveAt(MinSeparatorIdx + 1);
 			}
 
+			Func<IssueData, bool> Predicate;
+			if(!GetCustomIssueFilters().TryGetValue(GetDefaultIssueFilter(), out Predicate))
+			{
+				Predicate = x => true;
+			}
+
 			List<IssueData> Issues = new List<IssueData>();
 			bool bHasOtherAssignedIssue = false;
-			foreach (IssueData Issue in IssueMonitor.GetIssues())
+			foreach (IssueData Issue in IssueMonitor.GetIssues().OrderByDescending(x => x.Id))
 			{
-				if (Issue.Projects.Contains(BuildHealthProject))
+				if (Predicate(Issue))
 				{
 					Issues.Add(Issue);
 				}
@@ -3413,9 +3549,9 @@ namespace UnrealGameSync
 
 		private void BuildHealthContextMenu_Browse_Click(object sender, EventArgs e)
 		{
-			string BuildHealthProject;
-			TryGetProjectSetting(PerforceMonitor.LatestProjectConfigFile, "BuildHealthProject", out BuildHealthProject);
-			IssueBrowserWindow.Show(ParentForm, IssueMonitor, Workspace.Perforce.ServerAndPort, Workspace.Perforce.UserName, GetServerTimeOffset(), Log, StreamName, BuildHealthProject);
+			string DefaultFilter = GetDefaultIssueFilter();
+			Dictionary<string, Func<IssueData, bool>> CustomFilters = GetCustomIssueFilters();
+			IssueBrowserWindow.Show(ParentForm, IssueMonitor, Workspace.Perforce.ServerAndPort, Workspace.Perforce.UserName, GetServerTimeOffset(), Log, StreamName, CustomFilters, DefaultFilter);
 		}
 
 		private void BuildHealthContextMenu_Settings_Click(object sender, EventArgs e)
@@ -4074,7 +4210,6 @@ namespace UnrealGameSync
 			BuildList.Invalidate();
 		}
 
-
 		private void OptionsButton_Click(object sender, EventArgs e)
 		{
 			OptionsContextMenu_AutoResolveConflicts.Checked = Settings.bAutoResolveConflicts;
@@ -4569,6 +4704,10 @@ namespace UnrealGameSync
 		private void OpenSolution()
 		{
 			string MasterProjectName = "UE4";
+			if (File.Exists(Path.Combine(BranchDirectoryName, "UE5.sln")))
+			{
+				MasterProjectName = "UE5";
+			}
 
 			string MasterProjectNameFileName = Path.Combine(BranchDirectoryName, "Engine", "Intermediate", "ProjectFiles", "MasterProjectName.txt");
 			if (File.Exists(MasterProjectNameFileName))
@@ -4956,6 +5095,16 @@ namespace UnrealGameSync
 			return ShouldSyncPrecompiledEditor ? BuildConfig.Development : Settings.CompiledEditorBuildConfig;
 		}
 
+		private string GetDefaultEditorTargetName()
+		{
+			string EditorTarget;
+			if (!TryGetProjectSetting(PerforceMonitor.LatestProjectConfigFile, "EditorTarget", out EditorTarget))
+			{
+				EditorTarget = "UE4Editor";
+			}
+			return EditorTarget;
+		}
+
 		private Dictionary<Guid, ConfigObject> GetDefaultBuildStepObjects()
 		{
 			string ProjectArgument = "";
@@ -4975,7 +5124,7 @@ namespace UnrealGameSync
 			}
 			else
 			{
-				ActualEditorTargetName = "UE4Editor";
+				ActualEditorTargetName = GetDefaultEditorTargetName();
 			}
 
 			bool bUseCrashReportClientEditor = PerforceMonitor.LatestProjectConfigFile.GetValue("Options.UseCrashReportClientEditor", false);

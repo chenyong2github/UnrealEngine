@@ -18,8 +18,16 @@ namespace Chaos
 		using Base = TContainerConstraintHandle<TPBDRigidDynamicSpringConstraints<T, d>>;
 		using FConstraintContainer = TPBDRigidDynamicSpringConstraints<T, d>;
 
-		TPBDRigidDynamicSpringConstraintHandle() {}
-		TPBDRigidDynamicSpringConstraintHandle(FConstraintContainer* InConstraintContainer, int32 InConstraintIndex) : TContainerConstraintHandle<TPBDRigidDynamicSpringConstraints<T, d>>(InConstraintContainer, InConstraintIndex) {}
+		TPBDRigidDynamicSpringConstraintHandle() 
+		{
+		}
+
+		TPBDRigidDynamicSpringConstraintHandle(FConstraintContainer* InConstraintContainer, int32 InConstraintIndex) 
+			: TContainerConstraintHandle<TPBDRigidDynamicSpringConstraints<T, d>>(StaticType(),InConstraintContainer, InConstraintIndex) 
+		{
+		}
+
+		static FConstraintHandle::EType StaticType() { return FConstraintHandle::EType::DynamicSpring; }
 		TVector<TGeometryParticleHandle<T, d>*, 2> GetConstrainedParticles() const;
 
 	protected:
@@ -113,10 +121,14 @@ namespace Chaos
 			}
 		}
 
-		// @todo(ccaulfield): rename/remove  this
-		void RemoveConstraints(const TSet<TGeometryParticleHandle<T, d>*>& RemovedParticles)
+		/**
+		 * Disabled the specified constraint.
+		 */
+		void DisableConstraints(const TSet<TGeometryParticleHandle<FReal, 3>*>& RemovedParticles)
 		{
+			// @todo(chaos)
 		}
+
 
 		/**
 		 * Set the distance threshold below which springs get created between particles.

@@ -137,9 +137,6 @@ protected:
 	// Solver representing this scene
 	Chaos::FPhysicsSolver* SceneSolver;
 
-	/** Scene lock object for external threads (non-physics) */
-	Chaos::FPhysicsSceneGuard ExternalDataLock;
-
 #if WITH_EDITOR
 	// List of objects that we modified during a PIE run for physics simulation caching.
 	TArray<UObject*> PieModifiedObjects;

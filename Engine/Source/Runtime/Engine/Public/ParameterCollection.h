@@ -51,9 +51,9 @@ public:
 	}
 
 	FMaterialParameterCollectionInstanceResource();
-	~FMaterialParameterCollectionInstanceResource();
 
 private:
+	~FMaterialParameterCollectionInstanceResource();
 
 	/** Unique identifier for the UMaterialParameterCollection that material shaders were compiled with. */
 	FGuid Id;

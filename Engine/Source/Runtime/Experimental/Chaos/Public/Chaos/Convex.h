@@ -13,6 +13,16 @@
 
 namespace Chaos
 {
+	class CHAOS_API FConvexStructureData
+	{
+	public:
+		// For each face: the set of vertex indices that form the corners of the face in counter-clockwise order
+		TArray<TArray<int32>> PlaneVertices;
+
+		// For each vertex: the set of face indices that use the vertex
+		TArray<TArray<int32>> VertexPlanes;
+	};
+
 	class CHAOS_API FConvex final : public FImplicitObject
 	{
 	public:
@@ -54,7 +64,7 @@ namespace Chaos
 			Volume = LocalBoundingBox.GetVolume();
 		}
 
-		FConvex(const TParticles<FReal, 3>& InParticles)
+		FConvex(const TParticles<FReal, 3>& InParticles, const FReal InMargin)
 		    : FImplicitObject(EImplicitObject::IsConvex | EImplicitObject::HasBoundingBox, ImplicitObjectType::Convex)
 		{
 			const uint32 NumParticles = InParticles.Size();
@@ -67,8 +77,15 @@ namespace Chaos
 			FConvexBuilder::Build(InParticles, Planes, FaceIndices, SurfaceParticles, LocalBoundingBox);
 			CHAOS_ENSURE(Planes.Num() == FaceIndices.Num());
 			CalculateVolumeAndCenterOfMass(SurfaceParticles, FaceIndices, Volume, CenterOfMass);
+
+			ApplyMargin(InMargin);
 		}
 
+	private:
+		void ApplyMargin(FReal InMargin);
+		void ShrinkCore(FReal InMargin);
+
+	public:
 		static constexpr EImplicitObjectType StaticType()
 		{
 			return ImplicitObjectType::Convex;
@@ -79,6 +96,7 @@ namespace Chaos
 			return LocalBoundingBox;
 		}
 
+		// Return the distance to the surface (including the margin)
 		virtual FReal PhiWithNormal(const FVec3& x, FVec3& Normal) const override
 		{
 			float Phi = PhiWithNormalInternal(x, Normal);
@@ -118,9 +136,11 @@ namespace Chaos
 					Normal = FVector::ForwardVector;
 				}
 			}
-			return Phi;
+			return Phi - GetMargin();
 		}
 
+	private:
+		// Distance to the core shape (excluding margin)
 		FReal PhiWithNormalInternal(const FVec3& x, FVec3& Normal) const
 		{
 			const int32 NumPlanes = Planes.Num();
@@ -146,6 +166,7 @@ namespace Chaos
 			return Planes[MaxPlane].PhiWithNormal(x, Normal);
 		}
 
+	public:
 		/** Calls \c GJKRaycast(), which may return \c true but 0 for \c OutTime, 
 		 * which means the bodies are touching, but not by enough to determine \c OutPosition 
 		 * and \c OutNormal should be.  The burden for detecting this case is deferred to the
@@ -156,11 +177,13 @@ namespace Chaos
 			OutFaceIndex = INDEX_NONE;	//finding face is expensive, should be called directly by user
 			const FRigidTransform3 StartTM(StartPoint, FRotation3::FromIdentity());
 			const TSphere<FReal, 3> Sphere(FVec3(0), Thickness);
-			return GJKRaycast(*this, Sphere, StartTM, Dir, Length, OutTime, OutPosition, OutNormal);
+			return GJKRaycast(*this, Sphere, StartTM, Dir, Length, OutTime, OutPosition, OutNormal, GetMargin());
 		}
 
 		virtual Pair<FVec3, bool> FindClosestIntersectionImp(const FVec3& StartPoint, const FVec3& EndPoint, const FReal Thickness) const override
 		{
+			// @todo(chaos): margin
+
 			const int32 NumPlanes = Planes.Num();
 			TArray<Pair<FReal, FVec3>> Intersections;
 			Intersections.Reserve(FMath::Min(static_cast<int32>(NumPlanes*.1), 16)); // Was NumPlanes, which seems excessive.
@@ -183,6 +206,22 @@ namespace Chaos
 			return MakePair(FVec3(0), false);
 		}
 
+		int32 GetMostOpposingPlane(const FVec3& Normal) const;
+		int32 GetMostOpposingPlaneWithVertex(int32 VertexIndex, const FVec3& Normal) const;
+		TArrayView<int32> GetPlaneVertices(int32 FaceIndex) const;
+
+		const TPlaneConcrete<FReal, 3>& GetPlane(int32 FaceIndex) const
+		{
+			return Planes[FaceIndex];
+		}
+
+		const FVec3& GetVertex(int32 VertexIndex) const
+		{
+			return SurfaceParticles.X(VertexIndex);
+		}
+
+
+		// @todo(chaos): margin
 		virtual int32 FindMostOpposingFace(const FVec3& Position, const FVec3& UnitDir, int32 HintFaceIndex, FReal SearchDist) const override;
 
 		FVec3 FindGeometryOpposingNormal(const FVec3& DenormDir, int32 FaceIndex, const FVec3& OriginalNormal) const
@@ -198,12 +237,23 @@ namespace Chaos
 			return FVec3(0.f, 0.f, 1.f);
 		}
 
-	
+		// @todo(chaos): margin
 		virtual int32 FindClosestFaceAndVertices(const FVec3& Position, TArray<FVec3>& FaceVertices, FReal SearchDist = 0.01) const override;
 
-		FORCEINLINE FVec3 Support2(const FVec3& Direction) const { return Support(Direction, 0); }
+		// Return support point on the core shape ignoring margin
+		FORCEINLINE FVec3 SupportCore(const FVec3& Direction) const
+		{
+			return SupportImpl(Direction, 0);
+		}
 
-		FVec3 Support(const FVec3& Direction, const FReal Thickness) const
+		// Return support point on the outer shape including margin
+		FORCEINLINE FVec3 Support(const FVec3& Direction, const FReal Thickness) const
+		{
+			return SupportImpl(Direction, GetMargin() + Thickness);
+		}
+
+	private:
+		FVec3 SupportImpl(const FVec3& Direction, const FReal Thickness) const
 		{
 			FReal MaxDot = TNumericLimits<FReal>::Lowest();
 			int32 MaxVIdx = 0;
@@ -234,6 +284,7 @@ namespace Chaos
 			return SurfaceParticles.X(MaxVIdx);
 		}
 
+	public:
 		virtual FString ToString() const
 		{
 			return FString::Printf(TEXT("Convex"));
@@ -317,6 +368,12 @@ namespace Chaos
 				FConvexBuilder::Build(SurfaceParticles, Planes, FaceIndices, TempSurfaceParticles, LocalBoundingBox);
 				CalculateVolumeAndCenterOfMass(SurfaceParticles, FaceIndices, Volume, CenterOfMass);
 			}
+
+			Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
+			if (Ar.CustomVer(FReleaseObjectVersion::GUID) >= FReleaseObjectVersion::MarginAddedToConvexAndBox)
+			{
+				Ar << FImplicitObject::Margin;
+			}
 		}
 
 		virtual void Serialize(FChaosArchive& Ar) override
@@ -368,7 +425,10 @@ namespace Chaos
 		TArray<TPlaneConcrete<FReal, 3>> Planes;
 		TParticles<FReal, 3> SurfaceParticles;	//copy of the vertices that are just on the convex hull boundary
 		TAABB<FReal, 3> LocalBoundingBox;
+		TUniquePtr<FConvexStructureData> StructureData;
 		float Volume;
 		FVec3 CenterOfMass;
 	};
+
+	extern CHAOS_API int32 Chaos_Collision_ConvexMarginType;
 }

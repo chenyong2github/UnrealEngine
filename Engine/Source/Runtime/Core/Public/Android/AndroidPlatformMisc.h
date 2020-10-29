@@ -304,6 +304,9 @@ public:
 	static void SetMemoryWarningHandler(void (*Handler)(const FGenericMemoryWarningContext& Context));
 	static bool HasMemoryWarningHandler();
 
+	// Android specific requesting of exit, *ONLY* use this function in signal handling code. Otherwise normal RequestExit functions
+	static void NonReentrantRequestExit();
+
 private:
 	static const ANSICHAR* CodeToString(int Signal, int si_code);
 	static EDeviceScreenOrientation DeviceOrientation;

@@ -4,6 +4,10 @@
 
 #include "CoreMinimal.h"
 #include "Features/IModularFeatures.h"
+#include "ARTypes.h"
+#include "ARTextures.h"
+#include "ARTraceResult.h"
+#include "DefaultSpectatorScreenController.h"
 
 #include <openxr/openxr.h>
 
@@ -53,6 +57,48 @@ public:
 	{
 	}
 };
+
+class IOpenXRCustomCaptureSupport
+{
+public:
+
+	virtual bool OnGetCameraIntrinsics(struct FARCameraIntrinsics& OutCameraIntrinsics) const 
+	{ 
+		return false; 
+	}
+
+	/** @return the AR texture for the specified type */
+	virtual class UARTexture* OnGetARTexture(EARTextureType TextureType) const
+	{ 
+		return nullptr; 
+	}
+
+	virtual bool OnToggleARCapture(const bool bOnOff) 
+	{ 
+		return false; 
+	}
+
+	virtual FTransform GetCameraTransform() const
+	{ 
+		return FTransform::Identity; 
+	}
+
+	virtual FVector GetWorldSpaceRayFromCameraPoint(FVector2D pixelCoordinate) const
+	{
+		return FVector::ZeroVector;
+	}
+
+	virtual bool IsEnabled() const
+	{
+		return false;
+	}
+
+	virtual TArray<FARTraceResult> OnLineTraceTrackedObjects(const TSharedPtr<FARSupportInterface, ESPMode::ThreadSafe> ARCompositionComponent, const FVector Start, const FVector End, const EARLineTraceChannels TraceChannels)
+	{
+		return {};
+	}
+};
+
 
 class IOpenXRExtensionPlugin : public IModularFeature
 {
@@ -110,6 +156,16 @@ public:
 	}
 
 	/**
+	* Set a spectator screen controller specific to the platform
+	* If true is returned and OutSpectatorScreenController is nullptr, spectator screen will be disabled
+	* If false is returned a default spectator screen controller will be created
+	*/
+	virtual bool GetSpectatorScreenController(FHeadMountedDisplayBase* InHMDBase, TUniquePtr<FDefaultSpectatorScreenController>& OutSpectatorScreenController)
+	{
+		return false;
+	}
+
+	/**
 	* Add any actions provided by the plugin to Actions with suggested bindings.
 	* This allows a plugin to 'hard code' an action so that the plugin can use it.
 	*/
@@ -127,6 +183,8 @@ public:
 	/** Get custom anchor interface if provided by this extension. */
 	virtual IOpenXRCustomAnchorSupport* GetCustomAnchorSupport() { return nullptr; }
 
+	/** Get custom capture interface if provided by this extension. */
+	virtual IOpenXRCustomCaptureSupport* GetCustomCaptureSupport(const EARCaptureType CaptureType) { return nullptr; }
 	/**
 	* Callback to provide extra view configurations that should be rendered in the main render pass
 	*/
@@ -192,7 +250,7 @@ public:
 		return InNext;
 	}
 
-	virtual const void* OnEndProjectionLayer(XrSession InSession, int32 InLayerIndex, const void* InNext)
+	virtual const void* OnEndProjectionLayer(XrSession InSession, int32 InLayerIndex, const void* InNext, XrCompositionLayerFlags& OutFlags)
 	{
 		return InNext;
 	}
@@ -207,6 +265,11 @@ public:
 	virtual const void* OnSyncActions(XrSession InSession, const void* InNext)
 	{
 		return InNext;
+	}
+
+	// OpenXRHMD::OnStartGameFrame
+	virtual void UpdateDeviceLocations(XrSession InSession, XrTime DisplayTime, XrSpace TrackingSpace)
+	{
 	}
 
 	// FOpenXRInput::Tick, game thread, after xrSyncActions

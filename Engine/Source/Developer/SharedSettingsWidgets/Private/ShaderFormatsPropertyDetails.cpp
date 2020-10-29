@@ -35,13 +35,9 @@ FText FShaderFormatsPropertyDetails::GetFriendlyNameFromRHINameMac(const FString
 		case SP_PCD3D_ES3_1:
 			FriendlyRHIName = LOCTEXT("D3DES31", "Direct3D (ES3.1, Mobile Preview)");
 			break;
-		case SP_OPENGL_SM5:
-			FriendlyRHIName = LOCTEXT("OpenGL4", "OpenGL 4.3+ (SM5)");
-			break;
 		case SP_OPENGL_PCES3_1:
 			FriendlyRHIName = LOCTEXT("OpenGLES31PC", "OpenGL (ES3.1, Mobile Preview)");
 			break;
-		case SP_OPENGL_ES31_EXT:
 		case SP_OPENGL_ES3_1_ANDROID:
 			FriendlyRHIName = LOCTEXT("OpenGLES31", "OpenGLES 3.1 (Mobile)");
 			break;

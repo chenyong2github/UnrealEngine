@@ -688,6 +688,7 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 	FRDGBuilder& GraphBuilder,
 	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
 	FRDGTextureRef SceneColorTexture,
+	FHairStrandsRenderingData* InHairDatas,
 	bool bIsVisualizePass)
 {
 	using namespace HybridIndirectLighting;
@@ -880,6 +881,17 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 			ensureMsgf(Views.Num() == 1, TEXT("Need to add support for one AO texture per view in FSceneRenderTargets")); // TODO.
 			ConvertToExternalTexture(GraphBuilder, AmbientOcclusionMask, SceneContext.ScreenSpaceAO);
 			SceneContext.bScreenSpaceAOIsValid = true;
+		}
+
+		if (InHairDatas 
+			&& (   (ViewPipelineState.AmbientOcclusionMethod == EAmbientOcclusionMethod::SSGI) 
+				|| (ViewPipelineState.AmbientOcclusionMethod == EAmbientOcclusionMethod::SSAO)))
+		{
+			RenderHairStrandsAmbientOcclusion(
+				GraphBuilder,
+				Views,
+				InHairDatas,
+				AmbientOcclusionMask);
 		}
 
 		// Applies diffuse indirect and ambient occlusion to the scene color.

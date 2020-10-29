@@ -38,6 +38,14 @@ class NIAGARA_API UNiagaraSettings : public UDeveloperSettings
 	UPROPERTY(config, EditAnywhere, Category = Renderer)
 	TMap<FString, FText> ComponentRendererWarningsPerClass;
 
+	/** The default render target format used by all Niagara Render Target Data Interfaces unless overridden. */
+	UPROPERTY(config, EditAnywhere, Category = Renderer)
+	TEnumAsByte<ETextureRenderTargetFormat> DefaultRenderTargetFormat = RTF_RGBA16f;
+
+	/** The default buffer format used by all Niagara Grid Data Interfaces unless overridden. */
+	UPROPERTY(config, EditAnywhere, Category = Renderer)
+	ENiagaraGpuBufferFormat DefaultGridFormat = ENiagaraGpuBufferFormat::HalfFloat;
+
 	// Begin UDeveloperSettings Interface
 	virtual FName GetCategoryName() const override;
 #if WITH_EDITOR

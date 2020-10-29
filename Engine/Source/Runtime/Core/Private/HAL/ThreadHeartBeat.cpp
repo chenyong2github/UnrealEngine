@@ -71,8 +71,12 @@ double FThreadHeartBeatClock::Seconds()
 {
 	uint64 Offset = FPlatformTime::Cycles64() - LastRealTickCycles;
 	uint64 ClampedOffset = FMath::Min(Offset, MaxTimeStepCycles);
+	uint64 CyclesPerSecond = (uint64)(1.0 / FPlatformTime::GetSecondsPerCycle64());
+	uint64 Cycles = CurrentCycles + ClampedOffset;
+	uint64 Seconds = Cycles / CyclesPerSecond;
+	uint64 RemainderCycles = Cycles % CyclesPerSecond;
 
-	return (CurrentCycles + ClampedOffset) * FPlatformTime::GetSecondsPerCycle64();
+	return (double)Seconds + (double)RemainderCycles * FPlatformTime::GetSecondsPerCycle64();
 }
 
 FThreadHeartBeat::FThreadHeartBeat()
@@ -247,7 +251,7 @@ void FORCENOINLINE FThreadHeartBeat::OnHang(double HangDuration, uint32 ThreadTh
 		}
 
 		// Dump the callstack and the thread name to log
-		FString ThreadName(ThreadThatHung == GGameThreadId ? TEXT("GameThread") : FThreadManager::Get().GetThreadName(ThreadThatHung));
+		FString ThreadName = FThreadManager::GetThreadName(ThreadThatHung);
 		if (ThreadName.IsEmpty())
 		{
 			ThreadName = FString::Printf(TEXT("unknown thread (%u)"), ThreadThatHung);

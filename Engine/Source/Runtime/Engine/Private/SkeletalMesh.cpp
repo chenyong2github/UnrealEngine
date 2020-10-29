@@ -799,7 +799,8 @@ void USkeletalMesh::InitResources()
 					const FSkelMeshSourceSectionUserData& SectionUserData = ImportLODModel.UserSectionsData.FindChecked(ImportSection.OriginalDataSectionIndex);
 					bool bImportDataInSync = SectionUserData.bDisabled == ImportSection.bDisabled &&
 						SectionUserData.bCastShadow == ImportSection.bCastShadow &&
-						SectionUserData.bRecomputeTangent == ImportSection.bRecomputeTangent;
+						SectionUserData.bRecomputeTangent == ImportSection.bRecomputeTangent &&
+						SectionUserData.RecomputeTangentsVertexMaskChannel == ImportSection.RecomputeTangentsVertexMaskChannel;
 					//Check the cloth only for parent section, since chunked section should not have cloth
 					if (bImportDataInSync && ImportSection.ChunkedParentSectionIndex == INDEX_NONE)
 					{
@@ -813,6 +814,7 @@ void USkeletalMesh::InitResources()
 					bool bRenderDataInSync = SectionUserData.bDisabled == RenderSection.bDisabled &&
 						SectionUserData.bCastShadow == RenderSection.bCastShadow &&
 						SectionUserData.bRecomputeTangent == RenderSection.bRecomputeTangent &&
+						SectionUserData.RecomputeTangentsVertexMaskChannel == RenderSection.RecomputeTangentsVertexMaskChannel &&
 						SectionUserData.CorrespondClothAssetIndex == RenderSection.CorrespondClothAssetIndex &&
 						SectionUserData.ClothingData.AssetGuid == RenderSection.ClothingData.AssetGuid &&
 						SectionUserData.ClothingData.AssetLodIndex == RenderSection.ClothingData.AssetLodIndex;
@@ -948,7 +950,7 @@ void USkeletalMesh::UpdateUVChannelData(bool bRebuildAll)
 			FMeshUVChannelInfo& UVChannelData = Materials[MaterialIndex].UVChannelData;
 
 			// Skip it if we want to keep it.
-			if (UVChannelData.bInitialized && (!bRebuildAll || UVChannelData.bOverrideDensities))
+			if (UVChannelData.IsInitialized() && (!bRebuildAll || UVChannelData.bOverrideDensities))
 				continue;
 
 			float WeightedUVDensities[TEXSTREAM_MAX_NUM_UVCHANNELS] = {0, 0, 0, 0};
@@ -2808,7 +2810,7 @@ bool USkeletalMesh::RegisterMorphTarget(UMorphTarget* MorphTarget, bool bInvalid
 		{
 			if ( MorphTargets[Index]->GetFName() == MorphTarget->GetFName() )
 			{
-				UE_LOG( LogSkeletalMesh, Log, TEXT("RegisterMorphTarget: %s already exists, replacing"), *MorphTarget->GetName() );
+				UE_LOG( LogSkeletalMesh, Verbose, TEXT("RegisterMorphTarget: %s already exists, replacing"), *MorphTarget->GetName() );
 				MorphTargets[Index] = MorphTarget;
 				bRegistered = true;
 				break;
@@ -3551,6 +3553,9 @@ void USkeletalMesh::CacheDerivedData()
 
 	AllocateResourceForRendering();
 
+	// Warn if the platform support minimal number of per vertex bone influences 
+	ValidateBoneWeights(RunningPlatform);
+
 	//LODMaterialMap from LODInfo is store in the uasset and not in the DDC, so we want to fix it here
 	//to cover the post load and the post edit change. The build can change the number of section and LODMaterialMap is index per section
 	//TODO, move LODMaterialmap functionality into the LODModel UserSectionsData which are index per original section (imported section).
@@ -3563,6 +3568,54 @@ void USkeletalMesh::CacheDerivedData()
 
 	PostMeshCached.Broadcast(this);
 }
+
+
+void USkeletalMesh::ValidateBoneWeights(const ITargetPlatform* TargetPlatform)
+{
+	if (TargetPlatform->SupportsFeature(ETargetPlatformFeatures::MobileRendering))
+	{
+		if (!ImportedModel)
+		{
+			return;
+		}
+		FSkeletalMeshRenderData* SkelMeshRenderData = GetResourceForRendering();
+
+		int32 NumLODs = LODInfo.Num();
+		int32 MinFirstLOD = MinLod.GetValue();
+		int32 MaxNumLODs = FMath::Clamp<int32>(NumLODs - MinFirstLOD, SkelMeshRenderData->NumInlinedLODs, NumLODs);
+
+		for (int32 LODIndex = 0; LODIndex < GetLODNum(); ++LODIndex)
+		{
+			if (!ImportedModel->LODModels.IsValidIndex(LODIndex))
+			{
+				continue;
+			}
+			const FSkeletalMeshLODModel& ImportLODModel = ImportedModel->LODModels[LODIndex];
+
+			int32 MaxBoneInfluences = ImportLODModel.GetMaxBoneInfluences();
+
+			for (int32 SectionIndex = 0; SectionIndex < ImportLODModel.Sections.Num(); ++SectionIndex)
+			{
+				
+				const FSkelMeshSection & Section = ImportLODModel.Sections[SectionIndex];
+
+				int MaxBoneInfluencesSection = Section.MaxBoneInfluences;
+				if (MaxBoneInfluences > 12)
+				{
+					UE_LOG(LogSkeletalMesh, Warning, TEXT("Mesh: %s,has more thatn 12 max bone influences, it has: %d"), *GetFullName(), MaxBoneInfluencesSection);
+				}
+			}
+		}
+
+	}
+}
+
+
+void USkeletalMesh::BeginCacheForCookedPlatformData(const ITargetPlatform* TargetPlatform)
+{
+	ValidateBoneWeights(TargetPlatform);
+}
+
 
 FString USkeletalMesh::GetDerivedDataKey()
 {

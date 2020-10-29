@@ -156,7 +156,9 @@ TUniquePtr<FDynamicMeshOperator> UCSGMeshesTool::MakeNewOperator()
 	for (int Idx = 0; Idx < 2; Idx++)
 	{
 		BooleanOp->Meshes[Idx] = OriginalDynamicMeshes[Idx];
-		BooleanOp->Transforms[Idx] = TransformProxies[Idx]->GetTransform();
+		FTransform UseTransform = TransformProxies[Idx]->GetTransform();
+		UseTransform.MultiplyScale3D(TransformInitialScales[Idx]);
+		BooleanOp->Transforms[Idx] = UseTransform;
 	}
 
 	return BooleanOp;

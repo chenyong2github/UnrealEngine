@@ -624,7 +624,7 @@ int32 UAssetManager::ScanPathsForPrimaryAssets(FPrimaryAssetType PrimaryAssetTyp
 				{
 					FString ConflictMsg = FString::Printf(TEXT("Ignoring PrimaryAssetType %s - Conflicts with %s"), *PrimaryAssetType.ToString(), *PrimaryAssetId.PrimaryAssetType.ToString());
 
-					UE_LOG(LogAssetManager, Display, TEXT("%s"), *ConflictMsg);
+					UE_LOG(LogAssetManager, Warning, TEXT("%s"), *ConflictMsg);
 					IssuedWarnings.Add(ConflictPair);
 				}
 			}

@@ -1267,7 +1267,8 @@ namespace Chaos
 			}
 			else
 			{
-				if (GJKPenetration(TriangleConvex, QueryGeom, QueryTM, Penetration, ClosestA, ClosestB, Normal, (FReal)0))
+				int32 ClosestVertexIndexA, ClosestVertexIndexB;
+				if (GJKPenetration(TriangleConvex, QueryGeom, QueryTM, Penetration, ClosestA, ClosestB, Normal, ClosestVertexIndexA, ClosestVertexIndexB, (FReal)0))
 				{
 					LocalContactLocation = ClosestB;
 					LocalContactNormal = Normal; 
@@ -1401,7 +1402,8 @@ namespace Chaos
 				FReal Penetration = 0;
 				TVec3<FReal> ClosestA(0);
 				TVec3<FReal> ClosestB(0);
-				if (GJKPenetration(TriangleConvex, QueryGeom, QueryTM, Penetration, ClosestA, ClosestB, TriangleNormal, Thickness))
+				int32 ClosestVertexIndexA, ClosestVertexIndexB;
+				if (GJKPenetration(TriangleConvex, QueryGeom, QueryTM, Penetration, ClosestA, ClosestB, TriangleNormal, ClosestVertexIndexA, ClosestVertexIndexB, Thickness))
 				{
 					// Use Deepest MTD.
 					if (Penetration > InnerMTD->Penetration)

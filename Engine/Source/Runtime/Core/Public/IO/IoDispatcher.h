@@ -50,8 +50,35 @@ enum class EIoErrorCode
 	CorruptToc,
 	UnknownChunkID,
 	InvalidParameter,
-	SignatureError
+	SignatureError,
+	InvalidEncryptionKey
 };
+
+/*
+ * Get I/O error code description.
+ */
+static const TCHAR* GetIoErrorText(EIoErrorCode ErrorCode)
+{
+	static constexpr const TCHAR* ErrorCodeText[]
+	{
+		TEXT("OK"),
+		TEXT("Unknown Status"),
+		TEXT("Invalid Code"),
+		TEXT("Cancelled"),
+		TEXT("FileOpen Failed"),
+		TEXT("File Not Open"),
+		TEXT("Read Error"),
+		TEXT("Write Error"),
+		TEXT("Not Found"),
+		TEXT("Corrupt Toc"),
+		TEXT("Unknown ChunkID"),
+		TEXT("Invalid Parameter"),
+		TEXT("Signature Error"),
+		TEXT("Invalid Encryption Key")
+	};
+
+	return ErrorCodeText[static_cast<uint32>(ErrorCode)];
+}
 
 /**
  * I/O status with error code and message.
@@ -891,7 +918,7 @@ public:
 	CORE_API						FIoDispatcher();
 	CORE_API virtual				~FIoDispatcher();
 
-	CORE_API FIoStatus				Mount(const FIoStoreEnvironment& Environment);
+	CORE_API FIoStatus				Mount(const FIoStoreEnvironment& Environment, const FGuid& EncryptionKeyGuid, const FAES::FAESKey& EncryptionKey);
 
 	CORE_API FIoBatch				NewBatch();
 	CORE_API void					FreeBatch(FIoBatch& Batch);
@@ -904,6 +931,8 @@ public:
 	CORE_API bool					DoesChunkExist(const FIoChunkId& ChunkId) const;
 	CORE_API TIoStatusOr<uint64>	GetSizeForChunk(const FIoChunkId& ChunkId) const;
 	CORE_API TArray<FIoDispatcherMountedContainer> GetMountedContainers() const;
+	CORE_API int64					GetTotalLoaded() const;
+
 
 	// Events
 	CORE_API FIoContainerMountedEvent& OnContainerMounted();
@@ -1118,6 +1147,7 @@ struct FIoStoreTocChunkInfo
 	FIoChunkHash Hash;
 	uint64 Offset;
 	uint64 Size;
+	uint64 CompressedSize;
 	bool bForceUncompressed;
 	bool bIsMemoryMapped;
 	bool bIsCompressed;

@@ -5,6 +5,9 @@
 
 #include "DisplayClusterRootActor.h"
 
+#include "IDisplayClusterConfiguration.h"
+#include "DisplayClusterConfigurationTypes.h"
+
 #include "DisplayCluster/Private/IPDisplayCluster.h"
 
 #include "Engine/LevelStreaming.h"
@@ -104,9 +107,18 @@ void UDisplayClusterEditorEngine::StartPlayInEditorSession(FRequestPlaySessionPa
 		{
 			bIsNDisplayPIE = true;
 
-			if (!DisplayClusterModule->StartSession(RootActor->GetPreviewConfigPath(), RootActor->GetPreviewNodeId()))
+			// Load config data
+			const UDisplayClusterConfigurationData* ConfigData = IDisplayClusterConfiguration::Get().LoadConfig(RootActor->GetPreviewConfigPath());
+			if (ConfigData)
 			{
-				UE_LOG(LogDisplayClusterEditorEngine, Error, TEXT("An error occurred during DisplayCluster session start"));
+				if (!DisplayClusterModule->StartSession(ConfigData, ConfigData->Cluster->MasterNode.Id))
+				{
+					UE_LOG(LogDisplayClusterEditorEngine, Error, TEXT("An error occurred during DisplayCluster session start"));
+				}
+			}
+			else
+			{
+				UE_LOG(LogDisplayClusterEditorEngine, Error, TEXT("Couldn't load config data"));
 			}
 		}
 	}

@@ -75,6 +75,12 @@ public:
 	/** Field targets nodes buffer */
 	FRWBuffer TargetsOffsets;
 
+	/** Bounds Min buffer */
+	FRWBuffer BoundsMin;
+
+	/** Bounds max buffer */
+	FRWBuffer BoundsMax;
+
 	/** Field infos that will be used to allocate memory and to transfer information */
 	FPhysicsFieldInfos FieldInfos;
 
@@ -91,7 +97,9 @@ public:
 
 	/** Update RHI resources. */
 	void UpdateResource(FRHICommandListImmediate& RHICmdList, const int32 NodesCount, const int32 ParamsCount,
-		const int32* TargetsOffsetsDatas, const int32* NodesOffsetsDatas, const float* NodesParamsDatas, const float TimeSeconds);
+		const TStaticArray<int32, EFieldPhysicsType::Field_PhysicsType_Max + 1>& TargetsOffsetsDatas, 
+		const TArray<int32>& NodesOffsetsDatas, const TArray<float>& NodesParamsDatas,
+		const TArray<FVector4>& BoundsMinDatas, const TArray<FVector4>& BoundsMaxDatas, const float TimeSeconds);
 };
 
 
@@ -104,9 +112,6 @@ public:
 
 	/** Number of field node types. */
 	static const uint32 FieldsCount = FFieldNodeBase::ESerializationType::FieldNode_FReturnResultsTerminal + 1;
-
-	/** Max number of targets. */
-	static const uint32 TargetsCount = EFieldPhysicsType::Field_PhysicsType_Max;
 
 	/** Default constructor. */
 	FPhysicsFieldInstance()
@@ -133,14 +138,17 @@ public:
 	 */
 	void UpdateInstance(const float TimeSeconds);
 
-	/** Update the offsets and paramsgiven a node */
+	/** Update the offsets and params given a node */
 	void BuildNodeParams(FFieldNodeBase* FieldNode);
+
+	/** Update the bounds given a node */
+	void BuildNodeBounds(FFieldNodeBase* FieldNode, FVector& MinBounds, FVector& MaxBounds);
 
 	/** The field system resource. */
 	FPhysicsFieldResource* FieldResource = nullptr;
 
 	/** Targets offsets in the nodes array*/
-	TStaticArray<int32, TargetsCount + 1> TargetsOffsets;
+	TStaticArray<int32, EFieldPhysicsType::Field_PhysicsType_Max + 1> TargetsOffsets;
 
 	/** Nodes offsets in the paramter array */
 	TArray<int32> NodesOffsets;
@@ -150,6 +158,12 @@ public:
 
 	/** List of all the field commands in the world */
 	TArray<FFieldSystemCommand> FieldCommands;
+
+	/** Min Bounds for each target */
+	TArray<FVector4> BoundsMin;
+
+	/** Max Bounds for each target */
+	TArray<FVector4> BoundsMax;
 };
 
 /**

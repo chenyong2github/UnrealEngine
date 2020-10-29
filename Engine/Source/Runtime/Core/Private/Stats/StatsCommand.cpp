@@ -1272,8 +1272,8 @@ struct FHUDGroupManager
 				const bool bAIsDbl = DataTypeA == EStatDataType::ST_double;
 				const bool bBIsDbl = DataTypeB == EStatDataType::ST_double;
 
-				const double ValueA = bAIsInt ? A.GetValue_int64() : A.GetValue_double();
-				const double ValueB = bBIsInt ? B.GetValue_int64() : B.GetValue_double();
+				const double ValueA = bAIsInt ? double(A.GetValue_int64()) : A.GetValue_double();
+				const double ValueB = bBIsInt ? double(B.GetValue_int64()) : B.GetValue_double();
 
 				return ValueA == ValueB ? FStatNameComparer<FStatMessage>()(A,B) : ValueA > ValueB;
 			}

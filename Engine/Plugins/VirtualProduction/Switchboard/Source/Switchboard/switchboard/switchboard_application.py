@@ -41,7 +41,7 @@ class OscServer(object):
 
         return self.server.server_address()
 
-    def launch(self, ip_address="127.0.0.1", port=CONFIG.OSC_SERVER_PORT):
+    def launch(self, ip_address, port):
         # TODO: Allow relaunch of OSC server when ip_address variable changes
         try:
             self.server = pythonosc.osc_server.ThreadingOSCUDPServer((ip_address, port), self.dispatcher)
@@ -82,7 +82,7 @@ class OscServer(object):
         self.dispatcher.map(command, method, needs_reply_address=True)
 
     def _default_callback(self, client_address, command, *args):
-        LOGGER.warning(f'Recieved unhandled OSC message: {command} {args}.')
+        LOGGER.warning(f'Received unhandled OSC message: {command} {args}.')
 
 
 class MultiUserApplication(ApplicationAbstract):

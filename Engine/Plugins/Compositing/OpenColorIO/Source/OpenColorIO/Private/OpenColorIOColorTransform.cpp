@@ -144,7 +144,12 @@ void UOpenColorIOColorTransform::CacheResourceShadersForCooking(EShaderPlatform 
 	const ERHIFeatureLevel::Type TargetFeatureLevel = GetMaxSupportedFeatureLevel(InShaderPlatform);
 
 	FOpenColorIOTransformResource* NewResource = AllocateResource();
-	NewResource->SetupResource((ERHIFeatureLevel::Type)TargetFeatureLevel, InShaderHash, InShaderCode, GetTransformFriendlyName());
+#if WITH_EDITOR
+	FString AssetFilePath = FPackageName::LongPackageNameToFilename(GetOutermost()->GetName(), TEXT(".uasset"));
+#else
+	FString AssetFilePath;
+#endif
+	NewResource->SetupResource((ERHIFeatureLevel::Type)TargetFeatureLevel, InShaderHash, InShaderCode, GetTransformFriendlyName(), AssetFilePath);
 
 	const bool bApplyCompletedShaderMap = false;
 	const bool bIsCooking = true;
@@ -271,7 +276,12 @@ void UOpenColorIOColorTransform::CacheResourceShadersForRendering(bool bRegenera
 					TransformResource = AllocateResource();
 				}
 
-				TransformResource->SetupResource(CacheFeatureLevel, ShaderCodeHash, ShaderCode, GetTransformFriendlyName());
+#if WITH_EDITOR
+				FString AssetFilePath = FPackageName::LongPackageNameToFilename(GetOutermost()->GetName(), TEXT(".uasset"));
+#else
+				FString AssetFilePath;
+#endif
+				TransformResource->SetupResource(CacheFeatureLevel, ShaderCodeHash, ShaderCode, GetTransformFriendlyName(), AssetFilePath);
 
 				const bool bApplyCompletedShaderMap = true;
 				const bool bIsCooking = false;
@@ -540,15 +550,10 @@ void UOpenColorIOColorTransform::BeginCacheForCookedPlatformData(const ITargetPl
 	TArray<FName> DesiredShaderFormats;
 	TargetPlatform->GetAllTargetedShaderFormats(DesiredShaderFormats);
 
-	TArray<FOpenColorIOTransformResource*>* CachedColorTransformResourceForPlatformPtr = CachedColorTransformResourcesForCooking.Find(TargetPlatform);
+	TArray<FOpenColorIOTransformResource*>* CachedColorTransformResourceForPlatformPtr = &CachedColorTransformResourcesForCooking.FindOrAdd(TargetPlatform);
 
-	if (DesiredShaderFormats.Num() > 0 && CachedColorTransformResourceForPlatformPtr == nullptr)
+	if (DesiredShaderFormats.Num() > 0)
 	{
-		CachedColorTransformResourcesForCooking.Add(TargetPlatform);
-		CachedColorTransformResourceForPlatformPtr = CachedColorTransformResourcesForCooking.Find(TargetPlatform);
-
-		check(CachedColorTransformResourceForPlatformPtr != nullptr);
-
 		//Need to re-update shader data when cooking. They won't have been previously fetched.
 		FString ShaderCodeHash;
 		FString ShaderCode;
@@ -558,7 +563,6 @@ void UOpenColorIOColorTransform::BeginCacheForCookedPlatformData(const ITargetPl
 			for (int32 FormatIndex = 0; FormatIndex < DesiredShaderFormats.Num(); FormatIndex++)
 			{
 				const EShaderPlatform LegacyShaderPlatform = ShaderFormatToLegacyShaderPlatform(DesiredShaderFormats[FormatIndex]);
-
 				// Begin caching shaders for the target platform and store the FOpenColorIOTransformResource being compiled into CachedColorTransformResourcesForCooking
 				CacheResourceShadersForCooking(LegacyShaderPlatform, TargetPlatform, ShaderCodeHash, ShaderCode, *CachedColorTransformResourceForPlatformPtr);
 			}
@@ -568,12 +572,9 @@ void UOpenColorIOColorTransform::BeginCacheForCookedPlatformData(const ITargetPl
 
 bool UOpenColorIOColorTransform::IsCachedCookedPlatformDataLoaded(const ITargetPlatform* TargetPlatform)
 {
-	TArray<FName> DesiredShaderFormats;
-	TargetPlatform->GetAllTargetedShaderFormats(DesiredShaderFormats);
-
 	const TArray<FOpenColorIOTransformResource*>* CachedColorTransformResourcesForPlatform = CachedColorTransformResourcesForCooking.Find(TargetPlatform);
 
-	if (CachedColorTransformResourcesForPlatform != nullptr) // this should always succeed if BeginCacheForCookedPlatformData is called first
+	if (CachedColorTransformResourcesForPlatform)
 	{
 		for (const FOpenColorIOTransformResource* const TransformResource : *CachedColorTransformResourcesForPlatform)
 		{
@@ -582,10 +583,8 @@ bool UOpenColorIOColorTransform::IsCachedCookedPlatformDataLoaded(const ITargetP
 				return false;
 			}
 		}
-
 		return true;
 	}
-
 	return false;
 }
 

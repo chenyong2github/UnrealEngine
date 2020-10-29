@@ -1205,7 +1205,10 @@ bool UMovieSceneCompiledDataManager::CompileSubTrackHierarchy(UMovieSceneSubTrac
 		FSubSequenceInstanceDataParams InstanceParams{ InnerSequenceID, Operand };
 		FMovieSceneSubSequenceData     NewSubData = SubSection->GenerateSubSequenceData(InstanceParams);
 
-		NewSubData.PlayRange               = TRange<FFrameNumber>::Intersection(Params.LocalClampRange, NewSubData.PlayRange.Value);
+		// LocalClampRange here is in SubTrack's space, so we need to multiply that by the OuterToInnerTransform (which is the same as RootToSequenceTransform here before we transform it)
+		TRange<FFrameNumber> InnerClampRange = NewSubData.RootToSequenceTransform.TransformRangeUnwarped(Params.LocalClampRange);
+
+		NewSubData.PlayRange               = TRange<FFrameNumber>::Intersection(InnerClampRange, NewSubData.PlayRange.Value);
 		NewSubData.RootToSequenceTransform = NewSubData.RootToSequenceTransform * Params.RootToSequenceTransform;
 		NewSubData.HierarchicalBias        = Params.HierarchicalBias + NewSubData.HierarchicalBias;
 		NewSubData.bHasHierarchicalEasing  = Params.bHasHierarchicalEasing || NewSubData.bHasHierarchicalEasing;
@@ -1255,6 +1258,7 @@ bool UMovieSceneCompiledDataManager::CompileSubTrackHierarchy(UMovieSceneSubTrac
 
 			// Iterate into the sub sequence
 			FGatherParameters SubParams = Params.CreateForSubData(*SubData, SubSequenceID);
+			SubParams.SetClampRange(EffectiveRange);
 			SubParams.Flags |= Entry.Flags;
 			SubParams.NetworkMask = NewMask;
 

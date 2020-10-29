@@ -2,6 +2,7 @@
 
 #include "CustomBuildSteps.h"
 #include "Dom/JsonObject.h"
+#include "Serialization/JsonSerializer.h"
 
 #define LOCTEXT_NAMESPACE "ModuleDescriptor"
 
@@ -36,17 +37,54 @@ void FCustomBuildSteps::Read(const FJsonObject& Object, const FString& FieldName
 
 void FCustomBuildSteps::Write(TJsonWriter<>& Writer, const FString& FieldName) const
 {
-	Writer.WriteObjectStart(FieldName);
-	for(const TPair<FString, TArray<FString>>& HostPlatformAndCommands: HostPlatformToCommands)
+	if (!IsEmpty())
 	{
-		Writer.WriteArrayStart(HostPlatformAndCommands.Key);
-		for(const FString& Command : HostPlatformAndCommands.Value)
+		TSharedRef<FJsonObject> JsonObject = MakeShared<FJsonObject>();
+		UpdateJson(*JsonObject, FieldName);
+
+		if (TSharedPtr<FJsonValue> StepsValue = JsonObject->TryGetField(FieldName))
 		{
-			Writer.WriteValue(*Command);
+			FJsonSerializer::Serialize(StepsValue, FieldName, Writer);
 		}
-		Writer.WriteArrayEnd();
 	}
-	Writer.WriteObjectEnd();
+}
+
+void FCustomBuildSteps::UpdateJson(FJsonObject& JsonObject, const FString& FieldName) const
+{
+	if (!IsEmpty())
+	{
+		TSharedPtr<FJsonObject> StepsObject;
+
+		TSharedPtr<FJsonValue> StepsValue = JsonObject.TryGetField(FieldName);
+		if (StepsValue.IsValid() && StepsValue->Type == EJson::Object)
+		{
+			StepsObject = StepsValue->AsObject();
+		}
+		else
+		{
+			StepsObject = MakeShared<FJsonObject>();
+			JsonObject.SetObjectField(FieldName, StepsObject);
+		}
+
+		if (ensure(StepsObject.IsValid()))
+		{
+			for (const TPair<FString, TArray<FString>>& HostPlatformAndCommands : HostPlatformToCommands)
+			{
+				TArray<TSharedPtr<FJsonValue>> CommandValues;
+
+				for (const FString& Command : HostPlatformAndCommands.Value)
+				{
+					CommandValues.Add(MakeShareable(new FJsonValueString(Command)));
+				}
+
+				StepsObject->SetArrayField(HostPlatformAndCommands.Key, CommandValues);
+			}
+		}
+	}
+	else
+	{
+		JsonObject.RemoveField(FieldName);
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

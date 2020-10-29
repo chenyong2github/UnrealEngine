@@ -53,6 +53,7 @@ namespace UnrealGameSync
 		string Name { get; }
 		string Type { get; }
 		string BasePath { get; }
+		string Target { get;  }
 		bool Exists();
 		bool TryGetArchiveKeyForChangeNumber(int ChangeNumber, out string ArchiveKey);
 		bool DownloadArchive(string ArchiveKey, string LocalRootPath, string ManifestFileName, TextWriter Log, ProgressValue Progress);
@@ -65,6 +66,7 @@ namespace UnrealGameSync
 			public string Name { get; }
 			public string Type { get; }
 			public string DepotPath { get; }
+			public string Target { get; }
 			public PerforceConnection Perforce { get; }
 
 			public string BasePath
@@ -75,18 +77,19 @@ namespace UnrealGameSync
 			// TODO: executable/configuration?
 			public SortedList<int, string> ChangeNumberToFileRevision = new SortedList<int, string>();
 
-			public PerforceArchiveInfo(string Name, string Type, string DepotPath, PerforceConnection Perforce)
+			public PerforceArchiveInfo(string Name, string Type, string DepotPath, string Target, PerforceConnection Perforce)
 			{
 				this.Name = Name;
 				this.Type = Type;
 				this.DepotPath = DepotPath;
+				this.Target = Target;
 				this.Perforce = Perforce;
 			}
 
 			public override bool Equals(object Other)
 			{
 				PerforceArchiveInfo OtherArchive = Other as PerforceArchiveInfo;
-				return OtherArchive != null && Name == OtherArchive.Name && Type == OtherArchive.Type && DepotPath == OtherArchive.DepotPath && Enumerable.SequenceEqual(ChangeNumberToFileRevision, OtherArchive.ChangeNumberToFileRevision);
+				return OtherArchive != null && Name == OtherArchive.Name && Type == OtherArchive.Type && DepotPath == OtherArchive.DepotPath && Target == OtherArchive.Target && Enumerable.SequenceEqual(ChangeNumberToFileRevision, OtherArchive.ChangeNumberToFileRevision);
 			}
 
 			public override int GetHashCode()
@@ -117,9 +120,11 @@ namespace UnrealGameSync
 					return false;
 				}
 
+				string Target = Object.GetValue("Target", null);
+
 				string Type = Object.GetValue("Type", null) ?? Name;
 
-				Info = new PerforceArchiveInfo(Name, Type, DepotPath, PerforceConnection);
+				Info = new PerforceArchiveInfo(Name, Type, DepotPath, Target, PerforceConnection);
 				return true;
 			}
 
@@ -603,7 +608,7 @@ namespace UnrealGameSync
 				string LegacyEditorArchivePath = ProjectConfigSection.GetValue("ZippedBinariesPath", null);
 				if (LegacyEditorArchivePath != null)
 				{
-					NewArchives.Add(new PerforceArchiveInfo("Editor", "Editor", LegacyEditorArchivePath, Perforce));
+					NewArchives.Add(new PerforceArchiveInfo("Editor", "Editor", LegacyEditorArchivePath, null, Perforce));
 				}
 
 				// New style

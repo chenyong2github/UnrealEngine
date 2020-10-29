@@ -31,7 +31,7 @@ public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	virtual bool Init(EDisplayClusterOperationMode OperationMode) override;
 	virtual void Release() override;
-	virtual bool StartSession(const FString& InConfigPath, const FString& InNodeId) override;
+	virtual bool StartSession(const UDisplayClusterConfigurationData* InConfigData, const FString& InNodeId) override;
 	virtual void EndSession() override;
 	virtual bool StartScene(UWorld* InWorld) override;
 	virtual void EndScene() override;
@@ -79,7 +79,6 @@ private:
 
 	// Interface pointer to avoid type casting
 	IDisplayClusterRenderDevice* RenderDevicePtr = nullptr;
-	bool bWindowAdjusted = false;
 
 private:
 	// Rendering device factories

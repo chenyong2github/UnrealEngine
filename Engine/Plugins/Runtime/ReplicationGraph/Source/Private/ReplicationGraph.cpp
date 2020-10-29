@@ -113,8 +113,8 @@ float CVar_RepGraph_OutOfRangeDistanceCheckRatio = 0.5f;
 static FAutoConsoleVariableRef CVarRepGraphOutOfRangeDistanceCheckRatio(TEXT("Net.RepGraph.OutOfRangeDistanceCheckRatio"), CVar_RepGraph_OutOfRangeDistanceCheckRatio,
 	TEXT("The ratio of DestructInfoMaxDistance that gives the distance traveled before we reevaluate the out of range destroyed actors list"), ECVF_Default);
 
-int32 CVar_RepGraph_DormancyNode_DisconnectedBehavior = 1;
-static FAutoConsoleVariableRef CVarRepGraphDormancyNodeDisconnectedBehavior(TEXT("Net.RepGraph.DormancyNodeDisconnectedBehavior"), CVar_RepGraph_DormancyNode_DisconnectedBehavior, TEXT("This changes how the dormancy node deals with disconnected clients. 0 = ignore. 1 = skip the disconnected client nodes. 2 = lazily destroy the disconnected client nodes"), ECVF_Default);
+int32 CVar_RepGraph_DormancyNode_ObsoleteBehavior = 0;
+static FAutoConsoleVariableRef CVarRepGraphDormancyNodeObsoleteBehavior(TEXT("Net.RepGraph.DormancyNodeObsoleteBehavior"), CVar_RepGraph_DormancyNode_ObsoleteBehavior, TEXT("This changes how the dormancy node deals with obsolete nodes. 0 = ignore. 1 = lazily destroy the node"), ECVF_Default);
 
 static TAutoConsoleVariable<float> CVar_ForceConnectionViewerPriority(TEXT("Net.RepGraph.ForceConnectionViewerPriority"), 1, TEXT("Force the connection's player controller and viewing pawn as topmost priority."));
 
@@ -156,7 +156,7 @@ static FORCEINLINE FString DescribeSafe(T* Describable)
 
 FORCEINLINE bool RepGraphConditionalActorBreakpoint(AActor* Actor, UNetConnection* NetConnection)
 {
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if !(UE_BUILD_SHIPPING)
 	if (CVarRepGraphConditionalBreakpointActorName.GetValueOnGameThread().Len() > 0 && GetNameSafe(Actor).Contains(CVarRepGraphConditionalBreakpointActorName.GetValueOnGameThread()))
 	{
 		return true;
@@ -179,7 +179,7 @@ TMap<FActorConnectionPair, int32> ActorChannelDestroyCounter;
 static TAutoConsoleVariable<FString> CVarRepGraphConditionalPairActorName(TEXT("Net.RepGraph.ConditionalPairName"), TEXT(""), TEXT(""), ECVF_Default );
 void UpdateActorConnectionCounter(AActor* InActor, UNetConnection* InConnection, TMap<FActorConnectionPair, int32>& Counter)
 {
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if !(UE_BUILD_SHIPPING)
 	if (CVar_RepGraph_WarnThreshold <= 0)
 	{
 		return;
@@ -349,8 +349,6 @@ void UReplicationGraph::RemoveConnectionGraphNode(UReplicationGraphNode* GraphNo
 
 UNetReplicationGraphConnection* UReplicationGraph::FindOrAddConnectionManager(UNetConnection* NetConnection)
 {
-	FScopeLogTime SLT( TEXT( "UReplicationGraph::FindOrAddConnectionManager(" ), nullptr, FScopeLogTime::ScopeLog_Milliseconds );
-
 	// Children do not have a connection manager, this is handled by their parent.
 	// We do not want to create connection managers for children, so redirect them.
 	if (NetConnection->GetUChildConnection() != nullptr)
@@ -386,8 +384,6 @@ UNetReplicationGraphConnection* UReplicationGraph::FindOrAddConnectionManager(UN
 
 void UReplicationGraph::AddClientConnection(UNetConnection* NetConnection)
 {
-	//FScopeLogTime SLT( TEXT( "UReplicationGraph::AddClientConnection" ), nullptr, FScopeLogTime::ScopeLog_Milliseconds );
-
 	// Children do not have a connection manager, do not proceed with this function in this case.
 	// Default behavior never calls this function with child connections anyways, so this is really only here for protection.
 	if (NetConnection->GetUChildConnection() != nullptr)
@@ -2800,6 +2796,21 @@ void UReplicationGraphNode::TearDown()
 	MarkPendingKill();
 }
 
+void UReplicationGraphNode::DoCollectActorRepListStats(FActorRepListStatCollector& StatsCollector) const
+{
+	// Visit lists owned by this node
+	OnCollectActorRepListStats(StatsCollector);
+
+	// Flag the node as visited so we don't collect it twice
+	StatsCollector.FlagNodeVisited(this);
+
+	// Collect stats on all child nodes too
+	for (const UReplicationGraphNode* Node : AllChildNodes)
+	{
+		Node->DoCollectActorRepListStats(StatsCollector);
+	}
+}
+
 // --------------------------------------------------------------------------------------------------------------------------------------------
 void FStreamingLevelActorListCollection::AddActor(const FNewReplicatedActorInfo& ActorInfo)
 {
@@ -3024,6 +3035,14 @@ void UReplicationGraphNode_ActorList::TearDown()
 	StreamingLevelCollection.TearDown();
 }
 
+void UReplicationGraphNode_ActorList::OnCollectActorRepListStats(FActorRepListStatCollector& StatsCollector) const
+{
+	StatsCollector.VisitRepList(this, ReplicationActorList);
+	StatsCollector.VisitStreamingLevelCollection(this, StreamingLevelCollection);
+
+	Super::OnCollectActorRepListStats(StatsCollector);
+}
+
 void UReplicationGraphNode_ActorList::LogNode(FReplicationGraphDebugInfo& DebugInfo, const FString& NodeName) const
 {
 	DebugInfo.Log(NodeName);
@@ -3234,6 +3253,17 @@ void UReplicationGraphNode_ActorListFrequencyBuckets::GetAllActorsInNode_Debuggi
 	{
 		ChildNode->GetAllActorsInNode_Debugging(OutArray);
 	}
+}
+
+void UReplicationGraphNode_ActorListFrequencyBuckets::OnCollectActorRepListStats(FActorRepListStatCollector& StatsCollector) const
+{
+	for (const FActorRepListRefView& List : NonStreamingCollection)
+	{
+		StatsCollector.VisitRepList(this, List);
+	}
+	StatsCollector.VisitStreamingLevelCollection(this, StreamingLevelCollection);
+	
+	Super::OnCollectActorRepListStats(StatsCollector);
 }
 
 void UReplicationGraphNode_ActorListFrequencyBuckets::LogNode(FReplicationGraphDebugInfo& DebugInfo, const FString& NodeName) const
@@ -3808,8 +3838,28 @@ void UReplicationGraphNode_DynamicSpatialFrequency::GatherActors_DistanceOnly(co
 
 // --------------------------------------------------------------------------------------------------------------------------------------------
 
+// Default value is to disable the frame-based obsolete condition
+uint32 UReplicationGraphNode_ConnectionDormancyNode::NumFramesUntilObsolete = 0;
+
+void UReplicationGraphNode_ConnectionDormancyNode::SetNumFramesUntilObsolete(uint32 InNumFrames)
+{
+	UE_LOG(LogReplicationGraph, Log, TEXT("SetNumFramesUntilObsolete setting is now %u"), InNumFrames);
+    NumFramesUntilObsolete = InNumFrames;
+}
+
+void UReplicationGraphNode_ConnectionDormancyNode::TearDown()
+{
+	Super::TearDown();
+
+	RemovedStreamingLevelActorListCollection.TearDown();
+}
+
 void UReplicationGraphNode_ConnectionDormancyNode::GatherActorListsForConnection(const FConnectionGatherActorListParameters& Params)
 {
+	RG_QUICK_SCOPE_CYCLE_COUNTER(RepGraphNode_ConnectionDormancy_Gather);
+
+	LastGatheredFrame = Params.ReplicationFrameNum;
+
 	ConditionalGatherDormantActorsForConnection(ReplicationActorList, Params, nullptr);
 	
 	for (int32 idx=StreamingLevelCollection.StreamingLevelLists.Num()-1; idx>=0; --idx)
@@ -3985,36 +4035,49 @@ void UReplicationGraphNode_ConnectionDormancyNode::NotifyResetAllNetworkActors()
 	RemovedStreamingLevelActorListCollection.Reset();
 }
 
+bool UReplicationGraphNode_ConnectionDormancyNode::IsNodeObsolete(uint32 CurrentFrame) const
+{
+	// Test if the connection tied to this node has been destroyed
+	const bool bIsConnectionDestroyed = ConnectionOwner.ResolveObjectPtr() == nullptr;
+
+	// Test if the connection has gathered the node recently.
+	// After some time we can consider the client to be far enough from the node location for the node to be obsolete.
+	const bool bHasBeenGatheredRecently = (NumFramesUntilObsolete == 0) || (CurrentFrame - LastGatheredFrame) <= NumFramesUntilObsolete;
+
+	return bIsConnectionDestroyed || !bHasBeenGatheredRecently;
+}
+
 // --------------------------------------------------------------------------------------------------------------------------------------------
 
 float UReplicationGraphNode_DormancyNode::MaxZForConnection = WORLD_MAX;
 
 void UReplicationGraphNode_DormancyNode::CallFunctionOnValidConnectionNodes(FConnectionDormancyNodeFunction Function)
 {
-	enum class DisconnectedClientNodeBehavior
+	enum class ObsoleteNodeBehavior
 	{
-		AlwaysValid = 0, // Keep calling functions on disconnected client nodes (previous behavior)
-		Deactivate = 1, // Deactivate the nodes by ignoring them. (wastes memory but doesn't incur a costly destruction)
-		Destroy = 2,  // Destroy the nodes immediately (one time cpu hit)
-	};
-	const DisconnectedClientNodeBehavior DisconnectedClientBehavior = (DisconnectedClientNodeBehavior)CVar_RepGraph_DormancyNode_DisconnectedBehavior;
+		AlwaysValid = 0, // Keep calling functions on obsolete nodes (default behavior)
+		Destroy = 1,  // Destroy the nodes immediately (one time cpu hit)
+	};	
+	const ObsoleteNodeBehavior CurrentObsoleteNodeBehavior = (ObsoleteNodeBehavior)CVar_RepGraph_DormancyNode_ObsoleteBehavior;
 
-	QUICK_SCOPE_CYCLE_COUNTER(UReplicationGraphNode_DormancyNode_ConnectionLoop);
+	const uint32 CurrentFrame = GraphGlobals->ReplicationGraph->GetReplicationGraphFrame();
+
+	RG_QUICK_SCOPE_CYCLE_COUNTER(UReplicationGraphNode_DormancyNode_ConnectionLoop);
 	for (FConnectionDormancyNodeMap::TIterator It = ConnectionNodes.CreateIterator(); It; ++It)
 	{
-		const FRepGraphConnectionKey RepGraphConnection = It.Key();
-		const bool bIsActiveConnection = (DisconnectedClientBehavior == DisconnectedClientNodeBehavior::AlwaysValid) || (RepGraphConnection.ResolveObjectPtr() != nullptr);
-		if (bIsActiveConnection)
+		UReplicationGraphNode_ConnectionDormancyNode* ConnectionNode = It.Value();
+		const bool bIsNodeObsolete = (CurrentObsoleteNodeBehavior != ObsoleteNodeBehavior::AlwaysValid) && ConnectionNode->IsNodeObsolete(CurrentFrame);
+
+		if (!bIsNodeObsolete)
 		{
-			Function(It.Value());
+			Function(ConnectionNode);
 		}
-		else if (DisconnectedClientBehavior == DisconnectedClientNodeBehavior::Destroy)
+		else if (bIsNodeObsolete && CurrentObsoleteNodeBehavior == ObsoleteNodeBehavior::Destroy)
 		{
-			// The connection is now invalid. Destroy it's corresponding node
-			UReplicationGraphNode_ConnectionDormancyNode* ConnectionNodeToDestroy = It.Value();
+			RG_QUICK_SCOPE_CYCLE_COUNTER(RepGraphNode_Dormancy_DestroyObsoleteConnectionNode);
 			
-			bool bWasRemoved = RemoveChildNode(ConnectionNodeToDestroy, UReplicationGraphNode::NodeOrdering::IgnoreOrdering);
-			ensureMsgf(bWasRemoved, TEXT("DormancyNode did not find %s in it's child node."), *ConnectionNodeToDestroy->GetName());
+			bool bWasRemoved = RemoveChildNode(ConnectionNode, UReplicationGraphNode::NodeOrdering::IgnoreOrdering);
+			ensureMsgf(bWasRemoved, TEXT("DormancyNode did not find %s in it's child node."), *ConnectionNode->GetName());
 
 			It.RemoveCurrent();
 		}
@@ -4097,8 +4160,19 @@ void UReplicationGraphNode_DormancyNode::GatherActorListsForConnection(const FCo
 		return;
 	}
 
-	UReplicationGraphNode_ConnectionDormancyNode* ConnectionNode = GetConnectionNode(Params);
-	ConnectionNode->GatherActorListsForConnection(Params);
+	UReplicationGraphNode_ConnectionDormancyNode* ConnectionNode = GetExistingConnectionNode(Params);
+
+	if( ConnectionNode )
+	{
+		ConnectionNode->GatherActorListsForConnection(Params);
+	}
+	else
+	{
+		QUICK_SCOPE_CYCLE_COUNTER(RepGraphNode_ConnectionDormancy_NewNodeFirstGather);
+		ConnectionNode = CreateConnectionNode(Params);
+		ConnectionNode->GatherActorListsForConnection(Params);
+	}
+	
 }
 
 UReplicationGraphNode_ConnectionDormancyNode* UReplicationGraphNode_DormancyNode::GetExistingConnectionNode(const FConnectionGatherActorListParameters& Params)
@@ -4109,21 +4183,32 @@ UReplicationGraphNode_ConnectionDormancyNode* UReplicationGraphNode_DormancyNode
 
 UReplicationGraphNode_ConnectionDormancyNode* UReplicationGraphNode_DormancyNode::GetConnectionNode(const FConnectionGatherActorListParameters& Params)
 {
-	FRepGraphConnectionKey RepGraphConnection(&Params.ConnectionManager);
-	UReplicationGraphNode_ConnectionDormancyNode** NodePtrPtr = ConnectionNodes.Find(RepGraphConnection);
-	UReplicationGraphNode_ConnectionDormancyNode* ConnectionNode = NodePtrPtr != nullptr ? *NodePtrPtr : nullptr;
+	UReplicationGraphNode_ConnectionDormancyNode* ConnectionNode = GetExistingConnectionNode(Params);
 	
 	if (ConnectionNode == nullptr)
 	{
-		// We dont have a per-connection node for this connection, so create one and copy over contents
-		ConnectionNode = CreateChildNode<UReplicationGraphNode_ConnectionDormancyNode>();
-		ConnectionNodes.Add(RepGraphConnection) = ConnectionNode;
-
-		// Copy our master lists to the connection node
-		ConnectionNode->DeepCopyActorListsFrom(this);
-
-		UE_CLOG(CVar_RepGraph_LogNetDormancyDetails > 0, LogReplicationGraph, Display, TEXT("GRAPH_DORMANCY: First time seeing connection %s in node %s. Created ConnectionDormancyNode %s."), *Params.ConnectionManager.GetName(), *GetName(), *ConnectionNode->GetName());
+		ConnectionNode = CreateConnectionNode(Params);
 	}
+
+	return ConnectionNode;
+}
+
+UReplicationGraphNode_ConnectionDormancyNode* UReplicationGraphNode_DormancyNode::CreateConnectionNode(const FConnectionGatherActorListParameters& Params)
+{
+	RG_QUICK_SCOPE_CYCLE_COUNTER(RepGraphNode_Dormancy_Create_ConnectionNode);
+	
+	FRepGraphConnectionKey RepGraphConnection(&Params.ConnectionManager);
+
+	// We do not have a per-connection node for this connection, so create one and copy over contents
+	UReplicationGraphNode_ConnectionDormancyNode* ConnectionNode = CreateChildNode<UReplicationGraphNode_ConnectionDormancyNode>();
+	ConnectionNodes.Add(RepGraphConnection) = ConnectionNode;
+
+	// Copy our master lists to the connection node
+	ConnectionNode->DeepCopyActorListsFrom(this);
+
+	ConnectionNode->InitConnectionNode(RepGraphConnection, Params.ReplicationFrameNum);
+
+	UE_CLOG(CVar_RepGraph_LogNetDormancyDetails > 0, LogReplicationGraph, Display, TEXT("GRAPH_DORMANCY: First time seeing connection %s in node %s. Created ConnectionDormancyNode %s."), *Params.ConnectionManager.GetName(), *GetName(), *ConnectionNode->GetName());
 
 	return ConnectionNode;
 }
@@ -5053,7 +5138,7 @@ void UReplicationGraphNode_GridSpatialization2D::PrepareForReplication()
 	// -------------------------------------------
 	if (bNeedsRebuild)
 	{
-		RG_QUICK_SCOPE_CYCLE_COUNTER(UReplicationGraphNode_GridSpatialization2D_RebuildAll);
+		QUICK_SCOPE_CYCLE_COUNTER(UReplicationGraphNode_GridSpatialization2D_RebuildAll);
 
 		UE_LOG(LogReplicationGraph, Warning, TEXT("Rebuilding spatialization graph for bias %s"), *SpatialBias.ToString());
 		
@@ -5402,7 +5487,7 @@ UReplicationGraphNode_AlwaysRelevant::UReplicationGraphNode_AlwaysRelevant()
 
 void UReplicationGraphNode_AlwaysRelevant::PrepareForReplication()
 {
-	RG_QUICK_SCOPE_CYCLE_COUNTER(UReplicationGraphNode_AlwaysRelevant_PrepareForReplication);
+	QUICK_SCOPE_CYCLE_COUNTER(UReplicationGraphNode_AlwaysRelevant_PrepareForReplication);
 
 	if (ChildNode == nullptr)
 	{
@@ -5580,6 +5665,13 @@ void UReplicationGraphNode_AlwaysRelevant_ForConnection::TearDown()
 	Super::TearDown();
 
 	ReplicationActorList.TearDown();
+}
+
+void UReplicationGraphNode_AlwaysRelevant_ForConnection::OnCollectActorRepListStats(FActorRepListStatCollector& StatsCollector) const
+{
+	StatsCollector.VisitRepList(this, ReplicationActorList);
+
+	Super::OnCollectActorRepListStats(StatsCollector);
 }
 
 // -------------------------------------------------------

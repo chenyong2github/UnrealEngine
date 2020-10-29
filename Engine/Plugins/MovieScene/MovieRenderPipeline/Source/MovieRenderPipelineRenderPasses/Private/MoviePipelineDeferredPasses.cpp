@@ -123,12 +123,6 @@ void UMoviePipelineDeferredPassBase::SetupImpl(const MoviePipeline::FMoviePipeli
 
 	SurfaceQueue = MakeShared<FMoviePipelineSurfaceQueue>(InPassInitSettings.BackbufferResolution, EPixelFormat::PF_FloatRGBA, 3, true);
 
-	// We must have at least enough accumulators to render all of the requested post process materials, because work doesn't begin
-	// until they're actually submitted to the render thread (which happens all at once) but we tie up an accumulator as we get ready to submit.
-	// If there aren't enough accumulators then we block until one is free but since submission hasn't gone through they'll never be free.
-	int32 PoolSize = (ActivePostProcessMaterials.Num() + 1) * 3;
-	AccumulatorPool = MakeShared<TAccumulatorPool<FImageOverlappedAccumulator>, ESPMode::ThreadSafe>(PoolSize);
-
 	// Each stencil layer uses its own view state to keep TAA history etc separate
 	if (bAddDefaultLayer)
 	{
@@ -144,10 +138,37 @@ void UMoviePipelineDeferredPassBase::SetupImpl(const MoviePipeline::FMoviePipeli
 	{
 		StencilLayerViewStates[Index].Allocate();
 	}
+
+
+	// We must have at least enough accumulators to render all of the requested post process materials, because work doesn't begin
+	// until they're actually submitted to the render thread (which happens all at once) but we tie up an accumulator as we get ready to submit.
+	// If there aren't enough accumulators then we block until one is free but since submission hasn't gone through they'll never be free.
+	int32 PoolSize = (StencilLayerViewStates.Num() + ActivePostProcessMaterials.Num() + 1) * 3;
+	AccumulatorPool = MakeShared<TAccumulatorPool<FImageOverlappedAccumulator>, ESPMode::ThreadSafe>(PoolSize);
 	
+	PreviousCustomDepthValue.Reset();
+
 	// This scene view extension will be released automatically as soon as Render Sequence is torn down.
 	// One Extension per sequence, since each sequence has its own OCIO settings.
 	OCIOSceneViewExtension = FSceneViewExtensions::NewExtension<FOpenColorIODisplayExtension>();
+
+	if (StencilLayerViewStates.Num() > 0)
+	{
+		IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.CustomDepth"));
+		if (CVar)
+		{
+			PreviousCustomDepthValue = CVar->GetInt();
+			const int32 CustomDepthWithStencil = 3;
+			if (PreviousCustomDepthValue != CustomDepthWithStencil)
+			{
+				UE_LOG(LogMovieRenderPipeline, Log, TEXT("Overriding project custom depth/stencil value to support a stencil pass."));
+				// We use ECVF_SetByProjectSetting otherwise once this is set once by rendering, the UI silently fails
+				// if you try to change it afterwards. This SetByProjectSetting will fail if they have manipulated the cvar via the console
+				// during their current session but it's less likely than changing the project settings.
+				CVar->Set(CustomDepthWithStencil, EConsoleVariableFlags::ECVF_SetByProjectSetting);
+			}
+		}
+	}
 }
 
 void UMoviePipelineDeferredPassBase::TeardownImpl()
@@ -178,6 +199,19 @@ void UMoviePipelineDeferredPassBase::TeardownImpl()
 	
 	OCIOSceneViewExtension.Reset();
 	OCIOSceneViewExtension = nullptr;
+
+	if (PreviousCustomDepthValue.IsSet())
+	{
+		IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.CustomDepth"));
+		if (CVar)
+		{
+			if (CVar->GetInt() != PreviousCustomDepthValue.GetValue())
+			{
+				UE_LOG(LogMovieRenderPipeline, Log, TEXT("Restoring custom depth/stencil value to: %d"), PreviousCustomDepthValue.GetValue());
+				CVar->Set(PreviousCustomDepthValue.GetValue(), EConsoleVariableFlags::ECVF_SetByProjectSetting);
+			}
+		}
+	}
 
 	// Preserve our view state until the rendering thread has been flushed.
 	Super::TeardownImpl();
@@ -327,7 +361,7 @@ void UMoviePipelineDeferredPassBase::RenderSample_GameThreadImpl(const FMoviePip
 		GetRendererModule().BeginRenderingViewFamily(&Canvas, ViewFamily.Get());
 
 		// Readback + Accumulate.
-		PostRendererSubmission(InOutSampleState, PassIdentifier, Canvas);
+		PostRendererSubmission(InOutSampleState, PassIdentifier, GetOutputFileSortingOrder(), Canvas);
 	}
 
 	// Now submit stencil layers if needed
@@ -446,7 +480,7 @@ void UMoviePipelineDeferredPassBase::RenderSample_GameThreadImpl(const FMoviePip
 					GetRendererModule().BeginRenderingViewFamily(&Canvas, ViewFamily.Get());
 
 					// Readback + Accumulate.
-					PostRendererSubmission(InSampleState, LayerPassIdentifier, Canvas);
+					PostRendererSubmission(InSampleState, LayerPassIdentifier, GetOutputFileSortingOrder() + 1, Canvas);
 				}
 			}
 
@@ -540,7 +574,7 @@ TFunction<void(TUniquePtr<FImagePixelData>&&)> UMoviePipelineDeferredPassBase::M
 	return Callback;
 }
 
-void UMoviePipelineDeferredPassBase::PostRendererSubmission(const FMoviePipelineRenderPassMetrics& InSampleState, const FMoviePipelinePassIdentifier InPassIdentifier, FCanvas& InCanvas)
+void UMoviePipelineDeferredPassBase::PostRendererSubmission(const FMoviePipelineRenderPassMetrics& InSampleState, const FMoviePipelinePassIdentifier InPassIdentifier, const int32 InSortingOrder, FCanvas& InCanvas)
 {
 	// If this was just to contribute to the history buffer, no need to go any further.
 	if (InSampleState.bDiscardResult)
@@ -618,7 +652,7 @@ void UMoviePipelineDeferredPassBase::PostRendererSubmission(const FMoviePipeline
 	TSharedRef<FImagePixelDataPayload, ESPMode::ThreadSafe> FramePayload = MakeShared<FImagePixelDataPayload, ESPMode::ThreadSafe>();
 	FramePayload->PassIdentifier = InPassIdentifier;
 	FramePayload->SampleState = InSampleState;
-	FramePayload->SortingOrder = GetOutputFileSortingOrder();
+	FramePayload->SortingOrder = InSortingOrder;
 
 	MoviePipeline::FImageSampleAccumulationArgs AccumulationArgs;
 	{

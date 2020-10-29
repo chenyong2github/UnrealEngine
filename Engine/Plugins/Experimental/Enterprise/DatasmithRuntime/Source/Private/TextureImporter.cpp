@@ -59,19 +59,16 @@ namespace DatasmithRuntime
 		return false;
 	}
 
-	EActionResult::Type CreateImageTexture(FTextureData& TextureData, IDatasmithTextureElement* TextureElement, FDataCleanupFunc& DataCleanupFunc)
+	UTexture2D* CreateImageTexture(UTexture2D* Texture2D, FTextureData& TextureData, IDatasmithTextureElement* TextureElement, FDataCleanupFunc& DataCleanupFunc)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FSceneImporter::CreateImageTexture);
 
-		// Texture2D setup
-		UTexture2D* Texture2D = TextureData.GetObject<UTexture2D>();
-			
 		if (Texture2D == nullptr)
 		{
-			Texture2D = UTexture2D::CreateTransient(TextureData.Width, TextureData.Height, (EPixelFormat)TextureData.Requirements);
+			Texture2D = UTexture2D::CreateTransient(TextureData.Width, TextureData.Height, TextureData.PixelFormat);
 			if (!Texture2D)
 			{
-				return EActionResult::Failed;
+				return nullptr;
 			}
 
 #ifdef ASSET_DEBUG
@@ -82,8 +79,6 @@ namespace DatasmithRuntime
 			Texture2D->Rename(*TextureName, Package, REN_DontCreateRedirectors | REN_NonTransactional);
 			Texture2D->SetFlags(RF_Public);
 #endif
-
-			TextureData.Object = TStrongObjectPtr<UObject>(Texture2D);
 		}
 
 #if WITH_EDITORONLY_DATA
@@ -114,23 +109,19 @@ namespace DatasmithRuntime
 			Texture2D->UpdateTextureRegions(0, 1, &TextureData.Region, TextureData.Pitch, TextureData.BytesPerPixel, TextureData.ImageData, DataCleanupFunc );
 		}
 
-		TextureData.AddState(EDatasmithRuntimeAssetState::Completed);
-
-		return EActionResult::Succeeded;
+		return Texture2D;
 	}
 
-	EActionResult::Type CreateIESTexture(FTextureData& TextureData, IDatasmithTextureElement* TextureElement, FDataCleanupFunc& DataCleanupFunc)
+	UTextureLightProfile* CreateIESTexture(UTextureLightProfile* Texture, FTextureData& TextureData, IDatasmithTextureElement* TextureElement, FDataCleanupFunc& DataCleanupFunc)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FSceneImporter::CreateIESTexture);
-
-		UTextureLightProfile* Texture = TextureData.GetObject<UTextureLightProfile>();
 
 		if (Texture == nullptr)
 		{
 			Texture = NewObject<UTextureLightProfile>();
 			if (!Texture)
 			{
-				return EActionResult::Failed;
+				return nullptr;
 			}
 
 #ifdef ASSET_DEBUG
@@ -141,8 +132,6 @@ namespace DatasmithRuntime
 			Texture->Rename(*TextureName, Package, REN_DontCreateRedirectors | REN_NonTransactional);
 			Texture->SetFlags(RF_Public);
 #endif
-
-			TextureData.Object = TStrongObjectPtr<UObject>(Texture);
 		}
 
 		// TextureData.ImageData should not be null
@@ -186,40 +175,32 @@ namespace DatasmithRuntime
 		Texture->UpdateTextureRegions(0, 1, &TextureData.Region, TextureData.Pitch, TextureData.BytesPerPixel, TextureData.ImageData, DataCleanupFunc );
 #endif
 
-		return EActionResult::Succeeded;
+		return Texture;
 	}
 
 	EActionResult::Type FSceneImporter::CreateTexture(FSceneGraphId ElementId)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FSceneImporter::CreateTexture);
 
+		FAssetData& AssetData = AssetDataList[ElementId];
 		FTextureData& TextureData = TextureDataList[ElementId];
 
 		// If the load of the image has failed, cleanup the TextureData and return
 		if (TextureData.Width == 0 || TextureData.Height == 0 || TextureData.ImageData == nullptr)
 		{
-			if (UObject* THelper = TextureData.GetObject<>())
+			if (UObject* THelper = AssetData.GetObject<>())
 			{
-				TSet<FAssetData*> RegisteredAssets = GetRegisteredAssetData(THelper);
-
-				for (FAssetData* AssetData : RegisteredAssets)
-				{
-					UnregisterAssetData(THelper, AssetData);
-
-					AssetData->AddState(EDatasmithRuntimeAssetState::Completed);
-					AssetData->Object.Reset();
-				}
-
-				THelper->ClearFlags(RF_AllFlags);
-				THelper->SetFlags(RF_Transient);
-				THelper->Rename(nullptr, nullptr, REN_NonTransactional | REN_DontCreateRedirectors);
-				THelper->MarkPendingKill();
+				FAssetRegistry::UnregisteredAssetsData(THelper, SceneKey, [](FAssetData& AssetData) -> void
+					{
+						AssetData.AddState(EAssetState::Completed);
+						AssetData.Object.Reset();
+					});
 			}
 
 			return EActionResult::Failed;
 		}
 
-		IDatasmithTextureElement* TextureElement = static_cast<IDatasmithTextureElement*>(Elements[ TextureData.ElementId ].Get());
+		IDatasmithTextureElement* TextureElement = static_cast<IDatasmithTextureElement*>(Elements[ AssetData.ElementId ].Get());
 
 		FDataCleanupFunc DataCleanupFunc;
 		DataCleanupFunc = [this, ElementId](uint8* SrcData, const FUpdateTextureRegion2D* Regions) -> void
@@ -230,61 +211,45 @@ namespace DatasmithRuntime
 			TextureData.ImageData = nullptr;
 		};
 
-		EActionResult::Type Result = EActionResult::Unknown;
-
-		UObject* THelper = FindObjectFromHash(TextureData.Hash);
+		UObject* THelper = FAssetRegistry::FindObjectFromHash(AssetData.Hash);
 		ensure(THelper);
+
+		UTexture* Texture = nullptr;
 
 		if (TextureElement->GetTextureMode() == EDatasmithTextureMode::Ies)
 		{
-			Result = CreateIESTexture(TextureData, TextureElement, DataCleanupFunc);
+			Texture = CreateIESTexture(AssetData.GetObject<UTextureLightProfile>(), TextureData, TextureElement, DataCleanupFunc);
 		}
 		else
 		{
-			Result = CreateImageTexture(TextureData, TextureElement, DataCleanupFunc);
+			Texture = CreateImageTexture(AssetData.GetObject<UTexture2D>(), TextureData, TextureElement, DataCleanupFunc);
 		}
 
-		TSet<FAssetData*> RegisteredAssets = GetRegisteredAssetData(THelper);
-
-		for (FAssetData* AssetData : RegisteredAssets)
+		if (Texture)
 		{
-			UnregisterAssetData(THelper, AssetData);
-		}
+			DirectLink::FElementHash TextureHash = GetTypeHash(TextureElement->CalculateElementHash(true));
 
-		THelper->ClearFlags(RF_AllFlags);
-		THelper->SetFlags(RF_Transient);
-		THelper->Rename(nullptr, nullptr, REN_NonTransactional | REN_DontCreateRedirectors);
-		THelper->MarkPendingKill();
-
-		if (Result == EActionResult::Succeeded)
-		{
-			UTexture* Texture = TextureData.GetObject<UTexture>();
-			check(Texture);
-
-			for (FAssetData* AssetData : RegisteredAssets)
-			{
-				if (AssetData != &TextureData)
+			FAssetRegistry::UnregisteredAssetsData(THelper, SceneKey, [this, &Texture, TextureHash](FAssetData& AssetData) -> void
 				{
-					AssetData->Object = TextureData.Object;
-				}
+					AssetData.Object = Texture;
+					AssetData.Hash = TextureHash;
+					FAssetRegistry::RegisterAssetData(Texture, this->SceneKey, AssetData);
+				});
 
-				RegisterAssetData(Texture, AssetData);
-			}
-
-			SetObjectCompletion(Texture, true);
+			FAssetRegistry::SetObjectCompletion(Texture, true);
 		}
 		else
 		{
-			for (FAssetData* AssetData : RegisteredAssets)
-			{
-				AssetData->AddState(EDatasmithRuntimeAssetState::Completed);
-				AssetData->Object.Reset();
-			}
+			FAssetRegistry::UnregisteredAssetsData(THelper, SceneKey, [this](FAssetData& AssetData) -> void
+				{
+					AssetData.AddState(EAssetState::Completed);
+					AssetData.Object.Reset();
+				});
 		}
 
 		ActionCounter.Increment();
 
-		return Result;
+		return Texture ? EActionResult::Succeeded : EActionResult::Failed;
 	}
 
 	bool FSceneImporter::LoadTexture(FSceneGraphId ElementId)
@@ -337,7 +302,7 @@ namespace DatasmithRuntime
 
 		if (bSuccessfulLoad)
 		{
-			TasksToComplete |= EDatasmithRuntimeWorkerTask::TextureAssign;
+			TasksToComplete |= EWorkerTask::TextureAssign;
 		}
 
 		return true;
@@ -350,33 +315,49 @@ namespace DatasmithRuntime
 		// Textures are added in two steps. Make sure the associated FTextureData is created
 		if (!TextureDataList.Contains(TextureId))
 		{
-			TextureDataList.Emplace(TextureId, TextureId);
+			TextureDataList.Add(TextureId);
 		}
 
+		FAssetData& AssetData = AssetDataList[TextureId];
 		FTextureData& TextureData = TextureDataList[TextureId];
 
-		if (TextureData.HasState(EDatasmithRuntimeAssetState::Processed))
+		// Clear PendingDelete flag if it is set. Something is wrong. Better safe than sorry
+		if (AssetData.HasState(EAssetState::PendingDelete))
+		{
+			AssetData.ClearState(EAssetState::PendingDelete);
+			UE_LOG(LogDatasmithRuntime, Warning, TEXT("A texture marked for deletion is actually used by the scene"));
+		}
+
+		if (AssetData.HasState(EAssetState::Processed))
 		{
 			return;
 		}
 
 		IDatasmithTextureElement* TextureElement = static_cast<IDatasmithTextureElement*>(Elements[ TextureId ].Get());
 
-		//TextureData.Hash = TextureElement->GetStore().Snapshot().Hash();
-		TextureData.Hash = GetTypeHash(TextureElement->CalculateElementHash(true));
+		DirectLink::FElementHash TextureHash = GetTypeHash(TextureElement->CalculateElementHash(true));
 
-		if (UObject* Asset = FindObjectFromHash(TextureData.Hash))
+		if (UObject* Asset = FAssetRegistry::FindObjectFromHash(TextureHash))
 		{
-			TextureData.SetState(EDatasmithRuntimeAssetState::Processed);
+			AssetData.SetState(EAssetState::Processed);
 
-			// If texture not loaded just mark it as processed
-			if (IsObjectCompleted(Asset))
-			{
-				TextureData.AddState(EDatasmithRuntimeAssetState::Completed);
-			}
+			AssetData.Hash = TextureHash;
+			AssetData.Object = TWeakObjectPtr<UObject>(Asset);
+			FAssetRegistry::RegisterAssetData(Asset, SceneKey, AssetData);
 
-			TextureData.Object = TStrongObjectPtr<UObject>(Asset);
-			RegisterAssetData(Asset, &TextureData);
+			return;
+		}
+
+		// The final texture has not been created yet, track texture data with temporary hash
+		AssetData.Hash = HashCombine(SceneKey, TextureHash);
+
+		if (UObject* Asset = FAssetRegistry::FindObjectFromHash(AssetData.Hash))
+		{
+			AssetData.SetState(EAssetState::Processed);
+
+			AssetData.Object = TWeakObjectPtr<UObject>(Asset);
+
+			FAssetRegistry::RegisterAssetData(Asset, SceneKey, AssetData);
 
 			return;
 		}
@@ -403,16 +384,16 @@ namespace DatasmithRuntime
 		};
 
 		AddToQueue(TEXTURE_QUEUE, { LoadTaskFunc, {EDataType::Texture, TextureId, 0 } });
-		TasksToComplete |= EDatasmithRuntimeWorkerTask::TextureLoad;
+		TasksToComplete |= EWorkerTask::TextureLoad;
 
 		// Create texture helper to leverage registration mechanism
 		UDatasmithRuntimeTHelper* TextureHelper = NewObject< UDatasmithRuntimeTHelper >();
 
-		TextureData.Object = TStrongObjectPtr<UObject>(TextureHelper);
+		AssetData.Object = TWeakObjectPtr<UObject>(TextureHelper);
 
-		TextureData.SetState(EDatasmithRuntimeAssetState::Processed);
+		AssetData.SetState(EAssetState::Processed);
 
-		RegisterAssetData(TextureHelper, &TextureData);
+		FAssetRegistry::RegisterAssetData(TextureHelper, SceneKey, AssetData);
 
 		TextureElementSet.Add(TextureId);
 	}

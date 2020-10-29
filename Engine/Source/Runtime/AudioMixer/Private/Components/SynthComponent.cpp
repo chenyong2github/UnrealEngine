@@ -391,26 +391,6 @@ void USynthComponent::PumpPendingMessages()
 	{
 		Command();
 	}
-
-	ESynthEvent SynthEvent;
-	while (PendingSynthEvents.Dequeue(SynthEvent))
-	{
-		switch (SynthEvent)
-		{
-			case ESynthEvent::Start:
-				bIsSynthPlaying = true;
-				OnStart();
-				break;
-
-			case ESynthEvent::Stop:
-				bIsSynthPlaying = false;
-				OnStop();
-				break;
-
-			default:
-				break;
-		}
-	}
 }
 
 FAudioDevice* USynthComponent::GetAudioDevice() const
@@ -492,13 +472,7 @@ void USynthComponent::Start()
 
 		SetActiveFlag(AudioComponent->IsActive());
 
-		if (IsActive())
-		{
-			if (!SoundGenerator.IsValid())
-			{
-				PendingSynthEvents.Enqueue(ESynthEvent::Start);
-			}
-		}
+		bIsSynthPlaying = true;
 	}
 }
 
@@ -506,11 +480,6 @@ void USynthComponent::Stop()
 {
 	if (IsActive())
 	{
-		if (!SoundGenerator.IsValid())
-		{
-			PendingSynthEvents.Enqueue(ESynthEvent::Stop);
-		}
-
 		if (AudioComponent)
 		{
 			AudioComponent->Stop();		
@@ -561,6 +530,15 @@ void USynthComponent::SetLowPassFilterFrequency(float InLowPassFilterFrequency)
 		AudioComponent->SetLowPassFilterFrequency(InLowPassFilterFrequency);
 	}
 }
+
+void USynthComponent::SetOutputToBusOnly(bool bInOutputToBusOnly)
+{
+	if (AudioComponent)
+	{
+		AudioComponent->SetOutputToBusOnly(bInOutputToBusOnly);
+	}
+}
+
 
 void USynthComponent::SynthCommand(TFunction<void()> Command)
 {

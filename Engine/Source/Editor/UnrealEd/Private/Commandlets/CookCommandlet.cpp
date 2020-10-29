@@ -766,20 +766,17 @@ bool UCookCommandlet::CookByTheBook( const TArray<ITargetPlatform*>& Platforms)
 
 	// Also append any cookdirs from the project ini files; these dirs are relative to the game content directory or start with a / root
 	{
-		const FString AbsoluteGameContentDir = FPaths::ConvertRelativePathToFull(FPaths::ProjectContentDir());
 		const UProjectPackagingSettings* const PackagingSettings = GetDefault<UProjectPackagingSettings>();
 		for (const FDirectoryPath& DirToCook : PackagingSettings->DirectoriesToAlwaysCook)
 		{
-			if (DirToCook.Path.StartsWith(TEXT("/"), ESearchCase::CaseSensitive))
+			FString LocalPath;
+			if (FPackageName::TryConvertGameRelativePackagePathToLocalPath(DirToCook.Path, LocalPath))
 			{
-				// If this starts with /, this includes a root like /engine
-				FString RelativePath = FPackageName::LongPackageNameToFilename(DirToCook.Path / TEXT(""));
-				CmdLineDirEntries.Add(FPaths::ConvertRelativePathToFull(RelativePath));
+				CmdLineDirEntries.Add(LocalPath);
 			}
 			else
 			{
-				// This is relative to /game
-				CmdLineDirEntries.Add(AbsoluteGameContentDir / DirToCook.Path);
+				UE_LOG(LogCook, Warning, TEXT("'ProjectSettings -> PackagingSettings -> Directories to always cook' has invalid element '%s'"), *DirToCook.Path);
 			}
 		}
 	}

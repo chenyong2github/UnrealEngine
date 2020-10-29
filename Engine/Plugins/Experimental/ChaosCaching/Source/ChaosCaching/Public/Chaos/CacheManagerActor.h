@@ -114,7 +114,7 @@ struct FPerSolverData
 	TArray<Chaos::TPBDRigidParticleHandle<Chaos::FReal, 3>*> PendingKinematicUpdates;
 };
 
-UCLASS()
+UCLASS(Experimental)
 class CHAOSCACHING_API AChaosCacheManager : public AActor
 {
 	GENERATED_BODY()

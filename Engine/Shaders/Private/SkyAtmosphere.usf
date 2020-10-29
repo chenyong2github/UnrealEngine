@@ -1306,16 +1306,19 @@ void RenderDistantSkyLightLutCS(uint3 ThreadId : SV_DispatchThreadID)
 	}
 	GroupMemoryBarrierWithGroupSync();
 
-	// The smallest wave size is 16 on Intel hardware. So now we can do simple math operations without group sync.
-
 	if (LinearIndex < 8)
 	{
 		GroupSkyLuminanceSamples[LinearIndex] += GroupSkyLuminanceSamples[LinearIndex + 8];
 	}
+	GroupMemoryBarrierWithGroupSync();
+
 	if (LinearIndex < 4)
 	{
 		GroupSkyLuminanceSamples[LinearIndex] += GroupSkyLuminanceSamples[LinearIndex + 4];
 	}
+	GroupMemoryBarrierWithGroupSync();
+	// The smallest wave size is 4 on Mali G-71 hardware. So now we can do simple math operations without group sync.
+
 	if (LinearIndex < 2)
 	{
 		GroupSkyLuminanceSamples[LinearIndex] += GroupSkyLuminanceSamples[LinearIndex + 2];

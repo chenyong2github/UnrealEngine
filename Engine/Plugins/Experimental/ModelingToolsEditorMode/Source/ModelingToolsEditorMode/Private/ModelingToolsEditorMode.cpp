@@ -8,6 +8,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "EditorViewportClient.h"
+#include "EngineAnalytics.h"
 
 //#include "SingleClickTool.h"
 //#include "MeshSurfacePointTool.h"
@@ -76,6 +77,7 @@
 
 // hair tools
 #include "Hair/GroomToMeshTool.h"
+#include "Hair/GroomCardsEditorTool.h"
 #include "GenerateLODMeshesTool.h"
 
 #include "EditorModeManager.h"
@@ -744,6 +746,8 @@ void FModelingToolsEditorMode::Enter()
 	GroomToMeshToolBuilder->AssetAPI = ModelingModeAssetGenerationAPI.Get();
 	RegisterToolFunc(ToolManagerCommands.BeginGroomToMeshTool, TEXT("GroomToMeshTool"), GroomToMeshToolBuilder);
 
+	RegisterToolFunc(ToolManagerCommands.BeginGroomCardsEditorTool, TEXT("GroomCardsEditorTool"), NewObject<UGroomCardsEditorToolBuilder>());
+
 	UGenerateLODMeshesToolBuilder* GenerateLODMeshesToolBuilder = NewObject<UGenerateLODMeshesToolBuilder>();
 	GenerateLODMeshesToolBuilder->AssetAPI = ModelingModeAssetGenerationAPI.Get();
 	RegisterToolFunc(ToolManagerCommands.BeginGenerateLODMeshesTool, TEXT("GenerateLODMeshesTool"), GenerateLODMeshesToolBuilder);
@@ -769,12 +773,48 @@ void FModelingToolsEditorMode::Enter()
 
 	// enable realtime viewport override
 	ConfigureRealTimeViewportsOverride(true);
+
+	//
+	// Engine Analytics
+	//
+	// Log Analytic of mode starting
+	if( FEngineAnalytics::IsAvailable() )
+	{
+		FEngineAnalytics::GetProvider().RecordEvent( TEXT( "Editor.Usage.MeshModelingMode.Enter" ) );
+	}
+	ToolsContext->ToolManager->OnToolStarted.AddLambda([this](UInteractiveToolManager* Manager, UInteractiveTool* Tool)
+	{
+		if( FEngineAnalytics::IsAvailable() )
+		{
+			FEngineAnalytics::GetProvider().RecordEvent( TEXT( "Editor.Usage.MeshModelingMode.ToolStarted" ),
+														 TEXT( "DisplayName" ),
+														 Tool->GetToolInfo().ToolDisplayName.ToString() );
+		}
+	});
+	ToolsContext->ToolManager->OnToolEnded.AddLambda([this](UInteractiveToolManager* Manager, UInteractiveTool* Tool)
+	{
+		if( FEngineAnalytics::IsAvailable() )
+		{
+			FEngineAnalytics::GetProvider().RecordEvent( TEXT( "Editor.Usage.MeshModelingMode.ToolEnded" ),
+														 TEXT( "DisplayName" ),
+														 Tool->GetToolInfo().ToolDisplayName.ToString() );
+		}
+	});
 }
 
 
 
 void FModelingToolsEditorMode::Exit()
 {
+	//
+	// Engine Analytics
+	//
+	// Log Analytic of mode ending
+	if( FEngineAnalytics::IsAvailable() )
+	{
+		FEngineAnalytics::GetProvider().RecordEvent( TEXT( "Editor.Usage.MeshModelingMode.Exit" ) );
+	}
+
 	StylusStateTracker = nullptr;
 
 	const TSharedRef<FUICommandList>& CommandList = Toolkit->GetToolkitCommands();

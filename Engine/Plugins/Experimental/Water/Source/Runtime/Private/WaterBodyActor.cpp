@@ -24,14 +24,21 @@
 #include "WaterSplineMetadata.h"
 #include "WaterSplineComponent.h"
 #include "WaterRuntimeSettings.h"
+#include "WaterUtils.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "GerstnerWaterWaves.h"
 #include "WaterVersion.h"
+#include "Misc/MapErrors.h"
+#include "Misc/UObjectToken.h"
+#include "Logging/MessageLog.h"
+#include "Logging/TokenizedMessage.h"
 
 #if WITH_EDITOR
 #include "WaterIconHelper.h"
 #include "Components/BillboardComponent.h"
 #endif
+
+#define LOCTEXT_NAMESPACE "Water"
 
 // ----------------------------------------------------------------------------------
 
@@ -93,12 +100,12 @@ AWaterBody::AWaterBody(const FObjectInitializer& ObjectInitializer)
 	TargetWaveMaskDepth = 2048.f;
 
 #if WITH_EDITOR
-	if (!HasAnyFlags(RF_ClassDefaultObject))
+	if (!IsTemplate())
 	{
 		SplineComp->OnSplineDataChanged().AddUObject(this, &AWaterBody::OnSplineDataChanged);
 	}
 
-	ActorIcon = FWaterIconHelper::EnsureSpriteComponentCreated(this, TEXT("/Water/Icons/WaterSprite"), NSLOCTEXT("Water", "WaterBodySpriteName", "Water Body"));
+	ActorIcon = FWaterIconHelper::EnsureSpriteComponentCreated(this, TEXT("/Water/Icons/WaterSprite"), LOCTEXT("WaterBodySpriteName", "Water Body"));
 #endif
 
 	RootComponent = SplineComp;
@@ -478,8 +485,7 @@ FWaterBodyQueryResult AWaterBody::QueryWaterInfoClosestToWorldLocation(const FVe
 		if (bTryUseLandscape)
 		{
 			TOptional<float> LandscapeHeightOptional;
-			FindLandscape();
-			if (ALandscapeProxy* LandscapePtr = Landscape.Get())
+			if (ALandscapeProxy* LandscapePtr = FindLandscape())
 			{
 				SCOPE_CYCLE_COUNTER(STAT_WaterBody_ComputeLandscapeDepth);
 				LandscapeHeightOptional = LandscapePtr->GetHeightAtLocation(InWorldLocation);
@@ -638,6 +644,11 @@ TArray<AWaterBodyExclusionVolume*> AWaterBody::GetExclusionVolumes() const
 
 void AWaterBody::SetWaterWaves(UWaterWavesBase* InWaterWaves)
 {
+	SetWaterWavesInternal(InWaterWaves, /*bTriggerWaterBodyChanged = */true);
+}
+
+void AWaterBody::SetWaterWavesInternal(UWaterWavesBase* InWaterWaves, bool bTriggerWaterBodyChanged)
+{
 	if (InWaterWaves != WaterWaves)
 	{
 #if WITH_EDITOR
@@ -653,8 +664,17 @@ void AWaterBody::SetWaterWaves(UWaterWavesBase* InWaterWaves)
 		RequestGPUWaveDataUpdate();
 
 		// Waves data can affect the navigation: 
-		OnWaterBodyChanged(/*bShapeOrPositionChanged = */true);
+		if (bTriggerWaterBodyChanged)
+		{
+			OnWaterBodyChanged(/*bShapeOrPositionChanged = */true);
+		}
 	}
+}
+
+// Our transient MIDs are per-object and shall not survive duplicating nor be exported to text when copy-pasting : 
+EObjectFlags AWaterBody::GetTransientMIDFlags() const
+{
+	return RF_Transient | RF_NonPIEDuplicateTransient | RF_TextExportTransient;
 }
 
 void AWaterBody::OnConstruction(const FTransform& Transform)
@@ -730,15 +750,7 @@ void AWaterBody::CreateOrUpdateWaterMID()
 	// If GetWorld fails we may be in a blueprint
 	if (GetWorld())
 	{
-		if ((!WaterMID || WaterMID->Parent != WaterMaterial) && WaterMaterial)
-		{
-			static const FName WaterMIDName(TEXT("WaterMaterialInstance"));
-			WaterMID = UMaterialInstanceDynamic::Create(WaterMaterial, this, WaterMIDName);
-		}
-		else if (!WaterMaterial)
-		{
-			WaterMID = nullptr;
-		}
+		WaterMID = FWaterUtils::GetOrCreateTransientMID(WaterMID, TEXT("WaterMID"), WaterMaterial, GetTransientMIDFlags());
 
 		SetDynamicParametersOnMID(WaterMID);
 	}
@@ -749,15 +761,7 @@ void AWaterBody::CreateOrUpdateUnderwaterPostProcessMID()
 	// If GetWorld fails we may be in a blueprint
 	if (GetWorld())
 	{
-		if ((!UnderwaterPostProcessMID || UnderwaterPostProcessMID->Parent != UnderwaterPostProcessMaterial) && UnderwaterPostProcessMaterial)
-		{
-			static const FName UnderwaterPostProcessMIDName(TEXT("UnderwaterPostProcessMID"));
-			UnderwaterPostProcessMID = UMaterialInstanceDynamic::Create(UnderwaterPostProcessMaterial, this, UnderwaterPostProcessMIDName);
-		}
-		else if (!UnderwaterPostProcessMaterial)
-		{
-			UnderwaterPostProcessMID = nullptr;
-		}
+		UnderwaterPostProcessMID = FWaterUtils::GetOrCreateTransientMID(UnderwaterPostProcessMID, TEXT("UnderwaterPostProcessMID"), UnderwaterPostProcessMaterial, GetTransientMIDFlags());
 
 		SetDynamicParametersOnUnderwaterPostProcessMID(UnderwaterPostProcessMID);
 
@@ -789,7 +793,7 @@ void AWaterBody::PrepareCurrentPostProcessSettings()
 	}
 }
 
-void AWaterBody::FindLandscape() const
+ALandscapeProxy* AWaterBody::FindLandscape() const
 {
 	if (bAffectsLandscape && !Landscape.IsValid())
 	{
@@ -801,12 +805,12 @@ void AWaterBody::FindLandscape() const
 				if (Box.IsInsideXY(GetActorLocation()))
 				{
 					Landscape = *It;
-					break;
+					return Landscape.Get();
 				}
 			}
 		}
 	}
-
+	return Landscape.Get();
 }
 void AWaterBody::UpdateWaterComponentVisibility()
 {	
@@ -966,6 +970,36 @@ void AWaterBody::OnPostEditChangeProperty(FPropertyChangedEvent& PropertyChanged
 	}
 }
 
+void AWaterBody::CheckForErrors()
+{
+	Super::CheckForErrors();
+
+	if (!IsTemplate())
+	{
+		if (UWorld* World = GetWorld())
+		{
+			if (UWaterSubsystem* WaterSubsystem = UWaterSubsystem::GetWaterSubsystem(World))
+			{
+				if (AffectsWaterMesh() && (WaterSubsystem->GetWaterMeshActor() == nullptr))
+				{
+					FMessageLog("MapCheck").Error()
+						->AddToken(FUObjectToken::Create(this))
+						->AddToken(FTextToken::Create(LOCTEXT("MapCheck_Message_MissingWaterMesh", "This water body requires a WaterMeshActor to be rendered. Please add one to the map. ")))
+						->AddToken(FMapErrorToken::Create(TEXT("WaterBodyMissingWaterMesh")));
+				}
+			}
+
+			if (AffectsLandscape() && (FindLandscape() == nullptr))
+			{
+				FMessageLog("MapCheck").Error()
+					->AddToken(FUObjectToken::Create(this))
+					->AddToken(FTextToken::Create(LOCTEXT("MapCheck_Message_MissingLandscape", "This water body requires a Landscape to be rendered. Please add one to the map. ")))
+					->AddToken(FMapErrorToken::Create(TEXT("WaterBodyMissingLandscape")));
+			}
+		}
+	}
+}
+
 void AWaterBody::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	bool bShapeOrPositionChanged = false;
@@ -1005,6 +1039,47 @@ void AWaterBody::OnWavesDataUpdated(UWaterWavesBase* InWaterWaves, EPropertyChan
 	// Waves data affect the navigation : 
 	OnWaterBodyChanged(/*bShapeOrPositionChanged = */true);
 }
+
+void AWaterBody::OnWaterSplineMetadataChanged(UWaterSplineMetadata* InWaterSplineMetadata, FPropertyChangedEvent& PropertyChangedEvent)
+{
+	bool bShapeOrPositionChanged = false;
+
+	FName ChangedProperty = PropertyChangedEvent.GetPropertyName();
+	if ((ChangedProperty == NAME_None)
+		|| (ChangedProperty == GET_MEMBER_NAME_CHECKED(UWaterSplineMetadata, Depth))
+		|| (ChangedProperty == GET_MEMBER_NAME_CHECKED(UWaterSplineMetadata, RiverWidth))
+		|| (ChangedProperty == GET_MEMBER_NAME_CHECKED(UWaterSplineMetadata, WaterVelocityScalar)))
+	{
+		// Those changes require an update of the water brush (except in interactive mode, where we only apply the change once the value is actually set): 
+		bShapeOrPositionChanged = true;
+	}
+
+	if ((ChangedProperty == NAME_None)
+		|| (ChangedProperty == GET_MEMBER_NAME_CHECKED(UWaterSplineMetadata, RiverWidth)))
+	{ 
+		// River Width is driving the spline shape, make sure the spline component is aware of the change : 
+		SplineComp->SynchronizeWaterProperties();
+	}
+
+	// Waves data affect the navigation : 
+	OnWaterBodyChanged(bShapeOrPositionChanged);
+}
+
+void AWaterBody::RegisterOnChangeWaterSplineMetadata(UWaterSplineMetadata* InWaterSplineMetadata, bool bRegister)
+{
+	if (InWaterSplineMetadata != nullptr)
+	{
+		if (bRegister)
+		{
+			InWaterSplineMetadata->OnChangeData.AddUObject(this, &AWaterBody::OnWaterSplineMetadataChanged);
+		}
+		else
+		{
+			InWaterSplineMetadata->OnChangeData.RemoveAll(this);
+		}
+	}
+}
+
 #endif
 
 void AWaterBody::ApplyNavigationSettings() const
@@ -1191,28 +1266,6 @@ void AWaterBody::PostLoad()
 		// don't call CreateOrUpdateUnderwaterPostProcessMID() just yet because we need the water mesh actor to be registerd
 	}
 
-#if WITH_EDITOR
-	RegisterOnUpdateWavesData(WaterWaves, /* bRegister = */true);
-#endif
-}
-
-void AWaterBody::PostRegisterAllComponents()
-{
-	Super::PostRegisterAllComponents();
-
-#if WITH_EDITOR
-	FixupOnPostRegisterAllComponents();
-
-	// make sure existing collision components are marked as net-addressable (their names should already be deterministic) :
-	TArray<UPrimitiveComponent*> LocalCollisionComponents = GetCollisionComponents();
-	for (auto It = LocalCollisionComponents.CreateIterator(); It; ++It)
-	{
-		if (UActorComponent* CollisionComponent = Cast<UActorComponent>(*It))
-		{
-			CollisionComponent->SetNetAddressable();
-		}
-	}
-
 	if (GetLinkerCustomVersion(FWaterCustomVersion::GUID) < FWaterCustomVersion::WaterBodyRefactor)
 	{
 		// Try to retrieve wave data from BP properties when it was defined in BP : 
@@ -1236,9 +1289,9 @@ void AWaterBody::PostRegisterAllComponents()
 					void* OldPropertyOnWaveSpectrumSettings = OldWaveStructProperty->ContainerPtrToValuePtr<void>(this);
 					UGerstnerWaterWaves* GerstnerWaves = NewObject<UGerstnerWaterWaves>(this, MakeUniqueObjectName(this, UGerstnerWaterWaves::StaticClass(), TEXT("GestnerWaterWaves")));
 					UClass* NewGerstnerClass = UGerstnerWaterWaveGeneratorSimple::StaticClass();
-					UGerstnerWaterWaveGeneratorSimple* GerstnerWavesGenerator = NewObject<UGerstnerWaterWaveGeneratorSimple>(this, MakeUniqueObjectName(this, UGerstnerWaterWaveGeneratorSimple::StaticClass(), TEXT("GestnerWaterWavesGenerator")));
+					UGerstnerWaterWaveGeneratorSimple* GerstnerWavesGenerator = NewObject<UGerstnerWaterWaveGeneratorSimple>(this, MakeUniqueObjectName(this, NewGerstnerClass, TEXT("GestnerWaterWavesGenerator")));
 					GerstnerWaves->GerstnerWaveGenerator = GerstnerWavesGenerator;
-					SetWaterWaves(GerstnerWaves);
+					SetWaterWavesInternal(GerstnerWaves, /*bTriggerWaterBodyChanged = */false); // we're in PostLoad, we don't want to send the water body changed event as it might re-enter into BP script
 
 					for (FProperty* NewProperty = NewGerstnerClass->PropertyLink; NewProperty != nullptr; NewProperty = NewProperty->PropertyLinkNext)
 					{
@@ -1278,11 +1331,12 @@ void AWaterBody::PostRegisterAllComponents()
 		{
 			if (UGerstnerWaterWaves* GerstnerWaterWaves = Cast<UGerstnerWaterWaves>(WaterWaves->GetWaterWaves()))
 			{
-				GerstnerWaterWaves->RecomputeWaves(/*bAllowBPScript = */true);
+				GerstnerWaterWaves->RecomputeWaves(/*bAllowBPScript = */false); // We're in PostLoad, don't let BP script run, this is forbidden
 			}
 		}
 	}
 
+#if WITH_EDITORONLY_DATA
 	if ((GetLinkerCustomVersion(FWaterCustomVersion::GUID) < FWaterCustomVersion::MoveTerrainCarvingSettingsToWater) && bHasTerrainCarvingSettingsSettings_DEPRECATED)
 	{
 		static_assert(sizeof(WaterHeightmapSettings) == sizeof(TerrainCarvingSettings_DEPRECATED), "Both old and old water heightmap settings struct should be exactly similar");
@@ -1290,6 +1344,32 @@ void AWaterBody::PostRegisterAllComponents()
 
 		// TerrainCarvingSettings has been deprecated, we don't need to do it anymore, ever: 
 		bHasTerrainCarvingSettingsSettings_DEPRECATED = false;
+	}
+#endif
+
+#if WITH_EDITOR
+	RegisterOnUpdateWavesData(WaterWaves, /* bRegister = */true);
+#endif
+}
+
+void AWaterBody::PostRegisterAllComponents()
+{
+	Super::PostRegisterAllComponents();
+
+#if WITH_EDITOR
+	// Register to data changes on the spline metadata (we only do it here because WaterSplineMetadata shouldn't ever change after creation/load/duplication)
+	RegisterOnChangeWaterSplineMetadata(WaterSplineMetadata, /*bRegister = */true);
+
+	FixupOnPostRegisterAllComponents();
+
+	// Make sure existing collision components are marked as net-addressable (their names should already be deterministic) :
+	TArray<UPrimitiveComponent*> LocalCollisionComponents = GetCollisionComponents();
+	for (auto It = LocalCollisionComponents.CreateIterator(); It; ++It)
+	{
+		if (UActorComponent* CollisionComponent = Cast<UActorComponent>(*It))
+		{
+			CollisionComponent->SetNetAddressable();
+		}
 	}
 #endif // WITH_EDITOR
 
@@ -1322,6 +1402,7 @@ void AWaterBody::Destroyed()
 	Super::Destroyed();
 
 #if WITH_EDITOR
+	RegisterOnChangeWaterSplineMetadata(WaterSplineMetadata, /*bRegister = */false);
 	RegisterOnUpdateWavesData(WaterWaves, /*bRegister = */false);
 #endif // WITH_EDITOR		
 }
@@ -1457,3 +1538,4 @@ float AWaterBody::GetWaveAttenuationFactor(const FVector& InPosition, float InWa
 	return WaterWaves->GetWaveAttenuationFactor(InPosition, InWaterDepth, TargetWaveMaskDepth);
 }
 
+#undef LOCTEXT_NAMESPACE 

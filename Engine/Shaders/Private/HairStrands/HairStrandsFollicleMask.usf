@@ -17,7 +17,7 @@ uint KernelSizeInPixels;
 Buffer<float4> TrianglePosition0Buffer;
 Buffer<float4> TrianglePosition1Buffer;
 Buffer<float4> TrianglePosition2Buffer;
-Buffer<uint>   RootBarycentricBuffer;
+Buffer<uint>   RootBarycentricBuffer; 
 #endif 
 
 #if PERMUTATION_UV_TYPE == UV_ROOT
@@ -54,8 +54,6 @@ void MainVS(
 
 	const float2 KernelRadius = float2(KernelSizeInPixels, KernelSizeInPixels);
 	const float2 QuadExtent = (KernelRadius / OutputResolution);
-
-	RootUV.y = 1 - RootUV.y;
 
 	float2 UV = RootUV;
 	if (TriangleVertex == 0)
@@ -185,7 +183,7 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 	for (int y = -Kernel.Offset; y <= Kernel.Offset; ++y)
 	for (int x = -Kernel.Offset; x <= Kernel.Offset; ++x)
 	{
-		const uint Index = x + y * Kernel.Width;
+		const uint Index = (Kernel.Offset+x) + (Kernel.Offset+y) * Kernel.Width;
 		const float2 UV = CenterUV + float2(x, y) * KernelDistance * InvResolution;
 		const float W = Kernel.Weight[Index];
 		AccW += W;

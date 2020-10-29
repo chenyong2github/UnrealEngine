@@ -40,7 +40,10 @@ export class TestReconsider extends FunctionalTest {
 		return Promise.all([
 			this.checkHeadRevision('Main', 'test.txt', 2),
 			this.checkHeadRevision('Dev-Pootle', 'test.txt', 2), // reconsidering source node, affects all edges
-			this.checkHeadRevision('Dev-Perkin', 'test.txt', 2) 
+			this.checkHeadRevision('Dev-Perkin', 'test.txt', 2),
+
+			this.checkDescriptionContainsEdit('Dev-Pootle'),
+			this.checkDescriptionContainsEdit('Dev-Perkin'),
 		])
 	}
 

@@ -11,6 +11,7 @@
 
 class AActor;
 class APlayerCameraManager;
+class FDebugDisplayInfo;
 
 //=============================================================================
 /**
@@ -74,7 +75,7 @@ public:
 	 * @param YL - Vertical spacing.
 	 * @param YPos - Current vertical space to start writing.
 	 */
-	virtual void DisplayDebug(class UCanvas* Canvas, const FDebugDisplayInfo& DebugDisplay, float& YL, float& YPos) {}
+	virtual void DisplayDebug(class UCanvas* Canvas, const FDebugDisplayInfo& DebugDisplay, float& YL, float& YPos);
 
 	/** 
 	 * Allows any custom initialization. Called immediately after creation.

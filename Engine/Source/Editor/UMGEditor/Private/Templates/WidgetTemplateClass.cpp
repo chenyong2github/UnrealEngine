@@ -146,6 +146,11 @@ UWidget* FWidgetTemplateClass::CreateNamed(class UWidgetTree* Tree, FName NameOv
 		}
 	}
 
+	if (WidgetClass.Get()->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated))
+	{
+		return nullptr;
+	}
+
 	UWidget* NewWidget = Tree->ConstructWidget<UWidget>(WidgetClass.Get(), NameOverride);
 	NewWidget->OnCreationFromPalette();
 

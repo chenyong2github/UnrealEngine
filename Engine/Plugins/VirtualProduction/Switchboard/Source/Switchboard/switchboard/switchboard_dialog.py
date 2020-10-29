@@ -25,6 +25,7 @@ from PySide2 import QtCore, QtGui, QtUiTools, QtWidgets
 
 ENGINE_PATH = "../../../../.."
 RELATIVE_PATH = os.path.dirname(__file__)
+EMPTY_SYNC_ENTRY = "-- None --"
 
 
 @unique
@@ -70,7 +71,8 @@ class SwitchboardDialog(QtCore.QObject):
         self._sequence = None
         self._slate = None
         self._take = None
-        self._changelist = None
+        self._project_changelist = None
+        self._engine_changelist = None
         self._level = None
         self._multiuser_session_name = None
         self._is_recording = False
@@ -107,11 +109,11 @@ class SwitchboardDialog(QtCore.QObject):
         # DeviceManager initialize with from the config
         #
         CONFIG.push_saving_allowed(False)
-
-        self.device_manager.reset_plugins_settings(CONFIG)
-        self.device_manager.add_devices(CONFIG._device_data_from_config)
-
-        CONFIG.pop_saving_allowed()
+        try:
+            self.device_manager.reset_plugins_settings(CONFIG)
+            self.device_manager.add_devices(CONFIG._device_data_from_config)
+        finally:
+            CONFIG.pop_saving_allowed()
 
         # add menu for adding new devices
         self.device_add_menu = QtWidgets.QMenu()
@@ -123,7 +125,7 @@ class SwitchboardDialog(QtCore.QObject):
 
         # Start the OSC server
         self.osc_server = switchboard_application.OscServer()
-        self.osc_server.launch(SETTINGS.IP_ADDRESS)
+        self.osc_server.launch(SETTINGS.IP_ADDRESS, CONFIG.OSC_SERVER_PORT.get_value())
 
         # Setup the MU server
         self.mu_server = switchboard_application.MultiUserApplication()
@@ -151,13 +153,15 @@ class SwitchboardDialog(QtCore.QObject):
         self.window.take_spin_box.valueChanged.connect(self._set_take)
         self.window.sequence_line_edit.textChanged.connect(self._set_sequence)
         self.window.level_combo_box.currentTextChanged.connect(self._set_level)
-        self.window.changelist_combo_box.currentTextChanged.connect(self._set_changelist)
+        self.window.project_cl_combo_box.currentTextChanged.connect(self._set_project_changelist)
+        self.window.engine_cl_combo_box.currentTextChanged.connect(self._set_engine_changelist)
         self.window.logger_level_comboBox.currentTextChanged.connect(self.logger_level_comboBox_currentTextChanged)
         self.window.record_button.released.connect(self.record_button_released)
         self.window.sync_all_button.clicked.connect(self.sync_all_button_clicked)
         self.window.build_all_button.clicked.connect(self.build_all_button_clicked)
         self.window.sync_and_build_all_button.clicked.connect(self.sync_and_build_all_button_clicked)
-        self.window.refresh_cl_button.clicked.connect(self.refresh_cl_button_clicked)
+        self.window.refresh_project_cl_button.clicked.connect(self.refresh_project_cl_button_clicked)
+        self.window.refresh_engine_cl_button.clicked.connect(self.refresh_engine_cl_button_clicked)
         self.window.connect_all_button.clicked.connect(self.connect_all_button_clicked)
         self.window.launch_all_button.clicked.connect(self.launch_all_button_clicked)
 
@@ -175,23 +179,25 @@ class SwitchboardDialog(QtCore.QObject):
         # Plugin UI
         self.device_manager.plug_into_ui(self.window.menu_bar, self.window.tabs_main)
 
-        # Update the UI
-        self.p4_refresh_cl()
-        self.refresh_levels()
+        # If starting up with new config, open the menu to create a new one
+        if not CONFIG.file_path:
+            self.menu_new_config()
+        else:
+            self.toggle_p4_controls(CONFIG.P4_ENABLED.get_value())
+            self.refresh_levels()
+            self.update_configs_menu()
+
         self.set_config_hooks()
 
-        self.update_configs_menu()
         self.set_multiuser_session_name(f'{SETTINGS.MUSERVER_SESSION_NAME}')
 
         # Run the transport queue
         #self.transport_queue_resume()
 
-        # If starting up with new config, open the menu to create a new one
-        if not CONFIG.file_path:
-            self.menu_new_config()
-
     def set_config_hooks(self):
-        CONFIG.P4_PATH.signal_setting_changed.connect(lambda: self.p4_refresh_cl())
+        CONFIG.P4_PATH.signal_setting_changed.connect(lambda: self.p4_refresh_project_cl())
+        CONFIG.BUILD_ENGINE.signal_setting_changed.connect(lambda: self.p4_refresh_engine_cl())
+        CONFIG.P4_ENABLED.signal_setting_changed.connect(lambda _, enabled: self.toggle_p4_controls(enabled))
         CONFIG.MAPS_PATH.signal_setting_changed.connect(lambda: self.refresh_levels())
         CONFIG.MAPS_FILTER.signal_setting_changed.connect(lambda: self.refresh_levels())
 
@@ -265,43 +271,7 @@ class SwitchboardDialog(QtCore.QObject):
         # Disable saving while loading
         CONFIG.push_saving_allowed(False)
 
-        # Remove all devices
-        self.device_manager.clear_device_list()
-        self.device_list_widget.clear_widgets()
-
-        # Reset plugin settings
-        self.device_manager.reset_plugins_settings(CONFIG)
-
-        # Set hooks to this dialog's UI
-        self.set_config_hooks()
-
-        # Add new devices
-        self.device_manager.add_devices(CONFIG._device_data_from_config)
-
-        # Re-enable saving after loading.
-        CONFIG.pop_saving_allowed()
-
-        self.p4_refresh_cl()
-        self.refresh_levels()
-        self.update_configs_menu()
-
-    def menu_new_config(self):
-
-        uproject_search_path = os.path.dirname(CONFIG.UPROJECT_PATH.get_value())
-
-        if not os.path.exists(uproject_search_path):
-            uproject_search_path = SETTINGS.LAST_BROWSED_PATH
-            
-        dialog = AddConfigDialog(self.stylesheet, uproject_search_path=uproject_search_path, previous_engine_dir=CONFIG.ENGINE_DIR.get_value(), parent=self.window)
-        dialog.exec()
-
-        if dialog.result() == QtWidgets.QDialog.Accepted:
-
-            CONFIG.init_new_config(dialog.config_name, dialog.uproject, dialog.engine_dir)
-
-            # Disable saving while loading
-            CONFIG.push_saving_allowed(False)
-
+        try:
             # Remove all devices
             self.device_manager.clear_device_list()
             self.device_list_widget.clear_widgets()
@@ -312,11 +282,49 @@ class SwitchboardDialog(QtCore.QObject):
             # Set hooks to this dialog's UI
             self.set_config_hooks()
 
-            # Re-enable saving after loading
+            # Add new devices
+            self.device_manager.add_devices(CONFIG._device_data_from_config)
+        finally:
+            # Re-enable saving after loading.
             CONFIG.pop_saving_allowed()
 
+        self.p4_refresh_project_cl()
+        self.p4_refresh_engine_cl()
+        self.refresh_levels()
+        self.update_configs_menu()
+
+    def menu_new_config(self):
+
+        uproject_search_path = os.path.dirname(CONFIG.UPROJECT_PATH.get_value())
+
+        if not os.path.exists(uproject_search_path):
+            uproject_search_path = SETTINGS.LAST_BROWSED_PATH
+
+        dialog = AddConfigDialog(self.stylesheet, uproject_search_path=uproject_search_path, previous_engine_dir=CONFIG.ENGINE_DIR.get_value(), parent=self.window)
+        dialog.exec()
+
+        if dialog.result() == QtWidgets.QDialog.Accepted:
+
+            CONFIG.init_new_config(project_name=dialog.config_name, uproject=dialog.uproject, engine_dir=dialog.engine_dir, p4_settings=dialog.p4_settings())
+
+            # Disable saving while loading
+            CONFIG.push_saving_allowed(False)
+            try:
+                # Remove all devices
+                self.device_manager.clear_device_list()
+                self.device_list_widget.clear_widgets()
+
+                # Reset plugin settings
+                self.device_manager.reset_plugins_settings(CONFIG)
+
+                # Set hooks to this dialog's UI
+                self.set_config_hooks()
+            finally:
+                # Re-enable saving after loading
+                CONFIG.pop_saving_allowed()
+
             # Update the UI
-            self.p4_refresh_cl()
+            self.toggle_p4_controls(CONFIG.P4_ENABLED.get_value())
             self.refresh_levels()
             self.update_configs_menu()
 
@@ -366,10 +374,13 @@ class SwitchboardDialog(QtCore.QObject):
         settings_dialog.set_uproject(CONFIG.UPROJECT_PATH.get_value())
         settings_dialog.set_engine_dir(CONFIG.ENGINE_DIR.get_value())
         settings_dialog.set_build_engine(CONFIG.BUILD_ENGINE.get_value())
+        settings_dialog.set_p4_enabled(bool(CONFIG.P4_ENABLED.get_value()))
         settings_dialog.set_source_control_workspace(CONFIG.SOURCE_CONTROL_WORKSPACE.get_value())
         settings_dialog.set_p4_project_path(CONFIG.P4_PATH.get_value())
         settings_dialog.set_map_path(CONFIG.MAPS_PATH.get_value())
         settings_dialog.set_map_filter(CONFIG.MAPS_FILTER.get_value())
+        settings_dialog.set_osc_server_port(CONFIG.OSC_SERVER_PORT.get_value())
+        settings_dialog.set_osc_client_port(CONFIG.OSC_CLIENT_PORT.get_value())
         settings_dialog.set_mu_server_name(CONFIG.MUSERVER_SERVER_NAME)
         settings_dialog.set_mu_cmd_line_args(CONFIG.MUSERVER_COMMAND_LINE_ARGUMENTS)
         settings_dialog.set_mu_clean_history(CONFIG.MUSERVER_CLEAN_HISTORY)
@@ -384,12 +395,12 @@ class SwitchboardDialog(QtCore.QObject):
 
         # avoid saving the config all the time while in the settings dialog
         CONFIG.push_saving_allowed(False)
-
-        # Show the Settings Dialog
-        settings_dialog.ui.exec()
-
-        # Restore saving, which should happen at the end of this function
-        CONFIG.pop_saving_allowed()
+        try:
+            # Show the Settings Dialog
+            settings_dialog.ui.exec()
+        finally:
+            # Restore saving, which should happen at the end of this function
+            CONFIG.pop_saving_allowed()
 
         new_config_name = settings_dialog.config_name()
         if config_name != new_config_name:
@@ -407,7 +418,7 @@ class SwitchboardDialog(QtCore.QObject):
 
             # Relaunch the OSC server
             self.osc_server.close()
-            self.osc_server.launch(SETTINGS.IP_ADDRESS)
+            self.osc_server.launch(SETTINGS.IP_ADDRESS, CONFIG.OSC_SERVER_PORT.get_value())
 
         transport_path = settings_dialog.transport_path()
         if transport_path != SETTINGS.TRANSPORT_PATH:
@@ -442,9 +453,13 @@ class SwitchboardDialog(QtCore.QObject):
         if mu_auto_join != CONFIG.MUSERVER_AUTO_JOIN:
             CONFIG.MUSERVER_AUTO_JOIN = mu_auto_join
         
+        CONFIG.P4_ENABLED.update_value(settings_dialog.p4_enabled())
+
         CONFIG.save()
 
     def sync_all_button_clicked(self):
+        if not CONFIG.P4_ENABLED().get_value():
+            return
         device_widgets = self.device_list_widget.device_widgets()
 
         for device_widget in device_widgets:
@@ -459,6 +474,8 @@ class SwitchboardDialog(QtCore.QObject):
                 device_widget.build_button_clicked()
 
     def sync_and_build_all_button_clicked(self):
+        if not CONFIG.P4_ENABLED().get_value():
+            return
         device_widgets = self.device_list_widget.device_widgets()
 
         for device_widget in device_widgets:
@@ -466,8 +483,11 @@ class SwitchboardDialog(QtCore.QObject):
                 device_widget.sync_button_clicked()
                 device_widget.build_button_clicked()
 
-    def refresh_cl_button_clicked(self):
-        self.p4_refresh_cl()
+    def refresh_project_cl_button_clicked(self):
+        self.p4_refresh_project_cl()
+
+    def refresh_engine_cl_button_clicked(self):
+        self.p4_refresh_engine_cl()
 
     def connect_all_button_clicked(self):
         device_widgets = self.device_list_widget.device_widgets()
@@ -553,7 +573,8 @@ class SwitchboardDialog(QtCore.QObject):
         """
         device.device_qt_handler.signal_device_connect_failed.connect(self.device_connect_failed)
         device.device_qt_handler.signal_device_client_disconnected.connect(self.device_client_disconnected)
-        device.device_qt_handler.signal_device_changelist_changed.connect(self.device_changelist_changed)
+        device.device_qt_handler.signal_device_project_changelist_changed.connect(self.device_project_changelist_changed)
+        device.device_qt_handler.signal_device_engine_changelist_changed.connect(self.device_engine_changelist_changed)
         device.device_qt_handler.signal_device_status_changed.connect(self.device_status_changed)
         device.device_qt_handler.signal_device_sync_failed.connect(self.device_sync_failed)
         device.device_qt_handler.signal_device_is_recording_device_changed.connect(self.device_is_recording_device_changed)
@@ -748,29 +769,60 @@ class SwitchboardDialog(QtCore.QObject):
             self.window.level_combo_box.setCurrentText(self._level)
 
     @property
-    def changelist(self):
-        return self._changelist
+    def project_changelist(self):
+        return self._project_changelist
 
-    @changelist.setter
-    def changelist(self, value):
-        self._set_changelist(value)
+    @project_changelist.setter
+    def project_changelist(self, value):
+        self._set_project_changelist(value)
 
-    def _set_changelist(self, value):
-        self._changelist = value
+    def _set_project_changelist(self, value):
+        self._project_changelist = value
 
-        if self.window.changelist_combo_box.currentText() != self._changelist:
-            self.window.changelist_combo_box.setText(self._changelist)
+        if self.window.project_cl_combo_box.currentText() != self._project_changelist:
+            self.window.project_cl_combo_box.setText(self._project_changelist)
 
         # Check if all of the devices are on the right changelist
         for device in self.device_manager.devices():
-            if not device.changelist:
+            if not device.project_changelist:
                 continue
 
             device_widget = self.device_list_widget.device_widget_by_hash(device.device_hash)
-            if device.changelist == self.changelist:
-                device_widget.changelist_display_warning(False)
+            if value == EMPTY_SYNC_ENTRY:
+                device_widget.project_changelist_display_warning(False)
             else:
-                device_widget.changelist_display_warning(True)
+                if device.project_changelist == self.project_changelist:
+                    device_widget.project_changelist_display_warning(False)
+                else:
+                    device_widget.project_changelist_display_warning(True)
+
+    @property
+    def engine_changelist(self):
+        return self._engine_changelist
+
+    @engine_changelist.setter
+    def engine_changelist(self, value):
+        self._set_engine_changelist(value)
+
+    def _set_engine_changelist(self, value):
+        self._engine_changelist = value
+
+        if self.window.engine_cl_combo_box.currentText() != self._engine_changelist:
+            self.window.engine_cl_combo_box.setText(self._engine_changelist)
+
+        # Check if all of the devices are on the right changelist
+        for device in self.device_manager.devices():
+            if not device.engine_changelist:
+                continue
+
+            device_widget = self.device_list_widget.device_widget_by_hash(device.device_hash)
+            if value == EMPTY_SYNC_ENTRY:
+                device_widget.engine_changelist_display_warning(False)
+            else:
+                if device.engine_changelist == self.engine_changelist:
+                    device_widget.engine_changelist_display_warning(False)
+                else:
+                    device_widget.engine_changelist_display_warning(True)
 
     @QtCore.Slot(object)
     def device_widget_connect(self, device_widget):
@@ -778,7 +830,7 @@ class SwitchboardDialog(QtCore.QObject):
         if not device:
             return
 
-        if device.device_type == 'iPhone':
+        if device.device_type == 'LiveLinkFace':
             device.look_for_device = True
         else:
             device.connect_listener()
@@ -800,7 +852,7 @@ class SwitchboardDialog(QtCore.QObject):
         if not device:
             return
 
-        if device.device_type == 'iPhone':
+        if device.device_type == 'LiveLinkFace':
             device.look_for_device = False
         else:
             device.disconnect_listener()
@@ -829,8 +881,12 @@ class SwitchboardDialog(QtCore.QObject):
 
     @QtCore.Slot(object)
     def device_widget_sync(self, device_widget):
+        if not CONFIG.P4_ENABLED().get_value():
+            return
         device = self.device_manager.device_with_hash(device_widget.device_hash)
-        device.sync(self.changelist)
+        project_cl = None if self.project_changelist == EMPTY_SYNC_ENTRY else self.project_changelist
+        engine_cl = None if self.engine_changelist == EMPTY_SYNC_ENTRY else self.engine_changelist
+        device.sync(engine_cl, project_cl)
 
     @QtCore.Slot(object)
     def device_widget_build(self, device_widget):
@@ -854,21 +910,39 @@ class SwitchboardDialog(QtCore.QObject):
         pass
 
     @QtCore.Slot(object)
-    def device_changelist_changed(self, device):
+    def device_project_changelist_changed(self, device):
         device_widget = self.device_list_widget.device_widget_by_hash(device.device_hash)
-        device_widget.update_changelist(device.changelist)
+        device_widget.update_project_changelist(device.project_changelist)
 
-        if device.changelist == self.changelist:
-            device_widget.changelist_display_warning(False)
+        if self.project_changelist == EMPTY_SYNC_ENTRY:
+            device_widget.project_changelist_display_warning(False)
         else:
-            device_widget.changelist_display_warning(True)
+            if device.project_changelist == self.project_changelist:
+                device_widget.project_changelist_display_warning(False)
+            else:
+                device_widget.project_changelist_display_warning(True)
+
+    @QtCore.Slot(object)
+    def device_engine_changelist_changed(self, device):
+        device_widget = self.device_list_widget.device_widget_by_hash(device.device_hash)
+        device_widget.update_engine_changelist(device.engine_changelist)
+
+        if self.engine_changelist == EMPTY_SYNC_ENTRY:
+            device_widget.engine_changelist_display_warning(False)
+        else:
+            if device.engine_changelist == self.engine_changelist:
+                device_widget.engine_changelist_display_warning(False)
+            else:
+                device_widget.engine_changelist_display_warning(True)
 
     @QtCore.Slot(object)
     def device_status_changed(self, device, previous_status):
-        LOGGER.debug(f'{device.name}: device status change: {device.status.name}')
 
         # Update the device widget
         self.device_list_widget.update_status(device, previous_status)
+
+        if previous_status != device.status:
+            LOGGER.debug(f'{device.name}: device status change: {device.status.name}')
 
         if previous_status == DeviceStatus.RECORDING and device.status >= DeviceStatus.OPEN:
             self.device_record_stop_confirm(device)
@@ -960,18 +1034,46 @@ class SwitchboardDialog(QtCore.QObject):
             LOGGER.setLevel(logging.INFO)
 
     # Update UI with latest CLs
-    def p4_refresh_cl(self):
-        LOGGER.info("Refreshing p4 changelists")
-        p4_path = p4_utils.p4_stream_root(CONFIG.SOURCE_CONTROL_WORKSPACE.get_value())
-        if p4_path is None:
-            p4_path = CONFIG.P4_PATH
-        changelists = p4_utils.p4_latest_changelist(p4_path, num_changelists=10)
-
-        self.window.changelist_combo_box.clear()
+    def p4_refresh_project_cl(self):
+        if not CONFIG.P4_ENABLED.get_value():
+            return
+        LOGGER.info("Refreshing p4 project changelists")
+        changelists = p4_utils.p4_latest_changelist(CONFIG.P4_PATH.get_value())
+        self.window.project_cl_combo_box.clear()
 
         if changelists:
-            self.window.changelist_combo_box.addItems(changelists)
-            self.window.changelist_combo_box.setCurrentIndex(0)
+            self.window.project_cl_combo_box.addItems(changelists)
+            self.window.project_cl_combo_box.setCurrentIndex(0)
+        self.window.project_cl_combo_box.addItem(EMPTY_SYNC_ENTRY)
+
+    def p4_refresh_engine_cl(self):
+        if not CONFIG.P4_ENABLED.get_value():
+            return
+        self.window.engine_cl_combo_box.clear()
+        # if engine is built from source, refresh the engine cl dropdown
+        if CONFIG.BUILD_ENGINE.get_value():
+            LOGGER.info("Refreshing p4 engine changelists")
+            self.window.engine_cl_label.setEnabled(True)
+            self.window.engine_cl_combo_box.setEnabled(True)
+            self.window.engine_cl_combo_box.setToolTip("Select changelist to sync the engine to")
+            self.window.refresh_engine_cl_button.setEnabled(True)
+            self.window.refresh_engine_cl_button.setToolTip("Click to refresh changelists")
+
+            engine_p4_path = p4_utils.p4_where(CONFIG.SOURCE_CONTROL_WORKSPACE.get_value(), CONFIG.ENGINE_DIR.get_value())
+            changelists = p4_utils.p4_latest_changelist(engine_p4_path)
+            if changelists:
+                self.window.engine_cl_combo_box.addItems(changelists)
+                self.window.engine_cl_combo_box.setCurrentIndex(0)
+        else:
+            # disable engine cl controls if engine is not built from source
+            self.window.engine_cl_label.setEnabled(False)
+            self.window.engine_cl_combo_box.setEnabled(False)
+            tool_tip = "Engine is not build from source. To use this make sure the Engine is on p4 and 'Build Engine' "
+            tool_tip += "is enabled in the Settings."
+            self.window.engine_cl_combo_box.setToolTip(tool_tip)
+            self.window.refresh_engine_cl_button.setEnabled(False)
+            self.window.refresh_engine_cl_button.setToolTip(tool_tip)
+        self.window.engine_cl_combo_box.addItem(EMPTY_SYNC_ENTRY)
 
     def refresh_levels(self):
         current_level = CONFIG.CURRENT_LEVEL
@@ -981,6 +1083,21 @@ class SwitchboardDialog(QtCore.QObject):
 
         if current_level and current_level in CONFIG.maps():
             self.level = current_level
+
+    def toggle_p4_controls(self, enabled):
+        self.window.engine_cl_label.setEnabled(enabled)
+        self.window.engine_cl_combo_box.setEnabled(enabled)
+        self.window.refresh_engine_cl_button.setEnabled(enabled)
+
+        self.window.project_cl_label.setEnabled(enabled)
+        self.window.project_cl_combo_box.setEnabled(enabled)
+        self.window.refresh_project_cl_button.setEnabled(enabled)
+
+        self.window.sync_all_button.setEnabled(enabled)
+        self.window.sync_and_build_all_button.setEnabled(enabled)
+        if enabled:
+            self.p4_refresh_engine_cl()
+            self.p4_refresh_project_cl()
 
     def osc_take(self, ip_address, command, value):
         device = self._device_from_ip_address(ip_address, command, value=value)
@@ -1075,7 +1192,7 @@ class SwitchboardDialog(QtCore.QObject):
         new_recording.date = switchboard_utils.date_to_string(datetime.date.today())
         new_recording.map = self.level
         new_recording.multiuser_session = self.multiuser_session_name()
-        new_recording.changelist = self.changelist
+        new_recording.changelist = self.project_changelist
 
         self.recording_manager.add_recording(new_recording)
 
@@ -1207,9 +1324,9 @@ class SwitchboardDialog(QtCore.QObject):
         device.connect_listener()
 
     def osc_battery(self, ip_address, command, value):
-        # The Battery command is used to handshake with the iPhone. Don't reject it if it's not connected 
+        # The Battery command is used to handshake with LiveLinkFace. Don't reject it if it's not connected 
         device = self.device_manager.device_with_ip_address(ip_address[0])
-        #device = self._device_from_ip_address(ip_address, command)
+        
         if not device:
             return
 

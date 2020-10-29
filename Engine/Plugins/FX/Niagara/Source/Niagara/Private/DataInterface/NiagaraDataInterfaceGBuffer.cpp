@@ -50,6 +50,15 @@ namespace NiagaraDataInterfaceGBufferLocal
 #endif
 	}
 
+	static FText GetDescription_SceneColor()
+	{
+#if WITH_EDITORONLY_DATA
+		return NSLOCTEXT("Niagara", "GBuffer_SceneColor", "Gets the current frames scene color buffer, this will not include translucency since we run PostOpaque.");
+#else
+		return FText::GetEmpty();
+#endif
+	}
+
 	static TConstArrayView<FGBufferAttribute> GetGBufferAttributes()
 	{
 		static const TArray<FGBufferAttribute> GBufferAttributes =
@@ -63,9 +72,13 @@ namespace NiagaraDataInterfaceGBufferLocal
 			FGBufferAttribute(TEXT("Metallic"),			TEXT("float"),	FNiagaraTypeDefinition::GetFloatDef(), FText::GetEmpty()),
 			FGBufferAttribute(TEXT("Specular"),			TEXT("float"),	FNiagaraTypeDefinition::GetFloatDef(), FText::GetEmpty()),
 			FGBufferAttribute(TEXT("Roughness"),		TEXT("float"),	FNiagaraTypeDefinition::GetFloatDef(), FText::GetEmpty()),
-			//FGBufferAttribute(TEXT("CustomDepth"),	TEXT("float"),	FNiagaraTypeDefinition::GetFloatDef(), FText::GetEmpty()),
-			//FGBufferAttribute(TEXT("CustomStencil"),	TEXT("uint"),	FNiagaraTypeDefinition::GetIntDef(), FText::GetEmpty()),
 			FGBufferAttribute(TEXT("Depth"),			TEXT("float"),	FNiagaraTypeDefinition::GetFloatDef(), FText::GetEmpty()),
+
+			FGBufferAttribute(TEXT("CustomDepth"),		TEXT("float"),	FNiagaraTypeDefinition::GetFloatDef(), FText::GetEmpty()),
+			// CustomStencil appears broken currently across the board so not exposing until that's working
+			//FGBufferAttribute(TEXT("CustomStencil"),	TEXT("int"),	FNiagaraTypeDefinition::GetIntDef(), FText::GetEmpty()),
+
+			FGBufferAttribute(TEXT("SceneColor"),		TEXT("float4"),	FNiagaraTypeDefinition::GetVec4Def(), GetDescription_SceneColor()),
 		};
 
 		return MakeArrayView(GBufferAttributes);

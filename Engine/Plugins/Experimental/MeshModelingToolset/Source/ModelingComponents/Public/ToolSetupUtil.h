@@ -107,5 +107,5 @@ namespace ToolSetupUtil
 	/**
 	 * @return custom material suitable for use with ULineSetComponent
 	 */
-	MODELINGCOMPONENTS_API UMaterialInterface* GetDefaultLineComponentMaterial(UInteractiveToolManager* ToolManager);
+	MODELINGCOMPONENTS_API UMaterialInterface* GetDefaultLineComponentMaterial(UInteractiveToolManager* ToolManager, bool bDepthTested = true);
 }

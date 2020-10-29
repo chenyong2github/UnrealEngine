@@ -5,6 +5,8 @@
 #include "Chaos/ParticleHandle.h"
 #include "Components/PrimitiveComponent.h"
 
+#if WITH_CHAOS
+
 // -------------------------------------------------------------------------------------------------------------------------
 //	Interpolation related functions. These require calls to the UPrimitiveComponent and cannot be implemented via FBodyInstance
 //
@@ -34,3 +36,5 @@ void FNetworkPredictionPhysicsState::FinalizeInterpolatedPhysics(UPrimitiveCompo
 
 	Driver->SetWorldLocationAndRotation(InterpolatedState->Location, InterpolatedState->Rotation, false);
 }
+
+#endif // WITH_CHAOS

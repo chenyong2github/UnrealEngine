@@ -10,6 +10,8 @@
 #include "Modules/ModuleManager.h"
 #include "SwitchboardEditorSettings.h"
 #include "SwitchboardMenuEntry.h"
+#include "Misc/CoreDelegates.h"
+#include "Editor.h"
 
 
 #define LOCTEXT_NAMESPACE "SwitchboardEditorModule"

@@ -137,43 +137,6 @@ static void PlatformCreateDummyGLWindow(FPlatformOpenGLContext *OutContext)
 	OutContext->DisplayConnection = DefaultDisplay;
 }
 
-static bool PlatformOpenGL3()
-{
-	return FParse::Param(FCommandLine::Get(), TEXT("opengl3"));
-}
-
-static bool PlatformOpenGL4()
-{
-	return FParse::Param(FCommandLine::Get(), TEXT("opengl4"));
-}
-
-static void PlatformOpenGLVersionFromCommandLine(int& OutMajorVersion, int& OutMinorVersion)
-{
-	// Lumin GL4 determines OpenGL Context version based on command line arguments
-	bool bGL3 = PlatformOpenGL3();
-	bool bGL4 = PlatformOpenGL4();
-	if (!bGL3 && !bGL4)
-	{
-		// Defaults to GL4.3(SM5 feature level) if no command line arguments are passed in 
-		bGL4 = true;
-	}
-
-	if (bGL3)
-	{
-		OutMajorVersion = 3;
-		OutMinorVersion = 2;
-	}
-	else if (bGL4)
-	{
-		OutMajorVersion = 4;
-		OutMinorVersion = 3;
-	}
-	else
-	{
-		verifyf(false, TEXT("OpenGLRHI initialized with invalid command line, must be one of: -opengl3, -opengl4"));
-	}
-}
-
 /**
 * Enable/Disable debug context from the commandline
 */
@@ -341,9 +304,8 @@ struct FPlatformOpenGLDevice
 		extern void InitDebugContext();
 		ContextUsageGuard = new FCriticalSection;
 
-		int MajorVersion = 0;
-		int MinorVersion = 0;
-		PlatformOpenGLVersionFromCommandLine(MajorVersion, MinorVersion);
+		const int MajorVersion = 4;
+		const int MinorVersion = 3;
 
 		PlatformCreateDummyGLWindow(&SharedContext);
 		PlatformCreateOpenGLContextCore(&SharedContext, MajorVersion, MinorVersion, NULL);
@@ -426,9 +388,8 @@ FPlatformOpenGLContext* PlatformCreateOpenGLContext(FPlatformOpenGLDevice* Devic
 	Context->DisplayConnection = DefaultDisplay;
 	check(Context->DisplayConnection);
 
-	int MajorVersion = 0;
-	int MinorVersion = 0;
-	PlatformOpenGLVersionFromCommandLine(MajorVersion, MinorVersion);
+	const int MajorVersion = 4;
+	const int MinorVersion = 3;
 
 	PlatformCreateOpenGLContextCore(Context, MajorVersion, MinorVersion, Device->SharedContext.OpenGLContext);
 	check(Context->OpenGLContext);

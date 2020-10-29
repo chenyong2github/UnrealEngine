@@ -96,6 +96,9 @@ public:
 
 	TSharedPtr<FUICommandInfo> BeginGroomToMeshTool;
 	TSharedPtr<FUICommandInfo> BeginGenerateLODMeshesTool;
+	TSharedPtr<FUICommandInfo> BeginGroomCardsToMeshTool;
+	TSharedPtr<FUICommandInfo> BeginGroomMeshToCardsTool;
+	TSharedPtr<FUICommandInfo> BeginGroomCardsEditorTool;
 
 	TSharedPtr<FUICommandInfo> AcceptActiveTool;
 	TSharedPtr<FUICommandInfo> CancelActiveTool;

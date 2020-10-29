@@ -16,6 +16,7 @@
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
 #include "AudioDeviceManager.h"
+#include "Interfaces/Interface_AssetUserData.h"
 #include "SoundBase.generated.h"
 
 
@@ -23,6 +24,7 @@ class USoundEffectSourcePreset;
 class USoundSourceBus;
 class USoundSubmix;
 class USoundEffectSourcePresetChain;
+class UAssetUserData;
 
 struct FActiveSound;
 struct FSoundParseParameters;
@@ -51,7 +53,7 @@ enum class EVirtualizationMode : uint8
 };
 
 UCLASS(config=Engine, hidecategories=Object, abstract, editinlinenew, BlueprintType)
-class ENGINE_API USoundBase : public UObject
+class ENGINE_API USoundBase : public UObject, public IInterface_AssetUserData
 {
 	GENERATED_UCLASS_BODY()
 
@@ -172,6 +174,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effects|Source", meta = (DisplayName = "Pre-Effect Bus Sends"))
 	TArray<FSoundSourceBusSendInfo> PreEffectBusSends;
 
+	/** Array of user data stored with the asset */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Instanced, Category = Sound)
+	TArray<UAssetUserData*> AssetUserData;
+
 public:
 
 	//~ Begin UObject Interface.
@@ -259,6 +265,13 @@ public:
 	/** Queries if the sound has cooked FFT or envelope data. */
 	virtual bool HasCookedFFTData() const { return false; }
 	virtual bool HasCookedAmplitudeEnvelopeData() const { return false; }
+
+	//~ Begin IInterface_AssetUserData Interface
+	virtual void AddAssetUserData(UAssetUserData* InUserData) override;
+	virtual void RemoveUserDataOfClass(TSubclassOf<UAssetUserData> InUserDataClass) override;
+	virtual UAssetUserData* GetAssetUserDataOfClass(TSubclassOf<UAssetUserData> InUserDataClass) override;
+	virtual const TArray<UAssetUserData*>* GetAssetUserDataArray() const override;
+	//~ End IInterface_AssetUserData Interface
 
 	/** Creates a sound generator instance from this sound base. Return true if this is being implemented by a subclass. Sound generators procedurally generate audio in the audio render thread. */
 	virtual ISoundGeneratorPtr CreateSoundGenerator(const FSoundGeneratorInitParams& InParams) { return nullptr; }

@@ -105,7 +105,7 @@ public:
 
 				if (FNetworkPredictionDriver<ModelDef>::ShouldReconcilePhysics(PhysicsFrame, TickState->PhysicsRewindData, InstanceData.Info.Driver, ClientRecvData.Physics))
 				{
-					UE_NP_TRACE_SHOULD_RECONCILE(ClientRecvData.TraceID); // TODO: need a way to trace physics state
+					UE_NP_TRACE_SHOULD_RECONCILE(ClientRecvData.TraceID);
 					bDoRollback = true;
 
 					if (NetworkPredictionCVars::PrintReconciles())
@@ -332,7 +332,7 @@ public:
 
 					TTickUtil<ModelDef>::DoTick(Instance, InputFrameData, OutputFrameData, Step, EndTimeMS, ESimulationTickContext::Resimulate);
 
-					UE_NP_TRACE_PUSH_TICK(Step.TotalSimulationTime, Step.StepMS, Step.Frame, 0);
+					UE_NP_TRACE_PUSH_TICK(Step.TotalSimulationTime, Step.StepMS, Step.Frame);
 					UE_NP_TRACE_SIM_TICK(ClientRecvData.TraceID);
 				}
 			}

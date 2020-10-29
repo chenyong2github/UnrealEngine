@@ -1288,7 +1288,7 @@ namespace AutomationTool
 			string Output;
             if (!LogP4Output(out Output, CommandLine, Input, AllowSpew, WithClient, SpewIsVerbose:SpewIsVerbose))
 			{
-				throw new P4Exception("p4.exe {0} failed.", CommandLine);
+				throw new P4Exception("p4.exe {0} failed. {1}", CommandLine, Output);
 			}
 		}
 

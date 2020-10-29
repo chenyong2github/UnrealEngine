@@ -947,7 +947,7 @@ namespace Audio
 				AudioStreamInfo.DeviceInfo.NumChannels,
 				AudioStreamInfo.DeviceInfo.SampleRate,
 				0,
-				nullptr,
+				*AudioStreamInfo.DeviceInfo.DeviceId,
 				nullptr,
 				AudioCategory_GameEffects);
 #elif PLATFORM_HOLOLENS

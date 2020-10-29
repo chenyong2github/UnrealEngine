@@ -45,7 +45,7 @@
 #include "DMXEditor.h"
 #include "Commands/DMXEditorCommands.h"
 #include "K2Node_GetDMXFixturePatch.h"
-#include "K2Node_GetDMXActiveModeFunctionValues.h"
+#include "K2Node_GetDMXAttributeValues.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -81,8 +81,8 @@ public:
 		, PostBeginPlayEventNode(nullptr)
 		, K2Node_GetDMXFixturePatch1(nullptr)
 		, K2Node_GetDMXFixturePatch2(nullptr)
-		, K2Node_GetDMXActiveModeFunctionValues1(nullptr)
-		, K2Node_GetDMXActiveModeFunctionValues2(nullptr)
+		, K2Node_GetDMXAttributeValues1(nullptr)
+		, K2Node_GetDMXAttributeValues2(nullptr)
 		, SetMemberVariableNode1(nullptr)
 		, SetMemberVariableNode2(nullptr)
 	{
@@ -411,23 +411,23 @@ private:
 			K2Node_GetDMXFixturePatch1->SetInFixturePatchPinValue(FixturePatchRef);
 		}
 
-		// Add K2Node_GetDMXActiveModeFunctionValues 1
+		// Add K2Node_GetDMXAttributeValues 1
 		{
-			K2Node_GetDMXActiveModeFunctionValues1 = Cast<UK2Node_GetDMXActiveModeFunctionValues>(AddGetDMXActiveModeFunctionValues(BlueprintObject, EventGraph, FVector2D(500, 0), PlayThenPin));
-			Test->TestNotNull(TEXT("Created GetDMXActiveModeFunctionValues1 node"), K2Node_GetDMXActiveModeFunctionValues1);
+			K2Node_GetDMXAttributeValues1 = Cast<UK2Node_GetDMXAttributeValues>(AddGetDMXAttributeValues(BlueprintObject, EventGraph, FVector2D(500, 0), PlayThenPin));
+			Test->TestNotNull(TEXT("Created GetDMXAttributeValues1 node"), K2Node_GetDMXAttributeValues1);
 		}
 
 		// Connect Patch1 to FunctionValues1
 		{
 			UEdGraphPin* OutputDMXFixturePatchPin = K2Node_GetDMXFixturePatch1->GetOutputDMXFixturePatchPin();
-			UEdGraphPin* InputDMXFixturePatchPin = K2Node_GetDMXActiveModeFunctionValues1->GetInputDMXFixturePatchPin();
+			UEdGraphPin* InputDMXFixturePatchPin = K2Node_GetDMXAttributeValues1->GetInputDMXFixturePatchPin();
 			InputDMXFixturePatchPin->MakeLinkTo(OutputDMXFixturePatchPin);
 			Test->AddInfo(TEXT("Link FixturePatch 1 to FunctionValues 1"));
 		}
 
-		// Expose funсtions for K2Node_GetDMXActiveModeFunctionValues1
-		K2Node_GetDMXActiveModeFunctionValues1->ExposeFunctions();
-		Test->AddInfo(TEXT("Expose funсtions for K2Node_GetDMXActiveModeFunctionValues1"));
+		// Expose funсtions for K2Node_GetDMXAttributeValues1
+		K2Node_GetDMXAttributeValues1->ExposeAttributes();
+		Test->AddInfo(TEXT("Expose funсtions for K2Node_GetDMXAttributeValues1"));
 
 		// Add Integer value
 		AddIntegerMemberValue(BlueprintObject, *MemberVariableString1);
@@ -438,21 +438,21 @@ private:
 			Test->TestNotNull(TEXT("Added SetMemberVariableNode1"), SetMemberVariableNode1);
 		}
 
-		// Connect K2Node_GetDMXActiveModeFunctionValues1 to SetMemberVariableNode1
+		// Connect K2Node_GetDMXAttributeValues1 to SetMemberVariableNode1
 		{
-			UEdGraphPin* ActiveModeFunction2_16BitPin = K2Node_GetDMXActiveModeFunctionValues1->FindPin(TEXT("ActiveModeFunction2_16 Bit"));
+			UEdGraphPin* ActiveModeFunction2_16BitPin = K2Node_GetDMXAttributeValues1->FindPin(TEXT("ActiveModeFunction2_16 Bit"));
 			UEdGraphPin* SetMemberVariableNodePin = SetMemberVariableNode1->FindPin(MemberVariableString1);
 			ActiveModeFunction2_16BitPin->MakeLinkTo(SetMemberVariableNodePin);
-			Test->TestTrue(TEXT("Link K2Node_GetDMXActiveModeFunctionValues 1 to SetMemberVariableNode 1"), ActiveModeFunction2_16BitPin->LinkedTo.Contains(SetMemberVariableNodePin));
+			Test->TestTrue(TEXT("Link K2Node_GetDMXAttributeValues 1 to SetMemberVariableNode 1"), ActiveModeFunction2_16BitPin->LinkedTo.Contains(SetMemberVariableNodePin));
 
 			// Connect Exec
-			UEdGraphPin* FunctionValuesPin = K2Node_GetDMXActiveModeFunctionValues1->FindPin(UEdGraphSchema_K2::PN_Then);
+			UEdGraphPin* FunctionValuesPin = K2Node_GetDMXAttributeValues1->FindPin(UEdGraphSchema_K2::PN_Then);
 			UEdGraphPin* MemberVariableNodePin = SetMemberVariableNode1->FindPin(UEdGraphSchema_K2::PN_Execute);
 			FunctionValuesPin->MakeLinkTo(MemberVariableNodePin);
 			Test->TestTrue(TEXT("Link FunctionValues 1 then to SetMemberVariableNode 1 exec"), FunctionValuesPin->LinkedTo.Contains(MemberVariableNodePin));
 		}
 
-		Test->TestEqual(TEXT("Amount of the exposed pins"), K2Node_GetDMXActiveModeFunctionValues1->UserDefinedPins.Num(), 4);
+		Test->TestEqual(TEXT("Amount of the exposed pins"), K2Node_GetDMXAttributeValues1->UserDefinedPins.Num(), 4);
 
 		CompileBlueprint(BlueprintObject);
 
@@ -480,23 +480,23 @@ private:
 			K2Node_GetDMXFixturePatch2->SetInFixturePatchPinValue(FixturePatchRef);
 		}
 
-		// Add K2Node_GetDMXActiveModeFunctionValues 2
+		// Add K2Node_GetDMXAttributeValues 2
 		{
-			K2Node_GetDMXActiveModeFunctionValues2 = Cast<UK2Node_GetDMXActiveModeFunctionValues>(AddGetDMXActiveModeFunctionValues(BlueprintObject, EventGraph, FVector2D(500, 500), SetMemberVariableNode1ThenPin));
-			Test->TestNotNull(TEXT("Created GetDMXActiveModeFunctionValues 2 node"), K2Node_GetDMXActiveModeFunctionValues2);
+			K2Node_GetDMXAttributeValues2 = Cast<UK2Node_GetDMXAttributeValues>(AddGetDMXAttributeValues(BlueprintObject, EventGraph, FVector2D(500, 500), SetMemberVariableNode1ThenPin));
+			Test->TestNotNull(TEXT("Created GetDMXAttributeValues 2 node"), K2Node_GetDMXAttributeValues2);
 		}
 
 		// Connect Patch2 to FunctionValues2
 		{
 			UEdGraphPin* OutputDMXFixturePatchPin = K2Node_GetDMXFixturePatch2->GetOutputDMXFixturePatchPin();
-			UEdGraphPin* InputDMXFixturePatchPin = K2Node_GetDMXActiveModeFunctionValues2->GetInputDMXFixturePatchPin();
+			UEdGraphPin* InputDMXFixturePatchPin = K2Node_GetDMXAttributeValues2->GetInputDMXFixturePatchPin();
 			InputDMXFixturePatchPin->MakeLinkTo(OutputDMXFixturePatchPin);
 			Test->AddInfo(TEXT("Link FixturePatch 2 to FunctionValues 2"));
 		}
 
-		// Expose funсtions for K2Node_GetDMXActiveModeFunctionValues1
-		K2Node_GetDMXActiveModeFunctionValues2->ExposeFunctions();
-		Test->AddInfo(TEXT("Expose funсtions for K2Node_GetDMXActiveModeFunctionValues 2"));
+		// Expose funсtions for K2Node_GetDMXAttributeValues1
+		K2Node_GetDMXAttributeValues2->ExposeAttributes();
+		Test->AddInfo(TEXT("Expose funсtions for K2Node_GetDMXAttributeValues 2"));
 
 		// Add Integer value
 		AddIntegerMemberValue(BlueprintObject, *MemberVariableString2);
@@ -507,22 +507,22 @@ private:
 			Test->TestNotNull(TEXT("Added SetMemberVariableNode 2"), SetMemberVariableNode2);
 		}
 
-		// Connect K2Node_GetDMXActiveModeFunctionValues2 to SetMemberVariableNode2
+		// Connect K2Node_GetDMXAttributeValues2 to SetMemberVariableNode2
 		{
-			UEdGraphPin* ActiveModeFunction4_32BitPin = K2Node_GetDMXActiveModeFunctionValues2->FindPin(TEXT("ActiveModeFunction4_32 Bit"));
+			UEdGraphPin* ActiveModeFunction4_32BitPin = K2Node_GetDMXAttributeValues2->FindPin(TEXT("ActiveModeFunction4_32 Bit"));
 			UEdGraphPin* SetMemberVariableNodePin = SetMemberVariableNode2->FindPin(MemberVariableString2);
 			ActiveModeFunction4_32BitPin->MakeLinkTo(SetMemberVariableNodePin);
-			Test->TestTrue(TEXT("Link K2Node_GetDMXActiveModeFunctionValues 2 to SetMemberVariableNode 2"), ActiveModeFunction4_32BitPin->LinkedTo.Contains(SetMemberVariableNodePin));
+			Test->TestTrue(TEXT("Link K2Node_GetDMXAttributeValues 2 to SetMemberVariableNode 2"), ActiveModeFunction4_32BitPin->LinkedTo.Contains(SetMemberVariableNodePin));
 
 			// Connect Exec
-			UEdGraphPin* FunctionValuesPin = K2Node_GetDMXActiveModeFunctionValues2->FindPin(UEdGraphSchema_K2::PN_Then);
+			UEdGraphPin* FunctionValuesPin = K2Node_GetDMXAttributeValues2->FindPin(UEdGraphSchema_K2::PN_Then);
 			UEdGraphPin* MemberVariableNodePin = SetMemberVariableNode2->FindPin(UEdGraphSchema_K2::PN_Execute);
 			FunctionValuesPin->MakeLinkTo(MemberVariableNodePin);
 			Test->TestTrue(TEXT("Link FunctionValues 2 then to SetMemberVariableNode 2 exec"), FunctionValuesPin->LinkedTo.Contains(MemberVariableNodePin));
 		}
 
-		// Test amount output pins for K2Node_GetDMXActiveModeFunctionValues2
-		Test->TestEqual(TEXT("Amount of the exposed pins"), K2Node_GetDMXActiveModeFunctionValues2->UserDefinedPins.Num(), 4);
+		// Test amount output pins for K2Node_GetDMXAttributeValues2
+		Test->TestEqual(TEXT("Amount of the exposed pins"), K2Node_GetDMXAttributeValues2->UserDefinedPins.Num(), 4);
 
 		CompileBlueprint(BlueprintObject);
 
@@ -543,20 +543,20 @@ private:
 		FixtureTypeObject1->UpdateModeChannelProperties(FixtureTypeObject1->Modes[0]);
 
 		// It should affect only first node
-		Test->TestEqual(TEXT("Amount of the exposed pins"), K2Node_GetDMXActiveModeFunctionValues1->UserDefinedPins.Num(), 0);
-		Test->TestEqual(TEXT("Amount of the exposed pins"), K2Node_GetDMXActiveModeFunctionValues2->UserDefinedPins.Num(), 4);
+		Test->TestEqual(TEXT("Amount of the exposed pins"), K2Node_GetDMXAttributeValues1->UserDefinedPins.Num(), 0);
+		Test->TestEqual(TEXT("Amount of the exposed pins"), K2Node_GetDMXAttributeValues2->UserDefinedPins.Num(), 4);
 
-		// Connect K2Node_GetDMXActiveModeFunctionValues1 to SetMemberVariableNode1
+		// Connect K2Node_GetDMXAttributeValues1 to SetMemberVariableNode1
 		{
-			K2Node_GetDMXActiveModeFunctionValues1->ExposeFunctions();
-			UEdGraphPin* ActiveModeFunction1_24BitPin = K2Node_GetDMXActiveModeFunctionValues1->FindPin(TEXT("ActiveModeFunction1_24 Bit"));
+			K2Node_GetDMXAttributeValues1->ExposeAttributes();
+			UEdGraphPin* ActiveModeFunction1_24BitPin = K2Node_GetDMXAttributeValues1->FindPin(TEXT("ActiveModeFunction1_24 Bit"));
 			UEdGraphPin* SetMemberVariableNodePin = SetMemberVariableNode1->FindPin(MemberVariableString1);
 			ActiveModeFunction1_24BitPin->MakeLinkTo(SetMemberVariableNodePin);
-			Test->TestTrue(TEXT("Link K2Node_GetDMXActiveModeFunctionValues 1 to SetMemberVariableNode 1"), ActiveModeFunction1_24BitPin->LinkedTo.Contains(SetMemberVariableNodePin));
+			Test->TestTrue(TEXT("Link K2Node_GetDMXAttributeValues 1 to SetMemberVariableNode 1"), ActiveModeFunction1_24BitPin->LinkedTo.Contains(SetMemberVariableNodePin));
 		}
 
-		Test->TestEqual(TEXT("Amount of the exposed pins"), K2Node_GetDMXActiveModeFunctionValues1->UserDefinedPins.Num(), 4);
-		Test->TestEqual(TEXT("Amount of the exposed pins"), K2Node_GetDMXActiveModeFunctionValues2->UserDefinedPins.Num(), 4);
+		Test->TestEqual(TEXT("Amount of the exposed pins"), K2Node_GetDMXAttributeValues1->UserDefinedPins.Num(), 4);
+		Test->TestEqual(TEXT("Amount of the exposed pins"), K2Node_GetDMXAttributeValues2->UserDefinedPins.Num(), 4);
 
 		// Change ActiveModeFunction1 datatype from E32Bit to E16Bit
 		FDMXFixtureFunction& FixtureFunction4 = FixtureTypeObject2->Modes[0].Functions[1];
@@ -567,20 +567,20 @@ private:
 		FixtureTypeObject2->UpdateModeChannelProperties(FixtureTypeObject2->Modes[0]);
 
 		// It should affect only first node
-		Test->TestEqual(TEXT("Amount of the exposed pins"), K2Node_GetDMXActiveModeFunctionValues1->UserDefinedPins.Num(), 4);
-		Test->TestEqual(TEXT("Amount of the exposed pins"), K2Node_GetDMXActiveModeFunctionValues2->UserDefinedPins.Num(), 0);
+		Test->TestEqual(TEXT("Amount of the exposed pins"), K2Node_GetDMXAttributeValues1->UserDefinedPins.Num(), 4);
+		Test->TestEqual(TEXT("Amount of the exposed pins"), K2Node_GetDMXAttributeValues2->UserDefinedPins.Num(), 0);
 
-		// Connect K2Node_GetDMXActiveModeFunctionValues1 to SetMemberVariableNode1
+		// Connect K2Node_GetDMXAttributeValues1 to SetMemberVariableNode1
 		{
-			K2Node_GetDMXActiveModeFunctionValues2->ExposeFunctions();
-			UEdGraphPin* ActiveModeFunction4_16BitPin = K2Node_GetDMXActiveModeFunctionValues2->FindPin(TEXT("ActiveModeFunction4_16 Bit"));
+			K2Node_GetDMXAttributeValues2->ExposeAttributes();
+			UEdGraphPin* ActiveModeFunction4_16BitPin = K2Node_GetDMXAttributeValues2->FindPin(TEXT("ActiveModeFunction4_16 Bit"));
 			UEdGraphPin* SetMemberVariableNodePin = SetMemberVariableNode2->FindPin(MemberVariableString2);
 			ActiveModeFunction4_16BitPin->MakeLinkTo(SetMemberVariableNodePin);
-			Test->TestTrue(TEXT("Link K2Node_GetDMXActiveModeFunctionValues 2 to SetMemberVariableNode 2"), ActiveModeFunction4_16BitPin->LinkedTo.Contains(SetMemberVariableNodePin));
+			Test->TestTrue(TEXT("Link K2Node_GetDMXAttributeValues 2 to SetMemberVariableNode 2"), ActiveModeFunction4_16BitPin->LinkedTo.Contains(SetMemberVariableNodePin));
 		}
 
-		Test->TestEqual(TEXT("Amount of the exposed pins"), K2Node_GetDMXActiveModeFunctionValues1->UserDefinedPins.Num(), 4);
-		Test->TestEqual(TEXT("Amount of the exposed pins"), K2Node_GetDMXActiveModeFunctionValues2->UserDefinedPins.Num(), 4);
+		Test->TestEqual(TEXT("Amount of the exposed pins"), K2Node_GetDMXAttributeValues1->UserDefinedPins.Num(), 4);
+		Test->TestEqual(TEXT("Amount of the exposed pins"), K2Node_GetDMXAttributeValues2->UserDefinedPins.Num(), 4);
 
 		return true;
 	}
@@ -614,14 +614,14 @@ public:
 		return Action->PerformAction(InGraph, ConnectPin, GraphLocation, false);
 	}
 
-	static UEdGraphNode* AddGetDMXActiveModeFunctionValues(UBlueprint* InBlueprint, UEdGraph* InGraph, FVector2D InPosition, UEdGraphPin* ConnectPin = nullptr)
+	static UEdGraphNode* AddGetDMXAttributeValues(UBlueprint* InBlueprint, UEdGraph* InGraph, FVector2D InPosition, UEdGraphPin* ConnectPin = nullptr)
 	{
 		UEdGraph* TempOuter = NewObject<UEdGraph>((UObject*)InBlueprint);
 		TempOuter->SetFlags(RF_Transient);
 
 		InGraph->Modify();
 
-		return CreateNewGraphNodeFromTemplate(NewObject<UK2Node_GetDMXActiveModeFunctionValues>(TempOuter), InGraph, InPosition, ConnectPin);
+		return CreateNewGraphNodeFromTemplate(NewObject<UK2Node_GetDMXAttributeValues>(TempOuter), InGraph, InPosition, ConnectPin);
 	}
 
 	static UEdGraphNode* GetDMXFixturePatch(UBlueprint* InBlueprint, UEdGraph* InGraph, FVector2D InPosition, UEdGraphPin* ConnectPin = nullptr)
@@ -769,8 +769,8 @@ private:
 
 	UK2Node_GetDMXFixturePatch* K2Node_GetDMXFixturePatch1;
 	UK2Node_GetDMXFixturePatch* K2Node_GetDMXFixturePatch2;
-	UK2Node_GetDMXActiveModeFunctionValues* K2Node_GetDMXActiveModeFunctionValues1;
-	UK2Node_GetDMXActiveModeFunctionValues* K2Node_GetDMXActiveModeFunctionValues2;
+	UK2Node_GetDMXAttributeValues* K2Node_GetDMXAttributeValues1;
+	UK2Node_GetDMXAttributeValues* K2Node_GetDMXAttributeValues2;
 
 	UK2Node_VariableSet* SetMemberVariableNode1;
 	UK2Node_VariableSet* SetMemberVariableNode2;

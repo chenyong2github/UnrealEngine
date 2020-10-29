@@ -157,7 +157,7 @@ void UUMGSequencePlayer::Tick(float DeltaTime)
 					// Queue an evaluation of this player's widget animation, to be evaluated later by our
 					// global tick manager as part of a glorious multi-threaded job fest.
 					FMovieSceneEntitySystemRunner& Runner = TickManager->GetRunner();
-					Runner.QueueUpdate(Context, RootTemplateInstance.GetRootInstanceHandle(), MovieSceneSequenceID::Root);
+					Runner.QueueUpdate(Context, RootTemplateInstance.GetRootInstanceHandle());
 					// WARNING: the evalution hasn't run yet so don't run any stateful code after this point
 					// unless you know it's OK to do so. Most likely, you want to run stateful code in the
 					// PostEvaluation method, or queue up a latent action.
@@ -235,7 +235,7 @@ void UUMGSequencePlayer::PlayInternal(double StartAtTime, double EndAtTime, int3
 		// In rare cases where the linker must be flushed immediately PreTick, the queue should be manually flushed 
 
 		FMovieSceneEntitySystemRunner& Runner = TickManager->GetRunner();
-		Runner.QueueUpdate(Context, RootTemplateInstance.GetRootInstanceHandle(), MovieSceneSequenceID::Root);
+		Runner.QueueUpdate(Context, RootTemplateInstance.GetRootInstanceHandle());
 	}
 }
 
@@ -284,7 +284,7 @@ void UUMGSequencePlayer::Pause()
 		if (TickManager)
 		{
 			FMovieSceneEntitySystemRunner& Runner = TickManager->GetRunner();
-			Runner.QueueUpdate(Context, RootTemplateInstance.GetRootInstanceHandle(), MovieSceneSequenceID::Root);
+			Runner.QueueUpdate(Context, RootTemplateInstance.GetRootInstanceHandle());
 		}
 	}
 }

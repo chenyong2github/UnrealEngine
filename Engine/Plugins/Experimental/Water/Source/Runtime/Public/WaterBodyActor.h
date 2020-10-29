@@ -493,14 +493,14 @@ protected:
 	UWaterSplineMetadata* WaterSplineMetadata;
 
 #if WITH_EDITORONLY_DATA
-	UPROPERTY()
+	UPROPERTY(Transient)
 	UBillboardComponent* ActorIcon;
 #endif
 
-	UPROPERTY(Category = Debug, VisibleInstanceOnly, Transient)
+	UPROPERTY(Category = Debug, VisibleInstanceOnly, Transient, NonPIEDuplicateTransient, TextExportTransient, meta = (DisplayAfter = "WaterMaterial"))
 	UMaterialInstanceDynamic* WaterMID;
 
-	UPROPERTY(Category = Debug, VisibleInstanceOnly, Transient, meta = (DisplayAfter = "UnderwaterPostProcessMaterial"))
+	UPROPERTY(Category = Debug, VisibleInstanceOnly, Transient, NonPIEDuplicateTransient, TextExportTransient, meta = (DisplayAfter = "UnderwaterPostProcessMaterial"))
 	UMaterialInstanceDynamic* UnderwaterPostProcessMID;
 
 	/** Islands in this water body*/
@@ -636,6 +636,9 @@ protected:
 
 	/** Called by AWaterBodyActor::PostEditChangeProperty. */
 	virtual void OnPostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent, bool& bShapeOrPositionChanged, bool& bWeightmapSettingsChanged);
+
+	/** Validates this actor's data */
+	virtual void CheckForErrors() override;
 #endif // WITH_EDITOR
 
 	EWaterBodyQueryFlags CheckAndAjustQueryFlags(EWaterBodyQueryFlags InQueryFlags) const;
@@ -645,11 +648,13 @@ protected:
 	bool UpdateWaterHeight();
 	void CreateOrUpdateWaterMID();
 	void CreateOrUpdateUnderwaterPostProcessMID();
-	void FindLandscape() const;
+	ALandscapeProxy* FindLandscape() const;
 	void SetOceanOnWaterSubsystem();
 	void PrepareCurrentPostProcessSettings();
 	void ApplyNavigationSettings() const;
 	void RequestGPUWaveDataUpdate();
+	void SetWaterWavesInternal(UWaterWavesBase* InWaterWaves, bool bTriggerWaterBodyChanged);
+	EObjectFlags GetTransientMIDFlags() const; 
 
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void PostLoad() override;
@@ -668,5 +673,8 @@ protected:
 	void OnSplineDataChanged();
 	void RegisterOnUpdateWavesData(UWaterWavesBase* InWaterWaves, bool bRegister);
 	void OnWavesDataUpdated(UWaterWavesBase* InWaterWaves, EPropertyChangeType::Type InChangeType);
+
+	void OnWaterSplineMetadataChanged(UWaterSplineMetadata* InWaterSplineMetadata, FPropertyChangedEvent& PropertyChangedEvent);
+	void RegisterOnChangeWaterSplineMetadata(UWaterSplineMetadata* InWaterSplineMetadata, bool bRegister);
 #endif // WITH_EDITOR
 };

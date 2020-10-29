@@ -8,6 +8,7 @@
 #include "NiagaraEmitterInstanceBatcher.h"
 #include "NiagaraSystemInstance.h"
 #include "NiagaraRenderer.h"
+#include "NiagaraSettings.h"
 #if WITH_EDITOR
 #include "NiagaraGpuComputeDebug.h"
 #endif
@@ -238,7 +239,9 @@ bool UNiagaraDataInterfaceRenderTarget2DArray::Equals(const UNiagaraDataInterfac
 		OtherTyped->bPreviewRenderTarget == bPreviewRenderTarget &&
 #endif
 		OtherTyped->RenderTargetUserParameter == RenderTargetUserParameter &&
-		OtherTyped->Size == Size;
+		OtherTyped->Size == Size &&
+		OtherTyped->OverrideRenderTargetFormat == OverrideRenderTargetFormat &&
+		OtherTyped->bOverrideFormat == bOverrideFormat;
 }
 
 bool UNiagaraDataInterfaceRenderTarget2DArray::CopyToInternal(UNiagaraDataInterface* Destination) const
@@ -255,6 +258,8 @@ bool UNiagaraDataInterfaceRenderTarget2DArray::CopyToInternal(UNiagaraDataInterf
 	}
 
 	DestinationTyped->Size = Size;
+	DestinationTyped->OverrideRenderTargetFormat = OverrideRenderTargetFormat;
+	DestinationTyped->bOverrideFormat = bOverrideFormat;
 #if WITH_EDITORONLY_DATA
 	DestinationTyped->bPreviewRenderTarget = bPreviewRenderTarget;
 #endif
@@ -339,10 +344,12 @@ bool UNiagaraDataInterfaceRenderTarget2DArray::InitPerInstanceData(void* PerInst
 {
 	check(Proxy);
 
+	extern float GNiagaraRenderTargetResolutionMultiplier;
 	FRenderTarget2DArrayRWInstanceData_GameThread* InstanceData = new (PerInstanceData) FRenderTarget2DArrayRWInstanceData_GameThread();
-	InstanceData->Size.X = FMath::Clamp<int>(Size.X, 1, GMaxTextureDimensions);
-	InstanceData->Size.Y = FMath::Clamp<int>(Size.Y, 1, GMaxTextureDimensions);
+	InstanceData->Size.X = FMath::Clamp<int>(int(float(Size.X) * GNiagaraRenderTargetResolutionMultiplier), 1, GMaxTextureDimensions);
+	InstanceData->Size.Y = FMath::Clamp<int>(int(float(Size.Y) * GNiagaraRenderTargetResolutionMultiplier), 1, GMaxTextureDimensions);
 	InstanceData->Size.Z = FMath::Clamp<int>(Size.Z, 1, GMaxTextureDimensions);
+	InstanceData->Format = GetPixelFormatFromRenderTargetFormat(bOverrideFormat ? OverrideRenderTargetFormat : GetDefault<UNiagaraSettings>()->DefaultRenderTargetFormat);
 	InstanceData->RTUserParamBinding.Init(SystemInstance->GetInstanceParameters(), RenderTargetUserParameter.Parameter);
 #if WITH_EDITORONLY_DATA
 	InstanceData->bPreviewTexture = bPreviewRenderTarget;
@@ -368,7 +375,7 @@ bool UNiagaraDataInterfaceRenderTarget2DArray::InitPerInstanceData(void* PerInst
 
 	InstanceData->TargetTexture->bCanCreateUAV = true;
 	InstanceData->TargetTexture->ClearColor = FLinearColor(0.0, 0, 0, 0);
-	InstanceData->TargetTexture->Init(InstanceData->Size.X, InstanceData->Size.Y, InstanceData->Size.Z, EPixelFormat::PF_A16B16G16R16);
+	InstanceData->TargetTexture->Init(InstanceData->Size.X, InstanceData->Size.Y, InstanceData->Size.Z, InstanceData->Format);
 	InstanceData->TargetTexture->UpdateResourceImmediate(true);
 
 	// Push Updates to Proxy.
@@ -385,8 +392,6 @@ bool UNiagaraDataInterfaceRenderTarget2DArray::InitPerInstanceData(void* PerInst
 #endif
 			TargetData->TextureReferenceRHI = RT_TargetTexture->TextureReference.TextureReferenceRHI;
 			TargetData->UAV.SafeRelease();
-
-			RT_Proxy->SetElementCount(TargetData->Size);
 		}
 	);
 	return true;
@@ -409,8 +414,12 @@ void UNiagaraDataInterfaceRenderTarget2DArray::DestroyPerInstanceData(void* PerI
 	);
 
 	// Make sure to clear out the reference to the render target if we created one.
-	FNiagaraSystemInstanceID SysId = SystemInstance->GetId();
-	ManagedRenderTargets.Remove(SysId);
+	extern int32 GNiagaraReleaseResourceOnRemove;
+	UTextureRenderTarget2DArray* ExistingRenderTarget = nullptr;
+	if (ManagedRenderTargets.RemoveAndCopyValue(SystemInstance->GetId(), ExistingRenderTarget) && GNiagaraReleaseResourceOnRemove)
+	{
+		ExistingRenderTarget->ReleaseResource();
+	}
 }
 
 
@@ -440,6 +449,7 @@ void UNiagaraDataInterfaceRenderTarget2DArray::SetSize(FVectorVMContext& Context
 	FNDIInputParam<int> InSlices(Context);
 	FNDIOutputParam<FNiagaraBool> OutSuccess(Context);
 
+	extern float GNiagaraRenderTargetResolutionMultiplier;
 	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
 	{
 		const int SizeX = InSizeX.GetAndAdvance();
@@ -449,8 +459,8 @@ void UNiagaraDataInterfaceRenderTarget2DArray::SetSize(FVectorVMContext& Context
 		OutSuccess.SetAndAdvance(bSuccess);
 		if (bSuccess)
 		{
-			InstData->Size.X = FMath::Clamp<int>(SizeX, 1, GMaxTextureDimensions);
-			InstData->Size.Y = FMath::Clamp<int>(SizeY, 1, GMaxTextureDimensions);
+			InstData->Size.X = FMath::Clamp<int>(int(float(SizeX) * GNiagaraRenderTargetResolutionMultiplier), 1, GMaxTextureDimensions);
+			InstData->Size.Y = FMath::Clamp<int>(int(float(SizeY) * GNiagaraRenderTargetResolutionMultiplier), 1, GMaxTextureDimensions);
 			InstData->Size.Z = FMath::Clamp<int>(Slices, 1, GMaxTextureDimensions);
 		}
 	}
@@ -495,7 +505,13 @@ bool UNiagaraDataInterfaceRenderTarget2DArray::PerInstanceTickPostSimulate(void*
 			if (InstanceData->TargetTexture != UserTargetTexture)
 			{
 				InstanceData->TargetTexture = UserTargetTexture;
-				ManagedRenderTargets.Remove(SystemInstance->GetId());
+
+				extern int32 GNiagaraReleaseResourceOnRemove;
+				UTextureRenderTarget2DArray* ExistingRenderTarget = nullptr;
+				if (ManagedRenderTargets.RemoveAndCopyValue(SystemInstance->GetId(), ExistingRenderTarget) && GNiagaraReleaseResourceOnRemove)
+				{
+					ExistingRenderTarget->ReleaseResource();
+				}
 			}
 		}
 		else
@@ -507,10 +523,10 @@ bool UNiagaraDataInterfaceRenderTarget2DArray::PerInstanceTickPostSimulate(void*
 	// Do we need to update the texture?
 	if (InstanceData->TargetTexture != nullptr)
 	{
-		if ((InstanceData->TargetTexture->SizeX != InstanceData->Size.X) || (InstanceData->TargetTexture->SizeY != InstanceData->Size.Y) || (InstanceData->TargetTexture->Slices != InstanceData->Size.Z) || (InstanceData->TargetTexture->OverrideFormat != EPixelFormat::PF_A16B16G16R16) || !InstanceData->TargetTexture->bCanCreateUAV)
+		if ((InstanceData->TargetTexture->SizeX != InstanceData->Size.X) || (InstanceData->TargetTexture->SizeY != InstanceData->Size.Y) || (InstanceData->TargetTexture->Slices != InstanceData->Size.Z) || (InstanceData->TargetTexture->OverrideFormat != InstanceData->Format) || !InstanceData->TargetTexture->bCanCreateUAV)
 		{
 			InstanceData->TargetTexture->bCanCreateUAV = true;
-			InstanceData->TargetTexture->Init(InstanceData->Size.X, InstanceData->Size.Y, InstanceData->Size.Z, EPixelFormat::PF_A16B16G16R16);
+			InstanceData->TargetTexture->Init(InstanceData->Size.X, InstanceData->Size.Y, InstanceData->Size.Z, InstanceData->Format);
 			InstanceData->TargetTexture->UpdateResourceImmediate(true);
 			bUpdateRT = true;
 
@@ -538,8 +554,6 @@ bool UNiagaraDataInterfaceRenderTarget2DArray::PerInstanceTickPostSimulate(void*
 #endif
 					TargetData->TextureReferenceRHI = RT_TargetTexture->TextureReference.TextureReferenceRHI;
 					TargetData->UAV.SafeRelease();
-
-					RT_Proxy->SetElementCount(TargetData->Size);
 				}
 			}
 		);
@@ -564,6 +578,15 @@ void FNiagaraDataInterfaceProxyRenderTarget2DArrayProxy::PostSimulate(FRHIComman
 		}
 	}
 #endif
+}
+
+FIntVector FNiagaraDataInterfaceProxyRenderTarget2DArrayProxy::GetElementCount(FNiagaraSystemInstanceID SystemInstanceID) const
+{
+	if ( const FRenderTarget2DArrayRWInstanceData_RenderThread* TargetData = SystemInstancesToProxyData_RT.Find(SystemInstanceID) )
+	{
+		return TargetData->Size;
+	}
+	return FIntVector::ZeroValue;
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -1290,8 +1290,8 @@ MoviePipeline::FFrameConstantMetrics UMoviePipeline::CalculateShotFrameMetrics(c
 	// We are overriding blur settings to account for how we sample multiple frames, so
 	// we need to process any camera and post process volume settings for motion blur manually
 
-	// Start by assuming no motion blur
-	Output.ShutterAnglePercentage = 0.0;
+	// Start with engine default for motion blur in the event no one overrides it.
+	Output.ShutterAnglePercentage = 0.5;
 
 	APlayerCameraManager* PlayerCameraManager = GetWorld()->GetFirstPlayerController()->PlayerCameraManager;
 	if (PlayerCameraManager)

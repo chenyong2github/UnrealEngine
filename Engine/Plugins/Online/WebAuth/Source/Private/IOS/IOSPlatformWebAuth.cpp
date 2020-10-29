@@ -4,19 +4,8 @@
 #if PLATFORM_IOS && !PLATFORM_TVOS
 
 #import <Foundation/Foundation.h>
-#ifdef WEBAUTH_PLATFORM_IOS_12
 #import <AuthenticationServices/AuthenticationServices.h>
-#endif
 
-#if (defined(__IPHONE_OS_VERSION_MIN_REQUIRED) && __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_12_0) || (defined(__TV_OS_VERSION_MIN_REQUIRED) && __TV_OS_VERSION_MIN_REQUIRED < __TVOS_12_0)
-#define USE_DEPRECATED_WEBAUTH_PLATFORM_IOS_11 1
-#else
-#define USE_DEPRECATED_WEBAUTH_PLATFORM_IOS_11 0
-#endif
-
-#if USE_DEPRECATED_WEBAUTH_PLATFORM_IOS_11
-#import <SafariServices/SafariServices.h>
-#endif
 #import <WebKit/WebKit.h>
 
 #ifdef WEBAUTH_PLATFORM_IOS_13
@@ -63,70 +52,35 @@ bool FIOSWebAuth::AuthSessionWithURL(const FString &UrlStr, const FString &Schem
 
 	NSLog(@"AuthSessionWithURL Url=[%@], CallbackUrlScheme=[%@]", NSUrlStr, Scheme);
 
-#ifdef WEBAUTH_PLATFORM_IOS_12
-	if (@available(iOS 12.0, *))
-	{
-		bSessionInProgress = true;
-		AuthSessionCompleteDelegate = Delegate;
+    bSessionInProgress = true;
+    AuthSessionCompleteDelegate = Delegate;
 
-		id SavedAuthSession = [[ASWebAuthenticationSession alloc] initWithURL:Url callbackURLScheme:Scheme completionHandler:^(NSURL * _Nullable callbackURL, NSError * _Nullable error)
-		{
-			// Response received
-			if (callbackURL != nil)
-			{
-				const char *StrCallbackURL = [callbackURL.absoluteString UTF8String];
-				AuthSessionCompleteDelegate.ExecuteIfBound(FString(StrCallbackURL), true);
-			}
-			// Empty response
-			else
-			{
-				AuthSessionCompleteDelegate.ExecuteIfBound(FString(), false);
-			}
-			AuthSessionCompleteDelegate = nullptr;
-		}];
+    id SavedAuthSession = [[ASWebAuthenticationSession alloc] initWithURL:Url callbackURLScheme:Scheme completionHandler:^(NSURL * _Nullable callbackURL, NSError * _Nullable error)
+    {
+        // Response received
+        if (callbackURL != nil)
+        {
+            const char *StrCallbackURL = [callbackURL.absoluteString UTF8String];
+            AuthSessionCompleteDelegate.ExecuteIfBound(FString(StrCallbackURL), true);
+        }
+        // Empty response
+        else
+        {
+            AuthSessionCompleteDelegate.ExecuteIfBound(FString(), false);
+        }
+        AuthSessionCompleteDelegate = nullptr;
+    }];
 
 #ifdef WEBAUTH_PLATFORM_IOS_13
-		// If we are using iOS 13+ ensure we supply the context provider
-		if (@available(iOS 13.0, *))
-		{
-			check(PresentationContextProvider);
-			((ASWebAuthenticationSession*)SavedAuthSession).presentationContextProvider = PresentationContextProvider;
-		}
+    // If we are using iOS 13+ ensure we supply the context provider
+    if (@available(iOS 13.0, *))
+    {
+        check(PresentationContextProvider);
+        ((ASWebAuthenticationSession*)SavedAuthSession).presentationContextProvider = PresentationContextProvider;
+    }
 #endif
 
-		[(ASWebAuthenticationSession*)SavedAuthSession start];
-	}
-	else
-#endif
-#if USE_DEPRECATED_WEBAUTH_PLATFORM_IOS_11
-	if (@available(iOS 11.0, *))
-	{
-		bSessionInProgress = true;
-		AuthSessionCompleteDelegate = Delegate;
-
-		id SavedAuthSession = [[SFAuthenticationSession alloc] initWithURL:Url callbackURLScheme:Scheme completionHandler:^(NSURL * _Nullable callbackURL, NSError * _Nullable error)
-		{
-			// Response received
-			if (callbackURL != nil)
-			{
-				const char *StrCallbackURL = [callbackURL.absoluteString UTF8String];
-				AuthSessionCompleteDelegate.ExecuteIfBound(FString(StrCallbackURL), true);
-			}
-			// Empty response
-			else
-			{
-				AuthSessionCompleteDelegate.ExecuteIfBound(FString(), false);
-			}
-			AuthSessionCompleteDelegate = nullptr;
-		}];
-
-		[(SFAuthenticationSession*)SavedAuthSession start];
-	}
-	else
-#endif
-	{
-		NSLog(@"No supported authentication services found");
-	}
+    [(ASWebAuthenticationSession*)SavedAuthSession start];
 
 	return bSessionInProgress;
 }
@@ -169,11 +123,7 @@ bool FIOSWebAuth::SaveCredentials(const FString& IdStr, const FString& TokenStr,
 	}
 
 	// make a data blob of array of strings
-#if USE_DEPRECATED_WEBAUTH_PLATFORM_IOS_11
-	NSData* CredentialsData = [NSKeyedArchiver archivedDataWithRootObject:@[Id, Token]];
-#else
 	NSData* CredentialsData = [NSKeyedArchiver archivedDataWithRootObject:@[Id, Token] requiringSecureCoding:NO error:nil];
-#endif
 	[SearchDictionary setObject:CredentialsData forKey:(id)kSecValueData];
 
 	// add it
@@ -210,11 +160,7 @@ bool FIOSWebAuth::LoadCredentials(FString& OutIdStr, FString& OutTokenStr, const
 	if (Result)
 	{
 		// convert data blob back to an array
-#if USE_DEPRECATED_WEBAUTH_PLATFORM_IOS_11
-		NSArray* CredentialsArray = [NSKeyedUnarchiver unarchiveObjectWithData:Result];
-#else
 		NSArray* CredentialsArray = [NSKeyedUnarchiver unarchivedObjectOfClass:[NSArray class] fromData:Result error:nil];
-#endif
 		if ([CredentialsArray count] == 2 && [[CredentialsArray objectAtIndex:0] isKindOfClass:[NSString class]] && [[CredentialsArray objectAtIndex:1] isKindOfClass:[NSString class]])
 		{
 			Id = [CredentialsArray objectAtIndex:0];
@@ -256,43 +202,19 @@ void FIOSWebAuth::DeleteLoginCookies(const FString& PrefixStr, const FString& Sc
 	FTCHARToUTF8 TCDomainStr(*DomainStr);
 	NSString *LoginDomain = [NSString stringWithUTF8String:TCDomainStr.Get()];
 
-#ifdef WEBAUTH_PLATFORM_IOS_12
-	if (@available(iOS 12.0, *))
-	{
-		WKHTTPCookieStore* CookieStore = [[WKWebsiteDataStore defaultDataStore] httpCookieStore];
+    WKHTTPCookieStore* CookieStore = [[WKWebsiteDataStore defaultDataStore] httpCookieStore];
 
-		[CookieStore getAllCookies:^(NSArray<NSHTTPCookie*>* Cookies)
-			{
-				NSLog(@"Clearing cookies for domain %@", LoginDomain);
-				for (NSHTTPCookie* Cookie in Cookies)
-				{
-					if ([[Cookie domain] hasSuffix:LoginDomain] && [[Cookie name] hasPrefix:Prefix])
-					{
-						[CookieStore deleteCookie:Cookie completionHandler:nil];
-					}
-				}
-			}];
-	}
-	else
-#endif
-	{
-		WKWebsiteDataStore *dateStore = [WKWebsiteDataStore defaultDataStore];
-		[dateStore fetchDataRecordsOfTypes:[WKWebsiteDataStore allWebsiteDataTypes] completionHandler:^(NSArray<WKWebsiteDataRecord *> * __nonnull records)
-			{
-				for (WKWebsiteDataRecord *record  in records)
-				{
-					NSLog(@"record: %@", record);
-					// TODO: Mark.Fitt Kairos has this very specifically can we generalise to domain?
-					if ([record.displayName containsString:@"epicgames"])
-					{
-						[[WKWebsiteDataStore defaultDataStore] removeDataOfTypes:[NSSet setWithArray:@[WKWebsiteDataTypeCookies]] forDataRecords:@[record] completionHandler:^
-							{
-								NSLog(@"Cookies for %@ deleted successfully", record.displayName);
-							}];
-					}
-				}
-			}];
-	}
+    [CookieStore getAllCookies:^(NSArray<NSHTTPCookie*>* Cookies)
+        {
+            NSLog(@"Clearing cookies for domain %@", LoginDomain);
+            for (NSHTTPCookie* Cookie in Cookies)
+            {
+                if ([[Cookie domain] hasSuffix:LoginDomain] && [[Cookie name] hasPrefix:Prefix])
+                {
+                    [CookieStore deleteCookie:Cookie completionHandler:nil];
+                }
+            }
+        }];
 }
 
 FIOSWebAuth::FIOSWebAuth()

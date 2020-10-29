@@ -16,6 +16,7 @@
 #include "PacketHandlerProfileConfig.h"
 
 #include "SocketSubsystem.h"
+#include "Misc/StringBuilder.h"
 
 // @todo #JohnB: There is quite a lot of inefficient copying of packet data going on.
 //					Redo the whole packet parsing/modification pipeline.
@@ -26,6 +27,18 @@ DEFINE_LOG_CATEGORY(PacketHandlerLog);
 
 DECLARE_CYCLE_STAT(TEXT("PacketHandler Incoming_Internal"), Stat_PacketHandler_Incoming_Internal, STATGROUP_Net);
 DECLARE_CYCLE_STAT(TEXT("PacketHandler Outgoing_Internal"), Stat_PacketHandler_Outgoing_Internal, STATGROUP_Net);
+
+// CVars
+
+#if !UE_BUILD_SHIPPING
+int32 GPacketHandlerCRCDump = 0;
+
+FAutoConsoleVariableRef CVarNetPacketHandlerCRCDump(
+	TEXT("net.PacketHandlerCRCDump"),
+	GPacketHandlerCRCDump,
+	TEXT("Enables or disables dumping of packet CRC's for every HandlerComponent, Incoming and Outgoing, for debugging."));
+#endif
+
 
 /**
  * PacketHandler
@@ -435,6 +448,15 @@ EIncomingResult PacketHandler::Incoming_Internal(FReceivedPacketView& PacketView
 	FPacketDataView& DataView = PacketView.DataView;
 	int32 CountBits = DataView.NumBits();
 
+#if !UE_BUILD_SHIPPING
+	uint32 SocketCRC = 0;
+
+	if (UNLIKELY(!!GPacketHandlerCRCDump))
+	{
+		SocketCRC = FCrc::MemCrc32(DataView.GetData(), DataView.NumBytes());
+	}
+#endif
+
 	if (HandlerComponents.Num() > 0)
 	{
 		const uint8* DataPtr = DataView.GetData();
@@ -462,6 +484,17 @@ EIncomingResult PacketHandler::Incoming_Internal(FReceivedPacketView& PacketView
 		}
 	}
 
+#if !UE_BUILD_SHIPPING
+	struct FHandlerCRC
+	{
+		uint32 CRC;
+		bool bHasAlignedCRC;
+		bool bError;
+	};
+
+	TArray<FHandlerCRC> HandlerCRCs;
+	uint32 NetConnectionCRC = 0;
+#endif
 
 	if (ReturnVal == EIncomingResult::Success)
 	{
@@ -480,12 +513,40 @@ EIncomingResult PacketHandler::Incoming_Internal(FReceivedPacketView& PacketView
 		{
 			HandlerComponent& CurComponent = *HandlerComponents[i];
 
+#if !UE_BUILD_SHIPPING
+			if (UNLIKELY(!!GPacketHandlerCRCDump))
+			{
+				if (ProcessedPacketReader.IsError())
+				{
+					HandlerCRCs.Add({0, false, true});
+				}
+				else if (ProcessedPacketReader.GetPosBits() == 0)
+				{
+					HandlerCRCs.Add({FCrc::MemCrc32(ProcessedPacketReader.GetData(), ProcessedPacketReader.GetNumBytes()), true, false});
+				}
+				else
+				{
+					HandlerCRCs.Add({0, false, false});
+				}
+			}
+#endif
+
 			if (CurComponent.IsActive() && !ProcessedPacketReader.IsError() && ProcessedPacketReader.GetBitsLeft() > 0)
 			{
 				// Realign the packet, so the packet data starts at position 0, if necessary
 				if (ProcessedPacketReader.GetPosBits() != 0 && !CurComponent.CanReadUnaligned())
 				{
 					RealignPacket(ProcessedPacketReader);
+
+#if !UE_BUILD_SHIPPING
+					if (UNLIKELY(!!GPacketHandlerCRCDump))
+					{
+						FHandlerCRC& CurCRC = HandlerCRCs[HandlerCRCs.Num() - 1];
+
+						CurCRC.CRC = FCrc::MemCrc32(ProcessedPacketReader.GetData(), ProcessedPacketReader.GetNumBytes());
+						CurCRC.bHasAlignedCRC = true;
+					}
+#endif
 				}
 
 				if (PacketView.Traits.bConnectionlessPacket)
@@ -506,6 +567,13 @@ EIncomingResult PacketHandler::Incoming_Internal(FReceivedPacketView& PacketView
 			if (IncomingPacket.GetBitsLeft() > 0)
 			{
 				FPacketAudit::CheckStage(TEXT("PrePacketHandler"), IncomingPacket, true);
+
+#if !UE_BUILD_SHIPPING
+				if (UNLIKELY(!!GPacketHandlerCRCDump))
+				{
+					NetConnectionCRC = FCrc::MemCrc32(IncomingPacket.GetData(), IncomingPacket.GetBytesLeft());
+				}
+#endif
 			}
 
 			PacketView.DataView = {IncomingPacket.GetData(), (int32)IncomingPacket.GetBitsLeft(), ECountUnits::Bits};
@@ -517,12 +585,62 @@ EIncomingResult PacketHandler::Incoming_Internal(FReceivedPacketView& PacketView
 		}
 	}
 
+#if !UE_BUILD_SHIPPING
+	if (UNLIKELY(!!GPacketHandlerCRCDump))
+	{
+		TStringBuilder<2048> HandlerCRCStr;
+
+		for (int32 i=HandlerCRCs.Num()-1; i>=0; i--)
+		{
+			FHandlerCRC& CurCRC = HandlerCRCs[i];
+
+			HandlerCRCStr.Appendf(TEXT("%s%i: "), (i != HandlerCRCs.Num()-1 ? TEXT(", ") : TEXT("")), (HandlerCRCs.Num() - 1) - i);
+
+			if (CurCRC.bError)
+			{
+				HandlerCRCStr << TEXT("Error");
+			}
+			else if (!CurCRC.bHasAlignedCRC)
+			{
+				HandlerCRCStr << TEXT("Unaligned");
+			}
+			else
+			{
+				HandlerCRCStr << FString::Printf(TEXT("%08X"), CurCRC.CRC);
+			}
+		}
+
+		UE_LOG(PacketHandlerLog, Log, TEXT("PacketHandler::Incoming: CRC Dump: NetConnection: %s, Component: %s, Socket: %08X"),
+				(ReturnVal == EIncomingResult::Success ? *FString::Printf(TEXT("%08X"), NetConnectionCRC) : TEXT("Error")),
+				*HandlerCRCStr, SocketCRC);
+	}
+#endif
+
 	return ReturnVal;
 }
 
 const ProcessedPacket PacketHandler::Outgoing_Internal(uint8* Packet, int32 CountBits, FOutPacketTraits& Traits, bool bConnectionless, const TSharedPtr<const FInternetAddr>& Address)
 {
 	SCOPE_CYCLE_COUNTER(Stat_PacketHandler_Outgoing_Internal);
+
+	ProcessedPacket ReturnVal;
+
+#if !UE_BUILD_SHIPPING
+	uint32 NetConnectionCRC = 0;
+
+	struct FHandlerCRC
+	{
+		uint32 CRC;
+		bool bError;
+	};
+
+	TArray<FHandlerCRC> HandlerCRCs;
+	
+	if (UNLIKELY(!!GPacketHandlerCRCDump))
+	{
+		NetConnectionCRC = FCrc::MemCrc32(Packet, FMath::DivideAndRoundUp(CountBits, 8));
+	}
+#endif
 
 	if (!bRawSend)
 	{
@@ -567,6 +685,20 @@ const ProcessedPacket PacketHandler::Outgoing_Internal(uint8* Packet, int32 Coun
 						break;
 					}
 				}
+
+#if !UE_BUILD_SHIPPING
+				if (UNLIKELY(!!GPacketHandlerCRCDump))
+				{
+					if (OutgoingPacket.IsError())
+					{
+						HandlerCRCs.Add({0, true});
+					}
+					else
+					{
+						HandlerCRCs.Add({FCrc::MemCrc32(OutgoingPacket.GetData(), OutgoingPacket.GetNumBytes()), false});
+					}
+				}
+#endif
 			}
 
 			// Add a termination bit, the same as the UNetConnection code does, if appropriate
@@ -599,20 +731,58 @@ const ProcessedPacket PacketHandler::Outgoing_Internal(uint8* Packet, int32 Coun
 			CountBits = 0;
 		}
 
-		// @todo #JohnB: Tidy up return code
 		if (!OutgoingPacket.IsError())
 		{
-			return ProcessedPacket(OutgoingPacket.GetData(), OutgoingPacket.GetNumBits());
+			ReturnVal = {OutgoingPacket.GetData(), (int32)OutgoingPacket.GetNumBits()};
 		}
 		else
 		{
-			return ProcessedPacket(nullptr, 0, true);
+			ReturnVal = {nullptr, 0, true};
 		}
 	}
 	else
 	{
-		return ProcessedPacket(Packet, CountBits);
+		ReturnVal = {Packet, CountBits};
 	}
+
+#if !UE_BUILD_SHIPPING
+	if (UNLIKELY(!!GPacketHandlerCRCDump))
+	{
+		TStringBuilder<2048> HandlerCRCStr;
+
+		for (int32 i=0; i<HandlerCRCs.Num(); i++)
+		{
+			FHandlerCRC& CurCRC = HandlerCRCs[i];
+
+			HandlerCRCStr.Appendf(TEXT("%s%i: "), (i > 0 ? TEXT(", ") : TEXT("")), i);
+			
+			if (CurCRC.bError)
+			{
+				HandlerCRCStr << TEXT("Error");
+			}
+			else
+			{
+				HandlerCRCStr.Appendf(TEXT("%08X"), CurCRC.CRC);
+			}
+		}
+
+		TStringBuilder<32> SocketCRCStr;
+
+		if (ReturnVal.bError)
+		{
+			SocketCRCStr << TEXT("Error");
+		}
+		else
+		{
+			SocketCRCStr.Appendf(TEXT("%08X"), FCrc::MemCrc32(ReturnVal.Data, FMath::DivideAndRoundUp(ReturnVal.CountBits, 8)));
+		}
+
+		UE_LOG(PacketHandlerLog, Log, TEXT("PacketHandler::Outgoing: CRC Dump: NetConnection: %08X, Component: %s, Socket: %s"),
+				NetConnectionCRC, *HandlerCRCStr, *SocketCRCStr);
+	}
+#endif
+
+	return ReturnVal;
 }
 
 void PacketHandler::ReplaceIncomingPacket(FBitReader& ReplacementPacket)

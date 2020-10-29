@@ -287,7 +287,7 @@ void FLevelEditorContextMenu::RegisterActorContextMenu()
 				{
 					auto& ViewportClient = Viewport->GetLevelViewportClient();
 
-					if (ViewportClient.IsPerspective() && !ViewportClient.IsLockedToMatinee())
+					if (ViewportClient.IsPerspective() && !ViewportClient.IsLockedToCinematic())
 					{
 						if (Viewport->IsSelectedActorLocked())
 						{

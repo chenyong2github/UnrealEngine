@@ -45,8 +45,10 @@ namespace DatasmithRhino
 			{
 				return Rhino.PlugIns.WriteFileResult.Cancel;
 			}
-			catch (Exception)
+			catch (Exception e)
 			{
+				RhinoApp.WriteLine("An unexpected error has occured:");
+				RhinoApp.WriteLine(e.ToString());
 				return Rhino.PlugIns.WriteFileResult.Failure;
 			}
 			finally
@@ -238,7 +240,10 @@ namespace DatasmithRhino
 
 		private static string GetDatasmithActorLayers(RhinoSceneHierarchyNode InNode, DatasmithRhinoSceneParser SceneParser)
 		{
-			bool bIsSameAsParentLayer = !(InNode.Info.bHasRhinoLayer || (InNode.Parent?.Info.RhinoModelComponent as RhinoObject)?.ObjectType == ObjectType.InstanceReference);
+			bool bIsSameAsParentLayer = 
+				!(InNode.Info.bHasRhinoLayer 
+					|| (InNode.Parent.bIsRoot && InNode.Info.RhinoModelComponent == null) //This is a dummy document layer.
+					|| (InNode.Parent?.Info.RhinoModelComponent as RhinoObject)?.ObjectType == ObjectType.InstanceReference);
 
 			if (bIsSameAsParentLayer && InNode.Parent?.DatasmithActor != null)
 			{

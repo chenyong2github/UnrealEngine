@@ -1238,7 +1238,7 @@ namespace ChaosTest {
 				EXPECT_NE(Tri.Z, 8);
 			}
 
-			FConvex Convex(Particles);
+			FConvex Convex(Particles, 0.0f);
 			const TParticles<T, 3>& CulledParticles = Convex.GetSurfaceParticles();
 			EXPECT_EQ(CulledParticles.Size(), 8);
 
@@ -1446,7 +1446,7 @@ namespace ChaosTest {
 		Particles.X(16) = TVector<float, 3>(-1.0f, 0.0f, 0.0f);
 		Particles.X(17) = TVector<float, 3>(0, 0, -2.0f);
 
-		FConvex Convex(Particles);
+		FConvex Convex(Particles, 0.0f);
 
 		// capture original details
 		uint32 OriginalNumberParticles = Convex.GetSurfaceParticles().Size();

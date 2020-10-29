@@ -745,6 +745,10 @@ void FLowLevelMemTracker::TickInternal()
 	if (FMallocPlatformAmount == 0)
 	{
 		// We do not have instrumentation for this allocator, and so can not calculate how much memory it is using internally. Set unused to 0 for this case.
+		FMallocUnused = 0;
+	}
+	{
+		// We do not have instrumentation for this allocator, and so can not calculate how much memory it is using internally. Set unused to 0 for this case.
 		FMallocUnused = 0; 
 	}
 	DefaultTracker.SetTagAmountInUpdate(FindOrAddTagData(ELLMTag::FMallocUnused), FMallocUnused, true);
@@ -3615,7 +3619,7 @@ namespace LLMPrivate
 		auto WriteValue = [this, &TextBuffer](int64 Value)
 		{
 			TextBuffer.Reset();
-			TextBuffer.Appendf(TEXT("%0.2f,"), Value / 1024.0f / 1024.0f);
+			TextBuffer.Appendf(TEXT("%0.2f,"), (float)Value / 1024.0f / 1024.0f);
 			Write(TextBuffer);
 		};
 		auto WriteTag = [&WriteValue, &TagSizes, bTrackPeaks](const FTagData* TagData)

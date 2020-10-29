@@ -33,6 +33,8 @@
 #include "GeometryCollection/GeometryCollectionComponent.h"
 #include "GeometryCollection/GeometryCollectionActor.h"
 #include "GeometryCollection/GeometryCollection.h"
+#include "Engine/StaticMesh.h"
+#include "Engine/SkeletalMesh.h"
 
 #include "Styling/AppStyle.h"
 #include "EditorStyleSet.h"

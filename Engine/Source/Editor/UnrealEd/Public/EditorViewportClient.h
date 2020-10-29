@@ -1640,6 +1640,7 @@ protected:
 
 	bool bUseControllingActorViewInfo;
 	FMinimalViewInfo ControllingActorViewInfo;
+	TOptional<EAspectRatioAxisConstraint> ControllingActorAspectRatioAxisConstraint;
 	TArray<FPostProcessSettings> ControllingActorExtraPostProcessBlends;
 	TArray<float> ControllingActorExtraPostProcessBlendWeights;
 

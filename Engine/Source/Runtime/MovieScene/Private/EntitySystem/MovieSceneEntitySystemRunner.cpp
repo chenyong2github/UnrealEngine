@@ -45,6 +45,7 @@ void FMovieSceneEntitySystemRunner::AttachToLinker(UMovieSceneEntitySystemLinker
 	}
 
 	Linker = InLinker;
+	LastInstantiationVersion = 0;
 	Linker->Events.CleanTaggedGarbage.AddRaw(this, &FMovieSceneEntitySystemRunner::OnLinkerGarbageCleaned);
 	Linker->Events.AbandonLinker.AddRaw(this, &FMovieSceneEntitySystemRunner::OnLinkerAbandon);
 }
@@ -86,17 +87,17 @@ bool FMovieSceneEntitySystemRunner::HasQueuedUpdates(FInstanceHandle InInstanceH
 		Algo::FindBy(DissectedUpdates, InInstanceHandle, &FDissectedUpdate::InstanceHandle) != nullptr;
 }
 
-void FMovieSceneEntitySystemRunner::QueueUpdate(const FMovieSceneContext& Context, FInstanceHandle InInstanceHandle, FMovieSceneSequenceID InOverrideRootID)
+void FMovieSceneEntitySystemRunner::QueueUpdate(const FMovieSceneContext& Context, FInstanceHandle InInstanceHandle)
 {
 	UpdateQueue.Add(FMovieSceneUpdateRequest{ Context, InInstanceHandle });
 }
 
-void FMovieSceneEntitySystemRunner::Update(const FMovieSceneContext& Context, FInstanceHandle Instance, FMovieSceneSequenceID InOverrideRootID)
+void FMovieSceneEntitySystemRunner::Update(const FMovieSceneContext& Context, FInstanceHandle Instance)
 {
 	checkf(UpdateQueue.Num() == 0, TEXT("Updates are already queued! This will run those updates as well, which might not be what's intended."));
 
 	// Queue our one update and flush immediately.
-	QueueUpdate(Context, Instance, InOverrideRootID);
+	QueueUpdate(Context, Instance);
 	Flush();
 }
 

@@ -6,6 +6,7 @@
 #include "Interfaces/ITargetPlatform.h"
 #include "PlatformInfo.h"
 #include "GenericPlatform/GenericPlatformFile.h"
+#include "Misc/Paths.h"
 #include "HAL/PlatformFileManager.h"
 #include "Misc/ConfigCacheIni.h"
 
@@ -98,7 +99,7 @@ public:
 	{
 		return true;
 	}
-	
+
 	virtual void GetShaderCompilerDependencies(TArray<FString>& OutDependencies) const override
 	{
 	}

@@ -252,11 +252,9 @@ public:
 		if (!TProperties::IsServerOnly())
 		{
 			static FName NAME_VULKAN_SM5(TEXT("SF_VULKAN_SM5"));
-			static FName NAME_GLSL_430(TEXT("GLSL_430"));
 			static FName NAME_VULKAN_ES31(TEXT("SF_VULKAN_ES31"));
 
 			OutFormats.AddUnique(NAME_VULKAN_SM5);
-			OutFormats.AddUnique(NAME_GLSL_430);
 			OutFormats.AddUnique(NAME_VULKAN_ES31);
 		}
 	}

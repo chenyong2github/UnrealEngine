@@ -228,12 +228,20 @@ void UConstantQNRT::GetNormalizedChannelConstantQAtTime(const float InSeconds, c
 
 		FFloatInterval ConstantQInterval = ConstantQResult->GetChannelConstantQInterval(InChannelIdx);
 
-		const float ConstantQRange = ConstantQInterval.Max - FMath::Max(Settings->NoiseFloorDb, ConstantQInterval.Min);
+		const float ConstantQRange = ConstantQInterval.Max - Settings->NoiseFloorDb;
 
 		if (ConstantQRange > SMALL_NUMBER)
 		{
 			const float Scaling = 1.f / ConstantQRange;
 			Audio::ArrayMultiplyByConstantInPlace(OutConstantQ, Scaling);
+		}
+		else 
+		{
+			// The range is too small or negative. Set output values to zero.
+			if (OutConstantQ.Num() > 0)
+			{
+				FMemory::Memset(OutConstantQ.GetData(), 0, sizeof(float) * OutConstantQ.Num());
+			}
 		}
 
 		Audio::ArrayClampInPlace(OutConstantQ, 0.f, 1.f);

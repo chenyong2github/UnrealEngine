@@ -1,0 +1,40 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.49.0",
+	"FriendlyName": "Oculus OpenXR",
+	"Description": "OpenXR extension to support Oculus headsets and features",
+	"Category": "Virtual Reality",
+	"CreatedBy": "Oculus",
+	"CreatedByURL": "https://www.oculus.com/",
+	"DocsURL": "https://developer.oculus.com/documentation/unreal/latest/concepts/unreal-engine/",
+	"MarketplaceURL": "",
+	"SupportURL": "https://forums.oculusvr.com/developer/categories/unreal",
+	"EnabledByDefault": false,
+	"CanContainContent": true,
+	"IsBetaVersion": true,
+	"Installed": false,
+	"SupportedTargetPlatforms": [
+		"Win32",
+		"Win64",
+		"Android"
+	],
+	"Modules": [
+		{
+			"Name": "OculusOpenXRHMD",
+			"Type": "Runtime",
+			"LoadingPhase": "PostConfigInit",
+			"WhitelistPlatforms": [
+				"Win64",
+				"Win32",
+				"Android"
+			]
+		}
+	],
+	"Plugins": [
+		{
+			"Name": "OpenXR",
+			"Enabled": true
+		}
+	]
+}

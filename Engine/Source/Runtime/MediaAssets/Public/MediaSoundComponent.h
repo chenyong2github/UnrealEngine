@@ -156,6 +156,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "TimeSynth")
 	TArray<FMediaSoundComponentSpectralData> GetSpectralData();
 
+	/** Retrieves and normalizes the spectral data if spectral analysis is enabled. */
+	UFUNCTION(BlueprintCallable, Category = "TimeSynth")
+	TArray<FMediaSoundComponentSpectralData> GetNormalizedSpectralData();
+
 	/** Turns on amplitude envelope following the audio in the media sound component. */
 	UFUNCTION(BlueprintCallable, Category = "Media|MediaSoundComponent")
 	void SetEnableEnvelopeFollowing(bool bInEnvelopeFollowing);

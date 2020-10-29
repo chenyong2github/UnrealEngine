@@ -3,8 +3,8 @@
 #pragma once
  
 #include "CoreMinimal.h"
+#include "UObject/WeakObjectPtr.h"
 #include "IDetailCustomization.h"
-#include "IPropertyUtilities.h"
 #include "EditorUndoClient.h"
  
 class UEdGraphPin;

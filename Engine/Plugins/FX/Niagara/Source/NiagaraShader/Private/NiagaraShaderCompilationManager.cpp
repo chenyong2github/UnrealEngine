@@ -80,7 +80,7 @@ void FNiagaraShaderCompilationManager::ProcessAsyncResults()
 		}
 		else
 		{
-			UE_LOG(LogNiagaraShaderCompiler, Warning, TEXT("GPU shader compile failed! Id %d"), CurrentJob->Id);
+			UE_LOG(LogNiagaraShaderCompiler, Warning, TEXT("GPU shader compile failed! Id: %d Name: %s"), CurrentJob->Id, *CurrentJob->Input.DebugGroupName);
 		}
 
 		FNiagaraShaderMapCompileResults& ShaderMapResults = NiagaraShaderMapJobs.FindChecked(CurrentJob->Id);

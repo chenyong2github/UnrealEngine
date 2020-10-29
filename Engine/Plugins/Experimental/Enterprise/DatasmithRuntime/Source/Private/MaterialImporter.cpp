@@ -47,7 +47,14 @@ namespace DatasmithRuntime
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FSceneImporter::ProcessMaterialData);
 
-		if (MaterialData.HasState(EDatasmithRuntimeAssetState::Processed))
+		// Clear PendingDelete flag if it is set. Something is wrong. Better safe than sorry
+		if (MaterialData.HasState(EAssetState::PendingDelete))
+		{
+			MaterialData.ClearState(EAssetState::PendingDelete);
+			UE_LOG(LogDatasmithRuntime, Warning, TEXT("A material marked for deletion is actually used by the scene"));
+		}
+
+		if (MaterialData.HasState(EAssetState::Processed))
 		{
 			return;
 		}
@@ -63,12 +70,12 @@ namespace DatasmithRuntime
 			//MaterialData.Hash = Element->GetStore().Snapshot().Hash();
 			MaterialData.Hash = GetTypeHash(Element->CalculateElementHash(true));
 
-			if (UObject* Asset = FindObjectFromHash(MaterialData.Hash))
+			if (UObject* Asset = FAssetRegistry::FindObjectFromHash(MaterialData.Hash))
 			{
 				UMaterialInstanceDynamic* Material = Cast<UMaterialInstanceDynamic>(Asset);
 				check(Material);
 
-				MaterialData.Object = TStrongObjectPtr<UObject>(Material);
+				MaterialData.Object = TWeakObjectPtr<UObject>(Material);
 
 				bUsingMaterialFromCache = true;
 			}
@@ -80,7 +87,7 @@ namespace DatasmithRuntime
 				MaterialData.Object = TStrongObjectPtr<UObject>( UMaterialInstanceDynamic::Create( nullptr, Package, *MaterialName) );
 				MaterialData.Object->SetFlags(RF_Public);
 #else
-				MaterialData.Object = TStrongObjectPtr<UObject>( UMaterialInstanceDynamic::Create( nullptr, nullptr) );
+				MaterialData.Object = TWeakObjectPtr<UObject>( UMaterialInstanceDynamic::Create( nullptr, nullptr) );
 #endif
 				check(MaterialData.Object.IsValid());
 			}
@@ -126,9 +133,9 @@ namespace DatasmithRuntime
 			MaterialData.Requirements = ProcessMaterialElement(StaticCastSharedPtr<IDatasmithMasterMaterialElement>(Element), *Host, TextureCallback);
 		}
 
-		MaterialData.SetState(EDatasmithRuntimeAssetState::Processed);
+		MaterialData.SetState(EAssetState::Processed);
 
-		RegisterAssetData(MaterialData.GetObject<>(), &MaterialData);
+		FAssetRegistry::RegisterAssetData(MaterialData.GetObject<>(), SceneKey, MaterialData);
 
 		if (!bUsingMaterialFromCache)
 		{
@@ -138,13 +145,13 @@ namespace DatasmithRuntime
 			};
 
 			AddToQueue(MATERIAL_QUEUE, { TaskFunc, {EDataType::Material, MaterialData.ElementId, 0 } });
-			TasksToComplete |= EDatasmithRuntimeWorkerTask::MaterialCreate;
+			TasksToComplete |= EWorkerTask::MaterialCreate;
 
 			MaterialElementSet.Add(MaterialData.ElementId);
 		}
-		else if(IsObjectCompleted(MaterialData.GetObject<>()))
+		else if(FAssetRegistry::IsObjectCompleted(MaterialData.GetObject<>()))
 		{
-			MaterialData.AddState(EDatasmithRuntimeAssetState::Completed);
+			MaterialData.AddState(EAssetState::Completed);
 		}
 	}
 
@@ -178,19 +185,18 @@ namespace DatasmithRuntime
 			bCreationSuccessful = LoadPbrMaterial(MaterialInstance, MaterialElement);
 		}
 
-		const TSet<FAssetData*>& RegisteredAssets = GetRegisteredAssetData(MaterialInstance);
 
-		for (FAssetData* AssetData : RegisteredAssets)
+		if (bCreationSuccessful)
 		{
-			AssetData->AddState(EDatasmithRuntimeAssetState::Completed);
+			FAssetRegistry::SetObjectCompletion(MaterialInstance, true);
 		}
-
-		if (!bCreationSuccessful)
+		else
 		{
-			for (FAssetData* AssetData : RegisteredAssets)
-			{
-				AssetData->Object.Reset();
-			}
+			FAssetRegistry::UnregisteredAssetsData(MaterialInstance, 0, [](FAssetData& AssetData) -> void
+				{
+					AssetData.AddState(EAssetState::Completed);
+					AssetData.Object.Reset();
+				});
 
 			return EActionResult::Failed;
 		}
@@ -208,13 +214,16 @@ namespace DatasmithRuntime
 
 			FAssetData& MaterialData = AssetDataList[ ElementId ];
 
-			if (!MaterialData.HasState(EDatasmithRuntimeAssetState::Completed))
+			if (!MaterialData.HasState(EAssetState::Completed))
 			{
 				return EActionResult::Retry;
 			}
 
 			UMaterialInstanceDynamic* MaterialInstance = MaterialData.GetObject<UMaterialInstanceDynamic>();
-			ensure(MaterialInstance);
+			if (!MaterialInstance)
+			{
+				return EActionResult::Failed;
+			}
 
 			TSharedPtr< IDatasmithElement >& Element = Elements[ ElementId ];
 

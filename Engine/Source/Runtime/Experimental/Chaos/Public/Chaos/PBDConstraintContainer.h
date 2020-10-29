@@ -18,6 +18,9 @@ namespace Chaos
 
 		virtual ~FPBDConstraintContainer();
 
+		virtual void SetConstraintEnabled(int32 ConstraintIndex, bool bEnabled) { }
+		virtual bool IsConstraintEnabled(int32 ConstraintIndex) const { return true; }
+
 	protected:
 		// friend access to the Constraint Handle's container API
 		int32 GetConstraintIndex(const FConstraintHandle* ConstraintHandle) const;

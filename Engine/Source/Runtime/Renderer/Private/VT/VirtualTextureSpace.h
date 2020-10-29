@@ -84,7 +84,10 @@ public:
 		return PageTable[PageTableIndex].TextureReferenceRHI.GetReference();
 	}
 
-	FRHITexture* GetPageTableIndirectionTexture() const;
+	FRHITextureReference* GetPageTableIndirectionTexture() const
+	{
+		return PageTableIndirection.TextureReferenceRHI.GetReference();
+	}
 
 	void				QueueUpdate( uint8 Layer, uint8 vLogSize, uint32 vAddress, uint8 vLevel, const FPhysicalTileLocation& pTileLocation);
 	void				AllocateTextures(FRDGBuilder& GraphBuilder);
@@ -110,7 +113,7 @@ private:
 	FTextureEntry PageTable[TextureCapacity];
 	TEnumAsByte<EPixelFormat> TexturePixelFormat[TextureCapacity];
 
-	TRefCountPtr<IPooledRenderTarget> PageTableIndirection;
+	FTextureEntry PageTableIndirection;
 
 	TArray<FPageTableUpdate> PageTableUpdates[VIRTUALTEXTURE_SPACE_MAXLAYERS];
 

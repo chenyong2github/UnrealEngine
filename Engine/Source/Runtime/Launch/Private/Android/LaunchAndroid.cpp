@@ -506,6 +506,8 @@ int32 AndroidMain(struct android_app* state)
 	}
 #endif
 
+	FAndroidStats::Init();
+
 	BootTimingPoint("Tick loop starting");
 	DumpBootTiming();
 	// tick until done
@@ -533,6 +535,7 @@ int32 AndroidMain(struct android_app* state)
 		}
 #endif
 	}
+	
 	FAppEventManager::GetInstance()->TriggerEmptyQueue();
 
 	UE_LOG(LogAndroid, Log, TEXT("Exiting"));
@@ -667,6 +670,8 @@ bool IsInAndroidEventThread()
 
 static void* AndroidEventThreadWorker( void* param )
 {
+	FAndroidMisc::SetThreadName("EventWorker");
+
 	struct android_app* state = (struct android_app*)param;
 
 	FPlatformProcess::SetThreadAffinityMask(FPlatformAffinity::GetMainGameMask());
@@ -735,6 +740,8 @@ struct android_app* GNativeAndroidApp = NULL;
 
 void android_main(struct android_app* state)
 {
+	GGameThreadId = FPlatformTLS::GetCurrentThreadId();
+
 	BootTimingPoint("android_main");
 	FPlatformMisc::LowLevelOutputDebugString(TEXT("Entering native app glue main function"));
 	
@@ -1462,9 +1469,7 @@ static void OnAppCommandCB(struct android_app* app, int32_t cmd)
 				FCoreDelegates::ApplicationWillTerminateDelegate.Broadcast();
 			}, TStatId(), NULL, ENamedThreads::GameThread);
 			FTaskGraphInterface::Get().WaitUntilTaskCompletes(WillTerminateTask);
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-			GIsRequestingExit = true; //destroy immediately. Game will shutdown.
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
+			FAndroidMisc::NonReentrantRequestExit();
 		}));
 
 

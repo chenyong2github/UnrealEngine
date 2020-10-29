@@ -4,6 +4,7 @@
 
 #include "DMXEditorLog.h"
 #include "DMXRuntimeUtils.h"
+#include "DMXSubsystem.h"
 #include "Interfaces/IDMXProtocol.h"
 #include "Library/DMXLibrary.h"
 #include "Library/DMXEntityController.h"
@@ -925,8 +926,25 @@ void FDMXEditorUtils::ZeroAllDMXBuffers()
 		IDMXProtocolPtr Protocol = IDMXProtocol::Get(ProtocolName);
 		check(Protocol.IsValid());
 
-		Protocol->ZeroInputBuffers();
+		Protocol->ClearInputBuffers();
+
 		Protocol->ZeroOutputBuffers();
+	}
+}
+
+void FDMXEditorUtils::ClearFixturePatchCachedData()
+{
+	// Clear patch buffers
+	UDMXSubsystem* Subsystem = UDMXSubsystem::GetDMXSubsystem_Callable();
+	if (Subsystem && Subsystem->IsValidLowLevel())
+	{
+		TArray<UDMXLibrary*> DMXLibraries = Subsystem->GetAllDMXLibraries();
+		for (UDMXLibrary* Library : DMXLibraries)
+		{
+			Library->ForEachEntityOfType<UDMXEntityFixturePatch>([](UDMXEntityFixturePatch* Patch) {
+				Patch->ClearCachedData();
+				});
+		}
 	}
 }
 

@@ -24,7 +24,7 @@ public:
 	*  @param StaticMeshTransform : Mesh transform.
 	*  @param GeometryCollection  : Collection to append the mesh into.
 	*/
-	static void AppendStaticMesh(const UStaticMesh* StaticMesh, const TArray<UMaterialInterface*> Materials, const FTransform& StaticMeshTransform, UGeometryCollection* GeometryCollectionObject, bool ReindexMaterials = true);
+	static void AppendStaticMesh(const UStaticMesh* StaticMesh, const TArray<UMaterialInterface*>& Materials, const FTransform& StaticMeshTransform, UGeometryCollection* GeometryCollectionObject, bool ReindexMaterials = true);
 
 	/**
 	*  Appends a static mesh to a GeometryCollectionComponent.

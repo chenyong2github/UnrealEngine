@@ -29,7 +29,8 @@ class DeviceQtHandler(QtCore.QObject):
     signal_device_status_changed = QtCore.Signal(object, int)
     signal_device_connect_failed = QtCore.Signal(object)
     signal_device_client_disconnected = QtCore.Signal(object)
-    signal_device_changelist_changed = QtCore.Signal(object)
+    signal_device_project_changelist_changed = QtCore.Signal(object)
+    signal_device_engine_changelist_changed = QtCore.Signal(object)
     signal_device_sync_failed = QtCore.Signal(object)
     signal_device_is_recording_device_changed = QtCore.Signal(object, int)
 
@@ -50,7 +51,7 @@ class Device(QtCore.QObject):
     def __init__(self, name, ip_address, **kwargs):
         super().__init__()
 
-        self._name = name  # Assigned name: iPhoneRed, iPhoneGreen, Record Box
+        self._name = name  # Assigned name
         self.device_qt_handler = DeviceQtHandler()
 
         self.setting_ip_address = Setting("ip_address", 'IP address', ip_address)
@@ -61,7 +62,8 @@ class Device(QtCore.QObject):
                 override = kwargs[setting.attr_name]
                 setting.override_value(self.name, override)
 
-        self._changelist = None
+        self._project_changelist = None
+        self._engine_changelist = None
 
         self._status = DeviceStatus.DISCONNECTED
 
@@ -166,7 +168,7 @@ class Device(QtCore.QObject):
     def ip_address(self, value):
         self.setting_ip_address.update_value(value)
         # todo-dara: probably better to have the osc client connect to a change of the ip address.
-        self.setup_osc_client()
+        self.setup_osc_client(CONFIG.OSC_CLIENT_PORT.get_value())
 
     @property
     def status(self):
@@ -174,21 +176,27 @@ class Device(QtCore.QObject):
 
     @status.setter
     def status(self, value):
-        if self._status == value:
-            return
-
         previous_status = self._status
         self._status = value
         self.device_qt_handler.signal_device_status_changed.emit(self, previous_status)
 
     @property
-    def changelist(self):
-        return self._changelist
+    def project_changelist(self):
+        return self._project_changelist
 
-    @changelist.setter
-    def changelist(self, value):
-        self._changelist = value
-        self.device_qt_handler.signal_device_changelist_changed.emit(self)
+    @project_changelist.setter
+    def project_changelist(self, value):
+        self._project_changelist = value
+        self.device_qt_handler.signal_device_project_changelist_changed.emit(self)
+
+    @property
+    def engine_changelist(self):
+        return self._engine_changelist
+
+    @engine_changelist.setter
+    def engine_changelist(self, value):
+        self._engine_changelist = value
+        self.device_qt_handler.signal_device_engine_changelist_changed.emit(self)
 
     def set_slate(self, value):
         pass
@@ -204,12 +212,12 @@ class Device(QtCore.QObject):
     def disconnect_listener(self):
         self.status = DeviceStatus.DISCONNECTED
 
-    def setup_osc_client(self, osc_port=CONFIG.OSC_CLIENT_PORT):
+    def setup_osc_client(self, osc_port):
         self.osc_client = pythonosc.udp_client.SimpleUDPClient(self.ip_address, osc_port)
 
     def send_osc_message(self, command, value, log=True):
         if not self.osc_client:
-            self.setup_osc_client()
+            self.setup_osc_client(CONFIG.OSC_CLIENT_PORT.get_value())
 
         if log:
             LOGGER.osc(f'OSC Server: Sending {command} {value} to {self.name} ({self.ip_address})')

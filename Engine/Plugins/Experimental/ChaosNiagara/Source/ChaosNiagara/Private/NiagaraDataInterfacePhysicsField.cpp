@@ -80,25 +80,36 @@ void FNDIPhysicsFieldData::Release()
 void FNDIPhysicsFieldData::Init(FNiagaraSystemInstance* SystemInstance)
 {
 	FieldResource = nullptr;
-
-	if (SystemInstance != nullptr && SystemInstance->GetWorld())
+	if (SystemInstance != nullptr)
 	{
-		UPhysicsFieldComponent* FieldComponent = SystemInstance->GetWorld()->PhysicsField;
-		if (FieldComponent && FieldComponent->FieldInstance && FieldComponent->FieldInstance->FieldResource)
+		UWorld* World = SystemInstance->GetWorld();
+		if (World)
 		{
-			FieldResource = FieldComponent->FieldInstance->FieldResource;
+			TimeSeconds = World->GetTimeSeconds();
+
+			UPhysicsFieldComponent* FieldComponent = World->PhysicsField;
+			if (FieldComponent && FieldComponent->FieldInstance && FieldComponent->FieldInstance->FieldResource)
+			{
+				FieldResource = FieldComponent->FieldInstance->FieldResource;
+			}
 		}
 	}
 }
 
 void FNDIPhysicsFieldData::Update(FNiagaraSystemInstance* SystemInstance)
 {
-	if (SystemInstance != nullptr && SystemInstance->GetWorld())
+	if (SystemInstance != nullptr)
 	{
-		UPhysicsFieldComponent* FieldComponent = SystemInstance->GetWorld()->PhysicsField;
-		if (FieldComponent && FieldComponent->FieldInstance)
-		{
-			FieldCommands = FieldComponent->FieldInstance->FieldCommands;
+		UWorld* World = SystemInstance->GetWorld();
+		if (World)
+		{	
+			TimeSeconds = World->GetTimeSeconds();
+
+			UPhysicsFieldComponent* FieldComponent = World->PhysicsField;
+			if (FieldComponent && FieldComponent->FieldInstance)
+			{
+				FieldCommands = FieldComponent->FieldInstance->FieldCommands;
+			}
 		}
 	}
 }
@@ -208,6 +219,8 @@ void FNDIPhysicsFieldProxy::ConsumePerInstanceDataFromGameThread(void* PerInstan
 	if (TargetData)
 	{
 		TargetData->FieldResource= SourceData->FieldResource;
+		TargetData->FieldCommands = SourceData->FieldCommands;
+		TargetData->TimeSeconds = SourceData->TimeSeconds;
 	}
 	else
 	{
@@ -547,14 +560,15 @@ void UNiagaraDataInterfacePhysicsField::SamplePhysicsVectorField(FVectorVMContex
 
 	TArrayView<ContextIndex> IndicesView(&(IndicesArray[0]), IndicesArray.Num());
 
-	FFieldContext FieldContext{
-		IndicesView,
-		PositionsView,
-		FFieldContext::UniquePointerMap()
-	};
-
 	if (InstData)
 	{
+		FFieldContext FieldContext{
+			IndicesView,
+			PositionsView,
+			FFieldContext::UniquePointerMap(),
+			InstData->TimeSeconds
+		};
+
 		TArray<FVector> SampleResults;
 		SampleResults.Init(FVector(0, 0, 0), Context.NumInstances);
 
@@ -606,13 +620,15 @@ void UNiagaraDataInterfacePhysicsField::SamplePhysicsIntegerField(FVectorVMConte
 
 	TArrayView<ContextIndex> IndicesView(&(IndicesArray[0]), IndicesArray.Num());
 
-	FFieldContext FieldContext{
-		IndicesView,
-		PositionsView,
-		FFieldContext::UniquePointerMap()
-	};
 	if (InstData)
 	{
+		FFieldContext FieldContext{
+			IndicesView,
+			PositionsView,
+			FFieldContext::UniquePointerMap(),
+			InstData->TimeSeconds
+		};
+
 		TArray<int32> SampleResults;
 		SampleResults.Init(0, Context.NumInstances);
 
@@ -665,13 +681,15 @@ void UNiagaraDataInterfacePhysicsField::SamplePhysicsScalarField(FVectorVMContex
 
 	TArrayView<ContextIndex> IndicesView(&(IndicesArray[0]), IndicesArray.Num());
 
-	FFieldContext FieldContext{
-		IndicesView,
-		PositionsView,
-		FFieldContext::UniquePointerMap()
-	};
 	if (InstData)
 	{
+		FFieldContext FieldContext{
+			IndicesView,
+			PositionsView,
+			FFieldContext::UniquePointerMap(),
+			InstData->TimeSeconds
+		};
+
 		TArray<float> SampleResults;
 		SampleResults.Init(0, Context.NumInstances);
 

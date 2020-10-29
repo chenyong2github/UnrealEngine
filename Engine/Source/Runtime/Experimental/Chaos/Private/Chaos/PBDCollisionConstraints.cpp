@@ -106,7 +106,8 @@ namespace Chaos
 		const int32 InApplyPushOutPairIterations /*= 1*/,
 		const FReal InCullDistance /*= (FReal)0*/,
 		const FReal InRestitutionThreshold /*= (FReal)0*/)
-		: Particles(InParticles)
+		: bInAppendOperation(false)
+		, Particles(InParticles)
 		, NumActivePointConstraints(0)
 		, NumActiveSweptPointConstraints(0)
 		, NumActiveIterativeConstraints(0)
@@ -255,8 +256,16 @@ namespace Chaos
 		}
 	}
 
+	FPBDCollisionConstraints::FConstraintAppendScope FPBDCollisionConstraints::BeginAppendScope()
+	{
+		check(!bInAppendOperation);
+		return FPBDCollisionConstraints::FConstraintAppendScope(this);
+	}
+
 	void FPBDCollisionConstraints::AddConstraint(const FRigidBodyPointContactConstraint& InConstraint)
 	{
+		check(!bInAppendOperation);
+
 		int32 Idx = Constraints.SinglePointConstraints.Add(InConstraint);
 
 		if (bHandlesEnabled)
@@ -278,6 +287,8 @@ namespace Chaos
 
 	void FPBDCollisionConstraints::AddConstraint(const FRigidBodySweptPointContactConstraint& InConstraint)
 	{
+		check(!bInAppendOperation);
+
 		int32 Idx = Constraints.SinglePointSweptConstraints.Add(InConstraint);
 
 		if (bHandlesEnabled)
@@ -302,6 +313,8 @@ namespace Chaos
 
 	void FPBDCollisionConstraints::AddConstraint(const FRigidBodyMultiPointContactConstraint& InConstraint)
 	{
+		check(!bInAppendOperation);
+
 		int32 Idx = Constraints.MultiPointConstraints.Add(InConstraint);
 
 		if (bHandlesEnabled)
@@ -345,6 +358,8 @@ namespace Chaos
 
 	void FPBDCollisionConstraints::UpdatePositionBasedState(const FReal Dt)
 	{
+		check(!bInAppendOperation);
+
 		Reset();
 	
 		LifespanCounter++;
@@ -352,6 +367,8 @@ namespace Chaos
 
 	void FPBDCollisionConstraints::Reset()
 	{
+		check(!bInAppendOperation);
+
 		SCOPE_CYCLE_COUNTER(STAT_Collisions_Reset);
 
 #if CHAOS_COLLISION_PERSISTENCE_ENABLED
@@ -377,25 +394,39 @@ namespace Chaos
 		bUseCCD = false;
 	}
 
-	void FPBDCollisionConstraints::ApplyCollisionModifier(const TFunction<ECollisionModifierResult(FPBDCollisionConstraintHandle* Handle)>& CollisionModifier)
+	void FPBDCollisionConstraints::ApplyCollisionModifier(const TArray<ISimCallbackObject*>& CollisionModifiers)
 	{
-		if (CollisionModifier)
+		check(!bInAppendOperation);
+		if (Handles.Num())
 		{
-			TArray<FPBDCollisionConstraintHandle*> CopyOfHandles = Handles;
-
-			for (FPBDCollisionConstraintHandle* ContactHandle : CopyOfHandles)
+			for(ISimCallbackObject* Modifier : CollisionModifiers)
+		{
+			TArray<FPBDCollisionConstraintHandleModification> ModificationResults;
+			ModificationResults.Reserve(Handles.Num());
+				for (FPBDCollisionConstraintHandle* Handle : Handles)
 			{
-				ECollisionModifierResult Result = CollisionModifier(ContactHandle);
-				if (Result == ECollisionModifierResult::Disabled)
+				ModificationResults.Emplace(Handle);
+			}
+
+				//TODO: fix dt and sim time
+				Modifier->ContactModification_Internal(0, 0, TArrayView<FPBDCollisionConstraintHandleModification>(ModificationResults.GetData(), ModificationResults.Num()));
+				
+			for (const FPBDCollisionConstraintHandleModification& Modification : ModificationResults)
+			{
+					if (Modification.GetResult() == ECollisionModifierResult::Disabled)
 				{
-					RemoveConstraint(ContactHandle);
+					RemoveConstraint(Modification.GetHandle());
 				}
 			}
+		}
+			
 		}
 	}
 
 	void FPBDCollisionConstraints::RemoveConstraints(const TSet<TGeometryParticleHandle<FReal, 3>*>&  InHandleSet)
 	{
+		check(!bInAppendOperation);
+
 		const TArray<TGeometryParticleHandle<FReal, 3>*> HandleArray = InHandleSet.Array();
 		for (auto ParticleHandle : HandleArray)
 		{
@@ -414,6 +445,8 @@ namespace Chaos
 
 	void FPBDCollisionConstraints::RemoveConstraint(FPBDCollisionConstraintHandle* Handle)
 	{
+		check(!bInAppendOperation);
+
 		FConstraintContainerHandleKey KeyToRemove = Handle->GetKey();
 		int32 Idx = Handle->GetConstraintIndex(); // index into specific array
 		typename FCollisionConstraintBase::FType ConstraintType = Handle->GetType();
@@ -674,6 +707,8 @@ namespace Chaos
 
 	void FPBDCollisionConstraints::SortConstraints()
 	{
+		check(!bInAppendOperation);
+
 		Algo::Sort(Handles, [](const FPBDCollisionConstraintHandle* A, const FPBDCollisionConstraintHandle* B)
 		{
 			if(A->GetType() == B->GetType())
@@ -695,7 +730,8 @@ namespace Chaos
 		bNeedsAnotherIterationAtomic.Store(false);
 		if (MApplyPairIterations > 0)
 		{
-			PhysicsParallelFor(InConstraintHandles.Num(), [&](int32 ConstraintHandleIndex) {
+			PhysicsParallelFor(InConstraintHandles.Num(), [&](int32 ConstraintHandleIndex) 
+			{
 				FPBDCollisionConstraintHandle* ConstraintHandle = InConstraintHandles[ConstraintHandleIndex];
 				check(ConstraintHandle != nullptr);
 
@@ -779,4 +815,112 @@ namespace Chaos
 
 
 	template class TAccelerationStructureHandle<float, 3>;
+
+	FPBDCollisionConstraints::FConstraintAppendScope::FConstraintAppendScope(FPBDCollisionConstraints* InOwner)
+		: Owner(InOwner)
+	{
+		check(Owner);
+		Owner->bInAppendOperation = true;
+		Constraints = &(Owner->Constraints);
+
+		NumBeginSingle = Owner->Constraints.SinglePointConstraints.Num();
+		NumBeginSingleSwept = Owner->Constraints.SinglePointSweptConstraints.Num();
+		NumBeginMulti = Owner->Constraints.MultiPointConstraints.Num();
+	}
+
+	FPBDCollisionConstraints::FConstraintAppendScope::~FConstraintAppendScope()
+	{
+		FPBDCollisionConstraints::FConstraintHandleAllocator& HandleAlloc = Owner->HandleAllocator;
+		int32 HandlesBeginIndex = Owner->Handles.Num();
+		const int32 TotalAdded = NumAddedSingle + NumAddedSingleSwept + NumAddedMulti;
+
+		Owner->Handles.AddUninitialized(TotalAdded);
+		const int32 NumHandles = Owner->Handles.Num();
+
+		for(int32 HandleIndex = 0; HandleIndex < NumAddedSingle ; ++HandleIndex)
+		{
+			FPBDCollisionConstraintHandle* NewHandle = HandleAlloc.template AllocHandle<FRigidBodyPointContactConstraint>(Owner, NumBeginSingle + HandleIndex);
+			
+			const int32 FullHandleIndex = HandlesBeginIndex + HandleIndex;
+			Owner->Handles[FullHandleIndex] = NewHandle;
+
+			NewHandle->GetContact().Timestamp = -INT_MAX;
+			Constraints->SinglePointConstraints[NumBeginSingle + HandleIndex].SetConstraintHandle(NewHandle);
+		}
+		HandlesBeginIndex += NumAddedSingle;
+
+		for(int32 HandleIndex = 0; HandleIndex < NumAddedSingleSwept; ++HandleIndex)
+		{
+			FPBDCollisionConstraintHandle* NewHandle = HandleAlloc.template AllocHandle<FRigidBodySweptPointContactConstraint>(Owner, NumBeginSingleSwept + HandleIndex);
+
+			const int32 FullHandleIndex = HandlesBeginIndex + HandleIndex;
+			Owner->Handles[FullHandleIndex] = NewHandle;
+
+			NewHandle->GetContact().Timestamp = -INT_MAX;
+			Constraints->SinglePointSweptConstraints[NumBeginSingleSwept + HandleIndex].SetConstraintHandle(NewHandle);
+		}
+		HandlesBeginIndex += NumAddedSingle;
+
+		for(int32 HandleIndex = 0; HandleIndex < NumAddedMulti; ++HandleIndex)
+		{
+			FPBDCollisionConstraintHandle* NewHandle = HandleAlloc.template AllocHandle<FRigidBodyMultiPointContactConstraint>(Owner, NumBeginMulti + HandleIndex);
+
+			const int32 FullHandleIndex = HandlesBeginIndex + HandleIndex;
+			Owner->Handles[FullHandleIndex] = NewHandle;
+
+			NewHandle->GetContact().Timestamp = Owner->LifespanCounter;
+			Constraints->MultiPointConstraints[NumBeginMulti + HandleIndex].SetConstraintHandle(NewHandle);
+		}
+
+		Owner->bInAppendOperation = false;
+	}
+
+	void FPBDCollisionConstraints::FConstraintAppendScope::ReserveSingle(int32 NumToAdd)
+	{
+		Constraints->SinglePointConstraints.Reserve(Constraints->SinglePointConstraints.Num() + NumToAdd);
+	}
+
+	void FPBDCollisionConstraints::FConstraintAppendScope::ReserveSingleSwept(int32 NumToAdd)
+	{
+		Constraints->SinglePointSweptConstraints.Reserve(Constraints->SinglePointConstraints.Num() + NumToAdd);
+	}
+
+	void FPBDCollisionConstraints::FConstraintAppendScope::ReserveMulti(int32 NumToAdd)
+	{
+		Constraints->MultiPointConstraints.Reserve(Constraints->SinglePointConstraints.Num() + NumToAdd);
+	}
+
+	void FPBDCollisionConstraints::FConstraintAppendScope::Append(TArray<FRigidBodyPointContactConstraint>&& InConstraints)
+	{
+		if(InConstraints.Num() == 0)
+		{
+			return;
+		}
+
+		NumAddedSingle += InConstraints.Num();
+		Constraints->SinglePointConstraints.Append(MoveTemp(InConstraints));
+	}
+
+	void FPBDCollisionConstraints::FConstraintAppendScope::Append(TArray<FRigidBodySweptPointContactConstraint>&& InConstraints)
+	{
+		if(InConstraints.Num() == 0)
+		{
+			return;
+		}
+
+		NumAddedSingleSwept += InConstraints.Num();
+		Constraints->SinglePointSweptConstraints.Append(MoveTemp(InConstraints));
+	}
+
+	void FPBDCollisionConstraints::FConstraintAppendScope::Append(TArray<FRigidBodyMultiPointContactConstraint>&& InConstraints)
+	{
+		if(InConstraints.Num() == 0)
+		{
+			return;
+		}
+
+		NumAddedMulti += InConstraints.Num();
+		Constraints->MultiPointConstraints.Append(MoveTemp(InConstraints));
+	}
+
 }

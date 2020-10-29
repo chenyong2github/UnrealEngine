@@ -1,4 +1,6 @@
 # Copyright Epic Games, Inc. All Rights Reserved.
+from switchboard.config import CONFIG
+
 from PySide2 import QtCore, QtWidgets
 
 import os
@@ -47,6 +49,18 @@ class AddConfigDialog(QtWidgets.QDialog):
         layout = QtWidgets.QVBoxLayout()
         layout.insertLayout(0, self.form_layout)
 
+        self.p4_group = QtWidgets.QGroupBox("Perforce")
+        self.p4_group.setCheckable(True)
+        self.p4_group.setChecked(bool(CONFIG.P4_ENABLED.get_value()))
+
+        self.p4_project_path_line_edit = QtWidgets.QLineEdit(CONFIG.P4_PATH.get_value())
+        self.p4_workspace_line_edit = QtWidgets.QLineEdit(CONFIG.SOURCE_CONTROL_WORKSPACE.get_value())
+        p4_layout = QtWidgets.QFormLayout()
+        p4_layout.addRow("P4 Project Path", self.p4_project_path_line_edit)
+        p4_layout.addRow("Workspace Name", self.p4_workspace_line_edit)
+        self.p4_group.setLayout(p4_layout)
+        layout.addWidget(self.p4_group)
+
         self.button_box = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel)
         self.button_box.button(QtWidgets.QDialogButtonBox.Ok).setEnabled(False)
         self.button_box.accepted.connect(self.accept)
@@ -56,6 +70,13 @@ class AddConfigDialog(QtWidgets.QDialog):
         self.setLayout(layout)
 
         self.setMinimumWidth(450)
+
+    def p4_settings(self):
+        settings = {}
+        settings['p4_enabled'] = self.p4_group.isChecked()
+        settings['p4_workspace_name'] = self.p4_workspace_line_edit.text() if self.p4_group.isChecked() else None
+        settings['p4_project_path'] = self.p4_project_path_line_edit.text() if self.p4_group.isChecked() else None
+        return settings
 
     def on_name_changed(self, text):
         self.config_name = text

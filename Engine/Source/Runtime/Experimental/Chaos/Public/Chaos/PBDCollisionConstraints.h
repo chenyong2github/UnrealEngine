@@ -85,6 +85,63 @@ public:
 	}
 
 	/**
+	 * Helper object for efficiently appending constraints into the constraint container
+	 * in a scope. The encapsulates the separation of appending the constraints into the
+	 * owning container and building the handles required for them. Previously this was
+	 * done one at a time, this helper lets us batch the operation to make it faster
+	 *
+	 * It's important not to mutate the owning container while this helper is alive
+	 * otherwise it will not be able to append correctly to it.
+	 */
+	struct FConstraintAppendScope
+	{
+		FConstraintAppendScope() = delete;
+		FConstraintAppendScope(const FConstraintAppendScope&) = delete;
+		FConstraintAppendScope& operator=(const FConstraintAppendScope&) = delete;
+
+		FConstraintAppendScope(FConstraintAppendScope&&) = default;
+		FConstraintAppendScope& operator=(FConstraintAppendScope&&) = default;
+
+		FConstraintAppendScope(FPBDCollisionConstraints* InOwner);
+		~FConstraintAppendScope();
+
+		// Reserves space for NumToAdd constraints in the internal container
+		void ReserveSingle(int32 NumToAdd);
+		void ReserveSingleSwept(int32 NumToAdd);
+		void ReserveMulti(int32 NumToAdd);
+
+		// Append constraint lists to the internal container.
+		// note this will move the container, it will no longer be valid after a call to Append.
+		void Append(TArray<FRigidBodyPointContactConstraint>&& InConstraints);
+		void Append(TArray<FRigidBodySweptPointContactConstraint>&& InConstraints);
+		void Append(TArray<FRigidBodyMultiPointContactConstraint>&& InConstraints);
+
+	private:
+		FPBDCollisionConstraints* Owner = nullptr;
+		FCollisionConstraintsArray* Constraints = nullptr;
+
+		// Tracking for how many constraints the container began with and how many
+		// the helper added so we can build the new handles on scope exit
+		int32 NumBeginSingle = 0;
+		int32 NumBeginSingleSwept = 0;
+		int32 NumBeginMulti = 0;
+		int32 NumAddedSingle = 0;
+		int32 NumAddedSingleSwept = 0;
+		int32 NumAddedMulti = 0;
+	};
+	
+	/** Begin an append operation, recieving a helper object for bulk operations on the constraint container */
+	FConstraintAppendScope BeginAppendScope();
+
+private:
+
+	// Set whenever an append scope is constructed, and unset when destructed
+	// and used to assert the container isn't mutated during appending.
+	bool bInAppendOperation;
+
+public:
+
+	/**
 	*  Add the constraint to the container. 
 	*
 	*  @todo(chaos) : Collision Constraints 
@@ -103,17 +160,23 @@ public:
 	void Reset();
 
 	/**
-	 * Apply a modifier to the constraints and specify which constraints should be disabled.
+	 * Apply modifiers to the constraints and specify which constraints should be disabled.
 	 * You would probably call this in the PostComputeCallback. Prefer this to calling RemoveConstraints in a loop,
 	 * so you don't have to worry about constraint iterator/indices changing.
 	 */
-	void ApplyCollisionModifier(const FCollisionModifierCallback& CollisionModifier);
+	void ApplyCollisionModifier(const TArray<ISimCallbackObject*>& CollisionModifiers);
 
 
 	/**
 	* Remove the constraints associated with the ParticleHandle.
 	*/
 	void RemoveConstraints(const TSet<TGeometryParticleHandle<FReal, 3>*>&  ParticleHandle);
+
+
+	/**
+	* Disable the constraints associated with the ParticleHandle.
+	*/
+	void DisableConstraints(const TSet<TGeometryParticleHandle<FReal, 3>*>& ParticleHandle) {}
 
 
 	/**
@@ -297,6 +360,7 @@ protected:
 
 private:
 
+	friend FConstraintAppendScope;
 	const TPBDRigidsSOAs<FReal, 3>& Particles;
 
 	FCollisionConstraintsArray Constraints;

@@ -1378,7 +1378,7 @@ void USceneComponent::SetRelativeScale3D(FVector NewScale3D)
 	{
 		if (NewScale3D.ContainsNaN())
 		{
-			UE_LOG(LogBlueprint, Warning, TEXT("SetRelativeScale3D : Invalid Scale entered (%s). Resetting to 1.f."), *NewScale3D.ToString());
+			UE_LOG(LogBlueprint, Warning, TEXT("SetRelativeScale3D : Invalid Scale (%s) set for '%s'. Resetting to 1.f."), *NewScale3D.ToString(), *GetFullName());
 			NewScale3D = FVector(1.f);
 		}
 

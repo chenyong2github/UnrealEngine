@@ -1,10 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "K2Node_GetDMXFixturePatch.h"
-#include "K2Node_GetDMXActiveModeFunctionValues.h"
+#include "K2Node_GetDMXAttributeValues.h"
 #include "Library/DMXEntityFixturePatch.h"
 #include "DMXSubsystem.h"
 #include "DMXProtocolConstants.h"
+#include "DMXBlueprintGraphLog.h"
 
 #include "KismetCompilerMisc.h"
 #include "KismetCompiler.h"
@@ -123,9 +124,26 @@ void UK2Node_GetDMXFixturePatch::ExpandNode(FKismetCompilerContext& CompilerCont
 	SendDataGetFunction->AllocateDefaultPins();
 
 	// Hook up function node inputs
-	UEdGraphPin* FunctionInFixturePatchPin = SendDataGetFunction->FindPinChecked(TEXT("InFixturePatch"));
-	UEdGraphPin* FunctionOutFixturePatchPin = SendDataGetFunction->FindPinChecked(UEdGraphSchema_K2::PN_ReturnValue);
-	UEdGraphPin* FunctionSelfPin = SendDataGetFunction->FindPinChecked(UEdGraphSchema_K2::PN_Self);
+	UEdGraphPin* FunctionInFixturePatchPin = SendDataGetFunction->FindPin(TEXT("InFixturePatch"));
+	if (FunctionInFixturePatchPin == nullptr)
+	{
+		CompilerContext.MessageLog.Error(*LOCTEXT("MissingInFixturePatchPin", "InFixturePatch: Pin doesn't exists. @@").ToString(), this);
+		return;
+	}
+
+	UEdGraphPin* FunctionOutFixturePatchPin = SendDataGetFunction->FindPin(UEdGraphSchema_K2::PN_ReturnValue);
+	if (FunctionOutFixturePatchPin == nullptr)
+	{
+		CompilerContext.MessageLog.Error(*LOCTEXT("MissingReturnPin", "Return: Pin doesn't exists. @@").ToString(), this);
+		return;
+	}
+
+	UEdGraphPin* FunctionSelfPin = SendDataGetFunction->FindPin(UEdGraphSchema_K2::PN_Self);
+	if (FunctionSelfPin == nullptr)
+	{
+		CompilerContext.MessageLog.Error(*LOCTEXT("MissingSelfPin", "Self: Pin doesn't exists. @@").ToString(), this);
+		return;
+	}
 
 	const FString&& FixturePatchStr = GetFixturePatchValueAsString();
 
@@ -157,7 +175,12 @@ FText UK2Node_GetDMXFixturePatch::GetMenuCategory() const
 
 UEdGraphPin* UK2Node_GetDMXFixturePatch::GetInputDMXFixturePatchPin() const
 {
-	UEdGraphPin* Pin = FindPinChecked(InputDMXFixturePatchPinName);
+	UEdGraphPin* Pin = FindPin(InputDMXFixturePatchPinName);
+	if (Pin == nullptr)
+	{
+		UE_LOG_DMXBLUEPRINTGRAPH(Error, TEXT("No DMXFixturePatchPin found"));
+		return nullptr;
+	}
 	check(Pin->Direction == EGPD_Input);
 
 	return Pin;
@@ -165,7 +188,12 @@ UEdGraphPin* UK2Node_GetDMXFixturePatch::GetInputDMXFixturePatchPin() const
 
 UEdGraphPin* UK2Node_GetDMXFixturePatch::GetOutputDMXFixturePatchPin() const
 {
-	UEdGraphPin* Pin = FindPinChecked(OutputDMXFixturePatchPinName);
+	UEdGraphPin* Pin = FindPin(OutputDMXFixturePatchPinName);
+	if (Pin == nullptr)
+	{
+		UE_LOG_DMXBLUEPRINTGRAPH(Error, TEXT("No DMXFixturePatchPin found"));
+		return nullptr;
+	}
 	check(Pin->Direction == EGPD_Output);
 
 	return Pin;
@@ -218,9 +246,9 @@ void UK2Node_GetDMXFixturePatch::NotifyInputChanged()
 	const TArray<UEdGraphPin*>& OutputConnections = GetOutputDMXFixturePatchPin()->LinkedTo;
 	for (const UEdGraphPin* ConnectedPin : OutputConnections)
 	{
-		if (UK2Node_GetDMXActiveModeFunctionValues* ModeFunctionsNode = Cast<UK2Node_GetDMXActiveModeFunctionValues>(ConnectedPin->GetOwningNode()))
+		if (UK2Node_GetDMXAttributeValues* K2Node_GetDMXAttributeValues = Cast<UK2Node_GetDMXAttributeValues>(ConnectedPin->GetOwningNode()))
 		{
-			ModeFunctionsNode->OnFixturePatchChanged();
+			K2Node_GetDMXAttributeValues->OnFixturePatchChanged();
 		}
 	}
 

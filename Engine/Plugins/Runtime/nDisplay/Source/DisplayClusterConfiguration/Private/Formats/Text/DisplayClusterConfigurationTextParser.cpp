@@ -11,6 +11,8 @@
 #include "Misc/DisplayClusterStrings.h"
 #include "DisplayClusterProjectionStrings.h"
 
+#include "DisplayClusterConfigurationLog.h"
+
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 
@@ -26,6 +28,8 @@ UDisplayClusterConfigurationData* FDisplayClusterConfigurationTextParser::LoadDa
 		return nullptr;
 	}
 
+	ConfigFile = FilePath;
+
 	// Convert text based data to generic container
 	return ConvertDataToInternalTypes();
 }
@@ -40,6 +44,10 @@ UDisplayClusterConfigurationData* FDisplayClusterConfigurationTextParser::Conver
 {
 	UDisplayClusterConfigurationData* Config = NewObject<UDisplayClusterConfigurationData>(ConfigDataOwner ? ConfigDataOwner : GetTransientPackage(), NAME_None, RF_MarkAsRootSet);
 	check(Config && Config->Scene && Config->Input && Config->Cluster);
+
+	// Fill metadata
+	Config->Meta.DataSource = EDisplayClusterConfigurationDataSource::Text;
+	Config->Meta.FilePath   = ConfigFile;
 
 	Config->Info.Version     = CfgInfo.Version;
 	Config->Info.Description = FString("nDisplay configuration");
@@ -255,6 +263,29 @@ UDisplayClusterConfigurationData* FDisplayClusterConfigurationTextParser::Conver
 								Extractor(CfgProjection->Params, DisplayClusterProjectionStrings::cfg::manual::AngleR, Projection.Parameters);
 								Extractor(CfgProjection->Params, DisplayClusterProjectionStrings::cfg::manual::AngleT, Projection.Parameters);
 								Extractor(CfgProjection->Params, DisplayClusterProjectionStrings::cfg::manual::AngleB, Projection.Parameters);
+							}
+							else
+							if (Projection.Type.Equals(FString(DisplayClusterProjectionStrings::projection::VIOSO), ESearchCase::IgnoreCase))
+							{
+								auto Extractor = [](const FString& ParamsLine, const FString& Param, TMap<FString, FString>& OutMap)
+								{
+									FString Value;
+									if (DisplayClusterHelpers::str::ExtractValue(ParamsLine, Param, Value))
+									{
+										OutMap.Add(FString(Param), Value);
+									}
+								};
+
+								Extractor(CfgProjection->Params, DisplayClusterProjectionStrings::cfg::VIOSO::Origin, Projection.Parameters);
+
+								Extractor(CfgProjection->Params, DisplayClusterProjectionStrings::cfg::VIOSO::INIFile,      Projection.Parameters);
+								Extractor(CfgProjection->Params, DisplayClusterProjectionStrings::cfg::VIOSO::ChannelName,  Projection.Parameters);
+								
+								Extractor(CfgProjection->Params, DisplayClusterProjectionStrings::cfg::VIOSO::File,         Projection.Parameters);
+								Extractor(CfgProjection->Params, DisplayClusterProjectionStrings::cfg::VIOSO::CalibIndex,   Projection.Parameters);
+								Extractor(CfgProjection->Params, DisplayClusterProjectionStrings::cfg::VIOSO::CalibAdapter, Projection.Parameters);
+								Extractor(CfgProjection->Params, DisplayClusterProjectionStrings::cfg::VIOSO::Gamma,        Projection.Parameters);
+								Extractor(CfgProjection->Params, DisplayClusterProjectionStrings::cfg::VIOSO::BaseMatrix,   Projection.Parameters);
 							}
 							else
 							{

@@ -547,11 +547,35 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		return true;
 	}
 
-	static TMap<DirectLink::FElementHash, UObject*> RegistrationMap;
+	TMap<DirectLink::FElementHash, TStrongObjectPtr<UObject>> FAssetRegistry::RegistrationMap;
+	TMap<uint32, TMap<FSceneGraphId,FAssetData>*> FAssetRegistry::SceneMappings;
 
-	void RegisterAssetData(UObject* Asset, FAssetData* AssetData)
+	union FRegistryKey
+	{
+		uint32 Pair[2];
+		uint64 Value;
+
+		FRegistryKey(uint64 InValue) { Value = InValue; }
+		FRegistryKey(uint32 SceneKey, FSceneGraphId AssetId) { Pair[0] = SceneKey; Pair[1] = AssetId; }
+	};
+
+	void FAssetRegistry::RegisterMapping(uint32 SceneKey, TMap<FSceneGraphId,FAssetData>* AssetsMapping)
+	{
+		SceneMappings.Add(SceneKey, AssetsMapping);
+	}
+
+	void FAssetRegistry::UnregisterMapping(uint32 SceneKey)
+	{
+		ensure(SceneMappings.Contains(SceneKey));
+
+		SceneMappings.Remove(SceneKey);
+	}
+
+	void FAssetRegistry::RegisterAssetData(UObject* Asset, uint32 SceneKey, FAssetData& AssetData)
 	{
 		check(IsInGameThread());
+
+		ensure(SceneMappings.Contains(SceneKey));
 
 		if (IInterface_AssetUserData* AssetUserData = Cast< IInterface_AssetUserData >(Asset))
 		{
@@ -563,40 +587,41 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 				AssetUserData->AddAssetUserData(AuxillaryData);
 			}
 
-			if (AuxillaryData->Referencers.Num() == 0)
+			if (AuxillaryData->Referencers.Num() == 0 && !RegistrationMap.Contains(AssetData.Hash))
 			{
-				RegistrationMap.Add(AssetData->Hash, Asset);
+				RegistrationMap.Emplace(AssetData.Hash, Asset);
 			}
 
-			AuxillaryData->Referencers.Add(AssetData);
+			FRegistryKey RegistryKey(SceneKey, AssetData.ElementId);
+
+			AuxillaryData->Referencers.Add(RegistryKey.Value);
 
 			if (AuxillaryData->bIsCompleted)
 			{
-				AssetData->AddState(EDatasmithRuntimeAssetState::Completed);
+				AssetData.AddState(EAssetState::Completed);
 			}
 			else
 			{
-				AssetData->ClearState(EDatasmithRuntimeAssetState::Completed);
+				AssetData.ClearState(EAssetState::Completed);
 			}
 		}
 	}
 
-	int32 UnregisterAssetData(UObject* Asset, FAssetData* AssetData)
+	int32 FAssetRegistry::UnregisterAssetData(UObject* Asset, uint32 SceneKey, FSceneGraphId AssetId)
 	{
 		check(IsInGameThread());
+
+		ensure(SceneMappings.Contains(SceneKey));
 
 		if (IInterface_AssetUserData* AssetUserData = Cast< IInterface_AssetUserData >(Asset))
 		{
 			if (UDatasmithRuntimeAuxiliaryData* AuxillaryData = AssetUserData->GetAssetUserData<UDatasmithRuntimeAuxiliaryData>())
 			{
-				if (AuxillaryData->Referencers.Contains(AssetData))
-				{
-					AuxillaryData->Referencers.Remove(AssetData);
+				FRegistryKey RegistryKey(SceneKey, AssetId);
 
-					if (AuxillaryData->Referencers.Num() == 0)
-					{
-						RegistrationMap.Remove(AssetData->Hash);
-					}
+				if (AuxillaryData->Referencers.Contains(RegistryKey.Value))
+				{
+					AuxillaryData->Referencers.Remove(RegistryKey.Value);
 
 					return AuxillaryData->Referencers.Num();
 				}
@@ -607,7 +632,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		return -1;
 	}
 
-	void SetObjectCompletion(UObject* Asset, bool bIsCompleted)
+	void FAssetRegistry::SetObjectCompletion(UObject* Asset, bool bIsCompleted)
 	{
 		if (IInterface_AssetUserData* AssetUserData = Cast< IInterface_AssetUserData >(Asset))
 		{
@@ -617,16 +642,28 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 				if (bIsCompleted)
 				{
-					for (FAssetData* AssetData : AuxillaryData->Referencers)
+					for (uint64 ReferencerKey : AuxillaryData->Referencers)
 					{
-						AssetData->AddState(EDatasmithRuntimeAssetState::Completed);
+						const FRegistryKey RegistryKey(ReferencerKey);
+
+						ensure(SceneMappings.Contains(RegistryKey.Pair[0]));
+						TMap<FSceneGraphId, FAssetData>& AssetsMapping = *(SceneMappings[RegistryKey.Pair[0]]);
+
+						ensure(AssetsMapping.Contains(RegistryKey.Pair[1]));
+						AssetsMapping[RegistryKey.Pair[1]].AddState(EAssetState::Completed);
 					}
 				}
 				else
 				{
-					for (FAssetData* AssetData : AuxillaryData->Referencers)
+					for (uint64 ReferencerKey : AuxillaryData->Referencers)
 					{
-						AssetData->ClearState(EDatasmithRuntimeAssetState::Completed);
+						const FRegistryKey RegistryKey(ReferencerKey);
+
+						ensure(SceneMappings.Contains(RegistryKey.Pair[0]));
+						TMap<FSceneGraphId, FAssetData>& AssetsMapping = *(SceneMappings[RegistryKey.Pair[0]]);
+
+						ensure(AssetsMapping.Contains(RegistryKey.Pair[1]));
+						AssetsMapping[RegistryKey.Pair[1]].ClearState(EAssetState::Completed);
 					}
 				}
 
@@ -637,7 +674,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		ensure(false);
 	}
 
-	bool IsObjectCompleted(UObject* Asset)
+	bool FAssetRegistry::IsObjectCompleted(UObject* Asset)
 	{
 		bool bIsCompleted = false;
 
@@ -645,9 +682,15 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		{
 			if (UDatasmithRuntimeAuxiliaryData* AuxillaryData = AssetUserData->GetAssetUserData<UDatasmithRuntimeAuxiliaryData>())
 			{
-				for (FAssetData* AssetData : AuxillaryData->Referencers)
+				for (uint64 ReferencerKey : AuxillaryData->Referencers)
 				{
-					bIsCompleted |= AssetData->HasState(EDatasmithRuntimeAssetState::Completed);
+					const FRegistryKey RegistryKey(ReferencerKey);
+
+					ensure(SceneMappings.Contains(RegistryKey.Pair[0]));
+					TMap<FSceneGraphId, FAssetData>& AssetsMapping = *(SceneMappings[RegistryKey.Pair[0]]);
+
+					ensure(AssetsMapping.Contains(RegistryKey.Pair[1]));
+					bIsCompleted |= AssetsMapping[RegistryKey.Pair[1]].HasState(EAssetState::Completed);
 				}
 
 				return bIsCompleted;
@@ -657,25 +700,88 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		return bIsCompleted;
 	}
 
-	const TSet<FAssetData*>& GetRegisteredAssetData(UObject* Asset)
+	void FAssetRegistry::UnregisteredAssetsData(UObject* Asset, uint32 SceneKey, TFunction<void(FAssetData& AssetData)> UpdateFunc)
 	{
-		static TSet<FAssetData*> EmptySet;
-
 		if (IInterface_AssetUserData* AssetUserData = Cast< IInterface_AssetUserData >(Asset))
 		{
 			if (UDatasmithRuntimeAuxiliaryData* AuxillaryData = AssetUserData->GetAssetUserData<UDatasmithRuntimeAuxiliaryData>())
 			{
-				return AuxillaryData->Referencers;
+				TArray<uint64> ReferencersToDelete;
+
+				for (uint64 ReferencerKey : AuxillaryData->Referencers)
+				{
+					const FRegistryKey RegistryKey(ReferencerKey);
+
+					// If SceneKey is specified, only apply function to assets of that scene
+					if (SceneKey && SceneKey != RegistryKey.Pair[0])
+					{
+						continue;
+					}
+
+					ReferencersToDelete.Add(ReferencerKey);
+
+				}
+
+				for (uint64 ReferencerKey : ReferencersToDelete)
+				{
+					AuxillaryData->Referencers.Remove(ReferencerKey);
+				}
+
+				for (uint64 ReferencerKey : ReferencersToDelete)
+				{
+					const FRegistryKey RegistryKey(ReferencerKey);
+
+					ensure(SceneMappings.Contains(RegistryKey.Pair[0]));
+					TMap<FSceneGraphId, FAssetData>& AssetsMapping = *(SceneMappings[RegistryKey.Pair[0]]);
+
+					ensure(AssetsMapping.Contains(RegistryKey.Pair[1]));
+					UpdateFunc(AssetsMapping[RegistryKey.Pair[1]]);
+				}
+
+				return;
 			}
 		}
 
 		ensure(false);
-		return EmptySet;
 	}
 
-	UObject* FindObjectFromHash(DirectLink::FElementHash ElementHash)
+	UObject* FAssetRegistry::FindObjectFromHash(DirectLink::FElementHash ElementHash)
 	{
-		UObject** AssetPtr = RegistrationMap.Find(ElementHash);
-		return AssetPtr ? *AssetPtr : nullptr;
+		TStrongObjectPtr<UObject>* AssetPtr = RegistrationMap.Find(ElementHash);
+		return AssetPtr ? (*AssetPtr).Get() : nullptr;
 	}
+
+	bool FAssetRegistry::CleanUp()
+	{
+		TArray<DirectLink::FElementHash> EntriesToDelete;
+		EntriesToDelete.Reserve(RegistrationMap.Num());
+
+		for (TPair<DirectLink::FElementHash, TStrongObjectPtr<UObject>>& Entry : RegistrationMap)
+		{
+			if (IInterface_AssetUserData* AssetUserData = Cast< IInterface_AssetUserData >(Entry.Value.Get()))
+			{
+				if (UDatasmithRuntimeAuxiliaryData* AuxillaryData = AssetUserData->GetAssetUserData<UDatasmithRuntimeAuxiliaryData>())
+				{
+					if (AuxillaryData->Referencers.Num() == 0)
+					{
+						Entry.Value->ClearFlags(RF_Public);
+						Entry.Value->SetFlags(RF_Transient);
+						Entry.Value->Rename(nullptr, nullptr, REN_NonTransactional | REN_DontCreateRedirectors | REN_ForceNoResetLoaders);
+						Entry.Value->MarkPendingKill();
+						Entry.Value.Reset();
+
+						EntriesToDelete.Add(Entry.Key);
+					}
+				}
+			}
+		}
+
+		for (DirectLink::FElementHash ElementHash : EntriesToDelete)
+		{
+			RegistrationMap.Remove(ElementHash);
+		}
+
+		return EntriesToDelete.Num() > 0;
+	}
+
 } // End of namespace DatasmithRuntime

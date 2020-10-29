@@ -565,6 +565,9 @@ HRESULT DoRewriteUnused(_In_ DxcLangExtensionsHelper *pHelper,
 
   hlsl::options::DxcOpts opts;
   opts.HLSLVersion = 2015;
+  // UE Change Begin: Enable Vulkan specific features in rewriter.
+  opts.GenSPIRV = true;
+  // UE Change End: Enable Vulkan specific features in rewriter.
 
   SetupCompilerForRewrite(compiler, pHelper, pFileName, diagPrinter.get(), pRemap, opts, pDefines);
 
@@ -820,6 +823,9 @@ public:
 
       hlsl::options::DxcOpts opts;
       opts.HLSLVersion = 2015;
+      // UE Change Begin: Enable Vulkan specific features in rewriter.
+      opts.GenSPIRV = true;
+      // UE Change End: Enable Vulkan specific features in rewriter.
 
       std::string errors;
       std::string rewrite;

@@ -2054,7 +2054,7 @@ bool UStaticMeshComponent::HasLightmapTextureCoordinates() const
 	if (Mesh != nullptr &&
 		Mesh->GetLightMapCoordinateIndex() >= 0 &&
 		Mesh->GetRenderData() != nullptr &&
-		Mesh->GetRenderData()->LODResources.Num())
+		Mesh->GetRenderData()->LODResources.Num() > 0)
 	{
 		int32 MeshMinLOD = Mesh->GetMinLOD().GetValue();
 		MeshMinLOD = FMath::Min(MeshMinLOD,  Mesh->GetRenderData()->LODResources.Num() - 1);

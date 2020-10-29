@@ -1193,7 +1193,7 @@ TSharedRef<SWidget> SCurveEditorPanel::MakeTimeSnapMenu()
 		.PresetValues({
 		// We re-use the common frame rates but omit some of them.
 		FCommonFrameRateInfo{ FCommonFrameRates::FPS_12(),	LOCTEXT("Snap_Input_Twelve", "82ms (1/12s)"), LOCTEXT("Snap_Input_Description_Twelve", "Snap time values to one twelfth of a second (ie: 12fps)") },
-		FCommonFrameRateInfo{ FCommonFrameRates::FPS_15(),	LOCTEXT("Snap_Input_Fifteen", "66s (1/15s)"), LOCTEXT("Snap_Input_Description_Fifteen", "Snap time values to one fifteenth of a second (ie: 15fps)") },
+		FCommonFrameRateInfo{ FCommonFrameRates::FPS_15(),	LOCTEXT("Snap_Input_Fifteen", "66ms (1/15s)"), LOCTEXT("Snap_Input_Description_Fifteen", "Snap time values to one fifteenth of a second (ie: 15fps)") },
 		FCommonFrameRateInfo{ FCommonFrameRates::FPS_24(),	LOCTEXT("Snap_Input_TwentyFour", "42ms (1/24s)"), LOCTEXT("Snap_Input_Description_TwentyFour", "Snap time values to one twenty-fourth of a second (ie: 24fps)") },
 		FCommonFrameRateInfo{ FCommonFrameRates::FPS_25(),	LOCTEXT("Snap_Input_TwentyFive", "40ms (1/25s)"), LOCTEXT("Snap_Input_Description_TwentyFive", "Snap time values to one twenty-fifth of a second (ie: 25fps)") },
 		FCommonFrameRateInfo{ FCommonFrameRates::FPS_30(),	LOCTEXT("Snap_Input_Thirty", "33ms (1/30s)"), LOCTEXT("Snap_Input_Description_Thirty", "Snap time values to one thirtieth of a second (ie: 30fps)") },

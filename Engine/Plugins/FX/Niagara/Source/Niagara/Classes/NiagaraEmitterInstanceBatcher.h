@@ -66,7 +66,7 @@ public:
 
 	virtual void DrawDebug(FCanvas* Canvas) override {}
 	virtual bool ShouldDebugDraw_RenderThread() const override;
-	virtual void DrawDebug_RenderThread(FRHICommandListImmediate& RHICmdList, FCanvas* Canvas) override;
+	virtual void DrawDebug_RenderThread(class FRDGBuilder& GraphBuilder, const class FViewInfo& View, const struct FScreenPassRenderTarget& Output) override;
 	virtual void AddVectorField(UVectorFieldComponent* VectorFieldComponent) override {}
 	virtual void RemoveVectorField(UVectorFieldComponent* VectorFieldComponent) override {}
 	virtual void UpdateVectorField(UVectorFieldComponent* VectorFieldComponent) override {}
@@ -118,7 +118,7 @@ public:
 				bool bCopyBeforeStart = false,
 				uint32 DefaultSimulationStageIndex = 0,
 				uint32 SimulationStageIndex = 0,
-				FNiagaraDataInterfaceProxy *IterationInterface = nullptr,
+				FNiagaraDataInterfaceProxyRW* IterationInterface = nullptr,
 				bool HasRunParticleStage = false
 			);
 
@@ -131,7 +131,7 @@ public:
 	bool ResetDataInterfaces(const FNiagaraGPUSystemTick& Tick, FNiagaraComputeInstanceData *Instance, FRHICommandList& RHICmdList, const FNiagaraShaderScript* ShaderScript) const;
 
 	/** Given a shader stage index, find the corresponding data interface */
-	FNiagaraDataInterfaceProxy* FindIterationInterface(FNiagaraComputeInstanceData* Instance, const uint32 SimulationStageIndex) const;
+	FNiagaraDataInterfaceProxyRW* FindIterationInterface(FNiagaraComputeInstanceData* Instance, const uint32 SimulationStageIndex) const;
 
 	/** Loop over all the data interfaces and call the prestage methods */
 	void PreStageInterface(const FNiagaraGPUSystemTick& Tick, FNiagaraComputeInstanceData *Instance, FRHICommandList& RHICmdList, const uint32 SimulationStageIndex) const;

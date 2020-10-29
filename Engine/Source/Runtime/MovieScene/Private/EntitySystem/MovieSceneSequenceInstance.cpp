@@ -28,6 +28,7 @@ DECLARE_CYCLE_STAT(TEXT("[External] Sequence Instance Post-Update"), MovieSceneE
 
 FSequenceInstance::FSequenceInstance(UMovieSceneEntitySystemLinker* Linker, IMovieScenePlayer* Player, FInstanceHandle InInstanceHandle)
 	: SequenceID(MovieSceneSequenceID::Root)
+	, RootOverrideSequenceID(MovieSceneSequenceID::Root)
 	, PlayerIndex(Player->GetUniqueIndex())
 	, InstanceHandle(InInstanceHandle)
 	, RootInstanceHandle(InstanceHandle)
@@ -46,6 +47,7 @@ FSequenceInstance::FSequenceInstance(UMovieSceneEntitySystemLinker* Linker, IMov
 FSequenceInstance::FSequenceInstance(UMovieSceneEntitySystemLinker* Linker, IMovieScenePlayer* Player, FInstanceHandle InInstanceHandle, FInstanceHandle InRootInstanceHandle, FMovieSceneSequenceID InSequenceID, FMovieSceneCompiledDataID InCompiledDataID)
 	: CompiledDataID(InCompiledDataID)
 	, SequenceID(InSequenceID)
+	, RootOverrideSequenceID(MovieSceneSequenceID::Invalid)
 	, PlayerIndex(Player->GetUniqueIndex())
 	, InstanceHandle(InInstanceHandle)
 	, RootInstanceHandle(InRootInstanceHandle)
@@ -242,8 +244,7 @@ void FSequenceInstance::PostEvaluation(UMovieSceneEntitySystemLinker* Linker)
 			}
 			else
 			{
-				// @todo: override root ID
-				LegacyEvaluator->Evaluate(Context, *Player);
+				LegacyEvaluator->Evaluate(Context, *Player, RootOverrideSequenceID);
 			}
 		}
 	}
@@ -274,6 +275,16 @@ void FSequenceInstance::DestroyImmediately(UMovieSceneEntitySystemLinker* Linker
 	{
 		SequenceUpdater->Destroy(Linker);
 	}
+}
+
+void FSequenceInstance::OverrideRootSequence(UMovieSceneEntitySystemLinker* Linker, FMovieSceneSequenceID NewRootSequenceID)
+{
+	if (SequenceUpdater)
+	{
+		SequenceUpdater->OverrideRootSequence(Linker, InstanceHandle, NewRootSequenceID);
+	}
+
+	RootOverrideSequenceID = NewRootSequenceID;
 }
 
 FInstanceHandle FSequenceInstance::FindSubInstance(FMovieSceneSequenceID SubSequenceID) const

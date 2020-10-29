@@ -387,6 +387,18 @@ static FAutoConsoleVariableRef GSupressWarningsInOnScreenDisplayCVar(
 	ECVF_Default
 );
 
+// Should we TrimMemory in the middle of LoadMap - this can reduce memory spike during startup at the expense of load time 
+// if some objects need to be reloaded due to a GC happening partway through
+int32 GDelayTrimMemoryDuringMapLoadMode = 0;
+static FAutoConsoleVariableRef GDelayTrimMemoryDuringMapLoadModeCVar(
+	TEXT("Engine.DelayTrimMemoryDuringMapLoadMode"),
+	GDelayTrimMemoryDuringMapLoadMode,
+	TEXT("0: TrimMemory during LoadMap as normal\n")
+	TEXT("1: Delay TrimMemory until the end of LoadMap (initial boot up)\n")
+	TEXT("2: Delay TrimMemory in _every_ LoadMap call"),
+	ECVF_Default
+);
+
 /** Whether texture memory has been corrupted because we ran out of memory in the pool. */
 bool GIsTextureMemoryCorrupted = false;
 
@@ -1267,6 +1279,21 @@ static FAutoConsoleVariableRef CVarLowMemoryThresholdMB(
 	ECVF_Default
 );
 
+static float GLowMemoryIncrementalGCTimePerFrame = 0.002f; // 2ms
+static FAutoConsoleVariableRef CVarLowMemoryIncrementalGCTimePerFrame(
+	TEXT("gc.LowMemory.IncrementalGCTimePerFrame"),
+	GLowMemoryIncrementalGCTimePerFrame,
+	TEXT("How much time is allowed for incremental GC each frame in seconds if memory is low"),
+	ECVF_Default
+);
+
+static float GIncrementalGCTimePerFrame = 0.002f; // 2ms
+static FAutoConsoleVariableRef CVarIncrementalGCTimePerFrame(
+	TEXT("gc.IncrementalGCTimePerFrame"),
+	GIncrementalGCTimePerFrame,
+	TEXT("How much time is allowed for incremental GC each frame in seconds"),
+	ECVF_Default
+);
 
 void UEngine::PreGarbageCollect()
 {
@@ -1405,7 +1432,19 @@ void UEngine::ConditionalCollectGarbage()
 					else
 					{
 						SCOPE_CYCLE_COUNTER(STAT_GCSweepTime);
-						IncrementalPurgeGarbage(true);
+						float IncGCTime = GIncrementalGCTimePerFrame;
+						if (GLowMemoryMemoryThresholdMB > 0.0)
+						{
+							float MBFree = float(FPlatformMemory::GetStats().AvailablePhysical / 1024 / 1024);
+#if !UE_BUILD_SHIPPING
+							MBFree -= float(FPlatformMemory::GetExtraDevelopmentMemorySize() / 1024 / 1024);
+#endif
+							if (MBFree <= GLowMemoryMemoryThresholdMB && GLowMemoryIncrementalGCTimePerFrame > GIncrementalGCTimePerFrame)
+							{
+								IncGCTime = GLowMemoryIncrementalGCTimePerFrame;
+							}
+						}
+						IncrementalPurgeGarbage(true, IncGCTime);
 					}
 				}
 			}
@@ -2234,7 +2273,7 @@ void UEngine::UpdateTimeAndHandleMaxTickRate()
 			UE_LOG(LogEngine, Warning, TEXT("Detected negative delta time - ignoring"));
 #else
 			// AMD dual-core systems are a known issue that require AMD CPU drivers to be installed. Installer will take care of this for shipping.
-			UE_LOG(LogEngine, Fatal, TEXT("Detected negative delta time - on AMD systems please install http://files.aoaforums.com/I3199-setup.zip.html"));
+			UE_LOG(LogEngine, Warning, TEXT("Detected negative delta time - on AMD systems please install http://files.aoaforums.com/I3199-setup.zip.html"));
 #endif
 			FApp::SetDeltaTime(0.01);
 		}
@@ -3030,11 +3069,10 @@ FAudioDeviceHandle UEngine::GetActiveAudioDevice()
 void UEngine::InitializeAudioDeviceManager()
 {
 	FAudioDeviceManager::Initialize();
-
 	AudioDeviceManager = FAudioDeviceManager::Get();
-
 	if (AudioDeviceManager)
 	{
+		AudioDeviceManager->CreateMainAudioDevice();
 		MainAudioDeviceHandle = AudioDeviceManager->GetMainAudioDeviceHandle();
 	}
 }
@@ -12818,7 +12856,10 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 	}
 
 	// trim memory to clear up allocations from the previous level (also flushes rendering)
-	TrimMemory();
+	if (GDelayTrimMemoryDuringMapLoadMode == 0)
+	{
+		TrimMemory();
+	}
 
 	// Cancels the Forced StreamType for textures using a timer.
 	if (!IStreamingManager::HasShutdown())
@@ -12833,9 +12874,12 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 	}
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-	// Dump info
-
-	VerifyLoadMapWorldCleanup();
+	// if we aren't trimming memory above, then the world won't be fully cleaned up at this point, so don't bother checking
+	if (GDelayTrimMemoryDuringMapLoadMode == 0)
+	{
+		// Dump info
+		VerifyLoadMapWorldCleanup();
+	}
 
 #endif
 
@@ -13177,6 +13221,18 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 	UE_LOG(LogLoad, Log, TEXT("Took %f seconds to LoadMap(%s)"), StopTime - StartTime, *URL.Map);
 	FLoadTimeTracker::Get().DumpRawLoadTimes();
 	WorldContext.OwningGameInstance->LoadComplete(StopTime - StartTime, *URL.Map);
+
+	// perform the delayed TrimMemory if desired
+	if (GDelayTrimMemoryDuringMapLoadMode != 0)
+	{
+		TrimMemory();
+
+		if (GDelayTrimMemoryDuringMapLoadMode == 1)
+		{
+			// all future map loads should be normal
+			GDelayTrimMemoryDuringMapLoadMode = 0;
+		}
+	}
 
 	// Successfully started local level.
 	return true;

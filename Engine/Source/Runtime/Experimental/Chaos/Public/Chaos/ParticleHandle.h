@@ -17,6 +17,8 @@ class IPhysicsProxyBase;
 
 namespace Chaos
 {
+	class FConstraintHandle;
+
 template <typename T, int d>
 struct TGeometryParticleParameters
 {
@@ -51,7 +53,6 @@ void GeometryParticleDefaultConstruct(FConcrete& Concrete, const TGeometryPartic
 	Concrete.SetX(TVector<T, d>(0));
 	Concrete.SetR(TRotation<T, d>::Identity);
 	Concrete.SetSpatialIdx(FSpatialAccelerationIdx{ 0,0 });
-	Concrete.SetUserData(nullptr);
 }
 
 template <typename T, int d, typename FConcrete>
@@ -420,9 +421,6 @@ public:
 	FUniqueIdx UniqueIdx() const { return GeometryParticles->UniqueIdx(ParticleIdx); }
 	void SetUniqueIdx(const FUniqueIdx UniqueIdx) const { GeometryParticles->UniqueIdx(ParticleIdx) = UniqueIdx; }
 
-	void* UserData() const { return GeometryParticles->UserData(ParticleIdx); }
-	void SetUserData(void* InUserData) { GeometryParticles->UserData(ParticleIdx) = InUserData; }
-
 	const TRotation<T, d>& R() const { return GeometryParticles->R(ParticleIdx); }
 	TRotation<T, d>& R() { return GeometryParticles->R(ParticleIdx); }
 	void SetR(const TRotation<T, d>& InR) { GeometryParticles->R(ParticleIdx) = InR; }
@@ -436,7 +434,6 @@ public:
 	void SetNonFrequentData(const FParticleNonFrequentData& InData)
 	{
 		SetSharedGeometry(InData.Geometry());
-		SetUserData(InData.UserData());
 		SetUniqueIdx(InData.UniqueIdx());
 		SetSpatialIdx(InData.SpatialIdx());
 
@@ -560,6 +557,21 @@ public:
 	FWeakParticleHandle& WeakParticleHandle()
 	{
 		return GeometryParticles->WeakParticleHandle(ParticleIdx);
+	}
+
+	TArray<FConstraintHandle*>& ParticleConstraints()
+	{
+		return GeometryParticles->ParticleConstraints(ParticleIdx);
+	}
+
+	void AddConstraintHandle(FConstraintHandle* InConstraintHandle )
+	{
+		return GeometryParticles->AddConstraintHandle(ParticleIdx, InConstraintHandle);
+	}
+
+	void RemoveConstraintHandle(FConstraintHandle* InConstraintHandle)
+	{
+		return GeometryParticles->RemoveConstraintHandle(ParticleIdx, InConstraintHandle);
 	}
 
 protected:
@@ -1565,6 +1577,7 @@ protected:
 	{
 		Type = EParticleType::Static;
 		Proxy = nullptr;
+		MUserData = nullptr;
 		GeometryParticleDefaultConstruct<T, d>(*this, StaticParams);
 	}
 
@@ -1653,10 +1666,10 @@ public:
 
 	const TSharedPtr<FImplicitObject,ESPMode::ThreadSafe>& SharedGeometryLowLevel() const { return MNonFrequentData.Read().Geometry(); }
 
-	void* UserData() const { return MNonFrequentData.Read().UserData(); }
+	void* UserData() const { return MUserData; }
 	void SetUserData(void* InUserData)
 	{
-		MNonFrequentData.Modify(true,MDirtyFlags,Proxy,[InUserData](auto& Data){ Data.SetUserData(InUserData);});
+		MUserData = InUserData;
 	}
 
 	void UpdateShapeBounds()
@@ -1862,6 +1875,7 @@ private:
 
 	TParticleProperty<FParticlePositionRotation, EParticleProperty::XR> MXR;
 	TParticleProperty<FParticleNonFrequentData,EParticleProperty::NonFrequentData> MNonFrequentData;
+	void* MUserData;
 
 	FShapesArray MShapesArray;
 	TMap<const FImplicitObject*, int32> ImplicitShapeMap;

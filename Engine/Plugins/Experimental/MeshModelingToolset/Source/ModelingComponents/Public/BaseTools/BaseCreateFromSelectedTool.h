@@ -198,6 +198,10 @@ protected:
 	UPROPERTY()
 	TArray<UTransformGizmo*> TransformGizmos;
 
+	UPROPERTY()
+	TArray<FVector> TransformInitialScales;
+
+
 	UWorld* TargetWorld = nullptr;
 	IAssetGenerationAPI* AssetAPI = nullptr;
 

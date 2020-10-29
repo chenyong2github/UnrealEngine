@@ -496,6 +496,27 @@ TArray<FMediaSoundComponentSpectralData> UMediaSoundComponent::GetSpectralData()
 			Data.Magnitude = SpectrumAnalyzer.GetMagnitudeForFrequency(Frequency);
 			SpectralData.Add(Data);
 		}
+
+		return SpectralData;
+	}
+	// Empty array if spectrum analysis is not implemented
+	return TArray<FMediaSoundComponentSpectralData>();
+}
+
+TArray<FMediaSoundComponentSpectralData> UMediaSoundComponent::GetNormalizedSpectralData()
+{
+	if (bSpectralAnalysisEnabled)
+	{
+		TArray<FMediaSoundComponentSpectralData> SpectralData;
+		SpectrumAnalyzer.LockOutputBuffer();
+
+		for (float Frequency : FrequenciesToAnalyze)
+		{
+			FMediaSoundComponentSpectralData Data;
+			Data.FrequencyHz = Frequency;
+			Data.Magnitude = SpectrumAnalyzer.GetNormalizedMagnitudeForFrequency(Frequency);
+			SpectralData.Add(Data);
+		}
 		SpectrumAnalyzer.UnlockOutputBuffer();
 
 		return SpectralData;
