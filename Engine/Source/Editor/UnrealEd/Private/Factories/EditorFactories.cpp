@@ -3397,9 +3397,8 @@ bool UTextureFactory::ImportImage(const uint8* Buffer, uint32 Length, FFeedbackC
 			}
 			else if (BitDepth == 16)
 			{
-				// TODO: TSF_G16?
-				TextureFormat = TSF_RGBA16;
-				Format = ERGBFormat::RGBA;
+				TextureFormat = TSF_G16;
+				Format = ERGBFormat::Gray;
 				BitDepth = 16;
 			}
 		}
