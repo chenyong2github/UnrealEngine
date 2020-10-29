@@ -172,6 +172,11 @@ namespace UnrealBuildTool
 		public bool bBuildLocallyWithSNDBS = false;
 
 		/// <summary>
+		/// Whether to retain frame pointers
+		/// </summary>
+		public bool bRetainFramePointers = false;
+
+		/// <summary>
 		/// Enable exception handling
 		/// </summary>
 		public bool bEnableExceptions = false;
@@ -403,6 +408,7 @@ namespace UnrealBuildTool
 			MinSourceFilesForUnityBuildOverride = Other.MinSourceFilesForUnityBuildOverride;
 			MinFilesUsingPrecompiledHeaderOverride = Other.MinFilesUsingPrecompiledHeaderOverride;
 			bBuildLocallyWithSNDBS = Other.bBuildLocallyWithSNDBS;
+			bRetainFramePointers = Other.bRetainFramePointers;
 			bEnableExceptions = Other.bEnableExceptions;
 			bEnableObjCExceptions = Other.bEnableObjCExceptions;
 			ShadowVariableWarningLevel = Other.ShadowVariableWarningLevel;
