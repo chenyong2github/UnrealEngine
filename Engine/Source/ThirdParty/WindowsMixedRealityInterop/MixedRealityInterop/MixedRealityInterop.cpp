@@ -1498,6 +1498,11 @@ namespace WindowsMixedReality
 
 	void MixedRealityInterop::ResetOrientationAndPosition()
 	{
+		if (Locator == nullptr)
+		{
+			return;
+		}
+
 		StationaryReferenceFrame = Locator.CreateStationaryFrameOfReferenceAtCurrentLocation();
 
 		if (isSpatialStageSupported)
