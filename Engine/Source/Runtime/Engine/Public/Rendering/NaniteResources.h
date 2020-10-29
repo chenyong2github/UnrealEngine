@@ -428,6 +428,8 @@ public:
 	virtual const FCardRepresentationData* GetMeshCardRepresentation() const override;
 
 protected:
+	virtual void CreateRenderThreadResources() override;
+
 	class FMeshInfo : public FLightCacheInterface
 	{
 	public:

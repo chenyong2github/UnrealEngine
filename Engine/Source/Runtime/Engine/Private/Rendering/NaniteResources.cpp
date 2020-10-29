@@ -364,8 +364,6 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 	Instance.WorldToLocal.SetIdentity();
 	Instance.RenderBounds = Component->GetStaticMesh()->GetBounds();
 	Instance.LocalBounds = Instance.RenderBounds;
-	Instance.NaniteInfo.HierarchyOffset = Resources->HierarchyOffset;
-	Instance.NaniteInfo.RuntimeResourceID = Resources->RuntimeResourceID;
 }
 
 FSceneProxy::FSceneProxy(UInstancedStaticMeshComponent* Component)
@@ -387,14 +385,25 @@ FSceneProxy::FSceneProxy(UInstancedStaticMeshComponent* Component)
 		Instance.WorldToLocal = Instance.LocalToInstance;
 		Instance.RenderBounds = Component->GetStaticMesh()->GetBounds();
 		Instance.LocalBounds = Instance.RenderBounds.TransformBy(Instance.InstanceToLocal);
-		Instance.NaniteInfo.HierarchyOffset = Resources->HierarchyOffset;
-		Instance.NaniteInfo.RuntimeResourceID = Resources->RuntimeResourceID;
 	}
 }
 
 FSceneProxy::FSceneProxy(UHierarchicalInstancedStaticMeshComponent* Component)
 : FSceneProxy(static_cast<UInstancedStaticMeshComponent*>(Component))
 {
+}
+
+void FSceneProxy::CreateRenderThreadResources()
+{
+	// These couldn't be copied on the game-thread because they are initialized
+	// by the StreamingManager on the render thread. Initialize them now.
+	check(Resources->RuntimeResourceID != 0xFFFFFFFFu);
+	check(Resources->HierarchyOffset != -1);
+	for (int32 InstanceIndex = 0; InstanceIndex < Instances.Num(); ++InstanceIndex)
+	{
+		Instances[InstanceIndex].NaniteInfo.HierarchyOffset = Resources->HierarchyOffset;
+		Instances[InstanceIndex].NaniteInfo.RuntimeResourceID = Resources->RuntimeResourceID;
+	}
 }
 
 FPrimitiveViewRelevance FSceneProxy::GetViewRelevance( const FSceneView* View ) const
