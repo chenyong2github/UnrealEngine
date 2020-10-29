@@ -349,6 +349,7 @@ void FWinHttpWebSocket::GameThreadTick()
 {
 	if (WebSocket.IsValid())
 	{
+		WebSocket->PumpStates();
 		WebSocket->PumpMessages();
 		// WebSocket may be invalid here
 	}
