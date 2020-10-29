@@ -183,6 +183,14 @@ namespace ChaosTest
 		FImplicitBox3 Box(FVec3(-50, -50, -50), FVec3(50, 50, 50), 0.0f);
 
 		TestConvexStructureDataImpl(Box);
+
+		// Make sure all planes are at the correct distance
+		for (int32 PlaneIndex = 0; PlaneIndex < Box.NumPlanes(); ++PlaneIndex)
+		{
+			// All vertices should be on the plane
+			const TPlaneConcrete<FReal, 3> Plane = Box.GetPlane(PlaneIndex);
+			EXPECT_NEAR(FVec3::DotProduct(Plane.X(), Plane.Normal()), 50.0f, KINDA_SMALL_NUMBER);
+		}
 	}
 
 }

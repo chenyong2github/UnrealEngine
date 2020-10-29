@@ -237,7 +237,7 @@ namespace Chaos
 		const TPlaneConcrete<FReal, 3> GetPlane(int32 FaceIndex) const
 		{
 			const FVec3& PlaneN = SNormals[FaceIndex];
-			const FVec3 PlaneX = AABB.Center() + PlaneN * AABB.Extents();
+			const FVec3 PlaneX = AABB.Center() + 0.5f * (PlaneN * AABB.Extents());
 			return TPlaneConcrete<FReal, 3>(PlaneX, PlaneN);
 		}
 
@@ -245,7 +245,7 @@ namespace Chaos
 		const FVec3 GetVertex(int32 VertexIndex) const
 		{
 			const FVec3& Vertex = SVertices[VertexIndex];
-			return AABB.Center() + Vertex * AABB.Extents();
+			return AABB.Center() + 0.5f * (Vertex * AABB.Extents());
 		}
 
 		// Returns a position on the outer shape including the margin
