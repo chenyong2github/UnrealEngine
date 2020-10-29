@@ -2,6 +2,7 @@
 
 #include "ARUtilitiesFunctionLibrary.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "Engine/Texture.h"
 
 
 FVector2D UARUtilitiesFunctionLibrary::GetUVOffset(const FVector2D& ViewSize, const FVector2D& TextureSize)
