@@ -14,7 +14,7 @@ FAutoConsoleVariableRef CVarChaosVelocityFieldISPCEnabled(TEXT("p.Chaos.Velocity
 using namespace Chaos;
 
 template<class T, int d>
-void TVelocityField<T, d>::UpdateForces(const TPBDParticles<T, d>& InParticles, const T /*Dt*/) const
+void TVelocityField<T, d>::UpdateForces(const TPBDParticles<T, d>& InParticles, const T /*Dt*/)
 {
 	if (!GetVelocity)
 	{
@@ -41,7 +41,7 @@ void TVelocityField<T, d>::UpdateForces(const TPBDParticles<T, d>& InParticles, 
 }
 
 template<>
-void TVelocityField<float, 3>::UpdateForces(const TPBDParticles<float, 3>& InParticles, const float /*Dt*/) const
+void TVelocityField<float, 3>::UpdateForces(const TPBDParticles<float, 3>& InParticles, const float /*Dt*/)
 {
 	if (!GetVelocity)
 	{
