@@ -34,6 +34,7 @@ class SAssetTileView;
 class SComboButton;
 class UFactory;
 struct FPropertyChangedEvent;
+struct FToolMenuContext;
 
 /** Fires whenever the asset view is asked to start to create a temporary item */
 DECLARE_DELEGATE_OneParam(FOnAssetViewNewItemRequested, const FContentBrowserItem& /*NewItem*/);
