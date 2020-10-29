@@ -8,6 +8,7 @@
 #include "Packets/DMXProtocolE131PDUPacket.h"
 
 #include "Async/AsyncWork.h"
+#include "Async/TaskGraphInterfaces.h"
 #include "Misc/ScopeLock.h"
 #include "Templates/SharedPointer.h"
 
@@ -47,8 +48,7 @@ void FDMXProtocolSACNReceivingRunnable::ClearBuffers()
 
 	TSharedPtr<FDMXProtocolSACNReceivingRunnable, ESPMode::ThreadSafe> ThisSP = SharedThis(this);
 
-	constexpr ENamedThreads::Type GameThread = ENamedThreads::GameThread;
-	AsyncTask(GameThread, [ThisSP]() {
+	AsyncTask(ENamedThreads::GameThread, [ThisSP]() {
 		ThisSP->GameThreadOnlyBuffer.Reset();
 	});
 }
@@ -142,8 +142,7 @@ void FDMXProtocolSACNReceivingRunnable::Update()
 	// Let the game thread capture This
 	TSharedPtr<FDMXProtocolSACNReceivingRunnable, ESPMode::ThreadSafe> ThisSP = SharedThis(this);
 
-	constexpr ENamedThreads::Type GameThread = ENamedThreads::GameThread;
-	AsyncTask(GameThread, [ThisSP]() {
+	AsyncTask(ENamedThreads::GameThread, [ThisSP]() {
 		// Drop frames if they're more than one frame behind the current frame (2 frames)
 		FFrameRate FrameRate = FFrameRate(1.0f, ThisSP->ReceivingRefreshRate);
 		double TolerableFrameTimeSeconds = FApp::GetTimecode().ToTimespan(FrameRate).GetTotalSeconds() + FrameRate.AsDecimal() * 2.0f;
