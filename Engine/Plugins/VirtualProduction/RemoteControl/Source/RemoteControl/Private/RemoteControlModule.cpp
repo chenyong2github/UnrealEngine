@@ -352,7 +352,7 @@ public:
 	virtual bool SetObjectProperties(const FRCObjectReference& ObjectAccess, IStructDeserializerBackend& Backend) override
 	{
 		//Setting object properties require a property and can't be done at the object level. Property must be valid to move forward
-		if (ObjectAccess.IsValid() 
+		if (ObjectAccess.IsValid()
 			&& (ObjectAccess.Access == ERCAccess::WRITE_ACCESS || ObjectAccess.Access == ERCAccess::WRITE_TRANSACTION_ACCESS)
 			&& ObjectAccess.Property.IsValid()
 			&& ObjectAccess.PropertyPathInfo.IsResolved())
@@ -366,8 +366,6 @@ public:
 
 			if (bGenerateTransaction)
 			{
-				Object->Modify();
-
 				FEditPropertyChain PreEditChain;
 				ObjectAccess.PropertyPathInfo.ToEditPropertyChain(PreEditChain);
 				Object->PreEditChange(PreEditChain);
@@ -428,12 +426,19 @@ public:
 			FScopedTransaction Transaction(LOCTEXT("RemoteResetPropertyTransaction", "Remote Reset Object Property"), bGenerateTransaction);
 			if (bGenerateTransaction)
 			{
-				Object->Modify();
-				Object->PreEditChange(ObjectAccess.Property.Get());
+				FEditPropertyChain PreEditChain;
+				ObjectAccess.PropertyPathInfo.ToEditPropertyChain(PreEditChain);
+				Object->PreEditChange(PreEditChain);
 			}
 #endif
-					
-			ObjectAccess.Property->InitializeValue(ObjectAccess.Property->template ContainerPtrToValuePtr<void>(ObjectAccess.ContainerAdress));
+
+			// Copy the value from the field on the CDO.
+			FRCFieldPathInfo FieldPathInfo = ObjectAccess.PropertyPathInfo;
+			void* TargetAddress = FieldPathInfo.GetResolvedData().ContainerAddress;
+			UObject* DefaultObject = Object->GetClass()->GetDefaultObject();
+			FieldPathInfo.Resolve(DefaultObject);
+			FRCFieldResolvedData DefaultObjectResolvedData = FieldPathInfo.GetResolvedData();
+			ObjectAccess.Property->CopyCompleteValue_InContainer(TargetAddress, DefaultObjectResolvedData.ContainerAddress);
 
 			// if we are generating a transaction, also generate post edit property event, event if the change ended up unsuccessful
 			// this is to match the pre edit change call that can unregister components for example
