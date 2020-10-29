@@ -7,6 +7,13 @@
 #include "Concepts/GetTypeHashable.h"
 #include "Containers/UnrealString.h"
 
+/**
+ * Class for computing a hash of multiple types, going through GetTypeHash when the type implements it, and
+ * fallbacks to CRC32 when the type doesn't.
+ *
+ * Note: this hash builder should be used for transient hashes, as some types implements run-dependent hash
+ * computations, such as GetTypeHash(FName).
+ */
 class FHashBuilder
 {
 public:

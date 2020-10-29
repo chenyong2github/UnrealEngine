@@ -10,7 +10,6 @@
 #include "WorldPartition/WorldPartitionLevelStreamingPolicy.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
-#include "WorldPartition/DataLayer/DataLayerHelper.h"
 #include "Algo/Accumulate.h"
 #include "Algo/Transform.h"
 #include "Algo/RemoveIf.h"
