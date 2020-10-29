@@ -262,6 +262,7 @@ public:
 		ensureMsgf((IsInstanced(MObject->GetType()) == false), TEXT("Scaled objects should not contain instances."));
 		this->bIsConvex = Other.MObject->IsConvex();
 		this->bDoCollide = Other.MObject->GetDoCollide();
+		SetMargin(Other.GetMargin());
 	}
 	~TImplicitObjectScaled() {}
 
