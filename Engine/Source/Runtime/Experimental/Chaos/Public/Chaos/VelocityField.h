@@ -15,7 +15,9 @@ namespace Chaos
 		// Construct an uninitialized field. Mesh, properties, and velocity will have to be set for this field to be valid.
 		TVelocityField()
 			: Range(-1)
-		{}
+		{
+			SetCoefficients((T)0., (T)0.);
+		}
 
 		// Construct a uniform field.
 		TVelocityField(
@@ -54,11 +56,11 @@ namespace Chaos
 
 		virtual ~TVelocityField() {}
 
-		void UpdateForces(const TPBDParticles<T, d>& InParticles, const T /*Dt*/) const;
+		void UpdateForces(const TPBDParticles<T, d>& InParticles, const T /*Dt*/);
 
 		inline void Apply(TPBDParticles<T, d>& InParticles, const T Dt, const int32 Index) const
 		{
-			check(Index >= Range[0] && Index <= Range[1]);  // The index should always match the original triangle mesh range
+			checkSlow(Index >= Range[0] && Index <= Range[1]);  // The index should always match the original triangle mesh range
 
 			const TArray<int32>& ElementIndices = PointToTriangleMap[Index];
 			for (const int32 ElementIndex : ElementIndices)
@@ -76,6 +78,11 @@ namespace Chaos
 		{
 			Cd = InDragCoefficient;
 			Cl = InLiftCoefficient;
+		}
+
+		bool IsActive() const
+		{
+			return Cd > (T)0. || Cl > (T)0.;
 		}
 
 		void SetGeometry(const TTriangleMesh<T>* TriangleMesh)
@@ -111,7 +118,7 @@ namespace Chaos
 		TConstArrayView<TVector<T, d>> GetForces() const { return TConstArrayView<TVector<T, d>>(Forces); }
 
 	private:
-		inline void UpdateField(const TPBDParticles<T, d>& InParticles, int32 ElementIndex, const TVector<T, d>& InVelocity) const
+		inline void UpdateField(const TPBDParticles<T, d>& InParticles, int32 ElementIndex, const TVector<T, d>& InVelocity)
 		{
 			const TVector<int32, 3>& Element = Elements[ElementIndex];
 
@@ -142,7 +149,7 @@ namespace Chaos
 		TConstArrayView<TVector<int32, 3>> Elements;
 		TVector<T, d> Velocity;
 		TFunction<TVector<T, d>(const TVector<T, d>&)> GetVelocity;
-		mutable TArray<TVector<T, 3>> Forces;
+		TArray<TVector<T, 3>> Forces;
 		float QuarterRho;
 		float Cd;
 		float Cl;

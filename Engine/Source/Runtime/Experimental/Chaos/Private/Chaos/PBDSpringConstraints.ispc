@@ -63,22 +63,22 @@ export void ApplySpringConstraints(uniform FVector P[],
 		const FVector InnerDelta = (Distance - Dist) * Direction;
 
 		#pragma ignore warning(perf)
-		const varying float M1 = InvM[i1];
+		const varying float InvM1 = InvM[i1];
 		#pragma ignore warning(perf)
-		const varying float M2 = InvM[i2];
+		const varying float InvM2 = InvM[i2];
 
-		const float CombinedMass = M2 + M1;
-		const FVector ComputedDelta = Stiffness * InnerDelta / CombinedMass;
+		const float CombinedInvMass = InvM2 + InvM1;
+		const FVector ComputedDelta = Stiffness * InnerDelta / CombinedInvMass;
 
-		const FVector Delta = VectorSelect((M2 == 0 && M1 == 0), ZeroVector, ComputedDelta);
+		const FVector Delta = VectorSelect((InvM2 == 0 && InvM1 == 0), ZeroVector, ComputedDelta);
 
-		if (M1 > 0)
+		if (InvM1 > 0)
 		{
-			VectorScatter(&P[i1], P1 - (M1 * Delta));
+			VectorScatter(&P[i1], P1 - (InvM1 * Delta));
 		}
-		if (M2 > 0)
+		if (InvM2 > 0)
 		{
-			VectorScatter(&P[i2], P2 + (M2 * Delta));
+			VectorScatter(&P[i2], P2 + (InvM2 * Delta));
 		}
 	}
 }

@@ -122,7 +122,10 @@ class CHAOS_API TPBDEvolution : public TArrayCollection
 	void AddGroups(int32 NumGroups);
 	// Reset simulation groups
 	void ResetGroups();
- 
+	// Selected versions of the pre-iteration updates (euler step, force, velocity field. damping updates)..
+	template<bool bForceRule, bool bVelocityField, bool bDampVelocityRule>
+	void PreIterationUpdate(const T Dt, const int32 Offset, const int32 Range, const int32 MinParallelBatchSize);
+
 private:
 	TPBDParticles<T, d> MParticles;
 	TPBDActiveView<TPBDParticles<T, d>> MParticlesActiveView;
@@ -143,16 +146,12 @@ private:
 	TArrayCollectionArray<T> MGroupSelfCollisionThicknesses;
 	TArrayCollectionArray<T> MGroupCoefficientOfFrictions;
 	TArrayCollectionArray<T> MGroupDampings;
-	TArrayCollectionArray<TVector<T, d>> MGroupCenterOfMass;
-	TArrayCollectionArray<TVector<T, d>> MGroupVelocity;
-	TArrayCollectionArray<TVector<T, d>> MGroupAngularVelocity;
 	
 	TArray<TFunction<void()>> MConstraintInits;
 	TPBDActiveView<TArray<TFunction<void()>>> MConstraintInitsActiveView;
 	TArray<TFunction<void(TPBDParticles<T, d>&, const T)>> MConstraintRules;
 	TPBDActiveView<TArray<TFunction<void(TPBDParticles<T, d>&, const T)>>> MConstraintRulesActiveView;
 
-	TFunction<void(TPBDActiveView<TPBDParticles<T, d>>&, const T)> MParticleUpdate;
 	TFunction<void(TPBDParticles<T, d>&, const T, const T, const int32)> MKinematicUpdate;
 	TFunction<void(TKinematicGeometryClothParticles<T, d>&, const T, const T, const int32)> MCollisionKinematicUpdate;
 
