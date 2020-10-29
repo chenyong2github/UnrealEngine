@@ -144,6 +144,8 @@ public:
 	virtual void PostReloadConfig( class FProperty* PropertyThatWasLoaded ) override;
 #endif
 
+	void RemoveInvalidKeys();
+
 	virtual void PostInitProperties() override;
 	// End of UObject interface
 
