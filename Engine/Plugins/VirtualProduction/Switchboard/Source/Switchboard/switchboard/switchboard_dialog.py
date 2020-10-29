@@ -195,7 +195,8 @@ class SwitchboardDialog(QtCore.QObject):
         #self.transport_queue_resume()
 
     def set_config_hooks(self):
-        CONFIG.P4_PATH.signal_setting_changed.connect(lambda: self.p4_refresh_project_cl())
+        CONFIG.P4_PROJECT_PATH.signal_setting_changed.connect(lambda: self.p4_refresh_project_cl())
+        CONFIG.P4_ENGINE_PATH.signal_setting_changed.connect(lambda: self.p4_refresh_engine_cl())
         CONFIG.BUILD_ENGINE.signal_setting_changed.connect(lambda: self.p4_refresh_engine_cl())
         CONFIG.P4_ENABLED.signal_setting_changed.connect(lambda _, enabled: self.toggle_p4_controls(enabled))
         CONFIG.MAPS_PATH.signal_setting_changed.connect(lambda: self.refresh_levels())
@@ -376,7 +377,8 @@ class SwitchboardDialog(QtCore.QObject):
         settings_dialog.set_build_engine(CONFIG.BUILD_ENGINE.get_value())
         settings_dialog.set_p4_enabled(bool(CONFIG.P4_ENABLED.get_value()))
         settings_dialog.set_source_control_workspace(CONFIG.SOURCE_CONTROL_WORKSPACE.get_value())
-        settings_dialog.set_p4_project_path(CONFIG.P4_PATH.get_value())
+        settings_dialog.set_p4_project_path(CONFIG.P4_PROJECT_PATH.get_value())
+        settings_dialog.set_p4_engine_path(CONFIG.P4_ENGINE_PATH.get_value())
         settings_dialog.set_map_path(CONFIG.MAPS_PATH.get_value())
         settings_dialog.set_map_filter(CONFIG.MAPS_FILTER.get_value())
         settings_dialog.set_osc_server_port(CONFIG.OSC_SERVER_PORT.get_value())
@@ -1038,7 +1040,7 @@ class SwitchboardDialog(QtCore.QObject):
         if not CONFIG.P4_ENABLED.get_value():
             return
         LOGGER.info("Refreshing p4 project changelists")
-        changelists = p4_utils.p4_latest_changelist(CONFIG.P4_PATH.get_value())
+        changelists = p4_utils.p4_latest_changelist(CONFIG.P4_PROJECT_PATH.get_value())
         self.window.project_cl_combo_box.clear()
 
         if changelists:
@@ -1059,7 +1061,7 @@ class SwitchboardDialog(QtCore.QObject):
             self.window.refresh_engine_cl_button.setEnabled(True)
             self.window.refresh_engine_cl_button.setToolTip("Click to refresh changelists")
 
-            engine_p4_path = p4_utils.p4_where(CONFIG.SOURCE_CONTROL_WORKSPACE.get_value(), CONFIG.ENGINE_DIR.get_value())
+            engine_p4_path = CONFIG.P4_ENGINE_PATH.get_value()
             if engine_p4_path:
                 changelists = p4_utils.p4_latest_changelist(engine_p4_path)
                 if changelists:
