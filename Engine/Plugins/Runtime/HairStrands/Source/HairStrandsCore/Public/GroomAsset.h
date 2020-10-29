@@ -214,6 +214,7 @@ class HAIRSTRANDSCORE_API UGroomAsset : public UObject, public IInterface_AssetU
 	/** Notification when anything changed */
 	DECLARE_MULTICAST_DELEGATE(FOnGroomAssetChanged);
 	DECLARE_MULTICAST_DELEGATE(FOnGroomAssetResourcesChanged);
+	DECLARE_MULTICAST_DELEGATE(FOnGroomAsyncLoadFinished);
 #endif
 
 public:
@@ -282,6 +283,7 @@ public:
 #if WITH_EDITOR
 	FOnGroomAssetChanged& GetOnGroomAssetChanged() { return OnGroomAssetChanged;  }
 	FOnGroomAssetResourcesChanged& GetOnGroomAssetResourcesChanged() { return OnGroomAssetResourcesChanged; }
+	FOnGroomAsyncLoadFinished& GetOnGroomAsyncLoadFinished() { return OnGroomAsyncLoadFinished; }
 
 	/**  Part of Uobject interface  */
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
@@ -352,6 +354,7 @@ public:
 #if WITH_EDITOR
 	FOnGroomAssetChanged OnGroomAssetChanged;
 	FOnGroomAssetResourcesChanged OnGroomAssetResourcesChanged;
+	FOnGroomAsyncLoadFinished OnGroomAsyncLoadFinished;
 
 	void MarkMaterialsHasChanged();
 
