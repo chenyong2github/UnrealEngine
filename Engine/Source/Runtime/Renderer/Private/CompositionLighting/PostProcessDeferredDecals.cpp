@@ -94,12 +94,6 @@ void GetDeferredDecalPassParameters(
 
 	case FDecalRenderingCommon::RTM_DBuffer:
 	{
-		// If this is a secondary view we need to load the buffer from the primary view
-		if (IStereoRendering::IsASecondaryView(View))
-		{
-			Textures.DBufferLoadAction = ERenderTargetLoadAction::ELoad;
-		}
-
 		AddColorTarget(Textures.DBufferA, Textures.DBufferLoadAction);
 		AddColorTarget(Textures.DBufferB, Textures.DBufferLoadAction);
 		AddColorTarget(Textures.DBufferC, Textures.DBufferLoadAction);
