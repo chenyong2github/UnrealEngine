@@ -3592,7 +3592,7 @@ bool UParticleSystemComponent::CanConsiderInvisible()const
 		const float ClampedMaxSecondsBeforeInactive = MaxSecondsBeforeInactive > 0 ? FMath::Max(MaxSecondsBeforeInactive, 0.1f) : 0.0f;
 		if (ClampedMaxSecondsBeforeInactive > 0.0f && AccumTickTime > ClampedMaxSecondsBeforeInactive && World->IsGameWorld())
 		{
-			return World->GetTimeSeconds() > (GetLastRenderTime() + ClampedMaxSecondsBeforeInactive);
+			return (GetLastRenderTime() > 0.0f) && (World->GetTimeSeconds() > (GetLastRenderTime() + ClampedMaxSecondsBeforeInactive));
 		}
 	}
 	return false;
