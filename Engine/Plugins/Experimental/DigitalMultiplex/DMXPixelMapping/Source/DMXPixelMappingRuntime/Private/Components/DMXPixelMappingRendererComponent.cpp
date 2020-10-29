@@ -23,6 +23,9 @@
 #if WITH_EDITOR
 #include "Editor/EditorEngine.h"
 #include "Editor.h"
+
+#include "Modules/ModuleManager.h"
+#include "LevelEditor.h"
 #endif
 
 UDMXPixelMappingRendererComponent::UDMXPixelMappingRendererComponent()
@@ -39,6 +42,17 @@ UDMXPixelMappingRendererComponent::UDMXPixelMappingRendererComponent()
 	SizeY = 100.f;
 
 	Brightness = 1.0f;
+}
+
+UDMXPixelMappingRendererComponent::~UDMXPixelMappingRendererComponent()
+{
+#if WITH_EDITOR
+	if (OnChangeLevelHandle.IsValid())
+	{
+		FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
+		LevelEditorModule.OnMapChanged().Remove(OnChangeLevelHandle);
+	}
+#endif
 }
 
 const FName& UDMXPixelMappingRendererComponent::GetNamePrefix()
@@ -153,6 +167,15 @@ UTextureRenderTarget2D* UDMXPixelMappingRendererComponent::GetOutputTexture()
 
 FVector2D UDMXPixelMappingRendererComponent::GetSize() const
 {
+	// Get a size from Input Texture
+	if (const UTexture* const RendererInputTexture = GetRendererInputTexture())
+	{
+		if (class FTextureResource* Resource = RendererInputTexture->Resource)
+		{
+			return FVector2D(Resource->GetSizeX(), Resource->GetSizeY());
+		}
+	}
+
 	return ComponentsCanvas->GetDesiredSize();
 }
 
@@ -186,6 +209,15 @@ void UDMXPixelMappingRendererComponent::ResizeOutputTarget(uint32 InSizeX, uint3
 		check(Target);
 		Target->ResizeTarget(InSizeX, InSizeY);
 		Target->UpdateResourceImmediate();
+	}
+}
+
+void UDMXPixelMappingRendererComponent::OnMapChanged(UWorld* InWorld, EMapChangeType MapChangeType)
+{
+	if (UserWidget != nullptr)
+	{
+		UserWidget->MarkPendingKill();
+		UserWidget = nullptr;
 	}
 }
 
@@ -285,6 +317,15 @@ void UDMXPixelMappingRendererComponent::Initialize()
 		InputRenderTarget->ClearColor = FLinearColor(0.f, 0.f, 0.f, 0.f);
 		InputRenderTarget->InitCustomFormat(SizeX, SizeY, EPixelFormat::PF_B8G8R8A8, false);
 	}
+	
+
+#if WITH_EDITOR
+	if (!OnChangeLevelHandle.IsValid())
+	{
+		FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
+		LevelEditorModule.OnMapChanged().AddUObject(this, &UDMXPixelMappingRendererComponent::OnMapChanged);
+	}
+#endif
 
 	if (UserWidget == nullptr && InputWidget != nullptr)
 	{
@@ -327,7 +368,7 @@ void UDMXPixelMappingRendererComponent::RendererInputTexture()
 	}
 }
 
-UTexture* UDMXPixelMappingRendererComponent::GetRendererInputTexture()
+UTexture* UDMXPixelMappingRendererComponent::GetRendererInputTexture() const
 {
 	switch (RendererType)
 	{
