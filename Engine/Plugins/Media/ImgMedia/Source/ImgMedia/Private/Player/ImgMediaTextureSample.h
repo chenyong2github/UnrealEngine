@@ -87,6 +87,11 @@ public:
 	}
 #endif //WITH_ENGINE
 
+	virtual IMediaTextureSampleConverter* GetMediaTextureSampleConverter() override
+	{
+		return Frame.GetSampleConverter();
+	}
+
 	virtual FMediaTimeStamp GetTime() const override
 	{
 		return FMediaTimeStamp(Time);

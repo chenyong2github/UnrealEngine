@@ -31,6 +31,8 @@ public:
 	FIntPoint GetDataWindow() const;
 	FFrameRate GetFrameRate(const FFrameRate& DefaultValue) const;
 	int32 GetUncompressedSize() const;
+	int32 GetNumChannels() const;
+
 	bool IsComplete() const;
 	void ReadPixels(int32 StartY, int32 EndY);
 	void SetFrameBuffer(void* Buffer, const FIntPoint& Stride);

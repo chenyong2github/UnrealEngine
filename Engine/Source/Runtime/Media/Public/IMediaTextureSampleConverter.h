@@ -11,6 +11,8 @@
 class IMediaTextureSampleConverter
 {
 public:
+	virtual ~IMediaTextureSampleConverter() {}
+
 	enum EConverterInfoFlags
 	{
 		ConverterInfoFlags_Default = 0,
