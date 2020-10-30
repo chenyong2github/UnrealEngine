@@ -45,6 +45,11 @@ public:
 	 */
 	virtual IStageMonitorSessionManager& GetStageMonitorSessionManager() = 0;
 
+	/**
+	 * Enable or disables StageMonitor
+	 */
+	virtual void EnableMonitor(bool bEnable) = 0;
+
 private:
 	
 	static const FName ModuleName;
