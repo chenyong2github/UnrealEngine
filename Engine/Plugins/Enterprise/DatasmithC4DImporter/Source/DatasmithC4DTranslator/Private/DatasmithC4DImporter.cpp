@@ -43,7 +43,7 @@
 #include "StaticMeshOperations.h"
 #include "Widgets/Notifications/SNotificationList.h"
 
-#include "OpenEXR/ImathMatrixAlgo.h"
+#include "openexr/ImathMatrixAlgo.h"
 
 DECLARE_CYCLE_STAT(TEXT("C4DImporter - Load File"), STAT_C4DImporter_LoadFile, STATGROUP_C4DImporter);
 
