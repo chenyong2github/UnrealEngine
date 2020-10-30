@@ -584,7 +584,8 @@ static bool IsCompositionEnabled()
 /** Update the expected next present GPU back buffer index from RenderThread point of view */
 void FD3D12Viewport::AdvanceExpectedBackBufferIndex_RenderThread()
 {
-	bool bNeedsNativePresent = IsValidRef(CustomPresent) ? CustomPresent->NeedsNativePresent() : true;
+	bool bNeedsNativePresent = IsValidRef(CustomPresent) ? 
+		CustomPresent->NeedsNativePresent() || CustomPresent->NeedsAdvanceBackbuffer() : true;
 	if (bNeedsNativePresent)
 	{
 		FScopeLock Lock(&ExpectedBackBufferIndexLock);
@@ -863,7 +864,7 @@ bool FD3D12Viewport::Present(bool bLockToVsync)
 
 	const int32 SyncInterval = bLockToVsync ? RHIGetSyncInterval() : 0;
 	const bool bNativelyPresented = PresentChecked(SyncInterval);
-	if (bNativelyPresented)
+	if (bNativelyPresented || (CustomPresent && CustomPresent->NeedsAdvanceBackbuffer()))
 	{
 		// Increment back buffer
 		CurrentBackBufferIndex_RHIThread++;
