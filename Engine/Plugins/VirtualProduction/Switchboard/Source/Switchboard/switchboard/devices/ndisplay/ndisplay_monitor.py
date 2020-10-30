@@ -27,21 +27,24 @@ class nDisplayMonitor(QAbstractTableModel):
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.poll_sync_status)
 
-        self.colnames = [
-            'Node', 
-            'Host', 
-            'Connected',
-            'Driver',
-            'FlipMode', 
-            'Gpus', 
-            'Displays', 
-            'Fps', 
-            'HouseSync',
-            'SyncSource',
-            'Mosaics',
-            'Taskbar',
-            'ExeFlags',
+        headerdata = [
+            ('Node'      , 'The cluster name of this device'), 
+            ('Host'      , 'The URL of the remote PC'), 
+            ('Connected' , 'If we are connected to the listner of this device'),
+            ('Driver'    , 'GPU driver version'),
+            ('FlipMode'  , 'Current presentation mode. Only available once the render node process is running. Expects "Hardware Composed: Independent Flip"'), 
+            ('Gpus'      , 'Informs if GPUs are synced.'), 
+            ('Displays'  , 'Detected displays and whether they are in sync or not'), 
+            ('Fps'       , 'Sync Frame Rate'), 
+            ('HouseSync' , 'Presence of an external sync signal connected to the remote Quadro Sync card'),
+            ('SyncSource', 'The source of the GPU sync signal'),
+            ('Mosaics'   , 'Display grids and their resolutions'),
+            ('Taskbar'   , 'Whether the taskbar is set to auto hide or always on top. It is recommended to be consistent across the cluster'),
+            ('ExeFlags'  , 'It is recommended to disable fullscreen opimizations on the unreal executable. Only available once the render node process is running. Expects "DISABLEDXMAXIMIZEDWINDOWEDMODE"'),
         ]
+
+        self.colnames = [hd[0] for hd in headerdata]
+        self.tooltips = [hd[1] for hd in headerdata]
 
     def color_for_column(self, colname, value, data):
         ''' Returns the background color for the given cell
@@ -346,13 +349,16 @@ class nDisplayMonitor(QAbstractTableModel):
 
     def headerData(self, section, orientation, role):
 
-        if role != Qt.DisplayRole:
-            return None
+        if role == Qt.DisplayRole:
+            if orientation == Qt.Horizontal:
+                return self.colnames[section]
+            else:
+                return "{}".format(section)
 
-        if orientation == Qt.Horizontal:
-            return self.colnames[section]
-        else:
-            return "{}".format(section)
+        if role == Qt.ToolTipRole:
+            return self.tooltips[section]
+
+        return None
 
     def data(self, index, role=Qt.DisplayRole):
 
