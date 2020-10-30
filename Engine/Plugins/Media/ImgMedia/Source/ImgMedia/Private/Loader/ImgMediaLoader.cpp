@@ -281,7 +281,8 @@ void FImgMediaLoader::LoadSequence(const FString& SequencePath, const FFrameRate
 	if (FirstExtension == TEXT("exr"))
 	{
 #if IMGMEDIA_EXR_SUPPORTED_PLATFORM
-		Reader = MakeShareable(new FExrImgMediaReader);
+		// Differentiate between Uncompressed exr and the rest.
+		Reader = FExrImgMediaReader::GetReader(ImagePaths[0]);
 #else
 		UE_LOG(LogImgMedia, Error, TEXT("EXR image sequences are currently supported on macOS and Windows only"));
 		return;
@@ -353,6 +354,11 @@ void FImgMediaLoader::LoadSequence(const FString& SequencePath, const FFrameRate
 	NumLoadBehind = (int32)(LoadBehindScale * NumFramesToLoad);
 	NumLoadAhead = NumFramesToLoad - NumLoadBehind;
 
+	// Giving our reader a chance to handle RAM allocation.
+	// Not all readers use this, only those that need to handle large files 
+	// or need to be as efficient as possible.
+	Reader->PreAllocateMemoryPool(NumLoadAhead + NumLoadBehind, FirstFrameInfo.UncompressedSize);
+
 	Frames.Empty(NumFramesToLoad);
 
 	Update(0, 0.0f, Loop);
@@ -380,6 +386,10 @@ uint32 FImgMediaLoader::TimeToFrameNumber(FTimespan Time) const
 
 void FImgMediaLoader::Update(int32 PlayHeadFrame, float PlayRate, bool Loop)
 {
+	// In case reader needs to do something once per frame.
+	// As an example return buffers back to the pool in ExrImgMediaReaderGpu.
+	Reader->OnTick();
+
 	// @todo gmp: ImgMedia: take PlayRate and DeltaTime into account when determining frames to load
 	
 	// determine frame numbers to be loaded
@@ -479,7 +489,9 @@ void FImgMediaLoader::Update(int32 PlayHeadFrame, float PlayRate, bool Loop)
 
 		if (!FramesToLoad.Contains(FrameNumber))
 		{
+			UE_LOG(LogImgMedia, Warning, TEXT("Loader %p: Removed Frame %i"), this, FrameNumber);
 			QueuedFrameNumbers.RemoveAtSwap(Idx);
+			Reader->CancelFrame(FrameNumber);
 		}
 	}
 
@@ -503,7 +515,6 @@ void FImgMediaLoader::Update(int32 PlayHeadFrame, float PlayRate, bool Loop)
 			PendingFrameNumbers.Add(FrameNumber);
 		}
 	}
-
 	Algo::Reverse(PendingFrameNumbers);
 }
 

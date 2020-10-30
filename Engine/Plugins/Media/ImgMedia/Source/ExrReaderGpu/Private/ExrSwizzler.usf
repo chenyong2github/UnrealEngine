@@ -1,0 +1,88 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "/Engine/Private/Common.ush"
+
+/** The unswizzled buffer packed into 4 byte buffer stride. */
+StructuredBuffer<uint> UnswizzledBuffer;
+
+/** Texture width that the buffer is supposed to be unpacked to. */
+int TextureWidth;
+
+/** Texture height that the buffer is supposed to be unpacked to. */
+int TextureHeight;
+
+/**
+* This function extracts the 16bit (float) data stored in uint (32 bit)
+*/
+float UintContainingFloatToFloat(in uint Value)
+{
+	int Sign = (Value >> 15) & 0x00000001;
+	int Exponent = (Value >> 10) & 0x0000001f;
+	int Mantissa = Value & 0x000003ff;
+
+	Exponent = Exponent + (127 - 15);
+	Mantissa = Mantissa << 13;
+
+	return asfloat((Sign << 31) | (Exponent << 23) | Mantissa);
+}
+
+/** Unpacks data from the provided structured buffer. */
+int GetValueFromTheBuffer(int Offset, int TextureWidth, int TextureHeight, int ChannelIndex)
+{
+	// the location as if it would've been if the buffer was unpacked.
+	int UnpackedLocation = Offset + TextureWidth * ChannelIndex;
+
+	// Byte offset within the 4 byte packed value.
+	int Remainder = UnpackedLocation % 2;
+
+	// Position in a packed buffer.
+	int PackedPosition = (UnpackedLocation - Remainder) >> 1;
+
+
+	uint PackedFourByteValue = UnswizzledBuffer[PackedPosition];
+	int ReturnValue = ((PackedFourByteValue >> (16 * Remainder)) & 0xffff);
+	return ReturnValue;
+}
+
+
+/** Vertex Shader. */
+void MainVS(
+	in float4 InPosition : ATTRIBUTE0,
+	in float2 InTexCoord : ATTRIBUTE1,
+	out noperspective float4 OutUVAndScreenPos : TEXCOORD0,
+	out float4 OutPosition : SV_POSITION)
+{
+	DrawRectangle(InPosition, InTexCoord, OutPosition, OutUVAndScreenPos);
+}
+
+
+/** Pixel Shader. */
+half4 MainPS(noperspective float4 UVAndScreenPos : TEXCOORD0) : SV_Target0
+{
+	float2 UV = UVAndScreenPos.xy;
+	int xCoord = UV.x * TextureWidth;
+	int yCoord = UV.y * TextureHeight;
+
+	// Depending on the EXR file it could contain multi-channel data. We support only 3 or 4 channel data.
+#if IS_RGBA
+	int Channels = 4;
+#else
+	int Channels = 3;
+#endif
+	// Current scanline position.
+	int Offset = yCoord * TextureWidth * Channels + xCoord + (yCoord + 1) * 4;
+	int ChannelIndex = 0;
+#if IS_RGBA
+	half A = UintContainingFloatToFloat(GetValueFromTheBuffer(Offset, TextureWidth, TextureHeight, ChannelIndex++));
+#else
+	half A = 1.;
+#endif
+
+	half B = UintContainingFloatToFloat(GetValueFromTheBuffer(Offset, TextureWidth, TextureHeight, ChannelIndex++));
+	half G = UintContainingFloatToFloat(GetValueFromTheBuffer(Offset, TextureWidth, TextureHeight, ChannelIndex++));
+	half R = UintContainingFloatToFloat(GetValueFromTheBuffer(Offset, TextureWidth, TextureHeight, ChannelIndex++));
+
+	half3 Rgb = half3(R, G, B);
+
+	return half4(Rgb, A);
+}
