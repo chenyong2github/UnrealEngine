@@ -1897,6 +1897,10 @@ public:
 	// @return	true if native Present will be requested for this frame; false otherwise.  Must
 	// match value subsequently returned by Present for this frame.
 	virtual bool NeedsNativePresent() = 0;
+	// In come cases we want to use custom present but still let the native environment handle 
+	// advancement of the backbuffer indices.
+	// @return true if backbuffer index should advance independently from CustomPresent.
+	virtual bool NeedsAdvanceBackbuffer() { return false; };
 
 	// Called from RHI thread when the engine begins drawing to the viewport.
 	virtual void BeginDrawing() {};
