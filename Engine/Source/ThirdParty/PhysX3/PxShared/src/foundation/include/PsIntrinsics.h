@@ -37,7 +37,7 @@
 #elif(PX_LINUX || PX_ANDROID || PX_APPLE_FAMILY || PX_PS4)
 #include "unix/PsUnixIntrinsics.h"
 #elif PX_XBOXONE
-#include "XboxOne/PsXboxOneIntrinsics.h"
+#include "PsXboxIntrinsics.h" //@epic: change path
 #elif PX_SWITCH
 #include "switch/PsSwitchIntrinsics.h"
 #else
