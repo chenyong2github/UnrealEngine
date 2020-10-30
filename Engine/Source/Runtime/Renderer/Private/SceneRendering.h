@@ -899,9 +899,6 @@ struct FPreviousViewInfo
 	// Mobile temporal AA surface.
 	TRefCountPtr<IPooledRenderTarget> MobileAaBloomSunVignette;
 	TRefCountPtr<IPooledRenderTarget> MobileAaColor;
-
-	// Mobile Scene Depth.
-	TRefCountPtr<IPooledRenderTarget> MobileSceneDepthZ;
 };
 
 class FViewCommands
@@ -2060,7 +2057,6 @@ protected:
 	void InitAmbientOcclusionOutputs(FRHICommandListImmediate& RHICmdList, const TRefCountPtr<IPooledRenderTarget>& SceneDepthZ);
 	void RenderAmbientOcclusion(FRHICommandListImmediate& RHICmdList, const TRefCountPtr<IPooledRenderTarget>& SceneDepthZ);
 	void RenderAmbientOcclusion(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneDepthTexture, FRDGTextureRef AmbientOcclusionTexture);
-	void CacheSceneDepthZ(FRHICommandListImmediate& RHICmdList, const FViewInfo& View, TRefCountPtr<IPooledRenderTarget>& InOutSceneDepthZ);
 	void ReleaseAmbientOcclusionOutputs();
 
 	void InitPixelProjectedReflectionOutputs(FRHICommandListImmediate& RHICmdList, const FIntPoint& BufferSize);
