@@ -646,11 +646,6 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		RenderCustomDepthPass(GraphBuilder);
 		GraphBuilder.Execute();
 	}
-
-	if (bRequriesAmbientOcclusionPass)
-	{
-		RenderAmbientOcclusion(RHICmdList, View.PrevViewInfo.MobileSceneDepthZ.IsValid() ? View.PrevViewInfo.MobileSceneDepthZ : GSystemTextures.DepthDummy);
-	}
 	
 	FRHITexture* SceneColor = nullptr;
 	if (bDeferredShading)
@@ -695,6 +690,11 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	if (bRequiresPixelProjectedPlanarRelfectionPass)
 	{
 		ReleasePixelProjectedReflectionOutputs();
+	}
+
+	if (bRequriesAmbientOcclusionPass)
+	{
+		RenderAmbientOcclusion(RHICmdList, SceneContext.SceneDepthZ);
 	}
 
 	if (bDeferredShading)
@@ -784,11 +784,6 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	
 	RenderFinish(GraphBuilder, ViewFamilyTexture);
 	GraphBuilder.Execute();
-
-	if (bRequriesAmbientOcclusionPass)
-	{
-		CacheSceneDepthZ(RHICmdList, View, SceneContext.SceneDepthZ);
-	}
 
 	FRHICommandListExecutor::GetImmediateCommandList().PollOcclusionQueries();
 	FRHICommandListExecutor::GetImmediateCommandList().ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
