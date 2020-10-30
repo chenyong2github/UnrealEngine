@@ -36,6 +36,8 @@
 
 #if !UE_BUILD_SHIPPING
 #include "FramePro/FramePro.h"
+#else
+#define FRAMEPRO_ENABLED 0
 #endif
 
 #if INTEL_ISPC

@@ -11,6 +11,8 @@
 #if !UE_BUILD_SHIPPING
 #include "FramePro/FramePro.h"
 #include "HAL/IConsoleManager.h"
+#else
+#define FRAMEPRO_ENABLED 0
 #endif
 
 using namespace Chaos;
