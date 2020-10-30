@@ -216,12 +216,16 @@ void UVCamComponent::PreEditChange(FProperty* PropertyThatWillChange)
 		}
 		else if (PropertyThatWillChangeName == NAME_Enabled)
 		{
-			void* PropertyData = PropertyThatWillChange->ContainerPtrToValuePtr<void>(this);
-			bool bWasEnabled = false;
-			PropertyThatWillChange->CopySingleValue(&bWasEnabled, PropertyData);
+			// If the property's owner is a struct (like FModifierStackEntry), act on it in PostEditChangeProperty(), not here
+			if (PropertyThatWillChange->GetOwner<UClass>())
+			{
+				void* PropertyData = PropertyThatWillChange->ContainerPtrToValuePtr<void>(this);
+				bool bWasEnabled = false;
+				PropertyThatWillChange->CopySingleValue(&bWasEnabled, PropertyData);
 
-			// Changing the enabled state needs to be done here instead of PostEditChange
-			SetEnabled(!bWasEnabled);
+				// Changing the enabled state needs to be done here instead of PostEditChange
+				SetEnabled(!bWasEnabled);
+			}
 		}
 	}
 
@@ -234,6 +238,7 @@ void UVCamComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChang
 	if (Property && PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
 	{
 		static FName NAME_LockViewportToCamera = GET_MEMBER_NAME_CHECKED(UVCamComponent, bLockViewportToCamera);
+		static FName NAME_Enabled = GET_MEMBER_NAME_CHECKED(UVCamComponent, bEnabled);
 		static FName NAME_ModifierStack = GET_MEMBER_NAME_CHECKED(UVCamComponent, ModifierStack);
 		static FName NAME_TargetViewport = GET_MEMBER_NAME_CHECKED(UVCamComponent, TargetViewport);
 
@@ -242,6 +247,14 @@ void UVCamComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChang
 		if (PropertyName == NAME_LockViewportToCamera)
 		{
 			UpdateActorLock();
+		}
+		else if (PropertyName == NAME_Enabled)
+		{
+			// Only act here if we are a struct (like FModifierStackEntry)
+			if (!Property->GetOwner<UClass>())
+			{
+				SetEnabled(bEnabled);
+			}
 		}
 		else if (PropertyName == NAME_ModifierStack)
 		{
