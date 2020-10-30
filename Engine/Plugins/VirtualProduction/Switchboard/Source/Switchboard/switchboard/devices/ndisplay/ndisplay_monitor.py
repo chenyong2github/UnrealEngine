@@ -15,7 +15,7 @@ class nDisplayMonitor(QAbstractTableModel):
     It polls the listener at the specified rate and the UI should update with this info.
     '''
 
-    ColorWarning = QColor(0xcc, 0x6a, 0x1b)
+    ColorWarning = QColor(0x70, 0x40, 0x00)
     ColorNormal  = QColor(0x3d, 0x3d, 0x3d)
 
     def __init__(self, parent):
