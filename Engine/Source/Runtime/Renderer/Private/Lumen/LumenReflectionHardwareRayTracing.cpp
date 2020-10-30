@@ -13,6 +13,7 @@
 #include "IndirectLightRendering.h"
 #include "LumenReflections.h"
 
+#if RHI_RAYTRACING
 #include "RayTracing/RaytracingOptions.h"
 #include "RayTracing/RayTracingLighting.h"
 
@@ -41,6 +42,7 @@ static TAutoConsoleVariable<int32> CVarLumenReflectionsHardwareRayTracingNormalT
 	TEXT("1: Geometry normal"),
 	ECVF_RenderThreadSafe
 );
+#endif
 
 namespace Lumen
 {
@@ -55,10 +57,15 @@ namespace Lumen
 
 	EHardwareRayTracedReflectionsLightingMode GetHardwareRayTracedReflectionsLightingMode()
 	{
+#if RHI_RAYTRACING
 		return EHardwareRayTracedReflectionsLightingMode(CVarLumenReflectionsHardwareRayTracingLightingMode.GetValueOnRenderThread());
+#else
+		return EHardwareRayTracedReflectionsLightingMode::LightingFromSurfaceCache;
+#endif
 	}
 }
 
+#if RHI_RAYTRACING
 class FLumenReflectionHardwareRayTracingRGS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FLumenReflectionHardwareRayTracingRGS)
@@ -112,6 +119,7 @@ void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingReflections(co
 	TShaderRef<FLumenReflectionHardwareRayTracingRGS> RayGenerationShader = View.ShaderMap->GetShader<FLumenReflectionHardwareRayTracingRGS>(PermutationVector);
 	OutRayGenShaders.Add(RayGenerationShader.GetRayTracingShader());
 }
+#endif
 
 void RenderLumenHardwareRayTracingReflections(
 	FRDGBuilder& GraphBuilder,
