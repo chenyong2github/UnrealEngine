@@ -510,12 +510,12 @@ void UNiagaraStackFunctionInput::RefreshChildrenInternal(const TArray<UNiagaraSt
 		}
 	}
 
-	if (InputValues.Mode == EValueMode::InvalidOverride && InputType.IsDataInterface())
+	if (GetShouldPassFilterForVisibleCondition() && InputValues.Mode == EValueMode::InvalidOverride && InputType.IsDataInterface())
 	{
 		NewIssues.Add(FStackIssue(
             EStackIssueSeverity::Warning,
             LOCTEXT("InvalidDataInterfaceOverrideShort", "Invalid data interface override"),
-            LOCTEXT("InvalidDataInterfaceOverrideLong", "There is no valid data interface assigned for the input, please reset it to the default value or link a valid data interface reference."),
+            LOCTEXT("InvalidDataInterfaceOverrideLong", "There is no valid value assigned for the input, because data interface inputs are created without a binding. Please link a valid reference from the stack or hit 'Fix issue' to populate the binding with a default value."),
             GetStackEditorDataKey(),
             false,
             { FStackIssueFix(
