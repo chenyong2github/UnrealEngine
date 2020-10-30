@@ -1634,6 +1634,9 @@ public:
 	/** When enabled, the post processing will output in HDR space */
 	bool bIsHDR;
 
+	/** True if scenecolor and depth should be multiview-allocated */
+	bool bRequireMultiView;
+
 	/** Gamma correction used when rendering this family. Default is 1.0 */
 	float GammaCorrection;
 	
