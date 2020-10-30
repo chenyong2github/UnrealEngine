@@ -29,6 +29,16 @@ namespace Lumen
 	float GetGlobalDFClipmapExtent();
 	bool ShouldRenderLumenForView(const FScene* Scene, const FViewInfo& View);
 	bool ShouldRenderLumenCardsForView(const FScene* Scene, const FViewInfo& View);
+
+	// Hardware ray-traced reflections
+	bool UseHardwareRayTracedReflections();
+	enum class EHardwareRayTracedReflectionsLightingMode
+	{
+		LightingFromSurfaceCache = 0,
+		EvaluateMaterial,
+		EvaluateMaterialAndDirectLighting
+	};
+	EHardwareRayTracedReflectionsLightingMode GetHardwareRayTracedReflectionsLightingMode();
 };
 
 extern int32 GLumenFastCameraMode;

@@ -1123,6 +1123,7 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& 
 		PreparePathTracing(View, RayGenShaders);
 		PrepareRayTracingLumenDirectLighting(View, *Scene, RayGenShaders);
 		PrepareRayTracingScreenProbeGather(View, RayGenShaders);
+		PrepareLumenHardwareRayTracingReflections(View, RayGenShaders);
 
 		View.RayTracingScene.RayTracingSceneRHI = RHICreateRayTracingScene(SceneInitializer);
 

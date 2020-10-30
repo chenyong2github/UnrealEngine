@@ -425,6 +425,19 @@ void RenderHardwareRayTracingScreenProbe(FRDGBuilder& GraphBuilder,
 	FLumenIndirectTracingParameters& DiffuseTracingParameters,
 	const LumenRadianceCache::FRadianceCacheParameters& RadianceCacheParameters);
 
+class FLumenReflectionTracingParameters;
+class FLumenReflectionTileParameters;
+extern void RenderLumenHardwareRayTracingReflections(
+	FRDGBuilder& GraphBuilder,
+	const FSceneTextureParameters& SceneTextures,
+	const FViewInfo& View,
+	const FLumenReflectionTracingParameters& ReflectionTracingParameters,
+	const FLumenReflectionTileParameters& ReflectionTileParameters,
+	const FLumenCardTracingInputs& TracingInputs,
+	const FLumenMeshSDFGridParameters& MeshSDFGridParameters,
+	float MaxCardTraceDistance,
+	float MaxTraceDistance);
+
 extern void CullMeshSDFObjectsToViewGrid(
 	const FViewInfo& View,
 	const FScene* Scene,

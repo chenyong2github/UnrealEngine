@@ -420,52 +420,51 @@ void TraceReflections(
 		extern int32 GLumenDiffuseCubeMapTree;
 		ensureMsgf(GLumenDiffuseCubeMapTree != 0, TEXT("Only CubeMapTree currently supported"));
 
-		/*if (Lumen::UseHardwareRayTracedScreenProbeGather())
-		{
-			FRDGTextureRef NewTraceHit = GraphBuilder.CreateTexture(ReflectionTracingParameters.TraceHit->Desc, TEXT("NewTraceHit"));
-			ReflectionTracingParameters.RWTraceHit = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(NewTraceHit));
-
-			RenderHardwareRayTracedScreenProbe(GraphBuilder,
-				Scene,
-				ReflectionTracingParameters,
-				View,
-				TracingInputs,
-				MeshSDFGridParameters,
-				IndirectTracingParameters,
-				RadianceCacheParameters);
-
-			ReflectionTracingParameters.TraceHit = NewTraceHit;
-		}
-		else*/
 		if (MeshSDFGridParameters.TracingParameters.NumSceneObjects > 0)
 		{
-			FCompactedReflectionTraceParameters CompactedTraceParameters = CompactTraces(
-				GraphBuilder,
-				View,
-				ReflectionTracingParameters,
-				ReflectionTileParameters,
-				IndirectTracingParameters.CardTraceEndDistanceFromCamera,
-				IndirectTracingParameters.MaxCardTraceDistance);
-
+			if (Lumen::UseHardwareRayTracedReflections())
 			{
-				FReflectionTraceCardsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FReflectionTraceCardsCS::FParameters>();
-				GetLumenCardTracingParameters(View, TracingInputs, PassParameters->TracingParameters);
-				PassParameters->MeshSDFGridParameters = MeshSDFGridParameters;
-				PassParameters->ReflectionTracingParameters = ReflectionTracingParameters;
-				PassParameters->IndirectTracingParameters = IndirectTracingParameters;
-				PassParameters->SceneTexturesStruct = CreateSceneTextureUniformBuffer(GraphBuilder, View.FeatureLevel);
-				PassParameters->CompactedTraceParameters = CompactedTraceParameters;
-
-				FReflectionTraceCardsCS::FPermutationDomain PermutationVector;
-				auto ComputeShader = View.ShaderMap->GetShader<FReflectionTraceCardsCS>(PermutationVector);
-
-				FComputeShaderUtils::AddPass(
+				RenderLumenHardwareRayTracingReflections(
 					GraphBuilder,
-					RDG_EVENT_NAME("TraceCards"),
-					ComputeShader,
-					PassParameters,
-					CompactedTraceParameters.IndirectArgs,
-					0);
+					SceneTextures,
+					View,
+					ReflectionTracingParameters,
+					ReflectionTileParameters,
+					TracingInputs,
+					MeshSDFGridParameters,
+					IndirectTracingParameters.MaxCardTraceDistance,
+					IndirectTracingParameters.MaxTraceDistance);
+			}
+			else
+			{
+				FCompactedReflectionTraceParameters CompactedTraceParameters = CompactTraces(
+					GraphBuilder,
+					View,
+					ReflectionTracingParameters,
+					ReflectionTileParameters,
+					IndirectTracingParameters.CardTraceEndDistanceFromCamera,
+					IndirectTracingParameters.MaxCardTraceDistance);
+
+				{
+					FReflectionTraceCardsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FReflectionTraceCardsCS::FParameters>();
+					GetLumenCardTracingParameters(View, TracingInputs, PassParameters->TracingParameters);
+					PassParameters->MeshSDFGridParameters = MeshSDFGridParameters;
+					PassParameters->ReflectionTracingParameters = ReflectionTracingParameters;
+					PassParameters->IndirectTracingParameters = IndirectTracingParameters;
+					PassParameters->SceneTexturesStruct = CreateSceneTextureUniformBuffer(GraphBuilder, View.FeatureLevel);
+					PassParameters->CompactedTraceParameters = CompactedTraceParameters;
+
+					FReflectionTraceCardsCS::FPermutationDomain PermutationVector;
+					auto ComputeShader = View.ShaderMap->GetShader<FReflectionTraceCardsCS>(PermutationVector);
+
+					FComputeShaderUtils::AddPass(
+						GraphBuilder,
+						RDG_EVENT_NAME("TraceCards"),
+						ComputeShader,
+						PassParameters,
+						CompactedTraceParameters.IndirectArgs,
+						0);
+				}
 			}
 		}
 	}

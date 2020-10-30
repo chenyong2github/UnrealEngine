@@ -34,14 +34,14 @@ namespace Lumen
 {
 	bool UseIrradianceAtlas()
 	{
-		//@todo UseHardwareRayTracedReflections();
-		return false;
+		return UseHardwareRayTracedReflections() &&
+			(GetHardwareRayTracedReflectionsLightingMode() == EHardwareRayTracedReflectionsLightingMode::EvaluateMaterial);
 	}
 
 	bool UseIndirectIrradianceAtlas()
 	{
-		//@todo UseHardwareRayTracedReflections();
-		return false;
+		return UseHardwareRayTracedReflections() &&
+			(GetHardwareRayTracedReflectionsLightingMode() == EHardwareRayTracedReflectionsLightingMode::EvaluateMaterialAndDirectLighting);
 	}
 }
 
