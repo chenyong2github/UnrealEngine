@@ -313,13 +313,14 @@ class SettingsDialog(QtCore.QObject):
         combo.currentTextChanged.connect(lambda text, setting=setting: setting.update_value(text))
 
     def create_device_setting_line_edit(self, setting, layout):
+        
         label = QtWidgets.QLabel()
         label.setText(setting.nice_name)
         line_edit = QtWidgets.QLineEdit()
 
         value = setting.get_value()
-
         value_type = type(value)
+
         if value_type == int:
             value = str(value)
 
@@ -333,13 +334,23 @@ class SettingsDialog(QtCore.QObject):
 
         if value_type == str:
             line_edit.editingFinished.connect(lambda field=line_edit, setting=setting: setting.update_value(field.text()))
+
         elif value_type == int:
-            line_edit.editingFinished.connect(lambda field=line_edit, setting=setting: setting.update_value(int(field.text())))
+
+            def le_int_editingFinished(field, setting):
+                try:
+                    text = field.text()
+                    setting.update_value(int(text))
+                except ValueError:
+                    field.setText(str(setting.get_value()))
+
+            line_edit.editingFinished.connect(lambda field=line_edit, setting=setting : le_int_editingFinished(field=line_edit, setting=setting))
 
         def on_setting_changed(new_value, line_edit):
             if line_edit.text() != new_value:
                 line_edit.setText(str(new_value))
                 line_edit.setCursorPosition(0)
+
         setting.signal_setting_changed.connect(lambda old, new, widget=line_edit: on_setting_changed(new, widget))
 
     def create_device_setting_checkbox(self, setting, layout):
