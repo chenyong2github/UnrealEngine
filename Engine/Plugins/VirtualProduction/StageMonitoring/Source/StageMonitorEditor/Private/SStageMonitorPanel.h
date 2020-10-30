@@ -74,6 +74,12 @@ private:
 	/** Returns the monitor status whether it's actively listening for data providers or not */
 	FText GetMonitorStatus() const;
 
+	/** Returns whether the monitor is active or not for checkbox state */
+	ECheckBoxState IsMonitorActive() const;
+
+	/** Callback when user toggles the monitor state switch */
+	void OnMonitorStateChanged(ECheckBoxState NewState);
+
 	/** Returns information about the displayed session */
 	FText GetCurrentSessionInfo() const;
 

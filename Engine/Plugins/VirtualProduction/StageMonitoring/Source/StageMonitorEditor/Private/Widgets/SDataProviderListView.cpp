@@ -312,6 +312,7 @@ void SDataProviderListView::Construct(const FArguments& InArgs, const TWeakPtr<I
 		.HeaderRow
 		(
 			SNew(SHeaderRow)
+			.CanSelectGeneratedColumn(true) //To show/hide columns
 
 			+ SHeaderRow::Column(DataProviderListView::HeaderIdName_State)
 			.FixedWidth(45.f)
@@ -334,6 +335,7 @@ void SDataProviderListView::Construct(const FArguments& InArgs, const TWeakPtr<I
 			+ SHeaderRow::Column(DataProviderListView::HeaderIdName_StageName)
 			.FillWidth(.2f)
 			.DefaultLabel(LOCTEXT("HeaderName_StageName", "Stage Name"))
+			.ShouldGenerateWidget(true) //Can't hide this column
 
 			+ SHeaderRow::Column(DataProviderListView::HeaderIdName_Roles)
 			.FillWidth(.2f)

@@ -21,11 +21,11 @@ void FStageMonitorModule::StartupModule()
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	CommandStart = MakeUnique<FAutoConsoleCommand>(TEXT("StageMonitor.Monitor.Start")
 													, TEXT("Start Stage monitoring")
-													, FConsoleCommandDelegate::CreateRaw(this, &FStageMonitorModule::StartMonitor));
+													, FConsoleCommandDelegate::CreateRaw(this, &FStageMonitorModule::EnableMonitor, true));
 
 	CommandStop = MakeUnique<FAutoConsoleCommand>(TEXT("StageMonitor.Monitor.Stop")
 												, TEXT("Stop Stage monitoring")
-												, FConsoleCommandDelegate::CreateRaw(this, &FStageMonitorModule::StopMonitor));
+												, FConsoleCommandDelegate::CreateRaw(this, &FStageMonitorModule::EnableMonitor, false));
 #endif 
 }
 
@@ -43,18 +43,8 @@ void FStageMonitorModule::OnEngineLoopInitComplete()
 	const UStageMonitoringSettings* Settings = GetDefault<UStageMonitoringSettings>();
 	if (Settings->MonitorSettings.ShouldAutoStartOnLaunch())
 	{
-		StageMonitor->Start();
+		EnableMonitor(true);
 	}
-}
-
-void FStageMonitorModule::StartMonitor()
-{
-	StageMonitor->Start();
-}
-
-void FStageMonitorModule::StopMonitor()
-{
-	StageMonitor->Stop();
 }
 
 IStageMonitor& FStageMonitorModule::GetStageMonitor()
@@ -67,4 +57,17 @@ IStageMonitorSessionManager& FStageMonitorModule::GetStageMonitorSessionManager(
 	return *SessionManager;
 }
 
+void FStageMonitorModule::EnableMonitor(bool bEnable)
+{
+	if (bEnable)
+	{
+		StageMonitor->Start();
+	}
+	else
+	{
+		StageMonitor->Stop();
+	}
+}
+
 IMPLEMENT_MODULE(FStageMonitorModule, StageMonitor)
+
