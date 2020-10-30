@@ -15,6 +15,10 @@ int2 Atlas_Resolution;
 int2 Atlas_RectOffset;
 int2 Atlas_RectResolution;
 
+int2 Tile_Coord;
+int2 Tile_Count;
+int2 Tile_Resolution;
+
 float3 Rect_MinBound;
 float3 Rect_MaxBound;
 
@@ -34,11 +38,17 @@ void MainVS(
 	if (VertexId == 4) P = float3(1, 1, 0);
 	if (VertexId == 5) P = float3(0, 1, 0);
 
+	// Chart rendering is divided into tiles to avoid too long computation which would TDR the GPU
+	// * Compute the rect of the atlas chart
+	// * Clamp it into a rendering tile.
+	const uint2 TileOffset = Atlas_RectOffset + Tile_Coord * Tile_Resolution;
+	uint2 PInPixel		   = Atlas_RectOffset + P.xy * Atlas_RectResolution;
+	PInPixel = clamp(PInPixel, TileOffset, TileOffset + Tile_Resolution);
 
-	OutAtlasUV = P.xy * Atlas_RectResolution + Atlas_RectOffset;
+	OutAtlasUV = PInPixel;
 	OutAtlasUV /= Atlas_Resolution;
 
-	OutCardUV = P.xy;
+	OutCardUV = float2(PInPixel - Atlas_RectOffset) / float2(Atlas_RectResolution);
 	OutPosition = float4(OutAtlasUV * 2 - 1, 0.5f, 1);
 }
 
