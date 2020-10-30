@@ -376,7 +376,7 @@ protected:
 	//~ End UDataprepOperation Interface
 };
 
-UCLASS(Experimental, Category = ActorOperation, Meta = (DisplayName = "Replace Asset References", ToolTip = "Replace references to each asset with the first asset in the list"))
+UCLASS(Experimental, Category = AssetOperation, Meta = (DisplayName = "Replace Asset References", ToolTip = "Replace references to each asset with the first asset in the list"))
 class UDataprepConsolidateObjectsOperation : public UDataprepOperation
 {
 	GENERATED_BODY()
@@ -387,7 +387,7 @@ public:
 public:
 	virtual FText GetCategory_Implementation() const override
 	{
-		return FDataprepOperationCategories::ActorOperation;
+		return FDataprepOperationCategories::AssetOperation;
 	}
 
 protected:
