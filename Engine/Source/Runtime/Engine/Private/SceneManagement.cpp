@@ -750,6 +750,7 @@ FViewUniformShaderParameters::FViewUniformShaderParameters()
 	SkyIrradianceEnvironmentMap = GIdentityPrimitiveBuffer.SkyIrradianceEnvironmentMapSRV;
 
 	// [todo] Default to some other buffer
+	WaterIndirection = GIdentityPrimitiveBuffer.PrimitiveSceneDataBufferSRV;
 	WaterData = GIdentityPrimitiveBuffer.PrimitiveSceneDataBufferSRV;
 
 	HairScatteringLUTTexture = BlackVolume;
