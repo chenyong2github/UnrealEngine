@@ -704,6 +704,52 @@ void UGroomAsset::PostLoad()
 #endif // #if WITH_EDITORONLY_DATA
 }
 
+#if WITH_EDITOR
+void UGroomAsset::SavePendingProceduralAssets()
+{
+	// Proceed procedural asset which needs to be saved
+	if (!AssetToSave_Textures.IsEmpty())
+	{
+		TQueue<FHairGroupCardsTextures*> NotReady;
+		FHairGroupCardsTextures* Textures = nullptr;
+		while (AssetToSave_Textures.Dequeue(Textures))
+		{
+			if (Textures)
+			{
+				if (Textures->bNeedToBeSaved)
+				{
+					if (Textures->DepthTexture)			FHairStrandsCore::SaveAsset(Textures->DepthTexture);
+					if (Textures->AttributeTexture)		FHairStrandsCore::SaveAsset(Textures->AttributeTexture);
+					if (Textures->AuxilaryDataTexture)	FHairStrandsCore::SaveAsset(Textures->AuxilaryDataTexture);
+					if (Textures->CoverageTexture)		FHairStrandsCore::SaveAsset(Textures->CoverageTexture);
+					if (Textures->TangentTexture)		FHairStrandsCore::SaveAsset(Textures->TangentTexture);
+					Textures->bNeedToBeSaved = false;
+				}
+				else
+				{
+					NotReady.Enqueue(Textures);
+				}
+			}
+		}
+		while (NotReady.Dequeue(Textures))
+		{
+			AssetToSave_Textures.Enqueue(Textures);
+		}
+	}
+	if (!AssetToSave_Meshes.IsEmpty())
+	{
+		UStaticMesh* Mesh = nullptr;
+		while (AssetToSave_Meshes.Dequeue(Mesh))
+		{
+			if (Mesh)
+			{
+				FHairStrandsCore::SaveAsset(Mesh);
+			}
+		}
+	}
+}
+#endif // WITH_EDITOR
+
 void UGroomAsset::PreSave(const class ITargetPlatform* TargetPlatform)
 {
 #if WITH_EDITORONLY_DATA
@@ -773,6 +819,27 @@ void UGroomAsset::BeginDestroy()
 }
 
 #if WITH_EDITOR
+static bool IsCardsProceduralAttributes(const FName PropertyName)
+{	
+	return
+		PropertyName == GET_MEMBER_NAME_CHECKED(FHairCardsClusterSettings, ClusterDecimation)
+		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairCardsClusterSettings, Type)
+		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairCardsClusterSettings, bUseGuide)
+
+		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairCardsTextureSettings, AtlasMaxResolution)
+		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairCardsTextureSettings, PixelPerCentimeters)
+		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairCardsTextureSettings, LengthTextureCount)
+		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairCardsTextureSettings, DensityTextureCount)
+
+		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairCardsGeometrySettings, GenerationType)
+		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairCardsGeometrySettings, CardsCount)
+		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairCardsGeometrySettings, ClusterType)
+		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairCardsGeometrySettings, MinSegmentLength)
+		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairCardsGeometrySettings, AngularThreshold)
+		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairCardsGeometrySettings, MinCardsLength)
+		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairCardsGeometrySettings, MaxCardsLength);
+}
+
 void UGroomAsset::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
@@ -808,7 +875,12 @@ void UGroomAsset::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedE
 		HairGroupsCards.Last().SourceType = HasImportedStrandsData() ? EHairCardsSourceType::Procedural : EHairCardsSourceType::Imported;
 	}
 
-	UpdateResource();
+	const bool bCardsToolUpdate = IsCardsProceduralAttributes(PropertyName);
+	if (!bCardsToolUpdate)
+	{
+		FGroomComponentRecreateRenderStateContext Context(this);
+		UpdateResource();
+	}
 
 	const bool bCardMaterialChanged = PropertyName == GET_MEMBER_NAME_CHECKED(FHairGroupsCardsSourceDescription, Material);
 	const bool bMeshMaterialChanged = PropertyName == GET_MEMBER_NAME_CHECKED(FHairGroupsMeshesSourceDescription, Material);
@@ -817,7 +889,7 @@ void UGroomAsset::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedE
 	{
 		OnGroomAssetResourcesChanged.Broadcast();
 	}
-	else
+	else if (!bCardsToolUpdate)
 	{
 		OnGroomAssetChanged.Broadcast();
 	}
@@ -1136,7 +1208,7 @@ namespace GroomDerivedDataCacheUtils
 
 			// Also need to cross-check the LOD settings; there might not be a LOD settings that matches the LODIndex
 			// in which case, no cards data is actually built for the LODIndex
-			if (!LODs.IsValidIndex(Desc.LODIndex) || LODs[Desc.LODIndex].GeometryType != EGroomGeometryType::Cards)
+			if (!LODs.IsValidIndex(Desc.LODIndex))
 			{
 				continue;
 			}
@@ -1795,7 +1867,7 @@ bool UGroomAsset::BuildCardsGeometry(uint32 GroupIndex)
 							ProceduralMesh = FHairStrandsCore::CreateStaticMesh(PackageName, SuffixName);
 						}
 						FHairCardsBuilder::ExportGeometry(CardsData, ProceduralMesh);
-						FHairStrandsCore::SaveAsset(ProceduralMesh);
+						AssetToSave_Meshes.Enqueue(ProceduralMesh);
 
 						HairGroupsCards[SourceIt].ProceduralMesh = ProceduralMesh;
 						HairGroupsCards[SourceIt].ProceduralMeshKey = ProceduralMeshKey;
@@ -1846,6 +1918,7 @@ bool UGroomAsset::BuildCardsGeometry(uint32 GroupIndex)
 
 					FHairCardsBuilder::BuildTextureAtlas(&LOD.ProceduralData, LOD.RestResource, LOD.ProceduralResource, &Desc->Textures);
 					LOD.RestResource->bInvertUV = true;
+					AssetToSave_Textures.Enqueue(&Desc->Textures);
 				}
 				else
 				{
@@ -2421,6 +2494,8 @@ bool UGroomAsset::IsMaterialUsed(int32 MaterialIndex) const
 // Save out a static mesh based on generated cards
 void UGroomAsset::SaveProceduralCards(uint32 CardsGroupIndex)
 {
+	SavePendingProceduralAssets();
+
 	if (CardsGroupIndex >= uint32(HairGroupsCards.Num()))
 		return;
 
