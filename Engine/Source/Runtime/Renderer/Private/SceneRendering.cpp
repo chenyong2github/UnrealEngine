@@ -1797,12 +1797,14 @@ void FViewInfo::SetupUniformBufferParameters(
 	ViewUniformShaderParameters.HairScatteringLUTTexture = OrBlack3DIfNull(ViewUniformShaderParameters.HairScatteringLUTTexture);
 	ViewUniformShaderParameters.HairScatteringLUTSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
-	if (WaterDataBuffer.IsValid())
+	if (WaterDataBuffer.IsValid() && WaterIndirectionBuffer.IsValid())
 	{
+		ViewUniformShaderParameters.WaterIndirection = WaterIndirectionBuffer.GetReference();
 		ViewUniformShaderParameters.WaterData = WaterDataBuffer.GetReference();
 	}
 	else
 	{
+		ViewUniformShaderParameters.WaterIndirection = GIdentityPrimitiveBuffer.PrimitiveSceneDataBufferSRV;
 		ViewUniformShaderParameters.WaterData = GIdentityPrimitiveBuffer.PrimitiveSceneDataBufferSRV;
 	}
 

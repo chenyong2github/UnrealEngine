@@ -101,7 +101,7 @@ class UGerstnerWaterWaveGeneratorSimple : public UGerstnerWaterWaveGeneratorBase
 public:
 	virtual void GenerateGerstnerWaves_Implementation(TArray<FGerstnerWave>& OutWaves) const override;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (UIMin = 1, ClampMin = 1, UIMax = 128, Category = "Default"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (UIMin = 1, ClampMin = 1, UIMax = 128, ClampMax = 4096, Category = "Default"))
 	int32 NumWaves = 16;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Default")
