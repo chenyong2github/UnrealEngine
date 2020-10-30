@@ -82,7 +82,7 @@ void SSearchableComboBox::Construct(const FArguments& InArgs)
 		.IsFocusable(true)
 		);
 
-	if (InArgs._SearchVisibility.Get() != EVisibility::Collapsed)
+	if (SearchField->GetVisibility() == EVisibility::Visible)
 	{
 		SetMenuContentWidgetToFocus(SearchField);
 	}
