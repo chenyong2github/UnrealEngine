@@ -838,16 +838,8 @@ void FStaticMeshEditorViewportClient::DrawCanvas( FViewport& InViewport, FSceneV
 				NumberOptions.MinimumFractionalDigits = 2;
 				NumberOptions.MaximumFractionalDigits = 2;
 
-				if (VolumeData.bMeshWasClosed)
-				{
-					TextItems.Add(SStaticMeshEditorViewport::FOverlayTextItem(
-						FText::Format(NSLOCTEXT("UnrealEd", "DistanceFieldRes_F", "Distance Field:  {0}x{1}x{2} = {3}Mb"), FText::AsNumber(VolumeData.Size.X), FText::AsNumber(VolumeData.Size.Y), FText::AsNumber(VolumeData.Size.Z), FText::AsNumber(MemoryMb, &NumberOptions))));
-				}
-				else
-				{
-					TextItems.Add(SStaticMeshEditorViewport::FOverlayTextItem(
-						NSLOCTEXT("UnrealEd", "DistanceFieldClosed_F", "Distance Field:  Mesh was not closed and material was one-sided")));
-				}
+				TextItems.Add(SStaticMeshEditorViewport::FOverlayTextItem(
+					FText::Format(NSLOCTEXT("UnrealEd", "DistanceFieldRes_F", "Distance Field:  {0}x{1}x{2} = {3}Mb"), FText::AsNumber(VolumeData.Size.X), FText::AsNumber(VolumeData.Size.Y), FText::AsNumber(VolumeData.Size.Z), FText::AsNumber(MemoryMb, &NumberOptions))));
 			}
 		}
 	}

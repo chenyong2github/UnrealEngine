@@ -23,6 +23,12 @@ class UTexture2D;
 
 template <class T> class TLockFreePointerListLIFO;
 
+namespace DistanceField
+{
+	// One texel border for handling biliear filtering
+	constexpr int32 MeshDistanceFieldBorder = 1;
+};
+
 /** Represents a distance field volume texture for a single UStaticMesh. */
 class ENGINE_API FDistanceFieldVolumeTexture
 {
@@ -331,9 +337,6 @@ public:
 
 	FVector2D DistanceMinMax;
 
-	/** Whether the mesh was closed and therefore a valid distance field was supported. */
-	bool bMeshWasClosed;
-
 	/** Whether the distance field was built assuming that every triangle is a frontface. */
 	bool bBuiltAsIfTwoSided;
 
@@ -345,7 +348,6 @@ public:
 		Size(FIntVector(0, 0, 0)),
 		LocalBoundingBox(ForceInit),
 		DistanceMinMax(FVector2D(0, 0)),
-		bMeshWasClosed(true),
 		bBuiltAsIfTwoSided(false),
 		bAsyncBuilding(false),
 		VolumeTexture(*this)
@@ -373,7 +375,7 @@ public:
 	friend FArchive& operator<<(FArchive& Ar,FDistanceFieldVolumeData& Data)
 	{
 		// Note: this is derived data, no need for versioning (bump the DDC guid)
-		Ar << Data.CompressedDistanceFieldVolume << Data.Size << Data.LocalBoundingBox << Data.DistanceMinMax << Data.bMeshWasClosed << Data.bBuiltAsIfTwoSided;
+		Ar << Data.CompressedDistanceFieldVolume << Data.Size << Data.LocalBoundingBox << Data.DistanceMinMax << Data.bBuiltAsIfTwoSided;
 		return Ar;
 	}
 };

@@ -585,25 +585,28 @@ void FMeshUtilities::GenerateSignedDistanceFieldVolumeData(
 		const float NumVoxelsPerLocalSpaceUnit = VoxelDensity * DistanceFieldResolutionScale;
 		FBox MeshBounds(Bounds.GetBox());
 
+		// Make sure BBox isn't empty and we can generate an SDF for it. This handles e.g. infinitely thin planes.
+		FVector MeshBoundsCenter = MeshBounds.GetCenter();
+		FVector MeshBoundsExtent = FVector::Max(MeshBounds.GetExtent(), FVector(1.0f, 1.0f, 1.0f));
+		MeshBounds.Min = MeshBoundsCenter - MeshBoundsExtent;
+		MeshBounds.Max = MeshBoundsCenter + MeshBoundsExtent;
+
 		static const auto CVarEightBit = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.DistanceFieldBuild.EightBit"));
 
 		const bool bEightBitFixedPoint = CVarEightBit->GetValueOnAnyThread() != 0;
 		const int32 FormatSize = GPixelFormats[bEightBitFixedPoint ? PF_G8 : PF_R16F].BlockBytes;
 
 		{
-			const float MaxOriginalExtent = MeshBounds.GetExtent().GetMax();
-			// Expand so that the edges of the volume are guaranteed to be outside of the mesh
-			// Any samples outside the bounds will be clamped to the border, so they must be outside
-			const FVector NewExtent(MeshBounds.GetExtent() + FVector(.2f * MaxOriginalExtent).ComponentMax(4 * MeshBounds.GetExtent() / MinNumVoxelsOneDim));
-			FBox DistanceFieldVolumeBounds = FBox(MeshBounds.GetCenter() - NewExtent, MeshBounds.GetCenter() + NewExtent);
+			FVector DesiredDimensions = FVector(MeshBounds.GetSize()* FVector(NumVoxelsPerLocalSpaceUnit));
+			FIntVector VolumeDimensions = FIntVector(
+				FMath::Clamp(FMath::TruncToInt(DesiredDimensions.X) + 2 * DistanceField::MeshDistanceFieldBorder, MinNumVoxelsOneDim, MaxNumVoxelsOneDim),
+				FMath::Clamp(FMath::TruncToInt(DesiredDimensions.Y) + 2 * DistanceField::MeshDistanceFieldBorder, MinNumVoxelsOneDim, MaxNumVoxelsOneDim),
+				FMath::Clamp(FMath::TruncToInt(DesiredDimensions.Z) + 2 * DistanceField::MeshDistanceFieldBorder, MinNumVoxelsOneDim, MaxNumVoxelsOneDim));
+
+			// Expand to guarantee one voxel border for gradient reconstruction using bilinear filtering
+			const FVector TexelObjectSpaceSize = MeshBounds.GetSize() / FVector(VolumeDimensions - FIntVector(2 * DistanceField::MeshDistanceFieldBorder));
+			const FBox DistanceFieldVolumeBounds = MeshBounds.ExpandBy(DistanceField::MeshDistanceFieldBorder * TexelObjectSpaceSize);
 			const float DistanceFieldVolumeMaxDistance = DistanceFieldVolumeBounds.GetExtent().Size();
-
-			const FVector DesiredDimensions(DistanceFieldVolumeBounds.GetSize() * FVector(NumVoxelsPerLocalSpaceUnit));
-
-			const FIntVector VolumeDimensions(
-				FMath::Clamp(FMath::TruncToInt(DesiredDimensions.X), MinNumVoxelsOneDim, MaxNumVoxelsOneDim),
-				FMath::Clamp(FMath::TruncToInt(DesiredDimensions.Y), MinNumVoxelsOneDim, MaxNumVoxelsOneDim),
-				FMath::Clamp(FMath::TruncToInt(DesiredDimensions.Z), MinNumVoxelsOneDim, MaxNumVoxelsOneDim));
 
 			TArray<float> DistanceFieldVolume;
 			DistanceFieldVolume.Empty(VolumeDimensions.X * VolumeDimensions.Y * VolumeDimensions.Z);
@@ -671,6 +674,11 @@ void FMeshUtilities::GenerateSignedDistanceFieldVolumeData(
 				}
 			}
 
+			if (bNegativeAtBorder)
+			{
+				UE_LOG(LogMeshUtilities, Log, TEXT("Distance field for %s mesh has a negative border."), *MeshName);
+			}
+
 			TArray<uint8> QuantizedDistanceFieldVolume;
 			QuantizedDistanceFieldVolume.Empty(VolumeDimensions.X * VolumeDimensions.Y * VolumeDimensions.Z * FormatSize);
 			QuantizedDistanceFieldVolume.AddZeroed(VolumeDimensions.X * VolumeDimensions.Y * VolumeDimensions.Z * FormatSize);
@@ -713,20 +721,10 @@ void FMeshUtilities::GenerateSignedDistanceFieldVolumeData(
 
 			DistanceFieldVolume.Empty();
 
-			OutData.bMeshWasClosed = !bNegativeAtBorder;
 			OutData.bBuiltAsIfTwoSided = bGenerateAsIfTwoSided;
 			OutData.Size = VolumeDimensions;
-			OutData.LocalBoundingBox = DistanceFieldVolumeBounds;
+			OutData.LocalBoundingBox = MeshBounds;
 			OutData.DistanceMinMax = FVector2D(MinVolumeDistance, MaxVolumeDistance);
-
-			// Toss distance field if mesh was not closed
-			if (bNegativeAtBorder)
-			{
-				OutData.Size = FIntVector(0, 0, 0);
-				QuantizedDistanceFieldVolume.Empty();
-
-				UE_LOG(LogMeshUtilities, Log, TEXT("Discarded distance field for %s as mesh was not closed!  Assign a two-sided material to fix."), *MeshName);
-			}
 
 			if (QuantizedDistanceFieldVolume.Num() > 0)
 			{

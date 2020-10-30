@@ -23,12 +23,6 @@ inline bool UseGlobalDistanceField(const FDistanceFieldAOParameters& Parameters)
 	return UseGlobalDistanceField() && Parameters.GlobalMaxOcclusionDistance > 0;
 }
 
-namespace GlobalDistanceField
-{
-	// Approximation of margin added to SDF objects during generation inside FMeshUtilities::GenerateSignedDistanceFieldVolumeData.
-	constexpr float MESH_SDF_APPROX_MARGIN = 0.7f;
-};
-
 /** 
  * Updates the global distance field for a view.  
  * Typically issues updates for just the newly exposed regions of the volume due to camera movement.

@@ -117,7 +117,7 @@ void CullObjectsToClipmapCS(
 			&& (AcceptOftenMovingObjectsOnly == 2 || OftenMoving == AcceptOftenMovingObjectsOnly))
 		{
 			float3 ObjectCenter = ObjectBoundingSphere.xyz;
-			float3 ObjectExtent = LoadGlobalObjectExtent(ObjectIndex) * MESH_SDF_APPROX_MARGIN;
+			float3 ObjectExtent = LoadGlobalObjectExtent(ObjectIndex);
 
 			float DistanceSq = ComputeSquaredDistanceBetweenAABBs(ClipmapWorldCenter, ClipmapWorldExtent, ObjectCenter, ObjectExtent);
 			if (DistanceSq < InfluenceRadiusSq)
@@ -311,7 +311,7 @@ void AllocatePagesCS(
 			uint ObjectIndex = CullGridObjectArray[CullGridObjectOffset + IndexInCullCell];
 
 			float3 ObjectCenter = LoadGlobalObjectPositionAndRadius(ObjectIndex).xyz;
-			float3 ObjectExtent = LoadGlobalObjectExtent(ObjectIndex) * MESH_SDF_APPROX_MARGIN;
+			float3 ObjectExtent = LoadGlobalObjectExtent(ObjectIndex);
 
 			float SquaredDistanceBetweenAABBs = ComputeSquaredDistanceBetweenAABBs(PageWorldCenter, PageWorldExtent, ObjectCenter, ObjectExtent);
 
@@ -514,7 +514,7 @@ void CullObjectsToGridCS(
 			uint ObjectIndex = ObjectIndexBuffer[IndexInObjectIndexBuffer];
 
 			float3 ObjectCenter = LoadGlobalObjectPositionAndRadius(ObjectIndex).xyz;
-			float3 ObjectExtent = LoadGlobalObjectExtent(ObjectIndex) * MESH_SDF_APPROX_MARGIN;
+			float3 ObjectExtent = LoadGlobalObjectExtent(ObjectIndex);
 
 			float DistanceSq = ComputeSquaredDistanceBetweenAABBs(CullTileWorldCenter, CullTileWorldExtent, ObjectCenter, ObjectExtent);
 
@@ -545,7 +545,7 @@ void CullObjectsToGridCS(
 			uint ObjectIndex = ObjectIndexBuffer[IndexInObjectIndexBuffer];
 
 			float3 ObjectCenter = LoadGlobalObjectPositionAndRadius(ObjectIndex).xyz;
-			float3 ObjectExtent = LoadGlobalObjectExtent(ObjectIndex) * MESH_SDF_APPROX_MARGIN;
+			float3 ObjectExtent = LoadGlobalObjectExtent(ObjectIndex);
 
 			float DistanceSq = ComputeSquaredDistanceBetweenAABBs(CullTileWorldCenter, CullTileWorldExtent, ObjectCenter, ObjectExtent);
 
@@ -643,7 +643,7 @@ void ComposeObjectsIntoPagesCS(
 			uint ObjectIndex = CullGridObjectArray[CullGridObjectOffset + IndexInCullCell];
 
 			float3 ObjectCenter = LoadGlobalObjectPositionAndRadius(ObjectIndex).xyz;
-			float3 ObjectExtent = LoadGlobalObjectExtent(ObjectIndex) * MESH_SDF_APPROX_MARGIN;
+			float3 ObjectExtent = LoadGlobalObjectExtent(ObjectIndex);
 
 			float DistanceSq = ComputeSquaredDistanceBetweenAABBs(ComposeTileWorldCenter, ComposeTileWorldExtent, ObjectCenter, ObjectExtent);
 

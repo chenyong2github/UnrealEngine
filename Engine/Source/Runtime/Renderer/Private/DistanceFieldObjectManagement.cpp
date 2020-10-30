@@ -623,7 +623,6 @@ void FDeferredShadingSceneRenderer::UpdateGlobalDistanceFieldObjectBuffers(FRDGB
 
 									//float3 VolumeUV = (VolumePosition / LocalPositionExtent * .5f * UVScale + .5f * UVScale + UVAdd;
 									const FVector LocalPositionExtent = LocalVolumeBounds.GetExtent() / FVector(MaxExtent);
-									const FVector UVScale = FVector(BlockSize) * InvTextureDim;
 									const float VolumeMinScale = UniformScaleVolumeToWorld.GetMinimumAxisScale();
 
 									const FMatrix WorldToVolumeT = UniformScaleVolumeToWorld.Inverse().GetTransposed();
@@ -639,16 +638,16 @@ void FDeferredShadingSceneRenderer::UpdateGlobalDistanceFieldObjectBuffers(FRDGB
 										ExpandSurfaceDistance *= 2.0f;
 									}
 
-									// Clamp to texel center by subtracting a half texel in the [-1,1] position space
 									// LocalPositionExtent
-									UploadObjectData[3] = FVector4(LocalPositionExtent - InvBlockSize, ExpandSurfaceDistance);
+									UploadObjectData[3] = FVector4(LocalPositionExtent, ExpandSurfaceDistance);
 
 									// UVScale, VolumeScale and sign gives bGeneratedAsTwoSided
+									const FVector UVScale = FVector(BlockSize) * InvTextureDim * ((FVector(BlockSize) - 2.0f * DistanceField::MeshDistanceFieldBorder) / FVector(BlockSize));
 									const float WSign = bBuiltAsIfTwoSided ? -1 : 1;
-									UploadObjectData[4] = FVector4(FVector(BlockSize) * InvTextureDim * .5f / LocalPositionExtent, WSign * VolumeMinScale);
+									UploadObjectData[4] = FVector4(UVScale * 0.5f / LocalPositionExtent, WSign * VolumeMinScale);
 
 									// UVAdd
-									UploadObjectData[5] = FVector4(FVector(BlockMin) * InvTextureDim + .5f * UVScale, SelfShadowBias);
+									UploadObjectData[5] = FVector4((FVector(BlockMin) + DistanceField::MeshDistanceFieldBorder) * InvTextureDim + 0.5f * UVScale, SelfShadowBias);
 
 									// xy - DistanceFieldMAD
 									// zw - MinDrawDistance^2, MaxDrawDistance^2

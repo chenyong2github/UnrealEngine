@@ -588,13 +588,15 @@ Buffer<uint> GridCulledMeshSDFObjectIndicesArray;
 
 float3 CalculateMeshSDFGradient(float3 VolumeUV, float2 DistanceFieldMAD)
 {
-	//@todo - clamp to valid box in atlas
-	float R = SampleMeshDistanceField(float3(VolumeUV.x + DistanceFieldAtlasTexelSize.x, VolumeUV.y, VolumeUV.z), DistanceFieldMAD);
-	float L = SampleMeshDistanceField(float3(VolumeUV.x - DistanceFieldAtlasTexelSize.x, VolumeUV.y, VolumeUV.z), DistanceFieldMAD);
-	float F = SampleMeshDistanceField(float3(VolumeUV.x, VolumeUV.y + DistanceFieldAtlasTexelSize.y, VolumeUV.z), DistanceFieldMAD);
-	float B = SampleMeshDistanceField(float3(VolumeUV.x, VolumeUV.y - DistanceFieldAtlasTexelSize.y, VolumeUV.z), DistanceFieldMAD);
-	float U = SampleMeshDistanceField(float3(VolumeUV.x, VolumeUV.y, VolumeUV.z + DistanceFieldAtlasTexelSize.z), DistanceFieldMAD);
-	float D = SampleMeshDistanceField(float3(VolumeUV.x, VolumeUV.y, VolumeUV.z - DistanceFieldAtlasTexelSize.z), DistanceFieldMAD);
+	// Mesh distance fields 1 texel border and can't bilinear sample further than 0.5 texel from that border
+	float3 VoxelOffset = 0.5f * DistanceFieldAtlasTexelSize;
+
+	float R = SampleMeshDistanceField(float3(VolumeUV.x + VoxelOffset.x, VolumeUV.y, VolumeUV.z), DistanceFieldMAD);
+	float L = SampleMeshDistanceField(float3(VolumeUV.x - VoxelOffset.x, VolumeUV.y, VolumeUV.z), DistanceFieldMAD);
+	float F = SampleMeshDistanceField(float3(VolumeUV.x, VolumeUV.y + VoxelOffset.y, VolumeUV.z), DistanceFieldMAD);
+	float B = SampleMeshDistanceField(float3(VolumeUV.x, VolumeUV.y - VoxelOffset.y, VolumeUV.z), DistanceFieldMAD);
+	float U = SampleMeshDistanceField(float3(VolumeUV.x, VolumeUV.y, VolumeUV.z + VoxelOffset.z), DistanceFieldMAD);
+	float D = SampleMeshDistanceField(float3(VolumeUV.x, VolumeUV.y, VolumeUV.z - VoxelOffset.z), DistanceFieldMAD);
 
 	float3 Gradient = float3(R - L, F - B, U - D);
 	return Gradient;
@@ -621,7 +623,7 @@ void RayTraceSingleMeshSDF(
 	float InitialMaxDistance,
 	inout FTraceMeshSDFResult TraceResult)
 {
-	float3 LocalPositionExtent = LoadGlobalObjectLocalPositionExtent(ObjectIndex) * LUMEN_SDF_APPROX_MARGIN;
+	float3 LocalPositionExtent = LoadGlobalObjectLocalPositionExtent(ObjectIndex);
 	float4x4 WorldToVolume = LoadGlobalObjectWorldToVolume(ObjectIndex);
 	bool bGeneratedAsTwoSided;
 	float4 UVScaleAndVolumeScale = LoadGlobalObjectUVScale(ObjectIndex, bGeneratedAsTwoSided);
@@ -732,6 +734,11 @@ FTraceMeshSDFDerivedData CalculateMeshSDFDerivedData(
 		float3 HitPosition = WorldRayStart + WorldRayDirection * TraceMeshSDFResult.HitDistance;
 		float4x4 WorldToVolume = LoadGlobalObjectWorldToVolume(ObjectIndex);
 		float3 SampleVolumePosition = mul(float4(HitPosition, 1), WorldToVolume).xyz;
+
+		// Clamp hit point to a valid volume
+		float3 LocalPositionExtent = LoadGlobalObjectLocalPositionExtent(ObjectIndex);
+		SampleVolumePosition = clamp(SampleVolumePosition, -LocalPositionExtent, LocalPositionExtent);
+
 		float3 VolumeUV = DistanceFieldVolumePositionToUV(SampleVolumePosition, UVScaleAndVolumeScale.xyz, UVAddAndSelfShadowBias.xyz);
 		float2 DistanceFieldMAD = LoadGlobalObjectDistanceFieldMAD(ObjectIndex);
 		float3 LocalGradient = CalculateMeshSDFGradient(VolumeUV, DistanceFieldMAD);

@@ -202,7 +202,7 @@ void CullToVoxelClipmapCS(
 	if (ObjectIndex < NumSceneObjects)
 	{
 		float3 WorldObjectCenter = SceneObjectBounds[ObjectIndex * OBJECT_BOUNDS_STRIDE + 0].xyz;
-		float3 WorldObjectExtent = SceneObjectBounds[ObjectIndex * OBJECT_BOUNDS_STRIDE + 1].xyz * LUMEN_SDF_APPROX_MARGIN;
+		float3 WorldObjectExtent = SceneObjectBounds[ObjectIndex * OBJECT_BOUNDS_STRIDE + 1].xyz;
 		float BoundsRadius = length(WorldObjectExtent);
 
 		BRANCH
@@ -242,7 +242,7 @@ void SetupVoxelTracesCS(
 	uint ObjectIndex = ObjectIndexBuffer[IndexInObjectIndexBuffer];
 
 	float3 ObjectWorldCenter = LoadGlobalObjectPositionAndRadius(ObjectIndex).xyz;
-	float3 ObjectWorldExtent = LoadGlobalObjectExtent(ObjectIndex) * MESH_SDF_APPROX_MARGIN;
+	float3 ObjectWorldExtent = LoadGlobalObjectExtent(ObjectIndex);
 
 	int3 ObjectGridMin = (ObjectWorldCenter - ObjectWorldExtent - ConservativeRasterizationExtent) * ClipmapToUpdateGridScale + ClipmapToUpdateGridBias;
 	int3 ObjectGridMax = (ObjectWorldCenter + ObjectWorldExtent + ConservativeRasterizationExtent) * ClipmapToUpdateGridScale + ClipmapToUpdateGridBias;

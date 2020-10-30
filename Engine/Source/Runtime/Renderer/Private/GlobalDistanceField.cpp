@@ -883,7 +883,7 @@ static void ComputeUpdateRegionsAndUpdateViewState(
 					{
 						const FBox PrimBounds = ClipmapViewState.Cache[CacheType].PrimitiveModifiedBounds[BoundsIndex];
 						const FVector PrimWorldCenter = PrimBounds.GetCenter();
-						const FVector PrimWorldExtent = PrimBounds.GetExtent() * GlobalDistanceField::MESH_SDF_APPROX_MARGIN;
+						const FVector PrimWorldExtent = PrimBounds.GetExtent();
 						const FBox ModifiedBounds(PrimWorldCenter - PrimWorldExtent, PrimWorldCenter + PrimWorldExtent);
 
 						if (ModifiedBounds.ComputeSquaredDistanceToBox(ClipmapBounds) < ClipmapInfluenceRadius * ClipmapInfluenceRadius)

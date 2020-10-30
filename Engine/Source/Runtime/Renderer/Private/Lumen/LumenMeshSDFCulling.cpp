@@ -22,7 +22,7 @@ FAutoConsoleVariableRef CVarMeshSDFAverageCulledCount(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-float GMeshSDFRadiusThreshold = 100;
+float GMeshSDFRadiusThreshold = 85;
 FAutoConsoleVariableRef CVarMeshSDFRadiusThreshold(
 	TEXT("r.Lumen.DiffuseIndirect.MeshSDFRadiusThreshold"),
 	GMeshSDFRadiusThreshold,

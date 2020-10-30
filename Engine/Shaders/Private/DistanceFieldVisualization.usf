@@ -28,7 +28,6 @@ void RayTraceThroughTileCulledDistanceFields(float3 WorldRayStart, float3 WorldR
 	{
 		uint ObjectIndex = IntersectingObjectIndices[ListObjectIndex];
 		float4 SphereCenterAndRadius = LoadObjectPositionAndRadius(ObjectIndex);
-
 		float3 LocalPositionExtent = LoadObjectLocalPositionExtent(ObjectIndex);
 		float4x4 WorldToVolume = LoadObjectWorldToVolume(ObjectIndex);
 		float4 UVScaleAndVolumeScale = LoadObjectUVScale(ObjectIndex);
@@ -115,6 +114,7 @@ void VisualizeMeshDistanceFieldCS(
 	float3 Result = saturate(SDFTraceResult.TotalStepsTaken / 400.0f);
 	if (!GlobalSDFTraceResultIsHit(SDFTraceResult))
 	{
+		// Sky
 		Result.xy *= 0.25f;
 	}
 
@@ -184,6 +184,11 @@ void VisualizeMeshDistanceFieldCS(
 	if (MinRayTime < TraceDistance)
 	{
 		Result += .1f;
+	}
+	else
+	{
+		// Sky
+		Result.z += 0.05f;
 	}
 
 #endif
