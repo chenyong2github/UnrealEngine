@@ -47,7 +47,7 @@ bool FDMXProtocolSACN::Init()
 	bShouldSendDMX = ProtocolSettings->IsSendDMXEnabled();
 	bShouldReceiveDMX = ProtocolSettings->IsReceiveDMXEnabled();
 
-	ReceivingRunnable = FDMXProtocolSACNReceivingRunnable::CreateNew(ProtocolSettings->ReceivingRefreshRate);
+	ReceivingRunnable = FDMXProtocolSACNReceivingRunnable::CreateNew(ProtocolSettings->ReceivingRefreshRate, SharedThis(this));
 
 	// Set Delegates
 	NetworkInterfaceChangedDelegate = FOnNetworkInterfaceChangedDelegate::CreateRaw(this, &FDMXProtocolSACN::OnNetworkInterfaceChanged);
