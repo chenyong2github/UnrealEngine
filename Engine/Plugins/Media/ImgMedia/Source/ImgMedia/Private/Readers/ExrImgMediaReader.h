@@ -21,13 +21,18 @@ public:
 
 	/** Default constructor. */
 	FExrImgMediaReader();
-
+	virtual ~FExrImgMediaReader();
 public:
 
 	//~ IImgMediaReader interface
 
 	virtual bool GetFrameInfo(const FString& ImagePath, FImgMediaFrameInfo& OutInfo) override;
-	virtual bool ReadFrame(const FString& ImagePath, FImgMediaFrame& OutFrame) override;
+	virtual bool ReadFrame(const FString& ImagePath, TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe> OutFrame, int32 FrameId) override;
+	virtual void CancelFrame(int32 FrameNumber) override;
+
+public:
+	/** Gets reader type (GPU vs CPU) depending on size of EXR and its compression. */
+	static TSharedPtr<IImgMediaReader, ESPMode::ThreadSafe> GetReader(FString FirstImageInSequencePath);
 
 protected:
 
@@ -38,7 +43,12 @@ protected:
 	 * @param OutInfo Will contain the frame information.
 	 * @return true on success, false otherwise.
 	 */
-	bool GetInfo(FRgbaInputFile& InputFile, FImgMediaFrameInfo& OutInfo) const;
+	static bool GetInfo(FRgbaInputFile& InputFile, FImgMediaFrameInfo& OutInfo);
+
+protected:
+	TSet<int32> CanceledFrames;
+	FCriticalSection CanceledFramesCriticalSection;
+	TMap<int32, FRgbaInputFile*> PendingFrames;
 };
 
 
