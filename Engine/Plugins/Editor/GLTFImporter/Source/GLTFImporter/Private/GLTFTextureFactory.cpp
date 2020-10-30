@@ -6,11 +6,13 @@
 #include "GLTFMaterialElement.h"
 #include "GLTFTexture.h"
 
+#include "AssetRegistryModule.h"
 #include "EditorFramework/AssetImportData.h"
 #include "Engine/Texture2D.h"
 #include "Factories/TextureFactory.h"
 #include "ObjectTools.h"
 #include "PackageTools.h"
+
 
 namespace GLTFImporterImpl
 {
@@ -155,6 +157,7 @@ GLTF::ITextureElement* FGLTFTextureFactory::CreateTexture(const GLTF::FTexture& 
 		Texture->UpdateResource();
 		Texture->PostEditChange();
 		Texture->MarkPackageDirty();
+		FAssetRegistryModule::AssetCreated(Texture);
 	}
 
 	TSharedPtr<GLTF::ITextureElement> TextureElement(new FGLTFTextureElement(*Texture));
