@@ -11,14 +11,11 @@ IMPLEMENT_MODULE(FOpenXRMsftHandInteraction, OpenXRMsftHandInteraction);
 
 namespace OpenXRMsftHandInteractionKeys
 {
-	const FKey OpenXRMsftHandInteraction_Left_Select_Click("OpenXRMsftHandInteraction_Left_Select_Value");
-	const FKey OpenXRMsftHandInteraction_Right_Select_Click("OpenXRMsftHandInteraction_Right_Select_Value");
+	const FKey OpenXRMsftHandInteraction_Left_Select("OpenXRMsftHandInteraction_Left_Select_Axis");
+	const FKey OpenXRMsftHandInteraction_Right_Select("OpenXRMsftHandInteraction_Right_Select_Axis");
 
-	const FKey OpenXRMsftHandInteraction_Right_Grip_Click("OpenXRMsftHandInteraction_Right_Grip_Value");
-	const FKey OpenXRMsftHandInteraction_Left_Grip_Click("OpenXRMsftHandInteraction_Left_Grip_Value");
-
-	const FKey OpenXRMsftHandInteraction_Right_Grip_Axis("OpenXRMsftHandInteraction_Right_Grip_Axis");
-	const FKey OpenXRMsftHandInteraction_Left_Grip_Axis("OpenXRMsftHandInteraction_Left_Grip_Axis");
+	const FKey OpenXRMsftHandInteraction_Right_Grip("OpenXRMsftHandInteraction_Right_Grip_Axis");
+	const FKey OpenXRMsftHandInteraction_Left_Grip("OpenXRMsftHandInteraction_Left_Grip_Axis");
 }
 
 void FOpenXRMsftHandInteraction::StartupModule()
@@ -27,14 +24,11 @@ void FOpenXRMsftHandInteraction::StartupModule()
 
 	EKeys::AddMenuCategoryDisplayInfo("OpenXRMsftHandInteraction", LOCTEXT("OpenXRMsftHandInteractionSubCategory", "OpenXR Msft Hand Interaction"), TEXT("GraphEditor.PadEvent_16x"));
 
-	EKeys::AddKey(FKeyDetails(OpenXRMsftHandInteractionKeys::OpenXRMsftHandInteraction_Left_Select_Click,	LOCTEXT("OpenXRMsftHandInteraction_Left_Select_Click", "OpenXRMsftHandInteraction (L) Select"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "OpenXRMsftHandInteraction"));
-	EKeys::AddKey(FKeyDetails(OpenXRMsftHandInteractionKeys::OpenXRMsftHandInteraction_Right_Select_Click, LOCTEXT("OpenXRMsftHandInteraction_Right_Select_Click", "OpenXRMsftHandInteraction (R) Select"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "OpenXRMsftHandInteraction"));
+	EKeys::AddKey(FKeyDetails(OpenXRMsftHandInteractionKeys::OpenXRMsftHandInteraction_Left_Select,	LOCTEXT("OpenXRMsftHandInteraction_Left_Select_Axis", "OpenXRMsftHandInteraction (L) Select"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "OpenXRMsftHandInteraction"));
+	EKeys::AddKey(FKeyDetails(OpenXRMsftHandInteractionKeys::OpenXRMsftHandInteraction_Right_Select, LOCTEXT("OpenXRMsftHandInteraction_Right_Select_Axis", "OpenXRMsftHandInteraction (R) Select"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "OpenXRMsftHandInteraction"));
 
-	EKeys::AddKey(FKeyDetails(OpenXRMsftHandInteractionKeys::OpenXRMsftHandInteraction_Left_Grip_Click, LOCTEXT("OpenXRMsftHandInteraction_Left_Grip_Click", "OpenXRMsftHandInteraction (L) Grip"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "OpenXRMsftHandInteraction"));
-	EKeys::AddKey(FKeyDetails(OpenXRMsftHandInteractionKeys::OpenXRMsftHandInteraction_Right_Grip_Click, LOCTEXT("OpenXRMsftHandInteraction_Right_Grip_Click", "OpenXRMsftHandInteraction (R) Grip"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "OpenXRMsftHandInteraction"));
-
-	EKeys::AddKey(FKeyDetails(OpenXRMsftHandInteractionKeys::OpenXRMsftHandInteraction_Right_Grip_Axis, LOCTEXT("OpenXRMsftHandInteraction_Right_Grip_Axis", "OpenXRMsftHandInteraction (R) Grip Axis"), FKeyDetails::GamepadKey | FKeyDetails::Axis1D | FKeyDetails::NotBlueprintBindableKey, "OpenXRMsftHandInteraction"));
-	EKeys::AddKey(FKeyDetails(OpenXRMsftHandInteractionKeys::OpenXRMsftHandInteraction_Left_Grip_Axis,	LOCTEXT("OpenXRMsftHandInteraction_Left_Grip_Axis", "OpenXRMsftHandInteraction (L) Grip Axis"), FKeyDetails::GamepadKey | FKeyDetails::Axis1D | FKeyDetails::NotBlueprintBindableKey, "OpenXRMsftHandInteraction"));
+	EKeys::AddKey(FKeyDetails(OpenXRMsftHandInteractionKeys::OpenXRMsftHandInteraction_Left_Grip, LOCTEXT("OpenXRMsftHandInteraction_Left_Grip_Axis", "OpenXRMsftHandInteraction (L) Grip"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "OpenXRMsftHandInteraction"));
+	EKeys::AddKey(FKeyDetails(OpenXRMsftHandInteractionKeys::OpenXRMsftHandInteraction_Right_Grip, LOCTEXT("OpenXRMsftHandInteraction_Right_Grip_Axis", "OpenXRMsftHandInteraction (R) Grip"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "OpenXRMsftHandInteraction"));
 }
 
 bool FOpenXRMsftHandInteraction::GetRequiredExtensions(TArray<const ANSICHAR*>& OutExtensions)
