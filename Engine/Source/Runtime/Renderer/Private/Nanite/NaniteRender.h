@@ -20,8 +20,6 @@ static constexpr uint32 MAX_VIEWS_PER_CULL_RASTERIZE_PASS_BITS = 12;												
 static constexpr uint32 MAX_VIEWS_PER_CULL_RASTERIZE_PASS_MASK	= ( ( 1 << MAX_VIEWS_PER_CULL_RASTERIZE_PASS_BITS ) - 1 );	// must match define in NaniteDataDecode.ush
 static constexpr uint32 MAX_VIEWS_PER_CULL_RASTERIZE_PASS		= ( 1 << MAX_VIEWS_PER_CULL_RASTERIZE_PASS_BITS );			// must match define in NaniteDataDecode.ush
 
-#define SUPPORT_CACHE_INSTANCE_DYNAMIC_DATA				0	// Keep in sync with NaniteRender.cpp
-
 DECLARE_GPU_STAT_NAMED_EXTERN(NaniteDebug, TEXT("Nanite Debug"));
 DECLARE_GPU_STAT_NAMED_EXTERN(NaniteEditor, TEXT("Nanite Editor"));
 DECLARE_GPU_STAT_NAMED_EXTERN(NaniteRaster, TEXT("Nanite Raster"));
@@ -38,9 +36,6 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FNaniteUniformParameters, )
 
 	SHADER_PARAMETER_SRV(ByteAddressBuffer, ClusterPageData)
 	SHADER_PARAMETER_SRV(ByteAddressBuffer,	ClusterPageHeaders)
-#if SUPPORT_CACHE_INSTANCE_DYNAMIC_DATA
-	SHADER_PARAMETER_SRV(ByteAddressBuffer,	InstanceDynamicData)
-#endif
 	SHADER_PARAMETER_SRV(ByteAddressBuffer,	VisibleClustersSWHW)
 	SHADER_PARAMETER_SRV(StructuredBuffer<uint>, VisibleMaterials)
 	SHADER_PARAMETER_TEXTURE(Texture2D<uint2>,		MaterialRange)
@@ -425,9 +420,6 @@ struct FCullingContext
 	FCullingPassData	MainPass;
 	FCullingPassData	PostPass;
 
-#if SUPPORT_CACHE_INSTANCE_DYNAMIC_DATA
-	FRDGBufferRef	InstanceDynamicData;
-#endif
 	FRDGBufferRef	MainAndPostPassPersistentStates;
 	FRDGBufferRef	VisibleClustersSWHW;
 	FRDGBufferRef	OccludedInstances;
@@ -460,9 +452,6 @@ struct FRasterResults
 	uint32			MaxNodes;
 	uint32			RenderFlags;
 
-#if SUPPORT_CACHE_INSTANCE_DYNAMIC_DATA
-	TRefCountPtr<FRDGPooledBuffer>		InstanceDynamicData;
-#endif
 	TRefCountPtr<FRDGPooledBuffer>		VisibleClustersSWHW;
 
 	TRefCountPtr<IPooledRenderTarget>	VisBuffer64;
@@ -549,22 +538,25 @@ void CullRasterize(
 	const FRasterContext& RasterContext,
 	const FRasterState& RasterState = FRasterState(),
 	bool bExtractStats = false
-	);
+);
 
 void ExtractStats(
 	FRDGBuilder& GraphBuilder,
 	const FCullingContext& CullingContext,
-	bool bVirtualTextureTarget);
+	bool bVirtualTextureTarget
+);
 
 void PrintStats(
 	FRDGBuilder& GraphBuilder,
-	const FViewInfo& View);
+	const FViewInfo& View
+);
 
 void ExtractResults(
 	FRDGBuilder& GraphBuilder,
 	const FCullingContext& CullingContext,
 	const FRasterContext& RasterContext,
-	FRasterResults& RasterResults );
+	FRasterResults& RasterResults
+);
 
 void DrawHitProxies(
 	FRDGBuilder& GraphBuilder,
@@ -573,7 +565,7 @@ void DrawHitProxies(
 	const FRasterResults& RasterResults,
 	FRDGTextureRef HitProxyTexture,
 	FRDGTextureRef HitProxyDeptTexture
-	);
+);
 
 void EmitShadowMap(
 	FRDGBuilder& GraphBuilder,
@@ -584,7 +576,7 @@ void EmitShadowMap(
 	const FMatrix& ProjectionMatrix,
 	float DepthBias,
 	bool bOrtho
-	);
+);
 
 void EmitFallbackShadowMapFromVSM(
 	FRDGBuilder& GraphBuilder,
@@ -595,7 +587,7 @@ void EmitFallbackShadowMapFromVSM(
 	const FMatrix& ProjectionMatrix,
 	float DepthBias,
 	bool bOrtho
-	);
+);
 
 void EmitCubemapShadow(
 	FRDGBuilder& GraphBuilder,
@@ -604,14 +596,14 @@ void EmitCubemapShadow(
 	const FIntRect& ViewRect,
 	uint32 CubemapFaceIndex,
 	bool bUseGeometryShader
-	);
+);
 
 void DrawPrePass(
 	FRHICommandListImmediate& RHICmdList,
 	const FScene& Scene,
 	const FViewInfo& View,
 	FRasterResults& RasterResults
-	);
+);
 
 void DrawBasePass(
 	FRDGBuilder& GraphBuilder,
@@ -619,7 +611,7 @@ void DrawBasePass(
 	const FScene& Scene,
 	const FViewInfo& View,
 	const FRasterResults& RasterResults
-	);
+);
 
 void DrawLumenMeshCapturePass(
 	FRDGBuilder& GraphBuilder,
@@ -638,6 +630,7 @@ void DrawLumenMeshCapturePass(
 );
 
 #if WITH_EDITOR
+
 void GetEditorSelectionPassParameters(
 	FRDGBuilder& GraphBuilder,
 	const FScene& Scene,
@@ -645,14 +638,14 @@ void GetEditorSelectionPassParameters(
 	const FIntRect ViewportRect,
 	const FRasterResults* NaniteRasterResults,
 	FNaniteSelectionOutlineParameters* OutPassParameters
-	);
+);
 
 void DrawEditorSelection(
 	FRHICommandListImmediate& RHICmdList,
 	const FViewInfo& View,
 	const FIntRect ViewportRect,
 	const FNaniteSelectionOutlineParameters& PassParameters
-	);
+);
 
 void GetEditorVisualizeLevelInstancePassParameters(
 	FRDGBuilder& GraphBuilder,
@@ -661,14 +654,15 @@ void GetEditorVisualizeLevelInstancePassParameters(
 	const FIntRect ViewportRect,
 	const FRasterResults* NaniteRasterResults,
 	FNaniteVisualizeLevelInstanceParameters* OutPassParameters
-	);
+);
 
 void DrawEditorVisualizeLevelInstance(
 	FRHICommandListImmediate& RHICmdList,
 	const FViewInfo& View,
 	const FIntRect ViewportRect,
 	const FNaniteVisualizeLevelInstanceParameters& PassParameters
-	);
+);
+
 #endif
 
 }

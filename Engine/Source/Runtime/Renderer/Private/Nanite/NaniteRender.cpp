@@ -29,11 +29,10 @@
 #define CULLING_PASS_OCCLUSION_MAIN		1
 #define CULLING_PASS_OCCLUSION_POST		2
 
-#define RENDER_FLAG_CACHE_INSTANCE_DYNAMIC_DATA		0x1
-#define RENDER_FLAG_HAVE_PREV_DRAW_DATA				0x2
-#define RENDER_FLAG_FORCE_HW_RASTER					0x4
-#define RENDER_FLAG_PRIMITIVE_SHADER				0x8
-#define RENDER_FLAG_OUTPUT_STREAMING_REQUESTS		0x10
+#define RENDER_FLAG_HAVE_PREV_DRAW_DATA				0x1
+#define RENDER_FLAG_FORCE_HW_RASTER					0x2
+#define RENDER_FLAG_PRIMITIVE_SHADER				0x4
+#define RENDER_FLAG_OUTPUT_STREAMING_REQUESTS		0x8
 
 // Only available with the DEBUG_FLAGS permutation active.
 #define DEBUG_FLAG_WRITE_STATS						0x1
@@ -59,7 +58,7 @@ static FAutoConsoleVariableRef CVarNaniteEnableAsyncRasterization(
 	TEXT("r.Nanite.AsyncRasterization"),
 	GNaniteAsyncRasterization,
 	TEXT("")
-	);
+);
 
 int32 GNaniteAtomicRasterization = 1;
 FAutoConsoleVariableRef CVarNaniteEnableAtomicRasterization(
@@ -143,15 +142,6 @@ static FAutoConsoleVariableRef CVarNaniteMaterialSortMode(
 	TEXT("Method of sorting Nanite material draws. 0=disabled, 1=shader, 2=sortkey"),
 	ECVF_RenderThreadSafe
 );
-
-#if SUPPORT_CACHE_INSTANCE_DYNAMIC_DATA
-int32 GNaniteCacheInstanceDynamicData = 0;
-static FAutoConsoleVariableRef CVarNaniteCacheInstanceDynamicData(
-	TEXT( "r.Nanite.CacheInstanceDynamicData" ),
-	GNaniteCacheInstanceDynamicData,
-	TEXT( "" )
-);
-#endif
 
 int32 GNaniteClusterPerPage = 1;
 static FAutoConsoleVariableRef CVarNaniteClusterPerPage(
@@ -395,9 +385,6 @@ BEGIN_SHADER_PARAMETER_STRUCT(FNaniteEmitGBufferParameters, )
 	SHADER_PARAMETER_SRV( ByteAddressBuffer, ClusterPageData )
 	SHADER_PARAMETER_SRV( ByteAddressBuffer, ClusterPageHeaders )
 
-#if SUPPORT_CACHE_INSTANCE_DYNAMIC_DATA
-	SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer,	InstanceDynamicData)
-#endif
 	SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer,	VisibleClustersSWHW)
 
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint2>, MaterialRange)
@@ -484,9 +471,6 @@ class FInstanceCull_CS : public FNaniteShader
 
 		SHADER_PARAMETER_RDG_BUFFER_UAV( RWByteAddressBuffer, OutNodes )
 
-#if SUPPORT_CACHE_INSTANCE_DYNAMIC_DATA
-		SHADER_PARAMETER_RDG_BUFFER_UAV( RWStructuredBuffer< float4 >, OutInstanceDynamicData )
-#endif
 		SHADER_PARAMETER_RDG_BUFFER_UAV( RWStructuredBuffer< uint >, OutOccludedInstances )
 
 		SHADER_PARAMETER_RDG_BUFFER_UAV( RWStructuredBuffer< FPersistentState >, OutMainAndPostPassPersistentStates )
@@ -573,9 +557,6 @@ class FPersistentHierarchicalCull_CS : public FNaniteShader
 		SHADER_PARAMETER_SRV( ByteAddressBuffer,				ClusterPageData )
 		SHADER_PARAMETER_SRV( ByteAddressBuffer,				HierarchyBuffer )
 
-#if SUPPORT_CACHE_INSTANCE_DYNAMIC_DATA
-		SHADER_PARAMETER_RDG_BUFFER_SRV( StructuredBuffer< float4 >,			InstanceDynamicData )
-#endif
 		SHADER_PARAMETER_RDG_BUFFER_UAV( RWStructuredBuffer< FPersistentState >,MainAndPostPassPersistentStates )
 		SHADER_PARAMETER_RDG_BUFFER_UAV( RWByteAddressBuffer,					InOutCandidateNodes )
 
@@ -643,9 +624,6 @@ class FCandidateCull_CS : public FNaniteShader
 		SHADER_PARAMETER_SRV( ByteAddressBuffer,				ClusterPageData )
 		SHADER_PARAMETER_SRV( ByteAddressBuffer,				ClusterPageHeaders )
 
-#if SUPPORT_CACHE_INSTANCE_DYNAMIC_DATA
-		SHADER_PARAMETER_RDG_BUFFER_SRV( StructuredBuffer< float4 >,		InstanceDynamicData )
-#endif
 		SHADER_PARAMETER_RDG_BUFFER_SRV( ByteAddressBuffer,					InCandidateClusters )
 		SHADER_PARAMETER_RDG_BUFFER_UAV( RWByteAddressBuffer,				OutVisibleClustersSWHW )
 		SHADER_PARAMETER_RDG_BUFFER_UAV( RWByteAddressBuffer,				OutOccludedClusters )
@@ -764,9 +742,6 @@ BEGIN_SHADER_PARAMETER_STRUCT( FRasterizePassParameters, )
 	SHADER_PARAMETER_SRV( ByteAddressBuffer,				ClusterPageHeaders )
 
 	SHADER_PARAMETER_RDG_BUFFER_SRV( StructuredBuffer< FPackedView >,	InViews )
-#if SUPPORT_CACHE_INSTANCE_DYNAMIC_DATA
-	SHADER_PARAMETER_RDG_BUFFER_SRV( StructuredBuffer< float4 >,		InstanceDynamicData )
-#endif
 	SHADER_PARAMETER_RDG_BUFFER_SRV( ByteAddressBuffer,					VisibleClustersSWHW )
 	SHADER_PARAMETER_RDG_BUFFER_SRV( StructuredBuffer< FUintVector2 >,	InTotalPrevDrawClusters )
 
@@ -1421,9 +1396,6 @@ class FDebugVisualizeCS : public FNaniteShader
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_SRV(ByteAddressBuffer, ClusterPageData)
 		SHADER_PARAMETER_SRV(ByteAddressBuffer, ClusterPageHeaders)
-#if SUPPORT_CACHE_INSTANCE_DYNAMIC_DATA
-		SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, InstanceDynamicData)
-#endif
 		SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, VisibleClustersSWHW)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<UlongType>, VisBuffer64)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<UlongType>, DbgBuffer64)
@@ -2142,13 +2114,6 @@ FCullingContext InitCullingContext(
 	CullingContext.RenderFlags				= 0;
 	CullingContext.DebugFlags				= 0;
 
-#if SUPPORT_CACHE_INSTANCE_DYNAMIC_DATA
-	if (GNaniteCacheInstanceDynamicData && !bSupportsMultiplePasses)
-	{
-		CullingContext.RenderFlags |= RENDER_FLAG_CACHE_INSTANCE_DYNAMIC_DATA;
-	}
-#endif
-
 	if (bForceHWRaster)
 	{
 		CullingContext.RenderFlags |= RENDER_FLAG_FORCE_HW_RASTER;
@@ -2199,11 +2164,6 @@ FCullingContext InitCullingContext(
 
 	CullingContext.SOAStrides.X							= Scene.GPUScene.InstanceDataSOAStride;
 	CullingContext.SOAStrides.Y							= NumSceneInstances;
-#if SUPPORT_CACHE_INSTANCE_DYNAMIC_DATA
-	FRDGBufferDesc InstanceDynamicDataDesc				= FRDGBufferDesc::CreateStructuredDesc( 4, GNaniteCacheInstanceDynamicData ? ( NumSceneInstances * 24 * 4 ) : 1 ); // TODO: Move to scratch buffer (not used by Reverb)
-	InstanceDynamicDataDesc.Usage						= EBufferUsageFlags(InstanceDynamicDataDesc.Usage | BUF_ByteAddressBuffer );
-	CullingContext.InstanceDynamicData					= GraphBuilder.CreateBuffer(InstanceDynamicDataDesc, TEXT("InstanceDynamicData") );
-#endif
 
 	CullingContext.MainAndPostPassPersistentStates		= GraphBuilder.CreateBuffer( FRDGBufferDesc::CreateStructuredDesc( 12, 2 ), TEXT("MainAndPostPassPersistentStates") );
 
@@ -2373,9 +2333,6 @@ void AddPass_InstanceHierarchyAndClusterCull(
 		PassParameters->GPUSceneParameters = GPUSceneParameters;
 		PassParameters->NumInstances = CullingContext.NumInstancesPreCull;
 		PassParameters->CullingParameters = CullingParameters;
-#if SUPPORT_CACHE_INSTANCE_DYNAMIC_DATA
-		PassParameters->OutInstanceDynamicData				= GraphBuilder.CreateUAV( CullingContext.InstanceDynamicData );
-#endif
 		PassParameters->OutMainAndPostPassPersistentStates	= GraphBuilder.CreateUAV( CullingContext.MainAndPostPassPersistentStates );
 		
 		if (CullingContext.StatsBuffer)
@@ -2451,13 +2408,6 @@ void AddPass_InstanceHierarchyAndClusterCull(
 		PassParameters->ClusterPageData			= Nanite::GStreamingManager.GetClusterPageDataSRV();
 		PassParameters->HierarchyBuffer			= Nanite::GStreamingManager.GetHierarchySRV();
 
-#if SUPPORT_CACHE_INSTANCE_DYNAMIC_DATA
-		if( CullingContext.InstanceDynamicData )
-		{
-			PassParameters->InstanceDynamicData		= GraphBuilder.CreateSRV( CullingContext.InstanceDynamicData );
-		}
-#endif
-		
 		PassParameters->MainAndPostPassPersistentStates	= GraphBuilder.CreateUAV( CullingContext.MainAndPostPassPersistentStates );
 		
 		if( CullingPass == CULLING_PASS_NO_OCCLUSION || CullingPass == CULLING_PASS_OCCLUSION_MAIN )
@@ -2518,10 +2468,6 @@ void AddPass_InstanceHierarchyAndClusterCull(
 
 		PassParameters->ClusterPageData			= Nanite::GStreamingManager.GetClusterPageDataSRV();
 		PassParameters->ClusterPageHeaders		= Nanite::GStreamingManager.GetClusterPageHeadersSRV();
-		
-#if SUPPORT_CACHE_INSTANCE_DYNAMIC_DATA
-		PassParameters->InstanceDynamicData		= GraphBuilder.CreateSRV( CullingContext.InstanceDynamicData );
-#endif
 
 		PassParameters->OutVisibleClustersSWHW	= GraphBuilder.CreateUAV( CullingContext.VisibleClustersSWHW );
 
@@ -2609,9 +2555,6 @@ void AddPass_Rasterize(
 	FIntVector4 SOAStrides, 
 	uint32 RenderFlags,
 	FRDGBufferRef ViewsBuffer,
-#if SUPPORT_CACHE_INSTANCE_DYNAMIC_DATA
-	FRDGBufferRef InstanceDynamicData,
-#endif
 	FRDGBufferRef VisibleClustersSWHW,
 	FRDGBufferRef ClusterOffsetSWHW,
 	FRDGBufferRef IndirectArgs,
@@ -2647,9 +2590,6 @@ void AddPass_Rasterize(
 	PassParameters->MaxClusters = Nanite::FGlobalResources::GetMaxClusters();
 	PassParameters->RenderFlags = RenderFlags;
 	PassParameters->RasterStateReverseCull = RasterState.CullMode == CM_CCW ? 1 : 0;
-#if SUPPORT_CACHE_INSTANCE_DYNAMIC_DATA
-	PassParameters->InstanceDynamicData = GraphBuilder.CreateSRV(InstanceDynamicData);
-#endif
 	PassParameters->VisibleClustersSWHW = GraphBuilder.CreateSRV(VisibleClustersSWHW);
 	if (RasterContext.RasterTechnique == ERasterTechnique::DepthOnly)
 	{
@@ -3126,9 +3066,6 @@ void CullRasterizeInner(
 		CullingContext.SOAStrides,
 		CullingContext.RenderFlags,
 		CullingContext.ViewsBuffer,
-#if SUPPORT_CACHE_INSTANCE_DYNAMIC_DATA
-		CullingContext.InstanceDynamicData,
-#endif
 		CullingContext.VisibleClustersSWHW,
 		nullptr,
 		CullingContext.MainPass.RasterizeArgsSWHW,
@@ -3199,9 +3136,6 @@ void CullRasterizeInner(
 			CullingContext.SOAStrides,
 			CullingContext.RenderFlags,
 			CullingContext.ViewsBuffer,
-#if SUPPORT_CACHE_INSTANCE_DYNAMIC_DATA
-			CullingContext.InstanceDynamicData,
-#endif
 			CullingContext.VisibleClustersSWHW,
 			CullingContext.MainPass.RasterizeArgsSWHW,
 			CullingContext.PostPass.RasterizeArgsSWHW,
@@ -3487,9 +3421,7 @@ void ExtractResults(
 	RasterResults.MaxClusters	= Nanite::FGlobalResources::GetMaxClusters();
 	RasterResults.MaxNodes		= Nanite::FGlobalResources::GetMaxNodes();
 	RasterResults.RenderFlags	= CullingContext.RenderFlags;
-#if SUPPORT_CACHE_INSTANCE_DYNAMIC_DATA
-	ConvertToExternalTexture(GraphBuilder, CullingContext.InstanceDynamicData, RasterResults.InstanceDynamicData);
-#endif
+
 	ConvertToExternalBuffer(GraphBuilder, CullingContext.VisibleClustersSWHW, RasterResults.VisibleClustersSWHW);
 	ConvertToExternalTexture(GraphBuilder, RasterContext.VisBuffer64, RasterResults.VisBuffer64);
 	
@@ -3839,7 +3771,7 @@ void DrawBasePass(
 	const FScene& Scene,
 	const FViewInfo& View,
 	const FRasterResults& RasterResults
-	)
+)
 {
 	checkSlow(DoesPlatformSupportNanite(GMaxRHIShaderPlatform));
 
@@ -3874,9 +3806,6 @@ void DrawBasePass(
 	FRDGTextureRef DbgBuffer64		= RegisterExternalTextureWithFallback(GraphBuilder, RasterResults.DbgBuffer64,		GSystemTextures.BlackDummy);
 	FRDGTextureRef DbgBuffer32		= RegisterExternalTextureWithFallback(GraphBuilder, RasterResults.DbgBuffer32,		GSystemTextures.BlackDummy);
 	FRDGTextureRef MaterialDepth	= SceneDepth;
-#if SUPPORT_CACHE_INSTANCE_DYNAMIC_DATA
-	FRDGBufferRef InstanceDynamicData	= GraphBuilder.RegisterExternalBuffer(RasterResults.InstanceDynamicData);
-#endif
 	FRDGBufferRef VisibleClustersSWHW	= GraphBuilder.RegisterExternalBuffer(RasterResults.VisibleClustersSWHW);
 
 	const bool b32BitMaskCulling = (GNaniteMaterialCulling == 1 || GNaniteMaterialCulling == 2);
@@ -4077,9 +4006,6 @@ void DrawBasePass(
 			
 		PassParameters->ClusterPageData		= Nanite::GStreamingManager.GetClusterPageDataSRV(); 
 		PassParameters->ClusterPageHeaders	= Nanite::GStreamingManager.GetClusterPageHeadersSRV();
-#if SUPPORT_CACHE_INSTANCE_DYNAMIC_DATA
-		PassParameters->InstanceDynamicData = GraphBuilder.CreateSRV(InstanceDynamicData);
-#endif
 		PassParameters->VisibleClustersSWHW = GraphBuilder.CreateSRV(VisibleClustersSWHW);
 
 		PassParameters->MaterialRange = MaterialRange;
@@ -4110,7 +4036,7 @@ void DrawBasePass(
 		// Rendering grid of 64x64 pixel tiles
 		case 3:
 		case 4:
-			PassParameters->GridSize = FMath::DivideAndRoundUp(View.ViewRect.Max, { 64,64 });
+			PassParameters->GridSize = FMath::DivideAndRoundUp(View.ViewRect.Max, { 64, 64 });
 			break;
 
 		// Rendering a full screen quad
@@ -4161,9 +4087,6 @@ void DrawBasePass(
 
 			UniformParams.ClusterPageData = PassParameters->ClusterPageData;
 			UniformParams.ClusterPageHeaders = PassParameters->ClusterPageHeaders;
-#if SUPPORT_CACHE_INSTANCE_DYNAMIC_DATA
-			UniformParams.InstanceDynamicData = PassParameters->InstanceDynamicData->GetRHI();
-#endif
 			UniformParams.VisibleClustersSWHW = PassParameters->VisibleClustersSWHW->GetRHI();
 
 			UniformParams.MaterialRange = PassParameters->MaterialRange->GetRHI();
@@ -4280,9 +4203,6 @@ void DrawBasePass(
 		PassParameters->SOAStrides				= RasterResults.SOAStrides;
 		PassParameters->MaxClusters				= RasterResults.MaxClusters;
 		PassParameters->RenderFlags				= RasterResults.RenderFlags;
-#if SUPPORT_CACHE_INSTANCE_DYNAMIC_DATA
-		PassParameters->InstanceDynamicData		= GraphBuilder.CreateSRV(InstanceDynamicData);
-#endif
 		PassParameters->VisibleClustersSWHW		= GraphBuilder.CreateSRV(VisibleClustersSWHW);
 		PassParameters->VisBuffer64				= VisBuffer64;
 		PassParameters->DbgBuffer64				= DbgBuffer64;
@@ -4514,9 +4434,6 @@ void DrawLumenMeshCapturePass(
 		PassParameters->ClusterPageData		= GStreamingManager.GetClusterPageDataSRV(); 
 		PassParameters->ClusterPageHeaders	= GStreamingManager.GetClusterPageHeadersSRV();
 
-#if SUPPORT_CACHE_INSTANCE_DYNAMIC_DATA
-		PassParameters->InstanceDynamicData = GraphBuilder.CreateSRV(CullingContext.InstanceDynamicData);
-#endif
 		PassParameters->VisibleClustersSWHW = GraphBuilder.CreateSRV(CullingContext.VisibleClustersSWHW);
 
 		PassParameters->MaterialRange = BlackTexture;
@@ -4575,9 +4492,6 @@ void DrawLumenMeshCapturePass(
 				UniformParams.ClusterPageData = PassParameters->ClusterPageData;
 				UniformParams.ClusterPageHeaders = PassParameters->ClusterPageHeaders;
 
-#if SUPPORT_CACHE_INSTANCE_DYNAMIC_DATA
-				UniformParams.InstanceDynamicData = PassParameters->InstanceDynamicData->GetRHI();
-#endif
 				UniformParams.VisibleClustersSWHW = PassParameters->VisibleClustersSWHW->GetRHI();
 
 				UniformParams.MaterialRange = PassParameters->MaterialRange->GetRHI();

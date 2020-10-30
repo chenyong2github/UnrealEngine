@@ -48,19 +48,7 @@ float4 VisualizeData(
 	FNaniteView NaniteView = GetNaniteView( 0 );
 
 	FInstanceSceneData InstanceData = GetInstanceData (VisibleCluster.InstanceId );
-
-	FInstanceDynamicData InstanceDynamicData;
-#if SUPPORT_CACHE_INSTANCE_DYNAMIC_DATA
-	if (RenderFlags & RENDER_FLAG_CACHE_INSTANCE_DYNAMIC_DATA)
-	{
-		InstanceDynamicData = GetInstanceDynamicData(VisibleCluster.InstanceId);
-	}
-	else
-#else
-	{
-		InstanceDynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
-	}
-#endif
+	FInstanceDynamicData InstanceDynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
 
 	const int HierarchyOffset = InstanceData.NaniteHierarchyOffset;
 	FTriCluster Cluster = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);

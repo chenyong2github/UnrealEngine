@@ -433,24 +433,15 @@ void MicropolyRasterize(
 	SubpixelOffset = ( (float2)pPage - (float2)vPage ) * VSM_PAGE_SIZE * SUBPIXEL_SAMPLES;
 #endif
 
-
-	float4x4 LocalToSubpixel;
-
-	// Cannot cache the instance data with multi-view as the data is view dependent
-#if SUPPORT_CACHE_INSTANCE_DYNAMIC_DATA && NANITE_MULTI_VIEW == 0
-	if (RenderFlags & RENDER_FLAG_CACHE_INSTANCE_DYNAMIC_DATA)
+	// InstancedDynamicData is group invariant, so let's just calculate it once and share it through LDS.
+	if (ThreadIndex == 0)
 	{
-		LocalToSubpixel = GetInstanceDynamicData( VisibleCluster.InstanceId ).LocalToSubpixel;
+		LocalToSubpixelLDS = CalculateInstanceDynamicData(NaniteView, InstanceData).LocalToSubpixel;
 	}
-	else
-#endif
-	{
-		// InstancedDynamicData is group invariant, so let's just calculate it once and share it through LDS.
-		if(ThreadIndex == 0)
-			LocalToSubpixelLDS = CalculateInstanceDynamicData(NaniteView, InstanceData).LocalToSubpixel;
-		GroupMemoryBarrierWithGroupSync();
-		LocalToSubpixel = LocalToSubpixelLDS;
-	}
+
+	GroupMemoryBarrierWithGroupSync();
+	float4x4 LocalToSubpixel = LocalToSubpixelLDS;
+
 	FTriCluster Cluster = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
 
 	TransformVertexCache( ThreadIndex +   0, Cluster, LocalToSubpixel, SubpixelOffset );
@@ -851,20 +842,7 @@ PrimitiveOutput HWRasterizeVS(PrimitiveInput Input)
 
 	// Should be scalar.
 	FInstanceSceneData InstanceData	= GetInstanceData(VisibleCluster.InstanceId);
-
-	FInstanceDynamicData InstanceDynamicData;
-#if SUPPORT_CACHE_INSTANCE_DYNAMIC_DATA
-	BRANCH
-	if (RenderFlags & RENDER_FLAG_CACHE_INSTANCE_DYNAMIC_DATA)
-	{
-		InstanceDynamicData = GetInstanceDynamicData(VisibleCluster.InstanceId);
-	}
-	else
-#else
-	{
-		InstanceDynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
-	}
-#endif
+	FInstanceDynamicData InstanceDynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
 
 	FTriCluster Cluster = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
 
@@ -1249,18 +1227,7 @@ PrimitiveOutput HWRasterizeVS(PrimitiveInput Input)
 	FInstanceSceneData InstanceData = GetInstanceData( VisibleCluster.InstanceId );
 	FNaniteView NaniteView = GetNaniteView( VisibleCluster.ViewId );
 
-	FInstanceDynamicData InstanceDynamicData;
-#if SUPPORT_CACHE_INSTANCE_DYNAMIC_DATA
-	if (RenderFlags & RENDER_FLAG_CACHE_INSTANCE_DYNAMIC_DATA)
-	{
-		InstanceDynamicData = GetInstanceDynamicData(VisibleCluster.InstanceId);
-	}
-	else
-#else
-	{
-		InstanceDynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
-	}
-#endif
+	FInstanceDynamicData InstanceDynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
 
 	FTriCluster Cluster = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
 

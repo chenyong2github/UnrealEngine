@@ -65,16 +65,14 @@
 #define CULLING_PASS_OCCLUSION_MAIN					1
 #define CULLING_PASS_OCCLUSION_POST					2
 
-#define RENDER_FLAG_CACHE_INSTANCE_DYNAMIC_DATA		0x1
-#define RENDER_FLAG_HAVE_PREV_DRAW_DATA				0x2
-#define RENDER_FLAG_FORCE_HW_RASTER					0x4
-#define RENDER_FLAG_PRIMITIVE_SHADER				0x8
-#define RENDER_FLAG_OUTPUT_STREAMING_REQUESTS		0x10
+#define RENDER_FLAG_HAVE_PREV_DRAW_DATA				0x1
+#define RENDER_FLAG_FORCE_HW_RASTER					0x2
+#define RENDER_FLAG_PRIMITIVE_SHADER				0x4
+#define RENDER_FLAG_OUTPUT_STREAMING_REQUESTS		0x8
 
 #define VERTEX_COLOR_MODE_WHITE						0
 #define VERTEX_COLOR_MODE_CONSTANT					1
 #define VERTEX_COLOR_MODE_VARIABLE					2
-
 
 // Only available with the DEBUG_FLAGS permutation active.
 #define DEBUG_FLAG_WRITE_STATS						0x1
@@ -86,8 +84,6 @@
 #ifndef DEBUG_FLAGS
 #define DEBUG_FLAGS 0
 #endif
-
-#define SUPPORT_CACHE_INSTANCE_DYNAMIC_DATA			0	// Keep in sync with NaniteRender.ush
 
 uint GetHWClusterCounterIndex(uint InRenderFlags)
 {
@@ -321,9 +317,6 @@ struct FInstanceDraw
 	#define DebugFlags				Nanite.DebugFlags
 	#define ClusterPageData			Nanite.ClusterPageData
 	#define ClusterPageHeaders		Nanite.ClusterPageHeaders
-#if SUPPORT_CACHE_INSTANCE_DYNAMIC_DATA
-	#define InstanceDynamicData		Nanite.InstanceDynamicData
-#endif
 	#define VisibleClustersSWHW		Nanite.VisibleClustersSWHW
 #else
 	uint4 							SOAStrides;
@@ -333,9 +326,6 @@ struct FInstanceDraw
 	uint							DebugFlags;
 	ByteAddressBuffer 				ClusterPageData;
 	ByteAddressBuffer 				ClusterPageHeaders;
-#if SUPPORT_CACHE_INSTANCE_DYNAMIC_DATA
-	ByteAddressBuffer 				InstanceDynamicData;
-#endif
 	ByteAddressBuffer				VisibleClustersSWHW;
 #endif
 
@@ -803,95 +793,6 @@ FInstanceDynamicData CalculateInstanceDynamicData( FNaniteView NaniteView, FInst
 	return DynamicData;
 }
 
-#if SUPPORT_CACHE_INSTANCE_DYNAMIC_DATA
-FInstanceDynamicData GetInstanceDynamicData(uint InstanceId)
-{
-	uint InstanceDynamicDataStride = SOAStrides.y * 16;
-	uint BaseAddress = InstanceId * 16;
-
-	FInstanceDynamicData DynamicData;
-
-	DynamicData.LocalToSubpixel[0]		= asfloat( InstanceDynamicData.Load4( BaseAddress +  0 * InstanceDynamicDataStride ) );
-	DynamicData.LocalToSubpixel[1]		= asfloat( InstanceDynamicData.Load4( BaseAddress +  1 * InstanceDynamicDataStride ) );
-	DynamicData.LocalToSubpixel[2]		= asfloat( InstanceDynamicData.Load4( BaseAddress +  2 * InstanceDynamicDataStride ) );
-	DynamicData.LocalToSubpixel[3]		= asfloat( InstanceDynamicData.Load4( BaseAddress +  3 * InstanceDynamicDataStride ) );
-
-	DynamicData.LocalToView[0]			= asfloat( InstanceDynamicData.Load4( BaseAddress +  4 * InstanceDynamicDataStride ) );
-	DynamicData.LocalToView[1]			= asfloat( InstanceDynamicData.Load4( BaseAddress +  5 * InstanceDynamicDataStride ) );
-	DynamicData.LocalToView[2]			= asfloat( InstanceDynamicData.Load4( BaseAddress +  6 * InstanceDynamicDataStride ) );
-	DynamicData.LocalToView[3]			= float4( 0, 0, 0, 1 );
-
-	DynamicData.ClipToLocal[0]			= asfloat( InstanceDynamicData.Load4( BaseAddress +  7 * InstanceDynamicDataStride ) );
-	DynamicData.ClipToLocal[1]			= asfloat( InstanceDynamicData.Load4( BaseAddress +  8 * InstanceDynamicDataStride ) );
-	DynamicData.ClipToLocal[2]			= asfloat( InstanceDynamicData.Load4( BaseAddress +  9 * InstanceDynamicDataStride ) );
-	DynamicData.ClipToLocal[3]			= asfloat( InstanceDynamicData.Load4( BaseAddress + 10 * InstanceDynamicDataStride ) );
-
-	DynamicData.PrevLocalToSubpixel[0]	= asfloat( InstanceDynamicData.Load4( BaseAddress + 11 * InstanceDynamicDataStride ) );
-	DynamicData.PrevLocalToSubpixel[1]	= asfloat( InstanceDynamicData.Load4( BaseAddress + 12 * InstanceDynamicDataStride ) );
-	DynamicData.PrevLocalToSubpixel[2]	= asfloat( InstanceDynamicData.Load4( BaseAddress + 13 * InstanceDynamicDataStride ) );
-	DynamicData.PrevLocalToSubpixel[3]	= asfloat( InstanceDynamicData.Load4( BaseAddress + 14 * InstanceDynamicDataStride ) );
-
-	DynamicData.PrevLocalToView[0]		= asfloat( InstanceDynamicData.Load4( BaseAddress + 15 * InstanceDynamicDataStride ) );
-	DynamicData.PrevLocalToView[1]		= asfloat( InstanceDynamicData.Load4( BaseAddress + 16 * InstanceDynamicDataStride ) );
-	DynamicData.PrevLocalToView[2]		= asfloat( InstanceDynamicData.Load4( BaseAddress + 17 * InstanceDynamicDataStride ) );
-	DynamicData.PrevLocalToView[3]		= float4( 0, 0, 0, 1 );
-
-	DynamicData.PrevClipToLocal[0]		= asfloat( InstanceDynamicData.Load4( BaseAddress + 18 * InstanceDynamicDataStride ) );
-	DynamicData.PrevClipToLocal[1]		= asfloat( InstanceDynamicData.Load4( BaseAddress + 19 * InstanceDynamicDataStride ) );
-	DynamicData.PrevClipToLocal[2]		= asfloat( InstanceDynamicData.Load4( BaseAddress + 20 * InstanceDynamicDataStride ) );
-	DynamicData.PrevClipToLocal[3]		= asfloat( InstanceDynamicData.Load4( BaseAddress + 21 * InstanceDynamicDataStride ) );
-
-	DynamicData.ViewPosScaledLocal		= asfloat( InstanceDynamicData.Load3( BaseAddress + 22 * InstanceDynamicDataStride ) );
-	DynamicData.ViewForwardScaledLocal	= asfloat( InstanceDynamicData.Load3( BaseAddress + 23 * InstanceDynamicDataStride ));
-
-	DynamicData.LocalToView		= transpose( DynamicData.LocalToView );
-	DynamicData.PrevLocalToView = transpose( DynamicData.PrevLocalToView );
-
-	DynamicData.bHasMoved = false;
-	return DynamicData;
-}
-
-void StoreInstanceDynamicData(uint InstanceId, FInstanceDynamicData DynamicData)
-{
-	uint InstanceDynamicDataStride = SOAStrides.y * 16;
-	uint BaseAddress = InstanceId * 16;
-
-	DynamicData.LocalToView		= transpose( DynamicData.LocalToView );
-	DynamicData.PrevLocalToView = transpose( DynamicData.PrevLocalToView );
-
-	OutInstanceDynamicData.Store4( BaseAddress +  0 * InstanceDynamicDataStride, asuint( DynamicData.LocalToSubpixel[0] ) );
-	OutInstanceDynamicData.Store4( BaseAddress +  1 * InstanceDynamicDataStride, asuint( DynamicData.LocalToSubpixel[1] ) );
-	OutInstanceDynamicData.Store4( BaseAddress +  2 * InstanceDynamicDataStride, asuint( DynamicData.LocalToSubpixel[2] ) );
-	OutInstanceDynamicData.Store4( BaseAddress +  3 * InstanceDynamicDataStride, asuint( DynamicData.LocalToSubpixel[3] ) );
-								   
-	OutInstanceDynamicData.Store4( BaseAddress +  4 * InstanceDynamicDataStride, asuint( DynamicData.LocalToView[0] ) );
-	OutInstanceDynamicData.Store4( BaseAddress +  5 * InstanceDynamicDataStride, asuint( DynamicData.LocalToView[1] ) );
-	OutInstanceDynamicData.Store4( BaseAddress +  6 * InstanceDynamicDataStride, asuint( DynamicData.LocalToView[2] ) );
-								   
-	OutInstanceDynamicData.Store4( BaseAddress +  7 * InstanceDynamicDataStride, asuint( DynamicData.ClipToLocal[0] ) );
-	OutInstanceDynamicData.Store4( BaseAddress +  8 * InstanceDynamicDataStride, asuint( DynamicData.ClipToLocal[1] ) );
-	OutInstanceDynamicData.Store4( BaseAddress +  9 * InstanceDynamicDataStride, asuint( DynamicData.ClipToLocal[2] ) );
-	OutInstanceDynamicData.Store4( BaseAddress + 10 * InstanceDynamicDataStride, asuint( DynamicData.ClipToLocal[3] ) );
-
-	OutInstanceDynamicData.Store4( BaseAddress + 11 * InstanceDynamicDataStride, asuint( DynamicData.PrevLocalToSubpixel[0] ) );
-	OutInstanceDynamicData.Store4( BaseAddress + 12 * InstanceDynamicDataStride, asuint( DynamicData.PrevLocalToSubpixel[1] ) );
-	OutInstanceDynamicData.Store4( BaseAddress + 13 * InstanceDynamicDataStride, asuint( DynamicData.PrevLocalToSubpixel[2] ) );
-	OutInstanceDynamicData.Store4( BaseAddress + 14 * InstanceDynamicDataStride, asuint( DynamicData.PrevLocalToSubpixel[3] ) );
-								   
-	OutInstanceDynamicData.Store4( BaseAddress + 15 * InstanceDynamicDataStride, asuint( DynamicData.PrevLocalToView[0] ) );
-	OutInstanceDynamicData.Store4( BaseAddress + 16 * InstanceDynamicDataStride, asuint( DynamicData.PrevLocalToView[1] ) );
-	OutInstanceDynamicData.Store4( BaseAddress + 17 * InstanceDynamicDataStride, asuint( DynamicData.PrevLocalToView[2] ) );
-
-	OutInstanceDynamicData.Store4( BaseAddress + 18 * InstanceDynamicDataStride, asuint( DynamicData.PrevClipToLocal[0] ) );
-	OutInstanceDynamicData.Store4( BaseAddress + 19 * InstanceDynamicDataStride, asuint( DynamicData.PrevClipToLocal[1] ) );
-	OutInstanceDynamicData.Store4( BaseAddress + 20 * InstanceDynamicDataStride, asuint( DynamicData.PrevClipToLocal[2] ) );
-	OutInstanceDynamicData.Store4( BaseAddress + 21 * InstanceDynamicDataStride, asuint( DynamicData.PrevClipToLocal[3] ) );
-
-	OutInstanceDynamicData.Store3( BaseAddress + 22 * InstanceDynamicDataStride, asuint( DynamicData.ViewPosScaledLocal ) );
-	OutInstanceDynamicData.Store3( BaseAddress + 23 * InstanceDynamicDataStride, asuint( DynamicData.ViewForwardScaledLocal ) );
-}
-#endif
-
 FInstanceSceneData GetInstanceData( uint InstanceId )
 {
 	return GetInstanceData( InstanceId, SOAStrides.x );
@@ -1225,9 +1126,9 @@ FNaniteView GetNaniteView( uint ViewIndex )
 
 #if NANITE_MULTI_VIEW
 	FPackedNaniteView PackedView = InViews[ViewIndex];
-#else // !NANITE_MULTI_VIEW
+#else
 	FPackedNaniteView PackedView = InViews[0];
-#endif // NANITE_MULTI_VIEW
+#endif
 
 	FNaniteView NaniteView;
 

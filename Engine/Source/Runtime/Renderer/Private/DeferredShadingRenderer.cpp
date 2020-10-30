@@ -2031,7 +2031,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		Strata::InitialiseStrataFrameSceneData(*this, GraphBuilder);
 	}
 
-	if(GetCustomDepthPassLocation() == 0)
+	if (GetCustomDepthPassLocation() == 0)
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_CustomDepthPass0);
 		RenderCustomDepthPassAtLocation(GraphBuilder, 0);
@@ -2097,6 +2097,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 			GCompositionLighting.ProcessBeforeBasePass(GraphBuilder, Scene->UniformBuffers, View, SceneTextures, bDBuffer, SSAOLevels);
 		}
+
 		AddServiceLocalQueuePass(GraphBuilder);
 	}
 	
@@ -2241,7 +2242,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		ComputeVolumetricFog(GraphBuilder);
 	}
 
-	if(GetCustomDepthPassLocation() == 1)
+	if (GetCustomDepthPassLocation() == 1)
 	{
 		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(CustomDepthPass);
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_CustomDepthPass1);
@@ -2386,7 +2387,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 				SceneContext.bScreenSpaceAOIsValid);
 		}
 
-		// These modulate the scenecolor output from the basepass, which is assumed to be indirect lighting
+		// These modulate the scene color output from the base pass, which is assumed to be indirect lighting
 		RenderDFAOAsIndirectShadowing(GraphBuilder, SceneTextures, SceneColorTexture.Target, VelocityTexture, DynamicBentNormalAOTexture);
 
 		// Clear the translucent lighting volumes before we accumulate
@@ -2407,7 +2408,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		AddSetCurrentStatPass(GraphBuilder, GET_STATID(STAT_CLM_AfterLighting));
 		AddServiceLocalQueuePass(GraphBuilder);
 
-		for(int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
+		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
 		{
 			const FViewInfo& View = Views[ViewIndex];
 			RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
@@ -2434,12 +2435,14 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		{
 			RenderHairStrandsSceneColorScattering(GraphBuilder, SceneColorTexture.Target, Scene, Views, HairDatas);
 		}
-#if RHI_RAYTRACING
+
+	#if RHI_RAYTRACING
 		if (SkyLightTexture)
 		{
 			CompositeRayTracingSkyLight(GraphBuilder, SceneColorTexture.Target, SceneTextureExtent, SkyLightTexture, SkyLightHitDistanceTexture);
 		}
-#endif // RHI_RAYTRACING
+	#endif
+
 		AddServiceLocalQueuePass(GraphBuilder);
 	}
 	else if (HairDatas)

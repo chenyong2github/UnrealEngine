@@ -276,19 +276,7 @@ void PersistentHierarchicalCull(
 #endif
 
 		FInstanceSceneData InstanceData = GetInstanceData( VisibleNode.InstanceId );
-
-		FInstanceDynamicData DynamicData;
-		// Cannot cache the instance data with multi-view as the data is view dependent
-#if SUPPORT_CACHE_INSTANCE_DYNAMIC_DATA && NANITE_MULTI_VIEW == 0
-		if (RenderFlags & RENDER_FLAG_CACHE_INSTANCE_DYNAMIC_DATA)
-		{
-			DynamicData = GetInstanceDynamicData(VisibleNode.InstanceId);
-		}
-		else
-#endif // NANITE_MULTI_VIEW
-		{
-			DynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
-		}
+		FInstanceDynamicData DynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
 
 		// Depth clipping should only be disabled with orthographic projections
 		const bool bNearClip = (NEAR_CLIP != 0);
@@ -519,17 +507,7 @@ void CandidateCullInner(
 		NaniteView.LODScale *= DisocclusionLodScaleFactor;
 #endif
 
-	FInstanceDynamicData DynamicData;
-#if SUPPORT_CACHE_INSTANCE_DYNAMIC_DATA && NANITE_MULTI_VIEW == 0
-	if (RenderFlags & RENDER_FLAG_CACHE_INSTANCE_DYNAMIC_DATA)
-	{
-		DynamicData = GetInstanceDynamicData(InstanceId);
-	}
-	else
-#endif // NANITE_MULTI_VIEW
-	{
-		DynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
-	}
+	FInstanceDynamicData DynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
 
 	const uint HWClusterCounterIndex = GetHWClusterCounterIndex(RenderFlags);
 

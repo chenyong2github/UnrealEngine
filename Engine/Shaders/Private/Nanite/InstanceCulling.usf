@@ -106,15 +106,6 @@ void InstanceCull(
 		BRANCH
 		if( bIsVisible )
 		{
-			// TODO: Hoist out of view loop for multi-view routing
-#if SUPPORT_CACHE_INSTANCE_DYNAMIC_DATA
-			if (RenderFlags & RENDER_FLAG_CACHE_INSTANCE_DYNAMIC_DATA)
-			{
-				FInstanceDynamicData InstanceDynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
-				StoreInstanceDynamicData(InstanceId, InstanceDynamicData);
-			}
-#endif
-
 			if( CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN )
 			{
 				float4x4 LocalToPrevTranslatedWorld = InstanceData.LocalToWorld;
