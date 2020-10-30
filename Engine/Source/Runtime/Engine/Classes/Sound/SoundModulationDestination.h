@@ -14,6 +14,19 @@ class USoundModulatorBase;
 class UObject;
 
 
+UENUM(BlueprintType)
+enum class EModulationRouting : uint8
+{
+	/* Disables modulation routing */
+	Disable,
+
+	/* Inherits modulation routing (AudioComponent inherits from Sound, Sound inherits from SoundClass) */
+	Inherit,
+
+	/* Ignores inherited settings and uses modulation settings on this object */
+	Override
+};
+
 /** Parameter destination settings allowing modulation control override for parameter destinations opting in to the Modulation System. */
 USTRUCT(BlueprintType)
 struct ENGINE_API FSoundModulationDestinationSettings
@@ -34,7 +47,6 @@ struct ENGINE_API FSoundModulationDestinationSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Modulation)
 	USoundModulatorBase* Modulator = nullptr;
 };
-
 
 /** Default parameter destination settings for source audio object. */
 USTRUCT(BlueprintType)
@@ -59,6 +71,31 @@ struct ENGINE_API FSoundModulationDefaultSettings
 	/** Lowpass modulation */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Modulation", meta = (DisplayName = "Lowpass", AudioParam = "LPFCutoffFrequency"))
 	FSoundModulationDestinationSettings LowpassModulationDestination;
+};
+
+/** Default parameter destination settings for source audio object. */
+USTRUCT(BlueprintType)
+struct ENGINE_API FSoundModulationDefaultRoutingSettings : public FSoundModulationDefaultSettings
+{
+	GENERATED_USTRUCT_BODY()
+
+	FSoundModulationDefaultRoutingSettings();
+
+	/** What volume modulation settings to use */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Modulation")
+	EModulationRouting VolumeRouting = EModulationRouting::Inherit;
+
+	/** What pitch modulation settings to use */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Modulation")
+	EModulationRouting PitchRouting = EModulationRouting::Inherit;
+
+	/** What high-pass modulation settings to use */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Modulation")
+	EModulationRouting HighpassRouting = EModulationRouting::Inherit;
+
+	/** What low-pass modulation settings to use */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Modulation")
+	EModulationRouting LowpassRouting = EModulationRouting::Inherit;
 };
 
 namespace Audio

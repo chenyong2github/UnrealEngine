@@ -16,6 +16,11 @@ FSoundModulationDefaultSettings::FSoundModulationDefaultSettings()
 	LowpassModulationDestination.Value = MAX_FILTER_FREQUENCY;
 }
 
+FSoundModulationDefaultRoutingSettings::FSoundModulationDefaultRoutingSettings()
+	: FSoundModulationDefaultSettings()
+{
+}
+
 namespace Audio
 {
 	FModulationDestination::FModulationDestination(const FModulationDestination& InModulationDestination)

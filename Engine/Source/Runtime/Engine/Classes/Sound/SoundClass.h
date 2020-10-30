@@ -8,6 +8,7 @@
 #include "IAudioExtensionPlugin.h"
 #include "IAudioModulation.h"
 #include "Sound/AudioOutputTarget.h"
+#include "Sound/SoundModulationDestination.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 
@@ -124,6 +125,10 @@ struct FSoundClassProperties
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Submix)
 	float Default2DReverbSendAmount;
 
+	/** Default modulation settings for sounds directly referencing this class */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Modulation)
+	FSoundModulationDefaultSettings ModulationSettings;
+
 	/** Which output target the sound should be played through */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Routing)
 	TEnumAsByte<EAudioOutputTarget::Type> OutputTarget;
@@ -201,6 +206,7 @@ class ENGINE_API USoundClass : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
+public:
 	/** Configurable properties like volume and priority. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = General, meta = (ShowOnlyInnerProperties))
 	FSoundClassProperties Properties;
@@ -212,7 +218,6 @@ class ENGINE_API USoundClass : public UObject
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = General)
 	TArray<FPassiveSoundMixModifier> PassiveSoundMixModifiers;
 
-public:
 	UPROPERTY(BlueprintReadOnly, Category = General)
 	USoundClass* ParentClass;
 
