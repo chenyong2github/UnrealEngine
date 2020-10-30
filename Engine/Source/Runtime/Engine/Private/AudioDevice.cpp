@@ -4005,10 +4005,16 @@ void FAudioDevice::StopSources(TArray<FWaveInstance*>& WaveInstances, int32 Firs
 				// Update the pause state of the source.
 				Source->SetPauseManually(WaveInstance->bIsPaused);
 
-				// Need to update the source still so that it gets any volume settings applied to
-				// otherwise the source may play at a very quiet volume and not actually set to 0.0
-				Source->NotifyPlaybackData();
-				Source->Update();
+				// Have to check it again here, because:
+				// - Source->NotifyPlaybackData() does not handle it if it is nullptr
+				// - SetPauseManually might set it to nullptr if the sound is unpaused and is stopping
+				if (WaveInstance != nullptr)
+				{
+					// Need to update the source still so that it gets any volume settings applied to
+					// otherwise the source may play at a very quiet volume and not actually set to 0.0
+					Source->NotifyPlaybackData();
+					Source->Update();
+				}
 			}
 
 #if ENABLE_AUDIO_DEBUG
