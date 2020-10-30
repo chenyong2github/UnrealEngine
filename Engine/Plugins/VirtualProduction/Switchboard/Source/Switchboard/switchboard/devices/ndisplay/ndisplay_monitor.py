@@ -15,6 +15,9 @@ class nDisplayMonitor(QAbstractTableModel):
     It polls the listener at the specified rate and the UI should update with this info.
     '''
 
+    ColorWarning = QColor(0xcc, 0x6a, 0x1b)
+    ColorNormal  = QColor(0x3d, 0x3d, 0x3d)
+
     def __init__(self, parent):
         QAbstractTableModel.__init__(self, parent)
 
@@ -40,7 +43,35 @@ class nDisplayMonitor(QAbstractTableModel):
             'ExeFlags',
         ]
 
+    def color_for_column(self, colname, value, data):
+        ''' Returns the background color for the given cell
+        '''
+
+        if data['Connected'].lower() == 'no':
+            if colname == 'Connected':
+                return self.ColorWarning
+            return self.ColorNormal
+
+        if colname == 'FlipMode':
+            good_string = 'Hardware Composed: Independent Flip'
+            return self.ColorNormal if good_string in value else self.ColorWarning
+
+        if colname == 'Gpus':
+            return self.ColorNormal if 'Synced' in value and 'Free' not in value else self.ColorWarning
+
+        if colname == 'ExeFlags':
+            good_string = 'DISABLEDXMAXIMIZEDWINDOWEDMODE'
+            return self.ColorNormal if good_string in value else self.ColorWarning
+        
+        if colname == 'Displays':
+            is_normal = ('Slave' in value or 'Master' in value) and 'Unsynced' not in value
+            return self.ColorNormal if is_normal else self.ColorWarning
+
+        return self.ColorNormal
+
     def reset_device_data(self, device, data):
+        ''' Sets device data to unconnected state
+        '''
 
         for colname in self.colnames:
             data[colname] = 'n/a'
@@ -328,18 +359,19 @@ class nDisplayMonitor(QAbstractTableModel):
         column = index.column()
         row = index.row()
 
+        # get column name
+        colname = self.colnames[column]
+
+        # grab device data from ordered dict
+        _, devicedata = list(self.devicedatas.items())[row] # returns key, value. Where key is the device_hash.
+        data = devicedata['data']
+        value = data[colname]
+
         if role == Qt.DisplayRole:
+            return value
 
-            # grab device data from ordered dict
-            _, devicedata = list(self.devicedatas.items())[row] # returns key, value. Where key is the device_hash.
-            data = devicedata['data']
-
-            # return column data
-            colname = self.colnames[column]
-            return data[colname]
-
-        #elif role == Qt.BackgroundRole:
-        #    return QColor(Qt.white)
+        elif role == Qt.BackgroundRole:
+            return self.color_for_column(colname=colname, value=value, data=data)
 
         elif role == Qt.TextAlignmentRole:
             return Qt.AlignRight
