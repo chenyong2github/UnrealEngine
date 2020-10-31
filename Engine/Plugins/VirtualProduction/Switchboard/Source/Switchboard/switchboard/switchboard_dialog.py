@@ -100,11 +100,12 @@ class SwitchboardDialog(QtCore.QObject):
         self.device_list_widget = self.window.device_list_widget
         # When new widgets are added, register the signal/slots
         self.device_list_widget.signal_register_device_widget.connect(self.register_device_widget)
+        self.device_list_widget.signal_connect_all_plugin_devices_toggled.connect(self.on_all_plugin_devices_connect_toggled)
+        self.device_list_widget.signal_open_all_plugin_devices_toggled.connect(self.on_all_plugin_devices_open_toggled)
 
         # forward device(widget) removal between ListWidget and DeviceManager
         self.device_list_widget.signal_remove_device.connect(self.device_manager.remove_device_by_hash)
-        self.device_manager.signal_device_removed.connect(self.device_list_widget.on_device_removed)
-        self.device_manager.signal_device_removed.connect(CONFIG.on_device_removed)
+        self.device_manager.signal_device_removed.connect(self.on_device_removed)
 
         # DeviceManager initialize with from the config
         #
@@ -224,6 +225,10 @@ class SwitchboardDialog(QtCore.QObject):
 
             self.device_manager.add_devices({device_type : dialog.devices_to_add()})
             CONFIG.save()
+
+    def on_device_removed(self, device_hash, device_type, device_name, update_config):
+        self.device_list_widget.on_device_removed(device_hash, device_type, device_name, update_config)
+        CONFIG.on_device_removed(device_hash, device_type, device_name, update_config)
 
     def eventFilter(self, obj, event):
         if obj == self.window and event.type() == QtCore.QEvent.Close:
@@ -605,6 +610,28 @@ class SwitchboardDialog(QtCore.QObject):
         except:
             pass
 
+    def on_all_plugin_devices_connect_toggled(self, plugin_name, state):
+        devices = self.device_manager.devices_of_type(plugin_name)
+        for device in devices:
+            try:
+                if state:
+                    device.widget._connect()
+                else:
+                    device.widget._disconnect()
+            except:
+                pass
+
+    def on_all_plugin_devices_open_toggled(self, plugin_name, state):
+        devices = self.device_manager.devices_of_type(plugin_name)
+        for device in devices:
+            try:
+                if state and device.widget.open_button.isEnabled():
+                    device.widget._open()
+                else:
+                    device.widget._close()
+            except:
+                pass
+
     def multiuser_session_name(self):
         return self._multiuser_session_name
 
@@ -942,6 +969,9 @@ class SwitchboardDialog(QtCore.QObject):
 
         # Update the device widget
         self.device_list_widget.update_status(device, previous_status)
+
+        devices = self.device_manager.devices_of_type(device.device_type)
+        self.device_list_widget.update_category_status(device.category_name, devices)
 
         if previous_status != device.status:
             LOGGER.debug(f'{device.name}: device status change: {device.status.name}')

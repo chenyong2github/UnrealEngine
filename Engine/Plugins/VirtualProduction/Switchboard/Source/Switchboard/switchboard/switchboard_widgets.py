@@ -1,5 +1,5 @@
 # Copyright Epic Games, Inc. All Rights Reserved.
-from PySide2 import QtCore, QtWidgets
+from PySide2 import QtCore, QtGui, QtWidgets
 import time
 
 DEVICE_LIST_WIDGET_HEIGHT = 54
@@ -125,6 +125,59 @@ class ControlQPushButton(QtWidgets.QPushButton):
     def leaveEvent(self, event):
         super().leaveEvent(event)
         self.clearFocus()
+
+    @classmethod
+    def create(self, icon_off, icon_on=None,
+                icon_hover_on=None, icon_hover=None,
+                icon_disabled_on=None, icon_disabled=None,
+                icon_size=None,
+                checkable=True, checked=False,
+                tool_tip=None, parent=True):
+        button = ControlQPushButton()
+
+        button.setProperty("no_background", True)
+        button.setStyle(button.style())
+
+        icon = QtGui.QIcon()
+
+        if icon_on:
+            pixmap = QtGui.QPixmap(icon_on)
+            icon.addPixmap(pixmap, QtGui.QIcon.Normal, QtGui.QIcon.On)
+
+        if icon_hover:
+            pixmap = QtGui.QPixmap(icon_hover)
+            icon.addPixmap(pixmap, QtGui.QIcon.Active, QtGui.QIcon.Off)
+
+        if icon_hover_on:
+            pixmap = QtGui.QPixmap(icon_hover_on)
+            icon.addPixmap(pixmap, QtGui.QIcon.Active, QtGui.QIcon.On)
+
+        if icon_disabled:
+            pixmap = QtGui.QPixmap(icon_disabled)
+            icon.addPixmap(pixmap, QtGui.QIcon.Disabled, QtGui.QIcon.Off)
+
+        if icon_disabled_on:
+            pixmap = QtGui.QPixmap(icon_disabled)
+            icon.addPixmap(pixmap, QtGui.QIcon.Disabled, QtGui.QIcon.On)
+
+        pixmap = QtGui.QPixmap(icon_off)
+        icon.addPixmap(pixmap, QtGui.QIcon.Normal, QtGui.QIcon.Off)
+
+        button.setIcon(icon)
+
+        if not icon_size:
+            icon_size = pixmap.rect().size()
+        button.setIconSize(icon_size)
+        button.setMinimumSize(QtCore.QSize(25, 35))
+
+        if tool_tip:
+            button.setToolTip(tool_tip)
+
+        if checkable:
+            button.setCheckable(checkable)
+            button.setChecked(checked)
+
+        return button
 
 
 class FramelessQLineEdit(QtWidgets.QLineEdit):
