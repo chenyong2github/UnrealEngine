@@ -73,7 +73,7 @@ public:
 	void SetUMGClass(const TSubclassOf<UUserWidget> InUMGClass);
 
 	// The UMG class to be rendered in this output provider
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Output", meta = (DisplayPriority = "2"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Output", meta = (DisplayName="UMG Overlay", DisplayPriority = "2"))
 	TSubclassOf<UUserWidget> UMGClass;
 
 	// Override the default output resolution with a custom value - NOTE you must toggle bIsActive off then back on for this to take effect
