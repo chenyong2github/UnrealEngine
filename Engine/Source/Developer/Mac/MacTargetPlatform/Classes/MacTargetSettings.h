@@ -20,6 +20,20 @@ enum class EMacMetalShaderStandard : uint8
     MacMetalSLStandard_2_1 = 4 UMETA(DisplayName="Metal v2.1 (10.14.0+)"),
 };
 
+UENUM()
+enum class EMacTargetArchitecture : uint8
+{
+    /** Create packages that can run natively on Intel Macs and under translation on Apple Silicon Macs */
+    MacTargetArchitectureIntel = 0 UMETA(DisplayName="Intel x64"),
+    
+    /** Create Universal packages that run natively on all Macs */
+    MacTargetArchitectureUniversal = 1 UMETA(DisplayName="Universal (Intel & Apple Silicon)"),
+
+    /** Create packages that can run natively on Apple Silicon Macs */
+    MacTargetArchitectureAppleSil = 2 UMETA(DisplayName="Apple Silicon"),
+};
+
+
 /**
  * Implements the settings for the Mac target platform.
  */
@@ -37,6 +51,13 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, config, Category=Rendering)
 	TArray<FString> TargetedRHIs;
+    
+    /**
+     * The maximum supported Metal shader langauge version.
+     * This defines what features may be used and OS versions supported.
+     */
+    UPROPERTY(EditAnywhere, config, Category=Packaging, meta = (DisplayName = "Architectures to Package For (Experimental)"))
+    EMacTargetArchitecture TargetArchitecture;
     
     /**
      * The maximum supported Metal shader langauge version. 
