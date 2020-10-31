@@ -128,12 +128,6 @@ class DeviceUnreal(Device):
     def device_settings(self):
         return super().device_settings() + [self.setting_roles]
 
-    @property
-    def category_name(self):
-        if self.is_recording_device and self.status >= DeviceStatus.READY:
-            return "Recording"
-        return "Multiuser"
-
     def on_setting_ip_address_changed(self, _, new_address):
         LOGGER.info(f"Updating IP address for ListenerClient to {new_address}")
         self.unreal_client.ip_address = new_address

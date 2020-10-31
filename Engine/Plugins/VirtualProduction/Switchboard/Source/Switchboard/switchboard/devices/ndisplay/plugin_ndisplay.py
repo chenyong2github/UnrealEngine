@@ -224,10 +224,6 @@ class DevicenDisplay(DeviceUnreal):
             self.generate_unreal_command_line()
 
     @property
-    def category_name(self):
-        return "nDisplay"
-
-    @property
     def is_recording_device(self):
         return False
 
