@@ -299,7 +299,7 @@ void UDMXSubsystem::GetAllUniversesInController(const UDMXLibrary* DMXLibrary, F
 	}
 }
 
-void UDMXSubsystem::GetRawBuffer(FDMXProtocolName SelectedProtocol, int32 UniverseIndex, TArray<uint8>& DMXBuffer)
+void UDMXSubsystem::GetRawBuffer(FDMXProtocolName SelectedProtocol, int32 RemoteUniverse, TArray<uint8>& DMXBuffer)
 {
 	DMXBuffer.Reset();
 	if (SelectedProtocol)
@@ -309,7 +309,7 @@ void UDMXSubsystem::GetRawBuffer(FDMXProtocolName SelectedProtocol, int32 Univer
 		{
 			const IDMXUniverseSignalMap InboundSignalMap = Protocol->GameThreadGetInboundSignals();
 
-			const TSharedPtr<FDMXSignal>* SignalPtr = InboundSignalMap.Find(UniverseIndex);
+			const TSharedPtr<FDMXSignal>* SignalPtr = InboundSignalMap.Find(RemoteUniverse);
 			if (SignalPtr)
 			{
 				DMXBuffer = (*SignalPtr)->ChannelData;
