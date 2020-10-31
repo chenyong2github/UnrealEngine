@@ -63,6 +63,19 @@ namespace DatasmithRuntime
 	};
 #endif
 
+	typedef DirectLink::FSceneGraphId FSceneGraphId;
+
+	typedef TFunctionRef<void(const TSharedPtr<IDatasmithActorElement>&, FSceneGraphId)> FParsingCallback;
+
+	struct CaseSensitive_KeyFuncs : BaseKeyFuncs<TPair<FString, FSceneGraphId>, FString, false>
+	{
+		static FORCEINLINE const FString&   GetSetKey(const TPair<FString, FSceneGraphId>& Element) { return Element.Key; }
+		static FORCEINLINE uint32           GetKeyHash(const FString& Key) { return GetTypeHash(Key); }
+		static FORCEINLINE bool             Matches(const FString& A, const FString& B) { return A.Equals(B, ESearchCase::CaseSensitive); }
+	};
+
+	using FCaseSensitiveMap = TMap<FString, FSceneGraphId, FDefaultSetAllocator, CaseSensitive_KeyFuncs>;
+
 	enum class EWorkerTask : uint16
 	{
 		NoTask                  = 0x0000,
@@ -105,10 +118,6 @@ namespace DatasmithRuntime
 	};
 
 	ENUM_CLASS_FLAGS(EAssetState);
-
-	typedef DirectLink::FSceneGraphId FSceneGraphId;
-
-	typedef TFunctionRef<void(const TSharedPtr<IDatasmithActorElement>&, FSceneGraphId)> FParsingCallback;
 
 	namespace EDataType
 	{
@@ -200,7 +209,7 @@ namespace DatasmithRuntime
 			Referencers = Other.Referencers;
 		}
 
-		bool HasState(EAssetState Value)
+		bool HasState(EAssetState Value) const
 		{
 			return !!(DataState & Value);
 		}
@@ -638,7 +647,7 @@ namespace DatasmithRuntime
 		TMap< FSceneGraphId, TSharedPtr< IDatasmithElement > > Elements;
 
 		/** Mapping between prefixed asset element's name and index of element in flatten element list */
-		TMap< FString, FSceneGraphId > AssetElementMapping;
+		FCaseSensitiveMap AssetElementMapping;
 
 		/** Mapping between Datasmith element's identifiers and their associated FAssetData object */
 		TMap< FSceneGraphId, FAssetData > AssetDataList;
