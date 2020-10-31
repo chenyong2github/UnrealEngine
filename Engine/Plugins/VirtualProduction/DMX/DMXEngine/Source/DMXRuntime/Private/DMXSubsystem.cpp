@@ -739,6 +739,16 @@ void UDMXSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	AssetRegistry.OnFilesLoaded().AddUObject(this, &UDMXSubsystem::OnAssetRegistryFinishedLoadingFiles);
 	AssetRegistry.OnAssetAdded().AddUObject(this, &UDMXSubsystem::OnAssetRegistryAddedAsset);
 	AssetRegistry.OnAssetRemoved().AddUObject(this, &UDMXSubsystem::OnAssetRegistryRemovedAsset);
+
+	// Register delegates
+	TArray<FName> ProtocolNames = IDMXProtocol::GetProtocolNames();
+	for (const FName& ProtocolName : ProtocolNames)
+	{
+		IDMXProtocolPtr Protocol = IDMXProtocol::Get(ProtocolName);
+		check(Protocol.IsValid());
+
+		Protocol->GetOnGameThreadOnlyBufferUpdated().AddUObject(this, &UDMXSubsystem::OnGameThreadOnlyBufferUpdated);
+	}
 }
 
 void UDMXSubsystem::Deinitialize()
@@ -778,5 +788,21 @@ void UDMXSubsystem::OnAssetRegistryRemovedAsset(const FAssetData& Asset)
 		UObject* AssetObject = Asset.GetAsset();
 		UDMXLibrary* Library = Cast<UDMXLibrary>(AssetObject);
 		LoadedDMXLibraries.Remove(Library);
+	}
+}
+
+void UDMXSubsystem::OnGameThreadOnlyBufferUpdated(const FName& InProtocolName, int32 InUniverseID)
+{
+	if (IDMXProtocolPtr DMXProtocolPtr = IDMXProtocol::Get(InProtocolName))
+	{
+		const IDMXUniverseSignalMap& InboundSignalMap = DMXProtocolPtr->GameThreadGetInboundSignals();
+
+		const TSharedPtr<FDMXSignal>* DMXSignalPtr = InboundSignalMap.Find(InUniverseID);
+		if (DMXSignalPtr != nullptr)
+		{
+			const TSharedPtr<FDMXSignal>& DMXSignal = *DMXSignalPtr;
+			const TArray<uint8>& DMXBuffer = DMXSignal.Get()->ChannelData;
+			OnProtocolReceived_DEPRECATED.Broadcast(FDMXProtocolName(InProtocolName), InUniverseID, DMXBuffer);
+		}
 	}
 }
