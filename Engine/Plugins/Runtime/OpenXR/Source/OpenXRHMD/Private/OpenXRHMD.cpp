@@ -2018,7 +2018,7 @@ void FOpenXRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdL
 		XrFrameBeginInfo BeginInfo;
 		BeginInfo.type = XR_TYPE_FRAME_BEGIN_INFO;
 		BeginInfo.next = nullptr;
-		XrTime DisplayTime = PipelinedFrameStateRHI.FrameState.predictedDisplayTime;
+		XrTime DisplayTime = PipelinedFrameStateRendering.FrameState.predictedDisplayTime;
 		for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
 		{
 			BeginInfo.next = Module->OnBeginFrame(Session, DisplayTime, BeginInfo.next);
@@ -2030,11 +2030,11 @@ void FOpenXRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdL
 		{
 			bIsRendering = true;
 
-			Swapchain->IncrementSwapChainIndex_RHIThread(PipelinedFrameStateRHI.FrameState.predictedDisplayPeriod);
+			Swapchain->IncrementSwapChainIndex_RHIThread(PipelinedFrameStateRendering.FrameState.predictedDisplayPeriod);
 			if (bDepthExtensionSupported && !bNeedReAllocatedDepth)
 			{
 				ensure(DepthSwapchain != nullptr);
-				DepthSwapchain->IncrementSwapChainIndex_RHIThread(PipelinedFrameStateRHI.FrameState.predictedDisplayPeriod);
+				DepthSwapchain->IncrementSwapChainIndex_RHIThread(PipelinedFrameStateRendering.FrameState.predictedDisplayPeriod);
 			}
 		}
 		else
