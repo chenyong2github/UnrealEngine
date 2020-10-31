@@ -170,12 +170,12 @@ public:
 
 protected:
 	/** Constructor */
-	FSceneRenderTargets(): 
+	FSceneRenderTargets() :
 		bScreenSpaceAOIsValid(false),
 		bCustomDepthIsValid(false),
 		GBufferRefCount(0),
-		ThisFrameNumber( 0 ),
-		CurrentDesiredSizeIndex ( 0 ),
+		ThisFrameNumber(0),
+		CurrentDesiredSizeIndex(0),
 		BufferSize(0, 0),
 		LastStereoSize(0, 0),
 		SmallColorDepthDownsampleFactor(2),
@@ -188,6 +188,7 @@ protected:
 		CurrentRSMResolution(0),
 		CurrentTranslucencyLightingVolumeDim(64),
 		bCurrentLightPropagationVolume(false),
+		bCurrentRequireMultiView(false),
 		CurrentFeatureLevel(ERHIFeatureLevel::Num),
 		CurrentShadingPath(EShadingPath::Num),
 		bRequireSceneColorAlpha(false),
@@ -516,10 +517,6 @@ public:
 	TArray<TRefCountPtr<IPooledRenderTarget>, TInlineAllocator<NumTranslucentVolumeRenderTargetSets>> TranslucencyLightingVolumeAmbient;
 	TArray<TRefCountPtr<IPooledRenderTarget>, TInlineAllocator<NumTranslucentVolumeRenderTargetSets>> TranslucencyLightingVolumeDirectional;
 
-	/** Color and depth texture arrays for mobile multi-view */
-	TRefCountPtr<IPooledRenderTarget> MobileMultiViewSceneColor;
-	TRefCountPtr<IPooledRenderTarget> MobileMultiViewSceneDepthZ;
-
 	/** Color and opacity for editor primitives (i.e editor gizmos). */
 	TRefCountPtr<IPooledRenderTarget> EditorPrimitivesColor;
 
@@ -603,12 +600,6 @@ private:
 	/** Determine the appropriate render target dimensions. */
 	FIntPoint ComputeDesiredSize(const FSceneViewFamily& ViewFamily);
 
-	/** Allocates the mobile multi-view scene color texture array render target. */
-	void AllocMobileMultiViewSceneColor(FRHICommandList& RHICmdList);
-
-	/** Allocates the mobile multi-view depth (no stencil) texture array render target. */
-	void AllocMobileMultiViewDepth(FRHICommandList& RHICmdList);
-
 	// internal method, used by AdjustGBufferRefCount()
 	void ReleaseGBufferTargets();
 
@@ -685,6 +676,8 @@ private:
 	int32 CurrentMinShadowResolution;
 	/** To detect a change of the CVar r.LightPropagationVolume */
 	bool bCurrentLightPropagationVolume;
+	/** To detect a change of the CVar vr.MobileMultiView */
+	bool bCurrentRequireMultiView;
 	/** Feature level we were initialized for */
 	ERHIFeatureLevel::Type CurrentFeatureLevel;
 	/** Shading path that we are currently drawing through. Set when calling Allocate at the start of a scene render. */
@@ -715,6 +708,9 @@ private:
 
 	/** True if the a variable resolution texture is allocated to control sampling or shading rate */
 	bool bAllocatedFoveationTexture;
+
+	/** True if scenecolor and depth should be multiview-allocated */
+	bool bRequireMultiView;
 
 	/** CAUTION: When adding new data, make sure you copy it in the snapshot constructor! **/
 
