@@ -31,8 +31,6 @@ FString CreateProgramStartFailedMessage(const FString& InErrorMessage, const FSt
 FString CreateProgramKilledMessage(const FString& InProgramID);
 FString CreateProgramKillFailedMessage(const FString& InProgramID, const FString& InErrorMessage);
 
-FString CreateProgramEndedMessage(const FString& InProgramID, int InReturnCode, const FString& InProgramOutput);
-
 FString CreateReceiveFileFromClientCompletedMessage(const FString& InDestinationPath);
 FString CreateReceiveFileFromClientFailedMessage(const FString& InDestinationPath, const FString& InError);
 

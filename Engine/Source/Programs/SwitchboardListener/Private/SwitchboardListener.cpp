@@ -20,7 +20,7 @@
 #include "Misc/Base64.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
-#include "Templates/Atomic.h"
+#include <atomic>
 
 #if PLATFORM_WINDOWS
 
@@ -92,7 +92,8 @@ struct FRunningProcess
 	FString Name;
 	FString Caller;
 
-	TAtomic<bool> bPendingKill;
+	std::atomic<bool> bPendingKill;
+	bool bUpdateClientsWithStdout;
 
 	FRunningProcess()
 		: bPendingKill(false)
@@ -111,7 +112,9 @@ struct FRunningProcess
 		Name      = InProcess.Name;
 		Caller    = InProcess.Caller;
 
-		bPendingKill.Store(InProcess.bPendingKill);
+		bUpdateClientsWithStdout = InProcess.bUpdateClientsWithStdout;
+
+		bPendingKill.store(InProcess.bPendingKill);
 	}
 };
 
@@ -336,6 +339,7 @@ bool FSwitchboardListener::StartProcess(const FSwitchboardStartTask& InRunTask)
 	NewProcess->Path = InRunTask.Command;
 	NewProcess->Name = InRunTask.Name;
 	NewProcess->Caller = InRunTask.Caller;
+	NewProcess->bUpdateClientsWithStdout = InRunTask.bUpdateClientsWithStdout;
 
 	if (!FPlatformProcess::CreatePipe(NewProcess->ReadPipe, NewProcess->WritePipe))
 	{
@@ -995,6 +999,7 @@ FRunningProcess* FSwitchboardListener::FindOrStartFlipModeMonitorForUUID(const F
 	// The UUID corresponds to the program being monitored. This will be used when looking for the Monitor of a given process.
 	// The monitor auto-closes when monitored program closes.
 	MonitorProcess->UUID = Process->UUID;
+	MonitorProcess->bUpdateClientsWithStdout = false;
 
 	FlipModeMonitors.Add(MonitorProcess);
 
@@ -1287,6 +1292,7 @@ void FSwitchboardListener::HandleRunningProcesses(TArray<TSharedPtr<FRunningProc
 		if (Process->Handle.IsValid())
 		{
 			TArray<uint8> Output;
+
 			if (FPlatformProcess::ReadPipeToArray(Process->ReadPipe, Output))
 			{
 				// make sure the output array always has exactly one trailing null terminator.
@@ -1297,6 +1303,25 @@ void FSwitchboardListener::HandleRunningProcesses(TArray<TSharedPtr<FRunningProc
 				}
 				Process->Output.Append(Output);
 				Process->Output.Add('\x00');
+			}
+
+			// If there was a new stdout, update the clients
+			//
+			if (Output.Num() && Process->bUpdateClientsWithStdout)
+			{
+				FSwitchboardProgramStdout Packet;
+
+				Packet.Process.Uuid = Process->UUID.ToString();
+				Packet.Process.Name = Process->Name;
+				Packet.Process.Path = Process->Path;
+				Packet.Process.Caller = Process->Caller;
+				Packet.PartialStdout = Output;
+
+				for (const TPair<FIPv4Endpoint, TSharedPtr<FSocket>>& Connection : Connections)
+				{
+					const FIPv4Endpoint& ClientEndpoint = Connection.Key;
+					SendMessage(CreateMessage(Packet), ClientEndpoint);
+				}
 			}
 
 			if (!FPlatformProcess::IsProcRunning(Process->Handle))
@@ -1314,7 +1339,20 @@ void FSwitchboardListener::HandleRunningProcesses(TArray<TSharedPtr<FRunningProc
 				// Notify remote client, which implies that this is a program managed by it.
 				if (bNotifyThatProgramEnded)
 				{
-					SendMessage(CreateProgramEndedMessage(Process->UUID.ToString(), ReturnCode, ProcessOutput), Process->Recipient);
+					FSwitchboardProgramEnded Packet;
+
+					Packet.Process.Uuid = Process->UUID.ToString();
+					Packet.Process.Name = Process->Name;
+					Packet.Process.Path = Process->Path;
+					Packet.Process.Caller = Process->Caller;
+					Packet.Returncode = ReturnCode;
+					Packet.Output = ProcessOutput;
+
+					for (const TPair<FIPv4Endpoint, TSharedPtr<FSocket>>& Connection : Connections)
+					{
+						const FIPv4Endpoint& ClientEndpoint = Connection.Key;
+						SendMessage(CreateMessage(Packet), ClientEndpoint);
+					}
 
 					// Kill its monitor to avoid potential zombies (unless it is already pending kill)
 					{
