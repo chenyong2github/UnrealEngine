@@ -55,3 +55,42 @@ struct FSwitchboardStatePacket : public FSwitchboardPacket
 	UPROPERTY()
 	TArray<FSwitchboardStateRunningProcess> RunningProcesses;
 };
+
+USTRUCT()
+struct FSwitchboardProgramStdout : public FSwitchboardPacket
+{
+	GENERATED_BODY()
+
+	FSwitchboardProgramStdout() : FSwitchboardPacket()
+	{
+		Command = TEXT("programstdout");
+		bAck = true;
+	}
+
+	UPROPERTY()
+	FSwitchboardStateRunningProcess Process;
+
+	UPROPERTY()
+	TArray<uint8> PartialStdout;
+};
+
+USTRUCT()
+struct FSwitchboardProgramEnded : public FSwitchboardPacket
+{
+	GENERATED_BODY()
+
+	FSwitchboardProgramEnded() : FSwitchboardPacket()
+	{
+		Command = TEXT("program ended");
+		bAck = true;
+	}
+
+	UPROPERTY()
+	FSwitchboardStateRunningProcess Process;
+
+	UPROPERTY()
+	int32 Returncode;
+
+	UPROPERTY()
+	FString Output;
+};

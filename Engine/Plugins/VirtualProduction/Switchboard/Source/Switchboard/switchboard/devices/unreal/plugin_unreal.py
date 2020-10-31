@@ -9,7 +9,7 @@ from switchboard.switchboard_logging import LOGGER
 
 from PySide2 import QtWidgets, QtGui, QtCore
 
-import os, base64
+import os, base64, uuid
 from pathlib import Path
 
 
@@ -90,16 +90,19 @@ class DeviceUnreal(Device):
         self.inflight_engine_cl = None
         self.scheduled_sync_operations = {}
 
+        self.sync_progress = 0
+
         # Set a delegate method if the device gets a disconnect signal
         self.unreal_client.disconnect_delegate = self.on_listener_disconnect
         self.unreal_client.program_started_delegate = self.on_program_started
         self.unreal_client.program_start_failed_delegate = self.on_program_start_failed
-        self.unreal_client.program_ended_delegate = self.on_program_ended
         self.unreal_client.program_kill_failed_delegate = self.on_program_kill_failed
         self.unreal_client.receive_file_completed_delegate = self.on_file_received
         self.unreal_client.receive_file_failed_delegate = self.on_file_receive_failed
         self.unreal_client.delegates["state"] = self.on_listener_state
         self.unreal_client.delegates["kill"] = self.on_listener_kill
+        self.unreal_client.delegates["programstdout"] = self.on_listener_programstdout
+        self.unreal_client.delegates["program ended"] = self.on_program_ended
 
         self._remote_programs_start_queue = {} # key: message_id, name
         self._running_remote_programs = {} # key: program id, value: program name
@@ -178,32 +181,58 @@ class DeviceUnreal(Device):
             self._request_engine_changelist_number()
 
     def _request_roles_file(self):
-        uproject_path = CONFIG.UPROJECT_PATH.get_value(self.name)
+        uproject_path = CONFIG.UPROJECT_PATH.get_value(self.name).replace('"', '')
         roles_filename = DeviceUnreal.csettings["roles_filename"].get_value(self.name)
         roles_file_path = os.path.join(os.path.dirname(uproject_path), "Config", "Tags", roles_filename)
         _, msg = message_protocol.create_copy_file_from_listener_message(roles_file_path)
         self.unreal_client.send_message(msg)
 
     def _request_project_changelist_number(self):
+
         if not CONFIG.P4_ENABLED.get_value():
             return
+
         client_name = CONFIG.SOURCE_CONTROL_WORKSPACE.get_value(self.name)
+
+        if not client_name:
+            LOGGER.warning(f"{self.name}: We need a workspace name to query the changelist in it")
+            return
+
         p4_path = CONFIG.P4_PROJECT_PATH.get_value()
+
+        if not p4_path:
+            LOGGER.warning(f"{self.name}: We need a p4 path to query the changelist")
+            return
 
         formatstring = "%change%"
         args = f'-F "{formatstring}" -c {client_name} cstat {p4_path}/...#have'
 
         program_name = "cstat_project"
-        mid, msg = message_protocol.create_start_process_message(prog_path="p4", prog_args=args, prog_name=program_name, caller=self.name)
-        self._remote_programs_start_queue[mid] = program_name
 
+        mid, msg = message_protocol.create_start_process_message(
+            prog_path="p4", 
+            prog_args=args, 
+            prog_name=program_name, 
+            caller=self.name,
+            update_clients_with_stdout=False,
+        )
+
+        self._remote_programs_start_queue[mid] = program_name
         self.unreal_client.send_message(msg)
 
     def _request_engine_changelist_number(self):
+
         if not CONFIG.P4_ENABLED.get_value():
             return
+
         client_name = CONFIG.SOURCE_CONTROL_WORKSPACE.get_value(self.name)
-        p4_path = CONFIG.P4_PROJECT_PATH.get_value()
+
+        if not client_name:
+            LOGGER.warning("We need a workspace name to query the changelist in it")
+            return
+
+        p4_path = CONFIG.P4_ENGINE_PATH.get_value()
+
         if not p4_path:
             LOGGER.warning(f'{self.name}: "Build Engine" is enabled in the settings but the engine does not seem to be under perforce control.')
             LOGGER.warning("Please check your perforce settings.")
@@ -213,7 +242,15 @@ class DeviceUnreal(Device):
         args = f'-F "{formatstring}" -c {client_name} cstat {p4_path}/...#have'
 
         program_name = "cstat_engine"
-        mid, msg = message_protocol.create_start_process_message(prog_path="p4", prog_args=args, prog_name=program_name, caller=self.name)
+
+        mid, msg = message_protocol.create_start_process_message(
+            prog_path="p4", 
+            prog_args=args, 
+            prog_name=program_name, 
+            caller=self.name,
+            update_clients_with_stdout=False,
+        )
+
         self._remote_programs_start_queue[mid] = program_name
 
         self.unreal_client.send_message(msg)
@@ -246,8 +283,17 @@ class DeviceUnreal(Device):
         sync_args = f'-P4 SyncProject -cl={engine_cl} -threads=8 -generate'
 
         LOGGER.info(f"{self.name}: Sending engine sync command: {sync_tool} {sync_args}")
+
         program_name = "sync_engine"
-        mid, msg = message_protocol.create_start_process_message(prog_path=sync_tool, prog_args=sync_args, prog_name=program_name, caller=self.name)
+
+        mid, msg = message_protocol.create_start_process_message(
+            prog_path=sync_tool, 
+            prog_args=sync_args, 
+            prog_name=program_name, 
+            caller=self.name,
+            update_clients_with_stdout=True,
+        )
+
         self._remote_programs_start_queue[mid] = program_name
         self.unreal_client.send_message(msg)
 
@@ -278,12 +324,21 @@ class DeviceUnreal(Device):
             sync_args = f"-c{workspace} sync {p4_path}/...@{project_cl}"
 
         program_name = "sync_project"
+
         if self.status == DeviceStatus.SYNCING: # engine is already syncing
             LOGGER.info(f"{self.name}: Project sync will start once engine is done syncing")
             self.scheduled_sync_operations[program_name] = [sync_tool, sync_args]
         else:
             LOGGER.info(f"{self.name}: Sending project sync command: {sync_tool} {sync_args}")
-            mid, msg = message_protocol.create_start_process_message(prog_path=sync_tool, prog_args=sync_args, prog_name=program_name, caller=self.name)
+
+            mid, msg = message_protocol.create_start_process_message(
+                prog_path=sync_tool, 
+                prog_args=sync_args, 
+                prog_name=program_name, 
+                caller=self.name,
+                update_clients_with_stdout=True,
+            )
+
             self._remote_programs_start_queue[mid] = program_name
             self.unreal_client.send_message(msg)
 
@@ -299,7 +354,14 @@ class DeviceUnreal(Device):
         build_args = f'Win64 Development -project="{CONFIG.UPROJECT_PATH.get_value(self.name)}" -TargetType=Editor -Progress -NoHotReloadFromIDE' 
         program_name = "build"
 
-        mid, msg = message_protocol.create_start_process_message(prog_path=build_tool, prog_args=build_args, prog_name=program_name, caller=self.name)
+        mid, msg = message_protocol.create_start_process_message(
+            prog_path=build_tool, 
+            prog_args=build_args, 
+            prog_name=program_name, 
+            caller=self.name,
+            update_clients_with_stdout=True,
+        )
+
         self._remote_programs_start_queue[mid] = program_name
 
         LOGGER.info(f"{self.name}: Sending build command: {build_tool} {build_args}")
@@ -372,7 +434,15 @@ class DeviceUnreal(Device):
 
         engine_path, args = self.generate_unreal_command_line(map_name)
         LOGGER.info(f"Launching UE4: {engine_path} {args}")
-        mid, msg = message_protocol.create_start_process_message(prog_path=engine_path, prog_args=args, prog_name=program_name, caller=self.name)
+
+        mid, msg = message_protocol.create_start_process_message(
+            prog_path=engine_path, 
+            prog_args=args, 
+            prog_name=program_name, 
+            caller=self.name, 
+            update_clients_with_stdout=False,
+        )
+
         self._remote_programs_start_queue[mid] = program_name
 
         self.unreal_client.send_message(msg)
@@ -399,6 +469,11 @@ class DeviceUnreal(Device):
         if program_name == "unreal":
             self.status = DeviceStatus.OPEN
             self.unreal_started_signal.emit()
+        elif program_name == "build":
+            self.status = DeviceStatus.BUILDING
+        elif 'sync' in program_name:
+            self.sync_progress = 0
+            self.status = DeviceStatus.SYNCING
 
         self._running_remote_programs[program_id] = program_name
 
@@ -425,7 +500,16 @@ class DeviceUnreal(Device):
         elif program_name == 'unreal':
             self.status = DeviceStatus.CLOSED
 
-    def on_program_ended(self, program_id, returncode, output):
+    def on_program_ended(self, message):
+
+        process = message['process']
+
+        if process['caller'] != self.name:
+            return
+
+        program_id = uuid.UUID(process['uuid'])
+        returncode = message['returncode']
+        output = message['output']
 
         LOGGER.info(f"{self.name}: Program with id {program_id} exited with returncode {returncode}")
 
@@ -456,7 +540,15 @@ class DeviceUnreal(Device):
                         sync_tool = op[0]
                         sync_args = op[1]
                         LOGGER.info(f"{self.name}: Sending sync command: {sync_tool} {sync_args}")
-                        mid, msg = message_protocol.create_start_process_message(prog_path=sync_tool, prog_args=sync_args, prog_name="sync_project", caller=self.name)
+
+                        mid, msg = message_protocol.create_start_process_message(
+                            prog_path=sync_tool, 
+                            prog_args=sync_args, 
+                            prog_name="sync_project", 
+                            caller=self.name,
+                            update_clients_with_stdout=True,
+                        )
+
                         self._remote_programs_start_queue[mid] = "sync_project"
                         self.unreal_client.send_message(msg)
                     else:
@@ -554,6 +646,51 @@ class DeviceUnreal(Device):
         if error:
             LOGGER.error(f'Command "{message["command"]}" error "{error}"')
 
+    def on_listener_programstdout(self, message):
+        ''' Handles updates to stdout of programs
+        Particularly useful to update build progress
+        '''
+
+        process = message['process']
+
+        if process['caller'] != self.name:
+            return
+
+        stdout = ''.join([chr(b) for b in message['partialStdout'] if b != ord('\r')])
+        lines = list(filter(None, stdout.split('\n')))
+
+        # see if this is an update to the build
+        #
+        # example lines:
+        #
+        #    @progress push 5% 
+        #    @progress 'Generating code...' 0% 
+        #    @progress 'Generating code...' 67% 
+        #    @progress 'Generating code...' 100% 
+        #    @progress pop 
+        #
+        if process['name'] == 'build':
+            for line in lines:
+                if '@progress' in line:
+                    stepparts = line.split("'")
+
+                    if len(stepparts) < 2:
+                        break
+
+                    step = stepparts[-2].strip()
+
+                    percent = line.split(' ')[-1].strip()
+                    
+                    if '%' == percent[-1]:
+                        self.device_qt_handler.signal_device_build_update.emit(self, step, percent)
+
+        elif 'sync' in process['name']:
+            self.sync_progress += len(lines)
+            self.device_qt_handler.signal_device_sync_update.emit(self, self.sync_progress)
+
+        for line in lines:
+            LOGGER.debug(f"{self.name} {process['name']}: {line}")
+
     def on_listener_state(self, message):
         ''' Message expected to be received upon connection with the listener.
         It contains the state of the listener. Particularly useful when Switchboard reconnects.
@@ -563,7 +700,7 @@ class DeviceUnreal(Device):
 
         for process in message['runningProcesses']:
             program_name = process['name']
-            program_id = process['uuid']
+            program_id = uuid.UUID(process['uuid'])
             program_caller = process['caller']
 
             if program_caller == self.name:
@@ -715,13 +852,13 @@ class DeviceWidgetUnreal(DeviceWidget):
             self.sync_button.setDisabled(True)
             self.build_button.setDisabled(True)
             self.engine_changelist_label.hide()
-            self.project_changelist_label.setText('Syncing')
+            self.project_changelist_label.setText('Syncing...')
         elif status == DeviceStatus.BUILDING:
             self.open_button.setDisabled(True)
             self.sync_button.setDisabled(True)
             self.build_button.setDisabled(True)
             self.engine_changelist_label.hide()
-            self.project_changelist_label.setText('Building')
+            self.project_changelist_label.setText('Building...')
         elif status == DeviceStatus.OPEN:
             self.open_button.setDisabled(False)
             self.open_button.setChecked(True)
@@ -740,10 +877,23 @@ class DeviceWidgetUnreal(DeviceWidget):
 
     def update_project_changelist(self, value):
         self.project_changelist_label.setText(f"P: {value}")
+        self.project_changelist_label.setToolTip('Project CL')
 
         self.project_changelist_label.show()
         self.sync_button.show()
         self.build_button.show()
+
+    def update_build_status(self, device, step, percent):
+        self.project_changelist_label.setText(f"Building...{percent}")
+        self.project_changelist_label.setToolTip(step)
+
+        self.project_changelist_label.show()
+
+    def update_sync_status(self, device, linecount):
+        self.project_changelist_label.setText(f"Syncing...{linecount}")
+        self.project_changelist_label.setToolTip('Syncing from Version Control')
+
+        self.project_changelist_label.show()
 
     def update_engine_changelist(self, value):
         self.engine_changelist_label.setText(f"E: {value}")

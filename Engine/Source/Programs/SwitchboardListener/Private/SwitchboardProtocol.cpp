@@ -70,22 +70,6 @@ FString CreateProgramKillFailedMessage(const FString& InProgramID, const FString
 	return CreateMessage(TEXT("program killed"), false, { { TEXT("program id"), InProgramID }, { TEXT("error"), InErrorMessage } });
 }
 
-FString CreateProgramEndedMessage(const FString& InProgramID, int InReturnCode, const FString& InProgramOutput)
-{
-	FString Message;
-	TSharedRef<TJsonWriter<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>> JsonWriter = TJsonWriterFactory<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>::Create(&Message);
-	JsonWriter->WriteObjectStart();
-	JsonWriter->WriteValue(TEXT("program ended"), true); // TODO: Phase out this field and replace with two below because parser now needs to check all possibilities.
-	JsonWriter->WriteValue(TEXT("command"), TEXT("program ended"));
-	JsonWriter->WriteValue(TEXT("bAck"), true);
-	JsonWriter->WriteValue(TEXT("program id"), InProgramID);
-	JsonWriter->WriteValue(TEXT("returncode"), InReturnCode);
-	JsonWriter->WriteValue(TEXT("output"), InProgramOutput);
-	JsonWriter->WriteObjectEnd();
-	JsonWriter->Close();
-	return Message;
-}
-
 FString CreateSyncStatusMessage(const FSyncStatus& SyncStatus)
 {
 	FString SyncStatusJsonString;
@@ -167,8 +151,18 @@ bool CreateTaskFromCommand(const FString& InCommand, const FIPv4Endpoint& InEndp
 		TSharedPtr<FJsonValue> ArgsField = JsonData->TryGetField(TEXT("args"));
 		TSharedPtr<FJsonValue> NameField = JsonData->TryGetField(TEXT("name"));
 		TSharedPtr<FJsonValue> CallerField = JsonData->TryGetField(TEXT("caller"));
+		TSharedPtr<FJsonValue> UpdateClientsWithStdoutField = JsonData->TryGetField(TEXT("bUpdateClientsWithStdout"));
 
-		OutTask = MakeUnique<FSwitchboardStartTask>(MessageID, InEndpoint, ExeField->AsString(), ArgsField->AsString(), NameField->AsString(), CallerField->AsString());
+		OutTask = MakeUnique<FSwitchboardStartTask>(
+			MessageID,
+			InEndpoint,
+			ExeField->AsString(),
+			ArgsField->AsString(),
+			NameField->AsString(),
+			CallerField->AsString(),
+			UpdateClientsWithStdoutField->AsBool()
+		);
+
 		return true;
 	}
 	else if (CommandName == TEXT("kill"))

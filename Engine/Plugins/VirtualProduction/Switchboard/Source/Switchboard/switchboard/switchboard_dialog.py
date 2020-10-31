@@ -301,7 +301,7 @@ class SwitchboardDialog(QtCore.QObject):
 
     def menu_new_config(self):
 
-        uproject_search_path = os.path.dirname(CONFIG.UPROJECT_PATH.get_value())
+        uproject_search_path = os.path.dirname(CONFIG.UPROJECT_PATH.get_value().replace('"',''))
 
         if not os.path.exists(uproject_search_path):
             uproject_search_path = SETTINGS.LAST_BROWSED_PATH
@@ -576,7 +576,7 @@ class SwitchboardDialog(QtCore.QObject):
     @QtCore.Slot(object)
     def device_added(self, device):
         """
-        When a new device is added to the DeviceManger Connect its signals
+        When a new device is added to the DeviceManger, connect its signals
         """
         device.device_qt_handler.signal_device_connect_failed.connect(self.device_connect_failed)
         device.device_qt_handler.signal_device_client_disconnected.connect(self.device_client_disconnected)
@@ -585,6 +585,8 @@ class SwitchboardDialog(QtCore.QObject):
         device.device_qt_handler.signal_device_status_changed.connect(self.device_status_changed)
         device.device_qt_handler.signal_device_sync_failed.connect(self.device_sync_failed)
         device.device_qt_handler.signal_device_is_recording_device_changed.connect(self.device_is_recording_device_changed)
+        device.device_qt_handler.signal_device_build_update.connect(self.device_build_update)
+        device.device_qt_handler.signal_device_sync_update.connect(self.device_sync_update)
 
         # Add the view
         self.device_list_widget.add_device_widget(device)
@@ -937,6 +939,16 @@ class SwitchboardDialog(QtCore.QObject):
         #LOGGER.debug(f'{device.name} device_sync_failed')
         # CHANGE THE SYNC ICON HERE
         pass
+
+    @QtCore.Slot(object)
+    def device_build_update(self, device, step, percent):
+        device_widget = self.device_list_widget.device_widget_by_hash(device.device_hash)
+        device_widget.update_build_status(device, step, percent)
+
+    @QtCore.Slot(object)
+    def device_sync_update(self, device, progress):
+        device_widget = self.device_list_widget.device_widget_by_hash(device.device_hash)
+        device_widget.update_sync_status(device, progress)
 
     @QtCore.Slot(object)
     def device_project_changelist_changed(self, device):
