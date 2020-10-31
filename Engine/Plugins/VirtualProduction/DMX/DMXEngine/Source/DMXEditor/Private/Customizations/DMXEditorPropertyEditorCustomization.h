@@ -228,6 +228,8 @@ private:
 	bool GetActiveModeEditable() const;
 	TSharedRef<SWidget> GenerateActiveModeOptionWidget(const TSharedPtr<uint32> InMode) const;
 	void OnActiveModeChanged(const TSharedPtr<uint32> InSelectedMode, ESelectInfo::Type SelectInfo);
+
+	void OnActiveComboBoxOpening();
 	FText GetCurrentActiveModeLabel() const;
 
 private:
@@ -236,6 +238,8 @@ private:
 	TSharedPtr<IPropertyHandle> ParentFixtureTypeHandle;
 	TSharedPtr<IPropertyHandle> ActiveModeHandle;
 	TSharedPtr<IPropertyHandle> AutoAssignAddressHandle;
+
+	TSharedPtr< SComboBox< TSharedPtr<uint32> > > ActiveModeOptionsWidget;
 };
 
 /**  Customization for any property that should be displayed as a dropdown of options from a FName array */

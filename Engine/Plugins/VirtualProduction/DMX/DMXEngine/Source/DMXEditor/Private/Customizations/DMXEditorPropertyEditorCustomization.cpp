@@ -892,11 +892,12 @@ void FDMXFixturePatchesDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLay
 		.ValueContent()
 		.MaxDesiredWidth(160.0f)
 		[
-			SNew(SComboBox< TSharedPtr<uint32> >)
+			SAssignNew(ActiveModeOptionsWidget, SComboBox< TSharedPtr<uint32> >)
 			.IsEnabled(this, &FDMXFixturePatchesDetails::GetActiveModeEditable)
 			.OptionsSource(&ActiveModeOptions)
 			.OnGenerateWidget(this, &FDMXFixturePatchesDetails::GenerateActiveModeOptionWidget)
 			.OnSelectionChanged(this, &FDMXFixturePatchesDetails::OnActiveModeChanged)
+			.OnComboBoxOpening(this, &FDMXFixturePatchesDetails::OnActiveComboBoxOpening)
 			.InitiallySelectedItem(DefaultSelectedActiveMode)
 			[
 				SNew(STextBlock)
@@ -926,6 +927,8 @@ void FDMXFixturePatchesDetails::OnAutoAssignAddressChanged()
 
 void FDMXFixturePatchesDetails::GenerateActiveModeOptions()
 {
+	ActiveModeOptions.Empty();
+
 	UObject* Object = nullptr;
 	if (ParentFixtureTypeHandle->GetValue(Object) == FPropertyAccess::Success)
 	{
@@ -992,7 +995,17 @@ TSharedRef<SWidget> FDMXFixturePatchesDetails::GenerateActiveModeOptionWidget(co
 
 void FDMXFixturePatchesDetails::OnActiveModeChanged(const TSharedPtr<uint32> InSelectedMode, ESelectInfo::Type SelectInfo)
 {
-	ActiveModeHandle->SetValue(*InSelectedMode);
+	if (InSelectedMode.IsValid())
+	{
+		ActiveModeHandle->SetValue(*InSelectedMode);
+	}
+}
+
+void FDMXFixturePatchesDetails::OnActiveComboBoxOpening()
+{
+	GenerateActiveModeOptions();
+
+	ActiveModeOptionsWidget->RefreshOptions();
 }
 
 FText FDMXFixturePatchesDetails::GetCurrentActiveModeLabel() const
@@ -1017,7 +1030,7 @@ FText FDMXFixturePatchesDetails::GetCurrentActiveModeLabel() const
 			if (ActiveModeHandle->GetValue(ModeValue) == FPropertyAccess::Success)
 			{
 				const TArray<FDMXFixtureMode>& CurrentModes = FixtureTemplate->Modes;
-				if (CurrentModes.Num() > 0)
+				if (CurrentModes.Num() > 0 && CurrentModes.IsValidIndex(ModeValue))
 				{
 					return FText::FromString(
 						CurrentModes[ModeValue].ModeName
