@@ -535,8 +535,6 @@ void UMovieSceneSkeletalAnimationTrack::SetUpRootMotions(bool bForce)
 			{
 				FTransform AdditiveTransform;
 				BlendTheseTransformsByWeight(AdditiveTransform, CurrentAdditiveTransforms, CurrentAdditiveWeights );
-				//zero base the scale
-				AdditiveTransform.SetScale3D(FVector(AdditiveTransform.GetScale3D().X - 1.0f, AdditiveTransform.GetScale3D().Y - 1.0f, AdditiveTransform.GetScale3D().Z - 1.0f));
 				const ScalarRegister VBlendWeight(1.0f);
 				FTransform::BlendFromIdentityAndAccumulate(CurrentTransform, AdditiveTransform, VBlendWeight);
 			}
