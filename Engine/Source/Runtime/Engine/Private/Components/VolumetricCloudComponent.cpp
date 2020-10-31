@@ -44,6 +44,8 @@ UVolumetricCloudComponent::UVolumetricCloudComponent(const FObjectInitializer& O
 	, ShadowTracingDistance(15.0f)
 	, VolumetricCloudSceneProxy(nullptr)
 {
+	static ConstructorHelpers::FObjectFinder<UMaterialInterface> VolumetricCloudDefaultMaterialRef(TEXT("/Engine/EngineSky/VolumetricClouds/m_SimpleVolumetricCloud_Inst.m_SimpleVolumetricCloud_Inst"));
+	Material = VolumetricCloudDefaultMaterialRef.Object;
 }
 
 UVolumetricCloudComponent::~UVolumetricCloudComponent()
