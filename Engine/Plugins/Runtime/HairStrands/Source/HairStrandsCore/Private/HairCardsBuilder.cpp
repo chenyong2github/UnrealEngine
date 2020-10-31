@@ -56,6 +56,9 @@ static FAutoConsoleVariableRef CVarHairCardsWidthScale(TEXT("r.HairStrands.Cards
 static int32 GHairCardsDynamicAtlasRefresh = 0;
 static FAutoConsoleVariableRef CVarHairCardsDynamicAtlasRefresh(TEXT("r.HairStrands.Cards.DynamicAtlasRefresh"), GHairCardsDynamicAtlasRefresh, TEXT("Enable dynamic refresh of hair cards texture atlas"));
 
+static int32 GHairCardsMaxStrandsSegmentPerCards = 30000;
+static FAutoConsoleVariableRef CVarHairCardsMaxStrandsSegmentPerCards(TEXT("r.HairStrands.Cards.MaxHairStrandsSegmentPerCards"), GHairCardsMaxStrandsSegmentPerCards, TEXT("Limit the number of segment which are raytraced during the cards generation"));
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 class FHairCardAtlasTextureRectVS : public FGlobalShader
@@ -70,6 +73,10 @@ class FHairCardAtlasTextureRectVS : public FGlobalShader
 		SHADER_PARAMETER(FIntPoint, Atlas_Resolution)
 		SHADER_PARAMETER(FIntPoint, Atlas_RectOffset)
 		SHADER_PARAMETER(FIntPoint, Atlas_RectResolution)
+
+		SHADER_PARAMETER(FIntPoint, Tile_Resolution)
+		SHADER_PARAMETER(FIntPoint, Tile_Coord)
+		SHADER_PARAMETER(FIntPoint, Tile_Count)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(EHairStrandsShaderType::Tool, Parameters.Platform); }
@@ -133,75 +140,92 @@ static void AddHairCardAtlasTexturePass(
 	const FIntPoint AtlasResolution = OutDepthTexture->Desc.Extent;
 	for (const FHairCardsProceduralAtlas::Rect& Rect : InAtlas.Rects)
 	{
-		FHairCardAtlasTextureRectPS::FParameters* ParametersPS = GraphBuilder.AllocParameters<FHairCardAtlasTextureRectPS::FParameters>();
-		ParametersPS->Rect_MinBound			= Rect.MinBound;
-		ParametersPS->Rect_MaxBound			= Rect.MaxBound;
-
-		ParametersPS->Atlas_Resolution		= InAtlas.Resolution;
-		ParametersPS->Atlas_RectOffset		= Rect.Offset;
-		ParametersPS->Atlas_RectResolution	= Rect.Resolution;
-
-		ParametersPS->Raster_AxisX = Rect.RasterAxisX;
-		ParametersPS->Raster_AxisY = Rect.RasterAxisY;
-		ParametersPS->Raster_AxisZ = Rect.RasterAxisZ;
-
-		ParametersPS->Curve_VertexOffset	= Rect.VertexOffset;
-		ParametersPS->Curve_VertexCount		= Rect.VertexCount;
-		ParametersPS->Curve_PositionBuffer	= InStrandsVertexBuffer;
-		ParametersPS->Curve_AttributeBuffer = InStrandsAttributeBuffer;
-
-		if (ShaderDrawData)
+		FIntPoint TileCount(1, 1);
+		const int32 TileResolution = 512;
+		if (Rect.Resolution.X > TileResolution || Rect.Resolution.Y > TileResolution)
 		{
-			ShaderDrawDebug::SetParameters(GraphBuilder, *ShaderDrawData, ParametersPS->ShaderDrawParameters);
-			//ShaderPrint::SetParameters(View, Parameters->ShaderPrintParameters);
+			TileCount.X = FMath::DivideAndRoundUp(Rect.Resolution.X, TileResolution);
+			TileCount.Y = FMath::DivideAndRoundUp(Rect.Resolution.Y, TileResolution);
 		}
-
-		ParametersPS->RenderTargets[0] = FRenderTargetBinding(OutDepthTexture,	 bClear ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad);
-		ParametersPS->RenderTargets[1] = FRenderTargetBinding(OutTangentTexture, bClear ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad);
-		ParametersPS->RenderTargets[2] = FRenderTargetBinding(OutCoverageTexture,bClear ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad);
-		ParametersPS->RenderTargets[3] = FRenderTargetBinding(OutAttributeTexture, bClear ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad);
-
-		FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(ERHIFeatureLevel::SM5);
-		TShaderMapRef<FHairCardAtlasTextureRectVS> VertexShader(ShaderMap);
-		TShaderMapRef<FHairCardAtlasTextureRectPS> PixelShader(ShaderMap);
-
-		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("HairCardsAtlasTexturePS"),
-			ParametersPS,
-			ERDGPassFlags::Raster | ERDGPassFlags::NeverCull,
-			[ParametersPS, VertexShader, PixelShader, AtlasResolution](FRHICommandList& RHICmdList)
+		for (int32 TileY = 0; TileY < TileCount.Y; ++TileY)
+		{
+			for (int32 TileX = 0; TileX < TileCount.X; ++TileX)
 			{
-				FHairCardAtlasTextureRectVS::FParameters ParametersVS;
-				ParametersVS.Rect_MinBound			= ParametersPS->Rect_MinBound;
-				ParametersVS.Rect_MaxBound			= ParametersPS->Rect_MaxBound;
+				FHairCardAtlasTextureRectPS::FParameters* ParametersPS = GraphBuilder.AllocParameters<FHairCardAtlasTextureRectPS::FParameters>();
+				ParametersPS->Rect_MinBound			= Rect.MinBound;
+				ParametersPS->Rect_MaxBound			= Rect.MaxBound;
 
-				ParametersVS.Atlas_Resolution		= ParametersPS->Atlas_Resolution;
-				ParametersVS.Atlas_RectOffset		= ParametersPS->Atlas_RectOffset;
-				ParametersVS.Atlas_RectResolution	= ParametersPS->Atlas_RectResolution;
+				ParametersPS->Atlas_Resolution		= InAtlas.Resolution;
+				ParametersPS->Atlas_RectOffset		= Rect.Offset;
+				ParametersPS->Atlas_RectResolution	= Rect.Resolution;
 
-				FGraphicsPipelineStateInitializer GraphicsPSOInit;
-				RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
-				GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_Zero, BO_Add, BF_One, BF_Zero>::GetRHI();
-				GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
-				GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
-				GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-				GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
-				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
-				GraphicsPSOInit.PrimitiveType = PT_TriangleList;
-				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+				ParametersPS->Raster_AxisX = Rect.RasterAxisX;
+				ParametersPS->Raster_AxisY = Rect.RasterAxisY;
+				ParametersPS->Raster_AxisZ = Rect.RasterAxisZ;
 
-				SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), ParametersVS);
-				SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *ParametersPS);
+				ParametersPS->Curve_VertexOffset	= Rect.VertexOffset;
+				ParametersPS->Curve_VertexCount		= FMath::Min(Rect.VertexCount, uint32(GHairCardsMaxStrandsSegmentPerCards));
+				ParametersPS->Curve_PositionBuffer	= InStrandsVertexBuffer;
+				ParametersPS->Curve_AttributeBuffer = InStrandsAttributeBuffer;
 
-				RHICmdList.SetViewport(0, 0, 0.0f, AtlasResolution.X, AtlasResolution.Y, 1.0f);
-				RHICmdList.SetStreamSource(0, nullptr, 0);
-				RHICmdList.DrawPrimitive(0, 2*3, 1);
+				if (ShaderDrawData)
+				{
+					ShaderDrawDebug::SetParameters(GraphBuilder, *ShaderDrawData, ParametersPS->ShaderDrawParameters);
+					//ShaderPrint::SetParameters(View, Parameters->ShaderPrintParameters);
+				}
 
-				GDynamicRHI->RHISubmitCommandsAndFlushGPU();
-				GDynamicRHI->RHIBlockUntilGPUIdle();
+				ParametersPS->RenderTargets[0] = FRenderTargetBinding(OutDepthTexture,	 bClear ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad);
+				ParametersPS->RenderTargets[1] = FRenderTargetBinding(OutTangentTexture, bClear ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad);
+				ParametersPS->RenderTargets[2] = FRenderTargetBinding(OutCoverageTexture,bClear ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad);
+				ParametersPS->RenderTargets[3] = FRenderTargetBinding(OutAttributeTexture, bClear ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad);
 
-			});
-		bClear = false;
+				FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(ERHIFeatureLevel::SM5);
+				TShaderMapRef<FHairCardAtlasTextureRectVS> VertexShader(ShaderMap);
+				TShaderMapRef<FHairCardAtlasTextureRectPS> PixelShader(ShaderMap);
+
+				GraphBuilder.AddPass(
+					RDG_EVENT_NAME("HairCardsAtlasTexturePS"),
+					ParametersPS,
+					ERDGPassFlags::Raster | ERDGPassFlags::NeverCull,
+					[ParametersPS, VertexShader, PixelShader, AtlasResolution, TileResolution, TileCount, TileX, TileY](FRHICommandList& RHICmdList)
+					{
+						FHairCardAtlasTextureRectVS::FParameters ParametersVS;
+						ParametersVS.Rect_MinBound = ParametersPS->Rect_MinBound;
+						ParametersVS.Rect_MaxBound = ParametersPS->Rect_MaxBound;
+
+						ParametersVS.Atlas_Resolution = ParametersPS->Atlas_Resolution;
+						ParametersVS.Atlas_RectOffset = ParametersPS->Atlas_RectOffset;
+						ParametersVS.Atlas_RectResolution = ParametersPS->Atlas_RectResolution;
+
+						ParametersVS.Tile_Resolution = FIntPoint(TileResolution, TileResolution);
+						ParametersVS.Tile_Coord = FIntPoint(TileX, TileY);
+						ParametersVS.Tile_Count = TileCount;
+
+						FGraphicsPipelineStateInitializer GraphicsPSOInit;
+						RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+						GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_Zero, BO_Add, BF_One, BF_Zero>::GetRHI();
+						GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
+						GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
+						GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
+						GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+						GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
+						GraphicsPSOInit.PrimitiveType = PT_TriangleList;
+						SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+
+						SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), ParametersVS);
+						SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *ParametersPS);
+
+						RHICmdList.SetViewport(0, 0, 0.0f, AtlasResolution.X, AtlasResolution.Y, 1.0f);
+						RHICmdList.SetStreamSource(0, nullptr, 0);
+						RHICmdList.DrawPrimitive(0, 2 * 3, 1);
+
+						GDynamicRHI->RHISubmitCommandsAndFlushGPU();
+						GDynamicRHI->RHIBlockUntilGPUIdle();
+
+					});
+				bClear = false;
+			}
+		}
 	}
 }
 
@@ -2755,8 +2779,7 @@ namespace HairCards
 					{
 						const FVector& P1_Rest = InClusters.GuidePoints[GuidePointIt+1];
 						const float L = (P1_Rest - P0_Rest).Size();
-						check(L > 0);
-						Length += L;
+						Length += L > 0 ? L : 0.001f;
 					}
 				}
 			}
@@ -3507,7 +3530,8 @@ void RunHairCardsAtlasQueries(
 		Q.RestResource->CoverageTexture  = Q.Textures->CoverageTexture->TextureReference.TextureReferenceRHI;
 		Q.RestResource->TangentTexture	 = Q.Textures->TangentTexture->TextureReference.TextureReferenceRHI;
 		Q.RestResource->AttributeTexture = Q.Textures->AttributeTexture->TextureReference.TextureReferenceRHI;
-
+		
+		Q.Textures->bNeedToBeSaved = true;
 		Q.ProceduralData->Atlas.bIsDirty = false;
 	}
 
