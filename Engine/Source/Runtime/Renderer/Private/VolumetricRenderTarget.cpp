@@ -685,7 +685,7 @@ FTemporalRenderTargetState::~FTemporalRenderTargetState()
 {
 }
 
-void FTemporalRenderTargetState::Initialise(FIntPoint& ResolutionIn, EPixelFormat FormatIn)
+void FTemporalRenderTargetState::Initialise(const FIntPoint& ResolutionIn, EPixelFormat FormatIn)
 {
 	// Update internal settings
 
