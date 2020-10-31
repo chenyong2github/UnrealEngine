@@ -4,6 +4,8 @@
 
 #if defined(PLATFORM_WINDOWS) && PLATFORM_WINDOWS
 #include "CoreTypes.h"
+#include "CoreMinimal.h"
+#include <cstdio>
 
 
 /**
