@@ -438,8 +438,9 @@ private:
 #if WITH_EDITOR
 public:
 	void UpdateCachedSettings();
-
 private:
+	void SavePendingProceduralAssets();
+
 	// Cached groom settings to know if we need to recompute interpolation data or 
 	// decimation when the asset is saved
 	TArray<FHairGroupsRendering>				CachedHairGroupsRendering;
@@ -448,5 +449,9 @@ private:
 	TArray<FHairGroupsLOD>						CachedHairGroupsLOD;
 	TArray<FHairGroupsCardsSourceDescription>	CachedHairGroupsCards;
 	TArray<FHairGroupsMeshesSourceDescription>	CachedHairGroupsMeshes;
+
+	// Queue of procedural assets which needs to be saved
+	TQueue<UStaticMesh*> AssetToSave_Meshes;
+	TQueue<FHairGroupCardsTextures*> AssetToSave_Textures;
 #endif
 };
