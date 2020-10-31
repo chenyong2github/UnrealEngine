@@ -144,7 +144,7 @@ static TAutoConsoleVariable<int32> CVarVolumetricCloudShadowMapMaxResolution(
 
 static TAutoConsoleVariable<int32> CVarVolumetricCloudShadowSpatialFiltering(
 	TEXT("r.VolumetricCloud.ShadowMap.SpatialFiltering"), 1,
-	TEXT("Enable/disable the shadow map dilation/smoothing spatial filter."),
+	TEXT("Enable/disable the shadow map dilation/smoothing spatial filter. Enabled when greater than 0 and it represents the number of blur iterations (constrained to a maximum of 4)."),
 	ECVF_RenderThreadSafe | ECVF_Scalability);
 
 static TAutoConsoleVariable<float> CVarVolumetricCloudShadowTemporalFilteringNewFrameWeight(
