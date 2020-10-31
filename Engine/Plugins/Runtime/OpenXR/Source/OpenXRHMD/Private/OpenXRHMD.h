@@ -186,6 +186,7 @@ public:
 	virtual EStereoscopicPass GetViewPassForIndex(bool bStereoRequested, uint32 ViewIndex) const override;
 	virtual uint32 GetViewIndexForPass(EStereoscopicPass StereoPassType) const override;
 	virtual uint32 DeviceGetLODViewIndex() const override;
+	virtual bool DeviceIsAPrimaryPass(EStereoscopicPass Pass) override;
 	
 	virtual FMatrix GetStereoProjectionMatrix(const enum EStereoscopicPass StereoPassType) const override;
 	virtual void GetEyeRenderParams_RenderThread(const struct FRenderingCompositePassContext& Context, FVector2D& EyeToSrcUVScaleValue, FVector2D& EyeToSrcUVOffsetValue) const override;
