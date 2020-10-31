@@ -518,32 +518,40 @@ bool AbcImporterUtilities::GenerateAbcMeshSampleDataForFrame(const Alembic::AbcG
 			Alembic::Abc::N3fArraySamplePtr NormalsSample = NormalParameter.getValueProperty().getValue(FrameSelector);
 			RetrieveTypedAbcData<Alembic::Abc::N3fArraySamplePtr, FVector>(NormalsSample, Sample->Normals);
 
-			// Can only retrieve normal indices when the Normals array is indexed
-			bool bIndexedNormals = NormalParameter.getIndexProperty().valid();
-			if (bIndexedNormals)
+			if (Sample->Normals.Num() > 0)
 			{
-				Alembic::Abc::UInt32ArraySamplePtr NormalIndiceSample = NormalParameter.getIndexProperty().getValue(FrameSelector);
-				TArray<uint32> NormalIndices;
-				RetrieveTypedAbcData<Alembic::Abc::UInt32ArraySamplePtr, uint32>(NormalIndiceSample, NormalIndices);
-
-				if (bNeedsTriangulation)
+				// Can only retrieve normal indices when the Normals array is indexed
+				bool bIndexedNormals = NormalParameter.getIndexProperty().valid();
+				if (bIndexedNormals)
 				{
-					TriangulateIndexBuffer(FaceCounts, NormalIndices);
+					Alembic::Abc::UInt32ArraySamplePtr NormalIndiceSample = NormalParameter.getIndexProperty().getValue(FrameSelector);
+					TArray<uint32> NormalIndices;
+					RetrieveTypedAbcData<Alembic::Abc::UInt32ArraySamplePtr, uint32>(NormalIndiceSample, NormalIndices);
+
+					if (bNeedsTriangulation)
+					{
+						TriangulateIndexBuffer(FaceCounts, NormalIndices);
+					}
+
+					// Expand Normal array
+					ExpandVertexAttributeArray<FVector>(NormalIndices, Sample->Normals);
+				}
+				else
+				{
+					ProcessVertexAttributeArray(Sample->Indices, FaceCounts, bNeedsTriangulation, Sample->Vertices.Num(), Sample->Normals);
 				}
 
-				// Expand Normal array
-				ExpandVertexAttributeArray<FVector>(NormalIndices, Sample->Normals);
+				// Make sure the normals from the Alembic are really normalized
+				ParallelFor(Sample->Normals.Num(), [&Sample](int32 Index)
+				{
+					Sample->Normals[Index].Normalize();
+				});
 			}
-			else
+			else if (bFirstFrame)
 			{
-				ProcessVertexAttributeArray(Sample->Indices, FaceCounts, bNeedsTriangulation, Sample->Vertices.Num(), Sample->Normals);
+				TSharedRef<FTokenizedMessage> Message = FTokenizedMessage::Create(EMessageSeverity::Warning, LOCTEXT("NoNormals", "Normals were supposed to be available but none were found."));
+				FAbcImportLogger::AddImportMessage(Message);
 			}
-
-			// Make sure the normals from the Alembic are really normalized
-			ParallelFor(Sample->Normals.Num(), [&Sample](int32 Index)
-			{
-				Sample->Normals[Index].Normalize();
-			});
 		}
 	}
 
