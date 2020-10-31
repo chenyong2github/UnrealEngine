@@ -1533,7 +1533,7 @@ namespace WindowsMixedReality
 		if (bIsMobileMultiViewEnabled && !HMD->IsThirdCameraActive())
 		{
 			FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
-			IPooledRenderTarget* depthRenderTarget = SceneContext.MobileMultiViewSceneDepthZ.GetReference();
+			IPooledRenderTarget* depthRenderTarget = SceneContext.SceneDepthZ.GetReference();
 			if (depthRenderTarget != nullptr)
 			{
 				FTextureRHIRef depthTargetableTexture = depthRenderTarget->GetRenderTargetItem().TargetableTexture;
