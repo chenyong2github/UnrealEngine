@@ -273,10 +273,9 @@ public:
 	}
 
 	// FOpenXRInput::Tick, game thread, after xrSyncActions
-	virtual void PostSyncActions(XrSession InSession, XrTime DisplayTime, XrSpace TrackingSpace)
+	virtual void PostSyncActions(XrSession InSession)
 	{
 	}
-
 
 	/**
 	 * Start the AR system.
