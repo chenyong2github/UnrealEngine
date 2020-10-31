@@ -144,7 +144,8 @@ void UNiagaraStackFunctionInput::Initialize(
 		}
 	}
 
-	checkf(SourceScript.IsValid(), TEXT("Coudn't find source script in affected scripts."));
+	if (!SourceScript.IsValid())
+		UE_LOG(LogNiagaraEditor, Warning, TEXT("Coudn't find source script in affected scripts."));
 
 	GraphChangedHandle = OwningFunctionCallNode->GetGraph()->AddOnGraphChangedHandler(
 		FOnGraphChanged::FDelegate::CreateUObject(this, &UNiagaraStackFunctionInput::OnGraphChanged));
@@ -2293,7 +2294,7 @@ void UNiagaraStackFunctionInput::UpdateValuesFromScriptDefaults(FInputValues& In
 			InInputValues.Mode = EValueMode::Linked;
 			InInputValues.LinkedHandle = InputScriptVariable->DefaultBinding.GetName();
 		}
-		else
+		else if (SourceScript.IsValid())
 		{
 			// Otherwise we need to check the pin that defined the variable in the graph to determine the default.
 
