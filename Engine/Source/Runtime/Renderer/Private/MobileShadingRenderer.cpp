@@ -704,11 +704,6 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 	RHICmdList.SetCurrentStat(GET_STATID(STAT_CLMM_Post));
 
-	if (!View.bIsMobileMultiViewDirectEnabled)
-	{
-		CopyMobileMultiViewSceneColor(RHICmdList);
-	}
-
 	if (bUseVirtualTexturing)
 	{	
 		SCOPED_GPU_STAT(RHICmdList, VirtualTextureUpdate);
@@ -808,17 +803,17 @@ FRHITexture* FMobileSceneRenderer::RenderForward(FRHICommandListImmediate& RHICm
 	{
 		if (bMobileMSAA)
 		{
-			SceneColor = (View.bIsMobileMultiViewEnabled) ? SceneContext.MobileMultiViewSceneColor->GetRenderTargetItem().TargetableTexture : SceneContext.GetSceneColorSurface();
-			SceneColorResolve = GetMultiViewSceneColor(SceneContext);
+			SceneColor = SceneContext.GetSceneColorSurface();
+			SceneColorResolve = ViewFamily.RenderTarget->GetRenderTargetTexture();
 			ColorTargetAction = ERenderTargetActions::Clear_Resolve;
 			RHICmdList.Transition(FRHITransitionInfo(SceneColorResolve, ERHIAccess::Unknown, ERHIAccess::RTV | ERHIAccess::ResolveDst));
 		}
 		else
 		{
-			SceneColor = GetMultiViewSceneColor(SceneContext);
+			SceneColor = ViewFamily.RenderTarget->GetRenderTargetTexture();
 			RHICmdList.Transition(FRHITransitionInfo(SceneColor, ERHIAccess::Unknown, ERHIAccess::RTV));
 		}
-		SceneDepth = (View.bIsMobileMultiViewEnabled) ? SceneContext.MobileMultiViewSceneDepthZ->GetRenderTargetItem().TargetableTexture : static_cast<FTextureRHIRef>(SceneContext.GetSceneDepthSurface());
+		SceneDepth = SceneContext.GetSceneDepthSurface();
 	}
 	else
 	{
@@ -1408,108 +1403,6 @@ void FMobileSceneRenderer::CreateDirectionalLightUniformBuffers(FViewInfo& View)
 		SetupMobileDirectionalLightUniformParameters(*Scene, View, VisibleLightInfos, ChannelIdx, bDynamicShadows, Params);
 		View.MobileDirectionalLightUniformBuffers[ChannelIdx + 1] = TUniformBufferRef<FMobileDirectionalLightShaderParameters>::CreateUniformBufferImmediate(Params, UniformBuffer_SingleFrame);
 	}
-}
-
-class FCopyMobileMultiViewSceneColorPS : public FGlobalShader
-{
-	DECLARE_SHADER_TYPE(FCopyMobileMultiViewSceneColorPS, Global);
-public:
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return true;;
-	}
-
-	FCopyMobileMultiViewSceneColorPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer) :
-		FGlobalShader(Initializer)
-	{
-		MobileMultiViewSceneColorTexture.Bind(Initializer.ParameterMap, TEXT("MobileMultiViewSceneColorTexture"));
-		MobileMultiViewSceneColorTextureSampler.Bind(Initializer.ParameterMap, TEXT("MobileMultiViewSceneColorTextureSampler"));
-	}
-
-	FCopyMobileMultiViewSceneColorPS() {}
-
-	void SetParameters(FRHICommandList& RHICmdList, FRHIUniformBuffer* ViewUniformBuffer, FTextureRHIRef InMobileMultiViewSceneColorTexture)
-	{
-		FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
-		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, ViewUniformBuffer);
-		SetTextureParameter(
-			RHICmdList,
-			ShaderRHI,
-			MobileMultiViewSceneColorTexture,
-			MobileMultiViewSceneColorTextureSampler,
-			TStaticSamplerState<SF_Bilinear>::GetRHI(),
-			InMobileMultiViewSceneColorTexture);
-	}
-
-	LAYOUT_FIELD(FShaderResourceParameter, MobileMultiViewSceneColorTexture)
-	LAYOUT_FIELD(FShaderResourceParameter, MobileMultiViewSceneColorTextureSampler)
-};
-
-IMPLEMENT_SHADER_TYPE(, FCopyMobileMultiViewSceneColorPS, TEXT("/Engine/Private/MobileMultiView.usf"), TEXT("MainPS"), SF_Pixel);
-
-void FMobileSceneRenderer::CopyMobileMultiViewSceneColor(FRHICommandListImmediate& RHICmdList)
-{
-	if (Views.Num() <= 1 || !Views[0].bIsMobileMultiViewEnabled)
-	{
-		return;
-	}
-
-	RHICmdList.DiscardRenderTargets(true, true, 0);
-
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
-
-	// Switching from the multi-view scene color render target array to side by side scene color
-	FRHIRenderPassInfo RPInfo(ViewFamily.RenderTarget->GetRenderTargetTexture(), ERenderTargetActions::Clear_Store);
-	RPInfo.DepthStencilRenderTarget.Action = EDepthStencilTargetActions::ClearDepthStencil_DontStoreDepthStencil;
-	RPInfo.DepthStencilRenderTarget.DepthStencilTarget = SceneContext.GetSceneDepthTexture();
-	RPInfo.DepthStencilRenderTarget.ExclusiveDepthStencil = FExclusiveDepthStencil::DepthNop_StencilNop;
-
-	TransitionRenderPassTargets(RHICmdList, RPInfo);
-	RHICmdList.BeginRenderPass(RPInfo, TEXT("CopyMobileMultiViewColor"));
-	{
-	FGraphicsPipelineStateInitializer GraphicsPSOInit;
-	RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
-	GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
-	GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
-	GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
-
-	const auto ShaderMap = GetGlobalShaderMap(FeatureLevel);
-	TShaderMapRef<FScreenVS> VertexShader(ShaderMap);
-	TShaderMapRef<FCopyMobileMultiViewSceneColorPS> PixelShader(ShaderMap);
-	extern TGlobalResource<FFilterVertexDeclaration> GFilterVertexDeclaration;
-
-	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
-	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
-	GraphicsPSOInit.PrimitiveType = PT_TriangleList;
-
-	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
-
-	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
-	{
-		const FViewInfo& View = Views[ViewIndex];
-
-		// Multi-view color target is our input texture array
-		PixelShader->SetParameters(RHICmdList, View.ViewUniformBuffer, SceneContext.MobileMultiViewSceneColor->GetRenderTargetItem().ShaderResourceTexture);
-
-		RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Min.X + View.ViewRect.Width(), View.ViewRect.Min.Y + View.ViewRect.Height(), 1.0f);
-		const FIntPoint TargetSize(View.ViewRect.Width(), View.ViewRect.Height());
-
-		DrawRectangle(
-			RHICmdList,
-			0, 0,
-			View.ViewRect.Width(), View.ViewRect.Height(),
-			0, 0,
-			View.ViewRect.Width(), View.ViewRect.Height(),
-			TargetSize,
-			TargetSize,
-			VertexShader,
-			EDRF_UseTriangleOptimization);
-	}
-
-	}
-	RHICmdList.EndRenderPass();
 }
 
 class FPreTonemapMSAA_Mobile : public FGlobalShader
