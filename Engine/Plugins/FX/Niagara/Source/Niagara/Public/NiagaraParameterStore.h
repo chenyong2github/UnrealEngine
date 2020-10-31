@@ -607,6 +607,16 @@ public:
 #endif
 	}
 
+	FORCEINLINE void PostGenericEditChange()
+	{
+		bUObjectsDirty = true;
+		bInterfacesDirty = true;
+		bParametersDirty = true;
+#if WITH_EDITOR
+		OnChangedDelegate.Broadcast();
+#endif
+	}
+
 #if WITH_EDITOR
 	FDelegateHandle AddOnChangedHandler(FOnChanged::FDelegate InOnChanged);
 	void RemoveOnChangedHandler(FDelegateHandle DelegateHandle);
