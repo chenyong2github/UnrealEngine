@@ -5,7 +5,7 @@
 #include "ExrReaderGpuModule.h"
 #include "Interfaces/IPluginManager.h"
 #include "Runtime/Core/Public/Misc/Paths.h"
-#include "Runtime/RenderCore/Public/ShaderCore.h"
+#include "ShaderCore.h"
 
 DEFINE_LOG_CATEGORY(LogExrReaderGpu);
 
@@ -13,8 +13,8 @@ DEFINE_LOG_CATEGORY(LogExrReaderGpu);
 
 void FExrReaderGpuModule::StartupModule()
 {
-	FString PluginShaderDir = FPaths::Combine(IPluginManager::Get().FindPlugin(TEXT("ImgMedia"))->GetBaseDir(), TEXT("Source/ExrReaderGpu/Private"));
-	AddShaderSourceDirectoryMapping(TEXT("/ExrReaderShaders"), PluginShaderDir);
+	FString PluginShaderDir = FPaths::Combine(IPluginManager::Get().FindPlugin(TEXT("ImgMedia"))->GetBaseDir(), TEXT("Shaders"));
+	AddShaderSourceDirectoryMapping(TEXT("/Plugin/ExrReaderShaders"), PluginShaderDir);
 }
 
 void FExrReaderGpuModule::ShutdownModule()
