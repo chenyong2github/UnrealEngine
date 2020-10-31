@@ -209,7 +209,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "DMX")
 	FName GetAttributeLabel(FDMXAttributeName AttributeName);
 
-	UE_DEPRECATED(4.26, "No longer supported in 4.26. Use DMXComponent's OnFixturePatchReceived event or GetRawBuffer instead.")
+	// DEPRECATED 4.26
 	UPROPERTY(BlueprintAssignable, Category = "DMX", meta = (DeprecatedProperty, DeprecationMessage = "WARNING: This can execute faster than tick leading to possible blueprint performance issues. Use DMXComponent's OnFixturePatchReceived event or GetRawBuffer instead."))
 	FProtocolReceivedDelegate OnProtocolReceived;
 
