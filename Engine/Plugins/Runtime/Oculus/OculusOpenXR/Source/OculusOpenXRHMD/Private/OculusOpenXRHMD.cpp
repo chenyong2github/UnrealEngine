@@ -4,6 +4,7 @@
 #include "OpenXRCore.h"
 #include "OpenXRPlatformRHI.h"
 #include "DefaultSpectatorScreenController.h"
+#include "Modules/ModuleManager.h"
 
 #if PLATFORM_ANDROID
 #include <openxr_oculus.h>

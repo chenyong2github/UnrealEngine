@@ -6,6 +6,7 @@
 #include "NiagaraRendererComponents.h"
 #include "Modules/ModuleManager.h"
 #if WITH_EDITOR
+#include "Editor.h"
 #include "Widgets/Images/SImage.h"
 #include "Styling/SlateIconFinder.h"
 #include "Widgets/SWidget.h"
