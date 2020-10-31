@@ -292,6 +292,13 @@ public:
 	DECLARE_EVENT_ThreeParams(IDMXProtocol, FOnPacketSent, FName, uint16, const TArray<uint8>&);
 	virtual FOnPacketSent& GetOnPacketSent() = 0;
 
+	/**
+	 * Called when a packet was sent
+	 * Event Parameters: FName Protocol Name, uint16 UniverseID, const TArray<uint8>& Packet
+	 */
+	DECLARE_EVENT_TwoParams(IDMXProtocol, FOnGameThreadOnlyBufferUpdated, const FName& /*InProtocolName*/, int32 /* InUniverseID */);
+	virtual FOnGameThreadOnlyBufferUpdated& GetOnGameThreadOnlyBufferUpdated() = 0;
+
 public:
 	/** Delegate used for listening to a network interface changes  */
 	static FOnNetworkInterfaceChanged OnNetworkInterfaceChanged;

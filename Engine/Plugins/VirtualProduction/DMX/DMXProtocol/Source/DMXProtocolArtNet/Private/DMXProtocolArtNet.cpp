@@ -241,7 +241,7 @@ bool FDMXProtocolArtNet::RestartNetworkInterface(const FString& InInterfaceIPAdd
 	const UDMXProtocolSettings* ProtocolSettings = GetDefault<UDMXProtocolSettings>();
 	check(ProtocolSettings);
 
-	ReceivingRunnable = FDMXProtocolArtNetReceivingRunnable::CreateNew(ProtocolSettings->ReceivingRefreshRate);
+	ReceivingRunnable = FDMXProtocolArtNetReceivingRunnable::CreateNew(ProtocolSettings->ReceivingRefreshRate, SharedThis(this));
 
 	FScopeLock Lock(&SocketsCS);
 

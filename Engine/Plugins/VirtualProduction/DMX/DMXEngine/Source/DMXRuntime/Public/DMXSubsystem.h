@@ -209,8 +209,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "DMX")
 	FName GetAttributeLabel(FDMXAttributeName AttributeName);
 
-	UPROPERTY(BlueprintAssignable, Category = "DMX", meta = (DeprecatedProperty, DeprecationMessage = "No longer supported in 4.26. Use DMXComponent's OnFixturePatchReceived event instead."))
-	FProtocolReceivedDelegate OnProtocolReceived;
+	UE_DEPRECATED(4.26, "No longer supported in 4.26. Use DMXComponent's OnFixturePatchReceived event instead.")
+	UPROPERTY(BlueprintAssignable, Category = "DMX", meta = (DeprecatedProperty, DeprecationMessage = "WARNING: This can execute faster than tick leading to possible blueprint performance issues. Use DMXComponent's OnFixturePatchReceived event instead."))
+	FProtocolReceivedDelegate OnProtocolReceived_DEPRECATED;
 
 	/**  Set DMX Cell value using matrix coordinates. */
 	UFUNCTION(BlueprintCallable, Category = "DMX", meta = (DeprecatedFunction, DeprecationMessage = "Deprecated 4.26. DMXEntityFixurePatch::SendMatrixCellValue instead"))
@@ -273,6 +274,10 @@ private:
 	/** Called when asset registry removed an asset */
 	UFUNCTION()
 	void OnAssetRegistryRemovedAsset(const FAssetData& Asset);
+
+	void OnGameThreadOnlyBufferUpdated(const FName& InProtocolName, int32 InUniverseID);
+
+private:
 
 	/** Strongly references all libraries at all times */
 	UPROPERTY()
