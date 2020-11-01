@@ -1774,12 +1774,15 @@ bool FOpenXRHMD::OnStereoStartup()
 			break;
 		}
 	}
-	if (!bUseExtensionSpectatorScreenController)
+
+#if !PLATFORM_HOLOLENS
+	if (!bUseExtensionSpectatorScreenController && !FPlatformMisc::IsStandaloneStereoOnlyDevice())
 	{
 		SpectatorScreenController = MakeUnique<FDefaultSpectatorScreenController>(this);
 		UE_LOG(LogHMD, Verbose, TEXT("OpenXR using base spectator screen."));
 	}
 	else
+#endif
 	{
 		if (SpectatorScreenController == nullptr)
 		{
