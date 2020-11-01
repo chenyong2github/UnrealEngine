@@ -294,8 +294,11 @@ class SettingsDialog(QtCore.QObject):
         label.setText(setting.nice_name)
 
         combo = sb_widgets.NonScrollableComboBox()
-        combo.addItems(setting.possible_values)
-        combo.setCurrentIndex(combo.findText(setting.get_value()))
+
+        for value in setting.possible_values:
+            combo.addItem(str(value), value)
+
+        combo.setCurrentIndex(combo.findData(setting.get_value()))
 
         # update the widget if the setting changes, but only when the value is actually different (to avoid endless recursion)
         # this is useful for settings that will change their value based on the input of the widget of another setting
@@ -395,12 +398,19 @@ class SettingsDialog(QtCore.QObject):
         setting.signal_setting_changed.connect(lambda old, new, setting=setting, device_name=device_name, widget=line_edit: on_base_value_changed(setting, device_name, widget))
 
     def _on_line_edit_override_editingFinished(self, widget, setting, device_name):
+
         old_value = setting.get_value(device_name)
         new_value = widget.text()
+
         if type(old_value) == int:
-            new_value = int(new_value)
+            try:
+                new_value = int(new_value)
+            except ValueError:
+                new_value = setting._original_value
+
         if new_value != old_value:
             setting.override_value(device_name, new_value)
+
         if setting.is_overriden(device_name):
             sb_widgets.set_qt_property(widget, "override", True)
         else:
