@@ -122,6 +122,13 @@ class DevicenDisplay(DeviceUnreal):
             value="", 
             tool_tip=f'ExecCmds to be passed. No need for outer double quotes.',
         ),
+        'max_gpu_count': Setting(
+            attr_name="max_gpu_count", 
+            nice_name="Number of GPUs",
+            value=1,
+            possible_values=list(range(1, 17)),
+            tool_tip="If you have multiple GPUs in the PC, you can specify how many to use.",
+        ),
     }
 
     ndisplay_monitor_ui = None
@@ -202,7 +209,6 @@ class DevicenDisplay(DeviceUnreal):
             DeviceUnreal.csettings['port'], 
             DeviceUnreal.csettings['roles_filename'],
             DeviceUnreal.csettings['stage_session_id'],
-            DeviceUnreal.csettings['max_gpu_count'],
         ]
 
     def device_settings(self):
@@ -215,7 +221,7 @@ class DevicenDisplay(DeviceUnreal):
         return [
             DevicenDisplay.csettings['ndisplay_cmd_args'],
             DevicenDisplay.csettings['ndisplay_exec_cmds'],
-            DeviceUnreal.csettings['max_gpu_count'],
+            DevicenDisplay.csettings['max_gpu_count'],
             CONFIG.ENGINE_DIR, 
             CONFIG.SOURCE_CONTROL_WORKSPACE, 
             CONFIG.UPROJECT_PATH,
@@ -252,8 +258,12 @@ class DevicenDisplay(DeviceUnreal):
 
         # MaxGPUCount (mGPU)
         #
-        max_gpu_count = DeviceUnreal.csettings["max_gpu_count"].get_value(self.name)
-        max_gpu_count = f"-MaxGPUCount={max_gpu_count}" if max_gpu_count > 1 else ''
+        max_gpu_count = DevicenDisplay.csettings["max_gpu_count"].get_value(self.name)
+        try:
+            max_gpu_count = f"-MaxGPUCount={max_gpu_count}" if int(max_gpu_count) > 1 else ''
+        except ValueError:
+            LOGGER.warning(f"Invalid Number of GPUs '{max_gpu_count}'")
+            max_gpu_count = ''
 
         # Overridden classes at runtime
         #
@@ -508,9 +518,9 @@ class DevicenDisplay(DeviceUnreal):
         nodes = self.__class__.parse_config(cfg_file)
 
         # find which node is self:
-        menode = next(node for node in nodes if node['name'] == self.name)
-
-        if not menode:
+        try:
+            menode = next(node for node in nodes if node['name'] == self.name)
+        except StopIteration:
             LOGGER.error(f"{self.name} not found in config file {cfg_file}")
             return
 
