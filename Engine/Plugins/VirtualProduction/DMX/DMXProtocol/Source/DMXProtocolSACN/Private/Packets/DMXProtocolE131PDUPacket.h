@@ -41,7 +41,7 @@ public:
 	uint16 FlagsAndLength = ACN_PDU_FLAGS_AND_LENGHT_SIZE;
 	uint32 Vector = VECTOR_E131_DATA_PACKET;
 	uint8 SourceName[ACN_SOURCE_NAME_SIZE] = "New Source";
-	uint8 Priority = 100;
+	uint8 Priority = 1;
 	uint16 SynchronizationAddress = 0;
 	uint8 SequenceNumber = 0;
 	uint8 Options = 0;
