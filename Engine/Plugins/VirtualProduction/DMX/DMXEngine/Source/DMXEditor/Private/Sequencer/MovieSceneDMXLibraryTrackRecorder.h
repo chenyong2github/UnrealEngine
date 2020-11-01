@@ -81,6 +81,9 @@ private:
 	/** Sections to record to on each track*/
 	TWeakObjectPtr<UMovieSceneDMXLibrarySection> DMXLibrarySection;
 
+	/** The time at the start of this recording section */
+	double RecordStartTime;
+
 	/** The frame at the start of this recording section */
 	FFrameNumber RecordStartFrame;
 
