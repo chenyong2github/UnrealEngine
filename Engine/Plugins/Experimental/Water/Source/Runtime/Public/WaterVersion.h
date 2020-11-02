@@ -20,6 +20,8 @@ struct WATER_API FWaterCustomVersion
 		MoveBrushMaterialsToWaterBrushManager,
 		// Deprecate pontoons data on UBuoyancyComponent
 		UpdateBuoyancyComponentPontoonsData,
+		// Move JumpFlood materials into AWaterBrushManager
+		MoveJumpFloodMaterialsToWaterBrushManager,
 
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
