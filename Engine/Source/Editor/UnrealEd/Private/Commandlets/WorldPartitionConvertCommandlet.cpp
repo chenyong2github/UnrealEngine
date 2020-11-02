@@ -19,6 +19,8 @@
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
 #include "WorldPartition/HLOD/HLODActor.h"
+#include "WorldPartition/WorldPartitionMiniMap.h"
+#include "WorldPartition/WorldPartitionMiniMapHelper.h"
 #include "GameFramework/WorldSettings.h"
 #include "UObject/UObjectHash.h"
 #include "PackageHelperFunctions.h"
@@ -652,6 +654,18 @@ void UWorldPartitionConvertCommandlet::OnWorldLoaded(UWorld* World)
 	}
 }
 
+void UWorldPartitionConvertCommandlet::CreateWorldMiniMapTexture(UWorld* World)
+{
+	AWorldPartitionMiniMap* WorldMiniMap = FWorldPartitionMiniMapHelper::GetWorldPartitionMiniMap(World,true);
+	if (!WorldMiniMap)
+	{
+		UE_LOG(LogWorldPartitionConvertCommandlet, Error, TEXT("Failed to create Minimap. WorldPartitionMiniMap actor not found in the persistent level."));
+		return;
+	}
+
+	FWorldPartitionMiniMapHelper::CaptureWorldMiniMapToTexture(World, WorldMiniMap, WorldMiniMap->MiniMapSize, WorldMiniMap->MiniMapTexture, WorldMiniMap->MiniMapWorldBounds);
+}
+
 int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 {
 	UE_SCOPED_TIMER(TEXT("Conversion"), LogWorldPartitionConvertCommandlet, Display);
@@ -665,7 +679,7 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 		return 1;
 	}
 
-	// This will convert imcomplete package name to a fully qualifed path, avoiding calling it several times (takes ~50s)
+	// This will convert incomplete package name to a fully qualified path, avoiding calling it several times (takes ~50s)
 	if (!FPackageName::SearchForPackageOnDisk(Tokens[0], &Tokens[0]))
 	{
 		UE_LOG(LogWorldPartitionConvertCommandlet, Error, TEXT("Unknown level '%s'"), *Tokens[0]);
@@ -676,6 +690,7 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 	bGenerateIni = Switches.Contains(TEXT("GenerateIni"));
 	bReportOnly = bGenerateIni || Switches.Contains(TEXT("ReportOnly"));
 	bVerbose = Switches.Contains(TEXT("Verbose"));
+	bAllowCommandletRendering = Switches.Contains(TEXT("AllowCommandletRendering"));
 
 	ReadAdditionalTokensAndSwitches(Tokens, Switches);
 
@@ -1085,6 +1100,18 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 
 	bool bForceInitializeWorld = false;
 	bool bInitializedPhysicsSceneForSave = GEditor->InitializePhysicsSceneForSaveIfNecessary(MainWorld, bForceInitializeWorld);
+
+	//Create MiniMap of World
+	bool bSkipMiniMapGeneration = Switches.Contains(TEXT("SkipMiniMapGeneration"));
+	if (!bSkipMiniMapGeneration)
+	{
+		if (!bAllowCommandletRendering)
+		{
+			UE_LOG(LogWorldPartitionConvertCommandlet, Error, TEXT("AllowCommandletRendering option is required to generate MiniMap. Use SkipMiniMapGeneration option to skip MiniMap generation."));
+			return 1;
+		}
+		CreateWorldMiniMapTexture(MainWorld);
+	}
 
 	// After conversion, convert actors to external actors
 	UPackage* LevelPackage = MainLevel->GetPackage();

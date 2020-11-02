@@ -66,6 +66,7 @@ protected:
 	void SetupHLODLayerAssets();
 
 	void SetActorGuid(AActor* Actor, const FGuid& NewGuid);
+	void CreateWorldMiniMapTexture(UWorld* World);
 
 	// Conversion report
 	TSet<FString> MapsWithLevelScriptsBPs;
@@ -87,6 +88,7 @@ protected:
 	bool bReportOnly;
 	bool bVerbose;
 	bool bConversionSuffix;
+	bool bAllowCommandletRendering;
 	FString ConversionSuffix;
 
 	UPROPERTY(Config)

@@ -12,6 +12,7 @@
 #include "Editor/GroupActor.h"
 #include "Editor/EditorEngine.h"
 #include "Widgets/Input/SCheckBox.h"
+#include "Widgets/Input/SButton.h"
 #include "WorldBrowserModule.h"
 #include "LevelEditorViewport.h"
 #include "Algo/Transform.h"
@@ -19,6 +20,8 @@
 #include "EditorModeManager.h"
 
 #define LOCTEXT_NAMESPACE "WorldPartitionEditor"
+
+static TAutoConsoleVariable<int32> CVarShowReloadMiniMapButton(TEXT("MiniMap.ShowReloadButton"), 0, TEXT("Show reload MiniMap button."));
 
 SWorldPartitionEditorGrid2D::FEditorCommands::FEditorCommands()
 	: TCommands<FEditorCommands>
@@ -100,6 +103,14 @@ void SWorldPartitionEditorGrid2D::Construct(const FArguments& InArgs)
 						.AutoWrapText(true)
 						.IsEnabled(true)
 						.Text(LOCTEXT("ShowActors", "Show Actors"))
+					]
+					+SHorizontalBox::Slot()
+					.AutoWidth()
+					[
+						SNew(SButton)
+						.Text(LOCTEXT("Reload MiniMap", "Reload MiniMap "))
+						.Visibility_Lambda([]() {return CVarShowReloadMiniMapButton.GetValueOnAnyThread() != 0 ? EVisibility::Visible : EVisibility::Hidden;})
+						.OnClicked(this, &SWorldPartitionEditorGrid2D::ReloadMiniMap)
 					]
 				]
 			]

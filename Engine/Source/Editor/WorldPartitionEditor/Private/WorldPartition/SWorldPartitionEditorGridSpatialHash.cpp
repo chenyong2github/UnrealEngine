@@ -7,6 +7,8 @@
 #include "WorldPartition/WorldPartitionRuntimeSpatialHash.h"
 #include "WorldPartition/WorldPartitionEditorSpatialHash.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
+#include "WorldPartition/WorldPartitionMiniMap.h"
+#include "WorldPartition/WorldPartitionMiniMapHelper.h"
 #include "Framework/Commands/Commands.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Misc/FileHelper.h"
@@ -27,6 +29,7 @@
 TAutoConsoleVariable<bool> CVarDebugDrawOctree(TEXT("wp.Editor.DebugDrawOctree"), false, TEXT("Whether to debug draw the World Partition octree"), ECVF_Default);
 
 SWorldPartitionEditorGridSpatialHash::SWorldPartitionEditorGridSpatialHash()
+	:WorldMiniMapBounds(ForceInit)
 {
 }
 
@@ -44,23 +47,47 @@ void SWorldPartitionEditorGridSpatialHash::Construct(const FArguments& InArgs)
 		UWorldPartitionEditorSpatialHash* EditorSpatialHash = (UWorldPartitionEditorSpatialHash*)WorldPartition->EditorHash;
 
 		bShowActors = true;
-		if (UObject* WorldImage = EditorSpatialHash->WorldImage.TryLoad())
-		{
-			if (UTexture2D* WorldImageTexture = Cast<UTexture2D>(WorldImage))
-			{
-				WorldImageBrush.SetImageSize(FVector2D(WorldImageTexture->GetSizeX(), WorldImageTexture->GetSizeY()));
-				WorldImageBrush.SetResourceObject(WorldImageTexture);
-				bShowActors = false;
-			}
-			if (UMaterialInterface* WorldImageMaterial = Cast<UMaterialInterface>(WorldImage))
-			{
-				WorldImageBrush.SetResourceObject(WorldImageMaterial);
-				bShowActors = false;
-			}
-		}
+
+		//Update MiniMap data for drawing  
+		UpdateWorldMiniMapDetails();
 	}
 
 	SWorldPartitionEditorGrid2D::Construct(SWorldPartitionEditorGrid::FArguments().InWorld(InArgs._InWorld));
+}
+
+FReply SWorldPartitionEditorGridSpatialHash::ReloadMiniMap()
+{
+	UE_LOG(LogTemp, Log, TEXT("Reload MiniMap has been clicked"));
+
+	//Create a new MiniMap if there isn't one.
+	auto WorldMiniMap = FWorldPartitionMiniMapHelper::GetWorldPartitionMiniMap(World, true);
+	if (!WorldMiniMap)
+	{
+		UE_LOG(LogTemp, Error, TEXT("Failed to create Minimap. WorldPartitionMiniMap actor not found in the persistent level."));
+		return FReply::Handled();
+	}
+
+	WorldMiniMap->Modify();
+	FWorldPartitionMiniMapHelper::CaptureWorldMiniMapToTexture(World, WorldMiniMap, WorldMiniMap->MiniMapSize, WorldMiniMap->MiniMapTexture, WorldMiniMap->MiniMapWorldBounds);
+
+	UpdateWorldMiniMapDetails();
+
+	return FReply::Handled();
+}
+
+void SWorldPartitionEditorGridSpatialHash::UpdateWorldMiniMapDetails()
+{
+	auto WorldMiniMap = FWorldPartitionMiniMapHelper::GetWorldPartitionMiniMap(World);
+	if (WorldMiniMap)
+	{
+		WorldMiniMapBounds = FBox2D(FVector2D(WorldMiniMap->MiniMapWorldBounds.Min), FVector2D(WorldMiniMap->MiniMapWorldBounds.Max));
+		if (UTexture2D* MiniMapTexture = WorldMiniMap->MiniMapTexture)
+		{
+			WorldMiniMapBrush.SetImageSize(FVector2D(MiniMapTexture->GetSizeX(), MiniMapTexture->GetSizeY()));
+			WorldMiniMapBrush.SetResourceObject(MiniMapTexture);
+		}
+	}
+	
 }
 
 int32 SWorldPartitionEditorGridSpatialHash::PaintGrid(const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId) const
@@ -103,24 +130,19 @@ int32 SWorldPartitionEditorGridSpatialHash::PaintGrid(const FGeometry& AllottedG
 		);
 	}
 
-	// Draw world image if any
-	if (WorldImageBrush.HasUObject())
-	{
-		const FVector2D& WorldImageTopLeftW = EditorSpatialHash->WorldImageTopLeftW;
-		const FVector2D& WorldImageBottomRightW = EditorSpatialHash->WorldImageBottomRightW;
-
+	// Draw MiniMap image if any
+	if (WorldMiniMapBrush.HasUObject())
+	{	
 		FPaintGeometry WorldImageGeometry = AllottedGeometry.ToPaintGeometry(
-			WorldToScreen.TransformPoint(WorldImageTopLeftW),
-			WorldToScreen.TransformPoint(WorldImageBottomRightW) - WorldToScreen.TransformPoint(WorldImageTopLeftW)
+			WorldToScreen.TransformPoint(WorldMiniMapBounds.Min),
+			WorldToScreen.TransformPoint(WorldMiniMapBounds.Max) - WorldToScreen.TransformPoint(WorldMiniMapBounds.Min)
 		);
 
 		FSlateDrawElement::MakeRotatedBox(
 			OutDrawElements,
 			++LayerId,
 			WorldImageGeometry,
-			&WorldImageBrush,
-			ESlateDrawEffect::None,
-			FMath::DegreesToRadians(0.0f)
+			&WorldMiniMapBrush
 		);
 	}
 
