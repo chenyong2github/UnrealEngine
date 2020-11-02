@@ -39,6 +39,7 @@ FAutoConsoleVariableRef CVarChaosVehiclesShowSuspensionRaycasts(TEXT("p.Vehicle.
 FAutoConsoleVariableRef CVarChaosVehiclesShowSuspensionLimits(TEXT("p.Vehicle.ShowSuspensionLimits"), GWheeledVehicleDebugParams.ShowSuspensionLimits, TEXT("Enable/Disable Suspension Limits Visualisation."));
 FAutoConsoleVariableRef CVarChaosVehiclesShowWheelForces(TEXT("p.Vehicle.ShowWheelForces"), GWheeledVehicleDebugParams.ShowWheelForces, TEXT("Enable/Disable Wheel Forces Visualisation."));
 FAutoConsoleVariableRef CVarChaosVehiclesShowSuspensionForces(TEXT("p.Vehicle.ShowSuspensionForces"), GWheeledVehicleDebugParams.ShowSuspensionForces, TEXT("Enable/Disable Suspension Forces Visualisation."));
+FAutoConsoleVariableRef CVarChaosVehiclesShowBatchQueryExtents(TEXT("p.Vehicle.ShowBatchQueryExtents"), GWheeledVehicleDebugParams.ShowBatchQueryExtents, TEXT("Enable/Disable Suspension Forces Visualisation."));
 
 FAutoConsoleVariableRef CVarChaosVehiclesDisableSuspensionForces(TEXT("p.Vehicle.DisableSuspensionForces"), GWheeledVehicleDebugParams.DisableSuspensionForces, TEXT("Enable/Disable Suspension Forces."));
 FAutoConsoleVariableRef CVarChaosVehiclesDisableFrictionForces(TEXT("p.Vehicle.DisableFrictionForces"), GWheeledVehicleDebugParams.DisableFrictionForces, TEXT("Enable/Disable Wheel Friction Forces."));
@@ -662,7 +663,13 @@ void UChaosWheeledVehicleMovementComponent::PerformSuspensionTraces(const TArray
 		FCollisionShape CollisionBox;
 		CollisionBox.SetBox(QueryBox.GetExtent());
 
-		//DrawDebugBox(GetWorld(), QueryBox.GetCenter(), QueryBox.GetExtent(), FColor::Yellow, false, -1.0f, 0, 2.0f);
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+		if (GWheeledVehicleDebugParams.ShowBatchQueryExtents)
+		{
+			DrawDebugBox(GetWorld(), QueryBox.GetCenter(), QueryBox.GetExtent(), FColor::Yellow, false, -1.0f, 0, 2.0f);
+		}
+#endif
+
 		const bool bOverlapHit = GetWorld()->OverlapMultiByChannel(OverlapResults, QueryBox.GetCenter(), FQuat::Identity, SpringCollisionChannel, CollisionBox, TraceParams, ResponseParams);
 
 		for (int32 WheelIdx = 0; WheelIdx < Wheels.Num(); ++WheelIdx)
@@ -1022,7 +1029,8 @@ void UChaosWheeledVehicleMovementComponent::ApplyInput(float DeltaTime)
 
 		if (GWheeledVehicleDebugParams.ThrottleOverride > 0.f)
 		{
-			PTransmission.SetGear(1);
+			PTransmission.SetGear(1, true);
+			BrakeInput = 0.f;
 			PEngine.SetThrottle(GWheeledVehicleDebugParams.ThrottleOverride);
 		}
 		else
