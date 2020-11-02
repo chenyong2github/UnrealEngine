@@ -1117,7 +1117,7 @@ public:
 	void LinkDataPinFromOutputToInput(UEdGraphNode* InOutputNode, UEdGraphNode* InInputNode) const;
 
 	/** Moves all connections from the old node to the new one. Returns true and destroys OldNode on success. Fails if it cannot find a mapping from an old pin. */
-	bool ReplaceOldNodeWithNew(UK2Node* OldNode, UK2Node* NewNode, const TMap<FName, FName>& OldPinToNewPinMap) const;
+	bool ReplaceOldNodeWithNew(UEdGraphNode* OldNode, UEdGraphNode* NewNode, const TMap<FName, FName>& OldPinToNewPinMap) const;
 
 	/** Convert a deprecated node into a function call node, called from per-node ConvertDeprecatedNode */
 	UK2Node* ConvertDeprecatedNodeToFunctionCall(UK2Node* OldNode, UFunction* NewFunction, TMap<FName, FName>& OldPinToNewPinMap, UEdGraph* Graph) const;
