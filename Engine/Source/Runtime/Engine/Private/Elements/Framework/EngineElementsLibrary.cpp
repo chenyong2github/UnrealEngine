@@ -124,7 +124,14 @@ void UEngineElementsLibrary::DestroyUnreachableEditorObjectElements()
 
 	auto DestroyUnreachableObjectElement = [Registry = UTypedElementRegistry::GetInstance()](TTypedElementOwner<FObjectElementData>&& EditorElement)
 	{
-		Registry->DestroyElement(EditorElement);
+		if (Registry)
+		{
+			Registry->DestroyElement(EditorElement);
+		}
+		else
+		{
+			EditorElement.Private_DestroyNoRef();
+		}
 	};
 
 	GObjectElementOwnerStore.UnregisterElementOwners(IsObjectElementUnreachable, DestroyUnreachableObjectElement);
