@@ -109,6 +109,16 @@ public:
 
 
 	/**
+	 * Override the sequence ID that should be considered the root sequence for this updater
+	 *
+	 * @param InLinker                    The linker that is owns this sequence
+	 * @param InstanceHandle              The instance handle for the master sequence
+	 * @param NewRootOverrideSequenceID   The new sequence ID to treat as the root
+	 */
+	virtual void OverrideRootSequence(UMovieSceneEntitySystemLinker* InLinker, FInstanceHandle InstanceHandle, FMovieSceneSequenceID NewRootOverrideSequenceID) = 0;
+
+
+	/**
 	 * Migrate this updater to one that can represent hierarchical data. 
 	 *
 	 * @return A new instance capable of dealing with hierarchical data, or nullptr if this already does.
