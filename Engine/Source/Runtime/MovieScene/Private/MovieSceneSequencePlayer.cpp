@@ -1314,11 +1314,10 @@ void UMovieSceneSequencePlayer::PostNetReceive()
 					{
 						SetPlaybackPosition(FMovieSceneSequencePlaybackParams(NetSyncProps.LastKnownPosition + PingLag, EUpdatePositionMethod::Jump));
 					}
-				}
 
-				// When playing back we skip this sequence's ticked update to avoid queuing 2 updates this frame
-				//TODO: @AAndrew Rodham 
-				//bSkipNextUpdate = true;
+					// When playing back we skip this sequence's ticked update to avoid queuing 2 updates this frame
+					bSkipNextUpdate = true;
+				}
 			}
 			else if (Status == EMovieScenePlayerStatus::Stopped)
 			{
