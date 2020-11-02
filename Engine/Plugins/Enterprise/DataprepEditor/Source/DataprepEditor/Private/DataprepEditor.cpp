@@ -264,6 +264,7 @@ FDataprepEditor::FDataprepEditor()
 	, bSaveIntermediateBuildProducts(false)
 	, PreviewWorld(nullptr)
 	, AssetsTransientPackage(nullptr)
+	, DataprepGraph(nullptr)
 	, bIgnoreCloseRequest(false)
 	, PreviewSystem( MakeShared<FDataprepPreviewSystem>() )
 {
