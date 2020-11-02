@@ -9,6 +9,9 @@
 #include "DistanceFieldLightingShared.ush"
 #include "DistanceFieldShadowingShared.ush"
 
+#define SCATTER_TILE_CULLING (CULLING_TYPE == 0)
+#define POINT_LIGHT (CULLING_TYPE == 2)
+
 #if (DISTANCEFIELD_PRIMITIVE_TYPE == DFPT_SignedDistanceField)
 #define MAX_TRACE_SPHERE_RADIUS 100
 #define SELF_SHADOW_VERTICAL_BIAS 0
@@ -304,7 +307,7 @@ void HandleShadowTileObjectIntersection(uint TileIndex, uint ObjectIndex)
 
 		uint StartOffset = ShadowTileStartOffsets[TileIndex];
 		uint DataIndex = (ArrayIndex + StartOffset);
-		RWShadowTileArrayData[DataIndex * SHADOW_TILE_ARRAY_DATA_STRIDE] = ObjectIndex;
+		RWShadowTileArrayData[DataIndex] = ObjectIndex;
 	#endif
 }
 
@@ -702,7 +705,7 @@ void DistanceFieldShadowingCS(
 			float SubsurfaceDensity = 0;
 			bool bUseSubsurfaceTransmission = false;
 
-#if !FORWARD_SHADING && DF_SHADOW_QUALITY > 2
+#if !FORWARD_SHADING && DF_SHADOW_QUALITY > 1
 			FGBufferData GBufferData = GetGBufferData(ScreenUV);
 
 			BRANCH

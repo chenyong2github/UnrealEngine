@@ -12,8 +12,6 @@
 #include "CompositionLighting/PostProcessAmbientOcclusion.h"
 #include "PipelineStateCache.h"
 
-IMPLEMENT_TYPE_LAYOUT(FLightTileIntersectionParameters);
-
 #if WITH_MGPU
 DECLARE_GPU_STAT(AFRWaitForDistanceFieldAOHistory);
 #endif

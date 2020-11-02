@@ -494,6 +494,6 @@ extern void TrackGPUProgress(FRHICommandListImmediate& RHICmdList, uint32 DebugI
 extern bool ShouldRenderDynamicSkyLight(const FScene* Scene, const FSceneViewFamily& ViewFamily);
 extern bool ShouldRenderDeferredDynamicSkyLight(const FScene* Scene, const FSceneViewFamily& ViewFamily);
 
-extern void CullObjectsToView(FRDGBuilder& GraphBuilder, FScene* Scene, const FViewInfo& View, const FDistanceFieldAOParameters& Parameters, FDistanceFieldObjectBufferResource& CulledObjectBuffers);
+extern void CullObjectsToView(FRDGBuilder& GraphBuilder, FScene* Scene, const FViewInfo& View, const FDistanceFieldAOParameters& Parameters, class FDistanceFieldObjectBufferResource& CulledObjectBuffers);
 extern void BuildTileObjectLists(FRDGBuilder& GraphBuilder, FScene* Scene, TArray<FViewInfo>& Views, FRDGTextureRef DistanceFieldNormal, const FDistanceFieldAOParameters& Parameters);
 extern FIntPoint GetTileListGroupSizeForView(const FViewInfo& View);

@@ -236,65 +236,6 @@ void ShadowHeightfieldsPS(
 	OutColor = float4(Visibility, 0, 0, 0);
 }
 
-float3 LightDirection;
-float TanLightAngle;
-
-void RayTracedShadowHeightfieldsPS(
-	in FHeightfieldComponentQuadVertexOutput Input, 
-	out float4 OutColor : SV_Target0)
-{
-	float3 OpaqueWorldPosition = GetGlobalHeightfieldWorldPosition(Input.LocalPosition, Input.GlobalUV, GetLocalToWorld(Input.HeightfieldIndex));
-	float ViewDistance = mul(float4(OpaqueWorldPosition + View.PreViewTranslation.xyz, 1), View.TranslatedWorldToView).z;
-	float Shadow = 1;
-
-	if (ViewDistance > CascadeDepthMinMax.x && ViewDistance < CascadeDepthMinMax.y)
-	{
-		float4x4 WorldToLocal = GetWorldToLocal(Input.HeightfieldIndex);
-		float WorldToLocalScale = length(WorldToLocal[0].xyz);
-		float HeightfieldTexelSize = 1.0f / WorldToLocalScale;
-
-		float3 WorldHeightfieldNormal = GetGlobalHeightfieldNormal(Input.GlobalUV);
-		// Bias away from the surface, mostly to avoid grass shadowing
-		OpaqueWorldPosition += .3f * HeightfieldTexelSize * WorldHeightfieldNormal;
-
-		uint NumIntersectingObjects = GetCulledNumObjects();
-		uint CulledDataStart = 0;
-
-		GetShadowTileCulledData(OpaqueWorldPosition, CulledDataStart, NumIntersectingObjects);
-
-		// Keeps result from going all the way sharp
-		float MinSphereRadius = .4f;
-		// Maintain reasonable culling bounds
-		float MaxSphereRadius = 100;
-		// Distance for directional lights to trace
-		float TraceDistance = 10000;
-
-		float3 WorldRayStart = OpaqueWorldPosition;
-		float3 WorldRayEnd = OpaqueWorldPosition + -LightDirection * TraceDistance;
-		float MaxRayTime = TraceDistance;
-
-		Shadow = ShadowRayTraceThroughCulledObjects(
-			WorldRayStart, 
-			WorldRayEnd, 
-			MaxRayTime, 
-			TanLightAngle, 
-			MinSphereRadius, 
-			MaxSphereRadius, 
-			0,
-			CulledDataStart, 
-			NumIntersectingObjects,
-			true,
-			true,
-			false);
-	}
-	else
-	{
-		clip(-1);
-	}
-
-	OutColor = float4(Shadow, 0, 0, 0);
-}
-
 float3 LightColor;
 float SkyLightIndirectScale;
 

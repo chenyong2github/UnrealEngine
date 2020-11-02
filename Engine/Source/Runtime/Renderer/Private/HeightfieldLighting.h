@@ -18,7 +18,6 @@
 class FAOScreenGridResources;
 class FDistanceFieldAOParameters;
 class FLightSceneInfo;
-class FLightTileIntersectionResources;
 class FProjectedShadowInfo;
 class FScene;
 class FViewInfo;
@@ -106,13 +105,6 @@ public:
 	void ClearShadowing(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FLightSceneInfo& LightSceneInfo) const;
 
 	void ComputeShadowMapShadowing(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FProjectedShadowInfo* ProjectedShadowInfo) const;
-
-	void ComputeRayTracedShadowing(
-		FRDGBuilder& GraphBuilder,
-		const FViewInfo& View, 
-		const FProjectedShadowInfo* ProjectedShadowInfo, 
-		FLightTileIntersectionResources* TileIntersectionResources,
-		class FDistanceFieldObjectBufferResource& CulledObjectBuffers) const;
 
 	void ComputeLighting(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FLightSceneInfo& LightSceneInfo) const;
 

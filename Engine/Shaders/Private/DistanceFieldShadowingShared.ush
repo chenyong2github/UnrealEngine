@@ -11,10 +11,6 @@ Buffer<uint> ShadowTileArrayData;
 uint2 ShadowTileListGroupSize;
 uint ShadowAverageObjectsPerTile;
 
-#ifndef SHADOW_TILE_ARRAY_DATA_STRIDE
-#define SHADOW_TILE_ARRAY_DATA_STRIDE 0
-#endif
-
 uint2 GetShadowTileHead(uint2 TileCoordinate)
 {
 	uint TileIndex = TileCoordinate.y * ShadowTileListGroupSize.x + TileCoordinate.x;
@@ -72,7 +68,7 @@ float ShadowRayTraceThroughCulledObjects(
 			if (bUseScatterTileCulling)
 			{
 				uint CulledDataStart = CulledDataParameter;
-				ObjectIndex = ShadowTileArrayData.Load((ListObjectIndex + CulledDataStart) * SHADOW_TILE_ARRAY_DATA_STRIDE);
+				ObjectIndex = ShadowTileArrayData.Load(ListObjectIndex + CulledDataStart);
 			}
 			else
 			{
@@ -110,9 +106,9 @@ float ShadowRayTraceThroughCulledObjects(
 			if (IntersectionTimes.x < IntersectionTimes.y)
 			{
 				float SampleRayTime = IntersectionTimes.x * VolumeRayLength;
-#if DF_SHADOW_QUALITY == 3
+#if DF_SHADOW_QUALITY == 2
 				uint MaxSteps = 64;
-#elif DF_SHADOW_QUALITY == 2
+#elif DF_SHADOW_QUALITY == 1
 				uint MaxSteps = 32;
 #else
 				uint MaxSteps = 20;
@@ -197,9 +193,9 @@ float RayTraceHeightfieldLocal(
 	float LocalSelfShadowScale,
 	float LocalMaxSphereRadius)
 {
-#if DF_SHADOW_QUALITY == 3
+#if DF_SHADOW_QUALITY == 2
 	float MaxSteps = 32;
-#elif DF_SHADOW_QUALITY == 2
+#elif DF_SHADOW_QUALITY == 1
 	float MaxSteps = 16;
 #else
 	float MaxSteps = 8;
@@ -226,7 +222,7 @@ float RayTraceHeightfieldLocal(
 
 		MinConeVisibility = min(MinConeVisibility, StepVisibility);
 
-#if DF_SHADOW_QUALITY == 3
+#if DF_SHADOW_QUALITY == 2
 		// Compute ray visibility assuming it starts below heightfield. Only needed when the heightfield has hole
 		if (VisUVScaleBias.x > 0.0)
 		{
@@ -288,7 +284,7 @@ float ShadowRayTraceThroughCulledHeightFieldObjects(
 			if (bUseScatterTileCulling)
 			{
 				uint CulledDataStart = CulledDataParameter;
-				ObjectIndex = ShadowTileArrayData.Load((ListObjectIndex + CulledDataStart) * SHADOW_TILE_ARRAY_DATA_STRIDE);
+				ObjectIndex = ShadowTileArrayData.Load(ListObjectIndex + CulledDataStart);
 			}
 			else
 			{
@@ -318,7 +314,7 @@ float ShadowRayTraceThroughCulledHeightFieldObjects(
 		if (bValidIntersection)
 		{
 			float4 AtlasUVScaleBias = LoadHeightFieldObjectAtlasUVScaleBias(ObjectIndex);
-#if DF_SHADOW_QUALITY == 3
+#if DF_SHADOW_QUALITY == 2
 			float4 VisUVScaleBias = LoadHeightFieldObjectVisibilityAtlasUVScaleBias(ObjectIndex);
 #else
 			float4 VisUVScaleBias = float4(0, 0, 0, 0);

@@ -48,8 +48,6 @@ FLightSceneInfo::FLightSceneInfo(FLightSceneProxy* InProxy, bool InbVisible)
 	, DynamicInteractionStaticPrimitiveList(NULL)
 	, Proxy(InProxy)
 	, Id(INDEX_NONE)
-	, TileIntersectionResources(nullptr)
-	, HeightFieldTileIntersectionResources(nullptr)
 	, DynamicShadowMapChannel(-1)
 	, bPrecomputedLightingIsValid(InProxy->GetLightComponent()->IsPrecomputedLightingValid())
 	, bVisible(InbVisible)
@@ -263,11 +261,6 @@ FLightPrimitiveInteraction* FLightSceneInfo::GetDynamicInteractionStaticPrimitiv
 
 void FLightSceneInfo::ReleaseRHI()
 {
-	if (TileIntersectionResources)
-	{
-		TileIntersectionResources->Release();
-	}
-
 	ShadowCapsuleShapesVertexBuffer.SafeRelease();
 	ShadowCapsuleShapesSRV.SafeRelease();
 }

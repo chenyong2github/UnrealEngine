@@ -62,7 +62,7 @@ float SampleHFVisibilityTexture(float2 UV)
 	return 0.0;
 }
 #else
-Texture2D DistanceFieldTexture;
+Texture2D HeightFieldTexture;
 
 float SampleMeshDistanceField(float3 VolumeUV, float2 ObjectDistanceFieldMAD)
 {
@@ -71,7 +71,7 @@ float SampleMeshDistanceField(float3 VolumeUV, float2 ObjectDistanceFieldMAD)
 
 float SampleHeightFieldAtlas(float2 UV)
 {
-	float4 SampleValue = Texture2DSampleLevel(DistanceFieldTexture, GlobalBilinearWrappedSampler, UV, 0);
+	float4 SampleValue = Texture2DSampleLevel(HeightFieldTexture, GlobalBilinearWrappedSampler, UV, 0);
 	return DecodePackedHeight(SampleValue.xy);
 }
 
@@ -82,6 +82,7 @@ float SampleHFVisibilityTexture(float2 UV)
 #endif
 
 float3 DistanceFieldAtlasTexelSize;
+float2 HeightFieldAtlasTexelSize;
 
 RWBuffer<uint> RWObjectIndirectArguments;
 Buffer<uint> ObjectIndirectArguments;

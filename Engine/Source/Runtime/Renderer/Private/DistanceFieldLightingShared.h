@@ -73,6 +73,24 @@ public:
 class FDistanceFieldObjectBuffers : public TDistanceFieldObjectBuffers<DFPT_SignedDistanceField> {};
 class FHeightFieldObjectBuffers : public TDistanceFieldObjectBuffers<DFPT_HeightField> {};
 
+BEGIN_SHADER_PARAMETER_STRUCT(FDistanceFieldAtlasParameters, )
+	SHADER_PARAMETER_TEXTURE(Texture3D, DistanceFieldTexture)
+	SHADER_PARAMETER_SAMPLER(SamplerState, DistanceFieldSampler)
+	SHADER_PARAMETER(FVector, DistanceFieldAtlasTexelSize)
+END_SHADER_PARAMETER_STRUCT()
+
+BEGIN_SHADER_PARAMETER_STRUCT(FHeightFieldAtlasParameters, )
+	SHADER_PARAMETER_TEXTURE(Texture2D, HeightFieldTexture)
+	SHADER_PARAMETER_TEXTURE(Texture2D, HFVisibilityTexture)
+	SHADER_PARAMETER(FVector2D, HeightFieldAtlasTexelSize)
+END_SHADER_PARAMETER_STRUCT()
+
+BEGIN_SHADER_PARAMETER_STRUCT(FDistanceFieldObjectBufferParameters, )
+	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, SceneObjectBounds)
+	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, SceneObjectData)
+	SHADER_PARAMETER(uint32, NumSceneObjects)
+END_SHADER_PARAMETER_STRUCT()
+
 template <EDistanceFieldPrimitiveType PrimitiveType>
 class TDistanceFieldObjectBufferParameters
 {
@@ -289,6 +307,25 @@ public:
 class FDistanceFieldObjectBufferResource : public TDistanceFieldObjectBufferResource<DFPT_SignedDistanceField> {};
 class FHeightFieldObjectBufferResource : public TDistanceFieldObjectBufferResource<DFPT_HeightField> {};
 
+BEGIN_SHADER_PARAMETER_STRUCT(FDistanceFieldCulledObjectBufferParameters, )
+	SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWObjectIndirectArguments)
+	SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWCulledObjectBounds)
+	SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWCulledObjectData)
+	SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWCulledObjectBoxBounds)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, ObjectIndirectArguments)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, CulledObjectBounds)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, CulledObjectData)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, CulledObjectBoxBounds)
+END_SHADER_PARAMETER_STRUCT()
+
+extern void AllocateDistanceFieldCulledObjectBuffers(
+	FRDGBuilder& GraphBuilder, 
+	bool bWantBoxBounds, 
+	uint32 MaxObjects, 
+	uint32 NumBoundsElementsScale,
+	FRDGBufferRef& OutObjectIndirectArguments,
+	FDistanceFieldCulledObjectBufferParameters& OutParameters);
+
 template <EDistanceFieldPrimitiveType PrimitiveType>
 class TDistanceFieldCulledObjectBufferParameters
 {
@@ -458,214 +495,33 @@ public:
 	}
 };
 
-static int32 LightTileDataStride = 1;
+BEGIN_SHADER_PARAMETER_STRUCT(FLightTileIntersectionParameters, )
+	SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWShadowTileNumCulledObjects)
+	SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWShadowTileStartOffsets)
+	SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWNextStartOffset)
+	SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWShadowTileArrayData)
 
-/**  */
-class FLightTileIntersectionResources
-{
-public:
+	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, ShadowTileNumCulledObjects)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, ShadowTileStartOffsets)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, NextStartOffset)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, ShadowTileArrayData)
 
-	FLightTileIntersectionResources() 
-		: TileDimensions(FIntPoint::ZeroValue)
-		, TileAlignedDimensions(FIntPoint::ZeroValue)
-		, b16BitIndices(false)
-	{}
-
-	void Initialize(int32 MaxNumObjectsPerTile)
-	{
-		TileAlignedDimensions = FIntPoint(Align(TileDimensions.X, 64), Align(TileDimensions.Y, 64));
-			
-		TileNumCulledObjects.Initialize(sizeof(uint32), TileAlignedDimensions.X * TileAlignedDimensions.Y, PF_R32_UINT, BUF_Static, TEXT("FLightTileIntersectionResources::TileNumCulledObjects"));
-		TileStartOffsets.Initialize(sizeof(uint32), TileAlignedDimensions.X * TileAlignedDimensions.Y, PF_R32_UINT, BUF_Static, TEXT("FLightTileIntersectionResources::TileStartOffsets"));
-		NextStartOffset.Initialize(sizeof(uint32), 1, PF_R32_UINT, BUF_Static, TEXT("FLightTileIntersectionResources::NextStartOffset"));
-
-		//@todo - handle max exceeded
-		TileArrayData.Initialize(b16BitIndices ? sizeof(uint16) : sizeof(uint32), MaxNumObjectsPerTile * TileAlignedDimensions.X * TileAlignedDimensions.Y * LightTileDataStride, b16BitIndices ? PF_R16_UINT : PF_R32_UINT, BUF_Static, TEXT("FLightTileIntersectionResources::TileArrayData"));
-	}
-
-	void Release()
-	{
-		TileNumCulledObjects.Release();
-		NextStartOffset.Release();
-		TileStartOffsets.Release();
-		TileArrayData.Release();
-	}
-
-	size_t GetSizeBytes() const
-	{
-		return TileNumCulledObjects.NumBytes + NextStartOffset.NumBytes + TileStartOffsets.NumBytes + TileArrayData.NumBytes;
-	}
-
-	FIntPoint GetTileAlignedDimensions() const 
-	{
-		return TileAlignedDimensions;
-	}
-	
-	static FIntPoint GetAlignedDimensions(FIntPoint InTileDimensions)
-	{
-		return FIntPoint(Align(InTileDimensions.X, 64), Align(InTileDimensions.Y, 64));
-	}
-
-	FIntPoint TileDimensions;
-	FIntPoint TileAlignedDimensions;
-
-	FRWBuffer TileNumCulledObjects;
-	FRWBuffer NextStartOffset;
-	FRWBuffer TileStartOffsets;
-	FRWBuffer TileArrayData;
-	bool b16BitIndices;
-};
-
-class FLightTileIntersectionParameters
-{
-	DECLARE_TYPE_LAYOUT(FLightTileIntersectionParameters, NonVirtual);
-public:
-
-	static void ModifyCompilationEnvironment(EShaderPlatform Platform, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		OutEnvironment.SetDefine(TEXT("SHADOW_TILE_ARRAY_DATA_STRIDE"), LightTileDataStride);
-	}
-
-	void Bind(const FShaderParameterMap& ParameterMap)
-	{
-		ShadowTileNumCulledObjects.Bind(ParameterMap, TEXT("ShadowTileNumCulledObjects"));
-		ShadowTileStartOffsets.Bind(ParameterMap, TEXT("ShadowTileStartOffsets"));
-		NextStartOffset.Bind(ParameterMap, TEXT("NextStartOffset"));
-		ShadowTileArrayData.Bind(ParameterMap, TEXT("ShadowTileArrayData"));
-		ShadowTileListGroupSize.Bind(ParameterMap, TEXT("ShadowTileListGroupSize"));
-		ShadowAverageObjectsPerTile.Bind(ParameterMap, TEXT("ShadowAverageObjectsPerTile"));
-	}
-
-	bool IsBound() const
-	{
-		return ShadowTileNumCulledObjects.IsBound() || ShadowTileStartOffsets.IsBound() || NextStartOffset.IsBound() || ShadowTileArrayData.IsBound() || ShadowTileListGroupSize.IsBound() || ShadowAverageObjectsPerTile.IsBound();
-	}
-
-	template<typename TParamRef, typename TRHICommandList>
-	void Set(TRHICommandList& RHICmdList, const TParamRef& ShaderRHI, const FLightTileIntersectionResources& LightTileIntersectionResources)
-	{
-		ShadowTileNumCulledObjects.SetBuffer(RHICmdList, ShaderRHI, LightTileIntersectionResources.TileNumCulledObjects);
-		ShadowTileStartOffsets.SetBuffer(RHICmdList, ShaderRHI, LightTileIntersectionResources.TileStartOffsets);
-
-		NextStartOffset.SetBuffer(RHICmdList, ShaderRHI, LightTileIntersectionResources.NextStartOffset);
-
-		// Bind sorted array data if we are after the sort pass
-		ShadowTileArrayData.SetBuffer(RHICmdList, ShaderRHI, LightTileIntersectionResources.TileArrayData);
-
-		SetShaderValue(RHICmdList, ShaderRHI, ShadowTileListGroupSize, LightTileIntersectionResources.TileDimensions);
-		SetShaderValue(RHICmdList, ShaderRHI, ShadowAverageObjectsPerTile, GAverageObjectsPerShadowCullTile);
-	}
-
-	void GetUAVs(FLightTileIntersectionResources& TileIntersectionResources, TArray<FRHIUnorderedAccessView*>& UAVs)
-	{
-		int32 MaxIndex = FMath::Max(
-			FMath::Max(ShadowTileNumCulledObjects.GetUAVIndex(), ShadowTileStartOffsets.GetUAVIndex()), 
-			FMath::Max(NextStartOffset.GetUAVIndex(), ShadowTileArrayData.GetUAVIndex()));
-		UAVs.AddZeroed(MaxIndex + 1);
-
-		if (ShadowTileNumCulledObjects.IsUAVBound())
-		{
-			UAVs[ShadowTileNumCulledObjects.GetUAVIndex()] = TileIntersectionResources.TileNumCulledObjects.UAV;
-		}
-
-		if (ShadowTileStartOffsets.IsUAVBound())
-		{
-			UAVs[ShadowTileStartOffsets.GetUAVIndex()] = TileIntersectionResources.TileStartOffsets.UAV;
-		}
-
-		if (NextStartOffset.IsUAVBound())
-		{
-			UAVs[NextStartOffset.GetUAVIndex()] = TileIntersectionResources.NextStartOffset.UAV;
-		}
-
-		if (ShadowTileArrayData.IsUAVBound())
-		{
-			UAVs[ShadowTileArrayData.GetUAVIndex()] = TileIntersectionResources.TileArrayData.UAV;
-		}
-
-		check(UAVs.Num() > 0);
-	}
-
-	template<typename TParamRef>
-	void UnsetParameters(FRHIComputeCommandList& RHICmdList, const TParamRef& ShaderRHI)
-	{
-		ShadowTileNumCulledObjects.UnsetUAV(RHICmdList, ShaderRHI);
-		ShadowTileStartOffsets.UnsetUAV(RHICmdList, ShaderRHI);
-		NextStartOffset.UnsetUAV(RHICmdList, ShaderRHI);
-		ShadowTileArrayData.UnsetUAV(RHICmdList, ShaderRHI);
-	}
-
-	friend FArchive& operator<<(FArchive& Ar, FLightTileIntersectionParameters& P)
-	{
-		Ar << P.ShadowTileNumCulledObjects;
-		Ar << P.ShadowTileStartOffsets;
-		Ar << P.NextStartOffset;
-		Ar << P.ShadowTileArrayData;
-		Ar << P.ShadowTileListGroupSize;
-		Ar << P.ShadowAverageObjectsPerTile;
-		return Ar;
-	}
-
-private:
-	
-		LAYOUT_FIELD(FRWShaderParameter, ShadowTileNumCulledObjects)
-		LAYOUT_FIELD(FRWShaderParameter, ShadowTileStartOffsets)
-		LAYOUT_FIELD(FRWShaderParameter, NextStartOffset)
-		LAYOUT_FIELD(FRWShaderParameter, ShadowTileArrayData)
-		LAYOUT_FIELD(FShaderParameter, ShadowTileListGroupSize)
-		LAYOUT_FIELD(FShaderParameter, ShadowAverageObjectsPerTile)
-	
-};
+	SHADER_PARAMETER(FIntPoint, ShadowTileListGroupSize)
+END_SHADER_PARAMETER_STRUCT()
 
 extern void CullDistanceFieldObjectsForLight(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	const FLightSceneProxy* LightSceneProxy, 
+	EDistanceFieldPrimitiveType PrimitiveType,
 	const FMatrix& WorldToShadowValue, 
 	int32 NumPlanes, 
 	const FPlane* PlaneData, 
 	const FVector4& ShadowBoundingSphereValue,
 	float ShadowBoundingRadius,
-	TUniquePtr<class FLightTileIntersectionResources>& TileIntersectionResources);
-
-extern void CullHeightFieldObjectsForLight(
-	FRDGBuilder& GraphBuilder,
-	const FViewInfo& View,
-	const FLightSceneProxy* LightSceneProxy,
-	const FMatrix& WorldToShadowValue,
-	int32 NumPlanes,
-	const FPlane* PlaneData,
-	const FVector4& ShadowBoundingSphereValue,
-	float ShadowBoundingRadius,
-	TUniquePtr<class FLightTileIntersectionResources>& TileIntersectionResources);
-
-class FUniformMeshBuffers
-{
-public:
-
-	int32 MaxElements;
-
-	FVertexBufferRHIRef TriangleData;
-	FShaderResourceViewRHIRef TriangleDataSRV;
-
-	FRWBuffer TriangleAreas;
-	FRWBuffer TriangleCDFs;
-
-	FUniformMeshBuffers()
-	{
-		MaxElements = 0;
-	}
-
-	void Initialize();
-
-	void Release()
-	{
-		TriangleData.SafeRelease();
-		TriangleDataSRV.SafeRelease(); 
-		TriangleAreas.Release();
-		TriangleCDFs.Release();
-	}
-};
+	const FDistanceFieldObjectBufferParameters& ObjectBufferParameters,
+	FDistanceFieldCulledObjectBufferParameters& CulledObjectBufferParameters,
+	FLightTileIntersectionParameters& LightTileIntersectionParameters);
 
 extern TGlobalResource<FDistanceFieldObjectBufferResource> GAOCulledObjectBuffers;
 

@@ -171,10 +171,6 @@ public:
 	/** The identifier for the primitive in Scene->PrimitiveOctree. */
 	FOctreeElementId2 OctreeId;
 
-	/** Tile intersection buffer for distance field shadowing, stored on the light to avoid reallocating each frame. */
-	mutable TUniquePtr<class FLightTileIntersectionResources> TileIntersectionResources;
-	mutable TUniquePtr<class FLightTileIntersectionResources> HeightFieldTileIntersectionResources;
-
 	mutable FVertexBufferRHIRef ShadowCapsuleShapesVertexBuffer;
 	mutable FShaderResourceViewRHIRef ShadowCapsuleShapesSRV;
 
