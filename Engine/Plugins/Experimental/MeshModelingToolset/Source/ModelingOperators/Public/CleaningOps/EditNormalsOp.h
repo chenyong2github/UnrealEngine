@@ -21,9 +21,16 @@ enum class ENormalCalculationMethod : uint8
 UENUM()
 enum class ESplitNormalMethod : uint8
 {
+	/** Keep the existing split-normals structure on the mesh */
 	UseExistingTopology,
+	/** Recompute split-normals by grouping faces around each vertex based on an angle threshold */
 	FaceNormalThreshold,
-	FaceGroupID
+	/** Recompute split-normals by grouping faces around each vertex that share a face/polygroup */
+	FaceGroupID,
+	/** Set each triangle-vertex to have the face normal of that triangle's plane */
+	PerTriangle,
+	/** Set each vertex to have a fully shared normal, ie no split normals  */
+	PerVertex
 };
 
 
