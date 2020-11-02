@@ -15,10 +15,6 @@ uint ShadowAverageObjectsPerTile;
 #define SHADOW_TILE_ARRAY_DATA_STRIDE 0
 #endif
 
-// Approximation of margin added to SDF objects during generation inside FMeshUtilities::GenerateSignedDistanceFieldVolumeData.
-// This can slightly clip RTDF shadow penumbra in very rare cases, but is much more faster than a conservative value and improves tracing accuracy inside the volume
-#define SDF_APPROX_MARGIN 0.7
-
 uint2 GetShadowTileHead(uint2 TileCoordinate)
 {
 	uint TileIndex = TileCoordinate.y * ShadowTileListGroupSize.x + TileCoordinate.x;
@@ -90,30 +86,25 @@ float ShadowRayTraceThroughCulledObjects(
 		}
 
 		{
-			float3 LocalPositionExtent = LoadObjectLocalPositionExtent(ObjectIndex);
-			float4x4 WorldToVolume = LoadObjectWorldToVolume(ObjectIndex);
-			bool bGeneratedAsTwoSided;
-			float4 UVScaleAndVolumeScale = LoadObjectUVScale(ObjectIndex, bGeneratedAsTwoSided);
-			float4 UVAddAndSelfShadowBias = LoadObjectUVAddAndSelfShadowBias(ObjectIndex);
-			float2 DistanceFieldMAD = LoadObjectDistanceFieldMAD(ObjectIndex);
+			FDFObjectData DFObjectData = LoadCulledDFObjectData(ObjectIndex);
 
-			float3 VolumeRayStart = mul(float4(WorldRayStart, 1), WorldToVolume).xyz;
-			float3 VolumeRayEnd = mul(float4(WorldRayEnd, 1), WorldToVolume).xyz;
+			float3 VolumeRayStart = mul(float4(WorldRayStart, 1), DFObjectData.WorldToVolume).xyz;
+			float3 VolumeRayEnd = mul(float4(WorldRayEnd, 1), DFObjectData.WorldToVolume).xyz;
 			float3 VolumeRayDirection = VolumeRayEnd - VolumeRayStart;
 			float VolumeRayLength = length(VolumeRayDirection);
 			VolumeRayDirection /= VolumeRayLength;
 
-			float WorldToVolumeScale = 1.0f / UVScaleAndVolumeScale.w;
+			float WorldToVolumeScale = 1.0f / DFObjectData.VolumeScale;
 			float VolumeMinSphereRadius = MinSphereRadius * WorldToVolumeScale;
 			float VolumeMaxSphereRadius = MaxSphereRadius * WorldToVolumeScale;
 			float VolumeTwoSidedMeshDistanceBias = TwoSidedMeshDistanceBias * WorldToVolumeScale;
-			float SelfShadowScale = 1.0f / max(UVAddAndSelfShadowBias.w * WorldToVolumeScale, .0001f);
+			float SelfShadowScale = 1.0f / max(DFObjectData.SelfShadowBias * WorldToVolumeScale, .0001f);
 
 			// Expand the intersection box by the radius of the cone at the distance of the object along the cone
 			float ObjectCenterDistanceAlongRay = dot(-VolumeRayStart, VolumeRayDirection);
 			float LocalConeRadiusAtObject = min(TanLightAngle * max(ObjectCenterDistanceAlongRay, 0), VolumeMaxSphereRadius);
 
-			float2 IntersectionTimes = LineBoxIntersect(VolumeRayStart, VolumeRayEnd, -LocalPositionExtent * SDF_APPROX_MARGIN - LocalConeRadiusAtObject, LocalPositionExtent * SDF_APPROX_MARGIN + LocalConeRadiusAtObject);
+			float2 IntersectionTimes = LineBoxIntersect(VolumeRayStart, VolumeRayEnd, -DFObjectData.LocalPositionExtent - LocalConeRadiusAtObject, DFObjectData.LocalPositionExtent + LocalConeRadiusAtObject);
 
 			BRANCH
 			if (IntersectionTimes.x < IntersectionTimes.y)
@@ -135,13 +126,13 @@ float ShadowRayTraceThroughCulledObjects(
 				for (; StepIndex < MaxSteps; StepIndex++)
 				{
 					float3 SampleVolumePosition = VolumeRayStart + VolumeRayDirection * SampleRayTime;
-					float3 ClampedSamplePosition = clamp(SampleVolumePosition, -LocalPositionExtent, LocalPositionExtent);
+					float3 ClampedSamplePosition = clamp(SampleVolumePosition, -DFObjectData.LocalPositionExtent, DFObjectData.LocalPositionExtent);
 					float DistanceToClamped = length(ClampedSamplePosition - SampleVolumePosition);
-					float3 VolumeUV = DistanceFieldVolumePositionToUV(ClampedSamplePosition, UVScaleAndVolumeScale.xyz, UVAddAndSelfShadowBias.xyz);
-					float DistanceField = SampleMeshDistanceField(VolumeUV, DistanceFieldMAD).x + DistanceToClamped;
+					float3 VolumeUV = DistanceFieldVolumePositionToUV(ClampedSamplePosition, DFObjectData.UVScale, DFObjectData.UVAdd);
+					float DistanceField = SampleMeshDistanceField(VolumeUV, DFObjectData.DistanceFieldMAD).x + DistanceToClamped;
 					
 					FLATTEN
-					if (bGeneratedAsTwoSided)
+					if (DFObjectData.bGeneratedAsTwoSided)
 					{
 						DistanceField -= VolumeTwoSidedMeshDistanceBias;
 					}
@@ -158,7 +149,7 @@ float ShadowRayTraceThroughCulledObjects(
 					{
 						// Determine the distance that the light traveled through the subsurface object
 						// This assumes that anything between this subsurface pixel and the light was also a subsurface material
-						float Thickness = SampleRayTime * UVScaleAndVolumeScale.w;
+						float Thickness = SampleRayTime * DFObjectData.VolumeScale;
 						float SubsurfaceVisibility = saturate(exp(-Thickness * SubsurfaceDensity));
 
 						// Prevent full occlusion in the range that SSS is effective

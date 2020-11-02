@@ -45,10 +45,6 @@ void CopyCulledObjectData(uint DestIndex, uint SourceIndex)
 	float3 MaxViewSpacePosition = float3(-2000000, -2000000, -2000000);
 	float3 ViewSpaceBoundsVertices[8];
 
-#if (DISTANCEFIELD_PRIMITIVE_TYPE == DFPT_SignedDistanceField)
-	float4x4 ObjectOBBToWorld = LoadGlobalObjectOBBToWorld(SourceIndex);
-#endif
-
 	for (uint i = 0; i < 8; i++)
 	{
 		float3 UnitBoxVertex;
@@ -57,8 +53,8 @@ void CopyCulledObjectData(uint DestIndex, uint SourceIndex)
 		UnitBoxVertex.z = i & 0x4 ? 1.0f : -1.0f;
 
 #if (DISTANCEFIELD_PRIMITIVE_TYPE == DFPT_SignedDistanceField)
-		UnitBoxVertex *= SDF_APPROX_MARGIN;
-		float3 WorldBoundsPosition = mul(float4(UnitBoxVertex, 1.0f), ObjectOBBToWorld).xyz;
+		FDFObjectData DFObjectData = LoadDFObjectData(SourceIndex);
+		float3 WorldBoundsPosition = mul(float4(UnitBoxVertex, 1.0f), DFObjectData.OBBToWorld).xyz;
 #else
 		float3 WorldBoundsPosition = UnitBoxVertex * BoxExtent.xyz + BoxOriginAndSphereRadius.xyz;
 #endif
@@ -144,17 +140,18 @@ void CullObjectsForShadowCS(
 	if (ObjectIndex < NumSceneObjects)
 	{
 #if (DISTANCEFIELD_PRIMITIVE_TYPE == DFPT_SignedDistanceField)
-		float4 ObjectBoundingSphere = SceneObjectBounds[SourceIndex * OBJECT_BOUNDS_STRIDE + 0];
-        
-        if ((ShadowBoundingSphere.w == 0 && ShadowConvexHullIntersectSphere(ObjectBoundingSphere.xyz, ObjectBoundingSphere.w))
-			|| (ShadowBoundingSphere.w > 0 && dot(ShadowBoundingSphere.xyz - ObjectBoundingSphere.xyz, ShadowBoundingSphere.xyz - ObjectBoundingSphere.xyz) < Square(ShadowBoundingSphere.w + ObjectBoundingSphere.w)))
-		{
-			// Assume ObjectBoundingSphere is located at (0, 0, 0) in local space
-            float ViewDist2 = length2(ObjectBoundingSphere.xyz - View.WorldViewOrigin);
-            float2 MinMaxDrawDist2 = LoadGlobalObjectMinMaxDrawDistance2(SourceIndex);
+		FDFObjectBounds DFObjectBounds = LoadDFObjectBounds(ObjectIndex);
 
-            if ((MinMaxDrawDist2.x < 0.0001 || ViewDist2 > MinMaxDrawDist2.x)
-                && (MinMaxDrawDist2.y < 0.0001 || ViewDist2 < MinMaxDrawDist2.y))
+        if ((ShadowBoundingSphere.w == 0 && ShadowConvexHullIntersectSphere(DFObjectBounds.Center, DFObjectBounds.SphereRadius))
+			|| (ShadowBoundingSphere.w > 0 && dot(ShadowBoundingSphere.xyz - DFObjectBounds.Center, ShadowBoundingSphere.xyz - DFObjectBounds.Center) < Square(ShadowBoundingSphere.w + DFObjectBounds.SphereRadius)))
+		{
+			FDFObjectData DFObjectData = LoadDFObjectData(ObjectIndex);
+
+			// Assume ObjectBoundingSphere is located at (0, 0, 0) in local space
+            float ViewDist2 = length2(DFObjectBounds.Center - View.WorldViewOrigin);
+
+            if ((DFObjectData.MinMaxDrawDistance2.x < 0.0001 || ViewDist2 > DFObjectData.MinMaxDrawDistance2.x)
+                && (DFObjectData.MinMaxDrawDistance2.y < 0.0001 || ViewDist2 < DFObjectData.MinMaxDrawDistance2.y))
             {
                 uint DestIndex;
                 InterlockedAdd(RWObjectIndirectArguments[1], 1U, DestIndex);
@@ -263,15 +260,16 @@ void ShadowObjectCullVS(
 )
 {
 #if (DISTANCEFIELD_PRIMITIVE_TYPE == DFPT_SignedDistanceField)
-	float4x4 ObjectOBBToWorld = LoadObjectOBBToWorld(ObjectIndex);
+	FDFObjectData DFObjectData = LoadCulledDFObjectData(ObjectIndex);
+	float4x4 ObjectOBBToWorld = DFObjectData.OBBToWorld;
 
 	float ObjectScaleX = length(ObjectOBBToWorld[0].xyz);
 	float ObjectScaleY = length(ObjectOBBToWorld[1].xyz);
 	float ObjectScaleZ = length(ObjectOBBToWorld[2].xyz);
 
-	ObjectOBBToWorld[0].xyz *= (SDF_APPROX_MARGIN + MinExpandRadius / ObjectScaleX);
-	ObjectOBBToWorld[1].xyz *= (SDF_APPROX_MARGIN + MinExpandRadius / ObjectScaleY);
-	ObjectOBBToWorld[2].xyz *= (SDF_APPROX_MARGIN + MinExpandRadius / ObjectScaleZ);
+	ObjectOBBToWorld[0].xyz *= (1.0f + MinExpandRadius / ObjectScaleX);
+	ObjectOBBToWorld[1].xyz *= (1.0f + MinExpandRadius / ObjectScaleY);
+	ObjectOBBToWorld[2].xyz *= (1.0f + MinExpandRadius / ObjectScaleZ);
 
 	float3 WorldPosition = mul(float4(InPosition.xyz, 1.0f), ObjectOBBToWorld).xyz;
 #else

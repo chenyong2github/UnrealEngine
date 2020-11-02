@@ -623,24 +623,19 @@ void RayTraceSingleMeshSDF(
 	float InitialMaxDistance,
 	inout FTraceMeshSDFResult TraceResult)
 {
-	float3 LocalPositionExtent = LoadGlobalObjectLocalPositionExtent(ObjectIndex);
-	float4x4 WorldToVolume = LoadGlobalObjectWorldToVolume(ObjectIndex);
-	bool bGeneratedAsTwoSided;
-	float4 UVScaleAndVolumeScale = LoadGlobalObjectUVScale(ObjectIndex, bGeneratedAsTwoSided);
-	float4 UVAddAndSelfShadowBias = LoadGlobalObjectUVAddAndSelfShadowBias(ObjectIndex);
-	float2 DistanceFieldMAD = LoadGlobalObjectDistanceFieldMAD(ObjectIndex);
-	float ExpandSurfaceDistance = LoadGlobalObjectLocalSurfaceBias(ObjectIndex);
+	FDFObjectData DFObjectData = LoadDFObjectData(ObjectIndex);
+	float ExpandSurfaceDistance = DFObjectData.LocalSurfaceBias;
 
 	// #lumen_todo: continue tracing from last TraceResult.HitDistance. At the moment this causes nondeterministic flickering of surfaces.
 	// * min(MaxTraceDistance, TraceResult.HitDistance);
 	float3 WorldRayEnd = WorldRayStart + WorldRayDirection * MaxTraceDistance;
-	float3 VolumeRayStart = mul(float4(WorldRayStart + WorldRayDirection * MinTraceDistance, 1), WorldToVolume).xyz;
-	float3 VolumeRayEnd = mul(float4(WorldRayEnd, 1), WorldToVolume).xyz;
+	float3 VolumeRayStart = mul(float4(WorldRayStart + WorldRayDirection * MinTraceDistance, 1), DFObjectData.WorldToVolume).xyz;
+	float3 VolumeRayEnd = mul(float4(WorldRayEnd, 1), DFObjectData.WorldToVolume).xyz;
 	float3 VolumeRayDirection = VolumeRayEnd - VolumeRayStart;
 	float VolumeRayLength = length(VolumeRayDirection);
 	VolumeRayDirection /= VolumeRayLength;
 
-	float2 IntersectionTimes = LineBoxIntersect(VolumeRayStart, VolumeRayEnd, -LocalPositionExtent, LocalPositionExtent);
+	float2 IntersectionTimes = LineBoxIntersect(VolumeRayStart, VolumeRayEnd, -DFObjectData.LocalPositionExtent, DFObjectData.LocalPositionExtent);
 
 	BRANCH
 	if (IntersectionTimes.x < IntersectionTimes.y)
@@ -657,8 +652,8 @@ void RayTraceSingleMeshSDF(
 		for (; StepIndex < MaxSteps; StepIndex++)
 		{
 			float3 SampleVolumePosition = VolumeRayStart + VolumeRayDirection * SampleRayTime;
-			float3 VolumeUV = DistanceFieldVolumePositionToUV(SampleVolumePosition, UVScaleAndVolumeScale.xyz, UVAddAndSelfShadowBias.xyz);
-			float DistanceField = SampleMeshDistanceField(VolumeUV, DistanceFieldMAD).x;
+			float3 VolumeUV = DistanceFieldVolumePositionToUV(SampleVolumePosition, DFObjectData.UVScale, DFObjectData.UVAdd);
+			float DistanceField = SampleMeshDistanceField(VolumeUV, DFObjectData.DistanceFieldMAD).x;
 
 			MaxDistance = max(DistanceField, MaxDistance);
 			float ExpandSurfaceTime = bExpandSurfaceUsingRayTimeInsteadOfMaxDistance ? SampleRayTime : MaxDistance;
@@ -692,8 +687,7 @@ void RayTraceSingleMeshSDF(
 
 		if (bHit)
 		{
-			float3x3 VolumeToWorld = LoadGlobalObjectVolumeToWorld(ObjectIndex);
-			float NewHitDistance = length(mul(VolumeRayDirection * SampleRayTime, VolumeToWorld)) + MinTraceDistance;
+			float NewHitDistance = length(mul(VolumeRayDirection * SampleRayTime, DFObjectData.VolumeToWorld)) + MinTraceDistance;
 				
 			if (NewHitDistance < TraceResult.HitDistance)
 			{
@@ -720,29 +714,21 @@ FTraceMeshSDFDerivedData CalculateMeshSDFDerivedData(
 	FTraceMeshSDFDerivedData TraceSDFData;
 
 	uint ObjectIndex = TraceMeshSDFResult.HitObject;
+	FDFObjectData DFObjectData = LoadDFObjectData(ObjectIndex);
 
-	bool bGeneratedAsTwoSided;
-	float4 UVScaleAndVolumeScale = LoadGlobalObjectUVScale(ObjectIndex, bGeneratedAsTwoSided);
-
-	TraceSDFData.bAccurateHit = !bGeneratedAsTwoSided;
-
-	float4 UVAddAndSelfShadowBias = LoadGlobalObjectUVAddAndSelfShadowBias(ObjectIndex);
-	float3x3 VolumeToWorld = LoadGlobalObjectVolumeToWorld(ObjectIndex);
+	TraceSDFData.bAccurateHit = !DFObjectData.bGeneratedAsTwoSided;
 
 	if (TraceSDFData.bAccurateHit)
 	{
 		float3 HitPosition = WorldRayStart + WorldRayDirection * TraceMeshSDFResult.HitDistance;
-		float4x4 WorldToVolume = LoadGlobalObjectWorldToVolume(ObjectIndex);
-		float3 SampleVolumePosition = mul(float4(HitPosition, 1), WorldToVolume).xyz;
+		float3 SampleVolumePosition = mul(float4(HitPosition, 1), DFObjectData.WorldToVolume).xyz;
 
 		// Clamp hit point to a valid volume
-		float3 LocalPositionExtent = LoadGlobalObjectLocalPositionExtent(ObjectIndex);
-		SampleVolumePosition = clamp(SampleVolumePosition, -LocalPositionExtent, LocalPositionExtent);
+		SampleVolumePosition = clamp(SampleVolumePosition, -DFObjectData.LocalPositionExtent, DFObjectData.LocalPositionExtent);
 
-		float3 VolumeUV = DistanceFieldVolumePositionToUV(SampleVolumePosition, UVScaleAndVolumeScale.xyz, UVAddAndSelfShadowBias.xyz);
-		float2 DistanceFieldMAD = LoadGlobalObjectDistanceFieldMAD(ObjectIndex);
-		float3 LocalGradient = CalculateMeshSDFGradient(VolumeUV, DistanceFieldMAD);
-		TraceSDFData.HitNormal = normalize(mul(LocalGradient, VolumeToWorld));
+		float3 VolumeUV = DistanceFieldVolumePositionToUV(SampleVolumePosition, DFObjectData.UVScale, DFObjectData.UVAdd);
+		float3 LocalGradient = CalculateMeshSDFGradient(VolumeUV, DFObjectData.DistanceFieldMAD);
+		TraceSDFData.HitNormal = normalize(mul(LocalGradient, DFObjectData.VolumeToWorld));
 	}
 	else
 	{

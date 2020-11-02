@@ -718,16 +718,12 @@ bool TileBoundsIntersectDistanceFieldCaster(
 		)
 	{
 #if USE_DISTANCE_FIELD_FOR_TILE_CULLING
-		float3 LocalPositionExtent = LoadGlobalObjectLocalPositionExtent(ObjectIndex);
-		float4x4 WorldToVolume = LoadGlobalObjectWorldToVolume(ObjectIndex);
-		float4 UVScaleAndVolumeScale = LoadGlobalObjectUVScale(ObjectIndex);
-		float3 UVAdd = LoadGlobalObjectUVAdd(ObjectIndex);
-		float2 DistanceFieldMAD = LoadGlobalObjectDistanceFieldMAD(ObjectIndex);
-		float3 VolumeSamplePosition = mul(float4(TileBoundingSphere.xyz, 1), WorldToVolume).xyz;
-		float3 ClampedSamplePosition = clamp(VolumeSamplePosition, -LocalPositionExtent, LocalPositionExtent);
+		FDFObjectData DFObjectData = LoadDFObjectData(ObjectIndex);
+		float3 VolumeSamplePosition = mul(float4(TileBoundingSphere.xyz, 1), DFObjectData.WorldToVolume).xyz;
+		float3 ClampedSamplePosition = clamp(VolumeSamplePosition, -DFObjectData.LocalPositionExtent, DFObjectData.LocalPositionExtent);
 		float DistanceToClamped = length(ClampedSamplePosition - VolumeSamplePosition);
-		float3 VolumeUV = DistanceFieldVolumePositionToUV(ClampedSamplePosition, UVScaleAndVolumeScale.xyz, UVAdd);
-		float WorldDistanceToOccluder = (SampleMeshDistanceField(VolumeUV, DistanceFieldMAD).x + DistanceToClamped) * UVScaleAndVolumeScale.w;
+		float3 VolumeUV = DistanceFieldVolumePositionToUV(ClampedSamplePosition, DFObjectData.UVScale, DFObjectData.UVAdd);
+		float WorldDistanceToOccluder = (SampleMeshDistanceField(VolumeUV, DFObjectData.DistanceFieldMAD).x + DistanceToClamped) * DFObjectData.VolumeScale;
 
 		float ErrorTolerance = 1.1f;
 		// The tile can only be affected by the object's shadow if the closest part of the object is less than MaxOcclusionDistance from the tile bounds
@@ -852,6 +848,7 @@ float ShadowConeTraceAgainstCulledDistanceFieldCasters(
 		uint ObjectIndex = MeshDistanceFieldCasterIndices[ListObjectIndex];
 
 		FDFObjectBounds DFObjectBounds = LoadDFObjectBounds(ObjectIndex);
+		FDFObjectData DFObjectData = LoadDFObjectData(ObjectIndex);
 
 		// Increase max occlusion distance based on object size for distance field casters
 		// This improves the solidness of the shadows, since the fadeout distance causes internal structure of objects to become visible
@@ -860,18 +857,12 @@ float ShadowConeTraceAgainstCulledDistanceFieldCasters(
 		float MaxSphereRadius = TanConeAngle * EffectiveMaxOcclusionDistance;
 		float3 WorldRayEnd = WorldRayStart + UnitRayDirection * EffectiveMaxOcclusionDistance;
 
-		float3 LocalPositionExtent = LoadGlobalObjectLocalPositionExtent(ObjectIndex);
-		float4x4 WorldToVolume = LoadGlobalObjectWorldToVolume(ObjectIndex);
-		float4 UVScaleAndVolumeScale = LoadGlobalObjectUVScale(ObjectIndex);
-		float3 UVAdd = LoadGlobalObjectUVAdd(ObjectIndex);
-		float2 DistanceFieldMAD = LoadGlobalObjectDistanceFieldMAD(ObjectIndex);
-
-		float3 VolumeRayStart = mul(float4(WorldRayStart, 1), WorldToVolume).xyz;
-		float3 VolumeRayEnd = mul(float4(WorldRayEnd, 1), WorldToVolume).xyz;
+		float3 VolumeRayStart = mul(float4(WorldRayStart, 1), DFObjectData.WorldToVolume).xyz;
+		float3 VolumeRayEnd = mul(float4(WorldRayEnd, 1), DFObjectData.WorldToVolume).xyz;
 		float3 VolumeRayDirection = VolumeRayEnd - VolumeRayStart;
 		float VolumeRayLength = length(VolumeRayDirection);
 		VolumeRayDirection /= VolumeRayLength;
-		float VolumeMaxSphereRadius = MaxSphereRadius / UVScaleAndVolumeScale.w;
+		float VolumeMaxSphereRadius = MaxSphereRadius / DFObjectData.VolumeScale;
 
 		{
 			float MinTraceVisibility = 1;
@@ -891,15 +882,15 @@ float ShadowConeTraceAgainstCulledDistanceFieldCasters(
 			for (; StepIndex < MaxSteps; StepIndex++)
 			{
 				float3 SampleVolumePosition = VolumeRayStart + VolumeRayDirection * SampleRayTime;
-				float3 ClampedSamplePosition = clamp(SampleVolumePosition, -LocalPositionExtent, LocalPositionExtent);
+				float3 ClampedSamplePosition = clamp(SampleVolumePosition, -DFObjectData.LocalPositionExtent, DFObjectData.LocalPositionExtent);
 				float DistanceToClamped = length(ClampedSamplePosition - SampleVolumePosition);
-				float3 VolumeUV = DistanceFieldVolumePositionToUV(ClampedSamplePosition, UVScaleAndVolumeScale.xyz, UVAdd);
-				float VolumeDistanceToOccluder = SampleMeshDistanceField(VolumeUV, DistanceFieldMAD).x + DistanceToClamped;
+				float3 VolumeUV = DistanceFieldVolumePositionToUV(ClampedSamplePosition, DFObjectData.UVScale, DFObjectData.UVAdd);
+				float VolumeDistanceToOccluder = SampleMeshDistanceField(VolumeUV, DFObjectData.DistanceFieldMAD).x + DistanceToClamped;
 
 				float SphereRadius = clamp(TanConeAngle * SampleRayTime, 0, VolumeMaxSphereRadius);
 				float StepVisibility = pow(saturate(VolumeDistanceToOccluder / SphereRadius), OcclusionExponent);
 
-				float OccluderDistanceFraction = (SampleRayTime + VolumeDistanceToOccluder) * UVScaleAndVolumeScale.w / EffectiveMaxOcclusionDistance;
+				float OccluderDistanceFraction = (SampleRayTime + VolumeDistanceToOccluder) * DFObjectData.VolumeScale / EffectiveMaxOcclusionDistance;
 	
 				// Fade out occlusion based on distance to occluder to avoid a discontinuity at the max AO distance
 				//@todo - this introduces banding artifacts because we may be taking large steps through the fade region
@@ -934,12 +925,12 @@ float ShadowConeTraceAgainstCulledDistanceFieldCasters(
 
 			{
 				float3 SampleVolumePosition = VolumeRayStart;
-				float3 ClampedSamplePosition = clamp(SampleVolumePosition, -LocalPositionExtent, LocalPositionExtent);
+				float3 ClampedSamplePosition = clamp(SampleVolumePosition, -DFObjectData.LocalPositionExtent, DFObjectData.LocalPositionExtent);
 				float DistanceToClamped = length(ClampedSamplePosition - SampleVolumePosition);
-				float3 VolumeUV = DistanceFieldVolumePositionToUV(ClampedSamplePosition, UVScaleAndVolumeScale.xyz, UVAdd);
-				float VolumeDistanceToOccluder = SampleMeshDistanceField(VolumeUV, DistanceFieldMAD).x + DistanceToClamped;
+				float3 VolumeUV = DistanceFieldVolumePositionToUV(ClampedSamplePosition, DFObjectData.UVScale, DFObjectData.UVAdd);
+				float VolumeDistanceToOccluder = SampleMeshDistanceField(VolumeUV, DFObjectData.DistanceFieldMAD).x + DistanceToClamped;
 
-				WeightDistance = VolumeDistanceToOccluder * UVScaleAndVolumeScale.w;
+				WeightDistance = VolumeDistanceToOccluder * DFObjectData.VolumeScale;
 				//WeightDistance = length(SphereCenterAndRadius.xyz - WorldRayStart);
 			}
 

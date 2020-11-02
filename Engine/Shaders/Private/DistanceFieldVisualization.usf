@@ -27,20 +27,15 @@ void RayTraceThroughTileCulledDistanceFields(float3 WorldRayStart, float3 WorldR
 	for (uint ListObjectIndex = 0; ListObjectIndex < min(NumIntersectingObjects, (uint)MAX_INTERSECTING_OBJECTS); ListObjectIndex++)
 	{
 		uint ObjectIndex = IntersectingObjectIndices[ListObjectIndex];
-		float4 SphereCenterAndRadius = LoadObjectPositionAndRadius(ObjectIndex);
-		float3 LocalPositionExtent = LoadObjectLocalPositionExtent(ObjectIndex);
-		float4x4 WorldToVolume = LoadObjectWorldToVolume(ObjectIndex);
-		float4 UVScaleAndVolumeScale = LoadObjectUVScale(ObjectIndex);
-		float3 UVAdd = LoadObjectUVAddAndSelfShadowBias(ObjectIndex).xyz;
-		float2 DistanceFieldMAD = LoadObjectDistanceFieldMAD(ObjectIndex);
+		FDFObjectData DFObjectData = LoadCulledDFObjectData(ObjectIndex);
 
-		float3 VolumeRayStart = mul(float4(WorldRayStart, 1), WorldToVolume).xyz;
-		float3 VolumeRayEnd = mul(float4(WorldRayEnd, 1), WorldToVolume).xyz;
+		float3 VolumeRayStart = mul(float4(WorldRayStart, 1), DFObjectData.WorldToVolume).xyz;
+		float3 VolumeRayEnd = mul(float4(WorldRayEnd, 1), DFObjectData.WorldToVolume).xyz;
 		float3 VolumeRayDirection = VolumeRayEnd - VolumeRayStart;
 		float VolumeRayLength = length(VolumeRayDirection);
 		VolumeRayDirection /= VolumeRayLength;
 
-		float2 IntersectionTimes = LineBoxIntersect(VolumeRayStart, VolumeRayEnd, -LocalPositionExtent, LocalPositionExtent);
+		float2 IntersectionTimes = LineBoxIntersect(VolumeRayStart, VolumeRayEnd, -DFObjectData.LocalPositionExtent, DFObjectData.LocalPositionExtent);
 
 		if (IntersectionTimes.x < IntersectionTimes.y && IntersectionTimes.x < 1)
 		{
@@ -55,9 +50,9 @@ void RayTraceThroughTileCulledDistanceFields(float3 WorldRayStart, float3 WorldR
 			for (; StepIndex < MaxSteps; StepIndex++)
 			{
 				float3 SampleVolumePosition = VolumeRayStart + VolumeRayDirection * SampleRayTime;
-				float3 ClampedSamplePosition = clamp(SampleVolumePosition, -LocalPositionExtent, LocalPositionExtent);
-				float3 VolumeUV = DistanceFieldVolumePositionToUV(ClampedSamplePosition, UVScaleAndVolumeScale.xyz, UVAdd);
-				float DistanceField = SampleMeshDistanceField(VolumeUV, DistanceFieldMAD).x;
+				float3 ClampedSamplePosition = clamp(SampleVolumePosition, -DFObjectData.LocalPositionExtent, DFObjectData.LocalPositionExtent);
+				float3 VolumeUV = DistanceFieldVolumePositionToUV(ClampedSamplePosition, DFObjectData.UVScale, DFObjectData.UVAdd);
+				float DistanceField = SampleMeshDistanceField(VolumeUV, DFObjectData.DistanceFieldMAD).x;
 				MinDistance = min(MinDistance, DistanceField);
 
 				float MinStepSize = 1.0f / (4 * MaxSteps);
@@ -74,9 +69,9 @@ void RayTraceThroughTileCulledDistanceFields(float3 WorldRayStart, float3 WorldR
 
 			//Result = max(Result, StepIndex / (float)MaxSteps);
 
-			if (MinDistance * UVScaleAndVolumeScale.w < 0 || StepIndex == MaxSteps)
+			if (MinDistance * DFObjectData.VolumeScale < 0 || StepIndex == MaxSteps)
 			{
-				MinRayTime = min(MinRayTime, SampleRayTime * UVScaleAndVolumeScale.w);
+				MinRayTime = min(MinRayTime, SampleRayTime * DFObjectData.VolumeScale);
 			}
 
 			TotalStepsTaken += StepIndex;

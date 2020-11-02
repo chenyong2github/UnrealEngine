@@ -61,28 +61,23 @@ void HemisphereConeTraceAgainstTileCulledObjects(uint ObjectIndex, uint OutputBa
 	// Skip tracing objects with a small projected angle 
 	if (ObjectPositionAndRadius.w * ObjectPositionAndRadius.w / ObjectDistanceSq > Square(.25f))
 	{
-		float3 LocalPositionExtent = LoadObjectLocalPositionExtent(ObjectIndex);
-		float4x4 WorldToVolume = LoadObjectWorldToVolume(ObjectIndex);
-		bool bGeneratedAsTwoSided;
-		float4 UVScaleAndVolumeScale = LoadObjectUVScale(ObjectIndex, bGeneratedAsTwoSided);
-		float3 VolumeShadingPosition = mul(float4(WorldShadingPosition, 1), WorldToVolume).xyz;
-		float BoxDistance = ComputeDistanceFromBoxToPoint(-LocalPositionExtent, LocalPositionExtent, VolumeShadingPosition) * UVScaleAndVolumeScale.w;
+		FDFObjectData DFObjectData = LoadCulledDFObjectData(ObjectIndex);
+
+		float3 VolumeShadingPosition = mul(float4(WorldShadingPosition, 1), DFObjectData.WorldToVolume).xyz;
+		float BoxDistance = ComputeDistanceFromBoxToPoint(-DFObjectData.LocalPositionExtent, DFObjectData.LocalPositionExtent, VolumeShadingPosition) * DFObjectData.VolumeScale;
 
 		BRANCH
 		if (BoxDistance < AOObjectMaxDistance)
 		{
-			float4 UVAddAndSelfShadowBias = LoadObjectUVAddAndSelfShadowBias(ObjectIndex);
-			float2 DistanceFieldMAD = LoadObjectDistanceFieldMAD(ObjectIndex);
-
-			float ObjectOccluderRadius = length(LocalPositionExtent) * .5f * UVScaleAndVolumeScale.w;
-			float SelfShadowScale = 1.0f / max(UVAddAndSelfShadowBias.w, .0001f);
+			float ObjectOccluderRadius = length(DFObjectData.LocalPositionExtent) * .5f * DFObjectData.VolumeScale;
+			float SelfShadowScale = 1.0f / max(DFObjectData.SelfShadowBias, .0001f);
 
 			LOOP
 			for (uint ConeIndex = 0; ConeIndex < NUM_CONE_DIRECTIONS; ConeIndex++)
 			{
 				float3 ConeDirection = AOSamples2.SampleDirections[ConeIndex].xyz;
 				float3 RotatedConeDirection = ConeDirection.x * TangentX + ConeDirection.y * TangentY + ConeDirection.z * WorldNormal;
-				float3 ScaledLocalConeDirection = mul(RotatedConeDirection, (float3x3)WorldToVolume).xyz;
+				float3 ScaledLocalConeDirection = mul(RotatedConeDirection, (float3x3) DFObjectData.WorldToVolume).xyz;
 		
 				float MinVisibility = 1;
 				float WorldStepOffset = GetStepOffset(0);
@@ -97,11 +92,11 @@ void HemisphereConeTraceAgainstTileCulledObjects(uint ObjectIndex, uint OutputBa
 				for (uint StepIndex = 0; StepIndex < NUM_CONE_STEPS && WorldStepOffset < MaxWorldStepOffset; StepIndex++)
 				{
 					float3 StepSamplePosition = VolumeShadingPosition + ScaledLocalConeDirection * WorldStepOffset;
-					float3 ClampedSamplePosition = fastClamp(StepSamplePosition, -LocalPositionExtent, LocalPositionExtent);
+					float3 ClampedSamplePosition = fastClamp(StepSamplePosition, -DFObjectData.LocalPositionExtent, DFObjectData.LocalPositionExtent);
 					float DistanceToClamped = lengthFast(StepSamplePosition - ClampedSamplePosition);
 
-					float3 StepVolumeUV = DistanceFieldVolumePositionToUV(ClampedSamplePosition, UVScaleAndVolumeScale.xyz, UVAddAndSelfShadowBias.xyz);
-					float DistanceToOccluder = (SampleMeshDistanceField(StepVolumeUV, DistanceFieldMAD).x + DistanceToClamped) * UVScaleAndVolumeScale.w;
+					float3 StepVolumeUV = DistanceFieldVolumePositionToUV(ClampedSamplePosition, DFObjectData.UVScale, DFObjectData.UVAdd);
+					float DistanceToOccluder = (SampleMeshDistanceField(StepVolumeUV, DFObjectData.DistanceFieldMAD).x + DistanceToClamped) * DFObjectData.VolumeScale;
 
 					float SphereRadius = WorldStepOffset * TanConeHalfAngle;
 					float InvSphereRadius = rcpFast(SphereRadius);

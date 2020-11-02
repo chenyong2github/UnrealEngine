@@ -58,23 +58,22 @@ void CullMeshSDFObjectsForViewCS(
 
 	if (ObjectIndex < NumSceneObjects)
 	{
-		uint SourceIndex = ObjectIndex;
+		FDFObjectBounds DFObjectBounds = LoadDFObjectBounds(ObjectIndex);
 
-		float4 ObjectBoundingSphere = SceneObjectBounds[SourceIndex * OBJECT_BOUNDS_STRIDE + 0];
-		float DistanceToViewSq = LengthSq(View.WorldCameraOrigin - ObjectBoundingSphere.xyz);
+		float DistanceToViewSq = LengthSq(View.WorldCameraOrigin - DFObjectBounds.Center);
 
-		if (DistanceToViewSq < Square(CardTraceEndDistanceFromCamera + ObjectBoundingSphere.w)
-			&& ObjectBoundingSphere.w > MeshSDFRadiusThreshold
-			&& ViewFrustumIntersectSphere(ObjectBoundingSphere.xyz, ObjectBoundingSphere.w + MaxMeshSDFInfluenceRadius)) 
+		if (DistanceToViewSq < Square(CardTraceEndDistanceFromCamera + DFObjectBounds.SphereRadius)
+			&& DFObjectBounds.SphereRadius > MeshSDFRadiusThreshold
+			&& ViewFrustumIntersectSphere(DFObjectBounds.Center, DFObjectBounds.SphereRadius + MaxMeshSDFInfluenceRadius))
 		{
-            float2 MinMaxDrawDist2 = LoadGlobalObjectMinMaxDrawDistance2(SourceIndex);
+			FDFObjectData DFObjectData = LoadDFObjectData(ObjectIndex);
 
-            if ((MinMaxDrawDist2.x < 0.0001 || DistanceToViewSq > MinMaxDrawDist2.x)
-                && (MinMaxDrawDist2.y < 0.0001 || DistanceToViewSq < MinMaxDrawDist2.y))
+            if ((DFObjectData.MinMaxDrawDistance2.x < 0.0001 || DistanceToViewSq > DFObjectData.MinMaxDrawDistance2.x)
+                && (DFObjectData.MinMaxDrawDistance2.y < 0.0001 || DistanceToViewSq < DFObjectData.MinMaxDrawDistance2.y))
             {
                 uint DestIndex;
                 InterlockedAdd(NumGroupObjects, 1U, DestIndex);
-                GroupObjectIndices[DestIndex] = SourceIndex;
+                GroupObjectIndices[DestIndex] = ObjectIndex;
             }
         }
 	}
@@ -206,11 +205,10 @@ void MeshSDFObjectCullPS(
 	uint2 PixelPos = SVPos.xy;
 
 	uint ObjectIndex = Input.ObjectIndex;
-	float3 LocalPositionExtent = LoadGlobalObjectLocalPositionExtent(ObjectIndex);
-	float3x3 VolumeToWorld = LoadGlobalObjectVolumeToWorld(ObjectIndex);
+	FDFObjectData DFObjectData = LoadDFObjectData(ObjectIndex);
 
 	float3 WorldObjectPosition = Input.PositionAndRadius.xyz;
-	float3 WorldObjectExtent = mul(LocalPositionExtent, abs(VolumeToWorld));
+	float3 WorldObjectExtent = mul(DFObjectData.LocalPositionExtent, abs(DFObjectData.VolumeToWorld));
 
 	float3 ViewSpaceObjectPosition = mul(float4(WorldObjectPosition + View.PreViewTranslation.xyz, 1), View.TranslatedWorldToView).xyz;
 	float3 ViewSpaceObjectInfluenceExtent = mul(WorldObjectExtent, abs((float3x3)View.TranslatedWorldToView)) + MaxMeshSDFInfluenceRadius;
@@ -331,11 +329,10 @@ void MeshSDFObjectCullForProbesPS(
 	uint2 ProbeTileCoord = PixelCoord;
 
 	uint ObjectIndex = Input.ObjectIndex;
-	float3 LocalPositionExtent = LoadGlobalObjectLocalPositionExtent(ObjectIndex);
-	float3x3 VolumeToWorld = LoadGlobalObjectVolumeToWorld(ObjectIndex);
+	FDFObjectData DFObjectData = LoadDFObjectData(ObjectIndex);
 
 	float3 WorldObjectPosition = Input.PositionAndRadius.xyz;
-	float3 WorldObjectExtent = mul(LocalPositionExtent, abs(VolumeToWorld));
+	float3 WorldObjectExtent = mul(DFObjectData.LocalPositionExtent, abs(DFObjectData.VolumeToWorld));
 
 	for (uint ProbeIndexInTile = 0; ProbeIndexInTile < PROBE_HIERARCHY_MAX_EMIT_PER_TILE; ++ProbeIndexInTile)
 	{
