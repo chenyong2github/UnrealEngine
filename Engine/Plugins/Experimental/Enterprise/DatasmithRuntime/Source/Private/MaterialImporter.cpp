@@ -63,12 +63,12 @@ namespace DatasmithRuntime
 			//MaterialData.Hash = Element->GetStore().Snapshot().Hash();
 			MaterialData.Hash = GetTypeHash(Element->CalculateElementHash(true));
 
-			if (UObject* Asset = FindObjectFromHash(MaterialData.Hash))
+			if (UObject* Asset = FAssetRegistry::FindObjectFromHash(MaterialData.Hash))
 			{
 				UMaterialInstanceDynamic* Material = Cast<UMaterialInstanceDynamic>(Asset);
 				check(Material);
 
-				MaterialData.Object = TStrongObjectPtr<UObject>(Material);
+				MaterialData.Object = TWeakObjectPtr<UObject>(Material);
 
 				bUsingMaterialFromCache = true;
 			}
@@ -80,7 +80,7 @@ namespace DatasmithRuntime
 				MaterialData.Object = TStrongObjectPtr<UObject>( UMaterialInstanceDynamic::Create( nullptr, Package, *MaterialName) );
 				MaterialData.Object->SetFlags(RF_Public);
 #else
-				MaterialData.Object = TStrongObjectPtr<UObject>( UMaterialInstanceDynamic::Create( nullptr, nullptr) );
+				MaterialData.Object = TWeakObjectPtr<UObject>( UMaterialInstanceDynamic::Create( nullptr, nullptr) );
 #endif
 				check(MaterialData.Object.IsValid());
 			}
@@ -128,7 +128,7 @@ namespace DatasmithRuntime
 
 		MaterialData.SetState(EDatasmithRuntimeAssetState::Processed);
 
-		RegisterAssetData(MaterialData.GetObject<>(), &MaterialData);
+		FAssetRegistry::RegisterAssetData(MaterialData.GetObject<>(), SceneKey, MaterialData);
 
 		if (!bUsingMaterialFromCache)
 		{
@@ -142,7 +142,7 @@ namespace DatasmithRuntime
 
 			MaterialElementSet.Add(MaterialData.ElementId);
 		}
-		else if(IsObjectCompleted(MaterialData.GetObject<>()))
+		else if(FAssetRegistry::IsObjectCompleted(MaterialData.GetObject<>()))
 		{
 			MaterialData.AddState(EDatasmithRuntimeAssetState::Completed);
 		}
@@ -178,19 +178,18 @@ namespace DatasmithRuntime
 			bCreationSuccessful = LoadPbrMaterial(MaterialInstance, MaterialElement);
 		}
 
-		const TSet<FAssetData*>& RegisteredAssets = GetRegisteredAssetData(MaterialInstance);
 
-		for (FAssetData* AssetData : RegisteredAssets)
+		if (bCreationSuccessful)
 		{
-			AssetData->AddState(EDatasmithRuntimeAssetState::Completed);
+			FAssetRegistry::SetObjectCompletion(MaterialInstance, true);
 		}
-
-		if (!bCreationSuccessful)
+		else
 		{
-			for (FAssetData* AssetData : RegisteredAssets)
-			{
-				AssetData->Object.Reset();
-			}
+			FAssetRegistry::UnregisteredAssetsData(MaterialInstance, 0, [](FAssetData& AssetData) -> void
+				{
+					AssetData.AddState(EDatasmithRuntimeAssetState::Completed);
+					AssetData.Object.Reset();
+				});
 
 			return EActionResult::Failed;
 		}
@@ -214,7 +213,10 @@ namespace DatasmithRuntime
 			}
 
 			UMaterialInstanceDynamic* MaterialInstance = MaterialData.GetObject<UMaterialInstanceDynamic>();
-			ensure(MaterialInstance);
+			if (!MaterialInstance)
+			{
+				return EActionResult::Failed;
+			}
 
 			TSharedPtr< IDatasmithElement >& Element = Elements[ ElementId ];
 

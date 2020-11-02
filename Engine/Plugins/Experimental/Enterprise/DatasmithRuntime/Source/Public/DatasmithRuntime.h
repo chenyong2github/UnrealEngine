@@ -11,6 +11,7 @@
 
 #include "DatasmithRuntime.generated.h"
 
+class FDatasmithMasterMaterialSelector;
 class IDatasmithScene;
 
 namespace DatasmithRuntime
@@ -30,8 +31,8 @@ struct FUpdateContext
 // UHT doesn't really like operator ::
 using FDatasmithSceneReceiver_ISceneChangeListener = FDatasmithSceneReceiver::ISceneChangeListener;
 
-UCLASS( MinimalAPI, meta=(DisplayName="Datasmith Destination"))
-class ADatasmithRuntimeActor
+UCLASS(meta = (DisplayName = "Datasmith Destination"))
+class DATASMITHRUNTIME_API ADatasmithRuntimeActor
 	: public AActor
 	, public FDatasmithSceneReceiver_ISceneChangeListener
 {
@@ -43,14 +44,14 @@ public:
 	// AActor overrides
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
-	virtual void Tick( float DeltaSeconds ) override;
+	virtual void Tick(float DeltaSeconds) override;
 	// End AActor overrides
 
 	// ISceneChangeListener interface
 	virtual void OnOpenDelta(/*int32 ElementsCount*/) override;
 	virtual void OnNewScene(const DirectLink::FSceneIdentifier& SceneId) override;
-	virtual void OnAddElement(TSharedPtr<IDatasmithElement> Element) override;
-	virtual void OnChangedElement(TSharedPtr<IDatasmithElement> Element) override;
+	virtual void OnAddElement(DirectLink::FSceneGraphId ElementId, TSharedPtr<IDatasmithElement> Element) override;
+	virtual void OnChangedElement(DirectLink::FSceneGraphId ElementId, TSharedPtr<IDatasmithElement> Element) override;
 	virtual void OnRemovedElement(DirectLink::FSceneGraphId ElementId) override;
 	virtual void OnCloseDelta() override;
 	// End ISceneChangeListener interface
@@ -63,21 +64,27 @@ public:
 
 	void SetScene(TSharedPtr<IDatasmithScene> SceneElement);
 
-	UPROPERTY(Category="DatasmithRuntime", EditDefaultsOnly, BlueprintReadOnly)
-	float Progress;
+	UPROPERTY(Category = "DatasmithRuntime", EditDefaultsOnly, BlueprintReadOnly)
+		float Progress;
 
-	UPROPERTY(Category="DatasmithRuntime", EditDefaultsOnly, BlueprintReadOnly)
-	bool bBuilding;
+	UPROPERTY(Category = "DatasmithRuntime", EditDefaultsOnly, BlueprintReadOnly)
+		bool bBuilding;
 
-	UPROPERTY(Category="DatasmithRuntime", EditDefaultsOnly, BlueprintReadOnly)
-	FString LoadedScene;
+	UPROPERTY(Category = "DatasmithRuntime", EditDefaultsOnly, BlueprintReadOnly)
+		FString LoadedScene;
 
 	UFUNCTION(BlueprintCallable, Category = "DatasmithRuntime")
-	bool IsReceiving() { return bReceiving; }
+		bool IsReceiving() { return bReceivingStarted; }
 
 	void Reset();
 
 	void OnImportEnd();
+
+	static void OnShutdownModule();
+	static void OnStartupModule();
+
+private:
+	void EnableSelector(bool bEnable);
 
 private:
 	TSharedPtr< DatasmithRuntime::FSceneImporter > SceneImporter;
@@ -85,11 +92,14 @@ private:
 	TSharedPtr<DatasmithRuntime::FDestinationProxy> DirectLinkHelper;
 
 	std::atomic_bool bNewScene;
-	std::atomic_bool bReceiving;
+	std::atomic_bool bReceivingStarted;
+	std::atomic_bool bReceivingEnded;
 
 	float ElementDeltaStep;
 
 	static bool bImportingScene;
 	FUpdateContext UpdateContext;
-};
 
+	static TSharedPtr< FDatasmithMasterMaterialSelector > ExistingRevitSelector;
+	static TSharedPtr< FDatasmithMasterMaterialSelector > RuntimeRevitSelector;
+};

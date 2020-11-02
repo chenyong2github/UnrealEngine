@@ -59,14 +59,17 @@ namespace DatasmithRuntime
 		: RootComponent( InDatasmithRuntimeActor->GetRootComponent() )
 		, TasksToComplete( EDatasmithRuntimeWorkerTask::NoTask )
 		, OverallProgress(InDatasmithRuntimeActor->Progress)
-		, LastSceneId(-1)
 	{
+		SceneKey = GetTypeHash(FGuid::NewGuid());
+		FAssetRegistry::RegisterMapping(SceneKey, &AssetDataList);
+
 		FAssetData::EmptyAsset.SetState(EDatasmithRuntimeAssetState::Processed | EDatasmithRuntimeAssetState::Completed);
 	}
 
 	FSceneImporter::~FSceneImporter()
 	{
 		DeleteData();
+		FAssetRegistry::UnregisterMapping(SceneKey);
 	}
 
 	TStatId FSceneImporter::GetStatId() const
@@ -86,12 +89,11 @@ namespace DatasmithRuntime
 		}
 	}
 
-	void FSceneImporter::StartImport(TSharedRef<IDatasmithScene> InSceneElement, const DirectLink::FSourceHandle& SourceHandle)
+	void FSceneImporter::StartImport(TSharedRef<IDatasmithScene> InSceneElement)
 	{
 		Reset(true);
 
 		SceneElement = InSceneElement;
-		CurrentSourceHandle = SourceHandle;
 
 		TasksToComplete |= SceneElement.IsValid() ? EDatasmithRuntimeWorkerTask::CollectSceneData : EDatasmithRuntimeWorkerTask::NoTask;
 
@@ -100,7 +102,7 @@ namespace DatasmithRuntime
 #endif
 	}
 
-	void FSceneImporter::AddAsset(TSharedPtr<IDatasmithElement>&& InElementPtr, const FString& AssetPrefix)
+	void FSceneImporter::AddAsset(TSharedPtr<IDatasmithElement>&& InElementPtr, const FString& AssetPrefix, EDataType::Type DataType)
 	{
 		if (IDatasmithElement* Element = InElementPtr.Get())
 		{
@@ -109,7 +111,7 @@ namespace DatasmithRuntime
 
 			Elements.Add( ElementId, MoveTemp( InElementPtr ) );
 
-			FAssetData AssetData(ElementId);
+			FAssetData AssetData(ElementId, DataType);
 			AssetDataList.Emplace(ElementId, MoveTemp(AssetData));
 		}
 	}
@@ -156,7 +158,7 @@ namespace DatasmithRuntime
 
 				if (FPaths::FileExists(TextureElement->GetFile()))
 				{
-					AddAsset(SceneElement->GetTexture(Index), TexturePrefix);
+					AddAsset(SceneElement->GetTexture(Index), TexturePrefix, EDataType::Texture);
 				}
 			}
 			// #ueent_datasmithruntime: Inform user resource file does not exist
@@ -164,7 +166,7 @@ namespace DatasmithRuntime
 
 		for (int32 Index = 0; Index < SceneElement->GetMaterialsCount(); ++Index)
 		{
-			AddAsset(SceneElement->GetMaterial(Index), MaterialPrefix);
+			AddAsset(SceneElement->GetMaterial(Index), MaterialPrefix, EDataType::Material);
 		}
 
 		for (int32 Index = 0; Index < SceneElement->GetMeshesCount(); ++Index)
@@ -180,7 +182,7 @@ namespace DatasmithRuntime
 
 				if (FPaths::FileExists(MeshElement->GetFile()))
 				{
-					AddAsset(SceneElement->GetMesh(Index), MeshPrefix);
+					AddAsset(SceneElement->GetMesh(Index), MeshPrefix, EDataType::Mesh);
 				}
 			}
 			// #ueent_datasmithruntime: Inform user resource file does not exist
@@ -301,7 +303,7 @@ namespace DatasmithRuntime
 		}
 		else
 		{
-			ActorData.ClearState(EDatasmithRuntimeAssetState::Completed);
+			ActorData.SetState(EDatasmithRuntimeAssetState::Processed);
 		}
 	}
 
@@ -336,6 +338,18 @@ namespace DatasmithRuntime
 
 			TasksToComplete &= ~EDatasmithRuntimeWorkerTask::ResetScene;
 
+			// If there is no more tasks to complete, delete assets which are not used
+			if (TasksToComplete == EDatasmithRuntimeWorkerTask::NoTask)
+			{
+				bGarbageCollect |= FAssetRegistry::CleanUp();
+
+				if (bGarbageCollect && !IsGarbageCollecting())
+				{
+					CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
+					bGarbageCollect = false;
+				}
+			}
+
 			return;
 		}
 
@@ -361,7 +375,7 @@ namespace DatasmithRuntime
 		FLocalUpdate LocalUpdate(OverallProgress, ActionCounter, ProgressStep);
 
 		// Execute work by chunk of 10 milliseconds timespan
-		double EndTime = FPlatformTime::Seconds() + 0.01;
+		double EndTime = FPlatformTime::Seconds() + 0.02;
 
 		if (TasksToComplete & EDatasmithRuntimeWorkerTask::CollectSceneData)
 		{
@@ -440,9 +454,7 @@ namespace DatasmithRuntime
 				}
 				else
 				{
-					FAssetData& AssetData = ActionTask.IsTexture() ? TextureDataList[ActionTask.GetAssetId()] : AssetDataList[ActionTask.GetAssetId()];
-					
-					if (ActionTask.Execute(AssetData) == EActionResult::Retry)
+					if (ActionTask.Execute(AssetDataList[ActionTask.GetAssetId()]) == EActionResult::Retry)
 					{
 						ActionQueues[NONASYNC_QUEUE].Enqueue(MoveTemp(ActionTask));
 						continue;
@@ -488,8 +500,14 @@ namespace DatasmithRuntime
 
 			OnGoingTasks.Empty();
 
-			LastSceneId = SceneElement->GetNodeId();
-			LastSourceHandle = CurrentSourceHandle;
+			LastSceneGuid = SceneElement->GetSharedState()->GetGuid();
+
+			// Delete assets which has not been reused on the last import
+			if (FAssetRegistry::CleanUp() && !IsGarbageCollecting())
+			{
+				CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
+				bGarbageCollect = false;
+			}
 
 			Cast<ADatasmithRuntimeActor>(RootComponent->GetOwner())->OnImportEnd();
 #ifdef LIVEUPDATE_TIME_LOGGING
@@ -500,6 +518,16 @@ namespace DatasmithRuntime
 
 			UE_LOG(LogDatasmithRuntime, Log, TEXT("Total load time is [%d min %.3f s]"), ElapsedMin, ElapsedSeconds);
 #endif
+
+			// Return if async tasks are not completed
+			for (TFuture<bool>& OnGoingTask : OnGoingTasks)
+			{
+				if (!OnGoingTask.IsReady() && TasksToComplete != EDatasmithRuntimeWorkerTask::NoTask)
+				{
+					ensure(false);
+					break;
+				}
+			}
 		}
 	}
 
@@ -513,8 +541,7 @@ namespace DatasmithRuntime
 		if (bIsNewScene)
 		{
 			SceneElement.Reset();
-			LastSourceHandle = DirectLink::FSourceHandle();
-			LastSceneId = -1;
+			LastSceneGuid = FGuid();
 
 			TasksToComplete = EDatasmithRuntimeWorkerTask::ResetScene;
 		}
@@ -522,11 +549,6 @@ namespace DatasmithRuntime
 		else
 		{
 			for (TPair< FSceneGraphId, FAssetData >& Entry : AssetDataList)
-			{
-				Entry.Value.Referencers.Empty();
-			}
-
-			for (TPair< FSceneGraphId, FTextureData >& Entry : TextureDataList)
 			{
 				Entry.Value.Referencers.Empty();
 			}
@@ -549,13 +571,57 @@ namespace DatasmithRuntime
 		}
 	}
 
-	bool FSceneImporter::IncrementalUpdate(FUpdateContext& UpdateContext)
+	bool FSceneImporter::IncrementalUpdate(TSharedRef< IDatasmithScene > InSceneElement, FUpdateContext& UpdateContext)
 	{
 #ifdef LIVEUPDATE_TIME_LOGGING
 		GlobalStartTime = FPlatformTime::Seconds();
 #endif
 
 		Reset(false);
+
+		// Update elements map with new pointers
+		SceneElement = InSceneElement;
+
+		for (int32 Index = 0; Index < SceneElement->GetTexturesCount(); ++Index)
+		{
+			FSceneGraphId ElementId = SceneElement->GetTexture(Index)->GetNodeId();
+			if (this->Elements.Contains(ElementId))
+			{
+				this->Elements[ElementId] = SceneElement->GetTexture(Index);
+			}
+		}
+
+		for (int32 Index = 0; Index < SceneElement->GetMaterialsCount(); ++Index)
+		{
+			FSceneGraphId ElementId = SceneElement->GetMaterial(Index)->GetNodeId();
+			if (this->Elements.Contains(ElementId))
+			{
+				this->Elements[ElementId] = SceneElement->GetMaterial(Index);
+			}
+		}
+
+		for (int32 Index = 0; Index < SceneElement->GetMeshesCount(); ++Index)
+		{
+			FSceneGraphId ElementId = SceneElement->GetMesh(Index)->GetNodeId();
+			if (this->Elements.Contains(ElementId))
+			{
+				this->Elements[ElementId] = SceneElement->GetMesh(Index);
+			}
+		}
+
+		for (int32 Index = 0; Index < SceneElement->GetActorsCount(); ++Index)
+		{
+			ParseScene(SceneElement->GetActor(Index), DirectLink::InvalidId,
+				[this](const TSharedPtr<IDatasmithActorElement>& ActorElement, FSceneGraphId ParentId) -> void
+				{
+					FSceneGraphId ElementId = ActorElement->GetNodeId();
+					if (this->Elements.Contains(ElementId))
+					{
+						this->Elements[ElementId] = ActorElement;
+					}
+				}
+			);
+		}
 
 		if (UpdateContext.Additions.Num() > 0)
 		{
@@ -574,7 +640,7 @@ namespace DatasmithRuntime
 			{
 				if (ElementPtr->IsA(EDatasmithElementType::BaseMaterial))
 				{
-					AddAsset(MoveTemp(ElementPtr), MaterialPrefix);
+					AddAsset(MoveTemp(ElementPtr), MaterialPrefix, EDataType::Material);
 				}
 				else if (ElementPtr->IsA(EDatasmithElementType::StaticMesh))
 				{
@@ -588,7 +654,7 @@ namespace DatasmithRuntime
 
 						if (FPaths::FileExists(MeshElement->GetFile()))
 						{
-							AddAsset(MoveTemp(ElementPtr), MeshPrefix);
+							AddAsset(MoveTemp(ElementPtr), MeshPrefix, EDataType::Mesh);
 						}
 					}
 				}
@@ -604,7 +670,7 @@ namespace DatasmithRuntime
 
 						if (FPaths::FileExists(TextureElement->GetFile()))
 						{
-							AddAsset(MoveTemp(ElementPtr), TexturePrefix);
+							AddAsset(MoveTemp(ElementPtr), TexturePrefix, EDataType::Texture);
 						}
 					}
 				}
@@ -626,13 +692,13 @@ namespace DatasmithRuntime
 
 		if (UpdateContext.Updates.Num() > 0)
 		{
-			TSet<FSceneGraphId> Actors;
-
 			for (TSharedPtr<IDatasmithElement>& ElementPtr : UpdateContext.Updates)
 			{
 				if (Elements.Contains(ElementPtr->GetNodeId()))
 				{
 					FSceneGraphId ElementId = ElementPtr->GetNodeId();
+					Elements[ElementId] = ElementPtr;
+
 					FActionTaskFunction TaskFunc;
 
 					if (ElementPtr->IsA(EDatasmithElementType::BaseMaterial))
@@ -667,7 +733,7 @@ namespace DatasmithRuntime
 
 						TaskFunc = [this, ElementId](UObject*, const FReferencer&) -> EActionResult::Type
 						{
-							FTextureData& TextureData = this->TextureDataList[ElementId];
+							FAssetData& TextureData = this->AssetDataList[ElementId];
 
 							TextureData.SetState(EDatasmithRuntimeAssetState::Unknown);
 
@@ -686,7 +752,25 @@ namespace DatasmithRuntime
 						TaskFunc = [this, ElementId, ParentId = ActorData.ParentId](UObject*, const FReferencer&) -> EActionResult::Type
 						{
 							TSharedPtr<IDatasmithActorElement> ActorElement = StaticCastSharedPtr<IDatasmithActorElement>(this->Elements[ElementId]);
-							this->ProcessActorElement(ActorElement, ParentId);
+
+							this->ParseScene(ActorElement, ParentId,
+								[this](const TSharedPtr<IDatasmithActorElement>& ActorElement, FSceneGraphId ParentId) -> void
+								{
+									FSceneGraphId ElementId = ActorElement->GetNodeId();
+
+									if (Elements.Contains(ElementId))
+									{
+										ActorDataList[ElementId].SetState(EDatasmithRuntimeAssetState::Unknown);
+									}
+								}
+							);
+
+							this->ParseScene(ActorElement, ParentId,
+								[this](const TSharedPtr<IDatasmithActorElement>& ActorElement, FSceneGraphId ParentId) -> void
+								{
+									this->ProcessActorElement(ActorElement, ParentId);
+								}
+							);
 
 							return EActionResult::Succeeded;
 						};
@@ -756,19 +840,6 @@ namespace DatasmithRuntime
 		{
 			bGarbageCollect |= DeleteAsset(Entry.Value);
 		}
-
-		for (TPair< FSceneGraphId, FTextureData >& Entry : TextureDataList)
-		{
-			bGarbageCollect |= DeleteAsset(Entry.Value);
-		}
-		
-		bGarbageCollect &= !IsGarbageCollecting();
-
-		if (bGarbageCollect)
-		{
-			CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
-			bGarbageCollect = false;
-		}
 	}
 
 	EActionResult::Type FSceneImporter::DeleteElement(FSceneGraphId ElementId)
@@ -778,12 +849,6 @@ namespace DatasmithRuntime
 		{
 			ensure(false);
 			return EActionResult::Failed;
-		}
-
-		ensure(AssetElementMapping.Contains(ElementPtr->GetName()));
-		if(AssetElementMapping[ElementPtr->GetName()] == ElementId)
-		{
-			AssetElementMapping.Remove(ElementPtr->GetName());
 		}
 
 		const bool bIsAsset = ElementPtr->IsA(EDatasmithElementType::BaseMaterial) ||
@@ -799,9 +864,34 @@ namespace DatasmithRuntime
 				return EActionResult::Failed;
 			}
 
+			FString AssetPrefixedName;
+
 			if (ElementPtr->IsA(EDatasmithElementType::Texture))
 			{
-				ensure(TextureDataList.Remove(ElementId) > 0);
+				AssetPrefixedName = TexturePrefix + ElementPtr->GetName();
+				//ensure(TextureDataList.Remove(ElementId) > 0);
+				int32 Index = TextureDataList.Remove(ElementId);
+				if (Index == 0)
+				{
+					ensure(false);
+					return EActionResult::Failed;
+				}
+			}
+			else if (ElementPtr->IsA(EDatasmithElementType::BaseMaterial))
+			{
+				AssetPrefixedName = MaterialPrefix + ElementPtr->GetName();
+			}
+			else if (ElementPtr->IsA(EDatasmithElementType::StaticMesh))
+			{
+				AssetPrefixedName = MeshPrefix + ElementPtr->GetName();
+			}
+
+			ensure(AssetElementMapping.Contains(AssetPrefixedName));
+				
+			// ElementId may mismatch if new object of same name but new id was added
+			if (AssetElementMapping[AssetPrefixedName] == ElementId)
+			{
+				AssetElementMapping.Remove(AssetPrefixedName);
 			}
 
 			return DeleteAsset(AssetData) ? EActionResult::Succeeded : EActionResult::Failed;
@@ -854,14 +944,7 @@ namespace DatasmithRuntime
 		if (UObject* Asset = AssetData.Object.Get())
 		{
 			AssetData.Object.Reset();
-
-			if (UnregisterAssetData(Asset, &AssetData) == 0)
-			{
-				Asset->ClearFlags(RF_Public);
-				Asset->SetFlags(RF_Transient);
-				Asset->Rename(nullptr, nullptr, REN_NonTransactional | REN_DontCreateRedirectors | REN_ForceNoResetLoaders);
-				//Asset->MarkPendingKill();
-			}
+			FAssetRegistry::UnregisterAssetData(Asset, SceneKey, AssetData.ElementId);
 
 			return true;
 		}
@@ -899,7 +982,7 @@ namespace DatasmithRuntime
 			}
 		}
 
-		bUpdateCamera &= LastSceneId != SceneElement->GetNodeId() || LastSourceHandle != CurrentSourceHandle;
+		bUpdateCamera &= LastSceneGuid != SceneElement->GetSharedState()->GetGuid();
 
 		if (bUpdateCamera)
 		{

@@ -2,11 +2,10 @@
 
 #include "DatasmithRuntimeModule.h"
 
+#include "DatasmithRuntime.h"
 #include "DirectLinkUtils.h"
 
 #include "DatasmithTranslatorModule.h"
-#include "MasterMaterials/DatasmithMasterMaterialManager.h"
-#include "MaterialSelectors/DatasmithRuntimeRevitMaterialSelector.h"
 
 class FDatasmithRuntimeModule : public IDatasmithRuntimeModuleInterface
 {
@@ -16,20 +15,20 @@ public:
 		// Verify DatasmithTranslatorModule has been loaded
 		check(IDatasmithTranslatorModule::IsAvailable());
 
-		// Overwrite Revit material selector with the one of DatasmithRuntime
-		FDatasmithMasterMaterialManager::Get().RegisterSelector(TEXT("Revit"), MakeShared< FDatasmithRuntimeRevitMaterialSelector >());
-
 		FModuleManager::Get().LoadModuleChecked(TEXT("UdpMessaging"));
 
 		DatasmithRuntime::FDestinationProxy::InitializeEndpointProxy();
+
+		ADatasmithRuntimeActor::OnStartupModule();
 	}
 
 	virtual void ShutdownModule() override
 	{
-		FDatasmithMasterMaterialManager::Get().UnregisterSelector(TEXT("Revit"));
+		ADatasmithRuntimeActor::OnShutdownModule();
 
 		DatasmithRuntime::FDestinationProxy::ShutdownEndpointProxy();
 	}
+
 };
 
 //////////////////////////////////////////////////////////////////////////

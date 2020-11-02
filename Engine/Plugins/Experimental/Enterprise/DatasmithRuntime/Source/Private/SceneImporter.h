@@ -167,8 +167,10 @@ namespace DatasmithRuntime
 		/** Identifier of the associated Datasmith element */
 		FSceneGraphId ElementId;
 
+		EDataType::Type Type;
+
 		/** UObject associated with the element */
-		TStrongObjectPtr< UObject > Object;
+		TWeakObjectPtr<UObject> Object;
 
 		/** State in which the element is within the import process */
 		FDataState DataState;
@@ -176,8 +178,9 @@ namespace DatasmithRuntime
 		/** Array of elements referencing this element */
 		TArray< FReferencer > Referencers;
 
-		FBaseData(FSceneGraphId InElementId)
+		FBaseData(FSceneGraphId InElementId, EDataType::Type InType = EDataType::None)
 			: ElementId(InElementId)
+			, Type(InType)
 		{
 			DataState.store(EDatasmithRuntimeAssetState::Unknown);
 		}
@@ -185,6 +188,7 @@ namespace DatasmithRuntime
 		FBaseData(const FBaseData& Other)
 		{
 			ElementId = Other.ElementId;
+			Type = Other.Type;
 			Object = Other.Object;
 			DataState.store(Other.DataState.load());
 			Referencers = Other.Referencers;
@@ -228,8 +232,8 @@ namespace DatasmithRuntime
 		/** Hash of associated element used to prevent the duplication of assets */
 		DirectLink::FElementHash Hash;
 
-		FAssetData(FSceneGraphId InElementId)
-			: FBaseData(InElementId)
+		FAssetData(FSceneGraphId InElementId, EDataType::Type InType = EDataType::None)
+			: FBaseData(InElementId, InType)
 			, Requirements(-1)
 		{
 		}
@@ -237,6 +241,7 @@ namespace DatasmithRuntime
 		FAssetData& operator=(const FAssetData& Source)
 		{
 			ElementId = Source.ElementId;
+			Type = Source.Type;
 			Object = Source.Object;
 			DataState.store(Source.DataState.load());
 			Referencers = Source.Referencers;
@@ -268,14 +273,14 @@ namespace DatasmithRuntime
 		int32 MeshId;
 
 		FActorData(FSceneGraphId InElementId)
-			: FBaseData(InElementId)
+			: FBaseData(InElementId, EDataType::Actor)
 			, ParentId(DirectLink::InvalidId)
 			, MeshId(INDEX_NONE)
 		{
 		}
 
 		FActorData(FSceneGraphId InElementId, FSceneGraphId InParentID)
-			: FBaseData(InElementId)
+			: FBaseData(InElementId, EDataType::Actor)
 			, ParentId(InParentID)
 			, MeshId(INDEX_NONE)
 		{
@@ -284,6 +289,7 @@ namespace DatasmithRuntime
 		FActorData& operator=(const FActorData& Source)
 		{
 			ElementId = Source.ElementId;
+			Type = Source.Type;
 			Object = Source.Object;
 			DataState.store(Source.DataState.load());
 			Referencers = Source.Referencers;
@@ -303,8 +309,9 @@ namespace DatasmithRuntime
 	 *		- Asynchronously load the data of the texture
 	 *		- At each tick create a texture from its data until all required textures are done
 	 */ 
-	struct FTextureData : public FAssetData
+	struct FTextureData
 	{
+		EPixelFormat PixelFormat;
 		int32 Width;
 		int32 Height;
 		int16 Pitch;
@@ -315,8 +322,8 @@ namespace DatasmithRuntime
 		float Brightness;
 		float TextureMultiplier;
 
-		FTextureData(FSceneGraphId InElementId)
-			: FAssetData(InElementId)
+		FTextureData()
+			: PixelFormat(EPixelFormat::PF_Unknown)
 			, Width(0)
 			, Height(0)
 			, Pitch(0)
@@ -326,13 +333,6 @@ namespace DatasmithRuntime
 			, Brightness(-FLT_MAX)
 			, TextureMultiplier(-FLT_MAX)
 		{
-			Requirements = EPixelFormat::PF_Unknown;
-		}
-
-		FTextureData(FAssetData& AssetData)
-			: FTextureData(AssetData.ElementId)
-		{
-			Referencers = MoveTemp(AssetData.Referencers);
 		}
 	};
 
@@ -466,7 +466,7 @@ namespace DatasmithRuntime
 		 * @param SourceHandle: DirectLink source associated with the incoming scene
 		 * The SourceHandle is used to update or not the camera contained in the scene
 		 */
-		void StartImport(TSharedRef< IDatasmithScene > InSceneElement, const DirectLink::FSourceHandle& SourceHandle);
+		void StartImport(TSharedRef< IDatasmithScene > InSceneElement);
 
 		/** Abort the on going import process then delete all created assets and actors */
 		void Reset(bool bIsNewScene);
@@ -485,7 +485,7 @@ namespace DatasmithRuntime
 		}
 
 		/** Start the incremental update of the elements contained in the given context */
-		bool IncrementalUpdate(FUpdateContext& UpdateContext);
+		bool IncrementalUpdate(TSharedRef< IDatasmithScene > InSceneElement, FUpdateContext& UpdateContext);
 
 	protected:
 		//~ Begin FTickableEditorObject interface
@@ -518,7 +518,7 @@ namespace DatasmithRuntime
 		void SetupTasks();
 
 		/** Add an FAssetData object associated with the element's id to the map */
-		void AddAsset(TSharedPtr<IDatasmithElement>&& ElementPtr, const FString& Prefix);
+		void AddAsset(TSharedPtr<IDatasmithElement>&& ElementPtr, const FString& Prefix, EDataType::Type InType = EDataType::None);
 
 		/**
 		 * Recursive helper method to visit the children of an Datasmith actor element
@@ -595,8 +595,7 @@ namespace DatasmithRuntime
 			++QueuedTaskCount;
 			if (ActionTask.GetAssetId() != DirectLink::InvalidId)
 			{
-				FAssetData& AssetData = ActionTask.IsTexture() ? TextureDataList[ActionTask.GetAssetId()] : AssetDataList[ActionTask.GetAssetId()];
-				AssetData.Referencers.Add(ActionTask.GetReferencer());
+				AssetDataList[ActionTask.GetAssetId()].Referencers.Add(ActionTask.GetReferencer());
 			}
 			ActionQueues[WhichQueue].Enqueue(MoveTemp(ActionTask));
 		}
@@ -675,13 +674,10 @@ namespace DatasmithRuntime
 		double ProgressStep;
 		int32 QueuedTaskCount;
 
-		/**
-		 * Last scene's identified and its associated DirectLink source
-		 * Used to update or not the game's viewpoint
-		 */
-		FSceneGraphId LastSceneId;
-		DirectLink::FSourceHandle LastSourceHandle;
-		DirectLink::FSourceHandle CurrentSourceHandle;
+		/** GUID of the last scene imported */
+		FGuid LastSceneGuid;
+		uint32 LastSceneKey;
+		uint32 SceneKey;
 
 	#ifdef LIVEUPDATE_TIME_LOGGING
 		double GlobalStartTime;

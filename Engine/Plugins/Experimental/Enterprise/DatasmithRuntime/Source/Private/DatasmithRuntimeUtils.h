@@ -85,15 +85,31 @@ namespace DatasmithRuntime
 
 	extern bool GetTextureData(const TCHAR* Source, EDSResizeTextureMode Mode, uint32 MaxSize, bool bGenerateNormalMap, FTextureData& TextureData);
 
-	extern void RegisterAssetData(UObject* Asset, FAssetData* AssetData);
+	class FAssetRegistry
+	{
+	public:
+		static void RegisterMapping(uint32 SceneKey, TMap<FSceneGraphId, FAssetData>* AssetsMapping);
 
-	extern int32 UnregisterAssetData(UObject* Asset, FAssetData* AssetData);
+		static void UnregisterMapping(uint32 SceneKey);
 
-	extern const TSet<FAssetData*>& GetRegisteredAssetData(UObject* Asset);
+		static void RegisterAssetData(UObject* Asset, uint32 SceneKey, FAssetData& AssetData);
 
-	extern void SetObjectCompletion(UObject* Asset, bool bIsCompleted);
+		static int32 UnregisterAssetData(UObject* Asset, uint32 SceneKey, FSceneGraphId AssetId);
 
-	extern bool IsObjectCompleted(UObject* Asset);
+		static void UnregisteredAssetsData(UObject* Asset, uint32 SceneKey, TFunction<void(FAssetData& AssetData)> UpdateFunc);
 
-	extern UObject* FindObjectFromHash(DirectLink::FElementHash ElementHash);
+		static void SetObjectCompletion(UObject* Asset, bool bIsCompleted);
+
+		static bool IsObjectCompleted(UObject* Asset);
+
+		static UObject* FindObjectFromHash(DirectLink::FElementHash ElementHash);
+
+		/** @return true if some assets have been marked for deletion */
+		static bool CleanUp();
+
+	private:
+		static TMap<DirectLink::FElementHash, TStrongObjectPtr<UObject>> RegistrationMap;
+		static TMap<uint32, TMap<FSceneGraphId,FAssetData>*> SceneMappings;
+	};
+
 }
