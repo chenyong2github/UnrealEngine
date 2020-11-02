@@ -740,6 +740,8 @@ struct android_app* GNativeAndroidApp = NULL;
 
 void android_main(struct android_app* state)
 {
+	FTaskTagScope Scope(ETaskTag::EGameThread);
+
 	GGameThreadId = FPlatformTLS::GetCurrentThreadId();
 
 	BootTimingPoint("android_main");
