@@ -1049,8 +1049,9 @@ void FRenderTargetPool::TickPoolElements()
 		}
 	}
 
+	uint32 PeakFrameUsageInKb = AllocationLevelInKB + DeferredAllocationLevelInKB - UnusedAllocationLevelInKB;
 	CSV_CUSTOM_STAT(RenderTargetPool, UnusedMB, UnusedAllocationLevelInKB / 1024.0f, ECsvCustomStatOp::Set);
-	CSV_CUSTOM_STAT(RenderTargetPool, TotalMB, (AllocationLevelInKB + DeferredAllocationLevelInKB) / 1024.f, ECsvCustomStatOp::Set);
+	CSV_CUSTOM_STAT(RenderTargetPool, PeakUsedMB, PeakFrameUsageInKb / 1024.f, ECsvCustomStatOp::Set);
 
 	// we need to release something, take the oldest ones first
 	while (AllocationLevelInKB > MinimumPoolSizeInKB)
