@@ -167,7 +167,13 @@ public:
 		const FString PackageName = InAssetData.PackageName.ToString();
 		const bool bIsWorldAsset = (InAssetData.AssetClass == UWorld::StaticClass()->GetFName());
 		const FString Extension = bIsWorldAsset ? FPackageName::GetMapPackageExtension() : FPackageName::GetAssetPackageExtension();
-		const FString FilePath = FPackageName::LongPackageNameToFilename(PackageName, Extension);
+
+		FString FilePath;
+		if (!FPackageName::TryConvertLongPackageNameToFilename(PackageName, FilePath, Extension))
+		{
+			return false;
+		}
+
 		const FString FullFilePath = FPaths::ConvertRelativePathToFull(FilePath);
 
 		IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
