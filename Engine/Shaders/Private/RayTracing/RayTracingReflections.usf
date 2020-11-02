@@ -135,12 +135,11 @@ float3 GenerateReflectionDirection(
 	float Roughness
 	)
 {
-	uint DummyVariable;
 	int RetryCount = 0;
 	float3 outDirection;
 	do
 	{
-		float2 E = RandomSequence_GenerateSample2D(RandSequence, DummyVariable);
+		float2 E = RandomSequence_GenerateSample2D(RandSequence);
 
 		// Sobol can only be used on the first sample of the first bounce
 		if (BounceIndex == 0 && SamplePerPixel == 1 && RetryCount == 0 && SampleMode == SAMPLE_PHASE_MONOLITHIC)

@@ -154,7 +154,7 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 		}
 
 		// Choose a random number for both Light sampling and BxDF sampling
-		float4 RandSample = RandomSequence_GenerateSample4D(RandSequence, 0);
+		float4 RandSample = RandomSequence_GenerateSample4D(RandSequence);
 
 		// Does this material require NEE?
 		bool bIsNeeValid = IsNeeValidMaterial(Payload);
@@ -277,7 +277,7 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 		{
 			// If there is some chance we should terminate the ray, draw an extra random value
 			float RussianRouletteRand = RandSample.w; // SampleMaterial does not use this value at the moment
-			//RussianRouletteRand = RandomSequence_GenerateSample1D(RandSequence, 0);
+			//RussianRouletteRand = RandomSequence_GenerateSample1D(RandSequence);
 			if (RussianRouletteRand >= ContinuationProb)
 			{
 				// stochastically terminate the path

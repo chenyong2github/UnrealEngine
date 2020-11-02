@@ -266,8 +266,7 @@ FOcclusionResult ComputeLumenOcclusion(
 
 #if ENABLE_MULTIPLE_SAMPLES_PER_PIXEL
 		{
-			uint DummyVariable;
-			RandSample = RandomSequence_GenerateSample2D(RandSequence, DummyVariable);
+			RandSample = RandomSequence_GenerateSample2D(RandSequence);
 		}
 #endif
 

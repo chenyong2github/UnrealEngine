@@ -206,8 +206,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingPrimaryRaysRGS)
 		if (Payload.Roughness < TranslucencyMaxRoughness)
 		{
 			// Trace reflection ray 
-			uint DummyVariable;
-			float2 RandSample = RandomSequence_GenerateSample2D(RandSequence, DummyVariable);
+			float2 RandSample = RandomSequence_GenerateSample2D(RandSequence);
 
 			RayDesc ReflectionRay;
 			ReflectionRay.TMin = 0.01;

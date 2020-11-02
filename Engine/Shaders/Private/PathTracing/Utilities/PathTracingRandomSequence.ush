@@ -255,7 +255,7 @@ void RandomSequence_Initialize(inout RandomSequence RandSequence, uint PositionS
 #endif
 }
 
-float RandomSequence_GenerateSample1D(inout RandomSequence RandSequence, uint DummyVariable)
+float RandomSequence_GenerateSample1D(inout RandomSequence RandSequence)
 {
 	float Result;
 #if RANDSEQ == RANDSEQ_LCG
@@ -273,7 +273,7 @@ float RandomSequence_GenerateSample1D(inout RandomSequence RandSequence, uint Du
 	return Result;
 }
 
-float2 RandomSequence_GenerateSample2D(inout RandomSequence RandSequence, uint DummyVariable)
+float2 RandomSequence_GenerateSample2D(inout RandomSequence RandSequence)
 {
 	float2 Result;
 #if RANDSEQ == RANDSEQ_LCG
@@ -293,7 +293,7 @@ float2 RandomSequence_GenerateSample2D(inout RandomSequence RandSequence, uint D
 	return Result;
 }
 
-float3 RandomSequence_GenerateSample3D(inout RandomSequence RandSequence, uint DummyVariable)
+float3 RandomSequence_GenerateSample3D(inout RandomSequence RandSequence)
 {
 	float3 Result;
 #if RANDSEQ == RANDSEQ_LCG
@@ -316,7 +316,7 @@ float3 RandomSequence_GenerateSample3D(inout RandomSequence RandSequence, uint D
 }
 
 
-float4 RandomSequence_GenerateSample4D(inout RandomSequence RandSequence, uint DummyVariable)
+float4 RandomSequence_GenerateSample4D(inout RandomSequence RandSequence)
 {
 	float4 Result;
 #if RANDSEQ == RANDSEQ_LCG

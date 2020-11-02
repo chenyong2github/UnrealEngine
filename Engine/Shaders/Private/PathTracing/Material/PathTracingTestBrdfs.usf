@@ -48,9 +48,8 @@ void TestBrdfIntegrityCS(
 
 	RandomSequence RandSequence;
 	RandomSequence_Initialize(RandSequence, LinearIndex, 0);
-	uint DummyVariable;
 
-	float2 E = RandomSequence_GenerateSample2D(RandSequence, DummyVariable);
+	float2 E = RandomSequence_GenerateSample2D(RandSequence);
 	float3 Wo = UniformSampleHemisphere(E).xyz;
 
 	// Outputs
@@ -62,7 +61,7 @@ void TestBrdfIntegrityCS(
 	float EvalPDF;
 	float PDF;
 
-	float4 RandSample = RandomSequence_GenerateSample4D(RandSequence, DummyVariable);
+	float4 RandSample = RandomSequence_GenerateSample4D(RandSequence);
 
 	if (BrdfType == 0) 
 	{
