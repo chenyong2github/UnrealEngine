@@ -6,6 +6,11 @@
 
 void FQueueRemesher::FastestRemesh()
 {
+	if (Mesh->HasAttributes() && GetConstraints().IsSet() == false)
+	{
+		ensureMsgf(false, TEXT("Input Mesh has Attribute overlays but no Constraints are configured. Use FMeshConstraintsUtil::ConstrainAllBoundariesAndSeams() to create a Constraint Set for Attribute seams."));
+	}
+
 	ModifiedEdgesLastPass = 0;
 
 	ResetQueue();
@@ -59,6 +64,11 @@ int FQueueRemesher::FastSplitIteration()
 	if (Mesh->TriangleCount() == 0)
 	{
 		return 0;
+	}
+
+	if (Mesh->HasAttributes() && GetConstraints().IsSet() == false)
+	{
+		ensureMsgf(false, TEXT("Input Mesh has Attribute overlays but no Constraints are configured. Use FMeshConstraintsUtil::ConstrainAllBoundariesAndSeams() to create a Constraint Set for Attribute seams."));
 	}
 
 	// Temporarily turn off all operations except edge splits
