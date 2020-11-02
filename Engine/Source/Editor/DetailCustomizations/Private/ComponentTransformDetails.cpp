@@ -165,7 +165,6 @@ TSharedRef<SWidget> FComponentTransformDetails::BuildTransformFieldLabel( ETrans
 	TSharedRef<SWidget> NameContent =
 		SNew(SComboButton)
 		.ContentPadding(0)
-		.ForegroundColor( FSlateColor::UseForeground() )
 		.MenuContent()
 		[
 			MenuBuilder.MakeWidget()
