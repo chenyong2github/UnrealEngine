@@ -196,13 +196,7 @@ public:
 		return !(*this == Other);
 	}
 
-	uint32 GetStableHash() const;
-	uint32 GetFastHash() const;
-
-	friend uint32 GetTypeHash(const FDataLayersID& DataLayersID)
-	{
-		return DataLayersID.GetFastHash();
-	}
+	uint32 GetHash() const { return Hash; }
 
 private:
 	TArray<FName> DataLayers;
