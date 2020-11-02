@@ -49,6 +49,7 @@
 #include "HairStrands/HairStrandsRendering.h"
 #include "PhysicsField/PhysicsFieldComponent.h"
 #include "GPUSortManager.h"
+#include "Experimental/Containers/SherwoodHashTable.h"
 
 static TAutoConsoleVariable<int32> CVarStencilForLODDither(
 	TEXT("r.StencilForLODDither"),
@@ -192,6 +193,13 @@ static TAutoConsoleVariable<float> CVarRayTracingCullingAngle(
 	1.0f, 
 	TEXT("Do camera culling for objects behind the camera with a projected angle smaller than this threshold in ray tracing effects (default = 5 degrees )"),
 	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<int32> CVarRayTracingAutoInstance(
+	TEXT("r.RayTracing.AutoInstance"),
+	1,
+	TEXT("Whether to auto instance static meshes\n"),
+	ECVF_RenderThreadSafe
+);
 
 #if !UE_BUILD_SHIPPING
 static TAutoConsoleVariable<int32> CVarForceBlackVelocityBuffer(
@@ -552,6 +560,7 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 	{
 		FRHIRayTracingGeometry* RayTracingGeometryRHI = nullptr;
 		TArrayView<const int32> CachedRayTracingMeshCommandIndices;
+		uint64 StateHash = 0;
 		int32 PrimitiveIndex = -1;
 		int8 ViewIndex = -1;
 		int8 LODIndex = -1;
@@ -560,6 +569,16 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 		bool bAllSegmentsOpaque = true;
 		bool bAnySegmentsCastShadow = false;
 		bool bAnySegmentsDecal = false;
+
+		uint64 InstancingKey() const
+		{
+			uint64 Key = StateHash;
+			Key ^= uint64(InstanceMask) << 32;
+			Key ^= bAllSegmentsOpaque ? 0x1ull << 40 : 0x0;
+			Key ^= bAnySegmentsCastShadow ? 0x1ull << 41 : 0x0;
+			Key ^= bAnySegmentsDecal ? 0x1ull << 42 : 0x0;
+			return Key ^ reinterpret_cast<uint64>(RayTracingGeometryRHI);
+		}
 	};
 
 	// Unified array is used for static and dynamic primitives because we don't know ahead of time how many we'll have of each.
@@ -767,6 +786,7 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 						RelevantPrimitive.RayTracingGeometryRHI = SceneInfo->GetStaticRayTracingGeometryInstance(LODIndex);
 
 						RelevantPrimitive.CachedRayTracingMeshCommandIndices = SceneInfo->CachedRayTracingMeshCommandIndicesPerLOD[LODIndex];
+						RelevantPrimitive.StateHash = SceneInfo->CachedRayTracingMeshCommandsHashPerLOD[LODIndex];
 
 						for (int32 CommandIndex : RelevantPrimitive.CachedRayTracingMeshCommandIndices)
 						{
@@ -954,11 +974,17 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(GatherRayTracingWorldInstances_AddInstances);
 
+		const bool bAutoInstance = CVarRayTracingAutoInstance.GetValueOnRenderThread() != 0;
+
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(WaitForLODTasks);
 			FTaskGraphInterface::Get().WaitUntilTasksComplete(LODTaskList, ENamedThreads::GetRenderThread_Local());
 		}
 
+		Experimental::TSherwoodMap<uint64, int32> InstanceSet;
+		InstanceSet.Reserve(RelevantPrimitives.Num());
+
+		// scan relevant primitives computing hash data to look for duplicate instances
 		for (const FRelevantPrimitive& RelevantPrimitive : RelevantPrimitives)
 		{
 			const int32 PrimitiveIndex = RelevantPrimitive.PrimitiveIndex;
@@ -977,37 +1003,52 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 				continue;
 			}
 
-			const int NewInstanceIndex = View.RayTracingGeometryInstances.Num();
+			// location if this is a new entry
+			const int32 NewInstanceIndex = View.RayTracingGeometryInstances.Num();
+			const uint64 InstanceKey = RelevantPrimitive.InstancingKey();
 
+			const int32 Index = bAutoInstance ? InstanceSet.FindOrAdd(InstanceKey, NewInstanceIndex) : NewInstanceIndex;
 
-			for (int32 CommandIndex : RelevantPrimitive.CachedRayTracingMeshCommandIndices)
+			if (Index != NewInstanceIndex)
 			{
-				if (CommandIndex >= 0)
-				{
-					FVisibleRayTracingMeshCommand NewVisibleMeshCommand;
+				// reusing a previous entry, just append to the instance list
+				FRayTracingGeometryInstance& RayTracingInstance = View.RayTracingGeometryInstances[Index];
+				RayTracingInstance.NumTransforms++;
+				RayTracingInstance.Transforms.Add(Scene->PrimitiveTransforms[PrimitiveIndex]);
+				RayTracingInstance.UserData.Add((uint32)PrimitiveIndex);
 
-					NewVisibleMeshCommand.RayTracingMeshCommand = &Scene->CachedRayTracingMeshCommands.RayTracingMeshCommands[CommandIndex];
-					NewVisibleMeshCommand.InstanceIndex = NewInstanceIndex;
-					View.VisibleRayTracingMeshCommands.Add(NewVisibleMeshCommand);
-					VisibleDrawCommandStartOffset[ViewIndex]++;
-				}
-				else
-				{
-					// CommandIndex == -1 indicates that the mesh batch has been filtered by FRayTracingMeshProcessor (like the shadow depth pass batch)
-					// Do nothing in this case
-				}
 			}
+			else
+			{
+				for (int32 CommandIndex : RelevantPrimitive.CachedRayTracingMeshCommandIndices)
+				{
+					if (CommandIndex >= 0)
+					{
+						FVisibleRayTracingMeshCommand NewVisibleMeshCommand;
 
-			FRayTracingGeometryInstance& RayTracingInstance = View.RayTracingGeometryInstances.Emplace_GetRef();
-			RayTracingInstance.NumTransforms = 1;
-			RayTracingInstance.Transforms.SetNumUninitialized(1);
-			RayTracingInstance.UserData.SetNumUninitialized(1);
+						NewVisibleMeshCommand.RayTracingMeshCommand = &Scene->CachedRayTracingMeshCommands.RayTracingMeshCommands[CommandIndex];
+						NewVisibleMeshCommand.InstanceIndex = NewInstanceIndex;
+						View.VisibleRayTracingMeshCommands.Add(NewVisibleMeshCommand);
+						VisibleDrawCommandStartOffset[ViewIndex]++;
+					}
+					else
+					{
+						// CommandIndex == -1 indicates that the mesh batch has been filtered by FRayTracingMeshProcessor (like the shadow depth pass batch)
+						// Do nothing in this case
+					}
+				}
 
-			RayTracingInstance.GeometryRHI = RelevantPrimitive.RayTracingGeometryRHI;
-			RayTracingInstance.Transforms[0] = Scene->PrimitiveTransforms[PrimitiveIndex];
-			RayTracingInstance.UserData[0] = (uint32)PrimitiveIndex;
-			RayTracingInstance.Mask = RelevantPrimitive.InstanceMask; // When no cached command is found, InstanceMask == 0 and the instance is effectively filtered out
-			RayTracingInstance.bForceOpaque = RelevantPrimitive.bAllSegmentsOpaque;
+				FRayTracingGeometryInstance& RayTracingInstance = View.RayTracingGeometryInstances.Emplace_GetRef();
+				RayTracingInstance.NumTransforms = 1;
+				RayTracingInstance.Transforms.SetNumUninitialized(1);
+				RayTracingInstance.UserData.SetNumUninitialized(1);
+
+				RayTracingInstance.GeometryRHI = RelevantPrimitive.RayTracingGeometryRHI;
+				RayTracingInstance.Transforms[0] = Scene->PrimitiveTransforms[PrimitiveIndex];
+				RayTracingInstance.UserData[0] = (uint32)PrimitiveIndex;
+				RayTracingInstance.Mask = RelevantPrimitive.InstanceMask; // When no cached command is found, InstanceMask == 0 and the instance is effectively filtered out
+				RayTracingInstance.bForceOpaque = RelevantPrimitive.bAllSegmentsOpaque;
+			}
 		}
 	}
 
