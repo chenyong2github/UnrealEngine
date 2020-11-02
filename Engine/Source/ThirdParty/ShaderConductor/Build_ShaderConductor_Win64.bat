@@ -17,6 +17,9 @@ mkdir ShaderConductor\lib\Win64
 set ENGINE_THIRD_PARTY_BIN=..\..\Binaries\ThirdParty\ShaderConductor\Win64
 set ENGINE_THIRD_PARTY_SOURCE=..\..\Source\ThirdParty\ShaderConductor
 
+set VS16_ROOT_DIR=%ProgramFiles(x86)%\Microsoft Visual Studio\2019
+set MSBUILD_VS16_PROFESSIONAL=%VS16_ROOT_DIR%\Professional\MSBuild\Current\Bin
+set MSBUILD_VS16_ENTERPRISE=%VS16_ROOT_DIR%\Enterprise\MSBuild\Current\Bin
 
 echo 
 echo ************************************
@@ -39,7 +42,22 @@ pushd ..\..\..\Intermediate\ShaderConductor
 	echo 
 	echo ************************************
 	echo *** MSBuild
-	"%ProgramFiles(x86)%\Microsoft Visual Studio\2019\Professional\MSBuild\Current\Bin\MSbuild.exe" ALL_BUILD.vcxproj -nologo -v:m -maxCpuCount -p:Platform=x64;Configuration="%CONFIG%"
+	
+	where MSBuild.exe >nul 2>nul
+	if %ERRORLEVEL% equ 0 (
+		echo Found MSBuild via environment variable
+		MSbuild.exe ALL_BUILD.vcxproj -nologo -v:m -maxCpuCount -p:Platform=x64;Configuration="%CONFIG%"
+	) else (
+		where "%MSBUILD_VS16_PROFESSIONAL%\MSbuild.exe" >nul 2>nul
+		if %ERRORLEVEL% equ 0 (
+			echo Found MSBuild at "%MSBUILD_VS16_PROFESSIONAL%\MSbuild.exe"
+			"%MSBUILD_VS16_PROFESSIONAL%\MSbuild.exe" ALL_BUILD.vcxproj -nologo -v:m -maxCpuCount -p:Platform=x64;Configuration="%CONFIG%"
+		) else (
+			echo Found MSBuild at "%MSBUILD_VS16_ENTERPRISE%\MSbuild.exe"
+			"%MSBUILD_VS16_ENTERPRISE%\MSbuild.exe" ALL_BUILD.vcxproj -nologo -v:m -maxCpuCount -p:Platform=x64;Configuration="%CONFIG%"
+		)
+	)
+	
 	
 	echo 
 	echo ************************************
