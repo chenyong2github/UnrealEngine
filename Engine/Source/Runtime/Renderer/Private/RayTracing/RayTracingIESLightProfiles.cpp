@@ -44,9 +44,9 @@ void FIESLightProfileResource::BuildIESLightProfilesTexture(FRHICommandListImmed
 		DefaultTexture = RHICreateTexture2D(AllowedIESProfileWidth, 1, AllowedIESProfileFormat, 1, 1, TexCreate_ShaderResource | TexCreate_UAV, CreateInfo);
 		FUnorderedAccessViewRHIRef UAV = RHICreateUnorderedAccessView(DefaultTexture, 0);
 
-		RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, DefaultTexture);
+		RHICmdList.Transition(FRHITransitionInfo(DefaultTexture, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
 		RHICmdList.ClearUAVFloat(UAV, FVector4(1.0f, 1.0f, 1.0f, 1.0f));
-		RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, DefaultTexture);
+		RHICmdList.Transition(FRHITransitionInfo(DefaultTexture, ERHIAccess::UAVCompute, ERHIAccess::SRVMask));
 	}
 
 	if (!AtlasTexture || AtlasTexture->GetSizeY() != NewArraySize)
@@ -65,10 +65,10 @@ void FIESLightProfileResource::BuildIESLightProfilesTexture(FRHICommandListImmed
 		DispatchContext); // out DispatchContext
 	FRHIComputeShader* ShaderRHI = Shader.GetComputeShader();
 
-	RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, AtlasTexture);
+	RHICmdList.Transition(FRHITransitionInfo(AtlasUAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
 	RHICmdList.SetComputeShader(ShaderRHI);
 	RHICmdList.SetUAVParameter(ShaderRHI, Shader->GetDstResourceParam().GetBaseIndex(), AtlasUAV);
-	RHICmdList.BeginUAVOverlap();
+	RHICmdList.BeginUAVOverlap(AtlasUAV);
 	for (uint32 ProfileIndex = 0; ProfileIndex < NewArraySize; ++ProfileIndex)
 	{
 		IESTextureData[ProfileIndex] = NewIESProfilesArray[ProfileIndex];
@@ -90,8 +90,8 @@ void FIESLightProfileResource::BuildIESLightProfilesTexture(FRHICommandListImmed
 			FIntVector(0, ProfileIndex, 0), // DstOffset
 			FIntVector(AllowedIESProfileWidth, 1, 1));
 	}
-	RHICmdList.EndUAVOverlap();
-	RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, AtlasTexture);
+	RHICmdList.EndUAVOverlap(AtlasUAV);
+	RHICmdList.Transition(FRHITransitionInfo(AtlasUAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask));
 }
 
 bool FIESLightProfileResource::IsIESTextureFormatValid(const UTextureLightProfile* Texture) const
