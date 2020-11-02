@@ -166,6 +166,11 @@ bool FEdMode::UsesTransformWidget() const
 	return true;
 }
 
+bool FEdMode::UsesTransformWidget(UE::Widget::EWidgetMode CheckMode) const
+{
+	return FLegacyEdModeWidgetHelper::UsesTransformWidget(CheckMode);
+}
+
 bool FEdMode::UsesPropertyWidgets() const
 {
 	return false;

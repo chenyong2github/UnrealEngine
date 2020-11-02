@@ -146,7 +146,7 @@ public:
 	 * it will be fed raw mouse delta information (not snapped or altered in any way).
 	 */
 	virtual bool UsesTransformWidget() const override;
-	using FLegacyEdModeWidgetHelper::UsesTransformWidget;
+	virtual bool UsesTransformWidget(UE::Widget::EWidgetMode CheckMode) const override;
 	virtual bool UsesPropertyWidgets() const override;
 
 	virtual void PostUndo() {}
