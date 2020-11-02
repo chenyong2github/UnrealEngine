@@ -439,7 +439,7 @@ namespace UsdGeomMeshTranslatorImpl
 				*StaticMeshDescription = MoveTemp( MeshDescription );
 			}
 
-			StaticMesh->LightingGuid = FGuid::NewGuid();
+			StaticMesh->SetLightingGuid();
 
 			Context.AssetsCache.Add( AllLODHash.ToString() ) = StaticMesh;
 		}
