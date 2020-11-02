@@ -144,8 +144,9 @@ private:
 
 	FIOSInputInterface( const TSharedRef< FGenericApplicationMessageHandler >& InMessageHandler );
 
-	// handle disconnect and connect events
-#if (UE4_HAS_IOS14 || UE4_HAS_TVOS14)
+
+#if __IPHONE_OS_VERSION_MAX_ALLOWED >= 140000
+    // handle disconnect and connect events
     void HandleMouseConnection(GCMouse* Mouse);
     void HandleMouseDisconnect(GCMouse* Mouse);
     void HandleKeyboardConnection(GCKeyboard* Keyboard);
