@@ -26,8 +26,10 @@ FD3D12LowLevelGraphicsPipelineStateDesc GetLowLevelGraphicsPipelineStateDesc(con
 	Desc.pRootSignature = RootSignature;
 	Desc.Desc.pRootSignature = RootSignature->GetRootSignature();
 
-#if !D3D12_USE_DERIVED_PSO
+#if !D3D12_USE_DERIVED_PSO || D3D12_USE_DERIVED_PSO_SHADER_EXPORTS
 	Desc.Desc.BlendState = Initializer.BlendState ? FD3D12DynamicRHI::ResourceCast(Initializer.BlendState)->Desc : CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+#endif // #if !D3D12_USE_DERIVED_PSO || D3D12_USE_DERIVED_PSO_SHADER_EXPORTS
+#if !D3D12_USE_DERIVED_PSO
 	Desc.Desc.SampleMask = 0xFFFFFFFF;
 	Desc.Desc.RasterizerState = Initializer.RasterizerState ? FD3D12DynamicRHI::ResourceCast(Initializer.RasterizerState)->Desc : CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
 	Desc.Desc.DepthStencilState = Initializer.DepthStencilState ? CD3DX12_DEPTH_STENCIL_DESC1(FD3D12DynamicRHI::ResourceCast(Initializer.DepthStencilState)->Desc) : CD3DX12_DEPTH_STENCIL_DESC1(D3D12_DEFAULT);
@@ -148,14 +150,15 @@ uint64 FD3D12PipelineStateCacheBase::HashPSODesc(const FD3D12LowLevelGraphicsPip
 		ShaderBytecodeHash PSHash;
 		uint32 InputLayoutHash;
 
-#if !D3D12_USE_DERIVED_PSO
+#if !D3D12_USE_DERIVED_PSO || D3D12_USE_DERIVED_PSO_SHADER_EXPORTS
 		uint8 AlphaToCoverageEnable;
 		uint8 IndependentBlendEnable;
-
+#endif // #if !D3D12_USE_DERIVED_PSO || D3D12_USE_DERIVED_PSO_SHADER_EXPORTS
+#if !D3D12_USE_DERIVED_PSO
 		uint32 SampleMask;
 		D3D12_RASTERIZER_DESC RasterizerState;
 		D3D12_DEPTH_STENCIL_DESC1 DepthStencilState;
-#endif // !D3D12_USE_DERIVED_PSO
+#endif // #if !D3D12_USE_DERIVED_PSO
 
 		D3D12_INDEX_BUFFER_STRIP_CUT_VALUE IBStripCutValue;
 		D3D12_PRIMITIVE_TOPOLOGY_TYPE PrimitiveTopologyType;
@@ -169,9 +172,9 @@ uint64 FD3D12PipelineStateCacheBase::HashPSODesc(const FD3D12LowLevelGraphicsPip
 	struct RenderTargetData
 	{
 		DXGI_FORMAT Format;
-#if !D3D12_USE_DERIVED_PSO
+#if !D3D12_USE_DERIVED_PSO || D3D12_USE_DERIVED_PSO_SHADER_EXPORTS
 		D3D12_RENDER_TARGET_BLEND_DESC BlendDesc;
-#endif
+#endif // #if !D3D12_USE_DERIVED_PSO || D3D12_USE_DERIVED_PSO_SHADER_EXPORTS
 	};
 
 
@@ -194,13 +197,15 @@ uint64 FD3D12PipelineStateCacheBase::HashPSODesc(const FD3D12LowLevelGraphicsPip
 	PSOData->PSHash          = Desc.PSHash;
 	PSOData->InputLayoutHash = Desc.InputLayoutHash;
 
-#if !D3D12_USE_DERIVED_PSO
+#if !D3D12_USE_DERIVED_PSO || D3D12_USE_DERIVED_PSO_SHADER_EXPORTS
 	PSOData->AlphaToCoverageEnable  = Desc.Desc.BlendState.AlphaToCoverageEnable;
 	PSOData->IndependentBlendEnable = Desc.Desc.BlendState.IndependentBlendEnable;
+#endif // #if !D3D12_USE_DERIVED_PSO || D3D12_USE_DERIVED_PSO_SHADER_EXPORTS
+#if !D3D12_USE_DERIVED_PSO
 	PSOData->SampleMask             = Desc.Desc.SampleMask;
 	PSOData->RasterizerState        = Desc.Desc.RasterizerState;
 	PSOData->DepthStencilState      = Desc.Desc.DepthStencilState;
-#endif
+#endif // #if !D3D12_USE_DERIVED_PSO
 	PSOData->IBStripCutValue        = Desc.Desc.IBStripCutValue;
 	PSOData->PrimitiveTopologyType  = Desc.Desc.PrimitiveTopologyType;
 	PSOData->DSVFormat              = Desc.Desc.DSVFormat;
@@ -211,9 +216,9 @@ uint64 FD3D12PipelineStateCacheBase::HashPSODesc(const FD3D12LowLevelGraphicsPip
 	for (int32 RT = 0; RT < NumRenderTargets; RT++)
 	{
 		RTData[RT].Format    = Desc.Desc.RTFormatArray.RTFormats[RT];
-#if !D3D12_USE_DERIVED_PSO
+#if !D3D12_USE_DERIVED_PSO || D3D12_USE_DERIVED_PSO_SHADER_EXPORTS
 		RTData[RT].BlendDesc = Desc.Desc.BlendState.RenderTarget[RT];
-#endif
+#endif // #if !D3D12_USE_DERIVED_PSO || D3D12_USE_DERIVED_PSO_SHADER_EXPORTS
 	}
 
 	return HashData(Data, TotalDataSize);
