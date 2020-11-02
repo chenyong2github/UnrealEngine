@@ -724,7 +724,7 @@ void SetupTranslucentBasePassUniformParameters(
 
 	// Translucency Lighting Volume
 	{
-		if (TranslucentVolumeLightingTextures)
+		if (TranslucentVolumeLightingTextures && TranslucentVolumeLightingTextures->IsValid())
 		{
 			BasePassParameters.TranslucencyLightingVolumeAmbientInner = TranslucentVolumeLightingTextures->GetAmbient(ViewIndex, TVC_Inner);
 			BasePassParameters.TranslucencyLightingVolumeAmbientOuter = TranslucentVolumeLightingTextures->GetAmbient(ViewIndex, TVC_Outer);

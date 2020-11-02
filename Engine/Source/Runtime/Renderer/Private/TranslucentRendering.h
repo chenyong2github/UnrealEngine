@@ -64,6 +64,11 @@ private:
 
 struct FTranslucentVolumeLightingTextures
 {
+	bool IsValid() const
+	{
+		return VolumeDim != 0;
+	}
+
 	FRDGTextureRef GetAmbient(int32 ViewIndex, int32 CascadeIndex) const
 	{
 		return Ambient[(ViewIndex * TVC_MAX) + CascadeIndex];
