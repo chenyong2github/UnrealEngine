@@ -157,6 +157,10 @@ struct RIGVM_API FRigVMRegister
 		, ScriptStructIndex(INDEX_NONE)
 		, bIsArray(false)
 		, bIsDynamic(false)
+#if WITH_EDITORONLY_DATA
+		, CPPType(NAME_None)
+		, CPPTypeObject(nullptr)
+#endif
 	{
 	}
 
@@ -205,6 +209,17 @@ struct RIGVM_API FRigVMRegister
 	// If true defines this register to use dynamic storage
 	UPROPERTY()
 	bool bIsDynamic;
+
+#if WITH_EDITORONLY_DATA
+
+	// Defines the CPP type used for the register
+	UPROPERTY(transient)
+	FName CPPType;
+
+	UPROPERTY(transient)
+	UObject* CPPTypeObject;
+
+#endif
 
 	void Serialize(FArchive& Ar);
 	void Save(FArchive& Ar);
