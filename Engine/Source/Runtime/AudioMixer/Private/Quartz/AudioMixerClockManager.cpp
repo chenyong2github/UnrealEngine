@@ -161,7 +161,7 @@ namespace Audio
 	void FQuartzClockManager::Flush()
 	{
 		int32 NumClocks = ActiveClocks.Num();
-		for (int32 i = 0; i < NumClocks; ++i)
+		for (int32 i = NumClocks - 1; i >= 0; --i)
 		{
 			if (!ActiveClocks[i].IgnoresFlush())
 			{
