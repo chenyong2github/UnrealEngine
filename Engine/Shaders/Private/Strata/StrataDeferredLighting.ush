@@ -28,13 +28,13 @@ float4 StrataDeferredLighting(
 		{
 		case STRATA_BSDF_TYPE_DIFFUSE_ON:
 		case STRATA_BSDF_TYPE_DIFFUSE_CHAN:
-		{ N = BSDF.Diffuse.Normal; break; }
+		{ N = DIFFUSE_NORMAL(BSDF);				break; }
 		case STRATA_BSDF_TYPE_DIELECTRIC:
-		{ N = BSDF.Dielectric.Normal; break; }
+		{ N = DIELECTRIC_NORMAL(BSDF);			break; }
 		case STRATA_BSDF_TYPE_CONDUCTOR:
-		{ N = BSDF.Conductor.Normal; break; }
+		{ N = CONDUCTOR_NORMAL(BSDF);			break; }
 		case STRATA_BSDF_TYPE_VOLUME:
-		{ N = BSDF.Volume.SmoothSurfaceNormal; break; }
+		{ N = VOLUME_SMOOTHSURFACENORMAL(BSDF);	break; }
 		}
 		N = normalize(N);
 
@@ -61,23 +61,23 @@ float4 StrataDeferredLighting(
 		{
 		case STRATA_BSDF_TYPE_DIFFUSE_ON:
 		{
-			const float SafeRoughness = MakeRoughnessSafe(BSDF.Diffuse.Roughness);
-			Radiance.rgb += Diffuse_OrenNayar(BSDF.Diffuse.Albedo, SafeRoughness, Context.NoV, SatNoL, Context.VoH) * DirLightGeometryFactor;
+			const float SafeRoughness = MakeRoughnessSafe(DIFFUSE_ROUGHNESS(BSDF));
+			Radiance.rgb += Diffuse_OrenNayar(DIFFUSE_ALBEDO(BSDF), SafeRoughness, Context.NoV, SatNoL, Context.VoH) * DirLightGeometryFactor;
 		}
 		break;
 		case STRATA_BSDF_TYPE_DIFFUSE_CHAN:
 		{
-			const float SafeRoughness = MakeRoughnessSafe(BSDF.Diffuse.Roughness);
+			const float SafeRoughness = MakeRoughnessSafe(DIFFUSE_ROUGHNESS(BSDF));
 			float a = SafeRoughness * SafeRoughness;
 			float a2 = a * a;
-			Radiance.rgb += Diffuse_Chan(BSDF.Diffuse.Albedo, a2, Context.NoV, SatNoL, Context.VoH, Context.NoH) * DirLightGeometryFactor;
+			Radiance.rgb += Diffuse_Chan(DIFFUSE_ALBEDO(BSDF), a2, Context.NoV, SatNoL, Context.VoH, Context.NoH) * DirLightGeometryFactor;
 		}
 		break;
 		case STRATA_BSDF_TYPE_DIELECTRIC:
 		{
-			float F0 = DielectricIorToF0(BSDF.Dielectric.IOR);
+			float F0 = DielectricIorToF0(DIELECTRIC_IOR(BSDF));
 
-			const float SafeRoughness = MakeRoughnessSafe(BSDF.Dielectric.Roughness.x);
+			const float SafeRoughness = MakeRoughnessSafe(DIELECTRIC_ROUGHNESS(BSDF).x);
 			float a2 = Pow4(SafeRoughness);
 			float Energy = 1.0f; // See EnergyNormalization
 
@@ -86,32 +86,33 @@ float4 StrataDeferredLighting(
 			float Vis = Vis_SmithJointApprox(a2, Context.NoV, SatNoL);
 			float3 F = F_Schlick(F0, Context.VoH);
 
-			Radiance.rgb += D * Vis * F * BSDF.Dielectric.Tint * DirLightGeometryFactor;
+			Radiance.rgb += D * Vis * F * DIELECTRIC_TINT(BSDF) * DirLightGeometryFactor;
 		}
 		break;
 		case STRATA_BSDF_TYPE_CONDUCTOR:
 		{
 			// See SpecularGGX, isotropic verion
 
-			const float SafeRoughness = MakeRoughnessSafe(BSDF.Conductor.Roughness.x);
+			const float SafeRoughness = MakeRoughnessSafe(CONDUCTOR_ROUGHNESS(BSDF).x);
 			float a2 = Pow4(SafeRoughness);
 			float Energy = 1.0f; // See EnergyNormalization
 
 			// Generalized microfacet specular
 			float D = D_GGX(a2, Context.NoH) * Energy;
 			float Vis = Vis_SmithJointApprox(a2, Context.NoV, SatNoL);
-			float3 F = F_Schlick(BSDF.Conductor.Reflectivity, BSDF.Conductor.EdgeColor, Context.VoH);
+			float3 F = F_Schlick(CONDUCTOR_REFLECTIVITY(BSDF), CONDUCTOR_EDGECOLOR(BSDF), Context.VoH);
 
 			Radiance.rgb += D * Vis * F * DirLightGeometryFactor;
 		}
 		break;
 		case STRATA_BSDF_TYPE_VOLUME:
 		{
-			const float3 Albedo = BSDF.Volume.Albedo;
-			const float3 ExtinctionCoefficients = BSDF.Volume.Extinction;
+			const float3 Albedo = VOLUME_ALBEDO(BSDF);
+			const float3 ExtinctionCoefficients = VOLUME_EXTINCTION(BSDF);
 			const float3 ScatteringCoefficients = Albedo * ExtinctionCoefficients;
 			const float3 AbsorptionCoefficients = ExtinctionCoefficients - ScatteringCoefficients;
-			const float  Thickness = BSDF.Volume.Thickness;
+			const float  Thickness = VOLUME_THICKNESS(BSDF);
+			const float  Phase = HenyeyGreensteinPhase(VOLUME_ANISOTROPY(BSDF), Context.VoL);
 
 			const float3 SafeExtinctionThreshold = 0.000001f;
 			const float3 SafeExtinctionCoefficients = max(SafeExtinctionThreshold, ExtinctionCoefficients);
@@ -128,7 +129,6 @@ float4 StrataDeferredLighting(
 			const float3 SelfShadowTransmittance = SatNoL <= 0.0 ? 0.0 : exp(-ExtinctionCoefficients * LightPathLength);
 #endif
 
-			const float Phase = HenyeyGreensteinPhase(BSDF.Volume.Anisotropy, Context.VoL);
 			Radiance.rgb += NormLuminanceSingleScattering * Phase * DirLightBaseFactor * SelfShadowTransmittance;
 		}
 		break;

@@ -32,8 +32,8 @@ float3 StrataEnvironmentLighting(
 		case STRATA_BSDF_TYPE_DIFFUSE_ON:
 		case STRATA_BSDF_TYPE_DIFFUSE_CHAN:
 		{
-			DiffuseAlbedo = BSDF.Diffuse.Albedo;
-			DiffuseNormal = BSDF.Diffuse.Normal;
+			DiffuseAlbedo = DIFFUSE_ALBEDO(BSDF);
+			DiffuseNormal = DIFFUSE_NORMAL(BSDF);
 		}
 		break;
 		case STRATA_BSDF_TYPE_DIELECTRIC:
@@ -41,18 +41,18 @@ float3 StrataEnvironmentLighting(
 			BRANCH
 			if (ReflectionStruct.SkyLightParameters.y > 0)
 			{
-				float F0 = DielectricIorToF0(BSDF.Dielectric.IOR);
-				const float SafeRoughness = MakeRoughnessSafe(BSDF.Dielectric.Roughness.x);
+				float F0 = DielectricIorToF0(DIELECTRIC_IOR(BSDF));
+				const float SafeRoughness = MakeRoughnessSafe(DIELECTRIC_ROUGHNESS(BSDF).x);
 				float a2 = Pow4(SafeRoughness);
 				float Energy = 1.0f; // See EnergyNormalization
 
-				const float3 N = BSDF.Dielectric.Normal;
+				const float3 N = DIELECTRIC_NORMAL(BSDF);
 				const float SatNoV = saturate(dot(N, V));
 				float3 R = 2 * dot(V, N) * N - V;
 				float3 EvalEnvBRDF = EnvBRDFApprox(F0, SafeRoughness, SatNoV);
 
 				SpecularDirection = R;
-				SpecularWeight = EvalEnvBRDF * BSDF.Dielectric.Tint;
+				SpecularWeight = EvalEnvBRDF * DIELECTRIC_TINT(BSDF);
 				SpecularSafeRoughness = a2;
 			}
 		}
@@ -64,14 +64,14 @@ float3 StrataEnvironmentLighting(
 			{
 				// See SpecularGGX, isotropic verion
 
-				const float SafeRoughness = MakeRoughnessSafe(BSDF.Conductor.Roughness.x);
+				const float SafeRoughness = MakeRoughnessSafe(CONDUCTOR_ROUGHNESS(BSDF).x);
 				float a2 = Pow4(SafeRoughness);
 				float Energy = 1.0f; // See EnergyNormalization
 
-				const float3 N = BSDF.Conductor.Normal;
+				const float3 N = CONDUCTOR_NORMAL(BSDF);
 				const float SatNoV = saturate(dot(N, V));
 				float3 R = 2 * dot(V, N) * N - V;
-				float3 EvalEnvBRDF = EnvBRDFApprox(BSDF.Conductor.Reflectivity, BSDF.Conductor.EdgeColor, SafeRoughness, SatNoV);
+				float3 EvalEnvBRDF = EnvBRDFApprox(CONDUCTOR_REFLECTIVITY(BSDF), CONDUCTOR_EDGECOLOR(BSDF), SafeRoughness, SatNoV);
 
 				SpecularDirection = R;
 				SpecularWeight = EvalEnvBRDF;
@@ -81,16 +81,16 @@ float3 StrataEnvironmentLighting(
 		break;
 		case STRATA_BSDF_TYPE_VOLUME:
 		{
-			const float3 VolumeAlbedo = BSDF.Volume.Albedo;
-			const float3 ExtinctionCoefficients = BSDF.Volume.Extinction;
+			const float3 VolumeAlbedo = VOLUME_ALBEDO(BSDF);
+			const float3 ExtinctionCoefficients = VOLUME_EXTINCTION(BSDF);
 			const float3 ScatteringCoefficients = VolumeAlbedo * ExtinctionCoefficients;
 			const float3 AbsorptionCoefficients = ExtinctionCoefficients - ScatteringCoefficients;
-			const float  Thickness = BSDF.Volume.Thickness;
+			const float  Thickness = VOLUME_THICKNESS(BSDF);
 
 			const float3 SafeExtinctionThreshold = 0.000001f;
 			const float3 SafeExtinctionCoefficients = max(SafeExtinctionThreshold, ExtinctionCoefficients);
 
-			const float SatNoV = saturate(dot(BSDF.Volume.SmoothSurfaceNormal, V));
+			const float SatNoV = saturate(dot(VOLUME_SMOOTHSURFACENORMAL(BSDF), V));
 			const float PathLength = Thickness / max(0.0001f, SatNoV);
 			const float3 SafePathSegmentTransmittance = exp(-SafeExtinctionCoefficients * PathLength);
 			const float3 NormLuminanceTransfert = 1.0f * ScatteringCoefficients;
@@ -100,7 +100,7 @@ float3 StrataEnvironmentLighting(
 			DiffuseAlbedo = NormLuminanceSingleScattering;
 
 			// STRATA_TODO: This is to fake some directionality. Have normal specified on the material as for MaterialX?
-			DiffuseNormal = BSDF.Volume.SmoothSurfaceNormal;
+			DiffuseNormal = VOLUME_SMOOTHSURFACENORMAL(BSDF);
 		}
 		break;
 		}
