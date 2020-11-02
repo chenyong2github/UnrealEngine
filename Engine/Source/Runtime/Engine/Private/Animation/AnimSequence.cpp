@@ -1286,8 +1286,11 @@ void UAnimSequence::GetBoneTransform(FTransform& OutAtom, int32 TrackIndex, floa
 	{
 		FAnimSequenceDecompressionContext DecompContext(SequenceLength, Interpolation, GetFName(), *CompressedData.CompressedDataStructure);
 		DecompContext.Seek(Time);
-		CompressedData.BoneCompressionCodec->DecompressBone(DecompContext, TrackIndex, OutAtom);
-		return;
+		if (CompressedData.BoneCompressionCodec)
+		{
+			CompressedData.BoneCompressionCodec->DecompressBone(DecompContext, TrackIndex, OutAtom);
+			return;
+		}
 	}
 
 	ExtractBoneTransform(RawAnimationData, OutAtom, TrackIndex, Time);
@@ -1298,8 +1301,11 @@ void UAnimSequence::GetBoneTransform(FTransform& OutAtom, int32 TrackIndex, FAni
 	// If the caller didn't request that raw animation data be used . . .
 	if (!bUseRawData && IsCompressedDataValid())
 	{
-		CompressedData.BoneCompressionCodec->DecompressBone(DecompContext, TrackIndex, OutAtom);
-		return;
+		if (CompressedData.BoneCompressionCodec)
+		{
+			CompressedData.BoneCompressionCodec->DecompressBone(DecompContext, TrackIndex, OutAtom);
+			return;
+		}
 	}
 
 	ExtractBoneTransform(RawAnimationData, OutAtom, TrackIndex, DecompContext.Time);
