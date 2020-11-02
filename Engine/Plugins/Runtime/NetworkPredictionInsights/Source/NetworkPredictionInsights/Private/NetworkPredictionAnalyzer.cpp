@@ -21,6 +21,7 @@ void FNetworkPredictionAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Conte
 
 	Builder.RouteEvent(RouteId_WorldFrameStart, "NetworkPrediction", "WorldFrameStart");
 	Builder.RouteEvent(RouteId_PieBegin, "NetworkPrediction", "PieBegin");
+	Builder.RouteEvent(RouteId_WorldPreInit, "NetworkPrediction", "WorldPreInit");
 	Builder.RouteEvent(RouteId_SystemFault, "NetworkPrediction", "SystemFault");
 
 	Builder.RouteEvent(RouteId_Tick, "NetworkPrediction", "Tick");
@@ -32,6 +33,7 @@ void FNetworkPredictionAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Conte
 	
 	Builder.RouteEvent(RouteId_PushInputFrame, "NetworkPrediction", "PushInputFrame");
 	Builder.RouteEvent(RouteId_ProduceInput, "NetworkPrediction", "ProduceInput");
+	Builder.RouteEvent(RouteId_BufferedInput, "NetworkPrediction", "BufferedInput");
 
 	Builder.RouteEvent(RouteId_OOBStateMod, "NetworkPrediction", "OOBStateMod");
 
@@ -73,12 +75,12 @@ bool FNetworkPredictionAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOn
 			FSimulationData::FConst& ConstData = NetworkPredictionProvider.WriteSimulationCreated(TraceID);
 			ConstData.DebugName = FString(EventData.GetAttachmentSize() / sizeof(TCHAR), reinterpret_cast<const TCHAR*>(EventData.GetAttachment()));
 			ConstData.ID.SimID = EventData.GetValue<uint32>("SimulationID");
-			ConstData.GameInstanceId = EventData.GetValue<uint32>("GameInstanceID");
 			break;
 		}
 
 		case RouteId_SimulationConfig:
 		{
+			ensure(EngineFrameNumber > 0);
 			TraceID = EventData.GetValue<int32>("TraceID");
 
 			NetworkPredictionProvider.WriteSimulationConfig(TraceID,
@@ -95,18 +97,26 @@ bool FNetworkPredictionAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOn
 		{
 			EngineFrameNumber = EventData.GetValue<uint64>("EngineFrameNumber");
 			DeltaTimeSeconds = EventData.GetValue<float>("DeltaTimeSeconds");
-			GameInstanceID = EventData.GetValue<uint32>("GameInstanceID");
 			break;
 		}
 
 		case RouteId_PieBegin:
 		{
+			EngineFrameNumber = EventData.GetValue<uint64>("EngineFrameNumber");
 			NetworkPredictionProvider.WritePIEStart();
+			break;
+		}
+
+		case RouteId_WorldPreInit:
+		{
+			EngineFrameNumber = EventData.GetValue<uint64>("EngineFrameNumber");
 			break;
 		}
 
 		case RouteId_SystemFault:
 		{
+			ensure(EngineFrameNumber > 0);
+
 			const TCHAR* StoredString = Session.StoreString(reinterpret_cast<const TCHAR*>(EventData.GetAttachment()));
 			ensureMsgf(TraceID > 0, TEXT("Invalid TraceID when analyzing SystemFault: %s"), StoredString);
 
@@ -167,6 +177,7 @@ bool FNetworkPredictionAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOn
 
 		case RouteId_NetRecv:
 		{
+			ensure(EngineFrameNumber > 0);
 			ensure(TraceID > 0);
 			PendingWriteFrame = EventData.GetValue<int32>("Frame");
 			ensure(PendingWriteFrame >= 0);
@@ -199,6 +210,13 @@ bool FNetworkPredictionAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOn
 		{
 			PendingWriteFrame = EventData.GetValue<int32>("Frame");
 			ensure(PendingWriteFrame >= 0);
+			break;
+		}
+
+		case RouteId_BufferedInput:
+		{
+			ensureMsgf(TraceID > 0, TEXT("Invalid TraceID when analyzing BufferedInput."));
+			NetworkPredictionProvider.WriteBufferedInput(TraceID, EventData.GetValue<int32>("NumBufferedFrames"), EventData.GetValue<bool>("bFault"));
 			break;
 		}
 
