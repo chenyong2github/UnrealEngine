@@ -3,6 +3,8 @@
 #include "SharedResource.h"
 #include "SharedResourceMemory.h"
 
+#include "Logging/LogScopedVerbosityOverride.h"
+
 namespace TextureShareItem
 {
 	/**
@@ -28,11 +30,17 @@ namespace TextureShareItem
 		SIZE_T Size = sizeof(FSharedResourcePublicData);
 
 		// Try open existing share memory:
-		ProcessMemory = FPlatformMemory::MapNamedSharedMemoryRegion(*GlobalProcessMemoryShareName_GUID, false, AccessMode, Size);
+		{
+			LOG_SCOPE_VERBOSITY_OVERRIDE(LogHAL, ELogVerbosity::Error);
+			ProcessMemory = FPlatformMemory::MapNamedSharedMemoryRegion(*GlobalProcessMemoryShareName_GUID, false, AccessMode, Size);
+		}
+
 		if (!ProcessMemory)
 		{
-			//Try Open new:
+			// Try Open new:
+
 			ProcessMemory = FPlatformMemory::MapNamedSharedMemoryRegion(*GlobalProcessMemoryShareName_GUID, true, AccessMode, Size);
+
 			if (ProcessMemory)
 			{
 				bCreateNew = true;
@@ -42,7 +50,12 @@ namespace TextureShareItem
 				FMemory::Memzero(ProcessMemory->GetAddress(), ProcessMemory->GetSize());
 
 				// Release old mutex (leak fix??)
-				ProcessMutex = FPlatformProcess::NewInterprocessSynchObject(*GlobalProcessMemoryMutexName, false, IPC::MaxProcessNum);
+
+				{
+					LOG_SCOPE_VERBOSITY_OVERRIDE(LogHAL, ELogVerbosity::Error);
+					ProcessMutex = FPlatformProcess::NewInterprocessSynchObject(*GlobalProcessMemoryMutexName, false, IPC::MaxProcessNum);
+				}
+
 				if (ProcessMutex)
 				{
 					FPlatformProcess::DeleteInterprocessSynchObject(ProcessMutex);
