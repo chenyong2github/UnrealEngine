@@ -29,6 +29,10 @@
 		{
 			"Name": "OSC",
 			"Enabled": true
+		},
+		{
+			"Name": "VirtualProductionUtilities",
+			"Enabled": true
 		}
 	]
 }
