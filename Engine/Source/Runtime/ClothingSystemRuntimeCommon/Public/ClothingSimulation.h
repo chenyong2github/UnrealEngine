@@ -5,6 +5,7 @@
 #include "Containers/Array.h"
 #include "Math/Transform.h"
 #include "Math/Vector.h"
+#include "Stats/Stats.h"
 
 class USkeletalMeshComponent;
 
