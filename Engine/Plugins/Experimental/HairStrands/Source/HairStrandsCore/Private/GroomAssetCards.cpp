@@ -121,12 +121,12 @@ bool FHairGroupsCardsSourceDescription::HasMeshChanged() const
 	if (SourceType == EHairCardsSourceType::Imported && ImportedMesh)
 	{
 		ImportedMesh->ConditionalPostLoad();
-		return ImportedMeshKey == ImportedMesh->RenderData->DerivedDataKey;
+		return ImportedMeshKey == ImportedMesh->GetRenderData()->DerivedDataKey;
 	}
 	else if (SourceType == EHairCardsSourceType::Procedural && ProceduralMesh)
 	{
 		ProceduralMesh->ConditionalPostLoad();
-		return ProceduralMeshKey == ProceduralMesh->RenderData->DerivedDataKey;
+		return ProceduralMeshKey == ProceduralMesh->GetRenderData()->DerivedDataKey;
 	}
 #endif
 	return false;
@@ -138,12 +138,12 @@ void FHairGroupsCardsSourceDescription::UpdateMeshKey()
 	if (SourceType == EHairCardsSourceType::Imported && ImportedMesh)
 	{
 		ImportedMesh->ConditionalPostLoad();
-		ImportedMeshKey = ImportedMesh->RenderData->DerivedDataKey;
+		ImportedMeshKey = ImportedMesh->GetRenderData()->DerivedDataKey;
 	}
 	else if (SourceType == EHairCardsSourceType::Procedural && ProceduralMesh)
 	{
 		ProceduralMesh->ConditionalPostLoad();
-		ProceduralMeshKey = ProceduralMesh->RenderData->DerivedDataKey;
+		ProceduralMeshKey = ProceduralMesh->GetRenderData()->DerivedDataKey;
 	}
 #endif
 }
