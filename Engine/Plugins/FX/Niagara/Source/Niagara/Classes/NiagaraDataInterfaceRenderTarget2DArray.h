@@ -21,7 +21,8 @@ struct FRenderTarget2DArrayRWInstanceData_GameThread
 	}
 
 	FIntVector Size = FIntVector(EForceInit::ForceInitToZero);
-	
+	EPixelFormat Format = EPixelFormat::PF_A16B16G16R16;
+
 	UTextureRenderTarget2DArray* TargetTexture = nullptr;
 #if WITH_EDITORONLY_DATA
 	uint32 bPreviewTexture : 1;
@@ -115,6 +116,13 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "Render Target")
 	FIntVector Size;
+
+	/** When enabled overrides the format of the render target, otherwise uses the project default setting. */
+	UPROPERTY(EditAnywhere, Category = "Render Target", meta = (EditCondition = "bOverrideFormat"))
+	TEnumAsByte<ETextureRenderTargetFormat> OverrideRenderTargetFormat;
+
+	UPROPERTY(EditAnywhere, Category = "Render Target", meta=(PinHiddenByDefault, InlineEditConditionToggle))
+	uint8 bOverrideFormat : 1;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(Transient, EditAnywhere, Category = "Render Target")
