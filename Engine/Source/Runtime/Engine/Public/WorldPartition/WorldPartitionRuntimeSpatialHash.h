@@ -4,6 +4,9 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
+
+#include "GameFramework/Info.h"
+
 #include "WorldPartition.h"
 #include "WorldPartitionRuntimeHash.h"
 #include "WorldPartitionRuntimeSpatialHashCell.h"
@@ -158,6 +161,24 @@ struct FSpatialHashRuntimeGrid
 #endif
 };
 
+/**
+ * Actor keeping information regarding a runtime grid
+ */
+UCLASS(NotPlaceable)
+class ASpatialHashRuntimeGridInfo : public AInfo
+{
+	GENERATED_UCLASS_BODY()
+
+public:
+	/** Begin UObject override */
+	virtual bool IsEditorOnly() const override { return true; }
+	/** End UObject override */
+
+public:
+	UPROPERTY(EditAnywhere, Category=Settings)
+	FSpatialHashRuntimeGrid	GridSettings;
+};
+
 #if WITH_EDITOR
 class FDataLayersID
 {
@@ -229,9 +250,6 @@ private:
 	UPROPERTY(EditAnywhere, Config, Category=RuntimeSettings)
 	TArray<FSpatialHashRuntimeGrid> Grids;
 
-	UPROPERTY()
-	TArray<FSpatialHashRuntimeGrid> HLODGrids;
-
 	TMap<FGuid, FGuid> CachedHLODParents;
 #endif
 
@@ -251,5 +269,6 @@ private:
 #if WITH_EDITOR
 	bool CreateStreamingGrid(const FSpatialHashRuntimeGrid& RuntimeGrid, const FSquare2DGridHelper& PartionedActors, EWorldPartitionStreamingMode Mode, UWorldPartitionStreamingPolicy* StreamingPolicy);
 #endif
-friend class UWorldPartitionSubsystem;
+
+	friend class UWorldPartitionSubsystem;
 };

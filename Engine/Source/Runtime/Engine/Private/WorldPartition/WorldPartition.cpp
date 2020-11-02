@@ -483,6 +483,13 @@ FWorldPartitionActorDescFactory* UWorldPartition::GetActorDescFactory(const AAct
 	return GetActorDescFactory(Actor->GetClass());
 }
 
+TUniquePtr<FWorldPartitionActorDesc> UWorldPartition::CreateActorDesc(const AActor* Actor)
+{
+	TUniquePtr<FWorldPartitionActorDesc> ActorDesc(GetActorDescFactory(Actor)->Create());
+	ActorDesc->Init(Actor);
+	return ActorDesc;
+}
+
 void UWorldPartition::ForEachIntersectingActorDesc(const FBox& Box, TSubclassOf<AActor> ActorClass, TFunctionRef<bool(const FWorldPartitionActorDesc*)> Predicate) const
 {
 	EditorHash->ForEachIntersectingActor(Box, [&ActorClass, Predicate](const FWorldPartitionActorDesc* ActorDesc)

@@ -45,6 +45,9 @@ public:
 
 private:
 #if WITH_EDITOR
+	void OnActorLoaded(AActor& Actor);
+	void OnActorUnloaded(AActor& Actor);
+	
 	void RegisterActorDescFactories(UWorldPartitionSubsystem* WorldPartitionSubsystem);
 #endif
 
@@ -59,7 +62,7 @@ private:
 	// Cells that where shown before their HLOD was loaded.
 	TMultiMap<FGuid, FName> PendingCellsShown;
 
-#if WITH_EDITOR
-	TMultiMap<FGuid, FGuid> PendingHLODAssignment;
+#if WITH_EDITORONLY_DATA
+	TMap<FGuid, AWorldPartitionHLOD*> ActorsToHLOD;
 #endif
 };

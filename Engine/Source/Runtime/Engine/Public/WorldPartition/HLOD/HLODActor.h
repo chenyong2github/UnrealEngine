@@ -3,7 +3,6 @@
 
 #include "GameFramework/Actor.h"
 #include "Containers/Array.h"
-#include "Containers/Map.h"
 #include "Containers/Set.h"
 #include "WorldPartition/WorldPartitionRuntimeCell.h"
 #include "HLODActor.generated.h"
@@ -23,55 +22,55 @@ public:
 	void OnCellHidden(FName InCellName);
 
 	const FGuid& GetHLODGuid() const { return HLODGuid; }
+	inline uint32 GetLODLevel() const { return LODLevel; }
+
+#if WITH_EDITOR
+	void OnSubActorLoaded(AActor& Actor);
+	void OnSubActorUnloaded(AActor& Actor);
+
+	void SetHLODPrimitives(const TArray<UPrimitiveComponent*>& InHLODPrimitives);
+	void SetChildrenPrimitives(const TArray<UPrimitiveComponent*>& InChildrenPrimitives);
+
+	const TArray<FGuid>& GetSubActors() const;
+
+	inline void SetLODLevel(uint32 InLODLevel) { LODLevel = InLODLevel; }
+#endif // WITH_EDITOR
 
 protected:
 	//~ Begin AActor Interface.
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+#if WITH_EDITOR
+	virtual void PostRegisterAllComponents() override;
+	virtual void PostUnregisterAllComponents() override;
+	virtual EActorGridPlacement GetDefaultGridPlacement() const override;
+	virtual void PostActorCreated() override;
+#endif
 	//~ End AActor Interface.
 
 	UPrimitiveComponent* GetHLODComponent();
 
-public:
 #if WITH_EDITOR
-	void SetHLODPrimitives(const TArray<UPrimitiveComponent*>& InHLODPrimitives, float InFadeOutDistance);
-	void SetChildrenPrimitives(const TArray<UPrimitiveComponent*>& InChildrenPrimitives);
+	void UpdateVisibility();
+	bool HasLoadedSubActors() const;
 
-	const TArray<FGuid>& GetSubActors() const;
-
-	void SetHLODLayer(const UHLODLayer* InSubActorsHLODLayer, int32 InSubActorsHLODLevel);
-	
-	const FBox& GetHLODBounds() const;
-	void SetHLODBounds(const FBox& InBounds);
-
-protected:
-	//~ Begin AActor Interface.
-	virtual EActorGridPlacement GetDefaultGridPlacement() const override;
-	virtual void PostActorCreated() override;
-	virtual void GetActorBounds(bool bOnlyCollidingComponents, FVector& Origin, FVector& BoxExtent, bool bIncludeFromChildActors) const override;
-	virtual void GetActorLocationBounds(bool bOnlyCollidingComponents, FVector& Origin, FVector& BoxExtent, bool bIncludeFromChildActors) const override;
-	//~ End AActor Interface.
+	void ResetLoadedSubActors();
+	void SetupLoadedSubActors();
 #endif // WITH_EDITOR
 
 private:
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	TArray<FGuid> SubActors;
-
-	UPROPERTY()
-	const UHLODLayer* SubActorsHLODLayer;
-
-	UPROPERTY()
-	FBox HLODBounds;
-
-	FDelegateHandle ActorRegisteredDelegateHandle;
-#endif
 	
-	UPROPERTY()
-	int32 SubActorsHLODLevel;
+	TSet<TWeakObjectPtr<AActor>> LoadedSubActors;
+#endif
 
 	UPROPERTY()
 	FGuid HLODGuid;
+
+	UPROPERTY()
+	uint32 LODLevel;
 };
 
 UCLASS()

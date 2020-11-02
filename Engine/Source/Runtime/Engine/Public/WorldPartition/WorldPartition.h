@@ -50,7 +50,6 @@ class ENGINE_API UWorldPartition final : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
-	friend class AActor;
 	friend class UWorldPartitionEditorCell;
 	friend class FWorldPartitionEditorModule;
 	friend class FUnrealEdMisc;
@@ -112,6 +111,8 @@ public:
 
 	FWorldPartitionActorDesc* GetActorDesc(const FGuid& Guid);
 	const FWorldPartitionActorDesc* GetActorDesc(const FGuid& Guid) const;
+
+	static TUniquePtr<FWorldPartitionActorDesc> CreateActorDesc(const AActor* Actor);
 
 	void LoadEditorCells(const FBox& Box);
 	void UnloadEditorCells(const FBox& Box);

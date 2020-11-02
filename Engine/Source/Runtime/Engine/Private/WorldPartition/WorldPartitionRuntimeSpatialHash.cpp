@@ -18,13 +18,14 @@
 #include "DrawDebugHelpers.h"
 #include "DisplayDebugHelpers.h"
 #include "RenderUtils.h"
+#include "Algo/Transform.h"
 
 #if WITH_EDITOR
 #include "Misc/HashBuilder.h"
 #include "Editor/EditorEngine.h"
 #include "Misc/Parse.h"
+#include "Misc/ScopedSlowTask.h"
 #include "Algo/Find.h"
-#include "Algo/Transform.h"
 #include "EngineUtils.h"
 
 #include "WorldPartition/HLOD/HLODLayer.h"
@@ -233,9 +234,11 @@ struct FActorCluster
 	}
 };
 
-void CreateActorCluster(const FGuid& ActorGuid, const FWorldPartitionActorDesc* ActorDesc, EActorGridPlacement GridPlacement, TMap<FGuid, FActorCluster*>& ActorToActorCluster, TSet<FActorCluster*>& ActorClustersSet, UWorldPartition* WorldPartition)
+void CreateActorCluster(const FWorldPartitionActorDesc* ActorDesc, EActorGridPlacement GridPlacement, TMap<FGuid, FActorCluster*>& ActorToActorCluster, TSet<FActorCluster*>& ActorClustersSet, UWorldPartition* WorldPartition)
 {
 	UWorld* World = WorldPartition->GetWorld();
+	const FGuid& ActorGuid = ActorDesc->GetGuid();
+
 	FActorCluster* ActorCluster = ActorToActorCluster.FindRef(ActorGuid);
 	if (!ActorCluster)
 	{
@@ -282,7 +285,9 @@ void CreateActorCluster(const FGuid& ActorGuid, const FWorldPartitionActorDesc* 
 	}
 }
 
-TArray<FActorCluster> CreateActorClusters(UWorldPartition* WorldPartition)
+typedef TFunctionRef<bool(const FWorldPartitionActorDesc&)> FFilterPredicate;
+
+TArray<FActorCluster> CreateActorClustersImpl(UWorldPartition* WorldPartition, TOptional<FFilterPredicate> InFilterPredicate)
 {
 	TMap<FGuid, FActorCluster*> ActorToActorCluster;
 	TSet<FActorCluster*> ActorClustersSet;
@@ -296,7 +301,6 @@ TArray<FActorCluster> CreateActorClusters(UWorldPartition* WorldPartition)
 
 	for (const auto& Pair : WorldPartition->Actors)
 	{
-		const FGuid& ActorGuid = Pair.Key;
 		const FWorldPartitionActorDesc* ActorDesc = Pair.Value.Get();
 		EActorGridPlacement GridPlacement = ActorDesc->GetGridPlacement();
 
@@ -309,7 +313,10 @@ TArray<FActorCluster> CreateActorClusters(UWorldPartition* WorldPartition)
 			}
 		}
 
-		CreateActorCluster(ActorGuid, ActorDesc, GridPlacement, ActorToActorCluster, ActorClustersSet, WorldPartition);
+		if (!InFilterPredicate.IsSet() || InFilterPredicate.GetValue()(*ActorDesc))
+		{
+			CreateActorCluster(ActorDesc, GridPlacement, ActorToActorCluster, ActorClustersSet, WorldPartition);
+		}
 	}
 
 	TArray<FActorCluster> ActorClusters;
@@ -318,6 +325,17 @@ TArray<FActorCluster> CreateActorClusters(UWorldPartition* WorldPartition)
 	for (FActorCluster* ActorCluster : ActorClustersSet) { delete ActorCluster; }
 	return ActorClusters;
 }
+
+TArray<FActorCluster> CreateActorClusters(UWorldPartition* WorldPartition, const FFilterPredicate& InFilterPredicate)
+{
+	return CreateActorClustersImpl(WorldPartition, InFilterPredicate);
+}
+
+TArray<FActorCluster> CreateActorClusters(UWorldPartition* WorldPartition)
+{
+	return CreateActorClustersImpl(WorldPartition, TOptional<FFilterPredicate>());
+}
+
 #endif
 
 /**
@@ -1043,7 +1061,9 @@ void FSpatialHashStreamingGrid::Draw2D(UCanvas* Canvas, const TArray<FWorldParti
 // ------------------------------------------------------------------------------------------------
 
 #if WITH_EDITOR
-static FSquare2DGridHelper GetPartitionedActors(const UWorldPartition* WorldPartition, const FBox& WorldBounds, const FSpatialHashRuntimeGrid& Grid, const TArray<FActorCluster>& GridActors)
+typedef TFunctionRef<const FWorldPartitionActorDesc*(const FGuid&)> FGuidToActorDescFunc;
+
+static FSquare2DGridHelper GetPartitionedActors(const UWorldPartition* WorldPartition, const FBox& WorldBounds, const FSpatialHashRuntimeGrid& Grid, const TArray<FActorCluster>& GridActors, const FGuidToActorDescFunc& GuidToActorDescFunc)
 {
 	UE_SCOPED_TIMER(TEXT("GetPartitionedActors"), LogWorldPartitionRuntimeSpatialHash, Log);
 
@@ -1093,74 +1113,71 @@ static FSquare2DGridHelper GetPartitionedActors(const UWorldPartition* WorldPart
 			GridPlacement = EActorGridPlacement::AlwaysLoaded;
 		}
 
-		if (GridPlacement != EActorGridPlacement::AlwaysLoaded)
+		switch (GridPlacement)
 		{
-			switch (GridPlacement)
+		case EActorGridPlacement::Location:
+		{
+			FIntVector2 CellCoords;
+			check(ActorCluster.Actors.Num() == 1);
+			const FGuid& ActorGuid = *ActorCluster.Actors.CreateConstIterator();
+			const FWorldPartitionActorDesc& ActorDesc = *GuidToActorDescFunc(ActorGuid);
+			if (PartitionedActors.GetLowestLevel().GetCellCoords(FVector2D(ActorDesc.GetOrigin()), CellCoords))
 			{
-			case EActorGridPlacement::Location:
-			{
-				FIntVector2 CellCoords;
-				check(ActorCluster.Actors.Num() == 1);
-				const FGuid& ActorGuid = *ActorCluster.Actors.CreateConstIterator();
-				const FWorldPartitionActorDesc& ActorDesc = *WorldPartition->GetActorDesc(ActorGuid);
-				if (PartitionedActors.GetLowestLevel().GetCellCoords(FVector2D(ActorDesc.GetOrigin()), CellCoords))
+				TArray<const UDataLayer*> ActorDataLayers;
+				if (const AWorldDataLayers* WorldDataLayers = AWorldDataLayers::Get(WorldPartition->GetWorld()))
 				{
-					TArray<const UDataLayer*> ActorDataLayers;
-					if (const AWorldDataLayers* WorldDataLayers = AWorldDataLayers::Get(WorldPartition->GetWorld()))
+					for (const FName& DataLayerName : ActorDesc.GetDataLayers())
 					{
-						for (const FName& DataLayerName : ActorDesc.GetDataLayers())
+						if (const UDataLayer* DataLayer = WorldDataLayers->GetDataLayerFromName(DataLayerName))
 						{
-							if (const UDataLayer* DataLayer = WorldDataLayers->GetDataLayerFromName(DataLayerName))
-							{
-								ActorDataLayers.Add(DataLayer);
-							}
+							ActorDataLayers.Add(DataLayer);
 						}
 					}
-					PartitionedActors.GetLowestLevel().GetCell(CellCoords).AddActor(ActorGuid, ActorDataLayers);
 				}
-				else
-				{
-					GridPlacement = EActorGridPlacement::AlwaysLoaded;
-					bAlwaysLoadedPromotedOutOfGrid = true;
-				}
-				break;
+				PartitionedActors.GetLowestLevel().GetCell(CellCoords).AddActor(ActorGuid, ActorDataLayers);
 			}
-			case EActorGridPlacement::Bounds:
+			else
 			{
-				// Find grid level cell that encompasses the actor cluster and put actors in it.
-				bool bFoundCell = false;
-				for (FSquare2DGridHelper::FGridLevel& GridLevel : PartitionedActors.Levels)
-				{
-					int32 IntersectingCellCount = 0;
-					GridLevel.ForEachIntersectingCellsBreakable(ActorCluster.Bounds, [&IntersectingCellCount](const FIntVector2& Coords) { return ++IntersectingCellCount <= 1; });
-					if (IntersectingCellCount == 1)
-					{
-						GridLevel.ForEachIntersectingCells(ActorCluster.Bounds, [&GridLevel,&ActorCluster](const FIntVector2& Coords)
-						{
-							GridLevel.GetCell(Coords).AddActors(ActorCluster.Actors, ActorCluster.DataLayers);
-						});
-						bFoundCell = true;
-						break;
-					}
-				}
-				if (!bFoundCell)
-				{
-					GridPlacement = EActorGridPlacement::AlwaysLoaded;
-					bAlwaysLoadedPromotedOutOfGrid = true;
-				}
-				break;
+				GridPlacement = EActorGridPlacement::AlwaysLoaded;
+				bAlwaysLoadedPromotedOutOfGrid = true;
 			}
-			default:	
-				check(0);
-			}
+			break;
 		}
-			
-		if (GridPlacement == EActorGridPlacement::AlwaysLoaded)
+		case EActorGridPlacement::Bounds:
+		{
+			// Find grid level cell that encompasses the actor cluster and put actors in it.
+			bool bFoundCell = false;
+			for (FSquare2DGridHelper::FGridLevel& GridLevel : PartitionedActors.Levels)
+			{
+				int32 IntersectingCellCount = 0;
+				GridLevel.ForEachIntersectingCellsBreakable(ActorCluster.Bounds, [&IntersectingCellCount](const FIntVector2& Coords) { return ++IntersectingCellCount <= 1; });
+				if (IntersectingCellCount == 1)
+				{
+					GridLevel.ForEachIntersectingCells(ActorCluster.Bounds, [&GridLevel,&ActorCluster](const FIntVector2& Coords)
+					{
+						GridLevel.GetCell(Coords).AddActors(ActorCluster.Actors, ActorCluster.DataLayers);
+					});
+					bFoundCell = true;
+					break;
+				}
+			}
+			if (!bFoundCell)
+			{
+				GridPlacement = EActorGridPlacement::AlwaysLoaded;
+				bAlwaysLoadedPromotedOutOfGrid = true;
+			}
+			break;
+		}
+		case EActorGridPlacement::AlwaysLoaded:
 		{
 			PartitionedActors.GetAlwaysLoadedCell().AddActors(ActorCluster.Actors, ActorCluster.DataLayers);
+			break;
+		}
+		default:	
+			check(0);
 		}
 
-		if (!LogWorldPartitionRuntimeSpatialHash.IsSuppressed(ELogVerbosity::Verbose))
+		if (UE_LOG_ACTIVE(LogWorldPartitionRuntimeSpatialHash, Verbose))
 		{
 			if (ActorCluster.Actors.Num() > 1)
 			{
@@ -1176,7 +1193,7 @@ static FSquare2DGridHelper GetPartitionedActors(const UWorldPartition* WorldPart
 
 				for (const FGuid& ActorGuid : ActorCluster.Actors)
 				{
-					const FWorldPartitionActorDesc& Desc = *WorldPartition->GetActorDesc(ActorGuid);
+					const FWorldPartitionActorDesc& Desc = *GuidToActorDescFunc(ActorGuid);
 					UE_LOG(LogWorldPartitionRuntimeSpatialHash, Verbose, TEXT("   - Actor: %s (%s)"), *Desc.GetActorPath().ToString(), *ActorGuid.ToString(EGuidFormats::UniqueObjectGuid));
 					UE_LOG(LogWorldPartitionRuntimeSpatialHash, Verbose, TEXT("            %s"), *Desc.GetActorPackage().ToString());
 				}
@@ -1189,7 +1206,21 @@ static FSquare2DGridHelper GetPartitionedActors(const UWorldPartition* WorldPart
 	
 	return PartitionedActors;
 }
+
+static FSquare2DGridHelper GetPartitionedActors(const UWorldPartition* WorldPartition, const FBox& WorldBounds, const FSpatialHashRuntimeGrid& Grid, const TArray<FActorCluster>& GridActors)
+{
+	return GetPartitionedActors(WorldPartition, WorldBounds, Grid, GridActors, [WorldPartition](const FGuid& ActorGuid) { return WorldPartition->GetActorDesc(ActorGuid); });
+}
+
 #endif //WITH_EDITOR
+
+ASpatialHashRuntimeGridInfo::ASpatialHashRuntimeGridInfo(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+#if WITH_EDITORONLY_DATA
+	bListedInSceneOutliner = false;
+#endif
+}
 
 UWorldPartitionRuntimeSpatialHash::UWorldPartitionRuntimeSpatialHash(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -1269,7 +1300,12 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateStreaming(EWorldPartitionStreami
 
 	TArray<FSpatialHashRuntimeGrid> AllGrids;
 	AllGrids.Append(Grids);
-	AllGrids.Append(HLODGrids);
+
+	// Append grids from runtime grid actors
+	for (TActorIterator<ASpatialHashRuntimeGridInfo> ItRuntimeGridActor(GetWorld()); ItRuntimeGridActor; ++ItRuntimeGridActor)
+	{
+		AllGrids.Add(ItRuntimeGridActor->GridSettings);
+	}
 
 	check(!StreamingGrids.Num());
 
@@ -1317,13 +1353,18 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateStreaming(EWorldPartitionStreami
 	return true;
 }
 
-FName UWorldPartitionRuntimeSpatialHash::GetCellName(FName InGridName, int32 InLevel, int32 InCellX, int32 InCellY, const FDataLayersID& InDataLayerID) const
+static FName GetCellName(UWorldPartition* WorldPartition, FName InGridName, int32 InLevel, int32 InCellX, int32 InCellY, const FDataLayersID& InDataLayerID)
 {
-	UWorldPartition* WorldPartition = GetOuterUWorldPartition();
 	const FString PackageName = FPackageName::GetShortName(WorldPartition->GetPackage());
 	const FString PackageNameNoPIEPrefix = UWorld::RemovePIEPrefix(PackageName);
 
 	return FName(*FString::Printf(TEXT("WPRT_%s_%s_Cell_L%d_X%02d_Y%02d_DL%X"), *PackageNameNoPIEPrefix, *InGridName.ToString(), InLevel, InCellX, InCellY, InDataLayerID.GetStableHash()));
+}
+
+FName UWorldPartitionRuntimeSpatialHash::GetCellName(FName InGridName, int32 InLevel, int32 InCellX, int32 InCellY, const FDataLayersID& InDataLayerID) const
+{
+	UWorldPartition* WorldPartition = GetOuterUWorldPartition();
+	return ::GetCellName(WorldPartition, InGridName, InLevel, InCellX, InCellY, InDataLayerID);
 }
 
 void UWorldPartitionRuntimeSpatialHash::CacheHLODParents()
@@ -1459,11 +1500,244 @@ void UWorldPartitionRuntimeSpatialHash::FlushStreaming()
 	StreamingGrids.Empty();
 }
 
+TArray<AWorldPartitionHLOD*> GenerateHLODsForGrid(UWorldPartition* WorldPartition, const FSpatialHashRuntimeGrid& RuntimeGrid, uint32 HLODLevel, const TArray<FActorCluster>& ActorClusters, const FGuidToActorDescFunc& GuidToActorDescFunc)
+{
+	const FBox WorldBounds = WorldPartition->GetWorldBounds();
+
+	const FSquare2DGridHelper PartitionedActors = GetPartitionedActors(WorldPartition, WorldBounds, RuntimeGrid, ActorClusters, GuidToActorDescFunc);
+
+	// Quick pass to compute the number of cells we'll have to process, to provide a meaningful progress display
+	int32 NbCellsToProcess = 0;
+	PartitionedActors.ForEachCells([&PartitionedActors, &NbCellsToProcess](const FIntVector& CellCoord)
+	{
+		const FSquare2DGridHelper::FGridLevel::FGridCell& GridCell = PartitionedActors.GetCell(CellCoord);
+		
+		// For now, HLOD only processes actors that are not in data layers
+		if (const FSquare2DGridHelper::FGridLevel::FGridCellDataChunk* GridCellDataChunk = GridCell.GetNoDataLayersDataChunk())
+		{
+			check(!GridCellDataChunk->HasDataLayers());
+			const bool bIsCellAlwaysLoaded = &GridCell == &PartitionedActors.GetAlwaysLoadedCell();
+
+			if (!bIsCellAlwaysLoaded && GridCellDataChunk->GetActors().Num() != 0)
+			{
+				NbCellsToProcess++;
+			}
+		}
+	});
+
+	FScopedSlowTask SlowTask(NbCellsToProcess, FText::FromString(FString::Printf(TEXT("Building HLODs for grid %s..."), *RuntimeGrid.GridName.ToString())));
+	SlowTask.MakeDialog();
+
+	TArray<AWorldPartitionHLOD*> GridHLODActors;
+	PartitionedActors.ForEachCells([&PartitionedActors, &GridHLODActors, &SlowTask, &GuidToActorDescFunc, RuntimeGrid, HLODLevel, WorldPartition, WorldBounds](const FIntVector& CellCoord)
+	{
+		const FSquare2DGridHelper::FGridLevel::FGridCell& GridCell = PartitionedActors.GetCell(CellCoord);
+
+		// For now, HLOD only processes actors that are not in data layers
+		if (const FSquare2DGridHelper::FGridLevel::FGridCellDataChunk* GridCellDataChunk = GridCell.GetNoDataLayersDataChunk())
+		{
+			check(!GridCellDataChunk->HasDataLayers());
+			const bool bIsCellAlwaysLoaded = &GridCell == &PartitionedActors.GetAlwaysLoadedCell();
+
+			if (!bIsCellAlwaysLoaded && GridCellDataChunk->GetActors().Num() != 0)
+			{
+				SlowTask.EnterProgressFrame(1);
+
+				FBox2D CellBounds2D;
+				PartitionedActors.GetCellBounds(CellCoord, CellBounds2D);
+
+				FName CellName = GetCellName(WorldPartition, RuntimeGrid.GridName, CellCoord.Z, CellCoord.X, CellCoord.Y, GridCellDataChunk->GetDataLayersID());
+				FBox CellBounds = FBox(FVector(CellBounds2D.Min, WorldBounds.Min.Z), FVector(CellBounds2D.Max, WorldBounds.Max.Z));
+
+				TArray<AActor*> CellActors;
+				Algo::Transform(GridCellDataChunk->GetActors(), CellActors, [&GuidToActorDescFunc](const FGuid& ActorGuid){ return GuidToActorDescFunc(ActorGuid)->GetActor(); });
+
+				TArray<AWorldPartitionHLOD*> CellHLODActors;
+				CellHLODActors = UHLODLayer::GenerateHLODForCell(WorldPartition, CellName, CellBounds, HLODLevel, CellActors);
+
+				GridHLODActors.Append(CellHLODActors);
+			}
+		}
+	});
+	return GridHLODActors;
+}
+
+// Find all HLOD grids from the HLODLayer assets we have and build a dependency graph
+void GatherHLODGrids(TMap<FName, FSpatialHashRuntimeGrid>& OutHLODGrids, TMap<FName, TSet<FName>>& OutHLODGridsGraph)
+{
+	// We don't know the HLOD level for those grids yet, we'll have to compute a graph of dependencies between our HLOD layers first
+	// Start with level 0, we'll rename once we have the correct info
+	const uint32 InitialHLODLevel = 0;
+
+	// Gather up all HLODLayer assets
+	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+	TArray<FAssetData> HLODLayerAssets;
+	AssetRegistryModule.Get().GetAssetsByClass(UHLODLayer::StaticClass()->GetFName(), HLODLayerAssets);
+
+	// Find all used HLOD grids & build a dependency graph
+	for (const FAssetData& HLODLayerAsset : HLODLayerAssets)
+	{
+		if (const UHLODLayer* HLODLayer = Cast<UHLODLayer>(HLODLayerAsset.GetAsset()))
+		{
+			FSpatialHashRuntimeGrid HLODGrid;
+			HLODGrid.CellSize = HLODLayer->GetCellSize();
+			HLODGrid.LoadingRange = HLODLayer->GetLoadingRange();
+			HLODGrid.DebugColor = FLinearColor::Red;
+			HLODGrid.GridName = HLODLayer->GetRuntimeGrid(InitialHLODLevel);
+
+			OutHLODGrids.Emplace(HLODGrid.GridName, HLODGrid);
+
+			TSet<FName>& HLODParentGrids = OutHLODGridsGraph.FindOrAdd(HLODGrid.GridName);
+			if (const UHLODLayer* ParentHLODLayer = HLODLayer->GetParentLayer().LoadSynchronous())
+			{
+				HLODParentGrids.Add(ParentHLODLayer->GetRuntimeGrid(InitialHLODLevel));
+			}
+		}
+	}
+}
+
+// Sort HLOD grids in the order they'll need to be processed for HLOD generation
+bool SortHLODGrids(const TMap<FName, TSet<FName>>& InHLODGridsGraph, TArray<FName>& OutSortedGrids, TMap<FName, uint32>& OutGridsDepth)
+{
+	TSet<FName>		ProcessedGridsSet;	// Processed grids
+	TSet<FName>		VisitedGridsSet;	// Visited grids
+
+	TFunctionRef<bool(const FName, uint32)> VisitGraph = [&](const FName GridName, uint32 CurrentDepth) -> bool
+	{
+		uint32& GridDepth = OutGridsDepth.FindOrAdd(GridName);
+		GridDepth = FMath::Max(GridDepth, CurrentDepth);
+
+		if (ProcessedGridsSet.Contains(GridName))
+		{
+			return true;
+		}
+
+		// Detect cyclic dependencies between HLOD grids...
+		if (VisitedGridsSet.Contains(GridName))
+		{
+			return false; // Not a DAG
+		}
+
+		VisitedGridsSet.Add(GridName);
+
+		for (const FName ParentGridName : InHLODGridsGraph.FindChecked(GridName))
+		{
+			if (!VisitGraph(ParentGridName, CurrentDepth + 1))
+			{
+				return false;
+			}
+		}
+
+		VisitedGridsSet.Remove(GridName);
+
+		ProcessedGridsSet.Add(GridName);
+		OutSortedGrids.Insert(GridName, 0);
+		return true;
+	};
+
+	bool bIsADAG = true;
+	for (const auto& HLODGridEntry : InHLODGridsGraph)
+	{
+		FName GridName = HLODGridEntry.Key;
+		if (!ProcessedGridsSet.Contains(GridName))
+		{
+			const uint32 HLODDepth = 0;
+			bIsADAG = VisitGraph(GridName, HLODDepth);
+			if (!bIsADAG)
+			{
+				break;
+			}
+		}
+	}
+
+	// Remove leafs, those grids are the standard runtime grids, we'll generate HLOD for those in a first pass
+	OutSortedGrids.RemoveAll([&InHLODGridsGraph](const FName GridName) { return !InHLODGridsGraph.Contains(GridName); });
+
+	return bIsADAG;
+}
+
+void RenameHLODGrids(TMap<FName, FSpatialHashRuntimeGrid>& HLODGrids, TArray<FName>& SortedGrids, TMap<FName, uint32>& GridsDepth)
+{
+	// Build a mapping of old -> new names
+	TMap<FName, FName> NewNamesMapping;
+	for (const auto& HLODGrid : HLODGrids)
+	{
+		NewNamesMapping.Emplace(HLODGrid.Key, UHLODLayer::GetRuntimeGridName(GridsDepth[HLODGrid.Key], HLODGrid.Value.CellSize, HLODGrid.Value.LoadingRange));
+	}
+
+	// Remplace map entries
+	for (const auto& Names : NewNamesMapping)
+	{
+		FSpatialHashRuntimeGrid RuntimeGrid = HLODGrids.FindAndRemoveChecked(Names.Key);
+		RuntimeGrid.GridName = Names.Value;
+		HLODGrids.Emplace(Names.Value, RuntimeGrid);
+
+		int32 GridDepth = GridsDepth.FindAndRemoveChecked(Names.Key);
+		GridsDepth.Emplace(Names.Value, GridDepth);
+	}
+
+	// Replace arrays entries
+	for (FName& Name : SortedGrids)
+	{
+		Name = NewNamesMapping[Name];
+	}
+}
+
+// Create/destroy HLOD grid actors
+void UpdateHLODGridsActors(UWorld* World, const TMap<FName, FSpatialHashRuntimeGrid>& HLODGrids)
+{
+	static const FName HLODGridTag = TEXT("HLOD");
+	static const uint32 HLODGridTagLen = HLODGridTag.ToString().Len();
+
+	// Gather all existing HLOD grid actors, see if some are unused and needs to be deleted
+	TMap<FName, ASpatialHashRuntimeGridInfo*> ExistingGridActors;
+	for (TActorIterator<ASpatialHashRuntimeGridInfo> ItRuntimeGridActor(World); ItRuntimeGridActor; ++ItRuntimeGridActor)
+	{
+		ASpatialHashRuntimeGridInfo* GridActor = *ItRuntimeGridActor;
+		if (GridActor->ActorHasTag(HLODGridTag))
+		{
+			if (HLODGrids.Contains(GridActor->GridSettings.GridName))
+			{
+				ExistingGridActors.Emplace(GridActor->GridSettings.GridName, GridActor);
+			}
+			else
+			{
+				World->DestroyActor(GridActor);
+			}
+		}
+	}
+
+	// Create missing HLOD grid actors 
+	for (const auto& HLODGridEntry : HLODGrids)
+	{
+		FName GridName = HLODGridEntry.Key;
+		if (!ExistingGridActors.Contains(GridName))
+		{
+			const FSpatialHashRuntimeGrid& GridSettings = HLODGridEntry.Value;
+
+			FActorSpawnParameters SpawnParams;
+			SpawnParams.bCreateActorPackage = true;
+			ASpatialHashRuntimeGridInfo* GridActor = World->SpawnActor<ASpatialHashRuntimeGridInfo>(SpawnParams);
+			GridActor->Tags.Add(HLODGridTag);
+			GridActor->SetActorLabel(GridSettings.GridName.ToString());
+			GridActor->GridSettings = GridSettings;
+
+			// Setup grid debug color to match HLODColorationColors
+			const uint32 LastLODColorationColorIdx = GEngine->HLODColorationColors.Num() - 1;
+			uint32 HLODLevel;
+			if (!LexTryParseString(HLODLevel, *GridSettings.GridName.ToString().Mid(HLODGridTagLen, 1)))
+			{
+				HLODLevel = LastLODColorationColorIdx;
+			}
+			HLODLevel = FMath::Clamp(HLODLevel + 2, 0U, LastLODColorationColorIdx);
+			GridActor->GridSettings.DebugColor = GEngine->HLODColorationColors[HLODLevel];
+		}
+	}
+}
+
 bool UWorldPartitionRuntimeSpatialHash::GenerateHLOD()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionRuntimeSpatialHash::GenerateHLOD);
-
-	FAutoScopedDurationTimer Timer;
 
 	if (!Grids.Num())
 	{
@@ -1471,51 +1745,23 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateHLOD()
 		return false;
 	}
 
-	TArray<FSpatialHashRuntimeGrid> NewHLODGrids;
+	// Find all used HLOD grids & build a dependency graph
+	TMap<FName, FSpatialHashRuntimeGrid> HLODGrids;
+	TMap<FName, TSet<FName>>			 HLODGridsGraph;
+	GatherHLODGrids(HLODGrids, HLODGridsGraph);
 
-	// Gather up all HLODLayer assets
-	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-	TArray<FAssetData> HLODLayerAssets;
-	AssetRegistryModule.Get().GetAssetsByClass(UHLODLayer::StaticClass()->GetFName(), HLODLayerAssets);
-
-	// Ensure all assets are loaded
-	for (const FAssetData& HLODLayerAsset : HLODLayerAssets)
+	// Sort HLOD grids in the order they'll need to be processed
+	TArray<FName>	SortedGrids;		// HLOD Grids, sorted in the order they'll need to be processed for HLOD generation
+	TMap<FName, uint32>	GridsDepth;		// Depth - Used to obtain the HLOD level
+	bool bIsADAG = SortHLODGrids(HLODGridsGraph, SortedGrids, GridsDepth);
+	if (!bIsADAG)
 	{
-		if (const UHLODLayer* HLODLayer = Cast<UHLODLayer>(HLODLayerAsset.GetAsset()))
-		{
-			check(HLODLayer->GetLoadingRange() > 0);
-
-			FName RuntimeGrid = HLODLayer->GetRuntimeGrid();
-			if (RuntimeGrid == NAME_None)
-			{
-				UE_LOG(LogWorldPartitionRuntimeSpatialHash, Error, TEXT("Invalid partition grids setup"));
-				return false;
-			}
-
-			const FSpatialHashRuntimeGrid* ExistingGrid = NewHLODGrids.FindByPredicate([RuntimeGrid](const FSpatialHashRuntimeGrid& ExistingGrid) { return ExistingGrid.GridName == RuntimeGrid; });
-			if (ExistingGrid)
-			{
-				UE_LOG(LogWorldPartitionRuntimeSpatialHash, Error, TEXT("Found two HLOD grids using the same RuntimeGrid name: %s"), *RuntimeGrid.ToString());
-				return false;
-			}
-
-			ExistingGrid = Grids.FindByPredicate([RuntimeGrid](const FSpatialHashRuntimeGrid& ExistingGrid) { return ExistingGrid.GridName == RuntimeGrid; });
-			if (ExistingGrid)
-			{
-				UE_LOG(LogWorldPartitionRuntimeSpatialHash, Error, TEXT("HLODLayer RuntimeGrid must not match an existing grid name: %s"), *RuntimeGrid.ToString());
-				return false;
-			}
-
-			FSpatialHashRuntimeGrid& HLODGrid = NewHLODGrids.AddDefaulted_GetRef();
-			HLODGrid.GridName = HLODLayer->GetRuntimeGrid();
-			HLODGrid.CellSize = HLODLayer->GetLoadingRange() * 2;	// @todo_ow: Proper setup
-			HLODGrid.LoadingRange = HLODLayer->GetLoadingRange();
-			HLODGrid.DebugColor = FLinearColor::Red;
-		}
+		UE_LOG(LogWorldPartitionRuntimeSpatialHash, Error, TEXT("Invalid grids setup, cycles detected"));
+		return false;
 	}
 
-	// Recreate HLODGrids from known layers
-	HLODGrids = NewHLODGrids;
+	// Now that we computed proper depth per grid, rename the grids
+	RenameHLODGrids(HLODGrids, SortedGrids, GridsDepth);
 
 	TMap<FName, int32> GridsMapping;
 	GridsMapping.Add(NAME_None, 0);
@@ -1526,20 +1772,16 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateHLOD()
 		GridsMapping.Add(Grid.GridName, i);
 	}
 
-	// Ignore HLOD clusters as we are rebuilding them
-	for (const FSpatialHashRuntimeGrid& HLODGrid : HLODGrids)
-	{
-		check(!GridsMapping.Contains(HLODGrid.GridName));
-		GridsMapping.Add(HLODGrid.GridName, INDEX_NONE);
-	}
-
 	UWorldPartition* WorldPartition = GetOuterUWorldPartition();
 
-	// Create actor clusters
-	TArray<FActorCluster> ActorClusters = CreateActorClusters(WorldPartition);
+	// Create actor clusters - ignore HLOD actors
+	TArray<FActorCluster> ActorClusters = CreateActorClusters(WorldPartition, [](const FWorldPartitionActorDesc& ActorDesc)
+	{
+		return !ActorDesc.GetActorClass()->IsChildOf<AWorldPartitionHLOD>();
+	});
 
-	TArray<TArray<FActorCluster>> GridActors;
-	GridActors.InsertDefaulted(0, Grids.Num());
+	TArray<TArray<FActorCluster>> GridsClusters;
+	GridsClusters.InsertDefaulted(0, Grids.Num());
 
 	for (FActorCluster& ActorCluster : ActorClusters)
 	{
@@ -1550,59 +1792,74 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateHLOD()
 		}
 
 		int32 GridIndex = FoundIndex ? *FoundIndex : 0;
-		if (GridIndex != INDEX_NONE)
-		{
-			GridActors[GridIndex].Add(MoveTemp(ActorCluster));
-		}
+		GridsClusters[GridIndex].Add(MoveTemp(ActorCluster));
 	}
 
-	// Keep track of all valid HLOD actors
-	TSet<AWorldPartitionHLOD*> ValidHLODActors;
+	// Keep track of all valid HLOD actors, along with which runtime grid they live in
+	TMap<FGuid, AWorldPartitionHLOD*>					ValidHLODActors;
+	TMap<FGuid, TUniquePtr<FWorldPartitionActorDesc>>	ValidHLODActorsDescs;
+	TMap<FName, TArray<AWorldPartitionHLOD*>>			GridsHLODActors;
 
-	const FBox WorldBounds = WorldPartition->GetWorldBounds();
+	auto GenerateHLODs = [&ValidHLODActors, &ValidHLODActorsDescs, &GridsHLODActors, WorldPartition, &GridsDepth](const FSpatialHashRuntimeGrid& RuntimeGrid, uint32 HLODLevel, const TArray<FActorCluster>& ActorClusters, const FGuidToActorDescFunc& GuidToActorDescFunc)
+	{
+		// Generate HLODs for this grid
+		TArray<AWorldPartitionHLOD*> HLODActors = GenerateHLODsForGrid(WorldPartition, RuntimeGrid, HLODLevel, ActorClusters, GuidToActorDescFunc);
+
+		for (AWorldPartitionHLOD* HLODActor : HLODActors)
+		{
+			ValidHLODActors.Emplace(HLODActor->GetActorGuid(), HLODActor);
+			ValidHLODActorsDescs.Emplace(HLODActor->GetActorGuid(), UWorldPartition::CreateActorDesc(HLODActor));
+			GridsHLODActors.FindOrAdd(HLODActor->RuntimeGrid).Add(HLODActor);
+		}
+	};
+
+	// Generate HLODs for the standard runtime grids (HLOD 0)
 	for (int32 GridIndex = 0; GridIndex < Grids.Num(); GridIndex++)
 	{
-		const FSpatialHashRuntimeGrid& RuntimeGrid = Grids[GridIndex];
-		const FSquare2DGridHelper PartionedActors = GetPartitionedActors(WorldPartition, WorldBounds, RuntimeGrid, GridActors[GridIndex]);
-
-		PartionedActors.ForEachCells([PartionedActors, &ValidHLODActors, RuntimeGrid, WorldPartition, WorldBounds, this](const FIntVector& CellCoord)
+		// Generate HLODs for this grid - retrieve actors from the world partition
+		GenerateHLODs(Grids[GridIndex], 0, GridsClusters[GridIndex], [WorldPartition](const FGuid& ActorGuid)
 		{
-			const FSquare2DGridHelper::FGridLevel::FGridCell& GridCell = PartionedActors.GetCell(CellCoord);
-
-			// For now, HLOD only processes actors that are not in data layers
-			if (const FSquare2DGridHelper::FGridLevel::FGridCellDataChunk* GridCellDataChunk = GridCell.GetNoDataLayersDataChunk())
-			{
-				check(!GridCellDataChunk->HasDataLayers());
-				const bool bIsCellAlwaysLoaded = &GridCell == &PartionedActors.GetAlwaysLoadedCell();
-
-				if (!bIsCellAlwaysLoaded && GridCellDataChunk->GetActors().Num() != 0)
-				{
-					FBox2D CellBounds2D;
-					PartionedActors.GetCellBounds(CellCoord, CellBounds2D);
-
-					FName CellName = GetCellName(RuntimeGrid.GridName, CellCoord.Z, CellCoord.X, CellCoord.Y, GridCellDataChunk->GetDataLayersID());
-					float CellLoadingRange = RuntimeGrid.LoadingRange;
-					FBox CellBounds = FBox(FVector(CellBounds2D.Min, WorldBounds.Min.Z), FVector(CellBounds2D.Max, WorldBounds.Max.Z));
-
-					TArray<AWorldPartitionHLOD*> HLODActors;
-					HLODActors = UHLODLayer::GenerateHLODForCell(WorldPartition, CellName, CellBounds, CellLoadingRange, GridCellDataChunk->GetActors());
-
-					ValidHLODActors.Append(HLODActors);
-				}
-			}
+			return WorldPartition->GetActorDesc(ActorGuid);
 		});
 	}
 
-	// Destroy all invalid HLOD actors
+	// Now, go on and create HLOD actors from HLOD grids (HLOD 1-N)
+	for (const FName HLODGridName : SortedGrids)
+	{
+		// No need to process empty grids
+		if (!GridsHLODActors.Contains(HLODGridName))
+		{
+			HLODGrids.Remove(HLODGridName); // No need to keep this grid around, we have no actors in it
+			continue;
+		}
+
+		// Create one actor cluster per HLOD actor
+		TArray<FActorCluster> HLODActorClusters;
+		Algo::Transform(GridsHLODActors[HLODGridName], HLODActorClusters, [&ValidHLODActorsDescs](const AWorldPartitionHLOD* HLODActor)
+		{
+			FWorldPartitionActorDesc* ActorDesc = ValidHLODActorsDescs.FindChecked(HLODActor->GetActorGuid()).Get();
+			return FActorCluster(ActorDesc, ActorDesc->GetGridPlacement(), HLODActor->GetWorld());
+		});
+
+		// Generate HLODs for this grid - retrieve actors from our ValidHLODActors map
+		// We can't rely on actor descs for newly created HLOD actors
+		GenerateHLODs(HLODGrids[HLODGridName], GridsDepth[HLODGridName] + 1, HLODActorClusters, [&ValidHLODActorsDescs](const FGuid& ActorGuid)
+		{
+			return ValidHLODActorsDescs.FindChecked(ActorGuid).Get();
+		});
+	}
+
+	// Destroy all unreferenced HLOD actors
 	for (TActorIterator<AWorldPartitionHLOD> ItHLOD(GetWorld()); ItHLOD; ++ItHLOD)
 	{
-		if (!ValidHLODActors.Contains(*ItHLOD))
+		if (!ValidHLODActors.Contains(ItHLOD->GetActorGuid()))
 		{
 			GetWorld()->DestroyActor(*ItHLOD);
 		}
 	}
 
-	CollectGarbage(RF_Standalone);
+	// Create/destroy HLOD grid actors
+	UpdateHLODGridsActors(GetWorld(), HLODGrids);
 
 	return true;
 }
@@ -1861,11 +2118,16 @@ void UWorldPartitionRuntimeSpatialHash::Draw2D(UCanvas* Canvas, const TArray<FWo
 	const FVector2D GridScreenHalfExtent = 0.5f * GridScreenExtent;
 	const FVector2D GridScreenInitialOffset = PartitionCanvasOffset;
 
+	// Sort streaming grids to render them sorted by loading range
+	TArray<const FSpatialHashStreamingGrid*> SortedStreamingGrids;
+	Algo::Transform(StreamingGrids, SortedStreamingGrids, [](const FSpatialHashStreamingGrid& StreamingGrid) { return &StreamingGrid; });
+	SortedStreamingGrids.Sort([](const FSpatialHashStreamingGrid& A, const FSpatialHashStreamingGrid& B) { return A.LoadingRange < B.LoadingRange; });
+
 	int32 GridIndex = 0;
-	for (const FSpatialHashStreamingGrid& StreamingGrid : StreamingGrids)
+	for (const FSpatialHashStreamingGrid* StreamingGrid : SortedStreamingGrids)
 	{
 		// Display view sides based on extended grid loading range (minimum of N cells)
-		const float GridSideDistance = FMath::Max((2.f * StreamingGrid.GetLoadingRange() * GridViewLoadingRangeExtentRatio), StreamingGrid.CellSize * GridViewMinimumSizeInCellCount);
+		const float GridSideDistance = FMath::Max((2.f * StreamingGrid->GetLoadingRange() * GridViewLoadingRangeExtentRatio), StreamingGrid->CellSize * GridViewMinimumSizeInCellCount);
 		FSphere AverageSphere(ForceInit);
 		for (const FWorldPartitionStreamingSource& Source : Sources)
 		{
@@ -1878,7 +2140,7 @@ void UWorldPartitionRuntimeSpatialHash::Draw2D(UCanvas* Canvas, const TArray<FWo
 		const float WorldToScreenScale = (0.5f * GridEffectiveScreenSize) / AverageSphere.W;
 		auto WorldToScreen = [&](const FVector2D& WorldPos) { return (WorldToScreenScale * (WorldPos - GridReferenceWorldPos)) + GridScreenOffset; };
 
-		StreamingGrid.Draw2D(Canvas, Sources, Region, GridScreenBounds, WorldToScreen);
+		StreamingGrid->Draw2D(Canvas, Sources, Region, GridScreenBounds, WorldToScreen);
 
 		// Draw WorldPartition name
 		FVector2D GridInfoPos = GridScreenOffset - GridScreenHalfExtent;
@@ -1893,7 +2155,7 @@ void UWorldPartitionRuntimeSpatialHash::Draw2D(UCanvas* Canvas, const TArray<FWo
 
 		// Draw Grid name, loading range
 		{
-			FString GridInfoText = FString::Printf(TEXT("%s | %d m"), *StreamingGrid.GridName.ToString(), int32(StreamingGrid.GetLoadingRange() * 0.01f));
+			FString GridInfoText = FString::Printf(TEXT("%s | %d m"), *StreamingGrid->GridName.ToString(), int32(StreamingGrid->GetLoadingRange() * 0.01f));
 			Canvas->SetDrawColor(255, 255, 0);
 			Canvas->DrawText(GEngine->GetTinyFont(), GridInfoText, GridInfoPos.X, GridInfoPos.Y);
 		}

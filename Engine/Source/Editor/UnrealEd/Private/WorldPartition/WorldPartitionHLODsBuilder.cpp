@@ -31,37 +31,43 @@ bool UWorldPartitionHLODsBuilder::Run(UWorld* World, FPackageSourceControlHelper
 	UWorldPartition* WorldPartition = World->GetWorldPartition();
 	check(WorldPartition);
 
-	TSet<UPackage*> HLODActorPackages;
+	TSet<UPackage*> ActorPackages;
 
-	// Gather all packages before any HLOD actor is deleted
-	for (TActorIterator<AWorldPartitionHLOD> ItHLOD(World); ItHLOD; ++ItHLOD)
+	// Gather all packages
+	for (TActorIterator<AActor> It(World); It; ++It)
 	{
-		HLODActorPackages.Add(ItHLOD->GetPackage());
+		if (It->IsPackageExternal())
+		{
+			ActorPackages.Add(It->GetPackage());
+		}
 	}
 
 	// Rebuild HLOD for the whole world
 	WorldPartition->GenerateHLOD();
 	
-	// Gather all packages again to include newly created HLOD actors
-	for (TActorIterator<AWorldPartitionHLOD> ItHLOD(World); ItHLOD; ++ItHLOD)
+	// Gather all packages again to include newly created actors
+	for (TActorIterator<AActor> It(World); It; ++It)
 	{
-		HLODActorPackages.Add(ItHLOD->GetPackage());
+		if (It->IsPackageExternal())
+		{
+			ActorPackages.Add(It->GetPackage());
+		}
 	}
 
 	TArray<UPackage*> PackagesToSave;
 	TArray<UPackage*> PackagesToDelete;
 
-	for (UPackage* HLODActorPackage : HLODActorPackages)
+	for (UPackage* ActorPackage : ActorPackages)
 	{
-		if (HLODActorPackage && HLODActorPackage->IsDirty())
+		if (ActorPackage && ActorPackage->IsDirty())
 		{
-			if (UPackage::IsEmptyPackage(HLODActorPackage))
+			if (UPackage::IsEmptyPackage(ActorPackage))
 			{
-				PackagesToDelete.Add(HLODActorPackage);
+				PackagesToDelete.Add(ActorPackage);
 			}
 			else
 			{
-				PackagesToSave.Add(HLODActorPackage);
+				PackagesToSave.Add(ActorPackage);
 			}
 		}
 	}

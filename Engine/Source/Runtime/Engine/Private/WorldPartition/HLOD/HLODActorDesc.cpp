@@ -5,6 +5,7 @@
 #if WITH_EDITOR
 #include "Algo/Transform.h"
 #include "Algo/RemoveIf.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
 #include "WorldPartition/HLOD/HLODActor.h"
 #include "WorldPartition/HLOD/HLODLayer.h"
 
@@ -14,26 +15,20 @@ void FHLODActorDesc::Init(const AActor* InActor)
 
 	const AWorldPartitionHLOD* HLODActor = CastChecked<AWorldPartitionHLOD>(InActor);
 	SubActors = HLODActor->GetSubActors();
-	HLODLayer = HLODActor->GetHLODLayer();
 }
 
 void FHLODActorDesc::Serialize(FArchive& Ar)
 {
+	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
+
 	FWorldPartitionActorDesc::Serialize(Ar);
 
 	Ar << SubActors;
 
-	FString HLODLayerStr;
-	if (Ar.IsSaving())
+	if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::WorldPartitionHLODActorDescSerializeHLODLayer)
 	{
-		HLODLayerStr = HLODLayer.ToString();
-	}
-	
-	Ar << HLODLayerStr;
-	
-	if (Ar.IsLoading())
-	{
-		HLODLayer = HLODLayerStr;
+		FString HLODLayer_Deprecated;
+		Ar << HLODLayer_Deprecated;
 	}
 }
 #endif

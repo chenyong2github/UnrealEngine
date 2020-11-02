@@ -19,13 +19,11 @@ class ENGINE_API FHLODActorDesc : public FWorldPartitionActorDesc
 
 public:
 	inline const TArray<FGuid>& GetSubActors() const { return SubActors; }
-	inline const FSoftObjectPath& GetHLODLayer() const { return HLODLayer; }
 
 protected:
 	virtual void Init(const AActor* InActor) override;
 	virtual void Serialize(FArchive& Ar) override;
 
 	TArray<FGuid> SubActors;
-	FSoftObjectPath	HLODLayer;
 #endif
 };

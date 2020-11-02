@@ -40,6 +40,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Renaming UAnimSequence::NumFrames to NumberOfKeys, as that what is actually contains.
 		RenamingAnimationNumFrames,
 
+		// Serialize HLODLayer in WorldPartition HLODActorDesc
+		WorldPartitionHLODActorDescSerializeHLODLayer,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

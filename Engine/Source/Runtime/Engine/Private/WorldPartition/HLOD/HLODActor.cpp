@@ -50,12 +50,112 @@ void AWorldPartitionHLOD::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 #if WITH_EDITOR
 
+void AWorldPartitionHLOD::OnSubActorLoaded(AActor& Actor)
+{
+	check(!Actor.GetRootComponent() || Actor.GetRootComponent()->IsRegistered());
+	
+	bool bIsAlreadyInSet = false;
+	LoadedSubActors.Add(&Actor, &bIsAlreadyInSet);
+
+	if (!bIsAlreadyInSet)
+	{
+		if (LoadedSubActors.Num() == 1)
+		{
+			UpdateVisibility();
+		}
+	}
+}
+
+void AWorldPartitionHLOD::OnSubActorUnloaded(AActor& Actor)
+{
+	LoadedSubActors.Remove(&Actor);
+
+	// If HLOD has no more sub actors, ensure it is drawn at all time
+	if (LoadedSubActors.IsEmpty())
+	{
+		UpdateVisibility();
+	}
+}
+
+void AWorldPartitionHLOD::SetupLoadedSubActors()
+{
+	UWorld* World = GetWorld();
+	if (World && !World->IsGameWorld())
+	{
+		LoadedSubActors.Empty();
+
+		UWorldPartition* WorldPartition = World->GetWorldPartition();
+		check(WorldPartition);
+
+		for (const FGuid& SubActorGuid : SubActors)
+		{
+			const FWorldPartitionActorDesc* SubActorDesc = WorldPartition->GetActorDesc(SubActorGuid);
+			AActor* SubActor = SubActorDesc ? SubActorDesc->GetActor() : nullptr;
+			if (SubActor && SubActor->GetRootComponent() && SubActor->GetRootComponent()->IsRegistered())
+			{
+				OnSubActorLoaded(*SubActor);
+			}
+		}
+
+		UpdateVisibility();
+	}
+}
+
+void AWorldPartitionHLOD::ResetLoadedSubActors()
+{
+	UWorld* World = GetWorld();
+	if (World && !World->IsGameWorld())
+	{
+		for (const TWeakObjectPtr<AActor>& SubActor : LoadedSubActors)
+		{
+			if (!SubActor.IsValid())
+			{
+				continue;
+			}
+		}
+
+		LoadedSubActors.Empty();
+
+		UpdateVisibility();
+	}
+}
+
+void AWorldPartitionHLOD::PostRegisterAllComponents()
+{
+	Super::PostRegisterAllComponents();
+
+	if (!IsTemplate())
+	{
+		SetupLoadedSubActors();
+	}
+}
+
+void AWorldPartitionHLOD::PostUnregisterAllComponents()
+{
+	if (!IsTemplate())
+	{
+		ResetLoadedSubActors();
+	}
+
+	Super::PostUnregisterAllComponents();
+}
+
+void AWorldPartitionHLOD::UpdateVisibility()
+{
+	SetIsTemporarilyHiddenInEditor(HasLoadedSubActors());
+}
+
+bool AWorldPartitionHLOD::HasLoadedSubActors() const
+{
+	return !LoadedSubActors.IsEmpty();
+}
+
 EActorGridPlacement AWorldPartitionHLOD::GetDefaultGridPlacement() const
 {
 	return EActorGridPlacement::Location;
 }
 
-void AWorldPartitionHLOD::SetHLODPrimitives(const TArray<UPrimitiveComponent*>& InHLODPrimitives, float InFadeOutDistance)
+void AWorldPartitionHLOD::SetHLODPrimitives(const TArray<UPrimitiveComponent*>& InHLODPrimitives)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(AWorldPartitionHLOD::SetHLODPrimitive);
 	check(!InHLODPrimitives.IsEmpty());
@@ -79,8 +179,6 @@ void AWorldPartitionHLOD::SetHLODPrimitives(const TArray<UPrimitiveComponent*>& 
 		InHLODPrimitive->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		InHLODPrimitive->SetMobility(EComponentMobility::Static);
 
-		InHLODPrimitive->MinDrawDistance = InFadeOutDistance;
-
 		InHLODPrimitive->RegisterComponent();
 		InHLODPrimitive->MarkRenderStateDirty();
 	}
@@ -91,54 +189,31 @@ void AWorldPartitionHLOD::SetHLODPrimitives(const TArray<UPrimitiveComponent*>& 
 	}
 }
 
-const FBox& AWorldPartitionHLOD::GetHLODBounds() const
-{
-	return HLODBounds;
-}
-
-void AWorldPartitionHLOD::SetHLODBounds(const FBox& InBounds)
-{
-	HLODBounds = InBounds;
-}
-
-void AWorldPartitionHLOD::GetActorBounds(bool bOnlyCollidingComponents, FVector& Origin, FVector& BoxExtent, bool bIncludeFromChildActors) const
-{
-	Super::GetActorBounds(bOnlyCollidingComponents, Origin, BoxExtent, bIncludeFromChildActors);
-
-	FBox Bounds = FBox(Origin - BoxExtent, Origin + BoxExtent);
-	Bounds += HLODBounds;
-	Bounds.GetCenterAndExtents(Origin, BoxExtent);
-}
-
-void AWorldPartitionHLOD::GetActorLocationBounds(bool bOnlyCollidingComponents, FVector& Origin, FVector& BoxExtent, bool bIncludeFromChildActors) const
-{
-	GetActorBounds(bOnlyCollidingComponents, Origin, BoxExtent, bIncludeFromChildActors);
-}
-
 void AWorldPartitionHLOD::SetChildrenPrimitives(const TArray<UPrimitiveComponent*>& InChildrenPrimitives)
 {
-	TSet<FGuid> SubActorsSet;
+	check(GetHLODComponent());
+
+	ResetLoadedSubActors();
+	SubActors.Empty();
 
 	UPrimitiveComponent* HLODComponent = GetHLODComponent();
 	check(HLODComponent);
 
 	for (UPrimitiveComponent* ChildPrimitive : InChildrenPrimitives)
 	{
-		SubActorsSet.Add(ChildPrimitive->GetOwner()->GetActorGuid());
+		AActor* SubActor = ChildPrimitive->GetOwner();
+		
+		if (!LoadedSubActors.Contains(SubActor))
+		{
+			OnSubActorLoaded(*SubActor);
+			SubActors.Add(SubActor->GetActorGuid());
+		}
 	}
-
-	SubActors = SubActorsSet.Array();
 }
 
 const TArray<FGuid>& AWorldPartitionHLOD::GetSubActors() const
 {
 	return SubActors;
-}
-
-void AWorldPartitionHLOD::SetHLODLayer(const UHLODLayer* InSubActorsHLODLayer, int32 InSubActorsHLODLevel)
-{
-	SubActorsHLODLayer = InSubActorsHLODLayer;
-	SubActorsHLODLevel = InSubActorsHLODLevel;
 }
 
 void AWorldPartitionHLOD::PostActorCreated()

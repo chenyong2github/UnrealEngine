@@ -45,17 +45,17 @@ public:
 		}
 
 		TArray<UPrimitiveComponent*> HLODPrimitives = InCreateComponentsFunc(HLODActor);
-		Algo::RemoveIf(HLODPrimitives, [](const UPrimitiveComponent* HLODPrimitive) { return !HLODPrimitive; });
+		HLODPrimitives.RemoveSwap(nullptr);
 
 		if (!HLODPrimitives.IsEmpty())
 		{
 			HLODActor->Modify();
-			HLODActor->SetHLODLayer(HLODLayer, 0);
-			HLODActor->SetHLODPrimitives(HLODPrimitives, CellLoadingRange);
-			HLODActor->SetHLODBounds(CellBounds);
+			HLODActor->SetHLODPrimitives(HLODPrimitives);
 			HLODActor->SetChildrenPrimitives(InSubComponents);
 			HLODActor->SetActorLabel(HLODActorName);
-			HLODActor->RuntimeGrid = HLODLayer->GetRuntimeGrid();
+			HLODActor->RuntimeGrid = HLODLayer->GetRuntimeGrid(HLODLevel);
+			HLODActor->SetLODLevel(HLODLevel);
+			HLODActor->SetHLODLayer(HLODLayer->GetParentLayer().Get());
 		}
 		else
 		{
@@ -69,16 +69,16 @@ public:
 		}
 	}
 
-	static TArray<UPrimitiveComponent*> GatherPrimitiveComponents(int32 iHLODLevel, const TArray<AActor*> InActors)
+	static TArray<UPrimitiveComponent*> GatherPrimitiveComponents(uint32 InHLODLevel, const TArray<const AActor*> InActors)
 	{
 		TArray<UPrimitiveComponent*> PrimitiveComponents;
-		for (AActor* SubActor : InActors)
+		for (const AActor* SubActor : InActors)
 		{
 			for (UActorComponent* SubComponent : SubActor->GetComponents())
 			{
 				if (UPrimitiveComponent* PrimitiveComponent = Cast<UPrimitiveComponent>(SubComponent))
 				{
-					if (UHLODLayer::ShouldIncludeInHLOD(PrimitiveComponent, iHLODLevel))
+					if (UHLODLayer::ShouldIncludeInHLOD(PrimitiveComponent, InHLODLevel))
 					{
 						PrimitiveComponents.Add(PrimitiveComponent);
 					}
@@ -92,7 +92,7 @@ public:
 	UWorld*				World;
 	UWorldPartition*	WorldPartition;
 	const UHLODLayer*	HLODLayer;
-	int32				iLevel;
+	uint32				HLODLevel;
 	FName				CellName;
 	FBox				CellBounds;
 	float				CellLoadingRange;
@@ -226,7 +226,7 @@ class FHLODBuilder_MeshSimplify : public FHLODBuilder
 	}
 };
 
-TArray<AWorldPartitionHLOD*> FHLODBuilderUtilities::BuildHLODs(UWorldPartition* InWorldPartition, FName InCellName, FBox InCellBounds, float InCellLoadingRange, const UHLODLayer* InHLODLayer, const TArray<AActor*>& InSubActors)
+TArray<AWorldPartitionHLOD*> FHLODBuilderUtilities::BuildHLODs(UWorldPartition* InWorldPartition, FName InCellName, const FBox& InCellBounds, const UHLODLayer* InHLODLayer, uint32 InHLODLevel, const TArray<const AActor*>& InSubActors)
 {
 	TUniquePtr<FHLODBuilder> HLODBuilder = nullptr;
 
@@ -257,9 +257,9 @@ TArray<AWorldPartitionHLOD*> FHLODBuilderUtilities::BuildHLODs(UWorldPartition* 
 		HLODBuilder->World = InWorldPartition->GetWorld();
 		HLODBuilder->WorldPartition = InWorldPartition;
 		HLODBuilder->HLODLayer = InHLODLayer;
+		HLODBuilder->HLODLevel = InHLODLevel;
 		HLODBuilder->CellName = InCellName;
 		HLODBuilder->CellBounds = InCellBounds;
-		HLODBuilder->CellLoadingRange = InCellLoadingRange;
 
 		HLODBuilder->Build(SubComponents);
 			

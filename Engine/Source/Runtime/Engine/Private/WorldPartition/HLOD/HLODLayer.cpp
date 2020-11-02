@@ -8,6 +8,10 @@
 #include "WorldPartition/HLOD/HLODActor.h"
 
 #if WITH_EDITOR
+#include "UObject/ConstructorHelpers.h"
+#include "Materials/MaterialInterface.h"
+#include "Math/UnitConversion.h"
+
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
 #include "WorldPartition/HLOD/HLODBuilder.h"
@@ -16,31 +20,24 @@
 UHLODLayer::UHLODLayer(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 #if WITH_EDITORONLY_DATA
-	, LoadingRange(30000)
+	, CellSize(3200)
+	, LoadingRange(12800)
 #endif
 {
+#if WITH_EDITORONLY_DATA
+	HLODMaterial = ConstructorHelpers::FObjectFinder<UMaterialInterface>(TEXT("/Engine/EngineMaterials/BaseFlattenMaterial")).Object;
+#endif
 }
 
 #if WITH_EDITOR
 
-TArray<AWorldPartitionHLOD*> UHLODLayer::GenerateHLODForCell(UWorldPartition* InWorldPartition, FName InCellName, FBox InCellBounds, float InCellLoadingRange, const TSet<FGuid>& InCellActors)
+TArray<AWorldPartitionHLOD*> UHLODLayer::GenerateHLODForCell(UWorldPartition* InWorldPartition, FName InCellName, const FBox& InCellBounds, uint32 InHLODLevel, const TArray<AActor*>& InCellActors)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UHLODLayer::GenerateHLODForCell);
 
-	TMap<UHLODLayer*, TArray<AActor*>> HLODLayersActors;
-	for (const FGuid& ActorGuid : InCellActors)
+	TMap<UHLODLayer*, TArray<const AActor*>> HLODLayersActors;
+	for (const AActor* Actor : InCellActors)
 	{
-		FWorldPartitionActorDesc& ActorDesc = *InWorldPartition->GetActorDesc(ActorGuid);
-
-		// Skip editor only actors - they might not be loaded and doesn't contribute to HLODs anyway
-		if (ActorDesc.GetActorIsEditorOnly())
-		{
-			continue;
-		}
-
-		AActor* Actor = ActorDesc.GetActor();
-		check(Actor);
-
 		if (ShouldIncludeInHLOD(Actor))
 		{
 			UHLODLayer* HLODLayer = UHLODLayer::GetHLODLayer(Actor);
@@ -54,14 +51,14 @@ TArray<AWorldPartitionHLOD*> UHLODLayer::GenerateHLODForCell(UWorldPartition* In
 	TArray<AWorldPartitionHLOD*> HLODActors;
 	for (const auto& HLODLayerActors : HLODLayersActors)
 	{
-		HLODActors += FHLODBuilderUtilities::BuildHLODs(InWorldPartition, InCellName, InCellBounds, InCellLoadingRange, HLODLayerActors.Key, HLODLayerActors.Value);
+		HLODActors += FHLODBuilderUtilities::BuildHLODs(InWorldPartition, InCellName, InCellBounds, HLODLayerActors.Key, InHLODLevel, HLODLayerActors.Value);
 	}
 	return HLODActors;
 }
 
-bool UHLODLayer::ShouldIncludeInHLOD(UPrimitiveComponent* InComponent, int32 InLevelIndex)
+bool UHLODLayer::ShouldIncludeInHLOD(const UPrimitiveComponent* InComponent, int32 InLevelIndex)
 {
-	if (UStaticMeshComponent* SMC = Cast<UStaticMeshComponent>(InComponent))
+	if (const UStaticMeshComponent* SMC = Cast<const UStaticMeshComponent>(InComponent))
 	{
 		if (!SMC->GetStaticMesh())
 		{
@@ -102,8 +99,29 @@ UHLODLayer* UHLODLayer::GetHLODLayer(const AActor* InActor)
 
 #endif // WITH_EDITOR
 
+#if WITH_EDITORONLY_DATA
 
-bool UHLODLayer::ShouldIncludeInHLOD(AActor* InActor)
+FName UHLODLayer::GetRuntimeGridName(uint32 InLODLevel, int32 InCellSize, float InLoadingRange)
+{
+	FNumericUnit<float> CellSize(InCellSize, EUnit::Centimeters);
+	FNumericUnit<float> CellSizeQuantized = CellSize.QuantizeUnitsToBestFit();
+	FString CellSizeString = FString::SanitizeFloat(CellSizeQuantized.Value, 0) + FUnitConversion::GetUnitDisplayString(CellSizeQuantized.Units);
+
+	FNumericUnit<float> LoadingRange(InLoadingRange, EUnit::Centimeters);
+	FNumericUnit<float> LoadingRangeQuantized = LoadingRange.QuantizeUnitsToBestFit();
+	FString LoadingRangeString = FString::SanitizeFloat(LoadingRangeQuantized.Value, 0) + FUnitConversion::GetUnitDisplayString(LoadingRangeQuantized.Units);
+
+	return *FString::Format(TEXT("HLOD{0}_{1}_{2}"), { InLODLevel, CellSizeString, LoadingRangeString });
+}
+
+FName UHLODLayer::GetRuntimeGrid(uint32 InHLODLevel) const
+{
+	return GetRuntimeGridName(InHLODLevel, CellSize, LoadingRange);
+}
+
+#endif // WITH_EDITOR
+
+bool UHLODLayer::ShouldIncludeInHLOD(const AActor* InActor)
 {
 	if (!InActor)
 	{

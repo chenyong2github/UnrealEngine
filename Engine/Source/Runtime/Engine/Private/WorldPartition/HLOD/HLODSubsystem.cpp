@@ -48,10 +48,62 @@ void UHLODSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	HLODActorDescFactory.Reset(new FHLODActorDescFactory());
 
 	RegisterActorDescFactories(WorldPartitionSubsystem);
+
+	GetWorld()->PersistentLevel->OnLoadedActorAddedToLevelEvent.AddUObject(this, &UHLODSubsystem::OnActorLoaded);
+	GetWorld()->PersistentLevel->OnLoadedActorRemovedFromLevelEvent.AddUObject(this, &UHLODSubsystem::OnActorUnloaded);
 #endif
 }
 
 #if WITH_EDITOR
+void UHLODSubsystem::OnActorLoaded(AActor& Actor)
+{
+	// If loading an HLOD actor, keep a map of Actor -> HLODActors
+	if (AWorldPartitionHLOD* HLODActor = Cast<AWorldPartitionHLOD>(&Actor))
+	{
+		for (const FGuid& SubActorGuid : HLODActor->GetSubActors())
+		{
+			// Keep track of unloaded subactors
+			check(!ActorsToHLOD.Contains(SubActorGuid));
+			ActorsToHLOD.Emplace(SubActorGuid, HLODActor);
+		}
+	}
+
+	if(!Actor.GetRootComponent() || Actor.GetRootComponent()->IsRegistered())
+	{
+		// If HLOD for this actor is already loaded, setup LOD parenting
+		AWorldPartitionHLOD** HLODActorPtr = ActorsToHLOD.Find(Actor.GetActorGuid());
+		if (HLODActorPtr)
+		{
+			(*HLODActorPtr)->OnSubActorLoaded(Actor);
+		}
+	}
+}
+
+void UHLODSubsystem::OnActorUnloaded(AActor& Actor)
+{
+	UWorld* World = GetWorld();
+	UWorldPartition* WorldPartition = World->GetWorldPartition();
+
+	// If bound to an HLOD, clear reference
+	{
+		AWorldPartitionHLOD** HLODActorPtr = ActorsToHLOD.Find(Actor.GetActorGuid());
+		if (HLODActorPtr)
+		{
+			(*HLODActorPtr)->OnSubActorUnloaded(Actor);
+		}
+	}
+
+	// If unloading an HLOD actor, clear map of Actor -> HLODActors
+	if (AWorldPartitionHLOD* HLODActor = Cast<AWorldPartitionHLOD>(&Actor))
+	{
+		for (const FGuid& SubActorGuid : HLODActor->GetSubActors())
+		{
+			int32 NumRemoved = ActorsToHLOD.Remove(SubActorGuid);
+			check(NumRemoved == 1);
+		}
+	}
+}
+
 void UHLODSubsystem::RegisterActorDescFactories(UWorldPartitionSubsystem* WorldPartitionSubsystem)
 {
 	WorldPartitionSubsystem->RegisterActorDescFactory(AWorldPartitionHLOD::StaticClass(), HLODActorDescFactory.Get());

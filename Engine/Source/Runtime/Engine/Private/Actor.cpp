@@ -420,9 +420,8 @@ void AActor::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 	{
 		if (UWorldPartition* WorldPartition = GetWorldSettings()->GetWorldPartition())
 		{
-			TUniquePtr<FWorldPartitionActorDesc> ActorDesc(WorldPartition->GetActorDescFactory(this)->Create());
-			ActorDesc->Init(this);
-
+			TUniquePtr<FWorldPartitionActorDesc> ActorDesc(UWorldPartition::CreateActorDesc(this));
+			
 			const FString ActorMetaDataClass = GetParentNativeClass(GetClass())->GetName();
 			static FName NAME_ActorMetaDataClass(TEXT("ActorMetaDataClass"));
 			OutTags.Add(UObject::FAssetRegistryTag(NAME_ActorMetaDataClass, ActorMetaDataClass, UObject::FAssetRegistryTag::TT_Hidden));

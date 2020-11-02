@@ -310,24 +310,28 @@ FStaticMeshSceneProxy::FStaticMeshSceneProxy(UStaticMeshComponent* InComponent, 
 	}
 
 	// Setup Hierarchical LOD index
+	enum HLODColors
+	{
+		HLODNone	= 0,	// Not part of a HLOD cluster (draw as white when visualizing)
+		HLODChild	= 1,	// Part of a HLOD cluster but still a plain mesh
+		HLOD0		= 2		// Colors for HLOD levels start at index 2
+	};
+
 	if (ALODActor* LODActorOwner = Cast<ALODActor>(Owner))
 	{
-		// An HLOD cluster (they count from 1, but the colors for HLOD levels start at index 2)
-		HierarchicalLODIndex = LODActorOwner->LODLevel + 1;
+		HierarchicalLODIndex = HLODColors::HLOD0 + LODActorOwner->LODLevel - 1; // ALODActor::LODLevel count from 1
 	}
 	else if (AWorldPartitionHLOD* WorldPartitionHLODOwner = Cast<AWorldPartitionHLOD>(Owner))
 	{
-		HierarchicalLODIndex = 2;
+		HierarchicalLODIndex = HLODColors::HLOD0 + WorldPartitionHLODOwner->GetLODLevel();
 	}
 	else if (InComponent->GetLODParentPrimitive())
 	{
-		// Part of a HLOD cluster but still a plain mesh
-		HierarchicalLODIndex = 1;
+		HierarchicalLODIndex = HLODColors::HLODChild;
 	}
 	else
 	{
-		// Not part of a HLOD cluster (draw as white when visualizing)
-		HierarchicalLODIndex = 0;
+		HierarchicalLODIndex = HLODColors::HLODNone;
 	}
 
 	if (BodySetup)
