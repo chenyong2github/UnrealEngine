@@ -38,6 +38,8 @@ extern struct android_app* GNativeAndroidApp;
 #include "Editor/UnrealEd/Classes/Editor/EditorEngine.h"
 #endif
 
+#define OPENXR_PAUSED_IDLE_FPS 10
+
 static TAutoConsoleVariable<int32> CVarEnableOpenXRValidationLayer(
 	TEXT("xr.EnableOpenXRValidationLayer"),
 	0,
@@ -1281,7 +1283,6 @@ FOpenXRHMD::FOpenXRHMD(const FAutoRegister& AutoRegister, XrInstance InInstance,
 	, bIsRunning(false)
 	, bIsReady(false)
 	, bIsRendering(false)
-	, bRunRequested(false)
 	, bNeedReAllocatedDepth(false)
 	, bNeedReBuildOcclusionMesh(true)
 	, CurrentSessionState(XR_SESSION_STATE_UNKNOWN)
@@ -1742,7 +1743,7 @@ bool FOpenXRHMD::OnStereoTeardown()
 		if (Result == XR_ERROR_SESSION_NOT_RUNNING)
 		{
 			// Session was never running - most likely PIE without putting the headset on.
-			CloseSession();
+			DestroySession();
 		}
 		else
 		{
@@ -1753,7 +1754,7 @@ bool FOpenXRHMD::OnStereoTeardown()
 	return true;
 }
 
-void FOpenXRHMD::CloseSession()
+void FOpenXRHMD::DestroySession()
 {
 	if (Session != XR_NULL_HANDLE)
 	{
@@ -1776,7 +1777,6 @@ void FOpenXRHMD::CloseSession()
 		bIsRendering = false;
 		bIsReady = false;
 		bIsRunning = false;
-		bRunRequested = false;
 		bNeedReAllocatedDepth = true;
 		bNeedReBuildOcclusionMesh = true;
 	}
@@ -1828,9 +1828,6 @@ bool FOpenXRHMD::StartSession()
 	// If the session is already running, or is not yet ready,
 	if (!bIsReady || bIsRunning)
 	{
-		if (!bIsRunning)
-			bRunRequested = true;
-
 		return false;
 	}
 
@@ -1841,11 +1838,13 @@ bool FOpenXRHMD::StartSession()
 	}
 	bIsRunning = XR_ENSURE(xrBeginSession(Session, &Begin));
 
-	// Unflag a request, if we're running.
-	if (bIsRunning)
-		bRunRequested = false;
-
 	return bIsRunning;
+}
+
+bool FOpenXRHMD::StopSession()
+{
+	bIsRunning = !XR_ENSURE(xrEndSession(Session));
+	return !bIsRunning;
 }
 
 void FOpenXRHMD::OnBeginPlay(FWorldContext& InWorldContext)
@@ -1942,7 +1941,7 @@ void FOpenXRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdL
 	if (bIsReady)
 	{
 		// Ensure xrEndFrame has been called before starting rendering the next frame.
-		bool signaled = FrameEventRHI->Wait(PipelinedFrameStateRHI.FrameState.predictedDisplayPeriod);
+		bool signaled = FrameEventRHI->Wait(PipelinedFrameStateRHI.FrameState.predictedDisplayPeriod / 1e6);
 
 		// TODO: This should be moved to the RHI thread at some point
 		XrFrameBeginInfo BeginInfo;
@@ -2101,15 +2100,21 @@ bool FOpenXRHMD::OnStartGameFrame(FWorldContext& WorldContext)
 
 			if (SessionState.state == XR_SESSION_STATE_READY)
 			{
+				GEngine->SetMaxFPS(0);
 				bIsReady = true;
-				if (bRunRequested)
-				{
-					StartSession();
-				}
-				break;
+				StartSession();
 			}
-
-			if (SessionState.state != XR_SESSION_STATE_STOPPING && SessionState.state != XR_SESSION_STATE_EXITING && SessionState.state != XR_SESSION_STATE_LOSS_PENDING)
+			else if (SessionState.state == XR_SESSION_STATE_IDLE)
+			{
+				GEngine->SetMaxFPS(OPENXR_PAUSED_IDLE_FPS);
+			}
+			else if (SessionState.state == XR_SESSION_STATE_STOPPING)
+			{
+				bIsReady = false;
+				StopSession();
+			}
+			
+			if (SessionState.state != XR_SESSION_STATE_EXITING && SessionState.state != XR_SESSION_STATE_LOSS_PENDING)
 			{
 				break;
 			}
@@ -2134,7 +2139,7 @@ bool FOpenXRHMD::OnStartGameFrame(FWorldContext& WorldContext)
 				FPlatformMisc::RequestExit(false);
 			}
 
-			CloseSession();
+			DestroySession();
 
 			break;
 		}
@@ -2179,7 +2184,7 @@ void FOpenXRHMD::OnBeginRendering_RHIThread()
 void FOpenXRHMD::OnFinishRendering_RHIThread()
 {
 	ensure(IsInRenderingThread() || IsInRHIThread());
-	if (!Swapchain)
+	if (!bIsRunning || !Swapchain)
 	{
 		return;
 	}
@@ -2213,8 +2218,9 @@ void FOpenXRHMD::OnFinishRendering_RHIThread()
 		EndInfo.next = nullptr;
 		EndInfo.displayTime = PipelineState.FrameState.predictedDisplayTime;
 		EndInfo.environmentBlendMode = SelectedEnvironmentBlendMode;
-		EndInfo.layerCount = 1;
-		EndInfo.layers = reinterpret_cast<XrCompositionLayerBaseHeader**>(Headers);
+		EndInfo.layerCount = PipelineState.FrameState.shouldRender ? 1 : 0;
+		EndInfo.layers = PipelineState.FrameState.shouldRender ?
+			reinterpret_cast<XrCompositionLayerBaseHeader**>(Headers) : nullptr;
 
 		// Make callback to plugin including any extra view subimages they've requested
 		for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
