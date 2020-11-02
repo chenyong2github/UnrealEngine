@@ -4,6 +4,7 @@
 #if PLATFORM_IOS && !PLATFORM_TVOS
 
 #import <Foundation/Foundation.h>
+#import <AuthenticationServices/AuthenticationServices.h>
 
 #import <WebKit/WebKit.h>
 
