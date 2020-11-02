@@ -69,15 +69,6 @@ void SetupDebugViewModePassUniformBufferConstants(const FViewInfo& ViewInfo, FDe
 	}
 }
 
-TUniformBufferRef<FDebugViewModePassUniformParameters> CreateDebugViewModePassUniformBuffer(FRHICommandList& RHICmdList, const FViewInfo& View)
-{
-	FDebugViewModePassUniformParameters Parameters;
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get();
-	SetupSceneTextureUniformParameters(SceneContext, View.FeatureLevel, ESceneTextureSetupMode::None, Parameters.SceneTextures);
-	SetupDebugViewModePassUniformBufferConstants(View, Parameters);
-	return TUniformBufferRef<FDebugViewModePassUniformParameters>::CreateUniformBufferImmediate(Parameters, UniformBuffer_SingleFrame);
-}
-
 TRDGUniformBufferRef<FDebugViewModePassUniformParameters> CreateDebugViewModePassUniformBuffer(FRDGBuilder& GraphBuilder, const FViewInfo& View)
 {
 	auto* UniformBufferParameters = GraphBuilder.AllocParameters<FDebugViewModePassUniformParameters>();
@@ -127,11 +118,6 @@ void FDeferredShadingSceneRenderer::RenderDebugViewMode(FRDGBuilder& GraphBuilde
 	}
 }
 
-FDebugViewModePS::FDebugViewModePS(const FMeshMaterialShaderType::CompiledShaderInitializerType& Initializer) : FMeshMaterialShader(Initializer)
-{
-	PassUniformBuffer.Bind(Initializer.ParameterMap, FDebugViewModePassUniformParameters::StaticStructMetadata.GetShaderVariableName());
-}
-
 void FDebugViewModePS::GetElementShaderBindings(
 	const FShaderMapPointerTable& PointerTable,
 	const FScene* Scene,
@@ -178,12 +164,10 @@ FDebugViewModeMeshProcessor::FDebugViewModeMeshProcessor(
 	const FScene* InScene, 
 	ERHIFeatureLevel::Type InFeatureLevel,
 	const FSceneView* InViewIfDynamicMeshCommand, 
-	FRHIUniformBuffer* InPassUniformBuffer,
 	bool bTranslucentBasePass,
 	FMeshPassDrawListContext* InDrawListContext
 )
 	: FMeshPassProcessor(InScene, InFeatureLevel, InViewIfDynamicMeshCommand, InDrawListContext)
-	, PassUniformBuffer(InPassUniformBuffer)
 	, DebugViewMode(DVSM_None)
 	, ViewModeParam(INDEX_NONE)
 	, DebugViewModeInterface(nullptr)
@@ -270,7 +254,6 @@ void FDebugViewModeMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBa
 
 	FMeshPassProcessorRenderState DrawRenderState;
 	DrawRenderState.SetViewUniformBuffer(ViewUniformBuffer);
-	DrawRenderState.SetPassUniformBuffer(PassUniformBuffer);
 
 	FDebugViewModeInterface::FRenderState InterfaceRenderState;
 	DebugViewModeInterface->SetDrawRenderState(BatchMaterial->GetBlendMode(), InterfaceRenderState, Scene ? (Scene->GetShadingPath() == EShadingPath::Deferred && Scene->EarlyZPassMode != DDM_NonMaskedOnly) : false);
@@ -370,7 +353,7 @@ void FDebugViewModeMeshProcessor::UpdateInstructionCount(FDebugViewModeShaderEle
 FMeshPassProcessor* CreateDebugViewModePassProcessor(const FScene* Scene, const FSceneView* InViewIfDynamicMeshCommand, FMeshPassDrawListContext* InDrawListContext)
 {
 	const ERHIFeatureLevel::Type FeatureLevel = Scene ? Scene->GetFeatureLevel() : (InViewIfDynamicMeshCommand ? InViewIfDynamicMeshCommand->GetFeatureLevel() : GMaxRHIFeatureLevel);
-	return new(FMemStack::Get()) FDebugViewModeMeshProcessor(Scene, FeatureLevel, InViewIfDynamicMeshCommand, nullptr, false, InDrawListContext);
+	return new(FMemStack::Get()) FDebugViewModeMeshProcessor(Scene, FeatureLevel, InViewIfDynamicMeshCommand, false, InDrawListContext);
 }
 
 FRegisterPassProcessorCreateFunction RegisterDebugViewModeMobilePass(&CreateDebugViewModePassProcessor, EShadingPath::Mobile, EMeshPass::DebugViewMode, EMeshPassFlags::MainView);

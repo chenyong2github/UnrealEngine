@@ -539,20 +539,19 @@ bool GetBasePassShaders<FUniformLightMapPolicy>(
 extern void SetupFogUniformParameters(FRDGBuilder* GraphBuilder, const FViewInfo& View, FFogUniformParameters& OutParameters);
 
 void SetupSharedBasePassParameters(
-	FRDGBuilder* GraphBuilder,
-	FRHICommandListImmediate& RHICmdList,
+	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	FSharedBasePassUniformParameters& SharedParameters)
 {
 	SharedParameters.Forward = View.ForwardLightingResources->ForwardLightData;
 
-	SetupFogUniformParameters(GraphBuilder, View, SharedParameters.Fog);
+	SetupFogUniformParameters(&GraphBuilder, View, SharedParameters.Fog);
 
 	if (View.IsInstancedStereoPass())
 	{
 		const FSceneView& RightEye = *View.Family->Views[1];
 		SharedParameters.ForwardISR = RightEye.ForwardLightingResources->ForwardLightData;
-		SetupFogUniformParameters(GraphBuilder, (FViewInfo&)RightEye, SharedParameters.FogISR);
+		SetupFogUniformParameters(&GraphBuilder, (FViewInfo&)RightEye, SharedParameters.FogISR);
 	}
 	else
 	{
@@ -568,15 +567,14 @@ void SetupSharedBasePassParameters(
 
 	SharedParameters.SSProfilesTexture = GBlackTexture->TextureRHI;
 
-	if (const IPooledRenderTarget* PooledRT = GetSubsufaceProfileTexture_RT(RHICmdList))
+	if (const IPooledRenderTarget* PooledRT = GetSubsufaceProfileTexture_RT(GraphBuilder.RHICmdList))
 	{
 		SharedParameters.SSProfilesTexture = PooledRT->GetShaderResourceRHI();
 	}
 }
 
 void SetupSharedOpaqueBasePassParameters(
-	FRDGBuilder* GraphBuilder,
-	FRHICommandListImmediate& RHICmdList,
+	FRDGBuilder& GraphBuilder,
 	const FSceneRenderTargets& SceneRenderTargets,
 	const FViewInfo& View,
 	FRDGTextureRef ForwardScreenSpaceShadowMask,
@@ -586,10 +584,10 @@ void SetupSharedOpaqueBasePassParameters(
 {
 	const auto GetRDG = [&](const TRefCountPtr<IPooledRenderTarget>& PooledRenderTarget, ERDGTextureFlags Flags = ERDGTextureFlags::None)
 	{
-		return RegisterExternalOrPassthroughTexture(GraphBuilder, PooledRenderTarget, Flags);
+		return GraphBuilder.RegisterExternalTexture(PooledRenderTarget, ERenderTargetTexture::ShaderResource, Flags);
 	};
 
-	SetupSharedBasePassParameters(GraphBuilder, RHICmdList, View, BasePassParameters.Shared);
+	SetupSharedBasePassParameters(GraphBuilder, View, BasePassParameters.Shared);
 
 	FRDGTextureRef WhiteDummy = GetRDG(GSystemTextures.WhiteDummy);
 	FRDGTextureRef BlackDummy = GetRDG(GSystemTextures.BlackDummy);
@@ -693,20 +691,8 @@ TRDGUniformBufferRef<FOpaqueBasePassUniformParameters> CreateOpaqueBasePassUnifo
 {
 	FSceneRenderTargets& SceneRenderTargets = FSceneRenderTargets::Get();
 	FOpaqueBasePassUniformParameters* BasePassParameters = GraphBuilder.AllocParameters<FOpaqueBasePassUniformParameters>();
-	SetupSharedOpaqueBasePassParameters(&GraphBuilder, GraphBuilder.RHICmdList, SceneRenderTargets, View, ForwardScreenSpaceShadowMask, SceneWithoutWaterTextures, ViewIndex, *BasePassParameters);
+	SetupSharedOpaqueBasePassParameters(GraphBuilder, SceneRenderTargets, View, ForwardScreenSpaceShadowMask, SceneWithoutWaterTextures, ViewIndex, *BasePassParameters);
 	return GraphBuilder.CreateUniformBuffer(BasePassParameters);
-}
-
-TUniformBufferRef<FOpaqueBasePassUniformParameters> CreateOpaqueBasePassUniformBuffer(
-	FRHICommandListImmediate& RHICmdList,
-	const FViewInfo& View,
-	IPooledRenderTarget* ForwardScreenSpaceShadowMask)
-{
-	FRDGTextureRef ForwardScreenSpaceShadowMaskRDG = FRDGTexture::GetPassthrough(ForwardScreenSpaceShadowMask);
-
-	FOpaqueBasePassUniformParameters BasePassParameters;
-	SetupSharedOpaqueBasePassParameters(nullptr, RHICmdList, FSceneRenderTargets::Get(), View, ForwardScreenSpaceShadowMaskRDG, nullptr, 0, BasePassParameters);
-	return TUniformBufferRef<FOpaqueBasePassUniformParameters>::CreateUniformBufferImmediate(BasePassParameters, UniformBuffer_SingleFrame);
 }
 
 static void ClearGBufferAtMaxZ(

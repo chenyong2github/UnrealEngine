@@ -607,8 +607,7 @@ void SetupDownsampledTranslucencyViewParameters(
 }
 
 void SetupTranslucentBasePassUniformParameters(
-	FRDGBuilder* GraphBuilder,
-	FRHICommandListImmediate& RHICmdList,
+	FRDGBuilder& GraphBuilder,
 	const FSceneRenderTargets& SceneRenderTargets,
 	const FViewInfo& View,
 	const FTranslucentVolumeLightingTextures* TranslucentVolumeLightingTextures,
@@ -619,11 +618,11 @@ void SetupTranslucentBasePassUniformParameters(
 {
 	const auto GetRDG = [&](const TRefCountPtr<IPooledRenderTarget>& PooledRenderTarget, ERDGTextureFlags Flags = ERDGTextureFlags::None)
 	{
-		return RegisterExternalOrPassthroughTexture(GraphBuilder, PooledRenderTarget, Flags);
+		return GraphBuilder.RegisterExternalTexture(PooledRenderTarget, ERenderTargetTexture::ShaderResource, Flags);
 	};
 
-	SetupSharedBasePassParameters(GraphBuilder, RHICmdList, View, BasePassParameters.Shared);
-	SetupSceneTextureUniformParameters(GraphBuilder, View.FeatureLevel, SceneRenderTargets, SceneTextureSetupMode, BasePassParameters.SceneTextures);
+	SetupSharedBasePassParameters(GraphBuilder, View, BasePassParameters.Shared);
+	SetupSceneTextureUniformParameters(&GraphBuilder, View.FeatureLevel, SceneRenderTargets, SceneTextureSetupMode, BasePassParameters.SceneTextures);
 
 	FRDGTextureRef BlackDummyTexture = GetRDG(GSystemTextures.BlackDummy);
 
@@ -771,27 +770,15 @@ void SetupTranslucentBasePassUniformParameters(
 TRDGUniformBufferRef<FTranslucentBasePassUniformParameters> CreateTranslucentBasePassUniformBuffer(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
-	const FTranslucentVolumeLightingTextures& TranslucentVolumeLightingTextures,
+	const FTranslucentVolumeLightingTextures* TranslucentVolumeLightingTextures,
 	FRDGTextureRef SceneColorCopyTexture,
 	ESceneTextureSetupMode SceneTextureSetupMode,
 	const int32 ViewIndex)
 {
 	FSceneRenderTargets& SceneRenderTargets = FSceneRenderTargets::Get();
 	FTranslucentBasePassUniformParameters* BasePassParameters = GraphBuilder.AllocParameters<FTranslucentBasePassUniformParameters>();
-	SetupTranslucentBasePassUniformParameters(&GraphBuilder, GraphBuilder.RHICmdList, SceneRenderTargets, View, &TranslucentVolumeLightingTextures, SceneColorCopyTexture, SceneTextureSetupMode, ViewIndex, *BasePassParameters);
+	SetupTranslucentBasePassUniformParameters(GraphBuilder, SceneRenderTargets, View, TranslucentVolumeLightingTextures, SceneColorCopyTexture, SceneTextureSetupMode, ViewIndex, *BasePassParameters);
 	return GraphBuilder.CreateUniformBuffer(BasePassParameters);
-}
-
-TUniformBufferRef<FTranslucentBasePassUniformParameters> CreateTranslucentBasePassUniformBuffer(
-	FRHICommandListImmediate& RHICmdList,
-	const FViewInfo& View,
-	ESceneTextureSetupMode SceneTextureSetupMode,
-	const int32 ViewIndex)
-{
-	FSceneRenderTargets& SceneRenderTargets = FSceneRenderTargets::Get();
-	FTranslucentBasePassUniformParameters BasePassParameters;
-	SetupTranslucentBasePassUniformParameters(nullptr, RHICmdList, SceneRenderTargets, View, nullptr, nullptr, SceneTextureSetupMode, ViewIndex, BasePassParameters);
-	return TUniformBufferRef<FTranslucentBasePassUniformParameters>::CreateUniformBufferImmediate(BasePassParameters, EUniformBufferUsage::UniformBuffer_SingleFrame);
 }
 
 static void UpdateSeparateTranslucencyViewState(FScene* Scene, const FViewInfo& View, const FScreenPassTextureViewport& SeparateTranslucencyViewport, FMeshPassProcessorRenderState& DrawRenderState)
@@ -1069,7 +1056,7 @@ void FDeferredShadingSceneRenderer::RenderTranslucencyInner(
 				SeparateTranslucencyColorTexture,
 				SeparateTranslucencyColorLoadAction,
 				SeparateTranslucencyDepthTexture.Target,
-				CreateTranslucentBasePassUniformBuffer(GraphBuilder, View, TranslucentVolumeLightingTextures, SceneColorCopyTexture, SceneTextureSetupMode, ViewIndex),
+				CreateTranslucentBasePassUniformBuffer(GraphBuilder, View, &TranslucentVolumeLightingTextures, SceneColorCopyTexture, SceneTextureSetupMode, ViewIndex),
 				TranslucencyPass,
 				!bCompositeBackToSceneColor,
 				bRenderInParallel);
@@ -1121,7 +1108,7 @@ void FDeferredShadingSceneRenderer::RenderTranslucencyInner(
 				SceneColorTexture,
 				SceneColorLoadAction,
 				SceneDepthTexture.Target,
-				CreateTranslucentBasePassUniformBuffer(GraphBuilder, View, TranslucentVolumeLightingTextures, SceneColorCopyTexture, SceneTextureSetupMode, ViewIndex),
+				CreateTranslucentBasePassUniformBuffer(GraphBuilder, View, &TranslucentVolumeLightingTextures, SceneColorCopyTexture, SceneTextureSetupMode, ViewIndex),
 				TranslucencyPass,
 				bResolveColorTexture,
 				bRenderInParallel);

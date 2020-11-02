@@ -928,7 +928,9 @@ FRHITexture* FMobileSceneRenderer::RenderForward(FRHICommandListImmediate& RHICm
 		// Here we use the base pass depth result to get z culling for opaque and masque.
 		// The color needs to be cleared at this point since shader complexity renders in additive.
 		DrawClearQuad(RHICmdList, FLinearColor::Black);
-		RenderMobileDebugView(RHICmdList, ViewList);
+		FRDGBuilder GraphBuilder(RHICmdList);
+		RenderMobileDebugView(GraphBuilder, ViewList);
+		GraphBuilder.Execute();
 		RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
 	}
 #endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
@@ -1216,28 +1218,38 @@ FRHITexture* FMobileSceneRenderer::RenderDeferred(FRHICommandListImmediate& RHIC
 	return ColorTargets[0];
 }
 
-void FMobileSceneRenderer::RenderMobileDebugView(FRHICommandListImmediate& RHICmdList, const TArrayView<const FViewInfo*> PassViews)
+BEGIN_SHADER_PARAMETER_STRUCT(FMobileDebugViewPassParameters, )
+	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FDebugViewModePassUniformParameters, DebugViewMode)
+END_SHADER_PARAMETER_STRUCT()
+
+void FMobileSceneRenderer::RenderMobileDebugView(FRDGBuilder& GraphBuilder, const TArrayView<const FViewInfo*> PassViews)
 {
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderDebugView);
-	SCOPED_DRAW_EVENT(RHICmdList, MobileDebugView);
+	RDG_EVENT_SCOPE(GraphBuilder, "MobileDebugView");
 	SCOPE_CYCLE_COUNTER(STAT_BasePassDrawTime);
 
 	for (int32 ViewIndex = 0; ViewIndex < PassViews.Num(); ViewIndex++)
 	{
-		SCOPED_CONDITIONAL_DRAW_EVENTF(RHICmdList, EventView, Views.Num() > 1, TEXT("View%d"), ViewIndex);
+		RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
 		const FViewInfo& View = *PassViews[ViewIndex];
 		if (!View.ShouldRenderView())
 		{
 			continue;
 		}
 
-		TUniformBufferRef<FDebugViewModePassUniformParameters> DebugViewModePassUniformBuffer = CreateDebugViewModePassUniformBuffer(RHICmdList, View);
-		FUniformBufferStaticBindings GlobalUniformBuffers(DebugViewModePassUniformBuffer);
-		SCOPED_UNIFORM_BUFFER_GLOBAL_BINDINGS(RHICmdList, GlobalUniformBuffers);
+		auto* PassParameters = GraphBuilder.AllocParameters<FMobileDebugViewPassParameters>();
+		PassParameters->DebugViewMode = CreateDebugViewModePassUniformBuffer(GraphBuilder, View);
 
-		RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1);
-		View.ParallelMeshDrawCommandPasses[EMeshPass::DebugViewMode].DispatchDraw(nullptr, RHICmdList);
+		GraphBuilder.AddPass(
+			{},
+			PassParameters,
+			ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass | ERDGPassFlags::NeverCull,
+			[&View](FRHICommandList& RHICmdList)
+		{
+			RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1);
+			View.ParallelMeshDrawCommandPasses[EMeshPass::DebugViewMode].DispatchDraw(nullptr, RHICmdList);
+		});
 	}
 #endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 }

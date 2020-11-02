@@ -129,15 +129,9 @@ END_GLOBAL_SHADER_PARAMETER_STRUCT()
 DECLARE_GPU_DRAWCALL_STAT_EXTERN(Basepass);
 
 extern void SetupSharedBasePassParameters(
-	FRDGBuilder* GraphBuilder,
-	FRHICommandListImmediate& RHICmdList,
+	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	FSharedBasePassUniformParameters& BasePassParameters);
-
-extern TUniformBufferRef<FOpaqueBasePassUniformParameters> CreateOpaqueBasePassUniformBuffer(
-	FRHICommandListImmediate& RHICmdList,
-	const FViewInfo& View,
-	IPooledRenderTarget* ForwardScreenSpaceShadowMask);
 
 extern TRDGUniformBufferRef<FOpaqueBasePassUniformParameters> CreateOpaqueBasePassUniformBuffer(
 	FRDGBuilder& GraphBuilder,
@@ -151,12 +145,6 @@ extern TRDGUniformBufferRef<FTranslucentBasePassUniformParameters> CreateTranslu
 	const FViewInfo& View,
 	const FTranslucentVolumeLightingTextures* TranslucentVolumeLightingTextures,
 	FRDGTextureRef SceneColorCopy,
-	ESceneTextureSetupMode SceneTextureSetupMode,
-	const int32 ViewIndex);
-
-extern TUniformBufferRef<FTranslucentBasePassUniformParameters> CreateTranslucentBasePassUniformBuffer(
-	FRHICommandListImmediate& RHICmdList,
-	const FViewInfo& View,
 	ESceneTextureSetupMode SceneTextureSetupMode,
 	const int32 ViewIndex);
 

@@ -33,7 +33,6 @@ END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
-TUniformBufferRef<FDebugViewModePassUniformParameters> CreateDebugViewModePassUniformBuffer(FRHICommandList& RHICmdList, const FViewInfo& View);
 TRDGUniformBufferRef<FDebugViewModePassUniformParameters> CreateDebugViewModePassUniformBuffer(FRDGBuilder& GraphBuilder, const FViewInfo& View);
 
 class FDebugViewModeShaderElementData : public FMeshMaterialShaderElementData
@@ -80,12 +79,10 @@ class FDebugViewModeVS : public FMeshMaterialShader
 	DECLARE_SHADER_TYPE(FDebugViewModeVS,MeshMaterial);
 protected:
 
-	FDebugViewModeVS(const FMeshMaterialShaderType::CompiledShaderInitializerType& Initializer) : FMeshMaterialShader(Initializer)
-	{
-		PassUniformBuffer.Bind(Initializer.ParameterMap, FSceneTextureUniformParameters::StaticStructMetadata.GetShaderVariableName());
-	}
-
-	FDebugViewModeVS() {}
+	FDebugViewModeVS() = default;
+	FDebugViewModeVS(const FMeshMaterialShaderType::CompiledShaderInitializerType& Initializer) 
+		: FMeshMaterialShader(Initializer)
+	{}
 
 public:
 
@@ -145,9 +142,10 @@ public:
 		FBaseHS::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 	}
 
-
-	FDebugViewModeHS(const ShaderMetaType::CompiledShaderInitializerType& Initializer): FBaseHS(Initializer) {}
-	FDebugViewModeHS() {}
+	FDebugViewModeHS() = default;
+	FDebugViewModeHS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+		: FBaseHS(Initializer)
+	{}
 };
 
 /**
@@ -169,15 +167,19 @@ public:
 		FBaseDS::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 	}
 
-	FDebugViewModeDS(const ShaderMetaType::CompiledShaderInitializerType& Initializer): FBaseDS(Initializer) {}
-	FDebugViewModeDS() {}
+	FDebugViewModeDS() = default;
+	FDebugViewModeDS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+		: FBaseDS(Initializer)
+	{}
 };
 
 class FDebugViewModePS : public FMeshMaterialShader
 {
 public:
-	FDebugViewModePS(const FMeshMaterialShaderType::CompiledShaderInitializerType& Initializer);
-	FDebugViewModePS() {}
+	FDebugViewModePS() = default;
+	FDebugViewModePS(const FMeshMaterialShaderType::CompiledShaderInitializerType& Initializer)
+		: FMeshMaterialShader(Initializer)
+	{}
 
 	void GetElementShaderBindings(
 		const FShaderMapPointerTable& PointerTable,
@@ -197,7 +199,7 @@ public:
 class FDebugViewModeMeshProcessor : public FMeshPassProcessor
 {
 public:
-	FDebugViewModeMeshProcessor(const FScene* InScene, ERHIFeatureLevel::Type InFeatureLevel, const FSceneView* InViewIfDynamicMeshCommand, FRHIUniformBuffer* InPassUniformBuffer, bool bTranslucentBasePass, FMeshPassDrawListContext* InDrawListContext);
+	FDebugViewModeMeshProcessor(const FScene* InScene, ERHIFeatureLevel::Type InFeatureLevel, const FSceneView* InViewIfDynamicMeshCommand, bool bTranslucentBasePass, FMeshPassDrawListContext* InDrawListContext);
 	virtual void AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId = -1) override final;
 
 private:
@@ -205,7 +207,6 @@ private:
 	void UpdateInstructionCount(FDebugViewModeShaderElementData& OutShaderElementData, const FMaterial* InBatchMaterial, FVertexFactoryType* InVertexFactoryType);
 
 	TUniformBufferRef<FViewUniformShaderParameters> ViewUniformBuffer;
-	FUniformBufferRHIRef PassUniformBuffer;
 	EDebugViewShaderMode DebugViewMode;
 	int32 ViewModeParam;
 	FName ViewModeParamName;
