@@ -201,8 +201,7 @@ public:
 				.OnBeginSliderMovement(InArgs._OnBeginSliderMovement)
 				.OnEndSliderMovement(InArgs._OnEndSliderMovement)
 				.MinDesiredWidth(InArgs._MinDesiredValueWidth)
-				.TypeInterface(Interface)
-				.ToolTipText(this, &SNumericEntryBox<NumericType>::GetValueAsText);
+				.TypeInterface(Interface);
 		}
 
 		// Always create an editable text box.  In the case of an undetermined value being passed in, we cant use the spinbox.
@@ -216,15 +215,33 @@ public:
 			.OnTextCommitted(this, &SNumericEntryBox<NumericType>::OnTextCommitted)
 			.SelectAllTextOnCommit(true)
 			.ContextMenuExtender(InArgs._ContextMenuExtender)
-			.MinDesiredWidth(InArgs._MinDesiredValueWidth)
-			.ToolTipText(this, &SNumericEntryBox<NumericType>::GetValueAsText);
+			.MinDesiredWidth(InArgs._MinDesiredValueWidth);
 
-		TSharedRef<SHorizontalBox> HorizontalBox = SNew(SHorizontalBox);
-	
-		if( InArgs._Label.Widget != SNullWidget::NullWidget )
+		TSharedRef<SOverlay> Overlay = SNew(SOverlay);
+
+		// Add the spin box if we have one
+		if( bAllowSpin )
 		{
-			HorizontalBox->AddSlot()
-				.AutoWidth()
+			Overlay->AddSlot()
+				.HAlign(HAlign_Fill) 
+				.VAlign(VAlign_Center) 
+				[
+					SpinBox.ToSharedRef()
+				];
+		}
+
+		Overlay->AddSlot()
+			.HAlign(HAlign_Fill) 
+			.VAlign(VAlign_Center)
+			.Padding(TextMargin)
+			[
+				EditableText.ToSharedRef()
+			];
+
+
+		if (InArgs._Label.Widget != SNullWidget::NullWidget)
+		{
+			Overlay->AddSlot()
 				.HAlign(HAlign_Left)
 				.VAlign(InArgs._LabelVAlign)
 				.Padding(InArgs._LabelPadding)
@@ -232,27 +249,6 @@ public:
 					InArgs._Label.Widget
 				];
 		}
-
-		// Add the spin box if we have one
-		if( bAllowSpin )
-		{
-			HorizontalBox->AddSlot()
-				.HAlign(HAlign_Fill) 
-				.VAlign(VAlign_Center) 
-				.FillWidth(1)
-				[
-					SpinBox.ToSharedRef()
-				];
-		}
-
-		HorizontalBox->AddSlot()
-			.HAlign(HAlign_Fill) 
-			.VAlign(VAlign_Center)
-			.Padding(TextMargin)
-			.FillWidth(1)
-			[
-				EditableText.ToSharedRef()
-			];
 
 		ChildSlot
 			[
@@ -262,7 +258,7 @@ public:
 				.ForegroundColor( InArgs._BorderForegroundColor )
 				.Padding(0)
 				[
-					HorizontalBox
+					Overlay
 				]
 			];
 	}
@@ -271,6 +267,7 @@ public:
 	{
 		return
 			SNew(SBorder)
+			.Visibility(EVisibility::HitTestInvisible)
 			.BorderImage(FCoreStyle::Get().GetBrush("NumericEntrySpinBox.Decorator"))
 			.BorderBackgroundColor(BackgroundColor)
 			.ForegroundColor(ForegroundColor)
@@ -282,6 +279,19 @@ public:
 				.Text(LabelText)
 			];
 	}
+
+
+	static TSharedRef<SWidget> BuildNarrowColorLabel(FLinearColor LabelColor)
+	{
+		return
+			SNew(SBorder)
+			.Visibility(EVisibility::HitTestInvisible)
+			.BorderImage(FAppStyle::Get().GetBrush("NumericEntrySpinBox.NarrowDecorator"))
+			.BorderBackgroundColor(LabelColor)
+			.HAlign(HAlign_Left)
+			.Padding(FMargin(2.0f, 0.0f, 0.0f, 0.0f));
+	}
+
 
 	/** Return the internally created SpinBox if bAllowSpin is true */
 	TSharedPtr<SWidget> GetSpinBox() const { return SpinBox; }

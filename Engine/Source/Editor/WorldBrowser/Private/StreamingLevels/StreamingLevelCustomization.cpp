@@ -66,7 +66,6 @@ void FStreamingLevelCustomization::CustomizeDetails(IDetailLayoutBuilder& Detail
 			.IsEnabled(this, &FStreamingLevelCustomization::LevelEditTextTransformAllowed)
 			.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 			.bColorAxisLabels(true)
-			.AllowResponsiveLayout(true)
 			.AllowSpin(false)
 			.X(this, &FStreamingLevelCustomization::OnGetLevelPosition, 0)
 			.Y(this, &FStreamingLevelCustomization::OnGetLevelPosition, 1)

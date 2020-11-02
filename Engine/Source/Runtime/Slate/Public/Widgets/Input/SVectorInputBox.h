@@ -13,8 +13,6 @@
 #include "Framework/MultiBox/MultiBoxExtender.h"
 #include "Widgets/Input/NumericTypeInterface.h"
 
-#undef _X //@todo vogel: needs to be removed once Slate no longer uses _##Name
-
 class FArrangedChildren;
 class SHorizontalBox;
 
@@ -25,13 +23,12 @@ class SLATE_API SVectorInputBox : public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS( SVectorInputBox )
-		: _Font( FCoreStyle::Get().GetFontStyle("NormalFont") )
+		: _Font( FAppStyle::Get().GetFontStyle("NormalFont") )
 		, _AllowSpin( false )
 		, _SpinDelta( 1 )
 		, _bColorAxisLabels( false )
-		, _AllowResponsiveLayout( false )
 		{}
-
+		
 		/** X Component of the vector */
 		SLATE_ATTRIBUTE( TOptional<float>, X )
 
@@ -54,7 +51,11 @@ public:
 		SLATE_ARGUMENT( bool, bColorAxisLabels )		
 
 		/** Allow responsive layout to crush the label and margins when there is not a lot of room */
-		SLATE_ARGUMENT( bool, AllowResponsiveLayout )
+		UE_DEPRECATED(5.0, "AllowResponsiveLayout unused as it is no longer necessary.")
+		FArguments& AllowResponsiveLayout(bool bAllow)
+		{
+			return Me();
+		}
 
 		/** Called when the x value of the vector is changed */
 		SLATE_EVENT( FOnFloatValueChanged, OnXChanged )
@@ -100,27 +101,8 @@ public:
 	 * @param	InArgs	The declaration data for this widget
 	 */
 	void Construct( const FArguments& InArgs );
-
-	// SWidget interface
-	virtual void OnArrangeChildren(const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren) const override;
-	// End of SWidget interface
-
 private:
-	/** Are we allowed to be crushed? */
-	bool bCanBeCrushed;
 
-	/** Are we currently being crushed? */
-	mutable bool bIsBeingCrushed;
-
-private:
-	/** Returns the index of the label widget to use (crushed or uncrushed) */
-	int32 GetLabelActiveSlot() const;
-
-	/** Returns the desired text margin for the label */
-	FMargin GetTextMargin() const;
-
-	/** Creates a decorator label (potentially adding a switcher widget if this is cruhsable) */
-	TSharedRef<SWidget> BuildDecoratorLabel(FLinearColor BackgroundColor, FLinearColor ForegroundColor, FText Label);
 
 	/**
 	 * Construct widgets for the X Value

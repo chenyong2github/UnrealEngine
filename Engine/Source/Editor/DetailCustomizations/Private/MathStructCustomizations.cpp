@@ -87,12 +87,6 @@ void FMathStructCustomization::MakeHeaderRow(TSharedRef<class IPropertyHandle>& 
 		TSharedRef<SWidget> NumericEntryBox = MakeChildWidget(StructPropertyHandle, ChildHandle);
 		NumericEntryBoxWidgetList.Add(NumericEntryBox);
 
-		NumericEntryBox->SetToolTipText(MakeAttributeLambda([StructPropertyHandle] {
-			FText result;
-			StructPropertyHandle->GetValueAsDisplayText(result);
-			return result;
-		}));
-
 		HorizontalBox->AddSlot()
 		.Padding(FMargin(0.0f, 2.0f, bLastChild ? 0.0f : 3.0f, 2.0f))
 		[
@@ -110,6 +104,7 @@ void FMathStructCustomization::MakeHeaderRow(TSharedRef<class IPropertyHandle>& 
 		HorizontalBox->AddSlot()
 		.AutoWidth()
 		.MaxWidth(18.0f)
+		.VAlign(VAlign_Center)
 		[
 			// Add a checkbox to toggle between preserving the ratio of x,y,z components of scale when a value is entered
 			SNew(SCheckBox)
@@ -129,7 +124,7 @@ void FMathStructCustomization::MakeHeaderRow(TSharedRef<class IPropertyHandle>& 
 
 const FSlateBrush* FMathStructCustomization::GetPreserveScaleRatioImage() const
 {
-	return bPreserveScaleRatio ? FEditorStyle::GetBrush(TEXT("GenericLock")) : FEditorStyle::GetBrush(TEXT("GenericUnlock"));
+	return bPreserveScaleRatio ? FEditorStyle::GetBrush(TEXT("Icons.Lock")) : FEditorStyle::GetBrush(TEXT("Icons.Unlock"));
 }
 
 
@@ -264,36 +259,31 @@ TSharedRef<SWidget> FMathStructCustomization::MakeNumericWidget(
 
 	TWeakPtr<IPropertyHandle> WeakHandlePtr = PropertyHandle;
 
-	return SNew(SNumericEntryBox<NumericType>)
-		.IsEnabled(this, &FMathStructCustomization::IsValueEnabled, WeakHandlePtr)
-		.EditableTextBoxStyle(&FCoreStyle::Get().GetWidgetStyle<FEditableTextBoxStyle>("NormalEditableTextBox"))
-		.Value(this, &FMathStructCustomization::OnGetValue, WeakHandlePtr)
-		.Font(IDetailLayoutBuilder::GetDetailFont())
-		.UndeterminedString(NSLOCTEXT("PropertyEditor", "MultipleValues", "Multiple Values"))
-		.OnValueCommitted(this, &FMathStructCustomization::OnValueCommitted<NumericType>, WeakHandlePtr)
-		.OnValueChanged(this, &FMathStructCustomization::OnValueChanged<NumericType>, WeakHandlePtr)
-		.OnBeginSliderMovement(this, &FMathStructCustomization::OnBeginSliderMovement)
-		.OnEndSliderMovement(this, &FMathStructCustomization::OnEndSliderMovement<NumericType>)
-		.LabelVAlign(VAlign_Center)
-		// Only allow spin on handles with one object.  Otherwise it is not clear what value to spin
-		.AllowSpin(PropertyHandle->GetNumOuterObjects() < 2)
-		.ShiftMouseMovePixelPerDelta(ShiftMouseMovePixelPerDelta)
-		.SupportDynamicSliderMaxValue(SupportDynamicSliderMaxValue)
-		.SupportDynamicSliderMinValue(SupportDynamicSliderMinValue)
-		.OnDynamicSliderMaxValueChanged(this, &FMathStructCustomization::OnDynamicSliderMaxValueChanged<NumericType>)
-		.OnDynamicSliderMinValueChanged(this, &FMathStructCustomization::OnDynamicSliderMinValueChanged<NumericType>)
-		.MinValue(MinValue)
-		.MaxValue(MaxValue)
-		.MinSliderValue(SliderMinValue)
-		.MaxSliderValue(SliderMaxValue)
-		.SliderExponent(SliderExponent)
-		.Delta(Delta)
-		.Label()
-		[
-			SNew(STextBlock)
-				.Font(IDetailLayoutBuilder::GetDetailFont())
-				.Text(PropertyHandle->GetPropertyDisplayName())
-		];
+	return
+		SNew(SNumericEntryBox<NumericType>)
+			.IsEnabled(this, &FMathStructCustomization::IsValueEnabled, WeakHandlePtr)
+			.EditableTextBoxStyle(&FCoreStyle::Get().GetWidgetStyle<FEditableTextBoxStyle>("NormalEditableTextBox"))
+			.Value(this, &FMathStructCustomization::OnGetValue, WeakHandlePtr)
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+			.UndeterminedString(NSLOCTEXT("PropertyEditor", "MultipleValues", "Multiple Values"))
+			.OnValueCommitted(this, &FMathStructCustomization::OnValueCommitted<NumericType>, WeakHandlePtr)
+			.OnValueChanged(this, &FMathStructCustomization::OnValueChanged<NumericType>, WeakHandlePtr)
+			.OnBeginSliderMovement(this, &FMathStructCustomization::OnBeginSliderMovement)
+			.OnEndSliderMovement(this, &FMathStructCustomization::OnEndSliderMovement<NumericType>)
+			// Only allow spin on handles with one object.  Otherwise it is not clear what value to spin
+			.AllowSpin(PropertyHandle->GetNumOuterObjects() < 2)
+			.ShiftMouseMovePixelPerDelta(ShiftMouseMovePixelPerDelta)
+			.SupportDynamicSliderMaxValue(SupportDynamicSliderMaxValue)
+			.SupportDynamicSliderMinValue(SupportDynamicSliderMinValue)
+			.OnDynamicSliderMaxValueChanged(this, &FMathStructCustomization::OnDynamicSliderMaxValueChanged<NumericType>)
+			.OnDynamicSliderMinValueChanged(this, &FMathStructCustomization::OnDynamicSliderMinValueChanged<NumericType>)
+			.MinValue(MinValue)
+			.MaxValue(MaxValue)
+			.MinSliderValue(SliderMinValue)
+			.MaxSliderValue(SliderMaxValue)
+			.SliderExponent(SliderExponent)
+			.Delta(Delta)
+			.ToolTipText(this, &FMathStructCustomization::OnGetValueToolTip<NumericType>, WeakHandlePtr);
 }
 
 template <typename NumericType>
@@ -488,6 +478,20 @@ void FMathStructCustomization::SetValue(NumericType NewValue, EPropertyValueSetF
 	WeakHandlePtr.Pin()->SetValue(NewValue, Flags);
 }
 
+template <typename NumericType>
+FText FMathStructCustomization::OnGetValueToolTip(TWeakPtr<IPropertyHandle> WeakHandlePtr) const
+{
+	if(TSharedPtr<IPropertyHandle> PropertyHandle = WeakHandlePtr.Pin())
+	{
+		TOptional<NumericType> Value = OnGetValue<NumericType>(WeakHandlePtr);
+		if (Value.IsSet())
+		{
+			return FText::Format(LOCTEXT("ValueToolTip", "{0}: {1}"),  PropertyHandle->GetPropertyDisplayName(), FText::AsNumber(Value.GetValue()));
+		}
+	}
+	
+	return FText::GetEmpty();
+}
 
 bool FMathStructCustomization::IsValueEnabled(TWeakPtr<IPropertyHandle> WeakHandlePtr) const
 {

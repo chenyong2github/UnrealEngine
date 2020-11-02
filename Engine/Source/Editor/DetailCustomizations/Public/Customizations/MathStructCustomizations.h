@@ -122,6 +122,13 @@ protected:
 	template<typename NumericType>
 	void SetValue(NumericType NewValue, EPropertyValueSetFlags::Type Flags, TWeakPtr<IPropertyHandle> WeakHandlePtr);
 
+	/**
+	 * Gets the tooltip for the value. Displays the property name and the current value
+	 * 
+	 * @praram WeakHandlePtr Handle to the property to get the value from
+	 */
+	template <typename NumericType>
+	FText OnGetValueToolTip(TWeakPtr<IPropertyHandle> WeakHandlePtr) const;
 private:
 
 	/** Gets the brush to use for the lock icon. */

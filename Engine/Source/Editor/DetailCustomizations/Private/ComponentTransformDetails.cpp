@@ -162,11 +162,9 @@ TSharedRef<SWidget> FComponentTransformDetails::BuildTransformFieldLabel( ETrans
 
 	MenuBuilder.EndSection();
 
-
-	return 
+	TSharedRef<SWidget> NameContent =
 		SNew(SComboButton)
-		.ContentPadding( 0 )
-		.ButtonStyle( FEditorStyle::Get(), "NoBorder" )
+		.ContentPadding(0)
 		.ForegroundColor( FSlateColor::UseForeground() )
 		.MenuContent()
 		[
@@ -176,12 +174,44 @@ TSharedRef<SWidget> FComponentTransformDetails::BuildTransformFieldLabel( ETrans
 		[
 			SNew( SBox )
 			.Padding( FMargin( 0.0f, 0.0f, 2.0f, 0.0f ) )
+			.MinDesiredWidth(50.f)
 			[
 				SNew(STextBlock)
 				.Text(this, &FComponentTransformDetails::GetTransformFieldText, TransformField)
 				.Font(IDetailLayoutBuilder::GetDetailFont())
 			]
 		];
+
+	if(TransformField == ETransformField::Scale)
+	{
+		NameContent =
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.Padding(FMargin(0.0f, 0.0f, 4.0f, 0.0f))
+			[
+				// Add a checkbox to toggle between preserving the ratio of x,y,z components of scale when a value is entered
+				SNew(SCheckBox)
+				.IsChecked(this, &FComponentTransformDetails::IsPreserveScaleRatioChecked)
+				.IsEnabled(this, &FComponentTransformDetails::GetIsEnabled)
+				.OnCheckStateChanged(this, &FComponentTransformDetails::OnPreserveScaleRatioToggled)
+				.Style(FEditorStyle::Get(), "TransparentCheckBox")
+				.ToolTipText(LOCTEXT("PreserveScaleToolTip", "When locked, scales uniformly based on the current xyz scale values so the object maintains its shape in each direction when scaled"))
+				[
+					SNew(SImage)
+					.Image(this, &FComponentTransformDetails::GetPreserveScaleRatioImage)
+					.ColorAndOpacity(FSlateColor::UseForeground())
+				]
+			]
+			+ SHorizontalBox::Slot()
+			.VAlign(VAlign_Center)
+			[
+				NameContent
+			];
+	}
+
+	return NameContent;
 }
 
 FText FComponentTransformDetails::GetTransformFieldText( ETransformField::Type TransformField ) const
@@ -343,32 +373,26 @@ void FComponentTransformDetails::GenerateChildContent( IDetailChildrenBuilder& C
 		.ValueContent()
 		.MinDesiredWidth(125.0f * 3.0f)
 		.MaxDesiredWidth(125.0f * 3.0f)
+		.VAlign(VAlign_Center)
 		[
-			SNew( SHorizontalBox )
-			+SHorizontalBox::Slot()
-			.FillWidth(1)
-			.VAlign( VAlign_Center )
-			[
-				SNew( SVectorInputBox )
-				.X( this, &FComponentTransformDetails::GetLocationX )
-				.Y( this, &FComponentTransformDetails::GetLocationY )
-				.Z( this, &FComponentTransformDetails::GetLocationZ )
-				.bColorAxisLabels( true )
-				.AllowResponsiveLayout( true )
-				.IsEnabled( this, &FComponentTransformDetails::GetIsEnabled )
-				.OnXChanged( this, &FComponentTransformDetails::OnSetTransformAxis, ETextCommit::Default, ETransformField::Location, EAxisList::X, false )
-				.OnYChanged( this, &FComponentTransformDetails::OnSetTransformAxis, ETextCommit::Default, ETransformField::Location, EAxisList::Y, false )
-				.OnZChanged( this, &FComponentTransformDetails::OnSetTransformAxis, ETextCommit::Default, ETransformField::Location, EAxisList::Z, false )
-				.OnXCommitted( this, &FComponentTransformDetails::OnSetTransformAxis, ETransformField::Location, EAxisList::X, true )
-				.OnYCommitted( this, &FComponentTransformDetails::OnSetTransformAxis, ETransformField::Location, EAxisList::Y, true )
-				.OnZCommitted( this, &FComponentTransformDetails::OnSetTransformAxis, ETransformField::Location, EAxisList::Z, true )
-				.Font( FontInfo )
-				.TypeInterface( TypeInterface )
-				.AllowSpin( SelectedObjects.Num() == 1 )
-				.SpinDelta( 1 )
-				.OnBeginSliderMovement( this, &FComponentTransformDetails::OnBeginLocationSlider )
-				.OnEndSliderMovement( this, &FComponentTransformDetails::OnEndLocationSlider )
-			]
+			SNew(SVectorInputBox)
+			.X(this, &FComponentTransformDetails::GetLocationX)
+			.Y(this, &FComponentTransformDetails::GetLocationY)
+			.Z(this, &FComponentTransformDetails::GetLocationZ)
+			.bColorAxisLabels(true)
+			.IsEnabled(this, &FComponentTransformDetails::GetIsEnabled)
+			.OnXChanged(this, &FComponentTransformDetails::OnSetTransformAxis, ETextCommit::Default, ETransformField::Location, EAxisList::X, false)
+			.OnYChanged(this, &FComponentTransformDetails::OnSetTransformAxis, ETextCommit::Default, ETransformField::Location, EAxisList::Y, false)
+			.OnZChanged(this, &FComponentTransformDetails::OnSetTransformAxis, ETextCommit::Default, ETransformField::Location, EAxisList::Z, false)
+			.OnXCommitted(this, &FComponentTransformDetails::OnSetTransformAxis, ETransformField::Location, EAxisList::X, true)
+			.OnYCommitted(this, &FComponentTransformDetails::OnSetTransformAxis, ETransformField::Location, EAxisList::Y, true)
+			.OnZCommitted(this, &FComponentTransformDetails::OnSetTransformAxis, ETransformField::Location, EAxisList::Z, true)
+			.Font(FontInfo)
+			.TypeInterface(TypeInterface)
+			.AllowSpin(SelectedObjects.Num() == 1)
+			.SpinDelta(1)
+			.OnBeginSliderMovement(this, &FComponentTransformDetails::OnBeginLocationSlider)
+			.OnEndSliderMovement(this, &FComponentTransformDetails::OnEndLocationSlider)
 		];
 	}
 	
@@ -394,31 +418,25 @@ void FComponentTransformDetails::GenerateChildContent( IDetailChildrenBuilder& C
 		.ValueContent()
 		.MinDesiredWidth(125.0f * 3.0f)
 		.MaxDesiredWidth(125.0f * 3.0f)
+		.VAlign(VAlign_Center)
 		[
-			SNew( SHorizontalBox )
-			+SHorizontalBox::Slot()
-			.FillWidth(1)
-			.VAlign( VAlign_Center )
-			[
-				SNew( SRotatorInputBox )
-				.AllowSpin( SelectedObjects.Num() == 1 ) 
-				.Roll( this, &FComponentTransformDetails::GetRotationX )
-				.Pitch( this, &FComponentTransformDetails::GetRotationY )
-				.Yaw( this, &FComponentTransformDetails::GetRotationZ )
-				.AllowResponsiveLayout( true )
-				.bColorAxisLabels( true )
-				.IsEnabled( this, &FComponentTransformDetails::GetIsEnabled )
-				.OnBeginSliderMovement( this, &FComponentTransformDetails::OnBeginRotationSlider )
-				.OnEndSliderMovement( this, &FComponentTransformDetails::OnEndRotationSlider )
-				.OnRollChanged( this, &FComponentTransformDetails::OnSetTransformAxis, ETextCommit::Default, ETransformField::Rotation, EAxisList::X, false )
-				.OnPitchChanged( this, &FComponentTransformDetails::OnSetTransformAxis, ETextCommit::Default, ETransformField::Rotation, EAxisList::Y, false )
-				.OnYawChanged( this, &FComponentTransformDetails::OnSetTransformAxis, ETextCommit::Default, ETransformField::Rotation, EAxisList::Z, false )
-				.OnRollCommitted( this, &FComponentTransformDetails::OnSetTransformAxis, ETransformField::Rotation, EAxisList::X, true )
-				.OnPitchCommitted( this, &FComponentTransformDetails::OnSetTransformAxis, ETransformField::Rotation, EAxisList::Y, true )
-				.OnYawCommitted( this, &FComponentTransformDetails::OnSetTransformAxis, ETransformField::Rotation, EAxisList::Z, true )
-				.TypeInterface( TypeInterface )
-				.Font( FontInfo )
-			]
+			SNew( SRotatorInputBox )
+			.AllowSpin( SelectedObjects.Num() == 1 ) 
+			.Roll( this, &FComponentTransformDetails::GetRotationX )
+			.Pitch( this, &FComponentTransformDetails::GetRotationY )
+			.Yaw( this, &FComponentTransformDetails::GetRotationZ )
+			.bColorAxisLabels( true )
+			.IsEnabled( this, &FComponentTransformDetails::GetIsEnabled )
+			.OnBeginSliderMovement( this, &FComponentTransformDetails::OnBeginRotationSlider )
+			.OnEndSliderMovement( this, &FComponentTransformDetails::OnEndRotationSlider )
+			.OnRollChanged( this, &FComponentTransformDetails::OnSetTransformAxis, ETextCommit::Default, ETransformField::Rotation, EAxisList::X, false )
+			.OnPitchChanged( this, &FComponentTransformDetails::OnSetTransformAxis, ETextCommit::Default, ETransformField::Rotation, EAxisList::Y, false )
+			.OnYawChanged( this, &FComponentTransformDetails::OnSetTransformAxis, ETextCommit::Default, ETransformField::Rotation, EAxisList::Z, false )
+			.OnRollCommitted( this, &FComponentTransformDetails::OnSetTransformAxis, ETransformField::Rotation, EAxisList::X, true )
+			.OnPitchCommitted( this, &FComponentTransformDetails::OnSetTransformAxis, ETransformField::Rotation, EAxisList::Y, true )
+			.OnYawCommitted( this, &FComponentTransformDetails::OnSetTransformAxis, ETransformField::Rotation, EAxisList::Z, true )
+			.TypeInterface( TypeInterface )
+			.Font( FontInfo )
 		];
 	}
 	
@@ -438,51 +456,28 @@ void FComponentTransformDetails::GenerateChildContent( IDetailChildrenBuilder& C
 		.ValueContent()
 		.MinDesiredWidth(125.0f * 3.0f)
 		.MaxDesiredWidth(125.0f * 3.0f)
+		.VAlign(VAlign_Center)
 		[
-			SNew( SHorizontalBox )
-			+SHorizontalBox::Slot()
-			.VAlign( VAlign_Center )
-			.FillWidth(1.0f)
-			[
-				SNew( SVectorInputBox )
-				.X( this, &FComponentTransformDetails::GetScaleX )
-				.Y( this, &FComponentTransformDetails::GetScaleY )
-				.Z( this, &FComponentTransformDetails::GetScaleZ )
-				.bColorAxisLabels( true )
-				.AllowResponsiveLayout( true )
-				.IsEnabled( this, &FComponentTransformDetails::GetIsEnabled )
-				.OnXChanged( this, &FComponentTransformDetails::OnSetTransformAxis, ETextCommit::Default, ETransformField::Scale, EAxisList::X, false )
-				.OnYChanged( this, &FComponentTransformDetails::OnSetTransformAxis, ETextCommit::Default, ETransformField::Scale, EAxisList::Y, false )
-				.OnZChanged( this, &FComponentTransformDetails::OnSetTransformAxis, ETextCommit::Default, ETransformField::Scale, EAxisList::Z, false )
-				.OnXCommitted( this, &FComponentTransformDetails::OnSetTransformAxis, ETransformField::Scale, EAxisList::X, true )
-				.OnYCommitted( this, &FComponentTransformDetails::OnSetTransformAxis, ETransformField::Scale, EAxisList::Y, true )
-				.OnZCommitted( this, &FComponentTransformDetails::OnSetTransformAxis, ETransformField::Scale, EAxisList::Z, true )
-				.ContextMenuExtenderX( this, &FComponentTransformDetails::ExtendXScaleContextMenu )
-				.ContextMenuExtenderY( this, &FComponentTransformDetails::ExtendYScaleContextMenu )
-				.ContextMenuExtenderZ( this, &FComponentTransformDetails::ExtendZScaleContextMenu )
-				.Font( FontInfo )
-				.AllowSpin( SelectedObjects.Num() == 1 )
-				.SpinDelta( 0.0025f )
-				.OnBeginSliderMovement( this, &FComponentTransformDetails::OnBeginScaleSlider )
-				.OnEndSliderMovement( this, &FComponentTransformDetails::OnEndScaleSlider )
-			]
-			+SHorizontalBox::Slot()
-			.AutoWidth()
-			.MaxWidth( 18.0f )
-			[
-				// Add a checkbox to toggle between preserving the ratio of x,y,z components of scale when a value is entered
-				SNew( SCheckBox )
-				.IsChecked( this, &FComponentTransformDetails::IsPreserveScaleRatioChecked )
-				.IsEnabled( this, &FComponentTransformDetails::GetIsEnabled )
-				.OnCheckStateChanged( this, &FComponentTransformDetails::OnPreserveScaleRatioToggled )
-				.Style( FEditorStyle::Get(), "TransparentCheckBox" )
-				.ToolTipText( LOCTEXT("PreserveScaleToolTip", "When locked, scales uniformly based on the current xyz scale values so the object maintains its shape in each direction when scaled" ) )
-				[
-					SNew( SImage )
-					.Image( this, &FComponentTransformDetails::GetPreserveScaleRatioImage )
-					.ColorAndOpacity( FSlateColor::UseForeground() )
-				]
-			]
+			SNew( SVectorInputBox )
+			.X( this, &FComponentTransformDetails::GetScaleX )
+			.Y( this, &FComponentTransformDetails::GetScaleY )
+			.Z( this, &FComponentTransformDetails::GetScaleZ )
+			.bColorAxisLabels( true )
+			.IsEnabled( this, &FComponentTransformDetails::GetIsEnabled )
+			.OnXChanged( this, &FComponentTransformDetails::OnSetTransformAxis, ETextCommit::Default, ETransformField::Scale, EAxisList::X, false )
+			.OnYChanged( this, &FComponentTransformDetails::OnSetTransformAxis, ETextCommit::Default, ETransformField::Scale, EAxisList::Y, false )
+			.OnZChanged( this, &FComponentTransformDetails::OnSetTransformAxis, ETextCommit::Default, ETransformField::Scale, EAxisList::Z, false )
+			.OnXCommitted( this, &FComponentTransformDetails::OnSetTransformAxis, ETransformField::Scale, EAxisList::X, true )
+			.OnYCommitted( this, &FComponentTransformDetails::OnSetTransformAxis, ETransformField::Scale, EAxisList::Y, true )
+			.OnZCommitted( this, &FComponentTransformDetails::OnSetTransformAxis, ETransformField::Scale, EAxisList::Z, true )
+			.ContextMenuExtenderX( this, &FComponentTransformDetails::ExtendXScaleContextMenu )
+			.ContextMenuExtenderY( this, &FComponentTransformDetails::ExtendYScaleContextMenu )
+			.ContextMenuExtenderZ( this, &FComponentTransformDetails::ExtendZScaleContextMenu )
+			.Font( FontInfo )
+			.AllowSpin( SelectedObjects.Num() == 1 )
+			.SpinDelta( 0.0025f )
+			.OnBeginSliderMovement( this, &FComponentTransformDetails::OnBeginScaleSlider )
+			.OnEndSliderMovement(this, &FComponentTransformDetails::OnEndScaleSlider)
 		];
 	}
 }
@@ -556,7 +551,7 @@ bool FComponentTransformDetails::GetIsEnabled() const
 
 const FSlateBrush* FComponentTransformDetails::GetPreserveScaleRatioImage() const
 {
-	return bPreserveScaleRatio ? FEditorStyle::GetBrush( TEXT("GenericLock") ) : FEditorStyle::GetBrush( TEXT("GenericUnlock") ) ;
+	return bPreserveScaleRatio ? FEditorStyle::GetBrush( TEXT("Icons.Lock") ) : FEditorStyle::GetBrush( TEXT("Icons.Unlock") ) ;
 }
 
 ECheckBoxState FComponentTransformDetails::IsPreserveScaleRatioChecked() const
