@@ -380,9 +380,9 @@ void FAdaptiveVirtualTexture::Free(FVirtualTextureSystem* InSystem, int32 GridIn
 	check(NumAllocated >= 0);
 
 	// Update indirection texture
-	//todo[vt]: Batch texture updates.
+	//todo[vt]: Batch texture updates, deal with transitions and GPU mask.
 	FVirtualTextureSpace* Space = InSystem->GetSpace(GetSpaceID());
-	FRHITexture* Texture = Space->GetPageTableIndirectionTexture();
+	FRHITexture* Texture = Space->GetPageTableIndirectionTexture()->GetReferencedTexture();
 	const uint32 X = GridIndex % GridSize.X;
 	const uint32 Y = GridIndex / GridSize.X;
 	const FUpdateTextureRegion2D Region(X, Y, 0, 0, 1, 1);
@@ -456,9 +456,9 @@ void FAdaptiveVirtualTexture::Reallocate(FVirtualTextureSystem* InSystem, int32 
 	AllocatedVirtualTextureGrid[GridIndex] = NewAllocatedVT;
 
 	// Update indirection texture
-	//todo[vt]: Batch texture updates.
+	//todo[vt]: Batch texture updates, deal with transitions and GPU mask.
 	FVirtualTextureSpace* Space = InSystem->GetSpace(GetSpaceID());
-	FRHITexture* Texture = Space->GetPageTableIndirectionTexture();
+	FRHITexture* Texture = Space->GetPageTableIndirectionTexture()->GetReferencedTexture();
 
 	const uint32 vAddress = NewAllocatedVT->GetVirtualAddress();
 	const uint32 vAddressX = FMath::ReverseMortonCode2(vAddress);
