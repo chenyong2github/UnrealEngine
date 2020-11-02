@@ -30,7 +30,7 @@ public:
 private:
 	void RegisterComponentVisualizer(FName ComponentClassName, TSharedPtr<FComponentVisualizer> Visualizer);
 
-	void OnWaterBodyAddedToWorld(AActor* Actor);
+	void OnLevelActorAddedToWorld(AActor* Actor);
 
 	void OnMapLoaded(const FString& /* Filename */, bool /*bAsTemplate*/);
 
