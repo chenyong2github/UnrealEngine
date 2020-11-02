@@ -769,7 +769,7 @@ void FRDGBarrierValidation::ValidateBarrierBatchBegin(const FRDGPass* Pass, cons
 
 	if (bAllowedForPass)
 	{
-		for (const auto Pair : ResourceMap.Buffers)
+		for (auto Pair : ResourceMap.Buffers)
 		{
 			FRDGBufferRef Buffer = Pair.Key;
 			const FRHITransitionInfo& Transition = Pair.Value;
@@ -1073,7 +1073,7 @@ void FRDGLogFile::End()
 
 			const FRDGPass* Pass = Passes->Get(PassHandle);
 
-			for (const FRDGPassHandle ProducerHandle : Pass->GetProducers())
+			for (FRDGPassHandle ProducerHandle : Pass->GetProducers())
 			{
 				if (ProducerHandle != ProloguePassHandle)
 				{
